@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/config/os_definitions.gni")
 import("//starboard/build/config/starboard_target_type.gni")
 import("//starboard/contrib/cast/cast.gni")
 import("//testing/test.gni")
@@ -136,7 +135,9 @@ if (is_cobalt_hermetic_build) {
 } else {
   group("starboard_group") {
     public_deps = [ ":starboard_headers_only" ]
-    if (is_android) {
+    if (is_android || is_ios) {
+      # Both Android and tvOS use platform-specific headers in at least
+      # //cobalt.
       public_deps += [ "//starboard($starboard_toolchain)" ]
     } else {
       deps = [ "//starboard($starboard_toolchain)" ]
@@ -179,15 +180,26 @@ source_set("starboard_headers_only") {
     "window.h",
   ]
 
-  if (is_internal_build) {
-    public_deps = [ "//internal/starboard/private:private_starboard_headers" ]
-  }
-
   all_dependent_configs = [
     "//starboard/build/config:starboard",
     "//starboard/build/config/sabi",
     "//base/third_party/symbolize:symbolize_config",
   ]
+}
+
+source_set("starboard_test_main") {
+  testonly = true
+  sources = [ "//starboard/common/test_main.cc" ]
+  public_deps = [ "//testing/gtest" ]
+  deps = [ ":starboard_headers_only" ]
+
+  if (is_ios) {
+    deps += [
+      "//base",
+      "//base/test:test_support",
+      "//starboard/tvos/shared:test_support",
+    ]
+  }
 }
 
 if (current_toolchain == starboard_toolchain) {
@@ -201,7 +213,7 @@ if (current_toolchain == starboard_toolchain) {
     target(starboard_level_gtest_target_type, "starboard_platform_tests") {
       testonly = true
 
-      sources = [ "//starboard/common/test_main.cc" ]
+      deps = [ ":starboard_test_main" ]
 
       public_deps = [
         ":starboard_with_main",
@@ -225,13 +237,13 @@ if (current_toolchain == starboard_toolchain) {
   }
   target(_starboard_unittests_target_type, "starboard_unittests") {
     testonly = true
-    sources = [ "//starboard/common/test_main.cc" ]
     defines = [ "STARBOARD_IMPLEMENTATION_TEST" ]
 
     write_runtime_deps =
         "$root_build_dir/starboard_unittests_wrapper.runtime_deps"
 
     deps = [
+      ":starboard_test_main",
       "//starboard:starboard_headers_only",
       "//starboard/common:common_test",
       "//testing/gtest",
@@ -252,18 +264,9 @@ if (current_toolchain == starboard_toolchain) {
         "//starboard/loader_app:drain_file_test",
         "//starboard/loader_app:installation_manager_test",
         "//starboard/loader_app:memory_tracker_thread",
+        "//starboard/loader_app:read_evergreen_version_test",
+        "//starboard/loader_app:slot_management_test",
       ]
-    }
-
-    # Based on y4vor@s comment:
-    # > `sb_is_evergreen`: Applies only above Starboard and means it is an
-    # > Evergreen/Hermetic build.
-    # > `sb_is_evergreen_compatible`: Applies only at the Starboard
-    # > implementation and means the build would be used for Evergreen.
-    # I think this below, which was copied from //starboard/loader_app/BUILD.gn,
-    # should be `sb_is_evergreen_compatible`.
-    if (sb_is_evergreen) {
-      deps += [ "//starboard/loader_app:slot_management_test" ]
     }
     if (is_android) {
       deps += [ "//starboard/android/shared:starboard_platform_tests" ]

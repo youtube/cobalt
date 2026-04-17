@@ -9,15 +9,50 @@
  */
 #include "test/peer_scenario/scenario_connection.h"
 
-#include "absl/memory/memory.h"
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "api/array_view.h"
+#include "api/candidate.h"
+#include "api/environment/environment.h"
+#include "api/jsep.h"
+#include "api/peer_connection_interface.h"
+#include "api/scoped_refptr.h"
+#include "api/sequence_checker.h"
+#include "api/test/network_emulation/network_emulation_interfaces.h"
+#include "api/test/network_emulation_manager.h"
+#include "api/transport/data_channel_transport_interface.h"
+#include "api/transport/enums.h"
+#include "call/payload_type_picker.h"
+#include "call/rtp_demuxer.h"
+#include "call/rtp_packet_sink_interface.h"
 #include "media/base/rtp_utils.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
+#include "p2p/base/basic_packet_socket_factory.h"
+#include "p2p/base/p2p_constants.h"
+#include "p2p/base/port_allocator.h"
+#include "p2p/base/transport_description.h"
 #include "p2p/client/basic_port_allocator.h"
-#include "pc/channel.h"
+#include "p2p/dtls/dtls_transport_internal.h"
+#include "pc/dtls_transport.h"
 #include "pc/jsep_transport_controller.h"
 #include "pc/rtp_transport_internal.h"
 #include "pc/session_description.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/copy_on_write_buffer.h"
+#include "rtc_base/crypto_random.h"
+#include "rtc_base/network.h"
+#include "rtc_base/rtc_certificate.h"
+#include "rtc_base/ssl_fingerprint.h"
+#include "rtc_base/ssl_identity.h"
 #include "rtc_base/task_queue_for_test.h"
+#include "rtc_base/third_party/sigslot/sigslot.h"
+#include "rtc_base/thread.h"
+#include "rtc_base/thread_annotations.h"
+#include "test/network/network_emulation_manager.h"
 
 namespace webrtc {
 class ScenarioIceConnectionImpl : public ScenarioIceConnection,
@@ -25,18 +60,19 @@ class ScenarioIceConnectionImpl : public ScenarioIceConnection,
                                   private JsepTransportController::Observer,
                                   private RtpPacketSinkInterface {
  public:
-  ScenarioIceConnectionImpl(test::NetworkEmulationManagerImpl* net,
+  ScenarioIceConnectionImpl(const Environment& env,
+                            test::NetworkEmulationManagerImpl* net,
                             IceConnectionObserver* observer);
   ~ScenarioIceConnectionImpl() override;
 
-  void SendRtpPacket(rtc::ArrayView<const uint8_t> packet_view) override;
-  void SendRtcpPacket(rtc::ArrayView<const uint8_t> packet_view) override;
+  void SendRtpPacket(ArrayView<const uint8_t> packet_view) override;
+  void SendRtcpPacket(ArrayView<const uint8_t> packet_view) override;
 
   void SetRemoteSdp(SdpType type, const std::string& remote_sdp) override;
   void SetLocalSdp(SdpType type, const std::string& local_sdp) override;
 
   EmulatedEndpoint* endpoint() override { return endpoint_; }
-  const cricket::TransportDescription& transport_description() const override {
+  const TransportDescription& transport_description() const override {
     return transport_description_;
   }
 
@@ -45,24 +81,27 @@ class ScenarioIceConnectionImpl : public ScenarioIceConnection,
   bool OnTransportChanged(
       const std::string& mid,
       RtpTransportInternal* rtp_transport,
-      rtc::scoped_refptr<DtlsTransport> dtls_transport,
+      scoped_refptr<DtlsTransport> dtls_transport,
       DataChannelTransportInterface* data_channel_transport) override;
 
   void OnRtpPacket(const RtpPacketReceived& packet) override;
   void OnCandidates(const std::string& mid,
-                    const std::vector<cricket::Candidate>& candidates);
+                    const std::vector<Candidate>& candidates);
 
   IceConnectionObserver* const observer_;
   EmulatedEndpoint* const endpoint_;
   EmulatedNetworkManagerInterface* const manager_;
-  rtc::Thread* const signaling_thread_;
-  rtc::Thread* const network_thread_;
-  rtc::scoped_refptr<rtc::RTCCertificate> const certificate_
+  Thread* const signaling_thread_;
+  Thread* const network_thread_;
+  scoped_refptr<RTCCertificate> const certificate_
       RTC_GUARDED_BY(network_thread_);
-  cricket::TransportDescription const transport_description_
+  TransportDescription const transport_description_
       RTC_GUARDED_BY(signaling_thread_);
-  std::unique_ptr<cricket::BasicPortAllocator> port_allocator_
+  std::unique_ptr<NetworkManager> network_manager_;
+  BasicPacketSocketFactory packet_socket_factory_;
+  std::unique_ptr<BasicPortAllocator> port_allocator_
       RTC_GUARDED_BY(network_thread_);
+  PayloadTypePicker payload_type_picker_;
   std::unique_ptr<JsepTransportController> jsep_controller_;
   RtpTransportInternal* rtp_transport_ RTC_GUARDED_BY(network_thread_) =
       nullptr;
@@ -73,45 +112,50 @@ class ScenarioIceConnectionImpl : public ScenarioIceConnection,
 };
 
 std::unique_ptr<ScenarioIceConnection> ScenarioIceConnection::Create(
-    webrtc::test::NetworkEmulationManagerImpl* net,
+    const Environment& env,
+    test::NetworkEmulationManagerImpl* net,
     IceConnectionObserver* observer) {
-  return std::make_unique<ScenarioIceConnectionImpl>(net, observer);
+  return std::make_unique<ScenarioIceConnectionImpl>(env, net, observer);
 }
 
 ScenarioIceConnectionImpl::ScenarioIceConnectionImpl(
+    const Environment& env,
     test::NetworkEmulationManagerImpl* net,
     IceConnectionObserver* observer)
     : observer_(observer),
       endpoint_(net->CreateEndpoint(EmulatedEndpointConfig())),
       manager_(net->CreateEmulatedNetworkManagerInterface({endpoint_})),
-      signaling_thread_(rtc::Thread::Current()),
+      signaling_thread_(Thread::Current()),
       network_thread_(manager_->network_thread()),
-      certificate_(rtc::RTCCertificate::Create(
-          rtc::SSLIdentity::Create("", ::rtc::KT_DEFAULT))),
+      certificate_(RTCCertificate::Create(SSLIdentity::Create("", KT_DEFAULT))),
       transport_description_(
           /*transport_options*/ {},
-          rtc::CreateRandomString(cricket::ICE_UFRAG_LENGTH),
-          rtc::CreateRandomString(cricket::ICE_PWD_LENGTH),
-          cricket::IceMode::ICEMODE_FULL,
-          cricket::ConnectionRole::CONNECTIONROLE_PASSIVE,
-          rtc::SSLFingerprint::CreateFromCertificate(*certificate_.get())
-              .get()),
+          CreateRandomString(ICE_UFRAG_LENGTH),
+          CreateRandomString(ICE_PWD_LENGTH),
+          IceMode::ICEMODE_FULL,
+          ConnectionRole::CONNECTIONROLE_PASSIVE,
+          SSLFingerprint::CreateFromCertificate(*certificate_.get()).get()),
+      network_manager_(manager_->ReleaseNetworkManager()),
+      packet_socket_factory_(manager_->socket_factory()),
       port_allocator_(
-          new cricket::BasicPortAllocator(manager_->network_manager(),
-                                          manager_->packet_socket_factory())),
+          std::make_unique<BasicPortAllocator>(env,
+                                               network_manager_.get(),
+                                               &packet_socket_factory_)),
       jsep_controller_(
-          new JsepTransportController(network_thread_,
+          new JsepTransportController(env,
+                                      network_thread_,
                                       port_allocator_.get(),
                                       /*async_resolver_factory*/ nullptr,
+                                      payload_type_picker_,
                                       CreateJsepConfig())) {
   SendTask(network_thread_, [this] {
     RTC_DCHECK_RUN_ON(network_thread_);
-    uint32_t flags = cricket::PORTALLOCATOR_DISABLE_TCP;
+    uint32_t flags = PORTALLOCATOR_DISABLE_TCP;
     port_allocator_->set_flags(port_allocator_->flags() | flags);
     port_allocator_->Initialize();
     RTC_CHECK(port_allocator_->SetConfiguration(/*stun_servers*/ {},
                                                 /*turn_servers*/ {}, 0,
-                                                webrtc::NO_PRUNE));
+                                                NO_PRUNE));
     jsep_controller_->SetLocalCertificate(certificate_);
   });
 }
@@ -130,64 +174,56 @@ JsepTransportController::Config ScenarioIceConnectionImpl::CreateJsepConfig() {
   config.transport_observer = this;
   config.bundle_policy =
       PeerConnectionInterface::BundlePolicy::kBundlePolicyMaxBundle;
-  config.rtcp_handler = [this](const rtc::CopyOnWriteBuffer& packet,
+  config.rtcp_handler = [this](const CopyOnWriteBuffer& packet,
                                int64_t packet_time_us) {
     RTC_DCHECK_RUN_ON(network_thread_);
     observer_->OnPacketReceived(packet);
   };
-  config.field_trials = &field_trials;
   return config;
 }
 
 void ScenarioIceConnectionImpl::SendRtpPacket(
-    rtc::ArrayView<const uint8_t> packet_view) {
-  rtc::CopyOnWriteBuffer packet(packet_view.data(), packet_view.size(),
-                                ::cricket::kMaxRtpPacketLen);
+    ArrayView<const uint8_t> packet_view) {
+  CopyOnWriteBuffer packet(packet_view.data(), packet_view.size(),
+                           kMaxRtpPacketLen);
   network_thread_->PostTask([this, packet = std::move(packet)]() mutable {
     RTC_DCHECK_RUN_ON(network_thread_);
     if (rtp_transport_ != nullptr)
-      rtp_transport_->SendRtpPacket(&packet, rtc::PacketOptions(),
-                                    cricket::PF_SRTP_BYPASS);
+      rtp_transport_->SendRtpPacket(&packet, AsyncSocketPacketOptions(),
+                                    PF_SRTP_BYPASS);
   });
 }
 
 void ScenarioIceConnectionImpl::SendRtcpPacket(
-    rtc::ArrayView<const uint8_t> packet_view) {
-  rtc::CopyOnWriteBuffer packet(packet_view.data(), packet_view.size(),
-                                ::cricket::kMaxRtpPacketLen);
+    ArrayView<const uint8_t> packet_view) {
+  CopyOnWriteBuffer packet(packet_view.data(), packet_view.size(),
+                           kMaxRtpPacketLen);
   network_thread_->PostTask([this, packet = std::move(packet)]() mutable {
     RTC_DCHECK_RUN_ON(network_thread_);
     if (rtp_transport_ != nullptr)
-      rtp_transport_->SendRtcpPacket(&packet, rtc::PacketOptions(),
-                                     cricket::PF_SRTP_BYPASS);
+      rtp_transport_->SendRtcpPacket(&packet, AsyncSocketPacketOptions(),
+                                     PF_SRTP_BYPASS);
   });
 }
 void ScenarioIceConnectionImpl::SetRemoteSdp(SdpType type,
                                              const std::string& remote_sdp) {
   RTC_DCHECK_RUN_ON(signaling_thread_);
-  remote_description_ = webrtc::CreateSessionDescription(type, remote_sdp);
+  remote_description_ = CreateSessionDescription(type, remote_sdp);
   jsep_controller_->SubscribeIceCandidateGathered(
       [this](const std::string& transport,
-             const std::vector<cricket::Candidate>& candidate) {
+             const std::vector<Candidate>& candidate) {
         ScenarioIceConnectionImpl::OnCandidates(transport, candidate);
       });
 
   auto res = jsep_controller_->SetRemoteDescription(
-      remote_description_->GetType(), remote_description_->description());
+      remote_description_->GetType(),
+      local_description_ ? local_description_->description() : nullptr,
+      remote_description_->description());
   RTC_CHECK(res.ok()) << res.message();
   RtpDemuxerCriteria criteria;
   for (const auto& content : remote_description_->description()->contents()) {
-    if (content.media_description()->as_audio()) {
-      for (const auto& codec :
-           content.media_description()->as_audio()->codecs()) {
-        criteria.payload_types().insert(codec.id);
-      }
-    }
-    if (content.media_description()->as_video()) {
-      for (const auto& codec :
-           content.media_description()->as_video()->codecs()) {
-        criteria.payload_types().insert(codec.id);
-      }
+    for (const auto& codec : content.media_description()->codecs()) {
+      criteria.payload_types().insert(codec.id);
     }
   }
 
@@ -201,9 +237,10 @@ void ScenarioIceConnectionImpl::SetRemoteSdp(SdpType type,
 void ScenarioIceConnectionImpl::SetLocalSdp(SdpType type,
                                             const std::string& local_sdp) {
   RTC_DCHECK_RUN_ON(signaling_thread_);
-  local_description_ = webrtc::CreateSessionDescription(type, local_sdp);
+  local_description_ = CreateSessionDescription(type, local_sdp);
   auto res = jsep_controller_->SetLocalDescription(
-      local_description_->GetType(), local_description_->description());
+      local_description_->GetType(), local_description_->description(),
+      remote_description_ ? remote_description_->description() : nullptr);
   RTC_CHECK(res.ok()) << res.message();
   jsep_controller_->MaybeStartGathering();
 }
@@ -211,7 +248,7 @@ void ScenarioIceConnectionImpl::SetLocalSdp(SdpType type,
 bool ScenarioIceConnectionImpl::OnTransportChanged(
     const std::string& mid,
     RtpTransportInternal* rtp_transport,
-    rtc::scoped_refptr<DtlsTransport> dtls_transport,
+    scoped_refptr<DtlsTransport> dtls_transport,
     DataChannelTransportInterface* data_channel_transport) {
   RTC_DCHECK_RUN_ON(network_thread_);
   if (rtp_transport == nullptr) {
@@ -234,7 +271,7 @@ void ScenarioIceConnectionImpl::OnRtpPacket(const RtpPacketReceived& packet) {
 
 void ScenarioIceConnectionImpl::OnCandidates(
     const std::string& mid,
-    const std::vector<cricket::Candidate>& candidates) {
+    const std::vector<Candidate>& candidates) {
   RTC_DCHECK_RUN_ON(signaling_thread_);
   observer_->OnIceCandidates(mid, candidates);
 }

@@ -4,13 +4,15 @@
 
 package org.chromium.chrome.browser.download.home;
 
+import org.chromium.build.annotations.NullMarked;
+
 /** Helper class to build default or base {@link DownloadManagerUiConfig.Builder} instances. */
+@NullMarked
 public class DownloadManagerUiConfigHelper {
     private DownloadManagerUiConfigHelper() {}
 
     /** Creates a {@link DownloadManagerUiConfig.Builder} based on feature flags. */
     public static DownloadManagerUiConfig.Builder fromFlags() {
-        return new DownloadManagerUiConfig.Builder()
-                .setSupportsGrouping(true);
+        return new DownloadManagerUiConfig.Builder().setSupportsGrouping(true);
     }
 }

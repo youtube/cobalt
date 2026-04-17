@@ -35,6 +35,13 @@ enum class DEVICE_BLUETOOTH_EXPORT WriteType {
   kWritePrepare,
 };
 
+enum class DEVICE_BLUETOOTH_EXPORT LeDiscoverableMode {
+  kInvalid = 0,
+  kNonDiscoverable = 1,
+  kLimitedDiscoverable = 2,
+  kGeneralDiscoverable = 3,
+};
+
 enum class DEVICE_BLUETOOTH_EXPORT LePhy {
   kInvalid = 0,
   kPhy1m = 1,
@@ -247,7 +254,8 @@ class DEVICE_BLUETOOTH_EXPORT FlossGattClientObserver
                                      int32_t timeout,
                                      GattStatus status) {}
 
-  // Notification when there is an addition/removal/change of a GATT service.
+  // Notification from the peer that some records are updated, so a re-discovery
+  // is in order.
   virtual void GattServiceChanged(std::string address) {}
 };
 
@@ -268,8 +276,7 @@ class DEVICE_BLUETOOTH_EXPORT FlossGattServerObserver
   virtual void GattServerRegistered(GattStatus status, int32_t server) {}
 
   // A server connection has changed state.
-  virtual void GattServerConnectionState(GattStatus status,
-                                         int32_t server_id,
+  virtual void GattServerConnectionState(int32_t server_id,
                                          bool connected,
                                          std::string address) {}
 
@@ -376,7 +383,6 @@ class DEVICE_BLUETOOTH_EXPORT FlossGattManagerClient
   void RemoveObserver(FlossGattClientObserver* observer);
   void RemoveServerObserver(FlossGattServerObserver* observer);
 
-  // TODO(@sarveshkalwit): Rename client functions, ex. Connect->ClientConnect
   // Create a GATT client connection to a remote device on given transport.
   virtual void Connect(ResponseCallback<Void> callback,
                        const std::string& remote_device,
@@ -432,7 +438,7 @@ class DEVICE_BLUETOOTH_EXPORT FlossGattManagerClient
       const int32_t handle,
       const WriteType write_type,
       const AuthRequired auth_required,
-      const std::vector<uint8_t> data);
+      base::span<const uint8_t> data);
 
   // Reads the descriptor for a given characteristic |handle|.
   virtual void ReadDescriptor(ResponseCallback<Void> callback,
@@ -445,7 +451,7 @@ class DEVICE_BLUETOOTH_EXPORT FlossGattManagerClient
                                const std::string& remote_device,
                                const int32_t handle,
                                const AuthRequired auth_required,
-                               const std::vector<uint8_t> data);
+                               base::span<const uint8_t> data);
 
   // Register for updates on a specific characteristic.
   virtual void RegisterForNotification(ResponseCallback<GattStatus> callback,
@@ -475,9 +481,6 @@ class DEVICE_BLUETOOTH_EXPORT FlossGattManagerClient
                                           const int32_t timeout,
                                           const uint16_t min_ce_len,
                                           const uint16_t max_ce_len);
-
-  // Unregister a GATT server.
-  virtual void UnregisterServer(ResponseCallback<Void> callback);
 
   // Create a GATT server connection to a remote device on given transport.
   virtual void ServerConnect(ResponseCallback<Void> callback,
@@ -532,6 +535,7 @@ class DEVICE_BLUETOOTH_EXPORT FlossGattManagerClient
   void Init(dbus::Bus* bus,
             const std::string& service_name,
             const int adapter_index,
+            base::Version version,
             base::OnceClosure on_ready) override;
 
  protected:
@@ -590,8 +594,7 @@ class DEVICE_BLUETOOTH_EXPORT FlossGattManagerClient
 
   // FlossGattServerObserver overrides
   void GattServerRegistered(GattStatus status, int32_t server_id) override;
-  void GattServerConnectionState(GattStatus status,
-                                 int32_t server_id,
+  void GattServerConnectionState(int32_t server_id,
                                  bool connected,
                                  std::string address) override;
   void GattServerServiceAdded(GattStatus status, GattService service) override;
@@ -650,7 +653,7 @@ class DEVICE_BLUETOOTH_EXPORT FlossGattManagerClient
                                GattStatus status) override;
 
   // Managed by FlossDBusManager - we keep local pointer to access object proxy.
-  base::raw_ptr<dbus::Bus> bus_ = nullptr;
+  raw_ptr<dbus::Bus> bus_ = nullptr;
 
   // Path used for gatt api calls by this class.
   dbus::ObjectPath gatt_adapter_path_;

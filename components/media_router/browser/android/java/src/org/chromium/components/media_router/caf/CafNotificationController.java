@@ -4,12 +4,15 @@
 
 package org.chromium.components.media_router.caf;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Intent;
 
-import org.chromium.components.browser_ui.media.MediaNotificationUma;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.components.media_router.MediaRouterClient;
 
 /** NotificationController implementation for presentation. */
+@NullMarked
 public class CafNotificationController extends BaseNotificationController {
     public CafNotificationController(BaseSessionController sessionController) {
         super(sessionController);
@@ -18,16 +21,11 @@ public class CafNotificationController extends BaseNotificationController {
 
     @Override
     public Intent createContentIntent() {
-        Intent contentIntent = createBringTabToFrontIntent();
-        if (contentIntent != null) {
-            contentIntent.putExtra(MediaNotificationUma.INTENT_EXTRA_NAME,
-                    MediaNotificationUma.Source.PRESENTATION);
-        }
-        return contentIntent;
+        return createBringTabToFrontIntent();
     }
 
     @Override
     public int getNotificationId() {
-        return MediaRouterClient.getInstance().getPresentationNotificationId();
+        return assumeNonNull(MediaRouterClient.getInstance()).getPresentationNotificationId();
     }
 }

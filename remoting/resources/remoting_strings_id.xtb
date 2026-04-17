@@ -4,7 +4,6 @@
 <translation id="1002108253973310084">Versi protokol yang tidak kompatibel terdeteksi. Pastikan Anda memasang software versi terbaru di kedua komputer dan coba lagi.</translation>
 <translation id="1008557486741366299">Jangan Sekarang</translation>
 <translation id="1201402288615127009">Berikutnya</translation>
-<translation id="1296511125400541222">Hak Cipta 2023 The Chromium Authors. Semua Hak Dilindungi Undang-Undang.</translation>
 <translation id="1297009705180977556">Terjadi error saat menghubungkan ke <ph name="HOSTNAME" /></translation>
 <translation id="1450760146488584666">Objek yang diminta tidak ada.</translation>
 <translation id="1480046233931937785">Kredit</translation>
@@ -29,7 +28,7 @@ Jika '<ph name="SERVICE_SCRIPT_NAME" />' sudah dicentang, hapus centangnya, lalu
 <translation id="2329392777730037872">Gagal membuka <ph name="URL" /> di klien.</translation>
 <translation id="2359808026110333948">Lanjutkan</translation>
 <translation id="2366718077645204424">Tidak dapat menjangkau host. Ini mungkin karena konfigurasi jaringan yang Anda gunakan.</translation>
-<translation id="2370754117186920852"><ph name="OPTIONAL_OFFLINE_REASON" />  Terakhir terlihat online <ph name="RELATIVE_TIMESTAMP" />.</translation>
+<translation id="242591256144136845">Hak Cipta 2025 Google LLC. Semua Hak Dilindungi Undang-Undang.</translation>
 <translation id="2504109125669302160">Beri izin 'Accessibility' ke <ph name="PRODUCT_NAME" /></translation>
 <translation id="2509394361235492552">Terhubung ke <ph name="HOSTNAME" /></translation>
 <translation id="2540992418118313681">Ingin membagikan komputer ini agar dapat dilihat dan dikontrol oleh pengguna lain?</translation>
@@ -41,9 +40,10 @@ Jika '<ph name="SERVICE_SCRIPT_NAME" />' sudah dicentang, hapus centangnya, lalu
 <translation id="2758123043070977469">Terjadi error saat mengautentikasi. Silakan login kembali.</translation>
 <translation id="2803375539583399270">Masukkan PIN</translation>
 <translation id="2919669478609886916">Saat ini Anda sedang berbagi mesin ini dengan pengguna lain. Apakah Anda ingin terus berbagi?</translation>
+<translation id="2929683002824598593">Bagikan perangkat</translation>
 <translation id="2939145106548231838">Autentikasi untuk menghosting</translation>
 <translation id="3027681561976217984">Mode sentuh</translation>
-<translation id="3106379468611574572">Komputer jarak jauh tidak menanggapi permintaan sambungan. Verifikasikan bahwa komputer jarak jauh sedang online dan coba lagi.</translation>
+<translation id="3106379468611574572">Komputer jarak jauh tidak menanggapi permintaan sambungan. Verifikasi bahwa komputer jarak jauh sedang online dan coba lagi.</translation>
 <translation id="3150823315463303127">Hosting gagal membaca kebijakan.</translation>
 <translation id="3171922709365450819">Perangkat ini tidak didukung oleh klien ini karena memerlukan autentikasi pihak ketiga.</translation>
 <translation id="3197730452537982411">Desktop Jarak Jauh</translation>
@@ -54,7 +54,6 @@ Jika '<ph name="SERVICE_SCRIPT_NAME" />' sudah dicentang, hapus centangnya, lalu
 <translation id="3423542133075182604">Proses Remote Kunci Keamanan</translation>
 <translation id="3581045510967524389">Tidak dapat terhubung ke jaringan. Periksa bahwa perangkat Anda telah terhubung.</translation>
 <translation id="3596628256176442606">Layanan ini mengaktifkan sambungan masuk dari klien Chromoting.</translation>
-<translation id="369442766917958684">Offline.</translation>
 <translation id="3695446226812920698">Pelajari caranya</translation>
 <translation id="3776024066357219166">Sesi Chrome Desktop Jarak Jauh Anda telah berakhir.</translation>
 <translation id="3858860766373142691">Nama</translation>
@@ -85,16 +84,16 @@ Jika '<ph name="SERVICE_SCRIPT_NAME" />' sudah dicentang, hapus centangnya, lalu
 <translation id="4741792197137897469">Autentikasi gagal. Login ke Chrome lagi.</translation>
 <translation id="4784508858340177375">Server X error atau gagal dimulai.</translation>
 <translation id="4798680868612952294">Opsi mouse</translation>
-<translation id="4804818685124855865">Putuskan koneksi</translation>
+<translation id="4804818685124855865">Berhenti hubungkan</translation>
 <translation id="4808503597364150972">Masukkan PIN Anda untuk <ph name="HOSTNAME" />.</translation>
 <translation id="4812684235631257312">Host</translation>
 <translation id="4867841927763172006">Kirim PrtScn</translation>
-<translation id="4960795469833295568">Hak Cipta 2023 Google LLC. Semua Hak Dilindungi Undang-Undang.</translation>
 <translation id="4974476491460646149">Sambungan terputus untuk <ph name="HOSTNAME" /></translation>
 <translation id="4985296110227979402">Pertama, Anda perlu menyiapkan komputer untuk akses jarak jauh</translation>
 <translation id="4987330545941822761">Chrome Desktop Jarak Jauh tidak dapat menentukan browser untuk membuka URL secara lokal. Pilih dari daftar di bawah ini.</translation>
 <translation id="5064360042339518108"><ph name="HOSTNAME" /> (offline)</translation>
 <translation id="507204348399810022">Yakin ingin menonaktifkan sambungan jarak jauh ke <ph name="HOSTNAME" />?</translation>
+<translation id="5095424396646120601">Laporan Error</translation>
 <translation id="5170982930780719864">ID host tidak valid.</translation>
 <translation id="5204575267916639804">FAQ</translation>
 <translation id="5222676887888702881">Logout</translation>
@@ -107,7 +106,6 @@ Jika '<ph name="SERVICE_SCRIPT_NAME" />' sudah dicentang, hapus centangnya, lalu
 <translation id="5601503069213153581">PIN</translation>
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="5708869785009007625">Desktop Anda saat ini sedang dibagikan dengan <ph name="USER" />.</translation>
-<translation id="5750083143895808682">Login sebagai <ph name="EMAIL_ADDRESS" />.</translation>
 <translation id="579702532610384533">Sambungkan ulang</translation>
 <translation id="5810269635982033450">Layar berfungsi seperti trackpad</translation>
 <translation id="5823554426827907568"><ph name="CLIENT_USERNAME" /> telah meminta akses untuk melihat layar Anda serta mengontrol keyboard dan mouse Anda. Tekan ''<ph name="IDS_SHARE_CONFIRM_DIALOG_DECLINE" />'' jika Anda tidak mengharapkan permintaan ini. Atau, pilih ''<ph name="IDS_SHARE_CONFIRM_DIALOG_CONFIRM" />'' untuk mengizinkan koneksi saat sudah siap.</translation>
@@ -121,10 +119,12 @@ Jika '<ph name="SERVICE_SCRIPT_NAME" />' sudah dicentang, hapus centangnya, lalu
 <translation id="6178645564515549384">Hosting perpesanan asli untuk bantuan jarak jauh</translation>
 <translation id="618120821413932081">Mengupdate resolusi desktop jarak jauh untuk menyesuaikan ukuran jendela</translation>
 <translation id="6223301979382383752">Buka Preferensi Screen Recording</translation>
+<translation id="6252344563748670011"><ph name="CLIENT_USERNAME" /> telah meminta akses untuk melihat layar Anda serta mengontrol keyboard dan mouse Anda. Apakah Anda ingin berbagi perangkat?</translation>
 <translation id="6284412385303060032">Host yang berjalan di layar logika konsol telah dinonaktifkan untuk mendukung mode tirai dengan beralih ke host yang berjalan di sesi khusus pengguna.</translation>
 <translation id="6542902059648396432">Melaporkan masalah...</translation>
 <translation id="6583902294974160967">Dukungan</translation>
 <translation id="6612717000975622067">Kirim Ctrl-Alt-Del</translation>
+<translation id="6625262630437221505">{0,plural, =1{Jika Anda tidak mengambil tindakan, perangkat akan otomatis mulai berbagi dalam # detik.}other{Jika Anda tidak mengambil tindakan, perangkat akan otomatis mulai berbagi dalam # detik.}}</translation>
 <translation id="6654753848497929428">Bagikan</translation>
 <translation id="677755392401385740">Host dimulai untuk pengguna: <ph name="HOST_USERNAME" />.</translation>
 <translation id="6902524959760471898">Aplikasi bantuan untuk membuka URL di klien <ph name="PRODUCT_NAME" /></translation>
@@ -138,6 +138,7 @@ Jika '<ph name="SERVICE_SCRIPT_NAME" />' sudah dicentang, hapus centangnya, lalu
 <translation id="7067321367069083429">Layar berfungsi seperti layar sentuh</translation>
 <translation id="7116737094673640201">Selamat Datang di Chrome Desktop Jarak Jauh</translation>
 <translation id="7144878232160441200">Coba lagi</translation>
+<translation id="7298392173540380852">Hak Cipta 2025 The Chromium Authors. Semua Hak Dilindungi Undang-Undang.</translation>
 <translation id="7312846573060934304">Hosting offline.</translation>
 <translation id="7319983568955948908">Hentikan Berbagi</translation>
 <translation id="7359298090707901886">Browser yang dipilih tidak dapat digunakan untuk membuka URL di perangkat lokal.</translation>

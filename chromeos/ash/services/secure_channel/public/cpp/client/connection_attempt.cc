@@ -23,8 +23,7 @@ void ConnectionAttempt::NotifyConnectionAttemptFailure(
   if (delegate_) {
     delegate_->OnConnectionAttemptFailure(reason);
   } else {
-    PA_LOG(ERROR) << "NotifyConnectionAttemptFailure: No delegate added.";
-    NOTREACHED();
+    NOTREACHED() << "NotifyConnectionAttemptFailure: No delegate added.";
   }
 }
 
@@ -33,8 +32,7 @@ void ConnectionAttempt::NotifyConnection(
   if (delegate_) {
     delegate_->OnConnection(std::move(channel));
   } else {
-    PA_LOG(ERROR) << "NotifyConnection: No delegate added.";
-    NOTREACHED();
+    NOTREACHED() << "NotifyConnection: No delegate added.";
   }
 }
 

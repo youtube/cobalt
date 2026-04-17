@@ -6,15 +6,20 @@ import 'chrome://resources/cr_elements/cr_icons.css.js';
 import 'chrome://resources/cr_elements/cr_shared_style.css.js';
 import './shared_style.css.js';
 import './site_favicon.js';
-import './password_details_card.js';
+import './credential_details/password_details_card.js';
+import './credential_details/passkey_details_card.js';
+import './user_utils_mixin.js';
 
-import {CrIconButtonElement} from 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
+import type {CrIconButtonElement} from 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './password_details_section.html.js';
 import {PasswordManagerImpl, PasswordViewPageInteractions} from './password_manager_proxy.js';
-import {Page, Route, RouteObserverMixin, Router} from './router.js';
+import type {Route} from './router.js';
+import {Page, RouteObserverMixin, Router} from './router.js';
+import {UserUtilMixin} from './user_utils_mixin.js';
 
 export interface PasswordDetailsSectionElement {
   $: {
@@ -23,7 +28,8 @@ export interface PasswordDetailsSectionElement {
   };
 }
 
-const PasswordDetailsSectionElementBase = RouteObserverMixin(PolymerElement);
+const PasswordDetailsSectionElementBase =
+    PrefsMixin(UserUtilMixin(RouteObserverMixin(PolymerElement)));
 
 export class PasswordDetailsSectionElement extends
     PasswordDetailsSectionElementBase {
@@ -36,10 +42,15 @@ export class PasswordDetailsSectionElement extends
   }
 
   static get properties() {
-    return {selectedGroup_: Object};
+    return {
+      selectedGroup_: {
+        type: Object,
+      },
+    };
   }
 
-  private selectedGroup_: chrome.passwordsPrivate.CredentialGroup|undefined;
+  declare private selectedGroup_: chrome.passwordsPrivate.CredentialGroup|
+      undefined;
   private savedPasswordsListener_: (
       (entries: chrome.passwordsPrivate.PasswordUiEntry[]) => void)|null = null;
   private passwordManagerAuthTimeoutListener_: () => void;
@@ -86,7 +97,9 @@ export class PasswordDetailsSectionElement extends
     if (group && group.name) {
       this.selectedGroup_ = group;
       this.startListeningForUpdates_();
-      this.$.backButton.focus();
+      setTimeout(() => {  // Async to allow page to load.
+        this.$.backButton.focus();
+      });
     } else {
       // Navigation happened directly. Find group with matching name.
       PasswordManagerImpl.getInstance().recordPasswordViewInteraction(
@@ -96,11 +109,10 @@ export class PasswordDetailsSectionElement extends
   }
 
   private navigateBack_() {
-    Router.getInstance().navigateTo(Page.PASSWORDS);
-  }
-
-  private getGroupName_(): string {
-    return this.selectedGroup_ ? this.selectedGroup_!.name : '';
+    // Keep search query when navigating back.
+    Router.getInstance().navigateTo(
+        Page.PASSWORDS, null,
+        Router.getInstance().currentRoute.queryParameters);
   }
 
   private async assignMatchingGroup(groupName: string) {
@@ -121,8 +133,9 @@ export class PasswordDetailsSectionElement extends
       return;
     }
     assert(selectedGroup);
-    this.updateShownCredentials(selectedGroup).catch(this.navigateBack_);
-    this.startListeningForUpdates_();
+    this.updateShownCredentials(selectedGroup)
+        .then(this.startListeningForUpdates_.bind(this))
+        .catch(this.navigateBack_);
     PasswordManagerImpl.getInstance().recordPasswordViewInteraction(
         PasswordViewPageInteractions.CREDENTIAL_FOUND);
   }
@@ -179,7 +192,11 @@ export class PasswordDetailsSectionElement extends
    * if no, navigate back to Passwords page.
    */
   private refreshGroupInfo_(groups: chrome.passwordsPrivate.CredentialGroup[]) {
-    assert(this.selectedGroup_);
+    if (!this.selectedGroup_) {
+      // It's possible refresh was triggered during page opening or closure when
+      // `selectedGroup_` is not set. In this case do nothing.
+      return;
+    }
     const currentIds = this.selectedGroup_.entries.map(entry => entry.id);
     let matchingGroup = groups.filter(
         group => group.entries.some(entry => currentIds.includes(entry.id)))[0];
@@ -198,17 +215,30 @@ export class PasswordDetailsSectionElement extends
     }
     assert(matchingGroup);
     const newIds = matchingGroup.entries.map(entry => entry.id);
-    // If ids match, don't do anything.
-    if (currentIds.sort().toString() === newIds.sort().toString()) {
+    const currentStores =
+        this.selectedGroup_.entries.map(entry => entry.storedIn);
+    const newStores = matchingGroup.entries.map(entry => entry.storedIn);
+    // If ids match and stores used for entries haven't changed, don't do
+    // anything.
+    if (currentIds.sort().toString() === newIds.sort().toString() &&
+        currentStores.sort().toString() === newStores.sort().toString()) {
       return;
     }
     this.updateShownCredentials(matchingGroup)
         .then(() => {
           // Use navigation to update page title if needed.
           Router.getInstance().navigateTo(
-              Page.PASSWORD_DETAILS, this.selectedGroup_);
+              Page.PASSWORD_DETAILS, this.selectedGroup_,
+              Router.getInstance().currentRoute.queryParameters);
         })
         .catch(this.navigateBack_);
+  }
+
+  /*
+   * Only register the first card to show the Password Sharing Help Bubble.
+   */
+  private shouldRegisterSharingPromo_(index: number) {
+    return index === 0;
   }
 }
 

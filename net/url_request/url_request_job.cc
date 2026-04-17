@@ -22,16 +22,20 @@
 #include "net/base/load_states.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_delegate.h"
-#include "net/base/proxy_server.h"
+#include "net/base/proxy_chain.h"
 #include "net/base/schemeful_site.h"
 #include "net/cert/x509_certificate.h"
 #include "net/cookies/cookie_setting_override.h"
+#include "net/cookies/cookie_util.h"
+#include "net/filter/source_stream.h"
+#include "net/filter/source_stream_type.h"
 #include "net/log/net_log.h"
 #include "net/log/net_log_capture_mode.h"
 #include "net/log/net_log_event_type.h"
 #include "net/log/net_log_with_source.h"
 #include "net/nqe/network_quality_estimator.h"
 #include "net/ssl/ssl_private_key.h"
+#include "net/url_request/redirect_info.h"
 #include "net/url_request/redirect_util.h"
 #include "net/url_request/url_request_context.h"
 
@@ -55,7 +59,7 @@ base::Value::Dict SourceStreamSetParams(SourceStream* source_stream) {
 class URLRequestJob::URLRequestJobSourceStream : public SourceStream {
  public:
   explicit URLRequestJobSourceStream(URLRequestJob* job)
-      : SourceStream(SourceStream::TYPE_NONE), job_(job) {
+      : SourceStream(SourceStreamType::kNone), job_(job) {
     DCHECK(job_);
   }
 
@@ -85,12 +89,7 @@ class URLRequestJob::URLRequestJobSourceStream : public SourceStream {
   const raw_ptr<URLRequestJob> job_;
 };
 
-URLRequestJob::URLRequestJob(URLRequest* request)
-    : request_(request),
-      request_initiator_site_(request->initiator().has_value()
-                                  ? absl::make_optional(net::SchemefulSite(
-                                        request->initiator().value()))
-                                  : absl::nullopt) {}
+URLRequestJob::URLRequestJob(URLRequest* request) : request_(request) {}
 
 URLRequestJob::~URLRequestJob() = default;
 
@@ -140,6 +139,10 @@ int64_t URLRequestJob::GetTotalSentBytes() const {
   return 0;
 }
 
+int64_t URLRequestJob::GetReceivedBodyBytes() const {
+  return 0;
+}
+
 LoadState URLRequestJob::GetLoadState() const {
   return LOAD_STATE_IDLE;
 }
@@ -148,11 +151,19 @@ bool URLRequestJob::GetCharset(std::string* charset) {
   return false;
 }
 
+void URLRequestJob::GetClientSideContentDecodingTypes(
+    std::vector<net::SourceStreamType>* types) const {}
+
 void URLRequestJob::GetResponseInfo(HttpResponseInfo* info) {
 }
 
 void URLRequestJob::GetLoadTimingInfo(LoadTimingInfo* load_timing_info) const {
   // Only certain request types return more than just request start times.
+}
+
+void URLRequestJob::PopulateLoadTimingInternalInfo(
+    LoadTimingInternalInfo* load_timing_internal_info) const {
+  // Only certain request types populate LoadTimingInternalInfo.
 }
 
 bool URLRequestJob::GetTransactionRemoteEndpoint(IPEndPoint* endpoint) const {
@@ -206,7 +217,6 @@ std::unique_ptr<AuthChallengeInfo> URLRequestJob::GetAuthChallengeInfo() {
   // This will only be called if NeedsAuth() returns true, in which
   // case the derived class should implement this!
   NOTREACHED();
-  return nullptr;
 }
 
 void URLRequestJob::SetAuth(const AuthCredentials& credentials) {
@@ -233,19 +243,6 @@ void URLRequestJob::ContinueDespiteLastError() {
   // If this code was reached, we are trying to recover from an error that
   // we don't know how to recover from.
   NOTREACHED();
-}
-
-void URLRequestJob::FollowDeferredRedirect(
-    const absl::optional<std::vector<std::string>>& removed_headers,
-    const absl::optional<net::HttpRequestHeaders>& modified_headers) {
-  // OnReceivedRedirect must have been called.
-  DCHECK(deferred_redirect_info_);
-
-  // It is possible that FollowRedirect will delete |this|, so it is not safe to
-  // pass along a reference to |deferred_redirect_info_|.
-  absl::optional<RedirectInfo> redirect_info =
-      std::move(deferred_redirect_info_);
-  FollowRedirect(*redirect_info, removed_headers, modified_headers);
 }
 
 int64_t URLRequestJob::prefilter_bytes_read() const {
@@ -275,6 +272,10 @@ ConnectionAttempts URLRequestJob::GetConnectionAttempts() const {
 }
 
 void URLRequestJob::CloseConnectionOnDestruction() {}
+
+bool URLRequestJob::NeedsRetryWithStorageAccess() {
+  return false;
+}
 
 namespace {
 
@@ -385,7 +386,6 @@ GURL URLRequestJob::ComputeReferrerForPolicy(
   }
 
   NOTREACHED();
-  return GURL();
 }
 
 int URLRequestJob::NotifyConnected(const TransportInfo& info,
@@ -404,9 +404,13 @@ void URLRequestJob::NotifySSLCertificateError(int net_error,
   request_->NotifySSLCertificateError(net_error, ssl_info, fatal);
 }
 
-bool URLRequestJob::CanSetCookie(const net::CanonicalCookie& cookie,
-                                 CookieOptions* options) const {
-  return request_->CanSetCookie(cookie, options);
+bool URLRequestJob::CanSetCookie(
+    const net::CanonicalCookie& cookie,
+    CookieOptions* options,
+    const net::FirstPartySetMetadata& first_party_set_metadata,
+    CookieInclusionStatus* inclusion_status) const {
+  return request_->CanSetCookie(cookie, options, first_party_set_metadata,
+                                inclusion_status);
 }
 
 void URLRequestJob::NotifyHeadersComplete() {
@@ -416,7 +420,8 @@ void URLRequestJob::NotifyHeadersComplete() {
   // Initialize to the current time, and let the subclass optionally override
   // the time stamps if it has that information.  The default request_time is
   // set by URLRequest before it calls our Start method.
-  request_->response_info_.response_time = base::Time::Now();
+  request_->response_info_.response_time =
+      request_->response_info_.original_response_time = base::Time::Now();
   GetResponseInfo(&request_->response_info_);
 
   request_->OnHeadersComplete();
@@ -425,53 +430,9 @@ void URLRequestJob::NotifyHeadersComplete() {
   int http_status_code;
   bool insecure_scheme_was_upgraded;
 
-  if (IsRedirectResponse(&new_location, &http_status_code,
-                         &insecure_scheme_was_upgraded)) {
-    // Redirect response bodies are not read. Notify the transaction
-    // so it does not treat being stopped as an error.
-    DoneReadingRedirectResponse();
-
-    // Invalid redirect targets are failed early before
-    // NotifyReceivedRedirect. This means the delegate can assume that, if it
-    // accepts the redirect, future calls to OnResponseStarted correspond to
-    // |redirect_info.new_url|.
-    int redirect_check_result = CanFollowRedirect(new_location);
-    if (redirect_check_result != OK) {
-      OnDone(redirect_check_result, true /* notify_done */);
-      return;
-    }
-
-    // When notifying the URLRequest::Delegate, it can destroy the request,
-    // which will destroy |this|.  After calling to the URLRequest::Delegate,
-    // pointer must be checked to see if |this| still exists, and if not, the
-    // code must return immediately.
-    base::WeakPtr<URLRequestJob> weak_this(weak_factory_.GetWeakPtr());
-
-    RedirectInfo redirect_info = RedirectInfo::ComputeRedirectInfo(
-        request_->method(), request_->url(), request_->site_for_cookies(),
-        request_->first_party_url_policy(), request_->referrer_policy(),
-        request_->referrer(), http_status_code, new_location,
-        net::RedirectUtil::GetReferrerPolicyHeader(
-            request_->response_headers()),
-        insecure_scheme_was_upgraded, CopyFragmentOnRedirect(new_location));
-    bool defer_redirect = false;
-    request_->NotifyReceivedRedirect(redirect_info, &defer_redirect);
-
-    // Ensure that the request wasn't detached, destroyed, or canceled in
-    // NotifyReceivedRedirect.
-    if (!weak_this || request_->failed())
-      return;
-
-    if (defer_redirect) {
-      deferred_redirect_info_ = std::move(redirect_info);
-    } else {
-      FollowRedirect(redirect_info, absl::nullopt, /*  removed_headers */
-                     absl::nullopt /* modified_headers */);
-    }
-    return;
-  }
-
   if (NeedsAuth()) {
+    CHECK(!IsRedirectResponse(&new_location, &http_status_code,
+                              &insecure_scheme_was_upgraded));
     std::unique_ptr<AuthChallengeInfo> auth_info = GetAuthChallengeInfo();
     // Need to check for a NULL auth_info because the server may have failed
     // to send a challenge with the 401 response.
@@ -480,6 +441,40 @@ void URLRequestJob::NotifyHeadersComplete() {
       // Wait for SetAuth or CancelAuth to be called.
       return;
     }
+  }
+
+  if (NeedsRetryWithStorageAccess()) {
+    DoneReadingRetryResponse();
+    request_->RetryWithStorageAccess();
+    return;
+  }
+
+  if (IsRedirectResponse(&new_location, &http_status_code,
+                         &insecure_scheme_was_upgraded)) {
+    CHECK(!NeedsAuth());
+    // Redirect response bodies are not read. Notify the transaction
+    // so it does not treat being stopped as an error.
+    DoneReadingRedirectResponse();
+
+    // Invalid redirect targets are failed early. This means the delegate can
+    // assume that, if it accepts the redirect, future calls to
+    // OnResponseStarted correspond to |redirect_info.new_url|.
+    int redirect_check_result = CanFollowRedirect(new_location);
+    if (redirect_check_result != OK) {
+      OnDone(redirect_check_result, true /* notify_done */);
+      return;
+    }
+
+    RedirectInfo redirect_info = RedirectInfo::ComputeRedirectInfo(
+        request_->method(), request_->url(), request_->site_for_cookies(),
+        request_->first_party_url_policy(), request_->referrer_policy(),
+        request_->referrer(), http_status_code, new_location,
+        net::RedirectUtil::GetReferrerPolicyHeader(
+            request_->response_headers()),
+        insecure_scheme_was_upgraded, CopyFragmentOnRedirect(new_location));
+    request_->ReceivedRedirect(redirect_info);
+    // |this| may be destroyed at this point.
+    return;
   }
 
   NotifyFinalHeadersReceived();
@@ -507,7 +502,7 @@ void URLRequestJob::NotifyFinalHeadersReceived() {
       OnDone(ERR_CONTENT_DECODING_INIT_FAILED, true /* notify_done */);
       return;
     }
-    if (source_stream_->type() == SourceStream::TYPE_NONE) {
+    if (source_stream_->type() == SourceStreamType::kNone) {
       // If the subclass didn't set |expected_content_size|, and there are
       // headers, and the response body is not compressed, try to get the
       // expected content size from the headers.
@@ -644,12 +639,14 @@ void URLRequestJob::DoneReading() {
 void URLRequestJob::DoneReadingRedirectResponse() {
 }
 
+void URLRequestJob::DoneReadingRetryResponse() {}
+
 std::unique_ptr<SourceStream> URLRequestJob::SetUpSourceStream() {
   return std::make_unique<URLRequestJobSourceStream>(this);
 }
 
-void URLRequestJob::SetProxyServer(const ProxyServer& proxy_server) {
-  request_->proxy_server_ = proxy_server;
+void URLRequestJob::SetProxyChain(const ProxyChain& proxy_chain) {
+  request_->proxy_chain_ = proxy_chain;
 }
 
 void URLRequestJob::SourceStreamReadComplete(bool synchronous, int result) {
@@ -722,20 +719,13 @@ int URLRequestJob::CanFollowRedirect(const GURL& new_url) {
   return OK;
 }
 
-void URLRequestJob::FollowRedirect(
-    const RedirectInfo& redirect_info,
-    const absl::optional<std::vector<std::string>>& removed_headers,
-    const absl::optional<net::HttpRequestHeaders>& modified_headers) {
-  request_->Redirect(redirect_info, removed_headers, modified_headers);
-}
-
 void URLRequestJob::GatherRawReadStats(int bytes_read) {
   DCHECK(raw_read_buffer_ || bytes_read == 0);
   DCHECK_NE(ERR_IO_PENDING, bytes_read);
 
   if (bytes_read > 0) {
     // If there is a filter, bytes will be logged after the filter is applied.
-    if (source_stream_->type() != SourceStream::TYPE_NONE &&
+    if (source_stream_->type() != SourceStreamType::kNone &&
         request()->net_log().IsCapturing()) {
       request()->net_log().AddByteTransferEvent(
           NetLogEventType::URL_REQUEST_JOB_BYTES_READ, bytes_read,

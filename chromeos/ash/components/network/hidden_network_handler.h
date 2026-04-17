@@ -23,7 +23,7 @@ class NetworkMetadataStore;
 // - Must not be a managed network.
 class COMPONENT_EXPORT(CHROMEOS_NETWORK) HiddenNetworkHandler {
  public:
-  HiddenNetworkHandler();
+  HiddenNetworkHandler() = default;
   HiddenNetworkHandler(const HiddenNetworkHandler&) = delete;
   HiddenNetworkHandler& operator=(const HiddenNetworkHandler&) = delete;
   ~HiddenNetworkHandler() = default;
@@ -47,12 +47,11 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) HiddenNetworkHandler {
   // Allows us to check for wrongly configured networks on a daily basis.
   base::RepeatingTimer daily_event_timer_;
 
-  raw_ptr<ManagedNetworkConfigurationHandler, ExperimentalAsh>
+  raw_ptr<ManagedNetworkConfigurationHandler>
       managed_network_configuration_handler_ = nullptr;
-  raw_ptr<NetworkStateHandler, ExperimentalAsh> network_state_handler_ =
+  raw_ptr<NetworkStateHandler> network_state_handler_ = nullptr;
+  raw_ptr<NetworkMetadataStore, DanglingUntriaged> network_metadata_store_ =
       nullptr;
-  raw_ptr<NetworkMetadataStore, DanglingUntriaged | ExperimentalAsh>
-      network_metadata_store_ = nullptr;
 };
 
 }  // namespace ash

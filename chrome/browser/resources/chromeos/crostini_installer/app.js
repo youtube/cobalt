@@ -2,23 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://resources/cr_elements/cr_button/cr_button.js';
-import 'chrome://resources/cr_elements/cr_input/cr_input.js';
-import 'chrome://resources/cr_elements/cr_slider/cr_slider.js';
-import 'chrome://resources/cr_elements/cr_radio_group/cr_radio_group.js';
-import 'chrome://resources/cr_elements/cr_radio_button/cr_radio_button.js';
-import 'chrome://resources/cr_elements/icons.html.js';
-import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
+import 'chrome://resources/ash/common/cr_elements/cr_button/cr_button.js';
+import 'chrome://resources/ash/common/cr_elements/cr_input/cr_input.js';
+import 'chrome://resources/ash/common/cr_elements/cr_slider/cr_slider.js';
+import 'chrome://resources/ash/common/cr_elements/cr_radio_group/cr_radio_group.js';
+import 'chrome://resources/ash/common/cr_elements/cr_radio_button/cr_radio_button.js';
+import 'chrome://resources/ash/common/cr_elements/icons.html.js';
+import 'chrome://resources/ash/common/cr_elements/cr_shared_vars.css.js';
 import 'chrome://resources/polymer/v3_0/iron-icon/iron-icon.js';
 import 'chrome://resources/polymer/v3_0/paper-progress/paper-progress.js';
-import 'chrome://crostini-installer/strings.m.js';
+import '/strings.m.js';
 
-import {BrowserProxy} from 'chrome://crostini-installer/browser_proxy.js';
 import {assert, assertNotReached} from 'chrome://resources/ash/common/assert.js';
 import {loadTimeData} from 'chrome://resources/ash/common/load_time_data.m.js';
 import {Polymer} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './app.html.js';
+import {BrowserProxy} from './browser_proxy.js';
+import {InstallerError, InstallerState} from './crostini_types.mojom-webui.js';
 
 /**
  * Enum for the state of `crostini-installer-app`. Not to confused with
@@ -34,8 +35,6 @@ const State = {
 };
 
 const MAX_USERNAME_LENGTH = 32;
-const InstallerState = crostini.mojom.InstallerState;
-const InstallerError = crostini.mojom.InstallerError;
 const NoDiskSpaceError = 'no_disk_space';
 
 const UNAVAILABLE_USERNAMES = [
@@ -196,7 +195,7 @@ Polymer({
         BrowserProxy.getInstance().handler.requestAmountOfFreeDiskSpace();
 
     document.addEventListener('keyup', event => {
-      if (event.key == 'Escape') {
+      if (event.key === 'Escape') {
         this.cancelOrBack_();
         event.preventDefault();
       }
@@ -319,6 +318,7 @@ Polymer({
 
   /**
    * @param {State} state
+   * @param {String} error
    * @returns {string}
    * @private
    */
@@ -333,6 +333,7 @@ Polymer({
         titleId = 'installingTitle';
         break;
       case State.ERROR:
+        // eslint-disable-next-line eqeqeq
         if (error == InstallerError.kNeedUpdate) {
           titleId = 'needUpdateTitle';
         } else {
@@ -366,7 +367,8 @@ Polymer({
    */
   showInstallButton_(state, error) {
     return state === State.CONFIGURE ||
-        (state === State.ERROR && error != NoDiskSpaceError &&
+        (state === State.ERROR && error !== NoDiskSpaceError &&
+         // eslint-disable-next-line eqeqeq
          error != InstallerError.kNeedUpdate);
   },
 
@@ -400,6 +402,7 @@ Polymer({
    * @private
    */
   showSettingsButton_(state, error) {
+    // eslint-disable-next-line eqeqeq
     return state === State.ERROR && error == InstallerError.kNeedUpdate;
   },
 

@@ -64,7 +64,6 @@ CSSRotate* FromCSSRotateXYZ(const CSSFunctionValue& value) {
                                CSSUnitValue::Create(1), angle);
     default:
       NOTREACHED();
-      return nullptr;
   }
 }
 
@@ -128,7 +127,6 @@ CSSRotate* CSSRotate::FromCSSValue(const CSSFunctionValue& value) {
       return FromCSSRotateXYZ(value);
     default:
       NOTREACHED();
-      return nullptr;
   }
 }
 

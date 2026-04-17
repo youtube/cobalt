@@ -24,8 +24,8 @@
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_match_type.h"
 #include "components/omnibox/browser/location_bar_model.h"
+#include "components/omnibox/browser/omnibox_controller.h"
 #include "components/omnibox/browser/omnibox_edit_model.h"
-#include "components/omnibox/browser/omnibox_edit_model_delegate.h"
 #include "components/omnibox/browser/omnibox_field_trial.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "components/search/search.h"
@@ -49,128 +49,23 @@
 
 namespace {
 
-// Return true if either non-prefix autocompletion is enabled.
-bool RichAutocompletionEitherNonPrefixEnabled() {
-  return OmniboxFieldTrial::kRichAutocompletionAutocompleteNonPrefixAll.Get() ||
-         OmniboxFieldTrial::
-             kRichAutocompletionAutocompleteNonPrefixShortcutProvider.Get();
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+// Return true if the given match uses a vector icon with a background.
+bool HasVectorIconBackground(const AutocompleteMatch& match) {
+  return match.type == AutocompleteMatchType::HISTORY_CLUSTER ||
+         match.type == AutocompleteMatchType::PEDAL;
 }
+#endif
 
 }  // namespace
-
-OmniboxView::State::State() = default;
-OmniboxView::State::State(const State& state) = default;
-
-// static
-std::u16string OmniboxView::StripJavascriptSchemas(const std::u16string& text) {
-  const std::u16string kJsPrefix(
-      base::StrCat({url::kJavaScriptScheme16, u":"}));
-
-  bool found_JavaScript = false;
-  size_t i = 0;
-  // Find the index of the first character that isn't whitespace, a control
-  // character, or a part of a JavaScript: scheme.
-  while (i < text.size()) {
-    if (base::IsUnicodeWhitespace(text[i]) || (text[i] < 0x20)) {
-      ++i;
-    } else {
-      if (!base::EqualsCaseInsensitiveASCII(text.substr(i, kJsPrefix.length()),
-                                            kJsPrefix))
-        break;
-
-      // We've found a JavaScript scheme. Continue searching to ensure that
-      // strings like "javascript:javascript:alert()" are fully stripped.
-      found_JavaScript = true;
-      i += kJsPrefix.length();
-    }
-  }
-
-  // If we found any "JavaScript:" schemes in the text, return the text starting
-  // at the first non-whitespace/control character after the last instance of
-  // the scheme.
-  if (found_JavaScript)
-    return text.substr(i);
-
-  return text;
-}
-
-// static
-std::u16string OmniboxView::SanitizeTextForPaste(const std::u16string& text) {
-  if (text.empty())
-    return std::u16string();  // Nothing to do.
-
-  size_t end = text.find_first_not_of(base::kWhitespaceUTF16);
-  if (end == std::u16string::npos)
-    return u" ";  // Convert all-whitespace to single space.
-  // Because |end| points at the first non-whitespace character, the loop
-  // below will skip leading whitespace.
-
-  // Reserve space for the sanitized output.
-  std::u16string output;
-  output.reserve(text.size());  // Guaranteed to be large enough.
-
-  // Copy all non-whitespace sequences.
-  // Do not copy trailing whitespace.
-  // Copy all other whitespace sequences that do not contain CR/LF.
-  // Convert all other whitespace sequences that do contain CR/LF to either ' '
-  // or nothing, depending on whether there are any other sequences that do not
-  // contain CR/LF.
-  bool output_needs_lf_conversion = false;
-  bool seen_non_lf_whitespace = false;
-  const auto copy_range = [&text, &output](size_t begin, size_t end) {
-    output +=
-        text.substr(begin, (end == std::u16string::npos) ? end : (end - begin));
-  };
-  constexpr char16_t kNewline[] = {'\n', 0};
-  constexpr char16_t kSpace[] = {' ', 0};
-  while (true) {
-    // Copy this non-whitespace sequence.
-    size_t begin = end;
-    end = text.find_first_of(base::kWhitespaceUTF16, begin + 1);
-    copy_range(begin, end);
-
-    // Now there is either a whitespace sequence, or the end of the string.
-    if (end != std::u16string::npos) {
-      // There is a whitespace sequence; see if it contains CR/LF.
-      begin = end;
-      end = text.find_first_not_of(base::kWhitespaceNoCrLfUTF16, begin);
-      if ((end != std::u16string::npos) && (text[end] != '\n') &&
-          (text[end] != '\r')) {
-        // Found a non-trailing whitespace sequence without CR/LF.  Copy it.
-        seen_non_lf_whitespace = true;
-        copy_range(begin, end);
-        continue;
-      }
-    }
-
-    // |end| either points at the end of the string or a CR/LF.
-    if (end != std::u16string::npos)
-      end = text.find_first_not_of(base::kWhitespaceUTF16, end + 1);
-    if (end == std::u16string::npos)
-      break;  // Ignore any trailing whitespace.
-
-    // The preceding whitespace sequence contained CR/LF.  Convert to a single
-    // LF that we'll fix up below the loop.
-    output_needs_lf_conversion = true;
-    output += '\n';
-  }
-
-  // Convert LFs to ' ' or '' depending on whether there were non-LF whitespace
-  // sequences.
-  if (output_needs_lf_conversion) {
-    base::ReplaceChars(output, kNewline,
-                       seen_non_lf_whitespace ? kSpace : std::u16string(),
-                       &output);
-  }
-
-  return StripJavascriptSchemas(output);
-}
 
 OmniboxView::~OmniboxView() = default;
 
 bool OmniboxView::IsEditingOrEmpty() const {
-  return (model_.get() && model_->user_input_in_progress()) ||
-         (GetOmniboxTextLength() == 0);
+  return model()->user_input_in_progress() || GetOmniboxTextLength() == 0 ||
+         (OmniboxFieldTrial::IsOnFocusZeroSuggestEnabledInContext(
+              model()->GetPageClassification()) &&
+          model()->PopupIsOpen());
 }
 
 // TODO (manukh) OmniboxView::GetIcon is very similar to
@@ -183,74 +78,115 @@ ui::ImageModel OmniboxView::GetIcon(int dip_size,
                                     SkColor color_current_page_icon,
                                     SkColor color_vectors,
                                     SkColor color_bright_vectors,
+                                    SkColor color_vectors_with_background,
                                     IconFetchedCallback on_icon_fetched,
                                     bool dark_mode) const {
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
   // This is used on desktop only.
   NOTREACHED();
-  return ui::ImageModel();
 #else
 
-  // For tests, model_ will be null.
-  if (!model_) {
-    AutocompleteMatch fake_match;
-    fake_match.type = AutocompleteMatchType::URL_WHAT_YOU_TYPED;
-    const gfx::VectorIcon& vector_icon = fake_match.GetVectorIcon(false);
-    return ui::ImageModel::FromVectorIcon(vector_icon, color_current_page_icon,
-                                          dip_size);
-  }
-
-  if (model_->ShouldShowCurrentPageIcon()) {
-    LocationBarModel* location_bar_model =
-        edit_model_delegate_->GetLocationBarModel();
-    return ui::ImageModel::FromVectorIcon(location_bar_model->GetVectorIcon(),
-                                          color_current_page_icon, dip_size);
+  if (model()->ShouldShowCurrentPageIcon()) {
+    return ui::ImageModel::FromVectorIcon(
+        controller_->client()->GetVectorIcon(), color_current_page_icon,
+        dip_size);
   }
 
   gfx::Image favicon;
-  AutocompleteMatch match = model_->CurrentMatch(nullptr);
-  if (AutocompleteMatch::IsSearchType(match.type)) {
-    // For search queries, display default search engine's favicon. If the
-    // default search engine is google return the icon instead of favicon for
+  AutocompleteMatch match = model()->CurrentMatch(nullptr);
+  if (!match.icon_url.is_empty()) {
+    const SkBitmap* bitmap = model()->GetIconBitmap(match.icon_url);
+    if (bitmap) {
+      return ui::ImageModel::FromImage(
+          controller_->client()->GetSizedIcon(bitmap));
+    }
+  }
+  if (AutocompleteMatch::IsSearchType(match.type) ||
+      match.enterprise_search_aggregator_type ==
+          AutocompleteMatch::EnterpriseSearchAggregatorType::PEOPLE) {
+    const TemplateURL* turl =
+        !match.keyword.empty() ? controller_->client()
+                                     ->GetTemplateURLService()
+                                     ->GetTemplateURLForKeyword(match.keyword)
+                               : nullptr;
+    // For search queries, display match's search engine's favicon. If the
+    // search engine is google, return the icon instead of favicon for
     // search queries with the chrome refresh feature.
-    if (OmniboxFieldTrial::IsChromeRefreshIconsEnabled()) {
-      if (search::DefaultSearchProviderIsGoogle(
-              model_->client()->GetTemplateURLService())) {
-        // For non chrome builds this would return an empty image model. In
-        // those cases revert to using the favicon.
-        ui::ImageModel icon = model_->GetSuperGIcon(dip_size, dark_mode);
-        if (!icon.IsEmpty()) {
-          return icon;
-        }
+    if (turl && search::TemplateURLIsGoogle(turl, controller_->client()
+                                                      ->GetTemplateURLService()
+                                                      ->search_terms_data())) {
+      // For non-chrome builds this would return an empty image model. In
+      // those cases revert to using the favicon.
+      ui::ImageModel icon = model()->GetSuperGIcon(dip_size, dark_mode);
+      if (!icon.IsEmpty()) {
+        return icon;
+      }
+    } else if (turl && turl->CreatedByEnterpriseSearchAggregatorPolicy()) {
+      // If the search engine is enterprise search aggregator, return the icon
+      // from the bitmap instead of favicon.
+      const SkBitmap* bitmap = model()->GetIconBitmap(turl->favicon_url());
+      if (bitmap) {
+        return ui::ImageModel::FromImage(
+            controller_->client()->GetSizedIcon(bitmap));
+      }
+      // For non-chrome builds this would return an empty image model. In
+      // those cases revert to using the favicon.
+      gfx::Image icon = model()->GetAgentspaceIcon(dark_mode);
+      if (!icon.IsEmpty()) {
+        return ui::ImageModel::FromImage(icon);
       }
     }
 
-    favicon = model_->client()->GetFaviconForDefaultSearchProvider(
-        std::move(on_icon_fetched));
-
+    if (!match.keyword.empty()) {
+      favicon = controller_->client()->GetFaviconForKeywordSearchProvider(
+          turl, std::move(on_icon_fetched));
+    } else {
+      favicon = controller_->client()->GetFaviconForDefaultSearchProvider(
+          std::move(on_icon_fetched));
+    }
   } else if (match.type != AutocompleteMatchType::HISTORY_CLUSTER) {
-    // For site suggestions, display site's favicon.
-    favicon = model_->client()->GetFaviconForPageUrl(
-        match.destination_url, std::move(on_icon_fetched));
+    // The starter pack suggestions are a unique case. These suggestions
+    // normally use a favicon image that cannot be styled further by client
+    // code. In order to apply custom styling to the icon (e.g. colors), we
+    // ignore this favicon in favor of using a vector icon which has better
+    // styling support.
+    if (!AutocompleteMatch::IsStarterPackType(match.type)) {
+      // For site suggestions, display site's favicon.
+      favicon = controller_->client()->GetFaviconForPageUrl(
+          match.destination_url, std::move(on_icon_fetched));
+    }
   }
 
   if (!favicon.IsEmpty())
-    return ui::ImageModel::FromImage(model_->client()->GetSizedIcon(favicon));
+    return ui::ImageModel::FromImage(
+        controller_->client()->GetSizedIcon(favicon));
   // If the client returns an empty favicon, fall through to provide the
   // generic vector icon. |on_icon_fetched| may or may not be called later.
   // If it's never called, the vector icon we provide below should remain.
 
   // For bookmarked suggestions, display bookmark icon.
   bookmarks::BookmarkModel* bookmark_model =
-      model_->client()->GetBookmarkModel();
+      controller_->client()->GetBookmarkModel();
   const bool is_bookmarked =
       bookmark_model && bookmark_model->IsBookmarked(match.destination_url);
 
-  const gfx::VectorIcon& vector_icon = match.GetVectorIcon(is_bookmarked);
-  const auto& color = match.type == AutocompleteMatchType::HISTORY_CLUSTER
+  // For starter pack suggestions, use template url to generate proper vector
+  // icon.
+  const TemplateURL* turl =
+      match.associated_keyword
+          ? controller_->client()
+                ->GetTemplateURLService()
+                ->GetTemplateURLForKeyword(match.associated_keyword->keyword)
+          : nullptr;
+  const gfx::VectorIcon& vector_icon = match.GetVectorIcon(is_bookmarked, turl);
+  const auto& color = (match.type == AutocompleteMatchType::HISTORY_CLUSTER ||
+                       match.type == AutocompleteMatchType::STARTER_PACK)
                           ? color_bright_vectors
                           : color_vectors;
-  return ui::ImageModel::FromVectorIcon(vector_icon, color, dip_size);
+  return ui::ImageModel::FromVectorIcon(
+      vector_icon,
+      HasVectorIconBackground(match) ? color_vectors_with_background : color,
+      dip_size);
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
 }
 
@@ -259,40 +195,26 @@ void OmniboxView::SetUserText(const std::u16string& text) {
 }
 
 void OmniboxView::SetUserText(const std::u16string& text, bool update_popup) {
-  if (model_)
-    model_->SetUserText(text);
+  model()->SetUserText(text);
   SetWindowTextAndCaretPos(text, text.length(), update_popup, true);
 }
 
 void OmniboxView::RevertAll() {
-  // TODO(manukh): Remove this histogram when `kRedoCurrentMatch` &
-  //   `kRevertModelBeforeClosingPopup` launch or are abandoned.
-  SCOPED_UMA_HISTOGRAM_TIMER_MICROS("Omnibox.OmniboxViewRevertAll");
+  // This will clear the model's `user_input_in_progress_`.
+  model()->Revert();
 
-  if (base::FeatureList::IsEnabled(omnibox::kRevertModelBeforeClosingPopup)) {
-    // This will clear the model's `user_input_in_progress_`.
-    if (model_)
-      model_->Revert();
-
-    // This will stop the `AutocompleteController`. This should happen after
-    // `user_input_in_progress_` is cleared above; otherwise, closing the popup
-    // will trigger unnecessary `AutocompleteClassifier::Classify()` calls to
-    // try to update the views which are unnecessary since they'll be thrown
-    // away during the model revert anyways.
-    CloseOmniboxPopup();
-  } else {
-    // Same as above, but in reverse order.
-    CloseOmniboxPopup();
-    if (model_)
-      model_->Revert();
-  }
+  // This will stop the `AutocompleteController`. This should happen after
+  // `user_input_in_progress_` is cleared above; otherwise, closing the popup
+  // will trigger unnecessary `AutocompleteClassifier::Classify()` calls to
+  // try to update the views which are unnecessary since they'll be thrown
+  // away during the model revert anyways.
+  CloseOmniboxPopup();
 
   TextChanged();
 }
 
 void OmniboxView::CloseOmniboxPopup() {
-  if (model_)
-    model_->StopAutocomplete();
+  controller()->StopAutocomplete(/*clear_result=*/true);
 }
 
 bool OmniboxView::IsImeShowingPopup() const {
@@ -317,8 +239,6 @@ void OmniboxView::GetState(State* state) {
   state->keyword = model()->keyword();
   state->is_keyword_selected = model()->is_keyword_selected();
   GetSelectionBounds(&state->sel_start, &state->sel_end);
-  if (RichAutocompletionEitherNonPrefixEnabled())
-    state->all_sel_length = GetAllSelectionsLength();
 }
 
 OmniboxView::StateChanges OmniboxView::GetStateChanges(const State& before,
@@ -351,30 +271,36 @@ OmniboxView::StateChanges OmniboxView::GetStateChanges(const State& before,
   state_changes.just_deleted_text =
       before.text.length() > after.text.length() &&
       after.sel_start <= std::min(before.sel_start, before.sel_end);
-  if (RichAutocompletionEitherNonPrefixEnabled()) {
-    state_changes.just_deleted_text =
-        state_changes.just_deleted_text &&
-        after.sel_start <=
-            std::max(before.sel_start, before.sel_end) - before.all_sel_length;
-  }
 
   return state_changes;
 }
 
-OmniboxView::OmniboxView(OmniboxEditModelDelegate* edit_model_delegate,
-                         std::unique_ptr<OmniboxClient> client)
-    : edit_model_delegate_(edit_model_delegate) {
-  // |client| can be null in tests.
-  if (client) {
-    model_ = std::make_unique<OmniboxEditModel>(this, edit_model_delegate,
-                                                std::move(client));
-  }
+OmniboxView::OmniboxView(std::unique_ptr<OmniboxClient> client)
+    : controller_(std::make_unique<OmniboxController>(
+          /*view=*/this,
+          std::move(client))) {}
+
+OmniboxEditModel* OmniboxView::model() {
+  return const_cast<OmniboxEditModel*>(
+      const_cast<const OmniboxView*>(this)->model());
+}
+
+const OmniboxEditModel* OmniboxView::model() const {
+  return controller_->edit_model();
+}
+
+OmniboxController* OmniboxView::controller() {
+  return const_cast<OmniboxController*>(
+      const_cast<const OmniboxView*>(this)->controller());
+}
+
+const OmniboxController* OmniboxView::controller() const {
+  return controller_.get();
 }
 
 void OmniboxView::TextChanged() {
   EmphasizeURLComponents();
-  if (model_)
-    model_->OnChanged();
+  model()->OnChanged();
 }
 
 void OmniboxView::UpdateTextStyle(
@@ -402,7 +328,7 @@ void OmniboxView::UpdateTextStyle(
 
   const bool is_extension_url =
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-      url_scheme == base::UTF8ToUTF16(extensions::kExtensionScheme);
+      base::EqualsASCII(url_scheme, extensions::kExtensionScheme);
 #else
       false;
 #endif

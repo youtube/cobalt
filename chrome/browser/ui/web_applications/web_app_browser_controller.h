@@ -6,26 +6,24 @@
 #define CHROME_BROWSER_UI_WEB_APPLICATIONS_WEB_APP_BROWSER_CONTROLLER_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
+#include "base/callback_list.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
-#include "chrome/browser/web_applications/app_registrar_observer.h"
+#include "chrome/browser/web_applications/tabbed_mode_scope_matcher.h"
 #include "chrome/browser/web_applications/web_app_icon_manager.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_app_install_manager.h"
 #include "chrome/browser/web_applications/web_app_install_manager_observer.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "components/services/app_service/public/cpp/icon_types.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "third_party/liburlpattern/options.h"
-#include "third_party/liburlpattern/pattern.h"
+#include "components/webapps/common/web_app_id.h"
 #include "third_party/re2/src/re2/set.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/models/image_model.h"
@@ -34,18 +32,14 @@
 #include "components/content_relationship_verification/digital_asset_links_handler.h"  // nogncheck
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chromeos/crosapi/mojom/web_app_service.mojom-forward.h"
-#endif
-
 class Browser;
 class SkBitmap;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 namespace ash {
 class SystemWebAppDelegate;
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace content_relationship_verification {
 class DigitalAssetLinksHandler;
@@ -67,10 +61,10 @@ class WebAppBrowserController : public AppBrowserController,
  public:
   WebAppBrowserController(WebAppProvider& provider,
                           Browser* browser,
-                          AppId app_id,
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+                          webapps::AppId app_id,
+#if BUILDFLAG(IS_CHROMEOS)
                           const ash::SystemWebAppDelegate* system_app,
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
                           bool has_tab_strip);
   WebAppBrowserController(const WebAppBrowserController&) = delete;
   WebAppBrowserController& operator=(const WebAppBrowserController&) = delete;
@@ -79,18 +73,20 @@ class WebAppBrowserController : public AppBrowserController,
   // AppBrowserController:
   using HomeTabCallbackList = base::OnceCallbackList<void()>;
   bool HasMinimalUiButtons() const override;
-  bool DoesHomeTabIconExist() const;
   gfx::ImageSkia GetHomeTabIcon() const;
+  gfx::ImageSkia GetFallbackHomeTabIcon() const;
   ui::ImageModel GetWindowAppIcon() const override;
   ui::ImageModel GetWindowIcon() const override;
-  absl::optional<SkColor> GetThemeColor() const override;
-  absl::optional<SkColor> GetBackgroundColor() const override;
+  std::optional<SkColor> GetThemeColor() const override;
+  std::optional<SkColor> GetBackgroundColor() const override;
   std::u16string GetTitle() const override;
   std::u16string GetAppShortName() const override;
   std::u16string GetFormattedUrlOrigin() const override;
   GURL GetAppStartUrl() const override;
   GURL GetAppNewTabUrl() const override;
+  bool ShouldHideNewTabButton() const override;
   bool IsUrlInHomeTabScope(const GURL& url) const override;
+  bool ShouldShowAppIconOnTab(int index) const override;
   bool IsUrlInAppScope(const GURL& url) const override;
   WebAppBrowserController* AsWebAppBrowserController() override;
   bool CanUserUninstall() const override;
@@ -109,16 +105,13 @@ class WebAppBrowserController : public AppBrowserController,
   void SetIsolatedWebAppTrueForTesting() override;
   gfx::Rect GetDefaultBounds() const override;
   bool HasReloadButton() const override;
-#if !BUILDFLAG(IS_CHROMEOS)
-  bool HasProfileMenuButton() const override;
-#endif  // !BUILDFLAG(IS_CHROMEOS)
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  const ash::SystemWebAppDelegate* system_app() const override;
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-
 #if BUILDFLAG(IS_CHROMEOS)
+  const ash::SystemWebAppDelegate* system_app() const override;
   bool ShouldShowCustomTabBar() const override;
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#else
+  bool HasProfileMenuButton() const override;
+  bool IsProfileMenuButtonVisible() const override;
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_MAC)
   bool AlwaysShowToolbarInFullscreen() const override;
@@ -127,10 +120,9 @@ class WebAppBrowserController : public AppBrowserController,
 
   // WebAppInstallManagerObserver:
   void OnWebAppUninstalled(
-      const AppId& app_id,
+      const webapps::AppId& app_id,
       webapps::WebappUninstallSource uninstall_source) override;
-  void OnWebAppManifestUpdated(const AppId& app_id,
-                               base::StringPiece old_name) override;
+  void OnWebAppManifestUpdated(const webapps::AppId& app_id) override;
   void OnWebAppInstallManagerDestroyed() override;
 
   base::CallbackListSubscription AddHomeTabIconLoadCallbackForTesting(
@@ -167,39 +159,27 @@ class WebAppBrowserController : public AppBrowserController,
       content_relationship_verification::RelationshipCheckResult result);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  void OnGetAssociatedAndroidPackage(crosapi::mojom::WebAppAndroidPackagePtr);
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
-
   // Helper function to return the resolved background color from the manifest
   // given the current state of dark/light mode.
-  absl::optional<SkColor> GetResolvedManifestBackgroundColor() const;
-
-  // Returns the set of scope patterns for the home tab scope of tabbed web
-  // apps.
-  absl::optional<RE2::Set> GetTabbedHomeTabScope() const;
+  std::optional<SkColor> GetResolvedManifestBackgroundColor() const;
 
   const raw_ref<WebAppProvider> provider_;
 
   // Save the display mode at time of launch. The web app display mode may
   // change with manifest updates but the app window should continue using
   // whatever it was launched with.
-  DisplayMode manifest_display_mode_ = DisplayMode::kUndefined;
   DisplayMode effective_display_mode_ = DisplayMode::kUndefined;
   bool is_isolated_web_app_for_testing_ = false;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  raw_ptr<const ash::SystemWebAppDelegate> system_app_;
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-  mutable absl::optional<ui::ImageModel> app_icon_;
-  mutable absl::optional<gfx::ImageSkia> home_tab_icon_;
-
-  mutable absl::optional<RE2::Set> home_tab_scope_;
+#if BUILDFLAG(IS_CHROMEOS)
+  const raw_ptr<const ash::SystemWebAppDelegate> system_app_;
+#endif  // BUILDFLAG(IS_CHROMEOS)
+  mutable std::optional<ui::ImageModel> app_icon_;
 
 #if BUILDFLAG(IS_CHROMEOS)
   // The result of digital asset link verification of the web app.
   // Only used for web-only TWAs installed through the Play Store.
-  absl::optional<bool> is_verified_;
+  std::optional<bool> is_verified_;
 
   std::unique_ptr<content_relationship_verification::DigitalAssetLinksHandler>
       asset_link_handler_;

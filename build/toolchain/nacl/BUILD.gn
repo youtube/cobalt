@@ -48,10 +48,10 @@ if (host_os == "win") {
   scriptsuffix = ""
 }
 
-# When the compilers are run via goma, rbe or ccache rather than directly by
-# GN/Ninja, the rbe/goma/ccache wrapper handles .bat files but gets confused
+# When the compilers are run via reclient or ccache rather than directly by
+# GN/Ninja, the reclient/ccache wrapper handles .bat files but gets confused
 # by being given the scriptprefix.
-if (host_os == "win" && !use_goma && !use_remoteexec && cc_wrapper == "") {
+if (host_os == "win" && !use_reclient && cc_wrapper == "") {
   compiler_scriptprefix = scriptprefix
 } else {
   compiler_scriptprefix = ""
@@ -90,7 +90,7 @@ template("pnacl_toolchain") {
                            ])
 
     # Note this is not the usual "ld = cxx" because "ld" uses are
-    # never run via goma, so this needs scriptprefix.
+    # never run via rbe, so this needs scriptprefix.
     ld = scriptprefix + toolprefix + "clang++" + scriptsuffix
 
     toolchain_args = {
@@ -161,10 +161,7 @@ nacl_glibc_toolchain("x86") {
   toolchain_revision = nacl_x86_glibc_rev
 
   # Rely on the :compiler_cpu_abi config adding the -m32 flag here rather
-  # than using the i686-nacl binary directly.  This is a because i686-nacl-gcc
-  # is a shell script wrapper around x86_64-nacl-gcc and goma has trouble with
-  # compiler executables that are shell scripts (so the i686 'compiler' is not
-  # currently in goma).
+  # than using the i686-nacl binary directly.
   toolchain_tuple = "x86_64-nacl"
 }
 
@@ -250,15 +247,67 @@ template("nacl_irt_toolchain") {
     # so we need to link w/ the C++ linker.
     ld = "${python_path} ${link_irt} --tls-edit=${tls_edit} --link-cmd=${cxx} --readelf-cmd=${readelf}"
 
+    # reclient requires explicit upload of toolchain lib
+    if (is_chromeos && use_remoteexec) {
+      if (defined(invoker.extra_cppflags) && invoker.extra_cppflags != "") {
+        extra_cppflags = " " + invoker.extra_cppflags
+      } else {
+        extra_cppflags = ""
+      }
+
+      libdir = rebase_path("${nacl_toolchain_dir}/${toolchain_package}/lib",
+                           root_build_dir)
+      extra_cppflags += " -B${libdir}"
+    }
+
+    toolchain_args = {
+      current_cpu = toolchain_cpu
+      is_clang = true
+      use_lld = false
+      is_nacl_saigo = true
+      host_toolchain_is_msan = is_msan
+      host_toolchain_msan_track_origins = msan_track_origins
+    }
+
+    # TODO(ncbray): depend on link script
+    deps = [ tls_edit_label ]
+  }
+}
+
+# This is essentially a clone of nacl_irt_toolchain above, except it uses the
+# standard ld. This toolchain can be used to build regular nexes for NaCl
+# browser tests.
+template("nacl_test_irt_toolchain") {
+  toolchain_cpu = target_name
+  assert(defined(invoker.toolchain_tuple), "Must define toolchain_tuple")
+
+  toolchain_package = "saigo_newlib"
+  toolchain_revision = saigo_newlib_rev
+  toolprefix = rebase_path("${nacl_toolchain_dir}/${toolchain_package}/bin/" +
+                               invoker.toolchain_tuple + "-",
+                           root_build_dir)
+
+  if (host_os == "win") {
+    # Flip the slashes so that copy/paste of the commands works.
+    # This is also done throughout build\toolchain\win\BUILD.gn
+    toolprefix = string_replace(toolprefix, "/", "\\")
+  }
+
+  nacl_toolchain("test_irt_" + toolchain_cpu) {
+    cc = toolprefix + "clang" + toolsuffix
+    cxx = toolprefix + "clang++" + toolsuffix
+    ar = toolprefix + "ar" + toolsuffix
+    ld = cxx
+    readelf = toolprefix + "readelf" + toolsuffix
+    nm = toolprefix + "nm" + toolsuffix
+    strip = toolprefix + "strip" + toolsuffix
+
     toolchain_args = {
       current_cpu = toolchain_cpu
       is_clang = true
       use_lld = false
       is_nacl_saigo = true
     }
-
-    # TODO(ncbray): depend on link script
-    deps = [ tls_edit_label ]
   }
 }
 
@@ -268,6 +317,9 @@ template("nacl_clang_toolchains") {
     toolchain_tuple = invoker.toolchain_tuple
   }
   nacl_irt_toolchain(target_name) {
+    toolchain_tuple = invoker.toolchain_tuple
+  }
+  nacl_test_irt_toolchain(target_name) {
     toolchain_tuple = invoker.toolchain_tuple
   }
 }

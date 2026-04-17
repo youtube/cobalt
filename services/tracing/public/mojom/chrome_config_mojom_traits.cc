@@ -32,7 +32,6 @@ bool StructTraits<
       break;
     default:
       NOTREACHED();
-      break;
   }
 
   return true;

@@ -2,9 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/capture/video/win/pin_base_win.h"
 
 #include "base/check.h"
+#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/notreached.h"
 
 namespace media {
@@ -13,6 +20,8 @@ namespace media {
 class TypeEnumerator final : public IEnumMediaTypes,
                              public base::RefCountedThreadSafe<TypeEnumerator> {
  public:
+  REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE();
+
   explicit TypeEnumerator(PinBase* pin) : pin_(pin), index_(0) {}
 
   // Implement from IUnknown.
@@ -88,16 +97,16 @@ class TypeEnumerator final : public IEnumMediaTypes,
   }
 
   IFACEMETHODIMP Clone(IEnumMediaTypes** clone) override {
-    TypeEnumerator* type_enum = new TypeEnumerator(pin_.get());
+    auto type_enum = base::MakeRefCounted<TypeEnumerator>(pin_.get());
     type_enum->AddRef();
     type_enum->index_ = index_;
-    *clone = type_enum;
+    *clone = type_enum.get();
     return S_OK;
   }
 
  private:
   friend class base::RefCountedThreadSafe<TypeEnumerator>;
-  ~TypeEnumerator() {}
+  ~TypeEnumerator() = default;
 
   void FreeAllocatedMediaTypes(ULONG allocated, AM_MEDIA_TYPE** types) {
     for (ULONG i = 0; i < allocated; ++i) {
@@ -186,7 +195,6 @@ HRESULT PinBase::QueryDirection(PIN_DIRECTION* pin_dir) {
 
 HRESULT PinBase::QueryId(LPWSTR* id) {
   NOTREACHED();
-  return E_OUTOFMEMORY;
 }
 
 HRESULT PinBase::QueryAccept(const AM_MEDIA_TYPE* media_type) {
@@ -194,8 +202,9 @@ HRESULT PinBase::QueryAccept(const AM_MEDIA_TYPE* media_type) {
 }
 
 HRESULT PinBase::EnumMediaTypes(IEnumMediaTypes** types) {
-  *types = new TypeEnumerator(this);
-  (*types)->AddRef();
+  auto type_enum = base::MakeRefCounted<TypeEnumerator>(this);
+  type_enum->AddRef();
+  *types = type_enum.get();
   return S_OK;
 }
 
@@ -219,7 +228,6 @@ HRESULT PinBase::NewSegment(REFERENCE_TIME start,
                             REFERENCE_TIME stop,
                             double rate) {
   NOTREACHED();
-  return E_NOTIMPL;
 }
 
 // Inherited from IMemInputPin.

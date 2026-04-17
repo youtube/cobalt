@@ -13,18 +13,16 @@
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/platform_util_internal.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "base/json/json_string_value_serializer.h"
 #include "base/values.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/apps/app_service/app_service_test.h"
 #include "chrome/browser/apps/app_service/intent_util.h"
-#include "chrome/browser/ash/file_manager/app_id.h"
 #include "chrome/browser/ash/fileapi/file_system_backend.h"
 #include "chrome/browser/ash/fileapi/file_system_backend_delegate.h"
 #include "chrome/browser/chrome_content_browser_client.h"
@@ -47,7 +45,7 @@ namespace platform_util {
 
 namespace {
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 
 // ChromeContentBrowserClient subclass that sets up a custom file system backend
 // that allows the test to grant file access to the file manager extension ID
@@ -136,9 +134,8 @@ class PlatformUtilTestBase : public BrowserWithTestWindowTest {
     app->intent_filters =
         apps_util::CreateIntentFiltersForChromeApp(extension.get());
     apps.push_back(std::move(app));
-    app_service_proxy_->AppRegistryCache().OnApps(
-        std::move(apps), apps::AppType::kChromeApp,
-        /*should_notify_initialized=*/false);
+    app_service_proxy_->OnApps(std::move(apps), apps::AppType::kChromeApp,
+                               /*should_notify_initialized=*/false);
   }
 
   void SetUp() override {
@@ -159,10 +156,10 @@ class PlatformUtilTestBase : public BrowserWithTestWindowTest {
 
  private:
   std::unique_ptr<content::ContentBrowserClient> content_browser_client_;
-  raw_ptr<content::ContentBrowserClient, ExperimentalAsh>
-      old_content_browser_client_ = nullptr;
+  raw_ptr<content::ContentBrowserClient> old_content_browser_client_ = nullptr;
   apps::AppServiceTest app_service_test_;
-  raw_ptr<apps::AppServiceProxy, ExperimentalAsh> app_service_proxy_ = nullptr;
+  raw_ptr<apps::AppServiceProxy, DanglingUntriaged> app_service_proxy_ =
+      nullptr;
 };
 
 #else
@@ -275,7 +272,7 @@ class PlatformUtilPosixTest : public PlatformUtilTest {
 };
 #endif  // BUILDFLAG(IS_POSIX)
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 // ChromeOS doesn't follow symbolic links in sandboxed filesystems. So all the
 // symbolic link tests should return PATH_NOT_FOUND.
 
@@ -304,9 +301,9 @@ TEST_F(PlatformUtilTest, OpenFileWithUnhandledFileType) {
   EXPECT_EQ(OPEN_FAILED_NO_HANLDER_FOR_FILE_TYPE,
             CallOpenItem(unhandled_file, OPEN_FILE));
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_CHROMEOS)
 // On all other Posix platforms, the symbolic link tests should work as
 // expected.
 
@@ -325,6 +322,6 @@ TEST_F(PlatformUtilPosixTest, OpenFolderWithPosixSymlinks) {
   EXPECT_EQ(OPEN_FAILED_PATH_NOT_FOUND,
             CallOpenItem(symlink_to_nowhere_, OPEN_FOLDER));
 }
-#endif  // BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace platform_util

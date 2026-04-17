@@ -28,8 +28,7 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "content/browser/service_worker/embedded_worker_instance.h"
-#include "content/browser/service_worker/embedded_worker_status.h"
-#include "content/browser/service_worker/service_worker_container_host.h"
+#include "content/browser/service_worker/service_worker_client.h"
 #include "content/browser/service_worker/service_worker_context_core.h"
 #include "content/browser/service_worker/service_worker_context_core_observer.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
@@ -57,6 +56,7 @@
 #include "net/test/embedded_test_server/http_response.h"
 #include "services/network/public/mojom/fetch_api.mojom.h"
 #include "storage/browser/test/blob_test_utils.h"
+#include "third_party/blink/public/common/service_worker/embedded_worker_status.h"
 #include "third_party/blink/public/common/service_worker/service_worker_status_code.h"
 #include "third_party/blink/public/common/service_worker/service_worker_type_converters.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
@@ -83,7 +83,7 @@ size_t BlobSideDataLength(blink::mojom::Blob* actual_blob) {
   base::RunLoop run_loop;
   actual_blob->ReadSideData(base::BindOnce(
       [](size_t* result, base::OnceClosure continuation,
-         const absl::optional<mojo_base::BigBuffer> data) {
+         const std::optional<mojo_base::BigBuffer> data) {
         *result = data ? data->size() : 0;
         std::move(continuation).Run();
       },
@@ -124,10 +124,11 @@ void ExpectRegisterResultAndRun(blink::ServiceWorkerStatusCode expected,
   continuation.Run();
 }
 
-void ExpectUnregisterResultAndRun(bool expected,
-                                  base::RepeatingClosure continuation,
-                                  bool actual) {
-  EXPECT_EQ(expected, actual);
+void ExpectUnregisterResultAndRun(
+    blink::ServiceWorkerStatusCode expected_status,
+    base::RepeatingClosure continuation,
+    blink::ServiceWorkerStatusCode actual_status) {
+  EXPECT_EQ(expected_status, actual_status);
   continuation.Run();
 }
 
@@ -263,7 +264,7 @@ RequestHandlerForBigWorkerScript(const net::test_server::HttpRequest& request) {
 // |coep|.
 std::unique_ptr<net::test_server::HttpResponse>
 RequestHandlerForWorkerScriptWithCoep(
-    absl::optional<network::mojom::CrossOriginEmbedderPolicyValue> coep,
+    std::optional<network::mojom::CrossOriginEmbedderPolicyValue> coep,
     const net::test_server::HttpRequest& request) {
   static int counter = 0;
   if (request.relative_url != "/service_worker/generated")
@@ -343,7 +344,10 @@ class ServiceWorkerVersionBrowserTest : public ContentBrowserTest {
         partition->GetServiceWorkerContext()));
   }
 
-  void TearDownOnMainThread() override { wrapper_.reset(); }
+  void TearDownOnMainThread() override {
+    wrapper_.reset();
+    service_worker_client_keep_alive_.clear();
+  }
 
   blink::ServiceWorkerStatusCode Install(
       const std::string& worker_url,
@@ -456,19 +460,13 @@ class ServiceWorkerVersionBrowserTest : public ContentBrowserTest {
 
   void AddControllee() {
     ASSERT_TRUE(BrowserThread::CurrentlyOn(BrowserThread::UI));
-    remote_endpoints_.emplace_back();
-    base::WeakPtr<ServiceWorkerContainerHost> container_host =
-        CreateContainerHostForWindow(
-            GlobalRenderFrameHostId(/*mock process_id=*/33,
-                                    /*mock frame_routing_id=*/1),
-            /*is_parent_frame_secure=*/true, wrapper()->context()->AsWeakPtr(),
-            &remote_endpoints_.back());
     const GURL url = embedded_test_server()->GetURL("/service_worker/host");
-    container_host->UpdateUrls(
-        url, url::Origin::Create(url),
-        blink::StorageKey::CreateFirstParty(url::Origin::Create(url)));
-    container_host->SetControllerRegistration(
+    ScopedServiceWorkerClient service_worker_client =
+        CreateServiceWorkerClient(wrapper()->context(), url);
+    service_worker_client->SetControllerRegistration(
         registration_, false /* notify_controllerchange */);
+    service_worker_client_keep_alive_.push_back(
+        std::move(service_worker_client));
   }
 
   void AddWaitingWorker(const std::string& worker_url) {
@@ -582,7 +580,8 @@ class ServiceWorkerVersionBrowserTest : public ContentBrowserTest {
       base::OnceCallback<void(blink::ServiceWorkerStatusCode status)>
           callback) {
     ASSERT_TRUE(BrowserThread::CurrentlyOn(BrowserThread::UI));
-    ASSERT_EQ(EmbeddedWorkerStatus::RUNNING, version_->running_status());
+    ASSERT_EQ(blink::EmbeddedWorkerStatus::kRunning,
+              version_->running_status());
     version_->SetStatus(ServiceWorkerVersion::INSTALLING);
 
     auto callback_pair = base::SplitOnceCallback(std::move(callback));
@@ -612,7 +611,7 @@ class ServiceWorkerVersionBrowserTest : public ContentBrowserTest {
   }
 
   void Store(base::OnceClosure done,
-             absl::optional<blink::ServiceWorkerStatusCode>* result,
+             std::optional<blink::ServiceWorkerStatusCode>* result,
              int64_t version_id) {
     ASSERT_TRUE(BrowserThread::CurrentlyOn(BrowserThread::UI));
   }
@@ -627,7 +626,7 @@ class ServiceWorkerVersionBrowserTest : public ContentBrowserTest {
     // Using CreateSimpleEventCallback() causes `callback` to be
     // called when the event finishes successfully, even though
     // it is called the "error callback" to StartRequest().
-    // TODO(https://crbug.com/1251834): Clean up the callback handling for
+    // TODO(crbug.com/40792768): Clean up the callback handling for
     // StartRequest().
     int request_id = version_->StartRequest(
         ServiceWorkerMetrics::EventType::ACTIVATE, std::move(callback));
@@ -656,8 +655,8 @@ class ServiceWorkerVersionBrowserTest : public ContentBrowserTest {
     }
     fetch_dispatcher_ = std::make_unique<ServiceWorkerFetchDispatcher>(
         std::move(request), destination, std::string() /* client_id */,
-        version_, std::move(prepare_callback), std::move(fetch_callback),
-        /*is_offline_cpability_check=*/false);
+        std::string() /* resulting_client_id */, version_,
+        std::move(prepare_callback), std::move(fetch_callback));
     fetch_dispatcher_->Run();
   }
 
@@ -749,7 +748,7 @@ class ServiceWorkerVersionBrowserTest : public ContentBrowserTest {
   scoped_refptr<ServiceWorkerVersion> version_;
   scoped_refptr<ServiceWorkerContextWrapper> wrapper_;
   std::unique_ptr<ServiceWorkerFetchDispatcher> fetch_dispatcher_;
-  std::vector<ServiceWorkerRemoteContainerEndpoint> remote_endpoints_;
+  std::vector<ScopedServiceWorkerClient> service_worker_client_keep_alive_;
 };
 
 class WaitForLoaded : public EmbeddedWorkerInstance::Listener {
@@ -779,8 +778,9 @@ class MockContentBrowserClient : public ContentBrowserTestContentBrowserClient {
     return data_saver_enabled_;
   }
 
-  void OverrideWebkitPrefs(WebContents* web_contents,
-                           blink::web_pref::WebPreferences* prefs) override {
+  void OverrideWebPreferences(WebContents* web_contents,
+                              SiteInstance& main_frame_site,
+                              blink::web_pref::WebPreferences* prefs) override {
     prefs->data_saver_enabled = data_saver_enabled_;
   }
 
@@ -795,7 +795,7 @@ class StopObserver : public ServiceWorkerVersion::Observer {
       : quit_closure_(std::move(quit_closure)) {}
 
   void OnRunningStateChanged(ServiceWorkerVersion* version) override {
-    if (version->running_status() == EmbeddedWorkerStatus::STOPPED) {
+    if (version->running_status() == blink::EmbeddedWorkerStatus::kStopped) {
       std::move(quit_closure_).Run();
     }
   }
@@ -1082,7 +1082,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerVersionBrowserTest,
   EXPECT_EQ(Install("/service_worker/worker_with_one_import.js",
                     blink::mojom::ScriptType::kClassic),
             blink::ServiceWorkerStatusCode::kOk);
-  EXPECT_EQ(EmbeddedWorkerStatus::STOPPED, version_->running_status());
+  EXPECT_EQ(blink::EmbeddedWorkerStatus::kStopped, version_->running_status());
 
   // Emulate offline by stopping the test server.
   EXPECT_TRUE(embedded_test_server()->ShutdownAndWaitUntilComplete());
@@ -1101,7 +1101,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerVersionBrowserTest,
   ASSERT_EQ(Install("/service_worker/static_import_worker.js",
                     blink::mojom::ScriptType::kModule),
             blink::ServiceWorkerStatusCode::kOk);
-  EXPECT_EQ(EmbeddedWorkerStatus::STOPPED, version_->running_status());
+  EXPECT_EQ(blink::EmbeddedWorkerStatus::kStopped, version_->running_status());
 
   // Emulate offline by stopping the test server.
   EXPECT_TRUE(embedded_test_server()->ShutdownAndWaitUntilComplete());
@@ -1116,7 +1116,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerVersionBrowserTest, TimeoutStartingWorker) {
   SetUpRegistration("/service_worker/while_true_worker.js");
 
   // Start a worker, waiting until the script is loaded.
-  absl::optional<blink::ServiceWorkerStatusCode> status;
+  std::optional<blink::ServiceWorkerStatusCode> status;
   base::RunLoop start_run_loop;
   base::RunLoop load_run_loop;
   WaitForLoaded wait_for_load(load_run_loop.QuitClosure());
@@ -1133,7 +1133,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerVersionBrowserTest, TimeoutStartingWorker) {
 
   // The script has loaded but start has not completed yet.
   ASSERT_FALSE(status);
-  EXPECT_EQ(EmbeddedWorkerStatus::STARTING, version_->running_status());
+  EXPECT_EQ(blink::EmbeddedWorkerStatus::kStarting, version_->running_status());
 
   // Simulate execution timeout. Use a delay to prevent killing the worker
   // before it's started execution.
@@ -1374,7 +1374,8 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerVersionBrowserTest,
   base::RunLoop run_loop;
   public_context()->UnregisterServiceWorker(
       embedded_test_server()->GetURL(kScope), key,
-      base::BindOnce(&ExpectUnregisterResultAndRun, true,
+      base::BindOnce(&ExpectUnregisterResultAndRun,
+                     blink::ServiceWorkerStatusCode::kOk,
                      run_loop.QuitClosure()));
   run_loop.Run();
 }
@@ -1420,7 +1421,8 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerVersionBrowserTest,
   base::RunLoop run_loop;
   public_context()->UnregisterServiceWorker(
       embedded_test_server()->GetURL(kScope), key,
-      base::BindOnce(&ExpectUnregisterResultAndRun, true,
+      base::BindOnce(&ExpectUnregisterResultAndRun,
+                     blink::ServiceWorkerStatusCode::kOk,
                      run_loop.QuitClosure()));
   run_loop.Run();
 }
@@ -1475,7 +1477,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerVersionBrowserTest, RendererCrash) {
   run_loop.Run();
   process_watcher.Wait();
 
-  EXPECT_EQ(EmbeddedWorkerStatus::STOPPED, version_->running_status());
+  EXPECT_EQ(blink::EmbeddedWorkerStatus::kStopped, version_->running_status());
   version_->RemoveObserver(&observer);
 }
 
@@ -1513,7 +1515,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerVersionBrowserTest,
     base::RunLoop run_loop;
     auto callback = [&run_loop, value_out, error_out](
                         base::Value value,
-                        const absl::optional<std::string>& error) {
+                        const std::optional<std::string>& error) {
       *value_out = std::move(value);
       *error_out = error.value_or("<no error>");
       run_loop.Quit();

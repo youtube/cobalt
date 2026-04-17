@@ -8,14 +8,17 @@
 #include <memory>
 
 #include "ash/ash_export.h"
-#include "ash/style/icon_button.h"
 #include "base/memory/raw_ptr.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/views/controls/button/button.h"
+#include "ui/views/view.h"
 
 namespace ui {
 class Event;
 }  // namespace ui
 
 namespace views {
+class ImageView;
 class MenuItemView;
 }  // namespace views
 
@@ -23,10 +26,31 @@ namespace ash {
 
 class UnifiedSystemTrayController;
 
+// The power button container which contains 2 icons: a power icon and an
+// arrow down icon.
+class PowerButtonContainer : public views::Button {
+  METADATA_HEADER(PowerButtonContainer, views::Button)
+
+ public:
+  explicit PowerButtonContainer(PressedCallback callback);
+  PowerButtonContainer(const PowerButtonContainer&) = delete;
+  PowerButtonContainer& operator=(const PowerButtonContainer&) = delete;
+  ~PowerButtonContainer() override;
+
+  void UpdateIconColor(bool is_active);
+
+ private:
+  // Owned by views hierarchy.
+  raw_ptr<views::ImageView> power_icon_ = nullptr;
+  raw_ptr<views::ImageView> arrow_icon_ = nullptr;
+};
+
 // The power button that lives in the `QuickSettingsView` footer. The
 // `background_view_` will change its corner radii and a power button
 // menu will pop up at the same time when it's active.
 class ASH_EXPORT PowerButton : public views::View {
+  METADATA_HEADER(PowerButton, views::View)
+
  public:
   explicit PowerButton(UnifiedSystemTrayController* tray_controller);
   PowerButton(const PowerButton&) = delete;
@@ -36,9 +60,13 @@ class ASH_EXPORT PowerButton : public views::View {
   // If the context mune is currently open.
   bool IsMenuShowing();
 
-  IconButton* button_content_for_testing() { return button_content_; }
+  // Getter of the `MenuItemView` for testing.
+  views::MenuItemView* GetMenuViewForTesting();
+
+  PowerButtonContainer* button_content_for_testing() { return button_content_; }
 
  private:
+  friend class PowerButtonPixelTest;
   friend class PowerButtonTest;
   friend class QuickSettingsFooterTest;
 
@@ -58,22 +86,20 @@ class ASH_EXPORT PowerButton : public views::View {
   void UpdateRoundedCorners();
 
   // Shows the context menu by `MenuController`. This method passed in to the
-  // base `IconButton` as the `OnPressedCallback`.
+  // `Button` view as the `OnPressedCallback`.
   void OnButtonActivated(const ui::Event& event);
 
-  // Getter of the `MenuItemView` for testing.
-  views::MenuItemView* GetMenuViewForTesting();
-
   // Owned by views hierarchy.
-  raw_ptr<views::View, ExperimentalAsh> background_view_ = nullptr;
-  raw_ptr<IconButton, ExperimentalAsh> button_content_ = nullptr;
+  raw_ptr<views::View> background_view_ = nullptr;
+  raw_ptr<PowerButtonContainer> button_content_ = nullptr;
 
   // The context menu, which will be set as the controller to show the power
   // button menu view.
   std::unique_ptr<MenuController> context_menu_;
 
   // Owned by UnifiedSystemTrayBubble.
-  UnifiedSystemTrayController* const tray_controller_;
+  const raw_ptr<UnifiedSystemTrayController, DanglingUntriaged>
+      tray_controller_;
 };
 
 }  // namespace ash

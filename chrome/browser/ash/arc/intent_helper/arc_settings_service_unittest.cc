@@ -6,16 +6,7 @@
 
 #include <memory>
 
-#include "ash/components/arc/arc_prefs.h"
-#include "ash/components/arc/arc_util.h"
-#include "ash/components/arc/metrics/arc_metrics_service.h"
-#include "ash/components/arc/metrics/stability_metrics_manager.h"
-#include "ash/components/arc/session/arc_bridge_service.h"
-#include "ash/components/arc/session/arc_service_manager.h"
-#include "ash/components/arc/test/arc_util_test_support.h"
-#include "ash/components/arc/test/connection_holder_util.h"
-#include "ash/components/arc/test/fake_arc_session.h"
-#include "ash/components/arc/test/fake_backup_settings_instance.h"
+#include "ash/constants/ash_pref_names.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "chrome/browser/ash/arc/arc_optin_uma.h"
@@ -23,7 +14,6 @@
 #include "chrome/browser/ash/arc/session/arc_provisioning_result.h"
 #include "chrome/browser/ash/arc/session/arc_session_manager.h"
 #include "chrome/browser/ash/arc/test/test_arc_session_manager.h"
-#include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/ash/settings/stats_reporting_controller.h"
 #include "chrome/browser/ui/zoom/chrome_zoom_level_prefs.h"
 #include "chrome/common/pref_names.h"
@@ -31,13 +21,27 @@
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/ash/components/dbus/concierge/concierge_client.h"
 #include "chromeos/ash/components/network/network_handler_test_helper.h"
+#include "chromeos/ash/experiences/arc/arc_prefs.h"
+#include "chromeos/ash/experiences/arc/arc_util.h"
+#include "chromeos/ash/experiences/arc/metrics/arc_metrics_service.h"
+#include "chromeos/ash/experiences/arc/metrics/stability_metrics_manager.h"
+#include "chromeos/ash/experiences/arc/session/arc_bridge_service.h"
+#include "chromeos/ash/experiences/arc/session/arc_service_manager.h"
+#include "chromeos/ash/experiences/arc/test/arc_util_test_support.h"
+#include "chromeos/ash/experiences/arc/test/connection_holder_util.h"
+#include "chromeos/ash/experiences/arc/test/fake_app_host.h"
+#include "chromeos/ash/experiences/arc/test/fake_app_instance.h"
+#include "chromeos/ash/experiences/arc/test/fake_arc_session.h"
+#include "chromeos/ash/experiences/arc/test/fake_backup_settings_instance.h"
+#include "chromeos/ash/experiences/arc/test/fake_intent_helper_host.h"
+#include "chromeos/ash/experiences/arc/test/fake_intent_helper_instance.h"
 #include "chromeos/ash/services/network_config/public/cpp/cros_network_config_test_helper.h"
-#include "components/arc/test/fake_intent_helper_host.h"
-#include "components/arc/test/fake_intent_helper_instance.h"
+#include "components/language/core/browser/pref_names.h"
+#include "components/live_caption/pref_names.h"
 #include "components/prefs/pref_service.h"
+#include "components/prefs/testing_pref_service.h"
 #include "components/prefs/testing_pref_store.h"
-#include "components/user_manager/scoped_user_manager.h"
-#include "components/user_manager/user_manager.h"
+#include "testing/gmock/include/gmock/gmock.h"
 
 namespace arc {
 
@@ -46,10 +50,18 @@ namespace {
 constexpr char kActionLocaionEnabled[] =
     "org.chromium.arc.intent_helper.SET_LOCATION_SERVICE_ENABLED";
 
+bool IsSameCaptionColor(const arc::mojom::CaptionColor* l,
+                        const arc::mojom::CaptionColor* r) {
+  return l->red == r->red && l->blue == r->blue && l->green == r->green &&
+         l->alpha == r->alpha;
+}
+MATCHER_P(VerifyCaptionColor, color, "") {
+  return IsSameCaptionColor(arg.get(), color);
+}
+
 class ArcSettingsServiceTest : public BrowserWithTestWindowTest {
  public:
-  ArcSettingsServiceTest()
-      : user_manager_enabler_(std::make_unique<ash::FakeChromeUserManager>()) {}
+  ArcSettingsServiceTest() = default;
   ArcSettingsServiceTest(const ArcSettingsServiceTest&) = delete;
   ArcSettingsServiceTest& operator=(const ArcSettingsServiceTest&) = delete;
   ~ArcSettingsServiceTest() override = default;
@@ -86,16 +98,13 @@ class ArcSettingsServiceTest : public BrowserWithTestWindowTest {
                   base_name);
             }));
 
-    const AccountId account_id(AccountId::FromUserEmailGaiaId(
-        profile()->GetProfileUserName(), "1234567890"));
-    user_manager()->AddUser(account_id);
-    user_manager()->LoginUser(account_id);
-
     arc_session_manager()->SetProfile(profile());
     arc_session_manager()->Initialize();
 
     intent_helper_host_ = std::make_unique<FakeIntentHelperHost>(
         arc_bridge_service()->intent_helper());
+    app_host_ = std::make_unique<FakeAppHost>(arc_bridge_service()->app());
+    app_instance_ = std::make_unique<FakeAppInstance>(app_host_.get());
     ArcSettingsService* arc_settings_service =
         ArcSettingsService::GetForBrowserContext(profile());
     DCHECK(arc_settings_service);
@@ -111,6 +120,9 @@ class ArcSettingsServiceTest : public BrowserWithTestWindowTest {
         &intent_helper_instance_);
     arc_bridge_service()->backup_settings()->CloseInstance(
         &backup_settings_instance_);
+    arc_bridge_service()->app()->CloseInstance(app_instance_.get());
+    app_instance_.reset();
+    app_host_.reset();
     intent_helper_host_.reset();
     arc_session_manager()->Shutdown();
 
@@ -134,12 +146,11 @@ class ArcSettingsServiceTest : public BrowserWithTestWindowTest {
     arc_bridge_service()->intent_helper()->SetInstance(
         &intent_helper_instance_);
     WaitForInstanceReady(arc_bridge_service()->intent_helper());
+
+    arc_bridge_service()->app()->SetInstance(app_instance_.get());
+    WaitForInstanceReady(arc_bridge_service()->app());
   }
 
-  ash::FakeChromeUserManager* user_manager() {
-    return static_cast<ash::FakeChromeUserManager*>(
-        user_manager::UserManager::Get());
-  }
   ArcBridgeService* arc_bridge_service() {
     return arc_service_manager_->arc_bridge_service();
   }
@@ -158,12 +169,13 @@ class ArcSettingsServiceTest : public BrowserWithTestWindowTest {
   std::unique_ptr<ash::network_config::CrosNetworkConfigTestHelper>
       network_config_helper_;
   TestingPrefServiceSimple local_state_;
-  user_manager::ScopedUserManager user_manager_enabler_;
   std::unique_ptr<FakeIntentHelperHost> intent_helper_host_;
   std::unique_ptr<ArcSessionManager> arc_session_manager_;
   std::unique_ptr<ArcServiceManager> arc_service_manager_;
   FakeIntentHelperInstance intent_helper_instance_;
   FakeBackupSettingsInstance backup_settings_instance_;
+  std::unique_ptr<FakeAppHost> app_host_;
+  std::unique_ptr<FakeAppInstance> app_instance_;
 };
 
 }  // namespace
@@ -204,7 +216,7 @@ TEST_F(ArcSettingsServiceTest,
 // Initial settings applied in case intent helper instance is set before
 // provisioning.
 
-// TODO(crbug.com/1004630) Disabled due to flake.
+// TODO(crbug.com/40099107) Disabled due to flake.
 TEST_F(ArcSettingsServiceTest,
        DISABLED_InitialSettingsAppliedForInstanceBeforeProvisioning) {
   arc_session_manager()->RequestEnable();
@@ -303,6 +315,81 @@ TEST_F(ArcSettingsServiceTest, DisablesPageZoom) {
   intent_helper->clear_broadcasts();
   profile()->GetZoomLevelPrefs()->SetDefaultZoomLevelPref(150.0);
   EXPECT_EQ(0U, intent_helper->GetBroadcastsForAction(kSetPageZoom).size());
+}
+
+TEST_F(ArcSettingsServiceTest, SetCaptionStyle) {
+  arc_session_manager()->RequestEnable();
+  SetInstances();
+  FakeIntentHelperInstance* intent_helper = intent_helper_instance();
+
+  PrefService* pref_service = profile()->GetPrefs();
+  pref_service->SetString(::prefs::kAccessibilityCaptionsTextSize, "200%");
+  pref_service->SetString(::prefs::kAccessibilityCaptionsTextColor, "10,20,30");
+  pref_service->SetInteger(::prefs::kAccessibilityCaptionsTextOpacity, 90);
+  pref_service->SetString(::prefs::kAccessibilityCaptionsBackgroundColor,
+                          "40,50,60");
+  pref_service->SetInteger(::prefs::kAccessibilityCaptionsBackgroundOpacity,
+                           80);
+  pref_service->SetString(::prefs::kAccessibilityCaptionsTextShadow,
+                          "-2px -2px 4px rgba(0, 0, 0, 0.5)");
+  pref_service->SetString(::language::prefs::kApplicationLocale, "my_locale");
+
+  auto style = intent_helper->GetCaptionStyle();
+
+  ASSERT_TRUE(style);
+  EXPECT_EQ(2.0f, style->font_scale);
+  // Alpha value from 0.9 * 255.
+  EXPECT_THAT(arc::mojom::CaptionColor::New(230, 10, 20, 30),
+              VerifyCaptionColor(style->text_color.get()));
+  // Alpha value from 0.8 * 255.
+  EXPECT_THAT(arc::mojom::CaptionColor::New(204, 40, 50, 60),
+              VerifyCaptionColor(style->background_color.get()));
+  EXPECT_EQ("my_locale", style->user_locale);
+  EXPECT_EQ(arc::mojom::CaptionTextShadowType::kRaised,
+            style->text_shadow_type);
+}
+
+TEST_F(ArcSettingsServiceTest, CaptionStyleNotSetReturnEmpty) {
+  arc_session_manager()->RequestEnable();
+  SetInstances();
+  FakeIntentHelperInstance* intent_helper = intent_helper_instance();
+
+  auto style = intent_helper->GetCaptionStyle();
+
+  ASSERT_TRUE(style);
+  EXPECT_EQ(1.0f, style->font_scale);
+  EXPECT_EQ(nullptr, style->text_color.get());
+  EXPECT_EQ(nullptr, style->background_color.get());
+  EXPECT_EQ("", style->user_locale);
+  EXPECT_EQ(arc::mojom::CaptionTextShadowType::kNone, style->text_shadow_type);
+}
+
+TEST_F(ArcSettingsServiceTest, EnableAccessibilityFeatures) {
+  arc_session_manager()->RequestEnable();
+  SetInstances();
+  FakeIntentHelperInstance* intent_helper = intent_helper_instance();
+
+  PrefService* pref_service = profile()->GetPrefs();
+  pref_service->SetBoolean(ash::prefs::kAccessibilityFocusHighlightEnabled,
+                           true);
+  pref_service->SetBoolean(ash::prefs::kAccessibilityScreenMagnifierEnabled,
+                           true);
+  pref_service->SetBoolean(ash::prefs::kAccessibilitySelectToSpeakEnabled,
+                           true);
+  pref_service->SetBoolean(ash::prefs::kAccessibilitySpokenFeedbackEnabled,
+                           false);
+  pref_service->SetBoolean(ash::prefs::kAccessibilitySwitchAccessEnabled,
+                           false);
+  pref_service->SetBoolean(ash::prefs::kDockedMagnifierEnabled, false);
+
+  auto features = intent_helper->GetAccessibilityFeatures();
+
+  ASSERT_TRUE(features->focus_highlight_enabled);
+  ASSERT_TRUE(features->screen_magnifier_enabled);
+  ASSERT_TRUE(features->select_to_speak_enabled);
+  ASSERT_FALSE(features->spoken_feedback_enabled);
+  ASSERT_FALSE(features->switch_access_enabled);
+  ASSERT_FALSE(features->docked_magnifier_enabled);
 }
 
 }  // namespace arc

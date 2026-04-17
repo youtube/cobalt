@@ -9,11 +9,9 @@
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/task/single_thread_task_runner.h"
-#include "build/chromeos_buildflags.h"
 #include "ui/aura/env.h"
 #include "ui/aura/test/aura_test_utils.h"
 #include "ui/aura/test/env_test_helper.h"
-#include "ui/aura/test/ui_controls_factory_aura.h"
 #include "ui/aura/window_tree_host.h"
 #include "ui/base/test/ui_controls_aura.h"
 #include "ui/display/display.h"
@@ -42,7 +40,8 @@ class UIControlsOzone : public ui_controls::UIControlsAura {
                                    ui::KeyboardCode key,
                                    int key_event_types,
                                    base::OnceClosure closure,
-                                   int accelerator_state) override;
+                                   int accelerator_state,
+                                   ui_controls::KeyEventType wait_for) override;
   bool SendMouseMove(int screen_x, int screen_y) override;
   bool SendMouseMoveNotifyWhenDone(int screen_x,
                                    int screen_y,

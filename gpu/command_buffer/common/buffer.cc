@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "gpu/command_buffer/common/buffer.h"
 
 #include <stddef.h>
@@ -9,6 +14,7 @@
 #include <ostream>
 
 #include "base/atomic_sequence_num.h"
+#include "base/bits.h"
 #include "base/check_op.h"
 #include "base/format_macros.h"
 #include "base/no_destructor.h"
@@ -34,13 +40,14 @@ base::UnguessableToken BufferBacking::GetGUID() const {
   return base::UnguessableToken();
 }
 
-MemoryBufferBacking::MemoryBufferBacking(uint32_t size)
-    : memory_(new char[size]), size_(size) {}
+MemoryBufferBacking::MemoryBufferBacking(uint32_t size, uint32_t alignment)
+    : memory_(new char[size + alignment]), size_(size), alignment_(alignment) {}
 
 MemoryBufferBacking::~MemoryBufferBacking() = default;
 
-void* MemoryBufferBacking::GetMemory() const {
-  return memory_.get();
+const void* MemoryBufferBacking::GetMemory() const {
+  return alignment_ > 0 ? base::bits::AlignUp(memory_.get(), alignment_)
+                        : memory_.get();
 }
 
 uint32_t MemoryBufferBacking::GetSize() const {
@@ -67,7 +74,7 @@ base::UnguessableToken SharedMemoryBufferBacking::GetGUID() const {
   return shared_memory_region_.GetGUID();
 }
 
-void* SharedMemoryBufferBacking::GetMemory() const {
+const void* SharedMemoryBufferBacking::GetMemory() const {
   return shared_memory_mapping_.memory();
 }
 

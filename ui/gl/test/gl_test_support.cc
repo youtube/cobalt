@@ -4,11 +4,14 @@
 
 #include "ui/gl/test/gl_test_support.h"
 
+#include <array>
 #include <vector>
 
+#include "base/bit_cast.h"
 #include "base/check_op.h"
 #include "base/notreached.h"
 #include "build/build_config.h"
+#include "gpu/config/gpu_util.h"
 #include "ui/gfx/buffer_format_util.h"
 #include "ui/gfx/half_float.h"
 #include "ui/gl/init/gl_factory.h"
@@ -32,11 +35,44 @@ void rgb_to_yuv(uint8_t r, uint8_t g, uint8_t b, T* y, T* u, T* v) {
   *u = -(0.148 * r) - (0.291 * g) + (0.439 * b) + 128;
   *v = (0.439 * r) - (0.368 * g) - (0.071 * b) + 128;
 }
+
+UNSAFE_BUFFER_USAGE base::span<uint8_t> ToSpan_uint8(uint8_t* data,
+                                                     size_t start,
+                                                     size_t size) {
+  return UNSAFE_BUFFERS(base::span<uint8_t>(data + start, size));
+}
+
+UNSAFE_BUFFER_USAGE base::span<uint16_t> ToSpan_uint16(uint8_t* data,
+                                                       size_t start,
+                                                       size_t size) {
+  uint16_t* pointer = reinterpret_cast<uint16_t*>(UNSAFE_BUFFERS(data + start));
+  return UNSAFE_BUFFERS(base::span<uint16_t>(pointer, size));
+}
+
+UNSAFE_BUFFER_USAGE base::span<uint32_t> ToSpan_uint32(uint8_t* data,
+                                                       size_t start,
+                                                       size_t size) {
+  uint32_t* pointer = reinterpret_cast<uint32_t*>(UNSAFE_BUFFERS(data + start));
+  return UNSAFE_BUFFERS(base::span<uint32_t>(pointer, size));
+}
+
+UNSAFE_BUFFER_USAGE base::span<uint64_t> ToSpan_uint64(uint8_t* data,
+                                                       size_t start,
+                                                       size_t size) {
+  uint64_t* pointer = reinterpret_cast<uint64_t*>(UNSAFE_BUFFERS(data + start));
+  return UNSAFE_BUFFERS(base::span<uint64_t>(pointer, size));
+}
+
 }  // namespace
 
 // static
 GLDisplay* GLTestSupport::InitializeGL(
-    absl::optional<GLImplementationParts> prefered_impl) {
+    std::optional<GLImplementationParts> prefered_impl) {
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+  gpu::TrySetNonSoftwareDevicePreferenceForTesting(
+      gl::GpuPreference ::kDefault);
+#endif
+
 #if BUILDFLAG(IS_OZONE)
   ui::OzonePlatform::InitParams params;
   params.single_process = true;
@@ -52,7 +88,7 @@ GLDisplay* GLTestSupport::InitializeGL(
   DCHECK(impl.IsAllowed(allowed_impls));
 
   GLDisplay* display =
-      GLSurfaceTestSupport::InitializeOneOffImplementation(impl, true);
+      GLSurfaceTestSupport::InitializeOneOffImplementation(impl);
 #if BUILDFLAG(IS_OZONE)
   // Make sure all the tasks posted to the current task runner by the
   // initialization functions are run before running the tests.
@@ -72,85 +108,86 @@ void GLTestSupport::SetBufferDataToColor(int width,
                                          int stride,
                                          int plane,
                                          gfx::BufferFormat format,
-                                         const uint8_t color[4],
+                                         base::span<const uint8_t, 4> color,
                                          uint8_t* data) {
   switch (format) {
     case gfx::BufferFormat::R_8:
+      DCHECK_EQ(0, plane);
+      for (int y = 0; y < height; ++y) {
+        auto row = UNSAFE_TODO(ToSpan_uint8(data, y * stride, width));
+        std::ranges::fill(row, color[0]);  // R
+      }
+      return;
     case gfx::BufferFormat::RG_88:
       DCHECK_EQ(0, plane);
       for (int y = 0; y < height; ++y) {
-        memset(&data[y * stride], color[0], width);
+        auto row = UNSAFE_TODO(ToSpan_uint16(data, y * stride, width));
+        std::ranges::fill(row, (color[1] << 8) |  // G
+                                   color[0]);     // R
       }
       return;
     case gfx::BufferFormat::R_16:
       DCHECK_EQ(0, plane);
       for (int y = 0; y < height; ++y) {
-        uint16_t* row = reinterpret_cast<uint16_t*>(data + y * stride);
-        for (int x = 0; x < width; ++x) {
-          row[x] = static_cast<uint16_t>(color[0] << 8);
-        }
+        auto row = UNSAFE_TODO(ToSpan_uint16(data, y * stride, width));
+        std::ranges::fill(row, color[0] << 8);  // R
       }
       return;
     case gfx::BufferFormat::RG_1616:
       DCHECK_EQ(0, plane);
       for (int y = 0; y < height; ++y) {
-        uint16_t* row = reinterpret_cast<uint16_t*>(data + y * stride);
-        for (int x = 0; x < width; ++x) {
-          row[2 * x + 0] = static_cast<uint16_t>(color[0] << 8);
-          row[2 * x + 1] = static_cast<uint16_t>(color[1] << 8);
-        }
+        auto row = UNSAFE_TODO(ToSpan_uint32(data, y * stride, width));
+        std::ranges::fill(row, (color[1] << 24) |     // G
+                                   (color[0] << 8));  // R
       }
       return;
     case gfx::BufferFormat::RGBA_4444:
       DCHECK_EQ(0, plane);
       for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-          data[y * stride + x * 2 + 0] = (color[1] << 4) | (color[0] & 0xf);
-          data[y * stride + x * 2 + 1] = (color[3] << 4) | (color[2] & 0xf);
-        }
+        auto row = UNSAFE_TODO(ToSpan_uint16(data, y * stride, width));
+        std::ranges::fill(row, ((color[3] & 0xf) << 4) |      // A
+                                   (color[2] & 0xf) |         // B
+                                   (color[1] << 12) |         // G
+                                   ((color[0] & 0xf) << 8));  // R
       }
       return;
     case gfx::BufferFormat::BGR_565:
       DCHECK_EQ(0, plane);
       for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-          *reinterpret_cast<uint16_t*>(&data[y * stride + x * 2]) =
-              ((color[2] >> 3) << 11) | ((color[1] >> 2) << 5) |
-              (color[0] >> 3);
-        }
+        auto row = UNSAFE_TODO(ToSpan_uint16(data, y * stride, width));
+        std::ranges::fill(row, ((color[0] >> 3) << 11) |     // R
+                                   ((color[1] >> 2) << 5) |  // G
+                                   (color[2] >> 3));         // B
       }
       return;
     case gfx::BufferFormat::RGBX_8888:
       DCHECK_EQ(0, plane);
       for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-          data[y * stride + x * 4 + 0] = color[0];
-          data[y * stride + x * 4 + 1] = color[1];
-          data[y * stride + x * 4 + 2] = color[2];
-          data[y * stride + x * 4 + 3] = 0xaa;  // unused
-        }
+        auto row = UNSAFE_TODO(ToSpan_uint32(data, y * stride, width));
+        std::ranges::fill(row, (0xaa << 24) |          // unused
+                                   (color[2] << 16) |  // B
+                                   (color[1] << 8) |   // G
+                                   color[0]);          // R
       }
       return;
     case gfx::BufferFormat::RGBA_8888:
       DCHECK_EQ(0, plane);
       for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-          data[y * stride + x * 4 + 0] = color[0];
-          data[y * stride + x * 4 + 1] = color[1];
-          data[y * stride + x * 4 + 2] = color[2];
-          data[y * stride + x * 4 + 3] = color[3];
-        }
+        auto row = UNSAFE_TODO(ToSpan_uint32(data, y * stride, width));
+        std::ranges::fill(row, (color[3] << 24) |      // A
+                                   (color[2] << 16) |  // B
+                                   (color[1] << 8) |   // G
+                                   color[0]);          // R
       }
       return;
     case gfx::BufferFormat::BGRX_8888:
       DCHECK_EQ(0, plane);
       for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-          data[y * stride + x * 4 + 0] = color[2];
-          data[y * stride + x * 4 + 1] = color[1];
-          data[y * stride + x * 4 + 2] = color[0];
-          data[y * stride + x * 4 + 3] = 0xaa;  // unused
-        }
+        auto row = UNSAFE_TODO(ToSpan_uint32(data, y * stride, width));
+        std::ranges::fill(row, (0xaa << 24) |          // unused
+                                   (color[0] << 16) |  // R
+                                   (color[1] << 8) |   // G
+                                   color[2]);          // B
       }
       return;
     case gfx::BufferFormat::BGRA_1010102: {
@@ -159,13 +196,13 @@ void GLTestSupport::SetBufferDataToColor(int width,
                                       "precision for the supplied value";
       const uint8_t scaled_alpha = color[3] >> 6;
       for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-          *reinterpret_cast<uint32_t*>(&data[y * stride + x * 4]) =
-              (scaled_alpha << 30) |                       // A
-              ((color[0] << 2) | (color[0] >> 6)) << 20 |  // B
-              ((color[1] << 2) | (color[1] >> 6)) << 10 |  // G
-              ((color[2] << 2) | (color[2] >> 6));         // R
-        }
+        auto row = UNSAFE_TODO(ToSpan_uint32(data, y * stride, width));
+        std::ranges::fill(
+            row,
+            (scaled_alpha << 30) |                             // A
+                (((color[0] << 2) | (color[0] >> 6)) << 20) |  // R
+                (((color[1] << 2) | (color[1] >> 6)) << 10) |  // G
+                ((color[2] << 2) | (color[2] >> 6)));          // B
       }
       return;
     }
@@ -175,45 +212,38 @@ void GLTestSupport::SetBufferDataToColor(int width,
                                       "precision for the supplied value";
       const uint8_t scaled_alpha = color[3] >> 6;
       for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-          *reinterpret_cast<uint32_t*>(&data[y * stride + x * 4]) =
-              (scaled_alpha << 30) |                       // A
-              ((color[2] << 2) | (color[2] >> 6)) << 20 |  // B
-              ((color[1] << 2) | (color[1] >> 6)) << 10 |  // G
-              ((color[0] << 2) | (color[0] >> 6));         // R
-        }
+        auto row = UNSAFE_TODO(ToSpan_uint32(data, y * stride, width));
+        std::ranges::fill(
+            row, (scaled_alpha << 30) |                             // A
+                     (((color[2] << 2) | (color[2] >> 6)) << 20) |  // B
+                     (((color[1] << 2) | (color[1] >> 6)) << 10) |  // G
+                     ((color[0] << 2) | (color[0] >> 6)));          // R
       }
       return;
     }
     case gfx::BufferFormat::BGRA_8888:
       DCHECK_EQ(0, plane);
       for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-          data[y * stride + x * 4 + 0] = color[2];
-          data[y * stride + x * 4 + 1] = color[1];
-          data[y * stride + x * 4 + 2] = color[0];
-          data[y * stride + x * 4 + 3] = color[3];
-        }
+        auto row = UNSAFE_TODO(ToSpan_uint32(data, y * stride, width));
+        std::ranges::fill(row, (color[3] << 24) |      // A
+                                   (color[0] << 16) |  // R
+                                   (color[1] << 8) |   // G
+                                   color[2]);          // B
       }
       return;
     case gfx::BufferFormat::RGBA_F16: {
       DCHECK_EQ(0, plane);
       float float_color[4] = {
-          color[0] / 255.f,
-          color[1] / 255.f,
-          color[2] / 255.f,
-          color[3] / 255.f,
+          color[0] / 255.f,  // R
+          color[1] / 255.f,  // G
+          color[2] / 255.f,  // B
+          color[3] / 255.f,  // A
       };
       uint16_t half_float_color[4];
       gfx::FloatToHalfFloat(float_color, half_float_color, 4);
       for (int y = 0; y < height; ++y) {
-        uint16_t* row = reinterpret_cast<uint16_t*>(data + y * stride);
-        for (int x = 0; x < width; ++x) {
-          row[x * 4 + 0] = half_float_color[0];
-          row[x * 4 + 1] = half_float_color[1];
-          row[x * 4 + 2] = half_float_color[2];
-          row[x * 4 + 3] = half_float_color[3];
-        }
+        auto row = UNSAFE_TODO(ToSpan_uint64(data, y * stride, width));
+        std::ranges::fill(row, base::bit_cast<uint64_t>(half_float_color));
       }
       return;
     }
@@ -221,20 +251,18 @@ void GLTestSupport::SetBufferDataToColor(int width,
       DCHECK_LT(plane, 3);
       DCHECK_EQ(0, height % 2);
       DCHECK_EQ(0, width % 2);
-      uint8_t yvu[3] = {};
+      std::array<uint8_t, 3> yvu = {};
       rgb_to_yuv(color[0], color[1], color[2], &yvu[0], &yvu[2], &yvu[1]);
 
       if (plane == 0) {
         for (int y = 0; y < height; ++y) {
-          for (int x = 0; x < width; ++x) {
-            data[stride * y + x] = yvu[0];
-          }
+          auto row = UNSAFE_TODO(ToSpan_uint8(data, stride * y, width));
+          std::ranges::fill(row, yvu[0]);
         }
       } else {
         for (int y = 0; y < height / 2; ++y) {
-          for (int x = 0; x < width / 2; ++x) {
-            data[stride * y + x] = yvu[plane];
-          }
+          auto row = UNSAFE_TODO(ToSpan_uint8(data, stride * y, width / 2));
+          std::ranges::fill(row, yvu[plane]);
         }
       }
       return;
@@ -243,21 +271,18 @@ void GLTestSupport::SetBufferDataToColor(int width,
       DCHECK_LT(plane, 2);
       DCHECK_EQ(0, height % 2);
       DCHECK_EQ(0, width % 2);
-      uint8_t yuv[3] = {};
+      std::array<uint8_t, 3> yuv = {};
       rgb_to_yuv(color[0], color[1], color[2], &yuv[0], &yuv[1], &yuv[2]);
 
       if (plane == 0) {
         for (int y = 0; y < height; ++y) {
-          for (int x = 0; x < width; ++x) {
-            data[stride * y + x] = yuv[0];
-          }
+          auto row = UNSAFE_TODO(ToSpan_uint8(data, stride * y, width));
+          std::ranges::fill(row, yuv[0]);
         }
       } else {
         for (int y = 0; y < height / 2; ++y) {
-          for (int x = 0; x < width / 2; ++x) {
-            data[stride * y + x * 2] = yuv[1];
-            data[stride * y + x * 2 + 1] = yuv[2];
-          }
+          auto row = UNSAFE_TODO(ToSpan_uint16(data, stride * y, width / 2));
+          std::ranges::fill(row, (yuv[2] << 8) | yuv[1]);
         }
       }
       return;
@@ -266,28 +291,24 @@ void GLTestSupport::SetBufferDataToColor(int width,
       DCHECK_LT(plane, 3);
       DCHECK_EQ(0, height % 2);
       DCHECK_EQ(0, width % 2);
-      uint8_t yuv[4] = {};
+      std::array<uint8_t, 4> yuv = {};
       rgb_to_yuv(color[0], color[1], color[2], &yuv[0], &yuv[1], &yuv[2]);
       yuv[3] = color[3];
 
       if (plane == 0) {
         for (int y = 0; y < height; ++y) {
-          for (int x = 0; x < width; ++x) {
-            data[stride * y + x] = yuv[0];
-          }
+          auto row = UNSAFE_TODO(ToSpan_uint8(data, stride * y, width));
+          std::ranges::fill(row, yuv[0]);
         }
       } else if (plane == 1) {
         for (int y = 0; y < height / 2; ++y) {
-          for (int x = 0; x < width / 2; ++x) {
-            data[stride * y + x * 2] = yuv[1];
-            data[stride * y + x * 2 + 1] = yuv[2];
-          }
+          auto row = UNSAFE_TODO(ToSpan_uint16(data, stride * y, width / 2));
+          std::ranges::fill(row, (yuv[2] << 8) | yuv[1]);
         }
       } else {
         for (int y = 0; y < height; ++y) {
-          for (int x = 0; x < width; ++x) {
-            data[stride * y + x] = yuv[3];
-          }
+          auto row = UNSAFE_TODO(ToSpan_uint8(data, stride * y, width));
+          std::ranges::fill(row, yuv[3]);
         }
       }
       return;
@@ -296,23 +317,18 @@ void GLTestSupport::SetBufferDataToColor(int width,
       DCHECK_LT(plane, 3);
       DCHECK_EQ(0, height % 2);
       DCHECK_EQ(0, width % 2);
-      uint16_t yuv[3] = {};
+      std::array<uint16_t, 3> yuv = {};
       rgb_to_yuv(color[0], color[1], color[2], &yuv[0], &yuv[1], &yuv[2]);
 
       if (plane == 0) {
         for (int y = 0; y < height; ++y) {
-          uint16_t* row = reinterpret_cast<uint16_t*>(data + y * stride);
-          for (int x = 0; x < width; ++x) {
-            row[x] = yuv[0] << 2;
-          }
+          auto row = UNSAFE_TODO(ToSpan_uint16(data, y * stride, width));
+          std::ranges::fill(row, yuv[0] << 2);
         }
       } else {
         for (int y = 0; y < height / 2; ++y) {
-          uint16_t* row = reinterpret_cast<uint16_t*>(data + y * stride);
-          for (int x = 0; x < width; x += 2) {
-            row[x] = yuv[1] << 2;
-            row[x + 1] = yuv[2] << 2;
-          }
+          auto row = UNSAFE_TODO(ToSpan_uint32(data, y * stride, width / 2));
+          std::ranges::fill(row, (yuv[2] << 18) | (yuv[1] << 2));
         }
       }
       return;
@@ -320,4 +336,5 @@ void GLTestSupport::SetBufferDataToColor(int width,
   }
   NOTREACHED();
 }
+
 }  // namespace gl

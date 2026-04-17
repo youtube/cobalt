@@ -4,21 +4,34 @@
 
 #include "net/log/net_log.h"
 
+#include <array>
+
 #include "base/memory/raw_ptr.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/test/task_environment.h"
 #include "base/threading/simple_thread.h"
 #include "base/values.h"
+#include "net/log/net_log_capture_mode.h"
 #include "net/log/net_log_event_type.h"
 #include "net/log/net_log_source_type.h"
 #include "net/log/net_log_with_source.h"
 #include "net/log/test_net_log.h"
 #include "net/log/test_net_log_util.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
 
 namespace {
+
+using ::testing::ElementsAre;
+using ::testing::Field;
+using ::testing::Pair;
+using ::testing::Pointee;
+using ::testing::Property;
+using ::testing::SizeIs;
+using ::testing::StrEq;
+using ::testing::UnorderedElementsAre;
 
 const int kThreads = 10;
 const int kEvents = 100;
@@ -78,6 +91,60 @@ TEST(NetLogTest, BasicGlobalEvents) {
   EXPECT_EQ(ticks1, entries[1].time);
   EXPECT_FALSE(entries[1].HasParams());
 }
+
+enum class AddEntryType {
+  kAddGlobalEntry,
+  kAddEntry,
+};
+
+class NetLogAddEntryTest : public testing::TestWithParam<AddEntryType> {};
+
+TEST_P(NetLogAddEntryTest, StripsNonAllowlistedParamsInHeavilyRedactedMode) {
+  RecordingNetLogObserver default_net_log_observer(NetLogCaptureMode::kDefault);
+  RecordingNetLogObserver heavily_redacted_net_log_observer(
+      NetLogCaptureMode::kHeavilyRedacted);
+  auto params = base::Value::Dict()
+                    .Set("should_be_stripped", "should_be_stripped_value")
+                    .Set("method", "method_value");
+
+  auto& net_log = *NetLog::Get();
+  // Run the test against both AddGlobalEntry() and AddEntry(), since they
+  // exercise different code paths internally.
+  switch (GetParam()) {
+    case AddEntryType::kAddGlobalEntry:
+      net_log.AddGlobalEntry(
+          NetLogEventType::CANCELLED,
+          [&](NetLogCaptureMode capture_mode) { return params.Clone(); });
+      break;
+    case AddEntryType::kAddEntry:
+      net_log.AddEntry(NetLogEventType::CANCELLED,
+                       NetLogSource(NetLogSourceType::NONE, net_log.NextID()),
+                       NetLogEventPhase::NONE, [&] { return params.Clone(); });
+      break;
+  }
+
+  EXPECT_THAT(
+      default_net_log_observer.GetEntries(),
+      ElementsAre(Field(
+          &NetLogEntry::params,
+          UnorderedElementsAre(
+              Pair("should_be_stripped",
+                   Property(&base::Value::GetIfString,
+                            Pointee(StrEq("should_be_stripped_value")))),
+              Pair("method", Property(&base::Value::GetIfString,
+                                      Pointee(StrEq("method_value"))))))));
+  EXPECT_THAT(heavily_redacted_net_log_observer.GetEntries(),
+              ElementsAre(Field(
+                  &NetLogEntry::params,
+                  ElementsAre(Pair(
+                      "method", Property(&base::Value::GetIfString,
+                                         Pointee(StrEq("method_value"))))))));
+}
+
+INSTANTIATE_TEST_SUITE_P(NetLogAddEntryTest,
+                         NetLogAddEntryTest,
+                         testing::Values(AddEntryType::kAddGlobalEntry,
+                                         AddEntryType::kAddEntry));
 
 TEST(NetLogTest, BasicEventsWithSource) {
   base::test::TaskEnvironment task_environment{
@@ -211,7 +278,7 @@ class LoggingObserver : public NetLog::ThreadSafeObserver {
   }
 
   void OnAddEntry(const NetLogEntry& entry) override {
-    // TODO(https://crbug.com/1418110): This should be updated to be a
+    // TODO(crbug.com/40257546): This should be updated to be a
     // base::Value::Dict instead of a std::unique_ptr.
     std::unique_ptr<base::Value::Dict> dict =
         std::make_unique<base::Value::Dict>(entry.ToDict());
@@ -323,7 +390,7 @@ void RunTestThreads(NetLog* net_log) {
       base::WaitableEvent::ResetPolicy::MANUAL,
       base::WaitableEvent::InitialState::NOT_SIGNALED);
 
-  ThreadType threads[kThreads];
+  std::array<ThreadType, kThreads> threads;
   for (size_t i = 0; i < std::size(threads); ++i) {
     threads[i].Init(net_log, &start_event);
     threads[i].Start();
@@ -396,7 +463,7 @@ TEST(NetLogTest, NetLogAddRemoveObserver) {
 
 // Test adding and removing two observers at different log levels.
 TEST(NetLogTest, NetLogTwoObservers) {
-  LoggingObserver observer[2];
+  std::array<LoggingObserver, 2> observer;
 
   // Add first observer.
   NetLog::Get()->AddObserver(&observer[0],
@@ -416,7 +483,7 @@ TEST(NetLogTest, NetLogTwoObservers) {
 
   // Add event and make sure both observers receive it at their respective log
   // levels.
-  absl::optional<int> param;
+  std::optional<int> param;
   AddEvent(NetLog::Get());
   ASSERT_EQ(1U, observer[0].GetNumValues());
   param = observer[0].GetDict(0)->FindDict("params")->FindInt("capture_mode");

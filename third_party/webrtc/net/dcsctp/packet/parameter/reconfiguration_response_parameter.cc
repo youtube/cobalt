@@ -12,12 +12,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "api/array_view.h"
 #include "net/dcsctp/packet/bounded_byte_reader.h"
 #include "net/dcsctp/packet/bounded_byte_writer.h"
@@ -64,11 +64,11 @@ absl::string_view ToString(ReconfigurationResponseParameter::Result result) {
   }
 }
 
-absl::optional<ReconfigurationResponseParameter>
-ReconfigurationResponseParameter::Parse(rtc::ArrayView<const uint8_t> data) {
-  absl::optional<BoundedByteReader<kHeaderSize>> reader = ParseTLV(data);
+std::optional<ReconfigurationResponseParameter>
+ReconfigurationResponseParameter::Parse(webrtc::ArrayView<const uint8_t> data) {
+  std::optional<BoundedByteReader<kHeaderSize>> reader = ParseTLV(data);
   if (!reader.has_value()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   ReconfigRequestSN response_sequence_number(reader->Load32<4>());
@@ -101,14 +101,14 @@ ReconfigurationResponseParameter::Parse(rtc::ArrayView<const uint8_t> data) {
     default:
       RTC_DLOG(LS_WARNING) << "Invalid reconfig response result: "
                            << result_nbr;
-      return absl::nullopt;
+      return std::nullopt;
   }
 
   if (reader->variable_data().empty()) {
     return ReconfigurationResponseParameter(response_sequence_number, result);
   } else if (reader->variable_data_size() != kNextTsnHeaderSize) {
     RTC_DLOG(LS_WARNING) << "Invalid parameter size";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   BoundedByteReader<kNextTsnHeaderSize> sub_reader =
@@ -144,7 +144,7 @@ void ReconfigurationResponseParameter::SerializeTo(
 }
 
 std::string ReconfigurationResponseParameter::ToString() const {
-  rtc::StringBuilder sb;
+  webrtc::StringBuilder sb;
   sb << "Re-configuration Response, resp_seq_nbr="
      << *response_sequence_number();
   return sb.Release();

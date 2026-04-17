@@ -24,10 +24,11 @@ namespace blink {
 
 class DOMException;
 class HistoryItem;
-class NavigationApiNavigation;
+class NavigationApiMethodTracker;
 class NavigationUpdateCurrentEntryOptions;
 class NavigationHistoryEntry;
 class NavigateEvent;
+class NavigationActivation;
 class NavigationNavigateOptions;
 class NavigationReloadOptions;
 class NavigationResult;
@@ -36,22 +37,27 @@ class NavigationTransition;
 class RegisteredEventListener;
 class SerializedScriptValue;
 
-class CORE_EXPORT NavigationApi final : public EventTargetWithInlineData {
+class CORE_EXPORT NavigationApi final : public EventTarget {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
   explicit NavigationApi(LocalDOMWindow*);
   ~NavigationApi() final = default;
 
-  void InitializeForNewWindow(HistoryItem& current,
-                              WebFrameLoadType,
-                              CommitReason,
-                              NavigationApi* previous,
-                              const WebVector<WebHistoryItem>& back_entries,
-                              const WebVector<WebHistoryItem>& forward_entries);
+  void InitializeForNewWindow(
+      HistoryItem& current,
+      WebFrameLoadType,
+      CommitReason,
+      NavigationApi* previous,
+      const std::vector<WebHistoryItem>& back_entries,
+      const std::vector<WebHistoryItem>& forward_entries,
+      HistoryItem* previous_entry);
   void UpdateForNavigation(HistoryItem&, WebFrameLoadType);
   void SetEntriesForRestore(
-      const mojom::blink::NavigationApiHistoryEntryArraysPtr&);
+      const mojom::blink::NavigationApiHistoryEntryArraysPtr&,
+      mojom::blink::NavigationApiEntryRestoreReason);
+
+  void UpdateCurrentEntryForTesting(HistoryItem& item);
 
   // The entries indicated by |keys| have been removed from the session history
   // in the browser process and should be disposed. In many cases, this won't
@@ -76,7 +82,8 @@ class CORE_EXPORT NavigationApi final : public EventTargetWithInlineData {
   HeapVector<Member<NavigationHistoryEntry>> entries();
   void updateCurrentEntry(NavigationUpdateCurrentEntryOptions*,
                           ExceptionState&);
-  NavigationTransition* transition() const { return transition_; }
+  NavigationTransition* transition() const { return transition_.Get(); }
+  NavigationActivation* activation() const;
 
   bool canGoBack() const;
   bool canGoForward() const;
@@ -121,10 +128,12 @@ class CORE_EXPORT NavigationApi final : public EventTargetWithInlineData {
                          mojom::blink::TraverseCancelledReason reason);
 
   int GetIndexFor(NavigationHistoryEntry*);
+  NavigationHistoryEntry* GetExistingEntryFor(const String& key,
+                                              const String& id);
 
-  // EventTargetWithInlineData overrides:
+  // EventTarget overrides:
   const AtomicString& InterfaceName() const final;
-  ExecutionContext* GetExecutionContext() const final { return window_; }
+  ExecutionContext* GetExecutionContext() const final { return window_.Get(); }
   void AddedEventListener(const AtomicString&, RegisteredEventListener&) final;
   void RemovedEventListener(const AtomicString&,
                             const RegisteredEventListener&) final;
@@ -136,7 +145,8 @@ class CORE_EXPORT NavigationApi final : public EventTargetWithInlineData {
   NavigationHistoryEntry* GetEntryForRestore(
       const mojom::blink::NavigationApiHistoryEntryPtr&);
   void PopulateKeySet();
-  void AbortOngoingNavigation(ScriptState*);
+  void UpdateActivation(HistoryItem* previous_entry, WebFrameLoadType);
+  void AbortOngoingNavigation(ScriptState*, CancelNavigationReason);
   void DidFinishOngoingNavigation();
   void DidFailOngoingNavigation(ScriptValue);
 
@@ -166,10 +176,12 @@ class CORE_EXPORT NavigationApi final : public EventTargetWithInlineData {
   bool has_dropped_navigation_ = false;
 
   Member<NavigationTransition> transition_;
+  Member<NavigationActivation> activation_;
 
-  Member<NavigationApiNavigation> ongoing_navigation_;
-  HeapHashMap<String, Member<NavigationApiNavigation>> upcoming_traversals_;
-  Member<NavigationApiNavigation> upcoming_non_traversal_navigation_;
+  Member<NavigationApiMethodTracker> ongoing_api_method_tracker_;
+  HeapHashMap<String, Member<NavigationApiMethodTracker>>
+      upcoming_traverse_api_method_trackers_;
+  Member<NavigationApiMethodTracker> upcoming_non_traverse_api_method_tracker_;
 
   Member<NavigateEvent> ongoing_navigate_event_;
 

@@ -11,12 +11,14 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/strings/string_util.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/values.h"
 #include "net/base/auth.h"
 #include "net/base/io_buffer.h"
+#include "net/base/proxy_chain.h"
 #include "net/base/proxy_delegate.h"
 #include "net/http/http_auth_cache.h"
 #include "net/http/http_auth_handler_factory.h"
@@ -33,7 +35,8 @@ namespace net {
 
 SpdyProxyClientSocket::SpdyProxyClientSocket(
     const base::WeakPtr<SpdyStream>& spdy_stream,
-    const ProxyServer& proxy_server,
+    const ProxyChain& proxy_chain,
+    size_t proxy_chain_index,
     const std::string& user_agent,
     const HostPortPair& endpoint,
     const NetLogWithSource& source_net_log,
@@ -42,7 +45,8 @@ SpdyProxyClientSocket::SpdyProxyClientSocket(
     : spdy_stream_(spdy_stream),
       endpoint_(endpoint),
       auth_(std::move(auth_controller)),
-      proxy_server_(proxy_server),
+      proxy_chain_(proxy_chain),
+      proxy_chain_index_(proxy_chain_index),
       proxy_delegate_(proxy_delegate),
       user_agent_(user_agent),
       net_log_(NetLogWithSource::Make(spdy_stream->net_log().net_log(),
@@ -150,18 +154,11 @@ bool SpdyProxyClientSocket::WasEverUsed() const {
   return was_ever_used_ || (spdy_stream_.get() && spdy_stream_->WasEverUsed());
 }
 
-bool SpdyProxyClientSocket::WasAlpnNegotiated() const {
-  // Do not delegate to `spdy_stream_`. While `spdy_stream_` negotiated ALPN
-  // with the proxy, this object represents the tunneled TCP connection to the
-  // origin.
-  return false;
-}
-
 NextProto SpdyProxyClientSocket::GetNegotiatedProtocol() const {
   // Do not delegate to `spdy_stream_`. While `spdy_stream_` negotiated ALPN
   // with the proxy, this object represents the tunneled TCP connection to the
   // origin.
-  return kProtoUnknown;
+  return NextProto::kProtoUnknown;
 }
 
 bool SpdyProxyClientSocket::GetSSLInfo(SSLInfo* ssl_info) {
@@ -341,8 +338,6 @@ int SpdyProxyClientSocket::DoLoop(int last_io_result) {
         break;
       default:
         NOTREACHED() << "bad state";
-        rv = ERR_UNEXPECTED;
-        break;
     }
   } while (rv != ERR_IO_PENDING && next_state_ != STATE_DISCONNECTED &&
            next_state_ != STATE_OPEN);
@@ -376,8 +371,11 @@ int SpdyProxyClientSocket::DoSendRequest() {
 
   if (proxy_delegate_) {
     HttpRequestHeaders proxy_delegate_headers;
-    proxy_delegate_->OnBeforeTunnelRequest(proxy_server_,
-                                           &proxy_delegate_headers);
+    int result = proxy_delegate_->OnBeforeTunnelRequest(
+        proxy_chain_, proxy_chain_index_, &proxy_delegate_headers);
+    if (result < 0) {
+      return result;
+    }
     request_.extra_headers.MergeFrom(proxy_delegate_headers);
   }
 
@@ -389,8 +387,9 @@ int SpdyProxyClientSocket::DoSendRequest() {
                        NetLogEventType::HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
                        request_line, &request_.extra_headers);
 
-  spdy::Http2HeaderBlock headers;
-  CreateSpdyHeadersFromHttpRequest(request_, request_.extra_headers, &headers);
+  quiche::HttpHeaderBlock headers;
+  CreateSpdyHeadersFromHttpRequest(request_, std::nullopt,
+                                   request_.extra_headers, &headers);
 
   return spdy_stream_->SendRequestHeaders(std::move(headers),
                                           MORE_DATA_TO_SEND);
@@ -421,8 +420,8 @@ int SpdyProxyClientSocket::DoReadReplyComplete(int result) {
       response_.headers.get());
 
   if (proxy_delegate_) {
-    int rv = proxy_delegate_->OnTunnelHeadersReceived(proxy_server_,
-                                                      *response_.headers);
+    int rv = proxy_delegate_->OnTunnelHeadersReceived(
+        proxy_chain_, proxy_chain_index_, *response_.headers);
     if (rv != OK) {
       DCHECK_NE(ERR_IO_PENDING, rv);
       return rv;
@@ -456,11 +455,10 @@ void SpdyProxyClientSocket::OnHeadersSent() {
 }
 
 void SpdyProxyClientSocket::OnEarlyHintsReceived(
-    const spdy::Http2HeaderBlock& headers) {}
+    const quiche::HttpHeaderBlock& headers) {}
 
 void SpdyProxyClientSocket::OnHeadersReceived(
-    const spdy::Http2HeaderBlock& response_headers,
-    const spdy::Http2HeaderBlock* pushed_request_headers) {
+    const quiche::HttpHeaderBlock& response_headers) {
   // If we've already received the reply, existing headers are too late.
   // TODO(mbelshe): figure out a way to make HEADERS frames useful after the
   //                initial response.
@@ -526,10 +524,11 @@ void SpdyProxyClientSocket::OnDataSent() {
                                 weak_factory_.GetWeakPtr(), rv));
 }
 
-void SpdyProxyClientSocket::OnTrailers(const spdy::Http2HeaderBlock& trailers) {
+void SpdyProxyClientSocket::OnTrailers(
+    const quiche::HttpHeaderBlock& trailers) {
   // |spdy_stream_| is of type SPDY_BIDIRECTIONAL_STREAM, so trailers are
   // combined with response headers and this method will not be calld.
-  NOTREACHED();
+  DUMP_WILL_BE_NOTREACHED();
 }
 
 void SpdyProxyClientSocket::OnClose(int status)  {
@@ -581,7 +580,7 @@ void SpdyProxyClientSocket::MaybeSendEndStream() {
   if (write_callback_)
     return;
 
-  auto buffer = base::MakeRefCounted<IOBuffer>(/*buffer_size=*/0);
+  auto buffer = base::MakeRefCounted<IOBufferWithSize>(/*buffer_size=*/0);
   spdy_stream_->SendData(buffer.get(), /*length=*/0, NO_MORE_DATA_TO_SEND);
   end_stream_state_ = EndStreamState::kEndStreamSent;
 }

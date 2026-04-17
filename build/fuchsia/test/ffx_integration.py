@@ -23,7 +23,7 @@ def get_config(name: str) -> Optional[str]:
     """Run a ffx config get command to retrieve the config value."""
 
     try:
-        return run_ffx_command(['config', 'get', name],
+        return run_ffx_command(cmd=['config', 'get', name],
                                capture_output=True).stdout.strip()
     except subprocess.CalledProcessError as cpe:
         # A return code of 2 indicates no previous value set.
@@ -52,7 +52,7 @@ class ScopedFfxConfig(AbstractContextManager):
         # Cache the old value.
         self._old_value = get_config(self._name)
         if self._new_value != self._old_value:
-            run_ffx_command(['config', 'set', self._name, self._new_value])
+            run_ffx_command(cmd=['config', 'set', self._name, self._new_value])
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
@@ -60,7 +60,7 @@ class ScopedFfxConfig(AbstractContextManager):
             return False
 
         # Allow removal of config to fail.
-        remove_cmd = run_ffx_command(['config', 'remove', self._name],
+        remove_cmd = run_ffx_command(cmd=['config', 'remove', self._name],
                                      check=False)
         if remove_cmd.returncode != 0:
             logging.warning('Error when removing ffx config %s', self._name)
@@ -69,16 +69,10 @@ class ScopedFfxConfig(AbstractContextManager):
         # already restore the old value.
         if self._old_value is not None and \
            self._old_value != get_config(self._name):
-            run_ffx_command(['config', 'set', self._name, self._old_value])
+            run_ffx_command(cmd=['config', 'set', self._name, self._old_value])
 
         # Do not suppress exceptions.
         return False
-
-
-def test_connection(target_id: Optional[str]) -> None:
-    """Run an echo test to verify that the device can be connected to."""
-
-    run_ffx_command(('target', 'echo'), target_id)
 
 
 class FfxTestRunner(AbstractContextManager):
@@ -121,7 +115,8 @@ class FfxTestRunner(AbstractContextManager):
     def run_test(self,
                  component_uri: str,
                  test_args: Optional[Iterable[str]] = None,
-                 node_name: Optional[str] = None) -> subprocess.Popen:
+                 node_name: Optional[str] = None,
+                 test_realm: Optional[str] = None) -> subprocess.Popen:
         """Starts a subprocess to run a test on a target.
         Args:
             component_uri: The test component URI.
@@ -132,8 +127,11 @@ class FfxTestRunner(AbstractContextManager):
         """
         command = [
             'test', 'run', '--output-directory', self._results_dir,
-            component_uri
         ]
+        if test_realm:
+            command.append("--realm")
+            command.append(test_realm)
+        command.append(component_uri)
         if test_args:
             command.append('--')
             command.extend(test_args)
@@ -220,8 +218,10 @@ class FfxTestRunner(AbstractContextManager):
         return self._debug_data_directory
 
 
-def run_symbolizer(symbol_paths: List[str], input_fd: IO,
-                   output_fd: IO) -> subprocess.Popen:
+def run_symbolizer(symbol_paths: List[str],
+                   input_fd: IO,
+                   output_fd: IO,
+                   raw_bytes: bool = False) -> subprocess.Popen:
     """Runs symbolizer that symbolizes |input| and outputs to |output|."""
 
     symbolize_cmd = ([
@@ -230,7 +230,13 @@ def run_symbolizer(symbol_paths: List[str], input_fd: IO,
     ])
     for path in symbol_paths:
         symbolize_cmd.extend(['--ids-txt', path])
+    if raw_bytes:
+        encoding = None
+    else:
+        encoding = 'utf-8'
     return run_continuous_ffx_command(symbolize_cmd,
                                       stdin=input_fd,
                                       stdout=output_fd,
-                                      stderr=subprocess.STDOUT)
+                                      stderr=subprocess.STDOUT,
+                                      encoding=encoding,
+                                      close_fds=True)

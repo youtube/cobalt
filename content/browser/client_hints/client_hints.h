@@ -11,8 +11,8 @@
 #include "content/common/content_export.h"
 #include "content/public/browser/client_hints_controller_delegate.h"
 #include "net/http/http_request_headers.h"
+#include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "services/network/public/mojom/parsed_headers.mojom-forward.h"
-#include "third_party/blink/public/common/permissions_policy/permissions_policy.h"
 #include "url/gurl.h"
 
 namespace net {
@@ -46,20 +46,20 @@ CONTENT_EXPORT bool ShouldAddClientHints(
     const url::Origin& origin,
     FrameTreeNode* frame_tree_node,
     ClientHintsControllerDelegate* delegate,
-    const absl::optional<GURL> maybe_request_url = absl::nullopt);
+    const std::optional<GURL> maybe_request_url = std::nullopt);
 
 // Returns |rtt| after adding host-specific random noise, and rounding it as
 // per the NetInfo spec to improve privacy.
 CONTENT_EXPORT unsigned long RoundRttForTesting(
     const std::string& host,
-    const absl::optional<base::TimeDelta>& rtt);
+    const std::optional<base::TimeDelta>& rtt);
 
 // Returns downlink (in Mbps) after adding host-specific random noise to
 // |downlink_kbps| (which is in Kbps), and rounding it as per the NetInfo spec
 // to improve privacy.
 CONTENT_EXPORT double RoundKbpsToMbpsForTesting(
     const std::string& host,
-    const absl::optional<int32_t>& downlink_kbps);
+    const std::optional<int32_t>& downlink_kbps);
 
 // Returns true if there is a hint in |critical_hints| that would be sent (i.e.
 // not blocked by browser or origin level preferences like disabled JavaScript
@@ -81,7 +81,7 @@ CONTENT_EXPORT void UpdateNavigationRequestClientUaHeaders(
     bool override_ua,
     FrameTreeNode* frame_tree_node,
     net::HttpRequestHeaders* headers,
-    const absl::optional<GURL>& request_url = absl::nullopt);
+    const std::optional<GURL>& request_url = std::nullopt);
 
 CONTENT_EXPORT void AddNavigationRequestClientHintsHeaders(
     const url::Origin& origin,
@@ -90,19 +90,17 @@ CONTENT_EXPORT void AddNavigationRequestClientHintsHeaders(
     ClientHintsControllerDelegate* delegate,
     bool is_ua_override_on,
     FrameTreeNode*,
-    const blink::ParsedPermissionsPolicy&,
-    const absl::optional<GURL>& request_url = absl::nullopt);
+    const network::ParsedPermissionsPolicy&,
+    const std::optional<GURL>& request_url = std::nullopt);
 
 // Adds client hints headers for a prefetch navigation that is not associated
-// with a frame. It must be a main frame navigation. |is_javascript_enabled| is
-// whether JavaScript is enabled in blink or not.
+// with a frame. It must be a main frame navigation.
 CONTENT_EXPORT void AddPrefetchNavigationRequestClientHintsHeaders(
     const url::Origin& origin,
     net::HttpRequestHeaders* headers,
     BrowserContext* context,
     ClientHintsControllerDelegate* delegate,
-    bool is_ua_override_on,
-    bool is_javascript_enabled);
+    bool is_ua_override_on);
 
 // Parses incoming client hints and persists them as appropriate. Returns
 // hints that were accepted as enabled even if they are not going to be
@@ -113,7 +111,7 @@ CONTENT_EXPORT void AddPrefetchNavigationRequestClientHintsHeaders(
 // processes, but here, we just pass the HttpRequestHeaders to the
 // TrialTokenValidator library.  There is precedent for calling the
 // TrialTokenValidator from the browser process, see crrev.com/c/2142580.
-CONTENT_EXPORT absl::optional<std::vector<network::mojom::WebClientHintsType>>
+CONTENT_EXPORT std::optional<std::vector<network::mojom::WebClientHintsType>>
 ParseAndPersistAcceptCHForNavigation(
     const url::Origin& origin,
     const network::mojom::ParsedHeadersPtr& parsed_headers,
@@ -138,11 +136,10 @@ CONTENT_EXPORT void PersistAcceptCH(
 //
 // See |ShouldAddClientHints| for |origin| vs |request_url|
 CONTENT_EXPORT std::vector<::network::mojom::WebClientHintsType>
-LookupAcceptCHForCommit(
-    const url::Origin& origin,
-    ClientHintsControllerDelegate* delegate,
-    FrameTreeNode* frame_tree_node,
-    const absl::optional<GURL>& request_url = absl::nullopt);
+LookupAcceptCHForCommit(const url::Origin& origin,
+                        ClientHintsControllerDelegate* delegate,
+                        FrameTreeNode* frame_tree_node,
+                        const std::optional<GURL>& request_url = std::nullopt);
 
 }  // namespace content
 

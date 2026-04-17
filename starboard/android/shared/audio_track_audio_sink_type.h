@@ -15,11 +15,10 @@
 #ifndef STARBOARD_ANDROID_SHARED_AUDIO_TRACK_AUDIO_SINK_TYPE_H_
 #define STARBOARD_ANDROID_SHARED_AUDIO_TRACK_AUDIO_SINK_TYPE_H_
 
-#include <pthread.h>
-
 #include <atomic>
 #include <functional>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -27,15 +26,23 @@
 
 #include "starboard/android/shared/audio_sink_min_required_frames_tester.h"
 #include "starboard/android/shared/audio_track_bridge.h"
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
+#include "starboard/common/thread.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
 namespace starboard {
+
+// These must be in sync with AudioTrack.PLAYSTATE_XXX constants in
+// AudioTrack.java.
+// Indicates AudioTrack state is stopped.
+constexpr jint PLAYSTATE_STOPPED = 1;
+// Indicates AudioTrack state is paused.
+constexpr jint PLAYSTATE_PAUSED = 2;
+// Indicates AudioTrack state is playing.
+constexpr jint PLAYSTATE_PLAYING = 3;
 
 class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
  public:
@@ -69,6 +76,7 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
       int64_t start_time,
       int tunnel_mode_audio_session_id,
       bool is_web_audio,
+      bool pause_using_audio_track_state,
       void* context);
 
   bool IsValid(SbAudioSink audio_sink) override {
@@ -115,6 +123,7 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
       int64_t start_media_time,
       int tunnel_mode_audio_session_id,
       bool is_web_audio,
+      bool pause_using_audio_track_state,
       void* context);
   ~AudioTrackAudioSink() override;
 
@@ -127,7 +136,8 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
   int GetStartThresholdInFrames();
 
  private:
-  static void* ThreadEntryPoint(void* context);
+  class AudioTrackOutThread;
+
   void AudioThreadFunc();
 
   int WriteData(JNIEnv* env, const void* buffer, int size, int64_t sync_time);
@@ -146,13 +156,14 @@ class AudioTrackAudioSink : public SbAudioSinkImpl {
   const ConsumeFramesFunc consume_frames_func_;
   const SbAudioSinkPrivate::ErrorFunc error_func_;
   const int64_t start_time_;  // microseconds
+  const bool pause_using_audio_track_state_;
   const int max_frames_per_request_;
   void* const context_;
 
   AudioTrackBridge bridge_;
 
   volatile bool quit_ = false;
-  std::optional<pthread_t> audio_out_thread_;
+  std::unique_ptr<Thread> audio_out_thread_;
 
   std::mutex mutex_;
   double playback_rate_ = 1.0;

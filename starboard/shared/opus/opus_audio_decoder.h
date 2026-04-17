@@ -32,7 +32,8 @@ namespace starboard {
 
 class OpusAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
  public:
-  explicit OpusAudioDecoder(const AudioStreamInfo& audio_stream_info);
+  OpusAudioDecoder(JobQueue* job_queue,
+                   const AudioStreamInfo& audio_stream_info);
   ~OpusAudioDecoder() override;
 
   bool is_valid() const;

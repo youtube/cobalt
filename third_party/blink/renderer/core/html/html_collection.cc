@@ -29,8 +29,11 @@
 #include "third_party/blink/renderer/core/html/collection_type.h"
 #include "third_party/blink/renderer/core/html/document_all_name_collection.h"
 #include "third_party/blink/renderer/core/html/document_name_collection.h"
+#include "third_party/blink/renderer/core/html/forms/html_button_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_data_list_options_collection.h"
+#include "third_party/blink/renderer/core/html/forms/html_field_set_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_control_element.h"
+#include "third_party/blink/renderer/core/html/forms/html_form_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_option_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_options_collection.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
@@ -67,6 +70,7 @@ static bool ShouldTypeOnlyIncludeDirectChildren(CollectionType type) {
     case kWindowNamedItems:
     case kFormControls:
     case kPopoverInvokers:
+    case kCommandInvokers:
       return false;
     case kNodeChildren:
     case kTRCells:
@@ -80,7 +84,6 @@ static bool ShouldTypeOnlyIncludeDirectChildren(CollectionType type) {
       break;
   }
   NOTREACHED();
-  return false;
 }
 
 static NodeListSearchRoot SearchRootFromCollectionType(
@@ -118,6 +121,7 @@ static NodeListSearchRoot SearchRootFromCollectionType(
       DCHECK(IsA<HTMLFormElement>(owner));
       return NodeListSearchRoot::kTreeScope;
     case kPopoverInvokers:
+    case kCommandInvokers:
       return NodeListSearchRoot::kTreeScope;
     case kNameNodeListType:
     case kRadioNodeListType:
@@ -126,7 +130,6 @@ static NodeListSearchRoot SearchRootFromCollectionType(
       break;
   }
   NOTREACHED();
-  return NodeListSearchRoot::kOwnerNode;
 }
 
 static NodeListInvalidationType InvalidationTypeExcludingIdAndNameAttributes(
@@ -169,6 +172,8 @@ static NodeListInvalidationType InvalidationTypeExcludingIdAndNameAttributes(
       return kInvalidateOnClassAttrChange;
     case kPopoverInvokers:
       return kInvalidateOnPopoverInvokerAttrChange;
+    case kCommandInvokers:
+      return kInvalidateOnCommandInvokerAttrChange;
     case kNameNodeListType:
     case kRadioNodeListType:
     case kRadioImgNodeListType:
@@ -176,7 +181,6 @@ static NodeListInvalidationType InvalidationTypeExcludingIdAndNameAttributes(
       break;
   }
   NOTREACHED();
-  return kDoNotInvalidateOnAttributeChanges;
 }
 
 HTMLCollection::HTMLCollection(ContainerNode& owner_node,
@@ -264,7 +268,13 @@ static inline bool IsMatchingHTMLElement(const HTMLCollection& html_collection,
     case kPopoverInvokers:
       if (auto* invoker = DynamicTo<HTMLFormControlElement>(
               const_cast<HTMLElement&>(element))) {
-        return invoker->popoverTargetElement().popover;
+        return invoker->popoverTargetElement().popover != nullptr;
+      }
+      return false;
+    case kCommandInvokers:
+      if (auto* invoker =
+              DynamicTo<HTMLButtonElement>(const_cast<HTMLElement&>(element))) {
+        return invoker->commandForElement() != nullptr;
       }
       return false;
     case kClassCollectionType:
@@ -338,7 +348,6 @@ static inline IsMatch<HTMLCollectionType> MakeIsMatch(
 
 Element* HTMLCollection::VirtualItemAfter(Element*) const {
   NOTREACHED();
-  return nullptr;
 }
 
 // https://html.spec.whatwg.org/C/#all-named-elements
@@ -457,11 +466,11 @@ Element* HTMLCollection::namedItem(const AtomicString& name) const {
   const NamedItemCache& cache = GetNamedItemCache();
   const auto* id_results = cache.GetElementsById(name);
   if (id_results && !id_results->empty())
-    return id_results->front();
+    return id_results->front().Get();
 
   const auto* name_results = cache.GetElementsByName(name);
   if (name_results && !name_results->empty())
-    return name_results->front();
+    return name_results->front().Get();
 
   return nullptr;
 }
@@ -553,6 +562,17 @@ void HTMLCollection::NamedItems(const AtomicString& name,
     result.AppendVector(*id_results);
   if (const auto* name_results = cache.GetElementsByName(name))
     result.AppendVector(*name_results);
+}
+
+bool HTMLCollection::HasNamedItems(const AtomicString& name) const {
+  if (name.empty()) {
+    return false;
+  }
+
+  UpdateIdNameCache();
+
+  const NamedItemCache& cache = GetNamedItemCache();
+  return cache.GetElementsById(name) || cache.GetElementsByName(name);
 }
 
 HTMLCollection::NamedItemCache::NamedItemCache() = default;

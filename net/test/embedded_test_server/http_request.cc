@@ -2,9 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/test/embedded_test_server/http_request.h"
 
 #include <algorithm>
+#include <string_view>
 #include <utility>
 
 #include "base/logging.h"
@@ -47,8 +53,8 @@ HttpRequestParser::HttpRequestParser()
 
 HttpRequestParser::~HttpRequestParser() = default;
 
-void HttpRequestParser::ProcessChunk(base::StringPiece data) {
-  buffer_.append(data.data(), data.size());
+void HttpRequestParser::ProcessChunk(std::string_view data) {
+  buffer_.append(data);
   DCHECK_LE(buffer_.size() + data.size(), kRequestSizeLimit) <<
       "The HTTP request is too large.";
 }
@@ -121,7 +127,7 @@ HttpRequestParser::ParseResult HttpRequestParser::ParseHeaders() {
       } else {
         GURL url(header_line_tokens[1]);
         CHECK(url.is_valid());
-        // TODO(crbug.com/1375303): This should retain the entire URL.
+        // TODO(crbug.com/40242862): This should retain the entire URL.
         http_request_->relative_url = url.PathForRequest();
       }
     }
@@ -171,8 +177,8 @@ HttpRequestParser::ParseResult HttpRequestParser::ParseHeaders() {
       LOG(WARNING) << "Malformed Content-Length header's value.";
     }
   } else if (http_request_->headers.count("Transfer-Encoding") > 0) {
-    if (base::CompareCaseInsensitiveASCII(
-            http_request_->headers["Transfer-Encoding"], "chunked") == 0) {
+    if (base::EqualsCaseInsensitiveASCII(
+            http_request_->headers["Transfer-Encoding"], "chunked")) {
       http_request_->has_content = true;
       chunked_decoder_ = std::make_unique<HttpChunkedDecoder>();
       state_ = STATE_CONTENT;
@@ -195,7 +201,8 @@ HttpRequestParser::ParseResult HttpRequestParser::ParseContent() {
   const size_t available_bytes = buffer_.size() - buffer_position_;
   if (chunked_decoder_.get()) {
     int bytes_written = chunked_decoder_->FilterBuf(
-        const_cast<char*>(buffer_.data()) + buffer_position_, available_bytes);
+        base::as_writable_byte_span(buffer_).subspan(buffer_position_,
+                                                     available_bytes));
     http_request_->content.append(buffer_.data() + buffer_position_,
                                   bytes_written);
 
@@ -243,7 +250,7 @@ std::unique_ptr<HttpRequest> HttpRequestParser::GetRequest() {
 }
 
 // static
-HttpMethod HttpRequestParser::GetMethodType(base::StringPiece token) {
+HttpMethod HttpRequestParser::GetMethodType(std::string_view token) {
   if (token == "GET") {
     return METHOD_GET;
   } else if (token == "HEAD") {

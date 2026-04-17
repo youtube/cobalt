@@ -6,6 +6,7 @@
 
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_media_stream_track_processor_init.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_media_stream_track_state.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/streams/readable_stream.h"
 #include "third_party/blink/renderer/modules/breakout_box/media_stream_audio_track_underlying_source.h"
@@ -58,7 +59,7 @@ MediaStreamTrackProcessor::MediaStreamTrackProcessor(
 
 ReadableStream* MediaStreamTrackProcessor::readable(ScriptState* script_state) {
   if (source_stream_)
-    return source_stream_;
+    return source_stream_.Get();
 
   if (input_track_->Component()->GetSourceType() ==
       MediaStreamSource::kTypeVideo) {
@@ -71,7 +72,7 @@ ReadableStream* MediaStreamTrackProcessor::readable(ScriptState* script_state) {
       MakeGarbageCollected<UnderlyingSourceCloser>(input_track_, this);
   input_track_->AddObserver(source_closer_);
 
-  return source_stream_;
+  return source_stream_.Get();
 }
 
 void MediaStreamTrackProcessor::CreateVideoSourceStream(
@@ -108,7 +109,7 @@ MediaStreamTrackProcessor* MediaStreamTrackProcessor::Create(
     return nullptr;
   }
 
-  if (track->readyState() == "ended") {
+  if (track->readyState() == V8MediaStreamTrackState::Enum::kEnded) {
     exception_state.ThrowTypeError("Input track cannot be ended");
     return nullptr;
   }

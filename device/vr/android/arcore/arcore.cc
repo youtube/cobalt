@@ -40,7 +40,7 @@ gfx::Transform ArCore::GetDepthUvFromScreenUvTransform() const {
 
 ArCore::InitializeResult::InitializeResult(
     const std::unordered_set<device::mojom::XRSessionFeature>& enabled_features,
-    absl::optional<device::mojom::XRDepthConfig> depth_configuration)
+    std::optional<device::mojom::XRDepthConfig> depth_configuration)
     : enabled_features(enabled_features),
       depth_configuration(std::move(depth_configuration)) {}
 
@@ -50,9 +50,11 @@ ArCore::InitializeResult::~InitializeResult() = default;
 
 ArCore::DepthSensingConfiguration::DepthSensingConfiguration(
     std::vector<device::mojom::XRDepthUsage> depth_usage_preference,
-    std::vector<device::mojom::XRDepthDataFormat> depth_data_format_preference)
+    std::vector<device::mojom::XRDepthDataFormat> depth_data_format_preference,
+    std::vector<device::mojom::XRDepthType> depth_type_request)
     : depth_usage_preference(depth_usage_preference),
-      depth_data_format_preference(depth_data_format_preference) {}
+      depth_data_format_preference(depth_data_format_preference),
+      depth_type_request(depth_type_request) {}
 
 ArCore::DepthSensingConfiguration::DepthSensingConfiguration(
     DepthSensingConfiguration&& other) = default;

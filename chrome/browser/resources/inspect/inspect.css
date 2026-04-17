@@ -52,7 +52,7 @@ img {
 #navigation {
   flex-shrink: 0;
   padding-top: 20px;
-  width: 150px;
+  width: 200px;
 }
 
 #content {
@@ -452,6 +452,10 @@ dialog.target-discovery .port-forwarding {
 
 .config-buttons > label {
   flex-grow: 1
+}
+
+#bubble-locking-label {
+  width: unset;
 }
 
 @media (forced-colors: active) {

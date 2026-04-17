@@ -16,16 +16,23 @@ limitations under the License.
 #ifndef TENSORFLOW_LITE_SUPPORT_CC_TASK_CORE_TFLITE_ENGINE_H_
 #define TENSORFLOW_LITE_SUPPORT_CC_TASK_CORE_TFLITE_ENGINE_H_
 
-#include <memory>
+#include <stddef.h>
+#include <stdint.h>
 
-#include "absl/memory/memory.h"        // from @com_google_absl
-#include "absl/status/status.h"        // from @com_google_absl
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "absl/memory/memory.h"  // from @com_google_absl
+#include "absl/status/status.h"  // from @com_google_absl
 #include "absl/strings/string_view.h"  // from @com_google_absl
+#include "tensorflow/lite/c/common.h"
+#include "tensorflow/lite/core/api/error_reporter.h"
 #include "tensorflow/lite/core/api/op_resolver.h"
-#include "tensorflow/lite/core/shims/c/common.h"
-#include "tensorflow/lite/core/shims/cc/interpreter.h"
-#include "tensorflow/lite/core/shims/cc/kernels/register.h"
-#include "tensorflow/lite/core/shims/cc/model.h"
+#include "tensorflow/lite/interpreter.h"
+#include "tensorflow/lite/kernels/register.h"
+#include "tensorflow/lite/model.h"
+#include "tensorflow/lite/model_builder.h"
 #include "tensorflow_lite_support/cc/port/configuration_proto_inc.h"
 #include "tensorflow_lite_support/cc/port/tflite_wrapper.h"
 #include "tensorflow_lite_support/cc/task/core/error_reporter.h"
@@ -35,6 +42,10 @@ limitations under the License.
 
 #ifdef ABSL_HAVE_MMAP
 #include <sys/mman.h>
+#endif
+
+#if _WIN32
+typedef void* HANDLE;
 #endif
 
 namespace tflite {
@@ -47,15 +58,15 @@ class TfLiteEngine {
  public:
   // Types.
   using InterpreterWrapper = ::tflite::support::TfLiteInterpreterWrapper;
-  using Model = ::tflite_shims::FlatBufferModel;
-  using Interpreter = ::tflite_shims::Interpreter;
+  using Model = ::tflite::FlatBufferModel;
+  using Interpreter = ::tflite::Interpreter;
   using ModelDeleter = std::default_delete<Model>;
   using InterpreterDeleter = std::default_delete<Interpreter>;
 
   // Constructors.
   explicit TfLiteEngine(
       std::unique_ptr<tflite::OpResolver> resolver =
-          absl::make_unique<tflite_shims::ops::builtin::BuiltinOpResolver>());
+          absl::make_unique<tflite::ops::builtin::BuiltinOpResolver>());
   // Model is neither copyable nor movable.
   TfLiteEngine(const TfLiteEngine&) = delete;
   TfLiteEngine& operator=(const TfLiteEngine&) = delete;
@@ -100,8 +111,7 @@ class TfLiteEngine {
   // object. This performs extra verification on the input data using
   // tflite::Verify.
   absl::Status BuildModelFromFlatBuffer(
-      const char* buffer_data,
-      size_t buffer_size,
+      const char* buffer_data, size_t buffer_size,
       const tflite::proto::ComputeSettings& compute_settings =
           tflite::proto::ComputeSettings());
 
@@ -110,6 +120,15 @@ class TfLiteEngine {
       const std::string& file_name,
       const tflite::proto::ComputeSettings& compute_settings =
           tflite::proto::ComputeSettings());
+
+#ifdef _WIN32
+  // Builds the TF Lite model from a HANDLE to an open file. The caller retains
+  // ownership of the handle.
+  absl::Status BuildModelFromFileHandle(
+      HANDLE file_handle,
+      const tflite::proto::ComputeSettings& compute_settings =
+          tflite::proto::ComputeSettings());
+#endif
 
   // Builds the TF Lite model from a given file descriptor using mmap(2).
   absl::Status BuildModelFromFileDescriptor(
@@ -143,8 +162,7 @@ class TfLiteEngine {
   // absl::Status TfLiteEngine::InitInterpreter(
   //    const tflite::proto::ComputeSettings& compute_settings)
   absl::Status InitInterpreter(
-      const tflite::proto::ComputeSettings& compute_settings,
-      int num_threads);
+      const tflite::proto::ComputeSettings& compute_settings, int num_threads);
 
   // Cancels the on-going `Invoke()` call if any and if possible. This method
   // can be called from a different thread than the one where `Invoke()` is
@@ -161,8 +179,7 @@ class TfLiteEngine {
   // the FlatBuffer data provided as input.
   class Verifier : public tflite::TfLiteVerifier {
    public:
-    bool Verify(const char* data,
-                int length,
+    bool Verify(const char* data, int length,
                 tflite::ErrorReporter* reporter) override;
   };
 

@@ -2,18 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef GPU_COMMAND_BUFFER_CLIENT_MAPPED_MEMORY_H_
 #define GPU_COMMAND_BUFFER_CLIENT_MAPPED_MEMORY_H_
 
 #include <stddef.h>
 #include <stdint.h>
 
+#include <bit>
 #include <memory>
 
-#include "base/bits.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/raw_ptr_exclusion.h"
 #include "base/trace_event/memory_dump_provider.h"
 #include "gpu/command_buffer/client/fenced_allocator.h"
 #include "gpu/command_buffer/common/buffer.h"
@@ -130,6 +134,12 @@ class GPU_EXPORT MappedMemoryManager {
   // to be reclaimed before allocating more memory.
   MappedMemoryManager(CommandBufferHelper* helper,
                       size_t unused_memory_reclaim_limit);
+#if BUILDFLAG(IS_STARBOARD)
+  MappedMemoryManager(CommandBufferHelper* helper,
+                      size_t unused_memory_reclaim_limit,
+                      size_t allocated_bytes_cleanup_threshold);
+#endif
+
 
   MappedMemoryManager(const MappedMemoryManager&) = delete;
   MappedMemoryManager& operator=(const MappedMemoryManager&) = delete;
@@ -139,7 +149,7 @@ class GPU_EXPORT MappedMemoryManager {
   uint32_t chunk_size_multiple() const { return chunk_size_multiple_; }
 
   void set_chunk_size_multiple(uint32_t multiple) {
-    DCHECK(base::bits::IsPowerOfTwo(multiple));
+    DCHECK(std::has_single_bit(multiple));
     DCHECK_GE(multiple, FencedAllocator::kAllocAlignment);
     chunk_size_multiple_ = multiple;
   }
@@ -226,6 +236,16 @@ class GPU_EXPORT MappedMemoryManager {
   // A process-unique ID used for disambiguating memory dumps from different
   // mapped memory manager.
   int tracing_id_;
+#if BUILDFLAG(IS_STARBOARD)
+  // The threshold for total in-flight mapped memory that triggers
+  // backpressure. When the total size of all allocated memory chunks exceeds
+  // this value, the client will wait for the GPU to finish processing commands
+  // and release memory before allocating any more. This mechanism prevents
+  // excessive memory consumption by queueing up too much work on the GPU.
+  // It is a tunable trade-off between memory usage and performance.
+  // A value of 0 (SharedMemoryLimits::kNoLimit) means no limit.
+  size_t allocated_bytes_cleanup_threshold_;
+#endif
 };
 
 // A class that will manage the lifetime of a mapped memory allocation
@@ -278,19 +298,13 @@ class GPU_EXPORT ScopedMappedMemoryPtr {
   void Reset(uint32_t new_size);
 
  private:
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #union
-  RAW_PTR_EXCLUSION void* buffer_;
+  raw_ptr<void> buffer_;
   uint32_t size_;
   int32_t shm_id_;
   uint32_t shm_offset_;
   bool flush_after_release_;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #union
-  RAW_PTR_EXCLUSION CommandBufferHelper* helper_;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #union
-  RAW_PTR_EXCLUSION MappedMemoryManager* mapped_memory_manager_;
+  raw_ptr<CommandBufferHelper> helper_;
+  raw_ptr<MappedMemoryManager> mapped_memory_manager_;
 };
 
 }  // namespace gpu

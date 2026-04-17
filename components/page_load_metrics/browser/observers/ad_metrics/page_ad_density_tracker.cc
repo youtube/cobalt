@@ -4,11 +4,12 @@
 
 #include "components/page_load_metrics/browser/observers/ad_metrics/page_ad_density_tracker.h"
 
+#include <optional>
+
 #include "base/logging.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/numerics/checked_math.h"
 #include "base/time/default_tick_clock.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace page_load_metrics {
 
@@ -27,7 +28,7 @@ int CalculateIntersectedLength(int start1, int end1, int start2, int end2) {
 // This counts each overlapping area a single time and does not include areas
 // where there is no line segment.
 //
-// TODO(https://crbug.com/1068586): Optimize segment length calculation.
+// TODO(crbug.com/40683539): Optimize segment length calculation.
 // AddSegment and RemoveSegment are both logarithmic operations, making this
 // linearithmic with the number of segments. However the expected number
 // of segments at any given time in the density calculation is low.
@@ -121,9 +122,9 @@ class BoundedSegmentLength {
 
   // Calculate the combined length of segments in the active set of segments by
   // iterating over the sorted set of segment events.
-  absl::optional<int> Length() {
+  std::optional<int> Length() {
     base::CheckedNumeric<int> length = 0;
-    absl::optional<int> last_event_pos;
+    std::optional<int> last_event_pos;
     int num_active = 0;
     for (const auto& segment_event : active_segments_) {
       if (!last_event_pos) {
@@ -142,7 +143,7 @@ class BoundedSegmentLength {
       }
     }
 
-    absl::optional<int> total_length;
+    std::optional<int> total_length;
     if (length.IsValid())
       total_length = length.ValueOrDie();
 
@@ -230,7 +231,7 @@ void PageAdDensityTracker::AddRect(RectId rect_id,
                                  RectEventSetIterators(top_it, bottom_it));
 
   if (recalculate_density) {
-    // TODO(https://crbug.com/1068586): Improve performance by adding additional
+    // TODO(crbug.com/40683539): Improve performance by adding additional
     // throttling to only calculate when max density can decrease (frame deleted
     // or moved).
     CalculatePageAdDensity();
@@ -363,7 +364,7 @@ PageAdDensityTracker::CalculateDensityWithin(const gfx::Rect& bounding_rect) {
       /*bound_start=*/bounding_rect.x(),
       /*bound_end=*/bounding_rect.x() + bounding_rect.width());
 
-  absl::optional<int> last_y;
+  std::optional<int> last_y;
   base::CheckedNumeric<int> total_area = 0;
   base::CheckedNumeric<int> total_height = 0;
   for (const auto& rect_event : rect_events_) {
@@ -382,7 +383,7 @@ PageAdDensityTracker::CalculateDensityWithin(const gfx::Rect& bounding_rect) {
     DCHECK_LE(current_y, last_y.value());
 
     // If the segment length value is invalid, skip this ad density calculation.
-    absl::optional<int> horizontal_segment_length =
+    std::optional<int> horizontal_segment_length =
         horizontal_segment_length_tracker.Length();
     if (!horizontal_segment_length)
       return {};
@@ -440,22 +441,6 @@ PageAdDensityTracker::CalculateDensityWithin(const gfx::Rect& bounding_rect) {
   }
 
   return result;
-}
-
-bool PageAdDensityTracker::RectId::operator<(const RectId& rhs) const {
-  if (rect_type == rhs.rect_type) {
-    return id < rhs.id;
-  }
-
-  return rect_type < rhs.rect_type;
-}
-
-bool PageAdDensityTracker::RectId::operator==(const RectId& rhs) const {
-  return rect_type == rhs.rect_type && id == rhs.id;
-}
-
-bool PageAdDensityTracker::RectId::operator!=(const RectId& rhs) const {
-  return !(*this == rhs);
 }
 
 bool PageAdDensityTracker::RectEvent::operator<(const RectEvent& rhs) const {

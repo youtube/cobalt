@@ -14,7 +14,7 @@ class BrowserView;
 namespace gfx {
 class Rect;
 class Size;
-}
+}  // namespace gfx
 
 namespace views {
 class Widget;
@@ -25,10 +25,10 @@ class Widget;
 // See ImmersiveModeController::GetRevealedLock for details.
 class ImmersiveRevealedLock {
  public:
-  virtual ~ImmersiveRevealedLock() {}
+  virtual ~ImmersiveRevealedLock() = default;
 
  protected:
-  ImmersiveRevealedLock() {}
+  ImmersiveRevealedLock() = default;
 };
 
 // Controller for an "immersive mode" similar to MacOS presentation mode where
@@ -38,10 +38,7 @@ class ImmersiveRevealedLock {
 // Currently, immersive mode is only available for Chrome OS and macOS.
 class ImmersiveModeController {
  public:
-  enum AnimateReveal {
-    ANIMATE_REVEAL_YES,
-    ANIMATE_REVEAL_NO
-  };
+  enum AnimateReveal { ANIMATE_REVEAL_YES, ANIMATE_REVEAL_NO };
 
   class Observer {
    public:
@@ -54,11 +51,14 @@ class ImmersiveModeController {
     // Called when the immersive mode controller has been destroyed.
     virtual void OnImmersiveModeControllerDestroyed() {}
 
+    // Called when immersive mode is entered.
+    virtual void OnImmersiveFullscreenEntered() {}
+
     // Called when immersive mode is exited.
     virtual void OnImmersiveFullscreenExited() {}
 
    protected:
-    virtual ~Observer() {}
+    virtual ~Observer() = default;
   };
 
   ImmersiveModeController();
@@ -120,6 +120,22 @@ class ImmersiveModeController {
   // on.
   virtual void OnWidgetActivationChanged(views::Widget* widget,
                                          bool active) = 0;
+
+  // Returns the minimum y-offset for the web contents. Used on Mac to prevent
+  // find results from hiding under the top chrome when the find bar is in use.
+  virtual int GetMinimumContentOffset() const = 0;
+
+  // Returns an offset to add to the vertical origin of the infobar while
+  // laying out the browser view. Used on Mac to ensure the infobar stays
+  // visible when revealing topchrome.
+  virtual int GetExtraInfobarOffset() const = 0;
+
+  // Called when entering or exiting content fullscreen.
+  // Content fullscreen is distinct from browser fullscreen. Content fullscreen
+  // is when a single tab enters fullscreen, where browser fullscreen is when
+  // the entire browser window, including toolbar, is fullscreen.
+  // This is currently only used on macOS.
+  virtual void OnContentFullscreenChanged(bool is_content_fullscreen) = 0;
 
   virtual void AddObserver(Observer* observer);
   virtual void RemoveObserver(Observer* observer);

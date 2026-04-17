@@ -72,14 +72,52 @@
 // Supports -[CWVWebViewConfiguration leakCheckService].
 #define IOS_WEB_VIEW_SUPPORTS_LEAK_CHECK_SERVICE 1
 
+// Supports -[CWVWebViewConfiguration reuseCheckService].
+#define IOS_WEB_VIEW_SUPPORTS_REUSE_CHECK_SERVICE 1
+
+// Supports -[CWVWeakCheckUtils isPasswordWeak:].
+#define IOS_WEB_VIEW_SUPPORTS_CWV_WEAK_CHECK_UTILS 1
+
 // Supports -[CWVUserContentController addMessageHandler:forCommand:] and
 // -[CWVUserContentController removeMessageHandlerForCommand] APIs.
 #define IOS_WEB_VIEW_SUPPORTS_USER_CONTENT_CONTROLLER_MESSAGE_HANDLERS 1
+
+// Supports -[CWVUserContentController isMessageHandlerRegisteredForCommand:]
+// API.
+#define IOS_WEB_VIEW_SUPPORTS_USER_CONTENT_CONTROLLER_IS_MESSAGE_HANDLER_REGISTERED \
+  1
 
 // Supports -[CWVNavigationDelegate
 // webView:decidePolicyForNavigationAction:decisionHandler:] and
 // -[CWVNavigationDelegate
 // webView:decidePolicyForNavigationResponse:decisionHandler:] APIs.
 #define IOS_WEB_VIEW_SUPPORTS_ASYNCCHRONOUS_POLICY_DECISION_HANDLER 1
+
+// Supports -[CWVUserScript initWithSource:forMainFrameOnly:].
+#define IOS_WEB_VIEW_SUPPORTS_INSTALLING_USER_SCRIPTS_INTO_ALL_FRAMES 1
+
+// Allows the usage of CWVFindInPageController for find in page sessions.
+#define IOS_WEB_VIEW_SUPPORTS_FIND_IN_PAGE_SESSIONS 1
+
+// Supports +[CWVWebView webInspectorEnabled].
+#define IOS_WEB_VIEW_SUPPORTS_WEB_INSPECTOR_API 1
+
+// Supports +[CWVWebView useOptimizedSessionStorage].
+#define IOS_WEB_VIEW_SUPPORTS_OPTIMIZED_STORAGE 1
+
+// Supports CWVOmniboxInput.
+#define IOS_WEB_VIEW_SUPPORTS_OMNIBOX_INPUT 1
+
+// Supports AccountAddressSyncing
+#define IOS_WEB_VIEW_SUPPORTS_ACCOUNT_ADDRESS_SYNC 1
+
+// Supports CWVGlobalState.
+#define IOS_WEB_VIEW_SUPPORTS_GLOBAL_STATE 1
+
+// Supports early initialization.
+#define IOS_WEB_VIEW_SUPPORTS_EARLY_INITIALIZATION 1
+
+// Supports timestamps in the CWVAutofillDataManager
+#define IOS_WEB_VIEW_CWV_AUTOFILL_DATA_MANAGER_TIMESTAMPS 1
 
 #endif  // IOS_WEB_VIEW_PUBLIC_CWV_DEFINES_H_

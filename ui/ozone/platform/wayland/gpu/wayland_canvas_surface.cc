@@ -67,8 +67,8 @@ class WaylandCanvasSurface::SharedMemoryBuffer {
 
     // The format can either be RGBA_8888 or RGBX_8888 but either way it's 4
     // bytes per pixel.
-    size_t size_in_bytes =
-        viz::ResourceSizes::CheckedSizeInBytes<size_t>(size, viz::RGBA_8888);
+    size_t size_in_bytes = viz::ResourceSizes::CheckedSizeInBytes<size_t>(
+        size, viz::SinglePlaneFormat::kRGBA_8888);
 
     base::UnsafeSharedMemoryRegion shm_region =
         base::UnsafeSharedMemoryRegion::Create(size_in_bytes);
@@ -89,7 +89,7 @@ class WaylandCanvasSurface::SharedMemoryBuffer {
                                           size, buffer_id_);
 
     SkSurfaceProps props = skia::LegacyDisplayGlobals::GetSkSurfaceProps();
-    sk_surface_ = SkSurface::MakeRasterDirect(
+    sk_surface_ = SkSurfaces::WrapPixels(
         SkImageInfo::MakeN32Premul(size.width(), size.height()),
         shm_mapping_.memory(), CalculateStride(size.width()), &props);
     DCHECK(sk_surface_);
@@ -115,14 +115,19 @@ class WaylandCanvasSurface::SharedMemoryBuffer {
   void CopyDirtyRegionFrom(SharedMemoryBuffer* buffer) {
     DCHECK_NE(this, buffer);
     const size_t stride = CalculateStride(sk_surface_->width());
+    auto dst_span = base::span(shm_mapping_);
     for (SkRegion::Iterator i(dirty_region_); !i.done(); i.next()) {
-      uint8_t* dst_ptr =
-          static_cast<uint8_t*>(shm_mapping_.memory()) +
+      size_t offset =
           i.rect().x() * SkColorTypeBytesPerPixel(kN32_SkColorType) +
           i.rect().y() * stride;
-      buffer->sk_surface_->readPixels(
+      auto dst_subspan = dst_span.subspan(
+          offset,
+          static_cast<size_t>(i.rect().width() * i.rect().height() *
+                              SkColorTypeBytesPerPixel(kN32_SkColorType)));
+
+      UNSAFE_TODO(buffer->sk_surface_->readPixels(
           SkImageInfo::MakeN32Premul(i.rect().width(), i.rect().height()),
-          dst_ptr, stride, i.rect().x(), i.rect().y());
+          dst_subspan.data(), stride, i.rect().x(), i.rect().y()));
     }
     dirty_region_.setEmpty();
   }
@@ -268,7 +273,7 @@ void WaylandCanvasSurface::ResizeCanvas(const gfx::Size& viewport_size,
                                         float scale) {
   if (size_ == viewport_size)
     return;
-  // TODO(https://crbug.com/930667): We could implement more efficient resizes
+  // TODO(crbug.com/41440520): We could implement more efficient resizes
   // by allocating buffers rounded up to larger sizes, and then reusing them if
   // the new size still fits (but still reallocate if the new size is much
   // smaller than the old size).
@@ -363,10 +368,11 @@ void WaylandCanvasSurface::MaybeProcessUnsubmittedFrames() {
     }
   }
 
+  constexpr bool enable_blend_for_shadow = true;
   buffer_manager_->CommitBuffer(
       widget_, frame->frame_id, frame_buffer->buffer_id(),
-      std::move(frame->data), gfx::Rect(size_), gfx::RoundedCornersF(),
-      viewport_scale_, damage);
+      std::move(frame->data), gfx::Rect(size_), enable_blend_for_shadow,
+      gfx::RoundedCornersF(), viewport_scale_, damage);
 
   submitted_frame_ = std::move((frame));
 }

@@ -22,8 +22,8 @@ void TestNativeTheme::Paint(cc::PaintCanvas* canvas,
                             const gfx::Rect& rect,
                             const ExtraParams& extra,
                             ColorScheme color_scheme,
-                            const absl::optional<SkColor>& accent_color) const {
-}
+                            bool in_forced_colors,
+                            const std::optional<SkColor>& accent_color) const {}
 
 bool TestNativeTheme::SupportsNinePatch(Part part) const {
   return false;
@@ -51,8 +51,9 @@ NativeTheme::PreferredColorScheme TestNativeTheme::GetPreferredColorScheme()
 }
 
 NativeTheme::ColorScheme TestNativeTheme::GetDefaultSystemColorScheme() const {
-  if (is_platform_high_contrast_)
+  if (is_platform_high_contrast_) {
     return ColorScheme::kPlatformHighContrast;
+  }
   return NativeTheme::GetDefaultSystemColorScheme();
 }
 

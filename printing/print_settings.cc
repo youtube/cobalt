@@ -4,6 +4,8 @@
 
 #include "printing/print_settings.h"
 
+#include <tuple>
+
 #include "base/atomic_sequence_num.h"
 #include "base/notreached.h"
 #include "build/build_config.h"
@@ -11,16 +13,16 @@
 #include "printing/units.h"
 
 #if BUILDFLAG(USE_CUPS)
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
-#include <cups/cups.h>
-#endif
-
 #include "printing/print_job_constants_cups.h"
 #endif  // BUILDFLAG(USE_CUPS)
 
+#if BUILDFLAG(USE_CUPS_IPP)
+#include <cups/cups.h>
+#endif  // BUILDFLAG(USE_CUPS_IPP)
+
 #if BUILDFLAG(IS_WIN)
 #include "printing/mojom/print.mojom.h"
-#endif
+#endif  // BUILDFLAG(IS_WIN)
 
 namespace printing {
 
@@ -90,6 +92,14 @@ void GetColorModelForModel(mojom::ColorModel color_model,
     case mojom::ColorModel::kHPColorBlack:
       *color_setting_name = kColor;
       *color_value = kBlack;
+      break;
+    case mojom::ColorModel::kHpPjlColorAsGrayNo:
+      *color_setting_name = kCUPSHpPjlColorAsGray;
+      *color_value = kHpPjlColorAsGrayNo;
+      break;
+    case mojom::ColorModel::kHpPjlColorAsGrayYes:
+      *color_setting_name = kCUPSHpPjlColorAsGray;
+      *color_value = kHpPjlColorAsGrayYes;
       break;
     case mojom::ColorModel::kPrintoutModeNormal:
       *color_setting_name = kCUPSPrintoutMode;
@@ -195,26 +205,21 @@ void GetColorModelForModel(mojom::ColorModel color_model,
   // The default case is excluded from the above switch statement to ensure that
   // all ColorModel values are determinantly handled.
 }
+#endif  // BUILDFLAG(USE_CUPS)
 
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(USE_CUPS_IPP)
 std::string GetIppColorModelForModel(mojom::ColorModel color_model) {
   // Accept `kUnknownColorModel` for consistency with GetColorModelForModel().
   if (color_model == mojom::ColorModel::kUnknownColorModel)
     return CUPS_PRINT_COLOR_MODE_MONOCHROME;
 
-  absl::optional<bool> is_color = IsColorModelSelected(color_model);
-  if (!is_color.has_value()) {
-    NOTREACHED();
-    return std::string();
-  }
-
-  return is_color.value() ? CUPS_PRINT_COLOR_MODE_COLOR
-                          : CUPS_PRINT_COLOR_MODE_MONOCHROME;
+  return IsColorModelSelected(color_model).value()
+             ? CUPS_PRINT_COLOR_MODE_COLOR
+             : CUPS_PRINT_COLOR_MODE_MONOCHROME;
 }
-#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
-#endif  // BUILDFLAG(USE_CUPS)
+#endif  // BUILDFLAG(USE_CUPS_IPP)
 
-absl::optional<bool> IsColorModelSelected(mojom::ColorModel color_model) {
+std::optional<bool> IsColorModelSelected(mojom::ColorModel color_model) {
   switch (color_model) {
     case mojom::ColorModel::kColor:
     case mojom::ColorModel::kCMYK:
@@ -226,6 +231,7 @@ absl::optional<bool> IsColorModelSelected(mojom::ColorModel color_model) {
     case mojom::ColorModel::kRGBA:
     case mojom::ColorModel::kColorModeColor:
     case mojom::ColorModel::kHPColorColor:
+    case mojom::ColorModel::kHpPjlColorAsGrayNo:
     case mojom::ColorModel::kPrintoutModeNormal:
     case mojom::ColorModel::kProcessColorModelCMYK:
     case mojom::ColorModel::kProcessColorModelRGB:
@@ -245,6 +251,7 @@ absl::optional<bool> IsColorModelSelected(mojom::ColorModel color_model) {
     case mojom::ColorModel::kGrayscale:
     case mojom::ColorModel::kColorModeMonochrome:
     case mojom::ColorModel::kHPColorBlack:
+    case mojom::ColorModel::kHpPjlColorAsGrayYes:
     case mojom::ColorModel::kPrintoutModeNormalGray:
     case mojom::ColorModel::kProcessColorModelGreyscale:
     case mojom::ColorModel::kBrotherCUPSMono:
@@ -260,14 +267,16 @@ absl::optional<bool> IsColorModelSelected(mojom::ColorModel color_model) {
       return false;
     case mojom::ColorModel::kUnknownColorModel:
       NOTREACHED();
-      return absl::nullopt;
   }
   // The default case is excluded from the above switch statement to ensure that
   // all ColorModel values are determinantly handled.
 }
 
 bool PrintSettings::RequestedMedia::operator==(
-    const PrintSettings::RequestedMedia& other) const = default;
+    const PrintSettings::RequestedMedia& other) const {
+  return std::tie(size_microns, vendor_id) ==
+         std::tie(other.size_microns, other.vendor_id);
+}
 
 // Global SequenceNumber used for generating unique cookie values.
 static base::AtomicSequenceNumber cookie_seq;
@@ -298,12 +307,13 @@ PrintSettings& PrintSettings::operator=(const PrintSettings& settings) {
   device_name_ = settings.device_name_;
   requested_media_ = settings.requested_media_;
   page_setup_device_units_ = settings.page_setup_device_units_;
+  borderless_ = settings.borderless_;
+  media_type_ = settings.media_type_;
   dpi_ = settings.dpi_;
   scale_factor_ = settings.scale_factor_;
   rasterize_pdf_ = settings.rasterize_pdf_;
   rasterize_pdf_dpi_ = settings.rasterize_pdf_dpi_;
   landscape_ = settings.landscape_;
-  supports_alpha_blend_ = settings.supports_alpha_blend_;
 #if BUILDFLAG(IS_WIN)
   printer_language_type_ = settings.printer_language_type_;
 #endif
@@ -320,12 +330,61 @@ PrintSettings& PrintSettings::operator=(const PrintSettings& settings) {
   pin_value_ = settings.pin_value_;
   client_infos_ = settings.client_infos_;
 #endif  // BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(ENABLE_OOP_PRINTING_NO_OOP_BASIC_PRINT_DIALOG)
+  system_print_dialog_data_ = settings.system_print_dialog_data_.Clone();
+#endif
   return *this;
 }
 
 PrintSettings::~PrintSettings() = default;
 
-bool PrintSettings::operator==(const PrintSettings& other) const = default;
+bool PrintSettings::operator==(const PrintSettings& other) const {
+  return std::tie(ranges_, selection_only_, margin_type_, title_, url_,
+                  display_header_footer_, should_print_backgrounds_, collate_,
+                  color_, copies_, duplex_mode_, device_name_, requested_media_,
+                  page_setup_device_units_, dpi_, scale_factor_, rasterize_pdf_,
+                  rasterize_pdf_dpi_, landscape_,
+#if BUILDFLAG(IS_WIN)
+                  printer_language_type_,
+#endif
+                  is_modifiable_, requested_custom_margins_in_microns_,
+                  pages_per_sheet_
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+                  ,
+                  advanced_settings_
+#endif
+#if BUILDFLAG(IS_CHROMEOS)
+                  ,
+                  send_user_info_, username_, oauth_token_, pin_value_,
+                  client_infos_, printer_manually_selected_,
+                  printer_status_reason_
+#endif
+                  ) ==
+         std::tie(other.ranges_, other.selection_only_, other.margin_type_,
+                  other.title_, other.url_, other.display_header_footer_,
+                  other.should_print_backgrounds_, other.collate_, other.color_,
+                  other.copies_, other.duplex_mode_, other.device_name_,
+                  other.requested_media_, other.page_setup_device_units_,
+                  other.dpi_, other.scale_factor_, other.rasterize_pdf_,
+                  other.rasterize_pdf_dpi_, other.landscape_,
+#if BUILDFLAG(IS_WIN)
+                  other.printer_language_type_,
+#endif
+                  other.is_modifiable_,
+                  other.requested_custom_margins_in_microns_,
+                  other.pages_per_sheet_
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+                  ,
+                  other.advanced_settings_
+#endif
+#if BUILDFLAG(IS_CHROMEOS)
+                  ,
+                  other.send_user_info_, other.username_, other.oauth_token_,
+                  other.pin_value_, other.client_infos_,
+                  other.printer_manually_selected_, other.printer_status_reason_
+#endif
+         );
+}
 
 void PrintSettings::Clear() {
   ranges_.clear();
@@ -342,12 +401,13 @@ void PrintSettings::Clear() {
   device_name_.clear();
   requested_media_ = RequestedMedia();
   page_setup_device_units_.Clear();
+  borderless_ = false;
+  media_type_.clear();
   dpi_ = gfx::Size();
   scale_factor_ = 1.0f;
   rasterize_pdf_ = false;
   rasterize_pdf_dpi_ = 0;
   landscape_ = false;
-  supports_alpha_blend_ = true;
 #if BUILDFLAG(IS_WIN)
   printer_language_type_ = mojom::PrinterLanguageType::kNone;
 #endif
@@ -363,6 +423,9 @@ void PrintSettings::Clear() {
   pin_value_.clear();
   client_infos_.clear();
 #endif  // BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(ENABLE_OOP_PRINTING_NO_OOP_BASIC_PRINT_DIALOG)
+  system_print_dialog_data_.clear();
+#endif
 }
 
 void PrintSettings::SetPrinterPrintableArea(
@@ -421,14 +484,14 @@ void PrintSettings::SetPrinterPrintableArea(
     case mojom::MarginType::kCustomMargins: {
       margins.header = 0;
       margins.footer = 0;
-      margins.top = ConvertUnit(requested_custom_margins_in_points_.top,
-                                kPointsPerInch, units_per_inch);
-      margins.bottom = ConvertUnit(requested_custom_margins_in_points_.bottom,
-                                   kPointsPerInch, units_per_inch);
-      margins.left = ConvertUnit(requested_custom_margins_in_points_.left,
-                                 kPointsPerInch, units_per_inch);
-      margins.right = ConvertUnit(requested_custom_margins_in_points_.right,
-                                  kPointsPerInch, units_per_inch);
+      margins.top = ConvertUnit(requested_custom_margins_in_microns_.top,
+                                kMicronsPerInch, units_per_inch);
+      margins.bottom = ConvertUnit(requested_custom_margins_in_microns_.bottom,
+                                   kMicronsPerInch, units_per_inch);
+      margins.left = ConvertUnit(requested_custom_margins_in_microns_.left,
+                                 kMicronsPerInch, units_per_inch);
+      margins.right = ConvertUnit(requested_custom_margins_in_microns_.right,
+                                  kMicronsPerInch, units_per_inch);
       break;
     }
     default: {
@@ -455,7 +518,7 @@ void PrintSettings::UpdatePrinterPrintableArea(
     const gfx::Rect& printable_area_um) {
   // Scale the page size and printable area to device units.
   // Blink doesn't support different dpi settings in X and Y axis. Because of
-  // this, printers with non-square DPIs still scale page size and printable
+  // this, printers with non-square pixels still scale page size and printable
   // area using device_units_per_inch() instead of their respective dimensions
   // in device_units_per_inch_size().
   float scale = static_cast<float>(device_units_per_inch()) / kMicronsPerInch;
@@ -478,14 +541,20 @@ void PrintSettings::UpdatePrinterPrintableArea(
 #endif
 
 void PrintSettings::SetCustomMargins(
-    const PageMargins& requested_margins_in_points) {
-  requested_custom_margins_in_points_ = requested_margins_in_points;
+    const PageMargins& requested_margins_in_microns) {
+  requested_custom_margins_in_microns_ = requested_margins_in_microns;
   margin_type_ = mojom::MarginType::kCustomMargins;
 }
 
+// static
 int PrintSettings::NewCookie() {
   // A cookie of 0 is used to mark a document as unassigned, count from 1.
   return cookie_seq.GetNext() + 1;
+}
+
+// static
+int PrintSettings::NewInvalidCookie() {
+  return 0;
 }
 
 void PrintSettings::SetOrientation(bool landscape) {

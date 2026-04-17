@@ -10,11 +10,14 @@
 
 #include "rtc_base/ssl_adapter.h"
 
+#include <memory>
+
 #include "rtc_base/openssl_adapter.h"
+#include "rtc_base/socket.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 
-namespace rtc {
+namespace webrtc {
 
 std::unique_ptr<SSLAdapterFactory> SSLAdapterFactory::Create() {
   return std::make_unique<OpenSSLAdapterFactory>();
@@ -36,4 +39,4 @@ bool CleanupSSL() {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-}  // namespace rtc
+}  // namespace webrtc

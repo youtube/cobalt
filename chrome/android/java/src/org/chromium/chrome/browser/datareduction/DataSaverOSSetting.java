@@ -7,15 +7,15 @@ package org.chromium.chrome.browser.datareduction;
 import android.content.Context;
 import android.net.ConnectivityManager;
 
-import org.chromium.base.ContextUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.compat.ApiHelperForN;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
 
-/**
- * Wrapper for the datareduction::DataSaverOSSetting.
- */
+import org.chromium.base.ContextUtils;
+import org.chromium.build.annotations.NullMarked;
+
+/** Wrapper for the datareduction::DataSaverOSSetting. */
 @JNINamespace("datareduction::android")
+@NullMarked
 public class DataSaverOSSetting {
     @CalledByNative
     public static boolean isDataSaverEnabled() {
@@ -23,7 +23,7 @@ public class DataSaverOSSetting {
         ConnectivityManager connMgr =
                 (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
         if (connMgr.isActiveNetworkMetered()) {
-            return ApiHelperForN.getRestrictBackgroundStatus(connMgr)
+            return connMgr.getRestrictBackgroundStatus()
                     == ConnectivityManager.RESTRICT_BACKGROUND_STATUS_ENABLED;
         }
         return false;

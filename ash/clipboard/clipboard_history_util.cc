@@ -5,12 +5,16 @@
 #include "ash/clipboard/clipboard_history_util.h"
 
 #include <array>
+#include <string_view>
 
 #include "ash/clipboard/clipboard_history_item.h"
+#include "ash/clipboard/views/clipboard_history_view_constants.h"
 #include "ash/metrics/histogram_macros.h"
+#include "ash/public/cpp/assistant/assistant_state.h"
 #include "ash/resources/vector_icons/vector_icons.h"
 #include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
+#include "ash/strings/grit/ash_strings.h"
 #include "base/files/file_path.h"
 #include "base/no_destructor.h"
 #include "base/strings/string_split.h"
@@ -20,21 +24,26 @@
 #include "chromeos/ui/base/file_icon_util.h"
 #include "ui/base/clipboard/clipboard_data.h"
 #include "ui/base/clipboard/custom_data_helper.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/image_model.h"
+#include "ui/chromeos/styles/cros_tokens_color_mappings.h"
+#include "ui/events/ash/keyboard_capability.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/image/canvas_image_source.h"
 #include "ui/gfx/paint_vector_icon.h"
+#include "ui/views/controls/menu/menu_config.h"
 
 namespace ash::clipboard_history_util {
 
 namespace {
+
+// Constants -------------------------------------------------------------------
 
 constexpr char16_t kFileSystemSourcesType[] = u"fs/sources";
 
 constexpr int kPlaceholderImageWidth = 234;
 constexpr int kPlaceholderImageHeight = 74;
 constexpr int kPlaceholderImageOutlineCornerRadius = 8;
-constexpr int kPlaceholderImageSVGSize = 32;
 
 // The array of formats in order of decreasing priority.
 constexpr ui::ClipboardInternalFormat kPrioritizedFormats[] = {
@@ -46,6 +55,11 @@ constexpr ui::ClipboardInternalFormat kPrioritizedFormats[] = {
     ui::ClipboardInternalFormat::kBookmark,
     ui::ClipboardInternalFormat::kWeb,
     ui::ClipboardInternalFormat::kCustom};
+
+// The clipboard history menu's width, in pixels.
+constexpr int kPreferredMenuWidth = 320;
+
+// Helper classes --------------------------------------------------------------
 
 // Used to draw a placeholder HTML preview to be shown while the real HTML is
 // rendering.
@@ -65,7 +79,6 @@ class UnrenderedHtmlPlaceholderImage : public gfx::CanvasImageSource {
     cc::PaintFlags flags;
     flags.setStyle(cc::PaintFlags::kFill_Style);
     flags.setAntiAlias(true);
-    // TODO(b/269680517): Update to use a semantic color token.
     flags.setColor(gfx::kGoogleGrey100);
     canvas->DrawRoundRect(
         /*rect=*/{kPlaceholderImageWidth, kPlaceholderImageHeight},
@@ -74,10 +87,10 @@ class UnrenderedHtmlPlaceholderImage : public gfx::CanvasImageSource {
     flags = cc::PaintFlags();
     flags.setStyle(cc::PaintFlags::kFill_Style);
     flags.setAntiAlias(true);
-    // TODO(b/269680517): Update to use a semantic color token.
-    const gfx::ImageSkia center_image =
-        gfx::CreateVectorIcon(kUnrenderedHtmlPlaceholderIcon,
-                              kPlaceholderImageSVGSize, gfx::kGoogleGrey600);
+    const gfx::ImageSkia center_image = gfx::CreateVectorIcon(
+        kUnrenderedHtmlPlaceholderIcon,
+        ClipboardHistoryViews::kBitmapItemPlaceholderIconSize,
+        gfx::kGoogleGrey600);
     canvas->DrawImageInt(
         center_image, (size().width() - center_image.size().width()) / 2,
         (size().height() - center_image.size().height()) / 2, flags);
@@ -86,14 +99,14 @@ class UnrenderedHtmlPlaceholderImage : public gfx::CanvasImageSource {
 
 }  // namespace
 
-absl::optional<ui::ClipboardInternalFormat> CalculateMainFormat(
+std::optional<ui::ClipboardInternalFormat> CalculateMainFormat(
     const ui::ClipboardData& data) {
   for (const auto& format : kPrioritizedFormats) {
     if (ContainsFormat(data, format)) {
       return format;
     }
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 bool ContainsFormat(const ui::ClipboardData& data,
@@ -118,7 +131,7 @@ bool ContainsFileSystemData(const ui::ClipboardData& data) {
 }
 
 void GetSplitFileSystemData(const ui::ClipboardData& data,
-                            std::vector<base::StringPiece16>* source_list,
+                            std::vector<std::u16string_view>* source_list,
                             std::u16string* sources) {
   DCHECK(sources);
   DCHECK(sources->empty());
@@ -138,7 +151,7 @@ void GetSplitFileSystemData(const ui::ClipboardData& data,
 
 size_t GetCountOfCopiedFiles(const ui::ClipboardData& data) {
   std::u16string sources;
-  std::vector<base::StringPiece16> source_list;
+  std::vector<std::u16string_view> source_list;
   GetSplitFileSystemData(data, &source_list, &sources);
 
   if (sources.empty()) {
@@ -164,16 +177,48 @@ std::u16string GetFileSystemSources(const ui::ClipboardData& data) {
     return std::u16string();
 
   // Attempt to read file system sources in the custom data.
-  std::u16string sources;
-  ui::ReadCustomDataForType(data.custom_data_data().c_str(),
-                            data.custom_data_data().size(),
-                            kFileSystemSourcesType, &sources);
+  if (std::optional<std::u16string> maybe_sources = ui::ReadCustomDataForType(
+          base::as_byte_span(data.GetDataTransferCustomData()),
+          kFileSystemSourcesType);
+      maybe_sources) {
+    return std::move(*maybe_sources);
+  }
 
-  return sources;
+  return std::u16string();
+}
+
+const gfx::VectorIcon& GetShortcutKeyIcon() {
+  switch (Shell::Get()->keyboard_capability()->GetMetaKeyToDisplay()) {
+    case ui::mojom::MetaKey::kSearch:
+      return kClipboardSearchIcon;
+    case ui::mojom::MetaKey::kLauncher: {
+      const auto* const assistant_state = AssistantState::Get();
+      const bool is_assistant_available =
+          assistant_state &&
+          assistant_state->allowed_state() ==
+              assistant::AssistantAllowedState::ALLOWED &&
+          assistant_state->settings_enabled().value_or(false);
+
+      return is_assistant_available ? kClipboardLauncherIcon
+                                    : kClipboardLauncherNoAssistantIcon;
+    }
+    case ui::mojom::MetaKey::kLauncherRefresh:
+      return kCampbellHeroIcon;
+    case ui::mojom::MetaKey::kExternalMeta:
+    case ui::mojom::MetaKey::kCommand:
+      NOTREACHED();
+  }
+}
+
+std::u16string GetShortcutKeyName() {
+  return l10n_util::GetStringUTF16(
+      Shell::Get()->keyboard_capability()->HasLauncherButtonOnAnyKeyboard()
+          ? IDS_ASH_SHORTCUT_MODIFIER_LAUNCHER
+          : IDS_ASH_SHORTCUT_MODIFIER_SEARCH);
 }
 
 bool IsSupported(const ui::ClipboardData& data) {
-  const absl::optional<ui::ClipboardInternalFormat> format =
+  const std::optional<ui::ClipboardInternalFormat> format =
       CalculateMainFormat(data);
 
   // Empty `data` is not supported.
@@ -231,9 +276,23 @@ ui::ImageModel GetIconForFileClipboardItem(const ClipboardHistoryItem& item) {
 }
 
 ui::ImageModel GetHtmlPreviewPlaceholder() {
-  static base::NoDestructor<ui::ImageModel> model(ui::ImageModel::FromImageSkia(
-      gfx::CanvasImageSource::MakeImageSkia<UnrenderedHtmlPlaceholderImage>()));
+  static base::NoDestructor<ui::ImageModel> model(
+      ui::ImageModel::FromVectorIcon(
+          kUnrenderedHtmlPlaceholderIcon, cros_tokens::kCrosSysOutline,
+          ClipboardHistoryViews::kBitmapItemPlaceholderIconSize));
   return *model;
+}
+
+crosapi::mojom::ClipboardHistoryItemDescriptor ItemToDescriptor(
+    const ClipboardHistoryItem& item) {
+  return crosapi::mojom::ClipboardHistoryItemDescriptor(
+      item.id(), item.display_format(), item.display_text(), item.file_count());
+}
+
+int GetPreferredItemViewWidth() {
+  const auto& menu_config = views::MenuConfig::instance();
+  return std::clamp(kPreferredMenuWidth, menu_config.touchable_menu_min_width,
+                    menu_config.touchable_menu_max_width);
 }
 
 }  // namespace ash::clipboard_history_util

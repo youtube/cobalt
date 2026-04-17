@@ -12,6 +12,7 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/test/browser_test.h"
+#include "ui/base/mojom/window_show_state.mojom.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
 #include "ui/views/widget/widget.h"
@@ -49,7 +50,7 @@ IN_PROC_BROWSER_TEST_P(BrowserTestParam,
                         gfx::Rect(), browser()->profile(), true)
                   : Browser::CreateParams(browser()->profile(), true);
   gfx::Rect original_bounds(gfx::Rect(150, 250, 510, 150));
-  params.initial_show_state = ui::SHOW_STATE_NORMAL;
+  params.initial_show_state = ui::mojom::WindowShowState::kNormal;
   params.initial_bounds = original_bounds;
   Browser* browser = Browser::Create(params);
   browser->window()->Show();
@@ -96,7 +97,7 @@ IN_PROC_BROWSER_TEST_F(BrowserFrameAshTest, SnappedWindowSaveBounds) {
   window->SetBounds(restored_bounds);
 
   // Snap the window to the left.
-  const ash::WMEvent left_snap_event(ash::WM_EVENT_SNAP_PRIMARY);
+  const ash::WindowSnapWMEvent left_snap_event(ash::WM_EVENT_SNAP_PRIMARY);
   ash::WindowState::Get(window)->OnWMEvent(&left_snap_event);
   const gfx::Size snapped_size = window->GetBoundsInScreen().size();
 

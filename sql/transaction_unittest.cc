@@ -4,12 +4,13 @@
 
 #include "sql/transaction.h"
 
-#include "base/files/file_util.h"
+#include <memory>
+
 #include "base/files/scoped_temp_dir.h"
 #include "sql/database.h"
 #include "sql/statement.h"
+#include "sql/test/test_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/sqlite/sqlite3.h"
 
 namespace sql {
 
@@ -17,8 +18,6 @@ namespace {
 
 class SQLTransactionTest : public testing::Test {
  public:
-  ~SQLTransactionTest() override = default;
-
   void SetUp() override {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
     ASSERT_TRUE(
@@ -36,7 +35,7 @@ class SQLTransactionTest : public testing::Test {
 
  protected:
   base::ScopedTempDir temp_dir_;
-  Database db_;
+  Database db_{test::kTestTag};
 };
 
 TEST_F(SQLTransactionTest, Commit) {
@@ -59,6 +58,26 @@ TEST_F(SQLTransactionTest, Commit) {
 
   EXPECT_FALSE(db_.HasActiveTransactions());
   EXPECT_EQ(1, CountFoo()) << "Transaction changes not committed";
+}
+
+// Regression test for <https://crbug.com/326498384>.
+TEST_F(SQLTransactionTest, CloseDatabase) {
+  EXPECT_FALSE(db_.HasActiveTransactions());
+
+  {
+    Transaction transaction(&db_);
+    EXPECT_FALSE(db_.HasActiveTransactions());
+    EXPECT_FALSE(transaction.IsActiveForTesting());
+
+    ASSERT_TRUE(transaction.Begin());
+    EXPECT_TRUE(db_.HasActiveTransactions());
+    EXPECT_TRUE(transaction.IsActiveForTesting());
+
+    db_.Close();
+    EXPECT_FALSE(db_.HasActiveTransactions());
+  }
+
+  EXPECT_FALSE(db_.HasActiveTransactions());
 }
 
 TEST_F(SQLTransactionTest, RollbackOnDestruction) {
@@ -184,6 +203,36 @@ TEST_F(SQLTransactionTest, NestedRollback) {
   EXPECT_FALSE(db_.HasActiveTransactions());
   EXPECT_EQ(0, db_.transaction_nesting());
   EXPECT_EQ(0, CountFoo());
+}
+
+TEST(SQLTransactionDatabaseDestroyedTest, BeginIsNoOp) {
+  auto db = std::make_unique<Database>(test::kTestTag);
+  ASSERT_TRUE(db->OpenInMemory());
+  Transaction transaction(db.get());
+  db.reset();
+  ASSERT_FALSE(transaction.Begin());
+}
+
+TEST(SQLTransactionDatabaseDestroyedTest, RollbackIsNoOp) {
+  auto db = std::make_unique<Database>(test::kTestTag);
+  ASSERT_TRUE(db->OpenInMemory());
+  Transaction transaction(db.get());
+  ASSERT_TRUE(transaction.Begin());
+  EXPECT_TRUE(db->HasActiveTransactions());
+  db.reset();
+  // `Transaction::Rollback()` does not return a value, so we cannot verify
+  // externally whether it returned early.
+  transaction.Rollback();
+}
+
+TEST(SQLTransactionDatabaseDestroyedTest, CommitIsNoOp) {
+  auto db = std::make_unique<Database>(test::kTestTag);
+  ASSERT_TRUE(db->OpenInMemory());
+  Transaction transaction(db.get());
+  ASSERT_TRUE(transaction.Begin());
+  EXPECT_TRUE(db->HasActiveTransactions());
+  db.reset();
+  ASSERT_FALSE(transaction.Commit());
 }
 
 }  // namespace

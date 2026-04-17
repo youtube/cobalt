@@ -34,7 +34,7 @@ class PowerButtonScreenshotControllerTestApi {
   [[nodiscard]] bool TriggerVolumeUpTimer();
 
  private:
-  raw_ptr<PowerButtonScreenshotController, ExperimentalAsh> controller_;
+  raw_ptr<PowerButtonScreenshotController, DanglingUntriaged> controller_;
 };
 
 }  // namespace ash

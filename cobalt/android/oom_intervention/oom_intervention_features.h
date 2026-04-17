@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_BROWSER_OOM_INTERVENTION_FEATURES_H_
-#define COBALT_BROWSER_OOM_INTERVENTION_FEATURES_H_
+#ifndef COBALT_ANDROID_OOM_INTERVENTION_OOM_INTERVENTION_FEATURES_H_
+#define COBALT_ANDROID_OOM_INTERVENTION_OOM_INTERVENTION_FEATURES_H_
 
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
@@ -27,4 +27,4 @@ extern const base::FeatureParam<double> kSwapMemoryThresholdRatio;
 
 }  // namespace features
 
-#endif  // COBALT_BROWSER_OOM_INTERVENTION_FEATURES_H_
+#endif  // COBALT_ANDROID_OOM_INTERVENTION_OOM_INTERVENTION_FEATURES_H_

@@ -4,6 +4,9 @@
 
 #include "extensions/renderer/bindings/api_binding_hooks.h"
 
+#include "base/debug/dump_without_crashing.h"
+#include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/stringprintf.h"
 #include "base/supports_user_data.h"
 #include "extensions/renderer/bindings/api_binding_hooks_delegate.h"
@@ -93,7 +96,6 @@ class JSHookInterface final : public gin::Wrappable<JSHookInterface> {
     v8::Global<v8::Function>& entry = (*map)[qualified_method_name];
     if (!entry.IsEmpty()) {
       NOTREACHED() << "Hooks can only be set once.";
-      return;
     }
     entry.Reset(isolate, hook);
   }
@@ -150,7 +152,7 @@ struct APIHooksPerContextData : public base::SupportsUserData::Data {
     }
   }
 
-  v8::Isolate* isolate;
+  raw_ptr<v8::Isolate> isolate;
 
   std::map<std::string, v8::Global<v8::Object>> hook_interfaces;
 
@@ -232,7 +234,8 @@ void CompleteHandleRequestHelper(
     // TODO(tjudkins): Audit existing handle request custom hooks to see if this
     // could happen in any of them. crbug.com/1298409 seemed to indicate this
     // was happening, hence why we fail gracefully here to avoid a crash.
-    NOTREACHED() << "No callback found for the specified request ID.";
+    LOG(ERROR) << "No callback found for the specified request ID.";
+    base::debug::DumpWithoutCrashing();
     return;
   }
   auto callback = std::move(iter->second);
@@ -253,7 +256,7 @@ void AddSuccessAndFailureCallbacks(
     APIRequestHandler& request_handler,
     binding::ResultModifierFunction result_modifier,
     base::WeakPtr<APIBindingHooks> weak_ptr,
-    std::vector<v8::Local<v8::Value>>* arguments,
+    v8::LocalVector<v8::Value>* arguments,
     APIBindingHooks::RequestResult& result) {
   DCHECK(!arguments->empty());
 
@@ -344,7 +347,7 @@ APIBindingHooks::RequestResult APIBindingHooks::RunHooks(
     const std::string& method_name,
     v8::Local<v8::Context> context,
     const APISignature* signature,
-    std::vector<v8::Local<v8::Value>>* arguments,
+    v8::LocalVector<v8::Value>* arguments,
     const APITypeReferenceMap& type_refs) {
   binding::ResultModifierFunction result_modifier;
   // Easy case: a native custom hook.
@@ -457,8 +460,8 @@ APIBindingHooks::RequestResult APIBindingHooks::RunHooks(
   // Safe to use synchronous JS since it's in direct response to JS calling
   // into the binding.
   v8::MaybeLocal<v8::Value> v8_result =
-      JSRunner::Get(context)->RunJSFunctionSync(
-          handle_request, context, arguments->size(), arguments->data());
+      JSRunner::Get(context)->RunJSFunctionSync(handle_request, context,
+                                                *arguments);
 
   if (!binding::IsContextValid(context))
     return RequestResult(RequestResult::CONTEXT_INVALIDATED);
@@ -489,7 +492,7 @@ void APIBindingHooks::CompleteHandleRequest(int request_id,
     DCHECK(error->IsString());
 
     // In the case of an error we don't respond with any arguments.
-    std::vector<v8::Local<v8::Value>> response_list;
+    v8::LocalVector<v8::Value> response_list(arguments->isolate());
     request_handler_->CompleteRequest(
         request_id, response_list,
         gin::V8ToString(arguments->isolate(), error));
@@ -527,28 +530,26 @@ void APIBindingHooks::SetDelegate(
   delegate_ = std::move(delegate);
 }
 
-bool APIBindingHooks::UpdateArguments(
-    v8::Local<v8::Function> function,
-    v8::Local<v8::Context> context,
-    std::vector<v8::Local<v8::Value>>* arguments) {
+bool APIBindingHooks::UpdateArguments(v8::Local<v8::Function> function,
+                                      v8::Local<v8::Context> context,
+                                      v8::LocalVector<v8::Value>* arguments) {
   v8::Local<v8::Value> result;
   {
     v8::TryCatch try_catch(context->GetIsolate());
     // Safe to use synchronous JS since it's in direct response to JS calling
     // into the binding.
     v8::MaybeLocal<v8::Value> maybe_result =
-        JSRunner::Get(context)->RunJSFunctionSync(
-            function, context, arguments->size(), arguments->data());
+        JSRunner::Get(context)->RunJSFunctionSync(function, context,
+                                                  *arguments);
     if (try_catch.HasCaught()) {
       try_catch.ReThrow();
       return false;
     }
     result = maybe_result.ToLocalChecked();
   }
-  std::vector<v8::Local<v8::Value>> new_args;
-  if (result.IsEmpty() ||
-      !gin::Converter<std::vector<v8::Local<v8::Value>>>::FromV8(
-          context->GetIsolate(), result, &new_args)) {
+  v8::LocalVector<v8::Value> new_args(context->GetIsolate());
+  if (result.IsEmpty() || !gin::Converter<v8::LocalVector<v8::Value>>::FromV8(
+                              context->GetIsolate(), result, &new_args)) {
     return false;
   }
   arguments->swap(new_args);

@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/media/mime_type.h"
 
 #include <strings.h>
+
 #include <algorithm>
 #include <iosfwd>
 #include <locale>
@@ -381,7 +382,7 @@ std::ostream& operator<<(std::ostream& os, const MimeType& mime_type) {
           os << "(string)" << param.string_value;
           break;
         case MimeType::kParamTypeBoolean:
-          os << "(bool)" << (param.bool_value ? "true" : "false");
+          os << "(bool)" << ToString(param.bool_value);
           break;
       }
     }

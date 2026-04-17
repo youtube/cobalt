@@ -4,12 +4,16 @@
 
 package org.chromium.android_webview.test;
 
+import static org.chromium.android_webview.test.OnlyRunIn.ProcessMode.EITHER_PROCESS;
+
 import androidx.test.filters.SmallTest;
 
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.UseParametersRunnerFactory;
 
 import org.chromium.android_webview.AndroidProtocolHandler;
 import org.chromium.base.FileUtils;
@@ -19,13 +23,16 @@ import org.chromium.url.GURL;
 import java.io.IOException;
 import java.io.InputStream;
 
-/**
- * Test AndroidProtocolHandler.
- */
-@RunWith(AwJUnit4ClassRunner.class)
-public class AndroidProtocolHandlerTest {
-    @Rule
-    public AwActivityTestRule mActivityTestRule = new AwActivityTestRule();
+/** Test AndroidProtocolHandler. */
+@RunWith(Parameterized.class)
+@OnlyRunIn(EITHER_PROCESS) // These tests don't use the renderer process
+@UseParametersRunnerFactory(AwJUnit4ClassRunnerWithParameters.Factory.class)
+public class AndroidProtocolHandlerTest extends AwParameterizedTest {
+    @Rule public AwActivityTestRule mActivityTestRule;
+
+    public AndroidProtocolHandlerTest(AwSettingsMutation param) {
+        this.mActivityTestRule = new AwActivityTestRule(param.getMutation());
+    }
 
     @Test
     @SmallTest

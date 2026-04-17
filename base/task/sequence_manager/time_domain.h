@@ -5,14 +5,15 @@
 #ifndef BASE_TASK_SEQUENCE_MANAGER_TIME_DOMAIN_H_
 #define BASE_TASK_SEQUENCE_MANAGER_TIME_DOMAIN_H_
 
+#include <optional>
+
 #include "base/base_export.h"
 #include "base/check.h"
-#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_ptr.h"
 #include "base/task/common/lazy_now.h"
 #include "base/task/sequence_manager/tasks.h"
 #include "base/time/tick_clock.h"
 #include "base/values.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 namespace sequence_manager {
@@ -35,7 +36,7 @@ class BASE_EXPORT TimeDomain : public TickClock {
   // time domain impl to fast-forward time and return true to indicate that
   // there's more work to run. If RunLoop::QuitWhenIdle has been called then
   // `quit_when_idle_requested` will be true.
-  virtual bool MaybeFastForwardToWakeUp(absl::optional<WakeUp> next_wake_up,
+  virtual bool MaybeFastForwardToWakeUp(std::optional<WakeUp> next_wake_up,
                                         bool quit_when_idle_requested) = 0;
 
   // Debug info.
@@ -59,10 +60,8 @@ class BASE_EXPORT TimeDomain : public TickClock {
  private:
   friend class internal::SequenceManagerImpl;
 
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #constexpr-ctor-field-initializer
-  RAW_PTR_EXCLUSION internal::SequenceManagerImpl* sequence_manager_ =
-      nullptr;  // Not owned.
+  raw_ptr<internal::SequenceManagerImpl, DanglingUntriaged> sequence_manager_ =
+      nullptr;
 };
 
 }  // namespace sequence_manager

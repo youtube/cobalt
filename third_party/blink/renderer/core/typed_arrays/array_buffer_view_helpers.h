@@ -5,7 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_TYPED_ARRAYS_ARRAY_BUFFER_VIEW_HELPERS_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_TYPED_ARRAYS_ARRAY_BUFFER_VIEW_HELPERS_H_
 
-#include <type_traits>
+#include <concepts>
 
 #include "third_party/blink/renderer/core/typed_arrays/dom_array_buffer_view.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
@@ -35,7 +35,8 @@ class NotShared {
   NotShared() = default;
   NotShared(const NotShared<T>& other) = default;
   // Allow implicit upcasts if U inherits from T.
-  template <typename U, std::enable_if_t<std::is_base_of<T, U>::value, int> = 0>
+  template <typename U>
+    requires(std::derived_from<U, T>)
   NotShared(const NotShared<U>& other) : typed_array_(other.Get()) {}
 
   explicit NotShared(std::nullptr_t) {}
@@ -67,7 +68,7 @@ class NotShared {
   void Trace(Visitor* visitor) const { visitor->Trace(typed_array_); }
 
  private:
-  T* GetRaw() const { return typed_array_; }
+  T* GetRaw() const { return typed_array_.Get(); }
 
   Member<T> typed_array_;
 };
@@ -123,7 +124,7 @@ class MaybeShared {
   void Trace(Visitor* visitor) const { visitor->Trace(typed_array_); }
 
  private:
-  T* GetRaw() const { return typed_array_; }
+  T* GetRaw() const { return typed_array_.Get(); }
 
   Member<T> typed_array_;
 };

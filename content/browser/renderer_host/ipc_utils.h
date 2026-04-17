@@ -55,7 +55,20 @@ bool VerifyOpenURLParams(RenderFrameHostImpl* current_rfh,
 // This function has to be called on the UI thread.
 bool VerifyBeginNavigationCommonParams(
     const RenderFrameHostImpl& current_rfh,
-    blink::mojom::CommonNavigationParams* common_params);
+    blink::mojom::CommonNavigationParams* common_params,
+    std::optional<blink::LocalFrameToken>& initiator_frame_token);
+
+// Verifies that the CreateNewWindowParams are valid and can be accessed by
+// `current_rfh`'s process.
+//
+// Returns true if the CreateNewWindowParams are valid.
+//
+// Terminates `current_rfh`'s process and returns false if the
+// CreateNewWindowParams are invalid.
+//
+// This function has to be called on the UI thread.
+bool VerifyCreateNewWindowParams(const RenderFrameHostImpl& current_rfh,
+                                 const mojom::CreateNewWindowParams& params);
 
 // Verify that the initiator frame identified by `initiator_frame_token` and
 // `initiator_process_id` can navigate `current_rfh`.
@@ -70,7 +83,7 @@ bool VerifyBeginNavigationCommonParams(
 // This function has to be called on the UI thread.
 bool VerifyNavigationInitiator(
     RenderFrameHostImpl* current_rfh,
-    const absl::optional<blink::LocalFrameToken>& initiator_frame_token,
+    const std::optional<blink::LocalFrameToken>& initiator_frame_token,
     int initiator_process_id);
 
 }  // namespace content

@@ -1,37 +1,43 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import '//resources/cr_elements/cr_icons.css.js';
+import '//resources/cr_elements/cr_icon/cr_icon.js';
+import '//resources/cr_elements/cr_icon/cr_iconset.js';
 import '//resources/cr_elements/cr_input/cr_input.js';
 import '//resources/cr_elements/icons.html.js';
-import '//resources/polymer/v3_0/iron-icon/iron-icon.js';
+import './icons.html.js';
 
-import {assert} from '//resources/js/assert_ts.js';
-import {IronIconsetSvgElement} from '//resources/polymer/v3_0/iron-iconset-svg/iron-iconset-svg.js';
-import {PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import type {CrIconsetElement} from '//resources/cr_elements/cr_icon/cr_iconset.js';
+import {assert} from '//resources/js/assert.js';
+import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
-import {getTemplate} from './cr_icons_demo.html.js';
+import {getCss} from './cr_icons_demo.css.js';
+import {getHtml} from './cr_icons_demo.html.js';
 
-class CrIconsDemoElement extends PolymerElement {
+export class CrIconsDemoElement extends CrLitElement {
   static get is() {
     return 'cr-icons-demo';
   }
 
-  static get template() {
-    return getTemplate();
+  static override get styles() {
+    return getCss();
   }
 
-  static get properties() {
+  override render() {
+    return getHtml.bind(this)();
+  }
+
+  static override get properties() {
     return {
-      crIcons_: Array,
-      iconColor_: String,
-      iconSize_: String,
-      ironIcons_: Array,
+      crIcons_: {type: Array},
+      iconColor_: {type: String},
+      iconSize_: {type: String},
+      icons_: {type: Array},
     };
   }
 
-  private crIcons_: string[] = [
+  protected accessor crIcons_: string[] = [
     'icon-arrow-back',  'icon-arrow-dropdown', 'icon-cancel',
     'icon-clear',       'icon-copy-content',   'icon-delete-gray',
     'icon-edit',        'icon-folder-open',    'icon-picture-delete',
@@ -40,30 +46,43 @@ class CrIconsDemoElement extends PolymerElement {
     'icon-settings',    'icon-visibility',     'icon-visibility-off',
     'subpage-arrow',
   ];
-  private iconColor_: string = '#000000';
-  private iconSize_: string = '24';
-  private ironIcons_: string[] = [];
+  protected accessor iconColor_: string = '#000000';
+  protected accessor iconSize_: string = '24';
+  protected accessor icons_: string[] = [];
 
-  override ready() {
-    super.ready();
+  override firstUpdated() {
+    function getIconNames(iconset: CrIconsetElement) {
+      return Array.from(iconset.querySelectorAll('g[id]'))
+          .map((el: Element) => {
+            return `${iconset.name}:${el.id}`;
+          });
+    }
 
     // Iconsets are appended to the document's head element when they are
     // imported.
-    const crIconsSet = document.head.querySelector<IronIconsetSvgElement>(
-        'iron-iconset-svg[name=cr]');
+    const crIconsSet = document.head.querySelector<CrIconsetElement>(
+        'cr-iconset[name=cr]');
     assert(crIconsSet);
-    this.push('ironIcons_', ...crIconsSet.getIconNames());
+    this.icons_.push(...getIconNames(crIconsSet));
 
-    const cr20IconsSet = document.head.querySelector<IronIconsetSvgElement>(
-        'iron-iconset-svg[name=cr20]');
+    const cr20IconsSet = document.head.querySelector<CrIconsetElement>(
+        'cr-iconset[name=cr20]');
     assert(cr20IconsSet);
-    this.push('ironIcons_', ...cr20IconsSet.getIconNames());
+    this.icons_.push(...getIconNames(cr20IconsSet));
+
+    this.requestUpdate();
   }
 
-  private onIconColorInput_(e: Event) {
+  protected onIconColorInput_(e: Event) {
     const color = (e.target as HTMLInputElement).value;
     this.iconColor_ = color;
   }
+
+  protected onIconSizeChanged_(e: CustomEvent<{value: string}>) {
+    this.iconSize_ = e.detail.value;
+  }
 }
+
+export const tagName = CrIconsDemoElement.is;
 
 customElements.define(CrIconsDemoElement.is, CrIconsDemoElement);

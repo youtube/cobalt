@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/memory/madv_free_discardable_memory_allocator_posix.h"
+
 #include <inttypes.h>
 #include <sys/mman.h>
 
-#include "base/memory/madv_free_discardable_memory_allocator_posix.h"
 #include "base/process/process_metrics.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
@@ -54,7 +55,7 @@ bool MadvFreeDiscardableMemoryAllocatorPosix::OnMemoryDump(
     trace_event::ProcessMemoryDump* pmd) {
 #if BUILDFLAG(ENABLE_BASE_TRACING)
   if (args.level_of_detail !=
-      base::trace_event::MemoryDumpLevelOfDetail::BACKGROUND) {
+      base::trace_event::MemoryDumpLevelOfDetail::kBackground) {
     return true;
   }
 

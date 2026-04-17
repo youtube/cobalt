@@ -14,6 +14,7 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/strings/cstring_view.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/simple_test_clock.h"
 #include "base/time/time.h"
@@ -30,6 +31,7 @@
 #include "content/public/browser/web_contents.h"
 #include "extensions/common/dom_action_types.h"
 #include "sql/statement.h"
+#include "sql/test/test_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace constants = activity_log_constants;
@@ -40,11 +42,13 @@ namespace extensions {
 // the unit tests.
 class ActivityDatabaseTestPolicy : public ActivityDatabase::Delegate {
  public:
-  ActivityDatabaseTestPolicy() {}
+  ActivityDatabaseTestPolicy() = default;
 
-  static const char kTableName[];
-  static const char* const kTableContentFields[];
-  static const char* const kTableFieldTypes[];
+  static constexpr base::cstring_view kTableContentFields[] = {
+      "extension_id", "time", "action_type", "api_name"};
+
+  static constexpr base::cstring_view kTableFieldTypes[] = {
+      "LONGVARCHAR NOT NULL", "INTEGER", "INTEGER", "LONGVARCHAR"};
 
   virtual void Record(ActivityDatabase* db, scoped_refptr<Action> action);
 
@@ -57,34 +61,26 @@ class ActivityDatabaseTestPolicy : public ActivityDatabase::Delegate {
   std::vector<scoped_refptr<Action> > queue_;
 };
 
-const char ActivityDatabaseTestPolicy::kTableName[] = "actions";
-const char* const ActivityDatabaseTestPolicy::kTableContentFields[] = {
-    "extension_id", "time", "action_type", "api_name"};
-const char* const ActivityDatabaseTestPolicy::kTableFieldTypes[] = {
-    "LONGVARCHAR NOT NULL", "INTEGER", "INTEGER", "LONGVARCHAR"};
-
 bool ActivityDatabaseTestPolicy::InitDatabase(sql::Database* db) {
-  return ActivityDatabase::InitializeTable(db, kTableName, kTableContentFields,
-                                           kTableFieldTypes,
-                                           std::size(kTableContentFields));
+  return ActivityDatabase::InitializeTable(db, "actions", kTableContentFields,
+                                           kTableFieldTypes);
 }
 
 bool ActivityDatabaseTestPolicy::FlushDatabase(sql::Database* db) {
-  std::string sql_str =
-      "INSERT INTO " + std::string(kTableName) +
-      " (extension_id, time, action_type, api_name) VALUES (?,?,?,?)";
 
   std::vector<scoped_refptr<Action> >::size_type i;
   for (i = 0; i < queue_.size(); i++) {
     const Action& action = *queue_[i];
-    sql::Statement statement(db->GetCachedStatement(
-        sql::StatementID(SQL_FROM_HERE), sql_str.c_str()));
+    sql::Statement statement(
+        db->GetCachedStatement(sql::StatementID(SQL_FROM_HERE),
+                               "INSERT INTO actions (extension_id, time, "
+                               "action_type, api_name) VALUES (?,?,?,?)"));
     statement.BindString(0, action.extension_id());
     statement.BindTime(1, action.time());
     statement.BindInt(2, static_cast<int>(action.action_type()));
     statement.BindString(3, action.api_name());
     if (!statement.Run()) {
-      LOG(ERROR) << "Activity log database I/O failed: " << sql_str;
+      LOG(ERROR) << "Activity log database I/O failed";
       return false;
     }
   }
@@ -136,13 +132,13 @@ class ActivityDatabaseTest : public ChromeRenderViewHostTestHarness {
   }
 
   int CountActions(sql::Database* db, const std::string& api_name_pattern) {
-    if (!db->DoesTableExist(ActivityDatabaseTestPolicy::kTableName))
+    if (!db->DoesTableExist("actions")) {
       return -1;
-    std::string sql_str = "SELECT COUNT(*) FROM " +
-                          std::string(ActivityDatabaseTestPolicy::kTableName) +
-                          " WHERE api_name LIKE ?";
-    sql::Statement statement(db->GetCachedStatement(
-        sql::StatementID(SQL_FROM_HERE), sql_str.c_str()));
+    }
+    sql::Statement statement(
+        db->GetCachedStatement(sql::StatementID(SQL_FROM_HERE),
+                               "SELECT COUNT(*) FROM actions"
+                               " WHERE api_name LIKE ?"));
     statement.BindString(0, api_name_pattern);
     if (!statement.Step())
       return -1;
@@ -150,7 +146,7 @@ class ActivityDatabaseTest : public ChromeRenderViewHostTestHarness {
   }
 
  private:
-  raw_ptr<ActivityDatabaseTestPolicy> db_delegate_;
+  raw_ptr<ActivityDatabaseTestPolicy, DanglingUntriaged> db_delegate_;
 };
 
 // Check that the database is initialized properly.
@@ -164,9 +160,9 @@ TEST_F(ActivityDatabaseTest, Init) {
   ActivityDatabase* activity_db = OpenDatabase(db_file);
   activity_db->Close();
 
-  sql::Database db;
+  sql::Database db(sql::test::kTestTag);
   ASSERT_TRUE(db.Open(db_file));
-  ASSERT_TRUE(db.DoesTableExist(ActivityDatabaseTestPolicy::kTableName));
+  ASSERT_TRUE(db.DoesTableExist("actions"));
   db.Close();
 }
 
@@ -184,7 +180,7 @@ TEST_F(ActivityDatabaseTest, RecordAction) {
   Record(activity_db, action);
   activity_db->Close();
 
-  sql::Database db;
+  sql::Database db(sql::test::kTestTag);
   ASSERT_TRUE(db.Open(db_file));
 
   ASSERT_EQ(1, CountActions(&db, "brewster"));

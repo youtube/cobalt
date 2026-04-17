@@ -4,7 +4,15 @@
 
 #include "quiche/quic/core/quic_packets.h"
 
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <string>
+
 #include "absl/memory/memory.h"
+#include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
@@ -113,6 +121,48 @@ TEST_F(QuicPacketsTest, CopySerializedPacket) {
       CopySerializedPacket(packet, &allocator, /*copy_buffer=*/false));
   EXPECT_EQ(packet.encrypted_buffer, copy2->encrypted_buffer);
   EXPECT_EQ(1000u, copy2->encrypted_length);
+}
+
+TEST_F(QuicPacketsTest, CloneReceivedPacket) {
+  char header[4] = "bar";
+  QuicReceivedPacket packet("foo", 3, QuicTime::Zero(), false, 0, true, header,
+                            sizeof(header) - 1, false,
+                            QuicEcnCodepoint::ECN_ECT1);
+  std::unique_ptr<QuicReceivedPacket> copy = packet.Clone();
+  EXPECT_EQ(packet.ecn_codepoint(), copy->ecn_codepoint());
+}
+
+TEST_F(QuicPacketsTest, NoTosByDefault) {
+  char header[4] = "bar";
+  QuicReceivedPacket packet(
+      "foo", 3, QuicTime::Zero(), false, 0, true, header, sizeof(header) - 1,
+      false, QuicEcnCodepoint::ECN_ECT1, /*tos=*/std::nullopt, 42);
+  EXPECT_FALSE(packet.tos().has_value());
+}
+
+TEST_F(QuicPacketsTest, ExplicitTos) {
+  char header[4] = "bar";
+  uint8_t tos = 0xc | QuicEcnCodepoint::ECN_ECT1;
+  QuicReceivedPacket packet("foo", 3, QuicTime::Zero(), false, 0, true, header,
+                            sizeof(header) - 1, false,
+                            QuicEcnCodepoint::ECN_ECT1, tos, 42);
+  EXPECT_THAT(packet.tos(), testing::Optional(tos));
+}
+
+TEST_F(QuicPacketsTest, NoFlowLabelByDefault) {
+  char header[4] = "bar";
+  QuicReceivedPacket packet("foo", 3, QuicTime::Zero(), false, 0, true, header,
+                            sizeof(header) - 1, false,
+                            QuicEcnCodepoint::ECN_ECT1);
+  EXPECT_EQ(0, packet.ipv6_flow_label());
+}
+
+TEST_F(QuicPacketsTest, ExplicitFlowLabel) {
+  char header[4] = "bar";
+  QuicReceivedPacket packet(
+      "foo", 3, QuicTime::Zero(), false, 0, true, header, sizeof(header) - 1,
+      false, QuicEcnCodepoint::ECN_ECT1, /*tos=*/std::nullopt, 42);
+  EXPECT_EQ(42, packet.ipv6_flow_label());
 }
 
 }  // namespace

@@ -7,15 +7,13 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/containers/flat_set.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
-#include "base/strings/string_piece_forward.h"
-#include "components/url_formatter/spoof_checks/idna_metrics.h"
 #include "components/url_formatter/spoof_checks/skeleton_generator.h"
 #include "net/extras/preload_data/decoder.h"
-
 #include "third_party/icu/source/common/unicode/uniset.h"
 #include "third_party/icu/source/common/unicode/utypes.h"
 #include "third_party/icu/source/common/unicode/uversion.h"
@@ -52,10 +50,12 @@ const uint8_t kSkeletonTypeBitLength = 1;
 
 // Represents a top domain entry in the trie.
 struct TopDomainEntry {
-  // The domain name.
+  // The domain in ASCII (punycode for IDN).
   std::string domain;
-  // True if the domain is in the top 500.
-  bool is_top_500 = false;
+  // True if the domain is in the top bucket (i.e. in the most popular subset of
+  // top domains). These domains can have additional skeletons associated with
+  // them.
+  bool is_top_bucket = false;
   // Type of the skeleton stored in the trie node.
   SkeletonType skeleton_type;
 };
@@ -124,9 +124,9 @@ class IDNSpoofChecker {
   // - SafeToDisplayAsUnicode(L"аррӏе", "com", "com") -> kWholeScriptConfusable
   // - SafeToDisplayAsUnicode(L"аррӏе", "xn--p1ai", "рф") -> kSafe (xn--p1ai is
   //   the punycode form of рф)
-  Result SafeToDisplayAsUnicode(base::StringPiece16 label,
-                                base::StringPiece top_level_domain,
-                                base::StringPiece16 top_level_domain_unicode);
+  Result SafeToDisplayAsUnicode(std::u16string_view label,
+                                std::string_view top_level_domain,
+                                std::u16string_view top_level_domain_unicode);
 
   // Returns the matching top domain if |hostname| or the last few components of
   // |hostname| looks similar to one of top domains listed in domains.list.
@@ -138,11 +138,11 @@ class IDNSpoofChecker {
   //   top domains.
   //   2. Look up the diacritic-free version of |hostname| in the list of
   //   top domains. Note that non-IDN hostnames will not get here.
-  TopDomainEntry GetSimilarTopDomain(base::StringPiece16 hostname);
+  TopDomainEntry GetSimilarTopDomain(std::u16string_view hostname);
 
   // Returns skeleton strings computed from |hostname|. This function can apply
   // extra mappings to some characters to produce multiple skeletons.
-  Skeletons GetSkeletons(base::StringPiece16 hostname) const;
+  Skeletons GetSkeletons(std::u16string_view hostname) const;
 
   // Returns a top domain from the top 10K list matching the given |skeleton|.
   // If |without_separators| is set, the skeleton will be compared against
@@ -155,19 +155,6 @@ class IDNSpoofChecker {
   // only contains Latin-Greek-Cyrillic characters. Otherwise, returns the
   // input string.
   std::u16string MaybeRemoveDiacritics(const std::u16string& hostname);
-
-  // Returns the first IDNA 2008 deviation character if `hostname` contains any.
-  // Deviation characters are four characters that are treated differently
-  // between IDNA 2003 and IDNA 2008: ß, ς, ZERO WIDTH JOINER, ZERO WIDTH
-  // NON-JOINER.
-  // As a result, a domain containing deviation characters can map to a
-  // different IP address between user agents that implement different IDNA
-  // versions.
-  // See
-  // https://www.unicode.org/reports/tr46/tr46-27.html#Table_Deviation_Characters
-  // for details.
-  IDNA2008DeviationCharacter GetDeviationCharacter(
-      base::StringPiece16 hostname) const;
 
   // Used for unit tests.
   static void SetTrieParamsForTesting(const HuffmanTrieParams& trie_params);
@@ -208,8 +195,8 @@ class IDNSpoofChecker {
   // empty if |tld| is not well formed punycode.
   static bool IsWholeScriptConfusableAllowedForTLD(
       const WholeScriptConfusable& script,
-      base::StringPiece tld,
-      base::StringPiece16 tld_unicode);
+      std::string_view tld,
+      std::u16string_view tld_unicode);
 
   // Sets allowed characters in IDN labels and turns on USPOOF_CHAR_LIMIT.
   void SetAllowedUnicodeSet(UErrorCode* status);
@@ -218,7 +205,7 @@ class IDNSpoofChecker {
   // characters that look like digits (but not exclusively actual digits).
   bool IsDigitLookalike(const icu::UnicodeString& label);
 
-  raw_ptr<USpoofChecker> checker_;
+  raw_ptr<USpoofChecker, DanglingUntriaged> checker_;
   icu::UnicodeSet deviation_characters_;
   icu::UnicodeSet non_ascii_latin_letters_;
   icu::UnicodeSet kana_letters_exceptions_;

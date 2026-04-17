@@ -9,7 +9,7 @@
 namespace content {
 
 bool StubRenderWidgetHostOwnerDelegate::MayRenderWidgetForwardKeyboardEvent(
-    const NativeWebKeyboardEvent& key_event) {
+    const input::NativeWebKeyboardEvent& key_event) {
   return true;
 }
 
@@ -19,10 +19,6 @@ bool StubRenderWidgetHostOwnerDelegate::ShouldContributePriorityToProcess() {
 
 bool StubRenderWidgetHostOwnerDelegate::IsMainFrameActive() {
   return true;
-}
-
-bool StubRenderWidgetHostOwnerDelegate::IsNeverComposited() {
-  return false;
 }
 
 blink::web_pref::WebPreferences

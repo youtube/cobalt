@@ -10,6 +10,7 @@
 
 #include "api/stats/rtc_stats_collector_callback.h"
 #include "api/stats/rtcstats_objects.h"
+#include "api/units/data_rate.h"
 #include "pc/test/mock_peer_connection_observers.h"
 #include "test/field_trial.h"
 #include "test/gtest.h"
@@ -42,7 +43,7 @@ TEST(GoogCcPeerScenarioTest, MAYBE_NoBweChangeFromVideoUnmute) {
   auto* callee = s.CreateClient(PeerScenarioClient::Config());
 
   BuiltInNetworkBehaviorConfig net_conf;
-  net_conf.link_capacity_kbps = 350;
+  net_conf.link_capacity = DataRate::KilobitsPerSec(350);
   net_conf.queue_delay_ms = 50;
   auto send_node = s.net()->CreateEmulatedNode(net_conf);
   auto ret_node = s.net()->CreateEmulatedNode(net_conf);
@@ -50,7 +51,7 @@ TEST(GoogCcPeerScenarioTest, MAYBE_NoBweChangeFromVideoUnmute) {
   PeerScenarioClient::VideoSendTrackConfig video_conf;
   video_conf.generator.squares_video->framerate = 15;
   auto video = caller->CreateVideo("VIDEO", video_conf);
-  auto audio = caller->CreateAudio("AUDIO", cricket::AudioOptions());
+  auto audio = caller->CreateAudio("AUDIO", AudioOptions());
 
   // Start ICE and exchange SDP.
   s.SimpleConnection(caller, callee, {send_node}, {ret_node});
@@ -73,8 +74,7 @@ TEST(GoogCcPeerScenarioTest, MAYBE_NoBweChangeFromVideoUnmute) {
   ASSERT_EQ(num_video_streams, 1);  // Exactly 1 video stream.
 
   auto get_bwe = [&] {
-    auto callback =
-        rtc::make_ref_counted<webrtc::MockRTCStatsCollectorCallback>();
+    auto callback = make_ref_counted<MockRTCStatsCollectorCallback>();
     caller->pc()->GetStats(callback.get());
     s.net()->time_controller()->Wait([&] { return callback->called(); });
     auto stats =

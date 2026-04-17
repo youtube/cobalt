@@ -5,7 +5,7 @@
 #ifndef BASE_SCOPED_OBSERVATION_H_
 #define BASE_SCOPED_OBSERVATION_H_
 
-#include <stddef.h>
+#include <utility>
 
 #include "base/check.h"
 #include "base/check_op.h"
@@ -41,7 +41,7 @@ namespace base {
 // `observer.h`:
 //   class Observer {
 //    public:
-//     virtual ~Observer() {}
+//     virtual ~Observer() = default;
 //
 //     virtual void OnEvent() {}
 //   };
@@ -112,8 +112,7 @@ class ScopedObservation {
   // if currently observing. Does nothing otherwise.
   void Reset() {
     if (source_) {
-      Traits::RemoveObserver(source_, observer_);
-      source_ = nullptr;
+      Traits::RemoveObserver(std::exchange(source_, nullptr), observer_);
     }
   }
 
@@ -126,13 +125,22 @@ class ScopedObservation {
     return source_ == source;
   }
 
+  // Gets a pointer to the observer that observes the source.
+  Observer* GetObserver() { return observer_; }
+  const Observer* GetObserver() const { return observer_; }
+
+  // Gets a pointer to the observed source, or nullptr if no source is being
+  // observed.
+  Source* GetSource() { return source_; }
+  const Source* GetSource() const { return source_; }
+
  private:
   using Traits = ScopedObservationTraits<Source, Observer>;
 
   const raw_ptr<Observer> observer_;
 
   // The observed source, if any.
-  raw_ptr<Source> source_ = nullptr;
+  raw_ptr<Source, LeakedDanglingUntriaged> source_ = nullptr;
 };
 
 }  // namespace base

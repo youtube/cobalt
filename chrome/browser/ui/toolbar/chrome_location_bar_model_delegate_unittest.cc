@@ -53,7 +53,7 @@ class TestChromeLocationBarModelDelegate
   }
 
  private:
-  const raw_ptr<Browser> browser_;
+  const raw_ptr<Browser, DanglingUntriaged> browser_;
   net::CertStatus cert_status_ = 0;
 };
 
@@ -99,9 +99,10 @@ class ChromeLocationBarModelDelegateTest : public BrowserWithTestWindowTest {
 
   // BrowserWithTestWindowTest:
   TestingProfile::TestingFactories GetTestingFactories() override {
-    return {{ChromeSigninClientFactory::GetInstance(),
-             base::BindRepeating(&BuildChromeSigninClientWithURLLoader,
-                                 test_url_loader_factory())}};
+    return {TestingProfile::TestingFactory{
+        ChromeSigninClientFactory::GetInstance(),
+        base::BindRepeating(&BuildChromeSigninClientWithURLLoader,
+                            test_url_loader_factory())}};
   }
 
  private:

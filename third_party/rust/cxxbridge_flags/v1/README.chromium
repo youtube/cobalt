@@ -1,0 +1,10 @@
+Name: cxxbridge-flags
+URL: https://crates.io/crates/cxxbridge-flags
+Version: 1.0.158
+Revision: a1afe6c319210725c505aafc095cdaa0c8c7fe6b
+License: Apache-2.0
+License File: //third_party/rust/chromium_crates_io/vendor/cxxbridge-flags-v1/LICENSE-APACHE
+Shipped: yes
+Security Critical: yes
+
+Description: Compiler configuration of the `cxx` crate (implementation detail)

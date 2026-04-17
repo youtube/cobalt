@@ -11,25 +11,32 @@
 # For IANA Time zone database, see https://www.iana.org/time-zones
 
 # See
-# https://stackoverflow.com/questions/160608/do-a-git-export-like-svn-export/19689284#19689284
-# about 'svn export' and github.
+# https://github.blog/news-insights/product-news/sunsetting-subversion-support/
+# Github no longer supports SVN. To download files, this script will download
+# the repo as a tarball and extract from a temporary folder location
 
-branch="trunk"
+tmp_dir=~/tmp/icu-tz
+repo_url="https://github.com/unicode-org/icu/archive/refs/heads/main.tar.gz"
+tarball="${tmp_dir}/source.tar.gz"
+treeroot="$(dirname "$0")/.."
+datapath="source/data/misc"
 
-# ICU tz file is sometimes updated in the maintenance branch long before
-# being updated in trunk.
-if [ $# -ge 1 ];
-then
-  branch="branches/maint/maint-$1"
-  echo "Downloading tz files from ${branch}"
+# Check if the repo for $version is available.
+if ! wget --spider $repo_url 2>/dev/null; then
+  echo "$repo_url does not exists"
+  exit 1
 fi
 
-datapath="source/data/misc"
-sourcedirurl="https://github.com/unicode-org/icu/${branch}/icu4c/${datapath}"
-cd "$(dirname "$0")/../${datapath}"
+echo "Download main from the upstream repository to tmp directory"
+rm -rf $tmp_dir
+mkdir -p $tmp_dir
+curl -L $repo_url --output $tarball
 
-for f in metaZones.txt timezoneTypes.txt windowsZones.txt zoneinfo64.txt
+echo "Extracting timezone files from main to ICU tree root"
+for file in metaZones.txt timezoneTypes.txt windowsZones.txt zoneinfo64.txt
 do
-  echo "${sourcedirurl}/${f}"
-  svn --force export "${sourcedirurl}/${f}"
+  tar -xf $tarball -C $treeroot "icu-main/icu4c/${datapath}/${file}" --strip-components=2
 done
+
+echo "Cleaning up tmp directory"
+rm -rf $tmp_dir

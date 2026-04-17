@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/debug/asan_service.h"
 
 #if defined(ADDRESS_SANITIZER)
@@ -12,15 +17,24 @@
 #include "base/process/process.h"
 #include "base/process/process_handle.h"
 #include "base/strings/stringprintf.h"
+#include "build/build_config.h"
 
-#if defined(COMPONENT_BUILD) && defined(_WIN32)
+#if BUILDFLAG(IS_WIN)
+#include "base/logging.h"
+#include "base/win/windows_types.h"
+#endif  // BUILDFLAG(IS_WIN)
+
+#if defined(COMPONENT_BUILD) && BUILDFLAG(IS_WIN)
 // In component builds on Windows, weak function exported by ASan have the
 // `__dll` suffix. ASan itself uses the `alternatename` directive to account for
 // that.
-#pragma comment(linker,                                                \
-                    "/alternatename:__sanitizer_report_error_summary=" \
-                    "__sanitizer_report_error_summary__dll")
-#endif  // defined(COMPONENT_BUILD) && defined(_WIN32)
+#pragma comment(linker,                                            \
+                "/alternatename:__sanitizer_report_error_summary=" \
+                "__sanitizer_report_error_summary__dll")
+#pragma comment(linker,                                     \
+                "/alternatename:__sanitizer_set_report_fd=" \
+                "__sanitizer_set_report_fd__dll")
+#endif  // defined(COMPONENT_BUILD) && BUILDFLAG(IS_WIN)
 
 namespace base {
 namespace debug {
@@ -60,6 +74,16 @@ AsanService* AsanService::GetInstance() {
 void AsanService::Initialize() {
   AutoLock lock(lock_);
   if (!is_initialized_) {
+#if BUILDFLAG(IS_WIN)
+    if (logging::IsLoggingToFileEnabled()) {
+      // Sandboxed processes cannot open files but are provided a HANDLE.
+      HANDLE log_handle = logging::DuplicateLogFileHandle();
+      if (log_handle) {
+        // Sanitizer APIs need a HANDLE cast to void*.
+        __sanitizer_set_report_fd(reinterpret_cast<void*>(log_handle));
+      }
+    }
+#endif  // BUILDFLAG(IS_WIN)
     __asan_set_error_report_callback(ErrorReportCallback);
     error_callbacks_.push_back(TaskTraceErrorCallback);
     is_initialized_ = true;
@@ -115,7 +139,7 @@ void AsanService::ErrorReportCallback(const char* reason) {
   AsanService::GetInstance()->RunErrorCallbacks(reason);
 }
 
-AsanService::AsanService() {}
+AsanService::AsanService() = default;
 
 }  // namespace debug
 }  // namespace base

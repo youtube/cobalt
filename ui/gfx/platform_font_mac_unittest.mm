@@ -8,8 +8,9 @@
 #include <CoreText/CoreText.h>
 #include <stddef.h>
 
-#import "base/mac/foundation_util.h"
-#include "base/mac/scoped_cftyperef.h"
+#include "base/apple/bridging.h"
+#import "base/apple/foundation_util.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/font.h"
 
@@ -24,7 +25,7 @@ TEST(PlatformFontMacTest, DeriveFont) {
   auto GetValueFromDictionaryAndWorkAroundMacOS13Bug = [](CFDictionaryRef dict,
                                                           CFStringRef key) {
     NSOperatingSystemVersion version =
-        [[NSProcessInfo processInfo] operatingSystemVersion];
+        NSProcessInfo.processInfo.operatingSystemVersion;
 
     if (version.majorVersion == 13 && version.minorVersion == 0) {
       CFTypeRef value = CFDictionaryGetValue(dict, key);
@@ -35,18 +36,18 @@ TEST(PlatformFontMacTest, DeriveFont) {
       }
     }
 
-    return base::mac::GetValueFromDictionary<CFNumberRef>(dict, key);
+    return base::apple::GetValueFromDictionary<CFNumberRef>(dict, key);
   };
 
   // |weight_tri| is either -1, 0, or 1 meaning "light", "normal", or "bold".
   auto CheckExpected = [GetValueFromDictionaryAndWorkAroundMacOS13Bug](
                            const Font& font, int weight_tri, bool isItalic) {
-    base::ScopedCFTypeRef<CFDictionaryRef> traits(
+    base::apple::ScopedCFTypeRef<CFDictionaryRef> traits(
         CTFontCopyTraits(font.GetCTFont()));
     DCHECK(traits);
 
     CFNumberRef cf_slant = GetValueFromDictionaryAndWorkAroundMacOS13Bug(
-        traits, kCTFontSlantTrait);
+        traits.get(), kCTFontSlantTrait);
     CGFloat slant;
     CFNumberGetValue(cf_slant, kCFNumberCGFloatType, &slant);
     if (isItalic)
@@ -55,7 +56,7 @@ TEST(PlatformFontMacTest, DeriveFont) {
       EXPECT_EQ(slant, 0);
 
     CFNumberRef cf_weight = GetValueFromDictionaryAndWorkAroundMacOS13Bug(
-        traits, kCTFontWeightTrait);
+        traits.get(), kCTFontWeightTrait);
     CGFloat weight;
     CFNumberGetValue(cf_weight, kCFNumberCGFloatType, &weight);
     if (weight_tri < 0)
@@ -119,7 +120,7 @@ TEST(PlatformFontMacTest, DeriveFontUnderline) {
 
   // Validate the derived font properties against its native font instance.
   NSFontTraitMask traits = [NSFontManager.sharedFontManager
-      traitsOfFont:base::mac::CFToNSCast(derived_font.GetCTFont())];
+      traitsOfFont:base::apple::CFToNSPtrCast(derived_font.GetCTFont())];
   Weight actual_weight =
       (traits & NSFontBoldTrait) ? Weight::BOLD : Weight::NORMAL;
 
@@ -136,7 +137,7 @@ TEST(PlatformFontMacTest, DeriveFontUnderline) {
 // underlying CTFont representation.
 TEST(PlatformFontMacTest, ConstructFromNativeFont) {
   NSFont* ns_light_font = [NSFont fontWithName:@"Helvetica-Light" size:12];
-  Font light_font(base::mac::NSToCFCast(ns_light_font));
+  Font light_font(base::apple::NSToCFPtrCast(ns_light_font));
   EXPECT_EQ(12, light_font.GetFontSize());
   EXPECT_EQ("Helvetica", light_font.GetFontName());
   EXPECT_EQ(Font::NORMAL, light_font.GetStyle());
@@ -144,28 +145,28 @@ TEST(PlatformFontMacTest, ConstructFromNativeFont) {
 
   NSFont* ns_light_italic_font = [NSFont fontWithName:@"Helvetica-LightOblique"
                                                  size:14];
-  Font light_italic_font(base::mac::NSToCFCast(ns_light_italic_font));
+  Font light_italic_font(base::apple::NSToCFPtrCast(ns_light_italic_font));
   EXPECT_EQ(14, light_italic_font.GetFontSize());
   EXPECT_EQ("Helvetica", light_italic_font.GetFontName());
   EXPECT_EQ(Font::ITALIC, light_italic_font.GetStyle());
   EXPECT_EQ(Weight::LIGHT, light_italic_font.GetWeight());
 
   NSFont* ns_normal_font = [NSFont fontWithName:@"Helvetica" size:12];
-  Font normal_font(base::mac::NSToCFCast(ns_normal_font));
+  Font normal_font(base::apple::NSToCFPtrCast(ns_normal_font));
   EXPECT_EQ(12, normal_font.GetFontSize());
   EXPECT_EQ("Helvetica", normal_font.GetFontName());
   EXPECT_EQ(Font::NORMAL, normal_font.GetStyle());
   EXPECT_EQ(Weight::NORMAL, normal_font.GetWeight());
 
   NSFont* ns_italic_font = [NSFont fontWithName:@"Helvetica-Oblique" size:14];
-  Font italic_font(base::mac::NSToCFCast(ns_italic_font));
+  Font italic_font(base::apple::NSToCFPtrCast(ns_italic_font));
   EXPECT_EQ(14, italic_font.GetFontSize());
   EXPECT_EQ("Helvetica", italic_font.GetFontName());
   EXPECT_EQ(Font::ITALIC, italic_font.GetStyle());
   EXPECT_EQ(Weight::NORMAL, italic_font.GetWeight());
 
   NSFont* ns_bold_font = [NSFont fontWithName:@"Helvetica-Bold" size:12];
-  Font bold_font(base::mac::NSToCFCast(ns_bold_font));
+  Font bold_font(base::apple::NSToCFPtrCast(ns_bold_font));
   EXPECT_EQ(12, bold_font.GetFontSize());
   EXPECT_EQ("Helvetica", bold_font.GetFontName());
   EXPECT_EQ(Font::NORMAL, bold_font.GetStyle());
@@ -173,7 +174,7 @@ TEST(PlatformFontMacTest, ConstructFromNativeFont) {
 
   NSFont* ns_bold_italic_font = [NSFont fontWithName:@"Helvetica-BoldOblique"
                                                 size:14];
-  Font bold_italic_font(base::mac::NSToCFCast(ns_bold_italic_font));
+  Font bold_italic_font(base::apple::NSToCFPtrCast(ns_bold_italic_font));
   EXPECT_EQ(14, bold_italic_font.GetFontSize());
   EXPECT_EQ("Helvetica", bold_italic_font.GetFontName());
   EXPECT_EQ(Font::ITALIC, bold_italic_font.GetStyle());
@@ -222,7 +223,7 @@ TEST(PlatformFontMacTest, ValidateFontHeight) {
     for (int delta = -1; delta <= 8; ++delta) {
       Font font = default_font.Derive(delta, style, Weight::NORMAL);
       SCOPED_TRACE(testing::Message() << "FontSize(): " << font.GetFontSize());
-      NSFont* ns_font = base::mac::CFToNSCast(font.GetCTFont());
+      NSFont* ns_font = base::apple::CFToNSPtrCast(font.GetCTFont());
 
       // Font height (an integer) should be the sum of these.
       CGFloat ascender = ns_font.ascender;
@@ -251,17 +252,17 @@ TEST(PlatformFontMacTest, ValidateFontHeight) {
 
 // Test to ensure we cater for the AppKit quirk that can make the font italic
 // when asking for a fine-grained weight. See http://crbug.com/742261. Note that
-// Appkit's bug was detected on macOS 10.10 which uses Helvetica Neue as the
+// AppKit's bug was detected on macOS 10.10 which uses Helvetica Neue as the
 // system font.
 TEST(PlatformFontMacTest, DerivedSemiboldFontIsNotItalic) {
   Font base_font;
   NSFontTraitMask base_traits = [NSFontManager.sharedFontManager
-      traitsOfFont:base::mac::CFToNSCast(base_font.GetCTFont())];
+      traitsOfFont:base::apple::CFToNSPtrCast(base_font.GetCTFont())];
   ASSERT_FALSE(base_traits & NSItalicFontMask);
 
   Font semibold_font = base_font.Derive(0, Font::NORMAL, Weight::SEMIBOLD);
   NSFontTraitMask semibold_traits = [NSFontManager.sharedFontManager
-      traitsOfFont:base::mac::CFToNSCast(semibold_font.GetCTFont())];
+      traitsOfFont:base::apple::CFToNSPtrCast(semibold_font.GetCTFont())];
   EXPECT_FALSE(semibold_traits & NSItalicFontMask);
 }
 

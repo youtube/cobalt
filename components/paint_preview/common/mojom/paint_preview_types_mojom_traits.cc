@@ -58,7 +58,6 @@ UnionTraits<paint_preview::mojom::SerializedRecordingDataView,
   }
 
   NOTREACHED();
-  return paint_preview::mojom::SerializedRecordingDataView::Tag::kFile;
 }
 
 }  // namespace mojo

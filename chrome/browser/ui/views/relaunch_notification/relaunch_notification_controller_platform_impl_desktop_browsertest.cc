@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ui/views/relaunch_notification/relaunch_notification_controller_platform_impl_desktop.h"
+
 #include "base/run_loop.h"
 #include "base/time/time.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/views/relaunch_notification/relaunch_notification_controller_platform_impl_desktop.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "content/public/test/browser_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -24,7 +25,7 @@ IN_PROC_BROWSER_TEST_F(
   // Allow UI tasks to run so that the browser becomes fully active/inactive.
   base::RunLoop().RunUntilIdle();
   RelaunchNotificationControllerPlatformImpl impl;
-  base::Time deadline = base::Time::FromDeltaSinceWindowsEpoch(base::Hours(1));
+  base::Time deadline = base::Time::Now() + base::Hours(1);
 
   impl.NotifyRelaunchRecommended(deadline, false);
   views::test::WidgetDestroyedWaiter first_destroyed_waiter(

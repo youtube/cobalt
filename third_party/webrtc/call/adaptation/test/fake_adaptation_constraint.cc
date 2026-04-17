@@ -10,9 +10,11 @@
 
 #include "call/adaptation/test/fake_adaptation_constraint.h"
 
-#include <utility>
+#include <string>
 
 #include "absl/strings/string_view.h"
+#include "call/adaptation/video_source_restrictions.h"
+#include "call/adaptation/video_stream_input_state.h"
 
 namespace webrtc {
 
@@ -31,9 +33,9 @@ std::string FakeAdaptationConstraint::Name() const {
 }
 
 bool FakeAdaptationConstraint::IsAdaptationUpAllowed(
-    const VideoStreamInputState& input_state,
-    const VideoSourceRestrictions& restrictions_before,
-    const VideoSourceRestrictions& restrictions_after) const {
+    const VideoStreamInputState& /* input_state */,
+    const VideoSourceRestrictions& /* restrictions_before */,
+    const VideoSourceRestrictions& /* restrictions_after */) const {
   return is_adaptation_up_allowed_;
 }
 

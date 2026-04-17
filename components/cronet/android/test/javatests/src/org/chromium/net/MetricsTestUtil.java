@@ -4,10 +4,10 @@
 
 package org.chromium.net;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
+
+import org.chromium.net.CronetTestRule.CronetImplementation;
 
 import java.util.Date;
 import java.util.LinkedList;
@@ -19,9 +19,7 @@ import java.util.concurrent.Executor;
  * one test file.
  */
 public class MetricsTestUtil {
-    /**
-     * Executor which runs tasks only when told to with runAllTasks().
-     */
+    /** Executor which runs tasks only when told to with runAllTasks(). */
     public static class TestExecutor implements Executor {
         private final LinkedList<Runnable> mTaskQueue = new LinkedList<Runnable>();
 
@@ -45,28 +43,36 @@ public class MetricsTestUtil {
     // Some implementation of java.util.Date broke the symmetric property, so
     // check both directions.
     public static void assertAfter(Date date1, Date date2) {
-        assertTrue("date1: " + date1.getTime() + ", date2: " + date2.getTime(),
-                date1.after(date2) || date1.equals(date2) || date2.equals(date1));
+        assertWithMessage("date1: " + date1.getTime() + ", date2: " + date2.getTime())
+                .that(date1.after(date2) || date1.equals(date2) || date2.equals(date1))
+                .isTrue();
     }
 
     /**
-     * Check existence of all the timing metrics that apply to most test requests,
-     * except those that come from net::LoadTimingInfo::ConnectTiming.
-     * Also check some timing differences, focusing on things we can't check with asserts in the
-     * CronetMetrics constructor.
-     * Don't check push times here.
+     * Check existence of all the timing metrics that apply to most test requests, except those that
+     * come from net::LoadTimingInfo::ConnectTiming. Also check some timing differences, focusing on
+     * things we can't check with asserts in the CronetMetrics constructor. Don't check push times
+     * here.
      */
     public static void checkTimingMetrics(
-            RequestFinishedInfo.Metrics metrics, Date startTime, Date endTime) {
-        assertNotNull(metrics.getRequestStart());
+            CronetImplementation implementationUnderTest,
+            RequestFinishedInfo.Metrics metrics,
+            Date startTime,
+            Date endTime) {
+        if (implementationUnderTest == CronetImplementation.AOSP_PLATFORM) {
+            // RequestFinishedInfoListener HttpEngineWrapper implementation has placeholder ie null
+            // metrics. Don't bother checking timing metrics for AOSP whether it passes or not.
+            return;
+        }
+        assertThat(metrics.getRequestStart()).isNotNull();
         assertAfter(metrics.getRequestStart(), startTime);
-        assertNotNull(metrics.getSendingStart());
+        assertThat(metrics.getSendingStart()).isNotNull();
         assertAfter(metrics.getSendingStart(), startTime);
-        assertNotNull(metrics.getSendingEnd());
+        assertThat(metrics.getSendingEnd()).isNotNull();
         assertAfter(endTime, metrics.getSendingEnd());
-        assertNotNull(metrics.getResponseStart());
+        assertThat(metrics.getResponseStart()).isNotNull();
         assertAfter(metrics.getResponseStart(), startTime);
-        assertNotNull(metrics.getRequestEnd());
+        assertThat(metrics.getRequestEnd()).isNotNull();
         assertAfter(endTime, metrics.getRequestEnd());
         assertAfter(metrics.getRequestEnd(), metrics.getRequestStart());
     }
@@ -76,58 +82,83 @@ public class MetricsTestUtil {
      * except SSL times in the case of non-https requests.
      */
     public static void checkHasConnectTiming(
-            RequestFinishedInfo.Metrics metrics, Date startTime, Date endTime, boolean isSsl) {
-        assertNotNull(metrics.getDnsStart());
+            CronetImplementation implementationUnderTest,
+            RequestFinishedInfo.Metrics metrics,
+            Date startTime,
+            Date endTime,
+            boolean isSsl) {
+        if (implementationUnderTest == CronetImplementation.AOSP_PLATFORM) {
+            // RequestFinishedInfoListener HttpEngineWrapper implementation has placeholder ie null
+            // metrics. Don't bother checking timing metrics for AOSP whether it passes or not.
+            return;
+        }
+        assertThat(metrics.getDnsStart()).isNotNull();
         assertAfter(metrics.getDnsStart(), startTime);
-        assertNotNull(metrics.getDnsEnd());
+        assertThat(metrics.getDnsEnd()).isNotNull();
         assertAfter(endTime, metrics.getDnsEnd());
-        assertNotNull(metrics.getConnectStart());
+        assertThat(metrics.getConnectStart()).isNotNull();
         assertAfter(metrics.getConnectStart(), startTime);
-        assertNotNull(metrics.getConnectEnd());
+        assertThat(metrics.getConnectEnd()).isNotNull();
         assertAfter(endTime, metrics.getConnectEnd());
         if (isSsl) {
-            assertNotNull(metrics.getSslStart());
+            assertThat(metrics.getSslStart()).isNotNull();
             assertAfter(metrics.getSslStart(), startTime);
-            assertNotNull(metrics.getSslEnd());
+            assertThat(metrics.getSslEnd()).isNotNull();
             assertAfter(endTime, metrics.getSslEnd());
         } else {
-            assertNull(metrics.getSslStart());
-            assertNull(metrics.getSslEnd());
+            assertThat(metrics.getSslStart()).isNull();
+            assertThat(metrics.getSslEnd()).isNull();
         }
     }
 
-    /**
-     * Check that the timing metrics from net::LoadTimingInfo::ConnectTiming don't exist.
-     */
-    public static void checkNoConnectTiming(RequestFinishedInfo.Metrics metrics) {
-        assertNull(metrics.getDnsStart());
-        assertNull(metrics.getDnsEnd());
-        assertNull(metrics.getSslStart());
-        assertNull(metrics.getSslEnd());
-        assertNull(metrics.getConnectStart());
-        assertNull(metrics.getConnectEnd());
+    /** Check that the timing metrics from net::LoadTimingInfo::ConnectTiming don't exist. */
+    public static void checkNoConnectTiming(
+            CronetImplementation implementationUnderTest, RequestFinishedInfo.Metrics metrics) {
+        if (implementationUnderTest == CronetImplementation.AOSP_PLATFORM) {
+            // RequestFinishedInfoListener HttpEngineWrapper implementation has placeholder ie null
+            // metrics. Although the checks below would pass, generally, don't bother checking
+            // timing metrics for AOSP whether it passes or not.
+            return;
+        }
+        assertThat(metrics.getDnsStart()).isNull();
+        assertThat(metrics.getDnsEnd()).isNull();
+        assertThat(metrics.getSslStart()).isNull();
+        assertThat(metrics.getSslEnd()).isNull();
+        assertThat(metrics.getConnectStart()).isNull();
+        assertThat(metrics.getConnectEnd()).isNull();
     }
 
     /**
      * Check that RequestFinishedInfo looks the way it should look for a normal successful request.
      */
     public static void checkRequestFinishedInfo(
-            RequestFinishedInfo info, String url, Date startTime, Date endTime) {
-        assertNotNull("RequestFinishedInfo.Listener must be called", info);
-        assertEquals(url, info.getUrl());
-        assertNotNull(info.getResponseInfo());
-        assertNull(info.getException());
+            CronetImplementation implementationUnderTest,
+            RequestFinishedInfo info,
+            String url,
+            Date startTime,
+            Date endTime) {
+        assertWithMessage("RequestFinishedInfo.Listener must be called").that(info).isNotNull();
+        assertThat(info.getUrl()).isEqualTo(url);
+        assertThat(info.getResponseInfo()).isNotNull();
+        assertThat(info.getException()).isNull();
         RequestFinishedInfo.Metrics metrics = info.getMetrics();
-        assertNotNull("RequestFinishedInfo.getMetrics() must not be null", metrics);
-        // Check old (deprecated) timing metrics
-        assertTrue(metrics.getTotalTimeMs() >= 0);
-        assertTrue(metrics.getTotalTimeMs() >= metrics.getTtfbMs());
-        // Check new timing metrics
-        checkTimingMetrics(metrics, startTime, endTime);
-        assertNull(metrics.getPushStart());
-        assertNull(metrics.getPushEnd());
-        // Check data use metrics
-        assertTrue(metrics.getSentByteCount() > 0);
-        assertTrue(metrics.getReceivedByteCount() > 0);
+        assertWithMessage("RequestFinishedInfo.getMetrics() must not be null")
+                .that(metrics)
+                .isNotNull();
+
+        // RequestFinishedInfoListener HttpEngineWrapper implementation has placeholder ie null
+        // metrics. Don't bother checking timing metrics for AOSP whether it passes or not.
+        if (implementationUnderTest != CronetImplementation.AOSP_PLATFORM) {
+            // Check old (deprecated) timing metrics
+            assertThat(metrics.getTotalTimeMs()).isAtLeast(0L);
+            assertThat(metrics.getTotalTimeMs()).isAtLeast(metrics.getTtfbMs());
+            // Check new timing metrics
+            checkTimingMetrics(implementationUnderTest, metrics, startTime, endTime);
+            assertThat(metrics.getPushStart()).isNull();
+            assertThat(metrics.getPushEnd()).isNull();
+            // Check data use metrics
+            assertThat(metrics.getSentByteCount()).isGreaterThan(0L);
+            assertThat(metrics.getReceivedByteCount()).isGreaterThan(0L);
+        }
     }
 }

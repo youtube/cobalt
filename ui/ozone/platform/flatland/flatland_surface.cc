@@ -8,6 +8,8 @@
 #include <lib/zx/eventpair.h>
 #include <zircon/types.h>
 
+#include <variant>
+
 #include "base/check_op.h"
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/fuchsia/process_context.h"
@@ -31,16 +33,9 @@ std::vector<zx::event> GpuFenceHandlesToZxEvents(
   std::vector<zx::event> events;
   events.reserve(handles.size());
   for (auto& handle : handles) {
-    events.push_back(std::move(handle.owned_event));
+    events.push_back(handle.Release());
   }
   return events;
-}
-
-zx::event DuplicateZxEvent(const zx::event& event) {
-  zx::event result;
-  zx_status_t status = event.duplicate(ZX_RIGHT_SAME_RIGHTS, &result);
-  ZX_DCHECK(status == ZX_OK, status);
-  return result;
 }
 
 // A struct containing Flatland properties for an associated overlay transform.
@@ -64,23 +59,25 @@ OverlayTransformFlatlandProperties OverlayTransformToFlatlandProperties(
           .translation = {rounded_bounds.x(), rounded_bounds.y()},
           .orientation = fuchsia::ui::composition::Orientation::CCW_0_DEGREES,
           .image_flip = fuchsia::ui::composition::ImageFlip::NONE};
-    case gfx::OVERLAY_TRANSFORM_ROTATE_90:
+    // gfx::OverlayTransform and Flatland rotate in opposite directions relative
+    // to each other, so swap 90 and 270.
+    case gfx::OVERLAY_TRANSFORM_ROTATE_CLOCKWISE_90:
       return {
-          .translation = {rounded_bounds.x(),
-                          rounded_bounds.y() + rounded_bounds.height()},
-          .orientation = fuchsia::ui::composition::Orientation::CCW_90_DEGREES,
+          .translation = {rounded_bounds.x() + rounded_bounds.width(),
+                          rounded_bounds.y()},
+          .orientation = fuchsia::ui::composition::Orientation::CCW_270_DEGREES,
           .image_flip = fuchsia::ui::composition::ImageFlip::NONE};
-    case gfx::OVERLAY_TRANSFORM_ROTATE_180:
+    case gfx::OVERLAY_TRANSFORM_ROTATE_CLOCKWISE_180:
       return {
           .translation = {rounded_bounds.x() + rounded_bounds.width(),
                           rounded_bounds.y() + rounded_bounds.height()},
           .orientation = fuchsia::ui::composition::Orientation::CCW_180_DEGREES,
           .image_flip = fuchsia::ui::composition::ImageFlip::NONE};
-    case gfx::OVERLAY_TRANSFORM_ROTATE_270:
+    case gfx::OVERLAY_TRANSFORM_ROTATE_CLOCKWISE_270:
       return {
-          .translation = {rounded_bounds.x() + rounded_bounds.width(),
-                          rounded_bounds.y()},
-          .orientation = fuchsia::ui::composition::Orientation::CCW_270_DEGREES,
+          .translation = {rounded_bounds.x(),
+                          rounded_bounds.y() + rounded_bounds.height()},
+          .orientation = fuchsia::ui::composition::Orientation::CCW_90_DEGREES,
           .image_flip = fuchsia::ui::composition::ImageFlip::NONE};
     case gfx::OVERLAY_TRANSFORM_FLIP_HORIZONTAL:
       return {
@@ -93,15 +90,12 @@ OverlayTransformFlatlandProperties OverlayTransformToFlatlandProperties(
           .orientation = fuchsia::ui::composition::Orientation::CCW_0_DEGREES,
           .image_flip = fuchsia::ui::composition::ImageFlip::UP_DOWN,
       };
+    case gfx::OVERLAY_TRANSFORM_FLIP_VERTICAL_CLOCKWISE_90:
+    case gfx::OVERLAY_TRANSFORM_FLIP_VERTICAL_CLOCKWISE_270:
     case gfx::OVERLAY_TRANSFORM_INVALID:
       break;
   }
   NOTREACHED();
-  return {
-      .translation = {rounded_bounds.x(), rounded_bounds.y()},
-      .orientation = fuchsia::ui::composition::Orientation::CCW_0_DEGREES,
-      .image_flip = fuchsia::ui::composition::ImageFlip::NONE,
-  };
 }
 
 // Converts a gfx size to the associated Fuchsia size, and accounts for any
@@ -109,8 +103,8 @@ OverlayTransformFlatlandProperties OverlayTransformToFlatlandProperties(
 fuchsia::math::SizeU GfxSizeToFuchsiaSize(
     const gfx::Size& size,
     gfx::OverlayTransform plane_transform = gfx::OVERLAY_TRANSFORM_NONE) {
-  if (plane_transform == gfx::OVERLAY_TRANSFORM_ROTATE_90 ||
-      plane_transform == gfx::OVERLAY_TRANSFORM_ROTATE_270) {
+  if (plane_transform == gfx::OVERLAY_TRANSFORM_ROTATE_CLOCKWISE_90 ||
+      plane_transform == gfx::OVERLAY_TRANSFORM_ROTATE_CLOCKWISE_270) {
     return fuchsia::math::SizeU{static_cast<uint32_t>(size.height()),
                                 static_cast<uint32_t>(size.width())};
   }
@@ -201,8 +195,8 @@ void FlatlandSurface::Present(
         overlay.pixmap.get(), /*is_primary_plane=*/false);
     const auto image_id = flatland_ids.image_id;
     const auto transform_id = flatland_ids.transform_id;
-    const auto overlay_plane_transform =
-        overlay.overlay_plane_data.plane_transform;
+    const auto overlay_plane_transform = std::get<gfx::OverlayTransform>(
+        overlay.overlay_plane_data.plane_transform);
 
     if (overlay.gpu_fence) {
       acquire_fences.push_back(overlay.gpu_fence->GetGpuFenceHandle().Clone());
@@ -225,6 +219,7 @@ void FlatlandSurface::Present(
     // `crop_rect` is in normalized coordinates, but Flatland expects it to be
     // given in image coordinates.
     gfx::RectF sample_region = overlay.overlay_plane_data.crop_rect;
+    sample_region.Intersect(gfx::RectF(1.0, 1.0));
     const gfx::Size& buffer_size = overlay.pixmap->GetBufferSize();
     sample_region.Scale(buffer_size.width(), buffer_size.height());
     flatland_.flatland()->SetImageSampleRegion(
@@ -251,7 +246,7 @@ void FlatlandSurface::Present(
   child_transforms_[0] = primary_plane_transform_id_;
   flatland_.flatland()->SetContent(primary_plane_transform_id_,
                                    primary_plane_image_id);
-  // TODO(crbug.com/1330950): We should set SRC blend mode when Chrome has a
+  // TODO(crbug.com/42050483): We should set SRC blend mode when Chrome has a
   // reliable signal for opaque background.
   flatland_.flatland()->SetImageBlendingFunction(
       primary_plane_image_id, fuchsia::ui::composition::BlendMode::SRC_OVER);
@@ -281,8 +276,7 @@ void FlatlandSurface::Present(
   // Keep track of release fences from last present for destructor.
   release_fences_from_last_present_.clear();
   for (auto& fence : release_fences) {
-    release_fences_from_last_present_.push_back(
-        DuplicateZxEvent(fence.owned_event));
+    release_fences_from_last_present_.push_back(fence.Clone().Release());
   }
 
   // Present to Flatland.
@@ -338,7 +332,7 @@ void FlatlandSurface::RemovePixmapResources(FlatlandPixmapId ids) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   auto iter = pixmap_ids_to_flatland_ids_.find(ids);
-  DCHECK(iter != pixmap_ids_to_flatland_ids_.end());
+  CHECK(iter != pixmap_ids_to_flatland_ids_.end());
   flatland_.flatland()->ReleaseImage(iter->second.image_id);
   if (iter->second.transform_id.value) {
     flatland_.flatland()->ReleaseTransform(iter->second.transform_id);

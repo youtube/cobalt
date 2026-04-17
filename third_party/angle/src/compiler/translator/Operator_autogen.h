@@ -30,7 +30,7 @@ enum TOperator : uint16_t
     // * They should not return arrays.
     // * They should not have out parameters.
     //
-    // DEPRECATED; DO NOT USE.  TODO: remove this.  http://anglebug.com/6059
+    // DEPRECATED; DO NOT USE.  TODO: remove this.  http://anglebug.com/42264589
     //
     EOpCallInternalRawFunction,
 
@@ -190,18 +190,16 @@ enum TOperator : uint16_t
     EOpFma,
     EOpFrexp,
     EOpLdexp,
-    EOpPackSnorm2x16,     // Unary
-    EOpPackHalf2x16,      // Unary
-    EOpUnpackSnorm2x16,   // Unary
-    EOpUnpackHalf2x16,    // Unary
-    EOpPackUnorm2x16,     // Unary
-    EOpUnpackUnorm2x16,   // Unary
-    EOpPackUnorm4x8,      // Unary
-    EOpPackSnorm4x8,      // Unary
-    EOpUnpackUnorm4x8,    // Unary
-    EOpUnpackSnorm4x8,    // Unary
-    EOpPackDouble2x32,    // Unary
-    EOpUnpackDouble2x32,  // Unary
+    EOpPackSnorm2x16,    // Unary
+    EOpPackHalf2x16,     // Unary
+    EOpUnpackSnorm2x16,  // Unary
+    EOpUnpackHalf2x16,   // Unary
+    EOpPackUnorm2x16,    // Unary
+    EOpUnpackUnorm2x16,  // Unary
+    EOpPackUnorm4x8,     // Unary
+    EOpPackSnorm4x8,     // Unary
+    EOpUnpackUnorm4x8,   // Unary
+    EOpUnpackSnorm4x8,   // Unary
 
     // Group MathGeometric
     EOpLength,  // Unary
@@ -212,9 +210,6 @@ enum TOperator : uint16_t
     EOpFaceforward,
     EOpReflect,
     EOpRefract,
-
-    // Group MathGeometricVS
-    EOpFtransform,
 
     // Group MathMatrix
     EOpMatrixCompMult,
@@ -252,14 +247,8 @@ enum TOperator : uint16_t
     EOpTexture2D,
     EOpTexture2DProj,
     EOpTextureCube,
-    EOpTexture1D,
-    EOpTexture1DProj,
     EOpTexture3D,
     EOpTexture3DProj,
-    EOpShadow1D,
-    EOpShadow1DProj,
-    EOpShadow2D,
-    EOpShadow2DProj,
     EOpShadow2DEXT,
     EOpShadow2DProjEXT,
     EOpTexture2DRect,
@@ -275,23 +264,8 @@ enum TOperator : uint16_t
     EOpTextureCubeBias,
     EOpTexture3DBias,
     EOpTexture3DProjBias,
-    EOpTexture1DBias,
-    EOpTexture1DProjBias,
-    EOpShadow1DBias,
-    EOpShadow1DProjBias,
-    EOpShadow2DBias,
-    EOpShadow2DProjBias,
 
     // Group TextureFirstVersionsLod
-    EOpTexture2DLod,
-    EOpTexture2DProjLod,
-    EOpTextureCubeLod,
-    EOpTexture1DLod,
-    EOpTexture1DProjLod,
-    EOpShadow1DLod,
-    EOpShadow1DProjLod,
-    EOpShadow2DLod,
-    EOpShadow2DProjLod,
     EOpTexture3DLod,
     EOpTexture3DProjLod,
 
@@ -314,15 +288,10 @@ enum TOperator : uint16_t
     EOpTexelFetch,
     EOpTextureGrad,
     EOpTextureProjGrad,
-    EOpTextureQueryLevels,
-    EOpTextureSamples,
 
     // Group TextureBias
     EOpTextureBias,
     EOpTextureProjBias,
-
-    // Group TextureQueryLod
-    EOpTextureQueryLod,
 
     // Group TextureOffsetNoBias
     EOpTextureOffset,
@@ -338,7 +307,15 @@ enum TOperator : uint16_t
     EOpTextureProjOffsetBias,
 
     // Group TextureGather
+
+    // Group TextureGatherNoComp
     EOpTextureGather,
+
+    // Group TextureGatherComp
+    EOpTextureGatherComp,
+
+    // Group TextureGatherRef
+    EOpTextureGatherRef,
 
     // Group TextureGatherOffset
 
@@ -348,6 +325,9 @@ enum TOperator : uint16_t
     // Group TextureGatherOffsetComp
     EOpTextureGatherOffsetComp,
 
+    // Group TextureGatherOffsetRef
+    EOpTextureGatherOffsetRef,
+
     // Group TextureGatherOffsets
 
     // Group TextureGatherOffsetsNoComp
@@ -355,6 +335,12 @@ enum TOperator : uint16_t
 
     // Group TextureGatherOffsetsComp
     EOpTextureGatherOffsetsComp,
+
+    // Group TextureGatherOffsetsRef
+    EOpTextureGatherOffsetsRef,
+
+    // Group TextureQueryLod
+    EOpTextureQueryLOD,
 
     // Group EXT_YUV_target
     EOpRgb_2_yuv,
@@ -364,12 +350,6 @@ enum TOperator : uint16_t
     EOpDFdx,
     EOpDFdy,
     EOpFwidth,
-    EOpDFdxFine,
-    EOpDFdyFine,
-    EOpDFdxCoarse,
-    EOpDFdyCoarse,
-    EOpFwidthFine,
-    EOpFwidthCoarse,
 
     // Group InterpolationFS
     EOpInterpolateAtCentroid,
@@ -380,15 +360,6 @@ enum TOperator : uint16_t
     EOpAtomicCounter,
     EOpAtomicCounterIncrement,
     EOpAtomicCounterDecrement,
-    EOpAtomicCounterAdd,
-    EOpAtomicCounterSubtract,
-    EOpAtomicCounterMin,
-    EOpAtomicCounterMax,
-    EOpAtomicCounterAnd,
-    EOpAtomicCounterOr,
-    EOpAtomicCounterXor,
-    EOpAtomicCounterExchange,
-    EOpAtomicCounterCompSwap,
 
     // Group AtomicMemory
     EOpAtomicAdd,
@@ -402,7 +373,6 @@ enum TOperator : uint16_t
 
     // Group Image
     EOpImageSize,
-    EOpImageSamples,
 
     // Group ImageStore
     EOpImageStore,
@@ -435,12 +405,6 @@ enum TOperator : uint16_t
     EOpBeginInvocationInterlockARB,
     EOpEndInvocationInterlockARB,
 
-    // Group Noise
-    EOpNoise1,
-    EOpNoise2,
-    EOpNoise3,
-    EOpNoise4,
-
     // Group Barrier
     EOpMemoryBarrier,
     EOpMemoryBarrierAtomicCounter,
@@ -458,20 +422,14 @@ enum TOperator : uint16_t
     // Group GS
     EOpEmitVertex,
     EOpEndPrimitive,
-    EOpEmitStreamVertex,
-    EOpEndStreamPrimitive,
 
     // Group SubpassInput
     EOpSubpassLoad,
 
-    // Group ShaderInvocationGroup
-    EOpAnyInvocation,
-    EOpAllInvocations,
-    EOpAllInvocationsEqual,
-
     // Group MetalFragmentSample
     EOpNumSamples,
     EOpSamplePosition,
+    EOpInterpolateAtCenter,
 
     // Group MetalCommon
     EOpSaturate,
@@ -502,6 +460,18 @@ static inline bool IsTextureOffsetBias(TOperator op)
 {
     return op >= EOpTextureOffsetBias && op <= EOpTextureProjOffsetBias;
 }
+static inline bool IsTextureGatherNoComp(TOperator op)
+{
+    return op >= EOpTextureGather && op <= EOpTextureGather;
+}
+static inline bool IsTextureGatherComp(TOperator op)
+{
+    return op >= EOpTextureGatherComp && op <= EOpTextureGatherComp;
+}
+static inline bool IsTextureGatherRef(TOperator op)
+{
+    return op >= EOpTextureGatherRef && op <= EOpTextureGatherRef;
+}
 static inline bool IsTextureGatherOffsetNoComp(TOperator op)
 {
     return op >= EOpTextureGatherOffset && op <= EOpTextureGatherOffset;
@@ -510,9 +480,13 @@ static inline bool IsTextureGatherOffsetComp(TOperator op)
 {
     return op >= EOpTextureGatherOffsetComp && op <= EOpTextureGatherOffsetComp;
 }
+static inline bool IsTextureGatherOffsetRef(TOperator op)
+{
+    return op >= EOpTextureGatherOffsetRef && op <= EOpTextureGatherOffsetRef;
+}
 static inline bool IsTextureGatherOffset(TOperator op)
 {
-    return op >= EOpTextureGatherOffset && op <= EOpTextureGatherOffsetComp;
+    return op >= EOpTextureGatherOffset && op <= EOpTextureGatherOffsetRef;
 }
 static inline bool IsTextureGatherOffsetsNoComp(TOperator op)
 {
@@ -522,21 +496,25 @@ static inline bool IsTextureGatherOffsetsComp(TOperator op)
 {
     return op >= EOpTextureGatherOffsetsComp && op <= EOpTextureGatherOffsetsComp;
 }
+static inline bool IsTextureGatherOffsetsRef(TOperator op)
+{
+    return op >= EOpTextureGatherOffsetsRef && op <= EOpTextureGatherOffsetsRef;
+}
 static inline bool IsTextureGatherOffsets(TOperator op)
 {
-    return op >= EOpTextureGatherOffsets && op <= EOpTextureGatherOffsetsComp;
+    return op >= EOpTextureGatherOffsets && op <= EOpTextureGatherOffsetsRef;
 }
 static inline bool IsTextureGather(TOperator op)
 {
-    return op >= EOpTextureGather && op <= EOpTextureGatherOffsetsComp;
+    return op >= EOpTextureGather && op <= EOpTextureGatherOffsetsRef;
 }
 static inline bool IsTexture(TOperator op)
 {
-    return op >= EOpTexture2D && op <= EOpTextureGatherOffsetsComp;
+    return op >= EOpTexture2D && op <= EOpTextureQueryLOD;
 }
 static inline bool IsDerivativesFS(TOperator op)
 {
-    return op >= EOpDFdx && op <= EOpFwidthCoarse;
+    return op >= EOpDFdx && op <= EOpFwidth;
 }
 static inline bool IsInterpolationFS(TOperator op)
 {
@@ -544,7 +522,7 @@ static inline bool IsInterpolationFS(TOperator op)
 }
 static inline bool IsAtomicCounter(TOperator op)
 {
-    return op >= EOpAtomicCounter && op <= EOpAtomicCounterCompSwap;
+    return op >= EOpAtomicCounter && op <= EOpAtomicCounterDecrement;
 }
 static inline bool IsAtomicMemory(TOperator op)
 {

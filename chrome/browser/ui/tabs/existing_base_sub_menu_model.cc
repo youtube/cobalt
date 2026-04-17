@@ -20,15 +20,6 @@ ExistingBaseSubMenuModel::ExistingBaseSubMenuModel(
       min_command_id_(min_command_id),
       parent_new_command_id_(parent_new_command_id) {}
 
-const gfx::FontList* ExistingBaseSubMenuModel::GetLabelFontListAt(
-    size_t index) const {
-  if (GetTypeAt(index) == ui::MenuModel::TYPE_TITLE) {
-    return &ui::ResourceBundle::GetSharedInstance().GetFontList(
-        ui::ResourceBundle::BoldFont);
-  }
-  return nullptr;
-}
-
 bool ExistingBaseSubMenuModel::IsCommandIdAlerted(int command_id) const {
   return IsNewCommand(command_id) &&
          parent_delegate()->IsCommandIdAlerted(parent_new_command_id_);
@@ -50,14 +41,14 @@ ExistingBaseSubMenuModel::~ExistingBaseSubMenuModel() = default;
 ExistingBaseSubMenuModel::MenuItemInfo::MenuItemInfo(
     const std::u16string menu_text)
     : text(menu_text) {
-  image = absl::nullopt;
+  image = std::nullopt;
 }
 
 ExistingBaseSubMenuModel::MenuItemInfo::MenuItemInfo(
     const std::u16string& menu_text,
     ui::ImageModel menu_image)
     : text(menu_text) {
-  image = absl::optional<ui::ImageModel>{menu_image};
+  image = std::optional<ui::ImageModel>{menu_image};
 }
 
 ExistingBaseSubMenuModel::MenuItemInfo::MenuItemInfo(
@@ -75,8 +66,9 @@ void ExistingBaseSubMenuModel::Build(
   int command_id = min_command_id_ + 1;
   for (size_t i = 0; i < menu_item_infos.size(); ++i) {
     const MenuItemInfo& item = menu_item_infos[i];
-    if (command_id > min_command_id_ + static_cast<int>(max_size))
+    if (command_id > min_command_id_ + static_cast<int>(max_size)) {
       break;
+    }
 
     if (item.target_index.has_value()) {
       command_id_to_target_index_[command_id] = item.target_index.value();
@@ -87,8 +79,9 @@ void ExistingBaseSubMenuModel::Build(
       }
     } else {
       // Add a spacing separator to further delineate menu item groupings.
-      if (i > 0)
+      if (i > 0) {
         AddSeparator(ui::SPACING_SEPARATOR);
+      }
 
       AddTitle(item.text);
     }

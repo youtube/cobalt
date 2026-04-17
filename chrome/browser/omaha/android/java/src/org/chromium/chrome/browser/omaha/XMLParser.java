@@ -12,6 +12,9 @@ import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 import org.xml.sax.helpers.DefaultHandler;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
@@ -24,16 +27,15 @@ import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
-/**
- * Breaks XML down into its constituent elements and attributes.
- */
+/** Breaks XML down into its constituent elements and attributes. */
+@NullMarked
 public class XMLParser extends DefaultHandler {
     static final class Node {
-        public final String tag;
+        public final @Nullable String tag;
         public final Map<String, String> attributes;
         public final List<Node> children;
 
-        public Node(String tagName) {
+        public Node(@Nullable String tagName) {
             tag = tagName;
             attributes = new HashMap<String, String>();
             children = new ArrayList<Node>();
@@ -56,7 +58,9 @@ public class XMLParser extends DefaultHandler {
             throw new RequestFailureException(
                     "Hit IOException", e, RequestFailureException.ERROR_MALFORMED_XML);
         } catch (ParserConfigurationException e) {
-            throw new RequestFailureException("Hit ParserConfigurationException", e,
+            throw new RequestFailureException(
+                    "Hit ParserConfigurationException",
+                    e,
                     RequestFailureException.ERROR_MALFORMED_XML);
         } catch (SAXParseException e) {
             throw new RequestFailureException(

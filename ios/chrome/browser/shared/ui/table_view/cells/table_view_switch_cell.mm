@@ -11,10 +11,6 @@
 #import "ios/chrome/grit/ios_strings.h"
 #import "ui/base/l10n/l10n_util_mac.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 // Padding used between the `switchView` and the end of the `contentView`.
@@ -38,7 +34,7 @@ const CGFloat kSwitchTrailingPadding = 22;
 // "accessibility" category.
 @property(nonatomic, strong) NSArray* standardConstraints;
 // Custom label defined via the setter, if any.
-@property(nonatomic, strong) NSString* customAccessibilityLabel;
+@property(nonatomic, copy) NSString* customAccessibilityLabel;
 
 @end
 
@@ -110,8 +106,8 @@ const CGFloat kSwitchTrailingPadding = 22;
       [_switchView.centerYAnchor
           constraintEqualToAnchor:self.contentView.centerYAnchor],
       [textLayoutGuide.trailingAnchor
-          constraintLessThanOrEqualToAnchor:_switchView.leadingAnchor
-                                   constant:-kTableViewHorizontalSpacing],
+          constraintEqualToAnchor:_switchView.leadingAnchor
+                         constant:-kTableViewHorizontalSpacing],
       [textLayoutGuide.centerYAnchor
           constraintEqualToAnchor:self.contentView.centerYAnchor],
 
@@ -130,8 +126,8 @@ const CGFloat kSwitchTrailingPadding = 22;
           constraintEqualToAnchor:self.contentView.bottomAnchor
                          constant:-kTableViewLargeVerticalSpacing],
       [textLayoutGuide.trailingAnchor
-          constraintLessThanOrEqualToAnchor:self.contentView.trailingAnchor
-                                   constant:-kTableViewHorizontalSpacing],
+          constraintEqualToAnchor:self.contentView.trailingAnchor
+                         constant:-kTableViewHorizontalSpacing],
     ];
 
     [NSLayoutConstraint activateConstraints:@[
@@ -176,20 +172,43 @@ const CGFloat kSwitchTrailingPadding = 22;
 
     AddOptionalVerticalPadding(self.contentView, textLayoutGuide,
                                kTableViewOneLabelCellVerticalSpacing);
+
+    if (@available(iOS 17, *)) {
+      NSArray<UITrait>* traits = TraitCollectionSetForTraits(
+          @[ UITraitPreferredContentSizeCategory.class ]);
+      __weak __typeof(self) weakSelf = self;
+      UITraitChangeHandler handler = ^(id<UITraitEnvironment> traitEnvironment,
+                                       UITraitCollection* previousCollection) {
+        [weakSelf updateConstraintsOnTraitChange:previousCollection];
+      };
+      [self registerForTraitChanges:traits withHandler:handler];
+    }
   }
   return self;
 }
 
-+ (UIColor*)defaultTextColorForState:(UIControlState)state {
-  return (state & UIControlStateDisabled)
-             ? [UIColor colorNamed:kTextSecondaryColor]
-             : [UIColor colorNamed:kTextPrimaryColor];
+- (void)configureCellWithTitle:(NSString*)title
+                      subtitle:(NSString*)subtitle
+                 switchEnabled:(BOOL)enabled
+                            on:(BOOL)on {
+  self.textLabel.text = title;
+  self.detailTextLabel.text = subtitle;
+  self.switchView.enabled = enabled;
+  self.switchView.on = on;
+  self.switchView.accessibilityIdentifier =
+      [NSString stringWithFormat:@"%@, switch", title];
+
+  UIColor* textColor = enabled ? [UIColor colorNamed:kTextPrimaryColor]
+                               : [UIColor colorNamed:kTextSecondaryColor];
+  self.textLabel.textColor = textColor;
+  self.selectionStyle = UITableViewCellSelectionStyleNone;
 }
 
 - (void)setIconImage:(UIImage*)image
            tintColor:(UIColor*)tintColor
      backgroundColor:(UIColor*)backgroundColor
-        cornerRadius:(CGFloat)cornerRadius {
+        cornerRadius:(CGFloat)cornerRadius
+         borderWidth:(CGFloat)borderWidth {
   BOOL hidden = (image == nil);
 
   self.iconImageView.image = image;
@@ -197,6 +216,9 @@ const CGFloat kSwitchTrailingPadding = 22;
 
   _iconBackground.backgroundColor = backgroundColor;
   _iconBackground.layer.cornerRadius = cornerRadius;
+  _iconBackground.layer.borderColor =
+      [UIColor colorNamed:kGrey200Color].CGColor;
+  _iconBackground.layer.borderWidth = borderWidth;
 
   _iconBackground.hidden = hidden;
   if (hidden) {
@@ -210,23 +232,16 @@ const CGFloat kSwitchTrailingPadding = 22;
 
 #pragma mark - UIView
 
+#if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
 - (void)traitCollectionDidChange:(UITraitCollection*)previousTraitCollection {
   [super traitCollectionDidChange:previousTraitCollection];
-  BOOL isCurrentContentSizeAccessibility =
-      UIContentSizeCategoryIsAccessibilityCategory(
-          self.traitCollection.preferredContentSizeCategory);
-  if (UIContentSizeCategoryIsAccessibilityCategory(
-          previousTraitCollection.preferredContentSizeCategory) !=
-      isCurrentContentSizeAccessibility) {
-    if (isCurrentContentSizeAccessibility) {
-      [NSLayoutConstraint deactivateConstraints:_standardConstraints];
-      [NSLayoutConstraint activateConstraints:_accessibilityConstraints];
-    } else {
-      [NSLayoutConstraint deactivateConstraints:_accessibilityConstraints];
-      [NSLayoutConstraint activateConstraints:_standardConstraints];
-    }
+  if (@available(iOS 17, *)) {
+    return;
   }
+
+  [self updateConstraintsOnTraitChange:previousTraitCollection];
 }
+#endif
 
 #pragma mark - UITableViewCell
 
@@ -235,7 +250,11 @@ const CGFloat kSwitchTrailingPadding = 22;
 
   self.textLabel.text = nil;
   self.detailTextLabel.text = nil;
-  [self setIconImage:nil tintColor:nil backgroundColor:nil cornerRadius:0];
+  [self setIconImage:nil
+            tintColor:nil
+      backgroundColor:nil
+         cornerRadius:0
+          borderWidth:0];
   [_switchView removeTarget:nil
                      action:nil
            forControlEvents:[_switchView allControlEvents]];
@@ -289,6 +308,28 @@ const CGFloat kSwitchTrailingPadding = 22;
     accessibilityTraits |= UIAccessibilityTraitNotEnabled;
   }
   return accessibilityTraits;
+}
+
+#pragma mark - Private
+
+// Updates the view's constraint set to reflect the change in the
+// UITraitPreferredContentSizeCategory.
+- (void)updateConstraintsOnTraitChange:
+    (UITraitCollection*)previousTraitCollection {
+  BOOL isCurrentContentSizeAccessibility =
+      UIContentSizeCategoryIsAccessibilityCategory(
+          self.traitCollection.preferredContentSizeCategory);
+  if (UIContentSizeCategoryIsAccessibilityCategory(
+          previousTraitCollection.preferredContentSizeCategory) !=
+      isCurrentContentSizeAccessibility) {
+    if (isCurrentContentSizeAccessibility) {
+      [NSLayoutConstraint deactivateConstraints:_standardConstraints];
+      [NSLayoutConstraint activateConstraints:_accessibilityConstraints];
+    } else {
+      [NSLayoutConstraint deactivateConstraints:_accessibilityConstraints];
+      [NSLayoutConstraint activateConstraints:_standardConstraints];
+    }
+  }
 }
 
 @end

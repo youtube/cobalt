@@ -10,6 +10,7 @@
 #include <string>
 
 #include "base/check_op.h"
+#include "base/compiler_specific.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/string_util_win.h"
 #include "base/strings/stringprintf.h"
@@ -88,9 +89,9 @@ struct MockContext {
 
   std::string ToString() const {
     return base::StringPrintf(
-        "%s's token #%d for %S",
+        "%s's token #%d for %s",
         base::UTF16ToUTF8(credential->source_principal).c_str(), rounds + 1,
-        base::as_wcstr(target_principal));
+        base::UTF16ToUTF8(target_principal).c_str());
   }
 
   static MockContext* FromHandle(PCtxtHandle handle) {
@@ -173,7 +174,8 @@ SECURITY_STATUS MockSSPILibrary::InitializeSecurityContext(
   auto token = new_context->ToString();
   PSecBuffer out_buffer = pOutput->pBuffers;
   out_buffer->cbBuffer = std::min<ULONG>(out_buffer->cbBuffer, token.size());
-  std::memcpy(out_buffer->pvBuffer, token.data(), out_buffer->cbBuffer);
+  UNSAFE_TODO(
+      std::memcpy(out_buffer->pvBuffer, token.data(), out_buffer->cbBuffer));
 
   if (ptsExpiry) {
     ptsExpiry->LowPart = 0xBAA5B780;

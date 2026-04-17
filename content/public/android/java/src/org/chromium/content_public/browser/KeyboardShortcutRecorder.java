@@ -7,18 +7,26 @@ package org.chromium.content_public.browser;
 import androidx.annotation.IntDef;
 
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.build.annotations.NullMarked;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 /** Records physical keyboard shortcut events. Suitable for use by any content embedder. */
+@NullMarked
 public class KeyboardShortcutRecorder {
-    // This should be kept in sync with the definition
-    // |PhysicalKeyboardShortcut| in tools/metrics/histograms/enums.xml and
+    // This should be kept in sync with the definition |PhysicalKeyboardShortcut| in
+    // tools/metrics/histograms/enums.xml and
     // third_party/blink/renderer/core/input/keyboard_shortcut_recorder.h
-    @IntDef({KeyboardShortcut.ZOOM_IN, KeyboardShortcut.ZOOM_OUT, KeyboardShortcut.ZOOM_RESET,
-            KeyboardShortcut.DELETE_LINE, KeyboardShortcut.PAGE_UP, KeyboardShortcut.PAGE_DOWN,
-            KeyboardShortcut.COUNT})
+    @IntDef({
+        KeyboardShortcut.ZOOM_IN,
+        KeyboardShortcut.ZOOM_OUT,
+        KeyboardShortcut.ZOOM_RESET,
+        KeyboardShortcut.DELETE_LINE,
+        KeyboardShortcut.PAGE_UP,
+        KeyboardShortcut.PAGE_DOWN,
+        KeyboardShortcut.COUNT
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface KeyboardShortcut {
         int ZOOM_IN = 0;
@@ -33,7 +41,9 @@ public class KeyboardShortcutRecorder {
     private KeyboardShortcutRecorder() {}
 
     public static void recordKeyboardShortcut(@KeyboardShortcut int keyboardShortcut) {
-        RecordHistogram.recordEnumeratedHistogram("InputMethod.PhysicalKeyboard.KeyboardShortcut",
-                keyboardShortcut, KeyboardShortcut.COUNT);
+        RecordHistogram.recordEnumeratedHistogram(
+                "InputMethod.PhysicalKeyboard.KeyboardShortcut",
+                keyboardShortcut,
+                KeyboardShortcut.COUNT);
     }
 }

@@ -9,17 +9,25 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.fragment.app.Fragment;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
-/**
- * First privacy guide page.
- */
-public class WelcomeFragment extends Fragment {
+/** First privacy guide page. */
+@NullMarked
+public class WelcomeFragment extends PrivacyGuideBasePage {
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
+    public View onCreateView(
+            LayoutInflater inflater,
+            @Nullable ViewGroup container,
             @Nullable Bundle savedInstanceState) {
         return inflater.inflate(R.layout.privacy_guide_welcome, container, false);
+    }
+
+    @Override
+    public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        // ScrollView sets focusable to true during construction. So setting focusable to false in
+        // xml file doesn't work. It has to be set after the construction of ScrollView.
+        view.findViewById(R.id.privacy_guide_welcome_scrollview).setFocusable(false);
     }
 }

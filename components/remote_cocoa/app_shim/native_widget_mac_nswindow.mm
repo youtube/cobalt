@@ -2,20 +2,34 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #import "components/remote_cocoa/app_shim/native_widget_mac_nswindow.h"
 
+#include "base/apple/foundation_util.h"
 #include "base/auto_reset.h"
+#include "base/check.h"
 #include "base/debug/dump_without_crashing.h"
-#include "base/mac/foundation_util.h"
+#include "base/debug/stack_trace.h"
+#include "base/feature_list.h"
 #include "base/mac/mac_util.h"
+#include "base/memory/raw_ptr_exclusion.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/trace_event/trace_event.h"
+#include "components/crash/core/common/crash_key.h"
+#import "components/remote_cocoa/app_shim/features.h"
 #import "components/remote_cocoa/app_shim/native_widget_ns_window_bridge.h"
 #include "components/remote_cocoa/app_shim/native_widget_ns_window_host_helper.h"
 #import "components/remote_cocoa/app_shim/views_nswindow_delegate.h"
 #import "components/remote_cocoa/app_shim/window_touch_bar_delegate.h"
 #include "components/remote_cocoa/common/native_widget_ns_window_host.mojom.h"
+#include "ui/accessibility/platform/ax_platform_node.h"
 #import "ui/base/cocoa/user_interface_item_command_handler.h"
 #import "ui/base/cocoa/window_size_constants.h"
+#include "ui/gfx/native_widget_types.h"
 
 namespace {
 
@@ -50,8 +64,9 @@ void OrderChildWindow(NSWindow* child_window,
   // `ordered_children` sorts children windows back to front.
   NSArray<NSWindow*>* children = [[child_window parentWindow] childWindows];
   std::vector<std::pair<NSInteger, NSWindow*>> ordered_children;
-  for (NSWindow* child in children)
-    ordered_children.push_back({[child orderedIndex], child});
+  for (NSWindow* child in children) {
+    ordered_children.emplace_back([child orderedIndex], child);
+  }
   std::sort(ordered_children.begin(), ordered_children.end(), std::greater<>());
 
   // If `other_window` is nullptr, place `child_window` in front of (or behind)
@@ -62,20 +77,23 @@ void OrderChildWindow(NSWindow* child_window,
                        : parent;
   }
 
-  if (child_window == other_window)
+  if (child_window == other_window) {
     return;
+  }
 
   const bool relative_to_parent = parent == other_window;
   DCHECK(ordering_mode != NSWindowBelow || !relative_to_parent)
       << "Placing a child window behind its parent is not supported.";
 
-  for (NSWindow* child in children)
+  for (NSWindow* child in children) {
     [parent removeChildWindow:child];
+  }
 
   // If `relative_to_parent` is true, `child_window` is the first child of its
   // parent.
-  if (relative_to_parent)
+  if (relative_to_parent) {
     [parent addChildWindow:child_window ordered:NSWindowAbove];
+  }
 
   // Re-parent children windows in the desired order.
   for (auto [ordered_index, child] : ordered_children) {
@@ -95,12 +113,35 @@ void OrderChildWindow(NSWindow* child_window,
 
 }  // namespace
 
+@interface NSNextStepFrame (Private)
+- (instancetype)initWithFrame:(NSRect)frame
+                    styleMask:(NSUInteger)styleMask
+                        owner:(id)owner;
+@end
+
 @interface NSWindow (Private)
 + (Class)frameViewClassForStyleMask:(NSWindowStyleMask)windowStyle;
 - (BOOL)hasKeyAppearance;
 - (long long)_resizeDirectionForMouseLocation:(CGPoint)location;
 - (BOOL)_isConsideredOpenForPersistentState;
 - (void)_zoomToScreenEdge:(NSUInteger)edge;
+- (void)_removeFromGroups:(NSWindow*)window;
+- (BOOL)_isNonactivatingPanel;
+@end
+
+struct NSEdgeAndCornerThicknesses {
+  double top, topLeft, left, bottomLeft, bottom, bottomRight, right, topRight;
+};
+
+@interface NSWindow (NSWindowResizing)
++ (void)_getExteriorResizeEdgeThicknesses:
+            (NSEdgeAndCornerThicknesses*)outThicknesses
+                             forStyleMask:(NSWindowStyleMask)styleMask;
+@end
+
+// Private API as of at least macOS 13.
+@interface NSWindow (NSWindow_Theme)
+- (void)_regularMinimizeToDock;
 @end
 
 @interface NativeWidgetMacNSWindow () <NSKeyedArchiverDelegate>
@@ -146,6 +187,7 @@ void OrderChildWindow(NSWindow* child_window,
 @end
 
 @implementation NativeWidgetMacNSWindowBorderlessFrame
+
 - (void)mouseDown:(NSEvent*)event {
   [self cr_mouseDownOnFrameView:event];
   [super mouseDown:event];
@@ -157,23 +199,31 @@ void OrderChildWindow(NSWindow* child_window,
 
 @implementation NativeWidgetMacNSWindow {
  @private
-  base::scoped_nsobject<CommandDispatcher> _commandDispatcher;
-  base::scoped_nsprotocol<id<UserInterfaceItemCommandHandler>> _commandHandler;
-  id<WindowTouchBarDelegate> _touchBarDelegate;  // Weak.
+  CommandDispatcher* __strong _commandDispatcher;
+  id<UserInterfaceItemCommandHandler> __strong _commandHandler;
+  id<WindowTouchBarDelegate> __weak _touchBarDelegate;
+  NSData* __strong _lastSavedRestorableState;
   uint64_t _bridgedNativeWidgetId;
-  remote_cocoa::NativeWidgetNSWindowBridge* _bridge;
+  // This field is not a raw_ptr<> because it requires @property rewrite.
+  RAW_PTR_EXCLUSION remote_cocoa::NativeWidgetNSWindowBridge* _bridge;
   BOOL _willUpdateRestorableState;
+  BOOL _willSaveRestorableStateAfterDelay;
   BOOL _isEnforcingNeverMadeVisible;
   BOOL _preventKeyWindow;
+  BOOL _activationIndependence;
   BOOL _isTooltip;
   BOOL _isHeadless;
+  BOOL _isShufflingForOrdering;
+  BOOL _miniaturizationInProgress;
 }
 @synthesize bridgedNativeWidgetId = _bridgedNativeWidgetId;
 @synthesize bridge = _bridge;
 @synthesize isTooltip = _isTooltip;
 @synthesize isHeadless = _isHeadless;
+@synthesize isShufflingForOrdering = _isShufflingForOrdering;
 @synthesize childWindowAddedHandler = _childWindowAddedHandler;
 @synthesize childWindowRemovedHandler = _childWindowRemovedHandler;
+@synthesize commandDispatchParentOverride = _commandDispatchParentOverride;
 
 - (instancetype)initWithContentRect:(NSRect)contentRect
                           styleMask:(NSUInteger)windowStyle
@@ -184,7 +234,8 @@ void OrderChildWindow(NSWindow* child_window,
                                styleMask:windowStyle
                                  backing:bufferingType
                                    defer:deferCreation])) {
-    _commandDispatcher.reset([[CommandDispatcher alloc] initWithOwner:self]);
+    _commandDispatcher = [[CommandDispatcher alloc] initWithOwner:self];
+    self.releasedWhenClosed = NO;
   }
   return self;
 }
@@ -212,9 +263,6 @@ void OrderChildWindow(NSWindow* child_window,
   }
   _willUpdateRestorableState = YES;
   [NSObject cancelPreviousPerformRequestsWithTarget:self];
-  [_childWindowAddedHandler dealloc];
-  [_childWindowRemovedHandler dealloc];
-  [super dealloc];
 }
 
 - (void)addChildWindow:(NSWindow*)childWin ordered:(NSWindowOrderingMode)place {
@@ -229,6 +277,15 @@ void OrderChildWindow(NSWindow* child_window,
 }
 
 - (void)removeChildWindow:(NSWindow*)childWin {
+  if (self != childWin.parentWindow) {
+    return;
+  }
+  // Handle ordering groups for AppKit native windows. For instance, the
+  // `TUINSWindow` is added and removed by AppKit when caps lock is active.
+  // See https://crbug.com/369970893 for more details.
+  if (![childWin isKindOfClass:[NativeWidgetMacNSWindow class]]) {
+    [self maybeRemoveTreeFromOrderingGroups];
+  }
   [super removeChildWindow:childWin];
   if (self.childWindowRemovedHandler) {
     self.childWindowRemovedHandler(childWin);
@@ -272,22 +329,13 @@ void OrderChildWindow(NSWindow* child_window,
   [_commandDispatcher setDelegate:delegate];
 }
 
-- (void)sheetDidEnd:(NSWindow*)sheet
-         returnCode:(NSInteger)returnCode
-        contextInfo:(void*)contextInfo {
-  // Note NativeWidgetNSWindowBridge may have cleared [self delegate], in which
-  // case this will no-op. This indirection is necessary to handle AppKit
-  // invoking this selector via a posted task. See https://crbug.com/851376.
-  [[self viewsNSWindowDelegate] sheetDidEnd:sheet
-                                 returnCode:returnCode
-                                contextInfo:contextInfo];
-}
-
 - (void)setWindowTouchBarDelegate:(id<WindowTouchBarDelegate>)delegate {
   _touchBarDelegate = delegate;
 }
 
 - (void)orderFrontKeepWindowKeyState {
+  _miniaturizationInProgress = NO;
+
   if ([self isOnActiveSpace]) {
     [self orderWindow:NSWindowAbove relativeTo:0];
     return;
@@ -296,15 +344,14 @@ void OrderChildWindow(NSWindow* child_window,
   // Temporarily prevent the window from becoming the key window until after
   // the space change completes.
   _preventKeyWindow = ![self isKeyWindow];
-  NSNotificationCenter* notificationCenter =
-      [[NSWorkspace sharedWorkspace] notificationCenter];
-  __block id observer = [notificationCenter
+  __block id observer = [NSWorkspace.sharedWorkspace.notificationCenter
       addObserverForName:NSWorkspaceActiveSpaceDidChangeNotification
                   object:[NSWorkspace sharedWorkspace]
                    queue:[NSOperationQueue mainQueue]
               usingBlock:^(NSNotification* notification) {
-                _preventKeyWindow = NO;
-                [notificationCenter removeObserver:observer];
+                self->_preventKeyWindow = NO;
+                [NSWorkspace.sharedWorkspace.notificationCenter
+                    removeObserver:observer];
               }];
   [self orderWindow:NSWindowAbove relativeTo:0];
 }
@@ -321,7 +368,7 @@ void OrderChildWindow(NSWindow* child_window,
 // Private methods.
 
 - (ViewsNSWindowDelegate*)viewsNSWindowDelegate {
-  return base::mac::ObjCCastStrict<ViewsNSWindowDelegate>([self delegate]);
+  return base::apple::ObjCCastStrict<ViewsNSWindowDelegate>([self delegate]);
 }
 
 - (BOOL)hasViewsMenuActive {
@@ -334,10 +381,10 @@ void OrderChildWindow(NSWindow* child_window,
 - (id<NSAccessibility>)rootAccessibilityObject {
   id<NSAccessibility> obj =
       _bridge ? _bridge->host_helper()->GetNativeViewAccessible() : nil;
-  // We should like to DCHECK that the object returned implemements the
+  // We should like to DCHECK that the object returned implements the
   // NSAccessibility protocol, but the NSAccessibilityRemoteUIElement interface
   // does not conform.
-  // TODO(https://crbug.com/944698): Create a sub-class that does.
+  // TODO(crbug.com/41448396): Create a sub-class that does.
   return obj;
 }
 
@@ -370,6 +417,39 @@ void OrderChildWindow(NSWindow* child_window,
 // subclasses are known to override it and return NO.
 - (BOOL)_usesCustomDrawing {
   return NO;
+}
+
+// This override, if it returns YES, allows the window to take input events
+// without activating the owning app. This is functionally equivalent to having
+// the window style NSWindowStyleMaskNonactivatingPanel set; see the
+// documentation for that constant for more details.
+//
+// The NSWindowStyleMaskNonactivatingPanel constant is only valid for NSPanels,
+// not NSWindows, so the window style cannot be directly set. In addition, even
+// if it were valid to set that style for windows, setting the window style
+// recalculates and re-caches a bunch of stuff, so a surgical override is the
+// cleanest approach.
+- (BOOL)_isNonactivatingPanel {
+  if (_activationIndependence) {
+    return YES;
+  }
+  return [super _isNonactivatingPanel];
+}
+
++ (void)_getExteriorResizeEdgeThicknesses:
+            (NSEdgeAndCornerThicknesses*)outThicknesses
+                             forStyleMask:(NSWindowStyleMask)styleMask {
+  // Ensure non-titled resizable windows have a reasonable exterior resize area.
+  // By default, they might have none, making resizing difficult.
+  // Override to titled window's resize edge thickness (4px on macOS 15).
+  if (styleMask & NSWindowStyleMaskResizable) {
+    return [super
+        _getExteriorResizeEdgeThicknesses:outThicknesses
+                             forStyleMask:styleMask | NSWindowStyleMaskTitled];
+  }
+
+  return [super _getExteriorResizeEdgeThicknesses:outThicknesses
+                                     forStyleMask:styleMask];
 }
 
 // Ignore [super canBecome{Key,Main}Window]. The default is NO for windows with
@@ -463,8 +543,8 @@ void OrderChildWindow(NSWindow* child_window,
   [super sendEvent:event];
 }
 
-- (void)reallyOrderWindow:(NSWindowOrderingMode)orderingMode
-               relativeTo:(NSInteger)otherWindowNumber {
+- (void)orderWindowByShuffling:(NSWindowOrderingMode)orderingMode
+                    relativeTo:(NSInteger)otherWindowNumber {
   NativeWidgetMacNSWindow* parent =
       static_cast<NativeWidgetMacNSWindow*>([self parentWindow]);
 
@@ -474,14 +554,26 @@ void OrderChildWindow(NSWindow* child_window,
     return;
   }
 
+  base::AutoReset<BOOL> shuffling(&_isShufflingForOrdering, YES);
+
   // `otherWindow` is nil if `otherWindowNumber` is 0. In this case, place
   // `self` at the top / bottom, depending on `orderingMode`.
   NSWindow* otherWindow = [NSApp windowWithWindowNumber:otherWindowNumber];
   if (otherWindow == nullptr || parent == [otherWindow parentWindow] ||
-      parent == otherWindow)
+      parent == otherWindow) {
     OrderChildWindow(self, otherWindow, orderingMode);
+  }
 
   [[self viewsNSWindowDelegate] onWindowOrderChanged:nil];
+}
+
+- (void)setActivationIndependence:(BOOL)independence {
+  self.canHide = !independence;
+  _activationIndependence = independence;
+}
+
+- (bool)activationIndependence {
+  return _activationIndependence;
 }
 
 // Override window order functions to intercept other visibility changes. This
@@ -489,11 +581,64 @@ void OrderChildWindow(NSWindow* child_window,
 // hardly ever calls display, and reports -[NSWindow isVisible] incorrectly
 // when ordering in a window for the first time.
 // Note that this methods has no effect for children windows. Use
-// -reallyOrderWindow:relativeTo: instead.
+// -orderWindowByShuffling:relativeTo: instead.
 - (void)orderWindow:(NSWindowOrderingMode)orderingMode
          relativeTo:(NSInteger)otherWindowNumber {
   [super orderWindow:orderingMode relativeTo:otherWindowNumber];
   [[self viewsNSWindowDelegate] onWindowOrderChanged:nil];
+}
+
+- (void)miniaturize:(id)sender {
+  static const BOOL isMacOS13OrHigher = base::mac::MacOSMajorVersion() >= 13;
+  // On macOS 13, the miniaturize operation appears to no longer be "atomic"
+  // because of non-blocking roundtrip IPC with the Dock. We want to note here
+  // that miniaturization is in progress. The process completes when we
+  // reach -_regularMinimizeToDock:.
+  _miniaturizationInProgress = isMacOS13OrHigher;
+
+  [super miniaturize:sender];
+}
+
+- (void)_regularMinimizeToDock {
+  // On macOS 13, a call to -miniaturize: kicks of an async round-trip IPC with
+  // the Dock that ends up in this method. Unfortunately, it appears that if we
+  // immediately follow a call to -miniaturize: with -makeKeyAndOrderFront:,
+  // the AppKit doesn't cancel the in-flight round-trip IPC. As a result,
+  // _regularMinimizeToDock gets called sometime after -makeKeyAndOrderFront:
+  // and miniaturizes the window anyway. This is  a potential problem in
+  // session restore where we might restart with a single browser window
+  // sitting Dock. In that case, Session Restore creates the window,
+  // miniaturizes to the dock, and then brings it back out. With this new macOS
+  // 13 behavior (which seems like a bug), the browser window may not be
+  // restored from the Dock.
+  //
+  // To get around this problem, if we arrive here and
+  // _miniaturizationInProgress is NO, the miniaturization process was
+  // cancelled by a call to -makeKeyAndOrderFront:. In that case, we don't want
+  // to proceed with miniaturization.
+  static const BOOL isMacOS13OrHigher = base::mac::MacOSMajorVersion() >= 13;
+  if (isMacOS13OrHigher && !_miniaturizationInProgress) {
+    return;
+  }
+
+  _miniaturizationInProgress = NO;
+  [super _regularMinimizeToDock];
+}
+
+- (void)makeKeyAndOrderFront:(id)sender {
+  _miniaturizationInProgress = NO;
+  [super makeKeyAndOrderFront:sender];
+}
+
+- (void)orderOut:(id)sender {
+  _miniaturizationInProgress = NO;
+  [self maybeRemoveTreeFromOrderingGroups];
+  [super orderOut:sender];
+}
+
+- (void)close {
+  [self maybeRemoveTreeFromOrderingGroups];
+  [super close];
 }
 
 // NSResponder implementation.
@@ -543,26 +688,69 @@ void OrderChildWindow(NSWindow* child_window,
 }
 
 - (void)saveRestorableState {
-  if (!_bridge)
+  if (!_bridge || ![self _isConsideredOpenForPersistentState]) {
     return;
-  if (![self _isConsideredOpenForPersistentState])
+  }
+
+  // Certain conditions, such as in the Speedometer 3 benchmark, can trigger a
+  // rapid succession of calls to saveRestorableState. If there's no pending
+  // save of restorable state, save the state now. This ensures that the first
+  // new state change gets saved immediately. Then, set up to save again 500ms
+  // after the last request. This will coalesce a storm of restorable state
+  // saves into the first and last requests. This might ultimately result in a
+  // single save operation if the first and last states are identical.
+  //
+  // We take pains to save the first and last requests to ensure we get the
+  // expected state save on browser close. For example, if a browser window
+  // miniaturizes and then the browser quits within our 500ms delay, the
+  // miniaturized state may not get saved. Even if the call to
+  // -reallySaveRestorableState occurs in time, we might still be in trouble
+  // because the save has to cross the remote cocoa boundary (and so is
+  // dependent on a couple more turns of the run loop to get the save to take).
+  if (!_willSaveRestorableStateAfterDelay) {
+    [self reallySaveRestorableState];
+    _willSaveRestorableStateAfterDelay = YES;
+  }
+
+  [NSObject cancelPreviousPerformRequestsWithTarget:self
+                                           selector:@selector
+                                           (reallySaveRestorableState)
+                                             object:nil];
+  [self performSelector:@selector(reallySaveRestorableState)
+             withObject:nil
+             afterDelay:0.5];
+}
+
+- (void)reallySaveRestorableState {
+  _willSaveRestorableStateAfterDelay = NO;
+
+  if (!_bridge) {
     return;
+  }
+
+  _willUpdateRestorableState = NO;
 
   // On macOS 12+, create restorable state archives with secure encoding. See
   // the article at
   // https://sector7.computest.nl/post/2022-08-process-injection-breaking-all-macos-security-layers-with-a-single-vulnerability/
   // for more details.
-  base::scoped_nsobject<NSKeyedArchiver> encoder([[NSKeyedArchiver alloc]
-      initRequiringSecureCoding:base::mac::IsAtLeastOS12()]);
-  encoder.get().delegate = self;
+  NSKeyedArchiver* encoder = [[NSKeyedArchiver alloc]
+      initRequiringSecureCoding:base::mac::MacOSMajorVersion() >= 12];
+  encoder.delegate = self;
   [self encodeRestorableStateWithCoder:encoder];
   [encoder finishEncoding];
-  NSData* restorableStateData = encoder.get().encodedData;
+  NSData* restorableState = encoder.encodedData;
 
-  auto* bytes = static_cast<uint8_t const*>(restorableStateData.bytes);
+  // Don't bother saving restorable state if it didn't actually change since
+  // the last save. This avoids an extra IPC when nothing has changed.
+  if ([restorableState isEqual:_lastSavedRestorableState]) {
+    return;
+  }
+  _lastSavedRestorableState = restorableState;
+
+  auto* bytes = static_cast<uint8_t const*>(restorableState.bytes);
   _bridge->host()->OnWindowStateRestorationDataChanged(
-      std::vector<uint8_t>(bytes, bytes + restorableStateData.length));
-  _willUpdateRestorableState = NO;
+      std::vector<uint8_t>(bytes, bytes + restorableState.length));
 }
 
 // AppKit calls -invalidateRestorableState when a property of the window which
@@ -587,7 +775,7 @@ void OrderChildWindow(NSWindow* child_window,
 // the window's styleMask. Views assumes that Widgets can always be minimized,
 // regardless of their window style, so override that behavior here.
 - (BOOL)_canMiniaturize {
-  return YES;
+  return ![self immersiveFullscreen];
 }
 
 - (BOOL)respondsToSelector:(SEL)aSelector {
@@ -597,7 +785,7 @@ void OrderChildWindow(NSWindow* child_window,
       aSelector == @selector(commandDispatch:) ||
       aSelector == @selector(commandDispatchUsingKeyModifiers:);
   if (isCommandDispatch && _commandHandler == nil &&
-      [_commandDispatcher bubbleParent] == nil) {
+      self.commandDispatchParent == nil) {
     return NO;
   }
 
@@ -607,11 +795,11 @@ void OrderChildWindow(NSWindow* child_window,
 // CommandDispatchingWindow implementation.
 
 - (void)setCommandHandler:(id<UserInterfaceItemCommandHandler>)commandHandler {
-  _commandHandler.reset([commandHandler retain]);
+  _commandHandler = commandHandler;
 }
 
 - (CommandDispatcher*)commandDispatcher {
-  return _commandDispatcher.get();
+  return _commandDispatcher;
 }
 
 - (BOOL)defaultPerformKeyEquivalent:(NSEvent*)event {
@@ -644,6 +832,16 @@ void OrderChildWindow(NSWindow* child_window,
 
 // NSWindow overrides (NSAccessibility informal protocol implementation).
 
+- (NSString*)accessibilityDocument {
+  if (id<NSAccessibility> root = [self rootAccessibilityObject]) {
+    if (auto* cocoaNode = ui::AXPlatformNode::FromNativeViewAccessible(
+            gfx::NativeViewAccessible(root))) {
+      return [NSString stringWithUTF8String:cocoaNode->GetRootURL().c_str()];
+    }
+  }
+  return nil;
+}
+
 - (id)accessibilityFocusedUIElement {
   if (![self delegate])
     return [super accessibilityFocusedUIElement];
@@ -673,5 +871,119 @@ void OrderChildWindow(NSWindow* child_window,
   NSString* viewsValue = self.rootAccessibilityObject.accessibilityTitle;
   return viewsValue ? viewsValue : [super accessibilityTitle];
 }
+
+- (NSWindow<CommandDispatchingWindow>*)commandDispatchParent {
+  if (_commandDispatchParentOverride) {
+    return _commandDispatchParentOverride;
+  }
+  NSWindow* parent = self.parentWindow;
+  if (parent && [parent hasKeyAppearance] &&
+      [parent conformsToProtocol:@protocol(CommandDispatchingWindow)]) {
+    return static_cast<NSWindow<CommandDispatchingWindow>*>(parent);
+  }
+  return nil;
+}
+
+// During window ordering AppKit rebuilds its internal ordering group for the
+// window tree. A window tree in Chrome's case is the browser window and all of
+// its descendants, which can include Chrome and AppKit created windows. It does
+// this by removing and re-adding each window in the window tree from the
+// ordering group. If a window is re-added to the group while in a non-active
+// space, a space switch can occur. The space switch will only happen if the
+// current window tree has existing windows that are still a part of the
+// ordering group. When there are two levels in the window tree, each window
+// will be removed from the group before windows are re-added to the group. If
+// three or more window levels exist in the tree not all windows will be removed
+// from the group before windows are re-added to the group, causing a space
+// switch to occur. It seems this is an unintentional side effect of AppKit's
+// recursive window tree group rebuilding.
+//
+// To work around this behavior, preemptively remove the window tree from
+// ordering groups. This workaround should be considered low risk, while we are
+// calling an undocumented NSWindow method, removing the window tree from
+// ordering groups is ubiquitous throughout AppKit. Additionally, this
+// preemptive removal is only called before an -orderOut: or -close. AppKit will
+// be doing an ordering group rebuild during those calls. We are also taking
+// care to only apply this workaround when necessary.
+//
+// TODO(http://crbug.com/1454606): Remove this workaround once FB13529873 is
+// fixed in AppKit.
+- (void)maybeRemoveTreeFromOrderingGroups {
+  // This workaround only needed for macOS 13 and greater.
+  if (@available(macOS 13.0, *)) {
+  } else {
+    return;
+  }
+
+  if (!base::FeatureList::IsEnabled(
+          remote_cocoa::features::kImmersiveFullscreenSpaceSwitchMitigation)) {
+    return;
+  }
+
+  // Only remove from groups if this window is not on the active space.
+  if (self.isOnActiveSpace) {
+    return;
+  }
+
+  // Only remove from groups if the browser is in immersive fullscreen.
+  if (![self immersiveFullscreen]) {
+    return;
+  }
+
+  // Since _removeFromGroups: is not documented it could go away in newer
+  // versions of macOS. If the selector does not exist, DumpWithoutCrashing() so
+  // we hear about the change.
+  if (![NSWindow instancesRespondToSelector:@selector(_removeFromGroups:)]) {
+    base::debug::DumpWithoutCrashing();
+    return;
+  }
+
+  // Iterate instead of recurse. There are other NSWindow types in the tree
+  // besides NativeWidgetMacNSWindow that would not implement our recursion.
+  NSMutableArray* nextWindows = [NSMutableArray array];
+  [nextWindows addObject:[self rootWindow]];
+  while (nextWindows.count) {
+    NSWindow* currentWindow = nextWindows.lastObject;
+    [nextWindows removeLastObject];
+    for (NSWindow* child in currentWindow.childWindows) {
+      [nextWindows addObject:child];
+      [currentWindow _removeFromGroups:child];
+    }
+  }
+}
+
+- (NSWindow*)rootWindow {
+  NSWindow* root = self;
+  while (root.parentWindow) {
+    root = root.parentWindow;
+  }
+  return root;
+}
+
+- (BOOL)immersiveFullscreen {
+  NativeWidgetMacNSWindow* rootWidgetWindow =
+      base::apple::ObjCCast<NativeWidgetMacNSWindow>([self rootWindow]);
+  if (rootWidgetWindow &&
+      (rootWidgetWindow.styleMask & NSWindowStyleMaskFullScreen) &&
+      rootWidgetWindow.bridge &&
+      rootWidgetWindow.bridge->ImmersiveFullscreenEnabled()) {
+    return YES;
+  }
+  return NO;
+}
+
+- (NSWindow*)preferredSheetParent {
+  return [self immersiveFullscreen] ? [self rootWindow] : self;
+}
+
+#ifndef NDEBUG
+- (NSString*)debugDescription {
+  if (!self.title.length) {
+    return [super debugDescription];
+  }
+  return [NSString
+      stringWithFormat:@"%@ - %@", [super debugDescription], self.title];
+}
+#endif  // NDEBUG
 
 @end

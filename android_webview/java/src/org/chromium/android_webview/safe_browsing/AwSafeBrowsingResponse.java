@@ -4,12 +4,13 @@
 
 package org.chromium.android_webview.safe_browsing;
 
-/**
- * Container to hold the application's response to WebViewClient#onSafeBrowsingHit().
- */
+import org.chromium.build.annotations.NullMarked;
+
+/** Container to hold the application's response to WebViewClient#onSafeBrowsingHit(). */
+@NullMarked
 public class AwSafeBrowsingResponse {
-    private int mAction;
-    private boolean mReporting;
+    private final int mAction;
+    private final boolean mReporting;
 
     public AwSafeBrowsingResponse(int action, boolean reporting) {
         mAction = action;
@@ -19,6 +20,7 @@ public class AwSafeBrowsingResponse {
     public int action() {
         return mAction;
     }
+
     public boolean reporting() {
         return mReporting;
     }

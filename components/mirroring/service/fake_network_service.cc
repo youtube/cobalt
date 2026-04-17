@@ -2,33 +2,54 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/mirroring/service/fake_network_service.h"
 
-#include "base/ranges/algorithm.h"
-#include "media/cast/test/utility/net_utility.h"
+#include <algorithm>
+#include <memory>
+// #include "media/cast/test/utility/net_utility.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
+#include "net/base/ip_address.h"
+#include "net/base/net_errors.h"
+#include "net/log/net_log_source.h"
+#include "net/socket/udp_server_socket.h"
 #include "services/network/public/mojom/clear_data_filter.mojom.h"
 #include "services/network/test/test_url_loader_factory.h"
 
 namespace mirroring {
+
+net::IPEndPoint GetFreeLocalPort() {
+  std::unique_ptr<net::UDPServerSocket> receive_socket(
+      new net::UDPServerSocket(nullptr, net::NetLogSource()));
+  receive_socket->AllowAddressReuse();
+  CHECK_EQ(net::OK, receive_socket->Listen(
+                        net::IPEndPoint(net::IPAddress::IPv4Localhost(), 0)));
+  net::IPEndPoint endpoint;
+  CHECK_EQ(net::OK, receive_socket->GetLocalAddress(&endpoint));
+  return endpoint;
+}
 
 MockUdpSocket::MockUdpSocket(
     mojo::PendingReceiver<network::mojom::UDPSocket> receiver,
     mojo::PendingRemote<network::mojom::UDPSocketListener> listener)
     : receiver_(this, std::move(receiver)), listener_(std::move(listener)) {}
 
-MockUdpSocket::~MockUdpSocket() {}
+MockUdpSocket::~MockUdpSocket() = default;
 
 void MockUdpSocket::Bind(const net::IPEndPoint& local_addr,
                          network::mojom::UDPSocketOptionsPtr options,
                          BindCallback callback) {
-  std::move(callback).Run(net::OK, media::cast::test::GetFreeLocalPort());
+  std::move(callback).Run(net::OK, GetFreeLocalPort());
 }
 
 void MockUdpSocket::Connect(const net::IPEndPoint& remote_addr,
                             network::mojom::UDPSocketOptionsPtr options,
                             ConnectCallback callback) {
-  std::move(callback).Run(net::OK, media::cast::test::GetFreeLocalPort());
+  std::move(callback).Run(net::OK, GetFreeLocalPort());
 }
 
 void MockUdpSocket::ReceiveMore(uint32_t num_additional_datagrams) {
@@ -59,7 +80,7 @@ void MockUdpSocket::Send(
 void MockUdpSocket::OnReceivedPacket(const media::cast::Packet& packet) {
   if (num_ask_for_receive_) {
     listener_->OnReceived(
-        net::OK, absl::nullopt,
+        net::OK, std::nullopt,
         base::span<const uint8_t>(
             reinterpret_cast<const uint8_t*>(packet.data()), packet.size()));
     ASSERT_LT(0, num_ask_for_receive_);
@@ -68,13 +89,13 @@ void MockUdpSocket::OnReceivedPacket(const media::cast::Packet& packet) {
 }
 
 void MockUdpSocket::VerifySendingPacket(const media::cast::Packet& packet) {
-  EXPECT_TRUE(base::ranges::equal(packet, *sending_packet_));
+  EXPECT_TRUE(std::ranges::equal(packet, *sending_packet_));
 }
 
 MockNetworkContext::MockNetworkContext(
     mojo::PendingReceiver<network::mojom::NetworkContext> receiver)
     : receiver_(this, std::move(receiver)) {}
-MockNetworkContext::~MockNetworkContext() {}
+MockNetworkContext::~MockNetworkContext() = default;
 
 void MockNetworkContext::CreateUDPSocket(
     mojo::PendingReceiver<network::mojom::UDPSocket> receiver,

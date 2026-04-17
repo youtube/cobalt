@@ -7,25 +7,21 @@
 
 #include <string>
 
-#include "base/memory/raw_ptr.h"
-#include "base/memory/weak_ptr.h"
+#include "chrome/browser/ash/login/enrollment/enrollment_launcher.h"
+#include "chrome/browser/ash/login/enrollment/mock_enrollment_launcher.h"
 #include "chrome/browser/ash/policy/enrollment/enrollment_config.h"
 #include "chrome/test/base/mixin_based_in_process_browser_test.h"
-#include "components/policy/core/common/cloud/cloud_policy_constants.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace policy {
-class ActiveDirectoryJoinDelegate;
 class EnrollmentStatus;
 }
 
 namespace ash {
-class EnterpriseEnrollmentHelperMock;
-
 namespace test {
 
 // This test mixin covers mocking backend interaction during enterprise
-// enrollment on EnterpriseEnrollmentHelper level.
+// enrollment on EnrollmentLauncher level.
 class EnrollmentHelperMixin : public InProcessBrowserTestMixin {
  public:
   static const char kTestAuthCode[];
@@ -40,10 +36,6 @@ class EnrollmentHelperMixin : public InProcessBrowserTestMixin {
   // Re-creates mock. Useful in tests that retry enrollment with different auth
   // mechanism, which causes original mock to be destroyed by EnrollmentScreen.
   void ResetMock();
-
-  // Verifies mock expectations and clears them. Useful in tests that retry
-  // enrollment with the same auth mechanism.
-  void VerifyAndClear();
 
   // Sets up expectation of no enrollment attempt.
   void ExpectNoEnrollment();
@@ -67,6 +59,16 @@ class EnrollmentHelperMixin : public InProcessBrowserTestMixin {
   void ExpectAttestationEnrollmentErrorRepeated(
       policy::EnrollmentStatus status);
 
+  // Configures and sets expectations for token-based enrollment to succeed.
+  void ExpectTokenBasedEnrollmentSuccess();
+  // Configures and sets expecations for token-based enrollment resulting in
+  // error.
+  void ExpectTokenBasedEnrollmentError(policy::EnrollmentStatus status);
+
+  // Sets expectation of enrollment token and proper token-based enrollment
+  // mode.
+  void ExpectEnrollmentTokenConfig(const std::string& enrollment_token);
+
   // Sets up expectation of kTestAuthCode as enrollment credentials.
   void ExpectEnrollmentCredentials();
   // Sets up default ClearAuth handling.
@@ -79,20 +81,9 @@ class EnrollmentHelperMixin : public InProcessBrowserTestMixin {
   void ExpectAttributePromptUpdate(const std::string& asset_id,
                                    const std::string& location);
 
-  // Forces the Active Directory domain join flow during enterprise enrollment.
-  void SetupActiveDirectoryJoin(policy::ActiveDirectoryJoinDelegate* delegate,
-                                const std::string& expected_domain,
-                                const std::string& domain_join_config,
-                                const std::string& dm_token);
-
-  // InProcessBrowserTestMixin:
-  void SetUpInProcessBrowserTestFixture() override;
-  void TearDownInProcessBrowserTestFixture() override;
-
  private:
-  // Unowned reference to last created mock.
-  raw_ptr<EnterpriseEnrollmentHelperMock, ExperimentalAsh> mock_ = nullptr;
-  base::WeakPtrFactory<EnrollmentHelperMixin> weak_ptr_factory_{this};
+  ::testing::NiceMock<MockEnrollmentLauncher> mock_enrollment_launcher_;
+  ScopedEnrollmentLauncherFactoryOverrideForTesting scoped_factory_override_;
 };
 
 }  // namespace test

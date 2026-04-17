@@ -7,7 +7,7 @@
 
 #include <stddef.h>
 
-#include <string>
+#include <array>
 
 #include "ash/public/cpp/ash_public_export.h"
 #include "ui/events/event_constants.h"
@@ -36,12 +36,12 @@ enum LoginAcceleratorAction {
   kCancelScreenAction,
   kStartEnrollment,
   kStartKioskEnrollment,
-  kEnableConsumerKiosk,
   kEnableDebugging,
   kEditDeviceRequisition,
   kDeviceRequisitionRemora,
   kStartDemoMode,
   kLaunchDiagnostics,
+  kEnableQuickStart,
 };
 
 struct LoginAcceleratorData {
@@ -57,7 +57,8 @@ struct LoginAcceleratorData {
 };
 
 // Accelerators handled by OOBE / Login components.
-ASH_PUBLIC_EXPORT extern const LoginAcceleratorData kLoginAcceleratorData[];
+ASH_PUBLIC_EXPORT extern const std::array<LoginAcceleratorData, 15>
+    kLoginAcceleratorData;
 ASH_PUBLIC_EXPORT extern const size_t kLoginAcceleratorDataLength;
 
 }  // namespace ash

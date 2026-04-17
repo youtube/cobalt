@@ -9,6 +9,10 @@
  */
 #include "api/test/video/test_video_track_source.h"
 
+#include <optional>
+#include <string>
+#include <utility>
+
 #include "api/media_stream_interface.h"
 #include "api/sequence_checker.h"
 #include "api/video/video_frame.h"
@@ -19,8 +23,12 @@
 namespace webrtc {
 namespace test {
 
-TestVideoTrackSource::TestVideoTrackSource(bool remote)
-    : state_(kInitializing), remote_(remote) {
+TestVideoTrackSource::TestVideoTrackSource(
+    bool remote,
+    std::optional<std::string> stream_label)
+    : stream_label_(std::move(stream_label)),
+      state_(kInitializing),
+      remote_(remote) {
   worker_thread_checker_.Detach();
   signaling_thread_checker_.Detach();
 }
@@ -38,15 +46,13 @@ void TestVideoTrackSource::SetState(SourceState new_state) {
   }
 }
 
-void TestVideoTrackSource::AddOrUpdateSink(
-    rtc::VideoSinkInterface<VideoFrame>* sink,
-    const rtc::VideoSinkWants& wants) {
+void TestVideoTrackSource::AddOrUpdateSink(VideoSinkInterface<VideoFrame>* sink,
+                                           const VideoSinkWants& wants) {
   RTC_DCHECK(worker_thread_checker_.IsCurrent());
   source()->AddOrUpdateSink(sink, wants);
 }
 
-void TestVideoTrackSource::RemoveSink(
-    rtc::VideoSinkInterface<VideoFrame>* sink) {
+void TestVideoTrackSource::RemoveSink(VideoSinkInterface<VideoFrame>* sink) {
   RTC_DCHECK(worker_thread_checker_.IsCurrent());
   source()->RemoveSink(sink);
 }

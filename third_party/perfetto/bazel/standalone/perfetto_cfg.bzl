@@ -45,6 +45,7 @@ PERFETTO_CONFIG = struct(
         base_platform = ["//:perfetto_base_default_platform"],
 
         zlib = ["@perfetto_dep_zlib//:zlib"],
+        expat = ["@perfetto_dep_expat//:expat"],
         jsoncpp = ["@perfetto_dep_jsoncpp//:jsoncpp"],
         linenoise = ["@perfetto_dep_linenoise//:linenoise"],
         sqlite = ["@perfetto_dep_sqlite//:sqlite"],
@@ -54,12 +55,22 @@ PERFETTO_CONFIG = struct(
         protobuf_lite = ["@com_google_protobuf//:protobuf_lite"],
         protobuf_full = ["@com_google_protobuf//:protobuf"],
         protobuf_descriptor_proto = ["@com_google_protobuf//:descriptor_proto"],
+        open_csd = ["@perfetto_dep_open_csd//:open_csd"],
+
+        android_test_common = [
+            "@maven//:androidx_test_runner",
+            "@maven//:androidx_test_monitor",
+            "@maven//:junit_junit",
+            "@maven//:com_google_truth_truth",
+            "@maven//:androidx_test_ext_junit",
+        ],
 
         # The Python targets are empty on the standalone build because we assume
         # any relevant deps are installed on the system or are not applicable.
         protobuf_py = [],
         pandas_py = [],
         tp_vendor_py = [],
+        tp_resolvers_py = [],
 
         # There are multiple configurations for the function name demangling
         # logic in trace processor:
@@ -82,10 +93,12 @@ PERFETTO_CONFIG = struct(
     # initialized with the Perfetto build files (i.e. via perfetto_deps()).
     deps_copts = struct(
         zlib = [],
+        expat = [],
         jsoncpp = [],
         linenoise = [],
         sqlite = [],
         llvm_demangle = [],
+        open_csd = [],
     ),
 
     # Allow Bazel embedders to change the visibility of "public" targets.
@@ -121,13 +134,21 @@ PERFETTO_CONFIG = struct(
         # Supporting java rules pulls in the JDK and generally is not something
         # we need for most embedders.
         java_proto_library = _noop_override,
-        java_lite_proto_library = _noop_override,
+
+        java_lite_proto_library = None,
 
         py_binary = None,
         py_library = None,
         py_proto_library = None,
 
         go_proto_library = None,
+
+        jspb_proto_library = None,
+
+        android_binary = None,
+        android_library = None,
+        android_jni_library = None,
+        android_instrumentation_test = None,
     ),
 
     # The default copts which we use to compile C++ code.

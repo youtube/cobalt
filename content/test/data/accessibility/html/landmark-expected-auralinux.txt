@@ -21,7 +21,7 @@
 ++++[static] name='This is an ARIA complementary landmark.'
 ++[landmark] xml-roles:contentinfo
 ++++[static] name='This is an ARIA contentinfo landmark.'
-++[form] xml-roles:form
+++[form] name='Named form' xml-roles:form
 ++++[static] name='This is an ARIA form landmark.'
 ++[landmark] xml-roles:main
 ++++[static] name='This is an ARIA main landmark.'
@@ -30,64 +30,64 @@
 ++[landmark] xml-roles:search
 ++++[static] name='This is an ARIA search landmark.'
 ++[article]
-++++[section]
+++++[header]
 ++++++[static] name='This should NOT banner role.'
 ++[landmark] xml-roles:complementary
-++++[section]
+++++[header]
 ++++++[static] name='This should NOT have banner role.'
 ++[landmark] xml-roles:navigation
-++++[section]
+++++[header]
 ++++++[static] name='This should NOT have banner role.'
 ++[section]
-++++[section]
+++++[header]
 ++++++[static] name='This should NOT have banner role.'
 ++[landmark] xml-roles:main
-++++[section]
+++++[header]
 ++++++[static] name='This should NOT have banner role.'
 ++[article]
-++++[section]
+++++[header]
 ++++++[static] name='This should NOT banner role.'
 ++[landmark] xml-roles:complementary
-++++[section]
+++++[header]
 ++++++[static] name='This should NOT have banner role.'
 ++[landmark] xml-roles:navigation
-++++[section]
+++++[header]
 ++++++[static] name='This should NOT have banner role.'
 ++[section]
-++++[section]
+++++[header]
 ++++++[static] name='This should NOT have banner role.'
 ++[landmark] xml-roles:main
-++++[section]
+++++[header]
 ++++++[static] name='This should NOT have banner role.'
 ++[article]
-++++[section]
+++++[footer]
 ++++++[static] name='This should NOT footer role.'
 ++[landmark] xml-roles:complementary
-++++[section]
+++++[footer]
 ++++++[static] name='This should NOT have footer role.'
 ++[landmark] xml-roles:navigation
-++++[section]
+++++[footer]
 ++++++[static] name='This should NOT have footer role.'
 ++[section]
-++++[section]
+++++[footer]
 ++++++[static] name='This should NOT have footer role.'
 ++[landmark] xml-roles:main
-++++[section]
+++++[footer]
 ++++++[static] name='This should NOT have footer role.'
 ++[article]
-++++[section]
+++++[footer]
 ++++++[static] name='This should NOT footer role.'
 ++[landmark] xml-roles:complementary
-++++[section]
+++++[footer]
 ++++++[static] name='This should NOT have footer role.'
 ++[landmark] xml-roles:navigation
-++++[section]
+++++[footer]
 ++++++[static] name='This should NOT have footer role.'
 ++[section]
-++++[section]
+++++[footer]
 ++++++[static] name='This should NOT have footer role.'
 ++[landmark] xml-roles:main
-++++[section]
+++++[footer]
 ++++++[static] name='This should NOT have footer role.'
 ++[article]
 ++++[section]
@@ -117,5 +117,17 @@
 ++++[section]
 ++++++[static] name='This should NOT have complementary role.'
 ++[landmark] xml-roles:main
+++++[landmark] xml-roles:complementary
+++++++[static] name='This should have complementary role.'
+++[article]
+++++[landmark] xml-roles:complementary
+++++++[static] name='This should have complementary role.'
+++[landmark] xml-roles:complementary
+++++[landmark] xml-roles:complementary
+++++++[static] name='This should have complementary role.'
+++[landmark] xml-roles:navigation
+++++[landmark] xml-roles:complementary
+++++++[static] name='This should have complementary role.'
+++[section]
 ++++[landmark] xml-roles:complementary
 ++++++[static] name='This should have complementary role.'

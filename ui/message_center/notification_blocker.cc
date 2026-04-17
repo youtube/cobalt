@@ -10,14 +10,20 @@
 namespace message_center {
 
 NotificationBlocker::NotificationBlocker(MessageCenter* message_center)
-    : message_center_(message_center) {
-  if (message_center_)
-    message_center_->AddNotificationBlocker(this);
-}
+    : message_center_(message_center) {}
 
 NotificationBlocker::~NotificationBlocker() {
   if (message_center_)
     message_center_->RemoveNotificationBlocker(this);
+}
+
+void NotificationBlocker::Init() {
+  CHECK(!is_initialized_)
+      << "Do not initialize a NotificationBlocker more than once.";
+  is_initialized_ = true;
+  if (message_center_) {
+    message_center_->AddNotificationBlocker(this);
+  }
 }
 
 void NotificationBlocker::AddObserver(NotificationBlocker::Observer* observer) {
@@ -35,8 +41,7 @@ bool NotificationBlocker::ShouldShowNotification(
 }
 
 void NotificationBlocker::NotifyBlockingStateChanged() {
-  for (auto& observer : observers_)
-    observer.OnBlockingStateChanged(this);
+  observers_.Notify(&Observer::OnBlockingStateChanged, this);
 }
 
 }  // namespace message_center

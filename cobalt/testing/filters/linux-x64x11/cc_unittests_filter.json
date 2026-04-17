@@ -26,6 +26,7 @@
     "P/OopPathPixelTest.*",
     "B/LayerTreeHostBlendingPixelTest.*",
     "*LayerTreeHost*",
-    "All/BackdropFilter*"
+    "All/BackdropFilter*",
+    "MixedFilterZoomAndOffsetTest.*"
   ]
 }

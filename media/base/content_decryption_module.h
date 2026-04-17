@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -113,6 +114,8 @@ class MEDIA_EXPORT ContentDecryptionModule
     : public base::RefCountedThreadSafe<ContentDecryptionModule,
                                         ContentDecryptionModuleTraits> {
  public:
+  REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE();
+
   ContentDecryptionModule(const ContentDecryptionModule&) = delete;
   ContentDecryptionModule& operator=(const ContentDecryptionModule&) = delete;
 
@@ -201,6 +204,11 @@ struct MEDIA_EXPORT ContentDecryptionModuleTraits {
   static void Destruct(const ContentDecryptionModule* cdm);
 };
 
+// Try to convert `hdcp_version_string` to `HdcpVersion`. Returns std::nullopt
+// on failure.
+MEDIA_EXPORT std::optional<media::HdcpVersion> MaybeHdcpVersionFromString(
+    const std::string& hdcp_version_string);
+
 // CDM session event callbacks.
 
 // Called when the CDM needs to queue a message event to the session object.
@@ -214,7 +222,7 @@ using SessionMessageCB =
 // CDM may close a session at any point, such as in response to a CloseSession()
 // call, when the session is no longer needed, or when system resources are
 // lost, as specified by `reason`.
-// See http://w3c.github.io/encrypted-media/#session-close
+// See http://w3c.github.io/encrypted-media/#session-closed
 using SessionClosedCB =
     base::RepeatingCallback<void(const std::string& session_id,
                                  CdmSessionClosedReason reason)>;

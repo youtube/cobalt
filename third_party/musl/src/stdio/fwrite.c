@@ -1,11 +1,6 @@
 #include "stdio_impl.h"
 #include <string.h>
 
-#ifdef STARBOARD
-#include "starboard/common/log.h"
-#endif  // STARBOARD
-
-#ifndef STARBOARD
 size_t __fwritex(const unsigned char *restrict s, size_t l, FILE *restrict f)
 {
 	size_t i=0;
@@ -29,22 +24,15 @@ size_t __fwritex(const unsigned char *restrict s, size_t l, FILE *restrict f)
 	f->wpos += l;
 	return l+i;
 }
-#endif
 
 size_t fwrite(const void *restrict src, size_t size, size_t nmemb, FILE *restrict f)
 {
-#ifdef STARBOARD
-  SB_DCHECK((f == stdout) || (f == stderr));
-  SbLogRawFormatF("%.*s", size * nmemb, src);
-  return size * nmemb;
-#else   // !STARBOARD
 	size_t k, l = size*nmemb;
 	if (!size) nmemb = 0;
 	FLOCK(f);
 	k = __fwritex(src, l, f);
 	FUNLOCK(f);
 	return k==l ? nmemb : k/size;
-#endif // STARBOARD
 }
 
 weak_alias(fwrite, fwrite_unlocked);

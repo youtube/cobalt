@@ -6,8 +6,11 @@ package org.chromium.chrome.browser.download;
 
 import android.app.Activity;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.download.dialogs.InsecureDownloadDialog;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modaldialog.ModalDialogManagerHolder;
@@ -16,6 +19,7 @@ import org.chromium.ui.modaldialog.ModalDialogManagerHolder;
  * Glues insecure download dialogs UI code and handles the communication to download native
  * backend.
  */
+@NullMarked
 public class InsecureDownloadDialogBridge {
     private long mNativeInsecureDownloadDialogBridge;
 
@@ -34,6 +38,7 @@ public class InsecureDownloadDialogBridge {
 
     /**
      * Called to show a warning dialog for insecure download.
+     *
      * @param windowAndroid Window to show the dialog.
      * @param fileName Name of the download file.
      * @param totalBytes Total bytes of the file.
@@ -41,16 +46,25 @@ public class InsecureDownloadDialogBridge {
      */
     @CalledByNative
     private void showDialog(
-            WindowAndroid windowAndroid, String fileName, long totalBytes, long callbackId) {
+            WindowAndroid windowAndroid,
+            @JniType("std::u16string") String fileName,
+            long totalBytes,
+            long callbackId) {
         Activity activity = windowAndroid.getActivity().get();
         if (activity == null) {
             onConfirmed(callbackId, false);
             return;
         }
 
-        new InsecureDownloadDialog().show(activity,
-                ((ModalDialogManagerHolder) activity).getModalDialogManager(), fileName, totalBytes,
-                (accepted) -> { onConfirmed(callbackId, accepted); });
+        new InsecureDownloadDialog()
+                .show(
+                        activity,
+                        ((ModalDialogManagerHolder) activity).getModalDialogManager(),
+                        fileName,
+                        totalBytes,
+                        (accepted) -> {
+                            onConfirmed(callbackId, accepted);
+                        });
     }
 
     @CalledByNative
@@ -59,8 +73,8 @@ public class InsecureDownloadDialogBridge {
     }
 
     private void onConfirmed(long callbackId, boolean accepted) {
-        InsecureDownloadDialogBridgeJni.get().onConfirmed(
-                mNativeInsecureDownloadDialogBridge, callbackId, accepted);
+        InsecureDownloadDialogBridgeJni.get()
+                .onConfirmed(mNativeInsecureDownloadDialogBridge, callbackId, accepted);
     }
 
     @NativeMethods

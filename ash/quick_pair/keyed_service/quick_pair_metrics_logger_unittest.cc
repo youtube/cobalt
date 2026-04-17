@@ -5,6 +5,7 @@
 #include "ash/quick_pair/keyed_service/quick_pair_metrics_logger.h"
 
 #include <memory>
+#include <optional>
 
 #include "ash/constants/ash_pref_names.h"
 #include "ash/public/cpp/ash_prefs.h"
@@ -42,7 +43,6 @@
 #include "device/bluetooth/test/mock_bluetooth_adapter.h"
 #include "device/bluetooth/test/mock_bluetooth_device.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace {
 
@@ -157,22 +157,17 @@ class QuickPairMetricsLoggerTest : public NoSessionAshTestBase {
  public:
   void SetUp() override {
     NoSessionAshTestBase::SetUp();
-
-    TestSessionControllerClient* session_controller =
-        GetSessionControllerClient();
-    session_controller->Reset();
+    ClearLogin();
 
     // Inject our own PrefServices for each user which enables us to setup the
     // desks restore data before the user signs in.
     auto user_prefs = std::make_unique<TestingPrefServiceSimple>();
     user_prefs_ = user_prefs.get();
-    RegisterUserProfilePrefs(user_prefs_->registry(), /*for_test=*/true);
+    RegisterUserProfilePrefs(user_prefs_->registry(), /*country=*/"",
+                             /*for_test=*/true);
 
-    auto accountId = AccountId::FromUserEmail(kUserEmail);
-    session_controller->AddUserSession(kUserEmail,
-                                       user_manager::USER_TYPE_REGULAR,
-                                       /*provide_pref_service=*/false);
-    session_controller->SetUserPrefService(accountId, std::move(user_prefs));
+    SimulateUserLogin({kUserEmail},
+                      /*account_id=*/std::nullopt, std::move(user_prefs));
 
     user_prefs_->registry()->RegisterBooleanPref(
         ash::prefs::kUserPairedWithFastPair,
@@ -367,7 +362,7 @@ class QuickPairMetricsLoggerTest : public NoSessionAshTestBase {
         mock_pairer_broker_->NotifyHandshakeComplete(initial_device_);
         mock_pairer_broker_->NotifyDevicePaired(initial_device_);
         mock_pairer_broker_->NotifyAccountKeyWrite(initial_device_,
-                                                   /*error=*/absl::nullopt);
+                                                   /*error=*/std::nullopt);
         mock_pairer_broker_->NotifyPairComplete(initial_device_);
         break;
       case Protocol::kFastPairRetroactive:
@@ -378,7 +373,7 @@ class QuickPairMetricsLoggerTest : public NoSessionAshTestBase {
         mock_pairer_broker_->NotifyPairingStart(retroactive_device_);
         mock_pairer_broker_->NotifyHandshakeComplete(retroactive_device_);
         mock_pairer_broker_->NotifyAccountKeyWrite(retroactive_device_,
-                                                   /*error=*/absl::nullopt);
+                                                   /*error=*/std::nullopt);
         break;
     }
   }
@@ -462,13 +457,13 @@ class QuickPairMetricsLoggerTest : public NoSessionAshTestBase {
     switch (protocol) {
       case Protocol::kFastPairInitial:
         mock_pairer_broker_->NotifyAccountKeyWrite(initial_device_,
-                                                   absl::nullopt);
+                                                   std::nullopt);
         break;
       case Protocol::kFastPairSubsequent:
         break;
       case Protocol::kFastPairRetroactive:
         mock_pairer_broker_->NotifyAccountKeyWrite(retroactive_device_,
-                                                   absl::nullopt);
+                                                   std::nullopt);
         break;
     }
   }
@@ -524,12 +519,12 @@ class QuickPairMetricsLoggerTest : public NoSessionAshTestBase {
 
   std::unique_ptr<MockQuickPairBrowserDelegate> browser_delegate_;
   TestingPrefServiceSimple pref_service_;
-  raw_ptr<TestingPrefServiceSimple, ExperimentalAsh> user_prefs_;
+  raw_ptr<TestingPrefServiceSimple, DanglingUntriaged> user_prefs_;
 
-  raw_ptr<MockScannerBroker, ExperimentalAsh> mock_scanner_broker_ = nullptr;
-  raw_ptr<MockPairerBroker, ExperimentalAsh> mock_pairer_broker_ = nullptr;
-  raw_ptr<MockUIBroker, ExperimentalAsh> mock_ui_broker_ = nullptr;
-  raw_ptr<FakeRetroactivePairingDetector, ExperimentalAsh>
+  raw_ptr<MockScannerBroker, DanglingUntriaged> mock_scanner_broker_ = nullptr;
+  raw_ptr<MockPairerBroker, DanglingUntriaged> mock_pairer_broker_ = nullptr;
+  raw_ptr<MockUIBroker, DanglingUntriaged> mock_ui_broker_ = nullptr;
+  raw_ptr<FakeRetroactivePairingDetector, DanglingUntriaged>
       fake_retroactive_pairing_detector_ = nullptr;
 
   std::unique_ptr<FakeFastPairRepository> fake_fast_pair_repository_;

@@ -4,6 +4,8 @@
 
 package org.chromium.components.permissions.nfc;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.app.Activity;
 import android.content.Intent;
 import android.content.res.Resources;
@@ -18,6 +20,9 @@ import androidx.core.widget.TextViewCompat;
 
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.permissions.R;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modaldialog.DialogDismissalCause;
@@ -29,10 +34,11 @@ import org.chromium.ui.modelutil.PropertyModel;
  * Implements a modal dialog that prompts the user about turning on the NFC adapter on the system
  * level.
  */
+@NullMarked
 public class NfcSystemLevelPrompt implements ModalDialogProperties.Controller {
     private ModalDialogManager mModalDialogManager;
     private WindowAndroid mWindowAndroid;
-    private Runnable mCallback;
+    private @Nullable Runnable mCallback;
 
     /**
      * Triggers a prompt to ask the user to turn on the system NFC setting on their device.
@@ -51,10 +57,11 @@ public class NfcSystemLevelPrompt implements ModalDialogProperties.Controller {
         show(window, modalDialogManager, callback);
     }
 
+    @Initializer
     @VisibleForTesting
     protected void show(
             WindowAndroid window, ModalDialogManager modalDialogManager, Runnable callback) {
-        Activity activity = window.getActivity().get();
+        Activity activity = assumeNonNull(window.getActivity().get());
         LayoutInflater inflater = LayoutInflater.from(activity);
         View customView = inflater.inflate(R.layout.permission_dialog, null);
 
@@ -64,17 +71,24 @@ public class NfcSystemLevelPrompt implements ModalDialogProperties.Controller {
                 messageTextView, R.drawable.gm_filled_nfc_24, 0, 0, 0);
 
         Resources resources = activity.getResources();
-        PropertyModel model = new PropertyModel.Builder(ModalDialogProperties.ALL_KEYS)
-                                      .with(ModalDialogProperties.CONTROLLER, this)
-                                      .with(ModalDialogProperties.CUSTOM_VIEW, customView)
-                                      .with(ModalDialogProperties.POSITIVE_BUTTON_TEXT, resources,
-                                              R.string.nfc_prompt_turn_on)
-                                      .with(ModalDialogProperties.NEGATIVE_BUTTON_TEXT, resources,
-                                              R.string.cancel)
-                                      .with(ModalDialogProperties.CONTENT_DESCRIPTION, resources,
-                                              R.string.nfc_disabled_on_device_message)
-                                      .with(ModalDialogProperties.FILTER_TOUCH_FOR_SECURITY, true)
-                                      .build();
+        PropertyModel model =
+                new PropertyModel.Builder(ModalDialogProperties.ALL_KEYS)
+                        .with(ModalDialogProperties.CONTROLLER, this)
+                        .with(ModalDialogProperties.CUSTOM_VIEW, customView)
+                        .with(
+                                ModalDialogProperties.POSITIVE_BUTTON_TEXT,
+                                resources,
+                                R.string.nfc_prompt_turn_on)
+                        .with(
+                                ModalDialogProperties.NEGATIVE_BUTTON_TEXT,
+                                resources,
+                                R.string.cancel)
+                        .with(
+                                ModalDialogProperties.CONTENT_DESCRIPTION,
+                                resources,
+                                R.string.nfc_disabled_on_device_message)
+                        .with(ModalDialogProperties.FILTER_TOUCH_FOR_SECURITY, true)
+                        .build();
 
         mWindowAndroid = window;
         mCallback = callback;
@@ -87,18 +101,22 @@ public class NfcSystemLevelPrompt implements ModalDialogProperties.Controller {
         if (buttonType == ModalDialogProperties.ButtonType.NEGATIVE) {
             mModalDialogManager.dismissDialog(model, DialogDismissalCause.NEGATIVE_BUTTON_CLICKED);
         } else {
-            String nfcAction = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
-                    ? Settings.Panel.ACTION_NFC
-                    : Settings.ACTION_NFC_SETTINGS;
+            String nfcAction =
+                    (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                            ? Settings.Panel.ACTION_NFC
+                            : Settings.ACTION_NFC_SETTINGS;
             Intent intent = new Intent(nfcAction);
             try {
-                mWindowAndroid.showIntent(intent, new WindowAndroid.IntentCallback() {
-                    @Override
-                    public void onIntentCompleted(int resultCode, Intent data) {
-                        mModalDialogManager.dismissDialog(
-                                model, DialogDismissalCause.POSITIVE_BUTTON_CLICKED);
-                    }
-                }, null);
+                mWindowAndroid.showIntent(
+                        intent,
+                        new WindowAndroid.IntentCallback() {
+                            @Override
+                            public void onIntentCompleted(int resultCode, Intent data) {
+                                mModalDialogManager.dismissDialog(
+                                        model, DialogDismissalCause.POSITIVE_BUTTON_CLICKED);
+                            }
+                        },
+                        null);
             } catch (android.content.ActivityNotFoundException ex) {
                 mModalDialogManager.dismissDialog(
                         model, DialogDismissalCause.POSITIVE_BUTTON_CLICKED);

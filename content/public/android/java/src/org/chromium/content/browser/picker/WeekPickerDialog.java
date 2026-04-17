@@ -6,11 +6,11 @@ package org.chromium.content.browser.picker;
 
 import android.content.Context;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.content.R;
 
-/**
- * A week picker dialog.
- */
+/** A week picker dialog. */
+@NullMarked
 public class WeekPickerDialog extends TwoFieldDatePickerDialog {
 
     /**
@@ -19,10 +19,13 @@ public class WeekPickerDialog extends TwoFieldDatePickerDialog {
      * @param year The initial year of the dialog.
      * @param weekOfYear The initial week of the dialog.
      */
-    public WeekPickerDialog(Context context,
-             OnValueSetListener callBack,
-            int year, int weekOfYear,
-            double minValue, double maxValue) {
+    public WeekPickerDialog(
+            Context context,
+            OnValueSetListener callBack,
+            int year,
+            int weekOfYear,
+            double minValue,
+            double maxValue) {
         this(context, 0, callBack, year, weekOfYear, minValue, maxValue);
     }
 
@@ -33,12 +36,14 @@ public class WeekPickerDialog extends TwoFieldDatePickerDialog {
      * @param year The initial year of the dialog.
      * @param weekOfYear The initial week of the dialog.
      */
-    public WeekPickerDialog(Context context,
+    public WeekPickerDialog(
+            Context context,
             int theme,
-             OnValueSetListener callBack,
+            OnValueSetListener callBack,
             int year,
             int weekOfYear,
-            double minValue, double maxValue) {
+            double minValue,
+            double maxValue) {
         super(context, theme, callBack, year, weekOfYear, minValue, maxValue);
         setTitle(R.string.week_picker_dialog_title);
     }

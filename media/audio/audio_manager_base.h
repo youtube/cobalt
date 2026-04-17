@@ -24,10 +24,6 @@
 #include "media/audio/audio_manager.h"
 #include "media/audio/audio_output_dispatcher.h"
 
-#if BUILDFLAG(IS_WIN)
-#include "base/win/scoped_com_initializer.h"
-#endif
-
 namespace media {
 
 class AudioOutputDispatcher;
@@ -35,8 +31,6 @@ class AudioOutputDispatcher;
 // AudioManagerBase provides AudioManager functions common for all platforms.
 class MEDIA_EXPORT AudioManagerBase : public AudioManager {
  public:
-  enum class VoiceProcessingMode { kDisabled = 0, kEnabled = 1 };
-
   AudioManagerBase(const AudioManagerBase&) = delete;
   AudioManagerBase& operator=(const AudioManagerBase&) = delete;
 
@@ -117,7 +111,6 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
   void GetAudioOutputDeviceDescriptions(
       AudioDeviceDescriptions* device_descriptions) final;
 
-  AudioParameters GetDefaultOutputStreamParameters() override;
   AudioParameters GetOutputStreamParameters(
       const std::string& device_id) override;
   AudioParameters GetInputStreamParameters(
@@ -202,10 +195,10 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
   int num_output_streams_;
 
   // Track output state change listeners.
-  base::ObserverList<AudioDeviceListener>::Unchecked output_listeners_;
+  base::ObserverList<AudioDeviceListener> output_listeners_;
 
   // Contains currently open input streams.
-  std::unordered_set<AudioInputStream*> input_streams_;
+  std::unordered_set<raw_ptr<AudioInputStream, CtnExperimental>> input_streams_;
 
   // Map of cached AudioOutputDispatcher instances.  Must only be touched
   // from the audio thread (no locking).

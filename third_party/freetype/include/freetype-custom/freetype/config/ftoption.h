@@ -4,7 +4,7 @@
  *
  *   User-selectable configuration macros (specification only).
  *
- * Copyright (C) 1996-2023 by
+ * Copyright (C) 1996-2024 by
  * David Turner, Robert Wilhelm, and Werner Lemberg.
  *
  * This file is part of the FreeType project, and may only be used,
@@ -293,6 +293,31 @@ FT_BEGIN_HEADER
 #if !defined(WITHOUT_HARFBUZZ)
 #define FT_CONFIG_OPTION_USE_HARFBUZZ
 #endif
+
+
+  /**************************************************************************
+   *
+   * HarfBuzz dynamic support.
+   *
+   *   Define this macro if you want the HarfBuzz library to be loaded at
+   *   runtime instead of being linked to FreeType.
+   *
+   *   This option has no effect if `FT_CONFIG_OPTION_USE_HARFBUZZ` is not
+   *   defined.
+   *
+   *   When this option is enabled, FreeType will try to load the HarfBuzz
+   *   library at runtime, using `dlopen` or `LoadLibrary`, depending on the
+   *   platform.  On Microsoft platforms, the library name looked up is
+   *   `libharfbuzz-0.dll`.  On Apple platforms, the library name looked up
+   *   is `libharfbuzz.0.dylib`.  On all other platforms, the library name
+   *   looked up is `libharfbuzz.so.0`.  This name can be overridden by
+   *   defining the macro `FT_LIBHARFBUZZ` at FreeType compilation time.
+   *
+   *   If you use a build system like cmake or the `configure` script,
+   *   options set by those programs have precedence, overwriting the value
+   *   here with the configured one.
+   */
+/* #define FT_CONFIG_OPTION_USE_HARFBUZZ_DYNAMIC */
 
 
   /**************************************************************************
@@ -681,7 +706,7 @@ FT_BEGIN_HEADER
    * defined.
    *
    * [1]
-   * https://www.microsoft.com/typography/cleartype/truetypecleartype.aspx
+   * https://learn.microsoft.com/typography/cleartype/truetypecleartype
    */
 #define TT_CONFIG_OPTION_SUBPIXEL_HINTING
 
@@ -699,7 +724,7 @@ FT_BEGIN_HEADER
    * flags array which can be used to disambiguate, but old fonts will not
    * have them.
    *
-   *   https://www.microsoft.com/typography/otspec/glyf.htm
+   *   https://learn.microsoft.com/typography/opentype/spec/glyf
    *   https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6glyf.html
    */
 #undef TT_CONFIG_OPTION_COMPONENT_OFFSET_SCALED
@@ -757,6 +782,22 @@ FT_BEGIN_HEADER
 #ifndef TT_CONFIG_OPTION_MAX_RUNNABLE_OPCODES
 #define TT_CONFIG_OPTION_MAX_RUNNABLE_OPCODES  1000000L
 #endif
+
+
+  /**************************************************************************
+   *
+   * Option `TT_CONFIG_OPTION_GPOS_KERNING` enables a basic GPOS kerning
+   * implementation (for TrueType fonts only).  With this defined, FreeType
+   * is able to get kerning pair data from the GPOS 'kern' feature as well as
+   * legacy 'kern' tables; without this defined, FreeType will only be able
+   * to use legacy 'kern' tables.
+   *
+   * Note that FreeType does not support more advanced GPOS layout features;
+   * even the 'kern' feature implemented here doesn't handle more
+   * sophisticated kerning variants.  Use a higher-level library like
+   * HarfBuzz instead for that.
+   */
+/* #define TT_CONFIG_OPTION_GPOS_KERNING */
 
 
   /*************************************************************************/

@@ -23,17 +23,14 @@ import org.chromium.webapk.lib.common.WebApkCommonUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 
-/**
- * Tests HostBrowserClassLoader.
- */
+/** Tests HostBrowserClassLoader. */
 @RunWith(RobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class HostBrowserClassLoaderTest {
-    /**
-     * Mock package name for the remote host browser.
-     */
+    /** Mock package name for the remote host browser. */
     private static final String REMOTE_PACKAGE_NAME = "remote_package";
 
     private static final int REMOTE_DEX_VERSION = 1;
@@ -51,7 +48,7 @@ public class HostBrowserClassLoaderTest {
     private DexLoader mMockDexLoader;
 
     @Before
-    public void setUp() {
+    public void setUp() throws Exception {
         mContext = RuntimeEnvironment.application;
         mPackageManager = mContext.getPackageManager();
         setRemoteVersionCode(REMOTE_VERSION_CODE);
@@ -67,11 +64,9 @@ public class HostBrowserClassLoaderTest {
         mMockDexLoader = Mockito.mock(DexLoader.class);
     }
 
-    /**
-     * Test upgrading to a new runtime dex version.
-     */
+    /** Test upgrading to a new runtime dex version. */
     @Test
-    public void testNewRuntimeDexVersion() {
+    public void testNewRuntimeDexVersion() throws Exception {
         HostBrowserClassLoader.createClassLoader(mContext, mRemoteContext, mMockDexLoader, null);
 
         String expectedDexName = WebApkCommonUtils.getRuntimeDexName(REMOTE_DEX_VERSION);
@@ -127,17 +122,13 @@ public class HostBrowserClassLoaderTest {
                 HostBrowserClassLoader.canReuseClassLoaderInstance(mContext, mRemoteContext));
     }
 
-    /**
-     * Creates an InputStream with {@link value} as its data.
-     */
+    /** Creates an InputStream with {@link value} as its data. */
     public InputStream createIntInputStream(int value) {
         String stringValue = "" + value;
         return new ByteArrayInputStream(stringValue.getBytes());
     }
 
-    /**
-     * Sets the remote host browser's version code.
-     */
+    /** Sets the remote host browser's version code. */
     public void setRemoteVersionCode(int versionCode) {
         PackageInfo packageInfo = new PackageInfo();
         packageInfo.packageName = REMOTE_PACKAGE_NAME;
@@ -149,23 +140,23 @@ public class HostBrowserClassLoaderTest {
      * Sets the version of the current runtime library dex stored in the remote host browser's
      * assets.
      */
-    public void setRemoteDexVersion(int dexVersion) {
-        try {
-            Mockito.when(mRemoteAssetManager.open("webapk_dex_version.txt"))
-                    .thenReturn(createIntInputStream(dexVersion));
-        } catch (Exception e) {
-            Assert.fail();
-        }
+    public void setRemoteDexVersion(int dexVersion) throws IOException {
+        Mockito.when(mRemoteAssetManager.open("webapk_dex_version.txt"))
+                .thenReturn(createIntInputStream(dexVersion));
     }
 
     /**
      * Verifies {@link DexLoader#load()} call.
-     * @param expectedDexName The name of the dex in the remote host browser's assets that
-     *                        {@link DexLoader#load()} should have been called with.
+     *
+     * @param expectedDexName The name of the dex in the remote host browser's assets that {@link
+     *     DexLoader#load()} should have been called with.
      */
     public void verifyDexLoaderLoadCall(String expectedDexName) {
         Mockito.verify(mMockDexLoader)
-                .load(Mockito.any(Context.class), Mockito.eq(expectedDexName),
-                        (String) Mockito.isNull(), Mockito.any(File.class));
+                .load(
+                        Mockito.any(Context.class),
+                        Mockito.eq(expectedDexName),
+                        (String) Mockito.isNull(),
+                        Mockito.any(File.class));
     }
 }

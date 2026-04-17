@@ -35,14 +35,14 @@ namespace {
 
 TEST(PagedMemoryTest, Basic) {
   const size_t kNumPages = 10;
-  const size_t kSize = 4096 * kNumPages;
+  const size_t kSize = GetSysPageSize() * kNumPages;
 #if !PERFETTO_BUILDFLAG(PERFETTO_OS_FUCHSIA)
   void* ptr_raw = nullptr;
 #endif
   {
     PagedMemory mem = PagedMemory::Allocate(kSize);
     ASSERT_TRUE(mem.IsValid());
-    ASSERT_EQ(0u, reinterpret_cast<uintptr_t>(mem.Get()) % 4096);
+    ASSERT_EQ(0u, reinterpret_cast<uintptr_t>(mem.Get()) % GetSysPageSize());
 #if !PERFETTO_BUILDFLAG(PERFETTO_OS_FUCHSIA)
     ptr_raw = mem.Get();
 #endif
@@ -95,8 +95,8 @@ TEST(PagedMemoryTest, SubPageGranularity) {
 }
 
 TEST(PagedMemoryTest, Uncommitted) {
-  constexpr size_t kNumPages = 4096;
-  constexpr size_t kSize = 4096 * kNumPages;
+  const size_t kNumPages = 4096;
+  const size_t kSize = GetSysPageSize() * kNumPages;
 #if !PERFETTO_BUILDFLAG(PERFETTO_OS_FUCHSIA)
   char* ptr_raw = nullptr;
 #endif
@@ -156,14 +156,14 @@ TEST(PagedMemoryTest, Uncommitted) {
 TEST(PagedMemoryTest, AccessUncommittedMemoryTriggersASAN) {
   EXPECT_DEATH_IF_SUPPORTED(
       {
-        constexpr size_t kNumPages = 4096;
-        constexpr size_t kSize = 4096 * kNumPages;
+        const size_t kNumPages = 2000;
+        const size_t kSize = GetSysPageSize() * kNumPages;
         PagedMemory mem =
             PagedMemory::Allocate(kSize, PagedMemory::kDontCommit);
         ASSERT_TRUE(mem.IsValid());
         char* ptr_raw = reinterpret_cast<char*>(mem.Get());
         // Only the first 1024 pages are mapped.
-        constexpr size_t kMappedSize = 4096 * 1024;
+        const size_t kMappedSize = GetSysPageSize() * 1024;
         ptr_raw[kMappedSize] = 'x';
         abort();
       },
@@ -196,9 +196,7 @@ TEST(PagedMemoryTest, GuardRegions) {
 #endif
 TEST(PagedMemoryTest, Unchecked) {
   const size_t kMemLimit = 256 * 1024 * 1024l;
-  struct rlimit limit {
-    kMemLimit, kMemLimit
-  };
+  struct rlimit limit{kMemLimit, kMemLimit};
   // ASSERT_EXIT here is to spawn the test in a sub-process and avoid
   // propagating the setrlimit() to other test units in case of failure.
   ASSERT_EXIT(

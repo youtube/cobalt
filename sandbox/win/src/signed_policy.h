@@ -7,11 +7,11 @@
 
 #include <stdint.h>
 
+#include "base/files/file_path.h"
 #include "base/win/scoped_handle.h"
 #include "sandbox/win/src/crosscall_server.h"
 #include "sandbox/win/src/policy_engine_opcodes.h"
 #include "sandbox/win/src/policy_low_level.h"
-#include "sandbox/win/src/sandbox_policy.h"
 
 namespace sandbox {
 
@@ -19,10 +19,8 @@ namespace sandbox {
 class SignedPolicy {
  public:
   // Creates the required low-level policy rules to evaluate a high-level
-  // policy rule.
-  static bool GenerateRules(const wchar_t* name,
-                            Semantics semantics,
-                            LowLevelPolicy* policy);
+  // policy rule. Note - dll_path must be an exact path.
+  static bool GenerateRules(base::FilePath dll_path, LowLevelPolicy* policy);
 
   // Performs the desired policy action on a request.
   // client_info is the target process that is making the request and

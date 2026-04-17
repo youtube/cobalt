@@ -30,10 +30,10 @@
 
 #include <atomic>
 
+#include "base/check_op.h"
 #include "base/logging.h"
 #include "base/strings/stringprintf.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "client/client_argv_handling.h"
 #include "third_party/lss/lss.h"
 #include "util/file/file_io.h"
@@ -49,9 +49,20 @@
 #include "util/posix/signals.h"
 #include "util/posix/spawn_subprocess.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "base/notreached.h"
+#include "base/synchronization/lock.h"
+#include "starboard/elf_loader/evergreen_info.h"
+#endif  // BUILDFLAG(IS_STARBOARD)
+
 namespace crashpad {
 
 namespace {
+
+#if BUILDFLAG(IS_STARBOARD)
+constexpr char kEvergreenInfoKey[] = "evergreen-information";
+constexpr char kAnnotationKey[] = "annotation=%s";
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 std::string FormatArgumentInt(const std::string& name, int value) {
   return base::StringPrintf("--%s=%d", name.c_str(), value);
@@ -60,6 +71,36 @@ std::string FormatArgumentInt(const std::string& name, int value) {
 std::string FormatArgumentAddress(const std::string& name, const void* addr) {
   return base::StringPrintf("--%s=%p", name.c_str(), addr);
 }
+
+#if BUILDFLAG(IS_STARBOARD)
+std::string FormatArgumentString(const std::string& name,
+                                 const std::string& value) {
+  return base::StringPrintf("--%s=%s", name.c_str(), value.c_str());
+}
+
+bool UpdateAnnotation(std::string& annotation,
+                      const std::string key,
+                      const std::string& new_value) {
+  if (new_value.empty()) {
+    return false;
+  }
+  // The annotation is in the format --key=value
+  if (annotation.compare(2, key.size(), key) == 0) {
+    annotation = FormatArgumentString(key, new_value);
+    LOG(INFO) << "Updated annotation: " << annotation;
+    return true;
+  }
+  return false;
+}
+
+void AddAnnotation(std::vector<std::string>& argv_strings,
+                   const std::string& key,
+                   const std::string& new_value) {
+  std::string v = FormatArgumentString(key, new_value);
+  argv_strings.push_back(v);
+  LOG(INFO) << "Added annotation: " << v;
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 #if BUILDFLAG(IS_ANDROID)
 
@@ -131,6 +172,8 @@ std::vector<std::string> BuildArgsToLaunchWithLinker(
 
 #endif  // BUILDFLAG(IS_ANDROID)
 
+using LastChanceHandler = bool (*)(int, siginfo_t*, ucontext_t*);
+
 // A base class for Crashpad signal handler implementations.
 class SignalHandler {
  public:
@@ -154,6 +197,10 @@ class SignalHandler {
     first_chance_handler_ = handler;
   }
 
+  void SetLastChanceExceptionHandler(LastChanceHandler handler) {
+    last_chance_handler_ = handler;
+  }
+
   // The base implementation for all signal handlers, suitable for calling
   // directly to simulate signal delivery.
   void HandleCrash(int signo, siginfo_t* siginfo, void* context) {
@@ -168,6 +215,17 @@ class SignalHandler {
     ScopedPrSetDumpable set_dumpable(false);
     HandleCrashImpl();
   }
+
+#if BUILDFLAG(IS_STARBOARD)
+  bool SendEvergreenInfo(EvergreenInfo evergreen_info) {
+    evergreen_info_ = evergreen_info;
+    return SendEvergreenInfoImpl();
+  }
+
+  bool InsertAnnotation(const char* key, const char* value) {
+    return InsertAnnotationImpl(key, value);
+  }
+#endif  // BUILDFLAG(IS_STARBOARD)
 
  protected:
   SignalHandler() = default;
@@ -190,7 +248,16 @@ class SignalHandler {
     return exception_information_;
   }
 
+#if BUILDFLAG(IS_STARBOARD)
+  const EvergreenInfo& GetEvergreenInfo() { return evergreen_info_; }
+#endif  // BUILDFLAG(IS_STARBOARD)
+
   virtual void HandleCrashImpl() = 0;
+
+#if BUILDFLAG(IS_STARBOARD)
+  virtual bool SendEvergreenInfoImpl() = 0;
+  virtual bool InsertAnnotationImpl(const char* key, const char* value) = 0;
+#endif  // BUILDFLAG(IS_STARBOARD)
 
  private:
   static constexpr int32_t kDumpNotDone = 0;
@@ -212,6 +279,11 @@ class SignalHandler {
     if (!handler_->disabled_.test_and_set()) {
       handler_->HandleCrash(signo, siginfo, context);
       handler_->WakeThreads();
+      if (handler_->last_chance_handler_ &&
+          handler_->last_chance_handler_(
+              signo, siginfo, static_cast<ucontext_t*>(context))) {
+        return;
+      }
     } else {
       // Processes on Android normally have several chained signal handlers that
       // co-operate to report crashes. e.g. WebView will have this signal
@@ -254,6 +326,7 @@ class SignalHandler {
   Signals::OldActions old_actions_ = {};
   ExceptionInformation exception_information_ = {};
   CrashpadClient::FirstChanceHandler first_chance_handler_ = nullptr;
+  LastChanceHandler last_chance_handler_ = nullptr;
   int32_t dump_done_futex_ = kDumpNotDone;
 #if !defined(__cpp_lib_atomic_value_initialization) || \
     __cpp_lib_atomic_value_initialization < 201911L
@@ -261,6 +334,10 @@ class SignalHandler {
 #else
   std::atomic_flag disabled_;
 #endif
+
+#if BUILDFLAG(IS_STARBOARD)
+  EvergreenInfo evergreen_info_;
+#endif  // BUILDFLAG(IS_STARBOARD)
 
   static SignalHandler* handler_;
 };
@@ -317,6 +394,52 @@ class LaunchAtCrashHandler : public SignalHandler {
     waitpid(pid, &status, 0);
   }
 
+#if BUILDFLAG(IS_STARBOARD)
+  bool SendEvergreenInfoImpl() override {
+    base::AutoLock lock(argv_lock_);
+
+    bool updated = false;
+    for (auto& s : argv_strings_) {
+      if (s.compare(2, strlen(kEvergreenInfoKey), kEvergreenInfoKey) == 0) {
+        s = FormatArgumentAddress(kEvergreenInfoKey, &GetEvergreenInfo());
+        LOG(INFO) << "Updated evergreen info: " << s;
+        updated = true;
+        break;
+      }
+    }
+    if (!updated) {
+      std::string v =
+          FormatArgumentAddress(kEvergreenInfoKey, &GetEvergreenInfo());
+      argv_strings_.push_back(v);
+      LOG(INFO) << "Added evergreen info: " << v;
+    }
+
+    StringVectorToCStringVector(argv_strings_, &argv_);
+
+    return true;
+  }
+
+  bool InsertAnnotationImpl(const char* key, const char* value) override {
+    base::AutoLock lock(argv_lock_);
+
+    std::string formatted_key = base::StringPrintf(kAnnotationKey, key);
+    bool updated_annotation = false;
+    for (auto& s : argv_strings_) {
+      if (UpdateAnnotation(s, formatted_key, value)) {
+        updated_annotation = true;
+      }
+    }
+
+    if (!updated_annotation) {
+      AddAnnotation(argv_strings_, formatted_key, value);
+    }
+
+    StringVectorToCStringVector(argv_strings_, &argv_);
+
+    return true;
+  }
+#endif  // BUILDFLAG(IS_STARBOARD)
+
  private:
   LaunchAtCrashHandler() = default;
 
@@ -324,6 +447,12 @@ class LaunchAtCrashHandler : public SignalHandler {
 
   std::vector<std::string> argv_strings_;
   std::vector<const char*> argv_;
+
+#if BUILDFLAG(IS_STARBOARD)
+  // Protects access to both argv_strings_ and argv_.
+  base::Lock argv_lock_;
+#endif
+
   std::vector<std::string> envp_strings_;
   std::vector<const char*> envp_;
   bool set_envp_ = false;
@@ -393,7 +522,7 @@ class RequestCrashDumpHandler : public SignalHandler {
     ExceptionHandlerProtocol::ClientInformation info = {};
     info.exception_information_address =
         FromPointerCast<VMAddress>(&GetExceptionInfo());
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     info.crash_loop_before_time = crash_loop_before_time_;
 #endif
 
@@ -401,11 +530,28 @@ class RequestCrashDumpHandler : public SignalHandler {
     client.RequestCrashDump(info);
   }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   void SetCrashLoopBefore(uint64_t crash_loop_before_time) {
     crash_loop_before_time_ = crash_loop_before_time;
   }
 #endif
+
+#if BUILDFLAG(IS_STARBOARD)
+  // TODO: b/446908034 - Cobalt: consider removing these custom methods from the
+  // base class since for Chrobalt we have no immediate plans to support this
+  // derived signal handler class.
+  bool SendEvergreenInfoImpl() override {
+    // Cobalt currently doesn't support RequestCrashDumpHandler.
+    NOTIMPLEMENTED();
+    return false;
+  }
+
+  bool InsertAnnotationImpl(const char* key, const char* value) override {
+    // Cobalt currently doesn't support RequestCrashDumpHandler.
+    NOTIMPLEMENTED();
+    return false;
+  }
+#endif  // BUILDFLAG(IS_STARBOARD)
 
  private:
   RequestCrashDumpHandler() = default;
@@ -423,7 +569,7 @@ class RequestCrashDumpHandler : public SignalHandler {
   ScopedFileHandle sock_to_handler_;
   pid_t handler_pid_ = -1;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // An optional UNIX timestamp passed to us from Chrome.
   // This will pass to crashpad_handler and then to Chrome OS crash_reporter.
   // This should really be a time_t, but it's basically an opaque value (we
@@ -676,11 +822,23 @@ bool CrashpadClient::StartHandlerAtCrash(
     const base::FilePath& database,
     const base::FilePath& metrics_dir,
     const std::string& url,
+#if BUILDFLAG(IS_STARBOARD)
+    const base::FilePath& ca_certificates_path,
+#endif
     const std::map<std::string, std::string>& annotations,
     const std::vector<std::string>& arguments,
     const std::vector<base::FilePath>& attachments) {
   std::vector<std::string> argv = BuildHandlerArgvStrings(
-      handler, database, metrics_dir, url, annotations, arguments, attachments);
+      handler,
+      database,
+      metrics_dir,
+      url,
+#if BUILDFLAG(IS_STARBOARD)
+      ca_certificates_path,
+#endif
+      annotations,
+      arguments,
+      attachments);
 
   auto signal_handler = LaunchAtCrashHandler::Get();
   return signal_handler->Initialize(&argv, nullptr, &unhandled_signals_);
@@ -739,17 +897,45 @@ void CrashpadClient::SetFirstChanceExceptionHandler(
   SignalHandler::Get()->SetFirstChanceHandler(handler);
 }
 
+// static
+void CrashpadClient::SetLastChanceExceptionHandler(LastChanceHandler handler) {
+  DCHECK(SignalHandler::Get());
+  SignalHandler::Get()->SetLastChanceExceptionHandler(handler);
+}
+
 void CrashpadClient::SetUnhandledSignals(const std::set<int>& signals) {
   DCHECK(!SignalHandler::Get());
   unhandled_signals_ = signals;
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 // static
 void CrashpadClient::SetCrashLoopBefore(uint64_t crash_loop_before_time) {
   auto request_crash_dump_handler = RequestCrashDumpHandler::Get();
   request_crash_dump_handler->SetCrashLoopBefore(crash_loop_before_time);
 }
 #endif
+
+#if BUILDFLAG(IS_STARBOARD)
+// static
+bool CrashpadClient::SendEvergreenInfoToHandler(EvergreenInfo evergreen_info) {
+  if (!SignalHandler::Get()) {
+    DLOG(ERROR) << "Crashpad isn't enabled";
+    return false;
+  }
+  return SignalHandler::Get()->SendEvergreenInfo(evergreen_info);
+}
+
+// static
+bool CrashpadClient::InsertAnnotationForHandler(
+    const char* key, const char* value) {
+  if (!SignalHandler::Get()) {
+    DLOG(ERROR) << "Crashpad isn't enabled";
+    return false;
+  }
+
+  return SignalHandler::Get()->InsertAnnotation(key, value);
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 }  // namespace crashpad

@@ -12,6 +12,7 @@
 #include "quiche/quic/core/crypto/null_encrypter.h"
 #include "quiche/quic/core/http/quic_spdy_client_session.h"
 #include "quiche/quic/core/http/spdy_utils.h"
+#include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
@@ -21,8 +22,9 @@
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/common/simple_buffer_allocator.h"
 
-using spdy::Http2HeaderBlock;
+using quiche::HttpHeaderBlock;
 using testing::_;
+using testing::ElementsAre;
 using testing::StrictMock;
 
 namespace quic {
@@ -34,12 +36,10 @@ class MockQuicSpdyClientSession : public QuicSpdyClientSession {
  public:
   explicit MockQuicSpdyClientSession(
       const ParsedQuicVersionVector& supported_versions,
-      QuicConnection* connection,
-      QuicClientPushPromiseIndex* push_promise_index)
+      QuicConnection* connection)
       : QuicSpdyClientSession(DefaultQuicConfig(), supported_versions,
-                              connection,
-                              QuicServerId("example.com", 443, false),
-                              &crypto_config_, push_promise_index),
+                              connection, QuicServerId("example.com", 443),
+                              &crypto_config_),
         crypto_config_(crypto_test_utils::ProofVerifierForTesting()) {}
   MockQuicSpdyClientSession(const MockQuicSpdyClientSession&) = delete;
   MockQuicSpdyClientSession& operator=(const MockQuicSpdyClientSession&) =
@@ -63,8 +63,7 @@ class QuicSpdyClientStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
       : connection_(new StrictMock<MockQuicConnection>(
             &helper_, &alarm_factory_, Perspective::IS_CLIENT,
             SupportedVersions(GetParam()))),
-        session_(connection_->supported_versions(), connection_,
-                 &push_promise_index_),
+        session_(connection_->supported_versions(), connection_),
         body_("hello world") {
     session_.Initialize();
     connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
@@ -94,12 +93,11 @@ class QuicSpdyClientStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   MockQuicConnectionHelper helper_;
   MockAlarmFactory alarm_factory_;
   StrictMock<MockQuicConnection>* connection_;
-  QuicClientPushPromiseIndex push_promise_index_;
 
   MockQuicSpdyClientSession session_;
   QuicSpdyClientStream* stream_;
   std::unique_ptr<StreamVisitor> stream_visitor_;
-  Http2HeaderBlock headers_;
+  HttpHeaderBlock headers_;
   std::string body_;
 };
 
@@ -118,10 +116,11 @@ TEST_P(QuicSpdyClientStreamTest, TestReceivingIllegalResponseStatusCode) {
                               headers);
   EXPECT_THAT(stream_->stream_error(),
               IsStreamError(QUIC_BAD_APPLICATION_PAYLOAD));
+  EXPECT_EQ(stream_->ietf_application_error(),
+            static_cast<uint64_t>(QuicHttp3ErrorCode::GENERAL_PROTOCOL_ERROR));
 }
 
 TEST_P(QuicSpdyClientStreamTest, InvalidResponseHeader) {
-  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   auto headers = AsHeaderList(std::vector<std::pair<std::string, std::string>>{
       {":status", "200"}, {":path", "/foo"}});
@@ -131,10 +130,11 @@ TEST_P(QuicSpdyClientStreamTest, InvalidResponseHeader) {
                               headers);
   EXPECT_THAT(stream_->stream_error(),
               IsStreamError(QUIC_BAD_APPLICATION_PAYLOAD));
+  EXPECT_EQ(stream_->ietf_application_error(),
+            static_cast<uint64_t>(QuicHttp3ErrorCode::GENERAL_PROTOCOL_ERROR));
 }
 
 TEST_P(QuicSpdyClientStreamTest, MissingStatusCode) {
-  SetQuicReloadableFlag(quic_verify_request_headers_2, true);
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   auto headers = AsHeaderList(
       std::vector<std::pair<std::string, std::string>>{{"key", "value"}});
@@ -144,6 +144,8 @@ TEST_P(QuicSpdyClientStreamTest, MissingStatusCode) {
                               headers);
   EXPECT_THAT(stream_->stream_error(),
               IsStreamError(QUIC_BAD_APPLICATION_PAYLOAD));
+  EXPECT_EQ(stream_->ietf_application_error(),
+            static_cast<uint64_t>(QuicHttp3ErrorCode::GENERAL_PROTOCOL_ERROR));
 }
 
 TEST_P(QuicSpdyClientStreamTest, TestFraming) {
@@ -162,13 +164,27 @@ TEST_P(QuicSpdyClientStreamTest, TestFraming) {
   EXPECT_EQ(body_, stream_->data());
 }
 
+TEST_P(QuicSpdyClientStreamTest, HostAllowedInResponseHeader) {
+  SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
+  auto headers = AsHeaderList(std::vector<std::pair<std::string, std::string>>{
+      {":status", "200"}, {"host", "example.com"}});
+  EXPECT_CALL(*connection_, OnStreamReset(stream_->id(), _)).Times(0u);
+  stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
+                              headers);
+  EXPECT_THAT(stream_->stream_error(), IsStreamError(QUIC_STREAM_NO_ERROR));
+  EXPECT_EQ(stream_->ietf_application_error(),
+            static_cast<uint64_t>(QuicHttp3ErrorCode::HTTP3_NO_ERROR));
+}
+
 TEST_P(QuicSpdyClientStreamTest, Test100ContinueBeforeSuccessful) {
   // First send 100 Continue.
   headers_[":status"] = "100";
   auto headers = AsHeaderList(headers_);
   stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
                               headers);
-  EXPECT_EQ("100", stream_->preliminary_headers().find(":status")->second);
+  ASSERT_EQ(stream_->preliminary_headers().size(), 1);
+  EXPECT_EQ("100",
+            stream_->preliminary_headers().front().find(":status")->second);
   EXPECT_EQ(0u, stream_->response_headers().size());
   EXPECT_EQ(100, stream_->response_code());
   EXPECT_EQ("", stream_->data());
@@ -189,7 +205,9 @@ TEST_P(QuicSpdyClientStreamTest, Test100ContinueBeforeSuccessful) {
   EXPECT_EQ(200, stream_->response_code());
   EXPECT_EQ(body_, stream_->data());
   // Make sure the 100 response is still available.
-  EXPECT_EQ("100", stream_->preliminary_headers().find(":status")->second);
+  ASSERT_EQ(stream_->preliminary_headers().size(), 1);
+  EXPECT_EQ("100",
+            stream_->preliminary_headers().front().find(":status")->second);
 }
 
 TEST_P(QuicSpdyClientStreamTest, TestUnknownInformationalBeforeSuccessful) {
@@ -198,6 +216,9 @@ TEST_P(QuicSpdyClientStreamTest, TestUnknownInformationalBeforeSuccessful) {
   auto headers = AsHeaderList(headers_);
   stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
                               headers);
+  ASSERT_EQ(stream_->preliminary_headers().size(), 1);
+  EXPECT_EQ("199",
+            stream_->preliminary_headers().front().find(":status")->second);
   EXPECT_EQ(0u, stream_->response_headers().size());
   EXPECT_EQ(199, stream_->response_code());
   EXPECT_EQ("", stream_->data());
@@ -217,6 +238,63 @@ TEST_P(QuicSpdyClientStreamTest, TestUnknownInformationalBeforeSuccessful) {
   EXPECT_EQ("200", stream_->response_headers().find(":status")->second);
   EXPECT_EQ(200, stream_->response_code());
   EXPECT_EQ(body_, stream_->data());
+  // Make sure the 199 response is still available.
+  ASSERT_EQ(stream_->preliminary_headers().size(), 1);
+  EXPECT_EQ("199",
+            stream_->preliminary_headers().front().find(":status")->second);
+}
+
+TEST_P(QuicSpdyClientStreamTest, TestMultipleInformationalBeforeSuccessful) {
+  // First send 100 Continue.
+  headers_[":status"] = "100";
+  auto headers = AsHeaderList(headers_);
+  stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
+                              headers);
+  ASSERT_EQ(stream_->preliminary_headers().size(), 1);
+  EXPECT_EQ("100",
+            stream_->preliminary_headers().front().find(":status")->second);
+  EXPECT_EQ(0u, stream_->response_headers().size());
+  EXPECT_EQ(100, stream_->response_code());
+  EXPECT_EQ("", stream_->data());
+
+  // Then send 199, an unknown Informational (1XX).
+  headers_[":status"] = "199";
+  headers = AsHeaderList(headers_);
+  stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
+                              headers);
+  ASSERT_EQ(stream_->preliminary_headers().size(), 2);
+  EXPECT_EQ("100",
+            stream_->preliminary_headers().front().find(":status")->second);
+  EXPECT_EQ("199",
+            stream_->preliminary_headers().back().find(":status")->second);
+  EXPECT_EQ(0u, stream_->response_headers().size());
+  EXPECT_EQ(199, stream_->response_code());
+  EXPECT_EQ("", stream_->data());
+
+  // Then send 200 OK.
+  headers_[":status"] = "200";
+  headers = AsHeaderList(headers_);
+  stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
+                              headers);
+  quiche::QuicheBuffer header = HttpEncoder::SerializeDataFrameHeader(
+      body_.length(), quiche::SimpleBufferAllocator::Get());
+  std::string data = VersionUsesHttp3(connection_->transport_version())
+                         ? absl::StrCat(header.AsStringView(), body_)
+                         : body_;
+  stream_->OnStreamFrame(
+      QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
+
+  // Make sure the 200 response got parsed correctly.
+  EXPECT_EQ("200", stream_->response_headers().find(":status")->second);
+  EXPECT_EQ(200, stream_->response_code());
+  EXPECT_EQ(body_, stream_->data());
+
+  // Make sure the informational responses are still available.
+  ASSERT_EQ(stream_->preliminary_headers().size(), 2);
+  EXPECT_EQ("100",
+            stream_->preliminary_headers().front().find(":status")->second);
+  EXPECT_EQ("199",
+            stream_->preliminary_headers().back().find(":status")->second);
 }
 
 TEST_P(QuicSpdyClientStreamTest, TestReceiving101) {
@@ -273,6 +351,8 @@ TEST_P(QuicSpdyClientStreamTest,
       QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
 
   EXPECT_NE(QUIC_STREAM_NO_ERROR, stream_->stream_error());
+  EXPECT_EQ(stream_->ietf_application_error(),
+            static_cast<uint64_t>(QuicHttp3ErrorCode::GENERAL_PROTOCOL_ERROR));
 }
 
 // Test that receiving trailing headers (on the headers stream), containing a
@@ -292,7 +372,7 @@ TEST_P(QuicSpdyClientStreamTest, ReceivingTrailers) {
   // Send trailers before sending the body. Even though a FIN has been received
   // the stream should not be closed, as it does not yet have all the data bytes
   // promised by the final offset field.
-  Http2HeaderBlock trailer_block;
+  HttpHeaderBlock trailer_block;
   trailer_block["trailer key"] = "trailer value";
   trailer_block[kFinalOffsetHeaderKey] = absl::StrCat(body_.size());
   auto trailers = AsHeaderList(trailer_block);
@@ -309,6 +389,65 @@ TEST_P(QuicSpdyClientStreamTest, ReceivingTrailers) {
   stream_->OnStreamFrame(
       QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
   EXPECT_TRUE(stream_->reading_stopped());
+}
+
+TEST_P(QuicSpdyClientStreamTest, Capsules) {
+  if (!VersionUsesHttp3(connection_->transport_version())) {
+    return;
+  }
+  SavingHttp3DatagramVisitor h3_datagram_visitor;
+  stream_->RegisterHttp3DatagramVisitor(&h3_datagram_visitor);
+  headers_.erase("content-length");
+  auto headers = AsHeaderList(headers_);
+  stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
+                              headers);
+  std::string capsule_data = {0, 6, 1, 2, 3, 4, 5, 6, 0x17, 4, 1, 2, 3, 4};
+  quiche::QuicheBuffer data_frame_header =
+      HttpEncoder::SerializeDataFrameHeader(
+          capsule_data.length(), quiche::SimpleBufferAllocator::Get());
+  std::string stream_data =
+      absl::StrCat(data_frame_header.AsStringView(), capsule_data);
+  stream_->OnStreamFrame(
+      QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, stream_data));
+  // Datagram capsule.
+  std::string http_datagram_payload = {1, 2, 3, 4, 5, 6};
+  EXPECT_THAT(h3_datagram_visitor.received_h3_datagrams(),
+              ElementsAre(SavingHttp3DatagramVisitor::SavedHttp3Datagram{
+                  stream_->id(), http_datagram_payload}));
+  // Unknown capsule.
+  uint64_t capsule_type = 0x17u;
+  std::string unknown_capsule_payload = {1, 2, 3, 4};
+  EXPECT_THAT(h3_datagram_visitor.received_unknown_capsules(),
+              ElementsAre(SavingHttp3DatagramVisitor::SavedUnknownCapsule{
+                  stream_->id(), capsule_type, unknown_capsule_payload}));
+  // Cleanup.
+  stream_->UnregisterHttp3DatagramVisitor();
+}
+
+TEST_P(QuicSpdyClientStreamTest, CapsulesOnUnsuccessfulResponse) {
+  if (!VersionUsesHttp3(connection_->transport_version())) {
+    return;
+  }
+  SavingHttp3DatagramVisitor h3_datagram_visitor;
+  stream_->RegisterHttp3DatagramVisitor(&h3_datagram_visitor);
+  headers_[":status"] = "401";
+  headers_.erase("content-length");
+  auto headers = AsHeaderList(headers_);
+  stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
+                              headers);
+  std::string capsule_data = {0, 6, 1, 2, 3, 4, 5, 6, 0x17, 4, 1, 2, 3, 4};
+  quiche::QuicheBuffer data_frame_header =
+      HttpEncoder::SerializeDataFrameHeader(
+          capsule_data.length(), quiche::SimpleBufferAllocator::Get());
+  std::string stream_data =
+      absl::StrCat(data_frame_header.AsStringView(), capsule_data);
+  stream_->OnStreamFrame(
+      QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, stream_data));
+  // Ensure received capsules were ignored.
+  EXPECT_TRUE(h3_datagram_visitor.received_h3_datagrams().empty());
+  EXPECT_TRUE(h3_datagram_visitor.received_unknown_capsules().empty());
+  // Cleanup.
+  stream_->UnregisterHttp3DatagramVisitor();
 }
 
 }  // namespace

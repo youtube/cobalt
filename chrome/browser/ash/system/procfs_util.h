@@ -5,8 +5,11 @@
 #ifndef CHROME_BROWSER_ASH_SYSTEM_PROCFS_UTIL_H_
 #define CHROME_BROWSER_ASH_SYSTEM_PROCFS_UTIL_H_
 
+#include <optional>
+
+#include "base/files/file.h"
 #include "base/files/file_path.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "base/process/process_handle.h"
 
 namespace ash {
 namespace system {
@@ -44,13 +47,32 @@ struct SingleProcStat {
 };
 
 // Returns a single process information by reading a /proc/[pid]stat file.
-absl::optional<SingleProcStat> GetSingleProcStat(
+std::optional<SingleProcStat> GetSingleProcStat(
     const base::FilePath& stat_file);
 
 // Returns the total CPU time used in jiffies by reading /proc/stat file.
 // The input |stat_file| is used for testing.
-absl::optional<int64_t> GetCpuTimeJiffies(
+std::optional<int64_t> GetCpuTimeJiffies(
     const base::FilePath& stat_file = base::FilePath("/proc/stat"));
+
+// A file object for "/proc/<pid>/stat".
+class ProcStatFile {
+ public:
+  explicit ProcStatFile(base::ProcessId process_id);
+  ProcStatFile(ProcStatFile&&) = default;
+  ProcStatFile(ProcStatFile&) = delete;
+  ~ProcStatFile();
+
+  // Returns whether the stat file is valid. See `base::File::IsValid()` for
+  // details.
+  bool IsValid() const;
+
+  // Returns whether the process is still alive or not.
+  bool IsPidAlive();
+
+ private:
+  base::File file_;
+};
 
 }  // namespace system
 }  // namespace ash

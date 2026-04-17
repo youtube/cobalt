@@ -4,7 +4,7 @@
 
 package org.chromium.content_public.browser;
 
-//import org.chromium.content_public.browser.NavigationEntry;
+import org.chromium.build.annotations.NullMarked;
 
 import java.util.ArrayList;
 
@@ -13,6 +13,7 @@ import java.util.ArrayList;
  * {@link WebContents}. It is a copy and will not be updated as navigation
  * occurs on the source {@link WebContents}.
  */
+@NullMarked
 public class NavigationHistory {
 
     private final ArrayList<NavigationEntry> mEntries = new ArrayList<NavigationEntry>();
@@ -33,9 +34,7 @@ public class NavigationHistory {
         return mEntries.size();
     }
 
-    /**
-     * Returns the {@link NavigationEntry} for the given index.
-     */
+    /** Returns the {@link NavigationEntry} for the given index. */
     public NavigationEntry getEntryAtIndex(int index) {
         return mEntries.get(index);
     }
@@ -47,5 +46,4 @@ public class NavigationHistory {
     public int getCurrentEntryIndex() {
         return mCurrentEntryIndex;
     }
-
 }

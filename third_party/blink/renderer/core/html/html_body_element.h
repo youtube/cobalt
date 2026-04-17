@@ -26,13 +26,15 @@
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/document.h"
+#include "third_party/blink/renderer/core/frame/window_event_handlers.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
 
 namespace blink {
 
 class Document;
 
-class CORE_EXPORT HTMLBodyElement final : public HTMLElement {
+class CORE_EXPORT HTMLBodyElement final : public HTMLElement,
+                                          public WindowEventHandlers {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
@@ -56,7 +58,7 @@ class CORE_EXPORT HTMLBodyElement final : public HTMLElement {
   void CollectStyleForPresentationAttribute(
       const QualifiedName&,
       const AtomicString&,
-      MutableCSSPropertyValueSet*) override;
+      HeapVector<CSSPropertyValue, 8>&) override;
 
   InsertionNotificationRequest InsertedInto(ContainerNode&) override;
   void RemovedFrom(ContainerNode&) override;
@@ -64,9 +66,10 @@ class CORE_EXPORT HTMLBodyElement final : public HTMLElement {
 
   bool IsURLAttribute(const Attribute&) const override;
   bool HasLegalLinkAttribute(const QualifiedName&) const override;
-  const QualifiedName& SubResourceAttributeName() const override;
 
-  bool SupportsFocus() const override;
+  Document& GetDocumentForWindowEventHandler() const override {
+    return GetDocument();
+  }
 };
 
 }  // namespace blink

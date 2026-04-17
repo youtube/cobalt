@@ -44,7 +44,6 @@ constexpr mojom::NetworkState DeviceStateToNetworkState(
       return mojom::NetworkState::kProhibited;
     case network_config::mojom::DeviceStateType::kUnavailable:
       NOTREACHED();
-      return mojom::NetworkState::kUninitialized;
   }
 }
 

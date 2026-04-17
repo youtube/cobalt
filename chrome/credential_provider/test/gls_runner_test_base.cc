@@ -12,9 +12,11 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/multiprocess_test.h"
+#include "base/win/ntsecapi_shim.h"
 #include "chrome/credential_provider/gaiacp/gaia_credential_provider_filter.h"
 #include "chrome/credential_provider/gaiacp/scoped_lsa_policy.h"
 #include "chrome/credential_provider/test/test_credential.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "testing/multiprocess_func_list.h"
 
 namespace credential_provider {
@@ -35,7 +37,7 @@ namespace testing {
 
 // Corresponding default email and username for tests that don't override them.
 const char kDefaultEmail[] = "foo@gmail.com";
-const char kDefaultGaiaId[] = "test-gaia-id";
+const GaiaId::Literal kDefaultGaiaId("test-gaia-id");
 const wchar_t kDefaultUsername[] = L"foo";
 const char kDefaultInvalidTokenHandleResponse[] = "{}";
 const char kDefaultValidTokenHandleResponse[] = "{\"expires_in\":1}";
@@ -69,14 +71,13 @@ MULTIPROCESS_TEST_MAIN(gls_main) {
       &default_exit_code));
   std::string gls_email =
       command_line->GetSwitchValueASCII(switches::kGlsUserEmail);
-  std::string gaia_id_override =
-      command_line->GetSwitchValueASCII(switches::kOverrideGaiaId);
+  GaiaId gaia_id_override(
+      command_line->GetSwitchValueASCII(switches::kOverrideGaiaId));
   std::string gaia_password =
       command_line->GetSwitchValueASCII(switches::kOverrideGaiaPassword);
   std::string full_name =
       command_line->GetSwitchValueASCII(switches::kOverrideFullName);
-  std::string expected_gaia_id =
-      command_line->GetSwitchValueASCII(kGaiaIdSwitch);
+  GaiaId expected_gaia_id(command_line->GetSwitchValueASCII(kGaiaIdSwitch));
   std::string expected_email =
       command_line->GetSwitchValueASCII(kPrefillEmailSwitch);
   if (expected_email.empty()) {
@@ -85,7 +86,7 @@ MULTIPROCESS_TEST_MAIN(gls_main) {
     EXPECT_EQ(gls_email, std::string());
   }
   if (expected_gaia_id.empty())
-    expected_gaia_id = kDefaultGaiaId;
+    expected_gaia_id = GaiaId(kDefaultGaiaId);
 
   if (gaia_password.empty())
     gaia_password = "password";
@@ -98,19 +99,19 @@ MULTIPROCESS_TEST_MAIN(gls_main) {
     expected_gaia_id = gaia_id_override;
   }
 
-  base::Value dict(base::Value::Type::DICT);
+  base::Value::Dict dict;
   if (!gaia_id_override.empty() && gaia_id_override != expected_gaia_id) {
-    dict.SetIntKey(kKeyExitCode, kUiecEMailMissmatch);
+    dict.Set(kKeyExitCode, kUiecEMailMissmatch);
   } else {
-    dict.SetIntKey(kKeyExitCode, static_cast<UiExitCodes>(default_exit_code));
-    dict.SetStringKey(kKeyEmail, expected_email);
-    dict.SetStringKey(kKeyFullname, full_name);
-    dict.SetStringKey(kKeyId, expected_gaia_id);
-    dict.SetStringKey(kKeyAccessToken, "at-123456");
-    dict.SetStringKey(kKeyMdmIdToken, "idt-123456");
-    dict.SetStringKey(kKeyPassword, gaia_password);
-    dict.SetStringKey(kKeyRefreshToken, "rt-123456");
-    dict.SetStringKey(kKeyTokenHandle, "th-123456");
+    dict.Set(kKeyExitCode, static_cast<UiExitCodes>(default_exit_code));
+    dict.Set(kKeyEmail, expected_email);
+    dict.Set(kKeyFullname, full_name);
+    dict.Set(kKeyId, expected_gaia_id.ToString());
+    dict.Set(kKeyAccessToken, "at-123456");
+    dict.Set(kKeyMdmIdToken, "idt-123456");
+    dict.Set(kKeyPassword, gaia_password);
+    dict.Set(kKeyRefreshToken, "rt-123456");
+    dict.Set(kKeyTokenHandle, "th-123456");
   }
 
   std::string json;
@@ -143,6 +144,7 @@ void GlsRunnerTestBase::SetUp() {
                       L"comment", true, &sid, &error));
 
   auto policy = ScopedLsaPolicy::Create(POLICY_ALL_ACCESS);
+  EXPECT_NE(policy, nullptr);
   EXPECT_EQ(S_OK, policy->StorePrivateData(kLsaKeyGaiaUsername,
                                            kDefaultGaiaAccountName));
   EXPECT_EQ(S_OK, policy->StorePrivateData(kLsaKeyGaiaPassword, L"password"));
@@ -532,7 +534,7 @@ HRESULT GlsRunnerTestBase::StartLogonProcessAndWait() {
 HRESULT GlsRunnerTestBase::GetFakeGlsCommandline(
     UiExitCodes default_exit_code,
     const std::string& gls_email,
-    const std::string& gaia_id_override,
+    const GaiaId& gaia_id_override,
     const std::string& gaia_password,
     const std::string& full_name_override,
     const std::wstring& start_gls_event_name,
@@ -549,7 +551,7 @@ HRESULT GlsRunnerTestBase::GetFakeGlsCommandline(
 
   if (!gaia_id_override.empty()) {
     command_line->AppendSwitchASCII(switches::kOverrideGaiaId,
-                                    gaia_id_override);
+                                    gaia_id_override.ToString());
   }
 
   if (!gaia_password.empty()) {

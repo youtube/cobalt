@@ -3,20 +3,16 @@
 // found in the LICENSE file.
 
 #import "ios/web_view/public/cwv_user_content_controller.h"
-#import "ios/web_view/internal/cwv_user_content_controller_internal.h"
 
+#import "base/apple/foundation_util.h"
 #import "base/json/json_writer.h"
-#import "base/mac/foundation_util.h"
 #import "base/strings/sys_string_conversions.h"
+#import "ios/web_view/internal/cwv_user_content_controller_internal.h"
 #import "ios/web_view/internal/cwv_web_view_configuration_internal.h"
-#include "ios/web_view/internal/web_view_browser_state.h"
-#import "ios/web_view/internal/web_view_early_page_script_provider.h"
+#import "ios/web_view/internal/js_messaging/web_view_scripts_java_script_feature.h"
+#import "ios/web_view/internal/web_view_browser_state.h"
 #import "ios/web_view/internal/web_view_message_handler_java_script_feature.h"
 #import "ios/web_view/public/cwv_user_script.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -27,7 +23,7 @@ NSDictionary* NSDictionaryFromDictValue(const base::Value::Dict& value) {
   DCHECK(success) << "Failed to convert base::Value to JSON";
 
   NSData* json_data = [NSData dataWithBytes:json.c_str() length:json.length()];
-  NSDictionary* ns_dictionary = base::mac::ObjCCastStrict<NSDictionary>(
+  NSDictionary* ns_dictionary = base::apple::ObjCCastStrict<NSDictionary>(
       [NSJSONSerialization JSONObjectWithData:json_data
                                       options:kNilOptions
                                         error:nil]);
@@ -59,12 +55,12 @@ NSDictionary* NSDictionaryFromDictValue(const base::Value::Dict& value) {
 
 - (void)addUserScript:(nonnull CWVUserScript*)userScript {
   [_userScripts addObject:userScript];
-  [self updateEarlyPageScript];
+  [self updatePageScripts];
 }
 
 - (void)removeAllUserScripts {
   [_userScripts removeAllObjects];
-  [self updateEarlyPageScript];
+  [self updatePageScripts];
 }
 
 - (nonnull NSArray<CWVUserScript*>*)userScripts {
@@ -73,17 +69,35 @@ NSDictionary* NSDictionaryFromDictValue(const base::Value::Dict& value) {
 
 // Updates the early page script associated with the BrowserState with the
 // content of _userScripts.
-- (void)updateEarlyPageScript {
-  NSMutableString* joinedScript = [[NSMutableString alloc] init];
+- (void)updatePageScripts {
+  NSMutableString* joinedAllFramesScript = [[NSMutableString alloc] init];
+  NSMutableString* joinedMainFrameScript = [[NSMutableString alloc] init];
+  NSMutableString* joinedAllFramesDocEndScript = [[NSMutableString alloc] init];
+  NSMutableString* joinedMainFrameDocEndScript = [[NSMutableString alloc] init];
   for (CWVUserScript* script in _userScripts) {
-    [joinedScript appendString:script.source];
     // Inserts "\n" between scripts to make it safer to join multiple scripts,
     // in case the first script doesn't end with ";" or "\n".
-    [joinedScript appendString:@"\n"];
+    if (script.injectionTime == CWVUserScriptInjectionTimeAtDocumentEnd) {
+      if (script.isForMainFrameOnly) {
+        [joinedMainFrameDocEndScript appendString:script.source];
+        [joinedMainFrameDocEndScript appendString:@"\n"];
+      } else {
+        [joinedAllFramesDocEndScript appendString:script.source];
+        [joinedAllFramesDocEndScript appendString:@"\n"];
+      }
+    } else if (script.isForMainFrameOnly) {
+      [joinedMainFrameScript appendString:script.source];
+      [joinedMainFrameScript appendString:@"\n"];
+    } else {
+      [joinedAllFramesScript appendString:script.source];
+      [joinedAllFramesScript appendString:@"\n"];
+    }
   }
-  ios_web_view::WebViewEarlyPageScriptProvider::FromBrowserState(
-      _configuration.browserState)
-      .SetScript(joinedScript);
+  WebViewScriptsJavaScriptFeature::FromBrowserState(_configuration.browserState)
+      ->SetScripts(base::SysNSStringToUTF8(joinedAllFramesScript),
+                   base::SysNSStringToUTF8(joinedMainFrameScript),
+                   base::SysNSStringToUTF8(joinedAllFramesDocEndScript),
+                   base::SysNSStringToUTF8(joinedMainFrameDocEndScript));
 }
 
 - (void)addMessageHandler:(void (^)(NSDictionary* payload))handler
@@ -103,6 +117,13 @@ NSDictionary* NSDictionaryFromDictValue(const base::Value::Dict& value) {
   WebViewMessageHandlerJavaScriptFeature::FromBrowserState(
       _configuration.browserState)
       ->UnregisterHandler(command);
+}
+
+- (BOOL)isMessageHandlerRegisteredForCommand:(NSString*)nsCommand {
+  std::string command = base::SysNSStringToUTF8(nsCommand);
+  return WebViewMessageHandlerJavaScriptFeature::FromBrowserState(
+             _configuration.browserState)
+      ->IsHandlerRegistered(command);
 }
 
 @end

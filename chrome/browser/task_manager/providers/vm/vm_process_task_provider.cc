@@ -13,11 +13,11 @@
 #include "base/task/thread_pool.h"
 #include "base/trace_event/trace_event.h"
 #include "chrome/browser/ash/crostini/crostini_util.h"
-#include "chrome/browser/ash/process_snapshot_server.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/task_manager/providers/vm/crostini_process_task.h"
 #include "chrome/browser/task_manager/providers/vm/plugin_vm_process_task.h"
 #include "chromeos/ash/components/dbus/concierge/concierge_client.h"
+#include "chromeos/ash/components/process_snapshot/process_snapshot_server.h"
 
 namespace task_manager {
 
@@ -104,7 +104,7 @@ void VmProcessTaskProvider::OnProcessSnapshotRefreshed(
 
 void VmProcessTaskProvider::OnListVms(
     const base::ProcessIterator::ProcessEntries& snapshot,
-    absl::optional<vm_tools::concierge::ListVmsResponse> response) {
+    std::optional<vm_tools::concierge::ListVmsResponse> response) {
   std::vector<VmProcessData> vm_process_list;
   const base::ProcessId vm_init_pid = GetVmInitProcessId(snapshot);
 

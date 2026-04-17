@@ -6,11 +6,14 @@
 #include <fidl/fuchsia.ui.input3/cpp/fidl.h>
 #include <lib/fit/function.h>
 
+#include <string_view>
+
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/fuchsia/koid.h"
 #include "base/fuchsia/scoped_service_binding.h"
 #include "base/fuchsia/test_component_context_for_process.h"
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/scoped_feature_list.h"
@@ -27,6 +30,7 @@
 #include "fuchsia_web/webengine/test/test_data.h"
 #include "fuchsia_web/webengine/test/web_engine_browser_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/ozone/public/ozone_platform.h"
 
 namespace virtualkeyboard = fuchsia_input_virtualkeyboard;
 
@@ -53,6 +57,10 @@ class VirtualKeyboardTest : public WebEngineBrowserTest {
   ~VirtualKeyboardTest() override = default;
 
   void SetUp() override {
+    if (ui::OzonePlatform::GetPlatformNameForTest() == "headless") {
+      GTEST_SKIP() << "Keyboard inputs are ignored in headless mode.";
+    }
+
     scoped_feature_list_.InitWithFeatures(
         {features::kVirtualKeyboard, features::kKeyboardInput}, {});
     WebEngineBrowserTest::SetUp();
@@ -109,11 +117,11 @@ class VirtualKeyboardTest : public WebEngineBrowserTest {
     command_line->AppendSwitch("allow-pre-commit-input");
   }
 
-  gfx::Point GetCoordinatesOfInputField(base::StringPiece id) {
+  gfx::Point GetCoordinatesOfInputField(std::string_view id) {
     // Distance to click from the top/left extents of an input field.
     constexpr int kInputFieldClickInset = 8;
 
-    absl::optional<base::Value> result = ExecuteJavaScript(
+    std::optional<base::Value> result = ExecuteJavaScript(
         frame_for_test_.ptr().get(),
         base::StringPrintf("getPointInsideText('%.*s')",
                            base::saturated_cast<int>(id.length()), id.data()));
@@ -135,15 +143,15 @@ class VirtualKeyboardTest : public WebEngineBrowserTest {
   ScenicTestHelper scenic_test_helper_;
   base::test::ScopedFeatureList scoped_feature_list_;
 
-  absl::optional<EnsureConnectedChecker<fuchsia_ui_input3::Keyboard>>
+  std::optional<EnsureConnectedChecker<fuchsia_ui_input3::Keyboard>>
       keyboard_input_checker_;
 
   // Fake virtual keyboard services for the InputMethod to use.
-  absl::optional<base::TestComponentContextForProcess> component_context_;
-  absl::optional<MockVirtualKeyboardControllerCreator> controller_creator_;
+  std::optional<base::TestComponentContextForProcess> component_context_;
+  std::optional<MockVirtualKeyboardControllerCreator> controller_creator_;
   std::unique_ptr<MockVirtualKeyboardController> controller_;
 
-  content::WebContents* web_contents_ = nullptr;
+  raw_ptr<content::WebContents> web_contents_ = nullptr;
 };
 
 // Verifies that RequestShow() is not called redundantly if the virtual
@@ -213,7 +221,7 @@ IN_PROC_BROWSER_TEST_F(VirtualKeyboardTest, ShowAndHideWithVisibility) {
 IN_PROC_BROWSER_TEST_F(VirtualKeyboardTest, InputModeMappings) {
   // Note that the service will elide type updates if there is no change,
   // so the array is ordered to produce an update on each entry.
-  const std::vector<std::pair<base::StringPiece, virtualkeyboard::TextType>>
+  const std::vector<std::pair<std::string_view, virtualkeyboard::TextType>>
       kInputTypeMappings = {
           {kInputFieldModeTel, virtualkeyboard::TextType::kPhone},
           {kInputFieldModeSearch, virtualkeyboard::TextType::kAlphanumeric},

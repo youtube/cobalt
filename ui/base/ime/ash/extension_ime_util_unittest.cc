@@ -28,23 +28,20 @@ TEST(ExtensionIMEUtilTest, GetArcInputMethodIDTest) {
 }
 
 TEST(ExtensionIMEUtilTest, GetExtensionIDFromInputMethodIDTest) {
-  EXPECT_EQ("",
-            extension_ime_util::GetExtensionIDFromInputMethodID("mozc"));
+  EXPECT_EQ("", extension_ime_util::GetExtensionIDFromInputMethodID("mozc"));
   EXPECT_EQ("12345678901234567890123456789012",
             extension_ime_util::GetExtensionIDFromInputMethodID(
-              extension_ime_util::GetInputMethodID(
-                  "12345678901234567890123456789012",
-                  "mozc")));
+                extension_ime_util::GetInputMethodID(
+                    "12345678901234567890123456789012", "mozc")));
   EXPECT_EQ("12345678901234567890123456789012",
             extension_ime_util::GetExtensionIDFromInputMethodID(
-              extension_ime_util::GetComponentInputMethodID(
-                  "12345678901234567890123456789012",
-                  "mozc")));
+                extension_ime_util::GetComponentInputMethodID(
+                    "12345678901234567890123456789012", "mozc")));
 }
 
 TEST(ExtensionIMEUtilTest, IsExtensionIMETest) {
-  EXPECT_TRUE(extension_ime_util::IsExtensionIME(
-      extension_ime_util::GetInputMethodID(
+  EXPECT_TRUE(
+      extension_ime_util::IsExtensionIME(extension_ime_util::GetInputMethodID(
           "abcde_xxxxxxxxxxxxxxxxxxxxxxxxxx", "12345")));
   EXPECT_FALSE(extension_ime_util::IsExtensionIME(
       extension_ime_util::GetComponentInputMethodID(
@@ -61,8 +58,8 @@ TEST(ExtensionIMEUtilTest, IsComponentExtensionIMETest) {
       extension_ime_util::GetComponentInputMethodID(
           "abcde_xxxxxxxxxxxxxxxxxxxxxxxxxx", "12345")));
   EXPECT_FALSE(extension_ime_util::IsComponentExtensionIME(
-      extension_ime_util::GetInputMethodID(
-          "abcde_xxxxxxxxxxxxxxxxxxxxxxxxxx", "12345")));
+      extension_ime_util::GetInputMethodID("abcde_xxxxxxxxxxxxxxxxxxxxxxxxxx",
+                                           "12345")));
   EXPECT_FALSE(extension_ime_util::IsComponentExtensionIME(
       extension_ime_util::GetArcInputMethodID(
           "abcde_xxxxxxxxxxxxxxxxxxxxxxxxxx", "12345")));
@@ -84,30 +81,30 @@ TEST(ExtensionIMEUtilTest, IsArcIMETest) {
   EXPECT_FALSE(extension_ime_util::IsArcIME("mozc"));
 }
 
-TEST(ExtensionIMEUtilTest, IsExperimentalMultilingualTest) {
+TEST(ExtensionIMEUtilTest, IsCros1pKoreanTest) {
   // TODO(crbug.com/1162211): Input method IDs are tuples of extension type,
   // extension ID, and extension-local input method ID. However, currently
   // they're just concats of the three constituent pieces of info, hence StrCat
   // here. Replace StrCat once they're no longer unstructured string concats.
 
-  EXPECT_FALSE(extension_ime_util::IsExperimentalMultilingual(
+  EXPECT_FALSE(extension_ime_util::IsCros1pKorean(
       base::StrCat({"some_extension_type", "some_extension_id",
-                    "experimental_hello_world"})));
+                    "some_local_input_method_id"})));
 
-  EXPECT_FALSE(extension_ime_util::IsExperimentalMultilingual(base::StrCat(
-      {"_comp_ime_", "some_extension_id", "experimental_hello_world"})));
+  EXPECT_FALSE(extension_ime_util::IsCros1pKorean(base::StrCat(
+      {"_comp_ime_", "some_extension_id", "some_local_input_method_id"})));
 
-  EXPECT_FALSE(extension_ime_util::IsExperimentalMultilingual(base::StrCat(
-      {"_comp_ime_", "jkghodnilhceideoidjikpgommlajknk", "hello_world"})));
+  EXPECT_FALSE(extension_ime_util::IsCros1pKorean(
+      base::StrCat({"_comp_ime_", "jkghodnilhceideoidjikpgommlajknk",
+                    "some_local_input_method_id"})));
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   EXPECT_TRUE(
 #else
   EXPECT_FALSE(
 #endif
-      extension_ime_util::IsExperimentalMultilingual(
-          base::StrCat({"_comp_ime_", "jkghodnilhceideoidjikpgommlajknk",
-                        "experimental_hello_world"})));
+      extension_ime_util::IsCros1pKorean(base::StrCat(
+          {"_comp_ime_", "jkghodnilhceideoidjikpgommlajknk", "ko-t-i0-und"})));
 }
 
 }  // namespace ash

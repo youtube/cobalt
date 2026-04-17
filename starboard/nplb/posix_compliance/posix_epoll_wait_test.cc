@@ -71,7 +71,7 @@ class PosixEpollWaitTests : public PosixEpollTest {
 
   // Helper to remove from epoll
   void RemoveFromEpoll(int fd_to_remove) {
-    struct epoll_event event {};  // Dummy event, required for older kernels
+    struct epoll_event event{};  // Dummy event, required for older kernels
     if (epfd_ >= 0 && fd_to_remove >= 0) {
       epoll_ctl(epfd_, EPOLL_CTL_DEL, fd_to_remove, &event);
     }
@@ -100,8 +100,8 @@ TEST_F(PosixEpollWaitTests, TimeoutZeroReturnsImmediately) {
 
   // Ensure no events are pending initially by draining the pipe
   char buffer[10];
-  while (read(pipe_fds_[0], buffer, sizeof(buffer)) > 0)
-    ;  // Drain
+  while (read(pipe_fds_[0], buffer, sizeof(buffer)) > 0) {
+  }  // Drain
 
   int nfds = epoll_wait(epfd_, events_, kMaxEvents, 0);  // 0ms timeout
   ASSERT_EQ(nfds, 0) << "epoll_wait with 0 timeout did not return 0: "

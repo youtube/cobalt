@@ -40,9 +40,8 @@ void DecodedAudioQueue::Clear() {
 
 void DecodedAudioQueue::Append(
     const scoped_refptr<DecodedAudio>& decoded_audio) {
-  SB_DCHECK(decoded_audio->storage_type() ==
-            kSbMediaAudioFrameStorageTypeInterleaved)
-      << decoded_audio->storage_type();
+  SB_DCHECK_EQ(decoded_audio->storage_type(),
+               kSbMediaAudioFrameStorageTypeInterleaved);
   // Add the buffer to the queue. Inserting into deque invalidates all
   // iterators, so point to the first buffer.
   buffers_.push_back(decoded_audio);

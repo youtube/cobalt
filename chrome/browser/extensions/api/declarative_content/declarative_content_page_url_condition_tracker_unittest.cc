@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "base/containers/contains.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/test/values_test_util.h"
 #include "chrome/browser/extensions/api/declarative_content/content_predicate_evaluator.h"
@@ -35,28 +36,30 @@ class DeclarativeContentPageUrlConditionTrackerTest
  protected:
   class Delegate : public ContentPredicateEvaluator::Delegate {
    public:
-    Delegate() {}
+    Delegate() = default;
 
     Delegate(const Delegate&) = delete;
     Delegate& operator=(const Delegate&) = delete;
 
-    std::set<content::WebContents*>& evaluation_requests() {
+    std::set<raw_ptr<content::WebContents, SetExperimental>>&
+    evaluation_requests() {
       return evaluation_requests_;
     }
 
     // ContentPredicateEvaluator::Delegate:
-    void RequestEvaluation(content::WebContents* contents) override {
+    void NotifyPredicateStateUpdated(content::WebContents* contents) override {
       EXPECT_FALSE(base::Contains(evaluation_requests_, contents));
       evaluation_requests_.insert(contents);
     }
 
-    bool ShouldManageConditionsForBrowserContext(
+    bool ShouldManagePredicatesForBrowserContext(
         content::BrowserContext* context) override {
       return true;
     }
 
    private:
-    std::set<content::WebContents*> evaluation_requests_;
+    std::set<raw_ptr<content::WebContents, SetExperimental>>
+        evaluation_requests_;
   };
 
   DeclarativeContentPageUrlConditionTrackerTest()

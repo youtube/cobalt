@@ -4,14 +4,18 @@
 
 #include "third_party/blink/renderer/platform/mediastream/media_stream_audio_source.h"
 
+#include <inttypes.h>
+
 #include <memory>
 #include <utility>
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/strings/stringprintf.h"
+#include "base/strings/to_string.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
+#include "media/base/audio_glitch_info.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/modules/webrtc/webrtc_logging.h"
 #include "third_party/blink/public/platform/platform.h"
@@ -52,7 +56,7 @@ MediaStreamAudioSource::MediaStreamAudioSource(
   LogMessage(
       base::StringPrintf("%s({is_local_source=%s}, {disable_local_echo=%s})",
                          __func__, is_local_source ? "local" : "remote",
-                         disable_local_echo ? "true" : "false"));
+                         base::ToString(disable_local_echo).c_str()));
 }
 
 MediaStreamAudioSource::MediaStreamAudioSource(
@@ -127,7 +131,7 @@ void* MediaStreamAudioSource::GetClassIdentifier() const {
 
 bool MediaStreamAudioSource::HasSameReconfigurableSettings(
     const blink::AudioProcessingProperties& selected_properties) const {
-  absl::optional<blink::AudioProcessingProperties> configured_properties =
+  std::optional<blink::AudioProcessingProperties> configured_properties =
       GetAudioProcessingProperties();
   if (!configured_properties)
     return false;
@@ -141,9 +145,9 @@ bool MediaStreamAudioSource::HasSameNonReconfigurableSettings(
   if (!other_source)
     return false;
 
-  absl::optional<blink::AudioProcessingProperties> others_properties =
+  std::optional<blink::AudioProcessingProperties> others_properties =
       other_source->GetAudioProcessingProperties();
-  absl::optional<blink::AudioProcessingProperties> this_properties =
+  std::optional<blink::AudioProcessingProperties> this_properties =
       GetAudioProcessingProperties();
 
   if (!others_properties || !this_properties)
@@ -199,8 +203,9 @@ void MediaStreamAudioSource::SetFormat(const media::AudioParameters& params) {
 
 void MediaStreamAudioSource::DeliverDataToTracks(
     const media::AudioBus& audio_bus,
-    base::TimeTicks reference_time) {
-  deliverer_.OnData(audio_bus, reference_time);
+    base::TimeTicks reference_time,
+    const media::AudioGlitchInfo& glitch_info) {
+  deliverer_.OnData(audio_bus, reference_time, glitch_info);
 }
 
 void MediaStreamAudioSource::DoStopSource() {
@@ -249,7 +254,7 @@ void MediaStreamAudioSource::StopSourceOnErrorOnTaskRunner(
 
 void MediaStreamAudioSource::SetMutedState(bool muted_state) {
   LogMessage(base::StringPrintf("%s({muted_state=%s})", __func__,
-                                muted_state ? "true" : "false"));
+                                base::ToString(muted_state).c_str()));
   PostCrossThreadTask(
       *GetTaskRunner(), FROM_HERE,
       WTF::CrossThreadBindOnce(&WebPlatformMediaStreamSource::SetSourceMuted,

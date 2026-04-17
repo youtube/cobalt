@@ -8,12 +8,11 @@
 #import <UIKit/UIKit.h>
 #import <stddef.h>
 
+#import "base/apple/foundation_util.h"
 #import "base/check.h"
 #import "base/functional/bind.h"
 #import "base/json/json_reader.h"
 #import "base/location.h"
-#import "base/mac/foundation_util.h"
-#import "base/metrics/histogram_macros.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/task/sequenced_task_runner.h"
 #import "base/time/time.h"
@@ -25,10 +24,6 @@
 #import "components/policy/core/common/schema.h"
 #import "components/policy/core/common/schema_registry.h"
 #import "components/policy/policy_constants.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -67,10 +62,6 @@ PolicyBundle PolicyLoaderIOS::Load() {
   NSDictionary* configuration = [[NSUserDefaults standardUserDefaults]
       dictionaryForKey:kPolicyLoaderIOSConfigurationKey];
   LoadNSDictionaryToPolicyBundle(configuration, &bundle);
-
-  const PolicyNamespace chrome_ns(POLICY_DOMAIN_CHROME, std::string());
-  size_t count = bundle.Get(chrome_ns).size();
-  UMA_HISTOGRAM_COUNTS_100("Enterprise.IOSPolicies", count);
 
   if (HasPlatformPolicyKey()) {
     // Set a shorter reload interval when the browser is managed by the
@@ -111,7 +102,7 @@ base::Value PolicyLoaderIOS::ConvertPolicyDataIfNecessary(
   if ((schema.type() == base::Value::Type::DICT ||
        schema.type() == base::Value::Type::LIST) &&
       value.is_string()) {
-    absl::optional<base::Value> decoded_value = base::JSONReader::Read(
+    std::optional<base::Value> decoded_value = base::JSONReader::Read(
         value.GetString(), base::JSONParserOptions::JSON_ALLOW_TRAILING_COMMAS);
     if (decoded_value.has_value()) {
       return std::move(decoded_value.value());

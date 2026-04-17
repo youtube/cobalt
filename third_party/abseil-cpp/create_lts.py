@@ -33,7 +33,7 @@ def ReplaceStringsInFile(filename, replacement_dict):
       values
 
   Raises:
-    Exception: A failure occured
+    Exception: A failure occurred
   """
   f = open(filename, 'r')
   content = f.read()
@@ -62,7 +62,7 @@ def StripContentBetweenTags(filename, strip_begin_tag, strip_end_tag):
     strip_end_tag: the end of the content to be removed
 
   Raises:
-    Exception: A failure occured
+    Exception: A failure occurred
   """
   f = open(filename, 'r')
   content = f.read()
@@ -96,6 +96,11 @@ def main(argv):
 
   # Replacement directives go here.
   ReplaceStringsInFile(
+      'MODULE.bazel', {
+          'version = "head"':
+              'version = "{}.0"'.format(datestamp)
+      })
+  ReplaceStringsInFile(
       'absl/base/config.h', {
           '#undef ABSL_LTS_RELEASE_VERSION':
               '#define ABSL_LTS_RELEASE_VERSION {}'.format(datestamp),
@@ -111,20 +116,21 @@ def main(argv):
                   datestamp)
       })
   ReplaceStringsInFile(
-      'CMakeLists.txt', {
-          'project(absl LANGUAGES CXX)':
+      'CMakeLists.txt',
+      {
+          'project(absl LANGUAGES CXX)': (
               'project(absl LANGUAGES CXX VERSION {})'.format(datestamp)
-      })
-  # Set the SOVERSION to YYMM.0.0 - The first 0 means we only have ABI
-  # compatible changes, and the second 0 means we can increment it to
-  # mark changes as ABI-compatible, for patch releases.  Note that we
-  # only use the last two digits of the year and the month because the
-  # MacOS linker requires the first part of the SOVERSION to fit into
-  # 16 bits.
-  # https://www.sicpers.info/2013/03/how-to-version-a-mach-o-library/
-  ReplaceStringsInFile(
-      'CMake/AbseilHelpers.cmake',
-      {'SOVERSION 0': 'SOVERSION "{}.0.0"'.format(datestamp[2:6])})
+          ),
+          # Set the SOVERSION to YYMM.0.0 - The first 0 means we only have ABI
+          # compatible changes, and the second 0 means we can increment it to
+          # mark changes as ABI-compatible, for patch releases.  Note that we
+          # only use the last two digits of the year and the month because the
+          # MacOS linker requires the first part of the SOVERSION to fit into
+          # 16 bits.
+          # https://www.sicpers.info/2013/03/how-to-version-a-mach-o-library/
+          'ABSL_SOVERSION 0': 'ABSL_SOVERSION "{}.0.0"'.format(datestamp[2:6]),
+      },
+  )
   StripContentBetweenTags('CMakeLists.txt', '# absl:lts-remove-begin',
                           '# absl:lts-remove-end')
 

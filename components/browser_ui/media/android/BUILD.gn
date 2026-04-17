@@ -13,7 +13,6 @@ android_library("java") {
     "java/src/org/chromium/components/browser_ui/media/MediaNotificationInfo.java",
     "java/src/org/chromium/components/browser_ui/media/MediaNotificationListener.java",
     "java/src/org/chromium/components/browser_ui/media/MediaNotificationManager.java",
-    "java/src/org/chromium/components/browser_ui/media/MediaNotificationUma.java",
     "java/src/org/chromium/components/browser_ui/media/MediaSessionHelper.java",
     "java/src/org/chromium/components/browser_ui/media/MediaSessionUma.java",
   ]
@@ -59,6 +58,7 @@ robolectric_library("junit") {
   sources = [
     "java/src/org/chromium/components/browser_ui/media/MediaImageManagerTest.java",
     "java/src/org/chromium/components/browser_ui/media/MediaNotificationButtonComputationTest.java",
+    "java/src/org/chromium/components/browser_ui/media/MediaNotificationInfoTest.java",
   ]
   deps = [
     ":java",

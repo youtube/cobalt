@@ -12,15 +12,16 @@
 #include <vector>
 
 #include "base/android/scoped_java_ref.h"
-#include "content/browser/accessibility/browser_accessibility.h"
 #include "content/common/content_export.h"
 #include "ui/accessibility/accessibility_features.h"
 #include "ui/accessibility/ax_node.h"
 #include "ui/accessibility/platform/ax_platform_node.h"
+#include "ui/accessibility/platform/browser_accessibility.h"
 
 namespace content {
 
-class CONTENT_EXPORT BrowserAccessibilityAndroid : public BrowserAccessibility {
+class CONTENT_EXPORT BrowserAccessibilityAndroid
+    : public ui::BrowserAccessibility {
  public:
   static BrowserAccessibilityAndroid* GetFromUniqueId(int32_t unique_id);
   static void ResetLeafCache();
@@ -31,9 +32,8 @@ class CONTENT_EXPORT BrowserAccessibilityAndroid : public BrowserAccessibility {
 
   ~BrowserAccessibilityAndroid() override;
 
-  int32_t unique_id() const { return GetUniqueId().Get(); }
-
   // BrowserAccessibility Overrides.
+  using BrowserAccessibility::GetUniqueId;
   bool CanFireEvents() const override;
   void OnDataChanged() override;
   void OnLocationChanged() override;
@@ -65,12 +65,16 @@ class CONTENT_EXPORT BrowserAccessibilityAndroid : public BrowserAccessibility {
   bool IsMultiselectable() const;
   bool IsRangeControlWithoutAriaValueText() const;
   bool IsReportingCheckable() const;
+  bool IsRequired() const;
   bool IsScrollable() const;
   bool IsSeekControl() const;
   bool IsSelected() const;
   bool IsSlider() const;
+  bool IsSubscript() const;
+  bool IsSuperscript() const;
   bool IsTableHeader() const;
   bool IsVisibleToUser() const;
+  bool ShouldUsePaneTitle() const;
 
   // This returns true for all nodes that we should navigate to.
   // Nodes that have a generic role, no accessible name, and aren't
@@ -93,6 +97,8 @@ class CONTENT_EXPORT BrowserAccessibilityAndroid : public BrowserAccessibility {
 
   // Returns a relative score of how likely a node is to be clickable.
   int ClickableScore() const;
+
+  int ExpandedState() const;
 
   bool CanOpenPopup() const;
 
@@ -117,11 +123,18 @@ class CONTENT_EXPORT BrowserAccessibilityAndroid : public BrowserAccessibility {
   // ...-android-external.txt files. On other platforms this may be ::GetName().
   std::u16string GetTextContentUTF16() const override;
   std::u16string GetValueForControl() const override;
+  int GetTextContentLengthUTF16() const override;
+
+  // This method firstly checks GetTextContentUTF16(). In the case of accessible
+  // name from kAttribute resulting in GetTextContentUTF16 is empty, it falls
+  // back to first non-empty GetContainerName(), GetContentDescription(), and
+  // GetSupplementalDescription().
+  std::u16string GetAccessibleNameUTF16() const;
 
   typedef base::RepeatingCallback<bool(const std::u16string& partial)>
       EarlyExitPredicate;
   std::u16string GetSubstringTextContentUTF16(
-      absl::optional<EarlyExitPredicate>) const;
+      std::optional<size_t> min_length) const;
   static EarlyExitPredicate NonEmptyPredicate();
   static EarlyExitPredicate LengthAtLeast(size_t length);
 
@@ -132,13 +145,21 @@ class CONTENT_EXPORT BrowserAccessibilityAndroid : public BrowserAccessibility {
   // the value is placed. These pieces of content are concatenated for Android.
   std::u16string GetHint() const;
 
+  // This method maps to the Android API "TooltipText" attribute.
+  std::u16string GetTooltipText() const;
+
   std::string GetRoleString() const;
+
+  std::u16string GetPaneTitle() const;
 
   std::u16string GetDialogModalMessageText() const;
 
   std::u16string GetContentInvalidErrorMessage() const;
 
   std::u16string GetStateDescription() const;
+  std::u16string GetContainerTitle() const;
+  std::u16string GetContentDescription() const;
+  std::u16string GetSupplementalDescription() const;
   std::u16string GetMultiselectableStateDescription() const;
   std::u16string GetToggleStateDescription() const;
   std::u16string GetCheckboxStateDescription() const;
@@ -152,9 +173,19 @@ class CONTENT_EXPORT BrowserAccessibilityAndroid : public BrowserAccessibility {
 
   std::string GetCSSDisplay() const;
 
+  // Various methods for text styling that are added to the Android
+  // accessibility tree as Spannables, we also include the subscript and
+  // superscript from the methods above.
+  float GetTextSize() const;
+  int GetTextStyle() const;
+  int GetTextColor() const;
+  int GetTextBackgroundColor() const;
+  std::string GetFontFamily() const;
+
   int GetItemIndex() const;
   int GetItemCount() const;
   int GetSelectedItemCount() const;
+  int GetSelectionMode() const;
 
   bool CanScrollForward() const;
   bool CanScrollBackward() const;
@@ -169,6 +200,8 @@ class CONTENT_EXPORT BrowserAccessibilityAndroid : public BrowserAccessibility {
   int GetMaxScrollX() const;
   int GetMaxScrollY() const;
   bool Scroll(int direction, bool is_page_scroll) const;
+
+  int GetChecked() const;
 
   int GetTextChangeFromIndex() const;
   int GetTextChangeAddedCount() const;
@@ -230,18 +263,20 @@ class CONTENT_EXPORT BrowserAccessibilityAndroid : public BrowserAccessibility {
   std::u16string GenerateAccessibilityNodeInfoString() const;
 
  protected:
-  BrowserAccessibilityAndroid(BrowserAccessibilityManager* manager,
+  BrowserAccessibilityAndroid(ui::BrowserAccessibilityManager* manager,
                               ui::AXNode* node);
+
+  std::u16string GetLocalizedString(int message_id) const override;
 
   friend class BrowserAccessibility;  // Needs access to our constructor.
 
  private:
-  static size_t CommonPrefixLength(const std::u16string a,
-                                   const std::u16string b);
-  static size_t CommonSuffixLength(const std::u16string a,
-                                   const std::u16string b);
-  static size_t CommonEndLengths(const std::u16string a,
-                                 const std::u16string b);
+  static size_t CommonPrefixLength(const std::u16string& a,
+                                   const std::u16string& b);
+  static size_t CommonSuffixLength(const std::u16string& a,
+                                   const std::u16string& b);
+  static size_t CommonEndLengths(const std::u16string& a,
+                                 const std::u16string& b);
 
   // BrowserAccessibility overrides.
   BrowserAccessibility* PlatformGetLowestPlatformAncestor() const override;
@@ -250,17 +285,28 @@ class CONTENT_EXPORT BrowserAccessibilityAndroid : public BrowserAccessibility {
   bool HasOnlyTextAndImageChildren() const;
   bool HasListMarkerChild() const;
 
+  // Returns true if the accessible name source (kNameFrom) comes from
+  // kAttribute.
+  bool IsAccessibleNameFromAttribute() const;
+
   // This method determines if a node should expose its value as a name, which
   // is placed in the Android API's "text" attribute. For controls that can take
   // on a value (e.g. a date time, or combobox), we wish to expose the value
   // that the user has chosen. When the value is exposed as the name, then the
   // accessible name is added to the Android API's "hint" attribute instead.
-  bool ShouldExposeValueAsName() const;
+  bool ShouldExposeValueAsName(const std::u16string& value) const;
 
   int CountChildrenWithRole(ax::mojom::Role role) const;
 
   void AppendTextToString(std::u16string extra_text,
                           std::u16string* string) const;
+
+  // Returns true if the node has int attribute of kDefaultActionVerb and the
+  // default action verb is kSelect.
+  bool HasSelectActionVerb() const;
+
+  // Returns tree if any child has kSelect action verb.
+  bool HasSelectActionVerbChildren() const;
 
   std::u16string cached_text_;
   std::u16string old_value_;

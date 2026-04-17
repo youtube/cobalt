@@ -20,8 +20,6 @@
 #include "ash/test/ash_test_base.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/test/scoped_feature_list.h"
-#include "chromeos/constants/chromeos_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/events/event.h"
 #include "ui/events/keycodes/keyboard_codes_posix.h"
@@ -29,15 +27,9 @@
 
 namespace ash {
 
-// Parameterized by whether kJelly feature is enabled.
-class FolderHeaderViewTest : public AshTestBase,
-                             public testing::WithParamInterface<bool> {
+class FolderHeaderViewTest : public AshTestBase {
  public:
-  FolderHeaderViewTest() {
-    scoped_feature_list_.InitWithFeatureState(chromeos::features::kJelly,
-                                              IsJellyEnabled());
-  }
-
+  FolderHeaderViewTest() = default;
   FolderHeaderViewTest(const FolderHeaderViewTest&) = delete;
   FolderHeaderViewTest& operator=(const FolderHeaderViewTest&) = delete;
 
@@ -50,8 +42,6 @@ class FolderHeaderViewTest : public AshTestBase,
     // `folder_header_view_` is set when the folder is opened. This allows test
     // cases to configure the model before opening the folder.
   }
-
-  bool IsJellyEnabled() const { return GetParam(); }
 
   // Assumes the folder is the first item in the grid.
   void ShowAppListAndOpenFolder() {
@@ -92,14 +82,11 @@ class FolderHeaderViewTest : public AshTestBase,
     PressAndReleaseKey(key_code, flags);
   }
 
-  base::test::ScopedFeatureList scoped_feature_list_;
-  raw_ptr<test::AppListTestModel, ExperimentalAsh> model_ = nullptr;
-  raw_ptr<FolderHeaderView, ExperimentalAsh> folder_header_view_ = nullptr;
+  raw_ptr<test::AppListTestModel, DanglingUntriaged> model_ = nullptr;
+  raw_ptr<FolderHeaderView, DanglingUntriaged> folder_header_view_ = nullptr;
 };
 
-INSTANTIATE_TEST_SUITE_P(Jelly, FolderHeaderViewTest, testing::Bool());
-
-TEST_P(FolderHeaderViewTest, WhitespaceCollapsedWhenFolderNameViewLosesFocus) {
+TEST_F(FolderHeaderViewTest, WhitespaceCollapsedWhenFolderNameViewLosesFocus) {
   AppListFolderItem* folder_item = model_->CreateAndPopulateFolderWithApps(2);
   ShowAppListAndOpenFolder();
   views::View* name_view = folder_header_view_->GetFolderNameViewForTest();
@@ -113,7 +100,7 @@ TEST_P(FolderHeaderViewTest, WhitespaceCollapsedWhenFolderNameViewLosesFocus) {
   EXPECT_EQ("N A", folder_item->name());
 }
 
-TEST_P(FolderHeaderViewTest, MaxFolderNameLength) {
+TEST_F(FolderHeaderViewTest, MaxFolderNameLength) {
   // Creating a folder with empty folder name.
   AppListFolderItem* folder_item = model_->CreateAndPopulateFolderWithApps(2);
   ShowAppListAndOpenFolder();
@@ -145,7 +132,7 @@ TEST_P(FolderHeaderViewTest, MaxFolderNameLength) {
   EXPECT_EQ(max_len_name, folder_item->name());
 }
 
-TEST_P(FolderHeaderViewTest, OemFolderNameNotEditable) {
+TEST_F(FolderHeaderViewTest, OemFolderNameNotEditable) {
   model_->CreateAndAddOemFolder();
   ShowAppListAndOpenFolder();
   EXPECT_EQ("", GetFolderNameFromUI());
@@ -161,21 +148,20 @@ template <typename GestureHandler>
 void SendTap(GestureHandler* handler, const gfx::Point& location) {
   ui::GestureEvent tap_down(
       location.x(), location.y(), 0, base::TimeTicks::Now(),
-      ui::GestureEventDetails(ui::EventType::ET_GESTURE_TAP_DOWN));
+      ui::GestureEventDetails(ui::EventType::kGestureTapDown));
   handler->OnGestureEvent(&tap_down);
-  ui::GestureEvent tap_up(
-      location.x(), location.y(), 0, base::TimeTicks::Now(),
-      ui::GestureEventDetails(ui::EventType::ET_GESTURE_TAP));
+  ui::GestureEvent tap_up(location.x(), location.y(), 0, base::TimeTicks::Now(),
+                          ui::GestureEventDetails(ui::EventType::kGestureTap));
   handler->OnGestureEvent(&tap_up);
 }
 
 template <typename EventHandler>
 void SendPress(EventHandler* handler, const gfx::Point& location) {
-  ui::MouseEvent press_down(ui::ET_MOUSE_PRESSED,
+  ui::MouseEvent press_down(ui::EventType::kMousePressed,
                             gfx::PointF(location.x(), location.y()),
                             gfx::PointF(0, 0), base::TimeTicks::Now(), 0, 0);
   handler->OnMouseEvent(&press_down);
-  ui::MouseEvent press_up(ui::ET_MOUSE_RELEASED,
+  ui::MouseEvent press_up(ui::EventType::kMouseReleased,
                           gfx::PointF(location.x(), location.y()),
                           gfx::PointF(0, 0), base::TimeTicks::Now(), 0, 0);
   handler->OnMouseEvent(&press_up);
@@ -185,7 +171,7 @@ void SendPress(EventHandler* handler, const gfx::Point& location) {
 
 // Tests that when folder name is small, the folder name textfield is triggered
 // by only tap when on the textfieldd or near it to the left/right.
-TEST_P(FolderHeaderViewTest, TriggerFolderRenameAfterTappingNearFolderName) {
+TEST_F(FolderHeaderViewTest, TriggerFolderRenameAfterTappingNearFolderName) {
   // Create a folder with a small name.
   model_->CreateAndPopulateFolderWithApps(2);
   ShowAppListAndOpenFolder();
@@ -222,7 +208,7 @@ TEST_P(FolderHeaderViewTest, TriggerFolderRenameAfterTappingNearFolderName) {
 }
 
 // Test that hitting the return key sets the folder name.
-TEST_P(FolderHeaderViewTest, SetFolderNameOnReturn) {
+TEST_F(FolderHeaderViewTest, SetFolderNameOnReturn) {
   // Create a folder with empty folder name.
   AppListFolderItem* folder_item = model_->CreateAndPopulateFolderWithApps(2);
   ShowAppListAndOpenFolder();
@@ -242,12 +228,12 @@ TEST_P(FolderHeaderViewTest, SetFolderNameOnReturn) {
 
   // Make sure the return press unfocused the text and registered the name
   // change.
-  EXPECT_EQ(IsJellyEnabled(), HasTextFocus());
+  EXPECT_EQ(false, HasTextFocus());
   EXPECT_EQ("ret", folder_item->name());
 }
 
 // Test that hitting the escape key reverts the folder name.
-TEST_P(FolderHeaderViewTest, RevertFolderNameOnEscape) {
+TEST_F(FolderHeaderViewTest, RevertFolderNameOnEscape) {
   // Create a folder with empty folder name.
   AppListFolderItem* folder_item = model_->CreateAndPopulateFolderWithApps(2);
   ShowAppListAndOpenFolder();
@@ -266,7 +252,7 @@ TEST_P(FolderHeaderViewTest, RevertFolderNameOnEscape) {
   SendKey(ui::VKEY_ESCAPE);
 
   // Make sure the escape press unfocused the text and reverted the name change.
-  EXPECT_EQ(IsJellyEnabled(), HasTextFocus());
+  EXPECT_EQ(false, HasTextFocus());
   EXPECT_EQ("", folder_item->name());
 }
 

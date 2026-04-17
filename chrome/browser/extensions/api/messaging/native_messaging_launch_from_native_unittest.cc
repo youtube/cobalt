@@ -19,6 +19,7 @@
 #include "extensions/browser/event_router_factory.h"
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_registry.h"
+#include "extensions/common/extension_id.h"
 #include "extensions/common/extension_paths.h"
 #include "extensions/common/features/feature_channel.h"
 #include "extensions/common/manifest_constants.h"
@@ -37,7 +38,7 @@ class MockEventRouter : public EventRouter {
     DCHECK(has_listener_result_);
   }
 
-  bool ExtensionHasEventListener(const std::string& extension_id,
+  bool ExtensionHasEventListener(const ExtensionId& extension_id,
                                  const std::string& event_name) const override {
     return *has_listener_result_;
   }
@@ -116,7 +117,7 @@ class ExtensionSupportsConnectionFromNativeAppTest : public ::testing::Test {
   content::BrowserTaskEnvironment task_environment_;
   bool has_listener_result_ = true;
   TestingProfile profile_;
-  std::string extension_id_;
+  ExtensionId extension_id_;
 };
 
 TEST_F(ExtensionSupportsConnectionFromNativeAppTest, Success) {

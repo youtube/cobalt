@@ -2,9 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/ntlm/ntlm.h"
 
 #include <string.h>
+
+#include <algorithm>
+#include <array>
 
 #include "base/check_op.h"
 #include "base/containers/span.h"
@@ -75,7 +83,6 @@ void UpdateTargetInfoAvPairs(bool is_mic_enabled,
         // would have been rejected during the initial parsing. See
         // |NtlmBufferReader::ReadTargetInfo|.
         NOTREACHED();
-        break;
       default:
         // Ignore entries we don't care about.
         break;
@@ -92,13 +99,11 @@ void UpdateTargetInfoAvPairs(bool is_mic_enabled,
   }
 
   if (is_epa_enabled) {
-    std::vector<uint8_t> channel_bindings_hash(kChannelBindingsHashLen, 0);
+    std::array<uint8_t, kChannelBindingsHashLen> channel_bindings_hash = {};
 
     // Hash the channel bindings if they exist otherwise they remain zeros.
     if (!channel_bindings.empty()) {
-      GenerateChannelBindingHashV2(
-          channel_bindings,
-          base::make_span<kChannelBindingsHashLen>(channel_bindings_hash));
+      GenerateChannelBindingHashV2(channel_bindings, channel_bindings_hash);
     }
 
     av_pairs->emplace_back(TargetInfoAvId::kChannelBindings,
@@ -141,7 +146,8 @@ std::vector<uint8_t> WriteUpdatedTargetInfo(const std::vector<AvPair>& av_pairs,
 // undefined and a subsequent operation will set those bits with a parity bit.
 // |key_56| must contain 7 bytes.
 // |key_64| must contain 8 bytes.
-void Splay56To64(const uint8_t* key_56, uint8_t* key_64) {
+void Splay56To64(base::span<const uint8_t, 7> key_56,
+                 base::span<uint8_t, 8> key_64) {
   key_64[0] = key_56[0];
   key_64[1] = key_56[0] << 7 | key_56[1] >> 1;
   key_64[2] = key_56[1] << 6 | key_56[2] >> 2;
@@ -159,8 +165,8 @@ void Create3DesKeysFromNtlmHash(
     base::span<uint8_t, 24> keys) {
   // Put the first 112 bits from |ntlm_hash| into the first 16 bytes of
   // |keys|.
-  Splay56To64(ntlm_hash.data(), keys.data());
-  Splay56To64(ntlm_hash.data() + 7, keys.data() + 8);
+  Splay56To64(ntlm_hash.first<7>(), keys.first<8>());
+  Splay56To64(ntlm_hash.subspan<7, 7>(), keys.subspan<8, 8>());
 
   // Put the next 2x 7 bits in bytes 16 and 17 of |keys|, then
   // the last 2 bits in byte 18, then zero pad the rest of the final key.
@@ -194,7 +200,7 @@ void GenerateResponseDesl(base::span<const uint8_t, kNtlmHashLen> hash,
 
   const DES_cblock* challenge_block =
       reinterpret_cast<const DES_cblock*>(challenge.data());
-  uint8_t keys[block_count * block_size];
+  std::array<uint8_t, block_count * block_size> keys;
 
   // Map the NTLM hash to three 8 byte DES keys, with 7 bits of the key in each
   // byte and the least significant bit set with odd parity. Then encrypt the
@@ -202,7 +208,8 @@ void GenerateResponseDesl(base::span<const uint8_t, kNtlmHashLen> hash,
   // encrypted blocks into |response|.
   Create3DesKeysFromNtlmHash(hash, keys);
   for (size_t ix = 0; ix < block_count * block_size; ix += block_size) {
-    DES_cblock* key_block = reinterpret_cast<DES_cblock*>(keys + ix);
+    DES_cblock* key_block = reinterpret_cast<DES_cblock*>(
+        base::span<uint8_t>(keys).subspan(ix).data());
     DES_cblock* response_block =
         reinterpret_cast<DES_cblock*>(response.data() + ix);
 
@@ -269,9 +276,9 @@ void GenerateNtlmResponseV1WithSessionSecurity(
   GenerateSessionHashV1WithSessionSecurity(server_challenge, client_challenge,
                                            session_hash);
 
-  GenerateResponseDesl(
-      ntlm_hash, base::make_span(session_hash).subspan<0, kChallengeLen>(),
-      ntlm_response);
+  GenerateResponseDesl(ntlm_hash,
+                       base::span(session_hash).first<kChallengeLen>(),
+                       ntlm_response);
 }
 
 void GenerateResponsesV1WithSessionSecurity(
@@ -292,12 +299,12 @@ void GenerateNtlmHashV2(const std::u16string& domain,
   // NOTE: According to [MS-NLMP] Section 3.3.2 only the username and not the
   // domain is uppercased.
 
-  // TODO(https://crbug.com/1051924): Using a locale-sensitive upper casing
+  // TODO(crbug.com/40674019): Using a locale-sensitive upper casing
   // algorithm is problematic. A more predictable approach would be to only
   // uppercase ASCII characters, so the hash does not change depending on the
   // user's locale.
   std::u16string upper_username;
-  bool result = ToUpper(username, &upper_username);
+  bool result = ToUpperUsingLocale(username, &upper_username);
   DCHECK(result);
 
   uint8_t v1_hash[kNtlmHashLen];
@@ -317,7 +324,7 @@ void GenerateNtlmHashV2(const std::u16string& domain,
   DCHECK_EQ(sizeof(v1_hash), outlen);
 }
 
-std::vector<uint8_t> GenerateProofInputV2(
+std::array<uint8_t, kProofInputLenV2> GenerateProofInputV2(
     uint64_t timestamp,
     base::span<const uint8_t, kChallengeLen> client_challenge) {
   NtlmBufferWriter writer(kProofInputLenV2);
@@ -327,7 +334,9 @@ std::vector<uint8_t> GenerateProofInputV2(
                 writer.IsEndOfBuffer();
 
   DCHECK(result);
-  return writer.Pass();
+  std::array<uint8_t, kProofInputLenV2> ret;
+  std::ranges::copy(writer.Pass(), ret.begin());
+  return ret;
 }
 
 void GenerateNtlmProofV2(

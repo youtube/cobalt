@@ -5,26 +5,31 @@
 #include "chrome/browser/ash/file_manager/extract_io_task.h"
 
 #include <grp.h>
+
+#include <optional>
 #include <utility>
 
 #include "base/check_op.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
+#include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/strcat.h"
 #include "base/system/sys_info.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/threading/platform_thread.h"
+#include "base/time/time.h"
 #include "chrome/browser/ash/file_manager/fileapi_util.h"
 #include "chrome/browser/ash/file_manager/filesystem_api_util.h"
 #include "chrome/browser/ash/file_manager/path_util.h"
 #include "chrome/browser/ash/fileapi/file_system_backend.h"
 #include "chrome/browser/platform_util.h"
+#include "components/file_access/scoped_file_access.h"
 #include "components/services/unzip/content/unzip_service.h"
 #include "components/services/unzip/public/mojom/unzipper.mojom.h"
 #include "content/public/browser/browser_thread.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/cros_system_api/constants/cryptohome.h"
 #include "third_party/zlib/google/redact.h"
 
@@ -59,7 +64,7 @@ ExtractIOTask::ExtractIOTask(
     const base::FilePath source_path = source_url.path();
     if (source_path.MatchesExtension(".zip") &&
         ash::FileSystemBackend::CanHandleURL(source_url)) {
-      progress_.sources.emplace_back(source_url, absl::nullopt);
+      progress_.sources.emplace_back(source_url, std::nullopt);
     }
   }
   sizingCount_ = extractCount_ = progress_.sources.size();
@@ -70,15 +75,16 @@ ExtractIOTask::~ExtractIOTask() {
 }
 
 void ExtractIOTask::ZipListenerCallback(uint64_t bytes) {
-  progress_.bytes_transferred += bytes;
-  speedometer_.Update(progress_.bytes_transferred);
-  const double remaining_seconds = speedometer_.GetRemainingSeconds();
+  if (speedometer_.Update(progress_.bytes_transferred += bytes)) {
+    const base::TimeDelta remaining_time = speedometer_.GetRemainingTime();
 
-  // Speedometer can produce infinite result which can't be serialized to JSON
-  // when sending the status via private API.
-  if (std::isfinite(remaining_seconds)) {
-    progress_.remaining_seconds = remaining_seconds;
+    // Speedometer can produce infinite result which can't be serialized to JSON
+    // when sending the status via private API.
+    if (!remaining_time.is_inf()) {
+      progress_.remaining_seconds = remaining_time.InSecondsF();
+    }
   }
+
   progress_callback_.Run(progress_);
 }
 
@@ -86,52 +92,46 @@ void ExtractIOTask::FinishedExtraction(base::FilePath directory, bool success) {
   if (success) {
     // Open a new window to show the extracted content.
     platform_util::ShowItemInFolder(profile_, directory);
+  } else {
+    any_archive_failed_ = true;
   }
-  // Release the unpacker parameters stored for the extraction.
-  auto unpacker = unpackers_[directory];
-  if (unpacker) {
-    unpacker->CleanUp();
-    // Wait for the task runner to clean up the UnpackParams object.
-    while (!unpacker->CleanUpDone()) {
-      // Yield until the cancellation tasks are done.
-      base::PlatformThread::Sleep(base::Microseconds(1));
-    }
-  }
+
   DCHECK_GT(extractCount_, 0u);
   if (--extractCount_ == 0) {
-    progress_.state = success ? State::kSuccess : State::kError;
-    RecordUmaExtractStatus(progress_.state == State::kSuccess
-                               ? ExtractStatus::kSuccess
-                               : ExtractStatus::kUnknownError);
+    cancellation_chain_ = base::DoNothing();
+    progress_.state = any_archive_failed_ ? State::kError : State::kSuccess;
+    RecordUmaExtractStatus(any_archive_failed_ ? ExtractStatus::kUnknownError
+                                               : ExtractStatus::kSuccess);
     Complete();
   }
 }
 
-absl::optional<gid_t> GetDirectoriesOwnerGid() {
+std::optional<gid_t> GetDirectoriesOwnerGid() {
   struct group grp, *result = nullptr;
   std::vector<char> buffer(16384);
   getgrnam_r("chronos-access", &grp, buffer.data(), buffer.size(), &result);
   if (!result) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return grp.gr_gid;
 }
 
-// Recursively walk directory and set 'u+rwx,g+x,o+x'.
+// Recursively walk directory and set 'u+rwx,g+rx,o+x'.
 bool SetDirectoryPermissions(base::FilePath directory, bool success) {
   // Always set permissions in case of error mid-extract.
   base::FileEnumerator traversal(directory, true,
                                  base::FileEnumerator::DIRECTORIES);
-  const absl::optional<gid_t> owner_gid = GetDirectoriesOwnerGid();
+  const std::optional<gid_t> owner_gid = GetDirectoriesOwnerGid();
   for (base::FilePath current = traversal.Next(); !current.empty();
        current = traversal.Next()) {
-    base::SetPosixFilePermissions(current,
-                                  base::FILE_PERMISSION_READ_BY_USER |
-                                      base::FILE_PERMISSION_WRITE_BY_USER |
-                                      base::FILE_PERMISSION_EXECUTE_BY_USER |
-                                      base::FILE_PERMISSION_READ_BY_GROUP |
-                                      base::FILE_PERMISSION_EXECUTE_BY_GROUP |
-                                      base::FILE_PERMISSION_EXECUTE_BY_OTHERS);
+    base::SetPosixFilePermissions(
+        current,
+        base::FILE_PERMISSION_READ_BY_USER |  // "rwxr-x--x".
+            base::FILE_PERMISSION_WRITE_BY_USER |
+            base::FILE_PERMISSION_EXECUTE_BY_USER |
+            base::FILE_PERMISSION_READ_BY_GROUP |
+            base::FILE_PERMISSION_EXECUTE_BY_GROUP |
+            base::FILE_PERMISSION_EXECUTE_BY_OTHERS);
     // Might not exist in tests.
     if (owner_gid.has_value()) {
       HANDLE_EINTR(chown(current.value().c_str(), -1, owner_gid.value()));
@@ -155,43 +155,64 @@ void ExtractIOTask::ExtractIntoNewDirectory(
     bool created_ok) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   if (created_ok) {
-    unzip::mojom::UnzipOptionsPtr options =
-        unzip::mojom::UnzipOptions::New("auto", password_);
-    scoped_refptr<unzip::ZipFileUnpacker> unpacker =
-        base::MakeRefCounted<unzip::ZipFileUnpacker>();
-    unpacker->Unpack(
-        unzip::LaunchUnzipper(), source_file, destination_directory,
-        std::move(options),
-        base::BindRepeating(&ExtractIOTask::ZipListenerCallback,
-                            weak_ptr_factory_.GetWeakPtr()),
-        base::BindOnce(&ExtractIOTask::ZipExtractCallback,
-                       weak_ptr_factory_.GetWeakPtr(), destination_directory));
-    unpackers_.insert({destination_directory, std::move(unpacker)});
+    // Accumulate the new cancellation callback into the cancellation chain.
+    cancellation_chain_ =
+        unzip::Unzip(unzip::LaunchUnzipper(), source_file,
+                     destination_directory,
+                     unzip::mojom::UnzipOptions::New("auto", password_),
+                     unzip::AllContents(),
+                     base::BindRepeating(&ExtractIOTask::ZipListenerCallback,
+                                         weak_ptr_factory_.GetWeakPtr()),
+                     base::BindOnce(&ExtractIOTask::ZipExtractCallback,
+                                    weak_ptr_factory_.GetWeakPtr(),
+                                    destination_directory))
+            .Then(std::move(cancellation_chain_));
   } else {
     LOG(ERROR) << "Cannot create directory "
                << zip::Redact(destination_directory);
+    ZipExtractCallback(base::FilePath(), false);
   }
 }
 
 bool CreateExtractionDirectory(const base::FilePath& destination_directory) {
-  bool created_ok = base::CreateDirectory(destination_directory);
-  // Make sure the directory is world readable.
-  if (created_ok) {
-    created_ok = base::SetPosixFilePermissions(
-        destination_directory, base::FILE_PERMISSION_READ_BY_USER |
-                                   base::FILE_PERMISSION_WRITE_BY_USER |
-                                   base::FILE_PERMISSION_EXECUTE_BY_USER |
-                                   base::FILE_PERMISSION_READ_BY_GROUP |
-                                   base::FILE_PERMISSION_EXECUTE_BY_GROUP |
-                                   base::FILE_PERMISSION_EXECUTE_BY_OTHERS);
-    // Might not exist in tests.
-    const absl::optional<gid_t> owner_gid = GetDirectoriesOwnerGid();
-    if (created_ok && owner_gid.has_value()) {
-      created_ok = (HANDLE_EINTR(chown(destination_directory.value().c_str(),
-                                       -1, owner_gid.value())) == 0);
-    }
+  if (!base::CreateDirectory(destination_directory)) {
+    return false;
   }
-  return created_ok;
+
+  if (base::StartsWith(destination_directory.value(),
+                       file_manager::util::kFuseBoxMediaSlashPath)) {
+    // Fusebox files wrap Chromium's SBFS (//storage/browser/file_system) API
+    // and the SBFS cross-platform abstraction doesn't expose Unix-style rwx
+    // permission bits or owner:group chown-ership fields. The Fusebox server
+    // offers synthetic "rwxrwx---" mode bits (for directories) but trying to
+    // chmod that to something different will fail. Still, while "rwxrwx---" is
+    // not exactly equal to "rwxr-x--x", it's good enough for many purposes.
+    // For Fusebox paths, we just return early (with success) instead of trying
+    // to chmod and chown the freshly created directory.
+    return true;
+  }
+
+  // Make sure the directory is world readable.
+  if (!base::SetPosixFilePermissions(
+          destination_directory,
+          base::FILE_PERMISSION_READ_BY_USER |  // "rwxr-x--x".
+              base::FILE_PERMISSION_WRITE_BY_USER |
+              base::FILE_PERMISSION_EXECUTE_BY_USER |
+              base::FILE_PERMISSION_READ_BY_GROUP |
+              base::FILE_PERMISSION_EXECUTE_BY_GROUP |
+              base::FILE_PERMISSION_EXECUTE_BY_OTHERS)) {
+    return false;
+  }
+
+  const std::optional<gid_t> owner_gid = GetDirectoriesOwnerGid();
+  if (!owner_gid.has_value()) {
+    // Might not exist in tests.
+  } else if (HANDLE_EINTR(chown(destination_directory.value().c_str(), -1,
+                                owner_gid.value()))) {
+    return false;
+  }
+
+  return true;
 }
 
 void ExtractIOTask::ExtractArchive(
@@ -202,6 +223,8 @@ void ExtractIOTask::ExtractArchive(
   if (!destination_result.has_value()) {
     ZipExtractCallback(base::FilePath(), false);
   } else {
+    progress_.outputs.emplace_back(destination_result.value(), std::nullopt,
+                                   progress_.sources[index].url);
     const base::FilePath destination_directory =
         destination_result.value().path();
     base::ThreadPool::PostTaskAndReplyWithResult(
@@ -269,7 +292,7 @@ void ExtractIOTask::ZipInfoCallback(unzip::mojom::InfoPtr info) {
   if (--sizingCount_ == 0) {
     // After getting the size of all the ZIPs, check if we have
     // enough available disk space, and if so, extract them.
-    if (util::IsNonNativeFileSystemType(parent_folder_.type())) {
+    if (!parent_folder_.TypeImpliesPathIsReal()) {
       // Destination is a virtual filesystem, so skip the size check.
       ExtractAllSources();
     } else {
@@ -298,6 +321,22 @@ void ExtractIOTask::CheckSizeThenExtract() {
   }
 }
 
+void ExtractIOTask::GotScopedFileAccess(
+    file_access::ScopedFileAccess file_access) {
+  file_access_ = std::move(file_access);
+  CheckSizeThenExtract();
+}
+
+void ExtractIOTask::GetScopedFileAccess() {
+  std::vector<base::FilePath> zip_files;
+  for (const EntryStatus& source : progress_.sources) {
+    zip_files.push_back(source.url.path());
+  }
+  file_access::RequestFilesAccessForSystem(
+      {zip_files}, base::BindOnce(&ExtractIOTask::GotScopedFileAccess,
+                                  weak_ptr_factory_.GetWeakPtr()));
+}
+
 void ExtractIOTask::Execute(IOTask::ProgressCallback progress_callback,
                             IOTask::CompleteCallback complete_callback) {
   progress_callback_ = std::move(progress_callback);
@@ -314,23 +353,15 @@ void ExtractIOTask::Execute(IOTask::ProgressCallback progress_callback,
     RecordUmaExtractStatus(ExtractStatus::kUnknownError);
     Complete();
   } else {
-    CheckSizeThenExtract();
+    GetScopedFileAccess();
   }
 }
 
 void ExtractIOTask::Cancel() {
   progress_.state = State::kCancelled;
   RecordUmaExtractStatus(ExtractStatus::kCancelled);
-  // Run through all existing extraction instances and cancel them all.
-  for (auto unpacker : unpackers_) {
-    if (unpacker.second) {
-      unpacker.second->Stop();
-      while (!unpacker.second->CleanUpDone()) {
-        // Yield until the UnpackParams objects have been released.
-        base::PlatformThread::Sleep(base::Microseconds(1));
-      }
-    }
-  }
+  std::move(cancellation_chain_).Run();
+  cancellation_chain_ = base::DoNothing();
 }
 
 // Calls the completion callback for the task. |progress_| should not be

@@ -24,7 +24,7 @@
 #if defined(NDEBUG) && !defined(ANGLE_METAL_FRAME_CAPTURE)
 #    define ANGLE_METAL_FRAME_CAPTURE_ENABLED 0
 #else
-#    define ANGLE_METAL_FRAME_CAPTURE_ENABLED ANGLE_WITH_MODERN_METAL_API
+#    define ANGLE_METAL_FRAME_CAPTURE_ENABLED 1
 #endif
 namespace rx
 {
@@ -42,16 +42,18 @@ struct IOSurfaceFormatInfo
 };
 
 // clang-format off
-// NOTE(hqle): Support R16_UINT once GLES3 is complete.
-constexpr std::array<IOSurfaceFormatInfo, 8> kIOSurfaceFormats = {{
-    {GL_RED,      GL_UNSIGNED_BYTE,               1, angle::FormatID::R8_UNORM},
-    {GL_RED,      GL_UNSIGNED_SHORT,              2, angle::FormatID::R16_UNORM},
-    {GL_RG,       GL_UNSIGNED_BYTE,               2, angle::FormatID::R8G8_UNORM},
-    {GL_RG,       GL_UNSIGNED_SHORT,              4, angle::FormatID::R16G16_UNORM},
-    {GL_RGB,      GL_UNSIGNED_BYTE,               4, angle::FormatID::B8G8R8A8_UNORM},
-    {GL_BGRA_EXT, GL_UNSIGNED_BYTE,               4, angle::FormatID::B8G8R8A8_UNORM},
-    {GL_RGBA,     GL_HALF_FLOAT,                  8, angle::FormatID::R16G16B16A16_FLOAT},
-    {GL_RGB10_A2, GL_UNSIGNED_INT_2_10_10_10_REV, 4, angle::FormatID::B10G10R10A2_UNORM},
+// GL_RGB is a special case. The native angle::FormatID would be either R8G8B8X8_UNORM
+// or B8G8R8X8_UNORM based on the IOSurface's pixel format.
+constexpr std::array<IOSurfaceFormatInfo, 9> kIOSurfaceFormats = {{
+    {GL_RED,         GL_UNSIGNED_BYTE,                  1, angle::FormatID::R8_UNORM},
+    {GL_RED,         GL_UNSIGNED_SHORT,                 2, angle::FormatID::R16_UNORM},
+    {GL_RG,          GL_UNSIGNED_BYTE,                  2, angle::FormatID::R8G8_UNORM},
+    {GL_RG,          GL_UNSIGNED_SHORT,                 4, angle::FormatID::R16G16_UNORM},
+    {GL_RGB,         GL_UNSIGNED_BYTE,                  4, angle::FormatID::NONE},
+    {GL_RGBA,        GL_UNSIGNED_BYTE,                  4, angle::FormatID::R8G8B8A8_UNORM},
+    {GL_BGRA_EXT,    GL_UNSIGNED_BYTE,                  4, angle::FormatID::B8G8R8A8_UNORM},
+    {GL_RGBA,        GL_HALF_FLOAT,                     8, angle::FormatID::R16G16B16A16_FLOAT},
+    {GL_RGB10_A2,    GL_UNSIGNED_INT_2_10_10_10_REV,    4, angle::FormatID::B10G10R10A2_UNORM},
 }};
 // clang-format on
 
@@ -87,8 +89,26 @@ IOSurfaceSurfaceMtl::IOSurfaceSurfaceMtl(DisplayMtl *display,
         FindIOSurfaceFormatIndex(static_cast<GLenum>(internalFormat), static_cast<GLenum>(type));
     ASSERT(mIOSurfaceFormatIdx >= 0);
 
-    mColorFormat =
-        display->getPixelFormat(kIOSurfaceFormats[mIOSurfaceFormatIdx].nativeAngleFormatId);
+    angle::FormatID actualAngleFormatId =
+        kIOSurfaceFormats[mIOSurfaceFormatIdx].nativeAngleFormatId;
+    if (actualAngleFormatId == angle::FormatID::NONE)
+    {
+        // The actual angle::Format depends on the IOSurface's format.
+        ASSERT(internalFormat == GL_RGB);
+        switch (IOSurfaceGetPixelFormat(mIOSurface))
+        {
+            case 'BGRA':
+                actualAngleFormatId = angle::FormatID::B8G8R8X8_UNORM;
+                break;
+            case 'RGBA':
+                actualAngleFormatId = angle::FormatID::R8G8B8X8_UNORM;
+                break;
+            default:
+                UNREACHABLE();
+        }
+    }
+
+    mColorFormat = display->getPixelFormat(actualAngleFormatId);
 }
 IOSurfaceSurfaceMtl::~IOSurfaceSurfaceMtl()
 {
@@ -108,6 +128,15 @@ egl::Error IOSurfaceSurfaceMtl::bindTexImage(const gl::Context *context,
 
     // Initialize offscreen texture if needed:
     ANGLE_TO_EGL_TRY(ensureColorTextureCreated(context));
+
+    if (mColorTexture)
+    {
+        // Mark the resource as written by command buffer so that we wait for command buffer finish
+        // before doing a readback on the CPU via getBytes. It's necessary to synchronize with the
+        // shared event wait in the command buffer if the previous user of the IOSurface did not
+        // call waitUntilScheduled e.g. Chromium will skip waitUntilScheduled on single GPU systems.
+        contextMtl->markResourceWrittenByCommandBuffer(mColorTexture);
+    }
 
     return OffscreenSurfaceMtl::bindTexImage(context, texture, buffer);
 }
@@ -179,6 +208,8 @@ angle::Result IOSurfaceSurfaceMtl::ensureColorTextureCreated(const gl::Context *
         // Disable subsequent rendering to alpha channel.
         mColorTexture->setColorWritableMask(MTLColorWriteMaskAll & (~MTLColorWriteMaskAlpha));
     }
+    // Robust resource init: currently we do not allow passing contents with IOSurfaces.
+    mColorTextureInitialized = false;
 
     return angle::Result::Continue;
 }

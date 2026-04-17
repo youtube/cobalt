@@ -6,39 +6,40 @@
 #define BASE_STRINGS_STRING_SPLIT_WIN_H_
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/base_export.h"
-#include "base/strings/string_piece.h"
+#include "base/compiler_specific.h"
 #include "base/strings/string_split.h"
 
 namespace base {
 
 // The following section contains overloads of the cross-platform APIs for
-// std::wstring and base::WStringPiece.
+// std::wstring and std::wstring_view.
 [[nodiscard]] BASE_EXPORT std::vector<std::wstring> SplitString(
-    WStringPiece input,
-    WStringPiece separators,
+    std::wstring_view input,
+    std::wstring_view separators,
     WhitespaceHandling whitespace,
     SplitResult result_type);
 
-[[nodiscard]] BASE_EXPORT std::vector<WStringPiece> SplitStringPiece(
-    WStringPiece input,
-    WStringPiece separators,
+[[nodiscard]] BASE_EXPORT std::vector<std::wstring_view> SplitStringPiece(
+    std::wstring_view input LIFETIME_BOUND,
+    std::wstring_view separators,
     WhitespaceHandling whitespace,
     SplitResult result_type);
 
 [[nodiscard]] BASE_EXPORT std::vector<std::wstring> SplitStringUsingSubstr(
-    WStringPiece input,
-    WStringPiece delimiter,
+    std::wstring_view input,
+    std::wstring_view delimiter,
     WhitespaceHandling whitespace,
     SplitResult result_type);
 
-[[nodiscard]] BASE_EXPORT std::vector<WStringPiece> SplitStringPieceUsingSubstr(
-    WStringPiece input,
-    WStringPiece delimiter,
-    WhitespaceHandling whitespace,
-    SplitResult result_type);
+[[nodiscard]] BASE_EXPORT std::vector<std::wstring_view>
+SplitStringPieceUsingSubstr(std::wstring_view input LIFETIME_BOUND,
+                            std::wstring_view delimiter,
+                            WhitespaceHandling whitespace,
+                            SplitResult result_type);
 
 }  // namespace base
 

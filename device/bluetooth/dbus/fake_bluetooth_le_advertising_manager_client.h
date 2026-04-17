@@ -10,6 +10,8 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "dbus/object_path.h"
 #include "dbus/property.h"
 #include "device/bluetooth/bluetooth_export.h"
@@ -71,20 +73,34 @@ class DEVICE_BLUETOOTH_EXPORT FakeBluetoothLEAdvertisingManagerClient
 
   int currently_registered() { return currently_registered_.size(); }
 
+  Properties* GetProperties(const dbus::ObjectPath& object_path) override;
+
   enum : size_t { kMaxBluezAdvertisements = 5 };
 
  private:
+  // Property callback passed when we create Properties structures.
+  void OnPropertyChanged(const dbus::ObjectPath& object_path,
+                         const std::string& property_name);
+
   // Map of a D-Bus object path to the FakeBluetoothAdvertisementServiceProvider
   // registered for it; maintained by RegisterAdvertisementServiceProvider() and
   // UnregisterProfileServiceProvicer() called by the constructor and
   // destructor of FakeBluetoothAdvertisementServiceProvider.
-  typedef std::map<dbus::ObjectPath,
-                   FakeBluetoothLEAdvertisementServiceProvider*>
+  typedef std::map<
+      dbus::ObjectPath,
+      raw_ptr<FakeBluetoothLEAdvertisementServiceProvider, CtnExperimental>>
       ServiceProviderMap;
   ServiceProviderMap service_provider_map_;
 
+  std::unique_ptr<Properties> properties_;
+
   // Holds currently registered advertisements.
   std::vector<dbus::ObjectPath> currently_registered_;
+
+  base::WeakPtrFactory<FakeBluetoothLEAdvertisingManagerClient>
+      weak_ptr_factory_{this};
+
+  void InitializeProperties();
 };
 
 }  // namespace bluez

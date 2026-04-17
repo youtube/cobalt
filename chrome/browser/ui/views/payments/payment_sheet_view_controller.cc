@@ -27,8 +27,8 @@
 #include "chrome/browser/ui/views/payments/payment_request_row_view.h"
 #include "chrome/browser/ui/views/payments/payment_request_views_util.h"
 #include "chrome/common/url_constants.h"
+#include "components/autofill/core/browser/data_manager/personal_data_manager.h"
 #include "components/autofill/core/browser/field_types.h"
-#include "components/autofill/core/browser/personal_data_manager.h"
 #include "components/payments/content/payment_app.h"
 #include "components/payments/content/payment_request_spec.h"
 #include "components/payments/content/payment_request_state.h"
@@ -71,9 +71,9 @@ namespace {
 // "[preview] and N more" where preview might be elided to allow "and N more" to
 // be always visible.
 class PreviewEliderLabel : public views::Label {
- public:
-  METADATA_HEADER(PreviewEliderLabel);
+  METADATA_HEADER(PreviewEliderLabel, views::Label)
 
+ public:
   // Creates a PreviewEliderLabel where |preview_text| might be elided,
   // |format_string| is the string with format argument numbers in ICU syntax
   // and |n| is the "N more" item count.
@@ -100,12 +100,13 @@ class PreviewEliderLabel : public views::Label {
       std::u16string elided_string =
           base::i18n::MessageFormatter::FormatWithNumberedArgs(
               format_string_, "", elided_preview, n_);
-      if (gfx::GetStringWidth(elided_string, font_list()) <= pixel_width)
+      if (gfx::GetStringWidth(elided_string, font_list()) <= pixel_width) {
         return elided_string;
+      }
     }
 
-    // TODO(crbug.com/714776): Display something meaningful if the preview can't
-    // be elided enough for the string to fit.
+    // TODO(crbug.com/40517112): Display something meaningful if the preview
+    // can't be elided enough for the string to fit.
     return std::u16string();
   }
 
@@ -121,7 +122,7 @@ class PreviewEliderLabel : public views::Label {
   int n_;
 };
 
-BEGIN_METADATA(PreviewEliderLabel, views::Label)
+BEGIN_METADATA(PreviewEliderLabel)
 END_METADATA
 
 std::unique_ptr<PaymentRequestRowView> CreatePaymentSheetRow(
@@ -318,7 +319,7 @@ class PaymentSheetRowBuilder {
       bool button_enabled) {
     auto button = std::make_unique<views::MdTextButton>(GetPressedCallback(),
                                                         button_string);
-    button->SetProminent(true);
+    button->SetStyle(ui::ButtonStyle::kProminent);
     button->SetID(id_);
     button->SetFocusBehavior(views::View::FocusBehavior::ALWAYS);
     button->SetEnabled(button_enabled);
@@ -363,8 +364,9 @@ PaymentSheetViewController::PaymentSheetViewController(
 }
 
 PaymentSheetViewController::~PaymentSheetViewController() {
-  if (spec())
+  if (spec()) {
     spec()->RemoveObserver(this);
+  }
 
   state()->RemoveObserver(this);
 }
@@ -380,8 +382,9 @@ void PaymentSheetViewController::OnSelectedInformationChanged() {
 }
 
 void PaymentSheetViewController::ButtonPressed(base::RepeatingClosure closure) {
-  if (!dialog()->IsInteractive() || !spec())
+  if (!dialog()->IsInteractive() || !spec()) {
     return;
+  }
 
   std::move(closure).Run();
 
@@ -413,8 +416,9 @@ std::u16string PaymentSheetViewController::GetSheetTitle() {
 }
 
 void PaymentSheetViewController::FillContentView(views::View* content_view) {
-  if (!spec())
+  if (!spec()) {
     return;
+  }
 
   auto builder = views::Builder<views::View>(content_view)
                      .SetLayoutManager(std::make_unique<views::BoxLayout>(
@@ -428,23 +432,26 @@ void PaymentSheetViewController::FillContentView(views::View* content_view) {
   // The shipping address and contact info rows are optional.
   std::unique_ptr<PaymentRequestRowView> summary_row =
       CreatePaymentSheetSummaryRow();
-  if (!summary_row)
+  if (!summary_row) {
     return std::move(builder).BuildChildren();
+  }
 
   PaymentRequestRowView* previous_row = summary_row.get();
   builder.AddChild(views::Builder<views::View>(std::move(summary_row)));
 
   if (state()->ShouldShowShippingSection()) {
     std::unique_ptr<PaymentRequestRowView> shipping_row = CreateShippingRow();
-    if (!shipping_row)
+    if (!shipping_row) {
       return std::move(builder).BuildChildren();
+    }
 
     shipping_row->set_previous_row(previous_row->AsWeakPtr());
     previous_row = shipping_row.get();
     builder.AddChild(views::Builder<views::View>(std::move(shipping_row)));
     // It's possible for requestShipping to be true and for there to be no
     // shipping options yet (they will come in updateWith).
-    // TODO(crbug.com/707353): Put a better placeholder row, instead of no row.
+    // TODO(crbug.com/40513573): Put a better placeholder row, instead of no
+    // row.
     std::unique_ptr<PaymentRequestRowView> shipping_option_row =
         CreateShippingOptionRow();
     if (shipping_option_row) {
@@ -501,8 +508,9 @@ PaymentSheetViewController::GetWeakPtr() {
 // +----------------------------------------------+
 std::unique_ptr<PaymentRequestRowView>
 PaymentSheetViewController::CreatePaymentSheetSummaryRow() {
-  if (!spec())
+  if (!spec()) {
     return nullptr;
+  }
 
   constexpr int kItemSummaryPriceFixedWidth = 96;
   auto view_builder =
@@ -595,8 +603,9 @@ PaymentSheetViewController::CreateShippingSectionContent(
     std::u16string* accessible_content) {
   DCHECK(accessible_content);
   autofill::AutofillProfile* profile = state()->selected_shipping_profile();
-  if (!profile)
+  if (!profile) {
     return std::make_unique<views::Label>(std::u16string());
+  }
 
   return GetShippingAddressLabelWithMissingInfo(
       AddressStyleType::SUMMARY, state()->GetApplicationLocale(), *profile,
@@ -613,8 +622,9 @@ PaymentSheetViewController::CreateShippingSectionContent(
 // +----------------------------------------------+
 std::unique_ptr<PaymentRequestRowView>
 PaymentSheetViewController::CreateShippingRow() {
-  if (!spec())
+  if (!spec()) {
     return nullptr;
+  }
 
   std::unique_ptr<views::Button> section;
   PaymentSheetRowBuilder builder(
@@ -759,12 +769,12 @@ PaymentSheetViewController::CreateContactInfoRow() {
                                     l10n_util::GetStringUTF16(IDS_ADD),
                                     /*button_enabled=*/true);
   }
-  static constexpr autofill::ServerFieldType kLabelFields[] = {
+  static constexpr autofill::FieldType kLabelFields[] = {
       autofill::NAME_FULL, autofill::PHONE_HOME_WHOLE_NUMBER,
       autofill::EMAIL_ADDRESS};
   const std::u16string preview =
       state()->contact_profiles()[0]->ConstructInferredLabel(
-          kLabelFields, std::size(kLabelFields), std::size(kLabelFields),
+          kLabelFields, std::size(kLabelFields),
           state()->GetApplicationLocale());
   if (state()->contact_profiles().size() == 1) {
     return builder.CreateWithButton(preview,

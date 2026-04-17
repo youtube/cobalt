@@ -65,34 +65,25 @@ class COMPONENT_EXPORT(STORAGE_SERVICE_FILESYSTEM_SUPPORT) FilesystemImpl
                 mojom::FileReadAccess read_access,
                 mojom::FileWriteAccess write_access,
                 OpenFileCallback callback) override;
-  void WriteFileAtomically(const base::FilePath& path,
-                           const std::string& contents,
-                           WriteFileAtomicallyCallback callback) override;
   void CreateDirectory(const base::FilePath& path,
                        CreateDirectoryCallback callback) override;
   void DeleteFile(const base::FilePath& path,
                   DeleteFileCallback callback) override;
-  void DeletePathRecursively(const base::FilePath& path,
-                             DeletePathRecursivelyCallback callback) override;
   void GetFileInfo(const base::FilePath& path,
                    GetFileInfoCallback callback) override;
   void GetPathAccess(const base::FilePath& path,
                      GetPathAccessCallback callback) override;
-  void GetMaximumPathComponentLength(
-      const base::FilePath& path,
-      GetMaximumPathComponentLengthCallback callback) override;
   void RenameFile(const base::FilePath& old_path,
                   const base::FilePath& new_path,
                   RenameFileCallback callback) override;
   void LockFile(const base::FilePath& path, LockFileCallback callback) override;
-  void SetOpenedFileLength(base::File file,
-                           uint64_t length,
-                           SetOpenedFileLengthCallback callback) override;
 
-  // Helper used by LockFile() and FilesystemProxy::LockFile() for in
-  // unrestricted mode.
+  // Helper used by `LockFile()` and `FilesystemProxy::LockFile()` for in
+  // unrestricted mode. See `FileSystemProxy::LockFile()` for
+  // `same_process_failure` docs.
   static base::FileErrorOr<base::File> LockFileLocal(
-      const base::FilePath& path);
+      const base::FilePath& path,
+      bool* same_process_failure);
   static void UnlockFileLocal(const base::FilePath& path);
 
   // Helper used by GetPathAccess() and FilesystemProxy::GetPathAccess.

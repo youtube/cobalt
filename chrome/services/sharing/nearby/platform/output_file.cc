@@ -4,22 +4,21 @@
 
 #include "chrome/services/sharing/nearby/platform/output_file.h"
 
-#include "base/numerics/safe_conversions.h"
+#include "base/containers/span.h"
 
-namespace nearby {
-namespace chrome {
+namespace nearby::chrome {
 
 OutputFile::OutputFile(base::File file) : file_(std::move(file)) {}
 
 OutputFile::~OutputFile() = default;
 
 Exception OutputFile::Write(const ByteArray& data) {
-  if (!file_.IsValid())
+  if (!file_.IsValid()) {
     return {Exception::kIo};
-
-  int bytes_written = file_.WriteAtCurrentPos(data.data(), data.size());
-  if (bytes_written != base::checked_cast<int>(data.size()))
+  }
+  if (!file_.WriteAtCurrentPosAndCheck(base::as_byte_span(data))) {
     return {Exception::kIo};
+  }
   return {Exception::kSuccess};
 }
 
@@ -41,5 +40,4 @@ Exception OutputFile::Close() {
   return {Exception::kSuccess};
 }
 
-}  // namespace chrome
-}  // namespace nearby
+}  // namespace nearby::chrome

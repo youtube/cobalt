@@ -19,6 +19,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.app.Activity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -26,44 +27,64 @@ import android.view.View.OnClickListener;
 import androidx.test.filters.SmallTest;
 
 import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
+import org.chromium.base.ThreadUtils;
+import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.util.Batch;
+import org.chromium.base.test.util.DisableIf;
+import org.chromium.base.test.util.DisabledTest;
 import org.chromium.chrome.R;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.components.browser_ui.widget.gesture.SwipeGestureListener.ScrollDirection;
 import org.chromium.components.browser_ui.widget.gesture.SwipeGestureListener.SwipeHandler;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
-import org.chromium.ui.test.util.BlankUiTestActivityTestCase;
+import org.chromium.ui.test.util.BlankUiTestActivity;
 
 /** On device unit tests for {@link CustomTabBottomBarView}. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @Batch(Batch.PER_CLASS)
-public class CustomTabBottomBarViewUnitTest extends BlankUiTestActivityTestCase {
-    @Mock
-    private SwipeHandler mSwipeHandler;
-    @Mock
-    private OnClickListener mOnClickListener;
+public class CustomTabBottomBarViewUnitTest {
+    @ClassRule
+    public static final BaseActivityTestRule<BlankUiTestActivity> sActivityTestRule =
+            new BaseActivityTestRule<>(BlankUiTestActivity.class);
+
+    private static Activity sActivity;
+
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Mock private SwipeHandler mSwipeHandler;
+    @Mock private OnClickListener mOnClickListener;
 
     private CustomTabBottomBarView mView;
     private View mStub;
 
+    @BeforeClass
+    public static void setupSuite() {
+        sActivity = sActivityTestRule.launchActivity(null);
+    }
+
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
         when(mSwipeHandler.isSwipeEnabled(eq(ScrollDirection.UP))).thenReturn(true);
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mView = (CustomTabBottomBarView) getActivity().getLayoutInflater().inflate(
-                    R.layout.custom_tabs_bottombar, null);
-            mStub = getActivity().getLayoutInflater().inflate(R.layout.bottombar_stub, null);
-            mStub.setOnClickListener(mOnClickListener);
-            mView.addView(mStub);
-            mView.setSwipeHandler(mSwipeHandler);
-            getActivity().setContentView(mView);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mView =
+                            (CustomTabBottomBarView)
+                                    sActivity
+                                            .getLayoutInflater()
+                                            .inflate(R.layout.custom_tabs_bottombar, null);
+                    mStub = sActivity.getLayoutInflater().inflate(R.layout.bottombar_stub, null);
+                    mStub.setOnClickListener(mOnClickListener);
+                    mView.addView(mStub);
+                    mView.setSwipeHandler(mSwipeHandler);
+                    sActivity.setContentView(mView);
+                });
     }
 
     @Test
@@ -78,6 +99,7 @@ public class CustomTabBottomBarViewUnitTest extends BlankUiTestActivityTestCase 
 
     @Test
     @SmallTest
+    @DisabledTest(message = "crbug.com/329163715")
     public void testSwipeUp() {
         onView(withChild(withId(R.id.stub))).perform(swipeUp());
         verify(mSwipeHandler).onSwipeStarted(eq(ScrollDirection.UP), any(MotionEvent.class));
@@ -85,6 +107,10 @@ public class CustomTabBottomBarViewUnitTest extends BlankUiTestActivityTestCase 
 
     @Test
     @SmallTest
+    @DisableIf.Build(
+            supported_abis_includes = "arm64-v8a",
+            sdk_is_greater_than = 33,
+            message = "crbug.com/353773627")
     public void testSwipeRightDoesNotTrigger() {
         onView(withChild(withId(R.id.stub))).perform(swipeRight());
         verify(mSwipeHandler, never()).onSwipeStarted(anyInt(), any());

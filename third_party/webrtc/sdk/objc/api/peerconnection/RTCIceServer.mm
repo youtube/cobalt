@@ -23,9 +23,7 @@
 @synthesize tlsEllipticCurves = _tlsEllipticCurves;
 
 - (instancetype)initWithURLStrings:(NSArray<NSString *> *)urlStrings {
-  return [self initWithURLStrings:urlStrings
-                         username:nil
-                       credential:nil];
+  return [self initWithURLStrings:urlStrings username:nil credential:nil];
 }
 
 - (instancetype)initWithURLStrings:(NSArray<NSString *> *)urlStrings
@@ -84,27 +82,32 @@
                   tlsAlpnProtocols:(NSArray<NSString *> *)tlsAlpnProtocols
                  tlsEllipticCurves:(NSArray<NSString *> *)tlsEllipticCurves {
   NSParameterAssert(urlStrings.count);
-  if (self = [super init]) {
+  self = [super init];
+  if (self) {
     _urlStrings = [[NSArray alloc] initWithArray:urlStrings copyItems:YES];
     _username = [username copy];
     _credential = [credential copy];
     _tlsCertPolicy = tlsCertPolicy;
     _hostname = [hostname copy];
-    _tlsAlpnProtocols = [[NSArray alloc] initWithArray:tlsAlpnProtocols copyItems:YES];
-    _tlsEllipticCurves = [[NSArray alloc] initWithArray:tlsEllipticCurves copyItems:YES];
+    _tlsAlpnProtocols = [[NSArray alloc] initWithArray:tlsAlpnProtocols
+                                             copyItems:YES];
+    _tlsEllipticCurves = [[NSArray alloc] initWithArray:tlsEllipticCurves
+                                              copyItems:YES];
   }
   return self;
 }
 
 - (NSString *)description {
-  return [NSString stringWithFormat:@"RTC_OBJC_TYPE(RTCIceServer):\n%@\n%@\n%@\n%@\n%@\n%@\n%@",
-                                    _urlStrings,
-                                    _username,
-                                    _credential,
-                                    [self stringForTlsCertPolicy:_tlsCertPolicy],
-                                    _hostname,
-                                    _tlsAlpnProtocols,
-                                    _tlsEllipticCurves];
+  return
+      [NSString stringWithFormat:
+                    @"RTC_OBJC_TYPE(RTCIceServer):\n%@\n%@\n%@\n%@\n%@\n%@\n%@",
+                    _urlStrings,
+                    _username,
+                    _credential,
+                    [self stringForTlsCertPolicy:_tlsCertPolicy],
+                    _hostname,
+                    _tlsAlpnProtocols,
+                    _tlsEllipticCurves];
 }
 
 #pragma mark - Private
@@ -125,19 +128,20 @@
   iceServer.password = [NSString stdStringForString:_credential];
   iceServer.hostname = [NSString stdStringForString:_hostname];
 
-  [_tlsAlpnProtocols enumerateObjectsUsingBlock:^(NSString *proto, NSUInteger idx, BOOL *stop) {
+  [_tlsAlpnProtocols enumerateObjectsUsingBlock:^(
+                         NSString *proto, NSUInteger idx, BOOL *stop) {
     iceServer.tls_alpn_protocols.push_back(proto.stdString);
   }];
 
-  [_tlsEllipticCurves enumerateObjectsUsingBlock:^(NSString *curve, NSUInteger idx, BOOL *stop) {
+  [_tlsEllipticCurves enumerateObjectsUsingBlock:^(
+                          NSString *curve, NSUInteger idx, BOOL *stop) {
     iceServer.tls_elliptic_curves.push_back(curve.stdString);
   }];
 
-  [_urlStrings enumerateObjectsUsingBlock:^(NSString *url,
-                                            NSUInteger idx,
-                                            BOOL *stop) {
-    iceServer.urls.push_back(url.stdString);
-  }];
+  [_urlStrings
+      enumerateObjectsUsingBlock:^(NSString *url, NSUInteger idx, BOOL *stop) {
+        iceServer.urls.push_back(url.stdString);
+      }];
 
   switch (_tlsCertPolicy) {
     case RTCTlsCertPolicySecure:
@@ -167,8 +171,8 @@
   for (auto const &proto : nativeServer.tls_alpn_protocols) {
     [tlsAlpnProtocols addObject:[NSString stringForStdString:proto]];
   }
-  NSMutableArray *tlsEllipticCurves =
-      [NSMutableArray arrayWithCapacity:nativeServer.tls_elliptic_curves.size()];
+  NSMutableArray *tlsEllipticCurves = [NSMutableArray
+      arrayWithCapacity:nativeServer.tls_elliptic_curves.size()];
   for (auto const &curve : nativeServer.tls_elliptic_curves) {
     [tlsEllipticCurves addObject:[NSString stringForStdString:curve]];
   }

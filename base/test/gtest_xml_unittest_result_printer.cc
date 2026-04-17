@@ -2,17 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/test/gtest_xml_unittest_result_printer.h"
+
+#include <string_view>
 
 #include "base/base64.h"
 #include "base/check.h"
 #include "base/command_line.h"
 #include "base/files/file_util.h"
+#include "base/i18n/time_formatting.h"
 #include "base/strings/string_util.h"
 #include "base/test/test_switches.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
-#include "base/time/time_to_iso8601.h"
 
 namespace base {
 
@@ -23,7 +30,7 @@ const char kTestPartLesultsLimitExceeded[] =
     "Test part results limit exceeded. Use --test-launcher-test-part-limit to "
     "increase or disable limit.";
 
-std::string EscapeString(const std::string& input_string) {
+std::string EscapeString(std::string_view input_string) {
   std::string escaped_string;
   ReplaceChars(input_string, "&", "&amp;", &escaped_string);
   ReplaceChars(escaped_string, "<", "&lt;", &escaped_string);
@@ -75,7 +82,7 @@ void XmlUnitTestResultPrinter::AddLink(const std::string& name,
   fprintf(output_file_.get(),
           "    <link name=\"%s\" classname=\"%s\" "
           "link_name=\"%s\">%s</link>\n",
-          info->name(), info->test_case_name(), name.c_str(),
+          info->name(), info->test_suite_name(), name.c_str(),
           escaped_url.c_str());
   fflush(output_file_);
 }
@@ -97,8 +104,35 @@ void XmlUnitTestResultPrinter::AddTag(const std::string& name,
   fprintf(output_file_.get(),
           "    <tag name=\"%s\" classname=\"%s\" "
           "tag_name=\"%s\">%s</tag>\n",
-          info->name(), info->test_case_name(), name.c_str(),
+          info->name(), info->test_suite_name(), name.c_str(),
           escaped_value.c_str());
+  fflush(output_file_);
+}
+
+void XmlUnitTestResultPrinter::AddSubTestResult(
+    std::string_view name,
+    testing::TimeInMillis elapsed_time,
+    std::optional<std::string_view> failure_message) {
+  CHECK(output_file_);
+  CHECK(!open_failed_);
+  // `name` should have already been canonicalized.
+  CHECK_EQ(EscapeString(name), name);
+  const testing::TestInfo* info =
+      testing::UnitTest::GetInstance()->current_test_info();
+  // `info` can only be null if this function is called outside of a test body,
+  // which violates this function's preconditions.
+  CHECK(info);
+
+  fprintf(output_file_.get(),
+          "    <x-sub-test-result name=\"%s\" classname=\"%s\" "
+          "subname=\"%s\" time=\"%.3f\"",
+          info->name(), info->test_suite_name(), name.data(),
+          static_cast<double>(elapsed_time) / Time::kMillisecondsPerSecond);
+  if (failure_message) {
+    std::string encoded = base::Base64Encode(*failure_message);
+    fprintf(output_file_.get(), " failure_message=\"%s\"", encoded.c_str());
+  }
+  fprintf(output_file_.get(), "></x-sub-test-result>\n");
   fflush(output_file_);
 }
 
@@ -131,35 +165,37 @@ void XmlUnitTestResultPrinter::OnAssert(const char* file,
                       summary, message);
 }
 
-void XmlUnitTestResultPrinter::OnTestCaseStart(
-    const testing::TestCase& test_case) {
+void XmlUnitTestResultPrinter::OnTestSuiteStart(
+    const testing::TestSuite& test_suite) {
   fprintf(output_file_.get(), "  <testsuite>\n");
   fflush(output_file_);
 }
 
-void XmlUnitTestResultPrinter::OnTestStart(
-    const testing::TestInfo& test_info) {
+void XmlUnitTestResultPrinter::OnTestStart(const testing::TestInfo& test_info) {
+  DCHECK(!test_running_);
   // This is our custom extension - it helps to recognize which test was
   // running when the test binary crashed. Note that we cannot even open the
   // <testcase> tag here - it requires e.g. run time of the test to be known.
   fprintf(output_file_.get(),
           "    <x-teststart name=\"%s\" classname=\"%s\" timestamp=\"%s\" />\n",
-          test_info.name(), test_info.test_case_name(),
-          TimeToISO8601(Time::Now()).c_str());
+          test_info.name(), test_info.test_suite_name(),
+          TimeFormatAsIso8601(Time::Now()).c_str());
   fflush(output_file_);
+  test_running_ = true;
 }
 
 void XmlUnitTestResultPrinter::OnTestEnd(const testing::TestInfo& test_info) {
-  fprintf(
-      output_file_.get(),
-      "    <testcase name=\"%s\" status=\"run\" time=\"%.3f\""
-      " classname=\"%s\" timestamp=\"%s\">\n",
-      test_info.name(),
-      static_cast<double>(test_info.result()->elapsed_time()) /
-          Time::kMillisecondsPerSecond,
-      test_info.test_case_name(),
-      TimeToISO8601(Time::FromJavaTime(test_info.result()->start_timestamp()))
-          .c_str());
+  DCHECK(test_running_);
+  fprintf(output_file_.get(),
+          "    <testcase name=\"%s\" status=\"run\" time=\"%.3f\""
+          " classname=\"%s\" timestamp=\"%s\">\n",
+          test_info.name(),
+          static_cast<double>(test_info.result()->elapsed_time()) /
+              Time::kMillisecondsPerSecond,
+          test_info.test_suite_name(),
+          TimeFormatAsIso8601(Time::FromMillisecondsSinceUnixEpoch(
+                                  test_info.result()->start_timestamp()))
+              .c_str());
   if (test_info.result()->Failed()) {
     fprintf(output_file_.get(),
             "      <failure message=\"\" type=\"\"></failure>\n");
@@ -172,8 +208,9 @@ void XmlUnitTestResultPrinter::OnTestEnd(const testing::TestInfo& test_info) {
         CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
             switches::kTestLauncherTestPartResultsLimit);
     int test_part_results_limit = std::strtol(limit_str.c_str(), nullptr, 10);
-    if (test_part_results_limit >= 0)
+    if (test_part_results_limit >= 0) {
       limit = std::min(limit, test_part_results_limit);
+    }
   } else {
     limit = std::min(limit, kDefaultTestPartResultsLimit);
   }
@@ -186,17 +223,18 @@ void XmlUnitTestResultPrinter::OnTestEnd(const testing::TestInfo& test_info) {
   }
 
   if (test_info.result()->total_part_count() > limit) {
-    WriteTestPartResult(
-        "unknown", 0, testing::TestPartResult::kNonFatalFailure,
-        kTestPartLesultsLimitExceeded, kTestPartLesultsLimitExceeded);
+    WriteTestPartResult("unknown", 0, testing::TestPartResult::kNonFatalFailure,
+                        kTestPartLesultsLimitExceeded,
+                        kTestPartLesultsLimitExceeded);
   }
 
   fprintf(output_file_.get(), "    </testcase>\n");
   fflush(output_file_);
+  test_running_ = false;
 }
 
-void XmlUnitTestResultPrinter::OnTestCaseEnd(
-    const testing::TestCase& test_case) {
+void XmlUnitTestResultPrinter::OnTestSuiteEnd(
+    const testing::TestSuite& test_suite) {
   fprintf(output_file_.get(), "  </testsuite>\n");
   fflush(output_file_);
 }
@@ -207,6 +245,11 @@ void XmlUnitTestResultPrinter::WriteTestPartResult(
     testing::TestPartResult::Type result_type,
     const std::string& summary,
     const std::string& message) {
+  // Don't write `<x-test-result-part>` if there's no associated
+  // `<x-teststart>` or open `<testcase>`.
+  if (!test_running_) {
+    return;
+  }
   const char* type = "unknown";
   switch (result_type) {
     case testing::TestPartResult::kSuccess:
@@ -222,10 +265,8 @@ void XmlUnitTestResultPrinter::WriteTestPartResult(
       type = "skip";
       break;
   }
-  std::string summary_encoded;
-  Base64Encode(summary, &summary_encoded);
-  std::string message_encoded;
-  Base64Encode(message, &message_encoded);
+  std::string summary_encoded = base::Base64Encode(summary);
+  std::string message_encoded = base::Base64Encode(message);
   fprintf(output_file_.get(),
           "      <x-test-result-part type=\"%s\" file=\"%s\" line=\"%d\">\n"
           "        <summary>%s</summary>\n"

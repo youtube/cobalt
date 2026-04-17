@@ -73,9 +73,9 @@ bool g_hud_overlay_mode = true;
 // ClientView that return HTNOWHERE by default. A child view can receive event
 // by setting kHitTestComponentKey property to HTCLIENT.
 class HTClientView : public views::ClientView {
- public:
-  METADATA_HEADER(HTClientView);
+  METADATA_HEADER(HTClientView, views::ClientView)
 
+ public:
   HTClientView(HUDDisplayView* hud_display,
                views::Widget* widget,
                views::View* contents_view)
@@ -93,10 +93,10 @@ class HTClientView : public views::ClientView {
   HUDDisplayView* GetHUDDisplayViewForTesting() { return hud_display_; }
 
  private:
-  raw_ptr<HUDDisplayView, ExperimentalAsh> hud_display_;
+  raw_ptr<HUDDisplayView> hud_display_;
 };
 
-BEGIN_METADATA(HTClientView, views::ClientView)
+BEGIN_METADATA(HTClientView)
 END_METADATA
 
 std::unique_ptr<views::ClientView> MakeClientView(views::Widget* widget) {
@@ -118,7 +118,7 @@ void InitializeFrameView(views::WidgetDelegate* delegate) {
 ////////////////////////////////////////////////////////////////////////////////
 // HUDDisplayView, public:
 
-BEGIN_METADATA(HUDDisplayView, views::View)
+BEGIN_METADATA(HUDDisplayView)
 END_METADATA
 
 // static
@@ -138,13 +138,15 @@ void HUDDisplayView::Toggle() {
   delegate->SetClientViewFactory(base::BindOnce(&MakeClientView));
   delegate->RegisterWidgetInitializedCallback(
       base::BindOnce(&InitializeFrameView, base::Unretained(delegate.get())));
-  delegate->SetOwnedByWidget(true);
+  delegate->SetOwnedByWidget(views::WidgetDelegate::OwnedByWidgetPassKey());
 
-  views::Widget::InitParams params(views::Widget::InitParams::TYPE_WINDOW);
+  views::Widget::InitParams params(
+      views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET,
+      views::Widget::InitParams::TYPE_WINDOW);
   params.delegate = delegate.release();
+  params.name = "HUDDisplay";
   params.parent = Shell::GetContainer(Shell::GetPrimaryRootWindow(),
                                       kShellWindowId_OverlayContainer);
-  params.ownership = views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET;
   params.bounds = gfx::Rect(kHUDWidth, kHUDHeightWithGraph);
   auto* widget = CreateViewTreeHostWidget(std::move(params));
   widget->GetLayer()->SetName("HUDDisplayView");

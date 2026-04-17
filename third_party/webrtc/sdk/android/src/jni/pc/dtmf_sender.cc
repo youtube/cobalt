@@ -12,6 +12,7 @@
 #include "sdk/android/generated_peerconnection_jni/DtmfSender_jni.h"
 #include "sdk/android/native_api/jni/java_types.h"
 #include "sdk/android/src/jni/jni_helpers.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace webrtc {
 namespace jni {
@@ -22,16 +23,17 @@ static jboolean JNI_DtmfSender_CanInsertDtmf(JNIEnv* jni,
       ->CanInsertDtmf();
 }
 
-static jboolean JNI_DtmfSender_InsertDtmf(JNIEnv* jni,
-                                          jlong j_dtmf_sender_pointer,
-                                          const JavaParamRef<jstring>& tones,
-                                          jint duration,
-                                          jint inter_tone_gap) {
+static jboolean JNI_DtmfSender_InsertDtmf(
+    JNIEnv* jni,
+    jlong j_dtmf_sender_pointer,
+    const jni_zero::JavaParamRef<jstring>& tones,
+    jint duration,
+    jint inter_tone_gap) {
   return reinterpret_cast<DtmfSenderInterface*>(j_dtmf_sender_pointer)
       ->InsertDtmf(JavaToStdString(jni, tones), duration, inter_tone_gap);
 }
 
-static ScopedJavaLocalRef<jstring> JNI_DtmfSender_Tones(
+static jni_zero::ScopedJavaLocalRef<jstring> JNI_DtmfSender_Tones(
     JNIEnv* jni,
     jlong j_dtmf_sender_pointer) {
   return NativeToJavaString(

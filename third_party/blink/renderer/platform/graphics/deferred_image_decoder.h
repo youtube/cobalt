@@ -27,11 +27,11 @@
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_DEFERRED_IMAGE_DECODER_H_
 
 #include <memory>
+#include <optional>
 
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/renderer/platform/graphics/image_orientation.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_image.h"
 #include "third_party/blink/renderer/platform/graphics/parkable_image.h"
-#include "third_party/blink/renderer/platform/graphics/rw_buffer.h"
 #include "third_party/blink/renderer/platform/image-decoders/image_decoder.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
@@ -54,7 +54,7 @@ class PLATFORM_EXPORT DeferredImageDecoder final {
       scoped_refptr<SharedBuffer> data,
       bool data_complete,
       ImageDecoder::AlphaOption,
-      const ColorBehavior&);
+      ColorBehavior);
 
   static std::unique_ptr<DeferredImageDecoder> CreateForTesting(
       std::unique_ptr<ImageDecoder>);
@@ -81,6 +81,7 @@ class PLATFORM_EXPORT DeferredImageDecoder final {
   gfx::Size FrameSizeAtIndex(wtf_size_t index) const;
   wtf_size_t FrameCount();
   bool ImageIsHighBitDepth() const { return image_is_high_bit_depth_; }
+  bool HasC2PAManifest() const;
   int RepetitionCount() const;
   bool FrameIsReceivedAtIndex(wtf_size_t index) const;
   base::TimeDelta FrameDurationAtIndex(wtf_size_t index) const;
@@ -129,10 +130,11 @@ class PLATFORM_EXPORT DeferredImageDecoder final {
   bool can_yuv_decode_;
   bool has_hot_spot_;
   bool image_is_high_bit_depth_;
+  bool has_c2pa_manifest_;
   sk_sp<SkColorSpace> color_space_for_sk_images_;
   gfx::Point hot_spot_;
   const PaintImage::ContentId complete_frame_content_id_;
-  absl::optional<bool> incremental_decode_needed_;
+  std::optional<bool> incremental_decode_needed_;
 
   // Set to true if the image is detected to be invalid after parsing the
   // metadata.
@@ -140,7 +142,7 @@ class PLATFORM_EXPORT DeferredImageDecoder final {
 
   // Caches an image's metadata so it can outlive |metadata_decoder_| after all
   // data is received in cases where multiple generators are created.
-  absl::optional<cc::ImageHeaderMetadata> image_metadata_;
+  std::optional<cc::ImageHeaderMetadata> image_metadata_;
 
   // Caches frame state information.
   Vector<DeferredFrameData> frame_data_;

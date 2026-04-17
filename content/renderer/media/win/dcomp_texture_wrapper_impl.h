@@ -14,6 +14,10 @@
 #include "media/base/win/dcomp_texture_wrapper.h"
 #include "ui/gfx/geometry/rect.h"
 
+namespace gpu {
+class ClientSharedImage;
+}  // namespace gpu
+
 namespace content {
 
 class DCOMPTextureMailboxResources;
@@ -71,8 +75,9 @@ class CONTENT_EXPORT DCOMPTextureWrapperImpl
   void OnSharedImageMailboxBound(gpu::Mailbox mailbox) override;
   void OnOutputRectChange(gfx::Rect output_rect) override;
 
-  void OnDXVideoFrameDestruction(const gpu::SyncToken& sync_token,
-                                 const gpu::Mailbox& image_mailbox);
+  void OnDXVideoFrameDestruction(
+      const gpu::SyncToken& sync_token,
+      scoped_refptr<gpu::ClientSharedImage> shared_image);
 
   scoped_refptr<DCOMPTextureFactory> factory_;
   scoped_refptr<base::SequencedTaskRunner> media_task_runner_;
@@ -83,7 +88,6 @@ class CONTENT_EXPORT DCOMPTextureWrapperImpl
 
   std::unique_ptr<DCOMPTextureHost> dcomp_texture_host_;
 
-  bool mailbox_added_ = false;
   gpu::Mailbox mailbox_;
 
   CreateVideoFrameCB create_video_frame_cb_;

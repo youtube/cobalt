@@ -12,15 +12,6 @@
 
 #include <stdint.h>
 
-#include <map>
-#include <memory>
-#include <string>
-#include <vector>
-
-#include "api/rtc_event_log/rtc_event.h"
-#include "api/units/timestamp.h"
-#include "logging/rtc_event_log/events/rtc_event_definition.h"
-
 namespace webrtc {
 
 RtcEventNetEqSetMinimumDelay::RtcEventNetEqSetMinimumDelay(uint32_t remote_ssrc,

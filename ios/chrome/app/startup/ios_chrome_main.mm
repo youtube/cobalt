@@ -9,14 +9,10 @@
 #import <vector>
 
 #import "base/check.h"
-#import "base/strings/string_piece.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/time/time.h"
+#import "base/types/fixed_array.h"
 #import "ios/web/public/init/web_main.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 base::TimeTicks* g_start_time;
@@ -26,7 +22,7 @@ IOSChromeMain::IOSChromeMain() {
   web::WebMainParams main_params(&main_delegate_);
   NSArray* arguments = [[NSProcessInfo processInfo] arguments];
   main_params.argc = [arguments count];
-  const char* argv[main_params.argc];
+  base::FixedArray<const char*> argv(main_params.argc);
   std::vector<std::string> argv_store;
 
   // Avoid using std::vector::push_back (or any other method that could cause
@@ -40,12 +36,13 @@ IOSChromeMain::IOSChromeMain() {
     argv_store[i] = base::SysNSStringToUTF8([arguments objectAtIndex:i]);
     argv[i] = argv_store[i].c_str();
   }
-  main_params.argv = argv;
+  main_params.argv = argv.data();
 
   // Chrome registers an AtExitManager in main in order to initialize the crash
   // handler early, so prevent a second registration by WebMainRunner.
   main_params.register_exit_manager = false;
   web_main_ = std::make_unique<web::WebMain>(std::move(main_params));
+  web_main_->Startup();
 }
 
 IOSChromeMain::~IOSChromeMain() {}

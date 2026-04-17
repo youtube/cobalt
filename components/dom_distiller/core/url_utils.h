@@ -5,9 +5,9 @@
 #ifndef COMPONENTS_DOM_DISTILLER_CORE_URL_UTILS_H_
 #define COMPONENTS_DOM_DISTILLER_CORE_URL_UTILS_H_
 
-#include <string>
+#include <stdint.h>
 
-#include "base/strings/string_piece_forward.h"
+#include <string>
 
 class GURL;
 
@@ -38,7 +38,7 @@ const GURL GetDistillerViewUrlFromUrl(const std::string& scheme,
 // If |distilled_url| is not distilled, it is returned as is.
 // If |distilled_url| looks like distilled, but no original URL can be found,
 // an empty, invalid URL is returned.
-const GURL GetOriginalUrlFromDistillerUrl(const GURL& distilled_url);
+GURL GetOriginalUrlFromDistillerUrl(const GURL& distilled_url);
 
 // Returns the starting time from the distilled URL.
 // Returns 0 when not available or on error.

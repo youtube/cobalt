@@ -27,19 +27,26 @@ import java.lang.annotation.RetentionPolicy;
  * {@link getBitmap} to retrieve the generated bitmap.
  */
 public class LongScreenshotsEntry {
-    private Rect mRect;
+    private final Rect mRect;
     private BitmapGenerator mGenerator;
     private @EntryStatus int mCurrentStatus;
 
     // Generated bitmap
     private Bitmap mGeneratedBitmap;
     private EntryListener mEntryListener;
-    private Callback<Integer> mMemoryTracker;
+    private final Callback<Integer> mMemoryTracker;
 
-    @IntDef({EntryStatus.UNKNOWN, EntryStatus.INSUFFICIENT_MEMORY, EntryStatus.GENERATION_ERROR,
-            EntryStatus.BITMAP_GENERATED, EntryStatus.CAPTURE_COMPLETE,
-            EntryStatus.CAPTURE_IN_PROGRESS, EntryStatus.BITMAP_GENERATION_IN_PROGRESS,
-            EntryStatus.BOUNDS_ABOVE_CAPTURE, EntryStatus.BOUNDS_BELOW_CAPTURE})
+    @IntDef({
+        EntryStatus.UNKNOWN,
+        EntryStatus.INSUFFICIENT_MEMORY,
+        EntryStatus.GENERATION_ERROR,
+        EntryStatus.BITMAP_GENERATED,
+        EntryStatus.CAPTURE_COMPLETE,
+        EntryStatus.CAPTURE_IN_PROGRESS,
+        EntryStatus.BITMAP_GENERATION_IN_PROGRESS,
+        EntryStatus.BOUNDS_ABOVE_CAPTURE,
+        EntryStatus.BOUNDS_BELOW_CAPTURE
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface EntryStatus {
         int UNKNOWN = 0;

@@ -15,7 +15,6 @@
 
 #include "base/memory/read_only_shared_memory_region.h"
 #include "content/common/content_export.h"
-#include "content/public/browser/browser_message_filter.h"
 #include "content/public/browser/browser_thread.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "third_party/blink/public/mojom/dwrite_font_proxy/dwrite_font_proxy.mojom.h"
@@ -63,11 +62,6 @@ class CONTENT_EXPORT DWriteFontProxyImpl
                      MapCharactersCallback callback) override;
   void MatchUniqueFont(const std::u16string& unique_font_name,
                        MatchUniqueFontCallback callback) override;
-  void FallbackFamilyAndStyleForCodepoint(
-      const std::string& base_family_name,
-      const std::string& locale_name,
-      uint32_t codepoint,
-      FallbackFamilyAndStyleForCodepointCallback callback) override;
 
   void InitializeDirectWrite();
 

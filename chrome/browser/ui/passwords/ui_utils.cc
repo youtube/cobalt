@@ -9,37 +9,36 @@
 #include <algorithm>
 
 #include "base/feature_list.h"
-#include "base/metrics/histogram_macros.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/branding_buildflags.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sync/sync_service_factory.h"
-#include "chrome/browser/ui/browser_navigator.h"
-#include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/common/webui_url_constants.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
-#include "components/password_manager/core/browser/affiliation/affiliation_utils.h"
+#include "components/affiliations/core/browser/affiliation_utils.h"
 #include "components/password_manager/core/browser/leak_detection_dialog_utils.h"
+#include "components/password_manager/core/browser/manage_passwords_referrer.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_manager_client.h"
 #include "components/password_manager/core/browser/password_manager_constants.h"
 #include "components/password_manager/core/browser/password_manager_util.h"
+#include "components/password_manager/core/browser/password_sync_util.h"
 #include "components/password_manager/core/common/password_manager_features.h"
+#include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/strings/grit/components_strings.h"
-#include "components/sync/driver/sync_service.h"
-#include "components/sync/driver/sync_user_settings.h"
+#include "components/sync/service/sync_service.h"
+#include "components/sync/service/sync_user_settings.h"
 #include "components/url_formatter/elide_url.h"
 #include "components/vector_icons/vector_icons.h"
 #include "content/public/browser/web_contents.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
-#include "net/base/url_util.h"
 #include "ui/base/l10n/l10n_util.h"
-#include "ui/base/page_transition_types.h"
-#include "ui/base/window_open_disposition.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/image/image_skia.h"
@@ -49,6 +48,8 @@
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/user_education/show_promo_in_page.h"
+#include "chrome/browser/ui/webui/password_manager/password_manager_ui.h"
 #endif
 
 namespace {
@@ -80,15 +81,18 @@ gfx::ImageSkia ScaleImageForAccountAvatar(gfx::ImageSkia skia_image) {
 std::pair<std::u16string, std::u16string> GetCredentialLabelsForAccountChooser(
     const password_manager::PasswordForm& form) {
   std::u16string federation;
-  if (!form.federation_origin.opaque())
+  if (form.IsFederatedCredential()) {
     federation = GetDisplayFederation(form);
+  }
 
-  if (form.display_name.empty())
+  if (form.display_name.empty()) {
     return std::make_pair(form.username_value, std::move(federation));
+  }
 
   // Display name isn't empty.
-  if (federation.empty())
+  if (federation.empty()) {
     return std::make_pair(form.display_name, form.username_value);
+  }
 
   return std::make_pair(form.display_name,
                         form.username_value + u"\n" + federation);
@@ -151,6 +155,13 @@ std::u16string GetManagePasswordsDialogTitleText(
                       : IDS_MANAGE_PASSWORDS_NO_PASSWORDS_TITLE);
 }
 
+std::u16string GetConfirmationManagePasswordsDialogTitleText(bool is_update) {
+  return is_update ? l10n_util::GetStringUTF16(
+                         IDS_PASSWORD_MANAGER_CONFIRM_UPDATE_TITLE)
+                   : l10n_util::GetStringUTF16(
+                         IDS_PASSWORD_MANAGER_CONFIRM_SAVED_TITLE);
+}
+
 std::u16string GetDisplayUsername(const password_manager::PasswordForm& form) {
   return form.username_value.empty()
              ? l10n_util::GetStringUTF16(IDS_PASSWORD_MANAGER_EMPTY_LOGIN)
@@ -166,12 +177,13 @@ std::u16string GetDisplayUsername(
 
 std::u16string GetDisplayFederation(
     const password_manager::PasswordForm& form) {
-  return url_formatter::FormatOriginForSecurityDisplay(
-      form.federation_origin, url_formatter::SchemeDisplay::OMIT_CRYPTOGRAPHIC);
+  return url_formatter::FormatUrlForSecurityDisplay(
+      form.federation_origin.GetURL(),
+      url_formatter::SchemeDisplay::OMIT_CRYPTOGRAPHIC);
 }
 
 std::u16string GetDisplayPassword(const password_manager::PasswordForm& form) {
-  return form.federation_origin.opaque()
+  return !form.IsFederatedCredential()
              ? form.password_value
              : l10n_util::GetStringFUTF16(IDS_PASSWORDS_VIA_FEDERATION,
                                           GetDisplayFederation(form));
@@ -180,81 +192,39 @@ std::u16string GetDisplayPassword(const password_manager::PasswordForm& form) {
 bool IsSyncingAutosignSetting(Profile* profile) {
   const syncer::SyncService* sync_service =
       SyncServiceFactory::GetForProfile(profile);
-  return (sync_service &&
-          sync_service->GetUserSettings()->IsFirstSetupComplete() &&
-          sync_service->IsSyncFeatureActive() &&
-          sync_service->GetActiveDataTypes().Has(syncer::PRIORITY_PREFERENCES));
+  return (
+      sync_service &&
+      sync_service->GetActiveDataTypes().Has(syncer::PRIORITY_PREFERENCES) &&
+      // With `kSyncSupportAlwaysSyncingPriorityPreferences` feature enabled,
+      // PRIORITY_PREFERENCES will always be active (decoupled from sync user
+      // toggle). Thus, the preferences user toggle should be checked
+      // separately.
+      sync_service->GetUserSettings()->GetSelectedTypes().Has(
+          syncer::UserSelectableType::kPreferences));
 }
 
-GURL GetGooglePasswordManagerURL(ManagePasswordsReferrer referrer) {
-  GURL url(chrome::kGooglePasswordManagerURL);
-  url = net::AppendQueryParameter(url, "utm_source", "chrome");
-#if BUILDFLAG(IS_ANDROID)
-  url = net::AppendQueryParameter(url, "utm_medium", "android");
-#else
-  url = net::AppendQueryParameter(url, "utm_medium", "desktop");
-#endif
-  std::string campaign = [referrer] {
-    switch (referrer) {
-      case ManagePasswordsReferrer::kChromeSettings:
-        return "chrome_settings";
-      case ManagePasswordsReferrer::kManagePasswordsBubble:
-        return "manage_passwords_bubble";
-      case ManagePasswordsReferrer::kPasswordContextMenu:
-        return "password_context_menu";
-      case ManagePasswordsReferrer::kPasswordDropdown:
-        return "password_dropdown";
-      case ManagePasswordsReferrer::kPasswordGenerationConfirmation:
-        return "password_generation_confirmation";
-      case ManagePasswordsReferrer::kProfileChooser:
-        return "profile_chooser";
-      case ManagePasswordsReferrer::kSafeStateBubble:
-        return "safe_state";
-      case ManagePasswordsReferrer::kSaveUpdateBubble:
-        return "save_update_password_bubble";
-      case ManagePasswordsReferrer::kPasswordGenerationPrompt:
-        return "password_generation_prompt_in_autofill_dropdown";
-      case ManagePasswordsReferrer::kPasswordsGoogleWebsite:
-        return "passwords_google";
-      case ManagePasswordsReferrer::kPasswordsAccessorySheet:
-      case ManagePasswordsReferrer::kTouchToFill:
-      case ManagePasswordsReferrer::kPasswordBreachDialog:
-      case ManagePasswordsReferrer::kSafetyCheck:
-      case ManagePasswordsReferrer::kBiometricAuthenticationBeforeFillingDialog:
-      case ManagePasswordsReferrer::kChromeMenuItem:
-        NOTREACHED();
-    }
-
-    NOTREACHED();
-    return "";
-  }();
-
-  return net::AppendQueryParameter(url, "utm_campaign", campaign);
+std::string GetGooglePasswordManagerSubPageURLStr() {
+  return base::StrCat({chrome::kChromeUIPasswordManagerURL, "/",
+                       chrome::kPasswordManagerSubPage});
 }
 
 // Navigation is handled differently on Android.
 #if !BUILDFLAG(IS_ANDROID)
-void NavigateToGooglePasswordManager(Profile* profile,
-                                     ManagePasswordsReferrer referrer) {
-  NavigateParams params(profile, GetGooglePasswordManagerURL(referrer),
-                        ui::PAGE_TRANSITION_LINK);
-  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
-  Navigate(&params);
-}
-
 void NavigateToManagePasswordsPage(Browser* browser,
                                    ManagePasswordsReferrer referrer) {
-  UMA_HISTOGRAM_ENUMERATION("PasswordManager.ManagePasswordsReferrer",
-                            referrer);
+  base::UmaHistogramEnumeration("PasswordManager.ManagePasswordsReferrer",
+                                referrer);
   chrome::ShowPasswordManager(browser);
 }
 
-void NavigateToPasswordCheckupPage(Profile* profile) {
-  NavigateParams params(profile, password_manager::GetPasswordCheckupURL(),
-                        ui::PAGE_TRANSITION_LINK);
-  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
-  Navigate(&params);
+void NavigateToPasswordDetailsPage(Browser* browser,
+                                   const std::string& password_domain_name,
+                                   ManagePasswordsReferrer referrer) {
+  base::UmaHistogramEnumeration("PasswordManager.ManagePasswordsReferrer",
+                                referrer);
+  chrome::ShowPasswordDetailsPage(browser, password_domain_name);
 }
+
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 mojo::Remote<network::mojom::URLLoaderFactory> GetURLLoaderForMainFrame(
@@ -272,4 +242,28 @@ const gfx::VectorIcon& GooglePasswordManagerVectorIcon() {
 #else
   return kKeyIcon;
 #endif
+}
+
+std::optional<AccountInfo> GetAccountInfoForPasswordMessages(
+    syncer::SyncService* sync_service,
+    signin::IdentityManager* identity_manager) {
+  if (!password_manager::sync_util::HasChosenToSyncPasswords(sync_service)) {
+    return std::nullopt;
+  }
+  CoreAccountId account_id =
+      identity_manager->GetPrimaryAccountId(signin::ConsentLevel::kSignin);
+  return identity_manager->FindExtendedAccountInfoByAccountId(account_id);
+}
+
+std::string GetDisplayableAccountName(
+    syncer::SyncService* sync_service,
+    signin::IdentityManager* identity_manager) {
+  std::optional<AccountInfo> account_info =
+      GetAccountInfoForPasswordMessages(sync_service, identity_manager);
+  if (!account_info.has_value()) {
+    return "";
+  }
+  return account_info->CanHaveEmailAddressDisplayed()
+             ? account_info.value().email
+             : account_info.value().full_name;
 }

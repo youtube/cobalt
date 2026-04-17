@@ -13,24 +13,21 @@ import org.junit.runners.model.Statement;
 import org.chromium.net.impl.CronetLogger;
 import org.chromium.net.impl.CronetLoggerFactory.SwapLoggerForTesting;
 
+import java.util.Objects;
+
 /**
  * Custom TestRule that instantiates a new fake CronetLogger for each test.
+ *
  * @param <T> The actual type of the class extending CronetLogger.
  */
 public class CronetLoggerTestRule<T extends CronetLogger> implements TestRule {
-    private static final String TAG = CronetLoggerTestRule.class.getSimpleName();
-
-    private Class<T> mTestLoggerClazz;
+    private final Class<T> mTestLoggerClazz;
 
     // Expose the fake logger to the test.
     public T mTestLogger;
 
     public CronetLoggerTestRule(@NonNull Class<T> testLoggerClazz) {
-        if (testLoggerClazz == null) {
-            throw new NullPointerException("TestLoggerClazz is required.");
-        }
-
-        mTestLoggerClazz = testLoggerClazz;
+        mTestLoggerClazz = Objects.requireNonNull(testLoggerClazz, "TestLoggerClazz is required.");
     }
 
     @Override

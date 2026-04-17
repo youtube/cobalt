@@ -52,7 +52,7 @@ class GpuThreadAdapter {
   virtual void GpuConfigureNativeDisplays(
       const std::vector<display::DisplayConfigurationParams>& config_requests,
       display::ConfigureCallback callback,
-      uint32_t modeset_flag) = 0;
+      display::ModesetFlags modeset_flags) = 0;
   virtual bool GpuSetHdcpKeyProp(int64_t display_id,
                                  const std::string& key) = 0;
   virtual bool GpuGetHDCPState(int64_t display_id) = 0;
@@ -60,16 +60,23 @@ class GpuThreadAdapter {
       int64_t display_id,
       display::HDCPState state,
       display::ContentProtectionMethod protection_method) = 0;
-  virtual bool GpuSetColorMatrix(int64_t display_id,
-                                 const std::vector<float>& color_matrix) = 0;
-  virtual bool GpuSetGammaCorrection(
+  virtual void GpuSetColorTemperatureAdjustment(
       int64_t display_id,
-      const std::vector<display::GammaRampRGBEntry>& degamma_lut,
-      const std::vector<display::GammaRampRGBEntry>& gamma_lut) = 0;
+      const display::ColorTemperatureAdjustment& cta) = 0;
+  virtual void GpuSetColorCalibration(
+      int64_t display_id,
+      const display::ColorCalibration& calibration) = 0;
+  virtual void GpuSetGammaAdjustment(
+      int64_t display_id,
+      const display::GammaAdjustment& adjustment) = 0;
   virtual void GpuSetPrivacyScreen(
       int64_t display_id,
       bool enabled,
       display::SetPrivacyScreenCallback callback) = 0;
+
+  virtual void GpuGetSeamlessRefreshRates(
+      int64_t display_id,
+      display::GetSeamlessRefreshRatesCallback callback) = 0;
 
   // Services needed by DrmWindowHost
   virtual bool GpuDestroyWindow(gfx::AcceleratedWidget widget) = 0;

@@ -8,8 +8,8 @@
 #include <memory>
 
 #include "base/functional/callback.h"
-#include "base/memory/raw_ptr_exclusion.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "content/public/browser/browser_thread.h"
@@ -65,21 +65,16 @@ class CrowdDenySafeBrowsingRequest {
   CrowdDenySafeBrowsingRequest& operator=(const CrowdDenySafeBrowsingRequest&) =
       delete;
 
-  // Posted by the |client_| from the IO thread when it gets a response.
+  // Posted by the |client_| when it gets a response.
   void OnReceivedResult(Verdict verdict);
 
-  // The client interfacing with Safe Browsing. Created on |this| thread, but
-  // used on the IO thread for the rest of its life and destroyed there. If
-  // kSafeBrowsingOnUIThread is enabled it's used and destroyed on the UI
-  // thread.
+  // The client interfacing with Safe Browsing.
   std::unique_ptr<SafeBrowsingClient> client_;
 
   VerdictCallback callback_;
 
   // For telemetry purposes. The caller guarantees |clock_| to outlive |this|.
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #union
-  RAW_PTR_EXCLUSION const base::Clock* clock_;
+  raw_ptr<const base::Clock> clock_;
   const base::Time request_start_time_;
 
   base::WeakPtrFactory<CrowdDenySafeBrowsingRequest> weak_factory_{this};

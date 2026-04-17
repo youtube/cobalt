@@ -7,7 +7,7 @@
 #
 # Usage:
 #
-# Ensure that gomacc or rewrapper, llvm-objdump, and llvm-dwarfdump are in your
+# Ensure that rewrapper, llvm-objdump, and llvm-dwarfdump are in your
 # PATH.
 # Then run:
 #
@@ -49,6 +49,16 @@ def _create_inputs(path):
     f.write('int bar() {\n  return 9;\n}\n')
 
 
+def _lto_args(generate_bitcode):
+  """
+  Returns list of arguments to clang to generate bitcode or not.
+  """
+  if generate_bitcode:
+    return ['-flto=thin']
+  else:
+    return []
+
+
 class RemoteLinkUnixAllowMain(remote_ld.RemoteLinkUnix):
   """
   Same as remote_ld.RemoteLinkUnix, but has "main" on the allow list.
@@ -76,6 +86,9 @@ class RemoteLinkIntegrationTest(unittest.TestCase):
   def lld_link(self):
     return os.path.join(LLVM_BIN_DIR, 'lld-link' + remote_link.exe_suffix())
 
+  def llvmar(self):
+    return os.path.join(LLVM_BIN_DIR, 'llvm-ar' + remote_link.exe_suffix())
+
   def test_distributed_lto_common_objs(self):
     with named_directory() as d, working_directory(d):
       _create_inputs(d)
@@ -90,15 +103,17 @@ class RemoteLinkIntegrationTest(unittest.TestCase):
       subprocess.check_call([
           self.clangcl(), '-c', '-Os', '-flto=thin', 'bar.cpp', '-Foobj/bar.obj'
       ])
-      subprocess.check_call(
-          ['llvm-ar', 'crsT', 'obj/foobar.lib', 'obj/bar.obj', 'obj/foo.obj'])
+      subprocess.check_call([
+          self.llvmar(), 'crsT', 'obj/foobar.lib', 'obj/bar.obj', 'obj/foo.obj'
+      ])
       with open('main.rsp', 'w') as f:
         f.write('obj/main.obj\n' 'obj/foobar.lib\n')
-      with open('my_goma.sh', 'w') as f:
-        f.write('#! /bin/sh\n\ngomacc "$@"\n')
-      os.chmod('my_goma.sh', 0o755)
+      with open('my_reclient.sh', 'w') as f:
+        f.write('#! /bin/sh\n\nrewrapper "$@"\n')
+      os.chmod('my_reclient.sh', 0o755)
       rc = remote_link.RemoteLinkWindows().main([
-          'remote_link.py', '--wrapper', './my_goma.sh', '--',
+          'remote_link.py', '--wrapper', './my_reclient.sh', '--ar-path',
+          self.llvmar(), '--',
           self.lld_link(), '-nodefaultlib', '-entry:main', '-out:main.exe',
           '@main.rsp'
       ])
@@ -111,7 +126,7 @@ class RemoteLinkIntegrationTest(unittest.TestCase):
                                   re.MULTILINE | re.DOTALL)
         self.assertIsNotNone(codegen_match)
         codegen_text = codegen_match.group(0)
-        self.assertIn('my_goma.sh', codegen_text)
+        self.assertIn('my_reclient.sh', codegen_text)
         self.assertNotIn('-flto', codegen_text)
         self.assertIn('build common_objs/obj/main.obj.stamp : codegen ',
                       buildrules)
@@ -145,12 +160,14 @@ class RemoteLinkIntegrationTest(unittest.TestCase):
           self.clangcl(), '-c', '-Os', '-flto=thin', '-m32', 'bar.cpp',
           '-Foobj/bar.obj'
       ])
-      subprocess.check_call(
-          ['llvm-ar', 'crsT', 'obj/foobar.lib', 'obj/bar.obj', 'obj/foo.obj'])
+      subprocess.check_call([
+          self.llvmar(), 'crsT', 'obj/foobar.lib', 'obj/bar.obj', 'obj/foo.obj'
+      ])
       with open('main.rsp', 'w') as f:
         f.write('obj/main.obj\n' 'obj/foobar.lib\n')
       rc = RemoteLinkWindowsAllowMain().main([
-          'remote_link.py', '--wrapper', 'gomacc', '--',
+          'remote_link.py', '--wrapper', 'rewrapper', '--ar-path',
+          self.llvmar(), '--',
           self.lld_link(), '-nodefaultlib', '-entry:main', '-machine:X86',
           '-opt:lldlto=2', '-mllvm:-import-instr-limit=10', '-out:main.exe',
           '@main.rsp'
@@ -164,7 +181,7 @@ class RemoteLinkIntegrationTest(unittest.TestCase):
                                   re.MULTILINE | re.DOTALL)
         self.assertIsNotNone(codegen_match)
         codegen_text = codegen_match.group(0)
-        self.assertIn('gomacc', codegen_text)
+        self.assertIn('rewrapper', codegen_text)
         self.assertIn('-m32', codegen_text)
         self.assertIn('-mllvm -import-instr-limit=10', codegen_text)
         self.assertNotIn('-flto', codegen_text)
@@ -196,7 +213,8 @@ class RemoteLinkIntegrationTest(unittest.TestCase):
           self.clangcl(), '-c', '-O2', '-flto=thin', 'foo.cpp', '-Foobj/foo.obj'
       ])
       rc = remote_link.RemoteLinkWindows().main([
-          'remote_link.py', '--generate', '--allowlist', '--',
+          'remote_link.py', '--generate', '--allowlist', '--ar-path',
+          self.llvmar(), '--',
           self.lld_link(), '-nodefaultlib', '-entry:main', '-opt:lldlto=2',
           '-out:main.exe', 'obj/main.obj', 'obj/foo.obj'
       ])
@@ -224,6 +242,9 @@ class RemoteLdIntegrationTest(unittest.TestCase):
   def clangxx(self):
     return os.path.join(LLVM_BIN_DIR, 'clang++' + remote_link.exe_suffix())
 
+  def llvmar(self):
+    return os.path.join(LLVM_BIN_DIR, 'llvm-ar' + remote_link.exe_suffix())
+
   def test_nonlto(self):
     with named_directory() as d, working_directory(d):
       _create_inputs(d)
@@ -232,7 +253,8 @@ class RemoteLdIntegrationTest(unittest.TestCase):
       subprocess.check_call(
           [self.clangxx(), '-c', '-Os', 'foo.cpp', '-o', 'foo.o'])
       rc = RemoteLinkUnixAllowMain().main([
-          'remote_ld.py', '--wrapper', 'gomacc', '--',
+          'remote_ld.py', '--wrapper', 'rewrapper', '--ar-path',
+          self.llvmar(), '--',
           self.clangxx(), '-fuse-ld=lld', 'main.o', 'foo.o', '-o', 'main'
       ])
       # Should succeed.
@@ -255,7 +277,8 @@ class RemoteLdIntegrationTest(unittest.TestCase):
       subprocess.check_call(
           [self.clangxx(), '-c', '-Os', '-flto=thin', 'foo.cpp', '-o', 'foo.o'])
       rc = remote_ld.RemoteLinkUnix().main([
-          'remote_ld.py', '--wrapper', 'gomacc', '--',
+          'remote_ld.py', '--wrapper', 'rewrapper', '--ar-path',
+          self.llvmar(), '--',
           self.clangxx(), '-fuse-ld=lld', '-flto=thin', 'main.o', 'foo.o', '-o',
           'main'
       ])
@@ -279,16 +302,17 @@ class RemoteLdIntegrationTest(unittest.TestCase):
       subprocess.check_call(
           [self.clangxx(), '-c', '-Os', '-flto=thin', 'foo.cpp', '-o', 'foo.o'])
       rc = RemoteLinkUnixAllowMain().main([
-          'remote_ld.py', '-j', '16', '--',
+          'remote_ld.py', '-j', '16', '--ar-path',
+          self.llvmar(), '--',
           self.clangxx(), '-fuse-ld=lld', '-flto=thin', 'main.o', 'foo.o', '-o',
           'main'
       ])
       # Should succeed.
       self.assertEqual(rc, 0)
-      # build.ninja file should have gomacc invocations in it.
+      # build.ninja file should have rewrapper invocations in it.
       with open(os.path.join(d, 'lto.main', 'build.ninja')) as f:
         buildrules = f.read()
-        self.assertIn('gomacc ', buildrules)
+        self.assertIn('rewrapper ', buildrules)
         self.assertIn('build lto.main/main.o.stamp : codegen ', buildrules)
         self.assertIn('build lto.main/foo.o.stamp : codegen ', buildrules)
       # Check that main does not call foo.
@@ -309,18 +333,19 @@ class RemoteLdIntegrationTest(unittest.TestCase):
       subprocess.check_call(
           [self.clangxx(), '-c', '-Os', '-flto=thin', 'bar.cpp', '-o', 'bar.o'])
       subprocess.check_call(
-          ['llvm-ar', 'crsT', 'libfoobar.a', 'bar.o', 'foo.o'])
+          [self.llvmar(), 'crsT', 'libfoobar.a', 'bar.o', 'foo.o'])
       rc = RemoteLinkUnixAllowMain().main([
-          'remote_ld.py',
+          'remote_ld.py', '--ar-path',
+          self.llvmar(), '--',
           self.clangxx(), '-fuse-ld=lld', '-flto=thin', 'main.o', 'libfoobar.a',
           '-o', 'main'
       ])
       # Should succeed.
       self.assertEqual(rc, 0)
-      # build.ninja file should have gomacc invocations in it.
+      # build.ninja file should have rewrapper invocations in it.
       with open(os.path.join(d, 'lto.main', 'build.ninja')) as f:
         buildrules = f.read()
-        self.assertIn('gomacc ', buildrules)
+        self.assertIn('rewrapper ', buildrules)
         self.assertIn('build lto.main/main.o.stamp : codegen ', buildrules)
         self.assertIn('build lto.main/foo.o.stamp : codegen ', buildrules)
       # Check that main does not call foo.
@@ -331,42 +356,96 @@ class RemoteLdIntegrationTest(unittest.TestCase):
       self.assertNotIn(b'foo', main_disasm)
 
   def test_distributed_lto_thin_archive_subdir(self):
+    self.run_archive_test(bitcode_archive=True,
+                          bitcode_main=True,
+                          thin_archive=True)
+
+  def test_distributed_machine_code_thin_archive_bitcode_main_subdir(self):
+    self.run_archive_test(bitcode_archive=False,
+                          bitcode_main=True,
+                          thin_archive=True)
+
+  def test_distributed_machine_code_thin_archive_subdir(self):
+    self.run_archive_test(bitcode_archive=False,
+                          bitcode_main=False,
+                          thin_archive=True)
+
+  def test_distributed_bitcode_thick_archive_subdir(self):
+    self.run_archive_test(bitcode_archive=True,
+                          bitcode_main=True,
+                          thin_archive=False)
+
+  def test_distributed_machine_code_thick_archive_subdir(self):
+    self.run_archive_test(bitcode_archive=False,
+                          bitcode_main=False,
+                          thin_archive=False)
+
+  def test_distributed_machine_code_thick_archive_bitcode_main_subdir(self):
+    self.run_archive_test(bitcode_archive=False,
+                          bitcode_main=True,
+                          thin_archive=False)
+
+  def run_archive_test(self, bitcode_archive, bitcode_main, thin_archive):
+    """
+    Runs a test to ensure correct remote linking handling of
+    an archive.
+    Arguments:
+    bitcode_archive: whether the archive should contain bitcode (true)
+    or machine code (false)
+    bitcode_main: whether the main object, outside the archive, should
+    contain bitcode (true) or machine code (false)
+    thin_archive: whether to create a thin archive instead of a regular archive.
+    """
     with named_directory() as d, working_directory(d):
       _create_inputs(d)
       os.makedirs('obj')
+      subprocess.check_call(
+          [self.clangxx(), '-c', '-Os', 'main.cpp', '-o', 'obj/main.o'] +
+          _lto_args(bitcode_main))
+      subprocess.check_call(
+          [self.clangxx(), '-c', '-Os', 'foo.cpp', '-o', 'obj/foo.o'] +
+          _lto_args(bitcode_archive))
+      subprocess.check_call(
+          [self.clangxx(), '-c', '-Os', 'bar.cpp', '-o', 'obj/bar.o'] +
+          _lto_args(bitcode_archive))
+      archive_creation_arg = 'crs'
+      if thin_archive:
+        archive_creation_arg = 'crsT'
       subprocess.check_call([
-          self.clangxx(), '-c', '-Os', '-flto=thin', 'main.cpp', '-o',
-          'obj/main.o'
-      ])
-      subprocess.check_call([
-          self.clangxx(), '-c', '-Os', '-flto=thin', 'foo.cpp', '-o',
+          self.llvmar(), archive_creation_arg, 'obj/libfoobar.a', 'obj/bar.o',
           'obj/foo.o'
       ])
-      subprocess.check_call([
-          self.clangxx(), '-c', '-Os', '-flto=thin', 'bar.cpp', '-o',
-          'obj/bar.o'
-      ])
-      subprocess.check_call(
-          ['llvm-ar', 'crsT', 'obj/libfoobar.a', 'obj/bar.o', 'obj/foo.o'])
       rc = RemoteLinkUnixAllowMain().main([
-          'remote_ld.py',
+          'remote_ld.py', '--ar-path',
+          self.llvmar(), '--',
           self.clangxx(), '-fuse-ld=lld', '-flto=thin', 'obj/main.o',
           'obj/libfoobar.a', '-o', 'main'
       ])
       # Should succeed.
       self.assertEqual(rc, 0)
-      # build.ninja file should have gomacc invocations in it.
-      with open(os.path.join(d, 'lto.main', 'build.ninja')) as f:
-        buildrules = f.read()
-        self.assertIn('gomacc ', buildrules)
-        self.assertIn('build lto.main/obj/main.o.stamp : codegen ', buildrules)
-        self.assertIn('build lto.main/obj/foo.o.stamp : codegen ', buildrules)
+      if bitcode_main or bitcode_archive:
+        # build.ninja file should have rewrapper invocations in it.
+        with open(os.path.join(d, 'lto.main', 'build.ninja')) as f:
+          buildrules = f.read()
+          self.assertIn('rewrapper ', buildrules)
+          if bitcode_main:
+            self.assertIn('build lto.main/obj/main.o.stamp : codegen ',
+                          buildrules)
+          if bitcode_archive:
+            if thin_archive:
+              self.assertIn('build lto.main/obj/foo.o.stamp : codegen ',
+                            buildrules)
+            else:
+              self.assertIn(
+                  'build lto.main/expanded_archives/obj/libfoobar.a/' +
+                  'foo.o.stamp : codegen ', buildrules)
       # Check that main does not call foo.
-      disasm = subprocess.check_output(['llvm-objdump', '-d', 'main'])
-      main_idx = disasm.index(b' <main>:\n')
-      after_main_idx = disasm.index(b'\n\n', main_idx)
-      main_disasm = disasm[main_idx:after_main_idx]
-      self.assertNotIn(b'foo', main_disasm)
+      if bitcode_archive:
+        disasm = subprocess.check_output(['llvm-objdump', '-d', 'main'])
+        main_idx = disasm.index(b' <main>:\n')
+        after_main_idx = disasm.index(b'\n\n', main_idx)
+        main_disasm = disasm[main_idx:after_main_idx]
+        self.assertNotIn(b'foo', main_disasm)
 
   def test_debug_params(self):
     with named_directory() as d, working_directory(d):
@@ -383,7 +462,8 @@ class RemoteLdIntegrationTest(unittest.TestCase):
       with open('main.rsp', 'w') as f:
         f.write('obj/main.o\n' 'obj/foo.o\n')
       rc = RemoteLinkUnixAllowMain().main([
-          'remote_ld.py',
+          'remote_ld.py', '--ar-path',
+          self.llvmar(), '--',
           self.clangxx(), '-fuse-ld=lld', '-flto=thin', '-g', '-gsplit-dwarf',
           '-Wl,--lto-O2', '-o', 'main', '@main.rsp'
       ])
@@ -414,14 +494,15 @@ class RemoteLdIntegrationTest(unittest.TestCase):
           '-fwhole-program-vtables', 'bar.cpp', '-o', 'obj/bar.o'
       ])
       subprocess.check_call(
-          ['llvm-ar', 'crsT', 'obj/libfoobar.a', 'obj/bar.o', 'obj/foo.o'])
+          [self.llvmar(), 'crsT', 'obj/libfoobar.a', 'obj/bar.o', 'obj/foo.o'])
       with open('main.rsp', 'w') as f:
         f.write('-fsplit-lto-unit\n'
                 '-fwhole-program-vtables\n'
                 'obj/main.o\n'
                 'obj/libfoobar.a\n')
       rc = RemoteLinkUnixAllowMain().main([
-          'remote_ld.py',
+          'remote_ld.py', '--ar-path',
+          self.llvmar(), '--',
           self.clangxx(), '-fuse-ld=lld', '-flto=thin', '-m32', '-Wl,-mllvm',
           '-Wl,-generate-type-units', '-Wl,--lto-O2', '-o', 'main',
           '-Wl,--start-group', '@main.rsp', '-Wl,--end-group'
@@ -435,7 +516,7 @@ class RemoteLdIntegrationTest(unittest.TestCase):
                                   re.MULTILINE | re.DOTALL)
         self.assertIsNotNone(codegen_match)
         codegen_text = codegen_match.group(0)
-        self.assertIn('gomacc', codegen_text)
+        self.assertIn('rewrapper', codegen_text)
         self.assertIn('-m32', codegen_text)
         self.assertIn('-mllvm -generate-type-units', codegen_text)
         self.assertNotIn('-flto', codegen_text)
@@ -453,7 +534,7 @@ class RemoteLdIntegrationTest(unittest.TestCase):
       main_disasm = disasm[main_idx:after_main_idx]
       self.assertNotIn(b'foo', main_disasm)
 
-  def test_no_gomacc(self):
+  def test_no_rewrapper(self):
     with named_directory() as d, working_directory(d):
       _create_inputs(d)
       subprocess.check_call([
@@ -462,16 +543,17 @@ class RemoteLdIntegrationTest(unittest.TestCase):
       subprocess.check_call(
           [self.clangxx(), '-c', '-Os', '-flto=thin', 'foo.cpp', '-o', 'foo.o'])
       rc = RemoteLinkUnixAllowMain().main([
-          'remote_ld.py', '--no-wrapper', '-j', '16', '--',
+          'remote_ld.py', '--ar-path',
+          self.llvmar(), '--no-wrapper', '-j', '16', '--',
           self.clangxx(), '-fuse-ld=lld', '-flto=thin', 'main.o', 'foo.o', '-o',
           'main'
       ])
       # Should succeed.
       self.assertEqual(rc, 0)
-      # build.ninja file should not have gomacc invocations in it.
+      # build.ninja file should not have rewrapper invocations in it.
       with open(os.path.join(d, 'lto.main', 'build.ninja')) as f:
         buildrules = f.read()
-        self.assertNotIn('gomacc ', buildrules)
+        self.assertNotIn('rewrapper ', buildrules)
         self.assertIn('build lto.main/main.o.stamp : codegen ', buildrules)
         self.assertIn('build lto.main/foo.o.stamp : codegen ', buildrules)
       # Check that main does not call foo.
@@ -487,7 +569,8 @@ class RemoteLdIntegrationTest(unittest.TestCase):
         f.write(b'\7fELF')
       with mock.patch('sys.stderr', new_callable=StringIO) as stderr:
         rc = RemoteLinkUnixAllowMain().main([
-            'remote_ld.py', '--generate', '--',
+            'remote_ld.py', '--ar-path',
+            self.llvmar(), '--generate', '--',
             self.clangxx(), 'main.o', '-o', 'main'
         ])
         self.assertEqual(rc, 5)
@@ -499,7 +582,8 @@ class RemoteLdIntegrationTest(unittest.TestCase):
         f.write(b'BC\xc0\xde')
       with mock.patch('sys.stderr', new_callable=StringIO) as stderr:
         rc = RemoteLinkUnixAllowMain().main([
-            'remote_ld.py', '--generate', '--',
+            'remote_ld.py', '--ar-path',
+            self.llvmar(), '--generate', '--',
             self.clangxx(), 'main.o', '-o', 'main'
         ])
         self.assertEqual(rc, 0)
@@ -522,7 +606,8 @@ class RemoteLdIntegrationTest(unittest.TestCase):
       subprocess.check_call(
           [self.clangxx(), '-c', '-Os', '-flto=thin', 'foo.cpp', '-o', 'foo.o'])
       rc = remote_ld.RemoteLinkUnix().main([
-          'remote_ld.py', '--generate', '--allowlist', '--',
+          'remote_ld.py', '--ar-path',
+          self.llvmar(), '--generate', '--allowlist', '--',
           self.clangxx(), '-fuse-ld=lld', '-flto=thin', 'main.o', 'foo.o', '-o',
           'main'
       ])

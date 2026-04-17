@@ -30,20 +30,24 @@ import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
 
 import org.chromium.base.Callback;
+import org.chromium.base.ThreadUtils;
+import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.chrome.browser.app.ChromeActivity;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
 import org.chromium.chrome.test.R;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
+import org.chromium.chrome.test.transit.AutoResetCtaTransitTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.ui.modaldialog.DialogDismissalCause;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modelutil.PropertyModel;
 
 /** Test for the password manager illustration modal dialog. */
 @RunWith(ChromeJUnit4ClassRunner.class)
+@Batch(Batch.PER_CLASS)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 public class PasswordManagerDialogTest {
     private PasswordManagerDialogCoordinator mCoordinator;
@@ -54,33 +58,43 @@ public class PasswordManagerDialogTest {
     private static final String OK_BUTTON = "OK";
     private static final String CANCEL_BUTTON = "Cancel";
 
-    @Mock
-    private Callback<Integer> mOnClick;
+    @Mock private Callback<Integer> mOnClick;
 
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
+    public AutoResetCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.fastAutoResetCtaActivityRule();
 
-    @Rule
-    public MockitoRule mMockitoRule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
+    @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
+
+    private WebPageStation mStartingPage;
 
     @Before
     public void setUp() throws InterruptedException {
-        mActivityTestRule.startMainActivityOnBlankPage();
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            ChromeActivity activity = (ChromeActivity) mActivityTestRule.getActivity();
-            ModalDialogManager dialogManager = activity.getModalDialogManager();
-            mCoordinator = new PasswordManagerDialogCoordinator(dialogManager,
-                    activity.findViewById(android.R.id.content),
-                    activity.getBrowserControlsManager());
-            PasswordManagerDialogContents contents = new PasswordManagerDialogContents(TITLE,
-                    DETAILS, R.drawable.password_checkup_warning, OK_BUTTON, CANCEL_BUTTON,
-                    mOnClick);
-            contents.setDialogType(ModalDialogManager.ModalDialogType.TAB);
-            mCoordinator.initialize(activity.getWindowAndroid().getContext().get(), contents);
-            mMediator = mCoordinator.getMediatorForTesting();
-            mModel = mMediator.getModelForTesting();
-            mCoordinator.showDialog();
-        });
+        mStartingPage = mActivityTestRule.startOnBlankPage();
+        ChromeActivity activity = mStartingPage.getActivity();
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    ModalDialogManager dialogManager = activity.getModalDialogManager();
+                    mCoordinator =
+                            new PasswordManagerDialogCoordinator(
+                                    dialogManager,
+                                    activity.findViewById(android.R.id.content),
+                                    activity.getBrowserControlsManager());
+                    PasswordManagerDialogContents contents =
+                            new PasswordManagerDialogContents(
+                                    TITLE,
+                                    DETAILS,
+                                    R.drawable.password_checkup_warning,
+                                    OK_BUTTON,
+                                    CANCEL_BUTTON,
+                                    mOnClick);
+                    contents.setDialogType(ModalDialogManager.ModalDialogType.TAB);
+                    mCoordinator.initialize(
+                            activity.getWindowAndroid().getContext().get(), contents);
+                    mMediator = mCoordinator.getMediatorForTesting();
+                    mModel = mMediator.getModelForTesting();
+                    mCoordinator.showDialog();
+                });
         onViewWaiting(withId(R.id.positive_button));
     }
 
@@ -112,16 +126,22 @@ public class PasswordManagerDialogTest {
     @SmallTest
     public void testDismissedCallbackBackButton() {
         pressBack();
-        verify(mOnClick).onResult(DialogDismissalCause.NAVIGATE_BACK_OR_TOUCH_OUTSIDE);
+        verify(mOnClick).onResult(DialogDismissalCause.NAVIGATE_BACK);
     }
 
     @Test
     @SmallTest
     public void testSettingImageVisibility() {
-        TestThreadUtils.runOnUiThreadBlocking(() -> { mModel.set(ILLUSTRATION_VISIBLE, false); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mModel.set(ILLUSTRATION_VISIBLE, false);
+                });
         onView(withId(R.id.password_manager_dialog_illustration))
                 .check(matches(not(isDisplayed())));
-        TestThreadUtils.runOnUiThreadBlocking(() -> { mModel.set(ILLUSTRATION_VISIBLE, true); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mModel.set(ILLUSTRATION_VISIBLE, true);
+                });
         onView(withId(R.id.password_manager_dialog_illustration)).check(matches(isDisplayed()));
     }
 
@@ -134,28 +154,55 @@ public class PasswordManagerDialogTest {
         // Dimensions resembling landscape orientation.
         final int testHeightDipLandscape = 300; // Height of the android content view.
         final int testWidthDipLandscape = 500; // Width of the android content view.
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mMediator.onLayoutChange(null, 0, 0, (int) (testWidthDipLandscape * dipScale),
-                    (int) (testHeightDipLandscape * dipScale), 0, 0, 0, 0);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mMediator.onLayoutChange(
+                            null,
+                            0,
+                            0,
+                            (int) (testWidthDipLandscape * dipScale),
+                            (int) (testHeightDipLandscape * dipScale),
+                            0,
+                            0,
+                            0,
+                            0);
+                });
         CriteriaHelper.pollUiThread(() -> !mModel.get(ILLUSTRATION_VISIBLE));
 
         // Dimensions resembling portrait orientation.
         final int testHeightDipPortrait = 500;
         final int testWidthDipPortrait = 320;
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mMediator.onLayoutChange(null, 0, 0, (int) (testWidthDipPortrait * dipScale),
-                    (int) (testHeightDipPortrait * dipScale), 0, 0, 0, 0);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mMediator.onLayoutChange(
+                            null,
+                            0,
+                            0,
+                            (int) (testWidthDipPortrait * dipScale),
+                            (int) (testHeightDipPortrait * dipScale),
+                            0,
+                            0,
+                            0,
+                            0);
+                });
         CriteriaHelper.pollUiThread(() -> mModel.get(ILLUSTRATION_VISIBLE));
 
         // Dimensions resembling multi-window mode.
         final int testHeightDipMultiWindow = 250;
         final int testWidthDipMultiWindow = 320;
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mMediator.onLayoutChange(null, 0, 0, (int) (testWidthDipMultiWindow * dipScale),
-                    (int) (testHeightDipMultiWindow * dipScale), 0, 0, 0, 0);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mMediator.onLayoutChange(
+                            null,
+                            0,
+                            0,
+                            (int) (testWidthDipMultiWindow * dipScale),
+                            (int) (testHeightDipMultiWindow * dipScale),
+                            0,
+                            0,
+                            0,
+                            0);
+                });
         CriteriaHelper.pollUiThread(() -> !mModel.get(ILLUSTRATION_VISIBLE));
     }
 }

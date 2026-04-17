@@ -19,6 +19,8 @@ syntax = "proto2";
 package protozero.test.protos;
 
 import "src/protozero/test/example_proto/library.proto";
+import "src/protozero/test/example_proto/other_package/test_messages.proto";
+import "src/protozero/test/example_proto/subpackage/test_messages.proto";
 
 // This file contains comprehensive set of supported message structures and
 // data types. Unit tests depends on the plugin-processed version of this file.
@@ -46,6 +48,11 @@ enum BigEnum {
   END = 100500;
 }
 
+enum VeryNegativeEnum {
+  DEF = 0;
+  VAL = -2147483648;
+}
+
 message EveryField {
   optional int32 field_int32 = 1;
   optional int64 field_int64 = 2;
@@ -65,6 +72,7 @@ message EveryField {
   optional SmallEnum small_enum = 51;
   optional SignedEnum signed_enum = 52;
   optional BigEnum big_enum = 53;
+  optional VeryNegativeEnum very_negative_enum = 54;
 
   optional string field_string = 500;
   optional bytes field_bytes = 505;
@@ -75,12 +83,18 @@ message EveryField {
   }
   optional NestedEnum nested_enum = 600;
 
+  repeated string repeated_string = 700;
+  repeated fixed64 repeated_fixed64 = 701;
+  repeated sfixed32 repeated_sfixed32 = 702;
+
   repeated int32 repeated_int32 = 999;
 }
 
 message NestedA {
   message NestedB {
-    message NestedC { optional int32 value_c = 1; }
+    message NestedC {
+      optional int32 value_c = 1;
+    }
     optional NestedC value_b = 1;
   }
   repeated NestedB repeated_a = 2;
@@ -174,4 +188,16 @@ message TestVersioning_V2 {
   optional Sub2_V2 sub2 = 11;
   repeated Sub2_V2 sub2_rep = 12;
   optional Sub2_V2 sub2_lazy = 13 [lazy = true];
+}
+
+message DifferentPackages {
+  optional subpackage.Message subpackage_message = 1;
+  optional subpackage.Message.NestedMessage subpackage_nested_message = 2;
+  optional subpackage.Enum subpackage_enum = 3;
+  optional subpackage.Message.NestedEnum subpackage_nested_enum = 4;
+
+  optional .other_package.Message otherpackage_message = 5;
+  optional .other_package.Message.NestedMessage otherpackage_nested_message = 6;
+  optional .other_package.Enum otherpackage_enum = 7;
+  optional .other_package.Message.NestedEnum otherpackage_nested_enum = 8;
 }

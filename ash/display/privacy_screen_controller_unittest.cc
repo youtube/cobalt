@@ -16,10 +16,10 @@
 #include "dbus/object_path.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "third_party/cros_system_api/dbus/service_constants.h"
-#include "ui/display/fake/fake_display_snapshot.h"
 #include "ui/display/manager/display_change_observer.h"
 #include "ui/display/manager/display_manager.h"
 #include "ui/display/manager/test/action_logger_util.h"
+#include "ui/display/manager/test/fake_display_snapshot.h"
 #include "ui/display/manager/test/test_native_display_delegate.h"
 #include "ui/display/types/display_constants.h"
 
@@ -65,10 +65,7 @@ class PrivacyScreenControllerTest : public NoSessionAshTestBase {
     NoSessionAshTestBase::SetUp();
 
     // Create user 1 session and simulate its login.
-    SimulateUserLogin(kUser1Email);
-
-    // Create user 2 session.
-    GetSessionControllerClient()->AddUserSession(kUser2Email);
+    SimulateUserLogin({kUser1Email});
 
     native_display_delegate_ =
         new display::test::TestNativeDisplayDelegate(logger_.get());
@@ -102,15 +99,14 @@ class PrivacyScreenControllerTest : public NoSessionAshTestBase {
         AccountId::FromUserEmail(email));
   }
 
-  // Builds displays snapshots into |owned_snapshots_| and update the display
-  // configurator and display manager with it.
+  // Builds display snapshots into |native_display_delegate_| and update the
+  // display configurator and display manager with it.
   void BuildAndUpdateDisplaySnapshots(
       const std::vector<TestSnapshotParams>& snapshot_params) {
-    owned_snapshots_.clear();
-    std::vector<display::DisplaySnapshot*> outputs;
+    std::vector<std::unique_ptr<display::DisplaySnapshot>> outputs;
 
     for (const auto& param : snapshot_params) {
-      owned_snapshots_.emplace_back(
+      outputs.push_back(
           display::FakeDisplaySnapshot::Builder()
               .SetId(param.id)
               .SetNativeMode(kDisplaySize)
@@ -122,25 +118,25 @@ class PrivacyScreenControllerTest : public NoSessionAshTestBase {
                                     ? display::kDisabled
                                     : display::kNotSupported)
               .Build());
-      outputs.push_back(owned_snapshots_.back().get());
     }
 
-    native_display_delegate_->set_outputs(outputs);
+    native_display_delegate_->SetOutputs(std::move(outputs));
     display_manager()->configurator()->OnConfigurationChanged();
     display_manager()->configurator()->ForceInitialConfigure();
     EXPECT_TRUE(test_api_->TriggerConfigureTimeout());
-    display_change_observer_->OnDisplayModeChanged(outputs);
+    display_change_observer_->OnDisplayConfigurationChanged(
+        native_display_delegate_->GetOutputs());
   }
 
   MockObserver* observer() { return &observer_; }
 
  private:
   std::unique_ptr<display::test::ActionLogger> logger_;
-  raw_ptr<display::test::TestNativeDisplayDelegate, ExperimentalAsh>
+  raw_ptr<display::test::TestNativeDisplayDelegate,
+          DanglingUntriaged>
       native_display_delegate_;  // Not owned.
   std::unique_ptr<display::DisplayChangeObserver> display_change_observer_;
   std::unique_ptr<display::DisplayConfigurator::TestApi> test_api_;
-  std::vector<std::unique_ptr<display::DisplaySnapshot>> owned_snapshots_;
   ::testing::NiceMock<MockObserver> observer_;
 };
 
@@ -225,14 +221,13 @@ TEST_F(PrivacyScreenControllerTest, TestEnableAndDisable) {
 
   // Enable for user 1, and switch to user 2. User 2 should have it disabled.
   EXPECT_CALL(*observer(), OnPrivacyScreenSettingChanged(true, true));
-  controller()->SetEnabled(true,
-                           PrivacyScreenController::kToggleUISurfaceCount);
+  controller()->SetEnabled(true);
   EXPECT_TRUE(controller()->GetEnabled());
 
   // Switching accounts should trigger observers but should not notify ui.
   ::testing::Mock::VerifyAndClear(observer());
   EXPECT_CALL(*observer(), OnPrivacyScreenSettingChanged(false, false));
-  SwitchActiveUser(kUser2Email);
+  SimulateUserLogin({kUser2Email});
   EXPECT_FALSE(controller()->GetEnabled());
 
   // Switch back to user 1, expect it to be enabled.
@@ -263,15 +258,13 @@ TEST_F(PrivacyScreenControllerTest, TestDlpEnforced) {
   // Additionally enable it via pref, no change.
   ::testing::Mock::VerifyAndClear(observer());
   EXPECT_CALL(*observer(), OnPrivacyScreenSettingChanged(true, true));
-  controller()->SetEnabled(true,
-                           PrivacyScreenController::kToggleUISurfaceCount);
+  controller()->SetEnabled(true);
   EXPECT_TRUE(controller()->GetEnabled());
 
   // Shouldn't be turned off when pref is disabled, because already enforced.
   ::testing::Mock::VerifyAndClear(observer());
   EXPECT_CALL(*observer(), OnPrivacyScreenSettingChanged(true, true));
-  controller()->SetEnabled(false,
-                           PrivacyScreenController::kToggleUISurfaceCount);
+  controller()->SetEnabled(false);
   EXPECT_TRUE(controller()->GetEnabled());
 
   // Privacy screen enforced again by DLP, no notification should be shown.
@@ -291,8 +284,7 @@ TEST_F(PrivacyScreenControllerTest, TestDlpEnforced) {
   // Add pref back.
   ::testing::Mock::VerifyAndClear(observer());
   EXPECT_CALL(*observer(), OnPrivacyScreenSettingChanged(true, true));
-  controller()->SetEnabled(true,
-                           PrivacyScreenController::kToggleUISurfaceCount);
+  controller()->SetEnabled(true);
   EXPECT_TRUE(controller()->GetEnabled());
 
   // Privacy screen enforced again by DLP, no notification should be shown as
@@ -316,8 +308,7 @@ TEST_F(PrivacyScreenControllerTest, TestDlpEnforced) {
   // Disable via pref, privacy screen is turned off with a notification.
   ::testing::Mock::VerifyAndClear(observer());
   EXPECT_CALL(*observer(), OnPrivacyScreenSettingChanged(false, true));
-  controller()->SetEnabled(false,
-                           PrivacyScreenController::kToggleUISurfaceCount);
+  controller()->SetEnabled(false);
   EXPECT_FALSE(controller()->GetEnabled());
 }
 
@@ -353,8 +344,7 @@ TEST_F(PrivacyScreenControllerTest, SupportedOnSingleInternalDisplay) {
   ASSERT_TRUE(controller()->IsSupported());
 
   EXPECT_CALL(*observer(), OnPrivacyScreenSettingChanged(true, true));
-  controller()->SetEnabled(true,
-                           PrivacyScreenController::kToggleUISurfaceCount);
+  controller()->SetEnabled(true);
   EXPECT_TRUE(controller()->GetEnabled());
 }
 
@@ -414,8 +404,7 @@ TEST_F(PrivacyScreenControllerTest,
   EXPECT_EQ(3u, display_manager()->GetNumDisplays());
   ASSERT_TRUE(controller()->IsSupported());
 
-  controller()->SetEnabled(true,
-                           PrivacyScreenController::kToggleUISurfaceCount);
+  controller()->SetEnabled(true);
   EXPECT_TRUE(controller()->GetEnabled());
 }
 
@@ -474,8 +463,7 @@ TEST_F(PrivacyScreenServiceProviderTest, PrivacyScreenEnabled) {
       /*supports_privacy_screen=*/true,
   }});
 
-  controller()->SetEnabled(true,
-                           PrivacyScreenController::kToggleUISurfaceCount);
+  controller()->SetEnabled(true);
 
   // Expects PrivacyScreenSettingChanged D-Bus signal to be called once.
   ASSERT_EQ(last_signal_state_,

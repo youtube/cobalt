@@ -4,11 +4,12 @@
 
 package org.chromium.chrome.browser.ui.appmenu;
 
+import org.chromium.build.annotations.NullMarked;
+
 /** A UI coordinator the app menu. */
+@NullMarked
 public interface AppMenuCoordinator {
-    /**
-     * Called when the containing activity is being destroyed.
-     */
+    /** Called when the containing activity is being destroyed. */
     void destroy();
 
     /**

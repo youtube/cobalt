@@ -13,37 +13,36 @@ import "services/network/public/mojom/request_priority.mojom";
 import "url/mojom/origin.mojom";
 import "url/mojom/url.mojom";
 
-// These values are used for UMA. Entries should not be renumbered. Please keep
-// in sync with "ContentResourceType2" in
-// src/tools/metrics/histograms/enums.xml.
 // DEPRECATED. Consider using network::mojom::RequestDestination instead.
 // TODO(bokan): Consider renaming kMainFrame and kSubFrame to better reflect
 // embedded frame trees like fenced frames (e.g. kMainFrame to
 // kOutermostMainFrame and kSubFrame to kEmbeddedFrame?)
 enum ResourceType {
-  kMainFrame = 0,           // top level page
-  kSubFrame = 1,            // frame or iframe (or fenced frame)
-  kStylesheet = 2,          // a CSS stylesheet
-  kScript = 3,              // an external script
-  kImage = 4,               // an image (jpg/gif/png/etc)
-  kFontResource = 5,        // a font
-  kSubResource = 6,         // an "other" subresource.
-  kObject = 7,              // an object (or embed) tag for a plugin.
-  kMedia = 8,               // a media resource.
-  kWorker = 9,              // the main resource of a dedicated worker.
-  kSharedWorker = 10,       // the main resource of a shared worker.
-  kPrefetch = 11,           // an explicitly requested prefetch
-  kFavicon = 12,            // a favicon
-  kXhr = 13,                // a XMLHttpRequest
-  kPing = 14,               // a ping request for <a ping>/sendBeacon.
-  kServiceWorker = 15,      // the main resource of a service worker.
-  kCspReport = 16,          // a report of Content Security Policy violations.
-  kPluginResource = 17,     // a resource that a plugin requested.
+  kMainFrame = 0,  // top level page
+  kSubFrame = 1,  // frame or iframe (or fenced frame)
+  kStylesheet = 2,  // a CSS stylesheet
+  kScript = 3,  // an external script
+  kImage = 4,  // an image (jpg/gif/png/etc)
+  kFontResource = 5,  // a font
+  kSubResource = 6,  // an "other" subresource.
+  kObject = 7,  // an object (or embed) tag for a plugin.
+  kMedia = 8,  // a media resource.
+  kWorker = 9,  // the main resource of a dedicated worker.
+  kSharedWorker = 10,  // the main resource of a shared worker.
+  kPrefetch = 11,  // an explicitly requested prefetch
+  kFavicon = 12,  // a favicon
+  kXhr = 13,  // a XMLHttpRequest
+  kPing = 14,  // a ping request for <a ping>/sendBeacon.
+  kServiceWorker = 15,  // the main resource of a service worker.
+  kCspReport = 16,  // a report of Content Security Policy violations.
+  kPluginResource = 17,  // a resource that a plugin requested.
   // kNavigationPreload = 18,  // Deprecated.
   // a main-frame service worker navigation preload request.
+
   kNavigationPreloadMainFrame = 19,
   // a sub-frame service worker navigation preload request.
   kNavigationPreloadSubFrame = 20,
+  kJson = 21,  // a JSON module (import ... with { type: "json" })
 };
 
 // Network related information reported for loads and redirects.
@@ -100,20 +99,17 @@ struct ResourceLoadInfo {
   // The mime type.
   string mime_type;
 
-  // True if the response was fetched from the network cache (disk cache or
-  // in-memory cache).
-  // TODO(https://crbug.com/1339708): Rename this field to `was_in_any_cache`
-  // to represent what this field actually means.
+  // True if the response was fetched from the network cache.
   bool was_cached;
-
-  // True if the response was fetched from the network service in-memory cache.
-  bool was_in_network_service_memory_cache = false;
 
   // Various network related information.
   CommonNetworkInfo network_info;
 
   // The network error code, net::OK if no error happened.
   int32 net_error;
+
+  // The proxy chain used for this request.
+  network.mojom.ProxyChain proxy_chain;
 
   // The timing info.
   network.mojom.LoadTimingInfo load_timing_info;
@@ -131,4 +127,7 @@ struct ResourceLoadInfo {
   // The list of redirects that led to this resource load. Empty if there were
   // no redirects.
   array<RedirectInfo> redirect_info_chain;
+
+  // The HTTP Status Code
+  int32 http_status_code;
 };

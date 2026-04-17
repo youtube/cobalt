@@ -4,34 +4,33 @@
 
 package org.chromium.components.paintpreview.player.frame;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Rect;
-import android.os.Handler;
 import android.util.Size;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-
 import org.chromium.base.TraceEvent;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 /**
  * Given a viewport {@link Rect} and a matrix of {@link Bitmap} tiles, this class draws the bitmaps
  * on a {@link Canvas}.
  */
+@NullMarked
 class PlayerFrameBitmapPainter {
-    private Size mTileSize;
-    private Bitmap[][] mBitmapMatrix;
-    private Rect mViewPort = new Rect();
-    private Rect mDrawBitmapSrc = new Rect();
-    private Rect mDrawBitmapDst = new Rect();
-    private Runnable mInvalidateCallback;
-    private Runnable mFirstPaintListener;
-    private Handler mHandler = new Handler();
+    private @Nullable Size mTileSize;
+    private Bitmap @Nullable [][] mBitmapMatrix;
+    private final Rect mViewPort = new Rect();
+    private final Rect mDrawBitmapSrc = new Rect();
+    private final Rect mDrawBitmapDst = new Rect();
+    private final Runnable mInvalidateCallback;
+    private @Nullable Runnable mFirstPaintListener;
     private boolean mDestroyed;
 
-    PlayerFrameBitmapPainter(@NonNull Runnable invalidateCallback,
-            @Nullable Runnable firstPaintListener) {
+    PlayerFrameBitmapPainter(Runnable invalidateCallback, @Nullable Runnable firstPaintListener) {
         mInvalidateCallback = invalidateCallback;
         mFirstPaintListener = firstPaintListener;
     }
@@ -54,9 +53,7 @@ class PlayerFrameBitmapPainter {
         mInvalidateCallback.run();
     }
 
-    /**
-     * Draws bitmaps on a given {@link Canvas} for the current viewport.
-     */
+    /** Draws bitmaps on a given {@link Canvas} for the current viewport. */
     void onDraw(Canvas canvas) {
         if (mDestroyed) return;
 
@@ -64,6 +61,7 @@ class PlayerFrameBitmapPainter {
 
         if (mViewPort.isEmpty()) return;
 
+        assumeNonNull(mTileSize);
         if (mTileSize.getWidth() <= 0 || mTileSize.getHeight() <= 0) return;
         TraceEvent.begin("PlayerFrameBitmapPainter.onDraw");
 
@@ -75,21 +73,24 @@ class PlayerFrameBitmapPainter {
         rowEnd = Math.min(rowEnd, mBitmapMatrix.length);
         colEnd = Math.min(colEnd, rowEnd >= 1 ? mBitmapMatrix[rowEnd - 1].length : 0);
 
-        boolean needsInvalidate = false;
         for (int row = rowStart; row < rowEnd; row++) {
             for (int col = colStart; col < colEnd; col++) {
                 Bitmap tileBitmap = mBitmapMatrix[row][col];
 
-                // Request is ongoing.
-                if (tileBitmap == null) continue;
+                // Request is ongoing or mid-replacement.
+                if (tileBitmap == null || tileBitmap.isRecycled()) continue;
 
                 // Calculate the portion of this tileBitmap that is visible in mViewPort.
                 int bitmapLeft = Math.max(mViewPort.left - (col * mTileSize.getWidth()), 0);
                 int bitmapTop = Math.max(mViewPort.top - (row * mTileSize.getHeight()), 0);
-                int bitmapRight = Math.min(mTileSize.getWidth(),
-                        bitmapLeft + mViewPort.right - (col * mTileSize.getWidth()));
-                int bitmapBottom = Math.min(mTileSize.getHeight(),
-                        bitmapTop + mViewPort.bottom - (row * mTileSize.getHeight()));
+                int bitmapRight =
+                        Math.min(
+                                mTileSize.getWidth(),
+                                bitmapLeft + mViewPort.right - (col * mTileSize.getWidth()));
+                int bitmapBottom =
+                        Math.min(
+                                mTileSize.getHeight(),
+                                bitmapTop + mViewPort.bottom - (row * mTileSize.getHeight()));
                 mDrawBitmapSrc.set(bitmapLeft, bitmapTop, bitmapRight, bitmapBottom);
 
                 // Calculate the portion of the canvas that tileBitmap is gonna be drawn on.

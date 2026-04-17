@@ -11,11 +11,12 @@
 #include <lib/fidl/cpp/binding_set.h>
 #include <lib/sys/cpp/outgoing_directory.h>
 
+#include <optional>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "base/message_loop/message_pump_for_io.h"
 #include "base/run_loop.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace media {
@@ -88,16 +89,16 @@ class FakeCameraStream final
   void NotImplemented_(const std::string& name) override;
 
   void OnBufferCollectionSyncDone(
-      fidl::InterfaceHandle<fuchsia::sysmem::BufferCollectionToken>
+      fidl::InterfaceHandle<fuchsia::sysmem2::BufferCollectionToken>
           token_for_client,
-      fidl::InterfaceHandle<fuchsia::sysmem::BufferCollectionToken>
+      fidl::InterfaceHandle<fuchsia::sysmem2::BufferCollectionToken>
           failed_token);
 
   void OnBufferCollectionError(zx_status_t status);
 
   void OnBufferCollectionAllocated(
-      zx_status_t status,
-      fuchsia::sysmem::BufferCollectionInfo_2 buffer_collection_info);
+      fuchsia::sysmem2::BufferCollection_WaitForAllBuffersAllocated_Result
+          wait_result);
 
   // Calls callback for the pending WatchResolution() if the call is pending and
   // resolution has been updated.
@@ -125,28 +126,28 @@ class FakeCameraStream final
   fuchsia::camera3::Orientation orientation_ =
       fuchsia::camera3::Orientation::UP;
 
-  absl::optional<fuchsia::math::Size> resolution_update_ = fuchsia::math::Size{
+  std::optional<fuchsia::math::Size> resolution_update_ = fuchsia::math::Size{
       kDefaultFrameSize.width(), kDefaultFrameSize.height()};
   WatchResolutionCallback watch_resolution_callback_;
 
-  absl::optional<fuchsia::camera3::Orientation> orientation_update_ =
+  std::optional<fuchsia::camera3::Orientation> orientation_update_ =
       fuchsia::camera3::Orientation::UP;
   WatchOrientationCallback watch_orientation_callback_;
 
-  fuchsia::sysmem::BufferCollectionTokenPtr new_buffer_collection_token_;
+  fuchsia::sysmem2::BufferCollectionTokenPtr new_buffer_collection_token_;
 
-  absl::optional<fidl::InterfaceHandle<fuchsia::sysmem::BufferCollectionToken>>
+  std::optional<fidl::InterfaceHandle<fuchsia::sysmem2::BufferCollectionToken>>
       new_buffer_collection_token_for_client_;
   WatchBufferCollectionCallback watch_buffer_collection_callback_;
 
-  absl::optional<fuchsia::camera3::FrameInfo> next_frame_;
+  std::optional<fuchsia::camera3::FrameInfo> next_frame_;
   GetNextFrameCallback get_next_frame_callback_;
 
-  fuchsia::sysmem::AllocatorPtr sysmem_allocator_;
-  fuchsia::sysmem::BufferCollectionPtr buffer_collection_;
+  fuchsia::sysmem2::AllocatorPtr sysmem_allocator_;
+  fuchsia::sysmem2::BufferCollectionPtr buffer_collection_;
 
-  absl::optional<base::RunLoop> wait_buffers_allocated_run_loop_;
-  absl::optional<base::RunLoop> wait_free_buffer_run_loop_;
+  std::optional<base::RunLoop> wait_buffers_allocated_run_loop_;
+  std::optional<base::RunLoop> wait_free_buffer_run_loop_;
 
   std::vector<std::unique_ptr<Buffer>> buffers_;
   size_t num_used_buffers_ = 0;
@@ -238,7 +239,7 @@ class FakeCameraDeviceWatcher {
     std::vector<fuchsia::camera3::WatchDevicesEvent> event_queue_;
 
     WatchDevicesCallback watch_devices_callback_;
-    FakeCameraDeviceWatcher* const device_watcher_;
+    const raw_ptr<FakeCameraDeviceWatcher> device_watcher_;
   };
 
   fidl::BindingSet<fuchsia::camera3::DeviceWatcher, std::unique_ptr<Client>>

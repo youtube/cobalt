@@ -30,7 +30,7 @@ const char kProcessTypeXSessionChooser[] = "xsession_chooser";
 const char kEvaluateCapabilitySwitchName[] = "evaluate-type";
 
 #if BUILDFLAG(IS_LINUX)
-const char kEnableUtempter[] = "enable-utempter";
+const char kEnableWtmpdb[] = "enable-wtmpdb";
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -45,6 +45,7 @@ const char kInputSwitchName[] = "input";
 const char kOutputSwitchName[] = "output";
 
 const char kMojoPipeToken[] = "mojo-pipe-token";
+const char kCrashServerPipeHandle[] = "crash-server-pipe-handle";
 
 #if BUILDFLAG(IS_APPLE)
 const char kCheckPermissionSwitchName[] = "check-permission";

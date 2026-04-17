@@ -6,9 +6,9 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 
 #include "base/functional/bind.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_id.h"
@@ -32,7 +32,6 @@
 #include "ui/views/border.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/examples/examples_color_id.h"
-#include "ui/views/examples/examples_themed_label.h"
 #include "ui/views/layout/box_layout_view.h"
 #include "ui/views/layout/layout_manager_base.h"
 #include "ui/views/layout/layout_provider.h"
@@ -62,10 +61,10 @@ FadingView::FadingView() {
       .AddChildren(
           Builder<BoxLayoutView>()
               .CopyAddressTo(&primary_view_)
-              .SetBorder(CreateThemedRoundedRectBorder(
+              .SetBorder(CreateRoundedRectBorder(
                   1, kCornerRadius,
                   ExamplesColorIds::kColorFadeAnimationExampleBorder))
-              .SetBackground(CreateThemedRoundedRectBackground(
+              .SetBackground(CreateRoundedRectBackground(
                   ExamplesColorIds::kColorFadeAnimationExampleBackground,
                   kCornerRadius, 1))
               .SetPaintToLayer()
@@ -84,22 +83,22 @@ FadingView::FadingView() {
                                .SetVerticalAlignment(gfx::ALIGN_MIDDLE)),
           Builder<BoxLayoutView>()
               .CopyAddressTo(&secondary_view_)
-              .SetBorder(CreateThemedRoundedRectBorder(
+              .SetBorder(CreateRoundedRectBorder(
                   1, kCornerRadius,
                   ExamplesColorIds::kColorFadeAnimationExampleBorder))
-              .SetBackground(CreateThemedRoundedRectBackground(
+              .SetBackground(CreateRoundedRectBackground(
                   ExamplesColorIds::kColorFadeAnimationExampleBackground,
                   kCornerRadius, 1))
               .SetPaintToLayer()
               .SetOrientation(BoxLayout::Orientation::kVertical)
               .SetMainAxisAlignment(BoxLayout::MainAxisAlignment::kCenter)
               .SetBetweenChildSpacing(kSpacing)
-              .AddChild(Builder<ThemedLabel>()
+              .AddChild(Builder<Label>()
                             .SetText(u"Working...")
                             .SetTextContext(style::CONTEXT_DIALOG_TITLE)
                             .SetTextStyle(style::STYLE_PRIMARY)
                             .SetVerticalAlignment(gfx::ALIGN_MIDDLE)
-                            .SetEnabledColorId(
+                            .SetEnabledColor(
                                 ExamplesColorIds::
                                     kColorFadeAnimationExampleForeground)))
       .BuildChildren();
@@ -123,6 +122,9 @@ FadingView::FadingView() {
 
 FadingView::~FadingView() = default;
 
+BEGIN_METADATA(FadingView)
+END_METADATA
+
 ProposedLayout CenteringLayoutManager::CalculateProposedLayout(
     const SizeBounds& size_bounds) const {
   ProposedLayout layout;
@@ -130,8 +132,8 @@ ProposedLayout CenteringLayoutManager::CalculateProposedLayout(
 
   gfx::Rect host_bounds(size_bounds.width().min_of(host_view()->width()),
                         size_bounds.height().min_of(host_view()->height()));
-  for (auto* child : children) {
-    gfx::Size preferred_size = child->GetPreferredSize();
+  for (views::View* child : children) {
+    gfx::Size preferred_size = child->GetPreferredSize(size_bounds);
     gfx::Rect child_bounds = host_bounds;
     child_bounds.ClampToCenteredSize(preferred_size);
 
@@ -147,7 +149,7 @@ FadeAnimationExample::FadeAnimationExample() : ExampleBase("Fade Animation") {}
 FadeAnimationExample::~FadeAnimationExample() = default;
 
 void FadeAnimationExample::CreateExampleView(View* container) {
-  container->SetBackground(CreateThemedSolidBackground(
+  container->SetBackground(CreateSolidBackground(
       ExamplesColorIds::kColorFadeAnimationExampleBackground));
   container->SetLayoutManager(std::make_unique<CenteringLayoutManager>());
   container->AddChildView(std::make_unique<FadingView>());

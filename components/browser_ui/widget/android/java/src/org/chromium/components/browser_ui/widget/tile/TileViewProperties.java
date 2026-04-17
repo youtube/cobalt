@@ -7,12 +7,14 @@ import android.content.res.ColorStateList;
 import android.graphics.drawable.Drawable;
 import android.view.View;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableBooleanPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableIntPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableObjectPropertyKey;
 
 /** TileView properties. */
+@NullMarked
 public final class TileViewProperties {
     /** The title of the tile. */
     public static final WritableObjectPropertyKey<String> TITLE = new WritableObjectPropertyKey<>();
@@ -64,7 +66,18 @@ public final class TileViewProperties {
             ON_CREATE_CONTEXT_MENU = new WritableObjectPropertyKey<>();
 
     public static final PropertyKey[] ALL_KEYS =
-            new PropertyKey[] {ICON, ICON_TINT, TITLE, TITLE_LINES, BADGE_VISIBLE, SHOW_LARGE_ICON,
-                    SMALL_ICON_ROUNDING_RADIUS, CONTENT_DESCRIPTION, ON_FOCUS_VIA_SELECTION,
-                    ON_CLICK, ON_LONG_CLICK, ON_CREATE_CONTEXT_MENU};
+            new PropertyKey[] {
+                ICON,
+                ICON_TINT,
+                TITLE,
+                TITLE_LINES,
+                BADGE_VISIBLE,
+                SHOW_LARGE_ICON,
+                SMALL_ICON_ROUNDING_RADIUS,
+                CONTENT_DESCRIPTION,
+                ON_FOCUS_VIA_SELECTION,
+                ON_CLICK,
+                ON_LONG_CLICK,
+                ON_CREATE_CONTEXT_MENU
+            };
 }

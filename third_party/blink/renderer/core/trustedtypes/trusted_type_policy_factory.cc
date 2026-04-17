@@ -16,14 +16,17 @@
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/frame/csp/content_security_policy.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/inspector/exception_metadata.h"
 #include "third_party/blink/renderer/core/inspector/identifiers_factory.h"
 #include "third_party/blink/renderer/core/probe/core_probes.h"
+#include "third_party/blink/renderer/core/svg_names.h"
 #include "third_party/blink/renderer/core/trustedtypes/event_handler_names.h"
 #include "third_party/blink/renderer/core/trustedtypes/trusted_html.h"
 #include "third_party/blink/renderer/core/trustedtypes/trusted_script.h"
 #include "third_party/blink/renderer/core/trustedtypes/trusted_type_policy.h"
 #include "third_party/blink/renderer/core/trustedtypes/trusted_types_util.h"
+#include "third_party/blink/renderer/core/xlink_names.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/v8_dom_wrapper.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
@@ -37,47 +40,57 @@ namespace {
 const char* kHtmlNamespace = "http://www.w3.org/1999/xhtml";
 
 struct AttributeTypeEntry {
-  AtomicString element;
-  AtomicString attribute;
-  AtomicString element_namespace;
-  AtomicString attribute_namespace;
+  QualifiedName element;
+  QualifiedName attribute;
   SpecificTrustedType type;
 };
 
 typedef Vector<AttributeTypeEntry> AttributeTypeVector;
 
 AttributeTypeVector BuildAttributeVector() {
+  const QualifiedName any_element(g_null_atom, g_star_atom, g_null_atom);
   const struct {
-    const char* element;
-    const char* attribute;
-    const char* element_namespace;
-    const char* attribute_namespace;
+    const QualifiedName& element;
+    const QualifiedName attribute;
     SpecificTrustedType type;
-  } kTypeTable[] = {
-      {"embed", "src", kHtmlNamespace, nullptr,
-       SpecificTrustedType::kScriptURL},
-      {"iframe", "srcdoc", kHtmlNamespace, nullptr, SpecificTrustedType::kHTML},
-      {"object", "codebase", kHtmlNamespace, nullptr,
-       SpecificTrustedType::kScriptURL},
-      {"object", "data", kHtmlNamespace, nullptr,
-       SpecificTrustedType::kScriptURL},
-      {"script", "src", kHtmlNamespace, nullptr,
-       SpecificTrustedType::kScriptURL},
-#define FOREACH_EVENT_HANDLER(name) \
-  {"*", #name, nullptr, nullptr, SpecificTrustedType::kScript},
-      EVENT_HANDLER_LIST(FOREACH_EVENT_HANDLER)
+  } kTypeTable[] = {{html_names::kEmbedTag, html_names::kSrcAttr,
+                     SpecificTrustedType::kScriptURL},
+                    {html_names::kIFrameTag, html_names::kSrcdocAttr,
+                     SpecificTrustedType::kHTML},
+                    {html_names::kObjectTag, html_names::kCodebaseAttr,
+                     SpecificTrustedType::kScriptURL},
+                    {html_names::kObjectTag, html_names::kDataAttr,
+                     SpecificTrustedType::kScriptURL},
+                    {html_names::kScriptTag, html_names::kSrcAttr,
+                     SpecificTrustedType::kScriptURL},
+                    {svg_names::kScriptTag, svg_names::kHrefAttr,
+                     SpecificTrustedType::kScriptURL},
+                    {svg_names::kScriptTag, xlink_names::kHrefAttr,
+                     SpecificTrustedType::kScriptURL},
+
+#define FOREACH_EVENT_HANDLER(name)                 \
+  {any_element, QualifiedName(AtomicString(#name)), \
+   SpecificTrustedType::kScript},
+                    EVENT_HANDLER_LIST(FOREACH_EVENT_HANDLER)
 #undef FOREACH_EVENT_HANDLER
   };
 
   AttributeTypeVector table;
   for (const auto& entry : kTypeTable) {
+    // In legacy-Trusted-Types, we didn't record SVG elements properly in
+    // this function. So we can now use this to retain the old behaviour, until
+    // TrustedTypesHTML is perma-launched.
+    if (!RuntimeEnabledFeatures::TrustedTypesHTMLEnabled() &&
+        entry.element.NamespaceURI() == svg_names::kNamespaceURI) {
+      continue;
+    }
+
     // Attribute comparisons are case-insensitive, for both element and
     // attribute name. We rely on the fact that they're stored as lowercase.
-    DCHECK_EQ(String(entry.element).LowerASCII(), entry.element);
-    DCHECK_EQ(String(entry.attribute).LowerASCII(), entry.attribute);
-    table.push_back(AttributeTypeEntry{entry.element, entry.attribute,
-                                       entry.element_namespace,
-                                       entry.attribute_namespace, entry.type});
+    DCHECK(entry.element.LocalName().IsLowerASCII());
+    DCHECK(entry.attribute.LocalName().IsLowerASCII());
+    table.push_back(
+        AttributeTypeEntry{entry.element, entry.attribute, entry.type});
   }
   return table;
 }
@@ -89,31 +102,40 @@ const AttributeTypeVector& GetAttributeTypeVector() {
 }
 
 AttributeTypeVector BuildPropertyVector() {
+  const QualifiedName any_element(g_null_atom, g_star_atom, g_null_atom);
   const struct {
-    const char* element;
+    const QualifiedName& element;
     const char* property;
-    const char* element_namespace;
     SpecificTrustedType type;
   } kTypeTable[] = {
-      {"embed", "src", kHtmlNamespace, SpecificTrustedType::kScriptURL},
-      {"iframe", "srcdoc", kHtmlNamespace, SpecificTrustedType::kHTML},
-      {"object", "codeBase", kHtmlNamespace, SpecificTrustedType::kScriptURL},
-      {"object", "data", kHtmlNamespace, SpecificTrustedType::kScriptURL},
-      {"script", "innerText", kHtmlNamespace, SpecificTrustedType::kScript},
-      {"script", "src", kHtmlNamespace, SpecificTrustedType::kScriptURL},
-      {"script", "text", kHtmlNamespace, SpecificTrustedType::kScript},
-      {"script", "textContent", kHtmlNamespace, SpecificTrustedType::kScript},
-      {"*", "innerHTML", nullptr, SpecificTrustedType::kHTML},
-      {"*", "outerHTML", nullptr, SpecificTrustedType::kHTML},
+      {html_names::kEmbedTag, "src", SpecificTrustedType::kScriptURL},
+      {html_names::kIFrameTag, "srcdoc", SpecificTrustedType::kHTML},
+      {html_names::kObjectTag, "codeBase", SpecificTrustedType::kScriptURL},
+      {html_names::kObjectTag, "data", SpecificTrustedType::kScriptURL},
+      {html_names::kScriptTag, "innerText", SpecificTrustedType::kScript},
+      {html_names::kScriptTag, "src", SpecificTrustedType::kScriptURL},
+      {html_names::kScriptTag, "text", SpecificTrustedType::kScript},
+      {html_names::kScriptTag, "textContent", SpecificTrustedType::kScript},
+      {svg_names::kScriptTag, "href", SpecificTrustedType::kScriptURL},
+      {any_element, "innerHTML", SpecificTrustedType::kHTML},
+      {any_element, "outerHTML", SpecificTrustedType::kHTML},
   };
   AttributeTypeVector table;
   for (const auto& entry : kTypeTable) {
+    // In legacy-Trusted-Types, we didn't record SVG elements properly in
+    // this function. So we can now use this to retain the old behaviour, until
+    // TrustedTypesHTML is perma-launched.
+    if (!RuntimeEnabledFeatures::TrustedTypesHTMLEnabled() &&
+        entry.element.NamespaceURI() == svg_names::kNamespaceURI) {
+      continue;
+    }
+
     // Elements are case-insensitive, but property names are not.
     // Properties don't have a namespace, so we're leaving that blank.
-    DCHECK_EQ(String(entry.element).LowerASCII(), entry.element);
-    table.push_back(AttributeTypeEntry{entry.element, entry.property,
-                                       entry.element_namespace, AtomicString(),
-                                       entry.type});
+    DCHECK(entry.element.LocalName().IsLowerASCII());
+    table.push_back(AttributeTypeEntry{
+        entry.element, QualifiedName(AtomicString(entry.property)),
+        entry.type});
   }
   return table;
 }
@@ -122,6 +144,22 @@ const AttributeTypeVector& GetPropertyTypeVector() {
   DEFINE_STATIC_LOCAL(AttributeTypeVector, property_table_,
                       (BuildPropertyVector()));
   return property_table_;
+}
+
+// Find an entry matching `attribute` on any element in an AttributeTypeVector.
+// Assumes that argument normalization has already happened.
+SpecificTrustedType FindUnboundAttributeInAttributeTypeVector(
+    const AttributeTypeVector& attribute_type_vector,
+    const AtomicString& attribute) {
+  for (const auto& entry : attribute_type_vector) {
+    bool entry_matches = entry.attribute.LocalName() == attribute &&
+                         entry.attribute.NamespaceURI() == g_null_atom &&
+                         entry.element == g_star_atom;
+    if (entry_matches) {
+      return entry.type;
+    }
+  }
+  return SpecificTrustedType::kNone;
 }
 
 // Find a matching entry in an AttributeTypeVector. Assumes that argument
@@ -133,13 +171,16 @@ SpecificTrustedType FindEntryInAttributeTypeVector(
     const AtomicString& element_namespace,
     const AtomicString& attribute_namespace) {
   for (const auto& entry : attribute_type_vector) {
-    bool entry_matches = ((entry.element == element &&
-                           entry.element_namespace == element_namespace) ||
-                          entry.element == "*") &&
-                         entry.attribute == attribute &&
-                         entry.attribute_namespace == attribute_namespace;
-    if (entry_matches)
+    bool element_matches =
+        (entry.element.LocalName() == element &&
+         entry.element.NamespaceURI() == element_namespace) ||
+        entry.element == g_star_atom;
+    bool attribute_matches =
+        entry.attribute.LocalName() == attribute &&
+        entry.attribute.NamespaceURI() == attribute_namespace;
+    if (element_matches && attribute_matches) {
       return entry.type;
+    }
   }
   return SpecificTrustedType::kNone;
 }
@@ -192,6 +233,12 @@ TrustedTypePolicy* TrustedTypePolicyFactory::createPolicy(
   UseCounter::Count(GetExecutionContext(),
                     WebFeature::kTrustedTypesCreatePolicy);
 
+  // Count policy creation with empty names.
+  if (policy_name.empty()) {
+    UseCounter::Count(GetExecutionContext(),
+                      WebFeature::kTrustedTypesCreatePolicyWithEmptyName);
+  }
+
   // TT requires two validity checks: One against the CSP, and one for the
   // default policy. Use |disallowed| (and |violation_details|) to aggregate
   // these, so we can have unified error handling.
@@ -242,9 +289,12 @@ TrustedTypePolicy* TrustedTypePolicyFactory::createPolicy(
         disallowed_because_of_duplicate_name
             ? "Policy with name \"" + policy_name + "\" already exists."
             : "Policy \"" + policy_name + "\" disallowed.";
-    exception_state.ThrowTypeError(message);
-    MaybeAssociateExceptionMetaData(exception_state, "issueId",
+    v8::Isolate* isolate = GetExecutionContext()->GetIsolate();
+    TryRethrowScope rethrow_scope(isolate, exception_state);
+    auto exception = V8ThrowException::CreateTypeError(isolate, message);
+    MaybeAssociateExceptionMetaData(exception, "issueId",
                                     IdentifiersFactory::IdFromToken(issue_id));
+    V8ThrowException::ThrowException(isolate, exception);
     return nullptr;
   }
 
@@ -272,40 +322,22 @@ TrustedTypePolicyFactory::TrustedTypePolicyFactory(ExecutionContext* context)
       empty_html_(MakeGarbageCollected<TrustedHTML>("")),
       empty_script_(MakeGarbageCollected<TrustedScript>("")) {}
 
-const WrapperTypeInfo*
-TrustedTypePolicyFactory::GetWrapperTypeInfoFromScriptValue(
-    ScriptState* script_state,
-    const ScriptValue& script_value) {
-  v8::Local<v8::Value> value = script_value.V8Value();
-  if (value.IsEmpty() || !value->IsObject() ||
-      !V8DOMWrapper::IsWrapper(script_state->GetIsolate(), value))
-    return nullptr;
-  v8::Local<v8::Object> object = value.As<v8::Object>();
-  return ToWrapperTypeInfo(object);
-}
-
 bool TrustedTypePolicyFactory::isHTML(ScriptState* script_state,
                                       const ScriptValue& script_value) {
-  const WrapperTypeInfo* wrapper_type_info =
-      GetWrapperTypeInfoFromScriptValue(script_state, script_value);
-  return wrapper_type_info &&
-         wrapper_type_info->Equals(V8TrustedHTML::GetWrapperTypeInfo());
+  return V8TrustedHTML::HasInstance(script_state->GetIsolate(),
+                                    script_value.V8Value());
 }
 
 bool TrustedTypePolicyFactory::isScript(ScriptState* script_state,
                                         const ScriptValue& script_value) {
-  const WrapperTypeInfo* wrapper_type_info =
-      GetWrapperTypeInfoFromScriptValue(script_state, script_value);
-  return wrapper_type_info &&
-         wrapper_type_info->Equals(V8TrustedScript::GetWrapperTypeInfo());
+  return V8TrustedScript::HasInstance(script_state->GetIsolate(),
+                                      script_value.V8Value());
 }
 
 bool TrustedTypePolicyFactory::isScriptURL(ScriptState* script_state,
                                            const ScriptValue& script_value) {
-  const WrapperTypeInfo* wrapper_type_info =
-      GetWrapperTypeInfoFromScriptValue(script_state, script_value);
-  return wrapper_type_info &&
-         wrapper_type_info->Equals(V8TrustedScriptURL::GetWrapperTypeInfo());
+  return V8TrustedScriptURL::HasInstance(script_state->GetIsolate(),
+                                         script_value.V8Value());
 }
 
 TrustedHTML* TrustedTypePolicyFactory::emptyHTML() const {
@@ -348,7 +380,7 @@ String TrustedTypePolicyFactory::getAttributeType(
       attributeName.LowerASCII(), tagNS, attributeNS));
 }
 
-ScriptValue TrustedTypePolicyFactory::getTypeMapping(
+ScriptObject TrustedTypePolicyFactory::getTypeMapping(
     ScriptState* script_state) const {
   return getTypeMapping(script_state, String());
 }
@@ -390,7 +422,7 @@ void PopulateTypeMapping(
     const v8::Local<v8::String>& attributes_or_properties) {
   for (const auto& iter : attribute_vector) {
     v8::Local<v8::String> element =
-        V8String(script_state->GetIsolate(), iter.element);
+        V8String(script_state->GetIsolate(), iter.element.LocalName());
     EnsureAttributeAndPropertiesDict(script_state, top, element,
                                      attributes_or_properties);
     top->Get(script_state->GetContext(), element)
@@ -403,7 +435,7 @@ void PopulateTypeMapping(
         .ToLocalChecked()
         ->Set(
             script_state->GetContext(),
-            V8String(script_state->GetIsolate(), iter.attribute),
+            V8String(script_state->GetIsolate(), iter.attribute.LocalName()),
             V8String(script_state->GetIsolate(), getTrustedTypeName(iter.type)))
         .Check();
   }
@@ -411,21 +443,21 @@ void PopulateTypeMapping(
 
 }  // anonymous namespace
 
-ScriptValue TrustedTypePolicyFactory::getTypeMapping(ScriptState* script_state,
-                                                     const String& ns) const {
+ScriptObject TrustedTypePolicyFactory::getTypeMapping(ScriptState* script_state,
+                                                      const String& ns) const {
   // Create three-deep dictionary of properties, like so:
   // {tagname: { ["attributes"|"properties"]: { attribute: type }}}
-
+  v8::Isolate* isolate = script_state->GetIsolate();
   if (!ns.empty())
-    return ScriptValue::CreateNull(script_state->GetIsolate());
+    return ScriptObject::CreateNull(isolate);
 
-  v8::HandleScope handle_scope(script_state->GetIsolate());
-  v8::Local<v8::Object> top = v8::Object::New(script_state->GetIsolate());
+  v8::HandleScope handle_scope(isolate);
+  v8::Local<v8::Object> top = v8::Object::New(isolate);
   PopulateTypeMapping(script_state, top, GetAttributeTypeVector(),
-                      V8String(script_state->GetIsolate(), "attributes"));
+                      V8String(isolate, "attributes"));
   PopulateTypeMapping(script_state, top, GetPropertyTypeVector(),
-                      V8String(script_state->GetIsolate(), "properties"));
-  return ScriptValue(script_state->GetIsolate(), top);
+                      V8String(isolate, "properties"));
+  return ScriptObject(isolate, top);
 }
 
 void TrustedTypePolicyFactory::CountTrustedTypeAssignmentError() {
@@ -445,7 +477,7 @@ ExecutionContext* TrustedTypePolicyFactory::GetExecutionContext() const {
 }
 
 void TrustedTypePolicyFactory::Trace(Visitor* visitor) const {
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
   ExecutionContextClient::Trace(visitor);
   visitor->Trace(empty_html_);
   visitor->Trace(empty_script_);
@@ -455,9 +487,8 @@ void TrustedTypePolicyFactory::Trace(Visitor* visitor) const {
 inline bool FindEventHandlerAttributeInTable(
     const AtomicString& attributeName) {
   return SpecificTrustedType::kScript ==
-         FindEntryInAttributeTypeVector(GetAttributeTypeVector(),
-                                        AtomicString(), attributeName,
-                                        AtomicString(), AtomicString());
+         FindUnboundAttributeInAttributeTypeVector(GetAttributeTypeVector(),
+                                                   attributeName);
 }
 
 bool TrustedTypePolicyFactory::IsEventHandlerAttributeName(

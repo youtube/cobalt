@@ -4,14 +4,15 @@
 
 #include "chrome/browser/ui/views/extensions/extensions_menu_view.h"
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/containers/to_vector.h"
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/user_action_tester.h"
@@ -63,7 +64,7 @@ class AdditionalBrowser {
 
  private:
   std::unique_ptr<Browser> browser_;
-  raw_ptr<BrowserView> browser_view_;
+  raw_ptr<BrowserView, DanglingUntriaged> browser_view_;
 };
 
 }  // namespace
@@ -127,7 +128,7 @@ ExtensionsMenuViewUnitTest::InstallExtensionAndLayout(const std::string& name) {
 }
 
 ExtensionMenuItemView* ExtensionsMenuViewUnitTest::GetOnlyMenuItem() {
-  base::flat_set<ExtensionMenuItemView*> menu_items =
+  base::flat_set<raw_ptr<ExtensionMenuItemView, CtnExperimental>> menu_items =
       extensions_menu()->extensions_menu_items_for_testing();
   if (menu_items.size() != 1u) {
     ADD_FAILURE() << "Not exactly one item; size is: " << menu_items.size();
@@ -154,7 +155,7 @@ ExtensionsMenuViewUnitTest::GetPinnedExtensionViews() {
     if (views::IsViewClass<ToolbarActionView>(child)) {
       ToolbarActionView* const action = static_cast<ToolbarActionView*>(child);
 #if BUILDFLAG(IS_MAC)
-      // TODO(crbug.com/1045212): Use IsActionVisibleOnToolbar() because it
+      // TODO(crbug.com/40670141): Use IsActionVisibleOnToolbar() because it
       // queries the underlying model and not GetVisible(), as that relies on an
       // animation running, which is not reliable in unit tests on Mac.
       const bool is_visible = extensions_container()->IsActionVisibleOnToolbar(
@@ -162,8 +163,9 @@ ExtensionsMenuViewUnitTest::GetPinnedExtensionViews() {
 #else
       const bool is_visible = action->GetVisible();
 #endif
-      if (is_visible)
+      if (is_visible) {
         result.push_back(action);
+      }
     }
   }
   return result;
@@ -171,23 +173,19 @@ ExtensionsMenuViewUnitTest::GetPinnedExtensionViews() {
 
 ExtensionMenuItemView* ExtensionsMenuViewUnitTest::GetExtensionMenuItemView(
     const std::string& name) {
-  base::flat_set<ExtensionMenuItemView*> menu_items =
+  base::flat_set<raw_ptr<ExtensionMenuItemView, CtnExperimental>> menu_items =
       extensions_menu()->extensions_menu_items_for_testing();
   auto iter =
-      base::ranges::find(menu_items, name, [](ExtensionMenuItemView* item) {
+      std::ranges::find(menu_items, name, [](ExtensionMenuItemView* item) {
         return base::UTF16ToUTF8(item->view_controller()->GetActionName());
       });
   return iter == menu_items.end() ? nullptr : *iter;
 }
 
 std::vector<std::string> ExtensionsMenuViewUnitTest::GetPinnedExtensionNames() {
-  std::vector<ToolbarActionView*> views = GetPinnedExtensionViews();
-  std::vector<std::string> result;
-  result.resize(views.size());
-  base::ranges::transform(views, result.begin(), [](ToolbarActionView* view) {
+  return base::ToVector(GetPinnedExtensionViews(), [](ToolbarActionView* view) {
     return base::UTF16ToUTF8(view->view_controller()->GetActionName());
   });
-  return result;
 }
 
 void ExtensionsMenuViewUnitTest::LayoutMenuIfNecessary() {
@@ -203,7 +201,7 @@ TEST_F(ExtensionsMenuViewUnitTest, ExtensionsAreShownInTheMenu) {
   InstallExtensionAndLayout(kExtensionName);
 
   {
-    base::flat_set<ExtensionMenuItemView*> menu_items =
+    base::flat_set<raw_ptr<ExtensionMenuItemView, CtnExperimental>> menu_items =
         extensions_menu()->extensions_menu_items_for_testing();
     ASSERT_EQ(1u, menu_items.size());
     EXPECT_EQ(kExtensionName,
@@ -312,9 +310,10 @@ TEST_F(ExtensionsMenuViewUnitTest, PinnedExtensionRemovedWhenDisabled) {
 }
 
 TEST_F(ExtensionsMenuViewUnitTest, PinnedExtensionLayout) {
-  for (int i = 0; i < 3; i++)
+  for (int i = 0; i < 3; i++) {
     InstallExtensionAndLayout(base::StringPrintf("Test %d", i));
-  for (auto* menu_item :
+  }
+  for (ExtensionMenuItemView* menu_item :
        extensions_menu()->extensions_menu_items_for_testing()) {
     ClickPinButton(menu_item);
   }
@@ -407,13 +406,14 @@ TEST_F(ExtensionsMenuViewUnitTest, ReloadExtensionFailed) {
   extension_directory.WriteManifest(kManifestWithErrors);
 
   // Reload the extension. It should fail due to the manifest errors.
-  extension_service()->ReloadExtensionWithQuietFailure(extension->id());
+  extension_registrar()->ReloadExtensionWithQuietFailure(extension->id());
   base::RunLoop().RunUntilIdle();
 
   // Since the extension is removed it's no longer visible on the toolbar or in
   // the menu.
-  for (views::View* child : extensions_container()->children())
+  for (views::View* child : extensions_container()->children()) {
     EXPECT_FALSE(views::IsViewClass<ToolbarActionView>(child));
+  }
   EXPECT_EQ(0u, extensions_menu()->extensions_menu_items_for_testing().size());
 }
 
@@ -422,14 +422,14 @@ TEST_F(ExtensionsMenuViewUnitTest, PinButtonUserActionWithAccessibility) {
   InstallExtensionAndLayout("Test Extension");
   ExtensionMenuItemView* menu_item = GetOnlyMenuItem();
   ASSERT_NE(nullptr, menu_item);
-  views::test::AXEventCounter counter(views::AXEventManager::Get());
+  views::test::AXEventCounter counter(views::AXUpdateNotifier::Get());
   constexpr char kPinButtonUserAction[] = "Extensions.Toolbar.PinButtonPressed";
 
   // Verify behavior before pin, after pin, and after unpin.
   for (int i = 0; i < 3; i++) {
     EXPECT_EQ(i, user_action_tester.GetActionCount(kPinButtonUserAction));
 #if BUILDFLAG(IS_MAC)
-    // TODO(crbug.com/1045212): No Mac animations in unit tests cause errors.
+    // TODO(crbug.com/40670141): No Mac animations in unit tests cause errors.
 #else
     EXPECT_EQ(i, counter.GetCount(ax::mojom::Event::kAlert));
     EXPECT_EQ(i, counter.GetCount(ax::mojom::Event::kTextChanged));
@@ -446,8 +446,8 @@ TEST_F(ExtensionsMenuViewUnitTest, WindowTitle) {
   EXPECT_TRUE(menu_view->GetAccessibleWindowTitle().empty());
 }
 
-// TODO(crbug.com/984654): When supported, add a test to verify the
+// TODO(crbug.com/40636292): When supported, add a test to verify the
 // ExtensionsToolbarContainer shrinks when the window is too small to show all
 // pinned extensions.
-// TODO(crbug.com/984654): When supported, add a test to verify an extension
+// TODO(crbug.com/40636292): When supported, add a test to verify an extension
 // is shown when a bubble pops up and needs to draw attention to it.

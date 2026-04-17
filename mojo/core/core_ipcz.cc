@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "mojo/core/core_ipcz.h"
 
 #include <algorithm>
@@ -105,7 +110,6 @@ extern "C" {
 
 MojoResult MojoInitializeIpcz(const struct MojoInitializeOptions* options) {
   NOTREACHED();
-  return MOJO_RESULT_OK;
 }
 
 MojoTimeTicks MojoGetTimeTicksNowIpcz() {
@@ -215,8 +219,8 @@ MojoResult MojoReadMessageIpcz(MojoHandle message_pipe_handle,
                                MojoMessageHandle* message) {
   ScopedIpczHandle parcel;
   IpczResult result = GetIpczAPI().Get(
-      message_pipe_handle, IPCZ_GET_PARCEL_ONLY, nullptr, nullptr, nullptr,
-      nullptr, nullptr, ScopedIpczHandle::Receiver(parcel));
+      message_pipe_handle, IPCZ_GET_PARTIAL, nullptr, nullptr, nullptr, nullptr,
+      nullptr, ScopedIpczHandle::Receiver(parcel));
   if (result != IPCZ_RESULT_OK) {
     return GetMojoReadResultForIpczGet(result);
   }
@@ -276,6 +280,15 @@ MojoResult MojoSerializeMessageIpcz(
     const MojoSerializeMessageOptions* options) {
   if (auto* m = ipcz_driver::MojoMessage::FromHandle(message)) {
     return m->Serialize();
+  }
+  return MOJO_RESULT_INVALID_ARGUMENT;
+}
+
+MojoResult MojoReserveMessageCapacityIpcz(MojoMessageHandle message,
+                                          uint32_t payload_buffer_size,
+                                          uint32_t* buffer_size) {
+  if (auto* m = ipcz_driver::MojoMessage::FromHandle(message)) {
+    return m->ReserveCapacity(payload_buffer_size, buffer_size);
   }
   return MOJO_RESULT_INVALID_ARGUMENT;
 }
@@ -397,7 +410,7 @@ MojoResult MojoCreateDataPipeIpcz(const MojoCreateDataPipeOptions* options,
       config.byte_capacity < config.element_size) {
     return MOJO_RESULT_INVALID_ARGUMENT;
   }
-  absl::optional<DataPipe::Pair> pipe = DataPipe::CreatePair(config);
+  std::optional<DataPipe::Pair> pipe = DataPipe::CreatePair(config);
   if (!pipe) {
     // This result implies that we failed to allocate or map a new shared memory
     // region and therefore have no transfer buffer for the pipe.
@@ -643,7 +656,7 @@ MojoResult MojoWrapPlatformSharedMemoryRegionIpcz(
     return MOJO_RESULT_INVALID_ARGUMENT;
   }
   auto buffer = ipcz_driver::SharedBuffer::CreateForMojoWrapper(
-      base::make_span(platform_handles, num_platform_handles), num_bytes, *guid,
+      base::span(platform_handles, num_platform_handles), num_bytes, *guid,
       access_mode);
   if (!buffer) {
     return MOJO_RESULT_INVALID_ARGUMENT;
@@ -719,7 +732,6 @@ MojoResult MojoUnwrapPlatformSharedMemoryRegionIpcz(
       *access_mode = MOJO_PLATFORM_SHARED_MEMORY_REGION_ACCESS_MODE_UNSAFE;
       break;
     default:
-      *access_mode = MOJO_PLATFORM_SHARED_MEMORY_REGION_ACCESS_MODE_READ_ONLY;
       NOTREACHED();
   }
 
@@ -749,7 +761,7 @@ MojoResult MojoAttachMessagePipeToInvitationIpcz(
     return MOJO_RESULT_INVALID_ARGUMENT;
   }
   return invitation->Attach(
-      base::make_span(static_cast<const uint8_t*>(name), name_num_bytes),
+      base::span(static_cast<const uint8_t*>(name), name_num_bytes),
       message_pipe_handle);
 }
 
@@ -765,7 +777,7 @@ MojoResult MojoExtractMessagePipeFromInvitationIpcz(
     return MOJO_RESULT_INVALID_ARGUMENT;
   }
   return invitation->Extract(
-      base::make_span(static_cast<const uint8_t*>(name), name_num_bytes),
+      base::span(static_cast<const uint8_t*>(name), name_num_bytes),
       message_pipe_handle);
 }
 
@@ -836,7 +848,6 @@ MojoResult MojoQueryQuotaIpcz(MojoHandle handle,
 
 MojoResult MojoShutdownIpcz(const MojoShutdownOptions* options) {
   NOTREACHED();
-  return MOJO_RESULT_OK;
 }
 
 MojoResult MojoSetDefaultProcessErrorHandlerIpcz(
@@ -894,7 +905,8 @@ MojoSystemThunks2 g_mojo_ipcz_thunks = {
     MojoSetQuotaIpcz,
     MojoQueryQuotaIpcz,
     MojoShutdownIpcz,
-    MojoSetDefaultProcessErrorHandlerIpcz};
+    MojoSetDefaultProcessErrorHandlerIpcz,
+    MojoReserveMessageCapacityIpcz};
 
 }  // namespace
 

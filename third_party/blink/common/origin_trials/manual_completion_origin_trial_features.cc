@@ -7,21 +7,24 @@
 // changes to it require review from the origin trials team, listed in the
 // OWNERS file.
 
-#include "third_party/blink/public/common/origin_trials/origin_trials.h"
-
 #include "base/containers/contains.h"
+#include "third_party/blink/public/common/origin_trials/origin_trials.h"
+#include "third_party/blink/public/mojom/origin_trials/origin_trial_feature.mojom-shared.h"
 
 namespace blink::origin_trials {
 
-bool FeatureHasExpiryGracePeriod(OriginTrialFeature feature) {
-  static OriginTrialFeature const kHasExpiryGracePeriod[] = {
+bool FeatureHasExpiryGracePeriod(blink::mojom::OriginTrialFeature feature) {
+  static blink::mojom::OriginTrialFeature const kHasExpiryGracePeriod[] = {
       // Enable the kOriginTrialsSampleAPI* features as a manual completion
       // features, for tests.
-      OriginTrialFeature::kOriginTrialsSampleAPIExpiryGracePeriod,
-      OriginTrialFeature::kOriginTrialsSampleAPIExpiryGracePeriodThirdParty,
-      OriginTrialFeature::kOriginTrialsSampleAPIPersistentExpiryGracePeriod,
+      blink::mojom::OriginTrialFeature::kOriginTrialsSampleAPIExpiryGracePeriod,
+      blink::mojom::OriginTrialFeature::
+          kOriginTrialsSampleAPIExpiryGracePeriodThirdParty,
+      blink::mojom::OriginTrialFeature::
+          kOriginTrialsSampleAPIPersistentExpiryGracePeriod,
       // Production grace period trials start here:
-      OriginTrialFeature::kWebViewXRequestedWithDeprecation,
+      blink::mojom::OriginTrialFeature::kWebViewXRequestedWithDeprecation,
+      blink::mojom::OriginTrialFeature::kRTCEncodedFrameSetMetadata,
   };
   return base::Contains(kHasExpiryGracePeriod, feature);
 }

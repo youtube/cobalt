@@ -16,16 +16,9 @@
 #include "extensions/common/manifest.h"
 #include "url/gurl.h"
 
-CoreAppLauncherHandler::CoreAppLauncherHandler() {}
+CoreAppLauncherHandler::CoreAppLauncherHandler() = default;
 
-CoreAppLauncherHandler::~CoreAppLauncherHandler() {}
-
-// static
-void CoreAppLauncherHandler::RegisterProfilePrefs(
-    user_prefs::PrefRegistrySyncable* registry) {
-  registry->RegisterListPref(prefs::kNtpAppPageNames,
-                             user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
-}
+CoreAppLauncherHandler::~CoreAppLauncherHandler() = default;
 
 void CoreAppLauncherHandler::HandleRecordAppLaunchByUrl(
     const base::Value::List& args) {

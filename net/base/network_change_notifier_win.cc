@@ -4,11 +4,14 @@
 
 #include "net/base/network_change_notifier_win.h"
 
-#include <iphlpapi.h>
 #include <winsock2.h>
+
+#include <iphlpapi.h>
 
 #include <utility>
 
+#include "base/compiler_specific.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
@@ -19,6 +22,9 @@
 #include "base/task/thread_pool.h"
 #include "base/threading/thread.h"
 #include "base/time/time.h"
+#include "base/win/windows_version.h"
+#include "net/base/features.h"
+#include "net/base/network_cost_change_notifier_win.h"
 #include "net/base/winsock_init.h"
 #include "net/base/winsock_util.h"
 
@@ -29,87 +35,7 @@ namespace {
 // Time between NotifyAddrChange retries, on failure.
 const int kWatchForAddressChangeRetryIntervalMs = 500;
 
-HRESULT GetConnectionPoints(IUnknown* manager,
-                            REFIID IIDSyncInterface,
-                            IConnectionPoint** connection_point_raw) {
-  *connection_point_raw = nullptr;
-  Microsoft::WRL::ComPtr<IConnectionPointContainer> connection_point_container;
-  HRESULT hr =
-      manager->QueryInterface(IID_PPV_ARGS(&connection_point_container));
-  if (FAILED(hr))
-    return hr;
-
-  // Find the interface
-  Microsoft::WRL::ComPtr<IConnectionPoint> connection_point;
-  hr = connection_point_container->FindConnectionPoint(IIDSyncInterface,
-                                                       &connection_point);
-  if (FAILED(hr))
-    return hr;
-
-  *connection_point_raw = connection_point.Get();
-  (*connection_point_raw)->AddRef();
-
-  return hr;
-}
-
 }  // namespace
-
-// This class is used as an event sink to register for notifications from the
-// INetworkCostManagerEvents interface. In particular, we are focused on getting
-// notified when the Connection Cost changes. This is only supported on Win10+.
-class NetworkCostManagerEventSink
-    : public Microsoft::WRL::RuntimeClass<
-          Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
-          INetworkCostManagerEvents> {
- public:
-  using CostChangedCallback = base::RepeatingCallback<void()>;
-
-  NetworkCostManagerEventSink(INetworkCostManager* cost_manager,
-                              const CostChangedCallback& callback)
-      : network_cost_manager_(cost_manager), cost_changed_callback_(callback) {}
-  ~NetworkCostManagerEventSink() override = default;
-
-  // INetworkCostManagerEvents members
-  IFACEMETHODIMP CostChanged(_In_ DWORD cost,
-                             _In_opt_ NLM_SOCKADDR* /*pSockAddr*/) override {
-    cost_changed_callback_.Run();
-    return S_OK;
-  }
-
-  IFACEMETHODIMP DataPlanStatusChanged(
-      _In_opt_ NLM_SOCKADDR* /*pSockAddr*/) override {
-    return S_OK;
-  }
-
-  HRESULT RegisterForNotifications() {
-    Microsoft::WRL::ComPtr<IUnknown> unknown;
-    HRESULT hr = QueryInterface(IID_PPV_ARGS(&unknown));
-    if (hr != S_OK)
-      return hr;
-
-    hr = GetConnectionPoints(network_cost_manager_.Get(),
-                             IID_INetworkCostManagerEvents, &connection_point_);
-    if (hr != S_OK)
-      return hr;
-
-    hr = connection_point_->Advise(unknown.Get(), &cookie_);
-    return hr;
-  }
-
-  void UnRegisterForNotifications() {
-    if (connection_point_) {
-      connection_point_->Unadvise(cookie_);
-      connection_point_ = nullptr;
-      cookie_ = 0;
-    }
-  }
-
- private:
-  Microsoft::WRL::ComPtr<INetworkCostManager> network_cost_manager_;
-  Microsoft::WRL::ComPtr<IConnectionPoint> connection_point_;
-  DWORD cookie_ = 0;
-  CostChangedCallback cost_changed_callback_;
-};
 
 NetworkChangeNotifierWin::NetworkChangeNotifierWin()
     : NetworkChangeNotifier(NetworkChangeCalculatorParamsWin()),
@@ -120,8 +46,12 @@ NetworkChangeNotifierWin::NetworkChangeNotifierWin()
                               CONNECTION_NONE),
       sequence_runner_for_registration_(
           base::SequencedTaskRunner::GetCurrentDefault()) {
-  memset(&addr_overlapped_, 0, sizeof addr_overlapped_);
+  UNSAFE_TODO(memset(&addr_overlapped_, 0, sizeof addr_overlapped_));
   addr_overlapped_.hEvent = WSACreateEvent();
+
+  cost_change_notifier_ = NetworkCostChangeNotifierWin::CreateInstance(
+      base::BindRepeating(&NetworkChangeNotifierWin::OnCostChanged,
+                          weak_factory_.GetWeakPtr()));
 }
 
 NetworkChangeNotifierWin::~NetworkChangeNotifierWin() {
@@ -132,11 +62,6 @@ NetworkChangeNotifierWin::~NetworkChangeNotifierWin() {
     addr_watcher_.StopWatching();
   }
   WSACloseEvent(addr_overlapped_.hEvent);
-
-  if (network_cost_manager_event_sink_) {
-    network_cost_manager_event_sink_->UnRegisterForNotifications();
-    network_cost_manager_event_sink_ = nullptr;
-  }
 }
 
 // static
@@ -150,6 +75,43 @@ NetworkChangeNotifierWin::NetworkChangeCalculatorParamsWin() {
   params.connection_type_offline_delay_ = base::Milliseconds(1500);
   params.connection_type_online_delay_ = base::Milliseconds(500);
   return params;
+}
+
+// static
+NetworkChangeNotifier::ConnectionType
+NetworkChangeNotifierWin::RecomputeCurrentConnectionTypeModern() {
+  using GetNetworkConnectivityHintType =
+      decltype(&::GetNetworkConnectivityHint);
+
+  // This API is only available on Windows 10 Build 19041. However, it works
+  // inside the Network Service Sandbox, so is preferred. See
+  GetNetworkConnectivityHintType get_network_connectivity_hint =
+      reinterpret_cast<GetNetworkConnectivityHintType>(::GetProcAddress(
+          ::GetModuleHandleA("iphlpapi.dll"), "GetNetworkConnectivityHint"));
+  if (!get_network_connectivity_hint) {
+    return NetworkChangeNotifier::CONNECTION_UNKNOWN;
+  }
+  NL_NETWORK_CONNECTIVITY_HINT hint;
+  // https://learn.microsoft.com/en-us/windows/win32/api/netioapi/nf-netioapi-getnetworkconnectivityhint.
+  auto ret = get_network_connectivity_hint(&hint);
+  if (ret != NO_ERROR) {
+    return NetworkChangeNotifier::CONNECTION_UNKNOWN;
+  }
+
+  switch (hint.ConnectivityLevel) {
+    case NetworkConnectivityLevelHintUnknown:
+      return NetworkChangeNotifier::CONNECTION_UNKNOWN;
+    case NetworkConnectivityLevelHintNone:
+    case NetworkConnectivityLevelHintHidden:
+      return NetworkChangeNotifier::CONNECTION_NONE;
+    case NetworkConnectivityLevelHintLocalAccess:
+    case NetworkConnectivityLevelHintInternetAccess:
+    case NetworkConnectivityLevelHintConstrainedInternetAccess:
+      // TODO(droger): Return something more detailed than CONNECTION_UNKNOWN.
+      return ConnectionTypeFromInterfaces();
+  }
+
+  NOTREACHED();
 }
 
 // This implementation does not return the actual connection type but merely
@@ -203,6 +165,12 @@ NetworkChangeNotifierWin::NetworkChangeCalculatorParamsWin() {
 // static
 NetworkChangeNotifier::ConnectionType
 NetworkChangeNotifierWin::RecomputeCurrentConnectionType() {
+  if (base::win::GetVersion() >= base::win::Version::WIN10_20H1 &&
+      base::FeatureList::IsEnabled(
+          features::kEnableGetNetworkConnectivityHintAPI)) {
+    return RecomputeCurrentConnectionTypeModern();
+  }
+
   EnsureWinsockInit();
 
   // The following code was adapted from:
@@ -229,7 +197,7 @@ NetworkChangeNotifierWin::RecomputeCurrentConnectionType() {
   // Allocate 256 bytes for name, it should be enough for most cases.
   // If the name is longer, it is OK as we will check the code returned and
   // set correct network status.
-  char result_buffer[sizeof(WSAQUERYSET) + 256] = {0};
+  char result_buffer[sizeof(WSAQUERYSET) + 256] = {};
   DWORD length = sizeof(result_buffer);
   reinterpret_cast<WSAQUERYSET*>(&result_buffer[0])->dwSize =
       sizeof(WSAQUERYSET);
@@ -278,105 +246,23 @@ void NetworkChangeNotifierWin::RecomputeCurrentConnectionTypeOnBlockingSequence(
 
 NetworkChangeNotifier::ConnectionCost
 NetworkChangeNotifierWin::GetCurrentConnectionCost() {
-  InitializeConnectionCost();
-
-  // If we don't have the event sink we aren't registered for automatic updates.
-  // In that case, we need to update the value at the time it is requested.
-  if (!network_cost_manager_event_sink_)
-    UpdateConnectionCostFromCostManager();
-
+  if (last_computed_connection_cost_ ==
+      ConnectionCost::CONNECTION_COST_UNKNOWN) {
+    // Use the default logic when the Windows OS APIs do not have a cost for the
+    // current connection.
+    return NetworkChangeNotifier::GetCurrentConnectionCost();
+  }
   return last_computed_connection_cost_;
 }
 
-bool NetworkChangeNotifierWin::InitializeConnectionCostOnce() {
-  HRESULT hr =
-      ::CoCreateInstance(CLSID_NetworkListManager, nullptr, CLSCTX_ALL,
-                         IID_INetworkCostManager, &network_cost_manager_);
-  if (FAILED(hr)) {
-    SetCurrentConnectionCost(CONNECTION_COST_UNKNOWN);
-    return true;
-  }
+void NetworkChangeNotifierWin::OnCostChanged(
+    NetworkChangeNotifier::ConnectionCost new_cost) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  UpdateConnectionCostFromCostManager();
-
-  return true;
-}
-
-void NetworkChangeNotifierWin::InitializeConnectionCost() {
-  static bool g_connection_cost_initialized = InitializeConnectionCostOnce();
-  DCHECK(g_connection_cost_initialized);
-}
-
-HRESULT NetworkChangeNotifierWin::UpdateConnectionCostFromCostManager() {
-  if (!network_cost_manager_)
-    return E_ABORT;
-
-  DWORD cost = NLM_CONNECTION_COST_UNKNOWN;
-  HRESULT hr = network_cost_manager_->GetCost(&cost, nullptr);
-  if (FAILED(hr)) {
-    SetCurrentConnectionCost(CONNECTION_COST_UNKNOWN);
-  } else {
-    SetCurrentConnectionCost(
-        ConnectionCostFromNlmCost((NLM_CONNECTION_COST)cost));
-  }
-  return hr;
-}
-
-// static
-NetworkChangeNotifier::ConnectionCost
-NetworkChangeNotifierWin::ConnectionCostFromNlmCost(NLM_CONNECTION_COST cost) {
-  if (cost == NLM_CONNECTION_COST_UNKNOWN)
-    return CONNECTION_COST_UNKNOWN;
-  else if ((cost & NLM_CONNECTION_COST_UNRESTRICTED) != 0)
-    return CONNECTION_COST_UNMETERED;
-  else
-    return CONNECTION_COST_METERED;
-}
-
-void NetworkChangeNotifierWin::SetCurrentConnectionCost(
-    ConnectionCost connection_cost) {
-  last_computed_connection_cost_ = connection_cost;
-}
-
-void NetworkChangeNotifierWin::OnCostChanged() {
-  ConnectionCost old_cost = last_computed_connection_cost_;
-  // It is possible to get multiple notifications in a short period of time.
-  // Rather than worrying about whether this notification represents the latest,
-  // just get the current value from the CostManager so we know that we're
-  // actually getting the correct value.
-  UpdateConnectionCostFromCostManager();
   // Only notify if there's actually a change.
-  if (old_cost != GetCurrentConnectionCost())
+  if (last_computed_connection_cost_ != new_cost) {
+    last_computed_connection_cost_ = new_cost;
     NotifyObserversOfConnectionCostChange();
-}
-
-void NetworkChangeNotifierWin::ConnectionCostObserverAdded() {
-  sequence_runner_for_registration_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&NetworkChangeNotifierWin::OnConnectionCostObserverAdded,
-                     weak_factory_.GetWeakPtr()));
-}
-
-void NetworkChangeNotifierWin::OnConnectionCostObserverAdded() {
-  DCHECK(sequence_runner_for_registration_->RunsTasksInCurrentSequence());
-  InitializeConnectionCost();
-
-  // No need to register if we don't have a cost manager or if we're already
-  // registered.
-  if (!network_cost_manager_ || network_cost_manager_event_sink_)
-    return;
-
-  network_cost_manager_event_sink_ =
-      Microsoft::WRL::Make<net::NetworkCostManagerEventSink>(
-          network_cost_manager_.Get(),
-          base::BindRepeating(&NetworkChangeNotifierWin::OnCostChanged,
-                              weak_factory_.GetWeakPtr()));
-  HRESULT hr = network_cost_manager_event_sink_->RegisterForNotifications();
-  if (hr != S_OK) {
-    // If registration failed for any reason, just destroy the event sink. The
-    // observer will remain connected but will not receive any updates. If
-    // another observer gets added later, we can re-attempt registration.
-    network_cost_manager_event_sink_ = nullptr;
   }
 }
 

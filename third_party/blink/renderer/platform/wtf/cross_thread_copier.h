@@ -39,6 +39,9 @@
 
 namespace WTF {
 
+class SegmentedBuffer;
+class String;
+
 template <typename T>
 struct CrossThreadCopierPassThrough {
   STATIC_ONLY(CrossThreadCopierPassThrough);
@@ -100,6 +103,12 @@ template <wtf_size_t inlineCapacity, typename Allocator>
 struct CrossThreadCopier<Vector<String, inlineCapacity, Allocator>>
     : public CrossThreadCopierPassThrough<
           Vector<String, inlineCapacity, Allocator>> {
+  STATIC_ONLY(CrossThreadCopier);
+};
+
+template <>
+struct CrossThreadCopier<SegmentedBuffer>
+    : CrossThreadCopierByValuePassThrough<SegmentedBuffer> {
   STATIC_ONLY(CrossThreadCopier);
 };
 

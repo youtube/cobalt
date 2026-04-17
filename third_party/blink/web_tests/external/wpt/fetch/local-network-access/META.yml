@@ -1,7 +1,5 @@
-spec: https://wicg.github.io/private-network-access/
+spec: https://wicg.github.io/local-network-access/
 suggested_reviewers:
-  - letitz
-  - lyf
-  - hemeryar
+  - cthomp
   - camillelamy
-  - mikewest
+  - hchao

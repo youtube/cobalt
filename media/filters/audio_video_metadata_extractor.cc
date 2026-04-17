@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/filters/audio_video_metadata_extractor.h"
 
 #include "base/functional/bind.h"
@@ -92,8 +97,9 @@ bool AudioVideoMetadataExtractor::Extract(DataSource* source,
   if (!format_context->iformat)
     return false;
 
-  if (avformat_find_stream_info(format_context, NULL) < 0)
+  if (avformat_find_stream_info(format_context, nullptr) < 0) {
     return false;
+  }
 
   if (format_context->duration != AV_NOPTS_VALUE) {
     duration_ = static_cast<double>(format_context->duration) / AV_TIME_BASE;
@@ -113,13 +119,16 @@ bool AudioVideoMetadataExtractor::Extract(DataSource* source,
     if (!stream)
       continue;
 
-    void* display_matrix =
-        av_stream_get_side_data(stream, AV_PKT_DATA_DISPLAYMATRIX, nullptr);
-    if (display_matrix) {
-      rotation_ = VideoTransformation::FromFFmpegDisplayMatrix(
-                      static_cast<int32_t*>(display_matrix))
-                      .rotation;
-      info.tags["rotate"] = base::NumberToString(rotation_);
+    for (int j = 0; j < stream->codecpar->nb_coded_side_data; j++) {
+      const AVPacketSideData& sd = stream->codecpar->coded_side_data[j];
+      if (sd.type == AV_PKT_DATA_DISPLAYMATRIX) {
+        CHECK_EQ(sd.size, sizeof(int32_t) * 3 * 3);
+        rotation_ = VideoTransformation::FromFFmpegDisplayMatrix(
+                        reinterpret_cast<int32_t*>(sd.data))
+                        .rotation;
+        info.tags["rotate"] = base::NumberToString(rotation_);
+        break;
+      }
     }
 
     // Extract dictionary from streams also. Needed for containers that attach
@@ -143,7 +152,7 @@ bool AudioVideoMetadataExtractor::Extract(DataSource* source,
         stream->disposition == AV_DISPOSITION_ATTACHED_PIC &&
         stream->attached_pic.size > 0 &&
         stream->attached_pic.size <= kAttachedImageSizeLimit &&
-        stream->attached_pic.data != NULL) {
+        stream->attached_pic.data != nullptr) {
       attached_images_bytes_.push_back(std::string());
       attached_images_bytes_.back().assign(
           reinterpret_cast<const char*>(stream->attached_pic.data),
@@ -259,7 +268,7 @@ void AudioVideoMetadataExtractor::ExtractDictionary(AVDictionary* metadata,
     return;
 
   for (AVDictionaryEntry* tag =
-           av_dict_get(metadata, "", NULL, AV_DICT_IGNORE_SUFFIX);
+           av_dict_get(metadata, "", nullptr, AV_DICT_IGNORE_SUFFIX);
        tag; tag = av_dict_get(metadata, "", tag, AV_DICT_IGNORE_SUFFIX)) {
     if (raw_tags->find(tag->key) == raw_tags->end())
       (*raw_tags)[tag->key] = tag->value;

@@ -18,8 +18,6 @@
 #include "gpu/command_buffer/common/mailbox.h"
 #include "gpu/ipc/common/gpu_channel.mojom.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
-#include "ui/gfx/geometry/rect.h"
-#include "ui/gfx/geometry/size.h"
 
 namespace gpu {
 class ClientSharedImageInterface;
@@ -66,7 +64,7 @@ class CONTENT_EXPORT DCOMPTextureFactory
 
   scoped_refptr<gpu::GpuChannelHost> channel_;
   scoped_refptr<base::SequencedTaskRunner> media_task_runner_;
-  std::unique_ptr<gpu::ClientSharedImageInterface> shared_image_interface_;
+  scoped_refptr<gpu::ClientSharedImageInterface> shared_image_interface_;
 };
 
 }  // namespace content

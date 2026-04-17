@@ -19,7 +19,7 @@ using namespace gl;
 TEST(VertexArrayTest, VerifyGetIndexFromDirtyBit)
 {
     VertexArray::DirtyBits dirtyBits;
-    constexpr size_t bits[] = {1, 4, 9, 16, 25, 35};
+    constexpr size_t bits[] = {2, 4, 9, 16, 25, 35};
     constexpr GLint count   = sizeof(bits) / sizeof(size_t);
     for (GLint i = 0; i < count; i++)
     {
@@ -46,6 +46,8 @@ TEST(VertexArrayTest, VerifyGetIndexFromDirtyBit)
             EXPECT_EQ(dirtyBit - VertexArray::DIRTY_BIT_BUFFER_DATA_0, index);
         }
         else
+        {
             ASSERT_TRUE(false);
+        }
     }
 }

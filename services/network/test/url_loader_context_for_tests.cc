@@ -9,7 +9,7 @@ namespace network {
 URLLoaderContextForTests::URLLoaderContextForTests() = default;
 URLLoaderContextForTests::~URLLoaderContextForTests() = default;
 
-bool URLLoaderContextForTests::ShouldRequireNetworkIsolationKey() const {
+bool URLLoaderContextForTests::ShouldRequireIsolationInfo() const {
   return false;
 }
 
@@ -23,22 +23,19 @@ URLLoaderContextForTests::GetFactoryParams() const {
   return factory_params_;
 }
 
-mojom::CookieAccessObserver* URLLoaderContextForTests::GetCookieAccessObserver()
-    const {
-  return nullptr;
-}
-
-mojom::TrustTokenAccessObserver*
-URLLoaderContextForTests::GetTrustTokenAccessObserver() const {
-  return nullptr;
-}
-
 mojom::CrossOriginEmbedderPolicyReporter*
 URLLoaderContextForTests::GetCoepReporter() const {
   return nullptr;
 }
 
-mojom::DevToolsObserver* URLLoaderContextForTests::GetDevToolsObserver() const {
+mojom::DocumentIsolationPolicyReporter*
+URLLoaderContextForTests::GetDipReporter() const {
+  return nullptr;
+}
+
+scoped_refptr<RefCountedDeviceBoundSessionAccessObserverRemote>
+URLLoaderContextForTests::GetDeviceBoundSessionAccessObserverSharedRemote()
+    const {
   return nullptr;
 }
 
@@ -52,11 +49,6 @@ URLLoaderContextForTests::GetUrlLoaderHeaderClient() const {
   return nullptr;
 }
 
-mojom::URLLoaderNetworkServiceObserver*
-URLLoaderContextForTests::GetURLLoaderNetworkServiceObserver() const {
-  return nullptr;
-}
-
 net::URLRequestContext* URLLoaderContextForTests::GetUrlRequestContext() const {
   return url_request_context_;
 }
@@ -66,8 +58,8 @@ URLLoaderContextForTests::GetResourceSchedulerClient() const {
   return resource_scheduler_client_;
 }
 
-corb::PerFactoryState& URLLoaderContextForTests::GetMutableCorbState() {
-  return corb_state_;
+orb::PerFactoryState& URLLoaderContextForTests::GetMutableOrbState() {
+  return orb_state_;
 }
 
 bool URLLoaderContextForTests::DataUseUpdatesEnabled() {

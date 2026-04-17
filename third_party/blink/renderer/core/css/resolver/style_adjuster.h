@@ -33,6 +33,7 @@ class Element;
 class ComputedStyle;
 class ComputedStyleBuilder;
 class StyleResolverState;
+class SVGElement;
 
 // Certain CSS Properties/Values do not apply to certain elements
 // and the web expects that we expose "adjusted" values when
@@ -43,8 +44,16 @@ class StyleAdjuster {
  public:
   CORE_EXPORT static void AdjustComputedStyle(StyleResolverState&, Element*);
   static void AdjustStyleForCombinedText(ComputedStyleBuilder&);
-  static void AdjustStyleForEditing(ComputedStyleBuilder&);
+  static void AdjustStyleForEditing(ComputedStyleBuilder&, Element*);
   static void AdjustStyleForTextCombine(ComputedStyleBuilder&);
+  static void AdjustStyleForSvgElement(
+      const SVGElement& element,
+      ComputedStyleBuilder& builder,
+      const ComputedStyle& layout_parent_style);
+  static void AdjustStyleForDisplay(ComputedStyleBuilder&,
+                                    const ComputedStyle& layout_parent_style,
+                                    const Element*,
+                                    Document*);
 
  private:
   static bool IsEditableElement(Element*, const ComputedStyleBuilder&);
@@ -54,7 +63,7 @@ class StyleAdjuster {
                                          Element* element,
                                          bool is_svg_root);
   static void AdjustOverflow(ComputedStyleBuilder&, Element* element);
-  static void AdjustForForcedColorsMode(ComputedStyleBuilder&);
+  static void AdjustForForcedColorsMode(ComputedStyleBuilder&, Document&);
   static void AdjustForSVGTextElement(ComputedStyleBuilder&);
 };
 

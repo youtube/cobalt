@@ -145,6 +145,14 @@ void GetPerfCounterValue(const CounterNameToIndexMap &counterIndexMap,
         }
     }
 
+    // Additional logs for b/382094011
+    std::cerr << "GetPerfCounterValue missing counter: " << name << "; index: " << counterIndex
+              << "; triplets: " << std::endl;
+    for (const angle::PerfMonitorTriplet &triplet : triplets)
+    {
+        std::cerr << triplet.counter << " " << triplet.value << std::endl;
+    }
+
     UNREACHABLE();
 }
 }  // namespace
@@ -390,6 +398,7 @@ CounterNameToIndexMap BuildCounterNameToIndexMap()
     glGetPerfMonitorCountersAMD(0, &numCounters, nullptr, 0, nullptr);
     if (glGetError() != GL_NO_ERROR)
     {
+        std::cerr << "glGetPerfMonitorCountersAMD failed (count)" << std::endl;
         return {};
     }
 
@@ -397,6 +406,7 @@ CounterNameToIndexMap BuildCounterNameToIndexMap()
     glGetPerfMonitorCountersAMD(0, nullptr, nullptr, numCounters, counterIndexes.data());
     if (glGetError() != GL_NO_ERROR)
     {
+        std::cerr << "glGetPerfMonitorCountersAMD failed (data)" << std::endl;
         return {};
     }
 
@@ -409,6 +419,7 @@ CounterNameToIndexMap BuildCounterNameToIndexMap()
         glGetPerfMonitorCounterStringAMD(0, counterIndex, kBufSize, nullptr, buffer);
         if (glGetError() != GL_NO_ERROR)
         {
+            std::cerr << "glGetPerfMonitorCounterStringAMD failed" << std::endl;
             return {};
         }
 
@@ -425,19 +436,23 @@ std::vector<angle::PerfMonitorTriplet> GetPerfMonitorTriplets()
                                    nullptr);
     if (glGetError() != GL_NO_ERROR || resultSize == 0)
     {
+        std::cerr << "glGetPerfMonitorCounterDataAMD failed (count)" << std::endl;
         return {};
     }
 
     std::vector<angle::PerfMonitorTriplet> perfResults(resultSize /
                                                        sizeof(angle::PerfMonitorTriplet));
+    GLint bytesWritten = 0;
     glGetPerfMonitorCounterDataAMD(
         0, GL_PERFMON_RESULT_AMD, static_cast<GLsizei>(perfResults.size() * sizeof(perfResults[0])),
-        &perfResults.data()->group, nullptr);
+        &perfResults.data()->group, &bytesWritten);
 
     if (glGetError() != GL_NO_ERROR)
     {
+        std::cerr << "glGetPerfMonitorCounterDataAMD failed (data)" << std::endl;
         return {};
     }
+    ASSERT(static_cast<GLuint>(bytesWritten) == resultSize);
 
     return perfResults;
 }
@@ -563,6 +578,18 @@ void main()
 })";
 }
 
+const char *Texture2DArray()
+{
+    return R"(#version 300 es
+out vec2 v_texCoord;
+in vec4 a_position;
+void main()
+{
+    gl_Position = vec4(a_position.xy, 0.0, 1.0);
+    v_texCoord = (a_position.xy * 0.5) + 0.5;
+})";
+}
+
 }  // namespace vs
 
 namespace fs
@@ -657,6 +684,20 @@ varying vec2 v_texCoord;
 void main()
 {
     gl_FragColor = texture2D(u_tex2D, v_texCoord);
+})";
+}
+
+const char *Texture2DArray()
+{
+    return R"(#version 300 es
+precision highp float;
+uniform highp sampler2DArray tex2DArray;
+uniform int slice;
+in vec2 v_texCoord;
+out vec4 fragColor;
+void main()
+{
+    fragColor = texture(tex2DArray, vec3(v_texCoord, float(slice)));
 })";
 }
 

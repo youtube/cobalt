@@ -5,18 +5,16 @@
 #include "chrome/browser/ui/thumbnails/thumbnail_tab_helper.h"
 
 #include <stdint.h>
+
 #include <algorithm>
+#include <optional>
 #include <set>
 #include <utility>
 
-#include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/no_destructor.h"
-#include "base/task/task_traits.h"
-#include "base/task/thread_pool.h"
-#include "base/timer/timer.h"
 #include "chrome/browser/ui/tabs/tab_style.h"
 #include "chrome/browser/ui/thumbnails/background_thumbnail_video_capturer.h"
 #include "chrome/browser/ui/thumbnails/thumbnail_capture_driver.h"
@@ -29,11 +27,8 @@
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/skia/include/core/SkBitmap.h"
-#include "ui/gfx/geometry/size_f.h"
 #include "ui/gfx/geometry/skia_conversions.h"
-#include "ui/gfx/scrollbar_size.h"
 #include "ui/native_theme/native_theme.h"
 
 namespace {
@@ -132,10 +127,7 @@ class ThumbnailTabHelper::TabStateTracker
         readiness_tracker_(
             contents,
             base::BindRepeating(&TabStateTracker::PageReadinessChanged,
-                                base::Unretained(this))) {
-    visible_ =
-        (web_contents()->GetVisibility() == content::Visibility::VISIBLE);
-  }
+                                base::Unretained(this))) {}
   ~TabStateTracker() override = default;
 
   // Returns the host view associated with the current web contents, or null if
@@ -155,19 +147,24 @@ class ThumbnailTabHelper::TabStateTracker
 
   // Tells our scheduling logic that a frame was received.
   void OnFrameCaptured(CaptureType capture_type) {
-    if (capture_type == CaptureType::kVideoFrame)
+    if (capture_type == CaptureType::kVideoFrame) {
       capture_driver_.GotFrame();
+    }
+  }
+
+  bool is_ready() const {
+    return page_readiness_ != CaptureReadiness::kNotReady;
   }
 
  private:
-  using CaptureReadinesss = ThumbnailImage::CaptureReadiness;
+  using CaptureReadiness = ThumbnailImage::CaptureReadiness;
 
   // ThumbnailCaptureDriver::Client:
   void RequestCapture() override {
     if (!scoped_capture_) {
       scoped_capture_ = web_contents()->IncrementCapturerCount(
           gfx::Size(), /*stay_hidden=*/true,
-          /*stay_awake=*/false);
+          /*stay_awake=*/false, /*is_activity=*/true);
     }
   }
 
@@ -182,22 +179,11 @@ class ThumbnailTabHelper::TabStateTracker
   }
 
   // content::WebContentsObserver:
-  void OnVisibilityChanged(content::Visibility visibility) override {
-    const bool new_visible = (visibility == content::Visibility::VISIBLE);
-    if (new_visible == visible_)
-      return;
-
-    visible_ = new_visible;
-    capture_driver_.UpdatePageVisibility(visible_);
-    if (!visible_ && page_readiness_ != CaptureReadinesss::kNotReady)
-      thumbnail_tab_helper_->CaptureThumbnailOnTabHidden();
-  }
-
   void RenderViewReady() override { capture_driver_.SetCanCapture(true); }
 
   void PrimaryMainFrameRenderProcessGone(
       base::TerminationStatus status) override {
-    // TODO(crbug.com/1073141): determine if there are other ways to
+    // TODO(crbug.com/40686155): determine if there are other ways to
     // lose the view.
     capture_driver_.SetCanCapture(false);
   }
@@ -205,21 +191,30 @@ class ThumbnailTabHelper::TabStateTracker
   // ThumbnailImage::Delegate:
   void ThumbnailImageBeingObservedChanged(bool is_being_observed) override {
     capture_driver_.UpdateThumbnailVisibility(is_being_observed);
-    if (is_being_observed)
+    // Do not attempt to reload discarded tabs for thumbnail observation events.
+    if (is_being_observed && !web_contents()->WasDiscarded()) {
       web_contents()->GetController().LoadIfNecessary();
+    }
   }
 
   ThumbnailImage::CaptureReadiness GetCaptureReadiness() const override {
     return page_readiness_;
   }
 
-  void PageReadinessChanged(CaptureReadinesss readiness) {
-    if (page_readiness_ == readiness)
+  void PageReadinessChanged(CaptureReadiness readiness) {
+    if (page_readiness_ == readiness) {
       return;
+    }
+
     // If we transition back to a kNotReady state, clear any existing thumbnail,
     // as it will contain an old snapshot, possibly from a different domain.
-    if (readiness == CaptureReadinesss::kNotReady)
+    // Readiness will be reset to kNotReady when a tab is discarded. In this
+    // specific case we do not clear thumbnail data to ensure the existing
+    // preview remains available while discarded tabs are hovered.
+    if (readiness == CaptureReadiness::kNotReady &&
+        !web_contents()->WasDiscarded()) {
       thumbnail_tab_helper_->ClearData();
+    }
     page_readiness_ = readiness;
     capture_driver_.UpdatePageReadiness(readiness);
   }
@@ -230,17 +225,49 @@ class ThumbnailTabHelper::TabStateTracker
       this, &thumbnail_tab_helper_->GetScheduler()};
   ThumbnailReadinessTracker readiness_tracker_;
 
-  // The last known visibility WebContents visibility.
-  bool visible_ = false;
-
   // Where we are in the page lifecycle.
-  CaptureReadinesss page_readiness_ = CaptureReadinesss::kNotReady;
+  CaptureReadiness page_readiness_ = CaptureReadiness::kNotReady;
 
   // Scoped request for video capture.
   base::ScopedClosureRunner scoped_capture_;
 };
 
 // ThumbnailTabHelper ----------------------------------------------------
+
+void ThumbnailTabHelper::CaptureThumbnailOnTabBackgrounded() {
+  if (!state_->is_ready()) {
+    return;
+  }
+
+  const base::TimeTicks time_of_call = base::TimeTicks::Now();
+
+  // Ignore previous requests to capture a thumbnail on tab switch.
+  weak_factory_for_thumbnail_on_tab_hidden_.InvalidateWeakPtrs();
+
+  // Get the WebContents' main view. Note that during shutdown there may not be
+  // a view to capture, and views are sometimes not available for capture even
+  // when they are present.
+  content::RenderWidgetHostView* const source_view = state_->GetView();
+  if (!source_view || !source_view->IsSurfaceAvailableForCopy()) {
+    return;
+  }
+
+  // Note: this is the size in pixels on-screen, not the size in DIPs.
+  gfx::Size source_size = source_view->GetViewBounds().size();
+  if (source_size.IsEmpty()) {
+    return;
+  }
+
+  const float scale_factor = source_view->GetDeviceScaleFactor();
+  ThumbnailCaptureInfo copy_info = GetInitialCaptureInfo(
+      source_size, scale_factor, /* include_scrollbars_in_capture */ false);
+
+  source_view->CopyFromSurface(
+      copy_info.copy_rect, copy_info.target_size,
+      base::BindOnce(&ThumbnailTabHelper::StoreThumbnailForTabSwitch,
+                     weak_factory_for_thumbnail_on_tab_hidden_.GetWeakPtr(),
+                     time_of_call));
+}
 
 ThumbnailTabHelper::ThumbnailTabHelper(content::WebContents* contents)
     : content::WebContentsUserData<ThumbnailTabHelper>(*contents),
@@ -267,55 +294,36 @@ ThumbnailScheduler& ThumbnailTabHelper::GetScheduler() {
   return *instance.get();
 }
 
-void ThumbnailTabHelper::CaptureThumbnailOnTabHidden() {
-  const base::TimeTicks time_of_call = base::TimeTicks::Now();
-
-  // Ignore previous requests to capture a thumbnail on tab switch.
-  weak_factory_for_thumbnail_on_tab_hidden_.InvalidateWeakPtrs();
-
-  // Get the WebContents' main view. Note that during shutdown there may not be
-  // a view to capture.
-  content::RenderWidgetHostView* const source_view = state_->GetView();
-  if (!source_view)
-    return;
-
-  // Note: this is the size in pixels on-screen, not the size in DIPs.
-  gfx::Size source_size = source_view->GetViewBounds().size();
-  if (source_size.IsEmpty())
-    return;
-
-  const float scale_factor = source_view->GetDeviceScaleFactor();
-  ThumbnailCaptureInfo copy_info = GetInitialCaptureInfo(
-      source_size, scale_factor, /* include_scrollbars_in_capture */ false);
-
-  source_view->CopyFromSurface(
-      copy_info.copy_rect, copy_info.target_size,
-      base::BindOnce(&ThumbnailTabHelper::StoreThumbnailForTabSwitch,
-                     weak_factory_for_thumbnail_on_tab_hidden_.GetWeakPtr(),
-                     time_of_call));
-}
-
 void ThumbnailTabHelper::StoreThumbnailForTabSwitch(base::TimeTicks start_time,
                                                     const SkBitmap& bitmap) {
   UMA_HISTOGRAM_CUSTOM_TIMES("Tab.Preview.TimeToStoreAfterTabSwitch",
                              base::TimeTicks::Now() - start_time,
                              base::Milliseconds(1), base::Seconds(1), 50);
-  StoreThumbnail(CaptureType::kCopyFromView, bitmap, absl::nullopt);
+  StoreThumbnail(CaptureType::kCopyFromView, bitmap, std::nullopt);
 }
 
 void ThumbnailTabHelper::StoreThumbnailForBackgroundCapture(
     const SkBitmap& bitmap,
     uint64_t frame_id) {
+  // If this is the first thumbnail being stored, record the time it took from
+  // capturing to storing the frame.
+  if (!thumbnail_->has_data() &&
+      start_video_capture_time_ != base::TimeTicks()) {
+    UMA_HISTOGRAM_TIMES(
+        "Tab.Preview.TimeToStoreFirstUsableFrameAfterStartCapture",
+        base::TimeTicks::Now() - start_video_capture_time_);
+  }
   StoreThumbnail(CaptureType::kVideoFrame, bitmap, frame_id);
 }
 
 void ThumbnailTabHelper::StoreThumbnail(CaptureType type,
                                         const SkBitmap& bitmap,
-                                        absl::optional<uint64_t> frame_id) {
+                                        std::optional<uint64_t> frame_id) {
   // Failed requests will return an empty bitmap. In tests this can be triggered
   // on threads other than the UI thread.
-  if (bitmap.drawsNothing())
+  if (bitmap.drawsNothing()) {
     return;
+  }
 
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
@@ -329,13 +337,17 @@ void ThumbnailTabHelper::ClearData() {
 
 void ThumbnailTabHelper::StartVideoCapture() {
   content::RenderWidgetHostView* const source_view = state_->GetView();
-  if (!source_view)
+  if (!source_view) {
     return;
+  }
 
   const float scale_factor = source_view->GetDeviceScaleFactor();
   const gfx::Size source_size = source_view->GetViewBounds().size();
-  if (source_size.IsEmpty())
+  if (source_size.IsEmpty()) {
     return;
+  }
+
+  start_video_capture_time_ = base::TimeTicks::Now();
 
   last_frame_capture_info_ = GetInitialCaptureInfo(
       source_size, scale_factor, /* include_scrollbars_in_capture */ true);
@@ -344,6 +356,7 @@ void ThumbnailTabHelper::StartVideoCapture() {
 
 void ThumbnailTabHelper::StopVideoCapture() {
   background_capturer_->Stop();
+  start_video_capture_time_ = base::TimeTicks();
 }
 
 // static
@@ -370,20 +383,25 @@ ThumbnailCaptureInfo ThumbnailTabHelper::GetInitialCaptureInfo(
       ui::NativeTheme::GetInstanceForWeb()
           ->GetPartSize(ui::NativeTheme::Part::kScrollbarVerticalTrack,
                         ui::NativeTheme::State::kNormal,
-                        ui::NativeTheme::ExtraParams())
+                        ui::NativeTheme::ExtraParams(
+                            std::in_place_type<
+                                ui::NativeTheme::ScrollbarTrackExtraParams>))
           .width();
   // Round up to make sure any scrollbar pixls are eliminated. It's better to
   // lose a single pixel of content than having a single pixel of scrollbar.
   const int scrollbar_size = std::ceil(scale_factor * scrollbar_size_dip);
-  if (source_size.width() - scrollbar_size > smallest_dimension)
+  if (source_size.width() - scrollbar_size > smallest_dimension) {
     capture_info.scrollbar_insets.set_right(scrollbar_size);
-  if (source_size.height() - scrollbar_size > smallest_dimension)
+  }
+  if (source_size.height() - scrollbar_size > smallest_dimension) {
     capture_info.scrollbar_insets.set_bottom(scrollbar_size);
+  }
 
   // Calculate the region to copy from.
   capture_info.copy_rect = gfx::Rect(source_size);
-  if (!include_scrollbars_in_capture)
+  if (!include_scrollbars_in_capture) {
     capture_info.copy_rect.Inset(capture_info.scrollbar_insets);
+  }
 
   // Compute minimum sizes for multiple uses of the thumbnail - currently,
   // tablet tabstrip previews and tab hover card preview images.

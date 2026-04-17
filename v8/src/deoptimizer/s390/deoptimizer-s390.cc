@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/codegen/flush-instruction-cache.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/isolate-data.h"
 
@@ -21,9 +23,38 @@ ASSERT_OFFSET(Builtin::kDeoptimizationEntry_Lazy);
 const int Deoptimizer::kEagerDeoptExitSize = 6 + 2;
 const int Deoptimizer::kLazyDeoptExitSize = 6 + 2;
 
+const int Deoptimizer::kAdaptShadowStackOffsetToSubtract = 0;
+
+// static
+void Deoptimizer::PatchToJump(Address pc, Address new_pc) {
+  // Give enough space not to try to grow the buffer.
+  constexpr int kSize = 64;
+
+  Assembler masm(
+      AssemblerOptions{},
+      ExternalAssemblerBuffer(reinterpret_cast<uint8_t*>(pc), kSize));
+  int32_t hi_32 = static_cast<int32_t>(new_pc >> 32);
+  int32_t lo_32 = static_cast<int32_t>(new_pc);
+  masm.iihf(ip, Operand(hi_32));
+  masm.iilf(ip, Operand(lo_32));
+  masm.b(ip);
+  FlushInstructionCache(pc, kSize);
+}
+
 Float32 RegisterValues::GetFloatRegister(unsigned n) const {
-  return Float32::FromBits(
-      static_cast<uint32_t>(double_registers_[n].get_bits() >> 32));
+  Float64 f64_val = base::ReadUnalignedValue<Float64>(
+      reinterpret_cast<Address>(simd128_registers_ + n));
+  return Float32::FromBits(static_cast<uint32_t>(f64_val.get_bits() >> 32));
+}
+
+Float64 RegisterValues::GetDoubleRegister(unsigned n) const {
+  return base::ReadUnalignedValue<Float64>(
+      reinterpret_cast<Address>(simd128_registers_ + n));
+}
+
+void RegisterValues::SetDoubleRegister(unsigned n, Float64 value) {
+  base::WriteUnalignedValue<Float64>(
+      reinterpret_cast<Address>(simd128_registers_ + n), value);
 }
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {

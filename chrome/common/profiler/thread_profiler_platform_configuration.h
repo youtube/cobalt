@@ -6,10 +6,19 @@
 #define CHROME_COMMON_PROFILER_THREAD_PROFILER_PLATFORM_CONFIGURATION_H_
 
 #include <memory>
+#include <optional>
 
-#include "components/metrics/call_stack_profile_params.h"
-#include "components/version_info/version_info.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "base/feature_list.h"
+#include "base/functional/callback.h"
+#include "components/sampling_profiler/process_type.h"
+#include "components/version_info/channel.h"
+
+// If enabled, ThreadProfilerPlatformConfiguration::IsEnabledForThread() will
+// return true for ThreadPoolWorker threads. This can use a normal feature
+// config instead of being part of the RelativePopulations experiment group
+// because the feature is only checked after the ThreadPool is created, at which
+// point field trials have been set up.
+BASE_DECLARE_FEATURE(kSamplingProfilerOnWorkerThreads);
 
 // Encapsulates the platform-specific configuration for the ThreadProfiler.
 //
@@ -25,52 +34,58 @@
 // configured for profiling. The overall enable/disable state should be reported
 // to UMA in this case.
 //
-// The absl::optional<version_info::Channel> release_channel passed to functions
+// The std::optional<version_info::Channel> release_channel passed to functions
 // in this interface should be the channel for released Chrome and nullopt for
 // development/CQ builds.
 class ThreadProfilerPlatformConfiguration {
  public:
   // The relative populations to use for enabling/disabling the profiler.
-  // |enabled| + |experiment| is expected to equal 100. Profiling is to be
-  // enabled with probability |enabled|/100. The fraction |experiment|/100 is to
-  // be split in to two equal-sized experiment groups with probability
-  // |experiment|/(2 * 100), one of which will be enabled and one disabled.
+  // |disabled| + |enabled| + |experiment| is expected to equal 100.
+  // - Within the enabled population, profiling is always enabled.
+  // - Within the disabled population, profiling is always disabled.
+  // - The experiment population is further split down to N equal-sized
+  // subgroups with different configurations.
   struct RelativePopulations {
-    int enabled;
-    int experiment;
-
-    // TODO(crbug.com/1430519): Remove this field when the DAU shift is
-    // explained.
-    // Add a third group periodic_only to the experiment. |experiment| must be
-    // divisible by 3 when this flag is true.
-    bool add_periodic_only_group = false;
+    double disabled;
+    double enabled;
+    double experiment;
   };
 
   virtual ~ThreadProfilerPlatformConfiguration() = default;
 
   // Create the platform configuration.
   static std::unique_ptr<ThreadProfilerPlatformConfiguration> Create(
-      bool browser_test_mode_enabled);
+      bool browser_test_mode_enabled,
+      base::RepeatingCallback<bool(double)> is_enabled_on_dev_callback =
+          base::BindRepeating(IsEnabled));
 
   // True if the platform supports the StackSamplingProfiler and the profiler is
   // to be run for the released Chrome channel or development/CQ build.
-  bool IsSupported(absl::optional<version_info::Channel> release_channel) const;
+  bool IsSupported(std::optional<version_info::Channel> release_channel) const;
 
   // Returns the relative population disposition for the released Chrome channel
   // or development/CQ build on the platform. See the documentation on
   // RelativePopulations. Enable rates are valid only if IsSupported().
   virtual RelativePopulations GetEnableRates(
-      absl::optional<version_info::Channel> release_channel) const = 0;
+      std::optional<version_info::Channel> release_channel) const = 0;
 
   // Returns the fraction of the time that profiling should be randomly enabled
   // for the child |process|. The return value is in the range [0.0, 1.0].
-  virtual double GetChildProcessEnableFraction(
-      metrics::CallStackProfileParams::Process process) const = 0;
+  virtual double GetChildProcessPerExecutionEnableFraction(
+      sampling_profiler::ProfilerProcessType process) const = 0;
+
+  // Choose a process to run profiling when profiling is enabled. Running
+  // the sampler on a single process instead of all processes at the same time
+  // will help reduce the impact on users. If std::nullopt is returned, the
+  // setting can be ignored. All processes will be sampled.
+  virtual std::optional<sampling_profiler::ProfilerProcessType>
+  ChooseEnabledProcess() const = 0;
 
   // Returns whether the profiler is enabled for |thread| in |process|.
   virtual bool IsEnabledForThread(
-      metrics::CallStackProfileParams::Process process,
-      metrics::CallStackProfileParams::Thread thread) const = 0;
+      sampling_profiler::ProfilerProcessType process,
+      sampling_profiler::ProfilerThreadType thread,
+      std::optional<version_info::Channel> release_channel) const = 0;
 
  protected:
   // True if the profiler is to be run for the released Chrome channel or
@@ -78,7 +93,12 @@ class ThreadProfilerPlatformConfiguration {
   // StackSamplingProfiler is supported on the platform since that's done in
   // IsSupported().
   virtual bool IsSupportedForChannel(
-      absl::optional<version_info::Channel> release_channel) const = 0;
+      std::optional<version_info::Channel> release_channel) const = 0;
+
+ private:
+  // Returns `true` with given `enabled_probability`, where
+  // 0 <= `enabled_probability` <= 1.
+  static bool IsEnabled(double enabled_probability);
 };
 
 #endif  // CHROME_COMMON_PROFILER_THREAD_PROFILER_PLATFORM_CONFIGURATION_H_

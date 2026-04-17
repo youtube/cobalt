@@ -5,7 +5,9 @@
 #ifndef EXTENSIONS_RENDERER_GUEST_VIEW_GUEST_VIEW_INTERNAL_CUSTOM_BINDINGS_H_
 #define EXTENSIONS_RENDERER_GUEST_VIEW_GUEST_VIEW_INTERNAL_CUSTOM_BINDINGS_H_
 
+#include "components/guest_view/common/guest_view.mojom.h"
 #include "extensions/renderer/object_backed_native_handler.h"
+#include "mojo/public/cpp/bindings/associated_remote.h"
 
 namespace extensions {
 
@@ -19,29 +21,33 @@ class GuestViewInternalCustomBindings : public ObjectBackedNativeHandler {
   void AddRoutes() override;
 
  private:
+  struct ViewHolder;
   // ResetMapEntry is called as a callback to SetWeak(). It resets the
-  // weak view reference held in |view_map_|.
-  static void ResetMapEntry(const v8::WeakCallbackInfo<int>& data);
+  // weak view reference held in `view_map_`.
+  static void ResetMapEntry(const v8::WeakCallbackInfo<ViewHolder>& data);
 
   // AttachIframeGuest attaches a GuestView to a provided <iframe> container
   // element. Once attached, the GuestView will participate in layout of the
   // container page and become visible on screen.
   // AttachIframeGuest takes five parameters:
-  // |element_instance_id| uniquely identifies a container within the content
+  // `element_instance_id` uniquely identifies a container within the content
   // module is able to host GuestViews.
-  // |guest_instance_id| uniquely identifies an unattached GuestView.
-  // |attach_params| is typically used to convey the current state of the
+  // `guest_instance_id` uniquely identifies an unattached GuestView.
+  // `attach_params` is typically used to convey the current state of the
   // container element at the time of attachment. These parameters are passed
   // down to the GuestView. The GuestView may use these parameters to update the
   // state of the guest hosted in another process.
-  // |contentWindow| is used to identify the RenderFrame of the <iframe>
+  // `contentWindow` is used to identify the RenderFrame of the <iframe>
   // container element.
-  // |callback| is an optional callback that is called once attachment is
+  // `callback` is an optional callback that is called once attachment is
   // complete. The callback takes in a parameter for the WindowProxy of the
-  // guest identified by |guest_instance_id|.
+  // guest identified by `guest_instance_id`.
   void AttachIframeGuest(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  // Destroys the GuestViewContainer given an element instance ID in |args|.
+  // Takes a window object and returns the associated WebLocalFrame's token.
+  void GetFrameToken(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  // Destroys the GuestViewContainer given an element instance ID in `args`.
   void DestroyContainer(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   // GetViewFromID takes a view ID, and returns the GuestView element associated
@@ -50,12 +56,12 @@ class GuestViewInternalCustomBindings : public ObjectBackedNativeHandler {
 
   // RegisterDestructionCallback registers a JavaScript callback function to be
   // called when the guestview's container is destroyed.
-  // RegisterDestructionCallback takes in a single paramater, |callback|.
+  // RegisterDestructionCallback takes in a single parameter, `callback`.
   void RegisterDestructionCallback(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 
   // RegisterView takes in a view ID and a GuestView element, and stores the
-  // pair as an entry in |view_map_|. The view can then be retrieved using
+  // pair as an entry in `view_map_`. The view can then be retrieved using
   // GetViewFromID.
   void RegisterView(const v8::FunctionCallbackInfo<v8::Value>& args);
 
@@ -73,6 +79,10 @@ class GuestViewInternalCustomBindings : public ObjectBackedNativeHandler {
   // with allowlisted custom element names.
   void AllowGuestViewElementDefinition(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  guest_view::mojom::GuestViewHost* GetGuestViewHost();
+
+  mojo::AssociatedRemote<guest_view::mojom::GuestViewHost> remote_;
 };
 
 }  // namespace extensions

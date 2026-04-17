@@ -10,6 +10,7 @@
 #include "services/viz/public/cpp/compositing/shared_quad_state_mojom_traits.h"
 #include "services/viz/public/cpp/compositing/subtree_capture_id_mojom_traits.h"
 #include "services/viz/public/cpp/crash_keys.h"
+#include "skia/public/mojom/skpath_mojom_traits.h"
 #include "ui/gfx/mojom/display_color_spaces_mojom_traits.h"
 
 namespace mojo {
@@ -20,6 +21,8 @@ bool StructTraits<viz::mojom::CompositorRenderPassDataView,
     Read(viz::mojom::CompositorRenderPassDataView data,
          std::unique_ptr<viz::CompositorRenderPass>* out) {
   *out = viz::CompositorRenderPass::Create();
+  std::optional<viz::ViewTransitionElementResourceId>
+      opt_view_transition_element_resource_id;
   if (!data.ReadOutputRect(&(*out)->output_rect) ||
       !data.ReadDamageRect(&(*out)->damage_rect) ||
       !data.ReadTransformToRootTarget(&(*out)->transform_to_root_target) ||
@@ -30,10 +33,16 @@ bool StructTraits<viz::mojom::CompositorRenderPassDataView,
       !data.ReadSubtreeSize(&(*out)->subtree_size) ||
       !data.ReadCopyRequests(&(*out)->copy_requests) ||
       !data.ReadViewTransitionElementResourceId(
-          &(*out)->view_transition_element_resource_id) ||
+          &opt_view_transition_element_resource_id) ||
       !data.ReadId(&(*out)->id)) {
     return false;
   }
+
+  if (opt_view_transition_element_resource_id) {
+    (*out)->view_transition_element_resource_id =
+        *opt_view_transition_element_resource_id;
+  }
+
   // CompositorRenderPass ids are never zero.
   if (!(*out)->id) {
     viz::SetDeserializationCrashKeyString("Invalid render pass ID");

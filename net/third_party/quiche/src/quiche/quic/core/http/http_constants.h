@@ -42,15 +42,16 @@ enum Http3AndQpackSettingsIdentifiers : uint64_t {
   SETTINGS_H3_DATAGRAM_DRAFT04 = 0xffd277,
   // RFC 9297.
   SETTINGS_H3_DATAGRAM = 0x33,
-  // draft-ietf-webtrans-http3-00
+  // draft-ietf-webtrans-http3
   SETTINGS_WEBTRANS_DRAFT00 = 0x2b603742,
+  SETTINGS_WEBTRANS_MAX_SESSIONS_DRAFT07 = 0xc671706a,
   // draft-ietf-httpbis-h3-websockets
   SETTINGS_ENABLE_CONNECT_PROTOCOL = 0x08,
   SETTINGS_ENABLE_METADATA = 0x4d44,
 };
 
 // Returns HTTP/3 SETTINGS identifier as a string.
-QUIC_EXPORT std::string H3SettingsToString(
+QUICHE_EXPORT std::string H3SettingsToString(
     Http3AndQpackSettingsIdentifiers identifier);
 
 // Default maximum dynamic table capacity, communicated via
@@ -69,7 +70,7 @@ enum : QuicByteCount {
 // SETTINGS_QPACK_BLOCKED_STREAMS.
 enum : uint64_t { kDefaultMaximumBlockedStreams = 100 };
 
-ABSL_CONST_INIT QUIC_EXPORT_PRIVATE extern const absl::string_view
+ABSL_CONST_INIT QUICHE_EXPORT extern const absl::string_view
     kUserAgentHeaderName;
 
 }  // namespace quic

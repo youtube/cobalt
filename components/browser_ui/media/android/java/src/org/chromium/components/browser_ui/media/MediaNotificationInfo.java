@@ -8,27 +8,22 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.text.TextUtils;
 
-import androidx.annotation.Nullable;
-
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.services.media_session.MediaMetadata;
 import org.chromium.services.media_session.MediaPosition;
 
 import java.util.Set;
 
-/**
- * Exposes information about the current media notification to the external clients.
- */
+/** Exposes information about the current media notification to the external clients. */
+@NullMarked
 public class MediaNotificationInfo {
     // Bits defining various user actions supported by the media notification.
 
-    /**
-     * If set, play/pause controls are shown and handled via notification UI and MediaSession.
-     */
+    /** If set, play/pause controls are shown and handled via notification UI and MediaSession. */
     public static final int ACTION_PLAY_PAUSE = 1 << 0;
 
-    /**
-     * If set, a stop button is shown and handled via the notification UI.
-     */
+    /** If set, a stop button is shown and handled via the notification UI. */
     public static final int ACTION_STOP = 1 << 1;
 
     /**
@@ -37,34 +32,28 @@ public class MediaNotificationInfo {
      */
     public static final int ACTION_SWIPEAWAY = 1 << 2;
 
-    /**
-     * A value that represents an invalid ID.
-     */
+    /** A value that represents an invalid ID. */
     public static final int INVALID_ID = -1;
 
-    /**
-     * Use this class to construct an instance of {@link MediaNotificationInfo}.
-     */
+    /** Use this class to construct an instance of {@link MediaNotificationInfo}. */
     public static final class Builder {
-        private MediaMetadata mMetadata;
+        private @Nullable MediaMetadata mMetadata;
         private boolean mIsPaused;
-        private String mOrigin = "";
+        private @Nullable String mOrigin = "";
         private int mInstanceId = INVALID_ID;
         private boolean mIsPrivate = true;
         private int mNotificationSmallIcon;
-        private Bitmap mNotificationLargeIcon;
+        private @Nullable Bitmap mNotificationLargeIcon;
         private int mDefaultNotificationLargeIcon;
-        private Bitmap mMediaSessionImage;
+        private @Nullable Bitmap mMediaSessionImage;
         private int mActions = ACTION_PLAY_PAUSE | ACTION_SWIPEAWAY | ACTION_STOP;
         private int mId = INVALID_ID;
-        private Intent mContentIntent;
-        private MediaNotificationListener mListener;
-        private Set<Integer> mMediaSessionActions;
+        private @Nullable Intent mContentIntent;
+        private @Nullable MediaNotificationListener mListener;
+        private @Nullable Set<Integer> mMediaSessionActions;
         private @Nullable MediaPosition mMediaPosition;
 
-        /**
-         * Initializes the builder with the default values.
-         */
+        /** Initializes the builder with the default values. */
         public Builder() {}
 
         public MediaNotificationInfo build() {
@@ -72,10 +61,22 @@ public class MediaNotificationInfo {
             assert mOrigin != null;
             assert mListener != null;
 
-            return new MediaNotificationInfo(mMetadata, mIsPaused, mOrigin, mInstanceId, mIsPrivate,
-                    mNotificationSmallIcon, mNotificationLargeIcon, mDefaultNotificationLargeIcon,
-                    mMediaSessionImage, mActions, mId, mContentIntent, mListener,
-                    mMediaSessionActions, mMediaPosition);
+            return new MediaNotificationInfo(
+                    mMetadata,
+                    mIsPaused,
+                    mOrigin,
+                    mInstanceId,
+                    mIsPrivate,
+                    mNotificationSmallIcon,
+                    mNotificationLargeIcon,
+                    mDefaultNotificationLargeIcon,
+                    mMediaSessionImage,
+                    mActions,
+                    mId,
+                    mContentIntent,
+                    mListener,
+                    mMediaSessionActions,
+                    mMediaPosition);
         }
 
         public Builder setMetadata(MediaMetadata metadata) {
@@ -88,7 +89,7 @@ public class MediaNotificationInfo {
             return this;
         }
 
-        public Builder setOrigin(String origin) {
+        public Builder setOrigin(@Nullable String origin) {
             mOrigin = origin;
             return this;
         }
@@ -108,7 +109,7 @@ public class MediaNotificationInfo {
             return this;
         }
 
-        public Builder setNotificationLargeIcon(Bitmap icon) {
+        public Builder setNotificationLargeIcon(@Nullable Bitmap icon) {
             mNotificationLargeIcon = icon;
             return this;
         }
@@ -118,7 +119,7 @@ public class MediaNotificationInfo {
             return this;
         }
 
-        public Builder setMediaSessionImage(Bitmap image) {
+        public Builder setMediaSessionImage(@Nullable Bitmap image) {
             mMediaSessionImage = image;
             return this;
         }
@@ -154,24 +155,16 @@ public class MediaNotificationInfo {
         }
     }
 
-    /**
-     * The bitset defining user actions handled by the notification.
-     */
+    /** The bitset defining user actions handled by the notification. */
     private final int mActions;
 
-    /**
-     * The metadata associated with the media.
-     */
+    /** The metadata associated with the media. */
     public final MediaMetadata metadata;
 
-    /**
-     * The current state of the media, paused or not.
-     */
+    /** The current state of the media, paused or not. */
     public final boolean isPaused;
 
-    /**
-     * The origin of the tab containing the media.
-     */
+    /** The origin of the tab containing the media. */
     public final String origin;
 
     /**
@@ -182,45 +175,31 @@ public class MediaNotificationInfo {
      */
     public final int instanceId;
 
-    /**
-     * Whether the media notification should be considered as private.
-     */
+    /** Whether the media notification should be considered as private. */
     public final boolean isPrivate;
 
-    /**
-     * The id of the notification small icon from R.drawable.
-     */
+    /** The id of the notification small icon from R.drawable. */
     public final int notificationSmallIcon;
 
-    /**
-     * The Bitmap resource used as the notification large icon.
-     */
-    public final Bitmap notificationLargeIcon;
+    /** The Bitmap resource used as the notification large icon. */
+    public final @Nullable Bitmap notificationLargeIcon;
 
-    /**
-     * The id of the default notification large icon from R.drawable.
-     */
+    /** The id of the default notification large icon from R.drawable. */
     public final int defaultNotificationLargeIcon;
 
     /**
      * The Bitmap resource used for Android MediaSession image, which will be used on lock screen
      * and wearable devices.
      */
-    public final Bitmap mediaSessionImage;
+    public final @Nullable Bitmap mediaSessionImage;
 
-    /**
-     * The id to use for the Android Notification.
-     */
+    /** The id to use for the Android Notification. */
     public final int id;
 
-    /**
-     * The intent to send when the notification is selected.
-     */
-    public final Intent contentIntent;
+    /** The intent to send when the notification is selected. */
+    public final @Nullable Intent contentIntent;
 
-    /**
-     * The listener for the control events.
-     */
+    /** The listener for the control events. */
     public final MediaNotificationListener listener;
 
     /**
@@ -229,28 +208,20 @@ public class MediaNotificationInfo {
      */
     public final @Nullable Set<Integer> mediaSessionActions;
 
-    /**
-     * The current position of the media session.
-     */
+    /** The current position of the media session. */
     public final @Nullable MediaPosition mediaPosition;
 
-    /**
-     * @return if play/pause actions are supported by this notification.
-     */
+    /** @return if play/pause actions are supported by this notification. */
     public boolean supportsPlayPause() {
         return (mActions & ACTION_PLAY_PAUSE) != 0;
     }
 
-    /**
-     * @return if stop action is supported by this notification.
-     */
+    /** @return if stop action is supported by this notification. */
     public boolean supportsStop() {
         return (mActions & ACTION_STOP) != 0;
     }
 
-    /**
-     * @return if notification should be dismissable by swiping it away when paused.
-     */
+    /** @return if notification should be dismissable by swiping it away when paused. */
     public boolean supportsSwipeAway() {
         return (mActions & ACTION_SWIPEAWAY) != 0;
     }
@@ -275,11 +246,21 @@ public class MediaNotificationInfo {
      * @param mediaSessionActions The actions supported by the page.
      * @param mediaPosition The current position of the media.
      */
-    private MediaNotificationInfo(MediaMetadata metadata, boolean isPaused, String origin,
-            int instanceId, boolean isPrivate, int notificationSmallIcon,
-            Bitmap notificationLargeIcon, int defaultNotificationLargeIcon,
-            Bitmap mediaSessionImage, int actions, int id, Intent contentIntent,
-            MediaNotificationListener listener, Set<Integer> mediaSessionActions,
+    private MediaNotificationInfo(
+            MediaMetadata metadata,
+            boolean isPaused,
+            String origin,
+            int instanceId,
+            boolean isPrivate,
+            int notificationSmallIcon,
+            @Nullable Bitmap notificationLargeIcon,
+            int defaultNotificationLargeIcon,
+            @Nullable Bitmap mediaSessionImage,
+            int actions,
+            int id,
+            @Nullable Intent contentIntent,
+            MediaNotificationListener listener,
+            @Nullable Set<Integer> mediaSessionActions,
             @Nullable MediaPosition mediaPosition) {
         this.metadata = metadata;
         this.isPaused = isPaused;
@@ -302,19 +283,21 @@ public class MediaNotificationInfo {
 
     @Override
     @SuppressWarnings("ReferenceEquality")
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
         if (obj == this) return true;
         if (!(obj instanceof MediaNotificationInfo)) return false;
 
         MediaNotificationInfo other = (MediaNotificationInfo) obj;
-        return isPaused == other.isPaused && isPrivate == other.isPrivate
+        return isPaused == other.isPaused
+                && isPrivate == other.isPrivate
                 && instanceId == other.instanceId
                 && notificationSmallIcon == other.notificationSmallIcon
                 && (notificationLargeIcon == other.notificationLargeIcon
                         || (notificationLargeIcon != null
                                 && notificationLargeIcon.sameAs(other.notificationLargeIcon)))
                 && defaultNotificationLargeIcon == other.defaultNotificationLargeIcon
-                && mediaSessionImage == other.mediaSessionImage && mActions == other.mActions
+                && mediaSessionImage == other.mediaSessionImage
+                && mActions == other.mActions
                 && id == other.id
                 && (metadata == other.metadata
                         || (metadata != null && metadata.equals(other.metadata)))
@@ -338,15 +321,16 @@ public class MediaNotificationInfo {
         result = 31 * result + (contentIntent == null ? 0 : contentIntent.hashCode());
         result = 31 * result + instanceId;
         result = 31 * result + notificationSmallIcon;
-        result = 31 * result
-                + (notificationLargeIcon == null ? 0 : notificationLargeIcon.hashCode());
+        result =
+                31 * result
+                        + (notificationLargeIcon == null ? 0 : notificationLargeIcon.hashCode());
         result = 31 * result + defaultNotificationLargeIcon;
         result = 31 * result + (mediaSessionImage == null ? 0 : mediaSessionImage.hashCode());
         result = 31 * result + mActions;
         result = 31 * result + id;
         result = 31 * result + listener.hashCode();
-        result = 31 * result + mediaSessionActions.hashCode();
-        result = 31 * result + mediaPosition.hashCode();
+        result = 31 * result + (mediaSessionActions == null ? 0 : mediaSessionActions.hashCode());
+        result = 31 * result + (mediaPosition == null ? 0 : mediaPosition.hashCode());
         return result;
     }
 }

@@ -4,16 +4,13 @@
 
 #import "ios/chrome/browser/shared/ui/elements/extended_touch_target_button.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 @implementation ExtendedTouchTargetButton
 
 - (instancetype)initWithFrame:(CGRect)frame {
   self = [super initWithFrame:frame];
   if (self) {
     self.pointerInteractionEnabled = YES;
+    _minimumDiameter = 44;
   }
   return self;
 }
@@ -25,8 +22,7 @@
       CGPointMake(CGRectGetMidX(self.bounds), CGRectGetMidY(self.bounds));
   CGFloat distance = sqrt((center.x - point.x) * (center.x - point.x) +
                           ((center.y - point.y) * (center.y - point.y)));
-  // The UI Guidelines recommend having at least 44pt tap target.
-  if (distance < 22.0f) {
+  if (distance < self.minimumDiameter / 2) {
     return YES;
   }
   return [super pointInside:point withEvent:event];

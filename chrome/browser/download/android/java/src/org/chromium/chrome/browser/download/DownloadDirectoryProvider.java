@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.download;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -14,18 +16,18 @@ import android.os.Build.VERSION_CODES;
 import android.os.Environment;
 import android.text.TextUtils;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-
 import org.chromium.base.Callback;
 import org.chromium.base.ContentUriUtils;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
 import org.chromium.base.PathUtils;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.task.AsyncTask;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.download.DirectoryOption.DownloadLocationDirectoryType;
 
 import java.io.File;
@@ -43,6 +45,7 @@ import java.util.List;
  * Also, this class listens to SD card insertion and removal events to update the directory
  * options accordingly.
  */
+@NullMarked
 public class DownloadDirectoryProvider {
     private static final String TAG = "DownloadDirectory";
 
@@ -55,23 +58,20 @@ public class DownloadDirectoryProvider {
          * Get the primary download directory. See {@link
          * DownloadDirectoryProvider#getPrimaryDownloadDirectory()}.
          */
-        @NonNull
-        File getPrimaryDownloadDirectory();
+        @Nullable File getPrimaryDownloadDirectory();
 
         /**
          * Get download directories on secondary storage.
+         *
          * @return A list of directories on the secondary storage.
          */
-        @NonNull
         SecondaryStorageInfo getSecondaryStorageDownloadDirectories();
     }
 
-    /**
-     * Class that calls Android API to get download directories.
-     */
+    /** Class that calls Android API to get download directories. */
     public static class DownloadDirectoryProviderDelegate implements Delegate {
         @Override
-        public File getPrimaryDownloadDirectory() {
+        public @Nullable File getPrimaryDownloadDirectory() {
             return DownloadDirectoryProvider.getPrimaryDownloadDirectory();
         }
 
@@ -86,7 +86,7 @@ public class DownloadDirectoryProvider {
      * can exist at the same time.
      */
     private class AllDirectoriesTask extends AsyncTask<ArrayList<DirectoryOption>> {
-        private DownloadDirectoryProvider.Delegate mDelegate;
+        private final DownloadDirectoryProvider.Delegate mDelegate;
 
         AllDirectoriesTask(DownloadDirectoryProvider.Delegate delegate) {
             mDelegate = delegate;
@@ -101,13 +101,16 @@ public class DownloadDirectoryProvider {
 
             // If no default directory, return an error option.
             if (defaultDirectory == null) {
-                dirs.add(new DirectoryOption(
-                        null, 0, 0, DirectoryOption.DownloadLocationDirectoryType.ERROR));
+                dirs.add(
+                        new DirectoryOption(
+                                null, 0, 0, DirectoryOption.DownloadLocationDirectoryType.ERROR));
                 return dirs;
             }
 
-            DirectoryOption defaultOption = toDirectoryOption(
-                    defaultDirectory, DirectoryOption.DownloadLocationDirectoryType.DEFAULT);
+            DirectoryOption defaultOption =
+                    toDirectoryOption(
+                            defaultDirectory,
+                            DirectoryOption.DownloadLocationDirectoryType.DEFAULT);
             dirs.add(defaultOption);
             recordDirectoryType(DirectoryOption.DownloadLocationDirectoryType.DEFAULT);
 
@@ -116,15 +119,18 @@ public class DownloadDirectoryProvider {
             mExternalStorageDirectory = Environment.getExternalStorageDirectory().getAbsolutePath();
             SecondaryStorageInfo secondaryStorageInfo =
                     mDelegate.getSecondaryStorageDownloadDirectories();
-            List<File> secondaryDirs = Build.VERSION.SDK_INT > Build.VERSION_CODES.Q
-                    ? secondaryStorageInfo.directories
-                    : secondaryStorageInfo.directoriesPreR;
+            List<File> secondaryDirs =
+                    Build.VERSION.SDK_INT > Build.VERSION_CODES.Q
+                            ? secondaryStorageInfo.directories
+                            : secondaryStorageInfo.directoriesPreR;
+            assumeNonNull(secondaryDirs);
             if (secondaryDirs.isEmpty()) return dirs;
             boolean hasAddtionalDirectory = false;
             for (File file : secondaryDirs) {
                 if (file == null) continue;
-                dirs.add(toDirectoryOption(
-                        file, DirectoryOption.DownloadLocationDirectoryType.ADDITIONAL));
+                dirs.add(
+                        toDirectoryOption(
+                                file, DirectoryOption.DownloadLocationDirectoryType.ADDITIONAL));
                 hasAddtionalDirectory = true;
             }
 
@@ -149,7 +155,7 @@ public class DownloadDirectoryProvider {
             mAllDirectoriesTask = null;
         }
 
-        private DirectoryOption toDirectoryOption(
+        private @Nullable DirectoryOption toDirectoryOption(
                 File dir, @DownloadLocationDirectoryType int type) {
             if (dir == null) return null;
             return new DirectoryOption(
@@ -175,18 +181,19 @@ public class DownloadDirectoryProvider {
      * @param provider The directory provider used in tests.
      */
     public void setDirectoryProviderForTesting(DownloadDirectoryProvider provider) {
+        var oldValue = LazyHolder.sInstance;
         LazyHolder.sInstance = provider;
+        ResettersForTesting.register(() -> LazyHolder.sInstance = oldValue);
     }
 
-    /**
-     * BroadcastReceiver to listen to external SD card insertion and removal events.
-     */
+    /** BroadcastReceiver to listen to external SD card insertion and removal events. */
     private final class ExternalSDCardReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-            if (intent.getAction().equals(Intent.ACTION_MEDIA_REMOVED)
-                    || intent.getAction().equals(Intent.ACTION_MEDIA_MOUNTED)
-                    || intent.getAction().equals(Intent.ACTION_MEDIA_EJECT)) {
+            String action = intent.getAction();
+            if (Intent.ACTION_MEDIA_REMOVED.equals(action)
+                    || Intent.ACTION_MEDIA_MOUNTED.equals(action)
+                    || Intent.ACTION_MEDIA_EJECT.equals(action)) {
                 // When receiving SD card events, immediately retrieve download directory may not
                 // yield correct result, mark needs update to force to fire another
                 // AllDirectoriesTask on next getAllDirectoriesOptions call.
@@ -198,10 +205,10 @@ public class DownloadDirectoryProvider {
     private ExternalSDCardReceiver mExternalSDCardReceiver;
     private boolean mDirectoriesReady;
     private boolean mNeedsUpdate;
-    private AllDirectoriesTask mAllDirectoriesTask;
-    private ArrayList<DirectoryOption> mDirectoryOptions;
-    private String mExternalStorageDirectory;
-    private ArrayList<Callback<ArrayList<DirectoryOption>>> mCallbacks = new ArrayList<>();
+    private @Nullable AllDirectoriesTask mAllDirectoriesTask;
+    private @Nullable ArrayList<DirectoryOption> mDirectoryOptions;
+    private @Nullable String mExternalStorageDirectory;
+    private final ArrayList<Callback<ArrayList<DirectoryOption>>> mCallbacks = new ArrayList<>();
 
     protected DownloadDirectoryProvider() {
         registerSDCardReceiver();
@@ -214,7 +221,8 @@ public class DownloadDirectoryProvider {
     public void getAllDirectoriesOptions(Callback<ArrayList<DirectoryOption>> callback) {
         // Use cache value.
         if (!mNeedsUpdate && mDirectoriesReady) {
-            PostTask.postTask(TaskTraits.UI_DEFAULT, callback.bind(mDirectoryOptions));
+            PostTask.postTask(
+                    TaskTraits.UI_DEFAULT, callback.bind(assumeNonNull(mDirectoryOptions)));
             return;
         }
 
@@ -229,7 +237,7 @@ public class DownloadDirectoryProvider {
      * @return The external storage path or null if the or null if the asynchronous task to query
      * the directories is not finished.
      */
-    public String getExternalStorageDirectory() {
+    public @Nullable String getExternalStorageDirectory() {
         if (mDirectoriesReady) return mExternalStorageDirectory;
         return null;
     }
@@ -259,16 +267,14 @@ public class DownloadDirectoryProvider {
         return downloadDir;
     }
 
-    /**
-     * Contains download directories on secondary storage(external SD card).
-     */
+    /** Contains download directories on secondary storage(external SD card). */
     public static class SecondaryStorageInfo {
         /**
          * The download directories on secondary storage from Android R. Will be null before Android
          * R.
          */
-        @Nullable
-        public final List<File> directories;
+        public final @Nullable List<File> directories;
+
         /**
          * The download directories on secondary storage pre R. Some downloads may exist in these
          * directories on Q+.
@@ -280,9 +286,17 @@ public class DownloadDirectoryProvider {
          * @param directories See {@link #directories}.
          * @param directoriesPreR See {@link #directoriesPreR}.
          */
-        public SecondaryStorageInfo(List<File> directories, List<File> directoriesPreR) {
+        public SecondaryStorageInfo(@Nullable List<File> directories, List<File> directoriesPreR) {
             this.directories = directories;
             this.directoriesPreR = directoriesPreR;
+        }
+
+        /** Returns whether there is any download directories on secondary storage. */
+        public boolean isEmpty() {
+            if (directories != null && directories.size() > 0) {
+                return false;
+            }
+            return directoriesPreR.size() == 0;
         }
     }
 
@@ -312,6 +326,7 @@ public class DownloadDirectoryProvider {
 
     /**
      * Returns whether the downloaded file path is on an external SD card.
+     *
      * @param filePath The download file path.
      */
     public static boolean isDownloadOnSDCard(String filePath) {
@@ -354,7 +369,9 @@ public class DownloadDirectoryProvider {
     }
 
     private void recordDirectoryType(@DirectoryOption.DownloadLocationDirectoryType int type) {
-        RecordHistogram.recordEnumeratedHistogram("MobileDownload.Location.DirectoryType", type,
+        RecordHistogram.recordEnumeratedHistogram(
+                "MobileDownload.Location.DirectoryType",
+                type,
                 DirectoryOption.DownloadLocationDirectoryType.NUM_ENTRIES);
     }
 }

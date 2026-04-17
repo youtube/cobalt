@@ -20,9 +20,7 @@
 #include "storage/browser/file_system/async_file_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace ash {
-namespace file_system_provider {
-namespace operations {
+namespace ash::file_system_provider::operations {
 namespace {
 
 const char kExtensionId[] = "mbflcebpggnecokmikipoihdbecnjfoj";
@@ -37,15 +35,15 @@ const base::FilePath::CharType kTargetPath[] =
 
 class FileSystemProviderOperationsCopyEntryTest : public testing::Test {
  protected:
-  FileSystemProviderOperationsCopyEntryTest() {}
-  ~FileSystemProviderOperationsCopyEntryTest() override {}
+  FileSystemProviderOperationsCopyEntryTest() = default;
+  ~FileSystemProviderOperationsCopyEntryTest() override = default;
 
   void SetUp() override {
-    MountOptions mount_options(kFileSystemId, "" /* display_name */);
+    MountOptions mount_options(kFileSystemId, /*display_name=*/"");
     mount_options.writable = true;
     file_system_info_ = ProvidedFileSystemInfo(
-        kExtensionId, mount_options, base::FilePath(), false /* configurable */,
-        true /* watchable */, extensions::SOURCE_FILE, IconSet());
+        kExtensionId, mount_options, base::FilePath(), /*configurable=*/false,
+        /*watchable=*/true, extensions::SOURCE_FILE, IconSet());
   }
 
   ProvidedFileSystemInfo file_system_info_;
@@ -54,7 +52,7 @@ class FileSystemProviderOperationsCopyEntryTest : public testing::Test {
 TEST_F(FileSystemProviderOperationsCopyEntryTest, Execute) {
   using extensions::api::file_system_provider::CopyEntryRequestedOptions;
 
-  util::LoggingDispatchEventImpl dispatcher(true /* dispatch_reply */);
+  util::LoggingDispatchEventImpl dispatcher(/*dispatch_reply=*/true);
   util::StatusCallbackLog callback_log;
 
   CopyEntry copy_entry(&dispatcher, file_system_info_,
@@ -74,17 +72,17 @@ TEST_F(FileSystemProviderOperationsCopyEntryTest, Execute) {
   const base::Value* options_as_value = &event_args[0];
   ASSERT_TRUE(options_as_value->is_dict());
 
-  CopyEntryRequestedOptions options;
-  ASSERT_TRUE(CopyEntryRequestedOptions::Populate(options_as_value->GetDict(),
-                                                  options));
-  EXPECT_EQ(kFileSystemId, options.file_system_id);
-  EXPECT_EQ(kRequestId, options.request_id);
-  EXPECT_EQ(kSourcePath, options.source_path);
-  EXPECT_EQ(kTargetPath, options.target_path);
+  auto options =
+      CopyEntryRequestedOptions::FromValue(options_as_value->GetDict());
+  ASSERT_TRUE(options);
+  EXPECT_EQ(kFileSystemId, options->file_system_id);
+  EXPECT_EQ(kRequestId, options->request_id);
+  EXPECT_EQ(kSourcePath, options->source_path);
+  EXPECT_EQ(kTargetPath, options->target_path);
 }
 
 TEST_F(FileSystemProviderOperationsCopyEntryTest, Execute_NoListener) {
-  util::LoggingDispatchEventImpl dispatcher(false /* dispatch_reply */);
+  util::LoggingDispatchEventImpl dispatcher(/*dispatch_reply=*/false);
   util::StatusCallbackLog callback_log;
 
   CopyEntry copy_entry(&dispatcher, file_system_info_,
@@ -95,13 +93,13 @@ TEST_F(FileSystemProviderOperationsCopyEntryTest, Execute_NoListener) {
 }
 
 TEST_F(FileSystemProviderOperationsCopyEntryTest, Execute_ReadOnly) {
-  util::LoggingDispatchEventImpl dispatcher(true /* dispatch_reply */);
+  util::LoggingDispatchEventImpl dispatcher(/*dispatch_reply=*/true);
   util::StatusCallbackLog callback_log;
 
   const ProvidedFileSystemInfo read_only_file_system_info(
-      kExtensionId, MountOptions(kFileSystemId, "" /* display_name */),
-      base::FilePath() /* mount_path */, false /* configurable */,
-      true /* watchable */, extensions::SOURCE_FILE, IconSet());
+      kExtensionId, MountOptions(kFileSystemId, /*display_name=*/""),
+      /*mount_path=*/base::FilePath(), /*configurable=*/false,
+      /*watchable=*/true, extensions::SOURCE_FILE, IconSet());
 
   CopyEntry copy_entry(&dispatcher, read_only_file_system_info,
                        base::FilePath(kSourcePath), base::FilePath(kTargetPath),
@@ -111,7 +109,7 @@ TEST_F(FileSystemProviderOperationsCopyEntryTest, Execute_ReadOnly) {
 }
 
 TEST_F(FileSystemProviderOperationsCopyEntryTest, OnSuccess) {
-  util::LoggingDispatchEventImpl dispatcher(true /* dispatch_reply */);
+  util::LoggingDispatchEventImpl dispatcher(/*dispatch_reply=*/true);
   util::StatusCallbackLog callback_log;
 
   CopyEntry copy_entry(&dispatcher, file_system_info_,
@@ -120,13 +118,13 @@ TEST_F(FileSystemProviderOperationsCopyEntryTest, OnSuccess) {
 
   EXPECT_TRUE(copy_entry.Execute(kRequestId));
 
-  copy_entry.OnSuccess(kRequestId, RequestValue(), false /* has_more */);
+  copy_entry.OnSuccess(kRequestId, RequestValue(), /*has_more=*/false);
   ASSERT_EQ(1u, callback_log.size());
   EXPECT_EQ(base::File::FILE_OK, callback_log[0]);
 }
 
 TEST_F(FileSystemProviderOperationsCopyEntryTest, OnError) {
-  util::LoggingDispatchEventImpl dispatcher(true /* dispatch_reply */);
+  util::LoggingDispatchEventImpl dispatcher(/*dispatch_reply=*/true);
   util::StatusCallbackLog callback_log;
 
   CopyEntry copy_entry(&dispatcher, file_system_info_,
@@ -141,6 +139,4 @@ TEST_F(FileSystemProviderOperationsCopyEntryTest, OnError) {
   EXPECT_EQ(base::File::FILE_ERROR_TOO_MANY_OPENED, callback_log[0]);
 }
 
-}  // namespace operations
-}  // namespace file_system_provider
-}  // namespace ash
+}  // namespace ash::file_system_provider::operations

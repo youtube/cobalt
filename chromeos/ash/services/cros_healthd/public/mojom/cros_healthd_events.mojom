@@ -7,11 +7,12 @@
 
 // NOTE: This mojom should be kept in sync with the copy in Chromium OS's repo
 // in src/platform2/diagnostics/mojom/public/cros_healthd_events.mojom.
-
 module ash.cros_healthd.mojom;
 
 import "ash/system/diagnostics/mojom/input.mojom";
+import "chromeos/ash/services/cros_healthd/public/mojom/cros_healthd_probe.mojom";
 import "chromeos/ash/services/cros_healthd/public/mojom/nullable_primitives.mojom";
+import "mojo/public/mojom/base/time.mojom";
 
 // Implemented by clients who desire Bluetooth notifications.
 //
@@ -20,14 +21,19 @@ import "chromeos/ash/services/cros_healthd/public/mojom/nullable_primitives.mojo
 interface CrosHealthdBluetoothObserver {
   // Fired when a Bluetooth adapter is added.
   OnAdapterAdded@0();
+
   // Fired when a Bluetooth adapter is removed.
   OnAdapterRemoved@1();
+
   // Fired when a property of a Bluetooth adapter is changed.
   OnAdapterPropertyChanged@2();
+
   // Fired when a Bluetooth device is added.
   OnDeviceAdded@3();
+
   // Fired when a Bluetooth device is removed.
   OnDeviceRemoved@4();
+
   // Fired when a property of a Bluetooth device is changed.
   OnDevicePropertyChanged@5();
 };
@@ -39,6 +45,7 @@ interface CrosHealthdBluetoothObserver {
 interface CrosHealthdLidObserver {
   // Fired when the device's lid is closed.
   OnLidClosed@0();
+
   // Fired when the device's lid is opened.
   OnLidOpened@1();
 };
@@ -50,10 +57,13 @@ interface CrosHealthdLidObserver {
 interface CrosHealthdPowerObserver {
   // Fired when the device begins consuming from an external power source.
   OnAcInserted@0();
+
   // Fired when the device stops consuming from an external power source.
   OnAcRemoved@1();
+
   // Fired when the system receives a suspend request.
   OnOsSuspend@2();
+
   // Fired when the system completes a suspend request.
   OnOsResume@3();
 };
@@ -65,6 +75,7 @@ interface CrosHealthdPowerObserver {
 interface CrosHealthdAudioObserver {
   // Fired when the audio underrun happens.
   OnUnderrun@0();
+
   // Fired when the audio severe underrun happens.
   OnSevereUnderrun@1();
 };
@@ -76,10 +87,13 @@ interface CrosHealthdAudioObserver {
 interface CrosHealthdThunderboltObserver {
   // Fired when the Thunderbolt plug in.
   OnAdd@0();
+
   // Fired when the Thunderbolt plug out.
   OnRemove@1();
+
   // Fired when the Thunderbolt device is authorized.
   OnAuthorized@2();
+
   // Fired when the Thunderbolt device is unauthorized.
   OnUnAuthorized@3();
 };
@@ -91,7 +105,7 @@ interface CrosHealthdThunderboltObserver {
 struct UsbEventInfo {
   // Vendor name.
   string vendor@0;
-  // Name, model name, product name.
+  // Name, model name or product name.
   string name@1;
   // Vendor ID.
   uint16 vid@2;
@@ -111,7 +125,8 @@ struct UsbEventInfo {
     kRemove = 2,
   };
 
-  [MinVersion=1] State state@5;
+  [MinVersion=1]
+  State state@5;
 };
 
 // Implemented by clients who desire USB notifications.
@@ -121,6 +136,7 @@ struct UsbEventInfo {
 interface CrosHealthdUsbObserver {
   // Fired when the USB plug in.
   OnAdd@0(UsbEventInfo info);
+
   // Fired when the USB plug out.
   OnRemove@1(UsbEventInfo info);
 };
@@ -132,6 +148,7 @@ interface CrosHealthdUsbObserver {
 interface CrosHealthdSdCardObserver {
   // Fired when the SD Card plug in.
   OnAdd@0();
+
   // Fired when the SD Card plug out.
   OnRemove@1();
 };
@@ -269,7 +286,8 @@ struct AudioJackEventInfo {
     kMicrophone,
   };
 
-  [MinVersion=1] DeviceType device_type@1;
+  [MinVersion=1]
+  DeviceType device_type@1;
 };
 
 // SD Card event info.
@@ -368,28 +386,32 @@ struct TouchpadConnectedEvent {
 union TouchpadEventInfo {
   // The default value for forward compatibility. All the unknown type will be
   // mapped to this.
-  [Default] uint8 default_type@0;
+  [Default]
+  uint8 default_type@0;
   TouchpadButtonEvent button_event@1;
   TouchpadTouchEvent touch_event@2;
   TouchpadConnectedEvent connected_event@3;
 };
 
-// HDMI event info.
+// External Display event info.
 //
 // NextMinVersion: 1, NextIndex: 1
 [Stable]
-struct HdmiEventInfo {
+struct ExternalDisplayEventInfo {
   [Stable, Extensible]
   enum State {
     // This is required for backwards compatibility, should not be used.
     [Default] kUnmappedEnumField,
-    // Hdmi plugs in.
+    // External display plugs in.
     kAdd,
-    // Hdmi plugs out.
+    // External display plugs out.
     kRemove,
   };
 
   State state@0;
+  // On external display event, also report information about the display.
+  [MinVersion=1]
+  ExternalDisplayInfo? display_info@1;
 };
 
 // Emitted when new touch points are updated.
@@ -423,7 +445,8 @@ struct TouchscreenConnectedEvent {
 union TouchscreenEventInfo {
   // The default value for forward compatibility. All the unknown type will be
   // mapped to this.
-  [Default] uint8 default_type@0;
+  [Default]
+  uint8 default_type@0;
   TouchscreenTouchEvent touch_event@1;
   TouchscreenConnectedEvent connected_event@2;
 };
@@ -438,9 +461,9 @@ struct StylusGarageEventInfo {
     // This is required for backwards compatibility, should not be used.
     [Default] kUnmappedEnumField,
     // Stylus inserted into the garage.
-    kInsert,
+    kInserted,
     // Stylus removed from the garage.
-    kRemove,
+    kRemoved,
   };
 
   State state@0;
@@ -491,9 +514,54 @@ struct StylusConnectedEvent {
 union StylusEventInfo {
   // The default value for forward compatibility. All the unknown type will be
   // mapped to this.
-  [Default] uint8 default_type@0;
+  [Default]
+  uint8 default_type@0;
   StylusTouchEvent touch_event@1;
   StylusConnectedEvent connected_event@2;
+};
+
+// Emitted within CrashEventInfo. Contains information available for uploaded
+// crash events only.
+//
+// NextMinVersion: 1, NextIndex: 3
+[Stable]
+struct CrashUploadInfo {
+  // Corresponding to "upload_id" in uploads.log.
+  string crash_report_id@0;
+  // The creation time of the uploads.log file.
+  // Used to distinguish uploads.log file in case it has been deleted and
+  // recreated.
+  mojo_base.mojom.Time creation_time@1;
+  // Number of valid logs before this event in uploads.log. Useful to inform
+  // subscribers that need to distinguish whether a crash event has been
+  // encountered before.
+  uint64 offset@2;
+};
+
+// Emitted once the observer gets new crash events.
+//
+// NextMinVersion: 1, NextIndex: 4
+[Stable]
+struct CrashEventInfo {
+  // NextMinVersion: 2, NextIndex: 4
+  [Stable, Extensible]
+  enum CrashType {
+    [Default] kUnknown = 0,
+    kKernel,
+    kEmbeddedController,
+    [MinVersion=1] kChrome,
+  };
+  // Type of the crash. Corresponding to "fatal_crash_type" in uploads.log.
+  CrashType crash_type@0;
+  // ID that represents crash locally. Corresponding to "path_hash" in
+  // uploads.log.
+  string local_id@1;
+  // The time at which the crash event is captured by the system. Corresponding
+  // to "capture_time" in uploads.log.
+  mojo_base.mojom.Time capture_time@2;
+  // Information available for uploaded crash events only. Missing if the crash
+  // hasn't been uploaded by crash_sender yet.
+  CrashUploadInfo? upload_info@3;
 };
 
 // Implemented by clients who desire events.
@@ -507,12 +575,13 @@ interface EventObserver {
 
 // Union of event info.
 //
-// NextMinVersion: 9, NextIndex: 15
+// NextMinVersion: 10, NextIndex: 16
 [Stable, Extensible]
 union EventInfo {
   // The default value for forward compatibility. All the unknown type will be
   // mapped to this.
-  [Default] uint8 default_type@0;
+  [Default]
+  uint8 default_type@0;
   // USB event info.
   UsbEventInfo usb_event_info@1;
   // Thunderbolt event info.
@@ -526,28 +595,39 @@ union EventInfo {
   // Audio event info.
   AudioEventInfo audio_event_info@6;
   // Audio jack event info.
-  [MinVersion=1] AudioJackEventInfo audio_jack_event_info@7;
+  [MinVersion=1]
+  AudioJackEventInfo audio_jack_event_info@7;
   // SD Card event info.
-  [MinVersion=2] SdCardEventInfo sd_card_event_info@8;
+  [MinVersion=2]
+  SdCardEventInfo sd_card_event_info@8;
   // Keyboard diagnostics event info. It is fired when users completed a
   // keyboard diagnostic in the Diagnostics App.
-  [MinVersion=3] ash.diagnostics.mojom.KeyboardDiagnosticEventInfo
-    keyboard_diagnostic_event_info@9;
+  [MinVersion=3]
+  ash.diagnostics.mojom.KeyboardDiagnosticEventInfo
+      keyboard_diagnostic_event_info@9;
   // Touchpad event info.
-  [MinVersion=4] TouchpadEventInfo touchpad_event_info@10;
-  // HDMI event info.
-  [MinVersion=5] HdmiEventInfo hdmi_event_info@11;
+  [MinVersion=4]
+  TouchpadEventInfo touchpad_event_info@10;
+  // External Display event info.
+  [MinVersion=5]
+  ExternalDisplayEventInfo external_display_event_info@11;
   // Touchscreen event info.
-  [MinVersion=6] TouchscreenEventInfo touchscreen_event_info@12;
+  [MinVersion=6]
+  TouchscreenEventInfo touchscreen_event_info@12;
   // Stylus garagge event info.
-  [MinVersion=7] StylusGarageEventInfo stylus_garage_event_info@13;
+  [MinVersion=7]
+  StylusGarageEventInfo stylus_garage_event_info@13;
   // Stylus event info.
-  [MinVersion=8] StylusEventInfo stylus_event_info@14;
+  [MinVersion=8]
+  StylusEventInfo stylus_event_info@14;
+  // Crash event info.
+  [MinVersion=9]
+  CrashEventInfo crash_event_info@15;
 };
 
 // An enumeration of event categories.
 //
-// NextMinVersion: 10, NextIndex: 16
+// NextMinVersion: 11, NextIndex: 17
 [Stable, Extensible]
 enum EventCategoryEnum {
   // This is required for backwards compatibility, should not be used.
@@ -563,8 +643,9 @@ enum EventCategoryEnum {
   [MinVersion=3] kNetwork = 9,
   [MinVersion=4] kKeyboardDiagnostic = 10,
   [MinVersion=5] kTouchpad = 11,
-  [MinVersion=6] kHdmi = 12,
+  [MinVersion=6] kExternalDisplay = 12,
   [MinVersion=7] kTouchscreen = 13,
   [MinVersion=8] kStylusGarage = 14,
   [MinVersion=9] kStylus = 15,
+  [MinVersion=10] kCrash = 16,
 };

@@ -9,9 +9,11 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/memory/ref_counted.h"
+#include "base/task/common/task_annotator.h"
 #include "base/time/time.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/typed_macros.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "components/viz/common/frame_sinks/begin_frame_source.h"
 #include "components/viz/service/display/output_surface_client.h"
 #include "components/viz/service/display/output_surface_frame.h"
@@ -63,11 +65,22 @@ void SoftwareOutputSurface::SwapBuffers(OutputSurfaceFrame frame) {
         ui::INPUT_EVENT_LATENCY_FRAME_SWAP_COMPONENT, swap_time);
   }
 
-  stored_latency_info_.emplace(std::move(frame.latency_info));
+  TRACE_EVENT(
+      "viz,benchmark,graphics.pipeline", "Graphics.Pipeline",
+      perfetto::Flow::Global(frame.data.swap_trace_id),
+      [swap_trace_id = frame.data.swap_trace_id](perfetto::EventContext ctx) {
+        base::TaskAnnotator::EmitTaskTimingDetails(ctx);
+        auto* event = ctx.event<perfetto::protos::pbzero::ChromeTrackEvent>();
+        auto* data = event->set_chrome_graphics_pipeline();
+        data->set_step(perfetto::protos::pbzero::ChromeGraphicsPipeline::
+                           StepName::STEP_BUFFER_SWAP_POST_SUBMIT);
+        data->set_display_trace_id(swap_trace_id);
+      });
 
   software_device()->OnSwapBuffers(
       base::BindOnce(&SoftwareOutputSurface::SwapBuffersCallback,
-                     weak_factory_.GetWeakPtr(), swap_time),
+                     weak_factory_.GetWeakPtr(), swap_time,
+                     frame.data.swap_trace_id),
       frame.data);
 
   gfx::VSyncProvider* vsync_provider = software_device()->GetVSyncProvider();
@@ -78,27 +91,31 @@ void SoftwareOutputSurface::SwapBuffers(OutputSurfaceFrame frame) {
   }
 }
 
-bool SoftwareOutputSurface::IsDisplayedAsOverlayPlane() const {
-  return false;
-}
-
 void SoftwareOutputSurface::SwapBuffersCallback(base::TimeTicks swap_time,
+                                                int64_t swap_trace_id,
                                                 const gfx::Size& pixel_size) {
-  latency_tracker_.OnGpuSwapBuffersCompleted(
-      std::move(stored_latency_info_.front()));
-  stored_latency_info_.pop();
+  TRACE_EVENT(
+      "viz,benchmark,graphics.pipeline", "Graphics.Pipeline",
+      perfetto::Flow::Global(swap_trace_id), [&](perfetto::EventContext ctx) {
+        base::TaskAnnotator::EmitTaskTimingDetails(ctx);
+        auto* event = ctx.event<perfetto::protos::pbzero::ChromeTrackEvent>();
+        auto* data = event->set_chrome_graphics_pipeline();
+        data->set_step(perfetto::protos::pbzero::ChromeGraphicsPipeline::
+                           StepName::STEP_FINISH_BUFFER_SWAP);
+        data->set_display_trace_id(swap_trace_id);
+      });
+
   gpu::SwapBuffersCompleteParams params;
   params.swap_response.timings = {swap_time, swap_time};
   params.swap_response.result = gfx::SwapResult::SWAP_ACK;
+  params.swap_trace_id = swap_trace_id;
   client_->DidReceiveSwapBuffersAck(params,
                                     /*release_fence=*/gfx::GpuFenceHandle());
 
   base::TimeTicks now = base::TimeTicks::Now();
   base::TimeDelta interval_to_next_refresh =
       now.SnappedToNextTick(refresh_timebase_, refresh_interval_) - now;
-// TODO(crbug.com/1052397): Revisit the macro expression once build flag switch
-// of lacros-chrome is complete.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_LINUX)
   if (needs_swap_size_notifications_)
     client_->DidSwapWithSize(pixel_size);
 #endif
@@ -110,8 +127,10 @@ void SoftwareOutputSurface::UpdateVSyncParameters(base::TimeTicks timebase,
                                                   base::TimeDelta interval) {
   DCHECK(update_vsync_parameters_callback_);
   refresh_timebase_ = timebase;
-  refresh_interval_ = interval;
-  update_vsync_parameters_callback_.Run(timebase, interval);
+  // We should not be receiving 0 intervals.
+  refresh_interval_ =
+      interval.is_zero() ? BeginFrameArgs::DefaultInterval() : interval;
+  update_vsync_parameters_callback_.Run(timebase, refresh_interval_);
 }
 
 void SoftwareOutputSurface::SetUpdateVSyncParametersCallback(
@@ -123,9 +142,7 @@ gfx::OverlayTransform SoftwareOutputSurface::GetDisplayTransform() {
   return gfx::OVERLAY_TRANSFORM_NONE;
 }
 
-// TODO(crbug.com/1052397): Revisit the macro expression once build flag switch
-// of lacros-chrome is complete.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_LINUX)
 void SoftwareOutputSurface::SetNeedsSwapSizeNotifications(
     bool needs_swap_size_notifications) {
   needs_swap_size_notifications_ = needs_swap_size_notifications;

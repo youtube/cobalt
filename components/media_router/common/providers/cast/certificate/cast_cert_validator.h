@@ -5,17 +5,19 @@
 #ifndef COMPONENTS_MEDIA_ROUTER_COMMON_PROVIDERS_CAST_CERTIFICATE_CAST_CERT_VALIDATOR_H_
 #define COMPONENTS_MEDIA_ROUTER_COMMON_PROVIDERS_CAST_CERTIFICATE_CAST_CERT_VALIDATOR_H_
 
+#include <atomic>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
-#include "base/strings/string_piece.h"
+#include "base/files/file_path.h"
 #include "base/time/time.h"
 
-namespace net {
+namespace bssl {
 class TrustStore;
 enum class DigestAlgorithm;
-}  // namespace net
+}  // namespace bssl
 namespace cast_certificate {
 
 class CastCRL;
@@ -30,8 +32,24 @@ enum class CastDeviceCertPolicy {
 };
 
 enum class CRLPolicy {
+  // Revocation is checked if a CRL is provided. If CRL is not provided,
+  // revocation is checked by fallback CRL.
+  //
+  // DEPRECATED.  A CRL is always required.
+  //
+  // TODO(crbug.com/411575751): Remove this policy.
+  CRL_OPTIONAL_WITH_FALLBACK,
+
   // Revocation is only checked if a CRL is provided.
+  //
+  // DEPRECATED.  A CRL is always required.
+  //
+  // TODO(crbug.com/411575751): Remove this policy.
   CRL_OPTIONAL,
+
+  // Revocation is always checked. If CRL is not provided, revocation is checked
+  // by fallback CRL.
+  CRL_REQUIRED_WITH_FALLBACK,
 
   // Revocation is always checked. A missing CRL results in failure.
   CRL_REQUIRED,
@@ -54,6 +72,14 @@ enum class CastCertError {
   ERR_CRL_INVALID,
   // One of the certificates in the chain is revoked.
   ERR_CERTS_REVOKED,
+  // When verification is successful only after using the fallback CRL.
+  OK_FALLBACK_CRL,
+  // When the flag to use a fallback CRL is enabled but the build is too old and
+  // the fallback already expired.
+  ERR_FALLBACK_CRL_INVALID,
+  // When verification shows the certificate is revoked after using the fallback
+  // CRL.
+  ERR_CERTS_REVOKED_BY_FALLBACK_CRL,
   // An internal coding error.
   ERR_UNEXPECTED,
 };
@@ -69,20 +95,20 @@ enum class CastDigestAlgorithm {
 // certificate.
 class CertVerificationContext {
  public:
-  CertVerificationContext() {}
+  CertVerificationContext();
 
   CertVerificationContext(const CertVerificationContext&) = delete;
   CertVerificationContext& operator=(const CertVerificationContext&) = delete;
 
-  virtual ~CertVerificationContext() {}
+  virtual ~CertVerificationContext();
 
   // Use the public key from the verified certificate to verify an
   // RSASSA-PKCS1-v1_5 |signature| over arbitrary |data|, with the specified
   // |digest_algorithm|. Both |signature| and |data| hold raw binary data.
   // Returns true if the signature was correct.
   virtual bool VerifySignatureOverData(
-      const base::StringPiece& signature,
-      const base::StringPiece& data,
+      std::string_view signature,
+      std::string_view data,
       CastDigestAlgorithm digest_algorithm) const = 0;
 
   // Retrieve the Common Name attribute of the subject's distinguished name from
@@ -91,7 +117,13 @@ class CertVerificationContext {
   virtual std::string GetCommonName() const = 0;
 };
 
-// Verifies a cast device certficate given a chain of DER-encoded certificates,
+// These provide access for tests to change the CastTrustStoreSingleton.
+void CastTrustStoreAddDefaultCertificatesForTesting();
+void CastTrustStoreAddBuiltInCertificatesForTesting();
+void CastTrustStoreAddCertificateFromPathForTesting(base::FilePath cert_path);
+void CastTrustStoreClearForTesting();
+
+// Verifies a cast device certificate given a chain of DER-encoded certificates,
 // using the built-in Cast trust anchors.
 //
 // Inputs:
@@ -128,6 +160,7 @@ class CertVerificationContext {
     std::unique_ptr<CertVerificationContext>* context,
     CastDeviceCertPolicy* policy,
     const CastCRL* crl,
+    const CastCRL* fallback_crl,
     CRLPolicy crl_policy);
 
 // This is an overloaded version of VerifyDeviceCert that allows
@@ -141,8 +174,9 @@ class CertVerificationContext {
     std::unique_ptr<CertVerificationContext>* context,
     CastDeviceCertPolicy* policy,
     const CastCRL* crl,
+    const CastCRL* fallback_crl,
     CRLPolicy crl_policy,
-    net::TrustStore* trust_store);
+    bssl::TrustStore* trust_store);
 
 // Returns a string status messages for the CastCertError provided.
 std::string CastCertErrorToString(CastCertError error);

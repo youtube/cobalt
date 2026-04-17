@@ -12,7 +12,7 @@
       "/path/to/tmp/json",
       "ensure-directory",
       "--mode",
-      "0777",
+      "0o777",
       "[CACHE]/builder/perfetto"
     ],
     "infra_step": true,
@@ -62,7 +62,8 @@
       "git",
       "fetch",
       "--tags",
-      "https://android.googlesource.com/platform/external/perfetto",
+      "--force",
+      "https://chromium.googlesource.com/external/github.com/google/perfetto",
       "refs/heads/main"
     ],
     "cwd": "[CACHE]/builder/perfetto",
@@ -189,6 +190,31 @@
   {
     "cmd": [
       "python3",
+      "tools/gn",
+      "clean",
+      "[CACHE]/builder/perfetto/out/linux-amd64"
+    ],
+    "cwd": "[CACHE]/builder/perfetto",
+    "luci_context": {
+      "realm": {
+        "name": "perfetto:ci"
+      },
+      "resultdb": {
+        "current_invocation": {
+          "name": "invocations/build:8945511751514863184",
+          "update_token": "token"
+        },
+        "hostname": "rdbhost"
+      }
+    },
+    "name": "linux-amd64.gn clean",
+    "~followup_annotations": [
+      "@@@STEP_NEST_LEVEL@1@@@"
+    ]
+  },
+  {
+    "cmd": [
+      "python3",
       "tools/ninja",
       "-C",
       "[CACHE]/builder/perfetto/out/linux-amd64",
@@ -250,6 +276,31 @@
   {
     "cmd": [
       "python3",
+      "tools/gn",
+      "clean",
+      "[CACHE]/builder/perfetto/out/linux-arm"
+    ],
+    "cwd": "[CACHE]/builder/perfetto",
+    "luci_context": {
+      "realm": {
+        "name": "perfetto:ci"
+      },
+      "resultdb": {
+        "current_invocation": {
+          "name": "invocations/build:8945511751514863184",
+          "update_token": "token"
+        },
+        "hostname": "rdbhost"
+      }
+    },
+    "name": "linux-arm.gn clean",
+    "~followup_annotations": [
+      "@@@STEP_NEST_LEVEL@1@@@"
+    ]
+  },
+  {
+    "cmd": [
+      "python3",
       "tools/ninja",
       "-C",
       "[CACHE]/builder/perfetto/out/linux-arm",
@@ -304,6 +355,31 @@
       }
     },
     "name": "linux-arm64.gn gen",
+    "~followup_annotations": [
+      "@@@STEP_NEST_LEVEL@1@@@"
+    ]
+  },
+  {
+    "cmd": [
+      "python3",
+      "tools/gn",
+      "clean",
+      "[CACHE]/builder/perfetto/out/linux-arm64"
+    ],
+    "cwd": "[CACHE]/builder/perfetto",
+    "luci_context": {
+      "realm": {
+        "name": "perfetto:ci"
+      },
+      "resultdb": {
+        "current_invocation": {
+          "name": "invocations/build:8945511751514863184",
+          "update_token": "token"
+        },
+        "hostname": "rdbhost"
+      }
+    },
+    "name": "linux-arm64.gn clean",
     "~followup_annotations": [
       "@@@STEP_NEST_LEVEL@1@@@"
     ]

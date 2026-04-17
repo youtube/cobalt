@@ -2,33 +2,10 @@
 
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// https://developers.google.com/protocol-buffers/
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-// notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-// copyright notice, this list of conditions and the following disclaimer
-// in the documentation and/or other materials provided with the
-// distribution.
-//     * Neither the name of Google Inc. nor the names of its
-// contributors may be used to endorse or promote products derived from
-// this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file or at
+// https://developers.google.com/open-source/licenses/bsd
 
 /**
  * MapField and MapFieldIter are used by generated protocol message classes to
@@ -131,7 +108,7 @@ class MapField implements \ArrayAccess, \IteratorAggregate, \Countable
      *
      * This will also be called for: $ele = $arr[$key]
      *
-     * @param int|bool|string $key The key of the element to be fetched.
+     * @param int|string $key The key of the element to be fetched.
      * @return object The stored element at given key.
      * @throws \ErrorException Invalid type for index.
      * @throws \ErrorException Non-existing index.
@@ -148,7 +125,7 @@ class MapField implements \ArrayAccess, \IteratorAggregate, \Countable
      *
      * This will also be called for: $arr[$key] = $value
      *
-     * @param object $key The key of the element to be fetched.
+     * @param int|string $key The key of the element to be fetched.
      * @param object $value The element to be assigned.
      * @return void
      * @throws \ErrorException Invalid type for key.
@@ -211,7 +188,7 @@ class MapField implements \ArrayAccess, \IteratorAggregate, \Countable
      *
      * This will also be called for: unset($arr)
      *
-     * @param object $key The key of the element to be removed.
+     * @param int|string $key The key of the element to be removed.
      * @return void
      * @throws \ErrorException Invalid type for key.
      * @todo need to add return type void (require update php version to 7.1)
@@ -228,7 +205,7 @@ class MapField implements \ArrayAccess, \IteratorAggregate, \Countable
      *
      * This will also be called for: isset($arr)
      *
-     * @param object $key The key of the element to be removed.
+     * @param int|string $key The key of the element to be removed.
      * @return bool True if the element at the given key exists.
      * @throws \ErrorException Invalid type for key.
      */

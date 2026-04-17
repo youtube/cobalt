@@ -30,10 +30,9 @@ schema:
   - 2
   - 3
   type: integer
-supported_chrome_os_management:
-- google_cloud
 supported_on:
 - chrome_os:61-
 tags:
 - system-security
 type: int-enum
+generate_device_proto: False

@@ -9,16 +9,17 @@ import android.graphics.Canvas;
 import android.view.View;
 import android.widget.EdgeEffect;
 
-/**
- * This class manages the edge glow effect when a WebView is flung or pulled beyond the edges.
- */
-class OverScrollGlow {
-    private View mHostView;
+import org.chromium.build.annotations.NullMarked;
 
-    private EdgeEffect mEdgeGlowTop;
-    private EdgeEffect mEdgeGlowBottom;
-    private EdgeEffect mEdgeGlowLeft;
-    private EdgeEffect mEdgeGlowRight;
+/** This class manages the edge glow effect when a WebView is flung or pulled beyond the edges. */
+@NullMarked
+class OverScrollGlow {
+    private final View mHostView;
+
+    private final EdgeEffect mEdgeGlowTop;
+    private final EdgeEffect mEdgeGlowBottom;
+    private final EdgeEffect mEdgeGlowLeft;
+    private final EdgeEffect mEdgeGlowRight;
 
     private int mOverScrollDeltaX;
     private int mOverScrollDeltaY;
@@ -101,8 +102,8 @@ class OverScrollGlow {
      * @param rangeY Maximum range for vertical scrolling
      * @param currentFlingVelocity Current fling velocity
      */
-    public void absorbGlow(int x, int y, int oldX, int oldY, int rangeX, int rangeY,
-            float currentFlingVelocity) {
+    public void absorbGlow(
+            int x, int y, int oldX, int oldY, int rangeX, int rangeY, float currentFlingVelocity) {
         if (mShouldPull) {
             // Not absorb the glow because the user is pulling the glow now.
             // TODO(hush): crbug.com/501556. Do not use "mShouldPull" to switch
@@ -138,12 +139,7 @@ class OverScrollGlow {
         }
     }
 
-    /**
-     * Set touch delta values indicating the current amount of overscroll.
-     *
-     * @param deltaX
-     * @param deltaY
-     */
+    /** Set touch delta values indicating the current amount of overscroll. */
     public void setOverScrollDeltas(int deltaX, int deltaY) {
         mOverScrollDeltaX += deltaX;
         mOverScrollDeltaY += deltaY;
@@ -202,17 +198,15 @@ class OverScrollGlow {
         return invalidateForGlow;
     }
 
-    /**
-     * @return True if any glow is still animating
-     */
+    /** @return True if any glow is still animating */
     public boolean isAnimating() {
-        return (!mEdgeGlowTop.isFinished() || !mEdgeGlowBottom.isFinished()
-                || !mEdgeGlowLeft.isFinished() || !mEdgeGlowRight.isFinished());
+        return (!mEdgeGlowTop.isFinished()
+                || !mEdgeGlowBottom.isFinished()
+                || !mEdgeGlowLeft.isFinished()
+                || !mEdgeGlowRight.isFinished());
     }
 
-    /**
-     * Release all glows from any touch pulls in progress.
-     */
+    /** Release all glows from any touch pulls in progress. */
     public void releaseAll() {
         mEdgeGlowTop.onRelease();
         mEdgeGlowBottom.onRelease();

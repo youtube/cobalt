@@ -4,7 +4,6 @@
 <translation id="1002108253973310084">एउटा नमिल्दो प्रोटोकल संस्करण पत्ता लाग्यो। कृपया दुवै कम्प्युटरहरूमा तपाईँसँग नयाँ संस्करण भएको निश्चित गर्नुहोस् र पुन: प्रयास गर्नुहोस्।</translation>
 <translation id="1008557486741366299">अहिले होइन</translation>
 <translation id="1201402288615127009">अर्को</translation>
-<translation id="1296511125400541222">कपिराइट २०२३ The Chromium Authors। सर्वाधिकार सुरक्षित।</translation>
 <translation id="1297009705180977556"><ph name="HOSTNAME" /> मा जडान गर्ने क्रममा त्रुटि</translation>
 <translation id="1450760146488584666">अनुरोध गरिएको वस्तु छैन।</translation>
 <translation id="1480046233931937785">क्रेडिटहरू</translation>
@@ -29,7 +28,7 @@
 <translation id="2329392777730037872">क्लाइन्टमा <ph name="URL" /> खोल्न सकिएन।</translation>
 <translation id="2359808026110333948">जारी राख्नुहोस्</translation>
 <translation id="2366718077645204424">होस्टसम्म पुग्न असफल। यसको कारण तपाइँले प्रयोग गरिरहनुभएको सञ्जालको विन्यास हुन सक्छ।</translation>
-<translation id="2370754117186920852"><ph name="OPTIONAL_OFFLINE_REASON" /> अन्तिम पटक अनलाइन देखिएको <ph name="RELATIVE_TIMESTAMP" />।</translation>
+<translation id="242591256144136845">कपिराइट २०२५ Google LLC। सर्वाधिकार सुरक्षित।</translation>
 <translation id="2504109125669302160"><ph name="PRODUCT_NAME" /> लाई 'पहुँच' सम्बन्धी अनुमति दिनुहोस्</translation>
 <translation id="2509394361235492552"><ph name="HOSTNAME" /> मा कनेक्ट गरियो</translation>
 <translation id="2540992418118313681">तपाईं अर्को प्रयोगकर्तालाई हेर्न र नियन्त्रणको लागि यस कम्प्युटर साझेदारी गर्न चाहनुहुन्छ?</translation>
@@ -41,6 +40,7 @@
 <translation id="2758123043070977469">प्रमाणीकरण गर्दा एउटा समस्या भयो, कृपया फेरि लग इन गर्नुहोस्।</translation>
 <translation id="2803375539583399270">PIN हाल्नुहोस्</translation>
 <translation id="2919669478609886916">तपाईं हाल यो मेसिनलाई अर्को प्रयोगकर्तासँग साझा गर्दै हुनुहुन्छ। के तपाईं साझा गर्ने कार्य जारी राख्न चाहनुहुन्छ?</translation>
+<translation id="2929683002824598593">डिभाइस सेयर गर्नुहोस्</translation>
 <translation id="2939145106548231838">होस्ट गर्न प्रमाणित गर्नुहोस्</translation>
 <translation id="3027681561976217984">टच मोड</translation>
 <translation id="3106379468611574572">रिमोट कम्प्युटरले जडान अनुरोधहरूलाई प्रतिक्रिया दिइरहेको छैन। कृपया रुजू गर्नुहोस् कि यो अनलाइन छ र पुन: प्रयास गर्नुहोस्।</translation>
@@ -54,7 +54,6 @@
 <translation id="3423542133075182604">सुरक्षा साँचोको दूर प्रक्रिया</translation>
 <translation id="3581045510967524389">नेटवर्कमा जडान गर्न सकिएन। तपाईंको यन्त्र अन-लाइन छ कि छैन जाँच्नुहोस्।</translation>
 <translation id="3596628256176442606">यो सेवाले Chromoting ग्राहकहरूबाट आउने जडानहरूलाई सक्षम बनाउँछ।</translation>
-<translation id="369442766917958684">अफलाइन।</translation>
 <translation id="3695446226812920698">कसरी सिक्नुहोस्</translation>
 <translation id="3776024066357219166">तपाईंको Chrome रिमोट डेस्कटप सत्र समाप्त भएको छ ।</translation>
 <translation id="3858860766373142691">नाम</translation>
@@ -67,11 +66,11 @@
 <translation id="4126409073460786861">सेटअप गर्ने काम सकिएपछि, यो पृष्ठ पुनः ताजा गर्नुहोस्, त्यसपछि आफ्नो यन्त्र छनौट गरी त्यसमा PIN प्रविष्ट गरेर तपाईं आफ्नो कम्प्युटरमाथि पहुँच राख्न सक्नु हुने छ</translation>
 <translation id="4145029455188493639"><ph name="EMAIL_ADDRESS" /> का रूपमा साइन इन गरियो।</translation>
 <translation id="4155497795971509630">केही आवश्यक कम्पोनेन्टहरू हराइरहेका छन्। कृपया तपाईंले सफ्टवेयरको नवीनतम संस्करण स्थापना गरेको निश्चित गर्नुहोस् र फेरि प्रयास गर्नुहोस्।</translation>
-<translation id="4176825807642096119">पहुँच कोड</translation>
+<translation id="4176825807642096119">एक्सेस कोड</translation>
 <translation id="4227991223508142681">Host Provisioning Utility</translation>
 <translation id="4240294130679914010">Chromoting होस्ट स्थापना हटाउने</translation>
 <translation id="4257751272692708833"><ph name="PRODUCT_NAME" /> को URL फर्वार्डर</translation>
-<translation id="4277736576214464567">पहुँच कोड अवैध छ। कृपया पुन: प्रयास गर्नुहोस्।</translation>
+<translation id="4277736576214464567">यो एक्सेस कोड अवैध छ। कृपया फेरि प्रयास गर्नुहोस्।</translation>
 <translation id="4281844954008187215">सेवाका सर्तहरू</translation>
 <translation id="4405930547258349619">कोर पुस्तकालय</translation>
 <translation id="443560535555262820">पहुँचसम्बन्धी प्राथमिकताहरू खोल्नुहोस्</translation>
@@ -89,12 +88,12 @@
 <translation id="4808503597364150972">कृपया <ph name="HOSTNAME" /> को लागि तपाइँको पिन प्रविष्टि गर्नुहोस्।</translation>
 <translation id="4812684235631257312">होस्ट</translation>
 <translation id="4867841927763172006">PrtScn पठाउनुहोस्</translation>
-<translation id="4960795469833295568">कपिराइट २०२३ Google LLC। सर्वाधिकार सुरक्षित।</translation>
 <translation id="4974476491460646149"><ph name="HOSTNAME" /> सँगको जडान बन्द गरियो</translation>
 <translation id="4985296110227979402">दूर पहुँचका लागि तपाईँले पहिला आफ्नो कम्प्युटरलाई सेटअप गर्नुपर्छ</translation>
 <translation id="4987330545941822761">Chrome को रिमोट डेस्कटपले कम्प्युटरमा URL खोल्न कुन ब्राउजर प्रयोग गर्ने हो भन्ने कुरा यकिन गर्न सकेन। कृपया तलको सूचीबाट कुनै ब्राउजर छनौट गर्नुहोस्।</translation>
 <translation id="5064360042339518108"><ph name="HOSTNAME" /> (अफलाइन)</translation>
 <translation id="507204348399810022">तपाईं पक्का <ph name="HOSTNAME" /> का दूरवर्ती जडानहरूलाई असक्षम गर्न चाहनुहुन्छ?</translation>
+<translation id="5095424396646120601">क्र्यास रिपोर्टिङ</translation>
 <translation id="5170982930780719864">अमान्य होस्ट id।</translation>
 <translation id="5204575267916639804">प्राय: जसो सोधिने प्रश्नहरू</translation>
 <translation id="5222676887888702881">साइन आउट गर्नुहोस्</translation>
@@ -107,7 +106,6 @@
 <translation id="5601503069213153581">पिन</translation>
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="5708869785009007625">तपाईंको डेस्कटप अहिले <ph name="USER" /> सँग साझा गरिएको छ ।</translation>
-<translation id="5750083143895808682"><ph name="EMAIL_ADDRESS" /> का रूपमा साइन इन गरियो।</translation>
 <translation id="579702532610384533">पुन: कनेक्ट गर्नुहोस्</translation>
 <translation id="5810269635982033450">स्क्रिनले ट्र्याकप्याडको काम गर्छ</translation>
 <translation id="5823554426827907568"><ph name="CLIENT_USERNAME" /> ले तपाईंको कम्प्युटरको स्क्रिन हेर्ने र तपाईंको किबोर्ड र माउस नियन्त्रण गर्ने अनुमति मागेका छन्। उहाँले तपाईंलाई अग्रिम रूपमा जानकारी नगराइकन यो अनुमति मागेका हुन् भने ''<ph name="IDS_SHARE_CONFIRM_DIALOG_DECLINE" />'' थिच्नुहोस्। अथवा तपाईं उहाँलाई तपाईंको कम्प्युटरमा कनेक्ट गर्ने अनुमति दिन तयार हुनुहुन्छ भने ''<ph name="IDS_SHARE_CONFIRM_DIALOG_CONFIRM" />'' चयन गर्नुहोस्।</translation>
@@ -121,10 +119,12 @@
 <translation id="6178645564515549384">दुर सहायताका लागि मूल सन्देश होस्ट</translation>
 <translation id="618120821413932081">विन्डोसँग मिल्नसकोस् भन्नका लागि रिमोट डेस्कटपको रिजोल्युसन अपडेट गर्नुहोस्</translation>
 <translation id="6223301979382383752">स्क्रिनको रेकर्डिङसम्बन्धी प्राथमिकताहरू खोल्नुहोस्</translation>
+<translation id="6252344563748670011"><ph name="CLIENT_USERNAME" /> ले तपाईंको डिभाइसको स्क्रिन हेर्ने र तपाईंका किबोर्ड तथा माउस नियन्त्रण गर्ने एक्सेस माग्नुभएको छ। तपाईं आफ्नो डिभाइस सेयर गर्न चाहनुहुन्छ?</translation>
 <translation id="6284412385303060032">प्रयोगकर्ता-विशेष सत्रमा चलिरहेको होस्टलाई स्विच गरेर कर्टेन मोडलाई समर्थन गर्न कन्सोल लजिक स्क्रिनमा रहेको चलिरहेको होस्ट बन्द भएको छ।</translation>
 <translation id="6542902059648396432">एउटा समस्या रिपोर्ट गर्नुहोस्...</translation>
 <translation id="6583902294974160967">सहायता प्रदान गर्ने सेवा</translation>
 <translation id="6612717000975622067">Ctrl-Alt-Del पठाउनुहोस्</translation>
+<translation id="6625262630437221505">{0,plural, =1{तपाईंले आवश्यक कारबाही गर्नुभएन भने तपाईंको डिभाइस # सेकेन्डमा स्वतः सेयर गर्न थालिने छ।}other{तपाईंले आवश्यक कारबाही गर्नुभएन भने तपाईंको डिभाइस # सेकेन्डमा स्वतः सेयर गर्न थालिने छ।}}</translation>
 <translation id="6654753848497929428">साझा गर्नुहोस्</translation>
 <translation id="677755392401385740">यस प्रयोगकर्ताको लागि होस्ट सुरुवातकर्ता: <ph name="HOST_USERNAME" /></translation>
 <translation id="6902524959760471898"><ph name="PRODUCT_NAME" /> क्लाइन्टमा URL खोल्न प्रयोग गरिने सहयोगी एप</translation>
@@ -138,6 +138,7 @@
 <translation id="7067321367069083429">स्क्रिनले टच स्क्रिनको काम गर्छ</translation>
 <translation id="7116737094673640201">Chrome को रिमोट डेस्कटपमा स्वागत छ</translation>
 <translation id="7144878232160441200">पुन: प्रयास गर्नुहोस्</translation>
+<translation id="7298392173540380852">कपिराइट २०२५ The Chromium Authors। सर्वाधिकार सुरक्षित।</translation>
 <translation id="7312846573060934304">होस्ट अफलाइन छ।</translation>
 <translation id="7319983568955948908">साझा गर्न बन्द गर्नुहोस्</translation>
 <translation id="7359298090707901886">चयन गरिएको ब्राउजर प्रयोग गरी लोकल मेसिनमा URL खोल्न सकिँदैन।</translation>
@@ -149,7 +150,7 @@
 <translation id="7628469622942688817">यो डिभाइसमा मेरो PIN सम्झनुहोस्।</translation>
 <translation id="7649070708921625228">मद्दत</translation>
 <translation id="7658239707568436148">रद्द गर्नुहोस्</translation>
-<translation id="7665369617277396874">खाता थप्नुहोस्</translation>
+<translation id="7665369617277396874">खाता हाल्नुहोस्</translation>
 <translation id="7678209621226490279">बायाँतिर डक गर्नुहोस्</translation>
 <translation id="7693372326588366043">होस्टहरूको सूची ताजा गर्नुहोस्</translation>
 <translation id="7714222945760997814">यसको रिपोर्ट गर्नुहोस्</translation>
@@ -176,7 +177,7 @@
 <translation id="8397385476380433240"><ph name="PRODUCT_NAME" /> लाई अनुमति दिनुहोस्</translation>
 <translation id="8406498562923498210">तपाईंको Chrome को रिमोट डेस्कटप वातावरणभित्र सुरु गर्नु पर्ने सत्र चयन गर्नुहोस्। (केही प्रकारका सत्रहरू Chrome को रिमोट डेस्कटपभित्र र स्थानीय कन्सोलमा एकसाथ चलाउन नमिल्न सक्छ भन्ने कुरा ख्याल गर्नुहोस्।)</translation>
 <translation id="8428213095426709021">सेटिङहरू</translation>
-<translation id="8445362773033888690">Google प्ले भण्डारमा हेर्नुहोस्</translation>
+<translation id="8445362773033888690">Google Play Store मा हेर्नुहोस्</translation>
 <translation id="8509907436388546015">डेस्कटप समायोजन प्रक्रिया</translation>
 <translation id="8513093439376855948">होस्ट व्यवस्थापन दूर गर्नको लागि स्वदेशी मेसेजिङ होस्ट</translation>
 <translation id="8525306231823319788">पूर्ण स्क्रीन</translation>

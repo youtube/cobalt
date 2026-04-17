@@ -71,12 +71,14 @@ history::HistoryService* HistoryServiceFactory::GetForProfileWithoutCreating(
 
 // static
 HistoryServiceFactory* HistoryServiceFactory::GetInstance() {
-  return base::Singleton<HistoryServiceFactory>::get();
+  static base::NoDestructor<HistoryServiceFactory> instance;
+  return instance.get();
 }
 
 // static
 void HistoryServiceFactory::ShutdownForProfile(Profile* profile) {
   HistoryServiceFactory* factory = GetInstance();
+  factory->BrowserContextShutdown(profile);
   factory->BrowserContextDestroyed(profile);
 }
 
@@ -89,16 +91,24 @@ HistoryServiceFactory::GetDefaultFactory() {
 HistoryServiceFactory::HistoryServiceFactory()
     : ProfileKeyedServiceFactory(
           "HistoryService",
-          ProfileSelections::BuildRedirectedInIncognito()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kRedirectedToOriginal)
+              // TODO(crbug.com/40257657): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kRedirectedToOriginal)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kRedirectedToOriginal)
+              .Build()) {
   DependsOn(BookmarkModelFactory::GetInstance());
 }
 
-HistoryServiceFactory::~HistoryServiceFactory() {
-}
+HistoryServiceFactory::~HistoryServiceFactory() = default;
 
-KeyedService* HistoryServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+HistoryServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return BuildHistoryService(context).release();
+  return BuildHistoryService(context);
 }
 
 bool HistoryServiceFactory::ServiceIsNULLWhileTesting() const {

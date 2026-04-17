@@ -26,12 +26,7 @@ JVM* g_jvm;
 struct {
   const char* name;
   jclass clazz;
-} loaded_classes[] = {
-    {"org/webrtc/voiceengine/BuildInfo", nullptr},
-    {"org/webrtc/voiceengine/WebRtcAudioManager", nullptr},
-    {"org/webrtc/voiceengine/WebRtcAudioRecord", nullptr},
-    {"org/webrtc/voiceengine/WebRtcAudioTrack", nullptr},
-};
+} loaded_classes[] = {};
 
 // Android's FindClass() is trickier than usual because the app-specific
 // ClassLoader is not consulted when there is no app-specific frame on the

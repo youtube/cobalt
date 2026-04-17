@@ -72,18 +72,7 @@ SVGFELightElement::SVGFELightElement(const QualifiedName& tag_name,
       limiting_cone_angle_(MakeGarbageCollected<SVGAnimatedNumber>(
           this,
           svg_names::kLimitingConeAngleAttr,
-          0.0f)) {
-  AddToPropertyMap(azimuth_);
-  AddToPropertyMap(elevation_);
-  AddToPropertyMap(x_);
-  AddToPropertyMap(y_);
-  AddToPropertyMap(z_);
-  AddToPropertyMap(points_at_x_);
-  AddToPropertyMap(points_at_y_);
-  AddToPropertyMap(points_at_z_);
-  AddToPropertyMap(specular_exponent_);
-  AddToPropertyMap(limiting_cone_angle_);
-}
+          0.0f)) {}
 
 void SVGFELightElement::Trace(Visitor* visitor) const {
   visitor->Trace(azimuth_);
@@ -116,7 +105,7 @@ gfx::Point3F SVGFELightElement::PointsAt() const {
                       pointsAtZ()->CurrentValue()->Value());
 }
 
-absl::optional<bool> SVGFELightElement::SetLightSourceAttribute(
+std::optional<bool> SVGFELightElement::SetLightSourceAttribute(
     FELighting* lighting_effect,
     const QualifiedName& attr_name) const {
   LightSource* light_source = lighting_effect->GetLightSource();
@@ -143,7 +132,7 @@ absl::optional<bool> SVGFELightElement::SetLightSourceAttribute(
     return light_source->SetLimitingConeAngle(
         limitingConeAngle()->CurrentValue()->Value());
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 void SVGFELightElement::SvgAttributeChanged(
@@ -166,7 +155,6 @@ void SVGFELightElement::SvgAttributeChanged(
     if (!layout_object || !layout_object->IsSVGFilterPrimitive())
       return;
 
-    SVGElement::InvalidationGuard invalidation_guard(this);
     if (auto* diffuse = DynamicTo<SVGFEDiffuseLightingElement>(*parent))
       diffuse->LightElementAttributeChanged(this, attr_name);
     else if (auto* specular = DynamicTo<SVGFESpecularLightingElement>(*parent))
@@ -188,6 +176,48 @@ void SVGFELightElement::ChildrenChanged(const ChildrenChange& change) {
         MarkForLayoutAndParentResourceInvalidation(*layout_object);
     }
   }
+}
+
+SVGAnimatedPropertyBase* SVGFELightElement::PropertyFromAttribute(
+    const QualifiedName& attribute_name) const {
+  if (attribute_name == svg_names::kAzimuthAttr) {
+    return azimuth_.Get();
+  } else if (attribute_name == svg_names::kElevationAttr) {
+    return elevation_.Get();
+  } else if (attribute_name == svg_names::kXAttr) {
+    return x_.Get();
+  } else if (attribute_name == svg_names::kYAttr) {
+    return y_.Get();
+  } else if (attribute_name == svg_names::kZAttr) {
+    return z_.Get();
+  } else if (attribute_name == svg_names::kPointsAtXAttr) {
+    return points_at_x_.Get();
+  } else if (attribute_name == svg_names::kPointsAtYAttr) {
+    return points_at_y_.Get();
+  } else if (attribute_name == svg_names::kPointsAtZAttr) {
+    return points_at_z_.Get();
+  } else if (attribute_name == svg_names::kSpecularExponentAttr) {
+    return specular_exponent_.Get();
+  } else if (attribute_name == svg_names::kLimitingConeAngleAttr) {
+    return limiting_cone_angle_.Get();
+  } else {
+    return SVGElement::PropertyFromAttribute(attribute_name);
+  }
+}
+
+void SVGFELightElement::SynchronizeAllSVGAttributes() const {
+  SVGAnimatedPropertyBase* attrs[]{azimuth_.Get(),
+                                   elevation_.Get(),
+                                   x_.Get(),
+                                   y_.Get(),
+                                   z_.Get(),
+                                   points_at_x_.Get(),
+                                   points_at_y_.Get(),
+                                   points_at_z_.Get(),
+                                   specular_exponent_.Get(),
+                                   limiting_cone_angle_.Get()};
+  SynchronizeListOfSVGAttributes(attrs);
+  SVGElement::SynchronizeAllSVGAttributes();
 }
 
 }  // namespace blink

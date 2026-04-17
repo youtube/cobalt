@@ -9,6 +9,9 @@
 
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
+#include "base/containers/circular_deque.h"
+#include "base/memory/raw_ptr.h"
+#include "build/blink_buildflags.h"
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -16,14 +19,12 @@
 #elif BUILDFLAG(IS_APPLE)
 #include <mach/mach.h>
 
-#include <list>
 #include <memory>
 
+#include "base/apple/scoped_mach_port.h"
 #include "base/functional/callback_forward.h"
-#include "base/mac/scoped_mach_port.h"
 #include "base/memory/ref_counted.h"
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
-#include <list>
 #include <utility>
 
 #include "base/memory/ref_counted.h"
@@ -86,7 +87,7 @@ class BASE_EXPORT WaitableEvent {
 
   // Returns true if the event is in the signaled state, else false.  If this
   // is not a manual reset event, then this test will cause a reset.
-  bool IsSignaled();
+  bool IsSignaled() const;
 
   // Wait indefinitely for the event to be signaled. Wait's return "happens
   // after" |Signal| has completed. This means that it's safe for a
@@ -170,14 +171,18 @@ class BASE_EXPORT WaitableEvent {
  private:
   friend class WaitableEventWatcher;
 
-  // The platform specific portions of Signal and TimedWait (which do the actual
-  // signaling and waiting).
+  // The platform specific portions of Signal, TimedWait, and WaitMany (which do
+  // the actual signaling and waiting).
   void SignalImpl();
   bool TimedWaitImpl(TimeDelta wait_delta);
+  static size_t WaitManyImpl(WaitableEvent** waitables, size_t count);
 
 #if BUILDFLAG(IS_WIN)
   win::ScopedHandle handle_;
-#elif BUILDFLAG(IS_APPLE)
+#elif BUILDFLAG(IS_APPLE) && (!BUILDFLAG(IS_IOS) || !BUILDFLAG(USE_BLINK))
+  // iOS which supports blink must use the posix variant since opening
+  // mach_ports is prevented inside sandbox profiles.
+  //
   // Peeks the message queue named by |port| and returns true if a message
   // is present and false if not. If |dequeue| is true, the messsage will be
   // drained from the queue. If |dequeue| is false, the queue will only be
@@ -203,7 +208,7 @@ class BASE_EXPORT WaitableEvent {
     friend class RefCountedThreadSafe<ReceiveRight>;
     ~ReceiveRight();
 
-    mac::ScopedMachReceiveRight right_;
+    apple::ScopedMachReceiveRight right_;
   };
 
   const ResetPolicy policy_;
@@ -214,7 +219,7 @@ class BASE_EXPORT WaitableEvent {
   // The send right used to signal the event. This can be disposed of with
   // the event, unlike the receive right, since a deleted event cannot be
   // signaled.
-  mac::ScopedMachSendRight send_right_;
+  apple::ScopedMachSendRight send_right_;
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   // On Windows, you must not close a HANDLE which is currently being waited on.
   // The MSDN documentation says that the resulting behaviour is 'undefined'.
@@ -227,8 +232,8 @@ class BASE_EXPORT WaitableEvent {
   // so we have a kernel of the WaitableEvent, which is reference counted.
   // WaitableEventWatchers may then take a reference and thus match the Windows
   // behaviour.
-  struct WaitableEventKernel :
-      public RefCountedThreadSafe<WaitableEventKernel> {
+  struct WaitableEventKernel
+      : public RefCountedThreadSafe<WaitableEventKernel> {
    public:
     WaitableEventKernel(ResetPolicy reset_policy, InitialState initial_state);
 
@@ -237,7 +242,7 @@ class BASE_EXPORT WaitableEvent {
     base::Lock lock_;
     const bool manual_reset_;
     bool signaled_;
-    std::list<Waiter*> waiters_;
+    base::circular_deque<raw_ptr<Waiter, CtnExperimental>> waiters_;
 
    private:
     friend class RefCountedThreadSafe<WaitableEventKernel>;
@@ -252,7 +257,8 @@ class BASE_EXPORT WaitableEvent {
   // second element is the index of the WaitableEvent in the original,
   // unsorted, array.
   static size_t EnqueueMany(WaiterAndIndex* waitables,
-                            size_t count, Waiter* waiter);
+                            size_t count,
+                            Waiter* waiter);
 
   bool SignalAll();
   bool SignalOne();

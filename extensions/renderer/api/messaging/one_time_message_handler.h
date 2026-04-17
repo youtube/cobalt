@@ -8,11 +8,13 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "extensions/common/mojom/message_port.mojom.h"
 #include "extensions/renderer/bindings/api_binding_types.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "v8/include/v8-forward.h"
 
 namespace base {
@@ -24,7 +26,11 @@ class Arguments;
 }
 
 namespace extensions {
+
+namespace mojom {
 enum class ChannelType;
+}
+
 class NativeExtensionBindingsSystem;
 class ScriptContext;
 struct Message;
@@ -75,26 +81,40 @@ class OneTimeMessageHandler {
   // Returns true if the given context has a port with the specified id.
   bool HasPort(ScriptContext* script_context, const PortId& port_id);
 
-  // Initiates a flow to send a message from the given |script_context|. Returns
+  // Initiates a flow to send a message from the given `script_context`. Returns
   // the associated promise if this is a promise based request, otherwise
   // returns an empty promise.
-  v8::Local<v8::Promise> SendMessage(ScriptContext* script_context,
-                                     const PortId& new_port_id,
-                                     const MessageTarget& target_id,
-                                     ChannelType channel_type,
-                                     const Message& message,
-                                     binding::AsyncResponseType async_type,
-                                     v8::Local<v8::Function> response_callback);
+  v8::Local<v8::Promise> SendMessage(
+      ScriptContext* script_context,
+      const PortId& new_port_id,
+      const MessageTarget& target_id,
+      mojom::ChannelType channel_type,
+      const Message& message,
+      binding::AsyncResponseType async_type,
+      v8::Local<v8::Function> response_callback,
+      mojom::MessagePortHost* message_port_host,
+      mojo::PendingAssociatedRemote<mojom::MessagePort> message_port,
+      mojo::PendingAssociatedReceiver<mojom::MessagePortHost>
+          message_port_host_receiver);
 
-  // Adds a receiving port port to the given |script_context| in preparation
+  // Adds a receiving port port to the given `script_context` in preparation
   // for receiving a message to post to the onMessage event.
   void AddReceiver(ScriptContext* script_context,
                    const PortId& target_port_id,
                    v8::Local<v8::Object> sender,
                    const std::string& event_name);
 
+  void AddReceiverForTesting(
+      ScriptContext* script_context,
+      const PortId& target_port_id,
+      v8::Local<v8::Object> sender,
+      const std::string& event_name,
+      mojo::PendingAssociatedRemote<mojom::MessagePort>& message_port_remote,
+      mojo::PendingAssociatedReceiver<mojom::MessagePortHost>&
+          message_port_host_receiver);
+
   // Delivers a message to the port, either the event listener or in response
-  // to the sender, if one exists with the specified |target_port_id|. Returns
+  // to the sender, if one exists with the specified `target_port_id`. Returns
   // true if a message was delivered (i.e., an open channel existed), and false
   // otherwise.
   bool DeliverMessage(ScriptContext* script_context,
@@ -102,7 +122,7 @@ class OneTimeMessageHandler {
                       const PortId& target_port_id);
 
   // Disconnects the port in the context, if one exists with the specified
-  // |target_port_id|. Returns true if a port was disconnected (i.e., an open
+  // `target_port_id`. Returns true if a port was disconnected (i.e., an open
   // channel existed), and false otherwise.
   bool Disconnect(ScriptContext* script_context,
                   const PortId& port_id,
@@ -138,7 +158,7 @@ class OneTimeMessageHandler {
 
   // Triggered when the callback for replying is garbage collected. Used to
   // clean up data that was stored for the callback and for closing the
-  // associated message port. |raw_callback| is a raw pointer to the associated
+  // associated message port. `raw_callback` is a raw pointer to the associated
   // OneTimeMessageCallback, needed for finding and erasing it from the
   // OneTimeMessageContextData.
   void OnResponseCallbackCollected(ScriptContext* script_context,
@@ -149,10 +169,10 @@ class OneTimeMessageHandler {
   // listeners.
   void OnEventFired(const PortId& port_id,
                     v8::Local<v8::Context> context,
-                    absl::optional<base::Value> result);
+                    std::optional<base::Value> result);
 
   // The associated bindings system. Outlives this object.
-  NativeExtensionBindingsSystem* const bindings_system_;
+  const raw_ptr<NativeExtensionBindingsSystem> bindings_system_;
 
   base::WeakPtrFactory<OneTimeMessageHandler> weak_factory_{this};
 };

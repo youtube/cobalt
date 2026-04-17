@@ -4,7 +4,6 @@
     "android-x86"
   ],
   "targets": [
-    "content_shell",
     "cobalt:gn_all"
   ],
   "includes": [

@@ -175,7 +175,7 @@ Notification::Notification(ExecutionContext* context,
       listener_receiver_(this, context) {
   if (data_->show_trigger_timestamp.has_value()) {
     show_trigger_ = TimestampTrigger::Create(static_cast<DOMTimeStamp>(
-        data_->show_trigger_timestamp.value().ToJsTime()));
+        data_->show_trigger_timestamp.value().InMillisecondsFSinceUnixEpoch()));
   }
 }
 
@@ -292,7 +292,6 @@ String Notification::dir() const {
   }
 
   NOTREACHED();
-  return String();
 }
 
 String Notification::lang() const {
@@ -357,15 +356,15 @@ ScriptValue Notification::data(ScriptState* script_state) {
                      serialized_value->Deserialize(script_state->GetIsolate()));
 }
 
-Vector<v8::Local<v8::Value>> Notification::actions(
+v8::LocalVector<v8::Value> Notification::actions(
     ScriptState* script_state) const {
-  Vector<v8::Local<v8::Value>> result;
+  v8::LocalVector<v8::Value> result(script_state->GetIsolate());
   if (!data_->actions.has_value())
     return result;
 
   const Vector<mojom::blink::NotificationActionPtr>& actions =
       data_->actions.value();
-  result.Grow(actions.size());
+  result.resize(actions.size());
   for (wtf_size_t i = 0; i < actions.size(); ++i) {
     NotificationAction* action = NotificationAction::Create();
 
@@ -389,8 +388,7 @@ Vector<v8::Local<v8::Value>> Notification::actions(
     // returned in are expected to the frozen. This cannot be done with
     // WebIDL.
     result[i] = FreezeV8Object(
-        ToV8Traits<NotificationAction>::ToV8(script_state, action)
-            .ToLocalChecked(),
+        ToV8Traits<NotificationAction>::ToV8(script_state, action),
         script_state->GetIsolate());
   }
 
@@ -406,35 +404,33 @@ String Notification::scenario() const {
   }
 
   NOTREACHED();
-  return String();
 }
 
-String Notification::PermissionString(
+V8NotificationPermission::Enum Notification::PermissionToV8Enum(
     mojom::blink::PermissionStatus permission) {
   switch (permission) {
     case mojom::blink::PermissionStatus::GRANTED:
-      return "granted";
+      return V8NotificationPermission::Enum::kGranted;
     case mojom::blink::PermissionStatus::DENIED:
-      return "denied";
+      return V8NotificationPermission::Enum::kDenied;
     case mojom::blink::PermissionStatus::ASK:
-      return "default";
+      return V8NotificationPermission::Enum::kDefault;
   }
-
   NOTREACHED();
-  return "denied";
 }
 
-String Notification::permission(ExecutionContext* context) {
+V8NotificationPermission Notification::permission(ExecutionContext* context) {
   // Permission is always denied for insecure contexts. Skip the sync IPC call.
-  if (!context->IsSecureContext())
-    return PermissionString(mojom::blink::PermissionStatus::DENIED);
+  if (!context->IsSecureContext()) {
+    return V8NotificationPermission(V8NotificationPermission::Enum::kDenied);
+  }
 
   // If the current global object's browsing context is a prerendering browsing
   // context, then return "default".
   // https://wicg.github.io/nav-speculation/prerendering.html#patch-notifications
   if (auto* window = DynamicTo<LocalDOMWindow>(context)) {
     if (Document* document = window->document(); document->IsPrerendering()) {
-      return PermissionString(mojom::blink::PermissionStatus::ASK);
+      return V8NotificationPermission(V8NotificationPermission::Enum::kDefault);
     }
   }
 
@@ -453,14 +449,14 @@ String Notification::permission(ExecutionContext* context) {
       status = mojom::blink::PermissionStatus::DENIED;
   }
 
-  return PermissionString(status);
+  return V8NotificationPermission(PermissionToV8Enum(status));
 }
 
-ScriptPromise Notification::requestPermission(
+ScriptPromise<V8NotificationPermission> Notification::requestPermission(
     ScriptState* script_state,
     V8NotificationPermissionCallback* deprecated_callback) {
   if (!script_state->ContextIsValid())
-    return ScriptPromise();
+    return EmptyPromise();
 
   ExecutionContext* context = ExecutionContext::From(script_state);
 
@@ -528,7 +524,7 @@ void Notification::Trace(Visitor* visitor) const {
   visitor->Trace(prepare_show_timer_);
   visitor->Trace(loader_);
   visitor->Trace(listener_receiver_);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
 }
 

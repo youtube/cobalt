@@ -1351,6 +1351,58 @@ std::ostream &operator<<(std::ostream &os, PointParameter value)
 }
 
 template <>
+PolygonMode FromGLenum<PolygonMode>(GLenum from)
+{
+    switch (from)
+    {
+        case GL_POINT_NV:
+            return PolygonMode::Point;
+        case GL_LINE_NV:
+            return PolygonMode::Line;
+        case GL_FILL_NV:
+            return PolygonMode::Fill;
+        default:
+            return PolygonMode::InvalidEnum;
+    }
+}
+
+GLenum ToGLenum(PolygonMode from)
+{
+    switch (from)
+    {
+        case PolygonMode::Point:
+            return GL_POINT_NV;
+        case PolygonMode::Line:
+            return GL_LINE_NV;
+        case PolygonMode::Fill:
+            return GL_FILL_NV;
+        default:
+            UNREACHABLE();
+            return 0;
+    }
+}
+
+std::ostream &operator<<(std::ostream &os, PolygonMode value)
+{
+    switch (value)
+    {
+        case PolygonMode::Point:
+            os << "GL_POINT_NV";
+            break;
+        case PolygonMode::Line:
+            os << "GL_LINE_NV";
+            break;
+        case PolygonMode::Fill:
+            os << "GL_FILL_NV";
+            break;
+        default:
+            os << "GL_INVALID_ENUM";
+            break;
+    }
+    return os;
+}
+
+template <>
 ProvokingVertexConvention FromGLenum<ProvokingVertexConvention>(GLenum from)
 {
     switch (from)
@@ -2171,7 +2223,7 @@ TextureTarget FromGLenum<TextureTarget>(GLenum from)
             return TextureTarget::_2DArray;
         case GL_TEXTURE_2D_MULTISAMPLE:
             return TextureTarget::_2DMultisample;
-        case GL_TEXTURE_2D_MULTISAMPLE_ARRAY_OES:
+        case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
             return TextureTarget::_2DMultisampleArray;
         case GL_TEXTURE_3D:
             return TextureTarget::_3D;
@@ -2213,7 +2265,7 @@ GLenum ToGLenum(TextureTarget from)
         case TextureTarget::_2DMultisample:
             return GL_TEXTURE_2D_MULTISAMPLE;
         case TextureTarget::_2DMultisampleArray:
-            return GL_TEXTURE_2D_MULTISAMPLE_ARRAY_OES;
+            return GL_TEXTURE_2D_MULTISAMPLE_ARRAY;
         case TextureTarget::_3D:
             return GL_TEXTURE_3D;
         case TextureTarget::External:
@@ -2258,7 +2310,7 @@ std::ostream &operator<<(std::ostream &os, TextureTarget value)
             os << "GL_TEXTURE_2D_MULTISAMPLE";
             break;
         case TextureTarget::_2DMultisampleArray:
-            os << "GL_TEXTURE_2D_MULTISAMPLE_ARRAY_OES";
+            os << "GL_TEXTURE_2D_MULTISAMPLE_ARRAY";
             break;
         case TextureTarget::_3D:
             os << "GL_TEXTURE_3D";
@@ -2314,7 +2366,7 @@ TextureType FromGLenum<TextureType>(GLenum from)
             return TextureType::_2DArray;
         case GL_TEXTURE_2D_MULTISAMPLE:
             return TextureType::_2DMultisample;
-        case GL_TEXTURE_2D_MULTISAMPLE_ARRAY_OES:
+        case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
             return TextureType::_2DMultisampleArray;
         case GL_TEXTURE_3D:
             return TextureType::_3D;
@@ -2346,7 +2398,7 @@ GLenum ToGLenum(TextureType from)
         case TextureType::_2DMultisample:
             return GL_TEXTURE_2D_MULTISAMPLE;
         case TextureType::_2DMultisampleArray:
-            return GL_TEXTURE_2D_MULTISAMPLE_ARRAY_OES;
+            return GL_TEXTURE_2D_MULTISAMPLE_ARRAY;
         case TextureType::_3D:
             return GL_TEXTURE_3D;
         case TextureType::External:
@@ -2381,7 +2433,7 @@ std::ostream &operator<<(std::ostream &os, TextureType value)
             os << "GL_TEXTURE_2D_MULTISAMPLE";
             break;
         case TextureType::_2DMultisampleArray:
-            os << "GL_TEXTURE_2D_MULTISAMPLE_ARRAY_OES";
+            os << "GL_TEXTURE_2D_MULTISAMPLE_ARRAY";
             break;
         case TextureType::_3D:
             os << "GL_TEXTURE_3D";
@@ -2403,6 +2455,51 @@ std::ostream &operator<<(std::ostream &os, TextureType value)
             break;
         case TextureType::Buffer:
             os << "GL_TEXTURE_BUFFER";
+            break;
+        default:
+            os << "GL_INVALID_ENUM";
+            break;
+    }
+    return os;
+}
+
+template <>
+TilingMode FromGLenum<TilingMode>(GLenum from)
+{
+    switch (from)
+    {
+        case GL_OPTIMAL_TILING_EXT:
+            return TilingMode::Optimal;
+        case GL_LINEAR_TILING_EXT:
+            return TilingMode::Linear;
+        default:
+            return TilingMode::InvalidEnum;
+    }
+}
+
+GLenum ToGLenum(TilingMode from)
+{
+    switch (from)
+    {
+        case TilingMode::Optimal:
+            return GL_OPTIMAL_TILING_EXT;
+        case TilingMode::Linear:
+            return GL_LINEAR_TILING_EXT;
+        default:
+            UNREACHABLE();
+            return 0;
+    }
+}
+
+std::ostream &operator<<(std::ostream &os, TilingMode value)
+{
+    switch (value)
+    {
+        case TilingMode::Optimal:
+            os << "GL_OPTIMAL_TILING_EXT";
+            break;
+        case TilingMode::Linear:
+            os << "GL_LINEAR_TILING_EXT";
             break;
         default:
             os << "GL_INVALID_ENUM";

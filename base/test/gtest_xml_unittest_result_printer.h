@@ -7,6 +7,9 @@
 
 #include <stdio.h>
 
+#include <optional>
+#include <string_view>
+
 #include "base/memory/raw_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -38,6 +41,12 @@ class XmlUnitTestResultPrinter : public testing::EmptyTestEventListener {
   // explanation and usage.
   void AddTag(const std::string& name, const std::string& value);
 
+  // Add SubTestResult in the GTest XML output.
+  // See gtest_sub_test_results.h for more information.
+  void AddSubTestResult(std::string_view name,
+                        testing::TimeInMillis elapsed_time,
+                        std::optional<std::string_view> failure_message);
+
   // Must be called before adding as a listener. Returns true on success.
   [[nodiscard]] bool Initialize(const FilePath& output_file_path);
 
@@ -49,10 +58,10 @@ class XmlUnitTestResultPrinter : public testing::EmptyTestEventListener {
 
  private:
   // testing::EmptyTestEventListener:
-  void OnTestCaseStart(const testing::TestCase& test_case) override;
+  void OnTestSuiteStart(const testing::TestSuite& test_suite) override;
   void OnTestStart(const testing::TestInfo& test_info) override;
   void OnTestEnd(const testing::TestInfo& test_info) override;
-  void OnTestCaseEnd(const testing::TestCase& test_case) override;
+  void OnTestSuiteEnd(const testing::TestSuite& test_suite) override;
 
   void WriteTestPartResult(const char* file,
                            int line,
@@ -61,8 +70,12 @@ class XmlUnitTestResultPrinter : public testing::EmptyTestEventListener {
                            const std::string& message);
 
   static XmlUnitTestResultPrinter* instance_;
-  raw_ptr<FILE> output_file_{nullptr};
-  bool open_failed_{false};
+  raw_ptr<FILE> output_file_ = nullptr;
+  bool open_failed_ = false;
+
+  // Flag that's true iff a test has been started but not yet ended.
+  bool test_running_ = false;
+
   ThreadChecker thread_checker_;
 };
 

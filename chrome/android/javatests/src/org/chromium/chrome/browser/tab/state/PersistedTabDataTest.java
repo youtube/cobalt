@@ -4,88 +4,130 @@
 
 package org.chromium.chrome.browser.tab.state;
 
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import androidx.test.annotation.UiThreadTest;
 import androidx.test.filters.SmallTest;
 
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.test.BaseJUnit4ClassRunner;
-import org.chromium.base.test.UiThreadTest;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CallbackHelper;
-import org.chromium.base.test.util.DisabledTest;
-import org.chromium.base.test.util.DoNotRevive;
+import org.chromium.chrome.browser.price_tracking.PriceTrackingFeatures;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.MockTab;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.tab.TabImpl;
 
 import java.nio.ByteBuffer;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
-/**
- * Test relating to {@link PersistedTabData}
- */
+/** Test relating to {@link PersistedTabData} */
 @RunWith(BaseJUnit4ClassRunner.class)
 @Batch(Batch.UNIT_TESTS)
 public class PersistedTabDataTest {
     private static final int INITIAL_VALUE = 42;
     private static final int CHANGED_VALUE = 51;
 
-    @Mock
-    ShoppingPersistedTabData mShoppingPersistedTabDataMock;
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Mock ShoppingPersistedTabData mShoppingPersistedTabDataMock;
+    @Mock Profile mProfile;
+
+    @Mock private PersistedTabData.Natives mPersistedTabDataJni;
+
+    @Mock Tab mTab;
 
     @Before
     public void setUp() throws Exception {
-        // TODO(crbug.com/1337102): Remove runOnUiThreadBlocking call after code refactoring/cleanup
+        // TODO(crbug.com/40229155): Remove runOnUiThreadBlocking call after code
+        // refactoring/cleanup
         // ShoppingPersistedTabData must be mocked on the ui thread, otherwise a thread assert will
         // fail. An ObserverList is created when creating the mock. The same ObserverList is used
         // later in the test.
-        ThreadUtils.runOnUiThreadBlocking(() -> { MockitoAnnotations.initMocks(this); });
+        ThreadUtils.runOnUiThreadBlocking(() -> {});
+
+        PriceTrackingFeatures.setPriceAnnotationsEnabledForTesting(false);
+
+        PersistedTabDataJni.setInstanceForTesting(mPersistedTabDataJni);
     }
 
     @SmallTest
-    @UiThreadTest
     @Test
-    @DisabledTest(message = "https://crbug.com/1292239")
-    @DoNotRevive(reason = "Causes other tests in batch to fail, see crbug.com/1292239")
-    // TODO(crbug.com/1292239): Unbatch this and reenable.
-    public void testCacheCallbacks() throws InterruptedException {
-        Tab tab = MockTab.createAndInitialize(1, false);
-        tab.setIsTabSaveEnabled(true);
-        MockPersistedTabData mockPersistedTabData = new MockPersistedTabData(tab, INITIAL_VALUE);
-        registerObserverSupplier(mockPersistedTabData);
-        mockPersistedTabData.save();
-        // 1
-        MockPersistedTabData.from(tab, (res) -> {
-            Assert.assertEquals(INITIAL_VALUE, res.getField());
-            registerObserverSupplier(tab.getUserDataHost().getUserData(MockPersistedTabData.class));
-            tab.getUserDataHost().getUserData(MockPersistedTabData.class).setField(CHANGED_VALUE);
-            // Caching callbacks means 2) shouldn't overwrite CHANGED_VALUE
-            // back to INITIAL_VALUE in the callback.
-            MockPersistedTabData.from(
-                    tab, (ares) -> { Assert.assertEquals(CHANGED_VALUE, ares.getField()); });
-        });
-        // 2
-        MockPersistedTabData.from(tab, (res) -> {
-            Assert.assertEquals(CHANGED_VALUE, res.getField());
-            mockPersistedTabData.delete();
-        });
+    public void testCacheCallbacks()
+            throws InterruptedException, TimeoutException, ExecutionException {
+        PersistedTabDataConfiguration.setUseTestConfig(true);
+        Tab tab =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> {
+                            Tab t = MockTab.createAndInitialize(1, mProfile);
+                            return t;
+                        });
+        MockPersistedTabData mockPersistedTabData =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> {
+                            MockPersistedTabData mptd =
+                                    new MockPersistedTabData(tab, INITIAL_VALUE);
+                            registerObserverSupplier(mptd);
+                            mptd.save();
+                            return mptd;
+                        });
+
+        CallbackHelper helper = new CallbackHelper();
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    // 1
+                    MockPersistedTabData.from(
+                            tab,
+                            (res) -> {
+                                Assert.assertEquals(INITIAL_VALUE, res.getField());
+                                registerObserverSupplier(
+                                        tab.getUserDataHost()
+                                                .getUserData(MockPersistedTabData.class));
+                                tab.getUserDataHost()
+                                        .getUserData(MockPersistedTabData.class)
+                                        .setField(CHANGED_VALUE);
+                                // Caching callbacks means 2) shouldn't overwrite CHANGED_VALUE
+                                // back to INITIAL_VALUE in the callback.
+                                MockPersistedTabData.from(
+                                        tab,
+                                        (ares) -> {
+                                            Assert.assertEquals(CHANGED_VALUE, ares.getField());
+                                            helper.notifyCalled();
+                                        });
+                            });
+                });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    // 2
+                    MockPersistedTabData.from(
+                            tab,
+                            (res) -> {
+                                Assert.assertEquals(CHANGED_VALUE, res.getField());
+                                mockPersistedTabData.delete();
+                                helper.notifyCalled();
+                            });
+                });
+        helper.waitForCallback(0, 2);
+        PersistedTabDataConfiguration.setUseTestConfig(false);
     }
 
     @SmallTest
     @UiThreadTest
     @Test
     public void testSerializeAndLogOutOfMemoryError_Get() {
-        Tab tab = MockTab.createAndInitialize(1, false);
+        Tab tab = MockTab.createAndInitialize(1, mProfile);
         OutOfMemoryMockPersistedTabDataGet outOfMemoryMockPersistedTabData =
                 new OutOfMemoryMockPersistedTabDataGet(tab);
         Assert.assertNull(outOfMemoryMockPersistedTabData.getOomAndMetricsWrapper().get());
@@ -95,7 +137,7 @@ public class PersistedTabDataTest {
     @UiThreadTest
     @Test
     public void testSerializeAndLogOutOfMemoryError() {
-        Tab tab = MockTab.createAndInitialize(1, false);
+        Tab tab = MockTab.createAndInitialize(1, mProfile);
         OutOfMemoryMockPersistedTabData outOfMemoryMockPersistedTabData =
                 new OutOfMemoryMockPersistedTabData(tab);
         Assert.assertNull(outOfMemoryMockPersistedTabData.getOomAndMetricsWrapper().get());
@@ -107,13 +149,14 @@ public class PersistedTabDataTest {
     public void testSerializeSupplierUiBackgroundThread() throws TimeoutException {
         CallbackHelper helper = new CallbackHelper();
         int count = helper.getCallCount();
-        ThreadUtils.runOnUiThreadBlocking(() -> {
-            Tab tab = MockTab.createAndInitialize(1, false);
-            ThreadVerifierMockPersistedTabData threadVerifierMockPersistedTabData =
-                    new ThreadVerifierMockPersistedTabData(tab);
-            threadVerifierMockPersistedTabData.save();
-            helper.notifyCalled();
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    Tab tab = MockTab.createAndInitialize(1, mProfile);
+                    ThreadVerifierMockPersistedTabData threadVerifierMockPersistedTabData =
+                            new ThreadVerifierMockPersistedTabData(tab);
+                    threadVerifierMockPersistedTabData.save();
+                    helper.notifyCalled();
+                });
         helper.waitForCallback(count);
     }
 
@@ -121,18 +164,82 @@ public class PersistedTabDataTest {
     @UiThreadTest
     @Test
     public void testOnTabClose() throws TimeoutException {
-        TabImpl tab = (TabImpl) MockTab.createAndInitialize(1, false);
-        tab.setIsTabSaveEnabled(true);
-        tab.getUserDataHost().setUserData(
-                ShoppingPersistedTabData.class, mShoppingPersistedTabDataMock);
+        Tab tab = MockTab.createAndInitialize(1, mProfile);
+        tab.getUserDataHost()
+                .setUserData(ShoppingPersistedTabData.class, mShoppingPersistedTabDataMock);
         PersistedTabData.onTabClose(tab);
-        Assert.assertFalse(tab.getIsTabSaveEnabledSupplierForTesting().get());
         verify(mShoppingPersistedTabDataMock, times(1)).disableSaving();
+    }
+
+    @SmallTest
+    @Test
+    public void testUninitializedTab() throws TimeoutException {
+        doReturn(false).when(mTab).isInitialized();
+        doReturn(false).when(mTab).isDestroyed();
+        doReturn(false).when(mTab).isCustomTab();
+        CallbackHelper helper = new CallbackHelper();
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    PersistedTabData.from(
+                            mTab,
+                            null,
+                            MockPersistedTabData.class,
+                            (res) -> {
+                                Assert.assertNull(res);
+                                helper.notifyCalled();
+                            });
+                });
+        helper.waitForCallback(0);
+    }
+
+    @SmallTest
+    @Test
+    public void testDestroyedTab() throws TimeoutException {
+        doReturn(true).when(mTab).isInitialized();
+        doReturn(true).when(mTab).isDestroyed();
+        doReturn(false).when(mTab).isCustomTab();
+        CallbackHelper helper = new CallbackHelper();
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    PersistedTabData.from(
+                            mTab,
+                            null,
+                            MockPersistedTabData.class,
+                            (res) -> {
+                                Assert.assertNull(res);
+                                helper.notifyCalled();
+                            });
+                });
+        helper.waitForCallback(0);
+    }
+
+    @SmallTest
+    @Test
+    public void testCustomTab() throws TimeoutException {
+        doReturn(true).when(mTab).isInitialized();
+        doReturn(false).when(mTab).isDestroyed();
+        doReturn(true).when(mTab).isCustomTab();
+        CallbackHelper helper = new CallbackHelper();
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    PersistedTabData.from(
+                            mTab,
+                            null,
+                            MockPersistedTabData.class,
+                            (res) -> {
+                                Assert.assertNull(res);
+                                helper.notifyCalled();
+                            });
+                });
+        helper.waitForCallback(0);
     }
 
     static class ThreadVerifierMockPersistedTabData extends MockPersistedTabData {
         ThreadVerifierMockPersistedTabData(Tab tab) {
-            super(tab, 0 /** unused in ThreadVerifierMockPersistedTabData */);
+            super(
+                    tab, 0
+                    /* unused in ThreadVerifierMockPersistedTabData */
+                    );
         }
 
         @Override
@@ -152,8 +259,12 @@ public class PersistedTabDataTest {
 
     static class OutOfMemoryMockPersistedTabDataGet extends MockPersistedTabData {
         OutOfMemoryMockPersistedTabDataGet(Tab tab) {
-            super(tab, 0 /** unused in OutOfMemoryMockPersistedTabData */);
+            super(
+                    tab, 0
+                    /* unused in OutOfMemoryMockPersistedTabData */
+                    );
         }
+
         @Override
         public Serializer<ByteBuffer> getSerializer() {
             return () -> {
@@ -165,8 +276,12 @@ public class PersistedTabDataTest {
 
     static class OutOfMemoryMockPersistedTabData extends MockPersistedTabData {
         OutOfMemoryMockPersistedTabData(Tab tab) {
-            super(tab, 0 /** unused in OutOfMemoryMockPersistedTabData */);
+            super(
+                    tab, 0
+                    /* unused in OutOfMemoryMockPersistedTabData */
+                    );
         }
+
         @Override
         public Serializer<ByteBuffer> getSerializer() {
             // OutOfMemoryError thrown on getSerializer

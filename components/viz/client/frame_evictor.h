@@ -13,12 +13,27 @@
 
 namespace viz {
 
-class FrameEvictorClient {
+class VIZ_CLIENT_EXPORT FrameEvictorClient {
  public:
+  struct VIZ_CLIENT_EXPORT EvictIds {
+    EvictIds();
+    ~EvictIds();
+
+    EvictIds(const EvictIds&) = delete;
+    EvictIds& operator=(const EvictIds&) = delete;
+
+    EvictIds(EvictIds&& other);
+    EvictIds& operator=(EvictIds&& other);
+
+    // `embedded_ids` contains a list of SurfaceIds embedded by the UI
+    // compositor.
+    std::vector<SurfaceId> embedded_ids;
+  };
+
   virtual ~FrameEvictorClient() = default;
   virtual void EvictDelegatedFrame(
       const std::vector<SurfaceId>& surface_ids) = 0;
-  virtual std::vector<SurfaceId> CollectSurfaceIdsForEviction() const = 0;
+  virtual EvictIds CollectSurfaceIdsForEviction() const = 0;
   virtual SurfaceId GetCurrentSurfaceId() const = 0;
   virtual SurfaceId GetPreNavigationSurfaceId() const = 0;
 };
@@ -49,7 +64,7 @@ class VIZ_CLIENT_EXPORT FrameEvictor : public FrameEvictionManagerClient {
 
   bool visible() const { return visible_; }
 
-  // Return the collection of SurfaceIds that should be evicted.
+  // Returns an ordered collection of `SurfaceIds` that should be evicted.
   std::vector<SurfaceId> CollectSurfaceIdsForEviction() const;
 
  private:

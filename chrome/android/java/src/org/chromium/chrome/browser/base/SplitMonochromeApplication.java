@@ -8,8 +8,8 @@ import android.content.Context;
 
 import org.chromium.android_webview.nonembedded.WebViewApkApplication;
 import org.chromium.base.library_loader.LibraryProcessType;
+import org.chromium.base.version_info.VersionInfo;
 import org.chromium.build.annotations.IdentifierNameString;
-import org.chromium.components.version_info.VersionInfo;
 import org.chromium.content_public.browser.ChildProcessCreationParams;
 
 /**
@@ -17,8 +17,9 @@ import org.chromium.content_public.browser.ChildProcessCreationParams;
  * SplitChromeApplication} for more info.
  */
 public class SplitMonochromeApplication extends SplitChromeApplication {
-    @IdentifierNameString
-    private static String sImplClassName = "org.chromium.chrome.browser.MonochromeApplicationImpl";
+    @SuppressWarnings("FieldCanBeFinal") // @IdentifierNameString requires non-final
+    private static @IdentifierNameString String sImplClassName =
+            "org.chromium.chrome.browser.MonochromeApplicationImpl";
 
     private static class NonBrowserMonochromeApplication extends Impl {
         @Override
@@ -35,10 +36,18 @@ public class SplitMonochromeApplication extends SplitChromeApplication {
 
     public SplitMonochromeApplication() {
         super(sImplClassName);
+        // Ensure that we don't try to load the native library until after attachBaseContext, since
+        // Monochrome attempts to call loadWebViewNativeLibraryFromPackage, which will fail until
+        // ActivityThread has an application set on it, which happens after attachBaseContext
+        // finishes. See crbug.com/390730928.
+        mPreloadLibraryAttachBaseContext = false;
     }
 
     @Override
     public void attachBaseContext(Context context) {
+        // Preloader has to happen first since we may load the native library in the super's
+        // attachBaseContext.
+        WebViewApkApplication.maybeSetPreloader();
         super.attachBaseContext(context);
         initializeMonochromeProcessCommon(getPackageName());
     }
@@ -57,9 +66,15 @@ public class SplitMonochromeApplication extends SplitChromeApplication {
         // and are external, and will fail to bind otherwise.
         boolean bindToCaller = false;
         boolean ignoreVisibilityForImportance = false;
-        ChildProcessCreationParams.set(packageName, null /* privilegedServicesName */, packageName,
-                null /* sandboxedServicesName */, true /* isExternalService */,
-                LibraryProcessType.PROCESS_CHILD, bindToCaller, ignoreVisibilityForImportance);
+        ChildProcessCreationParams.set(
+                packageName,
+                /* privilegedServicesName= */ null,
+                packageName,
+                /* sandboxedServicesName= */ null,
+                /* isExternalSandboxedService= */ true,
+                LibraryProcessType.PROCESS_CHILD,
+                bindToCaller,
+                ignoreVisibilityForImportance);
     }
 
     @Override

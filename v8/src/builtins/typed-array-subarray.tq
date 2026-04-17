@@ -5,15 +5,15 @@
 namespace typed_array {
 // ES %TypedArray%.prototype.subarray
 transitioning javascript builtin TypedArrayPrototypeSubArray(
-    js-implicit context: NativeContext,
-    receiver: JSAny)(...arguments): JSTypedArray {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): JSTypedArray {
   const methodName: constexpr string = '%TypedArray%.prototype.subarray';
 
   // 1. Let O be the this value.
   // 2. Perform ? RequireInternalSlot(O, [[TypedArrayName]]).
   const source = Cast<JSTypedArray>(receiver)
       otherwise ThrowTypeError(
-      MessageTemplate::kIncompatibleMethodReceiver, methodName);
+      MessageTemplate::kIncompatibleMethodReceiver, methodName, receiver);
 
   // 3. Assert: O has a [[ViewedArrayBuffer]] internal slot.
   // 4. Let buffer be O.[[ViewedArrayBuffer]].
@@ -73,6 +73,8 @@ transitioning javascript builtin TypedArrayPrototypeSubArray(
   const srcByteOffset: uintptr = source.byte_offset;
 
   // 17. Let beginByteOffset be srcByteOffset + beginIndex × elementSize.
+  // The subarray can only be too big if the API limits the size of typed
+  // arrays, but doesn't put a similar limit on the size of wasm byte arrays.
   const beginByteOffset =
       srcByteOffset + elementsInfo.CalculateByteLength(begin)
       otherwise ThrowRangeError(MessageTemplate::kInvalidArrayBufferLength);

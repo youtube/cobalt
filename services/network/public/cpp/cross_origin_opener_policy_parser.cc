@@ -4,8 +4,9 @@
 
 #include "services/network/public/cpp/cross_origin_opener_policy_parser.h"
 
-#include "base/ranges/algorithm.h"
-#include "base/strings/string_piece.h"
+#include <algorithm>
+#include <string_view>
+
 #include "base/strings/string_util.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/structured_headers.h"
@@ -22,18 +23,18 @@ constexpr char kCrossOriginOpenerPolicyHeaderReportOnly[] =
     "Cross-Origin-Opener-Policy-Report-Only";
 constexpr char kSameOrigin[] = "same-origin";
 constexpr char kSameOriginAllowPopups[] = "same-origin-allow-popups";
-constexpr char kRestrictProperties[] = "restrict-properties";
 constexpr char kUnsafeNone[] = "unsafe-none";
 constexpr char kReportTo[] = "report-to";
+constexpr char kNoopenerAllowPopups[] = "noopener-allow-popups";
 
 // Fills |value|, |endpoint| and an optional |soap_by_default_value| with
 // parsed values from |header|.
 // Note: if |header| is invalid, |value|, |soap_by_default_value| and
 // |endpoint| will not be modified.
-void ParseHeader(base::StringPiece header_value,
+void ParseHeader(std::string_view header_value,
                  mojom::CrossOriginOpenerPolicyValue* value,
                  mojom::CrossOriginOpenerPolicyValue* soap_by_default_value,
-                 absl::optional<std::string>* endpoint) {
+                 std::optional<std::string>* endpoint) {
   DCHECK(value);
   DCHECK(endpoint);
   using Item = net::structured_headers::Item;
@@ -54,14 +55,6 @@ void ParseHeader(base::StringPiece header_value,
             mojom::CrossOriginOpenerPolicyValue::kSameOriginAllowPopups;
       }
     }
-    if (base::FeatureList::IsEnabled(features::kCoopRestrictProperties) &&
-        policy_item == kRestrictProperties) {
-      *value = mojom::CrossOriginOpenerPolicyValue::kRestrictProperties;
-      if (soap_by_default_value) {
-        *soap_by_default_value =
-            mojom::CrossOriginOpenerPolicyValue::kRestrictProperties;
-      }
-    }
     if (policy_item == kUnsafeNone) {
       *value = mojom::CrossOriginOpenerPolicyValue::kUnsafeNone;
       if (soap_by_default_value) {
@@ -69,8 +62,16 @@ void ParseHeader(base::StringPiece header_value,
             mojom::CrossOriginOpenerPolicyValue::kUnsafeNone;
       }
     }
-    auto it = base::ranges::find(item->params, kReportTo,
-                                 &std::pair<std::string, Item>::first);
+    if ((policy_item == kNoopenerAllowPopups) &&
+        base::FeatureList::IsEnabled(features::kCoopNoopenerAllowPopups)) {
+      *value = mojom::CrossOriginOpenerPolicyValue::kNoopenerAllowPopups;
+      if (soap_by_default_value) {
+        *soap_by_default_value =
+            mojom::CrossOriginOpenerPolicyValue::kNoopenerAllowPopups;
+      }
+    }
+    auto it = std::ranges::find(item->params, kReportTo,
+                                &std::pair<std::string, Item>::first);
     if (it != item->params.end() && it->second.is_string()) {
       *endpoint = it->second.GetString();
     }
@@ -90,12 +91,10 @@ CrossOriginOpenerPolicy ParseCrossOriginOpenerPolicy(
   coop.soap_by_default_value =
       mojom::CrossOriginOpenerPolicyValue::kSameOriginAllowPopups;
 
-  std::string header_value;
-
   // Parse Cross-Origin-Opener-Policy:
-  if (headers.GetNormalizedHeader(kCrossOriginOpenerPolicyHeader,
-                                  &header_value)) {
-    ParseHeader(header_value, &coop.value, &coop.soap_by_default_value,
+  if (std::optional<std::string> header_value =
+          headers.GetNormalizedHeader(kCrossOriginOpenerPolicyHeader)) {
+    ParseHeader(*header_value, &coop.value, &coop.soap_by_default_value,
                 &coop.reporting_endpoint);
   }
 
@@ -105,9 +104,9 @@ CrossOriginOpenerPolicy ParseCrossOriginOpenerPolicy(
   }
 
   // Parse Cross-Origin-Opener-Policy-Report-Only:
-  if (headers.GetNormalizedHeader(kCrossOriginOpenerPolicyHeaderReportOnly,
-                                  &header_value)) {
-    ParseHeader(header_value, &coop.report_only_value, nullptr,
+  if (std::optional<std::string> header_value = headers.GetNormalizedHeader(
+          kCrossOriginOpenerPolicyHeaderReportOnly)) {
+    ParseHeader(*header_value, &coop.report_only_value, nullptr,
                 &coop.report_only_reporting_endpoint);
   }
 

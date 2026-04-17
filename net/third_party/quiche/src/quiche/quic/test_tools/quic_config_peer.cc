@@ -4,6 +4,8 @@
 
 #include "quiche/quic/test_tools/quic_config_peer.h"
 
+#include <utility>
+
 #include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_connection_id.h"
 
@@ -95,7 +97,7 @@ void QuicConfigPeer::SetReceivedMaxPacketSize(QuicConfig* config,
 // static
 void QuicConfigPeer::SetReceivedMinAckDelayMs(QuicConfig* config,
                                               uint32_t min_ack_delay_ms) {
-  config->min_ack_delay_ms_.SetReceivedValue(min_ack_delay_ms);
+  config->min_ack_delay_ms_draft10_.SetReceivedValue(min_ack_delay_ms);
 }
 
 // static

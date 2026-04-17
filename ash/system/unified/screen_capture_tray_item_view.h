@@ -8,12 +8,14 @@
 #include <map>
 #include <string>
 
-#include "ash/multi_capture/multi_capture_service_client.h"
+#include "ash/multi_capture/multi_capture_service.h"
 #include "ash/system/tray/tray_item_view.h"
 #include "base/containers/fixed_flat_set.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 
 namespace url {
 class Origin;
@@ -25,9 +27,12 @@ namespace ash {
 // screen capturing.
 class ASH_EXPORT ScreenCaptureTrayItemView
     : public TrayItemView,
-      public MultiCaptureServiceClient::Observer {
+      public MultiCaptureService::Observer {
+  METADATA_HEADER(ScreenCaptureTrayItemView, TrayItemView)
+
  public:
   struct ScreenCaptureTrayItemMetadata {
+    ScreenCaptureTrayItemMetadata();
     explicit ScreenCaptureTrayItemMetadata(base::TimeTicks time_created);
     ScreenCaptureTrayItemMetadata(ScreenCaptureTrayItemMetadata&& metadata);
     ScreenCaptureTrayItemMetadata& operator=(
@@ -53,18 +58,21 @@ class ASH_EXPORT ScreenCaptureTrayItemView
   ~ScreenCaptureTrayItemView() override;
 
   // views::View:
-  const char* GetClassName() const override;
   views::View* GetTooltipHandlerForPoint(const gfx::Point& point) override;
-  std::u16string GetTooltipText(const gfx::Point& point) const override;
 
   // TrayItemView:
   void HandleLocaleChange() override {}
+  void UpdateLabelOrImageViewColor(bool active) override;
 
-  // MultiCaptureServiceClient::Observer:
+  // MultiCaptureService::Observer:
   void MultiCaptureStarted(const std::string& label,
                            const url::Origin& origin) override;
+  void MultiCaptureStartedFromApp(const std::string& label,
+                                  const std::string& app_id,
+                                  const std::string& app_short_name,
+                                  const url::Origin& app_origin) override;
   void MultiCaptureStopped(const std::string& label) override;
-  void MultiCaptureServiceClientDestroyed() override;
+  void MultiCaptureServiceDestroyed() override;
 
  protected:
   virtual void Refresh();
@@ -78,12 +86,17 @@ class ASH_EXPORT ScreenCaptureTrayItemView
   FRIEND_TEST_ALL_PREFIXES(
       ScreenCaptureTrayItemViewTest,
       MultiOriginCaptureStartedAndEarlyStoppedExpectedDelayedStoppedCallback);
+  FRIEND_TEST_ALL_PREFIXES(
+      ScreenCaptureTrayItemViewTest,
+      MultiOriginCaptureStartedNotificationSkipAllowlistedMixedOrigins);
+  FRIEND_TEST_ALL_PREFIXES(
+      ScreenCaptureTrayItemViewTest,
+      MultiOriginCaptureStartedNotificationSkipAllowlistedOneOrigin);
 
   std::map<std::string, ScreenCaptureTrayItemMetadata> requests_;
 
-  base::ScopedObservation<MultiCaptureServiceClient,
-                          MultiCaptureServiceClient::Observer>
-      multi_capture_service_client_observation_{this};
+  base::ScopedObservation<MultiCaptureService, MultiCaptureService::Observer>
+      multi_capture_observation_{this};
 
   base::WeakPtrFactory<ScreenCaptureTrayItemView> weak_ptr_factory_{this};
 };

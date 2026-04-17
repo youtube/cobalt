@@ -37,8 +37,8 @@ class ForwardTsnSupportedParameter
 
   ForwardTsnSupportedParameter() {}
 
-  static absl::optional<ForwardTsnSupportedParameter> Parse(
-      rtc::ArrayView<const uint8_t> data);
+  static std::optional<ForwardTsnSupportedParameter> Parse(
+      webrtc::ArrayView<const uint8_t> data);
 
   void SerializeTo(std::vector<uint8_t>& out) const override;
   std::string ToString() const override;

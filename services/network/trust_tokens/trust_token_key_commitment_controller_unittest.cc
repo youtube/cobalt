@@ -43,7 +43,7 @@ class FixedKeyCommitmentParser
     : public TrustTokenKeyCommitmentController::Parser {
  public:
   mojom::TrustTokenKeyCommitmentResultPtr Parse(
-      base::StringPiece response_body) override {
+      std::string_view response_body) override {
     return DeterministicallyReturnedValue();
   }
   static mojom::TrustTokenKeyCommitmentResultPtr
@@ -57,7 +57,7 @@ class FixedKeyCommitmentParser
 class FailingKeyCommitmentParser
     : public TrustTokenKeyCommitmentController::Parser {
   mojom::TrustTokenKeyCommitmentResultPtr Parse(
-      base::StringPiece response_body) override {
+      std::string_view response_body) override {
     return nullptr;
   }
 };
@@ -175,10 +175,8 @@ TEST_F(TrustTokenKeyCommitmentControllerTest,
           IssuerURLRequest(),
           url::Origin::Create(GURL("https://toplevel.com")));
 
-  std::string origin_from_header;
-  EXPECT_TRUE(request->headers.GetHeader(net::HttpRequestHeaders::kOrigin,
-                                         &origin_from_header));
-  EXPECT_EQ(origin_from_header, "https://toplevel.com");
+  EXPECT_THAT(request->headers.GetHeader(net::HttpRequestHeaders::kOrigin),
+              Optional(std::string("https://toplevel.com")));
 }
 
 // On network error, the key commitment controller should

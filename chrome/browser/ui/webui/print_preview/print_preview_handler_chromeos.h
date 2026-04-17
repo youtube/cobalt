@@ -11,7 +11,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/values.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/ash/printing/print_servers_manager.h"
 #include "chrome/common/buildflags.h"
 #include "chromeos/crosapi/mojom/local_printer.mojom.h"
@@ -23,6 +22,10 @@
 #include "printing/buildflags/buildflags.h"
 #include "printing/print_job_constants.h"
 
+namespace content {
+class WebContents;
+}
+
 namespace printing {
 
 namespace mojom {
@@ -33,8 +36,10 @@ class PrinterHandler;
 class PrintPreviewHandler;
 
 // The handler for Javascript messages related to the print preview dialog.
-class PrintPreviewHandlerChromeOS : public content::WebUIMessageHandler,
-                                    public crosapi::mojom::PrintServerObserver {
+class PrintPreviewHandlerChromeOS
+    : public content::WebUIMessageHandler,
+      public crosapi::mojom::PrintServerObserver,
+      public crosapi::mojom::LocalPrintersObserver {
  public:
   PrintPreviewHandlerChromeOS();
   PrintPreviewHandlerChromeOS(const PrintPreviewHandlerChromeOS&) = delete;
@@ -53,9 +58,7 @@ class PrintPreviewHandlerChromeOS : public content::WebUIMessageHandler,
 
  private:
   friend class PrintPreviewHandlerChromeOSTest;
-#if BUILDFLAG(IS_CHROMEOS_ASH)
   friend class TestPrintServersManager;
-#endif
 
   PrintPreviewHandler* GetPrintPreviewHandler();
 
@@ -91,7 +94,7 @@ class PrintPreviewHandlerChromeOS : public content::WebUIMessageHandler,
   void HandleRequestPrinterStatusUpdate(const base::Value::List& args);
   void HandleRequestPrinterStatusUpdateCompletion(
       base::Value callback_id,
-      absl::optional<base::Value::Dict> result);
+      std::optional<base::Value::Dict> result);
 
   // crosapi::mojom::PrintServerObserver Implementation
   void OnPrintServersChanged(
@@ -108,14 +111,43 @@ class PrintPreviewHandlerChromeOS : public content::WebUIMessageHandler,
   // Records the `PrintPreview.PrintAttemptOutcome` histogram.
   void HandleRecordPrintAttemptOutcome(const base::Value::List& args);
 
+  // Gets the WebContents that initiated print preview request using
+  // `PrintPreviewDialogController`.
+  content::WebContents* GetInitiator();
+
+  // Gets whether the UI should show the button to open printer settings. Button
+  // should be hidden if preview launched from the settings SWA.
+  void HandleGetShowManagePrinters(const base::Value::List& args);
+
+  void HandleObserveLocalPrinters(const base::Value::List& args);
+
+  // Callback for `HandleGetShowManagePrinters()`.
+  void OnHandleObserveLocalPrinters(
+      const std::string& callback_id,
+      std::vector<crosapi::mojom::LocalDestinationInfoPtr> printers);
+
+  // crosapi::mojom::LocalPrintersObserver Implementation:
+  void OnLocalPrintersUpdated(
+      std::vector<crosapi::mojom::LocalDestinationInfoPtr> printers) override;
+
+  void SetInitiatorForTesting(content::WebContents* test_initiator);
+
   mojo::Receiver<crosapi::mojom::PrintServerObserver> receiver_{this};
 
-  // Used to transmit mojo interface method calls to ash chrome.
-  // Null if the interface is unavailable.
-  // Note that this is not propagated to LocalPrinterHandlerLacros.
-  // The pointer is constant - if ash crashes and the mojo connection is lost,
-  // lacros will automatically be restarted.
-  raw_ptr<crosapi::mojom::LocalPrinter> local_printer_ = nullptr;
+  mojo::Receiver<crosapi::mojom::LocalPrintersObserver>
+      local_printers_receiver_{this};
+
+  // Used for testing, when `GetInitiator` called and `test_initiator` is set
+  // then it will be returned instead of calling `PrintPreviewDialogController`
+  // to find the initiator.
+  raw_ptr<content::WebContents> test_initiator_ = nullptr;
+
+  // Used to transmit mojo interface method calls to ash chrome. Null if
+  // CrosapiManager is unavailable. In the post-Lacros world, it still bears the
+  // responsibility of talking to other parts of Ash for printer related
+  // business logic.
+  raw_ptr<crosapi::mojom::LocalPrinter, DanglingUntriaged> local_printer_ =
+      nullptr;
 
   base::WeakPtrFactory<PrintPreviewHandlerChromeOS> weak_factory_{this};
 };

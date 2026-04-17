@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "base/check_is_test.h"
 #include "base/environment.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
@@ -18,6 +19,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/nix/xdg_util.h"
 #include "base/no_destructor.h"
 #include "base/strings/string_util.h"
 #include "chrome/browser/shell_integration_linux.h"
@@ -80,14 +82,17 @@ void RefreshMimeInfoCache() {
   std::unique_ptr<base::Environment> env(base::Environment::Create());
   std::vector<std::string> argv;
 
+  base::Environment* env_ptr = env.get();
+  if (test_override) {
+    env_ptr = test_override->environment();
+  }
+
   // Some Linux file managers (Nautilus and Nemo) depend on an up to date
   // mimeinfo.cache file to detect whether applications can open files, so
   // manually run update-desktop-database on the user applications folder.
   // See this bug on xdg desktop-file-utils.
   // https://gitlab.freedesktop.org/xdg/desktop-file-utils/issues/54
-  base::FilePath user_dir =
-      test_override ? test_override->applications_dir()
-                    : shell_integration_linux::GetDataWriteLocation(env.get());
+  base::FilePath user_dir = base::nix::GetXDGDataWriteLocation(env_ptr);
   base::FilePath user_applications_dir = user_dir.Append("applications");
 
   argv.push_back("update-desktop-database");
@@ -104,8 +109,9 @@ void RefreshMimeInfoCache() {
     RecordRegistration(RegistrationResult::kUpdateDesktopDatabaseFailed,
                        (mime_cache_update_exit_code == 0));
   } else {
+    CHECK_IS_TEST();
     GetUpdateMimeInfoDatabaseCallbackForTesting().Run(  // IN-TEST
-        base::FilePath(), base::JoinString(argv, " "), " ");
+        base::FilePath(), base::JoinString(argv, " "), "");
   }
 }
 
@@ -151,7 +157,7 @@ bool UpdateMimeInfoDatabase(bool install,
   return success;
 }
 
-void UninstallMimeInfoOnLinux(const AppId& app_id,
+void UninstallMimeInfoOnLinux(const webapps::AppId& app_id,
                               const base::FilePath& profile_path,
                               ResultCallback on_done) {
   base::FilePath filename =
@@ -181,7 +187,7 @@ bool FileHandlingIconsSupportedByOs() {
   return false;
 }
 
-void RegisterFileHandlersWithOs(const AppId& app_id,
+void RegisterFileHandlersWithOs(const webapps::AppId& app_id,
                                 const std::string& app_name,
                                 const base::FilePath& profile_path,
                                 const apps::FileHandlers& file_handlers,
@@ -191,13 +197,13 @@ void RegisterFileHandlersWithOs(const AppId& app_id,
                          std::move(callback));
 }
 
-void UnregisterFileHandlersWithOs(const AppId& app_id,
+void UnregisterFileHandlersWithOs(const webapps::AppId& app_id,
                                   const base::FilePath& profile_path,
                                   ResultCallback callback) {
   UninstallMimeInfoOnLinux(app_id, profile_path, std::move(callback));
 }
 
-void InstallMimeInfoOnLinux(const AppId& app_id,
+void InstallMimeInfoOnLinux(const webapps::AppId& app_id,
                             const base::FilePath& profile_path,
                             const apps::FileHandlers& file_handlers,
                             ResultCallback done_callback) {

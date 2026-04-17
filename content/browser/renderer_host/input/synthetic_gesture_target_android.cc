@@ -5,16 +5,20 @@
 #include "content/browser/renderer_host/input/synthetic_gesture_target_android.h"
 
 #include "base/trace_event/trace_event.h"
+#include "content/browser/renderer_host/compositor_impl_android.h"
 #include "content/browser/renderer_host/render_widget_host_impl.h"
 #include "content/browser/renderer_host/render_widget_host_view_android.h"
 #include "content/browser/renderer_host/render_widget_host_view_base.h"
-#include "content/public/android/content_jni_headers/SyntheticGestureTarget_jni.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
 #include "third_party/blink/public/common/input/web_mouse_event.h"
 #include "third_party/blink/public/common/input/web_mouse_wheel_event.h"
 #include "third_party/blink/public/common/input/web_touch_event.h"
 #include "ui/android/view_android.h"
+#include "ui/compositor/compositor.h"
 #include "ui/gfx/android/view_configuration.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "content/public/android/content_jni_headers/SyntheticGestureTarget_jni.h"
 
 using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
@@ -33,9 +37,24 @@ SyntheticGestureTargetAndroid::SyntheticGestureTargetAndroid(
   JNIEnv* env = base::android::AttachCurrentThread();
   java_ref_.Reset(
       Java_SyntheticGestureTarget_create(env, view->GetContainerView()));
+
+  ui::WindowAndroid* window = view_->GetWindowAndroid();
+  if (!window) {
+    return;
+  }
+
+  observed_compositor_ = static_cast<CompositorImpl*>(window->GetCompositor());
+  if (observed_compositor_) {
+    observed_compositor_->AddSimpleBeginFrameObserver(this);
+  }
 }
 
-SyntheticGestureTargetAndroid::~SyntheticGestureTargetAndroid() = default;
+SyntheticGestureTargetAndroid::~SyntheticGestureTargetAndroid() {
+  if (observed_compositor_) {
+    observed_compositor_->RemoveSimpleBeginFrameObserver(this);
+    observed_compositor_ = nullptr;
+  }
+}
 
 void SyntheticGestureTargetAndroid::TouchSetPointer(int index,
                                                     float x,
@@ -69,10 +88,12 @@ void SyntheticGestureTargetAndroid::TouchSetScrollDeltas(float x,
 
 void SyntheticGestureTargetAndroid::TouchInject(MotionEventAction action,
                                                 int pointer_count,
+                                                int pointer_index,
                                                 base::TimeTicks time) {
   TRACE_EVENT0("input", "SyntheticGestureTargetAndroid::TouchInject");
   JNIEnv* env = base::android::AttachCurrentThread();
   Java_SyntheticGestureTarget_inject(env, java_ref_, action, pointer_count,
+                                     pointer_index,
                                      time.since_origin().InMilliseconds());
 }
 
@@ -97,13 +118,24 @@ void SyntheticGestureTargetAndroid::DispatchWebTouchEventToPlatform(
       NOTREACHED();
   }
   const unsigned num_touches = web_touch.touches_length;
+  int touch_index = -1;
+  DCHECK_LE(num_touches, 2u);
   for (unsigned i = 0; i < num_touches; ++i) {
     const blink::WebTouchPoint* point = &web_touch.touches[i];
+    if (point->state != blink::WebTouchPoint::State::kStateStationary) {
+      if (action == MOTION_EVENT_ACTION_START ||
+          action == MOTION_EVENT_ACTION_END) {
+        // We should have only one non-stationary touch for start/end.
+        DCHECK_EQ(touch_index, -1);
+      }
+      touch_index = i;
+    }
     TouchSetPointer(i, point->PositionInWidget().x(),
                     point->PositionInWidget().y(), point->id);
   }
+  DCHECK_GE(touch_index, 0);
 
-  TouchInject(action, num_touches, web_touch.TimeStamp());
+  TouchInject(action, num_touches, touch_index, web_touch.TimeStamp());
 }
 
 void SyntheticGestureTargetAndroid::DispatchWebMouseWheelEventToPlatform(
@@ -112,7 +144,11 @@ void SyntheticGestureTargetAndroid::DispatchWebMouseWheelEventToPlatform(
   TouchSetScrollDeltas(web_wheel.PositionInWidget().x(),
                        web_wheel.PositionInWidget().y(), web_wheel.delta_x,
                        web_wheel.delta_y);
-  TouchInject(MOTION_EVENT_ACTION_SCROLL, 1, web_wheel.TimeStamp());
+  // We only have a single pointer.
+  const unsigned pointer_index = 0;
+  const unsigned num_pointers = 1;
+  TouchInject(MOTION_EVENT_ACTION_SCROLL, num_pointers, pointer_index,
+              web_wheel.TimeStamp());
 }
 
 void SyntheticGestureTargetAndroid::DispatchWebGestureEventToPlatform(
@@ -133,6 +169,28 @@ void SyntheticGestureTargetAndroid::DispatchWebMouseEventToPlatform(
 content::mojom::GestureSourceType
 SyntheticGestureTargetAndroid::GetDefaultSyntheticGestureSourceType() const {
   return content::mojom::GestureSourceType::kTouchInput;
+}
+
+void SyntheticGestureTargetAndroid::GetVSyncParameters(
+    base::TimeTicks& timebase,
+    base::TimeDelta& interval) const {
+  timebase = vsync_timebase_;
+  interval = vsync_interval_;
+}
+
+void SyntheticGestureTargetAndroid::OnBeginFrame(
+    base::TimeTicks frame_begin_time,
+    base::TimeDelta frame_interval,
+    std::optional<base::TimeTicks> first_coalesced_frame_begin_time) {
+  vsync_timebase_ = frame_begin_time;
+  vsync_interval_ = frame_interval;
+}
+
+void SyntheticGestureTargetAndroid::OnBeginFrameSourceShuttingDown() {
+  if (observed_compositor_) {
+    observed_compositor_->RemoveSimpleBeginFrameObserver(this);
+    observed_compositor_ = nullptr;
+  }
 }
 
 float SyntheticGestureTargetAndroid::GetTouchSlopInDips() const {

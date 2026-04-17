@@ -3,9 +3,12 @@
 # found in the LICENSE file.
 
 import("//build/config/android/rules.gni")
+import("//third_party/jni_zero/jni_zero.gni")
 
 android_resources("java_resources") {
   sources = [
+    "res/color-night/infobar_color.xml",
+    "res/color/infobar_color.xml",
     "res/drawable-hdpi/infobar_shadow_left.9.png",
     "res/drawable-hdpi/infobar_shadow_top.png",
     "res/drawable-mdpi/infobar_shadow_left.9.png",
@@ -24,7 +27,6 @@ android_resources("java_resources") {
     "res/layout/infobar_control_spinner_drop_down.xml",
     "res/layout/infobar_control_spinner_view.xml",
     "res/layout/infobar_control_toggle.xml",
-    "res/values-night/dimens.xml",
     "res/values/dimens.xml",
     "res/values/ids.xml",
   ]
@@ -53,6 +55,7 @@ static_library("android") {
 }
 
 android_library("java") {
+  srcjar_deps = [ ":jni_headers" ]
   sources = [
     "java/src/org/chromium/components/infobars/ConfirmInfoBar.java",
     "java/src/org/chromium/components/infobars/InfoBar.java",
@@ -70,7 +73,6 @@ android_library("java") {
     ":infobar_android_enums_java",
     ":java_resources",
     "//base:base_java",
-    "//base:jni_java",
     "//build/android:build_java",
     "//components/browser_ui/styles/android:java",
     "//components/browser_ui/widget/android:java",
@@ -79,9 +81,10 @@ android_library("java") {
     "//third_party/androidx:androidx_appcompat_appcompat_java",
     "//third_party/androidx:androidx_appcompat_appcompat_resources_java",
     "//third_party/androidx:androidx_core_core_java",
+    "//third_party/jni_zero:jni_zero_java",
     "//ui/android:ui_java",
   ]
-  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+
   resources_package = "org.chromium.components.infobars"
 }
 
@@ -114,6 +117,7 @@ android_library("unit_device_javatests") {
     "//components/browser_ui/widget/android:java",
     "//third_party/androidx:androidx_appcompat_appcompat_java",
     "//third_party/androidx:androidx_test_monitor_java",
+    "//third_party/androidx:androidx_test_rules_java",
     "//third_party/androidx:androidx_test_runner_java",
     "//third_party/junit:junit",
   ]

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/disk_cache/blockfile/rankings.h"
 
 #include <stdint.h>
@@ -18,15 +23,11 @@
 #include "net/disk_cache/blockfile/disk_format.h"
 #include "net/disk_cache/blockfile/entry_impl.h"
 #include "net/disk_cache/blockfile/errors.h"
-#include "net/disk_cache/blockfile/histogram_macros.h"
 #include "net/disk_cache/blockfile/stress_support.h"
 
 #if BUILDFLAG(IS_WIN)
 #include <windows.h>
 #endif
-
-// Provide a BackendImpl object to macros from histogram_macros.h.
-#define CACHE_UMA_BACKEND_IMPL_OBJ backend_
 
 using base::Time;
 using base::TimeTicks;
@@ -180,17 +181,17 @@ void GenerateCrash(CrashLocation location) {
       break;
     default:
       NOTREACHED();
-      return;
   }
 #endif  // NDEBUG
 }
 
 // Update the timestamp fields of |node|.
-void UpdateTimes(disk_cache::CacheRankingsBlock* node, bool modified) {
+void UpdateTimes(disk_cache::CacheRankingsBlock* node) {
   base::Time now = base::Time::Now();
-  node->Data()->last_used = now.ToInternalValue();
-  if (modified)
-    node->Data()->last_modified = now.ToInternalValue();
+  auto timestamp = now.ToInternalValue();
+  auto* node_data = node->Data();
+  node_data->last_used = timestamp;
+  node_data->no_longer_used_last_modified = timestamp;
 }
 
 }  // namespace
@@ -251,7 +252,7 @@ void Rankings::Reset() {
   control_data_ = nullptr;
 }
 
-void Rankings::Insert(CacheRankingsBlock* node, bool modified, List list) {
+void Rankings::Insert(CacheRankingsBlock* node, List list) {
   DCHECK(node->HasData());
   Addr& my_head = heads_[list];
   Addr& my_tail = tails_[list];
@@ -284,7 +285,7 @@ void Rankings::Insert(CacheRankingsBlock* node, bool modified, List list) {
     GenerateCrash(ON_INSERT_2);
   }
 
-  UpdateTimes(node, modified);
+  UpdateTimes(node);
   node->Store();
   // Make sure other aliased in-memory copies get synchronized.
   UpdateIterators(node);
@@ -407,18 +408,16 @@ void Rankings::Remove(CacheRankingsBlock* node, List list, bool strict) {
 // list. We want to avoid that case as much as we can (as while waiting for IO),
 // but the net effect is just an assert on debug when attempting to remove the
 // entry. Otherwise we'll need reentrant transactions, which is an overkill.
-void Rankings::UpdateRank(CacheRankingsBlock* node, bool modified, List list) {
+void Rankings::UpdateRank(CacheRankingsBlock* node, List list) {
   Addr& my_head = heads_[list];
   if (my_head.value() == node->address().value()) {
-    UpdateTimes(node, modified);
+    UpdateTimes(node);
     node->set_modified();
     return;
   }
 
-  TimeTicks start = TimeTicks::Now();
   Remove(node, list, true);
-  Insert(node, modified, list);
-  CACHE_UMA(AGE_MS, "UpdateRank", 0, start);
+  Insert(node, list);
 }
 
 CacheRankingsBlock* Rankings::GetNext(CacheRankingsBlock* node, List list) {
@@ -556,8 +555,9 @@ bool Rankings::DataSanityCheck(CacheRankingsBlock* node, bool from_list) const {
     return false;
 
   // It may have never been inserted.
-  if (from_list && (!data->last_used || !data->last_modified))
+  if (from_list && (!data->last_used)) {
     return false;
+  }
 
   return true;
 }
@@ -589,7 +589,6 @@ bool Rankings::GetRanking(CacheRankingsBlock* rankings) {
   if (!rankings->address().is_initialized())
     return false;
 
-  TimeTicks start = TimeTicks::Now();
   if (!rankings->Load())
     return false;
 
@@ -622,7 +621,6 @@ bool Rankings::GetRanking(CacheRankingsBlock* rankings) {
   // Note that we should not leave this module without deleting rankings first.
   rankings->SetData(entry->rankings()->Data());
 
-  CACHE_UMA(AGE_MS, "GetRankings", 0, start);
   return true;
 }
 
@@ -642,9 +640,7 @@ void Rankings::ConvertToLongLived(CacheRankingsBlock* rankings) {
 void Rankings::CompleteTransaction() {
   Addr node_addr(static_cast<CacheAddr>(control_data_->transaction));
   if (!node_addr.is_initialized() || node_addr.is_separate_file()) {
-    NOTREACHED();
-    LOG(ERROR) << "Invalid rankings info.";
-    return;
+    NOTREACHED() << "Invalid rankings info.";
   }
 
   CacheRankingsBlock node(backend_->File(node_addr), node_addr);
@@ -661,8 +657,7 @@ void Rankings::CompleteTransaction() {
   } else if (REMOVE == control_data_->operation) {
     RevertRemove(&node);
   } else {
-    NOTREACHED();
-    LOG(ERROR) << "Invalid operation to recover.";
+    NOTREACHED() << "Invalid operation to recover.";
   }
 }
 
@@ -677,7 +672,7 @@ void Rankings::FinishInsert(CacheRankingsBlock* node) {
       node->Data()->next = my_tail.value();
     }
 
-    Insert(node, true, static_cast<List>(control_data_->operation_list));
+    Insert(node, static_cast<List>(control_data_->operation_list));
   }
 
   // Tell the backend about this entry.
@@ -693,10 +688,7 @@ void Rankings::RevertRemove(CacheRankingsBlock* node) {
     return;
   }
   if (next_addr.is_separate_file() || prev_addr.is_separate_file()) {
-    NOTREACHED();
-    LOG(WARNING) << "Invalid rankings info.";
-    control_data_->transaction = 0;
-    return;
+    NOTREACHED() << "Invalid rankings info.";
   }
 
   CacheRankingsBlock next(backend_->File(next_addr), next_addr);

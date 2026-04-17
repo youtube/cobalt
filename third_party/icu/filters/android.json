@@ -129,18 +129,13 @@
     ]
   },
   "featureFilters": {
-    "brkitr_dictionaries": {
-      "excludelist": [
-// Filtered by android/brkitr.patch        "cjdict",
-        "cjdict"
+    "brkitr_adaboost": {
+      "includelist": [
+        "jaml"
       ]
     },
     "brkitr_rules": {
       "excludelist": [
-// Exclude *phrase_cj
-        "line_phrase_cj",
-        "line_normal_phrase_cj",
-        "line_loose_phrase_cj",
 // Exclude line_cj till we upgrade to 68.1 due to size impact.
 	"line_cj",
         "title",
@@ -483,7 +478,66 @@
     "translit": {
       "filterType": "language",
       "includelist": [
-         "root"
+// Need to explicitly add "root"
+        "root",
+// List of all Chrome UI Languages
+        "af",
+        "am",
+        "ar",
+        "bg",
+        "bn",
+        "ca",
+        "cs",
+        "da",
+        "de",
+        "el",
+        "en",
+        "es",
+        "et",
+        "fa",
+        "fi",
+        "fil",
+        "fr",
+        "gu",
+        "he",
+        "hi",
+        "hr",
+        "hu",
+        "id",
+        "in",
+        "it",
+        "iw",
+        "ja",
+        "kn",
+        "ko",
+        "lt",
+        "lv",
+        "ml",
+        "mo",
+        "mr",
+        "ms",
+        "nb",
+        "nl",
+        "no",
+        "pl",
+        "pt",
+        "ro",
+        "ru",
+        "sh",
+        "sk",
+        "sl",
+        "sr",
+        "sv",
+        "sw",
+        "ta",
+        "te",
+        "th",
+        "tl",
+        "tr",
+        "uk",
+        "ur",
+        "vi",
+        "zh"
       ]
     },
 // Based on the ICU63 version of
@@ -2066,7 +2120,11 @@
       ],
       "rules": [
         "-/*",
-        "+/RuleBasedTransliteratorIDs/Latin-ASCII"
+        "+/RuleBasedTransliteratorIDs/Latin-ASCII",
+        "+/RuleBasedTransliteratorIDs/Katakana-Hiragana",
+        "+/RuleBasedTransliteratorIDs/Hiragana-Katakana",
+        "+/RuleBasedTransliteratorIDs/Hira-Kana",
+        "+/RuleBasedTransliteratorIDs/Kana-Hira"
       ]
     },
 // Remove all the Version

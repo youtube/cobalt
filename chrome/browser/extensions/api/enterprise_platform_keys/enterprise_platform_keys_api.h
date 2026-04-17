@@ -11,6 +11,7 @@
 
 #include <stdint.h>
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -19,23 +20,8 @@
 #include "chromeos/crosapi/mojom/keystore_service.mojom.h"
 #include "extensions/browser/extension_function.h"
 #include "extensions/browser/extension_function_histogram_value.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-
-class Extension;
-class Profile;
-
-namespace user_prefs {
-class PrefRegistrySyncable;
-}  // namespace user_prefs
 
 namespace extensions {
-
-namespace platform_keys {
-
-void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
-bool IsExtensionAllowed(Profile* profile, const Extension* extension);
-
-}  // namespace platform_keys
 
 class EnterprisePlatformKeysInternalGenerateKeyFunction
     : public ExtensionFunction {
@@ -46,7 +32,7 @@ class EnterprisePlatformKeysInternalGenerateKeyFunction
   // Called when the key was generated. If an error occurred, |public_key_der|
   // will be empty.
   void OnGeneratedKey(std::vector<uint8_t> public_key_der,
-                      absl::optional<crosapi::mojom::KeystoreError> error);
+                      std::optional<crosapi::mojom::KeystoreError> error);
 
   DECLARE_EXTENSION_FUNCTION("enterprise.platformKeysInternal.generateKey",
                              ENTERPRISE_PLATFORMKEYSINTERNAL_GENERATEKEY)

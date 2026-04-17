@@ -70,7 +70,7 @@ def ustring_to_string(ptr, length=None):
     char_vals = [int((ptr + i).dereference()) for i in range(length)]
     string = struct.pack('H' * length, *char_vals).decode(
         'utf-16', 'replace').encode('utf-8')
-    return string + error_message
+    return string + error_message.encode('utf-8')
 
 
 def lstring_to_string(ptr, length=None):
@@ -85,6 +85,30 @@ def lstring_to_string(ptr, length=None):
         length = int(length)
     string = ''.join([chr((ptr + i).dereference()) for i in range(length)])
     return string + error_message
+
+
+def dereference_member(obj):
+    """Dereferences a pointer held by a Member.
+
+    obj must be a gdb.Value. The type is not one of the cppgc Member types, the
+    original object is returned back."""
+    obj_typename = obj.type.strip_typedefs().name
+    if not obj_typename.startswith('cppgc::internal::BasicMember'):
+        return obj
+
+    inner_type = obj.type.template_argument(0)
+    decompressed_ptr = (gdb.parse_and_eval(
+        "_cppgc_internal_Uncompress_Member((void*){})".format(
+            obj.address)).cast(inner_type.pointer()))
+
+    # The sentinel pointer is used when stored in a hash set to indicate
+    # deleted entries.
+    sentinel = gdb.parse_and_eval('cppgc::kSentinelPointer')['kSentinelValue']
+    ptr_value = int(decompressed_ptr)
+    if ptr_value == 0 or ptr_value == int(sentinel):
+        return None
+
+    return decompressed_ptr.dereference()
 
 
 class StringPrinter(object):
@@ -160,7 +184,7 @@ class blinkKURLPrinter(StringPrinter):
     "Print a blink::KURL"
 
     def to_string(self):
-        return WTFStringPrinter(self.val['string_']).to_string()
+        return WTFAtomicStringPrinter(self.val['string_']).to_string()
 
 
 class blinkLayoutUnitPrinter:
@@ -173,16 +197,15 @@ class blinkLayoutUnitPrinter:
         return "%.14gpx" % (self.val['value_'] / 64.0)
 
 
-class blinkLayoutSizePrinter:
-    "Print a blink::LayoutSize"
+class blinkFixedPointPrinter:
+    "Print a blink::FixedPoint (LayoutUnit, etc.)"
 
     def __init__(self, val):
         self.val = val
 
     def to_string(self):
-        return 'LayoutSize(%s, %s)' % (
-            blinkLayoutUnitPrinter(self.val['width_']).to_string(),
-            blinkLayoutUnitPrinter(self.val['height_']).to_string())
+        return "%.14gpx" % (float(self.val['value_']) /
+                            float(self.val['kFixedPointDenominator']))
 
 
 class blinkLayoutPointPrinter:
@@ -269,18 +292,20 @@ class BlinkLengthPrinter:
         if ltype == 6:
             return 'Length(FillAvailable)'
         if ltype == 7:
-            return 'Length(FitContent)'
+            return 'Length(Stretch)'
         if ltype == 8:
+            return 'Length(FitContent)'
+        if ltype == 9:
             # Would like to print pixelsAndPercent() but can't call member
             # functions - https://sourceware.org/bugzilla/show_bug.cgi?id=13326
             return 'Length(Calculated)'
-        if ltype == 9:
-            return 'Length(ExtendToZoom)'
         if ltype == 10:
-            return 'Length(DeviceWidth)'
+            return 'Length(ExtendToZoom)'
         if ltype == 11:
-            return 'Length(DeviceHeight)'
+            return 'Length(DeviceWidth)'
         if ltype == 12:
+            return 'Length(DeviceHeight)'
+        if ltype == 13:
             return 'Length(MaxSizeNone)'
         return 'Length(unknown type %i)' % ltype
 
@@ -332,7 +357,7 @@ class WTFVectorPrinter:
                 raise StopIteration
             count = self.count
             self.count += 1
-            element = self.item.dereference()
+            element = dereference_member(self.item.dereference())
             self.item += 1
             return ('[%d]' % count, element)
 
@@ -368,10 +393,12 @@ class WTFHashTablePrinter:
     """
 
     class Iterator:
-        def __init__(self, start, finish):
+
+        def __init__(self, start, finish, is_keyval):
             self.item = start
             self.finish = finish
             self.count = 0
+            self.is_keyval = is_keyval
 
         def __iter__(self):
             return self
@@ -383,20 +410,33 @@ class WTFHashTablePrinter:
                     raise StopIteration
                 count = self.count
                 self.count += 1
-                element = self.item.dereference()
+                element = dereference_member(self.item.dereference())
                 self.item += 1
 
                 # If the bucket is not empty, return it.
-                if element['key']['impl_']['ptr_']:
-                    pretty = '[%s] = %s' % (element['key'], element['value'])
-                    return ('[%d]' % count, pretty)
+                # TODO(bokan): This doesn't account for HashTraits of the table
+                # so may print empty/deleted buckets, depending on the type.
+                if self.is_keyval:
+                    derefed_key = dereference_member(element['key'])
+                    if derefed_key:
+                        derefed_val = dereference_member(element['value'])
+                        pretty = '[%s] = %s' % (derefed_key, derefed_val)
+                        return ('[%d]' % count, pretty)
+                else:
+                    if element:
+                        pretty = '%s' % (element)
+                        return ('[%d]' % count, pretty)
 
     def __init__(self, val):
         self.val = val
 
     def children(self):
         start = self.val['table_']
-        return self.Iterator(start, start + self.val['table_size_'])
+        # HashSets use a HashTable where the value and key are the same so the
+        # iteration needs to know whether to look for an explicit key or not.
+        extractor_name = self.val.type.template_argument(2).name
+        is_keyval = extractor_name != 'WTF::IdentityExtractor'
+        return self.Iterator(start, start + self.val['table_size_'], is_keyval)
 
     def to_string(self):
         return ('%s with %d elements' %
@@ -455,10 +495,10 @@ def add_pretty_printers():
         (re.compile("^WTF::AtomicString$"), WTFAtomicStringPrinter),
         (re.compile("^WTF::String$"), WTFStringPrinter),
         (re.compile("^WTF::StringImpl$"), WTFStringImplPrinter),
+        (re.compile("^blink::FixedPoint<.*>$"), blinkFixedPointPrinter),
         (re.compile("^blink::KURL$"), blinkKURLPrinter),
         (re.compile("^blink::LayoutUnit$"), blinkLayoutUnitPrinter),
         (re.compile("^blink::LayoutPoint$"), blinkLayoutPointPrinter),
-        (re.compile("^blink::LayoutSize$"), blinkLayoutSizePrinter),
         (re.compile("^blink::QualifiedName$"), blinkQualifiedNamePrinter),
         (re.compile("^blink::PixelsAndPercent$"),
          BlinkPixelsAndPercentPrinter),

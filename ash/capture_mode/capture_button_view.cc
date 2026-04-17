@@ -12,12 +12,12 @@
 #include "ash/capture_mode/capture_mode_session_focus_cycler.h"
 #include "ash/capture_mode/capture_mode_types.h"
 #include "ash/capture_mode/capture_mode_util.h"
-#include "ash/constants/ash_features.h"
 #include "ash/resources/vector_icons/vector_icons.h"
 #include "ash/strings/grit/ash_strings.h"
 #include "ash/style/ash_color_id.h"
 #include "ash/style/style_util.h"
 #include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -61,7 +61,7 @@ constexpr gfx::Insets kFocusRingPathInsets(
 // selected.
 struct CaptureButtonState {
   const int label_id;
-  const raw_ref<const gfx::VectorIcon, ExperimentalAsh> vector_icon;
+  const raw_ref<const gfx::VectorIcon> vector_icon;
 };
 
 // Based on the current state of capture mode, returns the state with which the
@@ -70,19 +70,18 @@ CaptureButtonState GetCaptureButtonState() {
   const auto* const controller = CaptureModeController::Get();
   if (controller->type() == CaptureModeType::kImage) {
     return CaptureButtonState{IDS_ASH_SCREEN_CAPTURE_LABEL_IMAGE_CAPTURE,
-                              raw_ref(kCaptureModeImageIcon)};
+                              ToRawRef(kCaptureModeImageIcon)};
   }
 
   if (controller->recording_type() == RecordingType::kWebM) {
     return CaptureButtonState{IDS_ASH_SCREEN_CAPTURE_LABEL_VIDEO_RECORD,
-                              raw_ref(kCaptureModeVideoIcon)};
+                              ToRawRef(kCaptureModeVideoIcon)};
   }
 
-  DCHECK(features::IsGifRecordingEnabled());
   DCHECK_EQ(controller->recording_type(), RecordingType::kGif);
 
   return CaptureButtonState{IDS_ASH_SCREEN_CAPTURE_LABEL_GIF_RECORD,
-                            raw_ref(kCaptureGifIcon)};
+                            ToRawRef(kCaptureGifIcon)};
 }
 
 }  // namespace
@@ -90,7 +89,7 @@ CaptureButtonState GetCaptureButtonState() {
 CaptureButtonView::CaptureButtonView(
     views::Button::PressedCallback on_capture_button_pressed,
     views::Button::PressedCallback on_drop_down_pressed,
-    bool is_in_projector_mode)
+    CaptureModeBehavior* active_behavior)
     : capture_button_(AddChildView(std::make_unique<views::LabelButton>(
           std::move(on_capture_button_pressed),
           std::u16string()))) {
@@ -107,8 +106,7 @@ CaptureButtonView::CaptureButtonView(
   // Only show the drop down button if there are more than one recording types
   // that are currently supported in the current mode (i.e. we don't bother to
   // show a drop down for a single item).
-  if (capture_mode_util::GetNumberOfSupportedRecordingTypes(
-          is_in_projector_mode) > 1) {
+  if (active_behavior->GetSupportedRecordingTypes().size() > 1u) {
     separator_ = AddChildView(std::make_unique<views::Separator>());
     separator_->SetColorId(ui::kColorAshSystemUIMenuSeparator);
     drop_down_button_ = AddChildView(
@@ -162,6 +160,12 @@ void CaptureButtonView::UpdateViewVisuals() {
     // `drop_down_button_` as it never changes, and always remains half rounded.
     CaptureModeSessionFocusCycler::HighlightHelper::Get(capture_button_)
         ->InvalidateFocusRingPath();
+
+    // The ink drop highlight needs to be updated as well, since the rounded
+    // corners have changed.
+    views::HighlightPathGenerator::Install(
+        capture_button_,
+        CreateFocusRingPath(capture_button_, /*use_zero_insets=*/true));
   }
 }
 
@@ -200,28 +204,42 @@ void CaptureButtonView::SetupButton(views::Button* button) {
       button, StyleUtil::kBaseColor | StyleUtil::kInkDropOpacity);
   button->SetNotifyEnterExitOnChild(true);
 
+  // This installs a path generator that will be used for the ink drop
+  // highlight. It should not have any insets as the highlight should span the
+  // entire bounds of the view.
+  views::HighlightPathGenerator::Install(
+      button, CreateFocusRingPath(button, /*use_zero_insets=*/true));
+
+  // This will be used to install a path generator for the focus ring, which
+  // should be insetted a little so that the focus ring can paint within the
+  // bounds the view.
   CaptureModeSessionFocusCycler::HighlightHelper::Install(
       button, base::BindRepeating(&CaptureButtonView::CreateFocusRingPath,
-                                  base::Unretained(this), button));
+                                  base::Unretained(this), button,
+                                  /*use_zero_insets=*/false));
+
+  StyleUtil::SetUpInkDropForButton(button);
 }
 
 std::unique_ptr<views::HighlightPathGenerator>
-CaptureButtonView::CreateFocusRingPath(views::View* view) {
+CaptureButtonView::CreateFocusRingPath(views::View* view,
+                                       bool use_zero_insets) {
+  const auto insets = use_zero_insets ? gfx::Insets() : kFocusRingPathInsets;
   if (view == capture_button_) {
     const bool should_ring_be_half_rounded =
         drop_down_button_ && drop_down_button_->GetVisible();
     return std::make_unique<views::RoundRectHighlightPathGenerator>(
-        kFocusRingPathInsets, should_ring_be_half_rounded
-                                  ? kCaptureButtonHalfRoundedCorners
-                                  : kCaptureButtonFullyRoundedCorners);
+        insets, should_ring_be_half_rounded
+                    ? kCaptureButtonHalfRoundedCorners
+                    : kCaptureButtonFullyRoundedCorners);
   }
 
   DCHECK_EQ(view, drop_down_button_);
   return std::make_unique<views::RoundRectHighlightPathGenerator>(
-      kFocusRingPathInsets, kDropDownButtonRoundedCorners);
+      insets, kDropDownButtonRoundedCorners);
 }
 
-BEGIN_METADATA(CaptureButtonView, views::View)
+BEGIN_METADATA(CaptureButtonView)
 END_METADATA
 
 }  // namespace ash

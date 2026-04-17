@@ -5,6 +5,7 @@
 #include <stddef.h>
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -23,13 +24,16 @@
 #include "chrome/browser/extensions/component_loader.h"
 #include "chrome/browser/extensions/extension_apitest.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
+#include "chrome/browser/media/webrtc/media_device_salt_service_factory.h"
 #include "chrome/browser/media/webrtc/webrtc_log_uploader.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/recently_audible_helper.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/buildflags.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/media_device_salt/media_device_salt_service.h"
 #include "components/network_session_configurator/common/network_switches.h"
 #include "content/public/browser/audio_service.h"
 #include "content/public/browser/browser_thread.h"
@@ -48,7 +52,7 @@
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/public/common/storage_key/storage_key.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "base/win/windows_version.h"
@@ -91,12 +95,14 @@ class AudioWaitingExtensionTest : public ExtensionApiTest {
       auto* audible_helper = RecentlyAudibleHelper::FromWebContents(tab);
       audio_playing = audible_helper->WasRecentlyAudible();
       base::RunLoop().RunUntilIdle();
-      if (audio_playing)
+      if (audio_playing) {
         break;
+      }
       base::PlatformThread::Sleep(base::Milliseconds(100));
     }
-    if (!audio_playing)
+    if (!audio_playing) {
       FAIL() << "Audio did not start playing within ~5 seconds.";
+    }
   }
 };
 
@@ -115,12 +121,22 @@ class WebrtcAudioPrivateTest : public AudioWaitingExtensionTest {
     params->Append(base::Value(std::move(request_info)));
   }
 
-  absl::optional<base::Value> InvokeGetSinks() {
+  std::optional<base::Value> InvokeGetSinks() {
     scoped_refptr<WebrtcAudioPrivateGetSinksFunction> function =
         new WebrtcAudioPrivateGetSinksFunction();
     function->set_source_url(source_url_);
 
     return RunFunctionAndReturnSingleResult(function.get(), "[]", profile());
+  }
+
+  std::string GetMediaDeviceIDSalt(const url::Origin& origin) {
+    media_device_salt::MediaDeviceSaltService* salt_service =
+        MediaDeviceSaltServiceFactory::GetInstance()->GetForBrowserContext(
+            profile());
+    base::test::TestFuture<const std::string&> future;
+    salt_service->GetSalt(blink::StorageKey::CreateFirstParty(origin),
+                          future.GetCallback());
+    return future.Get();
   }
 
   GURL source_url_;
@@ -132,7 +148,7 @@ IN_PROC_BROWSER_TEST_F(WebrtcAudioPrivateTest, GetSinks) {
   AudioDeviceDescriptions devices;
   GetAudioDeviceDescriptions(false, &devices);
 
-  absl::optional<base::Value> result = InvokeGetSinks();
+  std::optional<base::Value> result = InvokeGetSinks();
   const base::Value::List& sink_list = result->GetList();
 
   std::string result_string;
@@ -152,13 +168,12 @@ IN_PROC_BROWSER_TEST_F(WebrtcAudioPrivateTest, GetSinks) {
     const std::string* sink_id = dict.FindString("sinkId");
     EXPECT_TRUE(sink_id);
 
+    url::Origin origin = url::Origin::Create(source_url_);
     std::string expected_id =
         media::AudioDeviceDescription::IsDefaultDevice(it->unique_id)
             ? media::AudioDeviceDescription::kDefaultDeviceId
-            : content::GetHMACForMediaDeviceID(
-                  profile()->GetMediaDeviceIDSalt(),
-                  url::Origin::Create(source_url_.DeprecatedGetOriginAsURL()),
-                  it->unique_id);
+            : content::GetHMACForMediaDeviceID(GetMediaDeviceIDSalt(origin),
+                                               origin, it->unique_id);
 
     EXPECT_EQ(expected_id, *sink_id);
     const std::string* sink_label = dict.FindString("sinkLabel");
@@ -189,18 +204,18 @@ IN_PROC_BROWSER_TEST_F(WebrtcAudioPrivateTest, GetAssociatedSink) {
 
     std::string raw_device_id = device.unique_id;
     VLOG(2) << "Trying to find associated sink for device " << raw_device_id;
-    GURL origin(GURL("http://www.google.com/").DeprecatedGetOriginAsURL());
+    GURL gurl("http://www.google.com/");
+    url::Origin origin = url::Origin::Create(gurl);
     std::string source_id_in_origin = content::GetHMACForMediaDeviceID(
-        profile()->GetMediaDeviceIDSalt(), url::Origin::Create(origin),
-        raw_device_id);
+        GetMediaDeviceIDSalt(origin), origin, raw_device_id);
 
     base::Value::List parameters;
-    parameters.Append(origin.spec());
+    parameters.Append(gurl.spec());
     parameters.Append(source_id_in_origin);
     std::string parameter_string;
     JSONWriter::Write(parameters, &parameter_string);
 
-    absl::optional<base::Value> result = RunFunctionAndReturnSingleResult(
+    std::optional<base::Value> result = RunFunctionAndReturnSingleResult(
         function.get(), parameter_string, profile());
     std::string result_string;
     JSONWriter::Write(*result, &result_string);
@@ -284,7 +299,7 @@ IN_PROC_BROWSER_TEST_F(HangoutServicesBrowserTest,
   // others.
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(),
-      https_server().GetURL("any-subdomain.google.com",
+      https_server().GetURL("meet.google.com",
                             "/extensions/hangout_services_test.html")));
 
   WebContents* tab = browser()->tab_strip_model()->GetActiveWebContents();
@@ -292,9 +307,9 @@ IN_PROC_BROWSER_TEST_F(HangoutServicesBrowserTest,
 
   // Use a test server URL for uploading.
   g_browser_process->webrtc_log_uploader()->SetUploadUrlForTesting(
-      https_server().GetURL("any-subdomain.google.com", kLogUploadUrlPath));
+      https_server().GetURL("meet.google.com", kLogUploadUrlPath));
 
-  ASSERT_TRUE(content::ExecuteScript(tab, "browsertestRunAllTests();"));
+  ASSERT_TRUE(content::ExecJs(tab, "browsertestRunAllTests();"));
 
   content::TitleWatcher title_watcher(tab, u"success");
   title_watcher.AlsoWaitForTitle(u"failure");

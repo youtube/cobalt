@@ -5,6 +5,7 @@
 #include "net/dns/resolve_context.h"
 
 #include <stdint.h>
+
 #include <memory>
 #include <string>
 #include <utility>
@@ -13,23 +14,32 @@
 #include "base/memory/ref_counted.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
+#include "base/test/metrics/histogram_tester.h"
+#include "base/test/simple_test_clock.h"
+#include "base/test/simple_test_tick_clock.h"
 #include "base/time/time.h"
+#include "host_resolver_internal_result.h"
 #include "net/base/address_list.h"
 #include "net/base/features.h"
 #include "net/base/ip_address.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/mock_network_change_notifier.h"
+#include "net/base/network_anonymization_key.h"
 #include "net/base/network_change_notifier.h"
 #include "net/base/network_isolation_key.h"
 #include "net/dns/dns_config.h"
 #include "net/dns/dns_server_iterator.h"
 #include "net/dns/dns_session.h"
+#include "net/dns/dns_util.h"
 #include "net/dns/host_cache.h"
+#include "net/dns/host_resolver_cache.h"
+#include "net/dns/host_resolver_internal_result.h"
 #include "net/dns/public/dns_over_https_config.h"
 #include "net/dns/public/dns_over_https_server_config.h"
 #include "net/dns/public/dns_protocol.h"
 #include "net/dns/public/dns_query_type.h"
 #include "net/dns/public/host_resolver_source.h"
+#include "net/dns/public/secure_dns_mode.h"
 #include "net/socket/socket_test_util.h"
 #include "net/test/test_with_task_environment.h"
 #include "net/url_request/url_request_context.h"
@@ -42,9 +52,11 @@ namespace net {
 
 namespace {
 
-class ResolveContextTest : public TestWithTaskEnvironment {
- public:
-  ResolveContextTest() = default;
+class ResolveContextTest : public ::testing::Test, public WithTaskEnvironment {
+ protected:
+  ResolveContextTest()
+      : WithTaskEnvironment(
+            base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
 
   scoped_refptr<DnsSession> CreateDnsSession(const DnsConfig& config) {
     auto null_random_callback =
@@ -76,6 +88,24 @@ DnsConfig CreateDnsConfig(int num_servers, int num_doh_servers) {
   }
   config.doh_config =
       *DnsOverHttpsConfig::FromTemplatesForTesting(std::move(templates));
+  config.secure_dns_mode = SecureDnsMode::kAutomatic;
+
+  return config;
+}
+
+DnsConfig CreateDnsConfigWithKnownDohProviderConfig() {
+  DnsConfig config;
+
+  // TODO(crbug.com/40218379): Refactor this to not rely on an entry
+  // for 8.8.8.8 existing in the DoH provider list.
+  IPEndPoint dns_endpoint(IPAddress(8, 8, 8, 8), dns_protocol::kDefaultPort);
+  config.nameservers.push_back(dns_endpoint);
+
+  config.doh_config = DnsOverHttpsConfig(
+      GetDohUpgradeServersFromNameservers(config.nameservers));
+  EXPECT_FALSE(config.doh_config.servers().empty());
+
+  config.secure_dns_mode = SecureDnsMode::kAutomatic;
 
   return config;
 }
@@ -126,6 +156,16 @@ TEST_F(ResolveContextTest, DohServerAvailability_InitialAvailability) {
       session->config(), SecureDnsMode::kAutomatic, session.get());
 
   EXPECT_FALSE(doh_itr->AttemptAvailable());
+
+  base::HistogramTester histogram_tester;
+  context.StartDohAutoupgradeSuccessTimer(session.get());
+  // Fast-forward by enough time for the timer to trigger. Add one millisecond
+  // just to make it clear that afterwards the timeout should definitely have
+  // occurred (although this may not be strictly necessary).
+  FastForwardBy(ResolveContext::kDohAutoupgradeSuccessMetricTimeout +
+                base::Milliseconds(1));
+  histogram_tester.ExpectTotalCount(
+      "Net.DNS.ResolveContext.DohAutoupgrade.Other.Status", 0);
 }
 
 TEST_F(ResolveContextTest, DohServerAvailability_RecordedSuccess) {
@@ -148,6 +188,19 @@ TEST_F(ResolveContextTest, DohServerAvailability_RecordedSuccess) {
 
   ASSERT_TRUE(doh_itr->AttemptAvailable());
   EXPECT_EQ(doh_itr->GetNextAttemptIndex(), 1u);
+
+  base::HistogramTester histogram_tester;
+  context.StartDohAutoupgradeSuccessTimer(session.get());
+  // Fast-forward by enough time for the timer to trigger. Add one millisecond
+  // just to make it clear that afterwards the timeout should definitely have
+  // occurred (although this may not be strictly necessary).
+  FastForwardBy(ResolveContext::kDohAutoupgradeSuccessMetricTimeout +
+                base::Milliseconds(1));
+  histogram_tester.ExpectTotalCount(
+      "Net.DNS.ResolveContext.DohAutoupgrade.Other.Status", 1);
+  histogram_tester.ExpectBucketCount(
+      "Net.DNS.ResolveContext.DohAutoupgrade.Other.Status",
+      DohServerAutoupgradeStatus::kSuccessWithNoPriorFailures, 1);
 }
 
 TEST_F(ResolveContextTest, DohServerAvailability_NoCurrentSession) {
@@ -259,6 +312,33 @@ TEST_F(ResolveContextTest, DohServerIndexToUse_SecureMode) {
   EXPECT_EQ(doh_itr->GetNextAttemptIndex(), 1u);
 }
 
+TEST_F(ResolveContextTest, StartDohAutoupgradeSuccessTimer) {
+  DnsConfig config = CreateDnsConfig(/*num_servers=*/2, /*num_doh_servers=*/2);
+  scoped_refptr<DnsSession> session = CreateDnsSession(config);
+
+  auto request_context = CreateTestURLRequestContextBuilder()->Build();
+  ResolveContext context(request_context.get(), /*enable_caching=*/true);
+  context.InvalidateCachesAndPerSessionData(session.get(),
+                                            /*network_change=*/false);
+
+  EXPECT_FALSE(context.doh_autoupgrade_metrics_timer_is_running_for_testing());
+
+  // Calling with a valid session should start the timer.
+  context.StartDohAutoupgradeSuccessTimer(session.get());
+  EXPECT_TRUE(context.doh_autoupgrade_metrics_timer_is_running_for_testing());
+
+  // Making a second call should have no effect.
+  context.StartDohAutoupgradeSuccessTimer(session.get());
+  EXPECT_TRUE(context.doh_autoupgrade_metrics_timer_is_running_for_testing());
+
+  // Fast-forward by enough time for the timer to trigger. Add one millisecond
+  // just to make it clear that afterwards the timeout should definitely have
+  // occurred (although this may not be strictly necessary).
+  FastForwardBy(ResolveContext::kDohAutoupgradeSuccessMetricTimeout +
+                base::Milliseconds(1));
+  EXPECT_FALSE(context.doh_autoupgrade_metrics_timer_is_running_for_testing());
+}
+
 class TestDnsObserver : public NetworkChangeNotifier::DNSObserver {
  public:
   void OnDNSChanged() override { ++dns_changed_calls_; }
@@ -323,82 +403,118 @@ TEST_F(ResolveContextTest, DohServerAvailabilityNotification) {
   NetworkChangeNotifier::RemoveDNSObserver(&config_observer);
 }
 
-TEST_F(ResolveContextTest, HostCacheInvalidation) {
-  ResolveContext context(nullptr /* url_request_context */,
-                         true /* enable_caching */);
+TEST_F(ResolveContextTest, InvalidateCachesAndPerSessionData) {
+  base::SimpleTestClock clock;
+  base::SimpleTestTickClock tick_clock;
+  ResolveContext context(/*url_request_context=*/nullptr,
+                         /*enable_caching=*/true, clock, tick_clock);
 
-  base::TimeTicks now;
+  NetworkAnonymizationKey anonymization_key;
+
   HostCache::Key key("example.com", DnsQueryType::UNSPECIFIED, 0,
-                     HostResolverSource::ANY, NetworkAnonymizationKey());
+                     HostResolverSource::ANY, anonymization_key);
   context.host_cache()->Set(
       key,
       HostCache::Entry(OK, /*ip_endpoints=*/{}, /*aliases=*/{},
                        HostCache::Entry::SOURCE_UNKNOWN),
-      now, base::Seconds(10));
-  ASSERT_TRUE(context.host_cache()->Lookup(key, now));
+      tick_clock.NowTicks(), base::Seconds(10));
+  ASSERT_TRUE(context.host_cache()->Lookup(key, tick_clock.NowTicks()));
 
-  DnsConfig config =
-      CreateDnsConfig(2 /* num_servers */, 2 /* num_doh_servers */);
+  context.host_resolver_cache()->Set(
+      std::make_unique<HostResolverInternalErrorResult>(
+          "domain.test", DnsQueryType::AAAA,
+          tick_clock.NowTicks() + base::Seconds(10),
+          clock.Now() + base::Seconds(10),
+          HostResolverInternalResult::Source::kDns, ERR_NAME_NOT_RESOLVED),
+      anonymization_key, HostResolverSource::DNS, /*secure=*/false);
+  ASSERT_TRUE(
+      context.host_resolver_cache()->Lookup("domain.test", anonymization_key));
+
+  DnsConfig config = CreateDnsConfig(/*num_servers=*/2, /*num_doh_servers=*/2);
   scoped_refptr<DnsSession> session = CreateDnsSession(config);
   context.InvalidateCachesAndPerSessionData(session.get(),
-                                            false /* network_change */);
+                                            /*network_change=*/false);
 
-  EXPECT_FALSE(context.host_cache()->Lookup(key, now));
+  EXPECT_FALSE(context.host_cache()->Lookup(key, tick_clock.NowTicks()));
+  EXPECT_FALSE(
+      context.host_resolver_cache()->Lookup("domain.test", anonymization_key));
 
-  // Re-add to the host cache and now add some DoH server status.
+  // Re-add to the caches and now add some DoH server status.
   context.host_cache()->Set(
       key,
       HostCache::Entry(OK, /*ip_endpoints=*/{}, /*aliases=*/{},
                        HostCache::Entry::SOURCE_UNKNOWN),
-      now, base::Seconds(10));
-  context.RecordServerSuccess(0u /* server_index */, true /* is_doh_server */,
+      tick_clock.NowTicks(), base::Seconds(10));
+  context.host_resolver_cache()->Set(
+      std::make_unique<HostResolverInternalErrorResult>(
+          "domain2.test", DnsQueryType::AAAA,
+          tick_clock.NowTicks() + base::Seconds(10),
+          clock.Now() + base::Seconds(10),
+          HostResolverInternalResult::Source::kDns, ERR_NAME_NOT_RESOLVED),
+      anonymization_key, HostResolverSource::DNS, /*secure=*/false);
+  context.RecordServerSuccess(/*server_index=*/0u, /*is_doh_server=*/true,
                               session.get());
-  ASSERT_TRUE(context.host_cache()->Lookup(key, now));
+  ASSERT_TRUE(context.host_cache()->Lookup(key, tick_clock.NowTicks()));
+  ASSERT_TRUE(
+      context.host_resolver_cache()->Lookup("domain2.test", anonymization_key));
   ASSERT_TRUE(context.GetDohServerAvailability(0u, session.get()));
 
   // Invalidate again.
-  DnsConfig config2 =
-      CreateDnsConfig(2 /* num_servers */, 2 /* num_doh_servers */);
+  DnsConfig config2 = CreateDnsConfig(/*num_servers=*/2, /*num_doh_servers=*/2);
   scoped_refptr<DnsSession> session2 = CreateDnsSession(config2);
   context.InvalidateCachesAndPerSessionData(session2.get(),
-                                            true /* network_change */);
+                                            /*network_change=*/true);
 
-  EXPECT_FALSE(context.host_cache()->Lookup(key, now));
+  EXPECT_FALSE(context.host_cache()->Lookup(key, tick_clock.NowTicks()));
+  EXPECT_FALSE(
+      context.host_resolver_cache()->Lookup("domain2.test", anonymization_key));
   EXPECT_FALSE(context.GetDohServerAvailability(0u, session.get()));
   EXPECT_FALSE(context.GetDohServerAvailability(0u, session2.get()));
 }
 
-TEST_F(ResolveContextTest, HostCacheInvalidation_SameSession) {
-  ResolveContext context(nullptr /* url_request_context */,
-                         true /* enable_caching */);
-  DnsConfig config =
-      CreateDnsConfig(2 /* num_servers */, 2 /* num_doh_servers */);
+TEST_F(ResolveContextTest, InvalidateCachesAndPerSessionDataSameSession) {
+  base::SimpleTestClock clock;
+  base::SimpleTestTickClock tick_clock;
+  ResolveContext context(/*url_request_context=*/nullptr,
+                         /*enable_caching=*/true, clock, tick_clock);
+  DnsConfig config = CreateDnsConfig(/*num_servers=*/2, /*num_doh_servers=*/2);
   scoped_refptr<DnsSession> session = CreateDnsSession(config);
 
   // Initial invalidation just to set the session.
   context.InvalidateCachesAndPerSessionData(session.get(),
-                                            false /* network_change */);
+                                            /*network_change=*/false);
 
-  // Add to the host cache and add some DoH server status.
-  base::TimeTicks now;
+  // Add to the caches and add some DoH server status.
+  NetworkAnonymizationKey anonymization_key;
   HostCache::Key key("example.com", DnsQueryType::UNSPECIFIED, 0,
-                     HostResolverSource::ANY, NetworkAnonymizationKey());
+                     HostResolverSource::ANY, anonymization_key);
   context.host_cache()->Set(
       key,
       HostCache::Entry(OK, /*ip_endpoints=*/{}, /*aliases=*/{"example.com"},
                        HostCache::Entry::SOURCE_UNKNOWN),
-      now, base::Seconds(10));
-  context.RecordServerSuccess(0u /* server_index */, true /* is_doh_server */,
+      tick_clock.NowTicks(), base::Seconds(10));
+  context.host_resolver_cache()->Set(
+      std::make_unique<HostResolverInternalErrorResult>(
+          "domain.test", DnsQueryType::AAAA,
+          tick_clock.NowTicks() + base::Seconds(10),
+          clock.Now() + base::Seconds(10),
+          HostResolverInternalResult::Source::kDns, ERR_NAME_NOT_RESOLVED),
+      anonymization_key, HostResolverSource::DNS, /*secure=*/false);
+  context.RecordServerSuccess(/*server_index=*/0u, /*is_doh_server=*/true,
                               session.get());
-  ASSERT_TRUE(context.host_cache()->Lookup(key, now));
+  ASSERT_TRUE(context.host_cache()->Lookup(key, tick_clock.NowTicks()));
+  ASSERT_TRUE(
+      context.host_resolver_cache()->Lookup("domain.test", anonymization_key));
   ASSERT_TRUE(context.GetDohServerAvailability(0u, session.get()));
 
   // Invalidate again with the same session.
   context.InvalidateCachesAndPerSessionData(session.get(),
-                                            false /* network_change */);
+                                            /*network_change=*/false);
 
   // Expect host cache to be invalidated but not the per-session data.
-  EXPECT_FALSE(context.host_cache()->Lookup(key, now));
+  EXPECT_FALSE(context.host_cache()->Lookup(key, tick_clock.NowTicks()));
+  EXPECT_FALSE(
+      context.host_resolver_cache()->Lookup("domain.test", anonymization_key));
   EXPECT_TRUE(context.GetDohServerAvailability(0u, session.get()));
 }
 
@@ -680,6 +796,21 @@ TEST_F(ResolveContextTest, DohFailures_Consecutive) {
   EXPECT_EQ(0u, context.NumAvailableDohServers(session.get()));
   EXPECT_EQ(1, observer.server_unavailable_notifications());
 
+  base::HistogramTester histogram_tester;
+  context.StartDohAutoupgradeSuccessTimer(session.get());
+  // Fast-forward by enough time for the timer to trigger. Add one millisecond
+  // just to make it clear that afterwards the timeout should definitely have
+  // occurred (although this may not be strictly necessary).
+  FastForwardBy(ResolveContext::kDohAutoupgradeSuccessMetricTimeout +
+                base::Milliseconds(1));
+  histogram_tester.ExpectTotalCount(
+      "Net.DNS.ResolveContext.DohAutoupgrade.Other.Status",
+      /*expected_count=*/1);
+  histogram_tester.ExpectBucketCount(
+      "Net.DNS.ResolveContext.DohAutoupgrade.Other.Status",
+      DohServerAutoupgradeStatus::kFailureWithSomePriorSuccesses,
+      /*expected_count=*/1);
+
   context.UnregisterDohStatusObserver(&observer);
 }
 
@@ -742,6 +873,22 @@ TEST_F(ResolveContextTest, DohFailures_NonConsecutive) {
   EXPECT_EQ(1u, context.NumAvailableDohServers(session.get()));
 
   EXPECT_EQ(0, observer.server_unavailable_notifications());
+
+  base::HistogramTester histogram_tester;
+  context.StartDohAutoupgradeSuccessTimer(session.get());
+  // Fast-forward by enough time for the timer to trigger. Add one millisecond
+  // just to make it clear that afterwards the timeout should definitely have
+  // occurred (although this may not be strictly necessary).
+  FastForwardBy(ResolveContext::kDohAutoupgradeSuccessMetricTimeout +
+                base::Milliseconds(1));
+  histogram_tester.ExpectTotalCount(
+      "Net.DNS.ResolveContext.DohAutoupgrade.Other.Status",
+      /*expected_count=*/1);
+  histogram_tester.ExpectBucketCount(
+      "Net.DNS.ResolveContext.DohAutoupgrade.Other.Status",
+      DohServerAutoupgradeStatus::kSuccessWithSomePriorFailures,
+      /*expected_count=*/1);
+
   context.UnregisterDohStatusObserver(&observer);
 }
 
@@ -780,6 +927,22 @@ TEST_F(ResolveContextTest, DohFailures_SuccessAfterFailures) {
   EXPECT_EQ(1u, context.NumAvailableDohServers(session.get()));
 
   EXPECT_EQ(1, observer.server_unavailable_notifications());
+
+  base::HistogramTester histogram_tester;
+  context.StartDohAutoupgradeSuccessTimer(session.get());
+  // Fast-forward by enough time for the timer to trigger. Add one millisecond
+  // just to make it clear that afterwards the timeout should definitely have
+  // occurred (although this may not be strictly necessary).
+  FastForwardBy(ResolveContext::kDohAutoupgradeSuccessMetricTimeout +
+                base::Milliseconds(1));
+  histogram_tester.ExpectTotalCount(
+      "Net.DNS.ResolveContext.DohAutoupgrade.Other.Status",
+      /*expected_count=*/1);
+  histogram_tester.ExpectBucketCount(
+      "Net.DNS.ResolveContext.DohAutoupgrade.Other.Status",
+      DohServerAutoupgradeStatus::kSuccessWithSomePriorFailures,
+      /*expected_count=*/1);
+
   context.UnregisterDohStatusObserver(&observer);
 }
 
@@ -829,6 +992,63 @@ TEST_F(ResolveContextTest, DohFailures_DifferentSession) {
   EXPECT_EQ(1u, context.NumAvailableDohServers(session2.get()));
 }
 
+TEST_F(ResolveContextTest, DohFailures_NeverSuccessful) {
+  DnsConfig config = CreateDnsConfig(/*num_servers=*/2, /*num_doh_servers=*/2);
+  scoped_refptr<DnsSession> session = CreateDnsSession(config);
+  ResolveContext context(/*url_request_context=*/nullptr,
+                         /*enable_caching=*/false);
+  context.InvalidateCachesAndPerSessionData(session.get(),
+                                            /*network_change=*/false);
+
+  context.RecordServerFailure(/*server_index=*/0u, /*is_doh_server=*/true,
+                              ERR_FAILED, session.get());
+
+  base::HistogramTester histogram_tester;
+  context.StartDohAutoupgradeSuccessTimer(session.get());
+  // Fast-forward by enough time for the timer to trigger. Add one millisecond
+  // just to make it clear that afterwards the timeout should definitely have
+  // occurred (although this may not be strictly necessary).
+  FastForwardBy(ResolveContext::kDohAutoupgradeSuccessMetricTimeout +
+                base::Milliseconds(1));
+  histogram_tester.ExpectTotalCount(
+      "Net.DNS.ResolveContext.DohAutoupgrade.Other.Status",
+      /*expected_count=*/1);
+  histogram_tester.ExpectBucketCount(
+      "Net.DNS.ResolveContext.DohAutoupgrade.Other.Status",
+      DohServerAutoupgradeStatus::kFailureWithNoPriorSuccesses,
+      /*expected_count=*/1);
+}
+
+// Test that metrics are recorded properly when auto-upgrade is never successful
+// for a provider that is in the list of providers where we can auto-upgrade
+// insecure DNS queries to secure DNS queries.
+TEST_F(ResolveContextTest, DohFailures_NeverSuccessfulKnownProviderConfig) {
+  ResolveContext context(/*url_request_context=*/nullptr,
+                         /*enable_caching=*/false);
+  DnsConfig config = CreateDnsConfigWithKnownDohProviderConfig();
+  scoped_refptr<DnsSession> session = CreateDnsSession(config);
+  context.InvalidateCachesAndPerSessionData(session.get(),
+                                            /*network_change=*/false);
+
+  context.RecordServerFailure(/*server_index=*/0u, /*is_doh_server=*/true,
+                              ERR_FAILED, session.get());
+
+  base::HistogramTester histogram_tester;
+  context.StartDohAutoupgradeSuccessTimer(session.get());
+  // Fast-forward by enough time for the timer to trigger. Add one millisecond
+  // just to make it clear that afterwards the timeout should definitely have
+  // occurred (although this may not be strictly necessary).
+  FastForwardBy(ResolveContext::kDohAutoupgradeSuccessMetricTimeout +
+                base::Milliseconds(1));
+  histogram_tester.ExpectTotalCount(
+      "Net.DNS.ResolveContext.DohAutoupgrade.Google.Status",
+      /*expected_count=*/1);
+  histogram_tester.ExpectBucketCount(
+      "Net.DNS.ResolveContext.DohAutoupgrade.Google.Status",
+      DohServerAutoupgradeStatus::kFailureWithNoPriorSuccesses,
+      /*expected_count=*/1);
+}
+
 // Test 2 of 3 DoH servers failing.
 TEST_F(ResolveContextTest, TwoDohFailures) {
   ResolveContext context(nullptr /* url_request_context */,
@@ -869,6 +1089,25 @@ TEST_F(ResolveContextTest, TwoDohFailures) {
 
   ASSERT_TRUE(doh_itr->AttemptAvailable());
   EXPECT_EQ(doh_itr->GetNextAttemptIndex(), 2u);
+
+  base::HistogramTester histogram_tester;
+  context.StartDohAutoupgradeSuccessTimer(session.get());
+  // Fast-forward by enough time for the timer to trigger. Add one millisecond
+  // just to make it clear that afterwards the timeout should definitely have
+  // occurred (although this may not be strictly necessary).
+  FastForwardBy(ResolveContext::kDohAutoupgradeSuccessMetricTimeout +
+                base::Milliseconds(1));
+  histogram_tester.ExpectTotalCount(
+      "Net.DNS.ResolveContext.DohAutoupgrade.Other.Status",
+      /*expected_count=*/3);
+  histogram_tester.ExpectBucketCount(
+      "Net.DNS.ResolveContext.DohAutoupgrade.Other.Status",
+      DohServerAutoupgradeStatus::kSuccessWithSomePriorFailures,
+      /*expected_count=*/2);
+  histogram_tester.ExpectBucketCount(
+      "Net.DNS.ResolveContext.DohAutoupgrade.Other.Status",
+      DohServerAutoupgradeStatus::kSuccessWithNoPriorFailures,
+      /*expected_count=*/1);
 }
 
 // Expect default calculated fallback period to be within 10ms of

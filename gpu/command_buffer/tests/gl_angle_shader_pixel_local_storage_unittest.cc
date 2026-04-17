@@ -2,14 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <GLES2/gl2extchromium.h>
 #include <GLES3/gl3.h>
 
+#include "base/command_line.h"
+#include "build/build_config.h"
+#include "gpu/command_buffer/service/service_utils.h"
 #include "gpu/command_buffer/tests/gl_manager.h"
 #include "gpu/command_buffer/tests/gl_test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/gl/gl_implementation.h"
 
 namespace gpu {
 class ANGLEShaderPixelLocalStorageTest : public testing::Test {
@@ -18,6 +27,14 @@ class ANGLEShaderPixelLocalStorageTest : public testing::Test {
 
  protected:
   void SetUp() override {
+#if BUILDFLAG(IS_ANDROID)
+    auto* command_line = base::CommandLine::ForCurrentProcess();
+    if (gles2::UsePassthroughCommandDecoder(command_line)) {
+      // TODO(crbug.com/40278644): fix the test for passthrough.
+      GTEST_SKIP();
+    }
+#endif
+
     GLManager::Options options;
     options.context_type = CONTEXT_TYPE_OPENGLES3;
     gl_.Initialize(options);
@@ -40,13 +57,10 @@ static GLint gl_get_integer(GLenum pname) {
 TEST_F(ANGLEShaderPixelLocalStorageTest, GetIntegerv) {
   if (!gl_.IsInitialized() ||
       !GLTestHelper::HasExtension("GL_ANGLE_shader_pixel_local_storage")) {
-    return;
+    GTEST_SKIP();
   }
 
   EXPECT_GT(gl_get_integer(GL_MAX_PIXEL_LOCAL_STORAGE_PLANES_ANGLE), 4);
-  EXPECT_GT(gl_get_integer(
-                GL_MAX_COLOR_ATTACHMENTS_WITH_ACTIVE_PIXEL_LOCAL_STORAGE_ANGLE),
-            0);
   EXPECT_GT(
       gl_get_integer(
           GL_MAX_COMBINED_DRAW_BUFFERS_AND_PIXEL_LOCAL_STORAGE_PLANES_ANGLE),
@@ -96,6 +110,7 @@ TEST_F(ANGLEShaderPixelLocalStorageTest, GetIntegerv) {
 // Verifies that glGetFramebufferPixelLocalStorageParameter{f,i}vANGLE is
 // marshalled properly over the command buffer. Thorough testing of these
 // commands is done in angle_end2end_tests.
+
 TEST_F(ANGLEShaderPixelLocalStorageTest,
        GetFramebufferPixelLocalStorageParameter) {
   if (!gl_.IsInitialized() ||
@@ -160,6 +175,13 @@ TEST_F(ANGLEShaderPixelLocalStorageTest, LoadStoreTokens) {
     return;
   }
 
+// Test skipped on Intel-based Macs when running Metal. crbug.com/326278125
+#if BUILDFLAG(IS_MAC) && defined(ARCH_CPU_X86_64)
+  if (gl::GetANGLEImplementation() == gl::ANGLEImplementation::kMetal) {
+    return;
+  }
+#endif
+
   GLuint texs[4];
   glGenTextures(4, texs);
   for (GLuint tex : texs) {
@@ -201,6 +223,13 @@ TEST_F(ANGLEShaderPixelLocalStorageTest, DrawAPI) {
       !GLTestHelper::HasExtension("GL_ANGLE_shader_pixel_local_storage")) {
     return;
   }
+
+// Test skipped on Intel-based Macs when running Metal. crbug.com/326278125
+#if BUILDFLAG(IS_MAC) && defined(ARCH_CPU_X86_64)
+  if (gl::GetANGLEImplementation() == gl::ANGLEImplementation::kMetal) {
+    return;
+  }
+#endif
 
   GLuint tex;
   glGenTextures(1, &tex);
@@ -274,6 +303,8 @@ TEST_F(ANGLEShaderPixelLocalStorageTest, BlockEmulatedDefaultFramebuffer) {
       !GLTestHelper::HasExtension("GL_ANGLE_shader_pixel_local_storage")) {
     return;
   }
+
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
   GLuint tex;
   glGenTextures(1, &tex);

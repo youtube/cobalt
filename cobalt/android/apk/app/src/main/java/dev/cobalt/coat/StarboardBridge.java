@@ -28,8 +28,6 @@ import android.hardware.input.InputManager;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.os.Build;
-import android.util.Size;
-import android.util.SizeF;
 import android.view.Display;
 import android.view.InputDevice;
 import android.view.accessibility.CaptioningManager;
@@ -38,18 +36,18 @@ import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
-import dev.cobalt.util.UsedByNative;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.ConcurrentHashMap;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.content_public.browser.WebContents;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 /** Implementation of the required JNI methods called by the Starboard C++ code. */
 @JNINamespace("starboard")
@@ -64,23 +62,22 @@ public class StarboardBridge {
     StarboardBridge getStarboardBridge();
   }
 
-  private CobaltSystemConfigChangeReceiver sysConfigChangeReceiver;
-  private CobaltTextToSpeechHelper ttsHelper;
+  private CobaltSystemConfigChangeReceiver mSysConfigChangeReceiver;
+  private CobaltTextToSpeechHelper mTtsHelper;
   // TODO(cobalt): Re-enable these classes or remove if unnecessary.
-  private AudioOutputManager audioOutputManager;
-  private CobaltMediaSession cobaltMediaSession;
-  private AudioPermissionRequester audioPermissionRequester;
-  private NetworkStatus networkStatus;
-  private ResourceOverlay resourceOverlay;
-  private AdvertisingId advertisingId;
-  private VolumeStateReceiver volumeStateReceiver;
-
-  private final Context appContext;
-  private final Holder<Activity> activityHolder;
-  private final Holder<Service> serviceHolder;
-  private final String[] args;
-  private final long nativeApp;
-  private final Runnable stopRequester =
+  private AudioOutputManager mAudioOutputManager;
+  private CobaltMediaSession mCobaltMediaSession;
+  private AudioPermissionRequester mAudioPermissionRequester;
+  private ResourceOverlay mResourceOverlay;
+  private AdvertisingId mAdvertisingId;
+  private VolumeStateReceiver mVolumeStateReceiver;
+  private PlatformError mPlatformError;
+  private final Context mAppContext;
+  private final Holder<Activity> mActivityHolder;
+  private final Holder<Service> mServiceHolder;
+  private final String[] mArgs;
+  private final long mNativeApp;
+  private final Runnable mStopRequester =
       new Runnable() {
         @Override
         public void run() {
@@ -95,21 +92,21 @@ public class StarboardBridge {
         }
       };
 
-  private volatile boolean applicationStopped;
-  private volatile boolean applicationStarted;
+  private volatile boolean mApplicationStopped;
+  private volatile boolean mApplicationStarted;
 
   private long mAppStartTimestamp = 0;
-  private long mAppStartDuration = 0;
 
-  private final Map<String, CobaltService.Factory> cobaltServiceFactories = new HashMap<>();
-  private final Map<String, CobaltService> cobaltServices = new ConcurrentHashMap<>();
+  private final Map<String, CobaltService.Factory> mCobaltServiceFactories = new HashMap<>();
+  private final Map<String, CobaltService> mCobaltServices = new ConcurrentHashMap<>();
 
   private static final String GOOGLE_PLAY_SERVICES_PACKAGE = "com.google.android.gms";
   private static final String AMATI_EXPERIENCE_FEATURE =
       "com.google.android.feature.AMATI_EXPERIENCE";
-  private final boolean isAmatiDevice;
+  private final boolean mIsAmatiDevice;
   private static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getTimeZone("America/Los_Angeles");
-  private final long timeNanosecondsPerMicrosecond = 1000;
+  private final long mTimeNanosecondsPerMicrosecond = 1000;
+  private static final String YTS_CERT_SCOPE_SYSTEM_PROPERTY = "ro.vendor.youtube.cert_scope";
 
   public StarboardBridge(
       Context appContext,
@@ -125,23 +122,21 @@ public class StarboardBridge {
     // race condition as soon as any of the following objects creates a new thread.
     StarboardBridgeJni.get().initJNI(this);
 
-    this.appContext = appContext;
-    this.activityHolder = activityHolder;
-    this.serviceHolder = serviceHolder;
-    this.args = args;
-    this.sysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, stopRequester);
-    this.ttsHelper = new CobaltTextToSpeechHelper(appContext);
-    this.audioOutputManager = new AudioOutputManager(appContext);
-    this.cobaltMediaSession = new CobaltMediaSession(appContext, activityHolder, artworkDownloader);
-    this.audioPermissionRequester = new AudioPermissionRequester(appContext, activityHolder);
-    // TODO(cobalt, b/378718120): delete NetworkStatus if navigator.online works in Content.
-    this.networkStatus = new NetworkStatus(appContext);
-    this.resourceOverlay = new ResourceOverlay(appContext);
-    this.advertisingId = new AdvertisingId(appContext);
-    this.volumeStateReceiver = new VolumeStateReceiver(appContext);
-    this.isAmatiDevice = appContext.getPackageManager().hasSystemFeature(AMATI_EXPERIENCE_FEATURE);
+    mAppContext = appContext;
+    mActivityHolder = activityHolder;
+    mServiceHolder = serviceHolder;
+    mArgs = args;
+    mSysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, mStopRequester);
+    mTtsHelper = new CobaltTextToSpeechHelper(appContext);
+    mAudioOutputManager = new AudioOutputManager(appContext);
+    mCobaltMediaSession = new CobaltMediaSession(appContext, activityHolder, artworkDownloader);
+    mAudioPermissionRequester = new AudioPermissionRequester(appContext, activityHolder);
+    mResourceOverlay = new ResourceOverlay(appContext);
+    mAdvertisingId = new AdvertisingId(appContext);
+    mVolumeStateReceiver = new VolumeStateReceiver(appContext);
+    mIsAmatiDevice = appContext.getPackageManager().hasSystemFeature(AMATI_EXPERIENCE_FEATURE);
 
-    nativeApp =
+    mNativeApp =
         StarboardBridgeJni.get()
             .startNativeStarboard(
                 getAssetsFromContext(),
@@ -151,14 +146,13 @@ public class StarboardBridge {
 
     StarboardBridgeJni.get().handleDeepLink(startDeepLink, /* applicationStarted= */ false);
     StarboardBridgeJni.get().setAndroidBuildFingerprint(getBuildFingerprint());
-    StarboardBridgeJni.get().setAndroidOSExperience(this.isAmatiDevice);
+    StarboardBridgeJni.get().setAndroidOSExperience(mIsAmatiDevice);
     StarboardBridgeJni.get().setAndroidPlayServicesVersion(getPlayServicesVersion());
+    StarboardBridgeJni.get().setYoutubeCertificationScope(getSystemProperty(YTS_CERT_SCOPE_SYSTEM_PROPERTY));
   }
 
   @NativeMethods
   interface Natives {
-    void onStop();
-
     long currentMonotonicTime();
 
     long startNativeStarboard(
@@ -178,32 +172,37 @@ public class StarboardBridge {
 
     void setAndroidPlayServicesVersion(long version);
 
+    void setYoutubeCertificationScope(String certScope);
+
     boolean isReleaseBuild();
+
+    boolean isDevelopmentBuild();
   }
 
   protected void onActivityStart(Activity activity) {
     Log.i(TAG, "onActivityStart ran");
-    activityHolder.set(activity);
-    sysConfigChangeReceiver.setForeground(true);
+    mActivityHolder.set(activity);
+    mSysConfigChangeReceiver.setForeground(true);
     beforeStartOrResume();
   }
 
   protected void onActivityStop(Activity activity) {
     Log.i(TAG, "onActivityStop ran");
     beforeSuspend();
-    cobaltMediaSession.onActivityStop();
-    if (activityHolder.get() == activity) {
-      activityHolder.set(null);
+    mCobaltMediaSession.onActivityStop();
+    if (mActivityHolder.get() == activity) {
+      mActivityHolder.set(null);
     }
-    sysConfigChangeReceiver.setForeground(false);
+    mSysConfigChangeReceiver.setForeground(false);
   }
 
   protected void onActivityDestroy(Activity activity) {
-    if (applicationStopped) {
+    if (mApplicationStopped) {
       // We can't restart the starboard app, so kill the process for a clean start next time.
       Log.i(TAG, "Activity destroyed after shutdown; killing app.");
-      StarboardBridgeJni.get().closeNativeStarboard(nativeApp);
+      StarboardBridgeJni.get().closeNativeStarboard(mNativeApp);
       closeAllServices();
+      mAdvertisingId.shutdown();
       System.exit(0);
     } else {
       Log.i(TAG, "Activity destroyed without shutdown; app suspended in background.");
@@ -211,12 +210,12 @@ public class StarboardBridge {
   }
 
   protected void onServiceStart(Service service) {
-    serviceHolder.set(service);
+    mServiceHolder.set(service);
   }
 
   protected void onServiceDestroy(Service service) {
-    if (serviceHolder.get() == service) {
-      serviceHolder.set(null);
+    if (mServiceHolder.get() == service) {
+      mServiceHolder.set(null);
     }
   }
 
@@ -224,11 +223,10 @@ public class StarboardBridge {
     Log.i(TAG, "Prepare to resume");
     // Bring our platform services to life before resuming so that they're ready to deal with
     // whatever the web app wants to do with them as part of its start/resume logic.
-    networkStatus.beforeStartOrResume();
-    for (CobaltService service : cobaltServices.values()) {
+    for (CobaltService service : mCobaltServices.values()) {
       service.beforeStartOrResume();
     }
-    advertisingId.refresh();
+    mAdvertisingId.refresh();
   }
 
   protected void beforeSuspend() {
@@ -237,8 +235,7 @@ public class StarboardBridge {
       // We want the MediaSession to be deactivated immediately before suspending so that by the
       // time, the launcher is visible our "Now Playing" card is already gone. Then Cobalt and
       // the web app can take their time suspending after that.
-      networkStatus.beforeSuspend();
-      for (CobaltService service : cobaltServices.values()) {
+      for (CobaltService service : mCobaltServices.values()) {
         service.beforeSuspend();
       }
     } catch (Throwable e) {
@@ -247,16 +244,16 @@ public class StarboardBridge {
   }
 
   private void closeAllServices() {
-    ttsHelper.shutdown();
-    for (CobaltService service : cobaltServices.values()) {
+    mTtsHelper.shutdown();
+    for (CobaltService service : mCobaltServices.values()) {
       service.afterStopped();
     }
   }
 
   protected void afterStopped() {
-    applicationStopped = true;
+    mApplicationStopped = true;
     closeAllServices();
-    Activity activity = activityHolder.get();
+    Activity activity = mActivityHolder.get();
     if (activity != null) {
       // Wait until the activity is destroyed to exit.
       Log.i(TAG, "Shutdown in foreground; finishing Activity and removing task.");
@@ -270,18 +267,18 @@ public class StarboardBridge {
 
   @CalledByNative
   protected void applicationStarted() {
-    applicationStarted = true;
+    mApplicationStarted = true;
   }
 
   @CalledByNative
   protected void applicationStopping() {
-    applicationStarted = false;
-    applicationStopped = true;
+    mApplicationStarted = false;
+    mApplicationStopped = true;
   }
 
   @CalledByNative
   public void requestSuspend() {
-    Activity activity = activityHolder.get();
+    Activity activity = mActivityHolder.get();
     if (activity != null) {
       activity.moveTaskToBack(false);
     }
@@ -296,8 +293,16 @@ public class StarboardBridge {
 
   @CalledByNative
   void raisePlatformError(@PlatformError.ErrorType int errorType, long data) {
-    PlatformError error = new PlatformError(activityHolder, errorType, data);
-    error.raise();
+    mPlatformError = new PlatformError(mActivityHolder, errorType, data);
+    mPlatformError.raise();
+  }
+
+  @CalledByNative
+  public boolean isPlatformErrorShowing() {
+    if (mPlatformError != null) {
+      return mPlatformError.isShowing();
+    }
+    return false;
   }
 
   /** Returns true if the native code is compiled for release (i.e. 'gold' build). */
@@ -305,16 +310,21 @@ public class StarboardBridge {
     return StarboardBridgeJni.get().isReleaseBuild();
   }
 
+  /** Returns true if the native code is compiled for development (i.e. 'devel' build). */
+  public static boolean isDevelopmentBuild() {
+    return StarboardBridgeJni.get().isDevelopmentBuild();
+  }
+
   protected Holder<Activity> getActivityHolder() {
-    return activityHolder;
+    return mActivityHolder;
   }
 
   @CalledByNative
   protected String[] getArgs() {
-    if (args == null) {
-      throw new IllegalArgumentException("args cannot be null");
+    if (mArgs == null) {
+      throw new IllegalArgumentException("mArgs cannot be null");
     }
-    return args;
+    return mArgs;
   }
 
   // Initialize the platform's AudioTrackAudioSink. This must be done after the browser client
@@ -325,15 +335,15 @@ public class StarboardBridge {
 
   /** Sends an event to the web app to navigate to the given URL */
   public void handleDeepLink(String url) {
-    StarboardBridgeJni.get().handleDeepLink(url, applicationStarted);
+    StarboardBridgeJni.get().handleDeepLink(url, mApplicationStarted);
   }
 
   public AssetManager getAssetsFromContext() {
-    return appContext.getAssets();
+    return mAppContext.getAssets();
   }
 
   public String getNativeLibraryDir() {
-    return appContext.getApplicationInfo().nativeLibraryDir;
+    return mAppContext.getApplicationInfo().nativeLibraryDir;
   }
 
   /**
@@ -341,7 +351,7 @@ public class StarboardBridge {
    * May be overridden for use cases that need to segregate storage.
    */
   protected String getFilesAbsolutePath() {
-    return appContext.getFilesDir().getAbsolutePath();
+    return mAppContext.getFilesDir().getAbsolutePath();
   }
 
   /**
@@ -349,37 +359,31 @@ public class StarboardBridge {
    * overridden for use cases that need to segregate storage.
    */
   protected String getCacheAbsolutePath() {
-    return appContext.getCacheDir().getAbsolutePath();
+    return mAppContext.getCacheDir().getAbsolutePath();
   }
 
   // TODO: (cobalt b/372559388) remove or migrate JNI?
   // Used in starboard/android/shared/speech_synthesis_speak.cc
   @CalledByNative
   CobaltTextToSpeechHelper getTextToSpeechHelper() {
-    if (ttsHelper == null) {
-      throw new IllegalArgumentException("ttsHelper cannot be null for native code");
+    if (mTtsHelper == null) {
+      throw new IllegalArgumentException("mTtsHelper cannot be null for native code");
     }
-    return ttsHelper;
+    return mTtsHelper;
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/accessibility_get_caption_settings.cc
   /**
    * @return A new CaptionSettings object with the current system caption settings.
    */
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   CaptionSettings getCaptionSettings() {
     CaptioningManager cm =
-        (CaptioningManager) appContext.getSystemService(Context.CAPTIONING_SERVICE);
+        (CaptioningManager) mAppContext.getSystemService(Context.CAPTIONING_SERVICE);
     return new CaptionSettings(cm);
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/system_get_locale_id.cc
   /** Java-layer implementation of SbSystemGetLocaleId. */
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   String systemGetLocaleId() {
     return Locale.getDefault().toLanguageTag();
   }
@@ -396,22 +400,22 @@ public class StarboardBridge {
   }
 
   @CalledByNative
-  SizeF getDisplayDpi() {
+  DisplayUtil.DisplayDpi getDisplayDpi() {
     return DisplayUtil.getDisplayDpi();
   }
 
+  @CalledByNative
   Size getDisplaySize() {
-    return DisplayUtil.getSystemDisplaySize();
+    android.util.Size size = DisplayUtil.getSystemDisplaySize();
+    return new Size(size.getWidth(), size.getHeight());
   }
 
-  // TODO: (cobalt b/372559388) migrate JNI.
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public ResourceOverlay getResourceOverlay() {
-    if (resourceOverlay == null) {
-      throw new IllegalArgumentException("resourceOverlay cannot be null for native code");
+    if (mResourceOverlay == null) {
+      throw new IllegalArgumentException("mResourceOverlay cannot be null for native code");
     }
-    return resourceOverlay;
+    return mResourceOverlay;
   }
 
   @Nullable
@@ -427,14 +431,6 @@ public class StarboardBridge {
     }
   }
 
-  @CalledByNative
-  boolean isNetworkConnected() {
-    if (networkStatus == null) {
-      throw new IllegalArgumentException("networkStatus cannot be null for native code");
-    }
-    return networkStatus.isConnected();
-  }
-
   /**
    * Checks if there is no microphone connected to the system.
    *
@@ -445,14 +441,14 @@ public class StarboardBridge {
   public boolean isMicrophoneDisconnected() {
     // A check specifically for microphones is not available before API 28, so it is assumed that a
     // connected input audio device is a microphone.
-    AudioManager audioManager = (AudioManager) appContext.getSystemService(AUDIO_SERVICE);
+    AudioManager audioManager = (AudioManager) mAppContext.getSystemService(AUDIO_SERVICE);
     AudioDeviceInfo[] devices = audioManager.getDevices(GET_DEVICES_INPUTS);
     if (devices.length > 0) {
       return false;
     }
 
     // fallback to check for BT voice capable RCU
-    InputManager inputManager = (InputManager) appContext.getSystemService(Context.INPUT_SERVICE);
+    InputManager inputManager = (InputManager) mAppContext.getSystemService(Context.INPUT_SERVICE);
     final int[] inputDeviceIds = inputManager.getInputDeviceIds();
     for (int inputDeviceId : inputDeviceIds) {
       final InputDevice inputDevice = inputManager.getInputDevice(inputDeviceId);
@@ -472,7 +468,7 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @CalledByNative
   public boolean isMicrophoneMute() {
-    AudioManager audioManager = (AudioManager) appContext.getSystemService(AUDIO_SERVICE);
+    AudioManager audioManager = (AudioManager) mAppContext.getSystemService(AUDIO_SERVICE);
     return audioManager.isMicrophoneMute();
   }
 
@@ -481,16 +477,16 @@ public class StarboardBridge {
   protected String getUserAgentAuxField() {
     StringBuilder sb = new StringBuilder();
 
-    String packageName = appContext.getApplicationInfo().packageName;
+    String packageName = mAppContext.getApplicationInfo().packageName;
     sb.append(packageName);
     sb.append('/');
 
     try {
       if (android.os.Build.VERSION.SDK_INT < 33) {
-        sb.append(appContext.getPackageManager().getPackageInfo(packageName, 0).versionName);
+        sb.append(mAppContext.getPackageManager().getPackageInfo(packageName, 0).versionName);
       } else {
         sb.append(
-            appContext
+            mAppContext
                 .getPackageManager()
                 .getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
                 .versionName);
@@ -508,7 +504,7 @@ public class StarboardBridge {
   /** Returns string for kSbSystemPropertyAdvertisingId */
   @CalledByNative
   protected String getAdvertisingId() {
-    return this.advertisingId.getId();
+    return mAdvertisingId.getId();
   }
 
   // TODO: (cobalt b/372559388) remove or migrate JNI?
@@ -516,32 +512,32 @@ public class StarboardBridge {
   /** Returns boolean for kSbSystemPropertyLimitAdTracking */
   @CalledByNative
   protected boolean getLimitAdTracking() {
-    return this.advertisingId.isLimitAdTrackingEnabled();
+    return mAdvertisingId.isLimitAdTrackingEnabled();
   }
 
   @CalledByNative
   AudioOutputManager getAudioOutputManager() {
-    if (audioOutputManager == null) {
-      throw new IllegalArgumentException("audioOutputManager cannot be null for native code");
+    if (mAudioOutputManager == null) {
+      throw new IllegalArgumentException("mAudioOutputManager cannot be null for native code");
     }
-    return audioOutputManager;
+    return mAudioOutputManager;
   }
 
   /** Returns Java layer implementation for AudioPermissionRequester */
   @SuppressWarnings("unused")
   @CalledByNative
   AudioPermissionRequester getAudioPermissionRequester() {
-    return audioPermissionRequester;
+    return mAudioPermissionRequester;
   }
 
   void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-    audioPermissionRequester.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    mAudioPermissionRequester.onRequestPermissionsResult(requestCode, permissions, grantResults);
   }
 
   @SuppressWarnings("unused")
   @CalledByNative
   public void resetVideoSurface() {
-    Activity activity = activityHolder.get();
+    Activity activity = mActivityHolder.get();
     if (activity instanceof CobaltActivity) {
       ((CobaltActivity) activity).resetVideoSurface();
     }
@@ -550,7 +546,7 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @CalledByNative
   public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {
-    Activity activity = activityHolder.get();
+    Activity activity = mActivityHolder.get();
     if (activity instanceof CobaltActivity) {
       ((CobaltActivity) activity).setVideoSurfaceBounds(x, y, width, height);
     }
@@ -575,27 +571,29 @@ public class StarboardBridge {
   }
 
   public CobaltMediaSession cobaltMediaSession() {
-    return cobaltMediaSession;
+    return mCobaltMediaSession;
   }
 
   public void registerCobaltService(CobaltService.Factory factory) {
-    cobaltServiceFactories.put(factory.getServiceName(), factory);
+    mCobaltServiceFactories.put(factory.getServiceName(), factory);
   }
 
+  @CalledByNative
   public boolean hasCobaltService(String serviceName) {
-    return cobaltServiceFactories.get(serviceName) != null;
+    return mCobaltServiceFactories.get(serviceName) != null;
   }
 
   // Explicitly pass activity as parameter.
-  // Avoid using activityHolder.get(), because onActivityStop() can set it to null.
+  // Avoid using mActivityHolder.get(), because onActivityStop() can set it to null.
+  @CalledByNative
   public CobaltService openCobaltService(
-      Activity activity, long nativeService, String serviceName) {
-    if (cobaltServices.get(serviceName) != null) {
+      long nativeService, String serviceName) {
+    if (mCobaltServices.get(serviceName) != null) {
       // Attempting to re-open an already open service fails.
       Log.e(TAG, String.format("Cannot open already open service %s", serviceName));
       return null;
     }
-    final CobaltService.Factory factory = cobaltServiceFactories.get(serviceName);
+    final CobaltService.Factory factory = mCobaltServiceFactories.get(serviceName);
     if (factory == null) {
       Log.e(TAG, String.format("Cannot open unregistered service %s", serviceName));
       return null;
@@ -603,25 +601,34 @@ public class StarboardBridge {
     CobaltService service = factory.createCobaltService(nativeService);
     if (service != null) {
       service.receiveStarboardBridge(this);
-      cobaltServices.put(serviceName, service);
-
-      if (activity instanceof CobaltActivity) {
-        service.setCobaltActivity((CobaltActivity) activity);
-      }
+      mCobaltServices.put(serviceName, service);
+      Log.i(TAG, String.format("Opened platform service %s.", serviceName));
     }
     return service;
   }
 
   public CobaltService getOpenedCobaltService(String serviceName) {
-    return cobaltServices.get(serviceName);
+    return mCobaltServices.get(serviceName);
   }
 
+  @CalledByNative
   public void closeCobaltService(String serviceName) {
-    cobaltServices.remove(serviceName);
+    CobaltService service = mCobaltServices.remove(serviceName);
+    if (service != null) {
+      service.onClose();
+    }
+    Log.i(TAG, String.format("Closed platform service %s.", serviceName));
+  }
+
+  @CalledByNative
+  public void closeAllCobaltService() {
+    for (String serviceName : new ArrayList<>(mCobaltServices.keySet())) {
+      closeCobaltService(serviceName);
+    }
   }
 
   public byte[] sendToCobaltService(String serviceName, byte[] data) {
-    CobaltService service = cobaltServices.get(serviceName);
+    CobaltService service = mCobaltServices.get(serviceName);
     if (service == null) {
       Log.e(TAG, String.format("Service not opened: %s", serviceName));
       return null;
@@ -640,23 +647,16 @@ public class StarboardBridge {
     if (mAppStartTimestamp != 0) {
       return;
     }
-    measureAppStartDuration();
-    long cppTimestamp = StarboardBridgeJni.get().currentMonotonicTime();
-    mAppStartTimestamp = cppTimestamp - mAppStartDuration;
-  }
-
-  /** Returns the application start duration. */
-  protected void measureAppStartDuration() {
-    if (mAppStartDuration != 0) {
-      return;
-    }
-    Activity activity = activityHolder.get();
+    Activity activity = mActivityHolder.get();
     if (!(activity instanceof CobaltActivity)) {
       return;
     }
     long javaStartTimestamp = ((CobaltActivity) activity).getAppStartTimestamp();
     long javaStopTimestamp = System.nanoTime();
-    mAppStartDuration = (javaStopTimestamp - javaStartTimestamp) / timeNanosecondsPerMicrosecond;
+    long appStartDuration = (javaStopTimestamp - javaStartTimestamp) / mTimeNanosecondsPerMicrosecond;
+
+    long cppTimestamp = StarboardBridgeJni.get().currentMonotonicTime();
+    mAppStartTimestamp = cppTimestamp - appStartDuration;
   }
 
   // Returns the saved app start timestamp.
@@ -665,20 +665,15 @@ public class StarboardBridge {
     return mAppStartTimestamp;
   }
 
-  // Returns the saved app start timestamp.
-  @CalledByNative
-  protected long getAppStartDuration() {
-    return mAppStartDuration;
-  }
-
   @CalledByNative
   void reportFullyDrawn() {
-    Activity activity = activityHolder.get();
+    Activity activity = mActivityHolder.get();
     if (activity != null) {
       activity.reportFullyDrawn();
     }
   }
 
+  @CalledByNative
   public void setCrashContext(String key, String value) {
     CrashContext.INSTANCE.setCrashContext(key, value);
   }
@@ -693,7 +688,7 @@ public class StarboardBridge {
 
   @CalledByNative
   protected boolean getIsAmatiDevice() {
-    return this.isAmatiDevice;
+    return mIsAmatiDevice;
   }
 
   @CalledByNative
@@ -705,17 +700,17 @@ public class StarboardBridge {
   protected long getPlayServicesVersion() {
     try {
       if (android.os.Build.VERSION.SDK_INT < 28) {
-        return appContext
+        return mAppContext
             .getPackageManager()
             .getPackageInfo(GOOGLE_PLAY_SERVICES_PACKAGE, 0)
             .versionCode;
       } else if (android.os.Build.VERSION.SDK_INT < 33) {
-        return appContext
+        return mAppContext
             .getPackageManager()
             .getPackageInfo(GOOGLE_PLAY_SERVICES_PACKAGE, 0)
             .getLongVersionCode();
       } else {
-        return appContext
+        return mAppContext
             .getPackageManager()
             .getPackageInfo(GOOGLE_PLAY_SERVICES_PACKAGE, PackageManager.PackageInfoFlags.of(0))
             .getLongVersionCode();
@@ -727,15 +722,36 @@ public class StarboardBridge {
   }
 
   public void setWebContents(WebContents webContents) {
-    cobaltMediaSession.setWebContents(webContents);
-    volumeStateReceiver.setWebContents(webContents);
+    mCobaltMediaSession.setWebContents(webContents);
+    mVolumeStateReceiver.setWebContents(webContents);
   }
 
   @CalledByNative
   public void closeApp() {
-    Activity activity = activityHolder.get();
+    Activity activity = mActivityHolder.get();
     if (activity instanceof CobaltActivity) {
       ((CobaltActivity) activity).finishAffinity();
+    }
+  }
+
+  /** A wrapper of the android.util.Size class to be used by JNI. */
+  public static class Size {
+    private final int mWidth;
+    private final int mHeight;
+
+    public Size(int width, int height) {
+      mWidth = width;
+      mHeight = height;
+    }
+
+    @CalledByNative("Size")
+    public int getWidth() {
+      return mWidth;
+    }
+
+    @CalledByNative("Size")
+    public int getHeight() {
+      return mHeight;
     }
   }
 }

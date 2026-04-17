@@ -20,37 +20,92 @@
 namespace rx
 {
 
+namespace
+{
+angle::FormatID intendedFormatForMTLTexture(id<MTLTexture> texture,
+                                            const egl::AttributeMap &attribs)
+{
+    angle::FormatID angleFormatId = mtl::Format::MetalToAngleFormatID(texture.pixelFormat);
+    if (angleFormatId == angle::FormatID::NONE)
+    {
+        return angle::FormatID::NONE;
+    }
+
+    const angle::Format *textureAngleFormat = &angle::Format::Get(angleFormatId);
+    ASSERT(textureAngleFormat);
+
+    GLenum sizedInternalFormat = textureAngleFormat->glInternalFormat;
+
+    if (attribs.contains(EGL_TEXTURE_INTERNAL_FORMAT_ANGLE))
+    {
+        const GLenum internalFormat =
+            static_cast<GLenum>(attribs.get(EGL_TEXTURE_INTERNAL_FORMAT_ANGLE));
+        GLenum type       = gl::GetSizedInternalFormatInfo(sizedInternalFormat).type;
+        const auto format = gl::Format(internalFormat, type);
+        if (!format.valid())
+        {
+            return angle::FormatID::NONE;
+        }
+
+        sizedInternalFormat = format.info->sizedInternalFormat;
+    }
+
+    return angle::Format::InternalFormatToID(sizedInternalFormat);
+}
+}  // anonymous namespace
+
 // TextureImageSiblingMtl implementation
-TextureImageSiblingMtl::TextureImageSiblingMtl(EGLClientBuffer buffer)
-    : mBuffer(buffer), mGLFormat(GL_NONE)
+TextureImageSiblingMtl::TextureImageSiblingMtl(EGLClientBuffer buffer,
+                                               const egl::AttributeMap &attribs)
+    : mBuffer(buffer), mAttribs(attribs), mGLFormat(GL_NONE)
 {}
 
 TextureImageSiblingMtl::~TextureImageSiblingMtl() {}
 
 // Static
-bool TextureImageSiblingMtl::ValidateClientBuffer(const DisplayMtl *display, EGLClientBuffer buffer)
+egl::Error TextureImageSiblingMtl::ValidateClientBuffer(const DisplayMtl *display,
+                                                        EGLClientBuffer buffer,
+                                                        const egl::AttributeMap &attribs)
 {
     id<MTLTexture> texture = (__bridge id<MTLTexture>)(buffer);
     if (!texture || texture.device != display->getMetalDevice())
     {
-        return false;
+        return egl::Error(EGL_BAD_ATTRIBUTE);
     }
 
-    if (texture.textureType != MTLTextureType2D && texture.textureType != MTLTextureTypeCube)
+    if (texture.textureType != MTLTextureType2D && texture.textureType != MTLTextureTypeCube &&
+        texture.textureType != MTLTextureType2DArray)
     {
-        return false;
+        return egl::Error(EGL_BAD_ATTRIBUTE);
     }
 
-    angle::FormatID angleFormatId = mtl::Format::MetalToAngleFormatID(texture.pixelFormat);
+    angle::FormatID angleFormatId = intendedFormatForMTLTexture(texture, attribs);
     const mtl::Format &format     = display->getPixelFormat(angleFormatId);
     if (!format.valid())
     {
-        ERR() << "Unrecognized format";
-        // Not supported
-        return false;
+        return egl::Error(EGL_BAD_ATTRIBUTE, "Unrecognized format");
     }
 
-    return true;
+    if (format.metalFormat != texture.pixelFormat)
+    {
+        return egl::Error(EGL_BAD_ATTRIBUTE, "Incompatible format");
+    }
+
+    unsigned textureArraySlice =
+        static_cast<unsigned>(attribs.getAsInt(EGL_METAL_TEXTURE_ARRAY_SLICE_ANGLE, 0));
+    if (texture.textureType != MTLTextureType2DArray && textureArraySlice > 0)
+    {
+        return egl::Error(EGL_BAD_ATTRIBUTE,
+                          "Invalid texture type for non-zero texture array slice");
+    }
+    if (textureArraySlice >= texture.arrayLength)
+    {
+        std::ostringstream err;
+        err << "Invalid texture array slice: " << textureArraySlice;
+        return egl::Error(EGL_BAD_ATTRIBUTE, err.str());
+    }
+
+    return egl::NoError();
 }
 
 egl::Error TextureImageSiblingMtl::initialize(const egl::Display *display)
@@ -58,7 +113,7 @@ egl::Error TextureImageSiblingMtl::initialize(const egl::Display *display)
     DisplayMtl *displayMtl = mtl::GetImpl(display);
     if (initImpl(displayMtl) != angle::Result::Continue)
     {
-        return egl::EglBadParameter();
+        return egl::Error(EGL_BAD_PARAMETER);
     }
 
     return egl::NoError();
@@ -68,9 +123,17 @@ angle::Result TextureImageSiblingMtl::initImpl(DisplayMtl *displayMtl)
 {
     mNativeTexture = mtl::Texture::MakeFromMetal((__bridge id<MTLTexture>)(mBuffer));
 
-    angle::FormatID angleFormatId =
-        mtl::Format::MetalToAngleFormatID(mNativeTexture->pixelFormat());
-    mFormat = displayMtl->getPixelFormat(angleFormatId);
+    if (mNativeTexture->textureType() == MTLTextureType2DArray)
+    {
+        mtl::TextureRef baseTexture = std::move(mNativeTexture);
+        unsigned textureArraySlice =
+            static_cast<unsigned>(mAttribs.getAsInt(EGL_METAL_TEXTURE_ARRAY_SLICE_ANGLE, 0));
+        mNativeTexture =
+            baseTexture->createSliceMipView(textureArraySlice, mtl::kZeroNativeMipLevel);
+    }
+
+    angle::FormatID angleFormatId = intendedFormatForMTLTexture(mNativeTexture->get(), mAttribs);
+    mFormat                       = displayMtl->getPixelFormat(angleFormatId);
 
     if (mNativeTexture)
     {
@@ -84,7 +147,9 @@ angle::Result TextureImageSiblingMtl::initImpl(DisplayMtl *displayMtl)
 
     mRenderable = mFormat.getCaps().depthRenderable || mFormat.getCaps().colorRenderable;
 
-    mTextureable = mFormat.getCaps().filterable || mFormat.hasDepthOrStencilBits();
+    // Some formats are not filterable but renderable such as integer formats. In this case, treat
+    // them as texturable as well.
+    mTextureable = mFormat.getCaps().filterable || mRenderable;
 
     return angle::Result::Continue;
 }
@@ -153,6 +218,7 @@ egl::Error ImageMtl::initialize(const egl::Display *display)
         switch (mNativeTexture->textureType())
         {
             case MTLTextureType2D:
+            case MTLTextureType2DArray:
                 mImageTextureType = gl::TextureType::_2D;
                 break;
             case MTLTextureTypeCube:
@@ -168,7 +234,7 @@ egl::Error ImageMtl::initialize(const egl::Display *display)
     else
     {
         UNREACHABLE();
-        return egl::EglBadAccess();
+        return egl::Error(EGL_BAD_ACCESS);
     }
 
     return egl::NoError();

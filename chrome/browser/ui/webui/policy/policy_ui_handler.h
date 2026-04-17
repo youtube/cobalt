@@ -12,24 +12,38 @@
 #include <string>
 #include <utility>
 
+#include "base/feature_list.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/values.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/policy/policy_value_and_status_aggregator.h"
+#include "components/policy/core/common/schema_registry.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/browser/web_ui_message_handler.h"
 #include "extensions/buildflags/buildflags.h"
-#include "ui/shell_dialogs/select_file_dialog.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "components/enterprise/browser/promotion/promotion_eligibility_checker.h"
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 class PrefChangeRegistrar;
+
+namespace features {
+// If enabled, the banner on the chrome://policy page to be shown only to
+// eligible users passing through the promotion eligibility checker.
+BASE_DECLARE_FEATURE(kPolicyPagePromotionEligibilityCheckedBanner);
+}  // namespace features
+
+namespace enterprise_management {
+class GetUserEligiblePromotionsResponse;
+}  // namespace enterprise_management
 
 // The JavaScript message handler for the chrome://policy page.
 class PolicyUIHandler : public content::WebUIMessageHandler,
                         public policy::PolicyValueAndStatusAggregator::Observer,
-                        public ui::SelectFileDialog::Listener {
+                        public policy::SchemaRegistry::Observer {
  public:
   PolicyUIHandler();
 
@@ -47,26 +61,30 @@ class PolicyUIHandler : public content::WebUIMessageHandler,
   // policy::PolicyValueAndStatusAggregator::Observer implementation.
   void OnPolicyValueAndStatusChanged() override;
 
- protected:
-  // ui::SelectFileDialog::Listener implementation.
-  void FileSelected(const base::FilePath& path,
-                    int index,
-                    void* params) override;
-  void FileSelectionCanceled(void* params) override;
+  // policy::SchemaRegistry::Observer implementation.
+  void OnSchemaRegistryUpdated(bool has_new_schemas) override;
+
+  void set_web_ui_for_test(content::WebUI* web_ui) { set_web_ui(web_ui); }
 
  private:
   void HandleExportPoliciesJson(const base::Value::List& args);
   void HandleListenPoliciesUpdates(const base::Value::List& args);
   void HandleReloadPolicies(const base::Value::List& args);
   void HandleCopyPoliciesJson(const base::Value::List& args);
+  void HandleSetLocalTestPolicies(const base::Value::List& args);
+  void HandleRevertLocalTestPolicies(const base::Value::List& args);
+  void HandleRestartBrowser(const base::Value::List& args);
+  void HandleSetUserAffiliated(const base::Value::List& args);
+  void HandleGetAppliedTestPolicies(const base::Value::List& args);
+  void HandleShouldShowPromotion(const base::Value::List& args);
+  void HandleSetBannerDismissed(const base::Value::List& args);
+  void HandleRecordBannerRedirected(const base::Value::List& args);
 #if !BUILDFLAG(IS_CHROMEOS)
   void HandleUploadReport(const base::Value::List& args);
 #endif
 
-#if BUILDFLAG(IS_ANDROID)
   // Handler functions for chrome://policy/logs.
   void HandleGetPolicyLogs(const base::Value::List& args);
-#endif  // BUILDFLAG(IS_ANDROID)
 
   // Send information about the current policy values to the UI. Information is
   // sent in two parts to the UI:
@@ -78,6 +96,10 @@ class PolicyUIHandler : public content::WebUIMessageHandler,
   // separately.
   void SendPolicies();
 
+  // Send the current policy schema to the UI: the list of supported Chrome &
+  // extension policies, and their types.
+  void SendSchema();
+
   // Send the status of cloud policy to the UI. For each scope that has cloud
   // policy enabled (device and/or user), a dictionary containing status
   // information.
@@ -88,12 +110,17 @@ class PolicyUIHandler : public content::WebUIMessageHandler,
   void OnReportUploaded(const std::string& callback_id);
 #endif
 
+#if !BUILDFLAG(IS_ANDROID)
+  void OnPromotionEligibilityFetched(
+      const std::string& callback_id,
+      enterprise_management::GetUserEligiblePromotionsResponse response);
+
+  std::unique_ptr<enterprise_promotion::PromotionEligibilityChecker>
+      promotion_eligibility_checker_;
+#endif
+
   // Build a JSON string of all the policies.
   std::string GetPoliciesAsJson();
-
-  void WritePoliciesToJSONFile(const base::FilePath& path);
-
-  scoped_refptr<ui::SelectFileDialog> export_policies_select_file_dialog_;
 
   std::unique_ptr<policy::PolicyValueAndStatusAggregator>
       policy_value_and_status_aggregator_;
@@ -101,8 +128,16 @@ class PolicyUIHandler : public content::WebUIMessageHandler,
   base::ScopedObservation<policy::PolicyValueAndStatusAggregator,
                           policy::PolicyValueAndStatusAggregator::Observer>
       policy_value_and_status_observation_{this};
+  base::ScopedObservation<policy::SchemaRegistry,
+                          policy::SchemaRegistry::Observer>
+      schema_registry_observation_{this};
 
   std::unique_ptr<PrefChangeRegistrar> pref_change_registrar_;
+
+  uint32_t reload_policies_count_ = 0;
+  uint32_t export_to_json_count_ = 0;
+  uint32_t copy_to_json_count_ = 0;
+  uint32_t upload_report_count_ = 0;
 
   base::WeakPtrFactory<PolicyUIHandler> weak_factory_{this};
 };

@@ -4,6 +4,7 @@
 
 #include "components/safe_search_api/safe_search/safe_search_url_checker_client.h"
 
+#include <array>
 #include <memory>
 #include <utility>
 
@@ -42,13 +43,17 @@ std::string BuildResponse(bool is_porn) {
   return result;
 }
 
-const char* kURLs[] = {
-    "http://www.randomsite1.com", "http://www.randomsite2.com",
-    "http://www.randomsite3.com", "http://www.randomsite4.com",
-    "http://www.randomsite5.com", "http://www.randomsite6.com",
-    "http://www.randomsite7.com", "http://www.randomsite8.com",
+auto kURLs = std::to_array<const char*>({
+    "http://www.randomsite1.com",
+    "http://www.randomsite2.com",
+    "http://www.randomsite3.com",
+    "http://www.randomsite4.com",
+    "http://www.randomsite5.com",
+    "http://www.randomsite6.com",
+    "http://www.randomsite7.com",
+    "http://www.randomsite8.com",
     "http://www.randomsite9.com",
-};
+});
 
 }  // namespace
 

@@ -13,9 +13,9 @@
 #include "chrome/browser/ash/login/existing_user_controller.h"
 #include "chrome/browser/ash/login/lock/screen_locker.h"
 #include "chrome/browser/ash/login/lock/screen_locker_tester.h"
-#include "chrome/browser/ash/login/test/embedded_policy_test_server_mixin.h"
 #include "chrome/browser/ash/login/test/logged_in_user_mixin.h"
 #include "chrome/browser/ash/login/test/session_manager_state_waiter.h"
+#include "chrome/browser/ash/policy/test_support/embedded_policy_test_server_mixin.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/chromeos/extensions/login_screen/login_screen_apitest_base.h"
@@ -30,6 +30,7 @@
 #include "components/policy/core/common/cloud/cloud_policy_constants.h"
 #include "components/policy/core/common/cloud/test/policy_builder.h"
 #include "components/policy/core/common/policy_service.h"
+#include "components/policy/core/common/policy_types.h"
 #include "components/policy/policy_constants.h"
 #include "components/prefs/pref_service.h"
 #include "components/session_manager/session_manager_types.h"
@@ -43,6 +44,7 @@
 #include "extensions/common/extension.h"
 #include "extensions/test/extension_test_message_listener.h"
 #include "extensions/test/result_catcher.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
@@ -134,7 +136,7 @@ class LoginApitest : public LoginScreenApitestBase {
   void RefreshPolicies() {
     base::RunLoop run_loop;
     g_browser_process->policy_service()->RefreshPolicies(
-        run_loop.QuitClosure());
+        run_loop.QuitClosure(), policy::PolicyFetchReason::kTest);
     run_loop.Run();
   }
 
@@ -208,9 +210,10 @@ IN_PROC_BROWSER_TEST_F(LoginApitest, LaunchManagedGuestSession) {
   // We cannot use the email as an identifier as a different email is generated
   // for managed guest sessions.
   user_manager::UserManager* user_manager = user_manager::UserManager::Get();
-  EXPECT_TRUE(user_manager->GetActiveUser()->GetType() ==
-              user_manager::USER_TYPE_PUBLIC_ACCOUNT);
-  EXPECT_FALSE(user_manager->CanCurrentUserLock());
+  auto* active_user = user_manager->GetActiveUser();
+  ASSERT_TRUE(active_user);
+  EXPECT_EQ(user_manager::UserType::kPublicAccount, active_user->GetType());
+  EXPECT_FALSE(active_user->CanLock());
 }
 
 IN_PROC_BROWSER_TEST_F(LoginApitest, LaunchManagedGuestSessionWithPassword) {
@@ -218,7 +221,7 @@ IN_PROC_BROWSER_TEST_F(LoginApitest, LaunchManagedGuestSessionWithPassword) {
   LogInWithPassword();
 
   user_manager::UserManager* user_manager = user_manager::UserManager::Get();
-  EXPECT_TRUE(user_manager->CanCurrentUserLock());
+  EXPECT_TRUE(user_manager->GetActiveUser()->CanLock());
 }
 
 IN_PROC_BROWSER_TEST_F(LoginApitest, LaunchManagedGuestSessionNoAccounts) {
@@ -448,7 +451,7 @@ class LoginApitestWithEnterpriseUser : public LoginApitest {
         user_policy_builder_->policy_data();
     policy_data.set_policy_type(policy::dm_protocol::kChromeUserPolicyType);
     policy_data.set_username(account_id.GetUserEmail());
-    policy_data.set_gaia_id(account_id.GetGaiaId());
+    policy_data.set_gaia_id(account_id.GetGaiaId().ToString());
     user_policy_builder_->Build();
 
     auto registry_observer =
@@ -469,13 +472,8 @@ class LoginApitestWithEnterpriseUser : public LoginApitest {
   // |embedded_test_server()|.
   net::EmbeddedTestServer test_server_;
   ash::LoggedInUserMixin logged_in_user_mixin_{
-      &mixin_host_,
-      ash::LoggedInUserMixin::LogInType::kRegular,
-      &test_server_,
-      this,
-      /*should_launch_browser=*/true,
-      AccountId::FromUserEmailGaiaId(FakeGaiaMixin::kEnterpriseUser1,
-                                     FakeGaiaMixin::kEnterpriseUser1GaiaId)};
+      &mixin_host_, /*test_base=*/this, embedded_test_server(),
+      ash::LoggedInUserMixin::LogInType::kManaged};
 };
 
 IN_PROC_BROWSER_TEST_F(LoginApitestWithEnterpriseUser,

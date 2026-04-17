@@ -38,6 +38,7 @@ this image will fail when the image is run.
 import logging
 import subprocess
 import sys
+import re
 import time
 
 import dind_common as dind
@@ -71,7 +72,14 @@ def main():
   floating_tag = 'FLOATING_TAG_PLACEHOLDER'
   if args.is_postsubmit:
     # Check for postsubmit flags before assigning the floating tag for a branch.
-    floating_tag = f'branch-{args.base_branch_name}'
+    # Sanitize the branch name to be a valid Docker tag.  Replace any characters
+    # that are not letters, numbers, underscores, periods, or dashes with an
+    # underscore. Also, added a step to truncate the tag to 128 characters to
+    # ensure it complies wiht the Docker's tag length limit.  This should cover
+    # all potential illegal characters for a Docker tag.
+    sanitized_branch_name = re.sub(r'[^a-zA-Z0-9_.-]+', '_',
+                                   args.base_branch_name)
+    floating_tag = f'branch-{sanitized_branch_name}'[:128]
   else:
     floating_tag = f'gerrit-cl-{args.gerrit_change_number}'
   floating_image = f'{args.registry_path}/{args.registry_img}:{floating_tag}'

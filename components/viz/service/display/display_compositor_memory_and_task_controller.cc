@@ -8,9 +8,9 @@
 
 #include "base/functional/bind.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/threading/thread_restrictions.h"
 #include "components/viz/service/display_embedder/skia_output_surface_dependency.h"
 #include "gpu/command_buffer/service/scheduler_sequence.h"
-#include "gpu/command_buffer/service/shared_image_interface_in_process.h"
 
 namespace viz {
 
@@ -21,25 +21,21 @@ DisplayCompositorMemoryAndTaskController::
       gpu_task_scheduler_(std::make_unique<gpu::GpuTaskSchedulerHelper>(
           skia_dependency_->CreateSequence())) {
   DCHECK(gpu_task_scheduler_);
+  base::ScopedAllowBaseSyncPrimitives allow_wait;
   base::WaitableEvent event(base::WaitableEvent::ResetPolicy::MANUAL,
                             base::WaitableEvent::InitialState::NOT_SIGNALED);
   auto callback =
       base::BindOnce(&DisplayCompositorMemoryAndTaskController::InitializeOnGpu,
                      base::Unretained(this), skia_dependency_.get(), &event);
-  gpu_task_scheduler_->ScheduleGpuTask(std::move(callback), {});
+  gpu_task_scheduler_->ScheduleGpuTask(
+      std::move(callback), /*sync_token_fences=*/{}, gpu::SyncToken());
   event.Wait();
-
-  shared_image_interface_ =
-      std::make_unique<gpu::SharedImageInterfaceInProcess>(
-          gpu_task_scheduler_->GetTaskSequence(), controller_on_gpu_.get());
 }
 
 DisplayCompositorMemoryAndTaskController::
     ~DisplayCompositorMemoryAndTaskController() {
+  base::ScopedAllowBaseSyncPrimitives allow_wait;
   gpu::ScopedAllowScheduleGpuTask allow_schedule_gpu_task;
-  // Make sure to destroy the SharedImageInterfaceInProcess before getting rid
-  // of data structures on the gpu thread.
-  shared_image_interface_.reset();
 
   // If we have a |gpu_task_scheduler_|, we must have started initializing
   // a |controller_on_gpu_| on the |gpu_task_scheduler_|.
@@ -48,7 +44,8 @@ DisplayCompositorMemoryAndTaskController::
   auto callback =
       base::BindOnce(&DisplayCompositorMemoryAndTaskController::DestroyOnGpu,
                      base::Unretained(this), &event);
-  gpu_task_scheduler_->GetTaskSequence()->ScheduleTask(std::move(callback), {});
+  gpu_task_scheduler_->GetTaskSequence()->ScheduleTask(
+      std::move(callback), /*sync_token_fences=*/{}, gpu::SyncToken());
   event.Wait();
 }
 
@@ -59,7 +56,6 @@ void DisplayCompositorMemoryAndTaskController::InitializeOnGpu(
   controller_on_gpu_ =
       std::make_unique<gpu::DisplayCompositorMemoryAndTaskControllerOnGpu>(
           skia_dependency->GetSharedContextState(),
-          skia_dependency->GetMailboxManager(),
           skia_dependency->GetSharedImageManager(),
           skia_dependency->GetSyncPointManager(),
           skia_dependency->GetGpuPreferences(),
@@ -75,8 +71,4 @@ void DisplayCompositorMemoryAndTaskController::DestroyOnGpu(
   event->Signal();
 }
 
-gpu::SharedImageInterface*
-DisplayCompositorMemoryAndTaskController::shared_image_interface() {
-  return shared_image_interface_.get();
-}
 }  // namespace viz

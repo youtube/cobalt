@@ -32,9 +32,13 @@ message AndroidBinderMetric {
     optional uint32 count = 4;
   }
 
+  // Next field id: 31
   message UnaggregatedTxnBreakdown {
     // General
     optional string aidl_name = 1;
+    optional int64 aidl_ts = 22;
+    optional int64 aidl_dur = 23;
+    optional bool is_sync = 21;
     // Client
     // Removed: was binder_txn_id
     reserved 2;
@@ -43,6 +47,10 @@ message AndroidBinderMetric {
     optional bool is_main_thread = 5;
     optional int64 client_ts = 6;
     optional int64 client_dur = 7;
+    optional int64 client_monotonic_dur = 28;
+    optional int64 client_oom_score = 19;
+    optional int64 client_package_version_code = 24;
+    optional bool is_client_package_debuggable = 25;
     // Server
     // Removed: was binder_reply_id
     reserved 8;
@@ -50,12 +58,20 @@ message AndroidBinderMetric {
     optional string server_thread = 10;
     optional int64 server_ts = 11;
     optional int64 server_dur = 12;
+    optional int64 server_monotonic_dur = 29;
+    optional int64 server_oom_score = 20;
+    optional int64 server_package_version_code = 26;
+    optional bool is_server_package_debuggable = 27;
     // Aggregations
     repeated ThreadStateBreakdown thread_states = 13;
     repeated BlockedFunctionBreakdown blocked_functions = 14;
+    repeated LogicalReasonBreakdown logical_reasons = 31;
 
     optional uint32 client_tid = 15;
     optional uint32 server_tid = 16;
+
+    optional uint32 client_pid = 17;
+    optional uint32 server_pid = 18;
   }
 
   message ThreadStateBreakdown {
@@ -70,6 +86,12 @@ message AndroidBinderMetric {
     optional string blocked_function = 2;
     optional int64 blocked_function_dur = 3;
     optional int64 blocked_function_count = 4;
+  }
+
+  message LogicalReasonBreakdown {
+    optional string thread_state_type = 1;
+    optional string reason = 2;
+    optional int64 reason_dur = 3;
   }
 
   repeated PerProcessBreakdown process_breakdown = 1;

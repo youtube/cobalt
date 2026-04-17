@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "remoting/protocol/chromium_socket_factory.h"
 
 #include <stddef.h>
@@ -12,7 +17,9 @@
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/memory/weak_ptr.h"
 #include "base/rand_util.h"
+#include "base/threading/thread_checker.h"
 #include "base/time/time.h"
 #include "components/webrtc/net_address_utils.h"
 #include "net/base/io_buffer.h"
@@ -25,11 +32,14 @@
 #include "remoting/protocol/session_options_provider.h"
 #include "remoting/protocol/socket_util.h"
 #include "remoting/protocol/stream_packet_socket.h"
+#include "third_party/webrtc/api/units/timestamp.h"
 #include "third_party/webrtc/media/base/rtp_utils.h"
+#include "third_party/webrtc/rtc_base/async_dns_resolver.h"
 #include "third_party/webrtc/rtc_base/async_packet_socket.h"
-#include "third_party/webrtc/rtc_base/async_resolver.h"
 #include "third_party/webrtc/rtc_base/net_helpers.h"
+#include "third_party/webrtc/rtc_base/network/received_packet.h"
 #include "third_party/webrtc/rtc_base/socket.h"
+#include "third_party/webrtc/rtc_base/time_utils.h"
 
 namespace remoting::protocol {
 
@@ -58,7 +68,7 @@ std::unique_ptr<net::UDPServerSocket> CreateUdpSocketAndListen(
   return socket;
 }
 
-class UdpPacketSocket : public rtc::AsyncPacketSocket {
+class UdpPacketSocket : public webrtc::AsyncPacketSocket {
  public:
   UdpPacketSocket();
 
@@ -67,24 +77,24 @@ class UdpPacketSocket : public rtc::AsyncPacketSocket {
 
   ~UdpPacketSocket() override;
 
-  bool Init(const rtc::SocketAddress& local_address,
+  bool Init(const webrtc::SocketAddress& local_address,
             uint16_t min_port,
             uint16_t max_port);
 
-  // rtc::AsyncPacketSocket interface.
-  rtc::SocketAddress GetLocalAddress() const override;
-  rtc::SocketAddress GetRemoteAddress() const override;
+  // webrtc::AsyncPacketSocket interface.
+  webrtc::SocketAddress GetLocalAddress() const override;
+  webrtc::SocketAddress GetRemoteAddress() const override;
   int Send(const void* data,
            size_t data_size,
-           const rtc::PacketOptions& options) override;
+           const webrtc::AsyncSocketPacketOptions& options) override;
   int SendTo(const void* data,
              size_t data_size,
-             const rtc::SocketAddress& address,
-             const rtc::PacketOptions& options) override;
+             const webrtc::SocketAddress& address,
+             const webrtc::AsyncSocketPacketOptions& options) override;
   int Close() override;
   State GetState() const override;
-  int GetOption(rtc::Socket::Option option, int* value) override;
-  int SetOption(rtc::Socket::Option option, int value) override;
+  int GetOption(webrtc::Socket::Option option, int* value) override;
+  int SetOption(webrtc::Socket::Option option, int value) override;
   int GetError() const override;
   void SetError(int error) override;
 
@@ -93,12 +103,12 @@ class UdpPacketSocket : public rtc::AsyncPacketSocket {
     PendingPacket(const void* buffer,
                   int buffer_size,
                   const net::IPEndPoint& address,
-                  const rtc::PacketOptions& options);
+                  const webrtc::AsyncSocketPacketOptions& options);
 
     scoped_refptr<net::IOBufferWithSize> data;
     net::IPEndPoint address;
-    bool retried;
-    rtc::PacketOptions options;
+    bool retried = false;
+    webrtc::AsyncSocketPacketOptions options;
   };
 
   void OnBindCompleted(int error);
@@ -110,46 +120,53 @@ class UdpPacketSocket : public rtc::AsyncPacketSocket {
   void OnReadCompleted(int result);
   void HandleReadResult(int result);
 
-  std::unique_ptr<net::UDPServerSocket> socket_;
+  std::unique_ptr<net::UDPServerSocket> socket_
+      GUARDED_BY_CONTEXT(thread_checker_);
 
-  State state_;
-  int error_;
+  State state_ = STATE_CLOSED;
+  int error_ = 0;
 
-  rtc::SocketAddress local_address_;
+  webrtc::SocketAddress local_address_;
 
   // Receive buffer and address are populated by asynchronous reads.
   scoped_refptr<net::IOBuffer> receive_buffer_;
   net::IPEndPoint receive_address_;
 
-  bool send_pending_;
-  std::list<PendingPacket> send_queue_;
-  int send_queue_size_;
+  bool send_pending_ GUARDED_BY_CONTEXT(thread_checker_) = false;
+  std::list<PendingPacket> send_queue_ GUARDED_BY_CONTEXT(thread_checker_);
+  int send_queue_size_ GUARDED_BY_CONTEXT(thread_checker_) = 0;
+
+  THREAD_CHECKER(thread_checker_);
+
+  // Cache a WeakPtr instance to prevent calling memory barrier functions for
+  // each send callback.
+  base::WeakPtr<UdpPacketSocket> weak_ptr_;
+  base::WeakPtrFactory<UdpPacketSocket> weak_factory_{this};
 };
 
-UdpPacketSocket::PendingPacket::PendingPacket(const void* buffer,
-                                              int buffer_size,
-                                              const net::IPEndPoint& address,
-                                              const rtc::PacketOptions& options)
+UdpPacketSocket::PendingPacket::PendingPacket(
+    const void* buffer,
+    int buffer_size,
+    const net::IPEndPoint& address,
+    const webrtc::AsyncSocketPacketOptions& options)
     : data(base::MakeRefCounted<net::IOBufferWithSize>(buffer_size)),
       address(address),
-      retried(false),
       options(options) {
   memcpy(data->data(), buffer, buffer_size);
 }
 
-UdpPacketSocket::UdpPacketSocket()
-    : state_(STATE_CLOSED),
-      error_(0),
-      send_pending_(false),
-      send_queue_size_(0) {}
+UdpPacketSocket::UdpPacketSocket() {
+  weak_ptr_ = weak_factory_.GetWeakPtr();
+}
 
 UdpPacketSocket::~UdpPacketSocket() {
   Close();
 }
 
-bool UdpPacketSocket::Init(const rtc::SocketAddress& local_address,
+bool UdpPacketSocket::Init(const webrtc::SocketAddress& local_address,
                            uint16_t min_port,
                            uint16_t max_port) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK_LE(min_port, max_port);
   net::IPEndPoint local_endpoint;
   if (!webrtc::SocketAddressToIPEndPoint(local_address, &local_endpoint)) {
@@ -193,32 +210,31 @@ bool UdpPacketSocket::Init(const rtc::SocketAddress& local_address,
   return true;
 }
 
-rtc::SocketAddress UdpPacketSocket::GetLocalAddress() const {
+webrtc::SocketAddress UdpPacketSocket::GetLocalAddress() const {
   DCHECK_EQ(state_, STATE_BOUND);
   return local_address_;
 }
 
-rtc::SocketAddress UdpPacketSocket::GetRemoteAddress() const {
+webrtc::SocketAddress UdpPacketSocket::GetRemoteAddress() const {
   // UDP sockets are not connected - this method should never be called.
   NOTREACHED();
-  return rtc::SocketAddress();
 }
 
 int UdpPacketSocket::Send(const void* data,
                           size_t data_size,
-                          const rtc::PacketOptions& options) {
+                          const webrtc::AsyncSocketPacketOptions& options) {
   // UDP sockets are not connected - this method should never be called.
   NOTREACHED();
-  return EWOULDBLOCK;
 }
 
 int UdpPacketSocket::SendTo(const void* data,
                             size_t data_size,
-                            const rtc::SocketAddress& address,
-                            const rtc::PacketOptions& options) {
+                            const webrtc::SocketAddress& address,
+                            const webrtc::AsyncSocketPacketOptions& options) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
   if (state_ != STATE_BOUND) {
     NOTREACHED();
-    return EINVAL;
   }
 
   if (error_ != 0) {
@@ -234,8 +250,7 @@ int UdpPacketSocket::SendTo(const void* data,
     return EWOULDBLOCK;
   }
 
-  PendingPacket packet(data, data_size, endpoint, options);
-  send_queue_.push_back(packet);
+  send_queue_.emplace_back(data, data_size, endpoint, options);
   send_queue_size_ += data_size;
 
   DoSend();
@@ -243,62 +258,66 @@ int UdpPacketSocket::SendTo(const void* data,
 }
 
 int UdpPacketSocket::Close() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
   state_ = STATE_CLOSED;
   socket_.reset();
+  weak_ptr_.reset();
   return 0;
 }
 
-rtc::AsyncPacketSocket::State UdpPacketSocket::GetState() const {
+webrtc::AsyncPacketSocket::State UdpPacketSocket::GetState() const {
   return state_;
 }
 
-int UdpPacketSocket::GetOption(rtc::Socket::Option option, int* value) {
+int UdpPacketSocket::GetOption(webrtc::Socket::Option option, int* value) {
   // This method is never called by libjingle.
   NOTIMPLEMENTED();
   return -1;
 }
 
-int UdpPacketSocket::SetOption(rtc::Socket::Option option, int value) {
+int UdpPacketSocket::SetOption(webrtc::Socket::Option option, int value) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
   if (state_ != STATE_BOUND) {
     NOTREACHED();
-    return EINVAL;
   }
 
   switch (option) {
-    case rtc::Socket::OPT_DONTFRAGMENT:
+    case webrtc::Socket::OPT_DONTFRAGMENT:
       NOTIMPLEMENTED();
       return -1;
 
-    case rtc::Socket::OPT_RCVBUF: {
+    case webrtc::Socket::OPT_RCVBUF: {
       int net_error = socket_->SetReceiveBufferSize(value);
       return (net_error == net::OK) ? 0 : -1;
     }
 
-    case rtc::Socket::OPT_SNDBUF: {
+    case webrtc::Socket::OPT_SNDBUF: {
       int net_error = socket_->SetSendBufferSize(value);
       return (net_error == net::OK) ? 0 : -1;
     }
 
-    case rtc::Socket::OPT_NODELAY:
+    case webrtc::Socket::OPT_NODELAY:
       // OPT_NODELAY is only for TCP sockets.
       NOTREACHED();
-      return -1;
 
-    case rtc::Socket::OPT_IPV6_V6ONLY:
+    case webrtc::Socket::OPT_IPV6_V6ONLY:
       NOTIMPLEMENTED();
       return -1;
 
-    case rtc::Socket::OPT_DSCP:
+    case webrtc::Socket::OPT_DSCP:
       NOTIMPLEMENTED();
       return -1;
 
-    case rtc::Socket::OPT_RTP_SENDTIME_EXTN_ID:
+    case webrtc::Socket::OPT_RTP_SENDTIME_EXTN_ID:
       NOTIMPLEMENTED();
+      return -1;
+
+    default:
+      NOTIMPLEMENTED() << "Unexpected socket option: " << option;
       return -1;
   }
-
-  NOTREACHED();
-  return -1;
 }
 
 int UdpPacketSocket::GetError() const {
@@ -310,27 +329,38 @@ void UdpPacketSocket::SetError(int error) {
 }
 
 void UdpPacketSocket::DoSend() {
-  if (send_pending_ || send_queue_.empty()) {
-    return;
-  }
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  PendingPacket& packet = send_queue_.front();
-  cricket::ApplyPacketOptions(
-      reinterpret_cast<uint8_t*>(packet.data->data()), packet.data->size(),
-      packet.options.packet_time_params,
-      (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds());
-  int result =
-      socket_->SendTo(packet.data.get(), packet.data->size(), packet.address,
-                      base::BindOnce(&UdpPacketSocket::OnSendCompleted,
-                                     base::Unretained(this)));
-  if (result == net::ERR_IO_PENDING) {
-    send_pending_ = true;
-  } else {
-    OnSendCompleted(result);
+  // SendTo() usually completes synchronously however if the socket is not able
+  // to send, it will return ERR_IO_PENDING. In that case, we break out of the
+  // send loop to allow it time to finish sending packets. Once the socket is
+  // ready, it will call the OnSendCompleted callback at which point we can
+  // start working through the pending packet queue again.
+  while (!send_pending_ && !send_queue_.empty() && error_ == 0) {
+    PendingPacket& packet = send_queue_.front();
+    webrtc::ApplyPacketOptions(
+        packet.data->bytes(), packet.data->size(),
+        packet.options.packet_time_params,
+        (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds());
+    int result = socket_->SendTo(
+        packet.data.get(), packet.data->size(), packet.address,
+        base::BindOnce(&UdpPacketSocket::OnSendCompleted, weak_ptr_));
+    if (result != net::ERR_IO_PENDING) {
+      OnSendCompleted(result);
+    } else {
+      send_pending_ = true;
+    }
   }
 }
 
 void UdpPacketSocket::OnSendCompleted(int result) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  // If |send_pending_| is true, that means OnSendCompleted was run via the
+  // callback we provide to the socket because it is able to process send
+  // packets again. In that case, we want to call DoSend() so that any packets
+  // which were queued while the socket was busy will be sent immediately.
+  bool run_from_callback = send_pending_;
   send_pending_ = false;
 
   if (result < 0) {
@@ -345,7 +375,9 @@ void UdpPacketSocket::OnSendCompleted(int result) {
         // Retry resending only once.
         if (!send_queue_.front().retried) {
           send_queue_.front().retried = true;
-          DoSend();
+          if (run_from_callback) {
+            DoSend();
+          }
           return;
         }
         break;
@@ -355,28 +387,38 @@ void UdpPacketSocket::OnSendCompleted(int result) {
     }
   }
 
-  // Don't need to worry about partial sends because this is a datagram
-  // socket.
+  // Don't need to worry about partial sends because this is a datagram socket.
   send_queue_size_ -= send_queue_.front().data->size();
-  SignalSentPacket(this, rtc::SentPacket(send_queue_.front().options.packet_id,
-                                         rtc::TimeMillis()));
+
+  // Speculative fix for the intermittent crashes we've seen in this method.
+  // TODO: joedow - Rewrite this comment if popping from the queue before
+  // signaling packet sent does indeed solve the intermittent crashes.
+  const webrtc::SentPacketInfo sent_packet(
+      send_queue_.front().options.packet_id, webrtc::TimeMillis());
   send_queue_.pop_front();
-  DoSend();
+  SignalSentPacket(this, sent_packet);
+  if (run_from_callback) {
+    DoSend();
+  }
 }
 
 void UdpPacketSocket::DoRead() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
   int result = 0;
   while (result >= 0) {
-    receive_buffer_ = base::MakeRefCounted<net::IOBuffer>(kReceiveBufferSize);
-    result = socket_->RecvFrom(receive_buffer_.get(), kReceiveBufferSize,
-                               &receive_address_,
-                               base::BindOnce(&UdpPacketSocket::OnReadCompleted,
-                                              base::Unretained(this)));
+    receive_buffer_ =
+        base::MakeRefCounted<net::IOBufferWithSize>(kReceiveBufferSize);
+    result = socket_->RecvFrom(
+        receive_buffer_.get(), kReceiveBufferSize, &receive_address_,
+        base::BindOnce(&UdpPacketSocket::OnReadCompleted, weak_ptr_));
     HandleReadResult(result);
   }
 }
 
 void UdpPacketSocket::OnReadCompleted(int result) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
   HandleReadResult(result);
   if (result >= 0) {
     DoRead();
@@ -389,14 +431,14 @@ void UdpPacketSocket::HandleReadResult(int result) {
   }
 
   if (result > 0) {
-    rtc::SocketAddress address;
+    webrtc::SocketAddress address;
     if (!webrtc::IPEndPointToSocketAddress(receive_address_, &address)) {
-      NOTREACHED();
-      LOG(ERROR) << "Failed to convert address received from RecvFrom().";
-      return;
+      NOTREACHED() << "Failed to convert address received from RecvFrom().";
     }
-    SignalReadPacket(this, receive_buffer_->data(), result, address,
-                     rtc::TimeMicros());
+    webrtc::ReceivedIpPacket packet(
+        webrtc::MakeArrayView(receive_buffer_->bytes(), result), address,
+        webrtc::Timestamp::Micros(webrtc::TimeMicros()));
+    NotifyPacketReceived(packet);
   } else {
     LOG(ERROR) << "Received error when reading from UDP socket: " << result;
   }
@@ -410,8 +452,8 @@ ChromiumPacketSocketFactory::ChromiumPacketSocketFactory(
 
 ChromiumPacketSocketFactory::~ChromiumPacketSocketFactory() = default;
 
-rtc::AsyncPacketSocket* ChromiumPacketSocketFactory::CreateUdpSocket(
-    const rtc::SocketAddress& local_address,
+webrtc::AsyncPacketSocket* ChromiumPacketSocketFactory::CreateUdpSocket(
+    const webrtc::SocketAddress& local_address,
     uint16_t min_port,
     uint16_t max_port) {
   if (session_options_provider_ &&
@@ -421,15 +463,15 @@ rtc::AsyncPacketSocket* ChromiumPacketSocketFactory::CreateUdpSocket(
         << "Disable-UDP experiment is enabled. UDP socket won't be created.";
     return nullptr;
   }
-  std::unique_ptr<UdpPacketSocket> result(new UdpPacketSocket());
+  std::unique_ptr<UdpPacketSocket> result = std::make_unique<UdpPacketSocket>();
   if (!result->Init(local_address, min_port, max_port)) {
     return nullptr;
   }
   return result.release();
 }
 
-rtc::AsyncListenSocket* ChromiumPacketSocketFactory::CreateServerTcpSocket(
-    const rtc::SocketAddress& local_address,
+webrtc::AsyncListenSocket* ChromiumPacketSocketFactory::CreateServerTcpSocket(
+    const webrtc::SocketAddress& local_address,
     uint16_t min_port,
     uint16_t max_port,
     int opts) {
@@ -439,30 +481,20 @@ rtc::AsyncListenSocket* ChromiumPacketSocketFactory::CreateServerTcpSocket(
   return nullptr;
 }
 
-rtc::AsyncPacketSocket* ChromiumPacketSocketFactory::CreateClientTcpSocket(
-    const rtc::SocketAddress& local_address,
-    const rtc::SocketAddress& remote_address,
-    const rtc::ProxyInfo& proxy_info,
-    const std::string& user_agent,
-    const rtc::PacketSocketTcpOptions& opts) {
-  if (session_options_provider_ &&
-      session_options_provider_->session_options().GetBoolValue(
-          "Disable-TCP")) {
-    HOST_LOG << "Disable-TCP experiment is enabled. Client TCP socket won't be "
-             << "created.";
-    return nullptr;
-  }
+webrtc::AsyncPacketSocket* ChromiumPacketSocketFactory::CreateClientTcpSocket(
+    const webrtc::SocketAddress& local_address,
+    const webrtc::SocketAddress& remote_address,
+    const webrtc::PacketSocketTcpOptions& opts) {
   auto socket = std::make_unique<StreamPacketSocket>();
-  if (!socket->InitClientTcp(local_address, remote_address, proxy_info,
-                             user_agent, opts)) {
+  if (!socket->InitClientTcp(local_address, remote_address, opts)) {
     return nullptr;
   }
   return socket.release();
 }
 
-rtc::AsyncResolverInterface*
-ChromiumPacketSocketFactory::CreateAsyncResolver() {
-  return new rtc::AsyncResolver();
+std::unique_ptr<webrtc::AsyncDnsResolverInterface>
+ChromiumPacketSocketFactory::CreateAsyncDnsResolver() {
+  return std::make_unique<webrtc::AsyncDnsResolver>();
 }
 
 }  // namespace remoting::protocol

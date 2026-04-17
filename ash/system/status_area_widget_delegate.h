@@ -10,17 +10,19 @@
 #include "ash/public/cpp/shelf_types.h"
 #include "ash/system/status_area_widget.h"
 #include "base/memory/raw_ptr.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/views/accessible_pane_view.h"
 #include "ui/views/widget/widget_delegate.h"
 
 namespace ash {
-class FocusCycler;
 class Shelf;
 
 // The View for the status area widget.
 class ASH_EXPORT StatusAreaWidgetDelegate : public views::AccessiblePaneView,
                                             public views::WidgetDelegate {
+  METADATA_HEADER(StatusAreaWidgetDelegate, views::AccessiblePaneView)
+
  public:
   explicit StatusAreaWidgetDelegate(Shelf* shelf);
 
@@ -40,9 +42,6 @@ class ASH_EXPORT StatusAreaWidgetDelegate : public views::AccessiblePaneView,
   // bounds.
   void UpdateLayout(bool animate);
 
-  // Sets the focus cycler.
-  void SetFocusCyclerForTesting(const FocusCycler* focus_cycler);
-
   // If |reverse|, indicates backward focusing, otherwise forward focusing.
   // Returns true if status area widget delegate should focus out on the
   // designated focusing direction, otherwise false.
@@ -55,10 +54,10 @@ class ASH_EXPORT StatusAreaWidgetDelegate : public views::AccessiblePaneView,
   // Clears most of the Widget to prevent destruction problems before ~Widget.
   void Shutdown();
 
+  void UpdateAccessiblePreviousAndNextFocus();
+
   // views::AccessiblePaneView:
-  void GetAccessibleNodeData(ui::AXNodeData* node_data) override;
   View* GetDefaultFocusableChild() override;
-  const char* GetClassName() const override;
   views::Widget* GetWidget() override;
   const views::Widget* GetWidget() const override;
 
@@ -83,8 +82,7 @@ class ASH_EXPORT StatusAreaWidgetDelegate : public views::AccessiblePaneView,
   // screen.
   void SetBorderOnChild(views::View* child, bool extend_border_to_edge);
 
-  const raw_ptr<Shelf, ExperimentalAsh> shelf_;
-  raw_ptr<const FocusCycler, ExperimentalAsh> focus_cycler_for_testing_;
+  const raw_ptr<Shelf> shelf_;
   gfx::Rect target_bounds_;
 
   // When true, the default focus of the status area widget is the last

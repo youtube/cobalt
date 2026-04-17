@@ -27,7 +27,7 @@ LearningTaskControllerHelper::~LearningTaskControllerHelper() = default;
 void LearningTaskControllerHelper::BeginObservation(
     base::UnguessableToken id,
     FeatureVector features,
-    absl::optional<ukm::SourceId> source_id) {
+    std::optional<ukm::SourceId> source_id) {
   auto& pending_example = pending_examples_[id];
 
   if (source_id)
@@ -40,7 +40,7 @@ void LearningTaskControllerHelper::BeginObservation(
         .WithArgs(std::move(features),
                   base::BindOnce(
                       &LearningTaskControllerHelper::OnFeaturesReadyTrampoline,
-                      task_runner_, AsWeakPtr(), id));
+                      task_runner_, weak_ptr_factory_.GetWeakPtr(), id));
   } else {
     pending_example.example.features = std::move(features);
     pending_example.features_done = true;

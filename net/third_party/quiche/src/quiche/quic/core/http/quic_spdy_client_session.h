@@ -20,25 +20,22 @@ namespace quic {
 class QuicConnection;
 class QuicServerId;
 
-class QUIC_EXPORT_PRIVATE QuicSpdyClientSession
-    : public QuicSpdyClientSessionBase {
+class QUICHE_EXPORT QuicSpdyClientSession : public QuicSpdyClientSessionBase {
  public:
-  // Takes ownership of |connection|. Caller retains ownership of
-  // |promised_by_url|.
-  QuicSpdyClientSession(const QuicConfig& config,
-                        const ParsedQuicVersionVector& supported_versions,
-                        QuicConnection* connection,
-                        const QuicServerId& server_id,
-                        QuicCryptoClientConfig* crypto_config,
-                        QuicClientPushPromiseIndex* push_promise_index);
+  // Takes ownership of |connection|.
+  QuicSpdyClientSession(
+      const QuicConfig& config,
+      const ParsedQuicVersionVector& supported_versions,
+      QuicConnection* connection, const QuicServerId& server_id,
+      QuicCryptoClientConfig* crypto_config,
+      QuicPriorityType priority_type = QuicPriorityType::kHttp);
 
-  QuicSpdyClientSession(const QuicConfig& config,
-                        const ParsedQuicVersionVector& supported_versions,
-                        QuicConnection* connection,
-                        QuicSession::Visitor* visitor,
-                        const QuicServerId& server_id,
-                        QuicCryptoClientConfig* crypto_config,
-                        QuicClientPushPromiseIndex* push_promise_index);
+  QuicSpdyClientSession(
+      const QuicConfig& config,
+      const ParsedQuicVersionVector& supported_versions,
+      QuicConnection* connection, QuicSession::Visitor* visitor,
+      const QuicServerId& server_id, QuicCryptoClientConfig* crypto_config,
+      QuicPriorityType priority_type = QuicPriorityType::kHttp);
 
   QuicSpdyClientSession(const QuicSpdyClientSession&) = delete;
   QuicSpdyClientSession& operator=(const QuicSpdyClientSession&) = delete;
@@ -52,8 +49,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientSession
   QuicCryptoClientStreamBase* GetMutableCryptoStream() override;
   const QuicCryptoClientStreamBase* GetCryptoStream() const override;
 
-  bool IsAuthorized(const std::string& authority) override;
-
   // QuicSpdyClientSessionBase methods:
   void OnProofValid(const QuicCryptoClientConfig::CachedState& cached) override;
   void OnProofVerifyDetailsAvailable(
@@ -66,6 +61,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientSession
   // crypto stream. If the handshake has completed then this is one greater
   // than the number of round-trips needed for the handshake.
   int GetNumSentClientHellos() const;
+
+  // Return true if the client attempted a TLS resumption.
+  // Always return false for QUIC Crypto.
+  bool ResumptionAttempted() const;
 
   // Return true if the handshake performed is a TLS resumption.
   // Always return false for QUIC Crypto.
@@ -89,6 +88,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientSession
 
   void set_respect_goaway(bool respect_goaway) {
     respect_goaway_ = respect_goaway;
+  }
+
+  QuicSSLConfig GetSSLConfig() const override {
+    return crypto_config_->ssl_config();
   }
 
  protected:

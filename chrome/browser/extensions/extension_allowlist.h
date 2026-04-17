@@ -8,10 +8,15 @@
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
 #include "base/scoped_observation.h"
+#include "components/keyed_service/core/keyed_service.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "extensions/browser/allowlist_state.h"
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_prefs_observer.h"
+#include "extensions/buildflags/buildflags.h"
+#include "extensions/common/extension_id.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 class Profile;
 
@@ -20,11 +25,11 @@ class Value;
 }  // namespace base
 
 namespace extensions {
+class ExtensionRegistrar;
 class ExtensionRegistry;
-class ExtensionService;
 
 // Manages the Safe Browsing CRX Allowlist.
-class ExtensionAllowlist : private ExtensionPrefsObserver {
+class ExtensionAllowlist : public KeyedService, public ExtensionPrefsObserver {
  public:
   class Observer : public base::CheckedObserver {
    public:
@@ -33,19 +38,15 @@ class ExtensionAllowlist : private ExtensionPrefsObserver {
     // This can occur when an extension is included/excluded of the allowlist,
     // or when the user turns on/off the Enhanced Safe Browsing setting.
     virtual void OnExtensionAllowlistWarningStateChanged(
-        const std::string& extension_id,
+        const ExtensionId& extension_id,
         bool show_warning) {}
   };
 
-  // Constructor stores pointers to `profile`, `extension_prefs` and
-  // `extension_service`. They must outlive this object and the ownership
-  // remains at caller.
-  ExtensionAllowlist(Profile* profile,
-                     ExtensionPrefs* extension_prefs,
-                     ExtensionService* extension_service);
+  static ExtensionAllowlist* Get(Profile* profile);
+
   ExtensionAllowlist(const ExtensionAllowlist&) = delete;
   ExtensionAllowlist& operator=(const ExtensionAllowlist&) = delete;
-  ~ExtensionAllowlist();
+  ~ExtensionAllowlist() override;
 
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
@@ -54,45 +55,50 @@ class ExtensionAllowlist : private ExtensionPrefsObserver {
 
   // Gets the Safe Browsing allowlist state.
   AllowlistState GetExtensionAllowlistState(
-      const std::string& extension_id) const;
+      const ExtensionId& extension_id) const;
 
   // Sets the Safe Browsing allowlist state.
-  void SetExtensionAllowlistState(const std::string& extension_id,
+  void SetExtensionAllowlistState(const ExtensionId& extension_id,
                                   AllowlistState state);
 
   // Gets the Safe Browsing allowlist acknowledge state.
   AllowlistAcknowledgeState GetExtensionAllowlistAcknowledgeState(
-      const std::string& extension_id) const;
+      const ExtensionId& extension_id) const;
 
   // Sets the Safe Browsing allowlist acknowledge state.
-  void SetExtensionAllowlistAcknowledgeState(const std::string& extension_id,
+  void SetExtensionAllowlistAcknowledgeState(const ExtensionId& extension_id,
                                              AllowlistAcknowledgeState state);
 
   // Performs action based on Omaha attributes for the extension.
-  void PerformActionBasedOnOmahaAttributes(const std::string& extension_id,
-                                           const base::Value& attributes);
+  void PerformActionBasedOnOmahaAttributes(const ExtensionId& extension_id,
+                                           const base::Value::Dict& attributes);
 
   // Whether a warning should be displayed for an extension, `true` if the
   // extension is not allowlisted and the allowlist is enforced.
-  bool ShouldDisplayWarning(const std::string& extension_id) const;
+  bool ShouldDisplayWarning(const ExtensionId& extension_id) const;
 
   // Informs the allowlist that a new extension was installed.
   //
   // `extension_id` is the id of the extension that was installed, and
   // `install_flags` is a bitmask of InstallFlags for the installation.
-  void OnExtensionInstalled(const std::string& extension_id, int install_flags);
+  void OnExtensionInstalled(const ExtensionId& extension_id, int install_flags);
 
   // Whether warnings should be shown for extensions not included in the
   // allowlist (considers Enhanced Safe Browsing setting and finch feature).
   bool warnings_enabled() const { return warnings_enabled_; }
 
  private:
+  friend class ExtensionAllowlistFactory;
+
+  // `profile` must outlive this object and the ownership remains at caller.
+  explicit ExtensionAllowlist(Profile* profile);
+
   // Set if the allowlist should be enforced or not.
   void SetAllowlistEnforcementFields();
 
   // Apply the allowlist enforcement by disabling a not allowlisted extension if
   // allowed by policy.
-  void ApplyEnforcement(const std::string& extension_id);
+  void ApplyEnforcement(const ExtensionId& extension_id);
 
   // Blocklist all extensions with allowlist state `ALLOWLIST_NOT_ALLOWLISTED`.
   void ActivateAllowlistEnforcement();
@@ -108,11 +114,11 @@ class ExtensionAllowlist : private ExtensionPrefsObserver {
   // Observes extension state changes to set
   // `ALLOWLIST_ACKNOWLEDGE_ENABLED_BY_USER` when a not allowlisted extension is
   // re-enabled by the user.
-  void OnExtensionStateChanged(const std::string& extension_id,
+  void OnExtensionStateChanged(const ExtensionId& extension_id,
                                bool is_now_enabled) override;
 
   void NotifyExtensionAllowlistWarningStateChanged(
-      const std::string& extension_id,
+      const ExtensionId& extension_id,
       bool show_warning);
 
   // Adds extension acknowledged events to Safe Browsing metrics collector for
@@ -124,7 +130,7 @@ class ExtensionAllowlist : private ExtensionPrefsObserver {
 
   raw_ptr<Profile> profile_ = nullptr;
   raw_ptr<ExtensionPrefs> extension_prefs_ = nullptr;
-  raw_ptr<ExtensionService> extension_service_ = nullptr;
+  raw_ptr<ExtensionRegistrar> extension_registrar_ = nullptr;
   raw_ptr<ExtensionRegistry> registry_ = nullptr;
 
   bool init_done_ = false;

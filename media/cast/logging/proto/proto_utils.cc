@@ -6,8 +6,8 @@
 
 #include "base/notreached.h"
 
-#define TO_PROTO_ENUM(enum)  \
-  case enum:                 \
+#define TO_PROTO_ENUM(enum) \
+  case enum:                \
     return proto::enum
 
 namespace media {
@@ -29,7 +29,6 @@ proto::EventType ToProtoEventType(CastLoggingEvent event) {
     TO_PROTO_ENUM(PACKET_RECEIVED);
   }
   NOTREACHED();
-  return proto::UNKNOWN;
 }
 
 }  // namespace cast

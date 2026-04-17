@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 /** @fileoverview Definitions for chrome.feedbackPrivate API */
-// TODO(crbug.com/1203307): Auto-generate this file.
+// TODO(crbug.com/40179454): Auto-generate this file.
 
 declare namespace chrome {
   export namespace feedbackPrivate {
@@ -22,6 +22,7 @@ declare namespace chrome {
       LOGIN = 'login',
       SAD_TAB_CRASH = 'sadTabCrash',
       GOOGLE_INTERNAL = 'googleInternal',
+      AI = 'ai',
     }
 
     export interface FeedbackInfo {
@@ -49,6 +50,8 @@ declare namespace chrome {
       showQuestionnaire?: boolean;
       fromAutofill?: boolean;
       autofillMetadata?: string;
+      isOffensiveOrUnsafe?: boolean;
+      aiMetadata?: string;
     }
 
     enum Status {

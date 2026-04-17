@@ -9,32 +9,25 @@
 
 #include <string>
 
-#include "components/omnibox/browser/omnibox_edit_model.h"
 #include "components/omnibox/browser/omnibox_view.h"
 #include "ui/gfx/range/range.h"
 
 struct AutocompleteMatch;
-class OmniboxEditModelDelegate;
 
 // Fake implementation of OmniboxView for use in tests.
 class TestOmniboxView : public OmniboxView {
  public:
-  explicit TestOmniboxView(OmniboxEditModelDelegate* edit_model_delegate)
-      : OmniboxView(edit_model_delegate, nullptr) {}
+  explicit TestOmniboxView(std::unique_ptr<OmniboxClient> client)
+      : OmniboxView(std::move(client)) {}
 
   TestOmniboxView(const TestOmniboxView&) = delete;
   TestOmniboxView& operator=(const TestOmniboxView&) = delete;
-
-  void SetModel(std::unique_ptr<OmniboxEditModel> model);
 
   const std::u16string& inline_autocompletion() const {
     return inline_autocompletion_;
   }
 
-  static State CreateState(std::string text,
-                           size_t sel_start,
-                           size_t sel_end,
-                           size_t all_sel_length);
+  static State CreateState(std::string text, size_t sel_start, size_t sel_end);
 
   // OmniboxView:
   void Update() override {}
@@ -48,7 +41,6 @@ class TestOmniboxView : public OmniboxView {
   void EnterKeywordModeForDefaultSearchProvider() override {}
   bool IsSelectAll() const override;
   void GetSelectionBounds(size_t* start, size_t* end) const override;
-  size_t GetAllSelectionsLength() const override;
   void SelectAll(bool reversed) override;
   void UpdatePopup() override {}
   void SetFocus(bool is_user_initiated) override {}
@@ -58,9 +50,7 @@ class TestOmniboxView : public OmniboxView {
                                    bool save_original_selection,
                                    bool notify_text_changed) override;
   void OnInlineAutocompleteTextMaybeChanged(
-      const std::u16string& display_text,
-      std::vector<gfx::Range> selections,
-      const std::u16string& prefix_autocompletion,
+      const std::u16string& user_text,
       const std::u16string& inline_autocompletion) override;
   void OnInlineAutocompleteTextCleared() override;
   void OnRevertTemporaryText(const std::u16string& display_text,

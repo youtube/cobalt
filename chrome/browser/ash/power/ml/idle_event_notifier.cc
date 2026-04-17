@@ -6,6 +6,7 @@
 
 #include "base/check.h"
 #include "base/notreached.h"
+#include "base/time/time.h"
 #include "chrome/browser/ash/power/ml/recent_events_counter.h"
 #include "chromeos/ash/components/dbus/dbus_thread_manager.h"
 #include "chromeos/dbus/power_manager/idle.pb.h"
@@ -32,15 +33,15 @@ struct IdleEventNotifier::ActivityDataInternal {
   base::Time last_user_activity_time;
 
   TimeSinceBoot last_activity_since_boot;
-  absl::optional<TimeSinceBoot> earliest_activity_since_boot;
-  absl::optional<TimeSinceBoot> last_key_since_boot;
-  absl::optional<TimeSinceBoot> last_mouse_since_boot;
-  absl::optional<TimeSinceBoot> last_touch_since_boot;
-  absl::optional<TimeSinceBoot> video_start_time;
-  absl::optional<TimeSinceBoot> video_end_time;
+  std::optional<TimeSinceBoot> earliest_activity_since_boot;
+  std::optional<TimeSinceBoot> last_key_since_boot;
+  std::optional<TimeSinceBoot> last_mouse_since_boot;
+  std::optional<TimeSinceBoot> last_touch_since_boot;
+  std::optional<TimeSinceBoot> video_start_time;
+  std::optional<TimeSinceBoot> video_end_time;
 };
 
-IdleEventNotifier::ActivityData::ActivityData() {}
+IdleEventNotifier::ActivityData::ActivityData() = default;
 
 IdleEventNotifier::ActivityData::ActivityData(const ActivityData& input_data) {
   last_activity_day = input_data.last_activity_day;
@@ -55,6 +56,7 @@ IdleEventNotifier::ActivityData::ActivityData(const ActivityData& input_data) {
   key_events_in_last_hour = input_data.key_events_in_last_hour;
   mouse_events_in_last_hour = input_data.mouse_events_in_last_hour;
   touch_events_in_last_hour = input_data.touch_events_in_last_hour;
+  is_video_playing = input_data.is_video_playing;
 }
 
 IdleEventNotifier::IdleEventNotifier(
@@ -141,7 +143,6 @@ void IdleEventNotifier::OnUserActivity(const ui::Event* event) {
 void IdleEventNotifier::OnVideoActivityStarted() {
   if (video_playing_) {
     NOTREACHED() << "Duplicate start of video activity";
-    return;
   }
   video_playing_ = true;
   UpdateActivityData(ActivityType::VIDEO);
@@ -150,7 +151,6 @@ void IdleEventNotifier::OnVideoActivityStarted() {
 void IdleEventNotifier::OnVideoActivityEnded() {
   if (!video_playing_) {
     NOTREACHED() << "Duplicate end of video activity";
-    return;
   }
   video_playing_ = false;
   UpdateActivityData(ActivityType::VIDEO);
@@ -217,6 +217,7 @@ IdleEventNotifier::ActivityData IdleEventNotifier::ConvertActivityData(
         time_since_boot - internal_data_->video_end_time.value();
   }
 
+  data.is_video_playing = video_playing_;
   data.key_events_in_last_hour = key_counter_->GetTotal(time_since_boot);
   data.mouse_events_in_last_hour = mouse_counter_->GetTotal(time_since_boot);
   data.touch_events_in_last_hour = touch_counter_->GetTotal(time_since_boot);
@@ -277,9 +278,9 @@ void IdleEventNotifier::UpdateActivityData(ActivityType type) {
 // time active, which should be reset between idle events.
 void IdleEventNotifier::ResetTimestampsForRecentActivity() {
   internal_data_->last_activity_since_boot = base::TimeDelta();
-  internal_data_->earliest_activity_since_boot = absl::nullopt;
-  internal_data_->video_start_time = absl::nullopt;
-  internal_data_->video_end_time = absl::nullopt;
+  internal_data_->earliest_activity_since_boot = std::nullopt;
+  internal_data_->video_start_time = std::nullopt;
+  internal_data_->video_end_time = std::nullopt;
 }
 
 }  // namespace ml

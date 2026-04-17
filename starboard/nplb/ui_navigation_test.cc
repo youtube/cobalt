@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "starboard/extension/ui_navigation.h"
+
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

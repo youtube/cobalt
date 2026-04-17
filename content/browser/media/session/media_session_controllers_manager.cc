@@ -4,7 +4,8 @@
 
 #include "content/browser/media/session/media_session_controllers_manager.h"
 
-#include "base/containers/cxx20_erase.h"
+#include <map>
+
 #include "content/browser/media/session/media_session_controller.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "media/base/media_switches.h"
@@ -33,7 +34,7 @@ void MediaSessionControllersManager::RenderFrameDeleted(
   if (!IsMediaSessionEnabled())
     return;
 
-  base::EraseIf(
+  std::erase_if(
       controllers_map_,
       [render_frame_host](const ControllersMap::value_type& id_and_controller) {
         return render_frame_host->GetGlobalId() ==
@@ -149,6 +150,17 @@ void MediaSessionControllersManager::OnRemotePlaybackMetadataChange(
   MediaSessionController* const controller = FindOrCreateController(id);
   controller->OnRemotePlaybackMetadataChanged(
       std::move(remote_playback_metadata));
+}
+
+void MediaSessionControllersManager::OnVideoVisibilityChanged(
+    const MediaPlayerId& id,
+    bool meets_visibility_threshold) {
+  if (!IsMediaSessionEnabled()) {
+    return;
+  }
+
+  MediaSessionController* const controller = FindOrCreateController(id);
+  controller->OnVideoVisibilityChanged(meets_visibility_threshold);
 }
 
 MediaSessionController* MediaSessionControllersManager::FindOrCreateController(

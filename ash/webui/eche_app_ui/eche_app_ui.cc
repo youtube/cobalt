@@ -21,26 +21,8 @@
 
 namespace ash::eche_app {
 
-EcheAppUI::EcheAppUI(
-    content::WebUI* web_ui,
-    BindSignalingMessageExchangerCallback exchanger_callback,
-    BindSystemInfoProviderCallback system_info_callback,
-    BindAccessibilityProviderCallback bind_accessibility_callback,
-    BindUidGeneratorCallback generator_callback,
-    BindNotificationGeneratorCallback notification_callback,
-    BindDisplayStreamHandlerCallback stream_handler_callback,
-    BindStreamOrientationObserverCallback stream_orientation_callback,
-    BindConnectionStatusObserverCallback connection_status_changed_callback)
-    : ui::MojoWebUIController(web_ui),
-      bind_exchanger_callback_(std::move(exchanger_callback)),
-      bind_system_info_callback_(std::move(system_info_callback)),
-      bind_accessibility_callback(std::move(bind_accessibility_callback)),
-      bind_generator_callback_(std::move(generator_callback)),
-      bind_notification_callback_(std::move(notification_callback)),
-      bind_stream_handler_callback_(std::move(stream_handler_callback)),
-      bind_stream_orientation_callback_(std::move(stream_orientation_callback)),
-      bind_connection_status_changed_callback_(
-          std::move(connection_status_changed_callback)) {
+EcheAppUI::EcheAppUI(content::WebUI* web_ui, EcheAppManager* manager)
+    : ui::MojoWebUIController(web_ui), manager_(manager) {
   auto* browser_context = web_ui->GetWebContents()->GetBrowserContext();
   content::WebUIDataSource* html_source =
       content::WebUIDataSource::CreateAndAdd(browser_context,
@@ -78,25 +60,26 @@ EcheAppUI::EcheAppUI(
   std::string csp = std::string("frame-src ") + kChromeUIEcheAppGuestURL + ";";
   html_source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::FrameSrc, csp);
+  html_source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::ScriptSrc,
+      "script-src chrome://resources chrome://webui-test 'self';");
 
   // Add ability to request chrome-untrusted: URLs.
   web_ui->AddRequestableScheme(content::kChromeUIUntrustedScheme);
 
   // Register common permissions for chrome-untrusted:// pages.
-  // TODO(https://crbug.com/1113568): Remove this after common permissions are
+  // TODO(crbug.com/40710326): Remove this after common permissions are
   // granted by default.
   auto* webui_allowlist = WebUIAllowlist::GetOrCreate(browser_context);
   const url::Origin untrusted_eche_app_origin =
       url::Origin::Create(GURL(kChromeUIEcheAppGuestURL));
-  for (const auto& permission : {
-           ContentSettingsType::COOKIES,
-           ContentSettingsType::JAVASCRIPT,
-           ContentSettingsType::IMAGES,
-           ContentSettingsType::SOUND,
-       }) {
-    webui_allowlist->RegisterAutoGrantedPermission(untrusted_eche_app_origin,
-                                                   permission);
-  }
+  webui_allowlist->RegisterAutoGrantedPermissions(
+      untrusted_eche_app_origin, {
+                                     ContentSettingsType::COOKIES,
+                                     ContentSettingsType::JAVASCRIPT,
+                                     ContentSettingsType::IMAGES,
+                                     ContentSettingsType::SOUND,
+                                 });
 
   // Set untrusted URL of Eche app in WebApp scope for allowing AutoPlay.
   auto* web_contents = web_ui->GetWebContents();
@@ -109,42 +92,65 @@ EcheAppUI::~EcheAppUI() = default;
 
 void EcheAppUI::BindInterface(
     mojo::PendingReceiver<mojom::SignalingMessageExchanger> receiver) {
-  bind_exchanger_callback_.Run(std::move(receiver));
+  if (manager_) {
+    manager_->BindSignalingMessageExchangerInterface(std::move(receiver));
+  }
 }
 
 void EcheAppUI::BindInterface(
     mojo::PendingReceiver<mojom::SystemInfoProvider> receiver) {
-  bind_system_info_callback_.Run(std::move(receiver));
+  if (manager_) {
+    manager_->BindSystemInfoProviderInterface(std::move(receiver));
+  }
 }
 
 void EcheAppUI::BindInterface(
     mojo::PendingReceiver<mojom::AccessibilityProvider> receiver) {
-  bind_accessibility_callback.Run(std::move(receiver));
+  if (manager_) {
+    manager_->BindAccessibilityProviderInterface(std::move(receiver));
+  }
 }
 
 void EcheAppUI::BindInterface(
     mojo::PendingReceiver<mojom::UidGenerator> receiver) {
-  bind_generator_callback_.Run(std::move(receiver));
+  if (manager_) {
+    manager_->BindUidGeneratorInterface(std::move(receiver));
+  }
 }
 
 void EcheAppUI::BindInterface(
     mojo::PendingReceiver<mojom::NotificationGenerator> receiver) {
-  bind_notification_callback_.Run(std::move(receiver));
+  if (manager_) {
+    manager_->BindNotificationGeneratorInterface(std::move(receiver));
+  }
 }
 
 void EcheAppUI::BindInterface(
     mojo::PendingReceiver<mojom::DisplayStreamHandler> receiver) {
-  bind_stream_handler_callback_.Run(std::move(receiver));
+  if (manager_) {
+    manager_->BindDisplayStreamHandlerInterface(std::move(receiver));
+  }
 }
 
 void EcheAppUI::BindInterface(
     mojo::PendingReceiver<mojom::StreamOrientationObserver> receiver) {
-  bind_stream_orientation_callback_.Run(std::move(receiver));
+  if (manager_) {
+    manager_->BindStreamOrientationObserverInterface(std::move(receiver));
+  }
 }
 
 void EcheAppUI::BindInterface(
     mojo::PendingReceiver<mojom::ConnectionStatusObserver> receiver) {
-  bind_connection_status_changed_callback_.Run(std::move(receiver));
+  if (manager_) {
+    manager_->BindConnectionStatusObserverInterface(std::move(receiver));
+  }
+}
+
+void EcheAppUI::BindInterface(
+    mojo::PendingReceiver<mojom::KeyboardLayoutHandler> receiver) {
+  if (manager_) {
+    manager_->BindKeyboardLayoutHandlerInterface(std::move(receiver));
+  }
 }
 
 WEB_UI_CONTROLLER_TYPE_IMPL(EcheAppUI)

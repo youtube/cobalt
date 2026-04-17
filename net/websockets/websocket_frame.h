@@ -5,12 +5,16 @@
 #ifndef NET_WEBSOCKETS_WEBSOCKET_FRAME_H_
 #define NET_WEBSOCKETS_WEBSOCKET_FRAME_H_
 
+#include <stddef.h>
 #include <stdint.h>
 
+#include <array>
 #include <memory>
 #include <vector>
 
 #include "base/containers/span.h"
+#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_span.h"
 #include "base/memory/scoped_refptr.h"
 #include "net/base/net_export.h"
 
@@ -29,11 +33,19 @@ struct NET_EXPORT WebSocketFrameHeader {
     kOpCodeContinuation = 0x0,
     kOpCodeText = 0x1,
     kOpCodeBinary = 0x2,
-    kOpCodeDataUnused = 0x3,
+    kOpCodeDataUnused3 = 0x3,
+    kOpCodeDataUnused4 = 0x4,
+    kOpCodeDataUnused5 = 0x5,
+    kOpCodeDataUnused6 = 0x6,
+    kOpCodeDataUnused7 = 0x7,
     kOpCodeClose = 0x8,
     kOpCodePing = 0x9,
     kOpCodePong = 0xA,
-    kOpCodeControlUnused = 0xB,
+    kOpCodeControlUnusedB = 0xB,
+    kOpCodeControlUnusedC = 0xC,
+    kOpCodeControlUnusedD = 0xD,
+    kOpCodeControlUnusedE = 0xE,
+    kOpCodeControlUnusedF = 0xF,
   };
 
   // Return true if |opcode| is one of the data opcodes known to this
@@ -50,6 +62,20 @@ struct NET_EXPORT WebSocketFrameHeader {
            opcode == kOpCodePong;
   }
 
+  // Return true if |opcode| is one of the reserved data opcodes.
+  static bool IsReservedDataOpCode(OpCode opcode) {
+    return opcode == kOpCodeDataUnused3 || opcode == kOpCodeDataUnused4 ||
+           opcode == kOpCodeDataUnused5 || opcode == kOpCodeDataUnused6 ||
+           opcode == kOpCodeDataUnused7;
+  }
+
+  // Return true if |opcode| is one of the reserved control opcodes.
+  static bool IsReservedControlOpCode(OpCode opcode) {
+    return opcode == kOpCodeControlUnusedB || opcode == kOpCodeControlUnusedC ||
+           opcode == kOpCodeControlUnusedD || opcode == kOpCodeControlUnusedE ||
+           opcode == kOpCodeControlUnusedF;
+  }
+
   // These values must be compile-time constants.
   static constexpr size_t kBaseHeaderSize = 2;
   static constexpr size_t kMaximumExtendedLengthSize = 8;
@@ -57,7 +83,7 @@ struct NET_EXPORT WebSocketFrameHeader {
 
   // Contains four-byte data representing "masking key" of WebSocket frames.
   struct WebSocketMaskingKey {
-    char key[WebSocketFrameHeader::kMaskingKeyLength];
+    std::array<uint8_t, WebSocketFrameHeader::kMaskingKeyLength> key;
   };
 
   // Constructor to avoid a lot of repetitive initialisation.
@@ -99,14 +125,14 @@ struct NET_EXPORT_PRIVATE WebSocketFrame {
   // |header| is always present.
   WebSocketFrameHeader header;
 
-  // |payload| is always unmasked even if the frame is masked. The size of
-  // |payload| is given by |header.payload_length|.
+  // |payload| is always unmasked even if the frame is masked.
   // The lifetime of |payload| is not defined by WebSocketFrameChunk. It is the
   // responsibility of the creator to ensure it remains valid for the lifetime
   // of this object. This should be documented in the code that creates this
   // object.
-  // TODO(crbug.com/1001915): Find more better way to clarify the life cycle.
-  const char* payload = nullptr;
+  // TODO(crbug.com/40646382): Find more better way to clarify the life cycle.
+  // TODO(crbug.com/377222393): Remove `DanglingUntriaged`.
+  base::raw_span<const uint8_t, DanglingUntriaged> payload;
 };
 
 // Structure describing one chunk of a WebSocket frame.
@@ -147,8 +173,10 @@ struct NET_EXPORT WebSocketFrameChunk {
   // responsibility of the creator to ensure it remains valid for the lifetime
   // of this object. This should be documented in the code that creates this
   // object.
-  // TODO(crbug.com/1001915): Find more better way to clarify the life cycle.
-  base::span<const char> payload;
+  // TODO(crbug.com/40646382): Find more better way to clarify the life cycle.
+  // Using RAW_PTR_EXCLUSION here temporarily to prevent dangling pointer
+  // issues.
+  RAW_PTR_EXCLUSION base::span<char> payload;
 };
 
 using WebSocketMaskingKey = WebSocketFrameHeader::WebSocketMaskingKey;
@@ -156,7 +184,8 @@ using WebSocketMaskingKey = WebSocketFrameHeader::WebSocketMaskingKey;
 // Returns the size of WebSocket frame header. The size of WebSocket frame
 // header varies from 2 bytes to 14 bytes depending on the payload length
 // and maskedness.
-NET_EXPORT int GetWebSocketFrameHeaderSize(const WebSocketFrameHeader& header);
+NET_EXPORT size_t
+GetWebSocketFrameHeaderSize(const WebSocketFrameHeader& header);
 
 // Writes wire format of a WebSocket frame header into |output|, and returns
 // the number of bytes written.
@@ -176,8 +205,7 @@ NET_EXPORT int GetWebSocketFrameHeaderSize(const WebSocketFrameHeader& header);
 // ERR_INVALID_ARGUMENT and does not write any data to |buffer|.
 NET_EXPORT int WriteWebSocketFrameHeader(const WebSocketFrameHeader& header,
                                          const WebSocketMaskingKey* masking_key,
-                                         char* buffer,
-                                         int buffer_size);
+                                         base::span<uint8_t> buffer);
 
 // Generates a masking key suitable for use in a new WebSocket frame.
 NET_EXPORT WebSocketMaskingKey GenerateWebSocketMaskingKey();
@@ -197,8 +225,30 @@ NET_EXPORT WebSocketMaskingKey GenerateWebSocketMaskingKey();
 NET_EXPORT void MaskWebSocketFramePayload(
     const WebSocketMaskingKey& masking_key,
     uint64_t frame_offset,
-    char* data,
-    int data_size);
+    base::span<uint8_t> data);
+
+// Close frame parsing result structure.
+struct ParseCloseFrameResult {
+  // Status code (always present). Set to `kWebSocketErrorNoStatusReceived` if
+  // no code was included in the close frame.
+  uint16_t code;
+
+  // Reason text (can be empty, but always present).
+  std::string_view reason;
+
+  // Error message if a protocol error occurred during parsing.
+  // This is optional and, when set, points to static storage.
+  std::optional<std::string_view> error = std::nullopt;
+
+  ParseCloseFrameResult(uint16_t close_code,
+                        std::string_view close_reason,
+                        std::optional<std::string_view> error = std::nullopt)
+      : code(close_code), reason(close_reason), error(error) {}
+};
+
+// Parses a WebSocket Close frame, extracts the status code and reason.
+NET_EXPORT ParseCloseFrameResult
+ParseCloseFrame(base::span<const char> payload);
 
 }  // namespace net
 

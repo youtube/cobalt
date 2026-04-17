@@ -8,8 +8,9 @@
 #ifndef LIBANGLE_CLIMAGE_H_
 #define LIBANGLE_CLIMAGE_H_
 
-#include "libANGLE/CLMemory.h"
+#include "common/PackedCLEnums_autogen.h"
 
+#include "libANGLE/CLMemory.h"
 #include "libANGLE/cl_utils.h"
 
 namespace cl
@@ -23,7 +24,10 @@ class Image final : public Memory
     static bool IsTypeValid(MemObjectType imageType);
     static bool IsValid(const _cl_mem *image);
 
-    cl_int getInfo(ImageInfo name, size_t valueSize, void *value, size_t *valueSizeRet) const;
+    angle::Result getInfo(ImageInfo name,
+                          size_t valueSize,
+                          void *value,
+                          size_t *valueSizeRet) const;
 
   public:
     ~Image() override;
@@ -33,11 +37,15 @@ class Image final : public Memory
     const cl_image_format &getFormat() const;
     const ImageDescriptor &getDescriptor() const;
 
-    bool isRegionValid(const size_t origin[3], const size_t region[3]) const;
+    bool isRegionValid(const cl::MemOffsets &origin, const cl::Coordinate &region) const;
 
     size_t getElementSize() const;
     size_t getRowSize() const;
     size_t getSliceSize() const;
+    size_t getArraySize() const { return mDesc.arraySize; }
+    size_t getWidth() const { return mDesc.width; }
+    size_t getHeight() const { return mDesc.height; }
+    size_t getDepth() const { return mDesc.depth; }
 
   private:
     Image(Context &context,
@@ -46,8 +54,7 @@ class Image final : public Memory
           const cl_image_format &format,
           const ImageDescriptor &desc,
           Memory *parent,
-          void *hostPtr,
-          cl_int &errorCode);
+          void *hostPtr);
 
     const cl_image_format mFormat;
     const ImageDescriptor mDesc;
@@ -82,12 +89,12 @@ inline size_t Image::getElementSize() const
 
 inline size_t Image::getRowSize() const
 {
-    return GetElementSize(mFormat) * mDesc.width;
+    return mDesc.rowPitch != 0u ? mDesc.rowPitch : GetElementSize(mFormat) * getWidth();
 }
 
 inline size_t Image::getSliceSize() const
 {
-    return GetElementSize(mFormat) * mDesc.width * mDesc.height;
+    return mDesc.slicePitch != 0u ? mDesc.slicePitch : getRowSize() * getHeight();
 }
 
 }  // namespace cl

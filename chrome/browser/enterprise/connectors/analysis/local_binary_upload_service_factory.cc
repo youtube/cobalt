@@ -21,20 +21,27 @@ LocalBinaryUploadServiceFactory::GetForProfile(Profile* profile) {
 // static
 LocalBinaryUploadServiceFactory*
 LocalBinaryUploadServiceFactory::GetInstance() {
-  return base::Singleton<LocalBinaryUploadServiceFactory>::get();
+  static base::NoDestructor<LocalBinaryUploadServiceFactory> instance;
+  return instance.get();
 }
 
 LocalBinaryUploadServiceFactory::LocalBinaryUploadServiceFactory()
     : ProfileKeyedServiceFactory(
           "LocalBinaryUploadService",
-          ProfileSelections::BuildForRegularAndIncognito()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/40257657): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kOwnInstance)
+              .Build()) {
   DependsOn(enterprise_signals::SystemSignalsServiceHostFactory::GetInstance());
 }
 
-KeyedService* LocalBinaryUploadServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+LocalBinaryUploadServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
-  return new LocalBinaryUploadService(profile);
+  return std::make_unique<LocalBinaryUploadService>(profile);
 }
 
 }  // namespace enterprise_connectors

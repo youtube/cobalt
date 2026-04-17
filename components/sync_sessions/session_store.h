@@ -7,6 +7,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -15,12 +16,11 @@
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "components/sync/model/data_batch.h"
+#include "components/sync/model/data_type_store.h"
 #include "components/sync/model/metadata_batch.h"
 #include "components/sync/model/model_error.h"
-#include "components/sync/model/model_type_store.h"
 #include "components/sync_device_info/device_info.h"
 #include "components/sync_sessions/synced_session_tracker.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace sync_sessions {
 
@@ -40,7 +40,7 @@ class SessionStore {
   };
 
   using OpenCallback = base::OnceCallback<void(
-      const absl::optional<syncer::ModelError>& error,
+      const std::optional<syncer::ModelError>& error,
       std::unique_ptr<SessionStore> store,
       std::unique_ptr<syncer::MetadataBatch> metadata_batch)>;
 
@@ -69,20 +69,20 @@ class SessionStore {
   static std::string GetTabClientTagForTest(const std::string& session_tag,
                                             int tab_node_id);
 
-  // Similar to ModelTypeStore::WriteBatch but enforces a consistent state. In
+  // Similar to DataTypeStore::WriteBatch but enforces a consistent state. In
   // the current implementation, some functions do *NOT* update the tracker, so
   // callers are responsible for doing so.
-  // TODO(crbug.com/681921): Enforce consistency between in-memory and persisted
-  // data by always updating the tracker.
+  // TODO(crbug.com/41295474): Enforce consistency between in-memory and
+  // persisted data by always updating the tracker.
   class WriteBatch {
    public:
-    // Callback that mimics the signature of ModelTypeStore::CommitWriteBatch().
+    // Callback that mimics the signature of DataTypeStore::CommitWriteBatch().
     using CommitCallback = base::OnceCallback<void(
-        std::unique_ptr<syncer::ModelTypeStore::WriteBatch>,
-        syncer::ModelTypeStore::CallbackWithResult)>;
+        std::unique_ptr<syncer::DataTypeStore::WriteBatch>,
+        syncer::DataTypeStore::CallbackWithResult)>;
 
     // Raw pointers must not be nullptr and must outlive this object.
-    WriteBatch(std::unique_ptr<syncer::ModelTypeStore::WriteBatch> batch,
+    WriteBatch(std::unique_ptr<syncer::DataTypeStore::WriteBatch> batch,
                CommitCallback commit_cb,
                syncer::OnceModelErrorHandler error_handler,
                SyncedSessionTracker* session_tracker);
@@ -110,7 +110,7 @@ class SessionStore {
     static void Commit(std::unique_ptr<WriteBatch> batch);
 
    private:
-    std::unique_ptr<syncer::ModelTypeStore::WriteBatch> batch_;
+    std::unique_ptr<syncer::DataTypeStore::WriteBatch> batch_;
     CommitCallback commit_cb_;
     syncer::OnceModelErrorHandler error_handler_;
     const raw_ptr<SyncedSessionTracker> session_tracker_;
@@ -137,9 +137,19 @@ class SessionStore {
   // instance must not exist at any time.
   std::unique_ptr<WriteBatch> CreateWriteBatch(
       syncer::OnceModelErrorHandler error_handler);
-  void DeleteAllDataAndMetadata();
 
-  // TODO(crbug.com/681921): Avoid exposing a mutable tracker, because that
+  using RecreateEmptyStoreCallback =
+      base::OnceCallback<std::unique_ptr<SessionStore>(
+          const std::string& cache_guid,
+          SyncSessionsClient* sessions_client)>;
+
+  // Deletes all data and metadata from the `session_store` and destroys it.
+  // Returns a callback that allows synchronously re-creating an empty
+  // SessionStore, by reusing the underlying DataTypeStore.
+  static RecreateEmptyStoreCallback DeleteAllDataAndMetadata(
+      std::unique_ptr<SessionStore> session_store);
+
+  // TODO(crbug.com/41295474): Avoid exposing a mutable tracker, because that
   // bypasses the consistency-enforcing API.
   SyncedSessionTracker* mutable_tracker() { return &session_tracker_; }
   const SyncedSessionTracker* tracker() const { return &session_tracker_; }
@@ -150,18 +160,24 @@ class SessionStore {
 
   static void OnStoreCreated(
       std::unique_ptr<Builder> builder,
-      const absl::optional<syncer::ModelError>& error,
-      std::unique_ptr<syncer::ModelTypeStore> underlying_store);
+      const std::optional<syncer::ModelError>& error,
+      std::unique_ptr<syncer::DataTypeStore> underlying_store);
   static void OnReadAllMetadata(
       std::unique_ptr<Builder> builder,
-      const absl::optional<syncer::ModelError>& error,
+      const std::optional<syncer::ModelError>& error,
       std::unique_ptr<syncer::MetadataBatch> metadata_batch);
   static void OnReadAllData(std::unique_ptr<Builder> builder,
-                            const absl::optional<syncer::ModelError>& error);
+                            const std::optional<syncer::ModelError>& error);
+
+  static std::unique_ptr<SessionStore> RecreateEmptyStore(
+      SessionInfo local_session_info_without_session_tag,
+      std::unique_ptr<syncer::DataTypeStore> underlying_store,
+      const std::string& cache_guid,
+      SyncSessionsClient* sessions_client);
 
   // |sessions_client| must not be null and must outlive this object.
   SessionStore(const SessionInfo& local_session_info,
-               std::unique_ptr<syncer::ModelTypeStore> underlying_store,
+               std::unique_ptr<syncer::DataTypeStore> underlying_store,
                std::map<std::string, sync_pb::SessionSpecifics> initial_data,
                const syncer::EntityMetadataMap& initial_metadata,
                SyncSessionsClient* sessions_client);
@@ -169,7 +185,7 @@ class SessionStore {
   const SessionInfo local_session_info_;
 
   // In charge of actually persisting changes to disk.
-  const std::unique_ptr<syncer::ModelTypeStore> store_;
+  std::unique_ptr<syncer::DataTypeStore> store_;
 
   const raw_ptr<SyncSessionsClient> sessions_client_;
 

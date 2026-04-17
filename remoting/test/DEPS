@@ -4,7 +4,6 @@ include_rules = [
   "+google_apis",
   "+mojo/core/embedder",
   "+net",
-  "+remoting/client",
   "+remoting/codec",
   "+remoting/host",
   "+remoting/protocol",
@@ -13,7 +12,6 @@ include_rules = [
   "+ui/events/keycodes/dom",
   "+ui/events/platform/x11",
   "+services/network",
-  # absl::string_view is used only to interface with third-party WebRTC code.
-  "+third_party/abseil-cpp/absl/strings/string_view.h",
   "+third_party/skia",
+  "+third_party/webrtc_overrides",
 ]

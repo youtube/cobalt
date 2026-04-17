@@ -4,10 +4,14 @@
 
 #include "components/history_clusters/core/clustering_test_utils.h"
 
-#include "base/ranges/algorithm.h"
+#include <algorithm>
+#include <vector>
+
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "components/history/core/browser/history_types.h"
 #include "components/history_clusters/core/history_clusters_util.h"
 
 namespace history_clusters::testing {
@@ -15,8 +19,8 @@ namespace history_clusters::testing {
 std::vector<history::VisitID> ExtractDuplicateVisitIds(
     std::vector<history::DuplicateClusterVisit> duplicate_visits) {
   std::vector<history::VisitID> ids;
-  base::ranges::transform(duplicate_visits, std::back_inserter(ids),
-                          [](const auto& visit) { return visit.visit_id; });
+  std::ranges::transform(duplicate_visits, std::back_inserter(ids),
+                         [](const auto& visit) { return visit.visit_id; });
   return ids;
 }
 
@@ -40,11 +44,11 @@ VisitResult::~VisitResult() = default;
 
 std::string VisitResult::ToString() const {
   std::vector<std::string> duplicate_visits_strings;
-  base::ranges::transform(duplicate_visits_,
-                          std::back_inserter(duplicate_visits_strings),
-                          [&](const auto& duplicate_visit) {
-                            return std::to_string(duplicate_visit.visit_id);
-                          });
+  std::ranges::transform(
+      duplicate_visits_, std::back_inserter(duplicate_visits_strings),
+      [&](const auto& duplicate_visit) {
+        return base::NumberToString(duplicate_visit.visit_id);
+      });
   return base::StringPrintf(
       "VisitResult(visit_id=%d, score=%f, duplicate_visits=[%s], "
       "search_terms=%s)",
@@ -94,8 +98,9 @@ history::AnnotatedVisit CreateDefaultAnnotatedVisit(int visit_id,
 
 history::ClusterVisit CreateClusterVisit(
     const history::AnnotatedVisit& annotated_visit,
-    absl::optional<GURL> normalized_url,
-    float score) {
+    std::optional<GURL> normalized_url,
+    float score,
+    history::ClusterVisit::InteractionState interaction_state) {
   history::ClusterVisit cluster_visit;
   cluster_visit.annotated_visit = annotated_visit;
   cluster_visit.score = score;
@@ -105,6 +110,7 @@ history::ClusterVisit CreateClusterVisit(
       ComputeURLForDeduping(cluster_visit.normalized_url);
   cluster_visit.url_for_display =
       ComputeURLForDisplay(cluster_visit.normalized_url);
+  cluster_visit.interaction_state = interaction_state;
   return cluster_visit;
 }
 
@@ -113,6 +119,13 @@ history::DuplicateClusterVisit ClusterVisitToDuplicateClusterVisit(
   return {cluster_visit.annotated_visit.visit_row.visit_id,
           cluster_visit.annotated_visit.url_row.url(),
           cluster_visit.annotated_visit.visit_row.visit_time};
+}
+
+history::Cluster CreateCluster(
+    std::vector<history::ClusterVisit>& cluster_visits) {
+  history::Cluster cluster;
+  cluster.visits = cluster_visits;
+  return cluster;
 }
 
 }  // namespace history_clusters::testing

@@ -12,16 +12,18 @@
 #include "base/test/test_timeouts.h"
 #include "base/test/values_test_util.h"
 #include "build/build_config.h"
-#include "content/browser/renderer_host/input/synthetic_gesture.h"
-#include "content/browser/renderer_host/input/synthetic_gesture_controller.h"
-#include "content/browser/renderer_host/input/synthetic_gesture_target.h"
-#include "content/browser/renderer_host/input/synthetic_smooth_move_gesture.h"
-#include "content/browser/renderer_host/input/synthetic_tap_gesture.h"
 #include "content/browser/renderer_host/render_widget_host_factory.h"
 #include "content/browser/renderer_host/render_widget_host_impl.h"
 #include "content/browser/site_instance_impl.h"
 #include "content/browser/web_contents/web_contents_impl.h"
+#include "content/common/input/synthetic_gesture.h"
+#include "content/common/input/synthetic_gesture_controller.h"
 #include "content/common/input/synthetic_gesture_params.h"
+#include "content/common/input/synthetic_gesture_target.h"
+#include "content/common/input/synthetic_pointer_action.h"
+#include "content/common/input/synthetic_smooth_move_gesture.h"
+#include "content/common/input/synthetic_smooth_scroll_gesture.h"
+#include "content/common/input/synthetic_tap_gesture.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/tracing_controller.h"
@@ -78,20 +80,23 @@ class TracingRenderWidgetHost : public RenderWidgetHostImpl {
  public:
   TracingRenderWidgetHost(FrameTree* frame_tree,
                           RenderWidgetHostDelegate* delegate,
+                          viz::FrameSinkId frame_sink_id,
                           base::SafeRef<SiteInstanceGroup> site_instance_group,
                           int32_t routing_id,
-                          bool hidden)
+                          bool hidden,
+                          bool renderer_initiated_creation)
       : RenderWidgetHostImpl(frame_tree,
                              /*self_owned=*/false,
+                             frame_sink_id,
                              delegate,
                              std::move(site_instance_group),
                              routing_id,
                              hidden,
-                             /*renderer_initiated_creation=*/false,
+                             renderer_initiated_creation,
                              std::make_unique<FrameTokenMessageQueue>()) {}
 
   void OnMouseEventAck(
-      const MouseEventWithLatencyInfo& event,
+      const input::MouseEventWithLatencyInfo& event,
       blink::mojom::InputEventResultSource ack_source,
       blink::mojom::InputEventResultState ack_result) override {
     RenderWidgetHostImpl::OnMouseEventAck(event, ack_source, ack_result);
@@ -116,12 +121,14 @@ class TracingRenderWidgetHostFactory : public RenderWidgetHostFactory {
   std::unique_ptr<RenderWidgetHostImpl> CreateRenderWidgetHost(
       FrameTree* frame_tree,
       RenderWidgetHostDelegate* delegate,
+      viz::FrameSinkId frame_sink_id,
       base::SafeRef<SiteInstanceGroup> site_instance_group,
       int32_t routing_id,
-      bool hidden) override {
+      bool hidden,
+      bool renderer_initiated_creation) override {
     return std::make_unique<TracingRenderWidgetHost>(
-        frame_tree, delegate, std::move(site_instance_group), routing_id,
-        hidden);
+        frame_tree, delegate, frame_sink_id, std::move(site_instance_group),
+        routing_id, hidden, renderer_initiated_creation);
   }
 };
 
@@ -212,7 +219,7 @@ class MouseLatencyBrowserTest : public ContentBrowserTest {
     params.distances.push_back(delta);
 
     GetWidgetHost()->QueueSyntheticGesture(
-        SyntheticGesture::Create(params),
+        std::make_unique<SyntheticSmoothScrollGesture>(params),
         base::BindOnce(&MouseLatencyBrowserTest::OnSyntheticGestureCompleted,
                        base::Unretained(this)));
 
@@ -376,7 +383,7 @@ IN_PROC_BROWSER_TEST_F(MouseLatencyBrowserTest,
   AssertTraceIdsBeginAndEnd(trace_data, "InputLatency::MouseMove");
 }
 
-// TODO(https://crbug.com/923627): This is flaky on multiple platforms.
+// TODO(crbug.com/41436535): This is flaky on multiple platforms.
 IN_PROC_BROWSER_TEST_F(MouseLatencyBrowserTest,
                        DISABLED_CoalescedMouseWheelsCorrectlyTerminated) {
   LoadURL();

@@ -30,7 +30,7 @@ class Profile;
 
 // Functions in the chrome.downloads namespace facilitate
 // controlling downloads from extensions. See the full API doc at
-// http://goo.gl/6hO1n
+// https://docs.google.com/document/d/12rNimeeGaA8jEV60PPKtT4pmJYmY9ae_edl3hJyoXYE/
 
 namespace download_extension_errors {
 
@@ -269,7 +269,7 @@ class DownloadsOpenFunction : public ExtensionFunction {
 
   ResponseAction Run() override;
 
-  typedef base::OnceCallback<void(DownloadOpenPrompt*)> OnPromptCreatedCallback;
+  using OnPromptCreatedCallback = base::OnceCallback<void(DownloadOpenPrompt*)>;
   static void set_on_prompt_created_cb_for_testing(
       OnPromptCreatedCallback* on_prompt_created_cb) {
     on_prompt_created_cb_ = on_prompt_created_cb;
@@ -432,7 +432,8 @@ class ExtensionDownloadsEventRouter
 
   raw_ptr<Profile> profile_;
   download::AllDownloadItemNotifier notifier_;
-  std::set<const extensions::Extension*> ui_disabling_extensions_;
+  std::set<raw_ptr<const extensions::Extension, SetExperimental>>
+      ui_disabling_extensions_;
 
   base::Time last_checked_removal_;
 

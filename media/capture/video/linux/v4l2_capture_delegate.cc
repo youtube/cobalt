@@ -2,12 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "media/capture/video/linux/v4l2_capture_delegate.h"
 
+#include <fcntl.h>
 #include <linux/version.h>
 #include <linux/videodev2.h>
 #include <poll.h>
-#include <sys/fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
@@ -16,6 +21,9 @@
 
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
@@ -25,6 +33,11 @@
 #include "media/capture/mojom/image_capture_types.h"
 #include "media/capture/video/blob_utils.h"
 #include "media/capture/video/linux/video_capture_device_linux.h"
+
+#if BUILDFLAG(IS_LINUX)
+#include "media/capture/capture_switches.h"
+#include "media/capture/video/linux/v4l2_capture_delegate_gpu_helper.h"
+#endif  // BUILDFLAG(IS_LINUX)
 
 using media::mojom::MeteringMode;
 
@@ -132,6 +145,8 @@ int GetControllingSpecialControl(int control_id) {
       return V4L2_CID_EXPOSURE_AUTO;
     case V4L2_CID_FOCUS_ABSOLUTE:
       return V4L2_CID_FOCUS_AUTO;
+    case V4L2_CID_IRIS_ABSOLUTE:
+      return V4L2_CID_EXPOSURE_AUTO;
     case V4L2_CID_WHITE_BALANCE_TEMPERATURE:
       return V4L2_CID_AUTO_WHITE_BALANCE;
   }
@@ -150,35 +165,6 @@ bool IsSpecialControl(int control_id) {
   return false;
 }
 
-// Determines if |control_id| should be skipped, https://crbug.com/697885.
-#if !defined(V4L2_CID_PAN_SPEED)
-#define V4L2_CID_PAN_SPEED (V4L2_CID_CAMERA_CLASS_BASE + 32)
-#endif
-#if !defined(V4L2_CID_TILT_SPEED)
-#define V4L2_CID_TILT_SPEED (V4L2_CID_CAMERA_CLASS_BASE + 33)
-#endif
-#if !defined(V4L2_CID_PANTILT_CMD)
-#define V4L2_CID_PANTILT_CMD (V4L2_CID_CAMERA_CLASS_BASE + 34)
-#endif
-bool IsBlockedControl(int control_id) {
-  switch (control_id) {
-    case V4L2_CID_PAN_RELATIVE:
-    case V4L2_CID_TILT_RELATIVE:
-    case V4L2_CID_PAN_RESET:
-    case V4L2_CID_TILT_RESET:
-    case V4L2_CID_PAN_ABSOLUTE:
-    case V4L2_CID_TILT_ABSOLUTE:
-    case V4L2_CID_ZOOM_ABSOLUTE:
-    case V4L2_CID_ZOOM_RELATIVE:
-    case V4L2_CID_ZOOM_CONTINUOUS:
-    case V4L2_CID_PAN_SPEED:
-    case V4L2_CID_TILT_SPEED:
-    case V4L2_CID_PANTILT_CMD:
-      return true;
-  }
-  return false;
-}
-
 bool IsNonEmptyRange(const mojom::RangePtr& range) {
   return range->min < range->max;
 }
@@ -190,6 +176,8 @@ bool IsNonEmptyRange(const mojom::RangePtr& range) {
 class V4L2CaptureDelegate::BufferTracker
     : public base::RefCounted<BufferTracker> {
  public:
+  REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE();
+
   explicit BufferTracker(V4L2CaptureDevice* v4l2);
 
   // Abstract method to mmap() given |fd| according to |buffer|.
@@ -207,7 +195,10 @@ class V4L2CaptureDelegate::BufferTracker
   virtual ~BufferTracker();
 
   const raw_ptr<V4L2CaptureDevice> v4l2_;
-  raw_ptr<uint8_t> start_;
+
+  // RAW_PTR_EXCLUSION: Never allocated by PartitionAlloc (always mmap'ed), so
+  // there is no benefit to using a raw_ptr, only cost.
+  RAW_PTR_EXCLUSION uint8_t* start_ = nullptr;
   size_t length_;
   size_t payload_size_;
 };
@@ -252,6 +243,78 @@ std::vector<uint32_t> V4L2CaptureDelegate::GetListOfUsableFourCcs(
   return supported_formats;
 }
 
+// Determines if |control_id| should be skipped, https://crbug.com/697885.
+#if !defined(V4L2_CID_PAN_SPEED)
+#define V4L2_CID_PAN_SPEED (V4L2_CID_CAMERA_CLASS_BASE + 32)
+#endif
+#if !defined(V4L2_CID_TILT_SPEED)
+#define V4L2_CID_TILT_SPEED (V4L2_CID_CAMERA_CLASS_BASE + 33)
+#endif
+#if !defined(V4L2_CID_PANTILT_CMD)
+#define V4L2_CID_PANTILT_CMD (V4L2_CID_CAMERA_CLASS_BASE + 34)
+#endif
+// static
+bool V4L2CaptureDelegate::IsBlockedControl(int control_id) {
+  switch (control_id) {
+    case V4L2_CID_PAN_RELATIVE:
+    case V4L2_CID_TILT_RELATIVE:
+    case V4L2_CID_PAN_RESET:
+    case V4L2_CID_TILT_RESET:
+    case V4L2_CID_ZOOM_RELATIVE:
+    case V4L2_CID_ZOOM_CONTINUOUS:
+    case V4L2_CID_PAN_SPEED:
+    case V4L2_CID_TILT_SPEED:
+    case V4L2_CID_PANTILT_CMD:
+      return true;
+  }
+  return false;
+}
+
+// static
+bool V4L2CaptureDelegate::IsControllableControl(
+    int control_id,
+    const base::RepeatingCallback<int(int, void*)>& do_ioctl) {
+  const int special_control_id = GetControllingSpecialControl(control_id);
+  if (!special_control_id) {
+    // The control is not controlled by a special control thus the control is
+    // controllable.
+    return true;
+  }
+
+  // The control is controlled by a special control thus the control is
+  // really controllable (and not changed automatically) only if that special
+  // control is not set to automatic.
+  v4l2_control special_control = {};
+  special_control.id = special_control_id;
+  if (do_ioctl.Run(VIDIOC_G_CTRL, &special_control) < 0) {
+    return false;
+  }
+  switch (control_id) {
+    case V4L2_CID_EXPOSURE_ABSOLUTE:
+      DCHECK_EQ(special_control_id, V4L2_CID_EXPOSURE_AUTO);
+      // For a V4L2_CID_EXPOSURE_AUTO special control, |special_control.value|
+      // is an enum v4l2_exposure_auto_type.
+      // Check if the exposure time is manual. Iris may be manual or automatic.
+      return special_control.value == V4L2_EXPOSURE_MANUAL ||
+             special_control.value == V4L2_EXPOSURE_SHUTTER_PRIORITY;
+    case V4L2_CID_IRIS_ABSOLUTE:
+      DCHECK_EQ(special_control_id, V4L2_CID_EXPOSURE_AUTO);
+      // For a V4L2_CID_EXPOSURE_AUTO special control, |special_control.value|
+      // is an enum v4l2_exposure_auto_type.
+      // Check if the iris is manual. Exposure time may be manual or automatic.
+      return special_control.value == V4L2_EXPOSURE_MANUAL ||
+             special_control.value == V4L2_EXPOSURE_APERTURE_PRIORITY;
+    case V4L2_CID_FOCUS_ABSOLUTE:
+    case V4L2_CID_WHITE_BALANCE_TEMPERATURE:
+      // For V4L2_CID_FOCUS_AUTO and V4L2_CID_AUTO_WHITE_BALANCE special
+      // controls, |special_control.value| is a boolean.
+      return !special_control.value;  // Not automatic.
+    default:
+      NOTIMPLEMENTED();
+      return false;
+  }
+}
+
 V4L2CaptureDelegate::V4L2CaptureDelegate(
     V4L2CaptureDevice* v4l2,
     const VideoCaptureDeviceDescriptor& device_descriptor,
@@ -265,7 +328,11 @@ V4L2CaptureDelegate::V4L2CaptureDelegate(
       device_fd_(v4l2),
       is_capturing_(false),
       timeout_count_(0),
-      rotation_(rotation) {}
+      rotation_(rotation) {
+#if BUILDFLAG(IS_LINUX)
+  use_gpu_buffer_ = switches::IsVideoCaptureUseGpuMemoryBufferEnabled();
+#endif  // BUILDFLAG(IS_LINUX)
+}
 
 void V4L2CaptureDelegate::AllocateAndStart(
     int width,
@@ -388,6 +455,12 @@ void V4L2CaptureDelegate::AllocateAndStart(
     return;
 
   client_->OnStarted();
+
+#if BUILDFLAG(IS_LINUX)
+  if (use_gpu_buffer_) {
+    v4l2_gpu_helper_ = std::make_unique<V4L2CaptureDelegateGpuHelper>();
+  }
+#endif  // BUILDFLAG(IS_LINUX)
 
   // Post task to start fetching frames from v4l2.
   v4l2_task_runner_->PostTask(
@@ -742,38 +815,9 @@ int V4L2CaptureDelegate::DoIoctl(int request, void* argp) {
 }
 
 bool V4L2CaptureDelegate::IsControllableControl(int control_id) {
-  const int special_control_id = GetControllingSpecialControl(control_id);
-  if (!special_control_id) {
-    // The control is not controlled by a special control thus the control is
-    // controllable.
-    return true;
-  }
-
-  // The control is controlled by a special control thus the control is
-  // really controllable (and not changed automatically) only if that special
-  // control is not set to automatic.
-  v4l2_control special_control = {};
-  special_control.id = special_control_id;
-  if (DoIoctl(VIDIOC_G_CTRL, &special_control) < 0) {
-    return false;
-  }
-  switch (control_id) {
-    case V4L2_CID_EXPOSURE_ABSOLUTE:
-      DCHECK_EQ(special_control_id, V4L2_CID_EXPOSURE_AUTO);
-      // For a V4L2_CID_EXPOSURE_AUTO special control, |special_control.value|
-      // is an enum v4l2_exposure_auto_type.
-      // Check if the exposure time is manual. Iris may be manual or automatic.
-      return special_control.value == V4L2_EXPOSURE_MANUAL ||
-             special_control.value == V4L2_EXPOSURE_SHUTTER_PRIORITY;
-    case V4L2_CID_FOCUS_ABSOLUTE:
-    case V4L2_CID_WHITE_BALANCE_TEMPERATURE:
-      // For V4L2_CID_FOCUS_AUTO and V4L2_CID_AUTO_WHITE_BALANCE special
-      // controls, |special_control.value| is a boolean.
-      return !special_control.value;  // Not automatic.
-    default:
-      NOTIMPLEMENTED();
-      return false;
-  }
+  return IsControllableControl(
+      control_id, base::BindRepeating(&V4L2CaptureDelegate::DoIoctl,
+                                      base::Unretained(this)));
 }
 
 void V4L2CaptureDelegate::ReplaceControlEventSubscriptions() {
@@ -1042,7 +1086,6 @@ void V4L2CaptureDelegate::DoCapture() {
           break;
         default:
           NOTREACHED() << "Unexpected event type dequeued: " << event.type;
-          break;
       }
     } while (event.pending > 0u);
 
@@ -1104,16 +1147,24 @@ void V4L2CaptureDelegate::DoCapture() {
       client_->OnFrameDropped(
           VideoCaptureFrameDropReason::kV4L2InvalidNumberOfBytesInBuffer);
     } else {
-      // TODO(julien.isorce): build gfx color space from v4l2 color space.
-      // primary = v4l2_format->fmt.pix.colorspace;
-      // range = v4l2_format->fmt.pix.quantization;
-      // matrix = v4l2_format->fmt.pix.ycbcr_enc;
-      // transfer = v4l2_format->fmt.pix.xfer_func;
+      // TODO(crbug:1449570): create color space by BuildColorSpaceFromv4l2(),
+      // and pass it to decoder side while hardware encoding/decoding is
+      // workable on Linux.
+
       // See http://crbug.com/959919.
-      client_->OnIncomingCapturedData(
-          buffer_tracker->start(), buffer_tracker->payload_size(),
-          capture_format_, gfx::ColorSpace(), rotation_, false /* flip_y */,
-          now, timestamp);
+#if BUILDFLAG(IS_LINUX)
+      if (use_gpu_buffer_) {
+        v4l2_gpu_helper_->OnIncomingCapturedData(
+            client_.get(), buffer_tracker->start(),
+            buffer_tracker->payload_size(), capture_format_, gfx::ColorSpace(),
+            rotation_, now, timestamp);
+      } else
+#endif  //  BUILDFLAG(IS_LINUX)
+        client_->OnIncomingCapturedData(
+            buffer_tracker->start(), buffer_tracker->payload_size(),
+            capture_format_, gfx::ColorSpace(), rotation_, false /* flip_y */,
+            now, timestamp, /*capture_begin_timestamp=*/std::nullopt,
+            /*metadata=*/std::nullopt);
     }
 
     while (!take_photo_callbacks_.empty()) {
@@ -1174,6 +1225,196 @@ void V4L2CaptureDelegate::SetErrorState(VideoCaptureError error,
   DCHECK(v4l2_task_runner_->BelongsToCurrentThread());
   client_->OnError(error, from_here, reason);
 }
+
+#if BUILDFLAG(IS_LINUX)
+gfx::ColorSpace V4L2CaptureDelegate::BuildColorSpaceFromv4l2() {
+  v4l2_colorspace v4l2_primary = (v4l2_colorspace)video_fmt_.fmt.pix.colorspace;
+  v4l2_quantization v4l2_range =
+      (v4l2_quantization)video_fmt_.fmt.pix.quantization;
+  v4l2_ycbcr_encoding v4l2_matrix =
+      (v4l2_ycbcr_encoding)video_fmt_.fmt.pix.ycbcr_enc;
+  v4l2_xfer_func v4l2_transfer = (v4l2_xfer_func)video_fmt_.fmt.pix.xfer_func;
+
+  DVLOG(2) << __func__ << "v4l2_primary:" << v4l2_primary
+           << ", v4l2_range:" << v4l2_range << ", v4l2_matrix:" << v4l2_matrix
+           << ", v4l2_transfer:" << v4l2_transfer;
+
+  gfx::ColorSpace::PrimaryID primary = gfx::ColorSpace::PrimaryID::INVALID;
+  switch (v4l2_primary) {
+    case V4L2_COLORSPACE_470_SYSTEM_M:
+      primary = gfx::ColorSpace::PrimaryID::BT470M;
+      break;
+    case V4L2_COLORSPACE_470_SYSTEM_BG:
+      primary = gfx::ColorSpace::PrimaryID::BT470BG;
+      break;
+    case V4L2_COLORSPACE_SMPTE170M:
+      primary = gfx::ColorSpace::PrimaryID::SMPTE170M;
+      break;
+    case V4L2_COLORSPACE_SMPTE240M:
+      primary = gfx::ColorSpace::PrimaryID::SMPTE240M;
+      break;
+    case V4L2_COLORSPACE_BT2020:
+      primary = gfx::ColorSpace::PrimaryID::BT2020;
+      break;
+    case V4L2_COLORSPACE_DCI_P3:
+      primary = gfx::ColorSpace::PrimaryID::P3;
+      break;
+    // SRGB, JPEG and REC709 have same primary.
+    case V4L2_COLORSPACE_SRGB:
+    case V4L2_COLORSPACE_JPEG:
+    case V4L2_COLORSPACE_REC709:
+      primary = gfx::ColorSpace::PrimaryID::BT709;
+      break;
+    // The AdobeRGB standard defines the colorspace used by computer graphics
+    // that use the AdobeRGB colorspace. This is also known as the opRGB
+    // standard. (i.e. OPRGB is same as ADOBE_RGB)
+    case V4L2_COLORSPACE_OPRGB:
+      primary = gfx::ColorSpace::PrimaryID::ADOBE_RGB;
+      break;
+    case V4L2_COLORSPACE_BT878:
+    case V4L2_COLORSPACE_DEFAULT:
+    case V4L2_COLORSPACE_RAW:
+      return gfx::ColorSpace();
+  }
+
+  gfx::ColorSpace::RangeID range = gfx::ColorSpace::RangeID::INVALID;
+  switch (v4l2_range) {
+    case V4L2_QUANTIZATION_DEFAULT:
+      if (media::IsYuvPlanar(capture_format_.pixel_format) &&
+          v4l2_primary != V4L2_COLORSPACE_JPEG) {
+        range = gfx::ColorSpace::RangeID::LIMITED;
+      } else {
+        range = gfx::ColorSpace::RangeID::FULL;
+      }
+      break;
+    case V4L2_QUANTIZATION_FULL_RANGE:
+      range = gfx::ColorSpace::RangeID::FULL;
+      break;
+    case V4L2_QUANTIZATION_LIM_RANGE:
+      range = gfx::ColorSpace::RangeID::LIMITED;
+      break;
+  }
+
+  gfx::ColorSpace::MatrixID matrix = gfx::ColorSpace::MatrixID::INVALID;
+  switch (v4l2_matrix) {
+    case V4L2_YCBCR_ENC_DEFAULT:
+      switch (v4l2_primary) {
+        case V4L2_COLORSPACE_470_SYSTEM_BG:
+          matrix = gfx::ColorSpace::MatrixID::BT470BG;
+          break;
+        case V4L2_COLORSPACE_SRGB:
+          matrix = gfx::ColorSpace::MatrixID::RGB;
+          break;
+        // V4L2_COLORSPACE_SMPTE170M, V4L2_COLORSPACE_470_SYSTEM_M,
+        // V4L2_COLORSPACE_OPRGB and V4L2_COLORSPACE_JPEG have same matrix.
+        case V4L2_COLORSPACE_SMPTE170M:
+        case V4L2_COLORSPACE_470_SYSTEM_M:
+        case V4L2_COLORSPACE_OPRGB:
+        case V4L2_COLORSPACE_JPEG:
+          matrix = gfx::ColorSpace::MatrixID::SMPTE170M;
+          break;
+        case V4L2_COLORSPACE_REC709:
+        case V4L2_COLORSPACE_DCI_P3:
+          matrix = gfx::ColorSpace::MatrixID::BT709;
+          break;
+        case V4L2_COLORSPACE_BT2020:
+          matrix = gfx::ColorSpace::MatrixID::BT2020_NCL;
+          break;
+        case V4L2_COLORSPACE_SMPTE240M:
+          matrix = gfx::ColorSpace::MatrixID::SMPTE240M;
+          break;
+        case V4L2_COLORSPACE_DEFAULT:
+        case V4L2_COLORSPACE_BT878:
+        case V4L2_COLORSPACE_RAW:
+          return gfx::ColorSpace();
+      }
+      break;
+    // The default Y’CbCr encoding of SMPTE170M is same as V4L2_YCBCR_ENC_601.
+    case V4L2_YCBCR_ENC_601:
+      matrix = gfx::ColorSpace::MatrixID::SMPTE170M;
+      break;
+    case V4L2_YCBCR_ENC_709:
+      matrix = gfx::ColorSpace::MatrixID::BT709;
+      break;
+    case V4L2_YCBCR_ENC_BT2020:
+      matrix = gfx::ColorSpace::MatrixID::BT2020_NCL;
+      break;
+    case V4L2_YCBCR_ENC_SMPTE240M:
+      matrix = gfx::ColorSpace::MatrixID::SMPTE240M;
+      break;
+    case V4L2_YCBCR_ENC_BT2020_CONST_LUM:
+    case V4L2_YCBCR_ENC_XV601:
+    case V4L2_YCBCR_ENC_XV709:
+    case V4L2_YCBCR_ENC_SYCC:
+      return gfx::ColorSpace();
+  }
+
+  gfx::ColorSpace::TransferID transfer = gfx::ColorSpace::TransferID::INVALID;
+  switch (v4l2_transfer) {
+    case V4L2_XFER_FUNC_DEFAULT:
+      switch (v4l2_primary) {
+        case V4L2_COLORSPACE_SMPTE170M:
+          transfer = gfx::ColorSpace::TransferID::SMPTE170M;
+          break;
+        // V4L2_COLORSPACE_470_SYSTEM_M, V4L2_COLORSPACE_470_SYSTEM_BG and
+        // V4L2_COLORSPACE_REC709 have same transfer function.
+        case V4L2_COLORSPACE_470_SYSTEM_M:
+        case V4L2_COLORSPACE_470_SYSTEM_BG:
+        case V4L2_COLORSPACE_REC709:
+          transfer = gfx::ColorSpace::TransferID::BT709;
+          break;
+        case V4L2_COLORSPACE_BT2020:
+          transfer = gfx::ColorSpace::TransferID::BT2020_10;
+          break;
+        // V4L2_COLORSPACE_JPEG and V4L2_COLORSPACE_SRGB has same transfer
+        // function.
+        case V4L2_COLORSPACE_SRGB:
+        case V4L2_COLORSPACE_JPEG:
+          transfer = gfx::ColorSpace::TransferID::SRGB;
+          break;
+        case V4L2_COLORSPACE_SMPTE240M:
+          transfer = gfx::ColorSpace::TransferID::SMPTE240M;
+          break;
+        case V4L2_COLORSPACE_RAW:
+        case V4L2_COLORSPACE_DCI_P3:
+        case V4L2_COLORSPACE_DEFAULT:
+        case V4L2_COLORSPACE_BT878:
+          // The default transfer function is V4L2_XFER_FUNC_ADOBERGB, but there
+          // is no same definition or same transfer function in TransferID.
+          // TODO(1449570, 959919): If ADOBE_RGB is handled, pass the right gfx
+          // color space instead of INVALID color space.
+        case V4L2_COLORSPACE_OPRGB:
+          return gfx::ColorSpace();
+      }
+      break;
+    case V4L2_XFER_FUNC_709:
+      transfer = gfx::ColorSpace::TransferID::BT709;
+      break;
+    case V4L2_XFER_FUNC_SRGB:
+      transfer = gfx::ColorSpace::TransferID::SRGB;
+      break;
+    case V4L2_XFER_FUNC_SMPTE240M:
+      transfer = gfx::ColorSpace::TransferID::SMPTE240M;
+      break;
+    // Perceptual quantizer, also known as SMPTEST2084.
+    case V4L2_XFER_FUNC_SMPTE2084:
+      transfer = gfx::ColorSpace::TransferID::PQ;
+      break;
+    case V4L2_XFER_FUNC_NONE:
+    case V4L2_XFER_FUNC_DCI_P3:
+      // The default transfer function is V4L2_XFER_FUNC_ADOBERGB, but there
+      // is no same definition or same transfer function in TransferID.
+      // TODO(1449570, 959919): If ADOBE_RGB is handled, pass the right gfx
+      // color space instead of INVALID color space.
+    case V4L2_XFER_FUNC_OPRGB:
+      return gfx::ColorSpace();
+  }
+
+  DVLOG(2) << __func__ << "build color space:"
+           << gfx::ColorSpace(primary, transfer, matrix, range).ToString();
+  return gfx::ColorSpace(primary, transfer, matrix, range);
+}
+#endif
 
 V4L2CaptureDelegate::BufferTracker::BufferTracker(V4L2CaptureDevice* v4l2)
     : v4l2_(v4l2) {}

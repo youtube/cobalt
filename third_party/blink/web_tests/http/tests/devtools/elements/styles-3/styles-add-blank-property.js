@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {TestRunner} from 'test_runner';
+import {ElementsTestRunner} from 'elements_test_runner';
+
 (async function() {
   TestRunner.addResult(`Tests that adding a new blank property works.\n`);
-  await TestRunner.loadLegacyModule('elements'); await TestRunner.loadTestModule('elements_test_runner');
   await TestRunner.showPanel('elements');
   await TestRunner.loadHTML(`
       <div id="inspected" style="font-size: 12px">Text</div>
@@ -23,7 +25,7 @@
 
     // Create and increment.
     treeElement = section.addNewBlankProperty(0);
-    treeElement.startEditing();
+    treeElement.startEditingName();
     treeElement.nameElement.textContent = 'margin-left';
     treeElement.nameElement.dispatchEvent(TestRunner.createKeyEvent('Enter'));
 
@@ -51,7 +53,7 @@
     await ElementsTestRunner.dumpSelectedElementStyles(true);
 
     treeElement = ElementsTestRunner.inlineStyleSection().addNewBlankProperty(2);
-    treeElement.startEditing();
+    treeElement.startEditingName();
     treeElement.nameElement.textContent = 'color';
     treeElement.nameElement.dispatchEvent(TestRunner.createKeyEvent('Enter'));
 
@@ -71,7 +73,7 @@
     await ElementsTestRunner.dumpSelectedElementStyles(true);
 
     treeElement = ElementsTestRunner.inlineStyleSection().addNewBlankProperty(2);
-    treeElement.startEditing();
+    treeElement.startEditingName();
     treeElement.nameElement.textContent = 'third-property';
     treeElement.nameElement.dispatchEvent(TestRunner.createKeyEvent('Enter'));
     treeElement.valueElement.textContent = 'third-value';

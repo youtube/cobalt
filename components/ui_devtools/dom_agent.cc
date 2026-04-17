@@ -2,15 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "components/ui_devtools/dom_agent.h"
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <utility>
 
 #include "base/containers/adapters.h"
+#include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "components/ui_devtools/devtools_server.h"
@@ -106,7 +112,7 @@ struct DOMAgent::Query {
   QueryType query_type_;
 };
 
-DOMAgent::DOMAgent() {}
+DOMAgent::DOMAgent() = default;
 
 DOMAgent::~DOMAgent() {
   Reset();
@@ -152,7 +158,7 @@ void DOMAgent::OnUIElementAdded(UIElement* parent, UIElement* child) {
   child->set_is_updating(true);
 
   const auto& children = parent->children();
-  auto iter = base::ranges::find(children, child);
+  auto iter = std::ranges::find(children, child);
   int prev_node_id =
       (iter == children.begin()) ? 0 : (*std::prev(iter))->node_id();
   frontend()->childNodeInserted(parent->node_id(), prev_node_id,
@@ -167,7 +173,7 @@ void DOMAgent::OnUIElementReordered(UIElement* parent, UIElement* child) {
   DCHECK(node_id_to_ui_element_.count(parent->node_id()));
 
   const auto& children = parent->children();
-  auto iter = base::ranges::find(children, child);
+  auto iter = std::ranges::find(children, child);
   CHECK(iter != children.end());
   int prev_node_id =
       (iter == children.begin()) ? 0 : (*std::prev(iter))->node_id();
@@ -236,8 +242,9 @@ std::unique_ptr<Node> DOMAgent::BuildNode(
 
 std::unique_ptr<Node> DOMAgent::BuildDomNodeFromUIElement(UIElement* root) {
   auto children = std::make_unique<protocol::Array<Node>>();
-  for (auto* it : root->children())
+  for (ui_devtools::UIElement* it : root->children()) {
     children->emplace_back(BuildDomNodeFromUIElement(it));
+  }
 
   return BuildNode(
       root->GetTypeName(),
@@ -267,8 +274,9 @@ void DOMAgent::OnElementBoundsChanged(UIElement* ui_element) {
 }
 
 void DOMAgent::RemoveDomNode(UIElement* ui_element, bool update_node_id_map) {
-  for (auto* child_element : ui_element->children())
+  for (ui_devtools::UIElement* child_element : ui_element->children()) {
     RemoveDomNode(child_element, update_node_id_map);
+  }
   frontend()->childNodeRemoved(ui_element->parent()->node_id(),
                                ui_element->node_id());
   if (update_node_id_map) {
@@ -336,20 +344,24 @@ void DOMAgent::SearchDomTree(const DOMAgent::Query& query_data,
   std::vector<UIElement*> stack;
   // Root node from element_root() is not a real node from the DOM tree.
   // The children of the root node are the 'actual' roots of the DOM tree.
-  std::vector<UIElement*> root_list = element_root()->children();
+  std::vector<raw_ptr<UIElement, VectorExperimental>> root_list =
+      element_root()->children();
   DCHECK(root_list.size());
   // Children are accessed from bottom to top. So iterate backwards.
-  for (auto* root : base::Reversed(root_list))
+  for (ui_devtools::UIElement* root : base::Reversed(root_list)) {
     stack.push_back(root);
+  }
 
   // Manual plain text search. DFS traversal.
   while (!stack.empty()) {
     UIElement* node = stack.back();
     stack.pop_back();
-    std::vector<UIElement*> children_array = node->children();
+    std::vector<raw_ptr<UIElement, VectorExperimental>> children_array =
+        node->children();
     // Children are accessed from bottom to top. So iterate backwards.
-    for (auto* child : base::Reversed(children_array))
+    for (ui_devtools::UIElement* child : base::Reversed(children_array)) {
       stack.push_back(child);
+    }
     bool found_match = false;
     if (query_data.query_type_ == Query::QueryType::Style)
       found_match = FindMatchInStylesProperty(query_data.query_, node);
@@ -368,7 +380,7 @@ void DOMAgent::SearchDomTree(const DOMAgent::Query& query_data,
 // src/third_party/blink/renderer/core/inspector/inspector_dom_agent.cc
 Response DOMAgent::performSearch(
     const protocol::String& whitespace_trimmed_query,
-    protocol::Maybe<bool> optional_include_user_agent_shadow_dom,
+    std::optional<bool> optional_include_user_agent_shadow_dom,
     protocol::String* search_id,
     int* result_count) {
   Query query_data = PreprocessQuery(whitespace_trimmed_query);

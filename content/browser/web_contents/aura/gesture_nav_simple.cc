@@ -17,7 +17,6 @@
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/public/browser/overscroll_configuration.h"
 #include "content/public/browser/preloading.h"
-#include "third_party/skia/include/core/SkDrawLooper.h"
 #include "ui/aura/window.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_delegate.h"
@@ -44,7 +43,7 @@ constexpr SkColor kArrowColorAfterActivation = SK_ColorWHITE;
 
 // Parameters defining the background circle of the affordance.
 constexpr int kBackgroundRadius = 20;
-constexpr SkColor kBackgroundColorBeforeActication = SK_ColorWHITE;
+constexpr SkColor kBackgroundColorBeforeActivation = SK_ColorWHITE;
 constexpr SkColor kBackgroundColorAfterActivation = gfx::kGoogleBlue600;
 constexpr int kBgShadowOffsetY = 2;
 constexpr int kBgShadowBlurRadius = 8;
@@ -404,7 +403,7 @@ void Affordance::OnPaintLayer(const ui::PaintContext& context) {
   bg_flags.setAntiAlias(true);
   bg_flags.setStyle(cc::PaintFlags::kFill_Style);
   bg_flags.setColor(progress >= 1.0f ? kBackgroundColorAfterActivation
-                                     : kBackgroundColorBeforeActication);
+                                     : kBackgroundColorBeforeActivation);
   gfx::ShadowValues shadow;
   shadow.emplace_back(gfx::Vector2d(0, kBgShadowOffsetY), kBgShadowBlurRadius,
                       kBgShadowColor);
@@ -432,7 +431,6 @@ void Affordance::AnimationProgressed(const gfx::Animation* animation) {
   switch (state_) {
     case State::DRAGGING:
       NOTREACHED();
-      break;
     case State::ABORTING:
       SetAbortProgress(animation->GetCurrentValue());
       break;
@@ -575,15 +573,16 @@ void GestureNavSimple::OnOverscrollModeChange(OverscrollMode old_mode,
   const float start_threshold =
       is_touchpad ? OverscrollConfig::kStartTouchpadThresholdDips
                   : OverscrollConfig::kStartTouchscreenThresholdDips;
+  const float complete_percent =
+      is_touchpad ? OverscrollConfig::kCompleteTouchpadThresholdPercent
+                  : OverscrollConfig::kCompleteTouchscreenThresholdPercent;
+
   const gfx::Size size = GetDisplaySize();
   const int max_size = std::max(size.width(), size.height());
-  completion_threshold_ =
-      max_size *
-          (is_touchpad
-               ? OverscrollConfig::kCompleteTouchpadThresholdPercent
-               : OverscrollConfig::kCompleteTouchscreenThresholdPercent) -
-      start_threshold;
-  DCHECK_LE(0, completion_threshold_);
+
+  completion_threshold_ = max_size * complete_percent - start_threshold;
+  DCHECK_LE(0, completion_threshold_) << " for display size " << size.ToString()
+                                      << " and is_touchpad=" << is_touchpad;
 
   max_delta_ = max_size - start_threshold;
   DCHECK_LE(0, max_delta_);
@@ -603,11 +602,11 @@ void GestureNavSimple::OnOverscrollModeChange(OverscrollMode old_mode,
   parent->StackAtTop(affordance_->root_layer());
 }
 
-absl::optional<float> GestureNavSimple::GetMaxOverscrollDelta() const {
+std::optional<float> GestureNavSimple::GetMaxOverscrollDelta() const {
   if (affordance_) {
     return max_delta_;
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 }  // namespace content

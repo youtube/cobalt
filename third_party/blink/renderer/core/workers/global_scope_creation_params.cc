@@ -8,6 +8,8 @@
 
 #include "base/feature_list.h"
 #include "base/task/single_thread_task_runner.h"
+#include "net/storage_access_api/status.h"
+#include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/script/script_type.mojom-blink.h"
 #include "third_party/blink/renderer/platform/network/content_security_policy_parsers.h"
@@ -19,7 +21,7 @@ GlobalScopeCreationParams::GlobalScopeCreationParams(
     mojom::blink::ScriptType script_type,
     const String& global_scope_name,
     const String& user_agent,
-    const absl::optional<UserAgentMetadata>& ua_metadata,
+    const std::optional<UserAgentMetadata>& ua_metadata,
     scoped_refptr<WebWorkerFetchContext> web_worker_fetch_context,
     Vector<network::mojom::blink::ContentSecurityPolicyPtr>
         outside_content_security_policies,
@@ -31,7 +33,7 @@ GlobalScopeCreationParams::GlobalScopeCreationParams(
     HttpsState starter_https_state,
     WorkerClients* worker_clients,
     std::unique_ptr<WebContentSettingsClient> content_settings_client,
-    const Vector<OriginTrialFeature>* inherited_trial_features,
+    const Vector<mojom::blink::OriginTrialFeature>* inherited_trial_features,
     const base::UnguessableToken& parent_devtools_token,
     std::unique_ptr<WorkerSettings> worker_settings,
     mojom::blink::V8CacheOptions v8_cache_options,
@@ -41,16 +43,23 @@ GlobalScopeCreationParams::GlobalScopeCreationParams(
     mojo::PendingRemote<mojom::blink::CodeCacheHost> code_cache_host_interface,
     mojo::PendingRemote<mojom::blink::BlobURLStore> blob_url_store,
     BeginFrameProviderParams begin_frame_provider_params,
-    const PermissionsPolicy* parent_permissions_policy,
+    const network::PermissionsPolicy* parent_permissions_policy,
     base::UnguessableToken agent_cluster_id,
     ukm::SourceId ukm_source_id,
-    const absl::optional<ExecutionContextToken>& parent_context_token,
+    const std::optional<ExecutionContextToken>& parent_context_token,
     bool parent_cross_origin_isolated_capability,
     bool parent_is_isolated_context,
     InterfaceRegistry* interface_registry,
     scoped_refptr<base::SingleThreadTaskRunner>
         agent_group_scheduler_compositor_task_runner,
-    const SecurityOrigin* top_level_frame_security_origin)
+    const SecurityOrigin* top_level_frame_security_origin,
+    net::StorageAccessApiStatus parent_storage_access_api_status,
+    bool require_cross_site_request_for_cookies,
+    scoped_refptr<SecurityOrigin> origin_to_use,
+    mojo::PendingReceiver<mojom::blink::ReportingObserver>
+        coep_reporting_observer,
+    mojo::PendingReceiver<mojom::blink::ReportingObserver>
+        dip_reporting_observer)
     : script_url(script_url),
       script_type(script_type),
       global_scope_name(global_scope_name),
@@ -63,6 +72,7 @@ GlobalScopeCreationParams::GlobalScopeCreationParams(
           std::move(response_content_security_policies)),
       referrer_policy(referrer_policy),
       starter_origin(starter_origin ? starter_origin->IsolatedCopy() : nullptr),
+      origin_to_use(std::move(origin_to_use)),
       starter_secure_context(starter_secure_context),
       starter_https_state(starter_https_state),
       worker_clients(worker_clients),
@@ -76,16 +86,18 @@ GlobalScopeCreationParams::GlobalScopeCreationParams(
       blob_url_store(std::move(blob_url_store)),
       begin_frame_provider_params(std::move(begin_frame_provider_params)),
       // At the moment, workers do not support their container policy being set,
-      // so it will just be an empty ParsedPermissionsPolicy for now.
+      // so it will just be an empty network::ParsedPermissionsPolicy for now.
       // Shared storage worklets have a null `parent_permissions_policy` and
       // `starter_origin`.
       // TODO(crbug.com/1419253): Pass non-null `parent_permissions_policy` and
       // `starter_origin`. Also, we could ensure `starter_origin` is never null
       // after that.
-      worker_permissions_policy(PermissionsPolicy::CreateFromParentPolicy(
-          parent_permissions_policy,
-          ParsedPermissionsPolicy() /* container_policy */,
-          starter_origin ? starter_origin->ToUrlOrigin() : url::Origin())),
+      worker_permissions_policy(
+          network::PermissionsPolicy::CreateFromParentPolicy(
+              parent_permissions_policy,
+              /*header_policy=*/{},
+              network::ParsedPermissionsPolicy() /* container_policy */,
+              starter_origin ? starter_origin->ToUrlOrigin() : url::Origin())),
       agent_cluster_id(agent_cluster_id),
       ukm_source_id(ukm_source_id),
       parent_context_token(parent_context_token),
@@ -98,12 +110,18 @@ GlobalScopeCreationParams::GlobalScopeCreationParams(
       top_level_frame_security_origin(
           top_level_frame_security_origin
               ? top_level_frame_security_origin->IsolatedCopy()
-              : nullptr) {
+              : nullptr),
+      parent_storage_access_api_status(parent_storage_access_api_status),
+      require_cross_site_request_for_cookies(
+          require_cross_site_request_for_cookies),
+      coep_reporting_observer(std::move(coep_reporting_observer)),
+      dip_reporting_observer(std::move(dip_reporting_observer)) {
   this->inherited_trial_features =
-      std::make_unique<Vector<OriginTrialFeature>>();
+      std::make_unique<Vector<mojom::blink::OriginTrialFeature>>();
   if (inherited_trial_features) {
-    for (OriginTrialFeature feature : *inherited_trial_features)
+    for (mojom::blink::OriginTrialFeature feature : *inherited_trial_features) {
       this->inherited_trial_features->push_back(feature);
+    }
   }
 }
 

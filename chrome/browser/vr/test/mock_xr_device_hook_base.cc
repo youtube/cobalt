@@ -3,11 +3,16 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/vr/test/mock_xr_device_hook_base.h"
+
 #include "content/public/test/xr_test_utils.h"
 #include "device/vr/public/mojom/isolated_xr_service.mojom.h"
 #include "mojo/public/cpp/bindings/sync_call_restrictions.h"
 
-// TODO(https://crbug.com/891832): Remove these conversion functions as part of
+#if BUILDFLAG(IS_ANDROID)
+#include "components/webxr/android/openxr_device_provider.h"
+#endif
+
+// TODO(crbug.com/41418750): Remove these conversion functions as part of
 // the switch to only mojom types.
 device_test::mojom::ControllerRole DeviceToMojoControllerRole(
     device::ControllerRole role) {
@@ -47,20 +52,47 @@ device_test::mojom::ControllerFrameDataPtr DeviceToMojoControllerFrameData(
           row, col, data.pose_data.device_to_origin[row + col * 4]);
     }
   }
+
+  if (data.has_hand_data) {
+    device::mojom::XRHandTrackingDataPtr hand_tracking_data =
+        device::mojom::XRHandTrackingData::New();
+    hand_tracking_data->hand_joint_data =
+        std::vector<device::mojom::XRHandJointDataPtr>{};
+    auto& joint_data = hand_tracking_data->hand_joint_data;
+
+    // We need to use `resize` here to create default data fields so we can use
+    // [] indexing to ensure things are added to the right spot.
+    joint_data.resize(std::size(data.hand_data));
+    for (const auto& joint_entry : data.hand_data) {
+      uint32_t joint_index = static_cast<uint32_t>(joint_entry.joint);
+
+      joint_data[joint_index] = device::mojom::XRHandJointData::New(
+          joint_entry.joint, joint_entry.mojo_from_joint, joint_entry.radius);
+    }
+
+    ret->hand_data = std::move(hand_tracking_data);
+  }
+
   return ret;
 }
 
 MockXRDeviceHookBase::MockXRDeviceHookBase()
     : tracked_classes_{
-          device_test::mojom::TrackedDeviceClass::kTrackedDeviceInvalid} {
+          device_test::mojom::TrackedDeviceClass::kTrackedDeviceHmd} {
+  // TODO(https://crbug.com/381913614): Instead of this pattern, consider
+  // spinning up/holding onto and setting the test hook on the XrRuntimeManager,
+  // which could pass on to providers.
+#if BUILDFLAG(IS_WIN)
   content::GetXRDeviceServiceForTesting()->BindTestHook(
       service_test_hook_.BindNewPipeAndPassReceiver());
 
   mojo::ScopedAllowSyncCallForTesting scoped_allow_sync;
-  // For now, always have the HMD connected.
-  tracked_classes_[0] =
-      device_test::mojom::TrackedDeviceClass::kTrackedDeviceHmd;
   service_test_hook_->SetTestHook(receiver_.BindNewPipeAndPassRemote());
+#elif BUILDFLAG(IS_ANDROID)
+  mojo::ScopedAllowSyncCallForTesting scoped_allow_sync;
+  webxr::OpenXrDeviceProvider::SetTestHook(
+      receiver_.BindNewPipeAndPassRemote());
+#endif
 }
 
 MockXRDeviceHookBase::~MockXRDeviceHookBase() {
@@ -130,7 +162,7 @@ void MockXRDeviceHookBase::WaitGetControllerData(
   if (tracked_classes_[index] ==
       device_test::mojom::TrackedDeviceClass::kTrackedDeviceController) {
     auto iter = controller_data_map_.find(index);
-    DCHECK(iter != controller_data_map_.end());
+    CHECK(iter != controller_data_map_.end());
     std::move(callback).Run(DeviceToMojoControllerFrameData(iter->second));
     return;
   }
@@ -170,9 +202,6 @@ unsigned int MockXRDeviceHookBase::ConnectController(
   }
   // We shouldn't be running out of slots during a test.
   NOTREACHED();
-  // NOTREACHED should make it unnecessary to return here (as it does elsewhere
-  // in the code), but compilation fails if this is not present.
-  return device::kMaxTrackedDevices;
 }
 
 void MockXRDeviceHookBase::TerminateDeviceServiceProcessForTesting() {
@@ -184,7 +213,7 @@ void MockXRDeviceHookBase::UpdateController(
     unsigned int index,
     const device::ControllerFrameData& updated_data) {
   auto iter = controller_data_map_.find(index);
-  DCHECK(iter != controller_data_map_.end());
+  CHECK(iter != controller_data_map_.end());
   iter->second = updated_data;
 }
 
@@ -192,7 +221,7 @@ void MockXRDeviceHookBase::DisconnectController(unsigned int index) {
   DCHECK(tracked_classes_[index] ==
          device_test::mojom::TrackedDeviceClass::kTrackedDeviceController);
   auto iter = controller_data_map_.find(index);
-  DCHECK(iter != controller_data_map_.end());
+  CHECK(iter != controller_data_map_.end());
   controller_data_map_.erase(iter);
   tracked_classes_[index] =
       device_test::mojom::TrackedDeviceClass::kTrackedDeviceInvalid;
@@ -203,8 +232,7 @@ device::ControllerFrameData MockXRDeviceHookBase::CreateValidController(
   device::ControllerFrameData ret;
   // Because why shouldn't a 64 button controller exist?
   ret.supported_buttons = UINT64_MAX;
-  memset(ret.axis_data, 0,
-         sizeof(device::ControllerAxisData) * device::kMaxNumAxes);
+  std::ranges::fill(ret.axis_data, device::ControllerAxisData{});
   ret.role = role;
   ret.is_valid = true;
   // Identity matrix.

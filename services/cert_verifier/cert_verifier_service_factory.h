@@ -9,6 +9,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/time/time.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -18,11 +19,15 @@
 #include "services/cert_verifier/cert_verifier_creation.h"
 #include "services/cert_verifier/cert_verifier_service.h"
 #include "services/cert_verifier/public/mojom/cert_verifier_service_factory.mojom.h"
+#include "services/network/public/cpp/network_service_buildflags.h"
 #include "services/network/public/mojom/cert_verifier_service.mojom.h"
+#include "services/network/public/mojom/cert_verifier_service_updater.mojom.h"
 
 #if BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
+#include <optional>
+
+#include "mojo/public/cpp/base/proto_wrapper.h"
 #include "net/cert/internal/trust_store_chrome.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #endif
 
 namespace cert_verifier {
@@ -40,7 +45,8 @@ class CertVerifierServiceFactoryImpl
 
   // mojom::CertVerifierServiceFactory implementation:
   void GetNewCertVerifier(
-      mojo::PendingReceiver<mojom::CertVerifierService> receiver,
+      mojo::PendingReceiver<mojom::CertVerifierService> service_receiver,
+      mojo::PendingReceiver<mojom::CertVerifierServiceUpdater> updater_receiver,
       mojo::PendingRemote<mojom::CertVerifierServiceClient> client,
       mojom::CertVerifierCreationParamsPtr creation_params) override;
 
@@ -49,6 +55,7 @@ class CertVerifierServiceFactoryImpl
   // CertNetFetcherURLLoader is in use.
   void GetNewCertVerifierForTesting(
       mojo::PendingReceiver<mojom::CertVerifierService> receiver,
+      mojo::PendingReceiver<mojom::CertVerifierServiceUpdater> updater_receiver,
       mojo::PendingRemote<mojom::CertVerifierServiceClient> client,
       mojom::CertVerifierCreationParamsPtr creation_params,
       scoped_refptr<CertNetFetcherURLLoader>* cert_net_fetcher_ptr);
@@ -57,26 +64,50 @@ class CertVerifierServiceFactoryImpl
   void UpdateCRLSet(mojo_base::BigBuffer crl_set,
                     mojom::CertVerifierServiceFactory::UpdateCRLSetCallback
                         callback) override;
+#if BUILDFLAG(IS_CT_SUPPORTED)
+  void UpdateCtLogList(std::vector<network::mojom::CTLogInfoPtr> log_list,
+                       base::Time update_time,
+                       UpdateCtLogListCallback callback) override;
+  void DisableCtEnforcement(DisableCtEnforcementCallback callback) override;
+#endif
 #if BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
-  void UpdateChromeRootStore(mojom::ChromeRootStorePtr new_root_store,
+  void UpdateChromeRootStore(mojo_base::ProtoWrapper new_root_store,
                              UpdateChromeRootStoreCallback callback) override;
+  // Will not return anchors that are not trusted for the current running
+  // version of Chrome.
   void GetChromeRootStoreInfo(GetChromeRootStoreInfoCallback callback) override;
+
+#if !BUILDFLAG(IS_CHROMEOS)
+  void GetPlatformRootStoreInfo(
+      GetPlatformRootStoreInfoCallback callback) override;
+#endif
 #endif
 #if BUILDFLAG(CHROME_ROOT_STORE_OPTIONAL)
   void SetUseChromeRootStore(bool use_crs,
                              SetUseChromeRootStoreCallback callback) override;
 #endif
+  void UpdateNetworkTime(base::Time system_time,
+                         base::TimeTicks system_ticks,
+                         base::Time current_time) override;
 
   // Remove a CertVerifyService from needing updates to the Chrome Root Store.
   void RemoveService(internal::CertVerifierServiceImpl* service_impl);
 
+  const net::CertVerifyProc::ImplParams& get_impl_params() const {
+    return proc_params_;
+  }
+
+  base::WeakPtr<CertVerifierServiceFactoryImpl> GetWeakPtr();
+
  private:
+  void InitializeRootStoreDataIfNecessary();
+
   // Update all the `verifier_services_` with the current data.
   void UpdateVerifierServices();
 
   void OnCRLSetParsed(scoped_refptr<net::CRLSet> parsed_crl_set);
 
-  net::CertVerifyProcFactory::ImplParams proc_params_;
+  net::CertVerifyProc::ImplParams proc_params_;
 
   mojo::Receiver<mojom::CertVerifierServiceFactory> receiver_;
 

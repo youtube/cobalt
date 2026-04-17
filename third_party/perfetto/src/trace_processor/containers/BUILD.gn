@@ -22,22 +22,23 @@ import("../../../gn/test.gni")
 perfetto_component("containers") {
   public = [
     "bit_vector.h",
-    "bit_vector_iterators.h",
+    "implicit_segment_forest.h",
+    "interval_intersector.h",
+    "interval_tree.h",
     "null_term_string_view.h",
-    "nullable_vector.h",
     "row_map.h",
     "row_map_algorithms.h",
     "string_pool.h",
   ]
   sources = [
     "bit_vector.cc",
-    "bit_vector_iterators.cc",
     "row_map.cc",
     "string_pool.cc",
   ]
   deps = [
     "../../../gn:default_deps",
     "../../../include/perfetto/protozero",
+    "../../../protos/perfetto/trace_processor:zero",
     "../../base",
   ]
 }
@@ -46,8 +47,10 @@ perfetto_unittest_source_set("unittests") {
   testonly = true
   sources = [
     "bit_vector_unittest.cc",
+    "implicit_segment_forest_unittest.cc",
+    "interval_intersector_unittest.cc",
+    "interval_tree_unittest.cc",
     "null_term_string_view_unittest.cc",
-    "nullable_vector_unittest.cc",
     "row_map_unittest.cc",
     "string_pool_unittest.cc",
   ]
@@ -55,6 +58,9 @@ perfetto_unittest_source_set("unittests") {
     ":containers",
     "../../../gn:default_deps",
     "../../../gn:gtest_and_gmock",
+    "../../../include/perfetto/protozero",
+    "../../../protos/perfetto/trace_processor:zero",
+    "../../base",
   ]
 }
 
@@ -65,12 +71,13 @@ if (enable_perfetto_benchmarks) {
       ":containers",
       "../../../gn:benchmark",
       "../../../gn:default_deps",
+      "../../base",
     ]
     sources = [
       "bit_vector_benchmark.cc",
-      "nullable_vector_benchmark.cc",
       "row_map_algorithms_benchmark.cc",
       "row_map_benchmark.cc",
+      "string_pool_benchmark.cc",
     ]
   }
 }

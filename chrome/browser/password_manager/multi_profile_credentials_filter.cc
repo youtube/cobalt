@@ -4,38 +4,40 @@
 
 #include "chrome/browser/password_manager/multi_profile_credentials_filter.h"
 
+#include <optional>
+
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/signin/dice_web_signin_interceptor.h"
-#include "components/autofill/core/browser/validation.h"
+#include "components/autofill/core/browser/data_quality/validation.h"
 #include "components/password_manager/core/browser/password_sync_util.h"
 #include "google_apis/gaia/gaia_auth_util.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 MultiProfileCredentialsFilter::MultiProfileCredentialsFilter(
     password_manager::PasswordManagerClient* client,
-    SyncServiceFactoryFunction sync_service_factory_function,
     DiceWebSigninInterceptor* dice_web_signin_interceptor)
-    : password_manager::SyncCredentialsFilter(
-          client,
-          std::move(sync_service_factory_function)),
+    : password_manager::SyncCredentialsFilter(client),
       dice_web_signin_interceptor_(dice_web_signin_interceptor) {}
 
 bool MultiProfileCredentialsFilter::ShouldSave(
     const password_manager::PasswordForm& form) const {
-  if (!password_manager::SyncCredentialsFilter::ShouldSave(form))
+  if (!password_manager::SyncCredentialsFilter::ShouldSave(form)) {
     return false;
-  if (!dice_web_signin_interceptor_)
+  }
+  if (!dice_web_signin_interceptor_) {
     return true;  // This happens in incognito.
-  if (!password_manager::sync_util::IsGaiaCredentialPage(form.signon_realm))
+  }
+  if (!password_manager::sync_util::IsGaiaCredentialPage(form.signon_realm)) {
     return true;
+  }
 
   // Note: this function is only called for "Save" bubbles, but not for "Update"
   // bubbles.
 
   // Do not show password bubble if interception is initializing or already
   // shown on screen.
-  if (dice_web_signin_interceptor_->is_interception_in_progress())
+  if (dice_web_signin_interceptor_->is_interception_in_progress()) {
     return false;
+  }
 
   std::string email =
       gaia::SanitizeEmail(base::UTF16ToUTF8(form.username_value));
@@ -50,7 +52,7 @@ bool MultiProfileCredentialsFilter::ShouldSave(
   // moved to another profile. If the interception outcome is not available,
   // then signin interception is very likely, and the password bubble is
   // suppressed as well.
-  absl::optional<SigninInterceptionHeuristicOutcome> heuristic_outcome =
+  std::optional<SigninInterceptionHeuristicOutcome> heuristic_outcome =
       dice_web_signin_interceptor_->GetHeuristicOutcome(
           // At this time, it's not possible to know whether the account is new
           // (whether it's a reauth). To be conservative and avoid showing both

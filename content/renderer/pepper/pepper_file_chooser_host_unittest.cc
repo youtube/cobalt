@@ -12,6 +12,7 @@
 
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "content/public/test/render_view_test.h"
@@ -47,7 +48,7 @@ namespace {
 
 class MockFileChooser : public FileChooser {
  public:
-  MockFileChooser(blink::BrowserInterfaceBrokerProxy* broker,
+  MockFileChooser(const blink::BrowserInterfaceBrokerProxy* broker,
                   base::OnceClosure reached_callback)
       : reached_callback_(std::move(reached_callback)) {
     broker->SetBinderForTesting(
@@ -90,7 +91,7 @@ class MockFileChooser : public FileChooser {
       const base::FilePath& directory_path,
       EnumerateChosenDirectoryCallback callback) override {}
 
-  blink::BrowserInterfaceBrokerProxy* broker_;
+  raw_ptr<const blink::BrowserInterfaceBrokerProxy> broker_;
   mojo::ReceiverSet<FileChooser> receivers_;
   OpenFileChooserCallback callback_;
   FileChooserParamsPtr params_;
@@ -107,8 +108,7 @@ class PepperFileChooserHostTest : public RenderViewTest {
 
     globals_.GetResourceTracker()->DidCreateInstance(pp_instance_);
     mock_file_chooser_ = std::make_unique<MockFileChooser>(
-        static_cast<RenderFrameImpl*>(GetMainRenderFrame())
-            ->GetBrowserInterfaceBroker(),
+        &GetMainRenderFrame()->GetBrowserInterfaceBroker(),
         run_loop_.QuitClosure());
   }
   void TearDown() override {
@@ -173,8 +173,8 @@ TEST_F(PepperFileChooserHostTest, Show) {
   selected_info_vector.push_back(
       blink::mojom::FileChooserFileInfo::NewNativeFile(
           blink::mojom::NativeFileInfo::New(
-              base::FilePath(FILE_PATH_LITERAL("myp\\ath/foo")),
-              display_name)));
+              base::FilePath(FILE_PATH_LITERAL("myp\\ath/foo")), display_name,
+              std::vector<std::u16string>())));
   mock_file_chooser()->ResponseOnOpenFileChooser(
       std::move(selected_info_vector));
 

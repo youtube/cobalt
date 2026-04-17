@@ -4,6 +4,8 @@
 
 #include "components/metrics/persistent_histograms.h"
 
+#include <string_view>
+
 #include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -17,7 +19,6 @@
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "components/metrics/persistent_system_profile.h"
 
 namespace {
@@ -81,8 +82,15 @@ constexpr base::TimeDelta kDeleteOldWindowsTempFilesDelay = base::Minutes(2);
 // percentile around 3MiB as of 2018-10-22.
 // Please update ServicificationBackgroundServiceTest.java if the |kAllocSize|
 // is changed.
+// LINT.IfChange
 const size_t kAllocSize = 4 << 20;     // 4 MiB
 const uint32_t kAllocId = 0x935DDD43;  // SHA1(BrowserMetrics)
+
+base::FilePath GetSpareFilePath(const base::FilePath& metrics_dir) {
+  return base::GlobalHistogramAllocator::ConstructFilePath(
+      metrics_dir, kBrowserMetricsName + std::string("-spare"));
+}
+// LINT.ThenChange(/chrome/android/java/src/org/chromium/chrome/browser/backup/ChromeBackupAgentImpl.java)
 
 // Logged to UMA - keep in sync with enums.xml.
 enum InitResult {
@@ -95,11 +103,6 @@ enum InitResult {
   kNoUploadDir,
   kMaxValue = kNoUploadDir
 };
-
-base::FilePath GetSpareFilePath(const base::FilePath& metrics_dir) {
-  return base::GlobalHistogramAllocator::ConstructFilePath(
-      metrics_dir, kBrowserMetricsName + std::string("-spare"));
-}
 
 // Initializes persistent histograms with a memory-mapped file.
 InitResult InitWithMappedFile(const base::FilePath& metrics_dir,
@@ -160,7 +163,7 @@ void InstantiatePersistentHistogramsImpl(const base::FilePath& metrics_dir,
   // directory must have embedded system profiles. If the directory can't be
   // created, the file will just be deleted below.
   base::FilePath upload_dir = metrics_dir.AppendASCII(kBrowserMetricsName);
-  // TODO(crbug.com/1183166): Only create the dir in kMappedFile mode.
+  // TODO(crbug.com/40751882): Only create the dir in kMappedFile mode.
   base::CreateDirectory(upload_dir);
 
   InitResult result;
@@ -178,7 +181,7 @@ void InstantiatePersistentHistogramsImpl(const base::FilePath& metrics_dir,
       break;
     case kNotEnabled:
       // Persistent metric storage is disabled. Must return here.
-      // TODO(crbug.com/1183166): Log the histogram below in this case too.
+      // TODO(crbug.com/40751882): Log the histogram below in this case too.
       return;
   }
 
@@ -214,7 +217,7 @@ BASE_FEATURE(
     kPersistentHistogramsFeature,
     "PersistentHistograms",
 #if BUILDFLAG(IS_FUCHSIA)
-    // TODO(crbug.com/1295119): Enable once writable mmap() is supported. Also
+    // TODO(crbug.com/42050425): Enable once writable mmap() is supported. Also
     // move the initialization earlier to chrome/app/chrome_main_delegate.cc.
     base::FEATURE_DISABLED_BY_DEFAULT
 #else
@@ -234,7 +237,7 @@ const char kDeferredBrowserMetricsName[] = "DeferredBrowserMetrics";
 
 void InstantiatePersistentHistograms(const base::FilePath& metrics_dir,
                                      bool persistent_histograms_enabled,
-                                     base::StringPiece storage) {
+                                     std::string_view storage) {
   PersistentHistogramsMode mode = kNotEnabled;
   // Note: The extra feature check is needed so that we don't use the default
   // value of the storage param if the feature is disabled.
@@ -246,9 +249,7 @@ void InstantiatePersistentHistograms(const base::FilePath& metrics_dir,
     }
   }
 
-// TODO(crbug.com/1052397): Revisit the macro expression once build flag switch
-// of lacros-chrome is complete.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_LINUX)
   // Linux kernel 4.4.0.* shows a huge number of SIGBUS crashes with persistent
   // histograms enabled using a mapped file.  Change this to use local memory.
   // https://bugs.chromium.org/p/chromium/issues/detail?id=753741
@@ -277,10 +278,15 @@ void PersistentHistogramsCleanup(const base::FilePath& metrics_dir) {
       base::Seconds(kSpareFileCreateDelaySeconds));
 
 #if BUILDFLAG(IS_WIN)
+  // Post a best effort task that will delete files. Unlike SKIP_ON_SHUTDOWN,
+  // which will block on the deletion if the task already started,
+  // CONTINUE_ON_SHUTDOWN will not block shutdown on the task completing. It's
+  // not a *necessity* to delete the files the same session they are "detected".
+  // On shutdown, the deletion will be interrupted.
   base::ThreadPool::PostDelayedTask(
       FROM_HERE,
-      {base::MayBlock(), base::TaskPriority::LOWEST,
-       base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
+      {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
       base::BindOnce(&DeleteOldWindowsTempFiles, metrics_dir),
       kDeleteOldWindowsTempFilesDelay);
 #endif  // BUILDFLAG(IS_WIN)

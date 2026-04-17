@@ -59,12 +59,14 @@ source_set("tests") {
     "proxy_resolver_impl_unittest.cc",
     "proxy_resolver_v8_tracing_unittest.cc",
     "proxy_resolver_v8_unittest.cc",
+    "public/cpp/proxy_resolver_mojom_traits_unittests.cc",
   ]
 
   deps = [
     ":lib",
     "//base",
     "//base/test:test_support",
+    "//mojo/public/cpp/test_support:test_utils",
     "//net:test_support",
     "//services/service_manager/public/cpp/test:test_support",
     "//testing/gmock",
@@ -77,5 +79,9 @@ source_set("tests") {
 
   configs += [ "//v8:external_startup_data" ]
 
-  data = [ "test/data/" ]
+  if (is_ios) {
+    deps += [ "test:test_bundle_data" ]
+  } else {
+    data = [ "test/data/" ]
+  }
 }

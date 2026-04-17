@@ -13,7 +13,7 @@
 #include "base/functional/bind.h"
 #include "base/no_destructor.h"
 #include "base/notreached.h"
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "chrome/browser/plugins/plugin_info_host_impl.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/channel_info.h"
@@ -21,6 +21,7 @@
 #include "chrome/common/pepper_permission_util.h"
 #include "components/version_info/version_info.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "extensions/buildflags/buildflags.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
@@ -42,7 +43,7 @@
 #include "ppapi/shared_impl/ppapi_switches.h"
 #endif  // BUILDFLAG(ENABLE_PPAPI)
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ash/crostini/crostini_pref_names.h"
 #include "chrome/common/webui_url_constants.h"
 #endif
@@ -130,12 +131,13 @@ ChromeContentBrowserClientPluginsPart::ChromeContentBrowserClientPluginsPart() =
 ChromeContentBrowserClientPluginsPart::
     ~ChromeContentBrowserClientPluginsPart() = default;
 
-void ChromeContentBrowserClientPluginsPart::ExposeInterfacesToRenderer(
-    service_manager::BinderRegistry* registry,
-    blink::AssociatedInterfaceRegistry* associated_registry,
-    content::RenderProcessHost* host) {
-  associated_registry->AddInterface<chrome::mojom::PluginInfoHost>(
-      base::BindRepeating(&BindPluginInfoHost, host->GetID()));
+void ChromeContentBrowserClientPluginsPart::
+    ExposeInterfacesToRendererForRenderFrameHost(
+        content::RenderFrameHost& render_frame_host,
+        blink::AssociatedInterfaceRegistry& associated_registry) {
+  associated_registry.AddInterface<chrome::mojom::PluginInfoHost>(
+      base::BindRepeating(&BindPluginInfoHost,
+                          render_frame_host.GetProcess()->GetDeprecatedID()));
 }
 
 bool ChromeContentBrowserClientPluginsPart::
@@ -178,7 +180,7 @@ bool ChromeContentBrowserClientPluginsPart::AllowPepperSocketAPI(
                                          GetAllowedSocketOrigins())) {
       return true;
     }
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     // Terminal SWA is not an extension, but runs SSH NaCL with sockets.
     if (url == chrome::kChromeUIUntrustedTerminalURL) {
       return profile->GetPrefs()

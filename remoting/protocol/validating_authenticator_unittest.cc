@@ -12,6 +12,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
 #include "remoting/protocol/authenticator.h"
 #include "remoting/protocol/protocol_mock_objects.h"
@@ -67,7 +68,8 @@ class ValidatingAuthenticatorTest : public testing::Test {
   // to |validating_authenticator_|.  Lifetime of the object is controlled by
   // |validating_authenticator_| so this pointer is no longer valid once
   // the owner is destroyed.
-  raw_ptr<testing::NiceMock<MockAuthenticator>> mock_authenticator_ = nullptr;
+  raw_ptr<testing::NiceMock<MockAuthenticator>, DanglingUntriaged>
+      mock_authenticator_ = nullptr;
 
   // This member is used to drive behavior in |validating_authenticator_| when
   // its validation complete callback is run.
@@ -313,7 +315,7 @@ TEST_F(ValidatingAuthenticatorTest, InvalidConnection_InvalidAccount) {
             validating_authenticator_->rejection_reason());
 }
 
-TEST_F(ValidatingAuthenticatorTest, InvalidConnection_ProtocolError) {
+TEST_F(ValidatingAuthenticatorTest, InvalidConnection_InvalidState) {
   EXPECT_CALL(*mock_authenticator_, ProcessMessage(_, _))
       .Times(1)
       .WillOnce(InvokeCallbackArgument<1>());
@@ -322,14 +324,41 @@ TEST_F(ValidatingAuthenticatorTest, InvalidConnection_ProtocolError) {
       .WillByDefault(Return(Authenticator::REJECTED));
 
   ON_CALL(*mock_authenticator_, rejection_reason())
-      .WillByDefault(Return(Authenticator::RejectionReason::PROTOCOL_ERROR));
+      .WillByDefault(Return(Authenticator::RejectionReason::INVALID_STATE));
 
   // Verify validation callback is not called for invalid connections.
   SendMessageAndWaitForCallback();
   ASSERT_FALSE(validate_complete_called_);
   ASSERT_EQ(Authenticator::REJECTED, validating_authenticator_->state());
-  ASSERT_EQ(Authenticator::RejectionReason::PROTOCOL_ERROR,
+  ASSERT_EQ(Authenticator::RejectionReason::INVALID_STATE,
             validating_authenticator_->rejection_reason());
+}
+
+TEST_F(ValidatingAuthenticatorTest, StateChangeAfterAccepted_Propagated) {
+  base::MockRepeatingClosure state_changed_after_accepted;
+  validating_authenticator_->set_state_change_after_accepted_callback(
+      state_changed_after_accepted.Get());
+  EXPECT_CALL(*mock_authenticator_, ProcessMessage(_, _))
+      .WillOnce(InvokeCallbackArgument<1>());
+
+  ON_CALL(*mock_authenticator_, state())
+      .WillByDefault(Return(Authenticator::ACCEPTED));
+
+  SendMessageAndWaitForCallback();
+  ASSERT_EQ(validating_authenticator_->state(), Authenticator::ACCEPTED);
+
+  EXPECT_CALL(*mock_authenticator_, state())
+      .WillOnce(Return(Authenticator::REJECTED));
+  EXPECT_CALL(*mock_authenticator_, rejection_reason())
+      .WillOnce(
+          Return(Authenticator::RejectionReason::REAUTHZ_POLICY_CHECK_FAILED));
+  EXPECT_CALL(state_changed_after_accepted, Run());
+
+  mock_authenticator_->NotifyStateChangeAfterAccepted();
+
+  ASSERT_EQ(validating_authenticator_->state(), Authenticator::REJECTED);
+  ASSERT_EQ(validating_authenticator_->rejection_reason(),
+            Authenticator::RejectionReason::REAUTHZ_POLICY_CHECK_FAILED);
 }
 
 }  // namespace remoting::protocol

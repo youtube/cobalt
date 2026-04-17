@@ -4,15 +4,19 @@
 
 #include "base/win/security_util.h"
 
+// clang-format off
+#include <windows.h>  // Must be in front of other Windows header files.
+// clang-format on
+
 #include <aclapi.h>
 #include <sddl.h>
-#include <windows.h>
 
 #include <utility>
 
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
-#include "base/strings/stringprintf.h"
+#include "base/strings/string_number_conversions_win.h"
+#include "base/test/test_file_util.h"
 #include "base/win/scoped_handle.h"
 #include "base/win/scoped_localalloc.h"
 #include "base/win/sid.h"
@@ -42,43 +46,10 @@ constexpr wchar_t kTest3InheritedDacl[] = L"D:(A;ID;FR;;;AU)(A;ID;FA;;;WD)";
 
 constexpr wchar_t kNoWriteDacDacl[] = L"D:(D;;WD;;;OW)(A;;FRSD;;;WD)";
 
+constexpr wchar_t kNullDacl[] = L"D:NO_ACCESS_CONTROL";
+
 constexpr wchar_t kAuthenticatedUsersSid[] = L"AU";
 constexpr wchar_t kLocalGuestSid[] = L"LG";
-
-std::wstring GetFileDacl(const FilePath& path) {
-  PSECURITY_DESCRIPTOR sd;
-  if (::GetNamedSecurityInfo(path.value().c_str(), SE_FILE_OBJECT,
-                             DACL_SECURITY_INFORMATION, nullptr, nullptr,
-                             nullptr, nullptr, &sd) != ERROR_SUCCESS) {
-    return std::wstring();
-  }
-  auto sd_ptr = TakeLocalAlloc(sd);
-  LPWSTR sddl;
-  if (!::ConvertSecurityDescriptorToStringSecurityDescriptor(
-          sd_ptr.get(), SDDL_REVISION_1, DACL_SECURITY_INFORMATION, &sddl,
-          nullptr)) {
-    return std::wstring();
-  }
-  return TakeLocalAlloc(sddl).get();
-}
-
-bool CreateWithDacl(const FilePath& path, const wchar_t* sddl, bool directory) {
-  PSECURITY_DESCRIPTOR sd;
-  if (!::ConvertStringSecurityDescriptorToSecurityDescriptor(
-          sddl, SDDL_REVISION_1, &sd, nullptr)) {
-    return false;
-  }
-  auto sd_ptr = TakeLocalAlloc(sd);
-  SECURITY_ATTRIBUTES security_attr = {};
-  security_attr.nLength = sizeof(security_attr);
-  security_attr.lpSecurityDescriptor = sd_ptr.get();
-  if (directory)
-    return !!::CreateDirectory(path.value().c_str(), &security_attr);
-
-  return ScopedHandle(::CreateFile(path.value().c_str(), GENERIC_ALL, 0,
-                                   &security_attr, CREATE_ALWAYS, 0, nullptr))
-      .is_valid();
-}
 
 }  // namespace
 
@@ -99,8 +70,8 @@ TEST(SecurityUtilTest, GrantAccessToPathErrorCase) {
       GrantAccessToPath(path, *sids, FILE_GENERIC_READ, NO_INHERITANCE, false));
   std::vector<Sid> large_sid_list;
   while (large_sid_list.size() < 0x10000) {
-    auto sid = Sid::FromSddlString(
-        base::StringPrintf(L"S-1-5-1234-%zu", large_sid_list.size()).c_str());
+    auto sid = Sid::FromSddlString(L"S-1-5-1234-" +
+                                   NumberToWString(large_sid_list.size()));
     ASSERT_TRUE(sid);
     large_sid_list.emplace_back(std::move(*sid));
   }
@@ -231,6 +202,77 @@ TEST(SecurityUtilTest, GrantAccessToPathDirectoryNoInherit) {
   ASSERT_TRUE(file2.IsValid());
   file2.Close();
   EXPECT_EQ(kTest3InheritedDacl, GetFileDacl(file_path2));
+}
+
+TEST(SecurityUtilTest, HasAccessToPathFile) {
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  FilePath path = temp_dir.GetPath().Append(L"test");
+  ASSERT_TRUE(CreateWithDacl(path, kBaseDacl, false));
+  EXPECT_EQ(kBaseDacl, GetFileDacl(path));
+  auto sids = Sid::FromSddlStringVector({kAuthenticatedUsersSid});
+  ASSERT_TRUE(sids);
+  EXPECT_TRUE(
+      GrantAccessToPath(path, *sids, FILE_GENERIC_READ, NO_INHERITANCE, true));
+  EXPECT_EQ(kTest1Dacl, GetFileDacl(path));
+  EXPECT_TRUE(HasAccessToPath(path, *sids, FILE_GENERIC_READ, NO_INHERITANCE));
+  EXPECT_FALSE(
+      HasAccessToPath(path, *sids, FILE_GENERIC_WRITE, NO_INHERITANCE));
+}
+
+TEST(SecurityUtilTest, HasAccessToPathFileNullDacl) {
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  FilePath path = temp_dir.GetPath().Append(L"test");
+  ASSERT_TRUE(CreateWithDacl(path, kNullDacl, false));
+  EXPECT_EQ(kNullDacl, GetFileDacl(path));
+  auto sids = Sid::FromSddlStringVector({kAuthenticatedUsersSid});
+  ASSERT_TRUE(sids);
+  EXPECT_TRUE(HasAccessToPath(path, *sids, FILE_GENERIC_READ, NO_INHERITANCE));
+  EXPECT_TRUE(HasAccessToPath(path, *sids, FILE_GENERIC_WRITE, NO_INHERITANCE));
+}
+
+TEST(SecurityUtilTest, DenyHasAccessToPathFile) {
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  FilePath path = temp_dir.GetPath().Append(L"test");
+  ASSERT_TRUE(CreateWithDacl(path, kBaseDacl, false));
+  EXPECT_EQ(kBaseDacl, GetFileDacl(path));
+  EXPECT_TRUE(
+      DenyAccessToPath(path, {}, FILE_GENERIC_READ, NO_INHERITANCE, true));
+  EXPECT_EQ(kBaseDacl, GetFileDacl(path));
+  auto sids = Sid::FromSddlStringVector({kLocalGuestSid});
+  ASSERT_TRUE(sids);
+  EXPECT_TRUE(
+      DenyAccessToPath(path, *sids, FILE_GENERIC_READ, NO_INHERITANCE, true));
+  EXPECT_EQ(kTest1DenyDacl, GetFileDacl(path));
+  EXPECT_FALSE(HasAccessToPath(path, *sids, FILE_GENERIC_READ, NO_INHERITANCE));
+}
+
+TEST(SecurityUtilTest, HasAccessToPathDirectory) {
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  FilePath path = temp_dir.GetPath().Append(L"testdir");
+  ASSERT_TRUE(CreateWithDacl(path, kBaseDirDacl, true));
+  EXPECT_EQ(kBaseDirDacl, GetFileDacl(path));
+  FilePath file_path = path.Append(L"test");
+  File file(file_path, File::FLAG_CREATE_ALWAYS | File::FLAG_WRITE);
+  ASSERT_TRUE(file.IsValid());
+  file.Close();
+  EXPECT_EQ(kTest1InheritedDacl, GetFileDacl(file_path));
+  auto sids = Sid::FromSddlStringVector({kAuthenticatedUsersSid});
+  ASSERT_TRUE(sids);
+  EXPECT_TRUE(GrantAccessToPath(path, *sids, FILE_GENERIC_READ,
+                                OBJECT_INHERIT_ACE | CONTAINER_INHERIT_ACE,
+                                true));
+  EXPECT_EQ(kBaseDir2Dacl, GetFileDacl(path));
+  EXPECT_EQ(kTest2InheritedDacl, GetFileDacl(file_path));
+  EXPECT_TRUE(HasAccessToPath(path, *sids, FILE_GENERIC_READ,
+                              OBJECT_INHERIT_ACE | CONTAINER_INHERIT_ACE));
+  EXPECT_FALSE(HasAccessToPath(path, *sids, FILE_GENERIC_WRITE,
+                               OBJECT_INHERIT_ACE | CONTAINER_INHERIT_ACE));
+  EXPECT_TRUE(
+      HasAccessToPath(file_path, *sids, FILE_GENERIC_READ, NO_INHERITANCE));
 }
 
 TEST(SecurityUtilTest, CloneSidVector) {

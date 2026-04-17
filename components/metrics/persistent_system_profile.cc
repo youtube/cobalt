@@ -2,14 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/metrics/persistent_system_profile.h"
 
 #include <set>
+#include <string_view>
+#include <vector>
 
 #include "base/atomicops.h"
 #include "base/bits.h"
 #include "base/containers/contains.h"
-#include "base/containers/cxx20_erase.h"
+#include "base/containers/span.h"
 #include "base/debug/crash_logging.h"
 #include "base/memory/singleton.h"
 #include "base/metrics/persistent_memory_allocator.h"
@@ -92,7 +99,7 @@ void PersistentSystemProfile::RecordAllocator::Reset() {
 }
 
 bool PersistentSystemProfile::RecordAllocator::Write(RecordType type,
-                                                     base::StringPiece record) {
+                                                     std::string_view record) {
   const char* data = record.data();
   size_t remaining_size = record.size();
 
@@ -102,7 +109,7 @@ bool PersistentSystemProfile::RecordAllocator::Write(RecordType type,
       if (!AddSegment(remaining_size))
         return false;
     }
-    // Write out as much of the data as possible. |data| and |remaining_size|
+    // Write out as much of the data as possible. `data` and `remaining_size`
     // are updated in place.
     if (!WriteData(type, &data, &remaining_size))
       return false;
@@ -145,8 +152,7 @@ bool PersistentSystemProfile::RecordAllocator::Read(RecordType* type,
 
 bool PersistentSystemProfile::RecordAllocator::NextSegment() const {
   base::PersistentMemoryAllocator::Iterator iter(allocator_, alloc_reference_);
-  alloc_reference_ = iter.GetNextOfType(kTypeIdSystemProfile);
-  alloc_size_ = allocator_->GetAllocSize(alloc_reference_);
+  alloc_reference_ = iter.GetNextOfType(kTypeIdSystemProfile, &alloc_size_);
   end_offset_ = 0;
   return alloc_reference_ != 0;
 }
@@ -167,13 +173,15 @@ bool PersistentSystemProfile::RecordAllocator::AddSegment(size_t min_size) {
   size_t size =
       std::max(CalculateRecordSize(min_size), kSystemProfileAllocSize);
 
-  uint32_t ref = allocator_->Allocate(size, kTypeIdSystemProfile);
+  size_t new_alloc_size = 0;
+  uint32_t ref =
+      allocator_->Allocate(size, kTypeIdSystemProfile, &new_alloc_size);
   if (!ref)
     return false;  // Allocator must be full.
   allocator_->MakeIterable(ref);
 
   alloc_reference_ = ref;
-  alloc_size_ = allocator_->GetAllocSize(ref);
+  alloc_size_ = new_alloc_size;
   return true;
 }
 
@@ -243,7 +251,8 @@ bool PersistentSystemProfile::RecordAllocator::ReadData(
   } else if (*type == kUnusedSpace) {
     *type = static_cast<RecordType>(header.as_parts.type);
   } else if (*type != header.as_parts.type) {
-    NOTREACHED();  // Continuation didn't match start of record.
+    DUMP_WILL_BE_NOTREACHED();  // Continuation didn't match start of
+                                // record.
     *type = kUnusedSpace;
     record->clear();
     return false;
@@ -251,7 +260,7 @@ bool PersistentSystemProfile::RecordAllocator::ReadData(
   size_t read_size = header.as_parts.amount;
   if (end_offset_ + sizeof(header) + read_size > alloc_size_) {
 #if !BUILDFLAG(IS_NACL)
-    // TODO(crbug/1432981): Remove these. They are used to investigate
+    // TODO(crbug.com/40064026): Remove these. They are used to investigate
     // unexpected failures.
     SCOPED_CRASH_KEY_NUMBER("PersistentSystemProfile", "end_offset_",
                             end_offset_);
@@ -260,7 +269,7 @@ bool PersistentSystemProfile::RecordAllocator::ReadData(
                             alloc_size_);
 #endif  // !BUILDFLAG(IS_NACL)
 
-    NOTREACHED();  // Invalid header amount.
+    DUMP_WILL_BE_NOTREACHED();  // Invalid header amount.
     *type = kUnusedSpace;
     return true;  // Don't try again.
   }
@@ -273,15 +282,15 @@ bool PersistentSystemProfile::RecordAllocator::ReadData(
   return !continued;
 }
 
-PersistentSystemProfile::PersistentSystemProfile() {}
+PersistentSystemProfile::PersistentSystemProfile() = default;
 
-PersistentSystemProfile::~PersistentSystemProfile() {}
+PersistentSystemProfile::~PersistentSystemProfile() = default;
 
 void PersistentSystemProfile::RegisterPersistentAllocator(
     base::PersistentMemoryAllocator* memory_allocator) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  // Create and store the allocator. A |min_size| of "1" ensures that a memory
+  // Create and store the allocator. A `min_size` of "1" ensures that a memory
   // block is reserved now.
   RecordAllocator allocator(memory_allocator, 1);
   allocators_.push_back(std::move(allocator));
@@ -294,7 +303,7 @@ void PersistentSystemProfile::DeregisterPersistentAllocator(
 
   // This would be more efficient with a std::map but it's not expected that
   // allocators will get deregistered with any frequency, if at all.
-  base::EraseIf(allocators_, [=](RecordAllocator& records) {
+  std::erase_if(allocators_, [=](RecordAllocator& records) {
     return records.allocator() == memory_allocator;
   });
 }
@@ -338,8 +347,8 @@ void PersistentSystemProfile::SetSystemProfile(
   SetSystemProfile(serialized_profile, complete);
 }
 
-void PersistentSystemProfile::AddFieldTrial(base::StringPiece trial,
-                                            base::StringPiece group) {
+void PersistentSystemProfile::AddFieldTrial(std::string_view trial,
+                                            std::string_view group) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!trial.empty());
 
@@ -348,10 +357,10 @@ void PersistentSystemProfile::AddFieldTrial(base::StringPiece trial,
   pickler.WriteString(group);
 
   WriteToAll(kFieldTrialInfo,
-             base::StringPiece(pickler.data_as_char(), pickler.size()));
+             std::string_view(pickler.data_as_char(), pickler.size()));
 }
 
-void PersistentSystemProfile::RemoveFieldTrial(base::StringPiece trial) {
+void PersistentSystemProfile::RemoveFieldTrial(std::string_view trial) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!trial.empty());
 
@@ -360,7 +369,7 @@ void PersistentSystemProfile::RemoveFieldTrial(base::StringPiece trial) {
   pickler.WriteString(kFieldTrialDeletionSentinel);
 
   WriteToAll(kFieldTrialInfo,
-             base::StringPiece(pickler.data_as_char(), pickler.size()));
+             std::string_view(pickler.data_as_char(), pickler.size()));
 }
 // static
 bool PersistentSystemProfile::HasSystemProfile(
@@ -389,6 +398,20 @@ bool PersistentSystemProfile::GetSystemProfile(
     return false;
 
   MergeUpdateRecords(memory_allocator, system_profile);
+
+  // For now, prevent independent logs from having a `fg_bg_id` field set,
+  // since there are many edge cases that would result in an incorrect value.
+  // Otherwise, for example, if the user foregrounds, backgrounds, and closes
+  // the application all before the first log can be closed, `fg_bg_id` should
+  // be unset, but an independent log generated from that session would have a
+  // value set. Or, if the user backgrounds the application, and very shortly
+  // after kills the application, an independent log generated from the leftover
+  // background metrics from that session would have its `fg_bg_id` set to the
+  // value of when the application was still in the foreground (since that's the
+  // last complete system profile written to the PMA file).
+  // TODO(crbug.com/383881315): Improve this.
+  system_profile->clear_fg_bg_id();
+
   return true;
 }
 
@@ -412,7 +435,6 @@ void PersistentSystemProfile::MergeUpdateRecords(
       case kUnusedSpace:
         // These should never be returned.
         NOTREACHED();
-        break;
 
       case kSystemProfileProto:
         // Profile was passed in; ignore this one.
@@ -427,10 +449,11 @@ void PersistentSystemProfile::MergeUpdateRecords(
           }
         }
 
-        base::Pickle pickler(record.data(), record.size());
+        base::Pickle pickler =
+            base::Pickle::WithUnownedBuffer(base::as_byte_span(record));
         base::PickleIterator iter(pickler);
-        base::StringPiece trial;
-        base::StringPiece group;
+        std::string_view trial;
+        std::string_view group;
         if (iter.ReadStringPiece(&trial) && iter.ReadStringPiece(&group)) {
           variations::ActiveGroupId field_ids =
               variations::MakeActiveGroupId(trial, group);
@@ -462,7 +485,7 @@ void PersistentSystemProfile::MergeUpdateRecords(
 }
 
 void PersistentSystemProfile::WriteToAll(RecordType type,
-                                         base::StringPiece record) {
+                                         std::string_view record) {
   for (auto& allocator : allocators_)
     allocator.Write(type, record);
 }

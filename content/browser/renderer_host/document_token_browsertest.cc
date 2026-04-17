@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <string_view>
+
 #include "base/run_loop.h"
 #include "base/test/bind.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
@@ -17,7 +19,6 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/dns/mock_host_resolver.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/chrome_debug_urls.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
 #include "url/gurl.h"
@@ -100,7 +101,8 @@ class DocumentTokenBrowserTest : public ContentBrowserTest {
         static_cast<RenderFrameHostImpl*>(adapter.render_frame_host());
     FrameTreeNode* const frame_tree_node =
         old_render_frame_host->frame_tree_node();
-    const int old_process_id = old_render_frame_host->GetProcess()->GetID();
+    const int old_process_id =
+        old_render_frame_host->GetProcess()->GetDeprecatedID();
     const blink::LocalFrameToken old_frame_token =
         old_render_frame_host->GetFrameToken();
     const blink::DocumentToken old_document_token =
@@ -163,10 +165,10 @@ class DocumentTokenBrowserTest : public ContentBrowserTest {
       EXPECT_EQ(old_render_frame_host, RenderFrameHostImpl::FromDocumentToken(
                                            old_process_id, old_document_token));
     }
-    EXPECT_EQ(
-        new_render_frame_host,
-        RenderFrameHostImpl::FromDocumentToken(
-            new_render_frame_host->GetProcess()->GetID(), new_document_token));
+    EXPECT_EQ(new_render_frame_host,
+              RenderFrameHostImpl::FromDocumentToken(
+                  new_render_frame_host->GetProcess()->GetDeprecatedID(),
+                  new_document_token));
     return new_document_token;
   }
 };
@@ -255,7 +257,8 @@ IN_PROC_BROWSER_TEST_F(DocumentTokenBrowserTest, NewWindowBasic) {
         static_cast<RenderFrameHostImpl*>(new_contents->GetPrimaryMainFrame());
     FrameTreeNode* const frame_tree_node =
         old_render_frame_host->frame_tree_node();
-    const int old_process_id = old_render_frame_host->GetProcess()->GetID();
+    const int old_process_id =
+        old_render_frame_host->GetProcess()->GetDeprecatedID();
     const blink::LocalFrameToken old_frame_token =
         old_render_frame_host->GetFrameToken();
     const blink::DocumentToken old_document_token =
@@ -317,10 +320,10 @@ IN_PROC_BROWSER_TEST_F(DocumentTokenBrowserTest, NewWindowBasic) {
       EXPECT_EQ(old_render_frame_host, RenderFrameHostImpl::FromDocumentToken(
                                            old_process_id, old_document_token));
     }
-    EXPECT_EQ(
-        new_render_frame_host,
-        RenderFrameHostImpl::FromDocumentToken(
-            new_render_frame_host->GetProcess()->GetID(), new_document_token));
+    EXPECT_EQ(new_render_frame_host,
+              RenderFrameHostImpl::FromDocumentToken(
+                  new_render_frame_host->GetProcess()->GetDeprecatedID(),
+                  new_document_token));
     seen_tokens.push_back(new_document_token);
     // The original `WebContents` should still have the same `DocumentToken`.
     EXPECT_EQ(seen_tokens[0], GetBrowserSideToken(web_contents()));
@@ -455,7 +458,7 @@ IN_PROC_BROWSER_TEST_F(DocumentTokenBrowserTest, CrashThenReload) {
       web_contents(), embedded_test_server()->GetURL("a.com", "/title1.html")));
   EXPECT_TRUE(VerifyMatchingTokens(web_contents()));
   const int old_process_id =
-      web_contents()->GetPrimaryMainFrame()->GetProcess()->GetID();
+      web_contents()->GetPrimaryMainFrame()->GetProcess()->GetDeprecatedID();
   const blink::DocumentToken old_document_token =
       GetBrowserSideToken(web_contents());
 
@@ -480,7 +483,7 @@ IN_PROC_BROWSER_TEST_F(DocumentTokenBrowserTest, CrashThenReload) {
   shell()->LoadURL(embedded_test_server()->GetURL("a.com", "/title1.html"));
   EXPECT_TRUE(VerifyMatchingTokens(web_contents()));
   const int new_process_id =
-      web_contents()->GetPrimaryMainFrame()->GetProcess()->GetID();
+      web_contents()->GetPrimaryMainFrame()->GetProcess()->GetDeprecatedID();
   const blink::DocumentToken token_after_navigation_started =
       GetBrowserSideToken(web_contents());
   EXPECT_NE(token_after_navigation_started, old_document_token);
@@ -550,28 +553,32 @@ IN_PROC_BROWSER_TEST_F(DocumentTokenBrowserTest,
   // Even though the RenderFrameHost did not change, only a lookup using the new
   // DocumentToken should succeed.
   EXPECT_EQ(web_contents()->GetPrimaryMainFrame(),
-            RenderFrameHostImpl::FromDocumentToken(
-                web_contents()->GetPrimaryMainFrame()->GetProcess()->GetID(),
-                new_document_token));
+            RenderFrameHostImpl::FromDocumentToken(web_contents()
+                                                       ->GetPrimaryMainFrame()
+                                                       ->GetProcess()
+                                                       ->GetDeprecatedID(),
+                                                   new_document_token));
   EXPECT_EQ(nullptr,
-            RenderFrameHostImpl::FromDocumentToken(
-                web_contents()->GetPrimaryMainFrame()->GetProcess()->GetID(),
-                old_document_token));
+            RenderFrameHostImpl::FromDocumentToken(web_contents()
+                                                       ->GetPrimaryMainFrame()
+                                                       ->GetProcess()
+                                                       ->GetDeprecatedID(),
+                                                   old_document_token));
 }
 
-// TODO(https://crbug.com/1362938): Add tests for bfcache navigations and
+// TODO(crbug.com/40238502): Add tests for bfcache navigations and
 // prerender activations.
 
 IN_PROC_BROWSER_TEST_F(DocumentTokenBrowserTest, MismatchedProcessID) {
   RenderFrameHostImpl* main_frame = web_contents()->GetPrimaryMainFrame();
   bool called = false;
   mojo::ReportBadMessageCallback callback =
-      base::BindLambdaForTesting([&called](base::StringPiece reason) {
+      base::BindLambdaForTesting([&called](std::string_view reason) {
         called = true;
         EXPECT_EQ("process ID does not match requested DocumentToken", reason);
       });
   EXPECT_EQ(nullptr, RenderFrameHostImpl::FromDocumentToken(
-                         main_frame->GetProcess()->GetID() + 1,
+                         main_frame->GetProcess()->GetDeprecatedID() + 1,
                          main_frame->GetDocumentToken(), &callback));
   EXPECT_TRUE(called);
 }

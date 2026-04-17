@@ -7,8 +7,11 @@
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/autofill/payments/autofill_dialog_models.h"
+#include "chrome/browser/ui/autofill/payments/save_card_ui.h"
 #include "chrome/browser/ui/views/autofill/payments/payments_view_util.h"
 #include "chrome/browser/ui/views/autofill/payments/save_card_bubble_views.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/views/controls/textfield/textfield_controller.h"
 
 namespace content {
@@ -17,6 +20,7 @@ class WebContents;
 
 namespace views {
 class Combobox;
+class Throbber;
 }  // namespace views
 
 namespace autofill {
@@ -27,11 +31,13 @@ namespace autofill {
 // and an [Save] button. (Non-material UI's include a [No Thanks] button).
 class SaveCardOfferBubbleViews : public SaveCardBubbleViews,
                                  public views::TextfieldController {
+  METADATA_HEADER(SaveCardOfferBubbleViews, SaveCardBubbleViews)
  public:
   // Bubble will be anchored to |anchor_view|.
   SaveCardOfferBubbleViews(views::View* anchor_view,
                            content::WebContents* web_contents,
                            SaveCardBubbleController* controller);
+  ~SaveCardOfferBubbleViews() override;
 
   SaveCardOfferBubbleViews(const SaveCardOfferBubbleViews&) = delete;
   SaveCardOfferBubbleViews& operator=(const SaveCardOfferBubbleViews&) = delete;
@@ -39,7 +45,7 @@ class SaveCardOfferBubbleViews : public SaveCardBubbleViews,
   // SaveCardBubbleViews:
   void Init() override;
   bool Accept() override;
-  bool IsDialogButtonEnabled(ui::DialogButton button) const override;
+  bool IsDialogButtonEnabled(ui::mojom::DialogButton button) const override;
   void AddedToWidget() override;
 
   // views::TextfieldController:
@@ -47,24 +53,27 @@ class SaveCardOfferBubbleViews : public SaveCardBubbleViews,
                        const std::u16string& new_contents) override;
 
  private:
-  ~SaveCardOfferBubbleViews() override;
-
   std::unique_ptr<views::View> CreateMainContentView() override;
-
   std::unique_ptr<views::View> CreateRequestExpirationDateView();
   std::unique_ptr<views::View> CreateUploadExplanationView();
+  std::unique_ptr<views::View> CreateLoadingRow();
+  std::unique_ptr<views::View> CreateLegalMessageView();
 
   void LinkClicked(const GURL& url);
+  void ShowThrobber();
 
   raw_ptr<views::Textfield> cardholder_name_textfield_ = nullptr;
-
-  raw_ptr<LegalMessageView> legal_message_view_ = nullptr;
 
   // Holds expiration inputs:
   raw_ptr<views::Combobox> month_input_dropdown_ = nullptr;
   raw_ptr<views::Combobox> year_input_dropdown_ = nullptr;
   MonthComboboxModel month_combobox_model_;
   YearComboboxModel year_combobox_model_;
+
+  // loading_row_ is only set for upload card saves.
+  raw_ptr<views::View> loading_row_ = nullptr;
+  // loading_throbber_ is only used after upload save acceptance.
+  raw_ptr<views::Throbber> loading_throbber_ = nullptr;
 };
 
 }  // namespace autofill

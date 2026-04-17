@@ -9,6 +9,7 @@
 #include "chrome/grit/locale_settings.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/geometry/insets.h"
@@ -37,15 +38,17 @@ ToolbarActionsBarBubbleViews::ToolbarActionsBarBubbleViews(
   std::u16string ok_text = delegate_->GetActionButtonText();
   std::u16string cancel_text = delegate_->GetDismissButtonText();
 
-  int buttons = ui::DIALOG_BUTTON_NONE;
-  if (!ok_text.empty())
-    buttons |= ui::DIALOG_BUTTON_OK;
-  if (!cancel_text.empty())
-    buttons |= ui::DIALOG_BUTTON_CANCEL;
+  int buttons = static_cast<int>(ui::mojom::DialogButton::kNone);
+  if (!ok_text.empty()) {
+    buttons |= static_cast<int>(ui::mojom::DialogButton::kOk);
+  }
+  if (!cancel_text.empty()) {
+    buttons |= static_cast<int>(ui::mojom::DialogButton::kCancel);
+  }
   SetButtons(buttons);
-  SetDefaultButton(delegate_->GetDefaultDialogButton());
-  SetButtonLabel(ui::DIALOG_BUTTON_OK, ok_text);
-  SetButtonLabel(ui::DIALOG_BUTTON_CANCEL, cancel_text);
+  SetDefaultButton(static_cast<int>(delegate_->GetDefaultDialogButton()));
+  SetButtonLabel(ui::mojom::DialogButton::kOk, ok_text);
+  SetButtonLabel(ui::mojom::DialogButton::kCancel, cancel_text);
   SetExtraView(CreateExtraInfoView());
 
   SetAcceptCallback(base::BindOnce(
@@ -61,10 +64,9 @@ ToolbarActionsBarBubbleViews::ToolbarActionsBarBubbleViews(
       ToolbarActionsBarBubbleDelegate::CLOSE_DISMISS_DEACTIVATION));
 
   DCHECK(anchor_view);
-  set_close_on_deactivate(delegate_->ShouldCloseOnDeactivate());
 }
 
-ToolbarActionsBarBubbleViews::~ToolbarActionsBarBubbleViews() {}
+ToolbarActionsBarBubbleViews::~ToolbarActionsBarBubbleViews() = default;
 
 std::string ToolbarActionsBarBubbleViews::GetAnchorActionId() const {
   return delegate_->GetAnchorActionId();
@@ -75,8 +77,9 @@ ToolbarActionsBarBubbleViews::CreateExtraInfoView() {
   std::unique_ptr<ToolbarActionsBarBubbleDelegate::ExtraViewInfo>
       extra_view_info = delegate_->GetExtraViewInfo();
 
-  if (!extra_view_info)
+  if (!extra_view_info) {
     return nullptr;
+  }
 
   std::unique_ptr<views::ImageView> icon;
   if (extra_view_info->resource) {
@@ -125,8 +128,9 @@ void ToolbarActionsBarBubbleViews::ButtonPressed() {
 
 void ToolbarActionsBarBubbleViews::NotifyDelegateOfClose(
     ToolbarActionsBarBubbleDelegate::CloseAction action) {
-  if (delegate_notified_of_close_)
+  if (delegate_notified_of_close_) {
     return;
+  }
   delegate_notified_of_close_ = true;
   delegate_->OnBubbleClosed(action);
 }
@@ -156,9 +160,9 @@ void ToolbarActionsBarBubbleViews::RemovedFromWidget() {
 
 void ToolbarActionsBarBubbleViews::Init() {
   std::u16string body_text_string = delegate_->GetBodyText(anchored_to_action_);
-  std::u16string item_list = delegate_->GetItemListText();
-  if (body_text_string.empty() && item_list.empty())
+  if (body_text_string.empty()) {
     return;
+  }
 
   ChromeLayoutProvider* provider = ChromeLayoutProvider::Get();
   SetLayoutManager(std::make_unique<views::BoxLayout>(
@@ -174,19 +178,7 @@ void ToolbarActionsBarBubbleViews::Init() {
     body_text_->SetMultiLine(true);
     body_text_->SizeToFit(width);
     body_text_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
-    AddChildView(body_text_.get());
-  }
-
-  if (!item_list.empty()) {
-    item_list_ = new views::Label(item_list);
-    item_list_->SetBorder(views::CreateEmptyBorder(gfx::Insets::TLBR(
-        0,
-        provider->GetDistanceMetric(views::DISTANCE_RELATED_CONTROL_HORIZONTAL),
-        0, 0)));
-    item_list_->SetMultiLine(true);
-    item_list_->SizeToFit(width);
-    item_list_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
-    AddChildView(item_list_.get());
+    AddChildViewRaw(body_text_.get());
   }
 }
 
@@ -194,24 +186,22 @@ void ToolbarActionsBarBubbleViews::OnWidgetVisibilityChanged(
     views::Widget* widget,
     bool visible) {
   DCHECK_EQ(GetWidget(), widget);
-  if (!visible)
+  if (!visible) {
     return;
+  }
 
   GetWidget()->RemoveObserver(this);
-  if (observer_notified_of_show_)
+  if (observer_notified_of_show_) {
     return;
+  }
 
   observer_notified_of_show_ = true;
-  // Using Unretained is safe here because the controller, which eventually
-  // invokes the callback passed to OnBubbleShown, will never outlive the
-  // bubble view. This is because the ToolbarActionsBarBubbleView owns the
-  // ToolbarActionsBarBubbleDelegate. The ToolbarActionsBarBubbleDelegate is
-  // an ExtensionMessageBubbleBridge, which owns the
-  // ExtensionMessageBubbleController.
+  // Using Unretained is safe here because the delegate (which might invoke the
+  // callback) is owned by this object.
   delegate_->OnBubbleShown(
       base::BindOnce(&views::Widget::Close, base::Unretained(GetWidget())));
 }
 
-BEGIN_METADATA(ToolbarActionsBarBubbleViews, views::BubbleDialogDelegateView)
+BEGIN_METADATA(ToolbarActionsBarBubbleViews)
 ADD_READONLY_PROPERTY_METADATA(std::string, AnchorActionId)
 END_METADATA

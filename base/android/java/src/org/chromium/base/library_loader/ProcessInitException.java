@@ -4,9 +4,10 @@
 
 package org.chromium.base.library_loader;
 
-/**
- * The exception that is thrown when the initialization of a process has failed.
- */
+import org.chromium.build.annotations.NullMarked;
+
+/** The exception that is thrown when the initialization of a process has failed. */
+@NullMarked
 public class ProcessInitException extends RuntimeException {
     /**
      * @param errorCode This will be one of the LoaderErrors error codes.

@@ -15,22 +15,24 @@ NearbyExpirationScheduler::NearbyExpirationScheduler(
     const std::string& pref_name,
     PrefService* pref_service,
     OnRequestCallback on_request_callback,
+    Feature logging_feature,
     const base::Clock* clock)
     : NearbySchedulerBase(retry_failures,
                           require_connectivity,
                           pref_name,
                           pref_service,
                           std::move(on_request_callback),
+                          logging_feature,
                           clock),
       expiration_time_functor_(std::move(expiration_time_functor)) {}
 
 NearbyExpirationScheduler::~NearbyExpirationScheduler() = default;
 
-absl::optional<base::TimeDelta>
+std::optional<base::TimeDelta>
 NearbyExpirationScheduler::TimeUntilRecurringRequest(base::Time now) const {
-  absl::optional<base::Time> expiration_time = expiration_time_functor_.Run();
+  std::optional<base::Time> expiration_time = expiration_time_functor_.Run();
   if (!expiration_time) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   if (*expiration_time <= now) {

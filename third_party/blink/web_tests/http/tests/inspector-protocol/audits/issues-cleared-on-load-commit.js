@@ -1,4 +1,4 @@
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
   const {page, session, dp} = await testRunner.startBlank(
       `Verifies that inspector issues do not persist through reloads.\n`);
 
@@ -10,8 +10,9 @@
 
   // Reloading the page should clear the issue.
   await dp.Page.enable();
+  await dp.Network.enable();
   dp.Page.reload();
-  await dp.Page.onceFrameNavigated();
+  await Promise.all([dp.Page.onceFrameNavigated(), dp.Network.oncePolicyUpdated()]);
 
   // This should never be printed.
   dp.Audits.onIssueAdded(() => testRunner.log(`Issue should have been cleared by the reload`));

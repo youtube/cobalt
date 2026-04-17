@@ -27,7 +27,7 @@ class MemoryPressureObserver {
   ~MemoryPressureObserver() = delete;
 
   void AddObserver(MemoryPressureListener* listener, bool sync) {
-    // TODO(crbug.com/1063868): DCHECK instead of silently failing when a
+    // TODO(crbug.com/40123466): DCHECK instead of silently failing when a
     // MemoryPressureListener is created in a non-sequenced context. Tests will
     // need to be adjusted for that to work.
     if (SequencedTaskRunner::HasCurrentDefault()) {
@@ -51,8 +51,9 @@ class MemoryPressureObserver {
     async_observers_->Notify(FROM_HERE, &MemoryPressureListener::Notify,
                              memory_pressure_level);
     AutoLock lock(sync_observers_lock_);
-    for (auto& observer : sync_observers_)
+    for (auto& observer : sync_observers_) {
       observer.SyncNotify(memory_pressure_level);
+    }
   }
 
  private:
@@ -131,8 +132,9 @@ void MemoryPressureListener::NotifyMemoryPressure(
         data->set_level(
             trace_event::MemoryPressureLevelToTraceEnum(memory_pressure_level));
       });
-  if (AreNotificationsSuppressed())
+  if (AreNotificationsSuppressed()) {
     return;
+  }
   DoNotifyMemoryPressure(memory_pressure_level);
 }
 

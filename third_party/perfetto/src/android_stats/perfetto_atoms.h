@@ -27,14 +27,14 @@ enum class PerfettoStatsdAtom {
   // Checkpoints inside perfetto_cmd before tracing is finished.
   kTraceBegin = 1,
   kBackgroundTraceBegin = 2,
+  kCmdCloneTraceBegin = 55,
+  kCmdCloneTriggerTraceBegin = 56,
   kOnConnect = 3,
+  kCmdOnSessionClone = 58,
+  kCmdOnTriggerSessionClone = 59,
 
   // Guardrails inside perfetto_cmd before tracing is finished.
   kOnTimeout = 16,
-  kCmdUserBuildTracingNotAllowed = 43,
-  kCmdFailedToInitGuardrailState = 44,
-  kCmdInvalidGuardrailState = 45,
-  kCmdHitUploadLimit = 46,
 
   // Checkpoints inside traced.
   kTracedEnableTracing = 37,
@@ -47,6 +47,7 @@ enum class PerfettoStatsdAtom {
   // they log the trigger name.
   kTracedTriggerStartTracing = 41,
   kTracedTriggerStopTracing = 42,
+  kTracedTriggerCloneSnapshot = 53,
 
   // Guardrails inside traced.
   kTracedEnableTracingExistingTraceSession = 18,
@@ -71,6 +72,8 @@ enum class PerfettoStatsdAtom {
   kTracedEnableTracingInvalidFilter = 47,
   kTracedEnableTracingOobTargetBuffer = 48,
   kTracedEnableTracingInvalidTriggerMode = 52,
+  kTracedEnableTracingInvalidBrFilename = 54,
+  kTracedEnableTracingFailedSessionSemaphoreCheck = 57,
 
   // Checkpoints inside perfetto_cmd after tracing has finished.
   kOnTracingDisabled = 4,
@@ -105,6 +108,14 @@ enum class PerfettoStatsdAtom {
   // Contained status of Dropbox uploads. Removed as Perfetto no
   // longer supports uploading traces using Dropbox.
   // reserved 5, 6, 7;
+
+  // Contained status of guardrail state initialization and upload limit in
+  // perfetto_cmd. Removed as perfetto no longer manages stateful guardrails
+  // reserved 44, 45, 46;
+
+  // Contained the guardrail for user build tracing. Removed as this guardrail
+  // causes more problem than it solves these days.
+  // reserved 43;
 };
 
 // This must match the values of the PerfettoTrigger::TriggerType enum in:
@@ -112,17 +123,15 @@ enum class PerfettoStatsdAtom {
 enum PerfettoTriggerAtom {
   kUndefined = 0,
 
-  kCmdTrigger = 1,
-  kCmdTriggerFail = 2,
-
-  kTriggerPerfettoTrigger = 3,
-  kTriggerPerfettoTriggerFail = 4,
-
   kTracedLimitProbability = 5,
   kTracedLimitMaxPer24h = 6,
 
-  kProbesProducerTrigger = 7,
-  kProbesProducerTriggerFail = 8,
+  kTracedTrigger = 9,
+
+  // Contained events of logging triggers through perfetto_cmd, probes and
+  // trigger_perfetto.
+  // Removed in W (Oct 2024) and replaced by |kTracedTrigger|.
+  // reserved 1, 2, 3, 4, 7, 8
 };
 
 }  // namespace perfetto

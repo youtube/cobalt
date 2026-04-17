@@ -10,14 +10,14 @@
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/web_contents.h"
-#include "third_party/blink/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
 
 BackgroundFetchPermissionContext::BackgroundFetchPermissionContext(
     content::BrowserContext* browser_context)
-    : PermissionContextBase(browser_context,
-                            ContentSettingsType::BACKGROUND_FETCH,
-                            blink::mojom::PermissionsPolicyFeature::kNotFound) {
-}
+    : PermissionContextBase(
+          browser_context,
+          ContentSettingsType::BACKGROUND_FETCH,
+          network::mojom::PermissionsPolicyFeature::kNotFound) {}
 
 ContentSetting BackgroundFetchPermissionContext::GetPermissionStatusInternal(
     content::RenderFrameHost* render_frame_host,
@@ -69,10 +69,7 @@ ContentSetting BackgroundFetchPermissionContext::GetPermissionStatusInternal(
 }
 
 void BackgroundFetchPermissionContext::DecidePermission(
-    const permissions::PermissionRequestID& id,
-    const GURL& requesting_origin,
-    const GURL& embedding_origin,
-    bool user_gesture,
+    std::unique_ptr<permissions::PermissionRequestData> request_data,
     permissions::BrowserPermissionCallback callback) {
   // The user should never be prompted to authorize Background Fetch
   // from BackgroundFetchPermissionContext.
@@ -82,9 +79,7 @@ void BackgroundFetchPermissionContext::DecidePermission(
 }
 
 void BackgroundFetchPermissionContext::NotifyPermissionSet(
-    const permissions::PermissionRequestID& id,
-    const GURL& requesting_origin,
-    const GURL& embedding_origin,
+    const permissions::PermissionRequestData& request_data,
     permissions::BrowserPermissionCallback callback,
     bool persist,
     ContentSetting content_setting,
@@ -94,6 +89,6 @@ void BackgroundFetchPermissionContext::NotifyPermissionSet(
   DCHECK(is_final_decision);
 
   permissions::PermissionContextBase::NotifyPermissionSet(
-      id, requesting_origin, embedding_origin, std::move(callback), persist,
-      content_setting, is_one_time, is_final_decision);
+      request_data, std::move(callback), persist, content_setting, is_one_time,
+      is_final_decision);
 }

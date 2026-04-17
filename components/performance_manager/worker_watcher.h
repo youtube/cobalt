@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_PERFORMANCE_MANAGER_WORKER_WATCHER_H_
 #define COMPONENTS_PERFORMANCE_MANAGER_WORKER_WATCHER_H_
 
+#include <map>
 #include <memory>
 #include <string>
 
@@ -14,10 +15,9 @@
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/sequence_checker.h"
-#include "components/performance_manager/service_worker_client.h"
+#include "components/performance_manager/service_worker_context_adapter.h"
 #include "content/public/browser/dedicated_worker_service.h"
 #include "content/public/browser/global_routing_id.h"
-#include "content/public/browser/service_worker_context.h"
 #include "content/public/browser/service_worker_context_observer.h"
 #include "content/public/browser/shared_worker_service.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
@@ -26,7 +26,6 @@ namespace performance_manager {
 
 class FrameNodeImpl;
 class FrameNodeSource;
-class ProcessNodeSource;
 class WorkerNodeImpl;
 
 // This class keeps track of running workers of all types for a single browser
@@ -38,7 +37,7 @@ class WorkerNodeImpl;
 // The simplest case is dedicated workers, where each worker always has exactly
 // one frame client. Technically, it is possible to create a nested dedicated
 // worker, but for now they are treated as child of the ancestor frame.
-// TODO(1128645): Expose nested dedicated workers correctly.
+// TODO(crbug.com/40149051): Expose nested dedicated workers correctly.
 //
 // Shared workers are quite similar to dedicated workers but they can have any
 // number of clients. Also, a shared worker can temporarily appear to have no
@@ -47,7 +46,7 @@ class WorkerNodeImpl;
 // Service workers are more complicated to handle. They also can have any number
 // of clients, but they aren't only frames. They could also be dedicated worker
 // and shared worker clients. These different types of clients are tracked using
-// the ServiceWorkerClient class. Also, because of the important role the
+// the ServiceWorkerClientInfo type. Also, because of the important role the
 // service worker plays with frame navigations, the service worker can be
 // created before its first client's navigation has committed to a
 // RenderFrameHost. So when a OnControlleeAdded() notification is received for
@@ -60,8 +59,7 @@ class WorkerWatcher : public content::DedicatedWorkerService::Observer,
   WorkerWatcher(const std::string& browser_context_id,
                 content::DedicatedWorkerService* dedicated_worker_service,
                 content::SharedWorkerService* shared_worker_service,
-                content::ServiceWorkerContext* service_worker_context,
-                ProcessNodeSource* process_node_source,
+                ServiceWorkerContextAdapter* service_worker_context_adapter,
                 FrameNodeSource* frame_node_source);
 
   WorkerWatcher(const WorkerWatcher&) = delete;
@@ -77,10 +75,11 @@ class WorkerWatcher : public content::DedicatedWorkerService::Observer,
   void OnWorkerCreated(
       const blink::DedicatedWorkerToken& dedicated_worker_token,
       int worker_process_id,
-      content::GlobalRenderFrameHostId ancestor_render_frame_host_id) override;
+      const url::Origin& security_origin,
+      content::DedicatedWorkerCreator creator) override;
   void OnBeforeWorkerDestroyed(
       const blink::DedicatedWorkerToken& dedicated_worker_token,
-      content::GlobalRenderFrameHostId ancestor_render_frame_host_id) override;
+      content::DedicatedWorkerCreator creator) override;
   void OnFinalResponseURLDetermined(
       const blink::DedicatedWorkerToken& dedicated_worker_token,
       const GURL& url) override;
@@ -88,6 +87,7 @@ class WorkerWatcher : public content::DedicatedWorkerService::Observer,
   // content::SharedWorkerService::Observer:
   void OnWorkerCreated(const blink::SharedWorkerToken& shared_worker_token,
                        int worker_process_id,
+                       const url::Origin& security_origin,
                        const base::UnguessableToken& dev_tools_token) override;
   void OnBeforeWorkerDestroyed(
       const blink::SharedWorkerToken& shared_worker_token) override;
@@ -102,8 +102,6 @@ class WorkerWatcher : public content::DedicatedWorkerService::Observer,
       content::GlobalRenderFrameHostId render_frame_host_id) override;
 
   // content::ServiceWorkerContextObserver:
-  // Note: If you add a new function here, make sure it is also added to
-  // ServiceWorkerContextAdapter.
   void OnVersionStartedRunning(
       int64_t version_id,
       const content::ServiceWorkerRunningInfo& running_info) override;
@@ -118,6 +116,11 @@ class WorkerWatcher : public content::DedicatedWorkerService::Observer,
       int64_t version_id,
       const std::string& client_uuid,
       content::GlobalRenderFrameHostId render_frame_host_id) override;
+
+  // Searches all node maps for a WorkerNode matching the given `token`.
+  // Exposed so that accessors performance_manager.h can look up WorkerNodes on
+  // the UI thread.
+  WorkerNodeImpl* FindWorkerNodeForToken(const blink::WorkerToken& token) const;
 
  private:
   friend class WorkerWatcherTest;
@@ -189,10 +192,10 @@ class WorkerWatcher : public content::DedicatedWorkerService::Observer,
   // Helper functions to retrieve an existing worker node.
   // Return the requested node, or nullptr if no such node registered.
   WorkerNodeImpl* GetDedicatedWorkerNode(
-      const blink::DedicatedWorkerToken& dedicated_worker_token);
+      const blink::DedicatedWorkerToken& dedicated_worker_token) const;
   WorkerNodeImpl* GetSharedWorkerNode(
-      const blink::SharedWorkerToken& shared_worker_token);
-  WorkerNodeImpl* GetServiceWorkerNode(int64_t version_id);
+      const blink::SharedWorkerToken& shared_worker_token) const;
+  WorkerNodeImpl* GetServiceWorkerNode(int64_t version_id) const;
 
 #if DCHECK_IS_ON()
   bool IsServiceWorkerNode(WorkerNodeImpl* worker_node);
@@ -213,12 +216,9 @@ class WorkerWatcher : public content::DedicatedWorkerService::Observer,
                           content::SharedWorkerService::Observer>
       shared_worker_service_observation_{this};
 
-  base::ScopedObservation<content::ServiceWorkerContext,
+  base::ScopedObservation<ServiceWorkerContextAdapter,
                           content::ServiceWorkerContextObserver>
-      service_worker_context_observation_{this};
-
-  // Used to retrieve an existing process node from its render process ID.
-  const raw_ptr<ProcessNodeSource> process_node_source_;
+      service_worker_context_adapter_observation_{this};
 
   // Used to retrieve an existing frame node from its render process ID and
   // frame ID. Also allows to subscribe to a frame's deletion notification.
@@ -236,6 +236,11 @@ class WorkerWatcher : public content::DedicatedWorkerService::Observer,
   base::flat_map<int64_t /*version_id*/, std::unique_ptr<WorkerNodeImpl>>
       service_worker_nodes_;
 
+  // Maps service worker tokens to a version ID that can be looked up in
+  // `service_worker_nodes_`.
+  std::map<blink::ServiceWorkerToken, int64_t /*version_id*/>
+      service_worker_ids_by_token_ GUARDED_BY_CONTEXT(sequence_checker_);
+
   // Keeps track of frame clients that are awaiting the navigation commit
   // notification. Used for service workers only.
   using AwaitingKey =
@@ -243,9 +248,9 @@ class WorkerWatcher : public content::DedicatedWorkerService::Observer,
   base::flat_set<AwaitingKey> client_frames_awaiting_commit_;
 
   // Maps each service worker to its clients.
-  base::flat_map<
-      int64_t /*version_id*/,
-      base::flat_map<std::string /*client_uuid*/, ServiceWorkerClient>>
+  base::flat_map<int64_t /*version_id*/,
+                 base::flat_map<std::string /*client_uuid*/,
+                                content::ServiceWorkerClientInfo>>
       service_worker_clients_;
 
   // Maps each frame to the number of connections to each worker that this frame
@@ -258,7 +263,8 @@ class WorkerWatcher : public content::DedicatedWorkerService::Observer,
       frame_node_child_worker_connections_;
 
   // Maps each dedicated worker to all its child workers.
-  using WorkerNodeSet = base::flat_set<WorkerNodeImpl*>;
+  using WorkerNodeSet =
+      base::flat_set<raw_ptr<WorkerNodeImpl, CtnExperimental>>;
   base::flat_map<blink::DedicatedWorkerToken, WorkerNodeSet>
       dedicated_worker_child_workers_;
 
@@ -275,7 +281,8 @@ class WorkerWatcher : public content::DedicatedWorkerService::Observer,
 
   // Keeps track of shared and dedicated workers that were not present when
   // a service worker tried to add a client relationship for them.
-  base::flat_map<WorkerNodeImpl*, base::flat_set<ServiceWorkerClient>>
+  base::flat_map<WorkerNodeImpl*,
+                 base::flat_set<content::ServiceWorkerClientInfo>>
       missing_service_worker_clients_;
 #endif  // DCHECK_IS_ON()
 };

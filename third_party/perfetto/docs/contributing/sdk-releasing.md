@@ -5,14 +5,7 @@ This guide shows how to make a new Perfetto SDK release.
 Before snapshotting a release, check that no [release-blockers](http://b/savedsearches/5776355) are
 open.
 
-Check out the code:
-
-```bash
-git clone https://android.googlesource.com/platform/external/perfetto
-cd perfetto
-```
-
-Next, decide the version number for the new release (vX.Y).
+Check out the code, then decide the version number for the new release (vX.Y).
 The major version number (X) is incremented on every release (monthly).
 The minor version number is incremented only for minor changes / fixes on top of the monthly
 release (cherry-picks on the releases/vN.x branch).
@@ -21,10 +14,10 @@ Continue with the appropriate section below.
 
 ## a) Creating a new major version
 
-Make sure that the current master branch builds on
+Make sure that the current main branch builds on
 [LUCI](https://luci-scheduler.appspot.com/jobs/perfetto) by triggering all the
 builds and waiting for their success. If any of the builds fail, fix the failure
-on master before proceeding.
+on main before proceeding.
 
 Create an entry in CHANGELOG with the new major version: this usually involves
 renaming the "Unreleased" entry to the version number you chose earlier
@@ -33,13 +26,13 @@ renaming the "Unreleased" entry to the version number you chose earlier
 Test that the perfetto build tools can parse the CHANGELOG: after building,
 running `perfetto --version` should show your new version number.
 
-Upload the CHANGELOG change and submit it on the master branch.
+Upload the CHANGELOG change and submit it on the main branch.
 
 Create a release branch for the new major version ("v16.x" here):
 
 ```bash
 git fetch origin
-git push origin origin/master:refs/heads/releases/v16.x
+git push origin origin/main:refs/heads/releases/v16.x
 git fetch origin
 git checkout -b releases/v16.x -t origin/releases/v16.x
 ```
@@ -107,17 +100,7 @@ cmake --build build
 3. Upload the new release for review.
 
 ```bash
-git cl upload --no-squash
-```
-
-If you get an error about a missing Change-Id field (`remote: ERROR: commit
-a7c7c4c: missing Change-Id in message footer`), install the commit-msg hook
-script and amend the change to make sure that field is present:
-
-```bash
-curl -Lo .git/hooks/commit-msg http://android-review.googlesource.com/tools/hooks/commit-msg
-chmod u+x .git/hooks/commit-msg
-git commit --amend
+gh pr create
 ```
 
 4. Once the release has been reviewed and landed, create and push the tag for

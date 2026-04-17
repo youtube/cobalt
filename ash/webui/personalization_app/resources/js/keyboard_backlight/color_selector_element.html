@@ -14,7 +14,7 @@
 
   #wallpaperColorDescription {
     color: var(--cros-text-color-secondary);
-    font-size: 12px;
+    font: var(--cros-body-2-font);
     height: 48px;
     line-height: 48px;
   }
@@ -180,6 +180,7 @@
           <color-icon
               aria-label="$i18n{wallpaperColor}"
               aria-checked$="[[getWallpaperColorAriaChecked_(selectedColor)]]"
+              id="wallpaperColorIcon"
               title$="[[getWallpaperColorTitle_()]]"
               role="radio"
               color-id="[[wallpaperColorId_]]">

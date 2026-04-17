@@ -8,22 +8,11 @@
  * Launches the PaymentRequest UI that offers free shipping in California and
  * $5.00 shipping in US. Does not allow shipping outside of US.
  *
- * Legacy entry-point until basic-card is disabled
- */
-function buy() {
-  buyWithMethods(
-      [{supportedMethods: 'basic-card', data: {supportedNetworks: ['visa']}}]);
-}
-
-/**
- * Launches the PaymentRequest UI that offers free shipping in California and
- * $5.00 shipping in US. Does not allow shipping outside of US.
- *
  * @param {String} methodData - An array of payment method objects.
  */
 function buyWithMethods(methodData) {
   try {
-    var details = {
+    const details = {
       total: {label: 'Total', amount: {currency: 'USD', value: '5.00'}},
       displayItems: [
         {
@@ -35,8 +24,8 @@ function buyWithMethods(methodData) {
       ],
     };
 
-    var request = new PaymentRequest(
-        methodData, details, {requestShipping: true});
+    const request =
+        new PaymentRequest(methodData, details, {requestShipping: true});
 
     request.addEventListener('shippingaddresschange', function(evt) {
       evt.updateWith(new Promise(function(resolve) {
@@ -71,7 +60,7 @@ function buyWithMethods(methodData) {
  */
 function updateDetails(details, addr) {
   if (addr.country === 'US') {
-    var shippingOption = {
+    const shippingOption = {
       id: '',
       label: '',
       amount: {currency: 'USD', value: '0.00'},

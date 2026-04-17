@@ -22,6 +22,7 @@
 #include "third_party/blink/renderer/platform/graphics/compositing/paint_artifact_compositor.h"
 #include "third_party/blink/renderer/platform/testing/find_cc_layer.h"
 #include "third_party/blink/renderer/platform/testing/paint_test_configurations.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
 #include "third_party/blink/renderer/platform/testing/url_loader_mock_factory.h"
 #include "third_party/blink/renderer/platform/testing/url_test_helpers.h"
@@ -33,8 +34,9 @@ namespace blink {
       << " expected: " << cc::MainThreadScrollingReason::AsText(expected) \
       << " actual: " << cc::MainThreadScrollingReason::AsText(actual)
 
-#define EXPECT_NO_MAIN_THREAD_SCROLLING_REASON(actual) \
-  EXPECT_EQ(cc::MainThreadScrollingReason::kNotScrollingOnMain, actual)
+#define EXPECT_NO_MAIN_THREAD_SCROLLING_REASON(actual)                  \
+  EXPECT_EQ(cc::MainThreadScrollingReason::kNotScrollingOnMain, actual) \
+      << " actual: " << cc::MainThreadScrollingReason::AsText(actual)
 
 class MainThreadScrollingReasonsTest : public PaintTestConfigurations,
                                        public testing::Test {
@@ -91,32 +93,28 @@ class MainThreadScrollingReasonsTest : public PaintTestConfigurations,
         .FindNodeFromElementId(scrollable_area.GetScrollElementId());
   }
 
-  bool IsScrollable(const cc::Layer* layer) const {
-    return GetScrollNode(layer)->scrollable;
+  uint32_t GetMainThreadRepaintReasons(const cc::Layer* layer) const {
+    return GetScrollNode(layer)->main_thread_repaint_reasons;
   }
 
-  uint32_t GetMainThreadScrollingReasons(const cc::Layer* layer) const {
-    return GetScrollNode(layer)->main_thread_scrolling_reasons;
-  }
-
-  uint32_t GetMainThreadScrollingReasons(
+  uint32_t GetMainThreadRepaintReasons(
       const ScrollPaintPropertyNode& scroll) const {
     return GetFrame()
         ->View()
         ->GetPaintArtifactCompositor()
-        ->GetMainThreadScrollingReasons(scroll);
+        ->GetMainThreadRepaintReasons(scroll);
   }
 
-  uint32_t GetMainThreadScrollingReasons(
+  uint32_t GetMainThreadRepaintReasons(
       const PaintLayerScrollableArea& scrollable_area) const {
-    return GetMainThreadScrollingReasons(*scrollable_area.GetLayoutBox()
-                                              ->FirstFragment()
-                                              .PaintProperties()
-                                              ->Scroll());
+    return GetMainThreadRepaintReasons(*scrollable_area.GetLayoutBox()
+                                            ->FirstFragment()
+                                            .PaintProperties()
+                                            ->Scroll());
   }
 
-  uint32_t GetViewMainThreadScrollingReasons() const {
-    return GetMainThreadScrollingReasons(*GetFrame()->View()->LayoutViewport());
+  uint32_t GetViewMainThreadRepaintReasons() const {
+    return GetMainThreadRepaintReasons(*GetFrame()->View()->LayoutViewport());
   }
 
   WebViewImpl* GetWebView() const { return helper_.GetWebView(); }
@@ -127,6 +125,7 @@ class MainThreadScrollingReasonsTest : public PaintTestConfigurations,
   }
 
  protected:
+  test::TaskEnvironment task_environment_;
   String base_url_;
   frame_test_helpers::WebViewHelper helper_;
 };
@@ -145,7 +144,8 @@ TEST_P(MainThreadScrollingReasonsTest,
 
   auto* root_layer = GetFrame()->View()->RootCcLayer();
   auto* outer_layout_view = GetFrame()->View()->GetLayoutView();
-  Element* iframe = GetFrame()->GetDocument()->getElementById("iframe");
+  Element* iframe =
+      GetFrame()->GetDocument()->getElementById(AtomicString("iframe"));
   ASSERT_TRUE(iframe);
 
   LocalFrameView* inner_frame_view = To<LocalFrameView>(
@@ -159,14 +159,13 @@ TEST_P(MainThreadScrollingReasonsTest,
   ASSERT_TRUE(inner_scroll_node);
   EXPECT_MAIN_THREAD_SCROLLING_REASON(
       cc::MainThreadScrollingReason::kHasBackgroundAttachmentFixedObjects,
-      GetMainThreadScrollingReasons(*inner_scroll_node));
+      GetMainThreadRepaintReasons(*inner_scroll_node));
   const cc::Layer* inner_scroll_layer = CcLayerByCcElementId(
       root_layer, inner_scroll_node->GetCompositorElementId());
   ASSERT_TRUE(inner_scroll_layer);
-  ASSERT_TRUE(IsScrollable(inner_scroll_layer));
   EXPECT_MAIN_THREAD_SCROLLING_REASON(
       cc::MainThreadScrollingReason::kHasBackgroundAttachmentFixedObjects,
-      GetMainThreadScrollingReasons(inner_scroll_layer));
+      GetMainThreadRepaintReasons(inner_scroll_layer));
 
   // Main thread scrolling of the inner layer doesn't affect the outer layer.
   auto* outer_scroll_node = GetFrame()
@@ -177,50 +176,50 @@ TEST_P(MainThreadScrollingReasonsTest,
                                 ->Scroll();
   ASSERT_TRUE(outer_scroll_node);
   EXPECT_NO_MAIN_THREAD_SCROLLING_REASON(
-      GetMainThreadScrollingReasons(*outer_scroll_node));
+      GetMainThreadRepaintReasons(*outer_scroll_node));
   const cc::Layer* outer_scroll_layer = CcLayerByCcElementId(
       root_layer, outer_scroll_node->GetCompositorElementId());
   ASSERT_TRUE(outer_scroll_layer);
-  ASSERT_TRUE(IsScrollable(outer_scroll_layer));
   EXPECT_NO_MAIN_THREAD_SCROLLING_REASON(
-      GetMainThreadScrollingReasons(outer_scroll_layer));
+      GetMainThreadRepaintReasons(outer_scroll_layer));
 
   // Remove fixed background-attachment should make the iframe scroll on cc.
-  auto* content = inner_layout_view->GetDocument().getElementById("content");
+  auto* content =
+      inner_layout_view->GetDocument().getElementById(AtomicString("content"));
   ASSERT_TRUE(content);
-  content->removeAttribute("class");
+  content->removeAttribute(html_names::kClassAttr);
 
   ForceFullCompositingUpdate();
 
   ASSERT_EQ(inner_scroll_node,
             inner_layout_view->FirstFragment().PaintProperties()->Scroll());
   EXPECT_NO_MAIN_THREAD_SCROLLING_REASON(
-      GetMainThreadScrollingReasons(*inner_scroll_node));
+      GetMainThreadRepaintReasons(*inner_scroll_node));
   ASSERT_EQ(inner_scroll_layer,
             CcLayerByCcElementId(root_layer,
                                  inner_scroll_node->GetCompositorElementId()));
-  ASSERT_TRUE(IsScrollable(inner_scroll_layer));
   EXPECT_NO_MAIN_THREAD_SCROLLING_REASON(
-      GetMainThreadScrollingReasons(inner_scroll_layer));
+      GetMainThreadRepaintReasons(inner_scroll_layer));
 
   ASSERT_EQ(outer_scroll_node,
             outer_layout_view->FirstFragment().PaintProperties()->Scroll());
   EXPECT_NO_MAIN_THREAD_SCROLLING_REASON(
-      GetMainThreadScrollingReasons(*outer_scroll_node));
+      GetMainThreadRepaintReasons(*outer_scroll_node));
   ASSERT_EQ(outer_scroll_layer,
             CcLayerByCcElementId(root_layer,
                                  outer_scroll_node->GetCompositorElementId()));
-  ASSERT_TRUE(IsScrollable(outer_scroll_layer));
   EXPECT_NO_MAIN_THREAD_SCROLLING_REASON(
-      GetMainThreadScrollingReasons(outer_scroll_layer));
+      GetMainThreadRepaintReasons(outer_scroll_layer));
 
   // Force main frame to scroll on main thread. All its descendants
   // should scroll on main thread as well.
-  Element* element = GetFrame()->GetDocument()->getElementById("scrollable");
+  Element* element =
+      GetFrame()->GetDocument()->getElementById(AtomicString("scrollable"));
   element->setAttribute(
-      "style",
-      "background-image: url('white-1x1.png'); background-attachment: fixed;",
-      ASSERT_NO_EXCEPTION);
+      html_names::kStyleAttr,
+      AtomicString(
+          "background-image: url('white-1x1.png'), url('white-1x1.png');"
+          "                  background-attachment: fixed, local;"));
 
   ForceFullCompositingUpdate();
 
@@ -229,27 +228,25 @@ TEST_P(MainThreadScrollingReasonsTest,
             inner_layout_view->FirstFragment().PaintProperties()->Scroll());
   EXPECT_MAIN_THREAD_SCROLLING_REASON(
       cc::MainThreadScrollingReason::kHasBackgroundAttachmentFixedObjects,
-      GetMainThreadScrollingReasons(*inner_scroll_node));
+      GetMainThreadRepaintReasons(*inner_scroll_node));
   ASSERT_EQ(inner_scroll_layer,
             CcLayerByCcElementId(root_layer,
                                  inner_scroll_node->GetCompositorElementId()));
-  ASSERT_TRUE(IsScrollable(inner_scroll_layer));
   EXPECT_MAIN_THREAD_SCROLLING_REASON(
       cc::MainThreadScrollingReason::kHasBackgroundAttachmentFixedObjects,
-      GetMainThreadScrollingReasons(inner_scroll_layer));
+      GetMainThreadRepaintReasons(inner_scroll_layer));
 
   ASSERT_EQ(outer_scroll_node,
             outer_layout_view->FirstFragment().PaintProperties()->Scroll());
   EXPECT_MAIN_THREAD_SCROLLING_REASON(
       cc::MainThreadScrollingReason::kHasBackgroundAttachmentFixedObjects,
-      GetMainThreadScrollingReasons(*outer_scroll_node));
+      GetMainThreadRepaintReasons(*outer_scroll_node));
   ASSERT_EQ(outer_scroll_layer,
             CcLayerByCcElementId(root_layer,
                                  outer_scroll_node->GetCompositorElementId()));
-  ASSERT_TRUE(IsScrollable(outer_scroll_layer));
   EXPECT_MAIN_THREAD_SCROLLING_REASON(
       cc::MainThreadScrollingReason::kHasBackgroundAttachmentFixedObjects,
-      GetMainThreadScrollingReasons(outer_scroll_layer));
+      GetMainThreadRepaintReasons(outer_scroll_layer));
 }
 
 TEST_P(MainThreadScrollingReasonsTest, ReportBackgroundAttachmentFixed) {
@@ -257,7 +254,9 @@ TEST_P(MainThreadScrollingReasonsTest, ReportBackgroundAttachmentFixed) {
   std::string html = R"HTML(
     <style>
       body { width: 900px; height: 900px; }
-      #bg { background: url('white-1x1.png') fixed; }
+      #bg {
+        background: url('white-1x1.png') fixed, url('white-1x1.png') local;
+      }
     </style>
     <div id=bg>x</div>
   )HTML";
@@ -303,10 +302,10 @@ TEST_P(MainThreadScrollingReasonsTest, ReportBackgroundAttachmentFixed) {
           "Renderer4.MainThreadGestureScrollReason2"),
       testing::ElementsAre(
           base::Bucket(
-              base::HistogramBase::Sample(
+              base::HistogramBase::Sample32(
                   cc::MainThreadScrollingReason::kScrollingOnMainForAnyReason),
               1),
-          base::Bucket(base::HistogramBase::Sample(
+          base::Bucket(base::HistogramBase::Sample32(
                            cc::MainThreadScrollingReason::BucketIndexForTesting(
                                expected_reason)),
                        1)));
@@ -323,43 +322,26 @@ TEST_P(MainThreadScrollingReasonsTest,
   ForceFullCompositingUpdate();
 
   // When the main document is not scrollable, there should be no reasons.
-  EXPECT_FALSE(GetViewMainThreadScrollingReasons());
+  EXPECT_FALSE(GetViewMainThreadRepaintReasons());
 
   // When the div forces the document to be scrollable, it should scroll on main
   // thread.
-  Element* element = GetFrame()->GetDocument()->getElementById("scrollable");
-  element->setAttribute(
-      "style",
-      "background-image: url('white-1x1.png'); background-attachment: fixed;",
-      ASSERT_NO_EXCEPTION);
+  Element* element =
+      GetFrame()->GetDocument()->getElementById(AtomicString("scrollable"));
+  element->setAttribute(html_names::kStyleAttr,
+                        AtomicString("background-image: url('white-1x1.png'); "
+                                     "background-attachment: fixed;"));
   ForceFullCompositingUpdate();
 
   EXPECT_MAIN_THREAD_SCROLLING_REASON(
       cc::MainThreadScrollingReason::kHasBackgroundAttachmentFixedObjects,
-      GetViewMainThreadScrollingReasons());
+      GetViewMainThreadRepaintReasons());
 
   // The main thread scrolling reason should be reset upon the following change.
-  element->setAttribute("style", "", ASSERT_NO_EXCEPTION);
+  element->setAttribute(html_names::kStyleAttr, g_empty_atom);
   ForceFullCompositingUpdate();
 
-  EXPECT_FALSE(GetViewMainThreadScrollingReasons());
-}
-
-TEST_P(MainThreadScrollingReasonsTest, FastScrollingCanBeDisabledWithSetting) {
-  GetWebView()->MainFrameViewWidget()->Resize(gfx::Size(800, 600));
-  LoadHTML("<div id='spacer' style='height: 1000px'></div>");
-  GetWebView()->GetSettings()->SetThreadedScrollingEnabled(false);
-  GetFrame()->View()->SetNeedsPaintPropertyUpdate();
-  ForceFullCompositingUpdate();
-
-  // Main scrolling should be enabled with the setting override.
-  EXPECT_TRUE(GetViewMainThreadScrollingReasons());
-
-  // Main scrolling should also propagate to inner viewport layer.
-  const cc::Layer* visual_viewport_scroll_layer =
-      GetFrame()->GetPage()->GetVisualViewport().LayerForScrolling();
-  ASSERT_TRUE(IsScrollable(visual_viewport_scroll_layer));
-  EXPECT_TRUE(GetMainThreadScrollingReasons(visual_viewport_scroll_layer));
+  EXPECT_FALSE(GetViewMainThreadRepaintReasons());
 }
 
 TEST_P(MainThreadScrollingReasonsTest, FastScrollingForFixedPosition) {
@@ -368,7 +350,7 @@ TEST_P(MainThreadScrollingReasonsTest, FastScrollingForFixedPosition) {
   ForceFullCompositingUpdate();
 
   // Fixed position should not fall back to main thread scrolling.
-  EXPECT_FALSE(GetViewMainThreadScrollingReasons());
+  EXPECT_FALSE(GetViewMainThreadRepaintReasons());
 }
 
 TEST_P(MainThreadScrollingReasonsTest, FastScrollingForStickyPosition) {
@@ -377,7 +359,7 @@ TEST_P(MainThreadScrollingReasonsTest, FastScrollingForStickyPosition) {
   ForceFullCompositingUpdate();
 
   // Sticky position should not fall back to main thread scrolling.
-  EXPECT_FALSE(GetViewMainThreadScrollingReasons());
+  EXPECT_FALSE(GetViewMainThreadRepaintReasons());
 }
 
 TEST_P(MainThreadScrollingReasonsTest, FastScrollingByDefault) {
@@ -386,12 +368,11 @@ TEST_P(MainThreadScrollingReasonsTest, FastScrollingByDefault) {
   ForceFullCompositingUpdate();
 
   // Fast scrolling should be enabled by default.
-  EXPECT_FALSE(GetViewMainThreadScrollingReasons());
+  EXPECT_FALSE(GetViewMainThreadRepaintReasons());
 
   const cc::Layer* visual_viewport_scroll_layer =
       GetFrame()->GetPage()->GetVisualViewport().LayerForScrolling();
-  ASSERT_TRUE(IsScrollable(visual_viewport_scroll_layer));
-  EXPECT_FALSE(GetMainThreadScrollingReasons(visual_viewport_scroll_layer));
+  EXPECT_FALSE(GetMainThreadRepaintReasons(visual_viewport_scroll_layer));
 }
 
 class NonCompositedMainThreadScrollingReasonsTest
@@ -405,58 +386,58 @@ class NonCompositedMainThreadScrollingReasonsTest
     NavigateTo(base_url_ + "two_scrollable_area.html");
   }
 
-  void TestNonCompositedReasons(const AtomicString& style_class,
+  void TestNonCompositedReasons(const char* style_class,
                                 const uint32_t reason) {
+    AtomicString style_class_string(style_class);
     GetFrame()->GetSettings()->SetPreferCompositingToLCDTextForTesting(false);
     Document* document = GetFrame()->GetDocument();
-    Element* container = document->getElementById("scroller1");
+    Element* container = document->getElementById(AtomicString("scroller1"));
     ForceFullCompositingUpdate();
 
     PaintLayerScrollableArea* scrollable_area = GetScrollableArea(*container);
     ASSERT_TRUE(scrollable_area);
     EXPECT_NO_MAIN_THREAD_SCROLLING_REASON(
-        GetMainThreadScrollingReasons(*scrollable_area));
+        GetMainThreadRepaintReasons(*scrollable_area));
 
-    container->classList().Add(style_class);
+    container->classList().Add(style_class_string);
     ForceFullCompositingUpdate();
 
     ASSERT_TRUE(scrollable_area);
     EXPECT_MAIN_THREAD_SCROLLING_REASON(
-        reason, GetMainThreadScrollingReasons(*scrollable_area));
+        reason, GetMainThreadRepaintReasons(*scrollable_area));
 
-    Element* container2 = document->getElementById("scroller2");
+    Element* container2 = document->getElementById(AtomicString("scroller2"));
     PaintLayerScrollableArea* scrollable_area2 = GetScrollableArea(*container2);
     ASSERT_TRUE(scrollable_area2);
     // Different scrollable area should remain unaffected.
     EXPECT_NO_MAIN_THREAD_SCROLLING_REASON(
-        GetMainThreadScrollingReasons(*scrollable_area2));
+        GetMainThreadRepaintReasons(*scrollable_area2));
 
-    EXPECT_NO_MAIN_THREAD_SCROLLING_REASON(GetViewMainThreadScrollingReasons());
+    EXPECT_NO_MAIN_THREAD_SCROLLING_REASON(GetViewMainThreadRepaintReasons());
 
     // Remove class from the scroller 1 would lead to scroll on impl.
-    container->classList().Remove(style_class);
+    container->classList().Remove(style_class_string);
     ForceFullCompositingUpdate();
 
     EXPECT_NO_MAIN_THREAD_SCROLLING_REASON(
-        GetMainThreadScrollingReasons(*scrollable_area));
-    EXPECT_NO_MAIN_THREAD_SCROLLING_REASON(GetViewMainThreadScrollingReasons());
+        GetMainThreadRepaintReasons(*scrollable_area));
+    EXPECT_NO_MAIN_THREAD_SCROLLING_REASON(GetViewMainThreadRepaintReasons());
 
     // Add target attribute would again lead to scroll on main thread
-    container->classList().Add(style_class);
+    container->classList().Add(style_class_string);
     ForceFullCompositingUpdate();
 
     EXPECT_MAIN_THREAD_SCROLLING_REASON(
-        reason, GetMainThreadScrollingReasons(*scrollable_area));
-    EXPECT_NO_MAIN_THREAD_SCROLLING_REASON(GetViewMainThreadScrollingReasons());
+        reason, GetMainThreadRepaintReasons(*scrollable_area));
+    EXPECT_NO_MAIN_THREAD_SCROLLING_REASON(GetViewMainThreadRepaintReasons());
 
     if ((reason & kLCDTextRelatedReasons) &&
         !(reason & ~kLCDTextRelatedReasons)) {
       GetFrame()->GetSettings()->SetPreferCompositingToLCDTextForTesting(true);
       ForceFullCompositingUpdate();
       EXPECT_NO_MAIN_THREAD_SCROLLING_REASON(
-          GetMainThreadScrollingReasons(*scrollable_area));
-      EXPECT_NO_MAIN_THREAD_SCROLLING_REASON(
-          GetViewMainThreadScrollingReasons());
+          GetMainThreadRepaintReasons(*scrollable_area));
+      EXPECT_NO_MAIN_THREAD_SCROLLING_REASON(GetViewMainThreadRepaintReasons());
     }
   }
 };
@@ -476,18 +457,19 @@ TEST_P(NonCompositedMainThreadScrollingReasonsTest, TransformTest) {
 TEST_P(NonCompositedMainThreadScrollingReasonsTest, BackgroundNotOpaqueTest) {
   TestNonCompositedReasons(
       "background-not-opaque",
-      cc::MainThreadScrollingReason::kNotOpaqueForTextAndLCDText);
+      RuntimeEnabledFeatures::RasterInducingScrollEnabled()
+          ? cc::MainThreadScrollingReason::kNotScrollingOnMain
+          : cc::MainThreadScrollingReason::kNotOpaqueForTextAndLCDText);
 }
 
 TEST_P(NonCompositedMainThreadScrollingReasonsTest,
        CantPaintScrollingBackgroundTest) {
   TestNonCompositedReasons(
       "cant-paint-scrolling-background",
-      cc::MainThreadScrollingReason::kBackgroundNeedsRepaintOnScroll |
-          (RuntimeEnabledFeatures::CompositeScrollAfterPaintEnabled()
-               ? cc::MainThreadScrollingReason::kNotOpaqueForTextAndLCDText
-               : cc::MainThreadScrollingReason::
-                     kCantPaintScrollingBackgroundAndLCDText));
+      RuntimeEnabledFeatures::RasterInducingScrollEnabled()
+          ? cc::MainThreadScrollingReason::kBackgroundNeedsRepaintOnScroll
+          : cc::MainThreadScrollingReason::kBackgroundNeedsRepaintOnScroll |
+                cc::MainThreadScrollingReason::kNotOpaqueForTextAndLCDText);
 }
 
 TEST_P(NonCompositedMainThreadScrollingReasonsTest,
@@ -515,10 +497,9 @@ TEST_P(NonCompositedMainThreadScrollingReasonsTest, BoxShadowTest) {
 TEST_P(NonCompositedMainThreadScrollingReasonsTest, InsetBoxShadowTest) {
   TestNonCompositedReasons(
       "inset-box-shadow",
-      RuntimeEnabledFeatures::CompositeScrollAfterPaintEnabled()
-          ? cc::MainThreadScrollingReason::kNotOpaqueForTextAndLCDText
-          : cc::MainThreadScrollingReason::
-                kCantPaintScrollingBackgroundAndLCDText);
+      RuntimeEnabledFeatures::RasterInducingScrollEnabled()
+          ? cc::MainThreadScrollingReason::kNotScrollingOnMain
+          : cc::MainThreadScrollingReason::kNotOpaqueForTextAndLCDText);
 }
 
 TEST_P(NonCompositedMainThreadScrollingReasonsTest, StackingContextTest) {
@@ -538,29 +519,25 @@ TEST_P(NonCompositedMainThreadScrollingReasonsTest,
   // we don't composite them.
   GetFrame()->GetSettings()->SetPreferCompositingToLCDTextForTesting(false);
   Document* document = GetFrame()->GetDocument();
-  Element* container = document->getElementById("scroller1");
+  Element* container = document->getElementById(AtomicString("scroller1"));
   ASSERT_TRUE(container);
-  container->setAttribute("class", "scroller composited transparent",
-                          ASSERT_NO_EXCEPTION);
+  container->setAttribute(html_names::kClassAttr,
+                          AtomicString("scroller composited transparent"));
   ForceFullCompositingUpdate();
 
   PaintLayerScrollableArea* scrollable_area = GetScrollableArea(*container);
   ASSERT_TRUE(scrollable_area);
   EXPECT_NO_MAIN_THREAD_SCROLLING_REASON(
-      GetMainThreadScrollingReasons(*scrollable_area));
+      GetMainThreadRepaintReasons(*scrollable_area));
 
-  Element* container2 = document->getElementById("scroller2");
+  Element* container2 = document->getElementById(AtomicString("scroller2"));
   ASSERT_TRUE(container2);
-  container2->setAttribute("class", "scroller composited border-radius",
-                           ASSERT_NO_EXCEPTION);
+  container2->setAttribute(html_names::kClassAttr,
+                           AtomicString("scroller composited border-radius"));
   ForceFullCompositingUpdate();
   PaintLayerScrollableArea* scrollable_area2 = GetScrollableArea(*container2);
   ASSERT_TRUE(scrollable_area2);
-  if (RuntimeEnabledFeatures::CompositeScrollAfterPaintEnabled()) {
-    EXPECT_TRUE(GetScrollNode(*scrollable_area2)->is_composited);
-  } else {
-    ASSERT_TRUE(scrollable_area2->UsesCompositedScrolling());
-  }
+  EXPECT_TRUE(GetScrollNode(*scrollable_area2)->is_composited);
 }
 
 }  // namespace blink

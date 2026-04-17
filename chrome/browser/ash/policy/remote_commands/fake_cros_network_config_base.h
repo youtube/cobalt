@@ -77,14 +77,17 @@ class FakeCrosNetworkConfigBase
   void RequestTrafficCounters(const std::string& guid,
                               RequestTrafficCountersCallback callback) override;
   void ResetTrafficCounters(const std::string& guid) override;
-  void SetTrafficCountersAutoReset(
+  void SetTrafficCountersResetDay(
       const std::string& guid,
-      bool auto_reset,
       chromeos::network_config::mojom::UInt32ValuePtr day,
-      SetTrafficCountersAutoResetCallback callback) override;
-  void CreateCustomApn(
+      SetTrafficCountersResetDayCallback callback) override;
+  void CreateCustomApn(const std::string& network_guid,
+                       chromeos::network_config::mojom::ApnPropertiesPtr apn,
+                       CreateCustomApnCallback callback) override;
+  void CreateExclusivelyEnabledCustomApn(
       const std::string& network_guid,
-      chromeos::network_config::mojom::ApnPropertiesPtr apn) override;
+      chromeos::network_config::mojom::ApnPropertiesPtr apn,
+      CreateExclusivelyEnabledCustomApnCallback callback) override;
   void RemoveCustomApn(const std::string& network_guid,
                        const std::string& apn_id) override;
   void ModifyCustomApn(

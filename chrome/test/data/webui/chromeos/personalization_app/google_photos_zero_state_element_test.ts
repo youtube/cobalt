@@ -3,33 +3,28 @@
 // found in the LICENSE file.
 
 import 'chrome://personalization/strings.m.js';
-import 'chrome://webui-test/mojo_webui_test_support.js';
 
-import {GooglePhotosTab, GooglePhotosZeroState} from 'chrome://personalization/js/personalization_app.js';
-
-import {assertEquals, assertTrue} from '../../chai_assert.js';
-import {waitAfterNextRender} from '../../polymer_test_util.js';
+import {GooglePhotosTab, GooglePhotosZeroStateElement} from 'chrome://personalization/js/personalization_app.js';
+import {assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {waitAfterNextRender} from 'chrome://webui-test/polymer_test_util.js';
 
 import {initElement} from './personalization_app_test_utils.js';
 
-suite('GooglePhotosZeroState', function() {
-  let googlePhotosZeroStateElement: GooglePhotosZeroState|null;
+suite('GooglePhotosZeroStateElementTest', function() {
+  let googlePhotosZeroStateElement: GooglePhotosZeroStateElement|null;
 
   test('displays no message without tab', async () => {
-    googlePhotosZeroStateElement = initElement(GooglePhotosZeroState);
+    googlePhotosZeroStateElement = initElement(GooglePhotosZeroStateElement);
     await waitAfterNextRender(googlePhotosZeroStateElement);
 
     assertEquals(
         null,
         googlePhotosZeroStateElement.shadowRoot!.getElementById('message'),
         'no message shown');
-    assertEquals(
-        null, googlePhotosZeroStateElement.shadowRoot!.querySelector('img'),
-        'no image shown');
   });
 
   test('displays correct message for albums and photos tab', async () => {
-    googlePhotosZeroStateElement = initElement(GooglePhotosZeroState);
+    googlePhotosZeroStateElement = initElement(GooglePhotosZeroStateElement);
     for (const tab of [GooglePhotosTab.ALBUMS, GooglePhotosTab.PHOTOS]) {
       googlePhotosZeroStateElement.tab = tab;
       await waitAfterNextRender(googlePhotosZeroStateElement);
@@ -43,7 +38,8 @@ suite('GooglePhotosZeroState', function() {
       // `localizedLink.localizedString` typescript type is string but is
       // actually TrustedHTML.
       assertTrue(
-          (localizedLink.localizedString as unknown) instanceof TrustedHTML,
+          (localizedLink.localizedString as unknown) instanceof
+              window.TrustedHTML,
           'localizedLink has message set as TrustedHTML');
       assertEquals(
           'No image available. To add photos, go to ' +
@@ -51,15 +47,11 @@ suite('GooglePhotosZeroState', function() {
               'photos.google.com</a>',
           localizedLink.localizedString.toString(),
           'localized link message matches');
-
-      assertTrue(
-          !!googlePhotosZeroStateElement.shadowRoot!.querySelector('img'),
-          'img is shown');
     }
   });
 
   test('displays correct message for photos by album id tab', async () => {
-    googlePhotosZeroStateElement = initElement(GooglePhotosZeroState);
+    googlePhotosZeroStateElement = initElement(GooglePhotosZeroStateElement);
     googlePhotosZeroStateElement.tab = GooglePhotosTab.PHOTOS_BY_ALBUM_ID;
     await waitAfterNextRender(googlePhotosZeroStateElement);
 
@@ -72,7 +64,8 @@ suite('GooglePhotosZeroState', function() {
     // `localizedLink.localizedString` typescript type is string but is
     // actually TrustedHTML.
     assertTrue(
-        (localizedLink.localizedString as unknown) instanceof TrustedHTML,
+        (localizedLink.localizedString as unknown) instanceof
+            window.TrustedHTML,
         'localizedLink has message set as TrustedHTML');
 
     assertEquals(
@@ -82,9 +75,5 @@ suite('GooglePhotosZeroState', function() {
             'photos.google.com</a>',
         localizedLink.localizedString.toString(),
         'inner text matches on photos_by_album_id tab');
-
-    assertTrue(
-        !!googlePhotosZeroStateElement.shadowRoot!.querySelector('img'),
-        'img is shown');
   });
 });

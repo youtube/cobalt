@@ -26,7 +26,6 @@
 #include "base/task/thread_pool.h"
 #include "base/threading/thread.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "mojo/public/cpp/platform/platform_channel.h"
 #include "mojo/public/cpp/system/invitation.h"
 #include "sandbox/policy/mojom/sandbox.mojom.h"
@@ -37,17 +36,17 @@
 #include "services/service_manager/switches.h"
 
 #if BUILDFLAG(IS_MAC)
-#include "base/mac/mach_port_rendezvous.h"
+#include "base/apple/mach_port_rendezvous.h"
 #endif
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS)
 #include "sandbox/linux/services/namespace_sandbox.h"  // nogncheck
 #endif
 
 #if BUILDFLAG(IS_WIN)
-#include "base/win/windows_version.h"
-
 #include <windows.h>
+
+#include "base/win/windows_version.h"
 #endif
 
 namespace service_manager {
@@ -244,7 +243,7 @@ base::ProcessId ServiceProcessLauncher::ProcessState::LaunchInBackground(
 #endif
   DVLOG(2) << "Launching child with command line: "
            << child_command_line->GetCommandLineString();
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS)
   if (!sandbox::policy::IsUnsandboxedSandboxType(sandbox_type)) {
     child_process_ =
         sandbox::NamespaceSandbox::LaunchProcess(*child_command_line, options);
@@ -263,7 +262,7 @@ base::ProcessId ServiceProcessLauncher::ProcessState::LaunchInBackground(
     return base::kNullProcessId;
   }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // Always log instead of DVLOG because knowing which pid maps to which
   // service is vital for interpreting crashes after-the-fact and Chrome OS
   // devices generally run release builds, even in development.

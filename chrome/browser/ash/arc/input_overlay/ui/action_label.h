@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "chrome/browser/ash/arc/input_overlay/actions/input_element.h"
 #include "chrome/browser/ash/arc/input_overlay/constants.h"
 #include "chrome/browser/ash/arc/input_overlay/db/proto/app_data.pb.h"
@@ -16,29 +17,20 @@
 
 namespace arc::input_overlay {
 
-// TODO(cuicuiruan): Currently, it shows the dom_code.
-// Will replace it with showing the result of dom_key / keyboard key depending
-// on different keyboard layout.
-std::string GetDisplayText(const ui::DomCode code);
+class ActionView;
 
 // ActionLabel shows text mapping hint for each action.
 class ActionLabel : public views::LabelButton {
+  METADATA_HEADER(ActionLabel, views::LabelButton)
  public:
-  METADATA_HEADER(ActionLabel);
-  static std::vector<ActionLabel*> Show(
+  static std::vector<raw_ptr<ActionLabel, VectorExperimental>> Show(
       views::View* parent,
       ActionType action_type,
       const InputElement& input_element,
-      int radius,
-      bool allow_reposition,
       TapLabelPosition label_position = TapLabelPosition::kTopLeft);
 
-  ActionLabel(int radius, MouseAction mouse_action, bool allow_reposition);
-  ActionLabel(int radius, const std::string& text, bool allow_reposition);
-  ActionLabel(int radius,
-              const std::string& text,
-              int index,
-              bool allow_reposition);
+  explicit ActionLabel(MouseAction mouse_action);
+  explicit ActionLabel(const std::u16string& text, size_t index = 0);
 
   ActionLabel(const ActionLabel&) = delete;
   ActionLabel& operator=(const ActionLabel&) = delete;
@@ -46,30 +38,20 @@ class ActionLabel : public views::LabelButton {
 
   void Init();
 
-  void SetTextActionLabel(const std::string& text);
+  void SetTextActionLabel(const std::u16string& text);
   void SetImageActionLabel(MouseAction mouse_action);
   void SetDisplayMode(DisplayMode mode);
-  void ClearFocus();
-  // It is possible that multiple labels are in one ActionView and these labels
-  // are called sibling labels. This label reacts to sibling's focus change.
-  void OnSiblingUpdateFocus(bool sibling_focused);
+  void RemoveNewState();
 
-  // TODO(b/260937747): Update or remove when removing flags
-  // |kArcInputOverlayAlphaV2| or |kArcInputOverlayBeta|.
-  // The label layout design is updated. This is used to update bounds
-  // for Alpha version.
-  virtual void UpdateBoundsAlpha() = 0;
+  ActionView* GetParent();
+
   virtual void UpdateBounds() = 0;
   virtual void UpdateLabelPositionType(TapLabelPosition label_position) = 0;
 
   // views::View:
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
   void ChildPreferredSizeChanged(View* child) override;
-  bool OnKeyPressed(const ui::KeyEvent& event) override;
-  void OnMouseEntered(const ui::MouseEvent& event) override;
-  void OnMouseExited(const ui::MouseEvent& event) override;
-  void OnFocus() override;
-  void OnBlur() override;
 
   void set_mouse_action(MouseAction mouse_action) {
     mouse_action_ = mouse_action;
@@ -89,29 +71,21 @@ class ActionLabel : public views::LabelButton {
   gfx::Size touch_point_size_;
 
  private:
+  void OnButtonPressed();
+
   void SetToViewMode();
-  void SetToEditMode();
   // In edit mode without mouse hover or focus.
   void SetToEditDefault();
-  // In edit mode when mouse hovers or not.
-  void SetToEditHover(bool hovered);
-  // In edit mode when this view is focused.
-  void SetToEditFocus();
   // In edit mode when there is edit error.
   void SetToEditError();
   // In edit mode when the input is unbound.
   void SetToEditUnbindInput();
-  // In edit mode of ActionMoveView with four keys, when one label is focused,
-  // the other labels turn to edit inactive visually.
-  void SetToEditInactive();
 
   void SetBackgroundForEdit();
 
   bool IsInputUnbound();
   // Calculate the accessible name.
   std::u16string CalculateAccessibleName();
-
-  bool allow_reposition_;
 };
 }  // namespace arc::input_overlay
 

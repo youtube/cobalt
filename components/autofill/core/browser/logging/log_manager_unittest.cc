@@ -4,6 +4,8 @@
 
 #include "components/autofill/core/browser/logging/log_manager.h"
 
+#include <string_view>
+
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "components/autofill/core/browser/logging/log_receiver.h"
@@ -11,17 +13,16 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace autofill {
+namespace {
+
 using ::testing::_;
 using ::testing::Eq;
 using ::testing::Property;
 
-namespace autofill {
-
-namespace {
-
 const char kTestText[] = "abcd1234";
 
-auto JsonHasText(base::StringPiece text) {
+auto JsonHasText(std::string_view text) {
   return testing::ResultOf(
       [](const base::Value::Dict& dict) {
         const std::string* value = dict.FindString("value");
@@ -30,7 +31,7 @@ auto JsonHasText(base::StringPiece text) {
       Eq(text));
 }
 
-class MockLogReceiver : public autofill::LogReceiver {
+class MockLogReceiver : public LogReceiver {
  public:
   MockLogReceiver() = default;
 
@@ -49,8 +50,6 @@ class MockNotifiedObject {
 
   MOCK_METHOD(void, NotifyAboutLoggingActivity, (), ());
 };
-
-}  // namespace
 
 class LogManagerTest : public testing::Test {
  protected:
@@ -74,14 +73,14 @@ class LogManagerTest : public testing::Test {
   std::unique_ptr<BufferingLogManager> buffering_manager_;
 };
 
-TEST_F(LogManagerTest, LogTextMessageNoReceiver) {
-  EXPECT_CALL(receiver_, LogEntry(_)).Times(0);
+TEST_F(LogManagerTest, LogNoReceiver) {
+  EXPECT_CALL(receiver_, LogEntry).Times(0);
   // Before attaching the receiver, no text should be passed.
   LOG_AF(*manager_) << kTestText;
   EXPECT_FALSE(manager_->IsLoggingActive());
 }
 
-TEST_F(LogManagerTest, LogTextMessageAttachReceiver) {
+TEST_F(LogManagerTest, LogAttachReceiver) {
   EXPECT_FALSE(manager_->IsLoggingActive());
 
   EXPECT_CALL(notified_object_, NotifyAboutLoggingActivity());
@@ -95,7 +94,7 @@ TEST_F(LogManagerTest, LogTextMessageAttachReceiver) {
   EXPECT_FALSE(manager_->IsLoggingActive());
 }
 
-TEST_F(LogManagerTest, LogTextMessageDetachReceiver) {
+TEST_F(LogManagerTest, LogDetachReceiver) {
   EXPECT_CALL(notified_object_, NotifyAboutLoggingActivity());
   router_.RegisterReceiver(&receiver_);
   EXPECT_TRUE(manager_->IsLoggingActive());
@@ -104,7 +103,7 @@ TEST_F(LogManagerTest, LogTextMessageDetachReceiver) {
   EXPECT_FALSE(manager_->IsLoggingActive());
 
   // After detaching the logger, no text should be passed.
-  EXPECT_CALL(receiver_, LogEntry(_)).Times(0);
+  EXPECT_CALL(receiver_, LogEntry).Times(0);
   LOG_AF(*manager_) << kTestText;
 }
 
@@ -203,4 +202,5 @@ TEST_F(LogManagerTest, InterleaveSuspendAndLoggingActivation_ActiveFirst) {
   EXPECT_FALSE(manager_->IsLoggingActive());
 }
 
+}  // namespace
 }  // namespace autofill

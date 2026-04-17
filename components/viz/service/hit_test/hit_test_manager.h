@@ -6,6 +6,7 @@
 #define COMPONENTS_VIZ_SERVICE_HIT_TEST_HIT_TEST_MANAGER_H_
 
 #include <map>
+#include <optional>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
@@ -15,7 +16,6 @@
 #include "components/viz/service/surfaces/surface_manager.h"
 #include "components/viz/service/surfaces/surface_observer.h"
 #include "components/viz/service/viz_service_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace viz {
 
@@ -34,21 +34,15 @@ class VIZ_SERVICE_EXPORT HitTestManager : public SurfaceObserver {
   ~HitTestManager() override;
 
   // SurfaceObserver:
-  void OnFirstSurfaceActivation(const SurfaceInfo& surface_info) override {}
   void OnSurfaceActivated(const SurfaceId& surface_id) override;
-  void OnSurfaceMarkedForDestruction(const SurfaceId& surface_id) override {}
-  bool OnSurfaceDamaged(const SurfaceId& surface_id,
-                        const BeginFrameAck& ack) override;
   void OnSurfaceDestroyed(const SurfaceId& surface_id) override;
-  void OnSurfaceDamageExpected(const SurfaceId& surface_id,
-                               const BeginFrameArgs& args) override {}
 
   // Called when HitTestRegionList is submitted along with every call
   // to SubmitCompositorFrame.
   void SubmitHitTestRegionList(
       const SurfaceId& surface_id,
       const uint64_t frame_index,
-      absl::optional<HitTestRegionList> hit_test_region_list);
+      std::optional<HitTestRegionList> hit_test_region_list);
 
   // Returns the HitTestRegionList corresponding to the given
   // |frame_sink_id| and the active CompositorFrame matched by frame_index.

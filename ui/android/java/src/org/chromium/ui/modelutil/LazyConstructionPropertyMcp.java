@@ -4,8 +4,9 @@
 
 package org.chromium.ui.modelutil;
 
-import androidx.annotation.Nullable;
-
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.build.annotations.RequiresNonNull;
 import org.chromium.ui.ViewProvider;
 
 import java.util.HashSet;
@@ -19,13 +20,17 @@ import java.util.Set;
  * @param <V> The view type
  * @param <P> The property type for the model
  */
+@NullMarked
 public class LazyConstructionPropertyMcp<M extends PropertyObservable<P>, V, P>
         implements PropertyObservable.PropertyObserver<P> {
     /**
      * Functional interface to determine whether the model is visible.
+     *
      * @param <T> The model type.
      */
-    public interface VisibilityPredicate<T> { boolean isVisible(T item); }
+    public interface VisibilityPredicate<T> {
+        boolean isVisible(T item);
+    }
 
     private final M mModel;
     private final P mVisibilityProperty;
@@ -37,8 +42,11 @@ public class LazyConstructionPropertyMcp<M extends PropertyObservable<P>, V, P>
     private @Nullable V mView;
     private final Set<P> mPendingProperties = new HashSet<>();
 
-    public LazyConstructionPropertyMcp(M model, P visibilityProperty,
-            VisibilityPredicate<M> visibilityPredicate, ViewProvider<V> viewProvider,
+    public LazyConstructionPropertyMcp(
+            M model,
+            P visibilityProperty,
+            VisibilityPredicate<M> visibilityPredicate,
+            ViewProvider<V> viewProvider,
             PropertyModelChangeProcessor.ViewBinder<M, V, P> viewBinder) {
         assert visibilityProperty != null;
         mModel = model;
@@ -61,14 +69,21 @@ public class LazyConstructionPropertyMcp<M extends PropertyObservable<P>, V, P>
         mModel.addObserver(this);
     }
 
-    public static <M extends PropertyModel, V> LazyConstructionPropertyMcp<M, V, PropertyKey>
-    create(M model, PropertyModel.WritableBooleanPropertyKey visibilityProperty,
-            ViewProvider<V> viewFactory,
-            PropertyModelChangeProcessor.ViewBinder<M, V, PropertyKey> viewBinder) {
-        return new LazyConstructionPropertyMcp<>(model, visibilityProperty,
-                item -> item.get(visibilityProperty), viewFactory, viewBinder);
+    public static <M extends PropertyModel, V>
+            LazyConstructionPropertyMcp<M, V, PropertyKey> create(
+                    M model,
+                    PropertyModel.WritableBooleanPropertyKey visibilityProperty,
+                    ViewProvider<V> viewFactory,
+                    PropertyModelChangeProcessor.ViewBinder<M, V, PropertyKey> viewBinder) {
+        return new LazyConstructionPropertyMcp<>(
+                model,
+                visibilityProperty,
+                item -> item.get(visibilityProperty),
+                viewFactory,
+                viewBinder);
     }
 
+    @RequiresNonNull("mView")
     private void flushPendingUpdates() {
         boolean pendingVisibilityUpdate = false;
         for (P property : mPendingProperties) {

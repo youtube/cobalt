@@ -7,6 +7,7 @@
 #include <iostream>
 #include <memory>
 
+#include "base/containers/heap_array.h"
 #include "base/environment.h"
 #include "base/logging.h"
 #include "components/zucchini/buffer_sink.h"
@@ -25,7 +26,8 @@ constexpr size_t kMaxImageSize = 1024;
 
 struct Environment {
   Environment() {
-    logging::SetMinLogLevel(logging::LOG_FATAL);  // Disable console spamming.
+    // Disable console spamming.
+    logging::SetMinLogLevel(logging::LOGGING_FATAL);
   }
 };
 
@@ -61,7 +63,7 @@ DEFINE_BINARY_PROTO_FUZZER(const zucchini::fuzzers::FilePair& file_pair) {
 
   // Write to buffer to avoid IO.
   size_t patch_size = patch_writer.SerializedSize();
-  std::unique_ptr<uint8_t[]> patch_data(new uint8_t[patch_size]);
-  zucchini::BufferSink patch(patch_data.get(), patch_size);
+  auto patch_data = base::HeapArray<uint8_t>::Uninit(patch_size);
+  zucchini::BufferSink patch(patch_data.data(), patch_data.size());
   patch_writer.SerializeInto(patch);
 }

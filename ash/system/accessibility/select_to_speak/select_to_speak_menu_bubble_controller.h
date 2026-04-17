@@ -37,9 +37,12 @@ class ASH_EXPORT SelectToSpeakMenuBubbleController
   friend class SelectToSpeakMenuBubbleControllerTest;
   friend class SelectToSpeakSpeedBubbleControllerTest;
 
+  void MaybeRecordDurationHistogram();
+
   // TrayBubbleView::Delegate:
   std::u16string GetAccessibleNameForBubble() override;
   void BubbleViewDestroyed() override;
+  void HideBubble(const TrayBubbleView* bubble_view) override;
 
   // ::wm::ActivationChangeObserver:
   void OnWindowActivated(ActivationReason reason,
@@ -53,12 +56,13 @@ class ASH_EXPORT SelectToSpeakMenuBubbleController
   void OnSpeechRateSelected(double speech_rate) override;
 
   // Owned by views hierarchy.
-  raw_ptr<TrayBubbleView, ExperimentalAsh> bubble_view_ = nullptr;
-  raw_ptr<views::Widget, ExperimentalAsh> bubble_widget_ = nullptr;
-  raw_ptr<SelectToSpeakMenuView, ExperimentalAsh> menu_view_ = nullptr;
+  raw_ptr<TrayBubbleView> bubble_view_ = nullptr;
+  raw_ptr<views::Widget> bubble_widget_ = nullptr;
+  raw_ptr<SelectToSpeakMenuView> menu_view_ = nullptr;
 
   std::unique_ptr<SelectToSpeakSpeedBubbleController> speed_bubble_controller_;
   double initial_speech_rate_ = 1.0;
+  base::Time last_show_time_;
 };
 
 }  // namespace ash

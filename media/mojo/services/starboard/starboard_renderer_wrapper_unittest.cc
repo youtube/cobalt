@@ -24,6 +24,7 @@
 #include "base/test/gmock_callback_support.h"
 #include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
+#include "cobalt/media/service/video_geometry_setter_service.h"
 #include "media/base/media_util.h"
 #include "media/base/mock_filters.h"
 #include "media/base/test_helpers.h"
@@ -52,6 +53,8 @@ class MockStarboardRenderer : public StarboardRenderer {
       TimeDelta audio_write_duration_local,
       TimeDelta audio_write_duration_remote,
       const std::string& max_video_capabilities,
+      const StarboardRendererConfig::ExperimentalFeatures&
+          experimental_features,
       const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
       ,
@@ -64,6 +67,7 @@ class MockStarboardRenderer : public StarboardRenderer {
                           audio_write_duration_local,
                           audio_write_duration_remote,
                           max_video_capabilities,
+                          experimental_features,
                           viewport_size
 #if BUILDFLAG(IS_ANDROID)
                           ,
@@ -149,6 +153,7 @@ class StarboardRendererWrapperTest : public testing::Test {
             base::Seconds(1),
             base::Seconds(1),
             std::string(),
+            StarboardRendererConfig::ExperimentalFeatures{},
             gfx::Size()
 #if BUILDFLAG(IS_ANDROID)
                 ,
@@ -169,9 +174,10 @@ class StarboardRendererWrapperTest : public testing::Test {
     StarboardRendererTraits traits(
         task_environment_.GetMainThreadTaskRunner(),
         task_environment_.GetMainThreadTaskRunner(),
-        std::move(media_log_remote), base::UnguessableToken::Create(),
-        base::Seconds(1), base::Seconds(1), std::string(), gfx::Size(),
-        std::move(renderer_extension_receiver),
+        std::move(media_log_remote), &video_geometry_setter_service_,
+        base::UnguessableToken::Create(), base::Seconds(1), base::Seconds(1),
+        std::string(), StarboardRendererConfig::ExperimentalFeatures{},
+        gfx::Size(), std::move(renderer_extension_receiver),
         std::move(client_extension_remote), base::NullCallback(),
         AndroidOverlayMojoFactoryCB());
     renderer_wrapper_ =
@@ -182,13 +188,11 @@ class StarboardRendererWrapperTest : public testing::Test {
     EXPECT_CALL(media_resource_, GetAllStreams())
         .WillRepeatedly(
             Invoke(this, &StarboardRendererWrapperTest::GetAllStreams));
-    EXPECT_CALL(media_resource_, GetType())
-        .WillRepeatedly(Return(MediaResource::STREAM));
   }
 
   ~StarboardRendererWrapperTest() override {
-    mock_renderer_.reset();
     renderer_wrapper_.reset();
+    mock_renderer_.reset();
   }
 
   void AddStream(DemuxerStream::Type type, bool encrypted) {
@@ -204,6 +208,7 @@ class StarboardRendererWrapperTest : public testing::Test {
   }
 
   base::test::TaskEnvironment task_environment_;
+  cobalt::media::VideoGeometrySetterService video_geometry_setter_service_;
   std::unique_ptr<StrictMock<MockStarboardRenderer>> mock_renderer_;
   base::SequenceBound<StrictMock<MockStarboardGpuFactory>> mock_gpu_factory_;
   base::SequenceBound<StarboardGpuFactory> gpu_factory_;

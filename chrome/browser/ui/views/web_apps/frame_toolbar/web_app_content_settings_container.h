@@ -7,16 +7,21 @@
 
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/views/location_bar/content_setting_image_view.h"
 #include "chrome/browser/ui/views/location_bar/icon_label_bubble_view.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/view.h"
 
+class Browser;
+
 class WebAppContentSettingsContainer : public views::View {
+  METADATA_HEADER(WebAppContentSettingsContainer, views::View)
+
  public:
-  METADATA_HEADER(WebAppContentSettingsContainer);
   WebAppContentSettingsContainer(
+      Browser* browser,
       IconLabelBubbleView::Delegate* icon_label_bubble_delegate,
       ContentSettingImageView::Delegate* content_setting_image_delegate);
   WebAppContentSettingsContainer(const WebAppContentSettingsContainer&) =
@@ -36,14 +41,15 @@ class WebAppContentSettingsContainer : public views::View {
 
   void EnsureVisible();
 
-  const std::vector<ContentSettingImageView*>& get_content_setting_views()
-      const {
+  const std::vector<raw_ptr<ContentSettingImageView, VectorExperimental>>&
+  get_content_setting_views() const {
     return content_setting_views_;
   }
 
  private:
   // Owned by the views hierarchy.
-  std::vector<ContentSettingImageView*> content_setting_views_;
+  std::vector<raw_ptr<ContentSettingImageView, VectorExperimental>>
+      content_setting_views_;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_WEB_APPS_FRAME_TOOLBAR_WEB_APP_CONTENT_SETTINGS_CONTAINER_H_

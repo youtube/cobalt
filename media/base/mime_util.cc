@@ -5,7 +5,6 @@
 #include "media/base/mime_util.h"
 
 #include "base/no_destructor.h"
-#include "base/strings/string_piece.h"
 #include "media/base/mime_util_internal.h"
 
 namespace media {
@@ -16,22 +15,22 @@ static const internal::MimeUtil* GetMimeUtil() {
   return &(*mime_util);
 }
 
-bool IsSupportedMediaMimeType(base::StringPiece mime_type) {
+bool IsSupportedMediaMimeType(std::string_view mime_type) {
   return GetMimeUtil()->IsSupportedMediaMimeType(mime_type);
 }
 
-SupportsType IsSupportedMediaFormat(base::StringPiece mime_type,
+SupportsType IsSupportedMediaFormat(std::string_view mime_type,
                                     const std::vector<std::string>& codecs) {
   return GetMimeUtil()->IsSupportedMediaFormat(mime_type, codecs, false);
 }
 
 SupportsType IsSupportedEncryptedMediaFormat(
-    base::StringPiece mime_type,
+    std::string_view mime_type,
     const std::vector<std::string>& codecs) {
   return GetMimeUtil()->IsSupportedMediaFormat(mime_type, codecs, true);
 }
 
-void SplitCodecs(base::StringPiece codecs,
+void SplitCodecs(std::string_view codecs,
                  std::vector<std::string>* codecs_out) {
   GetMimeUtil()->SplitCodecs(codecs, codecs_out);
 }
@@ -40,20 +39,15 @@ void StripCodecs(std::vector<std::string>* codecs) {
   GetMimeUtil()->StripCodecs(codecs);
 }
 
-bool ParseVideoCodecString(base::StringPiece mime_type,
-                           base::StringPiece codec_id,
-                           bool* ambiguous_codec_string,
-                           VideoCodec* out_codec,
-                           VideoCodecProfile* out_profile,
-                           uint8_t* out_level,
-                           VideoColorSpace* out_colorspace) {
-  return GetMimeUtil()->ParseVideoCodecString(
-      mime_type, codec_id, ambiguous_codec_string, out_codec, out_profile,
-      out_level, out_colorspace);
+std::optional<VideoType> ParseVideoCodecString(std::string_view mime_type,
+                                               std::string_view codec_id,
+                                               bool allow_ambiguous_matches) {
+  return GetMimeUtil()->ParseVideoCodecString(mime_type, codec_id,
+                                              allow_ambiguous_matches);
 }
 
-bool ParseAudioCodecString(base::StringPiece mime_type,
-                           base::StringPiece codec_id,
+bool ParseAudioCodecString(std::string_view mime_type,
+                           std::string_view codec_id,
                            bool* ambiguous_codec_string,
                            AudioCodec* out_codec) {
   return GetMimeUtil()->ParseAudioCodecString(

@@ -14,11 +14,11 @@
 #include "media/base/cdm_context.h"
 #include "media/mojo/mojom/media_service.mojom.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
-#include "media/mojo/mojom/stable/stable_video_decoder.mojom.h"
 
 #if BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
-#include "content/public/browser/stable_video_decoder_factory.h"
+#include "content/public/browser/oop_video_decoder_factory.h"
 #include "media/base/media_switches.h"
+#include "mojo/public/cpp/bindings/message.h"
 #endif  // BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
 
 namespace content {
@@ -53,8 +53,7 @@ void FramelessMediaInterfaceProxy::CreateAudioDecoder(
 
 void FramelessMediaInterfaceProxy::CreateVideoDecoder(
     mojo::PendingReceiver<media::mojom::VideoDecoder> receiver,
-    mojo::PendingRemote<media::stable::mojom::StableVideoDecoder>
-        dst_video_decoder) {
+    mojo::PendingRemote<media::mojom::VideoDecoder> dst_video_decoder) {
   DVLOG(2) << __func__;
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // The browser process cannot act as a proxy for video decoding and clients
@@ -65,24 +64,22 @@ void FramelessMediaInterfaceProxy::CreateVideoDecoder(
   if (!factory)
     return;
 
-  mojo::PendingRemote<media::stable::mojom::StableVideoDecoder>
-      oop_video_decoder;
+  mojo::PendingRemote<media::mojom::VideoDecoder> oop_video_decoder;
 #if BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
   if (media::IsOutOfProcessVideoDecodingEnabled()) {
     if (!render_process_host_) {
-      if (!stable_vd_factory_remote_.is_bound()) {
-        LaunchStableVideoDecoderFactory(
-            stable_vd_factory_remote_.BindNewPipeAndPassReceiver());
-        stable_vd_factory_remote_.reset_on_disconnect();
+      if (!vd_factory_remote_.is_bound()) {
+        LaunchOOPVideoDecoderFactory(
+            vd_factory_remote_.BindNewPipeAndPassReceiver());
+        vd_factory_remote_.reset_on_disconnect();
       }
 
-      if (!stable_vd_factory_remote_.is_bound())
-        return;
+      CHECK(vd_factory_remote_.is_bound());
 
-      stable_vd_factory_remote_->CreateStableVideoDecoder(
-          oop_video_decoder.InitWithNewPipeAndPassReceiver());
+      vd_factory_remote_->CreateVideoDecoderWithTracker(
+          oop_video_decoder.InitWithNewPipeAndPassReceiver(), /*tracker=*/{});
     } else {
-      render_process_host_->CreateStableVideoDecoder(
+      render_process_host_->CreateOOPVideoDecoder(
           oop_video_decoder.InitWithNewPipeAndPassReceiver());
     }
   }
@@ -90,6 +87,20 @@ void FramelessMediaInterfaceProxy::CreateVideoDecoder(
   factory->CreateVideoDecoder(std::move(receiver),
                               std::move(oop_video_decoder));
 }
+
+#if BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
+void FramelessMediaInterfaceProxy::CreateVideoDecoderWithTracker(
+    mojo::PendingReceiver<media::mojom::VideoDecoder> receiver,
+    mojo::PendingRemote<media::mojom::VideoDecoderTracker> tracker) {
+  // mojo::ReportBadMessage() should be called directly within the stack frame
+  // of a message dispatch, hence the CHECK().
+  // CreateVideoDecoderWithTracker() should be called by the browser process
+  // only. This implementation is exposed to the renderer. Well-behaved clients
+  // (renderers) shouldn't call CreateVideoDecoderWithTracker().
+  CHECK(mojo::IsInMessageDispatch());
+  mojo::ReportBadMessage("CreateVideoDecoderWithTracker() called unexpectedly");
+}
+#endif  // BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
 
 void FramelessMediaInterfaceProxy::CreateAudioEncoder(
     mojo::PendingReceiver<media::mojom::AudioEncoder> receiver) {
@@ -116,13 +127,6 @@ void FramelessMediaInterfaceProxy::CreateFlingingRenderer(
     mojo::PendingRemote<media::mojom::FlingingRendererClientExtension>
         client_extenion,
     mojo::PendingReceiver<media::mojom::Renderer> receiver) {}
-
-void FramelessMediaInterfaceProxy::CreateMediaPlayerRenderer(
-    mojo::PendingRemote<media::mojom::MediaPlayerRendererClientExtension>
-        client_extension_remote,
-    mojo::PendingReceiver<media::mojom::Renderer> receiver,
-    mojo::PendingReceiver<media::mojom::MediaPlayerRendererExtension>
-        renderer_extension_receiver) {}
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_WIN)
@@ -150,7 +154,8 @@ void FramelessMediaInterfaceProxy::CreateStarboardRenderer(
 
 void FramelessMediaInterfaceProxy::CreateCdm(const media::CdmConfig& cdm_config,
                                              CreateCdmCallback callback) {
-  std::move(callback).Run(mojo::NullRemote(), nullptr, "CDM not supported");
+  std::move(callback).Run(mojo::NullRemote(), nullptr,
+                          media::CreateCdmStatus::kCdmNotSupported);
 }
 
 media::mojom::InterfaceFactory*

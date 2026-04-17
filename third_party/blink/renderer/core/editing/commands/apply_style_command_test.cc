@@ -15,6 +15,7 @@
 #include "third_party/blink/renderer/core/execution_context/security_context.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/core/keywords.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 
 namespace blink {
@@ -37,7 +38,7 @@ TEST_F(ApplyStyleCommandTest, RemoveRedundantBlocksWithStarEditableStyle) {
       "</li>"
       "</ul></div></div>");
 
-  Element* li = GetDocument().QuerySelector("li");
+  Element* li = QuerySelector("li");
 
   LocalFrame* frame = GetDocument().GetFrame();
   frame->Selection().SetSelection(
@@ -73,7 +74,7 @@ TEST_F(ApplyStyleCommandTest, JustifyRightDetachesDestination) {
       "</ruby");
   Element* body = GetDocument().body();
   // The bug doesn't reproduce with a contenteditable <div> as container.
-  body->setAttribute(html_names::kContenteditableAttr, "true");
+  body->setAttribute(html_names::kContenteditableAttr, keywords::kTrue);
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
   Selection().SelectAll();
 
@@ -156,8 +157,10 @@ TEST_F(ApplyStyleCommandTest, JustifyCenterWithNonEditable) {
       ApplyStyleCommand::kForceBlockProperties)
       ->Apply();
 
-  EXPECT_EQ("<div style=\"text-align: center;\">|<br>x</div>",
-            GetSelectionTextFromBody());
+  EXPECT_EQ(
+      "<div style=\"text-align: center;\">|x</div><div "
+      "contenteditable=\"false\"></div>",
+      GetSelectionTextFromBody());
 }
 
 // This is a regression test for https://crbug.com/1199902
@@ -166,7 +169,7 @@ TEST_F(ApplyStyleCommandTest, StyledInlineElementIsActuallyABlock) {
   Selection().SetSelection(SetSelectionTextToBody("^<sub>a</sub>|"),
                            SetSelectionOptions());
   GetDocument().setDesignMode("on");
-  Element* styled_inline_element = GetDocument().QuerySelector("sub");
+  Element* styled_inline_element = QuerySelector("sub");
   bool remove_only = true;
   // Shouldn't crash.
   MakeGarbageCollected<ApplyStyleCommand>(styled_inline_element, remove_only)
@@ -180,8 +183,8 @@ TEST_F(ApplyStyleCommandTest, ItalicCrossingIgnoredContentBoundary) {
   SetBodyContent("a<select multiple><option></option></select>b");
 
   Element* body = GetDocument().body();
-  Element* select = GetDocument().QuerySelector("select");
-  Element* option = GetDocument().QuerySelector("option");
+  Element* select = QuerySelector("select");
+  Element* option = QuerySelector("option");
   EXPECT_FALSE(EditingIgnoresContent(*body));
   EXPECT_TRUE(EditingIgnoresContent(*select));
   EXPECT_FALSE(EditingIgnoresContent(*option));
@@ -216,8 +219,8 @@ TEST_F(ApplyStyleCommandTest, RemoveEmptyItalic) {
   InsertStyleElement("i {display: inline-block; width: 1px; height: 1px}");
   SetBodyContent("<div><input><i></i>&#x20;</div>A");
 
-  Element* div = GetDocument().QuerySelector("div");
-  Element* i = GetDocument().QuerySelector("i");
+  Element* div = QuerySelector("div");
+  Element* i = QuerySelector("i");
   Selection().SetSelection(
       SelectionInDOMTree::Builder().Collapse(Position(i, 0)).Build(),
       SetSelectionOptions());

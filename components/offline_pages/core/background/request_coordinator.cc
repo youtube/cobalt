@@ -4,6 +4,7 @@
 
 #include "components/offline_pages/core/background/request_coordinator.h"
 
+#include <algorithm>
 #include <limits>
 #include <memory>
 #include <utility>
@@ -16,7 +17,6 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/observer_list.h"
 #include "base/rand_util.h"
-#include "base/ranges/algorithm.h"
 #include "base/system/sys_info.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
@@ -76,9 +76,9 @@ constexpr bool IsCanceledOrInternalFailure(Offliner::RequestStatus status) {
 }
 
 // Returns the |BackgroundSavePageResult| appropriate for a single attempt
-// status. Returns |absl::nullopt| for indeterminate status values that can be
+// status. Returns |std::nullopt| for indeterminate status values that can be
 // retried.
-absl::optional<RequestNotifier::BackgroundSavePageResult> SingleAttemptResult(
+std::optional<RequestNotifier::BackgroundSavePageResult> SingleAttemptResult(
     Offliner::RequestStatus status) {
   switch (status) {
       // Success status values.
@@ -94,7 +94,7 @@ absl::optional<RequestNotifier::BackgroundSavePageResult> SingleAttemptResult(
     case Offliner::RequestStatus::LOADING_DEFERRED:
     case Offliner::RequestStatus::BACKGROUND_SCHEDULER_CANCELED:
     case Offliner::RequestStatus::REQUEST_COORDINATOR_CANCELED:
-      return absl::nullopt;
+      return std::nullopt;
 
       // Other failure status values.
     case Offliner::RequestStatus::LOADING_FAILED_NO_RETRY:
@@ -111,7 +111,7 @@ absl::optional<RequestNotifier::BackgroundSavePageResult> SingleAttemptResult(
     case Offliner::RequestStatus::LOADING_FAILED_HTTP_ERROR:
     case Offliner::RequestStatus::LOADING_FAILED_NO_NEXT:
     case Offliner::RequestStatus::REQUEST_COORDINATOR_TIMED_OUT:
-      return absl::nullopt;
+      return std::nullopt;
 
     // Only used by |Offliner| internally.
     case Offliner::RequestStatus::UNKNOWN:
@@ -121,7 +121,7 @@ absl::optional<RequestNotifier::BackgroundSavePageResult> SingleAttemptResult(
     // Only recorded by |RequestCoordinator| directly.
     case Offliner::RequestStatus::BROWSER_KILLED:
       DCHECK(false) << "Received invalid status: " << static_cast<int>(status);
-      return absl::nullopt;
+      return std::nullopt;
   }
 }
 
@@ -176,7 +176,7 @@ RequestCoordinator::RequestCoordinator(
   queue_->CleanupRequestQueue();
 }
 
-RequestCoordinator::~RequestCoordinator() {}
+RequestCoordinator::~RequestCoordinator() = default;
 
 int64_t RequestCoordinator::SavePageLater(
     const SavePageLaterParams& save_page_later_params,
@@ -362,7 +362,7 @@ void RequestCoordinator::PauseRequests(
     const std::vector<int64_t>& request_ids) {
   // Remove the paused requests from prioritized list.
   for (int64_t id : request_ids) {
-    auto it = base::ranges::find(prioritized_requests_, id);
+    auto it = std::ranges::find(prioritized_requests_, id);
     if (it != prioritized_requests_.end())
       prioritized_requests_.erase(it);
   }
@@ -801,7 +801,7 @@ void RequestCoordinator::OfflinerDoneCallback(const SavePageRequest& request,
 void RequestCoordinator::UpdateRequestForAttempt(
     const SavePageRequest& request,
     Offliner::RequestStatus status) {
-  absl::optional<RequestNotifier::BackgroundSavePageResult> attempt_result =
+  std::optional<RequestNotifier::BackgroundSavePageResult> attempt_result =
       SingleAttemptResult(status);
 
   if (IsCanceledOrInternalFailure(status)) {
@@ -883,7 +883,6 @@ bool RequestCoordinator::ShouldTryNextRequest(
       // Make explicit choice about new status codes that actually reach here.
       // Their default is no further processing in this service window.
       NOTREACHED();
-      return false;
   }
 }
 

@@ -7,8 +7,11 @@ package org.chromium.android_webview;
 import android.graphics.Bitmap;
 import android.util.Log;
 
+import org.chromium.android_webview.common.Lifetime;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.embedder_support.util.WebResourceResponseInfo;
 
 import java.io.IOException;
@@ -20,11 +23,13 @@ import java.util.Random;
 
 /**
  * This class takes advantage of shouldInterceptRequest(), returns the bitmap from
- * WebChromeClient.getDefaultVidoePoster() when the mDefaultVideoPosterURL is requested.
+ * WebChromeClient.getDefaultVidoePoster() when the mDefaultVideoPosterUrl is requested.
  *
- * The shouldInterceptRequest is used to get the default video poster, if the url is
- * the mDefaultVideoPosterURL.
+ * <p>The shouldInterceptRequest is used to get the default video poster, if the url is the
+ * mDefaultVideoPosterUrl.
  */
+@Lifetime.WebView
+@NullMarked
 public class DefaultVideoPosterRequestHandler {
     private static InputStream getInputStream(final AwContentsClient contentClient)
             throws IOException {
@@ -34,24 +39,28 @@ public class DefaultVideoPosterRequestHandler {
         // Send the request to UI thread to callback to the client, and if it provides a
         // valid bitmap bounce on to the worker thread pool to compress it into the piped
         // input/output stream.
-        PostTask.runOrPostTask(TaskTraits.UI_DEFAULT, () -> {
-            final Bitmap defaultVideoPoster = contentClient.getDefaultVideoPoster();
-            if (defaultVideoPoster == null) {
-                closeOutputStream(outputStream);
-                return;
-            }
-            PostTask.postTask(TaskTraits.BEST_EFFORT_MAY_BLOCK, () -> {
-                try {
-                    defaultVideoPoster.compress(Bitmap.CompressFormat.PNG, 100,
-                            outputStream);
-                    outputStream.flush();
-                } catch (IOException e) {
-                    Log.e(TAG, null, e);
-                } finally {
-                    closeOutputStream(outputStream);
-                }
-            });
-        });
+        PostTask.runOrPostTask(
+                TaskTraits.UI_DEFAULT,
+                () -> {
+                    final Bitmap defaultVideoPoster = contentClient.getDefaultVideoPoster();
+                    if (defaultVideoPoster == null) {
+                        closeOutputStream(outputStream);
+                        return;
+                    }
+                    PostTask.postTask(
+                            TaskTraits.BEST_EFFORT_MAY_BLOCK,
+                            () -> {
+                                try {
+                                    defaultVideoPoster.compress(
+                                            Bitmap.CompressFormat.PNG, 100, outputStream);
+                                    outputStream.flush();
+                                } catch (IOException e) {
+                                    Log.e(TAG, null, e);
+                                } finally {
+                                    closeOutputStream(outputStream);
+                                }
+                            });
+                });
         return inputStream;
     }
 
@@ -64,23 +73,23 @@ public class DefaultVideoPosterRequestHandler {
     }
 
     private static final String TAG = "DefaultVideoPosterRequestHandler";
-    private String mDefaultVideoPosterURL;
-    private AwContentsClient mContentClient;
+    private final String mDefaultVideoPosterUrl;
+    private final AwContentsClient mContentClient;
 
     public DefaultVideoPosterRequestHandler(AwContentsClient contentClient) {
-        mDefaultVideoPosterURL = generateDefaulVideoPosterURL();
+        mDefaultVideoPosterUrl = generateDefaulVideoPosterUrl();
         mContentClient = contentClient;
     }
 
     /**
-     * Used to get the image if the url is mDefaultVideoPosterURL.
+     * Used to get the image if the url is mDefaultVideoPosterUrl.
      *
      * @param url the url requested
-     * @return WebResourceResponseInfo which caller can get the image if the url is
-     * the default video poster URL, otherwise null is returned.
+     * @return WebResourceResponseInfo which caller can get the image if the url is the default
+     *     video poster URL, otherwise null is returned.
      */
-    public WebResourceResponseInfo shouldInterceptRequest(final String url) {
-        if (!mDefaultVideoPosterURL.equals(url)) return null;
+    public @Nullable WebResourceResponseInfo shouldInterceptRequest(final String url) {
+        if (!mDefaultVideoPosterUrl.equals(url)) return null;
 
         try {
             return new WebResourceResponseInfo("image/png", null, getInputStream(mContentClient));
@@ -90,14 +99,14 @@ public class DefaultVideoPosterRequestHandler {
         }
     }
 
-    public String getDefaultVideoPosterURL() {
-        return mDefaultVideoPosterURL;
+    public String getDefaultVideoPosterUrl() {
+        return mDefaultVideoPosterUrl;
     }
 
     /**
      * @return a unique URL which has little chance to be used by application.
      */
-    private static String generateDefaulVideoPosterURL() {
+    private static String generateDefaulVideoPosterUrl() {
         Random randomGenerator = new Random();
         String path = String.valueOf(randomGenerator.nextLong());
         // The scheme of this URL should be kept in sync with kAndroidWebViewVideoPosterScheme

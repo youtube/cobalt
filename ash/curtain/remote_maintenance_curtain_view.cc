@@ -9,12 +9,16 @@
 #include "ash/assistant/ui/base/stack_layout.h"
 #include "ash/public/cpp/ash_web_view.h"
 #include "ash/public/cpp/ash_web_view_factory.h"
+#include "ash/public/cpp/oobe_dialog_util.h"
+#include "ash/wallpaper/views/wallpaper_view.h"
 #include "ash/wallpaper/wallpaper_constants.h"
-#include "ash/wallpaper/wallpaper_view.h"
 #include "base/check_deref.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/views/view.h"
+#include "ui/views/view_shadow.h"
 
 namespace ash::curtain {
 
@@ -22,13 +26,14 @@ namespace {
 
 constexpr char kRemoteManagementCurtainUrl[] = "chrome://security-curtain/";
 
+OobeDialogUtil& util() {
+  return OobeDialogUtil::Get();
+}
+
 gfx::Size CalculateCurtainViewSize(const gfx::Size& size) {
-  // TODO(b/271099991): Use correct margins once Oobe code has migrated to the
-  // new UX style so we can use their code.
-  const int horizontal_margin = size.width() / 10;
-  const int vertical_margin = size.height() / 10;
-  return gfx::Size(size.width() - 2 * horizontal_margin,
-                   size.height() - 2 * vertical_margin);
+  return util().CalculateDialogSize(
+      size, /*shelf_height=*/0,
+      /*is_horizontal=*/(size.width() >= size.height()));
 }
 
 }  // namespace
@@ -68,14 +73,27 @@ void RemoteMaintenanceCurtainView::AddWallpaper() {
 
 void RemoteMaintenanceCurtainView::AddCurtainWebView() {
   DCHECK(!curtain_view_);
-  curtain_view_ =
-      AddChildView(AshWebViewFactory::Get()->Create(AshWebView::InitParams()));
+
+  AshWebView::InitParams web_view_params;
+  web_view_params.rounded_corners =
+      gfx::RoundedCornersF(util().GetCornerRadius());
+  curtain_view_ = AddChildView(
+      AshWebViewFactory::Get()->Create(std::move(web_view_params)));
+
   curtain_view_->SetID(kRemoteMaintenanceCurtainAshWebViewId);
   layout_->SetVerticalAlignmentForView(curtain_view_,
                                        StackLayout::VerticalAlignment::kCenter);
 
+  // Add a shadow
+  curtain_view_shadow_ = std::make_unique<views::ViewShadow>(
+      curtain_view_.get(), util().GetShadowElevation());
+  curtain_view_shadow_->SetRoundedCornerRadius(util().GetCornerRadius());
+
   // Load the actual security curtain content.
   curtain_view_->Navigate(GURL(kRemoteManagementCurtainUrl));
 }
+
+BEGIN_METADATA(RemoteMaintenanceCurtainView)
+END_METADATA
 
 }  // namespace ash::curtain

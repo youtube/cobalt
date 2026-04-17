@@ -32,10 +32,6 @@ class ChromeAppDelegate : public extensions::AppDelegate {
 
   static void DisableExternalOpenForTesting();
 
-  void set_for_lock_screen_app(bool for_lock_screen_app) {
-    for_lock_screen_app_ = for_lock_screen_app;
-  }
-
  private:
   static void RelinquishKeepAliveAfterTimeout(
       const base::WeakPtr<ChromeAppDelegate>& chrome_app_delegate);
@@ -50,7 +46,9 @@ class ChromeAppDelegate : public extensions::AppDelegate {
   content::WebContents* OpenURLFromTab(
       content::BrowserContext* context,
       content::WebContents* source,
-      const content::OpenURLParams& params) override;
+      const content::OpenURLParams& params,
+      base::OnceCallback<void(content::NavigationHandle&)>
+          navigation_handle_callback) override;
   void AddNewContents(content::BrowserContext* context,
                       std::unique_ptr<content::WebContents> new_contents,
                       const GURL& target_url,
@@ -67,7 +65,7 @@ class ChromeAppDelegate : public extensions::AppDelegate {
       const extensions::Extension* extension) override;
   bool CheckMediaAccessPermission(
       content::RenderFrameHost* render_frame_host,
-      const GURL& security_origin,
+      const url::Origin& security_origin,
       blink::mojom::MediaStreamType type,
       const extensions::Extension* extension) override;
   int PreferredIconSize() const override;
@@ -77,7 +75,6 @@ class ChromeAppDelegate : public extensions::AppDelegate {
   void SetTerminatingCallback(base::OnceClosure callback) override;
   void OnHide() override;
   void OnShow() override;
-  bool TakeFocus(content::WebContents* web_contents, bool reverse) override;
   content::PictureInPictureResult EnterPictureInPicture(
       content::WebContents* web_contents) override;
   void ExitPictureInPicture() override;
@@ -86,7 +83,6 @@ class ChromeAppDelegate : public extensions::AppDelegate {
 
   bool has_been_shown_;
   bool is_hidden_;
-  bool for_lock_screen_app_;
   const raw_ptr<Profile> profile_;
   std::unique_ptr<ScopedKeepAlive> keep_alive_;
   std::unique_ptr<ScopedProfileKeepAlive> profile_keep_alive_;

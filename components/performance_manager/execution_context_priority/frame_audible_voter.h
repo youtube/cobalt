@@ -6,14 +6,17 @@
 #define COMPONENTS_PERFORMANCE_MANAGER_EXECUTION_CONTEXT_PRIORITY_FRAME_AUDIBLE_VOTER_H_
 
 #include "components/performance_manager/public/execution_context_priority/execution_context_priority.h"
+#include "components/performance_manager/public/execution_context_priority/priority_voting_system.h"
 #include "components/performance_manager/public/graph/frame_node.h"
 
 namespace performance_manager {
 namespace execution_context_priority {
 
-// This voter casts a TaskPriority::USER_VISIBLE vote to all audible frames, and
-// a TaskPriority::LOWEST vote to non-audible frames.
-class FrameAudibleVoter : public FrameNode::ObserverDefaultImpl {
+// This voter casts a TaskPriority::USER_BLOCKING vote to all audible frames,
+// and a TaskPriority::LOWEST vote to non-audible frames.
+// Note: This FrameNodeObserver can affect the initial priority of a frame and
+// thus uses `OnBeforeFrameNodeAdded`.
+class FrameAudibleVoter : public PriorityVoter, public FrameNodeObserver {
  public:
   static const char kFrameAudibleReason[];
 
@@ -23,13 +26,21 @@ class FrameAudibleVoter : public FrameNode::ObserverDefaultImpl {
   FrameAudibleVoter(const FrameAudibleVoter&) = delete;
   FrameAudibleVoter& operator=(const FrameAudibleVoter&) = delete;
 
-  // Sets the voting channel where the votes will be cast.
-  void SetVotingChannel(VotingChannel voting_channel);
+  // PriorityVoter:
+  void InitializeOnGraph(Graph* graph, VotingChannel voting_channel) override;
+  void TearDownOnGraph(Graph* graph) override;
 
   // FrameNodeObserver:
-  void OnFrameNodeAdded(const FrameNode* frame_node) override;
+  void OnBeforeFrameNodeAdded(
+      const FrameNode* frame_node,
+      const FrameNode* pending_parent_frame_node,
+      const PageNode* pending_page_node,
+      const ProcessNode* pending_process_node,
+      const FrameNode* pending_parent_or_outer_document_or_embedder) override;
   void OnBeforeFrameNodeRemoved(const FrameNode* frame_node) override;
   void OnIsAudibleChanged(const FrameNode* frame_node) override;
+
+  VoterId voter_id() const { return voting_channel_.voter_id(); }
 
  private:
   VotingChannel voting_channel_;

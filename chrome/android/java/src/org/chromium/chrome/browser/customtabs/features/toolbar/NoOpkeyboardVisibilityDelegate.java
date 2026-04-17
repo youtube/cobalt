@@ -7,9 +7,11 @@ package org.chromium.chrome.browser.customtabs.features.toolbar;
 import android.content.Context;
 import android.view.View;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 
 /** A {@link KeyboardVisibilityDelegate} that never shows the keyboard. */
+@NullMarked
 class NoOpkeyboardVisibilityDelegate extends KeyboardVisibilityDelegate {
     @Override
     public void showKeyboard(View view) {}
@@ -20,7 +22,7 @@ class NoOpkeyboardVisibilityDelegate extends KeyboardVisibilityDelegate {
     }
 
     @Override
-    public int calculateKeyboardHeight(View view) {
+    public int calculateTotalKeyboardHeight(View view) {
         return 0;
     }
 

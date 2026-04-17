@@ -80,7 +80,7 @@ void RandomOrderExecutor::pruneStack(size_t newStackSize)
             else
                 DE_ASSERT(curEntry.children.empty());
 
-            curEntry.node = DE_NULL;
+            curEntry.node = nullptr;
             curEntry.children.clear();
         }
 
@@ -99,7 +99,7 @@ static TestNode *findNodeByName(vector<TestNode *> &nodes, const std::string &na
             return *node;
     }
 
-    return DE_NULL;
+    return nullptr;
 }
 
 TestCase *RandomOrderExecutor::seekToCase(const string &path)
@@ -196,7 +196,7 @@ TestStatus RandomOrderExecutor::execute(const std::string &casePath)
 tcu::TestStatus RandomOrderExecutor::executeInner(TestCase *testCase, const std::string &casePath)
 {
     TestLog &log                 = m_testCtx.getLog();
-    const deUint64 testStartTime = deGetMicroseconds();
+    const uint64_t testStartTime = deGetMicroseconds();
 
     m_testCtx.setTestResult(QP_TEST_RESULT_LAST, "");
 

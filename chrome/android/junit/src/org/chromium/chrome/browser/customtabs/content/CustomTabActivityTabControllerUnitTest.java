@@ -5,88 +5,103 @@
 package org.chromium.chrome.browser.customtabs.content;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.AdditionalMatchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.content.Intent;
+import android.net.Network;
 import android.os.Bundle;
 
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.chrome.browser.customtabs.content.TabObserverRegistrar.CustomTabTabObserver;
+import org.chromium.base.test.util.Features;
+import org.chromium.chrome.browser.autofill.AndroidAutofillAvailabilityStatus;
+import org.chromium.chrome.browser.autofill.AutofillClientProviderUtils;
+import org.chromium.chrome.browser.cookies.CookiesFetcher;
+import org.chromium.chrome.browser.cookies.CookiesFetcherJni;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
-import org.chromium.chrome.browser.privacy.settings.PrivacyPreferencesManager;
 import org.chromium.chrome.browser.privacy.settings.PrivacyPreferencesManagerImpl;
-import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.tab.TabObserver;
-import org.chromium.chrome.test.util.browser.Features;
-import org.chromium.chrome.test.util.browser.Features.DisableFeatures;
+import org.chromium.components.autofill.AndroidAutofillFeatures;
 import org.chromium.components.embedder_support.util.ShadowUrlUtilities;
+import org.chromium.components.prefs.PrefService;
+import org.chromium.components.user_prefs.UserPrefsJni;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.net.NetId;
 
-/**
- * Tests for {@link CustomTabActivityTabController}.
- */
+/** Tests for {@link CustomTabActivityTabController}. */
 @RunWith(BaseRobolectricTestRunner.class)
-@Config(manifest = Config.NONE, shadows = {ShadowUrlUtilities.class})
-@DisableFeatures({ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS})
+@Config(
+        manifest = Config.NONE,
+        shadows = {ShadowUrlUtilities.class})
+@Features.EnableFeatures({
+    ChromeFeatureList.CCT_PREWARM_TAB,
+    ChromeFeatureList.CCT_EARLY_NAV,
+    AndroidAutofillFeatures.ANDROID_AUTOFILL_VIRTUAL_VIEW_STRUCTURE_ANDROID_IN_CCT_NAME
+})
 public class CustomTabActivityTabControllerUnitTest {
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+
     @Rule
     public final CustomTabActivityContentTestEnvironment env =
             new CustomTabActivityContentTestEnvironment();
 
-    @Rule
-    public Features.JUnitProcessor processor = new Features.JUnitProcessor();
-
     private CustomTabActivityTabController mTabController;
 
-    @Mock
-    private Profile mProfile;
-    @Mock
-    private PrivacyPreferencesManagerImpl mPrivacyPreferencesManager;
+    @Mock private PrivacyPreferencesManagerImpl mPrivacyPreferencesManager;
+    @Mock private Network mNetwork;
+    @Mock private UserPrefsJni mMockUserPrefsJni;
+
+    @Mock private CookiesFetcher.Natives mCookiesFetcherJni;
+
+    private static final long TEST_TARGET_NETWORK = 1000;
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
-        Profile.setLastUsedProfileForTesting(mProfile);
+        when(env.intentDataProvider.getTargetNetwork()).thenReturn((long) NetId.INVALID);
+
+        // Ensure the test can read the Autofill pref. Assume it's turned off by default.
+        AutofillClientProviderUtils.setAutofillAvailabilityToUseForTesting(
+                AndroidAutofillAvailabilityStatus.SETTING_TURNED_OFF);
+        UserPrefsJni.setInstanceForTesting(mMockUserPrefsJni);
+        doReturn(mock(PrefService.class)).when(mMockUserPrefsJni).get(any());
+
         mTabController = env.createTabController();
         PrivacyPreferencesManagerImpl.setInstanceForTesting(mPrivacyPreferencesManager);
-    }
 
-    @After
-    public void tearDown() {
-        Profile.setLastUsedProfileForTesting(null);
+        CookiesFetcherJni.setInstanceForTesting(mCookiesFetcherJni);
     }
 
     @Test
     public void createsTabEarly_IfWarmUpIsFinished() {
         env.warmUp();
-        mTabController.onPreInflationStartup();
+        mTabController.setUpInitialTab(null);
+        mTabController.finishNativeInitialization();
         assertNotNull(env.tabProvider.getTab());
         assertEquals(TabCreationMode.EARLY, env.tabProvider.getInitialTabCreationMode());
     }
@@ -94,7 +109,8 @@ public class CustomTabActivityTabControllerUnitTest {
     // Some websites replace the tab with a new one.
     @Test
     public void returnsNewTab_IfTabChanges() {
-        mTabController.onPreInflationStartup();
+        mTabController.setUpInitialTab(null);
+        mTabController.finishNativeInitialization();
         mTabController.finishNativeInitialization();
         Tab newTab = env.prepareTab();
         env.changeTab(newTab);
@@ -105,22 +121,49 @@ public class CustomTabActivityTabControllerUnitTest {
     public void usesRestoredTab_IfAvailable() {
         Tab savedTab = env.prepareTab();
         env.saveTab(savedTab);
-        env.reachNativeInit(mTabController);
+        mTabController.setUpInitialTab(null);
+        mTabController.finishNativeInitialization();
         assertEquals(savedTab, env.tabProvider.getTab());
         assertEquals(TabCreationMode.RESTORED, env.tabProvider.getInitialTabCreationMode());
+    }
+
+    @Test
+    public void usesRestoredTab_IfOffTheRecord_IfAvailable() {
+        env.isOffTheRecord = true;
+        Tab savedTab = env.prepareTab();
+        env.saveTab(savedTab);
+        when(env.cipherFactory.restoreFromBundle(any())).thenReturn(true);
+        mTabController.setUpInitialTab(null);
+        mTabController.finishNativeInitialization();
+        assertEquals(savedTab, env.tabProvider.getTab());
+        assertEquals(TabCreationMode.RESTORED, env.tabProvider.getInitialTabCreationMode());
+    }
+
+    @Test
+    public void doesntUseRestoredTab_IfOffTheRecord_NoCipherKey() {
+        env.isOffTheRecord = true;
+        Tab savedTab = env.prepareTab();
+        env.saveTab(savedTab);
+        when(env.cipherFactory.restoreFromBundle(any())).thenReturn(false);
+        mTabController.setUpInitialTab(null);
+        mTabController.finishNativeInitialization();
+        assertEquals(env.tabFromFactory, env.tabProvider.getTab());
+        assertEquals(TabCreationMode.DEFAULT, env.tabProvider.getInitialTabCreationMode());
     }
 
     @Test
     public void doesntCreateNewTab_IfRestored() {
         Tab savedTab = env.prepareTab();
         env.saveTab(savedTab);
-        env.reachNativeInit(mTabController);
+        mTabController.setUpInitialTab(null);
+        mTabController.finishNativeInitialization();
         verify(env.tabFactory, never()).createTab(any(), any(), any());
     }
 
     @Test
     public void createsANewTabOnNativeInit_IfNoTabExists() {
-        env.reachNativeInit(mTabController);
+        mTabController.setUpInitialTab(null);
+        mTabController.finishNativeInitialization();
         assertEquals(env.tabFromFactory, env.tabProvider.getTab());
         assertEquals(TabCreationMode.DEFAULT, env.tabProvider.getInitialTabCreationMode());
     }
@@ -128,7 +171,8 @@ public class CustomTabActivityTabControllerUnitTest {
     @Test
     public void doesntCreateNewTabOnNativeInit_IfCreatedTabEarly() {
         env.warmUp();
-        mTabController.onPreInflationStartup();
+        mTabController.setUpInitialTab(null);
+        mTabController.finishNativeInitialization();
 
         clearInvocations(env.tabFactory);
         mTabController.finishNativeInitialization();
@@ -138,20 +182,23 @@ public class CustomTabActivityTabControllerUnitTest {
     @Test
     public void addsEarlyCreatedTab_ToTabModel() {
         env.warmUp();
-        env.reachNativeInit(mTabController);
+        mTabController.setUpInitialTab(null);
+        mTabController.finishNativeInitialization();
         verify(env.tabModel).addTab(eq(env.tabFromFactory), anyInt(), anyInt(), anyInt());
     }
 
     @Test
     public void addsTabCreatedOnNativeInit_ToTabModel() {
-        env.reachNativeInit(mTabController);
+        mTabController.setUpInitialTab(null);
+        mTabController.finishNativeInitialization();
         verify(env.tabModel).addTab(eq(env.tabFromFactory), anyInt(), anyInt(), anyInt());
     }
 
     @Test
     public void usesHiddenTab_IfAvailable() {
         Tab hiddenTab = env.prepareHiddenTab();
-        env.reachNativeInit(mTabController);
+        mTabController.setUpInitialTab(hiddenTab);
+        mTabController.finishNativeInitialization();
         assertEquals(hiddenTab, env.tabProvider.getTab());
         assertEquals(TabCreationMode.HIDDEN, env.tabProvider.getInitialTabCreationMode());
     }
@@ -159,30 +206,120 @@ public class CustomTabActivityTabControllerUnitTest {
     @Test
     public void finishesReparentingHiddenTab() {
         Tab hiddenTab = env.prepareHiddenTab();
-        env.reachNativeInit(mTabController);
-        verify(env.reparentingTaskProvider.get(hiddenTab)).finish(any(), any());
+        mTabController.setUpInitialTab(hiddenTab);
+        mTabController.finishNativeInitialization();
+        verify(env.reparentingTask).finish(any(), any());
     }
 
     @Test
     public void usesWebContentsCreatedWithWarmRenderer_ByDefault() {
         WebContents webContents = mock(WebContents.class);
-        when(env.webContentsFactory.createWebContentsWithWarmRenderer(any(), anyBoolean()))
+        when(env.mWebContentsFactoryJni.createWebContents(
+                        /* profile= */ any(),
+                        /* initiallyHidden= */ anyBoolean(),
+                        /* initializeRenderer= */ eq(true),
+                        /* usesPlatformAutofill= */ eq(false),
+                        /* targetNetwork= */ anyLong(),
+                        any()))
                 .thenReturn(webContents);
-        env.reachNativeInit(mTabController);
+        mTabController.setUpInitialTab(null);
+        mTabController.finishNativeInitialization();
+        assertEquals(webContents, env.webContentsCaptor.getValue());
+    }
+
+    @Test
+    public void usesWebContentsCreatedWithWarmRenderer_whenUsersOptInto3pAutofill() {
+        AutofillClientProviderUtils.setAutofillAvailabilityToUseForTesting(
+                AndroidAutofillAvailabilityStatus.AVAILABLE);
+        WebContents webContents = mock(WebContents.class);
+        when(env.mWebContentsFactoryJni.createWebContents(
+                        /* profile= */ any(),
+                        /* initiallyHidden= */ anyBoolean(),
+                        /* initializeRenderer= */ eq(true),
+                        /* usesPlatformAutofill= */ eq(true),
+                        /* targetNetwork= */ anyLong(),
+                        any()))
+                .thenReturn(webContents);
+        mTabController.setUpInitialTab(null);
+        mTabController.finishNativeInitialization();
+        assertEquals(webContents, env.webContentsCaptor.getValue());
+    }
+
+    @Test
+    public void propagatesTargetNetworkCorrectly_whenIntentDataProviderTargetsNetwork() {
+        when(env.intentDataProvider.getTargetNetwork()).thenReturn(TEST_TARGET_NETWORK);
+        mTabController.setUpInitialTab(null);
+        mTabController.finishNativeInitialization();
+        verify(env.mWebContentsFactoryJni, never())
+                .createWebContents(
+                        /* profile= */ any(),
+                        /* initiallyHidden= */ anyBoolean(),
+                        /* initializeRenderer= */ eq(true),
+                        /* usesPlatformAutofill= */ eq(false),
+                        /* targetNetwork= */ not(eq(TEST_TARGET_NETWORK)),
+                        any());
+        verify(env.mWebContentsFactoryJni)
+                .createWebContents(
+                        /* profile= */ any(),
+                        /* initiallyHidden= */ anyBoolean(),
+                        /* initializeRenderer= */ eq(true),
+                        /* usesPlatformAutofill= */ eq(false),
+                        /* targetNetwork= */ eq(TEST_TARGET_NETWORK),
+                        any());
+    }
+
+    @Test
+    public void createsWebContentsFromScratch_whenIntentDataProviderTargetsNetwork() {
+        WebContents webContents = mock(WebContents.class);
+        when(env.intentDataProvider.getTargetNetwork()).thenReturn(TEST_TARGET_NETWORK);
+        when(env.mWebContentsFactoryJni.createWebContents(
+                        /* profile= */ any(),
+                        /* initiallyHidden= */ anyBoolean(),
+                        /* initializeRenderer= */ eq(true),
+                        /* usesPlatformAutofill= */ eq(false),
+                        /* targetNetwork= */ eq(TEST_TARGET_NETWORK),
+                        any()))
+                .thenReturn(webContents);
+        mTabController.setUpInitialTab(null);
+        mTabController.finishNativeInitialization();
+        // CustomTabActivityTabController#takeWebContents is the only entrypoint that can correctly
+        // handle IntentDataProvider#targetNetwork. As such, we expect it to always create a
+        // WebContents, targeting that network, when a network is specified in the intent.
+        // What does this mean? In practice, with the current code layout, we expect
+        // CustomTabActivityTabFactory#createTab to
+        // be called with a pre-existing WebContents. More specifically, we expect
+        // WebContentsFactory#createWebContentsWithWarmRenderer, within
+        // CustomTabActivityTabController#takeWebContents to have handled that (for the reasons
+        // stated above).
+        // Note: This is a lot of ifs and poking into internal implementation details, which is
+        // definitely not ideal. Unfortunately, this is the best we could come up to confirm that
+        // IntentDataProvider#targetNetwork is being correctly handled.
+        verify(env.tabFactory, never())
+                .createTab(
+                        /* webContents= */ eq(null),
+                        /* delegateFactory= */ any(),
+                        /* action= */ any());
+        verify(env.tabFactory)
+                .createTab(
+                        /* webContents= */ eq(webContents),
+                        /* delegateFactory= */ any(),
+                        /* action= */ any());
         assertEquals(webContents, env.webContentsCaptor.getValue());
     }
 
     @Test
     public void usesTransferredWebContents_IfAvailable() {
         WebContents transferredWebcontents = env.prepareTransferredWebcontents();
-        env.reachNativeInit(mTabController);
+        mTabController.setUpInitialTab(null);
+        mTabController.finishNativeInitialization();
         assertEquals(transferredWebcontents, env.webContentsCaptor.getValue());
     }
 
     @Test
     public void usesSpareWebContents_IfAvailable() {
         WebContents spareWebcontents = env.prepareSpareWebcontents();
-        env.reachNativeInit(mTabController);
+        mTabController.setUpInitialTab(null);
+        mTabController.finishNativeInitialization();
         assertEquals(spareWebcontents, env.webContentsCaptor.getValue());
     }
 
@@ -190,14 +327,17 @@ public class CustomTabActivityTabControllerUnitTest {
     public void prefersTransferredWebContents_ToSpareWebContents() {
         WebContents transferredWebcontents = env.prepareTransferredWebcontents();
         WebContents spareWebcontents = env.prepareSpareWebcontents();
-        env.reachNativeInit(mTabController);
+        mTabController.setUpInitialTab(null);
+        mTabController.finishNativeInitialization();
         assertEquals(transferredWebcontents, env.webContentsCaptor.getValue());
+        assertNotEquals(spareWebcontents, env.webContentsCaptor.getValue());
     }
 
     // This is important so that the tab doesn't get hidden, see ChromeActivity#onStopWithNative
     @Test
     public void clearsActiveTab_WhenStartsReparenting() {
-        env.reachNativeInit(mTabController);
+        mTabController.setUpInitialTab(null);
+        mTabController.finishNativeInitialization();
         mTabController.detachAndStartReparenting(new Intent(), new Bundle(), mock(Runnable.class));
         assertNull(env.tabProvider.getTab());
     }
@@ -205,77 +345,65 @@ public class CustomTabActivityTabControllerUnitTest {
     // Some websites replace the tab with a new one.
     @Test
     public void doesNotSetHeaderWhenIncognito() {
-        doAnswer((mock) -> {
-            fail("setClientDataHeaderForNewTab() should not be called for incognito tabs");
-            return null;
-        })
+        doAnswer(
+                        (mock) -> {
+                            fail(
+                                    "setClientDataHeaderForNewTab() should not be called for"
+                                            + " incognito tabs");
+                            return null;
+                        })
                 .when(env.connection)
                 .setClientDataHeaderForNewTab(any(), any());
-        env.isIncognito = true;
-        mTabController.onPreInflationStartup();
+        env.isOffTheRecord = true;
+        mTabController.setUpInitialTab(null);
+        mTabController.finishNativeInitialization();
         mTabController.finishNativeInitialization();
         Tab tab = env.prepareTab();
-        assertTrue(tab.isIncognito());
+        assertTrue(tab.isOffTheRecord());
     }
 
     @Test
-    @Features.DisableFeatures({ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS})
-    public void doesNotSetGreatestScrollPercentageSupplierIfFeatureIsDisabled() {
-        env.reachNativeInit(mTabController);
-
-        ArgumentCaptor<TabObserver> tabObservers = ArgumentCaptor.forClass(TabObserver.class);
-        verify(env.tabObserverRegistrar, atLeastOnce()).registerTabObserver(tabObservers.capture());
-        for (TabObserver observer : tabObservers.getAllValues()) {
-            assertFalse("RealtimeEngagementSignalObserver is not attached.",
-                    observer instanceof RealtimeEngagementSignalObserver);
-        }
-    }
-
-    @Test
-    @Features.EnableFeatures({ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS})
-    @Features.DisableFeatures({ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS_ALTERNATIVE_IMPL})
-    public void attachEngagementSignalObserver() {
+    public void setsTabObserverRegistrarOnEngagementSignalsHandler() {
+        var handler = mock(EngagementSignalsHandler.class);
+        when(env.connection.getEngagementSignalsHandler(eq(env.session))).thenReturn(handler);
         when(env.connection.isDynamicFeatureEnabled(anyString())).thenReturn(true);
         when(mPrivacyPreferencesManager.isUsageAndCrashReportingPermitted()).thenReturn(true);
-        env.reachNativeInit(mTabController);
-
-        ArgumentCaptor<CustomTabTabObserver> tabObservers =
-                ArgumentCaptor.forClass(CustomTabTabObserver.class);
-        verify(env.tabObserverRegistrar, atLeastOnce())
-                .registerActivityTabObserver(tabObservers.capture());
-        for (TabObserver observer : tabObservers.getAllValues()) {
-            if (observer instanceof RealtimeEngagementSignalObserver) {
-                return;
-            }
-        }
-        throw new AssertionError("RealtimeEngagementSignalObserver is not attached.");
+        mTabController.setUpInitialTab(null);
+        mTabController.finishNativeInitialization();
+        verify(handler).setTabObserverRegistrar(env.tabObserverRegistrar);
     }
 
     @Test
-    @Features.DisableFeatures({ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS_ALTERNATIVE_IMPL})
-    public void disableUsageAndCrashReporting_BeforeInit() {
-        when(env.connection.isDynamicFeatureEnabled(anyString())).thenReturn(true);
-        when(mPrivacyPreferencesManager.isUsageAndCrashReportingPermitted()).thenReturn(false);
-        env.reachNativeInit(mTabController);
-
-        assertNull(mTabController.getRealtimeEngagementSignalObserverForTesting());
+    public void usesTabFromIntent_IfAvailable() {
+        Tab tab = env.prepareTransferredTab();
+        mTabController.setUpInitialTab(null);
+        mTabController.finishNativeInitialization();
+        assertEquals(tab, env.tabProvider.getTab());
     }
 
     @Test
-    @Features.DisableFeatures({ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS_ALTERNATIVE_IMPL})
-    public void disableUsageAndCrashReporting_AfterInit() {
-        when(env.connection.isDynamicFeatureEnabled(anyString())).thenReturn(true);
-        when(mPrivacyPreferencesManager.isUsageAndCrashReportingPermitted()).thenReturn(true);
-        env.reachNativeInit(mTabController);
+    public void doesNotUseTabFromIntent_IfNotInAsyncParamsManager() {
+        Tab tab = env.prepareTransferredTab();
+        mTabController.setUpInitialTab(null);
+        mTabController.finishNativeInitialization();
+        assertEquals(tab, env.tabProvider.getTab());
+    }
 
-        assertNotNull(mTabController.getRealtimeEngagementSignalObserverForTesting());
+    @Test
+    public void getTabCount_noTabs() {
+        when(env.tabModel.getCount()).thenReturn(0);
+        assertEquals(0, mTabController.getTabCount());
+    }
 
-        ArgumentCaptor<PrivacyPreferencesManager.Observer> observer =
-                ArgumentCaptor.forClass(PrivacyPreferencesManager.Observer.class);
-        verify(mPrivacyPreferencesManager).addObserver(observer.capture());
+    @Test
+    public void getTabCount_oneTab() {
+        when(env.tabModel.getCount()).thenReturn(1);
+        assertEquals(1, mTabController.getTabCount());
+    }
 
-        observer.getValue().onIsUsageAndCrashReportingPermittedChanged(false);
-        verify(env.connection).notifyDidGetUserInteraction(eq(env.session), eq(false));
-        assertNull(mTabController.getRealtimeEngagementSignalObserverForTesting());
+    @Test
+    public void getTabCount_multipleTabs() {
+        when(env.tabModel.getCount()).thenReturn(5);
+        assertEquals(5, mTabController.getTabCount());
     }
 }

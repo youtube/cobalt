@@ -6,7 +6,6 @@
 
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
-#include "base/strings/string_piece.h"
 #include "base/trace_event/trace_event.h"
 #include "third_party/icu/source/common/unicode/unistr.h"
 #include "third_party/icu/source/i18n/unicode/timezone.h"
@@ -26,7 +25,7 @@ void TimeZoneMonitor::Bind(
   receivers_.Add(this, std::move(receiver));
 }
 
-void TimeZoneMonitor::NotifyClients(base::StringPiece zone_id_str) {
+void TimeZoneMonitor::NotifyClients(std::string_view zone_id_str) {
   DCHECK(thread_checker_.CalledOnValidThread());
   TRACE_EVENT0("device", "TimeZoneMonitor::NotifyClients");
   VLOG(1) << "timezone reset to " << zone_id_str;
@@ -70,7 +69,8 @@ std::string TimeZoneMonitor::GetTimeZoneId(const icu::TimeZone& zone) {
 void TimeZoneMonitor::AddClient(
     mojo::PendingRemote<device::mojom::TimeZoneMonitorClient> client) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  clients_.Add(std::move(client));
+  auto id = clients_.Add(std::move(client));
+  clients_.Get(id)->OnTimeZoneChange(GetTimeZoneId(*timezone_));
 }
 
 }  // namespace device

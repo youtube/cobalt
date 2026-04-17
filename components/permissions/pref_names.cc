@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 #include "components/permissions/pref_names.h"
+#include "components/permissions/permission_actions_history.h"
+#include "components/pref_registry/pref_registry_syncable.h"
 
 #include "build/build_config.h"
 
@@ -32,10 +34,16 @@ const char kLocationSettingsNextShowDSE[] = "location_settings_next_show_dse";
 // the default search engine.
 const char kLocationSettingsNextShowDefault[] =
     "location_settings_next_show_default";
-#else   // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_ANDROID)
+
 // The number of one time permission prompts a user has seen.
 const char kOneTimePermissionPromptsDecidedCount[] =
     "profile.one_time_permission_prompts_decided_count";
-#endif  // BUILDFLAG(IS_ANDROID)
+
 }  // namespace prefs
+
+void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
+  PermissionActionsHistory::RegisterProfilePrefs(registry);
+}
+
 }  // namespace permissions

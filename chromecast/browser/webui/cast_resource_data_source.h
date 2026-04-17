@@ -5,13 +5,13 @@
 #ifndef CHROMECAST_BROWSER_WEBUI_CAST_RESOURCE_DATA_SOURCE_H_
 #define CHROMECAST_BROWSER_WEBUI_CAST_RESOURCE_DATA_SOURCE_H_
 
+#include <optional>
 #include <string>
 
 #include "chromecast/browser/webui/mojom/webui.mojom.h"
 #include "content/public/browser/url_data_source.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace chromecast {
 
@@ -47,7 +47,7 @@ class CastResourceDataSource : public content::URLDataSource {
   const bool for_webui_;
   mojo::Remote<mojom::Resources> remote_;
 
-  absl::optional<std::string> frame_src_;
+  std::optional<std::string> frame_src_;
   bool deny_xframe_options_ = true;
 };
 

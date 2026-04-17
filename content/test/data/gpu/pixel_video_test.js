@@ -61,13 +61,16 @@ function main() {
   getParametersTesting();
 
   video.onerror = e => {
-    logOutput(`Test failed: ${e.message}`);
+    logOutput(`Video playback error occurred: ${e.message}`);
     abort = true;
     domAutomationController.send('FAIL');
   };
 
   logOutput('Playback started.');
-  video.play();
+  video.play().catch(e => {
+    logOutput(`play() failed: ${e.message}`);
+    domAutomationController.send('FAIL');
+  });
 
   // Used by the swap counter, without using the timer.
   let testCompletion = false;
@@ -101,9 +104,6 @@ function main() {
     }
   }
 
-  // Must add "--enable-features=ReportFCPOnlyOnSuccessfulCommit" with
-  // gpu_benchmarking to ensure completion event callback in
-  // addSwapCompletionEventListener is sent only on a succdessful commit.
   function waitForSwapsToComplete() {
     if (videoFrameReady) {
       if (swapCount == 0) {

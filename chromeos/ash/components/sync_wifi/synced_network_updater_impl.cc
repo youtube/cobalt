@@ -5,7 +5,6 @@
 #include "chromeos/ash/components/sync_wifi/synced_network_updater_impl.h"
 
 #include "base/functional/bind.h"
-#include "base/guid.h"
 #include "base/values.h"
 #include "chromeos/ash/components/network/network_configuration_handler.h"
 #include "chromeos/ash/components/network/network_event_log.h"
@@ -14,7 +13,7 @@
 #include "chromeos/ash/components/network/network_profile_handler.h"
 #include "chromeos/ash/components/network/network_state.h"
 #include "chromeos/ash/components/sync_wifi/network_type_conversions.h"
-#include "chromeos/ash/components/sync_wifi/timer_factory.h"
+#include "chromeos/ash/components/timer_factory/timer_factory.h"
 #include "components/device_event_log/device_event_log.h"
 #include "components/proxy_config/proxy_config_dictionary.h"
 #include "third_party/cros_system_api/dbus/shill/dbus-constants.h"
@@ -35,7 +34,7 @@ constexpr base::TimeDelta kTimeout = base::Minutes(1);
 SyncedNetworkUpdaterImpl::SyncedNetworkUpdaterImpl(
     std::unique_ptr<PendingNetworkConfigurationTracker> tracker,
     network_config::mojom::CrosNetworkConfig* cros_network_config,
-    TimerFactory* timer_factory,
+    ash::timer_factory::TimerFactory* timer_factory,
     SyncedNetworkMetricsLogger* metrics_logger)
     : tracker_(std::move(tracker)),
       cros_network_config_(cros_network_config),
@@ -115,7 +114,7 @@ void SyncedNetworkUpdaterImpl::RemoveNetwork(const NetworkIdentifier& id) {
 
   NET_LOG(EVENT) << "Removing network " << NetworkGuidId(network->guid);
   std::string change_guid =
-      tracker_->TrackPendingUpdate(id, /*specifics=*/absl::nullopt);
+      tracker_->TrackPendingUpdate(id, /*specifics=*/std::nullopt);
   StartDeleteOperation(change_guid, id, network->guid);
 }
 
@@ -163,7 +162,7 @@ void SyncedNetworkUpdaterImpl::OnGetNetworkList(
 void SyncedNetworkUpdaterImpl::OnConfigureNetworkResult(
     const std::string& change_guid,
     const sync_pb::WifiConfigurationSpecifics& proto,
-    const absl::optional<std::string>& network_guid,
+    const std::optional<std::string>& network_guid,
     const std::string& error_message) {
   auto id = NetworkIdentifier::FromProto(proto);
   if (network_guid) {
@@ -245,7 +244,7 @@ void SyncedNetworkUpdaterImpl::HandleShillResult(const std::string& change_guid,
   }
 
   tracker_->IncrementCompletedAttempts(change_guid, id);
-  absl::optional<PendingNetworkConfigurationUpdate> update =
+  std::optional<PendingNetworkConfigurationUpdate> update =
       tracker_->GetPendingUpdate(change_guid, id);
 
   if (update->completed_attempts() >= kMaxRetries) {

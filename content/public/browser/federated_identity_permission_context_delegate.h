@@ -5,9 +5,18 @@
 #ifndef CONTENT_PUBLIC_BROWSER_FEDERATED_IDENTITY_PERMISSION_CONTEXT_DELEGATE_H_
 #define CONTENT_PUBLIC_BROWSER_FEDERATED_IDENTITY_PERMISSION_CONTEXT_DELEGATE_H_
 
+#include <optional>
 #include <vector>
 
+#include "base/functional/callback_forward.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/observer_list.h"
+#include "base/types/optional_ref.h"
+#include "base/values.h"
+#include "content/public/browser/identity_request_account.h"
+#include "third_party/blink/public/common/webid/login_status_account.h"
+#include "third_party/blink/public/common/webid/login_status_options.h"
+#include "third_party/blink/public/mojom/webid/federated_auth_request.mojom-forward.h"
 #include "url/origin.h"
 
 namespace content {
@@ -20,8 +29,11 @@ class FederatedIdentityPermissionContextDelegate {
   // Observes IdP sign-in status changes.
   class IdpSigninStatusObserver : public base::CheckedObserver {
    public:
-    virtual void OnIdpSigninStatusChanged(const url::Origin& idp_origin,
-                                          bool idp_signin_status) = 0;
+    // Called every time we receive a signed-in status (so we can refresh
+    // the account list if a new account is now signed in) and also when
+    // the status changes from signed-in to signed-out.
+    virtual void OnIdpSigninStatusReceived(const url::Origin& idp_origin,
+                                           bool idp_signin_status) = 0;
 
    protected:
     IdpSigninStatusObserver() = default;
@@ -37,32 +49,27 @@ class FederatedIdentityPermissionContextDelegate {
   virtual void RemoveIdpSigninStatusObserver(
       IdpSigninStatusObserver* observer) = 0;
 
-  // Determine whether the `relying_party_requester` has an existing active
-  // session for the specified `account_identifier` with the
-  // `identity_provider`.
-  virtual bool HasActiveSession(const url::Origin& relying_party_requester,
-                                const url::Origin& identity_provider,
-                                const std::string& account_identifier) = 0;
-
-  // Grant active session capabilities between the `relying_party_requester` and
-  // `identity_provider` origins for the specified account.
-  virtual void GrantActiveSession(const url::Origin& relying_party_requester,
-                                  const url::Origin& identity_provider,
-                                  const std::string& account_identifier) = 0;
-
-  // Revoke a previously-provided grant from the `relying_party_requester` to
-  // the `identity_provider` for the specified account.
-  virtual void RevokeActiveSession(const url::Origin& relying_party_requester,
-                                   const url::Origin& identity_provider,
-                                   const std::string& account_identifier) = 0;
-
   // Determine whether there is an existing permission grant to share identity
   // information for the given account to the `relying_party_requester` when
   // embedded in `relying_party_embedder`.
   virtual bool HasSharingPermission(const url::Origin& relying_party_requester,
                                     const url::Origin& relying_party_embedder,
-                                    const url::Origin& identity_provider,
-                                    const std::string& account_id) = 0;
+                                    const url::Origin& identity_provider) = 0;
+
+  // Returns the last time when `account_id` was used via FedCM on the
+  // (relying_party_requester, relying_party_embedder, identity_provider). If
+  // there is no known last time, returns nullopt. If the `account_id` was known
+  // to be used but a timestamp is not known, returns 0.
+  virtual std::optional<base::Time> GetLastUsedTimestamp(
+      const url::Origin& relying_party_requester,
+      const url::Origin& relying_party_embedder,
+      const url::Origin& identity_provider,
+      const std::string& account_id) = 0;
+
+  // Determine whether there is an existing permission grant to share identity
+  // information for any account to the `relying_party_requester`.
+  virtual bool HasSharingPermission(
+      const url::Origin& relying_party_requester) = 0;
 
   // Grants permission to share identity information for the given account to
   // `relying_party_requester` when embedded in `relying_party_embedder`.
@@ -72,16 +79,43 @@ class FederatedIdentityPermissionContextDelegate {
       const url::Origin& identity_provider,
       const std::string& account_id) = 0;
 
+  // Revokes a previously granted sharing permission. If there is no sharing
+  // permission associated with the given `account_id`, an arbitrary sharing
+  // permission is revoked.
+  virtual void RevokeSharingPermission(
+      const url::Origin& relying_party_requester,
+      const url::Origin& relying_party_embedder,
+      const url::Origin& identity_provider,
+      const std::string& account_id) = 0;
+
+  // Refreshes an existing sharing permission. Updates the timestamp
+  // corresponding to the last time in which the sharing permission was used.
+  virtual void RefreshExistingSharingPermission(
+      const url::Origin& relying_party_requester,
+      const url::Origin& relying_party_embedder,
+      const url::Origin& identity_provider,
+      const std::string& account_id) = 0;
+
   // Returns whether the user is signed in with the IDP. If unknown, return
-  // absl::nullopt.
-  virtual absl::optional<bool> GetIdpSigninStatus(
+  // std::nullopt.
+  virtual std::optional<bool> GetIdpSigninStatus(
       const url::Origin& idp_origin) = 0;
+
+  // Returns the stored profile information for the passed-in
+  // `identity_provider`. If the signin status is false or no profile
+  // information was stored, returns an empty List. The consumer is responsible
+  // for checking validity of accounts.
+  virtual base::Value::List GetAccounts(
+      const url::Origin& identity_provider) = 0;
 
   // Updates the IDP sign-in status. This could be called by
   //   1. IdpSigninStatus API
   //   2. fetching accounts response callback
-  virtual void SetIdpSigninStatus(const url::Origin& idp_origin,
-                                  bool idp_signin_status) = 0;
+  virtual void SetIdpSigninStatus(
+      const url::Origin& idp_origin,
+      bool idp_signin_status,
+      base::optional_ref<const blink::common::webid::LoginStatusOptions>
+          options) = 0;
 
   // Returns all origins that are registered as IDP.
   virtual std::vector<GURL> GetRegisteredIdPs() = 0;
@@ -91,6 +125,11 @@ class FederatedIdentityPermissionContextDelegate {
 
   // Unregisters an IdP.
   virtual void UnregisterIdP(const GURL& url) = 0;
+
+  // Updates internal state when an origin's "requires user mediation" status
+  // changes.
+  virtual void OnSetRequiresUserMediation(const url::Origin& relying_party,
+                                          base::OnceClosure callback) = 0;
 };
 
 }  // namespace content

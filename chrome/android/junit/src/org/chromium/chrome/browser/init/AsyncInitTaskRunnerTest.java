@@ -14,7 +14,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.Robolectric;
@@ -35,20 +34,18 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Tests for {@link AsyncInitTaskRunner}
- */
+/** Tests for {@link AsyncInitTaskRunner} */
 @RunWith(BaseRobolectricTestRunner.class)
-@Config(manifest = Config.NONE, shadows = {ShadowAsyncTask.class})
+@Config(
+        manifest = Config.NONE,
+        shadows = {ShadowAsyncTask.class})
 @LooperMode(LooperMode.Mode.LEGACY)
 public class AsyncInitTaskRunnerTest {
-    private static final int THREAD_WAIT_TIME_MS = 1000;
+    private final LibraryLoader mLoader;
+    private final AsyncInitTaskRunner mRunner;
+    private final CountDownLatch mLatch;
 
-    private LibraryLoader mLoader;
-    private AsyncInitTaskRunner mRunner;
-    private CountDownLatch mLatch;
-
-    private VariationsSeedFetcher mVariationsSeedFetcher;
+    private final VariationsSeedFetcher mVariationsSeedFetcher;
 
     public AsyncInitTaskRunnerTest() {
         LibraryLoader.getInstance().setLibraryProcessType(LibraryProcessType.PROCESS_BROWSER);
@@ -60,28 +57,27 @@ public class AsyncInitTaskRunnerTest {
         PostTask.setPrenativeThreadPoolExecutorForTesting(new RoboExecutorService());
 
         mLatch = new CountDownLatch(1);
-        mRunner = spy(new AsyncInitTaskRunner() {
-            @Override
-            protected void onSuccess() {
-                mLatch.countDown();
-            }
-            @Override
-            protected void onFailure(Exception failureCause) {
-                mLatch.countDown();
-            }
-            @Override
-            protected Executor getTaskPerThreadExecutor() {
-                return new RoboExecutorService();
-            }
-        });
+        mRunner =
+                spy(
+                        new AsyncInitTaskRunner() {
+                            @Override
+                            protected void onSuccess() {
+                                mLatch.countDown();
+                            }
+
+                            @Override
+                            protected void onFailure(Exception failureCause) {
+                                mLatch.countDown();
+                            }
+
+                            @Override
+                            protected Executor getTaskPerThreadExecutor() {
+                                return new RoboExecutorService();
+                            }
+                        });
         // Allow test to run on all builds
         when(mRunner.shouldFetchVariationsSeedDuringFirstRun()).thenReturn(true);
         doNothing().when(mRunner).prefetchLibrary();
-    }
-
-    @After
-    public void tearDown() {
-        PostTask.resetPrenativeThreadPoolExecutorForTesting();
     }
 
     @Test

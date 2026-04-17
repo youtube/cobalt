@@ -67,14 +67,6 @@ int SandboxLinux::GetStatus() {
   return kInvalid;
 }
 
-void SandboxLinux::StartBrokerProcess(
-    const syscall_broker::BrokerCommandSet& allowed_command_set,
-    std::vector<syscall_broker::BrokerFilePermission> permissions,
-    PreSandboxHook broker_side_hook,
-    const Options& options) {
-  NOTIMPLEMENTED();
-}
-
 SandboxLinux::SandboxLinux() {
   NOTIMPLEMENTED();
 }

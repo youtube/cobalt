@@ -8,8 +8,16 @@
 # To enable libfuzzer, 'use_libfuzzer' GN option should be set to true.
 # Or equivalent 'use_afl' or 'use_centipede' options for those engines.
 
+import("//build/buildflag_header.gni")
 import("//build/config/features.gni")
 import("//build/config/sanitizers/sanitizers.gni")
+import("//testing/test.gni")
+
+# This file is depended upon from builds that don't include all
+# of Chromium, so nothing in here should assume the existence of
+# Chromium or Blink. It's OK for subdirectories (e.g. the fuzzers
+# or research subdirectories) to have dependencies on other parts
+# of Chromium, but not this file.
 
 # Temporary target for legacy reasons. Some third party repos explicitly
 # refer to libfuzzer_main though they should refer to fuzzer_engine_main
@@ -17,7 +25,8 @@ import("//build/config/sanitizers/sanitizers.gni")
 # all to point to :fuzzing_engine_main instead.
 # TODO: remove this target once they've all migrated.
 source_set("libfuzzer_main") {
-  deps = [ ":fuzzing_engine" ]
+  deps = [ ":is_a_fuzz_target" ]
+  testonly = true
   sources = []
   if (use_libfuzzer) {
     deps += [ "//third_party/libFuzzer:libfuzzer_main" ]
@@ -28,7 +37,11 @@ source_set("libfuzzer_main") {
   } else if (use_afl) {
     deps += [ "//third_party/libFuzzer:afl_driver" ]
   } else if (use_centipede) {
-    deps += [ "//third_party/centipede:centipede_runner_main" ]
+    deps += [ "//third_party/fuzztest:centipede_runner_main" ]
+    data_deps = [
+      # Centipede based fuzzers require the centipede runner in order to fuzz.
+      "//third_party/fuzztest:centipede",
+    ]
   } else {
     sources += [ "unittest_main.cc" ]
   }
@@ -37,14 +50,26 @@ source_set("libfuzzer_main") {
 if (fuzzing_engine_supports_custom_main) {
   # Depend on this if you want to use LLVMFuzzerRunDriver from within an existing
   # executable
-  source_set("fuzzing_engine_no_main") {
-    deps = [ ":fuzzing_engine" ]
-    sources = []
+  group("fuzzing_engine_no_main") {
+    testonly = true
+    deps = [
+      ":fuzzing_engine_no_main_core",
+      ":is_a_fuzz_target",
+    ]
+  }
+
+  group("fuzzing_engine_no_main_core") {
+    testonly = true
     if (use_libfuzzer) {
-      deps += [ "//third_party/libFuzzer:libfuzzer" ]
-      sources += [ "expose_fuzzer_run_driver.cc" ]
+      deps = [ "//third_party/libFuzzer:libfuzzer" ]
     } else if (use_centipede) {
-      deps += [ "//third_party/centipede:centipede_runner_no_main" ]
+      deps = [ "//third_party/fuzztest:centipede_runner_no_main" ]
+      data_deps = [
+        # Centipede based fuzzers require the centipede runner in order to fuzz.
+        "//third_party/fuzztest:centipede",
+      ]
+    } else if (use_fuzzilli) {
+      deps = [ "//testing/libfuzzer/fuzzilli:fuzzilli_driver" ]
     }
   }
 }
@@ -53,11 +78,18 @@ if (fuzzing_engine_supports_custom_main) {
 # Fuzzers should depend upon this.
 group("fuzzing_engine_main") {
   deps = [ ":libfuzzer_main" ]
+  testonly = true
 }
 
 # Any fuzzer using any fuzzing engine. This will be used by infra scripts
 # to identify fuzzers which should be built and made available to ClusterFuzz.
+group("is_a_fuzz_target") {
+  deps = [ ":fuzzing_engine" ]
+}
+
+# Named for legacy reasons for compatibility with recipes.
 group("fuzzing_engine") {
+  visibility = [ ":is_a_fuzz_target" ]
   if (use_clang_coverage) {
     # For purposes of code coverage calculation, fuzzer targets are run through
     # a wrapper script in this directory, which handles corpus retrieval and
@@ -100,4 +132,50 @@ if (use_fuzzing_engine) {
   pool("fuzzer_owners_pool") {
     depth = 1
   }
+}
+
+buildflag_header("fuzztest_wrapper_buildflags") {
+  header = "fuzztest_wrapper_buildflags.h"
+  flags = [ "USE_CENTIPEDE=$use_centipede" ]
+}
+
+if (use_fuzztest_wrapper) {
+  # A wrapper that knows how to execute a single fuzztest within a binary
+  # containing many fuzztests.
+  # Unlike fuzztests themselves, this depends on :is_a_fuzz_target
+  # so that the build jobs know to build all these.
+  source_set("individual_fuzztest_wrapper") {
+    sources = [ "//testing/libfuzzer/fuzztest_wrapper.cpp" ]
+    deps = [
+      ":fuzztest_wrapper_buildflags",
+      ":is_a_fuzz_target",
+      "//base",
+    ]
+  }
+}
+
+source_set("fuzztest_init_support") {
+  testonly = true
+  sources = [
+    "fuzztest_init_helper.cc",
+    "fuzztest_init_helper.h",
+  ]
+}
+
+buildflag_header("confirm_fuzztest_init_buildflags") {
+  header = "confirm_fuzztest_init_buildflags.h"
+  flags =
+      [ "REGISTER_FUZZTESTS_IN_TEST_SUITES=$register_fuzztests_in_test_suites" ]
+}
+
+# Contains a static initializer which will arrange for fuzztests to be
+# registered. Usually invoked from testing/test.gni
+source_set("confirm_fuzztest_init") {
+  sources = [ "confirm_fuzztest_init.cc" ]
+  testonly = true
+  deps = [
+    ":confirm_fuzztest_init_buildflags",
+    ":fuzztest_init_support",
+    "//third_party/fuzztest:init_fuzztest",
+  ]
 }

@@ -19,10 +19,15 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "api/network_state_predictor.h"
+#include "api/array_view.h"
 #include "api/rtc_event_log/rtc_event.h"
+#include "api/transport/bandwidth_usage.h"
 #include "api/units/timestamp.h"
 #include "logging/rtc_event_log/events/rtc_event_definition.h"
+#include "logging/rtc_event_log/events/rtc_event_field_encoding.h"
+#include "logging/rtc_event_log/events/rtc_event_field_extraction.h"
+#include "logging/rtc_event_log/events/rtc_event_log_parse_status.h"
+#include "rtc_base/checks.h"
 
 namespace webrtc {
 
@@ -99,7 +104,7 @@ class RtcEventBweUpdateDelayBased final : public RtcEvent {
   int32_t bitrate_bps() const { return bitrate_bps_; }
   BandwidthUsage detector_state() const { return detector_state_; }
 
-  static std::string Encode(rtc::ArrayView<const RtcEvent*> batch) {
+  static std::string Encode(ArrayView<const RtcEvent*> batch) {
     return RtcEventBweUpdateDelayBased::definition_.EncodeBatch(batch);
   }
 

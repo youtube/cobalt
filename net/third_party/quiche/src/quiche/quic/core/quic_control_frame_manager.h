@@ -33,9 +33,9 @@ class QuicControlFrameManagerPeer;
 // the generator. Control frames are removed from the head of the list when they
 // get acked. Control frame manager also keeps track of lost control frames
 // which need to be retransmitted.
-class QUIC_EXPORT_PRIVATE QuicControlFrameManager {
+class QUICHE_EXPORT QuicControlFrameManager {
  public:
-  class QUIC_EXPORT_PRIVATE DelegateInterface {
+  class QUICHE_EXPORT DelegateInterface {
    public:
     virtual ~DelegateInterface() = default;
 
@@ -56,6 +56,12 @@ class QUIC_EXPORT_PRIVATE QuicControlFrameManager {
   // immediately.
   void WriteOrBufferRstStream(QuicControlFrameId id, QuicResetStreamError error,
                               QuicStreamOffset bytes_written);
+
+  // Tries to send a RESET_STREAM_AT frame. Buffers the frame if it cannot be
+  // sent immediately.
+  void WriteOrBufferResetStreamAt(QuicStreamId id, QuicResetStreamError error,
+                                  QuicStreamOffset bytes_written,
+                                  QuicStreamOffset reliable_size);
 
   // Tries to send a GOAWAY_FRAME. Buffers the frame if it cannot be sent
   // immediately.
@@ -135,6 +141,9 @@ class QUIC_EXPORT_PRIVATE QuicControlFrameManager {
   // sent.
   bool WillingToWrite() const;
 
+  // Returns the number of buffered MAX_STREAM frames.
+  size_t NumBufferedMaxStreams() const;
+
  private:
   friend class test::QuicControlFrameManagerPeer;
 
@@ -185,6 +194,9 @@ class QUIC_EXPORT_PRIVATE QuicControlFrameManager {
 
   // Last sent window update frame for each stream.
   absl::flat_hash_map<QuicStreamId, QuicControlFrameId> window_update_frames_;
+
+  // Number of MAX_STREAM frames which are currently buffered.
+  size_t num_buffered_max_stream_frames_;
 };
 
 }  // namespace quic

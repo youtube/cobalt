@@ -17,14 +17,14 @@
 #ifndef SRC_TRACE_PROCESSOR_IMPORTERS_PROTO_ANDROID_PROBES_PARSER_H_
 #define SRC_TRACE_PROCESSOR_IMPORTERS_PROTO_ANDROID_PROBES_PARSER_H_
 
-#include <vector>
+#include <cstdint>
 
 #include "perfetto/protozero/field.h"
 #include "src/trace_processor/storage/trace_storage.h"
 
-namespace perfetto {
-namespace trace_processor {
+namespace perfetto::trace_processor {
 
+class ArgsTracker;
 class TraceProcessorContext;
 
 class AndroidProbesParser {
@@ -34,7 +34,7 @@ class AndroidProbesParser {
   explicit AndroidProbesParser(TraceProcessorContext*);
 
   void ParseBatteryCounters(int64_t ts, ConstBytes);
-  void ParsePowerRails(int64_t ts, ConstBytes);
+  void ParsePowerRails(int64_t ts, uint64_t trace_packet_ts, ConstBytes);
   void ParseEnergyBreakdown(int64_t ts, ConstBytes);
   void ParseEntityStateResidency(int64_t ts, ConstBytes);
   void ParseAndroidLogPacket(ConstBytes);
@@ -44,20 +44,27 @@ class AndroidProbesParser {
   void ParseInitialDisplayState(int64_t ts, ConstBytes);
   void ParseAndroidSystemProperty(int64_t ts, ConstBytes);
   void ParseAndroidGameIntervention(ConstBytes);
+  void ParseBtTraceEvent(int64_t ts, ConstBytes);
 
  private:
   TraceProcessorContext* const context_;
+  std::unique_ptr<ArgsTracker> power_rails_args_tracker_;
 
-  const StringId batt_charge_id_;
-  const StringId batt_capacity_id_;
-  const StringId batt_current_id_;
-  const StringId batt_current_avg_id_;
-  const StringId screen_state_id_;
-  const StringId device_state_id_;
   const StringId battery_status_id_;
   const StringId plug_type_id_;
+  const StringId rail_packet_timestamp_id_;
+  const StringId energy_consumer_id_;
+  const StringId consumer_type_id_;
+  const StringId ordinal_id_;
+  const StringId bt_trace_event_id_;
+  const StringId bt_packet_type_id_;
+  const StringId bt_count_id_;
+  const StringId bt_length_id_;
+  const StringId bt_op_code_id_;
+  const StringId bt_event_code_id_;
+  const StringId bt_subevent_code_id_;
+  const StringId bt_handle_id_;
 };
-}  // namespace trace_processor
-}  // namespace perfetto
+}  // namespace perfetto::trace_processor
 
 #endif  // SRC_TRACE_PROCESSOR_IMPORTERS_PROTO_ANDROID_PROBES_PARSER_H_

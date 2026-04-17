@@ -4,8 +4,12 @@
 
 package org.chromium.chrome.browser.privacy_guide;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import androidx.fragment.app.Fragment;
 import androidx.viewpager2.adapter.FragmentStateAdapter;
+
+import org.chromium.build.annotations.NullMarked;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -14,25 +18,28 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-/**
- * Controls the behavior of the ViewPager to navigate between privacy guide steps.
- */
+/** Controls the behavior of the ViewPager to navigate between privacy guide steps. */
+@NullMarked
 public class PrivacyGuidePagerAdapter extends FragmentStateAdapter {
     private final List<Integer> mFragmentTypeList;
 
-    public PrivacyGuidePagerAdapter(Fragment parent, StepDisplayHandler displayHandler) {
+    public PrivacyGuidePagerAdapter(
+            Fragment parent,
+            StepDisplayHandler displayHandler,
+            List<Integer> allFragmentTypesInOrder) {
         super(parent);
         Set<Integer> fragmentTypesToDisplay = getFragmentTypesToDisplay(displayHandler);
-        mFragmentTypeList = getFragmentTypesToDisplayInOrder(fragmentTypesToDisplay);
+        mFragmentTypeList =
+                getFragmentTypesToDisplayInOrder(fragmentTypesToDisplay, allFragmentTypesInOrder);
     }
 
-    private List<Integer> getFragmentTypesToDisplayInOrder(Set<Integer> fragmentTypesToDisplay) {
+    private List<Integer> getFragmentTypesToDisplayInOrder(
+            Set<Integer> fragmentTypesToDisplay, List<Integer> allFragmentTypesInOrder) {
         List<Integer> fragmentTypesToDisplayInOrder = new ArrayList<>();
 
         // Add the fragment types to display to |fragmentTypesToDisplayInOrder|
         // in the order they are declared in FragmentType.
-        for (@PrivacyGuideFragment.FragmentType int fragmentType = 0;
-                fragmentType <= PrivacyGuideFragment.FragmentType.MAX_VALUE; fragmentType++) {
+        for (Integer fragmentType : allFragmentTypesInOrder) {
             if (fragmentTypesToDisplay.contains(fragmentType)) {
                 fragmentTypesToDisplayInOrder.add(fragmentType);
             }
@@ -43,8 +50,11 @@ public class PrivacyGuidePagerAdapter extends FragmentStateAdapter {
 
     private Set<Integer> getFragmentTypesToDisplay(StepDisplayHandler displayHandler) {
         Set<Integer> fragmentTypesToDisplay = new HashSet<>();
-        fragmentTypesToDisplay.addAll(Arrays.asList(PrivacyGuideFragment.FragmentType.WELCOME,
-                PrivacyGuideFragment.FragmentType.MSBB, PrivacyGuideFragment.FragmentType.DONE));
+        fragmentTypesToDisplay.addAll(
+                Arrays.asList(
+                        PrivacyGuideFragment.FragmentType.WELCOME,
+                        PrivacyGuideFragment.FragmentType.MSBB,
+                        PrivacyGuideFragment.FragmentType.DONE));
 
         if (displayHandler.shouldDisplayHistorySync()) {
             fragmentTypesToDisplay.add(PrivacyGuideFragment.FragmentType.HISTORY_SYNC);
@@ -55,13 +65,14 @@ public class PrivacyGuidePagerAdapter extends FragmentStateAdapter {
         if (displayHandler.shouldDisplayCookies()) {
             fragmentTypesToDisplay.add(PrivacyGuideFragment.FragmentType.COOKIES);
         }
-
+        if (displayHandler.shouldDisplayAdTopics()) {
+            fragmentTypesToDisplay.add(PrivacyGuideFragment.FragmentType.AD_TOPICS);
+        }
         return Collections.unmodifiableSet(fragmentTypesToDisplay);
     }
 
     @Override
     public Fragment createFragment(int position) {
-        @PrivacyGuideFragment.FragmentType
         int fragmentType = getFragmentType(position);
         switch (fragmentType) {
             case PrivacyGuideFragment.FragmentType.WELCOME:
@@ -74,10 +85,13 @@ public class PrivacyGuidePagerAdapter extends FragmentStateAdapter {
                 return new SafeBrowsingFragment();
             case PrivacyGuideFragment.FragmentType.COOKIES:
                 return new CookiesFragment();
+            case PrivacyGuideFragment.FragmentType.AD_TOPICS:
+                return new AdTopicsFragment();
             case PrivacyGuideFragment.FragmentType.DONE:
                 return new DoneFragment();
         }
-        return null;
+        assert false : "No matching fragmentType";
+        return assumeNonNull(null);
     }
 
     @Override

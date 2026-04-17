@@ -17,7 +17,6 @@
 #include <vector>
 
 #include "starboard/common/log.h"
-#include "starboard/extension/enhanced_audio.h"
 #include "starboard/media.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -80,29 +79,6 @@ TEST(AudioStreamInfoTest, SbMediaAudioStreamInfo) {
             audio_stream_info.audio_specific_config);
 }
 
-TEST(AudioStreamInfoTest, CobaltExtensionEnhancedAudioMediaAudioStreamInfo) {
-  CobaltExtensionEnhancedAudioMediaAudioStreamInfo original = {};
-
-  original.codec = kSbMediaAudioCodecOpus;
-  original.mime = "audio/webm";
-  original.number_of_channels = 2;
-  original.samples_per_second = 24000;
-  original.bits_per_sample = 16;
-  original.audio_specific_config_size = 6;
-  original.audio_specific_config = "config";
-
-  AudioStreamInfo audio_stream_info(original);
-
-  EXPECT_EQ(original.codec, audio_stream_info.codec);
-  EXPECT_EQ(original.mime, audio_stream_info.mime);
-  EXPECT_EQ(original.number_of_channels, audio_stream_info.number_of_channels);
-  EXPECT_EQ(original.samples_per_second, audio_stream_info.samples_per_second);
-  EXPECT_EQ(original.bits_per_sample, audio_stream_info.bits_per_sample);
-  EXPECT_EQ(ToVector(original.audio_specific_config,
-                     original.audio_specific_config_size),
-            audio_stream_info.audio_specific_config);
-}
-
 TEST(VideoStreamInfoTest, DefaultCtor) {
   VideoStreamInfo video_stream_info;
 
@@ -144,26 +120,6 @@ TEST(VideoStreamInfoTest, SbMediaVideoStreamInfo) {
   EXPECT_EQ(original.color_metadata, video_stream_info.color_metadata);
 }
 
-TEST(VideoStreamInfoTest, CobaltExtensionEnhancedAudioMediaVideoStreamInfo) {
-  CobaltExtensionEnhancedAudioMediaVideoStreamInfo original = {};
-
-  original.codec = kSbMediaVideoCodecAv1;
-  original.mime = "video/mp4";
-  original.max_video_capabilities = "width=3840";
-  original.frame_width = 1080;
-  original.frame_height = 1920;
-
-  VideoStreamInfo video_stream_info(original);
-
-  EXPECT_EQ(original.codec, video_stream_info.codec);
-  EXPECT_EQ(original.mime, video_stream_info.mime);
-  EXPECT_EQ(original.max_video_capabilities,
-            video_stream_info.max_video_capabilities);
-  EXPECT_EQ(original.frame_width, video_stream_info.frame_size.width);
-  EXPECT_EQ(original.frame_height, video_stream_info.frame_size.height);
-  EXPECT_EQ(original.color_metadata, video_stream_info.color_metadata);
-}
-
 TEST(AudioSampleInfoTest, DefaultCtor) {
   AudioSampleInfo audio_sample_info;
 
@@ -177,34 +133,6 @@ TEST(AudioSampleInfoTest, DefaultCtor) {
 TEST(AudioSampleInfoTest, SbMediaAudioSampleInfo) {
   SbMediaAudioSampleInfo original = {};
   SbMediaAudioStreamInfo& stream_info = original.stream_info;
-
-  stream_info.codec = kSbMediaAudioCodecOpus;
-  stream_info.mime = "audio/webm";
-  stream_info.number_of_channels = 2;
-  stream_info.samples_per_second = 24000;
-  stream_info.bits_per_sample = 16;
-  stream_info.audio_specific_config_size = 6;
-  stream_info.audio_specific_config = "config";
-
-  AudioSampleInfo audio_sample_info(original);
-
-  EXPECT_EQ(stream_info.codec, audio_sample_info.stream_info.codec);
-  EXPECT_EQ(stream_info.mime, audio_sample_info.stream_info.mime);
-  EXPECT_EQ(stream_info.number_of_channels,
-            audio_sample_info.stream_info.number_of_channels);
-  EXPECT_EQ(stream_info.samples_per_second,
-            audio_sample_info.stream_info.samples_per_second);
-  EXPECT_EQ(stream_info.bits_per_sample,
-            audio_sample_info.stream_info.bits_per_sample);
-  EXPECT_EQ(ToVector(stream_info.audio_specific_config,
-                     stream_info.audio_specific_config_size),
-            audio_sample_info.stream_info.audio_specific_config);
-}
-
-TEST(AudioSampleInfoTest, CobaltExtensionEnhancedAudioMediaAudioSampleInfo) {
-  CobaltExtensionEnhancedAudioMediaAudioSampleInfo original = {};
-  CobaltExtensionEnhancedAudioMediaAudioStreamInfo& stream_info =
-      original.stream_info;
 
   stream_info.codec = kSbMediaAudioCodecOpus;
   stream_info.mime = "audio/webm";
@@ -265,33 +193,6 @@ TEST(VideoSampleInfoTest, SbMediaVideoSampleInfo) {
             video_sample_info.stream_info.color_metadata);
 }
 
-TEST(VideoSampleInfoTest, CobaltExtensionEnhancedAudioMediaVideoSampleInfo) {
-  CobaltExtensionEnhancedAudioMediaVideoSampleInfo original = {};
-  CobaltExtensionEnhancedAudioMediaVideoStreamInfo& stream_info =
-      original.stream_info;
-
-  original.is_key_frame = true;
-  stream_info.codec = kSbMediaVideoCodecAv1;
-  stream_info.mime = "video/mp4";
-  stream_info.max_video_capabilities = "width=3840";
-  stream_info.frame_width = 1080;
-  stream_info.frame_height = 1920;
-
-  VideoSampleInfo video_sample_info(original);
-
-  EXPECT_EQ(original.is_key_frame, video_sample_info.is_key_frame);
-  EXPECT_EQ(stream_info.codec, video_sample_info.stream_info.codec);
-  EXPECT_EQ(stream_info.mime, video_sample_info.stream_info.mime);
-  EXPECT_EQ(stream_info.max_video_capabilities,
-            video_sample_info.stream_info.max_video_capabilities);
-  EXPECT_EQ(stream_info.frame_width,
-            video_sample_info.stream_info.frame_size.width);
-  EXPECT_EQ(stream_info.frame_height,
-            video_sample_info.stream_info.frame_size.height);
-  EXPECT_EQ(stream_info.color_metadata,
-            video_sample_info.stream_info.color_metadata);
-}
-
 TEST(MediaUtilTest, AudioDurationToFrames) {
   EXPECT_EQ(AudioDurationToFrames(0, 48000), 0);
   EXPECT_EQ(AudioDurationToFrames(1'000'000LL / 2, 48000), 48000 / 2);
@@ -306,6 +207,36 @@ TEST(MediaUtilTest, AudioFramesToDuration) {
   EXPECT_EQ(AudioFramesToDuration(48000 * 2, 48000), 1'000'000LL * 2);
 }
 
+TEST(AudioStreamInfoTest, StreamOperator) {
+  AudioStreamInfo audio_stream_info;
+  audio_stream_info.codec = kSbMediaAudioCodecOpus;
+  audio_stream_info.mime = "audio/webm";
+  audio_stream_info.number_of_channels = 2;
+  audio_stream_info.samples_per_second = 48000;
+  audio_stream_info.bits_per_sample = 16;
+
+  std::stringstream ss;
+  ss << audio_stream_info;
+
+  EXPECT_EQ(ss.str(),
+            "{codec=opus, mime=audio/webm, channels=2, "
+            "samples_per_second=48'000, bits_per_sample=16}");
+}
+
+TEST(AudioStreamInfoTest, StreamOperator_Empty) {
+  AudioStreamInfo audio_stream_info;
+  audio_stream_info.codec = kSbMediaAudioCodecOpus;
+  audio_stream_info.number_of_channels = 2;
+  audio_stream_info.samples_per_second = 48000;
+  audio_stream_info.bits_per_sample = 16;
+
+  std::stringstream ss;
+  ss << audio_stream_info;
+
+  EXPECT_EQ(ss.str(),
+            "{codec=opus, mime=(empty), channels=2, "
+            "samples_per_second=48'000, bits_per_sample=16}");
+}
 }  // namespace
 
 }  // namespace starboard

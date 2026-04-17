@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
-
 #include <unistd.h>
 
 #include <algorithm>
@@ -35,6 +33,7 @@
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/stub_player_components_factory.h"
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
@@ -68,8 +67,8 @@ scoped_refptr<DecodedAudio> ConsolidateDecodedAudios(
   for (auto decoded_audio : decoded_audios) {
     SB_DCHECK_EQ(decoded_audio->channels(), channels);
     SB_DCHECK_EQ(decoded_audio->sample_type(), sample_type);
-    SB_DCHECK(decoded_audio->storage_type() ==
-              kSbMediaAudioFrameStorageTypeInterleaved);
+    SB_DCHECK_EQ(decoded_audio->storage_type(),
+                 kSbMediaAudioFrameStorageTypeInterleaved);
     total_size_in_bytes += decoded_audio->size_in_bytes();
   }
 
@@ -122,8 +121,9 @@ class AudioDecoderTest
       const AudioStreamInfo& audio_stream_info,
       std::unique_ptr<AudioDecoder>* audio_decoder,
       std::unique_ptr<AudioRendererSink>* audio_renderer_sink) {
-    if (CreateAudioComponents(using_stub_decoder_, audio_stream_info,
-                              audio_decoder, audio_renderer_sink)) {
+    if (CreateAudioComponents(using_stub_decoder_, &job_queue_,
+                              audio_stream_info, audio_decoder,
+                              audio_renderer_sink)) {
       SB_CHECK(*audio_decoder);
       (*audio_decoder)
           ->Initialize(std::bind(&AudioDecoderTest::OnOutput, this),

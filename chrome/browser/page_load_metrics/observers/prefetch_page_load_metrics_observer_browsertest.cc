@@ -66,28 +66,6 @@ class PrefetchPageLoadMetricsObserverBrowserTest : public InProcessBrowserTest {
     EXPECT_TRUE(entries.empty());
   }
 
-  void VerifyUKMEntry(const std::string& metric_name,
-                      absl::optional<int64_t> expected_value) {
-    auto entries = ukm_recorder_->GetEntriesByName(
-        ukm::builders::PrefetchProxy::kEntryName);
-    ASSERT_EQ(1U, entries.size());
-
-    const auto* entry = entries.front();
-
-    ukm_recorder_->ExpectEntrySourceHasUrl(
-        entry, embedded_test_server()->GetURL("origin.com", "/index.html"));
-
-    const int64_t* value =
-        ukm::TestUkmRecorder::GetEntryMetric(entry, metric_name);
-    EXPECT_EQ(value != nullptr, expected_value.has_value());
-
-    if (!expected_value.has_value()) {
-      return;
-    }
-
-    EXPECT_EQ(*value, expected_value.value());
-  }
-
   GURL GetOriginURL(const std::string& path) {
     return embedded_test_server()->GetURL("origin.com", path);
   }
@@ -154,7 +132,7 @@ class PrefetchPageLoadMetricsObserverPrerenderBrowserTest
       const PrefetchPageLoadMetricsObserverPrerenderBrowserTest&) = delete;
 
   void SetUp() override {
-    prerender_helper_.SetUp(embedded_test_server());
+    prerender_helper_.RegisterServerRequestMonitor(embedded_test_server());
     PrefetchPageLoadMetricsObserverBrowserTest::SetUp();
   }
 
@@ -183,7 +161,8 @@ IN_PROC_BROWSER_TEST_F(PrefetchPageLoadMetricsObserverPrerenderBrowserTest,
 
   // Load a prerender page and prerendering should not increase the total count.
   GURL prerender_url = embedded_test_server()->GetURL("/index.html");
-  int host_id = prerender_test_helper().AddPrerender(prerender_url);
+  content::FrameTreeNodeId host_id =
+      prerender_test_helper().AddPrerender(prerender_url);
   content::test::PrerenderHostObserver host_observer(*GetWebContents(),
                                                      host_id);
   EXPECT_FALSE(host_observer.was_activated());

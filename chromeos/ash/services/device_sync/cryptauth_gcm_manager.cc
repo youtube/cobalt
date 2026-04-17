@@ -4,6 +4,7 @@
 
 #include "chromeos/ash/services/device_sync/cryptauth_gcm_manager.h"
 
+#include "chromeos/ash/components/multidevice/logging/logging.h"
 #include "chromeos/ash/services/device_sync/pref_names.h"
 #include "components/prefs/pref_registry_simple.h"
 
@@ -16,17 +17,33 @@ CryptAuthGCMManager::Observer::~Observer() {}
 void CryptAuthGCMManager::Observer::OnGCMRegistrationResult(bool success) {}
 
 void CryptAuthGCMManager::Observer::OnReenrollMessage(
-    const absl::optional<std::string>& session_id,
-    const absl::optional<CryptAuthFeatureType>& feature_type) {}
+    const std::optional<std::string>& session_id,
+    const std::optional<CryptAuthFeatureType>& feature_type) {}
 
 void CryptAuthGCMManager::Observer::OnResyncMessage(
-    const absl::optional<std::string>& session_id,
-    const absl::optional<CryptAuthFeatureType>& feature_type) {}
+    const std::optional<std::string>& session_id,
+    const std::optional<CryptAuthFeatureType>& feature_type) {}
 
 // static.
 void CryptAuthGCMManager::RegisterPrefs(PrefRegistrySimple* registry) {
   registry->RegisterStringPref(prefs::kCryptAuthGCMRegistrationId,
                                std::string());
+}
+
+// static.
+bool CryptAuthGCMManager::IsRegistrationIdDeprecated(
+    const std::string& registration_id) {
+  // V4 GCM Tokens always contain a colon, while deprecated V3 tokens will not.
+  bool deprecated = registration_id.find(":") == std::string::npos;
+  if (deprecated) {
+    PA_LOG(WARNING)
+        << "CryptAuthGCMManager: GCM Registration ID is deprecated (V3).";
+  } else {
+    PA_LOG(VERBOSE)
+        << "CryptAuthGCMManager: GCM Registration ID is current (V4).";
+  }
+
+  return deprecated;
 }
 
 }  // namespace device_sync

@@ -4,15 +4,11 @@
 
 #include "chrome/browser/autofill/autofill_offer_manager_factory.h"
 
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 #include "build/build_config.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
+#include "components/autofill/core/browser/data_manager/personal_data_manager.h"
 #include "components/autofill/core/browser/payments/autofill_offer_manager.h"
-#if !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/commerce/coupons/coupon_service.h"
-#include "chrome/browser/commerce/coupons/coupon_service_factory.h"
-#include "chrome/browser/profiles/profile.h"
-#endif
 
 namespace autofill {
 
@@ -25,7 +21,8 @@ AutofillOfferManager* AutofillOfferManagerFactory::GetForBrowserContext(
 
 // static
 AutofillOfferManagerFactory* AutofillOfferManagerFactory::GetInstance() {
-  return base::Singleton<AutofillOfferManagerFactory>::get();
+  static base::NoDestructor<AutofillOfferManagerFactory> instance;
+  return instance.get();
 }
 
 AutofillOfferManagerFactory::AutofillOfferManagerFactory()
@@ -33,31 +30,24 @@ AutofillOfferManagerFactory::AutofillOfferManagerFactory()
           "AutofillOfferManager",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
+              // TODO(crbug.com/40257657): Check if this service is needed in
               // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOriginalOnly)
               .Build()) {
   DependsOn(PersonalDataManagerFactory::GetInstance());
-#if !BUILDFLAG(IS_ANDROID)
-  DependsOn(CouponServiceFactory::GetInstance());
-#endif
 }
 
 AutofillOfferManagerFactory::~AutofillOfferManagerFactory() = default;
 
-KeyedService* AutofillOfferManagerFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+AutofillOfferManagerFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-#if !BUILDFLAG(IS_ANDROID)
-  CouponService* service =
-      CouponServiceFactory::GetForProfile(Profile::FromBrowserContext(context));
-  return new AutofillOfferManager(
-      PersonalDataManagerFactory::GetForBrowserContext(context),
-      static_cast<CouponServiceDelegate*>(service));
-#else
-  return new AutofillOfferManager(
-      PersonalDataManagerFactory::GetForBrowserContext(context),
-      /*coupon_service_delegate=*/nullptr);
-#endif
+  return std::make_unique<AutofillOfferManager>(
+      &PersonalDataManagerFactory::GetForBrowserContext(context)
+           ->payments_data_manager());
 }
 
 }  // namespace autofill

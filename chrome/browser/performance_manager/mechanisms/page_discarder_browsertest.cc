@@ -4,124 +4,80 @@
 
 #include "chrome/browser/performance_manager/mechanisms/page_discarder.h"
 
-#include "base/run_loop.h"
-#include "base/test/bind.h"
+#include <utility>
+#include <vector>
+
+#include "base/memory/weak_ptr.h"
 #include "chrome/browser/performance_manager/public/user_tuning/user_performance_tuning_manager.h"
+#include "chrome/browser/resource_coordinator/lifecycle_unit_state.mojom.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "chrome/test/base/ui_test_utils.h"
 #include "components/performance_manager/graph/frame_node_impl.h"
 #include "components/performance_manager/public/graph/graph_operations.h"
+#include "components/performance_manager/public/graph/page_node.h"
 #include "components/performance_manager/public/performance_manager.h"
-#include "content/public/browser/notification_types.h"
-#include "content/public/browser/page_navigator.h"
+#include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
-#include "content/public/test/test_utils.h"
+#include "net/test/embedded_test_server/embedded_test_server.h"
+#include "testing/gmock/include/gmock/gmock.h"
+#include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/window_open_disposition.h"
 #include "url/gurl.h"
 
 namespace performance_manager {
 
-using PageDiscarderBrowserTest = InProcessBrowserTest;
+using LifecycleUnitDiscardReason = ::mojom::LifecycleUnitDiscardReason;
+using PageDiscarder = mechanism::PageDiscarder;
 
-IN_PROC_BROWSER_TEST_F(PageDiscarderBrowserTest, DiscardPageNodesUrgent) {
+class PageDiscarderBrowserTest
+    : public InProcessBrowserTest,
+      public ::testing::WithParamInterface<LifecycleUnitDiscardReason> {};
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    PageDiscarderBrowserTest,
+    ::testing::Values(LifecycleUnitDiscardReason::URGENT,
+                      LifecycleUnitDiscardReason::PROACTIVE));
+
+IN_PROC_BROWSER_TEST_P(PageDiscarderBrowserTest, DiscardPageNodes) {
+  const LifecycleUnitDiscardReason discard_reason = GetParam();
+
   ASSERT_TRUE(embedded_test_server()->Start());
 
-  content::WindowedNotificationObserver load(
-      content::NOTIFICATION_NAV_ENTRY_COMMITTED,
-      content::NotificationService::AllSources());
-  content::OpenURLParams page(embedded_test_server()->GetURL("/title1.html"),
-                              content::Referrer(),
-                              WindowOpenDisposition::NEW_BACKGROUND_TAB,
-                              ui::PAGE_TRANSITION_TYPED, false);
-  auto* contents = browser()->OpenURL(page);
-  load.Wait();
+  content::RenderFrameHost* frame_host = NavigateToURLWithDisposition(
+      browser(), embedded_test_server()->GetURL("/title1.html"),
+      WindowOpenDisposition::NEW_BACKGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+  ASSERT_TRUE(frame_host);
+  auto* contents = content::WebContents::FromRenderFrameHost(frame_host);
 
   uint64_t total = 0;
   base::WeakPtr<PageNode> page_node =
       PerformanceManager::GetPrimaryPageNodeForWebContents(contents);
-  base::RunLoop run_loop;
-  auto quit_closure = run_loop.QuitClosure();
-  PerformanceManager::CallOnGraph(
-      FROM_HERE,
-      base::BindLambdaForTesting([&page_node, &quit_closure, &total] {
-        EXPECT_TRUE(page_node);
+  ASSERT_TRUE(page_node);
 
-        // Simulate that there are PMF estimates available for the frames in
-        // this page.
-        performance_manager::GraphOperations::VisitFrameTreePreOrder(
-            page_node.get(), [&total](const FrameNode* frame_node) {
-              total += 1;
-              FrameNodeImpl::FromNode(frame_node)
-                  ->SetPrivateFootprintKbEstimate(1);
-              return true;
-            });
+  // Simulate that there are PMF estimates available for the frames in
+  // this page.
+  GraphOperations::VisitFrameTreePreOrder(
+      page_node.get(), [&total](const FrameNode* frame_node) {
+        total += 1;
+        FrameNodeImpl::FromNode(frame_node)->SetPrivateFootprintKbEstimate(1);
+        return true;
+      });
 
-        mechanism::PageDiscarder discarder;
-        discarder.DiscardPageNodes(
-            {page_node.get()}, ::mojom::LifecycleUnitDiscardReason::URGENT,
-            base::BindLambdaForTesting([&quit_closure](bool success) {
-              EXPECT_TRUE(success);
-              std::move(quit_closure).Run();
-            }));
-      }));
-  run_loop.Run();
+  PageDiscarder discarder;
+  std::optional<uint64_t> estimated_memory_freed_kb =
+      discarder.DiscardPageNode(page_node.get(), discard_reason);
+
+  EXPECT_TRUE(estimated_memory_freed_kb.has_value());
 
   auto* new_contents = browser()->tab_strip_model()->GetWebContentsAt(1);
   EXPECT_TRUE(new_contents->WasDiscarded());
-  auto* pre_discard_resource_usage =
-      performance_manager::user_tuning::UserPerformanceTuningManager::
-          PreDiscardResourceUsage::FromWebContents(new_contents);
-  EXPECT_TRUE(pre_discard_resource_usage);
-  EXPECT_EQ(total, pre_discard_resource_usage->memory_footprint_estimate_kb());
-}
-
-IN_PROC_BROWSER_TEST_F(PageDiscarderBrowserTest, DiscardPageNodesProactive) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-
-  content::WindowedNotificationObserver load(
-      content::NOTIFICATION_NAV_ENTRY_COMMITTED,
-      content::NotificationService::AllSources());
-  content::OpenURLParams page(embedded_test_server()->GetURL("/title1.html"),
-                              content::Referrer(),
-                              WindowOpenDisposition::NEW_BACKGROUND_TAB,
-                              ui::PAGE_TRANSITION_TYPED, false);
-  auto* contents = browser()->OpenURL(page);
-  load.Wait();
-
-  uint64_t total = 0;
-  base::WeakPtr<PageNode> page_node =
-      PerformanceManager::GetPrimaryPageNodeForWebContents(contents);
-  base::RunLoop run_loop;
-  auto quit_closure = run_loop.QuitClosure();
-  PerformanceManager::CallOnGraph(
-      FROM_HERE,
-      base::BindLambdaForTesting([&page_node, &quit_closure, &total] {
-        EXPECT_TRUE(page_node);
-
-        // Simulate that there are PMF estimates available for the frames in
-        // this page.
-        performance_manager::GraphOperations::VisitFrameTreePreOrder(
-            page_node.get(), [&total](const FrameNode* frame_node) {
-              total += 1;
-              FrameNodeImpl::FromNode(frame_node)
-                  ->SetPrivateFootprintKbEstimate(1);
-              return true;
-            });
-
-        mechanism::PageDiscarder discarder;
-        discarder.DiscardPageNodes(
-            {page_node.get()}, ::mojom::LifecycleUnitDiscardReason::PROACTIVE,
-            base::BindLambdaForTesting([&quit_closure](bool success) {
-              EXPECT_TRUE(success);
-              std::move(quit_closure).Run();
-            }));
-      }));
-  run_loop.Run();
-
-  auto* new_contents = browser()->tab_strip_model()->GetWebContentsAt(1);
-  EXPECT_TRUE(new_contents->WasDiscarded());
-  auto* pre_discard_resource_usage =
-      performance_manager::user_tuning::UserPerformanceTuningManager::
-          PreDiscardResourceUsage::FromWebContents(new_contents);
+  auto* pre_discard_resource_usage = user_tuning::UserPerformanceTuningManager::
+      PreDiscardResourceUsage::FromWebContents(new_contents);
   EXPECT_TRUE(pre_discard_resource_usage);
   EXPECT_EQ(total, pre_discard_resource_usage->memory_footprint_estimate_kb());
 }

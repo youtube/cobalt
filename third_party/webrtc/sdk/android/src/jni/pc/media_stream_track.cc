@@ -18,16 +18,14 @@
 namespace webrtc {
 namespace jni {
 
-ScopedJavaLocalRef<jobject> NativeToJavaMediaType(
-    JNIEnv* jni,
-    cricket::MediaType media_type) {
-  return Java_MediaType_fromNativeIndex(jni, media_type);
+ScopedJavaLocalRef<jobject> NativeToJavaMediaType(JNIEnv* jni,
+                                                  MediaType media_type) {
+  return Java_MediaType_fromNativeIndex(jni, static_cast<int>(media_type));
 }
 
-cricket::MediaType JavaToNativeMediaType(JNIEnv* jni,
-                                         const JavaRef<jobject>& j_media_type) {
-  return static_cast<cricket::MediaType>(
-      Java_MediaType_getNative(jni, j_media_type));
+MediaType JavaToNativeMediaType(JNIEnv* jni,
+                                const JavaRef<jobject>& j_media_type) {
+  return static_cast<MediaType>(Java_MediaType_getNative(jni, j_media_type));
 }
 
 static ScopedJavaLocalRef<jstring> JNI_MediaStreamTrack_GetId(JNIEnv* jni,

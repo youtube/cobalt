@@ -57,7 +57,7 @@ std::u16string DevicePermissionsDialogController::GetOption(
     size_t index) const {
   std::u16string device_name = prompt_->GetDeviceName(index);
   const auto& it = device_name_map_.find(device_name);
-  DCHECK(it != device_name_map_.end());
+  CHECK(it != device_name_map_.end());
   return it->second == 1
              ? device_name
              : l10n_util::GetStringFUTF16(

@@ -1,5 +1,5 @@
 diff --git a/source/common/ucnv2022.cpp b/source/common/ucnv2022.cpp
-index ec096780..7c2cf395 100644
+index 5989c1b4..9d6d111f 100644
 --- a/source/common/ucnv2022.cpp
 +++ b/source/common/ucnv2022.cpp
 @@ -513,7 +513,7 @@ _ISO2022Open(UConverter *cnv, UConverterLoadArgs *pArgs, UErrorCode *errorCode){

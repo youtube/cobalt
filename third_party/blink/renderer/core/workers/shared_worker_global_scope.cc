@@ -52,7 +52,6 @@
 #include "third_party/blink/renderer/core/workers/worker_reporting_proxy.h"
 #include "third_party/blink/renderer/platform/bindings/source_location.h"
 #include "third_party/blink/renderer/platform/loader/fetch/fetch_client_settings_object_snapshot.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/weborigin/scheme_registry.h"
 #include "third_party/blink/renderer/platform/weborigin/security_policy.h"
 
@@ -62,9 +61,15 @@ SharedWorkerGlobalScope::SharedWorkerGlobalScope(
     std::unique_ptr<GlobalScopeCreationParams> creation_params,
     SharedWorkerThread* thread,
     base::TimeTicks time_origin,
-    const SharedWorkerToken& token)
-    : WorkerGlobalScope(std::move(creation_params), thread, time_origin, false),
-      token_(token) {}
+    const SharedWorkerToken& token,
+    bool require_cross_site_request_for_cookies)
+    : WorkerGlobalScope(std::move(creation_params),
+                        thread,
+                        time_origin,
+                        /*is_service_worker_global_scope=*/false),
+      token_(token),
+      require_cross_site_request_for_cookies_(
+          require_cross_site_request_for_cookies) {}
 
 SharedWorkerGlobalScope::~SharedWorkerGlobalScope() = default;
 
@@ -164,9 +169,7 @@ void SharedWorkerGlobalScope::FetchAndRunModuleScript(
     std::unique_ptr<PolicyContainer> policy_container,
     const FetchClientSettingsObjectSnapshot& outside_settings_object,
     WorkerResourceTimingNotifier& outside_resource_timing_notifier,
-    network::mojom::CredentialsMode credentials_mode,
-    RejectCoepUnsafeNone reject_coep_unsafe_none) {
-  DCHECK(!reject_coep_unsafe_none);
+    network::mojom::CredentialsMode credentials_mode) {
   if (worker_main_script_load_params) {
     SetWorkerMainScriptLoadingParametersForModules(
         std::move(worker_main_script_load_params));
@@ -198,7 +201,7 @@ void SharedWorkerGlobalScope::Connect(MessagePortChannel channel) {
   auto* port = MakeGarbageCollected<MessagePort>(*this);
   port->Entangle(std::move(channel));
   MessageEvent* event =
-      MessageEvent::Create(MakeGarbageCollected<MessagePortArray>(1, port),
+      MessageEvent::Create(MakeGarbageCollected<GCedMessagePortArray>(1, port),
                            String(), String(), port);
   event->initEvent(event_type_names::kConnect, false, false);
   DispatchEvent(*event);

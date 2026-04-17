@@ -5,11 +5,18 @@
 #include "components/feedback/redaction_tool/redaction_tool.h"
 
 #include <gtest/gtest.h>
+
+#include <array>
 #include <set>
+#include <string_view>
 #include <utility>
 
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
+#include "base/location.h"
+#include "base/path_service.h"
 #include "base/strings/string_util.h"
-#include "build/chromeos_buildflags.h"
+#include "components/feedback/redaction_tool/metrics_tester.h"
 #include "components/feedback/redaction_tool/pii_types.h"
 
 namespace redaction {
@@ -34,8 +41,22 @@ struct StringWithRedaction {
 const StringWithRedaction kStringsWithRedactions[] = {
     {"aaaaaaaa [SSID=123aaaaaa]aaaaa",  // SSID.
      "aaaaaaaa [SSID=(SSID: 1)]aaaaa", PIIType::kSSID},
+    {"chrome://resources/foo",  // Secure chrome resource, exempt.
+     "chrome://resources/foo", PIIType::kNone},
+    {"chrome://settings/crisper.js",  // Exempt settings URLs.
+     "chrome://settings/crisper.js", PIIType::kNone},
+    // Exempt first party extension.
+    {"chrome-extension://nkoccljplnhpfnfiajclkommnmllphnl/foobar.js",
+     "chrome-extension://nkoccljplnhpfnfiajclkommnmllphnl/foobar.js",
+     PIIType::kNone},
     {"aaaaaaaahttp://tets.comaaaaaaa",  // URL.
      "aaaaaaaa(URL: 1)", PIIType::kURL},
+    {"chrome://resources/f?user=bar",  // Potentially PII in parameter.
+     "(URL: 2)", PIIType::kURL},
+    {"chrome-extension://nkoccljplnhpfnfiajclkommnmllphnl/foobar.js?bar=x",
+     "(URL: 3)", PIIType::kURL},  // Potentially PII in parameter.
+    {"isolated-app://airugqztij5biqquuk3mfwpsaibuegaqcitgfchwuosuofdjabzqaaac/",
+     "(URL: 4)", PIIType::kURL},                  // URL
     {"u:object_r:system_data_file:s0:c512,c768",  // No PII, it is an SELinux
                                                   // context.
      "u:object_r:system_data_file:s0:c512,c768", PIIType::kNone},
@@ -171,25 +192,69 @@ const StringWithRedaction kStringsWithRedactions[] = {
      "(IPv6: 18)", PIIType::kIPAddress},
     {"aa:aa:aa:aa:aa:aa",  // MAC address (BSSID).
      "(MAC OUI=aa:aa:aa IFACE=1)", PIIType::kMACAddress},
-    {"chrome://resources/foo",  // Secure chrome resource, exempt.
-     "chrome://resources/foo", PIIType::kNone},
-    {"chrome://settings/crisper.js",  // Exempt settings URLs.
-     "chrome://settings/crisper.js", PIIType::kNone},
-    // Exempt first party extension.
-    {"chrome-extension://nkoccljplnhpfnfiajclkommnmllphnl/foobar.js",
-     "chrome-extension://nkoccljplnhpfnfiajclkommnmllphnl/foobar.js",
-     PIIType::kNone},
-    {"chrome://resources/f?user=bar",  // Potentially PII in parameter.
-     "(URL: 2)", PIIType::kURL},
-    {"chrome-extension://nkoccljplnhpfnfiajclkommnmllphnl/foobar.js?bar=x",
-     "(URL: 3)", PIIType::kURL},  // Potentially PII in parameter.
-    {"isolated-app://airugqztij5biqquuk3mfwpsaibuegaqcitgfchwuosuofdjabzqaaac/",
-     "(URL: 4)", PIIType::kURL},  // URL
     {"/root/27540283740a0897ab7c8de0f809add2bacde78f/foo",
      "/root/(HASH:2754 1)/foo", PIIType::kStableIdentifier},  // Hash string.
     {"B3mcFTkQAHofv94DDTUuVJGGEI/BbzsyDncplMCR2P4=", "(UID: 1)",
      PIIType::kStableIdentifier},
-#if BUILDFLAG(IS_CHROMEOS_ASH)  // We only redact Android paths on Chrome OS.
+    {"foo=4012-8888-8888-1881", "foo=(CREDITCARD: 1)", PIIType::kCreditCard},
+    {"foo=40 12 88 88 88 88 18 81", "foo=(CREDITCARD: 1)",
+     PIIType::kCreditCard},
+    // Max length
+    {"foo=5019717010103742", "foo=(CREDITCARD: 2)", PIIType::kCreditCard},
+    {"foo=5-0-1-9-7-1-7-0-1-0-1-0-3-7-4-2-7-8-7", "foo=(CREDITCARD: 3)",
+     PIIType::kCreditCard},
+    // Too long to match.
+    {"foo=5-0-1-9-7-1-7-0-1-0-1-0-3-7-4-2-7-8-7-2",
+     "foo=5-0-1-9-7-1-7-0-1-0-1-0-3-7-4-2-7-8-7-2", PIIType::kNone},
+    // Number is too long.
+    {"foo=12345678901234567894", "foo=12345678901234567894", PIIType::kNone},
+    // Number is too short.
+    {"foo=12345678903", "foo=12345678903", PIIType::kNone},
+    // Luhn checksum doesn't validate.
+    {"foo=4111 1111 1111 1112", "foo=4111 1111 1111 1112", PIIType::kNone},
+    // This is probably just a timestamp.
+    {"foo=4012888888881881ms", "foo=4012888888881881ms", PIIType::kNone},
+    // This is probably just a timestamp as well.
+    {"foo=4012888888881881 ms", "foo=4012888888881881 ms", PIIType::kNone},
+    // Probably a log entry.
+    {"foo=12:00:00.359  1000   155   155 INFO",
+     "foo=12:00:00.359  1000   155   155 INFO", PIIType::kNone},
+    // Invalid IIN.
+    {"foo=0000-0000-0000-0000", "foo=0000-0000-0000-0000", PIIType::kNone},
+    // This is not a timestamp even though "ms" appears after the number.
+    {"Use 4012888888881881 or moms creditcard",
+     "Use (CREDITCARD: 1)or moms creditcard", PIIType::kCreditCard},
+    {":GB82 WEST 1234 5698 7654 32", ":(IBAN: 1)", PIIType::kIBAN},
+    {":GB33BUKB20201555555555", ":(IBAN: 2)", PIIType::kIBAN},
+    {":GB82-WEST-1234-5698-7654-32", ":(IBAN: 1)", PIIType::kIBAN},
+    // Invalid check digits.
+    {":GB94BARC20201530093459", ":GB94BARC20201530093459", PIIType::kNone},
+    // Country does not seem to support IBAN.
+    {":US64SVBKUS6S3300958879", ":US64SVBKUS6S3300958879", PIIType::kNone},
+    // Random data before a valid IBAN shouldn't match.
+    {"base64Data=GB82WEST12345698765432", "base64Data=GB82WEST12345698765432",
+     PIIType::kNone},
+    {"base64DataGB82WEST12345698765432", "base64DataGB82WEST12345698765432",
+     PIIType::kNone},
+    // Random data after a valid IBAN shouldn't match.
+    {":GB82 WEST 1234 5698 7654 32/base64Data",
+     ":GB82 WEST 1234 5698 7654 32/base64Data", PIIType::kNone},
+    {":GB82 WEST 1234 5698 7654 32+base64Data",
+     ":GB82 WEST 1234 5698 7654 32+base64Data", PIIType::kNone},
+    {":GB82 WEST 1234 5698 7654 32=base64Data",
+     ":GB82 WEST 1234 5698 7654 32=base64Data", PIIType::kNone},
+    {":GB82 WEST 1234 5698 7654 32base64Data",
+     ":GB82 WEST 1234 5698 7654 32base64Data", PIIType::kNone},
+    // Random data before and after a valid IBAN shouldn't match.
+    {"base64DataGB82-WEST-1234-5698-7654-32+base64Data",
+     "base64DataGB82-WEST-1234-5698-7654-32+base64Data", PIIType::kNone},
+    // Redacted Crash IDs.
+    {"Crash report receipt ID 153c963587d8d8d4",
+     "Crash report receipt ID (Crash ID: 1)", PIIType::kCrashId},
+    {"with prefixCrash report receipt ID 153C963587D8D8D4b with trailing text",
+     "with prefixCrash report receipt ID (Crash ID: 2) with trailing text",
+     PIIType::kCrashId},
+#if BUILDFLAG(IS_CHROMEOS)  // We only redact Android paths on Chrome OS.
     // Allowed android storage path.
     {"112K\t/home/root/deadbeef1234/android-data/data/system_de",
      "112K\t/home/root/deadbeef1234/android-data/data/system_de",
@@ -198,10 +263,16 @@ const StringWithRedaction kStringsWithRedactions[] = {
     {"8.0K\t/home/root/deadbeef1234/android-data/data/data/pa.ckage2/de",
      "8.0K\t/home/root/deadbeef1234/android-data/data/data/pa.ckage2/d_",
      PIIType::kAndroidAppStoragePath},
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 };
 
 class RedactionToolTest : public testing::Test {
+ public:
+  RedactionToolTest()
+      : metrics_tester_(MetricsTester::Create()),
+        redactor_(kFakeFirstPartyExtensionIDs,
+                  metrics_tester_->SetupRecorder()) {}
+
  protected:
   std::string RedactMACAddresses(const std::string& input) {
     return redactor_.RedactMACAddresses(input, nullptr);
@@ -233,7 +304,21 @@ class RedactionToolTest : public testing::Test {
     return redactor_.RedactCustomPatternWithoutContext(input, pattern, nullptr);
   }
 
-  RedactionTool redactor_{kFakeFirstPartyExtensionIDs};
+  template <typename T>
+  void ExpectBucketCount(
+      std::string_view histogram_name,
+      const T enum_value,
+      const size_t expected_count,
+      const base::Location location = base::Location::Current()) {
+    const size_t actual_count = metrics_tester_->GetBucketCount(
+        histogram_name, static_cast<int>(enum_value));
+
+    EXPECT_EQ(actual_count, expected_count)
+        << location.file_name() << ":" << location.line_number();
+  }
+
+  std::unique_ptr<MetricsTester> metrics_tester_;
+  RedactionTool redactor_;
 };
 
 TEST_F(RedactionToolTest, Redact) {
@@ -247,6 +332,12 @@ TEST_F(RedactionToolTest, Redact) {
   // Make sure hash redaction is invoked.
   EXPECT_EQ("(HASH:1122 1)",
             redactor_.Redact("11223344556677889900AABBCCDDEEFF"));
+
+  // Make sure (partial) user id hash in cryptohome devices is redacted.
+  EXPECT_EQ("dmcrypt-(UID: 1)-cache",
+            redactor_.Redact("dmcrypt-123abcde-cache"));
+  EXPECT_EQ("FOO-cryptohome--(UID: 1)--cache",
+            redactor_.Redact("FOO-cryptohome--123abcde--cache"));
 
   // Make sure custom pattern redaction is invoked.
   EXPECT_EQ("Cell ID: '(CellID: 1)'", RedactCustomPatterns("Cell ID: 'A1B2'"));
@@ -427,6 +518,18 @@ TEST_F(RedactionToolTest, RedactCustomPatterns) {
             RedactCustomPatterns("\"attested_device_id\"=\"-5CD045B0DZ\""));
   EXPECT_EQ("\"attested_device_id\"=\"5CD045B0DZ-\"",
             RedactCustomPatterns("\"attested_device_id\"=\"5CD045B0DZ-\""));
+  // redact lsusb's iSerial with a nonzero index.
+  EXPECT_EQ("iSerial    3 (Serial: 14)",
+            RedactCustomPatterns("iSerial    3 12345abcdEFG"));
+  // Do not redact lsusb's iSerial when the index is 0.
+  EXPECT_EQ("iSerial    0 ", RedactCustomPatterns("iSerial    0 "));
+  // redact usbguard's serial number in syslog
+  EXPECT_EQ("serial \"(Serial: 15)\"",
+            RedactCustomPatterns("serial \"usb1234AA5678\""));
+  EXPECT_EQ("SN: (Serial: 16)",
+            RedactCustomPatterns("SN: ffffffff ffffffff ffffffff"));
+  EXPECT_EQ("DEV_ID:      (Serial: 17)",
+            RedactCustomPatterns("DEV_ID:      0x1202204d 0x4c29b022"));
 
   // Valid PSM identifiers.
   EXPECT_EQ("PSM id: (PSM ID: 1)", RedactCustomPatterns("PSM id: ABCZ/123xx"));
@@ -443,12 +546,22 @@ TEST_F(RedactionToolTest, RedactCustomPatterns) {
   EXPECT_EQ("/root/123xx", RedactCustomPatterns("/root/123xx"));
   // PSM mention without whitespace, e.g. in base64-encoded data.
   EXPECT_EQ("PSM+ABCZ/123xx", RedactCustomPatterns("PSM+ABCZ/123xx"));
+  // PSM mention with only newline whitespace, e.g. in base64-encoded data.
+  EXPECT_EQ("PSM+\r\nABCZ/123xx", RedactCustomPatterns("PSM+\r\nABCZ/123xx"));
 
   EXPECT_EQ("\"gaia_id\":\"(GAIA: 1)\"",
             RedactCustomPatterns("\"gaia_id\":\"1234567890\""));
   EXPECT_EQ("gaia_id='(GAIA: 2)'", RedactCustomPatterns("gaia_id='987654321'"));
   EXPECT_EQ("{id: (GAIA: 1), email:",
             RedactCustomPatterns("{id: 1234567890, email:"));
+  EXPECT_EQ("\"accountId\": \"(GAIA: 3)\"",
+            RedactCustomPatterns("\"accountId\": \"01234\""));
+  EXPECT_EQ("\"label\": \"Account Id\",\n  \"status\": \"(GAIA: 3)\"",
+            RedactCustomPatterns(
+                "\"label\": \"Account Id\",\n  \"status\": \"01234\""));
+  EXPECT_EQ(
+      "\"label\": \"Gaia Id\",\n  \"status\": \"(GAIA: 3)\"",
+      RedactCustomPatterns("\"label\": \"Gaia Id\",\n  \"status\": \"01234\""));
 
   EXPECT_EQ("(email: 1)", RedactCustomPatterns("foo@bar.com"));
   EXPECT_EQ("Email: (email: 1).", RedactCustomPatterns("Email: foo@bar.com."));
@@ -462,18 +575,6 @@ TEST_F(RedactionToolTest, RedactCustomPatterns) {
   EXPECT_EQ("[(IPv6: 3)]", RedactCustomPatterns("[2001:db8::ff00:42:8329]"));
   EXPECT_EQ("[(IPv6: 4)]", RedactCustomPatterns("[aa::bb]"));
   EXPECT_EQ("State::Abort", RedactCustomPatterns("State::Abort"));
-
-  // Real IPv4 address
-  EXPECT_EQ("(IPv4: 1)", RedactCustomPatterns("192.160.0.1"));
-
-  // Non-PII IPv4 address (see MaybeScrubIPAddress)
-  EXPECT_EQ("255.255.255.255", RedactCustomPatterns("255.255.255.255"));
-
-  // Not an actual IPv4 address
-  EXPECT_EQ("75.748.86.91", RedactCustomPatterns("75.748.86.91"));
-
-  // USB Path - not an actual IPv4 Address
-  EXPECT_EQ("4-3.3.3.3", RedactCustomPatterns("4-3.3.3.3"));
 
   // ModemManager modem firmware revisions - not actual IPv4 Addresses
   EXPECT_EQ("Revision: 81600.0000.00.29.19.16_DO",
@@ -498,7 +599,7 @@ TEST_F(RedactionToolTest, RedactCustomPatterns) {
   EXPECT_EQ("(URL: 1)", RedactCustomPatterns("http://example.com/foo?test=1"));
   EXPECT_EQ("Foo (URL: 2) Bar",
             RedactCustomPatterns("Foo http://192.168.0.1/foo?test=1#123 Bar"));
-  const char* kURLs[] = {
+  auto kURLs = std::to_array<const char*>({
       "http://example.com/foo?test=1",
       "http://userid:password@example.com:8080",
       "http://userid:password@example.com:8080/",
@@ -516,7 +617,7 @@ TEST_F(RedactionToolTest, RedactCustomPatterns) {
       "https://aaaaaaaaaaaaaaaa.com",
       "file:///var/log/messages",
       "file:///usr/local/home/iby/web%20page%20test.html",
-  };
+  });
   for (size_t i = 0; i < std::size(kURLs); ++i) {
     SCOPED_TRACE(kURLs[i]);
     std::string got = RedactCustomPatterns(kURLs[i]);
@@ -527,6 +628,17 @@ TEST_F(RedactionToolTest, RedactCustomPatterns) {
   // Test that "Android:" is not considered a schema with empty hier part.
   EXPECT_EQ("The following applies to Android:",
             RedactCustomPatterns("The following applies to Android:"));
+
+  EXPECT_EQ(
+      "[  513980.417] (Memory Dump: 1)",
+      RedactCustomPatterns(
+          "[  513980.417] 0x00005010: 00aaa423 00baa623 00caa823 00daaa23"));
+  EXPECT_EQ("[  513980] 0x00005010: 00aaa423 00baa623 00caa823 00daaa23",
+            RedactCustomPatterns(
+                "[  513980] 0x00005010: 00aaa423 00baa623 00caa823 00daaa23"));
+  EXPECT_EQ("[abcdefg] 0x00005010: 00aaa423 00baa623 00caa823 00daaa23",
+            RedactCustomPatterns(
+                "[abcdefg] 0x00005010: 00aaa423 00baa623 00caa823 00daaa23"));
 }
 
 TEST_F(RedactionToolTest, RedactCustomPatternWithContext) {
@@ -537,7 +649,7 @@ TEST_F(RedactionToolTest, RedactCustomPatternWithContext) {
   const CustomPatternWithAlias kPattern2 = {"ID", "(\\b(?i)id=')(\\d+)(')",
                                             PIIType::kStableIdentifier};
   const CustomPatternWithAlias kPattern3 = {"IDG", "(\\b(?i)idg=')(\\d+)(')",
-                                            PIIType::kLocationInfo};
+                                            PIIType::kCellularLocationInfo};
   EXPECT_EQ("", RedactCustomPatternWithContext("", kPattern1));
   EXPECT_EQ("foo\nbar\n",
             RedactCustomPatternWithContext("foo\nbar\n", kPattern1));
@@ -560,6 +672,30 @@ TEST_F(RedactionToolTest, RedactCustomPatternWithContext) {
             RedactCustomPatternWithContext("idg='1234'", kPattern3));
   EXPECT_EQ("x(FOO: 1)z",
             RedactCustomPatternWithContext("xyz", {"FOO", "()(y+)()"}));
+
+  // Real IPv4 address
+  EXPECT_EQ("(IPv4: 1)", RedactCustomPatterns("192.160.0.1"));
+  EXPECT_EQ("[(IPv4: 1)]", RedactCustomPatterns("[192.160.0.1]"));
+  EXPECT_EQ("aaaa(IPv4: 2)aaa", RedactCustomPatterns("aaaa123.123.45.4aaa"));
+  EXPECT_EQ("IP: (IPv4: 3)", RedactCustomPatterns("IP: 111.222.3.4"));
+  EXPECT_EQ("(email: 1) (IPv4: 3)",
+            RedactCustomPatterns("test@email.com 111.222.3.4"));
+  EXPECT_EQ(
+      "(URL: 1) (email: 1) (IPv4: 3)",
+      RedactCustomPatterns("http://www.google.com test@email.com 111.222.3.4"));
+  EXPECT_EQ("addresses=(IPv4: 4)/30,x",
+            RedactCustomPatterns("addresses=100.100.1.10/30,x"));
+
+  // Non-PII IPv4 address (see MaybeScrubIPAddress)
+  EXPECT_EQ("255.255.255.255", RedactCustomPatterns("255.255.255.255"));
+
+  // Not an actual IPv4 address
+  EXPECT_EQ("75.748.86.91", RedactCustomPatterns("75.748.86.91"));
+  EXPECT_EQ("1.2.3.4.5", RedactCustomPatterns("1.2.3.4.5"));
+  EXPECT_EQ("1.2.3.4.5.6.7.8", RedactCustomPatterns("1.2.3.4.5.6.7.8"));
+
+  // USB Path - not an actual IPv4 Address
+  EXPECT_EQ("4-3.3.3.3", RedactCustomPatterns("4-3.3.3.3"));
 }
 
 TEST_F(RedactionToolTest, RedactCustomPatternWithoutContext) {
@@ -572,16 +708,112 @@ TEST_F(RedactionToolTest, RedactCustomPatternWithoutContext) {
 }
 
 TEST_F(RedactionToolTest, RedactChunk) {
+  redactor_.EnableCreditCardRedaction(true);
   std::string redaction_input;
   std::string redaction_output;
+  ExpectBucketCount(kRedactionToolCallerHistogram,
+                    RedactionToolCaller::kUnitTest, 0);
+  ExpectBucketCount(kRedactionToolCallerHistogram,
+                    RedactionToolCaller::kSysLogUploader, 0);
+  ExpectBucketCount(kRedactionToolCallerHistogram,
+                    RedactionToolCaller::kSysLogFetcher, 0);
+  ExpectBucketCount(kRedactionToolCallerHistogram,
+                    RedactionToolCaller::kSupportTool, 0);
+  ExpectBucketCount(kRedactionToolCallerHistogram,
+                    RedactionToolCaller::kErrorReporting, 0);
+  ExpectBucketCount(kRedactionToolCallerHistogram,
+                    RedactionToolCaller::kFeedbackToolHotRod, 0);
+  ExpectBucketCount(kRedactionToolCallerHistogram,
+                    RedactionToolCaller::kFeedbackToolUserDescriptions, 0);
+  ExpectBucketCount(kRedactionToolCallerHistogram,
+                    RedactionToolCaller::kFeedbackToolLogs, 0);
+  ExpectBucketCount(kRedactionToolCallerHistogram,
+                    RedactionToolCaller::kCrashTool, 0);
+  ExpectBucketCount(kRedactionToolCallerHistogram,
+                    RedactionToolCaller::kCrashToolJSErrors, 0);
+  ExpectBucketCount(kRedactionToolCallerHistogram,
+                    RedactionToolCaller::kUndetermined, 0);
+  ExpectBucketCount(kRedactionToolCallerHistogram,
+                    RedactionToolCaller::kUnknown, 0);
+
+  using enum CreditCardDetection;
+  ExpectBucketCount(kCreditCardRedactionHistogram, kRegexMatch, 0);
+  ExpectBucketCount(kCreditCardRedactionHistogram, kTimestamp, 0);
+  ExpectBucketCount(kCreditCardRedactionHistogram, kRepeatedChars, 0);
+  ExpectBucketCount(kCreditCardRedactionHistogram, kDoesntValidate, 0);
+  ExpectBucketCount(kCreditCardRedactionHistogram, kValidated, 0);
+  EXPECT_EQ(metrics_tester_->GetNumBucketEntries(
+                RedactionToolMetricsRecorder::
+                    GetTimeSpentRedactingHistogramNameForTesting()),
+            0u);
+
+  for (int enum_int = static_cast<int>(PIIType::kNone) + 1;
+       enum_int <= static_cast<int>(PIIType::kMaxValue); ++enum_int) {
+    const PIIType enum_value = static_cast<PIIType>(enum_int);
+    ExpectBucketCount(kPIIRedactedHistogram, enum_value, 0);
+  }
+
   for (const auto& s : kStringsWithRedactions) {
     redaction_input.append(s.pre_redaction).append("\n");
     redaction_output.append(s.post_redaction).append("\n");
   }
   EXPECT_EQ(redaction_output, redactor_.Redact(redaction_input));
+
+  for (int enum_int = static_cast<int>(PIIType::kNone) + 1;
+       enum_int <= static_cast<int>(PIIType::kMaxValue); ++enum_int) {
+    const PIIType enum_value = static_cast<PIIType>(enum_int);
+    const size_t expected_count = std::ranges::count_if(
+        kStringsWithRedactions,
+        [enum_value](const StringWithRedaction& string_with_redaction) {
+          return string_with_redaction.pii_type == enum_value;
+        });
+    ExpectBucketCount(kPIIRedactedHistogram, enum_value, expected_count);
+  }
+  // This isn't handled by the redaction tool but rather in the
+  // `UiHierarchyDataCollector`. It's part of the enum for historical reasons.
+  ExpectBucketCount(kPIIRedactedHistogram, PIIType::kUIHierarchyWindowTitles,
+                    0);
+  // This isn't handled by the redaction tool but rather in Shill. It's part of
+  // the enum for historical reasons.
+  ExpectBucketCount(kPIIRedactedHistogram, PIIType::kEAP, 0);
+  ExpectBucketCount(kRedactionToolCallerHistogram,
+                    RedactionToolCaller::kUnitTest, 1);
+  ExpectBucketCount(kRedactionToolCallerHistogram,
+                    RedactionToolCaller::kSysLogUploader, 0);
+  ExpectBucketCount(kRedactionToolCallerHistogram,
+                    RedactionToolCaller::kSysLogFetcher, 0);
+  ExpectBucketCount(kRedactionToolCallerHistogram,
+                    RedactionToolCaller::kSupportTool, 0);
+  ExpectBucketCount(kRedactionToolCallerHistogram,
+                    RedactionToolCaller::kErrorReporting, 0);
+  ExpectBucketCount(kRedactionToolCallerHistogram,
+                    RedactionToolCaller::kFeedbackToolHotRod, 0);
+  ExpectBucketCount(kRedactionToolCallerHistogram,
+                    RedactionToolCaller::kFeedbackToolUserDescriptions, 0);
+  ExpectBucketCount(kRedactionToolCallerHistogram,
+                    RedactionToolCaller::kFeedbackToolLogs, 0);
+  ExpectBucketCount(kRedactionToolCallerHistogram,
+                    RedactionToolCaller::kCrashTool, 0);
+  ExpectBucketCount(kRedactionToolCallerHistogram,
+                    RedactionToolCaller::kCrashToolJSErrors, 0);
+  ExpectBucketCount(kRedactionToolCallerHistogram,
+                    RedactionToolCaller::kUndetermined, 0);
+  ExpectBucketCount(kRedactionToolCallerHistogram,
+                    RedactionToolCaller::kUnknown, 0);
+
+  ExpectBucketCount(kCreditCardRedactionHistogram, kRegexMatch, 16);
+  ExpectBucketCount(kCreditCardRedactionHistogram, kTimestamp, 2);
+  ExpectBucketCount(kCreditCardRedactionHistogram, kRepeatedChars, 1);
+  ExpectBucketCount(kCreditCardRedactionHistogram, kDoesntValidate, 8);
+  ExpectBucketCount(kCreditCardRedactionHistogram, kValidated, 5);
+  EXPECT_EQ(metrics_tester_->GetNumBucketEntries(
+                RedactionToolMetricsRecorder::
+                    GetTimeSpentRedactingHistogramNameForTesting()),
+            1u);
 }
 
 TEST_F(RedactionToolTest, RedactAndKeepSelected) {
+  redactor_.EnableCreditCardRedaction(true);
   std::string redaction_input;
   std::string redaction_output;
   for (const auto& s : kStringsWithRedactions) {
@@ -622,9 +854,13 @@ TEST_F(RedactionToolTest, RedactAndKeepSelected) {
 }
 
 TEST_F(RedactionToolTest, RedactUid) {
-  EXPECT_EQ("(UID: 1)",
+  EXPECT_EQ("UID: (UID: 1)",
             redactor_.RedactAndKeepSelected(
-                "B3mcFTkQAHofv94DDTUuVJGGEI/BbzsyDncplMCR2P4=", {}));
+                "UID: B3mcFTkQAHofv94DDTUuVJGGEI/BbzsyDncplMCR2P4=", {}));
+  // base64-encoded 33 bytes should not be treated as UID.
+  EXPECT_EQ("MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyCg==",
+            redactor_.RedactAndKeepSelected(
+                "MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyCg==", {}));
 }
 
 TEST_F(RedactionToolTest, RedactAndKeepSelectedHashes) {
@@ -633,25 +869,29 @@ TEST_F(RedactionToolTest, RedactAndKeepSelectedHashes) {
   // URLs and Android app storage paths but redact hashes. URLs and Android app
   // storage paths that contain hashes will be partially redacted.
   const std::pair<std::string, std::string> redaction_strings_with_hashes[] = {
-    {"chrome://resources/"
-     "f?user="
-     "99887766554433221100ffeeddccbbaaaabbccddeeff00112233445566778899",
-     "chrome://resources/f?user=(HASH:9988 1)"},  // URL that contains a hash.
-    {"/root/27540283740a0897ab7c8de0f809add2bacde78f/foo",
-     "/root/(HASH:2754 2)/foo"},  // String that contains a hash.
-    {"this is the user hash that we need to redact "
-     "aabbccddeeff00112233445566778899",
-     "this is the user hash that we need to redact (HASH:aabb 3)"},  // String
-                                                                     // that
-                                                                     // contains
-                                                                     // a hash.
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-    {"8.0K\t/home/root/aabbccddeeff00112233445566778899/"
-     "android-data/data/data/pa.ckage2/de",  // Android app storage
-                                             // path that contains a
-                                             // hash.
-     "8.0K\t/home/root/(HASH:aabb 3)/android-data/data/data/pa.ckage2/de"}
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+      {"chrome://resources/"
+       "f?user="
+       "99887766554433221100ffeeddccbbaaaabbccddeeff001122334455667788"
+       "99",
+       "chrome://resources/f?user=(HASH:9988 1)"},  // URL that
+                                                    // contains a hash.
+      {"/root/27540283740a0897ab7c8de0f809add2bacde78f/foo",
+       "/root/(HASH:2754 2)/foo"},  // String that contains a hash.
+      {"this is the user hash that we need to redact "
+       "aabbccddeeff00112233445566778899",
+       "this is the user hash that we need to redact (HASH:aabb "
+       "3)"},  // String
+               // that
+               // contains
+               // a hash.
+#if BUILDFLAG(IS_CHROMEOS)
+      {"8.0K\t/home/root/aabbccddeeff00112233445566778899/"
+       "android-data/data/data/pa.ckage2/de",  // Android app storage
+                                               // path that contains a
+                                               // hash.
+       "8.0K\t/home/root/(HASH:aabb "
+       "3)/android-data/data/data/pa.ckage2/de"}
+#endif  // BUILDFLAG(IS_CHROMEOS)
   };
   std::string redaction_input;
   std::string redaction_output;
@@ -670,75 +910,78 @@ TEST_F(RedactionToolTest, DetectPII) {
   for (const auto& s : kStringsWithRedactions) {
     redaction_input.append(s.pre_redaction).append("\n");
   }
-  std::map<PIIType, std::set<std::string>> pii_in_data {
-#if BUILDFLAG(IS_CHROMEOS_ASH)  // We only detect Android paths on Chrome OS.
-    {PIIType::kAndroidAppStoragePath, {"/de"}},
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-        {PIIType::kSSID, {"123aaaaaa"}},
-        {PIIType::kURL,
-         {"http://tets.comaaaaaaa",
-          "isolated-app://"
-          "airugqztij5biqquuk3mfwpsaibuegaqcitgfchwuosuofdjabzqaaac/",
-          "chrome://resources/f?user=bar",
-          "chrome-extension://nkoccljplnhpfnfiajclkommnmllphnl/"
-          "foobar.js?bar=x"}},
-        {PIIType::kEmail, {"aaaaaemail@example.comaaa"}},
-        {PIIType::kIPAddress,
-         {
-             "255.255.155.2",
-             "255.255.155.255",
-             "127.0.0.1",
-             "127.255.0.1",
-             "0.0.0.0",
-             "0.255.255.255",
-             "10.10.10.100",
-             "10.10.10.101",
-             "10.255.255.255",
-             "172.16.0.0",
-             "172.31.255.255",
-             "172.11.5.5",
-             "172.111.5.5",
-             "192.168.0.0",
-             "192.168.255.255",
-             "192.169.2.120",
-             "169.254.0.1",
-             "169.200.0.1",
-             "224.0.0.24",
-             "240.0.0.0",
-             "100.115.91.92",
-             "8.8.8.4",
-             "123.123.45.4",
-             "fe80::",
-             "fe80::ffff",
-             "febf:ffff::ffff",
-             "fecc::1111",
-             "11::11",
-             "ff01::3",
-             "ff02::3",
-             "ff02::fb",
-             "ff08::fb",
-             "ff0f::101",
-             "::ffff:cb0c:10ea",
-             "::ffff:a0a:a0a",
-             "::ffff:ac1e:1e1e",
-             "::ffff:c0a8:640a",
-             "::ffff:6473:5c01",
-             "64:ff9b::a0a:a0a",
-             "64:ff9b::6473:5c01",
-             "::0101:ffff:c0a8:640a",
-         }},
-        {PIIType::kMACAddress, {"aa:aa:aa:aa:aa:aa"}}, {
-      PIIType::kStableIdentifier, {
-        "27540283740a0897ab7c8de0f809add2bacde78f",
-            "B3mcFTkQAHofv94DDTUuVJGGEI/BbzsyDncplMCR2P4=",
-      }
-    }
-  };
+  std::map<PIIType, std::set<std::string>> pii_in_data{
+#if BUILDFLAG(IS_CHROMEOS)  // We only detect Android paths on Chrome OS.
+      {PIIType::kAndroidAppStoragePath, {"/de"}},
+#endif  // BUILDFLAG(IS_CHROMEOS)
+      {PIIType::kSSID, {"123aaaaaa"}},
+      {PIIType::kURL,
+       {"http://tets.comaaaaaaa",
+        "isolated-app://"
+        "airugqztij5biqquuk3mfwpsaibuegaqcitgfchwuosuofdjabzqaaac/",
+        "chrome://resources/f?user=bar",
+        "chrome-extension://nkoccljplnhpfnfiajclkommnmllphnl/"
+        "foobar.js?bar=x"}},
+      {PIIType::kEmail, {"aaaaaemail@example.comaaa"}},
+      {PIIType::kIPAddress,
+       {
+           "255.255.155.2",
+           "255.255.155.255",
+           "127.0.0.1",
+           "127.255.0.1",
+           "0.0.0.0",
+           "0.255.255.255",
+           "10.10.10.100",
+           "10.10.10.101",
+           "10.255.255.255",
+           "172.16.0.0",
+           "172.31.255.255",
+           "172.11.5.5",
+           "172.111.5.5",
+           "192.168.0.0",
+           "192.168.255.255",
+           "192.169.2.120",
+           "169.254.0.1",
+           "169.200.0.1",
+           "224.0.0.24",
+           "240.0.0.0",
+           "100.115.91.92",
+           "8.8.8.4",
+           "123.123.45.4",
+           "fe80::",
+           "fe80::ffff",
+           "febf:ffff::ffff",
+           "fecc::1111",
+           "11::11",
+           "ff01::3",
+           "ff02::3",
+           "ff02::fb",
+           "ff08::fb",
+           "ff0f::101",
+           "::ffff:cb0c:10ea",
+           "::ffff:a0a:a0a",
+           "::ffff:ac1e:1e1e",
+           "::ffff:c0a8:640a",
+           "::ffff:6473:5c01",
+           "64:ff9b::a0a:a0a",
+           "64:ff9b::6473:5c01",
+           "::0101:ffff:c0a8:640a",
+       }},
+      {PIIType::kMACAddress, {"aa:aa:aa:aa:aa:aa"}},
+      {PIIType::kStableIdentifier,
+       {
+           "27540283740a0897ab7c8de0f809add2bacde78f",
+           "B3mcFTkQAHofv94DDTUuVJGGEI/BbzsyDncplMCR2P4=",
+       }},
+      {PIIType::kCreditCard,
+       {"4012888888881881", "5019717010103742", "5019717010103742787"}},
+      {PIIType::kIBAN, {"GB82WEST12345698765432", "GB33BUKB20201555555555"}},
+      {PIIType::kCrashId, {"153c963587d8d8d4", "153C963587D8D8D4b"}}};
 
   EXPECT_EQ(pii_in_data, redactor_.Detect(redaction_input));
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)  // We only redact Android paths on Chrome OS.
+#if BUILDFLAG(IS_CHROMEOS)  // We only redact Android paths on Chrome OS.
 TEST_F(RedactionToolTest, RedactAndroidAppStoragePaths) {
   EXPECT_EQ("", RedactAndroidAppStoragePaths(""));
   EXPECT_EQ("foo\nbar\n", RedactAndroidAppStoragePaths("foo\nbar\n"));
@@ -789,7 +1032,32 @@ TEST_F(RedactionToolTest, RedactAndroidAppStoragePaths) {
       "key=value exe=/data/app/pack.age1/b_ key=value\n";
   EXPECT_EQ(kDuOutputRedacted, RedactAndroidAppStoragePaths(kDuOutput));
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
+#if !BUILDFLAG(IS_IOS)
+// TODO(xiangdongkong): Make the test work on IOS builds. Current issue: the
+// test files do not exist.
+//
+// Redact the text in the input file "test_data/test_logs.txt".
+// The expected output is from "test_data/test_logs_redacted.txt".
+TEST_F(RedactionToolTest, RedactTextFileContent) {
+  base::FilePath base_path;
+  base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &base_path);
+  base_path = base_path.AppendASCII("components/feedback/redaction_tool")
+                  .AppendASCII("test_data");
+
+  std::string text_to_be_redacted;
+  std::string text_redacted;
+  ASSERT_TRUE(base::ReadFileToString(base_path.AppendASCII("test_logs.txt"),
+                                     &text_to_be_redacted));
+  ASSERT_TRUE(base::ReadFileToString(
+      base_path.AppendASCII("test_logs_redacted.txt"), &text_redacted));
+
+  EXPECT_EQ(text_redacted, redactor_.Redact(text_to_be_redacted));
+}
+
+#endif  // !BUILDFLAG(IS_IOS)
 
 TEST_F(RedactionToolTest, RedactBlockDevices) {
   // Test cases in the form {input, output}.
@@ -813,6 +1081,7 @@ TEST_F(RedactionToolTest, RedactBlockDevices) {
       {"{\"lv_uuid\":\"lKYORl-TWDP-OFLT-yDnB-jlQ7-aQrE-AwA8Oa\", "
        "\"lv_name\":\"[thinpool_tdata]\"",
        "{\"lv_uuid\":\"(UUID: 5)\", \"lv_name\":\"[thinpool_tdata]\""},
+      {"id = \"KJ0bUk-QE15-mNMp-6Z2V-4Efq-N1r4-oPeFyc\"", "id = \"(UUID: 6)\""},
 
       // Removable media paths.
       {"/media/removable/SD Card/", "/media/removable/(Volume Label: 2)/"},

@@ -16,13 +16,13 @@
 #include <SLES/OpenSLES_AndroidConfiguration.h>
 
 #include <memory>
+#include <optional>
 
-#include "absl/types/optional.h"
+#include "api/audio/audio_device_defines.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
 #include "modules/audio_device/audio_device_buffer.h"
 #include "modules/audio_device/fine_audio_buffer.h"
-#include "modules/audio_device/include/audio_device_defines.h"
 #include "sdk/android/src/jni/audio_device/audio_common.h"
 #include "sdk/android/src/jni/audio_device/audio_device_module.h"
 #include "sdk/android/src/jni/audio_device/opensles_common.h"
@@ -62,7 +62,7 @@ class OpenSLESPlayer : public AudioOutput {
   static const int kNumOfOpenSLESBuffers = 2;
 
   OpenSLESPlayer(const AudioParameters& audio_parameters,
-                 rtc::scoped_refptr<OpenSLEngineManager> engine_manager);
+                 webrtc::scoped_refptr<OpenSLEngineManager> engine_manager);
   ~OpenSLESPlayer() override;
 
   int Init() override;
@@ -77,9 +77,9 @@ class OpenSLESPlayer : public AudioOutput {
 
   bool SpeakerVolumeIsAvailable() override;
   int SetSpeakerVolume(uint32_t volume) override;
-  absl::optional<uint32_t> SpeakerVolume() const override;
-  absl::optional<uint32_t> MaxSpeakerVolume() const override;
-  absl::optional<uint32_t> MinSpeakerVolume() const override;
+  std::optional<uint32_t> SpeakerVolume() const override;
+  std::optional<uint32_t> MaxSpeakerVolume() const override;
+  std::optional<uint32_t> MinSpeakerVolume() const override;
 
   void AttachAudioBuffer(AudioDeviceBuffer* audioBuffer) override;
 
@@ -163,7 +163,7 @@ class OpenSLESPlayer : public AudioOutput {
   // Example (kNumOfOpenSLESBuffers = 2): counts 0, 1, 0, 1, ...
   int buffer_index_;
 
-  const rtc::scoped_refptr<OpenSLEngineManager> engine_manager_;
+  const webrtc::scoped_refptr<OpenSLEngineManager> engine_manager_;
   // This interface exposes creation methods for all the OpenSL ES object types.
   // It is the OpenSL ES API entry point.
   SLEngineItf engine_;

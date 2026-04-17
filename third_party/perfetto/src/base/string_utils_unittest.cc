@@ -52,6 +52,8 @@ TEST(StringUtilsTest, CStringToUInt32) {
   EXPECT_EQ(CStringToUInt32("0"), std::make_optional<uint32_t>(0U));
   EXPECT_EQ(CStringToUInt32("1"), std::make_optional<uint32_t>(1U));
   EXPECT_EQ(CStringToUInt32("42"), std::make_optional<uint32_t>(42U));
+  EXPECT_EQ(CStringToUInt32("-42"),
+            std::make_optional<uint32_t>(static_cast<uint32_t>(-42)));
   EXPECT_EQ(CStringToUInt32(""), std::nullopt);
   EXPECT_EQ(CStringToUInt32("!?"), std::nullopt);
   EXPECT_EQ(CStringToUInt32("abc"), std::nullopt);
@@ -83,6 +85,8 @@ TEST(StringUtilsTest, StringToUInt32) {
   EXPECT_EQ(StringToUInt32("0"), std::make_optional<uint32_t>(0U));
   EXPECT_EQ(StringToUInt32("1"), std::make_optional<uint32_t>(1U));
   EXPECT_EQ(StringToUInt32("42"), std::make_optional<uint32_t>(42U));
+  EXPECT_EQ(StringToUInt32("-42"),
+            std::make_optional<uint32_t>(static_cast<uint32_t>(-42)));
   EXPECT_EQ(StringToUInt32("a", 16), std::make_optional<uint32_t>(10U));
   EXPECT_EQ(StringToUInt32("fffffff0", 16),
             std::make_optional<uint32_t>(0xfffffff0));
@@ -96,6 +100,8 @@ TEST(StringUtilsTest, StringToUInt32) {
 TEST(StringUtilsTest, StringToInt32) {
   EXPECT_EQ(StringToInt32("0"), std::make_optional<int32_t>(0));
   EXPECT_EQ(StringToInt32("1"), std::make_optional<int32_t>(1));
+  EXPECT_EQ(StringToInt32("+42"), std::make_optional<int32_t>(42));
+  EXPECT_EQ(StringToInt32("+0042"), std::make_optional<int32_t>(42));
   EXPECT_EQ(StringToInt32("-42"), std::make_optional<int32_t>(-42));
   EXPECT_EQ(StringToInt32("42", 16), std::make_optional<int32_t>(0x42));
   EXPECT_EQ(StringToInt32("7ffffffe", 16),
@@ -110,6 +116,8 @@ TEST(StringUtilsTest, StringToInt32) {
 TEST(StringUtilsTest, StringToUInt64) {
   EXPECT_EQ(StringToUInt64("0"), std::make_optional<uint64_t>(0u));
   EXPECT_EQ(StringToUInt64("1"), std::make_optional<uint64_t>(1u));
+  EXPECT_EQ(StringToUInt64("-5000000000"),
+            std::make_optional<uint64_t>(static_cast<uint64_t>(-5000000000LL)));
   EXPECT_EQ(StringToUInt64("5000000000"),
             std::make_optional<uint64_t>(5000000000ULL));
   EXPECT_EQ(StringToUInt64("7ffffffffffffffe", 16),
@@ -152,6 +160,88 @@ TEST(StringUtilsTest, StringToDouble) {
   EXPECT_EQ(StringToDouble("4 2"), std::nullopt);
   EXPECT_EQ(StringToDouble(" - 42"), std::nullopt);
 }
+
+TEST(StringUtilsTest, StringViewToUInt32) {
+  EXPECT_EQ(StringViewToUInt32("0"), std::make_optional<uint32_t>(0U));
+  EXPECT_EQ(StringViewToUInt32("1"), std::make_optional<uint32_t>(1U));
+  EXPECT_EQ(StringViewToUInt32("42"), std::make_optional<uint32_t>(42U));
+  EXPECT_EQ(StringViewToUInt32("-42"),
+            std::make_optional<uint32_t>(static_cast<uint32_t>(-42)));
+  EXPECT_EQ(StringViewToUInt32("a", 16), std::make_optional<uint32_t>(10U));
+  EXPECT_EQ(StringViewToUInt32("fffffff0", 16),
+            std::make_optional<uint32_t>(0xfffffff0));
+  EXPECT_EQ(StringViewToUInt32(""), std::nullopt);
+  EXPECT_EQ(StringViewToUInt32("!?"), std::nullopt);
+  EXPECT_EQ(StringViewToUInt32("abc"), std::nullopt);
+  EXPECT_EQ(StringViewToUInt32("123 abc"), std::nullopt);
+  EXPECT_EQ(StringViewToUInt32("beefz", 16), std::nullopt);
+}
+
+TEST(StringUtilsTest, StringViewToInt32) {
+  EXPECT_EQ(StringViewToInt32("0"), std::make_optional<int32_t>(0));
+  EXPECT_EQ(StringViewToInt32("1"), std::make_optional<int32_t>(1));
+  EXPECT_EQ(StringViewToInt32("+42"), std::make_optional<int32_t>(42));
+  EXPECT_EQ(StringViewToInt32("+0042"), std::make_optional<int32_t>(42));
+  EXPECT_EQ(StringViewToInt32("-42"), std::make_optional<int32_t>(-42));
+  EXPECT_EQ(StringViewToInt32("42", 16), std::make_optional<int32_t>(0x42));
+  EXPECT_EQ(StringViewToInt32("7ffffffe", 16),
+            std::make_optional<int32_t>(0x7ffffffe));
+  EXPECT_EQ(StringViewToInt32(""), std::nullopt);
+  EXPECT_EQ(StringViewToInt32("!?"), std::nullopt);
+  EXPECT_EQ(StringViewToInt32("abc"), std::nullopt);
+  EXPECT_EQ(StringViewToInt32("123 abc"), std::nullopt);
+  EXPECT_EQ(StringViewToInt32("beefz", 16), std::nullopt);
+}
+
+TEST(StringUtilsTest, StringViewToUInt64) {
+  EXPECT_EQ(StringViewToUInt64("0"), std::make_optional<uint64_t>(0u));
+  EXPECT_EQ(StringViewToUInt64("1"), std::make_optional<uint64_t>(1u));
+  EXPECT_EQ(StringViewToUInt64("-5000000000"),
+            std::make_optional<uint64_t>(static_cast<uint64_t>(-5000000000LL)));
+  EXPECT_EQ(StringViewToUInt64("5000000000"),
+            std::make_optional<uint64_t>(5000000000ULL));
+  EXPECT_EQ(StringViewToUInt64("7ffffffffffffffe", 16),
+            std::make_optional<uint64_t>(0x7ffffffffffffffeULL));
+  EXPECT_EQ(StringViewToUInt64("9ffffffffffffffe", 16),
+            std::make_optional<uint64_t>(0x9ffffffffffffffeULL));
+  EXPECT_EQ(StringViewToUInt64(""), std::nullopt);
+  EXPECT_EQ(StringViewToUInt64("abc"), std::nullopt);
+  EXPECT_EQ(StringViewToUInt64("beefz", 16), std::nullopt);
+}
+
+TEST(StringUtilsTest, StringViewToInt64) {
+  EXPECT_EQ(StringViewToInt64("0"), std::make_optional<int64_t>(0));
+  EXPECT_EQ(StringViewToInt64("1"), std::make_optional<int64_t>(1));
+  EXPECT_EQ(StringViewToInt64("-5000000000"),
+            std::make_optional<int64_t>(-5000000000LL));
+  EXPECT_EQ(StringViewToInt64("5000000000"),
+            std::make_optional<int64_t>(5000000000LL));
+  EXPECT_EQ(StringViewToInt64("7ffffffffffffffe", 16),
+            std::make_optional<int64_t>(0x7ffffffffffffffeLL));
+  EXPECT_EQ(StringViewToInt64("9ffffffe", 16),
+            std::make_optional<int64_t>(0x9ffffffeLL));
+  EXPECT_EQ(StringViewToInt64(""), std::nullopt);
+  EXPECT_EQ(StringViewToInt64("abc"), std::nullopt);
+  EXPECT_EQ(StringViewToInt64("beefz", 16), std::nullopt);
+}
+
+// TODO: As of Clang 19.0 std::from_chars is unimplemented for type double
+// despite being part of C++17 standard, and already being supported by GCC and
+// MSVC. Enable this once we have double support in Clang.
+// TEST(StringUtilsTest, StringViewToDouble) {
+//   EXPECT_DOUBLE_EQ(StringViewToDouble("0").value(), 0l);
+//   EXPECT_DOUBLE_EQ(StringViewToDouble("1").value(), 1l);
+//   EXPECT_DOUBLE_EQ(StringViewToDouble("-42").value(), -42l);
+//   EXPECT_DOUBLE_EQ(StringViewToDouble("-42.5").value(), -42.5l);
+//   EXPECT_DOUBLE_EQ(StringViewToDouble("0.5").value(), .5l);
+//   EXPECT_DOUBLE_EQ(StringViewToDouble(".5").value(), .5l);
+//   EXPECT_EQ(StringViewToDouble(""), std::nullopt);
+//   EXPECT_EQ(StringViewToDouble("!?"), std::nullopt);
+//   EXPECT_EQ(StringViewToDouble("abc"), std::nullopt);
+//   EXPECT_EQ(StringViewToDouble("123 abc"), std::nullopt);
+//   EXPECT_EQ(StringViewToDouble("124,456"), std::nullopt);
+//   EXPECT_EQ(StringViewToDouble("4 2"), std::nullopt);
+//   EXPECT_EQ(StringViewToDouble(" - 42"), std::nullopt);
 
 TEST(StringUtilsTest, StartsWith) {
   EXPECT_TRUE(StartsWith("", ""));
@@ -276,6 +366,13 @@ TEST(StringUtilsTest, Contains) {
   EXPECT_FALSE(Contains("abc", "abcd"));
   EXPECT_FALSE(Contains("", "a"));
   EXPECT_FALSE(Contains("", "abc"));
+  auto values = std::vector<std::string>{"abc", "def"};
+  EXPECT_TRUE(Contains(values, "abc"));
+  EXPECT_TRUE(Contains(values, "def"));
+  EXPECT_FALSE(Contains(values, "abcdef"));
+  EXPECT_FALSE(Contains(values, "ab"));
+  EXPECT_FALSE(Contains(values, "ef"));
+  EXPECT_FALSE(Contains(std::vector<std::string>{}, "abcdef"));
 }
 
 TEST(StringUtilsTest, Find) {
@@ -305,6 +402,81 @@ TEST(StringUtilsTest, ReplaceAll) {
   EXPECT_EQ(ReplaceAll("abc", "a", "b"), "bbc");
   EXPECT_EQ(ReplaceAll("abc", "c", "b"), "abb");
   EXPECT_EQ(ReplaceAll("abc", "c", "bbb"), "abbbb");
+}
+
+TEST(StringUtilsTest, CheckAsciiAndRemoveInvalidUTF8) {
+  std::string output;
+  // ASCII string "hello"
+  EXPECT_TRUE(CheckAsciiAndRemoveInvalidUTF8("hello", output));
+  EXPECT_TRUE(output.empty());
+
+  // Mixed string with invalid 2-byte sequence 11000000 10000000
+  EXPECT_FALSE(CheckAsciiAndRemoveInvalidUTF8("hello\xc0\x80world", output));
+  EXPECT_EQ(output, "helloworld");
+
+  // Mixed string with valid 2-byte sequence ɸ (11000000 10000000)
+  EXPECT_FALSE(CheckAsciiAndRemoveInvalidUTF8("hello\xc9\xb8world", output));
+  EXPECT_EQ(output, "hello\xc9\xb8world");
+
+  // Valid 2-byte UTF-8 sequence - ɸ
+  // 11001001 10111000
+  EXPECT_FALSE(CheckAsciiAndRemoveInvalidUTF8("\xc9\xb8", output));
+  EXPECT_EQ(output, "\xc9\xb8");
+
+  // Valid 3-byte UTF-8 sequence - ✓
+  // 11100010 10011100 10010011
+  EXPECT_FALSE(CheckAsciiAndRemoveInvalidUTF8("\xe2\x9c\x93", output));
+  EXPECT_EQ(output, "\xe2\x9c\x93");
+
+  // Valid 4-byte UTF-8 sequence - Grinning face emoji
+  // 11110000 10011111 10011000 10000000
+  EXPECT_FALSE(CheckAsciiAndRemoveInvalidUTF8("\xf0\x9f\x98\x80", output));
+  EXPECT_EQ(output, "\xf0\x9f\x98\x80");
+
+  // Invalid 5+ byte sequence (truncated to 1 byte)
+  // 11111000 10000000 10000000 10000000 10000000
+  EXPECT_FALSE(CheckAsciiAndRemoveInvalidUTF8("\xf8\x80\x80\x80\x80", output));
+  EXPECT_EQ(output, "");
+
+  // Invalid continuation byte in 2 byte sequence
+  // 11010000 10110000 (invalid continuation byte)
+  EXPECT_FALSE(CheckAsciiAndRemoveInvalidUTF8("\xd0\xc0", output));
+  EXPECT_TRUE(output.empty());
+
+  // Invalid continuation byte in 3 byte sequence
+  // 11100000 10100100 11000000 (invalid continuation byte)
+  EXPECT_FALSE(CheckAsciiAndRemoveInvalidUTF8("\xe0\xa4\xc0", output));
+  EXPECT_TRUE(output.empty());
+
+  // Invalid continuation byte in 4 byte sequence
+  // 11110000 10011111 10011000 11000000 (invalid continuation byte)
+  EXPECT_FALSE(CheckAsciiAndRemoveInvalidUTF8("\xf0\x9f\x98\xc0", output));
+  EXPECT_TRUE(output.empty());
+
+  // Overlong 2-byte sequence of NULL char
+  // 11000000 10000000
+  EXPECT_FALSE(CheckAsciiAndRemoveInvalidUTF8("\xc0\x80", output));
+  EXPECT_TRUE(output.empty());
+
+  // Overlong 3-byte sequence of NULL char
+  // 11100000 10000000 10000000
+  EXPECT_FALSE(CheckAsciiAndRemoveInvalidUTF8("\xe0\x80\x80", output));
+  EXPECT_TRUE(output.empty());
+
+  // Overlong 4-byte sequence of NULL char
+  // 11110000 10000000 10000000 10000000
+  EXPECT_FALSE(CheckAsciiAndRemoveInvalidUTF8("\xf0\x80\x80\x80", output));
+  EXPECT_TRUE(output.empty());
+
+  // Surrogate
+  // 11101101 10100000 10000000
+  EXPECT_FALSE(CheckAsciiAndRemoveInvalidUTF8("\xed\xa0\x80", output));
+  EXPECT_TRUE(output.empty());
+
+  // Out of range
+  // 11110100 10010000 10000000 10000000
+  EXPECT_FALSE(CheckAsciiAndRemoveInvalidUTF8("\xf4\x90\x80\x80", output));
+  EXPECT_TRUE(output.empty());
 }
 
 TEST(StringUtilsTest, StringCopy) {

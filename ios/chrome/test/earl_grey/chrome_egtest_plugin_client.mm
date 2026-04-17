@@ -7,15 +7,14 @@
 #import "base/logging.h"
 #import "ios/testing/plugin/test_plugin_service.pb.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 using grpc::Channel;
 using grpc::ClientContext;
 using grpc::Status;
+using ios_test_plugin::DeviceInfo;
 using ios_test_plugin::ListEnabledPluginsRequest;
 using ios_test_plugin::ListEnabledPluginsResponse;
+using ios_test_plugin::TestBundleWillFinishRequest;
+using ios_test_plugin::TestBundleWillFinishResponse;
 using ios_test_plugin::TestCaseDidFailRequest;
 using ios_test_plugin::TestCaseDidFailResponse;
 using ios_test_plugin::TestCaseDidFinishRequest;
@@ -27,14 +26,17 @@ using ios_test_plugin::TestPluginService;
 
 namespace chrome_egtest_plugin {
 TestPluginClient::TestPluginClient(std::shared_ptr<Channel> channel)
-    : stub_(TestPluginService::NewStub(channel)), is_service_enabled_(false) {}
+    : stub_(TestPluginService::NewStub(channel)) {}
 
 TestPluginClient::~TestPluginClient() {}
 
-void TestPluginClient::TestCaseWillStart(std::string test_name) {
+void TestPluginClient::TestCaseWillStart(std::string test_name,
+                                         std::string device_name) {
   TestCaseWillStartRequest request;
   TestCaseInfo* info = request.mutable_test_case_info();
   info->set_name(test_name);
+  DeviceInfo* device = request.mutable_device_info();
+  device->set_name(device_name);
   ClientContext context;
   TestCaseWillStartResponse response;
   Status status = stub_->TestCaseWillStart(&context, request, &response);
@@ -42,13 +44,17 @@ void TestPluginClient::TestCaseWillStart(std::string test_name) {
     LOG(WARNING) << "TestCaseWillStart Grpc call failed with error: "
                  << status.error_code() << ": " << status.error_message()
                  << std::endl;
+    context.TryCancel();
   }
 }
 
-void TestPluginClient::TestCaseDidFail(std::string test_name) {
+void TestPluginClient::TestCaseDidFail(std::string test_name,
+                                       std::string device_name) {
   TestCaseDidFailRequest request;
   TestCaseInfo* info = request.mutable_test_case_info();
   info->set_name(test_name);
+  DeviceInfo* device = request.mutable_device_info();
+  device->set_name(device_name);
   ClientContext context;
   TestCaseDidFailResponse response;
   Status status = stub_->TestCaseDidFail(&context, request, &response);
@@ -56,13 +62,17 @@ void TestPluginClient::TestCaseDidFail(std::string test_name) {
     LOG(WARNING) << "TestCaseDidFail Grpc call failed with error: "
                  << status.error_code() << ": " << status.error_message()
                  << std::endl;
+    context.TryCancel();
   }
 }
 
-void TestPluginClient::TestCaseDidFinish(std::string test_name) {
+void TestPluginClient::TestCaseDidFinish(std::string test_name,
+                                         std::string device_name) {
   TestCaseDidFinishRequest request;
   TestCaseInfo* info = request.mutable_test_case_info();
   info->set_name(test_name);
+  DeviceInfo* device = request.mutable_device_info();
+  device->set_name(device_name);
   ClientContext context;
   TestCaseDidFinishResponse response;
   Status status = stub_->TestCaseDidFinish(&context, request, &response);
@@ -70,6 +80,22 @@ void TestPluginClient::TestCaseDidFinish(std::string test_name) {
     LOG(WARNING) << "TestCaseDidFinish Grpc call failed with error: "
                  << status.error_code() << ": " << status.error_message()
                  << std::endl;
+    context.TryCancel();
+  }
+}
+
+void TestPluginClient::TestBundleWillFinish(std::string device_name) {
+  TestBundleWillFinishRequest request;
+  DeviceInfo* device = request.mutable_device_info();
+  device->set_name(device_name);
+  ClientContext context;
+  TestBundleWillFinishResponse response;
+  Status status = stub_->TestBundleWillFinish(&context, request, &response);
+  if (!status.ok()) {
+    LOG(WARNING) << "TestBundleWillFinish Grpc call failed with error: "
+                 << status.error_code() << ": " << status.error_message()
+                 << std::endl;
+    context.TryCancel();
   }
 }
 
@@ -93,15 +119,8 @@ std::vector<std::string> TestPluginClient::ListEnabledPlugins() {
     LOG(WARNING) << "ListEnabledPlugins Grpc call failed with error: "
                  << status.error_code() << ": " << status.error_message()
                  << std::endl;
+    context.TryCancel();
   }
   return enabled_plugins;
-}
-
-void TestPluginClient::set_is_service_enabled(bool is_service_enabled) {
-  this->is_service_enabled_ = is_service_enabled;
-}
-
-bool TestPluginClient::is_service_enabled() {
-  return this->is_service_enabled_;
 }
 }  // namespace chrome_egtest_plugin

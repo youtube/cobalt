@@ -4,6 +4,7 @@
 
 #include "chrome/browser/page_load_metrics/observers/core/amp_page_load_metrics_observer.h"
 
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -20,19 +21,17 @@
 #include "services/metrics/public/cpp/metrics_utils.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/metrics/public/cpp/ukm_source.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 using content::NavigationSimulator;
 using page_load_metrics::mojom::UserInteractionLatencies;
 using page_load_metrics::mojom::UserInteractionLatency;
-using page_load_metrics::mojom::UserInteractionType;
 
 class AMPPageLoadMetricsObserverTest
     : public page_load_metrics::PageLoadMetricsObserverTestHarness,
       public testing::WithParamInterface<bool> {
  public:
-  AMPPageLoadMetricsObserverTest() {}
+  AMPPageLoadMetricsObserverTest() = default;
 
   AMPPageLoadMetricsObserverTest(const AMPPageLoadMetricsObserverTest&) =
       delete;
@@ -47,7 +46,7 @@ class AMPPageLoadMetricsObserverTest
   void ResetTest() {
     page_load_metrics::InitPageLoadTimingForTest(&timing_);
     // Reset to the default testing state. Does not reset histogram state.
-    timing_.navigation_start = base::Time::FromDoubleT(1);
+    timing_.navigation_start = base::Time::FromSecondsSinceUnixEpoch(1);
     timing_.response_start = base::Seconds(2);
     timing_.parse_timing->parse_start = base::Seconds(3);
     timing_.paint_timing->first_contentful_paint = base::Seconds(4);
@@ -67,7 +66,7 @@ class AMPPageLoadMetricsObserverTest
 
   void ValidateHistogramsFor(const std::string& histogram,
                              const char* view_type,
-                             const absl::optional<base::TimeDelta>& event,
+                             const std::optional<base::TimeDelta>& event,
                              bool expect_histograms) {
     const size_t kTypeOffset = strlen("PageLoad.Clients.AMP.");
     std::string view_type_histogram = histogram;
@@ -80,12 +79,12 @@ class AMPPageLoadMetricsObserverTest
       return;
     tester()->histogram_tester().ExpectUniqueSample(
         histogram,
-        static_cast<base::HistogramBase::Sample>(
+        static_cast<base::HistogramBase::Sample32>(
             event.value().InMilliseconds()),
         1);
     tester()->histogram_tester().ExpectUniqueSample(
         view_type_histogram,
-        static_cast<base::HistogramBase::Sample>(
+        static_cast<base::HistogramBase::Sample32>(
             event.value().InMilliseconds()),
         1);
   }
@@ -341,7 +340,7 @@ TEST_P(AMPPageLoadMetricsObserverTest, SubFrameMetrics) {
 
   page_load_metrics::mojom::PageLoadTiming subframe_timing;
   page_load_metrics::InitPageLoadTimingForTest(&subframe_timing);
-  subframe_timing.navigation_start = base::Time::FromDoubleT(2);
+  subframe_timing.navigation_start = base::Time::FromSecondsSinceUnixEpoch(2);
   subframe_timing.paint_timing->first_paint = base::Milliseconds(4);
   subframe_timing.paint_timing->first_contentful_paint = base::Milliseconds(5);
   subframe_timing.paint_timing->largest_contentful_paint
@@ -525,12 +524,13 @@ TEST_P(AMPPageLoadMetricsObserverTest,
       UserInteractionLatencies::NewUserInteractionLatencies({});
   auto& max_event_durations =
       input_timing.max_event_durations->get_user_interaction_latencies();
+  base::TimeTicks current_time = base::TimeTicks::Now();
   max_event_durations.emplace_back(UserInteractionLatency::New(
-      base::Milliseconds(50), UserInteractionType::kKeyboard));
+      base::Milliseconds(50), 0, current_time + base::Milliseconds(1000)));
   max_event_durations.emplace_back(UserInteractionLatency::New(
-      base::Milliseconds(100), UserInteractionType::kTapOrClick));
+      base::Milliseconds(100), 1, current_time + base::Milliseconds(2000)));
   max_event_durations.emplace_back(UserInteractionLatency::New(
-      base::Milliseconds(150), UserInteractionType::kDrag));
+      base::Milliseconds(150), 2, current_time + base::Milliseconds(3000)));
 
   tester()->SimulateInputTimingUpdate(input_timing, subframe);
 
@@ -545,18 +545,6 @@ TEST_P(AMPPageLoadMetricsObserverTest,
       std::make_pair("SubFrame.InteractiveTiming.WorstUserInteractionLatency."
                      "MaxEventDuration2",
                      150),
-      std::make_pair(
-          "SubFrame.InteractiveTiming.AverageUserInteractionLatencyOverBudget."
-          "MaxEventDuration2",
-          16),
-      std::make_pair(
-          "SubFrame.InteractiveTiming.SumOfUserInteractionLatencyOverBudget."
-          "MaxEventDuration2",
-          50),
-      std::make_pair(
-          "SubFrame.InteractiveTiming.SlowUserInteractionLatencyOverBudget."
-          "HighPercentile2.MaxEventDuration2",
-          50),
       std::make_pair("SubFrame.InteractiveTiming.UserInteractionLatency."
                      "HighPercentile2.MaxEventDuration",
                      150),
@@ -568,13 +556,6 @@ TEST_P(AMPPageLoadMetricsObserverTest,
   }
 
   std::vector<std::string> uma_list = {
-      "PageLoad.Clients.AMP.InteractiveTiming."
-      "AverageUserInteractionLatencyOverBudget.MaxEventDuration.Subframe",
-      "PageLoad.Clients.AMP.InteractiveTiming."
-      "SumOfUserInteractionLatencyOverBudget.MaxEventDuration.Subframe",
-      "PageLoad.Clients.AMP.InteractiveTiming."
-      "SlowUserInteractionLatencyOverBudget.HighPercentile2.MaxEventDuration."
-      "Subframe",
       "PageLoad.Clients.AMP.InteractiveTiming."
       "UserInteractionLatency.HighPercentile2.MaxEventDuration.Subframe",
       "PageLoad.Clients.AMP.InteractiveTiming.WorstUserInteractionLatency."
@@ -607,14 +588,15 @@ TEST_P(AMPPageLoadMetricsObserverTest,
   input_timing.num_interactions = 3;
   input_timing.max_event_durations =
       UserInteractionLatencies::NewUserInteractionLatencies({});
+  base::TimeTicks current_time = base::TimeTicks::Now();
   auto& max_event_durations =
       input_timing.max_event_durations->get_user_interaction_latencies();
   max_event_durations.emplace_back(UserInteractionLatency::New(
-      base::Milliseconds(50), UserInteractionType::kKeyboard));
+      base::Milliseconds(50), 0, current_time + base::Milliseconds(1000)));
   max_event_durations.emplace_back(UserInteractionLatency::New(
-      base::Milliseconds(100), UserInteractionType::kTapOrClick));
+      base::Milliseconds(100), 1, current_time + base::Milliseconds(2000)));
   max_event_durations.emplace_back(UserInteractionLatency::New(
-      base::Milliseconds(150), UserInteractionType::kDrag));
+      base::Milliseconds(150), 2, current_time + base::Milliseconds(3000)));
 
   tester()->SimulateInputTimingUpdate(input_timing, subframe);
 
@@ -629,21 +611,9 @@ TEST_P(AMPPageLoadMetricsObserverTest,
       std::make_pair("SubFrame.InteractiveTiming.WorstUserInteractionLatency."
                      "MaxEventDuration2",
                      150),
-      std::make_pair(
-          "SubFrame.InteractiveTiming.AverageUserInteractionLatencyOverBudget."
-          "MaxEventDuration2",
-          16),
-      std::make_pair(
-          "SubFrame.InteractiveTiming.SumOfUserInteractionLatencyOverBudget."
-          "MaxEventDuration2",
-          50),
       std::make_pair("SubFrame.InteractiveTiming.UserInteractionLatency."
                      "HighPercentile2.MaxEventDuration",
                      150),
-      std::make_pair(
-          "SubFrame.InteractiveTiming.SlowUserInteractionLatencyOverBudget."
-          "HighPercentile2.MaxEventDuration2",
-          50),
   };
 
   for (auto& metric : ukm_list) {
@@ -652,15 +622,6 @@ TEST_P(AMPPageLoadMetricsObserverTest,
   }
 
   std::vector<std::string> uma_list = {
-      "PageLoad.Clients.AMP.InteractiveTiming."
-      "AverageUserInteractionLatencyOverBudget.MaxEventDuration.Subframe."
-      "FullNavigation",
-      "PageLoad.Clients.AMP.InteractiveTiming."
-      "SumOfUserInteractionLatencyOverBudget.MaxEventDuration.Subframe."
-      "FullNavigation",
-      "PageLoad.Clients.AMP.InteractiveTiming."
-      "SlowUserInteractionLatencyOverBudget.HighPercentile2.MaxEventDuration."
-      "Subframe.FullNavigation",
       "PageLoad.Clients.AMP.InteractiveTiming."
       "UserInteractionLatency.HighPercentile2.MaxEventDuration."
       "Subframe.FullNavigation",
@@ -691,7 +652,7 @@ TEST_P(AMPPageLoadMetricsObserverTest, SubFrameMetricsFullNavigation) {
 
   page_load_metrics::mojom::PageLoadTiming subframe_timing;
   page_load_metrics::InitPageLoadTimingForTest(&subframe_timing);
-  subframe_timing.navigation_start = base::Time::FromDoubleT(2);
+  subframe_timing.navigation_start = base::Time::FromSecondsSinceUnixEpoch(2);
   subframe_timing.paint_timing->first_contentful_paint = base::Milliseconds(5);
   subframe_timing.paint_timing->largest_contentful_paint
       ->largest_image_paint_size = 1;
@@ -955,10 +916,6 @@ TEST_P(AMPPageLoadMetricsObserverTest,
   tester()->histogram_tester().ExpectTotalCount(
       "PageLoad.Clients.AMP.Experimental.PageTiming.InputToNavigation.Subframe",
       0);
-  tester()->histogram_tester().ExpectTotalCount(
-      "PageLoad.Clients.AMP.Experimental.PageTiming."
-      "MainFrameToSubFrameNavigationDelta.Subframe",
-      1);
 
   // We expect a source with a negative NavigationDelta metric, since the main
   // frame navigation occurred before the AMP subframe navigation.

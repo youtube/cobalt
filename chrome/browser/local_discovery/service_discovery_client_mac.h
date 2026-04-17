@@ -6,10 +6,11 @@
 #define CHROME_BROWSER_LOCAL_DISCOVERY_SERVICE_DISCOVERY_CLIENT_MAC_H_
 
 #import <Foundation/Foundation.h>
+#import <Network/Network.h>
+
 #include <memory>
 #include <string>
 
-#include "base/mac/scoped_nsobject.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/local_discovery/service_discovery_shared_client.h"
@@ -70,6 +71,7 @@ class ServiceWatcherImplMac : public ServiceWatcher {
 
   void OnServicesUpdate(ServiceWatcher::UpdateType update,
                         const std::string& service);
+  void RecordPermissionState(bool permission_granted);
 
  private:
   void Start() override;
@@ -81,12 +83,18 @@ class ServiceWatcherImplMac : public ServiceWatcher {
   const std::string service_type_;
   ServiceWatcher::UpdatedCallback callback_;
   bool started_ = false;
+  // TODO(crbug.com/376743512): Remove this workaround once the issue is fixed.
+  bool force_enable_legacy_discovery_ = false;
 
   scoped_refptr<base::SingleThreadTaskRunner> service_discovery_runner_;
-  // |browser_| lives on the |service_discovery_runner_|, though it is
-  // initialized on the object creator's sequence. It is released by move()ing
-  // it to StopServiceBrowser().
-  base::scoped_nsobject<NetServiceBrowser> browser_;
+
+  // TODO(crbug.com/354231463): Remove usage of NetServiceBrowser once the
+  // feature media_router::kUseNetworkFrameworkForLocalDiscovery is enabled by
+  // default. `nw_browser_` and `browser_` lives on the
+  // `service_discovery_runner_`, though they are initialized on the object
+  // creator's sequence. They are cleaned up in `StopServiceBrowser()`.
+  nw_browser_t __strong nw_browser_;
+  NetServiceBrowser* __strong browser_;
 
   base::WeakPtrFactory<ServiceWatcherImplMac> weak_factory_{this};
 };
@@ -119,9 +127,9 @@ class ServiceResolverImplMac : public ServiceResolver {
 
   scoped_refptr<base::SingleThreadTaskRunner> service_discovery_runner_;
   // |resolver_| lives on the |service_discovery_runner_|, though it is
-  // initialized on the object creator's sequence. It is released by move()ing
-  // it to StopServiceResolver().
-  base::scoped_nsobject<NetServiceResolver> resolver_;
+  // initialized on the object creator's sequence. It is released in
+  // StopResolving().
+  NetServiceResolver* __strong resolver_;
 
   base::WeakPtrFactory<ServiceResolverImplMac> weak_factory_{this};
 };

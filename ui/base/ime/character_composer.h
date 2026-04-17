@@ -25,7 +25,22 @@ class COMPONENT_EXPORT(UI_BASE_IME_TYPES) CharacterComposer {
  public:
   using ComposeBuffer = std::vector<DomKey>;
 
-  CharacterComposer();
+  // The U+00B7 "middle dot" character is also used by GTK to represent the
+  // compose key in preedit strings.
+  static constexpr char16_t kPreeditStringComposeKeySymbol = 0x00B7;
+
+  // Decides in which modes the preedit string is enabled. If disabled for a
+  // mode, it is always empty in that mode.
+  enum class PreeditStringMode {
+    // Enable in both hex and sequence mode.
+    kAlwaysEnabled,
+    // Enable in hex mode, disable in sequence mode.
+    kHexModeOnly,
+  };
+
+  // Disable the preedit string in sequence mode by default.
+  explicit CharacterComposer(
+      PreeditStringMode mode = PreeditStringMode::kHexModeOnly);
 
   CharacterComposer(const CharacterComposer&) = delete;
   CharacterComposer& operator=(const CharacterComposer&) = delete;
@@ -62,6 +77,9 @@ class COMPONENT_EXPORT(UI_BASE_IME_TYPES) CharacterComposer {
   // Filters keypress in key sequence mode.
   bool FilterKeyPressSequenceMode(const ui::KeyEvent& event);
 
+  // Updates preedit string in key sequence mode.
+  void UpdatePreeditStringSequenceMode();
+
   // Filters keypress in hexadecimal mode.
   bool FilterKeyPressHexMode(const ui::KeyEvent& event);
 
@@ -84,7 +102,9 @@ class COMPONENT_EXPORT(UI_BASE_IME_TYPES) CharacterComposer {
   std::u16string preedit_string_;
 
   // Composition mode which this instance is in.
-  CompositionMode composition_mode_;
+  CompositionMode composition_mode_ = KEY_SEQUENCE_MODE;
+
+  const PreeditStringMode preedit_string_mode_;
 };
 
 // Abstract class for determining whether a ComposeBuffer forms a valid
@@ -100,7 +120,7 @@ class ComposeChecker {
     // The sequence matches a composition sequence.
     FULL_MATCH
   };
-  ComposeChecker() {}
+  ComposeChecker() = default;
 
   ComposeChecker(const ComposeChecker&) = delete;
   ComposeChecker& operator=(const ComposeChecker&) = delete;
@@ -117,8 +137,9 @@ class TreeComposeChecker : public ComposeChecker {
   struct CompositionData {
     size_t maximum_sequence_length;
     int tree_entries;
-    // This field is not a raw_ptr<> because it was filtered by the rewriter
-    // for: #reinterpret-cast-trivial-type, #global-scope
+    // This field is not a raw_ptr<> because it only ever points at statically-
+    // allocated memory which is never freed (kCompositionsTree), and hence
+    // can never dangle.
     RAW_PTR_EXCLUSION const uint16_t* tree;
   };
 

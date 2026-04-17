@@ -25,10 +25,10 @@
 
 #include "third_party/blink/renderer/core/style/filter_operations.h"
 
+#include <algorithm>
 #include <numeric>
 
 #include "base/containers/contains.h"
-#include "base/ranges/algorithm.h"
 
 namespace blink {
 
@@ -37,9 +37,6 @@ FilterOperations::FilterOperations() = default;
 void FilterOperations::Trace(Visitor* visitor) const {
   visitor->Trace(operations_);
 }
-
-FilterOperations& FilterOperations::operator=(const FilterOperations& other) =
-    default;
 
 bool FilterOperations::operator==(const FilterOperations& o) const {
   if (operations_.size() != o.operations_.size()) {
@@ -60,8 +57,8 @@ bool FilterOperations::CanInterpolateWith(const FilterOperations& other) const {
   auto can_interpolate = [](FilterOperation* operation) {
     return FilterOperation::CanInterpolate(operation->GetType());
   };
-  if (!base::ranges::all_of(Operations(), can_interpolate) ||
-      !base::ranges::all_of(other.Operations(), can_interpolate)) {
+  if (!std::ranges::all_of(Operations(), can_interpolate) ||
+      !std::ranges::all_of(other.Operations(), can_interpolate)) {
     return false;
   }
 
@@ -85,13 +82,13 @@ gfx::RectF FilterOperations::MapRect(const gfx::RectF& rect) const {
 }
 
 bool FilterOperations::HasFilterThatAffectsOpacity() const {
-  return base::ranges::any_of(operations_, [](const auto& operation) {
+  return std::ranges::any_of(operations_, [](const auto& operation) {
     return operation->AffectsOpacity();
   });
 }
 
 bool FilterOperations::HasFilterThatMovesPixels() const {
-  return base::ranges::any_of(operations_, [](const auto& operation) {
+  return std::ranges::any_of(operations_, [](const auto& operation) {
     return operation->MovesPixels();
   });
 }
@@ -99,6 +96,12 @@ bool FilterOperations::HasFilterThatMovesPixels() const {
 bool FilterOperations::HasReferenceFilter() const {
   return base::Contains(operations_, FilterOperation::OperationType::kReference,
                         &FilterOperation::GetType);
+}
+
+bool FilterOperations::UsesCurrentColor() const {
+  return std::ranges::any_of(operations_, [](const auto& operation) {
+    return operation->UsesCurrentColor();
+  });
 }
 
 void FilterOperations::AddClient(SVGResourceClient& client) const {

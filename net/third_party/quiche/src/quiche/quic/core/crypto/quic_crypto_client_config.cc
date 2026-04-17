@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "absl/base/macros.h"
 #include "absl/memory/memory.h"
@@ -62,7 +64,7 @@ QuicCryptoClientConfig::QuicCryptoClientConfig(
 
 QuicCryptoClientConfig::QuicCryptoClientConfig(
     std::unique_ptr<ProofVerifier> proof_verifier,
-    std::unique_ptr<SessionCache> session_cache)
+    std::shared_ptr<SessionCache> session_cache)
     : proof_verifier_(std::move(proof_verifier)),
       session_cache_(std::move(session_cache)),
       ssl_ctx_(TlsClientConnection::CreateSslCtx(
@@ -513,7 +515,7 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
   }
 
   absl::string_view orbit;
-  if (!scfg->GetStringPiece(kORBT, &orbit) || orbit.size() != kOrbitSize) {
+  if (!scfg->GetStringPiece(kOBIT, &orbit) || orbit.size() != kOrbitSize) {
     *error_details = "SCFG missing OBIT";
     return QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND;
   }
@@ -775,6 +777,11 @@ SessionCache* QuicCryptoClientConfig::session_cache() const {
   return session_cache_.get();
 }
 
+void QuicCryptoClientConfig::set_session_cache(
+    std::shared_ptr<SessionCache> session_cache) {
+  session_cache_ = std::move(session_cache);
+}
+
 ClientProofSource* QuicCryptoClientConfig::proof_source() const {
   return proof_source_.get();
 }
@@ -815,8 +822,7 @@ bool QuicCryptoClientConfig::PopulateFromCanonicalConfig(
     return false;
   }
 
-  QuicServerId suffix_server_id(canonical_suffixes_[i], server_id.port(),
-                                server_id.privacy_mode_enabled());
+  QuicServerId suffix_server_id(canonical_suffixes_[i], server_id.port());
   auto it = canonical_server_map_.lower_bound(suffix_server_id);
   if (it == canonical_server_map_.end() || it->first != suffix_server_id) {
     // This is the first host we've seen which matches the suffix, so make it

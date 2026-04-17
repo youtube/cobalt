@@ -93,4 +93,4 @@ class AudioRendererSinkImpl : public AudioRendererSink {
 
 }  // namespace starboard
 
-#endif  //  STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_SINK_IMPL_H_
+#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_SINK_IMPL_H_

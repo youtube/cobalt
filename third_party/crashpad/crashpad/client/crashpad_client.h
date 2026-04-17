@@ -25,12 +25,14 @@
 
 #include "base/files/file_path.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "util/file/file_io.h"
+
+#if !BUILDFLAG(IS_FUCHSIA)
 #include "util/misc/capture_context.h"
+#endif  // !BUILDFLAG(IS_FUCHSIA)
 
 #if BUILDFLAG(IS_APPLE)
-#include "base/mac/scoped_mach_port.h"
+#include "base/apple/scoped_mach_port.h"
 #elif BUILDFLAG(IS_WIN)
 #include <windows.h>
 #include "util/win/scoped_handle.h"
@@ -41,7 +43,12 @@
 
 #if BUILDFLAG(IS_IOS)
 #include "client/upload_behavior_ios.h"
+#include "handler/user_stream_data_source.h"  // nogncheck
 #endif
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/elf_loader/evergreen_info.h"
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 namespace crashpad {
 
@@ -363,6 +370,12 @@ class CrashpadClient {
   //!     path as its `--metrics-dir` argument.
   //! \param[in] url The URL of an upload server. The handler will be started
   //!     with this URL as its `--url` argument.
+#if BUILDFLAG(IS_STARBOARD)
+  //! \param[in] ca_certificates_path The absolute path to a directory
+  //!     containing trusted Certificate Authority (CA) root certificates. The
+  //!     handler will be started with this path as its `--ca-certificates-path`
+  //!     argument.
+#endif
   //! \param[in] annotations Process annotations to set in each crash report.
   //!     The handler will be started with an `--annotation` argument for each
   //!     element in this map.
@@ -370,6 +383,9 @@ class CrashpadClient {
   //!     Arguments passed in other parameters and arguments required to perform
   //!     the handshake are the responsibility of this method, and must not be
   //!     specified in this parameter.
+  //! \param[in] attachments Attachment paths to pass to the Crashpad handler.
+  //!     The handler will be started with an `--attachment` argument for each
+  //!     path in this vector.
   //!
   //! \return `true` on success, `false` on failure with a message logged.
   bool StartHandlerAtCrash(
@@ -377,9 +393,38 @@ class CrashpadClient {
       const base::FilePath& database,
       const base::FilePath& metrics_dir,
       const std::string& url,
+#if BUILDFLAG(IS_STARBOARD)
+      const base::FilePath& ca_certificates_path,
+#endif
       const std::map<std::string, std::string>& annotations,
       const std::vector<std::string>& arguments,
       const std::vector<base::FilePath>& attachments = {});
+
+#if BUILDFLAG(IS_STARBOARD)
+  //! \brief Sends mapping info to the handler
+  //!
+  //! A handler must have already been installed before calling this method.
+  //! \param[in] evergreen_info A EvergreenInfo struct, whose information was
+  //!     created on Evergreen startup.
+  //!
+  //! \return `true` on success, `false` on failure with a message logged.
+  static bool SendEvergreenInfoToHandler(EvergreenInfo evergreen_info);
+
+  //! \brief Inserts annotation mapping info for the handler
+  //!
+  //! A signal handler must have already been installed before calling this
+  //! method. Whether or not the annotation is sent to the Crashpad handler,
+  //! or just prepared to be sent, depends on whether the Crashpad handler is
+  //! started at launch or at crash.
+  //! \param[in] key The annotation's key.
+  //! \param[in] value The annotation's value.
+  //!
+  //! \return `true` on success, `false` on failure with a message logged.
+  //!
+  //! TODO: b/452049007 - Cobalt: remove this custom API if we're able to move
+  //! all client use cases onto Chromium's crash keys.
+  static bool InsertAnnotationForHandler(const char* key, const char* value);
+#endif  // BUILDFLAG(IS_STARBOARD)
 
   //! \brief Starts a handler process with an initial client.
   //!
@@ -430,7 +475,11 @@ class CrashpadClient {
   //!     FirstChanceHandler and crashes the current process.
   //!
   //! \param[in] message A message to be logged before crashing.
+#if BUILDFLAG(IS_COBALT)
   static void CrashWithoutDump(const std::string& message);
+#else
+  [[noreturn]] static void CrashWithoutDump(const std::string& message);
+#endif
 
   //! \brief The type for custom handlers installed by clients.
   using FirstChanceHandler = bool (*)(int, siginfo_t*, ucontext_t*);
@@ -452,6 +501,24 @@ class CrashpadClient {
   //!
   //! \param[in] handler The custom crash signal handler to install.
   static void SetFirstChanceExceptionHandler(FirstChanceHandler handler);
+
+  //! \brief Installs a custom crash signal handler which runs after the
+  //!     currently installed Crashpad handler.
+  //!
+  //! Handling signals appropriately can be tricky and use of this method
+  //! should be avoided, if possible.
+  //!
+  //! A handler must have already been installed before calling this method.
+  //!
+  //! The custom handler runs in a signal handler context and must be safe for
+  //! that purpose.
+  //!
+  //! If the custom handler returns `true`, the signal is not reraised.
+  //!
+  //! \param[in] handler The custom crash signal handler to install.
+  static void SetLastChanceExceptionHandler(bool (*handler)(int,
+                                                            siginfo_t*,
+                                                            ucontext_t*));
 
   //! \brief Configures a set of signals that shouldn't have Crashpad signal
   //!     handlers installed.
@@ -508,8 +575,13 @@ class CrashpadClient {
   //! \param[in] annotations Process annotations to set in each crash report.
   //!     Useful when adding crash annotations detected on the next run after a
   //!     crash but before upload.
+  //! \param[in] user_stream_sources An optional vector containing the
+  //!     extensibility data sources to call on crash. Each time a minidump is
+  //!     created, the sources are called in turn. Any streams returned are
+  //!     added to the minidump.
   static void ProcessIntermediateDumps(
-      const std::map<std::string, std::string>& annotations = {});
+      const std::map<std::string, std::string>& annotations = {},
+      const UserStreamDataSources* user_stream_sources = nullptr);
 
   //! \brief Requests that the handler convert a single intermediate dump at \a
   //!     file generated by DumpWithoutCrashAndDeferProcessingAtPath into a
@@ -590,9 +662,10 @@ class CrashpadClient {
   //!     be used in a shipping application.
   static void ResetForTesting();
 
-  //! \brief Inject a callback into Mach handling. Intended to be used by
-  //!     tests to trigger a reentrant exception.
-  static void SetMachExceptionCallbackForTesting(void (*callback)());
+  //! \brief Inject a callback into the Mach exception and signal handling
+  //!     mechanisms. Intended to be used by tests to trigger a reentrant
+  //      exception.
+  static void SetExceptionCallbackForTesting(void (*callback)());
 
   //! \brief Returns the thread id of the Mach exception thread, used by tests.
   static uint64_t GetThreadIdForTesting();
@@ -624,7 +697,7 @@ class CrashpadClient {
   //!     Crashpad exception handler service.
   //!
   //! \return `true` on success, `false` on failure with a message logged.
-  bool SetHandlerMachPort(base::mac::ScopedMachSendRight exception_port);
+  bool SetHandlerMachPort(base::apple::ScopedMachSendRight exception_port);
 
   //! \brief Retrieves a send right to the process’ crash handler Mach port.
   //!
@@ -645,7 +718,7 @@ class CrashpadClient {
   //!     SetHandlerMachService(). This method must only be called after a
   //!     successful call to one of those methods. `MACH_PORT_NULL` on failure
   //!     with a message logged.
-  base::mac::ScopedMachSendRight GetHandlerMachPort() const;
+  base::apple::ScopedMachSendRight GetHandlerMachPort() const;
 #endif
 
 #if BUILDFLAG(IS_WIN) || DOXYGEN
@@ -775,7 +848,7 @@ class CrashpadClient {
   static void UseSystemDefaultHandler();
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   //! \brief Sets a timestamp on the signal handler to be passed on to
   //!     crashpad_handler and then eventually Chrome OS's crash_reporter.
   //!
@@ -786,11 +859,17 @@ class CrashpadClient {
 #endif
 
  private:
+#if BUILDFLAG(IS_WIN) || DOXYGEN
+  //!  \brief Registers process handlers for the client.
+  void RegisterHandlers();
+#endif
+
 #if BUILDFLAG(IS_APPLE)
-  base::mac::ScopedMachSendRight exception_port_;
+  base::apple::ScopedMachSendRight exception_port_;
 #elif BUILDFLAG(IS_WIN)
   std::wstring ipc_pipe_;
   ScopedKernelHANDLE handler_start_thread_;
+  ScopedVectoredExceptionRegistration vectored_handler_;
 #elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   std::set<int> unhandled_signals_;
 #endif  // BUILDFLAG(IS_APPLE)

@@ -7,8 +7,8 @@
 #include "base/containers/contains.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
+#include "base/types/pass_key.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
-#include "chrome/browser/web_applications/web_app_sync_bridge.h"
 
 namespace web_app {
 
@@ -32,6 +32,7 @@ WebAppRegistryUpdate::~WebAppRegistryUpdate() = default;
 
 void WebAppRegistryUpdate::CreateApp(std::unique_ptr<WebApp> web_app) {
   DCHECK(update_data_);
+  CHECK(web_app->manifest_id().is_valid());
   DCHECK(!web_app->app_id().empty());
   DCHECK(!registrar_->GetAppById(web_app->app_id()));
   DCHECK(!base::Contains(update_data_->apps_to_create, web_app));
@@ -39,7 +40,7 @@ void WebAppRegistryUpdate::CreateApp(std::unique_ptr<WebApp> web_app) {
   update_data_->apps_to_create.push_back(std::move(web_app));
 }
 
-void WebAppRegistryUpdate::DeleteApp(const AppId& app_id) {
+void WebAppRegistryUpdate::DeleteApp(const webapps::AppId& app_id) {
   DCHECK(update_data_);
   DCHECK(!app_id.empty());
   DCHECK(registrar_->GetAppById(app_id));
@@ -48,7 +49,7 @@ void WebAppRegistryUpdate::DeleteApp(const AppId& app_id) {
   update_data_->apps_to_delete.push_back(app_id);
 }
 
-WebApp* WebAppRegistryUpdate::UpdateApp(const AppId& app_id) {
+WebApp* WebAppRegistryUpdate::UpdateApp(const webapps::AppId& app_id) {
   DCHECK(update_data_);
   const WebApp* original_app = registrar_->GetAppById(app_id);
   if (!original_app)
@@ -67,25 +68,24 @@ WebApp* WebAppRegistryUpdate::UpdateApp(const AppId& app_id) {
   return app_copy_ptr;
 }
 
-std::unique_ptr<RegistryUpdateData> WebAppRegistryUpdate::TakeUpdateData() {
+std::unique_ptr<RegistryUpdateData> WebAppRegistryUpdate::TakeUpdateData(
+    base::PassKey<WebAppSyncBridge> pass_key) {
   return std::move(update_data_);
 }
 
-ScopedRegistryUpdate::ScopedRegistryUpdate(WebAppSyncBridge* sync_bridge)
-    : ScopedRegistryUpdate(sync_bridge, base::DoNothing()) {}
 ScopedRegistryUpdate::ScopedRegistryUpdate(
-    WebAppSyncBridge* sync_bridge,
-    base::OnceCallback<void(bool success)> commit_complete)
-    : update_(sync_bridge->BeginUpdate()),
-      sync_bridge_(sync_bridge),
-      commit_complete_(std::move(commit_complete)) {}
+    base::PassKey<WebAppSyncBridge>,
+    std::unique_ptr<WebAppRegistryUpdate> update,
+    base::OnceCallback<void(std::unique_ptr<WebAppRegistryUpdate>)>
+        commit_update)
+    : update_(std::move(update)), commit_update_(std::move(commit_update)) {}
 
 ScopedRegistryUpdate::ScopedRegistryUpdate(ScopedRegistryUpdate&&) noexcept =
     default;
 
 ScopedRegistryUpdate::~ScopedRegistryUpdate() {
   if (update_) {
-    sync_bridge_->CommitUpdate(std::move(update_), std::move(commit_complete_));
+    std::move(commit_update_).Run(std::move(update_));
   }
 }
 

@@ -6,12 +6,20 @@
 #define CHROME_UPDATER_DEVICE_MANAGEMENT_DM_CLIENT_H_
 
 #include <memory>
+#include <optional>
+#include <ostream>
 #include <string>
 #include <vector>
 
 #include "base/functional/callback.h"
 #include "base/memory/scoped_refptr.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "chrome/enterprise_companion/device_management_storage/dm_storage.h"
+
+class GURL;
+
+namespace policy {
+enum class PolicyFetchReason;
+}  // namespace policy
 
 namespace update_client {
 class NetworkFetcher;
@@ -30,7 +38,7 @@ class DMClient {
     virtual ~Configurator() = default;
 
     // URL at which to contact the DM server.
-    virtual std::string GetDMServerUrl() const = 0;
+    virtual GURL GetDMServerUrl() const = 0;
 
     // Agent reported in the "agent" query parameter.
     virtual std::string GetAgentParameter() const = 0;
@@ -78,6 +86,9 @@ class DMClient {
 
     // No POST data.
     kNoPayload,
+
+    // Failed to get the default DM storage.
+    kNoDefaultDMStorage,
   };
 
   using RegisterCallback = base::OnceCallback<void(RequestResult)>;
@@ -101,9 +112,10 @@ class DMClient {
   //   3) Server unregisters the device and the device is marked as such.
   //   4) Registration fails, device status is not changed.
   //
-  static void RegisterDevice(std::unique_ptr<Configurator> config,
-                             scoped_refptr<DMStorage> storage,
-                             RegisterCallback callback);
+  static void RegisterDevice(
+      std::unique_ptr<Configurator> config,
+      scoped_refptr<device_management_storage::DMStorage> storage,
+      RegisterCallback callback);
 
   // Fetches policies from the DM server.
   // Possible outcome:
@@ -115,9 +127,11 @@ class DMClient {
   //      exits management.
   //   4) Fetch fails, device status is not changed.
   //
-  static void FetchPolicy(std::unique_ptr<Configurator> config,
-                          scoped_refptr<DMStorage> storage,
-                          PolicyFetchCallback callback);
+  static void FetchPolicy(
+      policy::PolicyFetchReason reason,
+      std::unique_ptr<Configurator> config,
+      scoped_refptr<device_management_storage::DMStorage> storage,
+      PolicyFetchCallback callback);
 
   // Posts the policy validation report back to DM server.
   // The report request is skipped if there's no valid DM token or
@@ -126,14 +140,18 @@ class DMClient {
   //
   static void ReportPolicyValidationErrors(
       std::unique_ptr<Configurator> config,
-      scoped_refptr<DMStorage> storage,
+      scoped_refptr<device_management_storage::DMStorage> storage,
       const PolicyValidationResult& validation_result,
       PolicyValidationReportCallback callback);
 
   static std::unique_ptr<Configurator> CreateDefaultConfigurator(
-      absl::optional<PolicyServiceProxyConfiguration>
+      const GURL& server_url,
+      std::optional<PolicyServiceProxyConfiguration>
           policy_service_proxy_configuration);
 };
+
+std::ostream& operator<<(std::ostream& os,
+                         const DMClient::RequestResult& result);
 
 }  // namespace updater
 

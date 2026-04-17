@@ -47,9 +47,7 @@ void IncrementAndAssign(int expected_before_counter,
   *status_out = status;
 }
 
-class TaskManagerClient
-    : public SyncTaskManager::Client,
-      public base::SupportsWeakPtr<TaskManagerClient> {
+class TaskManagerClient : public SyncTaskManager::Client {
  public:
   explicit TaskManagerClient(int64_t maximum_background_task)
       : maybe_schedule_next_task_count_(0),
@@ -57,7 +55,7 @@ class TaskManagerClient
         idle_task_scheduled_count_(0),
         last_operation_status_(SYNC_STATUS_OK) {
     task_manager_ = std::make_unique<SyncTaskManager>(
-        AsWeakPtr(), maximum_background_task,
+        weak_ptr_factory_.GetWeakPtr(), maximum_background_task,
         base::SingleThreadTaskRunner::GetCurrentDefault());
     task_manager_->Initialize(SYNC_STATUS_OK);
     base::RunLoop().RunUntilIdle();
@@ -67,7 +65,7 @@ class TaskManagerClient
   TaskManagerClient(const TaskManagerClient&) = delete;
   TaskManagerClient& operator=(const TaskManagerClient&) = delete;
 
-  ~TaskManagerClient() override {}
+  ~TaskManagerClient() override = default;
 
   // DriveFileSyncManager::Client overrides.
   void MaybeScheduleNextTask() override { ++maybe_schedule_next_task_count_; }
@@ -82,16 +80,18 @@ class TaskManagerClient
                     SyncStatusCallback callback) {
     task_manager_->ScheduleTask(
         FROM_HERE,
-        base::BindOnce(&TaskManagerClient::DoTask, AsWeakPtr(),
-                       status_to_return, false /* idle */),
+        base::BindOnce(&TaskManagerClient::DoTask,
+                       weak_ptr_factory_.GetWeakPtr(), status_to_return,
+                       false /* idle */),
         SyncTaskManager::PRIORITY_MED, std::move(callback));
   }
 
   void ScheduleTaskIfIdle(SyncStatusCode status_to_return) {
     task_manager_->ScheduleTaskIfIdle(
         FROM_HERE,
-        base::BindOnce(&TaskManagerClient::DoTask, AsWeakPtr(),
-                       status_to_return, true /* idle */),
+        base::BindOnce(&TaskManagerClient::DoTask,
+                       weak_ptr_factory_.GetWeakPtr(), status_to_return,
+                       true /* idle */),
         SyncStatusCallback());
   }
 
@@ -122,6 +122,8 @@ class TaskManagerClient
   int idle_task_scheduled_count_;
 
   SyncStatusCode last_operation_status_;
+
+  base::WeakPtrFactory<TaskManagerClient> weak_ptr_factory_{this};
 };
 
 class MultihopSyncTask : public ExclusiveTask {
@@ -135,7 +137,7 @@ class MultihopSyncTask : public ExclusiveTask {
   MultihopSyncTask(const MultihopSyncTask&) = delete;
   MultihopSyncTask& operator=(const MultihopSyncTask&) = delete;
 
-  ~MultihopSyncTask() override {}
+  ~MultihopSyncTask() override = default;
 
   void RunExclusive(SyncStatusCallback callback) override {
     DCHECK(!*task_started_);
@@ -180,7 +182,7 @@ class BackgroundTask : public SyncTask {
   BackgroundTask(const BackgroundTask&) = delete;
   BackgroundTask& operator=(const BackgroundTask&) = delete;
 
-  ~BackgroundTask() override {}
+  ~BackgroundTask() override = default;
 
   void RunPreflight(std::unique_ptr<SyncTaskToken> token) override {
     std::unique_ptr<TaskBlocker> task_blocker(new TaskBlocker);
@@ -228,13 +230,13 @@ class BlockerUpdateTestHelper : public SyncTask {
                           Log* log)
       : name_(name),
         app_id_(app_id),
-        paths_(paths.begin(), paths.end()),
+        paths_(base::from_range, paths),
         log_(log) {}
 
   BlockerUpdateTestHelper(const BlockerUpdateTestHelper&) = delete;
   BlockerUpdateTestHelper& operator=(const BlockerUpdateTestHelper&) = delete;
 
-  ~BlockerUpdateTestHelper() override {}
+  ~BlockerUpdateTestHelper() override = default;
 
   void RunPreflight(std::unique_ptr<SyncTaskToken> token) override {
     UpdateBlocker(std::move(token));

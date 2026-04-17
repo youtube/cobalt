@@ -169,22 +169,12 @@ bool IsMatcherEmpty(const std::unique_ptr<SubstringSetMatcher>& matcher) {
 URLMatcherCondition::URLMatcherCondition()
     : criterion_(HOST_PREFIX), string_pattern_(nullptr) {}
 
-URLMatcherCondition::~URLMatcherCondition() {}
+URLMatcherCondition::~URLMatcherCondition() = default;
 
 URLMatcherCondition::URLMatcherCondition(
     Criterion criterion,
     const MatcherStringPattern* string_pattern)
     : criterion_(criterion), string_pattern_(string_pattern) {}
-
-URLMatcherCondition::URLMatcherCondition(const URLMatcherCondition& rhs)
-    : criterion_(rhs.criterion_), string_pattern_(rhs.string_pattern_) {}
-
-URLMatcherCondition& URLMatcherCondition::operator=(
-    const URLMatcherCondition& rhs) {
-  criterion_ = rhs.criterion_;
-  string_pattern_ = rhs.string_pattern_;
-  return *this;
-}
 
 bool URLMatcherCondition::operator<(const URLMatcherCondition& rhs) const {
   if (criterion_ < rhs.criterion_)
@@ -392,8 +382,7 @@ std::string URLMatcherConditionFactory::CanonicalizeURLForFullSearches(
   // Clear port if it is implicit from scheme.
   if (url.has_port()) {
     const std::string& port = url.scheme();
-    if (url::DefaultPortForScheme(port.c_str(), port.size()) ==
-        url.EffectiveIntPort()) {
+    if (url::DefaultPortForScheme(port) == url.EffectiveIntPort()) {
       replacements.ClearPort();
     }
   }
@@ -412,8 +401,7 @@ static std::string CanonicalizeURLForRegexSearchesHelper(const GURL& url,
   // Clear port if it is implicit from scheme.
   if (url.has_port()) {
     const std::string& port = url.scheme();
-    if (url::DefaultPortForScheme(port.c_str(), port.size()) ==
-        url.EffectiveIntPort()) {
+    if (url::DefaultPortForScheme(port) == url.EffectiveIntPort()) {
       replacements.ClearPort();
     }
   }
@@ -627,7 +615,7 @@ URLQueryElementMatcherCondition::URLQueryElementMatcherCondition(
 URLQueryElementMatcherCondition::URLQueryElementMatcherCondition(
     const URLQueryElementMatcherCondition& other) = default;
 
-URLQueryElementMatcherCondition::~URLQueryElementMatcherCondition() {}
+URLQueryElementMatcherCondition::~URLQueryElementMatcherCondition() = default;
 
 bool URLQueryElementMatcherCondition::operator<(
     const URLQueryElementMatcherCondition& rhs) const {
@@ -678,7 +666,6 @@ bool URLQueryElementMatcherCondition::IsMatch(
     }
   }
   NOTREACHED();
-  return false;
 }
 
 //
@@ -694,7 +681,7 @@ URLMatcherSchemeFilter::URLMatcherSchemeFilter(
     const std::vector<std::string>& filters)
     : filters_(filters) {}
 
-URLMatcherSchemeFilter::~URLMatcherSchemeFilter() {}
+URLMatcherSchemeFilter::~URLMatcherSchemeFilter() = default;
 
 bool URLMatcherSchemeFilter::IsMatch(const GURL& url) const {
   return base::Contains(filters_, url.scheme());
@@ -708,7 +695,7 @@ URLMatcherPortFilter::URLMatcherPortFilter(
     const std::vector<URLMatcherPortFilter::Range>& ranges)
     : ranges_(ranges) {}
 
-URLMatcherPortFilter::~URLMatcherPortFilter() {}
+URLMatcherPortFilter::~URLMatcherPortFilter() = default;
 
 bool URLMatcherPortFilter::IsMatch(const GURL& url) const {
   int port = url.EffectiveIntPort();
@@ -731,10 +718,50 @@ URLMatcherPortFilter::Range URLMatcherPortFilter::CreateRange(int port) {
 }
 
 //
+// URLMatcherCidrBlockFilter
+//
+
+URLMatcherCidrBlockFilter::URLMatcherCidrBlockFilter(
+    std::vector<URLMatcherCidrBlockFilter::CidrBlock>&& cidr_blocks)
+    : cidr_blocks_(std::move(cidr_blocks)) {}
+
+URLMatcherCidrBlockFilter::~URLMatcherCidrBlockFilter() = default;
+
+bool URLMatcherCidrBlockFilter::IsMatch(const GURL& url) const {
+  // Make sure host is an IP address.
+  if (!url.HostIsIPAddress()) {
+    return false;
+  }
+
+  // Parse the input IP literal to a number.
+  net::IPAddress ip_address;
+  if (!ip_address.AssignFromIPLiteral(url.HostNoBracketsPiece())) {
+    return false;
+  }
+
+  return std::ranges::any_of(cidr_blocks_, [&ip_address](
+                                               const CidrBlock& block) {
+    return net::IPAddressMatchesPrefix(ip_address, block.first, block.second);
+  });
+}
+
+// static
+base::expected<URLMatcherCidrBlockFilter::CidrBlock, std::string>
+URLMatcherCidrBlockFilter::CreateCidrBlock(const std::string& entry) {
+  net::IPAddress ip_address;
+  size_t prefix_length_in_bits = 0;
+  if (!net::ParseCIDRBlock(entry, &ip_address, &prefix_length_in_bits)) {
+    return base::unexpected("Failed parsing CIDR");
+  }
+
+  return CidrBlock(ip_address, prefix_length_in_bits);
+}
+
+//
 // URLMatcherConditionSet
 //
 
-URLMatcherConditionSet::~URLMatcherConditionSet() {}
+URLMatcherConditionSet::~URLMatcherConditionSet() = default;
 
 URLMatcherConditionSet::URLMatcherConditionSet(
     base::MatcherStringPattern::ID id,
@@ -745,11 +772,13 @@ URLMatcherConditionSet::URLMatcherConditionSet(
     base::MatcherStringPattern::ID id,
     const Conditions& conditions,
     std::unique_ptr<URLMatcherSchemeFilter> scheme_filter,
-    std::unique_ptr<URLMatcherPortFilter> port_filter)
+    std::unique_ptr<URLMatcherPortFilter> port_filter,
+    std::unique_ptr<URLMatcherCidrBlockFilter> cidr_block_filter)
     : id_(id),
       conditions_(conditions),
       scheme_filter_(std::move(scheme_filter)),
-      port_filter_(std::move(port_filter)) {}
+      port_filter_(std::move(port_filter)),
+      cidr_block_filter_(std::move(cidr_block_filter)) {}
 
 URLMatcherConditionSet::URLMatcherConditionSet(
     base::MatcherStringPattern::ID id,
@@ -781,6 +810,9 @@ bool URLMatcherConditionSet::IsMatch(
     return false;
   if (port_filter_.get() && !port_filter_->IsMatch(url))
     return false;
+  if (cidr_block_filter_.get() && !cidr_block_filter_->IsMatch(url)) {
+    return false;
+  }
   if (query_conditions_.empty())
     return true;
   // The loop is duplicated below for performance reasons. If not all query
@@ -801,9 +833,9 @@ bool URLMatcherConditionSet::IsMatch(
 // URLMatcher
 //
 
-URLMatcher::URLMatcher() {}
+URLMatcher::URLMatcher() = default;
 
-URLMatcher::~URLMatcher() {}
+URLMatcher::~URLMatcher() = default;
 
 void URLMatcher::AddConditionSets(
     const URLMatcherConditionSet::Vector& condition_sets) {
@@ -871,6 +903,7 @@ std::set<base::MatcherStringPattern::ID> URLMatcher::MatchURL(
         triggered_condition_sets_iter->second;
     for (auto j = condition_sets.begin(); j != condition_sets.end(); ++j) {
       auto condition_set_iter = url_matcher_condition_sets_.find(*j);
+      // Expensive: DCHECK as this is a tight loop.
       DCHECK(condition_set_iter != url_matcher_condition_sets_.end());
       if (condition_set_iter->second->IsMatch(matches, url,
                                               url_for_component_searches))

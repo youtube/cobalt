@@ -81,23 +81,19 @@ void It2MeCliHost::Start() {
   ui_task_runner_ = new AutoThreadTaskRunner(
       base::SingleThreadTaskRunner::GetCurrentDefault(), ui_loop.QuitClosure());
 
-  token_getter_->CallWithToken(base::BindOnce(
-      &It2MeCliHost::StartCRDHostAndGetCode, base::Unretained(this)));
-
   std::unique_ptr<net::NetworkChangeNotifier> network_change_notifier(
       net::NetworkChangeNotifier::CreateIfNeeded());
   ui_loop.Run();
 }
 
 void It2MeCliHost::PostMessageFromNativeHost(const std::string& message) {
-  auto message_value = base::JSONReader::Read(message);
-  if (!message_value || !message_value->is_dict()) {
+  auto message_dict = base::JSONReader::ReadDict(message);
+  if (!message_dict) {
     OnProtocolBroken("Message is not a dictionary");
     return;
   }
 
-  base::Value::Dict& message_dict = message_value->GetDict();
-  std::string* type = message_dict.FindString(kMessageType);
+  std::string* type = message_dict->FindString(kMessageType);
   if (!type) {
     OnProtocolBroken("Message without type");
     return;
@@ -111,20 +107,20 @@ void It2MeCliHost::PostMessageFromNativeHost(const std::string& message) {
     OnDisconnectResponse();
   } else if (*type == kHostStateChangedMessage) {
     // Handle CRD host state changes
-    std::string* state = message_dict.FindString(kState);
+    std::string* state = message_dict->FindString(kState);
     if (!state) {
       OnProtocolBroken("No state in message");
       return;
     }
 
     if (*state == kHostStateReceivedAccessCode) {
-      OnStateReceivedAccessCode(message_dict);
+      OnStateReceivedAccessCode(*message_dict);
     } else if (*state == kHostStateConnected) {
-      OnStateRemoteConnected(message_dict);
+      OnStateRemoteConnected(*message_dict);
     } else if (*state == kHostStateDisconnected) {
       OnStateRemoteDisconnected();
     } else if (*state == kHostStateError || *state == kHostStateDomainError) {
-      OnStateError(*state, message_dict);
+      OnStateError(*state, *message_dict);
     } else if (*state == kHostStateStarting ||
                *state == kHostStateRequestedAccessCode) {
       // Just ignore these states.
@@ -146,9 +142,9 @@ void It2MeCliHost::CloseChannel(const std::string& error_message) {
 }
 
 void It2MeCliHost::SendMessageToHost(const std::string& type,
-                                     base::Value params) {
+                                     base::Value::Dict params) {
   std::string message_json;
-  params.SetKey(kMessageType, base::Value(type));
+  params.Set(kMessageType, type);
   base::JSONWriter::Write(params, &message_json);
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&It2MeCliHost::DoSendMessage,
@@ -171,18 +167,14 @@ void It2MeCliHost::OnProtocolBroken(const std::string& message) {
 
 void It2MeCliHost::StartCRDHostAndGetCode(OAuthTokenGetter::Status status,
                                           const std::string& user_email,
-                                          const std::string& access_token) {
+                                          const std::string& access_token,
+                                          const std::string& scopes) {
   DCHECK(!host_);
 
   // Store all parameters for future connect call.
-  base::Value connect_params(base::Value::Type::DICT);
-
-  connect_params.SetKey(kUserName, base::Value(user_email));
-  connect_params.SetKey(kAuthServiceWithToken,
-                        base::Value("oauth2:" + access_token));
-  connect_params.SetKey(kSuppressUserDialogs, base::Value(true));
-  connect_params.SetKey(kSuppressNotifications, base::Value(true));
-  connect_params_ = std::move(connect_params);
+  connect_params_ = base::Value::Dict()
+                        .Set(kUserName, user_email)
+                        .Set(kAccessToken, access_token);
 
   remote_connected_ = false;
   command_awaiting_crd_access_code_ = true;
@@ -190,8 +182,7 @@ void It2MeCliHost::StartCRDHostAndGetCode(OAuthTokenGetter::Status status,
   host_ = CreateNativeMessagingHost(ui_task_runner_);
   host_->Start(this);
 
-  base::Value params(base::Value::Type::DICT);
-  SendMessageToHost(kHelloMessage, std::move(params));
+  SendMessageToHost(kHelloMessage, base::Value::Dict());
 }
 
 void It2MeCliHost::ShutdownHost() {
@@ -261,8 +252,7 @@ void It2MeCliHost::OnStateRemoteDisconnected() {
   remote_connected_ = false;
   // Remote has disconnected, time to send "disconnect" that would result
   // in shutting down the host.
-  base::Value params(base::Value::Type::DICT);
-  SendMessageToHost(kDisconnectMessage, std::move(params));
+  SendMessageToHost(kDisconnectMessage, base::Value::Dict());
 }
 
 void It2MeCliHost::OnStateReceivedAccessCode(const base::Value::Dict& message) {
@@ -272,15 +262,13 @@ void It2MeCliHost::OnStateReceivedAccessCode(const base::Value::Dict& message) {
       // this CRD session through a remote command, and we can not send a new
       // access code. Assuming that the old access code is no longer valid, we
       // can only terminate the current CRD session.
-      base::Value params(base::Value::Type::DICT);
-      SendMessageToHost(kDisconnectMessage, std::move(params));
+      SendMessageToHost(kDisconnectMessage, base::Value::Dict());
     }
     return;
   }
 
   const std::string* code = message.FindString(kAccessCode);
-  const absl::optional<int> code_lifetime =
-      message.FindInt(kAccessCodeLifetime);
+  const std::optional<int> code_lifetime = message.FindInt(kAccessCodeLifetime);
   if (!code || !code_lifetime) {
     OnProtocolBroken("Can not obtain access code");
     return;

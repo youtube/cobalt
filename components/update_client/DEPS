@@ -5,7 +5,7 @@ include_rules = [
   "+components/prefs",
   "+components/services/unzip",
   "+components/version_info",
-  "+courgette",
+  "+components/zucchini",
   "+crypto",
   "+mojo/public",
   "+third_party/puffin",

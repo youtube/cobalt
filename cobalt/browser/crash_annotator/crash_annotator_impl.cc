@@ -14,9 +14,6 @@
 
 #include "cobalt/browser/crash_annotator/crash_annotator_impl.h"
 
-#include "base/functional/bind.h"
-#include "base/functional/callback.h"
-
 namespace crash_annotator {
 
 CrashAnnotatorImpl::CrashAnnotatorImpl(
@@ -29,15 +26,6 @@ void CrashAnnotatorImpl::Create(
     content::RenderFrameHost* render_frame_host,
     mojo::PendingReceiver<mojom::CrashAnnotator> receiver) {
   new CrashAnnotatorImpl(*render_frame_host, std::move(receiver));
-}
-
-void CrashAnnotatorImpl::SetString(const std::string& key,
-                                   const std::string& value,
-                                   SetStringCallback callback) {
-  // TODO(cobalt, b/383301493): actually implement this.
-  LOG(INFO) << "CrashAnnotatorImpl::SetString key=" << key
-            << " value=" << value;
-  std::move(callback).Run(false);
 }
 
 }  // namespace crash_annotator

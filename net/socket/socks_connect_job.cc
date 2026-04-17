@@ -5,6 +5,7 @@
 #include "net/socket/socks_connect_job.h"
 
 #include <memory>
+#include <set>
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -13,6 +14,7 @@
 #include "net/log/net_log_with_source.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/client_socket_handle.h"
+#include "net/socket/connect_job_params.h"
 #include "net/socket/socks5_client_socket.h"
 #include "net/socket/socks_client_socket.h"
 #include "net/socket/transport_connect_job.h"
@@ -23,12 +25,12 @@ namespace net {
 static constexpr base::TimeDelta kSOCKSConnectJobTimeout = base::Seconds(30);
 
 SOCKSSocketParams::SOCKSSocketParams(
-    scoped_refptr<TransportSocketParams> proxy_server_params,
+    ConnectJobParams nested_params,
     bool socks_v5,
     const HostPortPair& host_port_pair,
     const NetworkAnonymizationKey& network_anonymization_key,
     const NetworkTrafficAnnotationTag& traffic_annotation)
-    : transport_params_(std::move(proxy_server_params)),
+    : transport_params_(nested_params.take_transport()),
       destination_(host_port_pair),
       socks_v5_(socks_v5),
       network_anonymization_key_(network_anonymization_key),
@@ -82,7 +84,6 @@ LoadState SOCKSConnectJob::GetLoadState() const {
       return LOAD_STATE_CONNECTING;
     default:
       NOTREACHED();
-      return LOAD_STATE_IDLE;
   }
 }
 
@@ -120,6 +121,14 @@ void SOCKSConnectJob::OnNeedsProxyAuth(
   NOTREACHED();
 }
 
+Error SOCKSConnectJob::OnDestinationDnsAliasesResolved(
+    const std::set<std::string>& aliases,
+    ConnectJob* job) {
+  // Do nothing and return OK when DNS aliases for socks proxy hostnames since
+  // higher-level layers will not take action on these.
+  return OK;
+}
+
 int SOCKSConnectJob::DoLoop(int result) {
   DCHECK_NE(next_state_, STATE_NONE);
 
@@ -144,8 +153,6 @@ int SOCKSConnectJob::DoLoop(int result) {
         break;
       default:
         NOTREACHED() << "bad state";
-        rv = ERR_FAILED;
-        break;
     }
   } while (rv != ERR_IO_PENDING && next_state_ != STATE_NONE);
 
@@ -182,6 +189,7 @@ int SOCKSConnectJob::DoSOCKSConnect() {
         transport_connect_job_->PassSocket(), socks_params_->destination(),
         socks_params_->traffic_annotation());
   } else {
+    // TODO(crbug.com/393349123): Handle resolved DNS aliases for socks4.
     auto socks_socket = std::make_unique<SOCKSClientSocket>(
         transport_connect_job_->PassSocket(), socks_params_->destination(),
         socks_params_->network_anonymization_key(), priority(), host_resolver(),
@@ -203,7 +211,7 @@ int SOCKSConnectJob::DoSOCKSConnectComplete(int result) {
     return result;
   }
 
-  SetSocket(std::move(socket_), absl::nullopt /* dns_aliases */);
+  SetSocket(std::move(socket_), std::nullopt /* dns_aliases */);
   return result;
 }
 

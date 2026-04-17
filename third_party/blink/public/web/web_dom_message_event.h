@@ -30,8 +30,9 @@
 #ifndef THIRD_PARTY_BLINK_PUBLIC_WEB_WEB_DOM_MESSAGE_EVENT_H_
 #define THIRD_PARTY_BLINK_PUBLIC_WEB_WEB_DOM_MESSAGE_EVENT_H_
 
+#include <optional>
+
 #include "base/unguessable_token.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/messaging/message_port_channel.h"
 #include "third_party/blink/public/common/messaging/transferable_message.h"
 #include "third_party/blink/public/platform/web_common.h"
@@ -53,12 +54,12 @@ class WebFrame;
 // http://www.w3.org/TR/2012/WD-webmessaging-20120313/#terminology
 class BLINK_EXPORT WebDOMMessageEvent : public WebDOMEvent {
  public:
-  WebDOMMessageEvent(
-      const WebSerializedScriptValue& message_data,
-      const WebString& origin = WebString(),
-      const WebFrame* source_frame = nullptr,
-      const WebDocument& target_document = WebDocument(),
-      WebVector<MessagePortChannel> ports = WebVector<MessagePortChannel>());
+  WebDOMMessageEvent(const WebSerializedScriptValue& message_data,
+                     const WebString& origin = WebString(),
+                     const WebFrame* source_frame = nullptr,
+                     const WebDocument& target_document = WebDocument(),
+                     std::vector<MessagePortChannel> ports =
+                         std::vector<MessagePortChannel>());
   WebDOMMessageEvent() = default;
 
   WebString Origin() const;

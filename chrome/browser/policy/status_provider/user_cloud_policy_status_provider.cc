@@ -12,6 +12,7 @@
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "components/enterprise/browser/reporting/common_pref_names.h"
 #include "components/policy/core/browser/webui/policy_status_provider.h"
 #include "components/policy/core/common/cloud/cloud_policy_core.h"
 #include "components/policy/core/common/cloud/cloud_policy_store.h"
@@ -26,16 +27,20 @@ UserCloudPolicyStatusProvider::UserCloudPolicyStatusProvider(
 UserCloudPolicyStatusProvider::~UserCloudPolicyStatusProvider() = default;
 
 base::Value::Dict UserCloudPolicyStatusProvider::GetStatus() {
+#if BUILDFLAG(IS_CHROMEOS)
+  const bool show_flex_org_warning = false;
+#else
   signin::IdentityManager* identity_manager =
       IdentityManagerFactory::GetForProfile(profile_);
-  const bool is_flex_org =
+  const bool show_flex_org_warning =
       identity_manager && identity_manager
                               ->FindExtendedAccountInfoByEmailAddress(
                                   profile_->GetProfileUserName())
                               .IsMemberOfFlexOrg();
-  if (!is_flex_org && !core_->store()->is_managed()) {
+  if (!show_flex_org_warning && !core_->store()->is_managed()) {
     return {};
   }
+#endif
 
   ProfileAttributesEntry* entry =
       g_browser_process->profile_manager()
@@ -50,7 +55,7 @@ base::Value::Dict UserCloudPolicyStatusProvider::GetStatus() {
   if (enrollment_token.empty()) {
     SetDomainExtractedFromUsername(dict);
     GetUserAffiliationStatus(&dict, profile_);
-    dict.Set(policy::kFlexOrgWarningKey, is_flex_org);
+    dict.Set(policy::kFlexOrgWarningKey, show_flex_org_warning);
   } else {
     dict.Set(policy::kEnrollmentTokenKey, enrollment_token);
     dict.Set(policy::kDomainKey,
@@ -58,6 +63,9 @@ base::Value::Dict UserCloudPolicyStatusProvider::GetStatus() {
     dict.Remove(policy::kUsernameKey);
     dict.Remove(policy::kGaiaIdKey);
   }
+  UpdateLastReportTimestamp(
+      dict, profile_->GetPrefs(),
+      enterprise_reporting::kLastUploadSucceededTimestamp);
   dict.Set(policy::kPolicyDescriptionKey, kUserPolicyStatusDescription);
   SetProfileId(&dict, profile_);
   return dict;

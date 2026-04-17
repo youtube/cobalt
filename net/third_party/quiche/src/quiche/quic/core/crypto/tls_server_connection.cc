@@ -4,12 +4,20 @@
 
 #include "quiche/quic/core/crypto/tls_server_connection.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <utility>
+#include <vector>
+
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
+#include "openssl/base.h"
 #include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/proof_source.h"
+#include "quiche/quic/core/crypto/tls_connection.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
-#include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 
@@ -59,10 +67,43 @@ bssl::UniquePtr<SSL_CTX> TlsServerConnection::CreateSslCtx(
   return ssl_ctx;
 }
 
+absl::Status TlsServerConnection::ConfigureSSL(
+    ProofSourceHandleCallback::ConfigureSSLFunc configure_ssl) {
+  return std::move(configure_ssl)(*ssl(),  // never nullptr
+                                  TlsServerConnection::kPrivateKeyMethod);
+}
+
 void TlsServerConnection::SetCertChain(
-    const std::vector<CRYPTO_BUFFER*>& cert_chain) {
-  SSL_set_chain_and_key(ssl(), cert_chain.data(), cert_chain.size(), nullptr,
-                        &TlsServerConnection::kPrivateKeyMethod);
+    const std::vector<CRYPTO_BUFFER*>& cert_chain,
+    const std::string& trust_anchor_id) {
+  if (GetQuicReloadableFlag(enable_tls_trust_anchor_ids)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(enable_tls_trust_anchor_ids, 1, 2);
+    bssl::UniquePtr<SSL_CREDENTIAL> credential(SSL_CREDENTIAL_new_x509());
+    SSL_CREDENTIAL_set1_cert_chain(credential.get(), cert_chain.data(),
+                                   cert_chain.size());
+    if (ssl_config().signing_algorithm_prefs.has_value()) {
+      SSL_CREDENTIAL_set1_signing_algorithm_prefs(
+          credential.get(), ssl_config().signing_algorithm_prefs->data(),
+          ssl_config().signing_algorithm_prefs->size());
+    }
+    SSL_CREDENTIAL_set_private_key_method(
+        credential.get(), &TlsServerConnection::kPrivateKeyMethod);
+#if defined(BORINGSSL_API_VERSION) && BORINGSSL_API_VERSION >= 36
+    if (!trust_anchor_id.empty()) {
+      SSL_CREDENTIAL_set1_trust_anchor_id(
+          credential.get(),
+          reinterpret_cast<const uint8_t*>(trust_anchor_id.data()),
+          trust_anchor_id.size());
+      SSL_CREDENTIAL_set_must_match_issuer(credential.get(), 1);
+    }
+#else
+    (void)trust_anchor_id;  // Suppress unused parameter error.
+#endif
+    SSL_add1_credential(ssl(), credential.get());
+  } else {
+    SSL_set_chain_and_key(ssl(), cert_chain.data(), cert_chain.size(), nullptr,
+                          &TlsServerConnection::kPrivateKeyMethod);
+  }
 }
 
 void TlsServerConnection::SetClientCertMode(ClientCertMode client_cert_mode) {

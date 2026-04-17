@@ -5,12 +5,11 @@
 #ifndef CONTENT_BROWSER_AGGREGATION_SERVICE_AGGREGATION_SERVICE_IMPL_H_
 #define CONTENT_BROWSER_AGGREGATION_SERVICE_AGGREGATION_SERVICE_IMPL_H_
 
-#include <stdint.h>
-
 #include <memory>
+#include <optional>
+#include <set>
 #include <vector>
 
-#include "base/containers/flat_map.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
@@ -25,15 +24,19 @@
 #include "content/browser/aggregation_service/aggregation_service_storage_context.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/storage_partition.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class GURL;
 
 namespace base {
 class Clock;
+class ElapsedTimer;
 class FilePath;
 class UpdateableSequencedTaskRunner;
 }  // namespace base
+
+namespace url {
+class Origin;
+}  // namespace url
 
 namespace content {
 
@@ -72,12 +75,6 @@ class CONTENT_EXPORT AggregationServiceImpl
   // AggregationService:
   void AssembleReport(AggregatableReportRequest report_request,
                       AssemblyCallback callback) override;
-  void SendReport(const GURL& url,
-                  const AggregatableReport& report,
-                  SendCallback callback) override;
-  void SendReport(const GURL& url,
-                  const base::Value& contents,
-                  SendCallback callback) override;
   void ClearData(base::Time delete_begin,
                  base::Time delete_end,
                  StoragePartition::StorageKeyMatcherFunction filter,
@@ -91,6 +88,8 @@ class CONTENT_EXPORT AggregationServiceImpl
   void SendReportsForWebUI(
       const std::vector<AggregationServiceStorage::RequestId>& ids,
       base::OnceClosure reports_sent_callback) override;
+  void GetPendingReportReportingOrigins(
+      base::OnceCallback<void(std::set<url::Origin>)> callback) override;
   void AddObserver(AggregationServiceObserver* observer) override;
   void RemoveObserver(AggregationServiceObserver* observer) override;
 
@@ -118,25 +117,29 @@ class CONTENT_EXPORT AggregationServiceImpl
       std::vector<AggregationServiceStorage::RequestAndId> requests_and_ids,
       base::RepeatingClosure done);
 
-  // `request_id` is `absl::nullopt` iff `report_request` was not
+  // `request_id` is `std::nullopt` iff `report_request` was not
   // stored/scheduled.
   void AssembleAndSendReportImpl(
       AggregatableReportRequest report_request,
-      absl::optional<AggregationServiceStorage::RequestId> request_id,
+      std::optional<AggregationServiceStorage::RequestId> request_id,
       base::OnceClosure done);
   void OnReportAssemblyComplete(
       base::OnceClosure done,
-      absl::optional<AggregationServiceStorage::RequestId> request_id,
+      std::optional<AggregationServiceStorage::RequestId> request_id,
       GURL reporting_url,
+      base::ElapsedTimer elapsed_timer,
       AggregatableReportRequest report_request,
-      absl::optional<AggregatableReport> report,
+      std::optional<AggregatableReport> report,
       AggregatableReportAssembler::AssemblyStatus status);
   void OnReportSendingComplete(
       base::OnceClosure done,
       AggregatableReportRequest report_request,
-      absl::optional<AggregationServiceStorage::RequestId> request_id,
+      std::optional<AggregationServiceStorage::RequestId> request_id,
       AggregatableReport report,
+      base::ElapsedTimer elapsed_timer,
       AggregatableReportSender::RequestStatus status);
+  void OnUserVisibleTaskStarted();
+  void OnUserVisibleTaskComplete();
   void OnClearDataComplete();
 
   void OnGetRequestsToSendFromWebUI(
@@ -145,8 +148,8 @@ class CONTENT_EXPORT AggregationServiceImpl
 
   void NotifyReportHandled(
       const AggregatableReportRequest& request,
-      absl::optional<AggregationServiceStorage::RequestId> request_id,
-      const absl::optional<AggregatableReport>& report,
+      std::optional<AggregationServiceStorage::RequestId> request_id,
+      const std::optional<AggregatableReport>& report,
       AggregationServiceObserver::ReportStatus status);
 
   void NotifyRequestStorageModified();
@@ -156,9 +159,9 @@ class CONTENT_EXPORT AggregationServiceImpl
   // clear data task is queued or running. Otherwise `BEST_EFFORT` is used.
   scoped_refptr<base::UpdateableSequencedTaskRunner> storage_task_runner_;
 
-  // How many clear data storage tasks are queued or running currently, i.e.
+  // How many user visible storage tasks are queued or running currently, i.e.
   // have been posted but the reply has not been run.
-  int num_pending_clear_data_tasks_ = 0;
+  int num_pending_user_visible_tasks_ = 0;
 
   base::SequenceBound<AggregationServiceStorage> storage_;
   std::unique_ptr<AggregatableReportScheduler> scheduler_;

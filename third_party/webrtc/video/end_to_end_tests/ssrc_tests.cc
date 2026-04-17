@@ -8,20 +8,34 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <cstddef>
+#include <cstdint>
+#include <map>
 #include <memory>
+#include <utility>
+#include <vector>
 
+#include "api/array_view.h"
+#include "api/rtp_parameters.h"
+#include "api/task_queue/task_queue_base.h"
 #include "api/test/simulated_network.h"
 #include "call/fake_network_pipe.h"
 #include "call/packet_receiver.h"
-#include "call/simulated_network.h"
+#include "call/video_receive_stream.h"
+#include "call/video_send_stream.h"
 #include "modules/rtp_rtcp/source/rtp_packet.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
-#include "modules/rtp_rtcp/source/rtp_util.h"
+#include "rtc_base/copy_on_write_buffer.h"
+#include "rtc_base/event.h"
 #include "rtc_base/task_queue_for_test.h"
 #include "test/call_test.h"
+#include "test/direct_transport.h"
 #include "test/gtest.h"
+#include "test/network/simulated_network.h"
 #include "test/rtcp_packet_parser.h"
+#include "test/rtp_rtcp_observer.h"
 #include "test/video_test_constants.h"
+#include "video/config/video_encoder_config.h"
 
 namespace webrtc {
 class SsrcEndToEndTest : public test::CallTest {
@@ -41,9 +55,9 @@ TEST_F(SsrcEndToEndTest, ReceiverUsesLocalSsrc) {
     SyncRtcpObserver()
         : EndToEndTest(test::VideoTestConstants::kDefaultTimeout) {}
 
-    Action OnReceiveRtcp(const uint8_t* packet, size_t length) override {
+    Action OnReceiveRtcp(ArrayView<const uint8_t> packet) override {
       test::RtcpPacketParser parser;
-      EXPECT_TRUE(parser.Parse(packet, length));
+      EXPECT_TRUE(parser.Parse(packet));
       EXPECT_EQ(test::VideoTestConstants::kReceiverLocalVideoSsrc,
                 parser.sender_ssrc());
       observation_complete_.Set();
@@ -85,53 +99,51 @@ TEST_F(SsrcEndToEndTest, UnknownRtpPacketTriggersUndemuxablePacketHandler) {
       receiver_->DeliverRtpPacket(media_type, std::move(packet),
                                   std::move(handler));
     }
-    void DeliverRtcpPacket(rtc::CopyOnWriteBuffer packet) override {}
+    void DeliverRtcpPacket(CopyOnWriteBuffer packet) override {}
 
     PacketReceiver* receiver_;
-    rtc::Event undemuxable_packet_handler_triggered_;
+    Event undemuxable_packet_handler_triggered_;
   };
 
   std::unique_ptr<test::DirectTransport> send_transport;
   std::unique_ptr<test::DirectTransport> receive_transport;
   std::unique_ptr<PacketInputObserver> input_observer;
 
-  SendTask(
-      task_queue(),
-      [this, &send_transport, &receive_transport, &input_observer]() {
-        CreateCalls();
+  SendTask(task_queue(), [this, &send_transport, &receive_transport,
+                          &input_observer]() {
+    CreateCalls();
 
-        send_transport = std::make_unique<test::DirectTransport>(
-            task_queue(),
-            std::make_unique<FakeNetworkPipe>(
-                Clock::GetRealTimeClock(), std::make_unique<SimulatedNetwork>(
-                                               BuiltInNetworkBehaviorConfig())),
-            sender_call_.get(), payload_type_map_, GetRegisteredExtensions(),
-            GetRegisteredExtensions());
-        receive_transport = std::make_unique<test::DirectTransport>(
-            task_queue(),
-            std::make_unique<FakeNetworkPipe>(
-                Clock::GetRealTimeClock(), std::make_unique<SimulatedNetwork>(
-                                               BuiltInNetworkBehaviorConfig())),
-            receiver_call_.get(), payload_type_map_, GetRegisteredExtensions(),
-            GetRegisteredExtensions());
-        input_observer =
-            std::make_unique<PacketInputObserver>(receiver_call_->Receiver());
-        send_transport->SetReceiver(input_observer.get());
-        receive_transport->SetReceiver(sender_call_->Receiver());
+    send_transport = std::make_unique<test::DirectTransport>(
+        task_queue(),
+        std::make_unique<FakeNetworkPipe>(
+            Clock::GetRealTimeClock(),
+            std::make_unique<SimulatedNetwork>(BuiltInNetworkBehaviorConfig())),
+        sender_call_.get(), payload_type_map_, GetRegisteredExtensions(),
+        GetRegisteredExtensions());
+    receive_transport = std::make_unique<test::DirectTransport>(
+        task_queue(),
+        std::make_unique<FakeNetworkPipe>(
+            Clock::GetRealTimeClock(),
+            std::make_unique<SimulatedNetwork>(BuiltInNetworkBehaviorConfig())),
+        receiver_call_.get(), payload_type_map_, GetRegisteredExtensions(),
+        GetRegisteredExtensions());
+    input_observer =
+        std::make_unique<PacketInputObserver>(receiver_call_->Receiver());
+    send_transport->SetReceiver(input_observer.get());
+    receive_transport->SetReceiver(sender_call_->Receiver());
 
-        CreateSendConfig(1, 0, 0, send_transport.get());
-        CreateMatchingReceiveConfigs(receive_transport.get());
+    CreateSendConfig(1, 0, 0, send_transport.get());
+    CreateMatchingReceiveConfigs(receive_transport.get());
 
-        CreateVideoStreams();
-        CreateFrameGeneratorCapturer(
-            test::VideoTestConstants::kDefaultFramerate,
-            test::VideoTestConstants::kDefaultWidth,
-            test::VideoTestConstants::kDefaultHeight);
-        Start();
+    CreateVideoStreams();
+    CreateFrameGeneratorCapturer(test::VideoTestConstants::kDefaultFramerate,
+                                 test::VideoTestConstants::kDefaultWidth,
+                                 test::VideoTestConstants::kDefaultHeight);
+    Start();
 
-        receiver_call_->DestroyVideoReceiveStream(video_receive_streams_[0]);
-        video_receive_streams_.clear();
-      });
+    receiver_call_->DestroyVideoReceiveStream(video_receive_streams_[0]);
+    video_receive_streams_.clear();
+  });
 
   // Wait() waits for a received packet.
   EXPECT_TRUE(input_observer->Wait());
@@ -165,9 +177,9 @@ void SsrcEndToEndTest::TestSendsSetSsrcs(size_t num_ssrcs,
     }
 
    private:
-    Action OnSendRtp(const uint8_t* packet, size_t length) override {
+    Action OnSendRtp(ArrayView<const uint8_t> packet) override {
       RtpPacket rtp_packet;
-      EXPECT_TRUE(rtp_packet.Parse(packet, length));
+      EXPECT_TRUE(rtp_packet.Parse(packet));
 
       EXPECT_TRUE(valid_ssrcs_[rtp_packet.Ssrc()])
           << "Received unknown SSRC: " << rtp_packet.Ssrc();
@@ -273,9 +285,9 @@ TEST_F(SsrcEndToEndTest, DISABLED_RedundantPayloadsTransmittedOnAllSsrcs) {
     }
 
    private:
-    Action OnSendRtp(const uint8_t* packet, size_t length) override {
+    Action OnSendRtp(ArrayView<const uint8_t> packet) override {
       RtpPacket rtp_packet;
-      EXPECT_TRUE(rtp_packet.Parse(packet, length));
+      EXPECT_TRUE(rtp_packet.Parse(packet));
 
       if (!registered_rtx_ssrc_[rtp_packet.Ssrc()])
         return SEND_PACKET;

@@ -12,10 +12,6 @@
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "third_party/ocmock/gtest_support.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 id MockMXMetadata() {
   id metadata = OCMClassMock([MXMetaData class]);
   OCMStub([metadata applicationBuildVersion])
@@ -139,7 +135,7 @@ id MockMXAppResponsivenessMetric(NSDictionary* dictionary) {
   return responsiveness;
 }
 
-id MockMXAppExitMetric(NSDictionary* dictionary) API_AVAILABLE(ios(14.0)) {
+id MockMXAppExitMetric(NSDictionary* dictionary) {
   id app_exit_metric = OCMClassMock([MXAppExitMetric class]);
   id foreground = OCMClassMock([MXForegroundExitData class]);
   NSDictionary* foreground_dict = dictionary[@"foregroundExitData"];

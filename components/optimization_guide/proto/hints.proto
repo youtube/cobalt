@@ -46,7 +46,7 @@ message HashedHostInfos {
 // Request to return a set of hints that guide what optimizations to perform
 // on those hosts.
 message GetHintsRequest {
-  reserved 6;
+  reserved 6, 10;
 
   // Information about the set of hosts to retrieve hints for.
   repeated HostInfo hosts = 1;
@@ -74,6 +74,9 @@ message GetHintsRequest {
   // Context in which this request is made.
   optional RequestContext context = 3;
 
+  // Metadata related to how the request with this context was made.
+  optional RequestContextMetadata context_metadata = 11;
+
   // The locale to associate with this request.
   //
   // It is the IETF language tag, defined in BCP 47. The region subtag is not
@@ -83,6 +86,30 @@ message GetHintsRequest {
 
   // Information about the request origin.
   optional OriginInfo origin_info = 9;
+}
+
+message RequestContextMetadata {
+  // update logic at {@link HintsManager::CanApplyOptimizationOnDemand} for
+  // getting the context metadata sent and setting the metadata w.r.t the
+  // context.
+  oneof metadata {
+    // Only filled in when RequestContext is CONTEXT_PAGE_INSIGHTS_HUB.
+    PageInsightsHubRequestContextMetadata page_insights_hub_metadata = 1;
+  }
+}
+
+message PageInsightsHubRequestContextMetadata {
+  // True if the Page Insights feature was triggered by the user (as opposed to
+  // auto-peeking).
+  optional bool is_user_initiated = 1;
+  // True if the Page Insights feature is showing on top of an initial page. See
+  // go/pih-cct-conditions.
+  optional bool is_initial_page = 2;
+  // True if logging of URL by server, and personalisation of response, is
+  // forbidden.
+  optional bool should_not_log_or_personalize = 3;
+  // Timestamp for the navigation that reached the URL, in milliseconds.
+  optional int64 navigation_timestamp_ms = 4;
 }
 
 // Response to the GetHints request.
@@ -110,10 +137,13 @@ message GetHintsResponse {
   repeated MatchedHintInfo hints_to_remove = 3;
 }
 
-// Must sync with enum OptimizationType in enums.xml for metric recording.
+// These values must reflect the values defined in the server-side
+// OptimizationType enum at http://shortn/_t8G1sv8yAS (Google-internal link).
+// Additionally, these values must be synchronized with the OptimizationType
+// enum in enums.xml and optimization/histograms.xml for metric recording.
 enum OptimizationType {
   // Values for obsolete optimizations.
-  reserved 11, 12, 29;
+  reserved 11, 12, 16, 29, 32, 66, 72, 73, 89, 94, 95;
 
   TYPE_UNSPECIFIED = 0;
   // This optimization blocks JavaScript on the page.
@@ -153,9 +183,6 @@ enum OptimizationType {
   // increased to reduce the number of non-shopping page predictions for
   // shopping pages.
   SHOPPING_PAGE_PREDICTOR = 15;
-  // This optimization provides information about hosts that are identified as
-  // commonly logged-in.
-  LOGIN_DETECTION = 16;
   // Provides key information about the merchant represented by the current
   // host.
   MERCHANT_TRUST_SIGNALS = 17;
@@ -186,6 +213,120 @@ enum OptimizationType {
   // This optimization provides information about whether a merchant is
   // opted-out of Visa virtual cards for a URL.
   VCN_MERCHANT_OPT_OUT_VISA = 28;
+  // Provides price insights data including the typical price range and the
+  // price history.
+  PRICE_INSIGHTS = 30;
+  // Information about which JavaScript functions should be eager compiled.
+  V8_COMPILE_HINTS = 31;
+  // This optimization provides information about shoppinge page types of this
+  // page.
+  SHOPPING_PAGE_TYPES = 33;
+  // This optimization provides information about shopping discounts for a URL.
+  SHOPPING_DISCOUNTS = 34;
+  // This optimization helps determine if this page is a good candidate for
+  // compose.
+  COMPOSE = 35;
+  // This optimization provides information about whether a merchant can be
+  // triggered with PIX bottom sheet. This allowlist uses page pattern matching
+  // to perform regex match against entire URLs.
+  PIX_PAYMENT_MERCHANT_ALLOWLIST = 36;
+  // The below optimizations provide information for merchant URLs that are
+  // eligible for credit card category benefits. These URLs are shared and apply
+  // to all card issuers that support showing benefits on Chrome.
+  SHARED_CREDIT_CARD_FLIGHT_BENEFITS = 37;
+  SHARED_CREDIT_CARD_DINING_BENEFITS = 38;
+  SHARED_CREDIT_CARD_GROCERY_BENEFITS = 39;
+  SHARED_CREDIT_CARD_ENTERTAINMENT_BENEFITS = 40;
+  SHARED_CREDIT_CARD_STREAMING_BENEFITS = 41;
+  SHARED_CREDIT_CARD_SUBSCRIPTION_BENEFITS = 42;
+  // The below optimizations provide information about merchant URLs that only
+  // Capital One supports for credit card category benefits.
+  CAPITAL_ONE_CREDIT_CARD_DINING_BENEFITS = 43;
+  CAPITAL_ONE_CREDIT_CARD_GROCERY_BENEFITS = 44;
+  CAPITAL_ONE_CREDIT_CARD_ENTERTAINMENT_BENEFITS = 45;
+  CAPITAL_ONE_CREDIT_CARD_STREAMING_BENEFITS = 46;
+  // The below optimizations provide information about merchant URLs that only
+  // American Express supports for credit card category benefits.
+  AMERICAN_EXPRESS_CREDIT_CARD_FLIGHT_BENEFITS = 47;
+  AMERICAN_EXPRESS_CREDIT_CARD_SUBSCRIPTION_BENEFITS = 48;
+  // This optimization provides information about URLs that should be blocked
+  // from displaying Capital One credit card benefits.
+  CAPITAL_ONE_CREDIT_CARD_BENEFITS_BLOCKED = 55;
+  // This optimization provides information about whether a merchant is
+  // opted-out of Discover virtual cards for a URL.
+  VCN_MERCHANT_OPT_OUT_DISCOVER = 56;
+  // This optimization provides information about whether a merchant is
+  // opted-out of Mastercard virtual cards for a URL.
+  VCN_MERCHANT_OPT_OUT_MASTERCARD = 57;
+  // This optimization provides information about merchants origins for which
+  // PIX payments should be triggered. This allowlist contains a list of origins
+  // and uses a bloom filter for matching.
+  PIX_MERCHANT_ORIGINS_ALLOWLIST = 58;
+  // This optimization provides information for whether a page is eligible for
+  // history embeddings.
+  HISTORY_EMBEDDINGS = 59;
+  // The following optimizations provide information about sites on which
+  // an autofill ablation is supposed to be applied.
+  AUTOFILL_ABLATION_SITES_LIST1 = 60;
+  AUTOFILL_ABLATION_SITES_LIST2 = 61;
+  AUTOFILL_ABLATION_SITES_LIST3 = 62;
+  AUTOFILL_ABLATION_SITES_LIST4 = 63;
+  AUTOFILL_ABLATION_SITES_LIST5 = 64;
+  AUTOFILL_ABLATION_SITES_LIST6 = 65;
+  // This optimization helps determine if this merchant page is a good candidate
+  // for enabling price/amount extraction.
+  AMOUNT_EXTRACTION_ALLOWLIST = 67;
+  // This optimization provides information about sites for which pages Autofill
+  // prediction improvements should be triggered on.
+  AUTOFILL_PREDICTION_IMPROVEMENTS_ALLOWLIST = 68;
+  // This optimization helps determine if this merchant page is a good candidate
+  // for enabling buy now pay later flow with Affirm.
+  BUY_NOW_PAY_LATER_ALLOWLIST_AFFIRM = 69;
+  // This optimization helps determine if this merchant page is a good candidate
+  // for enabling buy now pay later flow with Zip.
+  BUY_NOW_PAY_LATER_ALLOWLIST_ZIP = 70;
+  // Provides information about whether a URL can be synced across devices for
+  // saved tab groups feature.
+  SAVED_TAB_GROUP = 71;
+  // This optimization provides information about whether a page is eligible for
+  // text classifier entity detection. This feature is iOS only.
+  TEXT_CLASSIFIER_ENTITY_DETECTION = 74;
+  // This optimization provides information about merchants origins for which
+  // eWallet push payments should be allowed.
+  EWALLET_MERCHANT_ALLOWLIST = 75;
+  // Provides information for what to show in the debug icon view.
+  OPTIMIZATION_GUIDE_ICON_VIEW = 76;
+  // This optimization provides information about whether a page is a privacy
+  // policy page.
+  PRIVACY_POLICY_ANNOTATION = 77;
+  // The below optimizations provide information about merchant URLs that only
+  // BMO supports for credit card category benefits.
+  BMO_CREDIT_CARD_AIR_MILES_PARTNER_BENEFITS = 78;
+  BMO_CREDIT_CARD_ALCOHOL_STORE_BENEFITS = 79;
+  BMO_CREDIT_CARD_DINING_BENEFITS = 80;
+  BMO_CREDIT_CARD_DRUGSTORE_BENEFITS = 81;
+  BMO_CREDIT_CARD_ENTERTAINMENT_BENEFITS = 82;
+  BMO_CREDIT_CARD_GROCERY_BENEFITS = 83;
+  BMO_CREDIT_CARD_OFFICE_SUPPLY_BENEFITS = 84;
+  BMO_CREDIT_CARD_RECURRING_BILL_BENEFITS = 85;
+  BMO_CREDIT_CARD_TRANSIT_BENEFITS = 86;
+  BMO_CREDIT_CARD_TRAVEL_BENEFITS = 87;
+  BMO_CREDIT_CARD_WHOLESALE_CLUB_BENEFITS = 88;
+  // Provides information about whether a page is eligible to cue for GLIC.
+  GLIC_CONTEXTUAL_CUEING = 90;
+  // Provides information about the contextual zero state suggestions for a
+  // page.
+  GLIC_ZERO_STATE_SUGGESTIONS = 91;
+  // Provides information about whether GLIC may act on a page.
+  GLIC_ACTION_PAGE_BLOCK = 92;
+  // Provides information about FedCM API clickthrough rate aggregated across
+  // all users on the page.
+  FEDCM_CLICKTHROUGH_RATE = 93;
+  // Provides information about whether the page is eligible for GLIC.
+  GLIC_PAGE_CONTEXT_ELIGIBILITY = 96;
+  // Provides information about whether the page is eligible for Digital
+  // Credentials low friction.
+  DIGITAL_CREDENTIALS_LOW_FRICTION = 97;
 }
 
 // Presents semantics for how page load URLs should be matched.
@@ -368,4 +509,13 @@ message Version {
   optional Timestamp generation_timestamp = 1;
   // The source from which the hint was served from.
   optional HintSource hint_source = 3;
+}
+
+// The theme the user is using.
+enum ThemeKey {
+  THEME_KEY_UNKNOWN = 0;
+  // User is using light mode.
+  THEME_KEY_LIGHT = 1;
+  // User is using dark mode.
+  THEME_KEY_DARK = 2;
 }

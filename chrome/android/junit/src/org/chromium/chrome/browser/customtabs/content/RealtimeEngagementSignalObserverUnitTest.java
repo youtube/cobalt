@@ -4,8 +4,7 @@
 
 package org.chromium.chrome.browser.customtabs.content;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -21,16 +20,13 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import static org.chromium.cc.mojom.RootScrollOffsetUpdateFrequency.NONE;
 import static org.chromium.cc.mojom.RootScrollOffsetUpdateFrequency.ON_SCROLL_END;
-import static org.chromium.chrome.browser.customtabs.content.RealtimeEngagementSignalObserver.REAL_VALUES;
-import static org.chromium.chrome.browser.customtabs.content.RealtimeEngagementSignalObserver.TIME_CAN_UPDATE_AFTER_END;
-import static org.chromium.url.JUnitTestGURLs.URL_1;
+import static org.chromium.chrome.browser.customtabs.content.RealtimeEngagementSignalObserver.DEFAULT_AFTER_SCROLL_END_THRESHOLD_MS;
 
-import android.graphics.Point;
+import android.os.Bundle;
 import android.os.SystemClock;
 
-import androidx.browser.customtabs.CustomTabsSessionToken;
+import androidx.browser.customtabs.EngagementSignalsCallback;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -45,27 +41,22 @@ import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowSystemClock;
 
-import org.chromium.base.FeatureList;
-import org.chromium.base.FeatureList.TestValues;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.cc.mojom.RootScrollOffsetUpdateFrequency;
 import org.chromium.chrome.browser.customtabs.content.RealtimeEngagementSignalObserver.ScrollState;
 import org.chromium.chrome.browser.customtabs.content.TabObserverRegistrar.CustomTabTabObserver;
 import org.chromium.chrome.browser.customtabs.features.TabInteractionRecorder;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.privacy.settings.PrivacyPreferencesManagerImpl;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabHidingType;
-import org.chromium.chrome.browser.tab.TabImpl;
 import org.chromium.chrome.browser.tab.TabObserver;
-import org.chromium.chrome.test.util.browser.Features;
 import org.chromium.content.browser.GestureListenerManagerImpl;
 import org.chromium.content.browser.RenderCoordinatesImpl;
 import org.chromium.content_public.browser.GestureStateListener;
 import org.chromium.content_public.browser.LoadCommittedDetails;
-import org.chromium.content_public.browser.WebContents;
+import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.content_public.browser.WebContentsObserver;
+import org.chromium.content_public.browser.test.mock.MockWebContents;
 import org.chromium.url.JUnitTestGURLs;
 
 import java.util.List;
@@ -73,32 +64,23 @@ import java.util.List;
 /** Unit test for {@link RealtimeEngagementSignalObserver}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(shadows = {ShadowSystemClock.class})
-@Features.EnableFeatures({ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS})
-@Features.DisableFeatures({ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS_ALTERNATIVE_IMPL})
 public class RealtimeEngagementSignalObserverUnitTest {
     @Rule
     public final CustomTabActivityContentTestEnvironment env =
             new CustomTabActivityContentTestEnvironment();
 
-    @Rule
-    public Features.JUnitProcessor processor = new Features.JUnitProcessor();
-
-    @Rule
-    public MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     private static final int SCROLL_EXTENT = 100;
     private static final long CURRENT_TIME_MS = 9000000L;
 
     RealtimeEngagementSignalObserver mEngagementSignalObserver;
 
-    @Mock
-    private GestureListenerManagerImpl mGestureListenerManagerImpl;
-    @Mock
-    private RenderCoordinatesImpl mRenderCoordinatesImpl;
-    @Mock
-    private PrivacyPreferencesManagerImpl mPrivacyPreferencesManagerImpl;
-    @Mock
-    private TabInteractionRecorder mTabInteractionRecorder;
+    @Mock private GestureListenerManagerImpl mGestureListenerManagerImpl;
+    @Mock private RenderCoordinatesImpl mRenderCoordinatesImpl;
+    @Mock private PrivacyPreferencesManagerImpl mPrivacyPreferencesManagerImpl;
+    @Mock private TabInteractionRecorder mTabInteractionRecorder;
+    @Mock private EngagementSignalsCallback mEngagementSignalsCallback;
 
     @Before
     public void setUp() {
@@ -114,12 +96,7 @@ public class RealtimeEngagementSignalObserverUnitTest {
 
     @After
     public void tearDown() {
-        RenderCoordinatesImpl.setInstanceForTesting(null);
-        GestureListenerManagerImpl.setInstanceForTesting(null);
-        PrivacyPreferencesManagerImpl.setInstanceForTesting(null);
-        TabInteractionRecorder.setInstanceForTesting(null);
         RealtimeEngagementSignalObserver.ScrollState.setInstanceForTesting(null);
-        FeatureList.setTestValues(null);
     }
 
     @Test
@@ -131,15 +108,7 @@ public class RealtimeEngagementSignalObserverUnitTest {
     }
 
     @Test
-    public void addsListenersForSignalsIfFeatureIsEnabled() {
-        initializeTabForTest();
-
-        verify(mGestureListenerManagerImpl).addListener(any(GestureStateListener.class), eq(NONE));
-    }
-
-    @Test
     public void addsListenersForSignalsIfFeatureIsEnabled_alternativeImpl() {
-        setFeatureParams(null, 100);
         initializeTabForTest();
 
         verify(mGestureListenerManagerImpl)
@@ -167,7 +136,8 @@ public class RealtimeEngagementSignalObserverUnitTest {
             observer.onActivityAttachmentChanged(env.tabProvider.getTab(), null);
         }
 
-        verify(env.tabProvider.getTab().getWebContents()).removeObserver(webContentsObserver);
+        verify((MockWebContents) env.tabProvider.getTab().getWebContents())
+                .removeObserver(webContentsObserver);
         verify(mGestureListenerManagerImpl).removeListener(listener);
     }
 
@@ -178,10 +148,11 @@ public class RealtimeEngagementSignalObserverUnitTest {
         WebContentsObserver webContentsObserver = captureWebContentsObserver();
         List<TabObserver> tabObservers = captureTabObservers();
         for (TabObserver observer : tabObservers) {
-            observer.onClosingStateChanged(env.tabProvider.getTab(), /*isClosing*/ true);
+            observer.onClosingStateChanged(env.tabProvider.getTab(), /* closing= */ true);
         }
 
-        verify(env.tabProvider.getTab().getWebContents()).removeObserver(webContentsObserver);
+        verify((MockWebContents) env.tabProvider.getTab().getWebContents())
+                .removeObserver(webContentsObserver);
         verify(mGestureListenerManagerImpl).removeListener(listener);
     }
 
@@ -211,39 +182,18 @@ public class RealtimeEngagementSignalObserverUnitTest {
     }
 
     @Test
-    public void doesNotSendUserInteractionWhenIncognito() {
-        env.isIncognito = true;
-        initializeTabForTest();
-        List<TabObserver> tabObservers = captureTabObservers();
-        for (TabObserver observer : tabObservers) {
-            observer.onDestroyed(env.tabProvider.getTab());
-        }
-        verify(env.connection, never()).notifyDidGetUserInteraction(eq(env.session), anyBoolean());
-    }
-
-    @Test
-    public void doesNotSendUserInteractionWhenUmaUploadDisabled() {
-        doReturn(false).when(mPrivacyPreferencesManagerImpl).isUsageAndCrashReportingPermitted();
-        initializeTabForTest();
-        List<TabObserver> tabObservers = captureTabObservers();
-        for (TabObserver observer : tabObservers) {
-            observer.onDestroyed(env.tabProvider.getTab());
-        }
-        verify(env.connection, never()).notifyDidGetUserInteraction(eq(env.session), anyBoolean());
-    }
-
-    @Test
     public void sendsSignalsForScrollStartThenEnd() {
         initializeTabForTest();
         GestureStateListener listener = captureGestureStateListener();
 
         // Start scrolling down.
         listener.onScrollStarted(0, SCROLL_EXTENT, false);
-        verify(env.connection).notifyVerticalScrollEvent(eq(env.session), eq(false));
+        verify(mEngagementSignalsCallback).onVerticalScrollEvent(eq(false), any(Bundle.class));
         // End scrolling at 50%.
         listener.onScrollEnded(50, SCROLL_EXTENT);
         // We shouldn't make any more calls.
-        verify(env.connection, times(1)).notifyVerticalScrollEvent(eq(env.session), anyBoolean());
+        verify(mEngagementSignalsCallback, times(1))
+                .onVerticalScrollEvent(anyBoolean(), any(Bundle.class));
     }
 
     @Test
@@ -253,17 +203,19 @@ public class RealtimeEngagementSignalObserverUnitTest {
 
         // Start by scrolling down.
         listener.onScrollStarted(0, SCROLL_EXTENT, false);
-        verify(env.connection).notifyVerticalScrollEvent(eq(env.session), eq(false));
+        verify(mEngagementSignalsCallback).onVerticalScrollEvent(eq(false), any(Bundle.class));
         // Change direction to up at 10%.
         listener.onVerticalScrollDirectionChanged(true, .1f);
-        verify(env.connection).notifyVerticalScrollEvent(eq(env.session), eq(true));
+        verify(mEngagementSignalsCallback).onVerticalScrollEvent(eq(true), any(Bundle.class));
         // Change direction to down at 5%.
         listener.onVerticalScrollDirectionChanged(false, .05f);
-        verify(env.connection, times(2)).notifyVerticalScrollEvent(eq(env.session), eq(false));
+        verify(mEngagementSignalsCallback, times(2))
+                .onVerticalScrollEvent(eq(false), any(Bundle.class));
         // End scrolling at 50%.
         listener.onScrollEnded(50, SCROLL_EXTENT);
         // We shouldn't make any more calls.
-        verify(env.connection, times(3)).notifyVerticalScrollEvent(eq(env.session), anyBoolean());
+        verify(mEngagementSignalsCallback, times(3))
+                .onVerticalScrollEvent(anyBoolean(), any(Bundle.class));
     }
 
     @Test
@@ -271,8 +223,8 @@ public class RealtimeEngagementSignalObserverUnitTest {
         initializeTabForTest();
 
         // We shouldn't make any calls.
-        verify(env.connection, never())
-                .notifyGreatestScrollPercentageIncreased(eq(env.session), anyInt());
+        verify(mEngagementSignalsCallback, never())
+                .onGreatestScrollPercentageIncreased(anyInt(), any(Bundle.class));
     }
 
     @Test
@@ -283,19 +235,21 @@ public class RealtimeEngagementSignalObserverUnitTest {
         // Start by scrolling down.
         listener.onScrollStarted(0, SCROLL_EXTENT, false);
         // Scroll down to 55%.
-        listener.onScrollUpdateGestureConsumed(new Point(0, 55));
+        when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(55);
+        listener.onScrollOffsetOrExtentChanged(55, SCROLL_EXTENT);
         // Scroll up to 30%.
-        listener.onScrollUpdateGestureConsumed(new Point(0, 30));
+        when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(30);
+        listener.onScrollOffsetOrExtentChanged(30, SCROLL_EXTENT);
 
         // We shouldn't make any calls at this point.
-        verify(env.connection, never())
-                .notifyGreatestScrollPercentageIncreased(eq(env.session), anyInt());
+        verify(mEngagementSignalsCallback, never())
+                .onGreatestScrollPercentageIncreased(anyInt(), any(Bundle.class));
 
         // End scrolling.
         listener.onScrollEnded(30, SCROLL_EXTENT);
         // Now we should make the call.
-        verify(env.connection, times(1))
-                .notifyGreatestScrollPercentageIncreased(eq(env.session), eq(55));
+        verify(mEngagementSignalsCallback, times(1))
+                .onGreatestScrollPercentageIncreased(eq(55), any(Bundle.class));
     }
 
     @Test
@@ -306,32 +260,35 @@ public class RealtimeEngagementSignalObserverUnitTest {
         // Start by scrolling down.
         listener.onScrollStarted(0, SCROLL_EXTENT, false);
         // Scroll down to 3%.
-        listener.onScrollUpdateGestureConsumed(new Point(0, 3));
+        when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(3);
+        listener.onScrollOffsetOrExtentChanged(3, SCROLL_EXTENT);
         // End scrolling.
         listener.onScrollEnded(3, SCROLL_EXTENT);
         // We shouldn't make any calls at this point.
-        verify(env.connection, never())
-                .notifyGreatestScrollPercentageIncreased(eq(env.session), anyInt());
+        verify(mEngagementSignalsCallback, never())
+                .onGreatestScrollPercentageIncreased(anyInt(), any(Bundle.class));
 
         // Start scrolling down again.
         listener.onScrollStarted(3, SCROLL_EXTENT, false);
         // Scroll down to 8%.
-        listener.onScrollUpdateGestureConsumed(new Point(0, 8));
+        when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(8);
+        listener.onScrollOffsetOrExtentChanged(8, SCROLL_EXTENT);
         // End scrolling.
         listener.onScrollEnded(8, SCROLL_EXTENT);
         // We should make a call for 5%.
-        verify(env.connection, times(1))
-                .notifyGreatestScrollPercentageIncreased(eq(env.session), eq(5));
+        verify(mEngagementSignalsCallback, times(1))
+                .onGreatestScrollPercentageIncreased(eq(5), any(Bundle.class));
 
         // Start scrolling down again.
         listener.onScrollStarted(8, SCROLL_EXTENT, false);
         // Scroll down to 94%.
-        listener.onScrollUpdateGestureConsumed(new Point(0, 94));
+        when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(94);
+        listener.onScrollOffsetOrExtentChanged(94, SCROLL_EXTENT);
         // End scrolling.
         listener.onScrollEnded(94, SCROLL_EXTENT);
         // We should make a call for 90%.
-        verify(env.connection, times(1))
-                .notifyGreatestScrollPercentageIncreased(eq(env.session), eq(90));
+        verify(mEngagementSignalsCallback, times(1))
+                .onGreatestScrollPercentageIncreased(eq(90), any(Bundle.class));
     }
 
     @Test
@@ -342,24 +299,26 @@ public class RealtimeEngagementSignalObserverUnitTest {
         // Start by scrolling down.
         listener.onScrollStarted(0, SCROLL_EXTENT, false);
         // Scroll down to 63%.
-        listener.onScrollUpdateGestureConsumed(new Point(0, 63));
+        when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(63);
+        listener.onScrollOffsetOrExtentChanged(63, SCROLL_EXTENT);
         // End scrolling.
         listener.onScrollEnded(63, SCROLL_EXTENT);
         // We should make a call for 60%.
-        verify(env.connection, times(1))
-                .notifyGreatestScrollPercentageIncreased(eq(env.session), eq(60));
-        clearInvocations(env.connection);
+        verify(mEngagementSignalsCallback, times(1))
+                .onGreatestScrollPercentageIncreased(eq(60), any(Bundle.class));
+        clearInvocations(mEngagementSignalsCallback);
 
         // Now scroll back up.
         listener.onScrollStarted(63, SCROLL_EXTENT, true);
         // Scroll up to 30%.
-        listener.onScrollUpdateGestureConsumed(new Point(0, 30));
+        when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(30);
+        listener.onScrollOffsetOrExtentChanged(30, SCROLL_EXTENT);
         // End scrolling.
         listener.onScrollEnded(30, SCROLL_EXTENT);
 
         // We shouldn't make any more calls since the max didn't change.
-        verify(env.connection, never())
-                .notifyGreatestScrollPercentageIncreased(eq(env.session), anyInt());
+        verify(mEngagementSignalsCallback, never())
+                .onGreatestScrollPercentageIncreased(anyInt(), any(Bundle.class));
     }
 
     @Test
@@ -370,22 +329,25 @@ public class RealtimeEngagementSignalObserverUnitTest {
         // Start by scrolling down.
         listener.onScrollStarted(0, SCROLL_EXTENT, false);
         // Scroll down to 50%.
-        listener.onScrollUpdateGestureConsumed(new Point(0, 50));
+        when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(50);
+        listener.onScrollOffsetOrExtentChanged(50, SCROLL_EXTENT);
         // End scrolling.
         listener.onScrollEnded(50, SCROLL_EXTENT);
 
         // Now scroll up, then back down to 50%.
         listener.onScrollStarted(50, SCROLL_EXTENT, true);
         // Scroll up to 30%.
-        listener.onScrollUpdateGestureConsumed(new Point(0, 30));
+        when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(30);
+        listener.onScrollOffsetOrExtentChanged(30, SCROLL_EXTENT);
         // Back down to 50%.
-        listener.onScrollUpdateGestureConsumed(new Point(0, 50));
+        when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(50);
+        listener.onScrollOffsetOrExtentChanged(50, SCROLL_EXTENT);
         // End scrolling.
         listener.onScrollEnded(50, SCROLL_EXTENT);
 
         // There should be only one call.
-        verify(env.connection, times(1))
-                .notifyGreatestScrollPercentageIncreased(eq(env.session), eq(50));
+        verify(mEngagementSignalsCallback, times(1))
+                .onGreatestScrollPercentageIncreased(eq(50), any(Bundle.class));
     }
 
     @Test
@@ -396,24 +358,34 @@ public class RealtimeEngagementSignalObserverUnitTest {
 
         // Scroll down to 50%.
         gestureStateListener.onScrollStarted(0, SCROLL_EXTENT, false);
-        gestureStateListener.onScrollUpdateGestureConsumed(new Point(0, 50));
+        when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(50);
+        gestureStateListener.onScrollOffsetOrExtentChanged(50, SCROLL_EXTENT);
         gestureStateListener.onScrollEnded(50, SCROLL_EXTENT);
 
         // Verify 50% is reported.
-        verify(env.connection).notifyGreatestScrollPercentageIncreased(eq(env.session), eq(50));
-        clearInvocations(env.connection);
+        verify(mEngagementSignalsCallback)
+                .onGreatestScrollPercentageIncreased(eq(50), any(Bundle.class));
+        clearInvocations(mEngagementSignalsCallback);
 
-        LoadCommittedDetails details = new LoadCommittedDetails(0, JUnitTestGURLs.getGURL(URL_1),
-                false, /*isSameDocument=*/false, /*isMainFrame=*/true, 200);
+        LoadCommittedDetails details =
+                new LoadCommittedDetails(
+                        0,
+                        JUnitTestGURLs.URL_1,
+                        false,
+                        /* isSameDocument= */ false,
+                        /* isMainFrame= */ true,
+                        200);
         webContentsObserver.navigationEntryCommitted(details);
 
         // Scroll down to 10%.
         gestureStateListener.onScrollStarted(0, SCROLL_EXTENT, false);
-        gestureStateListener.onScrollUpdateGestureConsumed(new Point(0, 10));
+        when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(10);
+        gestureStateListener.onScrollOffsetOrExtentChanged(10, SCROLL_EXTENT);
         gestureStateListener.onScrollEnded(10, SCROLL_EXTENT);
 
         // Verify 10% is reported.
-        verify(env.connection).notifyGreatestScrollPercentageIncreased(eq(env.session), eq(10));
+        verify(mEngagementSignalsCallback)
+                .onGreatestScrollPercentageIncreased(eq(10), any(Bundle.class));
     }
 
     @Test
@@ -424,25 +396,34 @@ public class RealtimeEngagementSignalObserverUnitTest {
 
         // Scroll down to 30%.
         gestureStateListener.onScrollStarted(0, SCROLL_EXTENT, false);
-        gestureStateListener.onScrollUpdateGestureConsumed(new Point(0, 30));
+        when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(30);
+        gestureStateListener.onScrollOffsetOrExtentChanged(30, SCROLL_EXTENT);
         gestureStateListener.onScrollEnded(30, SCROLL_EXTENT);
 
         // Verify 30% is reported.
-        verify(env.connection).notifyGreatestScrollPercentageIncreased(eq(env.session), eq(30));
-        clearInvocations(env.connection);
+        verify(mEngagementSignalsCallback)
+                .onGreatestScrollPercentageIncreased(eq(30), any(Bundle.class));
+        clearInvocations(mEngagementSignalsCallback);
 
-        LoadCommittedDetails details = new LoadCommittedDetails(0, JUnitTestGURLs.getGURL(URL_1),
-                false, /*isSameDocument=*/true, /*isMainFrame=*/true, 200);
+        LoadCommittedDetails details =
+                new LoadCommittedDetails(
+                        0,
+                        JUnitTestGURLs.URL_1,
+                        false,
+                        /* isSameDocument= */ true,
+                        /* isMainFrame= */ true,
+                        200);
         webContentsObserver.navigationEntryCommitted(details);
 
         // Scroll down to 10%.
         gestureStateListener.onScrollStarted(0, SCROLL_EXTENT, false);
-        gestureStateListener.onScrollUpdateGestureConsumed(new Point(0, 10));
+        when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(10);
+        gestureStateListener.onScrollOffsetOrExtentChanged(10, SCROLL_EXTENT);
         gestureStateListener.onScrollEnded(10, SCROLL_EXTENT);
 
         // Verify % isn't reported.
-        verify(env.connection, never())
-                .notifyGreatestScrollPercentageIncreased(eq(env.session), anyInt());
+        verify(mEngagementSignalsCallback, never())
+                .onGreatestScrollPercentageIncreased(anyInt(), any(Bundle.class));
     }
 
     @Test
@@ -453,25 +434,34 @@ public class RealtimeEngagementSignalObserverUnitTest {
 
         // Scroll down to 90%.
         gestureStateListener.onScrollStarted(0, SCROLL_EXTENT, false);
-        gestureStateListener.onScrollUpdateGestureConsumed(new Point(0, 90));
+        when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(90);
+        gestureStateListener.onScrollOffsetOrExtentChanged(90, SCROLL_EXTENT);
         gestureStateListener.onScrollEnded(90, SCROLL_EXTENT);
 
         // Verify 90% is reported.
-        verify(env.connection).notifyGreatestScrollPercentageIncreased(eq(env.session), eq(90));
-        clearInvocations(env.connection);
+        verify(mEngagementSignalsCallback)
+                .onGreatestScrollPercentageIncreased(eq(90), any(Bundle.class));
+        clearInvocations(mEngagementSignalsCallback);
 
-        LoadCommittedDetails details = new LoadCommittedDetails(0, JUnitTestGURLs.getGURL(URL_1),
-                false, /*isSameDocument=*/false, /*isMainFrame=*/false, 200);
+        LoadCommittedDetails details =
+                new LoadCommittedDetails(
+                        0,
+                        JUnitTestGURLs.URL_1,
+                        false,
+                        /* isSameDocument= */ false,
+                        /* isMainFrame= */ false,
+                        200);
         webContentsObserver.navigationEntryCommitted(details);
 
         // Scroll down to 50%.
         gestureStateListener.onScrollStarted(0, SCROLL_EXTENT, false);
-        gestureStateListener.onScrollUpdateGestureConsumed(new Point(0, 50));
+        when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(50);
+        gestureStateListener.onScrollOffsetOrExtentChanged(50, SCROLL_EXTENT);
         gestureStateListener.onScrollEnded(50, SCROLL_EXTENT);
 
         // Verify % isn't reported.
-        verify(env.connection, never())
-                .notifyGreatestScrollPercentageIncreased(eq(env.session), anyInt());
+        verify(mEngagementSignalsCallback, never())
+                .onGreatestScrollPercentageIncreased(anyInt(), any(Bundle.class));
     }
 
     @Test
@@ -481,131 +471,30 @@ public class RealtimeEngagementSignalObserverUnitTest {
 
         // Scroll down to 50%.
         gestureStateListener.onScrollStarted(0, SCROLL_EXTENT, false);
-        gestureStateListener.onScrollUpdateGestureConsumed(new Point(0, 50));
+        when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(50);
+        gestureStateListener.onScrollOffsetOrExtentChanged(50, SCROLL_EXTENT);
         gestureStateListener.onScrollEnded(50, SCROLL_EXTENT);
 
         // Verify 50% is reported.
-        verify(env.connection).notifyGreatestScrollPercentageIncreased(eq(env.session), eq(50));
-        clearInvocations(env.connection);
+        verify(mEngagementSignalsCallback)
+                .onGreatestScrollPercentageIncreased(eq(50), any(Bundle.class));
+        clearInvocations(mEngagementSignalsCallback);
 
         // Change tabs.
         mEngagementSignalObserver.onHidden(env.tabProvider.getTab(), TabHidingType.CHANGED_TABS);
 
         // Scroll down to 10%.
         gestureStateListener.onScrollStarted(0, SCROLL_EXTENT, false);
-        gestureStateListener.onScrollUpdateGestureConsumed(new Point(0, 10));
+        when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(10);
+        gestureStateListener.onScrollOffsetOrExtentChanged(10, SCROLL_EXTENT);
         gestureStateListener.onScrollEnded(10, SCROLL_EXTENT);
 
         // Verify 10% is reported.
-        verify(env.connection).notifyGreatestScrollPercentageIncreased(eq(env.session), eq(10));
+        verify(mEngagementSignalsCallback)
+                .onGreatestScrollPercentageIncreased(eq(10), any(Bundle.class));
     }
 
     @Test
-    public void returnsRetroactiveMaxScroll() {
-        initializeTabForTest();
-        GestureStateListener gestureStateListener = captureGestureStateListener();
-        Supplier<Integer> scrollPercentageSupplier = captureGreatestScrollPercentageSupplier();
-
-        // Scroll down to 58%.
-        gestureStateListener.onScrollStarted(0, SCROLL_EXTENT, false);
-        gestureStateListener.onScrollUpdateGestureConsumed(new Point(0, 58));
-        gestureStateListener.onScrollEnded(58, SCROLL_EXTENT);
-
-        assertEquals(Integer.valueOf(55), scrollPercentageSupplier.get());
-    }
-
-    @Test
-    public void returnsRetroactiveMaxScroll_zeroIfNotScrolled() {
-        initializeTabForTest();
-        Supplier<Integer> scrollPercentageSupplier = captureGreatestScrollPercentageSupplier();
-
-        assertEquals(Integer.valueOf(0), scrollPercentageSupplier.get());
-    }
-
-    @Test
-    public void returnsRetroactiveMaxScroll_nullIfNotReportingUsage() {
-        doReturn(false).when(mPrivacyPreferencesManagerImpl).isUsageAndCrashReportingPermitted();
-        initializeTabForTest();
-
-        Supplier<Integer> scrollPercentageSupplier = captureGreatestScrollPercentageSupplier();
-        assertNull(scrollPercentageSupplier.get());
-    }
-
-    @Test
-    public void returnsRetroactiveMaxScroll_zeroIfSendingFakeValues() {
-        setFeatureParams(false, null);
-        initializeTabForTest();
-        GestureStateListener gestureStateListener = captureGestureStateListener();
-        Supplier<Integer> scrollPercentageSupplier = captureGreatestScrollPercentageSupplier();
-
-        // Scroll down to 46%.
-        gestureStateListener.onScrollStarted(0, SCROLL_EXTENT, false);
-        gestureStateListener.onScrollUpdateGestureConsumed(new Point(0, 46));
-        gestureStateListener.onScrollEnded(46, SCROLL_EXTENT);
-
-        assertEquals(Integer.valueOf(0), scrollPercentageSupplier.get());
-    }
-
-    @Test
-    public void sendsFalseForScrollDirectionIfSendingFakeValues() {
-        setFeatureParams(false, null);
-        initializeTabForTest();
-        GestureStateListener listener = captureGestureStateListener();
-
-        // Start by scrolling down.
-        listener.onScrollStarted(0, SCROLL_EXTENT, false);
-        verify(env.connection).notifyVerticalScrollEvent(eq(env.session), eq(false));
-        // Change direction to up at 10%.
-        listener.onVerticalScrollDirectionChanged(true, .1f);
-        verify(env.connection, times(2)).notifyVerticalScrollEvent(eq(env.session), eq(false));
-        // Change direction to down at 5%.
-        listener.onVerticalScrollDirectionChanged(false, .05f);
-        verify(env.connection, times(3)).notifyVerticalScrollEvent(eq(env.session), eq(false));
-        // End scrolling at 50%.
-        listener.onScrollEnded(50, SCROLL_EXTENT);
-        // We shouldn't make any more calls.
-        verify(env.connection, times(3)).notifyVerticalScrollEvent(eq(env.session), anyBoolean());
-    }
-
-    @Test
-    public void sendsZeroForMaxScrollSignalsIfSendingFakeValues() {
-        setFeatureParams(false, null);
-        initializeTabForTest();
-        GestureStateListener listener = captureGestureStateListener();
-
-        // Start by scrolling down.
-        listener.onScrollStarted(0, SCROLL_EXTENT, false);
-        // Scroll down to 3%.
-        listener.onScrollUpdateGestureConsumed(new Point(0, 3));
-        // End scrolling.
-        listener.onScrollEnded(3, SCROLL_EXTENT);
-        // We shouldn't make any calls at this point.
-        verify(env.connection, never())
-                .notifyGreatestScrollPercentageIncreased(eq(env.session), anyInt());
-
-        // Start scrolling down again.
-        listener.onScrollStarted(3, SCROLL_EXTENT, false);
-        // Scroll down to 8%.
-        listener.onScrollUpdateGestureConsumed(new Point(0, 8));
-        // End scrolling.
-        listener.onScrollEnded(8, SCROLL_EXTENT);
-        // We should make a call, but it will be 0.
-        verify(env.connection, times(1))
-                .notifyGreatestScrollPercentageIncreased(eq(env.session), eq(0));
-
-        // Start scrolling down again.
-        listener.onScrollStarted(8, SCROLL_EXTENT, false);
-        // Scroll down to 94%.
-        listener.onScrollUpdateGestureConsumed(new Point(0, 94));
-        // End scrolling.
-        listener.onScrollEnded(94, SCROLL_EXTENT);
-        // We should make a call, 0 again.
-        verify(env.connection, times(2))
-                .notifyGreatestScrollPercentageIncreased(eq(env.session), eq(0));
-    }
-
-    @Test
-    @Features.EnableFeatures({ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS_ALTERNATIVE_IMPL})
     public void sendsSignalWithAlternativeImpl_updateBeforeEnd() {
         initializeTabForTest();
         GestureStateListener listener = captureGestureStateListener(ON_SCROLL_END);
@@ -618,13 +507,12 @@ public class RealtimeEngagementSignalObserverUnitTest {
         // End scrolling.
         listener.onScrollEnded(24, SCROLL_EXTENT);
         // We should make a call with 20.
-        verify(env.connection).notifyGreatestScrollPercentageIncreased(eq(env.session), eq(20));
+        verify(mEngagementSignalsCallback)
+                .onGreatestScrollPercentageIncreased(eq(20), any(Bundle.class));
     }
 
     @Test
-    @Features.EnableFeatures({ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS_ALTERNATIVE_IMPL})
     public void sendsSignalWithAlternativeImpl_updateAfterEnd() {
-        setFeatureParams(null, 25);
         initializeTabForTest();
         GestureStateListener listener = captureGestureStateListener(ON_SCROLL_END);
 
@@ -637,37 +525,17 @@ public class RealtimeEngagementSignalObserverUnitTest {
         when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(24);
         listener.onScrollOffsetOrExtentChanged(24, SCROLL_EXTENT);
         // We should make a call with 20.
-        verify(env.connection).notifyGreatestScrollPercentageIncreased(eq(env.session), eq(20));
+        verify(mEngagementSignalsCallback)
+                .onGreatestScrollPercentageIncreased(eq(20), any(Bundle.class));
         // Any update after this will be ignored.
         when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(25);
         listener.onScrollOffsetOrExtentChanged(25, SCROLL_EXTENT);
-        verify(env.connection, never())
-                .notifyGreatestScrollPercentageIncreased(eq(env.session), eq(25));
+        verify(mEngagementSignalsCallback, never())
+                .onGreatestScrollPercentageIncreased(eq(25), any(Bundle.class));
     }
 
     @Test
-    @Features.DisableFeatures({ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS_ALTERNATIVE_IMPL})
-    public void doesNotSendSignalUpdateAfterEndWithAlternativeImplDisabled() {
-        initializeTabForTest();
-        GestureStateListener listener = captureGestureStateListener(NONE);
-
-        // Start by scrolling down.
-        listener.onScrollStarted(0, SCROLL_EXTENT, false);
-        // End scrolling.
-        listener.onScrollEnded(0, SCROLL_EXTENT);
-        // Send the signal for 24% 10ms after the scroll ended.
-        advanceTime(10);
-        when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(24);
-        listener.onScrollOffsetOrExtentChanged(24, SCROLL_EXTENT);
-        // We shouldn't make any call.
-        verify(env.connection, never())
-                .notifyGreatestScrollPercentageIncreased(eq(env.session), anyInt());
-    }
-
-    @Test
-    @Features.EnableFeatures({ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS_ALTERNATIVE_IMPL})
     public void doesNotSendLowerPercentWithAlternativeImpl() {
-        setFeatureParams(null, 20);
         initializeTabForTest();
         GestureStateListener listener = captureGestureStateListener(ON_SCROLL_END);
 
@@ -680,7 +548,8 @@ public class RealtimeEngagementSignalObserverUnitTest {
         when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(55);
         listener.onScrollOffsetOrExtentChanged(55, SCROLL_EXTENT);
         // We should make a call with 55.
-        verify(env.connection).notifyGreatestScrollPercentageIncreased(eq(env.session), eq(55));
+        verify(mEngagementSignalsCallback)
+                .onGreatestScrollPercentageIncreased(eq(55), any(Bundle.class));
 
         // Scroll back up to 20%.
         listener.onScrollStarted(55, SCROLL_EXTENT, true);
@@ -688,14 +557,12 @@ public class RealtimeEngagementSignalObserverUnitTest {
         when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(20);
         listener.onScrollOffsetOrExtentChanged(20, SCROLL_EXTENT);
         // We shouldn't make any other calls (after the one from above).
-        verify(env.connection, times(1))
-                .notifyGreatestScrollPercentageIncreased(eq(env.session), anyInt());
+        verify(mEngagementSignalsCallback, times(1))
+                .onGreatestScrollPercentageIncreased(anyInt(), any(Bundle.class));
     }
 
     @Test
-    @Features.EnableFeatures({ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS_ALTERNATIVE_IMPL})
     public void doNotSendSignalWithAlternativeImplAfterThreshold() {
-        setFeatureParams(null, 10);
         initializeTabForTest();
         GestureStateListener listener = captureGestureStateListener(ON_SCROLL_END);
 
@@ -703,19 +570,17 @@ public class RealtimeEngagementSignalObserverUnitTest {
         listener.onScrollStarted(59, SCROLL_EXTENT, false);
         // End scrolling.
         listener.onScrollEnded(59, SCROLL_EXTENT);
-        // Send the signal for 59% 18ms after the scroll ended.
-        advanceTime(18);
+        // Send the signal for 59% 18ms outside the threshold.
+        advanceTime(DEFAULT_AFTER_SCROLL_END_THRESHOLD_MS + 18);
         when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(59);
         listener.onScrollOffsetOrExtentChanged(59, SCROLL_EXTENT);
         // We shouldn't make a call since the call was outside the threshold.
-        verify(env.connection, never())
-                .notifyGreatestScrollPercentageIncreased(eq(env.session), anyInt());
+        verify(mEngagementSignalsCallback, never())
+                .onGreatestScrollPercentageIncreased(anyInt(), any(Bundle.class));
     }
 
     @Test
-    @Features.EnableFeatures({ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS_ALTERNATIVE_IMPL})
     public void doNotSendSignalWithAlternativeImplIfScrollStartReceived() {
-        setFeatureParams(null, 25);
         initializeTabForTest();
         GestureStateListener listener = captureGestureStateListener(ON_SCROLL_END);
 
@@ -730,18 +595,16 @@ public class RealtimeEngagementSignalObserverUnitTest {
         advanceTime(5);
         listener.onScrollOffsetOrExtentChanged(50, SCROLL_EXTENT);
         // We shouldn't make a call since the call came after a new scroll started.
-        verify(env.connection, never())
-                .notifyGreatestScrollPercentageIncreased(eq(env.session), anyInt());
+        verify(mEngagementSignalsCallback, never())
+                .onGreatestScrollPercentageIncreased(anyInt(), any(Bundle.class));
     }
 
     @Test
-    @Features.DisableFeatures({ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS_ALTERNATIVE_IMPL})
-    public void sendOnSessionEnded_HadInteraction() {
+    public void onAllTabsClosed_hadInteraction_sendsOnSessionEnded() {
         initializeTabForTest();
         doReturn(false).when(mTabInteractionRecorder).didGetUserInteraction();
-        Tab tab = mock(TabImpl.class);
-        doReturn(mock(WebContents.class)).when(tab).getWebContents();
-        doReturn(false).when(tab).isIncognito();
+        Tab tab = mock(Tab.class);
+        doReturn(mock(MockWebContents.class)).when(tab).getWebContents();
         mEngagementSignalObserver.onObservingDifferentTab(tab);
         doReturn(true).when(mTabInteractionRecorder).didGetUserInteraction();
         mEngagementSignalObserver.webContentsWillSwap(tab);
@@ -751,17 +614,59 @@ public class RealtimeEngagementSignalObserverUnitTest {
         mEngagementSignalObserver.onClosingStateChanged(env.tabProvider.getTab(), true);
         mEngagementSignalObserver.onAllTabsClosed();
 
-        verify(env.connection, times(1)).notifyDidGetUserInteraction(env.session, true);
+        verify(mEngagementSignalsCallback, times(1)).onSessionEnded(eq(true), any(Bundle.class));
     }
 
     @Test
-    @Features.DisableFeatures({ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS_ALTERNATIVE_IMPL})
-    public void sendOnSessionEnded_HadNoInteraction() {
+    public void onAllTabsClosed_hadInteractionButIncognito_sendsOnSessionEnded() {
         initializeTabForTest();
         doReturn(false).when(mTabInteractionRecorder).didGetUserInteraction();
-        Tab tab = mock(TabImpl.class);
-        doReturn(mock(WebContents.class)).when(tab).getWebContents();
-        doReturn(false).when(tab).isIncognito();
+        Tab tab = mock(Tab.class);
+        doReturn(mock(MockWebContents.class)).when(tab).getWebContents();
+        // Turn on Incognito.
+        doReturn(true).when(tab).isIncognito();
+        mEngagementSignalObserver.onObservingDifferentTab(tab);
+        // User interacted.
+        doReturn(true).when(mTabInteractionRecorder).didGetUserInteraction();
+        mEngagementSignalObserver.webContentsWillSwap(tab);
+        // Close all tabs.
+        mEngagementSignalObserver.onClosingStateChanged(tab, true);
+        doReturn(false).when(mTabInteractionRecorder).didGetUserInteraction();
+        mEngagementSignalObserver.onClosingStateChanged(env.tabProvider.getTab(), true);
+        mEngagementSignalObserver.onAllTabsClosed();
+
+        // didUserInteract is false, even though they did
+        verify(mEngagementSignalsCallback, times(1)).onSessionEnded(eq(false), any(Bundle.class));
+    }
+
+    @Test
+    public void onAllTabsClosed_hadInteractionButUmaUploadDisabled_sendsOnSessionEnded() {
+        initializeTabForTest();
+        doReturn(false).when(mTabInteractionRecorder).didGetUserInteraction();
+        Tab tab = mock(Tab.class);
+        // Disable UMA upload.
+        doReturn(false).when(mPrivacyPreferencesManagerImpl).isUsageAndCrashReportingPermitted();
+        doReturn(mock(MockWebContents.class)).when(tab).getWebContents();
+        mEngagementSignalObserver.onObservingDifferentTab(tab);
+        // User interacted.
+        doReturn(true).when(mTabInteractionRecorder).didGetUserInteraction();
+        mEngagementSignalObserver.webContentsWillSwap(tab);
+        // Close all tabs.
+        mEngagementSignalObserver.onClosingStateChanged(tab, true);
+        doReturn(false).when(mTabInteractionRecorder).didGetUserInteraction();
+        mEngagementSignalObserver.onClosingStateChanged(env.tabProvider.getTab(), true);
+        mEngagementSignalObserver.onAllTabsClosed();
+
+        // didUserInteract is false, even though they did
+        verify(mEngagementSignalsCallback, times(1)).onSessionEnded(eq(false), any(Bundle.class));
+    }
+
+    @Test
+    public void onAllTabsClosed_hadNoInteraction_sendsOnSessionEnded() {
+        initializeTabForTest();
+        doReturn(false).when(mTabInteractionRecorder).didGetUserInteraction();
+        Tab tab = mock(Tab.class);
+        doReturn(mock(MockWebContents.class)).when(tab).getWebContents();
         mEngagementSignalObserver.onObservingDifferentTab(tab);
         mEngagementSignalObserver.webContentsWillSwap(tab);
         // Close all tabs.
@@ -769,60 +674,274 @@ public class RealtimeEngagementSignalObserverUnitTest {
         mEngagementSignalObserver.onClosingStateChanged(env.tabProvider.getTab(), true);
         mEngagementSignalObserver.onAllTabsClosed();
 
-        verify(env.connection, times(1)).notifyDidGetUserInteraction(env.session, false);
+        verify(mEngagementSignalsCallback, times(1)).onSessionEnded(eq(false), any(Bundle.class));
+    }
+
+    @Test
+    public void onAllTabsClosed_suspended_doesNotSendOnSessionEnded() {
+        initializeTabForTest();
+        mEngagementSignalObserver.suppressNextSessionEndedCall();
+        doReturn(false).when(mTabInteractionRecorder).didGetUserInteraction();
+        Tab tab = mock(Tab.class);
+        doReturn(mock(MockWebContents.class)).when(tab).getWebContents();
+        mEngagementSignalObserver.onObservingDifferentTab(tab);
+        mEngagementSignalObserver.webContentsWillSwap(tab);
+        // Close all tabs.
+        mEngagementSignalObserver.onClosingStateChanged(tab, true);
+        mEngagementSignalObserver.onClosingStateChanged(env.tabProvider.getTab(), true);
+        mEngagementSignalObserver.onAllTabsClosed();
+
+        verify(mEngagementSignalsCallback, never()).onSessionEnded(eq(false), any(Bundle.class));
+
+        // We should only suspend for one call.
+        assertFalse(mEngagementSignalObserver.getSuspendSessionEndedForTesting());
+    }
+
+    @Test
+    public void onDestroyed_hadInteraction_sendsOnSessionEnded() {
+        initializeTabForTest();
+        doReturn(false).when(mTabInteractionRecorder).didGetUserInteraction();
+        Tab tab = mock(Tab.class);
+        doReturn(mock(MockWebContents.class)).when(tab).getWebContents();
+        mEngagementSignalObserver.onObservingDifferentTab(tab);
+        // User interacted.
+        doReturn(true).when(mTabInteractionRecorder).didGetUserInteraction();
+        // Tab destroyed.
+        mEngagementSignalObserver.onDestroyed(tab);
+
+        // didUserInteract is true.
+        verify(mEngagementSignalsCallback, times(1)).onSessionEnded(eq(true), any(Bundle.class));
+    }
+
+    @Test
+    public void onDestroyed_hadInteractionButIncognito_sendsOnSessionEnded() {
+        initializeTabForTest();
+        doReturn(false).when(mTabInteractionRecorder).didGetUserInteraction();
+        Tab tab = mock(Tab.class);
+        doReturn(mock(MockWebContents.class)).when(tab).getWebContents();
+        // Turn on Incognito.
+        doReturn(true).when(tab).isIncognito();
+        mEngagementSignalObserver.onObservingDifferentTab(tab);
+        // User interacted.
+        doReturn(true).when(mTabInteractionRecorder).didGetUserInteraction();
+        // Tab destroyed.
+        mEngagementSignalObserver.onDestroyed(tab);
+
+        // didUserInteract is false, but they did.
+        verify(mEngagementSignalsCallback, times(1)).onSessionEnded(eq(false), any(Bundle.class));
+    }
+
+    @Test
+    public void onDestroyed_hadInteractionButUmaUploadDisabled_sendsOnSessionEnded() {
+        initializeTabForTest();
+        doReturn(false).when(mTabInteractionRecorder).didGetUserInteraction();
+        Tab tab = mock(Tab.class);
+        doReturn(mock(MockWebContents.class)).when(tab).getWebContents();
+        // Disable UMA upload.
+        doReturn(false).when(mPrivacyPreferencesManagerImpl).isUsageAndCrashReportingPermitted();
+        mEngagementSignalObserver.onObservingDifferentTab(tab);
+        // User interacted.
+        doReturn(true).when(mTabInteractionRecorder).didGetUserInteraction();
+        // Tab destroyed.
+        mEngagementSignalObserver.onDestroyed(tab);
+
+        // didUserInteract is false, but they did.
+        verify(mEngagementSignalsCallback, times(1)).onSessionEnded(eq(false), any(Bundle.class));
+    }
+
+    @Test
+    public void onDestroyed_suspended_doesNotSendOnSessionEnded() {
+        initializeTabForTest();
+        // Suspend.
+        mEngagementSignalObserver.suppressNextSessionEndedCall();
+        doReturn(false).when(mTabInteractionRecorder).didGetUserInteraction();
+        Tab tab = mock(Tab.class);
+        doReturn(mock(MockWebContents.class)).when(tab).getWebContents();
+        mEngagementSignalObserver.onObservingDifferentTab(tab);
+        // Tab destroyed.
+        mEngagementSignalObserver.onDestroyed(tab);
+
+        // onSessionEnded not fired.
+        verify(mEngagementSignalsCallback, never()).onSessionEnded(eq(false), any(Bundle.class));
+
+        // We should only suspend for one call.
+        assertFalse(mEngagementSignalObserver.getSuspendSessionEndedForTesting());
+    }
+
+    @Test
+    public void pauseAndUnpauseSignalsOnPageWithTextFragment() {
+        initializeTabForTest();
+        GestureStateListener listener = captureGestureStateListener(ON_SCROLL_END);
+        WebContentsObserver webContentsObserver = captureWebContentsObserver();
+
+        // Navigate to a URL with text fragment.
+        var navigationHandle =
+                NavigationHandle.createForTesting(
+                        JUnitTestGURLs.TEXT_FRAGMENT_URL, false, 0, false);
+        webContentsObserver.didStartNavigationInPrimaryMainFrame(navigationHandle);
+
+        // Do a scroll.
+        listener.onScrollStarted(0, SCROLL_EXTENT, false);
+        when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(24);
+        listener.onScrollOffsetOrExtentChanged(24, SCROLL_EXTENT);
+        listener.onScrollEnded(24, SCROLL_EXTENT);
+        // We shouldn't get scroll signals.
+        verify(mEngagementSignalsCallback, never())
+                .onVerticalScrollEvent(anyBoolean(), any(Bundle.class));
+        verify(mEngagementSignalsCallback, never())
+                .onGreatestScrollPercentageIncreased(anyInt(), any(Bundle.class));
+
+        // Navigate back to a URL with no text fragment.
+        var navigationHandle2 =
+                NavigationHandle.createForTesting(JUnitTestGURLs.HTTP_URL, false, 0, false);
+        webContentsObserver.didStartNavigationInPrimaryMainFrame(navigationHandle2);
+
+        // Do a scroll.
+        listener.onScrollStarted(24, SCROLL_EXTENT, false);
+        when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(50);
+        listener.onScrollOffsetOrExtentChanged(50, SCROLL_EXTENT);
+        listener.onScrollEnded(50, SCROLL_EXTENT);
+        // We should normally get signals.
+        verify(mEngagementSignalsCallback).onVerticalScrollEvent(eq(false), any(Bundle.class));
+        verify(mEngagementSignalsCallback)
+                .onGreatestScrollPercentageIncreased(eq(50), any(Bundle.class));
+    }
+
+    @Test
+    public void doesNotSendSignalsBeforeDownScroll() {
+        initializeTabForTest();
+        GestureStateListener listener = captureGestureStateListener(ON_SCROLL_END);
+
+        // Assume we started further down on the page and scroll up.
+        listener.onScrollStarted(50, SCROLL_EXTENT, true);
+        when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(30);
+        listener.onScrollOffsetOrExtentChanged(30, SCROLL_EXTENT);
+        listener.onScrollEnded(30, SCROLL_EXTENT);
+        // We shouldn't get any signals.
+        verify(mEngagementSignalsCallback, never())
+                .onVerticalScrollEvent(anyBoolean(), any(Bundle.class));
+        verify(mEngagementSignalsCallback, never())
+                .onGreatestScrollPercentageIncreased(anyInt(), any(Bundle.class));
+        // Now scroll down from here.
+        listener.onScrollStarted(30, SCROLL_EXTENT, false);
+        when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(45);
+        listener.onScrollOffsetOrExtentChanged(45, SCROLL_EXTENT);
+        listener.onScrollEnded(45, SCROLL_EXTENT);
+        // We should get signals as if we've only scrolled down to this %.
+        verify(mEngagementSignalsCallback).onVerticalScrollEvent(eq(false), any(Bundle.class));
+        verify(mEngagementSignalsCallback)
+                .onGreatestScrollPercentageIncreased(eq(45), any(Bundle.class));
+    }
+
+    @Test
+    public void doesNotSendSignalsBeforeDownScroll_AfterNavigation() {
+        initializeTabForTest();
+        GestureStateListener listener = captureGestureStateListener(ON_SCROLL_END);
+
+        // Scroll down.
+        listener.onScrollStarted(0, SCROLL_EXTENT, false);
+        when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(25);
+        listener.onScrollOffsetOrExtentChanged(25, SCROLL_EXTENT);
+        listener.onScrollEnded(25, SCROLL_EXTENT);
+        // We should get signals as usual.
+        verify(mEngagementSignalsCallback).onVerticalScrollEvent(eq(false), any(Bundle.class));
+        verify(mEngagementSignalsCallback)
+                .onGreatestScrollPercentageIncreased(eq(25), any(Bundle.class));
+        // Now, navigate to another page.
+        WebContentsObserver webContentsObserver = captureWebContentsObserver();
+        LoadCommittedDetails details =
+                new LoadCommittedDetails(
+                        0,
+                        JUnitTestGURLs.URL_1,
+                        false,
+                        /* isSameDocument= */ false,
+                        /* isMainFrame= */ true,
+                        200);
+        webContentsObserver.navigationEntryCommitted(details);
+        // Scroll up from some point in the page, e.g. back navigation or anchor fragment on page.
+        // We shouldn't get any (more) signals.
+        verify(mEngagementSignalsCallback, times(1))
+                .onVerticalScrollEvent(anyBoolean(), any(Bundle.class));
+        verify(mEngagementSignalsCallback, times(1))
+                .onGreatestScrollPercentageIncreased(anyInt(), any(Bundle.class));
+    }
+
+    @Test
+    public void sendInitialOffsetUpdate_AltImplEnabled() {
+        initializeTabForTest(/* hadScrollDown= */ true);
+        // When the alternative impl flag is enabled, the listener should be added with
+        // `ON_SCROLL_END`.
+        var listener = captureGestureStateListener(ON_SCROLL_END);
+
+        // Simulate renderer sending the offset update.
+        when(mRenderCoordinatesImpl.getScrollYPixInt()).thenReturn(35);
+        listener.onScrollOffsetOrExtentChanged(35, SCROLL_EXTENT);
+
+        // We should get a notification since we initialized the observer class with true for
+        // hadScrollDown.
+        verify(mEngagementSignalsCallback)
+                .onGreatestScrollPercentageIncreased(eq(35), any(Bundle.class));
+    }
+
+    @Test
+    public void collectUserInteraction_hasInteraction() {
+        initializeTabForTest();
+        Tab tab = mock(Tab.class);
+        doReturn(mock(MockWebContents.class)).when(tab).getWebContents();
+        when(mTabInteractionRecorder.didGetUserInteraction()).thenReturn(true);
+
+        assertFalse(mEngagementSignalObserver.getDidGetUserInteractionForTesting());
+
+        mEngagementSignalObserver.collectUserInteraction(tab);
+
+        assertTrue(mEngagementSignalObserver.getDidGetUserInteractionForTesting());
+    }
+
+    @Test
+    public void collectUserInteraction_hasNoInteraction() {
+        initializeTabForTest();
+        Tab tab = mock(Tab.class);
+        doReturn(mock(MockWebContents.class)).when(tab).getWebContents();
+        when(mTabInteractionRecorder.didGetUserInteraction()).thenReturn(false);
+
+        mEngagementSignalObserver.collectUserInteraction(tab);
+
+        assertFalse(mEngagementSignalObserver.getDidGetUserInteractionForTesting());
     }
 
     private void advanceTime(long millis) {
         SystemClock.setCurrentTimeMillis(CURRENT_TIME_MS + millis);
     }
 
-    /**
-     * @param realValues CCT_REAL_TIME_ENGAGEMENT_SIGNALS real_values.
-     * @param threshold CCT_REAL_TIME_ENGAGEMENT_SIGNALS_ALTERNATIVE_IMPL time_can_update_after_end.
-     */
-    private void setFeatureParams(Boolean realValues, Integer threshold) {
-        if (realValues == null && threshold == null) return;
-
-        TestValues testValues = new TestValues();
-        testValues.addFeatureFlagOverride(ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS, true);
-
-        if (realValues != null) {
-            testValues.addFieldTrialParamOverride(
-                    ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS, REAL_VALUES,
-                    realValues.toString());
-            testValues.addFeatureFlagOverride(
-                    ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS_ALTERNATIVE_IMPL, false);
-        }
-        if (threshold != null) {
-            testValues.addFeatureFlagOverride(
-                    ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS_ALTERNATIVE_IMPL, true);
-            testValues.addFieldTrialParamOverride(
-                    ChromeFeatureList.CCT_REAL_TIME_ENGAGEMENT_SIGNALS_ALTERNATIVE_IMPL,
-                    TIME_CAN_UPDATE_AFTER_END, Integer.toString(threshold));
-        }
-        FeatureList.setTestValues(testValues);
-    }
-
-    private void initializeTabForTest() {
+    private void initializeTabForTest(boolean hadScrollDown) {
         Tab initialTab = env.prepareTab();
-        doAnswer(invocation -> {
-            CustomTabTabObserver observer = invocation.getArgument(0);
-            initialTab.addObserver(observer);
-            observer.onAttachedToInitialTab(initialTab);
-            return null;
-        })
+        doAnswer(
+                        invocation -> {
+                            CustomTabTabObserver observer = invocation.getArgument(0);
+                            initialTab.addObserver(observer);
+                            observer.onAttachedToInitialTab(initialTab);
+                            return null;
+                        })
                 .when(env.tabObserverRegistrar)
                 .registerActivityTabObserver(any());
 
-        mEngagementSignalObserver = new RealtimeEngagementSignalObserver(
-                env.tabObserverRegistrar, env.connection, env.session);
+        mEngagementSignalObserver =
+                new RealtimeEngagementSignalObserver(
+                        env.tabObserverRegistrar,
+                        env.session.getSessionAsCustomTab(),
+                        mEngagementSignalsCallback,
+                        hadScrollDown);
         verify(env.tabObserverRegistrar).registerActivityTabObserver(mEngagementSignalObserver);
 
         env.tabProvider.setInitialTab(initialTab, TabCreationMode.DEFAULT);
     }
 
+    private void initializeTabForTest() {
+        initializeTabForTest(false);
+    }
+
     private GestureStateListener captureGestureStateListener() {
-        return captureGestureStateListener(NONE);
+        return captureGestureStateListener(ON_SCROLL_END);
     }
 
     private GestureStateListener captureGestureStateListener(
@@ -837,7 +956,7 @@ public class RealtimeEngagementSignalObserverUnitTest {
     private WebContentsObserver captureWebContentsObserver() {
         ArgumentCaptor<WebContentsObserver> webContentsObserverArgumentCaptor =
                 ArgumentCaptor.forClass(WebContentsObserver.class);
-        WebContents webContents = env.tabProvider.getTab().getWebContents();
+        MockWebContents webContents = (MockWebContents) env.tabProvider.getTab().getWebContents();
         verify(webContents).addObserver(webContentsObserverArgumentCaptor.capture());
         return webContentsObserverArgumentCaptor.getValue();
     }
@@ -850,18 +969,8 @@ public class RealtimeEngagementSignalObserverUnitTest {
         return tabObserverArgumentCaptor.getAllValues();
     }
 
-    private Supplier<Integer> captureGreatestScrollPercentageSupplier() {
-        ArgumentCaptor<Supplier<Integer>> greatestScrollPercentageSupplierArgumentCaptor =
-                ArgumentCaptor.forClass(Supplier.class);
-        verify(env.connection)
-                .setGreatestScrollPercentageSupplier(any(CustomTabsSessionToken.class),
-                        greatestScrollPercentageSupplierArgumentCaptor.capture());
-        return greatestScrollPercentageSupplierArgumentCaptor.getValue();
-    }
-
     private void verifyNoMemoryLeakForGestureStateListener(GestureStateListener listener) {
         listener.onScrollStarted(0, 1, false);
-        listener.onScrollUpdateGestureConsumed(new Point(1, 1));
         listener.onVerticalScrollDirectionChanged(false, 0.1f);
         listener.onScrollEnded(1, 0);
     }

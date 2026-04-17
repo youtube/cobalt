@@ -6,8 +6,8 @@
 
 #include <algorithm>
 
+#include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
-#include "base/strings/stringprintf.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/win/registry.h"
 #include "base/win/win_util.h"
@@ -123,28 +123,12 @@ InstalledApplications::InstalledApplications(
   static constexpr wchar_t kUninstallKeyPath[] =
       L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall";
 
-  std::vector<std::pair<HKEY, REGSAM>> registry_key_combinations;
-  if (base::win::OSInfo::GetArchitecture() ==
-      base::win::OSInfo::X86_ARCHITECTURE) {
-    // On 32-bit Windows, there is only one view of the registry.
-    registry_key_combinations.emplace_back(HKEY_CURRENT_USER, 0);
-    registry_key_combinations.emplace_back(HKEY_LOCAL_MACHINE, 0);
-  } else {
-    // On 64-bit Windows, there also exists a 32-bit view (Wow6432Node). Except
-    // that the "HKCU\SOFTWARE\" subtree is shared between the 32-bits and
-    // 64 bits views. Accessing both would create duplicate entries.
-    // See https://msdn.microsoft.com/library/windows/desktop/aa384253.aspx
-    registry_key_combinations.emplace_back(HKEY_CURRENT_USER, 0);
-    registry_key_combinations.emplace_back(HKEY_LOCAL_MACHINE, KEY_WOW64_32KEY);
-    registry_key_combinations.emplace_back(HKEY_LOCAL_MACHINE, KEY_WOW64_64KEY);
-  }
-
   // Retrieve the current user's Security Identifier. If it fails, |user_sid|
   // will stay empty.
   std::wstring user_sid;
   base::win::GetUserSidString(&user_sid);
 
-  for (const auto& combination : registry_key_combinations) {
+  for (const auto& combination : GenRegistryKeyCombinations()) {
     for (base::win::RegistryKeyIterator i(combination.first, kUninstallKeyPath,
                                           combination.second);
          i.Valid(); ++i) {
@@ -160,6 +144,26 @@ InstalledApplications::InstalledApplications(
   SortByFilePaths(&install_directories_);
 }
 
+std::vector<std::pair<HKEY, REGSAM>>
+InstalledApplications::GenRegistryKeyCombinations() const {
+  std::vector<std::pair<HKEY, REGSAM>> registry_key_combinations;
+  if (base::win::OSInfo::GetArchitecture() ==
+      base::win::OSInfo::X86_ARCHITECTURE) {
+    // On 32-bit Windows, there is only one view of the registry.
+    registry_key_combinations.emplace_back(HKEY_CURRENT_USER, 0);
+    registry_key_combinations.emplace_back(HKEY_LOCAL_MACHINE, 0);
+  } else {
+    // On 64-bit Windows, there also exists a 32-bit view (Wow6432Node). Except
+    // that the "HKCU\SOFTWARE\" subtree is shared between the 32-bits and
+    // 64 bits views. Accessing both would create duplicate entries.
+    // See https://msdn.microsoft.com/library/windows/desktop/aa384253.aspx
+    registry_key_combinations.emplace_back(HKEY_CURRENT_USER, 0);
+    registry_key_combinations.emplace_back(HKEY_LOCAL_MACHINE, KEY_WOW64_32KEY);
+    registry_key_combinations.emplace_back(HKEY_LOCAL_MACHINE, KEY_WOW64_64KEY);
+  }
+  return registry_key_combinations;
+}
+
 void InstalledApplications::CheckRegistryKeyForInstalledApplication(
     HKEY hkey,
     const std::wstring& key_path,
@@ -167,8 +171,7 @@ void InstalledApplications::CheckRegistryKeyForInstalledApplication(
     const std::wstring& key_name,
     const MsiUtil& msi_util,
     const std::wstring& user_sid) {
-  std::wstring candidate_key_path =
-      base::StringPrintf(L"%ls\\%ls", key_path.c_str(), key_name.c_str());
+  std::wstring candidate_key_path = base::StrCat({key_path, L"\\", key_name});
   base::win::RegKey candidate(hkey, candidate_key_path.c_str(),
                               KEY_QUERY_VALUE | wow64access);
 

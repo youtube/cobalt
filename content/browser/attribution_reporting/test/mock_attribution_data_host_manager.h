@@ -7,18 +7,23 @@
 
 #include <stdint.h>
 
-#include "components/attribution_reporting/registration_type.mojom-forward.h"
-#include "components/attribution_reporting/suitable_origin.h"
+#include <optional>
+#include <string>
+#include <vector>
+
+#include "base/memory/scoped_refptr.h"
+#include "base/memory/weak_ptr.h"
+#include "components/attribution_reporting/data_host.mojom-forward.h"
+#include "components/attribution_reporting/registration_eligibility.mojom-forward.h"
 #include "content/browser/attribution_reporting/attribution_beacon_id.h"
 #include "content/browser/attribution_reporting/attribution_data_host_manager.h"
 #include "content/browser/attribution_reporting/attribution_input_event.h"
-#include "content/public/browser/global_routing_id.h"
+#include "content/browser/attribution_reporting/attribution_suitable_context.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "net/http/http_response_headers.h"
 #include "testing/gmock/include/gmock/gmock.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
-#include "third_party/blink/public/mojom/conversions/attribution_data_host.mojom-forward.h"
-#include "third_party/blink/public/mojom/conversions/attribution_reporting.mojom-forward.h"
+#include "url/gurl.h"
 
 namespace net {
 class HttpResponseHeaders;
@@ -26,7 +31,7 @@ class HttpResponseHeaders;
 
 namespace content {
 
-class MockAttributionDataHostManager : public AttributionDataHostManager {
+class MockAttributionDataHostManager final : public AttributionDataHostManager {
  public:
   MockAttributionDataHostManager();
   ~MockAttributionDataHostManager() override;
@@ -34,63 +39,86 @@ class MockAttributionDataHostManager : public AttributionDataHostManager {
   MOCK_METHOD(
       void,
       RegisterDataHost,
-      (mojo::PendingReceiver<blink::mojom::AttributionDataHost> data_host,
-       attribution_reporting::SuitableOrigin context_origin,
-       bool is_within_fenced_frame,
-       attribution_reporting::mojom::RegistrationType,
-       GlobalRenderFrameHostId,
-       int64_t last_navigation_id),
+      (mojo::PendingReceiver<attribution_reporting::mojom::DataHost> data_host,
+       AttributionSuitableContext,
+       attribution_reporting::mojom::RegistrationEligibility,
+       bool),
       (override));
 
   MOCK_METHOD(
       bool,
       RegisterNavigationDataHost,
-      (mojo::PendingReceiver<blink::mojom::AttributionDataHost> data_host,
-       const blink::AttributionSrcToken& attribution_src_token,
-       AttributionInputEvent input_event),
+      (mojo::PendingReceiver<attribution_reporting::mojom::DataHost> data_host,
+       const blink::AttributionSrcToken& attribution_src_token),
       (override));
 
-  MOCK_METHOD(void,
-              NotifyNavigationRegistrationStarted,
+  MOCK_METHOD(bool,
+              NotifyNavigationWithBackgroundRegistrationsWillStart,
               (const blink::AttributionSrcToken& attribution_src_token,
-               const attribution_reporting::SuitableOrigin& source_origin,
-               blink::mojom::AttributionNavigationType,
-               bool is_within_fenced_frame,
-               GlobalRenderFrameHostId,
-               int64_t navigation_id),
+               size_t expected_registrations),
               (override));
 
   MOCK_METHOD(void,
+              NotifyNavigationRegistrationStarted,
+              (AttributionSuitableContext suitable_context,
+               const blink::AttributionSrcToken& attribution_src_token,
+               int64_t navigation_id,
+               std::string devtools_request_id),
+              (override));
+
+  MOCK_METHOD(bool,
               NotifyNavigationRegistrationData,
               (const blink::AttributionSrcToken& attribution_src_token,
                const net::HttpResponseHeaders* headers,
-               attribution_reporting::SuitableOrigin reporting_origin,
-               const attribution_reporting::SuitableOrigin& source_origin,
-               AttributionInputEvent input_event,
-               blink::mojom::AttributionNavigationType,
-               bool is_within_fenced_frame,
-               GlobalRenderFrameHostId,
-               int64_t navigation_id,
-               bool is_final_response),
+               const GURL& reporting_url),
+              (override));
+
+  MOCK_METHOD(void,
+              NotifyNavigationRegistrationCompleted,
+              (const blink::AttributionSrcToken& attribution_src_token),
+              (override));
+
+  MOCK_METHOD(void,
+              NotifyBackgroundRegistrationStarted,
+              (BackgroundRegistrationsId id,
+               AttributionSuitableContext,
+               attribution_reporting::mojom::RegistrationEligibility,
+               std::optional<blink::AttributionSrcToken>,
+               std::optional<std::string> devtools_request_id),
+              (override));
+
+  MOCK_METHOD(bool,
+              NotifyBackgroundRegistrationData,
+              (BackgroundRegistrationsId id,
+               scoped_refptr<net::HttpResponseHeaders> headers,
+               GURL reporting_url),
+              (override));
+
+  MOCK_METHOD(void,
+              NotifyBackgroundRegistrationCompleted,
+              (BackgroundRegistrationsId id),
               (override));
 
   MOCK_METHOD(void,
               NotifyFencedFrameReportingBeaconStarted,
               (BeaconId beacon_id,
-               absl::optional<int64_t> navigation_id,
-               attribution_reporting::SuitableOrigin source_origin,
-               bool is_within_fenced_frame,
-               AttributionInputEvent input_event,
-               GlobalRenderFrameHostId),
+               AttributionSuitableContext suitable_context,
+               std::optional<int64_t> navigation_id,
+               std::string devtools_request_id),
               (override));
 
   MOCK_METHOD(void,
               NotifyFencedFrameReportingBeaconData,
               (BeaconId beacon_id,
-               url::Origin reporting_origin,
+               GURL reporting_url,
                const net::HttpResponseHeaders* headers,
                bool is_final_response),
               (override));
+
+  base::WeakPtr<AttributionDataHostManager> AsWeakPtr() override;
+
+ private:
+  base::WeakPtrFactory<MockAttributionDataHostManager> weak_factory_{this};
 };
 
 }  // namespace content

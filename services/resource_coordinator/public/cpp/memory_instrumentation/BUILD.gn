@@ -17,8 +17,6 @@ component("memory_instrumentation") {
     "tracing_observer.h",
     "tracing_observer_proto.cc",
     "tracing_observer_proto.h",
-    "tracing_observer_traced_value.cc",
-    "tracing_observer_traced_value.h",
   ]
 
   if (is_apple) {
@@ -29,7 +27,7 @@ component("memory_instrumentation") {
     sources += [ "os_metrics_win.cc" ]
   }
 
-  if (is_android || is_linux && !is_starboard || is_chromeos) {
+  if (is_android || is_linux || is_chromeos) {
     sources += [ "os_metrics_linux.cc" ]
   }
 

@@ -30,8 +30,7 @@ namespace arc {
 // mode detector skips kWarmUp and kRateDetection and always watches for janks.
 class ArcGraphicsJankDetector {
  public:
-  using JankCallback =
-      base::RepeatingCallback<void(const base::Time& timestamp)>;
+  using JankCallback = base::RepeatingCallback<void(base::Time timestamp)>;
 
   enum class Stage {
     kWarmUp,         // ignore any update
@@ -50,16 +49,15 @@ class ArcGraphicsJankDetector {
   static constexpr base::TimeDelta kPauseDetectionThreshold =
       base::Seconds(0.25);
 
-  // Threshold relative to the normal rate to consider the current frame as a
-  // jank if its duration longer than this threshold.
-  static constexpr int kJankDetectionThresholdPercent = 190;
-
   explicit ArcGraphicsJankDetector(const JankCallback& callback);
 
   ArcGraphicsJankDetector(const ArcGraphicsJankDetector&) = delete;
   ArcGraphicsJankDetector& operator=(const ArcGraphicsJankDetector&) = delete;
 
   ~ArcGraphicsJankDetector();
+
+  // Returns whether there are enough samples to run detector.
+  static bool IsEnoughSamplesToDetect(size_t num_samples);
 
   // Resets detector to its initial state, stage is set to |Stage::kWarmUp| with
   // the initial number of warm up samples. Fixed period is discarded if it was
@@ -71,12 +69,8 @@ class ArcGraphicsJankDetector {
   // stage.
   void SetPeriodFixed(const base::TimeDelta& period);
 
-  // Notifies about the next sample. Used in runtime and timestamp is considered
-  // as now time.
-  void OnSample();
-  // Notifies about the next sample with corresponding timestamp. Used in tests
-  // off-line processing.
-  void OnSample(const base::Time& timestamp);
+  // Notifies about the next sample with corresponding timestamp.
+  void OnSample(base::Time timestamp);
 
   Stage stage() const { return stage_; }
   base::TimeDelta period() const { return period_; }

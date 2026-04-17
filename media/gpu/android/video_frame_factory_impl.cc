@@ -38,19 +38,18 @@ gpu::TextureOwner::Mode GetTextureOwnerMode(
   switch (overlay_mode) {
     case VideoFrameFactory::OverlayMode::kDontRequestPromotionHints:
     case VideoFrameFactory::OverlayMode::kRequestPromotionHints:
-      return features::IsAImageReaderEnabled()
+      return base::android::EnableAndroidImageReader()
                  ? gpu::TextureOwner::Mode::kAImageReaderInsecure
                  : gpu::TextureOwner::Mode::kSurfaceTextureInsecure;
     case VideoFrameFactory::OverlayMode::kSurfaceControlSecure:
-      DCHECK(features::IsAImageReaderEnabled());
+      CHECK(base::android::EnableAndroidImageReader());
       return gpu::TextureOwner::Mode::kAImageReaderSecureSurfaceControl;
     case VideoFrameFactory::OverlayMode::kSurfaceControlInsecure:
-      DCHECK(features::IsAImageReaderEnabled());
+      CHECK(base::android::EnableAndroidImageReader());
       return gpu::TextureOwner::Mode::kAImageReaderInsecureSurfaceControl;
   }
 
   NOTREACHED();
-  return gpu::TextureOwner::Mode::kSurfaceTextureInsecure;
 }
 
 // Run on the GPU main thread to allocate the texture owner, and return it
@@ -65,9 +64,9 @@ static void AllocateTextureOwnerOnGpuThread(
     return;
   }
 
-  std::move(init_cb).Run(
-      gpu::TextureOwner::Create(GetTextureOwnerMode(overlay_mode),
-                                shared_context_state, std::move(drdc_lock)));
+  std::move(init_cb).Run(gpu::TextureOwner::Create(
+      GetTextureOwnerMode(overlay_mode), shared_context_state,
+      std::move(drdc_lock), gpu::TextureOwnerCodecType::kMediaCodec));
 }
 
 }  // namespace
@@ -154,10 +153,10 @@ void VideoFrameFactoryImpl::CreateVideoFrame(
   // The pixel format doesn't matter here as long as it's valid for texture
   // frames. But SkiaRenderer wants to ensure that the format of the resource
   // used here which will eventually create a promise image must match the
-  // format of the resource(SharedImageVideo) used to create fulfill image.
-  // crbug.com/1028746. Since we create all the textures/abstract textures as
-  // well as shared images for video to be of format RGBA, we need to use the
-  // pixel format as ABGR here(which corresponds to 32bpp RGBA).
+  // format of the resource(AndroidVideoImageBacking) used to create fulfill
+  // image. crbug.com/1028746. Since we create all the textures/abstract
+  // textures as well as shared images for video to be of format RGBA, we need
+  // to use the pixel format as ABGR here(which corresponds to 32bpp RGBA).
   VideoPixelFormat pixel_format = PIXEL_FORMAT_ABGR;
 
   // Check that we can create a VideoFrame for this config before trying to
@@ -262,18 +261,10 @@ void VideoFrameFactoryImpl::CreateVideoFrame_OnImageReady(
   // record before we move it into |completion_cb|.
   auto codec_image_holder = std::move(record.codec_image_holder);
 
-  gpu::MailboxHolder mailbox_holders[VideoFrame::kMaxPlanes];
-  mailbox_holders[0] = gpu::MailboxHolder(record.mailbox, gpu::SyncToken(),
-                                          GL_TEXTURE_EXTERNAL_OES);
-
-  auto frame = VideoFrame::WrapNativeTextures(
-      pixel_format, mailbox_holders, VideoFrame::ReleaseMailboxCB(),
-      frame_info.coded_size, frame_info.visible_rect, natural_size, timestamp);
-
-  // For Vulkan.
-  frame->set_ycbcr_info(frame_info.ycbcr_info);
-
-  frame->set_color_space(color_space);
+  scoped_refptr<VideoFrame> frame = VideoFrame::WrapSharedImage(
+      pixel_format, std::move(record.shared_image), gpu::SyncToken(),
+      VideoFrame::ReleaseMailboxCB(), frame_info.coded_size,
+      frame_info.visible_rect, natural_size, timestamp);
 
   // If, for some reason, we failed to create a frame, then fail.  Note that we
   // don't need to call |release_cb|; dropping it is okay since the api says so.
@@ -282,6 +273,11 @@ void VideoFrameFactoryImpl::CreateVideoFrame_OnImageReady(
     std::move(output_cb).Run(nullptr);
     return;
   }
+
+  // For Vulkan.
+  frame->set_ycbcr_info(frame_info.ycbcr_info);
+
+  frame->set_color_space(color_space);
 
   frame->metadata().copy_required = video_frame_copy_required;
 
@@ -304,7 +300,7 @@ void VideoFrameFactoryImpl::CreateVideoFrame_OnImageReady(
 
   frame->metadata().allow_overlay = allow_overlay;
   frame->metadata().wants_promotion_hint = wants_promotion_hints;
-  frame->metadata().texture_owner = is_texture_owner_backed;
+  frame->metadata().in_surface_view = !is_texture_owner_backed;
 
   // TODO(liberato): if this is run via being dropped, then it would be nice
   // to find that out rather than treating the image as unused.  If the renderer
@@ -355,6 +351,10 @@ void VideoFrameFactoryImpl::RunAfterPendingVideoFrames(
       std::move(closure));
 
   RequestImage(nullptr, std::move(image_ready_cb));
+}
+
+bool VideoFrameFactoryImpl::IsStalled() const {
+  return frame_info_helper_->IsStalled();
 }
 
 }  // namespace media

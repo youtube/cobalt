@@ -26,6 +26,7 @@ namespace android_webview {
 class AwBrowserProcess;
 class AwContentBrowserClient;
 
+// Lifetime: Singleton
 class AwBrowserMainParts : public content::BrowserMainParts {
  public:
   explicit AwBrowserMainParts(AwContentBrowserClient* browser_client);
@@ -43,6 +44,8 @@ class AwBrowserMainParts : public content::BrowserMainParts {
       std::unique_ptr<base::RunLoop>& run_loop) override;
   void PostCreateThreads() override;
 
+  static bool isWebViewStartupTasksExperimentEnabled();
+
  private:
   void RegisterSyntheticTrials();
 
@@ -52,6 +55,8 @@ class AwBrowserMainParts : public content::BrowserMainParts {
   raw_ptr<AwContentBrowserClient> browser_client_;
 
   std::unique_ptr<metrics::MemoryMetricsLogger> metrics_logger_;
+
+  std::unique_ptr<content::SyntheticTrialSyncer> synthetic_trial_syncer_;
 
   std::unique_ptr<AwBrowserProcess> browser_process_;
   std::unique_ptr<crash_reporter::ChildExitObserver> child_exit_observer_;

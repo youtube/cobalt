@@ -20,22 +20,24 @@
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/managed_ui.h"
 #include "chrome/browser/ui/webui/intro/intro_ui.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
-#include "chrome/grit/google_chrome_strings.h"
 #include "components/policy/core/common/cloud/cloud_policy_store.h"
 #include "components/policy/core/common/cloud/machine_level_user_cloud_policy_manager.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/signin/public/identity_manager/signin_constants.h"
 #include "content/public/browser/web_ui.h"
+#include "content/public/browser/web_ui_data_source.h"
 #include "google_apis/gaia/core_account_id.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/resource/resource_bundle.h"
 
+using signin::constants::kNoHostedDomainFound;
+
 namespace {
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
 policy::CloudPolicyStore* GetCloudPolicyStore() {
   auto* machine_level_manager = g_browser_process->browser_policy_connector()
                                     ->machine_level_user_cloud_policy_manager();
@@ -138,7 +140,7 @@ class PolicyStoreObserver : public policy::CloudPolicyStore::Observer {
     std::string managed_device_disclaimer;
     if (state == PolicyStoreState::kSuccess ||
         state == PolicyStoreState::kSuccessAlreadyLoaded) {
-      absl::optional<std::string> manager = chrome::GetDeviceManagerIdentity();
+      std::optional<std::string> manager = GetDeviceManagerIdentity();
       managed_device_disclaimer =
           manager->empty()
               ? l10n_util::GetStringUTF8(IDS_FRE_MANAGED_DESCRIPTION)
@@ -159,127 +161,29 @@ class PolicyStoreObserver : public policy::CloudPolicyStore::Observer {
   base::CancelableOnceCallback<void()> on_organization_fetch_timeout_;
   base::TimeTicks start_time_;
 };
-#endif
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-class IdentityManagerObserver : public signin::IdentityManager::Observer {
- public:
-  explicit IdentityManagerObserver(
-      base::RepeatingCallback<void()> handle_identity_manager_change,
-      signin::IdentityManager& identity_manager)
-      : account_id_(identity_manager
-                        .GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
-                        .account_id) {
-    DCHECK(handle_identity_manager_change);
-
-    identity_manager_observation_.Observe(&identity_manager);
-    handle_identity_manager_change_ = std::move(handle_identity_manager_change);
-  }
-
-  void OnExtendedAccountInfoUpdated(const AccountInfo& account_info) override {
-    if (account_info.account_id != account_id_) {
-      return;
-    }
-
-    handle_identity_manager_change_.Run();
-    if (!account_info.account_image.IsEmpty() && account_info.IsValid()) {
-      identity_manager_observation_.Reset();
-    }
-  }
-
- private:
-  base::ScopedObservation<signin::IdentityManager,
-                          signin::IdentityManager::Observer>
-      identity_manager_observation_{this};
-  base::RepeatingCallback<void()> handle_identity_manager_change_;
-  const CoreAccountId account_id_;
-};
-
-std::string GetPictureUrl(content::WebUI& web_ui,
-                          const AccountInfo& account_info) {
-  const int avatar_size = 100;
-  const int avatar_icon_size = avatar_size * web_ui.GetDeviceScaleFactor();
-
-  DCHECK(!account_info.IsEmpty());
-  gfx::Image icon = account_info.account_image.IsEmpty()
-                        ? ui::ResourceBundle::GetSharedInstance().GetImageNamed(
-                              profiles::GetPlaceholderAvatarIconResourceID())
-                        : account_info.account_image;
-
-  return webui::GetBitmapDataUrl(
-      profiles::GetSizedAvatarIcon(icon, avatar_icon_size, avatar_icon_size)
-          .AsBitmap());
-}
-
-std::string GetLacrosIntroWelcomeTitle(const AccountInfo& account_info) {
-  const bool has_given_name = !account_info.given_name.empty();
-  base::UmaHistogramBoolean("Profile.LacrosFre.WelcomeHasGivenName",
-                            has_given_name);
-  return has_given_name ? l10n_util::GetStringFUTF8(
-                              IDS_PRIMARY_PROFILE_FIRST_RUN_TITLE,
-                              base::UTF8ToUTF16(account_info.given_name))
-                        : l10n_util::GetStringUTF8(
-                              IDS_PRIMARY_PROFILE_FIRST_RUN_NO_NAME_TITLE);
-}
-
-std::string GetLacrosIntroManagementDisclaimer(
-    const Profile& profile,
-    const std::string& account_domain_name) {
-  // TODO(crbug.com/1416511): Fix logic mismatch in device/account management
-  // between Lacros and DICE.
-  const bool is_managed_account =
-      profile.GetProfilePolicyConnector()->IsManaged();
-  if (!is_managed_account || account_domain_name == kNoHostedDomainFound) {
-    return std::string();
-  }
-  return l10n_util::GetStringFUTF8(
-      IDS_PRIMARY_PROFILE_FIRST_RUN_SESSION_MANAGED_BY_DESCRIPTION,
-      base::UTF8ToUTF16(account_domain_name));
-}
-
-base::Value::Dict GetProfileInfoValue(content::WebUI& web_ui) {
-  base::Value::Dict dict;
-  auto* profile = Profile::FromWebUI(&web_ui);
-
-  const auto* identity_manager = IdentityManagerFactory::GetForProfile(profile);
-  const CoreAccountInfo core_account_info =
-      identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
-  AccountInfo account_info =
-      identity_manager->FindExtendedAccountInfoByAccountId(
-          core_account_info.account_id);
-
-  if (account_info.email.empty()) {
-    return dict;
-  }
-  dict.Set("pictureUrl", GetPictureUrl(web_ui, account_info));
-
-  dict.Set("managementDisclaimer", GetLacrosIntroManagementDisclaimer(
-                                       *profile, account_info.hosted_domain));
-
-  dict.Set("title", GetLacrosIntroWelcomeTitle(account_info));
-  dict.Set("subtitle",
-           l10n_util::GetStringFUTF8(IDS_PRIMARY_PROFILE_FIRST_RUN_SUBTITLE,
-                                     base::UTF8ToUTF16(account_info.email)));
-  return dict;
-}
-#endif
 }  // namespace
 
-IntroHandler::IntroHandler(base::RepeatingCallback<void(IntroChoice)> callback,
-                           bool is_device_managed)
-    : callback_(std::move(callback)), is_device_managed_(is_device_managed) {
-  DCHECK(callback_);
+IntroHandler::IntroHandler(
+    base::RepeatingCallback<void(IntroChoice)> intro_callback,
+    base::OnceCallback<void(DefaultBrowserChoice)> default_browser_callback,
+    bool is_device_managed,
+    std::string_view source_name)
+    : intro_callback_(std::move(intro_callback)),
+      default_browser_callback_(std::move(default_browser_callback)),
+      is_device_managed_(is_device_managed),
+      source_name_(source_name) {
+  DCHECK(intro_callback_);
+  DCHECK(default_browser_callback_);
 }
 
 IntroHandler::~IntroHandler() = default;
 
 void IntroHandler::RegisterMessages() {
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
   web_ui()->RegisterMessageCallback(
       "continueWithoutAccount",
       base::BindRepeating(&IntroHandler::HandleContinueWithoutAccount,
                           base::Unretained(this)));
-#endif
   web_ui()->RegisterMessageCallback(
       "continueWithAccount",
       base::BindRepeating(&IntroHandler::HandleContinueWithAccount,
@@ -288,35 +192,32 @@ void IntroHandler::RegisterMessages() {
       "initializeMainView",
       base::BindRepeating(&IntroHandler::HandleInitializeMainView,
                           base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "setAsDefaultBrowser",
+      base::BindRepeating(&IntroHandler::HandleSetAsDefaultBrowser,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "skipDefaultBrowser",
+      base::BindRepeating(&IntroHandler::HandleSkipDefaultBrowser,
+                          base::Unretained(this)));
 }
 
 void IntroHandler::OnJavascriptAllowed() {
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
   if (!is_device_managed_) {
     return;
   }
   policy_store_observer_ = std::make_unique<PolicyStoreObserver>(base::BindOnce(
       &IntroHandler::FireManagedDisclaimerUpdate, base::Unretained(this)));
-#endif
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  identity_manager_observer_ = std::make_unique<IdentityManagerObserver>(
-      base::BindRepeating(&IntroHandler::UpdateProfileInfo,
-                          base::Unretained(this)),
-      *IdentityManagerFactory::GetForProfile(Profile::FromWebUI(web_ui())));
-
-  UpdateProfileInfo();
-#endif
 }
 
 void IntroHandler::HandleContinueWithAccount(const base::Value::List& args) {
   CHECK(args.empty());
-  callback_.Run(IntroChoice::kContinueWithAccount);
+  intro_callback_.Run(IntroChoice::kContinueWithAccount);
 }
 
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
 void IntroHandler::HandleContinueWithoutAccount(const base::Value::List& args) {
   CHECK(args.empty());
-  callback_.Run(IntroChoice::kContinueWithoutAccount);
+  intro_callback_.Run(IntroChoice::kContinueWithoutAccount);
 }
 
 void IntroHandler::ResetIntroButtons() {
@@ -324,19 +225,46 @@ void IntroHandler::ResetIntroButtons() {
     FireWebUIListener("reset-intro-buttons");
   }
 }
-#endif
 
 void IntroHandler::HandleInitializeMainView(const base::Value::List& args) {
   CHECK(args.empty());
   AllowJavascript();
 }
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-void IntroHandler::UpdateProfileInfo() {
-  DCHECK(IsJavascriptAllowed());
-  FireWebUIListener("on-profile-info-changed", GetProfileInfoValue(*web_ui()));
+void IntroHandler::HandleSetAsDefaultBrowser(const base::Value::List& args) {
+  CHECK(args.empty());
+  if (default_browser_callback_) {
+    std::move(default_browser_callback_)
+        .Run(DefaultBrowserChoice::kClickSetAsDefault);
+  }
 }
-#endif
+
+void IntroHandler::HandleSkipDefaultBrowser(const base::Value::List& args) {
+  CHECK(args.empty());
+  if (default_browser_callback_) {
+    std::move(default_browser_callback_).Run(DefaultBrowserChoice::kSkip);
+  }
+}
+
+void IntroHandler::ResetDefaultBrowserButtons() {
+  if (IsJavascriptAllowed()) {
+    FireWebUIListener("reset-default-browser-buttons");
+  }
+}
+
+void IntroHandler::SetCanPinToTaskbar(bool can_pin) {
+  if (can_pin) {
+    base::Value::Dict update;
+    update.Set(
+        "defaultBrowserTitle",
+        l10n_util::GetStringUTF16(IDS_FRE_DEFAULT_BROWSER_AND_PINNING_TITLE));
+    update.Set("defaultBrowserSubtitle",
+               l10n_util::GetStringUTF16(
+                   IDS_FRE_DEFAULT_BROWSER_AND_PINNING_SUBTITLE));
+    content::WebUIDataSource::Update(Profile::FromWebUI(web_ui()), source_name_,
+                                     std::move(update));
+  }
+}
 
 void IntroHandler::FireManagedDisclaimerUpdate(std::string disclaimer) {
   DCHECK(is_device_managed_);

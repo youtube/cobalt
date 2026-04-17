@@ -7,6 +7,8 @@ package org.chromium.chrome.browser.gesturenav;
 import android.graphics.RectF;
 import android.view.ViewGroup;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.layouts.EventFilter;
 import org.chromium.chrome.browser.layouts.SceneOverlay;
 import org.chromium.chrome.browser.layouts.components.VirtualView;
@@ -17,9 +19,10 @@ import org.chromium.ui.resources.ResourceManager;
 import java.util.List;
 
 /**
- * Handles overscroll glow effect when gesture navigation can't go forward any more.
- * Renders the effect on a compositor layer in scene overlay layer tree.
+ * Handles overscroll glow effect when gesture navigation can't go forward any more. Renders the
+ * effect on a compositor layer in scene overlay layer tree.
  */
+@NullMarked
 class OverscrollGlowOverlay extends NavigationGlow implements SceneOverlay {
     private final OverscrollSceneLayer mSceneLayer;
     private final Runnable mRequestLayerUpdate;
@@ -81,12 +84,20 @@ class OverscrollGlowOverlay extends NavigationGlow implements SceneOverlay {
     }
 
     @Override
+    public void removeFromParent() {}
+
+    @Override
     public boolean isSceneOverlayTreeShowing() {
         return mIsShowing;
     }
 
     @Override
-    public EventFilter getEventFilter() {
+    public boolean isShowing() {
+        return mIsShowing;
+    }
+
+    @Override
+    public @Nullable EventFilter getEventFilter() {
         return null;
     }
 

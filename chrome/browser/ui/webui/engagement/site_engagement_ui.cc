@@ -14,7 +14,8 @@
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/url_constants.h"
-#include "chrome/grit/dev_ui_browser_resources.h"
+#include "chrome/grit/engagement_resources.h"
+#include "chrome/grit/engagement_resources_map.h"
 #include "components/site_engagement/content/site_engagement_service.h"
 #include "components/site_engagement/core/mojom/site_engagement_details.mojom.h"
 #include "content/public/browser/web_ui.h"
@@ -23,6 +24,7 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
+#include "ui/webui/webui_util.h"
 
 namespace {
 
@@ -46,15 +48,18 @@ class SiteEngagementDetailsProviderImpl
   SiteEngagementDetailsProviderImpl& operator=(
       const SiteEngagementDetailsProviderImpl&) = delete;
 
-  ~SiteEngagementDetailsProviderImpl() override {}
+  ~SiteEngagementDetailsProviderImpl() override = default;
 
   // site_engagement::mojom::SiteEngagementDetailsProvider overrides:
   void GetSiteEngagementDetails(
       GetSiteEngagementDetailsCallback callback) override {
     site_engagement::SiteEngagementService* service =
         site_engagement::SiteEngagementService::Get(profile_);
+
     std::vector<site_engagement::mojom::SiteEngagementDetails> scores =
-        service->GetAllDetails();
+        service->GetAllDetails(
+            site_engagement::SiteEngagementService::URLSets::HTTP |
+            site_engagement::SiteEngagementService::URLSets::WEB_UI);
 
     std::vector<site_engagement::mojom::SiteEngagementDetailsPtr>
         engagement_info;
@@ -92,23 +97,23 @@ class SiteEngagementDetailsProviderImpl
 
 }  // namespace
 
+bool SiteEngagementUIConfig::IsWebUIEnabled(
+    content::BrowserContext* browser_context) {
+  return site_engagement::SiteEngagementService::IsEnabled();
+}
+
 SiteEngagementUI::SiteEngagementUI(content::WebUI* web_ui)
     : ui::MojoWebUIController(web_ui) {
   // Set up the chrome://site-engagement/ source.
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       Profile::FromWebUI(web_ui), chrome::kChromeUISiteEngagementHost);
-  source->OverrideContentSecurityPolicy(
-      network::mojom::CSPDirectiveName::ScriptSrc,
-      "script-src chrome://resources chrome://webui-test 'self';");
-  source->AddResourcePath("site_engagement.js", IDR_SITE_ENGAGEMENT_JS);
-  source->AddResourcePath("site_engagement_details.mojom-webui.js",
-                          IDR_SITE_ENGAGEMENT_DETAILS_MOJOM_WEBUI_JS);
-  source->SetDefaultResource(IDR_SITE_ENGAGEMENT_HTML);
+  webui::SetupWebUIDataSource(source, kEngagementResources,
+                              IDR_ENGAGEMENT_SITE_ENGAGEMENT_HTML);
 }
 
 WEB_UI_CONTROLLER_TYPE_IMPL(SiteEngagementUI)
 
-SiteEngagementUI::~SiteEngagementUI() {}
+SiteEngagementUI::~SiteEngagementUI() = default;
 
 void SiteEngagementUI::BindInterface(
     mojo::PendingReceiver<site_engagement::mojom::SiteEngagementDetailsProvider>

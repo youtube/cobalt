@@ -21,26 +21,34 @@ namespace blink {
 
 namespace {
 
-struct HarfBuzzShaperCallbackContext {
-  const HarfBuzzShaper* shaper;
-  const Font* font;
-  TextDirection direction;
+class HarfBuzzShapingLineBreaker : public ShapingLineBreaker {
+  STACK_ALLOCATED();
+
+ public:
+  HarfBuzzShapingLineBreaker(const HarfBuzzShaper* shaper,
+                             const Font* font,
+                             const ShapeResult* result,
+                             const LazyLineBreakIterator* break_iterator,
+                             const Hyphenation* hyphenation)
+      : ShapingLineBreaker(result, break_iterator, hyphenation, font),
+        shaper_(shaper),
+        font_(font) {}
+
+ protected:
+  ShapeResult* Shape(unsigned start, unsigned end, ShapeOptions options) final {
+    return shaper_->Shape(font_, GetShapeResult().Direction(), start, end);
+  }
+
+  const HarfBuzzShaper* shaper_;
+  const Font* font_;
 };
 
-scoped_refptr<ShapeResult> HarfBuzzShaperCallback(void* untyped_context,
-                                                  unsigned start,
-                                                  unsigned end) {
-  HarfBuzzShaperCallbackContext* context =
-      static_cast<HarfBuzzShaperCallbackContext*>(untyped_context);
-  return context->shaper->Shape(context->font, context->direction, start, end);
-}
-
-scoped_refptr<const ShapeResultView> ShapeLine(ShapingLineBreaker* breaker,
-                                               unsigned start_offset,
-                                               LayoutUnit available_space,
-                                               unsigned* break_offset) {
+const ShapeResultView* ShapeLine(ShapingLineBreaker* breaker,
+                                 unsigned start_offset,
+                                 LayoutUnit available_space,
+                                 unsigned* break_offset) {
   ShapingLineBreaker::Result result;
-  scoped_refptr<const ShapeResultView> shape_result =
+  const ShapeResultView* shape_result =
       breaker->ShapeLine(start_offset, available_space, &result);
   *break_offset = result.break_offset;
   return shape_result;
@@ -50,24 +58,13 @@ scoped_refptr<const ShapeResultView> ShapeLine(ShapingLineBreaker* breaker,
 
 class ShapingLineBreakerTest : public FontTestBase {
  protected:
-  void SetUp() override {
-    font_description.SetComputedSize(12.0);
-    font = Font(font_description);
-  }
+  void SetUp() override { font_description.SetComputedSize(12.0); }
 
   void SelectLucidaFont() {
-    FontFamily lucida_family;
-    // Windows 10
-    lucida_family.SetFamily("Lucida Grande", FontFamily::Type::kFamilyName);
-    // Windows 7
-    lucida_family.AppendFamily("Lucida Grande", FontFamily::Type::kFamilyName);
-    // Linux
-    lucida_family.AppendFamily("Lucida Medium", FontFamily::Type::kFamilyName);
-    // Mac
-    lucida_family.AppendFamily("Lucida Medium", FontFamily::Type::kFamilyName);
-
-    font_description.SetFamily(lucida_family);
-    font = Font(font_description);
+    font_description.SetFamily(
+        FontFamily(AtomicString("Lucida Grande"), FontFamily::Type::kFamilyName,
+                   SharedFontFamily::Create(AtomicString("Lucida Medium"),
+                                            FontFamily::Type::kFamilyName)));
   }
 
   void TearDown() override {}
@@ -101,47 +98,40 @@ class ShapingLineBreakerTest : public FontTestBase {
 
   FontCachePurgePreventer font_cache_purge_preventer;
   FontDescription font_description;
-  Font font;
-  unsigned start_index = 0;
-  unsigned num_glyphs = 0;
-  hb_script_t script = HB_SCRIPT_INVALID;
 };
 
 TEST_F(ShapingLineBreakerTest, ShapeLineLatin) {
+  Font* font = MakeGarbageCollected<Font>(font_description);
+
   String string = To16Bit(
       "Test run with multiple words and breaking "
-      "opportunities.",
-      56);
-  LazyLineBreakIterator break_iterator(string, "en-US", LineBreakType::kNormal);
+      "opportunities.");
+  LazyLineBreakIterator break_iterator(string, AtomicString("en-US"),
+                                       LineBreakType::kNormal);
   TextDirection direction = TextDirection::kLtr;
 
   HarfBuzzShaper shaper(string);
-  scoped_refptr<const ShapeResult> result = shaper.Shape(&font, direction);
+  const ShapeResult* result = shaper.Shape(font, direction);
 
   // "Test run with multiple"
-  scoped_refptr<const ShapeResult> first4 =
-      shaper.Shape(&font, direction, 0, 22);
+  const ShapeResult* first4 = shaper.Shape(font, direction, 0, 22);
   ASSERT_LT(first4->SnappedWidth(), result->SnappedWidth());
 
   // "Test run with"
-  scoped_refptr<const ShapeResult> first3 =
-      shaper.Shape(&font, direction, 0, 13);
+  const ShapeResult* first3 = shaper.Shape(font, direction, 0, 13);
   ASSERT_LT(first3->SnappedWidth(), first4->SnappedWidth());
 
   // "Test run"
-  scoped_refptr<const ShapeResult> first2 =
-      shaper.Shape(&font, direction, 0, 8);
+  const ShapeResult* first2 = shaper.Shape(font, direction, 0, 8);
   ASSERT_LT(first2->SnappedWidth(), first3->SnappedWidth());
 
   // "Test"
-  scoped_refptr<const ShapeResult> first1 =
-      shaper.Shape(&font, direction, 0, 4);
+  const ShapeResult* first1 = shaper.Shape(font, direction, 0, 4);
   ASSERT_LT(first1->SnappedWidth(), first2->SnappedWidth());
 
-  HarfBuzzShaperCallbackContext context{&shaper, &font, result->Direction()};
-  ShapingLineBreaker breaker(result, &break_iterator, nullptr,
-                             HarfBuzzShaperCallback, &context);
-  scoped_refptr<const ShapeResultView> line;
+  HarfBuzzShapingLineBreaker breaker(&shaper, font, result, &break_iterator,
+                                     nullptr);
+  const ShapeResultView* line = nullptr;
   unsigned break_offset = 0;
 
   // Test the case where the entire string fits.
@@ -189,19 +179,20 @@ TEST_F(ShapingLineBreakerTest, ShapeLineLatin) {
 }
 
 TEST_F(ShapingLineBreakerTest, ShapeLineLatinMultiLine) {
-  String string = To16Bit("Line breaking test case.", 24);
-  LazyLineBreakIterator break_iterator(string, "en-US", LineBreakType::kNormal);
+  Font* font = MakeGarbageCollected<Font>(font_description);
+
+  String string = To16Bit("Line breaking test case.");
+  LazyLineBreakIterator break_iterator(string, AtomicString("en-US"),
+                                       LineBreakType::kNormal);
   TextDirection direction = TextDirection::kLtr;
 
   HarfBuzzShaper shaper(string);
-  scoped_refptr<const ShapeResult> result = shaper.Shape(&font, direction);
-  scoped_refptr<const ShapeResult> first = shaper.Shape(&font, direction, 0, 4);
-  scoped_refptr<const ShapeResult> mid_third =
-      shaper.Shape(&font, direction, 0, 16);
+  const ShapeResult* result = shaper.Shape(font, direction);
+  const ShapeResult* first = shaper.Shape(font, direction, 0, 4);
+  const ShapeResult* mid_third = shaper.Shape(font, direction, 0, 16);
 
-  HarfBuzzShaperCallbackContext context{&shaper, &font, result->Direction()};
-  ShapingLineBreaker breaker(result, &break_iterator, nullptr,
-                             HarfBuzzShaperCallback, &context);
+  HarfBuzzShapingLineBreaker breaker(&shaper, font, result, &break_iterator,
+                                     nullptr);
   unsigned break_offset = 0;
 
   ShapeLine(&breaker, 0, result->SnappedWidth() - 1, &break_offset);
@@ -218,20 +209,20 @@ TEST_F(ShapingLineBreakerTest, ShapeLineLatinMultiLine) {
 }
 
 TEST_F(ShapingLineBreakerTest, ShapeLineLatinBreakAll) {
-  String string = To16Bit("Testing break type-break all.", 29);
-  LazyLineBreakIterator break_iterator(string, "en-US",
+  Font* font = MakeGarbageCollected<Font>(font_description);
+
+  String string = To16Bit("Testing break type-break all.");
+  LazyLineBreakIterator break_iterator(string, AtomicString("en-US"),
                                        LineBreakType::kBreakAll);
   TextDirection direction = TextDirection::kLtr;
 
   HarfBuzzShaper shaper(string);
-  scoped_refptr<const ShapeResult> result = shaper.Shape(&font, direction);
-  scoped_refptr<const ShapeResult> midpoint =
-      shaper.Shape(&font, direction, 0, 16);
+  const ShapeResult* result = shaper.Shape(font, direction);
+  const ShapeResult* midpoint = shaper.Shape(font, direction, 0, 16);
 
-  HarfBuzzShaperCallbackContext context{&shaper, &font, result->Direction()};
-  ShapingLineBreaker breaker(result, &break_iterator, nullptr,
-                             HarfBuzzShaperCallback, &context);
-  scoped_refptr<const ShapeResultView> line;
+  HarfBuzzShapingLineBreaker breaker(&shaper, font, result, &break_iterator,
+                                     nullptr);
+  const ShapeResultView* line;
   unsigned break_offset = 0;
 
   line = ShapeLine(&breaker, 0, midpoint->SnappedWidth(), &break_offset);
@@ -244,93 +235,48 @@ TEST_F(ShapingLineBreakerTest, ShapeLineLatinBreakAll) {
 }
 
 TEST_F(ShapingLineBreakerTest, ShapeLineZeroAvailableWidth) {
+  Font* font = MakeGarbageCollected<Font>(font_description);
+
   String string(u"Testing overflow line break.");
-  LazyLineBreakIterator break_iterator(string, "en-US", LineBreakType::kNormal);
+  LazyLineBreakIterator break_iterator(string, AtomicString("en-US"),
+                                       LineBreakType::kNormal);
   TextDirection direction = TextDirection::kLtr;
 
   HarfBuzzShaper shaper(string);
-  scoped_refptr<const ShapeResult> result = shaper.Shape(&font, direction);
+  const ShapeResult* result = shaper.Shape(font, direction);
 
-  HarfBuzzShaperCallbackContext context{&shaper, &font, result->Direction()};
-  ShapingLineBreaker breaker(result, &break_iterator, nullptr,
-                             HarfBuzzShaperCallback, &context);
-  scoped_refptr<const ShapeResultView> line;
+  HarfBuzzShapingLineBreaker breaker(&shaper, font, result, &break_iterator,
+                                     nullptr);
   unsigned break_offset = 0;
   LayoutUnit zero(0);
 
-  line = ShapeLine(&breaker, 0, zero, &break_offset);
+  ShapeLine(&breaker, 0, zero, &break_offset);
   EXPECT_EQ(7u, break_offset);
 
-  line = ShapeLine(&breaker, 7, zero, &break_offset);
+  ShapeLine(&breaker, 8, zero, &break_offset);
   EXPECT_EQ(16u, break_offset);
 
-  line = ShapeLine(&breaker, 16, zero, &break_offset);
+  ShapeLine(&breaker, 17, zero, &break_offset);
   EXPECT_EQ(21u, break_offset);
 
-  line = ShapeLine(&breaker, 21, zero, &break_offset);
+  ShapeLine(&breaker, 22, zero, &break_offset);
   EXPECT_EQ(28u, break_offset);
 }
 
-// Hits DCHECK at end of ShapingLineBreaker::ShapeLine, not clear if the test
-// is correct. Disabling for now.
-TEST_F(ShapingLineBreakerTest, DISABLED_ShapeLineArabicThaiHanLatin) {
-  UChar mixed_string[] = {0x628, 0x20,   0x64A, 0x629, 0x20,
-                          0xE20, 0x65E5, 0x62,  0};
-  LazyLineBreakIterator break_iterator(mixed_string, "ar_AE",
-                                       LineBreakType::kNormal);
-  TextDirection direction = TextDirection::kRtl;
-
-  HarfBuzzShaper shaper(mixed_string);
-  scoped_refptr<const ShapeResult> result = shaper.Shape(&font, direction);
-  scoped_refptr<const ShapeResult> words[] = {
-      shaper.Shape(&font, direction, 0, 1),
-      shaper.Shape(&font, direction, 2, 4),
-      shaper.Shape(&font, direction, 5, 6),
-      shaper.Shape(&font, direction, 6, 7),
-      shaper.Shape(&font, direction, 7, 8)};
-  auto* const longest_word =
-      std::max_element(std::begin(words), std::end(words),
-                       [](const scoped_refptr<const ShapeResult>& a,
-                          const scoped_refptr<const ShapeResult>& b) {
-                         return a->SnappedWidth() < b->SnappedWidth();
-                       });
-  LayoutUnit longest_word_width = (*longest_word)->SnappedWidth();
-
-  HarfBuzzShaperCallbackContext context{&shaper, &font, result->Direction()};
-  ShapingLineBreaker breaker(result, &break_iterator, nullptr,
-                             HarfBuzzShaperCallback, &context);
-  scoped_refptr<const ShapeResult> line;
-  unsigned break_offset = 0;
-
-  ShapeLine(&breaker, 0, longest_word_width, &break_offset);
-  EXPECT_EQ(1u, break_offset);
-
-  ShapeLine(&breaker, 1, longest_word_width, &break_offset);
-  EXPECT_EQ(4u, break_offset);
-
-  ShapeLine(&breaker, 4, longest_word_width, &break_offset);
-  EXPECT_EQ(6u, break_offset);
-
-  ShapeLine(&breaker, 6, longest_word_width, &break_offset);
-  EXPECT_EQ(7u, break_offset);
-
-  ShapeLine(&breaker, 7, longest_word_width, &break_offset);
-  EXPECT_EQ(8u, break_offset);
-}
-
 TEST_F(ShapingLineBreakerTest, ShapeLineRangeEndMidWord) {
+  Font* font = MakeGarbageCollected<Font>(font_description);
+
   String string(u"Mid word");
-  LazyLineBreakIterator break_iterator(string, "en-US", LineBreakType::kNormal);
+  LazyLineBreakIterator break_iterator(string, AtomicString("en-US"),
+                                       LineBreakType::kNormal);
   TextDirection direction = TextDirection::kLtr;
 
   HarfBuzzShaper shaper(string);
-  scoped_refptr<const ShapeResult> result =
-      shaper.Shape(&font, direction, 0, 2);
+  const ShapeResult* result = shaper.Shape(font, direction, 0, 2);
 
-  HarfBuzzShaperCallbackContext context{&shaper, &font, result->Direction()};
-  ShapingLineBreaker breaker(result, &break_iterator, nullptr,
-                             HarfBuzzShaperCallback, &context);
-  scoped_refptr<const ShapeResultView> line;
+  HarfBuzzShapingLineBreaker breaker(&shaper, font, result, &break_iterator,
+                                     nullptr);
+  const ShapeResultView* line;
   unsigned break_offset = 0;
 
   line = ShapeLine(&breaker, 0, LayoutUnit::Max(), &break_offset);
@@ -340,28 +286,27 @@ TEST_F(ShapingLineBreakerTest, ShapeLineRangeEndMidWord) {
 
 TEST_F(ShapingLineBreakerTest, ShapeLineWithLucidaFont) {
   SelectLucidaFont();
+  Font* font = MakeGarbageCollected<Font>(font_description);
+
   FontDescription::VariantLigatures ligatures;
   ligatures.common = FontDescription::kEnabledLigaturesState;
 
   //              012345678901234567890123456789012345
   String string(u"Lorem ipsum, consexx porttitxx. xxx");
-  LazyLineBreakIterator break_iterator(string, "en-US", LineBreakType::kNormal);
+  LazyLineBreakIterator break_iterator(string, AtomicString("en-US"),
+                                       LineBreakType::kNormal);
   // In LayoutNG we use kAfterSpaceRun as TextBreakIterator`s default behavior.
   break_iterator.SetBreakSpace(BreakSpaceType::kAfterSpaceRun);
   TextDirection direction = TextDirection::kLtr;
 
   HarfBuzzShaper shaper(string);
-  scoped_refptr<const ShapeResult> result =
-      shaper.Shape(&font, direction, 0, 35);
-  scoped_refptr<const ShapeResult> segment1 =
-      shaper.Shape(&font, direction, 13, 31);
-  scoped_refptr<const ShapeResult> segment2 =
-      shaper.Shape(&font, direction, 13, 32);
+  const ShapeResult* result = shaper.Shape(font, direction, 0, 35);
+  const ShapeResult* segment1 = shaper.Shape(font, direction, 13, 31);
+  const ShapeResult* segment2 = shaper.Shape(font, direction, 13, 32);
 
-  HarfBuzzShaperCallbackContext context{&shaper, &font, result->Direction()};
-  ShapingLineBreaker breaker(result, &break_iterator, nullptr,
-                             HarfBuzzShaperCallback, &context);
-  scoped_refptr<const ShapeResultView> line;
+  HarfBuzzShapingLineBreaker breaker(&shaper, font, result, &break_iterator,
+                                     nullptr);
+  const ShapeResultView* line;
   unsigned break_offset = 0;
 
   line = ShapeLine(&breaker, 13, segment1->SnappedWidth(), &break_offset);
@@ -371,6 +316,32 @@ TEST_F(ShapingLineBreakerTest, ShapeLineWithLucidaFont) {
   line = ShapeLine(&breaker, 13, segment2->SnappedWidth(), &break_offset);
   EXPECT_EQ(31u, break_offset);
   EXPECT_EQ(segment1->Width(), line->Width());
+}
+
+TEST_F(ShapingLineBreakerTest, HanKerningCloseUnsafe) {
+  // Create a condition where all of the following are true:
+  // 1. `ShouldTrimEnd(text_spacing_trim_)` (default).
+  // 2. The candidate break is `Character::MaybeHanKerningClose`; e.g., U+FF09.
+  // 3. After the candidate break is breakable.
+  Font* font = MakeGarbageCollected<Font>(font_description);
+  String string{u"x\uFF09\u3042"};
+  HarfBuzzShaper shaper(string);
+  ShapeResult* result = shaper.Shape(font, TextDirection::kLtr);
+  // 4. `ShapeResult::StartIndex` isn't 0.
+  const unsigned start_offset = 1;
+  ShapeResult* sub_result = result->SubRange(start_offset, result->EndIndex());
+  // 5. The candidate break isn't safe to break.
+  const unsigned unsafe_offsets[]{1};
+  sub_result->AddUnsafeToBreak(unsafe_offsets);
+  const LayoutUnit available_width =
+      LayoutUnit::FromFloatFloor(sub_result->PositionForOffset(1)) - 1;
+
+  LazyLineBreakIterator break_iterator(string);
+  HarfBuzzShapingLineBreaker breaker(&shaper, font, sub_result, &break_iterator,
+                                     nullptr);
+  unsigned break_offset = 0;
+  ShapeLine(&breaker, start_offset, available_width, &break_offset);
+  EXPECT_EQ(break_offset, 2u);
 }
 
 struct BreakOpportunityTestData {
@@ -386,29 +357,29 @@ class BreakOpportunityTest
 INSTANTIATE_TEST_SUITE_P(
     ShapingLineBreakerTest,
     BreakOpportunityTest,
-    testing::Values(BreakOpportunityTestData{u"x y z", {1, 3, 5}},
+    testing::Values(BreakOpportunityTestData{u"x y z", {2, 4, 5}},
                     BreakOpportunityTestData{u"y\xADz", {2, 3}, {3}},
                     BreakOpportunityTestData{u"\xADz", {1, 2}, {2}},
                     BreakOpportunityTestData{u"y\xAD", {2}, {2}},
                     BreakOpportunityTestData{u"\xAD\xADz", {2, 3}, {3}}));
 
 TEST_P(BreakOpportunityTest, Next) {
+  Font* font = MakeGarbageCollected<Font>(font_description);
+
   const BreakOpportunityTestData& data = GetParam();
   String string(data.string);
   LazyLineBreakIterator break_iterator(string);
 
   HarfBuzzShaper shaper(string);
-  scoped_refptr<const ShapeResult> result =
-      shaper.Shape(&font, TextDirection::kLtr);
+  const ShapeResult* result = shaper.Shape(font, TextDirection::kLtr);
 
-  HarfBuzzShaperCallbackContext context{&shaper, &font, result->Direction()};
-  ShapingLineBreaker breaker(result, &break_iterator, nullptr,
-                             HarfBuzzShaperCallback, &context);
+  HarfBuzzShapingLineBreaker breaker(&shaper, font, result, &break_iterator,
+                                     nullptr);
   EXPECT_THAT(BreakPositionsByNext(breaker, string),
               testing::ElementsAreArray(data.break_positions));
 
   if (!data.break_positions_with_soft_hyphen_disabled.empty()) {
-    breaker.DisableSoftHyphen();
+    break_iterator.EnableSoftHyphen(false);
     EXPECT_THAT(BreakPositionsByNext(breaker, string),
                 testing::ElementsAreArray(
                     data.break_positions_with_soft_hyphen_disabled));
@@ -416,21 +387,21 @@ TEST_P(BreakOpportunityTest, Next) {
 }
 
 TEST_P(BreakOpportunityTest, Previous) {
+  Font* font = MakeGarbageCollected<Font>(font_description);
+
   const BreakOpportunityTestData& data = GetParam();
   String string(data.string);
   LazyLineBreakIterator break_iterator(string);
   HarfBuzzShaper shaper(string);
-  scoped_refptr<const ShapeResult> result =
-      shaper.Shape(&font, TextDirection::kLtr);
+  const ShapeResult* result = shaper.Shape(font, TextDirection::kLtr);
 
-  HarfBuzzShaperCallbackContext context{&shaper, &font, result->Direction()};
-  ShapingLineBreaker breaker(result, &break_iterator, nullptr,
-                             HarfBuzzShaperCallback, &context);
+  HarfBuzzShapingLineBreaker breaker(&shaper, font, result, &break_iterator,
+                                     nullptr);
   EXPECT_THAT(BreakPositionsByPrevious(breaker, string),
               testing::ElementsAreArray(data.break_positions));
 
   if (!data.break_positions_with_soft_hyphen_disabled.empty()) {
-    breaker.DisableSoftHyphen();
+    break_iterator.EnableSoftHyphen(false);
     EXPECT_THAT(BreakPositionsByPrevious(breaker, string),
                 testing::ElementsAreArray(
                     data.break_positions_with_soft_hyphen_disabled));

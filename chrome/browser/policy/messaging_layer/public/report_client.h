@@ -6,18 +6,15 @@
 #define CHROME_BROWSER_POLICY_MESSAGING_LAYER_PUBLIC_REPORT_CLIENT_H_
 
 #include <memory>
-#include <utility>
 
-#include "base/functional/callback.h"
-#include "base/memory/singleton.h"
-#include "chrome/browser/policy/messaging_layer/upload/upload_provider.h"
+#include "build/build_config.h"
+#include "chrome/browser/policy/messaging_layer/util/reporting_server_connector.h"
 #include "components/reporting/client/report_queue_configuration.h"
 #include "components/reporting/client/report_queue_provider.h"
-#include "components/reporting/proto/synced/record.pb.h"
-#include "components/reporting/storage/storage_module.h"
-#include "components/reporting/storage/storage_module_interface.h"
-#include "components/reporting/storage/storage_uploader_interface.h"
-#include "components/reporting/util/statusor.h"
+
+#if !BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/policy/messaging_layer/upload/upload_provider.h"
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 namespace reporting {
 
@@ -25,33 +22,34 @@ namespace reporting {
 // (currently only primary Chrome is supported, and so the client expects
 // cloud policy client to be available and creates an uploader to use it.
 
-class ReportingClient : public ReportQueueProvider {
+class ReportingClient : public ReportQueueProvider,
+                        public ReportingServerConnector::Observer {
  public:
   // RAII class for testing ReportingClient - substitutes reporting files
   // location, signature verification public key and a cloud policy client
   // builder to return given client. Resets client when destructed.
   class TestEnvironment;
 
+  // Factory method creates client to be deletable on the provided task runner.
+  // It also registers it as current `ReportQueueProvider`.
+  // This registration is reset when the client is deleted.
+  static SmartPtr<ReportingClient> Create(
+      scoped_refptr<base::SequencedTaskRunner> sequenced_task_runner);
+
   ~ReportingClient() override;
   ReportingClient(const ReportingClient& other) = delete;
   ReportingClient& operator=(const ReportingClient& other) = delete;
 
  private:
+#if !BUILDFLAG(IS_CHROMEOS)
   class Uploader;
-
+#endif  // !BUILDFLAG(IS_CHROMEOS)
   friend class ReportQueueProvider;
-  friend class RecordHandlerImpl;
-  friend class FileUploadJob;
-  friend struct base::DefaultSingletonTraits<ReportingClient>;
+  friend class TestEnvironment;
 
-  // Constructor to be used by singleton only.
-  ReportingClient();
-
-  // Accesses singleton ReportingClient instance.
-  // Separate from ReportQueueProvider::GetInstance, because
-  // Singleton<ReportingClient>::get() can only be used inside ReportingClient
-  // class.
-  static ReportingClient* GetInstance();
+  // Constructor to be used by factory only.
+  explicit ReportingClient(
+      scoped_refptr<base::SequencedTaskRunner> sequenced_task_runner);
 
   // Configures the report queue config with an appropriate DM token after its
   // retrieval for downstream processing, and triggers the corresponding
@@ -61,21 +59,20 @@ class ReportingClient : public ReportQueueProvider {
       ReportQueueProvider::ReportQueueConfiguredCallback completion_cb)
       override;
 
+  // ReportingServerConnector::Observer implementation.
+  void OnConnected() override;
+  void OnDisconnected() override;
+
+#if !BUILDFLAG(IS_CHROMEOS)
   //
   // Everything below is used in Local storage case only.
   //
-
-  static void CreateLocalStorageModule(
-      const base::FilePath& local_reporting_path,
-      base::StringPiece verification_key,
-      CompressionInformation::CompressionAlgorithm compression_algorithm,
-      UploaderInterface::AsyncStartUploaderCb async_start_upload_cb,
-      base::OnceCallback<void(StatusOr<scoped_refptr<StorageModuleInterface>>)>
-          cb);
-
-  static StorageModule* GetLocalStorageModule();
+  static std::unique_ptr<EncryptedReportingUploadProvider>
+  CreateLocalUploadProvider(
+      scoped_refptr<StorageModuleInterface> storage_module);
 
   static void AsyncStartUploader(
+      base::WeakPtr<ReportQueueProvider> instance,
       UploaderInterface::UploadReason reason,
       UploaderInterface::UploaderInterfaceResultCb start_uploader_cb);
 
@@ -83,11 +80,9 @@ class ReportingClient : public ReportQueueProvider {
       UploaderInterface::UploadReason reason,
       UploaderInterface::UploaderInterfaceResultCb start_uploader_cb);
 
-  // Returns upload provider for the client in case of local storage.
-  std::unique_ptr<EncryptedReportingUploadProvider> CreateLocalUploadProvider();
-
   // Upload provider (if enabled).
   std::unique_ptr<EncryptedReportingUploadProvider> upload_provider_;
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 };
 }  // namespace reporting
 

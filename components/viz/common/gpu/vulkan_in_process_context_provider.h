@@ -14,11 +14,7 @@
 #include "components/viz/common/gpu/vulkan_context_provider.h"
 #include "components/viz/common/viz_vulkan_context_provider_export.h"
 #include "gpu/vulkan/buildflags.h"
-#include "third_party/skia/include/gpu/GrContextOptions.h"
-
-#if BUILDFLAG(ENABLE_VULKAN)
-#include "third_party/skia/include/gpu/vk/GrVkBackendContext.h"
-#endif
+#include "third_party/skia/include/gpu/ganesh/GrContextOptions.h"
 
 namespace gpu {
 class VulkanImplementation;
@@ -69,7 +65,7 @@ class VIZ_VULKAN_CONTEXT_PROVIDER_EXPORT VulkanInProcessContextProvider
   void EnqueueSecondaryCBSemaphores(
       std::vector<VkSemaphore> semaphores) override;
   void EnqueueSecondaryCBPostSubmitTask(base::OnceClosure closure) override;
-  absl::optional<uint32_t> GetSyncCpuMemoryLimit() const override;
+  std::optional<uint32_t> GetSyncCpuMemoryLimit() const override;
 
  private:
   friend class VulkanInProcessContextProviderTest;

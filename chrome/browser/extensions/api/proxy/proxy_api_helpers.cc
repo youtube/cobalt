@@ -15,6 +15,7 @@
 
 #include <stddef.h>
 
+#include <array>
 #include <iterator>
 #include <utility>
 
@@ -36,22 +37,6 @@ namespace extensions {
 
 namespace proxy_api_helpers {
 
-// The names of the schemes to be used to build the preference value string
-// for manual proxy settings.  These must be kept in sync with the SCHEME_*
-// constants.
-constexpr const char* scheme_name[] = {"*error*", "http", "https", "ftp",
-                                       "socks"};
-
-constexpr const char* field_name[] = {"singleProxy", "proxyForHttp",
-                                      "proxyForHttps", "proxyForFtp",
-                                      "fallbackProxy"};
-
-static_assert(SCHEME_MAX == SCHEME_FALLBACK, "SCHEME_MAX is incorrect");
-static_assert(std::size(field_name) == SCHEME_MAX + 1,
-              "field_name array size is incorrect");
-static_assert(std::size(scheme_name) == SCHEME_MAX + 1,
-              "scheme_name array size is incorrect");
-static_assert(SCHEME_ALL == 0, "SCHEME_ALL must be the first value");
 
 std::string CreateDataURLFromPACScript(const std::string& pac_script) {
   // Prefix that identifies PAC-script encoding urls.
@@ -59,8 +44,7 @@ std::string CreateDataURLFromPACScript(const std::string& pac_script) {
       "data:application/x-ns-proxy-autoconfig;base64,";
 
   // Encode pac_script in base64.
-  std::string pac_script_base64_encoded;
-  base::Base64Encode(pac_script, &pac_script_base64_encoded);
+  std::string pac_script_base64_encoded = base::Base64Encode(pac_script);
 
   // Make it a correct data url.
   return kPACDataUrlPrefix + pac_script_base64_encoded;
@@ -249,15 +233,15 @@ bool GetProxyRulesStringFromExtensionPref(const base::Value::Dict& proxy_config,
   // Local data into which the parameters will be parsed. has_proxy describes
   // whether a setting was found for the scheme; proxy_server holds the
   // respective ProxyServer objects containing those descriptions.
-  bool has_proxy[SCHEME_MAX + 1];
-  net::ProxyServer proxy_server[SCHEME_MAX + 1];
+  std::array<bool, SCHEME_MAX + 1> has_proxy;
+  std::array<net::ProxyServer, SCHEME_MAX + 1> proxy_server;
 
   // Looking for all possible proxy types is inefficient if we have a
   // singleProxy that will supersede per-URL proxies, but it's worth it to keep
   // the code simple and extensible.
   for (size_t i = 0; i <= SCHEME_MAX; ++i) {
     const base::Value::Dict* proxy_dict =
-        proxy_rules->FindDictByDottedPath(field_name[i]);
+        proxy_rules->FindDictByDottedPath(kFieldNames[i]);
     has_proxy[i] = proxy_dict != nullptr;
     if (has_proxy[i]) {
       net::ProxyServer::Scheme default_scheme = net::ProxyServer::SCHEME_HTTP;
@@ -275,7 +259,7 @@ bool GetProxyRulesStringFromExtensionPref(const base::Value::Dict& proxy_config,
       if (has_proxy[i]) {
         *error = ErrorUtils::FormatErrorMessage(
             "Proxy rule for * and * cannot be set at the same time.",
-            field_name[SCHEME_ALL], field_name[i]);
+            kFieldNames[SCHEME_ALL], kFieldNames[i]);
         return false;
       }
     }
@@ -292,7 +276,7 @@ bool GetProxyRulesStringFromExtensionPref(const base::Value::Dict& proxy_config,
       // http=foopy:4010;ftp=socks5://foopy2:80
       if (!proxy_pref.empty())
         proxy_pref.append(";");
-      proxy_pref.append(scheme_name[i]);
+      proxy_pref.append(kSchemeNames[i]);
       proxy_pref.append("=");
       proxy_pref.append(net::ProxyServerToProxyUri(proxy_server[i]));
     }
@@ -355,7 +339,7 @@ bool GetBypassListFromExtensionPref(const base::Value::Dict& proxy_config,
   return JoinUrlList(bypass_list->GetList(), ",", out, error, bad_message);
 }
 
-absl::optional<base::Value::Dict> CreateProxyConfigDict(
+std::optional<base::Value::Dict> CreateProxyConfigDict(
     ProxyPrefs::ProxyMode mode_enum,
     bool pac_mandatory,
     const std::string& pac_url,
@@ -378,14 +362,14 @@ absl::optional<base::Value::Dict> CreateProxyConfigDict(
         *error =
             "Proxy mode 'pac_script' requires a 'pacScript' field with "
             "either a 'url' field or a 'data' field.";
-        return absl::nullopt;
+        return std::nullopt;
       }
       return ProxyConfigDictionary::CreatePacScript(url, pac_mandatory);
     }
     case ProxyPrefs::MODE_FIXED_SERVERS: {
       if (proxy_rules_string.empty()) {
         *error = "Proxy mode 'fixed_servers' requires a 'rules' field.";
-        return absl::nullopt;
+        return std::nullopt;
       }
       return ProxyConfigDictionary::CreateFixedServers(proxy_rules_string,
                                                        bypass_list);
@@ -395,10 +379,10 @@ absl::optional<base::Value::Dict> CreateProxyConfigDict(
     case ProxyPrefs::kModeCount:
       NOTREACHED();
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-absl::optional<base::Value::Dict> CreateProxyRulesDict(
+std::optional<base::Value::Dict> CreateProxyRulesDict(
     const ProxyConfigDictionary& proxy_config) {
   ProxyPrefs::ProxyMode mode;
   CHECK(proxy_config.GetMode(&mode) && mode == ProxyPrefs::MODE_FIXED_SERVERS);
@@ -406,7 +390,7 @@ absl::optional<base::Value::Dict> CreateProxyRulesDict(
   std::string proxy_servers;
   if (!proxy_config.GetProxyServer(&proxy_servers)) {
     LOG(ERROR) << "Missing proxy servers in configuration.";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   base::Value::Dict extension_proxy_rules;
@@ -416,34 +400,34 @@ absl::optional<base::Value::Dict> CreateProxyRulesDict(
 
   switch (rules.type) {
     case net::ProxyConfig::ProxyRules::Type::EMPTY:
-      return absl::nullopt;
+      return std::nullopt;
     case net::ProxyConfig::ProxyRules::Type::PROXY_LIST:
       if (!rules.single_proxies.IsEmpty()) {
         extension_proxy_rules.Set(
-            field_name[SCHEME_ALL],
-            CreateProxyServerDict(rules.single_proxies.Get()));
+            kFieldNames[SCHEME_ALL],
+            CreateProxyServerDict(rules.single_proxies.First()));
       }
       break;
     case net::ProxyConfig::ProxyRules::Type::PROXY_LIST_PER_SCHEME:
       if (!rules.proxies_for_http.IsEmpty()) {
         extension_proxy_rules.Set(
-            field_name[SCHEME_HTTP],
-            CreateProxyServerDict(rules.proxies_for_http.Get()));
+            kFieldNames[SCHEME_HTTP],
+            CreateProxyServerDict(rules.proxies_for_http.First()));
       }
       if (!rules.proxies_for_https.IsEmpty()) {
         extension_proxy_rules.Set(
-            field_name[SCHEME_HTTPS],
-            CreateProxyServerDict(rules.proxies_for_https.Get()));
+            kFieldNames[SCHEME_HTTPS],
+            CreateProxyServerDict(rules.proxies_for_https.First()));
       }
       if (!rules.proxies_for_ftp.IsEmpty()) {
         extension_proxy_rules.Set(
-            field_name[SCHEME_FTP],
-            CreateProxyServerDict(rules.proxies_for_ftp.Get()));
+            kFieldNames[SCHEME_FTP],
+            CreateProxyServerDict(rules.proxies_for_ftp.First()));
       }
       if (!rules.fallback_proxies.IsEmpty()) {
         extension_proxy_rules.Set(
-            field_name[SCHEME_FALLBACK],
-            CreateProxyServerDict(rules.fallback_proxies.Get()));
+            kFieldNames[SCHEME_FALLBACK],
+            CreateProxyServerDict(rules.fallback_proxies.First()));
       }
       break;
   }
@@ -456,7 +440,7 @@ absl::optional<base::Value::Dict> CreateProxyRulesDict(
     std::string bypass_list_string;
     if (!proxy_config.GetBypassList(&bypass_list_string)) {
       LOG(ERROR) << "Invalid bypassList in configuration.";
-      return absl::nullopt;
+      return std::nullopt;
     }
     base::Value::List bypass_list =
         TokenizeToStringList(bypass_list_string, ",;");
@@ -467,9 +451,11 @@ absl::optional<base::Value::Dict> CreateProxyRulesDict(
   return extension_proxy_rules;
 }
 
-base::Value::Dict CreateProxyServerDict(const net::ProxyServer& proxy) {
+base::Value::Dict CreateProxyServerDict(const net::ProxyChain& proxy_chain) {
   base::Value::Dict out;
   const char* scheme = nullptr;
+  CHECK(proxy_chain.is_single_proxy());
+  const net::ProxyServer& proxy = proxy_chain.First();
   switch (proxy.scheme()) {
     case net::ProxyServer::SCHEME_HTTP:
       scheme = "http";
@@ -486,10 +472,8 @@ base::Value::Dict CreateProxyServerDict(const net::ProxyServer& proxy) {
     case net::ProxyServer::SCHEME_SOCKS5:
       scheme = "socks5";
       break;
-    case net::ProxyServer::SCHEME_DIRECT:
     case net::ProxyServer::SCHEME_INVALID:
       NOTREACHED();
-      return out;
   }
   out.Set(proxy_api_constants::kProxyConfigRuleScheme, scheme);
   out.Set(proxy_api_constants::kProxyConfigRuleHost,
@@ -499,7 +483,7 @@ base::Value::Dict CreateProxyServerDict(const net::ProxyServer& proxy) {
   return out;
 }
 
-absl::optional<base::Value::Dict> CreatePacScriptDict(
+std::optional<base::Value::Dict> CreatePacScriptDict(
     const ProxyConfigDictionary& proxy_config) {
   ProxyPrefs::ProxyMode mode;
   CHECK(proxy_config.GetMode(&mode) && mode == ProxyPrefs::MODE_PAC_SCRIPT);
@@ -507,12 +491,12 @@ absl::optional<base::Value::Dict> CreatePacScriptDict(
   std::string pac_url;
   if (!proxy_config.GetPacUrl(&pac_url)) {
     LOG(ERROR) << "Invalid proxy configuration. Missing PAC URL.";
-    return absl::nullopt;
+    return std::nullopt;
   }
   bool pac_mandatory = false;
   if (!proxy_config.GetPacMandatory(&pac_mandatory)) {
     LOG(ERROR) << "Invalid proxy configuration. Missing PAC mandatory field.";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   base::Value::Dict pac_script_dict;
@@ -520,7 +504,7 @@ absl::optional<base::Value::Dict> CreatePacScriptDict(
     std::string pac_data;
     if (!CreatePACScriptFromDataURL(pac_url, &pac_data)) {
       LOG(ERROR) << "Cannot decode base64-encoded PAC data URL: " << pac_url;
-      return absl::nullopt;
+      return std::nullopt;
     }
     pac_script_dict.Set(proxy_api_constants::kProxyConfigPacScriptData,
                         pac_data);
@@ -529,7 +513,7 @@ absl::optional<base::Value::Dict> CreatePacScriptDict(
   }
   pac_script_dict.Set(proxy_api_constants::kProxyConfigPacScriptMandatory,
                       pac_mandatory);
-  return absl::make_optional(std::move(pac_script_dict));
+  return std::make_optional(std::move(pac_script_dict));
 }
 
 base::Value::List TokenizeToStringList(const std::string& in,

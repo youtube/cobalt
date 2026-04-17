@@ -38,17 +38,17 @@ CSSMathMax* CSSMathMax::Create(CSSNumericValueVector values) {
                      final_type);
 }
 
-absl::optional<CSSNumericSumValue> CSSMathMax::SumValue() const {
+std::optional<CSSNumericSumValue> CSSMathMax::SumValue() const {
   auto cur_max = NumericValues()[0]->SumValue();
   if (!cur_max.has_value() || cur_max->terms.size() != 1) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   for (const auto& value : NumericValues()) {
     const auto child_sum = value->SumValue();
     if (!child_sum.has_value() || child_sum->terms.size() != 1 ||
         child_sum->terms[0].units != cur_max->terms[0].units) {
-      return absl::nullopt;
+      return std::nullopt;
     }
 
     if (child_sum->terms[0].value > cur_max->terms[0].value) {
@@ -84,7 +84,6 @@ CSSMathExpressionNode* CSSMathMax::ToCalcExpressionNode() const {
       // TODO(crbug.com/983784): Remove this when all ToCalcExpressionNode()
       // overrides are implemented.
       NOTREACHED();
-      continue;
     }
     operands.push_back(value->ToCalcExpressionNode());
   }
@@ -92,7 +91,6 @@ CSSMathExpressionNode* CSSMathMax::ToCalcExpressionNode() const {
     // TODO(crbug.com/983784): Remove this when all ToCalcExpressionNode()
     // overrides are implemented.
     NOTREACHED();
-    return nullptr;
   }
   return CSSMathExpressionOperation::CreateComparisonFunction(
       std::move(operands), CSSMathOperator::kMax);

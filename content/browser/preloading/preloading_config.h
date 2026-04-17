@@ -5,17 +5,25 @@
 #ifndef CONTENT_BROWSER_PRELOADING_PRELOADING_CONFIG_H_
 #define CONTENT_BROWSER_PRELOADING_PRELOADING_CONFIG_H_
 
-#include <base/no_destructor.h>
+#include <string_view>
+
 #include "base/containers/flat_map.h"
 #include "base/feature_list.h"
-#include "base/strings/string_piece_forward.h"
+#include "base/no_destructor.h"
 #include "base/values.h"
 #include "content/public/browser/preloading.h"
 
 namespace content {
 
+namespace test {
+class PreloadingConfigOverride;
+}  //  namespace test
+
 class CONTENT_EXPORT PreloadingConfig {
  public:
+  PreloadingConfig();
+  ~PreloadingConfig();
+
   static PreloadingConfig& GetInstance();
 
   // Whether the given (|preloading_type|, |predictor|) combination should be
@@ -36,10 +44,10 @@ class CONTENT_EXPORT PreloadingConfig {
   void ParseConfig();
 
  private:
-  friend class base::NoDestructor<PreloadingConfig>;
+  friend class content::test::PreloadingConfigOverride;
 
   struct Key {
-    Key(base::StringPiece preloading_type, base::StringPiece predictdor);
+    Key(std::string_view preloading_type, std::string_view predictdor);
     static Key FromEnums(PreloadingType preloading_type,
                          PreloadingPredictor predictor);
 
@@ -58,8 +66,20 @@ class CONTENT_EXPORT PreloadingConfig {
     bool operator()(const Key& lhs, const Key& rhs) const;
   };
 
-  PreloadingConfig();
-  ~PreloadingConfig();
+  // Overrides the PreloadingConfig for testing. Returns the previous override,
+  // if any.  The caller is responsible for calling OverrideForTesting with the
+  // previous value once they're done.
+  static PreloadingConfig* OverrideForTesting(
+      PreloadingConfig* config_override);
+
+  // Sets whether the given feature should be held back (disabled) and prevents
+  // sampling UKM logs for that feature.
+  void SetHoldbackForTesting(PreloadingType preloading_type,
+                             PreloadingPredictor predictor,
+                             bool holdback);
+  void SetHoldbackForTesting(std::string_view preloading_type,
+                             std::string_view predictdor,
+                             bool holdback);
 
   base::flat_map<Key, Entry, KeyCompare> entries_;
 };

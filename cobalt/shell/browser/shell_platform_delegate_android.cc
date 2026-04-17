@@ -21,7 +21,6 @@
 #include "base/command_line.h"
 #include "base/containers/contains.h"
 #include "base/notreached.h"
-#include "base/strings/string_piece.h"
 #include "cobalt/shell/android/cobalt_shell_jni_headers/Shell_jni.h"
 #include "cobalt/shell/android/shell_manager.h"
 #include "cobalt/shell/browser/shell.h"
@@ -44,12 +43,16 @@ struct ShellPlatformDelegate::PlatformData {};
 
 ShellPlatformDelegate::ShellPlatformDelegate() = default;
 
-void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size) {
+void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size,
+                                       bool is_visible) {
+  is_visible_ = is_visible;
   // |platform_| is not used on this platform.
 }
 
 ShellPlatformDelegate::~ShellPlatformDelegate() {
-  DestroyShellManager();
+  if (!skip_for_testing_) {
+    DestroyShellManager();
+  }
 }
 
 void ShellPlatformDelegate::CreatePlatformWindow(
@@ -81,6 +84,25 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
   ShellData& shell_data = shell_data_map_[shell];
 
   Java_Shell_initFromNativeTabContents(
+      env, shell_data.java_object, shell->web_contents()->GetJavaWebContents());
+}
+
+void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {
+  JNIEnv* env = AttachCurrentThread();
+  DCHECK(base::Contains(shell_data_map_, shell));
+  ShellData& shell_data = shell_data_map_[shell];
+
+  Java_Shell_loadSplashScreenNativeTabContents(
+      env, shell_data.java_object,
+      shell->splash_screen_web_contents()->GetJavaWebContents());
+}
+
+void ShellPlatformDelegate::UpdateContents(Shell* shell) {
+  JNIEnv* env = AttachCurrentThread();
+  DCHECK(base::Contains(shell_data_map_, shell));
+  ShellData& shell_data = shell_data_map_[shell];
+
+  Java_Shell_updateNativeTabContents(
       env, shell_data.java_object, shell->web_contents()->GetJavaWebContents());
 }
 
@@ -128,6 +150,14 @@ bool ShellPlatformDelegate::DestroyShell(Shell* shell) {
   return false;  // Shell destroys itself.
 }
 
+void ShellPlatformDelegate::CreatePlatformWindowInternal(
+    Shell* shell,
+    const gfx::Size& initial_size) {}
+
+void ShellPlatformDelegate::RevealShell(Shell* shell) {}
+
+void ShellPlatformDelegate::ConcealShell(Shell* shell) {}
+
 void ShellPlatformDelegate::ToggleFullscreenModeForTab(
     Shell* shell,
     WebContents* web_contents,
@@ -156,8 +186,7 @@ void ShellPlatformDelegate::SetOverlayMode(Shell* shell,
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
-  return Java_Shell_setOverlayMode(env, shell_data.java_object,
-                                   use_overlay_mode);
+  Java_Shell_setOverlayMode(env, shell_data.java_object, use_overlay_mode);
 }
 
 void ShellPlatformDelegate::LoadProgressChanged(Shell* shell, double progress) {
@@ -166,6 +195,12 @@ void ShellPlatformDelegate::LoadProgressChanged(Shell* shell, double progress) {
   ShellData& shell_data = shell_data_map_[shell];
 
   Java_Shell_onLoadProgressChanged(env, shell_data.java_object, progress);
+}
+
+// static
+void JNI_Shell_LoadSplashScreenWebContents(JNIEnv* env, jlong shellPtr) {
+  Shell* shell = reinterpret_cast<Shell*>(shellPtr);
+  shell->LoadSplashScreenWebContents();
 }
 
 // static

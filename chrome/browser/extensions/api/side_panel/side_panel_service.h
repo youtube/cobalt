@@ -10,6 +10,7 @@
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
 #include "base/scoped_observation.h"
+#include "base/types/expected.h"
 #include "chrome/common/extensions/api/side_panel.h"
 #include "extensions/browser/browser_context_keyed_api_factory.h"
 #include "extensions/browser/extension_registry.h"
@@ -51,10 +52,15 @@ class SidePanelService : public BrowserContextKeyedAPI,
   // `extension` and `tab_id`.
   bool HasSidePanelActionForTab(const Extension& extension, TabId tab_id);
 
+  // Returns if there is an action to toggle the side panel from the extension
+  // context menu for the given `extension` and `tab_id`.
+  bool HasSidePanelContextMenuActionForTab(const Extension& extension,
+                                           TabId tab_id);
+
   // Get options for `tab_id`. Options are loaded in order first from service
   // storage, manifest, or an empty object will be returned, if they're unset.
   api::side_panel::PanelOptions GetOptions(const Extension& extension,
-                                           absl::optional<TabId> tab_id);
+                                           std::optional<TabId> tab_id);
 
   // Get options that were set for `tab_id`. If no options were specifically
   // set, returns an empty object instead of falling back to default options.
@@ -78,6 +84,38 @@ class SidePanelService : public BrowserContextKeyedAPI,
   void SetOpenSidePanelOnIconClick(const ExtensionId& extension_id,
                                    bool open_side_panel_on_icon_click);
 
+  // Opens the `extension`'s side panel for the specified `tab_id` and profile
+  // specified by `context`. Handles properly determining if the side panel to
+  // be opened is a global or contextual panel. `include_incognito_information`
+  // indicates whether the registry should allow crossing incognito contexts
+  // when looking up `tab_id`. If `window_id` is specified, checks that the
+  // given `tab_id` belongs to the `window_id`. Returns true on success; returns
+  // an error string on failure.
+  // TODO(crbug.com/40064601): Return an enum here to indicate if the
+  // panel was newly-opened vs already-opened in order to support waiting for
+  // the panel to open?
+  base::expected<bool, std::string> OpenSidePanelForTab(
+      const Extension& extension,
+      content::BrowserContext* context,
+      int tab_id,
+      std::optional<int> window_id,
+      bool include_incognito_information);
+
+  // Opens the `extension`'s side panel for the specified `window_id` and
+  // profile specified by `context`. This is only valid if the extension has a
+  // registered global side panel. This will not override any contextual panels
+  // in the window. `include_incognito_information` indicates whether the
+  // registry should allow crossing incognito contexts when looking up `tab_id`.
+  // Returns true on success; returns an error string on failure.
+  // TODO(crbug.com/40064601): Return an enum here to indicate if the
+  // panel was newly-opened vs already-opened in order to support waiting for
+  // the panel to open?
+  base::expected<bool, std::string> OpenSidePanelForWindow(
+      const Extension& extension,
+      content::BrowserContext* context,
+      int window_id,
+      bool include_incognito_information);
+
   // Adds or removes observers.
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
@@ -91,6 +129,9 @@ class SidePanelService : public BrowserContextKeyedAPI,
   static const char* service_name() { return "SidePanelService"; }
   static const bool kServiceRedirectedInIncognito = true;
   static const bool kServiceIsNULLWhileTesting = true;
+
+  // Returns if there is an extension side panel for `tab_id`.
+  bool HasSidePanelAvailableForTab(const Extension& extension, TabId tab_id);
 
   // Remove extension id and associated options from `panels_`.
   void RemoveExtensionOptions(const ExtensionId& id);

@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/modules/webaudio/audio_worklet_handler.h"
 
+#include "base/compiler_specific.h"
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/renderer/bindings/core/v8/serialization/serialized_script_value.h"
 #include "third_party/blink/renderer/bindings/core/v8/to_v8_traits.h"
@@ -24,6 +25,7 @@
 #include "third_party/blink/renderer/modules/webaudio/cross_thread_audio_worklet_processor_info.h"
 #include "third_party/blink/renderer/platform/audio/audio_bus.h"
 #include "third_party/blink/renderer/platform/audio/audio_utilities.h"
+#include "third_party/blink/renderer/platform/audio/denormal_disabler.h"
 #include "third_party/blink/renderer/platform/bindings/exception_messages.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
@@ -45,9 +47,11 @@ AudioWorkletHandler::AudioWorkletHandler(
     String name,
     HashMap<String, scoped_refptr<AudioParamHandler>> param_handler_map,
     const AudioWorkletNodeOptions* options)
-    : AudioHandler(kNodeTypeAudioWorklet, node, sample_rate),
+    : AudioHandler(NodeType::kNodeTypeAudioWorklet, node, sample_rate),
       name_(name),
-      param_handler_map_(param_handler_map) {
+      param_handler_map_(param_handler_map),
+      allow_denormal_in_processing_(base::FeatureList::IsEnabled(
+          features::kWebAudioAllowDenormalInProcessing)) {
   DCHECK(IsMainThread());
 
   for (const auto& param_name : param_handler_map_.Keys()) {
@@ -71,9 +75,11 @@ AudioWorkletHandler::AudioWorkletHandler(
     AddOutput(is_output_channel_count_given_ ? options->outputChannelCount()[i]
                                              : kDefaultNumberOfOutputChannels);
   }
-  // Same for the outputs as well.
+  // Same for the outputs and the unconnected ones as well.
   outputs_.ReserveInitialCapacity(options->numberOfOutputs());
   outputs_.resize(options->numberOfOutputs());
+  unconnected_outputs_.ReserveInitialCapacity(options->numberOfOutputs());
+  unconnected_outputs_.resize(options->numberOfOutputs());
 
   if (Context()->GetExecutionContext()) {
     // Cross-thread tasks between AWN/AWP is okay to be throttled, thus
@@ -89,6 +95,7 @@ AudioWorkletHandler::AudioWorkletHandler(
 AudioWorkletHandler::~AudioWorkletHandler() {
   inputs_.clear();
   outputs_.clear();
+  unconnected_outputs_.clear();
   param_handler_map_.clear();
   param_value_map_.clear();
   Uninitialize();
@@ -104,7 +111,7 @@ scoped_refptr<AudioWorkletHandler> AudioWorkletHandler::Create(
                                                 param_handler_map, options));
 }
 
-void AudioWorkletHandler::Process(uint32_t frames_to_process) {
+void AudioWorkletHandler::ProcessInternal(uint32_t frames_to_process) {
   DCHECK(Context()->IsAudioThread());
 
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("webaudio.audionode"),
@@ -114,7 +121,9 @@ void AudioWorkletHandler::Process(uint32_t frames_to_process) {
   // state. If so, silence the connected outputs and return.
   if (!processor_ || processor_->hasErrorOccurred()) {
     for (unsigned i = 0; i < NumberOfOutputs(); ++i) {
-      Output(i).Bus()->Zero();
+      if (Output(i).IsConnectedDuringRendering()) {
+        Output(i).Bus()->Zero();
+      }
     }
     return;
   }
@@ -125,9 +134,21 @@ void AudioWorkletHandler::Process(uint32_t frames_to_process) {
     inputs_[i] = Input(i).IsConnected() ? Input(i).Bus() : nullptr;
   }
   for (unsigned i = 0; i < NumberOfOutputs(); ++i) {
-    outputs_[i] = Output(i).RenderingFanOutCount() > 0
-                      ? WrapRefCounted(Output(i).Bus())
-                      : nullptr;
+    if (!Output(i).IsConnectedDuringRendering()) {
+      // If the output does not have an active outgoing connection, the handler
+      // needs to provide an AudioBus for the AudioWorkletProcessor.
+      if (!unconnected_outputs_[i] ||
+          !unconnected_outputs_[i]->TopologyMatches(*Output(i).Bus())) {
+        unconnected_outputs_[i] =
+            AudioBus::Create(Output(i).Bus()->NumberOfChannels(),
+                             GetDeferredTaskHandler().RenderQuantumFrames());
+      }
+      outputs_[i] = unconnected_outputs_[i];
+    } else {
+      // If there is one or more outgoing connection, use the AudioBus from the
+      // output object.
+      outputs_[i] = WrapRefCounted(Output(i).Bus());
+    }
   }
 
   for (const auto& param_name : param_value_map_.Keys()) {
@@ -136,10 +157,10 @@ void AudioWorkletHandler::Process(uint32_t frames_to_process) {
     if (param_handler->HasSampleAccurateValues() &&
         param_handler->IsAudioRate()) {
       param_handler->CalculateSampleAccurateValues(
-          param_values->Data(), static_cast<uint32_t>(frames_to_process));
+          param_values->as_span().first(frames_to_process));
     } else {
       std::fill(param_values->Data(),
-                param_values->Data() + frames_to_process,
+                UNSAFE_TODO(param_values->Data() + frames_to_process),
                 param_handler->FinalValue());
     }
   }
@@ -150,6 +171,15 @@ void AudioWorkletHandler::Process(uint32_t frames_to_process) {
   if (!processor_->Process(inputs_, outputs_, param_value_map_) ||
       processor_->hasErrorOccurred()) {
     FinishProcessorOnRenderThread();
+  }
+}
+
+void AudioWorkletHandler::Process(uint32_t frames_to_process) {
+  if (allow_denormal_in_processing_) {
+    DenormalEnabler denormal_enabler;
+    ProcessInternal(frames_to_process);
+  } else {
+    ProcessInternal(frames_to_process);
   }
 }
 
@@ -203,8 +233,8 @@ double AudioWorkletHandler::TailTime() const {
 
 void AudioWorkletHandler::SetProcessorOnRenderThread(
     AudioWorkletProcessor* processor) {
-  // TODO(hongchan): unify the thread ID check. The thread ID for this call
-  // is different from `Context()->IsAudiothread()`.
+  // TODO(crbug.com/1071917): unify the thread ID check. The thread ID for this
+  // call may be different from `Context()->IsAudiothread()`.
   DCHECK(!IsMainThread());
 
   // `processor` can be `nullptr` when the invocation of user-supplied
@@ -216,7 +246,8 @@ void AudioWorkletHandler::SetProcessorOnRenderThread(
     PostCrossThreadTask(
         *main_thread_task_runner_, FROM_HERE,
         CrossThreadBindOnce(
-            &AudioWorkletHandler::NotifyProcessorError, AsWeakPtr(),
+            &AudioWorkletHandler::NotifyProcessorError,
+            weak_ptr_factory_.GetWeakPtr(),
             AudioWorkletProcessorErrorState::kConstructionError));
   }
 }
@@ -227,11 +258,13 @@ void AudioWorkletHandler::FinishProcessorOnRenderThread() {
   // If the user-supplied code is not runnable (i.e. threw an exception)
   // anymore after the process() call above. Invoke error on the main thread.
   AudioWorkletProcessorErrorState error_state = processor_->GetErrorState();
-  if (error_state == AudioWorkletProcessorErrorState::kProcessError) {
+  if (error_state == AudioWorkletProcessorErrorState::kProcessError ||
+      error_state ==
+          AudioWorkletProcessorErrorState::kProcessMethodUndefinedError) {
     PostCrossThreadTask(
         *main_thread_task_runner_, FROM_HERE,
         CrossThreadBindOnce(&AudioWorkletHandler::NotifyProcessorError,
-                            AsWeakPtr(), error_state));
+                            weak_ptr_factory_.GetWeakPtr(), error_state));
   }
 
   // After this point, the handler has no more pending activity and is ready for
@@ -246,7 +279,7 @@ void AudioWorkletHandler::FinishProcessorOnRenderThread() {
       *main_thread_task_runner_, FROM_HERE,
       CrossThreadBindOnce(
           &AudioWorkletHandler::MarkProcessorInactiveOnMainThread,
-          AsWeakPtr()));
+          weak_ptr_factory_.GetWeakPtr()));
 }
 
 void AudioWorkletHandler::NotifyProcessorError(

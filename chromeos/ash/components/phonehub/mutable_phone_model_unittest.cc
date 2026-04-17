@@ -8,8 +8,7 @@
 #include "chromeos/ash/components/phonehub/phone_model_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace ash {
-namespace phonehub {
+namespace ash::phonehub {
 
 namespace {
 
@@ -55,7 +54,7 @@ TEST_F(MutablePhoneModelTest, PhoneName) {
 
   // Set the phone name to be null (the default value); observers should
   // not be notified, since this is not a change.
-  model_.SetPhoneName(/*phone_name=*/absl::nullopt);
+  model_.SetPhoneName(/*phone_name=*/std::nullopt);
   EXPECT_FALSE(model_.phone_name().has_value());
   EXPECT_EQ(0u, GetNumObserverCalls());
 
@@ -70,7 +69,7 @@ TEST_F(MutablePhoneModelTest, PhoneName) {
   EXPECT_EQ(1u, GetNumObserverCalls());
 
   // Set the phone name back to null; observers should be notified.
-  model_.SetPhoneName(/*phone_name=*/absl::nullopt);
+  model_.SetPhoneName(/*phone_name=*/std::nullopt);
   EXPECT_FALSE(model_.phone_name().has_value());
   EXPECT_EQ(2u, GetNumObserverCalls());
 }
@@ -78,7 +77,7 @@ TEST_F(MutablePhoneModelTest, PhoneName) {
 TEST_F(MutablePhoneModelTest, PhoneStatusModel) {
   // Set the PhoneStatusModel to be null (the default value); observers should
   // not be notified, since this is not a change.
-  model_.SetPhoneStatusModel(/*phone_status_model=*/absl::nullopt);
+  model_.SetPhoneStatusModel(/*phone_status_model=*/std::nullopt);
   EXPECT_FALSE(model_.phone_status_model().has_value());
   EXPECT_EQ(0u, GetNumObserverCalls());
 
@@ -93,7 +92,7 @@ TEST_F(MutablePhoneModelTest, PhoneStatusModel) {
   EXPECT_EQ(1u, GetNumObserverCalls());
 
   // Set the PhoneStatusModel back to null; observers should be notified.
-  model_.SetPhoneStatusModel(/*phone_status_model=*/absl::nullopt);
+  model_.SetPhoneStatusModel(/*phone_status_model=*/std::nullopt);
   EXPECT_FALSE(model_.phone_status_model().has_value());
   EXPECT_EQ(2u, GetNumObserverCalls());
 }
@@ -101,7 +100,7 @@ TEST_F(MutablePhoneModelTest, PhoneStatusModel) {
 TEST_F(MutablePhoneModelTest, BrowserTabsModel) {
   // Set the BrowserTabsModel to be null (the default value); observers should
   // not be notified, since this is not a change.
-  model_.SetBrowserTabsModel(/*browser_tabs_model=*/absl::nullopt);
+  model_.SetBrowserTabsModel(/*browser_tabs_model=*/std::nullopt);
   EXPECT_FALSE(model_.browser_tabs_model().has_value());
   EXPECT_EQ(0u, GetNumObserverCalls());
 
@@ -116,10 +115,9 @@ TEST_F(MutablePhoneModelTest, BrowserTabsModel) {
   EXPECT_EQ(1u, GetNumObserverCalls());
 
   // Set the BrowserTabsModel back to null; observers should be notified.
-  model_.SetBrowserTabsModel(/*browser_tabs_model=*/absl::nullopt);
+  model_.SetBrowserTabsModel(/*browser_tabs_model=*/std::nullopt);
   EXPECT_FALSE(model_.browser_tabs_model().has_value());
   EXPECT_EQ(2u, GetNumObserverCalls());
 }
 
-}  // namespace phonehub
-}  // namespace ash
+}  // namespace ash::phonehub

@@ -19,23 +19,26 @@ import java.util.function.Supplier;
 /**
  * Generic holder class to turn null checks into a known RuntimeException. Access is synchronized,
  * so access from multiple threads is safe.
+ *
+ * @param <T> The type of the value to hold.
+ * @param <E> The type of the exception to throw if the value is null.
  */
 public class SynchronizedHolder<T, E extends RuntimeException> {
-  private T value;
-  private final Supplier<E> exceptionSupplier;
+  private T mValue;
+  private final Supplier<E> mExceptionSupplier;
 
   public SynchronizedHolder(Supplier<E> exceptionSupplier) {
-    this.exceptionSupplier = exceptionSupplier;
+    mExceptionSupplier = exceptionSupplier;
   }
 
   public synchronized T get() {
-    if (value == null) {
-      throw exceptionSupplier.get();
+    if (mValue == null) {
+      throw mExceptionSupplier.get();
     }
-    return value;
+    return mValue;
   }
 
   public synchronized void set(T value) {
-    this.value = value;
+    mValue = value;
   }
 }

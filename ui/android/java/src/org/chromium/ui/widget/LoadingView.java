@@ -12,35 +12,32 @@ import android.util.AttributeSet;
 import android.view.View;
 import android.widget.ProgressBar;
 
-import androidx.annotation.VisibleForTesting;
-
-import org.chromium.ui.interpolators.BakedBezierInterpolator;
+import org.chromium.base.ResettersForTesting;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.ui.interpolators.Interpolators;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * A {@link ProgressBar} that understands the hiding/showing policy defined in Material Design.
- */
+/** A {@link ProgressBar} that understands the hiding/showing policy defined in Material Design. */
+@NullMarked
 public class LoadingView extends ProgressBar {
     private static final int LOADING_ANIMATION_DELAY_MS = 500;
     private static final int MINIMUM_ANIMATION_SHOW_TIME_MS = 500;
 
-    /**
-     * A observer interface that will be notified when the progress bar is hidden.
-     */
+    /** A observer interface that will be notified when the progress bar is hidden. */
     public interface Observer {
         /**
-         * Notify the listener a call to {@link #showLoadingUI()} is complete and loading view
-         * is VISIBLE.
+         * Notify the listener a call to {@link #showLoadingUi()} is complete and loading view is
+         * VISIBLE.
          */
-        void onShowLoadingUIComplete();
+        void onShowLoadingUiComplete();
 
         /**
-         * Notify the listener a call to {@link #hideLoadingUI()} is complete and loading view is
+         * Notify the listener a call to {@link #hideLoadingUi()} is complete and loading view is
          * GONE.
          */
-        void onHideLoadingUIComplete();
+        void onHideLoadingUiComplete();
     }
 
     private long mStartTime = -1;
@@ -48,19 +45,20 @@ public class LoadingView extends ProgressBar {
 
     private final List<Observer> mObservers = new ArrayList<>();
 
-    private final Runnable mDelayedShow = new Runnable() {
-        @Override
-        public void run() {
-            if (!mShouldShow) return;
-            mStartTime = SystemClock.elapsedRealtime();
-            setVisibility(View.VISIBLE);
-            setAlpha(1.0f);
+    private final Runnable mDelayedShow =
+            new Runnable() {
+                @Override
+                public void run() {
+                    if (!mShouldShow) return;
+                    mStartTime = SystemClock.elapsedRealtime();
+                    setVisibility(View.VISIBLE);
+                    setAlpha(1.0f);
 
-            for (Observer observer : mObservers) {
-                observer.onShowLoadingUIComplete();
-            }
-        }
-    };
+                    for (Observer observer : mObservers) {
+                        observer.onShowLoadingUiComplete();
+                    }
+                }
+            };
 
     /**
      * Tracks whether the View should be displayed when {@link #mDelayedShow} is run.  Android
@@ -71,74 +69,85 @@ public class LoadingView extends ProgressBar {
 
     // Material loading design spec requires us to show progress spinner at least 500ms, so we need
     // this delayed runnable to implement that.
-    private final Runnable mDelayedHide = new Runnable() {
-        @Override
-        public void run() {
-            if (sDisableAnimationForTest) {
-                onHideLoadingFinished();
-                return;
-            }
+    private final Runnable mDelayedHide =
+            new Runnable() {
+                @Override
+                public void run() {
+                    if (sDisableAnimationForTest) {
+                        onHideLoadingFinished();
+                        return;
+                    }
 
-            animate()
-                    .alpha(0.0f)
-                    .setInterpolator(BakedBezierInterpolator.TRANSFORM_CURVE)
-                    .setListener(new AnimatorListenerAdapter() {
-                        @Override
-                        public void onAnimationEnd(Animator animation) {
-                            onHideLoadingFinished();
-                        }
-                    });
-        }
-    };
+                    animate()
+                            .alpha(0.0f)
+                            .setInterpolator(Interpolators.FAST_OUT_SLOW_IN_INTERPOLATOR)
+                            .setListener(
+                                    new AnimatorListenerAdapter() {
+                                        @Override
+                                        public void onAnimationEnd(Animator animation) {
+                                            onHideLoadingFinished();
+                                        }
+                                    });
+                }
+            };
 
-    /**
-     * Constructor for creating the view programatically.
-     */
+    /** Constructor for creating the view programmatically. */
     public LoadingView(Context context) {
         super(context);
     }
 
-    /**
-     * Constructor for inflating from XML.
-     */
+    /** Constructor for inflating from XML. */
     public LoadingView(Context context, AttributeSet attrs) {
         super(context, attrs);
     }
 
+    /** Shows loading UI with a delay by calling showLoadingUi(false). */
+    public void showLoadingUi() {
+        showLoadingUi(/* skipDelay= */ false);
+    }
+
     /**
-     * Show loading UI. It shows the loading animation 500ms after.
+     * Show the loading UI. If skipDelay is set to true, the delay before the loading animation will
+     * be skipped. If skipDelay is set to false, the loading animation will be shown after a delay
+     * based on LOADING_ANIMATION_DELAY_MS (500ms).
      */
-    public void showLoadingUI() {
+    public void showLoadingUi(boolean skipDelay) {
         removeCallbacks(mDelayedShow);
         removeCallbacks(mDelayedHide);
         mShouldShow = true;
 
         setVisibility(GONE);
-        postDelayed(mDelayedShow, LOADING_ANIMATION_DELAY_MS);
+
+        if (skipDelay) {
+            mDelayedShow.run();
+        } else {
+            postDelayed(mDelayedShow, LOADING_ANIMATION_DELAY_MS);
+        }
     }
 
     /**
      * Hide loading UI. If progress bar is not shown, it disappears immediately. If so, it smoothly
      * fades out.
      */
-    public void hideLoadingUI() {
+    public void hideLoadingUi() {
         removeCallbacks(mDelayedShow);
         removeCallbacks(mDelayedHide);
         mShouldShow = false;
 
         if (getVisibility() == VISIBLE) {
-            postDelayed(mDelayedHide,
-                    Math.max(0,
-                            mStartTime + MINIMUM_ANIMATION_SHOW_TIME_MS
+            postDelayed(
+                    mDelayedHide,
+                    Math.max(
+                            0,
+                            mStartTime
+                                    + MINIMUM_ANIMATION_SHOW_TIME_MS
                                     - SystemClock.elapsedRealtime()));
         } else {
             onHideLoadingFinished();
         }
     }
 
-    /**
-     * Remove all callbacks when this view is no longer needed.
-     */
+    /** Remove all callbacks when this view is no longer needed. */
     public void destroy() {
         removeCallbacks(mDelayedShow);
         removeCallbacks(mDelayedHide);
@@ -147,9 +156,10 @@ public class LoadingView extends ProgressBar {
 
     /**
      * Add the listener that will be notified when the spinner is completely hidden with {@link
-     * #hideLoadingUI()}.
-     * @param listener {@link Observer} that will be notified when the spinner is
-     *         completely hidden with {@link #hideLoadingUI()}.
+     * #hideLoadingUi()}.
+     *
+     * @param listener {@link Observer} that will be notified when the spinner is completely hidden
+     *     with {@link #hideLoadingUi()}.
      */
     public void addObserver(Observer listener) {
         mObservers.add(listener);
@@ -158,19 +168,20 @@ public class LoadingView extends ProgressBar {
     private void onHideLoadingFinished() {
         setVisibility(GONE);
         for (Observer observer : mObservers) {
-            observer.onHideLoadingUIComplete();
+            observer.onHideLoadingUiComplete();
         }
     }
 
     /**
-     * Set disable the fading animation during {@link #hideLoadingUI()}.
-     * This function is added as a work around for disable animation during unit tests.
+     * Set disable the fading animation during {@link #hideLoadingUi()}. This function is added as a
+     * work around for disable animation during unit tests.
+     *
      * @param disableAnimation Whether the fading animation should be disabled during {@link
-     *         #hideLoadingUI()}.
+     *     #hideLoadingUi()}.
      */
-    @VisibleForTesting
     public static void setDisableAnimationForTest(boolean disableAnimation) {
         sDisableAnimationForTest = disableAnimation;
+        ResettersForTesting.register(() -> sDisableAnimationForTest = false);
     }
 
     /**

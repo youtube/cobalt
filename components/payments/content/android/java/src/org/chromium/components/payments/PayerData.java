@@ -4,15 +4,17 @@
 
 package org.chromium.components.payments;
 
-/**
- * An immutable class used to bundle the payer data received from payment handlers.
- */
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
+/** An immutable class used to bundle the payer data received from payment handlers. */
+@NullMarked
 public class PayerData {
-    public final String payerName;
-    public final String payerPhone;
-    public final String payerEmail;
-    public final Address shippingAddress;
-    public final String selectedShippingOptionId;
+    public final @Nullable String payerName;
+    public final @Nullable String payerPhone;
+    public final @Nullable String payerEmail;
+    public final @Nullable Address shippingAddress;
+    public final @Nullable String selectedShippingOptionId;
 
     /**
      * @param payerName The payer's name.
@@ -21,8 +23,12 @@ public class PayerData {
      * @param shippingAddress The user selected shippingAddress.
      * @param selectedShippingOptionId The user selected shipping option's identifier.
      */
-    public PayerData(String payerName, String payerPhone, String payerEmail,
-            Address shippingAddress, String selectedShippingOptionId) {
+    public PayerData(
+            String payerName,
+            String payerPhone,
+            String payerEmail,
+            @Nullable Address shippingAddress,
+            String selectedShippingOptionId) {
         this.payerName = payerName;
         this.payerPhone = payerPhone;
         this.payerEmail = payerEmail;

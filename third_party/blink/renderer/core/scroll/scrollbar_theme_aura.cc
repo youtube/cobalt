@@ -30,12 +30,10 @@
 
 #include "third_party/blink/renderer/core/scroll/scrollbar_theme_aura.h"
 
+#include "base/numerics/safe_conversions.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "cc/input/scrollbar.h"
 #include "third_party/blink/public/common/input/web_mouse_event.h"
-#include "third_party/blink/public/platform/web_theme_engine.h"
-#include "third_party/blink/renderer/core/scroll/scrollable_area.h"
 #include "third_party/blink/renderer/core/scroll/scrollbar.h"
 #include "third_party/blink/renderer/core/scroll/scrollbar_theme_fluent.h"
 #include "third_party/blink/renderer/core/scroll/scrollbar_theme_overlay.h"
@@ -129,21 +127,16 @@ PartPaintingParams ButtonPartPaintingParams(const Scrollbar& scrollbar,
   return PartPaintingParams(paint_part, state);
 }
 
-inline float Proportion(EScrollbarWidth scrollbar_width) {
-  if (scrollbar_width == EScrollbarWidth::kThin)
-    return kThinProportion;
-  else
-    return kAutoProportion;
-}
-
 }  // namespace
 
 ScrollbarTheme& ScrollbarTheme::NativeTheme() {
-  if (OverlayScrollbarsEnabled())
-    return ScrollbarThemeOverlay::GetInstance();
-
-  if (FluentScrollbarsEnabled())
+  if (FluentScrollbarsEnabled()) {
     return ScrollbarThemeFluent::GetInstance();
+  }
+
+  if (OverlayScrollbarsEnabled()) {
+    return ScrollbarThemeOverlay::GetInstance();
+  }
 
   DEFINE_STATIC_LOCAL(ScrollbarThemeAura, theme, ());
   return theme;
@@ -153,17 +146,16 @@ bool ScrollbarThemeAura::SupportsDragSnapBack() const {
 // Disable snapback on desktop Linux to better integrate with the desktop
 // behavior. Typically, Linux apps do not implement scrollbar snapback (this
 // is true for at least GTK and QT apps).
-// TODO(crbug.com/1052397): Revisit once build flag switch of lacros-chrome is
-// complete.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_LINUX)
   return false;
 #else
   return true;
 #endif
 }
 
-int ScrollbarThemeAura::ScrollbarThickness(float scale_from_dip,
-                                           EScrollbarWidth scrollbar_width) {
+int ScrollbarThemeAura::ScrollbarThickness(
+    float scale_from_dip,
+    EScrollbarWidth scrollbar_width) const {
   if (scrollbar_width == EScrollbarWidth::kNone)
     return 0;
 
@@ -180,18 +172,19 @@ int ScrollbarThemeAura::ScrollbarThickness(float scale_from_dip,
   return scrollbar_size.width() * Proportion(scrollbar_width) * scale_from_dip;
 }
 
-bool ScrollbarThemeAura::HasThumb(const Scrollbar& scrollbar) {
+bool ScrollbarThemeAura::HasThumb(const Scrollbar& scrollbar) const {
   // This method is just called as a paint-time optimization to see if
   // painting the thumb can be skipped. We don't have to be exact here.
   return ThumbLength(scrollbar) > 0;
 }
 
-gfx::Rect ScrollbarThemeAura::BackButtonRect(const Scrollbar& scrollbar) {
+gfx::Rect ScrollbarThemeAura::BackButtonRect(const Scrollbar& scrollbar) const {
   gfx::Size size = ButtonSize(scrollbar);
   return gfx::Rect(scrollbar.X(), scrollbar.Y(), size.width(), size.height());
 }
 
-gfx::Rect ScrollbarThemeAura::ForwardButtonRect(const Scrollbar& scrollbar) {
+gfx::Rect ScrollbarThemeAura::ForwardButtonRect(
+    const Scrollbar& scrollbar) const {
   gfx::Size size = ButtonSize(scrollbar);
   int x, y;
   if (scrollbar.Orientation() == kHorizontalScrollbar) {
@@ -204,7 +197,7 @@ gfx::Rect ScrollbarThemeAura::ForwardButtonRect(const Scrollbar& scrollbar) {
   return gfx::Rect(x, y, size.width(), size.height());
 }
 
-gfx::Rect ScrollbarThemeAura::TrackRect(const Scrollbar& scrollbar) {
+gfx::Rect ScrollbarThemeAura::TrackRect(const Scrollbar& scrollbar) const {
   // The track occupies all space between the two buttons.
   gfx::Size bs = ButtonSize(scrollbar);
   if (scrollbar.Orientation() == kHorizontalScrollbar) {
@@ -219,7 +212,7 @@ gfx::Rect ScrollbarThemeAura::TrackRect(const Scrollbar& scrollbar) {
                    scrollbar.Width(), scrollbar.Height() - 2 * bs.height());
 }
 
-int ScrollbarThemeAura::MinimumThumbLength(const Scrollbar& scrollbar) {
+int ScrollbarThemeAura::MinimumThumbLength(const Scrollbar& scrollbar) const {
   int scrollbar_thickness =
       (scrollbar.Orientation() == kVerticalScrollbar)
           ? WebThemeEngineHelper::GetNativeThemeEngine()
@@ -233,9 +226,69 @@ int ScrollbarThemeAura::MinimumThumbLength(const Scrollbar& scrollbar) {
          scrollbar.ScaleFromDIP();
 }
 
-void ScrollbarThemeAura::PaintTrack(GraphicsContext& context,
-                                    const Scrollbar& scrollbar,
-                                    const gfx::Rect& rect) {
+void ScrollbarThemeAura::PaintTrackBackgroundAndButtons(
+    GraphicsContext& context,
+    const Scrollbar& scrollbar,
+    const gfx::Rect& rect) {
+  if (rect.size() == scrollbar.FrameRect().size()) {
+    // The non-nine-patch code path. The caller should use this code path if
+    // - The nine-patch canvas is the same as the scrollbar rect;
+    // - UsesNinePatchTrackAndButtonsResource() is false;
+    // - There are tickmarks; OR
+    // - Is painting non-composited scrollbars
+    //   (from ScrollbarDisplayItem::Paint()).
+    ScrollbarTheme::PaintTrackBackgroundAndButtons(context, scrollbar, rect);
+    return;
+  }
+
+  CHECK(!scrollbar.HasTickmarks());
+
+  if (DrawingRecorder::UseCachedDrawingIfPossible(
+          context, scrollbar, DisplayItem::kScrollbarTrackAndButtons)) {
+    return;
+  }
+  DrawingRecorder recorder(context, scrollbar,
+                           DisplayItem::kScrollbarTrackAndButtons, rect);
+
+  CHECK_EQ(rect.size(), NinePatchTrackAndButtonsCanvasSize(scrollbar));
+  gfx::Vector2d offset = rect.origin() - scrollbar.Location();
+  const int aperture_track_space =
+      scrollbar.Orientation() == kVerticalScrollbar
+          ? NinePatchTrackAndButtonsAperture(scrollbar).height()
+          : NinePatchTrackAndButtonsAperture(scrollbar).width();
+
+  gfx::Rect back_button_rect = BackButtonRect(scrollbar);
+  if (back_button_rect.IsEmpty()) {
+    PaintTrackBackground(context, scrollbar, gfx::Rect(1, 1));
+    return;
+  }
+  back_button_rect.Offset(offset);
+  PaintButton(context, scrollbar, back_button_rect, kBackButtonStartPart);
+
+  gfx::Rect forward_button_rect = back_button_rect;
+  if (scrollbar.Orientation() == kVerticalScrollbar) {
+    forward_button_rect.Offset(
+        0, back_button_rect.height() + aperture_track_space);
+  } else {
+    forward_button_rect.Offset(back_button_rect.width() + aperture_track_space,
+                               0);
+  }
+  PaintButton(context, scrollbar, forward_button_rect, kForwardButtonEndPart);
+
+  gfx::Rect track_rect = back_button_rect;
+  if (scrollbar.Orientation() == kVerticalScrollbar) {
+    track_rect.Offset(0, back_button_rect.height());
+    track_rect.set_height(aperture_track_space);
+  } else {
+    track_rect.Offset(back_button_rect.width(), 0);
+    track_rect.set_width(aperture_track_space);
+  }
+  PaintTrackBackground(context, scrollbar, track_rect);
+}
+
+void ScrollbarThemeAura::PaintTrackBackground(GraphicsContext& context,
+                                              const Scrollbar& scrollbar,
+                                              const gfx::Rect& rect) {
   if (rect.IsEmpty())
     return;
 
@@ -243,22 +296,32 @@ void ScrollbarThemeAura::PaintTrack(GraphicsContext& context,
   // of the back track and forward track.
   auto state = WebThemeEngine::kStateNormal;
 
-  // TODO(wangxianzhu): The extra params for scrollbar track were for painting
-  // back and forward tracks separately, which we don't support. Remove them.
+  // TODO(wangxianzhu): Some of these extra params for scrollbar track were for
+  // painting back and forward tracks separately, which we don't support. Remove
+  // them.
   gfx::Rect align_rect = TrackRect(scrollbar);
-  WebThemeEngine::ExtraParams extra_params;
-  extra_params.scrollbar_track.is_back = false;
-  extra_params.scrollbar_track.track_x = align_rect.x();
-  extra_params.scrollbar_track.track_y = align_rect.y();
-  extra_params.scrollbar_track.track_width = align_rect.width();
-  extra_params.scrollbar_track.track_height = align_rect.height();
 
+  WebThemeEngine::ScrollbarTrackExtraParams scrollbar_track;
+  scrollbar_track.is_back = false;
+  scrollbar_track.track_x = align_rect.x();
+  scrollbar_track.track_y = align_rect.y();
+  scrollbar_track.track_width = align_rect.width();
+  scrollbar_track.track_height = align_rect.height();
+
+  if (scrollbar.ScrollbarTrackColor().has_value()) {
+    scrollbar_track.track_color =
+        scrollbar.ScrollbarTrackColor().value().toSkColor4f().toSkColor();
+  }
+
+  WebThemeEngine::ExtraParams extra_params(scrollbar_track);
+  mojom::blink::ColorScheme color_scheme = scrollbar.UsedColorScheme();
   WebThemeEngineHelper::GetNativeThemeEngine()->Paint(
       context.Canvas(),
       scrollbar.Orientation() == kHorizontalScrollbar
           ? WebThemeEngine::kPartScrollbarHorizontalTrack
           : WebThemeEngine::kPartScrollbarVerticalTrack,
-      state, rect, &extra_params, scrollbar.UsedColorScheme());
+      state, rect, &extra_params, color_scheme, scrollbar.InForcedColorsMode(),
+      scrollbar.GetColorProvider(color_scheme));
 }
 
 void ScrollbarThemeAura::PaintButton(GraphicsContext& gc,
@@ -270,13 +333,25 @@ void ScrollbarThemeAura::PaintButton(GraphicsContext& gc,
   if (!params.should_paint)
     return;
 
-  WebThemeEngine::ExtraParams extra_params;
-  extra_params.scrollbar_button.zoom = scrollbar.EffectiveZoom();
-  extra_params.scrollbar_button.right_to_left =
-      scrollbar.ContainerIsRightToLeft();
+  WebThemeEngine::ScrollbarButtonExtraParams scrollbar_button;
+  scrollbar_button.zoom = scrollbar.EffectiveZoom();
+  // TODO(crbug.com/1493088): Should not draw rounded corner for a button
+  // adjacent to the scroll corner.
+  scrollbar_button.needs_rounded_corner = scrollbar.ContainerIsFormControl();
+  scrollbar_button.right_to_left = scrollbar.ContainerIsRightToLeft();
+  if (scrollbar.ScrollbarThumbColor().has_value()) {
+    scrollbar_button.thumb_color =
+        scrollbar.ScrollbarThumbColor().value().toSkColor4f().toSkColor();
+  }
+  if (scrollbar.ScrollbarTrackColor().has_value()) {
+    scrollbar_button.track_color =
+        scrollbar.ScrollbarTrackColor().value().toSkColor4f().toSkColor();
+  }
+  WebThemeEngine::ExtraParams extra_params(scrollbar_button);
+  mojom::blink::ColorScheme color_scheme = scrollbar.UsedColorScheme();
   WebThemeEngineHelper::GetNativeThemeEngine()->Paint(
-      gc.Canvas(), params.part, params.state, rect, &extra_params,
-      scrollbar.UsedColorScheme());
+      gc.Canvas(), params.part, params.state, rect, &extra_params, color_scheme,
+      scrollbar.InForcedColorsMode(), scrollbar.GetColorProvider(color_scheme));
 }
 
 void ScrollbarThemeAura::PaintThumb(GraphicsContext& gc,
@@ -290,19 +365,40 @@ void ScrollbarThemeAura::PaintThumb(GraphicsContext& gc,
 
   WebThemeEngine::State state;
   cc::PaintCanvas* canvas = gc.Canvas();
-  if (scrollbar.PressedPart() == kThumbPart)
+  if (scrollbar.PressedPart() == kThumbPart) {
     state = WebThemeEngine::kStatePressed;
-  else if (scrollbar.HoveredPart() == kThumbPart)
+  } else if (scrollbar.HoveredPart() == kThumbPart) {
     state = WebThemeEngine::kStateHover;
-  else
+  } else {
     state = WebThemeEngine::kStateNormal;
+  }
 
+  mojom::blink::ColorScheme color_scheme = scrollbar.UsedColorScheme();
+  WebThemeEngine::ExtraParams params(BuildScrollbarThumbExtraParams(scrollbar));
   WebThemeEngineHelper::GetNativeThemeEngine()->Paint(
       canvas,
       scrollbar.Orientation() == kHorizontalScrollbar
           ? WebThemeEngine::kPartScrollbarHorizontalThumb
           : WebThemeEngine::kPartScrollbarVerticalThumb,
-      state, rect, nullptr, scrollbar.UsedColorScheme());
+      state, rect, &params, color_scheme, scrollbar.InForcedColorsMode(),
+      scrollbar.GetColorProvider(color_scheme));
+}
+
+WebThemeEngine::ScrollbarThumbExtraParams
+ScrollbarThemeAura::BuildScrollbarThumbExtraParams(
+    const Scrollbar& scrollbar) const {
+  WebThemeEngine::ScrollbarThumbExtraParams scrollbar_thumb;
+
+  if (scrollbar.ScrollbarThumbColor().has_value()) {
+    scrollbar_thumb.thumb_color =
+        scrollbar.ScrollbarThumbColor().value().toSkColor4f().toSkColor();
+  }
+  if (scrollbar.ScrollbarTrackColor().has_value()) {
+    scrollbar_thumb.track_color =
+        scrollbar.ScrollbarTrackColor().value().toSkColor4f().toSkColor();
+  }
+
+  return scrollbar_thumb;
 }
 
 bool ScrollbarThemeAura::ShouldRepaintAllPartsOnInvalidation() const {
@@ -326,10 +422,8 @@ ScrollbarPart ScrollbarThemeAura::PartsToInvalidateOnThumbPositionChange(
 }
 
 bool ScrollbarThemeAura::ShouldCenterOnThumb(const Scrollbar& scrollbar,
-                                             const WebMouseEvent& event) {
-// TODO(crbug.com/1052397): Revisit once build flag switch of lacros-chrome is
-// complete.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
+                                             const WebMouseEvent& event) const {
+#if BUILDFLAG(IS_LINUX)
   if (event.button == WebPointerProperties::Button::kMiddle)
     return true;
 #endif
@@ -340,7 +434,7 @@ bool ScrollbarThemeAura::ShouldCenterOnThumb(const Scrollbar& scrollbar,
 
 bool ScrollbarThemeAura::ShouldSnapBackToDragOrigin(
     const Scrollbar& scrollbar,
-    const WebMouseEvent& event) {
+    const WebMouseEvent& event) const {
   if (!SupportsDragSnapBack())
     return false;
 
@@ -372,6 +466,14 @@ bool ScrollbarThemeAura::ShouldSnapBackToDragOrigin(
           mouse_offset_in_scrollbar >= snap_outside_of_max);
 }
 
+float ScrollbarThemeAura::Proportion(EScrollbarWidth scrollbar_width) const {
+  if (scrollbar_width == EScrollbarWidth::kNone) {
+    return 0.f;
+  }
+  return scrollbar_width == EScrollbarWidth::kThin ? kThinProportion
+                                                   : kAutoProportion;
+}
+
 bool ScrollbarThemeAura::HasScrollbarButtons(
     ScrollbarOrientation orientation) const {
   WebThemeEngine* theme_engine = WebThemeEngineHelper::GetNativeThemeEngine();
@@ -399,6 +501,95 @@ gfx::Size ScrollbarThemeAura::ButtonSize(const Scrollbar& scrollbar) const {
   return gfx::Size(
       scrollbar.Width() < 2 * square_size ? scrollbar.Width() / 2 : square_size,
       square_size);
+}
+
+bool ScrollbarThemeAura::UsesSolidColorThumb() const {
+  return true;
+}
+
+gfx::Insets ScrollbarThemeAura::SolidColorThumbInsets(
+    const Scrollbar& scrollbar) const {
+  CHECK(UsesSolidColorThumb());
+  return WebThemeEngineHelper::GetNativeThemeEngine()
+      ->GetScrollbarSolidColorThumbInsets(
+          scrollbar.Orientation() == kHorizontalScrollbar
+              ? WebThemeEngine::kPartScrollbarHorizontalThumb
+              : WebThemeEngine::kPartScrollbarVerticalThumb);
+}
+
+SkColor4f ScrollbarThemeAura::ThumbColor(const Scrollbar& scrollbar) const {
+  CHECK(UsesSolidColorThumb());
+  WebThemeEngine::State state;
+  if (scrollbar.PressedPart() == kThumbPart) {
+    state = WebThemeEngine::kStatePressed;
+  } else if (scrollbar.HoveredPart() == kThumbPart) {
+    state = WebThemeEngine::kStateHover;
+  } else {
+    state = WebThemeEngine::kStateNormal;
+  }
+  WebThemeEngine::ExtraParams params(BuildScrollbarThumbExtraParams(scrollbar));
+  return WebThemeEngineHelper::GetNativeThemeEngine()->GetScrollbarThumbColor(
+      state, &params, scrollbar.GetColorProvider(scrollbar.UsedColorScheme()));
+}
+
+bool ScrollbarThemeAura::UsesNinePatchTrackAndButtonsResource() const {
+  return true;
+}
+
+gfx::Size ScrollbarThemeAura::NinePatchTrackAndButtonsCanvasSize(
+    const Scrollbar& scrollbar) const {
+  return NinePatchTrackAndButtonsCanvasSize(scrollbar, /*scale=*/1.f);
+}
+
+gfx::Size ScrollbarThemeAura::NinePatchTrackAndButtonsCanvasSize(
+    const Scrollbar& scrollbar,
+    float scale) const {
+  CHECK(UsesNinePatchTrackAndButtonsResource());
+  const gfx::SizeF button_size =
+      ScaleSize(gfx::SizeF(ButtonSize(scrollbar)), scale);
+  if (button_size.IsEmpty()) {
+    return gfx::Size(1, 1);
+  }
+  const gfx::Size scrollbar_size = ScaleToCeiledSize(scrollbar.Size(), scale);
+  if (scrollbar.Orientation() == kVerticalScrollbar) {
+    return gfx::Size(
+        base::ClampFloor(button_size.width()),
+        std::min(scrollbar_size.height(),
+                 base::ClampCeil(button_size.height() * 2 + scale)));
+  } else {
+    return gfx::Size(std::min(scrollbar_size.width(),
+                              base::ClampCeil(button_size.width() * 2 + scale)),
+                     base::ClampFloor(button_size.height()));
+  }
+}
+
+gfx::Rect ScrollbarThemeAura::NinePatchTrackAndButtonsAperture(
+    const Scrollbar& scrollbar) const {
+  return NinePatchTrackAndButtonsAperture(scrollbar, /*scale=*/1.f);
+}
+
+gfx::Rect ScrollbarThemeAura::NinePatchTrackAndButtonsAperture(
+    const Scrollbar& scrollbar,
+    float scale) const {
+  CHECK(UsesNinePatchTrackAndButtonsResource());
+  const gfx::Size canvas_size =
+      NinePatchTrackAndButtonsCanvasSize(scrollbar, scale);
+  if (canvas_size == ScaleToCeiledSize(scrollbar.Size(), scale)) {
+    return gfx::Rect(canvas_size);
+  }
+
+  // If the canvas' length is even, then shift the aperture one pixel back from
+  // the middle and make it two pixels wide to maintain symmetry in the
+  // arrows when scaling.
+  if (scrollbar.Orientation() == kVerticalScrollbar) {
+    const int offset = 1 - canvas_size.height() % 2;
+    return gfx::Rect(0, canvas_size.height() / 2 - offset, canvas_size.width(),
+                     1 + offset);
+  } else {
+    const int offset = 1 - canvas_size.width() % 2;
+    return gfx::Rect(canvas_size.width() / 2 - offset, 0, 1 + offset,
+                     canvas_size.height());
+  }
 }
 
 }  // namespace blink

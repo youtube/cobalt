@@ -7,12 +7,12 @@
 #include <memory>
 #include <utility>
 
+#include "base/containers/flat_set.h"
 #include "base/json/json_writer.h"
 #include "base/strings/string_util.h"
 #include "base/test/values_test_util.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/geometry/rect.h"
 
@@ -79,19 +79,16 @@ const char kCdd[] = R"(
         "margins": {
           "option": [ {
             "is_default": true,
-            "type": "BORDERLESS",
             "top_microns": 0,
             "right_microns": 0,
             "bottom_microns": 0,
             "left_microns": 0
           }, {
-             "type": "STANDARD",
              "top_microns": 100,
              "right_microns": 200,
              "bottom_microns": 300,
              "left_microns": 400
           }, {
-             "type": "CUSTOM",
              "top_microns": 1,
              "right_microns": 2,
              "bottom_microns": 3,
@@ -111,15 +108,15 @@ const char kCdd[] = R"(
         "fit_to_page": {
           "option": [ {
             "is_default": true,
-            "type": "NO_FITTING"
+            "type": "AUTO"
           }, {
-            "type": "FIT_TO_PAGE"
+            "type": "AUTO_FIT"
           }, {
-            "type": "GROW_TO_PAGE"
+            "type": "FILL"
           }, {
-            "type": "SHRINK_TO_PAGE"
+            "type": "FIT"
           }, {
-            "type": "FILL_PAGE"
+            "type": "NONE"
           } ]
         },
         "page_range": {
@@ -141,7 +138,8 @@ const char kCdd[] = R"(
             "imageable_area_top_microns": 5555,
             "name": "ISO_A6",
             "width_microns": 4444,
-            "height_microns": 5555
+            "height_microns": 5555,
+            "has_borderless_variant": true
           }, {
             "imageable_area_bottom_microns": 0,
             "imageable_area_left_microns": 0,
@@ -152,9 +150,23 @@ const char kCdd[] = R"(
             "height_microns": 7777
           }, {
             "width_microns": 1111,
+            "min_height_microns": 2222,
+            "max_height_microns": 9999,
             "is_continuous_feed": true,
             "custom_display_name": "Feed",
             "vendor_id": "FEED"
+          } ]
+        },
+        "media_type": {
+          "option": [ {
+            "custom_display_name": "Plain Paper",
+            "vendor_id": "stationery",
+            "is_default": true
+          }, {
+            "custom_display_name": "Photo Paper",
+            "vendor_id": "photographic"
+          }, {
+            "vendor_id": "stationery-lightweight"
           } ]
         },
         "collate": {
@@ -533,6 +545,77 @@ const char kPinOnlyCdd[] = R"(
     })";
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
+// Invalid because `is_continuous_feed` is true and `min_height_microns` is
+// missing.
+const char kInvalidCustomMediaNoMinHeightCdd[] = R"(
+    {
+      "version": "1.0",
+      "printer": {
+        "media_size": {
+          "option": [ {
+            "width_microns": 1111,
+            "max_height_microns": 9999,
+            "is_continuous_feed": true,
+            "custom_display_name": "Feed",
+            "vendor_id": "FEED"
+          } ]
+        }
+      }
+    })";
+
+// Invalid because `is_continuous_feed` is true and `width_microns` is missing.
+const char kInvalidCustomMediaNoWidthCdd[] = R"(
+    {
+      "version": "1.0",
+      "printer": {
+        "media_size": {
+          "option": [ {
+            "min_height_microns": 1111,
+            "max_height_microns": 9999,
+            "is_continuous_feed": true,
+            "custom_display_name": "Feed",
+            "vendor_id": "FEED"
+          } ]
+        }
+      }
+    })";
+
+// Invalid because `max_height_microns` is less than `min_height_microns`.
+const char kInvalidCustomMediaBadMaxHeightCdd[] = R"(
+    {
+      "version": "1.0",
+      "printer": {
+        "media_size": {
+          "option": [ {
+            "width_microns": 1111,
+            "min_height_microns": 9999,
+            "max_height_microns": 2222,
+            "is_continuous_feed": true,
+            "custom_display_name": "Feed",
+            "vendor_id": "FEED"
+          } ]
+        }
+      }
+    })";
+
+// Invalid because `min_height_microns` is 0.
+const char kInvalidCustomMediaBadMinHeightCdd[] = R"(
+    {
+      "version": "1.0",
+      "printer": {
+        "media_size": {
+          "option": [ {
+            "width_microns": 1111,
+            "min_height_microns": 0,
+            "max_height_microns": 2222,
+            "is_continuous_feed": true,
+            "custom_display_name": "Feed",
+            "vendor_id": "FEED"
+          } ]
+        }
+      }
+    })";
+
 const char kCjt[] = R"(
     {
       "version": "1.0",
@@ -541,6 +624,12 @@ const char kCjt[] = R"(
           "document_sheet_back": "MANUAL_TUMBLE",
           "reverse_order_streaming": true
         },
+        "vendor_ticket_item": [
+          {
+            "id": "finishings",
+            "value": "trim"
+          }
+        ],
         "color": {
           "type": "STANDARD_MONOCHROME"
         },
@@ -554,7 +643,6 @@ const char kCjt[] = R"(
           "copies": 123
         },
         "margins": {
-           "type": "CUSTOM",
            "top_microns": 7,
            "right_microns": 6,
            "bottom_microns": 3,
@@ -565,7 +653,7 @@ const char kCjt[] = R"(
           "vertical_dpi": 125
         },
         "fit_to_page": {
-          "type": "SHRINK_TO_PAGE"
+          "type": "FIT"
         },
         "page_range": {
           "interval": [ {
@@ -651,6 +739,7 @@ TEST(PrinterDescriptionTest, CddInit) {
   DpiCapability dpi;
   FitToPageCapability fit_to_page;
   MediaCapability media;
+  MediaTypeCapability media_type;
   CopiesCapability copies;
   PageRangeCapability page_range;
   CollateCapability collate;
@@ -667,6 +756,7 @@ TEST(PrinterDescriptionTest, CddInit) {
   EXPECT_FALSE(fit_to_page.LoadFrom(description));
   EXPECT_FALSE(page_range.LoadFrom(description));
   EXPECT_FALSE(media.LoadFrom(description));
+  EXPECT_FALSE(media_type.LoadFrom(description));
   EXPECT_FALSE(collate.LoadFrom(description));
   EXPECT_FALSE(reverse.LoadFrom(description));
   EXPECT_FALSE(media.LoadFrom(description));
@@ -694,6 +784,7 @@ TEST(PrinterDescriptionTest, CddSetAll) {
   DpiCapability dpi;
   FitToPageCapability fit_to_page;
   MediaCapability media;
+  MediaTypeCapability media_type;
   CopiesCapability copies;
   PageRangeCapability page_range;
   CollateCapability collate;
@@ -723,24 +814,43 @@ TEST(PrinterDescriptionTest, CddSetAll) {
   orientation.AddOption(OrientationType::LANDSCAPE);
   orientation.AddDefaultOption(OrientationType::AUTO_ORIENTATION, true);
 
-  margins.AddDefaultOption(Margins(MarginsType::NO_MARGINS, 0, 0, 0, 0), true);
-  margins.AddOption(Margins(MarginsType::STANDARD_MARGINS, 100, 200, 300, 400));
-  margins.AddOption(Margins(MarginsType::CUSTOM_MARGINS, 1, 2, 3, 4));
+  margins.AddDefaultOption(Margins(0, 0, 0, 0), true);
+  margins.AddOption(Margins(100, 200, 300, 400));
+  margins.AddOption(Margins(1, 2, 3, 4));
 
   dpi.AddOption(Dpi(150, 250));
   dpi.AddDefaultOption(Dpi(600, 1600), true);
 
-  fit_to_page.AddDefaultOption(FitToPageType::NO_FITTING, true);
-  fit_to_page.AddOption(FitToPageType::FIT_TO_PAGE);
-  fit_to_page.AddOption(FitToPageType::GROW_TO_PAGE);
-  fit_to_page.AddOption(FitToPageType::SHRINK_TO_PAGE);
-  fit_to_page.AddOption(FitToPageType::FILL_PAGE);
+  fit_to_page.AddDefaultOption(FitToPageType::AUTO, true);
+  fit_to_page.AddOption(FitToPageType::AUTO_FIT);
+  fit_to_page.AddOption(FitToPageType::FILL);
+  fit_to_page.AddOption(FitToPageType::FIT);
+  fit_to_page.AddOption(FitToPageType::NONE);
 
-  media.AddDefaultOption(Media(MediaType::NA_LETTER, gfx::Size(2222, 3333)),
+  media.AddDefaultOption(MediaBuilder()
+                             .WithStandardName(MediaSize::NA_LETTER)
+                             .WithSizeAndDefaultPrintableArea({2222, 3333})
+                             .Build(),
                          true);
-  media.AddOption(Media(MediaType::ISO_A6, gfx::Size(4444, 5555)));
-  media.AddOption(Media(MediaType::JPN_YOU4, gfx::Size(6666, 7777)));
-  media.AddOption(Media("Feed", "FEED", gfx::Size(1111, 0)));
+  media.AddOption(MediaBuilder()
+                      .WithStandardName(MediaSize::ISO_A6)
+                      .WithSizeAndDefaultPrintableArea({4444, 5555})
+                      .WithBorderlessVariant(true)
+                      .Build());
+  media.AddOption(MediaBuilder()
+                      .WithStandardName(MediaSize::JPN_YOU4)
+                      .WithSizeAndDefaultPrintableArea({6666, 7777})
+                      .Build());
+  media.AddOption(MediaBuilder()
+                      .WithCustomName("Feed", "FEED")
+                      .WithSizeAndDefaultPrintableArea({1111, 2222})
+                      .WithMaxHeight(9999)
+                      .WithBorderlessVariant(false)
+                      .Build());
+
+  media_type.AddDefaultOption(MediaType("stationery", "Plain Paper"), true);
+  media_type.AddOption(MediaType("photographic", "Photo Paper"));
+  media_type.AddOption(MediaType("stationery-lightweight", ""));
 
   collate.set_default_value(false);
   reverse.set_default_value(true);
@@ -755,6 +865,7 @@ TEST(PrinterDescriptionTest, CddSetAll) {
   fit_to_page.SaveTo(&description);
   page_range.SaveTo(&description);
   media.SaveTo(&description);
+  media_type.SaveTo(&description);
   collate.SaveTo(&description);
   reverse.SaveTo(&description);
   pwg_raster_config.SaveTo(&description);
@@ -1141,6 +1252,34 @@ TEST(PrinterDescriptionTest, CddSetPin) {
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
+TEST(PrinterDescriptionTest, CddInvalidCustomMediaNoMinHeight) {
+  CloudDeviceDescription description;
+  ASSERT_TRUE(description.InitFromString(kInvalidCustomMediaNoMinHeightCdd));
+  MediaCapability media_capability;
+  EXPECT_FALSE(media_capability.LoadFrom(description));
+}
+
+TEST(PrinterDescriptionTest, CddInvalidCustomMediaNoWidth) {
+  CloudDeviceDescription description;
+  ASSERT_TRUE(description.InitFromString(kInvalidCustomMediaNoWidthCdd));
+  MediaCapability media_capability;
+  EXPECT_FALSE(media_capability.LoadFrom(description));
+}
+
+TEST(PrinterDescriptionTest, CddInvalidCustomMediaBadMaxHeight) {
+  CloudDeviceDescription description;
+  ASSERT_TRUE(description.InitFromString(kInvalidCustomMediaBadMaxHeightCdd));
+  MediaCapability media_capability;
+  EXPECT_FALSE(media_capability.LoadFrom(description));
+}
+
+TEST(PrinterDescriptionTest, CddInvalidCustomMediaBadMinHeight) {
+  CloudDeviceDescription description;
+  ASSERT_TRUE(description.InitFromString(kInvalidCustomMediaBadMinHeightCdd));
+  MediaCapability media_capability;
+  EXPECT_FALSE(media_capability.LoadFrom(description));
+}
+
 TEST(PrinterDescriptionTest, CddGetAll) {
   CloudDeviceDescription description;
   ASSERT_TRUE(description.InitFromString(kCdd));
@@ -1154,6 +1293,7 @@ TEST(PrinterDescriptionTest, CddGetAll) {
   DpiCapability dpi;
   FitToPageCapability fit_to_page;
   MediaCapability media;
+  MediaTypeCapability media_type;
   CopiesCapability copies;
   PageRangeCapability page_range;
   CollateCapability collate;
@@ -1169,9 +1309,9 @@ TEST(PrinterDescriptionTest, CddGetAll) {
   EXPECT_TRUE(fit_to_page.LoadFrom(description));
   EXPECT_TRUE(page_range.LoadFrom(description));
   EXPECT_TRUE(media.LoadFrom(description));
+  EXPECT_TRUE(media_type.LoadFrom(description));
   EXPECT_TRUE(collate.LoadFrom(description));
   EXPECT_TRUE(reverse.LoadFrom(description));
-  EXPECT_TRUE(media.LoadFrom(description));
   EXPECT_TRUE(pwg_raster_config.LoadFrom(description));
 
   EXPECT_TRUE(content_types.Contains("image/pwg-raster"));
@@ -1201,32 +1341,44 @@ TEST(PrinterDescriptionTest, CddGetAll) {
   EXPECT_TRUE(orientation.Contains(OrientationType::AUTO_ORIENTATION));
   EXPECT_EQ(OrientationType::AUTO_ORIENTATION, orientation.GetDefault());
 
-  EXPECT_TRUE(margins.Contains(Margins(MarginsType::NO_MARGINS, 0, 0, 0, 0)));
-  EXPECT_TRUE(margins.Contains(
-      Margins(MarginsType::STANDARD_MARGINS, 100, 200, 300, 400)));
-  EXPECT_TRUE(
-      margins.Contains(Margins(MarginsType::CUSTOM_MARGINS, 1, 2, 3, 4)));
-  EXPECT_EQ(Margins(MarginsType::NO_MARGINS, 0, 0, 0, 0), margins.GetDefault());
+  EXPECT_TRUE(margins.Contains(Margins(0, 0, 0, 0)));
+  EXPECT_TRUE(margins.Contains(Margins(100, 200, 300, 400)));
+  EXPECT_TRUE(margins.Contains(Margins(1, 2, 3, 4)));
+  EXPECT_EQ(Margins(0, 0, 0, 0), margins.GetDefault());
 
   EXPECT_TRUE(dpi.Contains(Dpi(150, 250)));
   EXPECT_TRUE(dpi.Contains(Dpi(600, 1600)));
   EXPECT_EQ(Dpi(600, 1600), dpi.GetDefault());
 
-  EXPECT_TRUE(fit_to_page.Contains(FitToPageType::NO_FITTING));
-  EXPECT_TRUE(fit_to_page.Contains(FitToPageType::FIT_TO_PAGE));
-  EXPECT_TRUE(fit_to_page.Contains(FitToPageType::GROW_TO_PAGE));
-  EXPECT_TRUE(fit_to_page.Contains(FitToPageType::SHRINK_TO_PAGE));
-  EXPECT_TRUE(fit_to_page.Contains(FitToPageType::FILL_PAGE));
-  EXPECT_EQ(FitToPageType::NO_FITTING, fit_to_page.GetDefault());
+  EXPECT_TRUE(fit_to_page.Contains(FitToPageType::AUTO));
+  EXPECT_TRUE(fit_to_page.Contains(FitToPageType::AUTO_FIT));
+  EXPECT_TRUE(fit_to_page.Contains(FitToPageType::FILL));
+  EXPECT_TRUE(fit_to_page.Contains(FitToPageType::FIT));
+  EXPECT_TRUE(fit_to_page.Contains(FitToPageType::NONE));
+  EXPECT_EQ(FitToPageType::AUTO, fit_to_page.GetDefault());
 
-  EXPECT_TRUE(
-      media.Contains(Media(MediaType::NA_LETTER, gfx::Size(2222, 3333))));
-  EXPECT_TRUE(media.Contains(Media(MediaType::ISO_A6, gfx::Size(4444, 5555))));
-  EXPECT_TRUE(
-      media.Contains(Media(MediaType::JPN_YOU4, gfx::Size(6666, 7777))));
-  EXPECT_TRUE(media.Contains(Media("Feed", "FEED", gfx::Size(1111, 0))));
-  EXPECT_EQ(Media(MediaType::NA_LETTER, gfx::Size(2222, 3333)),
-            media.GetDefault());
+  Media default_media = MediaBuilder()
+                            .WithStandardName(MediaSize::NA_LETTER)
+                            .WithSizeAndDefaultPrintableArea({2222, 3333})
+                            .Build();
+  EXPECT_TRUE(media.Contains(default_media));
+  EXPECT_TRUE(media.Contains(MediaBuilder()
+                                 .WithStandardName(MediaSize::ISO_A6)
+                                 .WithSizeAndDefaultPrintableArea({4444, 5555})
+                                 .Build()));
+  EXPECT_TRUE(media.Contains(MediaBuilder()
+                                 .WithStandardName(MediaSize::JPN_YOU4)
+                                 .WithSizeAndDefaultPrintableArea({6666, 7777})
+                                 .Build()));
+  EXPECT_TRUE(media.Contains(MediaBuilder()
+                                 .WithCustomName("Feed", "FEED")
+                                 .WithSizeAndDefaultPrintableArea({1111, 2222})
+                                 .WithMaxHeight(9999)
+                                 .Build()));
+  EXPECT_EQ(default_media, media.GetDefault());
+
+  EXPECT_TRUE(media_type.Contains(MediaType("stationery", "Plain Paper")));
+  EXPECT_TRUE(media_type.Contains(MediaType("photographic", "Photo Paper")));
 
   EXPECT_FALSE(collate.default_value());
   EXPECT_TRUE(reverse.default_value());
@@ -1241,6 +1393,7 @@ TEST(PrinterDescriptionTest, CjtInit) {
             NormalizeJson(description.ToStringForTesting()));
 
   PwgRasterConfigTicketItem pwg_raster_config;
+  VendorTicketItems vendor_items;
   ColorTicketItem color;
   DuplexTicketItem duplex;
   OrientationTicketItem orientation;
@@ -1254,6 +1407,7 @@ TEST(PrinterDescriptionTest, CjtInit) {
   ReverseTicketItem reverse;
 
   EXPECT_FALSE(pwg_raster_config.LoadFrom(description));
+  EXPECT_FALSE(vendor_items.LoadFrom(description));
   EXPECT_FALSE(color.LoadFrom(description));
   EXPECT_FALSE(duplex.LoadFrom(description));
   EXPECT_FALSE(orientation.LoadFrom(description));
@@ -1277,6 +1431,7 @@ TEST(PrinterDescriptionTest, CjtSetAll) {
   CloudDeviceDescription description;
 
   PwgRasterConfigTicketItem pwg_raster_config;
+  VendorTicketItems vendor_items;
   ColorTicketItem color;
   DuplexTicketItem duplex;
   OrientationTicketItem orientation;
@@ -1294,23 +1449,29 @@ TEST(PrinterDescriptionTest, CjtSetAll) {
   custom_raster.reverse_order_streaming = true;
   custom_raster.rotate_all_pages = false;
   pwg_raster_config.set_value(custom_raster);
+  VendorItem label_cutter("finishings", "trim");
+  vendor_items.AddOption(std::move(label_cutter));
   color.set_value(Color(ColorType::STANDARD_MONOCHROME));
   duplex.set_value(DuplexType::NO_DUPLEX);
   orientation.set_value(OrientationType::LANDSCAPE);
   copies.set_value(123);
-  margins.set_value(Margins(MarginsType::CUSTOM_MARGINS, 7, 6, 3, 1));
+  margins.set_value(Margins(7, 6, 3, 1));
   dpi.set_value(Dpi(562, 125));
-  fit_to_page.set_value(FitToPageType::SHRINK_TO_PAGE);
+  fit_to_page.set_value(FitToPageType::FIT);
   PageRange page_ranges;
   page_ranges.push_back(Interval(1, 99));
   page_ranges.push_back(Interval(150));
   page_range.set_value(page_ranges);
-  media.set_value(Media(MediaType::ISO_C7C6, gfx::Size(4261, 334),
-                        gfx::Rect(300, 100, 3661, 134)));
+  media.set_value(
+      MediaBuilder()
+          .WithStandardName(MediaSize::ISO_C7C6)
+          .WithSizeAndPrintableArea({4261, 334}, {300, 100, 3661, 134})
+          .Build());
   collate.set_value(false);
   reverse.set_value(true);
 
   pwg_raster_config.SaveTo(&description);
+  vendor_items.SaveTo(&description);
   color.SaveTo(&description);
   duplex.SaveTo(&description);
   orientation.SaveTo(&description);
@@ -1331,6 +1492,7 @@ TEST(PrinterDescriptionTest, CjtGetAll) {
   CloudDeviceDescription description;
   ASSERT_TRUE(description.InitFromString(kCjt));
 
+  VendorTicketItems vendor_items;
   ColorTicketItem color;
   DuplexTicketItem duplex;
   OrientationTicketItem orientation;
@@ -1345,6 +1507,7 @@ TEST(PrinterDescriptionTest, CjtGetAll) {
   PwgRasterConfigTicketItem pwg_raster_config;
 
   EXPECT_TRUE(pwg_raster_config.LoadFrom(description));
+  EXPECT_TRUE(vendor_items.LoadFrom(description));
   EXPECT_TRUE(color.LoadFrom(description));
   EXPECT_TRUE(duplex.LoadFrom(description));
   EXPECT_TRUE(orientation.LoadFrom(description));
@@ -1362,24 +1525,247 @@ TEST(PrinterDescriptionTest, CjtGetAll) {
             pwg_raster_config.value().document_sheet_back);
   EXPECT_TRUE(pwg_raster_config.value().reverse_order_streaming);
   EXPECT_FALSE(pwg_raster_config.value().rotate_all_pages);
+  ASSERT_EQ(vendor_items.size(), 1u);
+  EXPECT_EQ(vendor_items[0].id, "finishings");
+  EXPECT_EQ(vendor_items[0].value, "trim");
   EXPECT_EQ(color.value(), Color(ColorType::STANDARD_MONOCHROME));
   EXPECT_EQ(duplex.value(), DuplexType::NO_DUPLEX);
   EXPECT_EQ(orientation.value(), OrientationType::LANDSCAPE);
   EXPECT_EQ(copies.value(), 123);
-  EXPECT_EQ(margins.value(), Margins(MarginsType::CUSTOM_MARGINS, 7, 6, 3, 1));
+  EXPECT_EQ(margins.value(), Margins(7, 6, 3, 1));
   EXPECT_EQ(dpi.value(), Dpi(562, 125));
-  EXPECT_EQ(fit_to_page.value(), FitToPageType::SHRINK_TO_PAGE);
+  EXPECT_EQ(fit_to_page.value(), FitToPageType::FIT);
   PageRange page_ranges;
   page_ranges.push_back(Interval(1, 99));
   page_ranges.push_back(Interval(150));
   EXPECT_EQ(page_range.value(), page_ranges);
-  EXPECT_EQ(media.value(), Media(MediaType::ISO_C7C6, gfx::Size(4261, 334),
-                                 gfx::Rect(300, 100, 3661, 134)));
+  EXPECT_EQ(media.value(),
+            MediaBuilder()
+                .WithStandardName(MediaSize::ISO_C7C6)
+                .WithSizeAndPrintableArea({4261, 334}, {300, 100, 3661, 134})
+                .Build());
   EXPECT_FALSE(collate.value());
   EXPECT_TRUE(reverse.value());
 
   EXPECT_EQ(NormalizeJson(kCjt),
             NormalizeJson(description.ToStringForTesting()));
+}
+
+TEST(PrinterDescriptionTest, ContentTypesCapabilityIterator) {
+  ContentTypesCapability content_types;
+
+  base::flat_set<ContentType> expected_types{"type1", "type2", "type3"};
+  for (ContentType type : expected_types) {
+    content_types.AddOption(std::move(type));
+  }
+
+  for (const auto& content_type : content_types) {
+    EXPECT_EQ(expected_types.erase(content_type), 1u);
+  }
+}
+
+TEST(PrinterDescriptionMediaBuilderTest, StandardName) {
+  Media media_a1 = MediaBuilder()
+                       .WithStandardName(MediaSize::ISO_A1)
+                       .WithSizeAndDefaultPrintableArea({100, 200})
+                       .Build();
+
+  // Note that `Media::operator==` does not check all fields.
+  EXPECT_EQ(MediaSize::ISO_A1, media_a1.size_name);
+  EXPECT_EQ(gfx::Size(100, 200), media_a1.size_um);
+  EXPECT_FALSE(media_a1.is_continuous_feed);
+  EXPECT_TRUE(media_a1.custom_display_name.empty());
+  EXPECT_TRUE(media_a1.vendor_id.empty());
+  EXPECT_EQ(gfx::Rect(100, 200), media_a1.printable_area_um);
+  EXPECT_EQ(0, media_a1.max_height_um);
+  EXPECT_TRUE(media_a1.IsValid());
+
+  Media media_a4_with_printable_area =
+      MediaBuilder()
+          .WithStandardName(MediaSize::ISO_A4)
+          .WithSizeAndPrintableArea({100, 200}, {5, 6, 50, 60})
+          .Build();
+
+  EXPECT_EQ(MediaSize::ISO_A4, media_a4_with_printable_area.size_name);
+  EXPECT_EQ(gfx::Size(100, 200), media_a4_with_printable_area.size_um);
+  EXPECT_FALSE(media_a4_with_printable_area.is_continuous_feed);
+  EXPECT_TRUE(media_a4_with_printable_area.custom_display_name.empty());
+  EXPECT_TRUE(media_a4_with_printable_area.vendor_id.empty());
+  EXPECT_EQ(gfx::Rect(5, 6, 50, 60),
+            media_a4_with_printable_area.printable_area_um);
+  EXPECT_EQ(0, media_a4_with_printable_area.max_height_um);
+  EXPECT_TRUE(media_a4_with_printable_area.IsValid());
+}
+
+TEST(PrinterDescriptionMediaBuilderTest, CustomName) {
+  Media media_custom1 =
+      MediaBuilder()
+          .WithCustomName("name", "id")
+          .WithSizeAndPrintableArea({2000, 2500}, {100, 150, 1800, 2000})
+          .Build();
+
+  EXPECT_EQ(MediaSize::CUSTOM_MEDIA, media_custom1.size_name);
+  EXPECT_EQ(gfx::Size(2000, 2500), media_custom1.size_um);
+  EXPECT_FALSE(media_custom1.is_continuous_feed);
+  EXPECT_EQ("name", media_custom1.custom_display_name);
+  EXPECT_EQ("id", media_custom1.vendor_id);
+  EXPECT_EQ(gfx::Rect(100, 150, 1800, 2000), media_custom1.printable_area_um);
+  EXPECT_EQ(0, media_custom1.max_height_um);
+  EXPECT_TRUE(media_custom1.IsValid());
+
+  Media media_custom2 =
+      MediaBuilder()
+          .WithCustomName("name2", "")
+          .WithSizeAndPrintableArea({500, 300}, {50, 60, 120, 200})
+          .Build();
+
+  EXPECT_EQ(MediaSize::CUSTOM_MEDIA, media_custom2.size_name);
+  EXPECT_EQ(gfx::Size(500, 300), media_custom2.size_um);
+  EXPECT_FALSE(media_custom2.is_continuous_feed);
+  EXPECT_EQ("name2", media_custom2.custom_display_name);
+  EXPECT_TRUE(media_custom2.vendor_id.empty());
+  EXPECT_EQ(gfx::Rect(50, 60, 120, 200), media_custom2.printable_area_um);
+  EXPECT_EQ(0, media_custom2.max_height_um);
+  EXPECT_TRUE(media_custom2.IsValid());
+}
+
+TEST(PrinterDescriptionMediaBuilderTest, EmptySize) {
+  Media media_empty_size = MediaBuilder()
+                               .WithStandardName(MediaSize::NA_LETTER)
+                               .WithSizeAndDefaultPrintableArea({0, 0})
+                               .Build();
+
+  EXPECT_EQ(MediaSize::NA_LETTER, media_empty_size.size_name);
+  EXPECT_EQ(gfx::Size(0, 0), media_empty_size.size_um);
+  EXPECT_FALSE(media_empty_size.is_continuous_feed);
+  EXPECT_TRUE(media_empty_size.custom_display_name.empty());
+  EXPECT_TRUE(media_empty_size.vendor_id.empty());
+  EXPECT_EQ(gfx::Rect(0, 0), media_empty_size.printable_area_um);
+  EXPECT_EQ(0, media_empty_size.max_height_um);
+  EXPECT_FALSE(media_empty_size.IsValid());
+
+  Media media_no_size =
+      MediaBuilder().WithStandardName(MediaSize::NA_LEGAL).Build();
+
+  EXPECT_EQ(MediaSize::NA_LEGAL, media_no_size.size_name);
+  EXPECT_EQ(gfx::Size(0, 0), media_no_size.size_um);
+  EXPECT_FALSE(media_no_size.is_continuous_feed);
+  EXPECT_TRUE(media_no_size.custom_display_name.empty());
+  EXPECT_TRUE(media_no_size.vendor_id.empty());
+  EXPECT_EQ(gfx::Rect(0, 0), media_no_size.printable_area_um);
+  EXPECT_EQ(0, media_no_size.max_height_um);
+  EXPECT_FALSE(media_no_size.IsValid());
+}
+
+TEST(PrinterDescriptionMediaBuilderTest, EmptyWidth) {
+  Media media_empty_width = MediaBuilder()
+                                .WithStandardName(MediaSize::NA_LETTER)
+                                .WithSizeAndDefaultPrintableArea({0, 100})
+                                .Build();
+
+  EXPECT_EQ(MediaSize::NA_LETTER, media_empty_width.size_name);
+  EXPECT_EQ(gfx::Size(0, 100), media_empty_width.size_um);
+  EXPECT_FALSE(media_empty_width.is_continuous_feed);
+  EXPECT_TRUE(media_empty_width.custom_display_name.empty());
+  EXPECT_TRUE(media_empty_width.vendor_id.empty());
+  EXPECT_EQ(gfx::Rect(0, 100), media_empty_width.printable_area_um);
+  EXPECT_EQ(0, media_empty_width.max_height_um);
+  EXPECT_FALSE(media_empty_width.IsValid());
+}
+
+TEST(PrinterDescriptionMediaBuilderTest, ContinuousFeedHeight) {
+  Media media_continuous_height =
+      MediaBuilder()
+          .WithCustomName("FEED", "feed")
+          .WithSizeAndDefaultPrintableArea({100, 200})
+          .WithMaxHeight(500)
+          .Build();
+
+  EXPECT_EQ(MediaSize::CUSTOM_MEDIA, media_continuous_height.size_name);
+  EXPECT_EQ(gfx::Size(100, 200), media_continuous_height.size_um);
+  EXPECT_TRUE(media_continuous_height.is_continuous_feed);
+  EXPECT_EQ("FEED", media_continuous_height.custom_display_name);
+  EXPECT_EQ("feed", media_continuous_height.vendor_id);
+  EXPECT_EQ(gfx::Rect(100, 200), media_continuous_height.printable_area_um);
+  EXPECT_EQ(500, media_continuous_height.max_height_um);
+  EXPECT_TRUE(media_continuous_height.IsValid());
+}
+
+TEST(PrinterDescriptionMediaBuilderTest, WithNameMaybeBasedOnSize) {
+  Media media_letter =
+      MediaBuilder()
+          .WithSizeAndDefaultPrintableArea({215900, 279400})
+          .WithNameMaybeBasedOnSize(/*custom_display_name=*/"custom_letter",
+                                    /*vendor_id=*/"vendor_letter")
+          .Build();
+
+  EXPECT_EQ(MediaSize::NA_LETTER, media_letter.size_name);
+  EXPECT_EQ(gfx::Size(215900, 279400), media_letter.size_um);
+  EXPECT_FALSE(media_letter.is_continuous_feed);
+  EXPECT_EQ("custom_letter", media_letter.custom_display_name);
+  EXPECT_EQ("vendor_letter", media_letter.vendor_id);
+  EXPECT_EQ(gfx::Rect(215900, 279400), media_letter.printable_area_um);
+  EXPECT_EQ(0, media_letter.max_height_um);
+  EXPECT_TRUE(media_letter.IsValid());
+
+  Media media_non_standard =
+      MediaBuilder()
+          .WithSizeAndDefaultPrintableArea({123000, 456000})
+          .WithNameMaybeBasedOnSize(/*custom_display_name=*/"123x456",
+                                    /*vendor_id=*/"vendor_123x456")
+          .Build();
+
+  EXPECT_EQ(MediaSize::CUSTOM_MEDIA, media_non_standard.size_name);
+  EXPECT_EQ(gfx::Size(123000, 456000), media_non_standard.size_um);
+  EXPECT_FALSE(media_non_standard.is_continuous_feed);
+  EXPECT_EQ("123x456", media_non_standard.custom_display_name);
+  EXPECT_EQ("vendor_123x456", media_non_standard.vendor_id);
+  EXPECT_EQ(gfx::Rect(123000, 456000), media_non_standard.printable_area_um);
+  EXPECT_EQ(0, media_non_standard.max_height_um);
+  EXPECT_TRUE(media_non_standard.IsValid());
+}
+
+TEST(PrinterDescriptionMediaBuilderTest,
+     WithSizeAndPrintableAreaBasedOnStandardName) {
+  Media media = MediaBuilder()
+                    .WithStandardName(MediaSize::ISO_A3)
+                    .WithSizeAndPrintableAreaBasedOnStandardName()
+                    .Build();
+
+  EXPECT_EQ(MediaSize::ISO_A3, media.size_name);
+  EXPECT_EQ(gfx::Size(297000, 420000), media.size_um);
+  EXPECT_FALSE(media.is_continuous_feed);
+  EXPECT_TRUE(media.custom_display_name.empty());
+  EXPECT_TRUE(media.vendor_id.empty());
+  EXPECT_EQ(gfx::Rect(297000, 420000), media.printable_area_um);
+  EXPECT_EQ(0, media.max_height_um);
+  EXPECT_TRUE(media.IsValid());
+}
+
+TEST(PrinterDescriptionMediaBuilderTest, MultipleBuilds) {
+  MediaBuilder builder;
+  Media media1 = builder.WithStandardName(MediaSize::NA_LETTER)
+                     .WithSizeAndDefaultPrintableArea({100, 200})
+                     .Build();
+  Media media2 = builder.Build();
+
+  EXPECT_EQ(MediaSize::NA_LETTER, media1.size_name);
+  EXPECT_EQ(gfx::Size(100, 200), media1.size_um);
+  EXPECT_FALSE(media1.is_continuous_feed);
+  EXPECT_TRUE(media1.custom_display_name.empty());
+  EXPECT_TRUE(media1.vendor_id.empty());
+  EXPECT_EQ(gfx::Rect(100, 200), media1.printable_area_um);
+  EXPECT_EQ(0, media1.max_height_um);
+  EXPECT_TRUE(media1.IsValid());
+
+  EXPECT_EQ(media1.size_name, media2.size_name);
+  EXPECT_EQ(media1.size_um, media2.size_um);
+  EXPECT_EQ(media1.is_continuous_feed, media2.is_continuous_feed);
+  EXPECT_EQ(media1.custom_display_name, media2.custom_display_name);
+  EXPECT_EQ(media1.vendor_id, media2.vendor_id);
+  EXPECT_EQ(media1.printable_area_um, media2.printable_area_um);
+  EXPECT_EQ(media1.max_height_um, media2.max_height_um);
+  EXPECT_TRUE(media2.IsValid());
 }
 
 }  // namespace printer

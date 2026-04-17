@@ -8,6 +8,7 @@
 #include <stddef.h>
 
 #include <algorithm>
+#include <concepts>
 #include <iterator>
 #include <limits>
 #include <ostream>
@@ -18,10 +19,8 @@
 #include "base/check.h"
 #include "base/check_op.h"
 #include "base/dcheck_is_on.h"
-#include "base/debug/dump_without_crashing.h"
 #include "base/notreached.h"
 #include "base/observer_list_internal.h"
-#include "base/ranges/algorithm.h"
 #include "base/sequence_checker.h"
 #include "build/build_config.h"
 
@@ -65,13 +64,16 @@
 //     }
 //
 //     void NotifyFoo() {
-//       for (Observer& obs : observers_)
-//         obs.OnFoo(this);
+//       observers_.Notify(&Observer::OnFoo, this);
 //     }
 //
 //     void NotifyBar(int x, int y) {
-//       for (Observer& obs : observers_)
-//         obs.OnBar(this, x, y);
+//       // Use manual iteration when Notify() is not suitable, e.g.
+//       // if passing different args to different observers is needed.
+//       for (Observer& obs : observers_) {
+//         gfx::Point local_point = GetLocalPoint(obs, x, y);
+//         obs.OnBar(this, local_point.x(), local_point.y());
+//       }
 //     }
 //
 //    private:
@@ -105,7 +107,7 @@ template <class ObserverType,
 class ObserverList {
  public:
   // Allow declaring an ObserverList<...>::Unchecked that replaces the default
-  // ObserverStorageType to use raw pointers. This is required to support legacy
+  // ObserverStorageType to use `raw_ptr<T>`. This is required to support legacy
   // observers that do not inherit from CheckedObserver. The majority of new
   // code should not use this, but it may be suited for performance-critical
   // situations to avoid overheads of a CHECK(). Note the type can't be chosen
@@ -114,7 +116,28 @@ class ObserverList {
   using Unchecked = ObserverList<ObserverType,
                                  check_empty,
                                  allow_reentrancy,
-                                 internal::UncheckedObserverAdapter>;
+                                 internal::UncheckedObserverAdapter<>>;
+  // Allow declaring an ObserverList<...>::UncheckedAndDanglingUntriaged that
+  // replaces the default ObserverStorageType to use
+  // `raw_ptr<T, DanglingUntriaged>`. New use of this alias is strongly
+  // discouraged.
+  // TODO(crbug.com/40212619): Triage existing dangling observer pointers and
+  // remove this alias.
+  using UncheckedAndDanglingUntriaged =
+      ObserverList<ObserverType,
+                   check_empty,
+                   allow_reentrancy,
+                   internal::UncheckedObserverAdapter<DanglingUntriaged>>;
+
+  // Allow declaring an ObserverList<...>::UncheckedAndRawPtrExcluded that
+  // holds raw pointers without raw_ptr<>. This is used to avoid performance
+  // regressions caused by ObserverList<T>::Unchecked's raw_ptr<> operations.
+  // Use of this alias is managed by chrome-memory-safety@google.com.
+  using UncheckedAndRawPtrExcluded = ObserverList<
+      ObserverType,
+      check_empty,
+      allow_reentrancy,
+      internal::UncheckedObserverAdapter<RawPtrTraits::kEmpty, true>>;
 
   // An iterator class that can be used to access the list of observers.
   class Iter {
@@ -134,41 +157,40 @@ class ObserverList {
                          ? std::numeric_limits<size_t>::max()
                          : list->observers_.size()) {
       DCHECK(list);
-      if (!allow_reentrancy) {
-        // TODO(crbug.com/1423093): Turn DCHECK + DumpWithoutCrashing() below
-        // into a CHECK once very prevalent failures are weeded out.
-        DCHECK(list_.IsOnlyRemainingNode());
-        if (!DCHECK_IS_ON() && !list_.IsOnlyRemainingNode()) {
-          base::debug::DumpWithoutCrashing();
-        }
-      }
-      DCHECK(allow_reentrancy || list_.IsOnlyRemainingNode());
+      // TODO(crbug.com/40063488): Turn into CHECK once very prevalent failures
+      // are weeded out.
+      DUMP_WILL_BE_CHECK(allow_reentrancy || list_.IsOnlyRemainingNode());
       // Bind to this sequence when creating the first iterator.
       DCHECK_CALLED_ON_VALID_SEQUENCE(list_->iteration_sequence_checker_);
       EnsureValidIndex();
     }
 
     ~Iter() {
-      if (list_.IsOnlyRemainingNode())
+      if (list_.IsOnlyRemainingNode()) {
         list_->Compact();
+      }
     }
 
     Iter(const Iter& other)
         : index_(other.index_), max_index_(other.max_index_) {
-      if (other.list_)
+      if (other.list_) {
         list_.SetList(other.list_.get());
+      }
     }
 
     Iter& operator=(const Iter& other) {
-      if (&other == this)
+      if (&other == this) {
         return *this;
+      }
 
-      if (list_.IsOnlyRemainingNode())
+      if (list_.IsOnlyRemainingNode()) {
         list_->Compact();
+      }
 
       list_.Invalidate();
-      if (other.list_)
+      if (other.list_) {
         list_.SetList(other.list_.get());
+      }
 
       index_ = other.index_;
       max_index_ = other.max_index_;
@@ -179,8 +201,6 @@ class ObserverList {
       return (is_end() && other.is_end()) ||
              (list_.get() == other.list_.get() && index_ == other.index_);
     }
-
-    bool operator!=(const Iter& other) const { return !(*this == other); }
 
     Iter& operator++() {
       if (list_) {
@@ -248,6 +268,7 @@ class ObserverList {
   using value_type = ObserverType;
 
   const_iterator begin() const {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(iteration_sequence_checker_);
     // An optimization: do not involve weak pointers for empty list.
     return observers_.empty() ? const_iterator() : const_iterator(this);
   }
@@ -263,19 +284,24 @@ class ObserverList {
   ObserverList& operator=(const ObserverList&) = delete;
   ~ObserverList() {
     // If there are live iterators, ensure destruction is thread-safe.
-    if (!live_iterators_.empty())
+    if (!live_iterators_.empty()) {
       DCHECK_CALLED_ON_VALID_SEQUENCE(iteration_sequence_checker_);
+    }
 
-    while (!live_iterators_.empty())
+    while (!live_iterators_.empty()) {
       live_iterators_.head()->value()->Invalidate();
-    if (check_empty) {
+    }
+    if constexpr (check_empty) {
       Compact();
-      // TODO(crbug.com/1423093): Turn DCHECK + DumpWithoutCrashing() below into
-      // a CHECK once very prevalent failures are weeded out.
-      DCHECK(observers_.empty()) << "\n" << GetObserversCreationStackString();
-      if (!DCHECK_IS_ON() && !observers_.empty()) {
-        base::debug::DumpWithoutCrashing();
-      }
+      // Note that observer stack traces are only available for DCHECK-enabled
+      // builds (use dcheck_always_on=true).
+      // TODO(crbug.com/40063488): Turn into a CHECK once very prevalent
+      // failures are weeded out.
+      DUMP_WILL_BE_CHECK(observers_.empty())
+#if DCHECK_IS_ON()
+          << GetObserversCreationStackString()
+#endif
+          ;
     }
   }
 
@@ -286,13 +312,13 @@ class ObserverList {
   // Precondition: !HasObserver(obs)
   void AddObserver(ObserverType* obs) {
     DCHECK(obs);
-    // TODO(crbug.com/1423093): Turn this into a CHECK once very prevalent
+    // TODO(crbug.com/40063488): Turn this into a CHECK once very prevalent
     // failures are weeded out.
     if (HasObserver(obs)) {
-      NOTREACHED() << "Observers can only be added once!";
+      DUMP_WILL_BE_NOTREACHED() << "Observers can only be added once!";
       return;
     }
-    observers_count_++;
+    ++observers_count_;
     observers_.emplace_back(ObserverStorageType(obs));
   }
 
@@ -300,12 +326,14 @@ class ObserverList {
   // not in this list.
   void RemoveObserver(const ObserverType* obs) {
     DCHECK(obs);
-    const auto it = ranges::find_if(
+    const auto it = std::ranges::find_if(
         observers_, [obs](const auto& o) { return o.IsEqual(obs); });
-    if (it == observers_.end())
+    if (it == observers_.end()) {
       return;
-    if (!it->IsMarkedForRemoval())
-      observers_count_--;
+    }
+    if (!it->IsMarkedForRemoval()) {
+      --observers_count_;
+    }
     if (live_iterators_.empty()) {
       observers_.erase(it);
     } else {
@@ -317,11 +345,12 @@ class ObserverList {
   // Determine whether a particular observer is in the list.
   bool HasObserver(const ObserverType* obs) const {
     // Client code passing null could be confused by the treatment of observers
-    // removed mid-iteration. TODO(https://crbug.com/876588): This should
+    // removed mid-iteration. TODO(crbug.com/40590447): This should
     // probably DCHECK, but some client code currently does pass null.
-    if (obs == nullptr)
+    if (obs == nullptr) {
       return false;
-    return ranges::find_if(observers_, [obs](const auto& o) {
+    }
+    return std::ranges::find_if(observers_, [obs](const auto& o) {
              return o.IsEqual(obs);
            }) != observers_.end();
   }
@@ -332,13 +361,43 @@ class ObserverList {
       observers_.clear();
     } else {
       DCHECK_CALLED_ON_VALID_SEQUENCE(iteration_sequence_checker_);
-      for (auto& observer : observers_)
+      for (auto& observer : observers_) {
         observer.MarkForRemoval();
+      }
     }
     observers_count_ = 0;
   }
 
   bool empty() const { return !observers_count_; }
+
+  // Notifies all observers. It is safe to add and remove observers from within
+  // the notification method.
+  //
+  // Example:
+  //   // Instead of:
+  //   for (auto& observer : observers_) {
+  //     observer->OnFooChanged(x, y);
+  //   }
+  //   // You can use:
+  //   observers_.Notify(&Observer::OnFooChanged, x, y);
+  //
+  // Requirements:
+  //  - The observer method's arguments cannot be rvalue (T&&) or non-const
+  //    reference (T&).
+  //
+  // TODO(crbug.com/40727208): Consider handling return values from observer
+  // methods, which are currently ignored.
+  //
+  // TODO(crbug.com/40727208): Consider adding an overload that supports
+  // move-only arguments by requiring `args` to be callable objects that
+  // returns a value of the desired type.
+  template <typename Method, typename... Args>
+    requires std::invocable<Method, ObserverType*, const Args&...>
+  void Notify(Method method, const Args&... args) {
+    for (auto& observer : *this) {
+      std::invoke(method, observer, args...);
+    }
+  }
 
  private:
   friend class internal::WeakLinkNode<ObserverList>;
@@ -349,15 +408,15 @@ class ObserverList {
     // Compact() is only ever called when the last iterator is destroyed.
     DETACH_FROM_SEQUENCE(iteration_sequence_checker_);
 
-    observers_.erase(
-        std::remove_if(observers_.begin(), observers_.end(),
-                       [](const auto& o) { return o.IsMarkedForRemoval(); }),
-        observers_.end());
+    std::erase_if(observers_,
+                  [](const auto& o) { return o.IsMarkedForRemoval(); });
   }
 
-  std::string GetObserversCreationStackString() const {
 #if DCHECK_IS_ON()
-    std::string result;
+  std::string GetObserversCreationStackString() const
+    requires check_empty
+  {
+    std::string result("\n");
 #if BUILDFLAG(IS_IOS)
     result += "Use go/observer-list-empty to interpret.\n";
 #endif
@@ -366,10 +425,8 @@ class ObserverList {
       result += "\n";
     }
     return result;
-#else
-    return "For observer stack traces, build with `dcheck_always_on=true`.";
-#endif  // DCHECK_IS_ON()
   }
+#endif  // DCHECK_IS_ON()
 
   std::vector<ObserverStorageType> observers_;
 

@@ -121,19 +121,13 @@ class TestHelper {
       ::gl::MockGLInterface* gl,
       bool is_es3_enabled,
       bool is_es3_capable,
-      bool is_desktop_core_profile,
       const gfx::ExtensionSet& extensions,
       bool use_default_textures);
   static void SetupTextureManagerDestructionExpectations(
       ::gl::MockGLInterface* gl,
       bool is_es3_enabled,
-      bool is_desktop_core_profile,
       const gfx::ExtensionSet& extensions,
       bool use_default_textures);
-
-  static void SetupExpectationsForClearingUniforms(::gl::MockGLInterface* gl,
-                                                   UniformInfo* uniforms,
-                                                   size_t num_uniforms);
 
   static void SetupShaderExpectations(::gl::MockGLInterface* gl,
                                       const FeatureInfo* feature_info,
@@ -254,4 +248,3 @@ class TestHelper {
 }  // namespace gpu
 
 #endif  // GPU_COMMAND_BUFFER_SERVICE_TEST_HELPER_H_
-

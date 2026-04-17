@@ -11,7 +11,6 @@
 #include "third_party/blink/renderer/platform/animation/timing_function.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
-#include "third_party/blink/renderer/platform/mac/block_exceptions.h"
 #include "third_party/blink/renderer/platform/scheduler/public/thread_scheduler.h"
 
 namespace blink {
@@ -21,9 +20,11 @@ typedef HeapHashMap<WeakMember<const Scrollbar>, MacScrollbarImplV2*>
     ScrollbarToAnimatorV2Map;
 
 ScrollbarToAnimatorV2Map& GetScrollbarToAnimatorV2Map() {
-  DEFINE_STATIC_LOCAL(Persistent<ScrollbarToAnimatorV2Map>, map,
-                      (MakeGarbageCollected<ScrollbarToAnimatorV2Map>()));
-  return *map;
+  using ScrollbarToAnimatorV2MapHolder =
+      DisallowNewWrapper<ScrollbarToAnimatorV2Map>;
+  DEFINE_STATIC_LOCAL(Persistent<ScrollbarToAnimatorV2MapHolder>, holder,
+                      (MakeGarbageCollected<ScrollbarToAnimatorV2MapHolder>()));
+  return holder->Value();
 }
 
 blink::ScrollbarThemeMac* MacOverlayScrollbarTheme(
@@ -122,9 +123,7 @@ int MacScrollbarImplV2::GetTrackBoxWidth() {
 }
 
 bool MacScrollbarImplV2::IsMouseInScrollbarFrameRect() const {
-  if (auto* area = scrollbar_->GetScrollableArea())
-    return scrollbar_->FrameRect().Contains(area->LastKnownMousePosition());
-  return false;
+  return scrollbar_->LastKnownMousePositionInFrameRect();
 }
 void MacScrollbarImplV2::SetHidden(bool hidden) {
   scrollbar_->SetScrollbarsHiddenFromExternalAnimator(hidden);

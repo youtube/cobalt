@@ -5,19 +5,21 @@
 #include "base/files/file_proxy.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
+#include "base/containers/heap_array.h"
 #include "base/files/file.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/task/task_runner.h"
 
 namespace {
 
-void FileDeleter(base::File file) {
-}
+void FileDeleter(base::File file) {}
 
 }  // namespace
 
@@ -25,19 +27,20 @@ namespace base {
 
 class FileHelper {
  public:
-  FileHelper(FileProxy* proxy, File file)
+  FileHelper(base::WeakPtr<FileProxy> proxy, File file)
       : file_(std::move(file)),
         task_runner_(proxy->task_runner()),
-        proxy_(AsWeakPtr(proxy)) {}
+        proxy_(proxy) {}
   FileHelper(const FileHelper&) = delete;
   FileHelper& operator=(const FileHelper&) = delete;
 
   void PassFile() {
-    if (proxy_)
+    if (proxy_) {
       proxy_->SetFile(std::move(file_));
-    else if (file_.IsValid())
+    } else if (file_.IsValid()) {
       task_runner_->PostTask(FROM_HERE,
                              BindOnce(&FileDeleter, std::move(file_)));
+    }
   }
 
  protected:
@@ -53,9 +56,8 @@ namespace {
 
 class GenericFileHelper : public FileHelper {
  public:
-  GenericFileHelper(FileProxy* proxy, File file)
-      : FileHelper(proxy, std::move(file)) {
-  }
+  GenericFileHelper(base::WeakPtr<FileProxy> proxy, File file)
+      : FileHelper(std::move(proxy), std::move(file)) {}
   GenericFileHelper(const GenericFileHelper&) = delete;
   GenericFileHelper& operator=(const GenericFileHelper&) = delete;
 
@@ -70,27 +72,29 @@ class GenericFileHelper : public FileHelper {
   }
 
   void SetLength(int64_t length) {
-    if (file_.SetLength(length))
+    if (file_.SetLength(length)) {
       error_ = File::FILE_OK;
+    }
   }
 
   void Flush() {
-    if (file_.Flush())
+    if (file_.Flush()) {
       error_ = File::FILE_OK;
+    }
   }
 
   void Reply(FileProxy::StatusCallback callback) {
     PassFile();
-    if (!callback.is_null())
+    if (!callback.is_null()) {
       std::move(callback).Run(error_);
+    }
   }
 };
 
 class CreateOrOpenHelper : public FileHelper {
  public:
-  CreateOrOpenHelper(FileProxy* proxy, File file)
-      : FileHelper(proxy, std::move(file)) {
-  }
+  CreateOrOpenHelper(base::WeakPtr<FileProxy> proxy, File file)
+      : FileHelper(std::move(proxy), std::move(file)) {}
   CreateOrOpenHelper(const CreateOrOpenHelper&) = delete;
   CreateOrOpenHelper& operator=(const CreateOrOpenHelper&) = delete;
 
@@ -108,9 +112,8 @@ class CreateOrOpenHelper : public FileHelper {
 
 class CreateTemporaryHelper : public FileHelper {
  public:
-  CreateTemporaryHelper(FileProxy* proxy, File file)
-      : FileHelper(proxy, std::move(file)) {
-  }
+  CreateTemporaryHelper(base::WeakPtr<FileProxy> proxy, File file)
+      : FileHelper(std::move(proxy), std::move(file)) {}
   CreateTemporaryHelper(const CreateTemporaryHelper&) = delete;
   CreateTemporaryHelper& operator=(const CreateTemporaryHelper&) = delete;
 
@@ -149,15 +152,15 @@ class CreateTemporaryHelper : public FileHelper {
 
 class GetInfoHelper : public FileHelper {
  public:
-  GetInfoHelper(FileProxy* proxy, File file)
-      : FileHelper(proxy, std::move(file)) {
-  }
+  GetInfoHelper(base::WeakPtr<FileProxy> proxy, File file)
+      : FileHelper(std::move(proxy), std::move(file)) {}
   GetInfoHelper(const GetInfoHelper&) = delete;
   GetInfoHelper& operator=(const GetInfoHelper&) = delete;
 
   void RunWork() {
-    if (file_.GetInfo(&file_info_))
-      error_  = File::FILE_OK;
+    if (file_.GetInfo(&file_info_)) {
+      error_ = File::FILE_OK;
+    }
   }
 
   void Reply(FileProxy::GetFileInfoCallback callback) {
@@ -172,76 +175,92 @@ class GetInfoHelper : public FileHelper {
 
 class ReadHelper : public FileHelper {
  public:
-  ReadHelper(FileProxy* proxy, File file, int bytes_to_read)
-      : FileHelper(proxy, std::move(file)),
-        buffer_(new char[static_cast<size_t>(bytes_to_read)]),
-        bytes_to_read_(bytes_to_read) {}
+  ReadHelper(base::WeakPtr<FileProxy> proxy, File file, int bytes_to_read)
+      : FileHelper(std::move(proxy), std::move(file)),
+        // SAFETY - References to `buffer_` are provided as a span only after
+        // successfully reading some bytes.
+        buffer_(base::HeapArray<uint8_t>::Uninit(
+            static_cast<size_t>(bytes_to_read))) {}
+
   ReadHelper(const ReadHelper&) = delete;
   ReadHelper& operator=(const ReadHelper&) = delete;
 
   void RunWork(int64_t offset) {
-    bytes_read_ = file_.Read(offset, buffer_.get(), bytes_to_read_);
-    error_ = (bytes_read_ < 0) ? File::FILE_ERROR_FAILED : File::FILE_OK;
+    std::optional<size_t> result = file_.Read(offset, buffer_);
+    if (!result.has_value()) {
+      bytes_read_ = -1;
+      error_ = File::FILE_ERROR_FAILED;
+      return;
+    }
+    bytes_read_ = checked_cast<int>(result.value());
+    error_ = File::FILE_OK;
   }
 
   void Reply(FileProxy::ReadCallback callback) {
     PassFile();
     DCHECK(!callback.is_null());
-    std::move(callback).Run(error_, buffer_.get(), bytes_read_);
+    base::span<uint8_t> read_span;
+    if (error_ == File::FILE_OK) {
+      read_span = buffer_.first(checked_cast<size_t>(bytes_read_));
+    }
+    std::move(callback).Run(error_, base::as_chars(read_span));
   }
 
  private:
-  std::unique_ptr<char[]> buffer_;
-  int bytes_to_read_;
+  base::HeapArray<uint8_t> buffer_;
   int bytes_read_ = 0;
 };
 
 class WriteHelper : public FileHelper {
  public:
-  WriteHelper(FileProxy* proxy,
+  WriteHelper(base::WeakPtr<FileProxy> proxy,
               File file,
-              const char* buffer,
-              int bytes_to_write)
-      : FileHelper(proxy, std::move(file)),
-        buffer_(new char[static_cast<size_t>(bytes_to_write)]),
-        bytes_to_write_(bytes_to_write) {
-    memcpy(buffer_.get(), buffer, static_cast<size_t>(bytes_to_write));
-  }
+              base::span<const uint8_t> data)
+      : FileHelper(std::move(proxy), std::move(file)),
+        buffer_(base::HeapArray<uint8_t>::CopiedFrom(data)) {}
+
   WriteHelper(const WriteHelper&) = delete;
   WriteHelper& operator=(const WriteHelper&) = delete;
 
   void RunWork(int64_t offset) {
-    bytes_written_ = file_.Write(offset, buffer_.get(), bytes_to_write_);
-    error_ = (bytes_written_ < 0) ? File::FILE_ERROR_FAILED : File::FILE_OK;
+    std::optional<size_t> result = file_.Write(offset, buffer_);
+    if (!result.has_value()) {
+      bytes_written_ = -1;
+      error_ = File::FILE_ERROR_FAILED;
+      return;
+    }
+    bytes_written_ = checked_cast<int>(result.value());
+    error_ = File::FILE_OK;
   }
 
   void Reply(FileProxy::WriteCallback callback) {
     PassFile();
-    if (!callback.is_null())
+    if (!callback.is_null()) {
       std::move(callback).Run(error_, bytes_written_);
+    }
   }
 
  private:
-  std::unique_ptr<char[]> buffer_;
-  int bytes_to_write_;
+  base::HeapArray<uint8_t> buffer_;
   int bytes_written_ = 0;
 };
 
 }  // namespace
 
-FileProxy::FileProxy(TaskRunner* task_runner) : task_runner_(task_runner) {
-}
+FileProxy::FileProxy(TaskRunner* task_runner) : task_runner_(task_runner) {}
 
 FileProxy::~FileProxy() {
-  if (file_.IsValid())
+  if (file_.IsValid()) {
     task_runner_->PostTask(FROM_HERE, BindOnce(&FileDeleter, std::move(file_)));
+  }
 }
 
 bool FileProxy::CreateOrOpen(const FilePath& file_path,
                              uint32_t file_flags,
                              StatusCallback callback) {
   DCHECK(!file_.IsValid());
-  CreateOrOpenHelper* helper = new CreateOrOpenHelper(this, File());
+  CreateOrOpenHelper* helper =
+      new CreateOrOpenHelper(weak_ptr_factory_.GetWeakPtr(), File());
   return task_runner_->PostTaskAndReply(
       FROM_HERE,
       BindOnce(&CreateOrOpenHelper::RunWork, Unretained(helper), file_path,
@@ -252,7 +271,8 @@ bool FileProxy::CreateOrOpen(const FilePath& file_path,
 bool FileProxy::CreateTemporary(uint32_t additional_file_flags,
                                 CreateTemporaryCallback callback) {
   DCHECK(!file_.IsValid());
-  CreateTemporaryHelper* helper = new CreateTemporaryHelper(this, File());
+  CreateTemporaryHelper* helper =
+      new CreateTemporaryHelper(weak_ptr_factory_.GetWeakPtr(), File());
   return task_runner_->PostTaskAndReply(
       FROM_HERE,
       BindOnce(&CreateTemporaryHelper::RunWork, Unretained(helper),
@@ -284,7 +304,8 @@ PlatformFile FileProxy::GetPlatformFile() const {
 
 bool FileProxy::Close(StatusCallback callback) {
   DCHECK(file_.IsValid());
-  GenericFileHelper* helper = new GenericFileHelper(this, std::move(file_));
+  GenericFileHelper* helper =
+      new GenericFileHelper(weak_ptr_factory_.GetWeakPtr(), std::move(file_));
   return task_runner_->PostTaskAndReply(
       FROM_HERE, BindOnce(&GenericFileHelper::Close, Unretained(helper)),
       BindOnce(&GenericFileHelper::Reply, Owned(helper), std::move(callback)));
@@ -292,7 +313,8 @@ bool FileProxy::Close(StatusCallback callback) {
 
 bool FileProxy::GetInfo(GetFileInfoCallback callback) {
   DCHECK(file_.IsValid());
-  GetInfoHelper* helper = new GetInfoHelper(this, std::move(file_));
+  GetInfoHelper* helper =
+      new GetInfoHelper(weak_ptr_factory_.GetWeakPtr(), std::move(file_));
   return task_runner_->PostTaskAndReply(
       FROM_HERE, BindOnce(&GetInfoHelper::RunWork, Unretained(helper)),
       BindOnce(&GetInfoHelper::Reply, Owned(helper), std::move(callback)));
@@ -300,25 +322,27 @@ bool FileProxy::GetInfo(GetFileInfoCallback callback) {
 
 bool FileProxy::Read(int64_t offset, int bytes_to_read, ReadCallback callback) {
   DCHECK(file_.IsValid());
-  if (bytes_to_read < 0)
+  if (bytes_to_read < 0) {
     return false;
+  }
 
-  ReadHelper* helper = new ReadHelper(this, std::move(file_), bytes_to_read);
+  ReadHelper* helper = new ReadHelper(weak_ptr_factory_.GetWeakPtr(),
+                                      std::move(file_), bytes_to_read);
   return task_runner_->PostTaskAndReply(
       FROM_HERE, BindOnce(&ReadHelper::RunWork, Unretained(helper), offset),
       BindOnce(&ReadHelper::Reply, Owned(helper), std::move(callback)));
 }
 
 bool FileProxy::Write(int64_t offset,
-                      const char* buffer,
-                      int bytes_to_write,
+                      base::span<const uint8_t> data,
                       WriteCallback callback) {
   DCHECK(file_.IsValid());
-  if (bytes_to_write <= 0 || buffer == nullptr)
+  if (data.empty()) {
     return false;
-
+  }
   WriteHelper* helper =
-      new WriteHelper(this, std::move(file_), buffer, bytes_to_write);
+      new WriteHelper(weak_ptr_factory_.GetWeakPtr(), std::move(file_), data);
+
   return task_runner_->PostTaskAndReply(
       FROM_HERE, BindOnce(&WriteHelper::RunWork, Unretained(helper), offset),
       BindOnce(&WriteHelper::Reply, Owned(helper), std::move(callback)));
@@ -328,7 +352,8 @@ bool FileProxy::SetTimes(Time last_access_time,
                          Time last_modified_time,
                          StatusCallback callback) {
   DCHECK(file_.IsValid());
-  GenericFileHelper* helper = new GenericFileHelper(this, std::move(file_));
+  GenericFileHelper* helper =
+      new GenericFileHelper(weak_ptr_factory_.GetWeakPtr(), std::move(file_));
   return task_runner_->PostTaskAndReply(
       FROM_HERE,
       BindOnce(&GenericFileHelper::SetTimes, Unretained(helper),
@@ -338,7 +363,8 @@ bool FileProxy::SetTimes(Time last_access_time,
 
 bool FileProxy::SetLength(int64_t length, StatusCallback callback) {
   DCHECK(file_.IsValid());
-  GenericFileHelper* helper = new GenericFileHelper(this, std::move(file_));
+  GenericFileHelper* helper =
+      new GenericFileHelper(weak_ptr_factory_.GetWeakPtr(), std::move(file_));
   return task_runner_->PostTaskAndReply(
       FROM_HERE,
       BindOnce(&GenericFileHelper::SetLength, Unretained(helper), length),
@@ -347,7 +373,8 @@ bool FileProxy::SetLength(int64_t length, StatusCallback callback) {
 
 bool FileProxy::Flush(StatusCallback callback) {
   DCHECK(file_.IsValid());
-  GenericFileHelper* helper = new GenericFileHelper(this, std::move(file_));
+  GenericFileHelper* helper =
+      new GenericFileHelper(weak_ptr_factory_.GetWeakPtr(), std::move(file_));
   return task_runner_->PostTaskAndReply(
       FROM_HERE, BindOnce(&GenericFileHelper::Flush, Unretained(helper)),
       BindOnce(&GenericFileHelper::Reply, Owned(helper), std::move(callback)));

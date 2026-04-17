@@ -17,13 +17,12 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/observer_list.h"
 #include "base/timer/timer.h"
 #include "ui/aura/window.h"
+#include "ui/aura/window_occlusion_tracker.h"
 #include "ui/aura/window_tree_host_observer.h"
 #include "ui/base/ime/ime_key_event_dispatcher.h"
 #include "ui/base/ime/input_method.h"
-#include "ui/display/display_observer.h"
 #include "ui/display/manager/content_protection_manager.h"
 #include "ui/display/manager/display_manager.h"
 #include "ui/gfx/geometry/point.h"
@@ -48,34 +47,12 @@ class RoundedDisplayProvider;
 // WindowTreeHostManager owns and maintains RootWindows for each attached
 // display, keeping them in sync with display configuration changes.
 class ASH_EXPORT WindowTreeHostManager
-    : public display::DisplayObserver,
+    : public display::DisplayManager::Delegate,
       public aura::WindowTreeHostObserver,
       public display::ContentProtectionManager::Observer,
-      public display::DisplayManager::Delegate,
       public ui::ImeKeyEventDispatcher,
       public AshWindowTreeHostDelegate {
  public:
-  // TODO(oshima): Consider moving this to display::DisplayObserver.
-  class ASH_EXPORT Observer {
-   public:
-    virtual ~Observer() {}
-
-    // Invoked only once after all displays are initialized
-    // after startup.
-    virtual void OnDisplaysInitialized() {}
-
-    // Invoked when the display configuration change is requested,
-    // but before the change is applied to aura/ash.
-    virtual void OnDisplayConfigurationChanging() {}
-
-    // Invoked when the all display configuration changes
-    // have been applied.
-    virtual void OnDisplayConfigurationChanged() {}
-
-    // Invoked in WindowTreeHostManager::Shutdown().
-    virtual void OnWindowTreeHostManagerShutdown() {}
-  };
-
   WindowTreeHostManager();
 
   WindowTreeHostManager(const WindowTreeHostManager&) = delete;
@@ -108,10 +85,6 @@ class ASH_EXPORT WindowTreeHostManager
   // Initializes all WindowTreeHosts.
   void InitHosts();
 
-  // Add/Remove observers.
-  void AddObserver(Observer* observer);
-  void RemoveObserver(Observer* observer);
-
   // Returns the root window for primary display.
   aura::Window* GetPrimaryRootWindow();
 
@@ -130,11 +103,6 @@ class ASH_EXPORT WindowTreeHostManager
   // mode, this return a RootWindowController for the primary root window only.
   std::vector<RootWindowController*> GetAllRootWindowControllers();
 
-  // Gets/Sets/Clears the overscan insets for the specified |display_id|. See
-  // display_manager.h for the details.
-  gfx::Insets GetOverscanInsets(int64_t display_id) const;
-  void SetOverscanInsets(int64_t display_id, const gfx::Insets& insets_in_dip);
-
   // Checks if the mouse pointer is on one of displays, and moves to
   // the center of the nearest display if it's outside of all displays.
   void UpdateMouseLocationAfterDisplayChange();
@@ -144,12 +112,6 @@ class ASH_EXPORT WindowTreeHostManager
                                             const gfx::Insets& insets);
 
   ui::InputMethod* input_method() { return input_method_.get(); }
-
-  // display::DisplayObserver overrides:
-  void OnDisplayAdded(const display::Display& display) override;
-  void OnDisplayRemoved(const display::Display& display) override;
-  void OnDisplayMetricsChanged(const display::Display& display,
-                               uint32_t metrics) override;
 
   // Enables the rounded corners mask texture for a display. It creates
   // `RoundedDisplayProvider` for a display as needed and updates the surface if
@@ -162,11 +124,17 @@ class ASH_EXPORT WindowTreeHostManager
 
   // aura::WindowTreeHostObserver overrides:
   void OnHostResized(aura::WindowTreeHost* host) override;
+  void OnLocalSurfaceIdChanged(aura::WindowTreeHost* host,
+                               const viz::LocalSurfaceId& id) override;
 
   // display::ContentProtectionManager::Observer overrides:
-  void OnDisplaySecurityChanged(int64_t display_id, bool secure) override;
+  void OnDisplaySecurityMaybeChanged(int64_t display_id, bool secure) override;
 
   // display::DisplayManager::Delegate overrides:
+  void CreateDisplay(const display::Display& display) override;
+  void RemoveDisplay(const display::Display& display) override;
+  void UpdateDisplayMetrics(const display::Display& display,
+                            uint32_t metrics) override;
   void CreateOrUpdateMirroringDisplay(
       const display::DisplayInfoList& info_list) override;
   void CloseMirroringDisplayIfNotNecessary() override;
@@ -210,7 +178,13 @@ class ASH_EXPORT WindowTreeHostManager
   void AddRoundedDisplayProviderIfNeeded(const display::Display& display);
   void RemoveRoundedDisplayProvider(const display::Display& display);
 
-  typedef std::map<int64_t, AshWindowTreeHost*> WindowTreeHostMap;
+  // Updates the window tree host that the RoundedDisplayProvider is attached
+  // to, for all the display providers. This ensures that the display textures
+  // are rendered on the correct display.
+  void UpdateHostOfDisplayProviders();
+
+  typedef std::map<int64_t, raw_ptr<AshWindowTreeHost, CtnExperimental>>
+      WindowTreeHostMap;
   // The mapping from display ID to its window tree host.
   WindowTreeHostMap window_tree_hosts_;
 
@@ -218,11 +192,9 @@ class ASH_EXPORT WindowTreeHostManager
   base::flat_map<int64_t, std::unique_ptr<RoundedDisplayProvider>>
       rounded_display_providers_map_;
 
-  base::ObserverList<Observer, true>::Unchecked observers_;
-
   // Store the primary window tree host temporarily while replacing
   // display.
-  raw_ptr<AshWindowTreeHost, ExperimentalAsh> primary_tree_host_for_replace_;
+  raw_ptr<AshWindowTreeHost> primary_tree_host_for_replace_;
 
   std::unique_ptr<FocusActivationStore> focus_activation_store_;
 
@@ -242,12 +214,12 @@ class ASH_EXPORT WindowTreeHostManager
   // should be moved after a display configuration change.
   int64_t cursor_display_id_for_restore_;
 
-  // Receive DisplayObserver callbacks between Start and Shutdown.
-  absl::optional<display::ScopedDisplayObserver> display_observer_;
-
   // A repeating timer to trigger sending UMA metrics for primary display's
   // effective resolution at fixed intervals.
   std::unique_ptr<base::RepeatingTimer> effective_resolution_UMA_timer_;
+
+  // Pause occlusion tracking during display configuration updates.
+  std::unique_ptr<aura::WindowOcclusionTracker::ScopedPause> scoped_pause_;
 
   base::WeakPtrFactory<WindowTreeHostManager> weak_ptr_factory_{this};
 };

@@ -10,9 +10,11 @@
 #include <list>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <vector>
 
+#include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -28,6 +30,7 @@
 #include "services/network/public/mojom/p2p.mojom.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/webrtc/rtc_base/time_utils.h"
 
 namespace network {
 
@@ -58,11 +61,12 @@ class FakeP2PSocketDelegate : public P2PSocket::Delegate {
 
 class FakeSocket : public net::StreamSocket {
  public:
-  FakeSocket(std::string* written_data);
+  explicit FakeSocket(std::string* written_data);
   ~FakeSocket() override;
 
   void set_async_write(bool async_write) { async_write_ = async_write; }
-  void AppendInputData(const char* data, int data_size);
+  void set_error_on_next_write(int code) { error_on_next_write_ = code; }
+  void AppendInputData(std::string_view data);
   int input_pos() const { return input_pos_; }
   bool read_pending() const { return read_pending_; }
   void SetPeerAddress(const net::IPEndPoint& peer_address);
@@ -87,7 +91,6 @@ class FakeSocket : public net::StreamSocket {
   int GetLocalAddress(net::IPEndPoint* address) const override;
   const net::NetLogWithSource& NetLog() const override;
   bool WasEverUsed() const override;
-  bool WasAlpnNegotiated() const override;
   net::NextProto GetNegotiatedProtocol() const override;
   bool GetSSLInfo(net::SSLInfo* ssl_info) override;
   int64_t GetTotalReceivedBytes() const override;
@@ -109,6 +112,7 @@ class FakeSocket : public net::StreamSocket {
   raw_ptr<std::string> written_data_;
   bool async_write_;
   bool write_pending_;
+  int error_on_next_write_ = 0;
 
   net::IPEndPoint peer_address_;
   net::IPEndPoint local_address_;
@@ -124,11 +128,16 @@ class FakeSocketClient : public mojom::P2PSocketClient {
   ~FakeSocketClient() override;
 
   // mojom::P2PSocketClient interface.
-  MOCK_METHOD2(SocketCreated,
-               void(const net::IPEndPoint&, const net::IPEndPoint&));
-  MOCK_METHOD1(SendComplete, void(const P2PSendPacketMetrics&));
-  MOCK_METHOD1(DataReceived,
-               void(const std::vector<network::mojom::P2PReceivedPacketPtr>));
+  MOCK_METHOD(void,
+              SocketCreated,
+              (const net::IPEndPoint&, const net::IPEndPoint&));
+  MOCK_METHOD(void, SendComplete, (const P2PSendPacketMetrics&));
+  MOCK_METHOD(void,
+              DataReceived,
+              (const std::vector<network::mojom::P2PReceivedPacketPtr>));
+  MOCK_METHOD(void,
+              SendBatchComplete,
+              (const std::vector<P2PSendPacketMetrics>&));
 
   bool connection_error() { return disconnect_error_; }
 
@@ -174,13 +183,12 @@ MATCHER_P(MatchMessage, type, "") {
 MATCHER_P2(MatchSendPacketMetrics, rtc_packet_id, test_start_time, "") {
   return arg.rtc_packet_id == rtc_packet_id &&
          arg.send_time_ms >= test_start_time &&
-         arg.send_time_ms <= rtc::TimeMillis();
+         arg.send_time_ms <= webrtc::TimeMillis();
 }
 
 // Creates a GMock matcher that matches `base::span` to `std::vector`.
 MATCHER_P(SpanEq, expected, "") {
-  std::vector<uint8_t> result(arg.data(), arg.data() + arg.size());
-  return result == expected;
+  return arg == base::as_byte_span(expected);
 }
 
 }  // namespace network

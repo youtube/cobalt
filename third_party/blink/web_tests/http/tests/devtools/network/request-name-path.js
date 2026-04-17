@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {TestRunner} from 'test_runner';
+
+import * as SDK from 'devtools/core/sdk/sdk.js';
+
 (async function() {
   TestRunner.addResult(`Tests name() and path() methods of NetworkRequest.\n`);
   await TestRunner.showPanel('network');
@@ -11,7 +15,7 @@
      * @param {string=} targetUrl
      */
   function createNetworkRequestForURLAndDumpNameAndPath(url, targetUrl) {
-    var rootTarget = SDK.targetManager.rootTarget();
+    var rootTarget = SDK.TargetManager.TargetManager.instance().rootTarget();
     var currentTargetURL = rootTarget.inspectedURL();
     var dispatcher = TestRunner.networkManager.dispatcher;
     if (targetUrl)
@@ -26,7 +30,7 @@
   }
 
   // Save the target URL to ensure test works well with other tests.
-  var rootTarget = SDK.targetManager.rootTarget();
+  var rootTarget = SDK.TargetManager.TargetManager.instance().rootTarget();
   var originalTargetURL = rootTarget.inspectedURL();
   rootTarget.setInspectedURL('http://127.0.0.1/aFolder/aTest.html');
 

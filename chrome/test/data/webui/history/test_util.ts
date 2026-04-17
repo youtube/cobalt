@@ -2,8 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {ForeignSession, ForeignSessionTab, ForeignSessionWindow, HistoryAppElement, HistoryEntry, HistoryQuery} from 'chrome://history/history.js';
-import {middleOfNode} from 'chrome://resources/polymer/v3_0/iron-test-helpers/mock-interactions.js';
+import type {ForeignSession, ForeignSessionTab, ForeignSessionWindow, HistoryAppElement} from 'chrome://history/history.js';
+import type {HistoryEntry, HistoryQuery} from 'chrome://resources/cr_components/history/history.mojom-webui.js';
+import type {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
+import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {middleOfNode} from 'chrome://webui-test/mouse_mock_interactions.js';
 
 
 /**
@@ -32,6 +35,7 @@ export function createHistoryEntry(
     dateRelativeDay: d.toISOString().split('T')[0]!,
     dateShort: '',
     dateTimeOfDay: d.getUTCHours() + ':' + d.getUTCMinutes(),
+    debug: null,
     deviceName: '',
     deviceType: '',
     domain: domain,
@@ -90,7 +94,7 @@ export function waitForEvent(
 
   return new Promise<void>(function(resolve) {
     const listener = function(e: Event) {
-      if (!predicate!(e)) {
+      if (!predicate(e)) {
         return;
       }
 
@@ -105,7 +109,7 @@ export function waitForEvent(
 /**
  * Sends a shift click event to |element|.
  */
-export function shiftClick(element: HTMLElement) {
+export async function shiftClick(element: CrLitElement): Promise<void> {
   const xy = middleOfNode(element);
   const props = {
     bubbles: true,
@@ -115,10 +119,29 @@ export function shiftClick(element: HTMLElement) {
     buttons: 1,
     shiftKey: true,
   };
-
   element.dispatchEvent(new MouseEvent('mousedown', props));
   element.dispatchEvent(new MouseEvent('mouseup', props));
   element.dispatchEvent(new MouseEvent('click', props));
+  await element.updateComplete;
+}
+
+/**
+ * Sends a shift click event to |element|, using PointerEvent.
+ */
+export async function shiftPointerClick(element: CrLitElement): Promise<void> {
+  const xy = middleOfNode(element);
+  const props = {
+    bubbles: true,
+    cancelable: true,
+    clientX: xy.x,
+    clientY: xy.y,
+    buttons: 1,
+    shiftKey: true,
+  };
+  element.dispatchEvent(new PointerEvent('pointerdown', props));
+  element.dispatchEvent(new PointerEvent('pointerup', props));
+  element.dispatchEvent(new PointerEvent('click', props));
+  await element.updateComplete;
 }
 
 export function disableLinkClicks() {
@@ -176,10 +199,8 @@ export function createWindow(tabUrls: string[]): ForeignSessionWindow {
   return {tabs: tabs, sessionId: 123, timestamp: 0};
 }
 
-export function navigateTo(route: string, app: HistoryAppElement) {
+export function navigateTo(route: string, _app: HistoryAppElement) {
   window.history.replaceState({}, '', route);
-  window.dispatchEvent(new CustomEvent('location-changed'));
-  // Update from the URL synchronously.
-  app.shadowRoot!.querySelector(
-                     'history-router')!.getDebouncerForTesting()!.flush();
+  window.dispatchEvent(new CustomEvent('popstate'));
+  flush();
 }

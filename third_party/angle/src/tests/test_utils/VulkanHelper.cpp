@@ -14,7 +14,7 @@
 #include "common/debug.h"
 #include "common/system_utils.h"
 #include "common/vulkan/vulkan_icd.h"
-#include "test_utils/ANGLETest.h"
+#include "util/util_gl.h"
 #include "vulkan/vulkan_core.h"
 
 namespace angle
@@ -22,19 +22,6 @@ namespace angle
 
 namespace
 {
-
-std::vector<VkExtensionProperties> EnumerateInstanceExtensionProperties(const char *layerName)
-{
-    uint32_t instanceExtensionCount;
-    VkResult result =
-        vkEnumerateInstanceExtensionProperties(layerName, &instanceExtensionCount, nullptr);
-    ASSERT(result == VK_SUCCESS);
-    std::vector<VkExtensionProperties> instanceExtensionProperties(instanceExtensionCount);
-    result = vkEnumerateInstanceExtensionProperties(layerName, &instanceExtensionCount,
-                                                    instanceExtensionProperties.data());
-    ASSERT(result == VK_SUCCESS);
-    return instanceExtensionProperties;
-}
 
 std::vector<VkPhysicalDevice> EnumeratePhysicalDevices(VkInstance instance)
 {
@@ -163,6 +150,23 @@ void ImageMemoryBarrier(VkCommandBuffer commandBuffer,
 
 }  // namespace
 
+void VulkanQueueMutex::init(EGLDisplay dpy)
+{
+    display = dpy;
+}
+
+void VulkanQueueMutex::lock()
+{
+    eglLockVulkanQueueANGLE(display);
+    ASSERT_EGL_SUCCESS();
+}
+
+void VulkanQueueMutex::unlock()
+{
+    eglUnlockVulkanQueueANGLE(display);
+    ASSERT_EGL_SUCCESS();
+}
+
 VulkanHelper::VulkanHelper() {}
 
 VulkanHelper::~VulkanHelper()
@@ -213,23 +217,6 @@ void VulkanHelper::initialize(bool useSwiftshader, bool enableValidationLayers)
     result = volkInitialize();
     ASSERT(result == VK_SUCCESS);
 #endif  // ANGLE_SHARED_LIBVULKAN
-    std::vector<VkExtensionProperties> instanceExtensionProperties =
-        EnumerateInstanceExtensionProperties(nullptr);
-
-    std::vector<const char *> requestedInstanceExtensions = {
-        VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
-        VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME,
-        VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME};
-
-    std::vector<const char *> enabledInstanceExtensions;
-
-    for (const char *extensionName : requestedInstanceExtensions)
-    {
-        if (HasExtension(instanceExtensionProperties, extensionName))
-        {
-            enabledInstanceExtensions.push_back(extensionName);
-        }
-    }
 
     VkApplicationInfo applicationInfo = {
         /* .sType = */ VK_STRUCTURE_TYPE_APPLICATION_INFO,
@@ -240,9 +227,6 @@ void VulkanHelper::initialize(bool useSwiftshader, bool enableValidationLayers)
         /* .engineVersion = */ 0,
         /* .apiVersion = */ VK_API_VERSION_1_1,
     };
-
-    uint32_t enabledInstanceExtensionCount =
-        static_cast<uint32_t>(enabledInstanceExtensions.size());
 
     std::vector<const char *> enabledLayerNames;
     if (enableValidationLayersOverride)
@@ -257,8 +241,8 @@ void VulkanHelper::initialize(bool useSwiftshader, bool enableValidationLayers)
         /* .pApplicationInfo = */ &applicationInfo,
         /* .enabledLayerCount = */ static_cast<uint32_t>(enabledLayerNames.size()),
         /* .ppEnabledLayerNames = */ enabledLayerNames.data(),
-        /* .enabledExtensionCount = */ enabledInstanceExtensionCount,
-        /* .ppEnabledExtensionName = */ enabledInstanceExtensions.data(),
+        /* .enabledExtensionCount = */ 0,
+        /* .ppEnabledExtensionName = */ nullptr,
     };
 
     result = vkCreateInstance(&instanceCreateInfo, nullptr, &mInstance);
@@ -272,9 +256,13 @@ void VulkanHelper::initialize(bool useSwiftshader, bool enableValidationLayers)
 
     ASSERT(physicalDevices.size() > 0);
 
-    VkPhysicalDeviceProperties physicalDeviceProperties;
-    ChoosePhysicalDevice(vkGetPhysicalDeviceProperties, physicalDevices, icd, 0, 0,
-                         &mPhysicalDevice, &physicalDeviceProperties);
+    VkPhysicalDeviceProperties2 physicalDeviceProperties2;
+    VkPhysicalDeviceIDProperties physicalDeviceIDProperties;
+    VkPhysicalDeviceDriverProperties driverProperties;
+    ChoosePhysicalDevice(vkGetPhysicalDeviceProperties2, physicalDevices, icd, 0, 0, nullptr,
+                         nullptr, static_cast<VkDriverId>(0), &mPhysicalDevice,
+                         &physicalDeviceProperties2, &physicalDeviceIDProperties,
+                         &driverProperties);
 
     vkGetPhysicalDeviceMemoryProperties(mPhysicalDevice, &mMemoryProperties);
 
@@ -282,11 +270,9 @@ void VulkanHelper::initialize(bool useSwiftshader, bool enableValidationLayers)
         EnumerateDeviceExtensionProperties(mPhysicalDevice, nullptr);
 
     std::vector<const char *> requestedDeviceExtensions = {
-        VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME,   VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME,
-        VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME,      VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
-        VK_FUCHSIA_EXTERNAL_MEMORY_EXTENSION_NAME,  VK_FUCHSIA_EXTERNAL_SEMAPHORE_EXTENSION_NAME,
-        VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME,    VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,
-        VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,
+        VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME, VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
+        VK_FUCHSIA_EXTERNAL_MEMORY_EXTENSION_NAME,   VK_FUCHSIA_EXTERNAL_SEMAPHORE_EXTENSION_NAME,
+        VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME,
     };
 
     std::vector<const char *> enabledDeviceExtensions;
@@ -346,6 +332,10 @@ void VulkanHelper::initialize(bool useSwiftshader, bool enableValidationLayers)
     ASSERT(mDevice != VK_NULL_HANDLE);
 #if ANGLE_SHARED_LIBVULKAN
     volkLoadDevice(mDevice);
+    vkGetPhysicalDeviceExternalSemaphoreProperties =
+        reinterpret_cast<PFN_vkGetPhysicalDeviceExternalSemaphoreProperties>(
+            vkGetInstanceProcAddr(mInstance, "vkGetPhysicalDeviceExternalSemaphoreProperties"));
+    ASSERT(vkGetPhysicalDeviceExternalSemaphoreProperties);
 #endif  // ANGLE_SHARED_LIBVULKAN
 
     constexpr uint32_t kGraphicsQueueIndex = 0;
@@ -374,15 +364,13 @@ void VulkanHelper::initialize(bool useSwiftshader, bool enableValidationLayers)
     vkGetPhysicalDeviceImageFormatProperties2 =
         reinterpret_cast<PFN_vkGetPhysicalDeviceImageFormatProperties2>(
             vkGetInstanceProcAddr(mInstance, "vkGetPhysicalDeviceImageFormatProperties2"));
+    ASSERT(vkGetPhysicalDeviceImageFormatProperties2);
     vkGetMemoryFdKHR = reinterpret_cast<PFN_vkGetMemoryFdKHR>(
         vkGetInstanceProcAddr(mInstance, "vkGetMemoryFdKHR"));
     ASSERT(!mHasExternalMemoryFd || vkGetMemoryFdKHR);
     vkGetSemaphoreFdKHR = reinterpret_cast<PFN_vkGetSemaphoreFdKHR>(
         vkGetInstanceProcAddr(mInstance, "vkGetSemaphoreFdKHR"));
     ASSERT(!mHasExternalSemaphoreFd || vkGetSemaphoreFdKHR);
-    vkGetPhysicalDeviceExternalSemaphorePropertiesKHR =
-        reinterpret_cast<PFN_vkGetPhysicalDeviceExternalSemaphorePropertiesKHR>(
-            vkGetInstanceProcAddr(mInstance, "vkGetPhysicalDeviceExternalSemaphorePropertiesKHR"));
     vkGetMemoryZirconHandleFUCHSIA = reinterpret_cast<PFN_vkGetMemoryZirconHandleFUCHSIA>(
         vkGetInstanceProcAddr(mInstance, "vkGetMemoryZirconHandleFUCHSIA"));
     ASSERT(!mHasExternalMemoryFuchsia || vkGetMemoryZirconHandleFUCHSIA);
@@ -436,6 +424,8 @@ void VulkanHelper::initializeFromANGLE()
     mGraphicsQueue = reinterpret_cast<VkQueue>(result);
     EXPECT_NE(mGraphicsQueue, static_cast<VkQueue>(VK_NULL_HANDLE));
 
+    mGraphicsQueueMutex.init(display);
+
     EXPECT_EGL_TRUE(eglQueryDeviceAttribEXT(device, EGL_VULKAN_QUEUE_FAMILIY_INDEX_ANGLE, &result));
     mGraphicsQueueFamilyIndex = static_cast<uint32_t>(result);
 
@@ -453,6 +443,10 @@ void VulkanHelper::initializeFromANGLE()
 
 #if ANGLE_SHARED_LIBVULKAN
     volkLoadDevice(mDevice);
+    vkGetPhysicalDeviceExternalSemaphoreProperties =
+        reinterpret_cast<PFN_vkGetPhysicalDeviceExternalSemaphoreProperties>(
+            vkGetInstanceProcAddr(mInstance, "vkGetPhysicalDeviceExternalSemaphoreProperties"));
+    ASSERT(vkGetPhysicalDeviceExternalSemaphoreProperties);
 #endif  // ANGLE_SHARED_LIBVULKAN
 
     VkCommandPoolCreateInfo commandPoolCreateInfo = {
@@ -468,16 +462,12 @@ void VulkanHelper::initializeFromANGLE()
         reinterpret_cast<PFN_vkGetPhysicalDeviceImageFormatProperties2>(
             vkGetInstanceProcAddr(mInstance, "vkGetPhysicalDeviceImageFormatProperties2"));
     ASSERT(vkGetPhysicalDeviceImageFormatProperties2);
-
     vkGetMemoryFdKHR = reinterpret_cast<PFN_vkGetMemoryFdKHR>(
         vkGetInstanceProcAddr(mInstance, "vkGetMemoryFdKHR"));
     ASSERT(!mHasExternalMemoryFd || vkGetMemoryFdKHR);
     vkGetSemaphoreFdKHR = reinterpret_cast<PFN_vkGetSemaphoreFdKHR>(
         vkGetInstanceProcAddr(mInstance, "vkGetSemaphoreFdKHR"));
     ASSERT(!mHasExternalSemaphoreFd || vkGetSemaphoreFdKHR);
-    vkGetPhysicalDeviceExternalSemaphorePropertiesKHR =
-        reinterpret_cast<PFN_vkGetPhysicalDeviceExternalSemaphorePropertiesKHR>(
-            vkGetInstanceProcAddr(mInstance, "vkGetPhysicalDeviceExternalSemaphorePropertiesKHR"));
     vkGetMemoryZirconHandleFUCHSIA = reinterpret_cast<PFN_vkGetMemoryZirconHandleFUCHSIA>(
         vkGetInstanceProcAddr(mInstance, "vkGetMemoryZirconHandleFUCHSIA"));
     ASSERT(!mHasExternalMemoryFuchsia || vkGetMemoryZirconHandleFUCHSIA);
@@ -622,7 +612,7 @@ VkResult VulkanHelper::createImage2DExternal(VkFormat format,
                                              VkDeviceMemory *deviceMemoryOut,
                                              VkDeviceSize *deviceMemorySizeOut)
 {
-    VkExternalMemoryImageCreateInfoKHR externalMemoryImageCreateInfo = {
+    VkExternalMemoryImageCreateInfo externalMemoryImageCreateInfo = {
         /* .sType = */ VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
         /* .pNext = */ imageCreateInfoPNext,
         /* .handleTypes = */ handleTypes,
@@ -666,8 +656,8 @@ VkResult VulkanHelper::createImage2DExternal(VkFormat format,
         /* .pNext = */ nullptr,
         /* .handleTypes = */ handleTypes,
     };
-    VkMemoryDedicatedAllocateInfoKHR memoryDedicatedAllocateInfo = {
-        /* .sType = */ VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR,
+    VkMemoryDedicatedAllocateInfo memoryDedicatedAllocateInfo = {
+        /* .sType = */ VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO,
         /* .pNext = */ &exportMemoryAllocateInfo,
         /* .image = */ image,
     };
@@ -786,7 +776,7 @@ VkResult VulkanHelper::exportMemoryZirconVmo(VkDeviceMemory deviceMemory, zx_han
 
 bool VulkanHelper::canCreateSemaphoreOpaqueFd() const
 {
-    if (!mHasExternalSemaphoreFd || !vkGetPhysicalDeviceExternalSemaphorePropertiesKHR)
+    if (!mHasExternalSemaphoreFd)
     {
         return false;
     }
@@ -800,8 +790,8 @@ bool VulkanHelper::canCreateSemaphoreOpaqueFd() const
     VkExternalSemaphoreProperties externalSemaphoreProperties = {
         /* .sType = */ VK_STRUCTURE_TYPE_EXTERNAL_SEMAPHORE_PROPERTIES,
     };
-    vkGetPhysicalDeviceExternalSemaphorePropertiesKHR(mPhysicalDevice, &externalSemaphoreInfo,
-                                                      &externalSemaphoreProperties);
+    vkGetPhysicalDeviceExternalSemaphoreProperties(mPhysicalDevice, &externalSemaphoreInfo,
+                                                   &externalSemaphoreProperties);
 
     constexpr VkExternalSemaphoreFeatureFlags kRequiredFeatures =
         VK_EXTERNAL_SEMAPHORE_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_SEMAPHORE_FEATURE_IMPORTABLE_BIT;
@@ -846,7 +836,7 @@ VkResult VulkanHelper::exportSemaphoreOpaqueFd(VkSemaphore semaphore, int *fd)
 
 bool VulkanHelper::canCreateSemaphoreZirconEvent() const
 {
-    if (!mHasExternalSemaphoreFuchsia || !vkGetPhysicalDeviceExternalSemaphorePropertiesKHR)
+    if (!mHasExternalSemaphoreFuchsia)
     {
         return false;
     }
@@ -860,8 +850,8 @@ bool VulkanHelper::canCreateSemaphoreZirconEvent() const
     VkExternalSemaphoreProperties externalSemaphoreProperties = {
         /* .sType = */ VK_STRUCTURE_TYPE_EXTERNAL_SEMAPHORE_PROPERTIES,
     };
-    vkGetPhysicalDeviceExternalSemaphorePropertiesKHR(mPhysicalDevice, &externalSemaphoreInfo,
-                                                      &externalSemaphoreProperties);
+    vkGetPhysicalDeviceExternalSemaphoreProperties(mPhysicalDevice, &externalSemaphoreInfo,
+                                                   &externalSemaphoreProperties);
 
     constexpr VkExternalSemaphoreFeatureFlags kRequiredFeatures =
         VK_EXTERNAL_SEMAPHORE_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_SEMAPHORE_FEATURE_IMPORTABLE_BIT;
@@ -959,6 +949,37 @@ void VulkanHelper::releaseImageAndSignalSemaphore(VkImage image,
     };
     constexpr uint32_t submitCount = std::extent<decltype(submits)>();
 
+    std::unique_lock<VulkanQueueMutex> queueLock = getGraphicsQueueLock();
+    const VkFence fence = VK_NULL_HANDLE;
+    result              = vkQueueSubmit(mGraphicsQueue, submitCount, submits, fence);
+    ASSERT(result == VK_SUCCESS);
+}
+
+void VulkanHelper::signalSemaphore(VkSemaphore semaphore)
+{
+    VkResult result;
+
+    const VkSemaphore signalSemaphores[] = {
+        semaphore,
+    };
+    constexpr uint32_t signalSemaphoreCount = std::extent<decltype(signalSemaphores)>();
+
+    const VkSubmitInfo submits[] = {
+        /* [0] = */ {
+            /* .sType */ VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            /* .pNext = */ nullptr,
+            /* .waitSemaphoreCount = */ 0,
+            /* .pWaitSemaphores = */ nullptr,
+            /* .pWaitDstStageMask = */ nullptr,
+            /* .commandBufferCount = */ 0,
+            /* .pCommandBuffers = */ nullptr,
+            /* .signalSemaphoreCount = */ signalSemaphoreCount,
+            /* .pSignalSemaphores = */ signalSemaphores,
+        },
+    };
+    constexpr uint32_t submitCount = std::extent<decltype(submits)>();
+
+    std::unique_lock<VulkanQueueMutex> queueLock = getGraphicsQueueLock();
     const VkFence fence = VK_NULL_HANDLE;
     result              = vkQueueSubmit(mGraphicsQueue, submitCount, submits, fence);
     ASSERT(result == VK_SUCCESS);
@@ -1025,6 +1046,7 @@ void VulkanHelper::waitSemaphoreAndAcquireImage(VkImage image,
     };
     constexpr uint32_t submitCount = std::extent<decltype(submits)>();
 
+    std::unique_lock<VulkanQueueMutex> queueLock = getGraphicsQueueLock();
     const VkFence fence = VK_NULL_HANDLE;
     result              = vkQueueSubmit(mGraphicsQueue, submitCount, submits, fence);
     ASSERT(result == VK_SUCCESS);
@@ -1065,8 +1087,8 @@ void VulkanHelper::readPixels(VkImage srcImage,
     ASSERT(memoryTypeIndex != UINT32_MAX);
     VkDeviceSize deviceMemorySize = memoryRequirements.size;
 
-    VkMemoryDedicatedAllocateInfoKHR memoryDedicatedAllocateInfo = {
-        /* .sType = */ VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR,
+    VkMemoryDedicatedAllocateInfo memoryDedicatedAllocateInfo = {
+        /* .sType = */ VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO,
         /* .pNext = */ nullptr,
         /* .image = */ VK_NULL_HANDLE,
         /* .buffer = */ stagingBuffer,
@@ -1185,12 +1207,15 @@ void VulkanHelper::readPixels(VkImage srcImage,
     };
     constexpr uint32_t submitCount = std::extent<decltype(submits)>();
 
-    const VkFence fence = VK_NULL_HANDLE;
-    result              = vkQueueSubmit(mGraphicsQueue, submitCount, submits, fence);
-    ASSERT(result == VK_SUCCESS);
+    {
+        std::unique_lock<VulkanQueueMutex> queueLock = getGraphicsQueueLock();
+        const VkFence fence                          = VK_NULL_HANDLE;
+        result = vkQueueSubmit(mGraphicsQueue, submitCount, submits, fence);
+        ASSERT(result == VK_SUCCESS);
 
-    result = vkQueueWaitIdle(mGraphicsQueue);
-    ASSERT(result == VK_SUCCESS);
+        result = vkQueueWaitIdle(mGraphicsQueue);
+        ASSERT(result == VK_SUCCESS);
+    }
 
     vkFreeCommandBuffers(mDevice, mCommandPool, commandBufferCount, commandBuffers);
 
@@ -1255,8 +1280,8 @@ void VulkanHelper::writePixels(VkImage dstImage,
     ASSERT(memoryTypeIndex != UINT32_MAX);
     VkDeviceSize deviceMemorySize = memoryRequirements.size;
 
-    VkMemoryDedicatedAllocateInfoKHR memoryDedicatedAllocateInfo = {
-        /* .sType = */ VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR,
+    VkMemoryDedicatedAllocateInfo memoryDedicatedAllocateInfo = {
+        /* .sType = */ VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO,
         /* .pNext = */ nullptr,
         /* .image = */ VK_NULL_HANDLE,
         /* .buffer = */ stagingBuffer,
@@ -1402,12 +1427,15 @@ void VulkanHelper::writePixels(VkImage dstImage,
     };
     constexpr uint32_t submitCount = std::extent<decltype(submits)>();
 
-    const VkFence fence = VK_NULL_HANDLE;
-    result              = vkQueueSubmit(mGraphicsQueue, submitCount, submits, fence);
-    ASSERT(result == VK_SUCCESS);
+    {
+        std::unique_lock<VulkanQueueMutex> queueLock = getGraphicsQueueLock();
+        const VkFence fence                          = VK_NULL_HANDLE;
+        result = vkQueueSubmit(mGraphicsQueue, submitCount, submits, fence);
+        ASSERT(result == VK_SUCCESS);
 
-    result = vkQueueWaitIdle(mGraphicsQueue);
-    ASSERT(result == VK_SUCCESS);
+        result = vkQueueWaitIdle(mGraphicsQueue);
+        ASSERT(result == VK_SUCCESS);
+    }
 
     vkFreeCommandBuffers(mDevice, mCommandPool, commandBufferCount, commandBuffers);
     vkDestroyBuffer(mDevice, stagingBuffer, nullptr);

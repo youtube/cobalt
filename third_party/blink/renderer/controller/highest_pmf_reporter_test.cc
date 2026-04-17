@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "third_party/blink/renderer/controller/highest_pmf_reporter.h"
 
 #include <memory>
@@ -112,7 +117,7 @@ class MockMemoryUsageMonitor : public MemoryUsageMonitor {
 
     std::vector<Persistent<Page>>::iterator it = dummy_pages_.begin();
     while (Page::OrdinaryPages().size() < page_count) {
-      DCHECK(it != dummy_pages_.end());
+      CHECK(it != dummy_pages_.end());
       Page::OrdinaryPages().insert(it->Get());
       it++;
     }
@@ -122,8 +127,9 @@ class MockMemoryUsageMonitor : public MemoryUsageMonitor {
   MockMemoryUsageMonitor() = delete;
 
   Page* CreateDummyPage() {
-    return Page::CreateNonOrdinary(GetStaticEmptyChromeClientInstance(),
-                                   *agent_group_scheduler_);
+    return Page::CreateNonOrdinary(*MakeGarbageCollected<EmptyChromeClient>(),
+                                   *agent_group_scheduler_,
+                                   /*color_provider_colors=*/nullptr);
   }
 
   MemoryUsage mock_memory_usage_;

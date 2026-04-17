@@ -1,10 +1,12 @@
 #include "quiche/http2/adapter/header_validator.h"
 
+#include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
+#include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
-#include "absl/types/optional.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace http2 {
@@ -61,7 +63,8 @@ TEST(HeaderValidatorTest, NameHasInvalidChar) {
                                                 : absl::StrCat("na", c, "me");
       HeaderValidator::HeaderStatus status =
           v.ValidateSingleHeader(name, "value");
-      EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID, status);
+      EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID, status)
+          << "with name [" << name << "]";
     }
     // Test nul separately.
     {
@@ -170,7 +173,8 @@ TEST(HeaderValidatorTest, AuthorityHasInvalidChar) {
       HeaderValidator v;
       v.StartHeaderBlock();
       HeaderValidator::HeaderStatus status = v.ValidateSingleHeader(key, value);
-      EXPECT_EQ(HeaderValidator::HEADER_OK, status);
+      EXPECT_EQ(HeaderValidator::HEADER_OK, status)
+          << " with name [" << key << "] and value [" << value << "]";
     }
     // These should not.
     for (const absl::string_view c : {"\r", "\n", "|", "\\", "`"}) {
@@ -245,6 +249,55 @@ TEST(HeaderValidatorTest, RequestHostAndAuthority) {
   // If "host" and ":authority" have different values, validation fails.
   EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
             v.ValidateSingleHeader("host", "www.bar.com"));
+}
+
+TEST(HeaderValidatorTest, RequestHostAndAuthorityLax) {
+  HeaderValidator v;
+  v.SetAllowDifferentHostAndAuthority();
+  v.StartHeaderBlock();
+  for (Header to_add : kSampleRequestPseudoheaders) {
+    EXPECT_EQ(HeaderValidator::HEADER_OK,
+              v.ValidateSingleHeader(to_add.first, to_add.second));
+  }
+  // Since the option is set, validation succeeds even if "host" and
+  // ":authority" have different values.
+  EXPECT_EQ(HeaderValidator::HEADER_OK,
+            v.ValidateSingleHeader("host", "www.bar.com"));
+}
+
+TEST(HeaderValidatorTest, MethodHasInvalidChar) {
+  HeaderValidator v;
+  v.StartHeaderBlock();
+
+  std::vector<absl::string_view> bad_methods = {
+      "In[]valid{}",   "co,mma", "spac e",     "a@t",    "equals=",
+      "question?mark", "co:lon", "semi;colon", "sla/sh", "back\\slash",
+  };
+
+  std::vector<absl::string_view> good_methods = {
+      "lowercase",   "MiXeDcAsE", "NONCANONICAL", "HASH#",
+      "under_score", "PI|PE",     "Tilde~",       "quote'",
+  };
+
+  for (absl::string_view value : bad_methods) {
+    v.StartHeaderBlock();
+    EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
+              v.ValidateSingleHeader(":method", value));
+  }
+
+  for (absl::string_view value : good_methods) {
+    v.StartHeaderBlock();
+    EXPECT_EQ(HeaderValidator::HEADER_OK,
+              v.ValidateSingleHeader(":method", value));
+    for (Header to_add : kSampleRequestPseudoheaders) {
+      if (to_add.first == ":method") {
+        continue;
+      }
+      EXPECT_EQ(HeaderValidator::HEADER_OK,
+                v.ValidateSingleHeader(to_add.first, to_add.second));
+    }
+    EXPECT_TRUE(v.FinishHeaderBlock(HeaderType::REQUEST));
+  }
 }
 
 TEST(HeaderValidatorTest, RequestPseudoHeaders) {
@@ -446,6 +499,91 @@ TEST(HeaderValidatorTest, InvalidPathPseudoHeader) {
     }
   }
   EXPECT_FALSE(v.FinishHeaderBlock(HeaderType::REQUEST));
+
+  // Various valid path characters.
+  for (const absl::string_view c : {"/", "?", "_", "'", "9", "&", "(", "@", ":",
+                                    "<", ">", "\\", "[", "}", "`", "\\", "#"}) {
+    const std::string value = absl::StrCat("/shawa", c, "rma");
+
+    HeaderValidator validator;
+    validator.StartHeaderBlock();
+    for (Header to_add : kSampleRequestPseudoheaders) {
+      if (to_add.first == ":path") {
+        EXPECT_EQ(HeaderValidator::HEADER_OK,
+                  validator.ValidateSingleHeader(to_add.first, value))
+            << "Problematic char: [" << c << "]";
+      } else {
+        EXPECT_EQ(HeaderValidator::HEADER_OK,
+                  validator.ValidateSingleHeader(to_add.first, to_add.second));
+      }
+    }
+    EXPECT_TRUE(validator.FinishHeaderBlock(HeaderType::REQUEST));
+  }
+
+  // Various invalid path characters.
+  for (const absl::string_view c : {"\n", "\r", " ", "\t"}) {
+    SCOPED_TRACE(absl::StrCat("char: ", absl::CEscape(c)));
+
+    const std::string value = absl::StrCat("/shawa", c, "rma");
+
+    HeaderValidator validator;
+    validator.StartHeaderBlock();
+    for (Header to_add : kSampleRequestPseudoheaders) {
+      if (to_add.first == ":path") {
+        EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
+                  validator.ValidateSingleHeader(to_add.first, value));
+      } else {
+        EXPECT_EQ(HeaderValidator::HEADER_OK,
+                  validator.ValidateSingleHeader(to_add.first, to_add.second));
+      }
+    }
+    validator.FinishHeaderBlock(HeaderType::REQUEST);
+  }
+}
+
+TEST(HeaderValidatorTest, PathStrictValidation) {
+  // Various invalid path characters.
+  for (const absl::string_view c : {"[", "<", "}", "`", "\\", " ", "\t", "#"}) {
+    const std::string value = absl::StrCat("/shawa", c, "rma");
+
+    HeaderValidator validator;
+
+    // Required for strict path validation.
+    validator.SetValidatePath();
+
+    validator.StartHeaderBlock();
+    for (Header to_add : kSampleRequestPseudoheaders) {
+      if (to_add.first == ":path") {
+        EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
+                  validator.ValidateSingleHeader(to_add.first, value));
+      } else {
+        EXPECT_EQ(HeaderValidator::HEADER_OK,
+                  validator.ValidateSingleHeader(to_add.first, to_add.second));
+      }
+    }
+    EXPECT_FALSE(validator.FinishHeaderBlock(HeaderType::REQUEST));
+  }
+
+  // The fragment initial character can be explicitly allowed.
+  {
+    HeaderValidator validator;
+
+    // Required for strict path validation.
+    validator.SetValidatePath();
+
+    validator.SetAllowFragmentInPath();
+    validator.StartHeaderBlock();
+    for (Header to_add : kSampleRequestPseudoheaders) {
+      if (to_add.first == ":path") {
+        EXPECT_EQ(HeaderValidator::HEADER_OK,
+                  validator.ValidateSingleHeader(to_add.first, "/shawa#rma"));
+      } else {
+        EXPECT_EQ(HeaderValidator::HEADER_OK,
+                  validator.ValidateSingleHeader(to_add.first, to_add.second));
+      }
+    }
+    EXPECT_TRUE(validator.FinishHeaderBlock(HeaderType::REQUEST));
+  }
 }
 
 TEST(HeaderValidatorTest, ResponsePseudoHeaders) {
@@ -609,13 +747,13 @@ TEST(HeaderValidatorTest, ValidContentLength) {
   HeaderValidator v;
 
   v.StartHeaderBlock();
-  EXPECT_EQ(v.content_length(), absl::nullopt);
+  EXPECT_EQ(v.content_length(), std::nullopt);
   EXPECT_EQ(HeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("content-length", "41"));
   EXPECT_THAT(v.content_length(), Optional(41));
 
   v.StartHeaderBlock();
-  EXPECT_EQ(v.content_length(), absl::nullopt);
+  EXPECT_EQ(v.content_length(), std::nullopt);
   EXPECT_EQ(HeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("content-length", "42"));
   EXPECT_THAT(v.content_length(), Optional(42));
@@ -625,16 +763,16 @@ TEST(HeaderValidatorTest, InvalidContentLength) {
   HeaderValidator v;
 
   v.StartHeaderBlock();
-  EXPECT_EQ(v.content_length(), absl::nullopt);
+  EXPECT_EQ(v.content_length(), std::nullopt);
   EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
             v.ValidateSingleHeader("content-length", ""));
-  EXPECT_EQ(v.content_length(), absl::nullopt);
+  EXPECT_EQ(v.content_length(), std::nullopt);
   EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
             v.ValidateSingleHeader("content-length", "nan"));
-  EXPECT_EQ(v.content_length(), absl::nullopt);
+  EXPECT_EQ(v.content_length(), std::nullopt);
   EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
             v.ValidateSingleHeader("content-length", "-42"));
-  EXPECT_EQ(v.content_length(), absl::nullopt);
+  EXPECT_EQ(v.content_length(), std::nullopt);
   // End on a positive note.
   EXPECT_EQ(HeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("content-length", "42"));
@@ -669,6 +807,44 @@ TEST(HeaderValidatorTest, ConnectionSpecificHeaders) {
     EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
               v.ValidateSingleHeader(connection_key, connection_value));
   }
+}
+
+TEST(HeaderValidatorTest, MixedCaseHeaderName) {
+  HeaderValidator v;
+  v.SetAllowUppercaseInHeaderNames();
+  EXPECT_EQ(HeaderValidator::HEADER_OK,
+            v.ValidateSingleHeader("MixedCaseName", "value"));
+}
+
+// SetAllowUppercaseInHeaderNames() only applies to non-pseudo-headers.
+TEST(HeaderValidatorTest, MixedCasePseudoHeader) {
+  HeaderValidator v;
+  v.SetAllowUppercaseInHeaderNames();
+  EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
+            v.ValidateSingleHeader(":PATH", "/"));
+}
+
+// Matching `host` is case-insensitive.
+TEST(HeaderValidatorTest, MixedCaseHost) {
+  HeaderValidator v;
+  v.SetAllowUppercaseInHeaderNames();
+  for (Header to_add : kSampleRequestPseudoheaders) {
+    EXPECT_EQ(HeaderValidator::HEADER_OK,
+              v.ValidateSingleHeader(to_add.first, to_add.second));
+  }
+  // Validation fails, because "host" and ":authority" have different values.
+  EXPECT_EQ(HeaderValidator::HEADER_FIELD_INVALID,
+            v.ValidateSingleHeader("Host", "www.bar.com"));
+}
+
+// Matching `content-length` is case-insensitive.
+TEST(HeaderValidatorTest, MixedCaseContentLength) {
+  HeaderValidator v;
+  v.SetAllowUppercaseInHeaderNames();
+  EXPECT_EQ(v.content_length(), std::nullopt);
+  EXPECT_EQ(HeaderValidator::HEADER_OK,
+            v.ValidateSingleHeader("Content-Length", "42"));
+  EXPECT_THAT(v.content_length(), Optional(42));
 }
 
 }  // namespace test

@@ -10,15 +10,15 @@
 #include <memory>
 #include <vector>
 
+#include "absl/base/thread_annotations.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
+#include "absl/synchronization/mutex.h"
+#include "quiche/http2/core/spdy_framer.h"
 #include "quiche/quic/core/http/spdy_utils.h"
-#include "quiche/quic/platform/api/quic_mutex.h"
 #include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
-#include "quiche/quic/tools/quic_url.h"
-#include "quiche/spdy/core/http2_header_block.h"
-#include "quiche/spdy/core/spdy_framer.h"
+#include "quiche/common/http/http_header_block.h"
 
 namespace quic {
 
@@ -49,7 +49,7 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
 
     absl::string_view path() { return path_; }
 
-    const spdy::Http2HeaderBlock& spdy_headers() { return spdy_headers_; }
+    const quiche::HttpHeaderBlock& spdy_headers() { return spdy_headers_; }
 
     absl::string_view body() { return body_; }
 
@@ -62,7 +62,7 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
     std::string file_name_;
     std::string file_contents_;
     absl::string_view body_;
-    spdy::Http2HeaderBlock spdy_headers_;
+    quiche::HttpHeaderBlock spdy_headers_;
     absl::string_view x_original_url_;
     std::vector<absl::string_view> push_urls_;
     std::string host_;
@@ -84,32 +84,22 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
   void AddSimpleResponse(absl::string_view host, absl::string_view path,
                          int response_code, absl::string_view body);
 
-  // Add a simple response to the cache as AddSimpleResponse() does, and add
-  // some server push resources(resource path, corresponding response status and
-  // path) associated with it.
-  // Push resource implicitly come from the same host.
-  // TODO(b/171463363): Remove.
-  void AddSimpleResponseWithServerPushResources(
-      absl::string_view host, absl::string_view path, int response_code,
-      absl::string_view body,
-      std::list<QuicBackendResponse::ServerPushInfo> push_resources);
-
   // Add a response to the cache.
   void AddResponse(absl::string_view host, absl::string_view path,
-                   spdy::Http2HeaderBlock response_headers,
+                   quiche::HttpHeaderBlock response_headers,
                    absl::string_view response_body);
 
   // Add a response, with trailers, to the cache.
   void AddResponse(absl::string_view host, absl::string_view path,
-                   spdy::Http2HeaderBlock response_headers,
+                   quiche::HttpHeaderBlock response_headers,
                    absl::string_view response_body,
-                   spdy::Http2HeaderBlock response_trailers);
+                   quiche::HttpHeaderBlock response_trailers);
 
   // Add a response, with 103 Early Hints, to the cache.
   void AddResponseWithEarlyHints(
       absl::string_view host, absl::string_view path,
-      spdy::Http2HeaderBlock response_headers, absl::string_view response_body,
-      const std::vector<spdy::Http2HeaderBlock>& early_hints);
+      quiche::HttpHeaderBlock response_headers, absl::string_view response_body,
+      const std::vector<quiche::HttpHeaderBlock>& early_hints);
 
   // Simulate a special behavior at a particular path.
   void AddSpecialResponse(
@@ -118,7 +108,7 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
 
   void AddSpecialResponse(
       absl::string_view host, absl::string_view path,
-      spdy::Http2HeaderBlock response_headers, absl::string_view response_body,
+      quiche::HttpHeaderBlock response_headers, absl::string_view response_body,
       QuicBackendResponse::SpecialResponseType response_type);
 
   // Finds a response with the given host and path, and assign it a simulated
@@ -137,69 +127,46 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
 
   void EnableWebTransport();
 
-  // Find all the server push resources associated with |request_url|.
-  // TODO(b/171463363): Remove.
-  std::list<QuicBackendResponse::ServerPushInfo> GetServerPushResources(
-      std::string request_url);
-
   // Implements the functions for interface QuicSimpleServerBackend
   // |cache_cirectory| can be generated using `wget -p --save-headers <url>`.
   bool InitializeBackend(const std::string& cache_directory) override;
   bool IsBackendInitialized() const override;
   void FetchResponseFromBackend(
-      const spdy::Http2HeaderBlock& request_headers,
+      const quiche::HttpHeaderBlock& request_headers,
       const std::string& request_body,
       QuicSimpleServerBackend::RequestHandler* quic_stream) override;
   void CloseBackendResponseStream(
       QuicSimpleServerBackend::RequestHandler* quic_stream) override;
   WebTransportResponse ProcessWebTransportRequest(
-      const spdy::Http2HeaderBlock& request_headers,
+      const quiche::HttpHeaderBlock& request_headers,
       WebTransportSession* session) override;
   bool SupportsWebTransport() override { return enable_webtransport_; }
 
  private:
   void AddResponseImpl(absl::string_view host, absl::string_view path,
                        QuicBackendResponse::SpecialResponseType response_type,
-                       spdy::Http2HeaderBlock response_headers,
+                       quiche::HttpHeaderBlock response_headers,
                        absl::string_view response_body,
-                       spdy::Http2HeaderBlock response_trailers,
-                       const std::vector<spdy::Http2HeaderBlock>& early_hints);
+                       quiche::HttpHeaderBlock response_trailers,
+                       const std::vector<quiche::HttpHeaderBlock>& early_hints);
 
   std::string GetKey(absl::string_view host, absl::string_view path) const;
 
-  // Add some server push urls with given responses for specified
-  // request if these push resources are not associated with this request yet.
-  // TODO(b/171463363): Remove.
-  void MaybeAddServerPushResources(
-      absl::string_view request_host, absl::string_view request_path,
-      std::list<QuicBackendResponse::ServerPushInfo> push_resources);
-
-  // Check if push resource(push_host/push_path) associated with given request
-  // url already exists in server push map.
-  // TODO(b/171463363): Remove.
-  bool PushResourceExistsInCache(std::string original_request_url,
-                                 QuicBackendResponse::ServerPushInfo resource);
-
   // Cached responses.
   absl::flat_hash_map<std::string, std::unique_ptr<QuicBackendResponse>>
-      responses_ QUIC_GUARDED_BY(response_mutex_);
+      responses_ ABSL_GUARDED_BY(response_mutex_);
 
   // The default response for cache misses, if set.
   std::unique_ptr<QuicBackendResponse> default_response_
-      QUIC_GUARDED_BY(response_mutex_);
+      ABSL_GUARDED_BY(response_mutex_);
 
   // The generate bytes response, if set.
   std::unique_ptr<QuicBackendResponse> generate_bytes_response_
-      QUIC_GUARDED_BY(response_mutex_);
-
-  // A map from request URL to associated server push responses (if any).
-  // TODO(b/171463363): Remove.
-  std::multimap<std::string, QuicBackendResponse::ServerPushInfo>
-      server_push_resources_ QUIC_GUARDED_BY(response_mutex_);
+      ABSL_GUARDED_BY(response_mutex_);
 
   // Protects against concurrent access from test threads setting responses, and
   // server threads accessing those responses.
-  mutable QuicMutex response_mutex_;
+  mutable absl::Mutex response_mutex_;
   bool cache_initialized_;
 
   bool enable_webtransport_ = false;

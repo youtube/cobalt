@@ -8,8 +8,8 @@
 #include <utility>
 
 #include "base/functional/bind.h"
-#include "base/memory/raw_ptr_exclusion.h"
-#include "base/memory/read_only_shared_memory_region.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/unsafe_shared_memory_region.h"
 #include "base/run_loop.h"
 #include "base/sync_socket.h"
 #include "base/test/mock_callback.h"
@@ -53,9 +53,9 @@ class MockRendererAudioInputStreamFactoryClient
       mojo::PendingRemote<media::mojom::AudioInputStream> input_stream,
       mojo::PendingReceiver<media::mojom::AudioInputStreamClient>
           client_receiver,
-      media::mojom::ReadOnlyAudioDataPipePtr data_pipe,
+      media::mojom::ReadWriteAudioDataPipePtr data_pipe,
       bool initially_muted,
-      const absl::optional<base::UnguessableToken>& stream_id) override {
+      const std::optional<base::UnguessableToken>& stream_id) override {
     EXPECT_TRUE(stream_id.has_value());
     input_stream_.Bind(std::move(input_stream));
     client_receiver_ = std::move(client_receiver);
@@ -73,7 +73,7 @@ using MockDeleter =
 // Creates a fake delegate and saves the provided event handler in
 // |event_handler_out|.
 std::unique_ptr<media::AudioInputDelegate> CreateFakeDelegate(
-    media::AudioInputDelegate::EventHandler** event_handler_out,
+    raw_ptr<media::AudioInputDelegate::EventHandler>* event_handler_out,
     media::AudioInputDelegate::EventHandler* event_handler) {
   *event_handler_out = event_handler;
   return std::make_unique<FakeAudioInputDelegate>();
@@ -87,19 +87,19 @@ class AudioInputStreamHandleTest : public Test {
       : client_receiver_(
             &client_,
             client_pending_remote_.InitWithNewPipeAndPassReceiver()),
-        handle_(std::make_unique<AudioInputStreamHandle>(
-            std::move(client_pending_remote_),
-            base::BindOnce(&CreateFakeDelegate, &event_handler_),
-            deleter_.Get())),
         local_(std::make_unique<base::CancelableSyncSocket>()),
         remote_(std::make_unique<base::CancelableSyncSocket>()) {
+    // Will set `event_handler_`.
+    handle_ = std::make_unique<AudioInputStreamHandle>(
+        std::move(client_pending_remote_),
+        base::BindOnce(&CreateFakeDelegate, &event_handler_), deleter_.Get());
+
     // Wait for |event_handler| to be set.
     base::RunLoop().RunUntilIdle();
     EXPECT_TRUE(event_handler_);
 
     const size_t kSize = 1234;
-    shared_memory_region_ =
-        base::ReadOnlySharedMemoryRegion::Create(kSize).region;
+    shared_memory_region_ = base::UnsafeSharedMemoryRegion::Create(kSize);
     EXPECT_TRUE(shared_memory_region_.IsValid());
     EXPECT_TRUE(
         base::CancelableSyncSocket::CreatePair(local_.get(), remote_.get()));
@@ -119,7 +119,10 @@ class AudioInputStreamHandleTest : public Test {
 
   void ExpectHandleWillCallDeleter() {
     EXPECT_CALL(deleter_, Run(handle_.release()))
-        .WillOnce(testing::DeleteArg<0>());
+        .WillOnce([&](AudioInputStreamHandle* handle) {
+          event_handler_ = nullptr;
+          delete handle;
+        });
   }
 
   // Note: Must call ExpectHandleWillCallDeleter() first.
@@ -135,13 +138,10 @@ class AudioInputStreamHandleTest : public Test {
   mojo::Receiver<blink::mojom::RendererAudioInputStreamFactoryClient>
       client_receiver_;
   StrictMock<MockDeleter> deleter_;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #addr-of
-  RAW_PTR_EXCLUSION media::AudioInputDelegate::EventHandler* event_handler_ =
-      nullptr;
   std::unique_ptr<AudioInputStreamHandle> handle_;
+  raw_ptr<media::AudioInputDelegate::EventHandler> event_handler_ = nullptr;
 
-  base::ReadOnlySharedMemoryRegion shared_memory_region_;
+  base::UnsafeSharedMemoryRegion shared_memory_region_;
   std::unique_ptr<base::CancelableSyncSocket> local_;
   std::unique_ptr<base::CancelableSyncSocket> remote_;
 };

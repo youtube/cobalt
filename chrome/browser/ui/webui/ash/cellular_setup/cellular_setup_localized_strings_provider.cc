@@ -11,12 +11,12 @@
 #include "base/feature_list.h"
 #include "base/no_destructor.h"
 #include "base/values.h"
-#include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/login/localized_values_builder.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "ui/base/webui/web_ui_util.h"
+#include "ui/webui/webui_util.h"
 
 namespace ash::cellular_setup {
 namespace {
@@ -55,13 +55,12 @@ constexpr webui::LocalizedString kLocalizedStringsWithoutPlaceholders[] = {
     {"eSimFinalPageMessage", IDS_CELLULAR_SETUP_ESIM_FINAL_PAGE_MESSAGE},
     {"eSimFinalPageErrorMessage",
      IDS_CELLULAR_SETUP_ESIM_FINAL_PAGE_ERROR_MESSAGE},
-    {"eSimProfileDetectMessage",
-     IDS_CELLULAR_SETUP_ESIM_PROFILE_DETECT_MESSAGE},
-    {"eSimProfileDetectDuringActiveCellularConnectionMessage",
-     IDS_CELLULAR_SETUP_ESIM_PROFILE_DETECT_DURING_ACTIVE_CELLULAR_CONNECTION_MESSAGE},
     {"scanQRCode", IDS_CELLULAR_SETUP_ESIM_PAGE_SCAN_QR_CODE},
-    {"scanQRCodeEnterActivationCode",
-     IDS_CELLULAR_SETUP_ESIM_PAGE_SCAN_QR_CODE_ENTER_ACTIVATION_CODE},
+    {"scanQRCodeNoProfilesFound",
+     IDS_CELLULAR_SETUP_ESIM_PAGE_SCAN_QR_CODE_NO_PROFILES_FOUND},
+    {"enterActivationCode", IDS_CELLULAR_SETUP_ESIM_PAGE_ENTER_ACTIVATION_CODE},
+    {"enterActivationCodeNoProfilesFound",
+     IDS_CELLULAR_SETUP_ESIM_PAGE_ENTER_ACTIVATION_CODE_NO_PROFILES_FOUND},
     {"switchCamera", IDS_CELLULAR_SETUP_ESIM_PAGE_SWITCH_CAMERA},
     {"qrCodeA11YCameraOn", IDS_CELLULAR_SETUP_ESIM_PAGE_A11Y_QR_CODE_CAMERA_ON},
     {"qrCodeA11YCameraScanSuccess",
@@ -72,23 +71,43 @@ constexpr webui::LocalizedString kLocalizedStringsWithoutPlaceholders[] = {
      IDS_CELLULAR_SETUP_ESIM_PAGE_SCAN_QR_CODE_USE_CAMERA_AGAIN},
     {"scanQrCodeError", IDS_CELLULAR_SETUP_ESIM_PAGE_SCAN_QR_CODE_ERROR},
     {"qrCodeRetry", IDS_CELLULAR_SETUP_ESIM_PAGE_SCAN_QR_CODE_RETRY},
-    {"scanQrCodeLoading", IDS_CELLULAR_SETUP_ESIM_PAGE_SCAN_QR_CODE_LOADING},
     {"scanQrCodeInvalid", IDS_CELLULAR_SETUP_ESIM_PAGE_SCAN_QR_CODE_INVALID},
     {"scanQrCodeInputSubtitle",
      IDS_CELLULAR_SETUP_ESIM_PAGE_SCAN_QR_CODE_INPUT_SUBTITLE},
     {"scanQrCodeInputError",
      IDS_CELLULAR_SETUP_ESIM_PAGE_SCAN_QR_CODE_INPUT_ERROR},
     {"profileListPageMessage", IDS_CELLULAR_SETUP_PROFILE_LIST_PAGE_MESSAGE},
+    {"profileListPageMessageWithLink",
+     IDS_CELLULAR_SETUP_PROFILE_LIST_PAGE_MESSAGE_WITH_LINK},
     {"confirmationCodeMessage",
      IDS_CELLULAR_SETUP_ESIM_PAGE_CONFIRMATION_CODE_MESSAGE},
     {"confirmationCodeInput",
      IDS_CELLULAR_SETUP_ESIM_PAGE_CONFIRMATION_CODE_INPUT},
+    {"confirmationCodeErrorLegacy",
+     IDS_CELLULAR_SETUP_ESIM_PAGE_CONFIRMATION_CODE_ERROR_LEGACY},
     {"confirmationCodeError",
      IDS_CELLULAR_SETUP_ESIM_PAGE_CONFIRMATION_CODE_ERROR},
     {"confirmationCodeLoading",
      IDS_CELLULAR_SETUP_ESIM_PAGE_CONFIRMATION_CODE_LOADING},
-    {"verifyingActivationCode",
-     IDS_CELLULAR_SETUP_ESIM_PAGE_VERIFYING_ACTIVATION_CODE}};
+    {"profileInstallingMessage",
+     IDS_CELLULAR_SETUP_ESIM_PROFILE_INSTALLING_MESSAGE},
+    {"profileDiscoveryConsentTitle",
+     IDS_CELLULAR_SETUP_ESIM_PAGE_PROFILE_DISCOVERY_CONSENT_TITLE},
+    {"profileDiscoveryConsentMessageWithLink",
+     IDS_CELLULAR_SETUP_ESIM_PAGE_PROFILE_DISCOVERY_CONSENT_MESSAGE_WITH_LINK},
+    {"profileDiscoveryConsentScan",
+     IDS_CELLULAR_SETUP_ESIM_PAGE_PROFILE_DISCOVERY_CONSENT_SCAN},
+    {"profileDiscoveryConsentCancel",
+     IDS_CELLULAR_SETUP_ESIM_PAGE_PROFILE_DISCOVERY_CONSENT_CANCEL},
+    {"profileDiscoveryPageTitle",
+     IDS_CELLULAR_SETUP_PROFILE_DISCOVERY_PAGE_TITLE},
+    {"confimationCodePageTitle",
+     IDS_CELLULAR_SETUP_CONFIRMATION_CODE_PAGE_TITLE},
+    {"profileLoadingPageTitle", IDS_CELLULAR_SETUP_ESIM_PROFILE_LOADING_TITLE},
+    {"profileLoadingPageMessage",
+     IDS_CELLULAR_SETUP_ESIM_PROFILE_LOADING_MESSAGE},
+    {"eSimCarrierLockedDevice",
+     IDS_CELLULAR_SETUP_ESIM_PAGE_CARRIER_LOCKED_DEVICE}};
 
 struct NamedBoolean {
   const char* name;
@@ -100,8 +119,8 @@ struct NamedResourceId {
   int value;
 };
 
-const std::vector<const NamedBoolean>& GetBooleanValues() {
-  static const base::NoDestructor<std::vector<const NamedBoolean>> named_bools(
+const std::vector<NamedBoolean>& GetBooleanValues() {
+  static const base::NoDestructor<std::vector<NamedBoolean>> named_bools(
       {{"useSecondEuicc",
         base::FeatureList::IsEnabled(features::kCellularUseSecondEuicc)}});
   return *named_bools;
@@ -114,18 +133,21 @@ void AddLocalizedStrings(content::WebUIDataSource* html_source) {
 }
 
 void AddLocalizedValuesToBuilder(::login::LocalizedValuesBuilder* builder) {
-  for (const auto& entry : kLocalizedStringsWithoutPlaceholders)
+  for (const auto& entry : kLocalizedStringsWithoutPlaceholders) {
     builder->Add(entry.name, entry.id);
+  }
 }
 
 void AddNonStringLoadTimeData(content::WebUIDataSource* html_source) {
-  for (const auto& entry : GetBooleanValues())
+  for (const auto& entry : GetBooleanValues()) {
     html_source->AddBoolean(entry.name, entry.value);
+  }
 }
 
 void AddNonStringLoadTimeDataToDict(base::Value::Dict* dict) {
-  for (const auto& entry : GetBooleanValues())
+  for (const auto& entry : GetBooleanValues()) {
     dict->SetByDottedPath(entry.name, entry.value);
+  }
 }
 
 }  // namespace ash::cellular_setup

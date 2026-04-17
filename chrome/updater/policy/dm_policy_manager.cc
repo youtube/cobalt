@@ -5,22 +5,45 @@
 #include "chrome/updater/policy/dm_policy_manager.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "base/enterprise_util.h"
+#include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/notreached.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "chrome/enterprise_companion/device_management_storage/dm_storage.h"
 #include "chrome/updater/constants.h"
+#include "chrome/updater/device_management/dm_message.h"
 #include "chrome/updater/policy/manager.h"
+#include "chrome/updater/protos/omaha_settings.pb.h"
+#include "device_management_backend.pb.h"
 
 namespace updater {
 
 namespace {
+
+int PolicyValueFromProtoInstallDefaultValue(
+    ::wireless_android_enterprise_devicemanagement::InstallDefaultValue
+        install_default_value) {
+  switch (install_default_value) {
+    case ::wireless_android_enterprise_devicemanagement::
+        INSTALL_DEFAULT_DISABLED:
+      return kPolicyDisabled;
+    case ::wireless_android_enterprise_devicemanagement::
+        INSTALL_DEFAULT_ENABLED_MACHINE_ONLY:
+      return kPolicyEnabledMachineOnly;
+    case ::wireless_android_enterprise_devicemanagement::
+        INSTALL_DEFAULT_ENABLED:
+    default:
+      return kPolicyEnabled;
+  }
+}
 
 int PolicyValueFromProtoInstallValue(
     ::wireless_android_enterprise_devicemanagement::InstallValue
@@ -28,7 +51,11 @@ int PolicyValueFromProtoInstallValue(
   switch (install_value) {
     case ::wireless_android_enterprise_devicemanagement::INSTALL_DISABLED:
       return kPolicyDisabled;
-
+    case ::wireless_android_enterprise_devicemanagement::
+        INSTALL_ENABLED_MACHINE_ONLY:
+      return kPolicyEnabledMachineOnly;
+    case ::wireless_android_enterprise_devicemanagement::INSTALL_FORCED:
+      return kPolicyForceInstallMachine;
     case ::wireless_android_enterprise_devicemanagement::INSTALL_ENABLED:
     default:
       return kPolicyEnabled;
@@ -57,42 +84,50 @@ int PolicyValueFromProtoUpdateValue(
 
 DMPolicyManager::DMPolicyManager(
     const ::wireless_android_enterprise_devicemanagement::
-        OmahaSettingsClientProto& omaha_settings)
-    : omaha_settings_(omaha_settings) {}
+        OmahaSettingsClientProto& omaha_settings,
+    std::optional<bool> override_is_managed_device)
+    : is_managed_device_(override_is_managed_device.value_or(true)),
+      omaha_settings_(omaha_settings) {}
 
 DMPolicyManager::~DMPolicyManager() = default;
 
 bool DMPolicyManager::HasActiveDevicePolicies() const {
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
-  return base::IsManagedDevice();
-#else
-  // crbug.com/1276162 - implement.
-  NOTIMPLEMENTED();
-  return false;
-#endif
+  return is_managed_device_;
 }
 
 std::string DMPolicyManager::source() const {
   return kSourceDMPolicyManager;
 }
 
-absl::optional<base::TimeDelta> DMPolicyManager::GetLastCheckPeriod() const {
-  if (!omaha_settings_.has_auto_update_check_period_minutes())
-    return absl::nullopt;
+std::optional<bool> DMPolicyManager::CloudPolicyOverridesPlatformPolicy()
+    const {
+  if (!omaha_settings_.has_cloud_policy_overrides_platform_policy()) {
+    return std::nullopt;
+  }
+
+  return omaha_settings_.cloud_policy_overrides_platform_policy();
+}
+
+std::optional<base::TimeDelta> DMPolicyManager::GetLastCheckPeriod() const {
+  if (!omaha_settings_.has_auto_update_check_period_minutes()) {
+    return std::nullopt;
+  }
 
   return base::Minutes(omaha_settings_.auto_update_check_period_minutes());
 }
 
-absl::optional<UpdatesSuppressedTimes>
+std::optional<UpdatesSuppressedTimes>
 DMPolicyManager::GetUpdatesSuppressedTimes() const {
-  if (!omaha_settings_.has_updates_suppressed())
-    return absl::nullopt;
+  if (!omaha_settings_.has_updates_suppressed()) {
+    return std::nullopt;
+  }
 
   const auto& updates_suppressed = omaha_settings_.updates_suppressed();
   if (!updates_suppressed.has_start_hour() ||
       !updates_suppressed.has_start_minute() ||
-      !updates_suppressed.has_duration_min())
-    return absl::nullopt;
+      !updates_suppressed.has_duration_min()) {
+    return std::nullopt;
+  }
 
   UpdatesSuppressedTimes suppressed_times;
   suppressed_times.start_hour_ = updates_suppressed.start_hour();
@@ -101,39 +136,42 @@ DMPolicyManager::GetUpdatesSuppressedTimes() const {
   return suppressed_times;
 }
 
-absl::optional<std::string> DMPolicyManager::GetDownloadPreferenceGroupPolicy()
-    const {
-  if (!omaha_settings_.has_download_preference())
-    return absl::nullopt;
+std::optional<std::string> DMPolicyManager::GetDownloadPreference() const {
+  if (!omaha_settings_.has_download_preference()) {
+    return std::nullopt;
+  }
 
   return omaha_settings_.download_preference();
 }
 
-absl::optional<int> DMPolicyManager::GetPackageCacheSizeLimitMBytes() const {
-  return absl::nullopt;
+std::optional<int> DMPolicyManager::GetPackageCacheSizeLimitMBytes() const {
+  return std::nullopt;
 }
 
-absl::optional<int> DMPolicyManager::GetPackageCacheExpirationTimeDays() const {
-  return absl::nullopt;
+std::optional<int> DMPolicyManager::GetPackageCacheExpirationTimeDays() const {
+  return std::nullopt;
 }
 
-absl::optional<std::string> DMPolicyManager::GetProxyMode() const {
-  if (!omaha_settings_.has_proxy_mode())
-    return absl::nullopt;
+std::optional<std::string> DMPolicyManager::GetProxyMode() const {
+  if (!omaha_settings_.has_proxy_mode()) {
+    return std::nullopt;
+  }
 
   return omaha_settings_.proxy_mode();
 }
 
-absl::optional<std::string> DMPolicyManager::GetProxyPacUrl() const {
-  if (!omaha_settings_.has_proxy_pac_url())
-    return absl::nullopt;
+std::optional<std::string> DMPolicyManager::GetProxyPacUrl() const {
+  if (!omaha_settings_.has_proxy_pac_url()) {
+    return std::nullopt;
+  }
 
   return omaha_settings_.proxy_pac_url();
 }
 
-absl::optional<std::string> DMPolicyManager::GetProxyServer() const {
-  if (!omaha_settings_.has_proxy_server())
-    return absl::nullopt;
+std::optional<std::string> DMPolicyManager::GetProxyServer() const {
+  if (!omaha_settings_.has_proxy_server()) {
+    return std::nullopt;
+  }
 
   return omaha_settings_.proxy_server();
 }
@@ -160,7 +198,7 @@ DMPolicyManager::GetAppSettings(const std::string& app_id) const {
   return nullptr;
 }
 
-absl::optional<int> DMPolicyManager::GetEffectivePolicyForAppInstalls(
+std::optional<int> DMPolicyManager::GetEffectivePolicyForAppInstalls(
     const std::string& app_id) const {
   const auto* app_settings = GetAppSettings(app_id);
   if (app_settings && app_settings->has_install()) {
@@ -169,13 +207,14 @@ absl::optional<int> DMPolicyManager::GetEffectivePolicyForAppInstalls(
 
   // Fallback to global-level settings.
   if (omaha_settings_.has_install_default()) {
-    return PolicyValueFromProtoInstallValue(omaha_settings_.install_default());
+    return PolicyValueFromProtoInstallDefaultValue(
+        omaha_settings_.install_default());
   }
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-absl::optional<int> DMPolicyManager::GetEffectivePolicyForAppUpdates(
+std::optional<int> DMPolicyManager::GetEffectivePolicyForAppUpdates(
     const std::string& app_id) const {
   const auto* app_settings = GetAppSettings(app_id);
   if (app_settings && app_settings->has_update()) {
@@ -187,45 +226,68 @@ absl::optional<int> DMPolicyManager::GetEffectivePolicyForAppUpdates(
     return PolicyValueFromProtoUpdateValue(omaha_settings_.update_default());
   }
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-absl::optional<std::string> DMPolicyManager::GetTargetVersionPrefix(
+std::optional<std::string> DMPolicyManager::GetTargetVersionPrefix(
     const std::string& app_id) const {
   const auto* app_settings = GetAppSettings(app_id);
-  if (!app_settings || !app_settings->has_target_version_prefix())
-    return absl::nullopt;
+  if (!app_settings || !app_settings->has_target_version_prefix()) {
+    return std::nullopt;
+  }
 
   return app_settings->target_version_prefix();
 }
 
-absl::optional<std::string> DMPolicyManager::GetTargetChannel(
+std::optional<std::string> DMPolicyManager::GetTargetChannel(
     const std::string& app_id) const {
   const auto* app_settings = GetAppSettings(app_id);
-  if (!app_settings || !app_settings->has_target_channel())
-    return absl::nullopt;
+  if (!app_settings || !app_settings->has_target_channel()) {
+    return std::nullopt;
+  }
 
   return app_settings->target_channel();
 }
 
-absl::optional<bool> DMPolicyManager::IsRollbackToTargetVersionAllowed(
+std::optional<bool> DMPolicyManager::IsRollbackToTargetVersionAllowed(
     const std::string& app_id) const {
   const auto* app_settings = GetAppSettings(app_id);
-  if (!app_settings || !app_settings->has_rollback_to_target_version())
-    return absl::nullopt;
+  if (!app_settings || !app_settings->has_rollback_to_target_version()) {
+    return std::nullopt;
+  }
 
   return (app_settings->rollback_to_target_version() ==
           ::wireless_android_enterprise_devicemanagement::
               ROLLBACK_TO_TARGET_VERSION_ENABLED);
 }
 
-// TODO(crbug.com/1347562): implement retrieving the force installs apps.
-absl::optional<std::vector<std::string>> DMPolicyManager::GetForceInstallApps()
+std::optional<std::vector<std::string>> DMPolicyManager::GetForceInstallApps()
     const {
-  return absl::nullopt;
+  std::vector<std::string> force_install_apps;
+  for (const auto& app_settings_proto :
+       omaha_settings_.application_settings()) {
+    const std::string app_id = [&app_settings_proto, this] {
+      if (app_settings_proto.install() != kPolicyForceInstallMachine &&
+          omaha_settings_.install_default() != kPolicyForceInstallMachine) {
+        return std::string();
+      }
+#if BUILDFLAG(IS_MAC)
+      if (app_settings_proto.has_bundle_identifier()) {
+        return app_settings_proto.bundle_identifier();
+      }
+#endif
+      return app_settings_proto.app_guid();
+    }();
+    if (!app_id.empty()) {
+      force_install_apps.push_back(app_id);
+    }
+  }
+  return force_install_apps.empty()
+             ? std::nullopt
+             : std::optional<std::vector<std::string>>(force_install_apps);
 }
 
-absl::optional<std::vector<std::string>> DMPolicyManager::GetAppsWithPolicy()
+std::optional<std::vector<std::string>> DMPolicyManager::GetAppsWithPolicy()
     const {
   std::vector<std::string> apps_with_policy;
 
@@ -247,14 +309,39 @@ absl::optional<std::vector<std::string>> DMPolicyManager::GetAppsWithPolicy()
   return apps_with_policy;
 }
 
-scoped_refptr<PolicyManagerInterface> CreateDMPolicyManager() {
-  std::unique_ptr<
-      ::wireless_android_enterprise_devicemanagement::OmahaSettingsClientProto>
-      omaha_settings = GetDefaultDMStorage()->GetOmahaPolicySettings();
-  if (!omaha_settings)
-    return nullptr;
+std::optional<
+    wireless_android_enterprise_devicemanagement::OmahaSettingsClientProto>
+GetOmahaPolicySettings(
+    scoped_refptr<device_management_storage::DMStorage> dm_storage) {
+  wireless_android_enterprise_devicemanagement::OmahaSettingsClientProto
+      omaha_settings;
+  std::optional<enterprise_management::PolicyData> policy_data =
+      dm_storage->ReadPolicyData(kGoogleUpdatePolicyType);
+  if (!policy_data || !policy_data->has_policy_value()) {
+    return std::nullopt;
+  }
+  if (!omaha_settings.ParseFromString(policy_data->policy_value())) {
+    VLOG(1) << "Failed to parse OmahaSettingsClientProto";
+    return std::nullopt;
+  }
+  return omaha_settings;
+}
 
-  return base::MakeRefCounted<DMPolicyManager>(*omaha_settings);
+scoped_refptr<PolicyManagerInterface> CreateDMPolicyManager(
+    std::optional<bool> override_is_managed_device) {
+  scoped_refptr<device_management_storage::DMStorage> default_dm_storage =
+      device_management_storage::GetDefaultDMStorage();
+  if (!default_dm_storage) {
+    return nullptr;
+  }
+  std::optional<
+      ::wireless_android_enterprise_devicemanagement::OmahaSettingsClientProto>
+      omaha_settings = GetOmahaPolicySettings(default_dm_storage);
+  if (!omaha_settings) {
+    return nullptr;
+  }
+  return base::MakeRefCounted<DMPolicyManager>(*omaha_settings,
+                                               override_is_managed_device);
 }
 
 }  // namespace updater

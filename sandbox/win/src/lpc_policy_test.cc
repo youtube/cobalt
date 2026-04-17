@@ -2,15 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 // These tests have been added to specifically tests issues arising from (A)LPC
 // lock down.
 
-#include <algorithm>
-#include <cctype>
-
 #include <windows.h>
+
 #include <winioctl.h>
 
+#include <algorithm>
+
+#include "base/containers/heap_array.h"
 #include "build/build_config.h"
 #include "sandbox/win/src/heap_helper.h"
 #include "sandbox/win/src/sandbox.h"
@@ -35,7 +41,7 @@ bool CsrssDisconnectSupported() {
 }  // namespace
 // Converts LCID to std::wstring for passing to sbox tests.
 std::wstring LcidToWString(LCID lcid) {
-  wchar_t buff[10] = {0};
+  wchar_t buff[10] = {};
   int res = swprintf_s(buff, sizeof(buff) / sizeof(buff[0]), L"%08x", lcid);
   if (-1 != res) {
     return std::wstring(buff);
@@ -45,7 +51,7 @@ std::wstring LcidToWString(LCID lcid) {
 
 // Converts LANGID to std::wstring for passing to sbox tests.
 std::wstring LangidToWString(LANGID langid) {
-  wchar_t buff[10] = {0};
+  wchar_t buff[10] = {};
   int res = swprintf_s(buff, sizeof(buff) / sizeof(buff[0]), L"%04x", langid);
   if (-1 != res) {
     return std::wstring(buff);
@@ -101,7 +107,7 @@ SBOX_TESTS_COMMAND int Lpc_GetUserDefaultLocaleName(int argc, wchar_t** argv) {
   if (argc != 1)
     return SBOX_TEST_FAILED_TO_EXECUTE_COMMAND;
   std::wstring expected_locale_name(argv[0]);
-  wchar_t locale_name[LOCALE_NAME_MAX_LENGTH] = {0};
+  wchar_t locale_name[LOCALE_NAME_MAX_LENGTH] = {};
   // This will cause an exception if not warmed up suitably.
   int ret = ::GetUserDefaultLocaleName(
       locale_name, LOCALE_NAME_MAX_LENGTH * sizeof(wchar_t));
@@ -119,7 +125,7 @@ SBOX_TESTS_COMMAND int Lpc_GetUserDefaultLocaleName(int argc, wchar_t** argv) {
 }
 
 TEST(LpcPolicyTest, GetUserDefaultLocaleName) {
-  wchar_t locale_name[LOCALE_NAME_MAX_LENGTH] = {0};
+  wchar_t locale_name[LOCALE_NAME_MAX_LENGTH] = {};
   EXPECT_NE(0, ::GetUserDefaultLocaleName(
                    locale_name, LOCALE_NAME_MAX_LENGTH * sizeof(wchar_t)));
   EXPECT_NE(0U, wcsnlen(locale_name, LOCALE_NAME_MAX_LENGTH));
@@ -141,9 +147,10 @@ SBOX_TESTS_COMMAND int Lpc_TestValidProcessHeaps(int argc, wchar_t** argv) {
   //
   // This is inherently racy as is, but it's not something that we observe a lot
   // in Chrome, the heaps tend to be created at startup only.
-  std::unique_ptr<HANDLE[]> all_heaps(new HANDLE[number_of_heaps]);
-  if (::GetProcessHeaps(number_of_heaps, all_heaps.get()) != number_of_heaps)
+  auto all_heaps = base::HeapArray<HANDLE>::Uninit(number_of_heaps);
+  if (::GetProcessHeaps(number_of_heaps, all_heaps.data()) != number_of_heaps) {
     return SBOX_TEST_FIRST_ERROR;
+  }
 
   for (size_t i = 0; i < number_of_heaps; ++i) {
     HANDLE handle = all_heaps[i];

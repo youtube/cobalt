@@ -119,13 +119,6 @@ class MimeType {
   Params params_;
 };
 
-// Alias to prevent breaking the RDK build on CI.
-// http://go/paste/4631690114891776
-// TODO: b/441955897 - Remove this alias once RDK build on CI is updated.
-namespace shared::starboard::media {
-using MimeType = ::starboard::MimeType;
-}  // namespace shared::starboard::media
-
 }  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_MEDIA_MIME_TYPE_H_

@@ -2,11 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/cdm/simple_cdm_allocator.h"
 
 #include <memory>
 
 #include "base/functional/bind.h"
+#include "base/not_fatal_until.h"
 #include "media/base/video_frame.h"
 #include "media/cdm/cdm_helpers.h"
 #include "media/cdm/simple_cdm_buffer.h"
@@ -29,7 +35,7 @@ class SimpleCdmVideoFrame final : public VideoFrameImpl {
   // VideoFrameImpl implementation.
   scoped_refptr<media::VideoFrame> TransformToVideoFrame(
       gfx::Size natural_size) override {
-    DCHECK(FrameBuffer());
+    CHECK(FrameBuffer(), base::NotFatalUntil::M140);
 
     cdm::Buffer* buffer = FrameBuffer();
     gfx::Size frame_size(Size().width, Size().height);
@@ -42,6 +48,9 @@ class SimpleCdmVideoFrame final : public VideoFrameImpl {
             buffer->Data() + PlaneOffset(cdm::kVPlane),
             base::Microseconds(Timestamp()));
 
+    frame->metadata().power_efficient = false;
+
+    // TODO(b/183748013): Set HDRMetadata once supported by the CDM interface.
     frame->set_color_space(MediaColorSpace().ToGfxColorSpace());
 
     // The FrameBuffer needs to remain around until |frame| is destroyed.

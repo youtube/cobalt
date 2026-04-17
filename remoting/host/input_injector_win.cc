@@ -4,10 +4,12 @@
 
 #include "remoting/host/input_injector.h"
 
-#include <stdint.h>
 #include <windows.h>
 
+#include <stdint.h>
+
 #include <algorithm>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -24,7 +26,6 @@
 #include "remoting/host/clipboard.h"
 #include "remoting/host/touch_injector_win.h"
 #include "remoting/proto/event.pb.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/events/keycodes/dom/keycode_converter.h"
 
 namespace remoting {
@@ -43,7 +44,7 @@ void SendKeyboardInput(uint32_t flags,
                        uint16_t virtual_key) {
   // Populate a Windows INPUT structure for the event.
   INPUT input;
-  memset(&input, 0, sizeof(input));
+  UNSAFE_TODO(memset(&input, 0, sizeof(input)));
   input.type = INPUT_KEYBOARD;
   input.ki.time = 0;
   input.ki.dwFlags = flags;
@@ -168,8 +169,8 @@ bool IsLockKey(int scancode) {
 }
 
 // Sets the keyboard lock states to those provided.
-void SetLockStates(absl::optional<bool> caps_lock,
-                   absl::optional<bool> num_lock) {
+void SetLockStates(std::optional<bool> caps_lock,
+                   std::optional<bool> num_lock) {
   if (caps_lock) {
     bool client_capslock_state = *caps_lock;
     bool host_capslock_state = (GetKeyState(VK_CAPITAL) & 1) != 0;
@@ -386,8 +387,6 @@ void InputInjectorWin::Core::HandleKey(const KeyEvent& event) {
 
   int scancode =
       ui::KeycodeConverter::UsbKeycodeToNativeKeycode(event.usb_keycode());
-  VLOG(3) << "Converting USB keycode: " << std::hex << event.usb_keycode()
-          << " to scancode: " << scancode << std::dec;
 
   // Ignore events which can't be mapped.
   if (scancode == ui::KeycodeConverter::InvalidNativeKeycode()) {
@@ -395,8 +394,8 @@ void InputInjectorWin::Core::HandleKey(const KeyEvent& event) {
   }
 
   if (event.pressed() && !IsLockKey(scancode)) {
-    absl::optional<bool> caps_lock;
-    absl::optional<bool> num_lock;
+    std::optional<bool> caps_lock;
+    std::optional<bool> num_lock;
 
     // For caps lock, check both the new caps_lock field and the old lock_states
     // field.
@@ -418,6 +417,7 @@ void InputInjectorWin::Core::HandleKey(const KeyEvent& event) {
   }
 
   uint32_t flags = KEYEVENTF_SCANCODE | (event.pressed() ? 0 : KEYEVENTF_KEYUP);
+  VLOG(3) << "Injecting key " << (event.pressed() ? "down" : "up") << " event.";
   SendKeyboardInput(flags, scancode, 0);
 }
 

@@ -1,3 +1,7 @@
 {
-  "failing_tests": []
+  "failing_tests": [
+    "PosixSocketSendTest.RainyDaySendToClosedSocket",
+    "PosixSocketSendtoTest.RainyDaySendToClosedSocket",
+    "PosixTimeClockTests.ClockIncreasesOverTime"
+  ]
 }

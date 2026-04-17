@@ -11,9 +11,13 @@
 #include "modules/audio_coding/audio_network_adaptor/frame_length_controller.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <iterator>
+#include <map>
+#include <set>
 #include <utility>
 
+#include "modules/audio_coding/audio_network_adaptor/include/audio_network_adaptor_config.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {
@@ -97,7 +101,7 @@ bool FrameLengthController::Config::FrameLengthChange::operator<(
 }
 
 bool FrameLengthController::FrameLengthIncreasingDecision(
-    const AudioEncoderRuntimeConfig& config) {
+    const AudioEncoderRuntimeConfig& /* config */) {
   // Increase frame length if
   // 1. `uplink_bandwidth_bps` is known to be smaller or equal than
   //    `min_encoder_bitrate_bps` plus `prevent_overuse_margin_bps` plus the
@@ -153,7 +157,7 @@ bool FrameLengthController::FrameLengthIncreasingDecision(
 }
 
 bool FrameLengthController::FrameLengthDecreasingDecision(
-    const AudioEncoderRuntimeConfig& config) {
+    const AudioEncoderRuntimeConfig& /* config */) {
   // Decrease frame length if
   // 1. shorter frame length is available AND
   // 2. `uplink_bandwidth_bps` is known to be bigger than

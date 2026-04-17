@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {BrowserServiceImpl, ensureLazyLoaded, HistoryAppElement, HistoryEntry, HistoryListElement, HistoryToolbarElement} from 'chrome://history/history.js';
+import type {HistoryAppElement, HistoryEntry, HistoryListElement, HistoryToolbarElement} from 'chrome://history/history.js';
+import {BrowserServiceImpl, ensureLazyLoaded} from 'chrome://history/history.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 import {eventToPromise} from 'chrome://webui-test/test_util.js';
@@ -23,17 +24,20 @@ suite('history-list supervised-user', function() {
     testService = new TestBrowserService();
     BrowserServiceImpl.setInstance(testService);
 
-    testService.setQueryResult({
-      info: createHistoryInfo(),
-      value: TEST_HISTORY_RESULTS,
-    });
+    testService.handler.setResultFor('queryHistory', Promise.resolve({
+      results: {
+        info: createHistoryInfo(),
+        value: TEST_HISTORY_RESULTS,
+      },
+    }));
+
     app = document.createElement('history-app');
     document.body.appendChild(app);
 
     historyList = app.$.history;
     toolbar = app.$.toolbar;
     return Promise.all([
-      testService.whenCalled('queryHistory'),
+      testService.handler.whenCalled('queryHistory'),
       ensureLazyLoaded(),
     ]);
   });
@@ -66,7 +70,7 @@ suite('history-list supervised-user', function() {
         .then(() => {
           toolbar.deleteSelectedItems();
           // Make sure that removeVisits is not being called.
-          assertEquals(0, testService.getCallCount('removeVisits'));
+          assertEquals(0, testService.handler.getCallCount('removeVisits'));
         });
   });
 

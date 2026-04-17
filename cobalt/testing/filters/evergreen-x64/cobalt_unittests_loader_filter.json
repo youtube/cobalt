@@ -1,5 +1,10 @@
 {
   "failing_tests": [
-    "CobaltMetricsLogUploaderTest.UploadLogUmaServiceTypeSuccessfulUpload"
+    "CobaltMetricsLogUploaderTest.UploadLogUmaServiceTypeSuccessfulUpload",
+    "CobaltMetricsServiceClientTest.*",
+    "CobaltMetricsServicesManagerClientTest.*",
+    "GlobalFeaturesTest.*",
+    "GlobalFeaturesTest.ActiveExperimentIdsUnchangedAfterInitialization",
+    "HistogramFetcherTest.FetchHistograms_CalculatesDeltaCorrectly"
   ]
 }

@@ -20,6 +20,7 @@
  *   openReportingPrivacy: function(),
  *   openWhitepaper: function(),
  *   reportPhishingError: function(),
+ *   openAndroidAdvancedProtectionSettings: function(),
  * }}
  */
 // eslint-disable-next-line no-var
@@ -27,7 +28,7 @@ var certificateErrorPageController;
 
 // Should match security_interstitials::SecurityInterstitialCommand
 /** @enum {number} */
-const SecurityInterstitialCommandId = {
+export const SecurityInterstitialCommandId = {
   CMD_DONT_PROCEED: 0,
   CMD_PROCEED: 1,
   // Ways for user to get more information
@@ -47,15 +48,16 @@ const SecurityInterstitialCommandId = {
   CMD_REPORT_PHISHING_ERROR: 12,
   // Open enhanced protection settings.
   CMD_OPEN_ENHANCED_PROTECTION_SETTINGS: 13,
+  CMD_OPEN_ANDROID_ADVANCED_PROTECTION_SETTINGS: 16,
 };
 
-const HIDDEN_CLASS = 'hidden';
+export const HIDDEN_CLASS = 'hidden';
 
 /**
  * A convenience method for sending commands to the parent page.
  * @param {SecurityInterstitialCommandId} cmd  The command to send.
  */
-function sendCommand(cmd) {
+export function sendCommand(cmd) {
   if (window.certificateErrorPageController) {
     switch (cmd) {
       case SecurityInterstitialCommandId.CMD_DONT_PROCEED:
@@ -100,11 +102,17 @@ function sendCommand(cmd) {
       case SecurityInterstitialCommandId.CMD_OPEN_ENHANCED_PROTECTION_SETTINGS:
         certificateErrorPageController.openEnhancedProtectionSettings();
         break;
+      case SecurityInterstitialCommandId
+          .CMD_OPEN_ANDROID_ADVANCED_PROTECTION_SETTINGS:
+        certificateErrorPageController.openAndroidAdvancedProtectionSettings();
+        break;
     }
     return;
   }
   // <if expr="not is_ios">
-  window.domAutomationController.send(cmd);
+  if (window.domAutomationController) {
+    window.domAutomationController.send(cmd);
+  }
   // </if>
   // <if expr="is_ios">
   // Send commands for iOS committed interstitials.
@@ -119,7 +127,7 @@ function sendCommand(cmd) {
  * Call this to stop clicks on <a href="#"> links from scrolling to the top of
  * the page (and possibly showing a # in the link).
  */
-function preventDefaultOnPoundLinkClicks() {
+export function preventDefaultOnPoundLinkClicks() {
   const anchors = document.body.querySelectorAll('a[href="#"]');
   for (const anchor of anchors) {
     anchor.addEventListener('click', e => e.preventDefault());

@@ -33,17 +33,32 @@ BASE_FEATURE(kMojoInlineMessagePayloads,
              "MojoInlineMessagePayloads",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(MOJO_SUPPORT_LEGACY_CORE)
+#if BUILDFLAG(IS_CHROMEOS)
 BASE_FEATURE(kMojoIpcz, "MojoIpcz", base::FEATURE_DISABLED_BY_DEFAULT);
 #else
 BASE_FEATURE(kMojoIpcz, "MojoIpcz", base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
+#endif  // BUILDFLAG(MOJO_SUPPORT_LEGACY_CORE)
+
+BASE_FEATURE(kMojoIpczMemV2,
+             "MojoIpczMemV2",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
-BASE_FEATURE(kMojoDirectSharedMemoryAndroid,
-             "MojoDirectSharedMemoryAndroid",
+BASE_FEATURE(kMojoUseBinder,
+             "MojoUseBinder",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
+
+#if BUILDFLAG(IS_WIN)
+// If enabled, then only handles of types Section, File, Directory and
+// DxgkSharedResource are allowed to traverse a process boundary to an untrusted
+// process via mojo.
+BASE_FEATURE(kMojoHandleTypeProtections,
+             "MojoHandleTypeProtections",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_WIN)
 
 }  // namespace core
 }  // namespace mojo

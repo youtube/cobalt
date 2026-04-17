@@ -10,9 +10,9 @@
 
 namespace {
 
-const uint64_t kDefaultId = 0;
-const char kDefaultSsid[] = "not_set";
-const WifiCredentialsAttachment::SecurityType kDefaultSecurityType =
+inline constexpr uint64_t kDefaultId = 0;
+inline constexpr char kDefaultSsid[] = "not_set";
+inline constexpr WifiCredentialsAttachment::SecurityType kDefaultSecurityType =
     sharing::mojom::WifiCredentialsMetadata::SecurityType::kWpaPsk;
 
 }  // namespace
@@ -32,7 +32,7 @@ class FakeWifiNetworkConfigurationHandler
       chromeos::network_config::mojom::CrosNetworkConfig::
           ConfigureNetworkCallback callback) override;
 
-  void SetOutput(const absl::optional<std::string>& network_guid,
+  void SetOutput(const std::optional<std::string>& network_guid,
                  const std::string& error_message);
 
   size_t num_configure_network_calls() const {
@@ -47,8 +47,8 @@ class FakeWifiNetworkConfigurationHandler
   mojo::Remote<chromeos::network_config::mojom::CrosNetworkConfig>
       cros_network_config_remote_;
   WifiCredentialsAttachment last_wifi_credentials_attachment_;
-  absl::optional<std::string> guid_ = "not set";
+  std::optional<std::string> guid_ = "not set";
   std::string error_message_ = "not set";
 };
 
-#endif  //  CHROME_BROWSER_NEARBY_SHARING_WIFI_NETWORK_CONFIGURATION_FAKE_WIFI_NETWORK_CONFIGURATION_HANDLER_H_
+#endif  // CHROME_BROWSER_NEARBY_SHARING_WIFI_NETWORK_CONFIGURATION_FAKE_WIFI_NETWORK_CONFIGURATION_HANDLER_H_

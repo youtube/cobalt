@@ -16,6 +16,7 @@
 #include "media/base/cdm_context.h"
 #include "media/base/cdm_factory.h"
 #include "media/base/cdm_key_information.h"
+#include "media/base/content_decryption_module.h"
 #include "media/base/key_systems.h"
 #include "media/mojo/common/media_type_converters.h"
 #include "media/mojo/services/mojo_cdm_service_context.h"
@@ -67,7 +68,7 @@ void MojoCdmService::Initialize(CdmFactory* cdm_factory,
       base::BindOnce(&MojoCdmService::OnCdmCreated, weak_this,
                      mojo::WrapCallbackWithDefaultInvokeIfNotRun(
                          std::move(init_cb), nullptr,
-                         "Mojo CDM Service creation aborted")));
+                         CreateCdmStatus::kDisconnectionError)));
 }
 
 void MojoCdmService::SetClient(
@@ -143,15 +144,13 @@ scoped_refptr<ContentDecryptionModule> MojoCdmService::GetCdm() {
 void MojoCdmService::OnCdmCreated(
     InitializeCB init_cb,
     const scoped_refptr<::media::ContentDecryptionModule>& cdm,
-    const std::string& error_message) {
+    CreateCdmStatus status) {
   // TODO(xhwang): This should not happen when KeySystemInfo is properly
   // populated. See http://crbug.com/469366
   if (!cdm) {
-    // Make sure the error string is non-empty on failure.
-    auto non_empty_error_message =
-        error_message.empty() ? "CDM creation failed" : error_message;
-    DVLOG(1) << __func__ << ": " << non_empty_error_message;
-    std::move(init_cb).Run(nullptr, non_empty_error_message);
+    DVLOG(1) << __func__ << ": CDM creation failed ("
+             << static_cast<int>(status) << ")";
+    std::move(init_cb).Run(nullptr, status);
     return;
   }
 
@@ -192,7 +191,8 @@ void MojoCdmService::OnCdmCreated(
 #endif  // BUILDFLAG(IS_WIN)
   }
 
-  std::move(init_cb).Run(std::move(mojo_cdm_context), "");
+  std::move(init_cb).Run(std::move(mojo_cdm_context),
+                         CreateCdmStatus::kSuccess);
 }
 
 void MojoCdmService::OnSessionMessage(const std::string& session_id,
@@ -219,8 +219,8 @@ void MojoCdmService::OnSessionExpirationUpdate(const std::string& session_id,
                                                base::Time new_expiry_time_sec) {
   DVLOG(2) << __func__ << " expiry = " << new_expiry_time_sec;
   if (client_) {
-    client_->OnSessionExpirationUpdate(session_id,
-                                       new_expiry_time_sec.ToDoubleT());
+    client_->OnSessionExpirationUpdate(
+        session_id, new_expiry_time_sec.InSecondsFSinceUnixEpoch());
   }
 }
 
@@ -249,7 +249,7 @@ void MojoCdmService::GetMetrics(GetMetricsCallback callback) {
   SbDrmSystem drm_system = starboard_cdm->GetSbDrmSystem();
   if (!drm_system) {
     DLOG(ERROR) << "Failed to get SbDrmSystem from StarboardCDM.";
-    std::move(callback).Run(absl::nullopt);
+    std::move(callback).Run(std::nullopt);
     return;
   }
 
@@ -261,7 +261,7 @@ void MojoCdmService::GetMetrics(GetMetricsCallback callback) {
 
   if (!metrics_data || metrics_size <= 0 || metrics_size >= kMaxMetricsSize) {
     DLOG(ERROR) << "Failed to get metrics from SbDrmSystem.";
-    std::move(callback).Run(absl::nullopt);
+    std::move(callback).Run(std::nullopt);
     return;
   }
 

@@ -14,6 +14,8 @@
 #include "chrome/common/chrome_paths.h"
 #include "chrome/grit/generated_resources.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/chromeos/strings/grit/ui_chromeos_strings.h"
+#include "ui/shell_dialogs/selected_file_info.h"
 
 namespace {
 
@@ -47,8 +49,9 @@ UserImageFileSelector::UserImageFileSelector(content::WebUI* web_ui)
     : web_ui_(web_ui) {}
 
 UserImageFileSelector::~UserImageFileSelector() {
-  if (select_file_dialog_.get())
+  if (select_file_dialog_.get()) {
     select_file_dialog_->ListenerDestroyed();
+  }
 }
 
 void UserImageFileSelector::SelectFile(
@@ -67,34 +70,34 @@ void UserImageFileSelector::SelectFile(
       std::make_unique<ChromeSelectFilePolicy>(web_ui_->GetWebContents()));
 
   base::FilePath downloads_path;
-  if (!base::PathService::Get(chrome::DIR_DEFAULT_DOWNLOADS, &downloads_path))
+  if (!base::PathService::Get(chrome::DIR_DEFAULT_DOWNLOADS, &downloads_path)) {
     return;
+  }
 
   ui::SelectFileDialog::FileTypeInfo file_type_info(GetUserImageFileTypeInfo());
 
   select_file_dialog_->SelectFile(
       ui::SelectFileDialog::SELECT_OPEN_FILE,
-      l10n_util::GetStringUTF16(IDS_DOWNLOAD_TITLE), downloads_path,
-      &file_type_info, 0, FILE_PATH_LITERAL(""), GetBrowserWindow(), nullptr);
+      l10n_util::GetStringUTF16(IDS_FILE_BROWSER_DOWNLOADS_DIRECTORY_LABEL),
+      downloads_path, &file_type_info, 0, FILE_PATH_LITERAL(""),
+      GetBrowserWindow());
 }
 
 gfx::NativeWindow UserImageFileSelector::GetBrowserWindow() {
-  Browser* browser =
-      chrome::FindBrowserWithWebContents(web_ui_->GetWebContents());
-  return browser ? browser->window()->GetNativeWindow()
-                 : gfx::kNullNativeWindow;
+  Browser* browser = chrome::FindBrowserWithTab(web_ui_->GetWebContents());
+  return browser ? browser->window()->GetNativeWindow() : gfx::NativeWindow();
 }
 
-void UserImageFileSelector::FileSelected(const base::FilePath& path,
-                                         int index,
-                                         void* params) {
-  std::move(selected_cb_).Run(path);
+void UserImageFileSelector::FileSelected(const ui::SelectedFileInfo& file,
+                                         int index) {
+  std::move(selected_cb_).Run(file.path());
   select_file_dialog_.reset();
 }
 
-void UserImageFileSelector::FileSelectionCanceled(void* params) {
-  if (!canceled_cb_.is_null())
+void UserImageFileSelector::FileSelectionCanceled() {
+  if (!canceled_cb_.is_null()) {
     std::move(canceled_cb_).Run();
+  }
 
   select_file_dialog_.reset();
 }

@@ -8,11 +8,8 @@ android_library("junit") {
   chromium_code = false
   testonly = true
   proguard_configs = [ "//third_party/junit/proguard.flags" ]
-  deps = [
-    "//third_party/android_sdk:android_test_base_java",
-    "//third_party/android_sdk:android_test_runner_java",
-    "//third_party/hamcrest:hamcrest_java",
-  ]
+  deps = [ "//third_party/hamcrest:hamcrest_java" ]
+
   sources = [
     "src/src/main/java/junit/extensions/ActiveTestSuite.java",
     "src/src/main/java/junit/extensions/RepeatedTest.java",
@@ -37,10 +34,8 @@ android_library("junit") {
     "src/src/main/java/junit/runner/BaseTestRunner.java",
     "src/src/main/java/junit/runner/TestRunListener.java",
     "src/src/main/java/junit/runner/Version.java",
-    "src/src/main/java/junit/runner/package-info.java",
     "src/src/main/java/junit/textui/ResultPrinter.java",
     "src/src/main/java/junit/textui/TestRunner.java",
-    "src/src/main/java/junit/textui/package-info.java",
     "src/src/main/java/org/junit/After.java",
     "src/src/main/java/org/junit/AfterClass.java",
     "src/src/main/java/org/junit/Assert.java",

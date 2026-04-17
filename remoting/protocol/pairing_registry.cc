@@ -6,16 +6,17 @@
 
 #include <stddef.h>
 
+#include <string_view>
 #include <utility>
 
 #include "base/base64.h"
 #include "base/functional/bind.h"
-#include "base/guid.h"
 #include "base/json/json_string_value_serializer.h"
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/uuid.h"
 #include "base/values.h"
 #include "crypto/random.h"
 
@@ -47,25 +48,25 @@ PairingRegistry::Pairing::~Pairing() = default;
 PairingRegistry::Pairing PairingRegistry::Pairing::Create(
     const std::string& client_name) {
   base::Time created_time = base::Time::Now();
-  std::string client_id = base::GenerateGUID();
+  std::string client_id = base::Uuid::GenerateRandomV4().AsLowercaseString();
   std::string shared_secret;
-  char buffer[kKeySize];
-  crypto::RandBytes(buffer, std::size(buffer));
-  base::Base64Encode(base::StringPiece(buffer, std::size(buffer)),
-                     &shared_secret);
+  uint8_t buffer[kKeySize];
+  crypto::RandBytes(buffer);
+  shared_secret = base::Base64Encode(buffer);
   return Pairing(created_time, client_name, client_id, shared_secret);
 }
 
 PairingRegistry::Pairing PairingRegistry::Pairing::CreateFromValue(
     const base::Value::Dict& pairing) {
-  absl::optional<double> created_time_value =
+  std::optional<double> created_time_value =
       pairing.FindDouble(kCreatedTimeKey);
   const std::string* client_name = pairing.FindString(kClientNameKey);
   const std::string* client_id = pairing.FindString(kClientIdKey);
   if (created_time_value && client_name && client_id) {
     // The shared secret is optional.
     const std::string* shared_secret = pairing.FindString(kSharedSecretKey);
-    base::Time created_time = base::Time::FromJsTime(*created_time_value);
+    base::Time created_time =
+        base::Time::FromMillisecondsSinceUnixEpoch(*created_time_value);
     return Pairing(created_time, *client_name, *client_id,
                    shared_secret ? *shared_secret : "");
   }
@@ -76,7 +77,9 @@ PairingRegistry::Pairing PairingRegistry::Pairing::CreateFromValue(
 
 base::Value::Dict PairingRegistry::Pairing::ToValue() const {
   base::Value::Dict pairing;
-  pairing.Set(kCreatedTimeKey, static_cast<double>(created_time().ToJsTime()));
+  pairing.Set(
+      kCreatedTimeKey,
+      static_cast<double>(created_time().InMillisecondsFSinceUnixEpoch()));
   pairing.Set(kClientNameKey, client_name());
   pairing.Set(kClientIdKey, client_id());
   if (!shared_secret().empty()) {

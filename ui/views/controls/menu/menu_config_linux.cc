@@ -4,10 +4,12 @@
 
 #include "ui/views/controls/menu/menu_config.h"
 
+#include "ui/ozone/public/ozone_platform.h"
+
 namespace views {
 
-void MenuConfig::Init() {
-  arrow_to_edge_padding = 6;
+void MenuConfig::InitPlatform() {
+  use_bubble_border = true;
 }
 
 }  // namespace views

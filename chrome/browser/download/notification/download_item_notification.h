@@ -63,8 +63,8 @@ class DownloadItemNotification : public ImageDecoder::ImageRequest,
 
   // NotificationObserver:
   void Close(bool by_user) override;
-  void Click(const absl::optional<int>& button_index,
-             const absl::optional<std::u16string>& reply) override;
+  void Click(const std::optional<int>& button_index,
+             const std::optional<std::u16string>& reply) override;
 
  private:
   friend class test::DownloadItemNotificationTest;
@@ -112,8 +112,6 @@ class DownloadItemNotification : public ImageDecoder::ImageRequest,
   bool IsScanning() const;
   bool AllowedToOpenWhileScanning() const;
 
-  bool IsGalleryAppPdfEditNotificationEligible() const;
-
   Browser* GetBrowser() const;
   Profile* profile() const;
 
@@ -134,13 +132,6 @@ class DownloadItemNotification : public ImageDecoder::ImageRequest,
   // Flag if the notification has been closed or not. Setting this flag
   // prevents updates after close.
   bool closed_ = false;
-
-  // Flag if the notification has been suppressed or not. A notification being
-  // suppressed means that there is some special restriction imposed which is
-  // preventing a notification that would otherwise display from doing so, e.g.
-  // holding space in-progress downloads integration causes suppression of most
-  // download in-progress notifications.
-  bool suppressed_ = false;
 
   // Flag to indicate that a review dialog is open for the user to accept or
   // bypass an enterprise warning on the download. If this is true, the "Review"

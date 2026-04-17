@@ -11,14 +11,32 @@
 #include "video/frame_encode_metadata_writer.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <utility>
 
+#include "api/make_ref_counted.h"
+#include "api/video/encoded_image.h"
+#include "api/video/video_bitrate_allocation.h"
+#include "api/video/video_codec_type.h"
+#include "api/video/video_content_type.h"
+#include "api/video/video_frame.h"
+#include "api/video/video_frame_type.h"
+#include "api/video/video_timing.h"
+#include "api/video_codecs/video_codec.h"
+#include "api/video_codecs/video_encoder.h"
 #include "common_video/h264/sps_vui_rewriter.h"
 #include "modules/include/module_common_types_public.h"
+#include "modules/video_coding/include/video_codec_interface.h"
 #include "modules/video_coding/include/video_coding_defines.h"
 #include "modules/video_coding/svc/create_scalability_structure.h"
+#include "modules/video_coding/svc/scalable_video_controller.h"
+#include "rtc_base/buffer.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/time_utils.h"
 
 namespace webrtc {
@@ -28,7 +46,7 @@ const int kThrottleRatio = 100000;
 
 class EncodedImageBufferWrapper : public EncodedImageBufferInterface {
  public:
-  explicit EncodedImageBufferWrapper(rtc::Buffer&& buffer)
+  explicit EncodedImageBufferWrapper(Buffer&& buffer)
       : buffer_(std::move(buffer)) {}
 
   const uint8_t* data() const override { return buffer_.data(); }
@@ -36,7 +54,7 @@ class EncodedImageBufferWrapper : public EncodedImageBufferInterface {
   size_t size() const override { return buffer_.size(); }
 
  private:
-  rtc::Buffer buffer_;
+  Buffer buffer_;
 };
 
 }  // namespace
@@ -99,19 +117,19 @@ void FrameEncodeMetadataWriter::OnEncodeStarted(const VideoFrame& frame) {
 
   timing_frames_info_.resize(num_spatial_layers_);
   FrameMetadata metadata;
-  metadata.rtp_timestamp = frame.timestamp();
-  metadata.encode_start_time_ms = rtc::TimeMillis();
+  metadata.rtp_timestamp = frame.rtp_timestamp();
+  metadata.encode_start_time_ms = TimeMillis();
   metadata.ntp_time_ms = frame.ntp_time_ms();
   metadata.timestamp_us = frame.timestamp_us();
   metadata.rotation = frame.rotation();
   metadata.color_space = frame.color_space();
+  metadata.is_steady_state_refresh_frame = frame.update_rect().IsEmpty();
   metadata.packet_infos = frame.packet_infos();
   for (size_t si = 0; si < num_spatial_layers_; ++si) {
     RTC_DCHECK(timing_frames_info_[si].frames.empty() ||
-               rtc::TimeDiff(
-                   frame.render_time_ms(),
-                   timing_frames_info_[si].frames.back().timestamp_us / 1000) >=
-                   0);
+               TimeDiff(frame.render_time_ms(),
+                        timing_frames_info_[si].frames.back().timestamp_us /
+                            1000) >= 0);
     // If stream is disabled due to low bandwidth OnEncodeStarted still will be
     // called and have to be ignored.
     if (timing_frames_info_[si].target_bitrate_bytes_per_sec == 0)
@@ -136,14 +154,15 @@ void FrameEncodeMetadataWriter::OnEncodeStarted(const VideoFrame& frame) {
   }
 }
 
-void FrameEncodeMetadataWriter::FillTimingInfo(size_t simulcast_svc_idx,
-                                               EncodedImage* encoded_image) {
+void FrameEncodeMetadataWriter::FillMetadataAndTimingInfo(
+    size_t simulcast_svc_idx,
+    EncodedImage* encoded_image) {
   MutexLock lock(&lock_);
-  absl::optional<size_t> outlier_frame_size;
-  absl::optional<int64_t> encode_start_ms;
+  std::optional<size_t> outlier_frame_size;
+  std::optional<int64_t> encode_start_ms;
   uint8_t timing_flags = VideoSendTiming::kNotTriggered;
 
-  int64_t encode_done_ms = rtc::TimeMillis();
+  int64_t encode_done_ms = TimeMillis();
 
   encode_start_ms =
       ExtractEncodeStartTimeAndFillMetadata(simulcast_svc_idx, encoded_image);
@@ -182,7 +201,7 @@ void FrameEncodeMetadataWriter::FillTimingInfo(size_t simulcast_svc_idx,
 
   // If encode start is not available that means that encoder uses internal
   // source. In that case capture timestamp may be from a different clock with a
-  // drift relative to rtc::TimeMillis(). We can't use it for Timing frames,
+  // drift relative to webrtc::TimeMillis(). We can't use it for Timing frames,
   // because to being sent in the network capture time required to be less than
   // all the other timestamps.
   if (encode_start_ms) {
@@ -204,13 +223,11 @@ void FrameEncodeMetadataWriter::UpdateBitstream(
 
   // Make sure that the data is not copied if owned by EncodedImage.
   const EncodedImage& buffer = *encoded_image;
-  rtc::Buffer modified_buffer =
-      SpsVuiRewriter::ParseOutgoingBitstreamAndRewrite(
-          buffer, encoded_image->ColorSpace());
+  Buffer modified_buffer = SpsVuiRewriter::ParseOutgoingBitstreamAndRewrite(
+      buffer, encoded_image->ColorSpace());
 
   encoded_image->SetEncodedData(
-      rtc::make_ref_counted<EncodedImageBufferWrapper>(
-          std::move(modified_buffer)));
+      make_ref_counted<EncodedImageBufferWrapper>(std::move(modified_buffer)));
 }
 
 void FrameEncodeMetadataWriter::Reset() {
@@ -223,11 +240,11 @@ void FrameEncodeMetadataWriter::Reset() {
   stalled_encoder_logged_messages_ = 0;
 }
 
-absl::optional<int64_t>
+std::optional<int64_t>
 FrameEncodeMetadataWriter::ExtractEncodeStartTimeAndFillMetadata(
     size_t simulcast_svc_idx,
     EncodedImage* encoded_image) {
-  absl::optional<int64_t> result;
+  std::optional<int64_t> result;
   size_t num_simulcast_svc_streams = timing_frames_info_.size();
   if (simulcast_svc_idx < num_simulcast_svc_streams) {
     auto metadata_list = &timing_frames_info_[simulcast_svc_idx].frames;
@@ -236,7 +253,7 @@ FrameEncodeMetadataWriter::ExtractEncodeStartTimeAndFillMetadata(
     // Because some hardware encoders don't preserve capture timestamp we
     // use RTP timestamps here.
     while (!metadata_list->empty() &&
-           IsNewerTimestamp(encoded_image->Timestamp(),
+           IsNewerTimestamp(encoded_image->RtpTimestamp(),
                             metadata_list->front().rtp_timestamp)) {
       frame_drop_callback_->OnDroppedFrame(
           EncodedImageCallback::DropReason::kDroppedByEncoder);
@@ -249,13 +266,15 @@ FrameEncodeMetadataWriter::ExtractEncodeStartTimeAndFillMetadata(
             : VideoContentType::UNSPECIFIED;
 
     if (!metadata_list->empty() &&
-        metadata_list->front().rtp_timestamp == encoded_image->Timestamp()) {
+        metadata_list->front().rtp_timestamp == encoded_image->RtpTimestamp()) {
       result.emplace(metadata_list->front().encode_start_time_ms);
       encoded_image->capture_time_ms_ =
           metadata_list->front().timestamp_us / 1000;
       encoded_image->ntp_time_ms_ = metadata_list->front().ntp_time_ms;
       encoded_image->rotation_ = metadata_list->front().rotation;
       encoded_image->SetColorSpace(metadata_list->front().color_space);
+      encoded_image->SetIsSteadyStateRefreshFrame(
+          metadata_list->front().is_steady_state_refresh_frame);
       encoded_image->SetPacketInfos(metadata_list->front().packet_infos);
       metadata_list->pop_front();
     } else {

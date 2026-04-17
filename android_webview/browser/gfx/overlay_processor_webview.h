@@ -7,7 +7,6 @@
 
 #include "android_webview/browser/gfx/display_scheduler_webview.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/raw_ptr_exclusion.h"
 #include "base/memory/weak_ptr.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread_checker.h"
@@ -27,6 +26,7 @@ class ResolvedFrameData;
 }  // namespace viz
 
 namespace android_webview {
+// Lifetime: WebView
 class OverlayProcessorWebView : public viz::OverlayProcessorSurfaceControl,
                                 public OverlaysInfoProvider {
  public:
@@ -38,9 +38,7 @@ class OverlayProcessorWebView : public viz::OverlayProcessorSurfaceControl,
     ~ScopedSurfaceControlAvailable();
 
    private:
-    // This field is not a raw_ptr<> because it was filtered by the rewriter
-    // for: #union
-    RAW_PTR_EXCLUSION OverlayProcessorWebView* processor_;
+    raw_ptr<OverlayProcessorWebView> processor_;
   };
 
   OverlayProcessorWebView(
@@ -53,7 +51,7 @@ class OverlayProcessorWebView : public viz::OverlayProcessorSurfaceControl,
                              const viz::ResolvedFrameData* frame_data);
   void SetOverlaysEnabledByHWUI(bool enabled);
   void RemoveOverlays();
-  absl::optional<gfx::SurfaceControl::Transaction> TakeSurfaceTransactionOnRT();
+  std::optional<gfx::SurfaceControl::Transaction> TakeSurfaceTransactionOnRT();
   viz::SurfaceId GetOverlaySurfaceId(const viz::FrameSinkId& frame_sink_id);
 
   // viz::OverlayProcessorSurfaceControl overrides:
@@ -61,8 +59,9 @@ class OverlayProcessorWebView : public viz::OverlayProcessorSurfaceControl,
       viz::OverlayCandidateList* candidate_list) override;
   void ScheduleOverlays(
       viz::DisplayResourceProvider* resource_provider) override;
-  void AdjustOutputSurfaceOverlay(absl::optional<OutputSurfaceOverlayPlane>*
-                                      output_surface_plane) override {}
+  void AdjustOutputSurfaceOverlay(
+      std::optional<OutputSurfaceOverlayPlane>* output_surface_plane) override {
+  }
   void CheckOverlaySupportImpl(
       const viz::OverlayProcessorInterface::OutputSurfaceOverlayPlane*
           primary_plane,
@@ -96,8 +95,6 @@ class OverlayProcessorWebView : public viz::OverlayProcessorSurfaceControl,
   void ReturnResource(viz::ResourceId resource_id, viz::SurfaceId surface_id);
 
   void CreateManagerOnRT(
-      gpu::CommandBufferId command_buffer_id,
-      gpu::SequenceId sequence_id,
       base::WaitableEvent* event);
 
   void UpdateOverlayResource(viz::FrameSinkId frame_sink_id,
@@ -120,7 +117,7 @@ class OverlayProcessorWebView : public viz::OverlayProcessorSurfaceControl,
   const gpu::CommandBufferId command_buffer_id_;
   uint64_t sync_fence_release_ = 0;
 
-  raw_ptr<gpu::GpuTaskSchedulerHelper> render_thread_sequence_;
+  const raw_ptr<gpu::GpuTaskSchedulerHelper> render_thread_sequence_;
   std::unique_ptr<gpu::SingleTaskSequence> gpu_thread_sequence_;
 
   raw_ptr<viz::DisplayResourceProvider> resource_provider_ = nullptr;
@@ -129,6 +126,8 @@ class OverlayProcessorWebView : public viz::OverlayProcessorSurfaceControl,
   scoped_refptr<Manager> manager_;
 
   bool overlays_enabled_by_hwui_ = false;
+
+  float frame_rate_ = 0.f;
 
   THREAD_CHECKER(thread_checker_);
   base::WeakPtrFactory<OverlayProcessorWebView> weak_ptr_factory_{this};

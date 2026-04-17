@@ -35,52 +35,60 @@
     color: var(--cros-text-color-positive);
   }
 
+  #subLabel[warning] {
+    color: var(--cros-text-color-warning);
+  }
+
   #autoDetected {
     color: var(--cr-secondary-text-color);
     margin-inline-start: 10px;
   }
 </style>
 
-<!-- TODO(b/162365553): Implement accessibility attributes. -->
 <div id="labelWrapper">
   <div id="label" aria-hidden="true">
-    <div id="apnName">[[apn.accessPointName]]</div>
+    <div id="apnName">[[getApnDisplayName_(apn)]]</div>
     <div id="autoDetected" hidden="[[apn.id]]">
       [[i18n('apnAutoDetected')]]
     </div>
   </div>
   <div id="subLabel" class="cr-secondary-text" aria-hidden="true"
-      hidden="[[!isConnected]]">
-    [[i18n('OncConnected')]]
+      hidden="[[!isApnConnected]]"
+      warning$="[[isPortalStateNoInternet_(portalState)]]">
+    [[getSublabel_(isApnConnected, portalState)]]
   </div>
 </div>
 <cr-icon-button id="actionMenuButton" class="icon-more-vert"
     on-click="onMenuButtonClicked_"
-    title="[[i18n('apnMoreActionsTitle')]]"
-    focus-row-control focus-type="menu">
+    title="[[i18n('apnMoreActionsTitle', apn.accessPointName)]]"
+    focus-row-control focus-type="menu"
+    aria-label="[[getAriaLabel_(apn, itemIndex, listSize, isApnConnected,
+        isDisabled_)]]">
 </cr-icon-button>
 
-<!-- TODO(b/162365553) Add a11y support-->
 <cr-action-menu id="dotsMenu">
   <button id="detailsButton" class="dropdown-item"
       on-click="onDetailsClicked_">
-    [[i18n('apnMenuDetails')]]
+    [[getDetailsMenuItemLabel_(apn, shouldDisallowApnModification)]]
   </button>
   <template is="dom-if" if="[[shouldShowDisableMenuItem_(apn)]]" restamp>
     <button id="disableButton" class="dropdown-item"
-        on-click="onDisableClicked_">
+        on-click="onDisableClicked_"
+        disabled="[[shouldDisallowApnModification]]">
       [[i18n('apnMenuDisable')]]
     </button>
   </template>
   <template is="dom-if" if="[[shouldShowEnableMenuItem_(apn)]]" restamp>
     <button id="enableButton" class="dropdown-item"
-        on-click="onEnableClicked_">
+        on-click="onEnableClicked_"
+        disabled="[[shouldDisallowApnModification]]">
       [[i18n('apnMenuEnable')]]
     </button>
   </template>
   <template is="dom-if" if="[[shouldShowRemoveMenuItem_(apn)]]" restamp>
     <button id="removeButton" class="dropdown-item"
-        on-click="onRemoveClicked_">
+        on-click="onRemoveClicked_"
+        disabled="[[shouldDisallowApnModification]]">
       [[i18n('apnMenuRemove')]]
     </button>
   </template>

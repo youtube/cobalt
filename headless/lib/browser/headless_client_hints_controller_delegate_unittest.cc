@@ -17,12 +17,6 @@ TEST(HeadlessClientHintsControllerDelegateTests, GetNetworkQualityTracker) {
   EXPECT_EQ(delegate.GetNetworkQualityTracker(), nullptr);
 }
 
-TEST(HeadlessClientHintsControllerDelegateTests, AreThirdPartyCookiesBlocked) {
-  HeadlessClientHintsControllerDelegate delegate;
-  EXPECT_FALSE(delegate.AreThirdPartyCookiesBlocked(GURL("https://example.com"),
-                                                    nullptr));
-}
-
 TEST(HeadlessClientHintsControllerDelegateTests, PersistentClientHints) {
   HeadlessClientHintsControllerDelegate delegate;
   auto kOrigin = url::Origin::Create(GURL("https://example.com"));
@@ -111,7 +105,7 @@ TEST(HeadlessClientHintsControllerDelegateTests,
 
 TEST(HeadlessClientHintsControllerDelegateTests, IsJavaScriptAllowed) {
   HeadlessClientHintsControllerDelegate delegate;
-  EXPECT_TRUE(delegate.IsJavaScriptAllowed(GURL::EmptyGURL(), nullptr));
+  EXPECT_TRUE(delegate.IsJavaScriptAllowed(GURL(), nullptr));
 }
 
 TEST(HeadlessClientHintsControllerDelegateTests, GetUserAgentMetadata) {

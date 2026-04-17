@@ -13,6 +13,8 @@
 
 namespace ash {
 FORWARD_DECLARE_TEST(DefaultFrameHeaderTest, FrameColors);
+FORWARD_DECLARE_TEST(NonClientFrameViewAshFrameColorTest,
+                     WideFrameInitialColor);
 }  // namespace ash
 
 namespace chromeos {
@@ -33,9 +35,6 @@ class COMPONENT_EXPORT(CHROMEOS_UI_FRAME) DefaultFrameHeader
 
   ~DefaultFrameHeader() override;
 
-  SkColor active_frame_color_for_testing() { return active_frame_color_; }
-  SkColor inactive_frame_color_for_testing() { return inactive_frame_color_; }
-
   void SetWidthInPixels(int width_in_pixels);
 
   // FrameHeader:
@@ -50,11 +49,11 @@ class COMPONENT_EXPORT(CHROMEOS_UI_FRAME) DefaultFrameHeader
 
  private:
   FRIEND_TEST_ALL_PREFIXES(ash::DefaultFrameHeaderTest, FrameColors);
+  FRIEND_TEST_ALL_PREFIXES(ash::NonClientFrameViewAshFrameColorTest,
+                           WideFrameInitialColor);
 
   // Returns the window of the target widget.
   aura::Window* GetTargetWindow();
-
-  SkColor GetActiveFrameColorForPaintForTest();
 
   SkColor active_frame_color_ = chromeos::kDefaultFrameColor;
   SkColor inactive_frame_color_ = chromeos::kDefaultFrameColor;

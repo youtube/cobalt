@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "services/device/public/cpp/test/scoped_geolocation_overrider.h"
+
+#include <set>
 #include <vector>
 
 #include "base/containers/unique_ptr_adapters.h"
@@ -12,9 +15,10 @@
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "services/device/device_service.h"
 #include "services/device/public/cpp/geolocation/geoposition.h"
-#include "services/device/public/cpp/test/scoped_geolocation_overrider.h"
 #include "services/device/public/mojom/geolocation.mojom.h"
+#include "services/device/public/mojom/geolocation_client_id.mojom.h"
 #include "services/device/public/mojom/geolocation_context.mojom.h"
+#include "url/origin.h"
 
 namespace device {
 
@@ -41,7 +45,10 @@ class ScopedGeolocationOverrider::FakeGeolocationContext
 
   // mojom::GeolocationContext implementation:
   void BindGeolocation(mojo::PendingReceiver<mojom::Geolocation> receiver,
-                       const GURL& requesting_url) override;
+                       const GURL& requesting_url,
+                       mojom::GeolocationClientId client_id) override;
+  void OnPermissionRevoked(const url::Origin& origin) override;
+
   void SetOverride(mojom::GeopositionResultPtr result) override;
   void ClearOverride() override;
 
@@ -64,6 +71,7 @@ class ScopedGeolocationOverrider::FakeGeolocationContext
 class ScopedGeolocationOverrider::FakeGeolocation : public mojom::Geolocation {
  public:
   FakeGeolocation(mojo::PendingReceiver<mojom::Geolocation> receiver,
+                  const GURL& requesting_url,
                   FakeGeolocationContext* context);
   ~FakeGeolocation() override;
 
@@ -71,14 +79,17 @@ class ScopedGeolocationOverrider::FakeGeolocation : public mojom::Geolocation {
   void OnResume();
 
   void UpdateLocation();
+  void OnPermissionRevoked();
 
   // mojom::Geolocation implementation:
   void QueryNextPosition(QueryNextPositionCallback callback) override;
-  void SetHighAccuracy(bool high_accuracy) override;
+  void SetHighAccuracyHint(bool high_accuracy) override;
+  const GURL& url() { return url_; }
 
  private:
   void RunPositionCallbackIfNeeded();
 
+  const GURL url_;
   raw_ptr<FakeGeolocationContext> context_;
   bool needs_update_ = true;
   QueryNextPositionCallback position_callback_;
@@ -195,8 +206,22 @@ void ScopedGeolocationOverrider::FakeGeolocationContext::BindForOverrideService(
 
 void ScopedGeolocationOverrider::FakeGeolocationContext::BindGeolocation(
     mojo::PendingReceiver<mojom::Geolocation> receiver,
-    const GURL& requesting_origin) {
-  impls_.insert(std::make_unique<FakeGeolocation>(std::move(receiver), this));
+    const GURL& requesting_origin,
+    mojom::GeolocationClientId client_id) {
+  impls_.insert(std::make_unique<FakeGeolocation>(std::move(receiver),
+                                                  requesting_origin, this));
+}
+
+void ScopedGeolocationOverrider::FakeGeolocationContext::OnPermissionRevoked(
+    const url::Origin& origin) {
+  std::erase_if(impls_, [&origin](const auto& impl) {
+    if (!origin.IsSameOriginWith(impl->url())) {
+      return false;
+    }
+    // Invoke the position callback with kPermissionDenied before removing.
+    impl->OnPermissionRevoked();
+    return true;
+  });
 }
 
 void ScopedGeolocationOverrider::FakeGeolocationContext::SetOverride(
@@ -233,8 +258,9 @@ size_t ScopedGeolocationOverrider::FakeGeolocationContext::
 
 ScopedGeolocationOverrider::FakeGeolocation::FakeGeolocation(
     mojo::PendingReceiver<mojom::Geolocation> receiver,
+    const GURL& requesting_url,
     FakeGeolocationContext* context)
-    : context_(context) {
+    : url_(requesting_url), context_(context) {
   receiver_.Bind(std::move(receiver));
   receiver_.set_disconnect_handler(
       base::BindOnce(&ScopedGeolocationOverrider::FakeGeolocation::OnDisconnect,
@@ -277,6 +303,15 @@ void ScopedGeolocationOverrider::FakeGeolocation::UpdateLocation() {
   RunPositionCallbackIfNeeded();
 }
 
+void ScopedGeolocationOverrider::FakeGeolocation::OnPermissionRevoked() {
+  if (!position_callback_.is_null()) {
+    std::move(position_callback_)
+        .Run(mojom::GeopositionResult::NewError(mojom::GeopositionError::New(
+            mojom::GeopositionErrorCode::kPermissionDenied,
+            /*error_message=*/"", /*error_technical=*/"")));
+  }
+}
+
 void ScopedGeolocationOverrider::FakeGeolocation::QueryNextPosition(
     QueryNextPositionCallback callback) {
   // Pending callbacks might be overrided.
@@ -285,7 +320,7 @@ void ScopedGeolocationOverrider::FakeGeolocation::QueryNextPosition(
   RunPositionCallbackIfNeeded();
 }
 
-void ScopedGeolocationOverrider::FakeGeolocation::SetHighAccuracy(
+void ScopedGeolocationOverrider::FakeGeolocation::SetHighAccuracyHint(
     bool high_accuracy) {}
 
 }  // namespace device

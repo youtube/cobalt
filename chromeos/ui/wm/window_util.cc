@@ -4,12 +4,11 @@
 
 #include "chromeos/ui/wm/window_util.h"
 
-#include "ash/constants/app_types.h"
+#include "chromeos/ui/base/app_types.h"
 #include "chromeos/ui/base/display_util.h"
-#include "chromeos/ui/base/tablet_state.h"
 #include "chromeos/ui/base/window_properties.h"
+#include "chromeos/ui/base/window_state_type.h"
 #include "chromeos/ui/wm/constants.h"
-#include "chromeos/ui/wm/features.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_delegate.h"
@@ -37,7 +36,6 @@ gfx::Size GetPreferredFloatedWindowTabletSize(const gfx::Rect& work_area,
 
 bool CanFloatWindowInClamshell(aura::Window* window) {
   CHECK(window);
-  CHECK(features::IsWindowLayoutMenuEnabled());
 
   const gfx::Rect work_area =
       display::Screen::GetScreen()->GetDisplayNearestWindow(window).work_area();
@@ -66,7 +64,6 @@ bool IsLandscapeOrientationForWindow(aura::Window* window) {
 
 gfx::Size GetFloatedWindowTabletSize(aura::Window* window) {
   CHECK(window);
-  CHECK(features::IsWindowLayoutMenuEnabled());
 
   if ((window->GetProperty(aura::client::kResizeBehaviorKey) &
        aura::client::kResizeBehaviorCanResize) == 0) {
@@ -102,15 +99,10 @@ gfx::Size GetFloatedWindowTabletSize(aura::Window* window) {
   // floatable window to not be floatable anymore.
   // TODO(b/278769645): Remove this workaround once browser returns a viable
   // minimum size.
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  const int minimum_width_padding = kBrowserExtraPaddingDp;
-#else
   const int minimum_width_padding =
-      window->GetProperty(aura::client::kAppType) ==
-              static_cast<int>(ash::AppType::BROWSER)
+      window->GetProperty(chromeos::kAppTypeKey) == chromeos::AppType::BROWSER
           ? kBrowserExtraPaddingDp
           : 0;
-#endif
 
   // If the preferred width is less than the minimum width, use the minimum
   // width. Add padding to the preferred width if the window is a browser, but
@@ -122,37 +114,34 @@ gfx::Size GetFloatedWindowTabletSize(aura::Window* window) {
 }
 
 bool CanFloatWindow(aura::Window* window) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  // Only app window can be floated. All windows on lacros side are expected to
-  // be lacros, so this check is not needed.
-  if (window->GetProperty(aura::client::kAppType) ==
-      static_cast<int>(ash::AppType::NON_APP)) {
+  if (window->GetProperty(chromeos::kAppTypeKey) ==
+      chromeos::AppType::NON_APP) {
     return false;
   }
 
   if (!window->GetProperty(kSupportsFloatedStateKey)) {
     return false;
   }
-#endif
+
+  const auto state_type = window->GetProperty(chromeos::kWindowStateTypeKey);
+  const bool unresizable =
+      (window->GetProperty(aura::client::kResizeBehaviorKey) &
+       aura::client::kResizeBehaviorCanResize) == 0;
+  // Windows which occupy the entire display should not be the target of
+  // unresizable floating.
+  if (unresizable && (state_type == chromeos::WindowStateType::kFullscreen ||
+                      state_type == chromeos::WindowStateType::kMaximized)) {
+    return false;
+  }
 
   if (window->GetProperty(aura::client::kZOrderingKey) !=
       ui::ZOrderLevel::kNormal) {
     return false;
   }
 
-  return TabletState::Get()->InTabletMode() ? CanFloatWindowInTablet(window)
-                                            : CanFloatWindowInClamshell(window);
-}
-
-bool ApplyDynamicColorToWindowFrameHeader(aura::Window* window) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  const int app_type = window->GetProperty(aura::client::kAppType);
-  if (app_type == static_cast<int>(ash::AppType::ARC_APP) ||
-      app_type == static_cast<int>(ash::AppType::CROSTINI_APP)) {
-    return false;
-  }
-#endif
-  return true;
+  return display::Screen::GetScreen()->InTabletMode()
+             ? CanFloatWindowInTablet(window)
+             : CanFloatWindowInClamshell(window);
 }
 
 }  // namespace chromeos::wm

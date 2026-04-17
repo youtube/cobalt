@@ -35,7 +35,8 @@ class FileSystemSignalsCollector : public BaseSignalsCollector {
   // the required parameters for this signal. `response` will be passed along
   // and the signal values will be set on it when available. `done_closure` will
   // be invoked when signal collection is complete.
-  void GetFileSystemInfoSignal(const SignalsAggregationRequest& request,
+  void GetFileSystemInfoSignal(UserPermission permission,
+                               const SignalsAggregationRequest& request,
                                SignalsAggregationResponse& response,
                                base::OnceClosure done_closure);
 
@@ -49,7 +50,7 @@ class FileSystemSignalsCollector : public BaseSignalsCollector {
       const std::vector<FileSystemItem>& file_system_items);
 
   // Instance used to retrieve a pointer to a SystemSignalsService instance.
-  base::raw_ptr<SystemSignalsServiceHost> system_service_host_;
+  raw_ptr<SystemSignalsServiceHost> system_service_host_;
 
   SEQUENCE_CHECKER(sequence_checker_);
   base::WeakPtrFactory<FileSystemSignalsCollector> weak_factory_{this};

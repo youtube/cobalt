@@ -15,13 +15,13 @@
 #include <memory>
 
 #include "api/scoped_refptr.h"
+#include "api/task_queue/task_queue_factory.h"
 #include "api/video/i420_buffer.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_frame_buffer.h"
 #include "api/video/video_rotation.h"
 #include "modules/video_coding/include/video_error_codes.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/task_queue.h"
 #include "rtc_base/time_utils.h"
 
 namespace webrtc {
@@ -40,22 +40,20 @@ bool FakeDecoder::Configure(const Settings& settings) {
   return true;
 }
 
-int32_t FakeDecoder::Decode(const EncodedImage& input,
-                            bool missing_frames,
-                            int64_t render_time_ms) {
+int32_t FakeDecoder::Decode(const EncodedImage& input, int64_t render_time_ms) {
   if (input._encodedWidth > 0 && input._encodedHeight > 0) {
     width_ = input._encodedWidth;
     height_ = input._encodedHeight;
   }
 
-  rtc::scoped_refptr<I420Buffer> buffer = I420Buffer::Create(width_, height_);
+  scoped_refptr<I420Buffer> buffer = I420Buffer::Create(width_, height_);
   I420Buffer::SetBlack(buffer.get());
   VideoFrame frame = VideoFrame::Builder()
                          .set_video_frame_buffer(buffer)
-                         .set_rotation(webrtc::kVideoRotation_0)
+                         .set_rotation(kVideoRotation_0)
                          .set_timestamp_ms(render_time_ms)
                          .build();
-  frame.set_timestamp(input.Timestamp());
+  frame.set_rtp_timestamp(input.RtpTimestamp());
   frame.set_ntp_time_ms(input.ntp_time_ms_);
 
   if (decode_delay_ms_ == 0 || !task_queue_) {
@@ -103,7 +101,6 @@ const char* FakeDecoder::ImplementationName() const {
 }
 
 int32_t FakeH264Decoder::Decode(const EncodedImage& input,
-                                bool missing_frames,
                                 int64_t render_time_ms) {
   uint8_t value = 0;
   for (size_t i = 0; i < input.size(); ++i) {
@@ -119,7 +116,7 @@ int32_t FakeH264Decoder::Decode(const EncodedImage& input,
     }
     ++value;
   }
-  return FakeDecoder::Decode(input, missing_frames, render_time_ms);
+  return FakeDecoder::Decode(input, render_time_ms);
 }
 
 }  // namespace test

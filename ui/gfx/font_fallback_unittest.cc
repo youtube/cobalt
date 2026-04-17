@@ -2,10 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/354829279): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <tuple>
 
 #include "base/containers/contains.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/task_environment.h"
@@ -67,9 +71,9 @@ class GetFallbackFontTest
       font_option += std::string("F") + base_font_option.family_name;
     if (base_font_option.delta || base_font_option.style ||
         base_font_option.style) {
-      font_option +=
-          base::StringPrintf("_d%ds%dw%d", base_font_option.delta,
-                             base_font_option.style, base_font_option.weight);
+      font_option += base::StringPrintf(
+          "_d%ds%dw%d", base_font_option.delta, base_font_option.style,
+          static_cast<int>(base_font_option.weight));
     }
 
     std::string language_tag = test_case.language_tag;
@@ -202,6 +206,14 @@ TEST_P(GetFallbackFontTest, GetFallbackFont) {
       return;
     }
   }
+
+#if BUILDFLAG(IS_IOS)
+  // TODO(crbug.com/40279916): font fallback does not appear to be working
+  // consistently.
+  if (fallback_font.GetFontName() == ".LastResort") {
+    GTEST_SKIP() << ".LastResort is not currently behaving correctly.";
+  }
+#endif
 
   // Ensure that glyphs exists in the fallback font.
   if (!DoesFontSupportCodePoints(fallback_font, test_case_.text)) {

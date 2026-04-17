@@ -8,17 +8,16 @@
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/autofill/autofill_bubble_base.h"
 #include "chrome/browser/ui/autofill/payments/iban_bubble_controller.h"
-#include "chrome/browser/ui/views/controls/obscurable_label_with_toggle_button.h"
-#include "chrome/browser/ui/views/location_bar/location_bar_bubble_delegate_view.h"
-#include "ui/views/controls/button/image_button.h"
+#include "chrome/browser/ui/views/autofill/autofill_location_bar_bubble.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 
 namespace autofill {
 
 // This class displays the manage saved IBAN bubble that is shown after the user
 // submits a form with an IBAN value that has been saved. This bubble is
 // accessible by clicking on the omnibox IBAN icon.
-class ManageSavedIbanBubbleView : public AutofillBubbleBase,
-                                  public LocationBarBubbleDelegateView {
+class ManageSavedIbanBubbleView : public AutofillLocationBarBubble {
+  METADATA_HEADER(ManageSavedIbanBubbleView, AutofillLocationBarBubble)
  public:
   // Bubble will be anchored to `anchor_view`.
   ManageSavedIbanBubbleView(views::View* anchor_view,
@@ -27,6 +26,7 @@ class ManageSavedIbanBubbleView : public AutofillBubbleBase,
   ManageSavedIbanBubbleView(const ManageSavedIbanBubbleView&) = delete;
   ManageSavedIbanBubbleView& operator=(const ManageSavedIbanBubbleView&) =
       delete;
+  ~ManageSavedIbanBubbleView() override;
 
   void Show(DisplayReason reason);
 
@@ -38,8 +38,6 @@ class ManageSavedIbanBubbleView : public AutofillBubbleBase,
   void WindowClosing() override;
 
  private:
-  ~ManageSavedIbanBubbleView() override;
-
   IbanBubbleController* controller() const { return controller_; }
 
   // Attributes IDs to the dialog's DialogDelegate-supplied buttons. This is
@@ -55,10 +53,6 @@ class ManageSavedIbanBubbleView : public AutofillBubbleBase,
   // available. It will be non-nullptr if the user inputs a nickname when
   // saving the IBAN in the IBAN save bubble.
   raw_ptr<views::Label> nickname_label_ = nullptr;
-
-  // The view that toggles the masking/unmasking of the IBAN value displayed in
-  // the bubble.
-  raw_ptr<ObscurableLabelWithToggleButton> iban_value_and_toggle_;
 
   raw_ptr<IbanBubbleController> controller_;
 };

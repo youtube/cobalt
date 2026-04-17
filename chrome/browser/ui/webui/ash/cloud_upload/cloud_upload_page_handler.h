@@ -13,8 +13,8 @@
 #include "chrome/browser/ui/webui/ash/cloud_upload/cloud_upload.mojom-shared.h"
 #include "chrome/browser/ui/webui/ash/cloud_upload/cloud_upload.mojom.h"
 #include "chrome/browser/web_applications/externally_managed_app_manager.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "components/webapps/browser/install_result_code.h"
+#include "components/webapps/common/web_app_id.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -59,19 +59,23 @@ class CloudUploadPageHandler : public mojom::PageHandler {
   void RespondWithUserActionAndClose(mojom::UserAction action) override;
   void RespondWithLocalTaskAndClose(int task_position) override;
   void SetOfficeAsDefaultHandler() override;
+  void GetAlwaysMoveOfficeFilesToDrive(
+      GetAlwaysMoveOfficeFilesToDriveCallback callback) override;
   void SetAlwaysMoveOfficeFilesToDrive(bool always_move) override;
+  void GetAlwaysMoveOfficeFilesToOneDrive(
+      GetAlwaysMoveOfficeFilesToOneDriveCallback callback) override;
   void SetAlwaysMoveOfficeFilesToOneDrive(bool always_move) override;
-  void SetOfficeMoveConfirmationShownForDriveTrue() override;
   void GetOfficeMoveConfirmationShownForDrive(
       GetOfficeMoveConfirmationShownForDriveCallback callback) override;
-  void SetOfficeMoveConfirmationShownForOneDriveTrue() override;
   void GetOfficeMoveConfirmationShownForOneDrive(
       GetOfficeMoveConfirmationShownForOneDriveCallback callback) override;
+  void RecordCancel(mojom::MetricsRecordedSetupPage page) override;
 
  private:
-  raw_ptr<Profile, ExperimentalAsh> profile_;
-  raw_ptr<content::WebUI, ExperimentalAsh> web_ui_;
+  raw_ptr<Profile> profile_;
+  raw_ptr<content::WebUI> web_ui_;
   mojom::DialogArgsPtr dialog_args_;
+  bool odfs_mount_called_ = false;
 
   mojo::Receiver<PageHandler> receiver_;
   RespondWithUserActionAndCloseCallback user_action_callback_;

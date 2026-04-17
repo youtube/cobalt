@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/reporting/storage/storage_queue.h"
 
 #include <algorithm>
@@ -11,7 +16,9 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -34,7 +41,6 @@
 #include "base/sequence_checker.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/task/bind_post_task.h"
@@ -42,6 +48,8 @@
 #include "base/task/task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/thread_annotations.h"
+#include "base/types/expected.h"
+#include "base/types/expected_macros.h"
 #include "components/reporting/compression/compression_module.h"
 #include "components/reporting/encryption/encryption_module_interface.h"
 #include "components/reporting/proto/synced/record.pb.h"
@@ -51,13 +59,13 @@
 #include "components/reporting/storage/storage_uploader_interface.h"
 #include "components/reporting/util/file.h"
 #include "components/reporting/util/refcounted_closure_list.h"
+#include "components/reporting/util/reporting_errors.h"
 #include "components/reporting/util/status.h"
 #include "components/reporting/util/status_macros.h"
 #include "components/reporting/util/statusor.h"
 #include "components/reporting/util/task_runner_context.h"
 #include "crypto/random.h"
 #include "crypto/sha2.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/protobuf/src/google/protobuf/io/zero_copy_stream_impl_lite.h"
 
 namespace reporting {
@@ -71,10 +79,6 @@ BASE_FEATURE(kReportingStorageDegradationFeature,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 namespace {
-
-// Storage queue generation id reset UMA metric name.
-constexpr char kStorageQueueGenerationIdResetUma[] =
-    "Browser.ERP.StorageQueueGenerationIdReset";
 
 // Metadata file name prefix.
 const base::FilePath::CharType METADATA_NAME[] = FILE_PATH_LITERAL("META");
@@ -118,16 +122,16 @@ struct RecordHeader {
   // Construct from a serialized string. This does not guarantee same results
   // across devices, but on the same device the result should always be
   // consistent even compiler behavior changes.
-  [[nodiscard]] static StatusOr<RecordHeader> FromString(base::StringPiece s) {
+  [[nodiscard]] static StatusOr<RecordHeader> FromString(std::string_view s) {
     if (s.size() < kSize) {
-      return Status(error::INTERNAL, "header is corrupt");
+      return base::unexpected(Status(error::INTERNAL, "header is corrupt"));
     }
 
     RecordHeader header;
     const char* p = s.data();
     header.record_sequencing_id = *reinterpret_cast<const int64_t*>(p);
     if (header.record_sequencing_id < 0) {
-      return Status(error::INTERNAL, "header is corrupt");
+      return base::unexpected(Status(error::INTERNAL, "header is corrupt"));
     }
     p += sizeof(header.record_sequencing_id);
     header.record_size = *reinterpret_cast<const int32_t*>(p);
@@ -159,7 +163,7 @@ void StorageQueue::Create(
               std::move(callback),
               storage_queue->sequenced_task_runner_),
           storage_queue_(std::move(storage_queue)) {
-      DCHECK(storage_queue_);
+      CHECK(storage_queue_);
     }
 
    private:
@@ -169,7 +173,7 @@ void StorageQueue::Create(
     void OnStart() override {
       auto init_status = storage_queue_->Init();
       if (!init_status.ok()) {
-        Response(StatusOr<scoped_refptr<StorageQueue>>(init_status));
+        Response(base::unexpected(std::move(init_status)));
         return;
       }
       Response(std::move(storage_queue_));
@@ -217,10 +221,10 @@ StorageQueue::~StorageQueue() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(storage_queue_sequence_checker_);
 
   // Stop timers.
-  upload_timer_.AbandonAndStop();
-  check_back_timer_.AbandonAndStop();
+  upload_timer_.Stop();
+  check_back_timer_.Stop();
   // Make sure no pending writes is present.
-  DCHECK(write_contexts_queue_.empty());
+  CHECK(write_contexts_queue_.empty());
 
   // Release all files.
   ReleaseAllFileInstances();
@@ -228,7 +232,7 @@ StorageQueue::~StorageQueue() {
 
 void StorageQueue::AssignDegradationQueues(
     const std::vector<scoped_refptr<StorageQueue>>& degradation_queues) {
-  DCHECK(degradation_queues_.empty()) << "Can only be assigned once";
+  CHECK(degradation_queues_.empty()) << "Can only be assigned once";
   degradation_queues_ = degradation_queues;
 }
 
@@ -237,18 +241,22 @@ Status StorageQueue::Init() {
   // Make sure the assigned directory exists.
   base::File::Error error;
   if (!base::CreateDirectoryAndGetError(options_.directory(), &error)) {
+    base::UmaHistogramEnumeration(
+        reporting::kUmaUnavailableErrorReason,
+        UnavailableErrorReason::FAILED_TO_CREATE_STORAGE_QUEUE_DIRECTORY,
+        UnavailableErrorReason::MAX_VALUE);
     return Status(
         error::UNAVAILABLE,
         base::StrCat(
             {"Storage queue directory '", options_.directory().MaybeAsASCII(),
              "' does not exist, error=", base::File::ErrorToString(error)}));
   }
-  DCHECK_LE(generation_id_, 0);  // Not set yet - valid range [1, max_int64]
+  CHECK_LE(generation_id_, 0);  // Not yet set within valid range [1, max_int64]
   base::flat_set<base::FilePath> used_files_set;
   // Enumerate data files and scan the last one to determine what sequence
   // ids do we have (first and last).
-  RETURN_IF_ERROR(EnumerateDataFiles(&used_files_set));
-  RETURN_IF_ERROR(ScanLastFile());
+  RETURN_IF_ERROR_STATUS(EnumerateDataFiles(&used_files_set));
+  RETURN_IF_ERROR_STATUS(ScanLastFile());
   if (next_sequencing_id_ > 0) {
     // Enumerate metadata files to determine what sequencing ids have
     // last record digest. They might have metadata for sequencing ids
@@ -278,11 +286,10 @@ Status StorageQueue::Init() {
       // earlier.
       if (generation_id_ <= 0) {
         LOG(ERROR) << "Unable to retrieve generation id, performing full reset";
-        base::UmaHistogramBoolean(kStorageQueueGenerationIdResetUma, true);
         next_sequencing_id_ = 0;
         first_sequencing_id_ = 0;
-        first_unconfirmed_sequencing_id_ = absl::nullopt;
-        last_record_digest_ = absl::nullopt;
+        first_unconfirmed_sequencing_id_ = std::nullopt;
+        last_record_digest_ = std::nullopt;
         ReleaseAllFileInstances();
         used_files_set.clear();
       }
@@ -316,7 +323,7 @@ Status StorageQueue::Init() {
   return Status::StatusOK();
 }
 
-absl::optional<std::string> StorageQueue::GetLastRecordDigest() const {
+std::optional<std::string> StorageQueue::GetLastRecordDigest() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(storage_queue_sequence_checker_);
   // Attach last record digest, if present.
   return last_record_digest_;
@@ -328,6 +335,9 @@ Status StorageQueue::SetOrConfirmGenerationId(const base::FilePath& full_name) {
   const auto generation_extension =
       full_name.RemoveFinalExtension().FinalExtension();
   if (generation_extension.empty()) {
+    base::UmaHistogramEnumeration(reporting::kUmaDataLossErrorReason,
+                                  DataLossErrorReason::MISSING_GENERATION_ID,
+                                  DataLossErrorReason::MAX_VALUE);
     return Status(error::DATA_LOSS,
                   base::StrCat({"Data file generation id not found in path: '",
                                 full_name.MaybeAsASCII()}));
@@ -337,6 +347,10 @@ Status StorageQueue::SetOrConfirmGenerationId(const base::FilePath& full_name) {
   const bool success =
       base::StringToInt64(generation_extension.substr(1), &file_generation_id);
   if (!success || file_generation_id <= 0) {
+    base::UmaHistogramEnumeration(
+        reporting::kUmaDataLossErrorReason,
+        DataLossErrorReason::FAILED_TO_PASE_GENERATION_ID,
+        DataLossErrorReason::MAX_VALUE);
     return Status(error::DATA_LOSS,
                   base::StrCat({"Data file generation id corrupt: '",
                                 full_name.MaybeAsASCII()}));
@@ -346,6 +360,9 @@ Status StorageQueue::SetOrConfirmGenerationId(const base::FilePath& full_name) {
   if (generation_id_ > 0) {
     // Generation was already set, data file must match.
     if (file_generation_id != generation_id_) {
+      base::UmaHistogramEnumeration(reporting::kUmaDataLossErrorReason,
+                                    DataLossErrorReason::INVALID_GENERATION_ID,
+                                    DataLossErrorReason::MAX_VALUE);
       return Status(error::DATA_LOSS,
                     base::StrCat({"Data file generation id does not match: '",
                                   full_name.MaybeAsASCII(), "', expected=",
@@ -363,17 +380,17 @@ StatusOr<int64_t> StorageQueue::GetFileSequenceIdFromPath(
     const base::FilePath& file_name) {
   const auto extension = file_name.FinalExtension();
   if (extension.empty() || extension == FILE_PATH_LITERAL(".")) {
-    return Status(error::INTERNAL,
-                  base::StrCat({"File has no extension: '",
-                                file_name.MaybeAsASCII(), "'"}));
+    return base::unexpected(
+        Status(error::INTERNAL, base::StrCat({"File has no extension: '",
+                                              file_name.MaybeAsASCII(), "'"})));
   }
   int64_t file_sequence_id = 0;
   const bool success =
       base::StringToInt64(extension.substr(1), &file_sequence_id);
   if (!success) {
-    return Status(error::INTERNAL,
-                  base::StrCat({"File extension does not parse: '",
-                                file_name.MaybeAsASCII(), "'"}));
+    return base::unexpected(Status(
+        error::INTERNAL, base::StrCat({"File extension does not parse: '",
+                                       file_name.MaybeAsASCII(), "'"})));
   }
 
   return file_sequence_id;
@@ -388,13 +405,13 @@ StatusOr<int64_t> StorageQueue::AddDataFile(
   auto file_or_status = SingleFile::Create(
       full_name, file_info.GetSize(), options_.memory_resource(),
       options_.disk_space_resource(), completion_closure_list_);
-  if (!file_or_status.ok()) {
-    return file_or_status.status();
+  if (!file_or_status.has_value()) {
+    return base::unexpected(std::move(file_or_status).error());
   }
-  if (!files_.emplace(file_sequence_id, file_or_status.ValueOrDie()).second) {
-    return Status(error::ALREADY_EXISTS,
-                  base::StrCat({"Sequencing id duplicated: '",
-                                full_name.MaybeAsASCII(), "'"}));
+  if (!files_.emplace(file_sequence_id, file_or_status.value()).second) {
+    return base::unexpected(Status(
+        error::ALREADY_EXISTS, base::StrCat({"Sequencing id duplicated: '",
+                                             full_name.MaybeAsASCII(), "'"})));
   }
   return file_sequence_id;
 }
@@ -405,7 +422,7 @@ Status StorageQueue::EnumerateDataFiles(
   // We need to set first_sequencing_id_ to 0 if this is the initialization
   // of an empty StorageQueue, and to the lowest sequencing id among all
   // existing files, if it was already used.
-  absl::optional<int64_t> first_sequencing_id;
+  std::optional<int64_t> first_sequencing_id;
   base::FileEnumerator dir_enum(
       options_.directory(),
       /*recursive=*/false, base::FileEnumerator::FILES,
@@ -427,15 +444,15 @@ Status StorageQueue::EnumerateDataFiles(
     // Add file to `files_` if the sequence id in the file path is valid
     const auto file_sequencing_id_result =
         AddDataFile(full_name, dir_enum.GetInfo());
-    if (!file_sequencing_id_result.ok()) {
+    if (!file_sequencing_id_result.has_value()) {
       LOG(WARNING) << "Failed to add file " << full_name.MaybeAsASCII()
-                   << ", status=" << file_sequencing_id_result.status();
+                   << ", status=" << file_sequencing_id_result.error();
       continue;
     }
     used_files_set->emplace(full_name);  // File is in use.
     if (!first_sequencing_id.has_value() ||
-        first_sequencing_id.value() > file_sequencing_id_result.ValueOrDie()) {
-      first_sequencing_id = file_sequencing_id_result.ValueOrDie();
+        first_sequencing_id.value() > file_sequencing_id_result.value()) {
+      first_sequencing_id = file_sequencing_id_result.value();
     }
   }
 
@@ -443,6 +460,13 @@ Status StorageQueue::EnumerateDataFiles(
   // generation id in any of the file paths, then the data is corrupt and we
   // shouldn't proceed.
   if (found_files_in_directory && generation_id_ <= 0) {
+    base::UmaHistogramEnumeration(reporting::kUmaDataLossErrorReason,
+                                  DataLossErrorReason::INVALID_GENERATION_ID,
+                                  DataLossErrorReason::MAX_VALUE);
+    base::UmaHistogramEnumeration(
+        reporting::kUmaDataLossErrorReason,
+        DataLossErrorReason::ALL_FILE_PATHS_MISSING_GENERATION_ID,
+        DataLossErrorReason::MAX_VALUE);
     return Status(
         error::DATA_LOSS,
         base::StrCat({"All file paths missing generation id in directory",
@@ -472,6 +496,10 @@ Status StorageQueue::ScanLastFile() {
   if (!open_status.ok()) {
     LOG(ERROR) << "Error opening file " << last_file->name()
                << ", status=" << open_status;
+    base::UmaHistogramEnumeration(
+        reporting::kUmaDataLossErrorReason,
+        DataLossErrorReason::FAILED_TO_OPEN_STORAGE_QUEUE_FILE,
+        DataLossErrorReason::MAX_VALUE);
     return Status(error::DATA_LOSS, base::StrCat({"Error opening file: '",
                                                   last_file->name(), "'"}));
   }
@@ -484,38 +512,38 @@ Status StorageQueue::ScanLastFile() {
     auto read_result =
         last_file->Read(pos, RecordHeader::kSize, max_buffer_size,
                         /*expect_readonly=*/false);
-    if (read_result.status().error_code() == error::OUT_OF_RANGE) {
+    if (!read_result.has_value() &&
+        read_result.error().error_code() == error::OUT_OF_RANGE) {
       // End of file detected.
       break;
     }
-    if (!read_result.ok()) {
+    if (!read_result.has_value()) {
       // Error detected.
       LOG(ERROR) << "Error reading file " << last_file->name()
-                 << ", status=" << read_result.status();
+                 << ", status=" << read_result.error();
       break;
     }
-    pos += read_result.ValueOrDie().size();
+    pos += read_result.value().size();
     // Copy out the header, since the buffer might be overwritten later on.
-    const auto header_status =
-        RecordHeader::FromString(read_result.ValueOrDie());
-    if (!header_status.ok()) {
+    const auto header_status = RecordHeader::FromString(read_result.value());
+    if (!header_status.has_value()) {
       // Error detected.
       LOG(ERROR) << "Incomplete record header in file " << last_file->name();
       break;
     }
-    const auto header = std::move(header_status.ValueOrDie());
+    const auto header = std::move(header_status.value());
     // Read the data (rounded to frame size).
     const size_t data_size = RoundUpToFrameSize(header.record_size);
     read_result = last_file->Read(pos, data_size, max_buffer_size,
                                   /*expect_readonly=*/false);
-    if (!read_result.ok()) {
+    if (!read_result.has_value()) {
       // Error detected.
       LOG(ERROR) << "Error reading file " << last_file->name()
-                 << ", status=" << read_result.status();
+                 << ", status=" << read_result.error();
       break;
     }
-    pos += read_result.ValueOrDie().size();
-    if (read_result.ValueOrDie().size() < data_size) {
+    pos += read_result.value().size();
+    if (read_result.value().size() < data_size) {
       // Error detected.
       LOG(ERROR) << "Incomplete record in file " << last_file->name();
       break;
@@ -528,8 +556,8 @@ Status StorageQueue::ScanLastFile() {
       break;
     }
     // Verify record hash.
-    uint32_t actual_record_hash = base::PersistentHash(
-        read_result.ValueOrDie().data(), header.record_size);
+    uint32_t actual_record_hash =
+        base::PersistentHash(read_result.value().substr(0, header.record_size));
     if (header.record_hash != actual_record_hash) {
       LOG(ERROR) << "Hash mismatch, seq=" << header.record_sequencing_id
                  << " actual_hash=" << std::hex << actual_record_hash
@@ -558,10 +586,11 @@ StatusOr<scoped_refptr<StorageQueue::SingleFile>> StorageQueue::AssignLastFile(
             options_.disk_space_resource(), completion_closure_list_));
     next_sequencing_id_ = 0;
     auto insert_result = files_.emplace(next_sequencing_id_, file);
-    DCHECK(insert_result.second);
+    CHECK(insert_result.second);
   }
   if (size > options_.max_record_size()) {
-    return Status(error::OUT_OF_RANGE, "Too much data to be recorded at once");
+    return base::unexpected(
+        Status(error::OUT_OF_RANGE, "Too much data to be recorded at once"));
   }
   scoped_refptr<SingleFile> last_file = files_.rbegin()->second;
   if (last_file->size() > 0 &&  // Cannot have a file with no records.
@@ -587,26 +616,26 @@ StorageQueue::OpenNewWriteableFile() {
               .AddExtensionASCII(base::NumberToString(next_sequencing_id_)),
           /*size=*/0, options_.memory_resource(),
           options_.disk_space_resource(), completion_closure_list_));
-  RETURN_IF_ERROR(new_file->Open(/*read_only=*/false));
+  RETURN_IF_ERROR_STATUS(base::unexpected(new_file->Open(/*read_only=*/false)));
   auto insert_result = files_.emplace(next_sequencing_id_, new_file);
   if (!insert_result.second) {
-    return Status(
-        error::ALREADY_EXISTS,
-        base::StrCat({"Sequencing id already assigned: '",
-                      base::NumberToString(next_sequencing_id_), "'"}));
+    return base::unexpected(
+        Status(error::ALREADY_EXISTS,
+               base::StrCat({"Sequencing id already assigned: '",
+                             base::NumberToString(next_sequencing_id_), "'"})));
   }
   return new_file;
 }
 
 Status StorageQueue::WriteHeaderAndBlock(
-    base::StringPiece data,
-    base::StringPiece current_record_digest,
+    std::string_view data,
+    std::string_view current_record_digest,
     scoped_refptr<StorageQueue::SingleFile> file) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(storage_queue_sequence_checker_);
 
   // Test only: Simulate failure if requested
   if (test_injection_handler_) {
-    RETURN_IF_ERROR(test_injection_handler_.Run(
+    RETURN_IF_ERROR_STATUS(test_injection_handler_.Run(
         test::StorageQueueOperationKind::kWriteBlock, next_sequencing_id_));
   }
 
@@ -617,7 +646,7 @@ Status StorageQueue::WriteHeaderAndBlock(
       RoundUpToFrameSize(RecordHeader::kSize + data.size());
   // Assign sequencing id.
   header.record_sequencing_id = next_sequencing_id_++;
-  header.record_hash = base::PersistentHash(data.data(), data.size());
+  header.record_hash = base::PersistentHash(data);
   header.record_size = data.size();
   // Store last record digest.
   last_record_digest_.emplace(current_record_digest);
@@ -639,41 +668,42 @@ Status StorageQueue::WriteHeaderAndBlock(
   active_write_reservation_size_ -= total_size;
 
   auto write_status = file->Append(header.SerializeToString());
-  if (!write_status.ok()) {
+  if (!write_status.has_value()) {
     return Status(error::RESOURCE_EXHAUSTED,
                   base::StrCat({"Cannot write file=", file->name(),
-                                " status=", write_status.status().ToString()}));
+                                " status=", write_status.error().ToString()}));
   }
   if (data.size() > 0) {
     write_status = file->Append(data);
-    if (!write_status.ok()) {
+    if (!write_status.has_value()) {
       return Status(
           error::RESOURCE_EXHAUSTED,
           base::StrCat({"Cannot write file=", file->name(),
-                        " status=", write_status.status().ToString()}));
+                        " status=", write_status.error().ToString()}));
     }
   }
   if (total_size > RecordHeader::kSize + data.size()) {
     // Fill in with random bytes.
     const size_t pad_size = total_size - (RecordHeader::kSize + data.size());
-    char junk_bytes[FRAME_SIZE];
-    crypto::RandBytes(junk_bytes, pad_size);
-    write_status = file->Append(base::StringPiece(&junk_bytes[0], pad_size));
-    if (!write_status.ok()) {
+    uint8_t junk_bytes[FRAME_SIZE];
+    auto padding = base::span(junk_bytes).first(pad_size);
+    crypto::RandBytes(padding);
+    write_status = file->Append(base::as_string_view(padding));
+    if (!write_status.has_value()) {
       return Status(error::RESOURCE_EXHAUSTED,
                     base::StrCat({"Cannot pad file=", file->name(), " status=",
-                                  write_status.status().ToString()}));
+                                  write_status.error().ToString()}));
     }
   }
   return Status::StatusOK();
 }
 
-Status StorageQueue::WriteMetadata(base::StringPiece current_record_digest) {
+Status StorageQueue::WriteMetadata(std::string_view current_record_digest) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(storage_queue_sequence_checker_);
 
   // Test only: Simulate failure if requested
   if (test_injection_handler_) {
-    RETURN_IF_ERROR(test_injection_handler_.Run(
+    RETURN_IF_ERROR_STATUS(test_injection_handler_.Run(
         test::StorageQueueOperationKind::kWriteMetadata, next_sequencing_id_));
   }
 
@@ -686,7 +716,7 @@ Status StorageQueue::WriteMetadata(base::StringPiece current_record_digest) {
               .AddExtensionASCII(base::NumberToString(next_sequencing_id_)),
           /*size=*/0, options_.memory_resource(),
           options_.disk_space_resource(), completion_closure_list_));
-  RETURN_IF_ERROR(meta_file->Open(/*read_only=*/false));
+  RETURN_IF_ERROR_STATUS(meta_file->Open(/*read_only=*/false));
 
   // The space for this following Append is being reserved in
   // StorageQueue::ReserveNewRecordDiskSpace.
@@ -704,23 +734,24 @@ Status StorageQueue::WriteMetadata(base::StringPiece current_record_digest) {
   // - generation id (8 bytes)
   // - last record digest (crypto::kSHA256Length bytes)
   // Write generation id.
-  auto append_result = meta_file->Append(base::StringPiece(
+  auto append_result = meta_file->Append(std::string_view(
       reinterpret_cast<const char*>(&generation_id_), sizeof(generation_id_)));
-  if (!append_result.ok()) {
-    return Status(
-        error::RESOURCE_EXHAUSTED,
-        base::StrCat({"Cannot write metafile=", meta_file->name(),
-                      " status=", append_result.status().ToString()}));
+  if (!append_result.has_value()) {
+    return Status(error::RESOURCE_EXHAUSTED,
+                  base::StrCat({"Cannot write metafile=", meta_file->name(),
+                                " status=", append_result.error().ToString()}));
   }
   // Write last record digest.
   append_result = meta_file->Append(current_record_digest);
-  if (!append_result.ok()) {
-    return Status(
-        error::RESOURCE_EXHAUSTED,
-        base::StrCat({"Cannot write metafile=", meta_file->name(),
-                      " status=", append_result.status().ToString()}));
+  if (!append_result.has_value()) {
+    return Status(error::RESOURCE_EXHAUSTED,
+                  base::StrCat({"Cannot write metafile=", meta_file->name(),
+                                " status=", append_result.error().ToString()}));
   }
-  if (append_result.ValueOrDie() != current_record_digest.size()) {
+  if (append_result.value() != current_record_digest.size()) {
+    base::UmaHistogramEnumeration(reporting::kUmaDataLossErrorReason,
+                                  DataLossErrorReason::FAILED_TO_WRITE_METADATA,
+                                  DataLossErrorReason::MAX_VALUE);
     return Status(error::DATA_LOSS, base::StrCat({"Failure writing metafile=",
                                                   meta_file->name()}));
   }
@@ -743,7 +774,7 @@ Status StorageQueue::ReadMetadata(
       SingleFile::Create(meta_file_path, size, options_.memory_resource(),
                          options_.disk_space_resource(),
                          completion_closure_list_));
-  RETURN_IF_ERROR(meta_file->Open(/*read_only=*/true));
+  RETURN_IF_ERROR_STATUS(meta_file->Open(/*read_only=*/true));
   // Metadata file format is:
   // - generation id (8 bytes)
   // - last record digest (crypto::kSHA256Length bytes)
@@ -752,16 +783,23 @@ Status StorageQueue::ReadMetadata(
       sizeof(generation_id_) + crypto::kSHA256Length;
   auto read_result =
       meta_file->Read(/*pos=*/0, sizeof(generation_id_), max_buffer_size);
-  if (!read_result.ok() ||
-      read_result.ValueOrDie().size() != sizeof(generation_id_)) {
+  if (!read_result.has_value() ||
+      read_result.value().size() != sizeof(generation_id_)) {
+    base::UmaHistogramEnumeration(reporting::kUmaDataLossErrorReason,
+                                  DataLossErrorReason::FAILED_TO_READ_METADATA,
+                                  DataLossErrorReason::MAX_VALUE);
     return Status(error::DATA_LOSS,
                   base::StrCat({"Cannot read metafile=", meta_file->name(),
-                                " status=", read_result.status().ToString()}));
+                                " status=", read_result.error().ToString()}));
   }
   const int64_t generation_id =
-      *reinterpret_cast<const int64_t*>(read_result.ValueOrDie().data());
+      *reinterpret_cast<const int64_t*>(read_result.value().data());
   if (generation_id <= 0) {
     // Generation is not in [1, max_int64] range - file corrupt or empty.
+    base::UmaHistogramEnumeration(
+        reporting::kUmaDataLossErrorReason,
+        DataLossErrorReason::METADATA_GENERATION_ID_OUT_OF_RANGE,
+        DataLossErrorReason::MAX_VALUE);
     return Status(error::DATA_LOSS,
                   base::StrCat({"Corrupt or empty metafile=", meta_file->name(),
                                 " - invalid generation ",
@@ -770,6 +808,10 @@ Status StorageQueue::ReadMetadata(
   if (generation_id_ > 0 && generation_id != generation_id_) {
     // Generation has already been set, and meta file does not match it - file
     // corrupt or empty.
+    base::UmaHistogramEnumeration(
+        reporting::kUmaDataLossErrorReason,
+        DataLossErrorReason::METADATA_GENERATION_MISMATCH,
+        DataLossErrorReason::MAX_VALUE);
     return Status(
         error::DATA_LOSS,
         base::StrCat({"Corrupt or empty metafile=", meta_file->name(),
@@ -780,11 +822,15 @@ Status StorageQueue::ReadMetadata(
   // Read last record digest.
   read_result = meta_file->Read(/*pos=*/sizeof(generation_id),
                                 crypto::kSHA256Length, max_buffer_size);
-  if (!read_result.ok() ||
-      read_result.ValueOrDie().size() != crypto::kSHA256Length) {
+  if (!read_result.has_value() ||
+      read_result.value().size() != crypto::kSHA256Length) {
+    base::UmaHistogramEnumeration(
+        reporting::kUmaDataLossErrorReason,
+        DataLossErrorReason::METADATA_LAST_RECORD_DIGEST_IS_CORRUPT,
+        DataLossErrorReason::MAX_VALUE);
     return Status(error::DATA_LOSS,
                   base::StrCat({"Cannot read metafile=", meta_file->name(),
-                                " status=", read_result.status().ToString()}));
+                                " status=", read_result.error().ToString()}));
   }
   // Everything read successfully, set the queue up.
   if (generation_id_ <= 0) {
@@ -793,7 +839,7 @@ Status StorageQueue::ReadMetadata(
   if (sequencing_id == next_sequencing_id_ - 1) {
     // Record last digest only if the metadata matches
     // the latest sequencing id.
-    last_record_digest_.emplace(read_result.ValueOrDie());
+    last_record_digest_.emplace(read_result.value());
   }
   meta_file->Close();
   // Store used metadata file.
@@ -813,16 +859,16 @@ Status StorageQueue::RestoreMetadata(
        full_name = dir_enum.Next()) {
     const auto file_sequence_id =
         GetFileSequenceIdFromPath(dir_enum.GetInfo().GetName());
-    if (!file_sequence_id.ok()) {
+    if (!file_sequence_id.has_value()) {
       continue;
     }
 
     // Record file name and size. Ignore the result.
-    meta_files.emplace(file_sequence_id.ValueOrDie(),
+    meta_files.emplace(file_sequence_id.value(),
                        std::make_pair(full_name, dir_enum.GetInfo().GetSize()));
   }
   // See whether we have a match for next_sequencing_id_ - 1.
-  DCHECK_GT(next_sequencing_id_, 0u);
+  CHECK_GT(next_sequencing_id_, 0u);
   auto it = meta_files.find(next_sequencing_id_ - 1);
   if (it != meta_files.end()) {
     // Match found. Attempt to load the metadata.
@@ -848,6 +894,10 @@ Status StorageQueue::RestoreMetadata(
     }
   }
   // No valid metadata found. Cannot recover from that.
+  base::UmaHistogramEnumeration(
+      reporting::kUmaDataLossErrorReason,
+      DataLossErrorReason::FAILED_TO_RESTORE_LAST_RECORD_DIGEST,
+      DataLossErrorReason::MAX_VALUE);
   return Status(error::DATA_LOSS,
                 base::StrCat({"Cannot recover last record digest at ",
                               base::NumberToString(next_sequencing_id_ - 1)}));
@@ -885,10 +935,10 @@ void StorageQueue::DeleteOutdatedMetadata(int64_t sequencing_id_to_keep) const {
       base::BindRepeating(
           [](int64_t sequence_id_to_keep, const base::FilePath& full_name) {
             const auto sequence_id = GetFileSequenceIdFromPath(full_name);
-            if (!sequence_id.ok()) {
+            if (!sequence_id.has_value()) {
               return false;
             }
-            if (sequence_id.ValueOrDie() >= sequence_id_to_keep) {
+            if (sequence_id.value() >= sequence_id_to_keep) {
               return false;
             }
             return true;
@@ -921,9 +971,9 @@ class StorageQueue::ReadContext : public TaskRunnerContext<Status> {
             EncryptionModuleInterface::is_enabled() &&
             storage_queue->encryption_module_->need_encryption_key()),
         storage_queue_(storage_queue->weakptr_factory_.GetWeakPtr()) {
-    DCHECK(storage_queue.get());
-    DCHECK(async_start_upload_cb_);
-    DCHECK_LT(
+    CHECK(storage_queue.get());
+    CHECK(async_start_upload_cb_);
+    CHECK_LT(
         static_cast<uint32_t>(reason),
         static_cast<uint32_t>(UploaderInterface::UploadReason::MAX_REASON));
   }
@@ -935,6 +985,10 @@ class StorageQueue::ReadContext : public TaskRunnerContext<Status> {
   void OnStart() override {
     if (!storage_queue_) {
       Response(Status(error::UNAVAILABLE, "StorageQueue shut down"));
+      base::UmaHistogramEnumeration(
+          reporting::kUmaUnavailableErrorReason,
+          UnavailableErrorReason::STORAGE_QUEUE_SHUTDOWN,
+          UnavailableErrorReason::MAX_VALUE);
       return;
     }
     DCHECK_CALLED_ON_VALID_SEQUENCE(
@@ -951,6 +1005,10 @@ class StorageQueue::ReadContext : public TaskRunnerContext<Status> {
   void PrepareDataFiles() {
     if (!storage_queue_) {
       Response(Status(error::UNAVAILABLE, "StorageQueue shut down"));
+      base::UmaHistogramEnumeration(
+          reporting::kUmaUnavailableErrorReason,
+          UnavailableErrorReason::STORAGE_QUEUE_SHUTDOWN,
+          UnavailableErrorReason::MAX_VALUE);
       return;
     }
     DCHECK_CALLED_ON_VALID_SEQUENCE(
@@ -1018,6 +1076,10 @@ class StorageQueue::ReadContext : public TaskRunnerContext<Status> {
   void BeginUploading() {
     if (!storage_queue_) {
       Response(Status(error::UNAVAILABLE, "StorageQueue shut down"));
+      base::UmaHistogramEnumeration(
+          reporting::kUmaUnavailableErrorReason,
+          UnavailableErrorReason::STORAGE_QUEUE_SHUTDOWN,
+          UnavailableErrorReason::MAX_VALUE);
       return;
     }
     DCHECK_CALLED_ON_VALID_SEQUENCE(
@@ -1043,6 +1105,10 @@ class StorageQueue::ReadContext : public TaskRunnerContext<Status> {
   void StartUploading() {
     if (!storage_queue_) {
       Response(Status(error::UNAVAILABLE, "StorageQueue shut down"));
+      base::UmaHistogramEnumeration(
+          reporting::kUmaUnavailableErrorReason,
+          UnavailableErrorReason::STORAGE_QUEUE_SHUTDOWN,
+          UnavailableErrorReason::MAX_VALUE);
       return;
     }
     DCHECK_CALLED_ON_VALID_SEQUENCE(
@@ -1051,7 +1117,8 @@ class StorageQueue::ReadContext : public TaskRunnerContext<Status> {
     for (int64_t sequencing_id = current_file_->first;
          sequencing_id < sequence_info_.sequencing_id(); ++sequencing_id) {
       auto blob = EnsureBlob(sequencing_id);
-      if (blob.status().error_code() == error::OUT_OF_RANGE) {
+      if (!blob.has_value() &&
+          blob.error().error_code() == error::OUT_OF_RANGE) {
         // Reached end of file, switch to the next one (if present).
         ++current_file_;
         if (current_file_ == files_.end()) {
@@ -1061,7 +1128,7 @@ class StorageQueue::ReadContext : public TaskRunnerContext<Status> {
         current_pos_ = 0;
         blob = EnsureBlob(sequence_info_.sequencing_id());
       }
-      if (!blob.ok()) {
+      if (!blob.has_value()) {
         // File found to be corrupt. Produce Gap record till the start of next
         // file, if present.
         ++current_file_;
@@ -1109,6 +1176,10 @@ class StorageQueue::ReadContext : public TaskRunnerContext<Status> {
     if (!storage_queue_) {
       std::move(completion_cb_)
           .Run(Status(error::UNAVAILABLE, "StorageQueue shut down"));
+      base::UmaHistogramEnumeration(
+          reporting::kUmaUnavailableErrorReason,
+          UnavailableErrorReason::STORAGE_QUEUE_SHUTDOWN,
+          UnavailableErrorReason::MAX_VALUE);
       files_.clear();
       current_file_ = files_.end();
       return;
@@ -1118,7 +1189,7 @@ class StorageQueue::ReadContext : public TaskRunnerContext<Status> {
     // Unregister with storage_queue.
     if (!files_.empty()) {
       const auto count = --(storage_queue_->active_read_operations_);
-      DCHECK_GE(count, 0);
+      CHECK_GE(count, 0);
       files_.clear();
       current_file_ = files_.end();
     }
@@ -1127,9 +1198,13 @@ class StorageQueue::ReadContext : public TaskRunnerContext<Status> {
   }
 
   // Prepares the |blob| for uploading.
-  void CallCurrentRecord(base::StringPiece blob) {
+  void CallCurrentRecord(std::string_view blob) {
     if (!storage_queue_) {
       Response(Status(error::UNAVAILABLE, "StorageQueue shut down"));
+      base::UmaHistogramEnumeration(
+          reporting::kUmaUnavailableErrorReason,
+          UnavailableErrorReason::STORAGE_QUEUE_SHUTDOWN,
+          UnavailableErrorReason::MAX_VALUE);
       return;
     }
     DCHECK_CALLED_ON_VALID_SEQUENCE(
@@ -1165,6 +1240,10 @@ class StorageQueue::ReadContext : public TaskRunnerContext<Status> {
                         ScopedReservation scoped_reservation) {
     if (!storage_queue_) {
       Response(Status(error::UNAVAILABLE, "StorageQueue shut down"));
+      base::UmaHistogramEnumeration(
+          reporting::kUmaUnavailableErrorReason,
+          UnavailableErrorReason::STORAGE_QUEUE_SHUTDOWN,
+          UnavailableErrorReason::MAX_VALUE);
       return;
     }
     DCHECK_CALLED_ON_VALID_SEQUENCE(
@@ -1190,6 +1269,10 @@ class StorageQueue::ReadContext : public TaskRunnerContext<Status> {
   void CallGapUpload(uint64_t count) {
     if (!storage_queue_) {
       Response(Status(error::UNAVAILABLE, "StorageQueue shut down"));
+      base::UmaHistogramEnumeration(
+          reporting::kUmaUnavailableErrorReason,
+          UnavailableErrorReason::STORAGE_QUEUE_SHUTDOWN,
+          UnavailableErrorReason::MAX_VALUE);
       return;
     }
     DCHECK_CALLED_ON_VALID_SEQUENCE(
@@ -1217,6 +1300,10 @@ class StorageQueue::ReadContext : public TaskRunnerContext<Status> {
   void NextRecord(bool more_records) {
     if (!storage_queue_) {
       Response(Status(error::UNAVAILABLE, "StorageQueue shut down"));
+      base::UmaHistogramEnumeration(
+          reporting::kUmaUnavailableErrorReason,
+          UnavailableErrorReason::STORAGE_QUEUE_SHUTDOWN,
+          UnavailableErrorReason::MAX_VALUE);
       return;
     }
     DCHECK_CALLED_ON_VALID_SEQUENCE(
@@ -1242,50 +1329,57 @@ class StorageQueue::ReadContext : public TaskRunnerContext<Status> {
   // the buffer remains intact until the next call to SingleFile::Read.
   // If anything goes wrong (file is shorter than expected, or record hash does
   // not match), returns error.
-  StatusOr<base::StringPiece> EnsureBlob(int64_t sequencing_id) {
+  StatusOr<std::string_view> EnsureBlob(int64_t sequencing_id) {
     if (!storage_queue_) {
-      return Status(error::UNAVAILABLE, "StorageQueue shut down");
+      base::UmaHistogramEnumeration(
+          reporting::kUmaUnavailableErrorReason,
+          UnavailableErrorReason::STORAGE_QUEUE_SHUTDOWN,
+          UnavailableErrorReason::MAX_VALUE);
+      return base::unexpected(
+          Status(error::UNAVAILABLE, "StorageQueue shut down"));
     }
     DCHECK_CALLED_ON_VALID_SEQUENCE(
         storage_queue_->storage_queue_sequence_checker_);
 
     // Test only: simulate error, if requested.
     if (storage_queue_->test_injection_handler_) {
-      RETURN_IF_ERROR(storage_queue_->test_injection_handler_.Run(
-          test::StorageQueueOperationKind::kReadBlock, sequencing_id));
+      RETURN_IF_ERROR_STATUS(
+          base::unexpected(storage_queue_->test_injection_handler_.Run(
+              test::StorageQueueOperationKind::kReadBlock, sequencing_id)));
     }
 
     // Read from the current file at the current offset.
-    RETURN_IF_ERROR(current_file_->second->Open(/*read_only=*/true));
+    RETURN_IF_ERROR_STATUS(
+        base::unexpected(current_file_->second->Open(/*read_only=*/true)));
     const size_t max_buffer_size =
         RoundUpToFrameSize(storage_queue_->options_.max_record_size()) +
         RoundUpToFrameSize(RecordHeader::kSize);
     auto read_result = current_file_->second->Read(
         current_pos_, RecordHeader::kSize, max_buffer_size);
-    RETURN_IF_ERROR(read_result.status());
-    auto header_data = read_result.ValueOrDie();
+    ASSIGN_OR_RETURN(auto header_data, read_result);
     if (header_data.empty()) {
       // No more blobs.
-      return Status(error::OUT_OF_RANGE, "Reached end of data");
+      return base::unexpected(
+          Status(error::OUT_OF_RANGE, "Reached end of data"));
     }
     current_pos_ += header_data.size();
     // Copy the header out (its memory can be overwritten when reading rest of
     // the data).
     const auto header_status = RecordHeader::FromString(header_data);
-    if (!header_status.ok()) {
+    if (!header_status.has_value()) {
       // Error detected.
-      return Status(
+      return base::unexpected(Status(
           error::INTERNAL,
-          base::StrCat({"File corrupt: ", current_file_->second->name()}));
+          base::StrCat({"File corrupt: ", current_file_->second->name()})));
     }
-    const auto header = std::move(header_status.ValueOrDie());
+    const auto header = std::move(header_status.value());
     if (header.record_sequencing_id != sequencing_id) {
-      return Status(
+      return base::unexpected(Status(
           error::INTERNAL,
           base::StrCat(
               {"File corrupt: ", current_file_->second->name(),
                " seq=", base::NumberToString(header.record_sequencing_id),
-               " expected=", base::NumberToString(sequencing_id)}));
+               " expected=", base::NumberToString(sequencing_id)})));
     }
     // Read the record blob (align size to FRAME_SIZE).
     const size_t data_size = RoundUpToFrameSize(header.record_size);
@@ -1293,22 +1387,22 @@ class StorageQueue::ReadContext : public TaskRunnerContext<Status> {
     // overwritten when reading rest of the data.
     read_result =
         current_file_->second->Read(current_pos_, data_size, max_buffer_size);
-    RETURN_IF_ERROR(read_result.status());
-    current_pos_ += read_result.ValueOrDie().size();
-    if (read_result.ValueOrDie().size() != data_size) {
+    RETURN_IF_ERROR(read_result);
+    current_pos_ += read_result.value().size();
+    if (read_result.value().size() != data_size) {
       // File corrupt, blob incomplete.
-      return Status(
+      return base::unexpected(Status(
           error::INTERNAL,
           base::StrCat(
               {"File corrupt: ", current_file_->second->name(),
-               " size=", base::NumberToString(read_result.ValueOrDie().size()),
-               " expected=", base::NumberToString(data_size)}));
+               " size=", base::NumberToString(read_result.value().size()),
+               " expected=", base::NumberToString(data_size)})));
     }
     // Verify record hash.
-    uint32_t actual_record_hash = base::PersistentHash(
-        read_result.ValueOrDie().data(), header.record_size);
+    uint32_t actual_record_hash =
+        base::PersistentHash(read_result.value().substr(0, header.record_size));
     if (header.record_hash != actual_record_hash) {
-      return Status(
+      return base::unexpected(Status(
           error::INTERNAL,
           base::StrCat(
               {"File corrupt: ", current_file_->second->name(), " seq=",
@@ -1319,20 +1413,24 @@ class StorageQueue::ReadContext : public TaskRunnerContext<Status> {
                " expected=",
                base::HexEncode(
                    reinterpret_cast<const uint8_t*>(&actual_record_hash),
-                   sizeof(actual_record_hash))}));
+                   sizeof(actual_record_hash))})));
     }
-    return read_result.ValueOrDie().substr(0, header.record_size);
+    return read_result.value().substr(0, header.record_size);
   }
 
   void CallRecordOrGap(int64_t sequencing_id) {
     if (!storage_queue_) {
       Response(Status(error::UNAVAILABLE, "StorageQueue shut down"));
+      base::UmaHistogramEnumeration(
+          reporting::kUmaUnavailableErrorReason,
+          UnavailableErrorReason::STORAGE_QUEUE_SHUTDOWN,
+          UnavailableErrorReason::MAX_VALUE);
       return;
     }
     DCHECK_CALLED_ON_VALID_SEQUENCE(
         storage_queue_->storage_queue_sequence_checker_);
     auto blob = EnsureBlob(sequence_info_.sequencing_id());
-    if (blob.status().error_code() == error::OUT_OF_RANGE) {
+    if (!blob.has_value() && blob.error().error_code() == error::OUT_OF_RANGE) {
       // Reached end of file, switch to the next one (if present).
       ++current_file_;
       if (current_file_ == files_.end()) {
@@ -1342,7 +1440,7 @@ class StorageQueue::ReadContext : public TaskRunnerContext<Status> {
       current_pos_ = 0;
       blob = EnsureBlob(sequence_info_.sequencing_id());
     }
-    if (!blob.ok()) {
+    if (!blob.has_value()) {
       // File found to be corrupt. Produce Gap record till the start of next
       // file, if present.
       ++current_file_;
@@ -1355,13 +1453,17 @@ class StorageQueue::ReadContext : public TaskRunnerContext<Status> {
       // Resume at ScheduleNextRecord.
       return;
     }
-    CallCurrentRecord(blob.ValueOrDie());
+    CallCurrentRecord(blob.value());
     // Resume at ScheduleNextRecord.
   }
 
   void InstantiateUploader(base::OnceCallback<void()> continuation) {
     if (!storage_queue_) {
       Response(Status(error::UNAVAILABLE, "StorageQueue shut down"));
+      base::UmaHistogramEnumeration(
+          reporting::kUmaUnavailableErrorReason,
+          UnavailableErrorReason::STORAGE_QUEUE_SHUTDOWN,
+          UnavailableErrorReason::MAX_VALUE);
       return;
     }
     DCHECK_CALLED_ON_VALID_SEQUENCE(
@@ -1392,19 +1494,23 @@ class StorageQueue::ReadContext : public TaskRunnerContext<Status> {
       StatusOr<std::unique_ptr<UploaderInterface>> uploader_result) {
     if (!storage_queue_) {
       Response(Status(error::UNAVAILABLE, "StorageQueue shut down"));
+      base::UmaHistogramEnumeration(
+          reporting::kUmaUnavailableErrorReason,
+          UnavailableErrorReason::STORAGE_QUEUE_SHUTDOWN,
+          UnavailableErrorReason::MAX_VALUE);
       return;
     }
     DCHECK_CALLED_ON_VALID_SEQUENCE(
         storage_queue_->storage_queue_sequence_checker_);
-    if (!uploader_result.ok()) {
+    if (!uploader_result.has_value()) {
       Response(Status(error::FAILED_PRECONDITION,
                       base::StrCat({"Failed to provide the Uploader, status=",
-                                    uploader_result.status().ToString()})));
+                                    uploader_result.error().ToString()})));
       return;
     }
-    DCHECK(!uploader_)
+    CHECK(!uploader_)
         << "Uploader instantiated more than once for single upload";
-    uploader_ = std::move(uploader_result.ValueOrDie());
+    uploader_ = std::move(uploader_result.value());
 
     std::move(continuation).Run();
   }
@@ -1436,7 +1542,7 @@ class StorageQueue::WriteContext : public TaskRunnerContext<Status> {
                                   storage_queue->sequenced_task_runner_),
         storage_queue_(storage_queue),
         record_(std::move(record)) {
-    DCHECK(storage_queue_.get());
+    CHECK(storage_queue_.get());
   }
 
  private:
@@ -1447,7 +1553,7 @@ class StorageQueue::WriteContext : public TaskRunnerContext<Status> {
 
     // If still in queue, remove it (something went wrong).
     if (in_contexts_queue_ != storage_queue_->write_contexts_queue_.end()) {
-      DCHECK_EQ(storage_queue_->write_contexts_queue_.front().get(), this);
+      CHECK_EQ(storage_queue_->write_contexts_queue_.front().get(), this);
       storage_queue_->write_contexts_queue_.erase(in_contexts_queue_);
     }
 
@@ -1480,7 +1586,8 @@ class StorageQueue::WriteContext : public TaskRunnerContext<Status> {
     in_contexts_queue_ = storage_queue_->write_contexts_queue_.end();
 
     // Make sure the record is valid.
-    if (!record_.has_destination()) {
+    if (!record_.has_destination() ||
+        record_.destination() == Destination::UNDEFINED_DESTINATION) {
       Response(Status(error::FAILED_PRECONDITION,
                       "Malformed record: missing destination"));
       return;
@@ -1530,7 +1637,7 @@ class StorageQueue::WriteContext : public TaskRunnerContext<Status> {
       std::string serialized_record;
       wrapped_record.record().SerializeToString(&serialized_record);
       current_record_digest_ = crypto::SHA256HashString(serialized_record);
-      DCHECK_EQ(current_record_digest_.size(), crypto::kSHA256Length);
+      CHECK_EQ(current_record_digest_.size(), crypto::kSHA256Length);
       *wrapped_record.mutable_record_digest() = current_record_digest_;
     }
 
@@ -1618,6 +1725,10 @@ class StorageQueue::WriteContext : public TaskRunnerContext<Status> {
     // Serialize wrapped record into a string.
     std::string buffer;
     if (!wrapped_record.SerializeToString(&buffer)) {
+      base::UmaHistogramEnumeration(
+          reporting::kUmaDataLossErrorReason,
+          DataLossErrorReason::FAILED_TO_SERIALIZE_WRAPPED_RECORD,
+          DataLossErrorReason::MAX_VALUE);
       Schedule(&WriteContext::Response, base::Unretained(this),
                Status(error::DATA_LOSS, "Cannot serialize record"));
       return;
@@ -1640,7 +1751,7 @@ class StorageQueue::WriteContext : public TaskRunnerContext<Status> {
   void OnCompressedRecordReady(
       ScopedReservation scoped_reservation,
       std::string compressed_record_result,
-      absl::optional<CompressionInformation> compression_information) {
+      std::optional<CompressionInformation> compression_information) {
     // Reduce amount of memory reserved to the resulting size after compression.
     scoped_reservation.Reduce(compressed_record_result.size());
 
@@ -1655,16 +1766,16 @@ class StorageQueue::WriteContext : public TaskRunnerContext<Status> {
   }
 
   void OnEncryptedRecordReady(
-      absl::optional<CompressionInformation> compression_information,
+      std::optional<CompressionInformation> compression_information,
       StatusOr<EncryptedRecord> encrypted_record_result) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(
         storage_queue_->storage_queue_sequence_checker_);
-    if (!encrypted_record_result.ok()) {
+    if (!encrypted_record_result.has_value()) {
       // Failed to serialize or encrypt.
-      Response(encrypted_record_result.status());
+      Response(encrypted_record_result.error());
       return;
     }
-    auto encrypted_record = std::move(encrypted_record_result.ValueOrDie());
+    auto encrypted_record = std::move(encrypted_record_result.value());
 
     // Add compression information to the encrypted record if it exists.
     if (compression_information.has_value()) {
@@ -1683,7 +1794,7 @@ class StorageQueue::WriteContext : public TaskRunnerContext<Status> {
   }
 
   void SerializeEncryptedRecord(
-      absl::optional<CompressionInformation> compression_information,
+      std::optional<CompressionInformation> compression_information,
       EncryptedRecord encrypted_record) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(
         storage_queue_->storage_queue_sequence_checker_);
@@ -1719,6 +1830,10 @@ class StorageQueue::WriteContext : public TaskRunnerContext<Status> {
     }
     std::string buffer;
     if (!encrypted_record.SerializeToString(&buffer)) {
+      base::UmaHistogramEnumeration(
+          reporting::kUmaDataLossErrorReason,
+          DataLossErrorReason::FAILED_TO_SERIALIZE_ENCRYPTED_RECORD,
+          DataLossErrorReason::MAX_VALUE);
       Schedule(&WriteContext::Response, base::Unretained(this),
                Status(error::DATA_LOSS, "Cannot serialize EncryptedRecord"));
       return;
@@ -1743,16 +1858,16 @@ class StorageQueue::WriteContext : public TaskRunnerContext<Status> {
     DCHECK_CALLED_ON_VALID_SEQUENCE(
         storage_queue_->storage_queue_sequence_checker_);
     // The size of the reservation is unknown until calculated.
-    DCHECK_EQ(storage_queue_->active_write_reservation_size_, 0u);
+    CHECK_EQ(storage_queue_->active_write_reservation_size_, 0u);
 
     // If we are not at the head of the queue, delay write and expect to be
     // reactivated later.
-    DCHECK(in_contexts_queue_ != storage_queue_->write_contexts_queue_.end());
+    CHECK(in_contexts_queue_ != storage_queue_->write_contexts_queue_.end());
     if (storage_queue_->write_contexts_queue_.front().get() != this) {
       return;
     }
 
-    DCHECK(!buffer_.empty());
+    CHECK(!buffer_.empty());
     // active_write_reservation_size_ includes both expected size of META file
     // and increase in size of DATA file.
     storage_queue_->active_write_reservation_size_ =
@@ -1778,11 +1893,11 @@ class StorageQueue::WriteContext : public TaskRunnerContext<Status> {
 
     StatusOr<scoped_refptr<SingleFile>> assign_result =
         storage_queue_->AssignLastFile(buffer_.size());
-    if (!assign_result.ok()) {
-      Response(assign_result.status());
+    if (!assign_result.has_value()) {
+      Response(assign_result.error());
       return;
     }
-    scoped_refptr<SingleFile> last_file = assign_result.ValueOrDie();
+    scoped_refptr<SingleFile> last_file = assign_result.value();
 
     // Writing metadata ahead of the data write.
     Status write_result = storage_queue_->WriteMetadata(current_record_digest_);
@@ -1867,7 +1982,7 @@ class StorageQueue::WriteContext : public TaskRunnerContext<Status> {
 
   void OnCompletion(const Status& status) override {
     if (storage_queue_->active_write_reservation_size_ > 0u) {
-      DCHECK(!status.ok());
+      CHECK(!status.ok());
       storage_queue_->options_.disk_space_resource()->Discard(
           storage_queue_->active_write_reservation_size_);
     }
@@ -1889,7 +2004,7 @@ class StorageQueue::WriteContext : public TaskRunnerContext<Status> {
   size_t remaining_attempts_ = 16u;
 
   // Copy of the original record, if required.
-  absl::optional<Record> record_copy_;
+  std::optional<Record> record_copy_;
 
   // Position in the `storage_queue_`->`write_contexts_queue_`.
   // We use it in order to detect whether the context is in the queue
@@ -2044,7 +2159,7 @@ class StorageQueue::ConfirmContext : public TaskRunnerContext<Status> {
         sequence_information_(std::move(sequence_information)),
         force_(force),
         storage_queue_(storage_queue) {
-    DCHECK(storage_queue.get());
+    CHECK(storage_queue.get());
   }
 
  private:
@@ -2111,7 +2226,7 @@ Status StorageQueue::RemoveConfirmedData(int64_t sequencing_id) {
   // Note: files_ cannot be empty ever (there is always the current
   // file for writing).
   for (;;) {
-    DCHECK(!files_.empty()) << "Empty storage queue";
+    CHECK(!files_.empty()) << "Empty storage queue";
     auto next_it = std::next(files_.begin());  // Need to consider the next file
     if (next_it == files_.end()) {
       // We are on the last file, keep it.
@@ -2176,7 +2291,7 @@ void StorageQueue::RegisterCompletionCallback(base::OnceClosure callback) {
   // destructed until the callback is registered - `StorageQueue` is held by
   // the added reference here. Thus, the callback being registered is guaranteed
   // to be called only when `StorageQueue` is being destructed.
-  DCHECK(callback);
+  CHECK(callback);
   sequenced_task_runner_->PostTask(
       FROM_HERE,
       base::BindOnce(
@@ -2206,10 +2321,10 @@ StorageQueue::SingleFile::Create(
   if (!disk_space_resource->Reserve(size)) {
     LOG(WARNING) << "Disk space exceeded adding file "
                  << filename.MaybeAsASCII();
-    return Status(
-        error::RESOURCE_EXHAUSTED,
-        base::StrCat({"Not enough disk space available to include file=",
-                      filename.MaybeAsASCII()}));
+    return base::unexpected(
+        Status(error::RESOURCE_EXHAUSTED,
+               base::StrCat({"Not enough disk space available to include file=",
+                             filename.MaybeAsASCII()})));
   }
 
   // Cannot use base::MakeRefCounted, since the constructor is private.
@@ -2242,7 +2357,7 @@ StorageQueue::SingleFile::~SingleFile() {
 Status StorageQueue::SingleFile::Open(bool read_only) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (handle_) {
-    DCHECK_EQ(is_readonly(), read_only);
+    CHECK_EQ(is_readonly(), read_only);
     // TODO(b/157943192): Restart auto-closing timer.
     return Status::StatusOK();
   }
@@ -2250,8 +2365,11 @@ Status StorageQueue::SingleFile::Open(bool read_only) {
       filename_, read_only ? (base::File::FLAG_OPEN | base::File::FLAG_READ)
                            : (base::File::FLAG_OPEN_ALWAYS |
                               base::File::FLAG_APPEND | base::File::FLAG_READ));
-  if (!handle_ || !handle_->IsValid()) {
+  if (!handle_->IsValid()) {
     handle_.reset();
+    base::UmaHistogramEnumeration(reporting::kUmaDataLossErrorReason,
+                                  DataLossErrorReason::FAILED_TO_OPEN_FILE,
+                                  DataLossErrorReason::MAX_VALUE);
     return Status(error::DATA_LOSS,
                   base::StrCat({"Cannot open file=", name(), " for ",
                                 read_only ? "read" : "append"}));
@@ -2260,6 +2378,10 @@ Status StorageQueue::SingleFile::Open(bool read_only) {
   if (!read_only) {
     int64_t file_size = handle_->GetLength();
     if (file_size < 0) {
+      base::UmaHistogramEnumeration(
+          reporting::kUmaDataLossErrorReason,
+          DataLossErrorReason::FAILED_TO_GET_SIZE_OF_FILE,
+          DataLossErrorReason::MAX_VALUE);
       return Status(error::DATA_LOSS,
                     base::StrCat({"Cannot get size of file=", name()}));
     }
@@ -2270,7 +2392,7 @@ Status StorageQueue::SingleFile::Open(bool read_only) {
 
 void StorageQueue::SingleFile::Close() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  is_readonly_ = absl::nullopt;
+  is_readonly_ = std::nullopt;
   buffer_.Clear();
   if (!handle_) {
     // TODO(b/157943192): Restart auto-closing timer.
@@ -2281,33 +2403,38 @@ void StorageQueue::SingleFile::Close() {
 
 void StorageQueue::SingleFile::DeleteWarnIfFailed() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(!handle_);
+  CHECK(!handle_) << "Deleting file that is still open";
   disk_space_resource_->Discard(size_);
   size_ = 0;
   DeleteFileWarnIfFailed(filename_);
 }
 
-StatusOr<base::StringPiece> StorageQueue::SingleFile::Read(
+StatusOr<std::string_view> StorageQueue::SingleFile::Read(
     uint32_t pos,
     uint32_t size,
     size_t max_buffer_size,
     bool expect_readonly) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!handle_) {
-    return Status(error::UNAVAILABLE, base::StrCat({"File not open ", name()}));
+    base::UmaHistogramEnumeration(reporting::kUmaUnavailableErrorReason,
+                                  UnavailableErrorReason::FILE_NOT_OPEN,
+                                  UnavailableErrorReason::MAX_VALUE);
+    return base::unexpected(
+        Status(error::UNAVAILABLE, base::StrCat({"File not open ", name()})));
   }
   if (expect_readonly != is_readonly()) {
-    return Status(error::INTERNAL,
-                  base::StrCat({"Attempt to read ",
-                                is_readonly() ? "readonly" : "writeable",
-                                " File ", name()}));
+    return base::unexpected(Status(
+        error::INTERNAL, base::StrCat({"Attempt to read ",
+                                       is_readonly() ? "readonly" : "writeable",
+                                       " File ", name()})));
   }
   if (size > max_buffer_size) {
-    return Status(error::RESOURCE_EXHAUSTED, "Too much data to read");
+    return base::unexpected(
+        Status(error::RESOURCE_EXHAUSTED, "Too much data to read"));
   }
   if (size_ == 0) {
     // Empty file, return EOF right away.
-    return Status(error::OUT_OF_RANGE, "End of file");
+    return base::unexpected(Status(error::OUT_OF_RANGE, "End of file"));
   }
   // If no buffer yet, allocate.
   // TODO(b/157943192): Add buffer management - consider adding an UMA for
@@ -2317,7 +2444,7 @@ StatusOr<base::StringPiece> StorageQueue::SingleFile::Read(
         std::min(max_buffer_size, RoundUpToFrameSize(size_));
     auto alloc_status = buffer_.Allocate(buffer_size);
     if (!alloc_status.ok()) {
-      return alloc_status;
+      return base::unexpected(std::move(alloc_status));
     }
     data_start_ = data_end_ = 0;
     file_position_ = 0;
@@ -2330,7 +2457,7 @@ StatusOr<base::StringPiece> StorageQueue::SingleFile::Read(
   // If expected data size does not fit into the buffer, move what's left to the
   // start.
   if (data_start_ + size > buffer_.size()) {
-    DCHECK_GT(data_start_, 0u);  // Cannot happen if 0.
+    CHECK_GT(data_start_, 0u);  // Cannot happen if 0.
     if (data_end_ > data_start_) {
       memmove(buffer_.at(0), buffer_.at(data_start_), data_end_ - data_start_);
     }
@@ -2341,22 +2468,25 @@ StatusOr<base::StringPiece> StorageQueue::SingleFile::Read(
   pos += actual_size;
   while (actual_size < size) {
     // Read as much as possible.
-    DCHECK_LT(data_end_, buffer_.size());
+    CHECK_LT(data_end_, buffer_.size());
     const int32_t result =
         handle_->Read(pos, buffer_.at(data_end_), buffer_.size() - data_end_);
     if (result < 0) {
-      return Status(
+      base::UmaHistogramEnumeration(reporting::kUmaDataLossErrorReason,
+                                    DataLossErrorReason::FAILED_TO_READ_FILE,
+                                    DataLossErrorReason::MAX_VALUE);
+      return base::unexpected(Status(
           error::DATA_LOSS,
           base::StrCat({"File read error=",
                         handle_->ErrorToString(handle_->GetLastFileError()),
-                        " ", name()}));
+                        " ", name()})));
     }
     if (result == 0) {
       break;
     }
     pos += result;
     data_end_ += result;
-    DCHECK_LE(data_end_, buffer_.size());
+    CHECK_LE(data_end_, buffer_.size());
     actual_size += result;
   }
   if (actual_size > size) {
@@ -2364,37 +2494,44 @@ StatusOr<base::StringPiece> StorageQueue::SingleFile::Read(
   }
   // If nothing read, report end of file.
   if (actual_size == 0) {
-    return Status(error::OUT_OF_RANGE, "End of file");
+    return base::unexpected(Status(error::OUT_OF_RANGE, "End of file"));
   }
   // Prepare reference to actually loaded data.
-  auto read_data = base::StringPiece(buffer_.at(data_start_), actual_size);
+  auto read_data = std::string_view(buffer_.at(data_start_), actual_size);
   // Move start and file position to after that data.
   data_start_ += actual_size;
   file_position_ += actual_size;
-  DCHECK_LE(data_start_, data_end_);
+  CHECK_LE(data_start_, data_end_);
   // Return what has been loaded.
   return read_data;
 }
 
-StatusOr<uint32_t> StorageQueue::SingleFile::Append(base::StringPiece data) {
+StatusOr<uint32_t> StorageQueue::SingleFile::Append(std::string_view data) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!handle_) {
-    return Status(error::UNAVAILABLE, base::StrCat({"File not open ", name()}));
+    base::UmaHistogramEnumeration(reporting::kUmaUnavailableErrorReason,
+                                  UnavailableErrorReason::FILE_NOT_OPEN,
+                                  UnavailableErrorReason::MAX_VALUE);
+    return base::unexpected(
+        Status(error::UNAVAILABLE, base::StrCat({"File not open ", name()})));
   }
   if (is_readonly()) {
-    return Status(
-        error::INTERNAL,
-        base::StrCat({"Attempt to append to read-only File ", name()}));
+    return base::unexpected(
+        Status(error::INTERNAL,
+               base::StrCat({"Attempt to append to read-only File ", name()})));
   }
   size_t actual_size = 0;
   while (data.size() > 0) {
     const int32_t result = handle_->Write(size_, data.data(), data.size());
     if (result < 0) {
-      return Status(
+      base::UmaHistogramEnumeration(reporting::kUmaDataLossErrorReason,
+                                    DataLossErrorReason::FAILED_TO_WRITE_FILE,
+                                    DataLossErrorReason::MAX_VALUE);
+      return base::unexpected(Status(
           error::DATA_LOSS,
           base::StrCat({"File write error=",
                         handle_->ErrorToString(handle_->GetLastFileError()),
-                        " ", name()}));
+                        " ", name()})));
     }
     size_ += result;
     actual_size += result;

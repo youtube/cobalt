@@ -16,21 +16,22 @@
 
 #include "modules/video_coding/codecs/h264/h264_decoder_impl.h"
 
+extern "C" {
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libavutil/imgutils.h>
+}  // extern "C"
+
 #include <algorithm>
 #include <limits>
 #include <memory>
-
-extern "C" {
-#include "third_party/ffmpeg/libavcodec/avcodec.h"
-#include "third_party/ffmpeg/libavformat/avformat.h"
-#include "third_party/ffmpeg/libavutil/imgutils.h"
-}  // extern "C"
 
 #include "api/video/color_space.h"
 #include "api/video/i010_buffer.h"
 #include "api/video/i420_buffer.h"
 #include "common_video/include/video_frame_buffer.h"
 #include "modules/video_coding/codecs/h264/h264_color_space.h"
+#include "modules/video_coding/include/video_error_codes.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "system_wrappers/include/metrics.h"
@@ -80,7 +81,11 @@ int H264DecoderImpl::AVGetBuffer2(AVCodecContext* context,
       kPixelFormatsSupported.begin(), kPixelFormatsSupported.end(),
       [context](AVPixelFormat format) { return context->pix_fmt == format; });
 
-  RTC_CHECK(pixelFormatSupported != kPixelFormatsSupported.end());
+  if (pixelFormatSupported == kPixelFormatsSupported.end()) {
+    RTC_LOG(LS_ERROR) << "Unsupported pixel format: " << context->pix_fmt;
+    decoder->ReportError();
+    return -1;
+  }
 
   // `av_frame->width` and `av_frame->height` are set by FFmpeg. These are the
   // actual image's dimensions and may be different from `context->width` and
@@ -114,13 +119,13 @@ int H264DecoderImpl::AVGetBuffer2(AVCodecContext* context,
   // http://crbug.com/390941. Our pool is set up to zero-initialize new buffers.
   // TODO(https://crbug.com/390941): Delete that feature from the video pool,
   // instead add an explicit call to InitializeData here.
-  rtc::scoped_refptr<PlanarYuvBuffer> frame_buffer;
-  rtc::scoped_refptr<I444Buffer> i444_buffer;
-  rtc::scoped_refptr<I420Buffer> i420_buffer;
-  rtc::scoped_refptr<I422Buffer> i422_buffer;
-  rtc::scoped_refptr<I010Buffer> i010_buffer;
-  rtc::scoped_refptr<I210Buffer> i210_buffer;
-  rtc::scoped_refptr<I410Buffer> i410_buffer;
+  webrtc::scoped_refptr<PlanarYuvBuffer> frame_buffer;
+  webrtc::scoped_refptr<I444Buffer> i444_buffer;
+  webrtc::scoped_refptr<I420Buffer> i420_buffer;
+  webrtc::scoped_refptr<I422Buffer> i422_buffer;
+  webrtc::scoped_refptr<I010Buffer> i010_buffer;
+  webrtc::scoped_refptr<I210Buffer> i210_buffer;
+  webrtc::scoped_refptr<I410Buffer> i410_buffer;
   int bytes_per_pixel = 1;
   switch (context->pix_fmt) {
     case AV_PIX_FMT_YUV420P:
@@ -229,7 +234,6 @@ int H264DecoderImpl::AVGetBuffer2(AVCodecContext* context,
   int total_size = y_size + 2 * uv_size;
 
   av_frame->format = context->pix_fmt;
-  av_frame->reordered_opaque = context->reordered_opaque;
 
   // Create a VideoFrame object, to keep a reference to the buffer.
   // TODO(nisse): The VideoFrame's timestamp and rotation info is not used.
@@ -324,7 +328,7 @@ bool H264DecoderImpl::Configure(const Settings& settings) {
 
   av_frame_.reset(av_frame_alloc());
 
-  if (absl::optional<int> buffer_pool_size = settings.buffer_pool_size()) {
+  if (std::optional<int> buffer_pool_size = settings.buffer_pool_size()) {
     if (!ffmpeg_buffer_pool_.Resize(*buffer_pool_size)) {
       return false;
     }
@@ -377,8 +381,6 @@ int32_t H264DecoderImpl::Decode(const EncodedImage& input_image,
     return WEBRTC_VIDEO_CODEC_ERROR;
   }
   packet->size = static_cast<int>(input_image.size());
-  int64_t frame_timestamp_us = input_image.ntp_time_ms_ * 1000;  // ms -> μs
-  av_context_->reordered_opaque = frame_timestamp_us;
 
   int result = avcodec_send_packet(av_context_.get(), packet.get());
 
@@ -395,19 +397,15 @@ int32_t H264DecoderImpl::Decode(const EncodedImage& input_image,
     return WEBRTC_VIDEO_CODEC_ERROR;
   }
 
-  // We don't expect reordering. Decoded frame timestamp should match
-  // the input one.
-  RTC_DCHECK_EQ(av_frame_->reordered_opaque, frame_timestamp_us);
-
   // TODO(sakal): Maybe it is possible to get QP directly from FFmpeg.
   h264_bitstream_parser_.ParseBitstream(input_image);
-  absl::optional<int> qp = h264_bitstream_parser_.GetLastSliceQp();
+  std::optional<int> qp = h264_bitstream_parser_.GetLastSliceQp();
 
   // Obtain the `video_frame` containing the decoded image.
   VideoFrame* input_frame =
       static_cast<VideoFrame*>(av_buffer_get_opaque(av_frame_->buf[0]));
   RTC_DCHECK(input_frame);
-  rtc::scoped_refptr<VideoFrameBuffer> frame_buffer =
+  webrtc::scoped_refptr<VideoFrameBuffer> frame_buffer =
       input_frame->video_frame_buffer();
 
   // Instantiate Planar YUV buffer according to video frame buffer type
@@ -532,7 +530,7 @@ int32_t H264DecoderImpl::Decode(const EncodedImage& input_image,
       return WEBRTC_VIDEO_CODEC_ERROR;
   }
 
-  rtc::scoped_refptr<webrtc::VideoFrameBuffer> cropped_buffer;
+  webrtc::scoped_refptr<webrtc::VideoFrameBuffer> cropped_buffer;
   switch (video_frame_buffer_type) {
     case VideoFrameBuffer::Type::kI420:
       cropped_buffer = WrapI420Buffer(
@@ -612,14 +610,14 @@ int32_t H264DecoderImpl::Decode(const EncodedImage& input_image,
 
   VideoFrame decoded_frame = VideoFrame::Builder()
                                  .set_video_frame_buffer(cropped_buffer)
-                                 .set_timestamp_rtp(input_image.Timestamp())
+                                 .set_rtp_timestamp(input_image.RtpTimestamp())
                                  .set_color_space(color_space)
                                  .build();
 
   // Return decoded frame.
   // TODO(nisse): Timestamp and rotation are all zero here. Change decoder
   // interface to pass a VideoFrameBuffer instead of a VideoFrame?
-  decoded_image_callback_->Decoded(decoded_frame, absl::nullopt, qp);
+  decoded_image_callback_->Decoded(decoded_frame, std::nullopt, qp);
 
   // Stop referencing it, possibly freeing `input_frame`.
   av_frame_unref(av_frame_.get());

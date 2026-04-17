@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/notimplemented.h"
 #include "base/values.h"
 #include "net/socket/client_socket_pool.h"
 
@@ -15,9 +16,9 @@ MockClientSocketPoolManager::MockClientSocketPoolManager() = default;
 MockClientSocketPoolManager::~MockClientSocketPoolManager() = default;
 
 void MockClientSocketPoolManager::SetSocketPool(
-    const ProxyServer& proxy_server,
+    const ProxyChain& proxy_chain,
     std::unique_ptr<ClientSocketPool> pool) {
-  socket_pools_[proxy_server] = std::move(pool);
+  socket_pools_[proxy_chain] = std::move(pool);
 }
 
 void MockClientSocketPoolManager::FlushSocketPoolsWithError(
@@ -32,8 +33,8 @@ void MockClientSocketPoolManager::CloseIdleSockets(
 }
 
 ClientSocketPool* MockClientSocketPoolManager::GetSocketPool(
-    const ProxyServer& proxy_server) {
-  ClientSocketPoolMap::const_iterator it = socket_pools_.find(proxy_server);
+    const ProxyChain& proxy_chain) {
+  ClientSocketPoolMap::const_iterator it = socket_pools_.find(proxy_chain);
   if (it != socket_pools_.end())
     return it->second.get();
   return nullptr;

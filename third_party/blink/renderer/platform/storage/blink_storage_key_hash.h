@@ -14,7 +14,7 @@ namespace blink {
 struct BlinkStorageKeyHashTraits
     : GenericHashTraits<std::unique_ptr<const BlinkStorageKey>> {
   static unsigned GetHash(const BlinkStorageKey* storage_key) {
-    absl::optional<base::UnguessableToken> nonce = storage_key->GetNonce();
+    std::optional<base::UnguessableToken> nonce = storage_key->GetNonce();
     size_t nonce_hash = nonce ? base::UnguessableTokenHash()(*nonce) : 0;
     unsigned hash_codes[] = {
       WTF::GetHash(storage_key->GetSecurityOrigin()),
@@ -29,7 +29,7 @@ struct BlinkStorageKeyHashTraits
 #error "Unknown bits"
 #endif
     };
-    return StringHasher::HashMemory<sizeof(hash_codes)>(hash_codes);
+    return StringHasher::HashMemory(base::as_byte_span(hash_codes));
   }
 
   static unsigned GetHash(

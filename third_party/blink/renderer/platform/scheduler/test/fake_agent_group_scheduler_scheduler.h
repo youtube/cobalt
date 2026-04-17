@@ -5,8 +5,9 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_SCHEDULER_TEST_FAKE_AGENT_GROUP_SCHEDULER_SCHEDULER_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_SCHEDULER_TEST_FAKE_AGENT_GROUP_SCHEDULER_SCHEDULER_H_
 
+#include "base/memory/raw_ref.h"
 #include "base/task/single_thread_task_runner.h"
-#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/scheduler/test/renderer_scheduler_test_support.h"
 #include "third_party/blink/public/platform/scheduler/web_thread_scheduler.h"
 #include "third_party/blink/renderer/platform/scheduler/public/agent_group_scheduler.h"
@@ -34,25 +35,19 @@ class FakeAgentGroupScheduler : public AgentGroupScheduler {
   }
 
   WebThreadScheduler& GetMainThreadScheduler() override {
-    return web_thread_scheduler_;
+    return *web_thread_scheduler_;
   }
 
-  BrowserInterfaceBrokerProxy& GetBrowserInterfaceBroker() override {
-    return GetEmptyBrowserInterfaceBroker();
-  }
-
-  void BindInterfaceBroker(
-      mojo::PendingRemote<blink::mojom::BrowserInterfaceBroker>) override {}
-
-  v8::Isolate* Isolate() override {
-    NOTREACHED();
-    return nullptr;
-  }
+  v8::Isolate* Isolate() override { NOTREACHED(); }
 
   void AddAgent(Agent* agent) override {}
 
+  void OnUrgentMessageReceived() override {}
+
+  void OnUrgentMessageProcessed() override {}
+
  private:
-  WebThreadScheduler& web_thread_scheduler_;
+  const raw_ref<WebThreadScheduler> web_thread_scheduler_;
 };
 
 }  // namespace scheduler

@@ -13,7 +13,6 @@
 # limitations under the License.
 
 source_set("h5vcc_experiments") {
-  testonly = true
   sources = [
     "h5vcc_experiments_impl.cc",
     "h5vcc_experiments_impl.h",
@@ -22,8 +21,11 @@ source_set("h5vcc_experiments") {
   deps = [
     "//base",
     "//cobalt/browser:global_features",
+    "//cobalt/browser:metrics",
     "//cobalt/browser/constants:cobalt_experiment_names",
     "//cobalt/browser/h5vcc_experiments/public/mojom",
+    "//components/metrics:metrics",
+    "//components/metrics_services_manager:metrics_services_manager",
     "//components/prefs",
     "//components/variations",
     "//content/public/browser",

@@ -4,6 +4,11 @@
 //
 // Unit tests for initial preferences related methods.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/installer/util/initial_preferences.h"
 
 #include <stddef.h>
@@ -12,8 +17,10 @@
 
 #include "base/environment.h"
 #include "base/files/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/path_service.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/installer/util/initial_preferences_constants.h"
@@ -333,7 +340,7 @@ TEST_F(InitialPreferencesTest, EnforceLegacyPreferences) {
               Optional(true));
 
 #if BUILDFLAG(ENABLE_RLZ)
-  absl::optional<int> rlz_ping_delay =
+  std::optional<int> rlz_ping_delay =
       prefs.initial_dictionary().FindInt(prefs::kRlzPingDelaySeconds);
   EXPECT_TRUE(rlz_ping_delay);
   EXPECT_GT(rlz_ping_delay, 0);
@@ -424,3 +431,26 @@ TEST_F(InitialPreferencesTest, GoogleUpdateIsMachine) {
     EXPECT_FALSE(value);
   }
 }
+
+#if !BUILDFLAG(IS_MAC)
+
+TEST_F(InitialPreferencesTest, Path) {
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  auto initial_pref_path =
+      temp_dir.GetPath().AppendASCII("initial_preferences");
+
+  EXPECT_EQ(temp_dir.GetPath().AppendASCII("master_preferences"),
+            installer::InitialPreferences::Path(temp_dir.GetPath()));
+  EXPECT_EQ(initial_pref_path, installer::InitialPreferences::Path(
+                                   temp_dir.GetPath(), /*for_read=*/false));
+
+  base::File file(initial_pref_path, base::File::Flags::FLAG_CREATE);
+  file.Close();
+
+  EXPECT_EQ(initial_pref_path,
+            installer::InitialPreferences::Path(temp_dir.GetPath()));
+}
+
+#endif  // !BUILDFLAG(IS_MAC)

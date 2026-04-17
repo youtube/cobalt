@@ -4,23 +4,26 @@
 
 #include "ui/views/controls/webview/unhandled_keyboard_event_handler.h"
 
-#include "content/public/browser/native_web_keyboard_event.h"
+#include "components/input/native_web_keyboard_event.h"
+#include "ui/gfx/native_widget_types.h"
 #import "ui/views/cocoa/native_widget_mac_ns_window_host.h"
 
 namespace views {
 
 // static
 bool UnhandledKeyboardEventHandler::HandleNativeKeyboardEvent(
-    const content::NativeWebKeyboardEvent& event,
+    const input::NativeWebKeyboardEvent& event,
     FocusManager* focus_manager) {
-  if (event.skip_in_browser)
+  if (event.skip_if_unhandled) {
     return false;
+  }
 
-  auto os_event = event.os_event;
+  NSEvent* ns_event = event.os_event.Get();
   auto* host = views::NativeWidgetMacNSWindowHost::GetFromNativeWindow(
-      [os_event window]);
-  if (host)
-    return host->RedispatchKeyEvent(os_event);
+      gfx::NativeWindow(ns_event.window));
+  if (host) {
+    return host->RedispatchKeyEvent(ns_event);
+  }
   return false;
 }
 

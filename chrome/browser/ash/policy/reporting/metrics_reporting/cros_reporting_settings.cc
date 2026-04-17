@@ -6,7 +6,7 @@
 
 #include "base/notreached.h"
 #include "base/values.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 #include "chromeos/ash/components/settings/cros_settings_provider.h"
 
 namespace reporting {
@@ -35,5 +35,10 @@ bool CrosReportingSettings::GetInteger(const std::string& path,
 bool CrosReportingSettings::GetList(const std::string& path,
                                     const base::Value::List** out_value) const {
   return ::ash::CrosSettings::Get()->GetList(path, out_value);
+}
+
+bool CrosReportingSettings::GetReportingEnabled(const std::string& path,
+                                                bool* out_value) const {
+  return GetBoolean(path, out_value);
 }
 }  // namespace reporting

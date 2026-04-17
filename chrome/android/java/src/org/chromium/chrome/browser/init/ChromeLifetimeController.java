@@ -10,24 +10,27 @@ import android.content.Intent;
 import android.os.Handler;
 import android.os.Looper;
 
+import androidx.core.os.BuildCompat;
+
 import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.ThreadUtils;
-import org.chromium.chrome.browser.ApplicationLifetime;
 import org.chromium.chrome.browser.BrowserRestartActivity;
+import org.chromium.chrome.browser.lifetime.ApplicationLifetime;
 
 /**
  * Answers requests to kill and (potentially) restart Chrome's main browser process.
  *
- * This class fires an Intent to start the {@link BrowserRestartActivity}, which will ultimately
+ * <p>This class fires an Intent to start the {@link BrowserRestartActivity}, which will ultimately
  * kill the main browser process from its own process.
  *
- * https://crbug.com/515919 details why another Activity is used instead of using the AlarmManager.
- * https://crbug.com/545453 details why the BrowserRestartActivity handles the process killing.
+ * <p>https://crbug.com/515919 details why another Activity is used instead of using the
+ * AlarmManager. https://crbug.com/545453 details why the BrowserRestartActivity handles the process
+ * killing.
  */
-class ChromeLifetimeController implements ApplicationLifetime.Observer,
-        ApplicationStatus.ActivityStateListener {
+class ChromeLifetimeController
+        implements ApplicationLifetime.Observer, ApplicationStatus.ActivityStateListener {
     /** Amount of time to wait for Chrome to destroy all the activities of the main process. */
     private static final long WATCHDOG_DELAY_MS = 1000;
 
@@ -49,9 +52,7 @@ class ChromeLifetimeController implements ApplicationLifetime.Observer,
     /** How many Chrome Activities are still alive. */
     private int mRemainingActivitiesCount;
 
-    /**
-     * Initialize the ChromeLifetimeController;
-     */
+    /** Initialize the ChromeLifetimeController; */
     public static void initialize() {
         ThreadUtils.assertOnUiThread();
         if (sInstance != null) return;
@@ -61,12 +62,13 @@ class ChromeLifetimeController implements ApplicationLifetime.Observer,
 
     private ChromeLifetimeController() {
         mHandler = new Handler(Looper.getMainLooper());
-        mRestartRunnable = new Runnable() {
-            @Override
-            public void run() {
-                fireBrowserRestartActivityIntent();
-            }
-        };
+        mRestartRunnable =
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        fireBrowserRestartActivityIntent();
+                    }
+                };
     }
 
     @Override
@@ -80,9 +82,16 @@ class ChromeLifetimeController implements ApplicationLifetime.Observer,
             activity.finish();
         }
 
-        // Kick off a timer to kill the process after a delay, which fires only if the Activities
-        // take too long to be finished.
-        mHandler.postDelayed(mRestartRunnable, WATCHDOG_DELAY_MS);
+        if (BuildCompat.isAtLeastV()) {
+            // Background activity launches are prohibited on newer versions of Android, so if the
+            // restart intent isn't fired right away then Chrome won't restart. See b/331370736.
+            mHandler.post(mRestartRunnable);
+        } else {
+            // Kick off a timer to kill the process after a delay, which fires only if the
+            // Activities
+            // take too long to be finished.
+            mHandler.postDelayed(mRestartRunnable, WATCHDOG_DELAY_MS);
+        }
     }
 
     @Override

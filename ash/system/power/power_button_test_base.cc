@@ -38,6 +38,9 @@ void PowerButtonTestBase::SetUp() {
 }
 
 void PowerButtonTestBase::TearDown() {
+  lock_state_test_api_.reset();
+  lock_state_controller_ = nullptr;
+
   AshTestBase::TearDown();
 }
 
@@ -106,7 +109,7 @@ void PowerButtonTestBase::Initialize(
   if (status == LoginStatus::NOT_LOGGED_IN)
     ClearLogin();
   else
-    CreateUserSessions(1);
+    SimulateUserLogin(kRegularUserLoginInfo);
 
   if (status == LoginStatus::GUEST)
     SetCanLockScreen(false);

@@ -6,9 +6,8 @@
 #define CHROMEOS_UI_FRAME_MULTITASK_MENU_SPLIT_BUTTON_VIEW_H_
 
 #include "base/memory/raw_ptr.h"
-#include "chromeos/ui/frame/multitask_menu/multitask_menu_constants.h"
-
 #include "chromeos/ui/frame/caption_buttons/snap_controller.h"
+#include "chromeos/ui/frame/multitask_menu/multitask_menu_constants.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/layout/box_layout_view.h"
@@ -20,9 +19,9 @@ namespace chromeos {
 // each button will either snap primary or snap secondary, depending on the
 // location of the button and the orientation of the device.
 class SplitButtonView : public views::BoxLayoutView {
- public:
-  METADATA_HEADER(SplitButtonView);
+  METADATA_HEADER(SplitButtonView, views::BoxLayoutView)
 
+ public:
   enum class SplitButtonType {
     kHalfButtons,
     kPartialButtons,
@@ -39,6 +38,11 @@ class SplitButtonView : public views::BoxLayoutView {
 
   ~SplitButtonView() override = default;
 
+  // Updates the split button layout and a11y names. The split button callbacks
+  // will be updated in MultitaskMenuView.
+  void UpdateButtons(bool is_portrait_mode, bool is_reversed);
+
+  views::Button* GetLeftTopButton();
   views::Button* GetRightBottomButton();
 
  private:
@@ -54,12 +58,12 @@ class SplitButtonView : public views::BoxLayoutView {
   // Pointers to the buttons that are owned by the views hierarchy. The names
   // refer to the physical location of the button, which do not change in RTL
   // languages.
-  raw_ptr<SplitButton, ExperimentalAsh> left_top_button_ = nullptr;
-  raw_ptr<SplitButton, ExperimentalAsh> right_bottom_button_ = nullptr;
+  raw_ptr<SplitButton> left_top_button_ = nullptr;
+  raw_ptr<SplitButton> right_bottom_button_ = nullptr;
 
   const SplitButtonType type_;
 
-  SkColor border_color_ = kMultitaskButtonDefaultColor;
+  SkColor border_color_ = SK_ColorTRANSPARENT;
   SkColor fill_color_ = SK_ColorTRANSPARENT;
 };
 

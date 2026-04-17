@@ -21,7 +21,6 @@
 #include "services/audio/public/cpp/fake_stream_factory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/utility/utility.h"
 
 using ::testing::InSequence;
 using ::testing::Mock;
@@ -69,9 +68,9 @@ class MockRendererAudioInputStreamFactoryClient
       mojo::PendingRemote<media::mojom::AudioInputStream> input_stream,
       mojo::PendingReceiver<media::mojom::AudioInputStreamClient>
           client_receiver,
-      media::mojom::ReadOnlyAudioDataPipePtr data_pipe,
+      media::mojom::ReadWriteAudioDataPipePtr data_pipe,
       bool initially_muted,
-      const absl::optional<base::UnguessableToken>& stream_id) override {
+      const std::optional<base::UnguessableToken>& stream_id) override {
     EXPECT_TRUE(stream_id.has_value());
     input_stream_.Bind(std::move(input_stream));
     client_receiver_ = std::move(client_receiver);
@@ -94,13 +93,6 @@ class MockRendererAudioInputStreamFactoryClient
 
 class MockStreamFactory final : public audio::FakeStreamFactory {
  public:
-  MockStreamFactory() = default;
-
-  MockStreamFactory(const MockStreamFactory&) = delete;
-  MockStreamFactory& operator=(const MockStreamFactory&) = delete;
-
-  ~MockStreamFactory() override = default;
-
   // State of an expected stream creation. |device_id| and |params| are set
   // ahead of time and verified during request. The other fields are filled in
   // when the request is received.
@@ -118,14 +110,17 @@ class MockStreamFactory final : public audio::FakeStreamFactory {
     const media::AudioParameters params;
     uint32_t shared_memory_count;
     bool enable_agc;
-    base::ReadOnlySharedMemoryRegion key_press_count_buffer;
     media::mojom::AudioProcessingConfigPtr processing_config;
     CreateInputStreamCallback created_callback;
   };
 
-  void ExpectStreamCreation(StreamRequestData* ex) {
-    stream_request_data_ = ex;
-  }
+  explicit MockStreamFactory(StreamRequestData* ex)
+      : stream_request_data_(ex) {}
+
+  MockStreamFactory(const MockStreamFactory&) = delete;
+  MockStreamFactory& operator=(const MockStreamFactory&) = delete;
+
+  ~MockStreamFactory() override = default;
 
  private:
   void CreateInputStream(
@@ -137,7 +132,6 @@ class MockStreamFactory final : public audio::FakeStreamFactory {
       const media::AudioParameters& params,
       uint32_t shared_memory_count,
       bool enable_agc,
-      base::ReadOnlySharedMemoryRegion key_press_count_buffer,
       media::mojom::AudioProcessingConfigPtr processing_config,
       CreateInputStreamCallback created_callback) override {
     // No way to cleanly exit the test here in case of failure, so use CHECK.
@@ -151,30 +145,28 @@ class MockStreamFactory final : public audio::FakeStreamFactory {
     stream_request_data_->log.Bind(std::move(log));
     stream_request_data_->shared_memory_count = shared_memory_count;
     stream_request_data_->enable_agc = enable_agc;
-    stream_request_data_->key_press_count_buffer =
-        std::move(key_press_count_buffer);
     stream_request_data_->processing_config = std::move(processing_config);
     stream_request_data_->created_callback = std::move(created_callback);
   }
 
-  raw_ptr<StreamRequestData> stream_request_data_;
+  const raw_ptr<StreamRequestData> stream_request_data_;
 };
 
 struct TestEnvironment {
-  TestEnvironment()
+  explicit TestEnvironment(MockStreamFactory::StreamRequestData* ex)
       : broker(std::make_unique<AudioInputStreamBroker>(
             kRenderProcessId,
             kRenderFrameId,
             kDeviceId,
             TestParams(),
             kShMemCount,
-            nullptr /*user_input_monitor*/,
             kEnableAgc,
             media::mojom::AudioProcessingConfig::New(
                 remote_controls_.BindNewPipeAndPassReceiver(),
                 media::AudioProcessingSettings()),
             deleter.Get(),
-            renderer_factory_client.MakeRemote())) {}
+            renderer_factory_client.MakeRemote())),
+        stream_factory(ex) {}
 
   void RunUntilIdle() { task_environment.RunUntilIdle(); }
 
@@ -205,21 +197,19 @@ TEST(AudioInputStreamBrokerTest, StoresProcessAndFrameId) {
   MockDeleterCallback deleter;
   StrictMock<MockRendererAudioInputStreamFactoryClient> renderer_factory_client;
 
-  AudioInputStreamBroker broker(
-      kRenderProcessId, kRenderFrameId, kDeviceId, TestParams(), kShMemCount,
-      nullptr /*user_input_monitor*/, kEnableAgc, nullptr /*processing_config*/,
-      deleter.Get(), renderer_factory_client.MakeRemote());
+  AudioInputStreamBroker broker(kRenderProcessId, kRenderFrameId, kDeviceId,
+                                TestParams(), kShMemCount, kEnableAgc,
+                                nullptr /*processing_config*/, deleter.Get(),
+                                renderer_factory_client.MakeRemote());
 
   EXPECT_EQ(kRenderProcessId, broker.render_process_id());
   EXPECT_EQ(kRenderFrameId, broker.render_frame_id());
 }
 
 TEST(AudioInputStreamBrokerTest, StreamCreationSuccess_Propagates) {
-  TestEnvironment env;
   MockStreamFactory::StreamRequestData stream_request_data(kDeviceId,
                                                            TestParams());
-  env.stream_factory.ExpectStreamCreation(&stream_request_data);
-
+  TestEnvironment env(&stream_request_data);
   env.broker->CreateStream(env.factory_ptr.get());
   env.RunUntilIdle();
 
@@ -232,8 +222,7 @@ TEST(AudioInputStreamBrokerTest, StreamCreationSuccess_Propagates) {
   base::SyncSocket socket1, socket2;
   base::SyncSocket::CreatePair(&socket1, &socket2);
   std::move(stream_request_data.created_callback)
-      .Run({absl::in_place,
-            base::ReadOnlySharedMemoryRegion::Create(shmem_size).region,
+      .Run({std::in_place, base::UnsafeSharedMemoryRegion::Create(shmem_size),
             mojo::PlatformHandle(socket1.Take())},
            kInitiallyMuted, base::UnguessableToken::Create());
 
@@ -247,11 +236,9 @@ TEST(AudioInputStreamBrokerTest, StreamCreationSuccess_Propagates) {
 }
 
 TEST(AudioInputStreamBrokerTest, StreamCreationFailure_CallsDeleter) {
-  TestEnvironment env;
   MockStreamFactory::StreamRequestData stream_request_data(kDeviceId,
                                                            TestParams());
-  env.stream_factory.ExpectStreamCreation(&stream_request_data);
-
+  TestEnvironment env(&stream_request_data);
   env.broker->CreateStream(env.factory_ptr.get());
   env.RunUntilIdle();
 
@@ -260,18 +247,16 @@ TEST(AudioInputStreamBrokerTest, StreamCreationFailure_CallsDeleter) {
       .WillOnce(testing::DeleteArg<0>());
 
   std::move(stream_request_data.created_callback)
-      .Run(nullptr, kInitiallyMuted, absl::nullopt);
+      .Run(nullptr, kInitiallyMuted, std::nullopt);
 
   env.RunUntilIdle();
 }
 
 TEST(AudioInputStreamBrokerTest, RendererFactoryClientDisconnect_CallsDeleter) {
   InSequence seq;
-  TestEnvironment env;
   MockStreamFactory::StreamRequestData stream_request_data(kDeviceId,
                                                            TestParams());
-  env.stream_factory.ExpectStreamCreation(&stream_request_data);
-
+  TestEnvironment env(&stream_request_data);
   env.broker->CreateStream(env.factory_ptr.get());
   env.RunUntilIdle();
   EXPECT_TRUE(stream_request_data.requested);
@@ -288,11 +273,9 @@ TEST(AudioInputStreamBrokerTest, RendererFactoryClientDisconnect_CallsDeleter) {
 
 TEST(AudioInputStreamBrokerTest, ObserverDisconnect_CallsDeleter) {
   InSequence seq;
-  TestEnvironment env;
   MockStreamFactory::StreamRequestData stream_request_data(kDeviceId,
                                                            TestParams());
-  env.stream_factory.ExpectStreamCreation(&stream_request_data);
-
+  TestEnvironment env(&stream_request_data);
   env.broker->CreateStream(env.factory_ptr.get());
   env.RunUntilIdle();
   EXPECT_TRUE(stream_request_data.requested);
@@ -309,11 +292,9 @@ TEST(AudioInputStreamBrokerTest, ObserverDisconnect_CallsDeleter) {
 
 TEST(AudioInputStreamBrokerTest, ObserverDisconnect_PropagateError) {
   InSequence seq;
-  TestEnvironment env;
   MockStreamFactory::StreamRequestData stream_request_data(kDeviceId,
                                                            TestParams());
-  env.stream_factory.ExpectStreamCreation(&stream_request_data);
-
+  TestEnvironment env(&stream_request_data);
   env.broker->CreateStream(env.factory_ptr.get());
   env.RunUntilIdle();
   EXPECT_TRUE(stream_request_data.requested);
@@ -336,11 +317,9 @@ TEST(AudioInputStreamBrokerTest, ObserverDisconnect_PropagateError) {
 
 TEST(AudioInputStreamBrokerTest, ObserverDisconnect_PropagatePermissionsError) {
   InSequence seq;
-  TestEnvironment env;
   MockStreamFactory::StreamRequestData stream_request_data(kDeviceId,
                                                            TestParams());
-  env.stream_factory.ExpectStreamCreation(&stream_request_data);
-
+  TestEnvironment env(&stream_request_data);
   env.broker->CreateStream(env.factory_ptr.get());
   env.RunUntilIdle();
   EXPECT_TRUE(stream_request_data.requested);
@@ -363,8 +342,7 @@ TEST(AudioInputStreamBrokerTest, ObserverDisconnect_PropagatePermissionsError) {
 
 TEST(AudioInputStreamBrokerTest,
      FactoryDisconnectDuringConstruction_CallsDeleter) {
-  TestEnvironment env;
-
+  TestEnvironment env(nullptr);
   env.broker->CreateStream(env.factory_ptr.get());
   env.stream_factory.ResetReceiver();
 

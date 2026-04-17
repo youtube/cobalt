@@ -18,90 +18,99 @@
 #include <stdint.h>
 
 #include <algorithm>
+#include <cstddef>
 #include <memory>
+#include <optional>
 #include <string>
 #include <tuple>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
-#include "api/async_resolver_factory.h"
 #include "api/candidate.h"
 #include "api/crypto/crypto_options.h"
 #include "api/dtmf_sender_interface.h"
-#include "api/ice_transport_interface.h"
 #include "api/jsep.h"
+#include "api/make_ref_counted.h"
 #include "api/media_stream_interface.h"
 #include "api/media_types.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
 #include "api/rtc_event_log/rtc_event.h"
 #include "api/rtc_event_log/rtc_event_log.h"
-#include "api/rtc_event_log_output.h"
 #include "api/rtp_parameters.h"
 #include "api/rtp_receiver_interface.h"
 #include "api/rtp_sender_interface.h"
 #include "api/rtp_transceiver_direction.h"
 #include "api/rtp_transceiver_interface.h"
 #include "api/scoped_refptr.h"
-#include "api/stats/rtc_stats.h"
 #include "api/stats/rtc_stats_report.h"
 #include "api/stats/rtcstats_objects.h"
+#include "api/test/mock_async_dns_resolver.h"
 #include "api/test/mock_encoder_selector.h"
+#include "api/test/rtc_error_matchers.h"
 #include "api/transport/rtp/rtp_source.h"
 #include "api/uma_metrics.h"
+#include "api/units/data_rate.h"
 #include "api/units/time_delta.h"
 #include "api/video/video_rotation.h"
+#include "api/video_codecs/sdp_video_format.h"
 #include "logging/rtc_event_log/fake_rtc_event_log.h"
 #include "logging/rtc_event_log/fake_rtc_event_log_factory.h"
 #include "media/base/codec.h"
 #include "media/base/media_constants.h"
 #include "media/base/stream_params.h"
-#include "p2p/base/mock_async_resolver.h"
 #include "p2p/base/port.h"
 #include "p2p/base/port_allocator.h"
 #include "p2p/base/port_interface.h"
-#include "p2p/base/test_stun_server.h"
-#include "p2p/base/test_turn_customizer.h"
-#include "p2p/base/test_turn_server.h"
 #include "p2p/base/transport_description.h"
 #include "p2p/base/transport_info.h"
-#include "pc/channel.h"
+#include "p2p/test/test_stun_server.h"
+#include "p2p/test/test_turn_server.h"
 #include "pc/media_session.h"
 #include "pc/peer_connection.h"
 #include "pc/peer_connection_factory.h"
-#include "pc/rtp_transceiver.h"
 #include "pc/session_description.h"
 #include "pc/test/fake_periodic_video_source.h"
 #include "pc/test/integration_test_helpers.h"
 #include "pc/test/mock_peer_connection_observers.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/fake_clock.h"
 #include "rtc_base/fake_mdns_responder.h"
 #include "rtc_base/fake_network.h"
 #include "rtc_base/firewall_socket_server.h"
 #include "rtc_base/gunit.h"
-#include "rtc_base/helpers.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/random.h"
 #include "rtc_base/socket_address.h"
-#include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_fingerprint.h"
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/ssl_stream_adapter.h"
+#include "rtc_base/string_encode.h"
 #include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/test_certificate_verifier.h"
-#include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "system_wrappers/include/metrics.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/wait_until.h"
 
 namespace webrtc {
 
 namespace {
+
+using ::testing::AtLeast;
+using ::testing::Eq;
+using ::testing::Field;
+using ::testing::InSequence;
+using ::testing::MockFunction;
+using ::testing::NiceMock;
+using ::testing::NotNull;
+using ::testing::Return;
 
 class PeerConnectionIntegrationTest
     : public PeerConnectionIntegrationBaseTest,
@@ -117,13 +126,13 @@ class PeerConnectionIntegrationTest
 // where order of construction is finely controlled.
 // This also ensures peerconnection is closed before switching back to non-fake
 // clock, avoiding other races and DCHECK failures such as in rtp_sender.cc.
-class FakeClockForTest : public rtc::ScopedFakeClock {
+class FakeClockForTest : public ScopedFakeClock {
  protected:
   FakeClockForTest() {
     // Some things use a time of "0" as a special value, so we need to start out
     // the fake clock at a nonzero time.
     // TODO(deadbeef): Fix this.
-    AdvanceTime(webrtc::TimeDelta::Seconds(1));
+    AdvanceTime(TimeDelta::Seconds(1));
   }
 
   // Explicit handle.
@@ -160,23 +169,33 @@ TEST_P(PeerConnectionIntegrationTest,
   callee()->AddAudioVideoTracks();
   // Start offer/answer exchange and wait for it to complete.
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   // Should be one receiver each for audio/video.
   EXPECT_EQ(2U, caller()->rtp_receiver_observers().size());
   EXPECT_EQ(2U, callee()->rtp_receiver_observers().size());
   // Wait for all "first packet received" callbacks to be fired.
-  EXPECT_TRUE_WAIT(
-      absl::c_all_of(caller()->rtp_receiver_observers(),
-                     [](const std::unique_ptr<MockRtpReceiverObserver>& o) {
-                       return o->first_packet_received();
-                     }),
-      kMaxWaitForFramesMs);
-  EXPECT_TRUE_WAIT(
-      absl::c_all_of(callee()->rtp_receiver_observers(),
-                     [](const std::unique_ptr<MockRtpReceiverObserver>& o) {
-                       return o->first_packet_received();
-                     }),
-      kMaxWaitForFramesMs);
+  EXPECT_THAT(WaitUntil(
+                  [&] {
+                    return absl::c_all_of(
+                        caller()->rtp_receiver_observers(),
+                        [](const std::unique_ptr<MockRtpReceiverObserver>& o) {
+                          return o->first_packet_received();
+                        });
+                  },
+                  ::testing::IsTrue(), {.timeout = kMaxWaitForFrames}),
+              IsRtcOk());
+  EXPECT_THAT(WaitUntil(
+                  [&] {
+                    return absl::c_all_of(
+                        callee()->rtp_receiver_observers(),
+                        [](const std::unique_ptr<MockRtpReceiverObserver>& o) {
+                          return o->first_packet_received();
+                        });
+                  },
+                  ::testing::IsTrue(), {.timeout = kMaxWaitForFrames}),
+              IsRtcOk());
   // If new observers are set after the first packet was already received, the
   // callback should still be invoked.
   caller()->ResetRtpReceiverObservers();
@@ -192,6 +211,58 @@ TEST_P(PeerConnectionIntegrationTest,
       absl::c_all_of(callee()->rtp_receiver_observers(),
                      [](const std::unique_ptr<MockRtpReceiverObserver>& o) {
                        return o->first_packet_received();
+                     }));
+}
+
+TEST_P(PeerConnectionIntegrationTest, RtpSenderObserverOnFirstPacketSent) {
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+  caller()->AddAudioVideoTracks();
+  callee()->AddAudioVideoTracks();
+  // Start offer/answer exchange and wait for it to complete.
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+  // Should be one sender each for audio/video.
+  EXPECT_EQ(2U, caller()->rtp_sender_observers().size());
+  EXPECT_EQ(2U, callee()->rtp_sender_observers().size());
+  // Wait for all "first packet sent" callbacks to be fired.
+  EXPECT_THAT(WaitUntil(
+                  [&] {
+                    return absl::c_all_of(
+                        caller()->rtp_sender_observers(),
+                        [](const std::unique_ptr<MockRtpSenderObserver>& o) {
+                          return o->first_packet_sent();
+                        });
+                  },
+                  ::testing::IsTrue(), {.timeout = kMaxWaitForFrames}),
+              IsRtcOk());
+  EXPECT_THAT(WaitUntil(
+                  [&] {
+                    return absl::c_all_of(
+                        callee()->rtp_sender_observers(),
+                        [](const std::unique_ptr<MockRtpSenderObserver>& o) {
+                          return o->first_packet_sent();
+                        });
+                  },
+                  ::testing::IsTrue(), {.timeout = kMaxWaitForFrames}),
+              IsRtcOk());
+  // If new observers are set after the first packet was already sent, the
+  // callback should still be invoked.
+  caller()->ResetRtpSenderObservers();
+  callee()->ResetRtpSenderObservers();
+  EXPECT_EQ(2U, caller()->rtp_sender_observers().size());
+  EXPECT_EQ(2U, callee()->rtp_sender_observers().size());
+  EXPECT_TRUE(
+      absl::c_all_of(caller()->rtp_sender_observers(),
+                     [](const std::unique_ptr<MockRtpSenderObserver>& o) {
+                       return o->first_packet_sent();
+                     }));
+  EXPECT_TRUE(
+      absl::c_all_of(callee()->rtp_sender_observers(),
+                     [](const std::unique_ptr<MockRtpSenderObserver>& o) {
+                       return o->first_packet_sent();
                      }));
 }
 
@@ -220,7 +291,7 @@ class DummyDtmfObserver : public DtmfSenderObserverInterface {
 void TestDtmfFromSenderToReceiver(PeerConnectionIntegrationWrapper* sender,
                                   PeerConnectionIntegrationWrapper* receiver) {
   // We should be able to get a DTMF sender from the local sender.
-  rtc::scoped_refptr<DtmfSenderInterface> dtmf_sender =
+  scoped_refptr<DtmfSenderInterface> dtmf_sender =
       sender->pc()->GetSenders().at(0)->GetDtmfSender();
   ASSERT_TRUE(dtmf_sender);
   DummyDtmfObserver observer;
@@ -230,7 +301,9 @@ void TestDtmfFromSenderToReceiver(PeerConnectionIntegrationWrapper* sender,
   EXPECT_TRUE(dtmf_sender->CanInsertDtmf());
   EXPECT_TRUE(dtmf_sender->InsertDtmf("1a", 100, 50));
 
-  EXPECT_TRUE_WAIT(observer.completed(), kDefaultTimeout);
+  EXPECT_THAT(
+      WaitUntil([&] { return observer.completed(); }, ::testing::IsTrue()),
+      IsRtcOk());
   std::vector<std::string> tones = {"1", "a", ""};
   EXPECT_EQ(tones, observer.tones());
   dtmf_sender->UnregisterObserver();
@@ -246,9 +319,12 @@ TEST_P(PeerConnectionIntegrationTest, DtmfSenderObserver) {
   caller()->AddAudioTrack();
   callee()->AddAudioTrack();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   // DTLS must finish before the DTMF sender can be used reliably.
-  ASSERT_TRUE_WAIT(DtlsConnected(), kDefaultTimeout);
+  ASSERT_THAT(WaitUntil([&] { return DtlsConnected(); }, ::testing::IsTrue()),
+              IsRtcOk());
   TestDtmfFromSenderToReceiver(caller(), callee());
   TestDtmfFromSenderToReceiver(callee(), caller());
 }
@@ -264,31 +340,13 @@ TEST_P(PeerConnectionIntegrationTest, EndToEndCallWithDtls) {
   caller()->AddAudioVideoTracks();
   callee()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   MediaExpectations media_expectations;
   media_expectations.ExpectBidirectionalAudioAndVideo();
   ASSERT_TRUE(ExpectNewFrames(media_expectations));
 }
-
-#if defined(WEBRTC_FUCHSIA)
-// Uses SDES instead of DTLS for key agreement.
-TEST_P(PeerConnectionIntegrationTest, EndToEndCallWithSdes) {
-  PeerConnectionInterface::RTCConfiguration sdes_config;
-  sdes_config.enable_dtls_srtp.emplace(false);
-  ASSERT_TRUE(CreatePeerConnectionWrappersWithConfig(sdes_config, sdes_config));
-  ConnectFakeSignaling();
-
-  // Do normal offer/answer and wait for some frames to be received in each
-  // direction.
-  caller()->AddAudioVideoTracks();
-  callee()->AddAudioVideoTracks();
-  caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
-  MediaExpectations media_expectations;
-  media_expectations.ExpectBidirectionalAudioAndVideo();
-  ASSERT_TRUE(ExpectNewFrames(media_expectations));
-}
-#endif
 
 // Basic end-to-end test specifying the `enable_encrypted_rtp_header_extensions`
 // option to offer encrypted versions of all header extensions alongside the
@@ -309,7 +367,9 @@ TEST_P(PeerConnectionIntegrationTest,
   caller()->AddAudioVideoTracks();
   callee()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   MediaExpectations media_expectations;
   media_expectations.ExpectBidirectionalAudioAndVideo();
   ASSERT_TRUE(ExpectNewFrames(media_expectations));
@@ -323,19 +383,24 @@ TEST_P(PeerConnectionIntegrationTest,
   ConnectFakeSignaling();
 
   // Add video tracks with 16:9 aspect ratio, size 1280 x 720.
-  webrtc::FakePeriodicVideoSource::Config config;
+  FakePeriodicVideoSource::Config config;
   config.width = 1280;
   config.height = 720;
-  config.timestamp_offset_ms = rtc::TimeMillis();
+  config.timestamp_offset_ms = TimeMillis();
   caller()->AddTrack(caller()->CreateLocalVideoTrackWithConfig(config));
   callee()->AddTrack(callee()->CreateLocalVideoTrackWithConfig(config));
 
   // Do normal offer/answer and wait for at least one frame to be received in
   // each direction.
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(caller()->min_video_frames_received_per_track() > 0 &&
-                       callee()->min_video_frames_received_per_track() > 0,
-                   kMaxWaitForFramesMs);
+  ASSERT_THAT(WaitUntil(
+                  [&] {
+                    return caller()->min_video_frames_received_per_track() >
+                               0 &&
+                           callee()->min_video_frames_received_per_track() > 0;
+                  },
+                  ::testing::IsTrue(), {.timeout = kMaxWaitForFrames}),
+              IsRtcOk());
 
   // Check rendered aspect ratio.
   EXPECT_EQ(16.0 / 9, caller()->local_rendered_aspect_ratio());
@@ -365,14 +430,16 @@ TEST_P(PeerConnectionIntegrationTest, EndToEndCallWithSendOnlyVideo) {
       CreateOneDirectionalPeerConnectionWrappers(/*caller_to_callee=*/true));
   ConnectFakeSignaling();
   // Add one-directional video, from caller to callee.
-  rtc::scoped_refptr<webrtc::VideoTrackInterface> caller_track =
+  scoped_refptr<VideoTrackInterface> caller_track =
       caller()->CreateLocalVideoTrack();
   caller()->AddTrack(caller_track);
   PeerConnectionInterface::RTCOfferAnswerOptions options;
   options.offer_to_receive_video = 0;
   caller()->SetOfferAnswerOptions(options);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   ASSERT_EQ(callee()->pc()->GetReceivers().size(), 1u);
 
   // Expect video to be received in one direction.
@@ -390,14 +457,16 @@ TEST_P(PeerConnectionIntegrationTest, EndToEndCallWithReceiveOnlyVideo) {
       CreateOneDirectionalPeerConnectionWrappers(/*caller_to_callee=*/false));
   ConnectFakeSignaling();
   // Add one-directional video, from callee to caller.
-  rtc::scoped_refptr<webrtc::VideoTrackInterface> callee_track =
+  scoped_refptr<VideoTrackInterface> callee_track =
       callee()->CreateLocalVideoTrack();
   callee()->AddTrack(callee_track);
   PeerConnectionInterface::RTCOfferAnswerOptions options;
   options.offer_to_receive_video = 1;
   caller()->SetOfferAnswerOptions(options);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   ASSERT_EQ(caller()->pc()->GetReceivers().size(), 1u);
 
   // Expect video to be received in one direction.
@@ -413,18 +482,22 @@ TEST_P(PeerConnectionIntegrationTest,
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignaling();
   // Add one-directional video, from caller to callee.
-  rtc::scoped_refptr<webrtc::VideoTrackInterface> caller_track =
+  scoped_refptr<VideoTrackInterface> caller_track =
       caller()->CreateLocalVideoTrack();
   caller()->AddTrack(caller_track);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   // Add receive video.
-  rtc::scoped_refptr<webrtc::VideoTrackInterface> callee_track =
+  scoped_refptr<VideoTrackInterface> callee_track =
       callee()->CreateLocalVideoTrack();
   callee()->AddTrack(callee_track);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   // Ensure that video frames are received end-to-end.
   MediaExpectations media_expectations;
@@ -437,18 +510,22 @@ TEST_P(PeerConnectionIntegrationTest,
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignaling();
   // Add one-directional video, from callee to caller.
-  rtc::scoped_refptr<webrtc::VideoTrackInterface> callee_track =
+  scoped_refptr<VideoTrackInterface> callee_track =
       callee()->CreateLocalVideoTrack();
   callee()->AddTrack(callee_track);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   // Add send video.
-  rtc::scoped_refptr<webrtc::VideoTrackInterface> caller_track =
+  scoped_refptr<VideoTrackInterface> caller_track =
       caller()->CreateLocalVideoTrack();
   caller()->AddTrack(caller_track);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   // Expect video to be received in one direction.
   MediaExpectations media_expectations;
@@ -461,24 +538,28 @@ TEST_P(PeerConnectionIntegrationTest,
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignaling();
   // Add send video, from caller to callee.
-  rtc::scoped_refptr<webrtc::VideoTrackInterface> caller_track =
+  scoped_refptr<VideoTrackInterface> caller_track =
       caller()->CreateLocalVideoTrack();
-  rtc::scoped_refptr<webrtc::RtpSenderInterface> caller_sender =
+  scoped_refptr<RtpSenderInterface> caller_sender =
       caller()->AddTrack(caller_track);
   // Add receive video, from callee to caller.
-  rtc::scoped_refptr<webrtc::VideoTrackInterface> callee_track =
+  scoped_refptr<VideoTrackInterface> callee_track =
       callee()->CreateLocalVideoTrack();
 
-  rtc::scoped_refptr<webrtc::RtpSenderInterface> callee_sender =
+  scoped_refptr<RtpSenderInterface> callee_sender =
       callee()->AddTrack(callee_track);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   // Remove receive video (i.e., callee sender track).
   callee()->pc()->RemoveTrackOrError(callee_sender);
 
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   // Expect one-directional video.
   MediaExpectations media_expectations;
@@ -493,24 +574,28 @@ TEST_P(PeerConnectionIntegrationTest,
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignaling();
   // Add send video, from caller to callee.
-  rtc::scoped_refptr<webrtc::VideoTrackInterface> caller_track =
+  scoped_refptr<VideoTrackInterface> caller_track =
       caller()->CreateLocalVideoTrack();
-  rtc::scoped_refptr<webrtc::RtpSenderInterface> caller_sender =
+  scoped_refptr<RtpSenderInterface> caller_sender =
       caller()->AddTrack(caller_track);
   // Add receive video, from callee to caller.
-  rtc::scoped_refptr<webrtc::VideoTrackInterface> callee_track =
+  scoped_refptr<VideoTrackInterface> callee_track =
       callee()->CreateLocalVideoTrack();
 
-  rtc::scoped_refptr<webrtc::RtpSenderInterface> callee_sender =
+  scoped_refptr<RtpSenderInterface> callee_sender =
       callee()->AddTrack(callee_track);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   // Remove send video (i.e., caller sender track).
   caller()->pc()->RemoveTrackOrError(caller_sender);
 
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   // Expect one-directional video.
   MediaExpectations media_expectations;
@@ -536,14 +621,14 @@ TEST_P(PeerConnectionIntegrationTest, AudioToVideoUpgrade) {
     callee()->SetOfferAnswerOptions(options);
   } else {
     callee()->SetRemoteOfferHandler([this] {
-      callee()
-          ->GetFirstTransceiverOfType(cricket::MEDIA_TYPE_VIDEO)
-          ->StopInternal();
+      callee()->GetFirstTransceiverOfType(MediaType::VIDEO)->StopInternal();
     });
   }
   // Do offer/answer and make sure audio is still received end-to-end.
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   {
     MediaExpectations media_expectations;
     media_expectations.ExpectBidirectionalAudio();
@@ -571,8 +656,7 @@ TEST_P(PeerConnectionIntegrationTest, AudioToVideoUpgrade) {
       // the offer, but by default it is send only.
       auto transceivers = caller()->pc()->GetTransceivers();
       ASSERT_EQ(2U, transceivers.size());
-      ASSERT_EQ(cricket::MEDIA_TYPE_VIDEO,
-                transceivers[1]->receiver()->media_type());
+      ASSERT_EQ(MediaType::VIDEO, transceivers[1]->receiver()->media_type());
       transceivers[1]->sender()->SetTrack(
           caller()->CreateLocalVideoTrack().get());
       transceivers[1]->SetDirectionWithError(
@@ -580,7 +664,9 @@ TEST_P(PeerConnectionIntegrationTest, AudioToVideoUpgrade) {
     });
   }
   callee()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   {
     // Expect additional audio frames to be received after the upgrade.
     MediaExpectations media_expectations;
@@ -598,12 +684,16 @@ TEST_P(PeerConnectionIntegrationTest, AddAudioToVideoOnlyCall) {
   caller()->AddVideoTrack();
   callee()->AddVideoTrack();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   // Now add an audio track and do another offer/answer.
   caller()->AddAudioTrack();
   callee()->AddAudioTrack();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   // Ensure both audio and video frames are received end-to-end.
   MediaExpectations media_expectations;
   media_expectations.ExpectBidirectionalAudioAndVideo();
@@ -620,11 +710,14 @@ TEST_P(PeerConnectionIntegrationTest, BundlingEnabledWhileIceRestartOccurs) {
   caller()->AddAudioVideoTracks();
   callee()->AddAudioVideoTracks();
   // Remove the bundle group from the SDP received by the callee.
-  callee()->SetReceivedSdpMunger([](cricket::SessionDescription* desc) {
-    desc->RemoveGroupByName("BUNDLE");
-  });
+  callee()->SetReceivedSdpMunger(
+      [](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+        sdp->description()->RemoveGroupByName("BUNDLE");
+      });
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   {
     MediaExpectations media_expectations;
     media_expectations.ExpectBidirectionalAudioAndVideo();
@@ -634,7 +727,9 @@ TEST_P(PeerConnectionIntegrationTest, BundlingEnabledWhileIceRestartOccurs) {
   callee()->SetReceivedSdpMunger(nullptr);
   caller()->SetOfferAnswerOptions(IceRestartOfferAnswerOptions());
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   // Expect additional frames to be received after the ICE restart.
   {
@@ -653,16 +748,23 @@ TEST_P(PeerConnectionIntegrationTest, RotatedVideoWithCVOExtension) {
   ConnectFakeSignaling();
   // Add rotated video tracks.
   caller()->AddTrack(
-      caller()->CreateLocalVideoTrackWithRotation(webrtc::kVideoRotation_90));
+      caller()->CreateLocalVideoTrackWithRotation(kVideoRotation_90));
   callee()->AddTrack(
-      callee()->CreateLocalVideoTrackWithRotation(webrtc::kVideoRotation_270));
+      callee()->CreateLocalVideoTrackWithRotation(kVideoRotation_270));
 
   // Wait for video frames to be received by both sides.
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
-  ASSERT_TRUE_WAIT(caller()->min_video_frames_received_per_track() > 0 &&
-                       callee()->min_video_frames_received_per_track() > 0,
-                   kMaxWaitForFramesMs);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+  ASSERT_THAT(WaitUntil(
+                  [&] {
+                    return caller()->min_video_frames_received_per_track() >
+                               0 &&
+                           callee()->min_video_frames_received_per_track() > 0;
+                  },
+                  ::testing::IsTrue(), {.timeout = kMaxWaitForFrames}),
+              IsRtcOk());
 
   // Ensure that the aspect ratio is unmodified.
   // TODO(deadbeef): Where does 4:3 come from? Should be explicit in the test,
@@ -672,8 +774,8 @@ TEST_P(PeerConnectionIntegrationTest, RotatedVideoWithCVOExtension) {
   EXPECT_EQ(4.0 / 3, callee()->local_rendered_aspect_ratio());
   EXPECT_EQ(4.0 / 3, callee()->rendered_aspect_ratio());
   // Ensure that the CVO bits were surfaced to the renderer.
-  EXPECT_EQ(webrtc::kVideoRotation_270, caller()->rendered_rotation());
-  EXPECT_EQ(webrtc::kVideoRotation_90, callee()->rendered_rotation());
+  EXPECT_EQ(kVideoRotation_270, caller()->rendered_rotation());
+  EXPECT_EQ(kVideoRotation_90, callee()->rendered_rotation());
 }
 
 // Test that when the CVO extension isn't supported, video is rotated the
@@ -683,22 +785,30 @@ TEST_P(PeerConnectionIntegrationTest, RotatedVideoWithoutCVOExtension) {
   ConnectFakeSignaling();
   // Add rotated video tracks.
   caller()->AddTrack(
-      caller()->CreateLocalVideoTrackWithRotation(webrtc::kVideoRotation_90));
+      caller()->CreateLocalVideoTrackWithRotation(kVideoRotation_90));
   callee()->AddTrack(
-      callee()->CreateLocalVideoTrackWithRotation(webrtc::kVideoRotation_270));
+      callee()->CreateLocalVideoTrackWithRotation(kVideoRotation_270));
 
   // Remove the CVO extension from the offered SDP.
-  callee()->SetReceivedSdpMunger([](cricket::SessionDescription* desc) {
-    cricket::VideoContentDescription* video =
-        GetFirstVideoContentDescription(desc);
-    video->ClearRtpHeaderExtensions();
-  });
+  callee()->SetReceivedSdpMunger(
+      [](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+        VideoContentDescription* video =
+            GetFirstVideoContentDescription(sdp->description());
+        video->ClearRtpHeaderExtensions();
+      });
   // Wait for video frames to be received by both sides.
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
-  ASSERT_TRUE_WAIT(caller()->min_video_frames_received_per_track() > 0 &&
-                       callee()->min_video_frames_received_per_track() > 0,
-                   kMaxWaitForFramesMs);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+  ASSERT_THAT(WaitUntil(
+                  [&] {
+                    return caller()->min_video_frames_received_per_track() >
+                               0 &&
+                           callee()->min_video_frames_received_per_track() > 0;
+                  },
+                  ::testing::IsTrue(), {.timeout = kMaxWaitForFrames}),
+              IsRtcOk());
 
   // Expect that the aspect ratio is inversed to account for the 90/270 degree
   // rotation.
@@ -709,8 +819,8 @@ TEST_P(PeerConnectionIntegrationTest, RotatedVideoWithoutCVOExtension) {
   EXPECT_EQ(3.0 / 4, callee()->local_rendered_aspect_ratio());
   EXPECT_EQ(3.0 / 4, callee()->rendered_aspect_ratio());
   // Expect that each endpoint is unaware of the rotation of the other endpoint.
-  EXPECT_EQ(webrtc::kVideoRotation_0, caller()->rendered_rotation());
-  EXPECT_EQ(webrtc::kVideoRotation_0, callee()->rendered_rotation());
+  EXPECT_EQ(kVideoRotation_0, caller()->rendered_rotation());
+  EXPECT_EQ(kVideoRotation_0, callee()->rendered_rotation());
 }
 
 // Test that if the answerer rejects the audio m= section, no audio is sent or
@@ -729,15 +839,15 @@ TEST_P(PeerConnectionIntegrationTest, AnswererRejectsAudioSection) {
     // Stopping the audio RtpTransceiver will cause the media section to be
     // rejected in the answer.
     callee()->SetRemoteOfferHandler([this] {
-      callee()
-          ->GetFirstTransceiverOfType(cricket::MEDIA_TYPE_AUDIO)
-          ->StopInternal();
+      callee()->GetFirstTransceiverOfType(MediaType::AUDIO)->StopInternal();
     });
   }
   callee()->AddTrack(callee()->CreateLocalVideoTrack());
   // Do offer/answer and wait for successful end-to-end video frames.
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   MediaExpectations media_expectations;
   media_expectations.ExpectBidirectionalVideo();
   media_expectations.ExpectNoAudio();
@@ -752,8 +862,7 @@ TEST_P(PeerConnectionIntegrationTest, AnswererRejectsAudioSection) {
   if (sdp_semantics_ == SdpSemantics::kUnifiedPlan) {
     // The caller's transceiver should have stopped after receiving the answer,
     // and thus no longer listed in transceivers.
-    EXPECT_EQ(nullptr,
-              caller()->GetFirstTransceiverOfType(cricket::MEDIA_TYPE_AUDIO));
+    EXPECT_EQ(nullptr, caller()->GetFirstTransceiverOfType(MediaType::AUDIO));
   }
 }
 
@@ -773,15 +882,15 @@ TEST_P(PeerConnectionIntegrationTest, AnswererRejectsVideoSection) {
     // Stopping the video RtpTransceiver will cause the media section to be
     // rejected in the answer.
     callee()->SetRemoteOfferHandler([this] {
-      callee()
-          ->GetFirstTransceiverOfType(cricket::MEDIA_TYPE_VIDEO)
-          ->StopInternal();
+      callee()->GetFirstTransceiverOfType(MediaType::VIDEO)->StopInternal();
     });
   }
   callee()->AddTrack(callee()->CreateLocalAudioTrack());
   // Do offer/answer and wait for successful end-to-end audio frames.
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   MediaExpectations media_expectations;
   media_expectations.ExpectBidirectionalAudio();
   media_expectations.ExpectNoVideo();
@@ -796,8 +905,7 @@ TEST_P(PeerConnectionIntegrationTest, AnswererRejectsVideoSection) {
   if (sdp_semantics_ == SdpSemantics::kUnifiedPlan) {
     // The caller's transceiver should have stopped after receiving the answer,
     // and thus is no longer present.
-    EXPECT_EQ(nullptr,
-              caller()->GetFirstTransceiverOfType(cricket::MEDIA_TYPE_VIDEO));
+    EXPECT_EQ(nullptr, caller()->GetFirstTransceiverOfType(MediaType::VIDEO));
   }
 }
 
@@ -827,7 +935,9 @@ TEST_P(PeerConnectionIntegrationTest, AnswererRejectsAudioAndVideoSections) {
   }
   // Do offer/answer and wait for stable signaling state.
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   // Sanity check that the callee's description has rejected m= sections.
   ASSERT_NE(nullptr, callee()->pc()->local_description());
@@ -851,7 +961,9 @@ TEST_P(PeerConnectionIntegrationTest, VideoRejectedInSubsequentOffer) {
   caller()->AddAudioVideoTracks();
   callee()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   {
     MediaExpectations media_expectations;
     media_expectations.ExpectBidirectionalAudioAndVideo();
@@ -860,20 +972,21 @@ TEST_P(PeerConnectionIntegrationTest, VideoRejectedInSubsequentOffer) {
   // Renegotiate, rejecting the video m= section.
   if (sdp_semantics_ == SdpSemantics::kPlanB_DEPRECATED) {
     caller()->SetGeneratedSdpMunger(
-        [](cricket::SessionDescription* description) {
-          for (cricket::ContentInfo& content : description->contents()) {
-            if (cricket::IsVideoContent(&content)) {
+        [](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+          for (ContentInfo& content : sdp->description()->contents()) {
+            if (IsVideoContent(&content)) {
               content.rejected = true;
             }
           }
         });
   } else {
-    caller()
-        ->GetFirstTransceiverOfType(cricket::MEDIA_TYPE_VIDEO)
-        ->StopInternal();
+    caller()->GetFirstTransceiverOfType(MediaType::VIDEO)->StopInternal();
   }
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kMaxWaitForActivationMs);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue(),
+                {.timeout = kMaxWaitForActivation}),
+      IsRtcOk());
 
   // Sanity check that the caller's description has a rejected video section.
   ASSERT_NE(nullptr, caller()->pc()->local_description());
@@ -898,12 +1011,13 @@ TEST_F(PeerConnectionIntegrationTestPlanB, EnableAudioAfterRejecting) {
   ConnectFakeSignaling();
 
   // Add audio track, do normal offer/answer.
-  rtc::scoped_refptr<webrtc::AudioTrackInterface> track =
-      caller()->CreateLocalAudioTrack();
-  rtc::scoped_refptr<webrtc::RtpSenderInterface> sender =
+  scoped_refptr<AudioTrackInterface> track = caller()->CreateLocalAudioTrack();
+  scoped_refptr<RtpSenderInterface> sender =
       caller()->pc()->AddTrack(track, {"stream"}).MoveValue();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   // Remove audio track, and set offer_to_receive_audio to false to cause the
   // m= section to be completely disabled, not just "recvonly".
@@ -912,7 +1026,9 @@ TEST_F(PeerConnectionIntegrationTestPlanB, EnableAudioAfterRejecting) {
   options.offer_to_receive_audio = 0;
   caller()->SetOfferAnswerOptions(options);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   // Add the audio track again, expecting negotiation to succeed and frames to
   // flow.
@@ -920,7 +1036,9 @@ TEST_F(PeerConnectionIntegrationTestPlanB, EnableAudioAfterRejecting) {
   options.offer_to_receive_audio = 1;
   caller()->SetOfferAnswerOptions(options);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   MediaExpectations media_expectations;
   media_expectations.CalleeExpectsSomeAudio();
@@ -941,7 +1059,9 @@ TEST_P(PeerConnectionIntegrationTest, EndToEndCallWithoutSsrcOrMsidSignaling) {
   // Remove SSRCs and MSIDs from the received offer SDP.
   callee()->SetReceivedSdpMunger(RemoveSsrcsAndMsids);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   MediaExpectations media_expectations;
   media_expectations.ExpectBidirectionalAudioAndVideo();
   ASSERT_TRUE(ExpectNewFrames(media_expectations));
@@ -962,7 +1082,9 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   // Remove SSRCs from the received offer SDP.
   callee()->SetReceivedSdpMunger(RemoveSsrcsAndKeepMsids);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   MediaExpectations media_expectations;
   media_expectations.ExpectBidirectionalAudio();
   ASSERT_TRUE(ExpectNewFrames(media_expectations));
@@ -973,8 +1095,7 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignaling();
   // Add one-directional video, from caller to callee.
-  rtc::scoped_refptr<webrtc::VideoTrackInterface> track =
-      caller()->CreateLocalVideoTrack();
+  scoped_refptr<VideoTrackInterface> track = caller()->CreateLocalVideoTrack();
 
   RtpTransceiverInit video_transceiver_init;
   video_transceiver_init.stream_ids = {"video1"};
@@ -982,17 +1103,21 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   auto video_sender =
       caller()->pc()->AddTransceiver(track, video_transceiver_init).MoveValue();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   // Add receive direction.
   video_sender->SetDirectionWithError(RtpTransceiverDirection::kSendRecv);
 
-  rtc::scoped_refptr<webrtc::VideoTrackInterface> callee_track =
+  scoped_refptr<VideoTrackInterface> callee_track =
       callee()->CreateLocalVideoTrack();
 
   callee()->AddTrack(callee_track);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   // Ensure that video frames are received end-to-end.
   MediaExpectations media_expectations;
   media_expectations.ExpectBidirectionalVideo();
@@ -1014,7 +1139,9 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   caller()->SetReceivedSdpMunger(&RemoveSsrcsAndKeepMsids);
   callee()->SetReceivedSdpMunger(&RemoveSsrcsAndKeepMsids);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   ASSERT_EQ(2u, caller()->pc()->GetReceivers().size());
   ASSERT_EQ(2u, callee()->pc()->GetReceivers().size());
 
@@ -1025,12 +1152,13 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
 }
 
 // Used for the test below.
-void RemoveBundleGroupSsrcsAndMidExtension(cricket::SessionDescription* desc) {
-  RemoveSsrcsAndKeepMsids(desc);
-  desc->RemoveGroupByName("BUNDLE");
-  for (ContentInfo& content : desc->contents()) {
-    cricket::MediaContentDescription* media = content.media_description();
-    cricket::RtpHeaderExtensions extensions = media->rtp_header_extensions();
+void RemoveBundleGroupSsrcsAndMidExtension(
+    std::unique_ptr<SessionDescriptionInterface>& sdp) {
+  RemoveSsrcsAndKeepMsids(sdp);
+  sdp->description()->RemoveGroupByName("BUNDLE");
+  for (ContentInfo& content : sdp->description()->contents()) {
+    MediaContentDescription* media = content.media_description();
+    RtpHeaderExtensions extensions = media->rtp_header_extensions();
     extensions.erase(std::remove_if(extensions.begin(), extensions.end(),
                                     [](const RtpExtension& extension) {
                                       return extension.uri ==
@@ -1058,7 +1186,9 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   caller()->SetReceivedSdpMunger(&RemoveBundleGroupSsrcsAndMidExtension);
   callee()->SetReceivedSdpMunger(&RemoveBundleGroupSsrcsAndMidExtension);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   ASSERT_EQ(2u, caller()->pc()->GetReceivers().size());
   ASSERT_EQ(2u, callee()->pc()->GetReceivers().size());
   // Make sure we are not bundled.
@@ -1073,11 +1203,11 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
 
 // Used for the test below.
 void ModifyPayloadTypesAndRemoveMidExtension(
-    cricket::SessionDescription* desc) {
+    std::unique_ptr<SessionDescriptionInterface>& sdp) {
   int pt = 96;
-  for (ContentInfo& content : desc->contents()) {
-    cricket::MediaContentDescription* media = content.media_description();
-    cricket::RtpHeaderExtensions extensions = media->rtp_header_extensions();
+  for (ContentInfo& content : sdp->description()->contents()) {
+    MediaContentDescription* media = content.media_description();
+    RtpHeaderExtensions extensions = media->rtp_header_extensions();
     extensions.erase(std::remove_if(extensions.begin(), extensions.end(),
                                     [](const RtpExtension& extension) {
                                       return extension.uri ==
@@ -1085,10 +1215,7 @@ void ModifyPayloadTypesAndRemoveMidExtension(
                                     }),
                      extensions.end());
     media->set_rtp_header_extensions(extensions);
-    cricket::VideoContentDescription* video = media->as_video();
-    ASSERT_TRUE(video != nullptr);
-    std::vector<cricket::VideoCodec> codecs = {{pt++, "VP8"}};
-    video->set_codecs(codecs);
+    media->set_codecs({CreateVideoCodec(pt++, "VP8")});
   }
 }
 
@@ -1111,7 +1238,9 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   caller()->SetReceivedSdpMunger(&RemoveSsrcsAndKeepMsids);
   callee()->SetReceivedSdpMunger(&RemoveSsrcsAndKeepMsids);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   ASSERT_EQ(2u, caller()->pc()->GetReceivers().size());
   ASSERT_EQ(2u, callee()->pc()->GetReceivers().size());
   // Make sure we are bundled.
@@ -1130,7 +1259,9 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan, NoStreamsMsidLinePresent) {
   caller()->AddAudioTrack();
   caller()->AddVideoTrack();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   auto callee_receivers = callee()->pc()->GetReceivers();
   ASSERT_EQ(2u, callee_receivers.size());
   EXPECT_TRUE(callee_receivers[0]->stream_ids().empty());
@@ -1144,7 +1275,9 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan, NoStreamsMsidLineMissing) {
   caller()->AddVideoTrack();
   callee()->SetReceivedSdpMunger(RemoveSsrcsAndMsids);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   auto callee_receivers = callee()->pc()->GetReceivers();
   ASSERT_EQ(2u, callee_receivers.size());
   ASSERT_EQ(1u, callee_receivers[0]->stream_ids().size());
@@ -1164,7 +1297,9 @@ TEST_P(PeerConnectionIntegrationTest, EndToEndCallWithTwoVideoTracks) {
   caller()->AddAudioVideoTracks();
   caller()->AddVideoTrack();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   ASSERT_EQ(3u, callee()->pc()->GetReceivers().size());
 
   MediaExpectations media_expectations;
@@ -1172,9 +1307,10 @@ TEST_P(PeerConnectionIntegrationTest, EndToEndCallWithTwoVideoTracks) {
   ASSERT_TRUE(ExpectNewFrames(media_expectations));
 }
 
-static void MakeSpecCompliantMaxBundleOffer(cricket::SessionDescription* desc) {
+static void MakeSpecCompliantMaxBundleOffer(
+    std::unique_ptr<SessionDescriptionInterface>& sdp) {
   bool first = true;
-  for (cricket::ContentInfo& content : desc->contents()) {
+  for (ContentInfo& content : sdp->description()->contents()) {
     if (first) {
       first = false;
       continue;
@@ -1182,14 +1318,14 @@ static void MakeSpecCompliantMaxBundleOffer(cricket::SessionDescription* desc) {
     content.bundle_only = true;
   }
   first = true;
-  for (cricket::TransportInfo& transport : desc->transport_infos()) {
+  for (TransportInfo& transport : sdp->description()->transport_infos()) {
     if (first) {
       first = false;
       continue;
     }
     transport.description.ice_ufrag.clear();
     transport.description.ice_pwd.clear();
-    transport.description.connection_role = cricket::CONNECTIONROLE_NONE;
+    transport.description.connection_role = CONNECTIONROLE_NONE;
     transport.description.identity_fingerprint.reset(nullptr);
   }
 }
@@ -1212,7 +1348,9 @@ TEST_P(PeerConnectionIntegrationTest,
   // but the first m= section.
   callee()->SetReceivedSdpMunger(MakeSpecCompliantMaxBundleOffer);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   MediaExpectations media_expectations;
   media_expectations.ExpectBidirectionalAudioAndVideo();
   ASSERT_TRUE(ExpectNewFrames(media_expectations));
@@ -1227,12 +1365,16 @@ TEST_P(PeerConnectionIntegrationTest, GetAudioOutputLevelStatsWithOldStatsApi) {
   // Just add an audio track.
   caller()->AddAudioTrack();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   // Get the audio output level stats. Note that the level is not available
   // until an RTCP packet has been received.
-  EXPECT_TRUE_WAIT(callee()->OldGetStats()->AudioOutputLevel() > 0,
-                   kMaxWaitForFramesMs);
+  EXPECT_THAT(
+      WaitUntil([&] { return callee()->OldGetStats()->AudioOutputLevel(); },
+                ::testing::Gt(0), {.timeout = kMaxWaitForFrames}),
+      IsRtcOk());
 }
 
 // Test that an audio input level is reported.
@@ -1244,12 +1386,16 @@ TEST_P(PeerConnectionIntegrationTest, GetAudioInputLevelStatsWithOldStatsApi) {
   // Just add an audio track.
   caller()->AddAudioTrack();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   // Get the audio input level stats. The level should be available very
   // soon after the test starts.
-  EXPECT_TRUE_WAIT(caller()->OldGetStats()->AudioInputLevel() > 0,
-                   kMaxWaitForStatsMs);
+  EXPECT_THAT(
+      WaitUntil([&] { return caller()->OldGetStats()->AudioInputLevel(); },
+                ::testing::Gt(0), {.timeout = kMaxWaitForStats}),
+      IsRtcOk());
 }
 
 // Test that we can get incoming byte counts from both audio and video tracks.
@@ -1259,7 +1405,9 @@ TEST_P(PeerConnectionIntegrationTest, GetBytesReceivedStatsWithOldStatsApi) {
   caller()->AddAudioVideoTracks();
   // Do offer/answer, wait for the callee to receive some frames.
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   MediaExpectations media_expectations;
   media_expectations.CalleeExpectsSomeAudioAndVideo();
@@ -1286,7 +1434,9 @@ TEST_P(PeerConnectionIntegrationTest, GetBytesSentStatsWithOldStatsApi) {
   caller()->AddTrack(video_track);
   // Do offer/answer, wait for the callee to receive some frames.
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   MediaExpectations media_expectations;
   media_expectations.CalleeExpectsSomeAudioAndVideo();
   ASSERT_TRUE(ExpectNewFrames(media_expectations));
@@ -1309,11 +1459,15 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   auto audio_sender_2 = caller()->AddAudioTrack();
   auto video_sender_2 = caller()->AddVideoTrack();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   MediaExpectations media_expectations;
   media_expectations.CalleeExpectsSomeAudioAndVideo();
-  ASSERT_TRUE_WAIT(ExpectNewFrames(media_expectations), kDefaultTimeout);
+  ASSERT_THAT(WaitUntil([&] { return ExpectNewFrames(media_expectations); },
+                        ::testing::IsTrue()),
+              IsRtcOk());
 
   std::vector<std::string> track_ids = {
       audio_sender_1->track()->id(), video_sender_1->track()->id(),
@@ -1336,33 +1490,36 @@ TEST_P(PeerConnectionIntegrationTest, NewGetStatsManyAudioAndManyVideoStreams) {
   auto audio_sender_2 = caller()->AddAudioTrack();
   auto video_sender_2 = caller()->AddVideoTrack();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   MediaExpectations media_expectations;
   media_expectations.CalleeExpectsSomeAudioAndVideo();
-  ASSERT_TRUE_WAIT(ExpectNewFrames(media_expectations), kDefaultTimeout);
+  ASSERT_THAT(WaitUntil([&] { return ExpectNewFrames(media_expectations); },
+                        ::testing::IsTrue()),
+              IsRtcOk());
 
   std::vector<std::string> track_ids = {
       audio_sender_1->track()->id(), video_sender_1->track()->id(),
       audio_sender_2->track()->id(), video_sender_2->track()->id()};
 
-  rtc::scoped_refptr<const webrtc::RTCStatsReport> caller_report =
-      caller()->NewGetStats();
+  scoped_refptr<const RTCStatsReport> caller_report = caller()->NewGetStats();
   ASSERT_TRUE(caller_report);
   auto outbound_stream_stats =
-      caller_report->GetStatsOfType<webrtc::RTCOutboundRtpStreamStats>();
+      caller_report->GetStatsOfType<RTCOutboundRtpStreamStats>();
   ASSERT_EQ(outbound_stream_stats.size(), 4u);
   std::vector<std::string> outbound_track_ids;
   for (const auto& stat : outbound_stream_stats) {
-    ASSERT_TRUE(stat->bytes_sent.is_defined());
+    ASSERT_TRUE(stat->bytes_sent.has_value());
     EXPECT_LT(0u, *stat->bytes_sent);
     if (*stat->kind == "video") {
-      ASSERT_TRUE(stat->key_frames_encoded.is_defined());
+      ASSERT_TRUE(stat->key_frames_encoded.has_value());
       EXPECT_GT(*stat->key_frames_encoded, 0u);
-      ASSERT_TRUE(stat->frames_encoded.is_defined());
+      ASSERT_TRUE(stat->frames_encoded.has_value());
       EXPECT_GE(*stat->frames_encoded, *stat->key_frames_encoded);
     }
-    ASSERT_TRUE(stat->media_source_id.is_defined());
+    ASSERT_TRUE(stat->media_source_id.has_value());
     const RTCMediaSourceStats* media_source =
         static_cast<const RTCMediaSourceStats*>(
             caller_report->Get(*stat->media_source_id));
@@ -1371,20 +1528,19 @@ TEST_P(PeerConnectionIntegrationTest, NewGetStatsManyAudioAndManyVideoStreams) {
   }
   EXPECT_THAT(outbound_track_ids, UnorderedElementsAreArray(track_ids));
 
-  rtc::scoped_refptr<const webrtc::RTCStatsReport> callee_report =
-      callee()->NewGetStats();
+  scoped_refptr<const RTCStatsReport> callee_report = callee()->NewGetStats();
   ASSERT_TRUE(callee_report);
   auto inbound_stream_stats =
-      callee_report->GetStatsOfType<webrtc::RTCInboundRtpStreamStats>();
+      callee_report->GetStatsOfType<RTCInboundRtpStreamStats>();
   ASSERT_EQ(4u, inbound_stream_stats.size());
   std::vector<std::string> inbound_track_ids;
   for (const auto& stat : inbound_stream_stats) {
-    ASSERT_TRUE(stat->bytes_received.is_defined());
+    ASSERT_TRUE(stat->bytes_received.has_value());
     EXPECT_LT(0u, *stat->bytes_received);
     if (*stat->kind == "video") {
-      ASSERT_TRUE(stat->key_frames_decoded.is_defined());
+      ASSERT_TRUE(stat->key_frames_decoded.has_value());
       EXPECT_GT(*stat->key_frames_decoded, 0u);
-      ASSERT_TRUE(stat->frames_decoded.is_defined());
+      ASSERT_TRUE(stat->frames_decoded.has_value());
       EXPECT_GE(*stat->frames_decoded, *stat->key_frames_decoded);
     }
     inbound_track_ids.push_back(*stat->track_identifier);
@@ -1403,22 +1559,22 @@ TEST_P(PeerConnectionIntegrationTest,
   // Remove SSRCs and MSIDs from the received offer SDP.
   callee()->SetReceivedSdpMunger(RemoveSsrcsAndMsids);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   MediaExpectations media_expectations;
   media_expectations.CalleeExpectsSomeAudio(1);
   ASSERT_TRUE(ExpectNewFrames(media_expectations));
 
   // We received a frame, so we should have nonzero "bytes received" stats for
   // the unsignaled stream, if stats are working for it.
-  rtc::scoped_refptr<const webrtc::RTCStatsReport> report =
-      callee()->NewGetStats();
+  scoped_refptr<const RTCStatsReport> report = callee()->NewGetStats();
   ASSERT_NE(nullptr, report);
   auto inbound_stream_stats =
-      report->GetStatsOfType<webrtc::RTCInboundRtpStreamStats>();
+      report->GetStatsOfType<RTCInboundRtpStreamStats>();
   ASSERT_EQ(1U, inbound_stream_stats.size());
-  ASSERT_TRUE(inbound_stream_stats[0]->bytes_received.is_defined());
+  ASSERT_TRUE(inbound_stream_stats[0]->bytes_received.has_value());
   ASSERT_GT(*inbound_stream_stats[0]->bytes_received, 0U);
-  ASSERT_TRUE(inbound_stream_stats[0]->track_id.is_defined());
 }
 
 // Same as above but for the legacy stats implementation.
@@ -1430,7 +1586,9 @@ TEST_P(PeerConnectionIntegrationTest,
   // Remove SSRCs and MSIDs from the received offer SDP.
   callee()->SetReceivedSdpMunger(RemoveSsrcsAndMsids);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   // Note that, since the old stats implementation associates SSRCs with tracks
   // using SDP, when SSRCs aren't signaled in SDP these stats won't have an
@@ -1438,8 +1596,10 @@ TEST_P(PeerConnectionIntegrationTest,
   //
   // Also, we use "EXPECT_TRUE_WAIT" because the stats collector may decide to
   // return cached stats if not enough time has passed since the last update.
-  EXPECT_TRUE_WAIT(callee()->OldGetStats()->BytesReceived() > 0,
-                   kDefaultTimeout);
+  EXPECT_THAT(
+      WaitUntil([&] { return callee()->OldGetStats()->BytesReceived(); },
+                ::testing::Gt(0)),
+      IsRtcOk());
 }
 
 // Test that we can successfully get the media related stats (audio level
@@ -1452,126 +1612,27 @@ TEST_P(PeerConnectionIntegrationTest,
   // Remove SSRCs and MSIDs from the received offer SDP.
   callee()->SetReceivedSdpMunger(RemoveSsrcsAndMsids);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   MediaExpectations media_expectations;
   media_expectations.CalleeExpectsSomeAudio(1);
   media_expectations.CalleeExpectsSomeVideo(1);
   ASSERT_TRUE(ExpectNewFrames(media_expectations));
 
-  rtc::scoped_refptr<const webrtc::RTCStatsReport> report =
-      callee()->NewGetStats();
+  scoped_refptr<const RTCStatsReport> report = callee()->NewGetStats();
   ASSERT_NE(nullptr, report);
 
-  auto inbound_rtps =
-      report->GetStatsOfType<webrtc::RTCInboundRtpStreamStats>();
+  auto inbound_rtps = report->GetStatsOfType<RTCInboundRtpStreamStats>();
   auto index = FindFirstMediaStatsIndexByKind("audio", inbound_rtps);
   ASSERT_GE(index, 0);
-  EXPECT_TRUE(inbound_rtps[index]->audio_level.is_defined());
-}
-
-// Helper for test below.
-void ModifySsrcs(cricket::SessionDescription* desc) {
-  for (ContentInfo& content : desc->contents()) {
-    for (StreamParams& stream :
-         content.media_description()->mutable_streams()) {
-      for (uint32_t& ssrc : stream.ssrcs) {
-        ssrc = rtc::CreateRandomId();
-      }
-    }
-  }
-}
-
-// Test that the "DEPRECATED_RTCMediaStreamTrackStats"  object is updated
-// correctly when SSRCs are unsignaled, and the SSRC of the received (audio)
-// stream changes. This should result in two "RTCInboundRtpStreamStats", but
-// only one "DEPRECATED_RTCMediaStreamTrackStats", whose counters go up
-// continuously rather than being reset to 0 once the SSRC change occurs.
-//
-// Regression test for this bug:
-// https://bugs.chromium.org/p/webrtc/issues/detail?id=8158
-//
-// The bug causes the track stats to only represent one of the two streams:
-// whichever one has the higher SSRC. So with this bug, there was a 50% chance
-// that the track stat counters would reset to 0 when the new stream is
-// received, and a 50% chance that they'll stop updating (while
-// "concealed_samples" continues increasing, due to silence being generated for
-// the inactive stream).
-TEST_P(PeerConnectionIntegrationTest,
-       TrackStatsUpdatedCorrectlyWhenUnsignaledSsrcChanges) {
-  ASSERT_TRUE(CreatePeerConnectionWrappers());
-  ConnectFakeSignaling();
-  caller()->AddAudioTrack();
-  // Remove SSRCs and MSIDs from the received offer SDP, simulating an endpoint
-  // that doesn't signal SSRCs (from the callee's perspective).
-  callee()->SetReceivedSdpMunger(RemoveSsrcsAndMsids);
-  caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
-  // Wait for 50 audio frames (500ms of audio) to be received by the callee.
-  {
-    MediaExpectations media_expectations;
-    media_expectations.CalleeExpectsSomeAudio(50);
-    ASSERT_TRUE(ExpectNewFrames(media_expectations));
-  }
-  // Some audio frames were received, so we should have nonzero "samples
-  // received" for the track.
-  rtc::scoped_refptr<const webrtc::RTCStatsReport> report =
-      callee()->NewGetStats();
-  ASSERT_NE(nullptr, report);
-  auto track_stats =
-      report->GetStatsOfType<webrtc::DEPRECATED_RTCMediaStreamTrackStats>();
-  ASSERT_EQ(1U, track_stats.size());
-  ASSERT_TRUE(track_stats[0]->total_samples_received.is_defined());
-  ASSERT_GT(*track_stats[0]->total_samples_received, 0U);
-  // uint64_t prev_samples_received = *track_stats[0]->total_samples_received;
-
-  // Create a new offer and munge it to cause the caller to use a new SSRC.
-  caller()->SetGeneratedSdpMunger(ModifySsrcs);
-  caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
-  // Wait for 25 more audio frames (250ms of audio) to be received, from the new
-  // SSRC.
-  {
-    MediaExpectations media_expectations;
-    media_expectations.CalleeExpectsSomeAudio(25);
-    ASSERT_TRUE(ExpectNewFrames(media_expectations));
-  }
-
-  report = callee()->NewGetStats();
-  ASSERT_NE(nullptr, report);
-  track_stats =
-      report->GetStatsOfType<webrtc::DEPRECATED_RTCMediaStreamTrackStats>();
-  ASSERT_EQ(1U, track_stats.size());
-  ASSERT_TRUE(track_stats[0]->total_samples_received.is_defined());
-  // The "total samples received" stat should only be greater than it was
-  // before.
-  // TODO(deadbeef): Uncomment this assertion once the bug is completely fixed.
-  // Right now, the new SSRC will cause the counters to reset to 0.
-  // EXPECT_GT(*track_stats[0]->total_samples_received, prev_samples_received);
-
-  // Additionally, the percentage of concealed samples (samples generated to
-  // conceal packet loss) should be less than 50%. If it's greater, that's a
-  // good sign that we're seeing stats from the old stream that's no longer
-  // receiving packets, and is generating concealed samples of silence.
-  constexpr double kAcceptableConcealedSamplesPercentage = 0.50;
-  ASSERT_TRUE(track_stats[0]->concealed_samples.is_defined());
-  EXPECT_LT(*track_stats[0]->concealed_samples,
-            *track_stats[0]->total_samples_received *
-                kAcceptableConcealedSamplesPercentage);
-
-  // Also ensure that we have two "RTCInboundRtpStreamStats" as expected, as a
-  // sanity check that the SSRC really changed.
-  // TODO(deadbeef): This isn't working right now, because we're not returning
-  // *any* stats for the inactive stream. Uncomment when the bug is completely
-  // fixed.
-  // auto inbound_stream_stats =
-  //     report->GetStatsOfType<webrtc::RTCInboundRtpStreamStats>();
-  // ASSERT_EQ(2U, inbound_stream_stats.size());
+  EXPECT_TRUE(inbound_rtps[index]->audio_level.has_value());
 }
 
 // Test that DTLS 1.0 is used if both sides only support DTLS 1.0.
 TEST_P(PeerConnectionIntegrationTest, EndToEndCallWithDtls10) {
   PeerConnectionFactory::Options dtls_10_options;
-  dtls_10_options.ssl_max_version = rtc::SSL_PROTOCOL_DTLS_10;
+  dtls_10_options.ssl_max_version = SSL_PROTOCOL_DTLS_10;
   ASSERT_TRUE(CreatePeerConnectionWrappersWithOptions(dtls_10_options,
                                                       dtls_10_options));
   ConnectFakeSignaling();
@@ -1580,7 +1641,9 @@ TEST_P(PeerConnectionIntegrationTest, EndToEndCallWithDtls10) {
   caller()->AddAudioVideoTracks();
   callee()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   MediaExpectations media_expectations;
   media_expectations.ExpectBidirectionalAudioAndVideo();
   ASSERT_TRUE(ExpectNewFrames(media_expectations));
@@ -1589,54 +1652,60 @@ TEST_P(PeerConnectionIntegrationTest, EndToEndCallWithDtls10) {
 // Test getting cipher stats and UMA metrics when DTLS 1.0 is negotiated.
 TEST_P(PeerConnectionIntegrationTest, Dtls10CipherStatsAndUmaMetrics) {
   PeerConnectionFactory::Options dtls_10_options;
-  dtls_10_options.ssl_max_version = rtc::SSL_PROTOCOL_DTLS_10;
+  dtls_10_options.ssl_max_version = SSL_PROTOCOL_DTLS_10;
   ASSERT_TRUE(CreatePeerConnectionWrappersWithOptions(dtls_10_options,
                                                       dtls_10_options));
   ConnectFakeSignaling();
   caller()->AddAudioVideoTracks();
   callee()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(DtlsConnected(), kDefaultTimeout);
-  EXPECT_TRUE_WAIT(rtc::SSLStreamAdapter::IsAcceptableCipher(
-                       caller()->OldGetStats()->DtlsCipher(), rtc::KT_DEFAULT),
-                   kDefaultTimeout);
-  EXPECT_EQ_WAIT(rtc::SrtpCryptoSuiteToName(kDefaultSrtpCryptoSuite),
-                 caller()->OldGetStats()->SrtpCipher(), kDefaultTimeout);
-  // TODO(bugs.webrtc.org/9456): Fix it.
-  EXPECT_METRIC_EQ(1, webrtc::metrics::NumEvents(
-                          "WebRTC.PeerConnection.SrtpCryptoSuite.Audio",
-                          kDefaultSrtpCryptoSuite));
+  ASSERT_THAT(WaitUntil([&] { return DtlsConnected(); }, ::testing::IsTrue()),
+              IsRtcOk());
+  EXPECT_THAT(WaitUntil(
+                  [&] {
+                    return SSLStreamAdapter::IsAcceptableCipher(
+                        caller()->OldGetStats()->DtlsCipher(), KT_DEFAULT);
+                  },
+                  ::testing::IsTrue()),
+              IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return caller()->OldGetStats()->SrtpCipher(); },
+                ::testing::Eq(SrtpCryptoSuiteToName(kDefaultSrtpCryptoSuite))),
+      IsRtcOk());
 }
 
 // Test getting cipher stats and UMA metrics when DTLS 1.2 is negotiated.
 TEST_P(PeerConnectionIntegrationTest, Dtls12CipherStatsAndUmaMetrics) {
   PeerConnectionFactory::Options dtls_12_options;
-  dtls_12_options.ssl_max_version = rtc::SSL_PROTOCOL_DTLS_12;
+  dtls_12_options.ssl_max_version = SSL_PROTOCOL_DTLS_12;
   ASSERT_TRUE(CreatePeerConnectionWrappersWithOptions(dtls_12_options,
                                                       dtls_12_options));
   ConnectFakeSignaling();
   caller()->AddAudioVideoTracks();
   callee()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(DtlsConnected(), kDefaultTimeout);
-  EXPECT_TRUE_WAIT(rtc::SSLStreamAdapter::IsAcceptableCipher(
-                       caller()->OldGetStats()->DtlsCipher(), rtc::KT_DEFAULT),
-                   kDefaultTimeout);
-  EXPECT_EQ_WAIT(rtc::SrtpCryptoSuiteToName(kDefaultSrtpCryptoSuite),
-                 caller()->OldGetStats()->SrtpCipher(), kDefaultTimeout);
-  // TODO(bugs.webrtc.org/9456): Fix it.
-  EXPECT_METRIC_EQ(1, webrtc::metrics::NumEvents(
-                          "WebRTC.PeerConnection.SrtpCryptoSuite.Audio",
-                          kDefaultSrtpCryptoSuite));
+  ASSERT_THAT(WaitUntil([&] { return DtlsConnected(); }, ::testing::IsTrue()),
+              IsRtcOk());
+  EXPECT_THAT(WaitUntil(
+                  [&] {
+                    return SSLStreamAdapter::IsAcceptableCipher(
+                        caller()->OldGetStats()->DtlsCipher(), KT_DEFAULT);
+                  },
+                  ::testing::IsTrue()),
+              IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return caller()->OldGetStats()->SrtpCipher(); },
+                ::testing::Eq(SrtpCryptoSuiteToName(kDefaultSrtpCryptoSuite))),
+      IsRtcOk());
 }
 
 // Test that DTLS 1.0 can be used if the caller supports DTLS 1.2 and the
 // callee only supports 1.0.
 TEST_P(PeerConnectionIntegrationTest, CallerDtls12ToCalleeDtls10) {
   PeerConnectionFactory::Options caller_options;
-  caller_options.ssl_max_version = rtc::SSL_PROTOCOL_DTLS_12;
+  caller_options.ssl_max_version = SSL_PROTOCOL_DTLS_12;
   PeerConnectionFactory::Options callee_options;
-  callee_options.ssl_max_version = rtc::SSL_PROTOCOL_DTLS_10;
+  callee_options.ssl_max_version = SSL_PROTOCOL_DTLS_10;
   ASSERT_TRUE(
       CreatePeerConnectionWrappersWithOptions(caller_options, callee_options));
   ConnectFakeSignaling();
@@ -1645,7 +1714,9 @@ TEST_P(PeerConnectionIntegrationTest, CallerDtls12ToCalleeDtls10) {
   caller()->AddAudioVideoTracks();
   callee()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   MediaExpectations media_expectations;
   media_expectations.ExpectBidirectionalAudioAndVideo();
   ASSERT_TRUE(ExpectNewFrames(media_expectations));
@@ -1655,9 +1726,9 @@ TEST_P(PeerConnectionIntegrationTest, CallerDtls12ToCalleeDtls10) {
 // callee supports 1.2.
 TEST_P(PeerConnectionIntegrationTest, CallerDtls10ToCalleeDtls12) {
   PeerConnectionFactory::Options caller_options;
-  caller_options.ssl_max_version = rtc::SSL_PROTOCOL_DTLS_10;
+  caller_options.ssl_max_version = SSL_PROTOCOL_DTLS_10;
   PeerConnectionFactory::Options callee_options;
-  callee_options.ssl_max_version = rtc::SSL_PROTOCOL_DTLS_12;
+  callee_options.ssl_max_version = SSL_PROTOCOL_DTLS_12;
   ASSERT_TRUE(
       CreatePeerConnectionWrappersWithOptions(caller_options, callee_options));
   ConnectFakeSignaling();
@@ -1666,7 +1737,9 @@ TEST_P(PeerConnectionIntegrationTest, CallerDtls10ToCalleeDtls12) {
   caller()->AddAudioVideoTracks();
   callee()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   MediaExpectations media_expectations;
   media_expectations.ExpectBidirectionalAudioAndVideo();
   ASSERT_TRUE(ExpectNewFrames(media_expectations));
@@ -1681,7 +1754,7 @@ TEST_P(PeerConnectionIntegrationTest,
   PeerConnectionFactory::Options callee_options;
   callee_options.crypto_options.srtp.enable_aes128_sha1_32_crypto_cipher =
       false;
-  int expected_cipher_suite = rtc::kSrtpAes128CmSha1_80;
+  int expected_cipher_suite = kSrtpAes128CmSha1_80;
   TestNegotiatedCipherSuite(caller_options, callee_options,
                             expected_cipher_suite);
 }
@@ -1693,7 +1766,7 @@ TEST_P(PeerConnectionIntegrationTest,
       false;
   PeerConnectionFactory::Options callee_options;
   callee_options.crypto_options.srtp.enable_aes128_sha1_32_crypto_cipher = true;
-  int expected_cipher_suite = rtc::kSrtpAes128CmSha1_80;
+  int expected_cipher_suite = kSrtpAes128CmSha1_80;
   TestNegotiatedCipherSuite(caller_options, callee_options,
                             expected_cipher_suite);
 }
@@ -1703,7 +1776,7 @@ TEST_P(PeerConnectionIntegrationTest, Aes128Sha1_32_CipherUsedWhenSupported) {
   caller_options.crypto_options.srtp.enable_aes128_sha1_32_crypto_cipher = true;
   PeerConnectionFactory::Options callee_options;
   callee_options.crypto_options.srtp.enable_aes128_sha1_32_crypto_cipher = true;
-  int expected_cipher_suite = rtc::kSrtpAes128CmSha1_32;
+  int expected_cipher_suite = kSrtpAes128CmSha1_32;
   TestNegotiatedCipherSuite(caller_options, callee_options,
                             expected_cipher_suite);
 }
@@ -1745,7 +1818,9 @@ TEST_P(PeerConnectionIntegrationTest, EndToEndCallWithGcmCipher) {
   caller()->AddAudioVideoTracks();
   callee()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   MediaExpectations media_expectations;
   media_expectations.ExpectBidirectionalAudioAndVideo();
   ASSERT_TRUE(ExpectNewFrames(media_expectations));
@@ -1760,84 +1835,111 @@ TEST_P(PeerConnectionIntegrationTest, IceStatesReachCompletion) {
   caller()->AddAudioVideoTracks();
   callee()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
-  EXPECT_EQ_WAIT(webrtc::PeerConnectionInterface::kIceGatheringComplete,
-                 caller()->ice_gathering_state(), kMaxWaitForFramesMs);
-  EXPECT_EQ_WAIT(webrtc::PeerConnectionInterface::kIceGatheringComplete,
-                 callee()->ice_gathering_state(), kMaxWaitForFramesMs);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return caller()->ice_gathering_state(); },
+                ::testing::Eq(PeerConnectionInterface::kIceGatheringComplete),
+                {.timeout = kMaxWaitForFrames}),
+      IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return callee()->ice_gathering_state(); },
+                ::testing::Eq(PeerConnectionInterface::kIceGatheringComplete),
+                {.timeout = kMaxWaitForFrames}),
+      IsRtcOk());
   // After the best candidate pair is selected and all candidates are signaled,
   // the ICE connection state should reach "complete".
   // TODO(deadbeef): Currently, the ICE "controlled" agent (the
   // answerer/"callee" by default) only reaches "connected". When this is
   // fixed, this test should be updated.
-  EXPECT_EQ_WAIT(webrtc::PeerConnectionInterface::kIceConnectionCompleted,
-                 caller()->ice_connection_state(), kDefaultTimeout);
-  EXPECT_EQ_WAIT(webrtc::PeerConnectionInterface::kIceConnectionConnected,
-                 callee()->ice_connection_state(), kDefaultTimeout);
+  EXPECT_THAT(WaitUntil([&] { return caller()->ice_connection_state(); },
+                        ::testing::Eq(
+                            PeerConnectionInterface::kIceConnectionCompleted)),
+              IsRtcOk());
+  EXPECT_THAT(WaitUntil([&] { return callee()->ice_connection_state(); },
+                        ::testing::Eq(
+                            PeerConnectionInterface::kIceConnectionConnected)),
+              IsRtcOk());
 }
 
-constexpr int kOnlyLocalPorts = cricket::PORTALLOCATOR_DISABLE_STUN |
-                                cricket::PORTALLOCATOR_DISABLE_RELAY |
-                                cricket::PORTALLOCATOR_DISABLE_TCP;
+constexpr int kOnlyLocalPorts = PORTALLOCATOR_DISABLE_STUN |
+                                PORTALLOCATOR_DISABLE_RELAY |
+                                PORTALLOCATOR_DISABLE_TCP;
 
 // Use a mock resolver to resolve the hostname back to the original IP on both
 // sides and check that the ICE connection connects.
 TEST_P(PeerConnectionIntegrationTest,
        IceStatesReachCompletionWithRemoteHostname) {
   auto caller_resolver_factory =
-      std::make_unique<NiceMock<webrtc::MockAsyncResolverFactory>>();
+      std::make_unique<NiceMock<MockAsyncDnsResolverFactory>>();
   auto callee_resolver_factory =
-      std::make_unique<NiceMock<webrtc::MockAsyncResolverFactory>>();
-  NiceMock<rtc::MockAsyncResolver> callee_async_resolver;
-  NiceMock<rtc::MockAsyncResolver> caller_async_resolver;
+      std::make_unique<NiceMock<MockAsyncDnsResolverFactory>>();
+  auto callee_async_resolver =
+      std::make_unique<NiceMock<MockAsyncDnsResolver>>();
+  auto caller_async_resolver =
+      std::make_unique<NiceMock<MockAsyncDnsResolver>>();
+  // Keep raw pointers to the mock resolvers, for use after init,
+  // where the std::unique_ptr values have been moved away.
+  auto* callee_resolver_ptr = callee_async_resolver.get();
+  auto* caller_resolver_ptr = caller_async_resolver.get();
 
   // This also verifies that the injected AsyncResolverFactory is used by
   // P2PTransportChannel.
   EXPECT_CALL(*caller_resolver_factory, Create())
-      .WillOnce(Return(&caller_async_resolver));
-  webrtc::PeerConnectionDependencies caller_deps(nullptr);
-  caller_deps.async_resolver_factory = std::move(caller_resolver_factory);
+      .WillOnce(Return(ByMove(std::move(caller_async_resolver))));
+  PeerConnectionDependencies caller_deps(nullptr);
+  caller_deps.async_dns_resolver_factory = std::move(caller_resolver_factory);
 
   EXPECT_CALL(*callee_resolver_factory, Create())
-      .WillOnce(Return(&callee_async_resolver));
-  webrtc::PeerConnectionDependencies callee_deps(nullptr);
-  callee_deps.async_resolver_factory = std::move(callee_resolver_factory);
+      .WillOnce(Return(ByMove(std::move(callee_async_resolver))));
+  PeerConnectionDependencies callee_deps(nullptr);
+  callee_deps.async_dns_resolver_factory = std::move(callee_resolver_factory);
 
   PeerConnectionInterface::RTCConfiguration config;
   config.bundle_policy = PeerConnectionInterface::kBundlePolicyMaxBundle;
   config.rtcp_mux_policy = PeerConnectionInterface::kRtcpMuxPolicyRequire;
+  config.port_allocator_config.flags = kOnlyLocalPorts;
 
   ASSERT_TRUE(CreatePeerConnectionWrappersWithConfigAndDeps(
       config, std::move(caller_deps), config, std::move(callee_deps)));
 
-  caller()->SetRemoteAsyncResolver(&callee_async_resolver);
-  callee()->SetRemoteAsyncResolver(&caller_async_resolver);
+  // TEMP NOTE - this is probably bogus since the resolvers have been
+  // moved out of their slots prior to these code lines.
+  RTC_LOG(LS_ERROR) << "callee async resolver is "
+                    << callee_async_resolver.get();
+  caller()->SetRemoteAsyncResolver(callee_resolver_ptr);
+  callee()->SetRemoteAsyncResolver(caller_resolver_ptr);
 
   // Enable hostname candidates with mDNS names.
   caller()->SetMdnsResponder(
-      std::make_unique<webrtc::FakeMdnsResponder>(network_thread()));
+      std::make_unique<FakeMdnsResponder>(network_thread()));
   callee()->SetMdnsResponder(
-      std::make_unique<webrtc::FakeMdnsResponder>(network_thread()));
-
-  SetPortAllocatorFlags(kOnlyLocalPorts, kOnlyLocalPorts);
+      std::make_unique<FakeMdnsResponder>(network_thread()));
 
   ConnectFakeSignaling();
   caller()->AddAudioVideoTracks();
   callee()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
-  EXPECT_EQ_WAIT(webrtc::PeerConnectionInterface::kIceConnectionCompleted,
-                 caller()->ice_connection_state(), kDefaultTimeout);
-  EXPECT_EQ_WAIT(webrtc::PeerConnectionInterface::kIceConnectionConnected,
-                 callee()->ice_connection_state(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+  EXPECT_THAT(WaitUntil([&] { return caller()->ice_connection_state(); },
+                        ::testing::Eq(
+                            PeerConnectionInterface::kIceConnectionCompleted)),
+              IsRtcOk());
+  EXPECT_THAT(WaitUntil([&] { return callee()->ice_connection_state(); },
+                        ::testing::Eq(
+                            PeerConnectionInterface::kIceConnectionConnected)),
+              IsRtcOk());
 
   // Part of reporting the stats will occur on the network thread, so flush it
   // before checking NumEvents.
   SendTask(network_thread(), [] {});
 
-  EXPECT_METRIC_EQ(1, webrtc::metrics::NumEvents(
-                          "WebRTC.PeerConnection.CandidatePairType_UDP",
-                          webrtc::kIceCandidatePairHostNameHostName));
+  EXPECT_METRIC_EQ(
+      1, metrics::NumEvents("WebRTC.PeerConnection.CandidatePairType_UDP",
+                            kIceCandidatePairHostNameHostName));
   DestroyPeerConnections();
 }
 
@@ -1854,17 +1956,12 @@ class PeerConnectionIntegrationIceStatesTest
   }
 
   void StartStunServer(const SocketAddress& server_address) {
-    stun_server_.reset(
-        cricket::TestStunServer::Create(firewall(), server_address));
+    stun_server_ =
+        TestStunServer::Create(firewall(), server_address, *network_thread());
   }
 
   bool TestIPv6() {
-    return (port_allocator_flags_ & cricket::PORTALLOCATOR_ENABLE_IPV6);
-  }
-
-  void SetPortAllocatorFlags() {
-    PeerConnectionIntegrationBaseTest::SetPortAllocatorFlags(
-        port_allocator_flags_, port_allocator_flags_);
+    return (port_allocator_flags_ & PORTALLOCATOR_ENABLE_IPV6);
   }
 
   std::vector<SocketAddress> CallerAddresses() {
@@ -1899,9 +1996,11 @@ class PeerConnectionIntegrationIceStatesTest
     }
   }
 
+  uint32_t port_allocator_flags() const { return port_allocator_flags_; }
+
  private:
   uint32_t port_allocator_flags_;
-  std::unique_ptr<cricket::TestStunServer> stun_server_;
+  TestStunServer::StunServerPtr stun_server_;
 };
 
 // Ensure FakeClockForTest is constructed first (see class for rationale).
@@ -1919,12 +2018,13 @@ TEST_P(PeerConnectionIntegrationIceStatesTestWithFakeClock,
   // Block connections to/from the caller and wait for ICE to become
   // disconnected.
   for (const auto& caller_address : CallerAddresses()) {
-    firewall()->AddRule(false, rtc::FP_ANY, rtc::FD_ANY, caller_address);
+    firewall()->AddRule(false, FP_ANY, FD_ANY, caller_address);
   }
 
-  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  PeerConnectionInterface::RTCConfiguration config;
+  config.port_allocator_config.flags = port_allocator_flags();
+  ASSERT_TRUE(CreatePeerConnectionWrappersWithConfig(config, config));
   ConnectFakeSignaling();
-  SetPortAllocatorFlags();
   SetUpNetworkInterfaces();
   caller()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
@@ -1932,10 +2032,13 @@ TEST_P(PeerConnectionIntegrationIceStatesTestWithFakeClock,
   // According to RFC7675, if there is no response within 30 seconds then the
   // peer should consider the other side to have rejected the connection. This
   // is signaled by the state transitioning to "failed".
-  constexpr int kConsentTimeout = 30000;
-  ASSERT_EQ_SIMULATED_WAIT(PeerConnectionInterface::kIceConnectionFailed,
-                           caller()->standardized_ice_connection_state(),
-                           kConsentTimeout, FakeClock());
+  constexpr TimeDelta kConsentTimeout = TimeDelta::Millis(30000);
+  ScopedFakeClock& fake_clock = FakeClock();
+  ASSERT_THAT(
+      WaitUntil([&] { return caller()->standardized_ice_connection_state(); },
+                ::testing::Eq(PeerConnectionInterface::kIceConnectionFailed),
+                {.timeout = kConsentTimeout, .clock = &fake_clock}),
+      IsRtcOk());
 }
 
 #endif  // !defined(THREAD_SANITIZER)
@@ -1949,29 +2052,36 @@ TEST_P(PeerConnectionIntegrationIceStatesTestWithFakeClock,
 #define MAYBE_VerifyBestConnection VerifyBestConnection
 #endif
 TEST_P(PeerConnectionIntegrationIceStatesTest, MAYBE_VerifyBestConnection) {
-  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  PeerConnectionInterface::RTCConfiguration config;
+  config.port_allocator_config.flags = port_allocator_flags();
+  ASSERT_TRUE(CreatePeerConnectionWrappersWithConfig(config, config));
   ConnectFakeSignaling();
-  SetPortAllocatorFlags();
   SetUpNetworkInterfaces();
   caller()->AddAudioVideoTracks();
   callee()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
 
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
-  EXPECT_EQ_WAIT(webrtc::PeerConnectionInterface::kIceConnectionCompleted,
-                 caller()->ice_connection_state(), kDefaultTimeout);
-  EXPECT_EQ_WAIT(webrtc::PeerConnectionInterface::kIceConnectionConnected,
-                 callee()->ice_connection_state(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+  EXPECT_THAT(WaitUntil([&] { return caller()->ice_connection_state(); },
+                        ::testing::Eq(
+                            PeerConnectionInterface::kIceConnectionCompleted)),
+              IsRtcOk());
+  EXPECT_THAT(WaitUntil([&] { return callee()->ice_connection_state(); },
+                        ::testing::Eq(
+                            PeerConnectionInterface::kIceConnectionConnected)),
+              IsRtcOk());
 
   // Part of reporting the stats will occur on the network thread, so flush it
   // before checking NumEvents.
   SendTask(network_thread(), [] {});
 
   // TODO(bugs.webrtc.org/9456): Fix it.
-  const int num_best_ipv4 = webrtc::metrics::NumEvents(
-      "WebRTC.PeerConnection.IPMetrics", webrtc::kBestConnections_IPv4);
-  const int num_best_ipv6 = webrtc::metrics::NumEvents(
-      "WebRTC.PeerConnection.IPMetrics", webrtc::kBestConnections_IPv6);
+  const int num_best_ipv4 = metrics::NumEvents(
+      "WebRTC.PeerConnection.IPMetrics", kBestConnections_IPv4);
+  const int num_best_ipv6 = metrics::NumEvents(
+      "WebRTC.PeerConnection.IPMetrics", kBestConnections_IPv6);
   if (TestIPv6()) {
     // When IPv6 is enabled, we should prefer an IPv6 connection over an IPv4
     // connection.
@@ -1982,22 +2092,22 @@ TEST_P(PeerConnectionIntegrationIceStatesTest, MAYBE_VerifyBestConnection) {
     EXPECT_METRIC_EQ(0, num_best_ipv6);
   }
 
-  EXPECT_METRIC_EQ(0, webrtc::metrics::NumEvents(
-                          "WebRTC.PeerConnection.CandidatePairType_UDP",
-                          webrtc::kIceCandidatePairHostHost));
-  EXPECT_METRIC_EQ(1, webrtc::metrics::NumEvents(
-                          "WebRTC.PeerConnection.CandidatePairType_UDP",
-                          webrtc::kIceCandidatePairHostPublicHostPublic));
+  EXPECT_METRIC_EQ(
+      0, metrics::NumEvents("WebRTC.PeerConnection.CandidatePairType_UDP",
+                            kIceCandidatePairHostHost));
+  EXPECT_METRIC_EQ(
+      1, metrics::NumEvents("WebRTC.PeerConnection.CandidatePairType_UDP",
+                            kIceCandidatePairHostPublicHostPublic));
 }
 
-constexpr uint32_t kFlagsIPv4NoStun = cricket::PORTALLOCATOR_DISABLE_TCP |
-                                      cricket::PORTALLOCATOR_DISABLE_STUN |
-                                      cricket::PORTALLOCATOR_DISABLE_RELAY;
+constexpr uint32_t kFlagsIPv4NoStun = PORTALLOCATOR_DISABLE_TCP |
+                                      PORTALLOCATOR_DISABLE_STUN |
+                                      PORTALLOCATOR_DISABLE_RELAY;
 constexpr uint32_t kFlagsIPv6NoStun =
-    cricket::PORTALLOCATOR_DISABLE_TCP | cricket::PORTALLOCATOR_DISABLE_STUN |
-    cricket::PORTALLOCATOR_ENABLE_IPV6 | cricket::PORTALLOCATOR_DISABLE_RELAY;
+    PORTALLOCATOR_DISABLE_TCP | PORTALLOCATOR_DISABLE_STUN |
+    PORTALLOCATOR_ENABLE_IPV6 | PORTALLOCATOR_DISABLE_RELAY;
 constexpr uint32_t kFlagsIPv4Stun =
-    cricket::PORTALLOCATOR_DISABLE_TCP | cricket::PORTALLOCATOR_DISABLE_RELAY;
+    PORTALLOCATOR_DISABLE_TCP | PORTALLOCATOR_DISABLE_RELAY;
 
 INSTANTIATE_TEST_SUITE_P(
     PeerConnectionIntegrationTest,
@@ -2026,18 +2136,26 @@ TEST_P(PeerConnectionIntegrationTest, MediaContinuesFlowingAfterIceRestart) {
   caller()->AddAudioVideoTracks();
   callee()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
-  EXPECT_EQ_WAIT(webrtc::PeerConnectionInterface::kIceConnectionCompleted,
-                 caller()->ice_connection_state(), kMaxWaitForFramesMs);
-  EXPECT_EQ_WAIT(webrtc::PeerConnectionInterface::kIceConnectionConnected,
-                 callee()->ice_connection_state(), kMaxWaitForFramesMs);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return caller()->ice_connection_state(); },
+                ::testing::Eq(PeerConnectionInterface::kIceConnectionCompleted),
+                {.timeout = kMaxWaitForFrames}),
+      IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return callee()->ice_connection_state(); },
+                ::testing::Eq(PeerConnectionInterface::kIceConnectionConnected),
+                {.timeout = kMaxWaitForFrames}),
+      IsRtcOk());
 
   // To verify that the ICE restart actually occurs, get
   // ufrag/password/candidates before and after restart.
   // Create an SDP string of the first audio candidate for both clients.
-  const webrtc::IceCandidateCollection* audio_candidates_caller =
+  const IceCandidateCollection* audio_candidates_caller =
       caller()->pc()->local_description()->candidates(0);
-  const webrtc::IceCandidateCollection* audio_candidates_callee =
+  const IceCandidateCollection* audio_candidates_callee =
       callee()->pc()->local_description()->candidates(0);
   ASSERT_GT(audio_candidates_caller->count(), 0u);
   ASSERT_GT(audio_candidates_callee->count(), 0u);
@@ -2047,7 +2165,7 @@ TEST_P(PeerConnectionIntegrationTest, MediaContinuesFlowingAfterIceRestart) {
   std::string callee_candidate_pre_restart;
   ASSERT_TRUE(
       audio_candidates_callee->at(0)->ToString(&callee_candidate_pre_restart));
-  const cricket::SessionDescription* desc =
+  const SessionDescription* desc =
       caller()->pc()->local_description()->description();
   std::string caller_ufrag_pre_restart =
       desc->transport_infos()[0].description.ice_ufrag;
@@ -2059,11 +2177,19 @@ TEST_P(PeerConnectionIntegrationTest, MediaContinuesFlowingAfterIceRestart) {
   // Have the caller initiate an ICE restart.
   caller()->SetOfferAnswerOptions(IceRestartOfferAnswerOptions());
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
-  EXPECT_EQ_WAIT(webrtc::PeerConnectionInterface::kIceConnectionCompleted,
-                 caller()->ice_connection_state(), kMaxWaitForFramesMs);
-  EXPECT_EQ_WAIT(webrtc::PeerConnectionInterface::kIceConnectionConnected,
-                 callee()->ice_connection_state(), kMaxWaitForFramesMs);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return caller()->ice_connection_state(); },
+                ::testing::Eq(PeerConnectionInterface::kIceConnectionCompleted),
+                {.timeout = kMaxWaitForFrames}),
+      IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return callee()->ice_connection_state(); },
+                ::testing::Eq(PeerConnectionInterface::kIceConnectionConnected),
+                {.timeout = kMaxWaitForFrames}),
+      IsRtcOk());
 
   // Grab the ufrags/candidates again.
   audio_candidates_caller = caller()->pc()->local_description()->candidates(0);
@@ -2107,15 +2233,17 @@ TEST_P(PeerConnectionIntegrationTest, EndToEndCallWithIceRenomination) {
   caller()->AddAudioVideoTracks();
   callee()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   // Sanity check that ICE renomination was actually negotiated.
-  const cricket::SessionDescription* desc =
+  const SessionDescription* desc =
       caller()->pc()->local_description()->description();
-  for (const cricket::TransportInfo& info : desc->transport_infos()) {
+  for (const TransportInfo& info : desc->transport_infos()) {
     ASSERT_THAT(info.description.transport_options, Contains("renomination"));
   }
   desc = callee()->pc()->local_description()->description();
-  for (const cricket::TransportInfo& info : desc->transport_infos()) {
+  for (const TransportInfo& info : desc->transport_infos()) {
     ASSERT_THAT(info.description.transport_options, Contains("renomination"));
   }
   MediaExpectations media_expectations;
@@ -2145,15 +2273,21 @@ TEST_P(PeerConnectionIntegrationTest,
 
   caller()->AddAudioTrack();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
-  ASSERT_EQ_WAIT(PeerConnectionInterface::kIceConnectionCompleted,
-                 caller()->ice_connection_state(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+  ASSERT_THAT(WaitUntil([&] { return caller()->ice_connection_state(); },
+                        ::testing::Eq(
+                            PeerConnectionInterface::kIceConnectionCompleted)),
+              IsRtcOk());
 
   caller()->clear_ice_connection_state_history();
 
   caller()->AddVideoTrack();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   EXPECT_EQ(0u, caller()->ice_connection_state_history().size());
 }
@@ -2170,7 +2304,9 @@ TEST_P(PeerConnectionIntegrationTest,
   // video and audio recvonly "m=" sections.
   caller()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   // Negotiate again, disabling the video "m=" section (the callee will set the
   // port to 0 due to offer_to_receive_video = 0).
@@ -2180,16 +2316,16 @@ TEST_P(PeerConnectionIntegrationTest,
     callee()->SetOfferAnswerOptions(options);
   } else {
     callee()->SetRemoteOfferHandler([this] {
-      callee()
-          ->GetFirstTransceiverOfType(cricket::MEDIA_TYPE_VIDEO)
-          ->StopInternal();
+      callee()->GetFirstTransceiverOfType(MediaType::VIDEO)->StopInternal();
     });
   }
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   // Sanity check that video "m=" section was actually rejected.
-  const ContentInfo* answer_video_content = cricket::GetFirstVideoContent(
-      callee()->pc()->local_description()->description());
+  const ContentInfo* answer_video_content =
+      GetFirstVideoContent(callee()->pc()->local_description()->description());
   ASSERT_NE(nullptr, answer_video_content);
   ASSERT_TRUE(answer_video_content->rejected);
 
@@ -2202,14 +2338,16 @@ TEST_P(PeerConnectionIntegrationTest,
   } else {
     // The caller's transceiver is stopped, so we need to add another track.
     auto caller_transceiver =
-        caller()->GetFirstTransceiverOfType(cricket::MEDIA_TYPE_VIDEO);
+        caller()->GetFirstTransceiverOfType(MediaType::VIDEO);
     EXPECT_EQ(nullptr, caller_transceiver.get());
     caller()->AddVideoTrack();
   }
   callee()->AddVideoTrack();
   callee()->SetRemoteOfferHandler(nullptr);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   // Verify the caller receives frames from the newly added stream, and the
   // callee receives additional frames from the re-enabled video m= section.
@@ -2235,12 +2373,21 @@ TEST_F(PeerConnectionIntegrationTestPlanB,
   auto callee_video_sender =
       callee()->pc()->CreateSender("video", "callee_stream");
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kMaxWaitForActivationMs);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue(),
+                {.timeout = kMaxWaitForActivation}),
+      IsRtcOk());
   // Wait for ICE to complete, without any tracks being set.
-  EXPECT_EQ_WAIT(webrtc::PeerConnectionInterface::kIceConnectionCompleted,
-                 caller()->ice_connection_state(), kMaxWaitForFramesMs);
-  EXPECT_EQ_WAIT(webrtc::PeerConnectionInterface::kIceConnectionConnected,
-                 callee()->ice_connection_state(), kMaxWaitForFramesMs);
+  EXPECT_THAT(
+      WaitUntil([&] { return caller()->ice_connection_state(); },
+                ::testing::Eq(PeerConnectionInterface::kIceConnectionCompleted),
+                {.timeout = kMaxWaitForFrames}),
+      IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return callee()->ice_connection_state(); },
+                ::testing::Eq(PeerConnectionInterface::kIceConnectionConnected),
+                {.timeout = kMaxWaitForFrames}),
+      IsRtcOk());
   // Now set the tracks, and expect frames to immediately start flowing.
   EXPECT_TRUE(
       caller_audio_sender->SetTrack(caller()->CreateLocalAudioTrack().get()));
@@ -2262,10 +2409,10 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
        MediaFlowsAfterEarlyWarmupWithAddTransceiver) {
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignaling();
-  auto audio_result = caller()->pc()->AddTransceiver(cricket::MEDIA_TYPE_AUDIO);
+  auto audio_result = caller()->pc()->AddTransceiver(MediaType::AUDIO);
   ASSERT_EQ(RTCErrorType::NONE, audio_result.error().type());
   auto caller_audio_sender = audio_result.MoveValue()->sender();
-  auto video_result = caller()->pc()->AddTransceiver(cricket::MEDIA_TYPE_VIDEO);
+  auto video_result = caller()->pc()->AddTransceiver(MediaType::VIDEO);
   ASSERT_EQ(RTCErrorType::NONE, video_result.error().type());
   auto caller_video_sender = video_result.MoveValue()->sender();
   callee()->SetRemoteOfferHandler([this] {
@@ -2276,12 +2423,21 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
         RtpTransceiverDirection::kSendRecv);
   });
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kMaxWaitForActivationMs);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue(),
+                {.timeout = kMaxWaitForActivation}),
+      IsRtcOk());
   // Wait for ICE to complete, without any tracks being set.
-  EXPECT_EQ_WAIT(webrtc::PeerConnectionInterface::kIceConnectionCompleted,
-                 caller()->ice_connection_state(), kMaxWaitForFramesMs);
-  EXPECT_EQ_WAIT(webrtc::PeerConnectionInterface::kIceConnectionConnected,
-                 callee()->ice_connection_state(), kMaxWaitForFramesMs);
+  EXPECT_THAT(
+      WaitUntil([&] { return caller()->ice_connection_state(); },
+                ::testing::Eq(PeerConnectionInterface::kIceConnectionCompleted),
+                {.timeout = kMaxWaitForFrames}),
+      IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return callee()->ice_connection_state(); },
+                ::testing::Eq(PeerConnectionInterface::kIceConnectionConnected),
+                {.timeout = kMaxWaitForFrames}),
+      IsRtcOk());
   // Now set the tracks, and expect frames to immediately start flowing.
   auto callee_audio_sender = callee()->pc()->GetSenders()[0];
   auto callee_video_sender = callee()->pc()->GetSenders()[1];
@@ -2308,14 +2464,20 @@ TEST_F(PeerConnectionIntegrationTestPlanB, CanSendRemoteVideoTrack) {
   // Just send a video track from the caller.
   caller()->AddVideoTrack();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kMaxWaitForActivationMs);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue(),
+                {.timeout = kMaxWaitForActivation}),
+      IsRtcOk());
   ASSERT_EQ(1U, callee()->remote_streams()->count());
 
   // Echo the stream back, and do a new offer/anwer (initiated by callee this
   // time).
   callee()->pc()->AddStream(callee()->remote_streams()->at(0));
   callee()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kMaxWaitForActivationMs);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue(),
+                {.timeout = kMaxWaitForActivation}),
+      IsRtcOk());
 
   MediaExpectations media_expectations;
   media_expectations.ExpectBidirectionalVideo();
@@ -2352,18 +2514,14 @@ TEST_P(PeerConnectionIntegrationTestWithFakeClock,
       signaling_trip_delay_ms * required_signaling_trips +
       allowed_internal_delay_ms;
 
-  static const rtc::SocketAddress turn_server_1_internal_address{"88.88.88.0",
-                                                                 3478};
-  static const rtc::SocketAddress turn_server_1_external_address{"88.88.88.1",
-                                                                 0};
-  static const rtc::SocketAddress turn_server_2_internal_address{"99.99.99.0",
-                                                                 3478};
-  static const rtc::SocketAddress turn_server_2_external_address{"99.99.99.1",
-                                                                 0};
-  cricket::TestTurnServer* turn_server_1 = CreateTurnServer(
+  static const SocketAddress turn_server_1_internal_address{"88.88.88.0", 3478};
+  static const SocketAddress turn_server_1_external_address{"88.88.88.1", 0};
+  static const SocketAddress turn_server_2_internal_address{"99.99.99.0", 3478};
+  static const SocketAddress turn_server_2_external_address{"99.99.99.1", 0};
+  TestTurnServer* turn_server_1 = CreateTurnServer(
       turn_server_1_internal_address, turn_server_1_external_address);
 
-  cricket::TestTurnServer* turn_server_2 = CreateTurnServer(
+  TestTurnServer* turn_server_2 = CreateTurnServer(
       turn_server_2_internal_address, turn_server_2_external_address);
   // Bypass permission check on received packets so media can be sent before
   // the candidate is signaled.
@@ -2375,21 +2533,21 @@ TEST_P(PeerConnectionIntegrationTestWithFakeClock,
   });
 
   PeerConnectionInterface::RTCConfiguration client_1_config;
-  webrtc::PeerConnectionInterface::IceServer ice_server_1;
+  PeerConnectionInterface::IceServer ice_server_1;
   ice_server_1.urls.push_back("turn:88.88.88.0:3478");
   ice_server_1.username = "test";
   ice_server_1.password = "test";
   client_1_config.servers.push_back(ice_server_1);
-  client_1_config.type = webrtc::PeerConnectionInterface::kRelay;
+  client_1_config.type = PeerConnectionInterface::kRelay;
   client_1_config.presume_writable_when_fully_relayed = true;
 
   PeerConnectionInterface::RTCConfiguration client_2_config;
-  webrtc::PeerConnectionInterface::IceServer ice_server_2;
+  PeerConnectionInterface::IceServer ice_server_2;
   ice_server_2.urls.push_back("turn:99.99.99.0:3478");
   ice_server_2.username = "test";
   ice_server_2.password = "test";
   client_2_config.servers.push_back(ice_server_2);
-  client_2_config.type = webrtc::PeerConnectionInterface::kRelay;
+  client_2_config.type = PeerConnectionInterface::kRelay;
   client_2_config.presume_writable_when_fully_relayed = true;
 
   ASSERT_TRUE(
@@ -2407,8 +2565,10 @@ TEST_P(PeerConnectionIntegrationTestWithFakeClock,
   options.offer_to_receive_video = 1;
   caller()->SetOfferAnswerOptions(options);
   caller()->CreateAndSetAndSignalOffer();
-  EXPECT_TRUE_SIMULATED_WAIT(DtlsConnected(), total_connection_time_ms,
-                             FakeClock());
+  EXPECT_THAT(WaitUntil([&] { return DtlsConnected(); }, ::testing::IsTrue(),
+                        {.timeout = TimeDelta::Millis(total_connection_time_ms),
+                         .clock = &FakeClock()}),
+              IsRtcOk());
   // Closing the PeerConnections destroys the ports before the ScopedFakeClock.
   // If this is not done a DCHECK can be hit in ports.cc, because a large
   // negative number is calculated for the rtt due to the global clock changing.
@@ -2422,22 +2582,20 @@ TEST_P(PeerConnectionIntegrationTestWithFakeClock,
   caller()->AddAudioTrack();
 
   // Call getStats, assert there are no candidates.
-  rtc::scoped_refptr<const webrtc::RTCStatsReport> first_report =
-      caller()->NewGetStats();
+  scoped_refptr<const RTCStatsReport> first_report = caller()->NewGetStats();
   ASSERT_TRUE(first_report);
   auto first_candidate_stats =
-      first_report->GetStatsOfType<webrtc::RTCLocalIceCandidateStats>();
+      first_report->GetStatsOfType<RTCLocalIceCandidateStats>();
   ASSERT_EQ(first_candidate_stats.size(), 0u);
 
   // Create an offer at the caller and set it as remote description on the
   // callee.
   caller()->CreateAndSetAndSignalOffer();
   // Call getStats again, assert there are candidates now.
-  rtc::scoped_refptr<const webrtc::RTCStatsReport> second_report =
-      caller()->NewGetStats();
+  scoped_refptr<const RTCStatsReport> second_report = caller()->NewGetStats();
   ASSERT_TRUE(second_report);
   auto second_candidate_stats =
-      second_report->GetStatsOfType<webrtc::RTCLocalIceCandidateStats>();
+      second_report->GetStatsOfType<RTCLocalIceCandidateStats>();
   ASSERT_NE(second_candidate_stats.size(), 0u);
 
   // The fake clock ensures that no time has passed so the cache must have been
@@ -2454,34 +2612,35 @@ TEST_P(PeerConnectionIntegrationTestWithFakeClock,
   // Start candidate gathering and wait for it to complete. Candidates are not
   // signalled.
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_SIMULATED_WAIT(caller()->IceGatheringStateComplete(),
-                             kDefaultTimeout, FakeClock());
+  ASSERT_THAT(WaitUntil([&] { return caller()->IceGatheringStateComplete(); },
+                        ::testing::IsTrue(), {.clock = &FakeClock()}),
+              IsRtcOk());
 
   // Call getStats, assert there are no candidates.
-  rtc::scoped_refptr<const webrtc::RTCStatsReport> first_report =
-      caller()->NewGetStats();
+  scoped_refptr<const RTCStatsReport> first_report = caller()->NewGetStats();
   ASSERT_TRUE(first_report);
   auto first_candidate_stats =
-      first_report->GetStatsOfType<webrtc::RTCRemoteIceCandidateStats>();
+      first_report->GetStatsOfType<RTCRemoteIceCandidateStats>();
   ASSERT_EQ(first_candidate_stats.size(), 0u);
 
   // Add a "fake" candidate.
-  absl::optional<RTCError> result;
+  std::optional<RTCError> result;
   caller()->pc()->AddIceCandidate(
-      absl::WrapUnique(webrtc::CreateIceCandidate(
+      absl::WrapUnique(CreateIceCandidate(
           "", 0,
           "candidate:2214029314 1 udp 2122260223 127.0.0.1 49152 typ host",
           nullptr)),
       [&result](RTCError r) { result = r; });
-  ASSERT_TRUE_WAIT(result.has_value(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return result.has_value(); }, ::testing::IsTrue()),
+      IsRtcOk());
   ASSERT_TRUE(result.value().ok());
 
   // Call getStats again, assert there is a remote candidate now.
-  rtc::scoped_refptr<const webrtc::RTCStatsReport> second_report =
-      caller()->NewGetStats();
+  scoped_refptr<const RTCStatsReport> second_report = caller()->NewGetStats();
   ASSERT_TRUE(second_report);
   auto second_candidate_stats =
-      second_report->GetStatsOfType<webrtc::RTCRemoteIceCandidateStats>();
+      second_report->GetStatsOfType<RTCRemoteIceCandidateStats>();
   ASSERT_EQ(second_candidate_stats.size(), 1u);
 
   // The fake clock ensures that no time has passed so the cache must have been
@@ -2495,36 +2654,32 @@ TEST_P(PeerConnectionIntegrationTestWithFakeClock,
 // is actually used by the underlying TURN candidate pair.
 // Note that turnport_unittest.cc contains more detailed, lower-level tests.
 TEST_P(PeerConnectionIntegrationTest, TurnCustomizerUsedForTurnConnections) {
-  static const rtc::SocketAddress turn_server_1_internal_address{"88.88.88.0",
-                                                                 3478};
-  static const rtc::SocketAddress turn_server_1_external_address{"88.88.88.1",
-                                                                 0};
-  static const rtc::SocketAddress turn_server_2_internal_address{"99.99.99.0",
-                                                                 3478};
-  static const rtc::SocketAddress turn_server_2_external_address{"99.99.99.1",
-                                                                 0};
+  static const SocketAddress turn_server_1_internal_address{"88.88.88.0", 3478};
+  static const SocketAddress turn_server_1_external_address{"88.88.88.1", 0};
+  static const SocketAddress turn_server_2_internal_address{"99.99.99.0", 3478};
+  static const SocketAddress turn_server_2_external_address{"99.99.99.1", 0};
   CreateTurnServer(turn_server_1_internal_address,
                    turn_server_1_external_address);
   CreateTurnServer(turn_server_2_internal_address,
                    turn_server_2_external_address);
 
   PeerConnectionInterface::RTCConfiguration client_1_config;
-  webrtc::PeerConnectionInterface::IceServer ice_server_1;
+  PeerConnectionInterface::IceServer ice_server_1;
   ice_server_1.urls.push_back("turn:88.88.88.0:3478");
   ice_server_1.username = "test";
   ice_server_1.password = "test";
   client_1_config.servers.push_back(ice_server_1);
-  client_1_config.type = webrtc::PeerConnectionInterface::kRelay;
+  client_1_config.type = PeerConnectionInterface::kRelay;
   auto* customizer1 = CreateTurnCustomizer();
   client_1_config.turn_customizer = customizer1;
 
   PeerConnectionInterface::RTCConfiguration client_2_config;
-  webrtc::PeerConnectionInterface::IceServer ice_server_2;
+  PeerConnectionInterface::IceServer ice_server_2;
   ice_server_2.urls.push_back("turn:99.99.99.0:3478");
   ice_server_2.username = "test";
   ice_server_2.password = "test";
   client_2_config.servers.push_back(ice_server_2);
-  client_2_config.type = webrtc::PeerConnectionInterface::kRelay;
+  client_2_config.type = PeerConnectionInterface::kRelay;
   auto* customizer2 = CreateTurnCustomizer();
   client_2_config.turn_customizer = customizer2;
 
@@ -2539,7 +2694,8 @@ TEST_P(PeerConnectionIntegrationTest, TurnCustomizerUsedForTurnConnections) {
   options.offer_to_receive_video = 1;
   caller()->SetOfferAnswerOptions(options);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(DtlsConnected(), kDefaultTimeout);
+  ASSERT_THAT(WaitUntil([&] { return DtlsConnected(); }, ::testing::IsTrue()),
+              IsRtcOk());
 
   ExpectTurnCustomizerCountersIncremented(customizer1);
   ExpectTurnCustomizerCountersIncremented(customizer2);
@@ -2548,26 +2704,25 @@ TEST_P(PeerConnectionIntegrationTest, TurnCustomizerUsedForTurnConnections) {
 // Verifies that you can use TCP instead of UDP to connect to a TURN server and
 // send media between the caller and the callee.
 TEST_P(PeerConnectionIntegrationTest, TCPUsedForTurnConnections) {
-  static const rtc::SocketAddress turn_server_internal_address{"88.88.88.0",
-                                                               3478};
-  static const rtc::SocketAddress turn_server_external_address{"88.88.88.1", 0};
+  static const SocketAddress turn_server_internal_address{"88.88.88.0", 3478};
+  static const SocketAddress turn_server_external_address{"88.88.88.1", 0};
 
   // Enable TCP for the fake turn server.
   CreateTurnServer(turn_server_internal_address, turn_server_external_address,
-                   cricket::PROTO_TCP);
+                   PROTO_TCP);
 
-  webrtc::PeerConnectionInterface::IceServer ice_server;
+  PeerConnectionInterface::IceServer ice_server;
   ice_server.urls.push_back("turn:88.88.88.0:3478?transport=tcp");
   ice_server.username = "test";
   ice_server.password = "test";
 
   PeerConnectionInterface::RTCConfiguration client_1_config;
   client_1_config.servers.push_back(ice_server);
-  client_1_config.type = webrtc::PeerConnectionInterface::kRelay;
+  client_1_config.type = PeerConnectionInterface::kRelay;
 
   PeerConnectionInterface::RTCConfiguration client_2_config;
   client_2_config.servers.push_back(ice_server);
-  client_2_config.type = webrtc::PeerConnectionInterface::kRelay;
+  client_2_config.type = PeerConnectionInterface::kRelay;
 
   ASSERT_TRUE(
       CreatePeerConnectionWrappersWithConfig(client_1_config, client_2_config));
@@ -2577,9 +2732,14 @@ TEST_P(PeerConnectionIntegrationTest, TCPUsedForTurnConnections) {
   caller()->AddAudioVideoTracks();
   callee()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
-  EXPECT_EQ_WAIT(webrtc::PeerConnectionInterface::kIceConnectionConnected,
-                 callee()->ice_connection_state(), kMaxWaitForFramesMs);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return callee()->ice_connection_state(); },
+                ::testing::Eq(PeerConnectionInterface::kIceConnectionConnected),
+                {.timeout = kMaxWaitForFrames}),
+      IsRtcOk());
 
   MediaExpectations media_expectations;
   media_expectations.ExpectBidirectionalAudioAndVideo();
@@ -2593,45 +2753,44 @@ TEST_P(PeerConnectionIntegrationTest, TCPUsedForTurnConnections) {
 // contains more detailed, lower-level tests.
 TEST_P(PeerConnectionIntegrationTest,
        SSLCertificateVerifierUsedForTurnConnections) {
-  static const rtc::SocketAddress turn_server_internal_address{"88.88.88.0",
-                                                               3478};
-  static const rtc::SocketAddress turn_server_external_address{"88.88.88.1", 0};
+  static const SocketAddress turn_server_internal_address{"88.88.88.0", 3478};
+  static const SocketAddress turn_server_external_address{"88.88.88.1", 0};
 
   // Enable TCP-TLS for the fake turn server. We need to pass in 88.88.88.0 so
   // that host name verification passes on the fake certificate.
   CreateTurnServer(turn_server_internal_address, turn_server_external_address,
-                   cricket::PROTO_TLS, "88.88.88.0");
+                   PROTO_TLS, "88.88.88.0");
 
-  webrtc::PeerConnectionInterface::IceServer ice_server;
+  PeerConnectionInterface::IceServer ice_server;
   ice_server.urls.push_back("turns:88.88.88.0:3478?transport=tcp");
   ice_server.username = "test";
   ice_server.password = "test";
 
   PeerConnectionInterface::RTCConfiguration client_1_config;
   client_1_config.servers.push_back(ice_server);
-  client_1_config.type = webrtc::PeerConnectionInterface::kRelay;
+  client_1_config.type = PeerConnectionInterface::kRelay;
 
   PeerConnectionInterface::RTCConfiguration client_2_config;
   client_2_config.servers.push_back(ice_server);
   // Setting the type to kRelay forces the connection to go through a TURN
   // server.
-  client_2_config.type = webrtc::PeerConnectionInterface::kRelay;
+  client_2_config.type = PeerConnectionInterface::kRelay;
 
   // Get a copy to the pointer so we can verify calls later.
-  rtc::TestCertificateVerifier* client_1_cert_verifier =
-      new rtc::TestCertificateVerifier();
+  TestCertificateVerifier* client_1_cert_verifier =
+      new TestCertificateVerifier();
   client_1_cert_verifier->verify_certificate_ = true;
-  rtc::TestCertificateVerifier* client_2_cert_verifier =
-      new rtc::TestCertificateVerifier();
+  TestCertificateVerifier* client_2_cert_verifier =
+      new TestCertificateVerifier();
   client_2_cert_verifier->verify_certificate_ = true;
 
   // Create the dependencies with the test certificate verifier.
-  webrtc::PeerConnectionDependencies client_1_deps(nullptr);
+  PeerConnectionDependencies client_1_deps(nullptr);
   client_1_deps.tls_cert_verifier =
-      std::unique_ptr<rtc::TestCertificateVerifier>(client_1_cert_verifier);
-  webrtc::PeerConnectionDependencies client_2_deps(nullptr);
+      std::unique_ptr<TestCertificateVerifier>(client_1_cert_verifier);
+  PeerConnectionDependencies client_2_deps(nullptr);
   client_2_deps.tls_cert_verifier =
-      std::unique_ptr<rtc::TestCertificateVerifier>(client_2_cert_verifier);
+      std::unique_ptr<TestCertificateVerifier>(client_2_cert_verifier);
 
   ASSERT_TRUE(CreatePeerConnectionWrappersWithConfigAndDeps(
       client_1_config, std::move(client_1_deps), client_2_config,
@@ -2645,7 +2804,8 @@ TEST_P(PeerConnectionIntegrationTest,
   options.offer_to_receive_video = 1;
   caller()->SetOfferAnswerOptions(options);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(DtlsConnected(), kDefaultTimeout);
+  ASSERT_THAT(WaitUntil([&] { return DtlsConnected(); }, ::testing::IsTrue()),
+              IsRtcOk());
 
   EXPECT_GT(client_1_cert_verifier->call_count_, 0u);
   EXPECT_GT(client_2_cert_verifier->call_count_, 0u);
@@ -2665,7 +2825,7 @@ TEST_P(PeerConnectionIntegrationTest, IceTransportFactoryUsedForConnections) {
                                              /*reset_decoder_factory=*/false);
   ASSERT_TRUE(wrapper);
   wrapper->CreateDataChannel();
-  auto observer = rtc::make_ref_counted<MockSetSessionDescriptionObserver>();
+  auto observer = make_ref_counted<MockSetSessionDescriptionObserver>();
   wrapper->pc()->SetLocalDescription(observer.get(),
                                      wrapper->CreateOfferAndWait().release());
 }
@@ -2686,36 +2846,39 @@ TEST_P(PeerConnectionIntegrationTest, CodecNamesAreCaseInsensitive) {
 
   // Remove all but one audio/video codec (opus and VP8), and change the
   // casing of the caller's generated offer.
-  caller()->SetGeneratedSdpMunger([](cricket::SessionDescription* description) {
-    cricket::AudioContentDescription* audio =
-        GetFirstAudioContentDescription(description);
-    ASSERT_NE(nullptr, audio);
-    auto audio_codecs = audio->codecs();
-    audio_codecs.erase(std::remove_if(audio_codecs.begin(), audio_codecs.end(),
-                                      [](const cricket::AudioCodec& codec) {
-                                        return codec.name != "opus";
-                                      }),
-                       audio_codecs.end());
-    ASSERT_EQ(1u, audio_codecs.size());
-    audio_codecs[0].name = "OpUs";
-    audio->set_codecs(audio_codecs);
+  caller()->SetGeneratedSdpMunger(
+      [](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+        AudioContentDescription* audio =
+            GetFirstAudioContentDescription(sdp->description());
+        ASSERT_NE(nullptr, audio);
+        auto audio_codecs = audio->codecs();
+        audio_codecs.erase(
+            std::remove_if(
+                audio_codecs.begin(), audio_codecs.end(),
+                [](const Codec& codec) { return codec.name != "opus"; }),
+            audio_codecs.end());
+        ASSERT_EQ(1u, audio_codecs.size());
+        audio_codecs[0].name = "OpUs";
+        audio->set_codecs(audio_codecs);
 
-    cricket::VideoContentDescription* video =
-        GetFirstVideoContentDescription(description);
-    ASSERT_NE(nullptr, video);
-    auto video_codecs = video->codecs();
-    video_codecs.erase(std::remove_if(video_codecs.begin(), video_codecs.end(),
-                                      [](const cricket::VideoCodec& codec) {
-                                        return codec.name != "VP8";
-                                      }),
-                       video_codecs.end());
-    ASSERT_EQ(1u, video_codecs.size());
-    video_codecs[0].name = "vP8";
-    video->set_codecs(video_codecs);
-  });
+        VideoContentDescription* video =
+            GetFirstVideoContentDescription(sdp->description());
+        ASSERT_NE(nullptr, video);
+        auto video_codecs = video->codecs();
+        video_codecs.erase(
+            std::remove_if(
+                video_codecs.begin(), video_codecs.end(),
+                [](const Codec& codec) { return codec.name != "VP8"; }),
+            video_codecs.end());
+        ASSERT_EQ(1u, video_codecs.size());
+        video_codecs[0].name = "vP8";
+        video->set_codecs(video_codecs);
+      });
 
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   // Verify frames are still received end-to-end.
   MediaExpectations media_expectations;
@@ -2728,19 +2891,21 @@ TEST_P(PeerConnectionIntegrationTest, GetSourcesAudio) {
   ConnectFakeSignaling();
   caller()->AddAudioTrack();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   // Wait for one audio frame to be received by the callee.
   MediaExpectations media_expectations;
   media_expectations.CalleeExpectsSomeAudio(1);
   ASSERT_TRUE(ExpectNewFrames(media_expectations));
   ASSERT_EQ(callee()->pc()->GetReceivers().size(), 1u);
   auto receiver = callee()->pc()->GetReceivers()[0];
-  ASSERT_EQ(receiver->media_type(), cricket::MEDIA_TYPE_AUDIO);
+  ASSERT_EQ(receiver->media_type(), MediaType::AUDIO);
   auto sources = receiver->GetSources();
   ASSERT_GT(receiver->GetParameters().encodings.size(), 0u);
   EXPECT_EQ(receiver->GetParameters().encodings[0].ssrc,
             sources[0].source_id());
-  EXPECT_EQ(webrtc::RtpSourceType::SSRC, sources[0].source_type());
+  EXPECT_EQ(RtpSourceType::SSRC, sources[0].source_type());
 }
 
 TEST_P(PeerConnectionIntegrationTest, GetSourcesVideo) {
@@ -2748,20 +2913,23 @@ TEST_P(PeerConnectionIntegrationTest, GetSourcesVideo) {
   ConnectFakeSignaling();
   caller()->AddVideoTrack();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
-  // Wait for one video frame to be received by the callee.
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+  // Wait for two video frames to be received by the callee.
+  // TODO: https://issues.webrtc.org/42220900 - wait for only one frame again
   MediaExpectations media_expectations;
-  media_expectations.CalleeExpectsSomeVideo(1);
+  media_expectations.CalleeExpectsSomeVideo(2);
   ASSERT_TRUE(ExpectNewFrames(media_expectations));
   ASSERT_EQ(callee()->pc()->GetReceivers().size(), 1u);
   auto receiver = callee()->pc()->GetReceivers()[0];
-  ASSERT_EQ(receiver->media_type(), cricket::MEDIA_TYPE_VIDEO);
+  ASSERT_EQ(receiver->media_type(), MediaType::VIDEO);
   auto sources = receiver->GetSources();
   ASSERT_GT(receiver->GetParameters().encodings.size(), 0u);
   ASSERT_GT(sources.size(), 0u);
   EXPECT_EQ(receiver->GetParameters().encodings[0].ssrc,
             sources[0].source_id());
-  EXPECT_EQ(webrtc::RtpSourceType::SSRC, sources[0].source_type());
+  EXPECT_EQ(RtpSourceType::SSRC, sources[0].source_type());
 }
 
 TEST_P(PeerConnectionIntegrationTest, UnsignaledSsrcGetSourcesAudio) {
@@ -2770,17 +2938,23 @@ TEST_P(PeerConnectionIntegrationTest, UnsignaledSsrcGetSourcesAudio) {
   caller()->AddAudioTrack();
   callee()->SetReceivedSdpMunger(RemoveSsrcsAndMsids);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   ASSERT_EQ(callee()->pc()->GetReceivers().size(), 1u);
   auto receiver = callee()->pc()->GetReceivers()[0];
   std::vector<RtpSource> sources;
-  EXPECT_TRUE_WAIT(([&receiver, &sources]() {
-                     sources = receiver->GetSources();
-                     return !sources.empty();
-                   })(),
-                   kDefaultTimeout);
+  EXPECT_THAT(WaitUntil(
+                  [&] {
+                    return ([&receiver, &sources]() {
+                      sources = receiver->GetSources();
+                      return !sources.empty();
+                    })();
+                  },
+                  ::testing::IsTrue()),
+              IsRtcOk());
   ASSERT_GT(sources.size(), 0u);
-  EXPECT_EQ(webrtc::RtpSourceType::SSRC, sources[0].source_type());
+  EXPECT_EQ(RtpSourceType::SSRC, sources[0].source_type());
 }
 
 TEST_P(PeerConnectionIntegrationTest, UnsignaledSsrcGetSourcesVideo) {
@@ -2789,17 +2963,23 @@ TEST_P(PeerConnectionIntegrationTest, UnsignaledSsrcGetSourcesVideo) {
   caller()->AddVideoTrack();
   callee()->SetReceivedSdpMunger(RemoveSsrcsAndMsids);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   ASSERT_EQ(callee()->pc()->GetReceivers().size(), 1u);
   auto receiver = callee()->pc()->GetReceivers()[0];
   std::vector<RtpSource> sources;
-  EXPECT_TRUE_WAIT(([&receiver, &sources]() {
-                     sources = receiver->GetSources();
-                     return !sources.empty();
-                   })(),
-                   kDefaultTimeout);
+  EXPECT_THAT(WaitUntil(
+                  [&] {
+                    return ([&receiver, &sources]() {
+                      sources = receiver->GetSources();
+                      return !sources.empty();
+                    })();
+                  },
+                  ::testing::IsTrue()),
+              IsRtcOk());
   ASSERT_GT(sources.size(), 0u);
-  EXPECT_EQ(webrtc::RtpSourceType::SSRC, sources[0].source_type());
+  EXPECT_EQ(RtpSourceType::SSRC, sources[0].source_type());
 }
 
 // Similar to the above test, except instead of waiting until GetSources() is
@@ -2814,7 +2994,9 @@ TEST_P(PeerConnectionIntegrationTest,
   caller()->AddVideoTrack();
   callee()->SetReceivedSdpMunger(RemoveSsrcsAndMsids);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   // Wait for one video frame to be received by the callee.
   MediaExpectations media_expectations;
   media_expectations.CalleeExpectsSomeVideo(1);
@@ -2824,7 +3006,7 @@ TEST_P(PeerConnectionIntegrationTest,
   std::vector<RtpSource> sources = receiver->GetSources();
   // SSRC history must not be cleared since the reception of the first frame.
   ASSERT_GT(sources.size(), 0u);
-  EXPECT_EQ(webrtc::RtpSourceType::SSRC, sources[0].source_type());
+  EXPECT_EQ(RtpSourceType::SSRC, sources[0].source_type());
 }
 
 TEST_P(PeerConnectionIntegrationTest, UnsignaledSsrcGetParametersAudio) {
@@ -2833,16 +3015,22 @@ TEST_P(PeerConnectionIntegrationTest, UnsignaledSsrcGetParametersAudio) {
   caller()->AddAudioTrack();
   callee()->SetReceivedSdpMunger(RemoveSsrcsAndMsids);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   ASSERT_EQ(callee()->pc()->GetReceivers().size(), 1u);
   auto receiver = callee()->pc()->GetReceivers()[0];
   RtpParameters parameters;
-  EXPECT_TRUE_WAIT(([&receiver, &parameters]() {
-                     parameters = receiver->GetParameters();
-                     return !parameters.encodings.empty() &&
-                            parameters.encodings[0].ssrc.has_value();
-                   })(),
-                   kDefaultTimeout);
+  EXPECT_THAT(WaitUntil(
+                  [&] {
+                    return ([&receiver, &parameters]() {
+                      parameters = receiver->GetParameters();
+                      return !parameters.encodings.empty() &&
+                             parameters.encodings[0].ssrc.has_value();
+                    })();
+                  },
+                  ::testing::IsTrue()),
+              IsRtcOk());
   ASSERT_EQ(parameters.encodings.size(), 1u);
   EXPECT_TRUE(parameters.encodings[0].ssrc.has_value());
 }
@@ -2853,16 +3041,22 @@ TEST_P(PeerConnectionIntegrationTest, UnsignaledSsrcGetParametersVideo) {
   caller()->AddVideoTrack();
   callee()->SetReceivedSdpMunger(RemoveSsrcsAndMsids);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   ASSERT_EQ(callee()->pc()->GetReceivers().size(), 1u);
   auto receiver = callee()->pc()->GetReceivers()[0];
   RtpParameters parameters;
-  EXPECT_TRUE_WAIT(([&receiver, &parameters]() {
-                     parameters = receiver->GetParameters();
-                     return !parameters.encodings.empty() &&
-                            parameters.encodings[0].ssrc.has_value();
-                   })(),
-                   kDefaultTimeout);
+  EXPECT_THAT(WaitUntil(
+                  [&] {
+                    return ([&receiver, &parameters]() {
+                      parameters = receiver->GetParameters();
+                      return !parameters.encodings.empty() &&
+                             parameters.encodings[0].ssrc.has_value();
+                    })();
+                  },
+                  ::testing::IsTrue()),
+              IsRtcOk());
   ASSERT_EQ(parameters.encodings.size(), 1u);
   EXPECT_TRUE(parameters.encodings[0].ssrc.has_value());
 }
@@ -2887,12 +3081,13 @@ TEST_F(PeerConnectionIntegrationTestPlanB, RemoveAndAddTrackWithNewStreamId) {
   ConnectFakeSignaling();
 
   // Add track using stream 1, do offer/answer.
-  rtc::scoped_refptr<webrtc::AudioTrackInterface> track =
-      caller()->CreateLocalAudioTrack();
-  rtc::scoped_refptr<webrtc::RtpSenderInterface> sender =
+  scoped_refptr<AudioTrackInterface> track = caller()->CreateLocalAudioTrack();
+  scoped_refptr<RtpSenderInterface> sender =
       caller()->AddTrack(track, {"stream_1"});
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   {
     MediaExpectations media_expectations;
     media_expectations.CalleeExpectsSomeAudio(1);
@@ -2902,7 +3097,9 @@ TEST_F(PeerConnectionIntegrationTestPlanB, RemoveAndAddTrackWithNewStreamId) {
   caller()->pc()->RemoveTrackOrError(sender);
   sender = caller()->AddTrack(track, {"stream_2"});
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   // Wait for additional audio frames to be received by the callee.
   {
     MediaExpectations media_expectations;
@@ -2915,18 +3112,76 @@ TEST_P(PeerConnectionIntegrationTest, RtcEventLogOutputWriteCalled) {
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignaling();
 
-  auto output = std::make_unique<testing::NiceMock<MockRtcEventLogOutput>>();
-  ON_CALL(*output, IsActive()).WillByDefault(::testing::Return(true));
-  ON_CALL(*output, Write(::testing::A<absl::string_view>()))
-      .WillByDefault(::testing::Return(true));
-  EXPECT_CALL(*output, Write(::testing::A<absl::string_view>()))
-      .Times(::testing::AtLeast(1));
-  EXPECT_TRUE(caller()->pc()->StartRtcEventLog(
-      std::move(output), webrtc::RtcEventLog::kImmediateOutput));
+  auto output = std::make_unique<NiceMock<MockRtcEventLogOutput>>();
+  ON_CALL(*output, IsActive).WillByDefault(Return(true));
+  ON_CALL(*output, Write).WillByDefault(Return(true));
+  EXPECT_CALL(*output, Write).Times(AtLeast(1));
+  EXPECT_TRUE(caller()->pc()->StartRtcEventLog(std::move(output),
+                                               RtcEventLog::kImmediateOutput));
 
   caller()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+}
+
+TEST_P(PeerConnectionIntegrationTest, RtcEventLogOutputWriteCalledOnStop) {
+  // This test uses check point to ensure log is written before peer connection
+  // is destroyed.
+  // https://google.github.io/googletest/gmock_cook_book.html#UsingCheckPoints
+  MockFunction<void()> test_is_complete;
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+
+  auto output = std::make_unique<NiceMock<MockRtcEventLogOutput>>();
+  ON_CALL(*output, IsActive).WillByDefault(Return(true));
+  ON_CALL(*output, Write).WillByDefault(Return(true));
+  InSequence s;
+  EXPECT_CALL(*output, Write).Times(AtLeast(1));
+  EXPECT_CALL(test_is_complete, Call);
+
+  // Use large output period to prevent this test pass for the wrong reason.
+  EXPECT_TRUE(caller()->pc()->StartRtcEventLog(std::move(output),
+                                               /*output_period_ms=*/100'000));
+
+  caller()->AddAudioVideoTracks();
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+
+  caller()->pc()->StopRtcEventLog();
+  test_is_complete.Call();
+}
+
+TEST_P(PeerConnectionIntegrationTest, RtcEventLogOutputWriteCalledOnClose) {
+  // This test uses check point to ensure log is written before peer connection
+  // is destroyed.
+  // https://google.github.io/googletest/gmock_cook_book.html#UsingCheckPoints
+  MockFunction<void()> test_is_complete;
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+
+  auto output = std::make_unique<NiceMock<MockRtcEventLogOutput>>();
+  ON_CALL(*output, IsActive).WillByDefault(Return(true));
+  ON_CALL(*output, Write).WillByDefault(Return(true));
+  InSequence s;
+  EXPECT_CALL(*output, Write).Times(AtLeast(1));
+  EXPECT_CALL(test_is_complete, Call);
+
+  // Use large output period to prevent this test pass for the wrong reason.
+  EXPECT_TRUE(caller()->pc()->StartRtcEventLog(std::move(output),
+                                               /*output_period_ms=*/100'000));
+
+  caller()->AddAudioVideoTracks();
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+
+  caller()->pc()->Close();
+  test_is_complete.Call();
 }
 
 // Test that if candidates are only signaled by applying full session
@@ -2944,15 +3199,21 @@ TEST_P(PeerConnectionIntegrationTest, MediaFlowsWhenCandidatesSetOnlyInSdp) {
   caller()->CreateAndSetAndSignalOffer();
 
   // Wait for all candidates to be gathered on both the caller and callee.
-  ASSERT_EQ_WAIT(PeerConnectionInterface::kIceGatheringComplete,
-                 caller()->ice_gathering_state(), kDefaultTimeout);
-  ASSERT_EQ_WAIT(PeerConnectionInterface::kIceGatheringComplete,
-                 callee()->ice_gathering_state(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return caller()->ice_gathering_state(); },
+                ::testing::Eq(PeerConnectionInterface::kIceGatheringComplete)),
+      IsRtcOk());
+  ASSERT_THAT(
+      WaitUntil([&] { return callee()->ice_gathering_state(); },
+                ::testing::Eq(PeerConnectionInterface::kIceGatheringComplete)),
+      IsRtcOk());
 
   // The candidates will now be included in the session description, so
   // signaling them will start the ICE connection.
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   // Ensure that media flows in both directions.
   MediaExpectations media_expectations;
@@ -2976,7 +3237,9 @@ TEST_P(PeerConnectionIntegrationTest, DisableAndEnableAudioPlayout) {
   caller()->AddAudioTrack();
   callee()->AddAudioTrack();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   // Pump messages for a second.
   WAIT(false, 1000);
@@ -2996,11 +3259,10 @@ TEST_P(PeerConnectionIntegrationTest, DisableAndEnableAudioPlayout) {
 
 double GetAudioEnergyStat(PeerConnectionIntegrationWrapper* pc) {
   auto report = pc->NewGetStats();
-  auto inbound_rtps =
-      report->GetStatsOfType<webrtc::RTCInboundRtpStreamStats>();
+  auto inbound_rtps = report->GetStatsOfType<RTCInboundRtpStreamStats>();
   RTC_CHECK(!inbound_rtps.empty());
   auto* inbound_rtp = inbound_rtps[0];
-  if (!inbound_rtp->total_audio_energy.is_defined()) {
+  if (!inbound_rtp->total_audio_energy.has_value()) {
     return 0.0;
   }
   return *inbound_rtp->total_audio_energy;
@@ -3020,10 +3282,14 @@ TEST_P(PeerConnectionIntegrationTest,
   caller()->pc()->SetAudioPlayout(false);
 
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   // Wait for the callee to receive audio stats.
-  EXPECT_TRUE_WAIT(GetAudioEnergyStat(caller()) > 0, kMaxWaitForFramesMs);
+  EXPECT_THAT(WaitUntil([&] { return GetAudioEnergyStat(caller()); },
+                        ::testing::Gt(0), {.timeout = kMaxWaitForFrames}),
+              IsRtcOk());
 }
 
 #endif  // !defined(THREAD_SANITIZER)
@@ -3041,7 +3307,9 @@ TEST_P(PeerConnectionIntegrationTest, DisableAndEnableAudioRecording) {
   caller()->AddAudioTrack();
   callee()->AddAudioTrack();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   // Pump messages for a second.
   WAIT(false, 1000);
@@ -3067,23 +3335,24 @@ TEST_P(PeerConnectionIntegrationTest,
   options.offer_to_receive_audio = 1;
   caller()->SetOfferAnswerOptions(options);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(DtlsConnected(), kDefaultTimeout);
+  ASSERT_THAT(WaitUntil([&] { return DtlsConnected(); }, ::testing::IsTrue()),
+              IsRtcOk());
   ASSERT_NE(nullptr, caller()->event_log_factory());
   ASSERT_NE(nullptr, callee()->event_log_factory());
-  webrtc::FakeRtcEventLog* caller_event_log =
+  FakeRtcEventLog* caller_event_log =
       caller()->event_log_factory()->last_log_created();
-  webrtc::FakeRtcEventLog* callee_event_log =
+  FakeRtcEventLog* callee_event_log =
       callee()->event_log_factory()->last_log_created();
   ASSERT_NE(nullptr, caller_event_log);
   ASSERT_NE(nullptr, callee_event_log);
-  int caller_ice_config_count = caller_event_log->GetEventCount(
-      webrtc::RtcEvent::Type::IceCandidatePairConfig);
-  int caller_ice_event_count = caller_event_log->GetEventCount(
-      webrtc::RtcEvent::Type::IceCandidatePairEvent);
-  int callee_ice_config_count = callee_event_log->GetEventCount(
-      webrtc::RtcEvent::Type::IceCandidatePairConfig);
-  int callee_ice_event_count = callee_event_log->GetEventCount(
-      webrtc::RtcEvent::Type::IceCandidatePairEvent);
+  int caller_ice_config_count =
+      caller_event_log->GetEventCount(RtcEvent::Type::IceCandidatePairConfig);
+  int caller_ice_event_count =
+      caller_event_log->GetEventCount(RtcEvent::Type::IceCandidatePairEvent);
+  int callee_ice_config_count =
+      callee_event_log->GetEventCount(RtcEvent::Type::IceCandidatePairConfig);
+  int callee_ice_event_count =
+      callee_event_log->GetEventCount(RtcEvent::Type::IceCandidatePairEvent);
   EXPECT_LT(0, caller_ice_config_count);
   EXPECT_LT(0, caller_ice_event_count);
   EXPECT_LT(0, callee_ice_config_count);
@@ -3091,26 +3360,25 @@ TEST_P(PeerConnectionIntegrationTest,
 }
 
 TEST_P(PeerConnectionIntegrationTest, RegatherAfterChangingIceTransportType) {
-  static const rtc::SocketAddress turn_server_internal_address{"88.88.88.0",
-                                                               3478};
-  static const rtc::SocketAddress turn_server_external_address{"88.88.88.1", 0};
+  static const SocketAddress turn_server_internal_address{"88.88.88.0", 3478};
+  static const SocketAddress turn_server_external_address{"88.88.88.1", 0};
 
   CreateTurnServer(turn_server_internal_address, turn_server_external_address);
 
-  webrtc::PeerConnectionInterface::IceServer ice_server;
+  PeerConnectionInterface::IceServer ice_server;
   ice_server.urls.push_back("turn:88.88.88.0:3478");
   ice_server.username = "test";
   ice_server.password = "test";
 
   PeerConnectionInterface::RTCConfiguration caller_config;
   caller_config.servers.push_back(ice_server);
-  caller_config.type = webrtc::PeerConnectionInterface::kRelay;
+  caller_config.type = PeerConnectionInterface::kRelay;
   caller_config.continual_gathering_policy = PeerConnection::GATHER_CONTINUALLY;
   caller_config.surface_ice_candidates_on_ice_transport_type_changed = true;
 
   PeerConnectionInterface::RTCConfiguration callee_config;
   callee_config.servers.push_back(ice_server);
-  callee_config.type = webrtc::PeerConnectionInterface::kRelay;
+  callee_config.type = PeerConnectionInterface::kRelay;
   callee_config.continual_gathering_policy = PeerConnection::GATHER_CONTINUALLY;
   callee_config.surface_ice_candidates_on_ice_transport_type_changed = true;
 
@@ -3122,38 +3390,46 @@ TEST_P(PeerConnectionIntegrationTest, RegatherAfterChangingIceTransportType) {
   caller()->AddAudioVideoTracks();
   callee()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   // Since we are doing continual gathering, the ICE transport does not reach
   // kIceGatheringComplete (see
   // P2PTransportChannel::OnCandidatesAllocationDone), and consequently not
   // kIceConnectionComplete.
-  EXPECT_EQ_WAIT(webrtc::PeerConnectionInterface::kIceConnectionConnected,
-                 caller()->ice_connection_state(), kDefaultTimeout);
-  EXPECT_EQ_WAIT(webrtc::PeerConnectionInterface::kIceConnectionConnected,
-                 callee()->ice_connection_state(), kDefaultTimeout);
+  EXPECT_THAT(WaitUntil([&] { return caller()->ice_connection_state(); },
+                        ::testing::Eq(
+                            PeerConnectionInterface::kIceConnectionConnected)),
+              IsRtcOk());
+  EXPECT_THAT(WaitUntil([&] { return callee()->ice_connection_state(); },
+                        ::testing::Eq(
+                            PeerConnectionInterface::kIceConnectionConnected)),
+              IsRtcOk());
   // Note that we cannot use the metric
   // `WebRTC.PeerConnection.CandidatePairType_UDP` in this test since this
   // metric is only populated when we reach kIceConnectionComplete in the
   // current implementation.
-  EXPECT_EQ(cricket::RELAY_PORT_TYPE,
-            caller()->last_candidate_gathered().type());
-  EXPECT_EQ(cricket::RELAY_PORT_TYPE,
-            callee()->last_candidate_gathered().type());
+  EXPECT_TRUE(caller()->last_candidate_gathered().is_relay());
+  EXPECT_TRUE(callee()->last_candidate_gathered().is_relay());
 
   // Loosen the caller's candidate filter.
   caller_config = caller()->pc()->GetConfiguration();
-  caller_config.type = webrtc::PeerConnectionInterface::kAll;
+  caller_config.type = PeerConnectionInterface::kAll;
   caller()->pc()->SetConfiguration(caller_config);
   // We should have gathered a new host candidate.
-  EXPECT_EQ_WAIT(cricket::LOCAL_PORT_TYPE,
-                 caller()->last_candidate_gathered().type(), kDefaultTimeout);
+  EXPECT_THAT(
+      WaitUntil([&] { return caller()->last_candidate_gathered().is_local(); },
+                ::testing::IsTrue()),
+      IsRtcOk());
 
   // Loosen the callee's candidate filter.
   callee_config = callee()->pc()->GetConfiguration();
-  callee_config.type = webrtc::PeerConnectionInterface::kAll;
+  callee_config.type = PeerConnectionInterface::kAll;
   callee()->pc()->SetConfiguration(callee_config);
-  EXPECT_EQ_WAIT(cricket::LOCAL_PORT_TYPE,
-                 callee()->last_candidate_gathered().type(), kDefaultTimeout);
+  EXPECT_THAT(
+      WaitUntil([&] { return callee()->last_candidate_gathered().is_local(); },
+                ::testing::IsTrue()),
+      IsRtcOk());
 
   // Create an offer and verify that it does not contain an ICE restart (i.e new
   // ice credentials).
@@ -3174,25 +3450,24 @@ TEST_P(PeerConnectionIntegrationTest, RegatherAfterChangingIceTransportType) {
 }
 
 TEST_P(PeerConnectionIntegrationTest, OnIceCandidateError) {
-  static const rtc::SocketAddress turn_server_internal_address{"88.88.88.0",
-                                                               3478};
-  static const rtc::SocketAddress turn_server_external_address{"88.88.88.1", 0};
+  static const SocketAddress turn_server_internal_address{"88.88.88.0", 3478};
+  static const SocketAddress turn_server_external_address{"88.88.88.1", 0};
 
   CreateTurnServer(turn_server_internal_address, turn_server_external_address);
 
-  webrtc::PeerConnectionInterface::IceServer ice_server;
+  PeerConnectionInterface::IceServer ice_server;
   ice_server.urls.push_back("turn:88.88.88.0:3478");
   ice_server.username = "test";
   ice_server.password = "123";
 
   PeerConnectionInterface::RTCConfiguration caller_config;
   caller_config.servers.push_back(ice_server);
-  caller_config.type = webrtc::PeerConnectionInterface::kRelay;
+  caller_config.type = PeerConnectionInterface::kRelay;
   caller_config.continual_gathering_policy = PeerConnection::GATHER_CONTINUALLY;
 
   PeerConnectionInterface::RTCConfiguration callee_config;
   callee_config.servers.push_back(ice_server);
-  callee_config.type = webrtc::PeerConnectionInterface::kRelay;
+  callee_config.type = PeerConnectionInterface::kRelay;
   callee_config.continual_gathering_policy = PeerConnection::GATHER_CONTINUALLY;
 
   ASSERT_TRUE(
@@ -3203,27 +3478,31 @@ TEST_P(PeerConnectionIntegrationTest, OnIceCandidateError) {
   caller()->AddAudioVideoTracks();
   callee()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
-  EXPECT_EQ_WAIT(401, caller()->error_event().error_code, kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+  EXPECT_THAT(WaitUntil([&] { return caller()->error_event().error_code; },
+                        ::testing::Eq(401)),
+              IsRtcOk());
   EXPECT_EQ("Unauthorized", caller()->error_event().error_text);
   EXPECT_EQ("turn:88.88.88.0:3478?transport=udp", caller()->error_event().url);
   EXPECT_NE(caller()->error_event().address, "");
 }
 
 TEST_P(PeerConnectionIntegrationTest, OnIceCandidateErrorWithEmptyAddress) {
-  webrtc::PeerConnectionInterface::IceServer ice_server;
+  PeerConnectionInterface::IceServer ice_server;
   ice_server.urls.push_back("turn:127.0.0.1:3478?transport=tcp");
   ice_server.username = "test";
   ice_server.password = "test";
 
   PeerConnectionInterface::RTCConfiguration caller_config;
   caller_config.servers.push_back(ice_server);
-  caller_config.type = webrtc::PeerConnectionInterface::kRelay;
+  caller_config.type = PeerConnectionInterface::kRelay;
   caller_config.continual_gathering_policy = PeerConnection::GATHER_CONTINUALLY;
 
   PeerConnectionInterface::RTCConfiguration callee_config;
   callee_config.servers.push_back(ice_server);
-  callee_config.type = webrtc::PeerConnectionInterface::kRelay;
+  callee_config.type = PeerConnectionInterface::kRelay;
   callee_config.continual_gathering_policy = PeerConnection::GATHER_CONTINUALLY;
 
   ASSERT_TRUE(
@@ -3234,8 +3513,12 @@ TEST_P(PeerConnectionIntegrationTest, OnIceCandidateErrorWithEmptyAddress) {
   caller()->AddAudioVideoTracks();
   callee()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
-  EXPECT_EQ_WAIT(701, caller()->error_event().error_code, kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+  EXPECT_THAT(WaitUntil([&] { return caller()->error_event().error_code; },
+                        ::testing::Eq(701)),
+              IsRtcOk());
   EXPECT_EQ(caller()->error_event().address, "");
 }
 
@@ -3251,19 +3534,25 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   caller()->AddAudioTrack();
   callee()->AddAudioTrack();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   MediaExpectations media_expectations;
   media_expectations.ExpectBidirectionalAudio();
   ASSERT_TRUE(ExpectNewFrames(media_expectations));
   SetSignalIceCandidates(false);  // Workaround candidate outrace sdp.
   caller()->AddVideoTrack();
   callee()->AddVideoTrack();
-  auto observer = rtc::make_ref_counted<MockSetSessionDescriptionObserver>();
+  auto observer = make_ref_counted<MockSetSessionDescriptionObserver>();
   callee()->pc()->SetLocalDescription(observer.get(),
                                       callee()->CreateOfferAndWait().release());
-  EXPECT_TRUE_WAIT(observer->called(), kDefaultTimeout);
+  EXPECT_THAT(
+      WaitUntil([&] { return observer->called(); }, ::testing::IsTrue()),
+      IsRtcOk());
   caller()->CreateAndSetAndSignalOffer();  // Implicit rollback.
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   ASSERT_TRUE(ExpectNewFrames(media_expectations));
 }
 
@@ -3275,18 +3564,20 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
 
   ASSERT_TRUE(CreatePeerConnectionWrappersWithConfig(config, config));
 
-  auto sld_observer =
-      rtc::make_ref_counted<MockSetSessionDescriptionObserver>();
+  auto sld_observer = make_ref_counted<MockSetSessionDescriptionObserver>();
   callee()->pc()->SetLocalDescription(sld_observer.get(),
                                       callee()->CreateOfferAndWait().release());
-  EXPECT_TRUE_WAIT(sld_observer->called(), kDefaultTimeout);
+  EXPECT_THAT(
+      WaitUntil([&] { return sld_observer->called(); }, ::testing::IsTrue()),
+      IsRtcOk());
   EXPECT_EQ(sld_observer->error(), "");
 
-  auto srd_observer =
-      rtc::make_ref_counted<MockSetSessionDescriptionObserver>();
+  auto srd_observer = make_ref_counted<MockSetSessionDescriptionObserver>();
   callee()->pc()->SetRemoteDescription(
       srd_observer.get(), caller()->CreateOfferAndWait().release());
-  EXPECT_TRUE_WAIT(srd_observer->called(), kDefaultTimeout);
+  EXPECT_THAT(
+      WaitUntil([&] { return srd_observer->called(); }, ::testing::IsTrue()),
+      IsRtcOk());
   EXPECT_EQ(srd_observer->error(), "");
 
   EXPECT_THAT(callee()->peer_connection_signaling_state_history(),
@@ -3301,17 +3592,16 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   ConnectFakeSignaling();
   caller()->AddVideoTrack();
   callee()->AddVideoTrack();
-  auto munger = [](cricket::SessionDescription* desc) {
-    cricket::VideoContentDescription* video =
-        GetFirstVideoContentDescription(desc);
+  auto munger = [](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+    VideoContentDescription* video =
+        GetFirstVideoContentDescription(sdp->description());
     auto codecs = video->codecs();
     for (auto&& codec : codecs) {
       if (codec.name == "H264") {
         std::string value;
         // The parameter is not supposed to be present in SDP by default.
-        EXPECT_FALSE(
-            codec.GetParam(cricket::kH264FmtpSpsPpsIdrInKeyframe, &value));
-        codec.SetParam(std::string(cricket::kH264FmtpSpsPpsIdrInKeyframe),
+        EXPECT_FALSE(codec.GetParam(kH264FmtpSpsPpsIdrInKeyframe, &value));
+        codec.SetParam(std::string(kH264FmtpSpsPpsIdrInKeyframe),
                        std::string(""));
       }
     }
@@ -3322,19 +3612,21 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   // Munge remote answer for SRD.
   caller()->SetReceivedSdpMunger(munger);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   // Observe that after munging the parameter is present in generated SDP.
-  caller()->SetGeneratedSdpMunger([](cricket::SessionDescription* desc) {
-    cricket::VideoContentDescription* video =
-        GetFirstVideoContentDescription(desc);
-    for (auto&& codec : video->codecs()) {
-      if (codec.name == "H264") {
-        std::string value;
-        EXPECT_TRUE(
-            codec.GetParam(cricket::kH264FmtpSpsPpsIdrInKeyframe, &value));
-      }
-    }
-  });
+  caller()->SetGeneratedSdpMunger(
+      [](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+        VideoContentDescription* video =
+            GetFirstVideoContentDescription(sdp->description());
+        for (auto&& codec : video->codecs()) {
+          if (codec.name == "H264") {
+            std::string value;
+            EXPECT_TRUE(codec.GetParam(kH264FmtpSpsPpsIdrInKeyframe, &value));
+          }
+        }
+      });
   caller()->CreateOfferAndWait();
 }
 
@@ -3344,10 +3636,12 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   config.sdp_semantics = SdpSemantics::kUnifiedPlan;
   ASSERT_TRUE(CreatePeerConnectionWrappersWithConfig(config, config));
   ConnectFakeSignaling();
-  caller()->pc()->AddTransceiver(cricket::MEDIA_TYPE_AUDIO);
+  caller()->pc()->AddTransceiver(MediaType::AUDIO);
 
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   int current_size = caller()->pc()->GetTransceivers().size();
   // Add more tracks until we get close to having issues.
   // Issues have been seen at:
@@ -3356,15 +3650,17 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   while (current_size < 8) {
     // Double the number of tracks
     for (int i = 0; i < current_size; i++) {
-      caller()->pc()->AddTransceiver(cricket::MEDIA_TYPE_AUDIO);
+      caller()->pc()->AddTransceiver(MediaType::AUDIO);
     }
     current_size = caller()->pc()->GetTransceivers().size();
     RTC_LOG(LS_INFO) << "Renegotiating with " << current_size << " tracks";
-    auto start_time_ms = rtc::TimeMillis();
+    auto start_time_ms = TimeMillis();
     caller()->CreateAndSetAndSignalOffer();
     // We want to stop when the time exceeds one second.
-    ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
-    auto elapsed_time_ms = rtc::TimeMillis() - start_time_ms;
+    ASSERT_THAT(
+        WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+        IsRtcOk());
+    auto elapsed_time_ms = TimeMillis() - start_time_ms;
     RTC_LOG(LS_INFO) << "Renegotiating took " << elapsed_time_ms << " ms";
     ASSERT_GT(1000, elapsed_time_ms)
         << "Audio transceivers: Negotiation took too long after "
@@ -3378,10 +3674,12 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   config.sdp_semantics = SdpSemantics::kUnifiedPlan;
   ASSERT_TRUE(CreatePeerConnectionWrappersWithConfig(config, config));
   ConnectFakeSignaling();
-  caller()->pc()->AddTransceiver(cricket::MEDIA_TYPE_VIDEO);
+  caller()->pc()->AddTransceiver(MediaType::VIDEO);
 
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   int current_size = caller()->pc()->GetTransceivers().size();
   // Add more tracks until we get close to having issues.
   // Issues have been seen at:
@@ -3392,15 +3690,17 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   while (current_size < 8) {
     // Double the number of tracks
     for (int i = 0; i < current_size; i++) {
-      caller()->pc()->AddTransceiver(cricket::MEDIA_TYPE_VIDEO);
+      caller()->pc()->AddTransceiver(MediaType::VIDEO);
     }
     current_size = caller()->pc()->GetTransceivers().size();
     RTC_LOG(LS_INFO) << "Renegotiating with " << current_size << " tracks";
-    auto start_time_ms = rtc::TimeMillis();
+    auto start_time_ms = TimeMillis();
     caller()->CreateAndSetAndSignalOffer();
     // We want to stop when the time exceeds one second.
-    ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
-    auto elapsed_time_ms = rtc::TimeMillis() - start_time_ms;
+    ASSERT_THAT(
+        WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+        IsRtcOk());
+    auto elapsed_time_ms = TimeMillis() - start_time_ms;
     RTC_LOG(LS_INFO) << "Renegotiating took " << elapsed_time_ms << " ms";
     ASSERT_GT(1000, elapsed_time_ms)
         << "Video transceivers: Negotiation took too long after "
@@ -3417,7 +3717,9 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   caller()->AddAudioTrack();
   callee()->AddAudioTrack();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   // Wait until we can see the audio flowing.
   MediaExpectations media_expectations;
   media_expectations.CalleeExpectsSomeAudio();
@@ -3434,15 +3736,17 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   while (current_size < 16) {
     // Double the number of tracks
     for (int i = 0; i < current_size; i++) {
-      caller()->pc()->AddTransceiver(cricket::MEDIA_TYPE_VIDEO);
+      caller()->pc()->AddTransceiver(MediaType::VIDEO);
     }
     current_size = caller()->pc()->GetTransceivers().size();
     RTC_LOG(LS_INFO) << "Renegotiating with " << current_size << " tracks";
-    auto start_time_ms = rtc::TimeMillis();
+    auto start_time_ms = TimeMillis();
     caller()->CreateAndSetAndSignalOffer();
     // We want to stop when the time exceeds one second.
-    ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
-    auto elapsed_time_ms = rtc::TimeMillis() - start_time_ms;
+    ASSERT_THAT(
+        WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+        IsRtcOk());
+    auto elapsed_time_ms = TimeMillis() - start_time_ms;
     RTC_LOG(LS_INFO) << "Renegotiating took " << elapsed_time_ms << " ms";
     // This is a guard against the test using excessive amounts of time.
     ASSERT_GT(5000, elapsed_time_ms)
@@ -3456,7 +3760,7 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
 TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
        GetParametersHasEncodingsBeforeNegotiation) {
   ASSERT_TRUE(CreatePeerConnectionWrappers());
-  auto result = caller()->pc()->AddTransceiver(cricket::MEDIA_TYPE_VIDEO);
+  auto result = caller()->pc()->AddTransceiver(MediaType::VIDEO);
   auto transceiver = result.MoveValue();
   auto parameters = transceiver->sender()->GetParameters();
   EXPECT_EQ(parameters.encodings.size(), 1u);
@@ -3468,7 +3772,7 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   RtpTransceiverInit init;
   init.send_encodings.push_back({});
   init.send_encodings[0].max_bitrate_bps = 12345;
-  auto result = caller()->pc()->AddTransceiver(cricket::MEDIA_TYPE_VIDEO, init);
+  auto result = caller()->pc()->AddTransceiver(MediaType::VIDEO, init);
   auto transceiver = result.MoveValue();
   auto parameters = transceiver->sender()->GetParameters();
   ASSERT_EQ(parameters.encodings.size(), 1u);
@@ -3514,7 +3818,9 @@ TEST_P(PeerConnectionIntegrationInteropTest, NoMediaLocalToNoMediaRemote) {
   ConnectFakeSignaling();
 
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 }
 
 TEST_P(PeerConnectionIntegrationInteropTest, OneAudioLocalToNoMediaRemote) {
@@ -3523,13 +3829,15 @@ TEST_P(PeerConnectionIntegrationInteropTest, OneAudioLocalToNoMediaRemote) {
   auto audio_sender = caller()->AddAudioTrack();
 
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   // Verify that one audio receiver has been created on the remote and that it
   // has the same track ID as the sending track.
   auto receivers = callee()->pc()->GetReceivers();
   ASSERT_EQ(1u, receivers.size());
-  EXPECT_EQ(cricket::MEDIA_TYPE_AUDIO, receivers[0]->media_type());
+  EXPECT_EQ(MediaType::AUDIO, receivers[0]->media_type());
   EXPECT_EQ(receivers[0]->track()->id(), audio_sender->track()->id());
 
   MediaExpectations media_expectations;
@@ -3544,16 +3852,16 @@ TEST_P(PeerConnectionIntegrationInteropTest, OneAudioOneVideoToNoMediaRemote) {
   auto audio_sender = caller()->AddAudioTrack();
 
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   // Verify that one audio and one video receiver have been created on the
   // remote and that they have the same track IDs as the sending tracks.
-  auto audio_receivers =
-      callee()->GetReceiversOfType(cricket::MEDIA_TYPE_AUDIO);
+  auto audio_receivers = callee()->GetReceiversOfType(MediaType::AUDIO);
   ASSERT_EQ(1u, audio_receivers.size());
   EXPECT_EQ(audio_receivers[0]->track()->id(), audio_sender->track()->id());
-  auto video_receivers =
-      callee()->GetReceiversOfType(cricket::MEDIA_TYPE_VIDEO);
+  auto video_receivers = callee()->GetReceiversOfType(MediaType::VIDEO);
   ASSERT_EQ(1u, video_receivers.size());
   EXPECT_EQ(video_receivers[0]->track()->id(), video_sender->track()->id());
 
@@ -3570,7 +3878,9 @@ TEST_P(PeerConnectionIntegrationInteropTest,
   callee()->AddAudioVideoTracks();
 
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   MediaExpectations media_expectations;
   media_expectations.ExpectBidirectionalAudioAndVideo();
@@ -3585,15 +3895,19 @@ TEST_P(PeerConnectionIntegrationInteropTest,
   callee()->AddVideoTrack();
 
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   // Verify that only the audio track has been negotiated.
-  EXPECT_EQ(0u, caller()->GetReceiversOfType(cricket::MEDIA_TYPE_VIDEO).size());
+  EXPECT_EQ(0u, caller()->GetReceiversOfType(MediaType::VIDEO).size());
   // Might also check that the callee's NegotiationNeeded flag is set.
 
   // Reverse roles.
   callee()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   MediaExpectations media_expectations;
   media_expectations.CallerExpectsSomeVideo();
@@ -3606,13 +3920,18 @@ TEST_P(PeerConnectionIntegrationTest, NewTracksDoNotCauseNewCandidates) {
   ConnectFakeSignaling();
   caller()->AddAudioVideoTracks();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
-  ASSERT_TRUE_WAIT(DtlsConnected(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+  ASSERT_THAT(WaitUntil([&] { return DtlsConnected(); }, ::testing::IsTrue()),
+              IsRtcOk());
   caller()->ExpectCandidates(0);
   callee()->ExpectCandidates(0);
   caller()->AddAudioTrack();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 }
 
 TEST_P(PeerConnectionIntegrationTest, MediaCallWithoutMediaEngineFails) {
@@ -3640,7 +3959,9 @@ TEST_F(PeerConnectionIntegrationTestPlanB, TwoVideoUnifiedPlanToNoMediaPlanB) {
   caller()->AddVideoTrack();
 
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   // Verify that there is only one receiver and it corresponds to the first
   // added track.
@@ -3671,7 +3992,9 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   auto audio_transceiver = audio_transceiver_or_error.MoveValue();
 
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   {
     MediaExpectations media_expectations;
     media_expectations.CalleeExpectsSomeAudio();
@@ -3682,7 +4005,9 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   caller()->pc()->AddTransceiver(caller()->CreateLocalVideoTrack());
 
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   {
     MediaExpectations media_expectations;
     media_expectations.CalleeExpectsSomeVideo();
@@ -3701,11 +4026,15 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   auto audio_transceiver = audio_transceiver_or_error.MoveValue();
 
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
 
   audio_transceiver->StopStandard();
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   ASSERT_EQ(0U, caller()->pc()->GetTransceivers().size());
   EXPECT_EQ(PeerConnectionInterface::kIceGatheringNew,
             caller()->pc()->ice_gathering_state());
@@ -3726,12 +4055,16 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   auto caller_transceiver = audio_transceiver_or_error.MoveValue();
 
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   caller_transceiver->StopStandard();
 
   auto callee_transceiver = callee()->pc()->GetTransceivers()[0];
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   EXPECT_EQ(0U, caller()->pc()->GetTransceivers().size());
   EXPECT_EQ(0U, callee()->pc()->GetTransceivers().size());
   EXPECT_EQ(0U, caller()->pc()->GetSenders().size());
@@ -3753,14 +4086,18 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   auto audio_transceiver = audio_transceiver_or_error.MoveValue();
 
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   auto caller_track = audio_transceiver->receiver()->track();
   auto callee_track = callee()->pc()->GetReceivers()[0]->track();
   audio_transceiver->StopStandard();
   EXPECT_EQ(MediaStreamTrackInterface::TrackState::kEnded,
             caller_track->state());
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   EXPECT_EQ(MediaStreamTrackInterface::TrackState::kEnded,
             callee_track->state());
 }
@@ -3776,14 +4113,18 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   auto audio_transceiver = audio_transceiver_or_error.MoveValue();
 
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   auto caller_track = audio_transceiver->receiver()->track();
   auto callee_track = callee()->pc()->GetReceivers()[0]->track();
   audio_transceiver->StopStandard();
   EXPECT_EQ(MediaStreamTrackInterface::TrackState::kEnded,
             caller_track->state());
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   EXPECT_EQ(MediaStreamTrackInterface::TrackState::kEnded,
             callee_track->state());
 }
@@ -3793,14 +4134,16 @@ TEST_P(PeerConnectionIntegrationTest, EndToEndRtpSenderVideoEncoderSelector) {
       CreateOneDirectionalPeerConnectionWrappers(/*caller_to_callee=*/true));
   ConnectFakeSignaling();
   // Add one-directional video, from caller to callee.
-  rtc::scoped_refptr<webrtc::VideoTrackInterface> caller_track =
+  scoped_refptr<VideoTrackInterface> caller_track =
       caller()->CreateLocalVideoTrack();
   auto sender = caller()->AddTrack(caller_track);
   PeerConnectionInterface::RTCOfferAnswerOptions options;
   options.offer_to_receive_video = 0;
   caller()->SetOfferAnswerOptions(options);
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE_WAIT(SignalingStateStable(), kDefaultTimeout);
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
   ASSERT_EQ(callee()->pc()->GetReceivers().size(), 1u);
 
   std::unique_ptr<MockEncoderSelector> encoder_selector =
@@ -3817,27 +4160,72 @@ TEST_P(PeerConnectionIntegrationTest, EndToEndRtpSenderVideoEncoderSelector) {
   EXPECT_TRUE(ExpectNewFrames(media_expectations));
 }
 
+TEST_P(PeerConnectionIntegrationTest,
+       EndToEndRtpSenderVideoEncoderSelectorSwitchCodec) {
+  ASSERT_TRUE(
+      CreateOneDirectionalPeerConnectionWrappers(/*caller_to_callee=*/true));
+  ConnectFakeSignaling();
+  // Add one-directional video, from caller to callee.
+  scoped_refptr<VideoTrackInterface> caller_track =
+      caller()->CreateLocalVideoTrack();
+  auto sender = caller()->AddTrack(caller_track);
+  PeerConnectionInterface::RTCOfferAnswerOptions options;
+  options.offer_to_receive_video = 0;
+  caller()->SetOfferAnswerOptions(options);
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+  ASSERT_EQ(callee()->pc()->GetReceivers().size(), 1u);
+
+  std::unique_ptr<MockEncoderSelector> encoder_selector =
+      std::make_unique<MockEncoderSelector>();
+  std::optional<SdpVideoFormat> next_format;
+  EXPECT_CALL(*encoder_selector, OnCurrentEncoder)
+      .WillOnce(::testing::Invoke([&](const SdpVideoFormat& format) {
+        EXPECT_EQ(format.name, "VP8");
+        next_format = SdpVideoFormat::VP9Profile0();
+      }))
+      .WillOnce(::testing::Invoke([&](const SdpVideoFormat& format) {
+        EXPECT_EQ(format.name, "VP9");
+      }));
+  EXPECT_CALL(*encoder_selector, OnAvailableBitrate)
+      .WillRepeatedly(
+          ::testing::Invoke([&](const DataRate& rate) { return next_format; }));
+
+  sender->SetEncoderSelector(std::move(encoder_selector));
+
+  // Expect video to be received in one direction.
+  MediaExpectations media_expectations;
+  media_expectations.CallerExpectsNoVideo();
+  media_expectations.CalleeExpectsSomeVideo();
+
+  EXPECT_TRUE(ExpectNewFrames(media_expectations));
+
+  caller()->pc()->Close();
+}
+
 int NacksReceivedCount(PeerConnectionIntegrationWrapper& pc) {
-  rtc::scoped_refptr<const webrtc::RTCStatsReport> report = pc.NewGetStats();
+  scoped_refptr<const RTCStatsReport> report = pc.NewGetStats();
   auto sender_stats = report->GetStatsOfType<RTCOutboundRtpStreamStats>();
   if (sender_stats.size() != 1) {
     ADD_FAILURE();
     return 0;
   }
-  if (!sender_stats[0]->nack_count.is_defined()) {
+  if (!sender_stats[0]->nack_count.has_value()) {
     return 0;
   }
   return *sender_stats[0]->nack_count;
 }
 
 int NacksSentCount(PeerConnectionIntegrationWrapper& pc) {
-  rtc::scoped_refptr<const webrtc::RTCStatsReport> report = pc.NewGetStats();
+  scoped_refptr<const RTCStatsReport> report = pc.NewGetStats();
   auto receiver_stats = report->GetStatsOfType<RTCInboundRtpStreamStats>();
   if (receiver_stats.size() != 1) {
     ADD_FAILURE();
     return 0;
   }
-  if (!receiver_stats[0]->nack_count.is_defined()) {
+  if (!receiver_stats[0]->nack_count.has_value()) {
     return 0;
   }
   return *receiver_stats[0]->nack_count;
@@ -3855,25 +4243,25 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   auto send_transceiver = audio_transceiver_or_error.MoveValue();
   // Munge the SDP to include NACK and RRTR on Opus, and remove all other
   // codecs.
-  caller()->SetGeneratedSdpMunger([](cricket::SessionDescription* desc) {
-    for (ContentInfo& content : desc->contents()) {
-      cricket::AudioContentDescription* media =
-          content.media_description()->as_audio();
-      std::vector<cricket::AudioCodec> codecs = media->codecs();
-      std::vector<cricket::AudioCodec> codecs_out;
-      for (cricket::AudioCodec codec : codecs) {
-        if (codec.name == "opus") {
-          codec.AddFeedbackParam(cricket::FeedbackParam(
-              cricket::kRtcpFbParamNack, cricket::kParamValueEmpty));
-          codec.AddFeedbackParam(cricket::FeedbackParam(
-              cricket::kRtcpFbParamRrtr, cricket::kParamValueEmpty));
-          codecs_out.push_back(codec);
+  caller()->SetGeneratedSdpMunger(
+      [](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+        for (ContentInfo& content : sdp->description()->contents()) {
+          MediaContentDescription* media = content.media_description();
+          std::vector<Codec> codecs = media->codecs();
+          std::vector<Codec> codecs_out;
+          for (Codec codec : codecs) {
+            if (codec.name == "opus") {
+              codec.AddFeedbackParam(
+                  FeedbackParam(kRtcpFbParamNack, kParamValueEmpty));
+              codec.AddFeedbackParam(
+                  FeedbackParam(kRtcpFbParamRrtr, kParamValueEmpty));
+              codecs_out.push_back(codec);
+            }
+          }
+          EXPECT_FALSE(codecs_out.empty());
+          media->set_codecs(codecs_out);
         }
-      }
-      EXPECT_FALSE(codecs_out.empty());
-      media->set_codecs(codecs_out);
-    }
-  });
+      });
 
   caller()->CreateAndSetAndSignalOffer();
   // Check for failure in helpers
@@ -3888,12 +4276,16 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   // Wait until callee has sent at least one NACK.
   // Note that due to stats caching, this might only be visible 50 ms
   // after the nack was in fact sent.
-  EXPECT_TRUE_WAIT(NacksSentCount(*callee()) > 0, kDefaultTimeout);
+  EXPECT_THAT(
+      WaitUntil([&] { return NacksSentCount(*callee()); }, ::testing::Gt(0)),
+      IsRtcOk());
   ASSERT_FALSE(HasFailure());
 
   virtual_socket_server()->set_drop_probability(0.0);
   // Wait until caller has received at least one NACK
-  EXPECT_TRUE_WAIT(NacksReceivedCount(*caller()) > 0, kDefaultTimeout);
+  EXPECT_THAT(WaitUntil([&] { return NacksReceivedCount(*caller()); },
+                        ::testing::Gt(0)),
+              IsRtcOk());
 }
 
 TEST_F(PeerConnectionIntegrationTestUnifiedPlan, VideoPacketLossCausesNack) {
@@ -3906,23 +4298,23 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan, VideoPacketLossCausesNack) {
   auto send_transceiver = video_transceiver_or_error.MoveValue();
   // Munge the SDP to include NACK and RRTR on VP8, and remove all other
   // codecs.
-  caller()->SetGeneratedSdpMunger([](cricket::SessionDescription* desc) {
-    for (ContentInfo& content : desc->contents()) {
-      cricket::VideoContentDescription* media =
-          content.media_description()->as_video();
-      std::vector<cricket::VideoCodec> codecs = media->codecs();
-      std::vector<cricket::VideoCodec> codecs_out;
-      for (cricket::VideoCodec codec : codecs) {
-        if (codec.name == "VP8") {
-          ASSERT_TRUE(codec.HasFeedbackParam(cricket::FeedbackParam(
-              cricket::kRtcpFbParamNack, cricket::kParamValueEmpty)));
-          codecs_out.push_back(codec);
+  caller()->SetGeneratedSdpMunger(
+      [](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+        for (ContentInfo& content : sdp->description()->contents()) {
+          MediaContentDescription* media = content.media_description();
+          std::vector<Codec> codecs = media->codecs();
+          std::vector<Codec> codecs_out;
+          for (const Codec& codec : codecs) {
+            if (codec.name == "VP8") {
+              ASSERT_TRUE(codec.HasFeedbackParam(
+                  FeedbackParam(kRtcpFbParamNack, kParamValueEmpty)));
+              codecs_out.push_back(codec);
+            }
+          }
+          EXPECT_FALSE(codecs_out.empty());
+          media->set_codecs(codecs_out);
         }
-      }
-      EXPECT_FALSE(codecs_out.empty());
-      media->set_codecs(codecs_out);
-    }
-  });
+      });
 
   caller()->CreateAndSetAndSignalOffer();
   // Check for failure in helpers
@@ -3937,12 +4329,765 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan, VideoPacketLossCausesNack) {
   // Wait until callee has sent at least one NACK.
   // Note that due to stats caching, this might only be visible 50 ms
   // after the nack was in fact sent.
-  EXPECT_TRUE_WAIT(NacksSentCount(*callee()) > 0, kDefaultTimeout);
+  EXPECT_THAT(
+      WaitUntil([&] { return NacksSentCount(*callee()); }, ::testing::Gt(0)),
+      IsRtcOk());
   ASSERT_FALSE(HasFailure());
 
   // Wait until caller has received at least one NACK
-  EXPECT_TRUE_WAIT(NacksReceivedCount(*caller()) > 0, kDefaultTimeout);
+  EXPECT_THAT(WaitUntil([&] { return NacksReceivedCount(*caller()); },
+                        ::testing::Gt(0)),
+              IsRtcOk());
 }
+
+TEST_F(PeerConnectionIntegrationTestUnifiedPlan, PrAnswerStateTransitions) {
+  RTCConfiguration config;
+  ASSERT_TRUE(CreatePeerConnectionWrappersWithConfig(config, config));
+  ConnectFakeSignaling();
+  caller()->pc()->AddTransceiver(caller()->CreateLocalAudioTrack());
+  caller()->pc()->AddTransceiver(caller()->CreateLocalVideoTrack());
+
+  callee()->SetGeneratedSdpMunger(
+      [](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+        SetSdpType(sdp, SdpType::kPrAnswer);
+      });
+  std::unique_ptr<SessionDescriptionInterface> answer;
+  caller()->SetReceivedSdpMunger(
+      [&](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+        answer = sdp->Clone();
+      });
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_FALSE(HasFailure());
+  EXPECT_EQ(caller()->pc()->signaling_state(),
+            PeerConnectionInterface::kHaveRemotePrAnswer);
+  EXPECT_EQ(callee()->pc()->signaling_state(),
+            PeerConnectionInterface::kHaveLocalPrAnswer);
+
+  // // Apply the pranswer as a definitive one.
+  SetSdpType(answer, SdpType::kAnswer);
+  EXPECT_TRUE(caller()->SetRemoteDescription(std::move(answer)));
+  EXPECT_EQ(caller()->pc()->signaling_state(),
+            PeerConnectionInterface::kStable);
+}
+
+// Let caller get a prAnswer followed by answer.
+TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
+       PrAnswerStateTransitionsAsymmetric) {
+  RTCConfiguration config;
+  ASSERT_TRUE(CreatePeerConnectionWrappersWithConfig(config, config));
+  ConnectFakeSignaling();
+  caller()->pc()->AddTransceiver(caller()->CreateLocalAudioTrack());
+  caller()->pc()->AddTransceiver(caller()->CreateLocalVideoTrack());
+
+  std::unique_ptr<SessionDescriptionInterface> answer;
+  caller()->SetReceivedSdpMunger(
+      [&](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+        answer = sdp->Clone();
+        SetSdpType(sdp, SdpType::kPrAnswer);
+      });
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_FALSE(HasFailure());
+  EXPECT_EQ(caller()->pc()->signaling_state(),
+            PeerConnectionInterface::kHaveRemotePrAnswer);
+  EXPECT_EQ(callee()->pc()->signaling_state(),
+            PeerConnectionInterface::kStable);
+
+  // // Apply the pranswer as a definitive one.
+  EXPECT_TRUE(caller()->SetRemoteDescription(std::move(answer)));
+  EXPECT_EQ(caller()->pc()->signaling_state(),
+            PeerConnectionInterface::kStable);
+}
+
+int ReassignPayloadIds(std::unique_ptr<SessionDescriptionInterface>& sdp) {
+  int swaps = 0;
+  for (ContentInfo& content : sdp->description()->contents()) {
+    if (!content.media_description()) {
+      continue;
+    }
+    std::vector<Codec> codecs = content.media_description()->codecs();
+    int left = 0;
+    int right = codecs.size() - 1;
+    while (left < right) {
+      if (!codecs[left].IsMediaCodec()) {
+        left++;
+        continue;
+      }
+      if (!codecs[right].IsMediaCodec()) {
+        right--;
+        continue;
+      }
+      auto tmp = codecs[left].id;
+      codecs[left].id = codecs[right].id;
+      codecs[right].id = tmp;
+      left++;
+      right--;
+      swaps++;
+    }
+    content.media_description()->set_codecs(codecs);
+  }
+  return swaps;
+}
+
+int SetNewSsrcs(std::unique_ptr<SessionDescriptionInterface>& sdp) {
+  int assignments = 0;
+  std::unordered_set<uint32_t> already_used_ssrcs;
+  for (ContentInfo& content : sdp->description()->contents()) {
+    if (!content.media_description()) {
+      continue;
+    }
+    for (const auto& stream : content.media_description()->streams()) {
+      for (const auto& ssrc : stream.ssrcs) {
+        already_used_ssrcs.insert(ssrc);
+      }
+    }
+  }
+
+  Random random(/* random_seed= */ 77);
+  auto ssrc_generator = [&]() -> uint32_t {
+    do {
+      auto ssrc = random.Rand(1u, 0xFFFFFFF0u);
+      if (already_used_ssrcs.find(ssrc) == already_used_ssrcs.end()) {
+        already_used_ssrcs.insert(ssrc);
+        return ssrc;
+      }
+    } while (true);
+  };
+
+  for (ContentInfo& content : sdp->description()->contents()) {
+    if (!content.media_description()) {
+      continue;
+    }
+    for (auto& stream : content.media_description()->mutable_streams()) {
+      // Only reassign primary ssrc for now...
+      // but we should maybe also reassign ssrcs for ssrc groups?.
+      if (stream.ssrcs.size() == 1) {
+        assignments++;
+        stream.ssrcs[0] = ssrc_generator();
+      }
+    }
+  }
+  return assignments;
+}
+
+void SetNewFingerprint(std::unique_ptr<SessionDescriptionInterface>& sdp) {
+  auto identity = SSLIdentity::Create("NewIdentity", KT_DEFAULT);
+  auto new_fingerprint = SSLFingerprint::CreateUnique("sha-256", *identity);
+  for (auto& transport_info : sdp->description()->transport_infos()) {
+    transport_info.description.identity_fingerprint =
+        absl::WrapUnique(new SSLFingerprint(*new_fingerprint));
+  }
+}
+
+TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
+       PrAnswerStateTransitionsAsymmetricScrambled) {
+  RTCConfiguration config;
+  ASSERT_TRUE(CreatePeerConnectionWrappersWithConfig(config, config));
+  ConnectFakeSignaling();
+  RtpEncodingParameters init_send_encodings;
+  init_send_encodings.active = false;
+  caller()->pc()->AddTrack(caller()->CreateLocalAudioTrack(), {"name"},
+                           {init_send_encodings});
+  caller()->pc()->AddTrack(caller()->CreateLocalVideoTrack(), {"name"},
+                           {init_send_encodings});
+  callee()->pc()->AddTrack(callee()->CreateLocalAudioTrack(), {"name"},
+                           {init_send_encodings});
+  callee()->pc()->AddTrack(callee()->CreateLocalVideoTrack(), {"name"},
+                           {init_send_encodings});
+
+  std::unique_ptr<SessionDescriptionInterface> answer;
+  caller()->SetReceivedSdpMunger(
+      [&](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+        answer = sdp->Clone();
+        SetSdpType(sdp, SdpType::kPrAnswer);
+      });
+  caller()->CreateAndSetAndSignalOffer();
+
+  ASSERT_FALSE(HasFailure());
+  ASSERT_EQ(caller()->pc()->signaling_state(),
+            PeerConnectionInterface::kHaveRemotePrAnswer);
+  ASSERT_EQ(callee()->pc()->signaling_state(),
+            PeerConnectionInterface::kStable);
+
+  // Now scramble the answer sdp so that it (really!) different from the first
+  // prAnswer.
+  // Note: this is maybe {possibly...probably?} a spec violation.
+  ASSERT_GT(SetNewSsrcs(answer), 0);
+  ASSERT_GT(ReassignPayloadIds(answer), 0);
+  SetNewFingerprint(answer);
+
+  // Apply the modified answer as a definitive one.
+  EXPECT_TRUE(caller()->SetRemoteDescription(std::move(answer)));
+  EXPECT_EQ(caller()->pc()->signaling_state(),
+            PeerConnectionInterface::kStable);
+}
+
+TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
+       OnlyOnePairWantsCorruptionScorePlumbing) {
+  // In order for corruption score to be logged, encryption of RTP header
+  // extensions must be allowed.
+  CryptoOptions crypto_options;
+  crypto_options.srtp.enable_encrypted_rtp_header_extensions = true;
+  PeerConnectionInterface::RTCConfiguration config;
+  config.crypto_options = crypto_options;
+  config.offer_extmap_allow_mixed = true;
+  ASSERT_TRUE(CreatePeerConnectionWrappersWithConfig(config, config));
+  ConnectFakeSignaling();
+
+  // Do normal offer/answer and wait for some frames to be received in each
+  // direction, and `corruption_score` to be aggregated.
+  caller()->AddAudioVideoTracks();
+  callee()->AddAudioVideoTracks();
+  // Negotiate the corruption detection header extension in SDP.
+  // If caller adds corruption detection header extension to its SDP offer, it
+  // will receive it from the callee.
+  caller()->NegotiateCorruptionDetectionHeader();
+
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+  ASSERT_THAT(WaitUntil([&] { return caller()->GetCorruptionScoreCount(); },
+                        ::testing::Gt(0), {.timeout = kMaxWaitForStats}),
+              IsRtcOk());
+  ASSERT_THAT(WaitUntil([&] { return callee()->GetCorruptionScoreCount(); },
+                        ::testing::Eq(0), {.timeout = kMaxWaitForStats}),
+              IsRtcOk());
+
+  for (const auto& pair : {caller(), callee()}) {
+    scoped_refptr<const RTCStatsReport> report = pair->NewGetStats();
+    ASSERT_TRUE(report);
+    auto inbound_stream_stats =
+        report->GetStatsOfType<RTCInboundRtpStreamStats>();
+    for (const auto& stat : inbound_stream_stats) {
+      if (*stat->kind == "video") {
+        if (pair == caller()) {
+          EXPECT_TRUE(stat->total_corruption_probability.has_value());
+          EXPECT_TRUE(stat->total_squared_corruption_probability.has_value());
+
+          double average_corruption_score =
+              (*stat->total_corruption_probability) /
+              static_cast<int32_t>(*stat->corruption_measurements);
+          EXPECT_GE(average_corruption_score, 0.0);
+          EXPECT_LE(average_corruption_score, 1.0);
+        }
+        if (pair == callee()) {
+          // Since only `caller` requests corruption score calculation the
+          // callee should not aggregate it.
+          EXPECT_FALSE(stat->total_corruption_probability.has_value());
+          EXPECT_FALSE(stat->total_squared_corruption_probability.has_value());
+        }
+      }
+    }
+  }
+}
+
+TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
+       BothPairsWantCorruptionScorePlumbing) {
+  // In order for corruption score to be logged, encryption of RTP header
+  // extensions must be allowed.
+  CryptoOptions crypto_options;
+  crypto_options.srtp.enable_encrypted_rtp_header_extensions = true;
+  PeerConnectionInterface::RTCConfiguration config;
+  config.crypto_options = crypto_options;
+  config.offer_extmap_allow_mixed = true;
+  ASSERT_TRUE(CreatePeerConnectionWrappersWithConfig(config, config));
+  ConnectFakeSignaling();
+
+  // Do normal offer/answer and wait for some frames to be received in each
+  // direction, and `corruption_score` to be aggregated.
+  caller()->AddAudioVideoTracks();
+  callee()->AddAudioVideoTracks();
+
+  // Negotiate the corruption detection header extension in SDP.
+  // If caller adds corruption detection header extension to its SDP offer, it
+  // will receive it from the callee.
+  caller()->NegotiateCorruptionDetectionHeader();
+  callee()->NegotiateCorruptionDetectionHeader();
+
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+  ASSERT_THAT(WaitUntil([&] { return caller()->GetCorruptionScoreCount(); },
+                        ::testing::Gt(0), {.timeout = kMaxWaitForStats}),
+              IsRtcOk());
+  ASSERT_THAT(WaitUntil([&] { return callee()->GetCorruptionScoreCount(); },
+                        ::testing::Gt(0), {.timeout = kMaxWaitForStats}),
+              IsRtcOk());
+
+  for (const auto& pair : {caller(), callee()}) {
+    scoped_refptr<const RTCStatsReport> report = pair->NewGetStats();
+    ASSERT_TRUE(report);
+    auto inbound_stream_stats =
+        report->GetStatsOfType<RTCInboundRtpStreamStats>();
+    for (const auto& stat : inbound_stream_stats) {
+      if (*stat->kind == "video") {
+        EXPECT_TRUE(stat->total_corruption_probability.has_value());
+        EXPECT_TRUE(stat->total_squared_corruption_probability.has_value());
+
+        double average_corruption_score =
+            (*stat->total_corruption_probability) /
+            static_cast<int32_t>(*stat->corruption_measurements);
+        EXPECT_GE(average_corruption_score, 0.0);
+        EXPECT_LE(average_corruption_score, 1.0);
+      }
+    }
+  }
+}
+
+TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
+       CorruptionScorePlumbingShouldNotWorkWhenEncryptionIsOff) {
+  // In order for corruption score to be logged, encryption of RTP header
+  // extensions must be allowed.
+  CryptoOptions crypto_options;
+  crypto_options.srtp.enable_encrypted_rtp_header_extensions = false;
+  PeerConnectionInterface::RTCConfiguration config;
+  config.crypto_options = crypto_options;
+  config.offer_extmap_allow_mixed = true;
+  ASSERT_TRUE(CreatePeerConnectionWrappersWithConfig(config, config));
+  ConnectFakeSignaling();
+
+  // Negotiate the corruption detection header extension in SDP.
+  // If caller adds corruption detection header extension to its SDP offer, it
+  // will receive it from the callee.
+  caller()->NegotiateCorruptionDetectionHeader();
+  callee()->NegotiateCorruptionDetectionHeader();
+
+  // Do normal offer/answer and wait for some frames to be received in each
+  // direction, and `corruption_score` to be aggregated.
+  caller()->AddAudioVideoTracks();
+  callee()->AddAudioVideoTracks();
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+  ASSERT_THAT(WaitUntil([&] { return caller()->GetCorruptionScoreCount(); },
+                        ::testing::Eq(0), {.timeout = kMaxWaitForStats}),
+              IsRtcOk());
+  ASSERT_THAT(WaitUntil([&] { return callee()->GetCorruptionScoreCount(); },
+                        ::testing::Eq(0), {.timeout = kMaxWaitForStats}),
+              IsRtcOk());
+
+  for (const auto& pair : {caller(), callee()}) {
+    scoped_refptr<const RTCStatsReport> report = pair->NewGetStats();
+    ASSERT_TRUE(report);
+    auto inbound_stream_stats =
+        report->GetStatsOfType<RTCInboundRtpStreamStats>();
+    for (const auto& stat : inbound_stream_stats) {
+      if (*stat->kind == "video") {
+        EXPECT_FALSE(stat->total_corruption_probability.has_value());
+        EXPECT_FALSE(stat->total_squared_corruption_probability.has_value());
+      }
+    }
+  }
+}
+
+TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
+       AbsCaptureTimestampShouldBeMeteredCorrectly) {
+  metrics::Reset();
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+  caller()->AddVideoTrack();
+  auto transceiver = caller()->pc()->GetTransceivers()[0];
+  auto extensions = transceiver->GetHeaderExtensionsToNegotiate();
+  bool found = false;
+  for (auto& extension : extensions) {
+    if (extension.uri == RtpExtension::kAbsoluteCaptureTimeUri) {
+      extension.direction = RtpTransceiverDirection::kSendRecv;
+      found = true;
+      break;
+    }
+  }
+  ASSERT_TRUE(found);
+  ASSERT_TRUE(transceiver->SetHeaderExtensionsToNegotiate(extensions).ok());
+
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+  const auto& negotiated_header_extensions = caller()
+                                                 ->pc()
+                                                 ->remote_description()
+                                                 ->description()
+                                                 ->contents()[0]
+                                                 .media_description()
+                                                 ->rtp_header_extensions();
+  ASSERT_TRUE(RtpExtension::FindHeaderExtensionByUri(
+      negotiated_header_extensions, RtpExtension::kAbsoluteCaptureTimeUri,
+      RtpExtension::kDiscardEncryptedExtension));
+  ASSERT_THAT(
+      WaitUntil(
+          [&] {
+            return metrics::NumSamples("WebRTC.Call.AbsCapture.ExtensionWait");
+          },
+          ::testing::Gt(0)),
+      IsRtcOk());
+  // Observed deltas are more than 100 msec. Use 1 minute as tolerance;
+  // this is a check against wrong timebase.
+  EXPECT_LT(metrics::MinSample("WebRTC.Call.AbsCapture.Delta"), 60'000'000);
+  ASSERT_THAT(
+      WaitUntil(
+          [&] {
+            return metrics::NumSamples("WebRTC.Call.AbsCapture.OffsetWait");
+          },
+          ::testing::Gt(0)),
+      IsRtcOk());
+  // On a point-to-point call, we expect the offset to be zero.
+  EXPECT_LT(metrics::MinSample("WebRTC.Call.AbsCapture.Offset"), 2);
+}
+
+// Test that when SDP is munged to use a PT for a different codec,
+// the old codec is added to a subsequent offer with a different PT
+// Regression test for https://issues.chromium.org/395077824
+TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
+       MungeOfferCodecAndReOfferWorks) {
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+  caller()->AddVideoTrack();
+  auto munger = [](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+    auto video = GetFirstVideoContentDescription(sdp->description());
+    auto codecs = video->codecs();
+    std::optional<Codec> replacement_codec;
+    for (auto&& codec : codecs) {
+      if (codec.name == "AV1") {
+        replacement_codec = codec;
+        break;
+      }
+    }
+    if (replacement_codec) {
+      for (auto&& codec : codecs) {
+        if (codec.name == "VP9") {
+          RTC_LOG(LS_INFO) << "Remapping VP9 codec " << codec << " to AV1";
+          codec.name = replacement_codec->name;
+          codec.params = replacement_codec->params;
+          break;
+        }
+      }
+      video->set_codecs(codecs);
+    } else {
+      RTC_LOG(LS_INFO) << "Skipping munge, no AV1 codec found";
+    }
+  };
+  caller()->SetGeneratedSdpMunger(munger);
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+  caller()->SetGeneratedSdpMunger(nullptr);
+  auto offer = caller()->CreateOfferAndWait();
+  ASSERT_NE(nullptr, offer);
+  // The offer should be acceptable.
+  EXPECT_TRUE(caller()->SetLocalDescriptionAndSendSdpMessage(std::move(offer)));
+}
+
+TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
+       MungeOfferCodecAndReOfferWorksWithSetCodecPreferencesIsAFootgun) {
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+  caller()->AddVideoTrack();
+  bool has_munged = false;
+  auto munger =
+      [&has_munged](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+        auto video = GetFirstVideoContentDescription(sdp->description());
+        auto codecs = video->codecs();
+        std::optional<Codec> replacement_codec;
+        for (auto&& codec : codecs) {
+          if (codec.name == "VP9") {
+            replacement_codec = codec;
+            break;
+          }
+        }
+        if (replacement_codec) {
+          for (auto&& codec : codecs) {
+            if (codec.name == "VP8") {
+              RTC_LOG(LS_INFO) << "Remapping VP8 codec " << codec << " to VP9";
+              codec.name = replacement_codec->name;
+              codec.params = replacement_codec->params;
+              has_munged = true;
+              break;
+            }
+          }
+          video->set_codecs(codecs);
+        } else {
+          RTC_LOG(LS_INFO) << "Skipping munge, no VP9 codec found ";
+        }
+      };
+  caller()->SetGeneratedSdpMunger(munger);
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(
+      WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
+      IsRtcOk());
+  caller()->SetGeneratedSdpMunger(nullptr);
+
+  if (!has_munged) {
+    GTEST_SKIP() << "SDP munging did not replace codec, skipping.";
+  }
+
+  // Note currently negotiated codecs and count VP8 and VP9.
+  auto codecs_after_munge = caller()
+                                ->pc()
+                                ->local_description()
+                                ->description()
+                                ->contents()[0]
+                                .media_description()
+                                ->codecs();
+  size_t vp8_munge = 0;
+  size_t vp9_munge = 0;
+  for (const auto& codec : codecs_after_munge) {
+    if (codec.name == "VP8")
+      vp8_munge++;
+    else if (codec.name == "VP9")
+      vp9_munge++;
+  }
+  // We should have replaced VP8 with VP9.
+  EXPECT_EQ(vp8_munge, 0u);
+  EXPECT_GE(vp9_munge, 2u);
+
+  // Call setCodecPreferences.
+  std::vector<RtpCodecCapability> codecs =
+      caller()
+          ->pc_factory()
+          ->GetRtpReceiverCapabilities(webrtc::MediaType::VIDEO)
+          .codecs;
+  auto transceivers = caller()->pc()->GetTransceivers();
+  ASSERT_EQ(transceivers.size(), 1u);
+  transceivers[0]->SetCodecPreferences(codecs);
+
+  auto offer = caller()->CreateOfferAndWait();
+  ASSERT_NE(offer, nullptr);
+  // The offer should be acceptable.
+  EXPECT_TRUE(caller()->SetLocalDescriptionAndSendSdpMessage(std::move(offer)));
+
+  auto codecs_after_scp = caller()
+                              ->pc()
+                              ->local_description()
+                              ->description()
+                              ->contents()[0]
+                              .media_description()
+                              ->codecs();
+  size_t vp8_scp = 0;
+  size_t vp9_scp = 0;
+  for (const auto& codec : codecs_after_scp) {
+    if (codec.name == "VP8")
+      vp8_scp++;
+    else if (codec.name == "VP9")
+      vp9_scp++;
+  }
+  // The SDP munging modification was reverted by sCP.
+  // This is a footgun but please do not mix such munging with
+  // setCodecPreferences, munging is on the way out.
+  EXPECT_EQ(vp8_scp, 1u);
+  EXPECT_GE(vp9_scp, 1u);
+  EXPECT_GT(vp9_munge, vp9_scp);
+}
+
+TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
+       SensibleRtxWithDuplicateCodecs) {
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  caller()->AddVideoTrack();
+  // Copied from WPT test webrtc/protocol/rtx-codecs.https.html
+  std::string remote_offer_string =
+      "v=0\r\n"
+      "o=- 1878890426675213188 2 IN IP4 127.0.0.1\r\n"
+      "s=-\r\n"
+      "t=0 0\r\n"
+      "a=group:BUNDLE video\r\n"
+      "a=msid-semantic: WMS\r\n"
+      "m=video 9 UDP/TLS/RTP/SAVPF 96 97 98 99\r\n"
+      "c=IN IP4 0.0.0.0\r\n"
+      "a=rtcp:9 IN IP4 0.0.0.0\r\n"
+      "a=ice-ufrag:RGPK\r\n"
+      "a=ice-pwd:rAyHEAKC7ckxQgWaRZXukz+Z\r\n"
+      "a=ice-options:trickle\r\n"
+      "a=fingerprint:sha-256 "
+      "8C:29:0A:8F:11:06:BF:1C:58:B3:CA:E6:F1:F1:DC:99:4C:6C:89:E9:FF:BC:D4:38:"
+      "11:18:1F:40:19:C8:49:37\r\n"
+      "a=setup:actpass\r\n"
+      "a=mid:video\r\n"
+      "a=recvonly\r\n"
+      "a=rtcp-mux\r\n"
+      "a=rtpmap:96 VP8/90000\r\n"
+      "a=rtpmap:97 rtx/90000\r\n"
+      "a=fmtp:97 apt=98\r\n"
+      "a=rtpmap:98 VP8/90000\r\n"
+      "a=rtcp-fb:98 ccm fir\r\n"
+      "a=rtcp-fb:98 nack\r\n"
+      "a=rtcp-fb:98 nack pli\r\n"
+      "a=rtcp-fb:98 goog-remb\r\n"
+      "a=rtcp-fb:98 transport-cc\r\n"
+      "a=rtpmap:99 rtx/90000\r\n"
+      "a=fmtp:99 apt=96\r\n";
+  auto srd_observer = make_ref_counted<MockSetSessionDescriptionObserver>();
+  std::unique_ptr<SessionDescriptionInterface> remote_offer =
+      CreateSessionDescription(SdpType::kOffer, remote_offer_string);
+  EXPECT_TRUE(caller()->SetRemoteDescription(std::move(remote_offer)));
+  // The resulting SDP answer should have one video codec with a correctly
+  // associated RTX codec.
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      caller()->CreateAnswerForTest();
+  ASSERT_NE(answer, nullptr);
+  RTC_LOG(LS_ERROR) << "Answer is " << *answer;
+  ASSERT_THAT(answer->description()->contents().size(), Eq(1));
+  auto codecs =
+      answer->description()->contents()[0].media_description()->codecs();
+  std::vector<int> apt_values;
+  for (const Codec& codec : codecs) {
+    if (codec.GetResiliencyType() == Codec::ResiliencyType::kRtx) {
+      const auto apt_it = codec.params.find(kCodecParamAssociatedPayloadType);
+      int apt_value;
+      ASSERT_TRUE(FromString(apt_it->second, &apt_value));
+      apt_values.push_back(apt_value);
+    }
+  }
+  for (int apt : apt_values) {
+    EXPECT_THAT(codecs, Contains(Field("id", &Codec::id, apt)));
+  }
+}
+
+// This test documents the behavior expected in
+// https://issues.webrtc.org/412904801. It does not constitute a promise
+// that this mechanism will go on working.
+TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
+       MungeRawPacketizationChangesSubsequentSections) {
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  // Add first video track.
+  caller()->AddVideoTrack();
+  auto offer = caller()->CreateOfferAndWait();
+  EXPECT_EQ(offer->description()->contents().size(), 1U);
+  // Observe that packetization is NOT raw.
+  for (const auto& content : offer->description()->contents()) {
+    for (const auto& codec : content.media_description()->codecs()) {
+      ASSERT_THAT(codec.packetization, Eq(std::nullopt));
+    }
+  }
+  // Mangle packetization to be raw.
+  for (auto& content : offer->description()->contents()) {
+    std::vector<Codec> codecs = content.media_description()->codecs();
+    bool mangled_raw = false;
+    for (auto& codec : codecs) {
+      if (codec.name == "VP8" && codec.type == Codec::Type::kVideo) {
+        codec.packetization = kPacketizationParamRaw;
+        mangled_raw = true;
+      }
+    }
+    ASSERT_TRUE(mangled_raw);
+    content.media_description()->set_codecs(codecs);
+  }
+  // Set local description.
+  auto observer = make_ref_counted<MockSetSessionDescriptionObserver>();
+  caller()->pc()->SetLocalDescription(observer.get(), offer.release());
+  // Wait for SLD to complete.
+  EXPECT_THAT(
+      WaitUntil([&] { return observer->called(); }, ::testing::IsTrue()),
+      IsRtcOk());
+  // Add a second video track.
+  caller()->AddVideoTrack();
+  auto offer2 = caller()->CreateOfferAndWait();
+  // Observe that packetization is raw on BOTH media sections.
+  ASSERT_NE(offer2, nullptr);
+  EXPECT_EQ(offer2->description()->contents().size(), 2U);
+  for (const auto& content : offer2->description()->contents()) {
+    for (const auto& codec : content.media_description()->codecs()) {
+      if (codec.type == Codec::Type::kVideo && codec.name == "VP8") {
+        EXPECT_EQ(codec.packetization, kPacketizationParamRaw);
+      } else {
+        EXPECT_THAT(codec.packetization, Eq(std::nullopt));
+      }
+    }
+  }
+}
+
+#ifdef WEBRTC_HAVE_SCTP
+
+TEST_P(PeerConnectionIntegrationTest, DtlsPqc) {
+  CryptoOptions crypto_options;
+  crypto_options.ephemeral_key_exchange_cipher_groups.AddFirst(
+      webrtc::CryptoOptions::EphemeralKeyExchangeCipherGroups::
+          kX25519_MLKEM768);
+
+  PeerConnectionInterface::RTCConfiguration config;
+  config.crypto_options = crypto_options;
+
+  PeerConnectionFactoryInterface::Options options;
+  options.ssl_max_version = SSL_PROTOCOL_DTLS_13;
+
+  const bool create_media_engine = false;
+  SetCallerPcWrapperAndReturnCurrent(CreatePeerConnectionWrapper(
+      "caller", &options, &config, PeerConnectionDependencies(nullptr),
+      /* event_log_factory= */ nullptr,
+      /* reset_encoder_factory= */ false,
+      /* reset_decoder_factory= */ false, create_media_engine));
+  SetCalleePcWrapperAndReturnCurrent(CreatePeerConnectionWrapper(
+      "callee", &options, &config, PeerConnectionDependencies(nullptr),
+      /* event_log_factory= */ nullptr,
+      /* reset_encoder_factory= */ false,
+      /* reset_decoder_factory= */ false, create_media_engine));
+
+  ConnectFakeSignaling();
+
+  caller()->CreateDataChannel();
+
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(
+      WaitUntil(
+          [&] {
+            return PeerConnectionStateIs(
+                PeerConnectionInterface::PeerConnectionState::kConnected);
+          },
+          ::testing::IsTrue()),
+      IsRtcOk());
+
+  uint16_t expected =
+      webrtc::CryptoOptions::EphemeralKeyExchangeCipherGroups::kX25519_MLKEM768;
+  if (!SSLStreamAdapter::IsBoringSsl()) {
+    expected = webrtc::CryptoOptions::EphemeralKeyExchangeCipherGroups::kX25519;
+  }
+  EXPECT_EQ(caller()->dtls_transport_information().ssl_group_id(), expected);
+  EXPECT_EQ(caller()->dtls_transport_information().ssl_group_id(), expected);
+}
+
+TEST_P(PeerConnectionIntegrationTest, DtlsPqcFieldTrial) {
+  SetFieldTrials("WebRTC-EnableDtlsPqc/Enabled/");
+  PeerConnectionInterface::RTCConfiguration config;
+  PeerConnectionFactoryInterface::Options options;
+  options.ssl_max_version = SSL_PROTOCOL_DTLS_13;
+
+  const bool create_media_engine = false;
+  SetCallerPcWrapperAndReturnCurrent(CreatePeerConnectionWrapper(
+      "caller", &options, &config, PeerConnectionDependencies(nullptr),
+      /* event_log_factory= */ nullptr,
+      /* reset_encoder_factory= */ false,
+      /* reset_decoder_factory= */ false, create_media_engine));
+  SetCalleePcWrapperAndReturnCurrent(CreatePeerConnectionWrapper(
+      "callee", &options, &config, PeerConnectionDependencies(nullptr),
+      /* event_log_factory= */ nullptr,
+      /* reset_encoder_factory= */ false,
+      /* reset_decoder_factory= */ false, create_media_engine));
+
+  ConnectFakeSignaling();
+
+  caller()->CreateDataChannel();
+
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(
+      WaitUntil(
+          [&] {
+            return PeerConnectionStateIs(
+                PeerConnectionInterface::PeerConnectionState::kConnected);
+          },
+          ::testing::IsTrue()),
+      IsRtcOk());
+
+  uint16_t expected =
+      webrtc::CryptoOptions::EphemeralKeyExchangeCipherGroups::kX25519_MLKEM768;
+  if (!SSLStreamAdapter::IsBoringSsl()) {
+    expected = webrtc::CryptoOptions::EphemeralKeyExchangeCipherGroups::kX25519;
+  }
+  EXPECT_EQ(caller()->dtls_transport_information().ssl_group_id(), expected);
+  EXPECT_EQ(caller()->dtls_transport_information().ssl_group_id(), expected);
+}
+
+#endif  // WEBRTC_HAVE_SCTP
 
 }  // namespace
 

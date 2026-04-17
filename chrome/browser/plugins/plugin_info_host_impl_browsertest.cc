@@ -10,6 +10,7 @@
 #include <string>
 
 #include "base/command_line.h"
+#include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/i18n/base_i18n_switches.h"
 #include "base/i18n/rtl.h"
@@ -17,7 +18,9 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/gmock_move_support.h"
 #include "base/test/mock_callback.h"
+#include "base/test/scoped_feature_list.h"
 #include "build/branding_buildflags.h"
+#include "chrome/browser/chrome_browser_main_extra_parts_nacl_deprecation.h"
 #include "chrome/browser/plugins/plugin_prefs.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -44,8 +47,7 @@
 #endif  // BUILDFLAG(ENABLE_NACL)
 
 #if BUILDFLAG(ENABLE_PDF)
-#include "chrome/common/pdf_util.h"
-#include "components/pdf/common/internal_plugin_helpers.h"
+#include "components/pdf/common/constants.h"
 #endif  // BUILDFLAG(ENABLE_PDF)
 
 namespace {
@@ -66,13 +68,15 @@ using ::testing::SizeIs;
 
 class PluginInfoHostImplTest : public InProcessBrowserTest {
  public:
+  PluginInfoHostImplTest() { feature_list_.InitAndEnableFeature(kNaclAllow); }
+
   void SetUpOnMainThread() override {
     int active_render_process_id = browser()
                                        ->tab_strip_model()
                                        ->GetActiveWebContents()
                                        ->GetPrimaryMainFrame()
                                        ->GetProcess()
-                                       ->GetID();
+                                       ->GetDeprecatedID();
 
     plugin_info_host_impl_ = std::make_unique<PluginInfoHostImpl>(
         active_render_process_id, browser()->profile());
@@ -104,19 +108,16 @@ class PluginInfoHostImplTest : public InProcessBrowserTest {
   }
 
   std::unique_ptr<PluginInfoHostImpl> plugin_info_host_impl_;
+  base::test::ScopedFeatureList feature_list_;
 };
 
 #if BUILDFLAG(ENABLE_PDF)
-// Variation that tests under left-to-right and right-to-left directions. The
-// direction affects the PDF viewer extension, as the plugin name is derived
-// from the extension name, and the extension name may be adjusted to include
-// Unicode bidirectional control characters in RTL mode. These extra control
-// characters can break string comparisons (see crbug.com/1404260).
-class PluginInfoHostImplBidiTest : public PluginInfoHostImplTest,
-                                   public testing::WithParamInterface<bool> {
+class PluginInfoHostImplBidiTestBase : public PluginInfoHostImplTest {
  public:
+  virtual bool rtl() const { return false; }
+
   void SetUpCommandLine(base::CommandLine* command_line) override {
-    if (GetParam()) {
+    if (rtl()) {
       // Pass "--force-ui-direction=rtl" instead of setting an RTL locale, as
       // setting a locale requires extra code on GLib platforms. Setting the UI
       // direction has the same effect on the extension name, which is all
@@ -125,6 +126,17 @@ class PluginInfoHostImplBidiTest : public PluginInfoHostImplTest,
                                       switches::kForceDirectionRTL);
     }
   }
+};
+
+// Variation that tests under left-to-right and right-to-left directions. The
+// direction affects the PDF viewer extension, as the plugin name is derived
+// from the extension name, and the extension name may be adjusted to include
+// Unicode bidirectional control characters in RTL mode. These extra control
+// characters can break string comparisons (see crbug.com/1404260).
+class PluginInfoHostImplBidiTest : public PluginInfoHostImplBidiTestBase,
+                                   public testing::WithParamInterface<bool> {
+ public:
+  bool rtl() const override { return GetParam(); }
 };
 #endif  // BUILDFLAG(ENABLE_PDF)
 
@@ -293,11 +305,11 @@ IN_PROC_BROWSER_TEST_P(PluginInfoHostImplBidiTest,
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
   PluginInfoPtr plugin_info =
-      GetPluginInfo(GURL("fake.pdf"), url::Origin(), kPDFMimeType);
+      GetPluginInfo(GURL("fake.pdf"), url::Origin(), pdf::kPDFMimeType);
   ASSERT_TRUE(plugin_info);
 
   EXPECT_EQ(PluginStatus::kAllowed, plugin_info->status);
-  EXPECT_EQ(kPDFMimeType, plugin_info->actual_mime_type);
+  EXPECT_EQ(pdf::kPDFMimeType, plugin_info->actual_mime_type);
 
   // Group ID and name defined by `PluginInfoHostImpl`.
   EXPECT_EQ(kGroupId, plugin_info->group_identifier);
@@ -305,7 +317,7 @@ IN_PROC_BROWSER_TEST_P(PluginInfoHostImplBidiTest,
 
   // `WebPluginInfo` fields.
   std::u16string expected_plugin_name = kPluginName;
-  if (GetParam()) {
+  if (rtl()) {
     // Extra characters are added by `extensions::Extension::LoadName()`.
     ASSERT_TRUE(
         base::i18n::AdjustStringForLocaleDirection(&expected_plugin_name));
@@ -320,14 +332,14 @@ IN_PROC_BROWSER_TEST_P(PluginInfoHostImplBidiTest,
             plugin_info->plugin.type);
   EXPECT_EQ(0, plugin_info->plugin.pepper_permissions);
 
-  // Background color hard-coded in `MimeTypesHandler::GetBackgroundColor()`.
-  EXPECT_EQ(SkColorSetRGB(82, 86, 89), plugin_info->plugin.background_color);
+  // Background color hard-coded in `GetPdfBackgroundColor()`.
+  EXPECT_EQ(SkColorSetRGB(40, 40, 40), plugin_info->plugin.background_color);
 
   // Has PDF MIME type.
   ASSERT_THAT(plugin_info->plugin.mime_types, SizeIs(1));
 
   WebPluginMimeType mime_type = plugin_info->plugin.mime_types[0];
-  EXPECT_EQ(kPDFMimeType, mime_type.mime_type);
+  EXPECT_EQ(pdf::kPDFMimeType, mime_type.mime_type);
   EXPECT_THAT(mime_type.file_extensions, ElementsAre("pdf"));
   EXPECT_EQ(u"", mime_type.description);
   EXPECT_THAT(mime_type.additional_params, IsEmpty());
@@ -338,12 +350,12 @@ IN_PROC_BROWSER_TEST_P(PluginInfoHostImplBidiTest,
   SetAlwaysOpenPdfExternally();
 
   PluginInfoPtr plugin_info =
-      GetPluginInfo(GURL("fake.pdf"), url::Origin(), kPDFMimeType);
+      GetPluginInfo(GURL("fake.pdf"), url::Origin(), pdf::kPDFMimeType);
   ASSERT_TRUE(plugin_info);
 
   // PDF viewer extension is disabled by PDF content setting.
   EXPECT_EQ(PluginStatus::kDisabled, plugin_info->status);
-  EXPECT_EQ(kPDFMimeType, plugin_info->actual_mime_type);
+  EXPECT_EQ(pdf::kPDFMimeType, plugin_info->actual_mime_type);
 }
 
 IN_PROC_BROWSER_TEST_F(PluginInfoHostImplTest,
@@ -403,4 +415,5 @@ IN_PROC_BROWSER_TEST_F(PluginInfoHostImplTest,
 }
 
 INSTANTIATE_TEST_SUITE_P(All, PluginInfoHostImplBidiTest, testing::Bool());
+
 #endif  // BUILDFLAG(ENABLE_PDF)

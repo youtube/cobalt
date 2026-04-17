@@ -6,15 +6,19 @@ package org.chromium.chrome.browser.paint_preview.services;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.ApplicationState;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.Callback;
-import org.chromium.base.StrictModeContext;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.base.ResettersForTesting;
+import org.chromium.base.lifetime.Destroyable;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabObserver;
@@ -28,17 +32,17 @@ import org.chromium.content_public.browser.WebContents;
 import java.io.File;
 
 /**
- * The Java-side implementations of paint_preview_tab_service.cc. The C++ side owns and controls
- * the lifecycle of the Java implementation.
- * This class provides the required functionalities for capturing the Paint Preview representation
- * of a tab.
+ * The Java-side implementations of paint_preview_tab_service.cc. The C++ side owns and controls the
+ * lifecycle of the Java implementation. This class provides the required functionalities for
+ * capturing the Paint Preview representation of a tab.
  */
+@NullMarked
 @JNINamespace("paint_preview")
 public class PaintPreviewTabService implements NativePaintPreviewServiceProvider {
     private static final long AUDIT_START_DELAY_MS = 2 * 60 * 1000; // Two minutes;
     private static boolean sIsAccessibilityEnabledForTesting;
 
-    private Runnable mAuditRunnable;
+    private boolean mIsRunningAudit;
     private long mNativePaintPreviewBaseService;
     private long mNativePaintPreviewTabService;
 
@@ -47,13 +51,15 @@ public class PaintPreviewTabService implements NativePaintPreviewServiceProvider
      * @param tab The tab to check.
      */
     public static boolean tabAllowedForPaintPreview(Tab tab) {
-        return !tab.isIncognito() && !tab.isNativePage() && !tab.isShowingErrorPage()
+        return !tab.isIncognito()
+                && !tab.isNativePage()
+                && !tab.isShowingErrorPage()
                 && UrlUtilities.isHttpOrHttps(tab.getUrl())
                 && !UrlUtilitiesJni.get().isGoogleSearchUrl(tab.getUrl().getSpec());
     }
 
     private class CaptureTriggerListener extends TabModelSelectorTabObserver
-            implements ApplicationStatus.ApplicationStateListener {
+            implements ApplicationStatus.ApplicationStateListener, Destroyable {
         private @ApplicationState int mCurrentApplicationState;
 
         private CaptureTriggerListener(TabModelSelector tabModelSelector) {
@@ -64,9 +70,6 @@ public class PaintPreviewTabService implements NativePaintPreviewServiceProvider
         @Override
         public void onApplicationStateChange(int newState) {
             mCurrentApplicationState = newState;
-            if (newState == ApplicationState.HAS_DESTROYED_ACTIVITIES) {
-                ApplicationStatus.unregisterApplicationStateListener(this);
-            }
         }
 
         @Override
@@ -79,13 +82,15 @@ public class PaintPreviewTabService implements NativePaintPreviewServiceProvider
             // ChromeActivity#onStop.
             if (mCurrentApplicationState == ApplicationState.HAS_STOPPED_ACTIVITIES
                     && qualifiesForCapture(tab)) {
-                captureTab(tab, success -> {
-                    if (!success) {
-                        // Treat the tab as if it was closed to cleanup any partial capture
-                        // data.
-                        tabClosed(tab);
-                    }
-                });
+                captureTab(
+                        tab,
+                        success -> {
+                            if (!success) {
+                                // Treat the tab as if it was closed to cleanup any partial capture
+                                // data.
+                                tabClosed(tab);
+                            }
+                        });
             }
         }
 
@@ -94,10 +99,17 @@ public class PaintPreviewTabService implements NativePaintPreviewServiceProvider
             tabClosed(tab);
         }
 
+        @Override
+        public void destroy() {
+            super.destroy();
+            ApplicationStatus.unregisterApplicationStateListener(this);
+        }
+
         private boolean qualifiesForCapture(Tab tab) {
             // Check the usual parameters and ensure the page is actually alive and loaded.
             return PaintPreviewTabService.tabAllowedForPaintPreview(tab)
-                    && tab.getWebContents() != null && !tab.isLoading();
+                    && tab.getWebContents() != null
+                    && !tab.isLoading();
         }
     }
 
@@ -119,7 +131,6 @@ public class PaintPreviewTabService implements NativePaintPreviewServiceProvider
         return mNativePaintPreviewBaseService;
     }
 
-    @VisibleForTesting
     public boolean hasNativeServiceForTesting() {
         return mNativePaintPreviewTabService != 0;
     }
@@ -136,21 +147,25 @@ public class PaintPreviewTabService implements NativePaintPreviewServiceProvider
             return previewExistsPreNative(getPath(), tabId);
         }
 
-        return PaintPreviewTabServiceJni.get().hasCaptureForTabAndroid(
-                mNativePaintPreviewTabService, tabId);
+        return PaintPreviewTabServiceJni.get()
+                .hasCaptureForTabAndroid(mNativePaintPreviewTabService, tabId);
     }
 
     /**
      * Should be called when all tabs are restored. Registers a {@link TabModelSelectorTabObserver}
      * for the regular to capture and delete paint previews as needed. Audits restored tabs to
      * remove any failed deletions.
+     *
      * @param tabModelSelector the TabModelSelector for the activity.
      * @param runAudit whether to delete tabs not in the tabModelSelector.
+     * @return A reference to an observer that should be cleaned up when the activity is destroyed.
      */
-    public void onRestoreCompleted(TabModelSelector tabModelSelector, boolean runAudit) {
-        new CaptureTriggerListener(tabModelSelector);
+    public Destroyable onRestoreCompleted(TabModelSelector tabModelSelector, boolean runAudit) {
+        Destroyable listener = new CaptureTriggerListener(tabModelSelector);
 
-        if (!runAudit || mAuditRunnable != null) return;
+        if (!runAudit || mIsRunningAudit) return listener;
+
+        mIsRunningAudit = true;
 
         // Delay actually performing the audit by a bit to avoid contention with the native task
         // runner that handles IO when showing at startup.
@@ -163,19 +178,20 @@ public class PaintPreviewTabService implements NativePaintPreviewServiceProvider
             // Delete all previews keeping the current tab.
             ids = new int[] {id};
         }
-        mAuditRunnable = () -> auditArtifacts(ids);
-        PostTask.postDelayedTask(TaskTraits.UI_DEFAULT, () -> {
-            mAuditRunnable.run();
-            mAuditRunnable = null;
-        }, AUDIT_START_DELAY_MS);
+        PostTask.postDelayedTask(
+                TaskTraits.UI_DEFAULT, () -> {
+                    auditArtifacts(ids);
+                    mIsRunningAudit = false;
+                }, AUDIT_START_DELAY_MS);
+        return listener;
     }
 
     @VisibleForTesting
     public boolean isNativeCacheInitialized() {
         if (mNativePaintPreviewTabService == 0) return false;
 
-        return PaintPreviewTabServiceJni.get().isCacheInitializedAndroid(
-                mNativePaintPreviewTabService);
+        return PaintPreviewTabServiceJni.get()
+                .isCacheInitializedAndroid(mNativePaintPreviewTabService);
     }
 
     private String getPath() {
@@ -189,60 +205,74 @@ public class PaintPreviewTabService implements NativePaintPreviewServiceProvider
         assert rootPath != null;
         assert !rootPath.isEmpty();
 
-        boolean exists = false;
-        try (StrictModeContext ignored = StrictModeContext.allowDiskReads()) {
-            File zipPath = new File(
-                    rootPath, (new StringBuilder()).append(tabId).append(".zip").toString());
-            exists = zipPath.exists();
-        }
-
-        return exists;
+        File zipPath = new File(rootPath, tabId + ".zip");
+        return zipPath.exists();
     }
 
     public void captureTab(Tab tab, Callback<Boolean> successCallback) {
-        if (mNativePaintPreviewTabService == 0) {
+        WebContents webContents = tab.getWebContents();
+        if (mNativePaintPreviewTabService == 0 || webContents == null) {
             successCallback.onResult(false);
             return;
         }
 
-        boolean isAccessibilityEnabled = sIsAccessibilityEnabledForTesting
-                || ChromeAccessibilityUtil.get().isAccessibilityEnabled();
-        RenderCoordinates coords = RenderCoordinates.fromWebContents(tab.getWebContents());
-        PaintPreviewTabServiceJni.get().captureTabAndroid(mNativePaintPreviewTabService,
-                tab.getId(), tab.getWebContents(), isAccessibilityEnabled,
-                coords.getPageScaleFactor(), coords.getScrollXPixInt(), coords.getScrollYPixInt(),
-                successCallback);
+        boolean isAccessibilityEnabled =
+                sIsAccessibilityEnabledForTesting
+                        || ChromeAccessibilityUtil.get().isAccessibilityEnabled();
+        RenderCoordinates coords = RenderCoordinates.fromWebContents(webContents);
+        PaintPreviewTabServiceJni.get()
+                .captureTabAndroid(
+                        mNativePaintPreviewTabService,
+                        tab.getId(),
+                        webContents,
+                        isAccessibilityEnabled,
+                        coords.getPageScaleFactor(),
+                        coords.getScrollXPixInt(),
+                        coords.getScrollYPixInt(),
+                        successCallback);
     }
 
     private void tabClosed(Tab tab) {
         if (mNativePaintPreviewTabService == 0) return;
 
-        PaintPreviewTabServiceJni.get().tabClosedAndroid(
-                mNativePaintPreviewTabService, tab.getId());
+        PaintPreviewTabServiceJni.get()
+                .tabClosedAndroid(mNativePaintPreviewTabService, tab.getId());
     }
 
     @VisibleForTesting
     void auditArtifacts(int[] activeTabIds) {
         if (mNativePaintPreviewTabService == 0) return;
 
-        PaintPreviewTabServiceJni.get().auditArtifactsAndroid(
-                mNativePaintPreviewTabService, activeTabIds);
+        PaintPreviewTabServiceJni.get()
+                .auditArtifactsAndroid(mNativePaintPreviewTabService, activeTabIds);
     }
 
-    @VisibleForTesting
     public static void setAccessibilityEnabledForTesting(boolean isAccessibilityEnabled) {
         sIsAccessibilityEnabledForTesting = isAccessibilityEnabled;
+        ResettersForTesting.register(() -> sIsAccessibilityEnabledForTesting = false);
     }
 
     @NativeMethods
     interface Natives {
-        void captureTabAndroid(long nativePaintPreviewTabService, int tabId,
-                WebContents webContents, boolean accessibilityEnabled, float pageScaleFactor,
-                int scrollOffsetX, int scrollOffsetY, Callback<Boolean> successCallback);
+        void captureTabAndroid(
+                long nativePaintPreviewTabService,
+                int tabId,
+                WebContents webContents,
+                boolean accessibilityEnabled,
+                float pageScaleFactor,
+                int scrollOffsetX,
+                int scrollOffsetY,
+                Callback<Boolean> successCallback);
+
         void tabClosedAndroid(long nativePaintPreviewTabService, int tabId);
+
         boolean hasCaptureForTabAndroid(long nativePaintPreviewTabService, int tabId);
+
         void auditArtifactsAndroid(long nativePaintPreviewTabService, int[] activeTabIds);
+
         boolean isCacheInitializedAndroid(long nativePaintPreviewTabService);
+
+        @JniType("std::string")
         String getPathAndroid(long nativePaintPreviewTabService);
     }
 }

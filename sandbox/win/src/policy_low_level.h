@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef SANDBOX_WIN_SRC_POLICY_LOW_LEVEL_H_
 #define SANDBOX_WIN_SRC_POLICY_LOW_LEVEL_H_
 
@@ -69,7 +74,13 @@ namespace sandbox {
 //  .......
 //  [opcode string ]
 struct PolicyGlobal {
-  PolicyBuffer* entry[kMaxServiceCount];
+  // Returns true if the IPC for `service` should be registered for the target.
+  // Should only be called after Done() has been called to finalize the setup.
+  bool NeedsIpc(IpcTag service) {
+    return entry[static_cast<size_t>(service)] != nullptr;
+  }
+
+  PolicyBuffer* entry[kSandboxIpcCount];
   size_t data_size;
   PolicyBuffer data[1];
 };
@@ -117,11 +128,7 @@ enum RuleType {
 };
 
 // Possible comparisons for numbers
-enum RuleOp {
-  EQUAL,
-  AND,
-  RANGE  // TODO(cpu): Implement this option.
-};
+enum RuleOp { EQUAL, AND };
 
 // Provides the means to collect a set of comparisons into a single
 // rule and its associated action.
@@ -138,11 +145,9 @@ class PolicyRule {
   // parameter: the expected index of the argument for this rule. For example
   // in a 'create file' service the file name argument can be at index 0.
   // string: is the desired matching pattern.
-  // match_opts: if the pattern matching is case sensitive or not.
   bool AddStringMatch(RuleType rule_type,
                       uint8_t parameter,
-                      const wchar_t* string,
-                      StringMatchOptions match_opts);
+                      const wchar_t* string);
 
   // Adds a number match comparison to the rule.
   // rule_type: possible values are IF and IF_NOT.
@@ -164,10 +169,8 @@ class PolicyRule {
  private:
   void operator=(const PolicyRule&);
   // Called in a loop from AddStringMatch to generate the required string
-  // match opcodes. rule_type, match_opts and parameter are the same as
-  // in AddStringMatch.
+  // match opcodes. rule_type and parameter are the same as in AddStringMatch.
   bool GenStringOpcode(RuleType rule_type,
-                       StringMatchOptions match_opts,
                        uint8_t parameter,
                        int state,
                        bool last_call,

@@ -4,17 +4,17 @@
 
 #include "third_party/blink/renderer/core/fetch/place_holder_bytes_consumer.h"
 #include "third_party/blink/renderer/platform/heap/visitor.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 
 namespace blink {
 
-BytesConsumer::Result PlaceHolderBytesConsumer::BeginRead(const char** buffer,
-                                                          size_t* available) {
+BytesConsumer::Result PlaceHolderBytesConsumer::BeginRead(
+    base::span<const char>& buffer) {
   if (!underlying_) {
-    *buffer = nullptr;
-    *available = 0;
+    buffer = {};
     return is_cancelled_ ? Result::kDone : Result::kShouldWait;
   }
-  return underlying_->BeginRead(buffer, available);
+  return underlying_->BeginRead(buffer);
 }
 
 BytesConsumer::Result PlaceHolderBytesConsumer::EndRead(size_t read_size) {
@@ -39,6 +39,7 @@ mojo::ScopedDataPipeConsumerHandle PlaceHolderBytesConsumer::DrainAsDataPipe() {
 }
 
 void PlaceHolderBytesConsumer::SetClient(BytesConsumer::Client* client) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(!client_);
   DCHECK(client);
   if (underlying_)
@@ -48,6 +49,7 @@ void PlaceHolderBytesConsumer::SetClient(BytesConsumer::Client* client) {
 }
 
 void PlaceHolderBytesConsumer::ClearClient() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (underlying_)
     underlying_->ClearClient();
   else
@@ -55,6 +57,7 @@ void PlaceHolderBytesConsumer::ClearClient() {
 }
 
 void PlaceHolderBytesConsumer::Cancel() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (underlying_) {
     underlying_->Cancel();
   } else {
@@ -64,19 +67,30 @@ void PlaceHolderBytesConsumer::Cancel() {
 }
 
 BytesConsumer::PublicState PlaceHolderBytesConsumer::GetPublicState() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return underlying_ ? underlying_->GetPublicState()
                      : is_cancelled_ ? PublicState::kClosed
                                      : PublicState::kReadableOrWaiting;
 }
 
 BytesConsumer::Error PlaceHolderBytesConsumer::GetError() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(underlying_);
   // We must not be in the errored state until we get updated.
   return underlying_->GetError();
 }
 
+String PlaceHolderBytesConsumer::DebugName() const {
+  StringBuilder builder;
+  builder.Append("PlaceHolderBytesConsumer(");
+  builder.Append(underlying_ ? underlying_->DebugName() : "<nullptr>");
+  builder.Append(")");
+  return builder.ToString();
+}
+
 // This function can be called at most once.
 void PlaceHolderBytesConsumer::Update(BytesConsumer* consumer) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(!underlying_);
   if (is_cancelled_) {
     // This consumer has already been closed.

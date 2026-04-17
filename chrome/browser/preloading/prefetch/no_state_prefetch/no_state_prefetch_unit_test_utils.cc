@@ -5,6 +5,7 @@
 #include "chrome/browser/preloading/prefetch/no_state_prefetch/no_state_prefetch_unit_test_utils.h"
 
 #include "chrome/browser/preloading/prefetch/no_state_prefetch/chrome_no_state_prefetch_contents_delegate.h"
+#include "chrome/browser/preloading/prefetch/no_state_prefetch/chrome_no_state_prefetch_manager_delegate.h"
 #include "chrome/browser/profiles/profile.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -16,7 +17,7 @@ FakeNoStatePrefetchContents::FakeNoStatePrefetchContents(
     UnitTestNoStatePrefetchManager* test_no_state_prefetch_manager,
     const GURL& url,
     Origin origin,
-    const absl::optional<url::Origin>& initiator_origin,
+    const std::optional<url::Origin>& initiator_origin,
     FinalStatus expected_final_status)
     : NoStatePrefetchContents(
           std::make_unique<ChromeNoStatePrefetchContentsDelegate>(),
@@ -41,7 +42,7 @@ void FakeNoStatePrefetchContents::StartPrerendering(
     content::SessionStorageNamespace* session_storage_namespace,
     base::WeakPtr<content::PreloadingAttempt> preloading_attempt) {
   load_start_time_ = test_no_state_prefetch_manager_->GetCurrentTimeTicks();
-  prerendering_has_started_ = true;
+  prefetching_has_started_ = true;
   test_no_state_prefetch_manager_->FakeNoStatePrefetchContentsStarted(
       -1, route_id_, this);
   NotifyPrefetchStart();
@@ -54,19 +55,21 @@ UnitTestNoStatePrefetchManager::UnitTestNoStatePrefetchManager(Profile* profile)
   set_rate_limit_enabled(false);
 }
 
-UnitTestNoStatePrefetchManager::~UnitTestNoStatePrefetchManager() {}
+UnitTestNoStatePrefetchManager::~UnitTestNoStatePrefetchManager() = default;
 
 void UnitTestNoStatePrefetchManager::Shutdown() {
-  if (next_no_state_prefetch_contents())
+  if (next_no_state_prefetch_contents()) {
     next_no_state_prefetch_contents_->Destroy(FINAL_STATUS_PROFILE_DESTROYED);
+  }
   NoStatePrefetchManager::Shutdown();
 }
 
 void UnitTestNoStatePrefetchManager::MoveEntryToPendingDelete(
     NoStatePrefetchContents* entry,
     FinalStatus final_status) {
-  if (entry == next_no_state_prefetch_contents_.get())
+  if (entry == next_no_state_prefetch_contents_.get()) {
     return;
+  }
   NoStatePrefetchManager::MoveEntryToPendingDelete(entry, final_status);
 }
 
@@ -82,8 +85,9 @@ std::unique_ptr<NoStatePrefetchContents>
 UnitTestNoStatePrefetchManager::FindAndUseEntry(const GURL& url) {
   NoStatePrefetchData* no_state_prefetch_data =
       FindNoStatePrefetchData(url, nullptr);
-  if (!no_state_prefetch_data)
+  if (!no_state_prefetch_data) {
     return nullptr;
+  }
   auto to_erase = FindIteratorForNoStatePrefetchContents(
       no_state_prefetch_data->contents());
   CHECK(to_erase != active_prefetches_.end());
@@ -109,7 +113,7 @@ UnitTestNoStatePrefetchManager::CreateNextNoStatePrefetchContents(
 FakeNoStatePrefetchContents*
 UnitTestNoStatePrefetchManager::CreateNextNoStatePrefetchContents(
     const GURL& url,
-    const absl::optional<url::Origin>& initiator_origin,
+    const std::optional<url::Origin>& initiator_origin,
     Origin origin,
     FinalStatus expected_final_status) {
   return SetNextNoStatePrefetchContents(
@@ -127,8 +131,9 @@ UnitTestNoStatePrefetchManager::CreateNextNoStatePrefetchContents(
           this, url, ORIGIN_LINK_REL_PRERENDER_CROSSDOMAIN,
           url::Origin::Create(GURL("https://uniquedifferentorigin.com")),
           expected_final_status);
-  for (const GURL& alias : alias_urls)
+  for (const GURL& alias : alias_urls) {
     EXPECT_TRUE(no_state_prefetch_contents->AddAliasURL(alias));
+  }
   return SetNextNoStatePrefetchContents(std::move(no_state_prefetch_contents));
 }
 
@@ -182,10 +187,10 @@ std::unique_ptr<NoStatePrefetchContents>
 UnitTestNoStatePrefetchManager::CreateNoStatePrefetchContents(
     const GURL& url,
     const content::Referrer& referrer,
-    const absl::optional<url::Origin>& initiator_origin,
+    const std::optional<url::Origin>& initiator_origin,
     Origin origin) {
   CHECK(next_no_state_prefetch_contents_);
-  EXPECT_EQ(url, next_no_state_prefetch_contents_->prerender_url());
+  EXPECT_EQ(url, next_no_state_prefetch_contents_->prefetch_url());
   EXPECT_EQ(origin, next_no_state_prefetch_contents_->origin());
   return std::move(next_no_state_prefetch_contents_);
 }

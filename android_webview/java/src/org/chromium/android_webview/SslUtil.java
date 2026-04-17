@@ -8,6 +8,8 @@ import android.net.http.SslCertificate;
 import android.net.http.SslError;
 import android.util.Log;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.net.NetError;
 import org.chromium.net.X509Util;
 
@@ -16,16 +18,15 @@ import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 
+@NullMarked
 class SslUtil {
     private static final String TAG = "SslUtil";
 
-    /**
-     * Creates an SslError object from a chromium net error code.
-     */
+    /** Creates an SslError object from a chromium net error code. */
     public static SslError sslErrorFromNetErrorCode(
             @NetError int error, SslCertificate cert, String url) {
         assert (error >= NetError.ERR_CERT_END && error <= NetError.ERR_CERT_COMMON_NAME_INVALID);
-        switch(error) {
+        switch (error) {
             case NetError.ERR_CERT_COMMON_NAME_INVALID:
                 return new SslError(SslError.SSL_IDMISMATCH, cert, url);
             case NetError.ERR_CERT_DATE_INVALID:
@@ -40,14 +41,13 @@ class SslUtil {
         return new SslError(SslError.SSL_INVALID, cert, url);
     }
 
-    public static SslCertificate getCertificateFromDerBytes(byte[] derBytes) {
+    public static @Nullable SslCertificate getCertificateFromDerBytes(byte @Nullable [] derBytes) {
         if (derBytes == null) {
             return null;
         }
 
         try {
-            X509Certificate x509Certificate =
-                    X509Util.createCertificateFromBytes(derBytes);
+            X509Certificate x509Certificate = X509Util.createCertificateFromBytes(derBytes);
             return new SslCertificate(x509Certificate);
         } catch (CertificateException e) {
             // A SSL related exception must have occurred.  This shouldn't happen.

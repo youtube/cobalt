@@ -5,22 +5,28 @@
 #ifndef COMPONENTS_FEED_CORE_V2_IOS_SHARED_EXPERIMENTS_TRANSLATOR_H_
 #define COMPONENTS_FEED_CORE_V2_IOS_SHARED_EXPERIMENTS_TRANSLATOR_H_
 
+#include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "components/feed/core/proto/v2/wire/chrome_feed_response_metadata.pb.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace feed {
 
-// A map of trial names (key) and list of group names/IDs (value)
+struct ExperimentGroup {
+  std::string name;
+  int experiment_id;
+
+  bool operator==(const ExperimentGroup& rhs) const;
+};
+
+// A map of trial names (key) and list of groups.
 // sent from the server.
-typedef std::map<std::string, std::vector<std::string>> Experiments;
+typedef std::map<std::string, std::vector<ExperimentGroup>> Experiments;
 
-constexpr const char kDiscoverFeedExperiments[] = "DiscoverFeedExperiments";
-
-absl::optional<Experiments> TranslateExperiments(
+std::optional<Experiments> TranslateExperiments(
     const google::protobuf::RepeatedPtrField<feedwire::Experiment>&
         wire_experiments);
 

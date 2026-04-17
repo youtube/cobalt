@@ -7,9 +7,9 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "base/containers/queue.h"
@@ -17,7 +17,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/scoped_observation_traits.h"
-#include "base/unguessable_token.h"
+#include "chrome/browser/hid/web_view_chooser_context.h"
 #include "components/permissions/object_permission_context_base.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -55,7 +55,7 @@ class HidChooserContext : public permissions::ObjectPermissionContextBase,
   HidChooserContext& operator=(const HidChooserContext&) = delete;
   ~HidChooserContext() override;
 
-  static base::Value DeviceInfoToValue(
+  static base::Value::Dict DeviceInfoToValue(
       const device::mojom::HidDeviceInfo& device);
 
   // Returns a human-readable string identifier for |device|.
@@ -67,27 +67,38 @@ class HidChooserContext : public permissions::ObjectPermissionContextBase,
       const device::mojom::HidDeviceInfo& device);
 
   // permissions::ObjectPermissionContextBase implementation:
-  std::string GetKeyForObject(const base::Value& object) override;
-  bool IsValidObject(const base::Value& object) override;
+  std::string GetKeyForObject(const base::Value::Dict& object) override;
+  bool IsValidObject(const base::Value::Dict& object) override;
   // In addition these methods from ObjectPermissionContextBase are overridden
   // in order to expose ephemeral devices through the public interface.
   std::vector<std::unique_ptr<Object>> GetGrantedObjects(
       const url::Origin& origin) override;
   std::vector<std::unique_ptr<Object>> GetAllGrantedObjects() override;
   void RevokeObjectPermission(const url::Origin& origin,
-                              const base::Value& object) override;
-  std::u16string GetObjectDisplayName(const base::Value& object) override;
+                              const base::Value::Dict& object) override;
+  std::u16string GetObjectDisplayName(const base::Value::Dict& object) override;
 
   // HID-specific interface for granting, revoking and checking permissions.
   void GrantDevicePermission(const url::Origin& origin,
-                             const device::mojom::HidDeviceInfo& device);
+                             const device::mojom::HidDeviceInfo& device,
+                             const std::optional<url::Origin>&
+                                 embedding_origin_of_web_view = std::nullopt);
   void RevokeDevicePermission(const url::Origin& origin,
-                              const device::mojom::HidDeviceInfo& device);
+                              const device::mojom::HidDeviceInfo& device,
+                              const std::optional<url::Origin>&
+                                  embedding_origin_of_web_view = std::nullopt);
   bool HasDevicePermission(const url::Origin& origin,
-                           const device::mojom::HidDeviceInfo& device);
+                           const device::mojom::HidDeviceInfo& device,
+                           const std::optional<url::Origin>&
+                               embedding_origin_of_web_view = std::nullopt);
 
   // Returns true if `origin` is allowed to access FIDO reports.
   bool IsFidoAllowedForOrigin(const url::Origin& origin);
+
+  // Returns true if `device` is a known FIDO U2F security key. Origins allowed
+  // to access FIDO reports are also allowed to access the non-FIDO collections
+  // of known security keys.
+  bool IsKnownSecurityKey(const device::mojom::HidDeviceInfo& device);
 
   // For ScopedObservation, see ScopedObservationTraits below.
   void AddDeviceObserver(DeviceObserver* observer);
@@ -110,7 +121,13 @@ class HidChooserContext : public permissions::ObjectPermissionContextBase,
       mojo::PendingRemote<device::mojom::HidManager> manager,
       device::mojom::HidManager::GetDevicesCallback callback);
 
+  void PermissionForWebViewChanged();
+  void PermissionForWebViewRevoked(const url::Origin& web_view_origin);
+
   base::WeakPtr<HidChooserContext> AsWeakPtr();
+
+  // KeyedService:
+  void Shutdown() override;
 
  private:
   // device::mojom::HidManagerClient implementation:
@@ -150,6 +167,8 @@ class HidChooserContext : public permissions::ObjectPermissionContextBase,
 
   // Map from device GUID to device info.
   std::map<std::string, device::mojom::HidDeviceInfoPtr> devices_;
+
+  WebViewChooserContext web_view_chooser_context_{this};
 
   mojo::Remote<device::mojom::HidManager> hid_manager_;
   mojo::AssociatedReceiver<device::mojom::HidManagerClient> client_receiver_{

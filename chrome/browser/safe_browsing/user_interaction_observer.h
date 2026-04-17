@@ -59,14 +59,6 @@ enum class DelayedWarningEvent {
   kMaxValue = kWarningShownOnPaste,
 };
 
-// Name of the recorded histograms when the user did not disable URL elision via
-// "Always Show Full URLs" menu option or by installing Suspicious Site Reporter
-// extension.
-extern const char kDelayedWarningsTimeOnPageHistogram[];
-
-// Same as above but only recorded if the user disabled URL elision.
-extern const char kDelayedWarningsTimeOnPageWithElisionDisabledHistogram[];
-
 // Observes user interactions and shows an interstitial if necessary.
 // Only created when an interstitial was about to be displayed but was delayed
 // due to the Delayed Warnings experiment. Deleted once the interstitial is
@@ -78,13 +70,10 @@ class SafeBrowsingUserInteractionObserver
  public:
   // Creates an observer for given |web_contents|. |resource| is the unsafe
   // resource for which a delayed interstitial will be displayed.
-  // |is_main_frame| is true if the interstitial is for the top frame. If false,
-  // it's for a subresource / subframe.
   // |ui_manager| is the UIManager that shows the actual warning.
   static void CreateForWebContents(
       content::WebContents* web_contents,
       const security_interstitials::UnsafeResource& resource,
-      bool is_main_frame,
       scoped_refptr<SafeBrowsingUIManager> ui_manager);
 
   ~SafeBrowsingUserInteractionObserver() override;
@@ -112,10 +101,6 @@ class SafeBrowsingUserInteractionObserver
   // a desktop capture. Shows the delayed interstitial immediately.
   void OnDesktopCaptureRequest();
 
-  static void SetSuspiciousSiteReporterExtensionIdForTesting(
-      const char* extension_id);
-  static void ResetSuspiciousSiteReporterExtensionIdForTesting();
-
   void SetClockForTesting(base::Clock* clock);
   base::Time GetCreationTimeForTesting() const;
 
@@ -128,10 +113,9 @@ class SafeBrowsingUserInteractionObserver
   SafeBrowsingUserInteractionObserver(
       content::WebContents* web_contents,
       const security_interstitials::UnsafeResource& resource,
-      bool is_main_frame,
       scoped_refptr<SafeBrowsingUIManager> ui_manager);
 
-  bool HandleKeyPress(const content::NativeWebKeyboardEvent& event);
+  bool HandleKeyPress(const input::NativeWebKeyboardEvent& event);
   bool HandleMouseEvent(const blink::WebMouseEvent& event);
 
   void ShowInterstitial(DelayedWarningEvent event);
@@ -152,9 +136,6 @@ class SafeBrowsingUserInteractionObserver
   // However, this hook is also called for the initial navigation, so we ignore
   // it the first time the hook is called.
   bool initial_navigation_finished_ = false;
-
-  // Id of the Suspicious Site Reporter extension. Only set in tests.
-  static const char* suspicious_site_reporter_extension_id_;
 
   // The time that this observer was created. Used for recording histograms.
   base::Time creation_time_;

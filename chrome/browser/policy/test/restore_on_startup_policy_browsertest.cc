@@ -2,14 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <array>
+
+
+#include <algorithm>
 #include <vector>
 
 #include "base/command_line.h"
-#include "base/containers/cxx20_erase.h"
-#include "base/ranges/algorithm.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/values.h"
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "chrome/browser/policy/url_blocking_policy_test_utils.h"
 #include "chrome/browser/prefs/session_startup_pref.h"
 #include "chrome/browser/resource_coordinator/tab_load_tracker_test_support.h"
@@ -31,6 +33,7 @@
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
@@ -38,10 +41,10 @@ namespace policy {
 
 namespace {
 
-constexpr const char* kRestoredURLs[] = {
-    "http://aaa.com/empty.html",
-    "http://bbb.com/empty.html",
-};
+constexpr auto kRestoredURLs = std::to_array<const char*>({
+    "https://aaa.com/empty.html",
+    "https://bbb.com/empty.html",
+});
 
 bool IsNonSwitchArgument(const base::CommandLine::StringType& s) {
   return s.empty() || s[0] != '-';
@@ -56,12 +59,7 @@ class RestoreOnStartupPolicyTest : public UrlBlockingPolicyTest,
                                    public testing::WithParamInterface<void (
                                        RestoreOnStartupPolicyTest::*)(void)> {
  public:
-  RestoreOnStartupPolicyTest() {
-    // TODO(crbug.com/1394910): Use HTTPS URLs in tests to avoid having to
-    // disable this feature.
-    feature_list_.InitAndDisableFeature(features::kHttpsUpgrades);
-  }
-
+  RestoreOnStartupPolicyTest() = default;
   ~RestoreOnStartupPolicyTest() override = default;
 
   void SetUpInProcessBrowserTestFixture() override {
@@ -73,9 +71,9 @@ class RestoreOnStartupPolicyTest : public UrlBlockingPolicyTest,
     // these tests.
     base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
     base::CommandLine::StringVector argv = command_line->argv();
-    base::EraseIf(argv, IsNonSwitchArgument);
+    std::erase_if(argv, IsNonSwitchArgument);
     command_line->InitFromArgv(argv);
-    ASSERT_TRUE(base::ranges::equal(argv, command_line->argv()));
+    ASSERT_TRUE(std::ranges::equal(argv, command_line->argv()));
   }
 
   void ListOfURLs() {

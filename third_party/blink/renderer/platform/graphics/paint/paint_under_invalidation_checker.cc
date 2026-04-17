@@ -8,6 +8,7 @@
 #include "third_party/blink/renderer/platform/graphics/logging_canvas.h"
 #include "third_party/blink/renderer/platform/graphics/paint/drawing_display_item.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_controller.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
 
@@ -16,7 +17,7 @@ PaintUnderInvalidationChecker::PaintUnderInvalidationChecker(
     : paint_controller_(paint_controller) {
 #if DCHECK_IS_ON()
   DCHECK(RuntimeEnabledFeatures::PaintUnderInvalidationCheckingEnabled());
-  DCHECK_EQ(paint_controller_.GetUsage(), PaintController::kMultiplePaints);
+  DCHECK(paint_controller_.persistent_data_);
 #endif
 }
 
@@ -73,11 +74,11 @@ void PaintUnderInvalidationChecker::CheckNewItem() {
     return;
   }
 
-  const auto& new_item = NewDisplayItemList().back();
+  const auto& new_item = UNSAFE_TODO(NewDisplayItemList().back());
   if (old_item_index_ >= OldDisplayItemList().size())
     ShowItemError("extra display item", new_item);
 
-  auto& old_item = OldDisplayItemList()[old_item_index_];
+  auto& old_item = UNSAFE_TODO(OldDisplayItemList()[old_item_index_]);
   if (!new_item.EqualsForUnderInvalidation(old_item))
     ShowItemError("display item changed", new_item, &old_item);
 
@@ -87,9 +88,9 @@ void PaintUnderInvalidationChecker::CheckNewItem() {
   // leaving only disappeared or invalidated display items in the old list after
   // painting.
   NewDisplayItemList().ReplaceLastByMoving(old_item);
-  NewDisplayItemList().back().SetPaintInvalidationReason(
+  UNSAFE_TODO(NewDisplayItemList().back().SetPaintInvalidationReason(
       old_item.IsCacheable() ? PaintInvalidationReason::kNone
-                             : PaintInvalidationReason::kUncacheable);
+                             : PaintInvalidationReason::kUncacheable));
 
   if (subsequence_client_id_ != kInvalidDisplayItemClientId) {
     // We are checking under-invalidation of a cached subsequence.
@@ -192,7 +193,7 @@ void PaintUnderInvalidationChecker::ShowItemError(
   if (old_item) {
     LOG(ERROR) << "Old display item: "
                << old_item->AsDebugString(
-                      *paint_controller_.current_paint_artifact_);
+                      paint_controller_.CurrentPaintArtifact());
   }
   LOG(ERROR) << "See http://crbug.com/619103.";
 
@@ -237,8 +238,7 @@ void PaintUnderInvalidationChecker::ShowSubsequenceError(
   }
   if (old_chunk) {
     LOG(ERROR) << "Old paint chunk: "
-               << old_chunk->ToString(
-                      *paint_controller_.current_paint_artifact_);
+               << old_chunk->ToString(paint_controller_.CurrentPaintArtifact());
   }
 #if DCHECK_IS_ON()
   paint_controller_.ShowDebugData();
@@ -248,18 +248,16 @@ void PaintUnderInvalidationChecker::ShowSubsequenceError(
   LOG(FATAL) << "See https://crbug.com/619103.";
 }
 
-const Vector<PaintChunk>& PaintUnderInvalidationChecker::OldPaintChunks()
-    const {
-  return paint_controller_.current_paint_artifact_->PaintChunks();
+const PaintChunks& PaintUnderInvalidationChecker::OldPaintChunks() const {
+  return paint_controller_.CurrentPaintChunks();
 }
 
-const Vector<PaintChunk>& PaintUnderInvalidationChecker::NewPaintChunks()
-    const {
-  return paint_controller_.new_paint_artifact_->PaintChunks();
+const PaintChunks& PaintUnderInvalidationChecker::NewPaintChunks() const {
+  return paint_controller_.new_paint_artifact_->GetPaintChunks();
 }
 
 DisplayItemList& PaintUnderInvalidationChecker::OldDisplayItemList() {
-  return paint_controller_.current_paint_artifact_->GetDisplayItemList();
+  return paint_controller_.CurrentDisplayItemList();
 }
 
 DisplayItemList& PaintUnderInvalidationChecker::NewDisplayItemList() {

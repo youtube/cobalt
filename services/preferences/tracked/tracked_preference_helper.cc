@@ -47,13 +47,11 @@ TrackedPreferenceHelper::ResetAction TrackedPreferenceHelper::GetAction(
     case ValueState::UNSUPPORTED:
       NOTREACHED()
           << "GetAction should not be called with an UNSUPPORTED value state";
-      return DONT_RESET;
     case ValueState::UNTRUSTED_UNKNOWN_VALUE:  // Falls through.
     case ValueState::CHANGED:
       return enforce_ ? DO_RESET : WANTED_RESET;
   }
   NOTREACHED() << "Unexpected ValueState: " << value_state;
-  return DONT_RESET;
 }
 
 bool TrackedPreferenceHelper::IsPersonal() const {
@@ -62,7 +60,7 @@ bool TrackedPreferenceHelper::IsPersonal() const {
 
 void TrackedPreferenceHelper::ReportValidationResult(
     ValueState value_state,
-    base::StringPiece validation_type_suffix) const {
+    std::string_view validation_type_suffix) const {
   const char* histogram_name = nullptr;
   switch (value_state) {
     case ValueState::UNCHANGED:
@@ -92,7 +90,6 @@ void TrackedPreferenceHelper::ReportValidationResult(
     case ValueState::UNSUPPORTED:
       NOTREACHED() << "ReportValidationResult should not be called with an "
                       "UNSUPPORTED value state";
-      return;
   }
   DCHECK(histogram_name);
 

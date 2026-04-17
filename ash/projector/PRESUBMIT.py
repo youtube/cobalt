@@ -5,15 +5,13 @@
 # Optional but recommended
 PRESUBMIT_VERSION = '2.0.0'
 
-# Mandatory: run under Python 3
-USE_PYTHON3 = True
-
 
 def CheckMetricsChangeHasTrackerUpdatedMessage(input_api, output_api):
     """Reminder to update metrics tracker and verify in CL description."""
     description = input_api.change.DescriptionText()
     metrics_tracker_re = input_api.re.compile(
-        r'PROJECTOR_METRICS_TRACKER_UPDATED|NO_METRICS_CHANGED')
+        r'PROJECTOR_METRICS_TRACKER_UPDATED|NO_METRICS_CHANGED',
+        input_api.re.MULTILINE)
     metrics_file_re = input_api.re.compile(
         r'.*chromium\/src\/ash\/projector\/projector_metrics\.cc')
     error_message = ("If this CL adds, changes, or deletes a metric, please\n"
@@ -25,6 +23,6 @@ def CheckMetricsChangeHasTrackerUpdatedMessage(input_api, output_api):
     for f in input_api.change.AffectedFiles(include_deletes=True,
                                             file_filter=None):
         if metrics_file_re.match(f.AbsoluteLocalPath(
-        )) and not metrics_tracker_re.match(description):
+        )) and not metrics_tracker_re.search(description):
             return [output_api.PresubmitError(error_message)]
     return []

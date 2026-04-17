@@ -14,7 +14,7 @@
 #include "src/base/base-export.h"
 #include "src/base/bits.h"
 #include "src/base/macros.h"
-#include "src/base/safe_conversions.h"
+#include "src/base/numerics/safe_conversions.h"
 #if V8_OS_WIN
 #include "src/base/win32-headers.h"
 #endif
@@ -56,6 +56,9 @@ class TimeConstants {
   static constexpr int64_t kNanosecondsPerMicrosecond = 1000;
   static constexpr int64_t kNanosecondsPerSecond =
       kNanosecondsPerMicrosecond * kMicrosecondsPerSecond;
+
+  // Support defaulted comparison of subclasses.
+  constexpr auto operator<=>(const TimeConstants&) const = default;
 };
 
 // -----------------------------------------------------------------------------
@@ -145,18 +148,18 @@ class V8_BASE_EXPORT TimeDelta final {
   struct timespec ToTimespec() const;
 
   // Computations with other deltas.
-  TimeDelta operator+(const TimeDelta& other) const {
+  constexpr TimeDelta operator+(const TimeDelta& other) const {
     return TimeDelta(delta_ + other.delta_);
   }
-  TimeDelta operator-(const TimeDelta& other) const {
+  constexpr TimeDelta operator-(const TimeDelta& other) const {
     return TimeDelta(delta_ - other.delta_);
   }
 
-  TimeDelta& operator+=(const TimeDelta& other) {
+  constexpr TimeDelta& operator+=(const TimeDelta& other) {
     delta_ += other.delta_;
     return *this;
   }
-  TimeDelta& operator-=(const TimeDelta& other) {
+  constexpr TimeDelta& operator-=(const TimeDelta& other) {
     delta_ -= other.delta_;
     return *this;
   }
@@ -189,25 +192,9 @@ class V8_BASE_EXPORT TimeDelta final {
     return delta_ / other.delta_;
   }
 
-  // Comparison operators.
-  constexpr bool operator==(const TimeDelta& other) const {
-    return delta_ == other.delta_;
-  }
-  constexpr bool operator!=(const TimeDelta& other) const {
-    return delta_ != other.delta_;
-  }
-  constexpr bool operator<(const TimeDelta& other) const {
-    return delta_ < other.delta_;
-  }
-  constexpr bool operator<=(const TimeDelta& other) const {
-    return delta_ <= other.delta_;
-  }
-  constexpr bool operator>(const TimeDelta& other) const {
-    return delta_ > other.delta_;
-  }
-  constexpr bool operator>=(const TimeDelta& other) const {
-    return delta_ >= other.delta_;
-  }
+  constexpr auto operator<=>(const TimeDelta&) const = default;
+
+  friend void swap(TimeDelta a, TimeDelta b) { std::swap(a.delta_, b.delta_); }
 
  private:
   static constexpr inline TimeDelta FromDouble(double value);
@@ -320,25 +307,7 @@ class TimeBase : public TimeConstants {
     return static_cast<TimeClass&>(*this = (*this - delta));
   }
 
-  // Comparison operators
-  bool operator==(const TimeBase<TimeClass>& other) const {
-    return us_ == other.us_;
-  }
-  bool operator!=(const TimeBase<TimeClass>& other) const {
-    return us_ != other.us_;
-  }
-  bool operator<(const TimeBase<TimeClass>& other) const {
-    return us_ < other.us_;
-  }
-  bool operator<=(const TimeBase<TimeClass>& other) const {
-    return us_ <= other.us_;
-  }
-  bool operator>(const TimeBase<TimeClass>& other) const {
-    return us_ > other.us_;
-  }
-  bool operator>=(const TimeBase<TimeClass>& other) const {
-    return us_ >= other.us_;
-  }
+  constexpr auto operator<=>(const TimeBase&) const = default;
 
   // Converts an integer value representing TimeClass to a class. This is used
   // when deserializing a |TimeClass| structure, using a value known to be
@@ -434,6 +403,10 @@ class V8_BASE_EXPORT TimeTicks final
 
   // Returns true if the high-resolution clock is working on this system.
   static bool IsHighResolution();
+
+  static constexpr TimeTicks FromMsTicksForTesting(int64_t ticks) {
+    return TimeTicks(ticks * kMicrosecondsPerMillisecond);
+  }
 
  private:
   friend class time_internal::TimeBase<TimeTicks>;

@@ -3,10 +3,9 @@
 # found in the LICENSE file.
 
 import("//build/config/chromeos/args.gni")
-import("//build/config/chromeos/ui_mode.gni")
 import("//chromeos/features.gni")
 
-assert(is_chromeos_ash)
+assert(is_chromeos)
 
 source_set("cpp") {
   defines = []
@@ -29,20 +28,32 @@ source_set("cpp") {
     "//base",
     "//chromeos/ash/components/mojo_service_manager",
     "//chromeos/ash/services/cros_healthd/public/mojom",
+    "//third_party/abseil-cpp:absl",
     "//ui/events/ozone/evdev:event_device_info",
   ]
-  if (!use_real_chromeos_services) {
-    sources += [
-      "fake_ash_event_reporter.cc",
-      "fake_ash_event_reporter.h",
-      "fake_cros_healthd.cc",
-      "fake_cros_healthd.h",
-    ]
-    public_deps += [
-      "//ash/system/diagnostics/mojom",
-      "//chromeos/ash/services/cros_healthd/public/mojom:event_reporter",
-    ]
-  }
+}
+
+source_set("fakes") {
+  sources = [
+    "fake_ash_event_reporter.cc",
+    "fake_ash_event_reporter.h",
+    "fake_cros_healthd.cc",
+    "fake_cros_healthd.h",
+    "fake_routine_control.cc",
+    "fake_routine_control.h",
+  ]
+  public_deps = [
+    ":cpp",
+    "//ash/system/diagnostics/mojom",
+    "//chromeos/ash/components/mojo_service_manager:mojo_service_manager",
+    "//chromeos/ash/services/cros_healthd/public/mojom",
+    "//chromeos/ash/services/cros_healthd/public/mojom:event_reporter",
+  ]
+}
+
+static_library("test_support") {
+  testonly = true
+  public_deps = [ ":fakes" ]
 }
 
 source_set("unit_tests") {
@@ -50,8 +61,9 @@ source_set("unit_tests") {
   sources = [ "service_connection_unittest.cc" ]
   deps = [
     ":cpp",
+    ":test_support",
     "//base/test:test_support",
-    "//chromeos/ash/components/mojo_service_manager",
+    "//chromeos/ash/components/mojo_service_manager:test_support",
     "//chromeos/ash/services/cros_healthd/public/mojom",
     "//mojo/core/embedder",
     "//mojo/public/cpp/bindings",

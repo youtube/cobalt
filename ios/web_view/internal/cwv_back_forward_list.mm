@@ -2,16 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#import "ios/web_view/internal/cwv_back_forward_list_internal.h"
-
 #import "base/strings/sys_string_conversions.h"
 #import "ios/web/public/navigation/navigation_item.h"
 #import "ios/web/public/navigation/navigation_manager.h"
-#import "net/base/mac/url_conversions.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ios/web_view/internal/cwv_back_forward_list_internal.h"
+#import "net/base/apple/url_conversions.h"
 
 @implementation CWVBackForwardListItemArray {
   BOOL _isBackList;

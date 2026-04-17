@@ -23,7 +23,7 @@ const char kSmartLockFeatureName[] = "easy_unlock";
 
 RemoteDeviceLifeCycleImpl::RemoteDeviceLifeCycleImpl(
     ash::multidevice::RemoteDeviceRef remote_device,
-    absl::optional<ash::multidevice::RemoteDeviceRef> local_device,
+    std::optional<ash::multidevice::RemoteDeviceRef> local_device,
     ash::secure_channel::SecureChannelClient* secure_channel_client)
     : remote_device_(remote_device),
       local_device_(local_device),
@@ -111,7 +111,7 @@ void RemoteDeviceLifeCycleImpl::OnConnectionAttemptFailure(
                     << " stopped because Bluetooth is not available.";
     TransitionToState(RemoteDeviceLifeCycle::State::STOPPED);
   } else {
-    // TODO(crbug.com/991644): Improve the name AUTHENTICATION_FAILED (it can
+    // TODO(crbug.com/41474905): Improve the name AUTHENTICATION_FAILED (it can
     // encompass errors other than authentication failures) and create a metric
     // with buckets corresponding to the ConnectionAttemptFailureReason.
     PA_LOG(ERROR) << "Failed to authenticate with remote device: "

@@ -7,13 +7,19 @@ package org.chromium.device.geolocation;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 import android.content.Context;
 import android.location.LocationManager;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.tasks.Tasks;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
@@ -27,24 +33,34 @@ import org.robolectric.shadows.ShadowLocationManager;
 import org.robolectric.shadows.ShadowLog;
 
 import org.chromium.base.ThreadUtils;
+import org.chromium.base.test.BaseRobolectricTestRule;
 import org.chromium.base.test.util.Feature;
 
 import java.util.Arrays;
 import java.util.Collection;
 
-/**
- * Test suite for Java Geolocation.
- */
+/** Test suite for Java Geolocation. */
 @RunWith(ParameterizedRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class LocationProviderTest {
-    public static enum LocationProviderType { MOCK, ANDROID, GMS_CORE }
+    public static enum LocationProviderType {
+        MOCK,
+        ANDROID,
+        GMS_CORE
+    }
 
     @Parameters
     public static Collection<Object[]> data() {
-        return Arrays.asList(new Object[][] {{LocationProviderType.MOCK},
-                {LocationProviderType.ANDROID}, {LocationProviderType.GMS_CORE}});
+        return Arrays.asList(
+                new Object[][] {
+                    {LocationProviderType.MOCK},
+                    {LocationProviderType.ANDROID},
+                    {LocationProviderType.GMS_CORE}
+                });
     }
+
+    @Rule(order = -2)
+    public BaseRobolectricTestRule mBaseRule = new BaseRobolectricTestRule();
 
     private LocationManager mLocationManager;
     private ShadowLocationManager mShadowLocationManager;
@@ -64,9 +80,7 @@ public class LocationProviderTest {
         mLocationManager = RuntimeEnvironment.application.getSystemService(LocationManager.class);
     }
 
-    /**
-     * Verify a normal start/stop call pair with the given LocationProvider.
-     */
+    /** Verify a normal start/stop call pair with the given LocationProvider. */
     @Test
     @Feature({"Location"})
     public void testStartStop() {
@@ -79,9 +93,7 @@ public class LocationProviderTest {
         stopLocationProviderAdapter();
     }
 
-    /**
-     * Verify a start/upgrade/stop call sequencewith the given LocationProvider.
-     */
+    /** Verify a start/upgrade/stop call sequencewith the given LocationProvider. */
     @Test
     @Feature({"Location"})
     public void testStartUpgradeStop() {
@@ -130,6 +142,9 @@ public class LocationProviderTest {
         Context context = Mockito.mock(Context.class);
         FusedLocationProviderClient fusedLocationProviderClient =
                 Mockito.mock(FusedLocationProviderClient.class);
+        when(fusedLocationProviderClient.requestLocationUpdates(
+                        (LocationRequest) any(), (LocationCallback) any(), any()))
+                .thenReturn(Tasks.forCanceled());
 
         LocationProviderGmsCore locationProviderGmsCore =
                 new LocationProviderGmsCore(context, fusedLocationProviderClient);

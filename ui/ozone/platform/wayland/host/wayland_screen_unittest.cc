@@ -14,7 +14,6 @@
 #include "ui/display/display.h"
 #include "ui/display/display_observer.h"
 #include "ui/display/display_switches.h"
-#include "ui/display/types/display_constants.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/native_widget_types.h"
@@ -28,7 +27,6 @@
 #include "ui/ozone/platform/wayland/test/mock_wayland_platform_window_delegate.h"
 #include "ui/ozone/platform/wayland/test/test_output.h"
 #include "ui/ozone/platform/wayland/test/test_wayland_server_thread.h"
-#include "ui/ozone/platform/wayland/test/test_zaura_shell.h"
 #include "ui/ozone/platform/wayland/test/wayland_test.h"
 #include "ui/platform_window/platform_window_init_properties.h"
 
@@ -71,30 +69,36 @@ class TestDisplayObserver : public display::DisplayObserver {
     display_ = new_display;
   }
 
-  void OnDisplayRemoved(const display::Display& old_display) override {
-    removed_display_ = old_display;
-  }
-
-  void OnDidRemoveDisplays() override {
-    if (did_remove_display_closure_)
-      did_remove_display_closure_.Run();
+  void OnDisplaysRemoved(const display::Displays& removed_displays) override {
+    removed_display_ = removed_displays.back();
+    if (displays_removed_closure_) {
+      displays_removed_closure_.Run();
+    }
   }
 
   void OnDisplayMetricsChanged(const display::Display& display,
                                uint32_t changed_metrics) override {
     changed_metrics_ = changed_metrics;
     display_ = display;
+    if (display_metrics_changed_closure_) {
+      display_metrics_changed_closure_.Run();
+    }
   }
 
-  void set_did_remove_display_closure(base::RepeatingClosure closure) {
-    did_remove_display_closure_ = std::move(closure);
+  void set_displays_removed_closure(base::RepeatingClosure closure) {
+    displays_removed_closure_ = std::move(closure);
+  }
+
+  void set_display_metrics_changed_closure(base::RepeatingClosure closure) {
+    display_metrics_changed_closure_ = std::move(closure);
   }
 
  private:
   uint32_t changed_metrics_ = 0;
   display::Display display_;
   display::Display removed_display_;
-  base::RepeatingClosure did_remove_display_closure_{};
+  base::RepeatingClosure displays_removed_closure_;
+  base::RepeatingClosure display_metrics_changed_closure_;
 };
 
 }  // namespace
@@ -142,6 +146,23 @@ class WaylandScreenTest : public WaylandTest {
     display::Display display_for_widget =
         platform_screen_->GetDisplayForAcceleratedWidget(widget);
     EXPECT_EQ(display_for_widget.id(), expected_display_id);
+  }
+
+  WaylandOutput::Metrics MakeMetrics(const display::Display& display) const {
+    return WaylandOutput::Metrics{
+        WaylandOutput::Id(display.id()),
+        display.id(),
+        display.bounds().origin(),
+        display.size(),
+        display.GetSizeInPixel(),
+        display.GetWorkAreaInsets(),
+        /*physical_overscan_insets=*/gfx::Insets(),
+        display.device_scale_factor(),
+        // Display rotation and output transform go opposite directions.
+        (4 - display.panel_rotation()) % 4,
+        (4 - display.rotation()) % 4,
+        /*description=*/"",
+    };
   }
 
   raw_ptr<wl::TestOutput> output_ = nullptr;
@@ -303,6 +324,10 @@ TEST_P(WaylandScreenTest, MultipleOutputsAddedAndRemoved) {
   int64_t removed_display_id = observer.GetRemovedDisplay().id();
   EXPECT_EQ(added_display_id, removed_display_id);
 
+  // Ensure that |WaylandScreen| has forgotten about the removed display.
+  EXPECT_EQ(platform_screen_->GetOutputIdForDisplayId(removed_display_id),
+            WaylandOutput::Id(0));
+
   // Create another display again. Updates rect again.
   PostToServerAndWait(
       [&output2, &output1](wl::TestWaylandServerThread* server) {
@@ -359,13 +384,14 @@ TEST_P(WaylandScreenTest, OutputPropertyChangesMissingLogicalSize) {
   const wl_output_transform panel_transform = WL_OUTPUT_TRANSFORM_90;
   const wl_output_transform logical_transform = WL_OUTPUT_TRANSFORM_NORMAL;
   const gfx::Insets insets = gfx::Insets::TLBR(10, 20, 30, 40);
+  const gfx::Insets overscan_insets = gfx::Insets();
   const float scale = 2;
 
   // Test with missing logical size. Should fall back to calculating from
   // physical size.
   platform_screen_->OnOutputAddedOrUpdated(
-      {output_id, display_id, origin, gfx::Size(), physical_size, insets, scale,
-       panel_transform, logical_transform, "display"});
+      {output_id, display_id, origin, gfx::Size(), physical_size, insets,
+       overscan_insets, scale, panel_transform, logical_transform, "display"});
 
   const display::Display new_display(observer.GetDisplay());
   EXPECT_EQ(output_id, platform_screen_->GetOutputIdForDisplayId(display_id));
@@ -390,16 +416,8 @@ TEST_P(WaylandScreenTest, OutputPropertyChangesPrimaryDisplayChanged) {
   display::Display display1(1, gfx::Rect(0, 0, 800, 600));
   display::Display display2(2, gfx::Rect(800, 0, 700, 500));
 
-  platform_screen_->OnOutputAddedOrUpdated(
-      {static_cast<uint32_t>(display1.id()), display1.id(),
-       display1.bounds().origin(), display1.size(), display1.GetSizeInPixel(),
-       display1.GetWorkAreaInsets(), display1.device_scale_factor(),
-       WL_OUTPUT_TRANSFORM_NORMAL, WL_OUTPUT_TRANSFORM_NORMAL, std::string()});
-  platform_screen_->OnOutputAddedOrUpdated(
-      {static_cast<uint32_t>(display2.id()), display2.id(),
-       display2.bounds().origin(), display2.size(), display2.GetSizeInPixel(),
-       display2.GetWorkAreaInsets(), display2.device_scale_factor(),
-       WL_OUTPUT_TRANSFORM_NORMAL, WL_OUTPUT_TRANSFORM_NORMAL, std::string()});
+  platform_screen_->OnOutputAddedOrUpdated(MakeMetrics(display1));
+  platform_screen_->OnOutputAddedOrUpdated(MakeMetrics(display2));
 
   EXPECT_EQ(platform_screen_->GetPrimaryDisplay(), display1);
 
@@ -407,20 +425,63 @@ TEST_P(WaylandScreenTest, OutputPropertyChangesPrimaryDisplayChanged) {
   // shifting display1 to its left.
   display1.set_bounds(gfx::Rect(-800, 0, 800, 600));
   display2.set_bounds(gfx::Rect(0, 0, 700, 500));
+  display2.set_native_origin(gfx::Point(0, 0));
 
   // Purposely send the output metrics out of order.
-  platform_screen_->OnOutputAddedOrUpdated(
-      {static_cast<uint32_t>(display2.id()), display2.id(),
-       display2.bounds().origin(), display2.size(), display2.GetSizeInPixel(),
-       display2.GetWorkAreaInsets(), display2.device_scale_factor(),
-       WL_OUTPUT_TRANSFORM_NORMAL, WL_OUTPUT_TRANSFORM_NORMAL, std::string()});
-  platform_screen_->OnOutputAddedOrUpdated(
-      {static_cast<uint32_t>(display1.id()), display1.id(),
-       display1.bounds().origin(), display1.size(), display1.GetSizeInPixel(),
-       display1.GetWorkAreaInsets(), display1.device_scale_factor(),
-       WL_OUTPUT_TRANSFORM_NORMAL, WL_OUTPUT_TRANSFORM_NORMAL, std::string()});
+  platform_screen_->OnOutputAddedOrUpdated(MakeMetrics(display2));
+  platform_screen_->OnOutputAddedOrUpdated(MakeMetrics(display1));
 
   EXPECT_EQ(platform_screen_->GetPrimaryDisplay(), display2);
+
+  platform_screen_->RemoveObserver(&observer);
+}
+
+TEST_P(WaylandScreenTest, OutputPropertyChangesOverscanInsets) {
+  TestDisplayObserver observer;
+  platform_screen_->AddObserver(&observer);
+
+  {
+    display::Display display(123, gfx::Rect(0, 0, 800, 600));
+    auto metrics = MakeMetrics(display);
+    metrics.physical_overscan_insets = gfx::Insets::TLBR(10, 20, 30, 40);
+
+    platform_screen_->OnOutputAddedOrUpdated(metrics);
+
+    display::Display expected_display = display;
+    expected_display.set_size_in_pixels(gfx::Size(740, 560));
+    EXPECT_EQ(platform_screen_->GetPrimaryDisplay(), expected_display);
+  }
+
+  {
+    // Display with scaling
+    display::Display display(123, gfx::Rect(0, 0, 800, 600));
+    display.set_device_scale_factor(2.0);
+    auto metrics = MakeMetrics(display);
+    metrics.physical_overscan_insets = gfx::Insets::TLBR(10, 20, 30, 40);
+
+    platform_screen_->OnOutputAddedOrUpdated(metrics);
+
+    display::Display expected_display = display;
+    // Overscan inset is in pixels, so should not scale with scale factor.
+    expected_display.set_size_in_pixels(gfx::Size(740, 560));
+    EXPECT_EQ(platform_screen_->GetPrimaryDisplay(), expected_display);
+  }
+
+  {
+    // Display with rotations.
+    display::Display display(123, gfx::Rect(0, 0, 800, 600));
+    display.set_panel_rotation(display::Display::Rotation::ROTATE_90);
+    display.set_rotation(display::Display::Rotation::ROTATE_180);
+    auto metrics = MakeMetrics(display);
+    metrics.physical_overscan_insets = gfx::Insets::TLBR(10, 20, 30, 40);
+
+    platform_screen_->OnOutputAddedOrUpdated(metrics);
+
+    display::Display expected_display = display;
+    // Overscan inset is applied after accounting for panel rotation.
+    expected_display.set_size_in_pixels(gfx::Size(540, 760));
+    EXPECT_EQ(platform_screen_->GetPrimaryDisplay(), expected_display);
+  }
 
   platform_screen_->RemoveObserver(&observer);
 }
@@ -488,7 +549,6 @@ TEST_P(WaylandScreenTest, GetAcceleratedWidgetAtScreenPoint) {
   // Update scale.
   PostToServerAndWait([](wl::TestWaylandServerThread* server) {
     server->output()->SetScale(2);
-    server->output()->SetDeviceScaleFactor(2);
     server->output()->Flush();
   });
 
@@ -615,7 +675,7 @@ TEST_P(WaylandScreenTest, GetPrimaryDisplayAfterRemoval) {
 
   // This results in an ASAN error unless GetPrimaryDisplay() is correctly
   // implemented for empty display list. More details in the crbug above.
-  observer.set_did_remove_display_closure(base::BindLambdaForTesting([&]() {
+  observer.set_displays_removed_closure(base::BindLambdaForTesting([&]() {
     ASSERT_EQ(0u, platform_screen_->GetAllDisplays().size());
     auto display = platform_screen_->GetPrimaryDisplay();
     EXPECT_EQ(display::kDefaultDisplayId, display.id());
@@ -918,12 +978,10 @@ TEST_P(WaylandScreenTest, SetWindowScale) {
     // get the new scale and update scale of their buffers.  The default UI
     // scale equals the output scale.
     output->SetScale(kTripleScale);
-    server->output()->SetDeviceScaleFactor(kTripleScale);
     output->Flush();
   });
 
   EXPECT_EQ(window_->applied_state().window_scale, kTripleScale);
-  EXPECT_EQ(window_->ui_scale_, kTripleScale);
 
   // Now simulate the --force-device-scale-factor=1.5
   const float kForcedUIScale = 1.5;
@@ -940,12 +998,10 @@ TEST_P(WaylandScreenTest, SetWindowScale) {
   EXPECT_NE(kForcedUIScale, kDoubleScale);
   PostToServerAndWait([](wl::TestWaylandServerThread* server) {
     server->output()->SetScale(kDoubleScale);
-    server->output()->SetDeviceScaleFactor(kDoubleScale);
     server->output()->Flush();
   });
 
   EXPECT_EQ(window_->applied_state().window_scale, kDoubleScale);
-  EXPECT_EQ(window_->ui_scale_, kForcedUIScale);
 
   display::Display::ResetForceDeviceScaleFactorForTesting();
 }
@@ -980,12 +1036,10 @@ TEST_P(WaylandScreenTest, SetWindowScaleWithoutEnteredOutput) {
   // accordingly.
   PostToServerAndWait([](wl::TestWaylandServerThread* server) {
     server->output()->SetScale(2);
-    server->output()->SetDeviceScaleFactor(2);
     server->output()->Flush();
   });
 
   EXPECT_EQ(window_->applied_state().window_scale, 2);
-  EXPECT_EQ(window_->ui_scale(), 2);
 }
 
 // Checks that output transform is properly translated into Display orientation.
@@ -1009,7 +1063,6 @@ TEST_P(WaylandScreenTest, Transform) {
         [new_transform = transform](wl::TestWaylandServerThread* server) {
           auto* output = server->output();
           output->SetPanelTransform(new_transform);
-          output->SetLogicalTransform(new_transform);
           output->Flush();
         });
 
@@ -1057,267 +1110,48 @@ TEST_P(WaylandScreenTest, DualOutput) {
   EXPECT_EQ(3u, platform_screen_->GetAllDisplays().size());
 }
 
-class WaylandAuraShellScreenTest : public WaylandScreenTest {
- public:
-  void SetUp() override {
-    WaylandScreenTest::SetUp();
-    // Submit surfaces in pixel coordinates when aura_shell is used.
-    // TODO(oshima): Do this in all tests with ash_shell.
-    connection_->set_surface_submission_in_pixel_coordinates(true);
-  }
-};
-
-TEST_P(WaylandAuraShellScreenTest, OutputPropertyChanges) {
-  TestDisplayObserver observer;
-  platform_screen_->AddObserver(&observer);
-  constexpr gfx::Rect kPhysicalBounds{800, 600};
-  PostToServerAndWait([kPhysicalBounds](wl::TestWaylandServerThread* server) {
-    auto* output = server->output();
-    output->SetPhysicalAndLogicalBounds(kPhysicalBounds);
-    output->Flush();
-  });
-
-  uint32_t changed_values = display::DisplayObserver::DISPLAY_METRIC_BOUNDS |
-                            display::DisplayObserver::DISPLAY_METRIC_WORK_AREA;
-  EXPECT_EQ(observer.GetAndClearChangedMetrics(), changed_values);
-  constexpr gfx::Rect kExpectedBounds{800, 600};
-  EXPECT_EQ(observer.GetDisplay().bounds(), kExpectedBounds);
-  constexpr gfx::Size expected_size_in_pixels{800, 600};
-  EXPECT_EQ(observer.GetDisplay().GetSizeInPixel(), expected_size_in_pixels);
-  EXPECT_EQ(observer.GetDisplay().work_area(), kExpectedBounds);
-
-  // Test work area.
-  constexpr gfx::Rect kNewWorkArea{10, 20, 700, 500};
-  const gfx::Insets expected_inset = kExpectedBounds.InsetsFrom(kNewWorkArea);
-  PostToServerAndWait([expected_inset](wl::TestWaylandServerThread* server) {
-    auto* output = server->output();
-    output->SetLogicalInsets(expected_inset);
-    output->Flush();
-  });
-
-  changed_values = display::DisplayObserver::DISPLAY_METRIC_WORK_AREA;
-  EXPECT_EQ(observer.GetAndClearChangedMetrics(), changed_values);
-  // Bounds should be unchanged.
-  EXPECT_EQ(observer.GetDisplay().bounds(), kExpectedBounds);
-  EXPECT_EQ(observer.GetDisplay().GetSizeInPixel(), expected_size_in_pixels);
-  // Work area should have new value.
-  EXPECT_EQ(observer.GetDisplay().work_area(), kNewWorkArea);
-
-  // Test scaling.
-  constexpr int32_t kNewScaleValue = 2;
-  const gfx::Size scaled_logical_size =
-      gfx::ScaleToRoundedSize(kPhysicalBounds.size(), 1.f / kNewScaleValue);
-  PostToServerAndWait([&](wl::TestWaylandServerThread* server) {
-    auto* output = server->output();
-    output->SetLogicalSize(scaled_logical_size);
-    output->SetDeviceScaleFactor(kNewScaleValue);
-    output->Flush();
-  });
-
-  changed_values =
-      display::DisplayObserver::DISPLAY_METRIC_DEVICE_SCALE_FACTOR |
-      display::DisplayObserver::DISPLAY_METRIC_WORK_AREA |
-      display::DisplayObserver::DISPLAY_METRIC_BOUNDS;
-  EXPECT_EQ(observer.GetAndClearChangedMetrics(), changed_values);
-  EXPECT_EQ(observer.GetDisplay().device_scale_factor(), kNewScaleValue);
-  // Logical bounds should shrink due to scaling.
-  const gfx::Rect scaled_bounds{400, 300};
-  EXPECT_EQ(observer.GetDisplay().bounds(), scaled_bounds);
-  // Size in pixel should stay unscaled.
-  EXPECT_EQ(observer.GetDisplay().GetSizeInPixel(), expected_size_in_pixels);
-  gfx::Rect scaled_work_area(scaled_bounds);
-  scaled_work_area.Inset(expected_inset);
-  EXPECT_EQ(observer.GetDisplay().work_area(), scaled_work_area);
-
-  // Test rotation.
-  PostToServerAndWait([&](wl::TestWaylandServerThread* server) {
-    auto* output = server->output();
-    output->SetPanelTransform(WL_OUTPUT_TRANSFORM_90);
-    output->SetLogicalTransform(WL_OUTPUT_TRANSFORM_90);
-    output->ApplyLogicalTranspose();
-    output->Flush();
-  });
-
-  changed_values = display::DisplayObserver::DISPLAY_METRIC_WORK_AREA |
-                   display::DisplayObserver::DISPLAY_METRIC_BOUNDS |
-                   display::DisplayObserver::DISPLAY_METRIC_ROTATION;
-  EXPECT_EQ(observer.GetAndClearChangedMetrics(), changed_values);
-  // Logical bounds should now be rotated to portrait.
-  const gfx::Rect rotated_bounds{300, 400};
-  EXPECT_EQ(observer.GetDisplay().bounds(), rotated_bounds);
-  // Size in pixel gets rotated too, but stays unscaled.
-  const gfx::Size rotated_size_in_pixels{600, 800};
-  EXPECT_EQ(observer.GetDisplay().GetSizeInPixel(), rotated_size_in_pixels);
-  gfx::Rect rotated_work_area(rotated_bounds);
-  rotated_work_area.Inset(expected_inset);
-  EXPECT_EQ(observer.GetDisplay().work_area(), rotated_work_area);
-  EXPECT_EQ(observer.GetDisplay().panel_rotation(),
-            display::Display::Rotation::ROTATE_270);
-  EXPECT_EQ(observer.GetDisplay().rotation(),
-            display::Display::Rotation::ROTATE_270);
-
-  platform_screen_->RemoveObserver(&observer);
-}
-
-// Regression test for crbug.com/1310981.
-// Some devices use display panels built in portrait orientation, but are used
-// in landscape orientation. Thus their physical bounds are in portrait
-// orientation along with an offset transform, which differs from the usual
-// landscape oriented bounds.
-TEST_P(WaylandAuraShellScreenTest,
-       OutputPropertyChangesWithPortraitPanelRotation) {
-  TestDisplayObserver observer;
-  platform_screen_->AddObserver(&observer);
-
-  // wl_output.geometry origin is set in DIP screen coordinates.
-  constexpr gfx::Point kOrigin(50, 70);
-  constexpr gfx::Size kPhysicalSize(1200, 1600);
-  PostToServerAndWait([&](wl::TestWaylandServerThread* server) {
-    // wl_output.mode size is sent in physical coordinates, so it has
-    // portrait dimensions for a display panel with portrait natural
-    // orientation.
-    server->output()->SetPhysicalAndLogicalBounds({kOrigin, kPhysicalSize});
-  });
-
-  // Inset is sent in logical coordinates.
-  constexpr gfx::Insets kInsets = gfx::Insets::TLBR(10, 20, 30, 40);
-  const gfx::Size scaled_logical_size =
-      gfx::ScaleToRoundedSize(kPhysicalSize, 0.5);
-  PostToServerAndWait([&](wl::TestWaylandServerThread* server) {
-    auto* output = server->output();
-    output->SetLogicalSize(scaled_logical_size);
-    output->SetDeviceScaleFactor(2);
-    output->SetLogicalInsets(kInsets);
-    // Display panel's natural orientation is in portrait, so it needs a
-    // transform of 90 degrees to be in landscape.
-    output->SetPanelTransform(WL_OUTPUT_TRANSFORM_90);
-    // Begin with the logical transform at 0 degrees.
-    output->SetLogicalTransform(WL_OUTPUT_TRANSFORM_NORMAL);
-    output->ApplyLogicalTranspose();
-    output->Flush();
-  });
-
-  uint32_t changed_values =
-      display::DisplayObserver::DISPLAY_METRIC_BOUNDS |
-      display::DisplayObserver::DISPLAY_METRIC_WORK_AREA |
-      display::DisplayObserver::DISPLAY_METRIC_DEVICE_SCALE_FACTOR |
-      display::DisplayObserver::DISPLAY_METRIC_ROTATION;
-  EXPECT_EQ(observer.GetAndClearChangedMetrics(), changed_values);
-
-  // Logical bounds should be in landscape.
-  const gfx::Rect kExpectedBounds(kOrigin, gfx::Size(800, 600));
-  EXPECT_EQ(observer.GetDisplay().bounds(), kExpectedBounds);
-  const gfx::Size expected_size_in_pixels(1600, 1200);
-  EXPECT_EQ(observer.GetDisplay().GetSizeInPixel(), expected_size_in_pixels);
-
-  gfx::Rect expected_work_area(kExpectedBounds);
-  expected_work_area.Inset(kInsets);
-  EXPECT_EQ(observer.GetDisplay().work_area(), expected_work_area);
-
-  // Panel rotation and display rotation should have an offset.
-  EXPECT_EQ(observer.GetDisplay().panel_rotation(),
-            display::Display::Rotation::ROTATE_270);
-  EXPECT_EQ(observer.GetDisplay().rotation(),
-            display::Display::Rotation::ROTATE_0);
-
-  // Further rotate the display to logical portrait orientation, which is 180
-  // with the natural orientation offset.
-  PostToServerAndWait([&](wl::TestWaylandServerThread* server) {
-    auto* output = server->output();
-    output->SetPanelTransform(WL_OUTPUT_TRANSFORM_180);
-    output->SetLogicalTransform(WL_OUTPUT_TRANSFORM_90);
-    output->ApplyLogicalTranspose();
-    output->Flush();
-  });
-
-  changed_values = display::DisplayObserver::DISPLAY_METRIC_BOUNDS |
-                   display::DisplayObserver::DISPLAY_METRIC_WORK_AREA |
-                   display::DisplayObserver::DISPLAY_METRIC_ROTATION;
-  EXPECT_EQ(observer.GetAndClearChangedMetrics(), changed_values);
-
-  // Logical bounds should now be portrait.
-  const gfx::Rect portrait_bounds(kOrigin, gfx::Size(600, 800));
-  EXPECT_EQ(observer.GetDisplay().bounds(), portrait_bounds);
-  const gfx::Size portrait_size_in_pixels(1200, 1600);
-  EXPECT_EQ(observer.GetDisplay().GetSizeInPixel(), portrait_size_in_pixels);
-
-  gfx::Rect portrait_work_area(portrait_bounds);
-  portrait_work_area.Inset(kInsets);
-  EXPECT_EQ(observer.GetDisplay().work_area(), portrait_work_area);
-
-  // Panel rotation and display rotation should still have an offset.
-  EXPECT_EQ(observer.GetDisplay().panel_rotation(),
-            display::Display::Rotation::ROTATE_180);
-  EXPECT_EQ(observer.GetDisplay().rotation(),
-            display::Display::Rotation::ROTATE_270);
-
-  platform_screen_->RemoveObserver(&observer);
-}
-
-TEST_P(WaylandAuraShellScreenTest, UseCorrectScreenBeforeEnterEvent) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(features::kWaylandScreenCoordinatesEnabled);
-
-  // These have to be stored on the client thread, but must be used only on the
+// Regression test for crbug.com/1408304. Ensures that the WaylandScreen's
+// internal output state is consistent when propagating change notifications to
+// clients.
+TEST_P(WaylandScreenTest, OutputStateIsConsistentWhenNotifyingObservers) {
+  // This has to be stored on the client thread, but must be used only on the
   // server thread.
   wl::TestOutput* output1 = nullptr;
   wl::TestOutput* output2 = nullptr;
 
+  // Test to ensure that WaylandScreen output state remains consistent as
+  // metrics changed notifications are propagated.
+  TestDisplayObserver observer;
+  observer.set_display_metrics_changed_closure(
+      base::BindLambdaForTesting([&]() {
+        EXPECT_TRUE(platform_screen_->VerifyOutputStateConsistentForTesting());
+      }));
+  platform_screen_->AddObserver(&observer);
+
   PostToServerAndWait([&output1](wl::TestWaylandServerThread* server) {
     output1 = server->output();
-    ASSERT_TRUE(output1);
   });
+  ASSERT_FALSE(output1->GetPhysicalSize().IsEmpty());
 
-  // Add a second display with scale factor 2.
+  // Add a second display. The second display is located to the right of first
+  // display like | || |.
   PostToServerAndWait(
-      [&output1, &output2](wl::TestWaylandServerThread* server) {
+      [&output2, &output1](wl::TestWaylandServerThread* server) {
         output2 = server->CreateAndInitializeOutput(
             wl::TestOutputMetrics({GetRightX(output1), 0, 800, 600}));
-        // Scale Factor 2.
-        output2->SetLogicalSize({400, 300});
-        output2->SetDeviceScaleFactor(2);
         ASSERT_TRUE(output2);
       });
-
   WaitForAllDisplaysReady();
 
-  // Create a window on the 2nd display with scale factor 2.
-  EXPECT_CALL(delegate_, OnAcceleratedWidgetAvailable(testing::_)).Times(1);
-  PlatformWindowInitProperties properties;
-  properties.bounds = gfx::Rect(GetRightX(output1), 0, 100, 100);
-  properties.type = PlatformWindowType::kWindow;
-  window_ =
-      delegate_.CreateWaylandWindow(connection_.get(), std::move(properties));
-  ASSERT_NE(widget_, gfx::kNullAcceleratedWidget);
-
-  window_->Show(false);
-
-  // Make sure that entered output is zero but the scale factor is correctly
-  // set based on the bounds.
-  EXPECT_EQ(window_->root_surface()->entered_outputs().size(), 0u);
-  EXPECT_EQ(2.f, window_->ui_scale());
+  // Destroy primary display.
+  PostToServerAndWait([&output1](wl::TestWaylandServerThread* server) {
+    output1->DestroyGlobal();
+    output1 = nullptr;
+  });
 }
 
 INSTANTIATE_TEST_SUITE_P(XdgVersionStableTest,
                          WaylandScreenTest,
                          Values(wl::ServerConfig{}));
-
-INSTANTIATE_TEST_SUITE_P(
-    XdgVersionStableTestWithAuraShell,
-    WaylandScreenTest,
-    Values(wl::ServerConfig{.enable_aura_shell =
-                                wl::EnableAuraShellProtocol::kEnabled},
-           wl::ServerConfig{
-               .enable_aura_shell = wl::EnableAuraShellProtocol::kEnabled,
-               .use_aura_output_manager = true}));
-
-INSTANTIATE_TEST_SUITE_P(
-    XdgVersionStableTest,
-    WaylandAuraShellScreenTest,
-    Values(wl::ServerConfig{.enable_aura_shell =
-                                wl::EnableAuraShellProtocol::kEnabled},
-           wl::ServerConfig{
-               .enable_aura_shell = wl::EnableAuraShellProtocol::kEnabled,
-               .use_aura_output_manager = true}));
 
 }  // namespace ui

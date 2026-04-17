@@ -1,4 +1,4 @@
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
   var {page, session, dp} = await testRunner.startHTML(`
     <div>Some text in a div, also a <a href='https://www.example.com'>link</a></div>
     <button>Hello Button</button>
@@ -19,16 +19,6 @@
 
   function printNodes(nodes) {
     function printNodeAndChildren(node, leadingSpace = "") {
-      // TODO(crbug.com/1063155): remove this workaround when
-      // RuntimeEnabledFeatures::AccessibilityExposeHTMLElementEnabled()
-      // is enabled everywhere.
-      if (node.role.value == "generic" &&
-          node.parent.role.value == "WebArea" &&
-          node.children.length == 1 &&
-          node.children[0].role.value == "generic") {
-        return printNodeAndChildren(node.children[0], leadingSpace);
-      }
-
       if (node.ignored) {
         return node.children.map((child) => printNodeAndChildren(child, leadingSpace)).join("\n");
       }

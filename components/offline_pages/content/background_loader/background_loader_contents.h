@@ -54,28 +54,29 @@ class BackgroundLoaderContents : public content::WebContentsDelegate {
   content::WebContents* web_contents() { return web_contents_.get(); }
 
   // content::WebContentsDelegate implementation:
-  bool IsNeverComposited(content::WebContents* web_contents) override;
   void CloseContents(content::WebContents* source) override;
   bool ShouldSuppressDialogs(content::WebContents* source) override;
-  bool ShouldFocusPageAfterCrash() override;
+  bool ShouldFocusPageAfterCrash(content::WebContents* source) override;
   void CanDownload(const GURL& url,
                    const std::string& request_method,
                    base::OnceCallback<void(bool)> callback) override;
 
   bool IsWebContentsCreationOverridden(
+      content::RenderFrameHost* opener,
       content::SiteInstance* source_site_instance,
       content::mojom::WindowContainerType window_container_type,
       const GURL& opener_url,
       const std::string& frame_name,
       const GURL& target_url) override;
 
-  void AddNewContents(content::WebContents* source,
-                      std::unique_ptr<content::WebContents> new_contents,
-                      const GURL& target_url,
-                      WindowOpenDisposition disposition,
-                      const blink::mojom::WindowFeatures& window_features,
-                      bool user_gesture,
-                      bool* was_blocked) override;
+  content::WebContents* AddNewContents(
+      content::WebContents* source,
+      std::unique_ptr<content::WebContents> new_contents,
+      const GURL& target_url,
+      WindowOpenDisposition disposition,
+      const blink::mojom::WindowFeatures& window_features,
+      bool user_gesture,
+      bool* was_blocked) override;
 
 #if BUILDFLAG(IS_ANDROID)
   bool ShouldBlockMediaRequest(const GURL& url) override;
@@ -86,7 +87,7 @@ class BackgroundLoaderContents : public content::WebContentsDelegate {
       const content::MediaStreamRequest& request,
       content::MediaResponseCallback callback) override;
   bool CheckMediaAccessPermission(content::RenderFrameHost* render_frame_host,
-                                  const GURL& security_origin,
+                                  const url::Origin& security_origin,
                                   blink::mojom::MediaStreamType type) override;
   bool ShouldAllowLazyLoad() override;
 

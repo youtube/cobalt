@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_ASH_INPUT_METHOD_EMOJI_SUGGESTER_H_
 #define CHROME_BROWSER_ASH_INPUT_METHOD_EMOJI_SUGGESTER_H_
 
+#include <optional>
 #include <string>
 
 #include "base/memory/raw_ptr.h"
@@ -13,16 +14,15 @@
 #include "chrome/browser/ash/input_method/suggester.h"
 #include "chrome/browser/ash/input_method/suggestion_enums.h"
 #include "chrome/browser/ash/input_method/suggestion_handler_interface.h"
-#include "chrome/browser/ash/input_method/ui/assistive_delegate.h"
+#include "chrome/browser/ui/ash/input_method/assistive_delegate.h"
 #include "chromeos/ash/services/ime/public/cpp/assistive_suggestions.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class Profile;
 
 namespace ash {
 namespace input_method {
 
-constexpr int kEmojiSuggesterShowSettingMaxCount = 10;
+inline constexpr int kEmojiSuggesterShowSettingMaxCount = 10;
 
 // An agent to suggest emoji when the user types, and adopt or
 // dismiss the suggestion according to the user action.
@@ -35,7 +35,8 @@ class EmojiSuggester : public Suggester {
   void OnFocus(int context_id) override;
   void OnBlur() override;
   void OnExternalSuggestionsUpdated(
-      const std::vector<ime::AssistiveSuggestion>& suggestions) override;
+      const std::vector<ime::AssistiveSuggestion>& suggestions,
+      const std::optional<ime::SuggestionsTextContext>& context) override;
   SuggestionStatus HandleKeyEvent(const ui::KeyEvent& event) override;
   bool TrySuggestWithSurroundingText(const std::u16string& text,
                                      gfx::Range selection_range) override;
@@ -62,12 +63,12 @@ class EmojiSuggester : public Suggester {
   void SetButtonHighlighted(const ui::ime::AssistiveWindowButton& button,
                             bool highlighted);
 
-  const raw_ptr<SuggestionHandlerInterface, ExperimentalAsh>
+  const raw_ptr<SuggestionHandlerInterface, DanglingUntriaged>
       suggestion_handler_;
-  raw_ptr<Profile, ExperimentalAsh> profile_;
+  raw_ptr<Profile, DanglingUntriaged> profile_;
 
   // ID of the focused text field, nullopt if none is focused.
-  absl::optional<int> focused_context_id_;
+  std::optional<int> focused_context_id_;
 
   // If we are showing a suggestion right now.
   bool suggestion_shown_ = false;

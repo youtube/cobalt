@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/config/os_definitions.gni")
-
 common_sources = [
   "src/AddressSpace.hpp",
   "src/CompactUnwinder.hpp",
@@ -91,6 +89,7 @@ if (sb_is_evergreen || (sb_is_modular && host_os == "win")) {
       "LIBUNWIND_PRINT_DWARF",
       "LIBUNWIND_PRINT_UNWINDING",
     ]
+    include_dirs = ["//third_party/llvm-project/compiler-rt/include"]
   }
 
   static_library("unwind") {

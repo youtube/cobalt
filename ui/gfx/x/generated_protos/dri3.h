@@ -7,36 +7,19 @@
 //    ../../third_party/xcbproto/src \
 //    gen/ui/gfx/x \
 //    bigreq \
-//    composite \
-//    damage \
-//    dpms \
-//    dri2 \
 //    dri3 \
-//    ge \
 //    glx \
-//    present \
 //    randr \
-//    record \
 //    render \
-//    res \
 //    screensaver \
 //    shape \
 //    shm \
 //    sync \
-//    xc_misc \
-//    xevie \
-//    xf86dri \
-//    xf86vidmode \
 //    xfixes \
-//    xinerama \
 //    xinput \
 //    xkb \
-//    xprint \
 //    xproto \
-//    xselinux \
-//    xtest \
-//    xv \
-//    xvmc
+//    xtest
 
 #ifndef UI_GFX_X_GENERATED_PROTOS_DRI3_H_
 #define UI_GFX_X_GENERATED_PROTOS_DRI3_H_
@@ -45,15 +28,15 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <optional>
 #include <vector>
 
 #include "base/component_export.h"
 #include "base/files/scoped_file.h"
-#include "base/memory/ref_counted_memory.h"
 #include "base/memory/scoped_refptr.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/x/error.h"
 #include "ui/gfx/x/ref_counted_fd.h"
+#include "ui/gfx/x/xproto_types.h"
 #include "xproto.h"
 
 namespace x11 {
@@ -69,7 +52,7 @@ class Future;
 class COMPONENT_EXPORT(X11) Dri3 {
  public:
   static constexpr unsigned major_version = 1;
-  static constexpr unsigned minor_version = 3;
+  static constexpr unsigned minor_version = 4;
 
   Dri3(Connection* connection, const x11::QueryExtensionReply& info);
 
@@ -79,6 +62,8 @@ class COMPONENT_EXPORT(X11) Dri3 {
   uint8_t first_error() const { return info_.first_error; }
 
   Connection* connection() const { return connection_; }
+
+  enum class Syncobj : uint32_t {};
 
   struct QueryVersionRequest {
     uint32_t major_version{};
@@ -297,6 +282,30 @@ class COMPONENT_EXPORT(X11) Dri3 {
   Future<void> SetDRMDeviceInUse(const Window& window = {},
                                  const uint32_t& drmMajor = {},
                                  const uint32_t& drmMinor = {});
+
+  struct ImportSyncobjRequest {
+    Syncobj syncobj{};
+    Drawable drawable{};
+    RefCountedFD syncobj_fd{};
+  };
+
+  using ImportSyncobjResponse = Response<void>;
+
+  Future<void> ImportSyncobj(const ImportSyncobjRequest& request);
+
+  Future<void> ImportSyncobj(const Syncobj& syncobj = {},
+                             const Drawable& drawable = {},
+                             const RefCountedFD& syncobj_fd = {});
+
+  struct FreeSyncobjRequest {
+    Syncobj syncobj{};
+  };
+
+  using FreeSyncobjResponse = Response<void>;
+
+  Future<void> FreeSyncobj(const FreeSyncobjRequest& request);
+
+  Future<void> FreeSyncobj(const Syncobj& syncobj = {});
 
  private:
   Connection* const connection_;

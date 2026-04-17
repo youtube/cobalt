@@ -4,10 +4,30 @@
 
 #include "ash/public/cpp/app_list/app_list_types.h"
 
+#include <string>
+#include <utility>
+
 #include "ash/resources/vector_icons/vector_icons.h"
 #include "base/check.h"
+#include "base/files/file.h"
+#include "base/functional/callback.h"
+#include "build/branding_buildflags.h"
 
 namespace ash {
+
+namespace {
+
+// Search control dictionary pref keys.
+const char kLauncherAppSearchEnabled[] = "app_search_enabled";
+const char kLauncherAppShortcutSearchEnabled[] = "app_shortcut_search_enabled";
+const char kLauncherWebSearchEnabled[] = "web_search_enabled";
+const char kLauncherFileSearchEnabled[] = "file_search_enabled";
+const char kLauncherHelpSearchEnabled[] = "help_search_enabled";
+const char kLauncherPlayStoreSearchEnabled[] = "play_store_search_enabled";
+const char kLauncherGameSearchEnabled[] = "game_search_enabled";
+const char kLauncherImageSearchEnabled[] = "image_search_enabled";
+
+}  // namespace
 
 const char kOemFolderId[] = "ddb1da55-d478-4243-8642-56d3041f0263";
 
@@ -15,16 +35,19 @@ const char kOemFolderId[] = "ddb1da55-d478-4243-8642-56d3041f0263";
 // Generated using crx_file::id_util::GenerateId("LinuxAppsFolder")
 const char kCrostiniFolderId[] = "ddolnhmblagmcagkedkbfejapapdimlk";
 
+// Generated using crx_file::id_util::GenerateId("BruschettaAppsFolder")
+const char kBruschettaFolderId[] = "olojmkekngdacpmgcffeipkflkgohcja";
+
 bool IsAppListSearchResultAnApp(AppListSearchResultType result_type) {
   switch (result_type) {
     case AppListSearchResultType::kInstalledApp:
-    case AppListSearchResultType::kInternalApp:
     case AppListSearchResultType::kPlayStoreApp:
     case AppListSearchResultType::kPlayStoreReinstallApp:
     case AppListSearchResultType::kArcAppShortcut:
     case AppListSearchResultType::kInstantApp:
     case AppListSearchResultType::kGames:
     case AppListSearchResultType::kZeroStateApp:
+    case AppListSearchResultType::kAppShortcutV2:
       return true;
     case AppListSearchResultType::kUnknown:
     case AppListSearchResultType::kOmnibox:
@@ -61,7 +84,6 @@ bool IsZeroStateResultType(AppListSearchResultType result_type) {
     case AppListSearchResultType::kInstalledApp:
     case AppListSearchResultType::kPlayStoreApp:
     case AppListSearchResultType::kInstantApp:
-    case AppListSearchResultType::kInternalApp:
     case AppListSearchResultType::kOmnibox:
     case AppListSearchResultType::kLauncher:
     case AppListSearchResultType::kAnswerCard:
@@ -79,7 +101,33 @@ bool IsZeroStateResultType(AppListSearchResultType result_type) {
     case AppListSearchResultType::kPersonalization:
     case AppListSearchResultType::kImageSearch:
     case AppListSearchResultType::kSystemInfo:
+    case AppListSearchResultType::kAppShortcutV2:
       return false;
+  }
+}
+
+std::string GetAppListControlCategoryName(
+    AppListSearchControlCategory control_category) {
+  switch (control_category) {
+    // Non-toggleable category does not have a pref name is always enabled.
+    case AppListSearchControlCategory::kCannotToggle:
+      return std::string();
+    case AppListSearchControlCategory::kApps:
+      return kLauncherAppSearchEnabled;
+    case AppListSearchControlCategory::kAppShortcuts:
+      return kLauncherAppShortcutSearchEnabled;
+    case AppListSearchControlCategory::kWeb:
+      return kLauncherWebSearchEnabled;
+    case AppListSearchControlCategory::kFiles:
+      return kLauncherFileSearchEnabled;
+    case ash::AppListSearchControlCategory::kHelp:
+      return kLauncherHelpSearchEnabled;
+    case ash::AppListSearchControlCategory::kPlayStore:
+      return kLauncherPlayStoreSearchEnabled;
+    case ash::AppListSearchControlCategory::kGames:
+      return kLauncherGameSearchEnabled;
+    case ash::AppListSearchControlCategory::kImages:
+      return kLauncherImageSearchEnabled;
   }
 }
 
@@ -183,6 +231,8 @@ std::ostream& operator<<(std::ostream& os, AppListBubblePage page) {
       return os << "None";
     case AppListBubblePage::kApps:
       return os << "Apps";
+    case AppListBubblePage::kAppsCollections:
+      return os << "AppsCollections";
     case AppListBubblePage::kSearch:
       return os << "Search";
     case AppListBubblePage::kAssistant:
@@ -206,16 +256,23 @@ std::ostream& operator<<(std::ostream& os, AppListViewState state) {
 
 SearchResultIconInfo::SearchResultIconInfo() = default;
 
-SearchResultIconInfo::SearchResultIconInfo(gfx::ImageSkia icon, int dimension)
+SearchResultIconInfo::SearchResultIconInfo(ui::ImageModel icon, int dimension)
     : icon(icon), dimension(dimension) {}
 
-SearchResultIconInfo::SearchResultIconInfo(gfx::ImageSkia icon,
+SearchResultIconInfo::SearchResultIconInfo(ui::ImageModel icon,
                                            int dimension,
-                                           SearchResultIconShape shape)
-    : icon(icon), dimension(dimension), shape(shape) {}
+                                           SearchResultIconShape shape,
+                                           bool is_placeholder)
+    : icon(icon),
+      dimension(dimension),
+      shape(shape),
+      is_placeholder(is_placeholder) {}
 
 SearchResultIconInfo::SearchResultIconInfo(const SearchResultIconInfo& other)
-    : icon(other.icon), dimension(other.dimension), shape(other.shape) {}
+    : icon(other.icon),
+      dimension(other.dimension),
+      shape(other.shape),
+      is_placeholder(other.is_placeholder) {}
 
 SearchResultIconInfo::~SearchResultIconInfo() = default;
 
@@ -232,18 +289,57 @@ SystemInfoAnswerCardData::SystemInfoAnswerCardData(double bar_chart_percentage)
     : display_type(SystemInfoAnswerCardDisplayType::kBarChart),
       bar_chart_percentage(bar_chart_percentage) {}
 
-SystemInfoAnswerCardData::SystemInfoAnswerCardData(
-    std::map<SearchResultSystemInfoStorageType, int64_t>
-        storage_type_to_size_map)
-    : display_type(SystemInfoAnswerCardDisplayType::kMultiElementBarChart),
-      storage_type_to_size(std::move(storage_type_to_size_map)) {
-  DCHECK(!storage_type_to_size.empty());
-}
-
 SystemInfoAnswerCardData::~SystemInfoAnswerCardData() = default;
 
 SystemInfoAnswerCardData::SystemInfoAnswerCardData(
     const SystemInfoAnswerCardData& other) = default;
+
+void SystemInfoAnswerCardData::SetExtraDetails(
+    const std::u16string& description_on_right) {
+  extra_details = description_on_right;
+}
+
+void SystemInfoAnswerCardData::SetUpperLimitForBarChart(double upper_limit) {
+  DCHECK(upper_limit <= 100 && upper_limit >= 0);
+  upper_warning_limit_bar_chart = upper_limit;
+}
+void SystemInfoAnswerCardData::SetLowerLimitForBarChart(double lower_limit) {
+  DCHECK(lower_limit <= 100 && lower_limit >= 0);
+  lower_warning_limit_bar_chart = lower_limit;
+}
+
+void SystemInfoAnswerCardData::UpdateBarChartPercentage(
+    double new_bar_chart_percentage) {
+  DCHECK(new_bar_chart_percentage <= 100 && new_bar_chart_percentage >= 0);
+  bar_chart_percentage = new_bar_chart_percentage;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// FileMetadataLoader:
+
+FileMetadataLoader::FileMetadataLoader() = default;
+FileMetadataLoader::FileMetadataLoader(const FileMetadataLoader&) = default;
+FileMetadataLoader& FileMetadataLoader::operator=(const FileMetadataLoader&) =
+    default;
+FileMetadataLoader::~FileMetadataLoader() = default;
+
+void FileMetadataLoader::RequestFileInfo(
+    OnMetadataLoadedCallback on_loaded_callback) {
+  // Return an empty base::File::Info if the loader callback is not set.
+  if (loader_callback_.is_null()) {
+    std::move(on_loaded_callback).Run(base::File::Info());
+    return;
+  }
+
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_BLOCKING},
+      base::OnceCallback<base::File::Info()>(loader_callback_),
+      std::move(on_loaded_callback));
+}
+
+void FileMetadataLoader::SetLoaderCallback(MetadataLoaderCallback callback) {
+  loader_callback_ = std::move(callback);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // SearchResultTag:
@@ -322,26 +418,60 @@ const gfx::VectorIcon* SearchResultTextItem::GetIconFromCode() const {
   DCHECK_EQ(item_type_, SearchResultTextItemType::kIconCode);
   DCHECK(icon_code_.has_value());
   switch (icon_code_.value()) {
+    // Browser.
     case kKeyboardShortcutBrowserBack:
       return &kKsvBrowserBackIcon;
     case kKeyboardShortcutBrowserForward:
       return &kKsvBrowserForwardIcon;
+    case kKeyboardShortcutBrowserHome:
+      return &kKsvBrowserHomeIcon;
     case kKeyboardShortcutBrowserRefresh:
       return &kKsvReloadIcon;
+    case kKeyboardShortcutBrowserSearch:
+      return &kKsBrowserSearchIcon;
+    // Emoji picker.
+    case kKeyboardShortcutEmojiPicker:
+      return &kKsEmojiPickerIcon;
+    // Dictation.
+    case kKeyboardShortcutDictationToggle:
+      return &kKsDictationIcon;
+    // Zoom.
     case kKeyboardShortcutZoom:
       return &kKsvFullscreenIcon;
+    // Media.
     case kKeyboardShortcutMediaLaunchApp1:
       return &kKsvOverviewIcon;
+    case kKeyboardShortcutMediaLaunchApp1Refresh:
+      return &kOverviewRefreshIcon;
+    case kKeyboardShortcutMediaFastForward:
+      return &kKsMediaFastForwardIcon;
+    case kKeyboardShortcutMediaLaunchMail:
+      return &kKsMediaLaunchMailIcon;
+    case kKeyboardShortcutMediaPause:
+      return &kKsMediaPauseIcon;
+    case kKeyboardShortcutMediaPlay:
+      return &kKsMediaPlayIcon;
+    case kKeyboardShortcutMediaPlayPause:
+      return &kKsMediaPlayPauseIcon;
+    case kKeyboardShortcutMediaTrackNext:
+      return &kKsMediaTrackNextIcon;
+    case kKeyboardShortcutMediaTrackPrevious:
+      return &kKsMediaTrackPreviousIcon;
+    // Brightness.
     case kKeyboardShortcutBrightnessDown:
       return &kKsvBrightnessDownIcon;
     case kKeyboardShortcutBrightnessUp:
       return &kKsvBrightnessUpIcon;
+    case kKeyboardShortcutBrightnessUpRefresh:
+      return &kBrightnessUpRefreshIcon;
+    // Volume.
     case kKeyboardShortcutVolumeMute:
       return &kKsvMuteIcon;
     case kKeyboardShortcutVolumeDown:
       return &kKsvVolumeDownIcon;
     case kKeyboardShortcutVolumeUp:
       return &kKsvVolumeUpIcon;
+    // Arrows.
     case kKeyboardShortcutUp:
       return &kKsvArrowUpIcon;
     case kKeyboardShortcutDown:
@@ -350,10 +480,56 @@ const gfx::VectorIcon* SearchResultTextItem::GetIconFromCode() const {
       return &kKsvArrowLeftIcon;
     case kKeyboardShortcutRight:
       return &kKsvArrowRightIcon;
+    // Privacy.
     case kKeyboardShortcutPrivacyScreenToggle:
       return &kKsvPrivacyScreenToggleIcon;
+    // Settings.
+    case kKeyboardShortcutSettings:
+      return &kKsSettingsIcon;
+    // Snapshot.
     case kKeyboardShortcutSnapshot:
       return &kKsvSnapshotIcon;
+    // Launcher.
+    case kKeyboardShortcutLauncher:
+      return &kKsLauncherIcon;
+    case kKeyboardShortcutLauncherRefresh:
+      return &kCampbellHeroIcon;
+    // Search.
+    case kKeyboardShortcutSearch:
+      return &kKsSearchIcon;
+    // Apps.
+    case kKeyboardShortcutAssistant:
+      return &kKsAssistantIcon;
+    case kKeyboardShortcutAllApps:
+      return &kKsAllAppsIcon;
+    case kKeyboardShortcutCalculator:
+      return &kKsCalculatorIcon;
+    case kKeyboardShortcutInputModeChange:
+      return &kKsInputModeChangeIcon;
+    case kKeyboardShortcutMicrophone:
+      return &kKsMicrophoneIcon;
+    // Power.
+    case kKeyboardShortcutPower:
+      return &kKsPowerIcon;
+    // Keyboard brightness.
+    case kKeyboardShortcutKeyboardBrightnessDown:
+      return &kKsKeyboardBrightnessDownIcon;
+    case kKeyboardShortcutKeyboardBrightnessUp:
+      return &kKsKeyboardBrightnessUpIcon;
+    case kKeyboardShortcutKeyboardBacklightToggle:
+      return &kKsKeyboardBrightnessToggleIcon;
+    // Accessibility.
+    case kKeyboardShortcutAccessibility:
+      return &kKsAccessibilityIcon;
+    // Context menu.
+    case kKeyboardShortcutContextMenu:
+      return &kKsContextMenuIcon;
+    case kKeyboardShortcutKeyboardQuickInsert:
+      return &kQuickInsertIcon;
+    case kKeyboardShortcutDoNotDisturb:
+      return &kKsDoNotDisturbIcon;
+    case kKeyboardShortcutCameraAccessToggle:
+      return &kKsCameraAccessToggleIcon;
     default:
       return nullptr;
   }
@@ -386,6 +562,20 @@ SearchResultTextItem& SearchResultTextItem::SetOverflowBehavior(
     SearchResultTextItem::OverflowBehavior overflow_behavior) {
   DCHECK_EQ(item_type_, SearchResultTextItemType::kString);
   overflow_behavior_ = overflow_behavior;
+  return *this;
+}
+
+bool SearchResultTextItem::GetAlternateIconAndTextStyling() const {
+  CHECK(item_type_ == SearchResultTextItemType::kIconifiedText ||
+        item_type_ == SearchResultTextItemType::kIconCode);
+  return alternate_icon_text_code_styling_;
+}
+
+SearchResultTextItem& SearchResultTextItem::SetAlternateIconAndTextStyling(
+    bool alternate_icon_text_code_styling) {
+  CHECK(item_type_ == SearchResultTextItemType::kIconifiedText ||
+        item_type_ == SearchResultTextItemType::kIconCode);
+  alternate_icon_text_code_styling_ = alternate_icon_text_code_styling;
   return *this;
 }
 

@@ -7,15 +7,18 @@
 #include <android/bitmap.h>
 #include <memory>
 
-#include "android_webview/browser_jni_headers/JavaBrowserViewRendererHelper_jni.h"
 #include "android_webview/public/browser/draw_sw.h"
 #include "base/android/scoped_java_ref.h"
+#include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/trace_event/trace_event.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
 #include "third_party/skia/include/utils/SkCanvasStateUtils.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "android_webview/browser_jni_headers/JavaBrowserViewRendererHelper_jni.h"
 
 using base::android::ScopedJavaLocalRef;
 
@@ -135,7 +138,7 @@ AuxiliaryCanvasHolder::AuxiliaryCanvasHolder(
 AuxiliaryCanvasHolder::~AuxiliaryCanvasHolder() {
   bitmap_.reset();
 
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   if (AndroidBitmap_unlockPixels(env, jbitmap_.obj()) < 0) {
     LOG(ERROR) << "Error unlocking java bitmap pixels.";
     return;
@@ -161,7 +164,7 @@ std::unique_ptr<SoftwareCanvasHolder> SoftwareCanvasHolder::Create(
     const gfx::Point& scroll_correction,
     const gfx::Size& auxiliary_bitmap_size,
     bool force_auxiliary_bitmap) {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   std::unique_ptr<SoftwareCanvasHolder> holder;
   if (!force_auxiliary_bitmap) {
     holder =

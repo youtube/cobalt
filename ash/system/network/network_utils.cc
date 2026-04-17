@@ -11,6 +11,7 @@
 #include "ash/system/model/system_tray_model.h"
 #include "ash/system/network/tray_network_state_model.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notreached.h"
 #include "base/strings/strcat.h"
 #include "chromeos/services/network_config/public/cpp/cros_network_config_util.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -19,69 +20,76 @@ namespace ash {
 
 namespace {
 
-std::string GetNetworkTypeName(
-    chromeos::network_config::mojom::NetworkType network_type) {
-  switch (network_type) {
-    case chromeos::network_config::mojom::NetworkType::kCellular:
-      [[fallthrough]];
-    case chromeos::network_config::mojom::NetworkType::kTether:
-      [[fallthrough]];
-    case chromeos::network_config::mojom::NetworkType::kMobile:
-      return "Mobile";
-    case chromeos::network_config::mojom::NetworkType::kWiFi:
-      return "WiFi";
-    default:
-      // A network type of other is unexpected, and no success
-      // metric for it exists.
-      NOTREACHED();
-      return "";
-  }
-}
+using chromeos::network_config::mojom::DeviceStateProperties;
+using chromeos::network_config::mojom::InhibitReason;
+using chromeos::network_config::mojom::NetworkType;
 
 }  // namespace
 
-void RecordNetworkRowClickedAction(NetworkRowClickedAction action) {
-  base::UmaHistogramEnumeration("ChromeOS.SystemTray.Network.RowClickedAction",
-                                action);
+int GetStringIdForNetworkDetailedViewTitleRow(
+    NetworkDetailedViewListType list_type) {
+  if (base::FeatureList::IsEnabled(ash::features::kInstantHotspotRebrand)) {
+    return (list_type == NetworkDetailedViewListType::LIST_TYPE_NETWORK
+                ? IDS_ASH_STATUS_TRAY_INTERNET
+                : IDS_ASH_STATUS_TRAY_VPN);
+  } else {
+    return (list_type == NetworkDetailedViewListType::LIST_TYPE_NETWORK
+                ? IDS_ASH_STATUS_TRAY_NETWORK
+                : IDS_ASH_STATUS_TRAY_VPN);
+  }
 }
 
-void RecordDetailedViewSection(DetailedViewSection section) {
-  base::UmaHistogramEnumeration("ChromeOS.SystemTray.Network.SectionShown",
-                                section);
+InhibitReason GetCellularInhibitReason() {
+  const DeviceStateProperties* cellular_device =
+      Shell::Get()->system_tray_model()->network_state_model()->GetDevice(
+          NetworkType::kCellular);
+  CHECK(cellular_device);
+  return cellular_device->inhibit_reason;
 }
 
-void RecordNetworkTypeToggled(
-    chromeos::network_config::mojom::NetworkType network_type,
-    bool new_state) {
-  const std::string network_name = GetNetworkTypeName(network_type);
-
-  DCHECK(!network_name.empty());
-
-  base::UmaHistogramBoolean(
-      base::StrCat({"ChromeOS.SystemTray.Network.", network_name, ".Toggled"}),
-      new_state);
+int GetCellularInhibitReasonMessageId(InhibitReason inhibit_reason) {
+  switch (inhibit_reason) {
+    case InhibitReason::kInstallingProfile:
+      return IDS_ASH_STATUS_TRAY_INHIBITED_CELLULAR_INSTALLING_PROFILE;
+    case InhibitReason::kRenamingProfile:
+      return IDS_ASH_STATUS_TRAY_INHIBITED_CELLULAR_RENAMING_PROFILE;
+    case InhibitReason::kRemovingProfile:
+      return IDS_ASH_STATUS_TRAY_INHIBITED_CELLULAR_REMOVING_PROFILE;
+    case InhibitReason::kConnectingToProfile:
+      return IDS_ASH_STATUS_TRAY_INHIBITED_CELLULAR_CONNECTING_TO_PROFILE;
+    case InhibitReason::kRefreshingProfileList:
+      return IDS_ASH_STATUS_TRAY_INHIBITED_CELLULAR_REFRESHING_PROFILE_LIST;
+    case InhibitReason::kNotInhibited:
+      return IDS_ASH_STATUS_TRAY_ADD_CELLULAR_LABEL;
+    case InhibitReason::kResettingEuiccMemory:
+      return IDS_ASH_STATUS_TRAY_INHIBITED_CELLULAR_RESETTING_ESIM;
+    case InhibitReason::kDisablingProfile:
+      return IDS_ASH_STATUS_TRAY_INHIBITED_CELLULAR_DISABLING_PROFILE;
+    case InhibitReason::kRequestingAvailableProfiles:
+      return IDS_ASH_STATUS_TRAY_INHIBITED_CELLULAR_REQUESTING_AVAILABLE_PROFILES;
+  }
 }
 
-absl::optional<std::u16string> GetPortalStateSubtext(
+std::optional<std::u16string> GetPortalStateSubtext(
     const chromeos::network_config::mojom::PortalState& portal_state) {
   using chromeos::network_config::mojom::PortalState;
   switch (portal_state) {
     case PortalState::kUnknown:
       [[fallthrough]];
     case PortalState::kOnline:
-      return absl::nullopt;
-    case PortalState::kPortalSuspected:
-      [[fallthrough]];
+      return std::nullopt;
     case PortalState::kNoInternet:
       // Use 'no internet' for portal suspected and no internet states.
       return l10n_util::GetStringUTF16(
           IDS_ASH_STATUS_TRAY_NETWORK_STATUS_CONNECTED_NO_INTERNET);
-    case PortalState::kPortal:
+    case PortalState::kPortalSuspected:
       [[fallthrough]];
-    case PortalState::kProxyAuthRequired:
+    case PortalState::kPortal:
       // Use 'signin to network' for portal and proxy auth required states.
       return l10n_util::GetStringUTF16(
           IDS_ASH_STATUS_TRAY_NETWORK_STATUS_SIGNIN);
+    case PortalState::kDeprecatedProxyAuthRequired:
+      NOTREACHED();
   }
 }
 
@@ -93,8 +101,7 @@ bool IsNetworkDisabled(
   }
 
   if (!chromeos::network_config::NetworkTypeMatchesType(
-          network_properties->type,
-          chromeos::network_config::mojom::NetworkType::kCellular)) {
+          network_properties->type, NetworkType::kCellular)) {
     return false;
   }
 
@@ -122,6 +129,10 @@ bool IsNetworkDisabled(
     return true;
   }
 
+  if (IsCellularDeviceFlashing(network_properties)) {
+    return true;
+  }
+
   return false;
 }
 
@@ -129,18 +140,31 @@ bool IsNetworkInhibited(
     const chromeos::network_config::mojom::NetworkStatePropertiesPtr&
         network_properties) {
   if (!chromeos::network_config::NetworkTypeMatchesType(
-          network_properties->type,
-          chromeos::network_config::mojom::NetworkType::kCellular)) {
+          network_properties->type, NetworkType::kCellular)) {
     return false;
   }
 
-  const chromeos::network_config::mojom::DeviceStateProperties*
-      cellular_device =
-          Shell::Get()->system_tray_model()->network_state_model()->GetDevice(
-              chromeos::network_config::mojom::NetworkType::kCellular);
+  const DeviceStateProperties* cellular_device =
+      Shell::Get()->system_tray_model()->network_state_model()->GetDevice(
+          NetworkType::kCellular);
 
   return cellular_device &&
          chromeos::network_config::IsInhibited(cellular_device);
+}
+
+bool IsCellularDeviceFlashing(
+    const chromeos::network_config::mojom::NetworkStatePropertiesPtr&
+        network_properties) {
+  if (!chromeos::network_config::NetworkTypeMatchesType(
+          network_properties->type, NetworkType::kCellular)) {
+    return false;
+  }
+
+  const DeviceStateProperties* cellular_device =
+      Shell::Get()->system_tray_model()->network_state_model()->GetDevice(
+          NetworkType::kCellular);
+
+  return cellular_device && cellular_device->is_flashing;
 }
 
 }  // namespace ash

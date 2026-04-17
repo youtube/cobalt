@@ -10,7 +10,7 @@
 #include "src/base/bit-field.h"
 #include "src/base/vector.h"
 #include "src/common/globals.h"
-#include "src/third_party/utf8-decoder/utf8-decoder.h"
+#include "third_party/utf8-decoder/utf8-decoder.h"
 /**
  * \file
  * Definitions and convenience functions for working with unicode.
@@ -19,7 +19,6 @@
 namespace unibrow {
 
 using uchar = unsigned int;
-using byte = unsigned char;
 
 /**
  * The max length of the result of converting the case of a single
@@ -141,20 +140,6 @@ class Utf16 {
 class Latin1 {
  public:
   static const uint16_t kMaxChar = 0xff;
-  // Convert the character to Latin-1 case equivalent if possible.
-  static inline uint16_t TryConvertToLatin1(uint16_t c) {
-    switch (c) {
-      // This are equivalent characters in unicode.
-      case 0x39c:
-      case 0x3bc:
-        return 0xb5;
-      // This is an uppercase of a Latin-1 character
-      // outside of Latin-1.
-      case 0x178:
-        return 0xff;
-    }
-    return c;
-  }
 };
 
 enum class Utf8Variant : uint8_t {
@@ -177,11 +162,13 @@ class V8_EXPORT_PRIVATE Utf8 {
  public:
   using State = Utf8DfaDecoder::State;
 
-  static inline uchar Length(uchar chr, int previous);
+  static inline unsigned LengthOneByte(uint8_t chr);
+  static inline unsigned Length(uchar chr, int previous);
   static inline unsigned EncodeOneByte(char* out, uint8_t c);
   static inline unsigned Encode(char* out, uchar c, int previous,
                                 bool replace_invalid = false);
-  static uchar CalculateValue(const byte* str, size_t length, size_t* cursor);
+  static uchar CalculateValue(const uint8_t* str, size_t length,
+                              size_t* cursor);
 
   // The unicode replacement character, used to signal invalid unicode
   // sequences (e.g. an orphan surrogate) when converting to a UTF-8 encoding.
@@ -204,10 +191,11 @@ class V8_EXPORT_PRIVATE Utf8 {
   // The maximum size a single UTF-16 code unit known to be in the range
   // [0,0xff] may take up when encoded as UTF-8.
   static const unsigned kMax8BitCodeUnitSize = 2;
-  static inline uchar ValueOf(const byte* str, size_t length, size_t* cursor);
+  static inline uchar ValueOf(const uint8_t* str, size_t length,
+                              size_t* cursor);
 
   using Utf8IncrementalBuffer = uint32_t;
-  static inline uchar ValueOfIncremental(const byte** cursor, State* state,
+  static inline uchar ValueOfIncremental(const uint8_t** cursor, State* state,
                                          Utf8IncrementalBuffer* buffer);
   static uchar ValueOfIncrementalFinish(State* state);
 
@@ -222,7 +210,17 @@ class V8_EXPORT_PRIVATE Utf8 {
   // - valid utf-8 endcoding (e.g. no over-long encodings),
   // - absence of surrogates,
   // - valid code point range.
-  static bool ValidateEncoding(const byte* str, size_t length);
+  static bool ValidateEncoding(const uint8_t* str, size_t length);
+
+  // Encode the given characters as Utf8 into the provided output buffer.
+  struct EncodingResult {
+    size_t bytes_written;
+    size_t characters_processed;
+  };
+  template <typename Char>
+  static EncodingResult Encode(v8::base::Vector<const Char> string,
+                               char* buffer, size_t capacity, bool write_null,
+                               bool replace_invalid_utf8);
 };
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -238,9 +236,9 @@ class V8_EXPORT_PRIVATE Wtf8 {
   // In terms of the WTF-8 specification (https://simonsapin.github.io/wtf-8/),
   // this function checks for a valid "generalized UTF-8" sequence, with the
   // additional constraint that surrogate pairs are not allowed.
-  static bool ValidateEncoding(const byte* str, size_t length);
+  static bool ValidateEncoding(const uint8_t* str, size_t length);
 
-  static void ScanForSurrogates(const v8::base::Vector<const byte>& wtf8,
+  static void ScanForSurrogates(v8::base::Vector<const uint8_t> wtf8,
                                 std::vector<size_t>* surrogate_offsets);
 };
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -274,7 +272,14 @@ V8_INLINE bool IsStringLiteralLineTerminator(uchar c) {
   return c == 0x000A || c == 0x000D;
 }
 
-#ifndef V8_INTL_SUPPORT
+#ifdef V8_INTL_SUPPORT
+struct V8_EXPORT_PRIVATE ToLowercase {
+  static const bool kIsToLower = true;
+};
+struct V8_EXPORT_PRIVATE ToUppercase {
+  static const bool kIsToLower = false;
+};
+#else
 struct V8_EXPORT_PRIVATE ToLowercase {
   static const int kMaxWidth = 3;
   static const bool kIsToLower = true;

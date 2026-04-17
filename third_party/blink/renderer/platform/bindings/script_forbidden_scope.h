@@ -5,10 +5,12 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_BINDINGS_SCRIPT_FORBIDDEN_SCOPE_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_BINDINGS_SCRIPT_FORBIDDEN_SCOPE_H_
 
+#include <optional>
+
 #include "base/auto_reset.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/platform/bindings/v8_throw_exception.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/stack_util.h"
 #include "third_party/blink/renderer/platform/wtf/wtf.h"
@@ -32,7 +34,7 @@ class PLATFORM_EXPORT ScriptForbiddenScope final {
 
    public:
     AllowUserAgentScript() : saved_counter_(&GetMutableCounter(), 0) {
-      if (LIKELY(IsMainThread())) {
+      if (IsMainThread()) [[likely]] {
         saved_blink_counter_.emplace(&g_blink_lifecycle_counter_, 0);
       }
     }
@@ -42,12 +44,23 @@ class PLATFORM_EXPORT ScriptForbiddenScope final {
 
    private:
     base::AutoReset<unsigned> saved_counter_;
-    absl::optional<base::AutoReset<unsigned>> saved_blink_counter_;
+    std::optional<base::AutoReset<unsigned>> saved_blink_counter_;
   };
 
   static bool IsScriptForbidden() {
-    if (LIKELY(!WTF::MayNotBeMainThread()))
+#if DCHECK_IS_ON()
+    bool extended_check = true;
+#else
+    bool extended_check =
+        RuntimeEnabledFeatures::BlinkLifecycleScriptForbiddenEnabled();
+#endif
+
+    if (extended_check && WillBeScriptForbidden()) {
+      return true;
+    }
+    if (!WTF::MayNotBeMainThread()) [[likely]] {
       return g_main_thread_counter_ > 0;
+    }
     return GetMutableCounter() > 0;
   }
 
@@ -61,8 +74,9 @@ class PLATFORM_EXPORT ScriptForbiddenScope final {
   // TODO(crbug.com/1196853): Remove this once we have discovered and fixed
   // sources of attempted script execution during blink lifecycle.
   static bool WillBeScriptForbidden() {
-    if (LIKELY(IsMainThread()))
+    if (IsMainThread()) [[likely]] {
       return g_blink_lifecycle_counter_ > 0;
+    }
     // Blink lifecycle scope is never entered on other threads.
     return false;
   }
@@ -73,7 +87,7 @@ class PLATFORM_EXPORT ScriptForbiddenScope final {
 
  private:
   static void Enter() {
-    if (LIKELY(!WTF::MayNotBeMainThread())) {
+    if (!WTF::MayNotBeMainThread()) [[likely]] {
       ++g_main_thread_counter_;
     } else {
       ++GetMutableCounter();
@@ -81,7 +95,7 @@ class PLATFORM_EXPORT ScriptForbiddenScope final {
   }
   static void Exit() {
     DCHECK(IsScriptForbidden());
-    if (LIKELY(!WTF::MayNotBeMainThread())) {
+    if (!WTF::MayNotBeMainThread()) [[likely]] {
       --g_main_thread_counter_;
     } else {
       --GetMutableCounter();

@@ -9,6 +9,7 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/timer/timer.h"
 #include "components/domain_reliability/util.h"
 
@@ -64,12 +65,13 @@ void DomainReliabilityDispatcher::ScheduleTask(base::OnceClosure closure,
       std::move(closure), time_->CreateTimer(), min_delay, max_delay);
   Task* task = owned_task.get();
   tasks_.insert(std::move(owned_task));
-  if (max_delay.InMicroseconds() < 0)
+  if (max_delay.InMicroseconds() < 0) {
     RunAndDeleteTask(task);
-  else if (min_delay.InMicroseconds() < 0)
+  } else if (min_delay.InMicroseconds() < 0) {
     MakeTaskEligible(task);
-  else
+  } else {
     MakeTaskWaiting(task);
+  }
 }
 
 void DomainReliabilityDispatcher::RunEligibleTasks() {
@@ -77,10 +79,10 @@ void DomainReliabilityDispatcher::RunEligibleTasks() {
   // RunAndDeleteTask won't erase elements out from under the iterator.  (Also
   // keeps RunEligibleTasks from running forever if a task adds a new, already-
   // eligible task that does the same, and so on.)
-  std::set<Task*> tasks;
+  std::set<raw_ptr<Task, SetExperimental>> tasks;
   tasks.swap(eligible_tasks_);
 
-  for (auto* task : tasks) {
+  for (Task* task : tasks) {
     DCHECK(task);
     DCHECK(task->eligible);
     RunAndDeleteTask(task);
@@ -128,7 +130,7 @@ void DomainReliabilityDispatcher::RunAndDeleteTask(Task* task) {
     eligible_tasks_.erase(task);
 
   auto it = tasks_.find(task);
-  DCHECK(it != tasks_.end());
+  CHECK(it != tasks_.end());
   tasks_.erase(it);
 }
 

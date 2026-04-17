@@ -26,22 +26,12 @@
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
 
-namespace {
-// This macro exists in Chromium version m134, which we currently are not using.
-// To make the code consistent for when we do rebase to m134, we will define the
-// macro ourselves. Once the rebase happens, we should be able to delete this
-// macro.
-// TODO: (cobalt b/434023340) Delete this macro once Cobalt rebases to m138.
-#define BASE_DECLARE_FEATURE_PARAM(T, param_object_name) \
-  extern const base::FeatureParam<T> param_object_name;
-}  // namespace
-
 #define STARBOARD_FEATURE(feature, name, default_state) \
   BASE_DECLARE_FEATURE(feature);
 
 #define STARBOARD_FEATURE_PARAM(T, param_object_name, feature_object_name, \
                                 param_name, default_value)                 \
-  BASE_DECLARE_FEATURE_PARAM(T, param_object_name)
+  BASE_DECLARE_FEATURE_PARAM(T, param_object_name);
 
 #define FEATURE_LIST_START namespace cobalt::features {
 #define FEATURE_LIST_END }

@@ -6,16 +6,17 @@
 #define COMPONENTS_FEED_CORE_V2_PUBLIC_TYPES_H_
 
 #include <iosfwd>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
-#include "base/strings/string_piece.h"
 #include "base/time/time.h"
 #include "base/types/id_type.h"
 #include "base/version.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/version_info/channel.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "url/gurl.h"
 
 namespace feed {
@@ -25,21 +26,20 @@ namespace feed {
 // Sync is disabled, AccountInfo should be empty.
 struct AccountInfo {
   AccountInfo();
-  AccountInfo(const std::string& gaia, const std::string& email);
+  AccountInfo(const GaiaId& gaia, const std::string& email);
   explicit AccountInfo(CoreAccountInfo account_info);
-  bool operator==(const AccountInfo& rhs) const;
-  bool operator!=(const AccountInfo& rhs) const { return !(*this == rhs); }
+  friend bool operator==(const AccountInfo&, const AccountInfo&) = default;
   bool IsEmpty() const;
 
-  std::string gaia;
+  GaiaId gaia;
   std::string email;
 };
 std::ostream& operator<<(std::ostream& os, const AccountInfo& o);
 
 enum class RefreshTaskId {
   kRefreshForYouFeed,
-  // TODO(1152592): Refresh is not currently used for the Web Feed. Remove
-  // this code if we don't need it.
+  // TODO(crbug.com/40158714): Refresh is not currently used for the Web Feed.
+  // Remove this code if we don't need it.
   kRefreshWebFeed,
 };
 
@@ -58,7 +58,7 @@ enum class AccountTokenFetchStatus {
 struct ChromeInfo {
   version_info::Channel channel{};
   base::Version version;
-  bool start_surface = false;
+  bool is_new_tab_search_engine_url_android_enabled = false;
 };
 // Device display metrics.
 struct DisplayMetrics {
@@ -74,9 +74,11 @@ using ImageFetchId = base::IdTypeU32<class ImageFetchIdClass>;
 
 struct NetworkResponseInfo {
   NetworkResponseInfo();
-  ~NetworkResponseInfo();
   NetworkResponseInfo(const NetworkResponseInfo&);
+  NetworkResponseInfo(NetworkResponseInfo&&);
   NetworkResponseInfo& operator=(const NetworkResponseInfo&);
+  NetworkResponseInfo& operator=(NetworkResponseInfo&&);
+  ~NetworkResponseInfo();
 
   // A union of net::Error (if the request failed) and the http
   // status code(if the request succeeded in reaching the server).
@@ -93,15 +95,25 @@ struct NetworkResponseInfo {
       AccountTokenFetchStatus::kUnspecified;
   base::TimeTicks fetch_time_ticks;
   base::TimeTicks loader_start_time_ticks;
+  // List of HTTP response header names and values.
+  std::vector<std::string> response_header_names_and_values;
 };
 
 std::ostream& operator<<(std::ostream& os, const NetworkResponseInfo& o);
 
 struct NetworkResponse {
+  NetworkResponse();
+  NetworkResponse(const std::string& response_bytes, int status_code);
+  ~NetworkResponse();
+  NetworkResponse(const NetworkResponse&);
+  NetworkResponse& operator=(const NetworkResponse&);
+
   // HTTP response body.
   std::string response_bytes;
   // HTTP status code if available, or net::Error otherwise.
   int status_code;
+  // List of HTTP response header names and values.
+  std::vector<std::string> response_header_names_and_values;
 };
 
 // For the snippets-internals page.
@@ -113,14 +125,14 @@ struct DebugStreamData {
   DebugStreamData(const DebugStreamData&);
   DebugStreamData& operator=(const DebugStreamData&);
 
-  absl::optional<NetworkResponseInfo> fetch_info;
-  absl::optional<NetworkResponseInfo> upload_info;
+  std::optional<NetworkResponseInfo> fetch_info;
+  std::optional<NetworkResponseInfo> upload_info;
   std::string load_stream_status;
 };
 
 std::string SerializeDebugStreamData(const DebugStreamData& data);
-absl::optional<DebugStreamData> DeserializeDebugStreamData(
-    base::StringPiece base64_encoded);
+std::optional<DebugStreamData> DeserializeDebugStreamData(
+    std::string_view base64_encoded);
 
 // Information about a web page which may be used to determine an associated
 // web feed.

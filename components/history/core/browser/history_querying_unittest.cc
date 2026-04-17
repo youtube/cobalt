@@ -2,8 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <stddef.h>
 
+#include <array>
 #include <memory>
 
 #include "base/files/file_path.h"
@@ -33,7 +39,8 @@ struct TestEntry {
   const char* title;
   const int days_ago;
   base::Time time;  // Filled by SetUp.
-} test_entries[] = {
+};
+auto test_entries = std::to_array<TestEntry>({
     // This one is visited super long ago so it will be in a different database
     // from the next appearance of it at the end.
     {"http://example.com/", "Other", 180},
@@ -64,7 +71,7 @@ struct TestEntry {
     {"http://evil.test/example", "Host Evil domain", 18},
     {"http://evil.com/example.test", "Host Evil path", 19},
     {"https://random.test/", "Host random example.test", 20},
-};
+});
 
 // Returns true if the nth result in the given results set matches. It will
 // return false on a non-match or if there aren't enough results.
@@ -451,12 +458,16 @@ TEST_F(HistoryQueryTest, TextSearchIDN) {
   struct QueryEntry {
     std::string query;
     size_t results_size;
-  } queries[] = {
-    { "bad query", 0 },
-    { std::string("xn--d1abbgf6aiiy.xn--p1ai"), 1 },
-    { base::WideToUTF8(L"\u043f\u0440\u0435\u0437"
-                       L"\u0438\u0434\u0435\u043d\u0442.\u0440\u0444"), 1, },
   };
+  auto queries = std::to_array<QueryEntry>({
+      {"bad query", 0},
+      {std::string("xn--d1abbgf6aiiy.xn--p1ai"), 1},
+      {
+          base::WideToUTF8(L"\u043f\u0440\u0435\u0437"
+                           L"\u0438\u0434\u0435\u043d\u0442.\u0440\u0444"),
+          1,
+      },
+  });
 
   for (size_t i = 0; i < std::size(queries); ++i) {
     QueryHistory(queries[i].query, options, &results);

@@ -11,9 +11,12 @@
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/html/canvas/html_canvas_element.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
+#include "third_party/blink/renderer/platform/font_family_names.h"
 #include "third_party/blink/renderer/platform/fonts/font_cache.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/instrumentation/memory_pressure_listener.h"
+
+namespace blink {
 
 namespace {
 
@@ -23,34 +26,34 @@ const unsigned CanvasFontCacheHardMaxFonts = 250;
 const unsigned CanvasFontCacheHardMaxFontsLowEnd = 20;
 const unsigned CanvasFontCacheHiddenMaxFonts = 1;
 const int defaultFontSize = 10;
-const char defaultFontFamily[] = "sans-serif";
-}
 
-namespace blink {
-
-CanvasFontCache::CanvasFontCache(Document& document)
-    : document_(&document), pruning_scheduled_(false) {
-  FontFamily font_family;
-  font_family.SetFamily(defaultFontFamily,
-                        FontFamily::InferredTypeFor(defaultFontFamily));
+const ComputedStyle* CreateDefaultFontStyle(const Document& document) {
+  const AtomicString& default_font_family = font_family_names::kSansSerif;
   FontDescription default_font_description;
-  default_font_description.SetFamily(font_family);
+  default_font_description.SetFamily(FontFamily(
+      default_font_family, FontFamily::InferredTypeFor(default_font_family)));
   default_font_description.SetSpecifiedSize(defaultFontSize);
   default_font_description.SetComputedSize(defaultFontSize);
   ComputedStyleBuilder builder =
       document.IsActive()
           ? document.GetStyleResolver().CreateComputedStyleBuilder()
-          : ComputedStyleBuilder(*ComputedStyle::CreateInitialStyleSingleton());
+          : ComputedStyleBuilder(*ComputedStyle::GetInitialStyleSingleton());
   builder.SetFontDescription(default_font_description);
-  default_font_style_ = builder.TakeStyle();
+  return builder.TakeStyle();
 }
 
-CanvasFontCache::~CanvasFontCache() {
-}
+}  // namespace
+
+CanvasFontCache::CanvasFontCache(Document& document)
+    : document_(&document),
+      default_font_style_(CreateDefaultFontStyle(document)),
+      pruning_scheduled_(false) {}
+
+CanvasFontCache::~CanvasFontCache() {}
 
 unsigned CanvasFontCache::MaxFonts() {
   return MemoryPressureListenerRegistry::
-                 IsLowEndDeviceOrPartialLowEndModeEnabled()
+                 IsLowEndDeviceOrPartialLowEndModeEnabledIncludingCanvasFontCache()
              ? CanvasFontCacheMaxFontsLowEnd
              : CanvasFontCacheMaxFonts;
 }
@@ -59,33 +62,30 @@ unsigned CanvasFontCache::HardMaxFonts() {
   return document_->hidden()
              ? CanvasFontCacheHiddenMaxFonts
              : (MemoryPressureListenerRegistry::
-                        IsLowEndDeviceOrPartialLowEndModeEnabled()
+                        IsLowEndDeviceOrPartialLowEndModeEnabledIncludingCanvasFontCache()
                     ? CanvasFontCacheHardMaxFontsLowEnd
                     : CanvasFontCacheHardMaxFonts);
 }
 
-bool CanvasFontCache::GetFontUsingDefaultStyle(HTMLCanvasElement& element,
-                                               const String& font_string,
-                                               Font& resolved_font) {
-  HashMap<String, Font>::iterator i =
-      fonts_resolved_using_default_style_.find(font_string);
-  if (i != fonts_resolved_using_default_style_.end()) {
-    auto add_result = font_lru_list_.PrependOrMoveToFirst(font_string);
-    DCHECK(!add_result.is_new_entry);
-    resolved_font = i->value;
-    return true;
+const Font* CanvasFontCache::GetFontUsingDefaultStyle(
+    HTMLCanvasElement& element,
+    const String& font_string) {
+  auto it = fonts_resolved_using_default_style_.find(font_string);
+  if (it != fonts_resolved_using_default_style_.end()) {
+    auto list_add_result = font_lru_list_.PrependOrMoveToFirst(font_string);
+    DCHECK(!list_add_result.is_new_entry);
+    return it->value;
   }
 
-  // Addition to LRU list taken care of inside parseFont
+  // Addition to LRU list taken care of inside ParseFont.
   MutableCSSPropertyValueSet* parsed_style = ParseFont(font_string);
   if (!parsed_style)
-    return false;
+    return nullptr;
 
-  fonts_resolved_using_default_style_.insert(
+  auto add_result = fonts_resolved_using_default_style_.insert(
       font_string, document_->GetStyleEngine().ComputeFont(
                        element, *default_font_style_, *parsed_style));
-  resolved_font = fonts_resolved_using_default_style_.find(font_string)->value;
-  return true;
+  return add_result.stored_value->value;
 }
 
 MutableCSSPropertyValueSet* CanvasFontCache::ParseFont(
@@ -161,8 +161,10 @@ void CanvasFontCache::PruneAll() {
 }
 
 void CanvasFontCache::Trace(Visitor* visitor) const {
+  visitor->Trace(fonts_resolved_using_default_style_);
   visitor->Trace(fetched_fonts_);
   visitor->Trace(document_);
+  visitor->Trace(default_font_style_);
 }
 
 void CanvasFontCache::Dispose() {

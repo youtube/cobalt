@@ -30,7 +30,9 @@ public class TestChildProcessConnection extends ChildProcessConnection {
         }
 
         @Override
-        public void updateGroupImportance(int group, int importanceInGroup) {}
+        public boolean updateGroupImportance(int group, int importanceInGroup) {
+            return true;
+        }
 
         @Override
         public void retire() {}
@@ -45,16 +47,31 @@ public class TestChildProcessConnection extends ChildProcessConnection {
      * Creates a mock binding corresponding to real ManagedChildProcessConnection after the
      * connection is established: with initial binding bound and no strong binding.
      */
-    public TestChildProcessConnection(ComponentName serviceName, boolean bindToCaller,
-            boolean bindAsExternalService, Bundle serviceBundle) {
-        super(null /* context */, serviceName, null, bindToCaller, bindAsExternalService,
-                serviceBundle, new ChildServiceConnectionFactory() {
+    public TestChildProcessConnection(
+            ComponentName serviceName,
+            boolean bindToCaller,
+            boolean bindAsExternalService,
+            Bundle serviceBundle) {
+        super(
+                /* context= */ null,
+                serviceName,
+                null,
+                bindToCaller,
+                bindAsExternalService,
+                serviceBundle,
+                new ChildServiceConnectionFactory() {
                     @Override
-                    public ChildServiceConnection createConnection(Intent bindIntent, int bindFlags,
-                            ChildServiceConnectionDelegate delegate, String instanceName) {
+                    public ChildServiceConnection createConnection(
+                            Intent bindIntent,
+                            int bindFlags,
+                            ChildServiceConnectionDelegate delegate,
+                            String instanceName) {
                         return new MockChildServiceConnection();
                     }
-                }, null /* instanceName */);
+                },
+                /* instanceName= */ null,
+                /* independentFallback= */ false,
+                /* isSandboxedForHistograms= */ false);
     }
 
     public void setPid(int pid) {

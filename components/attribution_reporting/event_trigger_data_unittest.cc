@@ -4,115 +4,123 @@
 
 #include "components/attribution_reporting/event_trigger_data.h"
 
-#include "base/functional/function_ref.h"
+#include "base/test/gmock_expected_support.h"
 #include "base/test/values_test_util.h"
+#include "base/time/time.h"
 #include "base/types/expected.h"
 #include "base/values.h"
 #include "components/attribution_reporting/filters.h"
 #include "components/attribution_reporting/test_utils.h"
 #include "components/attribution_reporting/trigger_registration_error.mojom.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace attribution_reporting {
 namespace {
 
 using ::attribution_reporting::mojom::TriggerRegistrationError;
-
-EventTriggerData EventTriggerDataWith(
-    base::FunctionRef<void(EventTriggerData&)> f) {
-  EventTriggerData data;
-  f(data);
-  return data;
-}
+using ::base::test::ErrorIs;
+using ::base::test::ValueIs;
+using ::testing::AllOf;
+using ::testing::Field;
 
 TEST(EventTriggerDataTest, FromJSON) {
   const struct {
     const char* description;
     const char* json;
-    base::expected<EventTriggerData, TriggerRegistrationError> expected;
+    ::testing::Matcher<
+        base::expected<EventTriggerData, TriggerRegistrationError>>
+        matches;
   } kTestCases[] = {
       {
           "empty",
           R"json({})json",
-          EventTriggerData(),
+          ValueIs(AllOf(Field(&EventTriggerData::data, 0),
+                        Field(&EventTriggerData::priority, 0),
+                        Field(&EventTriggerData::dedup_key, std::nullopt),
+                        Field(&EventTriggerData::filters, FilterPair()))),
       },
       {
           "trigger_data_valid",
           R"json({"trigger_data":"123"})json",
-          EventTriggerDataWith([](EventTriggerData& data) { data.data = 123; }),
+          ValueIs(Field(&EventTriggerData::data, 123)),
       },
       {
           "trigger_data_wrong_type",
           R"json({"trigger_data":123})json",
-          EventTriggerData(),
+          ErrorIs(TriggerRegistrationError::kEventTriggerDataValueInvalid),
       },
       {
           "trigger_data_invalid",
           R"json({"trigger_data":"-5"})json",
-          EventTriggerData(),
+          ErrorIs(TriggerRegistrationError::kEventTriggerDataValueInvalid),
       },
       {
           "priority_valid",
           R"json({"priority":"-5"})json",
-          EventTriggerDataWith(
-              [](EventTriggerData& data) { data.priority = -5; }),
+          ValueIs(Field(&EventTriggerData::priority, -5)),
       },
       {
           "priority_wrong_type",
           R"json({"priority":123})json",
-          EventTriggerData(),
+          ErrorIs(TriggerRegistrationError::kEventPriorityValueInvalid),
       },
       {
           "priority_invalid",
           R"json({"priority":"abc"})json",
-          EventTriggerData(),
+          ErrorIs(TriggerRegistrationError::kEventPriorityValueInvalid),
       },
       {
           "dedup_key_valid",
           R"json({"deduplication_key":"3"})json",
-          EventTriggerDataWith(
-              [](EventTriggerData& data) { data.dedup_key = 3; }),
+          ValueIs(Field(&EventTriggerData::dedup_key, 3)),
       },
       {
           "dedup_key_wrong_type",
           R"json({"deduplication_key":123})json",
-          EventTriggerData(),
+          ErrorIs(TriggerRegistrationError::kEventDedupKeyValueInvalid),
       },
       {
           "dedup_key_invalid",
           R"json({"deduplication_key":"abc"})json",
-          EventTriggerData(),
+          ErrorIs(TriggerRegistrationError::kEventDedupKeyValueInvalid),
       },
       {
           "filters_valid",
-          R"json({"filters":{"a":["b"]}})json",
-          EventTriggerDataWith([](EventTriggerData& data) {
-            data.filters.positive = FiltersDisjunction({{{"a", {"b"}}}});
-          }),
+          R"json({"filters":{"a":["b"], "_lookback_window": 1}})json",
+          ValueIs(Field(
+              &EventTriggerData::filters,
+              FilterPair(
+                  /*positive=*/{*FilterConfig::Create(
+                      {{"a", {"b"}}}, /*lookback_window=*/base::Seconds(1))},
+                  /*negative=*/FiltersDisjunction()))),
       },
       {
           "filters_wrong_type",
           R"json({"filters":123})json",
-          base::unexpected(TriggerRegistrationError::kFiltersWrongType),
+          ErrorIs(TriggerRegistrationError::kFiltersWrongType),
       },
       {
           "not_filters_valid",
-          R"json({"not_filters":{"a":["b"]}})json",
-          EventTriggerDataWith([](EventTriggerData& data) {
-            data.filters.negative = FiltersDisjunction({{{"a", {"b"}}}});
-          }),
+          R"json({"not_filters":{"a":["b"], "_lookback_window": 1}})json",
+          ValueIs(Field(&EventTriggerData::filters,
+                        FilterPair(
+                            /*positive=*/FiltersDisjunction(),
+                            /*negative=*/{*FilterConfig::Create(
+                                {{{"a", {"b"}}}},
+                                /*lookback_window=*/base::Seconds(1))}))),
       },
       {
           "not_filters_wrong_type",
           R"json({"not_filters":123})json",
-          base::unexpected(TriggerRegistrationError::kFiltersWrongType),
+          ErrorIs(TriggerRegistrationError::kFiltersWrongType),
       },
   };
 
   for (const auto& test_case : kTestCases) {
+    SCOPED_TRACE(test_case.description);
     base::Value value = base::test::ParseJson(test_case.json);
-    EXPECT_EQ(EventTriggerData::FromJSON(value), test_case.expected)
-        << test_case.description;
+    EXPECT_THAT(EventTriggerData::FromJSON(value), test_case.matches);
   }
 }
 
@@ -133,13 +141,15 @@ TEST(EventTriggerDataTest, ToJson) {
               /*data=*/1,
               /*priority=*/-2,
               /*dedup_key=*/3,
-              FilterPair(/*positive=*/{{{"a", {}}}},
-                         /*negative=*/{{{"b", {}}}})),
+              FilterPair(
+                  /*positive=*/{*FilterConfig::Create(
+                      {{"a", {}}}, /*lookback_window=*/base::Seconds(2))},
+                  /*negative=*/{*FilterConfig::Create({{"b", {}}})})),
           R"json({
             "trigger_data": "1",
             "priority": "-2",
             "deduplication_key": "3",
-            "filters": [{"a": []}],
+            "filters": [{"a": [], "_lookback_window": 2 }],
             "not_filters": [{"b": []}]
           })json",
       },

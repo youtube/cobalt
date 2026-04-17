@@ -4,13 +4,16 @@
 
 #include "ash/wm/system_gesture_event_filter.h"
 
+#include <array>
 #include <vector>
 
 #include "ash/accelerators/accelerator_controller_impl.h"
 #include "ash/shell.h"
 #include "ash/test/ash_test_base.h"
+#include "ash/wm/test/test_non_client_frame_view_ash.h"
 #include "ash/wm/window_positioning_utils.h"
 #include "ash/wm/window_state.h"
+#include "base/containers/span.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "ui/aura/env.h"
@@ -31,76 +34,17 @@
 #include "ui/gfx/geometry/size.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_delegate.h"
-#include "ui/views/window/non_client_view.h"
 #include "ui/views/window/window_button_order_provider.h"
 
 namespace ash {
 
-namespace {
-
 class ResizableWidgetDelegate : public views::WidgetDelegateView {
  public:
-  ResizableWidgetDelegate() {
-    SetCanMaximize(true);
-    SetCanMinimize(true);
-    SetCanResize(true);
-  }
-
+  ResizableWidgetDelegate() { SetHasWindowSizeControls(true); }
   ResizableWidgetDelegate(const ResizableWidgetDelegate&) = delete;
   ResizableWidgetDelegate& operator=(const ResizableWidgetDelegate&) = delete;
-
   ~ResizableWidgetDelegate() override = default;
 };
-
-// Support class for testing windows with a maximum size.
-class MaxSizeNCFV : public views::NonClientFrameView {
- public:
-  MaxSizeNCFV() = default;
-
-  MaxSizeNCFV(const MaxSizeNCFV&) = delete;
-  MaxSizeNCFV& operator=(const MaxSizeNCFV&) = delete;
-
- private:
-  gfx::Size GetMaximumSize() const override { return gfx::Size(200, 200); }
-  gfx::Rect GetBoundsForClientView() const override { return gfx::Rect(); }
-
-  gfx::Rect GetWindowBoundsForClientBounds(
-      const gfx::Rect& client_bounds) const override {
-    return gfx::Rect();
-  }
-
-  // This function must ask the ClientView to do a hittest.  We don't do this in
-  // the parent NonClientView because that makes it more difficult to calculate
-  // hittests for regions that are partially obscured by the ClientView, e.g.
-  // HTSYSMENU.
-  int NonClientHitTest(const gfx::Point& point) override { return HTNOWHERE; }
-  void GetWindowMask(const gfx::Size& size, SkPath* window_mask) override {}
-  void ResetWindowControls() override {}
-  void UpdateWindowIcon() override {}
-  void UpdateWindowTitle() override {}
-  void SizeConstraintsChanged() override {}
-};
-
-class MaxSizeWidgetDelegate : public views::WidgetDelegateView {
- public:
-  MaxSizeWidgetDelegate() {
-    SetCanMinimize(true);
-    SetCanResize(true);
-  }
-
-  MaxSizeWidgetDelegate(const MaxSizeWidgetDelegate&) = delete;
-  MaxSizeWidgetDelegate& operator=(const MaxSizeWidgetDelegate&) = delete;
-
-  ~MaxSizeWidgetDelegate() override = default;
-
- private:
-  std::unique_ptr<views::NonClientFrameView> CreateNonClientFrameView(
-      views::Widget* widget) override {
-    return std::make_unique<MaxSizeNCFV>();
-  }
-};
-
-}  // namespace
 
 class SystemGestureEventFilterTest : public AshTestBase {
  public:
@@ -152,24 +96,26 @@ TEST_F(SystemGestureEventFilterTest, TwoFingerDrag) {
       new ResizableWidgetDelegate, root_window, bounds);
   toplevel->Show();
 
-  const int kSteps = 15;
-  const int kTouchPoints = 2;
-  gfx::Point points[kTouchPoints] = {
-      gfx::Point(250, 250), gfx::Point(350, 350),
-  };
+  constexpr int kSteps = 15;
+  constexpr int kTouchPoints = 2;
+  constexpr std::array<gfx::Point, kTouchPoints> kInitialPoints = {
+      {{250, 250}, {350, 350}}};
 
   ui::test::EventGenerator generator(root_window, toplevel->GetNativeWindow());
 
   WindowState* toplevel_state = WindowState::Get(toplevel->GetNativeWindow());
+  const base::span<const gfx::Point> points_span(kInitialPoints);
   // Swipe down to minimize.
-  generator.GestureMultiFingerScroll(kTouchPoints, points, 15, kSteps, 0, 150);
+  generator.GestureMultiFingerScroll(kTouchPoints, points_span.data(), 15,
+                                     kSteps, 0, 150);
   EXPECT_TRUE(toplevel_state->IsMinimized());
 
   toplevel->Restore();
   toplevel->GetNativeWindow()->SetBounds(bounds);
 
   // Swipe up to maximize.
-  generator.GestureMultiFingerScroll(kTouchPoints, points, 15, kSteps, 0, -150);
+  generator.GestureMultiFingerScroll(kTouchPoints, points_span.data(), 15,
+                                     kSteps, 0, -150);
   EXPECT_TRUE(toplevel_state->IsMaximized());
 
   toplevel->Restore();
@@ -177,24 +123,27 @@ TEST_F(SystemGestureEventFilterTest, TwoFingerDrag) {
 
   // Swipe right to snap.
   gfx::Rect normal_bounds = toplevel->GetWindowBoundsInScreen();
-  generator.GestureMultiFingerScroll(kTouchPoints, points, 15, kSteps, 150, 0);
+  generator.GestureMultiFingerScroll(kTouchPoints, points_span.data(), 15,
+                                     kSteps, 150, 0);
   gfx::Rect right_tile_bounds = toplevel->GetWindowBoundsInScreen();
   EXPECT_NE(normal_bounds.ToString(), right_tile_bounds.ToString());
 
   // Swipe left to snap.
-  gfx::Point left_points[kTouchPoints];
-  for (int i = 0; i < kTouchPoints; ++i) {
-    left_points[i] = points[i];
-    left_points[i].Offset(right_tile_bounds.x(), right_tile_bounds.y());
+  std::array<gfx::Point, kTouchPoints> left_points;
+  base::span<gfx::Point> left_span(left_points);
+  left_span.copy_from(points_span);
+  for (gfx::Point& point : left_span) {
+    point.Offset(right_tile_bounds.x(), right_tile_bounds.y());
   }
-  generator.GestureMultiFingerScroll(kTouchPoints, left_points, 15, kSteps,
+  generator.GestureMultiFingerScroll(kTouchPoints, left_span.data(), 15, kSteps,
                                      -150, 0);
   gfx::Rect left_tile_bounds = toplevel->GetWindowBoundsInScreen();
   EXPECT_NE(normal_bounds.ToString(), left_tile_bounds.ToString());
   EXPECT_NE(right_tile_bounds.ToString(), left_tile_bounds.ToString());
 
   // Swipe right again.
-  generator.GestureMultiFingerScroll(kTouchPoints, points, 15, kSteps, 150, 0);
+  generator.GestureMultiFingerScroll(kTouchPoints, points_span.data(), 15,
+                                     kSteps, 150, 0);
   gfx::Rect current_bounds = toplevel->GetWindowBoundsInScreen();
   EXPECT_NE(current_bounds.ToString(), left_tile_bounds.ToString());
   EXPECT_EQ(current_bounds.ToString(), right_tile_bounds.ToString());
@@ -203,8 +152,15 @@ TEST_F(SystemGestureEventFilterTest, TwoFingerDrag) {
 TEST_F(SystemGestureEventFilterTest, WindowsWithMaxSizeDontSnap) {
   gfx::Rect bounds(250, 150, 100, 100);
   aura::Window* root_window = Shell::GetPrimaryRootWindow();
+  auto* widget_delegate = new TestWidgetDelegateAsh();
+  widget_delegate->SetCanMaximize(false);
   views::Widget* toplevel = views::Widget::CreateWindowWithContext(
-      new MaxSizeWidgetDelegate, root_window, bounds);
+      widget_delegate, root_window, bounds);
+
+  auto* custom_frame = static_cast<TestNonClientFrameViewAsh*>(
+      NonClientFrameViewAsh::Get(toplevel->GetNativeWindow()));
+  custom_frame->SetMaximumSize(gfx::Size(200, 200));
+
   toplevel->Show();
 
   const int kSteps = 15;
@@ -255,36 +211,6 @@ TEST_F(SystemGestureEventFilterTest, WindowsWithMaxSizeDontSnap) {
   generator.GestureMultiFingerScroll(kTouchPoints, points, 15, kSteps, 150, 0);
   EXPECT_EQ(normal_bounds.ToString(),
             toplevel->GetWindowBoundsInScreen().ToString());
-}
-
-TEST_F(SystemGestureEventFilterTest, DISABLED_TwoFingerDragEdge) {
-  gfx::Rect bounds(0, 0, 200, 100);
-  aura::Window* root_window = Shell::GetPrimaryRootWindow();
-  views::Widget* toplevel = views::Widget::CreateWindowWithContext(
-      new ResizableWidgetDelegate, root_window, bounds);
-  toplevel->Show();
-
-  const int kSteps = 15;
-  const int kTouchPoints = 2;
-  gfx::Point points[kTouchPoints] = {
-      gfx::Point(30, 20),  // Caption
-      gfx::Point(0, 40),   // Left edge
-  };
-
-  EXPECT_EQ(HTCAPTION,
-            toplevel->GetNativeWindow()->delegate()->GetNonClientComponent(
-                points[0]));
-  EXPECT_EQ(HTLEFT,
-            toplevel->GetNativeWindow()->delegate()->GetNonClientComponent(
-                points[1]));
-
-  ui::test::EventGenerator generator(root_window, toplevel->GetNativeWindow());
-
-  bounds = toplevel->GetNativeWindow()->bounds();
-  // Swipe down. Nothing should happen.
-  generator.GestureMultiFingerScroll(kTouchPoints, points, 15, kSteps, 0, 150);
-  EXPECT_EQ(bounds.ToString(),
-            toplevel->GetNativeWindow()->bounds().ToString());
 }
 
 // We do not allow resizing a window via multiple edges simultaneously. Test

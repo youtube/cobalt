@@ -7,10 +7,10 @@
 #include <string>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "ui/accessibility/ax_action_data.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/accessibility/ax_tree_data.h"
-#include "ui/accessibility/platform/ax_unique_id.h"
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/transform.h"
 #include "ui/views/accessibility/ax_aura_obj_cache.h"
@@ -19,11 +19,10 @@
 
 namespace views {
 
-AXTreeSourceViews::AXTreeSourceViews(AXAuraObjWrapper* root,
+AXTreeSourceViews::AXTreeSourceViews(ui::AXNodeID root_id,
                                      const ui::AXTreeID& tree_id,
                                      views::AXAuraObjCache* cache)
-    : root_(root), tree_id_(tree_id), cache_(cache) {
-  DCHECK(root_);
+    : root_id_(root_id), tree_id_(tree_id), cache_(cache) {
   DCHECK_NE(tree_id_, ui::AXTreeIDUnknown());
 }
 
@@ -40,8 +39,9 @@ void AXTreeSourceViews::HandleAccessibleAction(const ui::AXActionData& action) {
   }
 
   AXAuraObjWrapper* obj = GetFromId(id);
-  if (obj)
+  if (obj) {
     obj->HandleAccessibleAction(action);
+  }
 }
 
 bool AXTreeSourceViews::GetTreeData(ui::AXTreeData* tree_data) const {
@@ -49,20 +49,22 @@ bool AXTreeSourceViews::GetTreeData(ui::AXTreeData* tree_data) const {
   tree_data->loaded = true;
   tree_data->loading_progress = 1.0;
   AXAuraObjWrapper* focus = cache_->GetFocus();
-  if (focus)
+  if (focus) {
     tree_data->focus_id = focus->GetUniqueId();
+  }
   return true;
 }
 
 AXAuraObjWrapper* AXTreeSourceViews::GetRoot() const {
-  return root_;
+  return cache_->Get(root_id_);
 }
 
 AXAuraObjWrapper* AXTreeSourceViews::GetFromId(int32_t id) const {
   AXAuraObjWrapper* root = GetRoot();
   // Root might not be in the cache.
-  if (id == root->GetUniqueId())
+  if (id == root->GetUniqueId()) {
     return root;
+  }
   AXAuraObjWrapper* wrapper = cache_->Get(id);
 
   // We must do a lookup in AXVirtualView as well if the main cache doesn't hold
@@ -90,14 +92,14 @@ void AXTreeSourceViews::CacheChildrenIfNeeded(AXAuraObjWrapper* node) {
 }
 
 size_t AXTreeSourceViews::GetChildCount(AXAuraObjWrapper* node) const {
-  std::vector<AXAuraObjWrapper*> children;
+  std::vector<raw_ptr<AXAuraObjWrapper, VectorExperimental>> children;
   node->GetChildren(&children);
   return children.size();
 }
 
 AXAuraObjWrapper* AXTreeSourceViews::ChildAt(AXAuraObjWrapper* node,
                                              size_t index) const {
-  std::vector<AXAuraObjWrapper*> children;
+  std::vector<raw_ptr<AXAuraObjWrapper, VectorExperimental>> children;
   node->GetChildren(&children);
   return children[index];
 }
@@ -109,18 +111,21 @@ void AXTreeSourceViews::ClearChildCache(AXAuraObjWrapper* node) {
 AXAuraObjWrapper* AXTreeSourceViews::GetParent(AXAuraObjWrapper* node) const {
   AXAuraObjWrapper* root = GetRoot();
   // The root has no parent by definition.
-  if (node->GetUniqueId() == root->GetUniqueId())
+  if (node->GetUniqueId() == root->GetUniqueId()) {
     return nullptr;
+  }
   AXAuraObjWrapper* parent = node->GetParent();
   // A top-level widget doesn't have a parent, so return the root.
-  if (!parent)
+  if (!parent) {
     return root;
+  }
   return parent;
 }
 
 bool AXTreeSourceViews::IsIgnored(AXAuraObjWrapper* node) const {
-  if (!node)
+  if (!node) {
     return false;
+  }
   ui::AXNodeData out_data;
   node->Serialize(&out_data);
   return out_data.IsIgnored();
@@ -155,8 +160,9 @@ void AXTreeSourceViews::SerializeNode(AXAuraObjWrapper* node,
   // a location changed event), its descendants all move relative to
   // it by default.
   AXAuraObjWrapper* parent = node->GetParent();
-  if (!parent)
+  if (!parent) {
     return;
+  }
   ui::AXNodeData parent_data;
   parent->Serialize(&parent_data);
   out_data->relative_bounds.bounds.Offset(
@@ -170,12 +176,13 @@ std::string AXTreeSourceViews::ToString(AXAuraObjWrapper* root,
   root->Serialize(&data);
   std::string output = prefix + data.ToString() + '\n';
 
-  std::vector<AXAuraObjWrapper*> children;
+  std::vector<raw_ptr<AXAuraObjWrapper, VectorExperimental>> children;
   root->GetChildren(&children);
 
   prefix += prefix[0];
-  for (AXAuraObjWrapper* child : children)
+  for (AXAuraObjWrapper* child : children) {
     output += ToString(child, prefix);
+  }
 
   return output;
 }

@@ -2,11 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "third_party/blink/renderer/modules/mediarecorder/audio_track_recorder.h"
 
 #include <stdint.h>
+
+#include <optional>
 #include <string>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/run_loop.h"
 #include "base/task/bind_post_task.h"
@@ -20,6 +28,7 @@
 #include "media/base/audio_encoder.h"
 #include "media/base/audio_sample_types.h"
 #include "media/base/channel_layout.h"
+#include "media/base/decoder_buffer.h"
 #include "media/base/decoder_status.h"
 #include "media/base/mock_media_log.h"
 #include "media/media_buildflags.h"
@@ -36,18 +45,22 @@
 #include "third_party/blink/public/platform/scheduler/test/renderer_scheduler_test_support.h"
 #include "third_party/blink/public/web/web_heap.h"
 #include "third_party/blink/renderer/modules/mediarecorder/audio_track_mojo_encoder.h"
+#include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
+#include "third_party/blink/renderer/platform/heap/weak_cell.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_audio_source.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_audio_track.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_component_impl.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_source.h"
 #include "third_party/blink/renderer/platform/scheduler/public/post_cross_thread_task.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/opus/src/include/opus.h"
 
 #if BUILDFLAG(IS_WIN)
 #include <objbase.h>
+
 #include "media/gpu/windows/mf_audio_encoder.h"
 #define HAS_AAC_ENCODER 1
 #endif  //  BUILDFLAG(IS_WIN)
@@ -65,6 +78,7 @@
 using base::TimeTicks;
 using base::test::RunOnceClosure;
 using ::testing::_;
+using ::testing::Invoke;
 
 namespace {
 
@@ -138,8 +152,8 @@ class TestInterfaceFactory : public media::mojom::InterfaceFactory {
   // Stub out other `mojom::InterfaceFactory` interfaces.
   void CreateVideoDecoder(
       mojo::PendingReceiver<media::mojom::VideoDecoder> receiver,
-      mojo::PendingRemote<media::stable::mojom::StableVideoDecoder>
-          dst_video_decoder) override {}
+      mojo::PendingRemote<media::mojom::VideoDecoder> dst_video_decoder)
+      override {}
   void CreateAudioDecoder(
       mojo::PendingReceiver<media::mojom::AudioDecoder> receiver) override {}
   void CreateDefaultRenderer(
@@ -151,12 +165,6 @@ class TestInterfaceFactory : public media::mojom::InterfaceFactory {
       mojo::PendingReceiver<media::mojom::Renderer> receiver) override {}
 #endif
 #if BUILDFLAG(IS_ANDROID)
-  void CreateMediaPlayerRenderer(
-      mojo::PendingRemote<media::mojom::MediaPlayerRendererClientExtension>
-          client_extension_remote,
-      mojo::PendingReceiver<media::mojom::Renderer> receiver,
-      mojo::PendingReceiver<media::mojom::MediaPlayerRendererExtension>
-          renderer_extension_receiver) override {}
   void CreateFlingingRenderer(
       const std::string& presentation_id,
       mojo::PendingRemote<media::mojom::FlingingRendererClientExtension>
@@ -165,7 +173,8 @@ class TestInterfaceFactory : public media::mojom::InterfaceFactory {
 #endif  // BUILDFLAG(IS_ANDROID)
   void CreateCdm(const media::CdmConfig& cdm_config,
                  CreateCdmCallback callback) override {
-    std::move(callback).Run(mojo::NullRemote(), nullptr, "CDM not supported");
+    std::move(callback).Run(mojo::NullRemote(), nullptr,
+                            media::CreateCdmStatus::kCdmNotSupported);
   }
 
 #if BUILDFLAG(IS_WIN)
@@ -299,12 +308,41 @@ std::string ParamsToString(
   return test_suffix.str();
 }
 
+class MockAudioTrackRecorderCallbackInterface
+    : public GarbageCollected<MockAudioTrackRecorderCallbackInterface>,
+      public AudioTrackRecorder::CallbackInterface {
+ public:
+  virtual ~MockAudioTrackRecorderCallbackInterface() = default;
+  MOCK_METHOD(
+      void,
+      OnEncodedAudio,
+      (const media::AudioParameters& params,
+       scoped_refptr<media::DecoderBuffer> encoded_data,
+       std::optional<media::AudioEncoder::CodecDescription> codec_description,
+       base::TimeTicks capture_time),
+      (override));
+  MOCK_METHOD(void,
+              OnAudioEncodingError,
+              (media::EncoderStatus status),
+              (override));
+  MOCK_METHOD(void, OnSourceReadyStateChanged, (), (override));
+  void Trace(Visitor* v) const override { v->Trace(weak_factory_); }
+  WeakCell<AudioTrackRecorder::CallbackInterface>* GetWeakCell() {
+    return weak_factory_.GetWeakCell();
+  }
+
+ private:
+  WeakCellFactory<AudioTrackRecorder::CallbackInterface> weak_factory_{this};
+};
+
 class AudioTrackRecorderTest : public testing::TestWithParam<ATRTestParams> {
  public:
   // Initialize `first_params_` based on test parameters, and `second_params_`
   // to always be different than `first_params_`.
   AudioTrackRecorderTest()
-      : codec_(GetParam().codec),
+      : mock_callback_interface_(
+            MakeGarbageCollected<MockAudioTrackRecorderCallbackInterface>()),
+        codec_(GetParam().codec),
         first_params_(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
                       GetParam().channel_layout,
                       GetParam().sample_rate,
@@ -321,13 +359,16 @@ class AudioTrackRecorderTest : public testing::TestWithParam<ATRTestParams> {
                       first_params_.sample_rate()),
         second_source_(second_params_.channels(),
                        /*freq=*/440,
-                       second_params_.sample_rate()) {}
+                       second_params_.sample_rate()) {
+    CHECK(mock_callback_interface_);
+  }
 
   AudioTrackRecorderTest(const AudioTrackRecorderTest&) = delete;
   AudioTrackRecorderTest& operator=(const AudioTrackRecorderTest&) = delete;
 
   ~AudioTrackRecorderTest() override {
     media_stream_component_ = nullptr;
+    mock_callback_interface_ = nullptr;
     WebHeap::CollectAllGarbageForTesting();
     audio_track_recorder_.reset();
     // Let the message loop run to finish destroying the recorder properly.
@@ -341,6 +382,16 @@ class AudioTrackRecorderTest : public testing::TestWithParam<ATRTestParams> {
     CalculateBufferInformation();
     PrepareTrack();
     InitializeRecorder();
+    EXPECT_CALL(*mock_callback_interface_, OnEncodedAudio)
+        .WillRepeatedly(
+            Invoke([this](const media::AudioParameters& params,
+                          scoped_refptr<media::DecoderBuffer> encoded_data,
+                          std::optional<media::AudioEncoder::CodecDescription>
+                              codec_description,
+                          base::TimeTicks capture_time) {
+              OnEncodedAudio(params, encoded_data, std::move(codec_description),
+                             capture_time);
+            }));
   }
 
   void TearDown() override {
@@ -361,15 +412,13 @@ class AudioTrackRecorderTest : public testing::TestWithParam<ATRTestParams> {
     // We create the encoder sequence and provide it to the recorder so we can
     // hold onto a reference to the task runner. This allows us to post tasks to
     // the sequence and apply the necessary overrides, without friending the
-    // class.
-    encoder_task_runner_ = base::ThreadPool::CreateSequencedTaskRunner({});
+    // class. Allow blocking, as the encoder must dynamically load the Media
+    // Foundation DLLs on Windows.
+    encoder_task_runner_ =
+        base::ThreadPool::CreateSingleThreadTaskRunner({base::MayBlock{}});
     audio_track_recorder_ = std::make_unique<AudioTrackRecorder>(
-        codec_, media_stream_component_,
-        base::BindPostTask(
-            scheduler::GetSingleThreadTaskRunnerForTesting(),
-            WTF::BindRepeating(&AudioTrackRecorderTest::OnEncodedAudio,
-                               WTF::Unretained(this))),
-        ConvertToBaseOnceCallback(CrossThreadBindOnce([] {})),
+        scheduler::GetSingleThreadTaskRunnerForTesting(), codec_,
+        media_stream_component_, mock_callback_interface_->GetWeakCell(),
         0u /* bits_per_second */, GetParam().bitrate_mode,
         encoder_task_runner_);
 
@@ -618,13 +667,16 @@ class AudioTrackRecorderTest : public testing::TestWithParam<ATRTestParams> {
   MOCK_METHOD(void,
               DoOnEncodedAudio,
               (const media::AudioParameters& params,
-               std::string encoded_data,
+               scoped_refptr<media::DecoderBuffer> encoded_data,
                base::TimeTicks timestamp));
 
-  void OnEncodedAudio(const media::AudioParameters& params,
-                      std::string encoded_data,
-                      base::TimeTicks timestamp) {
-    EXPECT_TRUE(!encoded_data.empty());
+  void OnEncodedAudio(
+      const media::AudioParameters& params,
+      scoped_refptr<media::DecoderBuffer> encoded_data,
+      std::optional<media::AudioEncoder::CodecDescription> codec_description,
+      base::TimeTicks timestamp) {
+    EXPECT_TRUE(!encoded_data->empty());
+
     switch (codec_) {
       case AudioTrackRecorder::CodecId::kOpus:
         ValidateOpusData(encoded_data);
@@ -644,43 +696,43 @@ class AudioTrackRecorderTest : public testing::TestWithParam<ATRTestParams> {
     DoOnEncodedAudio(params, std::move(encoded_data), timestamp);
   }
 
-  void ValidateOpusData(std::string& encoded_data) {
+  void ValidateOpusData(scoped_refptr<media::DecoderBuffer> encoded_data) {
     // Decode |encoded_data| and check we get the expected number of frames
     // per buffer.
-    ASSERT_GE(static_cast<size_t>(opus_buffer_size_), encoded_data.size());
+    auto encoded_data_span = base::span(*encoded_data);
+    ASSERT_GE(static_cast<size_t>(opus_buffer_size_), encoded_data_span.size());
     EXPECT_EQ(
         kDefaultSampleRate * kOpusBufferDurationMs / 1000,
-        opus_decode_float(opus_decoder_,
-                          reinterpret_cast<uint8_t*>(std::data(encoded_data)),
-                          static_cast<wtf_size_t>(encoded_data.size()),
+        opus_decode_float(opus_decoder_, encoded_data_span.data(),
+                          static_cast<wtf_size_t>(encoded_data_span.size()),
                           opus_buffer_.get(), opus_buffer_size_, 0));
   }
 
-  void ValidatePcmData(std::string& encoded_data) {
+  void ValidatePcmData(scoped_refptr<media::DecoderBuffer> encoded_data) {
     // Manually confirm that we're getting the same data out as what we
     // generated from the sine wave.
-    for (size_t b = 0; b + 3 < encoded_data.size() &&
+    const size_t kSampleSize = 4;
+    for (size_t b = 0; b + 3 < encoded_data->size() &&
                        first_source_cache_pos_ < first_source_cache_.size();
          b += sizeof(first_source_cache_[0]), ++first_source_cache_pos_) {
       float sample;
-      memcpy(&sample, &(encoded_data)[b], 4);
+      memcpy(&sample, (*encoded_data).subspan(b, kSampleSize).data(),
+             kSampleSize);
       ASSERT_FLOAT_EQ(sample, first_source_cache_[first_source_cache_pos_])
           << "(Sample " << first_source_cache_pos_ << ")";
     }
   }
 
+  test::TaskEnvironment task_environment_;
+
 #if HAS_AAC_DECODER
-  void ValidateAacData(std::string& encoded_data) {
+  void ValidateAacData(scoped_refptr<media::DecoderBuffer> encoded_data) {
     // `ExpectOutputsAndRunClosure` sets up `EXPECT_CALL`s for `DecodeCB` and
     // `DecodeOutputCb`, so we can be sure that these will run and the decoded
     // output is validated.
     media::AudioDecoder::DecodeCB decode_cb =
         WTF::BindOnce(&AudioTrackRecorderTest::OnDecode, WTF::Unretained(this));
-    scoped_refptr<media::DecoderBuffer> decoder_buffer =
-        media::DecoderBuffer::CopyFrom(
-            reinterpret_cast<const uint8_t*>(encoded_data.c_str()),
-            encoded_data.size());
-    aac_decoder_->Decode(decoder_buffer, std::move(decode_cb));
+    aac_decoder_->Decode(encoded_data, std::move(decode_cb));
   }
 
   void InitializeAacDecoder(int channels, int sample_rate) {
@@ -741,6 +793,8 @@ class AudioTrackRecorderTest : public testing::TestWithParam<ATRTestParams> {
   ::testing::Sequence s2_;
   base::RunLoop run_loop_;
 
+  Persistent<MockAudioTrackRecorderCallbackInterface> mock_callback_interface_;
+
   // AudioTrackRecorder and MediaStreamComponent for fooling it.
   std::unique_ptr<AudioTrackRecorder> audio_track_recorder_;
   Persistent<MediaStreamComponent> media_stream_component_;
@@ -771,7 +825,7 @@ class AudioTrackRecorderTest : public testing::TestWithParam<ATRTestParams> {
   int excess_input_ = 0;
 
   // Decoder for verifying data was properly encoded.
-  OpusDecoder* opus_decoder_ = nullptr;
+  raw_ptr<OpusDecoder, DanglingUntriaged> opus_decoder_ = nullptr;
   std::unique_ptr<float[]> opus_buffer_;
   int opus_buffer_size_;
 
@@ -869,19 +923,22 @@ TEST_P(AudioTrackRecorderTest, PacketSize) {
   EXPECT_CALL(*this, DoOnEncodedAudio)
       .Times(kExpectedNumOutputs - 1)
       .InSequence(s_)
-      .WillRepeatedly([&encodedPacketSizes](const media::AudioParameters&,
-                                            std::string encoded_data,
-                                            base::TimeTicks) {
-        encodedPacketSizes.push_back(encoded_data.size());
+      .WillRepeatedly([&encodedPacketSizes](
+                          const media::AudioParameters&,
+                          scoped_refptr<media::DecoderBuffer> encoded_data,
+                          base::TimeTicks) {
+        encodedPacketSizes.push_back(encoded_data->size());
       });
   EXPECT_CALL(*this, DoOnEncodedAudio)
       .InSequence(s_)
-      .WillOnce(testing::DoAll(
-          RunOnceClosure(run_loop_.QuitClosure()),
-          [&encodedPacketSizes](const media::AudioParameters&,
-                                std::string encoded_data, base::TimeTicks) {
-            encodedPacketSizes.push_back(encoded_data.size());
-          }));
+      .WillOnce(
+          testing::DoAll(RunOnceClosure(run_loop_.QuitClosure()),
+                         [&encodedPacketSizes](
+                             const media::AudioParameters&,
+                             scoped_refptr<media::DecoderBuffer> encoded_data,
+                             base::TimeTicks) {
+                           encodedPacketSizes.push_back(encoded_data->size());
+                         }));
   GenerateAndRecordAudio(/*use_first_source=*/true);
   run_loop_.Run();
 

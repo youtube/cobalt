@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <tuple>
 
 #include "build/build_config.h"
@@ -140,8 +145,9 @@ void TestTableAPIs(const ui::AXNode* node) {
   node->GetTableCellColHeaders(&headers);
   node->GetTableCellRowHeaders(&headers);
 
-  for (const auto* child : node->children())
+  for (const ui::AXNode* child : node->children()) {
     TestTableAPIs(child);
+  }
 }
 
 // Entry point for LibFuzzer.

@@ -4,9 +4,10 @@
 
 #include "third_party/blink/renderer/core/script/value_wrapper_synthetic_module_script.h"
 
+#include <vector>
+
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-blink.h"
-#include "third_party/blink/public/platform/web_vector.h"
 #include "third_party/blink/renderer/bindings/core/v8/to_v8_traits.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_css_style_sheet_init.h"
@@ -17,7 +18,6 @@
 #include "third_party/blink/renderer/core/loader/modulescript/module_script_creation_params.h"
 #include "third_party/blink/renderer/core/script/modulator.h"
 #include "third_party/blink/renderer/core/script/module_record_resolver.h"
-#include "third_party/blink/renderer/platform/bindings/to_v8.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/text/text_position.h"
@@ -34,9 +34,6 @@ ValueWrapperSyntheticModuleScript::CreateCSSWrapperSyntheticModuleScript(
   ScriptState* script_state = settings_object->GetScriptState();
   ScriptState::Scope scope(script_state);
   v8::Isolate* isolate = script_state->GetIsolate();
-  ExceptionState exception_state(isolate, ExceptionState::kExecutionContext,
-                                 "ModuleScriptLoader",
-                                 "CreateCSSWrapperSyntheticModuleScript");
   ExecutionContext* execution_context = ExecutionContext::From(script_state);
   UseCounter::Count(execution_context, WebFeature::kCreateCSSModuleScript);
   auto* context_window = DynamicTo<LocalDOMWindow>(execution_context);
@@ -47,38 +44,27 @@ ValueWrapperSyntheticModuleScript::CreateCSSWrapperSyntheticModuleScript(
   // DevTools as the CSS source URL. This is fine since these two values
   // are always the same for CSS module scripts.
   DCHECK_EQ(params.BaseURL(), params.SourceURL());
-  CSSStyleSheet* style_sheet = CSSStyleSheet::Create(
-      *context_window->document(), params.BaseURL(), init, exception_state);
+
+  v8::TryCatch try_catch(isolate);
+  CSSStyleSheet* style_sheet =
+      CSSStyleSheet::Create(*context_window->document(), params.BaseURL(), init,
+                            PassThroughException(isolate));
   style_sheet->SetIsForCSSModuleScript();
-  if (exception_state.HadException()) {
-    v8::Local<v8::Value> error = exception_state.GetException();
-    exception_state.ClearException();
+  if (try_catch.HasCaught()) {
     return ValueWrapperSyntheticModuleScript::CreateWithError(
         v8::Local<v8::Value>(), settings_object, params.SourceURL(), KURL(),
-        ScriptFetchOptions(), error);
+        ScriptFetchOptions(), try_catch.Exception());
   }
-  style_sheet->replaceSync(params.GetSourceText().ToString(), exception_state);
-  if (exception_state.HadException()) {
-    v8::Local<v8::Value> error = exception_state.GetException();
-    exception_state.ClearException();
+  style_sheet->replaceSync(params.GetSourceText().ToString(),
+                           PassThroughException(isolate));
+  if (try_catch.HasCaught()) {
     return ValueWrapperSyntheticModuleScript::CreateWithError(
         v8::Local<v8::Value>(), settings_object, params.SourceURL(), KURL(),
-        ScriptFetchOptions(), error);
+        ScriptFetchOptions(), try_catch.Exception());
   }
 
-  v8::Local<v8::Value> v8_value_stylesheet;
-  {
-    // Limit the scope of v8_try_catch so that it doesn't contain
-    // the following ValueWrapperSyntheticModuleScript::CreateWithDefaultExport.
-    v8::TryCatch v8_try_catch(isolate);
-    if (!ToV8Traits<CSSStyleSheet>::ToV8(script_state, style_sheet)
-             .ToLocal(&v8_value_stylesheet)) {
-      DCHECK(v8_try_catch.HasCaught());
-      return ValueWrapperSyntheticModuleScript::CreateWithError(
-          v8::Local<v8::Value>(), settings_object, params.SourceURL(), KURL(),
-          ScriptFetchOptions(), v8_try_catch.Exception());
-    };
-  }
+  v8::Local<v8::Value> v8_value_stylesheet =
+      ToV8Traits<CSSStyleSheet>::ToV8(script_state, style_sheet);
 
   return ValueWrapperSyntheticModuleScript::CreateWithDefaultExport(
       v8_value_stylesheet, settings_object, params.SourceURL(), KURL(),
@@ -90,18 +76,8 @@ ValueWrapperSyntheticModuleScript::CreateJSONWrapperSyntheticModuleScript(
     const ModuleScriptCreationParams& params,
     Modulator* settings_object) {
   DCHECK(settings_object->HasValidContext());
-  ScriptState::Scope scope(settings_object->GetScriptState());
-  v8::Local<v8::Context> context =
-      settings_object->GetScriptState()->GetContext();
-  v8::Isolate* isolate = context->GetIsolate();
-  v8::TryCatch try_catch(isolate);
-  v8::Local<v8::String> original_json =
-      V8String(isolate, params.GetSourceText());
-  v8::Local<v8::Value> parsed_json;
-  ExceptionState exception_state(isolate, ExceptionState::kExecutionContext,
-                                 "ModuleScriptLoader",
-                                 "CreateJSONWrapperSyntheticModuleScript");
-  UseCounter::Count(ExecutionContext::From(settings_object->GetScriptState()),
+  ScriptState* script_state = settings_object->GetScriptState();
+  UseCounter::Count(ExecutionContext::From(script_state),
                     WebFeature::kCreateJSONModuleScript);
   // Step 1. "Let script be a new module script that this algorithm will
   // subsequently initialize."
@@ -116,14 +92,14 @@ ValueWrapperSyntheticModuleScript::CreateJSONWrapperSyntheticModuleScript(
   // If this throws an exception, set script's parse error to that exception,
   // and return script."
   // [spec text]
-  if (!v8::JSON::Parse(context, original_json).ToLocal(&parsed_json)) {
-    DCHECK(try_catch.HasCaught());
-    exception_state.RethrowV8Exception(try_catch.Exception());
-    v8::Local<v8::Value> error = exception_state.GetException();
-    exception_state.ClearException();
+  ScriptState::Scope scope(script_state);
+  v8::TryCatch try_catch(script_state->GetIsolate());
+  v8::Local<v8::Value> parsed_json =
+      FromJSONString(script_state, params.GetSourceText().ToString());
+  if (try_catch.HasCaught()) {
     return ValueWrapperSyntheticModuleScript::CreateWithError(
         parsed_json, settings_object, params.SourceURL(), KURL(),
-        ScriptFetchOptions(), error);
+        ScriptFetchOptions(), try_catch.Exception());
   } else {
     return ValueWrapperSyntheticModuleScript::CreateWithDefaultExport(
         parsed_json, settings_object, params.SourceURL(), KURL(),
@@ -140,7 +116,8 @@ ValueWrapperSyntheticModuleScript::CreateWithDefaultExport(
     const ScriptFetchOptions& fetch_options,
     const TextPosition& start_position) {
   v8::Isolate* isolate = settings_object->GetScriptState()->GetIsolate();
-  std::vector<v8::Local<v8::String>> export_names{V8String(isolate, "default")};
+  auto export_names =
+      v8::to_array<v8::Local<v8::String>>({V8String(isolate, "default")});
   v8::Local<v8::Module> v8_synthetic_module = v8::Module::CreateSyntheticModule(
       isolate, V8String(isolate, source_url.GetString()), export_names,
       ValueWrapperSyntheticModuleScript::EvaluationSteps);
@@ -194,7 +171,7 @@ ValueWrapperSyntheticModuleScript::ValueWrapperSyntheticModuleScript(
                    base_url,
                    fetch_options,
                    start_position),
-      export_value_(v8::Isolate::GetCurrent(), value) {}
+      export_value_(settings_object->GetScriptState()->GetIsolate(), value) {}
 
 // This is the definition of [[EvaluationSteps]] As per the synthetic module
 // spec  https://webidl.spec.whatwg.org/#synthetic-module-records
@@ -204,7 +181,7 @@ v8::MaybeLocal<v8::Value> ValueWrapperSyntheticModuleScript::EvaluationSteps(
     v8::Local<v8::Context> context,
     v8::Local<v8::Module> module) {
   v8::Isolate* isolate = context->GetIsolate();
-  ScriptState* script_state = ScriptState::From(context);
+  ScriptState* script_state = ScriptState::From(isolate, context);
   Modulator* modulator = Modulator::From(script_state);
   ModuleRecordResolver* module_record_resolver =
       modulator->GetModuleRecordResolver();

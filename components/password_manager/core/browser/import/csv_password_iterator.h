@@ -8,11 +8,11 @@
 #include <stddef.h>
 
 #include <iterator>
+#include <optional>
+#include <string_view>
 
 #include "base/memory/raw_ptr.h"
-#include "base/strings/string_piece.h"
 #include "components/password_manager/core/browser/import/csv_password.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace password_manager {
 
@@ -29,7 +29,7 @@ class CSVPasswordIterator {
 
   CSVPasswordIterator();
   explicit CSVPasswordIterator(const CSVPassword::ColumnMap& map,
-                               base::StringPiece csv);
+                               std::string_view csv);
   CSVPasswordIterator(const CSVPasswordIterator&);
   CSVPasswordIterator& operator=(const CSVPasswordIterator&);
   ~CSVPasswordIterator();
@@ -48,9 +48,6 @@ class CSVPasswordIterator {
   // there are no implicit conversions available for CSVPasswordIterator, and
   // the methods avoid having to declare the operators as friends.
   bool operator==(const CSVPasswordIterator& other) const;
-  bool operator!=(const CSVPasswordIterator& other) const {
-    return !(*this == other);
-  }
 
  private:
   // SeekToNextValidRow seeks the iterator to the first available data row which
@@ -60,11 +57,11 @@ class CSVPasswordIterator {
   // |map_| stores the meaning of particular columns in the row.
   raw_ptr<const CSVPassword::ColumnMap> map_ = nullptr;
   // |csv_rest_| contains the CSV lines left to be iterated over.
-  base::StringPiece csv_rest_;
+  std::string_view csv_rest_;
   // |csv_row_| contains the CSV row which the iterator points at.
-  base::StringPiece csv_row_;
+  std::string_view csv_row_;
   // Contains a CSVPassword created from |map_| and |csv_row_| if possible.
-  absl::optional<CSVPassword> password_;
+  std::optional<CSVPassword> password_;
 };
 
 // ConsumeCSVLine is a shared utility between CSVPasswordIterator (which uses
@@ -81,7 +78,7 @@ class CSVPasswordIterator {
 // "abcd" -> "abcd", ""
 // "\r" -> "\r", ""
 // "a\"\n\"b" -> "a\"\n\"b", ""
-base::StringPiece ConsumeCSVLine(base::StringPiece* input);
+std::string_view ConsumeCSVLine(std::string_view* input);
 
 }  // namespace password_manager
 

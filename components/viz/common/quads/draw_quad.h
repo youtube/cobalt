@@ -34,8 +34,6 @@ namespace viz {
 // quad's transform maps the content space to the target space.
 class VIZ_COMMON_EXPORT DrawQuad {
  public:
-  // These values are persisted to logs. Entries should not be renumbered and
-  // numeric values should never be reused.
   enum class Material {
     kInvalid = 0,
     kDebugBorder = 1,
@@ -50,7 +48,7 @@ class VIZ_COMMON_EXPORT DrawQuad {
     kSurfaceContent = 8,
     kTextureContent = 9,
     kTiledContent = 10,
-    kYuvVideoContent = 11,
+    // kYuvVideoContent = 11,  // Removed. kTextureContent used instead.
     kVideoHole = 12,
     kMaxValue = kVideoHole
   };
@@ -76,9 +74,13 @@ class VIZ_COMMON_EXPORT DrawQuad {
   // Stores state common to a large bundle of quads; kept separate for memory
   // efficiency. There is special treatment to reconstruct these pointers
   // during serialization.
-  // This field is not a raw_ptr<> because of missing |.get()| in not-rewritten
-  // platform specific code.
+  // RAW_PTR_EXCLUSION: Performance reasons (rendering.mobile,
+  // Graphics.Smoothness, see crbug.com/345298647)
   RAW_PTR_EXCLUSION const SharedQuadState* shared_quad_state;
+
+  // A resource defined by `TransferableResource` with the same `ResourceId`. If
+  // set to `kInvalidResourceId` then the quad is resourceless.
+  ResourceId resource_id = kInvalidResourceId;
 
   bool IsDebugQuad() const { return material == Material::kDebugBorder; }
 
@@ -123,28 +125,6 @@ class VIZ_COMMON_EXPORT DrawQuad {
   }
 
   void AsValueInto(base::trace_event::TracedValue* value) const;
-
-  struct VIZ_COMMON_EXPORT Resources {
-    enum : size_t { kMaxResourceIdCount = 4 };
-    Resources();
-
-    ResourceId* begin() { return ids; }
-    ResourceId* end() {
-      DCHECK_LE(count, kMaxResourceIdCount);
-      return ids + count;
-    }
-
-    const ResourceId* begin() const { return ids; }
-    const ResourceId* end() const {
-      DCHECK_LE(count, kMaxResourceIdCount);
-      return ids + count;
-    }
-
-    uint32_t count;
-    ResourceId ids[kMaxResourceIdCount];
-  };
-
-  Resources resources;
 
   template <typename T>
   const T* DynamicCast() const {

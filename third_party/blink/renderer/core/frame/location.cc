@@ -35,17 +35,44 @@
 #include "third_party/blink/renderer/core/frame/dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/core/frame/remote_dom_window.h"
 #include "third_party/blink/renderer/core/loader/frame_load_request.h"
 #include "third_party/blink/renderer/core/loader/frame_loader.h"
 #include "third_party/blink/renderer/core/url/dom_url_utils_read_only.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/v8_dom_activity_logger.h"
+#include "third_party/blink/renderer/platform/bindings/v8_dom_wrapper.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 
 namespace blink {
 
 Location::Location(DOMWindow* dom_window) : dom_window_(dom_window) {}
+
+v8::Local<v8::Value> Location::Wrap(ScriptState* script_state) {
+  // Note that this check is gated on whether or not |dom_window_| is remote,
+  // not whether or not |dom_window_| is cross-origin. If |dom_window_| is
+  // local, the |location| property must always return the same wrapper, even if
+  // the cross-origin status changes by changing properties like
+  // |document.domain|.
+  if (IsA<RemoteDOMWindow>(dom_window_.Get())) {
+    DCHECK(!DOMDataStore::ContainsWrapper(script_state->GetIsolate(), this));
+
+    DOMWrapperWorld& world = script_state->World();
+    v8::Isolate* isolate = script_state->GetIsolate();
+    const auto* location_wrapper_type = GetWrapperTypeInfo();
+    v8::Local<v8::Object> new_wrapper =
+        location_wrapper_type->GetV8ClassTemplate(isolate, world)
+            .As<v8::FunctionTemplate>()
+            ->NewRemoteInstance()
+            .ToLocalChecked();
+    return V8DOMWrapper::AssociateObjectWithWrapper(
+        isolate, this, location_wrapper_type, new_wrapper);
+  }
+
+  return ScriptWrappable::Wrap(script_state);
+}
 
 void Location::Trace(Visitor* visitor) const {
   visitor->Trace(dom_window_);
@@ -130,7 +157,7 @@ void Location::setProtocol(v8::Isolate* isolate,
   if (!url.SetProtocol(protocol)) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kSyntaxError,
-        "'" + protocol + "' is an invalid protocol.");
+        WTF::StrCat({"'", protocol, "' is an invalid protocol."}));
     return;
   }
 
@@ -187,7 +214,7 @@ void Location::setHash(v8::Isolate* isolate,
                        const String& hash,
                        ExceptionState& exception_state) {
   KURL url = GetDocument()->Url();
-  String old_fragment_identifier = url.FragmentIdentifier();
+  String old_fragment_identifier = url.FragmentIdentifier().ToString();
   String new_fragment_identifier = hash;
   if (hash[0] == '#')
     new_fragment_identifier = hash.Substring(1);
@@ -195,8 +222,10 @@ void Location::setHash(v8::Isolate* isolate,
   // Note that by parsing the URL and *then* comparing fragments, we are
   // comparing fragments post-canonicalization, and so this handles the
   // cases where fragment identifiers are ignored or invalid.
-  if (EqualIgnoringNullity(old_fragment_identifier, url.FragmentIdentifier()))
+  if (EqualIgnoringNullity(old_fragment_identifier,
+                           url.FragmentIdentifier().ToString())) {
     return;
+  }
   SetLocation(url.GetString(), IncumbentDOMWindow(isolate),
               EnteredDOMWindow(isolate), &exception_state);
 }
@@ -253,27 +282,31 @@ void Location::SetLocation(const String& url,
                                                  completed_url)) {
     if (exception_state) {
       exception_state->ThrowSecurityError(
-          "The current window does not have permission to navigate the target "
-          "frame to '" +
-          url + "'.");
+          WTF::StrCat({"The current window does not have permission to "
+                       "navigate the target frame to '",
+                       url, "'."}));
     }
     return;
   }
   if (exception_state && !completed_url.IsValid()) {
-    exception_state->ThrowDOMException(DOMExceptionCode::kSyntaxError,
-                                       "'" + url + "' is not a valid URL.");
+    exception_state->ThrowDOMException(
+        DOMExceptionCode::kSyntaxError,
+        WTF::StrCat({"'", url, "' is not a valid URL."}));
     return;
   }
 
   V8DOMActivityLogger* activity_logger =
-      V8DOMActivityLogger::CurrentActivityLoggerIfIsolatedWorld();
+      V8DOMActivityLogger::CurrentActivityLoggerIfIsolatedWorld(
+          incumbent_window->GetIsolate());
   if (activity_logger) {
     Vector<String> argv;
     argv.push_back("LocalDOMWindow");
     argv.push_back("url");
     argv.push_back(entered_document->Url());
     argv.push_back(completed_url);
-    activity_logger->LogEvent("blinkSetAttribute", argv.size(), argv.data());
+    // We use the CurrentDOMWindow here. `dom_window` might be remote here.
+    activity_logger->LogEvent(CurrentDOMWindow(incumbent_window->GetIsolate()),
+                              "blinkSetAttribute", argv);
   }
 
   ResourceRequestHead resource_request(completed_url);
@@ -281,12 +314,11 @@ void Location::SetLocation(const String& url,
       LocalFrame::HasTransientUserActivation(incumbent_window->GetFrame()));
 
   FrameLoadRequest request(incumbent_window, resource_request);
-  request.SetClientRedirectReason(ClientNavigationReason::kFrameNavigation);
+  request.SetClientNavigationReason(ClientNavigationReason::kFrameNavigation);
   WebFrameLoadType frame_load_type = WebFrameLoadType::kStandard;
   if (set_location_policy == SetLocationPolicy::kReplaceThisFrame)
     frame_load_type = WebFrameLoadType::kReplaceCurrentItem;
 
-  incumbent_window->GetFrame()->MaybeLogAdClickNavigation();
   dom_window_->GetFrame()->Navigate(request, frame_load_type);
 }
 

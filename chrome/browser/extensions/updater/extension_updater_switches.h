@@ -5,10 +5,23 @@
 #ifndef CHROME_BROWSER_EXTENSIONS_UPDATER_EXTENSION_UPDATER_SWITCHES_H_
 #define CHROME_BROWSER_EXTENSIONS_UPDATER_EXTENSION_UPDATER_SWITCHES_H_
 
+#include <string>
+
+#include "extensions/buildflags/buildflags.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
+
 namespace extensions {
 
 // Add "testrequest" to the update check request.
 extern const char kSwitchTestRequestParam[];
+
+// Forces a chrome channel during update requests.
+extern const char kSwitchExtensionForceChannel[];
+
+// Returns the chrome channel which should be used in queries for extension
+// updates. It takes kSwitchExtensionForceChannel into account.
+std::string GetChannelForExtensionUpdates();
 
 }  // namespace extensions
 

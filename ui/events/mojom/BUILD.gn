@@ -40,7 +40,7 @@ mojom("mojom") {
   cpp_typemaps += [
     {
       types = [
-        # TODO(crbug.com/617167): Map directly to ui::Event.
+        # TODO(crbug.com/41257096): Map directly to ui::Event.
         {
           mojom = "ui.mojom.Event"
           cpp = "::std::unique_ptr<::ui::Event>"
@@ -78,7 +78,11 @@ mojom("mojom") {
   ]
 
   blink_cpp_typemaps = shared_cpp_typemaps
+
+  # Generate TypeScript WebUI bindings and JavaScript legacy JS bindings (for
+  # Blink).
   webui_module_path = "chrome://resources/mojo/ui/events/mojom"
+  generate_legacy_js_bindings = true
 }
 
 mojom("event_latency_metadata_mojom") {

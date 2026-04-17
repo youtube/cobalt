@@ -5,7 +5,7 @@
 #ifndef UI_WM_PUBLIC_TOOLTIP_OBSERVER_H_
 #define UI_WM_PUBLIC_TOOLTIP_OBSERVER_H_
 
-#include <string>
+#include <string_view>
 
 #include "base/observer_list_types.h"
 #include "ui/wm/public/wm_public_export.h"
@@ -28,15 +28,15 @@ class WM_PUBLIC_EXPORT TooltipObserver : public base::CheckedObserver {
   // `target` is a target window of show tooltip. This may be null if the target
   // window is already destroyed,
   // `bounds` is relative to the target window position.
-  // TODO(crbug.com/1385219): Use tooltip's parent window for `target`.
+  // TODO(crbug.com/40246673): Use tooltip's parent window for `target`.
   virtual void OnTooltipShown(aura::Window* target,
-                              const std::u16string& text,
+                              std::u16string_view text,
                               const gfx::Rect& bounds) = 0;
 
   // Called when tooltip is hidden.
   // `target` is a target window of show tooltip. This may be null if the target
   // window is already destroyed,
-  // TODO(crbug.com/1385219): Use tooltip's parent window for `target`.
+  // TODO(crbug.com/40246673): Use tooltip's parent window for `target`.
   virtual void OnTooltipHidden(aura::Window* target) = 0;
 };
 

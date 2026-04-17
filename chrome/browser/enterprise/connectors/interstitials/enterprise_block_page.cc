@@ -6,14 +6,17 @@
 
 #include <utility>
 
+#include "base/strings/strcat.h"
+#include "base/strings/utf_string_conversions.h"
+#include "components/enterprise/connectors/core/enterprise_interstitial_util.h"
 #include "components/grit/components_resources.h"
+#include "components/safe_browsing/core/common/features.h"
+#include "components/safe_browsing/core/common/proto/realtimeapi.pb.h"
 #include "components/security_interstitials/content/security_interstitial_controller_client.h"
 #include "components/security_interstitials/core/common_string_util.h"
 #include "components/security_interstitials/core/metrics_helper.h"
 #include "components/security_interstitials/core/urls.h"
 #include "components/strings/grit/components_strings.h"
-#include "content/public/browser/navigation_entry.h"
-#include "content/public/browser/web_contents.h"
 #include "net/base/net_errors.h"
 #include "ui/base/l10n/l10n_util.h"
 
@@ -27,13 +30,16 @@ const security_interstitials::SecurityInterstitialPage::TypeID
 EnterpriseBlockPage::EnterpriseBlockPage(
     content::WebContents* web_contents,
     const GURL& request_url,
+    const safe_browsing::SafeBrowsingBlockingPage::UnsafeResourceList&
+        unsafe_resources,
     std::unique_ptr<
         security_interstitials::SecurityInterstitialControllerClient>
         controller_client)
     : security_interstitials::SecurityInterstitialPage(
           web_contents,
           request_url,
-          std::move(controller_client)) {
+          std::move(controller_client)),
+      unsafe_resources_(unsafe_resources) {
   controller()->metrics_helper()->RecordUserDecision(MetricsHelper::SHOW);
   controller()->metrics_helper()->RecordUserInteraction(
       MetricsHelper::TOTAL_VISITS);
@@ -48,29 +54,23 @@ EnterpriseBlockPage::GetTypeForTesting() {
   return EnterpriseBlockPage::kTypeForTesting;
 }
 
+enterprise_connectors::EnterpriseInterstitialBase::Type
+EnterpriseBlockPage::type() const {
+  return Type::kBlock;
+}
+
+const std::vector<security_interstitials::UnsafeResource>&
+EnterpriseBlockPage::unsafe_resources() const {
+  return unsafe_resources_;
+}
+
+GURL EnterpriseBlockPage::request_url() const {
+  return security_interstitials::SecurityInterstitialPage::request_url();
+}
+
 void EnterpriseBlockPage::PopulateInterstitialStrings(
     base::Value::Dict& load_time_data) {
-  PopulateStringsForSharedHTML(load_time_data);
-  load_time_data.Set("tabTitle",
-                     l10n_util::GetStringUTF16(IDS_ENTERPRISE_BLOCK_TITLE));
-  load_time_data.Set("optInLink", l10n_util::GetStringUTF16(
-                                      IDS_SAFE_BROWSING_SCOUT_REPORTING_AGREE));
-  load_time_data.Set(
-      "enhancedProtectionMessage",
-      l10n_util::GetStringUTF16(IDS_SAFE_BROWSING_ENHANCED_PROTECTION_MESSAGE));
-
-  load_time_data.Set("heading",
-                     l10n_util::GetStringUTF16(IDS_ENTERPRISE_BLOCK_HEADING));
-  load_time_data.Set(
-      "primaryParagraph",
-      l10n_util::GetStringFUTF16(
-          IDS_ENTERPRISE_BLOCK_PRIMARY_PARAGRAPH,
-          security_interstitials::common_string_util::GetFormattedHostName(
-              request_url()),
-          l10n_util::GetStringUTF16(
-              IDS_ENTERPRISE_INTERSTITIALS_LEARN_MORE_ACCCESSIBILITY_TEXT)));
-  load_time_data.Set("primaryButtonText",
-                     l10n_util::GetStringUTF16(IDS_ENTERPRISE_BLOCK_GO_BACK));
+  PopulateStrings(load_time_data);
 }
 
 void EnterpriseBlockPage::OnInterstitialClosing() {}
@@ -111,7 +111,6 @@ void EnterpriseBlockPage::CommandReceived(const std::string& command) {
     case security_interstitials::CMD_REPORT_PHISHING_ERROR:
       // Not supported by the URL blocking page.
       NOTREACHED() << "Unsupported command: " << command;
-      break;
     case security_interstitials::CMD_ERROR:
     case security_interstitials::CMD_TEXT_FOUND:
     case security_interstitials::CMD_TEXT_NOT_FOUND:
@@ -124,18 +123,10 @@ int EnterpriseBlockPage::GetHTMLTemplateId() {
   return IDR_SECURITY_INTERSTITIAL_HTML;
 }
 
-void EnterpriseBlockPage::PopulateStringsForSharedHTML(
-    base::Value::Dict& load_time_data) {
-  load_time_data.Set("enterprise-block", true);
-  load_time_data.Set("overridable", false);
-  load_time_data.Set("hide_primary_button", false);
-  load_time_data.Set("show_recurrent_error_paragraph", false);
-
-  load_time_data.Set("recurrentErrorParagraph", "");
-  load_time_data.Set("openDetails", "");
-  load_time_data.Set("explanationParagraph", "");
-  load_time_data.Set("finalParagraph", "");
-  load_time_data.Set("primaryButtonText", "");
-
-  load_time_data.Set("type", "ENTERPRISE_BLOCK");
+std::string EnterpriseBlockPage::GetCustomMessageForTesting() {
+  base::Value::Dict load_time_data;
+  PopulateInterstitialStrings(load_time_data);
+  std::string custom_message = *load_time_data.FindString("primaryParagraph");
+  return custom_message;
 }
+

@@ -32,8 +32,7 @@ class MockTextureOwner : public TextureOwner {
   MOCK_CONST_METHOD0(GetContext, gl::GLContext*());
   MOCK_CONST_METHOD0(GetSurface, gl::GLSurface*());
   MOCK_CONST_METHOD0(CreateJavaSurface, gl::ScopedJavaSurface());
-  MOCK_METHOD0(UpdateTexImage, void());
-  MOCK_METHOD1(EnsureTexImageBound, void(GLuint));
+  MOCK_METHOD1(UpdateTexImage, bool(bool));
   MOCK_METHOD0(ReleaseBackBuffers, void());
   MOCK_METHOD0(ReleaseResources, void());
   MOCK_METHOD1(SetFrameAvailableCallback, void(const base::RepeatingClosure&));
@@ -42,6 +41,10 @@ class MockTextureOwner : public TextureOwner {
                     gfx::Size* coded_size,
                     gfx::Rect* visible_rect));
   MOCK_METHOD1(RunWhenBufferIsAvailable, void(base::OnceClosure));
+
+  MOCK_METHOD2(OnMemoryDump,
+               bool(const base::trace_event::MemoryDumpArgs& args,
+                    base::trace_event::ProcessMemoryDump* pmd));
 
   std::unique_ptr<base::android::ScopedHardwareBufferFenceSync>
   GetAHardwareBuffer() override {

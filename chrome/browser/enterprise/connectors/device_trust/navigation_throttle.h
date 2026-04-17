@@ -11,6 +11,12 @@
 #include "base/values.h"
 #include "content/public/browser/navigation_throttle.h"
 
+namespace device_signals {
+class UserPermissionService;
+}  // namespace device_signals
+
+class ConsentRequester;
+
 namespace enterprise_connectors {
 
 class DeviceTrustService;
@@ -30,11 +36,12 @@ class DeviceTrustNavigationThrottle : public content::NavigationThrottle {
  public:
   // Create a navigation throttle for the given navigation if device trust is
   // enabled.  Returns nullptr if no throttling should be done.
-  static std::unique_ptr<DeviceTrustNavigationThrottle> MaybeCreateThrottleFor(
-      content::NavigationHandle* navigation_handle);
+  static void MaybeCreateAndAdd(content::NavigationThrottleRegistry& registry);
 
-  DeviceTrustNavigationThrottle(DeviceTrustService* device_trust_service,
-                                content::NavigationHandle* navigation_handle);
+  DeviceTrustNavigationThrottle(
+      DeviceTrustService* device_trust_service,
+      device_signals::UserPermissionService* user_permission_service,
+      content::NavigationThrottleRegistry& registry);
 
   DeviceTrustNavigationThrottle(const DeviceTrustNavigationThrottle&) = delete;
   DeviceTrustNavigationThrottle& operator=(
@@ -47,10 +54,14 @@ class DeviceTrustNavigationThrottle : public content::NavigationThrottle {
   const char* GetNameForLogging() override;
 
  private:
+  content::NavigationThrottle::ThrottleCheckResult MayTriggerConsentDialog();
   content::NavigationThrottle::ThrottleCheckResult AddHeadersIfNeeded();
 
-  // Not owned.
+  // Not owned, profile-keyed service.
   const raw_ptr<DeviceTrustService> device_trust_service_;
+
+  // Not owned, profile-keyed service.
+  const raw_ptr<device_signals::UserPermissionService> user_permission_service_;
 
   // Resumes the navigation by setting a value into the header
   // `X-Verified-Access-Challenge-Response` of the redirection request to the
@@ -62,6 +73,12 @@ class DeviceTrustNavigationThrottle : public content::NavigationThrottle {
 
   // Invoked when generation of the challenge response timed out.
   void OnResponseTimedOut(base::TimeTicks start_time);
+
+  // Callback function for when kDeviceSignalsConsentReceived is updated
+  // to true.
+  void OnConsentPrefUpdated();
+
+  std::unique_ptr<ConsentRequester> consent_requester_;
 
   // Only set to true when a challenge response (or timeout) resumed the
   // throttled navigation.

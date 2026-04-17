@@ -10,10 +10,6 @@
 #import "ios/chrome/grit/ios_strings.h"
 #import "ui/base/l10n/l10n_util_mac.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 NSString* AccessibilityLabelForIconNamed(NSString* name) {
@@ -42,7 +38,8 @@ UIImage* IconNamed(NSString* name) {
 
 // Wraps -[UIImage imageFlippedForRightToLeftLayoutDirection] to also support
 // porting accessibility properties.
-// TODO(crbug.com/622543): remove this workaround if Apple fixes rdar://26962660
+// TODO(crbug.com/41260431): remove this workaround if Apple fixes
+// rdar://26962660
 UIImage* ImageFlippedForRightToLeftLayoutDirection(UIImage* image) {
   UIImage* imageFlipped = [image imageFlippedForRightToLeftLayoutDirection];
   imageFlipped.accessibilityIdentifier = image.accessibilityIdentifier;

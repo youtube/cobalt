@@ -62,6 +62,9 @@ class PLATFORM_EXPORT FrameWidgetInputHandlerImpl
       int32_t end,
       const Vector<ui::ImeTextSpan>& ime_text_spans) override;
   void ExtendSelectionAndDelete(int32_t before, int32_t after) override;
+  void ExtendSelectionAndReplace(uint32_t before,
+                                 uint32_t after,
+                                 const String& replacement_text) override;
   void DeleteSurroundingText(int32_t before, int32_t after) override;
   void DeleteSurroundingTextInCodePoints(int32_t before,
                                          int32_t after) override;
@@ -97,6 +100,14 @@ class PLATFORM_EXPORT FrameWidgetInputHandlerImpl
   void WaitForPageScaleAnimationForTesting(
       WaitForPageScaleAnimationForTestingCallback callback) override;
   void MoveCaret(const gfx::Point& point) override;
+
+#if BUILDFLAG(IS_IOS)
+  void StartAutoscrollForSelectionToPoint(const gfx::PointF& point) override;
+  void StopAutoscroll() override;
+
+  void RectForEditFieldChars(const gfx::Range& range,
+                             RectForEditFieldCharsCallback callback) override;
+#endif  // BUILDFLAG(IS_IOS)
 
  private:
   enum class UpdateState { kNone, kIsPasting, kIsSelectingRange };

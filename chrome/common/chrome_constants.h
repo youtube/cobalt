@@ -11,7 +11,6 @@
 
 #include "base/files/file_path.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 
 namespace chrome {
 
@@ -21,6 +20,11 @@ extern const base::FilePath::CharType kHelperProcessExecutableName[];
 extern const base::FilePath::CharType kBrowserProcessExecutablePath[];
 extern const base::FilePath::CharType kHelperProcessExecutablePath[];
 #if BUILDFLAG(IS_MAC)
+extern const base::FilePath::CharType
+    kGoogleChromeForTestingBrowserProcessExecutablePath[];
+extern const base::FilePath::CharType
+    kGoogleChromeBrowserProcessExecutablePath[];
+extern const base::FilePath::CharType kChromiumBrowserProcessExecutablePath[];
 // NOTE: if you change the value of kFrameworkName, please don't forget to
 // update components/test/run_all_unittests.cc as well.
 // TODO(tfarina): Remove the comment above, when you fix components to use plist
@@ -41,12 +45,9 @@ extern const char kInitialProfile[];
 extern const char kMultiProfileDirPrefix[];
 extern const base::FilePath::CharType kGuestProfileDir[];
 extern const base::FilePath::CharType kSystemProfileDir[];
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-// The prefix for the name of a web app profile.
-extern const char kWebAppProfilePrefix[];
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
 // filenames
+extern const base::FilePath::CharType kAccountPreferencesFilename[];
 extern const base::FilePath::CharType kCacheDirname[];
 extern const base::FilePath::CharType kCookieFilename[];
 extern const base::FilePath::CharType kCRLSetFilename[];
@@ -83,6 +84,7 @@ extern const base::FilePath::CharType kTransportSecurityPersisterFilename[];
 extern const base::FilePath::CharType kTrustTokenFilename[];
 extern const base::FilePath::CharType kVideoTutorialsStorageDirname[];
 extern const base::FilePath::CharType kWebAppDirname[];
+extern const base::FilePath::CharType kDeviceBoundSessionsFilename[];
 
 #if BUILDFLAG(IS_WIN)
 extern const base::FilePath::CharType kJumpListIconDirname[];
@@ -91,6 +93,8 @@ extern const base::FilePath::CharType kJumpListIconDirname[];
 // directory names
 #if BUILDFLAG(IS_WIN)
 extern const wchar_t kUserDataDirname[];
+#elif BUILDFLAG(IS_ANDROID)
+extern const base::FilePath::CharType kOTRTempStateDirname[];
 #endif
 
 // Fraction of the soft process limit that can be consumed by extensions, before

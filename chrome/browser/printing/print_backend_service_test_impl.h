@@ -12,7 +12,6 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/services/printing/print_backend_service_impl.h"
 #include "chrome/services/printing/public/mojom/print_backend_service.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -90,7 +89,7 @@ class PrintBackendServiceTestImpl : public PrintBackendServiceImpl {
   void GetDefaultPrinterName(
       mojom::PrintBackendService::GetDefaultPrinterNameCallback callback)
       override;
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   void GetPrinterSemanticCapsAndDefaults(
       const std::string& printer_name,
       mojom::PrintBackendService::GetPrinterSemanticCapsAndDefaultsCallback
@@ -141,6 +140,7 @@ class PrintBackendServiceTestImpl : public PrintBackendServiceImpl {
   // Use LaunchForTesting() or LaunchForTestingWithServiceThread().
   PrintBackendServiceTestImpl(
       mojo::PendingReceiver<mojom::PrintBackendService> receiver,
+      bool is_sandboxed,
       scoped_refptr<TestPrintBackend> backend);
 
   void OnDidGetDefaultPrinterName(
@@ -155,13 +155,14 @@ class PrintBackendServiceTestImpl : public PrintBackendServiceImpl {
   static std::unique_ptr<PrintBackendServiceTestImpl>
   CreateServiceOnServiceThread(
       mojo::PendingReceiver<mojom::PrintBackendService> receiver,
+      bool is_sandboxed,
       scoped_refptr<TestPrintBackend> backend,
       mojo::PendingRemote<mojom::PrinterXmlParser> xml_parser_remote);
 #endif  // BUILDFLAG(IS_WIN)
 
   // When pretending to be sandboxed, have the possibility of getting access
   // denied errors.
-  bool is_sandboxed_ = false;
+  const bool is_sandboxed_;
 
   // Marker for skipping check for empty persistent contexts at destruction.
   bool skip_dtor_persistent_contexts_check_ = false;

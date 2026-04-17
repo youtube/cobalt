@@ -19,10 +19,10 @@ PersistentCommandPool::PersistentCommandPool() {}
 
 PersistentCommandPool::~PersistentCommandPool()
 {
-    ASSERT(!mCommandPool.valid() && mFreeBuffers.empty());
+    ASSERT(!mCommandPool.valid() && mFreeBuffers.empty() && mFreeBuffersNeedReset.empty());
 }
 
-angle::Result PersistentCommandPool::init(Context *context,
+angle::Result PersistentCommandPool::init(ErrorContext *context,
                                           ProtectionType protectionType,
                                           uint32_t queueFamilyIndex)
 {
@@ -60,18 +60,31 @@ void PersistentCommandPool::destroy(VkDevice device)
 
     ASSERT(mCommandPool.valid());
 
-    for (PrimaryCommandBuffer &cmdBuf : mFreeBuffers)
+    while (!mFreeBuffers.empty())
     {
-        cmdBuf.destroy(device, mCommandPool);
+        mFreeBuffers.back().destroy(device, mCommandPool);
+        mFreeBuffers.pop_back();
     }
-    mFreeBuffers.clear();
+
+    while (!mFreeBuffersNeedReset.empty())
+    {
+        mFreeBuffersNeedReset.back().destroy(device, mCommandPool);
+        mFreeBuffersNeedReset.pop_back();
+    }
 
     mCommandPool.destroy(device);
 }
 
-angle::Result PersistentCommandPool::allocate(Context *context,
+angle::Result PersistentCommandPool::allocate(ErrorContext *context,
                                               PrimaryCommandBuffer *commandBufferOut)
 {
+    while (!mFreeBuffersNeedReset.empty())
+    {
+        mFreeBuffersNeedReset.front().reset();
+        mFreeBuffers.emplace_back(std::move(mFreeBuffersNeedReset.front()));
+        mFreeBuffersNeedReset.pop_front();
+    }
+
     if (mFreeBuffers.empty())
     {
         ANGLE_TRY(allocateCommandBuffer(context));
@@ -84,17 +97,25 @@ angle::Result PersistentCommandPool::allocate(Context *context,
     return angle::Result::Continue;
 }
 
-angle::Result PersistentCommandPool::collect(Context *context, PrimaryCommandBuffer &&buffer)
+angle::Result PersistentCommandPool::collect(ErrorContext *context,
+                                             PrimaryCommandBuffer &&buffer,
+                                             WhenToResetCommandBuffer whenToReset)
 {
-    // VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT NOT set, The CommandBuffer
-    // can still hold the memory resource
-    ANGLE_VK_TRY(context, buffer.reset());
-
-    mFreeBuffers.emplace_back(std::move(buffer));
+    if (whenToReset == WhenToResetCommandBuffer::Now)
+    {
+        // VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT NOT set, The CommandBuffer
+        // can still hold the memory resource
+        ANGLE_VK_TRY(context, buffer.reset());
+        mFreeBuffers.emplace_back(std::move(buffer));
+    }
+    else
+    {
+        mFreeBuffersNeedReset.emplace_back(std::move(buffer));
+    }
     return angle::Result::Continue;
 }
 
-angle::Result PersistentCommandPool::allocateCommandBuffer(Context *context)
+angle::Result PersistentCommandPool::allocateCommandBuffer(ErrorContext *context)
 {
     PrimaryCommandBuffer commandBuffer;
     {

@@ -4,8 +4,9 @@
 
 #include "third_party/blink/renderer/core/script/script_runner.h"
 
+#include <array>
+
 #include "base/test/null_task_runner.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -20,6 +21,7 @@
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/thread_state.h"
 #include "third_party/blink/renderer/platform/scheduler/main_thread/main_thread_scheduler_impl.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/testing/testing_platform_support_with_mock_scheduler.h"
 
 using testing::InvokeWithoutArgs;
@@ -43,7 +45,9 @@ class MockPendingScript : public PendingScript {
 
   MockPendingScript(ScriptElementBase* element,
                     ScriptSchedulingType scheduling_type)
-      : PendingScript(element, TextPosition::MinimumPosition()) {
+      : PendingScript(element,
+                      TextPosition::MinimumPosition(),
+                      /*parent_task=*/nullptr) {
     SetSchedulingType(scheduling_type);
   }
   ~MockPendingScript() override {}
@@ -113,6 +117,7 @@ class ScriptRunnerTest : public testing::Test {
                             ScriptRunner::DelayReason::kLoad));
   }
 
+  test::TaskEnvironment task_environment_;
   std::unique_ptr<DummyPageHolder> page_holder_;
   Persistent<Document> document_;
   Persistent<ScriptRunner> script_runner_;
@@ -298,7 +303,7 @@ TEST_F(ScriptRunnerTest, QueueReentrantScript_InOrder) {
 }
 
 TEST_F(ScriptRunnerTest, QueueReentrantScript_ManyAsyncScripts) {
-  MockPendingScript* pending_scripts[20];
+  std::array<MockPendingScript*, 20> pending_scripts;
   for (int i = 0; i < 20; i++)
     pending_scripts[i] = nullptr;
 
@@ -390,34 +395,6 @@ TEST_F(ScriptRunnerTest, ResumeAndSuspend_Async) {
 
   // Make sure elements are correct.
   EXPECT_THAT(order_, WhenSorted(ElementsAre(1, 2, 3)));
-}
-
-TEST_F(ScriptRunnerTest, SetForceDeferredWithAddedAsyncScript) {
-  base::test::ScopedFeatureList feature_list(
-      features::kForceDeferScriptIntervention);
-
-  auto* pending_script1 = MockPendingScript::CreateAsync(document_);
-
-  QueueScriptForExecution(pending_script1);
-  NotifyScriptReady(pending_script1);
-  EXPECT_CALL(*pending_script1, ExecuteScriptBlock())
-      .WillOnce(InvokeWithoutArgs([this] { order_.push_back(1); }));
-  auto* delayer = MakeGarbageCollected<ScriptRunnerDelayer>(
-      script_runner_, ScriptRunner::DelayReason::kForceDefer);
-  delayer->Activate();
-
-  // Adding new async script while deferred will cause another task to be
-  // posted for it when execution is unblocked.
-  auto* pending_script2 = MockPendingScript::CreateAsync(document_);
-  QueueScriptForExecution(pending_script2);
-  NotifyScriptReady(pending_script2);
-  EXPECT_CALL(*pending_script2, ExecuteScriptBlock())
-      .WillOnce(InvokeWithoutArgs([this] { order_.push_back(2); }));
-  // Unblock async scripts before the tasks posted in NotifyScriptReady() is
-  // executed, i.e. no RunUntilIdle() etc. in between.
-  delayer->Deactivate();
-  platform_->RunUntilIdle();
-  ASSERT_EQ(2u, order_.size());
 }
 
 TEST_F(ScriptRunnerTest, LateNotifications) {
@@ -564,6 +541,7 @@ class PostTaskWithLowPriorityUntilTimeoutTest : public testing::Test {
         null_task_runner_(base::MakeRefCounted<base::NullTaskRunner>()) {}
 
  protected:
+  test::TaskEnvironment task_environment_;
   ScopedTestingPlatformSupport<TestingPlatformSupportWithMockScheduler>
       platform_;
   scoped_refptr<base::TestMockTimeTaskRunner> task_runner_;

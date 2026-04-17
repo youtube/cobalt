@@ -6,27 +6,30 @@ package org.chromium.components.media_router.caf;
 
 import android.net.Uri;
 
-import androidx.annotation.Nullable;
 import androidx.mediarouter.media.MediaRouteSelector;
 
 import com.google.android.gms.cast.CastMediaControlIntent;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.media_router.MediaSource;
 
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * Abstracts parsing the Cast application id and other parameters from the source ID.
- */
+/** Abstracts parsing the Cast application id and other parameters from the source ID. */
+@NullMarked
 public class CastMediaSource implements MediaSource {
     public static final String AUTOJOIN_CUSTOM_CONTROLLER_SCOPED = "custom_controller_scoped";
     public static final String AUTOJOIN_TAB_AND_ORIGIN_SCOPED = "tab_and_origin_scoped";
     public static final String AUTOJOIN_ORIGIN_SCOPED = "origin_scoped";
     public static final String AUTOJOIN_PAGE_SCOPED = "page_scoped";
     private static final List<String> AUTOJOIN_POLICIES =
-            Arrays.asList(AUTOJOIN_CUSTOM_CONTROLLER_SCOPED, AUTOJOIN_TAB_AND_ORIGIN_SCOPED,
-                    AUTOJOIN_ORIGIN_SCOPED, AUTOJOIN_PAGE_SCOPED);
+            Arrays.asList(
+                    AUTOJOIN_CUSTOM_CONTROLLER_SCOPED,
+                    AUTOJOIN_TAB_AND_ORIGIN_SCOPED,
+                    AUTOJOIN_ORIGIN_SCOPED,
+                    AUTOJOIN_PAGE_SCOPED);
 
     private static final String CAST_SOURCE_ID_SEPARATOR = "/";
     private static final String CAST_SOURCE_ID_APPLICATION_ID = "__castAppId__";
@@ -38,29 +41,19 @@ public class CastMediaSource implements MediaSource {
     private static final List<String> CAST_APP_CAPABILITIES =
             Arrays.asList("video_out", "audio_out", "video_in", "audio_in", "multizone_group");
 
-    /**
-     * The protocol for Cast Presentation URLs.
-     */
+    /** The protocol for Cast Presentation URLs. */
     private static final String CAST_URL_PROTOCOL = "cast:";
 
-    /**
-     * The query parameter key for Cast Client ID in a Cast Presentation URL.
-     */
+    /** The query parameter key for Cast Client ID in a Cast Presentation URL. */
     private static final String CAST_URL_CLIENT_ID = "clientId";
 
-    /**
-     * The query parameter key for autojoin policy in a Cast Presentation URL.
-     */
+    /** The query parameter key for autojoin policy in a Cast Presentation URL. */
     private static final String CAST_URL_AUTOJOIN_POLICY = "autoJoinPolicy";
 
-    /**
-     * The query parameter key for app capabilities in a Cast Presentation URL.
-     */
+    /** The query parameter key for app capabilities in a Cast Presentation URL. */
     private static final String CAST_URL_CAPABILITIES = "capabilities";
 
-    /**
-     * The original presentation URL that the {@link CastMediaSource} object was created from.
-     */
+    /** The original presentation URL that the {@link CastMediaSource} object was created from. */
     private final String mSourceId;
 
     /**
@@ -73,7 +66,7 @@ public class CastMediaSource implements MediaSource {
      * A numeric identifier for the Cast Web SDK, unique for the frame providing the
      * presentation URL. Can be null.
      */
-    private final String mClientId;
+    private final @Nullable String mClientId;
 
     /**
      * Defines Cast-specific behavior for {@link CastMediaRouteProvider#joinRoute}. Defaults to
@@ -81,21 +74,19 @@ public class CastMediaSource implements MediaSource {
      */
     private final String mAutoJoinPolicy;
 
-    /**
-     * Defines the capabilities of the particular application id. Can be null.
-     */
-    private final String[] mCapabilities;
+    /** Defines the capabilities of the particular application id. Can be null. */
+    private final String @Nullable [] mCapabilities;
 
     /**
      * Initializes the media source from the source id.
      * @param sourceId the source id for the Cast media source (a presentation url).
      * @return an initialized media source if the id is valid, null otherwise.
      */
-    @Nullable
-    public static CastMediaSource from(String sourceId) {
+    public static @Nullable CastMediaSource from(String sourceId) {
         assert sourceId != null;
-        return sourceId.startsWith(CAST_URL_PROTOCOL) ? fromCastUrl(sourceId)
-                                                      : fromLegacyUrl(sourceId);
+        return sourceId.startsWith(CAST_URL_PROTOCOL)
+                ? fromCastUrl(sourceId)
+                : fromLegacyUrl(sourceId);
     }
 
     /**
@@ -105,7 +96,7 @@ public class CastMediaSource implements MediaSource {
      * @return an initialized route selector or null.
      */
     @Override
-    public MediaRouteSelector buildRouteSelector() {
+    public @Nullable MediaRouteSelector buildRouteSelector() {
         try {
             return new MediaRouteSelector.Builder()
                     .addControlCategory(CastMediaControlIntent.categoryForCast(mApplicationId))
@@ -115,46 +106,39 @@ public class CastMediaSource implements MediaSource {
         }
     }
 
-    /**
-     * @return the Cast application id corresponding to the source.
-     */
+    /** @return the Cast application id corresponding to the source. */
     @Override
     public String getApplicationId() {
         return mApplicationId;
     }
 
-    /**
-     * @return the client id if passed in the source id. Can be null.
-     */
-    @Nullable
-    public String getClientId() {
+    /** @return the client id if passed in the source id. Can be null. */
+    public @Nullable String getClientId() {
         return mClientId;
     }
 
-    /**
-     * @return the auto join policy which must be one of the AUTOJOIN constants defined above.
-     */
+    /** @return the auto join policy which must be one of the AUTOJOIN constants defined above. */
     public String getAutoJoinPolicy() {
         return mAutoJoinPolicy;
     }
 
-    /**
-     * @return the id identifying the media source
-     */
+    /** @return the id identifying the media source */
     @Override
     public String getSourceId() {
         return mSourceId;
     }
 
-    /**
-     * @return application capabilities
-     */
-    public String[] getCapabilities() {
+    /** @return application capabilities */
+    public String @Nullable [] getCapabilities() {
         return mCapabilities == null ? null : Arrays.copyOf(mCapabilities, mCapabilities.length);
     }
 
-    private CastMediaSource(String sourceId, String applicationId, String clientId,
-            String autoJoinPolicy, String[] capabilities) {
+    private CastMediaSource(
+            String sourceId,
+            String applicationId,
+            @Nullable String clientId,
+            @Nullable String autoJoinPolicy,
+            String @Nullable [] capabilities) {
         mSourceId = sourceId;
         mApplicationId = applicationId;
         mClientId = clientId;
@@ -162,8 +146,7 @@ public class CastMediaSource implements MediaSource {
         mCapabilities = capabilities;
     }
 
-    @Nullable
-    private static String extractParameter(String[] fragments, String key) {
+    private static @Nullable String extractParameter(String[] fragments, String key) {
         String keyPrefix = key + "=";
         for (String parameter : fragments) {
             if (parameter.startsWith(keyPrefix)) return parameter.substring(keyPrefix.length());
@@ -171,8 +154,7 @@ public class CastMediaSource implements MediaSource {
         return null;
     }
 
-    @Nullable
-    private static String[] extractCapabilities(String capabilitiesParameter) {
+    private static String @Nullable [] extractCapabilities(String capabilitiesParameter) {
         if (capabilitiesParameter.length()
                 < CAST_APP_CAPABILITIES_PREFIX.length() + CAST_APP_CAPABILITIES_SUFFIX.length()) {
             return null;
@@ -184,7 +166,8 @@ public class CastMediaSource implements MediaSource {
         }
 
         String capabilitiesList =
-                capabilitiesParameter.substring(CAST_APP_CAPABILITIES_PREFIX.length(),
+                capabilitiesParameter.substring(
+                        CAST_APP_CAPABILITIES_PREFIX.length(),
                         capabilitiesParameter.length() - CAST_APP_CAPABILITIES_SUFFIX.length());
         String[] capabilities = capabilitiesList.split(CAST_APP_CAPABILITIES_SEPARATOR);
         for (String capability : capabilities) {
@@ -199,8 +182,7 @@ public class CastMediaSource implements MediaSource {
      * @return an initialized media source if the uri is a valid Cast presentation URL, null
      * otherwise.
      */
-    @Nullable
-    private static CastMediaSource fromCastUrl(String sourceId) {
+    private static @Nullable CastMediaSource fromCastUrl(String sourceId) {
         // Strip the scheme as the Uri parser works better without it.
         Uri sourceUri = Uri.parse(sourceId.substring(CAST_URL_PROTOCOL.length()));
         String applicationId = sourceUri.getPath();
@@ -226,15 +208,14 @@ public class CastMediaSource implements MediaSource {
 
     /**
      * @deprecated Legacy Cast Presentation URLs are deprecated in favor of cast: URLs.
-     * TODO(crbug.com/757358): remove this method when we drop support for legacy URLs.
-     * Helper method to create a MediaSource object from a legacy (https:) presentation URL.
+     *     TODO(crbug.com/40536148): remove this method when we drop support for legacy URLs. Helper
+     *     method to create a MediaSource object from a legacy (https:) presentation URL.
      * @param sourceId the source id for the Cast media source.
      * @return an initialized media source if the uri is a valid https presentation URL, null
-     * otherwise.
+     *     otherwise.
      */
     @Deprecated
-    @Nullable
-    private static CastMediaSource fromLegacyUrl(String sourceId) {
+    private static @Nullable CastMediaSource fromLegacyUrl(String sourceId) {
         Uri sourceUri = Uri.parse(sourceId);
         String uriFragment = sourceUri.getFragment();
         if (uriFragment == null) return null;

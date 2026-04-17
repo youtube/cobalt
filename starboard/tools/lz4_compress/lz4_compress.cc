@@ -41,13 +41,14 @@ bool ReadFile(const char* file_path, std::vector<char>& buffer) {
     fclose(file);
     return false;
   }
-  std::int64_t file_size;
-  if ((file_size = ftell(file)) == -1L) {
+  std::int64_t file_size_signed;
+  if ((file_size_signed = ftell(file)) == -1L) {
     std::cerr << "Failed to get size of " << file_path << "\n";
     fclose(file);
     return false;
   }
   rewind(file);
+  const size_t file_size = static_cast<size_t>(file_size_signed);
 
   buffer.resize(file_size);
   size_t result;

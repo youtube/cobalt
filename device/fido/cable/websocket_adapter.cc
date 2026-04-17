@@ -48,11 +48,7 @@ bool WebSocketAdapter::Write(base::span<const uint8_t> data) {
   }
   socket_remote_->SendMessage(network::mojom::WebSocketMessageType::BINARY,
                               data.size());
-  uint32_t num_bytes = static_cast<uint32_t>(data.size());
-  MojoResult result = write_pipe_->WriteData(data.data(), &num_bytes,
-                                             MOJO_WRITE_DATA_FLAG_ALL_OR_NONE);
-  DCHECK(result != MOJO_RESULT_OK ||
-         data.size() == static_cast<size_t>(num_bytes));
+  MojoResult result = write_pipe_->WriteAllData(data);
   return result == MOJO_RESULT_OK;
 }
 
@@ -83,7 +79,8 @@ void WebSocketAdapter::OnFailure(const std::string& message,
   // This contact ID has been marked as inactive. The pairing information for
   // this device should be dropped.
   if (on_tunnel_ready_) {
-    std::move(on_tunnel_ready_).Run(Result::GONE, absl::nullopt);
+    std::move(on_tunnel_ready_)
+        .Run(Result::GONE, std::nullopt, ConnectSignalSupport::NO);
     // `this` may be invalid now.
   }
 }
@@ -101,7 +98,8 @@ void WebSocketAdapter::OnConnectionEstablished(
     return;
   }
 
-  absl::optional<std::array<uint8_t, kRoutingIdSize>> routing_id;
+  std::optional<std::array<uint8_t, kRoutingIdSize>> routing_id;
+  ConnectSignalSupport connect_signal_support = ConnectSignalSupport::NO;
   for (const auto& header : response->headers) {
     if (base::EqualsCaseInsensitiveASCII(header->name.c_str(),
                                          kCableRoutingIdHeader)) {
@@ -111,6 +109,10 @@ void WebSocketAdapter::OnConnectionEstablished(
                         << header->value;
         return;
       }
+    }
+    if (base::EqualsCaseInsensitiveASCII(header->name.c_str(),
+                                         kCableSignalConnectionHeader)) {
+      connect_signal_support = ConnectSignalSupport::YES;
     }
   }
 
@@ -132,7 +134,8 @@ void WebSocketAdapter::OnConnectionEstablished(
 
   socket_remote_->StartReceiving();
 
-  std::move(on_tunnel_ready_).Run(Result::OK, routing_id);
+  std::move(on_tunnel_ready_)
+      .Run(Result::OK, routing_id, connect_signal_support);
   // `this` may be invalid now.
 }
 
@@ -191,24 +194,19 @@ void WebSocketAdapter::OnClosingHandshake() {
 
 void WebSocketAdapter::OnDataPipeReady(MojoResult,
                                        const mojo::HandleSignalsState&) {
-  const size_t todo = pending_message_.size() - pending_message_i_;
-  DCHECK_GT(todo, 0u);
+  DCHECK_LT(pending_message_i_, pending_message_.size());
 
-  // Truncation to 32-bits cannot overflow because |pending_message_.size()| is
-  // bound by |kMaxIncomingMessageSize| when it is resized in |OnDataFrame|.
-  uint32_t todo_32 = static_cast<uint32_t>(todo);
-  static_assert(
-      kMaxIncomingMessageSize <= std::numeric_limits<decltype(todo_32)>::max(),
-      "");
-  const MojoResult result =
-      read_pipe_->ReadData(&pending_message_.data()[pending_message_i_],
-                           &todo_32, MOJO_READ_DATA_FLAG_NONE);
+  size_t actually_read_bytes = 0;
+  const MojoResult result = read_pipe_->ReadData(
+      MOJO_READ_DATA_FLAG_NONE,
+      base::span(pending_message_).subspan(pending_message_i_),
+      actually_read_bytes);
   if (result == MOJO_RESULT_OK) {
-    pending_message_i_ += todo_32;
+    pending_message_i_ += actually_read_bytes;
     DCHECK_LE(pending_message_i_, pending_message_.size());
 
     if (pending_message_i_ < pending_message_.size()) {
-      read_pipe_watcher_.Arm();
+      read_pipe_watcher_.ArmOrNotify();
     } else {
       client_receiver_.Resume();
       if (pending_message_finished_) {
@@ -216,7 +214,7 @@ void WebSocketAdapter::OnDataPipeReady(MojoResult,
       }
     }
   } else if (result == MOJO_RESULT_SHOULD_WAIT) {
-    read_pipe_watcher_.Arm();
+    read_pipe_watcher_.ArmOrNotify();
   } else {
     FIDO_LOG(ERROR) << "reading WebSocket frame failed: "
                     << static_cast<int>(result);
@@ -230,7 +228,8 @@ void WebSocketAdapter::OnMojoPipeDisconnect() {
   // If disconnection happens before |OnConnectionEstablished| then report a
   // failure to establish the tunnel.
   if (on_tunnel_ready_) {
-    std::move(on_tunnel_ready_).Run(Result::FAILED, absl::nullopt);
+    std::move(on_tunnel_ready_)
+        .Run(Result::FAILED, std::nullopt, ConnectSignalSupport::NO);
     // `this` may be invalid now.
     return;
   }
@@ -245,7 +244,7 @@ void WebSocketAdapter::Close() {
   DCHECK(!closed_);
   closed_ = true;
   client_receiver_.reset();
-  on_tunnel_data_.Run(absl::nullopt);
+  on_tunnel_data_.Run(std::nullopt);
   // `this` may be invalid now.
 }
 

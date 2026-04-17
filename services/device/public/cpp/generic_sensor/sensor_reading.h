@@ -5,9 +5,10 @@
 #ifndef SERVICES_DEVICE_PUBLIC_CPP_GENERIC_SENSOR_SENSOR_READING_H_
 #define SERVICES_DEVICE_PUBLIC_CPP_GENERIC_SENSOR_SENSOR_READING_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <type_traits>
-#include "device/base/synchronization/one_writer_seqlock.h"
-#include "services/device/public/mojom/sensor.mojom.h"
 
 namespace device {
 
@@ -90,9 +91,6 @@ struct SensorReadingQuat : public SensorReadingXYZ {
 // AMBIENT_LIGHT:
 // als.value: ambient light level in SI lux units.
 //
-// PROXIMITY:
-// proximity.value: proximity sensor distance measured in centimeters.
-//
 // ACCELEROMETER:
 // accel.x: acceleration minus Gx on the x-axis in SI meters per second
 // squared (m/s^2) units. It corresponds to Accelerometer.x in the W3C
@@ -138,9 +136,6 @@ struct SensorReadingQuat : public SensorReadingXYZ {
 // magn.x: ambient magnetic field in the x-axis in micro-Tesla (uT).
 // magn.y: ambient magnetic field in the y-axis in micro-Tesla (uT).
 // magn.z: ambient magnetic field in the z-axis in micro-Tesla (uT).
-//
-// PRESSURE:
-// pressure.value: atmospheric pressure in hPa (millibar).
 //
 // ABSOLUTE_ORIENTATION_EULER_ANGLES:
 // orientation_euler.x: x-axis angle in degrees representing the orientation of
@@ -194,8 +189,6 @@ union SensorReading {
 
   SensorReadingRaw raw;
   SensorReadingSingle als;             // AMBIENT_LIGHT
-  SensorReadingSingle proximity;       // PROXIMITY
-  SensorReadingSingle pressure;        // PRESSURE
   SensorReadingXYZ accel;  // ACCELEROMETER, LINEAR_ACCELERATION, GRAVITY
   SensorReadingXYZ gyro;               // GYROSCOPE
   SensorReadingXYZ magn;               // MAGNETOMETER
@@ -214,18 +207,6 @@ static_assert(sizeof(SensorReading) == sizeof(SensorReadingRaw),
               "Check SensorReading size.");
 static_assert(std::is_trivially_copyable<SensorReading>::value,
               "SensorReading must be trivially copyable.");
-
-// This structure represents sensor reading buffer: sensor reading and seqlock
-// for synchronization.
-struct SensorReadingSharedBuffer {
-  SensorReadingSharedBuffer();
-  ~SensorReadingSharedBuffer();
-  SensorReadingField<OneWriterSeqLock> seqlock;
-  SensorReading reading;
-
-  // Gets the shared reading buffer offset for the given sensor type.
-  static uint64_t GetOffset(mojom::SensorType type);
-};
 
 }  // namespace device
 

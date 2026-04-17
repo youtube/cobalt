@@ -11,32 +11,35 @@
 
 namespace policy {
 
-// Builder class to construct |enterprise_management::RemoteCommand|.
-// Used in unit and browser tests.
+// Builder class to construct `enterprise_management::RemoteCommand`.
+//
+// It also auto-assigns a unique command id to the `RemoteCommand` that is
+// one higher than the last command id it previously assigned. You can of course
+// assign your own command id if more control is needed.
 class RemoteCommandBuilder {
  public:
   RemoteCommandBuilder() = default;
-  RemoteCommandBuilder(const RemoteCommandBuilder&) = delete;
-  RemoteCommandBuilder& operator=(const RemoteCommandBuilder&) = delete;
+
+  RemoteCommandBuilder(const RemoteCommandBuilder&) = default;
+  RemoteCommandBuilder& operator=(const RemoteCommandBuilder&) = default;
   RemoteCommandBuilder(RemoteCommandBuilder&&) = default;
   RemoteCommandBuilder& operator=(RemoteCommandBuilder&&) = default;
   ~RemoteCommandBuilder() = default;
 
-  enterprise_management::RemoteCommand Build() { return result_; }
+  enterprise_management::RemoteCommand Build();
 
-  RemoteCommandBuilder& WithId(int id);
-  RemoteCommandBuilder& WithoutId();
-  RemoteCommandBuilder& WithType(
-      enterprise_management::RemoteCommand::Type type);
-  RemoteCommandBuilder& WithoutType();
-  RemoteCommandBuilder& WithPayload(const std::string& payload);
-  RemoteCommandBuilder& WithTargetDeviceId(const std::string& value);
+  RemoteCommandBuilder& SetCommandId(int64_t value);
+  RemoteCommandBuilder& ClearCommandId();
+  RemoteCommandBuilder& SetType(enterprise_management::RemoteCommand::Type);
+  RemoteCommandBuilder& ClearType();
+  RemoteCommandBuilder& SetPayload(const std::string& payload);
+  RemoteCommandBuilder& SetTargetDeviceId(const std::string& value);
 
  private:
   enterprise_management::RemoteCommand result_;
 };
 
-// Builder class to construct |enterprise_management::SignedData|.
+// Builder class to construct `enterprise_management::SignedData`.
 // Used in unit and browser tests.
 class SignedDataBuilder {
  public:
@@ -49,17 +52,17 @@ class SignedDataBuilder {
 
   enterprise_management::SignedData Build();
 
-  SignedDataBuilder& WithCommandId(int id);
-  SignedDataBuilder& WithoutCommandId();
-  SignedDataBuilder& WithCommandType(
+  SignedDataBuilder& SetCommandId(int id);
+  SignedDataBuilder& ClearCommandId();
+  SignedDataBuilder& SetCommandType(
       enterprise_management::RemoteCommand::Type type);
-  SignedDataBuilder& WithoutCommandType();
-  SignedDataBuilder& WithCommandPayload(const std::string& value);
-  SignedDataBuilder& WithTargetDeviceId(const std::string& value);
-  SignedDataBuilder& WithSignedData(const std::string& value);
-  SignedDataBuilder& WithSignature(const std::string& value);
-  SignedDataBuilder& WithPolicyType(const std::string& value);
-  SignedDataBuilder& WithPolicyValue(const std::string& value);
+  SignedDataBuilder& ClearCommandType();
+  SignedDataBuilder& SetCommandPayload(const std::string& value);
+  SignedDataBuilder& SetTargetDeviceId(const std::string& value);
+  SignedDataBuilder& SetSignedData(const std::string& value);
+  SignedDataBuilder& SetSignature(const std::string& value);
+  SignedDataBuilder& SetPolicyType(const std::string& value);
+  SignedDataBuilder& SetPolicyValue(const std::string& value);
 
  private:
   // The signed data defaults to correctly signing the remote command,

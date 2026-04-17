@@ -2,28 +2,31 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "content/browser/site_per_process_browsertest.h"
-
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
+#include "base/test/run_until.h"
 #include "base/test/test_timeouts.h"
 #include "build/build_config.h"
 #include "content/browser/renderer_host/cross_process_frame_connector.h"
 #include "content/browser/renderer_host/frame_tree.h"
-#include "content/browser/renderer_host/input/synthetic_smooth_scroll_gesture.h"
 #include "content/browser/renderer_host/render_frame_proxy_host.h"
+#include "content/browser/site_per_process_browsertest.h"
+#include "content/common/input/synthetic_smooth_scroll_gesture.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/content_browser_test_utils.h"
 #include "content/public/test/hit_test_region_observer.h"
+#include "content/public/test/synchronize_visual_properties_interceptor.h"
 #include "content/public/test/test_frame_navigation_observer.h"
 #include "content/test/render_document_feature.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/events/gesture_detection/gesture_configuration.h"
 #include "ui/events/keycodes/dom/keycode_converter.h"
-#include "ui/native_theme/native_theme_features.h"
+#include "ui/native_theme/features/native_theme_features.h"
 
 namespace content {
 
@@ -268,20 +271,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessProgrammaticScrollTest,
   CrossProcessFrameConnector* connector =
       proxy_to_parent->cross_process_frame_connector();
 
-  while (blink::mojom::FrameVisibility::kRenderedOutOfViewport !=
-         connector->visibility()) {
-    base::RunLoop run_loop;
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
-        FROM_HERE, run_loop.QuitClosure(), TestTimeouts::tiny_timeout());
-    run_loop.Run();
-  }
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return blink::mojom::FrameVisibility::kRenderedOutOfViewport ==
+           connector->visibility();
+  }));
 }
 
 // This test verifies that smooth scrolling works correctly inside nested OOPIFs
 // which are same origin with the parent. Note that since the frame tree has
-// a A(B(A1())) structure, if and A1 and A2 shared the same
-// SmoothScrollSequencer, then this test would time out or at best be flaky with
-// random time outs. See https://crbug.com/865446 for more context.
+// a A(B(A1())) structure. See https://crbug.com/865446 for more context.
 IN_PROC_BROWSER_TEST_P(SitePerProcessProgrammaticScrollTest,
                        SmoothScrollInNestedSameProcessOOPIF) {
   GURL main_frame(
@@ -321,7 +319,8 @@ class ScrollObserver : public RenderWidgetHost::InputEventObserver {
   ScrollObserver(const ScrollObserver&) = delete;
   ScrollObserver& operator=(const ScrollObserver&) = delete;
 
-  void OnInputEvent(const blink::WebInputEvent& event) override {
+  void OnInputEvent(const RenderWidgetHost& widget,
+                    const blink::WebInputEvent& event) override {
     if (event.GetType() == blink::WebInputEvent::Type::kGestureScrollUpdate) {
       blink::WebGestureEvent received_update =
           *static_cast<const blink::WebGestureEvent*>(&event);
@@ -733,8 +732,6 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   gesture_event.SetPositionInWidget(gfx::PointF(1, 1));
   gesture_event.data.scroll_update.delta_x = 0.0f;
   gesture_event.data.scroll_update.delta_y = 6.0f;
-  gesture_event.data.scroll_update.velocity_x = 0;
-  gesture_event.data.scroll_update.velocity_y = 0;
   rwhv_nested->GetRenderWidgetHost()->ForwardGestureEvent(gesture_event);
 
   gesture_event =
@@ -780,8 +777,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 
 // Tests that scrolling with the keyboard will bubble unused scroll to the
 // OOPIF's parent.
+// Disabled on Android due to flakes; see b/338341090.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_KeyboardScrollBubblingFromOOPIF \
+  DISABLED_KeyboardScrollBubblingFromOOPIF
+#else
+#define MAYBE_KeyboardScrollBubblingFromOOPIF KeyboardScrollBubblingFromOOPIF
+#endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
-                       KeyboardScrollBubblingFromOOPIF) {
+                       MAYBE_KeyboardScrollBubblingFromOOPIF) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/frame_tree/page_with_iframe_in_scrollable_div.html"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -823,7 +827,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
              "initial_y;")
           .ExtractDouble());
 
-  NativeWebKeyboardEvent key_event(
+  input::NativeWebKeyboardEvent key_event(
       blink::WebKeyboardEvent::Type::kRawKeyDown,
       blink::WebInputEvent::kNoModifiers,
       blink::WebInputEvent::GetStaticTimeStampForTests());

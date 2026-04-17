@@ -5,6 +5,7 @@
 #ifndef FUCHSIA_WEB_WEBENGINE_RENDERER_WEB_ENGINE_URL_LOADER_THROTTLE_PROVIDER_H_
 #define FUCHSIA_WEB_WEBENGINE_RENDERER_WEB_ENGINE_URL_LOADER_THROTTLE_PROVIDER_H_
 
+#include "base/memory/raw_ptr.h"
 #include "base/sequence_checker.h"
 #include "third_party/blink/public/platform/url_loader_throttle_provider.h"
 
@@ -17,7 +18,7 @@ class WebEngineURLLoaderThrottleProvider
     : public blink::URLLoaderThrottleProvider {
  public:
   explicit WebEngineURLLoaderThrottleProvider(
-      WebEngineContentRendererClient* content_renderer_client);
+      const WebEngineContentRendererClient* const content_renderer_client);
 
   WebEngineURLLoaderThrottleProvider(
       const WebEngineURLLoaderThrottleProvider&) = delete;
@@ -28,13 +29,13 @@ class WebEngineURLLoaderThrottleProvider
 
   // blink::URLLoaderThrottleProvider implementation.
   std::unique_ptr<blink::URLLoaderThrottleProvider> Clone() override;
-  blink::WebVector<std::unique_ptr<blink::URLLoaderThrottle>> CreateThrottles(
-      int render_frame_id,
-      const blink::WebURLRequest& request) override;
+  std::vector<std::unique_ptr<blink::URLLoaderThrottle>> CreateThrottles(
+      base::optional_ref<const blink::LocalFrameToken> local_frame_token,
+      const network::ResourceRequest& request) override;
   void SetOnline(bool is_online) override;
 
  private:
-  const WebEngineContentRendererClient* const content_renderer_client_;
+  const raw_ptr<const WebEngineContentRendererClient> content_renderer_client_;
   SEQUENCE_CHECKER(sequence_checker_);
 };
 

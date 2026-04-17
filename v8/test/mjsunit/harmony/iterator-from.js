@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --harmony-iterator-helpers
 
 assertEquals('function', typeof Iterator.from);
 assertEquals(1, Iterator.from.length);
@@ -72,7 +71,10 @@ assertThrows(() => {
 }, TypeError);
 
 assertThrows(() => {
-  Iterator.from({[Symbol.iterator]() {
-    return { next: "not callable" };
-  }});
+  Iterator.from({
+    [Symbol.iterator]: 0,
+    next() {
+      return 42;
+    },
+  });
 }, TypeError);

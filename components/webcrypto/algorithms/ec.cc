@@ -2,10 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/webcrypto/algorithms/ec.h"
 
 #include <stddef.h>
 
+#include <string_view>
 #include <utility>
 
 #include "base/containers/span.h"
@@ -156,7 +162,7 @@ Status CreateEC_KEY(blink::WebCryptoNamedCurve named_curve,
 
 // Writes an unsigned BIGNUM into |jwk|, zero-padding it to a length of
 // |padded_length|.
-Status WritePaddedBIGNUM(base::StringPiece member_name,
+Status WritePaddedBIGNUM(std::string_view member_name,
                          const BIGNUM* value,
                          size_t padded_length,
                          JwkWriter* jwk) {
@@ -169,7 +175,7 @@ Status WritePaddedBIGNUM(base::StringPiece member_name,
 
 // Reads a fixed length BIGNUM from a JWK.
 Status ReadPaddedBIGNUM(const JwkReader& jwk,
-                        base::StringPiece member_name,
+                        std::string_view member_name,
                         size_t expected_length,
                         bssl::UniquePtr<BIGNUM>* out) {
   std::vector<uint8_t> bytes;

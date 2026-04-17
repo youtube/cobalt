@@ -6,6 +6,20 @@ import("//media/media_options.gni")
 
 if (enable_media_drm_storage) {
   source_set("browser") {
+    # See //components/cdm/README.md
+    visibility = [
+      "//android_webview/*",
+      "//chrome/*",
+      "//chromecast/*",
+      "//components/cdm/*",
+      "//content/shell/*",
+      "//fuchsia_web/*",
+    ]
+
+    if (is_android) {
+      visibility += [ "//components/browser_ui/site_settings/android" ]
+    }
+
     sources = [
       "media_drm_storage_impl.cc",
       "media_drm_storage_impl.h",
@@ -19,21 +33,11 @@ if (enable_media_drm_storage) {
     ]
 
     deps = [
-      "//components/cdm/common",
       "//components/prefs",
       "//components/user_prefs",
       "//content/public/common",
-      "//ipc",
       "//media",
     ]
-
-    if (is_android) {
-      sources += [
-        "cdm_message_filter_android.cc",
-        "cdm_message_filter_android.h",
-      ]
-      deps += [ "//third_party/widevine/cdm:headers" ]
-    }
   }
 
   source_set("unit_tests") {

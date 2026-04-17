@@ -7,7 +7,6 @@
 #include "base/containers/flat_set.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/scoped_feature_list.h"
-#include "build/chromeos_buildflags.h"
 #include "content/browser/browser_main_loop.h"
 #include "content/browser/media/active_media_session_controller.h"
 #include "content/public/test/browser_test.h"
@@ -18,9 +17,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/accelerators/media_keys_listener.h"
-
-// Disable on CrOS because MediaKeysListenerManager is disabled.
-#if !BUILDFLAG(IS_CHROMEOS_LACROS)
 
 namespace content {
 
@@ -110,7 +106,6 @@ class MediaKeysListenerManagerImplTest : public ContentBrowserTest {
 
  protected:
   void SetUpCommandLine(base::CommandLine* command_line) override {
-    ContentBrowserTest::SetUpCommandLine(command_line);
     scoped_feature_list_.InitAndEnableFeature(media::kHardwareMediaKeyHandling);
   }
 
@@ -130,6 +125,12 @@ class MediaKeysListenerManagerImplTest : public ContentBrowserTest {
             media_controller_->CreateMediaControllerRemote());
 
     ContentBrowserTest::SetUpOnMainThread();
+  }
+
+  void TearDownOnMainThread() override {
+    media_keys_listener_manager_ = nullptr;
+    media_keys_listener_ = nullptr;
+    ContentBrowserTest::TearDownOnMainThread();
   }
 
   void SetMediaSessionInfo(MediaSessionInfoPtr session_info) {
@@ -154,9 +155,8 @@ class MediaKeysListenerManagerImplTest : public ContentBrowserTest {
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
-  raw_ptr<MediaKeysListenerManagerImpl, DanglingUntriaged>
-      media_keys_listener_manager_;
-  raw_ptr<MockMediaKeysListener, DanglingUntriaged> media_keys_listener_;
+  raw_ptr<MediaKeysListenerManagerImpl> media_keys_listener_manager_;
+  raw_ptr<MockMediaKeysListener> media_keys_listener_;
   std::unique_ptr<TestMediaController> media_controller_;
 };
 
@@ -348,5 +348,3 @@ IN_PROC_BROWSER_TEST_F(MediaKeysListenerManagerImplTest,
 }
 
 }  // namespace content
-
-#endif  // !BUILDFLAG(IS_CHROMEOS_LACROS)

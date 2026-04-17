@@ -20,6 +20,7 @@
 #include "common/utilities.h"
 #include "compiler/translator/Diagnostics.h"
 #include "compiler/translator/ImmutableString.h"
+#include "compiler/translator/ImmutableStringBuilder.h"
 #include "compiler/translator/IntermNode.h"
 #include "compiler/translator/SymbolTable.h"
 #include "compiler/translator/util.h"
@@ -203,14 +204,28 @@ void PropagatePrecisionIfApplicable(TIntermTyped *node, TPrecision precision)
 
 TIntermExpression::TIntermExpression(const TType &t) : TIntermTyped(), mType(t) {}
 
-#define REPLACE_IF_IS(node, type, original, replacement) \
-    do                                                   \
-    {                                                    \
-        if (node == original)                            \
-        {                                                \
-            node = static_cast<type *>(replacement);     \
-            return true;                                 \
-        }                                                \
+#define REPLACE_IF_IS(node, conversionFunc, original, replacement)                             \
+    do                                                                                         \
+    {                                                                                          \
+        if (node == original)                                                                  \
+        {                                                                                      \
+            if (replacement == nullptr)                                                        \
+            {                                                                                  \
+                node = nullptr;                                                                \
+            }                                                                                  \
+            else                                                                               \
+            {                                                                                  \
+                auto replacementCasted = replacement->conversionFunc();                        \
+                if (replacementCasted == nullptr)                                              \
+                {                                                                              \
+                    FATAL() << "Replacing a node with a node of invalid type: calling "        \
+                               "replacement." #conversionFunc "() should not return nullptr."; \
+                    return false;                                                              \
+                }                                                                              \
+                node = replacementCasted;                                                      \
+            }                                                                                  \
+            return true;                                                                       \
+        }                                                                                      \
     } while (0)
 
 size_t TIntermSymbol::getChildCount() const
@@ -237,7 +252,7 @@ TIntermNode *TIntermConstantUnion::getChildNode(size_t index) const
 
 size_t TIntermLoop::getChildCount() const
 {
-    return (mInit ? 1 : 0) + (mCond ? 1 : 0) + (mExpr ? 1 : 0) + (mBody ? 1 : 0);
+    return (mInit ? 1 : 0) + (mCond ? 1 : 0) + (mExpr ? 1 : 0) + 1;
 }
 
 TIntermNode *TIntermLoop::getChildNode(size_t index) const
@@ -259,11 +274,9 @@ TIntermNode *TIntermLoop::getChildNode(size_t index) const
         children[childIndex] = mExpr;
         ++childIndex;
     }
-    if (mBody)
-    {
-        children[childIndex] = mBody;
-        ++childIndex;
-    }
+    children[childIndex] = mBody;
+    ++childIndex;
+
     ASSERT(index < childIndex);
     return children[index];
 }
@@ -271,10 +284,10 @@ TIntermNode *TIntermLoop::getChildNode(size_t index) const
 bool TIntermLoop::replaceChildNode(TIntermNode *original, TIntermNode *replacement)
 {
     ASSERT(original != nullptr);  // This risks replacing multiple children.
-    REPLACE_IF_IS(mInit, TIntermNode, original, replacement);
-    REPLACE_IF_IS(mCond, TIntermTyped, original, replacement);
-    REPLACE_IF_IS(mExpr, TIntermTyped, original, replacement);
-    REPLACE_IF_IS(mBody, TIntermBlock, original, replacement);
+    REPLACE_IF_IS(mInit, getAsNode, original, replacement);
+    REPLACE_IF_IS(mCond, getAsTyped, original, replacement);
+    REPLACE_IF_IS(mExpr, getAsTyped, original, replacement);
+    REPLACE_IF_IS(mBody, getAsBlock, original, replacement);
     return false;
 }
 
@@ -296,7 +309,7 @@ TIntermNode *TIntermBranch::getChildNode(size_t index) const
 
 bool TIntermBranch::replaceChildNode(TIntermNode *original, TIntermNode *replacement)
 {
-    REPLACE_IF_IS(mExpression, TIntermTyped, original, replacement);
+    REPLACE_IF_IS(mExpression, getAsTyped, original, replacement);
     return false;
 }
 
@@ -315,7 +328,7 @@ TIntermNode *TIntermSwizzle::getChildNode(size_t index) const
 bool TIntermSwizzle::replaceChildNode(TIntermNode *original, TIntermNode *replacement)
 {
     ASSERT(original->getAsTyped()->getType() == replacement->getAsTyped()->getType());
-    REPLACE_IF_IS(mOperand, TIntermTyped, original, replacement);
+    REPLACE_IF_IS(mOperand, getAsTyped, original, replacement);
     return false;
 }
 
@@ -336,8 +349,8 @@ TIntermNode *TIntermBinary::getChildNode(size_t index) const
 
 bool TIntermBinary::replaceChildNode(TIntermNode *original, TIntermNode *replacement)
 {
-    REPLACE_IF_IS(mLeft, TIntermTyped, original, replacement);
-    REPLACE_IF_IS(mRight, TIntermTyped, original, replacement);
+    REPLACE_IF_IS(mLeft, getAsTyped, original, replacement);
+    REPLACE_IF_IS(mRight, getAsTyped, original, replacement);
     return false;
 }
 
@@ -355,8 +368,12 @@ TIntermNode *TIntermUnary::getChildNode(size_t index) const
 
 bool TIntermUnary::replaceChildNode(TIntermNode *original, TIntermNode *replacement)
 {
-    ASSERT(original->getAsTyped()->getType() == replacement->getAsTyped()->getType());
-    REPLACE_IF_IS(mOperand, TIntermTyped, original, replacement);
+    // gl_ClipDistance and gl_CullDistance arrays may be replaced with an adjusted
+    // array size. Allow mismatching types for the length() operation in this case.
+    ASSERT(original->getAsTyped()->getType() == replacement->getAsTyped()->getType() ||
+           (mOp == EOpArrayLength && (original->getAsTyped()->getQualifier() == EvqClipDistance ||
+                                      original->getAsTyped()->getQualifier() == EvqCullDistance)));
+    REPLACE_IF_IS(mOperand, getAsTyped, original, replacement);
     return false;
 }
 
@@ -375,7 +392,7 @@ TIntermNode *TIntermGlobalQualifierDeclaration::getChildNode(size_t index) const
 bool TIntermGlobalQualifierDeclaration::replaceChildNode(TIntermNode *original,
                                                          TIntermNode *replacement)
 {
-    REPLACE_IF_IS(mSymbol, TIntermSymbol, original, replacement);
+    REPLACE_IF_IS(mSymbol, getAsSymbolNode, original, replacement);
     return false;
 }
 
@@ -396,8 +413,8 @@ TIntermNode *TIntermFunctionDefinition::getChildNode(size_t index) const
 
 bool TIntermFunctionDefinition::replaceChildNode(TIntermNode *original, TIntermNode *replacement)
 {
-    REPLACE_IF_IS(mPrototype, TIntermFunctionPrototype, original, replacement);
-    REPLACE_IF_IS(mBody, TIntermBlock, original, replacement);
+    REPLACE_IF_IS(mPrototype, getAsFunctionPrototypeNode, original, replacement);
+    REPLACE_IF_IS(mBody, getAsBlock, original, replacement);
     return false;
 }
 
@@ -450,10 +467,9 @@ bool TIntermBlock::replaceChildNode(TIntermNode *original, TIntermNode *replacem
     return replaceChildNodeInternal(original, replacement);
 }
 
-void TIntermBlock::replaceAllChildren(const TIntermSequence &newStatements)
+void TIntermBlock::replaceAllChildren(TIntermSequence &&newStatements)
 {
-    mStatements.clear();
-    mStatements.insert(mStatements.begin(), newStatements.begin(), newStatements.end());
+    mStatements = std::move(newStatements);
 }
 
 size_t TIntermFunctionPrototype::getChildCount() const
@@ -530,7 +546,7 @@ bool TIntermAggregateBase::replaceChildNodeInternal(TIntermNode *original, TInte
 {
     for (size_t ii = 0; ii < getSequence()->size(); ++ii)
     {
-        REPLACE_IF_IS((*getSequence())[ii], TIntermNode, original, replacement);
+        REPLACE_IF_IS((*getSequence())[ii], getAsNode, original, replacement);
     }
     return false;
 }
@@ -731,13 +747,12 @@ TPrecision TIntermAggregate::derivePrecision() const
     // same is true for dFd*, interpolateAt* and subpassLoad operations.
     if (BuiltInGroup::IsTexture(mOp) || BuiltInGroup::IsImageLoad(mOp) ||
         BuiltInGroup::IsDerivativesFS(mOp) || BuiltInGroup::IsInterpolationFS(mOp) ||
-        mOp == EOpSubpassLoad)
+        mOp == EOpSubpassLoad || mOp == EOpInterpolateAtCenter)
     {
         return mArguments[0]->getAsTyped()->getPrecision();
     }
 
-    // Every possibility must be explicitly handled, except for desktop-GLSL-specific built-ins
-    // for which precision does't matter.
+    // Every possibility must be explicitly handled.
     return EbpUndefined;
 }
 
@@ -1038,9 +1053,9 @@ TIntermNode *TIntermTernary::getChildNode(size_t index) const
 
 bool TIntermTernary::replaceChildNode(TIntermNode *original, TIntermNode *replacement)
 {
-    REPLACE_IF_IS(mCondition, TIntermTyped, original, replacement);
-    REPLACE_IF_IS(mTrueExpression, TIntermTyped, original, replacement);
-    REPLACE_IF_IS(mFalseExpression, TIntermTyped, original, replacement);
+    REPLACE_IF_IS(mCondition, getAsTyped, original, replacement);
+    REPLACE_IF_IS(mTrueExpression, getAsTyped, original, replacement);
+    REPLACE_IF_IS(mFalseExpression, getAsTyped, original, replacement);
     return false;
 }
 
@@ -1064,9 +1079,9 @@ TIntermNode *TIntermIfElse::getChildNode(size_t index) const
 
 bool TIntermIfElse::replaceChildNode(TIntermNode *original, TIntermNode *replacement)
 {
-    REPLACE_IF_IS(mCondition, TIntermTyped, original, replacement);
-    REPLACE_IF_IS(mTrueBlock, TIntermBlock, original, replacement);
-    REPLACE_IF_IS(mFalseBlock, TIntermBlock, original, replacement);
+    REPLACE_IF_IS(mCondition, getAsTyped, original, replacement);
+    REPLACE_IF_IS(mTrueBlock, getAsBlock, original, replacement);
+    REPLACE_IF_IS(mFalseBlock, getAsBlock, original, replacement);
     return false;
 }
 
@@ -1087,8 +1102,8 @@ TIntermNode *TIntermSwitch::getChildNode(size_t index) const
 
 bool TIntermSwitch::replaceChildNode(TIntermNode *original, TIntermNode *replacement)
 {
-    REPLACE_IF_IS(mInit, TIntermTyped, original, replacement);
-    REPLACE_IF_IS(mStatementList, TIntermBlock, original, replacement);
+    REPLACE_IF_IS(mInit, getAsTyped, original, replacement);
+    REPLACE_IF_IS(mStatementList, getAsBlock, original, replacement);
     ASSERT(mStatementList);
     return false;
 }
@@ -1109,7 +1124,7 @@ TIntermNode *TIntermCase::getChildNode(size_t index) const
 
 bool TIntermCase::replaceChildNode(TIntermNode *original, TIntermNode *replacement)
 {
-    REPLACE_IF_IS(mCondition, TIntermTyped, original, replacement);
+    REPLACE_IF_IS(mCondition, getAsTyped, original, replacement);
     return false;
 }
 
@@ -1522,7 +1537,7 @@ void TIntermUnary::propagatePrecision(TPrecision precision)
     }
 }
 
-TIntermSwizzle::TIntermSwizzle(TIntermTyped *operand, const TVector<int> &swizzleOffsets)
+TIntermSwizzle::TIntermSwizzle(TIntermTyped *operand, const TVector<uint32_t> &swizzleOffsets)
     : TIntermExpression(TType(EbtFloat, EbpUndefined)),
       mOperand(operand),
       mSwizzleOffsets(swizzleOffsets),
@@ -1597,7 +1612,7 @@ TIntermLoop::TIntermLoop(TLoopType type,
                          TIntermTyped *cond,
                          TIntermTyped *expr,
                          TIntermBlock *body)
-    : mType(type), mInit(init), mCond(cond), mExpr(expr), mBody(body)
+    : mType(type), mInit(init), mCond(cond), mExpr(expr), mBody(EnsureBody(body))
 {
     // Declaration nodes with no children can appear if all the declarators just added constants to
     // the symbol table instead of generating code. They're no-ops so don't add them to the tree.
@@ -1613,7 +1628,7 @@ TIntermLoop::TIntermLoop(const TIntermLoop &node)
                   node.mInit ? node.mInit->deepCopy() : nullptr,
                   node.mCond ? node.mCond->deepCopy() : nullptr,
                   node.mExpr ? node.mExpr->deepCopy() : nullptr,
-                  node.mBody ? node.mBody->deepCopy() : nullptr)
+                  node.mBody->deepCopy())
 {}
 
 TIntermIfElse::TIntermIfElse(TIntermTyped *cond, TIntermBlock *trueB, TIntermBlock *falseB)
@@ -1724,8 +1739,8 @@ bool TIntermSwizzle::hasDuplicateOffsets() const
     {
         return true;
     }
-    int offsetCount[4] = {0u, 0u, 0u, 0u};
-    for (const auto offset : mSwizzleOffsets)
+    uint32_t offsetCount[4] = {0u, 0u, 0u, 0u};
+    for (const uint32_t offset : mSwizzleOffsets)
     {
         offsetCount[offset]++;
         if (offsetCount[offset] > 1)
@@ -1741,33 +1756,40 @@ void TIntermSwizzle::setHasFoldedDuplicateOffsets(bool hasFoldedDuplicateOffsets
     mHasFoldedDuplicateOffsets = hasFoldedDuplicateOffsets;
 }
 
-bool TIntermSwizzle::offsetsMatch(int offset) const
+bool TIntermSwizzle::offsetsMatch(uint32_t offset) const
 {
     return mSwizzleOffsets.size() == 1 && mSwizzleOffsets[0] == offset;
 }
 
-void TIntermSwizzle::writeOffsetsAsXYZW(TInfoSinkBase *out) const
+ImmutableString TIntermSwizzle::getOffsetsAsXYZW() const
 {
-    for (const int offset : mSwizzleOffsets)
+    ImmutableStringBuilder offsets(mSwizzleOffsets.size());
+    for (const uint32_t offset : mSwizzleOffsets)
     {
         switch (offset)
         {
             case 0:
-                *out << "x";
+                offsets << "x";
                 break;
             case 1:
-                *out << "y";
+                offsets << "y";
                 break;
             case 2:
-                *out << "z";
+                offsets << "z";
                 break;
             case 3:
-                *out << "w";
+                offsets << "w";
                 break;
             default:
                 UNREACHABLE();
         }
     }
+    return offsets;
+}
+
+void TIntermSwizzle::writeOffsetsAsXYZW(TInfoSinkBase *out) const
+{
+    *out << getOffsetsAsXYZW();
 }
 
 TQualifier TIntermBinary::GetCommaQualifier(int shaderVersion,
@@ -2112,11 +2134,11 @@ TIntermTyped *TIntermSwizzle::fold(TDiagnostics * /* diagnostics */)
         // We need to fold the two swizzles into one, so that repeated swizzling can't cause stack
         // overflow in ParseContext::checkCanBeLValue().
         bool hadDuplicateOffsets = operandSwizzle->hasDuplicateOffsets();
-        TVector<int> foldedOffsets;
-        for (int offset : mSwizzleOffsets)
+        TVector<uint32_t> foldedOffsets;
+        for (uint32_t offset : mSwizzleOffsets)
         {
             // Offset should already be validated.
-            ASSERT(static_cast<size_t>(offset) < operandSwizzle->mSwizzleOffsets.size());
+            ASSERT(offset < operandSwizzle->mSwizzleOffsets.size());
             foldedOffsets.push_back(operandSwizzle->mSwizzleOffsets[offset]);
         }
         operandSwizzle->mSwizzleOffsets = foldedOffsets;
@@ -2177,12 +2199,23 @@ TIntermTyped *TIntermBinary::fold(TDiagnostics *diagnostics)
             if (mLeft->getAsConstantUnion() || getType().canReplaceWithConstantUnion())
             {
                 const TConstantUnion *constantValue = getConstantValue();
-                if (constantValue == nullptr)
+                if (constantValue != nullptr)
                 {
-                    return this;
+                    return CreateFoldedNode(constantValue, this);
                 }
-                return CreateFoldedNode(constantValue, this);
             }
+
+            // If the indexed value is a swizzle, then the swizzle can be adjusted instead.
+            TIntermSwizzle *leftSwizzle = mLeft->getAsSwizzleNode();
+            if (leftSwizzle != nullptr)
+            {
+                const TVector<uint32_t> &swizzleOffsets = leftSwizzle->getSwizzleOffsets();
+                ASSERT(index < swizzleOffsets.size());
+
+                uint32_t remappedIndex = swizzleOffsets[index];
+                return new TIntermSwizzle(leftSwizzle->getOperand(), {remappedIndex});
+            }
+
             return this;
         }
         case EOpIndexIndirect:
@@ -2280,7 +2313,10 @@ TIntermTyped *TIntermUnary::fold(TDiagnostics *diagnostics)
     if (mOp == EOpArrayLength)
     {
         // The size of runtime-sized arrays may only be determined at runtime.
-        if (mOperand->hasSideEffects() || mOperand->getType().isUnsizedArray())
+        // This operation is folded for clip/cull distance arrays in RemoveArrayLengthMethod.
+        if (mOperand->hasSideEffects() || mOperand->getType().isUnsizedArray() ||
+            mOperand->getQualifier() == EvqClipDistance ||
+            mOperand->getQualifier() == EvqCullDistance)
         {
             return this;
         }
@@ -2474,7 +2510,7 @@ const TConstantUnion *TIntermConstantUnion::FoldBinary(TOperator op,
             resultArray = new TConstantUnion[objectSize];
             for (size_t i = 0; i < objectSize; i++)
             {
-                if (IsFloatDivision(leftType.getBasicType(), rightType.getBasicType()))
+                if (leftType.getBasicType() == EbtFloat)
                 {
                     // Float division requested, possibly with implicit conversion
                     ASSERT(op == EOpDiv);
@@ -4185,20 +4221,6 @@ TConstantUnion *TIntermConstantUnion::FoldAggregateBuiltIn(TIntermAggregate *agg
             return nullptr;
     }
     return resultArray;
-}
-
-bool TIntermConstantUnion::IsFloatDivision(TBasicType t1, TBasicType t2)
-{
-    ImplicitTypeConversion conversion = GetConversion(t1, t2);
-    ASSERT(conversion != ImplicitTypeConversion::Invalid);
-    if (conversion == ImplicitTypeConversion::Same)
-    {
-        if (t1 == EbtFloat)
-            return true;
-        return false;
-    }
-    ASSERT(t1 == EbtFloat || t2 == EbtFloat);
-    return true;
 }
 
 // TIntermPreprocessorDirective implementation.

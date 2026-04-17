@@ -4,7 +4,6 @@
 #include <cstdint>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "absl/types/span.h"
 #include "quiche/http2/adapter/data_source.h"
 #include "quiche/http2/adapter/http2_protocol.h"
@@ -73,6 +72,12 @@ class QUICHE_EXPORT Http2Adapter {
   virtual void SubmitMetadata(Http2StreamId stream_id, size_t max_frame_size,
                               std::unique_ptr<MetadataSource> source) = 0;
 
+  // Submits a sequence of METADATA frames for the given stream. A |stream_id|
+  // of 0 indicates connection-level METADATA. The adapter will query the
+  // visitor for the payload by calling
+  // Http2VisitorInterface::PackMetadataForStream().
+  virtual void SubmitMetadata(Http2StreamId stream_id, size_t num_frames) = 0;
+
   // Invokes the visitor's OnReadyToSend() method for serialized frame data.
   // Returns 0 on success.
   virtual int Send() = 0;
@@ -113,17 +118,29 @@ class QUICHE_EXPORT Http2Adapter {
                                          size_t num_bytes) = 0;
 
   // Returns the assigned stream ID if the operation succeeds. Otherwise,
-  // returns a negative integer indicating an error code. |data_source| may be
-  // nullptr if the request does not have a body.
+  // returns a negative integer indicating an error code. |data_source| should
+  // be nullptr if the request does not have a body. If |end_stream| is true,
+  // the adapter will set the fin bit on the request HEADERS frame.
   virtual int32_t SubmitRequest(absl::Span<const Header> headers,
-                                std::unique_ptr<DataFrameSource> data_source,
-                                void* user_data) = 0;
+                                bool end_stream, void* user_data) = 0;
+  // Deprecated
+  int32_t SubmitRequest(absl::Span<const Header> headers,
+                        std::nullptr_t /*data_source*/, bool end_stream,
+                        void* user_data) {
+    return SubmitRequest(headers, end_stream, user_data);
+  }
 
   // Returns 0 on success. |data_source| may be nullptr if the response does not
-  // have a body.
+  // have a body. If |end_stream| is true, the adapter will set the fin bit on
+  // the response HEADERS frame.
   virtual int SubmitResponse(Http2StreamId stream_id,
                              absl::Span<const Header> headers,
-                             std::unique_ptr<DataFrameSource> data_source) = 0;
+                             bool end_stream) = 0;
+  // Deprecated
+  int SubmitResponse(Http2StreamId stream_id, absl::Span<const Header> headers,
+                     std::nullptr_t /*data_source*/, bool end_stream) {
+    return SubmitResponse(stream_id, headers, end_stream);
+  }
 
   // Queues trailers to be sent after any outstanding data on the stream with ID
   // |stream_id|. Returns 0 on success.
@@ -143,6 +160,11 @@ class QUICHE_EXPORT Http2Adapter {
   // DataFrameSource::SelectPayloadLength() returning kBlocked). Returns true if
   // the stream was successfully resumed.
   virtual bool ResumeStream(Http2StreamId stream_id) = 0;
+
+  // Called to communicate that a frame on a stream will not be sent.
+  // TODO(birenroy): remove when removing support for nghttp2.
+  virtual void FrameNotSent(Http2StreamId /*stream_id*/,
+                            uint8_t /*frame_type*/) {}
 
  protected:
   // Subclasses should expose a public factory method for constructing and

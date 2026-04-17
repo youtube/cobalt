@@ -5,19 +5,22 @@
 #ifndef COMPONENTS_SEGMENTATION_PLATFORM_INTERNAL_EXECUTION_PROCESSING_FEATURE_LIST_QUERY_PROCESSOR_H_
 #define COMPONENTS_SEGMENTATION_PLATFORM_INTERNAL_EXECUTION_PROCESSING_FEATURE_LIST_QUERY_PROCESSOR_H_
 
-#include <deque>
+#include <cstdint>
 #include <memory>
 #include <vector>
 
+#include "base/containers/flat_map.h"
 #include "base/memory/weak_ptr.h"
 #include "components/segmentation_platform/internal/database/ukm_database.h"
 #include "components/segmentation_platform/internal/execution/processing/custom_input_processor.h"
 #include "components/segmentation_platform/internal/execution/processing/query_processor.h"
 #include "components/segmentation_platform/internal/execution/processing/uma_feature_processor.h"
+#include "components/segmentation_platform/internal/ukm_data_manager.h"
 #include "components/segmentation_platform/public/input_context.h"
 #include "components/segmentation_platform/public/model_provider.h"
 #include "components/segmentation_platform/public/proto/model_metadata.pb.h"
 #include "components/segmentation_platform/public/proto/segmentation_platform.pb.h"
+#include "components/segmentation_platform/public/trigger.h"
 
 namespace segmentation_platform {
 class StorageService;
@@ -44,8 +47,8 @@ struct Data {
   bool IsInput() const;
   enum DataType { INPUT_UMA, OUTPUT_UMA, INPUT_UKM, INPUT_CUSTOM };
   DataType type;
-  absl::optional<proto::InputFeature> input_feature;
-  absl::optional<proto::TrainingOutput> output_feature;
+  std::optional<proto::InputFeature> input_feature;
+  std::optional<proto::TrainingOutput> output_feature;
 };
 
 // FeatureListQueryProcessor takes a segmentation model's metadata, processes
@@ -95,14 +98,14 @@ class FeatureListQueryProcessor {
   // process the feature list. It then delegates the processing to the |Process|
   // function.
   void CreateProcessors(
-      std::unique_ptr<FeatureProcessorState> feature_processor_state,
+      FeatureProcessorState& feature_processor_state,
       std::map<Data::DataType,
                base::flat_map<QueryProcessor::FeatureIndex, Data>>&&
           data_to_process);
 
   // Called by ProcessBatch to initialize the processing after input features
   // are ready to be batch processed.
-  void Process(std::unique_ptr<FeatureProcessorState> feature_processor_state);
+  void Process(FeatureProcessorState& feature_processor_state);
 
   // Callback called after a processor has finished processing, indicating that
   // we can safely discard the feature processor that handled the processing.
@@ -111,14 +114,19 @@ class FeatureListQueryProcessor {
   void OnFeatureBatchProcessed(
       std::unique_ptr<QueryProcessor> feature_processor,
       bool is_input,
-      std::unique_ptr<FeatureProcessorState> feature_processor_state,
+      base::WeakPtr<FeatureProcessorState> feature_processor_state,
       QueryProcessor::IndexedTensors result);
 
   // Helper function to create an UmaProcessor.
   std::unique_ptr<UmaFeatureProcessor> GetUmaFeatureProcessor(
+      UkmDataManager* ukm_data_manager,
       base::flat_map<FeatureIndex, Data>&& uma_features,
-      FeatureProcessorState* feature_processor_state,
+      FeatureProcessorState& feature_processor_state,
       bool is_output);
+
+  // Helper function to finish processing a set of feature list.
+  void FinishProcessingAndCleanup(
+      FeatureProcessorState& feature_processor_state);
 
   // Storage service which provides signals to process.
   const raw_ptr<StorageService> storage_service_;
@@ -128,6 +136,14 @@ class FeatureListQueryProcessor {
 
   // Feature aggregator that aggregates data for uma features.
   const std::unique_ptr<FeatureAggregator> feature_aggregator_;
+
+  // ID generator to keep track of each processing state.
+  FeatureProcessorStateId::Generator state_id_generator;
+
+  // List of ongoing processing tasks' states.
+  base::flat_map<FeatureProcessorStateId,
+                 std::unique_ptr<FeatureProcessorState>>
+      feature_processor_state_map_;
 
   base::WeakPtrFactory<FeatureListQueryProcessor> weak_ptr_factory_{this};
 };

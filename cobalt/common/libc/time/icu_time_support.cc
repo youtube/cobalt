@@ -23,7 +23,6 @@
 
 #include "cobalt/common/icu_init/init.h"
 #include "cobalt/common/libc/no_destructor.h"
-
 #include "starboard/common/log.h"
 #include "unicode/gregocal.h"
 #include "unicode/timezone.h"

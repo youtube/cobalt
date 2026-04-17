@@ -10,29 +10,35 @@
 
 #include "video/adaptation/bitrate_constraint.h"
 
+#include <cstdint>
+#include <optional>
 #include <utility>
-#include <vector>
 
 #include "api/sequence_checker.h"
+#include "api/video_codecs/video_encoder.h"
+#include "call/adaptation/encoder_settings.h"
+#include "call/adaptation/video_source_restrictions.h"
 #include "call/adaptation/video_stream_adapter.h"
+#include "call/adaptation/video_stream_input_state.h"
+#include "rtc_base/checks.h"
 #include "video/adaptation/video_stream_encoder_resource_manager.h"
 
 namespace webrtc {
 
 BitrateConstraint::BitrateConstraint()
-    : encoder_settings_(absl::nullopt),
-      encoder_target_bitrate_bps_(absl::nullopt) {
+    : encoder_settings_(std::nullopt),
+      encoder_target_bitrate_bps_(std::nullopt) {
   sequence_checker_.Detach();
 }
 
 void BitrateConstraint::OnEncoderSettingsUpdated(
-    absl::optional<EncoderSettings> encoder_settings) {
+    std::optional<EncoderSettings> encoder_settings) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
   encoder_settings_ = std::move(encoder_settings);
 }
 
 void BitrateConstraint::OnEncoderTargetBitrateUpdated(
-    absl::optional<uint32_t> encoder_target_bitrate_bps) {
+    std::optional<uint32_t> encoder_target_bitrate_bps) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
   encoder_target_bitrate_bps_ = std::move(encoder_target_bitrate_bps);
 }
@@ -58,18 +64,19 @@ bool BitrateConstraint::IsAdaptationUpAllowed(
     }
 
     if (VideoStreamEncoderResourceManager::IsSimulcastOrMultipleSpatialLayers(
-            encoder_settings_->encoder_config())) {
+            encoder_settings_->encoder_config(),
+            encoder_settings_->video_codec())) {
       // Resolution bitrate limits usage is restricted to singlecast.
       return true;
     }
 
-    absl::optional<int> current_frame_size_px =
+    std::optional<int> current_frame_size_px =
         input_state.single_active_stream_pixels();
     if (!current_frame_size_px.has_value()) {
       return true;
     }
 
-    absl::optional<VideoEncoder::ResolutionBitrateLimits> bitrate_limits =
+    std::optional<VideoEncoder::ResolutionBitrateLimits> bitrate_limits =
         encoder_settings_->encoder_info().GetEncoderBitrateLimitsForResolution(
             // Need some sort of expected resulting pixels to be used
             // instead of unrestricted.

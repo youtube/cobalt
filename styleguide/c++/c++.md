@@ -15,14 +15,16 @@ always be accepted in code reviews.
 You can propose changes to this style guide by sending an email to
 `cxx@chromium.org`. Ideally, the list will arrive at some consensus and you can
 request review for a change to this file. If there's no consensus,
-`src/styleguide/c++/OWNERS` get to decide.
+`src/styleguide/c++/OWNERS` get to decide. For further details on how style
+changes are handled and communicated, see the C++ Style Changes
+[process documentation](https://chromium.googlesource.com/chromium/src/+/main/docs/process/c++_style_changes.md).
 
 Blink code in `third_party/blink` uses [Blink style](blink-c++.md).
 
 ## Modern C++ features
 
 Google and Chromium style
-[targets C++17](https://google.github.io/styleguide/cppguide.html#C++_Version).
+[targets C++20](https://google.github.io/styleguide/cppguide.html#C++_Version).
 Additionally, some features of supported C++ versions remain forbidden. The
 status of Chromium's C++ support is covered in more detail in
 [Modern C++ use in Chromium](c++-features.md).
@@ -39,7 +41,9 @@ status of Chromium's C++ support is covered in more detail in
     [PRESUBMIT.py](https://chromium.googlesource.com/chromium/src/+/main/PRESUBMIT.py).
     `ForTesting` is the conventional suffix although similar patterns, such as
     `ForTest`, are also accepted. These suffixes are checked at presubmit time
-    to ensure the functions are called only by test files.
+    to ensure the functions are called only by test files. In the rare case of
+    adding a test-only code path to an area where a testing suffix is not
+    possible, CHECK_IS_TEST() may be appropriate.
   * Classes used only for testing should be in a GN build target that is
     marked `testonly=true`. Tests can depend on such targets, but production
     code can not.
@@ -61,6 +65,7 @@ status of Chromium's C++ support is covered in more detail in
   * In class declarations, group function overrides together within each access
     control section, with one labeled group per parent class.
   * Prefer `(foo == 0)` to `(0 == foo)`.
+  * Use `{}` on all conditionals/loops.
 
 ## Unnamed namespaces
 
@@ -107,10 +112,13 @@ named using `snake_case()`. Virtual functions should never be declared this way.
 
 ## Logging
 
-Remove most logging calls before checking in. Unless you're adding temporary
-logging to track down a specific bug, and you have a plan for how to collect
-the logged data from user machines, you should generally not add logging
-statements.
+Remove all logging before checking in code. The exception is temporary logging
+to track down a specific bug. This should be a rare exception, and you should
+have a plan for how to manually collect/use the logged data. Afterwards you
+should remove the logging. Note that logs are not present in crashes. Use
+`base::debug::ScopedCrashKeyString`
+([link](https://chromium.googlesource.com/chromium/src/+/main/base/debug/crash_logging.h))
+for that.
 
 For the rare case when logging needs to stay in the codebase for a while,
 prefer `DVLOG(1)` to other logging methods. This avoids bloating the release
@@ -122,6 +130,14 @@ arguments:
     mod. Supplying the string foo for mod will affect all files named foo.cc,
     while supplying a wildcard like `*bar/baz*` will affect all files with
     `bar/baz` in their full pathnames.
+
+Rationale:
+* Logging is expensive: binary size, runtime.
+* Logging quickly loses utility as more components emit logs: too much noise,
+  not enough signal.
+* Logging is often used to document impossible edge cases which should be
+  enforced with CHECKs. The latter makes it easier to reason about the code, and
+  can result in more performant binaries.
 
 ## Platform-specific code
 
@@ -255,8 +271,10 @@ you need a sequence-local variable, see
 
 If you truly need a thread-local variable, then you can use a `thread_local`, as
 long as it complies with the following requirements:
-  * Its type must satisfy `std::is_trivially_desructible_v<T>`, due to past
-    problems with "spooky action at a distance" during destruction.
+  * Its type must satisfy `std::is_trivially_destructible_v<T>`, due to past
+    problems with "spooky action at a distance" during destruction. Note that
+    `raw_ptr<T>` is not a trivially-destructible type and may not be contained
+    in `thread_locals`.
   * It must not be exported (e.g. via `COMPONENT_EXPORT`), since this may result
     in codegen bugs on Mac; and at least on Windows, this probably won't compile
     in the component build anyway. As a workaround, create an exported getter
@@ -283,6 +301,16 @@ STL containers. However, if it would otherwise make sense to use a type as a
 member by-value, don't convert it to a pointer just to be able to
 forward-declare the type.
 
+Headers that contain only forward declarations, such as
+[`callback_forward.h`](../../base/functional/callback_forward.h), satisfy the
+spirit of this rule. Note that the [Mojo bindings
+generator](../../mojo/public/cpp/bindings/README.md#Getting-Started)
+creates a `.mojom-forward.h` file along with every generated `.mojom.h` file
+that can be included for forward declarations of Mojo types.
+
+See [these tips](c++-dos-and-donts.md#minimize-code-in-headers) for more advice
+on minimizing code in headers.
+
 ## File headers
 
 All files in Chromium start with a common license header. That header should
@@ -308,27 +336,36 @@ sections on these for the naming convention). Do not use `#pragma once`;
 historically it was not supported on all platforms, and it does not seem to
 outperform #include guards even on platforms which do support it.
 
-## CHECK(), DCHECK(), NOTREACHED_NORETURN() and NOTREACHED()
+## CHECK(), DCHECK() and NOTREACHED()
 
 Use the `CHECK()` family of macros to both document and verify invariants.
   * Exception: If the invariant is known to be too expensive to verify in
     production, you may fall back to `DCHECK()`. Do not do this unless
     necessary.
+  * Exception: If your pre-stable coverage is too small to prevent a stability
+    risk once `CHECK()`s hit stable, and failure doesn't obviously result in a
+    crash or security risk, you may use `CHECK(Foo(),
+    base::NotFatalUntil::M120)` with a future milestone to gather non-fatal
+    diagnostics in stable before automatically turning fatal in a later
+    milestone.
   * Historically, Chromium code used `DCHECK()` in most cases, so a great deal
     of existing code uses `DCHECK()` instead of `CHECK()`. You are encouraged
-    to migrate to `CHECK()` or add a comment explaining why DCHECK is
-    appropriate given the current guidance.
+    to migrate to `CHECK()`s with a trailing `base::NotFatalUntil::M120`
+    argument, as there's stability risk given the under-tested invariant, or add
+    a comment explaining why DCHECK is appropriate given the current guidance.
 
-Use `NOTREACHED_NORETURN()` to indicate a piece of code is unreachable. Control
-flow does not leave this call, so there should be no executable statements after
-it (even return statements from non-void functions). The compiler will issue
-dead-code warnings.
+Use `NOTREACHED()` to indicate a piece of code is unreachable. Control flow does
+not leave this call, so there should be no executable statements after it (even
+return statements from non-void functions). The compiler will issue dead-code
+warnings.
   * Prefer to unconditionally `CHECK()` instead of conditionally hitting a
-    `NOTREACHED[_NORETURN]()`, where feasible.
-  * Historically, Chromium code used `NOTREACHED()` for this purpose. This is
-    not annotated as `[[noreturn]]`. You are welcome (and encouraged) to migrate
-    to `NOTREACHED_NORETURN()`, just expect to need to make some tweaks to
-    surrounding code.
+    `NOTREACHED()`, where feasible.
+  * Exception: If your pre-stable coverage is too small to prevent a stability
+    risk once `NOTREACHED()`s hit stable, and failure doesn't obviously
+    result in a crash or security risk, you may use `NOTREACHED(
+    base::NotFatalUntil::M120)` with a future milestone to gather non-fatal
+    diagnostics in stable before automatically turning fatal in a later
+    milestone.
 
 Use `base::ImmediateCrash()` in the rare case where it's necessary to terminate
 the current process for reasons outside its control, that are not violations of
@@ -341,8 +378,8 @@ safe to continue execution.
 Use `DLOG(FATAL)` (does nothing in production) or `LOG(DFATAL)` (logs an error
 and continues running in production) if you need to log an error in tests from
 production code. From test code, use `ADD_FAILURE()` directly. Do not use these
-for invariant failures. Those should use `CHECK()` or `NOTREACHED_NORETURN()` as
-noted above.
+for invariant failures. Those should use `CHECK()` or `NOTREACHED()` as noted
+above.
 
 For more details, see [checks.md](checks.md).
 

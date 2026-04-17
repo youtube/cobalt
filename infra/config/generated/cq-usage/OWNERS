@@ -7,3 +7,10 @@ file://infra/config/groups/cq-usage/CQ_USAGE_OWNERS
 # CQ usage secondary owners can approve benign path changes but should defer to
 # above if the path might have a large impact on capacity.
 per-file full.cfg=file://infra/config/groups/cq-usage/CQ_USAGE_SECONDARY_OWNERS
+
+per-file mega_cq_bots.txt=*
+
+# CBRI Branch Day Automation go/automate-branch-day
+# The chrome-branch-day service account needs to modify files in this directory
+# as part of branch day automation despite the file having set noparent.
+chrome-branch-day@chops-service-accounts.iam.gserviceaccount.com

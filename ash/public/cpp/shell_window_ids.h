@@ -23,6 +23,9 @@ enum ShellWindowId {
   // screenshots will screenshot previous screenshots.
   kShellWindowId_ScreenAnimationContainer = 0,
 
+  // The container that displays booting animations.
+  kShellWindowId_BootingAnimationContainer,
+
   // The magnified container which contains everything that would be magnified
   // when docked magnifier is enabled.
   kShellWindowId_MagnifiedContainer,
@@ -38,7 +41,7 @@ enum ShellWindowId {
   kShellWindowId_NonLockScreenContainersContainer,
 
   // A higher-level container that holds containers that hold lock-screen
-  // windows.  Only used by PowerButtonController for animating lower-level
+  // windows. Only used by PowerButtonController for animating lower-level
   // containers.
   kShellWindowId_LockScreenContainersContainer,
 
@@ -46,7 +49,7 @@ enum ShellWindowId {
   // lock-screen-related windows (which are displayed regardless of the screen
   // lock state, effectively containers stacked above
   // kShellWindowId_LockSystemModalContainer). Used by the shelf, status area,
-  // virtual keyboard, settings bubble, menus, etc.  Also used by the
+  // virtual keyboard, settings bubble, menus, etc. Also used by the
   // PowerButtonController for animating lower-level containers.
   kShellWindowId_LockScreenRelatedContainersContainer,
 
@@ -58,8 +61,10 @@ enum ShellWindowId {
   // The wallpaper (desktop background) window.
   kShellWindowId_WallpaperContainer,
 
-  // The glanceables ("welcome back") window container.
-  kShellWindowId_GlanceablesContainer,
+  // A container for the windows that will be included in the shutdown
+  // screenshot. Including desk containers, float and always on top containers.
+  // Note: Only created if the forest feature is enabled.
+  kShellWindowId_ShutdownScreenshotContainer,
 
   // The containers for standard top-level windows per active desks.
   // * Notes:
@@ -126,14 +131,6 @@ enum ShellWindowId {
   // The container for the lock screen.
   kShellWindowId_LockScreenContainer,
 
-  // The container for windows that handle lock tray actions (e.g. new note
-  // action). The action handler container's children should be visible on lock
-  // screen, but only when an action is being handled - i.e. action handling
-  // state is either:
-  //  *  active - the container is stacked above LockScreenContainer
-  //  *  background - the container is stacked below LockScreenContainer
-  kShellWindowId_LockActionHandlerContainer,
-
   // The container for the lock screen modal windows.
   kShellWindowId_LockSystemModalContainer,
 
@@ -149,8 +146,13 @@ enum ShellWindowId {
   // The container for menus.
   kShellWindowId_MenuContainer,
 
-  // The container for drag/drop images, tooltips, toasts and widgets that are
-  // tagged with ui::ZOrderLevel::kSecuritySurface.
+  // The container for the search results panel and related dialogs, which are
+  // stacked above the Capture Mode shield layer and UI while Capture Mode is in
+  // session.
+  kShellWindowId_CaptureModeSearchResultsPanel,
+
+  // The container for drag/drop images, tooltips and widgets that are tagged
+  // with ui::ZOrderLevel::kSecuritySurface.
   kShellWindowId_DragImageAndTooltipContainer,
 
   // The container for the fullscreen power button menu.
@@ -158,8 +160,17 @@ enum ShellWindowId {
 
   // The container for bubbles briefly overlaid onscreen to show settings
   // changes (volume, brightness, input method bubbles, etc.), tray bubbles and
-  // notifier elements such as notification popups and system nudges.
+  // notifier elements such as notification popups, toasts and system nudges.
   kShellWindowId_SettingBubbleContainer,
+
+  // The container for the live caption window.
+  kShellWindowId_LiveCaptionContainer,
+
+  // The container for help bubbles which are anchored to views for the purpose
+  // of user education. In the case of the Welcome Tour, which walks new users
+  // through ChromeOS System UI, a background blur will be applied to the
+  // container with a masked cut out for the help bubble anchor view.
+  kShellWindowId_HelpBubbleContainer,
 
   // Contains special accessibility windows that can inset the display work area
   // (e.g. the ChromeVox spoken feedback window).
@@ -205,10 +216,6 @@ enum NonContainerWindowId {
   // The window created by PhantomWindowController or DragWindowController.
   kShellWindowId_PhantomWindow = kShellWindowId_MaxContainer + 1,
 
-  // The window that shows the Virtual Desks bar at the top of overview. There's
-  // only one such window on each display when overview mode is active.
-  kShellWindowId_DesksBarWindow,
-
   // The window that shows a blue highlight on the edges of a selected display.
   // Only one window exists whenever the display settings page is open with
   // multiple displays connected.
@@ -221,22 +228,15 @@ enum NonContainerWindowId {
   // window (if one exists).
   kShellWindowId_CaptureModeFolderSelectionDialogOwner,
 
-  // The window that shows the "Save desk as template" button and `Save desk for
-  // later` button below the Virtual Desks bar. There's only one such window on
-  // each display when overview mode is active.
-  kShellWindowId_SaveDeskButtonContainer,
-
-  // The window that shows the Saved Desk Library in overview.
-  kShellWindowId_SavedDeskLibraryWindow,
-
-  // The window that shows the "No recent items" label in overview.
-  kShellWindowId_OverviewNoWindowsLabelWindow,
+  // The window that notifies the user that an admin user was present on the
+  // host device when the remote desktop session was curtained.
+  kShellWindowId_AdminWasPresentNotificationWindow,
 };
 
 // A list of system modal container IDs. The order of the list is important that
 // the more restrictive container appears before the less restrictive ones.
 constexpr int kSystemModalContainerIds[] = {
-    kShellWindowId_LockSystemModalContainer,
+    kShellWindowId_LockSystemModalContainer, kShellWindowId_HelpBubbleContainer,
     kShellWindowId_SystemModalContainer};
 
 // Returns the list of container ids of containers which may contain windows

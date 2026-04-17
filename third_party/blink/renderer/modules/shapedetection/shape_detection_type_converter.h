@@ -27,7 +27,6 @@ struct TypeConverter<String, shape_detection::mojom::blink::LandmarkType> {
     }
 
     NOTREACHED();
-    return "";
   }
 };
 

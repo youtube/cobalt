@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/http/quic_spdy_client_session.h"
 
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -24,18 +25,17 @@ namespace quic {
 QuicSpdyClientSession::QuicSpdyClientSession(
     const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
     QuicConnection* connection, const QuicServerId& server_id,
-    QuicCryptoClientConfig* crypto_config,
-    QuicClientPushPromiseIndex* push_promise_index)
+    QuicCryptoClientConfig* crypto_config, QuicPriorityType priority_type)
     : QuicSpdyClientSession(config, supported_versions, connection, nullptr,
-                            server_id, crypto_config, push_promise_index) {}
+                            server_id, crypto_config, priority_type) {}
 
 QuicSpdyClientSession::QuicSpdyClientSession(
     const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
     QuicConnection* connection, QuicSession::Visitor* visitor,
     const QuicServerId& server_id, QuicCryptoClientConfig* crypto_config,
-    QuicClientPushPromiseIndex* push_promise_index)
-    : QuicSpdyClientSessionBase(connection, visitor, push_promise_index, config,
-                                supported_versions),
+    QuicPriorityType priority_type)
+    : QuicSpdyClientSessionBase(connection, visitor, config, supported_versions,
+                                priority_type),
       server_id_(server_id),
       crypto_config_(crypto_config),
       respect_goaway_(true) {}
@@ -115,6 +115,10 @@ void QuicSpdyClientSession::CryptoConnect() {
 
 int QuicSpdyClientSession::GetNumSentClientHellos() const {
   return crypto_stream_->num_sent_client_hellos();
+}
+
+bool QuicSpdyClientSession::ResumptionAttempted() const {
+  return crypto_stream_->ResumptionAttempted();
 }
 
 bool QuicSpdyClientSession::IsResumption() const {
@@ -205,10 +209,6 @@ QuicSpdyClientSession::CreateQuicCryptoStream() {
       server_id_, this,
       crypto_config_->proof_verifier()->CreateDefaultContext(), crypto_config_,
       this, /*has_application_state = */ version().UsesHttp3());
-}
-
-bool QuicSpdyClientSession::IsAuthorized(const std::string& /*authority*/) {
-  return true;
 }
 
 }  // namespace quic

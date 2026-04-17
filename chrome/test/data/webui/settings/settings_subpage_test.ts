@@ -4,7 +4,8 @@
 
 // clang-format off
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {loadTimeData, Route, Router, SettingsRoutes} from 'chrome://settings/settings.js';
+import type {SettingsRoutes} from 'chrome://settings/settings.js';
+import {loadTimeData, Route, Router} from 'chrome://settings/settings.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {eventToPromise} from 'chrome://webui-test/test_util.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
@@ -74,20 +75,22 @@ suite('SettingsSubpage', function() {
     // Check that the help icon only shows up when a |learnMoreUrl| is
     // specified.
     assertFalse(
-        !!subpage.shadowRoot!.querySelector('[iron-icon="cr:help-outline"]'));
+        !!subpage.shadowRoot!.querySelector('[cr-icon="cr:help-outline"]'));
     subpage.learnMoreUrl = 'https://www.chromium.org';
     flush();
     const icon = subpage.shadowRoot!.querySelector<HTMLElement>(
-        '[iron-icon="cr:help-outline"]');
+        '[cr-icon="cr:help-outline"]');
     assertTrue(!!icon);
     // Check that the icon is forced to always use 'ltr' mode.
-    assertEquals('ltr', icon!.getAttribute('dir'));
+    assertEquals('ltr', icon.getAttribute('dir'));
     // Check that the icon has proper a11y label.
     subpage.pageTitle = 'Title';
     flush();
     assertEquals(
-        subpage.i18n('subpageLearnMoreAriaLabel', subpage.pageTitle),
-        icon.ariaLabel);
+        icon.ariaLabel,
+        subpage.i18n('subpageLearnMoreAriaLabel', subpage.pageTitle));
+    assertEquals(
+        icon?.getAttribute('aria-description'), subpage.i18n('opensInNewTab'));
   });
 
   test('favicon', function() {
@@ -115,11 +118,11 @@ suite('SettingsSubpage', function() {
     flush();
     const search = subpage.shadowRoot!.querySelector('cr-search-field');
     assertTrue(!!search);
-    search!.setValue('Hello');
+    search.setValue('Hello');
     subpage.dispatchEvent(new CustomEvent(
         'clear-subpage-search', {bubbles: true, composed: true}));
     flush();
-    assertEquals('', search!.getValue());
+    assertEquals('', search.getValue());
   });
 
   test('clear search (click)', async () => {
@@ -130,12 +133,12 @@ suite('SettingsSubpage', function() {
     flush();
     const search = subpage.shadowRoot!.querySelector('cr-search-field');
     assertTrue(!!search);
-    search!.setValue('Hello');
-    assertEquals(null, search!.shadowRoot!.activeElement);
-    search!.$.clearSearch.click();
+    search.setValue('Hello');
+    assertEquals(null, search.shadowRoot.activeElement);
+    search.$.clearSearch.click();
     await flushTasks();
-    assertEquals('', search!.getValue());
-    assertEquals(search!.$.searchInput, search!.shadowRoot!.activeElement);
+    assertEquals('', search.getValue());
+    assertEquals(search.$.searchInput, search.shadowRoot.activeElement);
   });
 
   test('preserve search result when back button is clicked', async () => {
@@ -147,8 +150,8 @@ suite('SettingsSubpage', function() {
     // Set search field.
     let search = subpage.shadowRoot!.querySelector('cr-search-field');
     assertTrue(!!search);
-    search!.setValue('test');
-    assertEquals('test', search!.getValue());
+    search.setValue('test');
+    assertEquals('test', search.getValue());
 
     // Navigate to another subpage.
     Router.getInstance().navigateTo(testRoutes.COOKIE_DETAILS);
@@ -160,7 +163,7 @@ suite('SettingsSubpage', function() {
     await eventToPromise('popstate', window);
     search = subpage.shadowRoot!.querySelector('cr-search-field');
     assertTrue(!!search);
-    assertEquals('test', search!.getValue());
+    assertEquals('test', search.getValue());
 
     // Go back to settings subpage, verify search field is empty
     Router.getInstance().navigateToPreviousRoute();
@@ -168,7 +171,7 @@ suite('SettingsSubpage', function() {
     await eventToPromise('popstate', window);
     search = subpage.shadowRoot!.querySelector('cr-search-field');
     assertTrue(!!search);
-    assertEquals('', search!.getValue());
+    assertEquals('', search.getValue());
   });
 
   test('preserve search result from URL input', async function() {
@@ -179,7 +182,7 @@ suite('SettingsSubpage', function() {
     await flushTasks();
     const search = subpage.shadowRoot!.querySelector('cr-search-field');
     assertTrue(!!search);
-    assertEquals('test', search!.getValue());
+    assertEquals('test', search.getValue());
   });
 
   test('navigates to parent when there is no history', function() {
@@ -232,11 +235,11 @@ suite('SettingsSubpageSearch', function() {
     element.toggleAttribute('autofocus', true);
     document.body.appendChild(element);
 
-    assertTrue(element.shadowRoot!.querySelector('cr-input')!.hasAttribute(
+    assertTrue(element.shadowRoot.querySelector('cr-input')!.hasAttribute(
         'autofocus'));
 
     element.removeAttribute('autofocus');
-    assertFalse(element.shadowRoot!.querySelector('cr-input')!.hasAttribute(
+    assertFalse(element.shadowRoot.querySelector('cr-input')!.hasAttribute(
         'autofocus'));
   });
 });

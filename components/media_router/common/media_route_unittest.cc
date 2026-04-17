@@ -47,11 +47,6 @@ TEST(MediaRouteTest, TestEquals) {
   // The ID is different from route1's.
   MediaRoute route5(kRouteId2, media_source, kSinkId, kDescription, false);
   EXPECT_FALSE(route1 == route5);
-
-  // Same as route1 with different off_the_record.
-  MediaRoute route6(kRouteId1, media_source, kSinkId, kDescription, true);
-  route6.set_off_the_record(true);
-  EXPECT_FALSE(route1 == route6);
 }
 
 TEST(MediaRouteTest, TestParsingMediaRouteId) {
@@ -90,6 +85,13 @@ TEST(MediaRouteTest, TestIsLocalMirroringRoute) {
   MediaRoute local_mirroring_route(kRouteId1, MediaSource(kTabSource), kSinkId,
                                    kDescription, /*is_local=*/true);
   EXPECT_TRUE(local_mirroring_route.IsLocalMirroringRoute());
+
+  MediaRoute local_route_with_mirroring_controller(
+      kRouteId1, MediaSource(kSource), kSinkId, kDescription,
+      /*is_local=*/true);
+  local_route_with_mirroring_controller.set_controller_type(
+      RouteControllerType::kMirroring);
+  EXPECT_TRUE(local_route_with_mirroring_controller.IsLocalMirroringRoute());
 }
 
 }  // namespace media_router

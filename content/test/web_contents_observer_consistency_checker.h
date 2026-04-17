@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "base/supports_user_data.h"
 #include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/media_player_id.h"
@@ -50,7 +51,7 @@ class WebContentsObserverConsistencyChecker
   void RenderFrameDeleted(RenderFrameHost* render_frame_host) override;
   void RenderFrameHostChanged(RenderFrameHost* old_host,
                               RenderFrameHost* new_host) override;
-  void FrameDeleted(int frame_tree_node_id) override;
+  void FrameDeleted(FrameTreeNodeId frame_tree_node_id) override;
   void DidStartNavigation(NavigationHandle* navigation_handle) override;
   void DidRedirectNavigation(NavigationHandle* navigation_handle) override;
   void ReadyToCommitNavigation(NavigationHandle* navigation_handle) override;
@@ -101,12 +102,13 @@ class WebContentsObserverConsistencyChecker
   void AddInputEventObserver(RenderFrameHost* render_frame_host);
   void RemoveInputEventObserver(RenderFrameHost* render_frame_host);
 
-  std::map<int64_t, RenderFrameHost*> ready_to_commit_hosts_;
+  std::map<int64_t, raw_ptr<RenderFrameHost, CtnExperimental>>
+      ready_to_commit_hosts_;
   std::set<GlobalRoutingID> current_hosts_;
   std::set<GlobalRoutingID> live_routes_;
   std::set<GlobalRoutingID> deleted_routes_;
 
-  std::set<NavigationHandle*> ongoing_navigations_;
+  std::set<raw_ptr<NavigationHandle, SetExperimental>> ongoing_navigations_;
   std::vector<MediaPlayerId> active_media_players_;
 
   std::map<RenderFrameHost*, std::unique_ptr<TestInputEventObserver>>
@@ -124,18 +126,18 @@ class WebContentsObserverConsistencyChecker
     bool IsRunningInSameTask();
 
    private:
-    absl::optional<int> GetSequenceNumberOfCurrentTask();
+    std::optional<int> GetSequenceNumberOfCurrentTask();
 
     // In some tests, the current task is not set. In that case, `sequence_num`
-    // is absl::nullopt.
-    absl::optional<int> sequence_num_;
+    // is std::nullopt.
+    std::optional<int> sequence_num_;
   };
   TaskChecker task_checker_for_prerendered_page_activation_;
 
   // Remembers parents to make sure RenderFrameHost::GetParent() never changes.
   std::map<GlobalRoutingID, GlobalRoutingID> parent_ids_;
 
-  std::set<int> frame_tree_node_ids_;
+  std::set<FrameTreeNodeId> frame_tree_node_ids_;
 
   bool is_loading_;
 

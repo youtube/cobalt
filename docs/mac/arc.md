@@ -12,12 +12,25 @@ by the developer. That feature is named “automatic reference counting” and i
 abbreviated to “ARC”.
 
 ARC is enabled via a flag passed to the compiler and thus for Chromium is
-enabled at the build target level. ARC is currently enabled for most of Chrome
-on iOS, and is in the [process](https://crbug.com/1280317) of being enabled for
-Chrome on the Mac.
+controlled as a
+[config](https://source.chromium.org/search?q=config\\(%22enable_arc%22\\)&ss=chromium)
+for build targets. ARC is enabled by default for Chromium’s Objective-C code,
+with the exception of a handful of targets that opt-out.
 
 For the rest of this document, the term “Objective-C” will be used to mean both
 pure Objective-C as well as Objective-C++.
+
+### What isn’t handled by ARC {#what-isnt}
+
+Be aware that ARC is only used for Objective-C objects (those objects that are a
+subclass of `NSObject`, declared with `@interface` or `@class`). The ownership
+of Core Foundation objects (with names often starting with `CF`, with names
+often ending with `Ref`, and declared using a `typedef` as a pointer to an
+undefined struct) is not handled by ARC, and `ScopedCFTypeRef<>` must be used to
+manage their lifetimes. For documentation on how the lifetime of Core Foundation
+objects works, and when you will need to use a scoper to manage it, see the
+[Memory Management Programming Guide for Core
+Foundation](https://developer.apple.com/library/archive/documentation/CoreFoundation/Conceptual/CFMemoryMgmt/CFMemoryMgmt.html#//apple_ref/doc/uid/10000127i).
 
 ## The basics of ARC {#basics}
 
@@ -36,7 +49,7 @@ Objective-C objects are accessed via pointer. The most straightforward way of
 thinking about ARC is that, while in classic manual reference counting, those
 pointers are raw pointers and the programmer is in charge of writing the
 appropriate retain and release messages, with ARC, all pointers to Objective-C
-objects are smart pointers:
+objects are smart pointers, indicated by the following qualifications:
 
 - `__strong` (default): This pointer maintains a strong reference to the object.
   When an object pointer is assigned to it, that object is sent a retain
@@ -49,8 +62,8 @@ objects are smart pointers:
 - `__weak`: This pointer maintains a weak reference to the object which is kept
   alive by other `__strong` references. If the last of the strong references is
   released, and the object is deallocated, this pointer will be set to `nil`.
-- `__unsafe_unretained`: This is a raw pointer (as in C/C++) which maintains a
-  reference to the object but has no other automatic capabilities.
+- `__unsafe_unretained`: This is a raw pointer (as in C/C++) which has no
+  automatic capabilities.
   - Chromium usage note: Do not use this, as it is almost certainly the wrong
     choice. The `PRESUBMIT` will complain.
 
@@ -69,104 +82,87 @@ automatically inserts them as needed, directed by the ownership annotations.
 Incorrect annotations will cause incorrect reference counting; annotate the code
 correctly to fix issues with the compiler-generated reference counting.
 
+## ARC and C++ standard library containers {#cxx-containers}
+
+The most important interaction between ARC and C++ is that when you instantiate
+a template on an Objective-C type, it [implicitly
+qualifies](https://clang.llvm.org/docs/AutomaticReferenceCounting.html#template-arguments)
+the Objective-C type with `__strong`. For example,
+
+```objectivecpp
+  std::vector<NSWindow*>
+```
+
+is equivalent to
+
+```objectivecpp
+  std::vector<NSWindow* __strong>
+```
+
+and you need to make sure that you understand the implications of taking strong
+references to those `NSWindow`s, even if `__strong` was not explicitly written.
+
+One might therefore want to explicitly qualify with `__weak`. While that is fine
+for some C++ standard library containers, like `std::vector`, one must not use
+`__weak` qualification in any tree or hash-based container, such as `std::map`
+or `std::set`.
+
+First, it's explicitly undefined behavior (UB). Containers that rely on looking
+up a value by either direct comparison or hash comparison rely on the values
+that are currently in the container not changing out underneath it. The main
+feature of `__weak` is that it nils itself out when there are no more strong
+references to it, and that behavior will break comparison-based containers.
+
+Second, at a higher “consider what it means to be a set” level, what would
+happen if you had a set or map where two entries that started out as different
+values now both nilled themselves out? That would break the invariant that there
+be no duplicate entries.
+
+The only C++ standard library containers in which it is safe to put `__weak`
+objects are those that merely move and copy them around, but perform no other
+processing or lookup on them. Arrays, vectors, and lists are fine; sets and maps
+are not.
+
 ## ARC in Chromium {#conventions}
 
 ### When to use ARC {#conventions-when}
 
-It is the plan to eventually enable ARC for all of Chromium’s Objective-C code.
-However, because ARC is a target-scoped build configuration for Chromium, it
-might be the case that, when adding a new file, you find that the `.gn` target
-containing that file does not have ARC enabled. In that case, you may implement
-that file without ARC support. However, if the target is already being built
-with ARC, your code must use ARC as well.
-
-If you are lucky enough to be adding the first Objective-C file to the target,
-then you must write your code to build with ARC and add the [config to the `.gn`
-target](#examples-gn).
-
-### ARC compile guard {#convention-boilerplate}
-
-Because Chromium currently comprises mixed ARC and non-ARC Objective-C code,
-files that are written to build with ARC have a boilerplate compile guard after
-the include block:
-
-```objectivec
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-```
+ARC is enabled by default for Objective-C code in Chromium, and all new
+Objective-C code in Chromium must be written to use ARC. If there is a good
+technical reason to not use ARC, you may disable it for a target, but this is
+expected to be an exceedingly rare situation and you should have a discussion
+with the relevant platform experts before doing so.
 
 ### Header files {#convention-headers}
 
 Header files can be:
 
-1. Shared between C++ and Objective-C. For these headers, avoid having any
+1. _Shared between C++ and Objective-C._ For these headers, avoid having any
    Objective-C object pointers in them. Use the techniques in the [Mixing C++
    and Objective-C](mixing_cpp_and_objc.md) document to accomplish this.
-2. Only included in Objective-C implementation files compiled with ARC. For
-   these headers, qualify the ownership of Objective-C object pointers with
-   `__strong` and `__weak`, and add the [ARC
-   boilerplate](#convention-boilerplate) at the top to ensure that they are only
-   included by files compiled with ARC.
-3. Included in Objective-C implementation files compiled with a mix of ARC and
-   non-ARC. For these headers, continue using `base::scoped_nsobject<>` for
-   owned object pointers, but aim to eventually remove its use and switch to
-   ARC.
+2. _Only included in Objective-C implementation files compiled with ARC._
+   Because ARC is the default compilation mode, this will be common. For these
+   headers, qualify the ownership of Objective-C object pointers with `__strong`
+   and `__weak`.
+3. _Included in Objective-C implementation files compiled with a mix of ARC and
+   non-ARC._ Because ARC is the default compilation mode, this situation should
+   be rare. For this situation, treat the non-ARC compiled files as if they were
+   C++ and use the techniques from point 1.
 
-Be aware that distinguishing between these cases can be tricky; if a header file
-is included in another header file, you must also consider which files that
-header file is included in. The most expedient way to distinguish case 2 is to
-add the [ARC boilerplate](#convention-boilerplate) to the header file and then
-attempt to compile. If that header file is included in either a C++ file or an
-Objective-C file not compiled with ARC, the compile will fail at that ARC
-boilerplate. As for case 1, if the header file has Objective-C constructs (e.g.
-`#import` or an `@` keyword) unguarded by `__OBJC__`, it would not compile in
-C++ and therefore is not included by C++ code.
+## Warning! Dangers! {#dangers}
 
-## Examples of conversion from non-ARC to ARC {#examples}
+There are some bits of AppKit that are incompatible with ARC. Apple has not
+updated the documentation to call this out, so a heads-up:
+
+When creating an `NSWindow`, you _must_ set the `.releasedWhenClosed` property
+to `NO`. It’s recommended that you do so immediately after creating it with
+`alloc`/`init`. If you fail to do so, then closing the window will cause it to
+release itself, and then when the owning pointer releases it, it will be a
+double-release.
+
+## Examples of ARC code {#examples}
 
 ### Objective-C Classes {#examples-objc-classes}
-
-Before:
-
-```objectivec
-@interface KittyNoARC : NSObject
-@property(nonatomic, assign) id<KittyDelegate> delegate;
-@property(nonatomic, copy) NSArray* childCats;
-@property(nonatomic, retain) NSURL* vetURL;
-- (Meow*)meowForBellyRub:(BellyRub*)rub;
-@end
-
-@implementation KittyNoARC {
-  id<CatFactory> _catFactory;  // weak
-  base::scoped_nsobject<NSURL> _lastVisitedCatURL;
-  base::scoped_nsobject<NSArray> _childCats;
-  base::scoped_nsobject<NSURL> _vetURL;
-}
-
-- (void)setChildCats:(NSArray*)childCats {
-  _childCats.reset([childCats copy]);
-}
-
-- (NSArray*)childCats {
-  return _childCats.get();
-}
-
-- (void)setVetURL:(NSURL*)vetURL {
-  _vetURL.reset([vetURL retain]);
-}
-
-- (NSURL*)vetURL {
-  return _vetURL.get();
-}
-
-- (Meow*)meowForBellyRub:(BellyRub*)rub {
-  return [[[MeowImpl alloc] initWithBellyRub:rub] autorelease];
-}
-@end
-```
-
-After:
 
 ```objectivec
 @interface KittyARC : NSObject
@@ -191,52 +187,11 @@ After:
 @end
 ```
 
-### C++ classes in Objective-C++ implementation files {#examples-cpp-classes-impls}
-
-Before:
-
-```objectivec
-class Banana : public Fruit {
-  base::scoped_nsobject<Animal> pet_;
-  base::WeakNSObject<Phone> nexus_;
-  Vehicle* car_;
-}
-```
-
-After:
+### C++ classes in Objective-C++ files {#examples-cpp-classes}
 
 ```objectivec
 class Banana : public Fruit {
   Animal* __strong pet_;
-  Phone* __weak nexus_;
-  Vehicle* __weak car_;  // Do not use __unsafe_unretained.
-}
-```
-
-### C++ classes in header files {#examples-cpp-classes-headers}
-
-Before:
-
-```objectivec
-class Banana : public Fruit {
-  base::scoped_nsobject<Animal> pet_;
-  base::WeakNSObject<Phone> nexus_;
-  Vehicle* car_;
-}
-```
-
-After:
-
-```objectivec
-class Banana : public Fruit {
-  // If this class is only included in ARC-enabled code, then include an ARC
-  // compile guard and do:
-  Animal* __strong pet_;
-
-  // Otherwise, do this and move to ARC once all including files have moved to
-  // ARC:
-  base::scoped_nsobject<Animal> pet_;
-
   Phone* __weak nexus_;
   Vehicle* __weak car_;  // Do not use __unsafe_unretained.
 }
@@ -248,24 +203,6 @@ Note: Blocks retain all objects referenced in them. This example is of a block
 used in an Objective-C method that uses the “weak `self`” idiom to avoid a
 retain cycle. For blocks used in C++ functions, a retain cycle is not a concern,
 though the use of a `base::WeakPtr<>` might be needed to avoid stale pointers.
-
-Before:
-
-```objectivec
-base::WeakNSObject<AuthenticationFlow> weakSelf(self);
-[performer_ showAuthenticationError:error
-                     withCompletion:^{
-                       base::scoped_nsobject<AuthenticationFlow> strongSelf(
-                           [weakSelf retain]);
-                       if (!strongSelf) {
-                         return;
-                       }
-                       [strongSelf setHandlingError:NO];
-                       [strongSelf continueSignin];
-                     }];
-```
-
-After:
 
 ```objectivec
 typeof(self) __weak weakSelf = self;
@@ -282,66 +219,35 @@ typeof(self) __weak weakSelf = self;
 
 ### GN file changes {#examples-gn}
 
-A `.gn` target will compile as ARC with the config:
+All targets compile with ARC as default. For targets that must not compile with
+ARC, ARC can be disabled as follows:
 
 ```gn
-    configs += [ "//build/config/compiler:enable_arc" ]
+  # Do not compile with ARC because AncientDeps code is not compatible with
+  # being compiled with ARC.
+  configs -= [ "//build/config/compiler:enable_arc" ]
 ```
 
-Small targets can be converted to ARC all at once. For larger targets, a more
-gradual transition may be needed, for example:
+Again, ARC must be used for all new code unless there is a good technical reason
+that the new code cannot use ARC. Please consult with platform experts if you
+believe that you are in this situation.
 
-```gn
-source_set("fruit_arc") {
-  sources = [
-    "pear.h",
-    "pear.mm",
-  ]
-  deps = [
-    "//base",
-  ]
-  public_deps = [
-      ":fruit_support",
-  ]
-  configs += [ "//build/config/compiler:enable_arc" ]
-  allow_circular_includes_from = [ ":fruit" ]
-}
+## Things that should not be used from ARC code {#changes}
 
-source_set("fruit") {
-  sources = [
-    "apple.h",
-    "apple.mm",
-    "banana.h",
-    "banana.mm",
-    // "pear.h" and "pear.mm" were here before being converted to ARC.
-  ]
-  deps = [
-    "//base",
-  ]
-  public_deps = [
-      ":fruit_support",
-  ]
-  allow_circular_includes_from = [ ":fruit_arc" ]
-}
-```
+There are utility functions and classes that were introduced when Chromium did
+not compile with ARC, but that are no longer needed with ARC code. Because there
+are still parts of Chromium that cannot be compiled with ARC, these utilities
+remain, however they should not (or sometimes cannot) be used from ARC:
 
-## Things that are going away {#changes}
-
-Chromium’s migration to ARC means not only the opportunity to re-think the code
-and do cleanup, but the removal of utilities whose functionality will no longer
-be needed and will eventually end up being removed. Here are some, in no
-particular order:
-
-- `base::scoped_nsobject<>`: Only continue its use in header files shared
-  between ARC and non-ARC Objective-C code, and only temporarily while those
-  files are included by non-ARC files. Remove all other use.
+- `scoped_nsobject<>`/`scoped_nsprotocol<>`: These only exists to handle scoping
+  of Objective-C objects in non-ARC code. They cannot be used in ARC code; use
+  `__strong` instead.
 - `ScopedNSAutoreleasePool`: Use `@autoreleasepool` instead, and remove any use
   of `ScopedNSAutoreleasePool` that you encounter, if possible.
-- `base::mac::ScopedBlock`: Not needed; block pointers get the same ARC
-  ownership management as Objective-C object pointers.
-- `CFToNSCast` and `NSToCFCast`: These do not handle ARC ownership; switch to
-  `CFToNSPtrCast`, `CFToNSOwnershipCast`, `NSToCFPtrCast`, and
-  `NSToCFOwnershipCast` from `base/mac/bridging.h`.
+  `ScopedNSAutoreleasePool` was rewritten to be able to work in ARC code, but
+  the C++ class-based nature of `ScopedNSAutoreleasePool` is fundamentally
+  incompatible with the stack-based nature of autorelease pools, and thus it is
+  in the process of [being removed](https://crbug.com/772489).
 
 ## Further reading {#references}
 
@@ -355,8 +261,10 @@ particular order:
   Counting](https://en.wikipedia.org/wiki/Automatic_Reference_Counting)
 - Clang documentation (very technical): [Objective-C Automatic Reference
   Counting (ARC)](https://clang.llvm.org/docs/AutomaticReferenceCounting.html)
-  - There’s a specialized tool named
-    [`objc_precise_lifetime`](https://clang.llvm.org/docs/AutomaticReferenceCounting.html#precise-lifetime-semantics)
+  - There’s a specialized tool named [`NS_VALID_UNTIL_END_OF_SCOPE` (the
+    preferred spelling and available in `.mm` files that use Foundation) a.k.a.
+    `objc_precise_lifetime` (for use
+    otherwise)](https://clang.llvm.org/docs/AutomaticReferenceCounting.html#precise-lifetime-semantics)
     that might be useful in specific situations where the compiler cannot fully
     deduce what lifetime is needed for a local variable. It’s not usually
     needed, but if you have gotten to this point in this document, you should

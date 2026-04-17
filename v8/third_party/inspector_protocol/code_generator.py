@@ -147,7 +147,7 @@ def dash_to_camelcase(word):
 
 def to_snake_case(name):
   name = re.sub(r"([A-Z]{2,})([A-Z][a-z])", r"\1_\2", name)
-  return re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", name, sys.maxsize).lower()
+  return re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", name, count=sys.maxsize).lower()
 
 
 def to_method_case(config, name):
@@ -295,15 +295,16 @@ def create_string_type_definition():
 def create_binary_type_definition():
   # pylint: disable=W0622
   return {
-    "return_type": "Binary",
-    "pass_type": "const Binary&",
-    "to_pass_type": "%s",
-    "to_raw_type": "%s",
-    "to_rvalue": "%s",
-    "type": "Binary",
-    "raw_type": "Binary",
-    "raw_pass_type": "const Binary&",
-    "raw_return_type": "Binary",
+      "return_type": "Binary",
+      "pass_type": "const Binary&",
+      "to_pass_type": "%s",
+      "to_raw_type": "%s",
+      "to_rvalue": "%s",
+      "type": "Binary",
+      "raw_type": "Binary",
+      "raw_pass_type": "const Binary&",
+      "raw_return_type": "Binary",
+      "is_primitive": True
   }
 
 
@@ -542,6 +543,12 @@ class Protocol(object):
     if prop["type"] == "array":
       return wrap_array_definition(self.resolve_type(prop["items"]))
     return self.type_definitions[prop["type"]]
+
+  def optional_type(self, prop):
+    type = self.resolve_type(prop)
+    template = ("std::optional<{}>"
+                if type.get('is_primitive', False) else "std::unique_ptr<{}>")
+    return template.format(type.get("raw_type"))
 
   def generate_command(self, domain, command):
     if not self.config.protocol.options:

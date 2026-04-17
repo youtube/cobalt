@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "ash/constants/ash_features.h"
+#include "base/compiler_specific.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
@@ -18,6 +19,9 @@
 #include "chromeos/ash/services/ime/constants.h"
 #include "chromeos/ash/services/ime/decoder/decoder_engine.h"
 #include "chromeos/ash/services/ime/decoder/system_engine.h"
+#include "chromeos/ash/services/ime/ime_shared_library_wrapper.h"
+#include "chromeos/ash/services/ime/input_method_user_data_service_impl.h"
+#include "chromeos/ash/services/ime/user_data_c_api_impl.h"
 #include "mojo/public/c/system/thunks.h"
 
 namespace ash {
@@ -71,8 +75,24 @@ void ImeService::BindInputEngineManager(
 }
 
 void ImeService::ResetAllBackendConnections() {
-  decoder_engine_.reset();
-  system_engine_.reset();
+  proto_mode_shared_lib_engine_.reset();
+  mojo_mode_shared_lib_engine_.reset();
+}
+
+void ImeService::BindInputMethodUserDataService(
+    mojo::PendingReceiver<mojom::InputMethodUserDataService> receiver) {
+  if (input_method_user_data_api_ == nullptr) {
+    std::optional<ImeSharedLibraryWrapper::EntryPoints> entry_points =
+        ime_shared_library_->MaybeLoadThenReturnEntryPoints();
+    if (!entry_points.has_value()) {
+      LOG(ERROR) << "shared library entry_points not loaded";
+      return;
+    }
+    input_method_user_data_api_ =
+        std::make_unique<InputMethodUserDataServiceImpl>(
+            std::make_unique<UserDataCApiImpl>(this, *entry_points));
+  }
+  input_method_user_data_api_->AddReceiver(std::move(receiver));
 }
 
 void ImeService::ConnectToImeEngine(
@@ -90,16 +110,17 @@ void ImeService::ConnectToImeEngine(
   //
   // The extension will only use ConnectToImeEngine, and NativeInputMethodEngine
   // will only use ConnectToInputMethod.
-  if (system_engine_ && system_engine_->IsConnected()) {
+  if (mojo_mode_shared_lib_engine_ &&
+      mojo_mode_shared_lib_engine_->IsConnected()) {
     std::move(callback).Run(/*bound=*/false);
     return;
   }
 
   ResetAllBackendConnections();
 
-  decoder_engine_ = std::make_unique<DecoderEngine>(
+  proto_mode_shared_lib_engine_ = std::make_unique<DecoderEngine>(
       this, ime_shared_library_->MaybeLoadThenReturnEntryPoints());
-  bool bound = decoder_engine_->BindRequest(
+  bool bound = proto_mode_shared_lib_engine_->BindRequest(
       ime_spec, std::move(to_engine_request), std::move(from_engine), extra);
   std::move(callback).Run(bound);
 }
@@ -109,10 +130,10 @@ void ImeService::InitializeConnectionFactory(
     InitializeConnectionFactoryCallback callback) {
   ResetAllBackendConnections();
 
-  system_engine_ = std::make_unique<SystemEngine>(
+  mojo_mode_shared_lib_engine_ = std::make_unique<SystemEngine>(
       this, ime_shared_library_->MaybeLoadThenReturnEntryPoints());
-  bool bound =
-      system_engine_->BindConnectionFactory(std::move(connection_factory));
+  bool bound = mojo_mode_shared_lib_engine_->BindConnectionFactory(
+      std::move(connection_factory));
   std::move(callback).Run(bound);
 }
 
@@ -136,49 +157,30 @@ void ImeService::RunInMainSequence(ImeSequencedTask task, int task_id) {
   main_task_runner_->PostTask(FROM_HERE, base::BindOnce(task, task_id));
 }
 
-// TODO(b/218815885): Use consistent feature flag names as in CrOS
-// base::Feature::name (instead of slightly-different bespoke names), and always
-// wire 1:1 to CrOS feature flags (instead of having any extra logic).
 bool ImeService::IsFeatureEnabled(const char* feature_name) {
-  // TODO(b/218815885): Replace refs of AssistiveEmojiEnhanced with
-  // AssistEmojiEnhanced in internal code for consistency.
-  // Then remove the AssistiveEmojiEnhanced check.
-  if (strcmp(feature_name, "AssistiveEmojiEnhanced") == 0 ||
-      strcmp(feature_name, features::kAssistEmojiEnhanced.name) == 0) {
-    return base::FeatureList::IsEnabled(features::kAssistEmojiEnhanced);
+  static const base::Feature* kConsideredFeatures[] = {
+      &features::kAssistMultiWord,
+      &features::kAutocorrectParamsTuning,
+      &features::kFirstPartyVietnameseInput,
+      &features::kSystemJapanesePhysicalTyping,
+      &features::kImeDownloaderExperiment,
+      &features::kImeDownloaderUpdate,
+      &features::kImeKoreanOnlyModeSwitchOnRightAlt,
+      &features::kImeUsEnglishExperimentalModel,
+      &features::kImeUsEnglishModelUpdate,
+      &features::kImeFstDecoderParamsUpdate,
+      &features::kAutocorrectByDefault,
+      &features::kInputMethodKoreanRightAltKeyDownFix,
+      &features::kImeSwitchCheckConnectionStatus};
+
+  // Use consistent feature flag names as in CrOS base::Feature::name and always
+  // wire 1:1 to CrOS feature flags without extra logic.
+  for (const base::Feature* feature : kConsideredFeatures) {
+    if (UNSAFE_TODO(strcmp(feature_name, feature->name)) == 0) {
+      return base::FeatureList::IsEnabled(*feature);
+    }
   }
-  // TODO(b/218815885): Replace refs of AssistiveMultiWord with
-  // AssistMultiWord in internal code for consistency.
-  // Then remove the AssistiveMultiWord check.
-  if (strcmp(feature_name, "AssistiveMultiWord") == 0 ||
-      strcmp(feature_name, features::kAssistMultiWord.name) == 0) {
-    return features::IsAssistiveMultiWordEnabled();
-  }
-  if (strcmp(feature_name, features::kAutocorrectParamsTuning.name) == 0) {
-    return base::FeatureList::IsEnabled(features::kAutocorrectParamsTuning);
-  }
-  if (strcmp(feature_name, features::kFirstPartyVietnameseInput.name) == 0) {
-    return base::FeatureList::IsEnabled(features::kFirstPartyVietnameseInput);
-  }
-  if (strcmp(feature_name, features::kLacrosSupport.name) == 0) {
-    return base::FeatureList::IsEnabled(features::kLacrosSupport);
-  }
-  if (strcmp(feature_name, features::kSystemJapanesePhysicalTyping.name) == 0) {
-    return base::FeatureList::IsEnabled(
-        features::kSystemJapanesePhysicalTyping);
-  }
-  if (strcmp(feature_name, features::kImeDownloaderUpdate.name) == 0) {
-    return base::FeatureList::IsEnabled(features::kImeDownloaderUpdate);
-  }
-  if (strcmp(feature_name, features::kImeUsEnglishModelUpdate.name) == 0) {
-    return base::FeatureList::IsEnabled(features::kImeUsEnglishModelUpdate);
-  }
-  if (strcmp(feature_name, features::kImeFstDecoderParamsUpdate.name) == 0) {
-    return base::FeatureList::IsEnabled(features::kImeFstDecoderParamsUpdate);
-  }
-  if (strcmp(feature_name, features::kAutocorrectByDefault.name) == 0) {
-    return base::FeatureList::IsEnabled(features::kAutocorrectByDefault);
-  }
+
   return false;
 }
 
@@ -187,13 +189,14 @@ const char* ImeService::GetFieldTrialParamValueByFeature(
     const char* param_name) {
   char* c_string_value;
 
-  if (strcmp(feature_name, features::kAutocorrectParamsTuning.name) == 0) {
+  if (UNSAFE_TODO(
+          strcmp(feature_name, features::kAutocorrectParamsTuning.name)) == 0) {
     std::string string_value =
         field_trial_params_retriever_->GetFieldTrialParamValueByFeature(
             features::kAutocorrectParamsTuning, param_name);
     c_string_value =
         new char[string_value.length() + 1];  // extra slot for NULL '\0' char
-    strcpy(c_string_value, string_value.c_str());
+    UNSAFE_TODO(strcpy(c_string_value, string_value.c_str()));
   } else {
     c_string_value = new char[1];
     c_string_value[0] = '\0';
@@ -235,8 +238,12 @@ void ImeService::SimpleDownloadFinishedV2(SimpleDownloadCallbackV2 callback,
   }
 }
 
-const MojoSystemThunks* ImeService::GetMojoSystemThunks() {
-  return MojoEmbedderGetSystemThunks32();
+const void* ImeService::Unused4() {
+  return nullptr;
+}
+
+const MojoSystemThunks2* ImeService::GetMojoSystemThunks2() {
+  return MojoEmbedderGetSystemThunks2();
 }
 
 void ImeService::Unused1() {

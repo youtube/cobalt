@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ash/notifications/debugd_notification_handler.h"
 
+#include <optional>
 #include <utility>
 
 #include "ash/constants/notifier_catalogs.h"
@@ -15,7 +16,6 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "chromeos/ash/components/dbus/debug_daemon/debug_daemon_client.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/message_center/message_center.h"
 #include "ui/message_center/public/cpp/notification.h"
@@ -64,8 +64,8 @@ std::unique_ptr<Notification> DebugdNotificationHandler::CreateNotification() {
   std::unique_ptr<Notification> notification = CreateSystemNotificationPtr(
       message_center::NOTIFICATION_TYPE_SIMPLE, kPacketCaptureNotificationId,
       l10n_util::GetStringUTF16(IDS_ASH_DEBUG_PACKET_CAPTURE_STARTED),
-      l10n_util::GetStringUTF16(IDS_ASH_DEBUG_PACKET_CAPTURE_DESCRIPTION),
-      std::u16string() /* display_source */, GURL(),
+      /*message=*/std::u16string(),
+      /*display_source=*/std::u16string(), GURL(),
       message_center::NotifierId(message_center::NotifierType::SYSTEM_COMPONENT,
                                  kNotifierPacketCapture,
                                  NotificationCatalogName::kPacketCapture),
@@ -87,8 +87,7 @@ void DebugdNotificationHandler::CloseNotification() {
   }
 }
 
-void DebugdNotificationHandler::OnButtonClick(
-    absl::optional<int> button_index) {
+void DebugdNotificationHandler::OnButtonClick(std::optional<int> button_index) {
   // Do nothing if the notification body is clicked, not the button.
   if (!button_index)
     return;

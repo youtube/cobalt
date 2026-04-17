@@ -20,6 +20,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/supports_user_data.h"
+#include "base/task/bind_post_task.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/traced_value.h"
 #include "cc/base/math_util.h"
@@ -100,7 +101,8 @@ BrowserViewRenderer* BrowserViewRenderer::FromWebContents(
 
 BrowserViewRenderer::BrowserViewRenderer(
     BrowserViewRendererClient* client,
-    const scoped_refptr<base::SingleThreadTaskRunner>& ui_task_runner)
+    const scoped_refptr<base::SingleThreadTaskRunner>& ui_task_runner,
+    const scoped_refptr<base::SingleThreadTaskRunner>& io_task_runner)
     : client_(client),
       ui_task_runner_(ui_task_runner),
       current_compositor_frame_consumer_(nullptr),
@@ -122,11 +124,24 @@ BrowserViewRenderer::BrowserViewRenderer(
   root_frame_sink_proxy_ = std::make_unique<RootFrameSinkProxy>(
       ui_task_runner_, this, begin_frame_source_.get());
   UpdateBeginFrameSource();
+
+  base::OnceCallback<base::PlatformThreadId()> compute_current_thread_id =
+      base::BindOnce([]() { return base::PlatformThread::CurrentId(); });
+  io_task_runner->PostTask(
+      FROM_HERE, std::move(compute_current_thread_id)
+                     .Then(base::BindPostTaskToCurrentDefault(base::BindOnce(
+                         &BrowserViewRenderer::SetBrowserIOThreadId,
+                         weak_ptr_factory_.GetWeakPtr()))));
 }
 
 BrowserViewRenderer::~BrowserViewRenderer() {
   DCHECK(compositor_map_.empty());
   DCHECK(!current_compositor_frame_consumer_);
+  if (foreground_for_gpu_resources_) {
+    // Cannot leave a dangling foreground compositor. Just detach from
+    // destructor.
+    OnDetachedFromWindow();
+  }
 
   // We need to destroy |root_frame_sink_proxy_| before |begin_frame_source_|;
   root_frame_sink_proxy_.reset();
@@ -329,7 +344,8 @@ bool BrowserViewRenderer::OnDrawHardware() {
       std::move(future), frame_sink_id_, viewport_size_for_tile_priority,
       external_draw_constraints_.transform, offscreen_pre_raster_, dip_scale_,
       std::move(requests), did_invalidate,
-      begin_frame_source_->LastDispatchedBeginFrameArgs());
+      begin_frame_source_->LastDispatchedBeginFrameArgs(), renderer_threads_,
+      browser_io_thread_id_);
 
   ReturnUnusedResource(
       current_compositor_frame_consumer_->SetFrameOnUI(std::move(child_frame)));
@@ -352,14 +368,18 @@ bool BrowserViewRenderer::DoUpdateParentDrawData() {
   viz::FrameTimingDetailsMap new_timing_details;
   viz::FrameSinkId id;
   uint32_t frame_token = 0u;
+  base::TimeDelta preferred_frame_interval;
   current_compositor_frame_consumer_->TakeParentDrawDataOnUI(
-      &new_constraints, &id, &new_timing_details, &frame_token);
+      &new_constraints, &id, &new_timing_details, &frame_token,
+      &preferred_frame_interval);
 
   content::SynchronousCompositor* compositor = FindCompositor(id);
   if (compositor) {
     compositor->DidPresentCompositorFrames(std::move(new_timing_details),
                                            frame_token);
   }
+
+  client_->SetPreferredFrameInterval(preferred_frame_interval);
 
   if (external_draw_constraints_ == new_constraints)
     return false;
@@ -418,6 +438,13 @@ void BrowserViewRenderer::ReturnUsedResources(
 bool BrowserViewRenderer::OnDrawSoftware(SkCanvas* canvas) {
   did_invalidate_since_last_draw_ = false;
   return CanOnDraw() && CompositeSW(canvas, /*software_canvas=*/true);
+}
+
+float BrowserViewRenderer::GetVelocityInPixelsPerSecond() {
+  if (!compositor_) {
+    return 0.f;
+  }
+  return compositor_->GetVelocityInPixelsPerSecond();
 }
 
 bool BrowserViewRenderer::NeedToDrawBackgroundColor() {
@@ -501,6 +528,7 @@ void BrowserViewRenderer::SetWindowVisibility(bool window_visible) {
                        window_visible);
   window_visible_ = window_visible;
   UpdateBeginFrameSource();
+  UpdateForegroundForGpuResources();
 }
 
 void BrowserViewRenderer::OnSizeChanged(int width, int height) {
@@ -530,6 +558,7 @@ void BrowserViewRenderer::OnAttachedToWindow(int width, int height) {
   if (offscreen_pre_raster_)
     ComputeTileRectAndUpdateMemoryPolicy();
   UpdateBeginFrameSource();
+  UpdateForegroundForGpuResources();
 }
 
 void BrowserViewRenderer::OnDetachedFromWindow() {
@@ -537,6 +566,7 @@ void BrowserViewRenderer::OnDetachedFromWindow() {
   attached_to_window_ = false;
   ReleaseHardware();
   UpdateBeginFrameSource();
+  UpdateForegroundForGpuResources();
 }
 
 void BrowserViewRenderer::ZoomBy(float delta) {
@@ -587,6 +617,21 @@ void BrowserViewRenderer::UpdateBeginFrameSource() {
   }
 }
 
+void BrowserViewRenderer::UpdateForegroundForGpuResources() {
+  bool foreground = attached_to_window_ && window_visible_;
+  if (foreground != foreground_for_gpu_resources_) {
+    foreground_for_gpu_resources_ = foreground;
+    if (!compositor_) {
+      return;
+    }
+    if (foreground_for_gpu_resources_) {
+      compositor_->OnCompositorVisible();
+    } else {
+      compositor_->OnCompositorHidden();
+    }
+  }
+}
+
 gfx::Rect BrowserViewRenderer::GetScreenRect() const {
   return gfx::Rect(client_->GetLocationOnScreen(), size_);
 }
@@ -622,6 +667,9 @@ void BrowserViewRenderer::DidDestroyCompositor(
                        TRACE_EVENT_SCOPE_THREAD);
   DCHECK(compositor_map_.count(frame_sink_id));
   if (compositor_ == compositor) {
+    if (compositor_ && foreground_for_gpu_resources_) {
+      compositor_->OnCompositorHidden();
+    }
     compositor_ = nullptr;
     copy_requests_.clear();
   }
@@ -642,13 +690,23 @@ void BrowserViewRenderer::SetActiveCompositor(
   if (compositor_ == compositor)
     return;
 
-  if (compositor_)
-    compositor_->SetMemoryPolicy(0u);
+  content::SynchronousCompositor* existing_compositor = compositor_;
+  if (existing_compositor) {
+    existing_compositor->SetMemoryPolicy(0u);
+  }
   compositor_ = compositor;
   copy_requests_.clear();
   if (compositor_) {
     ComputeTileRectAndUpdateMemoryPolicy();
     compositor_->DidBecomeActive();
+  }
+  if (foreground_for_gpu_resources_) {
+    if (compositor_) {
+      compositor_->OnCompositorVisible();
+    }
+    if (existing_compositor) {
+      existing_compositor->OnCompositorHidden();
+    }
   }
 }
 
@@ -910,6 +968,10 @@ void BrowserViewRenderer::AddBeginFrameCompletionCallback(
   begin_frame_source_->AddBeginFrameCompletionCallback(std::move(callback));
 }
 
+void BrowserViewRenderer::SetThreads(const std::vector<viz::Thread>& threads) {
+  renderer_threads_ = threads;
+}
+
 void BrowserViewRenderer::PostInvalidate(
     content::SynchronousCompositor* compositor) {
   TRACE_EVENT_INSTANT0("android_webview", "BrowserViewRenderer::PostInvalidate",
@@ -948,6 +1010,11 @@ std::string BrowserViewRenderer::ToString() const {
       &str, "on_new_picture_enable: %d ", on_new_picture_enable_);
   base::StringAppendF(&str, "clear_view: %d ", clear_view_);
   return str;
+}
+
+void BrowserViewRenderer::SetBrowserIOThreadId(
+    base::PlatformThreadId thread_id) {
+  browser_io_thread_id_ = thread_id;
 }
 
 }  // namespace android_webview

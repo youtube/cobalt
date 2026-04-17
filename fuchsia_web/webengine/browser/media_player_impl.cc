@@ -6,9 +6,10 @@
 
 #include <lib/async/default.h>
 
+#include <string_view>
+
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/logging.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "content/public/browser/media_session.h"
@@ -55,17 +56,19 @@ fuchsia_media_sessions2::PlayerCapabilityFlags ActionToCapabilityFlag(
     case MediaSessionAction::kRaise:
       return {};  // PlayerControl does not support raising.
     case MediaSessionAction::kSetMute:
-      return {};  // TODO(crbug.com/1240811): implement set mute.
+      return {};  // TODO(crbug.com/40194407): implement set mute.
     case MediaSessionAction::kPreviousSlide:
       return {};  // PlayerControl does not support going back to previous
                   // slide.
     case MediaSessionAction::kNextSlide:
       return {};  // PlayerControl does not support going to next slide.
+    case MediaSessionAction::kEnterAutoPictureInPicture:
+      return {};  // PlayerControl does not support picture-in-picture.
   }
 }
 
-void AddMetadata(base::StringPiece label,
-                 base::StringPiece16 value,
+void AddMetadata(std::string_view label,
+                 std::u16string_view value,
                  fuchsia_media::Metadata* metadata) {
   fuchsia_media::Property property{
       {.label{label}, .value{base::UTF16ToUTF8(value)}}};
@@ -209,7 +212,7 @@ void MediaPlayerImpl::MediaSessionInfoChanged(
 }
 
 void MediaPlayerImpl::MediaSessionMetadataChanged(
-    const absl::optional<media_session::MediaMetadata>& metadata_mojo) {
+    const std::optional<media_session::MediaMetadata>& metadata_mojo) {
   fuchsia_media::Metadata metadata;
   if (metadata_mojo) {
     AddMetadata(fuchsia_media::kMetadataLabelTitle, metadata_mojo->title,
@@ -227,7 +230,7 @@ void MediaPlayerImpl::MediaSessionMetadataChanged(
 
 void MediaPlayerImpl::MediaSessionActionsChanged(
     const std::vector<media_session::mojom::MediaSessionAction>& actions) {
-  // TODO(https://crbug.com/879317): Implement PROVIDE_BITMAPS.
+  // TODO(crbug.com/40591625): Implement PROVIDE_BITMAPS.
   fuchsia_media_sessions2::PlayerCapabilityFlags capability_flags{};
   for (auto action : actions)
     capability_flags |= ActionToCapabilityFlag(action);
@@ -240,13 +243,13 @@ void MediaPlayerImpl::MediaSessionActionsChanged(
 void MediaPlayerImpl::MediaSessionImagesChanged(
     const base::flat_map<media_session::mojom::MediaSessionImageType,
                          std::vector<media_session::MediaImage>>& images) {
-  // TODO(https://crbug.com/879317): Implement image-changed.
+  // TODO(crbug.com/40591625): Implement image-changed.
   NOTIMPLEMENTED_LOG_ONCE();
 }
 
 void MediaPlayerImpl::MediaSessionPositionChanged(
-    const absl::optional<media_session::MediaPosition>& position) {
-  // TODO(https://crbug.com/879317): Implement media position changes.
+    const std::optional<media_session::MediaPosition>& position) {
+  // TODO(crbug.com/40591625): Implement media position changes.
   NOTIMPLEMENTED_LOG_ONCE();
 }
 
@@ -257,7 +260,7 @@ void MediaPlayerImpl::MaybeSendPlayerInfoDelta() {
     return;
   // std::exchange(foo, {}) returns the contents of |foo|, while ensuring that
   // |foo| is reset to the initial/empty state.
-  std::exchange(pending_info_change_callback_, absl::nullopt)
+  std::exchange(pending_info_change_callback_, std::nullopt)
       ->Reply(std::exchange(pending_info_delta_, {}));
 }
 

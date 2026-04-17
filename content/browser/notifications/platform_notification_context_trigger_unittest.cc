@@ -6,17 +6,16 @@
 
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "content/browser/notifications/notification_trigger_constants.h"
 #include "content/browser/notifications/platform_notification_context_impl.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
 #include "content/public/browser/notification_database_data.h"
 #include "content/public/common/content_client.h"
-#include "content/public/common/content_features.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_browser_context.h"
 #include "content/test/mock_platform_notification_service.h"
@@ -45,7 +44,6 @@ class PlatformNotificationContextTriggerTest : public ::testing::Test {
   }
 
   void SetUp() override {
-    scoped_feature_list_.InitAndEnableFeature(features::kNotificationTriggers);
     platform_notification_context_ =
         base::MakeRefCounted<PlatformNotificationContextImpl>(
             base::FilePath(), &browser_context_, nullptr);
@@ -70,14 +68,14 @@ class PlatformNotificationContextTriggerTest : public ::testing::Test {
 
  protected:
   void WriteNotificationData(const std::string& tag,
-                             absl::optional<base::Time> timestamp) {
+                             std::optional<base::Time> timestamp) {
     ASSERT_TRUE(
         TryWriteNotificationData("https://example.com", tag, timestamp));
   }
 
   bool TryWriteNotificationData(const std::string& url,
                                 const std::string& tag,
-                                absl::optional<base::Time> timestamp) {
+                                std::optional<base::Time> timestamp) {
     GURL origin(url);
     NotificationDatabaseData notification_database_data;
     notification_database_data.origin = origin;
@@ -120,7 +118,6 @@ class PlatformNotificationContextTriggerTest : public ::testing::Test {
   BrowserTaskEnvironment task_environment_;  // Must be first member
 
  private:
-  base::test::ScopedFeatureList scoped_feature_list_;
   TestBrowserContext browser_context_;
   scoped_refptr<PlatformNotificationContextImpl> platform_notification_context_;
 
@@ -232,35 +229,37 @@ TEST_F(PlatformNotificationContextTriggerTest,
 TEST_F(PlatformNotificationContextTriggerTest,
        LimitsNumberOfScheduledNotificationsPerOrigin) {
   for (int i = 1; i <= kMaximumScheduledNotificationsPerOrigin; ++i) {
-    WriteNotificationData(std::to_string(i), Time::Now() + base::Seconds(i));
+    WriteNotificationData(base::NumberToString(i),
+                          Time::Now() + base::Seconds(i));
   }
 
   ASSERT_FALSE(TryWriteNotificationData(
       "https://example.com",
-      std::to_string(kMaximumScheduledNotificationsPerOrigin + 1),
+      base::NumberToString(kMaximumScheduledNotificationsPerOrigin + 1),
       Time::Now() +
           base::Seconds(kMaximumScheduledNotificationsPerOrigin + 1)));
 
   ASSERT_TRUE(TryWriteNotificationData(
       "https://example2.com",
-      std::to_string(kMaximumScheduledNotificationsPerOrigin + 1),
+      base::NumberToString(kMaximumScheduledNotificationsPerOrigin + 1),
       Time::Now() +
           base::Seconds(kMaximumScheduledNotificationsPerOrigin + 1)));
 }
 
 TEST_F(PlatformNotificationContextTriggerTest, EnforcesLimitOnUpdate) {
   for (int i = 1; i <= kMaximumScheduledNotificationsPerOrigin; ++i) {
-    WriteNotificationData(std::to_string(i), Time::Now() + base::Seconds(i));
+    WriteNotificationData(base::NumberToString(i),
+                          Time::Now() + base::Seconds(i));
   }
 
   ASSERT_TRUE(TryWriteNotificationData(
       "https://example.com",
-      std::to_string(kMaximumScheduledNotificationsPerOrigin + 1),
-      absl::nullopt));
+      base::NumberToString(kMaximumScheduledNotificationsPerOrigin + 1),
+      std::nullopt));
 
   ASSERT_FALSE(TryWriteNotificationData(
       "https://example.com",
-      std::to_string(kMaximumScheduledNotificationsPerOrigin + 1),
+      base::NumberToString(kMaximumScheduledNotificationsPerOrigin + 1),
       Time::Now() +
           base::Seconds(kMaximumScheduledNotificationsPerOrigin + 1)));
 }

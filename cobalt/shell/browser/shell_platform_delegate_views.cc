@@ -12,9 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "cobalt/shell/browser/shell_platform_delegate.h"
+// clang-format on
+
 #include <stddef.h>
 
 #include <algorithm>
+#include <array>
 #include <memory>
 
 #include "base/command_line.h"
@@ -23,8 +28,8 @@
 #include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
+#include "cobalt/shell/browser/cobalt_views_delegate.h"
 #include "cobalt/shell/browser/shell.h"
-#include "cobalt/shell/browser/shell_platform_delegate.h"
 #include "content/public/browser/context_factory.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
@@ -43,6 +48,7 @@
 #include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/controls/textfield/textfield.h"
 #include "ui/views/controls/textfield/textfield_controller.h"
+#include "ui/views/controls/webview/web_contents_set_background_color.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/layout/box_layout_view.h"
 #include "ui/views/layout/flex_layout_types.h"
@@ -54,18 +60,13 @@
 #include "ui/views/widget/widget_delegate.h"
 #include "ui/wm/core/wm_state.h"
 
-#if defined(RUN_BROWSER_TESTS)
-#include "ui/views/test/desktop_test_views_delegate.h"  // nogncheck
-#else
-#include "cobalt/shell/browser/cobalt_views_delegate.h"
-#endif  // defined(RUN_BROWSER_TESTS)
-
 namespace content {
 
 struct ShellPlatformDelegate::ShellData {
   gfx::Size content_size;
   // Self-owned Widget, destroyed through CloseNow().
   raw_ptr<views::Widget> window_widget = nullptr;
+  gfx::Size initial_size_;
 };
 
 struct ShellPlatformDelegate::PlatformData {
@@ -81,15 +82,17 @@ namespace {
 // Maintain the UI controls and web view for content shell
 class ShellView : public views::BoxLayoutView,
                   public views::TextfieldController {
- public:
-  METADATA_HEADER(ShellView);
+  METADATA_HEADER(ShellView, views::BoxLayoutView)
 
+ public:
   enum UIControl { BACK_BUTTON, FORWARD_BUTTON, STOP_BUTTON };
 
   explicit ShellView(Shell* shell) : shell_(shell) { InitShellWindow(); }
   ShellView(const ShellView&) = delete;
   ShellView& operator=(const ShellView&) = delete;
   ~ShellView() override = default;
+
+  Shell* ReleaseShell() { return shell_.release(); }
 
   // Update the state of UI controls
   void SetAddressBarURL(const GURL& url) {
@@ -116,7 +119,7 @@ class ShellView : public views::BoxLayoutView,
 
     // Resize the widget, keeping the same origin.
     gfx::Rect bounds = GetWidget()->GetWindowBoundsInScreen();
-    bounds.set_size(GetWidget()->GetRootView()->GetPreferredSize());
+    bounds.set_size(GetWidget()->GetRootView()->GetPreferredSize({}));
     GetWidget()->SetBounds(bounds);
   }
 
@@ -138,7 +141,7 @@ class ShellView : public views::BoxLayoutView,
   void InitShellWindow() {
     auto toolbar_button_rule = [](const views::View* view,
                                   const views::SizeBounds& size_bounds) {
-      gfx::Size preferred_size = view->GetPreferredSize();
+      gfx::Size preferred_size = view->GetPreferredSize({});
       if (size_bounds != views::SizeBounds() &&
           size_bounds.width().is_bounded()) {
         preferred_size.set_width(std::max(
@@ -151,7 +154,7 @@ class ShellView : public views::BoxLayoutView,
     auto builder =
         views::Builder<views::BoxLayoutView>(this)
             .SetBackground(
-                views::CreateThemedSolidBackground(ui::kColorWindowBackground))
+                views::CreateSolidBackground(ui::kColorWindowBackground))
             .SetOrientation(views::BoxLayout::Orientation::kVertical);
 
     if (!Shell::ShouldHideToolbar()) {
@@ -204,6 +207,7 @@ class ShellView : public views::BoxLayoutView,
                       .SetProperty(
                           views::kFlexBehaviorKey,
                           views::FlexSpecification(
+                              views::LayoutOrientation::kHorizontal,
                               views::MinimumFlexSizeRule::kScaleToMinimum,
                               views::MaximumFlexSizeRule::kUnbounded))
                       // Left padding  = 2, Right padding = 2
@@ -232,8 +236,11 @@ class ShellView : public views::BoxLayoutView,
   void InitAccelerators() {
     // This function must be called when part of the widget hierarchy.
     DCHECK(GetWidget());
-    static const ui::KeyboardCode keys[] = {ui::VKEY_F5, ui::VKEY_BROWSER_BACK,
-                                            ui::VKEY_BROWSER_FORWARD};
+    static const auto keys = std::to_array<ui::KeyboardCode>({
+        ui::VKEY_F5,
+        ui::VKEY_BROWSER_BACK,
+        ui::VKEY_BROWSER_FORWARD,
+    });
     for (size_t i = 0; i < std::size(keys); ++i) {
       GetFocusManager()->RegisterAccelerator(
           ui::Accelerator(keys[i], ui::EF_NONE),
@@ -245,8 +252,8 @@ class ShellView : public views::BoxLayoutView,
                        const std::u16string& new_contents) override {}
   bool HandleKeyEvent(views::Textfield* sender,
                       const ui::KeyEvent& key_event) override {
-    if (key_event.type() == ui::ET_KEY_PRESSED && sender == url_entry_ &&
-        key_event.key_code() == ui::VKEY_RETURN) {
+    if (key_event.type() == ui::EventType::kKeyPressed &&
+        sender == url_entry_ && key_event.key_code() == ui::VKEY_RETURN) {
       std::string text = base::UTF16ToUTF8(url_entry_->GetText());
       GURL url(text);
       if (!url.has_scheme()) {
@@ -303,7 +310,7 @@ class ShellView : public views::BoxLayoutView,
   raw_ptr<views::WebView> web_view_ = nullptr;
 };
 
-BEGIN_METADATA(ShellView, views::View)
+BEGIN_METADATA(ShellView)
 END_METADATA
 
 ShellView* ShellViewForWidget(views::Widget* widget) {
@@ -313,8 +320,16 @@ ShellView* ShellViewForWidget(views::Widget* widget) {
 }  // namespace
 
 ShellPlatformDelegate::ShellPlatformDelegate() = default;
+ShellPlatformDelegate::~ShellPlatformDelegate() = default;
 
-void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size) {
+std::unique_ptr<views::ViewsDelegate>
+ShellPlatformDelegate::CreateViewsDelegate() {
+  return std::make_unique<views::CobaltViewsDelegate>();
+}
+
+void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size,
+                                       bool is_visible) {
+  is_visible_ = is_visible;
   platform_ = std::make_unique<PlatformData>();
 
   platform_->wm_state = std::make_unique<wm::WMState>();
@@ -323,15 +338,8 @@ void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size) {
     platform_->screen = views::CreateDesktopScreen();
   }
 
-#if defined(RUN_BROWSER_TESTS)
-  platform_->views_delegate =
-      std::make_unique<views::DesktopTestViewsDelegate>();
-#else
-  platform_->views_delegate = std::make_unique<views::CobaltViewsDelegate>();
-#endif  // defined(RUN_BROWSER_TESTS)
+  platform_->views_delegate = CreateViewsDelegate();
 }
-
-ShellPlatformDelegate::~ShellPlatformDelegate() = default;
 
 void ShellPlatformDelegate::CreatePlatformWindow(
     Shell* shell,
@@ -340,18 +348,34 @@ void ShellPlatformDelegate::CreatePlatformWindow(
   ShellData& shell_data = shell_data_map_[shell];
 
   shell_data.content_size = initial_size;
+  shell_data.initial_size_ = initial_size;
+
+  if (IsVisible()) {
+    CreatePlatformWindowInternal(shell, initial_size);
+  } else {
+    shell_data.window_widget = nullptr;
+  }
+}
+
+void ShellPlatformDelegate::CreatePlatformWindowInternal(
+    Shell* shell,
+    const gfx::Size& initial_size) {
+  ShellData& shell_data = shell_data_map_.at(shell);
 
   auto delegate = std::make_unique<views::WidgetDelegate>();
   delegate->SetContentsView(std::make_unique<ShellView>(shell));
   delegate->SetHasWindowSizeControls(true);
-  delegate->SetOwnedByWidget(true);
+  delegate->SetOwnedByWidget(views::WidgetDelegate::OwnedByWidgetPassKey());
 
   shell_data.window_widget = new views::Widget();
-  views::Widget::InitParams params;
+  views::Widget::InitParams params(
+      views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
   params.bounds = gfx::Rect(initial_size);
   params.delegate = delegate.release();
+#if BUILDFLAG(IS_LINUX)
   params.wm_class_class = "chromium-content_shell";
   params.wm_class_name = params.wm_class_class;
+#endif  // BUILDFLAG(IS_LINUX)
   shell_data.window_widget->Init(std::move(params));
 
   // |window_widget| is made visible in PlatformSetContents(), so that the
@@ -374,10 +398,51 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
-  ShellViewForWidget(shell_data.window_widget)
-      ->SetWebContents(shell->web_contents(), shell_data.content_size);
-  shell_data.window_widget->GetNativeWindow()->GetHost()->Show();
-  shell_data.window_widget->Show();
+  if (shell_data.window_widget) {
+    ShellViewForWidget(shell_data.window_widget)
+        ->SetWebContents(shell->web_contents(), shell_data.content_size);
+
+    SkColor bg_color = shell_data.window_widget->GetColorProvider()->GetColor(
+        ui::kColorWindowBackground);
+    views::WebContentsSetBackgroundColor::CreateForWebContentsWithColor(
+        shell->web_contents(), bg_color);
+
+    shell_data.window_widget->GetNativeWindow()->GetHost()->Show();
+    shell_data.window_widget->Show();
+  }
+}
+void ShellPlatformDelegate::RevealShell(Shell* shell) {
+  ShellData& shell_data = shell_data_map_.at(shell);
+  if (!shell_data.window_widget) {
+    CreatePlatformWindowInternal(shell, shell_data.initial_size_);
+  }
+
+  SetContents(shell);
+}
+void ShellPlatformDelegate::ConcealShell(Shell* shell) {
+  ShellData& shell_data = shell_data_map_.at(shell);
+  if (shell_data.window_widget) {
+    ShellViewForWidget(shell_data.window_widget)->ReleaseShell();
+    shell_data.window_widget->CloseNow();
+    shell_data.window_widget = nullptr;
+  }
+}
+
+void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {
+  DCHECK(base::Contains(shell_data_map_, shell));
+  ShellData& shell_data = shell_data_map_[shell];
+
+  if (shell_data.window_widget) {
+    ShellViewForWidget(shell_data.window_widget)
+        ->SetWebContents(shell->splash_screen_web_contents(),
+                         shell_data.content_size);
+    shell_data.window_widget->GetNativeWindow()->GetHost()->Show();
+    shell_data.window_widget->Show();
+  }
+}
+
+void ShellPlatformDelegate::UpdateContents(Shell* shell) {
+  SetContents(shell);
 }
 
 void ShellPlatformDelegate::ResizeWebContent(Shell* shell,
@@ -395,13 +460,15 @@ void ShellPlatformDelegate::EnableUIControl(Shell* shell,
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
-  auto* view = ShellViewForWidget(shell_data.window_widget);
-  if (control == BACK_BUTTON) {
-    view->EnableUIControl(ShellView::BACK_BUTTON, is_enabled);
-  } else if (control == FORWARD_BUTTON) {
-    view->EnableUIControl(ShellView::FORWARD_BUTTON, is_enabled);
-  } else if (control == STOP_BUTTON) {
-    view->EnableUIControl(ShellView::STOP_BUTTON, is_enabled);
+  if (shell_data.window_widget) {
+    auto* view = ShellViewForWidget(shell_data.window_widget);
+    if (control == BACK_BUTTON) {
+      view->EnableUIControl(ShellView::BACK_BUTTON, is_enabled);
+    } else if (control == FORWARD_BUTTON) {
+      view->EnableUIControl(ShellView::FORWARD_BUTTON, is_enabled);
+    } else if (control == STOP_BUTTON) {
+      view->EnableUIControl(ShellView::STOP_BUTTON, is_enabled);
+    }
   }
 }
 
@@ -413,7 +480,9 @@ void ShellPlatformDelegate::SetAddressBarURL(Shell* shell, const GURL& url) {
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
-  ShellViewForWidget(shell_data.window_widget)->SetAddressBarURL(url);
+  if (shell_data.window_widget) {
+    ShellViewForWidget(shell_data.window_widget)->SetAddressBarURL(url);
+  }
 }
 
 void ShellPlatformDelegate::SetIsLoading(Shell* shell, bool loading) {}
@@ -423,17 +492,24 @@ void ShellPlatformDelegate::SetTitle(Shell* shell,
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
-  shell_data.window_widget->widget_delegate()->SetTitle(title);
+  if (shell_data.window_widget) {
+    shell_data.window_widget->widget_delegate()->SetTitle(title);
+  }
 }
 
 void ShellPlatformDelegate::MainFrameCreated(Shell* shell) {}
 
 bool ShellPlatformDelegate::DestroyShell(Shell* shell) {
+  VLOG(1) << "ShellPlatformDelegate::DestroyShell() called";
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
-  shell_data.window_widget->CloseNow();
-  return true;  // The CloseNow() will do the destruction of Shell.
+  if (shell_data.window_widget) {
+    shell_data.window_widget->CloseNow();
+    return true;  // The CloseNow() will do the destruction of Shell.
+  }
+
+  return false;
 }
 
 }  // namespace content

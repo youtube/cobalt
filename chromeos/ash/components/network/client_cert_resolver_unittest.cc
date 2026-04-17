@@ -7,6 +7,7 @@
 #include <pk11pub.h>
 
 #include <memory>
+#include <string_view>
 
 #include "base/base64.h"
 #include "base/files/file_path.h"
@@ -37,13 +38,13 @@
 #include "crypto/scoped_test_nss_db.h"
 #include "net/base/net_errors.h"
 #include "net/cert/nss_cert_database_chromeos.h"
-#include "net/cert/pem.h"
 #include "net/cert/x509_certificate.h"
 #include "net/cert/x509_util_nss.h"
 #include "net/test/cert_test_util.h"
 #include "net/test/test_data_directory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/boringssl/src/pki/pem.h"
 #include "third_party/cros_system_api/dbus/service_constants.h"
 
 namespace ash {
@@ -57,6 +58,11 @@ constexpr char kWifiStub[] = "wifi_stub";
 constexpr char kWifiSSID[] = "wifi_ssid";
 constexpr char kUserProfilePath[] = "user_profile";
 constexpr char kUserHash[] = "user_hash";
+
+enum class ExpectedResult {
+  kSuccess,
+  kFailure,
+};
 
 void OnImportCompleted(base::OnceClosure loop_quit_closure, bool success) {
   EXPECT_TRUE(success);
@@ -76,20 +82,18 @@ void OnListCertsDone(base::OnceClosure loop_quit_closure,
 std::unique_ptr<chromeos::onc::OncParsedCertificates>
 OncParsedCertificatesForPkcs12File(
     const base::FilePath& client_cert_pkcs12_file,
-    base::StringPiece guid) {
+    std::string_view guid) {
   std::string pkcs12_raw;
   if (!base::ReadFileToString(client_cert_pkcs12_file, &pkcs12_raw))
     return nullptr;
 
-  std::string pkcs12_base64_encoded;
-  base::Base64Encode(pkcs12_raw, &pkcs12_base64_encoded);
+  std::string pkcs12_base64_encoded = base::Base64Encode(pkcs12_raw);
 
-  base::Value::Dict onc_certificate;
-  onc_certificate.Set("GUID", guid);
-  onc_certificate.Set("Type", "Client");
-  onc_certificate.Set("PKCS12", pkcs12_base64_encoded);
-  base::Value::List onc_certificates;
-  onc_certificates.Append(std::move(onc_certificate));
+  auto onc_certificates =
+      base::Value::List().Append(base::Value::Dict()
+                                     .Set("GUID", guid)
+                                     .Set("Type", "Client")
+                                     .Set("PKCS12", pkcs12_base64_encoded));
   return std::make_unique<chromeos::onc::OncParsedCertificates>(
       onc_certificates);
 }
@@ -217,13 +221,13 @@ class ClientCertResolverTest : public testing::Test,
             "subject_printable_string_containing_utf8_client_cert.pem"),
         &file_data));
 
-    net::PEMTokenizer pem_tokenizer(file_data, {"CERTIFICATE"});
+    bssl::PEMTokenizer pem_tokenizer(file_data, {"CERTIFICATE"});
     ASSERT_TRUE(pem_tokenizer.GetNext());
     std::string cert_der(pem_tokenizer.data());
     ASSERT_FALSE(pem_tokenizer.GetNext());
 
     test_client_cert_ = net::x509_util::CreateCERTCertificateFromBytes(
-        reinterpret_cast<const uint8_t*>(cert_der.data()), cert_der.size());
+        base::as_byte_span(cert_der));
     ASSERT_TRUE(test_client_cert_);
 
     ASSERT_TRUE(net::ImportClientCertToSlot(test_client_cert_.get(),
@@ -256,8 +260,13 @@ class ClientCertResolverTest : public testing::Test,
         /*managed_cellular_pref_handler=*/nullptr, network_state_handler_.get(),
         network_profile_handler_.get(), network_config_handler_.get(),
         nullptr /* network_device_handler */,
-        nullptr /* prohibited_technologies_handler */);
-    // Run all notifications before starting the cert loader to reduce run time.
+        nullptr /* prohibited_technologies_handler */,
+        /*hotspot_controller=*/nullptr);
+    managed_config_handler_->SetProfileWideVariableExpansions(
+        /*userhash=*/"", system_variable_expansions_);
+
+    // Run all notifications before starting the cert loader to reduce run
+    // time.
     task_environment_.RunUntilIdle();
 
     client_cert_resolver_->Init(network_state_handler_.get(),
@@ -353,7 +362,7 @@ class ClientCertResolverTest : public testing::Test,
   // particular it will match the test client cert.
   void SetupPolicyMatchingIssuerPEM(::onc::ONCSource onc_source,
                                     const std::string& identity) {
-    const char* test_policy_template = R"(
+    static constexpr char kTestPolicyTemplate[] = R"(
         [ { "GUID": "wifi_stub",
             "Name": "wifi_stub",
             "Type": "WiFi",
@@ -371,15 +380,15 @@ class ClientCertResolverTest : public testing::Test,
             }
         } ])";
     std::string policy_json = base::StringPrintf(
-        test_policy_template, identity.c_str(), test_ca_cert_pem_.c_str());
+        kTestPolicyTemplate, identity.c_str(), test_ca_cert_pem_.c_str());
     ASSERT_NO_FATAL_FAILURE(SetManagedNetworkPolicy(onc_source, policy_json));
   }
 
   void SetManagedNetworkPolicy(::onc::ONCSource onc_source,
-                               base::StringPiece policy_json) {
+                               std::string_view policy_json) {
     auto parsed_json = base::JSONReader::ReadAndReturnValueWithError(
-        policy_json,
-        base::JSON_ALLOW_TRAILING_COMMAS | base::JSON_ALLOW_CONTROL_CHARS);
+        policy_json, base::JSON_ALLOW_TRAILING_COMMAS |
+                         base::JSON_ALLOW_NEWLINES_IN_STRINGS);
     ASSERT_TRUE(parsed_json.has_value()) << parsed_json.error().message;
     ASSERT_TRUE(parsed_json->is_list());
 
@@ -407,19 +416,55 @@ class ClientCertResolverTest : public testing::Test,
       *prop_value = *value;
   }
 
-  // Returns a list of all certificates that are stored on |test_nsscertdb_|'s
-  // private slot.
-  net::ScopedCERTCertificateList ListCertsOnPrivateSlot() {
+  // Import `certs` into the slot relevant for the `onc_source`.
+  void ImportClientCerts(
+      ::onc::ONCSource onc_source,
+      const std::unique_ptr<chromeos::onc::OncParsedCertificates>& certs) {
+    if (onc_source == ::onc::ONC_SOURCE_USER_POLICY) {
+      onc::CertificateImporterImpl importer(
+          task_environment_.GetMainThreadTaskRunner(), test_nsscertdb_.get());
+      base::RunLoop import_loop;
+      importer.ImportClientCertificates(
+          certs->client_certificates(),
+          base::BindOnce(&OnImportCompleted, import_loop.QuitClosure()));
+      import_loop.Run();
+    } else if (onc_source == ::onc::ONC_SOURCE_DEVICE_POLICY) {
+      net::ScopedCERTCertificateList imported_certs;
+      int import_result = test_system_nsscertdb_->ImportFromPKCS12(
+          test_system_nsscertdb_->GetSystemSlot().get(),
+          certs->client_certificates().front().pkcs12_data(),
+          /*password=*/u"", /*is_extractable=*/false, &imported_certs);
+      EXPECT_EQ(import_result, net::OK);
+      EXPECT_EQ(imported_certs.size(), 1u);
+    } else {
+      ADD_FAILURE() << "Unexpected ONC source";
+    }
+  }
+
+  // Returns a list of all certificates that are stored on the slot relevant for
+  // `onc_source`.
+  net::ScopedCERTCertificateList ListClientCerts(::onc::ONCSource onc_source) {
     net::ScopedCERTCertificateList certs;
     base::RunLoop run_loop;
-    test_nsscertdb_->ListCertsInSlot(
-        base::BindOnce(&OnListCertsDone, run_loop.QuitClosure(), &certs),
-        test_nsscertdb_->GetPrivateSlot().get());
+    if (onc_source == ::onc::ONC_SOURCE_USER_POLICY) {
+      test_nsscertdb_->ListCertsInSlot(
+          base::BindOnce(&OnListCertsDone, run_loop.QuitClosure(), &certs),
+          test_nsscertdb_->GetPrivateSlot().get());
+    } else if (onc_source == ::onc::ONC_SOURCE_DEVICE_POLICY) {
+      test_system_nsscertdb_->ListCertsInSlot(
+          base::BindOnce(&OnListCertsDone, run_loop.QuitClosure(), &certs),
+          test_system_nsscertdb_->GetSystemSlot().get());
+    } else {
+      ADD_FAILURE() << "Unexpected ONC source";
+      return {};
+    }
     run_loop.Run();
     return certs;
   }
 
-  void ResolveTestHelper(const char* test_policy_network, bool expect_failure) {
+  void ResolveTestHelper(::onc::ONCSource onc_source,
+                         const char* test_policy_network,
+                         ExpectedResult expected_result) {
     SetupWifi();
     task_environment_.RunUntilIdle();
     StartNetworkCertLoader();
@@ -432,8 +477,8 @@ class ClientCertResolverTest : public testing::Test,
 
     // Apply the network policy.
     network_properties_changed_count_ = 0;
-    ASSERT_NO_FATAL_FAILURE(SetManagedNetworkPolicy(
-        ::onc::ONC_SOURCE_USER_POLICY, test_policy_network));
+    ASSERT_NO_FATAL_FAILURE(
+        SetManagedNetworkPolicy(onc_source, test_policy_network));
     task_environment_.RunUntilIdle();
 
     // The referenced client cert does not exist yet, so expect that it has not
@@ -450,30 +495,23 @@ class ClientCertResolverTest : public testing::Test,
         "{some-unique-guid}");
     ASSERT_TRUE(onc_parsed_certificates);
 
-    onc::CertificateImporterImpl importer(
-        task_environment_.GetMainThreadTaskRunner(), test_nsscertdb_.get());
-    base::RunLoop import_loop;
-    importer.ImportClientCertificates(
-        onc_parsed_certificates->client_certificates(),
-        base::BindOnce(&OnImportCompleted, import_loop.QuitClosure()));
-    import_loop.Run();
+    ImportClientCerts(onc_source, onc_parsed_certificates);
     task_environment_.RunUntilIdle();
 
     // Find the imported cert and get its id.
-    net::ScopedCERTCertificateList private_slot_certs =
-        ListCertsOnPrivateSlot();
-    ASSERT_EQ(1u, private_slot_certs.size());
+    net::ScopedCERTCertificateList client_certs = ListClientCerts(onc_source);
+    ASSERT_EQ(1u, client_certs.size());
     int slot_id = 0;
     const std::string imported_cert_pkcs11_id =
-        NetworkCertLoader::GetPkcs11IdAndSlotForCert(
-            private_slot_certs[0].get(), &slot_id);
+        NetworkCertLoader::GetPkcs11IdAndSlotForCert(client_certs[0].get(),
+                                                     &slot_id);
     std::string imported_cert_formatted_pkcs11_id =
         base::StringPrintf("%i:%s", slot_id, imported_cert_pkcs11_id.c_str());
 
     // Verify that the resolver positively matched the pattern in the policy
     // with the test client cert and configured the network.
     GetServiceProperty(shill::kEapCertIdProperty, &pkcs11_id);
-    if (!expect_failure) {
+    if (expected_result == ExpectedResult::kSuccess) {
       EXPECT_EQ(imported_cert_formatted_pkcs11_id, pkcs11_id);
       EXPECT_EQ(2, network_properties_changed_count_);
     } else {
@@ -487,7 +525,7 @@ class ClientCertResolverTest : public testing::Test,
   std::string test_cert_id_;
   std::unique_ptr<base::SimpleTestClock> test_clock_;
   std::unique_ptr<ClientCertResolver> client_cert_resolver_;
-  raw_ptr<NetworkCertLoader, ExperimentalAsh> network_cert_loader_ = nullptr;
+  raw_ptr<NetworkCertLoader, DanglingUntriaged> network_cert_loader_ = nullptr;
   std::unique_ptr<net::NSSCertDatabaseChromeOS> test_nsscertdb_;
   std::unique_ptr<net::NSSCertDatabaseChromeOS> test_system_nsscertdb_;
 
@@ -499,9 +537,9 @@ class ClientCertResolverTest : public testing::Test,
   }
 
  protected:
-  raw_ptr<ShillServiceClient::TestInterface, ExperimentalAsh> service_test_ =
+  raw_ptr<ShillServiceClient::TestInterface, DanglingUntriaged> service_test_ =
       nullptr;
-  raw_ptr<ShillProfileClient::TestInterface, ExperimentalAsh> profile_test_ =
+  raw_ptr<ShillProfileClient::TestInterface, DanglingUntriaged> profile_test_ =
       nullptr;
   std::unique_ptr<NetworkStateHandler> network_state_handler_;
   std::unique_ptr<NetworkProfileHandler> network_profile_handler_;
@@ -512,6 +550,7 @@ class ClientCertResolverTest : public testing::Test,
   std::string test_ca_cert_pem_;
   crypto::ScopedTestNSSDB test_nssdb_;
   crypto::ScopedTestNSSDB test_system_nssdb_;
+  base::flat_map<std::string, std::string> system_variable_expansions_;
 };
 
 TEST_F(ClientCertResolverTest, NoMatchingCertificates) {
@@ -914,7 +953,8 @@ TEST_F(ClientCertResolverTest, ResolveClientCertRef) {
                }
            } ])";
 
-  ResolveTestHelper(test_policy_network, false);
+  ResolveTestHelper(::onc::ONC_SOURCE_USER_POLICY, test_policy_network,
+                    ExpectedResult::kSuccess);
 }
 
 // Tests that a ClientCertProvisioningProfileId is resolved by
@@ -949,7 +989,8 @@ TEST_F(ClientCertResolverTest, ResolveByCertProfileIdInClientCertRef) {
         return "{some-provisioning-id}";
       }));
 
-  ResolveTestHelper(test_policy_network, false);
+  ResolveTestHelper(::onc::ONC_SOURCE_USER_POLICY, test_policy_network,
+                    ExpectedResult::kSuccess);
 }
 
 // Tests that a ClientCertProvisioningProfileId is resolved by
@@ -982,7 +1023,8 @@ TEST_F(ClientCertResolverTest, ResolveByCertProfileId) {
         return "{some-provisioning-id}";
       }));
 
-  ResolveTestHelper(test_policy_network, false);
+  ResolveTestHelper(::onc::ONC_SOURCE_USER_POLICY, test_policy_network,
+                    ExpectedResult::kSuccess);
 }
 
 // Tests that a ClientCertProvisioningProfileId is not resolved by
@@ -1013,7 +1055,43 @@ TEST_F(ClientCertResolverTest, ResolveByCertProfileIdFailure) {
         return "{some-provisioning-id}";
       }));
 
-  ResolveTestHelper(test_policy_network, true);
+  ResolveTestHelper(::onc::ONC_SOURCE_USER_POLICY, test_policy_network,
+                    ExpectedResult::kFailure);
+}
+
+TEST_F(ClientCertResolverTest, ResolveByCertPatternWithPlaceholders) {
+  const char* test_policy_network =
+      R"([ { "GUID": "wifi_stub",
+               "Name": "wifi_stub",
+               "Type": "WiFi",
+               "WiFi": {
+                 "Security": "WPA-EAP",
+                 "SSID": "wifi_ssid",
+                 "EAP": {
+                   "ClientCertPattern": {
+                      "Issuer": {
+                        "CommonName": "${DEVICE_ASSET_ID}",
+                      },
+                      "Subject": {
+                        "CommonName": "${DEVICE_SERIAL_NUMBER}",
+                      }
+                  },
+                  "ClientCertType": "Pattern",
+                  "Outer": "EAP-TLS",
+                },
+               }
+           } ])";
+
+  // The values do not represent a realistic asset id / serial number, but they
+  // are just strings and this way they will match the existing cert. The
+  // important part is to test that the placeholders in the policy are replaced.
+  system_variable_expansions_[::onc::substitutes::kDeviceAssetId] =
+      "Keygen test CA";
+  system_variable_expansions_[::onc::substitutes::kDeviceSerialNumber] =
+      "Keygen test certificate";
+
+  ResolveTestHelper(::onc::ONC_SOURCE_DEVICE_POLICY, test_policy_network,
+                    ExpectedResult::kSuccess);
 }
 
 }  // namespace ash

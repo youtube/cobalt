@@ -118,19 +118,8 @@ AudioStreamInfo& AudioStreamInfo::operator=(
   return *this;
 }
 
-AudioStreamInfo& AudioStreamInfo::operator=(
-    const CobaltExtensionEnhancedAudioMediaAudioStreamInfo& that) {
-  Assign(that, this);
-  return *this;
-}
-
 void AudioStreamInfo::ConvertTo(
     SbMediaAudioStreamInfo* audio_stream_info) const {
-  Assign(*this, audio_stream_info);
-}
-
-void AudioStreamInfo::ConvertTo(
-    CobaltExtensionEnhancedAudioMediaAudioStreamInfo* audio_stream_info) const {
   Assign(*this, audio_stream_info);
 }
 
@@ -151,6 +140,15 @@ bool operator!=(const AudioStreamInfo& left, const AudioStreamInfo& right) {
   return !(left == right);
 }
 
+std::ostream& operator<<(std::ostream& os, const AudioStreamInfo& info) {
+  return os << "{codec=" << GetMediaAudioCodecName(info.codec)
+            << ", mime=" << (info.mime.empty() ? "(empty)" : info.mime)
+            << ", channels=" << info.number_of_channels
+            << ", samples_per_second="
+            << FormatWithDigitSeparators(info.samples_per_second)
+            << ", bits_per_sample=" << info.bits_per_sample << "}";
+}
+
 AudioSampleInfo& AudioSampleInfo::operator=(
     const SbMediaAudioSampleInfo& that) {
   stream_info = that.stream_info;
@@ -160,28 +158,8 @@ AudioSampleInfo& AudioSampleInfo::operator=(
   return *this;
 }
 
-AudioSampleInfo& AudioSampleInfo::operator=(
-    const CobaltExtensionEnhancedAudioMediaAudioSampleInfo& that) {
-  stream_info = that.stream_info;
-  discarded_duration_from_front = that.discarded_duration_from_front;
-  discarded_duration_from_back = that.discarded_duration_from_back;
-  return *this;
-}
-
 void AudioSampleInfo::ConvertTo(
     SbMediaAudioSampleInfo* audio_sample_info) const {
-  SB_DCHECK(audio_sample_info);
-
-  *audio_sample_info = {};
-  stream_info.ConvertTo(&audio_sample_info->stream_info);
-  audio_sample_info->discarded_duration_from_front =
-      discarded_duration_from_front;
-  audio_sample_info->discarded_duration_from_back =
-      discarded_duration_from_back;
-}
-
-void AudioSampleInfo::ConvertTo(
-    CobaltExtensionEnhancedAudioMediaAudioSampleInfo* audio_sample_info) const {
   SB_DCHECK(audio_sample_info);
 
   *audio_sample_info = {};
@@ -198,19 +176,8 @@ VideoStreamInfo& VideoStreamInfo::operator=(
   return *this;
 }
 
-VideoStreamInfo& VideoStreamInfo::operator=(
-    const CobaltExtensionEnhancedAudioMediaVideoStreamInfo& that) {
-  Assign(that, this);
-  return *this;
-}
-
 void VideoStreamInfo::ConvertTo(
     SbMediaVideoStreamInfo* video_stream_info) const {
-  Assign(*this, video_stream_info);
-}
-
-void VideoStreamInfo::ConvertTo(
-    CobaltExtensionEnhancedAudioMediaVideoStreamInfo* video_stream_info) const {
   Assign(*this, video_stream_info);
 }
 
@@ -237,24 +204,8 @@ VideoSampleInfo& VideoSampleInfo::operator=(
   return *this;
 }
 
-VideoSampleInfo& VideoSampleInfo::operator=(
-    const CobaltExtensionEnhancedAudioMediaVideoSampleInfo& that) {
-  stream_info = that.stream_info;
-  is_key_frame = that.is_key_frame;
-  return *this;
-}
-
 void VideoSampleInfo::ConvertTo(
     SbMediaVideoSampleInfo* video_sample_info) const {
-  SB_DCHECK(video_sample_info);
-
-  *video_sample_info = {};
-  stream_info.ConvertTo(&video_sample_info->stream_info);
-  video_sample_info->is_key_frame = is_key_frame;
-}
-
-void VideoSampleInfo::ConvertTo(
-    CobaltExtensionEnhancedAudioMediaVideoSampleInfo* video_sample_info) const {
   SB_DCHECK(video_sample_info);
 
   *video_sample_info = {};
@@ -422,7 +373,7 @@ bool IsAudioSampleInfoSubstantiallyDifferent(const AudioStreamInfo& left,
 }
 
 int AudioDurationToFrames(int64_t duration, int samples_per_second) {
-  SB_DCHECK(samples_per_second > 0)
+  SB_DCHECK_GT(samples_per_second, 0)
       << "samples_per_second has to be greater than 0";
   // The same as `frames = (duration / 1'000'000) * samples_per_second`,
   // switch order to avoid precision loss due to integer division.
@@ -430,7 +381,7 @@ int AudioDurationToFrames(int64_t duration, int samples_per_second) {
 }
 
 int64_t AudioFramesToDuration(int frames, int samples_per_second) {
-  SB_DCHECK(samples_per_second > 0)
+  SB_DCHECK_GT(samples_per_second, 0)
       << "samples_per_second has to be greater than 0";
   return frames * 1'000'000LL / std::max(samples_per_second, 1);
 }

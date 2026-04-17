@@ -35,26 +35,32 @@
  * version of this file under any of the LGPL, the MPL or the GPL.
  */
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "third_party/blink/renderer/platform/image-decoders/jpeg/jpeg_image_decoder.h"
 
 #include <limits>
 #include <memory>
 
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/numerics/checked_math.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
+#include "skia/ext/skia_utils_base.h"
 #include "third_party/blink/renderer/platform/graphics/bitmap_image_metrics.h"
-#include "third_party/blink/renderer/platform/image-decoders/exif_reader.h"
-#include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/skia/include/core/SkColorSpace.h"
 #include "third_party/skia/include/private/SkJpegMetadataDecoder.h"
 
 extern "C" {
-#include <stdio.h>  // jpeglib.h needs stdio FILE.
-#include "jpeglib.h"
-#include "iccjpeg.h"
 #include <setjmp.h>
+#include <stdio.h>  // jpeglib.h needs stdio FILE.
+#include <string.h>
+
+#include "jpeglib.h"
 }
 
 #if defined(ARCH_CPU_BIG_ENDIAN)
@@ -82,9 +88,6 @@ inline J_COLOR_SPACE rgbOutputColorSpace() {
 #endif
 
 namespace {
-
-constexpr int kExifMarker = JPEG_APP0 + 1;
-constexpr unsigned kExifAPP1SignatureSize = 6;
 
 // JPEG only supports a denominator of 8.
 const unsigned g_scale_denominator = 8;
@@ -129,47 +132,6 @@ bool SubsamplingSupportedByDecodeToYUV(cc::YUVSubsampling subsampling) {
          subsampling == cc::YUVSubsampling::k420;
 }
 
-// Extracts the JPEG color space of an image for UMA purposes given |info| which
-// is assumed to have gone through a jpeg_read_header(). When the color space is
-// YCbCr, we also extract the chroma subsampling. The caveat is that the
-// extracted color space is really libjpeg_turbo's guess. According to
-// libjpeg.txt, "[t]he JPEG color space, unfortunately, is something of a guess
-// since the JPEG standard proper does not provide a way to record it. In
-// practice most files adhere to the JFIF or Adobe conventions, and the decoder
-// will recognize these correctly."
-blink::BitmapImageMetrics::JpegColorSpace ExtractUMAJpegColorSpace(
-    const jpeg_decompress_struct& info) {
-  switch (info.jpeg_color_space) {
-    case JCS_GRAYSCALE:
-      return blink::BitmapImageMetrics::JpegColorSpace::kGrayscale;
-    case JCS_RGB:
-      return blink::BitmapImageMetrics::JpegColorSpace::kRGB;
-    case JCS_CMYK:
-      return blink::BitmapImageMetrics::JpegColorSpace::kCMYK;
-    case JCS_YCCK:
-      return blink::BitmapImageMetrics::JpegColorSpace::kYCCK;
-    case JCS_YCbCr:
-      switch (YuvSubsampling(info)) {
-        case cc::YUVSubsampling::k444:
-          return blink::BitmapImageMetrics::JpegColorSpace::kYCbCr444;
-        case cc::YUVSubsampling::k422:
-          return blink::BitmapImageMetrics::JpegColorSpace::kYCbCr422;
-        case cc::YUVSubsampling::k411:
-          return blink::BitmapImageMetrics::JpegColorSpace::kYCbCr411;
-        case cc::YUVSubsampling::k440:
-          return blink::BitmapImageMetrics::JpegColorSpace::kYCbCr440;
-        case cc::YUVSubsampling::k420:
-          return blink::BitmapImageMetrics::JpegColorSpace::kYCbCr420;
-        case cc::YUVSubsampling::k410:
-          return blink::BitmapImageMetrics::JpegColorSpace::kYCbCr410;
-        case cc::YUVSubsampling::kUnknown:
-          return blink::BitmapImageMetrics::JpegColorSpace::kYCbCrOther;
-      }
-    default:
-      return blink::BitmapImageMetrics::JpegColorSpace::kUnknown;
-  }
-}
-
 // Rounds |size| to the smallest multiple of |alignment| that is greater than or
 // equal to |size|.
 // Note that base::bits::Align is not used here because the alignment is not
@@ -182,8 +144,9 @@ int Align(int size, int alignment) {
   DCHECK_GT(alignment, 0);
   DCHECK_LE(alignment, 32);
 
-  if (size % alignment == 0)
+  if (size % alignment == 0) {
     return size;
+  }
 
   return ((size + alignment) / alignment) * alignment;
 }
@@ -202,7 +165,7 @@ struct decoder_error_mgr {
 struct decoder_source_mgr {
   DISALLOW_NEW();
   struct jpeg_source_mgr pub;  // "public" fields for IJG library
-  JPEGImageReader* reader;
+  raw_ptr<JPEGImageReader> reader;
 };
 
 enum jstate {
@@ -219,33 +182,6 @@ void skip_input_data(j_decompress_ptr jd, long num_bytes);
 void term_source(j_decompress_ptr jd);
 void error_exit(j_common_ptr cinfo);
 void emit_message(j_common_ptr cinfo, int msg_level);
-
-static bool IsExifData(jpeg_saved_marker_ptr marker) {
-  // For EXIF data, the APP1 block is followed by 'E', 'x', 'i', 'f', '\0',
-  // then a fill byte, and then a TIFF file that contains the metadata.
-  if (marker->marker != kExifMarker)
-    return false;
-  if (marker->data_length < kExifAPP1SignatureSize)
-    return false;
-  const uint8_t kExifAPP1Signature[5] = {'E', 'x', 'i', 'f', '\0'};
-  if (memcmp(marker->data, kExifAPP1Signature, sizeof(kExifAPP1Signature)) != 0)
-    return false;
-  return true;
-}
-
-static void ReadImageMetaData(jpeg_decompress_struct* info, DecodedImageMetaData& metadata) {
-  // The JPEG decoder looks at EXIF metadata.
-  // FIXME: Possibly implement XMP and IPTC support.
-  for (jpeg_saved_marker_ptr marker = info->marker_list; marker;
-       marker = marker->next) {
-    if (!IsExifData(marker))
-      continue;
-    base::span<const uint8_t> exif_data(
-        marker->data + kExifAPP1SignatureSize,
-        marker->data_length - kExifAPP1SignatureSize);
-    ReadExif(exif_data, metadata);
-  }
-}
 
 static gfx::Size ComputeYUVSize(const jpeg_decompress_struct* info,
                                 int component) {
@@ -306,24 +242,30 @@ class JPEGImageReader final {
     info_.progress = &progress_mgr_;
     progress_mgr_.progress_monitor = ProgressMonitor;
 
-    // Retain ICC color profile markers for color management.
-    setup_read_icc_profile(&info_);
-
     // Keep APP1 blocks, for obtaining exif and XMP data.
     jpeg_save_markers(&info_, JPEG_APP0 + 1, 0xFFFF);
 
     // Keep APP2 blocks, for obtaining ICC and MPF data.
     jpeg_save_markers(&info_, JPEG_APP0 + 2, 0xFFFF);
+
+    // Keep APP11 blocks, for obtaining JUMBF data including C2PA manifests
+    jpeg_save_markers(&info_, JPEG_APP0 + 11, 0xFFFF);
   }
 
   JPEGImageReader(const JPEGImageReader&) = delete;
   JPEGImageReader& operator=(const JPEGImageReader&) = delete;
 
-  ~JPEGImageReader() { jpeg_destroy_decompress(&info_); }
+  ~JPEGImageReader() {
+    // Reset `metadata_decoder_` before `info_` because `metadata_decoder_`
+    // points to memory owned by `info_`.
+    metadata_decoder_ = nullptr;
+    jpeg_destroy_decompress(&info_);
+  }
 
   void SkipBytes(long num_bytes) {
-    if (num_bytes <= 0)
+    if (num_bytes <= 0) {
       return;
+    }
 
     wtf_size_t bytes_to_skip = static_cast<wtf_size_t>(num_bytes);
 
@@ -355,9 +297,8 @@ class JPEGImageReader final {
       UpdateRestartPosition();
     }
 
-    const char* segment;
-    const size_t bytes = data_->GetSomeData(segment, next_read_position_);
-    if (bytes == 0) {
+    base::span<const uint8_t> segment = data_->GetSomeData(next_read_position_);
+    if (segment.empty()) {
       // We had to suspend. When we resume, we will need to start from the
       // restart position.
       needs_restart_ = true;
@@ -365,24 +306,26 @@ class JPEGImageReader final {
       return false;
     }
 
-    next_read_position_ += bytes;
-    info_.src->bytes_in_buffer = bytes;
-    const JOCTET* next_byte = reinterpret_cast_ptr<const JOCTET*>(segment);
+    next_read_position_ += segment.size();
+    info_.src->bytes_in_buffer = segment.size();
+    auto* next_byte = reinterpret_cast_ptr<const JOCTET*>(segment.data());
     info_.src->next_input_byte = next_byte;
     last_set_byte_ = next_byte;
     return true;
   }
 
-  void SetData(SegmentReader* data) {
-    if (data_.get() == data)
+  void SetData(scoped_refptr<SegmentReader> data) {
+    if (data_ == data) {
       return;
+    }
 
-    data_ = data;
+    data_ = std::move(data);
 
     // If a restart is needed, the next call to fillBuffer will read from the
     // new SegmentReader.
-    if (needs_restart_)
+    if (needs_restart_) {
       return;
+    }
 
     // Otherwise, empty the buffer, and leave the position the same, so
     // FillBuffer continues reading from the same position in the new
@@ -410,12 +353,14 @@ class JPEGImageReader final {
   // hold valid values (i.e. 1, 2, 3, or 4). It also returns the maximal
   // horizontal and vertical sample factors via |max_h| and |max_v|.
   bool AreValidSampleFactorsAvailable(int* max_h, int* max_v) const {
-    if (!info_.num_components)
+    if (!info_.num_components) {
       return false;
+    }
 
     const jpeg_component_info* comp_info = info_.comp_info;
-    if (!comp_info)
+    if (!comp_info) {
       return false;
+    }
 
     *max_h = 0;
     *max_v = 0;
@@ -434,14 +379,16 @@ class JPEGImageReader final {
   // Decode the JPEG data.
   bool Decode(JPEGImageDecoder::DecodingMode decoding_mode) {
     // We need to do the setjmp here. Otherwise bad things will happen
-    if (setjmp(err_.setjmp_buffer))
+    if (setjmp(err_.setjmp_buffer)) {
       return decoder_->SetFailed();
+    }
 
     switch (state_) {
       case kJpegHeader: {
         // Read file parameters with jpeg_read_header().
-        if (jpeg_read_header(&info_, true) == JPEG_SUSPENDED)
+        if (jpeg_read_header(&info_, true) == JPEG_SUSPENDED) {
           return false;  // I/O suspension.
+        }
 
         switch (info_.jpeg_color_space) {
           case JCS_YCbCr:
@@ -464,9 +411,23 @@ class JPEGImageReader final {
 
         state_ = kJpegStartDecompress;
 
+        // Build the SkJpegMetadataDecoder to extract metadata from the
+        // now-complete header.
+        {
+          std::vector<SkJpegMetadataDecoder::Segment> segments;
+          for (auto* marker = info_.marker_list; marker;
+               marker = marker->next) {
+            segments.emplace_back(
+                marker->marker,
+                SkData::MakeWithoutCopy(marker->data, marker->data_length));
+          }
+          metadata_decoder_ = SkJpegMetadataDecoder::Make(std::move(segments));
+        }
+
         // We can fill in the size now that the header is available.
-        if (!decoder_->SetSize(info_.image_width, info_.image_height))
+        if (!decoder_->SetSize(info_.image_width, info_.image_height)) {
           return false;
+        }
 
         // Calculate and set decoded size.
         int max_numerator = decoder_->DesiredScaleNumerator();
@@ -509,43 +470,47 @@ class JPEGImageReader final {
         jpeg_calc_output_dimensions(&info_);
         decoder_->SetDecodedSize(info_.output_width, info_.output_height);
 
-        DecodedImageMetaData metadata;
-        ReadImageMetaData(Info(), metadata);
-        decoder_->ApplyMetadata(
-            metadata, gfx::Size(info_.output_width, info_.output_height));
+        decoder_->ApplyExifMetadata(
+            metadata_decoder_->getExifMetadata(/*copyData=*/false).get(),
+            gfx::Size(info_.output_width, info_.output_height));
 
         // Allow color management of the decoded RGBA pixels if possible.
         if (!decoder_->IgnoresColorSpace()) {
-          JOCTET* profile_buf = nullptr;
-          unsigned profile_length = 0;
-          if (read_icc_profile(Info(), &profile_buf, &profile_length)) {
+          // Extract the ICC profile data without copying it (the function
+          // ColorProfile::Create will make its own copy).
+          sk_sp<SkData> profile_data =
+              metadata_decoder_->getICCProfileData(/*copyData=*/false);
+          if (profile_data) {
             std::unique_ptr<ColorProfile> profile =
-                ColorProfile::Create(profile_buf, profile_length);
+                ColorProfile::Create(skia::as_byte_span(*profile_data));
             if (profile) {
               uint32_t data_color_space =
                   profile->GetProfile()->data_color_space;
               switch (info_.jpeg_color_space) {
                 case JCS_CMYK:
                 case JCS_YCCK:
-                  if (data_color_space != skcms_Signature_CMYK)
+                  if (data_color_space != skcms_Signature_CMYK) {
                     profile = nullptr;
+                  }
                   break;
                 case JCS_GRAYSCALE:
                   if (data_color_space != skcms_Signature_Gray &&
-                      data_color_space != skcms_Signature_RGB)
+                      data_color_space != skcms_Signature_RGB) {
                     profile = nullptr;
+                  }
                   break;
                 default:
-                  if (data_color_space != skcms_Signature_RGB)
+                  if (data_color_space != skcms_Signature_RGB) {
                     profile = nullptr;
+                  }
                   break;
               }
-              if (profile)
+              if (profile) {
                 Decoder()->SetEmbeddedColorProfile(std::move(profile));
+              }
             } else {
               DLOG(ERROR) << "Failed to parse image ICC profile";
             }
-            free(profile_buf);
           }
         }
 
@@ -605,8 +570,9 @@ class JPEGImageReader final {
         samples_ = AllocateSampleArray();
 
         // Start decompressor.
-        if (!jpeg_start_decompress(&info_))
+        if (!jpeg_start_decompress(&info_)) {
           return false;  // I/O suspension.
+        }
 
         // If this is a progressive JPEG ...
         state_ = (info_.buffered_image) ? kJpegDecompressProgressive
@@ -615,8 +581,9 @@ class JPEGImageReader final {
 
       case kJpegDecompressSequential:
         if (state_ == kJpegDecompressSequential) {
-          if (!decoder_->OutputScanlines())
+          if (!decoder_->OutputScanlines()) {
             return false;  // I/O suspension.
+          }
 
           // If we've completed image output...
           DCHECK_EQ(info_.output_scanline, info_.output_height);
@@ -643,8 +610,9 @@ class JPEGImageReader final {
           do {
             decoder_error_mgr* err =
                 reinterpret_cast_ptr<decoder_error_mgr*>(info_.err);
-            if (err->num_corrupt_warnings)
+            if (err->num_corrupt_warnings) {
               break;
+            }
             status = jpeg_consume_input(&info_);
             if (status == JPEG_REACHED_SOS || status == JPEG_REACHED_EOI ||
                 status == JPEG_SUSPENDED) {
@@ -668,34 +636,41 @@ class JPEGImageReader final {
               // a complete scan, force output of the last full scan, but only
               // if this last scan has seen DC data from all components.
               if (!info_.output_scan_number && (scan > first_scan_to_display) &&
-                  (status != JPEG_REACHED_EOI))
+                  (status != JPEG_REACHED_EOI)) {
                 --scan;
+              }
 
-              if (!jpeg_start_output(&info_, scan))
+              if (!jpeg_start_output(&info_, scan)) {
                 return false;  // I/O suspension.
+              }
             }
 
-            if (info_.output_scanline == 0xffffff)
+            if (info_.output_scanline == 0xffffff) {
               info_.output_scanline = 0;
+            }
 
             if (!decoder_->OutputScanlines()) {
-              if (decoder_->Failed())
+              if (decoder_->Failed()) {
                 return false;
+              }
               // If no scan lines were read, flag it so we don't call
               // jpeg_start_output() multiple times for the same scan.
-              if (!info_.output_scanline)
+              if (!info_.output_scanline) {
                 info_.output_scanline = 0xffffff;
+              }
 
               return false;  // I/O suspension.
             }
 
             if (info_.output_scanline == info_.output_height) {
-              if (!jpeg_finish_output(&info_))
+              if (!jpeg_finish_output(&info_)) {
                 return false;  // I/O suspension.
+              }
 
               if (jpeg_input_complete(&info_) &&
-                  (info_.input_scan_number == info_.output_scan_number))
+                  (info_.input_scan_number == info_.output_scan_number)) {
                 break;
+              }
 
               info_.output_scanline = 0;
             }
@@ -707,9 +682,12 @@ class JPEGImageReader final {
 
       case kJpegDone:
         // Finish decompression.
-        BitmapImageMetrics::CountJpegArea(decoder_->Size());
-        BitmapImageMetrics::CountJpegColorSpace(
-            ExtractUMAJpegColorSpace(info_));
+        if (info_.jpeg_color_space != JCS_GRAYSCALE &&
+            decoder_->IsAllDataReceived()) {
+          static constexpr char kType[] = "Jpeg";
+          ImageDecoder::UpdateBppHistogram<kType>(decoder_->Size(),
+                                                  data_->size());
+        }
         return jpeg_finish_decompress(&info_);
     }
 
@@ -721,6 +699,9 @@ class JPEGImageReader final {
   JPEGImageDecoder* Decoder() { return decoder_; }
   gfx::Size UvSize() const { return uv_size_; }
   bool HasStartedDecompression() const { return state_ > kJpegStartDecompress; }
+  SkJpegMetadataDecoder* GetMetadataDecoder() {
+    return metadata_decoder_.get();
+  }
 
  private:
 #if defined(USE_SYSTEM_LIBJPEG)
@@ -730,14 +711,16 @@ class JPEGImageReader final {
 // Some output color spaces don't need the sample array: don't allocate in that
 // case.
 #if defined(TURBO_JPEG_RGB_SWIZZLE)
-    if (turboSwizzled(info_.out_color_space))
+    if (turboSwizzled(info_.out_color_space)) {
       return nullptr;
+    }
 #endif
 
-    if (info_.out_color_space != JCS_YCbCr)
+    if (info_.out_color_space != JCS_YCbCr) {
       return (*info_.mem->alloc_sarray)(
           reinterpret_cast_ptr<j_common_ptr>(&info_), JPOOL_IMAGE,
           4 * info_.output_width, 1);
+    }
 
     // Compute the width of the Y plane in bytes.  This may be larger than the
     // output width, since the jpeg library requires that the allocated width be
@@ -768,7 +751,7 @@ class JPEGImageReader final {
   }
 
   scoped_refptr<SegmentReader> data_;
-  JPEGImageDecoder* decoder_;
+  raw_ptr<JPEGImageDecoder> decoder_;
 
   // Input reading: True if we need to back up to restart_position_.
   bool needs_restart_;
@@ -780,13 +763,17 @@ class JPEGImageReader final {
   // we set to next_input_byte. libjpeg will update next_input_byte when it
   // has found the next restart position, so if it no longer matches this
   // value, we know we've reached the next restart position.
-  const JOCTET* last_set_byte_;
+  raw_ptr<const JOCTET> last_set_byte_;
 
   jpeg_decompress_struct info_;
   decoder_error_mgr err_;
   decoder_source_mgr src_;
   jpeg_progress_mgr progress_mgr_;
   jstate state_;
+
+  // The metadata decoder is populated once the full header (all segments up to
+  // the first StartOfScan) has been received.
+  std::unique_ptr<SkJpegMetadataDecoder> metadata_decoder_;
 
   JSAMPARRAY samples_;
   gfx::Size uv_size_;
@@ -800,8 +787,9 @@ void error_exit(
 }
 
 void emit_message(j_common_ptr cinfo, int msg_level) {
-  if (msg_level >= 0)
+  if (msg_level >= 0) {
     return;
+  }
 
   decoder_error_mgr* err = reinterpret_cast_ptr<decoder_error_mgr*>(cinfo->err);
   err->pub.num_warnings++;
@@ -809,10 +797,12 @@ void emit_message(j_common_ptr cinfo, int msg_level) {
   // Detect and count corrupt JPEG warning messages.
   const char* warning = nullptr;
   int code = err->pub.msg_code;
-  if (code > 0 && code <= err->pub.last_jpeg_message)
+  if (code > 0 && code <= err->pub.last_jpeg_message) {
     warning = err->pub.jpeg_message_table[code];
-  if (warning && !strncmp("Corrupt JPEG", warning, 12))
+  }
+  if (warning && !strncmp("Corrupt JPEG", warning, 12)) {
     err->num_corrupt_warnings++;
+  }
 }
 
 void init_source(j_decompress_ptr) {}
@@ -834,16 +824,22 @@ void term_source(j_decompress_ptr jd) {
 }
 
 JPEGImageDecoder::JPEGImageDecoder(AlphaOption alpha_option,
-                                   const ColorBehavior& color_behavior,
+                                   ColorBehavior color_behavior,
+                                   cc::AuxImage aux_image,
                                    wtf_size_t max_decoded_bytes,
                                    wtf_size_t offset)
     : ImageDecoder(alpha_option,
                    ImageDecoder::kDefaultBitDepth,
                    color_behavior,
+                   aux_image,
                    max_decoded_bytes),
       offset_(offset) {}
 
 JPEGImageDecoder::~JPEGImageDecoder() = default;
+
+String JPEGImageDecoder::FilenameExtension() const {
+  return "jpg";
+}
 
 const AtomicString& JPEGImageDecoder::MimeType() const {
   DEFINE_STATIC_LOCAL(const AtomicString, jpeg_mime_type, ("image/jpeg"));
@@ -851,33 +847,56 @@ const AtomicString& JPEGImageDecoder::MimeType() const {
 }
 
 bool JPEGImageDecoder::SetSize(unsigned width, unsigned height) {
-  if (!ImageDecoder::SetSize(width, height))
+  if (!ImageDecoder::SetSize(width, height)) {
     return false;
+  }
 
-  if (!DesiredScaleNumerator())
+  if (!DesiredScaleNumerator()) {
     return SetFailed();
+  }
 
   SetDecodedSize(width, height);
   return true;
 }
 
-void JPEGImageDecoder::OnSetData(SegmentReader* data) {
-  if (reader_) {
-    reader_->SetData(data);
-
-    // Changing YUV decoding mode is not allowed after decompression starts.
-    if (reader_->HasStartedDecompression())
+void JPEGImageDecoder::OnSetData(scoped_refptr<SegmentReader> data) {
+  // If we are decoding the gainmap image, replace `data` with the subset of
+  // `data` that corresponds to the gainmap image itself. This strategy is
+  // used because the underlying decoder is unaware of gainmap metadata, and
+  // because the gainmap image itself is is a self-contained JPEG image (see
+  // multi-picture format, also known as CIPA DC-007). This is in contrast with
+  // other decoders (e.g AVIF), which are aware of gainmap metadata.
+  if (data && aux_image_ == cc::AuxImage::kGainmap) {
+    sk_sp<SkData> base_image_data = data->GetAsSkData();
+    DCHECK(base_image_data);
+    SkGainmapInfo gainmap_info;
+    sk_sp<SkData> gainmap_image_data;
+    auto base_metadata_decoder = SkJpegMetadataDecoder::Make(base_image_data);
+    if (!base_metadata_decoder->findGainmapImage(
+            base_image_data, gainmap_image_data, gainmap_info)) {
+      SetFailed();
       return;
+    }
+    data = SegmentReader::CreateFromSkData(std::move(gainmap_image_data));
+    data_ = data;
   }
 
-  if (allow_decode_to_yuv_)
+  if (reader_) {
+    reader_->SetData(std::move(data));
+
+    // Changing YUV decoding mode is not allowed after decompression starts.
+    if (reader_->HasStartedDecompression()) {
+      return;
+    }
+  }
+
+  if (allow_decode_to_yuv_) {
     return;
+  }
 
   allow_decode_to_yuv_ =
       // Incremental YUV decoding is not currently supported (crbug.com/943519).
       IsAllDataReceived() &&
-      // TODO(sashamcintosh): Cleanup. Finch experiment is enabled by default.
-      RuntimeEnabledFeatures::DecodeJpeg420ImagesToYUVEnabled() &&
       // Ensures that the reader is created, the scale numbers are known,
       // the color profile is known, and the subsampling is known.
       IsSizeAvailable() &&
@@ -887,6 +906,10 @@ void JPEGImageDecoder::OnSetData(SegmentReader* data) {
       // data.
       !ColorTransform() &&
       SubsamplingSupportedByDecodeToYUV(GetYUVSubsampling());
+}
+
+gfx::Size JPEGImageDecoder::DecodedSize() const {
+  return decoded_size_;
 }
 
 void JPEGImageDecoder::SetDecodedSize(unsigned width, unsigned height) {
@@ -927,8 +950,9 @@ unsigned JPEGImageDecoder::DesiredScaleNumerator() const {
 unsigned JPEGImageDecoder::DesiredScaleNumerator(wtf_size_t max_decoded_bytes,
                                                  wtf_size_t original_bytes,
                                                  unsigned scale_denominator) {
-  if (original_bytes <= max_decoded_bytes)
+  if (original_bytes <= max_decoded_bytes) {
     return scale_denominator;
+  }
 
   // Downsample according to the maximum decoded size.
   return static_cast<unsigned>(floor(sqrt(
@@ -973,46 +997,74 @@ Vector<SkISize> JPEGImageDecoder::GetSupportedDecodeSizes() const {
 
 bool JPEGImageDecoder::GetGainmapInfoAndData(
     SkGainmapInfo& out_gainmap_info,
-    scoped_refptr<SegmentReader>& out_gainmap_reader) const {
-  if (!reader_) {
+    scoped_refptr<SegmentReader>& out_gainmap_data) const {
+  auto* metadata_decoder = reader_ ? reader_->GetMetadataDecoder() : nullptr;
+  if (!metadata_decoder) {
     return false;
   }
 
-  // Extract the segments (including parameters) and create an
-  // SkJpegMetadataDecoder to use to examine gainmap capabilities.
-  std::vector<SkJpegMetadataDecoder::Segment> segments;
-  if (jpeg_decompress_struct* info = reader_->Info()) {
-    for (auto* marker = info->marker_list; marker; marker = marker->next) {
-      segments.emplace_back(
-          marker->marker,
-          SkData::MakeWithoutCopy(marker->data, marker->data_length));
-    }
-  } else {
-    return false;
-  }
-  auto metadata = SkJpegMetadataDecoder::Make(std::move(segments));
-  if (!metadata) {
+  if (!metadata_decoder->mightHaveGainmapImage()) {
     return false;
   }
 
-  // TODO(https://crbug.com/1404000): Add an early-out that uses only
-  // `segments` to determine if a gainmap is guaranteed to not be present.
-  auto base_image_data = data_->GetAsSkData();
+  // TODO(crbug.com/356827770): This function will be removed once all decoders
+  // rely on ImageDecoder::aux_image_ to decode the gainmap, instead of
+  // extracting gainmap data.
+  sk_sp<SkData> base_image_data = data_->GetAsSkData();
   DCHECK(base_image_data);
-
-  // Extract the SkGainmapInfo and the encoded gainmap image and return them.
-  // TODO(https://crbug.com/1404000): Rather than extract an SkData, extract
-  // the offsets and sizes of the subsets of `base_image_data`, and reference
-  // these directly.
   sk_sp<SkData> gainmap_image_data;
   SkGainmapInfo gainmap_info;
-  if (!metadata->findGainmapImage(base_image_data, gainmap_image_data,
-                                  gainmap_info)) {
+  if (!metadata_decoder->findGainmapImage(base_image_data, gainmap_image_data,
+                                          gainmap_info)) {
     return false;
   }
   out_gainmap_info = gainmap_info;
-  out_gainmap_reader =
-      SegmentReader::CreateFromSkData(std::move(gainmap_image_data));
+  out_gainmap_data = data_;
+  return true;
+}
+
+bool JPEGImageDecoder::HasC2PAManifest() const {
+  auto* metadata_decoder = reader_ ? reader_->GetMetadataDecoder() : nullptr;
+  if (!metadata_decoder) {
+    return false;
+  }
+
+  // C2PA manifests are contained in APP11 blocks in JUMBF format
+  sk_sp<SkData> jumbf_data =
+      metadata_decoder->getJUMBFMetadata(/*copyData=*/false);
+  if (!jumbf_data) {
+    return false;
+  }
+
+  // APP11 blocks have a 2-byte extension type set to 'JP' for JUMBF
+  // (stripped by getJUMBFMetadata), followed by a 2-byte segment ID,
+  // and a 4-byte sequence number.
+  // This is followed by JUMBF boxes: { LBox(4), TBox(4), payload },
+  // as defined in ISO 19566-5 (https://iso.org/standard/84635.html)
+  // the payload of the first superbox is more boxes.
+  // The C2PA manifest store is a JUMBF superbox with a label of 'c2pa':
+  // https://c2pa.org/specifications/specifications/2.1/specs/C2PA_Specification.html#_jpeg_specific_handling
+  // C2PA support would require full JUMBF parsing; for detection, we
+  // just look for a fixed signature based on this box structure.
+  // This won't detect C2PA manifests preceded by a non-C2PA JUMBF
+  // superbox, which is OK since this is for a lower bound metric.
+  static constexpr uint8_t kSBSig[] = {'j', 'u', 'm', 'b'};
+  static constexpr size_t kSBOffset = 10;
+  static constexpr uint8_t kDBSig[] = {'j', 'u', 'm', 'd'};
+  static constexpr size_t kDBOffset = 18;
+  static constexpr uint8_t kC2PASig[] = {'c', '2', 'p', 'a'};
+  static constexpr size_t kC2PAOffset = 22;
+
+  if (jumbf_data->size() < kC2PAOffset + sizeof(kC2PASig)) {
+    return false;
+  }
+  const uint8_t* jumbf_bytes = jumbf_data->bytes();
+  if (memcmp(jumbf_bytes + kSBOffset, kSBSig, sizeof(kSBSig)) != 0 ||
+      memcmp(jumbf_bytes + kDBOffset, kDBSig, sizeof(kDBSig)) != 0 ||
+      memcmp(jumbf_bytes + kC2PAOffset, kC2PASig, sizeof(kC2PASig)) != 0) {
+    return false;
+  }
+
   return true;
 }
 
@@ -1032,6 +1084,15 @@ gfx::Size JPEGImageDecoder::GetImageCodedSize() const {
   const int coded_height = Align(Size().height(), max_v_samp_factor * 8);
 
   return gfx::Size(coded_width, coded_height);
+}
+
+void JPEGImageDecoder::DecodeSize() {
+  Decode(DecodingMode::kDecodeHeader);
+}
+
+void JPEGImageDecoder::Decode(wtf_size_t) {
+  // Use DecodeToYUV for YUV decoding.
+  Decode(DecodingMode::kDecodeToBitmap);
 }
 
 cc::ImageHeaderMetadata JPEGImageDecoder::MakeMetadataForDecodeAcceleration()
@@ -1092,12 +1153,14 @@ bool OutputRows(JPEGImageReader* reader, ImageFrame& buffer) {
     // save the scanline before calling it.
     int y = info->output_scanline;
     // Request one scanline: returns 0 or 1 scanlines.
-    if (jpeg_read_scanlines(info, samples, 1) != 1)
+    if (jpeg_read_scanlines(info, samples, 1) != 1) {
       return false;
+    }
 
     ImageFrame::PixelData* pixel = buffer.GetAddr(0, y);
-    for (int x = 0; x < width; ++pixel, ++x)
+    for (int x = 0; x < width; ++pixel, ++x) {
       SetPixel<colorSpace>(pixel, samples, x);
+    }
 
     ColorProfileTransform* xform = reader->Decoder()->ColorTransform();
     if (xform) {
@@ -1168,8 +1231,9 @@ static bool OutputRawData(JPEGImageReader* reader, ImagePlanes* image_planes) {
 
     JDIMENSION scanlines_read =
         jpeg_read_raw_data(info, bufferraw, y_scanlines_to_read);
-    if (!scanlines_read)
+    if (!scanlines_read) {
       return false;
+    }
   }
 
   info->output_scanline = std::min(info->output_scanline, info->output_height);
@@ -1178,11 +1242,13 @@ static bool OutputRawData(JPEGImageReader* reader, ImagePlanes* image_planes) {
 }
 
 bool JPEGImageDecoder::OutputScanlines() {
-  if (HasImagePlanes())
+  if (HasImagePlanes()) {
     return OutputRawData(reader_.get(), image_planes_.get());
+  }
 
-  if (frame_buffer_cache_.empty())
+  if (frame_buffer_cache_.empty()) {
     return false;
+  }
 
   jpeg_decompress_struct* info = reader_->Info();
 
@@ -1195,8 +1261,9 @@ bool JPEGImageDecoder::OutputScanlines() {
               static_cast<JDIMENSION>(decoded_size_.height()));
 
     if (!buffer.AllocatePixelData(info->output_width, info->output_height,
-                                  ColorSpaceForSkImages()))
+                                  ColorSpaceForSkImages())) {
       return SetFailed();
+    }
 
     buffer.ZeroFillPixelData();
     // The buffer is transparent outside the decoded area while the image is
@@ -1213,8 +1280,9 @@ bool JPEGImageDecoder::OutputScanlines() {
     while (info->output_scanline < info->output_height) {
       unsigned char* row = reinterpret_cast_ptr<unsigned char*>(
           buffer.GetAddr(0, info->output_scanline));
-      if (jpeg_read_scanlines(info, &row, 1) != 1)
+      if (jpeg_read_scanlines(info, &row, 1) != 1) {
         return false;
+      }
 
       ColorProfileTransform* xform = ColorTransform();
       if (xform) {
@@ -1239,13 +1307,12 @@ bool JPEGImageDecoder::OutputScanlines() {
     default:
       NOTREACHED();
   }
-
-  return SetFailed();
 }
 
 void JPEGImageDecoder::Complete() {
-  if (frame_buffer_cache_.empty())
+  if (frame_buffer_cache_.empty()) {
     return;
+  }
 
   frame_buffer_cache_[0].SetHasAlpha(false);
   frame_buffer_cache_[0].SetStatus(ImageFrame::kFrameComplete);
@@ -1262,22 +1329,25 @@ inline bool IsComplete(const JPEGImageDecoder* decoder,
 }
 
 void JPEGImageDecoder::Decode(DecodingMode decoding_mode) {
-  if (Failed())
+  if (Failed()) {
     return;
+  }
 
   if (!reader_) {
     reader_ = std::make_unique<JPEGImageReader>(this, offset_);
-    reader_->SetData(data_.get());
+    reader_->SetData(data_);
   }
 
   // If we couldn't decode the image but have received all the data, decoding
   // has failed.
-  if (!reader_->Decode(decoding_mode) && IsAllDataReceived())
+  if (!reader_->Decode(decoding_mode) && IsAllDataReceived()) {
     SetFailed();
+  }
 
   // If decoding is done or failed, we don't need the JPEGImageReader anymore.
-  if (IsComplete(this, decoding_mode) || Failed())
+  if (IsComplete(this, decoding_mode) || Failed()) {
     reader_.reset();
+  }
 }
 
 }  // namespace blink

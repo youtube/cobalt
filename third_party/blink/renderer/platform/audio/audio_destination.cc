@@ -32,21 +32,27 @@
 #include <memory>
 #include <utility>
 
+#include "base/feature_list.h"
 #include "base/metrics/histogram.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_bus.h"
+#include "media/base/audio_glitch_info.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/platform/modules/webrtc/webrtc_logging.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/web_audio_latency_hint.h"
 #include "third_party/blink/public/platform/web_audio_sink_descriptor.h"
 #include "third_party/blink/renderer/platform/audio/audio_utilities.h"
-#include "third_party/blink/renderer/platform/audio/push_pull_fifo.h"
 #include "third_party/blink/renderer/platform/audio/vector_math.h"
 #include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/scheduler/public/post_cross_thread_task.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_copier_base.h"
+#include "third_party/blink/renderer/platform/wtf/cross_thread_copier_media.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 
 // For BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -56,19 +62,13 @@ namespace blink {
 
 namespace {
 
-// FIFO Size.
-//
-// TODO(hongchan): This was estimated based on the largest callback buffer size
-// that we would ever need. The current UMA stats indicates that this is, in
-// fact, probably too small. There are Android devices out there with a size of
-// 8000 or so.  We might need to make this larger. See: crbug.com/670747
-#if BUILDFLAG(IS_COBALT)
-// TODO(b/376903291): The change will not be needed after we rebase to m126 or
-// later version.
+// This FIFO size of 16,384 was chosen based on the UMA data. It's the nearest
+// multiple of 128 to 16,354 sample-frames, which represents 100% of the
+// histogram from "WebAudio.AudioDestination.HardwareBufferSize".
+// Although a buffer this big is atypical, some Android phones with a Bluetooth
+// audio device report a large buffer size. This redundancy allows such device
+// to play audio via Web Audio API.
 constexpr uint32_t kFIFOSize = 128 * 128;
-#else   // BUILDFLAG(IS_COBALT)
-constexpr uint32_t kFIFOSize = 96 * 128;
-#endif  // BUILDFLAG(IS_COBALT)
 
 const char* DeviceStateToString(AudioDestination::DeviceState state) {
   switch (state) {
@@ -81,6 +81,27 @@ const char* DeviceStateToString(AudioDestination::DeviceState state) {
   }
 }
 
+bool BypassOutputBuffer(const WebAudioLatencyHint& latency_hint) {
+  if (RuntimeEnabledFeatures::WebAudioBypassOutputBufferingOptOutEnabled()) {
+    return false;
+  }
+  if (!RuntimeEnabledFeatures::WebAudioBypassOutputBufferingEnabled()) {
+    return false;
+  }
+  switch (latency_hint.Category()) {
+    case WebAudioLatencyHint::kCategoryInteractive:
+      return features::kWebAudioBypassOutputBufferingInteractive.Get();
+    case WebAudioLatencyHint::kCategoryBalanced:
+      return features::kWebAudioBypassOutputBufferingBalanced.Get();
+    case WebAudioLatencyHint::kCategoryPlayback:
+      return features::kWebAudioBypassOutputBufferingPlayback.Get();
+    case WebAudioLatencyHint::kCategoryExact:
+      return features::kWebAudioBypassOutputBufferingExact.Get();
+    default:
+      return false;
+  }
+}
+
 }  // namespace
 
 scoped_refptr<AudioDestination> AudioDestination::Create(
@@ -88,7 +109,7 @@ scoped_refptr<AudioDestination> AudioDestination::Create(
     const WebAudioSinkDescriptor& sink_descriptor,
     unsigned number_of_output_channels,
     const WebAudioLatencyHint& latency_hint,
-    absl::optional<float> context_sample_rate,
+    std::optional<float> context_sample_rate,
     unsigned render_quantum_frames) {
   TRACE_EVENT0("webaudio", "AudioDestination::Create");
   return base::AdoptRef(
@@ -105,17 +126,19 @@ int AudioDestination::Render(base::TimeDelta delay,
                              base::TimeTicks delay_timestamp,
                              const media::AudioGlitchInfo& glitch_info,
                              media::AudioBus* dest) {
+  base::TimeTicks start_timestamp = base::TimeTicks::Now();
   const uint32_t number_of_frames = dest->frames();
-  const double delay_seconds = delay.InSecondsF();
-  const double delay_timestamp_seconds =
-      (delay_timestamp - base::TimeTicks()).InSecondsF();
 
-  TRACE_EVENT_BEGIN1("webaudio", "AudioDestination::Render",
-                     "callback_buffer_size", number_of_frames);
+  TRACE_EVENT("webaudio", "AudioDestination::Render", "frames",
+              number_of_frames, "playout_delay (ms)", delay.InMillisecondsF(),
+              "delay_timestamp (ms)",
+              (delay_timestamp - base::TimeTicks()).InMillisecondsF());
+  glitch_info.MaybeAddTraceEvent();
+
   CHECK_EQ(static_cast<size_t>(dest->channels()), number_of_output_channels_);
   CHECK_EQ(number_of_frames, callback_buffer_size_);
 
-  if (!is_latency_metric_collected_ && delay_seconds != 0.0) {
+  if (!is_latency_metric_collected_ && delay.is_positive()) {
     // With the advanced distribution profile for a Bluetooth device
     // (potentially devices with the largest latency), the known latency is
     // around 100 ~ 150ms. Using a "linear" histogram where all buckets are
@@ -123,7 +146,7 @@ int AudioDestination::Render(base::TimeDelta delay,
     base::HistogramBase* histogram = base::LinearHistogram::FactoryGet(
         "WebAudio.AudioDestination.HardwareOutputLatency", 0, 200, 100,
         base::HistogramBase::kUmaTargetedHistogramFlag);
-    histogram->Add(static_cast<int32_t>(delay_seconds * 1000));
+    histogram->Add(base::saturated_cast<int32_t>(delay.InMillisecondsF()));
     is_latency_metric_collected_ = true;
   }
 
@@ -135,60 +158,148 @@ int AudioDestination::Render(base::TimeDelta delay,
         "webaudio",
         "AudioDestination::Render - FIFO not ready or the size is too small",
         TRACE_EVENT_SCOPE_THREAD, "fifo length", fifo_ ? fifo_->length() : 0);
-    TRACE_EVENT_END2("webaudio", "AudioDestination::Render", "timestamp (s)",
-                     delay_timestamp_seconds, "delay (s)", delay_seconds);
     return 0;
   }
 
-  // Associate the destination data array with the output bus then fill the
-  // FIFO.
+  // Associate the destination data array with the output bus.
   for (unsigned i = 0; i < number_of_output_channels_; ++i) {
     output_bus_->SetChannelMemory(i, dest->channel(i), number_of_frames);
   }
 
-  if (worklet_task_runner_) {
-    // Use the dual-thread rendering if the AudioWorklet is activated.
-    const size_t frames_to_render =
-        fifo_->PullAndUpdateEarmark(output_bus_.get(), number_of_frames);
-    PostCrossThreadTask(
-        *worklet_task_runner_, FROM_HERE,
-        CrossThreadBindOnce(&AudioDestination::RequestRender,
-                            WrapRefCounted(this), number_of_frames,
-                            frames_to_render, delay_seconds,
-                            delay_timestamp_seconds));
-  } else {
-    // Otherwise use the single-thread rendering.
-    const size_t frames_to_render =
-        fifo_->Pull(output_bus_.get(), number_of_frames);
-    RequestRender(number_of_frames, frames_to_render, delay_seconds,
-                  delay_timestamp_seconds);
-  }
-  TRACE_EVENT_END2("webaudio", "AudioDestination::Render", "timestamp (s)",
-                   delay_timestamp_seconds, "delay (s)", delay_seconds);
+  if (is_output_buffer_bypassed_) {
+    // Fill the FIFO if necessary.
+    const uint32_t frames_available = fifo_->GetFramesAvailable();
+    const uint32_t frames_to_render = number_of_frames > frames_available
+                                          ? number_of_frames - frames_available
+                                          : 0;
+    if (worklet_task_runner_) {
+      // Use the dual-thread rendering if the AudioWorklet is activated.
+      output_buffer_bypass_wait_event_.Reset();
+      PostCrossThreadTask(
+          *worklet_task_runner_, FROM_HERE,
+          CrossThreadBindOnce(
+              &AudioDestination::RequestRenderWait, WrapRefCounted(this),
+              number_of_frames, frames_to_render, delay, delay_timestamp,
+              glitch_info, /*request_timestamp=*/base::TimeTicks::Now()));
+      {
+        TRACE_EVENT0("webaudio", "AudioDestination::Render waiting");
+        base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_wait;
+        // This is `Wait()`ing on the audio render thread for a `Signal()` from
+        // the `worklet_task_runner_` thread, which will come from
+        // `RequestRenderWait()`.
+        //
+        // `WaitableEvent` should generally not be allowed on the real-time
+        // audio threads. In particular, no other code executed on the worklet
+        // task runner thread should be using `WaitableEvent`. Additionally, the
+        // below should be the only call to `Wait()` in `AudioDestination`.
+        // Both the `Wait()` and `Signal()` should only be executed when the
+        // kWebAudioBypassOutputBuffering flag is enabled, for testing output
+        // latency differences when the output buffer is bypassed.
+        //
+        // As long as the above is true, it is not possible to deadlock or have
+        // both threads waiting on each other. There is, however, no guarantee
+        // that the task runner will finish within the real-time budget.
+        output_buffer_bypass_wait_event_.Wait();
+      }
+    } else {
+      // Otherwise use the single-thread rendering.
+      state_change_underrun_in_bypass_mode_ = !RequestRender(
+          number_of_frames, frames_to_render, delay, delay_timestamp,
+          glitch_info, /*request_timestamp=*/base::TimeTicks::Now());
+    }
 
-  return number_of_frames;
+    const uint32_t frames_after_render = fifo_->GetFramesAvailable();
+    if (frames_after_render < number_of_frames) {
+      // This can happen if the device has stopped or is stopping when
+      // `Render()` is called.
+      CHECK(state_change_underrun_in_bypass_mode_);
+      output_bus_->Zero();
+      fifo_->Pull(output_bus_.get(), frames_after_render);
+      uma_reporter_.AddRenderDuration(/*duration=*/base::TimeTicks::Now() -
+                                      start_timestamp);
+      return frames_after_render;
+    } else {
+      fifo_->Pull(output_bus_.get(), number_of_frames);
+      uma_reporter_.AddRenderDuration(/*duration=*/base::TimeTicks::Now() -
+                                      start_timestamp);
+      return number_of_frames;
+    }
+
+  } else {
+    // Fill the FIFO.
+    if (worklet_task_runner_) {
+      // Use the dual-thread rendering if the AudioWorklet is activated.
+      auto result =
+          fifo_->PullAndUpdateEarmark(output_bus_.get(), number_of_frames);
+      // The audio that we just pulled from the fifo will be played before the
+      // audio that we are about to request, so we add that duration to the
+      // delay of the audio we request. Note that it doesn't matter if there was
+      // a fifo underrun, the delay will be the same either way.
+      delay += audio_utilities::FramesToTime(number_of_frames,
+                                             web_audio_device_->SampleRate());
+
+      media::AudioGlitchInfo combined_glitch_info = glitch_info;
+      bool has_fifo_underrun_occurred = false;
+      if (result.frames_provided < number_of_frames) {
+        media::AudioGlitchInfo underrun{
+            // FIFO contains audio at the output device sample rate.
+            .duration = audio_utilities::FramesToTime(
+                number_of_frames - result.frames_provided,
+                web_audio_device_->SampleRate()),
+            .count = 1};
+        underrun.MaybeAddTraceEvent();
+        combined_glitch_info += underrun;
+        has_fifo_underrun_occurred = true;
+      }
+
+      PostCrossThreadTask(
+          *worklet_task_runner_, FROM_HERE,
+          CrossThreadBindOnce(IgnoreResult(&AudioDestination::RequestRender),
+                              WrapRefCounted(this), number_of_frames,
+                              result.frames_to_render, delay, delay_timestamp,
+                              combined_glitch_info,
+                              /*request_timestamp=*/base::TimeTicks::Now(),
+                              has_fifo_underrun_occurred));
+    } else {
+      // Otherwise use the single-thread rendering.
+      const size_t frames_to_render =
+          fifo_->Pull(output_bus_.get(), number_of_frames);
+      // The audio that we just pulled from the fifo will be played before the
+      // audio that we are about to request, so we add that duration to the
+      // delay of the audio we request.
+      delay += audio_utilities::FramesToTime(number_of_frames,
+                                             web_audio_device_->SampleRate());
+      RequestRender(number_of_frames, frames_to_render, delay, delay_timestamp,
+                    glitch_info, /*request_timestamp=*/base::TimeTicks::Now());
+    }
+    uma_reporter_.AddRenderDuration(/*duration=*/base::TimeTicks::Now() -
+                                    start_timestamp);
+    return number_of_frames;
+  }
 }
 
 void AudioDestination::OnRenderError() {
-  // TODO(crbug.com/1406088)
+  DCHECK(IsMainThread());
+
+  callback_->OnRenderError();
 }
 
 void AudioDestination::Start() {
   DCHECK(IsMainThread());
   TRACE_EVENT0("webaudio", "AudioDestination::Start");
-  SendLogMessage(String::Format("%s", __func__));
+  SendLogMessage(__func__, "");
 
   if (device_state_ != DeviceState::kStopped) {
     return;
   }
-  web_audio_device_->Start();
   SetDeviceState(DeviceState::kRunning);
+  web_audio_device_->Start();
 }
 
 void AudioDestination::Stop() {
   DCHECK(IsMainThread());
   TRACE_EVENT0("webaudio", "AudioDestination::Stop");
-  SendLogMessage(String::Format("%s", __func__));
+  SendLogMessage(__func__, "");
 
   if (device_state_ == DeviceState::kStopped) {
     return;
@@ -206,7 +317,7 @@ void AudioDestination::Stop() {
 void AudioDestination::Pause() {
   DCHECK(IsMainThread());
   TRACE_EVENT0("webaudio", "AudioDestination::Pause");
-  SendLogMessage(String::Format("%s", __func__));
+  SendLogMessage(__func__, "");
 
   if (device_state_ != DeviceState::kRunning) {
     return;
@@ -218,13 +329,13 @@ void AudioDestination::Pause() {
 void AudioDestination::Resume() {
   DCHECK(IsMainThread());
   TRACE_EVENT0("webaudio", "AudioDestination::Resume");
-  SendLogMessage(String::Format("%s", __func__));
+  SendLogMessage(__func__, "");
 
   if (device_state_ != DeviceState::kPaused) {
     return;
   }
-  web_audio_device_->Resume();
   SetDeviceState(DeviceState::kRunning);
+  web_audio_device_->Resume();
 }
 
 void AudioDestination::SetWorkletTaskRunner(
@@ -241,26 +352,27 @@ void AudioDestination::SetWorkletTaskRunner(
   // accordingly.
   fifo_->SetEarmarkFrames(callback_buffer_size_);
   worklet_task_runner_ = std::move(worklet_task_runner);
+
+  uma_reporter_.UpdateMetricNameForDualThreadMode();
 }
 
 void AudioDestination::StartWithWorkletTaskRunner(
     scoped_refptr<base::SingleThreadTaskRunner> worklet_task_runner) {
   DCHECK(IsMainThread());
   TRACE_EVENT0("webaudio", "AudioDestination::StartWithWorkletTaskRunner");
-  SendLogMessage(String::Format("%s", __func__));
+  SendLogMessage(__func__, "");
 
   if (device_state_ != DeviceState::kStopped) {
     return;
   }
 
   SetWorkletTaskRunner(worklet_task_runner);
-  web_audio_device_->Start();
   SetDeviceState(DeviceState::kRunning);
+  web_audio_device_->Start();
 }
 
 bool AudioDestination::IsPlaying() {
   DCHECK(IsMainThread());
-  base::AutoLock locker(device_state_lock_);
   return device_state_ == DeviceState::kRunning;
 }
 
@@ -269,7 +381,6 @@ double AudioDestination::SampleRate() const {
 }
 
 uint32_t AudioDestination::CallbackBufferSize() const {
-  DCHECK(IsMainThread());
   return callback_buffer_size_;
 }
 
@@ -278,7 +389,13 @@ int AudioDestination::FramesPerBuffer() const {
   return web_audio_device_->FramesPerBuffer();
 }
 
-uint32_t AudioDestination::MaxChannelCount() {
+base::TimeDelta AudioDestination::GetPlatformBufferDuration() const {
+  DCHECK(IsMainThread());
+  return audio_utilities::FramesToTime(web_audio_device_->FramesPerBuffer(),
+                                       web_audio_device_->SampleRate());
+}
+
+uint32_t AudioDestination::MaxChannelCount() const {
   return web_audio_device_->MaxChannelCount();
 }
 
@@ -286,14 +403,10 @@ void AudioDestination::SetDetectSilence(bool detect_silence) {
   DCHECK(IsMainThread());
   TRACE_EVENT1("webaudio", "AudioDestination::SetDetectSilence",
                "detect_silence", detect_silence);
-  SendLogMessage(
-      String::Format("%s({detect_silence=%d})", __func__, detect_silence));
+  SendLogMessage(__func__,
+                 String::Format("({detect_silence=%d})", detect_silence));
 
   web_audio_device_->SetDetectSilence(detect_silence);
-}
-
-unsigned AudioDestination::RenderQuantumFrames() const {
-  return render_quantum_frames_;
 }
 
 AudioDestination::AudioDestination(
@@ -301,12 +414,13 @@ AudioDestination::AudioDestination(
     const WebAudioSinkDescriptor& sink_descriptor,
     unsigned number_of_output_channels,
     const WebAudioLatencyHint& latency_hint,
-    absl::optional<float> context_sample_rate,
+    std::optional<float> context_sample_rate,
     unsigned render_quantum_frames)
     : web_audio_device_(
           Platform::Current()->CreateAudioDevice(sink_descriptor,
                                                  number_of_output_channels,
                                                  latency_hint,
+                                                 context_sample_rate,
                                                  this)),
       callback_buffer_size_(
           web_audio_device_ ? web_audio_device_->FramesPerBuffer() : 0),
@@ -325,18 +439,27 @@ AudioDestination::AudioDestination(
                                    false)),
       render_bus_(
           AudioBus::Create(number_of_output_channels, render_quantum_frames)),
-      callback_(callback) {
+      callback_(callback),
+      uma_reporter_(
+          AudioDestinationUmaReporter(latency_hint,
+                                      callback_buffer_size_,
+                                      web_audio_device_->SampleRate())),
+      is_output_buffer_bypassed_(BypassOutputBuffer(latency_hint)) {
   CHECK(web_audio_device_);
 
-  SendLogMessage(String::Format("%s({output_channels=%u})", __func__,
-                                number_of_output_channels));
-  SendLogMessage(
-      String::Format("%s => (FIFO size=%u bytes)", __func__, fifo_->length()));
+  SendLogMessage(__func__, String::Format("({output_channels=%u})",
+                                          number_of_output_channels));
+  SendLogMessage(__func__,
+                 String::Format("=> (FIFO size=%u bytes)", fifo_->length()));
 
-  SendLogMessage(String::Format("%s => (device callback buffer size=%u frames)",
-                                __func__, callback_buffer_size_));
-  SendLogMessage(String::Format("%s => (device sample rate=%.0f Hz)", __func__,
-                                web_audio_device_->SampleRate()));
+  SendLogMessage(__func__,
+                 String::Format("=> (device callback buffer size=%u frames)",
+                                callback_buffer_size_));
+  SendLogMessage(__func__, String::Format("=> (device sample rate=%.0f Hz)",
+                                          web_audio_device_->SampleRate()));
+  SendLogMessage(__func__,
+                 String::Format("Output buffer bypass: %s",
+                                is_output_buffer_bypassed_ ? "yes" : "no"));
 
   TRACE_EVENT1("webaudio", "AudioDestination::AudioDestination",
                "sink information",
@@ -348,20 +471,25 @@ AudioDestination::AudioDestination(
   metric_reporter_.Initialize(
       callback_buffer_size_, web_audio_device_->SampleRate());
 
-  // Primes the FIFO for the given callback buffer size. This is to prevent
-  // first FIFO pulls from causing "underflow" errors.
-  const unsigned priming_render_quanta =
-      ceil(callback_buffer_size_ / static_cast<float>(render_quantum_frames));
-  for (unsigned i = 0; i < priming_render_quanta; ++i) {
-    fifo_->Push(render_bus_.get());
+  if (!is_output_buffer_bypassed_) {
+    // Primes the FIFO for the given callback buffer size. This is to prevent
+    // first FIFO pulls from causing "underflow" errors.
+    const unsigned priming_render_quanta =
+        ceil(callback_buffer_size_ / static_cast<float>(render_quantum_frames));
+    for (unsigned i = 0; i < priming_render_quanta; ++i) {
+      fifo_->Push(render_bus_.get());
+    }
   }
 
   double scale_factor = 1.0;
 
-  if (context_sample_rate_ != web_audio_device_->SampleRate()) {
+  if (!base::FeatureList::IsEnabled(
+          features::kWebAudioRemoveAudioDestinationResampler) &&
+      context_sample_rate_ != web_audio_device_->SampleRate()) {
     scale_factor = context_sample_rate_ / web_audio_device_->SampleRate();
-    SendLogMessage(String::Format("%s => (resampling from %0.f Hz to %0.f Hz)",
-                                  __func__, context_sample_rate.value(),
+    SendLogMessage(__func__,
+                   String::Format("=> (resampling from %0.f Hz to %0.f Hz)",
+                                  context_sample_rate.value(),
                                   web_audio_device_->SampleRate()));
 
     resampler_ = std::make_unique<MediaMultiChannelResampler>(
@@ -370,14 +498,19 @@ AudioDestination::AudioDestination(
                                  CrossThreadUnretained(this)));
     resampler_bus_ =
         media::AudioBus::CreateWrapper(render_bus_->NumberOfChannels());
-    for (unsigned int i = 0; i < render_bus_->NumberOfChannels(); ++i) {
-      resampler_bus_->SetChannelData(i, render_bus_->Channel(i)->MutableData());
-    }
     resampler_bus_->set_frames(render_bus_->length());
+    for (unsigned int i = 0; i < render_bus_->NumberOfChannels(); ++i) {
+      // TODO(crbug.com/375449662): Spanify `AudioChannel::MuteableData`.
+      resampler_bus_->SetChannelData(
+          i, UNSAFE_TODO(base::span(
+                 render_bus_->Channel(i)->MutableData(),
+                 base::checked_cast<size_t>(render_bus_->length()))));
+    }
   } else {
-    SendLogMessage(String::Format(
-        "%s => (no resampling: context sample rate set to %0.f Hz)", __func__,
-        context_sample_rate_));
+    SendLogMessage(
+        __func__,
+        String::Format("=> (no resampling: context sample rate set to %0.f Hz)",
+                       context_sample_rate_));
   }
 
   // Record the sizes if we successfully created an output device.
@@ -418,46 +551,80 @@ void AudioDestination::SetDeviceState(DeviceState state) {
   device_state_ = state;
 }
 
-void AudioDestination::RequestRender(size_t frames_requested,
-                                     size_t frames_to_render,
-                                     double delay,
-                                     double delay_timestamp) {
-  TRACE_EVENT2("webaudio", "AudioDestination::RequestRender",
-               "frames_to_render", frames_to_render, "timestamp (s)",
-               delay_timestamp);
+void AudioDestination::RequestRenderWait(
+    size_t frames_requested,
+    size_t frames_to_render,
+    base::TimeDelta delay,
+    base::TimeTicks delay_timestamp,
+    const media::AudioGlitchInfo& glitch_info,
+    base::TimeTicks request_timestamp) {
+  state_change_underrun_in_bypass_mode_ =
+      !RequestRender(frames_requested, frames_to_render, delay, delay_timestamp,
+                     glitch_info, request_timestamp);
+  output_buffer_bypass_wait_event_.Signal();
+}
 
+bool AudioDestination::RequestRender(size_t frames_requested,
+                                     size_t frames_to_render,
+                                     base::TimeDelta delay,
+                                     base::TimeTicks delay_timestamp,
+                                     const media::AudioGlitchInfo& glitch_info,
+                                     base::TimeTicks request_timestamp,
+                                     bool has_fifo_underrun_occurred) {
+  base::TimeTicks start_timestamp = base::TimeTicks::Now();
+  uma_reporter_.AddRequestRenderGapDuration(start_timestamp -
+                                            request_timestamp);
   base::AutoTryLock locker(device_state_lock_);
+
+  TRACE_EVENT("webaudio", "AudioDestination::RequestRender", "frames_requested",
+              frames_requested, "frames_to_render", frames_to_render,
+              "delay_timestamp (ms)",
+              (delay_timestamp - base::TimeTicks()).InMillisecondsF(),
+              "playout_delay (ms)", delay.InMillisecondsF(), "delay (frames)",
+              fifo_->GetFramesAvailable());
 
   // The state might be changing by ::Stop() call. If the state is locked, do
   // not touch the below.
   if (!locker.is_acquired()) {
-    return;
+    return false;
   }
 
   if (device_state_ != DeviceState::kRunning) {
-    return;
+    return false;
   }
 
   metric_reporter_.BeginTrace();
 
   if (frames_elapsed_ == 0) {
-    SendLogMessage(String::Format("%s => (rendering is now alive)", __func__));
+    SendLogMessage(__func__, String::Format("=> (rendering is now alive)"));
   }
+
+  // FIFO contains audio at the output device sample rate.
+  base::TimeDelta fifo_delay = audio_utilities::FramesToTime(
+      fifo_->GetFramesAvailable(), web_audio_device_->SampleRate());
+  uma_reporter_.AddFifoDelay(fifo_delay);
+  if (has_fifo_underrun_occurred) {
+    uma_reporter_.IncreaseFifoUnderrunCount();
+  }
+
+  delay_to_report_ = delay + fifo_delay;
+  glitch_info_to_report_.Add(glitch_info);
 
   output_position_.position =
       frames_elapsed_ / static_cast<double>(web_audio_device_->SampleRate()) -
-      delay;
-  output_position_.timestamp = delay_timestamp;
-  output_position_.hardware_output_latency = delay;
+      delay.InSecondsF();
+  output_position_.timestamp =
+      (delay_timestamp - base::TimeTicks()).InSecondsF();
+  output_position_.hardware_output_latency = delay.InSecondsF();
   const base::TimeTicks callback_request = base::TimeTicks::Now();
 
   for (size_t pushed_frames = 0; pushed_frames < frames_to_render;
-       pushed_frames += RenderQuantumFrames()) {
+       pushed_frames += render_quantum_frames_) {
     // If platform buffer is more than two times longer than
     // `RenderQuantumFrames` we do not want output position to get stuck so we
     // promote it using the elapsed time from the moment it was initially
     // obtained.
-    if (callback_buffer_size_ > RenderQuantumFrames() * 2) {
+    if (callback_buffer_size_ > render_quantum_frames_ * 2) {
       const double delta =
           (base::TimeTicks::Now() - callback_request).InSecondsF();
       output_position_.position += delta;
@@ -470,12 +637,13 @@ void AudioDestination::RequestRender(size_t frames_requested,
       output_position_.position = 0.0;
     }
 
+    // Process WebAudio graph and push the rendered output to FIFO.
     if (resampler_) {
-      resampler_->ResampleInternal(RenderQuantumFrames(), resampler_bus_.get());
+      resampler_->ResampleInternal(render_quantum_frames_,
+                                   resampler_bus_.get());
     } else {
       // Process WebAudio graph and push the rendered output to FIFO.
-      callback_.Render(render_bus_.get(), RenderQuantumFrames(),
-                       output_position_, metric_reporter_.GetMetric());
+      PullFromCallback(render_bus_.get(), delay_to_report_);
     }
 
     fifo_->Push(render_bus_.get());
@@ -483,25 +651,43 @@ void AudioDestination::RequestRender(size_t frames_requested,
 
   frames_elapsed_ += frames_requested;
 
+  uma_reporter_.Report();
   metric_reporter_.EndTrace();
+  uma_reporter_.AddRequestRenderDuration(/*duration=*/base::TimeTicks::Now() -
+                                         start_timestamp);
+  return true;
 }
 
 void AudioDestination::ProvideResamplerInput(int resampler_frame_delay,
                                              AudioBus* dest) {
-  callback_.Render(dest, RenderQuantumFrames(), output_position_,
-                   metric_reporter_.GetMetric());
+  // Resampler delay is audio frames at the context sample rate, before
+  // resampling.
+  TRACE_EVENT("webaudio", "AudioDestination::ProvideResamplerInput",
+              "delay (frames)", resampler_frame_delay);
+  auto adjusted_delay = delay_to_report_ + audio_utilities::FramesToTime(
+      resampler_frame_delay, context_sample_rate_);;
+  PullFromCallback(dest, adjusted_delay);
 }
 
-void AudioDestination::SendLogMessage(const String& message) const {
-  WebRtcLogMessage(String::Format("[WA]AD::%s [state=%s]",
+void AudioDestination::PullFromCallback(AudioBus* destination_bus,
+                                        base::TimeDelta delay) {
+  uma_reporter_.AddTotalPlayoutDelay(delay);
+  callback_->Render(destination_bus, render_quantum_frames_, output_position_,
+                    metric_reporter_.GetMetric(), delay,
+                    glitch_info_to_report_.GetAndReset());
+}
+
+media::OutputDeviceStatus AudioDestination::MaybeCreateSinkAndGetStatus() {
+  TRACE_EVENT0("webaudio", "AudioDestination::MaybeCreateSinkAndGetStatus");
+  return web_audio_device_->MaybeCreateSinkAndGetStatus();
+}
+
+void AudioDestination::SendLogMessage(const char* const function_name,
+                                      const String& message) const {
+  WebRtcLogMessage(String::Format("[WA]AD::%s %s [state=%s]", function_name,
                                   message.Utf8().c_str(),
                                   DeviceStateToString(device_state_))
                        .Utf8());
-}
-
-media::OutputDeviceStatus AudioDestination::CreateSinkAndGetDeviceStatus() {
-  TRACE_EVENT0("webaudio", "AudioDestination::CreateSinkAndGetDeviceStatus");
-  return web_audio_device_->CreateSinkAndGetDeviceStatus();
 }
 
 }  // namespace blink

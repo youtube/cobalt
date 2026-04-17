@@ -100,7 +100,7 @@ class ThreadSafeChannelProxy : public mojo::ThreadSafeProxy {
 
   const scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
   const Forwarder forwarder_;
-  const raw_ref<mojo::AssociatedGroupController, DanglingUntriaged>
+  const raw_ref<mojo::AssociatedGroupController, AcrossTasksDanglingUntriaged>
       group_controller_;
 };
 
@@ -312,7 +312,7 @@ void ChannelMojo::OnBrokenDataReceived() {
 // static
 MojoResult ChannelMojo::ReadFromMessageAttachmentSet(
     Message* message,
-    absl::optional<std::vector<mojo::native::SerializedHandlePtr>>* handles) {
+    std::optional<std::vector<mojo::native::SerializedHandlePtr>>* handles) {
   DCHECK(!*handles);
 
   MojoResult result = MOJO_RESULT_OK;
@@ -341,7 +341,7 @@ MojoResult ChannelMojo::ReadFromMessageAttachmentSet(
 
 // static
 MojoResult ChannelMojo::WriteToMessageAttachmentSet(
-    absl::optional<std::vector<mojo::native::SerializedHandlePtr>> handles,
+    std::optional<std::vector<mojo::native::SerializedHandlePtr>> handles,
     Message* message) {
   if (!handles)
     return MOJO_RESULT_OK;
@@ -390,6 +390,10 @@ void ChannelMojo::GetRemoteAssociatedInterface(
     // dropped).
     mojo::AssociateWithDisconnectedPipe(receiver.PassHandle());
   }
+}
+
+void ChannelMojo::SetUrgentMessageObserver(UrgentMessageObserver* observer) {
+  bootstrap_->SetUrgentMessageObserver(observer);
 }
 
 }  // namespace IPC

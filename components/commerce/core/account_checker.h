@@ -5,12 +5,14 @@
 #ifndef COMPONENTS_COMMERCE_CORE_ACCOUNT_CHECKER_H_
 #define COMPONENTS_COMMERCE_CORE_ACCOUNT_CHECKER_H_
 
+#include <string>
+
 #include "base/memory/scoped_refptr.h"
-#include "base/scoped_observation.h"
 #include "components/endpoint_fetcher/endpoint_fetcher.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
-#include "components/signin/public/identity_manager/primary_account_change_event.h"
-#include "components/sync/driver/sync_service.h"
+#include "components/sync/base/data_type.h"
+#include "components/sync/base/user_selectable_type.h"
+#include "components/sync/service/sync_service.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/data_decoder/public/cpp/data_decoder.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -19,34 +21,44 @@ class GURL;
 class PrefService;
 class PrefChangeRegistrar;
 
+namespace base {
+class TimeDelta;
+}  // namespace base
+
 namespace commerce {
 
-extern const char kOAuthScope[];
-extern const char kOAuthName[];
-extern const char kGetHttpMethod[];
-extern const char kPostHttpMethod[];
-extern const char kContentType[];
-extern const char kEmptyPostData[];
 extern const char kNotificationsPrefUrl[];
 
 // Used to check user account status.
-class AccountChecker : public signin::IdentityManager::Observer {
+class AccountChecker {
  public:
   AccountChecker(const AccountChecker&) = delete;
-  ~AccountChecker() override;
+  virtual ~AccountChecker();
 
   virtual bool IsSignedIn();
 
-  // Returns whether bookmarks is currently syncing. This will return true in
-  // cases where sync is still initializing, but the sync feature itself is
-  // enabled.
-  virtual bool IsSyncingBookmarks();
+  // Check whether a specific sync entity is enabled by the user. This means
+  // the user has chosen to sync the provided model type and does not
+  // necessarily mean sync is active.
+  virtual bool IsSyncTypeEnabled(syncer::UserSelectableType type);
+
+  // Check whether sync is available for the user.
+  virtual bool IsSyncAvailable();
 
   virtual bool IsAnonymizedUrlDataCollectionEnabled();
 
-  virtual bool IsWebAndAppActivityEnabled();
-
   virtual bool IsSubjectToParentalControls();
+
+  // Whether a user is allowed to use model execution features.
+  virtual bool CanUseModelExecutionFeatures();
+
+  // Gets the user's country as determined at startup.
+  virtual std::string GetCountry();
+
+  // Gets the user's locale as determine at startup.
+  virtual std::string GetLocale();
+
+  virtual PrefService* GetPrefs();
 
  protected:
   friend class ShoppingService;
@@ -54,6 +66,8 @@ class AccountChecker : public signin::IdentityManager::Observer {
 
   // This class should only be initialized in ShoppingService.
   AccountChecker(
+      std::string country,
+      std::string locale,
       PrefService* pref_service,
       signin::IdentityManager* identity_manager,
       syncer::SyncService* sync_service,
@@ -63,35 +77,17 @@ class AccountChecker : public signin::IdentityManager::Observer {
   void FetchPriceEmailPref();
 
   // This method could be overridden in tests.
-  virtual std::unique_ptr<EndpointFetcher> CreateEndpointFetcher(
-      const std::string& oauth_consumer_name,
-      const GURL& url,
-      const std::string& http_method,
-      const std::string& content_type,
-      const std::vector<std::string>& scopes,
-      int64_t timeout_ms,
-      const std::string& post_data,
-      const net::NetworkTrafficAnnotationTag& annotation_tag);
+  virtual std::unique_ptr<endpoint_fetcher::EndpointFetcher>
+  CreateEndpointFetcher(const std::string& oauth_consumer_name,
+                        const GURL& url,
+                        const std::string& http_method,
+                        const std::string& content_type,
+                        const std::vector<std::string>& scopes,
+                        const base::TimeDelta& timeout,
+                        const std::string& post_data,
+                        const net::NetworkTrafficAnnotationTag& annotation_tag);
 
  private:
-  void OnPrimaryAccountChanged(
-      const signin::PrimaryAccountChangeEvent& event_details) override;
-
-  // Fetch users' consent status on web and app activity.
-  void FetchWaaStatus();
-
-  // Handle the responses for fetching users' web and app activity consent
-  // status.
-  void HandleFetchWaaResponse(
-      // Passing the endpoint_fetcher ensures the endpoint_fetcher's
-      // lifetime extends to the callback and is not destroyed
-      // prematurely (which would result in cancellation of the request).
-      // TODO(crbug.com/1362026): Avoid passing this fetcher.
-      std::unique_ptr<EndpointFetcher> endpoint_fetcher,
-      std::unique_ptr<EndpointResponse> responses);
-
-  void OnFetchWaaJsonParsed(data_decoder::DataDecoder::ValueOrError result);
-
   // Called when the pref value on whether to receive price tracking emails
   // changes. We need to send the new value to server unless the change is
   // triggered by aligning with the server fetched value.
@@ -101,9 +97,9 @@ class AccountChecker : public signin::IdentityManager::Observer {
       // Passing the endpoint_fetcher ensures the endpoint_fetcher's
       // lifetime extends to the callback and is not destroyed
       // prematurely (which would result in cancellation of the request).
-      // TODO(crbug.com/1362026): Avoid passing this fetcher.
-      std::unique_ptr<EndpointFetcher> endpoint_fetcher,
-      std::unique_ptr<EndpointResponse> responses);
+      // TODO(crbug.com/40238190): Avoid passing this fetcher.
+      std::unique_ptr<endpoint_fetcher::EndpointFetcher> endpoint_fetcher,
+      std::unique_ptr<endpoint_fetcher::EndpointResponse> responses);
 
   void OnSendPriceEmailPrefJsonParsed(
       data_decoder::DataDecoder::ValueOrError result);
@@ -112,22 +108,22 @@ class AccountChecker : public signin::IdentityManager::Observer {
       // Passing the endpoint_fetcher ensures the endpoint_fetcher's
       // lifetime extends to the callback and is not destroyed
       // prematurely (which would result in cancellation of the request).
-      // TODO(crbug.com/1362026): Avoid passing this fetcher.
-      std::unique_ptr<EndpointFetcher> endpoint_fetcher,
-      std::unique_ptr<EndpointResponse> responses);
+      // TODO(crbug.com/40238190): Avoid passing this fetcher.
+      std::unique_ptr<endpoint_fetcher::EndpointFetcher> endpoint_fetcher,
+      std::unique_ptr<endpoint_fetcher::EndpointResponse> responses);
 
   void OnFetchPriceEmailPrefJsonParsed(
       data_decoder::DataDecoder::ValueOrError result);
+
+  std::string country_;
+
+  std::string locale_;
 
   raw_ptr<PrefService> pref_service_;
 
   raw_ptr<signin::IdentityManager> identity_manager_;
 
   raw_ptr<syncer::SyncService> sync_service_;
-
-  base::ScopedObservation<signin::IdentityManager,
-                          signin::IdentityManager::Observer>
-      scoped_identity_manager_observation_{this};
 
   const scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
 

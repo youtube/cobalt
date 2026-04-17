@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/dns/public/win_dns_system_settings.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
@@ -92,7 +97,7 @@ TEST(WinDnsSystemSettings, GetAllNameServersEmpty) {
 
   WinDnsSystemSettings settings;
   settings.addresses = CreateAdapterAddresses(infos);
-  absl::optional<std::vector<IPEndPoint>> nameservers =
+  std::optional<std::vector<IPEndPoint>> nameservers =
       settings.GetAllNameservers();
   EXPECT_TRUE(nameservers.has_value());
   EXPECT_TRUE(nameservers.value().empty());
@@ -116,7 +121,7 @@ TEST(WinDnsSystemSettings, GetAllNameServersStatelessDiscoveryAdresses) {
 
   WinDnsSystemSettings settings;
   settings.addresses = CreateAdapterAddresses(infos);
-  absl::optional<std::vector<IPEndPoint>> nameservers =
+  std::optional<std::vector<IPEndPoint>> nameservers =
       settings.GetAllNameservers();
   EXPECT_TRUE(nameservers.has_value());
   EXPECT_TRUE(nameservers.value().empty());
@@ -139,7 +144,7 @@ TEST(WinDnsSystemSettings, GetAllNameServersValid) {
 
   WinDnsSystemSettings settings;
   settings.addresses = CreateAdapterAddresses(infos);
-  absl::optional<std::vector<IPEndPoint>> nameservers =
+  std::optional<std::vector<IPEndPoint>> nameservers =
       settings.GetAllNameservers();
   EXPECT_TRUE(nameservers.has_value());
   EXPECT_EQ(4u, nameservers.value().size());

@@ -10,6 +10,7 @@
 #include "ash/wm/screen_dimmer.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/trace_event/trace_event.h"
 #include "dbus/message.h"
 #include "third_party/cros_system_api/dbus/service_constants.h"
 #include "ui/base/user_activity/user_activity_detector.h"
@@ -22,6 +23,8 @@ void OnDisplayOwnershipChanged(
     dbus::ExportedObject::ResponseSender response_sender,
     std::unique_ptr<dbus::Response> response,
     bool status) {
+  TRACE_EVENT1("ui", "OnDisplayOwnershipChanged", "status", status);
+
   dbus::MessageWriter writer(response.get());
   writer.AppendBool(status);
   std::move(response_sender).Run(std::move(response));
@@ -48,8 +51,7 @@ class DisplayServiceProvider::Impl {
 
 void DisplayServiceProvider::Impl::SetDimming(bool dimmed) {
   if (!screen_dimmer_) {
-    screen_dimmer_ =
-        std::make_unique<ScreenDimmer>(ScreenDimmer::Container::ROOT);
+    screen_dimmer_ = std::make_unique<ScreenDimmer>();
   }
   screen_dimmer_->SetDimming(dimmed);
 }
@@ -162,6 +164,7 @@ void DisplayServiceProvider::SetDisplaySoftwareDimming(
 void DisplayServiceProvider::TakeDisplayOwnership(
     dbus::MethodCall* method_call,
     dbus::ExportedObject::ResponseSender response_sender) {
+  TRACE_EVENT0("ui", "DisplayServiceProvider::TakeDisplayOwnership");
   impl_->TakeDisplayOwnership(
       base::BindOnce(&OnDisplayOwnershipChanged, std::move(response_sender),
                      dbus::Response::FromMethodCall(method_call)));
@@ -170,6 +173,7 @@ void DisplayServiceProvider::TakeDisplayOwnership(
 void DisplayServiceProvider::ReleaseDisplayOwnership(
     dbus::MethodCall* method_call,
     dbus::ExportedObject::ResponseSender response_sender) {
+  TRACE_EVENT0("ui", "DisplayServiceProvider::ReleaseDisplayOwnership");
   impl_->ReleaseDisplayOwnership(
       base::BindOnce(&OnDisplayOwnershipChanged, std::move(response_sender),
                      dbus::Response::FromMethodCall(method_call)));

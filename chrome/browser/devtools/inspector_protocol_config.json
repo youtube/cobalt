@@ -14,7 +14,7 @@
             },
             {
                 "domain": "Browser",
-                "include": [ "getWindowForTarget", "getWindowBounds", "setWindowBounds", "close", "setDockTile", "executeBrowserCommand" ],
+                "include": [ "getWindowForTarget", "getWindowBounds", "setWindowBounds", "close", "setDockTile", "executeBrowserCommand", "addPrivacySandboxEnrollmentOverride" ],
                 "include_events": []
             },
             {
@@ -34,14 +34,30 @@
                 "domain": "WindowManager"
             },
             {
+                "domain": "Extensions",
+                "async": [ "loadUnpacked", "getStorageItems", "setStorageItems", "removeStorageItems", "clearStorageItems", "uninstall" ]
+            },
+            {
                 "domain": "Security",
                 "include": [ "enable", "disable" ],
                 "include_events": [ "visibleSecurityStateChanged" ]
             },
             {
                 "domain": "Storage",
-                "include": ["runBounceTrackingMitigations"],
-                "async": ["runBounceTrackingMitigations"]
+                "include": ["runBounceTrackingMitigations", "getRelatedWebsiteSets", "getAffectedUrlsForThirdPartyCookieMetadata"],
+                "async": ["runBounceTrackingMitigations", "getRelatedWebsiteSets"]
+            },
+            {
+                "domain": "SystemInfo",
+                "include": ["getFeatureState"]
+            },
+            {
+                "domain": "Autofill",
+                "async": [ "setAddresses" ]
+            },
+            {
+                "domain": "PWA",
+                "async": [ "changeAppUserSettings", "getOsAppState", "install", "launch", "launchFilesInApp", "uninstall" ]
             }
         ]
     },

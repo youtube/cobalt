@@ -5,15 +5,16 @@
 #ifndef CHROME_BROWSER_EXTENSIONS_CHROME_TEST_EXTENSION_LOADER_H_
 #define CHROME_BROWSER_EXTENSIONS_CHROME_TEST_EXTENSION_LOADER_H_
 
+#include <optional>
 #include <string>
 
 #include "base/files/file_path.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/memory/raw_ptr.h"
 #include "extensions/common/extension.h"
+#include "extensions/common/extension_id.h"
 #include "extensions/common/manifest.h"
 #include "extensions/common/mojom/manifest.mojom-shared.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 class FilePath;
@@ -24,14 +25,16 @@ class BrowserContext;
 }
 
 namespace extensions {
+class ExtensionRegistrar;
 class ExtensionRegistry;
-class ExtensionService;
 class ExtensionSystem;
 
 // A test class to help with loading packed or unpacked extensions. Designed to
 // be used by both browser tests and unit tests. Note that this should be used
 // for a single extension, and is designed to be used on the stack (rather than
 // as a test suite member).
+// TODO(crbug.com/409252373): Continue sharing more code between android and
+// non-android versions of this class.
 class ChromeTestExtensionLoader {
  public:
   explicit ChromeTestExtensionLoader(content::BrowserContext* browser_context);
@@ -42,9 +45,16 @@ class ChromeTestExtensionLoader {
 
   ~ChromeTestExtensionLoader();
 
-  // Loads the extension specified by |file_path|. Works for both packed and
+  // Loads the extension specified by `file_path`. Works for both packed and
   // unpacked extensions.
   scoped_refptr<const Extension> LoadExtension(const base::FilePath& file_path);
+
+  // A limited asynchronous version of LoadExtension. It only supports unpacked
+  // extensions and the callback is run as soon as the OnExtensionLoaded fires.
+  // It also does not support any of the custom settings below.
+  void LoadUnpackedExtensionAsync(
+      const base::FilePath& file_path,
+      base::OnceCallback<void(const Extension*)> callback);
 
   // Myriad different settings. See the member variable declarations for
   // explanations and defaults.
@@ -89,20 +99,23 @@ class ChromeTestExtensionLoader {
   void set_pem_path(const base::FilePath& pem_path) { pem_path_ = pem_path; }
 
  private:
-  // Packs the extension at |unpacked_path| and returns the path to the created
-  // crx. Note that the created crx is tied to the lifetime of |this|.
+  // Packs the extension at `unpacked_path` and returns the path to the created
+  // crx. Note that the created crx is tied to the lifetime of `this`.
   base::FilePath PackExtension(const base::FilePath& unpacked_path);
 
-  // Loads the crx pointed to by |crx_path|.
+  // Loads the crx pointed to by `crx_path`.
   scoped_refptr<const Extension> LoadCrx(const base::FilePath& crx_path);
 
-  // Loads the unpacked extension pointed to by |unpacked_path|.
+  // Loads the unpacked extension pointed to by `unpacked_path`.
   scoped_refptr<const Extension> LoadUnpacked(
       const base::FilePath& unpacked_path);
 
+  // Adjusts any state necessary for packed extensions before proceeding.
+  void AdjustPackedExtension(const Extension& extension);
+
   // Checks that the permissions of the loaded extension are correct
   // and updates them if necessary.
-  void CheckPermissions(const Extension* extension);
+  void CheckPermissions(const Extension& extension);
 
   // Verifies that the permissions of the loaded extension are correct.
   // Returns false if they are not.
@@ -117,14 +130,14 @@ class ChromeTestExtensionLoader {
   // The associated context and services.
   raw_ptr<content::BrowserContext> browser_context_ = nullptr;
   raw_ptr<ExtensionSystem> extension_system_ = nullptr;
-  raw_ptr<ExtensionService> extension_service_ = nullptr;
+  raw_ptr<ExtensionRegistrar> extension_registrar_ = nullptr;
   raw_ptr<ExtensionRegistry> extension_registry_ = nullptr;
 
   // A temporary directory for packing extensions.
   base::ScopedTempDir temp_dir_;
 
   // The extension id of the loaded extension.
-  std::string extension_id_;
+  ExtensionId extension_id_;
 
   // A provided PEM path to use. If not provided, a temporary one will be
   // created.
@@ -134,7 +147,7 @@ class ChromeTestExtensionLoader {
   std::string expected_id_;
 
   // An install param to use with the loaded extension.
-  absl::optional<std::string> install_param_;
+  std::optional<std::string> install_param_;
 
   // Any creation flags (see Extension::InitFromValueFlags) to use for the
   // extension. Only used for crx installs.
@@ -160,10 +173,10 @@ class ChromeTestExtensionLoader {
   bool grant_permissions_ = true;
 
   // Whether or not to allow file access by default to the extension.
-  absl::optional<bool> allow_file_access_;
+  std::optional<bool> allow_file_access_;
 
   // Whether or not to allow incognito access by default to the extension.
-  absl::optional<bool> allow_incognito_access_;
+  std::optional<bool> allow_incognito_access_;
 
   // Whether or not to ignore manifest warnings during installation.
   bool ignore_manifest_warnings_ = false;
@@ -175,7 +188,7 @@ class ChromeTestExtensionLoader {
   // If unspecified, this will default to true if there is at least one existent
   // renderer and false otherwise (this roughly maps to "true in browser tests,
   // false in unit tests").
-  absl::optional<bool> wait_for_renderers_;
+  std::optional<bool> wait_for_renderers_;
 };
 
 }  // namespace extensions

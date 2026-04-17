@@ -4,9 +4,12 @@
 
 // This file has the unit tests for the IdAllocator class.
 
+#include "gpu/command_buffer/common/id_allocator.h"
+
 #include <stdint.h>
 
-#include "gpu/command_buffer/common/id_allocator.h"
+#include <array>
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace gpu {
@@ -56,7 +59,7 @@ TEST_F(IdAllocatorTest, TestAdvanced) {
 
   // Allocate a significant number of resources.
   const unsigned int kNumResources = 100;
-  ResourceId ids[kNumResources];
+  std::array<ResourceId, kNumResources> ids;
   for (unsigned int i = 0; i < kNumResources; ++i) {
     ids[i] = allocator->AllocateID();
     EXPECT_TRUE(allocator->InUse(ids[i]));

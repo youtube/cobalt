@@ -23,8 +23,8 @@ enum class OwnerKeyEvent {
   // A user was categorized as not an owner based on the data from device
   // policies.
   kUserNotAnOwnerBasedOnPolicy,
-  // ChromeOS decided to re-generate the lost owner key based on the data from
-  // local state.
+  // ChromeOS decided to generate a new key or re-generate the lost owner key
+  // based on the data from local state.
   kRegeneratingOwnerKeyBasedOnLocalState,
   // A user was categorized as not an owner based on the data from local state.
   kUserNotAnOwnerBasedOnLocalState,
@@ -40,6 +40,32 @@ enum class OwnerKeyEvent {
   kSignedPolicy,
   // Finished storing policies.
   kStoredPolicy,
+  // A user was categorized as not an owner based on the user type.
+  kUserNotAnOwnerBasedOnUserType,
+  // A user was categorized as not an owner because the user name was empty,
+  // this is not expected to happen.
+  kUserNotAnOwnerBasedOnEmptyUsername,
+  // ChromeOS decided to establish consumer ownership when there was no
+  // indication that it's the first user, but also no public key, no policies
+  // and no local state entry.
+  kUnsureTakeOwnership,
+  // ChromeOS attempted to generate the owner key in the private slot.
+  kPrivateSlotKeyGeneration,
+  // ChromeOS attempted to generate the owner key in the public slot.
+  kPublicSlotKeyGeneration,
+  // ChromeOS started migrating the owner key from the public to the private
+  // slot (the outcome is collected as kOwnerKeyGenerated and other counters).
+  kMigrationToPrivateSlotStarted,
+  // ChromeOS started migrating the owner key from the private to the public
+  // slot (the outcome is collected as kOwnerKeyGenerated and other counters).
+  kMigrationToPublicSlotStarted,
+  // session_manager notified Chrome that it finished saving the owner key
+  // (potentially unsuccessfully).
+  kOwnerKeySet,
+  // ChromeOS started deleting the old owner key.
+  kOldOwnerKeyCleanUpStarted,
+  // Tracks whether the owner key was found in the public or private slot.
+  kOwnerKeyInPublicSlot,
 };
 
 // Combines `event` and `success` to produce a more specific UMA event and
@@ -52,7 +78,8 @@ void RecordOwnerKeyEvent(OwnerKeyEvent event, bool success);
 
 // The path for the OwnerKeyUmaEvent histogram. Accessible for testing. Prefer
 // using through the  `RecordOwnerKeyEvent` method.
-constexpr char kOwnerKeyHistogramName[] = "ChromeOS.Ownership.OwnerKeyUmaEvent";
+inline constexpr char kOwnerKeyHistogramName[] =
+    "ChromeOS.Ownership.OwnerKeyUmaEvent";
 
 // Events related to owner key loading, generation and usage that are sent to
 // UMA. Produced from the events above by combining with a success/failure
@@ -90,12 +117,13 @@ enum class OwnerKeyUmaEvent {
   // A user was categorized as not an owner based on the data from device
   // policies, the public key failed to load.
   kUserNotAnOwnerBasedOnPolicyFail = 10,
-  // ChromeOS decided to re-generate the lost owner key based on the data from
-  // local state and the public key was not present.
+  // ChromeOS decided to generate a new key or re-generate the lost owner key
+  // based on the data from local state and the public key was not present.
   kRegeneratingOwnerKeyBasedOnLocalStateSuccess = 11,
-  // ChromeOS decided to re-generate the lost owner key based on the data from
-  // local state after the public key was found (in such a case device policies
-  // should be used, relying on local state is unexpected).
+  // ChromeOS decided to generate a new key or re-generate the lost owner key
+  // based on the data from local state after the public key was found (in such
+  // a case device policies should be used, relying on local state is
+  // unexpected).
   kRegeneratingOwnerKeyBasedOnLocalStateFail = 12,
   // A user was categorized as not an owner based on the data from local state,
   // the public key was successfully loaded.
@@ -130,7 +158,49 @@ enum class OwnerKeyUmaEvent {
   kStoredPolicySuccess = 25,
   // Failed to store policies.
   kStoredPolicyFail = 26,
-  kMaxValue = kStoredPolicyFail,
+  // A user was categorized as not an owner based on the user type, the public
+  // key was successfully loaded.
+  kUserNotAnOwnerBasedOnUserTypeSuccess = 27,
+  // A user was categorized as not an owner based on the user type, the public
+  // key failed to load.
+  kUserNotAnOwnerBasedOnUserTypeFail = 28,
+  // A user was categorized as not an owner because the user name was empty,
+  // this is not expected to happen, the public key was successfully loaded.
+  kUserNotAnOwnerBasedOnEmptyUsernameSuccess = 29,
+  // A user was categorized as not an owner because the user name was empty,
+  // this is not expected to happen, the public key failed to load.
+  kUserNotAnOwnerBasedOnEmptyUsernameFail = 30,
+  // ChromeOS decided to establish consumer ownership when there was no
+  // indication that it's the first user, but also no public key, no policies
+  // and no local state entry.
+  kUnsureTakeOwnership = 31,
+  // ChromeOS successfully generated the owner key in the private slot.
+  kPrivateSlotKeyGenerationSuccess = 32,
+  // ChromeOS failed to generate the owner key in the private slot.
+  kPrivateSlotKeyGenerationFail = 33,
+  // ChromeOS successfully generated the owner key in the public slot.
+  kPublicSlotKeyGenerationSuccess = 34,
+  // ChromeOS failed to generate the owner key in the public slot.
+  kPublicSlotKeyGenerationFail = 35,
+  // ChromeOS started migrating the owner key from the public to the private
+  // slot (the outcome is collected as kOwnerKeyGenerated and other counters).
+  kMigrationToPrivateSlotStarted = 36,
+  // ChromeOS started migrating the owner key from the private to the public
+  // slot (the outcome is collected as kOwnerKeyGenerated and other counters).
+  kMigrationToPublicSlotStarted = 37,
+  // session_manager notified Chrome that it finished saving the owner key
+  // successfully.
+  kOwnerKeySetSuccess = 38,
+  // session_manager notified Chrome that it failed to save the owner key on
+  // disk.
+  kOwnerKeySetFail = 39,
+  // ChromeOS started deleting the old owner key.
+  kOldOwnerKeyCleanUpStarted = 40,
+  // The owner key was found in the public.
+  kOwnerKeyInPublicSlotTrue = 41,
+  // The owner key was found in the private slot.
+  kOwnerKeyInPublicSlotFalse = 42,
+  kMaxValue = kOwnerKeyInPublicSlotFalse,
 };
 
 }  // namespace ash

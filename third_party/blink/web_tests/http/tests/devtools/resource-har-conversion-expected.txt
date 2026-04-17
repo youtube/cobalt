@@ -1,6 +1,8 @@
 Tests conversion of Inspector's resource representation into HAR format.
 
 Page reloaded.
+error: Failed getting cookie attribute: Discard
+error: Failed getting cookie attribute: Version
 {
     creator : {
         name : "WebInspector"
@@ -8,6 +10,7 @@ Page reloaded.
     }
     entries : [
         {
+            _connectionId : <string>
             _initiator : <object>
             _priority : <string>
             _resourceType : "document"
@@ -55,6 +58,12 @@ Page reloaded.
                 url : "http://127.0.0.1:8000/devtools/resources/inspected-page.html"
             }
             response : {
+                _fetchedViaServiceWorker : true
+                _responseCacheStorageCacheName : "v1"
+                _serviceWorkerResponseSource : "cache-storage"
+                _serviceWorkerRouterActualSourceType : "cache"
+                _serviceWorkerRouterMatchedSourceType : "cache"
+                _serviceWorkerRouterRuleIdMatched : 3
                 _transferSize : <number>
                 bodySize : <number>
                 content : {
@@ -106,6 +115,7 @@ Page reloaded.
             timings : <object>
         }
         {
+            _connectionId : <string>
             _initiator : <object>
             _priority : <string>
             _resourceType : "xhr"
@@ -130,6 +140,12 @@ Page reloaded.
                 url : "http://127.0.0.1:8000/devtools/resources/post-target.cgi"
             }
             response : {
+                _fetchedViaServiceWorker : false
+                _responseCacheStorageCacheName : undefined
+                _serviceWorkerResponseSource : undefined
+                _serviceWorkerRouterActualSourceType : undefined
+                _serviceWorkerRouterMatchedSourceType : undefined
+                _serviceWorkerRouterRuleIdMatched : undefined
                 _transferSize : <number>
                 bodySize : <number>
                 content : {

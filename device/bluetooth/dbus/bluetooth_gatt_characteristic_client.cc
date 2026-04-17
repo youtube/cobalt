@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "device/bluetooth/dbus/bluetooth_gatt_characteristic_client.h"
 
 #include <stddef.h>
@@ -118,8 +123,8 @@ class BluetoothGattCharacteristicClientImpl
 
   // BluetoothGattCharacteristicClient override.
   void WriteValue(const dbus::ObjectPath& object_path,
-                  const std::vector<uint8_t>& value,
-                  base::StringPiece type_option,
+                  base::span<const uint8_t> value,
+                  std::string_view type_option,
                   base::OnceClosure callback,
                   ErrorCallback error_callback) override {
     dbus::ObjectProxy* object_proxy =
@@ -133,7 +138,7 @@ class BluetoothGattCharacteristicClientImpl
         bluetooth_gatt_characteristic::kBluetoothGattCharacteristicInterface,
         bluetooth_gatt_characteristic::kWriteValue);
     dbus::MessageWriter writer(&method_call);
-    writer.AppendArrayOfBytes(value.data(), value.size());
+    writer.AppendArrayOfBytes(value);
 
     // Append option dict
     base::Value::Dict dict;
@@ -154,7 +159,7 @@ class BluetoothGattCharacteristicClientImpl
   }
 
   void PrepareWriteValue(const dbus::ObjectPath& object_path,
-                         const std::vector<uint8_t>& value,
+                         base::span<const uint8_t> value,
                          base::OnceClosure callback,
                          ErrorCallback error_callback) override {
     dbus::ObjectProxy* object_proxy =
@@ -168,7 +173,7 @@ class BluetoothGattCharacteristicClientImpl
         bluetooth_gatt_characteristic::kBluetoothGattCharacteristicInterface,
         bluetooth_gatt_characteristic::kPrepareWriteValue);
     dbus::MessageWriter writer(&method_call);
-    writer.AppendArrayOfBytes(value.data(), value.size());
+    writer.AppendArrayOfBytes(value);
 
     dbus::AppendValueData(&writer, base::Value::Dict());
 
@@ -313,7 +318,7 @@ class BluetoothGattCharacteristicClientImpl
     if (bytes)
       value.assign(bytes, bytes + length);
 
-    std::move(callback).Run(/*error_code=*/absl::nullopt, value);
+    std::move(callback).Run(/*error_code=*/std::nullopt, value);
   }
 
   // Called when a response for a failed method call is received.

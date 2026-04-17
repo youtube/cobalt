@@ -4,12 +4,14 @@
 
 #include "media/formats/hls/multivariant_playlist.h"
 
+#include <optional>
+
 #include "media/formats/hls/multivariant_playlist_test_builder.h"
 #include "media/formats/hls/parse_status.h"
+#include "media/formats/hls/quirks.h"
 #include "media/formats/hls/types.h"
 #include "media/formats/hls/variant_stream.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media::hls {
 
@@ -128,7 +130,12 @@ TEST(HlsMultivariantPlaylistTest, MediaPlaylistTag) {
     auto tag_line = "#" + std::string{TagNameToString(name)};
     auto fork = builder;
     fork.AppendLine(tag_line);
-    fork.ExpectError(ParseStatusCode::kMultivariantPlaylistHasMediaPlaylistTag);
+    if (HLSQuirks::AllowMediaTagsInMultivariantPlaylists()) {
+      fork.ExpectOk();
+    } else {
+      fork.ExpectError(
+          ParseStatusCode::kMultivariantPlaylistHasMediaPlaylistTag);
+    }
   }
 }
 
@@ -143,11 +150,11 @@ TEST(HlsMultivariantPlaylistTest, XStreamInfTag) {
   builder.ExpectVariant(HasPrimaryRenditionUri,
                         GURL("http://localhost/playlist1.m3u8"));
   builder.ExpectVariant(HasBandwidth, 100);
-  builder.ExpectVariant(HasAverageBandwidth, absl::nullopt);
-  builder.ExpectVariant(HasScore, absl::nullopt);
-  builder.ExpectVariant(HasCodecs, absl::nullopt);
-  builder.ExpectVariant(HasResolution, absl::nullopt);
-  builder.ExpectVariant(HasFrameRate, absl::nullopt);
+  builder.ExpectVariant(HasAverageBandwidth, std::nullopt);
+  builder.ExpectVariant(HasScore, std::nullopt);
+  builder.ExpectVariant(HasCodecs, std::nullopt);
+  builder.ExpectVariant(HasResolution, std::nullopt);
+  builder.ExpectVariant(HasFrameRate, std::nullopt);
   builder.ExpectOk();
 
   {
@@ -193,11 +200,11 @@ TEST(HlsMultivariantPlaylistTest, XStreamInfTag) {
   builder.ExpectVariant(HasPrimaryRenditionUri,
                         GURL("http://localhost/playlist4.m3u8"));
   builder.ExpectVariant(HasBandwidth, 105);
-  builder.ExpectVariant(HasAverageBandwidth, absl::nullopt);
-  builder.ExpectVariant(HasScore, absl::nullopt);
-  builder.ExpectVariant(HasCodecs, absl::nullopt);
-  builder.ExpectVariant(HasResolution, absl::nullopt);
-  builder.ExpectVariant(HasFrameRate, absl::nullopt);
+  builder.ExpectVariant(HasAverageBandwidth, std::nullopt);
+  builder.ExpectVariant(HasScore, std::nullopt);
+  builder.ExpectVariant(HasCodecs, std::nullopt);
+  builder.ExpectVariant(HasResolution, std::nullopt);
+  builder.ExpectVariant(HasFrameRate, std::nullopt);
   builder.ExpectOk();
 
   // URIs without corresponding EXT-X-STREAM-INF tags are not allowed
@@ -215,10 +222,10 @@ TEST(HlsMultivariantPlaylistTest, XStreamInfTag) {
                         GURL("http://localhost/playlist5.m3u8"));
   builder.ExpectVariant(HasBandwidth, 106u);
   builder.ExpectVariant(HasAverageBandwidth, 105u);
-  builder.ExpectVariant(HasScore, absl::nullopt);
-  builder.ExpectVariant(HasCodecs, absl::nullopt);
-  builder.ExpectVariant(HasResolution, absl::nullopt);
-  builder.ExpectVariant(HasFrameRate, absl::nullopt);
+  builder.ExpectVariant(HasScore, std::nullopt);
+  builder.ExpectVariant(HasCodecs, std::nullopt);
+  builder.ExpectVariant(HasResolution, std::nullopt);
+  builder.ExpectVariant(HasFrameRate, std::nullopt);
   builder.ExpectOk();
 
   // Check the value of the 'SCORE' attribute
@@ -228,11 +235,11 @@ TEST(HlsMultivariantPlaylistTest, XStreamInfTag) {
   builder.ExpectVariant(HasPrimaryRenditionUri,
                         GURL("http://localhost/playlist6.m3u8"));
   builder.ExpectVariant(HasBandwidth, 107u);
-  builder.ExpectVariant(HasAverageBandwidth, absl::nullopt);
+  builder.ExpectVariant(HasAverageBandwidth, std::nullopt);
   builder.ExpectVariant(HasScore, 10.5);
-  builder.ExpectVariant(HasCodecs, absl::nullopt);
-  builder.ExpectVariant(HasResolution, absl::nullopt);
-  builder.ExpectVariant(HasFrameRate, absl::nullopt);
+  builder.ExpectVariant(HasCodecs, std::nullopt);
+  builder.ExpectVariant(HasResolution, std::nullopt);
+  builder.ExpectVariant(HasFrameRate, std::nullopt);
   builder.ExpectOk();
 
   // Check the value of the 'CODECS' attribute
@@ -242,11 +249,11 @@ TEST(HlsMultivariantPlaylistTest, XStreamInfTag) {
   builder.ExpectVariant(HasPrimaryRenditionUri,
                         GURL("http://localhost/playlist7.m3u8"));
   builder.ExpectVariant(HasBandwidth, 108u);
-  builder.ExpectVariant(HasAverageBandwidth, absl::nullopt);
-  builder.ExpectVariant(HasScore, absl::nullopt);
+  builder.ExpectVariant(HasAverageBandwidth, std::nullopt);
+  builder.ExpectVariant(HasScore, std::nullopt);
   builder.ExpectVariant(HasCodecs, std::vector<std::string>{"foo", "bar"});
-  builder.ExpectVariant(HasResolution, absl::nullopt);
-  builder.ExpectVariant(HasFrameRate, absl::nullopt);
+  builder.ExpectVariant(HasResolution, std::nullopt);
+  builder.ExpectVariant(HasFrameRate, std::nullopt);
   builder.ExpectOk();
 
   // Check the value of the 'RESOLUTION' attribute
@@ -256,12 +263,12 @@ TEST(HlsMultivariantPlaylistTest, XStreamInfTag) {
   builder.ExpectVariant(HasPrimaryRenditionUri,
                         GURL("http://localhost/playlist8.m3u8"));
   builder.ExpectVariant(HasBandwidth, 109u);
-  builder.ExpectVariant(HasAverageBandwidth, absl::nullopt);
-  builder.ExpectVariant(HasScore, absl::nullopt);
-  builder.ExpectVariant(HasCodecs, absl::nullopt);
+  builder.ExpectVariant(HasAverageBandwidth, std::nullopt);
+  builder.ExpectVariant(HasScore, std::nullopt);
+  builder.ExpectVariant(HasCodecs, std::nullopt);
   builder.ExpectVariant(
       HasResolution, types::DecimalResolution{.width = 1920, .height = 1080});
-  builder.ExpectVariant(HasFrameRate, absl::nullopt);
+  builder.ExpectVariant(HasFrameRate, std::nullopt);
   builder.ExpectOk();
 
   // Check the value of the 'FRAME-RATE' attribute
@@ -271,10 +278,10 @@ TEST(HlsMultivariantPlaylistTest, XStreamInfTag) {
   builder.ExpectVariant(HasPrimaryRenditionUri,
                         GURL("http://localhost/playlist9.m3u8"));
   builder.ExpectVariant(HasBandwidth, 110u);
-  builder.ExpectVariant(HasAverageBandwidth, absl::nullopt);
-  builder.ExpectVariant(HasScore, absl::nullopt);
-  builder.ExpectVariant(HasCodecs, absl::nullopt);
-  builder.ExpectVariant(HasResolution, absl::nullopt);
+  builder.ExpectVariant(HasAverageBandwidth, std::nullopt);
+  builder.ExpectVariant(HasScore, std::nullopt);
+  builder.ExpectVariant(HasCodecs, std::nullopt);
+  builder.ExpectVariant(HasResolution, std::nullopt);
   builder.ExpectVariant(HasFrameRate, 59.94);
   builder.ExpectOk();
 }
@@ -306,7 +313,7 @@ TEST(HlsMultivariantPlaylistTest, XMediaTag) {
   fork.AppendLine("#EXT-X-STREAM-INF:BANDWIDTH=100");
   fork.AppendLine("playlist.m3u8");
   fork.ExpectAdditionalVariant();
-  fork.ExpectVariant(HasAudioRenditionGroup, absl::nullopt);
+  fork.ExpectVariant(HasAudioRenditionGroup, std::nullopt);
   fork.ExpectOk();
 
   // Rendition groups may be referenced by EXT-X-STREAM-INF and EXT-X-MEDIA tags
@@ -321,13 +328,13 @@ TEST(HlsMultivariantPlaylistTest, XMediaTag) {
       "m3u8\"");
   fork.ExpectAudioRendition("foo", "English", RenditionHasUri,
                             GURL("http://localhost/english.m3u8"));
-  fork.ExpectAudioRendition("foo", "English", HasLanguage, absl::nullopt);
+  fork.ExpectAudioRendition("foo", "English", HasLanguage, std::nullopt);
   fork.ExpectAudioRendition("foo", "English", HasAssociatedLanguage,
-                            absl::nullopt);
+                            std::nullopt);
   fork.ExpectAudioRendition("foo", "English", MayAutoSelect, false);
   fork.ExpectAudioRendition("foo", "English", HasStableRenditionId,
-                            absl::nullopt);
-  fork.ExpectAudioRenditionGroup("foo", HasDefaultRendition, absl::nullopt);
+                            std::nullopt);
+  fork.ExpectAudioRenditionGroup("foo", HasDefaultRendition, std::nullopt);
   fork.ExpectOk();
 
   fork = builder;
@@ -340,16 +347,15 @@ TEST(HlsMultivariantPlaylistTest, XMediaTag) {
   fork.ExpectVariant(HasAudioRenditionGroup, "foo");
   fork.ExpectAudioRendition("foo", "English", RenditionHasUri,
                             GURL("http://localhost/english.m3u8"));
-  fork.ExpectAudioRendition("foo", "English", HasLanguage, absl::nullopt);
+  fork.ExpectAudioRendition("foo", "English", HasLanguage, std::nullopt);
   fork.ExpectAudioRendition("foo", "English", HasAssociatedLanguage,
-                            absl::nullopt);
+                            std::nullopt);
   fork.ExpectAudioRendition("foo", "English", MayAutoSelect, false);
   fork.ExpectAudioRendition("foo", "English", HasStableRenditionId,
-                            absl::nullopt);
-  fork.ExpectAudioRenditionGroup("foo", HasDefaultRendition, absl::nullopt);
+                            std::nullopt);
+  fork.ExpectAudioRenditionGroup("foo", HasDefaultRendition, std::nullopt);
   fork.ExpectOk();
 
-  // Two EXT-X-MEDIA tags in the same group may not have the same name
   fork = builder;
   fork.AppendLine(
       "#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"foo\",NAME=\"English\",URI=\"english."
@@ -357,7 +363,12 @@ TEST(HlsMultivariantPlaylistTest, XMediaTag) {
   fork.AppendLine(
       "#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"foo\",NAME=\"English\",URI="
       "\"english2.m3u8\"");
-  fork.ExpectError(ParseStatusCode::kRenditionGroupHasDuplicateRenditionNames);
+  if (HLSQuirks::DeduplicateRenditionNamesInGroup()) {
+    fork.ExpectOk();
+  } else {
+    fork.ExpectError(
+        ParseStatusCode::kRenditionGroupHasDuplicateRenditionNames);
+  }
 
   // .. Unless they are in different groups
   fork = builder;

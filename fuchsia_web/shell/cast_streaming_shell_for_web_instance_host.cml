@@ -8,7 +8,6 @@
 {
   include: [
     "//fuchsia_web/webinstance_host/web_instance_host.shard.cml",
-    "syslog/client.shard.cml",
   ],
   program: {
     runner: "elf",
@@ -19,24 +18,18 @@
       // component is running only as a launcher of this child.
       "--no-relaunch",
     ],
-
-    // Required to allow JIT in child processes such as renderers.
-    job_policy_ambient_mark_vmo_exec: "true",
   },
   use: [
     {
       protocol: "fuchsia.posix.socket.Provider",
     },
     {
-      protocol: [
-        "fuchsia.element.GraphicalPresenter",
-
-        // TODO(crbug.com/1402457): Remove fuchsia.ui.policy.Presenter.
-        "fuchsia.ui.policy.Presenter",
-
-        // TODO(crbug.com/1418433): Remove fuchsia.ui.scenic.Scenic.
-        "fuchsia.ui.scenic.Scenic",
-      ],
+      protocol: "fuchsia.logger.LogSink",
+      from: "parent/diagnostics",
+    },
+    // Required if not run with --headless.
+    {
+      protocol: [ "fuchsia.element.GraphicalPresenter" ],
       availability: "optional",
     },
   ],

@@ -22,11 +22,10 @@ EnumTraits<blink::mojom::AuthenticatorTransport,
       return blink::mojom::AuthenticatorTransport::HYBRID;
     case ::device::FidoTransportProtocol::kInternal:
       return blink::mojom::AuthenticatorTransport::INTERNAL;
-    case ::device::FidoTransportProtocol::kAndroidAccessory:
+    case ::device::FidoTransportProtocol::kDeprecatedAoa:
       return blink::mojom::AuthenticatorTransport::HYBRID;
   }
   NOTREACHED();
-  return blink::mojom::AuthenticatorTransport::USB;
 }
 
 // static
@@ -52,7 +51,6 @@ bool EnumTraits<blink::mojom::AuthenticatorTransport,
       return true;
   }
   NOTREACHED();
-  return false;
 }
 
 // static
@@ -64,7 +62,6 @@ EnumTraits<blink::mojom::PublicKeyCredentialType,
       return blink::mojom::PublicKeyCredentialType::PUBLIC_KEY;
   }
   NOTREACHED();
-  return blink::mojom::PublicKeyCredentialType::PUBLIC_KEY;
 }
 
 // static
@@ -77,7 +74,6 @@ bool EnumTraits<blink::mojom::PublicKeyCredentialType, device::CredentialType>::
       return true;
   }
   NOTREACHED();
-  return false;
 }
 
 // static
@@ -124,7 +120,6 @@ blink::mojom::AuthenticatorAttachment EnumTraits<
       return blink::mojom::AuthenticatorAttachment::CROSS_PLATFORM;
   }
   NOTREACHED();
-  return blink::mojom::AuthenticatorAttachment::NO_PREFERENCE;
 }
 
 // static
@@ -144,7 +139,6 @@ bool EnumTraits<blink::mojom::AuthenticatorAttachment,
       return true;
   }
   NOTREACHED();
-  return false;
 }
 
 // static
@@ -161,7 +155,6 @@ blink::mojom::ResidentKeyRequirement EnumTraits<
       return blink::mojom::ResidentKeyRequirement::REQUIRED;
   }
   NOTREACHED();
-  return blink::mojom::ResidentKeyRequirement::DISCOURAGED;
 }
 
 // static
@@ -181,7 +174,6 @@ bool EnumTraits<blink::mojom::ResidentKeyRequirement,
       return true;
   }
   NOTREACHED();
-  return false;
 }
 
 // static
@@ -198,7 +190,6 @@ EnumTraits<blink::mojom::UserVerificationRequirement,
       return blink::mojom::UserVerificationRequirement::DISCOURAGED;
   }
   NOTREACHED();
-  return blink::mojom::UserVerificationRequirement::REQUIRED;
 }
 
 // static
@@ -218,7 +209,6 @@ bool EnumTraits<blink::mojom::UserVerificationRequirement,
       return true;
   }
   NOTREACHED();
-  return false;
 }
 
 // static
@@ -234,7 +224,6 @@ EnumTraits<blink::mojom::LargeBlobSupport, device::LargeBlobSupport>::ToMojom(
       return blink::mojom::LargeBlobSupport::PREFERRED;
   }
   NOTREACHED();
-  return blink::mojom::LargeBlobSupport::NOT_REQUESTED;
 }
 
 // static
@@ -253,7 +242,6 @@ bool EnumTraits<blink::mojom::LargeBlobSupport, device::LargeBlobSupport>::
       return true;
   }
   NOTREACHED();
-  return false;
 }
 
 // static
@@ -307,8 +295,8 @@ bool StructTraits<blink::mojom::CableAuthenticationDataView,
          device::CableDiscoveryData* out) {
   switch (data.version()) {
     case 1: {
-      absl::optional<std::array<uint8_t, 16>> client_eid, authenticator_eid;
-      absl::optional<std::array<uint8_t, 32>> session_pre_key;
+      std::optional<std::array<uint8_t, 16>> client_eid, authenticator_eid;
+      std::optional<std::array<uint8_t, 32>> session_pre_key;
       if (!data.ReadClientEid(&client_eid) || !client_eid ||
           !data.ReadAuthenticatorEid(&authenticator_eid) ||
           !authenticator_eid || !data.ReadSessionPreKey(&session_pre_key) ||
@@ -325,8 +313,8 @@ bool StructTraits<blink::mojom::CableAuthenticationDataView,
     }
 
     case 2: {
-      absl::optional<std::vector<uint8_t>> server_link_data;
-      absl::optional<std::vector<uint8_t>> experiments;
+      std::optional<std::vector<uint8_t>> server_link_data;
+      std::optional<std::vector<uint8_t>> experiments;
       if (!data.ReadServerLinkData(&server_link_data) || !server_link_data ||
           !data.ReadExperiments(&experiments) || !experiments) {
         return false;
@@ -365,7 +353,6 @@ EnumTraits<blink::mojom::AttestationConveyancePreference,
       return blink::mojom::AttestationConveyancePreference::ENTERPRISE;
   }
   NOTREACHED();
-  return blink::mojom::AttestationConveyancePreference::NONE;
 }
 
 // static
@@ -389,7 +376,6 @@ bool EnumTraits<blink::mojom::AttestationConveyancePreference,
       return true;
   }
   NOTREACHED();
-  return false;
 }
 
 }  // namespace mojo

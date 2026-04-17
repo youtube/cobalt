@@ -18,6 +18,7 @@ namespace ash {
 
 class UnifiedSystemTray;
 class UnifiedSliderListener;
+class UnifiedSliderView;
 
 // Controller class for independent slider bubbles e.g. volume slider and
 // brightness slider that can be triggered from hardware buttons.
@@ -31,7 +32,9 @@ class ASH_EXPORT UnifiedSliderBubbleController
   enum SliderType {
     SLIDER_TYPE_VOLUME = 0,
     SLIDER_TYPE_DISPLAY_BRIGHTNESS,
-    SLIDER_TYPE_KEYBOARD_BACKLIGHT_TOGGLE,
+    // TODO(b/298085976): Keyboard backlight sliders will migrate to toasts.
+    SLIDER_TYPE_KEYBOARD_BACKLIGHT_TOGGLE_OFF,
+    SLIDER_TYPE_KEYBOARD_BACKLIGHT_TOGGLE_ON,
     SLIDER_TYPE_KEYBOARD_BRIGHTNESS,
     SLIDER_TYPE_MIC
   };
@@ -61,6 +64,7 @@ class ASH_EXPORT UnifiedSliderBubbleController
   void BubbleViewDestroyed() override;
   void OnMouseEnteredView() override;
   void OnMouseExitedView() override;
+  void HideBubble(const TrayBubbleView* bubble_view) override;
 
   // Displays the microphone mute toast.
   void DisplayMicrophoneMuteToast();
@@ -84,6 +88,8 @@ class ASH_EXPORT UnifiedSliderBubbleController
   // ShelfObserver:
   void OnShelfWorkAreaInsetsChanged() override;
 
+  UnifiedSliderView* slider_view() { return slider_view_; }
+
  private:
   friend class UnifiedSystemTrayTest;
 
@@ -94,13 +100,13 @@ class ASH_EXPORT UnifiedSliderBubbleController
   void StartAutoCloseTimer();
 
   // Unowned.
-  const raw_ptr<UnifiedSystemTray, ExperimentalAsh> tray_;
+  const raw_ptr<UnifiedSystemTray> tray_;
 
   base::OneShotTimer autoclose_;
 
-  raw_ptr<TrayBubbleView, ExperimentalAsh> bubble_view_ = nullptr;
-  raw_ptr<views::Widget, ExperimentalAsh> bubble_widget_ = nullptr;
-  UnifiedSliderView* slider_view_ = nullptr;
+  raw_ptr<TrayBubbleView> bubble_view_ = nullptr;
+  raw_ptr<views::Widget> bubble_widget_ = nullptr;
+  raw_ptr<UnifiedSliderView> slider_view_ = nullptr;
 
   // Type of the currently shown slider.
   SliderType slider_type_ = SLIDER_TYPE_VOLUME;

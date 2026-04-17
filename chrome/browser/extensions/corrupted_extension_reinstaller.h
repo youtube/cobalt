@@ -6,15 +6,19 @@
 #define CHROME_BROWSER_EXTENSIONS_CORRUPTED_EXTENSION_REINSTALLER_H_
 
 #include <map>
+#include <optional>
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
+#include "components/keyed_service/core/keyed_service.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension_id.h"
 #include "extensions/common/manifest.h"
 #include "net/base/backoff_entry.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 namespace content {
 class BrowserContext;
@@ -25,7 +29,7 @@ namespace extensions {
 // Class that asks ExtensionService to reinstall corrupted extensions.
 // If a reinstallation fails for some reason (e.g. network unavailability) then
 // it will retry reinstallation with backoff.
-class CorruptedExtensionReinstaller {
+class CorruptedExtensionReinstaller : public KeyedService {
  public:
   // The reason why we want to reinstall the extension.
   // Note: enum used for UMA. Do NOT reorder or remove entries. Don't forget to
@@ -70,13 +74,13 @@ class CorruptedExtensionReinstaller {
       base::RepeatingCallback<void(base::OnceClosure callback,
                                    base::TimeDelta delay)>;
 
-  explicit CorruptedExtensionReinstaller(content::BrowserContext* context);
+  static CorruptedExtensionReinstaller* Get(content::BrowserContext* context);
 
   CorruptedExtensionReinstaller(const CorruptedExtensionReinstaller&) = delete;
   CorruptedExtensionReinstaller& operator=(
       const CorruptedExtensionReinstaller&) = delete;
 
-  ~CorruptedExtensionReinstaller();
+  ~CorruptedExtensionReinstaller() override;
 
   // Records UMA metrics about policy reinstall to UMA. Temporarily exposed
   // publicly because we now skip reinstall for non-webstore policy
@@ -86,20 +90,20 @@ class CorruptedExtensionReinstaller {
   void RecordPolicyReinstallReason(PolicyReinstallReason reason_for_uma);
 
   // Notifies the manager that we are reinstalling the policy force-installed
-  // extension with |id| because we detected corruption in the current copy.
-  // |reason_for_uma| indicates origin and details of the requires, and is used
-  // for statistics purposes (sent to UMA). |manifest_location_for_uma| is the
+  // extension with `id` because we detected corruption in the current copy.
+  // `reason_for_uma` indicates origin and details of the requires, and is used
+  // for statistics purposes (sent to UMA). `manifest_location_for_uma` is the
   // manifest location, and is used for statistics purposes (sent to UMA)
   void ExpectReinstallForCorruption(
       const ExtensionId& id,
-      absl::optional<PolicyReinstallReason> reason_for_uma,
+      std::optional<PolicyReinstallReason> reason_for_uma,
       mojom::ManifestLocation manifest_location_for_uma);
 
   // Call this method when extension in reinstalled to remove it from the set
   // and update the metrics.
   void MarkResolved(const ExtensionId& id);
 
-  // Returns true if we are expecting a reinstall of the extension with |id| due
+  // Returns true if we are expecting a reinstall of the extension with `id` due
   // to corruption?
   bool IsReinstallForCorruptionExpected(const ExtensionId& id) const;
 
@@ -112,19 +116,22 @@ class CorruptedExtensionReinstaller {
   // Notifies this reinstaller about an extension corruption.
   void NotifyExtensionDisabledDueToCorruption();
 
-  // Called when ExtensionSystem is shutting down. Cancels already-scheduled
-  // attempts, if any, for a smoother shutdown.
-  void Shutdown();
+  // KeyedService:
+  void Shutdown() override;
 
   // For tests, overrides the default action to take to initiate reinstalls.
   static void set_reinstall_action_for_test(ReinstallCallback* action);
 
  private:
+  friend class CorruptedExtensionReinstallerFactory;
+
+  explicit CorruptedExtensionReinstaller(content::BrowserContext* context);
+
   void Fire();
   base::TimeDelta GetNextFireDelay();
   void ScheduleNextReinstallAttempt();
 
-  const raw_ptr<content::BrowserContext> context_ = nullptr;
+  const raw_ptr<content::BrowserContext, DanglingUntriaged> context_ = nullptr;
 
   // A set of extension ids that are being reinstalled due to corruption, mapped
   // to the time we detected the corruption.

@@ -1,9 +1,11 @@
 """Tests for pr_cleanup_tool."""
 import json
+from unittest import mock
 
 from blinkpy.common.host_mock import MockHost
 from blinkpy.common.system.log_testing import LoggingTestCase
 from blinkpy.common.path_finder import RELATIVE_WEB_TESTS
+from blinkpy.w3c.gerrit import GerritNotFoundError
 from blinkpy.w3c.gerrit_mock import MockGerritAPI, MockGerritCL
 from blinkpy.w3c.pr_cleanup_tool import PrCleanupTool
 from blinkpy.w3c.wpt_github import PullRequest
@@ -30,6 +32,7 @@ class PrCleanupToolTest(LoggingTestCase):
                         number=1234,
                         body='Change-Id: 88',
                         state='open',
+                        node_id='PR_kwDOADc1Vc5jhje_',
                         labels=[]),
         ])
         gerrit = MockGerritAPI()
@@ -55,7 +58,7 @@ class PrCleanupToolTest(LoggingTestCase):
         pr_cleanup.run(wpt_github, gerrit)
         self.assertEqual(gerrit.cls_queried, ['88'])
         self.assertEqual(wpt_github.calls, [
-            'all_pull_requests',
+            'all_provisional_pull_requests',
             'add_comment "Close this PR because the Chromium CL has been abandoned."',
             'update_pr', 'get_pr_branch', 'delete_remote_branch'
         ])
@@ -66,6 +69,7 @@ class PrCleanupToolTest(LoggingTestCase):
                         number=1234,
                         body='Change-Id: 88',
                         state='open',
+                        node_id='PR_kwDOADc1Vc5jhje_',
                         labels=[]),
         ])
         gerrit = MockGerritAPI()
@@ -90,7 +94,7 @@ class PrCleanupToolTest(LoggingTestCase):
                                  api=gerrit)
         pr_cleanup.run(wpt_github, gerrit)
         self.assertEqual(gerrit.cls_queried, ['88'])
-        self.assertEqual(wpt_github.calls, ['all_pull_requests'])
+        self.assertEqual(wpt_github.calls, ['all_provisional_pull_requests'])
 
     def test_successful_close_no_exportable_changes(self):
         wpt_github = MockWPTGitHub(pull_requests=[
@@ -98,6 +102,7 @@ class PrCleanupToolTest(LoggingTestCase):
                         number=1234,
                         body='Change-Id: 99',
                         state='open',
+                        node_id='PR_kwDOADc1Vc5jhje_',
                         labels=[]),
         ])
         gerrit = MockGerritAPI()
@@ -126,7 +131,7 @@ class PrCleanupToolTest(LoggingTestCase):
         pr_cleanup.run(wpt_github, gerrit)
         self.assertEqual(gerrit.cls_queried, ['99'])
         self.assertEqual(wpt_github.calls, [
-            'all_pull_requests',
+            'all_provisional_pull_requests',
             'add_comment "Close this PR because the Chromium'
             ' CL does not have exportable changes."', 'update_pr',
             'get_pr_branch', 'delete_remote_branch'
@@ -138,6 +143,7 @@ class PrCleanupToolTest(LoggingTestCase):
                         number=1234,
                         body='Change-Id: 88',
                         state='open',
+                        node_id='PR_kwDOADc1Vc5jhje_',
                         labels=[]),
         ])
         gerrit = MockGerritAPI(raise_error=True)
@@ -162,4 +168,26 @@ class PrCleanupToolTest(LoggingTestCase):
                                  api=gerrit)
         pr_cleanup.run(wpt_github, gerrit)
         self.assertEqual(gerrit.cls_queried, ['88'])
-        self.assertEqual(wpt_github.calls, ['all_pull_requests'])
+        self.assertEqual(wpt_github.calls, ['all_provisional_pull_requests'])
+
+    def test_query_cl_change_id_not_found(self):
+        wpt_github = MockWPTGitHub(pull_requests=[
+            PullRequest(title='title1',
+                        number=1234,
+                        body='Change-Id: 88',
+                        state='open',
+                        node_id='PR_kwDOADc1Vc5jhje_',
+                        labels=[]),
+        ])
+        gerrit = MockGerritAPI()
+        pr_cleanup = PrCleanupTool(self.host)
+        with mock.patch.object(gerrit,
+                               'query_cl',
+                               side_effect=GerritNotFoundError):
+            pr_cleanup.run(wpt_github, gerrit)
+        self.assertEqual(gerrit.cls_queried, [])
+        self.assertEqual(wpt_github.calls, [
+            'all_provisional_pull_requests',
+            'add_comment "Close this PR because the corresponding CL has been deleted."',
+            'update_pr', 'get_pr_branch', 'delete_remote_branch'
+        ])

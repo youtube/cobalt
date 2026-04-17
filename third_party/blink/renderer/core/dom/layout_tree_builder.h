@@ -41,20 +41,14 @@ namespace blink {
 
 class ComputedStyle;
 
-// The LayoutTreeBuilder class uses the DOM tree and CSS style rules as input to
-// form a LayoutObject Tree which is then used for layout computations in a
-// later stage.
-
-// To construct the LayoutObject tree, the LayoutTreeBuilder does the following:
-// 1. Starting at the root of the DOM tree, traverse each visible node.
-//    Visibility is determined by
-//    LayoutTreeBuilderFor{Element,Text}::ShouldCreateLayoutObject() functions.
-// 2. For each visible node, ensure that the style has been resolved (either by
-//    getting the ComputedStyle passed on to the LayoutTreeBuilder or by forcing
-//    style resolution). This is done in LayoutTreeBuilderForElement::Style().
-// 3. Emit visible LayoutObjects with content and their computed styles.
-//    This is dealt with by the
-//    LayoutTreeBuilderFor{Element,Text}::CreateLayoutObject() functions.
+// The LayoutTreeBuilder class uses takes a DOM node and its computed CSS styles
+// as input to create a LayoutObject which is then used as input to layout.
+//
+// The layout tree building is done traversing the flattened DOM tree from
+// StyleEngine::RebuildLayoutTree() which calls AttachLayoutTree for the nodes
+// which need to have their layout boxes re-attached. AttachLayoutTree then
+// calls CreateLayoutObject on LayoutTreeBuilderForElement and
+// LayoutTreeBuilderForText for elements and text nodes respectively.
 template <typename NodeType>
 class LayoutTreeBuilder {
   STACK_ALLOCATED();
@@ -65,7 +59,8 @@ class LayoutTreeBuilder {
                     const ComputedStyle* style)
       : node_(&node), context_(context), style_(style) {
     DCHECK(!node.GetLayoutObject());
-    DCHECK(node.GetDocument().InStyleRecalc());
+    DCHECK(node.GetDocument().InStyleRecalc() ||
+           node.GetDocument().GetStyleEngine().InScrollMarkersAttachment());
     DCHECK(node.InActiveDocument());
     DCHECK(context.parent);
   }
@@ -87,8 +82,14 @@ class LayoutTreeBuilder {
     auto* const parent = next->Parent();
     if (!IsAnonymousInline(parent))
       return next;
-    if (!LIKELY(parent->IsLayoutNGTextCombine()))
+    // Should return a normal result for display:ruby though it can be
+    // an anonymous inline.
+    if (parent->IsInlineRuby()) [[unlikely]] {
+      return next;
+    }
+    if (!parent->IsLayoutTextCombine()) [[unlikely]] {
       return parent;
+    }
     auto* const text_combine_parent = parent->Parent();
     if (IsAnonymousInline(text_combine_parent))
       return text_combine_parent;
@@ -102,7 +103,7 @@ class LayoutTreeBuilder {
 
   NodeType* node_;
   Node::AttachContext& context_;
-  scoped_refptr<const ComputedStyle> style_;
+  const ComputedStyle* style_;
 };
 
 class LayoutTreeBuilderForElement : public LayoutTreeBuilder<Element> {
@@ -128,8 +129,8 @@ class LayoutTreeBuilderForText : public LayoutTreeBuilder<Text> {
   void CreateLayoutObject();
 
  private:
-  scoped_refptr<const ComputedStyle>
-  CreateInlineWrapperStyleForDisplayContentsIfNeeded() const;
+  const ComputedStyle* CreateInlineWrapperStyleForDisplayContentsIfNeeded()
+      const;
   LayoutObject* CreateInlineWrapperForDisplayContentsIfNeeded(
       const ComputedStyle* wrapper_style) const;
 };

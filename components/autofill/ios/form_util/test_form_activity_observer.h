@@ -5,8 +5,10 @@
 #ifndef COMPONENTS_AUTOFILL_IOS_FORM_UTIL_TEST_FORM_ACTIVITY_OBSERVER_H_
 #define COMPONENTS_AUTOFILL_IOS_FORM_UTIL_TEST_FORM_ACTIVITY_OBSERVER_H_
 
-#include "components/autofill/ios/form_util/form_activity_observer.h"
-#include "components/autofill/ios/form_util/form_activity_params.h"
+#import "base/memory/raw_ptr.h"
+#import "components/autofill/core/common/form_data.h"
+#import "components/autofill/ios/form_util/form_activity_observer.h"
+#import "components/autofill/ios/form_util/form_activity_params.h"
 
 namespace web {
 class WebState;
@@ -16,24 +18,23 @@ namespace autofill {
 // Arguments passed to |DocumentSubmitted|.
 struct TestSubmitDocumentInfo {
   TestSubmitDocumentInfo();
-  web::WebState* web_state = nullptr;
-  web::WebFrame* sender_frame = nullptr;
-  std::string form_name;
-  std::string form_data;
+  raw_ptr<web::WebState> web_state = nullptr;
+  raw_ptr<web::WebFrame> sender_frame = nullptr;
+  FormData form_data;
   bool has_user_gesture;
 };
 
 // Arguments passed to |FormActivityRegistered|.
 struct TestFormActivityInfo {
-  web::WebState* web_state = nullptr;
-  web::WebFrame* sender_frame = nullptr;
+  raw_ptr<web::WebState> web_state = nullptr;
+  raw_ptr<web::WebFrame> sender_frame = nullptr;
   FormActivityParams form_activity;
 };
 
 // Arguments passed to |FormRemovalRegistered|.
 struct TestFormRemovalInfo {
-  web::WebState* web_state = nullptr;
-  web::WebFrame* sender_frame = nullptr;
+  raw_ptr<web::WebState> web_state = nullptr;
+  raw_ptr<web::WebFrame> sender_frame = nullptr;
   FormRemovalParams form_removal_params;
 };
 
@@ -55,10 +56,13 @@ class TestFormActivityObserver : public autofill::FormActivityObserver {
   // Arguments passed to |FormRemoved|.
   TestFormRemovalInfo* form_removal_info();
 
+  // How many times |DocumentSubmitted|, |FormActivityRegistered| and
+  // |FormRemoved| were called.
+  int number_of_events_received();
+
   void DocumentSubmitted(web::WebState* web_state,
                          web::WebFrame* sender_frame,
-                         const std::string& form_name,
-                         const std::string& form_data,
+                         const FormData& form_data,
                          bool has_user_gesture) override;
 
   void FormActivityRegistered(web::WebState* web_state,
@@ -70,10 +74,11 @@ class TestFormActivityObserver : public autofill::FormActivityObserver {
                    const FormRemovalParams& params) override;
 
  private:
-  web::WebState* web_state_ = nullptr;
+  raw_ptr<web::WebState> web_state_ = nullptr;
   std::unique_ptr<TestSubmitDocumentInfo> submit_document_info_;
   std::unique_ptr<TestFormActivityInfo> form_activity_info_;
   std::unique_ptr<TestFormRemovalInfo> form_removal_info_;
+  int number_of_events_received_ = 0;
 };
 }  // namespace autofill
 #endif  // COMPONENTS_AUTOFILL_IOS_FORM_UTIL_TEST_FORM_ACTIVITY_OBSERVER_H_

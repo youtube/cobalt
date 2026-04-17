@@ -1048,7 +1048,7 @@ _testIter(const UChar *src, int32_t srcLength,
     UBool neededToNormalize, expectNeeded;
 
     errorCode=U_ZERO_ERROR;
-    outLimit=out+outLength;
+    outLimit= (out == NULL) ? NULL : out+outLength;
     if(forward) {
         expect=out;
         i=index=0;
@@ -1692,6 +1692,20 @@ TestGetEasyToUseInstance() {
     n2=unorm2_getNFKCCasefoldInstance(&errorCode);
     if(U_FAILURE(errorCode)) {
         log_err_status(errorCode, "unorm2_getNFKCCasefoldInstance() failed: %s\n", u_errorName(errorCode));
+        return;
+    }
+    length=unorm2_normalize(n2, in, UPRV_LENGTHOF(in), out, UPRV_LENGTHOF(out), &errorCode);
+    if(U_FAILURE(errorCode) || length!=2 || out[0]!=0x20 || out[1]!=0x1e09) {
+        log_err("unorm2_getNFKCCasefoldInstance() did not return an NFKC_Casefold instance (normalized length=%d; %s)\n",
+                (int)length, u_errorName(errorCode));
+    }
+
+    errorCode=U_ZERO_ERROR;
+    n2=unorm2_getNFKCSimpleCasefoldInstance(&errorCode);
+    if(U_FAILURE(errorCode)) {
+        log_err_status(errorCode,
+                       "unorm2_getNFKCSimpleCasefoldInstance() failed: %s\n",
+                       u_errorName(errorCode));
         return;
     }
     length=unorm2_normalize(n2, in, UPRV_LENGTHOF(in), out, UPRV_LENGTHOF(out), &errorCode);

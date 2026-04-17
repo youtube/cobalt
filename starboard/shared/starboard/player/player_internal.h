@@ -21,7 +21,6 @@
 #include <vector>
 
 #include "starboard/decode_target.h"
-#include "starboard/extension/enhanced_audio.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
@@ -30,7 +29,7 @@
 #include "starboard/window.h"
 
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
-#include SB_PLAYER_DMP_WRITER_INCLUDE_PATH
+#include "starboard/shared/starboard/player/video_dmp_writer.h"  // nogncheck
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
 struct SbPlayerPrivate {
@@ -63,7 +62,7 @@ namespace starboard {
 
 class SbPlayerPrivateImpl final : public SbPlayerPrivate {
  public:
-  static SbPlayerPrivate* CreateInstance(
+  SbPlayerPrivateImpl(
       SbMediaAudioCodec audio_codec,
       SbMediaVideoCodec video_codec,
       SbPlayerDeallocateSampleFunc sample_deallocate_func,
@@ -79,7 +78,11 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
   void WriteEndOfStream(SbMediaType stream_type) final;
   void SetBounds(int z_index, int x, int y, int width, int height) final;
   void GetInfo(SbPlayerInfo* out_player_info) final;
+
+  // TODO (b/456786219): as SbPlayer doesn't support pause, we should remove
+  // unused pause related functions.
   void SetPause(bool pause) final;
+
   void SetPlaybackRate(double playback_rate) final;
   void SetVolume(double volume) final;
 
@@ -91,16 +94,6 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
   ~SbPlayerPrivateImpl() final;
 
  private:
-  SbPlayerPrivateImpl(
-      SbMediaAudioCodec audio_codec,
-      SbMediaVideoCodec video_codec,
-      SbPlayerDeallocateSampleFunc sample_deallocate_func,
-      SbPlayerDecoderStatusFunc decoder_status_func,
-      SbPlayerStatusFunc player_status_func,
-      SbPlayerErrorFunc player_error_func,
-      void* context,
-      std::unique_ptr<PlayerWorker::Handler> player_worker_handler);
-
   void UpdateMediaInfo(int64_t media_time,
                        int dropped_video_frames,
                        int ticket,
@@ -123,7 +116,7 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
   // we may extrapolate the media time in GetInfo().
   bool is_progressing_ = false;
 
-  std::unique_ptr<PlayerWorker> worker_;
+  const std::unique_ptr<PlayerWorker> worker_;
 
   std::mutex audio_configurations_mutex_;
   std::vector<SbMediaAudioConfiguration> audio_configurations_;

@@ -5,12 +5,13 @@
 import("//build/config/compiler/pgo/pgo.gni")
 import("//build/config/devtools.gni")
 import("//components/viz/common/debugger/viz_debugger.gni")
+import("//content/browser/devtools/features.gni")
+import("//device/bluetooth/emulation/buildflags.gni")
 import("//third_party/inspector_protocol/inspector_protocol.gni")
 import("//third_party/protobuf/proto_library.gni")
 import("//tools/grit/grit_rule.gni")
 
-# Android and iOS don't support DevTools front-end.
-if (!is_android && !is_ios) {
+if (enable_devtools_frontend) {
   source_set("devtools_resources_extern") {
     sources = [ "devtools_resources.cc" ]
 
@@ -106,6 +107,8 @@ inspector_protocol_generate("protocol_sources") {
     "protocol/browser.h",
     "protocol/device_access.cc",
     "protocol/device_access.h",
+    "protocol/device_orientation.cc",
+    "protocol/device_orientation.h",
     "protocol/dom.cc",
     "protocol/dom.h",
     "protocol/emulation.cc",
@@ -167,6 +170,13 @@ inspector_protocol_generate("protocol_sources") {
     outputs += [
       "protocol/native_profiling.cc",
       "protocol/native_profiling.h",
+    ]
+  }
+
+  if (enable_bluetooth_emulation) {
+    outputs += [
+      "protocol/bluetooth_emulation.cc",
+      "protocol/bluetooth_emulation.h",
     ]
   }
 }

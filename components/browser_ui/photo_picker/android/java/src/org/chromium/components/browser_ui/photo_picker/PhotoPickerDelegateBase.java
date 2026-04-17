@@ -4,13 +4,15 @@
 
 package org.chromium.components.browser_ui.photo_picker;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.ui.base.PhotoPickerDelegate;
 
 /**
  * A shared base implementation of {@link PhotoPickerDelegate}.
  *
- * Routes queries, of which flavor of the Media Picker to run, to the feature flag params.
+ * <p>Routes queries, of which flavor of the Media Picker to run, to the feature flag params.
  */
+@NullMarked
 public abstract class PhotoPickerDelegateBase implements PhotoPickerDelegate {
     protected PhotoPickerDelegateBase() {}
 

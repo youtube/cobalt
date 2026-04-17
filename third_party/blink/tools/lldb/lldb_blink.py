@@ -58,9 +58,6 @@ def __lldb_init_module(debugger, dict):
         'type summary add -F lldb_blink.BlinkLayoutUnit_SummaryProvider blink::LayoutUnit'
     )
     debugger.HandleCommand(
-        'type summary add -F lldb_blink.BlinkLayoutSize_SummaryProvider blink::LayoutSize'
-    )
-    debugger.HandleCommand(
         'type summary add -F lldb_blink.BlinkLayoutPoint_SummaryProvider blink::LayoutPoint'
     )
     debugger.HandleCommand(
@@ -99,12 +96,6 @@ def WTFHashTable_SummaryProvider(valobj, dict):
 def BlinkLayoutUnit_SummaryProvider(valobj, dict):
     provider = BlinkLayoutUnitProvider(valobj, dict)
     return "{ %s }" % provider.to_string()
-
-
-def BlinkLayoutSize_SummaryProvider(valobj, dict):
-    provider = BlinkLayoutSizeProvider(valobj, dict)
-    return "{ width = %s, height = %s }" % (provider.get_width(),
-                                            provider.get_height())
 
 
 def BlinkLayoutPoint_SummaryProvider(valobj, dict):
@@ -233,21 +224,6 @@ class BlinkLayoutUnitProvider:
                             GetValueAsSigned(0) / 64.0)
 
 
-class BlinkLayoutSizeProvider:
-    "Print a blink::LayoutSize"
-
-    def __init__(self, valobj, dict):
-        self.valobj = valobj
-
-    def get_width(self):
-        return BlinkLayoutUnitProvider(
-            self.valobj.GetChildMemberWithName('width_'), dict).to_string()
-
-    def get_height(self):
-        return BlinkLayoutUnitProvider(
-            self.valobj.GetChildMemberWithName('height_'), dict).to_string()
-
-
 class BlinkLayoutPointProvider:
     "Print a blink::LayoutPoint"
 
@@ -295,7 +271,7 @@ class BlinkLengthProvider:
         if ltype == 6:
             return 'Length(MaxContent)'
         if ltype == 7:
-            return 'Length(FillAvailable)'
+            return 'Length(Stretch)'
         if ltype == 8:
             return 'Length(FitContent)'
         if ltype == 9:

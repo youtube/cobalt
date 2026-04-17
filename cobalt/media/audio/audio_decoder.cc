@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "cobalt/media/audio/audio_decoder.h"
 
 #include <stdint.h>
@@ -19,7 +23,6 @@
 #include <utility>
 
 #include "base/logging.h"
-#include "base/strings/string_piece.h"
 #include "media/audio/wav_audio_handler.h"
 #include "media/base/audio_bus.h"
 #include "third_party/blink/public/platform/web_audio_bus.h"
@@ -28,8 +31,7 @@ namespace cobalt {
 
 // Only supports PCM16 wav files.
 bool DecodeAudioFileData(blink::WebAudioBus* destination_bus,
-                         const char* data,
-                         size_t data_size) {
+                         base::span<const char> audio_file_data) {
   DCHECK(destination_bus);
   if (!destination_bus) {
     return false;
@@ -37,7 +39,7 @@ bool DecodeAudioFileData(blink::WebAudioBus* destination_bus,
 
   LOG(INFO) << "Cobalt WAV decoder initializing..";
   auto handler =
-      media::WavAudioHandler::Create(base::StringPiece(data, data_size));
+      media::WavAudioHandler::Create(base::as_bytes(audio_file_data));
 
   if (!handler) {
     LOG(ERROR) << "Failed to create WavAudioHandler.";

@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,8 @@
 #include "chrome/browser/ui/passwords/ui_utils.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/chrome_typography.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/gfx/color_utils.h"
 #include "ui/views/bubble/bubble_frame_view.h"
@@ -32,9 +34,12 @@ BiometricAuthenticationForFillingBubbleView::
               : PasswordBubbleControllerBase::DisplayReason::kUserAction) {
   SetLayoutManager(std::make_unique<views::FillLayout>());
 
-  SetButtons((ui::DIALOG_BUTTON_OK | ui::DIALOG_BUTTON_CANCEL));
-  SetButtonLabel(ui::DIALOG_BUTTON_OK, controller_.GetContinueButtonText());
-  SetButtonLabel(ui::DIALOG_BUTTON_CANCEL, controller_.GetNoThanksButtonText());
+  SetButtons(static_cast<int>(ui::mojom::DialogButton::kOk) |
+             static_cast<int>(ui::mojom::DialogButton::kCancel));
+  SetButtonLabel(ui::mojom::DialogButton::kOk,
+                 controller_.GetContinueButtonText());
+  SetButtonLabel(ui::mojom::DialogButton::kCancel,
+                 controller_.GetNoThanksButtonText());
 
   auto label = std::make_unique<views::StyledLabel>();
   label->SetText(controller_.GetBody());
@@ -68,3 +73,6 @@ void BiometricAuthenticationForFillingBubbleView::AddedToWidget() {
   SetBubbleHeader(controller_.GetImageID(/*dark=*/false),
                   controller_.GetImageID(/*dark=*/true));
 }
+
+BEGIN_METADATA(BiometricAuthenticationForFillingBubbleView)
+END_METADATA

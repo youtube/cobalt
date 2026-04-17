@@ -14,14 +14,14 @@
 
 namespace desks_storage::desk_template_util {
 
-inline constexpr char kFloatingWorkspaceTemplateUuid[] =
-    "c098bdcf-5803-484b-9bfd-d3a9a4b497ab";
-
 ash::DeskTemplate* FindOtherEntryWithName(
     const std::u16string& name,
     const base::Uuid& uuid,
     const base::flat_map<base::Uuid, std::unique_ptr<ash::DeskTemplate>>&
         entries);
+
+bool AreDeskTemplatesEqual(const ash::DeskTemplate* template_one,
+                           const ash::DeskTemplate* template_two);
 
 }  // namespace desks_storage::desk_template_util
 

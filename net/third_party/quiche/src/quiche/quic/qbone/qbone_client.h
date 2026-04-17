@@ -7,6 +7,7 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
+#include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/qbone/qbone_client_interface.h"
 #include "quiche/quic/qbone/qbone_client_session.h"
 #include "quiche/quic/qbone/qbone_packet_writer.h"
@@ -36,6 +37,15 @@ class QboneClient : public QuicClientBase, public QboneClientInterface {
 
   bool EarlyDataAccepted() override;
   bool ReceivedInchoateReject() override;
+
+  void set_max_pacing_rate(QuicBandwidth max_pacing_rate) {
+    max_pacing_rate_ = max_pacing_rate;
+  }
+
+  QuicBandwidth max_pacing_rate() const { return max_pacing_rate_; }
+
+  bool use_quarantine_mode() const;
+  void set_use_quarantine_mode(bool use_quarantine_mode);
 
  protected:
   int GetNumSentClientHellosFromSession() override;
@@ -67,6 +77,12 @@ class QboneClient : public QuicClientBase, public QboneClientInterface {
   QboneClientControlStream::Handler* qbone_handler_;
 
   QuicSession::Visitor* session_owner_;
+
+  // When nonzero, the pacing rate set with`QuicConnection::SetMaxPacingRate`.
+  QuicBandwidth max_pacing_rate_;
+
+  // When true, the connection will be made in quarantine mode.
+  bool use_quarantine_mode_ = false;
 };
 
 }  // namespace quic

@@ -10,7 +10,6 @@
 #include "chrome/browser/extensions/api/settings_private/settings_private_delegate.h"
 #include "chrome/browser/extensions/api/settings_private/settings_private_delegate_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/zoom/chrome_zoom_level_prefs.h"
 #include "chrome/common/extensions/api/settings_private.h"
 #include "content/public/common/page_zoom.h"
 #include "extensions/browser/extension_function_registry.h"
@@ -21,11 +20,10 @@ namespace extensions {
 // SettingsPrivateSetPrefFunction
 ////////////////////////////////////////////////////////////////////////////////
 
-SettingsPrivateSetPrefFunction::~SettingsPrivateSetPrefFunction() {
-}
+SettingsPrivateSetPrefFunction::~SettingsPrivateSetPrefFunction() = default;
 
 ExtensionFunction::ResponseAction SettingsPrivateSetPrefFunction::Run() {
-  absl::optional<api::settings_private::SetPref::Params> parameters =
+  std::optional<api::settings_private::SetPref::Params> parameters =
       api::settings_private::SetPref::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(parameters);
 
@@ -51,15 +49,14 @@ ExtensionFunction::ResponseAction SettingsPrivateSetPrefFunction::Run() {
                               parameters->name));
   }
   NOTREACHED();
-  return RespondNow(WithArguments(false));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // SettingsPrivateGetAllPrefsFunction
 ////////////////////////////////////////////////////////////////////////////////
 
-SettingsPrivateGetAllPrefsFunction::~SettingsPrivateGetAllPrefsFunction() {
-}
+SettingsPrivateGetAllPrefsFunction::~SettingsPrivateGetAllPrefsFunction() =
+    default;
 
 ExtensionFunction::ResponseAction SettingsPrivateGetAllPrefsFunction::Run() {
   SettingsPrivateDelegate* delegate =
@@ -72,11 +69,10 @@ ExtensionFunction::ResponseAction SettingsPrivateGetAllPrefsFunction::Run() {
 // SettingsPrivateGetPrefFunction
 ////////////////////////////////////////////////////////////////////////////////
 
-SettingsPrivateGetPrefFunction::~SettingsPrivateGetPrefFunction() {
-}
+SettingsPrivateGetPrefFunction::~SettingsPrivateGetPrefFunction() = default;
 
 ExtensionFunction::ResponseAction SettingsPrivateGetPrefFunction::Run() {
-  absl::optional<api::settings_private::GetPref::Params> parameters =
+  std::optional<api::settings_private::GetPref::Params> parameters =
       api::settings_private::GetPref::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(parameters);
 
@@ -84,7 +80,7 @@ ExtensionFunction::ResponseAction SettingsPrivateGetPrefFunction::Run() {
       SettingsPrivateDelegateFactory::GetForBrowserContext(browser_context());
   DCHECK(delegate);
 
-  absl::optional<base::Value::Dict> value = delegate->GetPref(parameters->name);
+  std::optional<base::Value::Dict> value = delegate->GetPref(parameters->name);
   if (!value) {
     return RespondNow(Error("Pref * does not exist", parameters->name));
   }
@@ -97,8 +93,7 @@ ExtensionFunction::ResponseAction SettingsPrivateGetPrefFunction::Run() {
 ////////////////////////////////////////////////////////////////////////////////
 
 SettingsPrivateGetDefaultZoomFunction::
-    ~SettingsPrivateGetDefaultZoomFunction() {
-}
+    ~SettingsPrivateGetDefaultZoomFunction() = default;
 
 ExtensionFunction::ResponseAction
     SettingsPrivateGetDefaultZoomFunction::Run() {
@@ -113,12 +108,11 @@ ExtensionFunction::ResponseAction
 ////////////////////////////////////////////////////////////////////////////////
 
 SettingsPrivateSetDefaultZoomFunction::
-    ~SettingsPrivateSetDefaultZoomFunction() {
-}
+    ~SettingsPrivateSetDefaultZoomFunction() = default;
 
 ExtensionFunction::ResponseAction
     SettingsPrivateSetDefaultZoomFunction::Run() {
-  absl::optional<api::settings_private::SetDefaultZoom::Params> parameters =
+  std::optional<api::settings_private::SetDefaultZoom::Params> parameters =
       api::settings_private::SetDefaultZoom::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(parameters);
 

@@ -4,6 +4,10 @@
 
 #include "chrome/browser/diagnostics/diagnostics_test.h"
 
+#include <array>
+#include <string>
+#include <string_view>
+
 #include "base/files/file_path.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/path_service.h"
@@ -14,10 +18,62 @@
 
 namespace diagnostics {
 
+namespace {
+
+// A struct to hold information about the tests.
+struct TestNameInfo {
+  // Should only contain characters [A-Za-z0-9] (no spaces).
+  const char* name;
+
+  // A non-localized description only meant for developer consumption.
+  const char* description;
+};
+
+// This structure MUST have DIAGNOSTICS_TEST_COUNT entries in it: one for each
+// value of DiagnosticsTestId.  Note that the values in the "name" fields are
+// used for UMA metrics names (with "Diagnostics.Test." or
+// "Diagnostics.Recovery." prepended), so do not change them without
+// understanding the consequences.
+constexpr auto kTestNameInfo = std::to_array<TestNameInfo>({
+    {"ConflictingDlls", "Conflicting modules"},
+    {"DiskSpace", "Available disk space"},
+    {"InstallType", "Install type"},
+    {"JSONBookmarks", "Bookmark file"},
+    {"JSONLocalState", "Local state integrity"},
+    {"JSONPreferences", "User preferences integrity"},
+    {"OperatingSystem", "Operating system supported version"},
+    {"PathDictionaries", "App dictionaries directory path"},
+    {"PathLocalState", "Local state path"},
+    {"PathResources", "Resources path"},
+    {"PathUserData", "User data path"},
+    {"Version", "Chrome version test"},
+    {"SQLiteIntegrityAppCache", "Application cache database"},
+    {"SQLiteIntegrityArchivedHistory", "Archived history database (obsolete)"},
+    {"SQLiteIntegrityCookie", "Cookie database"},
+    {"SQLiteIntegrityDatabaseTracker", "Database tracker database"},
+    {"SQLiteIntegrityHistory", "History database"},
+    {"SQLiteIntegrityNSSCert", "NSS certificate database"},
+    {"SQLiteIntegrityNSSKey", "NSS Key database"},
+    {"SQLiteIntegrityThumbnails", "Thumbnails database (obsolete)"},
+    {"SQLiteIntegrityWebData", "Web Data database"},
+    {"SQLiteIntegrityFavicons", "Favicons database"},
+    {"SQLiteIntegrityTopSites", "Top Sites database"},
+    // Add new entries in the same order as DiagnosticsTestId.
+});
+
+static_assert(std::size(kTestNameInfo) == DIAGNOSTICS_TEST_ID_COUNT,
+              "diagnostics test info mismatch");
+
+const TestNameInfo& FindTestInfo(DiagnosticsTestId id) {
+  return kTestNameInfo[id];
+}
+
+}  // namespace
+
 DiagnosticsTest::DiagnosticsTest(DiagnosticsTestId id)
     : id_(id), outcome_code_(-1), result_(DiagnosticsModel::TEST_NOT_RUN) {}
 
-DiagnosticsTest::~DiagnosticsTest() {}
+DiagnosticsTest::~DiagnosticsTest() = default;
 
 bool DiagnosticsTest::Execute(DiagnosticsModel::Observer* observer,
                               DiagnosticsModel* model,
@@ -37,15 +93,6 @@ bool DiagnosticsTest::Recover(DiagnosticsModel::Observer* observer,
   bool keep_going = RecoveryImpl(observer);
   result_ = keep_going ? DiagnosticsModel::RECOVERY_OK
                        : DiagnosticsModel::RECOVERY_FAIL_STOP;
-#if BUILDFLAG(IS_CHROMEOS_ASH)  // Only collecting UMA stats on ChromeOS
-  if (result_ == DiagnosticsModel::RECOVERY_OK) {
-    RecordUMARecoveryResult(static_cast<DiagnosticsTestId>(GetId()),
-                            RESULT_SUCCESS);
-  } else {
-    RecordUMARecoveryResult(static_cast<DiagnosticsTestId>(GetId()),
-                            RESULT_FAILURE);
-  }
-#endif
   if (observer)
     observer->OnRecoveryFinished(index, model);
   return keep_going;
@@ -58,20 +105,6 @@ void DiagnosticsTest::RecordOutcome(int outcome_code,
   outcome_code_ = outcome_code;
   additional_info_ = additional_info;
   result_ = result;
-#if BUILDFLAG(IS_CHROMEOS_ASH)  // Only collecting UMA stats on ChromeOS
-  DiagnosticsTestId id = static_cast<DiagnosticsTestId>(GetId());
-  if (result_ == DiagnosticsModel::TEST_OK) {
-    // Record individual test success.
-    RecordUMATestResult(id, RESULT_SUCCESS);
-  } else if (result_ == DiagnosticsModel::TEST_FAIL_CONTINUE ||
-             result_ == DiagnosticsModel::TEST_FAIL_STOP) {
-    // Record test failure in summary histogram.
-    UMA_HISTOGRAM_ENUMERATION("Diagnostics.TestFailures", id,
-                              DIAGNOSTICS_TEST_ID_COUNT);
-    // Record individual test failure.
-    RecordUMATestResult(id, RESULT_FAILURE);
-  }
-#endif
 }
 
 // static
@@ -84,10 +117,12 @@ base::FilePath DiagnosticsTest::GetUserDefaultProfileDir() {
 
 int DiagnosticsTest::GetId() const { return id_; }
 
-std::string DiagnosticsTest::GetName() const { return GetTestName(id_); }
+std::string_view DiagnosticsTest::GetName() const {
+  return FindTestInfo(id_).name;
+}
 
-std::string DiagnosticsTest::GetTitle() const {
-  return GetTestDescription(id_);
+std::string_view DiagnosticsTest::GetTitle() const {
+  return FindTestInfo(id_).description;
 }
 
 DiagnosticsModel::TestResult DiagnosticsTest::GetResult() const {

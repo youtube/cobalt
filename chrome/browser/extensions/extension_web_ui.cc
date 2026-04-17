@@ -6,6 +6,7 @@
 
 #include <stddef.h>
 
+#include <algorithm>
 #include <iterator>
 #include <set>
 #include <string>
@@ -15,7 +16,6 @@
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
@@ -39,13 +39,14 @@
 #include "extensions/browser/extension_util.h"
 #include "extensions/browser/image_loader.h"
 #include "extensions/common/extension.h"
-#include "extensions/common/extension_icon_set.h"
 #include "extensions/common/extension_resource.h"
+#include "extensions/common/icons/extension_icon_set.h"
 #include "extensions/common/manifest_handlers/icons_handler.h"
 #include "extensions/common/manifest_handlers/incognito_info.h"
 #include "net/base/file_stream.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/page_transition_types.h"
+#include "ui/base/resource/resource_scale_factor.h"
 #include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/favicon_size.h"
 #include "ui/gfx/image/image_skia.h"
@@ -89,7 +90,6 @@ void InitializeOverridesList(base::Value::List& list) {
       new_dict.Set(kActive, true);
     } else {
       NOTREACHED();
-      continue;
     }
 
     // |entry_name| will be set by this point.
@@ -114,7 +114,6 @@ void AddOverridesToList(base::Value::List& list, const GURL& override_url) {
     }
     if (!entry) {
       NOTREACHED();
-      continue;
     }
     if (*entry == spec) {
       dict->Set(kActive, true);
@@ -123,7 +122,6 @@ void AddOverridesToList(base::Value::List& list, const GURL& override_url) {
     GURL entry_url(*entry);
     if (!entry_url.is_valid()) {
       NOTREACHED();
-      continue;
     }
     if (entry_url.host() == override_url.host()) {
       dict->Set(kActive, true);
@@ -152,7 +150,6 @@ void ValidateOverridesList(const extensions::ExtensionSet* all_extensions,
     }
     if (!entry) {
       NOTREACHED();
-      continue;
     }
     GURL override_url(*entry);
     if (!override_url.is_valid())
@@ -204,7 +201,7 @@ enum UpdateBehavior {
 bool UpdateOverridesList(base::Value::List& overrides_list,
                          const std::string& override_url,
                          UpdateBehavior behavior) {
-  auto iter = base::ranges::find_if(
+  auto iter = std::ranges::find_if(
       overrides_list, [&override_url](const base::Value& value) {
         if (!value.is_dict())
           return false;
@@ -243,9 +240,12 @@ void UpdateOverridesLists(Profile* profile,
   for (const auto& page_override_pair : overrides) {
     base::Value::List* page_overrides =
         all_overrides.FindList(page_override_pair.first);
-    // If it's being unregistered, it should already be in the list.
     if (!page_overrides) {
-      NOTREACHED();
+      // If it's being unregistered it may or may not be in the list. Eg: On
+      // uninstalling an externally loaded extension, which has not been enabled
+      // once.
+      // But if it's being deactivated, it should already be in the list.
+      DCHECK_NE(behavior, UPDATE_DEACTIVATE);
       continue;
     }
     if (UpdateOverridesList(*page_overrides, page_override_pair.second.spec(),
@@ -255,6 +255,7 @@ void UpdateOverridesLists(Profile* profile,
       base::RepeatingCallback<void(WebContents*)> callback =
           base::BindRepeating(&UnregisterAndReplaceOverrideForWebContents,
                               page_override_pair.first, profile);
+      // Apply to all existing tabs.
       extensions::ExtensionTabUtil::ForEachTab(callback);
     }
   }
@@ -269,13 +270,15 @@ void RunFaviconCallbackAsync(favicon_base::FaviconResultsCallback callback,
   const std::vector<gfx::ImageSkiaRep>& image_reps =
       image.AsImageSkia().image_reps();
   for (const gfx::ImageSkiaRep& image_rep : image_reps) {
-    auto bitmap_data = base::MakeRefCounted<base::RefCountedBytes>();
-    if (gfx::PNGCodec::EncodeBGRASkBitmap(image_rep.GetBitmap(), false,
-                                          &bitmap_data->data())) {
+    std::optional<std::vector<uint8_t>> png_data =
+        gfx::PNGCodec::EncodeBGRASkBitmap(image_rep.GetBitmap(),
+                                          /*discard_transparency=*/false);
+    if (png_data) {
       favicon_base::FaviconRawBitmapResult bitmap_result;
-      bitmap_result.bitmap_data = bitmap_data;
-      bitmap_result.pixel_size = gfx::Size(image_rep.pixel_width(),
-                                            image_rep.pixel_height());
+      bitmap_result.bitmap_data = base::MakeRefCounted<base::RefCountedBytes>(
+          std::move(png_data.value()));
+      bitmap_result.pixel_size =
+          gfx::Size(image_rep.pixel_width(), image_rep.pixel_height());
       // Leave |bitmap_result|'s icon URL as the default of GURL().
       bitmap_result.icon_type = favicon_base::IconType::kFavicon;
 
@@ -578,17 +581,16 @@ void ExtensionWebUI::GetFaviconForURL(
   for (float scale : favicon_scales) {
     int pixel_size = static_cast<int>(gfx::kFaviconSize * scale);
     extensions::ExtensionResource icon_resource =
-        extensions::IconsInfo::GetIconResource(extension,
-                                               pixel_size,
-                                               ExtensionIconSet::MATCH_BIGGER);
+        extensions::IconsInfo::GetIconResource(
+            extension, pixel_size, ExtensionIconSet::Match::kBigger);
 
     if (!icon_resource.empty()) {
       ui::ResourceScaleFactor resource_scale_factor =
           ui::GetSupportedResourceScaleFactor(scale);
-      info_list.push_back(extensions::ImageLoader::ImageRepresentation(
+      info_list.emplace_back(
           icon_resource,
           extensions::ImageLoader::ImageRepresentation::ALWAYS_RESIZE,
-          gfx::Size(pixel_size, pixel_size), resource_scale_factor));
+          gfx::Size(pixel_size, pixel_size), resource_scale_factor);
     }
   }
 
@@ -600,9 +602,7 @@ void ExtensionWebUI::GetFaviconForURL(
     gfx::ImageSkia placeholder_skia(placeholder_image.AsImageSkia());
     // Ensure the ImageSkia has representation at all scales we would use for
     // favicons.
-    std::vector<ui::ResourceScaleFactor> scale_factors =
-        ui::GetSupportedResourceScaleFactors();
-    for (const auto& scale_factor : scale_factors) {
+    for (const auto scale_factor : ui::GetSupportedResourceScaleFactors()) {
       placeholder_skia.GetRepresentation(
           ui::GetScaleForResourceScaleFactor(scale_factor));
     }

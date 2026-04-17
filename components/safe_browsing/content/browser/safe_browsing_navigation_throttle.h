@@ -8,16 +8,12 @@
 #include "base/memory/raw_ptr.h"
 #include "content/public/browser/navigation_throttle.h"
 
-namespace content {
-class NavigationHandle;
-}  // namespace content
-
 namespace safe_browsing {
 
 class SafeBrowsingUIManager;
 
-// This throttle monitors failed requests in an outer-most main frame (i.e.
-// doesn't apply for fenced-frames or portals), and if a request failed due to
+// This throttle monitors failed requests in an outer-most main frame (e.g.
+// doesn't apply for fenced-frames), and if a request failed due to
 // it being blocked by Safe Browsing, it creates and displays an interstitial.
 // For other kinds of loads, the interstitial is navigated at the same time the
 // load is canceled in BaseUIManager::DisplayBlockingPage
@@ -30,8 +26,8 @@ class SafeBrowsingUIManager;
 class SafeBrowsingNavigationThrottle : public content::NavigationThrottle {
  public:
   // |ui_manager| may be null, in which case no throttle is created.
-  static std::unique_ptr<content::NavigationThrottle> MaybeCreateThrottleFor(
-      content::NavigationHandle* handle,
+  static void MaybeCreateAndAdd(
+      content::NavigationThrottleRegistry& registry,
       SafeBrowsingUIManager* ui_manager);
   ~SafeBrowsingNavigationThrottle() override = default;
   const char* GetNameForLogging() override;
@@ -39,7 +35,7 @@ class SafeBrowsingNavigationThrottle : public content::NavigationThrottle {
   content::NavigationThrottle::ThrottleCheckResult WillFailRequest() override;
 
  private:
-  SafeBrowsingNavigationThrottle(content::NavigationHandle* handle,
+  SafeBrowsingNavigationThrottle(content::NavigationThrottleRegistry& registry,
                                  SafeBrowsingUIManager* ui_manager);
 
   raw_ptr<SafeBrowsingUIManager> manager_;

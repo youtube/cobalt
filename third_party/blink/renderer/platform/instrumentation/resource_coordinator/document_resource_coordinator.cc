@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "base/memory/ptr_util.h"
-#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
@@ -71,6 +71,21 @@ void DocumentResourceCoordinator::SetHadUserEdits() {
   had_user_edits_ = true;
 }
 
+void DocumentResourceCoordinator::OnStartedUsingWebRTC() {
+  ++num_web_rtc_usage_;
+  if (num_web_rtc_usage_ == 1) {
+    service_->OnStartedUsingWebRTC();
+  }
+}
+
+void DocumentResourceCoordinator::OnStoppedUsingWebRTC() {
+  --num_web_rtc_usage_;
+  CHECK_GE(num_web_rtc_usage_, 0);
+  if (num_web_rtc_usage_ == 0) {
+    service_->OnStoppedUsingWebRTC();
+  }
+}
+
 void DocumentResourceCoordinator::OnFirstContentfulPaint(
     base::TimeDelta time_since_navigation_start) {
   service_->OnFirstContentfulPaint(time_since_navigation_start);
@@ -80,6 +95,10 @@ void DocumentResourceCoordinator::OnWebMemoryMeasurementRequested(
     WebMemoryMeasurementMode mode,
     OnWebMemoryMeasurementRequestedCallback callback) {
   service_->OnWebMemoryMeasurementRequested(mode, std::move(callback));
+}
+
+void DocumentResourceCoordinator::OnFreezingOriginTrialOptOut() {
+  service_->OnFreezingOriginTrialOptOut();
 }
 
 }  // namespace blink

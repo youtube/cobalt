@@ -10,7 +10,9 @@
 
 #include "rtc_base/ifaddrs_converter.h"
 
-namespace rtc {
+#include "rtc_base/ip_address.h"
+
+namespace webrtc {
 
 IfAddrsConverter::IfAddrsConverter() {}
 
@@ -47,7 +49,7 @@ bool IfAddrsConverter::ConvertIfAddrsToIPAddress(
 }
 
 bool IfAddrsConverter::ConvertNativeAttributesToIPAttributes(
-    const struct ifaddrs* interface,
+    const struct ifaddrs* /* interface */,
     int* ip_attributes) {
   *ip_attributes = IPV6_ADDRESS_FLAG_NONE;
   return true;
@@ -59,4 +61,4 @@ IfAddrsConverter* CreateIfAddrsConverter() {
   return new IfAddrsConverter();
 }
 #endif
-}  // namespace rtc
+}  // namespace webrtc

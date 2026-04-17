@@ -14,6 +14,9 @@
 
 package dev.cobalt.shell;
 
+import static org.chromium.build.NullUtil.assertNonNull;
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.Rect;
@@ -25,16 +28,22 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import org.chromium.base.Callback;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.base.ResettersForTesting;
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.components.embedder_support.view.ContentViewRenderView;
 import org.chromium.content_public.browser.ActionModeCallbackHelper;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.NavigationController;
 import org.chromium.content_public.browser.SelectionPopupController;
+import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.ViewAndroidDelegate;
 import org.chromium.ui.base.WindowAndroid;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 /**
  *  Copied from org.chromium.content_shell.Shell.
@@ -42,6 +51,7 @@ import org.chromium.ui.base.WindowAndroid;
  *  Container for the various UI components that make up a shell window.
  */
 @JNINamespace("content")
+@NullMarked
 public class Shell {
     /**
      * Interface for notifying observers of WebContents readiness.
@@ -61,18 +71,20 @@ public class Shell {
             "restrictDirectWritingArea=true";
 
     private WebContents mWebContents;
+    private WebContents mSplashScreenWebContents;
     private NavigationController mNavigationController;
 
     private long mNativeShell;
-    private ContentViewRenderView mContentViewRenderView;
-    private WindowAndroid mWindow;
-    private ShellViewAndroidDelegate mViewAndroidDelegate;
+    private @Nullable ContentViewRenderView mContentViewRenderView;
+    private @Nullable WindowAndroid mWindow;
+    private @Nullable ShellViewAndroidDelegate mViewAndroidDelegate;
 
     private boolean mLoading;
     private boolean mIsFullscreen;
+    private boolean mIsActivityVisible;
 
-    private OnWebContentsReadyListener mWebContentsReadyListener;
-    private Callback<Boolean> mOverlayModeChangedCallbackForTesting;
+    private @Nullable OnWebContentsReadyListener mWebContentsReadyListener;
+    private @Nullable Callback<Boolean> mOverlayModeChangedCallbackForTesting;
     private ViewGroup mRootView;
 
     /**
@@ -87,14 +99,14 @@ public class Shell {
         mRootView = view;
     }
 
-    public void setWebContentsReadyListener(OnWebContentsReadyListener listener) {
+    public void setWebContentsReadyListener(@Nullable OnWebContentsReadyListener listener) {
         mWebContentsReadyListener = listener;
     }
 
     /**
      * Set the SurfaceView being rendered to as soon as it is available.
      */
-    public void setContentViewRenderView(ContentViewRenderView contentViewRenderView) {
+    public void setContentViewRenderView(@Nullable ContentViewRenderView contentViewRenderView) {
         if (contentViewRenderView == null) {
             if (mContentViewRenderView != null) {
                 mRootView.removeView(mContentViewRenderView);
@@ -128,6 +140,15 @@ public class Shell {
         ShellJni.get().closeShell(mNativeShell);
     }
 
+    /**
+     * Load splash screen.
+     */
+    public void loadSplashScreenWebContents() {
+        if (mNativeShell == 0) return;
+        ShellJni.get().loadSplashScreenWebContents(mNativeShell);
+    }
+
+    @SuppressWarnings("NullAway")
     @CalledByNative
     private void onNativeDestroyed() {
         mWindow = null;
@@ -197,7 +218,7 @@ public class Shell {
         mLoading = loading;
     }
 
-    public ShellViewAndroidDelegate getViewAndroidDelegate() {
+    public @Nullable ShellViewAndroidDelegate getViewAndroidDelegate() {
         return mViewAndroidDelegate;
     }
 
@@ -206,18 +227,65 @@ public class Shell {
      * @param webContents A {@link WebContents} object.
      */
     @CalledByNative
+    @Initializer
     private void initFromNativeTabContents(WebContents webContents) {
+        if (webContents == null || mContentViewRenderView == null) return;
         mViewAndroidDelegate = new ShellViewAndroidDelegate(mRootView);
         assert (mWebContents != webContents);
         if (mWebContents != null) mWebContents.clearNativeReference();
-        webContents.initialize(
-                "", mViewAndroidDelegate, null /* ContentView */, mWindow, WebContents.createDefaultInternalsHolder());
+        webContents.setDelegates(
+                "", mViewAndroidDelegate, null, mWindow, WebContents.createDefaultInternalsHolder());
         mWebContents = webContents;
-        mNavigationController = mWebContents.getNavigationController();
-        mWebContents.onShow();
-        mContentViewRenderView.setCurrentWebContents(mWebContents);
+        mNavigationController = assertNonNull(mWebContents.getNavigationController());
+        if (mIsActivityVisible) {
+            mWebContents.updateWebContentsVisibility(Visibility.VISIBLE);
+        }
+        assumeNonNull(mContentViewRenderView).setCurrentWebContents(mWebContents);
         if (mWebContentsReadyListener != null) {
             mWebContentsReadyListener.onWebContentsReady();
+        }
+    }
+
+    /**
+     * Load the native splash screen contents.
+     * @param webContents A {@link WebContents} object.
+     */
+    @CalledByNative
+    private void loadSplashScreenNativeTabContents(WebContents splashWebContents) {
+        if (splashWebContents == null || mContentViewRenderView == null) return;
+        mSplashScreenWebContents = splashWebContents;
+        splashWebContents.setDelegates(
+                "", mViewAndroidDelegate, null, mWindow, WebContents.createDefaultInternalsHolder());
+        if (mIsActivityVisible) {
+            splashWebContents.updateWebContentsVisibility(Visibility.VISIBLE);
+        }
+        mContentViewRenderView.setCurrentWebContents(splashWebContents);
+    }
+
+    /**
+     * Update native contents.
+     * @param webContents A {@link WebContents} object.
+     */
+    @CalledByNative
+    private void updateNativeTabContents(WebContents webContents) {
+        if (webContents == null || mContentViewRenderView == null) return;
+        mWebContents = webContents;
+        mSplashScreenWebContents = null;
+        mNavigationController = mWebContents.getNavigationController();
+        if (mIsActivityVisible) {
+            mWebContents.updateWebContentsVisibility(Visibility.VISIBLE);
+        }
+        mContentViewRenderView.setCurrentWebContents(mWebContents);
+    }
+
+    public void onActivityVisible(boolean visible) {
+        mIsActivityVisible = visible;
+        if (mWebContents != null) {
+            if (visible) {
+                mWebContents.updateWebContentsVisibility(Visibility.VISIBLE);
+            } else {
+                mWebContents.updateWebContentsVisibility(Visibility.HIDDEN);
+            }
         }
     }
 
@@ -261,7 +329,7 @@ public class Shell {
 
     @CalledByNative
     public void setOverlayMode(boolean useOverlayMode) {
-        mContentViewRenderView.setOverlayVideoMode(useOverlayMode);
+        assumeNonNull(mContentViewRenderView).setOverlayVideoMode(useOverlayMode);
         if (mOverlayModeChangedCallbackForTesting != null) {
             mOverlayModeChangedCallbackForTesting.onResult(useOverlayMode);
         }
@@ -269,6 +337,7 @@ public class Shell {
 
     public void setOverayModeChangedCallbackForTesting(Callback<Boolean> callback) {
         mOverlayModeChangedCallbackForTesting = callback;
+        ResettersForTesting.register(() -> mOverlayModeChangedCallbackForTesting = null);
     }
 
     /**
@@ -283,7 +352,7 @@ public class Shell {
     /**
      * @return The {@link View} currently shown by this Shell.
      */
-    public View getContentView() {
+    public @Nullable View getContentView() {
         ViewAndroidDelegate viewDelegate = mWebContents.getViewAndroidDelegate();
         return viewDelegate != null ? viewDelegate.getContainerView() : null;
     }
@@ -297,6 +366,7 @@ public class Shell {
 
     @NativeMethods
     interface Natives {
+        void loadSplashScreenWebContents(long shellPtr);
         void closeShell(long shellPtr);
     }
 }

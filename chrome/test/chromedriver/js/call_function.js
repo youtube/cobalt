@@ -10,7 +10,7 @@ const StatusCode = {
   STALE_ELEMENT_REFERENCE: 10,
   JAVA_SCRIPT_ERROR: 17,
   NO_SUCH_SHADOW_ROOT: 65,
-  DETACHED_SHADOW_ROOT: 66
+  DETACHED_SHADOW_ROOT: 66,
 };
 
 /**
@@ -36,6 +36,16 @@ var ELEMENT_KEY = 'ELEMENT';
  */
 const SHADOW_ROOT_KEY = 'shadow-6066-11e4-a52e-4f735466cecf';
 const W3C_ELEMENT_KEY = 'element-6066-11e4-a52e-4f735466cecf';
+const FRAME_KEY = 'frame-075b-4da1-b6ba-e579c2d3230a';
+const WINDOW_KEY = 'window-fcc6-11e5-b4f8-330a88ab9d7f';
+
+const REF_KEYS = [
+    W3C_ELEMENT_KEY,
+    SHADOW_ROOT_KEY,
+    FRAME_KEY,
+    WINDOW_KEY,
+    ELEMENT_KEY,
+];
 
 /**
  * True if using W3C Element references.
@@ -64,8 +74,10 @@ function newError(message, code) {
 }
 
 function isNodeReachable(node) {
+  const Window = window.cdc_adoQpoasnfa76pfcZLmcfl_Window || window.Window;
   const nodeRoot = getNodeRootThroughAnyShadows(node);
-  return (nodeRoot == document.documentElement.parentNode);
+  return (nodeRoot == document.documentElement.parentNode)
+      || (nodeRoot instanceof Window);
 }
 
 /**
@@ -106,12 +118,17 @@ function isElement(value) {
   // since this does not work with frames/iframes, for example
   // frames[0].document.body instanceof Object == false even though
   // typeof(frames[0].document.body) == 'object'.
-  return ((typeof(value) == 'object' && value != null) ||
-            (typeof(value) == 'function' && value.nodeName &&
-            value.nodeType == NodeType.ELEMENT)) &&
-          (value.nodeType == NodeType.ELEMENT   ||
-           value.nodeType == NodeType.DOCUMENT  ||
-           (SHADOW_DOM_ENABLED && value instanceof ShadowRoot));
+  try {
+    return ((typeof(value) == 'object' && value != null) ||
+              (typeof(value) == 'function' && value.nodeName &&
+              value.nodeType == NodeType.ELEMENT)) &&
+            (value.nodeType == NodeType.ELEMENT   ||
+             value.nodeType == NodeType.DOCUMENT  ||
+             (SHADOW_DOM_ENABLED && value instanceof ShadowRoot));
+  } catch {
+    // OOPIF content window
+    return false;
+  }
 }
 
 /**
@@ -122,7 +139,9 @@ function isElement(value) {
  */
 function isCollection(value) {
   const Symbol = window.cdc_adoQpoasnfa76pfcZLmcfl_Symbol || window.Symbol;
-  return (typeof value[Symbol.iterator] === 'function');
+  return (typeof value[Symbol.iterator] === 'function') &&
+      ('length' in value) &&
+      (typeof value.length === 'number');
 }
 
 /**
@@ -223,8 +242,9 @@ function preprocessResult(item, seen, nodes) {
   if (isElement(item)) {
     if (!isNodeReachable(item)) {
       if (item instanceof ShadowRoot)
-        throw newError('detached shadow root', StatusCode.DETACHED_SHADOW_ROOT);
-      throw newError('stale element not found',
+        throw newError('shadow root is detached from the current frame',
+            StatusCode.DETACHED_SHADOW_ROOT);
+      throw newError('stale element not found in the current frame',
                      StatusCode.STALE_ELEMENT_REFERENCE);
     }
     const ret = {};
@@ -242,7 +262,21 @@ function preprocessResult(item, seen, nodes) {
     return serializationGuard(ret);
   }
 
-  // TODO(crbug.com/1337415): Implement WindowProxy serialization.
+  let WindowProxy = window.cdc_adoQpoasnfa76pfcZLmcfl_Window || window.Window;
+  let is_oopif = false;
+  try {
+    WindowProxy = item.cdc_adoQpoasnfa76pfcZLmcfl_Window || item.Window
+        || WindowProxy;
+  } catch {
+    is_oopif = true;
+  }
+
+  if (is_oopif || item instanceof WindowProxy) {
+    const ret = {};
+    ret[WINDOW_KEY] = nodes.length;
+    nodes.push(item);
+    return serializationGuard(ret);
+  }
 
   if (Object.hasOwn(item, 'toJSON') && typeof item.toJSON === 'function') {
       // Not guarded because we want item.toJSON to be invoked by
@@ -263,7 +297,7 @@ function preprocessResult(item, seen, nodes) {
  * @param {!Array<*>} nodes List of referred nodes
  * @return {*} Clone of item with status of cloning.
  */
-function resolveReferences(item, seen, nodes) {
+function resolveReferencesRecursive(item, seen, nodes) {
   if (item === undefined ||
       item === null ||
       typeof item === 'boolean' ||
@@ -271,24 +305,41 @@ function resolveReferences(item, seen, nodes) {
       typeof item === 'string' ||
       typeof item === 'function')
     return item;
-  if (item.hasOwnProperty(ELEMENT_KEY)) {
-    const idx = item[ELEMENT_KEY];
+  for (const key of REF_KEYS) {
+    if (!item.hasOwnProperty(key))
+      continue;
+    let idx = item[key];
     if (idx < 0 || idx >= nodes.length) {
-      throw newError('element is not attached to the page document',
-                    StatusCode.STALE_ELEMENT_REFERENCE);
+      throw newError('unable to resove node reference. '
+          + 'Node index is out of range.', StatusCode.JAVA_SCRIPT_ERROR);
     }
-    return nodes[idx];
-  }
-  if (item.hasOwnProperty(SHADOW_ROOT_KEY)) {
-    const idx = item[SHADOW_ROOT_KEY];
-    if (idx < 0 || idx >= nodes.length) {
-        throw newError('detached shadow root', StatusCode.DETACHED_SHADOW_ROOT);
-    }
+    if (key == FRAME_KEY)
+      return nodes[idx].contentWindow;
     return nodes[idx];
   }
   if (isCollection(item) || typeof item === 'object')
-    return cloneWithAlgorithm(item, seen, resolveReferences, nodes);
+    return cloneWithAlgorithm(item, seen, resolveReferencesRecursive, nodes);
   throw newError('unhandled object', StatusCode.JAVA_SCRIPT_ERROR);
+}
+
+/**
+ * Returns deserialized deep clone of given value, replacing serialized string
+ * references to elements with a element reference, if found.
+ * @param {*} item Object or collection to deep clone.
+ * @param {!Array<*>} nodes List of referred nodes
+ * @return {*} Clone of item with status of cloning.
+ */
+function resolveReferences(args, nodes) {
+  for (let idx = 0; idx < nodes.length; ++idx) {
+    if (!isNodeReachable(nodes[idx])) {
+      if (nodes[idx] instanceof ShadowRoot)
+        throw newError('shadow root is detached from the current frame',
+            StatusCode.DETACHED_SHADOW_ROOT);
+      throw newError('stale element not found in the current frame',
+                     StatusCode.STALE_ELEMENT_REFERENCE);
+    }
+  }
+  return resolveReferencesRecursive(args, [], nodes);
 }
 
 /**
@@ -312,7 +363,6 @@ function callFunction(func, args, w3c, nodes) {
   if (w3c) {
     w3cEnabled = true;
     ELEMENT_KEY = W3C_ELEMENT_KEY;
-
   }
 
   function buildError(error) {
@@ -320,21 +370,19 @@ function callFunction(func, args, w3c, nodes) {
       status: error.code || StatusCode.JAVA_SCRIPT_ERROR,
       value: error.message || error
     });
+    const JSON = window.cdc_adoQpoasnfa76pfcZLmcfl_JSON || window.JSON;
     return [JSON.stringify(errorResponse)];
   }
 
   const Promise = window.cdc_adoQpoasnfa76pfcZLmcfl_Promise || window.Promise;
+  let unwrappedArgs = null;
   try {
-    for (let idx = 0; idx < nodes.length; ++idx) {
-      if (!isNodeReachable(nodes[idx])) {
-        if (nodes[idx] instanceof ShadowRoot)
-          throw newError('detached shadow root',
-                         StatusCode.DETACHED_SHADOW_ROOT);
-        throw newError('stale element not found',
-                       StatusCode.STALE_ELEMENT_REFERENCE);
-      }
-    }
-    const unwrappedArgs = resolveReferences(args, [], nodes);
+    unwrappedArgs = resolveReferences(args, nodes);
+  } catch (error) {
+    return Promise.resolve(buildError(error));
+  }
+
+  try {
     const tmp = func.apply(null, unwrappedArgs);
     return Promise.resolve(tmp).then((result) => {
       ret_nodes = [];
@@ -342,6 +390,7 @@ function callFunction(func, args, w3c, nodes) {
         status: 0,
         value: preprocessResult(result, [], ret_nodes)
       };
+      const JSON = window.cdc_adoQpoasnfa76pfcZLmcfl_JSON || window.JSON;
       return [JSON.stringify(response), ...ret_nodes];
     }).catch(buildError);
   } catch (error) {

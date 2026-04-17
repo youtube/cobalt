@@ -3,26 +3,34 @@
 # found in the LICENSE file.
 """Definitions of builders in the tryserver.chromium.fuchsia builder group."""
 
-load("//lib/branches.star", "branches")
-load("//lib/builder_config.star", "builder_config")
-load("//lib/builders.star", "os", "reclient")
-load("//lib/consoles.star", "consoles")
-load("//lib/try.star", "try_")
+load("@chromium-luci//branches.star", "branches")
+load("@chromium-luci//builder_config.star", "builder_config")
+load("@chromium-luci//builders.star", "builders", "os")
+load("@chromium-luci//consoles.star", "consoles")
+load("@chromium-luci//gn_args.star", "gn_args")
+load("@chromium-luci//html.star", "linkify_builder")
+load("@chromium-luci//try.star", "try_")
+load("//lib/siso.star", "siso")
+load("//lib/try_constants.star", "try_constants")
 load("//project.star", "settings")
 
 try_.defaults.set(
-    executable = try_.DEFAULT_EXECUTABLE,
+    executable = try_constants.DEFAULT_EXECUTABLE,
     builder_group = "tryserver.chromium.fuchsia",
-    pool = try_.DEFAULT_POOL,
+    pool = try_constants.DEFAULT_POOL,
     cores = 8,
     os = os.LINUX_DEFAULT,
     compilator_cores = 8,
-    compilator_reclient_jobs = reclient.jobs.MID_JOBS_FOR_CQ,
-    execution_timeout = try_.DEFAULT_EXECUTION_TIMEOUT,
+    execution_timeout = try_constants.DEFAULT_EXECUTION_TIMEOUT,
     orchestrator_cores = 2,
-    reclient_instance = reclient.instance.DEFAULT_UNTRUSTED,
-    reclient_jobs = reclient.jobs.HIGH_JOBS_FOR_CQ,
-    service_account = try_.DEFAULT_SERVICE_ACCOUNT,
+    orchestrator_siso_remote_jobs = siso.remote_jobs.HIGH_JOBS_FOR_CQ,
+    service_account = try_constants.DEFAULT_SERVICE_ACCOUNT,
+    # crbug.com/372192123 - downloading with "minimum" strategy doesn't work
+    # well for Fuchsia builds because some packaging steps require executables.
+    siso_output_local_strategy = "greedy",
+    siso_project = siso.project.DEFAULT_UNTRUSTED,
+    siso_remote_jobs = siso.remote_jobs.HIGH_JOBS_FOR_CQ,
+    siso_remote_linking = True,
 )
 
 consoles.list_view(
@@ -36,44 +44,38 @@ try_.builder(
     mirrors = [
         "ci/fuchsia-arm64-cast-receiver-rel",
     ],
-    main_list_view = "try",
-    # This is the only bot that builds //chromecast code for Fuchsia on ARM64
-    # so trigger it when changes are made.
-    tryjob = try_.job(
-        location_filters = [
-            "chromecast/.+",
+    gn_args = gn_args.config(
+        configs = [
+            "ci/fuchsia-arm64-cast-receiver-rel",
+            "release_try_builder",
         ],
     ),
-)
-
-try_.orchestrator_builder(
-    name = "fuchsia-arm64-rel",
-    branch_selector = branches.selector.FUCHSIA_BRANCHES,
-    mirrors = [
-        "ci/fuchsia-arm64-rel",
-    ],
-    compilator = "fuchsia-arm64-rel-compilator",
-    experiments = {
-        "enable_weetbix_queries": 100,
-        "weetbix.retry_weak_exonerations": 100,
-        "weetbix.enable_weetbix_exonerations": 100,
-    },
     main_list_view = "try",
-    tryjob = try_.job(),
-)
-
-try_.compilator_builder(
-    name = "fuchsia-arm64-rel-compilator",
-    branch_selector = branches.selector.FUCHSIA_BRANCHES,
-    # TODO(crbug.com/1298110): Set to True once compilator bots are moved
-    ssd = None,
-    main_list_view = "try",
+    tryjob = try_.job(
+        location_filters = [
+            # This is the only bot that builds //chromecast code for Fuchsia on
+            # ARM64, so trigger it when changes are made.
+            "chromecast/.+",
+            # Always trigger this builder when drilling the fuchsia-sdk.
+            "build/fuchsia/sdk_override.txt",
+        ],
+    ),
 )
 
 try_.builder(
     name = "fuchsia-binary-size",
     branch_selector = branches.selector.FUCHSIA_BRANCHES,
     executable = "recipe:binary_size_fuchsia_trybot",
+    gn_args = gn_args.config(
+        configs = [
+            "release",
+            "official_optimize",
+            "remoteexec",
+            "fuchsia",
+            "arm64",
+            "cast_receiver_size_optimized",
+        ],
+    ),
     builderless = not settings.is_main,
     cores = 16 if settings.is_main else 8,
     properties = {
@@ -86,23 +88,32 @@ try_.builder(
             ],
         },
     },
+    # b/325854950 - 1280 concurrent remote jobs might cause slow downloads
+    # because this builder doesn't use SSD.
+    siso_remote_jobs = 640,
     tryjob = try_.job(),
 )
 
 try_.builder(
-    name = "fuchsia-compile-x64-dbg",
+    name = "fuchsia-x64-cast-receiver-dbg-compile",
+    description_html = "A compile only replica of " + linkify_builder("ci", "fuchsia-x64-cast-receiver-dbg", "chromium"),
     mirrors = [
-        "ci/fuchsia-x64-dbg",
+        "ci/fuchsia-x64-cast-receiver-dbg",
     ],
-    try_settings = builder_config.try_settings(
+    builder_config_settings = builder_config.try_settings(
         include_all_triggered_testers = True,
         is_compile_only = True,
     ),
+    gn_args = gn_args.config(
+        configs = [
+            "ci/fuchsia-x64-cast-receiver-dbg",
+        ],
+    ),
+    contact_team_email = "chrome-fuchsia-engprod@google.com",
     tryjob = try_.job(
         location_filters = [
-            "base/fuchsia/.+",
-            "fuchsia/.+",
-            "media/fuchsia/.+",
+            ".*fuchsia.+",
+            cq.location_filter(exclude = True, path_regexp = ".*\\.md"),
         ],
     ),
 )
@@ -110,16 +121,59 @@ try_.builder(
 try_.builder(
     name = "fuchsia-deterministic-dbg",
     executable = "recipe:swarming/deterministic_build",
+    gn_args = gn_args.config(
+        configs = [
+            "debug_builder",
+            "remoteexec",
+            "fuchsia_smart_display",
+            "x64",
+        ],
+    ),
+    free_space = builders.free_space.high,
 )
 
 try_.builder(
     name = "fuchsia-fyi-arm64-dbg",
     mirrors = ["ci/fuchsia-fyi-arm64-dbg"],
+    gn_args = "ci/fuchsia-fyi-arm64-dbg",
 )
 
 try_.builder(
-    name = "fuchsia-fyi-x64-dbg",
-    mirrors = ["ci/fuchsia-fyi-x64-dbg"],
+    name = "fuchsia-fyi-x64-asan",
+    mirrors = ["ci/fuchsia-fyi-x64-asan"],
+    gn_args = "ci/fuchsia-fyi-x64-asan",
+    contact_team_email = "chrome-fuchsia-engprod@google.com",
+    execution_timeout = 10 * time.hour,
+)
+
+try_.builder(
+    name = "fuchsia-fyi-x64-dbg-persistent-emulator",
+    mirrors = ["ci/fuchsia-fyi-x64-dbg-persistent-emulator"],
+    gn_args = "ci/fuchsia-fyi-x64-dbg-persistent-emulator",
+    contact_team_email = "chrome-fuchsia-engprod@google.com",
+    execution_timeout = 10 * time.hour,
+)
+
+try_.builder(
+    name = "fuchsia-x64-cast-receiver-dbg",
+    branch_selector = branches.selector.FUCHSIA_BRANCHES,
+    mirrors = ["ci/fuchsia-x64-cast-receiver-dbg"],
+    gn_args = gn_args.config(
+        configs = [
+            "ci/fuchsia-x64-cast-receiver-dbg",
+            "debug_try_builder",
+        ],
+    ),
+    contact_team_email = "chrome-fuchsia-engprod@google.com",
+    execution_timeout = 10 * time.hour,
+    main_list_view = "try",
+    # This is the only bot that builds //chromecast code for Fuchsia on x64
+    # so trigger it when changes are made.
+    tryjob = try_.job(
+        location_filters = [
+            "chromecast/.+",
+        ],
+    ),
 )
 
 try_.orchestrator_builder(
@@ -128,16 +182,48 @@ try_.orchestrator_builder(
     mirrors = [
         "ci/fuchsia-x64-cast-receiver-rel",
     ],
+    builder_config_settings = builder_config.try_settings(
+        # This is a temporary solution to avoid allowing culprit changes to slip through since
+        # retry runs without the patch always fail with connection errors.
+        # See https://crbug.com/40278477.
+        # TODO(b/40278477): Re-enable the exoneration when the issue above is fixed.
+        retry_without_patch = False,
+    ),
+    gn_args = gn_args.config(
+        configs = [
+            "ci/fuchsia-x64-cast-receiver-rel",
+            "release_try_builder",
+            "use_clang_coverage",
+            "fuchsia_code_coverage",
+            "partial_code_coverage_instrumentation",
+        ],
+    ),
     compilator = "fuchsia-x64-cast-receiver-rel-compilator",
     coverage_test_types = ["unit", "overall"],
     experiments = {
-        "enable_weetbix_queries": 100,
-        "weetbix.retry_weak_exonerations": 100,
-        "weetbix.enable_weetbix_exonerations": 100,
+        # go/nplus1shardsproposal
+        "chromium.add_one_test_shard": 10,
+        # crbug.com/940930
+        "chromium.enable_cleandead": 100,
     },
     main_list_view = "try",
     tryjob = try_.job(),
     use_clang_coverage = True,
+)
+
+# TODO(fxbug.dev/370067428): Remove once Netstack2 no longer exists.
+try_.builder(
+    name = "fuchsia-netstack2-x64-cast-receiver-rel",
+    mirrors = ["ci/fuchsia-netstack2-x64-cast-receiver-rel"],
+    gn_args = "ci/fuchsia-netstack2-x64-cast-receiver-rel",
+    contact_team_email = "chrome-fuchsia-engprod@google.com",
+)
+
+try_.builder(
+    name = "fuchsia-x64-perf-cast-receiver-rel",
+    mirrors = ["ci/fuchsia-x64-perf-cast-receiver-rel"],
+    gn_args = "ci/fuchsia-x64-perf-cast-receiver-rel",
+    contact_team_email = "chrome-fuchsia-engprod@google.com",
 )
 
 try_.compilator_builder(
@@ -149,21 +235,8 @@ try_.compilator_builder(
 )
 
 try_.builder(
-    name = "fuchsia-x64-rel",
-    branch_selector = branches.selector.FUCHSIA_BRANCHES,
-    mirrors = [
-        "ci/fuchsia-x64-rel",
-    ],
-    experiments = {
-        "enable_weetbix_queries": 100,
-        "weetbix.retry_weak_exonerations": 100,
-        "weetbix.enable_weetbix_exonerations": 100,
-    },
-    main_list_view = "try",
-)
-
-try_.builder(
     name = "fuchsia-code-coverage",
     mirrors = ["ci/fuchsia-code-coverage"],
+    gn_args = "ci/fuchsia-code-coverage",
     execution_timeout = 20 * time.hour,
 )

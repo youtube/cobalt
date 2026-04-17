@@ -57,7 +57,7 @@ enum
     IMPLEMENTATION_MAX_TRANSFORM_FEEDBACK_SEPARATE_COMPONENTS    = 4,
     IMPLEMENTATION_MAX_TRANSFORM_FEEDBACK_BUFFERS                = 4,
 
-    // Maximum number of views which are supported by the implementation of ANGLE_multiview.
+    // Maximum number of views which are supported by the multiview implementation.
     IMPLEMENTATION_ANGLE_MULTIVIEW_MAX_VIEWS = 4,
 
     // These are the maximums the implementation can support
@@ -66,7 +66,7 @@ enum
     IMPLEMENTATION_MAX_2D_TEXTURE_SIZE         = 32768,
     IMPLEMENTATION_MAX_CUBE_MAP_TEXTURE_SIZE   = 32768,
     IMPLEMENTATION_MAX_3D_TEXTURE_SIZE         = 16384,
-    IMPLEMENTATION_MAX_2D_ARRAY_TEXTURE_LAYERS = 2048,
+    IMPLEMENTATION_MAX_2D_ARRAY_TEXTURE_LAYERS = 4096,
 
     // 1+log2 of max of MAX_*_TEXTURE_SIZE
     IMPLEMENTATION_MAX_TEXTURE_LEVELS = 16,
@@ -79,6 +79,10 @@ enum
     // In ES 3.2 we need to support a minimum of 96 maximum textures.
     IMPLEMENTATION_MAX_ACTIVE_TEXTURES = 96,
     IMPLEMENTATION_MAX_IMAGE_UNITS     = IMPLEMENTATION_MAX_ACTIVE_TEXTURES,
+
+    // Maximum framebuffer and renderbuffer size supported.
+    IMPLEMENTATION_MAX_FRAMEBUFFER_SIZE  = 32768,
+    IMPLEMENTATION_MAX_RENDERBUFFER_SIZE = 32768,
 
     // Maximum number of slots allocated for atomic counter buffers.
     IMPLEMENTATION_MAX_ATOMIC_COUNTER_BUFFER_BINDINGS = 8,
@@ -95,6 +99,12 @@ enum
     // ANGLE_shader_pixel_local_storage: keep the maximum number of supported planes reasonably
     // similar on all platforms.
     IMPLEMENTATION_MAX_PIXEL_LOCAL_STORAGE_PLANES = 8,
+
+    // QCOM foveated rendering constants
+    // We support a max of 1 layer and 2 focal points, for now
+    // TODO (anglebug.com/42266906): Implement support for multiple layers
+    IMPLEMENTATION_MAX_NUM_LAYERS   = 1,
+    IMPLEMENTATION_MAX_FOCAL_POINTS = 2,
 };
 
 namespace limits
@@ -121,5 +131,19 @@ constexpr uint32_t kMinTextureBufferOffsetAlignment = 256;
 }  // namespace limits
 
 }  // namespace gl
+
+namespace cl
+{
+enum
+{
+    // Implementation maximums
+
+    // CL requires a min of 128 maximum read images as kernel arguments
+    IMPLEMENATION_MAX_READ_IMAGES = 128,
+
+    // CL requires a min of 64 maximum write images as kernel arguments
+    IMPLEMENATION_MAX_WRITE_IMAGES = 64,
+};
+}
 
 #endif  // LIBANGLE_CONSTANTS_H_

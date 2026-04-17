@@ -17,11 +17,11 @@
 #include "build/chromecast_buildflags.h"
 #include "ui/gfx/native_widget_types.h"
 #include "ui/views/test/views_test_base.h"
+#include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_delegate.h"
 #include "ui/views/widget/widget_observer.h"
 
-#if (BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_CASTOS)) || \
-    BUILDFLAG(IS_CHROMEOS_LACROS)
+#if (BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_CASTOS)) || BUILDFLAG(IS_WIN)
 
 #include "ui/display/screen.h"
 #endif
@@ -34,8 +34,6 @@ class ImeKeyEventDispatcher;
 namespace views {
 
 class View;
-class Widget;
-
 namespace internal {
 
 class RootView;
@@ -74,30 +72,52 @@ class WidgetTest : public ViewsTestBase {
   explicit WidgetTest(
       std::unique_ptr<base::test::TaskEnvironment> task_environment);
 
+  template <typename... TaskEnvironmentTraits>
+  explicit WidgetTest(TaskEnvironmentTraits&&... traits)
+      : ViewsTestBase(std::forward<TaskEnvironmentTraits>(traits)...) {}
+
   WidgetTest(const WidgetTest&) = delete;
   WidgetTest& operator=(const WidgetTest&) = delete;
 
   ~WidgetTest() override;
 
+  // TODO(crbug.com/40232479): Once work on the referenced bug is complete,
+  // update the following functions to return a std::unique_ptr<Widget> and
+  // remove the ownership parameter.
+  //
   // Create Widgets with |native_widget| in InitParams set to an instance of
   // platform specific widget type that has stubbled capture calls. This will
   // create a non-desktop widget.
-  Widget* CreateTopLevelPlatformWidget();
-  Widget* CreateTopLevelFramelessPlatformWidget();
-  Widget* CreateChildPlatformWidget(gfx::NativeView parent_native_view);
+  Widget* CreateTopLevelPlatformWidget(
+      Widget::InitParams::Ownership ownership =
+          Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
+  Widget* CreateTopLevelFramelessPlatformWidget(
+      Widget::InitParams::Ownership ownership =
+          Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
+  Widget* CreateChildPlatformWidget(
+      gfx::NativeView parent_native_view,
+      Widget::InitParams::Ownership ownership =
+          Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
 
 #if BUILDFLAG(ENABLE_DESKTOP_AURA)
   // Create Widgets with |native_widget| in InitParams set to an instance of
   // platform specific widget type that has stubbled capture calls. This will
   // create a desktop widget.
-  Widget* CreateTopLevelPlatformDesktopWidget();
+  Widget* CreateTopLevelPlatformDesktopWidget(
+      Widget::InitParams::Ownership ownership =
+          Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
 #endif
 
   // Create Widgets initialized without a |native_widget| set in InitParams.
   // Depending on the test environment, ViewsDelegate::OnBeforeWidgetInit() may
   // provide a desktop or non-desktop NativeWidget.
-  Widget* CreateTopLevelNativeWidget();
-  Widget* CreateChildNativeWidgetWithParent(Widget* parent);
+  Widget* CreateTopLevelNativeWidget(
+      Widget::InitParams::Ownership ownership =
+          Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
+  Widget* CreateChildNativeWidgetWithParent(
+      Widget* parent,
+      Widget::InitParams::Ownership ownership =
+          Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
 
   View* GetMousePressedHandler(views::internal::RootView* root_view);
 
@@ -116,8 +136,7 @@ class WidgetTest : public ViewsTestBase {
 
   // Return true if |above| is higher than |below| in the native window Z-order.
   // Both windows must be visible.
-  // WARNING: this does not work for Aura desktop widgets (crbug.com/1333445)
-  // and is not reliable on MacOS 10.13 and earlier.
+  // WARNING: This does not work for Aura desktop widgets (crbug.com/1333445).
   static bool IsWindowStackedAbove(Widget* above, Widget* below);
 
   // Query the native window system for the minimum size configured for user
@@ -177,8 +196,7 @@ class DesktopWidgetTestInteractive : public DesktopWidgetTest {
   // DesktopWidgetTest
   void SetUp() override;
 
-#if (BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_CASTOS)) || \
-    BUILDFLAG(IS_CHROMEOS_LACROS)
+#if (BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_CASTOS)) || BUILDFLAG(IS_WIN)
   void TearDown() override;
   std::unique_ptr<display::Screen> screen_;
 #endif
@@ -227,6 +245,7 @@ class TestDesktopWidgetDelegate : public WidgetDelegate {
   bool OnCloseRequested(Widget::ClosedReason close_reason) override;
 
  private:
+  std::unique_ptr<Widget> owned_widget_;
   raw_ptr<Widget> widget_;
   raw_ptr<View> contents_view_ = nullptr;
   int window_closing_count_ = 0;
@@ -255,33 +274,6 @@ class TestInitialFocusWidgetDelegate : public TestDesktopWidgetDelegate {
 
  private:
   raw_ptr<View> view_;
-};
-
-// Use in tests to wait until a Widget's activation change to a particular
-// value. To use create and call Wait().
-class WidgetActivationWaiter : public WidgetObserver {
- public:
-  WidgetActivationWaiter(Widget* widget, bool active);
-
-  WidgetActivationWaiter(const WidgetActivationWaiter&) = delete;
-  WidgetActivationWaiter& operator=(const WidgetActivationWaiter&) = delete;
-
-  ~WidgetActivationWaiter() override;
-
-  // Returns when the active status matches that supplied to the constructor. If
-  // the active status does not match that of the constructor a RunLoop is used
-  // until the active status matches, otherwise this returns immediately.
-  void Wait();
-
- private:
-  // views::WidgetObserver override:
-  void OnWidgetActivationChanged(Widget* widget, bool active) override;
-
-  bool observed_ = false;
-  bool active_;
-
-  base::RunLoop run_loop_;
-  base::ScopedObservation<Widget, WidgetObserver> widget_observation_{this};
 };
 
 // Use in tests to wait for a widget to be destroyed.
@@ -318,15 +310,18 @@ class WidgetVisibleWaiter : public WidgetObserver {
 
   // Waits for the widget to become visible.
   void Wait();
+  // Waits for the widget to become invisible.
+  void WaitUntilInvisible();
 
  private:
   // WidgetObserver:
   void OnWidgetVisibilityChanged(Widget* widget, bool visible) override;
   void OnWidgetDestroying(Widget* widget) override;
 
-  const raw_ptr<Widget, DanglingUntriaged> widget_;
   base::RunLoop run_loop_;
   base::ScopedObservation<Widget, WidgetObserver> widget_observation_{this};
+
+  bool expecting_visible_;
 };
 
 }  // namespace test

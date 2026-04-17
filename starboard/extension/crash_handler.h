@@ -26,6 +26,8 @@ extern "C" {
 
 #define kCobaltExtensionCrashHandlerName "dev.cobalt.extension.CrashHandler"
 
+typedef bool (*SetStringCallback)(const char* key, const char* value);
+
 typedef struct CobaltExtensionCrashHandlerApi {
   // Name should be the string |kCobaltExtensionCrashHandlerName|.
   // This helps to validate that the extension API is correct.
@@ -45,6 +47,18 @@ typedef struct CobaltExtensionCrashHandlerApi {
   // Sets a (key, value) pair for the handler to include when annotating a
   // crash. Returns true on success and false on failure.
   bool (*SetString)(const char* key, const char* value);
+
+  // The fields below this point were added in version 3 or later.
+
+  // Registers the provided callback to be called by the extension's |SetString|
+  // implementation. This can optionally be used to delegate to an injected
+  // dependency.
+  //
+  // An implementation of this function is required (for versions 3 and greater)
+  // but it can just be a stub if the platform, because it does not use any
+  // injected dependency to implement |SetString|, does not expect this function
+  // to be called.
+  void (*RegisterSetStringCallback)(SetStringCallback callback);
 } CobaltExtensionCrashHandlerApi;
 
 #ifdef __cplusplus

@@ -106,7 +106,6 @@ ScreenOrientationController::ComputeOrientation(const gfx::Rect& rect,
                  : display::mojom::blink::ScreenOrientation::kPortraitPrimary;
     default:
       NOTREACHED();
-      return display::mojom::blink::ScreenOrientation::kPortraitPrimary;
   }
 }
 
@@ -263,6 +262,7 @@ bool ScreenOrientationController::MaybeHasActiveLock() const {
 }
 
 void ScreenOrientationController::ContextDestroyed() {
+  pending_callback_.reset();
   active_lock_ = false;
 }
 
@@ -315,7 +315,6 @@ void ScreenOrientationController::OnLockOrientationResult(
       break;
     default:
       NOTREACHED();
-      break;
   }
 
   pending_callback_.reset();

@@ -21,12 +21,13 @@
 #include "base/files/file_util.h"
 #include "base/functional/callback_forward.h"
 #include "base/time/time.h"
-#include "cobalt/shell/browser/shell.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "third_party/blink/public/mojom/loader/resource_load_info.mojom.h"
 #include "url/gurl.h"
 
 namespace content {
+class TestShell;
+class WebContents;
 
 // Observer class to track resource loads.
 class ResourceLoadObserver : public WebContentsObserver {
@@ -39,11 +40,13 @@ class ResourceLoadObserver : public WebContentsObserver {
     ResourceLoadEntry& operator=(ResourceLoadEntry&&);
     ResourceLoadEntry(const ResourceLoadEntry&) = delete;
     ResourceLoadEntry& operator=(const ResourceLoadEntry&) = delete;
+
     blink::mojom::ResourceLoadInfoPtr resource_load_info;
     bool resource_is_associated_with_main_frame;
   };
 
-  explicit ResourceLoadObserver(Shell* shell);
+  explicit ResourceLoadObserver(TestShell* shell);
+  explicit ResourceLoadObserver(WebContents* web_contents);
 
   ResourceLoadObserver(const ResourceLoadObserver&) = delete;
   ResourceLoadObserver& operator=(const ResourceLoadObserver&) = delete;
@@ -65,7 +68,7 @@ class ResourceLoadObserver : public WebContentsObserver {
       const GURL& referrer,
       const std::string& load_method,
       network::mojom::RequestDestination request_destination,
-      const base::FilePath::StringPieceType& served_file_name,
+      const base::FilePath::StringViewType& served_file_name,
       const std::string& mime_type,
       const std::string& ip_address,
       bool was_cached,

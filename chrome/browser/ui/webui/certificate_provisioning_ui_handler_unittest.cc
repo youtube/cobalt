@@ -6,7 +6,9 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -17,6 +19,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/values_test_util.h"
+#include "base/values.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/crosapi/mojom/cert_provisioning.mojom.h"
@@ -28,7 +31,6 @@
 #include "crypto/nss_util.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/l10n/l10n_util.h"
 
 namespace chromeos::cert_provisioning {
@@ -78,8 +80,10 @@ BA 48 53 4A E2 1C 42 24 EB E5 CD 46 E0 4E 9B 2B
   01 00 01)";
 
 // Test values for creating CertProfile for MockCertProvisioningWorker.
+constexpr char kDeviceProcessId[] = "00000";
 constexpr char kDeviceCertProfileId[] = "device_cert_profile_1";
 constexpr char kDeviceCertProfileName[] = "Device Certificate Profile 1";
+constexpr char kUserProcessId[] = "11111";
 constexpr char kUserCertProfileId[] = "user_cert_profile_1";
 constexpr char kUserCertProfileName[] = "User Certificate Profile 1";
 
@@ -94,23 +98,26 @@ void FormatDictRecurse(base::Value* value,
     return;
   }
   if (value->is_list()) {
-    for (base::Value& child : value->GetList())
+    for (base::Value& child : value->GetList()) {
       FormatDictRecurse(&child, messages);
+    }
     return;
   }
-  if (!value->is_string())
+  if (!value->is_string()) {
     return;
+  }
   for (size_t i = 0; i < messages.size(); ++i) {
     std::string placeholder = std::string("$") + base::NumberToString(i);
-    if (value->GetString() != placeholder)
+    if (value->GetString() != placeholder) {
       continue;
+    }
     *value = base::Value(messages[i]);
   }
 }
 
 // Parses |input| as JSON, replaces string fields that match the placeholder
 // format "$0" with the corresponding translated message from |message_ids|.
-base::Value FormatJsonDict(const base::StringPiece input,
+base::Value FormatJsonDict(std::string_view input,
                            std::vector<std::string> messages) {
   base::Value parsed = base::test::ParseJson(input);
   FormatDictRecurse(&parsed, messages);
@@ -123,8 +130,9 @@ base::Value FormatJsonDict(const base::StringPiece input,
 base::Value GetByProfileId(const base::Value& all_processes,
                            const std::string& profile_id) {
   for (const base::Value& process : all_processes.GetList()) {
-    if (profile_id == *process.GetDict().FindString("certProfileId"))
+    if (profile_id == *process.GetDict().FindString("certProfileId")) {
       return process.Clone();
+    }
   }
   return base::Value();
 }
@@ -147,8 +155,13 @@ class FakeMojoCertProvisioning : public crosapi::mojom::CertProvisioning {
 
   void UpdateOneProcess(const std::string& cert_profile_id) override {}
 
+  void ResetOneProcess(const std::string& cert_profile_id) override {
+    reset_one_process_calls_.push_back(cert_profile_id);
+  }
+
   mojo::Remote<crosapi::mojom::CertProvisioningObserver> observer_;
   std::vector<crosapi::mojom::CertProvisioningProcessStatusPtr> status_;
+  std::vector<std::string> reset_one_process_calls_;
 };
 
 class CertificateProvisioningUiHandlerTest : public ::testing::Test {
@@ -172,7 +185,7 @@ class CertificateProvisioningUiHandlerTest : public ::testing::Test {
 
   // Use in ASSERT_NO_FATAL_FAILURE.
   void ExtractCertProvisioningProcesses(
-      std::vector<base::Value>& args,
+      base::Value::List& args,
       base::Value* out_all_processes,
       std::vector<std::string>* out_profile_ids) {
     ASSERT_EQ(1U, args.size());
@@ -180,8 +193,9 @@ class CertificateProvisioningUiHandlerTest : public ::testing::Test {
     *out_all_processes = std::move(args[0]);
 
     // Extract all profile ids for easier verification.
-    if (!out_profile_ids)
+    if (!out_profile_ids) {
       return;
+    }
     out_profile_ids->clear();
     for (const base::Value& process : out_all_processes->GetList()) {
       const std::string* profile_id =
@@ -232,6 +246,7 @@ TEST_F(CertificateProvisioningUiHandlerTest, NoProcesses) {
 
 TEST_F(CertificateProvisioningUiHandlerTest, HasOneProcess) {
   auto process_0 = crosapi::mojom::CertProvisioningProcessStatus::New();
+  process_0->process_id = kUserProcessId;
   process_0->cert_profile_id = kUserCertProfileId;
   process_0->cert_profile_name = kUserCertProfileName;
   process_0->public_key = base::Base64Decode(kDerEncodedSpkiBase64).value();
@@ -252,16 +267,18 @@ TEST_F(CertificateProvisioningUiHandlerTest, HasOneProcess) {
       GetByProfileId(all_processes, kUserCertProfileId),
       FormatJsonDict(
           R"({
-               "certProfileId": "$0",
-               "certProfileName": "$1",
+               "processId": "$0",
+               "certProfileId": "$1",
+               "certProfileName": "$2",
                "isDeviceWide": false,
-               "publicKey": "$2",
+               "publicKey": "$3",
                "stateId": 1,
-               "status": "$3",
+               "status": "$4",
                "timeSinceLastUpdate": "",
                "lastUnsuccessfulMessage": ""
              })",
-          {kUserCertProfileId, kUserCertProfileName, kFormattedPublicKey,
+          {kUserProcessId, kUserCertProfileId, kUserCertProfileName,
+           kFormattedPublicKey,
            l10n_util::GetStringUTF8(
                IDS_SETTINGS_CERTIFICATE_MANAGER_PROVISIONING_STATUS_PREPARING_CSR_WAITING)}));
 }
@@ -269,6 +286,7 @@ TEST_F(CertificateProvisioningUiHandlerTest, HasOneProcess) {
 TEST_F(CertificateProvisioningUiHandlerTest, HasTwoProcesses) {
   {
     auto process_0 = crosapi::mojom::CertProvisioningProcessStatus::New();
+    process_0->process_id = kUserProcessId;
     process_0->cert_profile_id = kUserCertProfileId;
     process_0->cert_profile_name = kUserCertProfileName;
     process_0->public_key = base::Base64Decode(kDerEncodedSpkiBase64).value();
@@ -283,6 +301,7 @@ TEST_F(CertificateProvisioningUiHandlerTest, HasTwoProcesses) {
 
   {
     auto process_1 = crosapi::mojom::CertProvisioningProcessStatus::New();
+    process_1->process_id = kDeviceProcessId;
     process_1->cert_profile_id = kDeviceCertProfileId;
     process_1->cert_profile_name = kDeviceCertProfileName;
     process_1->public_key = base::Base64Decode(kDerEncodedSpkiBase64).value();
@@ -310,16 +329,18 @@ TEST_F(CertificateProvisioningUiHandlerTest, HasTwoProcesses) {
       GetByProfileId(all_processes, kUserCertProfileId),
       FormatJsonDict(
           R"({
-               "certProfileId": "$0",
-               "certProfileName": "$1",
+               "processId": "$0",
+               "certProfileId": "$1",
+               "certProfileName": "$2",
                "isDeviceWide": false,
-               "publicKey": "$2",
+               "publicKey": "$3",
                "stateId": 1,
-               "status": "$3",
+               "status": "$4",
                "timeSinceLastUpdate": "",
                "lastUnsuccessfulMessage": ""
              })",
-          {kUserCertProfileId, kUserCertProfileName, kFormattedPublicKey,
+          {kUserProcessId, kUserCertProfileId, kUserCertProfileName,
+           kFormattedPublicKey,
            l10n_util::GetStringUTF8(
                IDS_SETTINGS_CERTIFICATE_MANAGER_PROVISIONING_STATUS_PREPARING_CSR_WAITING)}));
 
@@ -336,16 +357,18 @@ TEST_F(CertificateProvisioningUiHandlerTest, HasTwoProcesses) {
       GetByProfileId(all_processes, kDeviceCertProfileId),
       FormatJsonDict(
           R"({
-               "certProfileId": "$0",
-               "certProfileName": "$1",
+               "processId": "$0",
+               "certProfileId": "$1",
+               "certProfileName": "$2",
                "isDeviceWide": true,
-               "publicKey": "$2",
+               "publicKey": "$3",
                "stateId": 4,
-               "status": "$3",
+               "status": "$4",
                "timeSinceLastUpdate": "",
-               "lastUnsuccessfulMessage": "$4"
+               "lastUnsuccessfulMessage": "$5"
              })",
-          {kDeviceCertProfileId, kDeviceCertProfileName, kFormattedPublicKey,
+          {kDeviceProcessId, kDeviceCertProfileId, kDeviceCertProfileName,
+           kFormattedPublicKey,
            l10n_util::GetStringUTF8(
                IDS_SETTINGS_CERTIFICATE_MANAGER_PROVISIONING_STATUS_FAILURE),
            last_unsuccessful_message}));
@@ -364,6 +387,7 @@ TEST_F(CertificateProvisioningUiHandlerTest, Updates) {
 
   {
     auto process_0 = crosapi::mojom::CertProvisioningProcessStatus::New();
+    process_0->process_id = kUserProcessId;
     process_0->cert_profile_id = kUserCertProfileId;
     process_0->cert_profile_name = kUserCertProfileName;
     process_0->public_key = base::Base64Decode(kDerEncodedSpkiBase64).value();
@@ -392,16 +416,18 @@ TEST_F(CertificateProvisioningUiHandlerTest, Updates) {
       GetByProfileId(all_processes, kUserCertProfileId),
       FormatJsonDict(
           R"({
-               "certProfileId": "$0",
-               "certProfileName": "$1",
+               "processId": "$0",
+               "certProfileId": "$1",
+               "certProfileName": "$2",
                "isDeviceWide": false,
-               "publicKey": "$2",
+               "publicKey": "$3",
                "stateId": 1,
-               "status": "$3",
+               "status": "$4",
                "timeSinceLastUpdate": "",
                "lastUnsuccessfulMessage": ""
              })",
-          {kUserCertProfileId, kUserCertProfileName, kFormattedPublicKey,
+          {kUserProcessId, kUserCertProfileId, kUserCertProfileName,
+           kFormattedPublicKey,
            l10n_util::GetStringUTF8(
                IDS_SETTINGS_CERTIFICATE_MANAGER_PROVISIONING_STATUS_PREPARING_CSR_WAITING)}));
 
@@ -418,6 +444,15 @@ TEST_F(CertificateProvisioningUiHandlerTest, Updates) {
   EXPECT_EQ(all_processes, all_processes_2);
 }
 
+TEST_F(CertificateProvisioningUiHandlerTest, ResetsWhenSupported) {
+  const std::string kCertProvisioningProcessId = "test";
+  base::Value::List args;
+  args.Append(kCertProvisioningProcessId);
+  web_ui_.HandleReceivedMessage("triggerCertificateProvisioningProcessReset",
+                                args);
+  EXPECT_THAT(mojo_cert_provisioning_.reset_one_process_calls_,
+              ElementsAre(kCertProvisioningProcessId));
+}
 }  // namespace
 
 }  // namespace chromeos::cert_provisioning

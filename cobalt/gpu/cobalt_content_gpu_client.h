@@ -15,12 +15,14 @@
 #ifndef COBALT_GPU_COBALT_CONTENT_GPU_CLIENT_H_
 #define COBALT_GPU_COBALT_CONTENT_GPU_CLIENT_H_
 
-#include <memory>
-
 #include "base/task/single_thread_task_runner.h"
 #include "content/public/gpu/content_gpu_client.h"
 
 namespace cobalt {
+
+namespace media {
+class VideoGeometrySetterService;
+}  // namespace media
 
 // This class utilizes embedder API for participating in gpu logic.
 // It allows Cobalt to interact with viz service and compositor thread.
@@ -36,6 +38,13 @@ class CobaltContentGpuClient : public content::ContentGpuClient {
   // content::ContentGpuClient:
   void PostCompositorThreadCreated(
       base::SingleThreadTaskRunner* task_runner) override;
+  media::VideoGeometrySetterService* GetVideoGeometrySetterService() override;
+
+ private:
+  void CreateVideoGeometrySetterService();
+
+  std::unique_ptr<media::VideoGeometrySetterService, base::OnTaskRunnerDeleter>
+      video_geometry_setter_service_;
 };
 
 }  // namespace cobalt

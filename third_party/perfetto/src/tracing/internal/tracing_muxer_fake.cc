@@ -27,13 +27,11 @@ PERFETTO_NORETURN void FailUninitialized() {
 
 }  // namespace
 
-#if PERFETTO_HAS_NO_DESTROY()
 // static
 PERFETTO_NO_DESTROY TracingMuxerFake::FakePlatform
     TracingMuxerFake::FakePlatform::instance{};
 // static
 PERFETTO_NO_DESTROY TracingMuxerFake TracingMuxerFake::instance{};
-#endif  // PERFETTO_HAS_NO_DESTROY()
 
 TracingMuxerFake::~TracingMuxerFake() = default;
 
@@ -56,6 +54,7 @@ std::string TracingMuxerFake::FakePlatform::GetCurrentProcessName() {
 bool TracingMuxerFake::RegisterDataSource(const DataSourceDescriptor&,
                                           DataSourceFactory,
                                           DataSourceParams,
+                                          bool,
                                           DataSourceStaticState*) {
   FailUninitialized();
 }

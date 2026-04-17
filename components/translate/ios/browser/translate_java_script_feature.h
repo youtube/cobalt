@@ -9,6 +9,7 @@
 #include "ios/web/public/js_messaging/java_script_feature.h"
 
 namespace web {
+class WebFrame;
 class WebState;
 }  // namespace web
 
@@ -19,11 +20,26 @@ class TranslateJavaScriptFeature : public web::JavaScriptFeature {
  public:
   static TranslateJavaScriptFeature* GetInstance();
 
+  // Starts translation from `source_language` to `target_language`.
+  // No ops if `frame` is null.
+  void StartTranslation(web::WebFrame* frame,
+                        const std::string& source_language,
+                        const std::string& target_language);
+
+  // Reverts any translation that was previously performed.
+  // No ops if `frame` is null.
+  void RevertTranslation(web::WebFrame* frame);
+
+  // Injects the translate element script fetched from translate_script.cc.
+  // This function should not be used for any other purpose.
+  // No ops if `frame` is null.
+  void InjectTranslateScript(web::WebFrame* frame, const std::string script);
+
  private:
   friend class base::NoDestructor<TranslateJavaScriptFeature>;
 
   // web::JavaScriptFeature
-  absl::optional<std::string> GetScriptMessageHandlerName() const override;
+  std::optional<std::string> GetScriptMessageHandlerName() const override;
   void ScriptMessageReceived(web::WebState* web_state,
                              const web::ScriptMessage& message) override;
 

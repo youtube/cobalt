@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
+#include "base/memory/raw_ptr.h"
 #include "extensions/renderer/native_handler.h"
 #include "extensions/renderer/object_backed_native_handler.h"
 #include "third_party/blink/public/web/web_script_execution_callback.h"
@@ -50,11 +51,11 @@ class ModuleSystem : public ObjectBackedNativeHandler {
     virtual void HandleUncaughtException(const v8::TryCatch& try_catch) = 0;
 
    protected:
-    // Formats |try_catch| as a nice string.
+    // Formats `try_catch` as a nice string.
     std::string CreateExceptionString(const v8::TryCatch& try_catch);
     // A script context associated with this handler. Owned by the module
     // system.
-    ScriptContext* context_;
+    raw_ptr<ScriptContext> context_;
   };
 
   // Enables native bindings for the duration of its lifetime.
@@ -68,10 +69,10 @@ class ModuleSystem : public ObjectBackedNativeHandler {
     ~NativesEnabledScope();
 
    private:
-    ModuleSystem* module_system_;
+    raw_ptr<ModuleSystem> module_system_;
   };
 
-  // |source_map| is a weak pointer.
+  // `source_map` is a weak pointer.
   ModuleSystem(ScriptContext* context, const SourceMap* source_map);
 
   ModuleSystem(const ModuleSystem&) = delete;
@@ -95,7 +96,7 @@ class ModuleSystem : public ObjectBackedNativeHandler {
                             const std::string& method_name);
   void CallModuleMethodSafe(const std::string& module_name,
                             const std::string& method_name,
-                            std::vector<v8::Local<v8::Value>>* args);
+                            v8::LocalVector<v8::Value>* args);
   void CallModuleMethodSafe(const std::string& module_name,
                             const std::string& method_name,
                             int argc,
@@ -106,18 +107,18 @@ class ModuleSystem : public ObjectBackedNativeHandler {
                             v8::Local<v8::Value> argv[],
                             blink::WebScriptExecutionCallback callback);
 
-  // Register |native_handler| as a potential target for requireNative(), so
-  // calls to requireNative(|name|) from JS will return a new object created by
-  // |native_handler|.
+  // Register `native_handler` as a potential target for requireNative(), so
+  // calls to requireNative(`name`) from JS will return a new object created by
+  // `native_handler`.
   void RegisterNativeHandler(const std::string& name,
                              std::unique_ptr<NativeHandler> native_handler);
 
-  // Causes requireNative(|name|) to look for its module in |source_map_|
+  // Causes requireNative(`name`) to look for its module in `source_map_`
   // instead of using a registered native handler. This can be used in unit
   // tests to mock out native modules.
   void OverrideNativeHandlerForTest(const std::string& name);
 
-  // Passes exceptions to |handler| rather than console::Fatal.
+  // Passes exceptions to `handler` rather than console::Fatal.
   void SetExceptionHandlerForTest(std::unique_ptr<ExceptionHandler> handler) {
     exception_handler_ = std::move(handler);
   }
@@ -145,13 +146,13 @@ class ModuleSystem : public ObjectBackedNativeHandler {
   typedef std::map<std::string, std::unique_ptr<NativeHandler>>
       NativeHandlerMap;
 
-  // Run |code| in the current context with the name |name| used for stack
+  // Run `code` in the current context with the name `name` used for stack
   // traces.
   v8::Local<v8::Value> RunString(v8::Local<v8::String> code,
                                  v8::Local<v8::String> name);
 
-  // Make |object|.|field| lazily evaluate to the result of
-  // require(|module_name|)[|module_field|].
+  // Make `object`.`field` lazily evaluate to the result of
+  // require(`module_name`)[`module_field`].
   //
   // TODO(kalman): All targets for this method are ObjectBackedNativeHandlers,
   //               move this logic into those classes (in fact, the chrome
@@ -161,7 +162,7 @@ class ModuleSystem : public ObjectBackedNativeHandler {
                     const std::string& module_name,
                     const std::string& module_field);
 
-  // Retrieves the lazily defined field specified by |property|.
+  // Retrieves the lazily defined field specified by `property`.
   static void LazyFieldGetter(v8::Local<v8::Name> property,
                               const v8::PropertyCallbackInfo<v8::Value>& info);
 
@@ -170,7 +171,7 @@ class ModuleSystem : public ObjectBackedNativeHandler {
 
   void RequireForJs(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  // Returns the module with the given |module_name|. If |create| is true, the
+  // Returns the module with the given `module_name`. If `create` is true, the
   // module will be loaded if it hasn't been already. Otherwise, the module
   // will only be returned if it has already been loaded.
   v8::Local<v8::Value> RequireForJsInner(v8::Local<v8::String> module_name,
@@ -191,7 +192,7 @@ class ModuleSystem : public ObjectBackedNativeHandler {
   // This method directly executes the script in the current scope.
   void LoadScript(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  // Wraps |source| in a (function(define, require, requireNative, ...) {...}).
+  // Wraps `source` in a (function(define, require, requireNative, ...) {...}).
   v8::Local<v8::String> WrapSource(v8::Local<v8::String> source);
 
   // NativeHandler implementation which returns the private area of an Object.
@@ -203,8 +204,8 @@ class ModuleSystem : public ObjectBackedNativeHandler {
       const std::string& module_name,
       v8::Local<v8::Value> api_object);
 
-  // Marks any existing NativeHandler named |name| as clobbered.
-  // See |clobbered_native_handlers_|.
+  // Marks any existing NativeHandler named `name` as clobbered.
+  // See `clobbered_native_handlers_`.
   void ClobberExistingNativeHandler(const std::string& name);
 
   // Returns the v8::Function associated with the given module and method name.
@@ -212,14 +213,14 @@ class ModuleSystem : public ObjectBackedNativeHandler {
   v8::Local<v8::Function> GetModuleFunction(const std::string& module_name,
                                             const std::string& method_name);
 
-  ScriptContext* context_;
+  raw_ptr<ScriptContext> context_;
 
-  // TODO(1276144): remove once investigation finished.
+  // TODO(crbug.com/40058107): remove once investigation finished.
   bool has_been_invalidated_ = false;
 
   // A map from module names to the JS source for that module. GetSource()
   // performs a lookup on this map.
-  const SourceMap* const source_map_;
+  const raw_ptr<const SourceMap> source_map_;
 
   // A map from native handler names to native handlers.
   NativeHandlerMap native_handler_map_;

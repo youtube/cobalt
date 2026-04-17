@@ -7,8 +7,8 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "components/autofill/core/browser/ui/fast_checkout_client.h"
-#include "components/autofill/core/browser/ui/fast_checkout_delegate.h"
+#include "components/autofill/core/browser/integrators/fast_checkout/fast_checkout_client.h"
+#include "components/autofill/core/browser/integrators/fast_checkout/fast_checkout_delegate.h"
 #include "content/public/browser/web_contents.h"
 
 namespace autofill {
@@ -32,7 +32,7 @@ class BrowserAutofillManager;
 class FastCheckoutDelegateImpl : public autofill::FastCheckoutDelegate {
  public:
   FastCheckoutDelegateImpl(content::WebContents* web_contents,
-                           FastCheckoutClient* client,
+                           autofill::FastCheckoutClient* client,
                            autofill::BrowserAutofillManager* manager);
   FastCheckoutDelegateImpl(const FastCheckoutDelegateImpl&) = delete;
   FastCheckoutDelegateImpl& operator=(const FastCheckoutDelegateImpl&) = delete;
@@ -46,7 +46,8 @@ class FastCheckoutDelegateImpl : public autofill::FastCheckoutDelegate {
   bool IntendsToShowFastCheckout(
       autofill::AutofillManager& manager,
       autofill::FormGlobalId form_id,
-      autofill::FieldGlobalId field_id) const override;
+      autofill::FieldGlobalId field_id,
+      const autofill::FormData& form_data) const override;
   bool IsShowingFastCheckoutUI() const override;
   void HideFastCheckout(bool allow_further_runs) override;
 
@@ -54,7 +55,7 @@ class FastCheckoutDelegateImpl : public autofill::FastCheckoutDelegate {
   // The WebContents.
   raw_ptr<content::WebContents> web_contents_;
 
-  const raw_ptr<FastCheckoutClient> client_;
+  const raw_ptr<autofill::FastCheckoutClient> client_;
   const raw_ptr<autofill::BrowserAutofillManager> manager_;
 };
 

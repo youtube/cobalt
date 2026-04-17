@@ -4,9 +4,10 @@
 
 package org.chromium.chrome.browser.ui.appmenu;
 
-/**
- * Allows monitoring of application menu actions.
- */
+import org.chromium.build.annotations.NullMarked;
+
+/** Allows monitoring of application menu actions. */
+@NullMarked
 public interface AppMenuObserver {
     /**
      * Informs when the App Menu visibility changes.

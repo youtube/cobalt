@@ -6,11 +6,12 @@
 
 #include <stddef.h>
 
+#include <algorithm>
+#include <array>
 #include <cmath>
 #include <utility>
 #include <vector>
 
-#include "base/ranges/algorithm.h"
 #include "build/build_config.h"
 #include "cc/base/math_util.h"
 #include "components/viz/common/quads/draw_quad.h"
@@ -65,7 +66,7 @@ DrawPolygon::DrawPolygon(const DrawQuad* original_ref,
       order_index_(draw_order_index),
       original_ref_(original_ref),
       is_split_(false) {
-  gfx::Point3F points[6];
+  std::array<gfx::Point3F, 6> points;
   int num_vertices_in_clipped_quad;
   gfx::QuadF send_quad(visible_layer_rect);
 
@@ -240,15 +241,15 @@ void DrawPolygon::SplitPolygon(std::unique_ptr<DrawPolygon> polygon,
   size_t pre_back_begin;
 
   // Find the first vertex that is part of the front split polygon.
-  front_begin = base::ranges::find_if(vertex_distance,
-                                      [](float val) { return val > 0.0; }) -
+  front_begin = std::ranges::find_if(vertex_distance,
+                                     [](float val) { return val > 0.0; }) -
                 vertex_distance.begin();
   while (vertex_distance[pre_front_begin = prev(front_begin)] > 0.0)
     front_begin = pre_front_begin;
 
   // Find the first vertex that is part of the back split polygon.
-  back_begin = base::ranges::find_if(vertex_distance,
-                                     [](float val) { return val < 0.0; }) -
+  back_begin = std::ranges::find_if(vertex_distance,
+                                    [](float val) { return val < 0.0; }) -
                vertex_distance.begin();
   while (vertex_distance[pre_back_begin = prev(back_begin)] < 0.0)
     back_begin = pre_back_begin;

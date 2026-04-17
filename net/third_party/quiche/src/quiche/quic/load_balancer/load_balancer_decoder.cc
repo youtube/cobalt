@@ -4,6 +4,14 @@
 
 #include "quiche/quic/load_balancer/load_balancer_decoder.h"
 
+#include <cstdint>
+#include <cstring>
+#include <optional>
+
+#include "absl/types/span.h"
+#include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/load_balancer/load_balancer_config.h"
+#include "quiche/quic/load_balancer/load_balancer_server_id.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 
 namespace quic {
@@ -28,63 +36,51 @@ void LoadBalancerDecoder::DeleteConfig(uint8_t config_id) {
 
 // This is the core logic to extract a server ID given a valid config and
 // connection ID of sufficient length.
-absl::optional<LoadBalancerServerId> LoadBalancerDecoder::GetServerId(
-    const QuicConnectionId& connection_id) const {
-  absl::optional<uint8_t> config_id = GetConfigId(connection_id);
+bool LoadBalancerDecoder::GetServerId(const QuicConnectionId& connection_id,
+                                      LoadBalancerServerId& server_id) const {
+  std::optional<uint8_t> config_id = GetConfigId(connection_id);
   if (!config_id.has_value()) {
-    return absl::optional<LoadBalancerServerId>();
+    return false;
   }
-  absl::optional<LoadBalancerConfig> config = config_[*config_id];
+  std::optional<LoadBalancerConfig> config = config_[*config_id];
   if (!config.has_value()) {
-    return absl::optional<LoadBalancerServerId>();
+    return false;
   }
+  // Benchmark tests show that minimizing the computation inside
+  // LoadBalancerConfig saves CPU cycles.
   if (connection_id.length() < config->total_len()) {
-    // Connection ID wasn't long enough
-    return absl::optional<LoadBalancerServerId>();
+    return false;
   }
-  // The first byte is complete. Finish the rest.
   const uint8_t* data =
       reinterpret_cast<const uint8_t*>(connection_id.data()) + 1;
-  if (!config->IsEncrypted()) {  // It's a Plaintext CID.
-    return LoadBalancerServerId::Create(
-        absl::Span<const uint8_t>(data, config->server_id_len()));
+  uint8_t server_id_len = config->server_id_len();
+  server_id.set_length(server_id_len);
+  if (!config->IsEncrypted()) {
+    memcpy(server_id.mutable_data(), connection_id.data() + 1, server_id_len);
+    return true;
   }
-  uint8_t result[kQuicMaxConnectionIdWithLengthPrefixLength];
-  if (config->plaintext_len() == kLoadBalancerKeyLen) {  // single pass
-    if (!config->BlockDecrypt(data, result)) {
-      return absl::optional<LoadBalancerServerId>();
-    }
-  } else {
-    // Do 3 or 4 passes. Only 3 are necessary if the server_id is short enough
-    // to fit in the first half of the connection ID (the decoder doesn't need
-    // to extract the nonce).
-    memcpy(result, data, config->plaintext_len());
-    uint8_t end = (config->server_id_len() > config->nonce_len()) ? 1 : 2;
-    for (uint8_t i = kNumLoadBalancerCryptoPasses; i >= end; i--) {
-      if (!config->EncryptionPass(absl::Span<uint8_t>(result), i)) {
-        return absl::optional<LoadBalancerServerId>();
-      }
-    }
+  if (config->plaintext_len() == kLoadBalancerBlockSize) {
+    return config->BlockDecrypt(data, server_id.mutable_data());
   }
-  return LoadBalancerServerId::Create(
-      absl::Span<const uint8_t>(result, config->server_id_len()));
+  return config->FourPassDecrypt(
+      absl::MakeConstSpan(data, connection_id.length() - 1), server_id);
 }
 
-absl::optional<uint8_t> LoadBalancerDecoder::GetConfigId(
+std::optional<uint8_t> LoadBalancerDecoder::GetConfigId(
     const QuicConnectionId& connection_id) {
   if (connection_id.IsEmpty()) {
-    return absl::optional<uint8_t>();
+    return std::optional<uint8_t>();
   }
   return GetConfigId(*reinterpret_cast<const uint8_t*>(connection_id.data()));
 }
 
-absl::optional<uint8_t> LoadBalancerDecoder::GetConfigId(
+std::optional<uint8_t> LoadBalancerDecoder::GetConfigId(
     const uint8_t connection_id_first_byte) {
-  uint8_t codepoint = (connection_id_first_byte >> 6);
+  uint8_t codepoint = (connection_id_first_byte >> kConnectionIdLengthBits);
   if (codepoint < kNumLoadBalancerConfigs) {
     return codepoint;
   }
-  return absl::optional<uint8_t>();
+  return std::optional<uint8_t>();
 }
 
 }  // namespace quic

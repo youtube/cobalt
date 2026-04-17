@@ -5,6 +5,7 @@
 #include "components/policy/test_support/request_handler_for_client_cert_provisioning.h"
 
 #include <stdint.h>
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -61,7 +62,8 @@ std::string GeneratePEMEncodedCertificate(
   std::unique_ptr<net::CertBuilder> cert_builder =
       net::CertBuilder::FromSubjectPublicKeyInfo(spki_der,
                                                  &issuer_cert_builder);
-  cert_builder->SetSignatureAlgorithm(net::SignatureAlgorithm::kRsaPkcs1Sha256);
+  cert_builder->SetSignatureAlgorithm(
+      bssl::SignatureAlgorithm::kRsaPkcs1Sha256);
   cert_builder->SetValidity(base::Time::Now(),
                             base::Time::Now() + base::Days(30));
   cert_builder->SetSubjectCommonName(subject_common_name);
@@ -138,8 +140,7 @@ RequestHandlerForClientCertProvisioning::HandleRequest(
                               "Invalid request parameter");
   }
 
-  return CreateHttpResponse(net::HTTP_OK,
-                            device_management_response.SerializeAsString());
+  return CreateHttpResponse(net::HTTP_OK, device_management_response);
 }
 
 }  // namespace policy

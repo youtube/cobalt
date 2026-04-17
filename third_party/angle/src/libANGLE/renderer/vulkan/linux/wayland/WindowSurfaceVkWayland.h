@@ -29,25 +29,13 @@ class WindowSurfaceVkWayland : public WindowSurfaceVk
                            EGLNativeWindowType window,
                            wl_display *display);
 
-    // On Wayland, currentExtent is undefined (0xFFFFFFFF, 0xFFFFFFFF).
-    // Whatever the application sets a swapchain's imageExtent to will be the size of the window,
-    // after the first image is presented
-    egl::Error getUserWidth(const egl::Display *display, EGLint *value) const override;
-    egl::Error getUserHeight(const egl::Display *display, EGLint *value) const override;
-
-    angle::Result getAttachmentRenderTarget(const gl::Context *context,
-                                            GLenum binding,
-                                            const gl::ImageIndex &imageIndex,
-                                            GLsizei samples,
-                                            FramebufferAttachmentRenderTarget **rtOut) override;
-
   private:
-    angle::Result createSurfaceVk(vk::Context *context, gl::Extents *extentsOut) override;
-    angle::Result getCurrentWindowSize(vk::Context *context, gl::Extents *extentsOut) override;
+    angle::Result createSurfaceVk(vk::ErrorContext *context) override;
+    angle::Result getCurrentWindowSize(vk::ErrorContext *context,
+                                       gl::Extents *extentsOut) const override;
 
     wl_display *mWaylandDisplay;
     gl::Extents mExtents;
-    bool mResized;
 };
 
 }  // namespace rx

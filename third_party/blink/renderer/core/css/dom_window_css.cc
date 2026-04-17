@@ -32,6 +32,7 @@
 #include "third_party/blink/renderer/core/css/css_markup.h"
 #include "third_party/blink/renderer/core/css/css_property_value_set.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser.h"
+#include "third_party/blink/renderer/core/css/parser/css_property_parser.h"
 #include "third_party/blink/renderer/core/css/properties/css_property.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
@@ -53,7 +54,7 @@ bool DOMWindowCSS::supports(const ExecutionContext* execution_context,
         MakeGarbageCollected<MutableCSSPropertyValueSet>(kHTMLStandardMode);
     bool is_animation_tainted = false;
     return CSSParser::ParseValueForCustomProperty(
-               dummy_style, "--valid", value, false,
+               dummy_style, AtomicString("--valid"), value, false,
                execution_context->GetSecureContextMode(), nullptr,
                is_animation_tainted) != MutableCSSPropertyValueSet::kParseError;
   }

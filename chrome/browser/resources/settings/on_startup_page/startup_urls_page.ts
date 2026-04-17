@@ -9,24 +9,25 @@
 
 import 'chrome://resources/js/action_link.js';
 import 'chrome://resources/cr_elements/action_link.css.js';
-import 'chrome://resources/polymer/v3_0/iron-flex-layout/iron-flex-layout-classes.js';
 import 'chrome://resources/polymer/v3_0/iron-list/iron-list.js';
 import '/shared/settings/controls/extension_controlled_indicator.js';
 import '../settings_shared.css.js';
 import './startup_url_dialog.js';
 
-import {CrScrollableMixin} from 'chrome://resources/cr_elements/cr_scrollable_mixin.js';
 import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
 import {focusWithoutInk} from 'chrome://resources/js/focus_without_ink.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
+import {ScrollableMixin} from '../scrollable_mixin.js';
+
 import {EDIT_STARTUP_URL_EVENT} from './startup_url_entry.js';
 import {getTemplate} from './startup_urls_page.html.js';
-import {StartupPageInfo, StartupUrlsPageBrowserProxy, StartupUrlsPageBrowserProxyImpl} from './startup_urls_page_browser_proxy.js';
+import type {StartupPageInfo, StartupUrlsPageBrowserProxy} from './startup_urls_page_browser_proxy.js';
+import {StartupUrlsPageBrowserProxyImpl} from './startup_urls_page_browser_proxy.js';
 
 
 const SettingsStartupUrlsPageElementBase =
-    CrScrollableMixin(WebUiListenerMixin(PolymerElement));
+    ScrollableMixin(WebUiListenerMixin(PolymerElement));
 
 export class SettingsStartupUrlsPageElement extends
     SettingsStartupUrlsPageElementBase {
@@ -54,12 +55,12 @@ export class SettingsStartupUrlsPageElement extends
     };
   }
 
-  prefs: Object;
-  private startupPages_: StartupPageInfo[];
-  private showStartupUrlDialog_: boolean;
-  private startupUrlDialogModel_: StartupPageInfo|null;
-  private lastFocused_: HTMLElement;
-  private listBlurred_: boolean;
+  declare prefs: Object;
+  declare private startupPages_: StartupPageInfo[];
+  declare private showStartupUrlDialog_: boolean;
+  declare private startupUrlDialogModel_: StartupPageInfo|null;
+  declare private lastFocused_: HTMLElement;
+  declare private listBlurred_: boolean;
   private browserProxy_: StartupUrlsPageBrowserProxy =
       StartupUrlsPageBrowserProxyImpl.getInstance();
   private startupUrlDialogAnchor_: HTMLElement|null;

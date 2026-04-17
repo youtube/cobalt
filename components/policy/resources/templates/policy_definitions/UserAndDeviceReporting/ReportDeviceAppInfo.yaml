@@ -15,15 +15,14 @@ items:
 - caption: Disable device app info reporting
   value: false
 owners:
-- cros-reporting-team@google.com
+- cros-reporting-eng@google.com
 - lbaraz@chromium.org
 - mattme@google.com
 schema:
   type: boolean
-supported_chrome_os_management:
-- google_cloud
 supported_on:
 - chrome_os:85-
 tags:
 - admin-sharing
 type: main
+generate_device_proto: False

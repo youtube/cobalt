@@ -5,11 +5,13 @@
 #include "ui/chromeos/strings/network/network_element_localized_strings_provider.h"
 
 #include "ash/constants/ash_features.h"
+#include "ash/constants/url_constants.h"
 #include "base/feature_list.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "chromeos/ash/components/login/login_state/login_state.h"
 #include "chromeos/ash/components/network/network_connection_handler.h"
+#include "chromeos/ash/components/network/policy_util.h"
 #include "chromeos/strings/grit/chromeos_strings.h"
 #include "components/login/localized_values_builder.h"
 #include "components/strings/grit/components_strings.h"
@@ -41,12 +43,12 @@ constexpr webui::LocalizedString kElementLocalizedStrings[] = {
     {"OncTypeWiFi", IDS_NETWORK_TYPE_WIFI},
     {"ipAddressNotAvailable", IDS_NETWORK_IP_ADDRESS_NA},
     {"networkListItemConnected", IDS_STATUSBAR_NETWORK_DEVICE_CONNECTED},
-    {"networkListItemConnectedLimited",
-     IDS_STATUSBAR_NETWORK_DEVICE_CONNECTED_LIMITED},
     {"networkListItemConnectedNoConnectivity",
      IDS_STATUSBAR_NETWORK_DEVICE_CONNECTED_NO_CONNECTIVITY},
     {"networkListItemConnecting", IDS_STATUSBAR_NETWORK_DEVICE_CONNECTING},
     {"networkListItemSignIn", IDS_STATUSBAR_NETWORK_DEVICE_SIGNIN},
+    {"networkListItemCellularSignIn",
+     IDS_STATUSBAR_NETWORK_DEVICE_CELLULAR_SIGNIN},
     {"networkListItemConnectingTo", IDS_NETWORK_LIST_CONNECTING_TO},
     {"networkListItemInitializing", IDS_NETWORK_LIST_INITIALIZING},
     {"networkListItemTitle", IDS_NETWORK_LIST_ITEM_TITLE},
@@ -144,17 +146,28 @@ constexpr webui::LocalizedString kElementLocalizedStrings[] = {
     {"networkIconLabelConnecting", IDS_NETWORK_ICON_LABEL_CONNECTING},
     {"networkIconLabelNotConnected", IDS_NETWORK_ICON_LABEL_NOT_CONNECTED},
     {"networkIconLabelSignalStrength", IDS_NETWORK_ICON_LABEL_SIGNAL_STRENGTH},
+    {"networkListItemUpdatedCellularSimCardCarrierLocked",
+     IDS_NETWORK_LIST_UPDATED_CELLULAR_SIM_CARD_CARRIER_LOCKED},
 };
 
 }  //  namespace
 
 void AddLocalizedStrings(content::WebUIDataSource* html_source) {
   html_source->AddLocalizedStrings(kElementLocalizedStrings);
+
+  html_source->AddLocalizedString(
+      "OncTypeTether", ash::features::IsInstantHotspotRebrandEnabled()
+                           ? IDS_NETWORK_TYPE_HOTSPOT
+                           : IDS_NETWORK_TYPE_TETHER);
 }
 
 void AddLocalizedValuesToBuilder(::login::LocalizedValuesBuilder* builder) {
   for (const auto& entry : kElementLocalizedStrings)
     builder->Add(entry.name, entry.id);
+
+  builder->Add("OncTypeTether", ash::features::IsInstantHotspotRebrandEnabled()
+                                    ? IDS_NETWORK_TYPE_HOTSPOT
+                                    : IDS_NETWORK_TYPE_TETHER);
 }
 
 void AddOncLocalizedStrings(content::WebUIDataSource* html_source) {
@@ -238,13 +251,12 @@ void AddOncLocalizedStrings(content::WebUIDataSource* html_source) {
       {"OncTether-BatteryPercentage_Value",
        IDS_ONC_TETHER_BATTERY_PERCENTAGE_VALUE},
       {"OncTether-SignalStrength", IDS_ONC_TETHER_SIGNAL_STRENGTH},
-      {"OncTether-SignalStrength_Weak", IDS_ONC_TETHER_SIGNAL_STRENGTH_WEAK},
-      {"OncTether-SignalStrength_Okay", IDS_ONC_TETHER_SIGNAL_STRENGTH_OKAY},
-      {"OncTether-SignalStrength_Good", IDS_ONC_TETHER_SIGNAL_STRENGTH_GOOD},
+      {"OncTether-SignalStrength_None", IDS_ONC_TETHER_SIGNAL_STRENGTH_NONE},
+      {"OncTether-SignalStrength_Low", IDS_ONC_TETHER_SIGNAL_STRENGTH_LOW},
+      {"OncTether-SignalStrength_Medium",
+       IDS_ONC_TETHER_SIGNAL_STRENGTH_MEDIUM},
       {"OncTether-SignalStrength_Strong",
        IDS_ONC_TETHER_SIGNAL_STRENGTH_STRONG},
-      {"OncTether-SignalStrength_VeryStrong",
-       IDS_ONC_TETHER_SIGNAL_STRENGTH_VERY_STRONG},
       {"OncTether-Carrier", IDS_ONC_TETHER_CARRIER},
       {"OncTether-Carrier_Unknown", IDS_ONC_TETHER_CARRIER_UNKNOWN},
       {"OncVPN-Host", IDS_ONC_VPN_HOST},
@@ -324,29 +336,59 @@ void AddDetailsLocalizedStrings(content::WebUIDataSource* html_source) {
   static constexpr webui::LocalizedString kLocalizedStrings[] = {
       {"internetApnPageTitle", IDS_SETTINGS_ACCESS_POINT_NAME_APN},
       {"apn", IDS_SETTINGS_APN_INPUT_LABEL},
-      {"apnPageAddNewApn", IDS_SETTINGS_ADD_NEW_APN},
+      {"apnPageCreateNewApn", IDS_SETTINGS_CREATE_NEW_APN},
+      {"apnPageDiscoverMoreApns", IDS_SETTINGS_DISCOVER_MORE_APNS},
       {"apnSettingsDescriptionNoLink", IDS_SETTINGS_APN_DESCRIPTION_NO_LINK},
       {"customApnLimitReached", IDS_SETTINGS_CUSTOM_APN_LIMIT_REACHED},
-      {"apnSettingsDescriptionWithLink",
-       IDS_SETTINGS_APN_DESCRIPTION_WITH_LEARN_MORE_LINK},
       {"apnSettingsZeroStateDescription",
        IDS_SETTINGS_APN_ZERO_STATE_DESCRIPTION},
+      {"apnSettingsZeroStateDescriptionWithAddLink",
+       IDS_SETTINGS_APN_ZERO_STATE_DESCRIPTION_WITH_ADD_LINK},
+      {"apnSettingsDatabaseApnsErrorMessage",
+       IDS_SETTINGS_APN_DATABASE_APNS_ERROR_MESSAGE},
       {"apnSettingsCustomApnsErrorMessage",
        IDS_SETTINGS_APN_CUSTOM_APNS_ERROR_MESSAGE},
       {"apnMenuDetails", IDS_SETTINGS_APN_MENU_DETAILS},
+      {"apnMenuEdit", IDS_SETTINGS_APN_MENU_EDIT},
       {"apnMenuDisable", IDS_SETTINGS_APN_MENU_DISABLE},
       {"apnMenuEnable", IDS_SETTINGS_APN_MENU_ENABLE},
       {"apnMenuRemove", IDS_SETTINGS_APN_MENU_REMOVE},
       {"apnMoreActionsTitle", IDS_SETTINGS_APN_MORE_ACTIONS_TITLE},
+      {"apnA11yName", IDS_SETTINGS_APN_A11Y_NAME},
+      {"apnA11yUserFriendlyNameIndicator",
+       IDS_SETTINGS_APN_A11Y_USER_FRIENDLY_NAME_INDICATOR},
+      {"apnA11yAutoDetected", IDS_SETTINGS_APN_A11Y_AUTO_DETECTED},
+      {"apnA11yConnected", IDS_SETTINGS_APN_A11Y_CONNECTED},
+      {"apnA11yDisabled", IDS_SETTINGS_APN_A11Y_DISABLED},
+      {"apnA11yEnabled", IDS_SETTINGS_APN_A11Y_ENABLED},
       {"apnDetailAddApnDialogTitle", IDS_SETTINGS_ADD_APN_DIALOG_TITLE},
       {"apnDetailViewApnDialogTitle", IDS_SETTINGS_VIEW_APN_DIALOG_TITLE},
       {"apnDetailEditApnDialogTitle", IDS_SETTINGS_EDIT_APN_DIALOG_TITLE},
+      {"apnSelectionDialogTitle", IDS_SETTINGS_APN_SELECTION_DIALOG_TITLE},
+      {"apnSelectionDialogDescription",
+       IDS_SETTINGS_APN_SELECTION_DIALOG_DESCRIPTION},
+      {"apnSelectionDialogUseApn",
+       IDS_SETTINGS_APN_SELECTION_DIALOG_BUTTON_USE_APN},
+      {"apnSelectionDialogA11yUseApnEnabled",
+       IDS_SETTINGS_APN_SELECTION_DIALOG_A11Y_USE_APN_ENABLED},
+      {"apnSelectionDialogA11yUseApnDisabled",
+       IDS_SETTINGS_APN_SELECTION_DIALOG_A11Y_USE_APN_DISABLED},
+      {"apnSelectionDialogListItemSelected",
+       IDS_SETTINGS_APN_SELECTION_DIALOG_LIST_ITEM_SELECTED},
+      {"apnDetailApnErrorMaxChars",
+       IDS_SETTINGS_APN_INPUT_LABEL_ERROR_MAX_CHARS},
+      {"apnDetailApnErrorInvalidChar",
+       IDS_SETTINGS_APN_INPUT_LABEL_ERROR_INVALID_CHAR},
       {"apnDetailAdvancedSettings", IDS_SETTINGS_APN_DIALOG_ADVANCED_SETTING},
       {"apnDetailApnTypes", IDS_SETTINGS_APN_DIALOG_APN_TYPES},
       {"apnDetailApnTypeDefault",
        IDS_SETTINGS_APN_DIALOG_APN_TYPE_DEFAULT_CHECKBOX},
       {"apnDetailApnTypeAttach",
        IDS_SETTINGS_APN_DIALOG_APN_TYPE_ATTACH_CHECKBOX},
+      {"apnA11yDefaultAndAttachApn",
+       IDS_SETTINGS_APN_A11Y_DEFAULT_AND_ATTACH_APN},
+      {"apnA11yDefaultApnOnly", IDS_SETTINGS_APN_A11Y_DEFAULT_APN_ONLY},
+      {"apnA11yAttachApnOnly", IDS_SETTINGS_APN_A11Y_ATTACH_APN_ONLY},
       {"apnDetailDefaultApnRequired",
        IDS_SETTINGS_APN_DIALOG_DEFAULT_APN_REQUIRED},
       {"apnDetailIpType", IDS_SETTINGS_APN_DIALOG_IP_TYPE_LABEL},
@@ -358,10 +400,20 @@ void AddDetailsLocalizedStrings(content::WebUIDataSource* html_source) {
       {"apnDetailIpTypeIpv6", IDS_SETTINGS_APN_DIALOG_IP_TYPE_IPV6},
       {"apnDetailIpTypeIpv4_Ipv6", IDS_SETTINGS_APN_DIALOG_IP_TYPE_IPV4_IPV6},
       {"apnAutoDetected", IDS_SETTINGS_APN_AUTO_DETECTED},
+      {"apnNameModem", IDS_SETTINGS_APN_NAME_MODEM},
       {"apnWarningPromptForDisableRemove",
        IDS_SETTINGS_APN_WARNING_PROMPT_FOR_DISABLE_REMOVE},
+      {"apnWarningPromptForEnable", IDS_SETTINGS_APN_WARNING_PROMPT_FOR_ENABLE},
       {"apnDetailDialogAdd", IDS_SETTINGS_APN_DIALOG_ADD},
       {"apnDetailDialogSave", IDS_SETTINGS_APN_DIALOG_SAVE},
+      {"apnDetailDialogA11yAddEnabled",
+       IDS_SETTINGS_APN_DIALOG_A11Y_ADD_ENABLED},
+      {"apnDetailDialogA11ySaveEnabled",
+       IDS_SETTINGS_APN_DIALOG_A11Y_SAVE_ENABLED},
+      {"apnDetailDialogA11yAddDisabled",
+       IDS_SETTINGS_APN_DIALOG_A11Y_ADD_DISABLED},
+      {"apnDetailDialogA11ySaveDisabled",
+       IDS_SETTINGS_APN_DIALOG_A11Y_SAVE_DISABLED},
       {"apnDetailDialogCancel", IDS_SETTINGS_APN_DIALOG_CANCEL},
       {"apnDetailDialogDone", IDS_SETTINGS_APN_DIALOG_DONE},
       {"hidePassword", IDS_SETTINGS_PASSWORD_HIDE},
@@ -432,6 +484,8 @@ void AddDetailsLocalizedStrings(content::WebUIDataSource* html_source) {
       {"networkSimLockedTitle", IDS_SETTINGS_INTERNET_NETWORK_SIM_LOCKED_TITLE},
       {"networkSimLockPolicyAdminSubtitle",
        IDS_SETTINGS_INTERNET_NETWORK_SIM_LOCK_POLICY_ADMIN_SUBTITLE},
+      {"networkSimLockedPinSubtitle",
+       IDS_SETTINGS_INTERNET_NETWORK_SIM_LOCKED_PIN_SUBTITLE},
       {"networkSimPukDialogSubtitle",
        IDS_SETTINGS_INTERNET_NETWORK_SIM_LOCKED_PUK_SUBTITLE},
       {"networkSimPukDialogManagedSubtitle",
@@ -499,6 +553,24 @@ void AddDetailsLocalizedStrings(content::WebUIDataSource* html_source) {
 
   html_source->AddBoolean("isApnRevampEnabled",
                           ash::features::IsApnRevampEnabled());
+  html_source->AddBoolean(
+      "isApnRevampAndAllowApnModificationPolicyEnabled",
+      ash::features::IsApnRevampAndAllowApnModificationPolicyEnabled());
+
+  html_source->AddBoolean(
+      "isESimEmptyActivationCodeSupportEnabled",
+      ash::features::IsESimEmptyActivationCodeSupportEnabled());
+
+  html_source->AddString("apnSettingsDescriptionWithLink",
+                         l10n_util::GetStringFUTF16(
+                             IDS_SETTINGS_APN_DESCRIPTION_WITH_LEARN_MORE_LINK,
+                             chrome::kApnSettingsLearnMoreUrl));
+
+  html_source->AddString(
+      "apnSelectionDialogDescriptionWithLink",
+      l10n_util::GetStringFUTF16(
+          IDS_SETTINGS_APN_SELECTION_DIALOG_DESCRIPTION_WITH_LINK,
+          chrome::kApnSettingsLearnMoreUrl));
 }
 
 void AddConfigLocalizedStrings(content::WebUIDataSource* html_source) {
@@ -529,23 +601,21 @@ void AddConfigLocalizedStrings(content::WebUIDataSource* html_source) {
       "showHiddenNetworkWarning",
       base::FeatureList::IsEnabled(ash::features::kHiddenNetworkWarning));
 
-  html_source->AddBoolean(
-      "enableHiddenNetworkMigration",
-      base::FeatureList::IsEnabled(ash::features::kHiddenNetworkMigration));
-
-  // Login screen and public account users can only create shared network
+  // Login screen and Managed Guest Session (MGS) users can only create shared
+  // network configurations. Kiosk users default to shared network
   // configurations. Other users default to unshared network configurations.
-  // NOTE: Guest and kiosk users can only create unshared network configs.
-  // NOTE: Insecure wifi networks are always shared.
+  // NOTE: Guest users can only create unshared network configs.
   html_source->AddBoolean("shareNetworkDefault",
-                          !ash::LoginState::Get()->UserHasNetworkProfile());
-  // Only authenticated users can toggle the share state.
+                          !ash::LoginState::Get()->UserHasNetworkProfile() ||
+                              ash::LoginState::Get()->IsKioskSession());
+  // Authenticated and Kiosk users can toggle the share state.
   html_source->AddBoolean("shareNetworkAllowEnable",
-                          ash::LoginState::Get()->IsUserAuthenticated());
+                          ash::LoginState::Get()->IsUserAuthenticated() ||
+                              ash::LoginState::Get()->IsKioskSession());
 
   html_source->AddBoolean(
-      "eapDefaultCasWithoutSubjectVerificationAllowed",
-      ash::features::IsEapDefaultCasWithoutSubjectVerificationAllowed());
+      "ephemeralNetworkPoliciesEnabled",
+      ash::policy_util::AreEphemeralNetworkPoliciesEnabled());
 }
 
 void AddErrorLocalizedStrings(content::WebUIDataSource* html_source) {

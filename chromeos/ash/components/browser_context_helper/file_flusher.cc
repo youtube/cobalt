@@ -12,7 +12,6 @@
 #include "base/files/file_enumerator.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
-#include "base/ranges/algorithm.h"
 #include "base/sequence_checker.h"
 #include "base/synchronization/atomic_flag.h"
 #include "base/task/sequenced_task_runner.h"
@@ -166,7 +165,7 @@ void FileFlusher::Job::FinishOnUIThread() {
 FileFlusher::FileFlusher() = default;
 
 FileFlusher::~FileFlusher() {
-  for (auto* job : jobs_) {
+  for (ash::FileFlusher::Job* job : jobs_) {
     job->Cancel();
   }
 }
@@ -174,7 +173,7 @@ FileFlusher::~FileFlusher() {
 void FileFlusher::RequestFlush(const base::FilePath& path,
                                bool recursive,
                                base::OnceClosure callback) {
-  for (auto* job : jobs_) {
+  for (ash::FileFlusher::Job* job : jobs_) {
     if (path == job->path() || path.IsParent(job->path())) {
       job->Cancel();
     }
@@ -186,8 +185,8 @@ void FileFlusher::RequestFlush(const base::FilePath& path,
 }
 
 void FileFlusher::PauseForTest() {
-  DCHECK(base::ranges::none_of(jobs_,
-                               [](const Job* job) { return job->started(); }));
+  DCHECK(std::ranges::none_of(jobs_,
+                              [](const Job* job) { return job->started(); }));
   paused_for_test_ = true;
 }
 
@@ -201,7 +200,7 @@ void FileFlusher::ScheduleJob() {
     return;
   }
 
-  auto* job = jobs_.front();
+  auto* job = jobs_.front().get();
   if (!job->started()) {
     job->Start();
   }

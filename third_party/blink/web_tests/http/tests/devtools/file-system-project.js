@@ -2,15 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {TestRunner} from 'test_runner';
+import {SourcesTestRunner} from 'sources_test_runner';
+import {BindingsTestRunner} from 'bindings_test_runner';
+
+import * as Common from 'devtools/core/common/common.js';
+import * as Host from 'devtools/core/host/host.js';
+import * as Persistence from 'devtools/models/persistence/persistence.js';
+import * as Workspace from 'devtools/models/workspace/workspace.js';
+
 (async function() {
   TestRunner.addResult(`Tests file system project.\n`);
-  await TestRunner.loadLegacyModule('sources'); await TestRunner.loadTestModule('sources_test_runner');
-  await TestRunner.loadTestModule('bindings_test_runner');
   await TestRunner.showPanel('sources');
 
   function fileSystemUISourceCodes() {
     var uiSourceCodes = [];
-    var fileSystemProjects = Workspace.workspace.projectsForType(Workspace.projectTypes.FileSystem);
+    var fileSystemProjects = Workspace.Workspace.WorkspaceImpl.instance().projectsForType(Workspace.Workspace.projectTypes.FileSystem);
     for (var project of fileSystemProjects) {
       for (const uiSourceCode of project.uiSourceCodes()) {
         uiSourceCodes.push(uiSourceCode);
@@ -21,11 +28,11 @@
 
   function dumpUISourceCode(uiSourceCode, callback) {
     TestRunner.addResult('UISourceCode: ' + uiSourceCode.url().replace(/.*(LayoutTests|web_tests)./, ''));
-    if (uiSourceCode.contentType() === Common.resourceTypes.Script ||
-        uiSourceCode.contentType() === Common.resourceTypes.Document)
+    if (uiSourceCode.contentType() === Common.ResourceType.resourceTypes.Script ||
+        uiSourceCode.contentType() === Common.ResourceType.resourceTypes.Document)
       TestRunner.addResult(
           'UISourceCode is content script: ' +
-          (uiSourceCode.project().type() === Workspace.projectTypes.ContentScripts));
+          (uiSourceCode.project().type() === Workspace.Workspace.projectTypes.ContentScripts));
     uiSourceCode.requestContent().then(didRequestContent);
 
     function didRequestContent(content, contentEncoded) {
@@ -92,13 +99,13 @@
       fs1.reportCreated(function() {});
       fs2.reportCreated(function() {});
 
-      Workspace.workspace.addEventListener(Workspace.Workspace.Events.UISourceCodeAdded, onUISourceCode);
+      Workspace.Workspace.WorkspaceImpl.instance().addEventListener(Workspace.Workspace.Events.UISourceCodeAdded, onUISourceCode);
 
       var count = 3;
       function onUISourceCode() {
         if (--count)
           return;
-        Workspace.workspace.removeEventListener(Workspace.Workspace.Events.UISourceCodeAdded, onUISourceCode);
+        Workspace.Workspace.WorkspaceImpl.instance().removeEventListener(Workspace.Workspace.Events.UISourceCodeAdded, onUISourceCode);
         onUISourceCodesLoaded();
       }
 
@@ -111,7 +118,7 @@
 
       function uiSourceCodesDumped() {
         dumpUISourceCodeLocations(uiSourceCodes, 5);
-        Workspace.workspace.addEventListener(Workspace.Workspace.Events.WorkingCopyCommitted, contentCommitted, this);
+        Workspace.Workspace.WorkspaceImpl.instance().addEventListener(Workspace.Workspace.Events.WorkingCopyCommitted, contentCommitted, this);
         uiSourceCodes[0].addRevision('<Modified UISourceCode content>');
       }
 
@@ -140,7 +147,7 @@
     },
 
     function testExcludesSettings(next) {
-      Common.settings.createLocalSetting('workspaceExcludedFolders', {}).set({'file:///var/www2': ['/html/']});
+      Common.Settings.Settings.instance().createLocalSetting('workspace-excluded-folders', {}).set({'file:///var/www2': ['/html/']});
       createFileSystem('/var/www2', dumpExcludes);
 
       function dumpExcludes(fs) {
@@ -176,7 +183,7 @@
         dumpWorkspaceUISourceCodes();
 
         dir.addFile('bar.js', '');
-        InspectorFrontendHost.events.dispatchEventToListeners(
+        Host.InspectorFrontendHost.InspectorFrontendHostInstance.events.dispatchEventToListeners(
             Host.InspectorFrontendHostAPI.Events.FileSystemFilesChangedAddedRemoved,
             {changed: [], added: ['/var/www4/html/bar.js'], removed: []});
 
@@ -200,7 +207,7 @@
       fs.reportCreated(dumpGitFolders);
 
       function dumpGitFolders() {
-        var isolatedFileSystem = Persistence.isolatedFileSystemManager.fileSystem('file:///var/www3');
+        var isolatedFileSystem = Persistence.IsolatedFileSystemManager.IsolatedFileSystemManager.instance().fileSystem('file:///var/www3');
         var folders = isolatedFileSystem.initialGitFolders();
         folders.sort();
         for (var gitFolder of folders)

@@ -7,6 +7,7 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/strings/to_string.h"
 #include "content/browser/payments/payment_app_provider_impl.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
 #include "content/public/common/content_features.h"
@@ -47,12 +48,14 @@ void DidFindRegistration(
 }
 
 void OnResponseForPaymentRequest(
-    scoped_refptr<DevToolsBackgroundServicesContextImpl> dev_tools,
+    base::WeakPtr<PaymentAppProviderImpl> provider,
     int64_t registration_id,
     const url::Origin& sw_origin,
     const std::string& payment_request_id,
     PaymentAppProvider::InvokePaymentAppCallback callback,
     PaymentHandlerResponsePtr response) {
+  DevToolsBackgroundServicesContextImpl* dev_tools =
+      provider ? provider->GetDevTools(sw_origin) : nullptr;
   if (dev_tools) {
     std::stringstream response_type;
     response_type << response->response_type;
@@ -69,18 +72,20 @@ void OnResponseForPaymentRequest(
 }
 
 void OnResponseForCanMakePayment(
-    scoped_refptr<DevToolsBackgroundServicesContextImpl> dev_tools,
+    base::WeakPtr<PaymentAppProviderImpl> provider,
     int64_t registration_id,
     const url::Origin& sw_origin,
     const std::string& payment_request_id,
     PaymentAppProvider::CanMakePaymentCallback callback,
     CanMakePaymentResponsePtr response) {
+  DevToolsBackgroundServicesContextImpl* dev_tools =
+      provider ? provider->GetDevTools(sw_origin) : nullptr;
   if (dev_tools) {
     std::stringstream response_type;
     response_type << response->response_type;
     std::map<std::string, std::string> data = {
         {"Type", response_type.str()},
-        {"Can Make Payment", response->can_make_payment ? "true" : "false"}};
+        {"Can Make Payment", base::ToString(response->can_make_payment)}};
     dev_tools->LogBackgroundServiceEvent(
         registration_id, blink::StorageKey::CreateFirstParty(sw_origin),
         DevToolsBackgroundService::kPaymentHandler, "Can make payment response",
@@ -90,19 +95,20 @@ void OnResponseForCanMakePayment(
   std::move(callback).Run(std::move(response));
 }
 
-void OnResponseForAbortPayment(
-    scoped_refptr<DevToolsBackgroundServicesContextImpl> dev_tools,
-    int64_t registration_id,
-    const url::Origin& sw_origin,
-    const std::string& payment_request_id,
-    PaymentAppProvider::AbortCallback callback,
-    bool payment_aborted) {
+void OnResponseForAbortPayment(base::WeakPtr<PaymentAppProviderImpl> provider,
+                               int64_t registration_id,
+                               const url::Origin& sw_origin,
+                               const std::string& payment_request_id,
+                               PaymentAppProvider::AbortCallback callback,
+                               bool payment_aborted) {
+  DevToolsBackgroundServicesContextImpl* dev_tools =
+      provider ? provider->GetDevTools(sw_origin) : nullptr;
   if (dev_tools) {
     dev_tools->LogBackgroundServiceEvent(
         registration_id, blink::StorageKey::CreateFirstParty(sw_origin),
         DevToolsBackgroundService::kPaymentHandler, "Abort payment response",
         /*instance_id=*/payment_request_id,
-        {{"Payment Aborted", payment_aborted ? "true" : "false"}});
+        {{"Payment Aborted", base::ToString(payment_aborted)}});
   }
 
   std::move(callback).Run(payment_aborted);
@@ -145,7 +151,6 @@ void PaymentEventDispatcher::AbortPayment(
     int64_t registration_id,
     const url::Origin& sw_origin,
     const std::string& payment_request_id,
-    scoped_refptr<DevToolsBackgroundServicesContextImpl> dev_tools,
     scoped_refptr<ServiceWorkerContextWrapper> service_worker_context,
     PaymentAppProvider::AbortCallback callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
@@ -157,7 +162,7 @@ void PaymentEventDispatcher::AbortPayment(
           base::BindOnce(
               &PaymentEventDispatcher::DispatchAbortPaymentEvent,
               weak_ptr_factory_.GetWeakPtr(),
-              base::BindOnce(&OnResponseForAbortPayment, dev_tools,
+              base::BindOnce(&OnResponseForAbortPayment, payment_app_provider(),
                              registration_id, sw_origin, payment_request_id,
                              std::move(callback)))));
 }
@@ -198,7 +203,6 @@ void PaymentEventDispatcher::CanMakePayment(
     int64_t registration_id,
     const url::Origin& sw_origin,
     const std::string& payment_request_id,
-    scoped_refptr<DevToolsBackgroundServicesContextImpl> dev_tools,
     scoped_refptr<ServiceWorkerContextWrapper> service_worker_context,
     CanMakePaymentEventDataPtr event_data,
     PaymentAppProvider::CanMakePaymentCallback callback) {
@@ -211,9 +215,9 @@ void PaymentEventDispatcher::CanMakePayment(
           base::BindOnce(
               &PaymentEventDispatcher::DispatchCanMakePaymentEvent,
               weak_ptr_factory_.GetWeakPtr(), std::move(event_data),
-              base::BindOnce(&OnResponseForCanMakePayment, dev_tools,
-                             registration_id, sw_origin, payment_request_id,
-                             std::move(callback)))));
+              base::BindOnce(&OnResponseForCanMakePayment,
+                             payment_app_provider(), registration_id, sw_origin,
+                             payment_request_id, std::move(callback)))));
 }
 
 void PaymentEventDispatcher::DispatchPaymentRequestEvent(
@@ -249,7 +253,6 @@ void PaymentEventDispatcher::DispatchPaymentRequestEvent(
 void PaymentEventDispatcher::InvokePayment(
     int64_t registration_id,
     const url::Origin& sw_origin,
-    scoped_refptr<DevToolsBackgroundServicesContextImpl> dev_tools,
     scoped_refptr<ServiceWorkerContextWrapper> service_worker_context,
     PaymentRequestEventDataPtr event_data,
     PaymentAppProvider::InvokePaymentAppCallback callback) {
@@ -259,12 +262,13 @@ void PaymentEventDispatcher::InvokePayment(
       registration_id,
       base::BindOnce(
           &DidFindRegistration,
-          base::BindOnce(&PaymentEventDispatcher::DispatchPaymentRequestEvent,
-                         weak_ptr_factory_.GetWeakPtr(), std::move(event_data),
-                         base::BindOnce(&OnResponseForPaymentRequest, dev_tools,
-                                        registration_id, sw_origin,
-                                        event_data->payment_request_id,
-                                        std::move(callback)))));
+          base::BindOnce(
+              &PaymentEventDispatcher::DispatchPaymentRequestEvent,
+              weak_ptr_factory_.GetWeakPtr(), std::move(event_data),
+              base::BindOnce(&OnResponseForPaymentRequest,
+                             payment_app_provider(), registration_id, sw_origin,
+                             event_data->payment_request_id,
+                             std::move(callback)))));
 }
 
 void PaymentEventDispatcher::FindRegistration(

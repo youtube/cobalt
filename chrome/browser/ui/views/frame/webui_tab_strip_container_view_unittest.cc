@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/ui/views/frame/webui_tab_strip_container_view.h"
+
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -63,10 +64,11 @@ TEST_F(WebUITabStripContainerViewTest, TouchModeTransition) {
 }
 
 TEST_F(WebUITabStripContainerViewTest, ButtonsPresentInToolbar) {
-  ASSERT_NE(nullptr,
-            browser_view()->webui_tab_strip()->new_tab_button_for_testing());
+  ASSERT_NE(nullptr, browser_view()->toolbar()->new_tab_button_for_testing());
   EXPECT_TRUE(browser_view()->toolbar()->Contains(
-      browser_view()->webui_tab_strip()->new_tab_button_for_testing()));
+      browser_view()->toolbar()->new_tab_button_for_testing()));
+  EXPECT_TRUE(
+      browser_view()->toolbar()->new_tab_button_for_testing()->GetVisible());
   ASSERT_NE(nullptr, browser_view()->webui_tab_strip()->tab_counter());
   EXPECT_TRUE(browser_view()->toolbar()->Contains(
       browser_view()->webui_tab_strip()->tab_counter()));
@@ -99,4 +101,4 @@ TEST_F(WebUITabStripDevToolsTest, DevToolsWindowHasNoTabStrip) {
   EXPECT_EQ(nullptr, browser_view()->webui_tab_strip());
 }
 
-// TODO(crbug.com/1066624): add coverage of open and close gestures.
+// TODO(crbug.com/40124617): add coverage of open and close gestures.

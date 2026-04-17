@@ -5,11 +5,12 @@
 import("//build/config/rust.gni")
 import("//build/rust/rust_bindgen.gni")
 import("//build/rust/rust_static_library.gni")
+import("//mojo/public/tools/bindings/mojom.gni")
 import("//testing/test.gni")
 
 # Meta target to build everything
-group("rust") {
-  deps = [ ":mojo_rust" ]
+group("mojo_rust") {
+  deps = [ ":mojo" ]
 }
 
 # These tests require real mojo and can't be mixed with test-only mojo. Mojo can
@@ -17,7 +18,6 @@ group("rust") {
 test("mojo_rust_integration_unittests") {
   deps = [
     "//base/test:run_all_unittests",
-    "//mojo/public/rust/tests:mojo_rust_integration_tests",
     "//mojo/public/rust/tests:mojo_rust_system_tests",
     "//testing/gtest",
   ]
@@ -28,9 +28,12 @@ test("mojo_rust_integration_unittests") {
 test("mojo_rust_unittests") {
   deps = [
     "//base/test:run_all_unittests",
-    "//mojo/public/rust/tests:mojo_rust_encoding_tests",
     "//testing/gtest",
   ]
+
+  if (enable_rust_mojom_bindings) {
+    deps += [ "//mojo/public/rust/tests:mojo_rust_bindings_tests" ]
+  }
 }
 
 source_set("mojo_c_system_wrapper") {
@@ -45,10 +48,15 @@ rust_bindgen("mojo_c_system_binding") {
   visibility = [ ":*" ]
 }
 
-rust_static_library("mojo_rust_system") {
+rust_static_library("mojo_system") {
   crate_root = "system/lib.rs"
-  crate_name = "mojo_system"
   allow_unsafe = true
+
+  # This should be removed; we should not rely on unstable features. But it's in
+  # experimental code and won't block compiler rolls. If it becomes a problem
+  # just disable the whole build target.
+  configs -= [ "//build/config/compiler:disallow_unstable_features" ]
+  rustflags = [ "-Zallow-features=maybe_uninit_slice" ]
 
   sources = [
     "system/core.rs",
@@ -60,27 +68,23 @@ rust_static_library("mojo_rust_system") {
     "system/mojo_types.rs",
     "system/shared_buffer.rs",
     "system/trap.rs",
-    "system/util/run_loop.rs",
     "system/wait.rs",
     "system/wait_set.rs",
   ]
 
   deps = [
     ":mojo_c_system_binding",
-    ":mojo_c_system_wrapper",
     "//mojo/public/c/system",
-    "//third_party/rust/bitflags/v1:lib",
+    "//third_party/rust/bitflags/v2:lib",
   ]
 
-  bindgen_output = get_target_outputs(":mojo_c_system_binding")
-  inputs = bindgen_output
-  rustenv = [ "BINDGEN_RS_FILE=" + rebase_path(bindgen_output[0]) ]
+  # TODO(crbug.com/369430130): reenable this warning.
+  rustflags += [ "-Aimproper-ctypes" ]
 }
 
-rust_static_library("mojo_rust_system_test_support") {
+rust_static_library("mojo_system_test_support") {
   testonly = true
   crate_root = "system/test_support/lib.rs"
-  crate_name = "mojo_system_test_support"
 
   # Calls Mojo FFI functions.
   allow_unsafe = true
@@ -88,37 +92,37 @@ rust_static_library("mojo_rust_system_test_support") {
   sources = [ "system/test_support/lib.rs" ]
 
   deps = [
-    ":mojo_rust_system",
+    ":mojo_system",
     "//mojo/public/c/system",
   ]
 }
 
-rust_static_library("mojo_rust_bindings") {
+rust_static_library("mojo_bindings") {
   crate_root = "bindings/lib.rs"
-  crate_name = "mojo_bindings"
   allow_unsafe = true
 
   sources = [
-    "bindings/decoding.rs",
-    "bindings/encoding.rs",
+    "bindings/data.rs",
     "bindings/lib.rs",
-    "bindings/macros.rs",
-    "bindings/message.rs",
     "bindings/mojom.rs",
   ]
 
-  deps = [ ":mojo_rust_system" ]
+  deps = [
+    ":mojo_system",
+    "//third_party/rust/bitflags/v2:lib",
+    "//third_party/rust/bytemuck/v1:lib",
+    "//third_party/rust/static_assertions/v1:lib",
+  ]
 }
 
 # Convenience target to link both Mojo Rust components and reexport them under a
 # single `mojo` name.
-rust_static_library("mojo_rust") {
+rust_static_library("mojo") {
   crate_root = "lib.rs"
-  crate_name = "mojo"
 
   sources = [ "lib.rs" ]
   deps = [
-    ":mojo_rust_bindings",
-    ":mojo_rust_system",
+    ":mojo_bindings",
+    ":mojo_system",
   ]
 }

@@ -4,10 +4,12 @@
 
 #include "device/fido/cbor_extract.h"
 
+#include <array>
 #include <type_traits>
 
 #include "base/check_op.h"
 #include "base/functional/callback.h"
+#include "base/memory/raw_span.h"
 #include "components/cbor/values.h"
 
 namespace device {
@@ -76,7 +78,7 @@ class Extractor {
 
       // kExpectedCBORTypes is an array of bitmaps of acceptable types for each
       // |Type|.
-      static constexpr uint8_t kExpectedCBORTypes[] = {
+      static constexpr auto kExpectedCBORTypes = std::to_array<uint8_t>({
           // kBytestring
           CBORTypeToBitfield(cbor::Value::Type::BYTE_STRING),
           // kString
@@ -92,7 +94,7 @@ class Extractor {
           CBORTypeToBitfield(cbor::Value::Type::ARRAY),
           // kValue
           0xff,
-      };
+      });
 
       const cbor::Value& value = map_it->second;
       const unsigned cbor_type_u = static_cast<unsigned>(value.type());
@@ -182,8 +184,8 @@ class Extractor {
     return cbor::Value(std::move(key));
   }
 
-  base::span<const void*> outputs_;
-  base::span<const StepOrByte<void>> steps_;
+  base::raw_span<const void*> outputs_;
+  base::raw_span<const StepOrByte<void>> steps_;
   size_t step_i_ = 0;
 };
 

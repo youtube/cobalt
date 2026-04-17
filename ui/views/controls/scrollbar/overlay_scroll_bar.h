@@ -14,10 +14,10 @@ namespace views {
 
 // The transparent scrollbar which overlays its contents.
 class VIEWS_EXPORT OverlayScrollBar : public ScrollBar {
- public:
-  METADATA_HEADER(OverlayScrollBar);
+  METADATA_HEADER(OverlayScrollBar, ScrollBar)
 
-  explicit OverlayScrollBar(bool horizontal);
+ public:
+  explicit OverlayScrollBar(Orientation orientation);
 
   OverlayScrollBar(const OverlayScrollBar&) = delete;
   OverlayScrollBar& operator=(const OverlayScrollBar&) = delete;
@@ -34,6 +34,8 @@ class VIEWS_EXPORT OverlayScrollBar : public ScrollBar {
 
  private:
   class Thumb : public BaseScrollBarThumb {
+    METADATA_HEADER(Thumb, BaseScrollBarThumb)
+
    public:
     explicit Thumb(OverlayScrollBar* scroll_bar);
 
@@ -46,7 +48,8 @@ class VIEWS_EXPORT OverlayScrollBar : public ScrollBar {
 
    protected:
     // BaseScrollBarThumb:
-    gfx::Size CalculatePreferredSize() const override;
+    gfx::Size CalculatePreferredSize(
+        const SizeBounds& /*available_size*/) const override;
     void OnPaint(gfx::Canvas* canvas) override;
     void OnBoundsChanged(const gfx::Rect& previous_bounds) override;
     void OnStateChanged() override;

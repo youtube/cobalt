@@ -40,6 +40,10 @@ const char kClassContainsInvalidFields[] =
 const char kClassContainsGCRoot[] =
     "[blink-gc] Class %0 contains GC root in field %1.";
 
+const char kClassContainsGCRootRef[] =
+    "[blink-gc] Class %0 contains a reference to a GC root in field %1. Avoid "
+    "holding references to GC roots. This should generally not be needed.";
+
 const char kFinalizerAccessesFinalizedField[] =
     "[blink-gc] Finalizer %0 accesses potentially finalized field %1.";
 
@@ -49,15 +53,48 @@ const char kRawPtrToGCManagedClassNote[] =
 const char kRefPtrToGCManagedClassNote[] =
     "[blink-gc] scoped_refptr field %0 to a GC managed class declared here:";
 
-const char kWeakPtrToGCManagedClassNote[] =
-    "[blink-gc] WeakPtr field %0 to a GC managed class declared here:";
-
 const char kReferencePtrToGCManagedClassNote[] =
     "[blink-gc] Reference pointer field %0 to a GC managed class"
     " declared here:";
 
 const char kUniquePtrToGCManagedClassNote[] =
     "[blink-gc] std::unique_ptr field %0 to a GC managed class declared here:";
+
+const char kRawPtrToTraceableClassNote[] =
+    "[blink-gc] Raw pointer field %0 to a traceable class declared here:";
+
+const char kRefPtrToTraceableClassNote[] =
+    "[blink-gc] scoped_refptr field %0 to a traceable class declared here:";
+
+const char kReferencePtrToTraceableClassNote[] =
+    "[blink-gc] Reference pointer field %0 to a traceable class"
+    " declared here:";
+
+const char kUniquePtrToTraceableClassNote[] =
+    "[blink-gc] std::unique_ptr field %0 to a traceable class declared here:";
+
+const char kWeakPtrToGCManagedClass[] =
+    "[blink-gc] WeakPtr or WeakPtrFactory field %0 to a GC managed class %1 "
+    "declared here (use WeakCell or WeakCellFactory instead):";
+
+const char kGCedField[] =
+    "[blink-gc] Using GC managed class %1 as field %0 is not allowed (Allocate "
+    "with MakeGarbageCollected and use Member or Persistent instead):";
+
+const char kGCedVar[] =
+    "[blink-gc] Using GC managed class %1 as variable %0 is not allowed "
+    "(Allocate with MakeGarbageCollected and use raw pointer instead):";
+
+const char kRedundantTraceDispatchMethod[] =
+    "[blink-gc] Class %1 inherits from a hierarchy that uses "
+    "TraceAfterDispatch to dispatch tracing. Only the hierarchy base class %0 "
+    "should declare a Trace method. Remove the extra Trace method:";
+
+const char kRedundantFinalizeDispatchMethod[] =
+    "[blink-gc] Class %1 inherits from a hierarchy that uses "
+    "FinalizeGarbageCollectedObject to dispatch object finalization. Only the "
+    "hierarchy base class %0 should declare a FinalizeGarbageCollectedObject "
+    "method. Remove the extra FinalizeGarbageCollectedObject method:";
 
 const char kTaskRunnerInGCManagedClassNote[] =
     "[blink-gc] TaskRunnerTimer field %0 used within a garbage collected "
@@ -96,14 +133,24 @@ const char kStackAllocatedFieldNote[] =
 const char kMemberInUnmanagedClassNote[] =
     "[blink-gc] Member field %0 in unmanaged class declared here:";
 
+const char kPtrToMemberInUnmanagedClassNote[] =
+    "[blink-gc] Pointer to Member field %0 in unmanaged class declared here:";
+
 const char kPartObjectToGCDerivedClassNote[] =
     "[blink-gc] Part-object field %0 to a GC derived class declared here:";
 
 const char kPartObjectContainsGCRootNote[] =
     "[blink-gc] Field %0 with embedded GC root in %1 declared here:";
 
+const char kPartObjectContainsGCRootRefNote[] =
+    "[blink-gc] Field %0 with embedded reference to a GC root in %1 declared "
+    "here:";
+
 const char kFieldContainsGCRootNote[] =
     "[blink-gc] Field %0 defining a GC root declared here:";
+
+const char kFieldContainsGCRootRefNote[] =
+    "[blink-gc] Field %0 defining reference to a GC root declared here:";
 
 const char kOverriddenNonVirtualTrace[] =
     "[blink-gc] Class %0 overrides non-virtual trace of base class %1.";
@@ -173,23 +220,60 @@ const char kAdditionalPadding[] =
     "[blink-gc] Additional padding causes the sizeof(%0) to grow by %1. "
     "Consider reordering fields.";
 
+const char kTraceablePartObjectInUnmanaged[] =
+    "[blink-gc] Traceable part object field %0 found in unmanaged class:";
+
 const char kUniquePtrUsedWithGC[] =
     "[blink-gc] Disallowed use of %0 found; %1 is a garbage-collected type. "
     "std::unique_ptr cannot hold garbage-collected objects.";
 
-const char kOptionalFieldUsedWithGC[] =
-    "[blink-gc] Disallowed optional field of %0 found; %1 is a "
-    "garbage-collected "
-    "type. Optional fields cannot hold garbage-collected objects.";
+const char kOptionalDeclUsedWithGC[] =
+    "[blink-gc] Disallowed optional field or variable of type %0 found; %1 is "
+    "a "
+    "garbage-collected or traceable "
+    "type. Optional fields and variables cannot hold garbage-collected or "
+    "traceable objects.";
 
 const char kOptionalNewExprUsedWithGC[] =
     "[blink-gc] Disallowed new-expression of %0 found; %1 is a "
-    "garbage-collected "
-    "type. GCed types cannot be created with new.";
+    "garbage-collected or traceable "
+    "type. Optional fields cannot hold garbage-collected or traceable objects.";
+
+const char kOptionalDeclUsedWithMember[] =
+    "[blink-gc] Disallowed optional field of type %0 found; %1 is "
+    "a Member/WeakMember type. Optional fields and variables cannot hold "
+    "Members.";
+
+const char kOptionalNewExprUsedWithMember[] =
+    "[blink-gc] Disallowed new-expression of %0 found; %1 is a "
+    "Member/WeakMember type. Optional fields cannot hold Members.";
+
+const char kRawPtrOrRefDeclUsedWithGC[] =
+    "[blink-gc] Disallowed raw_ptr or raw_ref field or variable of type %0 "
+    "found; %1 is a "
+    "garbage-collected or traceable "
+    "type. Raw_ptr and raw_ref field and variable cannot hold "
+    "garbage-collected or "
+    "traceable objects.";
+
+const char kRawPtrOrRefNewExprUsedWithGC[] =
+    "[blink-gc] Disallowed new-expression of %0 found; %1 is a "
+    "garbage-collected or traceable "
+    "type. Raw_ptr and raw_ref fields cannot hold garbage-collected or "
+    "traceable objects.";
 
 const char kVariantUsedWithGC[] =
     "[blink-gc] Disallowed construction of %0 found; %1 is a garbage-collected "
-    "type. absl::variant cannot hold garbage-collected objects.";
+    "type. Variant cannot hold garbage-collected objects.";
+
+const char kCollectionOfGced[] =
+    "[blink-gc] Disallowed collection %0 found; %1 is a "
+    "garbage-collected "
+    "type. Use heap collections to hold garbage-collected objects.";
+
+const char kCollectionOfMembers[] =
+    "[blink-gc] Disallowed collection %0 found; %1 is a "
+    "Member type. Use heap collections to hold Members.";
 
 } // namespace
 
@@ -221,6 +305,8 @@ DiagnosticsReporter::DiagnosticsReporter(
       getErrorLevel(), kClassContainsInvalidFields);
   diag_class_contains_gc_root_ =
       diagnostic_.getCustomDiagID(getErrorLevel(), kClassContainsGCRoot);
+  diag_class_contains_gc_root_ref_ =
+      diagnostic_.getCustomDiagID(getErrorLevel(), kClassContainsGCRootRef);
   diag_finalizer_accesses_finalized_field_ = diagnostic_.getCustomDiagID(
       getErrorLevel(), kFinalizerAccessesFinalizedField);
   diag_overridden_non_virtual_trace_ = diagnostic_.getCustomDiagID(
@@ -255,6 +341,16 @@ DiagnosticsReporter::DiagnosticsReporter(
       diagnostic_.getCustomDiagID(getErrorLevel(), kMemberOnStack);
   diag_additional_padding_ =
       diagnostic_.getCustomDiagID(getErrorLevel(), kAdditionalPadding);
+  diag_part_object_in_unmanaged_ = diagnostic_.getCustomDiagID(
+      getErrorLevel(), kTraceablePartObjectInUnmanaged);
+  diag_weak_ptr_to_gc_managed_class_ =
+      diagnostic_.getCustomDiagID(getErrorLevel(), kWeakPtrToGCManagedClass);
+  diag_gced_field_ = diagnostic_.getCustomDiagID(getErrorLevel(), kGCedField);
+  diag_gced_var_ = diagnostic_.getCustomDiagID(getErrorLevel(), kGCedVar);
+  diag_redundant_trace_dispatch_method_ = diagnostic_.getCustomDiagID(
+      getErrorLevel(), kRedundantTraceDispatchMethod);
+  diag_redundant_finalize_dispatch_method_ = diagnostic_.getCustomDiagID(
+      getErrorLevel(), kRedundantFinalizeDispatchMethod);
   // Register note messages.
   diag_base_requires_tracing_note_ = diagnostic_.getCustomDiagID(
       DiagnosticsEngine::Note, kBaseRequiresTracingNote);
@@ -266,10 +362,10 @@ DiagnosticsReporter::DiagnosticsReporter(
       DiagnosticsEngine::Note, kRawPtrToGCManagedClassNote);
   diag_ref_ptr_to_gc_managed_class_note_ = diagnostic_.getCustomDiagID(
       DiagnosticsEngine::Note, kRefPtrToGCManagedClassNote);
-  diag_weak_ptr_to_gc_managed_class_note_ = diagnostic_.getCustomDiagID(
-      DiagnosticsEngine::Note, kWeakPtrToGCManagedClassNote);
   diag_reference_ptr_to_gc_managed_class_note_ = diagnostic_.getCustomDiagID(
       DiagnosticsEngine::Note, kReferencePtrToGCManagedClassNote);
+  diag_unique_ptr_to_gc_managed_class_note_ = diagnostic_.getCustomDiagID(
+      DiagnosticsEngine::Note, kUniquePtrToGCManagedClassNote);
   diag_task_runner_timer_in_gc_class_note = diagnostic_.getCustomDiagID(
       DiagnosticsEngine::Note, kTaskRunnerInGCManagedClassNote);
   diag_mojo_remote_in_gc_class_note = diagnostic_.getCustomDiagID(
@@ -282,35 +378,59 @@ DiagnosticsReporter::DiagnosticsReporter(
       DiagnosticsEngine::Note, kMojoAssociatedReceiverInGCManagedClassNote);
   diag_forbidden_field_part_object_class_note = diagnostic_.getCustomDiagID(
       DiagnosticsEngine::Note, kForbiddenFieldPartObjectClassNote);
-  diag_unique_ptr_to_gc_managed_class_note_ = diagnostic_.getCustomDiagID(
-      DiagnosticsEngine::Note, kUniquePtrToGCManagedClassNote);
   diag_member_to_gc_unmanaged_class_note_ = diagnostic_.getCustomDiagID(
       DiagnosticsEngine::Note, kMemberToGCUnmanagedClassNote);
   diag_stack_allocated_field_note_ = diagnostic_.getCustomDiagID(
       DiagnosticsEngine::Note, kStackAllocatedFieldNote);
   diag_member_in_unmanaged_class_note_ = diagnostic_.getCustomDiagID(
       DiagnosticsEngine::Note, kMemberInUnmanagedClassNote);
+  diag_ptr_to_member_in_unmanaged_class_note_ = diagnostic_.getCustomDiagID(
+      DiagnosticsEngine::Note, kPtrToMemberInUnmanagedClassNote);
   diag_part_object_to_gc_derived_class_note_ = diagnostic_.getCustomDiagID(
       DiagnosticsEngine::Note, kPartObjectToGCDerivedClassNote);
   diag_part_object_contains_gc_root_note_ = diagnostic_.getCustomDiagID(
       DiagnosticsEngine::Note, kPartObjectContainsGCRootNote);
+  diag_part_object_contains_gc_root_ref_note_ = diagnostic_.getCustomDiagID(
+      DiagnosticsEngine::Note, kPartObjectContainsGCRootRefNote);
   diag_field_contains_gc_root_note_ = diagnostic_.getCustomDiagID(
       DiagnosticsEngine::Note, kFieldContainsGCRootNote);
+  diag_field_contains_gc_root_ref_note_ = diagnostic_.getCustomDiagID(
+      DiagnosticsEngine::Note, kFieldContainsGCRootRefNote);
   diag_finalized_field_note_ = diagnostic_.getCustomDiagID(
       DiagnosticsEngine::Note, kFinalizedFieldNote);
   diag_overridden_non_virtual_trace_note_ = diagnostic_.getCustomDiagID(
       DiagnosticsEngine::Note, kOverriddenNonVirtualTraceNote);
   diag_manual_dispatch_method_note_ = diagnostic_.getCustomDiagID(
       DiagnosticsEngine::Note, kManualDispatchMethodNote);
+  diag_raw_ptr_to_traceable_class_note_ = diagnostic_.getCustomDiagID(
+      DiagnosticsEngine::Note, kRawPtrToTraceableClassNote);
+  diag_ref_ptr_to_traceable_class_note_ = diagnostic_.getCustomDiagID(
+      DiagnosticsEngine::Note, kRefPtrToTraceableClassNote);
+  diag_reference_ptr_to_traceable_class_note_ = diagnostic_.getCustomDiagID(
+      DiagnosticsEngine::Note, kReferencePtrToTraceableClassNote);
+  diag_unique_ptr_to_traceable_class_note_ = diagnostic_.getCustomDiagID(
+      DiagnosticsEngine::Note, kUniquePtrToTraceableClassNote);
 
   diag_unique_ptr_used_with_gc_ =
       diagnostic_.getCustomDiagID(getErrorLevel(), kUniquePtrUsedWithGC);
-  diag_optional_field_used_with_gc_ =
-      diagnostic_.getCustomDiagID(getErrorLevel(), kOptionalFieldUsedWithGC);
+  diag_optional_decl_used_with_gc_ =
+      diagnostic_.getCustomDiagID(getErrorLevel(), kOptionalDeclUsedWithGC);
   diag_optional_new_expr_used_with_gc_ =
       diagnostic_.getCustomDiagID(getErrorLevel(), kOptionalNewExprUsedWithGC);
+  diag_optional_decl_used_with_member_ =
+      diagnostic_.getCustomDiagID(getErrorLevel(), kOptionalDeclUsedWithMember);
+  diag_optional_new_expr_used_with_member_ = diagnostic_.getCustomDiagID(
+      getErrorLevel(), kOptionalNewExprUsedWithMember);
+  diag_raw_ptr_or_ref_decl_used_with_gc_ =
+      diagnostic_.getCustomDiagID(getErrorLevel(), kRawPtrOrRefDeclUsedWithGC);
+  diag_raw_ptr_or_ref_new_expr_used_with_gc_ = diagnostic_.getCustomDiagID(
+      getErrorLevel(), kRawPtrOrRefNewExprUsedWithGC);
   diag_variant_used_with_gc_ =
       diagnostic_.getCustomDiagID(getErrorLevel(), kVariantUsedWithGC);
+  diag_collection_of_gced_ =
+      diagnostic_.getCustomDiagID(getErrorLevel(), kCollectionOfGced);
+  diag_collection_of_members_ =
+      diagnostic_.getCustomDiagID(getErrorLevel(), kCollectionOfMembers);
 }
 
 bool DiagnosticsReporter::hasErrorOccurred() const
@@ -385,8 +505,6 @@ void DiagnosticsReporter::ClassContainsInvalidFields(
       note = diag_raw_ptr_to_gc_managed_class_note_;
     } else if (error.second == CheckFieldsVisitor::kRefPtrToGCManaged) {
       note = diag_ref_ptr_to_gc_managed_class_note_;
-    } else if (error.second == CheckFieldsVisitor::kWeakPtrToGCManaged) {
-      note = diag_weak_ptr_to_gc_managed_class_note_;
     } else if (error.second == CheckFieldsVisitor::kReferencePtrToGCManaged) {
       note = diag_reference_ptr_to_gc_managed_class_note_;
     } else if (error.second == CheckFieldsVisitor::kUniquePtrToGCManaged) {
@@ -395,6 +513,8 @@ void DiagnosticsReporter::ClassContainsInvalidFields(
       note = diag_member_to_gc_unmanaged_class_note_;
     } else if (error.second == CheckFieldsVisitor::kMemberInUnmanaged) {
       note = diag_member_in_unmanaged_class_note_;
+    } else if (error.second == CheckFieldsVisitor::kPtrToMemberInUnmanaged) {
+      note = diag_ptr_to_member_in_unmanaged_class_note_;
     } else if (error.second == CheckFieldsVisitor::kPtrFromHeapToStack) {
       note = diag_stack_allocated_field_note_;
     } else if (error.second == CheckFieldsVisitor::kGCDerivedPartObject) {
@@ -403,6 +523,17 @@ void DiagnosticsReporter::ClassContainsInvalidFields(
       note = diag_iterator_to_gc_managed_collection_note_;
     } else if (error.second == CheckFieldsVisitor::kMemberInStackAllocated) {
       note = diag_member_in_stack_allocated_class_;
+    } else if (error.second ==
+               CheckFieldsVisitor::kTraceablePartObjectInUnmanaged) {
+      note = diag_part_object_in_unmanaged_;
+    } else if (error.second == CheckFieldsVisitor::kRawPtrToTraceable) {
+      note = diag_raw_ptr_to_traceable_class_note_;
+    } else if (error.second == CheckFieldsVisitor::kRefPtrToTraceable) {
+      note = diag_ref_ptr_to_traceable_class_note_;
+    } else if (error.second == CheckFieldsVisitor::kReferencePtrToTraceable) {
+      note = diag_reference_ptr_to_traceable_class_note_;
+    } else if (error.second == CheckFieldsVisitor::kUniquePtrToTraceable) {
+      note = diag_unique_ptr_to_traceable_class_note_;
     } else {
       llvm_unreachable("Unknown field error.");
     }
@@ -427,6 +558,26 @@ void DiagnosticsReporter::ClassContainsGCRoots(
       point = path;
     }
     NoteFieldContainsGCRoot(point);
+  }
+}
+
+void DiagnosticsReporter::ClassContainsGCRootRefs(
+    RecordInfo* info,
+    const CheckGCRootsVisitor::Errors& errors) {
+  for (auto& error : errors) {
+    FieldPoint* point = nullptr;
+    for (FieldPoint* path : error) {
+      if (!point) {
+        point = path;
+        ReportDiagnostic(info->record()->getBeginLoc(),
+                         diag_class_contains_gc_root_ref_)
+            << info->record() << point->field();
+        continue;
+      }
+      NotePartObjectContainsGCRootRef(point);
+      point = path;
+    }
+    NoteFieldContainsGCRootRef(point);
   }
 }
 
@@ -579,6 +730,20 @@ void DiagnosticsReporter::TraceMethodForStackAllocatedClass(
       << info->record();
 }
 
+void DiagnosticsReporter::RedundantTraceDispatchMethod(RecordInfo* derived,
+                                                       CXXRecordDecl* base) {
+  ReportDiagnostic(derived->GetExtraTraceDispatchMethod()->getBeginLoc(),
+                   diag_redundant_trace_dispatch_method_)
+      << base << derived->record();
+}
+
+void DiagnosticsReporter::RedundantFinalizeDispatchMethod(RecordInfo* derived,
+                                                          CXXRecordDecl* base) {
+  ReportDiagnostic(derived->GetExtraFinalizeDispatchMethod()->getBeginLoc(),
+                   diag_redundant_finalize_dispatch_method_)
+      << base << derived->record();
+}
+
 void DiagnosticsReporter::NoteManualDispatchMethod(CXXMethodDecl* dispatch) {
   ReportDiagnostic(dispatch->getBeginLoc(), diag_manual_dispatch_method_note_)
       << dispatch;
@@ -608,8 +773,19 @@ void DiagnosticsReporter::NotePartObjectContainsGCRoot(FieldPoint* point) {
       << field << field->getParent();
 }
 
+void DiagnosticsReporter::NotePartObjectContainsGCRootRef(FieldPoint* point) {
+  FieldDecl* field = point->field();
+  ReportDiagnostic(field->getBeginLoc(),
+                   diag_part_object_contains_gc_root_ref_note_)
+      << field << field->getParent();
+}
+
 void DiagnosticsReporter::NoteFieldContainsGCRoot(FieldPoint* point) {
   NoteField(point, diag_field_contains_gc_root_note_);
+}
+
+void DiagnosticsReporter::NoteFieldContainsGCRootRef(FieldPoint* point) {
+  NoteField(point, diag_field_contains_gc_root_ref_note_);
 }
 
 void DiagnosticsReporter::NoteField(FieldPoint* point, unsigned note) {
@@ -635,12 +811,12 @@ void DiagnosticsReporter::UniquePtrUsedWithGC(
       << bad_function << gc_type << expr->getSourceRange();
 }
 
-void DiagnosticsReporter::OptionalFieldUsedWithGC(
-    const clang::FieldDecl* field,
+void DiagnosticsReporter::OptionalDeclUsedWithGC(
+    const clang::Decl* decl,
     const clang::CXXRecordDecl* optional,
     const clang::CXXRecordDecl* gc_type) {
-  ReportDiagnostic(field->getBeginLoc(), diag_optional_field_used_with_gc_)
-      << optional << gc_type << field->getSourceRange();
+  ReportDiagnostic(decl->getBeginLoc(), diag_optional_decl_used_with_gc_)
+      << optional << gc_type << decl->getSourceRange();
 }
 
 void DiagnosticsReporter::OptionalNewExprUsedWithGC(
@@ -648,6 +824,40 @@ void DiagnosticsReporter::OptionalNewExprUsedWithGC(
     const clang::CXXRecordDecl* optional,
     const clang::CXXRecordDecl* gc_type) {
   ReportDiagnostic(expr->getBeginLoc(), diag_optional_new_expr_used_with_gc_)
+      << optional << gc_type << expr->getSourceRange();
+}
+
+void DiagnosticsReporter::OptionalDeclUsedWithMember(
+    const clang::Decl* decl,
+    const clang::CXXRecordDecl* optional,
+    const clang::CXXRecordDecl* member) {
+  ReportDiagnostic(decl->getBeginLoc(), diag_optional_decl_used_with_member_)
+      << optional << member << decl->getSourceRange();
+}
+
+void DiagnosticsReporter::OptionalNewExprUsedWithMember(
+    const clang::Expr* expr,
+    const clang::CXXRecordDecl* optional,
+    const clang::CXXRecordDecl* member) {
+  ReportDiagnostic(expr->getBeginLoc(),
+                   diag_optional_new_expr_used_with_member_)
+      << optional << member << expr->getSourceRange();
+}
+
+void DiagnosticsReporter::RawPtrOrRefDeclUsedWithGC(
+    const clang::Decl* decl,
+    const clang::CXXRecordDecl* optional,
+    const clang::CXXRecordDecl* gc_type) {
+  ReportDiagnostic(decl->getBeginLoc(), diag_raw_ptr_or_ref_decl_used_with_gc_)
+      << optional << gc_type << decl->getSourceRange();
+}
+
+void DiagnosticsReporter::RawPtrOrRefNewExprUsedWithGC(
+    const clang::Expr* expr,
+    const clang::CXXRecordDecl* optional,
+    const clang::CXXRecordDecl* gc_type) {
+  ReportDiagnostic(expr->getBeginLoc(),
+                   diag_raw_ptr_or_ref_new_expr_used_with_gc_)
       << optional << gc_type << expr->getSourceRange();
 }
 
@@ -659,6 +869,38 @@ void DiagnosticsReporter::VariantUsedWithGC(
       << variant << gc_type << expr->getSourceRange();
 }
 
+void DiagnosticsReporter::CollectionOfGCed(
+    const clang::Decl* decl,
+    const clang::CXXRecordDecl* collection,
+    const clang::CXXRecordDecl* gc_type) {
+  ReportDiagnostic(decl->getBeginLoc(), diag_collection_of_gced_)
+      << collection << gc_type << decl->getSourceRange();
+}
+
+void DiagnosticsReporter::CollectionOfGCed(
+    const clang::Expr* expr,
+    const clang::CXXRecordDecl* collection,
+    const clang::CXXRecordDecl* gc_type) {
+  ReportDiagnostic(expr->getBeginLoc(), diag_collection_of_gced_)
+      << collection << gc_type << expr->getSourceRange();
+}
+
+void DiagnosticsReporter::CollectionOfMembers(
+    const clang::Decl* decl,
+    const clang::CXXRecordDecl* collection,
+    const clang::CXXRecordDecl* member) {
+  ReportDiagnostic(decl->getBeginLoc(), diag_collection_of_members_)
+      << collection << member << decl->getSourceRange();
+}
+
+void DiagnosticsReporter::CollectionOfMembers(
+    const clang::Expr* expr,
+    const clang::CXXRecordDecl* collection,
+    const clang::CXXRecordDecl* member) {
+  ReportDiagnostic(expr->getBeginLoc(), diag_collection_of_members_)
+      << collection << member << expr->getSourceRange();
+}
+
 void DiagnosticsReporter::MemberOnStack(const clang::VarDecl* var) {
   ReportDiagnostic(var->getBeginLoc(), diag_member_on_stack_)
       << var->getName() << var->getSourceRange();
@@ -668,4 +910,22 @@ void DiagnosticsReporter::AdditionalPadding(const clang::RecordDecl* record,
                                             size_t padding_size) {
   ReportDiagnostic(record->getBeginLoc(), diag_additional_padding_)
       << record->getName() << padding_size << record->getSourceRange();
+}
+
+void DiagnosticsReporter::WeakPtrToGCed(const clang::Decl* decl,
+                                        const clang::CXXRecordDecl* weak_ptr,
+                                        const clang::CXXRecordDecl* gc_type) {
+  ReportDiagnostic(decl->getBeginLoc(), diag_weak_ptr_to_gc_managed_class_)
+      << weak_ptr << gc_type << decl->getSourceRange();
+}
+
+void DiagnosticsReporter::GCedField(const clang::FieldDecl* field,
+                                    const clang::CXXRecordDecl* gctype) {
+  ReportDiagnostic(field->getBeginLoc(), diag_gced_field_)
+      << field << gctype << field->getSourceRange();
+}
+void DiagnosticsReporter::GCedVar(const clang::VarDecl* var,
+                                  const clang::CXXRecordDecl* gctype) {
+  ReportDiagnostic(var->getBeginLoc(), diag_gced_var_)
+      << var << gctype << var->getSourceRange();
 }

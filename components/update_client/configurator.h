@@ -6,6 +6,7 @@
 #define COMPONENTS_UPDATE_CLIENT_CONFIGURATOR_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -15,8 +16,6 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/ref_counted.h"
 #include "base/time/time.h"
-#include "components/update_client/buildflags.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class GURL;
 class PrefService;
@@ -27,10 +26,11 @@ class Version;
 
 namespace update_client {
 
-class ActivityDataService;
+class CrxCache;
 class CrxDownloaderFactory;
 class NetworkFetcherFactory;
 class PatcherFactory;
+class PersistedData;
 class ProtocolHandlerFactory;
 class UnzipperFactory;
 
@@ -39,9 +39,6 @@ using UpdaterStateProvider =
     base::RepeatingCallback<UpdaterStateAttributes(bool is_machine)>;
 
 // Controls the component updater behavior.
-// TODO(sorin): this class will be split soon in two. One class controls
-// the behavior of the update client, and the other class controls the
-// behavior of the component updater.
 class Configurator : public base::RefCountedThreadSafe<Configurator> {
  public:
   // Delay from calling Start() to the first update check.
@@ -106,9 +103,6 @@ class Configurator : public base::RefCountedThreadSafe<Configurator> {
 
   virtual scoped_refptr<PatcherFactory> GetPatcherFactory() = 0;
 
-  // True means that this client can handle delta updates.
-  virtual bool EnabledDeltas() const = 0;
-
   // True means that the background downloader can be used for downloading
   // non on-demand components.
   virtual bool EnabledBackgroundDownloader() const = 0;
@@ -124,15 +118,11 @@ class Configurator : public base::RefCountedThreadSafe<Configurator> {
   // persistent storage.
   virtual PrefService* GetPrefService() const = 0;
 
-  // Returns an ActivityDataService that the update_client can use to access
-  // to update information (namely active bit, last active/rollcall days)
-  // normally stored in the user extension profile.
-  // Similar to PrefService, ActivityDataService must outlive the entire
-  // update_client, and be safe to access from the sequence the update_client
-  // is constructed on.
-  // Returning null is safe and will disable any functionality that requires
-  // accessing to the information provided by ActivityDataService.
-  virtual ActivityDataService* GetActivityDataService() const = 0;
+  // Returns a PersistedData instance that the update_client can use to access
+  // to update information. Similar to PrefService, PersistedData must outlive
+  // the entire update_client, and be safe to access from the sequence the
+  // update_client is constructed on.
+  virtual PersistedData* GetPersistedData() const = 0;
 
   // Returns true if the Chrome is installed for the current user only, or false
   // if Chrome is installed for all users on the machine. This function must be
@@ -147,17 +137,16 @@ class Configurator : public base::RefCountedThreadSafe<Configurator> {
   // Returns true if Chrome is installed on a system managed by cloud or
   // group policies, false if the system is not managed, or nullopt if the
   // platform does not support client management at all.
-  virtual absl::optional<bool> IsMachineExternallyManaged() const = 0;
+  virtual std::optional<bool> IsMachineExternallyManaged() const = 0;
 
   // Returns a callable to get the state of the platform updater, if the
   // embedder includes an updater. Returns a null callback otherwise.
   virtual UpdaterStateProvider GetUpdaterStateProvider() const = 0;
 
-#if BUILDFLAG(ENABLE_PUFFIN_PATCHES)
-  // Returns the FilePath specified for this specific UpdateClient, pointing
-  // to where the retained CRX's will be stored.
-  virtual absl::optional<base::FilePath> GetCrxCachePath() const = 0;
-#endif
+  // Returns the CrxCache.
+  virtual scoped_refptr<CrxCache> GetCrxCache() const = 0;
+
+  virtual bool IsConnectionMetered() const = 0;
 
 #if BUILDFLAG(IS_STARBOARD)
   // Returns the brand code or distribution tag that has been assigned to

@@ -43,12 +43,6 @@ SVGNumber* SVGNumber::Clone() const {
   return MakeGarbageCollected<SVGNumber>(value_);
 }
 
-SVGPropertyBase* SVGNumber::CloneForAnimation(const String& value) const {
-  auto* property = MakeGarbageCollected<SVGNumber>();
-  property->SetValueAsString(value);
-  return property;
-}
-
 String SVGNumber::ValueAsString() const {
   return String::Number(value_);
 }
@@ -71,8 +65,8 @@ SVGParsingError SVGNumber::SetValueAsString(const String& string) {
   if (string.empty())
     return SVGParseStatus::kNoError;
 
-  return WTF::VisitCharacters(string, [&](const auto* chars, unsigned length) {
-    return Parse(chars, chars + length);
+  return WTF::VisitCharacters(string, [&](auto chars) {
+    return Parse(chars.data(), chars.data() + chars.size());
   });
 }
 
@@ -120,7 +114,7 @@ static SVGParsingError ParseNumberOrPercentage(const CharType*& ptr,
                            ptr - start);
   if (ptr < end && *ptr == '%') {
     number /= 100;
-    ptr++;
+    UNSAFE_TODO(ptr++);
   }
   if (SkipOptionalSVGSpaces(ptr, end))
     return SVGParsingError(SVGParseStatus::kTrailingGarbage, ptr - start);
@@ -135,10 +129,10 @@ SVGParsingError SVGNumberAcceptPercentage::SetValueAsString(
     return SVGParseStatus::kExpectedNumberOrPercentage;
 
   float number = 0;
-  SVGParsingError error =
-      WTF::VisitCharacters(string, [&](const auto* chars, unsigned length) {
-        return ParseNumberOrPercentage(chars, chars + length, number);
-      });
+  SVGParsingError error = WTF::VisitCharacters(string, [&](auto chars) {
+    const auto* start = chars.data();
+    return ParseNumberOrPercentage(start, start + chars.size(), number);
+  });
   if (error == SVGParseStatus::kNoError)
     value_ = number;
   return error;

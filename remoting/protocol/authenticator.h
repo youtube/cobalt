@@ -7,8 +7,12 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
-#include "base/functional/callback_forward.h"
+#include "base/functional/callback.h"
+#include "base/location.h"
+#include "remoting/base/session_policies.h"
+#include "remoting/protocol/credentials_type.h"
 
 namespace jingle_xmpp {
 class XmlElement;
@@ -69,9 +73,6 @@ class Authenticator {
     // The client JID was not valid (i.e. violated a policy or was malformed).
     INVALID_ACCOUNT_ID,
 
-    // Generic error used when something goes wrong establishing a session.
-    PROTOCOL_ERROR,
-
     // Session was rejected by the user (i.e. via the confirmation dialog).
     REJECTED_BY_USER,
 
@@ -89,6 +90,60 @@ class Authenticator {
     // The remote user is not authorized to access this machine. This is a
     // generic authz error and is not related to third-party auth.
     UNAUTHORIZED_ACCOUNT,
+
+    // Reauthorization failed because of a policy defined by the third party
+    // auth service no longer permits the connection.
+    REAUTHZ_POLICY_CHECK_FAILED,
+
+    // Failed to find an authentication method that is supported by both the
+    // host and the client.
+    NO_COMMON_AUTH_METHOD,
+
+    // A local network issue has prevented the remote connection.
+    NETWORK_FAILURE,
+
+    // The authenticator is not in a valid state.
+    INVALID_STATE,
+
+    // The peer has sent an invalid message. E.g. fields are missing in the
+    // message.
+    INVALID_ARGUMENT,
+
+    // Generic error used when something goes wrong establishing a session.
+    UNEXPECTED_ERROR,
+  };
+
+  // Details explaining why authentication was rejected.
+  struct RejectionDetails {
+    RejectionDetails();
+    RejectionDetails(RejectionDetails&&);
+    RejectionDetails(const RejectionDetails&);
+
+    // Creates a RejectionDetails object with the message and the location. If
+    // |location| is omitted, the current location where the object is
+    // constructed will be used.
+    explicit RejectionDetails(
+        std::string_view message,
+        // Current() takes location info with default parameters, which is
+        // filled when this constructor is called.
+        const base::Location& location = base::Location::Current());
+    ~RejectionDetails();
+
+    RejectionDetails& operator=(RejectionDetails&&);
+    RejectionDetails& operator=(const RejectionDetails&);
+
+    // Returns whether the RejectionDetails is null, i.e. there is no location
+    // info and no rejection message.
+    inline bool is_null() const {
+      return location.program_counter() == nullptr && message.empty();
+    }
+
+    // A free-form human-readable string that describes the reason for the
+    // rejection.
+    std::string message;
+
+    // Denotes where the error occurs in the code.
+    base::Location location;
   };
 
   // Callback used for layered Authenticator implementations, particularly
@@ -111,8 +166,19 @@ class Authenticator {
   static const jingle_xmpp::XmlElement* FindAuthenticatorMessage(
       const jingle_xmpp::XmlElement* message);
 
-  Authenticator() {}
-  virtual ~Authenticator() {}
+  Authenticator();
+  virtual ~Authenticator();
+
+  // Returns the credentials type of the authenticator.
+  virtual CredentialsType credentials_type() const = 0;
+
+  // Returns the authenticator that implements `credentials_type()`. The
+  // returned value is usually `*this`, but may be an underlying authenticator
+  // if this authenticator is a wrapper (e.g. negotiating) authenticator. Note
+  // that some authenticators may use other authenticators internally, but they
+  // will still return `*this` as long as it implements an credentials type
+  // that is not implemented by the authenticators it use.
+  virtual const Authenticator& implementing_authenticator() const = 0;
 
   // Returns current state of the authenticator.
   virtual State state() const = 0;
@@ -124,6 +190,10 @@ class Authenticator {
 
   // Returns rejection reason. Can be called only when in REJECTED state.
   virtual RejectionReason rejection_reason() const = 0;
+
+  // Returns the rejection details, or null if no details are available.
+  // Can be called only when in REJECTED state.
+  virtual RejectionDetails rejection_details() const = 0;
 
   // Called in response to incoming message received from the peer.
   // Should only be called when in WAITING_MESSAGE state. Caller retains
@@ -140,10 +210,35 @@ class Authenticator {
   // Returns the auth key received as result of the authentication handshake.
   virtual const std::string& GetAuthKey() const = 0;
 
+  // Returns the session policies, or nullptr if no session policies are
+  // specified. Must be called in the ACCEPTED state.
+  virtual const SessionPolicies* GetSessionPolicies() const = 0;
+
   // Creates new authenticator for a channel. Can be called only in
   // the ACCEPTED state.
   virtual std::unique_ptr<ChannelAuthenticator> CreateChannelAuthenticator()
       const = 0;
+
+  // Sets a callback that will be called if `state()` has changed from
+  // `ACCEPTED` from something else, likely because the authenticator has some
+  // reauthn/reauthz mechanism that needs extra inputs, or rejects after the
+  // connection is established.
+  void set_state_change_after_accepted_callback(
+      const base::RepeatingClosure& on_state_change_after_accepted) {
+    on_state_change_after_accepted_ = on_state_change_after_accepted;
+  }
+
+ protected:
+  virtual void NotifyStateChangeAfterAccepted();
+
+  // Chain the state change notification such that, whenever
+  // underlying->NotifyStateChangeAfterAccepted() is called,
+  // this->NotifyStateChangeAfterAccepted() will also be called.
+  // |this| must outlive |underlying|.
+  void ChainStateChangeAfterAcceptedWithUnderlying(Authenticator& underlying);
+
+ private:
+  base::RepeatingClosure on_state_change_after_accepted_;
 };
 
 // Factory for Authenticator instances.

@@ -13,256 +13,87 @@
 // limitations under the License.
 
 import m from 'mithril';
-
-import {Actions} from '../common/actions';
-import {VERSION} from '../gen/perfetto_version';
-
-import {globals} from './globals';
-import {runQueryInNewTab} from './query_result_tab';
-import {executeSearch} from './search_handler';
+import {classNames} from '../base/classnames';
 import {taskTracker} from './task_tracker';
+import {Popup, PopupPosition} from '../widgets/popup';
+import {assertFalse} from '../base/logging';
+import {OmniboxMode} from '../core/omnibox_manager';
+import {AppImpl} from '../core/app_impl';
+import {TraceImpl, TraceImplAttrs} from '../core/trace_impl';
 
-const SEARCH = Symbol('search');
-const COMMAND = Symbol('command');
-type Mode = typeof SEARCH|typeof COMMAND;
-
-const PLACEHOLDER = {
-  [SEARCH]: 'Search',
-  [COMMAND]: 'e.g. select * from sched left join thread using(utid) limit 10',
-};
-
-export const DISMISSED_PANNING_HINT_KEY = 'dismissedPanningHint';
-
-let mode: Mode = SEARCH;
-let displayStepThrough = false;
-
-function onKeyDown(e: Event) {
-  const event = (e as KeyboardEvent);
-  const key = event.key;
-  if (key !== 'Enter') {
-    e.stopPropagation();
-  }
-  const txt = (e.target as HTMLInputElement);
-
-  if (mode === SEARCH && txt.value === '' && key === ':') {
-    e.preventDefault();
-    mode = COMMAND;
-    globals.rafScheduler.scheduleFullRedraw();
-    return;
-  }
-
-  if (mode === COMMAND && txt.value === '' && key === 'Backspace') {
-    mode = SEARCH;
-    globals.rafScheduler.scheduleFullRedraw();
-    return;
-  }
-
-  if (mode === SEARCH && key === 'Enter') {
-    txt.blur();
-  }
-
-  if (mode === COMMAND && key === 'Enter') {
-    const openInPinnedTab = event.metaKey || event.ctrlKey;
-    runQueryInNewTab(
-        txt.value,
-        openInPinnedTab ? 'Pinned query' : 'Omnibox query',
-        openInPinnedTab ? undefined : 'omnibox_query',
-    );
+class Progress implements m.ClassComponent<TraceImplAttrs> {
+  view({attrs}: m.CVnode<TraceImplAttrs>): m.Children {
+    const engine = attrs.trace.engine;
+    const isLoading =
+      AppImpl.instance.isLoadingTrace ||
+      engine.numRequestsPending > 0 ||
+      taskTracker.hasPendingTasks();
+    const classes = classNames(isLoading && 'progress-anim');
+    return m('.progress', {class: classes});
   }
 }
 
-function onKeyUp(e: Event) {
-  e.stopPropagation();
-  const event = (e as KeyboardEvent);
-  const key = event.key;
-  const txt = e.target as HTMLInputElement;
+class TraceErrorIcon implements m.ClassComponent<TraceImplAttrs> {
+  private tracePopupErrorDismissed = false;
 
-  if (key === 'Escape') {
-    mode = SEARCH;
-    txt.value = '';
-    txt.blur();
-    globals.rafScheduler.scheduleFullRedraw();
-    return;
-  }
-}
+  view({attrs}: m.CVnode<TraceImplAttrs>) {
+    const trace = attrs.trace;
+    if (AppImpl.instance.embeddedMode) return;
 
-class Omnibox implements m.ClassComponent {
-  oncreate(vnode: m.VnodeDOM) {
-    const txt = vnode.dom.querySelector('input') as HTMLInputElement;
-    txt.addEventListener('keydown', onKeyDown);
-    txt.addEventListener('keyup', onKeyUp);
-  }
-
-  view() {
-    const msgTTL = globals.state.status.timestamp + 1 - Date.now() / 1e3;
-    const engineIsBusy =
-        globals.state.engine !== undefined && !globals.state.engine.ready;
-
-    if (msgTTL > 0 || engineIsBusy) {
-      setTimeout(
-          () => globals.rafScheduler.scheduleFullRedraw(), msgTTL * 1000);
-      return m(
-          `.omnibox.message-mode`,
-          m(`input[placeholder=${globals.state.status.msg}][readonly]`, {
-            value: '',
-          }));
-    }
-
-    const commandMode = mode === COMMAND;
-    return m(
-        `.omnibox${commandMode ? '.command-mode' : ''}`,
-        m('input', {
-          placeholder: PLACEHOLDER[mode],
-          oninput: (e: InputEvent) => {
-            const value = (e.target as HTMLInputElement).value;
-            globals.dispatch(Actions.setOmnibox({
-              omnibox: value,
-              mode: commandMode ? 'COMMAND' : 'SEARCH',
-            }));
-            if (mode === SEARCH) {
-              displayStepThrough = value.length >= 4;
-              globals.dispatch(Actions.setSearchIndex({index: -1}));
-            }
-          },
-          value: globals.state.omniboxState.omnibox,
-        }),
-        displayStepThrough ?
-            m(
-                '.stepthrough',
-                m('.current',
-                  `${
-                      globals.currentSearchResults.totalResults === 0 ?
-                          '0 / 0' :
-                          `${globals.state.searchIndex + 1} / ${
-                              globals.currentSearchResults.totalResults}`}`),
-                m('button',
-                  {
-                    onclick: () => {
-                      executeSearch(true /* reverse direction */);
-                    },
-                  },
-                  m('i.material-icons.left', 'keyboard_arrow_left')),
-                m('button',
-                  {
-                    onclick: () => {
-                      executeSearch();
-                    },
-                  },
-                  m('i.material-icons.right', 'keyboard_arrow_right')),
-                ) :
-            '');
-  }
-}
-
-class Progress implements m.ClassComponent {
-  private loading: () => void;
-  private progressBar?: HTMLElement;
-
-  constructor() {
-    this.loading = () => this.loadingAnimation();
-  }
-
-  oncreate(vnodeDom: m.CVnodeDOM) {
-    this.progressBar = vnodeDom.dom as HTMLElement;
-    globals.rafScheduler.addRedrawCallback(this.loading);
-  }
-
-  onremove() {
-    globals.rafScheduler.removeRedrawCallback(this.loading);
-  }
-
-  view() {
-    return m('.progress');
-  }
-
-  loadingAnimation() {
-    if (this.progressBar === undefined) return;
-    const engine = globals.getCurrentEngine();
-    if ((engine && !engine.ready) || globals.numQueuedQueries > 0 ||
-        taskTracker.hasPendingTasks()) {
-      this.progressBar.classList.add('progress-anim');
-    } else {
-      this.progressBar.classList.remove('progress-anim');
-    }
-  }
-}
-
-
-class NewVersionNotification implements m.ClassComponent {
-  view() {
-    return m(
-        '.new-version-toast',
-        `Updated to ${VERSION} and ready for offline use!`,
-        m('button.notification-btn.preferred',
-          {
-            onclick: () => {
-              globals.frontendLocalState.newVersionAvailable = false;
-              globals.rafScheduler.scheduleFullRedraw();
-            },
-          },
-          'Dismiss'),
-    );
-  }
-}
-
-
-class HelpPanningNotification implements m.ClassComponent {
-  view() {
-    const dismissed = localStorage.getItem(DISMISSED_PANNING_HINT_KEY);
-    // Do not show the help notification in embedded mode because local storage
-    // does not persist for iFrames. The host is responsible for communicating
-    // to users that they can press '?' for help.
-    if (globals.embeddedMode || dismissed === 'true' ||
-        !globals.frontendLocalState.showPanningHint) {
+    const mode = AppImpl.instance.omnibox.mode;
+    const totErrors = trace.traceInfo.importErrors + trace.loadingErrors.length;
+    if (totErrors === 0 || mode === OmniboxMode.Command) {
       return;
     }
+    const message = Boolean(totErrors)
+      ? `${totErrors} import or data loss errors detected.`
+      : `Metric error detected.`;
     return m(
-        '.helpful-hint',
-        m('.hint-text',
-          'Are you trying to pan? Use the WASD keys or hold shift to click ' +
-              'and drag. Press \'?\' for more help.'),
-        m('button.hint-dismiss-button',
-          {
-            onclick: () => {
-              globals.frontendLocalState.showPanningHint = false;
-              localStorage.setItem(DISMISSED_PANNING_HINT_KEY, 'true');
-              globals.rafScheduler.scheduleFullRedraw();
-            },
+      '.error-box',
+      m(
+        Popup,
+        {
+          trigger: m('.popup-trigger'),
+          isOpen: !this.tracePopupErrorDismissed,
+          position: PopupPosition.Left,
+          onChange: (shouldOpen: boolean) => {
+            assertFalse(shouldOpen);
+            this.tracePopupErrorDismissed = true;
           },
-          'Dismiss'),
-    );
-  }
-}
-
-class TraceErrorIcon implements m.ClassComponent {
-  view() {
-    if (globals.embeddedMode) return;
-
-    const errors = globals.traceErrors;
-    if (!errors && !globals.metricError || mode === COMMAND) return;
-    const message = errors ? `${errors} import or data loss errors detected.` :
-                             `Metric error detected.`;
-    return m(
+        },
+        m('.error-popup', 'Data-loss/import error. Click for more info.'),
+      ),
+      m(
         'a.error',
         {href: '#!/info'},
-        m('i.material-icons',
+        m(
+          'i.material-icons',
           {
             title: message + ` Click for more info.`,
           },
-          'announcement'));
+          'announcement',
+        ),
+      ),
+    );
   }
 }
 
-export class Topbar implements m.ClassComponent {
-  view() {
+export interface TopbarAttrs {
+  omnibox: m.Children;
+  trace?: TraceImpl;
+}
+
+export class Topbar implements m.ClassComponent<TopbarAttrs> {
+  view({attrs}: m.Vnode<TopbarAttrs>) {
+    const {omnibox} = attrs;
     return m(
-        '.topbar',
-        {class: globals.state.sidebarVisible ? '' : 'hide-sidebar'},
-        globals.frontendLocalState.newVersionAvailable ?
-            m(NewVersionNotification) :
-            m(Omnibox),
-        m(Progress),
-        m(HelpPanningNotification),
-        m(TraceErrorIcon));
+      '.topbar',
+      {
+        class: AppImpl.instance.sidebar.visible ? '' : 'hide-sidebar',
+      },
+      omnibox,
+      attrs.trace && m(Progress, {trace: attrs.trace}),
+      attrs.trace && m(TraceErrorIcon, {trace: attrs.trace}),
+    );
   }
 }

@@ -12,11 +12,13 @@ namespace content {
 class BrowserContext;
 }  // namespace content
 
+namespace supervised_user {
+class SupervisedUserMetricsService;
+}  // namespace supervised_user
+
 namespace user_prefs {
 class PrefRegistrySyncable;
 }  // namespace user_prefs
-
-class SupervisedUserMetricsService;
 
 // Singleton that owns SupervisedUserMetricsService object and associates
 // them with corresponding BrowserContexts. Listens for the BrowserContext's
@@ -29,7 +31,7 @@ class SupervisedUserMetricsServiceFactory : public ProfileKeyedServiceFactory {
   SupervisedUserMetricsServiceFactory& operator=(
       const SupervisedUserMetricsServiceFactory&) = delete;
 
-  static SupervisedUserMetricsService* GetForBrowserContext(
+  static supervised_user::SupervisedUserMetricsService* GetForBrowserContext(
       content::BrowserContext* context);
 
   static SupervisedUserMetricsServiceFactory* GetInstance();
@@ -43,7 +45,7 @@ class SupervisedUserMetricsServiceFactory : public ProfileKeyedServiceFactory {
   // BrowserContextKeyedServiceFactory:
   void RegisterProfilePrefs(
       user_prefs::PrefRegistrySyncable* registry) override;
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
   bool ServiceIsCreatedWithBrowserContext() const override;
   bool ServiceIsNULLWhileTesting() const override;

@@ -16,6 +16,7 @@ limitations under the License.
 #ifndef TENSORFLOW_LITE_SUPPORT_CC_TASK_PROCESSOR_EMBEDDING_POSTPROCESSOR_H_
 #define TENSORFLOW_LITE_SUPPORT_CC_TASK_PROCESSOR_EMBEDDING_POSTPROCESSOR_H_
 
+#include <cstdint>
 #include <initializer_list>
 #include <memory>
 
@@ -69,8 +70,8 @@ class EmbeddingPostprocessor : public Postprocessor {
 
   // Performs actual cosine similarity computation.
   template <typename T>
-  static tflite::support::StatusOr<double>
-  ComputeCosineSimilarity(const T* u, const T* v, int num_elements);
+  static tflite::support::StatusOr<double> ComputeCosineSimilarity(
+      const T* u, const T* v, int num_elements);
 
   template <typename T>
   void NormalizeFeatureVector(T* feature_vector) const;
@@ -84,8 +85,8 @@ absl::Status EmbeddingPostprocessor::Postprocess(T* embedding) {
   embedding->set_output_index(tensor_indices_.at(0));
   auto* feature_vector = embedding->mutable_feature_vector();
   if (GetTensor()->type == kTfLiteUInt8) {
-    const uint8* output_data =
-        engine_->interpreter()->typed_output_tensor<uint8>(
+    const uint8_t* output_data =
+        engine_->interpreter()->typed_output_tensor<uint8_t>(
             tensor_indices_.at(0));
     // Get the zero_point and scale parameters from the tensor metadata.
     const int output_tensor_index =
@@ -146,8 +147,7 @@ void EmbeddingPostprocessor::QuantizeFeatureVector(T* feature_vector) const {
 /* static */
 template <typename T>
 tflite::support::StatusOr<double>
-EmbeddingPostprocessor::ComputeCosineSimilarity(const T* u,
-                                                const T* v,
+EmbeddingPostprocessor::ComputeCosineSimilarity(const T* u, const T* v,
                                                 int num_elements) {
   if (num_elements <= 0) {
     return CreateStatusWithPayload(
@@ -175,8 +175,7 @@ EmbeddingPostprocessor::ComputeCosineSimilarity(const T* u,
 /* static */
 template <typename T>
 tflite::support::StatusOr<double> EmbeddingPostprocessor::CosineSimilarity(
-    const T& u,
-    const T& v) {
+    const T& u, const T& v) {
   if (u.has_value_string() && v.has_value_string()) {
     if (u.value_string().size() != v.value_string().size()) {
       return CreateStatusWithPayload(

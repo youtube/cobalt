@@ -11,7 +11,7 @@ included in the update.
 
 ## Chrome Updates
 
-Almost all updates have security fixes. Every two weeks, Chrome releases a new
+Almost all updates have security fixes. Every week, Chrome releases a new
 version that materially improves security. The Chrome Security team believes the
 best option for security is to apply all updates to Chrome as soon as they are
 available. We recommend against and do not support using the security release
@@ -28,8 +28,8 @@ Security team.
 
 Chrome releases [stable milestones][release-cycle] every four weeks (MXXX), with “refresh”
 releases in-between milestones. Milestones are refreshed with updates that can
-contain security fixes and functional bug fixes for high-impact bugs. There is a
-planned security refresh update two weeks into every milestone, with all of the
+contain security fixes and functional bug fixes for high-impact bugs. There are
+planned security refreshes weekly for every milestone, with all of the
 security fixes since the previous release. Chrome may have unscheduled updates
 between milestones to fix critical security issues, address breaking functional
 bugs, or patch known in-the-wild exploits. Updates and rapid response are part
@@ -54,8 +54,8 @@ of users running the Beta version of Chrome.
 
 You can read more details and best practices on the [Chrome Update Management
 Strategies][update-strategy] technical doc.  Enterprises can also reach out to their [support
-representatives][ent-support] for help, or [file an issue][crbug] if they identify a bug in a new
-version of Chrome.
+representatives][ent-support] for help, or [file an issue][issue-tracker] if they identify a
+bug in a new version of Chrome.
 
 **How do I prioritize updates that patch vulnerabilities known to be under
 exploitation in the wild (zero-days)?** Don't---this strategy puts you at risk.
@@ -88,7 +88,7 @@ We've spent years building advanced release infrastructure in order to increase
 the number of security updates you receive, and the frequency that we can send
 them out. This keeps you a step ahead of bad actors.
 
-**Updating every two weeks (or more) is a lot of work. How can my IT department
+**Updating every week (or more) is a lot of work. How can my IT department
 keep up?** Chrome is designed to be easy for IT admins to manage and update. If
 you're finding that it's a lot of work to keep up with Chrome's update schedule,
 there's a good chance that there's an easier way to accomplish your goals.
@@ -118,11 +118,24 @@ Chrome will ship patches on iOS to mitigate issues in Webkit. In the event of a
 Chrome on iOS specific security flaw, Chrome will note the fix in the release
 notes for the corresponding desktop release.
 
+**My product includes one of Chrome's components (such as V8 or WebRTC). How
+can I absorb security fixes?** As with Chrome itself, you should assume that
+all security fixes are important and arrange to include them in your product.
+We recommend tracking Chrome's "stable" branch - more recent branches may have
+a higher density of ephemeral security bugs which we will fix before shipping
+to stable. For some of Chrome's components (such as WebRTC) security bugs are
+relatively infrequent and it may be possible to manually absorb new versions
+as necessary by monitoring Chrome release notes. For others (such as V8)
+security bugs are so frequent that the better strategy is to absorb a new
+version of the component every week. For these components, Chrome does not
+support making update decisions based upon the exact security content of the
+release - instead, just take a new version each week.
+
 [release-cycle]: https://chromium.googlesource.com/chromium/src/+/main/docs/process/release_cycle.md
 [ent-rel-notes]: https://support.google.com/chrome/a/answer/7679408
 [update-strategy]: https://support.google.com/chrome/a/answer/9982578
 [ent-support]: https://chromeenterprise.google/browser/support/
-[crbug]: https://crbug.com
+[issue-tracker]: https://issues.chromium.org
 [cisa-patches]: https://www.cisa.gov/tips/st04-006
 [chrome-versions]: https://www.chromium.org/developers/version-numbers/
 [rel-dash]: https://chromiumdash.appspot.com/releases?platform=Windows

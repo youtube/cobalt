@@ -10,7 +10,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/process/kill.h"
 #include "base/strings/utf_string_conversions.h"
-#include "chrome/browser/preloading/prefetch/no_state_prefetch/no_state_prefetch_manager_factory.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/no_state_prefetch/browser/no_state_prefetch_handle.h"
@@ -68,12 +67,12 @@ class TestTabLoadTracker : public TabLoadTracker {
 // A mock observer class.
 class LenientMockObserver : public TabLoadTracker::Observer {
  public:
-  LenientMockObserver() {}
+  LenientMockObserver() = default;
 
   LenientMockObserver(const LenientMockObserver&) = delete;
   LenientMockObserver& operator=(const LenientMockObserver&) = delete;
 
-  ~LenientMockObserver() override {}
+  ~LenientMockObserver() override = default;
 
   // TabLoadTracker::Observer implementation:
   MOCK_METHOD2(OnStartTracking, void(content::WebContents*, LoadingState));
@@ -91,7 +90,7 @@ class TestWebContentsObserver : public content::WebContentsObserver {
                           TestTabLoadTracker* tracker)
       : content::WebContentsObserver(web_contents), tracker_(tracker) {}
 
-  ~TestWebContentsObserver() override {}
+  ~TestWebContentsObserver() override = default;
 
   // content::WebContentsObserver:
   void PrimaryPageChanged(content::Page& page) override {

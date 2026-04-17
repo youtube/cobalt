@@ -5,9 +5,10 @@
 #ifndef UI_NATIVE_THEME_NATIVE_THEME_UTILS_H_
 #define UI_NATIVE_THEME_NATIVE_THEME_UTILS_H_
 
-#include "base/strings/string_piece.h"
+#include <string_view>
+
+#include "base/component_export.h"
 #include "ui/native_theme/native_theme.h"
-#include "ui/native_theme/native_theme_export.h"
 
 namespace ui {
 
@@ -16,8 +17,10 @@ namespace ui {
 // functions are called.
 
 // Converts NativeTheme::ColorScheme.
-base::StringPiece NATIVE_THEME_EXPORT
-NativeThemeColorSchemeName(NativeTheme::ColorScheme color_scheme);
+std::string_view COMPONENT_EXPORT(NATIVE_THEME)
+    NativeThemeColorSchemeName(NativeTheme::ColorScheme color_scheme);
+
+COMPONENT_EXPORT(NATIVE_THEME) bool IsOverlayScrollbarEnabled();
 
 }  // namespace ui
 

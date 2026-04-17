@@ -29,9 +29,11 @@
 
 #include "third_party/blink/renderer/core/css/cascade_layer.h"
 #include "third_party/blink/renderer/core/css/css_keyframe_rule.h"
+#include "third_party/blink/renderer/core/css/css_markup.h"
 #include "third_party/blink/renderer/core/css/css_rule_list.h"
 #include "third_party/blink/renderer/core/css/css_style_sheet.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser.h"
+#include "third_party/blink/renderer/core/css/style_sheet_contents.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
@@ -97,6 +99,9 @@ CSSKeyframesRule::~CSSKeyframesRule() = default;
 
 void CSSKeyframesRule::setName(const String& name) {
   CSSStyleSheet::RuleMutationScope mutation_scope(this);
+  if (parentStyleSheet()) {
+    parentStyleSheet()->Contents()->NotifyDiffUnrepresentable();
+  }
 
   keyframes_rule_->SetName(name);
 }
@@ -116,6 +121,9 @@ void CSSKeyframesRule::appendRule(const ExecutionContext* execution_context,
   }
 
   CSSStyleSheet::RuleMutationScope mutation_scope(this);
+  if (parentStyleSheet()) {
+    parentStyleSheet()->Contents()->NotifyDiffUnrepresentable();
+  }
 
   keyframes_rule_->WrapperAppendKeyframe(keyframe);
 
@@ -136,6 +144,9 @@ void CSSKeyframesRule::deleteRule(const ExecutionContext* execution_context,
   }
 
   CSSStyleSheet::RuleMutationScope mutation_scope(this);
+  if (parentStyleSheet()) {
+    parentStyleSheet()->Contents()->NotifyDiffUnrepresentable();
+  }
 
   keyframes_rule_->WrapperRemoveKeyframe(i);
 
@@ -162,7 +173,7 @@ String CSSKeyframesRule::cssText() const {
   } else {
     result.Append("@keyframes ");
   }
-  result.Append(name());
+  SerializeIdentifier(name(), result);
   result.Append(" { \n");
 
   unsigned size = length();
@@ -179,7 +190,8 @@ unsigned CSSKeyframesRule::length() const {
   return keyframes_rule_->Keyframes().size();
 }
 
-CSSKeyframeRule* CSSKeyframesRule::Item(unsigned index) const {
+CSSKeyframeRule* CSSKeyframesRule::Item(unsigned index,
+                                        bool trigger_use_counters) const {
   if (index >= length()) {
     return nullptr;
   }

@@ -4,9 +4,20 @@
 
 #include "quiche/quic/load_balancer/load_balancer_encoder.h"
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
+#include <optional>
+#include <queue>
 
 #include "absl/numeric/int128.h"
+#include "absl/strings/string_view.h"
+#include "absl/types/span.h"
+#include "quiche/quic/core/crypto/quic_random.h"
+#include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/load_balancer/load_balancer_config.h"
+#include "quiche/quic/load_balancer/load_balancer_server_id.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
@@ -54,7 +65,7 @@ class TestLoadBalancerEncoderVisitor
 
  private:
   uint32_t num_adds_ = 0, num_deletes_ = 0;
-  absl::optional<uint8_t> current_config_id_ = absl::optional<uint8_t>();
+  std::optional<uint8_t> current_config_id_ = std::optional<uint8_t>();
 };
 
 // Allows the caller to specify the exact results in 64-bit chunks.
@@ -105,8 +116,7 @@ class LoadBalancerEncoderTest : public QuicTest {
 // Convenience function to shorten the code. Does not check if |array| is long
 // enough or |length| is valid for a server ID.
 LoadBalancerServerId MakeServerId(const uint8_t array[], const uint8_t length) {
-  return *LoadBalancerServerId::Create(
-      absl::Span<const uint8_t>(array, length));
+  return LoadBalancerServerId(absl::Span<const uint8_t>(array, length));
 }
 
 constexpr char kRawKey[] = {0x8f, 0x95, 0xf0, 0x92, 0x45, 0x76, 0x5f, 0x80,
@@ -169,8 +179,8 @@ TEST_F(LoadBalancerEncoderTest, UnencryptedConnectionIdTestVectors) {
       },
       {
           *LoadBalancerConfig::CreateUnencrypted(1, 8, 5),
-          QuicConnectionId({0x4d, 0xed, 0x79, 0x3a, 0x51, 0xd4, 0x9b, 0x8f,
-                            0x5f, 0xee, 0x15, 0xda, 0x27, 0xc4}),
+          QuicConnectionId({0x2d, 0xed, 0x79, 0x3a, 0x51, 0xd4, 0x9b, 0x8f,
+                            0x5f, 0x8e, 0x98, 0x53, 0xfe, 0x93}),
           MakeServerId(kServerId, 8),
       },
   };
@@ -184,7 +194,7 @@ TEST_F(LoadBalancerEncoderTest, UnencryptedConnectionIdTestVectors) {
   }
 }
 
-// Follow example in draft-ietf-quic-load-balancers-15.
+// Follow example in draft-ietf-quic-load-balancers-19.
 TEST_F(LoadBalancerEncoderTest, FollowSpecExample) {
   const uint8_t config_id = 0, server_id_len = 3, nonce_len = 4;
   const uint8_t raw_server_id[] = {
@@ -202,17 +212,17 @@ TEST_F(LoadBalancerEncoderTest, FollowSpecExample) {
   auto config = LoadBalancerConfig::Create(config_id, server_id_len, nonce_len,
                                            absl::string_view(raw_key));
   ASSERT_TRUE(config.has_value());
-  EXPECT_TRUE(encoder->UpdateConfig(
-      *config, *LoadBalancerServerId::Create(raw_server_id)));
+  EXPECT_TRUE(
+      encoder->UpdateConfig(*config, LoadBalancerServerId(raw_server_id)));
   EXPECT_TRUE(encoder->IsEncoding());
-  const char raw_connection_id[] = {0x07, 0x8e, 0x9a, 0x91,
-                                    0xf4, 0x94, 0x97, 0x62};
+  const char raw_connection_id[] = {0x07, 0x67, 0x94, 0x7d,
+                                    0x29, 0xbe, 0x05, 0x4a};
   auto expected =
       QuicConnectionId(raw_connection_id, 1 + server_id_len + nonce_len);
   EXPECT_EQ(encoder->GenerateConnectionId(), expected);
 }
 
-// Compare test vectors from Appendix B of draft-ietf-quic-load-balancers-15.
+// Compare test vectors from Appendix B of draft-ietf-quic-load-balancers-19.
 TEST_F(LoadBalancerEncoderTest, EncoderTestVectors) {
   // Try (1) the "standard" ConnectionId length of 8
   // (2) server_id_len > nonce_len, so there is a fourth decryption pass
@@ -221,27 +231,27 @@ TEST_F(LoadBalancerEncoderTest, EncoderTestVectors) {
   const LoadBalancerEncoderTestCase test_vectors[4] = {
       {
           *LoadBalancerConfig::Create(0, 3, 4, kKey),
-          QuicConnectionId({0x07, 0x41, 0x26, 0xee, 0x38, 0xbf, 0x54, 0x54}),
+          QuicConnectionId({0x07, 0x20, 0xb1, 0xd0, 0x7b, 0x35, 0x9d, 0x3c}),
           MakeServerId(kServerId, 3),
       },
       {
           *LoadBalancerConfig::Create(1, 10, 5, kKey),
-          QuicConnectionId({0x4f, 0xcd, 0x3f, 0x57, 0x2d, 0x4e, 0xef, 0xb0,
-                            0x46, 0xfd, 0xb5, 0x1d, 0x16, 0x4e, 0xfc, 0xcc}),
+          QuicConnectionId({0x2f, 0xcc, 0x38, 0x1b, 0xc7, 0x4c, 0xb4, 0xfb,
+                            0xad, 0x28, 0x23, 0xa3, 0xd1, 0xf8, 0xfe, 0xd2}),
           MakeServerId(kServerId, 10),
       },
       {
           *LoadBalancerConfig::Create(2, 8, 8, kKey),
-          QuicConnectionId({0x90, 0x4d, 0xd2, 0xd0, 0x5a, 0x7b, 0x0d, 0xe9,
+          QuicConnectionId({0x50, 0x4d, 0xd2, 0xd0, 0x5a, 0x7b, 0x0d, 0xe9,
                             0xb2, 0xb9, 0x90, 0x7a, 0xfb, 0x5e, 0xcf, 0x8c,
                             0xc3}),
           MakeServerId(kServerId, 8),
       },
       {
           *LoadBalancerConfig::Create(0, 9, 9, kKey),
-          QuicConnectionId({0x12, 0x12, 0x4d, 0x1e, 0xb8, 0xfb, 0xb2, 0x1e,
-                            0x4a, 0x49, 0x0c, 0xa5, 0x3c, 0xfe, 0x21, 0xd0,
-                            0x4a, 0xe6, 0x3a}),
+          QuicConnectionId({0x12, 0x57, 0x79, 0xc9, 0xcc, 0x86, 0xbe, 0xb3,
+                            0xa3, 0xa4, 0xa3, 0xca, 0x96, 0xfc, 0xe4, 0xbf,
+                            0xe0, 0xcd, 0xbc}),
           MakeServerId(kServerId, 9),
       },
   };
@@ -267,7 +277,7 @@ TEST_F(LoadBalancerEncoderTest, RunOutOfNonces) {
   LoadBalancerEncoderPeer::SetNumNoncesLeft(*encoder, 2);
   EXPECT_EQ(encoder->num_nonces_left(), 2);
   EXPECT_EQ(encoder->GenerateConnectionId(),
-            QuicConnectionId({0x07, 0x1d, 0x4a, 0xb8, 0xc6, 0x1d, 0xd6, 0x5d}));
+            QuicConnectionId({0x07, 0x29, 0xd8, 0xc2, 0x17, 0xce, 0x2d, 0x92}));
   EXPECT_EQ(encoder->num_nonces_left(), 1);
   encoder->GenerateConnectionId();
   EXPECT_EQ(encoder->IsEncoding(), false);
@@ -281,9 +291,9 @@ TEST_F(LoadBalancerEncoderTest, UnroutableConnectionId) {
   ASSERT_TRUE(encoder.has_value());
   EXPECT_EQ(encoder->num_nonces_left(), 0);
   auto connection_id = encoder->GenerateConnectionId();
-  // The first byte is the config_id (0xc0) xored with (0x83 & 0x3f).
+  // The first byte is the config_id (0xe0) xored with (0x83 & 0x1f).
   // The remaining bytes are random, and therefore match kNonceHigh.
-  QuicConnectionId expected({0xc3, 0x5d, 0x52, 0xde, 0x4d, 0xe3, 0xe7, 0x21});
+  QuicConnectionId expected({0xe3, 0x5d, 0x52, 0xde, 0x4d, 0xe3, 0xe7, 0x21});
   EXPECT_EQ(expected, connection_id);
 }
 
@@ -362,8 +372,8 @@ TEST_F(LoadBalancerEncoderTest, MaybeReplaceConnectionIdReturnsNoChange) {
   auto encoder = LoadBalancerEncoder::Create(random_, nullptr, false);
   ASSERT_TRUE(encoder.has_value());
   EXPECT_EQ(encoder->MaybeReplaceConnectionId(TestConnectionId(1),
-                                              ParsedQuicVersion::Q050()),
-            absl::nullopt);
+                                              ParsedQuicVersion::Q046()),
+            std::nullopt);
 }
 
 TEST_F(LoadBalancerEncoderTest, MaybeReplaceConnectionIdReturnsChange) {
@@ -372,7 +382,7 @@ TEST_F(LoadBalancerEncoderTest, MaybeReplaceConnectionIdReturnsChange) {
   ASSERT_TRUE(encoder.has_value());
   // The first byte is the config_id (0xc0) xored with (0x83 & 0x3f).
   // The remaining bytes are random, and therefore match kNonceHigh.
-  QuicConnectionId expected({0xc3, 0x5d, 0x52, 0xde, 0x4d, 0xe3, 0xe7, 0x21});
+  QuicConnectionId expected({0xe3, 0x5d, 0x52, 0xde, 0x4d, 0xe3, 0xe7, 0x21});
   EXPECT_EQ(*encoder->MaybeReplaceConnectionId(TestConnectionId(1),
                                                ParsedQuicVersion::RFCv1()),
             expected);
@@ -384,7 +394,7 @@ TEST_F(LoadBalancerEncoderTest, GenerateNextConnectionIdReturnsNoChange) {
   auto encoder = LoadBalancerEncoder::Create(random_, nullptr, true);
   EXPECT_TRUE(encoder->UpdateConfig(*config, MakeServerId(kServerId, 3)));
   EXPECT_EQ(encoder->GenerateNextConnectionId(TestConnectionId(1)),
-            absl::nullopt);
+            std::nullopt);
 }
 
 TEST_F(LoadBalancerEncoderTest, GenerateNextConnectionIdReturnsChange) {
@@ -393,7 +403,7 @@ TEST_F(LoadBalancerEncoderTest, GenerateNextConnectionIdReturnsChange) {
   ASSERT_TRUE(encoder.has_value());
   // The first byte is the config_id (0xc0) xored with (0x83 & 0x3f).
   // The remaining bytes are random, and therefore match kNonceHigh.
-  QuicConnectionId expected({0xc3, 0x5d, 0x52, 0xde, 0x4d, 0xe3, 0xe7, 0x21});
+  QuicConnectionId expected({0xe3, 0x5d, 0x52, 0xde, 0x4d, 0xe3, 0xe7, 0x21});
   EXPECT_EQ(*encoder->GenerateNextConnectionId(TestConnectionId(1)), expected);
 }
 
@@ -401,13 +411,13 @@ TEST_F(LoadBalancerEncoderTest, ConnectionIdLengthsEncoded) {
   // The first byte literally encodes the length.
   auto len_encoder = LoadBalancerEncoder::Create(random_, nullptr, true);
   ASSERT_TRUE(len_encoder.has_value());
-  EXPECT_EQ(len_encoder->ConnectionIdLength(0xc8), 9);
+  EXPECT_EQ(len_encoder->ConnectionIdLength(0xe8), 9);
   EXPECT_EQ(len_encoder->ConnectionIdLength(0x4a), 11);
   EXPECT_EQ(len_encoder->ConnectionIdLength(0x09), 10);
   // The length is not self-encoded anymore.
   auto encoder = LoadBalancerEncoder::Create(random_, nullptr, false);
   ASSERT_TRUE(encoder.has_value());
-  EXPECT_EQ(encoder->ConnectionIdLength(0xc8), kQuicDefaultConnectionIdLength);
+  EXPECT_EQ(encoder->ConnectionIdLength(0xe8), kQuicDefaultConnectionIdLength);
   EXPECT_EQ(encoder->ConnectionIdLength(0x4a), kQuicDefaultConnectionIdLength);
   EXPECT_EQ(encoder->ConnectionIdLength(0x09), kQuicDefaultConnectionIdLength);
   // Add config ID 0, so that ID now returns a different length.
@@ -420,7 +430,7 @@ TEST_F(LoadBalancerEncoderTest, ConnectionIdLengthsEncoded) {
   ASSERT_TRUE(config0.has_value());
   EXPECT_TRUE(
       encoder->UpdateConfig(*config0, MakeServerId(kServerId, server_id_len)));
-  EXPECT_EQ(encoder->ConnectionIdLength(0xc8), kQuicDefaultConnectionIdLength);
+  EXPECT_EQ(encoder->ConnectionIdLength(0xe8), kQuicDefaultConnectionIdLength);
   EXPECT_EQ(encoder->ConnectionIdLength(0x4a), kQuicDefaultConnectionIdLength);
   EXPECT_EQ(encoder->ConnectionIdLength(0x09), config_0_len);
   // Replace config ID 0 with 1. There are probably still packets with config
@@ -434,13 +444,13 @@ TEST_F(LoadBalancerEncoderTest, ConnectionIdLengthsEncoded) {
   // Old config length still there after replacement
   EXPECT_TRUE(
       encoder->UpdateConfig(*config1, MakeServerId(kServerId, server_id_len)));
-  EXPECT_EQ(encoder->ConnectionIdLength(0xc8), kQuicDefaultConnectionIdLength);
-  EXPECT_EQ(encoder->ConnectionIdLength(0x4a), config_1_len);
+  EXPECT_EQ(encoder->ConnectionIdLength(0xe8), kQuicDefaultConnectionIdLength);
+  EXPECT_EQ(encoder->ConnectionIdLength(0x2a), config_1_len);
   EXPECT_EQ(encoder->ConnectionIdLength(0x09), config_0_len);
   // Old config length still there after delete
   encoder->DeleteConfig();
-  EXPECT_EQ(encoder->ConnectionIdLength(0xc8), kQuicDefaultConnectionIdLength);
-  EXPECT_EQ(encoder->ConnectionIdLength(0x4a), config_1_len);
+  EXPECT_EQ(encoder->ConnectionIdLength(0xe8), kQuicDefaultConnectionIdLength);
+  EXPECT_EQ(encoder->ConnectionIdLength(0x2a), config_1_len);
   EXPECT_EQ(encoder->ConnectionIdLength(0x09), config_0_len);
 }
 

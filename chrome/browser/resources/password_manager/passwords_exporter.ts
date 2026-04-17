@@ -4,15 +4,17 @@
 
 import 'chrome://resources/cr_elements/cr_link_row/cr_link_row.js';
 import 'chrome://resources/cr_elements/cr_shared_style.css.js';
+import 'chrome://resources/cr_elements/cr_spinner_style.css.js';
 import 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import './shared_style.css.js';
 
-import {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
+import type {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {PasswordManagerImpl, PasswordsFileExportProgressListener} from './password_manager_proxy.js';
+import type {PasswordsFileExportProgressListener} from './password_manager_proxy.js';
+import {PasswordManagerImpl} from './password_manager_proxy.js';
 import {getTemplate} from './passwords_exporter.html.js';
 
 const ProgressStatus = chrome.passwordsPrivate.ExportProgressStatus;
@@ -43,7 +45,7 @@ export class PasswordsExporterElement extends PasswordsExporterElementBase {
       },
 
       /** Whether password export error dialog is shown. */
-      showExportErrorDialog_: {
+      showPasswordsExportErrorDialog_: {
         type: Boolean,
         value: false,
       },
@@ -59,9 +61,9 @@ export class PasswordsExporterElement extends PasswordsExporterElementBase {
   private onPasswordsFileExportProgressListener_:
       PasswordsFileExportProgressListener|null = null;
 
-  private showPasswordsExportErrorDialog_: boolean;
-  private showExportInProgress_: boolean;
-  private exportErrorMessage_: string|null;
+  declare private showPasswordsExportErrorDialog_: boolean;
+  declare private showExportInProgress_: boolean;
+  declare private exportErrorMessage_: string|null;
   private exportedFilePath_: string|null;
 
 

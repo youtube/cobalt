@@ -4,6 +4,11 @@
 
 #include "quiche/quic/test_tools/quic_crypto_server_config_peer.h"
 
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "absl/strings/string_view.h"
 #include "quiche/quic/test_tools/mock_clock.h"
 #include "quiche/quic/test_tools/mock_random.h"
@@ -14,14 +19,14 @@ namespace test {
 
 quiche::QuicheReferenceCountedPointer<QuicCryptoServerConfig::Config>
 QuicCryptoServerConfigPeer::GetPrimaryConfig() {
-  QuicReaderMutexLock locked(&server_config_->configs_lock_);
+  absl::ReaderMutexLock locked(&server_config_->configs_lock_);
   return quiche::QuicheReferenceCountedPointer<QuicCryptoServerConfig::Config>(
       server_config_->primary_config_);
 }
 
 quiche::QuicheReferenceCountedPointer<QuicCryptoServerConfig::Config>
 QuicCryptoServerConfigPeer::GetConfig(std::string config_id) {
-  QuicReaderMutexLock locked(&server_config_->configs_lock_);
+  absl::ReaderMutexLock locked(&server_config_->configs_lock_);
   if (config_id == "<primary>") {
     return quiche::QuicheReferenceCountedPointer<
         QuicCryptoServerConfig::Config>(server_config_->primary_config_);
@@ -78,7 +83,7 @@ QuicCryptoServerConfigPeer::ValidateSingleSourceAddressToken(
 
 void QuicCryptoServerConfigPeer::CheckConfigs(
     std::vector<std::pair<std::string, bool>> expected_ids_and_status) {
-  QuicReaderMutexLock locked(&server_config_->configs_lock_);
+  absl::ReaderMutexLock locked(&server_config_->configs_lock_);
 
   ASSERT_EQ(expected_ids_and_status.size(), server_config_->configs_.size())
       << ConfigsDebug();
@@ -127,7 +132,7 @@ std::string QuicCryptoServerConfigPeer::ConfigsDebug() {
 }
 
 void QuicCryptoServerConfigPeer::SelectNewPrimaryConfig(int seconds) {
-  QuicWriterMutexLock locked(&server_config_->configs_lock_);
+  absl::WriterMutexLock locked(&server_config_->configs_lock_);
   server_config_->SelectNewPrimaryConfig(
       QuicWallTime::FromUNIXSeconds(seconds));
 }

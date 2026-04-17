@@ -26,7 +26,7 @@ base::ScopedFD OpenTestStatFile(const std::string& name) {
   base::FilePath base_path;
   base::PathService::Get(chrome::DIR_TEST_DATA, &base_path);
   const base::FilePath path =
-      base_path.Append("arc_graphics_tracing").Append(name);
+      base_path.Append("arc_overview_tracing").Append(name);
   base::ScopedFD result(open(path.value().c_str(), O_RDONLY));
   DCHECK_GE(result.get(), 0);
   return result;
@@ -68,16 +68,16 @@ TEST_F(ArcSystemStatCollectorTest, Serialize) {
   base::FilePath base_path;
   base::PathService::Get(chrome::DIR_TEST_DATA, &base_path);
   const base::FilePath path =
-      base_path.Append("arc_graphics_tracing").Append("system_stat_collector");
+      base_path.Append("arc_overview_tracing").Append("system_stat_collector");
   std::string json_content;
   ASSERT_TRUE(base::ReadFileToString(path, &json_content));
   ArcSystemStatCollector collector;
   ASSERT_TRUE(collector.LoadFromJson(json_content));
   const std::string json_content_restored = collector.SerializeToJson();
   ASSERT_TRUE(!json_content_restored.empty());
-  absl::optional<base::Value> root = base::JSONReader::Read(json_content);
+  std::optional<base::Value> root = base::JSONReader::Read(json_content);
   ASSERT_TRUE(root);
-  absl::optional<base::Value> root_restored =
+  std::optional<base::Value> root_restored =
       base::JSONReader::Read(json_content_restored);
   ASSERT_TRUE(root_restored);
   EXPECT_EQ(*root, *root_restored);

@@ -51,7 +51,7 @@ class EcheStreamStatusChangeHandler
       mojo::PendingRemote<mojom::StreamActionObserver> observer) override;
 
   // EcheConnectionStatusHandler::Observer:
-  void OnRequestCloseConnnection() override;
+  void OnRequestCloseConnection() override;
 
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
@@ -66,9 +66,8 @@ class EcheStreamStatusChangeHandler
   void NotifyStreamStatusChanged(mojom::StreamStatus status);
 
  private:
-  raw_ptr<AppsLaunchInfoProvider, ExperimentalAsh> apps_launch_info_provider_;
-  raw_ptr<EcheConnectionStatusHandler, ExperimentalAsh>
-      eche_connection_status_handler_;
+  raw_ptr<AppsLaunchInfoProvider, DanglingUntriaged> apps_launch_info_provider_;
+  raw_ptr<EcheConnectionStatusHandler> eche_connection_status_handler_;
   mojo::Receiver<mojom::DisplayStreamHandler> display_stream_receiver_{this};
   mojo::Remote<mojom::StreamActionObserver> observer_remote_;
   base::ObserverList<Observer> observer_list_;

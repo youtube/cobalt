@@ -9,13 +9,13 @@ Document
 ++++Text
 ++++++Text Name=' '
 ++++++Group IsControlElement=false
-++++++++Group Name='3'
-++++++++++Group Name='oops'
+++++++++Group
+++++++++++Group
 ++++++++++++Text Name='3'
 ++++++Text Name=' '
 ++++++Group IsControlElement=false
 ++++++++Hyperlink Name='2'
-++++++++++Group Name='better'
+++++++++++Group
 ++++++++++++Text Name='2' IsControlElement=false
 ++++++Text Name=' '
 ++++Text Name='O'

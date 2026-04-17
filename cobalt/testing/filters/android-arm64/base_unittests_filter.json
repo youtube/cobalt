@@ -1,24 +1,5 @@
 {
   "failing_tests": [
-    "ModuleCacheTest.CheckAgainstProcMaps",
-    "LibunwindstackUnwinderAndroidTest.*",
-    "WeakAutoResetTest.*",
-    "LoggingTest.NestedLogAssertHandlers",
-    "SampleMetadataTest.ScopedSampleMetadata",
-    "SampleMetadataTest.ScopedSampleMetadataWithKey",
-    "SampleMetadataTest.SampleMetadata",
-    "SampleMetadataTest.SampleMetadataWithKey",
-    "SampleMetadataTest.SampleMetadataWithThreadId",
-    "LapTimer.ThreadTicksUsageExample",
-    "All/SingleThreadTaskExecutorTypedTest.RecursivePostsDoNotFloodPipe/default_pump",
-    "All/SingleThreadTaskExecutorTypedTest.RecursivePostsDoNotFloodPipe/UI_pump",
-    "All/SingleThreadTaskExecutorTypedTest.RecursivePostsDoNotFloodPipe/IO_pump",
-    "AlternateBucketDistribution/PartitionAllocThreadCacheTest.ThreadCacheRegistry/0",
-    "AlternateBucketDistribution/PartitionAllocThreadCacheTest.ThreadCacheRegistry/1",
-    "AlternateBucketDistribution/PartitionAllocThreadCacheTest.MultipleThreadCachesAccounting/0",
-    "AlternateBucketDistribution/PartitionAllocThreadCacheTest.MultipleThreadCachesAccounting/1",
-    "All/SequenceManagerTest.*",
-    "All/TimerTestWithThreadType.*",
-    "FileTest.TouchGetInfo"
+    "*"
   ]
 }

@@ -13,26 +13,29 @@
 #include "base/logging.h"
 #include "base/run_loop.h"
 #include "base/task/sequenced_task_runner.h"
+#include "components/sync/engine/cycle/sync_cycle_snapshot.h"
 #include "components/sync/engine/engine_components_factory.h"
 #include "components/sync/engine/net/http_post_provider_factory.h"
-#include "components/sync/test/fake_model_type_connector.h"
+#include "components/sync/test/fake_data_type_connector.h"
 
 class GURL;
 
 namespace syncer {
 
-FakeSyncManager::FakeSyncManager(ModelTypeSet initial_sync_ended_types,
-                                 ModelTypeSet progress_marker_types,
-                                 ModelTypeSet configure_fail_types)
+FakeSyncManager::FakeSyncManager(DataTypeSet initial_sync_ended_types,
+                                 DataTypeSet progress_marker_types,
+                                 DataTypeSet configure_fail_types)
     : initial_sync_ended_types_(initial_sync_ended_types),
       progress_marker_types_(progress_marker_types),
       configure_fail_types_(configure_fail_types),
-      last_configure_reason_(CONFIGURE_REASON_UNKNOWN) {}
+      last_configure_reason_(CONFIGURE_REASON_UNKNOWN) {
+  sync_task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
+}
 
 FakeSyncManager::~FakeSyncManager() = default;
 
-ModelTypeSet FakeSyncManager::GetAndResetDownloadedTypes() {
-  ModelTypeSet downloaded_types = downloaded_types_;
+DataTypeSet FakeSyncManager::GetAndResetDownloadedTypes() {
+  DataTypeSet downloaded_types = downloaded_types_;
   downloaded_types_.Clear();
   return downloaded_types;
 }
@@ -43,7 +46,7 @@ ConfigureReason FakeSyncManager::GetAndResetConfigureReason() {
   return reason;
 }
 
-int FakeSyncManager::GetInvalidationCount(ModelType type) const {
+int FakeSyncManager::GetInvalidationCount(DataType type) const {
   auto it = num_invalidations_received_.find(type);
   if (it == num_invalidations_received_.end()) {
     return 0;
@@ -52,7 +55,7 @@ int FakeSyncManager::GetInvalidationCount(ModelType type) const {
 }
 
 void FakeSyncManager::WaitForSyncThread() {
-  // Post a task to |sync_task_runner_| and block until it runs.
+  // Post a task to `sync_task_runner_` and block until it runs.
   base::RunLoop run_loop;
   if (!sync_task_runner_->PostTaskAndReply(FROM_HERE, base::DoNothing(),
                                            run_loop.QuitClosure())) {
@@ -61,18 +64,45 @@ void FakeSyncManager::WaitForSyncThread() {
   run_loop.Run();
 }
 
+void FakeSyncManager::NotifySyncStatusChanged(const SyncStatus& status) {
+  sync_task_runner_->PostTask(
+      FROM_HERE, base::BindOnce(&FakeSyncManager::DoNotifySyncStatusChanged,
+                                base::Unretained(this), status));
+}
+
+void FakeSyncManager::NotifySyncCycleCompleted(
+    const SyncCycleSnapshot& snapshot) {
+  sync_task_runner_->PostTask(
+      FROM_HERE, base::BindOnce(&FakeSyncManager::DoNotifySyncCycleCompleted,
+                                base::Unretained(this), snapshot));
+}
+
+void FakeSyncManager::DoNotifySyncStatusChanged(const SyncStatus& status) {
+  DCHECK(sync_task_runner_->RunsTasksInCurrentSequence());
+  for (Observer& observer : observers_) {
+    observer.OnSyncStatusChanged(status);
+  }
+}
+
+void FakeSyncManager::DoNotifySyncCycleCompleted(
+    const SyncCycleSnapshot& snapshot) {
+  DCHECK(sync_task_runner_->RunsTasksInCurrentSequence());
+  for (Observer& observer : observers_) {
+    observer.OnSyncCycleCompleted(snapshot);
+  }
+}
+
 void FakeSyncManager::Init(InitArgs* args) {
-  sync_task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
   cache_guid_ = args->cache_guid;
   birthday_ = args->birthday;
   bag_of_chips_ = args->bag_of_chips;
 }
 
-ModelTypeSet FakeSyncManager::InitialSyncEndedTypes() {
+DataTypeSet FakeSyncManager::InitialSyncEndedTypes() {
   return initial_sync_ended_types_;
 }
 
-ModelTypeSet FakeSyncManager::GetConnectedTypes() {
+DataTypeSet FakeSyncManager::GetConnectedTypes() {
   return progress_marker_types_;
 }
 
@@ -93,15 +123,15 @@ void FakeSyncManager::StartConfiguration() {
 }
 
 void FakeSyncManager::ConfigureSyncer(ConfigureReason reason,
-                                      ModelTypeSet to_download,
+                                      DataTypeSet to_download,
                                       SyncFeatureState sync_feature_state,
                                       base::OnceClosure ready_task) {
   last_configure_reason_ = reason;
-  ModelTypeSet success_types = to_download;
+  DataTypeSet success_types = to_download;
   success_types.RemoveAll(configure_fail_types_);
 
   DVLOG(1) << "Faking configuration. Downloading: "
-           << ModelTypeSetToDebugString(success_types);
+           << DataTypeSetToDebugString(success_types);
 
   // Now simulate the actual configuration for those types that successfully
   // download + apply.
@@ -113,10 +143,12 @@ void FakeSyncManager::ConfigureSyncer(ConfigureReason reason,
 }
 
 void FakeSyncManager::AddObserver(Observer* observer) {
+  DCHECK(sync_task_runner_->RunsTasksInCurrentSequence());
   observers_.AddObserver(observer);
 }
 
 void FakeSyncManager::RemoveObserver(Observer* observer) {
+  DCHECK(sync_task_runner_->RunsTasksInCurrentSequence());
   observers_.RemoveObserver(observer);
 }
 
@@ -124,13 +156,13 @@ void FakeSyncManager::ShutdownOnSyncThread() {
   DCHECK(sync_task_runner_->RunsTasksInCurrentSequence());
 }
 
-ModelTypeConnector* FakeSyncManager::GetModelTypeConnector() {
-  return &fake_model_type_connector_;
+DataTypeConnector* FakeSyncManager::GetDataTypeConnector() {
+  return &fake_data_type_connector_;
 }
 
-std::unique_ptr<ModelTypeConnector>
-FakeSyncManager::GetModelTypeConnectorProxy() {
-  return std::make_unique<FakeModelTypeConnector>();
+std::unique_ptr<DataTypeConnector>
+FakeSyncManager::GetDataTypeConnectorProxy() {
+  return std::make_unique<FakeDataTypeConnector>();
 }
 
 std::string FakeSyncManager::cache_guid() {
@@ -159,17 +191,17 @@ FakeSyncManager::GetBufferedProtocolEvents() {
   return std::vector<std::unique_ptr<ProtocolEvent>>();
 }
 
-void FakeSyncManager::RefreshTypes(ModelTypeSet types) {
+void FakeSyncManager::RefreshTypes(DataTypeSet types) {
   last_refresh_request_types_ = types;
 }
 
 void FakeSyncManager::OnIncomingInvalidation(
-    ModelType type,
+    DataType type,
     std::unique_ptr<SyncInvalidation> invalidation) {
   num_invalidations_received_[type]++;
 }
 
-ModelTypeSet FakeSyncManager::GetLastRefreshRequestTypes() {
+DataTypeSet FakeSyncManager::GetLastRefreshRequestTypes() {
   return last_refresh_request_types_;
 }
 
@@ -178,10 +210,6 @@ void FakeSyncManager::SetInvalidatorEnabled(bool invalidator_enabled) {
 }
 
 void FakeSyncManager::OnCookieJarChanged(bool account_mismatch) {}
-
-void FakeSyncManager::UpdateInvalidationClientId(const std::string&) {
-  NOTIMPLEMENTED();
-}
 
 void FakeSyncManager::UpdateActiveDevicesInvalidationInfo(
     ActiveDevicesInvalidationInfo active_devices_invalidation_info) {

@@ -9,9 +9,16 @@
 #include <string>
 
 #include "base/containers/flat_map.h"
+#include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "base/synchronization/lock.h"
+#include "base/system/sys_info.h"
 #include "media/capture/video/video_capture_device.h"
+#include "ui/gfx/color_space.h"
+
+namespace gpu {
+class ClientSharedImage;
+}
 
 namespace media {
 
@@ -64,14 +71,14 @@ class CAPTURE_EXPORT CameraDeviceContext {
     //
     //   ConstructDefaultRequestSettings() ->
     //   OnConstructedDefaultRequestSettings() ->
-    //   |stream_buffer_manager_|->StartPreview()
+    //   |request_manager_|->StartPreview()
     //
-    // In the kCapturing state the |stream_buffer_manager_| runs the capture
+    // In the kCapturing state the |request_manager_| runs the capture
     // loop to send capture requests and process capture results.
     kCapturing,
 
     // When the camera device is in the kCapturing state, a capture loop is
-    // constantly running in |stream_buffer_manager_|:
+    // constantly running in |request_manager_|:
     //
     // On the StreamBufferManager side, we register and submit a capture
     // request whenever a free buffer is available:
@@ -132,15 +139,15 @@ class CAPTURE_EXPORT CameraDeviceContext {
       const VideoFrameMetadata& metadata);
 
   // Submits the captured camera frame through a locally-allocated
-  // GpuMemoryBuffer.  The captured buffer would be submitted through
-  // |client_->OnIncomingCapturedGfxBuffer|, which would perform buffer copy
+  // image.  The captured buffer would be submitted through
+  // |client_->OnIncomingCapturedImage|, which would perform buffer copy
   // and/or format conversion to an I420 SharedMemory-based video capture buffer
   // for client consumption.
-  void SubmitCapturedGpuMemoryBuffer(ClientType client_type,
-                                     gfx::GpuMemoryBuffer* buffer,
-                                     const VideoCaptureFormat& frame_format,
-                                     base::TimeTicks reference_time,
-                                     base::TimeDelta timestamp);
+  void SubmitCapturedImage(ClientType client_type,
+                           scoped_refptr<gpu::ClientSharedImage> shared_image,
+                           const VideoCaptureFormat& frame_format,
+                           base::TimeTicks reference_time,
+                           base::TimeDelta timestamp);
 
   void SetSensorOrientation(int sensor_orientation);
 
@@ -160,12 +167,16 @@ class CAPTURE_EXPORT CameraDeviceContext {
   bool IsCameraFrameRotationEnabledAtSource();
 
   // Reserves a video capture buffer from the buffer pool provided by the video
-  // |client_|.  Returns true if the operation succeeds; false otherwise.
+  // |client_|. |require_new_buffer_id| and |retire_old_buffer_id| returns the
+  // new buffer id and retired buffer id in the VCD buffer pool. Returns true if
+  // the operation succeeds; false otherwise.
   bool ReserveVideoCaptureBufferFromPool(
       ClientType client_type,
       gfx::Size size,
       VideoPixelFormat format,
-      VideoCaptureDevice::Client::Buffer* buffer);
+      VideoCaptureDevice::Client::Buffer* buffer,
+      int* require_new_buffer_id = nullptr,
+      int* retire_old_buffer_id = nullptr);
 
   // Returns true if there is a client.
   bool HasClient();
@@ -177,6 +188,8 @@ class CAPTURE_EXPORT CameraDeviceContext {
  private:
   friend class RequestManagerTest;
 
+  void OnGotHardwareInfo(base::SysInfo::HardwareInfo hardware_info);
+
   SEQUENCE_CHECKER(sequence_checker_);
 
   // The state the CameraDeviceDelegate currently is in.
@@ -185,6 +198,8 @@ class CAPTURE_EXPORT CameraDeviceContext {
   // Lock to serialize the access to the various camera rotation state variables
   // since they are access on multiple threads.
   base::Lock rotation_state_lock_;
+
+  std::optional<gfx::ColorSpace> color_space_override_ GUARDED_BY(client_lock_);
 
   // Clockwise angle through which the output image needs to be rotated to be
   // upright on the device screen in its native orientation.  This value should
@@ -203,6 +218,8 @@ class CAPTURE_EXPORT CameraDeviceContext {
   // A map for client type and client instance.
   base::flat_map<ClientType, std::unique_ptr<VideoCaptureDevice::Client>>
       clients_ GUARDED_BY(client_lock_);
+
+  base::WeakPtrFactory<CameraDeviceContext> weak_ptr_factory_{this};
 };
 
 }  // namespace media

@@ -9,18 +9,19 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 
 #include "base/containers/flat_set.h"
 #include "base/functional/callback.h"
 #include "base/gtest_prod_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/values.h"
 #include "components/policy/core/common/external_data_fetcher.h"
 #include "components/policy/core/common/policy_details.h"
 #include "components/policy/core/common/policy_types.h"
 #include "components/policy/policy_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace policy {
 
@@ -55,13 +56,18 @@ class POLICY_EXPORT PolicyMap {
     PolicySource source = POLICY_SOURCE_ENTERPRISE_DEFAULT;
     std::unique_ptr<ExternalDataFetcher> external_data_fetcher;
     std::vector<EntryConflict> conflicts;
+    // RAW_PTR_EXCLUSION: Never allocated by PartitionAlloc (pointer to a
+    // global), so there is no benefit to using a raw_ptr, only cost.
+    // See kChromePolicyDetails in gen/components/policy/policy_constants.cc
+    RAW_PTR_EXCLUSION const PolicyDetails* details = nullptr;
 
     Entry();
     Entry(PolicyLevel level,
           PolicyScope scope,
           PolicySource source,
-          absl::optional<base::Value> value,
-          std::unique_ptr<ExternalDataFetcher> external_data_fetcher);
+          std::optional<base::Value> value,
+          std::unique_ptr<ExternalDataFetcher> external_data_fetcher,
+          const PolicyDetails* details = nullptr);
     ~Entry();
 
     Entry(Entry&&) noexcept;
@@ -80,7 +86,7 @@ class POLICY_EXPORT PolicyMap {
     const base::Value* value_unsafe() const;
     base::Value* value_unsafe();
 
-    void set_value(absl::optional<base::Value> val);
+    void set_value(std::optional<base::Value> val);
 
     // Returns true if |this| equals |other|.
     bool Equals(const Entry& other) const;
@@ -143,13 +149,13 @@ class POLICY_EXPORT PolicyMap {
                                         L10nLookupFunction lookup) const;
 
    private:
-    absl::optional<base::Value> value_;
+    std::optional<base::Value> value_;
     bool ignored_ = false;
     bool is_default_value_ = false;
 
     // Stores all message IDs separated by message types.
     std::map<MessageType,
-             std::map<int, absl::optional<std::vector<std::u16string>>>>
+             std::map<int, std::optional<std::vector<std::u16string>>>>
         message_ids_;
   };
 
@@ -217,7 +223,7 @@ class POLICY_EXPORT PolicyMap {
            PolicyLevel level,
            PolicyScope scope,
            PolicySource source,
-           absl::optional<base::Value> value,
+           std::optional<base::Value> value,
            std::unique_ptr<ExternalDataFetcher> external_data_fetcher);
 
   void Set(const std::string& policy, Entry entry);
@@ -323,8 +329,12 @@ class POLICY_EXPORT PolicyMap {
   // Returns the set containing device affiliation ID strings.
   const base::flat_set<std::string>& GetDeviceAffiliationIds() const;
 
-  // Sets the ChromePolicyDetailsCallback, which is used in IsPolicyExternal(),
-  // in test environments
+  // Returns the PolicyDetails which is generated with the yaml definition of
+  // the `policy`.
+  const PolicyDetails* GetPolicyDetails(const std::string& policy) const;
+
+  // Sets the ChromePolicyDetailsCallback, which is used in
+  // IsPolicyExternal(), in test environments
   void set_chrome_policy_details_callback_for_test(
       const GetChromePolicyDetailsCallback& details_callback);
 

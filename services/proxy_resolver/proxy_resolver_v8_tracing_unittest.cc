@@ -4,6 +4,7 @@
 
 #include "services/proxy_resolver/proxy_resolver_v8_tracing.h"
 
+#include <array>
 #include <string>
 #include <utility>
 #include <vector>
@@ -11,6 +12,7 @@
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
+#include "base/notreached.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
@@ -57,7 +59,7 @@ class ProxyResolverV8TracingTest : public testing::Test {
 
 scoped_refptr<net::PacFileData> LoadScriptData(const char* filename) {
   base::FilePath path;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &path);
+  base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &path);
   path = path.AppendASCII("services");
   path = path.AppendASCII("proxy_resolver");
   path = path.AppendASCII("test");
@@ -181,7 +183,7 @@ TEST_F(ProxyResolverV8TracingTest, Simple) {
 
   EXPECT_THAT(callback.WaitForResult(), IsOk());
 
-  EXPECT_EQ("foo:99", ProxyServerToProxyUri(proxy_info.proxy_server()));
+  EXPECT_EQ("[foo:99]", proxy_info.proxy_chain().ToDebugString());
 
   EXPECT_EQ(0u, host_resolver.num_resolve());
 
@@ -239,7 +241,7 @@ TEST_F(ProxyResolverV8TracingTest, TooManyAlerts) {
   // Iteration1 does a DNS resolve
   // Iteration2 exceeds the alert buffer
   // Iteration3 runs in blocking mode and completes
-  EXPECT_EQ("foo:3", ProxyServerToProxyUri(proxy_info.proxy_server()));
+  EXPECT_EQ("[foo:3]", proxy_info.proxy_chain().ToDebugString());
 
   EXPECT_EQ(1u, host_resolver.num_resolve());
 
@@ -273,7 +275,7 @@ TEST_F(ProxyResolverV8TracingTest, TooManyEmptyAlerts) {
 
   EXPECT_THAT(callback.WaitForResult(), IsOk());
 
-  EXPECT_EQ("foo:3", ProxyServerToProxyUri(proxy_info.proxy_server()));
+  EXPECT_EQ("[foo:3]", proxy_info.proxy_chain().ToDebugString());
 
   EXPECT_EQ(1u, host_resolver.num_resolve());
 
@@ -337,22 +339,22 @@ TEST_F(ProxyResolverV8TracingTest, Dns) {
   EXPECT_EQ(7u, host_resolver.num_resolve());
 
   const char* kExpectedResult =
-      "122.133.144.155-"  // myIpAddress()
-      "null-"             // dnsResolve('')
-      "__1_192.168.1.1-"  // dnsResolveEx('host1')
-      "null-"             // dnsResolve('host2')
-      "166.155.144.33-"   // dnsResolve('host3')
-      "122.133.144.155-"  // myIpAddress()
-      "166.155.144.33-"   // dnsResolve('host3')
-      "__1_192.168.1.1-"  // dnsResolveEx('host1')
-      "122.133.144.155-"  // myIpAddress()
-      "null-"             // dnsResolve('host2')
-      "-"                 // dnsResolveEx('host6')
-      "133.122.100.200-"  // myIpAddressEx()
-      "166.155.144.44"    // dnsResolve('host1')
-      ".test:99";
+      "[122.133.144.155-"  // myIpAddress()
+      "null-"              // dnsResolve('')
+      "__1_192.168.1.1-"   // dnsResolveEx('host1')
+      "null-"              // dnsResolve('host2')
+      "166.155.144.33-"    // dnsResolve('host3')
+      "122.133.144.155-"   // myIpAddress()
+      "166.155.144.33-"    // dnsResolve('host3')
+      "__1_192.168.1.1-"   // dnsResolveEx('host1')
+      "122.133.144.155-"   // myIpAddress()
+      "null-"              // dnsResolve('host2')
+      "-"                  // dnsResolveEx('host6')
+      "133.122.100.200-"   // myIpAddressEx()
+      "166.155.144.44"     // dnsResolve('host1')
+      ".test:99]";
 
-  EXPECT_EQ(kExpectedResult, ProxyServerToProxyUri(proxy_info.proxy_server()));
+  EXPECT_EQ(kExpectedResult, proxy_info.proxy_chain().ToDebugString());
 
   // No errors.
   EXPECT_TRUE(mock_bindings.GetErrors().empty());
@@ -393,8 +395,8 @@ TEST_F(ProxyResolverV8TracingTest, FallBackToSynchronous1) {
   // invocation.
   EXPECT_EQ(3u, host_resolver.num_resolve());
 
-  EXPECT_EQ("166.155.144.11-133.199.111.4.test:100",
-            ProxyServerToProxyUri(proxy_info.proxy_server()));
+  EXPECT_EQ("[166.155.144.11-133.199.111.4.test:100]",
+            proxy_info.proxy_chain().ToDebugString());
 
   // No errors.
   EXPECT_TRUE(mock_bindings.GetErrors().empty());
@@ -437,8 +439,8 @@ TEST_F(ProxyResolverV8TracingTest, FallBackToSynchronous2) {
 
   EXPECT_EQ(3u, host_resolver.num_resolve());
 
-  EXPECT_EQ("166.155.144.44.test:100",
-            ProxyServerToProxyUri(proxy_info.proxy_server()));
+  EXPECT_EQ("[166.155.144.44.test:100]",
+            proxy_info.proxy_chain().ToDebugString());
 
   // There were no alerts or errors.
   EXPECT_TRUE(mock_bindings.GetAlerts().empty());
@@ -475,13 +477,13 @@ TEST_F(ProxyResolverV8TracingTest, InfiniteDNSSequence) {
   EXPECT_EQ(20u, host_resolver.num_resolve());
 
   EXPECT_EQ(
+      "[166.155.144.11-166.155.144.11-166.155.144.11-166.155.144.11-"
       "166.155.144.11-166.155.144.11-166.155.144.11-166.155.144.11-"
       "166.155.144.11-166.155.144.11-166.155.144.11-166.155.144.11-"
       "166.155.144.11-166.155.144.11-166.155.144.11-166.155.144.11-"
       "166.155.144.11-166.155.144.11-166.155.144.11-166.155.144.11-"
-      "166.155.144.11-166.155.144.11-166.155.144.11-166.155.144.11-"
-      "null:21",
-      ProxyServerToProxyUri(proxy_info.proxy_server()));
+      "null:21]",
+      proxy_info.proxy_chain().ToDebugString());
 
   // No errors.
   EXPECT_TRUE(mock_bindings.GetErrors().empty());
@@ -523,7 +525,7 @@ TEST_F(ProxyResolverV8TracingTest, InfiniteDNSSequence2) {
 
   EXPECT_EQ(20u, host_resolver.num_resolve());
 
-  EXPECT_EQ("null21:34", ProxyServerToProxyUri(proxy_info.proxy_server()));
+  EXPECT_EQ("[null21:34]", proxy_info.proxy_chain().ToDebugString());
 
   // No errors.
   EXPECT_TRUE(mock_bindings.GetErrors().empty());
@@ -570,8 +572,8 @@ void DnsDuringInitHelper(bool synchronous_host_resolver) {
   // should not have been cached.
   EXPECT_EQ(4u, host_resolver.num_resolve());
 
-  EXPECT_EQ("91.13.12.1-91.13.12.2-145.88.13.3-137.89.8.45.test:99",
-            ProxyServerToProxyUri(proxy_info.proxy_server()));
+  EXPECT_EQ("[91.13.12.1-91.13.12.2-145.88.13.3-137.89.8.45.test:99]",
+            proxy_info.proxy_chain().ToDebugString());
 
   // 2 alerts.
   ASSERT_EQ(2u, mock_bindings.GetAlerts().size());
@@ -589,7 +591,7 @@ TEST_F(ProxyResolverV8TracingTest, DnsDuringInit) {
 
 void CrashCallback(int) {
   // Be extra sure that if the callback ever gets invoked, the test will fail.
-  CHECK(false);
+  NOTREACHED();
 }
 
 // Start some requests, cancel them all, and then destroy the resolver.
@@ -606,8 +608,9 @@ TEST_F(ProxyResolverV8TracingTest, CancelAll) {
       CreateResolver(mock_bindings.CreateBindings(), "dns.js");
 
   const size_t kNumRequests = 5;
-  net::ProxyInfo proxy_info[kNumRequests];
-  std::unique_ptr<net::ProxyResolver::Request> request[kNumRequests];
+  std::array<net::ProxyInfo, kNumRequests> proxy_info;
+  std::array<std::unique_ptr<net::ProxyResolver::Request>, kNumRequests>
+      request;
 
   for (size_t i = 0; i < kNumRequests; ++i) {
     resolver->GetProxyForURL(GURL("http://foo/"),
@@ -688,8 +691,8 @@ TEST_F(ProxyResolverV8TracingTest, CancelWhilePendingCompletionTask) {
 
   EXPECT_THAT(callback.WaitForResult(), IsOk());
 
-  EXPECT_EQ("i-approve-this-message:42",
-            ProxyServerToProxyUri(proxy_info2.proxy_server()));
+  EXPECT_EQ("[i-approve-this-message:42]",
+            proxy_info2.proxy_chain().ToDebugString());
 }
 
 // This cancellation test exercises a more predictable cancellation codepath --
@@ -879,7 +882,7 @@ TEST_F(ProxyResolverV8TracingTest, Terminate) {
   // The test does 2 DNS resolutions.
   EXPECT_EQ(2u, host_resolver.num_resolve());
 
-  EXPECT_EQ("foopy:3", ProxyServerToProxyUri(proxy_info.proxy_server()));
+  EXPECT_EQ("[foopy:3]", proxy_info.proxy_chain().ToDebugString());
 
   // No errors or alerts.
   EXPECT_TRUE(mock_bindings.GetErrors().empty());
@@ -951,19 +954,19 @@ TEST_F(ProxyResolverV8TracingTest, MultipleResolvers) {
   // Queue up work for each resolver (which will be running in parallel).
   // ------------------------
 
-  ProxyResolverV8Tracing* resolver[] = {
+  auto resolver = std::to_array<ProxyResolverV8Tracing*>({
       resolver0.get(),
       resolver1.get(),
       resolver2.get(),
       resolver3.get(),
-  };
+  });
 
   const size_t kNumResolvers = std::size(resolver);
   const size_t kNumIterations = 20;
   const size_t kNumResults = kNumResolvers * kNumIterations;
-  net::TestCompletionCallback callback[kNumResults];
-  net::ProxyInfo proxy_info[kNumResults];
-  std::unique_ptr<net::ProxyResolver::Request> request[kNumResults];
+  std::array<net::TestCompletionCallback, kNumResults> callback;
+  std::array<net::ProxyInfo, kNumResults> proxy_info;
+  std::array<std::unique_ptr<net::ProxyResolver::Request>, kNumResults> request;
 
   for (size_t i = 0; i < kNumResults; ++i) {
     size_t resolver_i = i % kNumResolvers;
@@ -979,33 +982,33 @@ TEST_F(ProxyResolverV8TracingTest, MultipleResolvers) {
   // ------------------------
 
   const char* kExpectedForDnsJs =
-      "122.133.144.155-"  // myIpAddress()
-      "null-"             // dnsResolve('')
-      "__1_192.168.1.1-"  // dnsResolveEx('host1')
-      "null-"             // dnsResolve('host2')
-      "166.155.144.33-"   // dnsResolve('host3')
-      "122.133.144.155-"  // myIpAddress()
-      "166.155.144.33-"   // dnsResolve('host3')
-      "__1_192.168.1.1-"  // dnsResolveEx('host1')
-      "122.133.144.155-"  // myIpAddress()
-      "null-"             // dnsResolve('host2')
-      "-"                 // dnsResolveEx('host6')
-      "133.122.100.200-"  // myIpAddressEx()
-      "166.155.144.44"    // dnsResolve('host1')
-      ".test:99";
+      "[122.133.144.155-"  // myIpAddress()
+      "null-"              // dnsResolve('')
+      "__1_192.168.1.1-"   // dnsResolveEx('host1')
+      "null-"              // dnsResolve('host2')
+      "166.155.144.33-"    // dnsResolve('host3')
+      "122.133.144.155-"   // myIpAddress()
+      "166.155.144.33-"    // dnsResolve('host3')
+      "__1_192.168.1.1-"   // dnsResolveEx('host1')
+      "122.133.144.155-"   // myIpAddress()
+      "null-"              // dnsResolve('host2')
+      "-"                  // dnsResolveEx('host6')
+      "133.122.100.200-"   // myIpAddressEx()
+      "166.155.144.44"     // dnsResolve('host1')
+      ".test:99]";
 
   for (size_t i = 0; i < kNumResults; ++i) {
     size_t resolver_i = i % kNumResolvers;
     EXPECT_THAT(callback[i].WaitForResult(), IsOk());
 
-    std::string proxy_uri = ProxyServerToProxyUri(proxy_info[i].proxy_server());
+    std::string proxy_uri = proxy_info[i].proxy_chain().ToDebugString();
 
     if (resolver_i == 0 || resolver_i == 1) {
       EXPECT_EQ(kExpectedForDnsJs, proxy_uri);
     } else if (resolver_i == 2) {
-      EXPECT_EQ("foo:99", proxy_uri);
+      EXPECT_EQ("[foo:99]", proxy_uri);
     } else if (resolver_i == 3) {
-      EXPECT_EQ("166.155.144.33.test:",
+      EXPECT_EQ("[166.155.144.33.test:",
                 proxy_uri.substr(0, proxy_uri.find(':') + 1));
     } else {
       NOTREACHED();
@@ -1053,8 +1056,10 @@ TEST_F(ProxyResolverV8TracingTest, NetworkAnonymizationKey) {
       callback.callback(), &req, mock_bindings.CreateBindings());
   EXPECT_THAT(callback.WaitForResult(), IsOk());
   EXPECT_EQ(2u, host_resolver.num_resolve());
-  EXPECT_EQ(kIPAddress1.ToString() + ".test",
-            proxy_info1.proxy_server().host_port_pair().host());
+  // Note: simple_dns.js sets the proxy port to the number of times its
+  // `FindProxyForURL()` function has been called.
+  EXPECT_EQ("[" + kIPAddress1.ToString() + ".test:3]",
+            proxy_info1.proxy_chain().ToDebugString());
 
   net::ProxyInfo proxy_info2;
   resolver->GetProxyForURL(
@@ -1062,8 +1067,8 @@ TEST_F(ProxyResolverV8TracingTest, NetworkAnonymizationKey) {
       callback.callback(), &req, mock_bindings.CreateBindings());
   EXPECT_THAT(callback.WaitForResult(), IsOk());
   EXPECT_EQ(4u, host_resolver.num_resolve());
-  EXPECT_EQ(kIPAddress2.ToString() + ".test",
-            proxy_info2.proxy_server().host_port_pair().host());
+  EXPECT_EQ("[" + kIPAddress2.ToString() + ".test:6]",
+            proxy_info2.proxy_chain().ToDebugString());
 }
 
 // Make sure that net::NetworkAnonymizationKey is not passed to the
@@ -1107,8 +1112,10 @@ TEST_F(ProxyResolverV8TracingTest, MyIPAddressWithNetworkAnonymizationKey) {
                            mock_bindings.CreateBindings());
   EXPECT_THAT(callback.WaitForResult(), IsOk());
   EXPECT_EQ(2u, host_resolver.num_resolve());
-  EXPECT_EQ("1.2.3.4-5.6.7.8.test",
-            proxy_info.proxy_server().host_port_pair().host());
+  // Note: my_ip_address.js will construct the proxy server host using calls to
+  // myIpAddress() and myIpAddressEx(), and using a hardcoded ".test:99" suffix.
+  EXPECT_EQ("[1.2.3.4-5.6.7.8.test:99]",
+            proxy_info.proxy_chain().ToDebugString());
 }
 
 }  // namespace

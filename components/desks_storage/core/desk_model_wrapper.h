@@ -26,7 +26,7 @@ namespace desks_storage {
 // The DeskModelWrapper handles storage operations for chrome sync
 // desk templates and local storage save and recall desks backends.
 //
-// TODO(crbug.com/1323946): Add unittests for this class.
+// TODO(crbug.com/40224854): Add unittests for this class.
 class DeskModelWrapper : public DeskModel {
  public:
   DeskModelWrapper(desks_storage::DeskModel* save_and_recall_desks_model);
@@ -47,15 +47,18 @@ class DeskModelWrapper : public DeskModel {
   size_t GetEntryCount() const override;
   size_t GetSaveAndRecallDeskEntryCount() const override;
   size_t GetDeskTemplateEntryCount() const override;
+  size_t GetCoralEntryCount() const override;
   size_t GetMaxSaveAndRecallDeskEntryCount() const override;
   size_t GetMaxDeskTemplateEntryCount() const override;
-  std::vector<base::Uuid> GetAllEntryUuids() const override;
+  size_t GetMaxCoralEntryCount() const override;
+  std::set<base::Uuid> GetAllEntryUuids() const override;
   bool IsReady() const override;
   bool IsSyncing() const override;
   ash::DeskTemplate* FindOtherEntryWithName(
       const std::u16string& name,
       ash::DeskTemplateType type,
       const base::Uuid& uuid) const override;
+  std::string GetCacheGuid() override;
 
   // Setter method to set `desk_template_model_` to the correct `bridge`.
   void SetDeskSyncBridge(desks_storage::DeskSyncBridge* bridge) {
@@ -70,14 +73,14 @@ class DeskModelWrapper : public DeskModel {
   void OnDeleteAllEntries(DeskModel::DeleteEntryCallback callback,
                           desks_storage::DeskModel::DeleteEntryStatus status);
 
-  raw_ptr<desks_storage::DeskModel, ExperimentalAsh>
-      save_and_recall_desks_model_;
+  // The local model used for save and recall and coral saved groups.
+  raw_ptr<desks_storage::DeskModel> saved_desks_and_groups_model_;
 
-  raw_ptr<desks_storage::DeskSyncBridge, ExperimentalAsh> desk_template_model_;
+  raw_ptr<desks_storage::DeskSyncBridge> desk_template_model_;
 
   base::WeakPtrFactory<DeskModelWrapper> weak_ptr_factory_{this};
 };
 
 }  // namespace desks_storage
 
-#endif  // COMPONENTS_DESKS_STORAGE_CORE_LOCAL_DESK_DATA_MANAGER_H_
+#endif  // COMPONENTS_DESKS_STORAGE_CORE_DESK_MODEL_WRAPPER_H_

@@ -4,12 +4,14 @@
 
 #include "quiche/quic/core/uber_received_packet_manager.h"
 
-#include <utility>
+#include <algorithm>
+#include <memory>
 
 #include "quiche/quic/core/congestion_control/rtt_stats.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/quic_connection_stats.h"
-#include "quiche/quic/core/quic_utils.h"
+#include "quiche/quic/core/quic_packet_number.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/mock_clock.h"
 
@@ -31,7 +33,7 @@ namespace {
 const bool kInstigateAck = true;
 const QuicTime::Delta kMinRttMs = QuicTime::Delta::FromMilliseconds(40);
 const QuicTime::Delta kDelayedAckTime =
-    QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs);
+    QuicTime::Delta::FromMilliseconds(GetDefaultDelayedAckTimeMs());
 
 EncryptionLevel GetEncryptionLevel(PacketNumberSpace packet_number_space) {
   switch (packet_number_space) {
@@ -570,6 +572,22 @@ TEST_F(UberReceivedPacketManagerTest,
   // Verify ACK delay is based on packet receipt time.
   CheckAckTimeout(clock_.ApproximateNow() -
                   QuicTime::Delta::FromMilliseconds(11) + kDelayedAckTime);
+}
+
+TEST_F(UberReceivedPacketManagerTest, ImmediateAckFrameTriggersAck) {
+  manager_->EnableMultiplePacketNumberSpacesSupport(Perspective::IS_CLIENT);
+  EXPECT_FALSE(HasPendingAck());
+  RecordPacketReceipt(1, clock_.ApproximateNow());
+  manager_->OnImmediateAckFrame();
+  manager_->MaybeUpdateAckTimeout(kInstigateAck, ENCRYPTION_FORWARD_SECURE,
+                                  QuicPacketNumber(1), clock_.ApproximateNow(),
+                                  clock_.ApproximateNow(), &rtt_stats_);
+  CheckAckTimeout(clock_.ApproximateNow());
+  RecordPacketReceipt(2, clock_.ApproximateNow());
+  manager_->MaybeUpdateAckTimeout(kInstigateAck, ENCRYPTION_FORWARD_SECURE,
+                                  QuicPacketNumber(2), clock_.ApproximateNow(),
+                                  clock_.ApproximateNow(), &rtt_stats_);
+  CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
 }
 
 }  // namespace

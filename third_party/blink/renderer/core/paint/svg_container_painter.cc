@@ -4,10 +4,11 @@
 
 #include "third_party/blink/renderer/core/paint/svg_container_painter.h"
 
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include <optional>
+
 #include "third_party/blink/renderer/core/layout/layout_box_model_object.h"
-#include "third_party/blink/renderer/core/layout/ng/svg/layout_ng_svg_foreign_object.h"
 #include "third_party/blink/renderer/core/layout/svg/layout_svg_container.h"
+#include "third_party/blink/renderer/core/layout/svg/layout_svg_foreign_object.h"
 #include "third_party/blink/renderer/core/layout/svg/layout_svg_viewport_container.h"
 #include "third_party/blink/renderer/core/layout/svg/svg_layout_support.h"
 #include "third_party/blink/renderer/core/paint/object_painter.h"
@@ -15,15 +16,16 @@
 #include "third_party/blink/renderer/core/paint/scoped_svg_paint_state.h"
 #include "third_party/blink/renderer/core/paint/svg_foreign_object_painter.h"
 #include "third_party/blink/renderer/core/paint/svg_model_object_painter.h"
+#include "third_party/blink/renderer/core/paint/svg_object_painter.h"
 #include "third_party/blink/renderer/core/svg/svg_svg_element.h"
+#include "third_party/blink/renderer/core/svg/svg_use_element.h"
 
 namespace blink {
 
 namespace {
 
 bool HasReferenceFilterEffect(const ObjectPaintProperties& properties) {
-  return properties.Filter() &&
-         properties.Filter()->Filter().HasReferenceFilter();
+  return properties.Filter() && properties.Filter()->HasReferenceFilter();
 }
 
 }  // namespace
@@ -71,7 +73,7 @@ void SVGContainerPainter::Paint(const PaintInfo& paint_info) {
   ScopedSVGTransformState transform_state(paint_info_before_filtering,
                                           layout_svg_container_);
   {
-    absl::optional<ScopedPaintChunkProperties> scoped_paint_chunk_properties;
+    std::optional<ScopedPaintChunkProperties> scoped_paint_chunk_properties;
     if (layout_svg_container_.IsSVGViewportContainer() &&
         SVGLayoutSupport::IsOverflowHidden(layout_svg_container_)) {
       // TODO(crbug.com/814815): The condition should be a DCHECK, but for now
@@ -93,13 +95,29 @@ void SVGContainerPainter::Paint(const PaintInfo& paint_info) {
         properties && HasReferenceFilterEffect(*properties))
       paint_info_before_filtering.context.GetPaintController().EnsureChunk();
 
+    PaintInfo& child_paint_info = transform_state.ContentPaintInfo();
+    std::optional<SvgContextPaints> child_context_paints;
+    if (IsA<SVGUseElement>(layout_svg_container_.GetElement())) {
+      SVGObjectPainter object_painter(layout_svg_container_,
+                                      child_paint_info.GetSvgContextPaints());
+      // Note that this discards child_paint_info.svg_context_paints_.transform,
+      // which is correct because <use> establishes a new coordinate space for
+      // context paints.
+      child_context_paints.emplace(
+          object_painter.ResolveContextPaint(
+              layout_svg_container_.StyleRef().FillPaint()),
+          object_painter.ResolveContextPaint(
+              layout_svg_container_.StyleRef().StrokePaint()));
+      child_paint_info.SetSvgContextPaints(&(*child_context_paints));
+    }
+
     for (LayoutObject* child = layout_svg_container_.FirstChild(); child;
          child = child->NextSibling()) {
-      if (auto* foreign_object = DynamicTo<LayoutNGSVGForeignObject>(child)) {
+      if (auto* foreign_object = DynamicTo<LayoutSVGForeignObject>(child)) {
         SVGForeignObjectPainter(*foreign_object)
             .PaintLayer(paint_info_before_filtering);
       } else {
-        child->Paint(paint_info_before_filtering);
+        child->Paint(child_paint_info);
       }
     }
   }

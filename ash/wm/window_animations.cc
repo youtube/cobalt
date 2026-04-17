@@ -5,7 +5,9 @@
 #include "ash/wm/window_animations.h"
 
 #include <math.h>
+
 #include <algorithm>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -14,17 +16,22 @@
 #include "ash/shelf/shelf.h"
 #include "ash/shell.h"
 #include "ash/wm/pip/pip_positioner.h"
+#include "ash/wm/resize_shadow_controller.h"
 #include "ash/wm/window_util.h"
 #include "ash/wm/workspace_controller.h"
 #include "base/check.h"
+#include "base/debug/crash_logging.h"
+#include "base/debug/dump_without_crashing.h"
 #include "base/functional/bind.h"
 #include "base/i18n/rtl.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
+#include "base/scoped_observation.h"
+#include "base/strings/stringprintf.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_observer.h"
@@ -36,6 +43,7 @@
 #include "ui/compositor/layer_animation_observer.h"
 #include "ui/compositor/layer_animation_sequence.h"
 #include "ui/compositor/layer_animator.h"
+#include "ui/compositor/layer_observer.h"
 #include "ui/compositor/layer_tree_owner.h"
 #include "ui/compositor/scoped_layer_animation_settings.h"
 #include "ui/display/display.h"
@@ -44,6 +52,8 @@
 #include "ui/gfx/geometry/transform_util.h"
 #include "ui/gfx/interpolated_transform.h"
 #include "ui/wm/core/coordinate_conversion.h"
+#include "ui/wm/core/shadow_types.h"
+#include "ui/wm/core/window_animations.h"
 #include "ui/wm/core/window_util.h"
 
 namespace ash {
@@ -102,6 +112,31 @@ base::TimeDelta GetCrossFadeDuration(aura::Window* window,
   return kCrossFadeDuration + factor * kRange;
 }
 
+// Defines an observer that can be used to monitor the destruction of a given
+// layer and dump without crashing when that happens. This is needed to
+// investigate a crash that happens within `CrossFadeAnimationInternal()` due to
+// using a layer after it has been destroyed.
+// TODO(http://b/333095196): Remove this once the root cause of the crash is
+// found and fixed.
+class LayerDeletionDumper : public ui::LayerObserver {
+ public:
+  explicit LayerDeletionDumper(ui::Layer* layer) {
+    observation_.Observe(layer);
+  }
+  LayerDeletionDumper(const LayerDeletionDumper&) = delete;
+  LayerDeletionDumper& operator=(const LayerDeletionDumper&) = delete;
+  ~LayerDeletionDumper() override = default;
+
+  // ui::LayerObserver:
+  void LayerDestroyed(ui::Layer* layer) override {
+    observation_.Reset();
+    base::debug::DumpWithoutCrashing();
+  }
+
+ private:
+  base::ScopedObservation<ui::Layer, ui::LayerObserver> observation_{this};
+};
+
 // Observer for a window cross-fade animation. If either the window closes or
 // the layer's animation completes, it deletes the layer and removes itself as
 // an observer.
@@ -112,24 +147,26 @@ class CrossFadeObserver : public aura::WindowObserver,
   // Takes ownership of |layer_owner| and its child layers.
   CrossFadeObserver(aura::Window* window,
                     std::unique_ptr<ui::LayerTreeOwner> layer_owner,
-                    absl::optional<std::string> histogram_name)
+                    std::optional<std::string> histogram_name)
       : window_(window),
         layer_(window->layer()),
         layer_owner_(std::move(layer_owner)) {
     window_->AddObserver(this);
 
     smoothness_tracker_ =
-        layer_->GetCompositor()->RequestNewThroughputTracker();
-    smoothness_tracker_->Start(metrics_util::ForSmoothness(base::BindRepeating(
-        [](const absl::optional<std::string>& histogram_name, int smoothness) {
-          if (histogram_name) {
-            DCHECK(!histogram_name->empty());
-            base::UmaHistogramPercentage(*histogram_name, smoothness);
-          } else {
-            UMA_HISTOGRAM_PERCENTAGE(kCrossFadeSmoothness, smoothness);
-          }
-        },
-        std::move(histogram_name))));
+        layer_->GetCompositor()->RequestNewCompositorMetricsTracker();
+    smoothness_tracker_->Start(
+        metrics_util::ForSmoothnessV3(base::BindRepeating(
+            [](const std::optional<std::string>& histogram_name,
+               int smoothness) {
+              if (histogram_name) {
+                DCHECK(!histogram_name->empty());
+                base::UmaHistogramPercentage(*histogram_name, smoothness);
+              } else {
+                UMA_HISTOGRAM_PERCENTAGE(kCrossFadeSmoothness, smoothness);
+              }
+            },
+            std::move(histogram_name))));
   }
   CrossFadeObserver(const CrossFadeObserver&) = delete;
   CrossFadeObserver& operator=(const CrossFadeObserver&) = delete;
@@ -161,7 +198,13 @@ class CrossFadeObserver : public aura::WindowObserver,
   }
 
   // ui::ImplicitAnimationObserver:
-  void OnImplicitAnimationsCompleted() override { delete this; }
+  void OnImplicitAnimationsCompleted() override {
+    if (auto* resize_shadow_controller =
+            Shell::Get()->resize_shadow_controller()) {
+      resize_shadow_controller->OnCrossFadeAnimationCompleted(window_);
+    }
+    delete this;
+  }
 
  protected:
   void StopAnimating() {
@@ -174,12 +217,12 @@ class CrossFadeObserver : public aura::WindowObserver,
   // The window and the associated layer this observer is watching. The window
   // layer may be recreated during the course of the animation so |layer_| will
   // be different |window_->layer()| after construction.
-  raw_ptr<aura::Window, ExperimentalAsh> window_;
-  raw_ptr<ui::Layer, ExperimentalAsh> layer_;
+  raw_ptr<aura::Window> window_;
+  raw_ptr<ui::Layer> layer_;
 
   std::unique_ptr<ui::LayerTreeOwner> layer_owner_;
 
-  absl::optional<ui::ThroughputTracker> smoothness_tracker_;
+  std::optional<ui::ThroughputTracker> smoothness_tracker_;
 };
 
 // A version of CrossFadeObserver which updates its transform to match the
@@ -192,7 +235,7 @@ class CrossFadeUpdateTransformObserver
   CrossFadeUpdateTransformObserver(
       aura::Window* window,
       std::unique_ptr<ui::LayerTreeOwner> layer_owner,
-      absl::optional<std::string> histogram_name)
+      std::optional<std::string> histogram_name)
       : CrossFadeObserver(window, std::move(layer_owner), histogram_name) {
     compositor_ = window->layer()->GetCompositor();
     compositor_->AddAnimationObserver(this);
@@ -243,7 +286,7 @@ class CrossFadeUpdateTransformObserver
   }
 
  private:
-  raw_ptr<ui::Compositor, ExperimentalAsh> compositor_ = nullptr;
+  raw_ptr<ui::Compositor> compositor_ = nullptr;
 };
 
 // Internal implementation of a cross fade animation. If
@@ -254,11 +297,20 @@ void CrossFadeAnimationInternal(
     aura::Window* window,
     std::unique_ptr<ui::LayerTreeOwner> old_layer_owner,
     bool animate_old_layer_transform,
-    absl::optional<base::TimeDelta> duration,
-    absl::optional<gfx::Tween::Type> tween_type,
-    absl::optional<std::string> histogram_name) {
+    std::optional<base::TimeDelta> duration,
+    std::optional<gfx::Tween::Type> tween_type,
+    std::optional<std::string> histogram_name) {
   ui::Layer* old_layer = old_layer_owner->root();
-  ui::Layer* new_layer = window->layer();
+
+  // The window's layer can get recreated within the stack of this function due
+  // to various reasons. We should never cache the layer as local, and always
+  // get the layer from the window directly. See http://b/333095196 and
+  // http://b/40059305. For example in http://b/40059305, if Overview exit
+  //  animation is in the sequence, stopping animation may trigger
+  // `OverviewController::OnEndingAnimationComplete` which may finally start the
+  // frame animation. 'FrameHeader::FrameAnimatorView::StartAnimation' recreates
+  // the window's layer.
+  auto new_layer = [window]() -> ui::Layer* { return window->layer(); };
 
   DCHECK(old_layer);
   const gfx::Rect old_bounds(old_layer->bounds());
@@ -273,11 +325,19 @@ void CrossFadeAnimationInternal(
   const gfx::Rect new_bounds(window->bounds());
   const bool old_on_top = (old_bounds.width() > new_bounds.width());
 
+  SCOPED_CRASH_KEY_BOOL("333095196", "animate_old_layer_transform",
+                        animate_old_layer_transform);
+  SCOPED_CRASH_KEY_BOOL("333095196", "old_on_top", old_on_top);
+  SCOPED_CRASH_KEY_STRING256("333095196", "window_title",
+                             base::UTF16ToUTF8(window->GetTitle()));
+  SCOPED_CRASH_KEY_STRING256("333095196", "new_layer_begin",
+                             base::StringPrintf("%p", new_layer()));
+
   // Ensure the higher-resolution layer is on top.
   if (old_on_top)
-    old_layer->parent()->StackBelow(new_layer, old_layer);
+    old_layer->parent()->StackBelow(new_layer(), old_layer);
   else
-    old_layer->parent()->StackAbove(new_layer, old_layer);
+    old_layer->parent()->StackAbove(new_layer(), old_layer);
 
   // Shorten the animation if there's not much visual movement.
   const base::TimeDelta animation_duration = duration.value_or(
@@ -288,16 +348,6 @@ void CrossFadeAnimationInternal(
   // Scale up the old layer while translating to new position.
   {
     old_layer->GetAnimator()->StopAnimating();
-    // If Overview exit animation is in the sequence, stopping animation may
-    // trigger `OverviewController::OnEndingAnimationComplete` which may finally
-    // start the frame animation.
-    // 'FrameHeader::FrameAnimatorView::StartAnimation' recreates the window
-    // layer such that the `new_layer` is no longer the window's current layer.
-    // Therefore, we should update the `new_layer`. Refer to
-    // https://crbug.com/1313977.
-    // TODO(zxdan): find a way to change the window state after exiting Overview
-    // or avoid frame animation when setting bounds.
-    new_layer = window->layer();
     old_layer->SetTransform(old_transform);
     ui::ScopedLayerAnimationSettings settings(old_layer->GetAnimator());
     settings.SetTransitionDuration(animation_duration);
@@ -337,6 +387,16 @@ void CrossFadeAnimationInternal(
     old_layer = nullptr;
   }
 
+  SCOPED_CRASH_KEY_STRING256("333095196", "new_layer_mid",
+                             base::StringPrintf("%p", new_layer()));
+
+  // Create an observer that would dump without crashing if `new_layer()` gets
+  // destroyed within the remaining scope of this function. This is needed to
+  // investigate the root cause of http://b/333095196.
+  // TODO(http://b/333095196): Remove this code and all crash keys once the
+  // issue is resolved.
+  LayerDeletionDumper deletion_dumper(new_layer());
+
   // Set the new layer's current transform, such that the user sees a scaled
   // version of the window with the original bounds at the original position.
   gfx::Transform in_transform;
@@ -347,11 +407,11 @@ void CrossFadeAnimationInternal(
   in_transform.Translate(old_transformed_bounds.x() - new_bounds.x(),
                          old_transformed_bounds.y() - new_bounds.y());
   in_transform.Scale(scale_x, scale_y);
-  new_layer->SetTransform(in_transform);
+  new_layer()->SetTransform(in_transform);
   if (!old_on_top) {
     // The new layer is on top and should fade in.  The old layer below will
     // stay opaque and block the desktop.
-    new_layer->SetOpacity(kWindowAnimation_HideOpacity);
+    new_layer()->SetOpacity(kWindowAnimation_HideOpacity);
   }
   {
     // Animation observer owns the old layer and deletes itself. It should be
@@ -366,7 +426,7 @@ void CrossFadeAnimationInternal(
 
     // Animate the new layer to the identity transform, so the window goes to
     // its newly set bounds.
-    ui::ScopedLayerAnimationSettings settings(new_layer->GetAnimator());
+    ui::ScopedLayerAnimationSettings settings(new_layer()->GetAnimator());
     settings.AddObserver(observer);
     settings.SetTransitionDuration(animation_duration);
     settings.SetTweenType(animation_tween_type);
@@ -374,12 +434,19 @@ void CrossFadeAnimationInternal(
     if (!old_on_top) {
       // Only caching render surface when there is an opacity animation and
       // multiple layers.
-      if (!new_layer->children().empty())
+      if (!new_layer()->children().empty()) {
         settings.CacheRenderSurface();
+      }
       // New layer is on top, fade it in.
-      new_layer->SetOpacity(kWindowAnimation_ShowOpacity);
+      new_layer()->SetOpacity(kWindowAnimation_ShowOpacity);
     }
-    new_layer->SetTransform(gfx::Transform());
+    SCOPED_CRASH_KEY_NUMBER("333095196", "animation_duration_ms",
+                            animation_duration.InMillisecondsF());
+    SCOPED_CRASH_KEY_BOOL("333095196", "is_destroying",
+                          window->is_destroying());
+    SCOPED_CRASH_KEY_STRING256("333095196", "new_layer_end",
+                               base::StringPrintf("%p", new_layer()));
+    new_layer()->SetTransform(gfx::Transform());
   }
 }
 
@@ -462,8 +529,8 @@ void AnimateShowWindow_Minimize(aura::Window* window) {
   ui::ScopedLayerAnimationSettings settings(window->layer()->GetAnimator());
   ui::AnimationThroughputReporter reporter(
       settings.GetAnimator(),
-      metrics_util::ForSmoothness(
-          base::BindRepeating(static_cast<void (*)(const char*, int)>(
+      metrics_util::ForSmoothnessV3(
+          base::BindRepeating(static_cast<void (*)(std::string_view, int)>(
                                   &base::UmaHistogramPercentage),
                               "Ash.Window.AnimationSmoothness.Unminimize")));
   base::TimeDelta duration =
@@ -483,13 +550,14 @@ void AnimateHideWindow_Minimize(aura::Window* window) {
   // Report animation smoothness for animations created within this scope.
   ui::AnimationThroughputReporter reporter(
       hiding_settings.layer_animation_settings()->GetAnimator(),
-      metrics_util::ForSmoothness(
-          base::BindRepeating(static_cast<void (*)(const char*, int)>(
+      metrics_util::ForSmoothnessV3(
+          base::BindRepeating(static_cast<void (*)(std::string_view, int)>(
                                   &base::UmaHistogramPercentage),
                               "Ash.Window.AnimationSmoothness.Minimize")));
 
   base::TimeDelta duration =
       base::Milliseconds(kLayerAnimationsForMinimizeDurationMS);
+
   hiding_settings.layer_animation_settings()->SetTransitionDuration(duration);
   window->layer()->SetVisible(false);
 
@@ -601,7 +669,6 @@ bool AnimateShowWindow(aura::Window* window) {
       return true;
     default:
       NOTREACHED();
-      return false;
   }
 }
 
@@ -626,7 +693,6 @@ bool AnimateHideWindow(aura::Window* window) {
       return true;
     default:
       NOTREACHED();
-      return false;
   }
 }
 
@@ -634,8 +700,8 @@ void CrossFadeAnimation(aura::Window* window,
                         std::unique_ptr<ui::LayerTreeOwner> old_layer_owner) {
   CrossFadeAnimationInternal(
       window, std::move(old_layer_owner), /*animate_old_layer_transform=*/true,
-      /*duration=*/absl::nullopt, /*tween_type=*/absl::nullopt,
-      /*histogram_name=*/absl::nullopt);
+      /*duration=*/std::nullopt, /*tween_type=*/std::nullopt,
+      /*histogram_name=*/std::nullopt);
 }
 
 void CrossFadeAnimationForFloatUnfloat(
@@ -647,7 +713,7 @@ void CrossFadeAnimationForFloatUnfloat(
                              kFloatUnfloatDuration,
                              to_float ? gfx::Tween::Type::ACCEL_30_DECEL_20_85
                                       : gfx::Tween::Type::FAST_OUT_SLOW_IN_3,
-                             /*histogram_name=*/absl::nullopt);
+                             /*histogram_name=*/std::nullopt);
 }
 
 void CrossFadeAnimationAnimateNewLayerOnly(aura::Window* window,
@@ -666,11 +732,9 @@ void CrossFadeAnimationAnimateNewLayerOnly(aura::Window* window,
 bool AnimateOnChildWindowVisibilityChanged(aura::Window* window, bool visible) {
   if (::wm::WindowAnimationsDisabled(window))
     return false;
-
   // Attempt to run CoreWm supplied animation types.
   if (::wm::AnimateOnChildWindowVisibilityChanged(window, visible))
     return true;
-
   // Otherwise try to run an Ash-specific animation.
   if (visible)
     return AnimateShowWindow(window);
@@ -748,7 +812,10 @@ gfx::Rect GetMinimizeAnimationTargetBoundsInScreen(aura::Window* window) {
       return gfx::Rect(work_area.right(), work_area.y(), 0, 0);
   }
   NOTREACHED();
-  return gfx::Rect();
+}
+
+void BounceWindow(aura::Window* window) {
+  wm::AnimateWindow(window, wm::WINDOW_ANIMATION_TYPE_BOUNCE);
 }
 
 }  // namespace ash

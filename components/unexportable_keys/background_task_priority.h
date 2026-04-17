@@ -6,6 +6,9 @@
 #define COMPONENTS_UNEXPORTABLE_KEYS_BACKGROUND_TASK_PRIORITY_H_
 
 #include <cstddef>
+#include <string_view>
+
+#include "base/component_export.h"
 
 namespace unexportable_keys {
 
@@ -28,6 +31,13 @@ enum class BackgroundTaskPriority {
 
 constexpr size_t kNumTaskPriorities =
     static_cast<size_t>(BackgroundTaskPriority::kMaxValue) + 1;
+
+// Converts `BackgroundTaskPriority` to a histogram suffix string. The string is
+// prepended with "." symbol so it can be directly concatenated with a base
+// histogram name.
+COMPONENT_EXPORT(UNEXPORTABLE_KEYS)
+std::string_view GetBackgroundTaskPrioritySuffixForHistograms(
+    BackgroundTaskPriority priority);
 
 }  // namespace unexportable_keys
 

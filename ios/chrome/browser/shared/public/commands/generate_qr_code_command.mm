@@ -3,16 +3,12 @@
 // found in the LICENSE file.
 #import "ios/chrome/browser/shared/public/commands/generate_qr_code_command.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 @implementation GenerateQRCodeCommand {
   GURL _URL;
 }
 
 - (instancetype)initWithURL:(const GURL&)URL title:(NSString*)title {
-  if (self = [super init]) {
+  if ((self = [super init])) {
     _URL = URL;
     _title = title;
   }

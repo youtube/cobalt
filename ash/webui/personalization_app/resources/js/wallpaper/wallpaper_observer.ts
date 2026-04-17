@@ -2,10 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {CurrentWallpaper, WallpaperObserverInterface, WallpaperObserverReceiver, WallpaperProviderInterface, WallpaperType} from '../../personalization_app.mojom-webui.js';
+import {FullscreenPreviewState} from 'chrome://resources/ash/common/personalization/wallpaper_state.js';
+
+import type {CurrentAttribution, CurrentWallpaper, WallpaperObserverInterface, WallpaperProviderInterface} from '../../personalization_app.mojom-webui.js';
+import {WallpaperObserverReceiver, WallpaperType} from '../../personalization_app.mojom-webui.js';
 import {PersonalizationStore} from '../personalization_store.js';
 
-import {setFullscreenEnabledAction, setSelectedImageAction, setUpdatedDailyRefreshImageAction} from './wallpaper_actions.js';
+import {setAttributionAction, setFullscreenStateAction, setSelectedImageAction, setUpdatedDailyRefreshImageAction} from './wallpaper_actions.js';
 import {getDailyRefreshState} from './wallpaper_controller.js';
 import {getWallpaperProvider} from './wallpaper_interface_provider.js';
 
@@ -51,25 +54,34 @@ export class WallpaperObserver implements WallpaperObserverInterface {
 
   onWallpaperPreviewEnded() {
     const store = PersonalizationStore.getInstance();
-    store.dispatch(setFullscreenEnabledAction(false));
+    store.dispatch(setFullscreenStateAction(FullscreenPreviewState.OFF));
+  }
+
+  onAttributionChanged(attribution: CurrentAttribution|null) {
+    const store = PersonalizationStore.getInstance();
+    store.dispatch(setAttributionAction(attribution));
   }
 
   onWallpaperChanged(currentWallpaper: CurrentWallpaper|null) {
-    // Ignore updates while in fullscreen preview mode. The attribution
-    // information is for the old (non-preview) wallpaper. This is because
-    // setting an image in preview mode updates the image but not the stored
-    // WallpaperInfo. The wallpaper app should treat the duration of preview
-    // mode as loading. Another onWallpaperChanged will fire when preview mode
-    // is canceled or confirmed.
     const store = PersonalizationStore.getInstance();
-    if (store.data.wallpaper.fullscreen) {
+
+    if (store.data.wallpaper.fullscreen === FullscreenPreviewState.LOADING) {
+      // Ignore current wallpaper updates while in fullscreen preview mode. The
+      // attribution information is for the old (non-preview) wallpaper. This is
+      // because setting an image in preview mode updates the image but not the
+      // stored WallpaperInfo. The wallpaper app should treat the duration of
+      // preview mode as loading. Another onWallpaperChanged will fire when
+      // preview mode is canceled or confirmed.
+      store.dispatch(setFullscreenStateAction(FullscreenPreviewState.VISIBLE));
       return;
     }
     if (initialLoadTimeout) {
       clearTimeout(initialLoadTimeout);
       initialLoadTimeout = null;
     }
+
     store.dispatch(setSelectedImageAction(currentWallpaper));
+
     if (currentWallpaper &&
         (currentWallpaper.type == WallpaperType.kDailyGooglePhotos ||
          currentWallpaper.type == WallpaperType.kDaily ||

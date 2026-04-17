@@ -5,19 +5,21 @@
 package org.chromium.chrome.browser.tasks.tab_management;
 
 import android.content.Context;
+import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.util.AttributeSet;
+import android.view.View;
 import android.widget.LinearLayout;
 
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.base.Callback;
+import org.chromium.chrome.browser.theme.SurfaceColorUpdateUtils;
 import org.chromium.chrome.tab_ui.R;
-import org.chromium.components.browser_ui.styles.ChromeColors;
-import org.chromium.components.browser_ui.widget.text.TemplatePreservingTextView;
 import org.chromium.ui.widget.ButtonCompat;
 import org.chromium.ui.widget.ChromeImageView;
+import org.chromium.ui.widget.TextViewWithLeading;
 
 import java.lang.ref.WeakReference;
 
@@ -28,25 +30,23 @@ import java.lang.ref.WeakReference;
 class MessageCardView extends LinearLayout {
     private static WeakReference<Bitmap> sCloseButtonBitmapWeakRef;
 
-    /**
-     * An interface to get the icon to be shown inside the message card.
-     */
-    public interface IconProvider { Drawable getIconDrawable(); }
+    /** An interface to get the icon to be shown inside the message card. */
+    public interface IconProvider {
+        void fetchIconDrawable(Callback<Drawable> drawable);
+    }
 
-    /**
-     * An interface to handle the review action.
-     */
-    public interface ReviewActionProvider { void review(); }
+    /** An interface to handle the review action. */
+    public interface ReviewActionProvider {
+        void review();
+    }
 
-    /**
-     * An interface to handle the dismiss action.
-     */
+    /** An interface to handle the dismiss action. */
     public interface DismissActionProvider {
         void dismiss(@MessageService.MessageType int messageType);
     }
 
     private ChromeImageView mIcon;
-    private TemplatePreservingTextView mDescription;
+    private TextViewWithLeading mDescription;
     private ButtonCompat mActionButton;
     private ChromeImageView mCloseButton;
 
@@ -65,24 +65,18 @@ class MessageCardView extends LinearLayout {
 
         if (sCloseButtonBitmapWeakRef == null || sCloseButtonBitmapWeakRef.get() == null) {
             int closeButtonSize =
-                    (int) getResources().getDimension(R.dimen.tab_grid_close_button_size);
+                    (int) getResources().getDimension(R.dimen.message_card_close_button_size);
             Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.btn_close);
-            sCloseButtonBitmapWeakRef = new WeakReference<>(
-                    Bitmap.createScaledBitmap(bitmap, closeButtonSize, closeButtonSize, true));
+            sCloseButtonBitmapWeakRef =
+                    new WeakReference<>(
+                            Bitmap.createScaledBitmap(
+                                    bitmap, closeButtonSize, closeButtonSize, true));
         }
         mCloseButton.setImageBitmap(sCloseButtonBitmapWeakRef.get());
     }
 
     /**
-     * @see TemplatePreservingTextView#setTemplate(String), setDescriptionText() must be called
-     * after calling this method for the new template text to take effect.
-     */
-    void setDescriptionTextTemplate(String template) {
-        mDescription.setTemplate(template);
-    }
-
-    /**
-     * @see TemplatePreservingTextView#setText(CharSequence).
+     * @see TextView#setText(CharSequence).
      */
     void setDescriptionText(CharSequence text) {
         mDescription.setText(text);
@@ -98,9 +92,11 @@ class MessageCardView extends LinearLayout {
 
     /**
      * Set icon drawable.
+     *
      * @param iconDrawable Drawable to be shown.
      */
     void setIcon(Drawable iconDrawable) {
+        mIcon.setVisibility(View.VISIBLE);
         mIcon.setImageDrawable(iconDrawable);
     }
 
@@ -113,7 +109,17 @@ class MessageCardView extends LinearLayout {
     }
 
     /**
+     * Sets the action button visibility.
+     *
+     * @param visible Whether the action button is visible.
+     */
+    void setActionButtonVisible(boolean visible) {
+        mActionButton.setVisibility(visible ? View.VISIBLE : View.GONE);
+    }
+
+    /**
      * Set content description for dismiss button.
+     *
      * @param description The content description.
      */
     void setDismissButtonContentDescription(String description) {
@@ -131,20 +137,24 @@ class MessageCardView extends LinearLayout {
     /**
      * Modify the view based on the visibility of the icon. For messages that doesn't have an icon,
      * remove the icon and update the margin of the description text field.
-     * @param visible  Whether icon is visible.
+     *
+     * @param visible Whether icon is visible.
      */
     void setIconVisibility(boolean visible) {
+        Resources resources = getResources();
+        int verticalMargin =
+                resources.getDimensionPixelOffset(R.dimen.message_card_description_vertical_margin);
         MarginLayoutParams params = (MarginLayoutParams) mDescription.getLayoutParams();
         if (visible) {
             if (indexOfChild(mIcon) == -1) {
                 addView(mIcon, 0);
-                params.setMargins(0, 0, 0, 0);
+                params.setMargins(0, verticalMargin, 0, verticalMargin);
             }
         } else {
-            int margin = (int) getContext().getResources().getDimension(
-                    R.dimen.tab_grid_iph_item_description_margin);
             removeView(mIcon);
-            params.setMargins(margin, 0, 0, 0);
+            int leftMargin =
+                    resources.getDimensionPixelSize(R.dimen.tab_grid_iph_item_description_margin);
+            params.setMargins(leftMargin, verticalMargin, 0, verticalMargin);
         }
     }
 
@@ -160,11 +170,9 @@ class MessageCardView extends LinearLayout {
             return;
         }
         // Set dynamic color.
-        final int elevationDimenId = ChromeFeatureList.sBaselineGm3SurfaceColors.isEnabled()
-                ? R.dimen.default_elevation_2
-                : R.dimen.card_elevation;
         GradientDrawable gradientDrawable = (GradientDrawable) getBackground();
-        gradientDrawable.setColor(ChromeColors.getSurfaceColor(getContext(), elevationDimenId));
+        gradientDrawable.setColor(
+                SurfaceColorUpdateUtils.getMessageCardBackgroundColor(getContext()));
     }
 
     /**
@@ -174,9 +182,53 @@ class MessageCardView extends LinearLayout {
     void updateMessageCardColor(boolean isIncognito) {
         setBackground(isIncognito);
         MessageCardViewUtils.setDescriptionTextAppearance(
-                mDescription, isIncognito, /*isLargeMessageCard=*/false);
+                mDescription, isIncognito, /* isLargeMessageCard= */ false);
         MessageCardViewUtils.setActionButtonTextAppearance(
-                mActionButton, isIncognito, /*isLargeMessageCard=*/false);
+                mActionButton, isIncognito, /* isLargeMessageCard= */ false);
         MessageCardViewUtils.setCloseButtonTint(mCloseButton, isIncognito);
+    }
+
+    /**
+     * Set left margin of the message card.
+     *
+     * @param leftMarginPx Left margin of the card in px.
+     */
+    void setLeftMargin(int leftMarginPx) {
+        MarginLayoutParams params = (MarginLayoutParams) getLayoutParams();
+        params.leftMargin = leftMarginPx;
+        setLayoutParams(params);
+    }
+
+    /**
+     * Set top margin of the message card.
+     *
+     * @param topMarginPx Top margin of the card in px.
+     */
+    void setTopMargin(int topMarginPx) {
+        MarginLayoutParams params = (MarginLayoutParams) getLayoutParams();
+        params.topMargin = topMarginPx;
+        setLayoutParams(params);
+    }
+
+    /**
+     * Set right margin of the message card.
+     *
+     * @param rightMarginPx Right margin of the card in px.
+     */
+    void setRightMargin(int rightMarginPx) {
+        MarginLayoutParams params = (MarginLayoutParams) getLayoutParams();
+        params.rightMargin = rightMarginPx;
+        setLayoutParams(params);
+    }
+
+    /**
+     * Set bottom margin of the message card.
+     *
+     * @param bottomMarginPx Bottom margin of the card in px.
+     */
+    void setBottomMargin(int bottomMarginPx) {
+        MarginLayoutParams params = (MarginLayoutParams) getLayoutParams();
+        params.bottomMargin = bottomMarginPx;
+        setLayoutParams(params);
     }
 }

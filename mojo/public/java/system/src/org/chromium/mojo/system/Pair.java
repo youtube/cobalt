@@ -4,6 +4,7 @@
 
 package org.chromium.mojo.system;
 
+import org.chromium.build.annotations.NullMarked;
 
 /**
  * A pair of object.
@@ -11,6 +12,7 @@ package org.chromium.mojo.system;
  * @param <F> Type of the first element.
  * @param <S> Type of the second element.
  */
+@NullMarked
 public class Pair<F, S> {
 
     public final F first;
@@ -27,9 +29,7 @@ public class Pair<F, S> {
         this.second = second;
     }
 
-    /**
-     * equals() that handles null values.
-     */
+    /** equals() that handles null values. */
     private boolean equals(Object o1, Object o2) {
         return o1 == null ? o2 == null : o1.equals(o2);
     }

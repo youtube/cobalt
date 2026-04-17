@@ -30,12 +30,28 @@ class EditorTestUtils {
     return this.window.getSelection();
   }
 
+  // Return a modifier to delete per word.
+  get deleteWordModifier() {
+    return this.window.navigator.platform.includes("Mac") ? this.kAlt : this.kControl;
+  }
+
   sendKey(key, modifier) {
     if (!modifier) {
-      return new this.window.test_driver.Actions()
-        .keyDown(key)
-        .keyUp(key)
-        .send();
+      // send_keys requires element in the light DOM.
+      const elementInLightDOM = (e => {
+        const doc = e.ownerDocument;
+        while (e.getRootNode({composed:false}) !== doc) {
+          e = e.getRootNode({composed:false}).host;
+        }
+        return e;
+      })(this.editingHost);
+      return this.window.test_driver.send_keys(elementInLightDOM, key)
+        .catch(() => {
+          return new this.window.test_driver.Actions()
+          .keyDown(key)
+          .keyUp(key)
+          .send();
+        });
     }
     return new this.window.test_driver.Actions()
       .keyDown(modifier)
@@ -65,6 +81,26 @@ class EditorTestUtils {
     return this.sendKey(kArrowRight, modifier);
   }
 
+  sendMoveWordLeftKey(modifier) {
+    const kArrowLeft = "\uE012";
+    return this.sendKey(
+      kArrowLeft,
+      this.window.navigator.platform.includes("Mac")
+        ? this.kAlt
+        : this.kControl
+    );
+  }
+
+  sendMoveWordRightKey(modifier) {
+    const kArrowRight = "\uE014";
+    return this.sendKey(
+      kArrowRight,
+      this.window.navigator.platform.includes("Mac")
+        ? this.kAlt
+        : this.kControl
+    );
+  }
+
   sendHomeKey(modifier) {
     const kHome = "\uE011";
     return this.sendKey(kHome, modifier);
@@ -87,6 +123,51 @@ class EditorTestUtils {
         ? this.kMeta
         : this.kControl
     );
+  }
+
+  sendCopyShortcutKey() {
+    return this.sendKey(
+      "c",
+      this.window.navigator.platform.includes("Mac")
+        ? this.kMeta
+        : this.kControl
+    );
+  }
+
+  sendCutShortcutKey() {
+    return this.sendKey(
+      "x",
+      this.window.navigator.platform.includes("Mac")
+        ? this.kMeta
+        : this.kControl
+    );
+  }
+
+  sendPasteShortcutKey() {
+    return this.sendKey(
+      "v",
+      this.window.navigator.platform.includes("Mac")
+        ? this.kMeta
+        : this.kControl
+    );
+  }
+
+  sendPasteAsPlaintextShortcutKey() {
+    // Ctrl/Cmd - Shift - v on Chrome and Firefox
+    // Cmd - Alt - Shift - v on Safari
+    const accel = this.window.navigator.platform.includes("Mac") ? this.kMeta : this.kControl;
+    const isSafari = this.window.navigator.userAgent.includes("Safari");
+    let actions = new this.window.test_driver.Actions();
+    actions = actions.keyDown(accel).keyDown(this.kShift);
+    if (isSafari) {
+      actions = actions.keyDown(this.kAlt);
+    }
+    actions = actions.keyDown("v").keyUp("v");
+    actions = actions.keyUp(accel).keyUp(this.kShift);
+    if (isSafari) {
+      actions = actions.keyUp(this.kAlt);
+    }
+    return actions.send();
   }
 
   // Similar to `setupDiv` in editing/include/tests.js, this method sets
@@ -413,4 +494,82 @@ class EditorTestUtils {
       );
     }
   }
+
+  static getRangeArrayDescription(arrayOfRanges) {
+    if (arrayOfRanges === null) {
+      return "null";
+    }
+    if (arrayOfRanges === undefined) {
+      return "undefined";
+    }
+    if (!Array.isArray(arrayOfRanges)) {
+      return "Unknown Object";
+    }
+    if (arrayOfRanges.length === 0) {
+      return "[]";
+    }
+    let result = "";
+    for (let range of arrayOfRanges) {
+      if (result === "") {
+        result = "[";
+      } else {
+        result += ",";
+      }
+      result += `{${EditorTestUtils.getRangeDescription(range)}}`;
+    }
+    result += "]";
+    return result;
+  }
+
+  static getNodeDescription(node) {
+    if (!node) {
+      return "null";
+    }
+    switch (node.nodeType) {
+      case Node.TEXT_NODE:
+      case Node.COMMENT_NODE:
+      case Node.CDATA_SECTION_NODE:
+        return `${node.nodeName} "${node.data.replaceAll("\n", "\\\\n")}"`;
+      case Node.ELEMENT_NODE:
+        return `<${node.nodeName.toLowerCase()}${
+            node.hasAttribute("id") ? ` id="${node.getAttribute("id")}"` : ""
+          }${
+            node.hasAttribute("class") ? ` class="${node.getAttribute("class")}"` : ""
+          }${
+            node.hasAttribute("contenteditable")
+              ? ` contenteditable="${node.getAttribute("contenteditable")}"`
+              : ""
+          }${
+            node.inert ? ` inert` : ""
+          }${
+            node.hidden ? ` hidden` : ""
+          }${
+            node.readonly ? ` readonly` : ""
+          }${
+            node.disabled ? ` disabled` : ""
+          }>`;
+      default:
+        return `${node.nodeName}`;
+    }
+  }
+
+  static getRangeDescription(range) {
+    if (range === null) {
+      return "null";
+    }
+    if (range === undefined) {
+      return "undefined";
+    }
+    return range.startContainer == range.endContainer &&
+      range.startOffset == range.endOffset
+      ? `(${EditorTestUtils.getNodeDescription(range.startContainer)}, ${range.startOffset})`
+      : `(${EditorTestUtils.getNodeDescription(range.startContainer)}, ${
+          range.startOffset
+        }) - (${EditorTestUtils.getNodeDescription(range.endContainer)}, ${range.endOffset})`;
+  }
+
+  static waitForRender() {
+    return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  }
+
 }

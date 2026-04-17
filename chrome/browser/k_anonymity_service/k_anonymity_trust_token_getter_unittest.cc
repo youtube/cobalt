@@ -9,6 +9,7 @@
 #include "base/functional/callback.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
+#include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/values_test_util.h"
@@ -66,8 +67,7 @@ class KAnonymityTrustTokenGetterTest : public testing::Test {
  protected:
   void SetUp() override {
     feature_list_.InitWithFeaturesAndParameters(
-        /*enabled_features=*/{{network::features::kPrivateStateTokens, {}},
-                              {features::kKAnonymityService,
+        /*enabled_features=*/{{features::kKAnonymityService,
                                {{"KAnonymityServiceAuthServer", kAuthServer}}}},
         /*disabled_features=*/{});
     TestingProfile::Builder builder;
@@ -75,8 +75,7 @@ class KAnonymityTrustTokenGetterTest : public testing::Test {
         base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
             &test_url_loader_factory_));
     profile_ = IdentityTestEnvironmentProfileAdaptor::
-        CreateProfileForIdentityTestEnvironment(
-            builder, signin::AccountConsistencyMethod::kMirror);
+        CreateProfileForIdentityTestEnvironment(builder);
     identity_test_env_adaptor_ =
         std::make_unique<IdentityTestEnvironmentProfileAdaptor>(profile_.get());
     getter_ = std::make_unique<KAnonymityTrustTokenGetter>(
@@ -101,15 +100,21 @@ class KAnonymityTrustTokenGetterTest : public testing::Test {
   }
 
   void SimulateResponseForPendingRequest(std::string url, std::string content) {
+    constexpr network::TestURLLoaderFactory::ResponseMatchFlags flags =
+        static_cast<network::TestURLLoaderFactory::ResponseMatchFlags>(
+            network::TestURLLoaderFactory::ResponseMatchFlags::kUrlMatchPrefix |
+            network::TestURLLoaderFactory::ResponseMatchFlags::kWaitForRequest);
     EXPECT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(
-        url, content, net::HTTP_OK,
-        network::TestURLLoaderFactory::ResponseMatchFlags::kUrlMatchPrefix));
+        url, content, net::HTTP_OK, flags));
   }
 
   void SimulateFailedResponseForPendingRequest(std::string url) {
+    constexpr network::TestURLLoaderFactory::ResponseMatchFlags flags =
+        static_cast<network::TestURLLoaderFactory::ResponseMatchFlags>(
+            network::TestURLLoaderFactory::ResponseMatchFlags::kUrlMatchPrefix |
+            network::TestURLLoaderFactory::ResponseMatchFlags::kWaitForRequest);
     EXPECT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(
-        url, "", net::HTTP_NOT_FOUND,
-        network::TestURLLoaderFactory::ResponseMatchFlags::kUrlMatchPrefix));
+        url, "", net::HTTP_NOT_FOUND, flags));
   }
 
   void SimulateFailedResponseForAuthToken() {
@@ -124,12 +129,24 @@ class KAnonymityTrustTokenGetterTest : public testing::Test {
                                                                   expiration);
   }
 
+  // Wait for the TestURLLoaderFactory to have a pending request, returning a
+  // pointer to it (but leaving the request in the factory).
+  const network::TestURLLoaderFactory::PendingRequest* WaitForPendingRequest() {
+    while (true) {
+      const auto* pending_request =
+          test_url_loader_factory_.GetPendingRequest(0);
+      if (pending_request) {
+        return pending_request;
+      }
+      task_environment_.RunUntilIdle();
+    }
+  }
+
   void RespondWithTrustTokenNonUniqueUserId(int id) {
     std::string request_url =
         base::StrCat({kAuthServer, "/v1/generateShortIdentifier"});
 
-    const auto* pending_request = test_url_loader_factory_.GetPendingRequest(0);
-    ASSERT_TRUE(pending_request);
+    const auto* pending_request = WaitForPendingRequest();
     const auto& request = pending_request->request;
     EXPECT_EQ(request_url, request.url);
     EXPECT_TRUE(
@@ -148,8 +165,7 @@ class KAnonymityTrustTokenGetterTest : public testing::Test {
     std::string request_url =
         base::StringPrintf("%s/v1/%d/fetchKeys?key=", kAuthServer, id);
 
-    const auto* pending_request = test_url_loader_factory_.GetPendingRequest(0);
-    ASSERT_TRUE(pending_request);
+    const auto* pending_request = WaitForPendingRequest();
     const auto& request = pending_request->request;
     EXPECT_EQ(0u, request.url.spec().rfind(request_url));
     EXPECT_FALSE(
@@ -181,8 +197,7 @@ class KAnonymityTrustTokenGetterTest : public testing::Test {
     std::string request_url =
         base::StringPrintf("%s/v1/%d/issueTrustToken", kAuthServer, id);
 
-    const auto* pending_request = test_url_loader_factory_.GetPendingRequest(0);
-    ASSERT_TRUE(pending_request);
+    const auto* pending_request = WaitForPendingRequest();
     const auto& request = pending_request->request;
     EXPECT_EQ(request_url, request.url);
     EXPECT_TRUE(
@@ -231,7 +246,7 @@ class KAnonymityTrustTokenGetterTest : public testing::Test {
 
   bool HasPendingRequest() { return test_url_loader_factory_.NumPending() > 0; }
 
- private:
+ protected:
   base::test::ScopedFeatureList feature_list_;
   content::BrowserTaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
@@ -251,9 +266,9 @@ TEST_F(KAnonymityTrustTokenGetterTest, TryGetNotSignedIn) {
   base::HistogramTester hist;
   base::RunLoop run_loop;
   getter()->TryGetTrustTokenAndKey(
-      base::OnceCallback<void(absl::optional<KeyAndNonUniqueUserId>)>(
+      base::OnceCallback<void(std::optional<KeyAndNonUniqueUserId>)>(
           base::BindLambdaForTesting(
-              [&run_loop](absl::optional<KeyAndNonUniqueUserId> result) {
+              [&run_loop](std::optional<KeyAndNonUniqueUserId> result) {
                 EXPECT_FALSE(result);
                 run_loop.Quit();
               })));
@@ -266,9 +281,9 @@ TEST_F(KAnonymityTrustTokenGetterTest, TryGetAuthTokenFailed) {
   base::HistogramTester hist;
   base::RunLoop run_loop;
   getter()->TryGetTrustTokenAndKey(
-      base::OnceCallback<void(absl::optional<KeyAndNonUniqueUserId>)>(
+      base::OnceCallback<void(std::optional<KeyAndNonUniqueUserId>)>(
           base::BindLambdaForTesting(
-              [&run_loop](absl::optional<KeyAndNonUniqueUserId> result) {
+              [&run_loop](std::optional<KeyAndNonUniqueUserId> result) {
                 EXPECT_FALSE(result);
                 run_loop.Quit();
               })));
@@ -285,9 +300,9 @@ TEST_F(KAnonymityTrustTokenGetterTest, TryGetNonUniqueUserIdFetchFailed) {
   base::HistogramTester hist;
   base::RunLoop run_loop;
   getter()->TryGetTrustTokenAndKey(
-      base::OnceCallback<void(absl::optional<KeyAndNonUniqueUserId>)>(
+      base::OnceCallback<void(std::optional<KeyAndNonUniqueUserId>)>(
           base::BindLambdaForTesting(
-              [&run_loop](absl::optional<KeyAndNonUniqueUserId> result) {
+              [&run_loop](std::optional<KeyAndNonUniqueUserId> result) {
                 EXPECT_FALSE(result);
                 run_loop.Quit();
               })));
@@ -320,14 +335,23 @@ TEST_F(KAnonymityTrustTokenGetterTest,
         shortclientidentifier: 2,
         ShortClientIdentifier: 2,
       })",  // wrong keys
+      R"({
+        shortClientIdentifier: 2147483648
+      })",  // too big for int32
+      R"({
+        shortClientIdentifier: 10.5
+      })",  // not an int
+      R"({
+        shortClientIdentifier: -1
+      })",  // negative
   };
   for (const auto& response : bad_responses) {
     base::RunLoop run_loop;
     getter()->TryGetTrustTokenAndKey(
-        base::OnceCallback<void(absl::optional<KeyAndNonUniqueUserId>)>(
+        base::OnceCallback<void(std::optional<KeyAndNonUniqueUserId>)>(
             base::BindLambdaForTesting(
                 [&run_loop,
-                 &response](absl::optional<KeyAndNonUniqueUserId> result) {
+                 &response](std::optional<KeyAndNonUniqueUserId> result) {
                   EXPECT_FALSE(result) << response;
                   run_loop.Quit();
                 })));
@@ -356,9 +380,9 @@ TEST_F(KAnonymityTrustTokenGetterTest, TryGetKeyFetchFails) {
   base::HistogramTester hist;
   base::RunLoop run_loop;
   getter()->TryGetTrustTokenAndKey(
-      base::OnceCallback<void(absl::optional<KeyAndNonUniqueUserId>)>(
+      base::OnceCallback<void(std::optional<KeyAndNonUniqueUserId>)>(
           base::BindLambdaForTesting(
-              [&run_loop](absl::optional<KeyAndNonUniqueUserId> result) {
+              [&run_loop](std::optional<KeyAndNonUniqueUserId> result) {
                 EXPECT_FALSE(result);
                 run_loop.Quit();
               })));
@@ -431,6 +455,15 @@ TEST_F(KAnonymityTrustTokenGetterTest,
       "id": 1,
       "batchSize": 1,
       "keys": [{
+        "keyIdentifier": 4294967296,
+        "keyMaterial": "InsertKeyHere",
+        "expirationTimestampUsec": "253402300799000000"
+      }]})",                           // key identifier doesn't fit in uint32
+      R"({
+      "protocolVersion":"TrustTokenV3VOPRF",
+      "id": 1,
+      "batchSize": 1,
+      "keys": [{
         "keyIdentifier": 0,
         "keyMaterial": "InsertKeyHere",
         "expirationTimestampUsec": "future"
@@ -446,6 +479,33 @@ TEST_F(KAnonymityTrustTokenGetterTest,
       }]})",                           // id is not an integer
       R"({
       "protocolVersion":"TrustTokenV3VOPRF",
+      "id": 10.5,
+      "batchSize": 1,
+      "keys": [{
+        "keyIdentifier": 0,
+        "keyMaterial": "InsertKeyHere",
+        "expirationTimestampUsec": "253402300799000000"
+      }]})",                           // id is not an integer
+      R"({
+      "protocolVersion":"TrustTokenV3VOPRF",
+      "id": -10,
+      "batchSize": 1,
+      "keys": [{
+        "keyIdentifier": 0,
+        "keyMaterial": "InsertKeyHere",
+        "expirationTimestampUsec": "253402300799000000"
+      }]})",                           // id is negative
+      R"({
+      "protocolVersion":"TrustTokenV3VOPRF",
+      "id": 2147483648,
+      "batchSize": 1,
+      "keys": [{
+        "keyIdentifier": 0,
+        "keyMaterial": "InsertKeyHere",
+        "expirationTimestampUsec": "253402300799000000"
+      }]})",                           // id doesn't fit in int32
+      R"({
+      "protocolVersion":"TrustTokenV3VOPRF",
       "id": 1,
       "batchSize": "one",
       "keys": [{
@@ -453,15 +513,43 @@ TEST_F(KAnonymityTrustTokenGetterTest,
         "keyMaterial": "InsertKeyHere",
         "expirationTimestampUsec": "253402300799000000"
       }]})",                           // batchSize is not an integer
+      R"({
+      "protocolVersion":"TrustTokenV3VOPRF",
+      "id": 1,
+      "batchSize": 1.5,
+      "keys": [{
+        "keyIdentifier": 0,
+        "keyMaterial": "InsertKeyHere",
+        "expirationTimestampUsec": "253402300799000000"
+      }]})",                           // batchSize is not an integer
+      R"({
+      "protocolVersion":"TrustTokenV3VOPRF",
+      "id": 1,
+      "batchSize": -1,
+      "keys": [{
+        "keyIdentifier": 0,
+        "keyMaterial": "InsertKeyHere",
+        "expirationTimestampUsec": "253402300799000000"
+      }]})",                           // batchSize is negative
+      R"({
+      "protocolVersion":"TrustTokenV3VOPRF",
+      "id": 1,
+      "batchSize": 2147483648,
+      "keys": [{
+        "keyIdentifier": 0,
+        "keyMaterial": "InsertKeyHere",
+        "expirationTimestampUsec": "253402300799000000"
+      }]})",                           // batchSize doesn't fit in int32
   };
 
   for (const auto& response : bad_responses) {
+    SCOPED_TRACE(response);
     base::RunLoop run_loop;
     getter()->TryGetTrustTokenAndKey(
-        base::OnceCallback<void(absl::optional<KeyAndNonUniqueUserId>)>(
+        base::OnceCallback<void(std::optional<KeyAndNonUniqueUserId>)>(
             base::BindLambdaForTesting(
                 [&run_loop,
-                 &response](absl::optional<KeyAndNonUniqueUserId> result) {
+                 &response](std::optional<KeyAndNonUniqueUserId> result) {
                   EXPECT_FALSE(result) << response;
                   run_loop.Quit();
                 })));
@@ -485,14 +573,132 @@ TEST_F(KAnonymityTrustTokenGetterTest,
               bad_responses.size()}});
 }
 
+TEST_F(KAnonymityTrustTokenGetterTest, TryJoinSetValidKeyCommitmentResponse) {
+  InitializeIdentity(/*signed_on=*/true);
+  base::HistogramTester hist;
+  const size_t kNumCases = 3;
+  const struct {
+    const char* response;
+    const char* expected_commitment;
+  } kTestCases[kNumCases] = {{
+                                 R"({
+      "protocolVersion":"TrustTokenV3VOPRF",
+      "id": 1,
+      "batchSize": 1,
+      "keys": [{
+        "keyIdentifier": 0,
+        "keyMaterial": "InsertKeyHere",
+        "expirationTimestampUsec": "253402300799000000"
+      }]})",
+                                 R"({
+      "TrustTokenV3VOPRF": {
+        "batchsize": 1,
+        "id":1,
+        "keys": {
+          "0": {
+            "Y": "InsertKeyHere",
+            "expiry": "253402300799000000"
+          }
+        },
+        "protocol_version": "TrustTokenV3VOPRF"
+      }})",
+                             },
+                             {
+                                 R"({
+      "protocolVersion":"TrustTokenV3VOPRF",
+      "id": 0,
+      "batchSize": 1,
+      "keys": [{
+        "keyIdentifier": -2,
+        "keyMaterial": "InsertKeyHere",
+        "expirationTimestampUsec": "253402300799000000"
+      }]})",
+                                 R"({
+      "TrustTokenV3VOPRF": {
+        "batchsize": 1,
+        "id": 0,
+        "keys": {
+          "4294967294": {
+            "Y": "InsertKeyHere",
+            "expiry": "253402300799000000"
+          }
+        },
+        "protocol_version": "TrustTokenV3VOPRF"
+      }})",
+                             },
+                             {
+                                 R"({
+      "protocolVersion":"TrustTokenV3VOPRF",
+      "id": 2147483647,
+      "batchSize": 1,
+      "keys": [{
+        "keyIdentifier": 2147483648,
+        "keyMaterial": "InsertKeyHere",
+        "expirationTimestampUsec": "253402300799000000"
+      }]})",
+                                 R"({
+      "TrustTokenV3VOPRF": {
+        "batchsize": 1,
+        "id": 2147483647,
+        "keys": {
+          "2147483648": {
+            "Y": "InsertKeyHere",
+            "expiry": "253402300799000000"
+          }
+        },
+        "protocol_version":"TrustTokenV3VOPRF"
+      }})",
+                             }};
+
+  for (const auto& test_case : kTestCases) {
+    SCOPED_TRACE(test_case.response);
+    base::RunLoop run_loop;
+    getter()->TryGetTrustTokenAndKey(
+        base::OnceCallback<void(std::optional<KeyAndNonUniqueUserId>)>(
+            base::BindLambdaForTesting(
+                [&run_loop](std::optional<KeyAndNonUniqueUserId> result) {
+                  EXPECT_FALSE(result);
+                  run_loop.Quit();
+                })));
+    RespondWithOAuthToken(base::Time::Now() + base::Seconds(1));
+    RespondWithTrustTokenNonUniqueUserId(2);
+    SimulateResponseForPendingRequest("https://authserver/v1/2/fetchKeys",
+                                      test_case.response);
+    SimulateFailedResponseForPendingRequest(
+        "https://authserver/v1/2/issueTrustToken");
+    run_loop.Run();
+    task_environment()->FastForwardBy(base::Minutes(1));
+
+    // Key should have been saved to the database. Verify it was fetched
+    // correctly.
+    std::optional<KeyAndNonUniqueUserIdWithExpiration> maybe_key_commitment =
+        storage_.GetKeyAndNonUniqueUserId();
+    ASSERT_TRUE(maybe_key_commitment);
+    EXPECT_EQ(2, maybe_key_commitment->key_and_id.non_unique_user_id);
+    EXPECT_THAT(
+        base::test::ParseJson(maybe_key_commitment->key_and_id.key_commitment),
+        base::test::IsJson(test_case.expected_commitment));
+
+    storage_.UpdateKeyAndNonUniqueUserId({});
+  }
+  CheckHistogramActions(
+      hist,
+      {{KAnonymityTrustTokenGetterAction::kTryGetTrustTokenAndKey, kNumCases},
+       {KAnonymityTrustTokenGetterAction::kRequestAccessToken, kNumCases},
+       {KAnonymityTrustTokenGetterAction::kFetchNonUniqueClientID, kNumCases},
+       {KAnonymityTrustTokenGetterAction::kFetchTrustTokenKey, kNumCases},
+       {KAnonymityTrustTokenGetterAction::kFetchTrustToken, kNumCases},
+       {KAnonymityTrustTokenGetterAction::kFetchTrustTokenFailed, kNumCases}});
+}
+
 TEST_F(KAnonymityTrustTokenGetterTest, TryGetNoToken) {
   InitializeIdentity(/*signed_on=*/true);
   base::HistogramTester hist;
   base::RunLoop run_loop;
   getter()->TryGetTrustTokenAndKey(
-      base::OnceCallback<void(absl::optional<KeyAndNonUniqueUserId>)>(
+      base::OnceCallback<void(std::optional<KeyAndNonUniqueUserId>)>(
           base::BindLambdaForTesting(
-              [&run_loop](absl::optional<KeyAndNonUniqueUserId> result) {
+              [&run_loop](std::optional<KeyAndNonUniqueUserId> result) {
                 EXPECT_FALSE(result);
                 run_loop.Quit();
               })));
@@ -518,10 +724,10 @@ TEST_F(KAnonymityTrustTokenGetterTest, TryGetSignedIn) {
   base::RunLoop run_loop;
   base::Time key_expiration = base::Time::Now() + base::Days(1);
   getter()->TryGetTrustTokenAndKey(
-      base::OnceCallback<void(absl::optional<KeyAndNonUniqueUserId>)>(
+      base::OnceCallback<void(std::optional<KeyAndNonUniqueUserId>)>(
           base::BindLambdaForTesting(
               [&run_loop,
-               key_expiration](absl::optional<KeyAndNonUniqueUserId> result) {
+               key_expiration](std::optional<KeyAndNonUniqueUserId> result) {
                 ASSERT_TRUE(result);
                 EXPECT_EQ(2, result->non_unique_user_id);
                 EXPECT_THAT(base::test::ParseJson(result->key_commitment),
@@ -561,10 +767,10 @@ TEST_F(KAnonymityTrustTokenGetterTest, TryGetRepeatedly) {
   int callback_count = 0;
   for (int i = 0; i < 10; i++) {
     getter()->TryGetTrustTokenAndKey(
-        base::OnceCallback<void(absl::optional<KeyAndNonUniqueUserId>)>(
+        base::OnceCallback<void(std::optional<KeyAndNonUniqueUserId>)>(
             base::BindLambdaForTesting(
                 [&callback_count, &run_loop,
-                 i](absl::optional<KeyAndNonUniqueUserId> result) {
+                 i](std::optional<KeyAndNonUniqueUserId> result) {
                   EXPECT_TRUE(result) << "iteration " << i;
                   callback_count++;
                   if (callback_count == 10)
@@ -599,10 +805,10 @@ TEST_F(KAnonymityTrustTokenGetterTest, TryGetFailureDropsAllRequests) {
   int callback_count = 0;
   for (int i = 0; i < 10; i++) {
     getter()->TryGetTrustTokenAndKey(
-        base::OnceCallback<void(absl::optional<KeyAndNonUniqueUserId>)>(
+        base::OnceCallback<void(std::optional<KeyAndNonUniqueUserId>)>(
             base::BindLambdaForTesting(
                 [&callback_count, &run_loop,
-                 i](absl::optional<KeyAndNonUniqueUserId> result) {
+                 i](std::optional<KeyAndNonUniqueUserId> result) {
                   EXPECT_FALSE(result) << "iteration " << i;
                   callback_count++;
                   if (callback_count == 10)
@@ -632,9 +838,9 @@ TEST_F(KAnonymityTrustTokenGetterTest, TokenKeysDontExpire) {
   {
     base::RunLoop run_loop;
     getter()->TryGetTrustTokenAndKey(
-        base::OnceCallback<void(absl::optional<KeyAndNonUniqueUserId>)>(
+        base::OnceCallback<void(std::optional<KeyAndNonUniqueUserId>)>(
             base::BindLambdaForTesting(
-                [&run_loop](absl::optional<KeyAndNonUniqueUserId> result) {
+                [&run_loop](std::optional<KeyAndNonUniqueUserId> result) {
                   ASSERT_TRUE(result);
                   EXPECT_EQ(10, result->non_unique_user_id);
                   run_loop.Quit();
@@ -651,9 +857,9 @@ TEST_F(KAnonymityTrustTokenGetterTest, TokenKeysDontExpire) {
   {
     base::RunLoop run_loop;
     getter()->TryGetTrustTokenAndKey(
-        base::OnceCallback<void(absl::optional<KeyAndNonUniqueUserId>)>(
+        base::OnceCallback<void(std::optional<KeyAndNonUniqueUserId>)>(
             base::BindLambdaForTesting(
-                [&run_loop](absl::optional<KeyAndNonUniqueUserId> result) {
+                [&run_loop](std::optional<KeyAndNonUniqueUserId> result) {
                   ASSERT_TRUE(result);
                   EXPECT_EQ(10, result->non_unique_user_id);
                   run_loop.Quit();
@@ -677,9 +883,9 @@ TEST_F(KAnonymityTrustTokenGetterTest, AuthTokenAlreadyExpired) {
   {
     base::RunLoop run_loop;
     getter()->TryGetTrustTokenAndKey(
-        base::OnceCallback<void(absl::optional<KeyAndNonUniqueUserId>)>(
+        base::OnceCallback<void(std::optional<KeyAndNonUniqueUserId>)>(
             base::BindLambdaForTesting(
-                [&run_loop](absl::optional<KeyAndNonUniqueUserId> result) {
+                [&run_loop](std::optional<KeyAndNonUniqueUserId> result) {
                   ASSERT_TRUE(result);
                   run_loop.Quit();
                 })));
@@ -693,9 +899,9 @@ TEST_F(KAnonymityTrustTokenGetterTest, AuthTokenAlreadyExpired) {
   {
     base::RunLoop run_loop;
     getter()->TryGetTrustTokenAndKey(
-        base::OnceCallback<void(absl::optional<KeyAndNonUniqueUserId>)>(
+        base::OnceCallback<void(std::optional<KeyAndNonUniqueUserId>)>(
             base::BindLambdaForTesting(
-                [&run_loop](absl::optional<KeyAndNonUniqueUserId> result) {
+                [&run_loop](std::optional<KeyAndNonUniqueUserId> result) {
                   ASSERT_TRUE(result);
                   EXPECT_EQ(2, result->non_unique_user_id);
                   run_loop.Quit();
@@ -713,9 +919,9 @@ TEST_F(KAnonymityTrustTokenGetterTest, AuthTokenExpire) {
   {
     base::RunLoop run_loop;
     getter()->TryGetTrustTokenAndKey(
-        base::OnceCallback<void(absl::optional<KeyAndNonUniqueUserId>)>(
+        base::OnceCallback<void(std::optional<KeyAndNonUniqueUserId>)>(
             base::BindLambdaForTesting(
-                [&run_loop](absl::optional<KeyAndNonUniqueUserId> result) {
+                [&run_loop](std::optional<KeyAndNonUniqueUserId> result) {
                   ASSERT_TRUE(result);
                   EXPECT_EQ(2, result->non_unique_user_id);
                   run_loop.Quit();
@@ -732,9 +938,9 @@ TEST_F(KAnonymityTrustTokenGetterTest, AuthTokenExpire) {
   {
     base::RunLoop run_loop;
     getter()->TryGetTrustTokenAndKey(
-        base::OnceCallback<void(absl::optional<KeyAndNonUniqueUserId>)>(
+        base::OnceCallback<void(std::optional<KeyAndNonUniqueUserId>)>(
             base::BindLambdaForTesting(
-                [&run_loop](absl::optional<KeyAndNonUniqueUserId> result) {
+                [&run_loop](std::optional<KeyAndNonUniqueUserId> result) {
                   ASSERT_TRUE(result);
                   EXPECT_EQ(2, result->non_unique_user_id);
                   run_loop.Quit();
@@ -759,9 +965,9 @@ TEST_F(KAnonymityTrustTokenGetterTest, TokenKeysExpire) {
   {
     base::RunLoop run_loop;
     getter()->TryGetTrustTokenAndKey(
-        base::OnceCallback<void(absl::optional<KeyAndNonUniqueUserId>)>(
+        base::OnceCallback<void(std::optional<KeyAndNonUniqueUserId>)>(
             base::BindLambdaForTesting(
-                [&run_loop](absl::optional<KeyAndNonUniqueUserId> result) {
+                [&run_loop](std::optional<KeyAndNonUniqueUserId> result) {
                   ASSERT_TRUE(result);
                   EXPECT_EQ(2, result->non_unique_user_id);
                   run_loop.Quit();
@@ -778,9 +984,9 @@ TEST_F(KAnonymityTrustTokenGetterTest, TokenKeysExpire) {
   {
     base::RunLoop run_loop;
     getter()->TryGetTrustTokenAndKey(
-        base::OnceCallback<void(absl::optional<KeyAndNonUniqueUserId>)>(
+        base::OnceCallback<void(std::optional<KeyAndNonUniqueUserId>)>(
             base::BindLambdaForTesting(
-                [&run_loop](absl::optional<KeyAndNonUniqueUserId> result) {
+                [&run_loop](std::optional<KeyAndNonUniqueUserId> result) {
                   ASSERT_TRUE(result);
                   EXPECT_EQ(3, result->non_unique_user_id);
                   run_loop.Quit();
@@ -805,18 +1011,18 @@ TEST_F(KAnonymityTrustTokenGetterTest, RecordTokenLatency) {
   InitializeIdentity(/*signed_on=*/true);
   base::HistogramTester hist;
   getter()->TryGetTrustTokenAndKey(
-      base::OnceCallback<void(absl::optional<KeyAndNonUniqueUserId>)>(
+      base::OnceCallback<void(std::optional<KeyAndNonUniqueUserId>)>(
           base::BindLambdaForTesting(
-              [](absl::optional<KeyAndNonUniqueUserId> result) {
+              [](std::optional<KeyAndNonUniqueUserId> result) {
                 ASSERT_TRUE(result);
                 EXPECT_EQ(2, result->non_unique_user_id);
               })));
   task_environment()->FastForwardBy(base::Seconds(1));
   base::RunLoop run_loop;
   getter()->TryGetTrustTokenAndKey(
-      base::OnceCallback<void(absl::optional<KeyAndNonUniqueUserId>)>(
+      base::OnceCallback<void(std::optional<KeyAndNonUniqueUserId>)>(
           base::BindLambdaForTesting(
-              [&run_loop](absl::optional<KeyAndNonUniqueUserId> result) {
+              [&run_loop](std::optional<KeyAndNonUniqueUserId> result) {
                 ASSERT_TRUE(result);
                 EXPECT_EQ(2, result->non_unique_user_id);
                 run_loop.Quit();
@@ -850,7 +1056,7 @@ TEST_F(KAnonymityTrustTokenGetterTest, RecordTokenLatency) {
 TEST_F(KAnonymityTrustTokenGetterTest, HandlesMissingServices) {
   KAnonymityTrustTokenGetter getter(nullptr, nullptr, nullptr, nullptr);
   getter.TryGetTrustTokenAndKey(base::BindLambdaForTesting(
-      [](absl::optional<KeyAndNonUniqueUserId> result) {
+      [](std::optional<KeyAndNonUniqueUserId> result) {
         EXPECT_FALSE(result);
       }));
 }

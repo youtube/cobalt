@@ -4,34 +4,24 @@
 
 #include "chromeos/ash/components/tether/connection_preserver_impl.h"
 
+#include <algorithm>
+
 #include "base/functional/bind.h"
-#include "base/ranges/algorithm.h"
 #include "base/timer/timer.h"
 #include "chromeos/ash/components/multidevice/logging/logging.h"
-#include "chromeos/ash/components/multidevice/remote_device_ref.h"
 #include "chromeos/ash/components/network/network_state.h"
 #include "chromeos/ash/components/network/network_state_handler.h"
 #include "chromeos/ash/components/network/network_type_pattern.h"
 #include "chromeos/ash/components/tether/tether_host_response_recorder.h"
 
-namespace ash {
-
-namespace tether {
-
-namespace {
-
-const char kTetherFeature[] = "magic_tether";
-
-}  // namespace
+namespace ash::tether {
 
 ConnectionPreserverImpl::ConnectionPreserverImpl(
-    device_sync::DeviceSyncClient* device_sync_client,
-    secure_channel::SecureChannelClient* secure_channel_client,
+    HostConnection::Factory* host_connection_factory,
     NetworkStateHandler* network_state_handler,
     ActiveHost* active_host,
     TetherHostResponseRecorder* tether_host_response_recorder)
-    : device_sync_client_(device_sync_client),
-      secure_channel_client_(secure_channel_client),
+    : host_connection_factory_(host_connection_factory),
       network_state_handler_(network_state_handler),
       active_host_(active_host),
       tether_host_response_recorder_(tether_host_response_recorder),
@@ -52,8 +42,9 @@ void ConnectionPreserverImpl::HandleSuccessfulTetherAvailabilityResponse(
   // connected to the Internet. BLE and Wi-Fi share the same antenna, so keeping
   // a BLE connection open while there's an active Wi-Fi connection would
   // degrade the Wi-Fi network's performance.
-  if (IsConnectedToInternet())
+  if (IsConnectedToInternet()) {
     return;
+  }
 
   // No BLE Connection has been preserved yet, so simply preserve this first
   // request.
@@ -73,46 +64,43 @@ void ConnectionPreserverImpl::HandleSuccessfulTetherAvailabilityResponse(
   } else {
     PA_LOG(VERBOSE)
         << "The connection to device with ID "
-        << multidevice::RemoteDeviceRef::TruncateDeviceIdForLogs(device_id)
+        << TetherHost::TruncateDeviceIdForLogs(device_id)
         << " was not preserved; another device has higher priority.";
   }
 }
 
-void ConnectionPreserverImpl::OnConnectionAttemptFailure(
-    secure_channel::mojom::ConnectionAttemptFailureReason reason) {
-  PA_LOG(WARNING) << "Failed to connect to device "
-                  << multidevice::RemoteDeviceRef::TruncateDeviceIdForLogs(
-                         preserved_connection_device_id_)
-                  << ", error: " << reason;
-  RemovePreservedConnectionIfPresent();
-}
-
-void ConnectionPreserverImpl::OnConnection(
-    std::unique_ptr<secure_channel::ClientChannel> channel) {
-  PA_LOG(VERBOSE) << "Successfully preserved connection for device: "
-                  << multidevice::RemoteDeviceRef::TruncateDeviceIdForLogs(
-                         preserved_connection_device_id_);
-
-  // Simply hold on to the ClientChannel until the connection should no longer
-  // be preserved.
-  client_channel_ = std::move(channel);
-}
-
 void ConnectionPreserverImpl::OnDisconnected() {
   PA_LOG(VERBOSE) << "Remote device disconnected from this device: "
-                  << multidevice::RemoteDeviceRef::TruncateDeviceIdForLogs(
+                  << TetherHost::TruncateDeviceIdForLogs(
                          preserved_connection_device_id_);
   RemovePreservedConnectionIfPresent();
 }
 
-void ConnectionPreserverImpl::OnMessageReceived(const std::string& payload) {
+void ConnectionPreserverImpl::OnMessageReceived(
+    std::unique_ptr<MessageWrapper> message_wrapper) {
   // Do nothing.
+}
+
+void ConnectionPreserverImpl::OnConnectionAttemptFinished(
+    std::unique_ptr<HostConnection> host_connection) {
+  if (!host_connection) {
+    PA_LOG(WARNING) << "Failed to connect to device "
+                    << TetherHost::TruncateDeviceIdForLogs(
+                           preserved_connection_device_id_);
+    RemovePreservedConnectionIfPresent();
+  } else {
+    preserved_host_connection_ = std::move(host_connection);
+    PA_LOG(VERBOSE) << "Successfully preserved connection for device: "
+                    << TetherHost::TruncateDeviceIdForLogs(
+                           preserved_connection_device_id_);
+  }
 }
 
 void ConnectionPreserverImpl::OnActiveHostChanged(
     const ActiveHost::ActiveHostChangeInfo& change_info) {
-  if (change_info.new_status == ActiveHost::ActiveHostStatus::CONNECTED)
+  if (change_info.new_status == ActiveHost::ActiveHostStatus::CONNECTED) {
     RemovePreservedConnectionIfPresent();
+  }
 }
 
 bool ConnectionPreserverImpl::IsConnectedToInternet() {
@@ -136,7 +124,7 @@ std::string ConnectionPreserverImpl::GetPreferredPreservedConnectionDeviceId(
 
   std::vector<std::string> previously_connected_host_ids =
       tether_host_response_recorder_->GetPreviouslyConnectedHostIds();
-  const auto preferred_connection_id_it = base::ranges::find_if(
+  const auto preferred_connection_id_it = std::ranges::find_if(
       previously_connected_host_ids,
       [this, &device_id](auto previously_connected_id) {
         // Pick out whichever ID appears in the list first.
@@ -156,36 +144,17 @@ void ConnectionPreserverImpl::SetPreservedConnection(
   DCHECK(preserved_connection_device_id_.empty());
 
   PA_LOG(VERBOSE) << "Preserving connection to device with ID "
-                  << multidevice::RemoteDeviceRef::TruncateDeviceIdForLogs(
-                         device_id)
-                  << ".";
+                  << TetherHost::TruncateDeviceIdForLogs(device_id) << ".";
 
   preserved_connection_device_id_ = device_id;
 
-  absl::optional<multidevice::RemoteDeviceRef> remote_device =
-      GetRemoteDevice(preserved_connection_device_id_);
-  if (!remote_device) {
-    PA_LOG(ERROR) << "Given invalid remote device ID: "
-                  << multidevice::RemoteDeviceRef::TruncateDeviceIdForLogs(
-                         preserved_connection_device_id_);
-    RemovePreservedConnectionIfPresent();
-    return;
-  }
-
-  absl::optional<multidevice::RemoteDeviceRef> local_device =
-      device_sync_client_->GetLocalDeviceMetadata();
-  if (!local_device) {
-    PA_LOG(ERROR) << "ConnectionPreserverImpl::" << __func__
-                  << ": Local device unexpectedly null.";
-    RemovePreservedConnectionIfPresent();
-    return;
-  }
-
-  connection_attempt_ = secure_channel_client_->ListenForConnectionFromDevice(
-      *remote_device, *local_device, kTetherFeature,
-      secure_channel::ConnectionMedium::kBluetoothLowEnergy,
-      secure_channel::ConnectionPriority::kLow);
-  connection_attempt_->SetDelegate(this);
+  host_connection_factory_->ScanForTetherHostAndCreateConnection(
+      device_id, HostConnection::Factory::ConnectionPriority::kLow,
+      /*payload_listener=*/this,
+      base::BindOnce(&ConnectionPreserverImpl::OnDisconnected,
+                     weak_ptr_factory_.GetWeakPtr()),
+      base::BindOnce(&ConnectionPreserverImpl::OnConnectionAttemptFinished,
+                     weak_ptr_factory_.GetWeakPtr()));
 
   preserved_connection_timer_->Start(
       FROM_HERE, base::Seconds(kTimeoutSeconds),
@@ -195,28 +164,19 @@ void ConnectionPreserverImpl::SetPreservedConnection(
 }
 
 void ConnectionPreserverImpl::RemovePreservedConnectionIfPresent() {
-  if (preserved_connection_device_id_.empty())
+  if (preserved_connection_device_id_.empty()) {
     return;
+  }
 
   PA_LOG(VERBOSE) << "Removing preserved connection to device with ID "
-                  << multidevice::RemoteDeviceRef::TruncateDeviceIdForLogs(
+                  << TetherHost::TruncateDeviceIdForLogs(
                          preserved_connection_device_id_)
                   << ".";
 
-  connection_attempt_.reset();
-  client_channel_.reset();
+  preserved_host_connection_.reset();
 
   preserved_connection_device_id_.clear();
   preserved_connection_timer_->Stop();
-}
-
-absl::optional<multidevice::RemoteDeviceRef>
-ConnectionPreserverImpl::GetRemoteDevice(const std::string device_id) {
-  for (const auto& remote_device : device_sync_client_->GetSyncedDevices()) {
-    if (remote_device.GetDeviceId() == device_id)
-      return remote_device;
-  }
-  return absl::nullopt;
 }
 
 void ConnectionPreserverImpl::SetTimerForTesting(
@@ -224,6 +184,4 @@ void ConnectionPreserverImpl::SetTimerForTesting(
   preserved_connection_timer_ = std::move(timer_for_test);
 }
 
-}  // namespace tether
-
-}  // namespace ash
+}  // namespace ash::tether

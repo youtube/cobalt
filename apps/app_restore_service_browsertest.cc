@@ -10,10 +10,13 @@
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "chrome/browser/apps/platform_apps/app_browsertest_util.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/test/browser_test.h"
 #include "extensions/browser/api/file_system/file_system_api.h"
 #include "extensions/browser/api/file_system/saved_file_entry.h"
+#include "extensions/browser/extension_host.h"
 #include "extensions/browser/extension_host_test_helper.h"
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/common/extension.h"
@@ -120,8 +123,10 @@ IN_PROC_BROWSER_TEST_F(PlatformAppBrowserTest, FileAccessIsSavedToPrefs) {
   ASSERT_TRUE(
       base::CreateTemporaryFileInDir(temp_directory.GetPath(), &temp_file));
 
-  FileSystemChooseEntryFunction::SkipPickerAndAlwaysSelectPathForTest picker(
-      temp_file);
+  const FileSystemChooseEntryFunction::TestOptions test_options{
+      .path_to_be_picked = &temp_file};
+  auto reset_options =
+      FileSystemChooseEntryFunction::SetOptionsForTesting(test_options);
   FileSystemChooseEntryFunction::RegisterTempExternalFileSystemForTest(
       "temp", temp_directory.GetPath());
 
@@ -158,8 +163,10 @@ IN_PROC_BROWSER_TEST_F(PlatformAppBrowserTest, MAYBE_FileAccessIsRestored) {
   ASSERT_TRUE(
       base::CreateTemporaryFileInDir(temp_directory.GetPath(), &temp_file));
 
-  FileSystemChooseEntryFunction::SkipPickerAndAlwaysSelectPathForTest picker(
-      temp_file);
+  const FileSystemChooseEntryFunction::TestOptions test_options{
+      .path_to_be_picked = &temp_file};
+  auto reset_options =
+      FileSystemChooseEntryFunction::SetOptionsForTesting(test_options);
   FileSystemChooseEntryFunction::RegisterTempExternalFileSystemForTest(
       "temp", temp_directory.GetPath());
 

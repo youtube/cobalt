@@ -4,45 +4,37 @@
 
 #include "chrome/browser/enterprise/idle/dialog_manager.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "base/check.h"
 #include "base/check_is_test.h"
+#include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/task/single_thread_task_runner.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_list.h"
+#include "chrome/common/chrome_switches.h"
+#include "components/enterprise/idle/idle_pref_names.h"
+#include "components/enterprise/idle/metrics.h"
+#include "components/prefs/pref_service.h"
 
 namespace enterprise_idle {
 
 namespace {
 
+constexpr base::TimeDelta kTestDialogTimeout = base::Seconds(5);
 constexpr base::TimeDelta kDialogTimeout = base::Seconds(30);
 
-IdleDialog::ActionSet ActionsToActionSet(
-    const base::flat_set<ActionType>& action_types) {
-  IdleDialog::ActionSet action_set = {.close = false, .clear = false};
-  for (ActionType action_type : action_types) {
-    switch (action_type) {
-      case ActionType::kCloseBrowsers:
-        action_set.close = true;
-        break;
-
-      case ActionType::kShowProfilePicker:
-        break;
-
-      case ActionType::kClearBrowsingHistory:
-      case ActionType::kClearDownloadHistory:
-      case ActionType::kClearCookiesAndOtherSiteData:
-      case ActionType::kClearCachedImagesAndFiles:
-      case ActionType::kClearPasswordSignin:
-      case ActionType::kClearAutofill:
-      case ActionType::kClearSiteSettings:
-      case ActionType::kClearHostedAppData:
-      case ActionType::kReloadPages:
-        action_set.clear = true;
-        break;
-    }
-  }
-  return action_set;
+IdleDialog::ActionSet GetActionSet(PrefService* prefs) {
+  std::vector<ActionType> actions;
+  std::ranges::transform(prefs->GetList(prefs::kIdleTimeoutActions),
+                         std::back_inserter(actions),
+                         [](const base::Value& action) {
+                           return static_cast<ActionType>(action.GetInt());
+                         });
+  return ActionsToActionSet(base::flat_set<ActionType>(std::move(actions)));
 }
 
 }  // namespace
@@ -56,28 +48,40 @@ DialogManager* DialogManager::GetInstance() {
   return instance.get();
 }
 
-base::CallbackListSubscription DialogManager::ShowDialog(
+base::CallbackListSubscription DialogManager::MaybeShowDialog(
+    Profile* profile,
     base::TimeDelta threshold,
     const base::flat_set<ActionType>& action_types,
     FinishedCallback on_finished) {
-  // Passed the guards: we're really going to show the dialog and close
-  // browsers.
-  base::CallbackListSubscription subscription =
-      callbacks_.Add(std::move(on_finished));
-
   if (dialog_) {
     // The dialog is already visible, re-use it.
-    return subscription;
+    return callbacks_.Add(std::move(on_finished));
   }
 
+  Browser* active_browser = BrowserList::GetInstance()->GetLastActive();
+  if (!active_browser || !active_browser->IsActive() ||
+      !active_browser->is_type_normal()) {
+    // User is in another app, or in a window that shouldn't show the dialog
+    // (e.g. DevTools). Skip the dialog, and run actions immediately.
+    std::move(on_finished).Run(/*expired=*/true);
+    return base::CallbackListSubscription();
+  }
+
+  // Create a new dialog, modal to `active_browser`.
+  base::TimeDelta timeout = base::CommandLine::ForCurrentProcess()->HasSwitch(
+                                switches::kSimulateIdleTimeout)
+                                ? kTestDialogTimeout
+                                : kDialogTimeout;
+  dialog_timer_.Start(
+      FROM_HERE, timeout,
+      base::BindOnce(&DialogManager::OnDialogExpired, base::Unretained(this)));
   dialog_ = IdleDialog::Show(
-      kDialogTimeout, threshold, ActionsToActionSet(action_types),
+      active_browser, timeout, threshold, GetActionSet(profile->GetPrefs()),
       base::BindOnce(&DialogManager::OnDialogDismissedByUser,
                      base::Unretained(this)));
-  dialog_timer_.Start(
-      FROM_HERE, kDialogTimeout,
-      base::BindOnce(&DialogManager::OnDialogExpired, base::Unretained(this)));
-  return subscription;
+  metrics::RecordIdleTimeoutDialogEvent(
+      metrics::IdleTimeoutDialogEvent::kDialogShown);
+  return callbacks_.Add(std::move(on_finished));
 }
 
 void DialogManager::DismissDialogForTesting() {
@@ -96,6 +100,8 @@ void DialogManager::OnDialogDismissedByUser() {
   dialog_.reset();
   dialog_timer_.Stop();
 
+  metrics::RecordIdleTimeoutDialogEvent(
+      metrics::IdleTimeoutDialogEvent::kDialogDismissedByUser);
   callbacks_.Notify(/*expired=*/false);
 }
 
@@ -106,6 +112,8 @@ void DialogManager::OnDialogExpired() {
   dialog_.reset();
   dialog_timer_.Stop();
 
+  metrics::RecordIdleTimeoutDialogEvent(
+      metrics::IdleTimeoutDialogEvent::kDialogExpired);
   callbacks_.Notify(/*expired=*/true);
 }
 

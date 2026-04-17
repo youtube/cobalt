@@ -4,13 +4,13 @@
 
 #include "media/formats/hls/types.h"
 
+#include <algorithm>
 #include <cmath>
 #include <functional>
 #include <limits>
 
 #include "base/containers/contains.h"
 #include "base/no_destructor.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "media/formats/hls/parse_status.h"
@@ -19,25 +19,73 @@
 
 namespace media::hls::types {
 
+namespace parsing {
+
+// static
+ParseStatus::Or<base::TimeDelta> TimeDelta::Parse(ResolvedSourceString str) {
+  return ParseDecimalFloatingPoint(str).MapValue(
+      [](DecimalFloatingPoint t) -> ParseStatus::Or<base::TimeDelta> {
+        auto duration = base::Seconds(t);
+        if (duration.is_max()) {
+          return ParseStatusCode::kValueOverflowsTimeDelta;
+        }
+        return duration;
+      });
+}
+
+// static
+ParseStatus::Or<ByteRangeExpression> ByteRangeExpression::Parse(
+    ResolvedSourceString source_str) {
+  // If this ByteRange has an offset, it will be separated from the length by
+  // '@'.
+  const auto at_index = source_str.Str().find_first_of('@');
+  const auto length_str = source_str.Consume(at_index);
+  auto length = ParseDecimalInteger(length_str);
+  if (!length.has_value()) {
+    return ParseStatus(ParseStatusCode::kFailedToParseByteRange)
+        .AddCause(std::move(length).error());
+  }
+
+  // If the offset was present, try to parse it
+  std::optional<types::DecimalInteger> offset;
+  if (at_index != std::string_view::npos) {
+    source_str.Consume(1);
+    auto offset_result = ParseDecimalInteger(source_str);
+    if (!offset_result.has_value()) {
+      return ParseStatus(ParseStatusCode::kFailedToParseByteRange)
+          .AddCause(std::move(offset_result).error());
+    }
+
+    offset = std::move(offset_result).value();
+  }
+
+  return ByteRangeExpression{.length = std::move(length).value(),
+                             .offset = offset};
+}
+
+// static
+ParseStatus::Or<ResolvedSourceString> RawStr::Parse(ResolvedSourceString str) {
+  return str;
+}
+
+// static
+ParseStatus::Or<bool> YesOrNo::Parse(ResolvedSourceString str) {
+  return str.Str() == "YES";
+}
+
+}  // namespace parsing
+
 namespace {
-re2::StringPiece to_re2(base::StringPiece str) {
-  return re2::StringPiece(str.data(), str.size());
-}
-
-re2::StringPiece to_re2(SourceString str) {
-  return to_re2(str.Str());
-}
-
-bool IsOneOf(char c, base::StringPiece set) {
+bool IsOneOf(char c, std::string_view set) {
   return base::Contains(set, c);
 }
 
 // Returns the substring matching a valid AttributeName, advancing `source_str`
 // to the following character. If no such substring exists, returns
-// `absl::nullopt` and leaves `source_str` untouched. This is like matching the
+// `std::nullopt` and leaves `source_str` untouched. This is like matching the
 // regex `^[A-Z0-9-]+`.
-absl::optional<SourceString> ExtractAttributeName(SourceString* source_str) {
-  auto str = *source_str;
+std::optional<SourceString> ExtractAttributeName(SourceString* source_str) {
+  SourceString str = *source_str;
 
   // Returns whether the given char is permitted in an AttributeName
   const auto is_char_valid = [](char c) -> bool {
@@ -45,12 +93,12 @@ absl::optional<SourceString> ExtractAttributeName(SourceString* source_str) {
   };
 
   // Extract the substring where `is_char_valid` succeeds
-  const char* end = base::ranges::find_if_not(str.Str(), is_char_valid);
+  auto end = std::ranges::find_if_not(str.Str(), is_char_valid);
   const auto name = str.Consume(end - str.Str().cbegin());
 
   // At least one character must have matched
   if (name.Empty()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   *source_str = str;
@@ -59,19 +107,19 @@ absl::optional<SourceString> ExtractAttributeName(SourceString* source_str) {
 
 // Returns the substring matching a valid AttributeValue, advancing `source_str`
 // to the following character. If no such substring exists, returns
-// `absl::nullopt` and leaves `source_str` untouched.
+// `std::nullopt` and leaves `source_str` untouched.
 // Attribute values may either be quoted or unquoted.
 // Quoted attribute values begin and end with a double-quote ("), and may
 // contain internal whitespace and commas. Unquoted attribute values must not
 // begin with a double-quote, but may contain any character excluding whitespace
 // and commas.
-absl::optional<SourceString> ExtractAttributeValue(SourceString* source_str) {
+std::optional<SourceString> ExtractAttributeValue(SourceString* source_str) {
   // Cache string to stack so we don't modify it unless its valid
   auto str = *source_str;
 
   // Empty strings are not allowed
   if (str.Empty()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // If this is a quoted attribute value, get everything between the matching
@@ -80,8 +128,8 @@ absl::optional<SourceString> ExtractAttributeValue(SourceString* source_str) {
     const auto matching_quote = str.Str().find('"', 1);
 
     // If match wasn't found, value isn't valid
-    if (matching_quote == base::StringPiece::npos) {
-      return absl::nullopt;
+    if (matching_quote == std::string_view::npos) {
+      return std::nullopt;
     }
 
     const auto result = str.Consume(matching_quote + 1);
@@ -94,7 +142,7 @@ absl::optional<SourceString> ExtractAttributeValue(SourceString* source_str) {
   const auto end = str.Str().find_first_of(", \t");
   const auto result = str.Consume(end);
   if (result.Empty()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   *source_str = str;
@@ -112,8 +160,8 @@ ParseStatus::Or<DecimalInteger> ParseDecimalInteger(
   // Check that the set of characters is allowed: 0-9
   // NOTE: It may be useful to split this into a separate function which
   // extracts the range containing valid characters from a given
-  // base::StringPiece. For now that's the caller's responsibility.
-  if (!RE2::FullMatch(to_re2(str), *decimal_integer_regex)) {
+  // std::string_view. For now that's the caller's responsibility.
+  if (!RE2::FullMatch(str, *decimal_integer_regex)) {
     return ParseStatusCode::kFailedToParseDecimalInteger;
   }
 
@@ -153,7 +201,7 @@ ParseStatus::Or<SignedDecimalFloatingPoint> ParseSignedDecimalFloatingPoint(
 
   // Check that the set of characters is allowed: - . 0-9
   // `base::StringToDouble` is not as strict as the HLS spec
-  if (!re2::RE2::FullMatch(to_re2(str), *decimal_floating_point_regex)) {
+  if (!re2::RE2::FullMatch(str, *decimal_floating_point_regex)) {
     return ParseStatusCode::kFailedToParseSignedDecimalFloatingPoint;
   }
 
@@ -172,7 +220,7 @@ ParseStatus::Or<DecimalResolution> DecimalResolution::Parse(
   // decimal-resolution values are in the format: DecimalInteger 'x'
   // DecimalInteger
   const auto x_index = source_str.Str().find_first_of('x');
-  if (x_index == base::StringPiece::npos) {
+  if (x_index == std::string_view::npos) {
     return ParseStatusCode::kFailedToParseDecimalResolution;
   }
 
@@ -194,46 +242,17 @@ ParseStatus::Or<DecimalResolution> DecimalResolution::Parse(
                            .height = std::move(height).value()};
 }
 
-// static
-ParseStatus::Or<ByteRangeExpression> ByteRangeExpression::Parse(
-    ResolvedSourceString source_str) {
-  // If this ByteRange has an offset, it will be separated from the length by
-  // '@'.
-  const auto at_index = source_str.Str().find_first_of('@');
-  const auto length_str = source_str.Consume(at_index);
-  auto length = ParseDecimalInteger(length_str);
-  if (!length.has_value()) {
-    return ParseStatus(ParseStatusCode::kFailedToParseByteRange)
-        .AddCause(std::move(length).error());
-  }
-
-  // If the offset was present, try to parse it
-  absl::optional<types::DecimalInteger> offset;
-  if (at_index != base::StringPiece::npos) {
-    source_str.Consume(1);
-    auto offset_result = ParseDecimalInteger(source_str);
-    if (!offset_result.has_value()) {
-      return ParseStatus(ParseStatusCode::kFailedToParseByteRange)
-          .AddCause(std::move(offset_result).error());
-    }
-
-    offset = std::move(offset_result).value();
-  }
-
-  return ByteRangeExpression{.length = std::move(length).value(),
-                             .offset = offset};
-}
 
 // static
-absl::optional<ByteRange> ByteRange::Validate(DecimalInteger length,
-                                              DecimalInteger offset) {
+std::optional<ByteRange> ByteRange::Validate(DecimalInteger length,
+                                             DecimalInteger offset) {
   if (length == 0) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // Ensure that `length+offset` won't overflow `DecimalInteger`
   if (std::numeric_limits<DecimalInteger>::max() - offset < length) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return ByteRange(length, offset);
@@ -344,7 +363,7 @@ AttributeMap::AttributeMap(base::span<Item> sorted_items)
   // tries to access the stored value after filling by the index of a subsequent
   // duplicate key, rather than the first.
   DCHECK(
-      base::ranges::is_sorted(items_, std::less(), &AttributeMap::Item::first));
+      std::ranges::is_sorted(items_, std::less(), &AttributeMap::Item::first));
 }
 
 ParseStatus::Or<AttributeListIterator::Item> AttributeMap::Fill(
@@ -360,11 +379,11 @@ ParseStatus::Or<AttributeListIterator::Item> AttributeMap::Fill(
 
     auto item = std::move(result).value();
 
-    // Look up the item. `base::ranges::lower_bound` performs a binary search to
+    // Look up the item. `std::ranges::lower_bound` performs a binary search to
     // find the first entry where the name does not compare less than the given
     // value.
-    auto entry = base::ranges::lower_bound(items_, item.name.Str(), std::less(),
-                                           &AttributeMap::Item::first);
+    auto entry = std::ranges::lower_bound(items_, item.name.Str(), std::less(),
+                                          &AttributeMap::Item::first);
     if (entry == items_.end()) {
       return item;
     }
@@ -389,11 +408,13 @@ ParseStatus AttributeMap::FillUntilError(AttributeListIterator* iter) {
       return std::move(result).error();
     }
 
-    // TODO(crbug.com/1266991): It may be worth recording a UMA here, to
+    // TODO(crbug.com/40057824): It may be worth recording a UMA here, to
     // discover common unhandled attributes. Since we can't plug arbitrary
     // strings into UMA this will require some additional design work.
   }
 }
+
+AttributeMap::~AttributeMap() = default;
 
 // static
 ParseStatus::Or<VariableName> VariableName::Parse(SourceString source_str) {
@@ -401,7 +422,7 @@ ParseStatus::Or<VariableName> VariableName::Parse(SourceString source_str) {
       "[a-zA-Z0-9_-]+");
 
   // This source_str must match completely
-  if (!re2::RE2::FullMatch(to_re2(source_str), *variable_name_regex)) {
+  if (!re2::RE2::FullMatch(source_str.Str(), *variable_name_regex)) {
     return ParseStatusCode::kMalformedVariableName;
   }
 
@@ -414,7 +435,7 @@ ParseStatus::Or<StableId> StableId::Parse(ResolvedSourceString str) {
     return base::IsAsciiAlphaNumeric(c) || IsOneOf(c, "+/=.-_");
   };
 
-  if (str.Empty() || !base::ranges::all_of(str.Str(), is_char_valid)) {
+  if (str.Empty() || !std::ranges::all_of(str.Str(), is_char_valid)) {
     return ParseStatusCode::kFailedToParseStableId;
   }
 
@@ -423,8 +444,8 @@ ParseStatus::Or<StableId> StableId::Parse(ResolvedSourceString str) {
 
 // static
 ParseStatus::Or<InstreamId> InstreamId::Parse(ResolvedSourceString str) {
-  constexpr base::StringPiece kCcStr = "CC";
-  constexpr base::StringPiece kServiceStr = "SERVICE";
+  constexpr std::string_view kCcStr = "CC";
+  constexpr std::string_view kServiceStr = "SERVICE";
 
   // Parse the type (one of 'CC' or 'SERVICE')
   Type type;
@@ -493,8 +514,8 @@ ParseStatus::Or<AudioChannels> AudioChannels::Parse(ResolvedSourceString str) {
 
     // Each string must be non-empty and consist only of the allowed characters
     if (identifier.Empty() ||
-        !base::ranges::all_of(identifier.Str(),
-                              is_valid_coding_identifier_char)) {
+        !std::ranges::all_of(identifier.Str(),
+                             is_valid_coding_identifier_char)) {
       return ParseStatusCode::kFailedToParseAudioChannels;
     }
 
@@ -503,6 +524,16 @@ ParseStatus::Or<AudioChannels> AudioChannels::Parse(ResolvedSourceString str) {
 
   // Ignore any remaining parameters for forward-compatibility
   return AudioChannels(max_channels, std::move(audio_coding_identifiers));
+}
+
+DecimalInteger DecimalResolution::Szudzik() const {
+  if (width > (1 << 16) || height > (1 << 16)) {
+    // resolutions greater than 32768 are not allowed!
+    return 0;
+  }
+  // See http://szudzik.com/ElegantPairing.pdf for the math
+  return (width >= height) ? (width * width + width + height)
+                           : (height * height + width);
 }
 
 }  // namespace media::hls::types

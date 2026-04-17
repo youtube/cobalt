@@ -7,9 +7,12 @@
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/media/router/providers/cast/cast_session_client.h"
+#include "components/media_router/common/mojom/debugger.mojom-forward.h"
+#include "components/media_router/common/mojom/logger.mojom-forward.h"
 #include "components/media_router/common/providers/cast/cast_media_source.h"
 #include "components/media_router/common/providers/cast/channel/cast_message_handler.h"
 #include "mojo/public/cpp/bindings/receiver.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "services/data_decoder/public/cpp/data_decoder.h"
 
 namespace media_router {
@@ -21,9 +24,11 @@ class CastSessionClientImpl : public CastSessionClient,
  public:
   CastSessionClientImpl(const std::string& client_id,
                         const url::Origin& origin,
-                        int frame_tree_node_id,
+                        content::FrameTreeNodeId frame_tree_node_id,
                         AutoJoinPolicy auto_join_policy,
-                        CastActivity* activity);
+                        CastActivity* activity,
+                        mojo::Remote<mojom::Logger>& logger,
+                        mojo::Remote<mojom::Debugger>& debugger);
   ~CastSessionClientImpl() override;
 
   // CastSessionClient implementation
@@ -32,16 +37,17 @@ class CastSessionClientImpl : public CastSessionClient,
   // and other methods.
   void SendMessageToClient(
       blink::mojom::PresentationConnectionMessagePtr message) override;
-  void SendMediaStatusToClient(const base::Value::Dict& media_status,
-                               absl::optional<int> request_id) override;
+  void SendMediaMessageToClient(const base::Value::Dict& payload,
+                                std::optional<int> request_id) override;
   void CloseConnection(
       blink::mojom::PresentationConnectionCloseReason close_reason) override;
   void TerminateConnection() override;
-  bool MatchesAutoJoinPolicy(url::Origin origin,
-                             int frame_tree_node_id) const override;
+  bool MatchesAutoJoinPolicy(
+      url::Origin origin,
+      content::FrameTreeNodeId frame_tree_node_id) const override;
   void SendErrorCodeToClient(int sequence_number,
                              CastInternalMessage::ErrorCode error_code,
-                             absl::optional<std::string> description) override;
+                             std::optional<std::string> description) override;
   void SendErrorToClient(int sequence_number, base::Value::Dict error) override;
 
   // blink::mojom::PresentationConnection implementation
@@ -98,6 +104,9 @@ class CastSessionClientImpl : public CastSessionClient,
   // Mojo message pipe to PresentationConnection in Blink to send messages and
   // initiate state changes.
   mojo::Remote<blink::mojom::PresentationConnection> connection_remote_;
+
+  const raw_ref<mojo::Remote<mojom::Logger>> logger_;
+  const raw_ref<mojo::Remote<mojom::Debugger>> debugger_;
 
   base::WeakPtrFactory<CastSessionClientImpl> weak_ptr_factory_{this};
 };

@@ -72,7 +72,7 @@ SourceId ConvertToSourceId(int64_t other_id, SourceIdType id_type) {
   // DCHECK is to restrict the usage of WEBAPK_ID, PAYMENT_APP_ID, and
   // WEB_IDENTITY_ID. These should use the specific
   // |UkmRecorder::GetSourceIdFor*() methods instead.
-  // TODO(crbug.com/1046964): Ideally we should restrict
+  // TODO(crbug.com/40671101): Ideally we should restrict
   // SourceIdObj::FromOtherId() as well.
   DCHECK(id_type != SourceIdType::WEBAPK_ID);
   DCHECK(id_type != SourceIdType::PAYMENT_APP_ID);
@@ -99,7 +99,7 @@ std::string GetSourceIdTypeDebugString(SourceId source_id) {
       return "WEBAPK_ID";
     case SourceIdObj::Type::PAYMENT_APP_ID:
       return "PAYMENT_APP_ID";
-    case SourceIdObj::Type::DESKTOP_WEB_APP_ID:
+    case SourceIdObj::Type::DEPRECATED_DESKTOP_WEB_APP_ID:
       return "DESKTOP_WEB_APP_ID";
     case SourceIdObj::Type::WORKER_ID:
       return "WORKER_ID";
@@ -113,8 +113,10 @@ std::string GetSourceIdTypeDebugString(SourceId source_id) {
       return "CHROMEOS_WEBSITE_ID";
     case SourceIdObj::Type::EXTENSION_ID:
       return "EXTENSION_ID";
-    case SourceIdObj::Type::SOFT_NAVIGATION_ID:
-      return "SOFT_NAVIGATION_ID";
+    case SourceIdObj::Type::NOTIFICATION_ID:
+      return "NOTIFICATION_ID";
+    case SourceIdObj::Type::CDM_ID:
+      return "CDM_ID";
   }
 }
 

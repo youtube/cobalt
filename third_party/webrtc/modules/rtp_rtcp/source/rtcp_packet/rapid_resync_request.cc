@@ -10,13 +10,15 @@
 
 #include "modules/rtp_rtcp/source/rtcp_packet/rapid_resync_request.h"
 
+#include <cstddef>
+#include <cstdint>
+
 #include "modules/rtp_rtcp/source/rtcp_packet/common_header.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 
 namespace webrtc {
 namespace rtcp {
-constexpr uint8_t RapidResyncRequest::kFeedbackMessageType;
 // RFC 4585: Feedback format.
 // Rapid Resynchronisation Request (draft-perkins-avt-rapid-rtp-sync-03).
 //

@@ -85,7 +85,6 @@ void TilingSetEvictionQueue::AdvancePhase() {
     switch (phase_) {
       case EVENTUALLY_RECT:
         NOTREACHED();
-        break;
       case SOON_BORDER_RECT:
         soon_iterator_ = SoonBorderTilingIterator(&tilings_, tree_);
         if (!soon_iterator_.done())

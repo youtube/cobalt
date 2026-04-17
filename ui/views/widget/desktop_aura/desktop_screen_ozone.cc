@@ -19,18 +19,15 @@ DesktopScreenOzone::~DesktopScreenOzone() = default;
 
 gfx::NativeWindow DesktopScreenOzone::GetNativeWindowFromAcceleratedWidget(
     gfx::AcceleratedWidget widget) const {
-  if (!widget)
+  if (!widget) {
     return nullptr;
+  }
   return views::DesktopWindowTreeHostPlatform::GetContentWindowForWidget(
       widget);
 }
 
-#if !BUILDFLAG(IS_LINUX)
 std::unique_ptr<display::Screen> CreateDesktopScreen() {
-  auto screen = std::make_unique<DesktopScreenOzone>();
-  screen->Initialize();
-  return screen;
+  return std::make_unique<DesktopScreenOzone>();
 }
-#endif
 
 }  // namespace views

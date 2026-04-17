@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#import "base/ranges/algorithm.h"
+#import <algorithm>
+
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/task_environment.h"
-#import "components/password_manager/core/browser/bulk_leak_check_service.h"
 #import "components/password_manager/core/browser/leak_detection/bulk_leak_check.h"
+#import "components/password_manager/core/browser/leak_detection/bulk_leak_check_service.h"
 #import "components/password_manager/core/browser/leak_detection/leak_detection_check_factory.h"
 #import "components/password_manager/core/browser/leak_detection/leak_detection_request_utils.h"
 #import "components/password_manager/core/browser/leak_detection/mock_leak_detection_check_factory.h"
@@ -15,16 +16,10 @@
 #import "ios/web_view/internal/passwords/cwv_leak_check_service_internal.h"
 #import "ios/web_view/public/cwv_leak_check_service_observer.h"
 #import "services/network/test/test_shared_url_loader_factory.h"
-
 #import "testing/gtest/include/gtest/gtest.h"
-
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using password_manager::BulkLeakCheck;
 using password_manager::BulkLeakCheckDelegateInterface;
@@ -83,11 +78,11 @@ ACTION_P(CreateFakeBulkLeakCheck, out) {
 }
 
 MATCHER_P(CredentialsAre, credentials, "") {
-  return base::ranges::equal(arg, credentials.get(),
-                             [](const auto& lhs, const auto& rhs) {
-                               return lhs.username() == rhs.username() &&
-                                      lhs.password() == rhs.password();
-                             });
+  return std::ranges::equal(arg, credentials.get(),
+                            [](const auto& lhs, const auto& rhs) {
+                              return lhs.username() == rhs.username() &&
+                                     lhs.password() == rhs.password();
+                            });
 }
 
 class CWVLeakCheckServiceTest : public PlatformTest {

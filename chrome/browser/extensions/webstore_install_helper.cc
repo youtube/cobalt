@@ -37,7 +37,7 @@ WebstoreInstallHelper::WebstoreInstallHelper(Delegate* delegate,
       manifest_parse_complete_(false),
       parse_error_(Delegate::UNKNOWN_ERROR) {}
 
-WebstoreInstallHelper::~WebstoreInstallHelper() {}
+WebstoreInstallHelper::~WebstoreInstallHelper() = default;
 
 void WebstoreInstallHelper::Start(
     network::mojom::URLLoaderFactory* loader_factory) {
@@ -119,7 +119,7 @@ void WebstoreInstallHelper::OnJSONParsed(
     error_ = (!result.has_value() || result.error().empty())
                  ? "Invalid JSON response"
                  : result.error();
-    parse_error_ = Delegate::MANIFEST_ERROR;
+    parse_error_ = Delegate::kManifestError;
   }
   ReportResultsIfComplete();
 }

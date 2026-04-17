@@ -16,7 +16,7 @@
 // Helper for NotificationPlatformBridgeChromeOs. Sends notifications to Ash
 // and handles interactions with those notifications, plus it keeps track of
 // NotifierControllers to provide notifier settings information to Ash (visible
-// in NotifierSettingsView). With Lacros, runs in the ash-chrome process.
+// in NotifierSettingsView).
 class ChromeAshMessageCenterClient : public NotificationPlatformBridge,
                                      public ash::NotifierSettingsController,
                                      public NotifierController::Observer {
@@ -36,6 +36,10 @@ class ChromeAshMessageCenterClient : public NotificationPlatformBridge,
   void Close(Profile* profile, const std::string& notification_id) override;
   void GetDisplayed(Profile* profile,
                     GetDisplayedNotificationsCallback callback) const override;
+  void GetDisplayedForOrigin(
+      Profile* profile,
+      const GURL& origin,
+      GetDisplayedNotificationsCallback callback) const override;
   void SetReadyCallback(NotificationBridgeReadyCallback callback) override;
   void DisplayServiceShutDown(Profile* profile) override {}
 
@@ -55,7 +59,7 @@ class ChromeAshMessageCenterClient : public NotificationPlatformBridge,
                                 bool enabled) override;
 
  private:
-  raw_ptr<NotificationPlatformBridgeDelegate, ExperimentalAsh> delegate_;
+  raw_ptr<NotificationPlatformBridgeDelegate> delegate_;
 
   // Notifier source for each notifier type.
   std::map<message_center::NotifierType, std::unique_ptr<NotifierController>>

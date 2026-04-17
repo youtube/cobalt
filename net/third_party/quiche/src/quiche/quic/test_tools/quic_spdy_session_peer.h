@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_QUIC_SPDY_SESSION_PEER_H_
 #define QUICHE_QUIC_TEST_TOOLS_QUIC_SPDY_SESSION_PEER_H_
 
+#include "quiche/http2/core/spdy_framer.h"
 #include "quiche/quic/core/http/quic_receive_control_stream.h"
 #include "quiche/quic/core/http/quic_send_control_stream.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
@@ -12,8 +13,7 @@
 #include "quiche/quic/core/qpack/qpack_send_stream.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_write_blocked_list.h"
-#include "quiche/spdy/core/http2_header_block.h"
-#include "quiche/spdy/core/spdy_framer.h"
+#include "quiche/common/http/http_header_block.h"
 
 namespace quic {
 
@@ -33,8 +33,9 @@ class QuicSpdySessionPeer {
   static void SetMaxInboundHeaderListSize(QuicSpdySession* session,
                                           size_t max_inbound_header_size);
   static size_t WriteHeadersOnHeadersStream(
-      QuicSpdySession* session, QuicStreamId id, spdy::Http2HeaderBlock headers,
-      bool fin, const spdy::SpdyStreamPrecedence& precedence,
+      QuicSpdySession* session, QuicStreamId id,
+      quiche::HttpHeaderBlock headers, bool fin,
+      const spdy::SpdyStreamPrecedence& precedence,
       quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
           ack_listener);
   // |session| can't be nullptr.

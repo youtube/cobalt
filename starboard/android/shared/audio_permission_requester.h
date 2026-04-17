@@ -23,4 +23,4 @@ bool RequestRecordAudioPermission(JNIEnv* env);
 
 }  // namespace starboard
 
-#endif  //  STARBOARD_ANDROID_SHARED_AUDIO_PERMISSION_REQUESTER_H_
+#endif  // STARBOARD_ANDROID_SHARED_AUDIO_PERMISSION_REQUESTER_H_

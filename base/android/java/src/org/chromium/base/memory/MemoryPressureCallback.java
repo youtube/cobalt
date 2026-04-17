@@ -5,10 +5,10 @@
 package org.chromium.base.memory;
 
 import org.chromium.base.MemoryPressureLevel;
+import org.chromium.build.annotations.NullMarked;
 
-/**
- * Memory pressure callback interface.
- */
+/** Memory pressure callback interface. */
+@NullMarked
 @FunctionalInterface
 public interface MemoryPressureCallback {
     public void onPressure(@MemoryPressureLevel int pressure);

@@ -37,9 +37,10 @@ void PasswordChangeHandler::HandleInitialize(const base::Value::List& value) {
   params.Set("passwordChangeUrl", password_change_url_);
   const user_manager::User* user =
       ProfileHelper::Get()->GetUserByProfile(profile);
-  if (user)
+  if (user) {
     params.Set("userName", user->GetDisplayEmail());
-  CallJavascriptFunction("$(\'main-element\').loadAuthExtension", params);
+  }
+  CallJavascriptFunction("$(\'main-element\').loadAuthenticator", params);
 }
 
 void PasswordChangeHandler::HandleChangePassword(

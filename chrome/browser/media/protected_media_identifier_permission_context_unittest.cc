@@ -11,16 +11,33 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(IS_CHROMEOS)
+#include "ash/constants/ash_switches.h"
+#include "chromeos/dbus/constants/dbus_switches.h"
+#endif
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/profiles/profile_testing_helper.h"
+#endif
+
 class ProtectedMediaIdentifierPermissionContextTest : public testing::Test {
  public:
   ProtectedMediaIdentifierPermissionContextTest()
       : requesting_origin_("https://example.com"),
         requesting_sub_domain_origin_("https://subdomain.example.com") {
     command_line_ = scoped_command_line_.GetProcessCommandLine();
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
+    profile_testing_helper_.SetUp();
+#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
   }
 
   bool IsOriginAllowed(const GURL& origin) {
     return ProtectedMediaIdentifierPermissionContext::IsOriginAllowed(origin);
+  }
+
+  bool IsProtectedMediaIdentifierEnabled(Profile* profile) {
+    return ProtectedMediaIdentifierPermissionContext::
+        IsProtectedMediaIdentifierEnabled(profile);
   }
 
   GURL requesting_origin_;
@@ -28,6 +45,9 @@ class ProtectedMediaIdentifierPermissionContextTest : public testing::Test {
 
   base::test::ScopedCommandLine scoped_command_line_;
   raw_ptr<base::CommandLine> command_line_;
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
+  ProfileTestingHelper profile_testing_helper_;
+#endif
 };
 
 TEST_F(ProtectedMediaIdentifierPermissionContextTest,
@@ -72,3 +92,40 @@ TEST_F(ProtectedMediaIdentifierPermissionContextTest,
   // The request should no longer need to ask for permission
   ASSERT_TRUE(IsOriginAllowed(requesting_sub_domain_origin_));
 }
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
+TEST_F(ProtectedMediaIdentifierPermissionContextTest,
+       ProtectedMediaIdentifierOnDifferentProfiles) {
+  ASSERT_FALSE(IsProtectedMediaIdentifierEnabled(
+      profile_testing_helper_.incognito_profile()));
+
+  ASSERT_FALSE(IsProtectedMediaIdentifierEnabled(
+      profile_testing_helper_.guest_profile()));
+
+  ASSERT_TRUE(IsProtectedMediaIdentifierEnabled(
+      profile_testing_helper_.regular_profile()));
+}
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(IS_CHROMEOS)
+TEST_F(ProtectedMediaIdentifierPermissionContextTest,
+       ProtectedMediaIdentifierDisabledOnDevMode) {
+  command_line_->AppendSwitch(chromeos::switches::kSystemDevMode);
+
+  // The protected media identifier should not be enabled if the system is on
+  // dev mode.
+  ASSERT_FALSE(IsProtectedMediaIdentifierEnabled(
+      profile_testing_helper_.regular_profile()));
+}
+
+TEST_F(ProtectedMediaIdentifierPermissionContextTest,
+       ProtectedMediaIdentifierEnabledOnDevModeWithAshSwitch) {
+  command_line_->AppendSwitch(chromeos::switches::kSystemDevMode);
+  command_line_->AppendSwitch(switches::kAllowRAInDevMode);
+
+  // As long as `kAllowRAInDevMode` is appended, then even if system is on dev
+  // mode, the protected media identifier should be enabled.
+  ASSERT_TRUE(IsProtectedMediaIdentifierEnabled(
+      profile_testing_helper_.regular_profile()));
+}
+#endif  // BUILDFLAG(IS_CHROMEOS)

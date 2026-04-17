@@ -4,32 +4,34 @@
 
 #include "components/autofill/content/renderer/password_generation_agent.h"
 
+#include <algorithm>
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "base/auto_reset.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
-#include "base/ranges/algorithm.h"
+#include "base/memory/raw_ptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "components/autofill/content/renderer/form_autofill_util.h"
 #include "components/autofill/content/renderer/password_autofill_agent.h"
 #include "components/autofill/content/renderer/password_form_conversion_utils.h"
+#include "components/autofill/content/renderer/synchronous_form_cache.h"
 #include "components/autofill/core/common/autofill_switches.h"
 #include "components/autofill/core/common/form_data.h"
 #include "components/autofill/core/common/password_form_generation_data.h"
 #include "components/autofill/core/common/password_generation_util.h"
 #include "components/autofill/core/common/signatures.h"
-#include "components/password_manager/core/common/password_manager_features.h"
 #include "content/public/renderer/render_frame.h"
 #include "google_apis/gaia/gaia_urls.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/platform/web_security_origin.h"
-#include "third_party/blink/public/platform/web_vector.h"
 #include "third_party/blink/public/web/web_document.h"
+#include "third_party/blink/public/web/web_form_control_element.h"
 #include "third_party/blink/public/web/web_form_element.h"
 #include "third_party/blink/public/web/web_input_element.h"
 #include "third_party/blink/public/web/web_local_frame.h"
@@ -42,6 +44,8 @@ using blink::WebFormControlElement;
 using blink::WebFormElement;
 using blink::WebInputElement;
 using blink::WebLocalFrame;
+
+using enum blink::mojom::FormControlType;
 
 namespace autofill {
 
@@ -56,7 +60,7 @@ using Logger = ::autofill::SavePasswordProgressLogger;
 FieldRendererId FindConfirmationPasswordFieldId(
     const std::vector<WebFormControlElement>& control_elements,
     const WebFormControlElement& new_password) {
-  auto iter = base::ranges::find(control_elements, new_password);
+  auto iter = std::ranges::find(control_elements, new_password);
 
   if (iter == control_elements.end())
     return FieldRendererId();
@@ -64,18 +68,20 @@ FieldRendererId FindConfirmationPasswordFieldId(
   ++iter;
   for (; iter != control_elements.end(); ++iter) {
     const WebInputElement input_element = iter->DynamicTo<WebInputElement>();
-    if (!input_element.IsNull() && input_element.IsPasswordFieldForAutofill())
-      return FieldRendererId(input_element.UniqueRendererFormControlId());
+    if (input_element &&
+        input_element.FormControlTypeForAutofill() == kInputPassword) {
+      return form_util::GetFieldRendererId(input_element);
+    }
   }
   return FieldRendererId();
 }
 
 void CopyElementValueToOtherInputElements(
-    const WebInputElement* element,
-    std::vector<WebInputElement>* elements) {
-  for (WebInputElement& it : *elements) {
-    if (*element != it) {
-      it.SetAutofillValue(element->Value());
+    const WebInputElement& element,
+    std::vector<WebInputElement>& elements) {
+  for (WebInputElement& it : elements) {
+    if (element != it) {
+      it.SetAutofillValue(element.Value());
     }
     it.SetAutofillState(WebAutofillState::kAutofilled);
   }
@@ -132,6 +138,16 @@ class PasswordGenerationAgent::DeferringPasswordGenerationDriver
     DeferMsg(&mojom::PasswordGenerationDriver::AutomaticGenerationAvailable,
              password_generation_ui_data);
   }
+  void PresaveGeneratedPassword(const FormData& form_data,
+                                const std::u16string& password_value) override {
+    DeferMsg(&mojom::PasswordGenerationDriver::PresaveGeneratedPassword,
+             form_data, password_value);
+  }
+  void PasswordNoLongerGenerated(const FormData& form_data) override {
+    DeferMsg(&mojom::PasswordGenerationDriver::PasswordNoLongerGenerated,
+             form_data);
+  }
+#if !BUILDFLAG(IS_ANDROID)
   void ShowPasswordEditingPopup(const gfx::RectF& bounds,
                                 const FormData& form_data,
                                 FieldRendererId field_renderer_id,
@@ -143,23 +159,15 @@ class PasswordGenerationAgent::DeferringPasswordGenerationDriver
     DeferMsg(
         &mojom::PasswordGenerationDriver::PasswordGenerationRejectedByTyping);
   }
-  void PresaveGeneratedPassword(const FormData& form_data,
-                                const std::u16string& password_value) override {
-    DeferMsg(&mojom::PasswordGenerationDriver::PresaveGeneratedPassword,
-             form_data, password_value);
-  }
-  void PasswordNoLongerGenerated(const FormData& form_data) override {
-    DeferMsg(&mojom::PasswordGenerationDriver::PasswordNoLongerGenerated,
-             form_data);
-  }
   void FrameWasScrolled() override {
     DeferMsg(&mojom::PasswordGenerationDriver::FrameWasScrolled);
   }
   void GenerationElementLostFocus() override {
     DeferMsg(&mojom::PasswordGenerationDriver::GenerationElementLostFocus);
   }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
-  PasswordGenerationAgent* agent_ = nullptr;
+  raw_ptr<PasswordGenerationAgent> agent_ = nullptr;
   base::WeakPtrFactory<DeferringPasswordGenerationDriver> weak_ptr_factory_{
       this};
 };
@@ -200,10 +208,16 @@ struct PasswordGenerationAgent::GenerationItemInfo {
   // stats.
   bool password_edited_ = false;
 
+  // True if the user was editing a generated password, left that state by
+  // removing below `kMinimumLengthForEditedPassword` characters, but did not
+  // change focus or delete the password fully (in that case the field should
+  // remain revealed).
+  bool password_revealed_after_editing_ = false;
+
   // True if the generation popup was shown during this navigation. Used to
   // track UMA stats per page visit rather than per display, since the former
   // is more interesting.
-  // TODO(crbug.com/845458): Remove this or change the description of the
+  // TODO(crbug.com/40577440): Remove this or change the description of the
   // logged event as calling AutomaticgenerationStatusChanged will no longer
   // imply that a popup is shown. This could instead be logged with the
   // metrics collected on the browser process.
@@ -218,6 +232,11 @@ struct PasswordGenerationAgent::GenerationItemInfo {
   // due to the generated password being edited. It's used to suppress the fake
   // blur events coming from there.
   bool updating_other_password_fields_ = false;
+
+  // True if the user explicitly rejected the generation by clicking the cancel
+  // button. In this case, the generation popup should not be shown again in
+  // this navigation unless explicitly triggered from the context menu.
+  bool generation_rejected_ = false;
 };
 
 PasswordGenerationAgent::PasswordGenerationAgent(
@@ -234,7 +253,10 @@ PasswordGenerationAgent::PasswordGenerationAgent(
   password_agent_->SetPasswordGenerationAgent(this);
 }
 
-PasswordGenerationAgent::~PasswordGenerationAgent() = default;
+PasswordGenerationAgent::~PasswordGenerationAgent() {
+  // Reset the pointer to `this` to avoid its dangling.
+  password_agent_->SetPasswordGenerationAgent(nullptr);
+}
 
 void PasswordGenerationAgent::BindPendingReceiver(
     mojo::PendingAssociatedReceiver<mojom::PasswordGenerationAgent>
@@ -262,20 +284,19 @@ void PasswordGenerationAgent::DidCommitProvisionalLoad(
     }
   }
   current_generation_item_.reset();
-  last_focused_password_element_.Reset();
   generation_enabled_fields_.clear();
 }
 
 void PasswordGenerationAgent::DidChangeScrollOffset() {
+#if !BUILDFLAG(IS_ANDROID)
   if (!current_generation_item_)
     return;
   GetPasswordGenerationDriver().FrameWasScrolled();
+#endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 void PasswordGenerationAgent::OnDestruct() {
   receiver_.reset();
-  base::SingleThreadTaskRunner::GetCurrentDefault()->DeleteSoon(FROM_HERE,
-                                                                this);
 }
 
 void PasswordGenerationAgent::OnFieldAutofilled(
@@ -302,7 +323,7 @@ bool PasswordGenerationAgent::IsPrerendering() const {
 
 void PasswordGenerationAgent::PreviewGenerationSuggestion(
     const std::u16string& password) {
-  DCHECK(current_generation_item_);
+  CHECK(current_generation_item_);
 
   for (auto& password_field : current_generation_item_->password_elements_) {
     PreviewGeneratedValue(password_field,
@@ -310,55 +331,61 @@ void PasswordGenerationAgent::PreviewGenerationSuggestion(
   }
 }
 
-bool PasswordGenerationAgent::DidClearGenerationSuggestion(
-    const WebFormControlElement& control_element) {
-  const WebInputElement element = control_element.DynamicTo<WebInputElement>();
-  if (element.IsNull() || !current_generation_item_ ||
-      element != current_generation_item_->generation_element_)
-    return false;
+void PasswordGenerationAgent::ClearPreviewedForm() {
+  if (!current_generation_item_) {
+    return;
+  }
 
-  bool suggestion_cleared = false;
   for (auto& password_field : current_generation_item_->password_elements_) {
     if (password_field.SuggestedValue().IsEmpty())
       continue;
 
     ClearPreviewedValue(password_field);
-    suggestion_cleared = true;
   }
-
-  return suggestion_cleared;
 }
 
 void PasswordGenerationAgent::GeneratedPasswordAccepted(
     const std::u16string& password) {
-  // static cast is workaround for linker error.
-  DCHECK_LE(static_cast<size_t>(kMinimumLengthForEditedPassword),
-            password.size());
-  DCHECK(current_generation_item_);
+  // Check that the navigation in between didn't reset the state.
+  if (!current_generation_item_) {
+    return;
+  }
+  CHECK(!password.empty());
+  CHECK_LE(kMinimumLengthForEditedPassword, password.size());
   current_generation_item_->password_is_generated_ = true;
   current_generation_item_->password_edited_ = false;
   password_generation::LogPasswordGenerationEvent(
       password_generation::PASSWORD_ACCEPTED);
   LogMessage(Logger::STRING_GENERATION_RENDERER_GENERATED_PASSWORD_ACCEPTED);
+
+  // Preview needs to be cleared before filling to be removed correctly.
+  password_agent_->autofill_agent().ClearPreviewedForm();
+
   for (auto& password_element : current_generation_item_->password_elements_) {
     base::AutoReset<bool> auto_reset_update_confirmation_password(
         &current_generation_item_->updating_other_password_fields_, true);
     password_element.SetAutofillValue(blink::WebString::FromUTF16(password));
     // setAutofillValue() above may have resulted in JavaScript closing the
     // frame.
-    if (!render_frame())
+    if (!render_frame()) {
       return;
+    }
+    // crbug.com/1467893: JS can clear the generated password. In this case
+    // consider filling unsuccessful and don't presave the password.
+    if (password_element.Value().IsEmpty()) {
+      return;
+    }
     password_agent_->TrackAutofilledElement(password_element);
-    // Advance focus to the next input field. We assume password fields in
-    // an account creation form are always adjacent.
-    render_frame()->GetWebView()->AdvanceFocus(false);
   }
+  CHECK(base::Contains(current_generation_item_->password_elements_,
+                       current_generation_item_->generation_element_));
 
-  std::unique_ptr<FormData> presaved_form_data(CreateFormDataToPresave());
-  std::u16string generated_password =
+  std::optional<FormData> presaved_form_data =
+      CreateFormDataToPresave(/*form_cache=*/{});
+  const std::u16string generated_password =
       current_generation_item_->generation_element_.Value().Utf16();
   if (presaved_form_data) {
-    DCHECK_NE(std::u16string(), generated_password);
+    CHECK(!generated_password.empty());
     GetPasswordGenerationDriver().PresaveGeneratedPassword(*presaved_form_data,
                                                            generated_password);
   }
@@ -370,36 +397,53 @@ void PasswordGenerationAgent::GeneratedPasswordAccepted(
     // has changed. Without this we will overwrite the generated
     // password with an Autofilled password when saving.
     // https://crbug.com/493455
-    password_agent_->UpdateStateForTextChange(password_element);
+    password_agent_->autofill_agent().UpdateStateForTextChange(
+        password_element, FieldPropertiesFlags::kUserTyped, /*form_cache=*/{});
   }
 }
 
-std::unique_ptr<FormData> PasswordGenerationAgent::CreateFormDataToPresave() {
+void PasswordGenerationAgent::GeneratedPasswordRejected() {
+  if (current_generation_item_) {
+    current_generation_item_->generation_rejected_ = true;
+  }
+}
+
+void PasswordGenerationAgent::FocusNextFieldAfterPasswords() {
+  if (!current_generation_item_ || !render_frame()) {
+    return;
+  }
+
+  for (const WebInputElement& password_element :
+       current_generation_item_->password_elements_) {
+    if (password_element ==
+        password_agent_->last_queried_element().DynamicTo<WebInputElement>()) {
+      render_frame()->GetWebView()->AdvanceFocus(false);
+    }
+  }
+}
+
+std::optional<FormData> PasswordGenerationAgent::CreateFormDataToPresave(
+    const SynchronousFormCache& form_cache) {
   DCHECK(current_generation_item_);
-  DCHECK(!current_generation_item_->generation_element_.IsNull());
+  DCHECK(current_generation_item_->generation_element_);
   // Since the form for presaving should match a form in the browser, create it
   // with the same algorithm (to match html attributes, action, etc.).
   std::unique_ptr<FormData> form_data;
-  const auto& form = current_generation_item_->generation_element_.Form();
-  return (form.IsNull() ? password_agent_->GetFormDataFromUnownedInputElements()
-                        : password_agent_->GetFormDataFromWebForm(form));
+  WebFormElement form =
+      current_generation_item_->generation_element_.GetOwningFormForAutofill();
+  return form
+             ? password_agent_->GetFormDataFromWebForm(form, form_cache)
+             : password_agent_->GetFormDataFromUnownedInputElements(form_cache);
 }
 
 void PasswordGenerationAgent::FoundFormEligibleForGeneration(
     const PasswordFormGenerationData& form) {
   generation_enabled_fields_[form.new_password_renderer_id] = form;
 
-  // Mark the input element as |has_been_password_for_autofill_|.
   if (mark_generation_element_) {
-    if (!render_frame())
-      return;
-    WebDocument doc = render_frame()->GetWebFrame()->GetDocument();
-    if (doc.IsNull())
-      return;
     WebFormControlElement new_password_input =
-        form_util::FindFormControlElementByUniqueRendererId(
-            doc, form.new_password_renderer_id);
-    if (!new_password_input.IsNull()) {
+        form_util::GetFormControlByRendererId(form.new_password_renderer_id);
+    if (new_password_input) {
       // Mark the input element with renderer id
       // |form.new_password_renderer_id|.
       new_password_input.SetAttribute("password_creation_field", "1");
@@ -414,67 +458,76 @@ void PasswordGenerationAgent::TriggeredGeneratePassword(
     // If the field is not |type=password|, the list of suggestions
     // should not be populated with passwords to avoid filling them in a
     // clear-text field.
-    // |IsPasswordFieldForAutofill()| is deliberately not used.
+    // `FormControlTypeForAutofill()` is deliberately not used.
     bool is_generation_element_password_type =
-        current_generation_item_->generation_element_.IsPasswordField();
+        current_generation_item_->generation_element_
+            .FormControlType()  // nocheck
+        == kInputPassword;
     password_generation::PasswordGenerationUIData password_generation_ui_data(
-        render_frame()->ElementBoundsInWindow(
-            current_generation_item_->generation_element_),
+        gfx::RectF(render_frame()->ConvertViewportToWindow(
+            current_generation_item_->generation_element_.BoundsInWidget())),
         current_generation_item_->generation_element_.MaxLength(),
         current_generation_item_->generation_element_.NameForAutofill().Utf16(),
-        current_generation_item_->generation_element_.Value().Utf16(),
-        FieldRendererId(current_generation_item_->generation_element_
-                            .UniqueRendererFormControlId()),
+        form_util::GetFieldRendererId(
+            current_generation_item_->generation_element_),
         is_generation_element_password_type,
         GetTextDirectionForElement(
             current_generation_item_->generation_element_),
-        current_generation_item_->form_data_);
+        current_generation_item_->form_data_,
+        current_generation_item_->generation_rejected_);
     std::move(callback).Run(std::move(password_generation_ui_data));
     current_generation_item_->generation_popup_shown_ = true;
   } else {
-    std::move(callback).Run(absl::nullopt);
+    std::move(callback).Run(std::nullopt);
   }
 }
 
 bool PasswordGenerationAgent::SetUpTriggeredGeneration() {
-  if (last_focused_password_element_.IsNull() || !render_frame())
+  if (!render_frame()) {
     return false;
+  }
+  const WebInputElement last_focused_password_element =
+      password_agent_->last_queried_element().DynamicTo<WebInputElement>();
+  if (!last_focused_password_element ||
+      last_focused_password_element.IsReadOnly()) {
+    return false;
+  }
 
-  FieldRendererId last_focused_password_element_id(
-      last_focused_password_element_.UniqueRendererFormControlId());
+  FieldRendererId last_focused_password_element_id =
+      form_util::GetFieldRendererId(last_focused_password_element);
 
-  bool is_automatic_generation_available = base::Contains(
-      generation_enabled_fields_, last_focused_password_element_id);
+  bool is_automatic_generation_available = false;
+  auto it = generation_enabled_fields_.find(last_focused_password_element_id);
 
-  if (!is_automatic_generation_available) {
-    WebFormElement form = last_focused_password_element_.Form();
-    std::vector<WebFormControlElement> control_elements;
-    if (!form.IsNull()) {
-      control_elements = form_util::ExtractAutofillableElementsInForm(form);
-    } else {
-      const WebLocalFrame& frame = *render_frame()->GetWebFrame();
-      blink::WebDocument doc = frame.GetDocument();
-      if (doc.IsNull())
-        return false;
-      control_elements = form_util::GetUnownedFormFieldElements(doc);
-    }
-
+  if (it != generation_enabled_fields_.end()) {
+    is_automatic_generation_available = true;
     MaybeCreateCurrentGenerationItem(
-        last_focused_password_element_,
-        FindConfirmationPasswordFieldId(control_elements,
-                                        last_focused_password_element_));
+        last_focused_password_element,
+        it->second.confirmation_password_renderer_id, /*form_cache=*/{});
   } else {
-    auto it = generation_enabled_fields_.find(last_focused_password_element_id);
+    blink::WebDocument document =
+        render_frame() ? render_frame()->GetWebFrame()->GetDocument()
+                       : WebDocument();
+    if (!document) {
+      return false;
+    }
+    WebFormElement form =
+        last_focused_password_element.GetOwningFormForAutofill();
+    std::vector<WebFormControlElement> control_elements =
+        form_util::GetOwnedAutofillableFormControls(document, form);
+
     MaybeCreateCurrentGenerationItem(
-        last_focused_password_element_,
-        it->second.confirmation_password_renderer_id);
+        last_focused_password_element,
+        FindConfirmationPasswordFieldId(control_elements,
+                                        last_focused_password_element),
+        /*form_cache=*/{});
   }
 
   if (!current_generation_item_)
     return false;
 
   if (current_generation_item_->generation_element_ !=
-      last_focused_password_element_) {
+      last_focused_password_element) {
     return false;
   }
 
@@ -483,29 +536,16 @@ bool PasswordGenerationAgent::SetUpTriggeredGeneration() {
   return true;
 }
 
-bool PasswordGenerationAgent::FocusedNodeHasChanged(
-    const blink::WebNode& node) {
-  if (node.IsNull() || !node.IsElementNode()) {
-    return false;
-  }
+bool PasswordGenerationAgent::ShowPasswordGenerationSuggestions(
+    const WebInputElement& element,
+    const SynchronousFormCache& form_cache) {
+  CHECK(element);
 
-  const blink::WebElement web_element = node.To<blink::WebElement>();
-  if (!web_element.GetDocument().GetFrame()) {
-    return false;
-  }
-
-  const WebInputElement element = web_element.DynamicTo<WebInputElement>();
-  if (element.IsNull())
-    return false;
-
-  if (element.IsPasswordFieldForAutofill())
-    last_focused_password_element_ = element;
-
-  auto it = generation_enabled_fields_.find(
-      FieldRendererId(element.UniqueRendererFormControlId()));
+  auto it =
+      generation_enabled_fields_.find(form_util::GetFieldRendererId(element));
   if (it != generation_enabled_fields_.end()) {
     MaybeCreateCurrentGenerationItem(
-        element, it->second.confirmation_password_renderer_id);
+        element, it->second.confirmation_password_renderer_id, form_cache);
   }
   if (!current_generation_item_ ||
       element != current_generation_item_->generation_element_) {
@@ -513,33 +553,30 @@ bool PasswordGenerationAgent::FocusedNodeHasChanged(
   }
 
   if (current_generation_item_->password_is_generated_) {
-    if (current_generation_item_->generation_element_.Value().length() <
-        kMinimumLengthForEditedPassword) {
+    size_t password_length =
+        current_generation_item_->generation_element_.Value().length();
+    if (password_length < kMinimumLengthForEditedPassword) {
+      // Password is too short to be considered generated.
       PasswordNoLongerGenerated();
-      MaybeOfferAutomaticGeneration();
-      if (current_generation_item_->generation_element_.Value().IsEmpty())
+      if (password_length == 0) {
         current_generation_item_->generation_element_.SetShouldRevealPassword(
             false);
-    } else {
-      current_generation_item_->generation_element_.SetShouldRevealPassword(
-          true);
-      ShowEditingPopup();
+      }
+      return MaybeOfferAutomaticGeneration();
     }
+    current_generation_item_->generation_element_.SetShouldRevealPassword(true);
+#if !BUILDFLAG(IS_ANDROID)
+    ShowEditingPopup(form_cache);
+#endif  // !BUILDFLAG(IS_ANDROID)
     return true;
   }
 
-  // Assume that if the password field has less than or equal to
-  // `kMaximumCharsForGenerationOffer` characters, then the user is not finished
+  // Assume that if the password field has less than
+  // |kMaximumCharsForGenerationOffer| characters then the user is not finished
   // typing their password and display the password suggestion.
-  // With `kPasswordStrengthIndicator` enabled the decision to display the
-  // suggestion needs to be calculated in the browser process based on the
-  // strength of the typed password.
   if (!element.IsReadOnly() && element.IsEnabled() &&
-      (element.Value().length() <= kMaximumCharsForGenerationOffer ||
-       base::FeatureList::IsEnabled(
-           password_manager::features::kPasswordStrengthIndicator))) {
-    MaybeOfferAutomaticGeneration();
-    return true;
+      element.Value().length() <= kMaximumCharsForGenerationOffer) {
+    return MaybeOfferAutomaticGeneration();
   }
 
   return false;
@@ -547,45 +584,72 @@ bool PasswordGenerationAgent::FocusedNodeHasChanged(
 
 void PasswordGenerationAgent::DidEndTextFieldEditing(
     const blink::WebInputElement& element) {
-  if (!element.IsNull() && current_generation_item_ &&
+  if (element && current_generation_item_ &&
       element == current_generation_item_->generation_element_) {
+#if !BUILDFLAG(IS_ANDROID)
     GetPasswordGenerationDriver().GenerationElementLostFocus();
+#endif  // !BUILDFLAG(IS_ANDROID)
+    current_generation_item_->password_revealed_after_editing_ = false;
+    current_generation_item_->generation_element_.SetShouldRevealPassword(
+        false);
+  }
+}
+
+void PasswordGenerationAgent::TextFieldCleared(
+    const blink::WebInputElement& element) {
+  if (current_generation_item_ &&
+      current_generation_item_->generation_element_ == element) {
+    if (current_generation_item_->password_is_generated_) {
+      PasswordNoLongerGenerated();
+    }
+    current_generation_item_->password_revealed_after_editing_ = false;
     current_generation_item_->generation_element_.SetShouldRevealPassword(
         false);
   }
 }
 
 bool PasswordGenerationAgent::TextDidChangeInTextField(
-    const WebInputElement& element) {
-  if (!(current_generation_item_ &&
-        current_generation_item_->generation_element_ == element)) {
+    const WebInputElement& element,
+    const SynchronousFormCache& form_cache) {
+  if (!current_generation_item_ ||
+      current_generation_item_->generation_element_ != element) {
     // Presave the username if it has been changed.
     if (current_generation_item_ &&
-        current_generation_item_->password_is_generated_ && !element.IsNull() &&
-        element.Form() ==
-            current_generation_item_->generation_element_.Form()) {
-      std::unique_ptr<FormData> presaved_form_data(CreateFormDataToPresave());
-      std::u16string generated_password =
+        current_generation_item_->password_is_generated_ && element &&
+        element.GetOwningFormForAutofill() ==
+            current_generation_item_->generation_element_
+                .GetOwningFormForAutofill()) {
+      const std::u16string generated_password =
           current_generation_item_->generation_element_.Value().Utf16();
-      if (presaved_form_data) {
-        GetPasswordGenerationDriver().PresaveGeneratedPassword(
-            *presaved_form_data, generated_password);
+      if (generated_password.empty()) {
+        // JS cleared the generated password in the meantime. Consider the user
+        // left the generation state.
+        PasswordNoLongerGenerated();
+      } else {
+        std::optional<FormData> presaved_form_data =
+            CreateFormDataToPresave(form_cache);
+        if (presaved_form_data) {
+          GetPasswordGenerationDriver().PresaveGeneratedPassword(
+              *presaved_form_data, generated_password);
+        }
       }
     }
     return false;
   }
 
-  if (element.Value().IsEmpty()) {
-    current_generation_item_->generation_element_.SetShouldRevealPassword(
-        false);
-  }
-
-  if (!current_generation_item_->password_is_generated_ &&
-      element.Value().length() > kMaximumCharsForGenerationOffer &&
-      !base::FeatureList::IsEnabled(
-          password_manager::features::kPasswordStrengthIndicator)) {
-    // User has rejected the feature and has started typing a password.
-    GenerationRejectedByTyping();
+  if (!current_generation_item_->password_is_generated_) {
+    if (element.Value().length() == 0) {
+      MaybeOfferAutomaticGeneration();
+    } else {
+      // User has rejected the feature and has started typing a password.
+#if !BUILDFLAG(IS_ANDROID)
+      GetPasswordGenerationDriver().PasswordGenerationRejectedByTyping();
+#endif  // !BUILDFLAG(IS_ANDROID)
+      // If the user is still modifying the field after leaving the editing
+      // state without fully clearing, it should remain revealed.
+      current_generation_item_->generation_element_.SetShouldRevealPassword(
+          current_generation_item_->password_revealed_after_editing_);
+    }
   } else {
     const bool leave_editing_state =
         current_generation_item_->password_is_generated_ &&
@@ -599,6 +663,7 @@ bool PasswordGenerationAgent::TextDidChangeInTextField(
     if (leave_editing_state) {
       // Tell the browser that the state isn't "editing" anymore. The browser
       // should hide the editing prompt if it wasn't replaced above.
+      current_generation_item_->password_revealed_after_editing_ = true;
       PasswordNoLongerGenerated();
     } else if (current_generation_item_->password_is_generated_) {
       current_generation_item_->password_edited_ = true;
@@ -606,11 +671,17 @@ bool PasswordGenerationAgent::TextDidChangeInTextField(
           &current_generation_item_->updating_other_password_fields_, true);
       // Mirror edits to any confirmation password fields.
       CopyElementValueToOtherInputElements(
-          &element, &current_generation_item_->password_elements_);
-      std::unique_ptr<FormData> presaved_form_data(CreateFormDataToPresave());
+          element, current_generation_item_->password_elements_);
+      // Even though `form_cache` is available, we previously ran
+      // `CopyElementValueToOtherInputElements()` which triggers
+      // `WebFormControlElement::SetValue()`, dispatching events that might
+      // change the DOM. Therefore `form_cache` may be outdated.
+      std::optional<FormData> presaved_form_data =
+          CreateFormDataToPresave(/*form_cache=*/{});
       std::u16string generated_password =
           current_generation_item_->generation_element_.Value().Utf16();
       if (presaved_form_data) {
+        CHECK(!generated_password.empty());
         GetPasswordGenerationDriver().PresaveGeneratedPassword(
             *presaved_form_data, generated_password);
       }
@@ -619,60 +690,75 @@ bool PasswordGenerationAgent::TextDidChangeInTextField(
     // Notify `password_agent_` of text changes to the other confirmation
     // password fields.
     for (const auto& password_element :
-         current_generation_item_->password_elements_)
-      password_agent_->UpdateStateForTextChange(password_element);
+         current_generation_item_->password_elements_) {
+      // `PasswordNoLongerGenerated()` and
+      // `CopyElementValueToOtherInputElements()` both call
+      // `SetAutofillValue()`, dispatching events that might modify the DOM,
+      // making `form_cache` outdated, which is why it must not used in this
+      // call.
+      password_agent_->autofill_agent().UpdateStateForTextChange(
+          password_element, FieldPropertiesFlags::kUserTyped,
+          /*form_cache=*/{});
+    }
   }
   return true;
 }
 
-void PasswordGenerationAgent::MaybeOfferAutomaticGeneration() {
-  // TODO(crbug.com/852309): Add this check to the generation element class.
-  if (!current_generation_item_->is_manually_triggered_) {
-    AutomaticGenerationAvailable();
+bool PasswordGenerationAgent::MaybeOfferAutomaticGeneration() {
+  // TODO(crbug.com/40580560): Add this check to the generation element class.
+  if (current_generation_item_->is_manually_triggered_) {
+    return false;
   }
+  AutomaticGenerationAvailable();
+  return true;
 }
 
 void PasswordGenerationAgent::AutomaticGenerationAvailable() {
   if (!render_frame())
     return;
   DCHECK(current_generation_item_);
-  DCHECK(!current_generation_item_->generation_element_.IsNull());
+  DCHECK(current_generation_item_->generation_element_);
+
   LogMessage(Logger::STRING_GENERATION_RENDERER_AUTOMATIC_GENERATION_AVAILABLE);
   // If the field is not |type=password|, the list of suggestions
   // should not be populated with passwordS to avoid filling them in a
   // clear-text field.
-  // |IsPasswordFieldForAutofill()| is deliberately not used.
+  // `FormControlTypeForAutofill()` is deliberately not used.
   bool is_generation_element_password_type =
-      current_generation_item_->generation_element_.IsPasswordField();
+      current_generation_item_->generation_element_
+          .FormControlType()  // nocheck
+      == kInputPassword;
   password_generation::PasswordGenerationUIData password_generation_ui_data(
-      render_frame()->ElementBoundsInWindow(
-          current_generation_item_->generation_element_),
+      gfx::RectF(render_frame()->ConvertViewportToWindow(
+          current_generation_item_->generation_element_.BoundsInWidget())),
       current_generation_item_->generation_element_.MaxLength(),
       current_generation_item_->generation_element_.NameForAutofill().Utf16(),
-      current_generation_item_->generation_element_.Value().Utf16(),
-      FieldRendererId(current_generation_item_->generation_element_
-                          .UniqueRendererFormControlId()),
+      form_util::GetFieldRendererId(
+          current_generation_item_->generation_element_),
       is_generation_element_password_type,
       GetTextDirectionForElement(current_generation_item_->generation_element_),
-      current_generation_item_->form_data_);
+      current_generation_item_->form_data_,
+      current_generation_item_->generation_rejected_);
   current_generation_item_->generation_popup_shown_ = true;
   GetPasswordGenerationDriver().AutomaticGenerationAvailable(
       password_generation_ui_data);
 }
 
-void PasswordGenerationAgent::ShowEditingPopup() {
+#if !BUILDFLAG(IS_ANDROID)
+void PasswordGenerationAgent::ShowEditingPopup(
+    const SynchronousFormCache& form_cache) {
   if (!render_frame())
     return;
 
-  gfx::RectF bounding_box = render_frame()->ElementBoundsInWindow(
-      current_generation_item_->generation_element_);
+  gfx::RectF bounding_box(render_frame()->ConvertViewportToWindow(
+      current_generation_item_->generation_element_.BoundsInWidget()));
 
-  std::unique_ptr<FormData> form_data = CreateFormDataToPresave();
+  std::optional<FormData> form_data = CreateFormDataToPresave(form_cache);
   DCHECK(form_data);
 
-  FieldRendererId generation_element_renderer_id(
-      current_generation_item_->generation_element_
-          .UniqueRendererFormControlId());
+  FieldRendererId generation_element_renderer_id =
+      form_util::GetFieldRendererId(
+          current_generation_item_->generation_element_);
   std::u16string password_value =
       current_generation_item_->generation_element_.Value().Utf16();
 
@@ -680,10 +766,7 @@ void PasswordGenerationAgent::ShowEditingPopup() {
       bounding_box, *form_data, generation_element_renderer_id, password_value);
   current_generation_item_->editing_popup_shown_ = true;
 }
-
-void PasswordGenerationAgent::GenerationRejectedByTyping() {
-  GetPasswordGenerationDriver().PasswordGenerationRejectedByTyping();
-}
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 void PasswordGenerationAgent::PasswordNoLongerGenerated() {
   DCHECK(current_generation_item_);
@@ -691,8 +774,10 @@ void PasswordGenerationAgent::PasswordNoLongerGenerated() {
   // Do not treat the password as generated, either here or in the browser.
   current_generation_item_->password_is_generated_ = false;
   current_generation_item_->password_edited_ = false;
-  for (WebInputElement& password : current_generation_item_->password_elements_)
+  for (WebInputElement& password :
+       current_generation_item_->password_elements_) {
     password.SetAutofillState(WebAutofillState::kNotFilled);
+  }
   password_generation::LogPasswordGenerationEvent(
       password_generation::PASSWORD_DELETED);
   // Clear all other password fields.
@@ -703,7 +788,11 @@ void PasswordGenerationAgent::PasswordNoLongerGenerated() {
     if (current_generation_item_->generation_element_ != element)
       element.SetAutofillValue(blink::WebString());
   }
-  std::unique_ptr<FormData> presaved_form_data(CreateFormDataToPresave());
+  // The above call to SetAutofillValue() dispatches events that may change the
+  // DOM. Therefore, any cached FormData may be outdated, and we must not use a
+  // form cache.
+  std::optional<FormData> presaved_form_data =
+      CreateFormDataToPresave(/*form_cache=*/{});
   if (presaved_form_data)
     GetPasswordGenerationDriver().PasswordNoLongerGenerated(
         *presaved_form_data);
@@ -711,7 +800,8 @@ void PasswordGenerationAgent::PasswordNoLongerGenerated() {
 
 void PasswordGenerationAgent::MaybeCreateCurrentGenerationItem(
     WebInputElement generation_element,
-    FieldRendererId confirmation_password_renderer_id) {
+    FieldRendererId confirmation_password_renderer_id,
+    const SynchronousFormCache& form_cache) {
   // Do not create |current_generation_item_| if it already is created for
   // |generation_element| or the user accepted generated password. So if the
   // user accepted the generated password, generation is not offered on any
@@ -721,10 +811,11 @@ void PasswordGenerationAgent::MaybeCreateCurrentGenerationItem(
        current_generation_item_->password_is_generated_))
     return;
 
-  std::unique_ptr<FormData> form_data =
-      generation_element.Form().IsNull()
-          ? password_agent_->GetFormDataFromUnownedInputElements()
-          : password_agent_->GetFormDataFromWebForm(generation_element.Form());
+  WebFormElement form_element = generation_element.GetOwningFormForAutofill();
+  std::optional<FormData> form_data =
+      form_element
+          ? password_agent_->GetFormDataFromWebForm(form_element, form_cache)
+          : password_agent_->GetFormDataFromUnownedInputElements(form_cache);
 
   if (!form_data)
     return;
@@ -732,19 +823,19 @@ void PasswordGenerationAgent::MaybeCreateCurrentGenerationItem(
   std::vector<blink::WebInputElement> passwords = {generation_element};
 
   WebFormControlElement confirmation_password =
-      form_util::FindFormControlElementByUniqueRendererId(
-          generation_element.GetDocument(), confirmation_password_renderer_id);
+      form_util::GetFormControlByRendererId(confirmation_password_renderer_id);
 
-  if (!confirmation_password.IsNull()) {
+  if (confirmation_password) {
     WebInputElement input = confirmation_password.DynamicTo<WebInputElement>();
-    if (!input.IsNull())
+    if (input) {
       passwords.push_back(input);
+    }
   }
 
   current_generation_item_ = std::make_unique<GenerationItemInfo>(
       generation_element, std::move(*form_data), std::move(passwords));
 
-  generation_element.SetHasBeenPasswordField();
+  generation_element.MaybeSetHasBeenPasswordField();
 
   generation_element.SetAttribute("aria-autocomplete", "list");
 }

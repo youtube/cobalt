@@ -4,6 +4,8 @@
 
 #include "ash/webui/eche_app_ui/launch_app_helper.h"
 
+#include <variant>
+
 #include "ash/constants/notifier_catalogs.h"
 #include "ash/public/cpp/system/toast_data.h"
 #include "ash/public/cpp/system/toast_manager.h"
@@ -30,12 +32,12 @@ constexpr base::TimeDelta kPackageSetResetFrequency = base::Days(1);
 
 LaunchAppHelper::NotificationInfo::NotificationInfo(
     Category category,
-    absl::variant<NotificationType, mojom::WebNotificationType> type)
+    std::variant<NotificationType, mojom::WebNotificationType> type)
     : category_(category), type_(type) {
-  DCHECK(nullptr != absl::get_if<NotificationType>(&type)
+  DCHECK(nullptr != std::get_if<NotificationType>(&type)
              ? category == Category::kNative
              : category == Category::kWebUI);
-  DCHECK(nullptr != absl::get_if<mojom::WebNotificationType>(&type)
+  DCHECK(nullptr != std::get_if<mojom::WebNotificationType>(&type)
              ? category == Category::kWebUI
              : category == Category::kNative);
 }
@@ -77,8 +79,8 @@ bool LaunchAppHelper::IsScreenLockRequired() const {
 }
 
 void LaunchAppHelper::ShowNotification(
-    const absl::optional<std::u16string>& title,
-    const absl::optional<std::u16string>& message,
+    const std::optional<std::u16string>& title,
+    const std::optional<std::u16string>& message,
     std::unique_ptr<NotificationInfo> info) const {
   launch_notification_function_.Run(title, message, std::move(info));
 }
@@ -94,10 +96,10 @@ void LaunchAppHelper::ShowToast(const std::u16string& text) const {
 }
 
 void LaunchAppHelper::LaunchEcheApp(
-    absl::optional<int64_t> notification_id,
+    std::optional<int64_t> notification_id,
     const std::string& package_name,
     const std::u16string& visible_name,
-    const absl::optional<int64_t>& user_id,
+    const std::optional<int64_t>& user_id,
     const gfx::Image& icon,
     const std::u16string& phone_name,
     AppsLaunchInfoProvider* apps_launch_info_provider) {

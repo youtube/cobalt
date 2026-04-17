@@ -12,7 +12,9 @@
 #include "components/viz/common/quads/solid_color_draw_quad.h"
 #include "components/viz/service/display/display_resource_provider.h"
 #include "components/viz/service/display/output_surface.h"
+#include "components/viz/service/display/overlay_candidate_factory.h"
 #include "ui/gfx/geometry/rect_conversions.h"
+#include "ui/gfx/geometry/rect_f.h"
 
 namespace viz {
 
@@ -34,22 +36,10 @@ bool OverlayProcessorMac::IsOverlaySupported() const {
   return true;
 }
 
-gfx::Rect OverlayProcessorMac::GetPreviousFrameOverlaysBoundingRect() const {
-  // This function's return value is used to determine the range of quads
-  // produced by surface aggregation. We use the quads to generate our CALayer
-  // tree every frame, and we use the quads that didn't change. For that
-  // reason, always return the full frame.
-  return previous_frame_full_bounding_rect_;
-}
-
 gfx::Rect OverlayProcessorMac::GetAndResetOverlayDamage() {
   gfx::Rect result = ca_overlay_damage_rect_;
   ca_overlay_damage_rect_ = gfx::Rect();
   return result;
-}
-
-void OverlayProcessorMac::SetIsVideoCaptureEnabled(bool enabled) {
-  ca_layer_overlay_processor_->SetIsVideoCaptureEnabled(enabled);
 }
 
 void OverlayProcessorMac::ProcessForOverlays(
@@ -69,7 +59,6 @@ void OverlayProcessorMac::ProcessForOverlays(
 
   // Clear to get ready to handle output surface as overlay.
   output_surface_already_handled_ = false;
-  previous_frame_full_bounding_rect_ = render_pass->output_rect;
 
   // We could have surfaceless overlay but not ca overlay system on. In this
   // case we would still have the OutputSurfaceOverlayPlane.
@@ -84,10 +73,9 @@ void OverlayProcessorMac::ProcessForOverlays(
     // anymore).
     output_surface_already_handled_ = true;
 
-    // Set |last_overlay_damage_| to be everything, so that the next
-    // frame that we draw to the output surface will do a full re-draw.
+    // Set |ca_overlay_damage_rect_| to be everything, so that the next
+    // composite that we draw to the output surface will do a full re-draw.
     ca_overlay_damage_rect_ = render_pass->output_rect;
-    previous_frame_full_bounding_rect_ = ca_overlay_damage_rect_;
 
     // Everything in |render_pass->quad_list| has been moved over to
     // |candidates|. Ideally we would clear |render_pass->quad_list|, but some
@@ -95,15 +83,23 @@ void OverlayProcessorMac::ProcessForOverlays(
     // drawing the root RenderPass, we set |damage_rect| to be empty.
     *damage_rect = gfx::Rect();
   } else {
+    OverlayCandidateFactory::OverlayContext context;
+    context.supports_mask_filter = true;
+    const OverlayCandidateFactory factory(
+        render_pass, resource_provider, &surface_damage_rect_list,
+        &output_color_matrix,
+        output_surface_plane ? output_surface_plane->display_rect
+                             : gfx::RectF(),
+        &render_pass_filters, context);
     ca_layer_overlay_processor_->PutForcedOverlayContentIntoUnderlays(
         resource_provider, render_pass, gfx::RectF(render_pass->output_rect),
         &render_pass->quad_list, render_pass_filters,
-        render_pass_backdrop_filters, candidates);
+        render_pass_backdrop_filters, candidates, factory);
   }
 }
 
 void OverlayProcessorMac::AdjustOutputSurfaceOverlay(
-    absl::optional<OutputSurfaceOverlayPlane>* output_surface_plane) {
+    std::optional<OutputSurfaceOverlayPlane>* output_surface_plane) {
   if (!output_surface_plane->has_value())
     return;
 

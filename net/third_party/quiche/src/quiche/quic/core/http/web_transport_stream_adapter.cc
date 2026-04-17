@@ -4,20 +4,44 @@
 
 #include "quiche/quic/core/http/web_transport_stream_adapter.h"
 
+#include <cstddef>
+#include <limits>
+#include <optional>
+#include <string>
+#include <utility>
+
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
+#include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/http/web_transport_http3.h"
 #include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_session.h"
+#include "quiche/quic/core/quic_stream.h"
+#include "quiche/quic/core/quic_stream_priority.h"
+#include "quiche/quic/core/quic_stream_sequencer.h"
 #include "quiche/quic/core/quic_types.h"
-#include "quiche/common/platform/api/quiche_mem_slice.h"
+#include "quiche/quic/core/web_transport_interface.h"
+#include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
-#include "quiche/common/quiche_mem_slice_storage.h"
+#include "quiche/common/quiche_mem_slice.h"
+#include "quiche/common/quiche_stream.h"
+#include "quiche/common/vectorized_io_utils.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace quic {
 
 WebTransportStreamAdapter::WebTransportStreamAdapter(
-    QuicSession* session, QuicStream* stream, QuicStreamSequencer* sequencer)
-    : session_(session), stream_(stream), sequencer_(sequencer) {}
+    QuicSession* session, QuicStream* stream, QuicStreamSequencer* sequencer,
+    std::optional<QuicStreamId> session_id)
+    : session_(session), stream_(stream), sequencer_(sequencer) {
+  if (session_id.has_value()) {
+    SetSessionId(*session_id);
+  }
+}
 
 WebTransportStream::ReadResult WebTransportStreamAdapter::Read(
     absl::Span<char> buffer) {
@@ -52,25 +76,27 @@ absl::Status WebTransportStreamAdapter::Writev(
         "Writev() called without any data or a FIN");
   }
   const absl::Status initial_check_status = CheckBeforeStreamWrite();
-  if (!initial_check_status.ok()) {
+  if (!initial_check_status.ok() &&
+      !(initial_check_status.code() == absl::StatusCode::kUnavailable &&
+        options.buffer_unconditionally())) {
     return initial_check_status;
   }
 
-  std::vector<iovec> iovecs;
-  size_t total_size = 0;
-  iovecs.resize(data.size());
-  for (size_t i = 0; i < data.size(); i++) {
-    // QuicheMemSliceStorage only reads iovec, thus this is safe.
-    iovecs[i].iov_base = const_cast<char*>(data[i].data());
-    iovecs[i].iov_len = data[i].size();
-    total_size += data[i].size();
+  size_t total_size = quiche::TotalStringViewSpanSize(data);
+  quiche::QuicheMemSlice slice;
+  if (total_size > 0) {
+    quiche::QuicheBuffer buffer(
+        session_->connection()->helper()->GetStreamSendBufferAllocator(),
+        total_size);
+    size_t bytes_copied = quiche::GatherStringViewSpan(data, buffer.AsSpan());
+    QUICHE_DCHECK_EQ(total_size, bytes_copied);
+    slice = quiche::QuicheMemSlice(std::move(buffer));
   }
-  quiche::QuicheMemSliceStorage storage(
-      iovecs.data(), iovecs.size(),
-      session_->connection()->helper()->GetStreamSendBufferAllocator(),
-      GetQuicFlag(quic_send_buffer_max_data_slice_size));
-  QuicConsumedData consumed =
-      stream_->WriteMemSlices(storage.ToSpan(), /*fin=*/options.send_fin());
+  QuicConsumedData consumed = stream_->WriteMemSlices(
+      slice.empty() ? absl::Span<quiche::QuicheMemSlice>()
+                    : absl::MakeSpan(&slice, 1),
+      /*fin=*/options.send_fin(),
+      /*buffer_uncondtionally=*/options.buffer_unconditionally());
 
   if (consumed.bytes_consumed == total_size) {
     return absl::OkStatus();
@@ -120,6 +146,32 @@ size_t WebTransportStreamAdapter::ReadableBytes() const {
   return sequencer_->ReadableBytes();
 }
 
+quiche::ReadStream::PeekResult
+WebTransportStreamAdapter::PeekNextReadableRegion() const {
+  iovec iov;
+  PeekResult result;
+  if (sequencer_->GetReadableRegion(&iov)) {
+    result.peeked_data =
+        absl::string_view(static_cast<const char*>(iov.iov_base), iov.iov_len);
+  }
+  result.fin_next = sequencer_->IsClosed();
+  result.all_data_received = sequencer_->IsAllDataAvailable();
+  return result;
+}
+
+bool WebTransportStreamAdapter::SkipBytes(size_t bytes) {
+  if (stream_->read_side_closed()) {
+    // Useful when the stream has been reset in between Peek() and Skip().
+    return true;
+  }
+  sequencer_->MarkConsumed(bytes);
+  if (!fin_read_ && sequencer_->IsClosed()) {
+    fin_read_ = true;
+    stream_->OnFinRead();
+  }
+  return sequencer_->IsClosed();
+}
+
 void WebTransportStreamAdapter::OnDataAvailable() {
   if (visitor_ == nullptr) {
     return;
@@ -151,6 +203,46 @@ void WebTransportStreamAdapter::ResetWithUserCode(
 void WebTransportStreamAdapter::SendStopSending(WebTransportStreamError error) {
   stream_->SendStopSending(QuicResetStreamError(
       QUIC_STREAM_CANCELLED, WebTransportErrorToHttp3(error)));
+}
+
+void WebTransportStreamAdapter::SetPriority(
+    const webtransport::StreamPriority& priority) {
+  if (session_->priority_type() != QuicPriorityType::kWebTransport) {
+    QUIC_BUG(WebTransportStreamAdapter_WrongPriorityType)
+        << "Attempting to set WebTransport priority on a session "
+           "that uses priorities of type "
+        << session_->priority_type();
+    return;
+  }
+  // If no session is yet available, associate with an invalid control stream;
+  // this will effectively result in the stream being associated with a fake
+  // session that has default urgency.
+  QuicStreamId session_id =
+      session_id_.value_or(std::numeric_limits<QuicStreamId>::max());
+  stream_->SetPriority(QuicStreamPriority(WebTransportStreamPriority{
+      session_id, priority.send_group_id, priority.send_order}));
+}
+
+void WebTransportStreamAdapter::SetSessionId(QuicStreamId id) {
+  session_id_ = id;
+
+  if (session_->priority_type() != QuicPriorityType::kWebTransport) {
+    return;
+  }
+  // Inform the write scheduler that the stream now needs to be associated
+  // with a specific session.
+  QuicStreamPriority old_priority = stream_->priority();
+  switch (old_priority.type()) {
+    case QuicPriorityType::kHttp:
+      stream_->SetPriority(
+          QuicStreamPriority(WebTransportStreamPriority{id, 0, 0}));
+      break;
+    case QuicPriorityType::kWebTransport:
+      stream_->SetPriority(QuicStreamPriority(WebTransportStreamPriority{
+          id, old_priority.web_transport().send_group_number,
+          old_priority.web_transport().send_order}));
+      break;
+  }
 }
 
 }  // namespace quic

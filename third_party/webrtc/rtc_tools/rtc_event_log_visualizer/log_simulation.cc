@@ -10,18 +10,39 @@
 #include "rtc_tools/rtc_event_log_visualizer/log_simulation.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
 #include <utility>
 
+#include "api/environment/environment.h"
+#include "api/transport/network_control.h"
+#include "api/transport/network_types.h"
+#include "api/units/data_rate.h"
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
+#include "logging/rtc_event_log/events/logged_rtp_rtcp.h"
+#include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair_config.h"
+#include "logging/rtc_event_log/events/rtc_event_probe_cluster_created.h"
+#include "logging/rtc_event_log/rtc_event_log_parser.h"
 #include "logging/rtc_event_log/rtc_event_processor.h"
-#include "modules/rtp_rtcp/source/time_util.h"
+#include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
+#include "modules/rtp_rtcp/source/ntp_time_util.h"
+#include "modules/rtp_rtcp/source/rtp_packet_to_send.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/network/sent_packet.h"
 #include "system_wrappers/include/clock.h"
 
 namespace webrtc {
 
 LogBasedNetworkControllerSimulation::LogBasedNetworkControllerSimulation(
+    const Environment& env,
     std::unique_ptr<NetworkControllerFactoryInterface> factory,
     std::function<void(const NetworkControlUpdate&, Timestamp)> update_handler)
-    : update_handler_(update_handler), factory_(std::move(factory)) {}
+    : env_(env),
+      update_handler_(update_handler),
+      factory_(std::move(factory)) {}
 
 LogBasedNetworkControllerSimulation::~LogBasedNetworkControllerSimulation() {}
 
@@ -32,11 +53,10 @@ void LogBasedNetworkControllerSimulation::HandleStateUpdate(
 
 void LogBasedNetworkControllerSimulation::ProcessUntil(Timestamp to_time) {
   if (last_process_.IsInfinite()) {
-    NetworkControllerConfig config;
+    NetworkControllerConfig config(env_);
     config.constraints.at_time = to_time;
     config.constraints.min_data_rate = DataRate::KilobitsPerSec(30);
     config.constraints.starting_rate = DataRate::KilobitsPerSec(300);
-    config.event_log = &null_event_log_;
     controller_ = factory_->Create(config);
   }
   if (last_process_.IsInfinite() ||
@@ -72,7 +92,7 @@ void LogBasedNetworkControllerSimulation::OnPacketSent(
         packet.media_type == LoggedMediaType::kVideo) {
       auto& probe = pending_probes_.front();
       probe_info.probe_cluster_id = probe.event.id;
-      probe_info.send_bitrate_bps = probe.event.bitrate_bps;
+      probe_info.send_bitrate = DataRate::BitsPerSec(probe.event.bitrate_bps);
       probe_info.probe_cluster_min_bytes = probe.event.min_bytes;
       probe_info.probe_cluster_min_probes = probe.event.min_packets;
       probe.packets_sent++;
@@ -83,16 +103,16 @@ void LogBasedNetworkControllerSimulation::OnPacketSent(
       }
     }
 
-    RtpPacketSendInfo packet_info;
-    packet_info.media_ssrc = packet.ssrc;
-    packet_info.transport_sequence_number = packet.transport_seq_no;
-    packet_info.rtp_sequence_number = packet.stream_seq_no;
-    packet_info.length = packet.size;
-    packet_info.pacing_info = probe_info;
-    transport_feedback_.AddPacket(packet_info, packet.overhead,
+    RtpPacketToSend send_packet(/*extensions=*/nullptr);
+    send_packet.set_transport_sequence_number(packet.transport_seq_no);
+    send_packet.SetSsrc(packet.ssrc);
+    send_packet.SetSequenceNumber(packet.transport_seq_no);
+    send_packet.SetPayloadSize(packet.size - send_packet.headers_size());
+    RTC_DCHECK_EQ(send_packet.size(), packet.size);
+    transport_feedback_.AddPacket(send_packet, probe_info, packet.overhead,
                                   packet.log_packet_time);
   }
-  rtc::SentPacket sent_packet;
+  SentPacketInfo sent_packet;
   sent_packet.send_time_ms = packet.log_packet_time.ms();
   sent_packet.info.included_in_allocation = true;
   sent_packet.info.packet_size_bytes = packet.size + packet.overhead;
@@ -186,19 +206,22 @@ void LogBasedNetworkControllerSimulation::ProcessEventsInLog(
       [this](const LoggedBweProbeClusterCreatedEvent& probe_cluster) {
         OnProbeCreated(probe_cluster);
       });
-  processor.AddEvents(packet_infos, [this](const LoggedPacketInfo& packet) {
-    OnPacketSent(packet);
-  });
+  processor.AddEvents(
+      packet_infos,
+      [this](const LoggedPacketInfo& packet) { OnPacketSent(packet); },
+      PacketDirection::kOutgoingPacket);
   processor.AddEvents(
       parsed_log_.transport_feedbacks(PacketDirection::kIncomingPacket),
       [this](const LoggedRtcpPacketTransportFeedback& feedback) {
         OnFeedback(feedback);
-      });
+      },
+      PacketDirection::kIncomingPacket);
   processor.AddEvents(
       parsed_log_.receiver_reports(PacketDirection::kIncomingPacket),
       [this](const LoggedRtcpPacketReceiverReport& report) {
         OnReceiverReport(report);
-      });
+      },
+      PacketDirection::kIncomingPacket);
   processor.AddEvents(parsed_log_.ice_candidate_pair_configs(),
                       [this](const LoggedIceCandidatePairConfig& candidate) {
                         OnIceConfig(candidate);

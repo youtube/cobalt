@@ -23,7 +23,6 @@
 #include "components/infobars/core/infobar_manager.h"
 #include "components/translate/content/browser/content_translate_driver.h"
 #include "components/translate/content/common/translate.mojom.h"
-#include "components/translate/core/browser/translate_infobar_delegate.h"
 #include "components/translate/core/browser/translate_manager.h"
 #include "components/translate/core/browser/translate_ui_delegate.h"
 #include "components/translate/core/common/language_detection_details.h"
@@ -40,7 +39,7 @@ FakeTranslateAgent::FakeTranslateAgent()
 
 FakeTranslateAgent::~FakeTranslateAgent() = default;
 
-// TODO(crbug.com/1064974) Remove with subframe translation launch.
+// TODO(crbug.com/40123934) Remove with subframe translation launch.
 mojo::PendingRemote<translate::mojom::TranslateAgent>
 FakeTranslateAgent::BindToNewPageRemote() {
   receiver_.reset();
@@ -49,11 +48,6 @@ FakeTranslateAgent::BindToNewPageRemote() {
 }
 
 // translate::mojom::TranslateAgent implementation.
-void FakeTranslateAgent::GetWebLanguageDetectionDetails(
-    GetWebLanguageDetectionDetailsCallback callback) {
-  std::move(callback).Run("", "", GURL(), false);
-}
-
 void FakeTranslateAgent::TranslateFrame(const std::string& translate_script,
                                         const std::string& source_lang,
                                         const std::string& target_lang,
@@ -81,11 +75,4 @@ void FakeTranslateAgent::PageTranslated(bool cancelled,
                                         translate::TranslateErrors error) {
   std::move(translate_callback_pending_)
       .Run(cancelled, source_lang, target_lang, error);
-}
-
-void FakeTranslateAgent::BindRequest(
-    mojo::ScopedInterfaceEndpointHandle handle) {
-  per_frame_translate_agent_receivers_.Add(
-      this, mojo::PendingAssociatedReceiver<translate::mojom::TranslateAgent>(
-                std::move(handle)));
 }

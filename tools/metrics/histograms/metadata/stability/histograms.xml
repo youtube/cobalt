@@ -22,54 +22,151 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
-<variants name="StandbyBucket">
-  <variant name="Active"/>
-  <variant name="Frequent"/>
-  <variant name="Rare"/>
-  <variant name="Restricted"/>
-  <variant name="Unknown"/>
-  <variant name="Unsupported"/>
-  <variant name="WorkingSet"/>
+<variants name="CdmUtilityProcessType">
+  <variant name="CdmServiceBroker"/>
+  <variant name="MediaFoundationServiceBroker"/>
 </variants>
 
+<histogram name="ChildProcess.Crashed.UtilityProcessExitCode"
+    enum="WindowsExitCode" expires_after="never">
+<!-- expires-never: Critical stability metrics. go/chrome-stability-metrics -->
+
+  <owner>wfh@chromium.org</owner>
+  <owner>chrome-stability-core@google.com</owner>
+  <summary>
+    Recorded when a crash occurs in a Utility process. On crash, the exit code
+    will indicate the exception code of the crash.
+  </summary>
+</histogram>
+
+<histogram name="ChildProcess.Crashed.UtilityProcessHash"
+    enum="UtilityProcessNameHash" expires_after="never">
+<!-- expires-never: Critical stability metrics. go/chrome-stability-metrics -->
+
+  <owner>wfh@chromium.org</owner>
+  <owner>chrome-stability-core@google.com</owner>
+  <summary>
+    Count of child utility process crashes, bucketed by the hash of their
+    process name. The process name is typically the service name of the mojo
+    service. Recorded when a Utility process crashes.
+  </summary>
+</histogram>
+
+<histogram name="ChildProcess.Crashed2" enum="ProcessType2"
+    expires_after="never">
+<!-- expires-never: Critical stability metrics. go/chrome-stability-metrics -->
+
+  <owner>wfh@chromium.org</owner>
+  <owner>chrome-stability-core@google.com</owner>
+  <summary>Count of child process crashes grouped by process type.</summary>
+</histogram>
+
+<histogram name="ChildProcess.DisconnectedAlive2" enum="ProcessType2"
+    expires_after="never">
+<!-- expires-never: For monitoring stability regressions. -->
+
+  <owner>wfh@chromium.org</owner>
+  <summary>
+    Count of child process abnormal channel disconnects that are not classified
+    and reported because we took the exit code too early. Grouped by process
+    type.
+  </summary>
+</histogram>
+
+<histogram name="ChildProcess.Killed2" enum="ProcessType2"
+    expires_after="never">
+<!-- expires-never: Critical stability metrics. go/chrome-stability-metrics -->
+
+  <owner>wfh@chromium.org</owner>
+  <owner>chrome-stability-core@google.com</owner>
+  <summary>Count of child process kills grouped by process type.</summary>
+</histogram>
+
+<histogram name="ChildProcess.Launched.UtilityProcessHash"
+    enum="UtilityProcessNameHash" expires_after="2025-10-26">
+  <owner>wfh@chromium.org</owner>
+  <summary>
+    Count of child utility process launches, bucketed by the hash of their
+    process name. The process name is typically the service name of the mojo
+    service.
+  </summary>
+</histogram>
+
+<histogram name="ChildProcess.LaunchFailed.UtilityProcessErrorCode"
+    enum="LaunchErrorCodes" expires_after="never">
+<!-- expires-never: Critical stability metrics. go/chrome-stability-metrics -->
+
+  <owner>wfh@chromium.org</owner>
+  <owner>chrome-stability-core@google.com</owner>
+  <summary>
+    A platform-specific error code returned from the attempt to launch a Utility
+    process. Recorded when a Utility process fails to launch.
+  </summary>
+</histogram>
+
+<histogram name="ChildProcess.LaunchFailed.UtilityProcessHash"
+    enum="UtilityProcessNameHash" expires_after="never">
+<!-- expires-never: Critical stability metrics. go/chrome-stability-metrics -->
+
+  <owner>wfh@chromium.org</owner>
+  <owner>chrome-stability-core@google.com</owner>
+  <summary>
+    Count of child utility process launch failures, bucketed by the hash of
+    their process name. The process name is typically the service name of the
+    mojo service. Recorded when a Utility process fails to launch.
+  </summary>
+</histogram>
+
+<histogram name="ChildProcess.LaunchFailed.WinLastError" enum="WinGetLastError"
+    expires_after="never">
+<!-- expires-never: Critical stability metrics. go/chrome-stability-metrics -->
+
+  <owner>wfh@chromium.org</owner>
+  <owner>chrome-stability-core@google.com</owner>
+  <summary>
+    An extended Windows error code returned from GetLastError when failing to
+    launch a utility process. Recorded when a Utility process fails to launch on
+    Windows.
+  </summary>
+</histogram>
+
+<histogram name="ChildProcess.ProcessLifetime.Utility" units="ms"
+    expires_after="2025-05-11">
+  <owner>olivierli@chromium.org</owner>
+  <owner>fdoray@chromium.org</owner>
+  <summary>
+    The time elapsed between the creation and destruction of a utility process.
+    Recorded when the process is recorded as destroyed in PerformanceManager.
+  </summary>
+</histogram>
+
+<histogram name="Stability.Android.KillSpareRendererAvailability.{KillType}"
+    enum="SpareRendererAvailabilityWhenKilled" expires_after="2025-09-30">
+  <owner>gjc@google.com</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    Records whether a process killed because of KillType is a spare renderer and
+    the spare renderer existence. Recorded when a child process exits and the
+    kill type in the ChildProcessTerminationInfo matches KillType. KillType
+    Details: {KillType}
+  </summary>
+  <token key="KillType">
+    <variant name="IntentionalKill"
+        summary="Intentionally killed by the browser process"/>
+    <variant name="OOM"
+        summary="Killed because of out of memory. All the non-clean exits
+                 that is neither a crash nor requested by the browser or the
+                 renderer are classified as out of memory."/>
+  </token>
+</histogram>
+
 <histogram name="Stability.Android.MinidumpUploadingTime" units="ms"
-    expires_after="2023-10-22">
+    expires_after="2023-12-24">
   <owner>shaktisahu@chromium.org</owner>
   <owner>src/components/minidump_uploader/OWNERS</owner>
   <summary>
     Records the time (uptimeMillis) taken by a minidump uploading task to
     complete. Recorded when the task finished callback is invoked.
-  </summary>
-</histogram>
-
-<histogram name="Stability.Android.MinidumpUploadingTime.{StandbyBucket}"
-    units="ms" expires_after="2022-11-30">
-  <owner>shaktisahu@chromium.org</owner>
-  <owner>src/components/minidump_uploader/OWNERS</owner>
-  <summary>
-    Records the time (uptimeMillis) taken by a minidump uploading task to
-    complete grouped by {StandbyBucket} state. Recorded when the task finished
-    callback is invoked. The {StandbyBucket} corresponds to the standby bucket
-    (UsageStatsManager.getAppStandbyBucket) chrome was placed into when metrics
-    was uploaded.
-  </summary>
-  <token key="StandbyBucket" variants="StandbyBucket"/>
-</histogram>
-
-<histogram name="Stability.Android.OomKillReverseRank" units="rank"
-    expires_after="2023-01-15">
-  <obsolete>
-    Removed in M111.
-  </obsolete>
-  <owner>boliu@chromium.org</owner>
-  <owner>ssid@chromium.org</owner>
-  <summary>
-    Records the reverse rank of a child process when it is killed by android if
-    applicable. Chrome on Android ranks some child processes and provides hints
-    to android that it should kill from lowest to highest ranked. The lowest
-    ranked process has reverse rank 0. This is a measure how good the hints to
-    android are; if hints were perfect, then all android kills should have
-    reverse rank 0.
   </summary>
 </histogram>
 
@@ -92,7 +189,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.Android.ProcessedRealMinidumps"
-    enum="AndroidProcessedMinidumps" expires_after="2023-09-24">
+    enum="AndroidProcessedMinidumps" expires_after="2025-11-16">
   <owner>wnwen@chromium.org</owner>
   <owner>src/components/minidump_uploader/OWNERS</owner>
   <summary>
@@ -104,7 +201,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.Android.RendererCrash" enum="Boolean"
-    expires_after="2023-09-10">
+    expires_after="2025-10-26">
   <owner>wnwen@chromium.org</owner>
   <summary>
     Counts renderer crashes including OOMs. Android only. Mirrors old stability
@@ -112,8 +209,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram base="true" name="Stability.Android.SystemExitReason"
-    enum="AndroidProcessExitReason" expires_after="2023-10-08">
+<histogram name="Stability.Android.SystemExitReason{AndroidProcessExitReasons}"
+    enum="AndroidProcessExitReason" expires_after="2025-11-16">
   <owner>boliu@chromium.org</owner>
   <owner>ssid@chromium.org</owner>
   <owner>wnwen@chromium.org</owner>
@@ -121,19 +218,27 @@ chromium-metrics-reviews@google.com.
     Reason given by Android ActivityManager for the exit of the process, only
     recorded in Android R+. Recorded on the next browser startup for browser
     exits, or right after the process died for child processes.
-  </summary>
-</histogram>
 
-<histogram name="Stability.BadMessageTerminated.Autofill"
-    enum="BadMessageReasonAutofill" expires_after="never">
-<!-- expires-never: Monitoring renderer kills triggered by auto-fill. -->
-
-  <owner>vollick@chromium.org</owner>
-  <owner>battre@chromium.org</owner>
-  <summary>
-    Count of processes killed because they sent a bad IPC that couldn't be
-    properly handled. Categories are the reasons (code locations) for the kills.
+    Records API failed when the ActivityManager does not return a reason.
+    {AndroidProcessExitReasons}
   </summary>
+  <token key="AndroidProcessExitReasons">
+    <variant name=".Browser" summary="Recorded for Browser crashes."/>
+    <variant name=".Browser.Background2"
+        summary="Recorded for background (application is not in running
+                 state) Browser crashes."/>
+    <variant name=".Browser.Foreground2"
+        summary="Recorded for foregound (application is in running state)
+                 Browser crashes."/>
+    <variant name=".GpuForegroundOom"
+        summary="Recorded for foreground GPU process OOM crashes."/>
+    <variant name=".UtilityForegroundOom"
+        summary="Recorded for foreground utility process OOM crashes."/>
+    <variant name=".VisibleMainFrameOom"
+        summary="Recorded for visible main frame renderer OOM crashes."/>
+    <variant name=".VisibleSubframeOom"
+        summary="Recorded for visible subframe renderer OOM crashes."/>
+  </token>
 </histogram>
 
 <histogram name="Stability.BadMessageTerminated.Chrome"
@@ -233,7 +338,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.ChildFrameCrash.ShownAfterCrashingReason"
-    enum="ShownAfterCrashingReason" expires_after="2023-08-09">
+    enum="ShownAfterCrashingReason" expires_after="2025-08-24">
   <owner>alexmos@chromium.org</owner>
   <owner>boliu@chromium.org</owner>
   <owner>lukasza@chromium.org</owner>
@@ -245,7 +350,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.ChildFrameCrash.TabMarkedForReload"
-    enum="BooleanMarkedForReload" expires_after="2023-10-08">
+    enum="BooleanMarkedForReload" expires_after="2026-02-16">
   <owner>alexmos@chromium.org</owner>
   <owner>boliu@chromium.org</owner>
   <summary>
@@ -255,7 +360,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.ChildFrameCrash.TabMarkedForReload.Visibility"
-    enum="FrameVisibility" expires_after="2023-08-09">
+    enum="FrameVisibility" expires_after="2026-02-16">
   <owner>alexmos@chromium.org</owner>
   <owner>boliu@chromium.org</owner>
   <summary>
@@ -266,10 +371,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.ChildFrameCrash.Visibility" enum="CrashVisibility"
-    expires_after="2023-08-09">
+    expires_after="2025-10-26">
   <owner>alexmos@chromium.org</owner>
   <owner>boliu@chromium.org</owner>
-  <owner>lfg@chromium.org</owner>
   <owner>lukasza@chromium.org</owner>
   <summary>
     Logged after detecting that a sad subframe is shown (logged at most once per
@@ -290,13 +394,15 @@ chromium-metrics-reviews@google.com.
   <summary>
     Collects various counters related to stability. The majority of them are
     crash types.
+
+    In M129 we are more accurately tracking renderer process launch failures,
+    and expect to find a significant spike in volume for this bucket.
   </summary>
 </histogram>
 
 <histogram name="Stability.DebugScenario.Navigation" enum="DebugScenario"
     expires_after="2023-08-08">
   <owner>nasko@chromium.org</owner>
-  <owner>altimin@chromium.org</owner>
   <summary>
     Logged at the time when a complex debugging scenario is encountered. The
     enum value is the type of scenario encountered. This metric will give us two
@@ -322,7 +428,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.Experimental.PageLoads" enum="StabilityPageLoadType"
-    expires_after="2023-08-27">
+    expires_after="2025-08-31">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -370,7 +476,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.IOS.Crashpad.Initialized" enum="BooleanSuccess"
-    expires_after="2023-05-03">
+    expires_after="2026-05-01">
   <owner>justincohen@chromium.org</owner>
   <owner>olivierrobin@chromium.org</owner>
   <summary>
@@ -379,8 +485,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.IOS.Experimental.Counts2"
-    enum="IOSStabilityUserVisibleTerminationType" expires_after="2024-03-20">
-  <owner>ajuma@chromium.org</owner>
+    enum="IOSStabilityUserVisibleTerminationType" expires_after="2026-02-12">
+  <owner>justincohen@chromium.org</owner>
   <owner>olivierrobin@chromium.org</owner>
   <summary>
     Recorded when iOS app has started after a crash caused by system signal or
@@ -398,9 +504,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.IOS.PostCrashAction" enum="IOSPostCrashAction"
-    expires_after="2023-10-04">
+    expires_after="2025-10-12">
   <owner>justincohen@chromium.org</owner>
-  <owner>ajuma@chromium.org</owner>
+  <owner>bling-fundamentals@google.com</owner>
   <summary>
     Recorded when the app is foregrounded. Records what action is taken after an
     unclear shutdown (likely a crash).
@@ -408,9 +514,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.iOS.TabCountBefore{Event}" units="tabs"
-    expires_after="2024-03-21">
-  <owner>ajuma@chromium.org</owner>
+    expires_after="2025-08-24">
   <owner>justincohen@chromium.org</owner>
+  <owner>bling-fundamentals@google.com</owner>
   <summary>
     The number of tabs opened in the previous session when the app starts after
     {Event}. Can be used to understand if there is a correlation between
@@ -430,9 +536,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.IOS.UTE.AppWillTerminateWasCalledInForeground"
-    enum="Boolean" expires_after="2023-10-04">
+    enum="Boolean" expires_after="2024-10-09">
   <owner>olivierrobin@chromium.org</owner>
-  <owner>ajuma@chromium.org</owner>
+  <owner>justincohen@chromium.org</owner>
   <summary>
     Recorded on iOS when applicationWillTerminate callback is called when app is
     in the foreground. When this happens the app will not write clean exit
@@ -440,34 +546,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Stability.iOS.UTE.AvailableStorage" units="KB"
-    expires_after="2021-10-10">
-  <owner>michaeldo@chromium.org</owner>
-  <owner>olivierrobin@chromium.org</owner>
-  <summary>
-    Number of kilobytes available for &quot;important&quot; data. When an iOS
-    device is critically low on space, actions generally assumed to succeed can
-    fail. In extreme cases, this could potentially include writing the
-    &quot;unclean shutdown&quot; bit to signal a clean shutdown. Logged on
-    application launch if the last session terminated in an unclean state.
-  </summary>
-</histogram>
-
-<histogram name="Stability.iOS.UTE.BatteryCharge" units="%"
-    expires_after="2023-10-04">
-  <owner>michaeldo@chromium.org</owner>
-  <owner>olivierrobin@chromium.org</owner>
-  <summary>
-    The last known battery charge before a crash occurred. This will only be
-    logged for devices which were last known to be in the &quot;unplugged&quot;
-    state because the intention is to identify devices which may have died
-    leading to unexpected terminations. Logged on application launch if the last
-    session terminated in an unclean state.
-  </summary>
-</histogram>
-
 <histogram name="Stability.iOS.UTE.DeviceThermalState"
-    enum="IOSDeviceThermalState" expires_after="2023-10-04">
+    enum="IOSDeviceThermalState" expires_after="2025-11-09">
   <owner>michaeldo@chromium.org</owner>
   <owner>olivierrobin@chromium.org</owner>
   <summary>
@@ -477,7 +557,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.iOS.UTE.HasPossibleExplanation"
-    enum="BooleanHasPossibleExplanation" expires_after="2023-09-24">
+    enum="BooleanHasPossibleExplanation" expires_after="2025-09-28">
   <owner>michaeldo@chromium.org</owner>
   <owner>olivierrobin@chromium.org</owner>
   <summary>
@@ -488,7 +568,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.iOS.UTE.MobileSessionAppState" enum="IOSAppState"
-    expires_after="2023-07-16">
+    expires_after="2025-11-03">
   <owner>justincohen@chromium.org</owner>
   <owner>olivierrobin@chromium.org</owner>
   <summary>
@@ -499,7 +579,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.iOS.UTE.MobileSessionAppWillTerminateWasReceived"
-    enum="AppWillTerminateReceived" expires_after="2023-07-16">
+    enum="AppWillTerminateReceived" expires_after="2025-07-27">
   <owner>michaeldo@chromium.org</owner>
   <owner>olivierrobin@chromium.org</owner>
   <summary>
@@ -524,7 +604,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.iOS.UTE.OSRestartedAfterPreviousSession"
-    enum="BooleanRebooted" expires_after="2023-10-04">
+    enum="BooleanRebooted" expires_after="2025-07-27">
   <owner>olivierrobin@chromium.org</owner>
   <owner>michaeldo@chromium.org</owner>
   <summary>
@@ -535,7 +615,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.iOS.UTE.OSVersion" enum="VersionComparison"
-    expires_after="2023-10-04">
+    expires_after="2025-07-27">
   <owner>michaeldo@chromium.org</owner>
   <owner>olivierrobin@chromium.org</owner>
   <summary>
@@ -547,7 +627,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.iOS.UTE.TimeBetweenUTEAndNextLaunch" units="ms"
-    expires_after="2023-07-16">
+    expires_after="2025-07-27">
   <owner>michaeldo@chromium.org</owner>
   <owner>olivierrobin@chromium.org</owner>
   <summary>
@@ -557,8 +637,52 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Stability.Media.{ProcessType}.Crash.ExitCode"
+    enum="WindowsExitCode" expires_after="2026-01-15">
+  <owner>sangbaekpark@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Recorded when a crash occurs in a CDM utility process. On crash, the exit
+    code will indicate the exception code of the crash.
+  </summary>
+  <token key="ProcessType" variants="CdmUtilityProcessType"/>
+</histogram>
+
+<histogram name="Stability.Media.{ProcessType}.Launch" enum="Boolean"
+    expires_after="2026-01-15">
+  <owner>sangbaekpark@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Recorded when a CDM utility process either succeeded or failed to launch.
+  </summary>
+  <token key="ProcessType" variants="CdmUtilityProcessType"/>
+</histogram>
+
+<histogram name="Stability.Media.{ProcessType}.Launch.LaunchErrorCode"
+    enum="LaunchErrorCodes" expires_after="2026-01-15">
+  <owner>sangbaekpark@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    A platform-specific error code returned from the attempt to launch a CDM
+    utility process. Recorded when a CDM utility process fails to launch.
+  </summary>
+  <token key="ProcessType" variants="CdmUtilityProcessType"/>
+</histogram>
+
+<histogram name="Stability.Media.{ProcessType}.Launch.WinLastError"
+    enum="WinGetLastError" expires_after="2026-01-15">
+  <owner>sangbaekpark@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    An extended Windows error code returned from GetLastError when failing to
+    launch a CDM utility process. Recorded when a utility process fails to
+    launch on Windows.
+  </summary>
+  <token key="ProcessType" variants="CdmUtilityProcessType"/>
+</histogram>
+
 <histogram name="Stability.MobileSessionShutdownType"
-    enum="MobileSessionShutdownType" expires_after="2023-09-17">
+    enum="MobileSessionShutdownType" expires_after="2025-12-08">
   <owner>michaeldo@chromium.org</owner>
   <owner>olivierrobin@chromium.org</owner>
   <summary>
@@ -575,9 +699,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.MobileSessionShutdownType2"
-    enum="MobileSessionShutdownType" expires_after="2023-09-17">
+    enum="MobileSessionShutdownType" expires_after="2025-10-26">
   <owner>justincohen@chromium.org</owner>
-  <owner>ajuma@chromium.org</owner>
+  <owner>bling-fundamentals@google.com</owner>
   <summary>
     Type of the shutdown. This histogram is recorded after processing Crashpad
     intermediate dumps, and is otherwise identical to
@@ -589,6 +713,39 @@ chromium-metrics-reviews@google.com.
     Stability.MobileSessionShutdownType should be in the stability log, which
     will list the Chrome version at the time of the crash.
   </summary>
+</histogram>
+
+<histogram name="Stability.RendererAbnormalTermination2.HostedContentType"
+    enum="RendererHostedContentType" expires_after="2025-11-16">
+  <owner>fdoray@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    Recorded when a renderer process exits abnormally. The value describes the
+    type of content hosted by the renderer at the time of abnormal exit.
+  </summary>
+</histogram>
+
+<histogram name="Stability.RendererAbnormalTermination2.{HostedContentType}"
+    enum="TerminationStatus" expires_after="2025-11-16">
+  <owner>fdoray@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    Recorded when a renderer process hosting {HostedContentType} exits
+    abnormally. The value describes the exit reason.
+  </summary>
+  <token key="HostedContentType">
+    <variant name="BackgroundFrame"
+        summary="an active background frame (but no active foreground frame)"/>
+    <variant name="Extension" summary="an extension"/>
+    <variant name="ForegroundMainFrame"
+        summary="an active foreground main frame"/>
+    <variant name="ForegroundSubframe"
+        summary="an active foreground subframe (but no active foreground main
+                 frame)"/>
+    <variant name="InactiveFrame"
+        summary="an inactive frame (but no active frame)"/>
+    <variant name="NoFrameOrExtension" summary="no frame or extension"/>
+  </token>
 </histogram>
 
 </histograms>

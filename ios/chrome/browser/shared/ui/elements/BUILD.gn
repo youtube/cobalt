@@ -3,21 +3,20 @@
 # found in the LICENSE file.
 
 source_set("elements") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "crossfade_label.h",
     "crossfade_label.mm",
     "extended_touch_target_button.h",
     "extended_touch_target_button.mm",
-    "fade_truncating_label+private.h",
+    "fade_truncating_label+Testing.h",
     "fade_truncating_label.h",
     "fade_truncating_label.mm",
     "gray_highlight_button.h",
     "gray_highlight_button.mm",
     "home_waiting_view.h",
     "home_waiting_view.mm",
-    "instruction_view.h",
-    "instruction_view.mm",
+    "new_feature_badge_view.h",
+    "new_feature_badge_view.mm",
     "self_sizing_table_view.h",
     "self_sizing_table_view.mm",
     "text_field_configuration.h",
@@ -29,19 +28,22 @@ source_set("elements") {
   ]
   deps = [
     "//base",
+    "//base:i18n",
+    "//ios/chrome/app/strings",
+    "//ios/chrome/browser/omnibox/public:features",
     "//ios/chrome/browser/shared/public/features",
-    "//ios/chrome/browser/shared/ui/elements:constants",
+    "//ios/chrome/browser/shared/ui/symbols",
     "//ios/chrome/browser/shared/ui/util",
     "//ios/chrome/common:string_util",
     "//ios/chrome/common/ui/colors",
     "//ios/chrome/common/ui/util",
     "//ios/chrome/common/ui/util:dynamic_type_util",
     "//ios/third_party/material_components_ios",
+    "//ui/base",
   ]
 }
 
 source_set("activity_overlay") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "activity_overlay_coordinator.h",
     "activity_overlay_coordinator.mm",
@@ -55,7 +57,6 @@ source_set("activity_overlay") {
 }
 
 source_set("constants") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "elements_constants.h",
     "elements_constants.mm",
@@ -64,7 +65,6 @@ source_set("constants") {
 }
 
 source_set("unit_tests") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
   sources = [
     "activity_overlay_coordinator_unittest.mm",
@@ -80,18 +80,18 @@ source_set("unit_tests") {
     ":elements_internal",
     "//base",
     "//base/test:test_support",
-    "//ios/chrome/browser/browser_state:test_support",
-    "//ios/chrome/browser/main:test_support",
+    "//ios/chrome/browser/shared/model/browser/test:test_support",
+    "//ios/chrome/browser/shared/model/profile/test",
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/common/ui/colors",
     "//ios/chrome/test:test_support",
+    "//ios/web/public/test",
     "//testing/gtest",
     "//third_party/ocmock",
   ]
 }
 
 source_set("elements_internal") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
     "activity_overlay_view.h",
     "activity_overlay_view.mm",
@@ -105,11 +105,10 @@ source_set("elements_internal") {
   deps = [
     ":constants",
     "//base",
+    "//ios/chrome/browser/scoped_ui_blocker/ui_bundled",
     "//ios/chrome/browser/shared/coordinator/chrome_coordinator",
-    "//ios/chrome/browser/shared/coordinator/scene:scene_state_browser_agent",
     "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
     "//ios/chrome/browser/shared/ui/util",
-    "//ios/chrome/browser/ui/scoped_ui_blocker:scoped_ui_blocker",
     "//ios/chrome/common/ui/colors",
     "//ios/chrome/common/ui/util",
     "//ios/third_party/material_components_ios",
@@ -118,18 +117,15 @@ source_set("elements_internal") {
 }
 
 source_set("eg_test_support+eg2") {
-  configs += [
-    "//build/config/compiler:enable_arc",
-    "//build/config/ios:xctest_config",
-  ]
+  configs += [ "//build/config/ios:xctest_config" ]
   testonly = true
   sources = [
     "activity_overlay_egtest_util.h",
     "activity_overlay_egtest_util.mm",
   ]
   deps = [
+    ":constants",
     "//base/test:test_support",
-    "//ios/chrome/browser/shared/ui/elements:constants",
     "//ios/chrome/test/earl_grey:eg_test_support+eg2",
     "//ios/testing/earl_grey:eg_test_support+eg2",
     "//ui/base",

@@ -7,12 +7,14 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
-#include "base/strings/string_piece.h"
 #include "components/autofill/content/renderer/form_autofill_util.h"
 #include "components/autofill/content/renderer/html_based_username_detector.h"
+#include "components/autofill/content/renderer/synchronous_form_cache.h"
+#include "components/autofill/content/renderer/timing.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "url/gurl.h"
 
@@ -38,23 +40,35 @@ bool IsGaiaReauthenticationForm(const blink::WebFormElement& form);
 // Tests whether the given form is a GAIA form with a skip password argument.
 bool IsGaiaWithSkipSavePasswordForm(const blink::WebFormElement& form);
 
-std::unique_ptr<FormData> CreateFormDataFromWebForm(
+// Given `form_data` which is assumed to be extracted via
+// `form_util::ExtractFormData`, populates the additional states that are
+// useful for the password manager.
+void ProcessFormDataAfterCreation(
+    FormData& form_data,
+    blink::WebFormElement web_form,
+    UsernameDetectorCache* username_detector_cache);
+
+std::optional<FormData> CreateFormDataFromWebForm(
     const blink::WebFormElement& web_form,
-    const FieldDataManager* field_data_manager,
+    const FieldDataManager& field_data_manager,
     UsernameDetectorCache* username_detector_cache,
-    form_util::ButtonTitlesCache* button_titles_cache);
+    form_util::ButtonTitlesCache* button_titles_cache,
+    const CallTimerState& timer_state,
+    const SynchronousFormCache& form_cache);
 
 // Same as CreateFormDataFromWebForm() but for input elements that are
-// not enclosed in <form> element.
-std::unique_ptr<FormData> CreateFormDataFromUnownedInputElements(
+// not owned by a <form> element.
+std::optional<FormData> CreateFormDataFromUnownedInputElements(
     const blink::WebLocalFrame& frame,
-    const FieldDataManager* field_data_manager,
+    const FieldDataManager& field_data_manager,
     UsernameDetectorCache* username_detector_cache,
-    form_util::ButtonTitlesCache* button_titles_cache);
+    const CallTimerState& timer_state,
+    form_util::ButtonTitlesCache* button_titles_cache,
+    const SynchronousFormCache& form_cache);
 
 // The "Realm" for the sign-on. This is scheme, host, port.
 std::string GetSignOnRealm(const GURL& origin);
 
 }  // namespace autofill
 
-#endif  // COMPONENTS_AUTOFILL_CONTENT_RENDERER_PASSWORD_FORM_CONVERSION_UTILS_H__
+#endif  // COMPONENTS_AUTOFILL_CONTENT_RENDERER_PASSWORD_FORM_CONVERSION_UTILS_H_

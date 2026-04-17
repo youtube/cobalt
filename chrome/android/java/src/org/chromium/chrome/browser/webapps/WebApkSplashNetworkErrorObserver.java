@@ -10,7 +10,6 @@ import android.content.Context;
 import org.chromium.base.ContextUtils;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.browserservices.metrics.WebApkUmaRecorder;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.content_public.browser.NavigationHandle;
@@ -18,22 +17,20 @@ import org.chromium.net.NetError;
 import org.chromium.net.NetworkChangeNotifier;
 
 /**
- * Displays error dialog on top of splash screen if there is a network error while loading the
- * start URL.
+ * Displays error dialog on top of splash screen if there is a network error while loading the start
+ * URL.
  */
 public class WebApkSplashNetworkErrorObserver extends EmptyTabObserver {
-    private Activity mActivity;
+    private final Activity mActivity;
     private WebApkOfflineDialog mOfflineDialog;
-    private String mWebApkName;
 
     private boolean mDidShowNetworkErrorDialog;
 
     /** Indicates whether reloading is allowed. */
     private boolean mAllowReloads;
 
-    public WebApkSplashNetworkErrorObserver(Activity activity, String webApkName) {
+    public WebApkSplashNetworkErrorObserver(Activity activity) {
         mActivity = activity;
-        mWebApkName = webApkName;
     }
 
     public boolean isNetworkErrorDialogVisible() {
@@ -108,9 +105,7 @@ public class WebApkSplashNetworkErrorObserver extends EmptyTabObserver {
         Context context = ContextUtils.getApplicationContext();
         switch (errorCode) {
             case NetError.ERR_INTERNET_DISCONNECTED:
-                return ChromeFeatureList.isEnabled(ChromeFeatureList.PWA_DEFAULT_OFFLINE_PAGE)
-                        ? null
-                        : context.getString(R.string.webapk_offline_dialog, mWebApkName);
+                return null;
             case NetError.ERR_TUNNEL_CONNECTION_FAILED:
                 return context.getString(
                         R.string.webapk_network_error_message_tunnel_connection_failed);

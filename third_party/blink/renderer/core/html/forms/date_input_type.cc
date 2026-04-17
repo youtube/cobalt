@@ -39,6 +39,7 @@
 #include "third_party/blink/renderer/core/input_type_names.h"
 #include "third_party/blink/renderer/platform/text/date_components.h"
 #include "third_party/blink/renderer/platform/text/platform_locale.h"
+#include "ui/strings/grit/ax_strings.h"
 
 namespace blink {
 
@@ -51,10 +52,6 @@ DateInputType::DateInputType(HTMLInputElement& element)
 
 void DateInputType::CountUsage() {
   CountUsageIfVisible(WebFeature::kInputTypeDate);
-}
-
-const AtomicString& DateInputType::FormControlType() const {
-  return input_type_names::kDate;
 }
 
 StepRange DateInputType::CreateStepRange(
@@ -81,6 +78,10 @@ bool DateInputType::SetMillisecondToDateComponents(double value,
                                                    DateComponents* date) const {
   DCHECK(date);
   return date->SetMillisecondsSinceEpochForDate(value);
+}
+
+bool DateInputType::CanSetSuggestedValue() {
+  return true;
 }
 
 void DateInputType::WarnIfValueIsInvalid(const String& value) const {

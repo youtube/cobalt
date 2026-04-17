@@ -247,8 +247,7 @@ class FCMNetworkHandlerTestWithTTL : public FCMNetworkHandlerTest {
         {"time_to_live_seconds", base::NumberToString(kTimeToLiveInSeconds)}};
     override_features_.InitWithFeaturesAndParameters(
         /*enabled_features=*/
-        {{switches::kSyncInstanceIDTokenTTL, feature_params},
-         {switches::kPolicyInstanceIDTokenTTL, feature_params}},
+        {{switches::kPolicyInstanceIDTokenTTL, feature_params}},
         /*disabled_features=*/{});
   }
 
@@ -258,7 +257,7 @@ class FCMNetworkHandlerTestWithTTL : public FCMNetworkHandlerTest {
   base::test::ScopedFeatureList override_features_;
 };
 
-TEST_F(FCMNetworkHandlerTest, ShouldPassTheTokenOnceRecieved) {
+TEST_F(FCMNetworkHandlerTest, ShouldPassTheTokenOnceReceived) {
   std::unique_ptr<FCMNetworkHandler> handler = MakeHandler();
 
   MockOnTokenCallback mock_on_token_callback;
@@ -483,12 +482,6 @@ TEST_F(FCMNetworkHandlerTest,
       })));
   EXPECT_CALL(mock_on_token_callback, Run).Times(0);
   task_runner->FastForwardBy(base::Seconds(1));
-}
-
-TEST_F(FCMNetworkHandlerTestWithTTL, ShouldProvideTTLWithSyncSenderID) {
-  EXPECT_CALL(*mock_instance_id(),
-              GetToken(_, _, Eq(base::Seconds(kTimeToLiveInSeconds)), _, _));
-  MakeHandler(/*sender_id=*/"8181035976")->StartListening();
 }
 
 TEST_F(FCMNetworkHandlerTestWithTTL, ShouldProvideTTLWithPolicySenderID) {

@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <utility>
-
 #include "start_suggest_service_factory.h"
+
+#include <utility>
 
 #include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/profiles/profile_android.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/search/start_suggest_service.h"
@@ -34,7 +33,7 @@ StartSuggestServiceFactory::StartSuggestServiceFactory()
           "StartSuggestServiceFactory",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
+              // TODO(crbug.com/40257657): Check if this service is needed in
               // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
               .Build()) {
@@ -43,7 +42,8 @@ StartSuggestServiceFactory::StartSuggestServiceFactory()
 
 StartSuggestServiceFactory::~StartSuggestServiceFactory() = default;
 
-KeyedService* StartSuggestServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+StartSuggestServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
 
@@ -51,7 +51,7 @@ KeyedService* StartSuggestServiceFactory::BuildServiceInstanceFor(
       TemplateURLServiceFactory::GetForProfile(profile);
   auto url_loader_factory = context->GetDefaultStoragePartition()
                                 ->GetURLLoaderFactoryForBrowserProcess();
-  return new StartSuggestService(
+  return std::make_unique<StartSuggestService>(
       template_url_service, url_loader_factory,
       std::make_unique<ChromeAutocompleteSchemeClassifier>(profile),
       std::string(), std::string(), GURL(chrome::kChromeUINewTabURL));

@@ -17,24 +17,24 @@
 
 namespace content {
 class WebContents;
-}  // namespace content
+}
 
-namespace printing {
+namespace printing::test {
 
-extern const char kDummyPrinterName[];
-constexpr int kTestPrinterDpi = 600;
+extern const char kPrinterName[];
+inline constexpr int kPrinterDpi = 600;
 
 // Some common paper sizes that can be used for fake device configurations.
-extern const PrinterSemanticCapsAndDefaults::Paper kTestPaperLetter;
-extern const PrinterSemanticCapsAndDefaults::Paper kTestPaperLegal;
+extern const PrinterSemanticCapsAndDefaults::Paper kPaperLetter;
+extern const PrinterSemanticCapsAndDefaults::Paper kPaperLegal;
 
 // Support values for `MakeDefaultPrintSettings()`.
-constexpr int kTestPrinterDefaultRenderDpi = 72;
-constexpr gfx::Size kTestPrinterCapabilitiesDpi(kTestPrinterDefaultRenderDpi,
-                                                kTestPrinterDefaultRenderDpi);
-constexpr int kTestPrintSettingsCopies = 42;
-extern const std::vector<gfx::Size> kTestPrinterCapabilitiesDefaultDpis;
-extern const PrinterBasicInfoOptions kTestDummyPrintInfoOptions;
+inline constexpr int kPrinterDefaultRenderDpi = 72;
+constexpr gfx::Size kPrinterCapabilitiesDpi(kPrinterDefaultRenderDpi,
+                                            kPrinterDefaultRenderDpi);
+inline constexpr int kPrintSettingsCopies = 42;
+extern const std::vector<gfx::Size> kPrinterCapabilitiesDefaultDpis;
+extern const PrinterBasicInfoOptions kPrintInfoOptions;
 
 // Creates a print ticket with some default values. Based on ticket creation in
 // chrome/browser/resources/print_preview/native_layer.js.
@@ -49,9 +49,8 @@ std::unique_ptr<PrintSettings> MakeDefaultPrintSettings(
 // `MakeDefaultPrintSettings()`, to be used if test calls
 // `PrintingContext::AskUserForSettings()`.
 std::unique_ptr<PrintSettings> MakeUserModifiedPrintSettings(
-    const std::string& printer_name);
-
-}  // namespace printing
+    const std::string& printer_name,
+    const PageRanges* page_ranges);
 
 // Simpler version of StartPrint() provided for convenience with the common
 // defaults:
@@ -59,5 +58,7 @@ std::unique_ptr<PrintSettings> MakeUserModifiedPrintSettings(
 // - `print_preview_disabled` set to false
 // - `has_selection` set to false
 void StartPrint(content::WebContents* web_contents);
+
+}  // namespace printing::test
 
 #endif  // CHROME_BROWSER_PRINTING_PRINT_TEST_UTILS_H_

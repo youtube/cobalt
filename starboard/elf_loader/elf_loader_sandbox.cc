@@ -19,6 +19,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
+#include "starboard/common/paths.h"
 #include "starboard/common/string.h"
 #include "starboard/crashpad_wrapper/annotations.h"
 #include "starboard/crashpad_wrapper/wrapper.h"
@@ -99,6 +100,18 @@ void LoadLibraryAndInitialize(const std::string& library_path,
                << reinterpret_cast<void*>(g_sb_event_func);
 }
 
+void InstallCrashpadHandler(const std::string& evergreen_content_path) {
+  std::string ca_certificates_path =
+      evergreen_content_path.empty()
+          ? starboard::GetCACertificatesPath()
+          : starboard::GetCACertificatesPath(evergreen_content_path);
+  if (ca_certificates_path.empty()) {
+    SB_LOG(ERROR) << "Failed to get CA certificates path";
+  }
+
+  crashpad::InstallCrashpadHandler(ca_certificates_path);
+}
+
 void SbEventHandle(const SbEvent* event) {
   static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -108,6 +121,8 @@ void SbEventHandle(const SbEvent* event) {
     const SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
     const starboard::CommandLine command_line(
         data->argument_count, const_cast<const char**>(data->argument_values));
+    InstallCrashpadHandler(
+        command_line.GetSwitchValue(elf_loader::kEvergreenContent));
     LoadLibraryAndInitialize(
         command_line.GetSwitchValue(elf_loader::kEvergreenLibrary),
         command_line.GetSwitchValue(elf_loader::kEvergreenContent));

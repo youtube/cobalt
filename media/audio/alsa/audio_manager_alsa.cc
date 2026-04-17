@@ -2,11 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/audio/alsa/audio_manager_alsa.h"
 
 #include <stddef.h>
 
+#include <array>
+
 #include "base/command_line.h"
+#include "base/containers/contains.h"
 #include "base/logging.h"
 #include "base/memory/free_deleter.h"
 #include "base/metrics/histogram.h"
@@ -35,37 +43,47 @@ static const int kDefaultSampleRate = 48000;
 // real devices, we remove them from the list to avoiding duplicate counting.
 // In addition, note that we support no more than 2 channels for recording,
 // hence surround devices are not stored in the list.
-static const char* const kInvalidAudioInputDevices[] = {
-    "default", "dmix", "null", "pulse", "surround",
-};
+constexpr auto kInvalidAudioInputDevices = std::to_array<const char*>({
+    "default",
+    "dmix",
+    "null",
+    "pulse",
+    "surround",
+});
 
 AudioManagerAlsa::AudioManagerAlsa(std::unique_ptr<AudioThread> audio_thread,
                                    AudioLogFactory* audio_log_factory)
     : AudioManagerBase(std::move(audio_thread), audio_log_factory),
-      wrapper_(new AlsaWrapper()) {
+      wrapper_(std::make_unique<AlsaWrapper>()) {
   SetMaxOutputStreamsAllowed(kMaxOutputStreams);
 }
 
 AudioManagerAlsa::~AudioManagerAlsa() = default;
 
 bool AudioManagerAlsa::HasAudioOutputDevices() {
-  return HasAnyAlsaAudioDevice(kStreamPlayback);
+  return base::CommandLine::ForCurrentProcess()->HasSwitch(
+             switches::kAlsaOutputDevice) ||
+         HasAnyAlsaAudioDevice(kStreamPlayback);
 }
 
 bool AudioManagerAlsa::HasAudioInputDevices() {
-  return HasAnyAlsaAudioDevice(kStreamCapture);
+  return base::CommandLine::ForCurrentProcess()->HasSwitch(
+             switches::kAlsaInputDevice) ||
+         HasAnyAlsaAudioDevice(kStreamCapture);
 }
 
 void AudioManagerAlsa::GetAudioInputDeviceNames(
     AudioDeviceNames* device_names) {
   DCHECK(device_names->empty());
   GetAlsaAudioDevices(kStreamCapture, device_names);
+  AddAlsaDeviceFromSwitch(switches::kAlsaInputDevice, device_names);
 }
 
 void AudioManagerAlsa::GetAudioOutputDeviceNames(
     AudioDeviceNames* device_names) {
   DCHECK(device_names->empty());
   GetAlsaAudioDevices(kStreamPlayback, device_names);
+  AddAlsaDeviceFromSwitch(switches::kAlsaOutputDevice, device_names);
 }
 
 AudioParameters AudioManagerAlsa::GetInputStreamParameters(
@@ -77,7 +95,7 @@ AudioParameters AudioManagerAlsa::GetInputStreamParameters(
                          kDefaultInputBufferSize);
 }
 
-const char* AudioManagerAlsa::GetName() {
+const std::string_view AudioManagerAlsa::GetName() {
   return "ALSA";
 }
 
@@ -87,9 +105,9 @@ void AudioManagerAlsa::GetAlsaAudioDevices(StreamType type,
   static const char kPcmInterfaceName[] = "pcm";
   int card = -1;
 
-  // Loop through the sound cards to get ALSA device hints.
+  // Loop through the physical sound cards to get ALSA device hints.
   while (!wrapper_->CardNext(&card) && card >= 0) {
-    void** hints = NULL;
+    void** hints = nullptr;
     int error = wrapper_->DeviceNameHint(card, kPcmInterfaceName, &hints);
     if (!error) {
       GetAlsaDevicesInfo(type, hints, device_names);
@@ -112,13 +130,14 @@ void AudioManagerAlsa::GetAlsaDevicesInfo(AudioManagerAlsa::StreamType type,
 
   const char* unwanted_device_type = UnwantedDeviceTypeWhenEnumerating(type);
 
-  for (void** hint_iter = hints; *hint_iter != NULL; hint_iter++) {
+  for (void** hint_iter = hints; *hint_iter != nullptr; hint_iter++) {
     // Only examine devices of the right type.  Valid values are
     // "Input", "Output", and NULL which means both input and output.
     std::unique_ptr<char, base::FreeDeleter> io(
         wrapper_->DeviceNameGetHint(*hint_iter, kIoHintName));
-    if (io != NULL && strcmp(unwanted_device_type, io.get()) == 0)
+    if (io != nullptr && strcmp(unwanted_device_type, io.get()) == 0) {
       continue;
+    }
 
     // Found a device, prepend the default device since we always want
     // it to be on the top of the list for all platforms. And there is
@@ -189,6 +208,36 @@ bool AudioManagerAlsa::IsAlsaDeviceAvailable(
 }
 
 // static
+void AudioManagerAlsa::AddAlsaDeviceFromSwitch(const char* switch_name,
+                                               AudioDeviceNames* device_names) {
+  // If an ALSA device is specified via the given switch, but the device list
+  // does not contain the specified device, append it to the list.
+  // GetAlsaAudioDevices only returns hardware ALSA devices, so this logic
+  // ensures that if a virtual ALSA device is specified via switch, it is
+  // included in the list of audio devices.
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(switch_name)) {
+    // If the device list is empty, prepend the default device since we always
+    // want it to be on the top of the list for all platforms.
+    if (device_names->empty()) {
+      device_names->push_front(AudioDeviceName::CreateDefault());
+    }
+    std::string switch_device_name =
+        base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+            switch_name);
+    // Only append the specified device if it is not already present on the
+    // list.
+    if (!base::Contains(
+            *device_names, switch_device_name,
+            [](const auto& device_name) { return device_name.unique_id; })) {
+      AudioDeviceName name;
+      name.unique_id = switch_device_name;
+      name.device_name = switch_device_name;
+      device_names->push_back(name);
+    }
+  }
+}
+
+// static
 const char* AudioManagerAlsa::UnwantedDeviceTypeWhenEnumerating(
     AudioManagerAlsa::StreamType wanted_type) {
   return wanted_type == kStreamPlayback ? "Input" : "Output";
@@ -198,7 +247,7 @@ bool AudioManagerAlsa::HasAnyAlsaAudioDevice(
     AudioManagerAlsa::StreamType stream) {
   static const char kPcmInterfaceName[] = "pcm";
   static const char kIoHintName[] = "IOID";
-  void** hints = NULL;
+  void** hints = nullptr;
   bool has_device = false;
   int card = -1;
 
@@ -208,14 +257,15 @@ bool AudioManagerAlsa::HasAnyAlsaAudioDevice(
   while (!wrapper_->CardNext(&card) && (card >= 0) && !has_device) {
     int error = wrapper_->DeviceNameHint(card, kPcmInterfaceName, &hints);
     if (!error) {
-      for (void** hint_iter = hints; *hint_iter != NULL; hint_iter++) {
+      for (void** hint_iter = hints; *hint_iter != nullptr; hint_iter++) {
         // Only examine devices that are |stream| capable.  Valid values are
         // "Input", "Output", and NULL which means both input and output.
         std::unique_ptr<char, base::FreeDeleter> io(
             wrapper_->DeviceNameGetHint(*hint_iter, kIoHintName));
         const char* unwanted_type = UnwantedDeviceTypeWhenEnumerating(stream);
-        if (io != NULL && strcmp(unwanted_type, io.get()) == 0)
+        if (io != nullptr && strcmp(unwanted_type, io.get()) == 0) {
           continue;  // Wrong type, skip the device.
+        }
 
         // Found an input device.
         has_device = true;
@@ -224,7 +274,7 @@ bool AudioManagerAlsa::HasAnyAlsaAudioDevice(
 
       // Destroy the hints now that we're done with it.
       wrapper_->DeviceNameFreeHint(hints);
-      hints = NULL;
+      hints = nullptr;
     } else {
       DLOG(WARNING) << "HasAnyAudioDevice: unable to get device hints: "
                     << wrapper_->StrError(error);

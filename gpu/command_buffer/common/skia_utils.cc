@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "gpu/command_buffer/common/skia_utils.h"
 
 #include <inttypes.h>
@@ -12,7 +17,7 @@
 #include "base/trace_event/process_memory_dump.h"
 #include "build/build_config.h"
 #include "third_party/skia/include/core/SkTraceMemoryDump.h"
-#include "third_party/skia/include/gpu/GrDirectContext.h"
+#include "third_party/skia/include/gpu/ganesh/GrDirectContext.h"
 #include "ui/gl/trace_util.h"
 
 namespace gpu {
@@ -26,7 +31,7 @@ class SkiaGpuTraceMemoryDump : public SkTraceMemoryDump {
   // This should never outlive the provided ProcessMemoryDump, as it should
   // always be scoped to a single OnMemoryDump funciton call.
   SkiaGpuTraceMemoryDump(base::trace_event::ProcessMemoryDump* pmd,
-                         absl::optional<uint64_t> share_group_tracing_guid)
+                         std::optional<uint64_t> share_group_tracing_guid)
       : pmd_(pmd),
         share_group_tracing_guid_(share_group_tracing_guid),
         tracing_process_id_(base::trace_event::MemoryDumpManager::GetInstance()
@@ -131,7 +136,7 @@ class SkiaGpuTraceMemoryDump : public SkTraceMemoryDump {
   }
 
   raw_ptr<base::trace_event::ProcessMemoryDump> pmd_;
-  absl::optional<uint64_t> share_group_tracing_guid_;
+  std::optional<uint64_t> share_group_tracing_guid_;
   uint64_t tracing_process_id_;
 };
 
@@ -139,7 +144,7 @@ class SkiaGpuTraceMemoryDump : public SkTraceMemoryDump {
 
 void DumpGrMemoryStatistics(const GrDirectContext* context,
                             base::trace_event::ProcessMemoryDump* pmd,
-                            absl::optional<uint64_t> tracing_guid) {
+                            std::optional<uint64_t> tracing_guid) {
   SkiaGpuTraceMemoryDump trace_memory_dump(pmd, tracing_guid);
   context->dumpMemoryStatistics(&trace_memory_dump);
 }

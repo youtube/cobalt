@@ -13,6 +13,7 @@
 #include <stddef.h>
 
 #include <cstdint>
+#include <optional>
 
 namespace webrtc {
 
@@ -77,7 +78,7 @@ void FramerateControllerDeprecated::AddFrame(uint32_t timestamp_ms) {
   last_timestamp_ms_ = timestamp_ms;
 }
 
-absl::optional<float> FramerateControllerDeprecated::Rate(
+std::optional<float> FramerateControllerDeprecated::Rate(
     uint32_t timestamp_ms) const {
   return framerate_estimator_.Rate(timestamp_ms);
 }

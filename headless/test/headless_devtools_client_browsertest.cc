@@ -72,203 +72,19 @@ class HeadlessDevToolsClientNavigationTest
 
 HEADLESS_DEVTOOLED_TEST_F(HeadlessDevToolsClientNavigationTest);
 
-class HeadlessDevToolsClientWindowManagementTest
-    : public HeadlessDevTooledBrowserTest {
- public:
-  int window_id() {
-    return HeadlessWebContentsImpl::From(web_contents_)->window_id();
-  }
-
-  void SetWindowBounds(
-      const gfx::Rect& rect,
-      SimpleDevToolsProtocolClient::ResponseCallback callback) {
-    base::Value::Dict params;
-    params.Set("windowId", window_id());
-    params.SetByDottedPath("bounds.left", rect.x());
-    params.SetByDottedPath("bounds.top", rect.y());
-    params.SetByDottedPath("bounds.width", rect.width());
-    params.SetByDottedPath("bounds.height", rect.height());
-    params.SetByDottedPath("bounds.windowState", "normal");
-
-    browser_devtools_client_.SendCommand(
-        "Browser.setWindowBounds", std::move(params), std::move(callback));
-  }
-
-  void SetWindowState(const std::string& window_state,
-                      SimpleDevToolsProtocolClient::ResponseCallback callback) {
-    base::Value::Dict params;
-    params.Set("windowId", window_id());
-    params.SetByDottedPath("bounds.windowState", window_state);
-
-    browser_devtools_client_.SendCommand(
-        "Browser.setWindowBounds", std::move(params), std::move(callback));
-  }
-
-  void GetWindowBounds(
-      SimpleDevToolsProtocolClient::ResponseCallback callback) {
-    browser_devtools_client_.SendCommand("Browser.getWindowBounds",
-                                         Param("windowId", window_id()),
-                                         std::move(callback));
-  }
-
-  void CheckWindowBounds(const gfx::Rect& bounds,
-                         const std::string window_state,
-                         base::Value::Dict result) {
-    gfx::Rect actual_bounds(DictInt(result, "result.bounds.left"),
-                            DictInt(result, "result.bounds.top"),
-                            DictInt(result, "result.bounds.width"),
-                            DictInt(result, "result.bounds.height"));
-
-    std::string actual_window_state =
-        DictString(result, "result.bounds.windowState");
-
-    // Mac does not support repositioning, as we don't show any actual window.
-#if !BUILDFLAG(IS_MAC)
-    EXPECT_EQ(bounds.x(), actual_bounds.x());
-    EXPECT_EQ(bounds.y(), actual_bounds.y());
-#endif  // !BUILDFLAG(IS_MAC)
-    EXPECT_EQ(bounds.width(), actual_bounds.width());
-    EXPECT_EQ(bounds.height(), actual_bounds.height());
-    EXPECT_EQ(window_state, actual_window_state);
-  }
-};
-
-class HeadlessDevToolsClientChangeWindowBoundsTest
-    : public HeadlessDevToolsClientWindowManagementTest {
-  gfx::Rect new_bounds() { return gfx::Rect(100, 200, 300, 400); }
-
-  void RunDevTooledTest() override {
-    SetWindowBounds(
-        new_bounds(),
-        base::BindOnce(
-            &HeadlessDevToolsClientChangeWindowBoundsTest::OnSetWindowBounds,
-            base::Unretained(this)));
-  }
-
-  void OnSetWindowBounds(base::Value::Dict result) {
-    GetWindowBounds(base::BindOnce(
-        &HeadlessDevToolsClientChangeWindowBoundsTest::OnGetWindowBounds,
-        base::Unretained(this)));
-  }
-
-  void OnGetWindowBounds(base::Value::Dict result) {
-    CheckWindowBounds(new_bounds(), "normal", std::move(result));
-    FinishAsynchronousTest();
-  }
-};
-
-#if BUILDFLAG(IS_MAC) && defined(ADDRESS_SANITIZER)
-// TODO(crbug.com/1086872): Disabled due to flakiness on Mac ASAN.
-DISABLED_HEADLESS_DEVTOOLED_TEST_F(
-    HeadlessDevToolsClientChangeWindowBoundsTest);
-#else
-HEADLESS_DEVTOOLED_TEST_F(HeadlessDevToolsClientChangeWindowBoundsTest);
-#endif
-
-class HeadlessDevToolsClientOuterSizeTest
-    : public HeadlessDevToolsClientWindowManagementTest {
-  void RunDevTooledTest() override {
-    SetWindowBounds(
-        gfx::Rect(100, 200, 800, 600),
-        base::BindOnce(&HeadlessDevToolsClientOuterSizeTest::OnSetWindowBounds,
-                       base::Unretained(this)));
-  }
-
-  void OnSetWindowBounds(base::Value::Dict) {
-    EXPECT_EQ(800, Evaluate("window.outerWidth"));
-    EXPECT_EQ(600, Evaluate("window.outerHeight"));
-
-    FinishAsynchronousTest();
-  }
-
-  int Evaluate(const std::string& expression) {
-    base::Value::Dict result = SendCommandSync(
-        devtools_client_, "Runtime.evaluate", Param("expression", expression));
-    return DictInt(result, "result.result.value");
-  }
-};
-
-HEADLESS_DEVTOOLED_TEST_F(HeadlessDevToolsClientOuterSizeTest);
-
-class HeadlessDevToolsClientChangeWindowStateTest
-    : public HeadlessDevToolsClientWindowManagementTest {
- public:
-  explicit HeadlessDevToolsClientChangeWindowStateTest(
-      const std::string& window_state)
-      : window_state_(window_state) {}
-
-  void RunDevTooledTest() override {
-    SetWindowState(
-        window_state_,
-        base::BindOnce(
-            &HeadlessDevToolsClientChangeWindowStateTest::OnSetWindowState,
-            base::Unretained(this)));
-  }
-
-  void OnSetWindowState(base::Value::Dict) {
-    GetWindowBounds(base::BindOnce(
-        &HeadlessDevToolsClientChangeWindowStateTest::OnGetWindowState,
-        base::Unretained(this)));
-  }
-
-  void OnGetWindowState(base::Value::Dict result) {
-    HeadlessBrowser::Options::Builder builder;
-    const HeadlessBrowser::Options kDefaultOptions = builder.Build();
-    CheckWindowBounds(gfx::Rect(kDefaultOptions.window_size), window_state_,
-                      std::move(result));
-    FinishAsynchronousTest();
-  }
-
- protected:
-  std::string window_state_;
-};
-
-class HeadlessDevToolsClientMinimizeWindowTest
-    : public HeadlessDevToolsClientChangeWindowStateTest {
- public:
-  HeadlessDevToolsClientMinimizeWindowTest()
-      : HeadlessDevToolsClientChangeWindowStateTest("minimized") {}
-};
-
-HEADLESS_DEVTOOLED_TEST_F(HeadlessDevToolsClientMinimizeWindowTest);
-
-class HeadlessDevToolsClientMaximizeWindowTest
-    : public HeadlessDevToolsClientChangeWindowStateTest {
- public:
-  HeadlessDevToolsClientMaximizeWindowTest()
-      : HeadlessDevToolsClientChangeWindowStateTest("maximized") {}
-};
-
-HEADLESS_DEVTOOLED_TEST_F(HeadlessDevToolsClientMaximizeWindowTest);
-
-class HeadlessDevToolsClientFullscreenWindowTest
-    : public HeadlessDevToolsClientChangeWindowStateTest {
- public:
-  HeadlessDevToolsClientFullscreenWindowTest()
-      : HeadlessDevToolsClientChangeWindowStateTest("fullscreen") {}
-};
-
-HEADLESS_DEVTOOLED_TEST_F(HeadlessDevToolsClientFullscreenWindowTest);
-
-class HeadlessDevToolsClientEvalTest : public HeadlessDevTooledBrowserTest {
- public:
-  void RunDevTooledTest() override {
-    base::Value::Dict result = SendCommandSync(
-        devtools_client_, "Runtime.evaluate", Param("expression", "1 + 2"));
-
-    EXPECT_THAT(result, DictHasValue("result.result.value", 3));
-
-    FinishAsynchronousTest();
-  }
-};
-
-HEADLESS_DEVTOOLED_TEST_F(HeadlessDevToolsClientEvalTest);
-
 class HeadlessDevToolsNavigationControlTest
     : public HeadlessDevTooledBrowserTest {
  public:
   void RunDevTooledTest() override {
     ASSERT_TRUE(embedded_test_server()->Start());
+
+    SendCommandSync(devtools_client_, "Page.enable");
+    SendCommandSync(devtools_client_, "Network.enable");
+
+    base::Value::List patterns;
+    patterns.Append(Param("urlPattern", "*"));
+    devtools_client_.SendCommand("Network.setRequestInterception",
+                                 Param("patterns", std::move(patterns)));
 
     devtools_client_.AddEventHandler(
         "Network.requestIntercepted",
@@ -281,14 +97,6 @@ class HeadlessDevToolsNavigationControlTest
         base::BindRepeating(
             &HeadlessDevToolsNavigationControlTest::OnFrameStoppedLoading,
             base::Unretained(this)));
-
-    SendCommandSync(devtools_client_, "Page.enable");
-    SendCommandSync(devtools_client_, "Network.enable");
-
-    base::Value::List patterns;
-    patterns.Append(Param("urlPattern", "*"));
-    devtools_client_.SendCommand("Network.setRequestInterception",
-                                 Param("patterns", std::move(patterns)));
 
     devtools_client_.SendCommand(
         "Page.navigate",
@@ -333,10 +141,10 @@ class HeadlessCrashObserverTest : public HeadlessDevTooledBrowserTest {
   void OnTargetCrashed(const base::Value::Dict&) { FinishAsynchronousTest(); }
 
   // Make sure we don't fail because the renderer crashed!
-  void RenderProcessExited(base::TerminationStatus status,
-                           int exit_code) override {
+  void PrimaryMainFrameRenderProcessGone(
+      base::TerminationStatus status) override {
 #if BUILDFLAG(IS_WIN) && defined(ADDRESS_SANITIZER)
-    // TODO(crbug.com/845011): Make ASan not interfere and expect a crash.
+    // TODO(crbug.com/40577245): Make ASan not interfere and expect a crash.
     // ASan's normal error exit code is 1, which base categorizes as the process
     // being killed.
     EXPECT_EQ(base::TERMINATION_STATUS_PROCESS_WAS_KILLED, status);
@@ -352,7 +160,8 @@ class HeadlessCrashObserverTest : public HeadlessDevTooledBrowserTest {
   content::ScopedAllowRendererCrashes scoped_allow_renderer_crashes_;
 };
 
-// TODO(1272554): HeadlessCrashObserverTest.RunAsyncTest is flaky on Win debug.
+// TODO(crbug.com/40206073): HeadlessCrashObserverTest.RunAsyncTest is flaky on
+// Win debug.
 #if BUILDFLAG(IS_WIN) && !defined(NDEBUG)
 DISABLED_HEADLESS_DEVTOOLED_TEST_F(HeadlessCrashObserverTest);
 #else
@@ -530,7 +339,7 @@ class DomTreeExtractionBrowserTest : public HeadlessDevTooledBrowserTest {
 
     base::ScopedAllowBlockingForTesting allow_blocking;
     base::FilePath source_root_dir;
-    base::PathService::Get(base::DIR_SOURCE_ROOT, &source_root_dir);
+    base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &source_root_dir);
 
     CompareToGolden(
         dom_nodes,
@@ -590,14 +399,16 @@ class DomTreeExtractionBrowserTest : public HeadlessDevTooledBrowserTest {
 
       // Golden file expects scrollOffsetXY to have fractional part.
       // TODO(kvitekp): Consider updating golden files.
-      if (absl::optional<double> x = node_dict.FindDouble("scrollOffsetX"))
+      if (std::optional<double> x = node_dict.FindDouble("scrollOffsetX")) {
         node_dict.Set("scrollOffsetX", *x);
+      }
 
-      if (absl::optional<double> y = node_dict.FindDouble("scrollOffsetY"))
+      if (std::optional<double> y = node_dict.FindDouble("scrollOffsetY")) {
         node_dict.Set("scrollOffsetY", *y);
+      }
 
       // Merge LayoutTreeNode data into the dom_node dictionary.
-      if (absl::optional<int> layout_node_index =
+      if (std::optional<int> layout_node_index =
               node_dict.FindInt("layoutNodeIndex")) {
         ASSERT_LE(0, *layout_node_index);
         ASSERT_GT(layout_tree_nodes_list->size(),
@@ -617,7 +428,7 @@ class DomTreeExtractionBrowserTest : public HeadlessDevTooledBrowserTest {
           node_dict.Set("layoutText", *layout_text);
         }
 
-        if (absl::optional<int> style_index =
+        if (std::optional<int> style_index =
                 layout_tree_node.FindInt("styleIndex")) {
           node_dict.Set("styleIndex", *style_index);
         }
@@ -693,7 +504,7 @@ class DomTreeExtractionBrowserTest : public HeadlessDevTooledBrowserTest {
   }
 };
 
-// TODO(crbug.com/1090930): Fix this test on Fuchsia and re-enable.
+// TODO(crbug.com/40697467): Fix this test on Fuchsia and re-enable.
 // NOTE: These macros expand to: DomTreeExtractionBrowserTest.RunAsyncTest
 #if BUILDFLAG(IS_FUCHSIA)
 DISABLED_HEADLESS_DEVTOOLED_TEST_F(DomTreeExtractionBrowserTest);
@@ -890,7 +701,7 @@ class DevtoolsInterceptionWithAuthProxyTest
     std::unique_ptr<net::ProxyConfig> proxy_config(new net::ProxyConfig);
     proxy_config->proxy_rules().ParseFromString(
         proxy_server_.host_port_pair().ToString());
-    // TODO(https://crbug.com/901896): Don't rely on proxying localhost.
+    // TODO(crbug.com/40600992): Don't rely on proxying localhost.
     proxy_config->proxy_rules().bypass_rules.AddRulesToSubtractImplicit();
     builder.SetProxyConfig(std::move(proxy_config));
   }
@@ -901,9 +712,8 @@ class DevtoolsInterceptionWithAuthProxyTest
   std::set<std::string> files_loaded_;
 };
 
-#if (BUILDFLAG(IS_MAC) && defined(ADDRESS_SANITIZER)) || BUILDFLAG(IS_FUCHSIA)
-// TODO(crbug.com/1086872): Disabled due to flakiness on Mac ASAN.
-// TODO(crbug.com/1090933): Reenable on Fuchsia when fixed.
+#if BUILDFLAG(IS_FUCHSIA)
+// TODO(crbug.com/40697469): Reenable on Fuchsia when fixed.
 // NOTE: This macro expands to:
 //   DevtoolsInterceptionWithAuthProxyTest.RunAsyncTest
 DISABLED_HEADLESS_DEVTOOLED_TEST_F(DevtoolsInterceptionWithAuthProxyTest);

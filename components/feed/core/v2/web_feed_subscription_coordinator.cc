@@ -4,7 +4,9 @@
 
 #include "components/feed/core/v2/web_feed_subscription_coordinator.h"
 
+#include <algorithm>
 #include <memory>
+#include <optional>
 #include <ostream>
 
 #include "base/debug/stack_trace.h"
@@ -12,7 +14,6 @@
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/memory/raw_ptr.h"
-#include "base/ranges/algorithm.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "components/feed/core/common/pref_names.h"
@@ -33,7 +34,6 @@
 #include "components/feed/feed_feature_list.h"
 #include "components/offline_pages/task/closure_task.h"
 #include "components/prefs/pref_service.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace feed {
 namespace {
@@ -118,7 +118,7 @@ WebFeedSubscriptionCoordinator::WebFeedSubscriptionCoordinator(
 
 bool WebFeedSubscriptionCoordinator::IsSignedInAndWebFeedsEnabled() const {
   return feed_stream_->IsEnabledAndVisible() &&
-         base::FeatureList::IsEnabled(kWebFeed) && feed_stream_->IsSignedIn();
+         feed_stream_->IsWebFeedEnabled() && feed_stream_->IsSignedIn();
 }
 
 WebFeedSubscriptionCoordinator::~WebFeedSubscriptionCoordinator() = default;
@@ -175,7 +175,7 @@ void WebFeedSubscriptionCoordinator::FollowWebFeed(
   EnqueueInFlightChange(/*subscribing=*/true,
                         WebFeedInFlightChangeStrategy::kNotDurableRequest,
                         change_reason, page_info,
-                        /*info=*/absl::nullopt);
+                        /*info=*/std::nullopt);
   WithModel(base::BindOnce(
       &WebFeedSubscriptionCoordinator::FollowWebFeedFromUrlStart,
       base::Unretained(this), page_info, change_reason, std::move(callback)));
@@ -219,7 +219,7 @@ void WebFeedSubscriptionCoordinator::FollowWebFeedInternal(
   feedstore::WebFeedInfo info;
   info.set_web_feed_id(web_feed_id);
   EnqueueInFlightChange(/*subscribing=*/true, strategy, change_reason,
-                        /*page_information=*/absl::nullopt, info);
+                        /*page_information=*/std::nullopt, info);
   WithModel(
       base::BindOnce(&WebFeedSubscriptionCoordinator::FollowWebFeedFromIdStart,
                      base::Unretained(this), web_feed_id, strategy,
@@ -245,7 +245,6 @@ void WebFeedSubscriptionCoordinator::UpdatePendingOperationBeforeAttempt(
       break;
     case WebFeedInFlightChangeStrategy::kPending:
       NOTREACHED();
-      break;
   }
 }
 
@@ -348,7 +347,7 @@ void WebFeedSubscriptionCoordinator::UnfollowWebFeedStart(
   feedstore::WebFeedInfo info = info_lookup.web_feed_info;
   info.set_web_feed_id(web_feed_id);
   EnqueueInFlightChange(/*subscribing=*/false, strategy, change_reason,
-                        /*page_information=*/absl::nullopt, info);
+                        /*page_information=*/std::nullopt, info);
 
   feed_stream_->GetTaskQueue().AddTask(
       FROM_HERE,
@@ -581,8 +580,8 @@ void WebFeedSubscriptionCoordinator::ModelDataLoaded(
     startup_data = {};
   }
 
-  // TODO(crbug/1152592): Don't need recommended feed data, we could add a new
-  // function on FeedStore to fetch only subscribed feed data.
+  // TODO(crbug.com/40158714): Don't need recommended feed data, we could add a
+  // new function on FeedStore to fetch only subscribed feed data.
   model_ = std::make_unique<WebFeedSubscriptionModel>(
       &feed_stream_->GetStore(), &index_, &recent_unsubscribed_,
       std::move(startup_data.subscribed_web_feeds), metadata_model_.get());
@@ -596,8 +595,8 @@ void WebFeedSubscriptionCoordinator::EnqueueInFlightChange(
     bool subscribing,
     WebFeedInFlightChangeStrategy strategy,
     feedwire::webfeed::WebFeedChangeReason change_reason,
-    absl::optional<WebFeedPageInformation> page_information,
-    absl::optional<feedstore::WebFeedInfo> info) {
+    std::optional<WebFeedPageInformation> page_information,
+    std::optional<feedstore::WebFeedInfo> info) {
   WebFeedInFlightChange change;
   change.token = token_generator_.Token();
   change.subscribing = subscribing;
@@ -868,8 +867,9 @@ WebFeedSubscriptionCoordinator::GetAllWebFeedSubscriptionStatus() const {
   }
 
   // Remove duplicates, and fetch WebFeed status.
-  base::ranges::sort(result);
-  result.erase(base::ranges::unique(result), result.end());
+  std::ranges::sort(result);
+  auto repeated = std::ranges::unique(result);
+  result.erase(repeated.begin(), repeated.end());
   for (auto& entry : result) {
     entry.second = GetWebFeedSubscriptionStatus(entry.first);
   }
@@ -971,9 +971,9 @@ WebFeedSubscriptionCoordinator::GetPendingOperationStateForTesting() {
 void WebFeedSubscriptionCoordinator::QueryWebFeed(
     const GURL& url,
     base::OnceCallback<void(QueryWebFeedResult)> callback) {
-  // TODO(crbug/1409701) Combine subscription status into result callback. This
-  // would require binding a start call via WithModel and updating the local
-  // state to match the result from the server,
+  // TODO(crbug.com/40889279) Combine subscription status into result callback.
+  // This would require binding a start call via WithModel and updating the
+  // local state to match the result from the server,
   QueryWebFeedTask::Request request;
   request.web_feed_url = url;
 
@@ -988,9 +988,9 @@ void WebFeedSubscriptionCoordinator::QueryWebFeed(
 void WebFeedSubscriptionCoordinator::QueryWebFeedId(
     const std::string& id,
     base::OnceCallback<void(QueryWebFeedResult)> callback) {
-  // TODO(crbug/1409701) Combine subscription status into result callback. This
-  // would require binding a start call via WithModel and updating the local
-  // state to match the result from the server,
+  // TODO(crbug.com/40889279) Combine subscription status into result callback.
+  // This would require binding a start call via WithModel and updating the
+  // local state to match the result from the server,
   QueryWebFeedTask::Request request;
   request.web_feed_id = id;
 

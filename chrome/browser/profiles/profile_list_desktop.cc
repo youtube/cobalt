@@ -18,8 +18,7 @@ ProfileListDesktop::ProfileListDesktop(
     : profile_storage_(profile_storage) {
 }
 
-ProfileListDesktop::~ProfileListDesktop() {
-}
+ProfileListDesktop::~ProfileListDesktop() = default;
 
 size_t ProfileListDesktop::GetNumberOfItems() const {
   return items_.size();
@@ -32,7 +31,7 @@ const AvatarMenu::Item& ProfileListDesktop::GetItemAt(size_t index) const {
 
 void ProfileListDesktop::RebuildMenu() {
   std::vector<ProfileAttributesEntry*> entries =
-      profile_storage_->GetAllProfilesAttributesSortedByName();
+      profile_storage_->GetAllProfilesAttributesSortedByNameWithCheck();
 
   items_.clear();
   for (ProfileAttributesEntry* entry : entries) {
@@ -44,7 +43,6 @@ void ProfileListDesktop::RebuildMenu() {
         new AvatarMenu::Item(items_.size(), entry->GetPath(), icon));
     item->name = entry->GetName();
     item->username = entry->GetUserName();
-    item->signed_in = entry->IsAuthenticated();
     if (entry->GetSigninState() == SigninState::kNotSignedIn) {
       item->username =
           l10n_util::GetStringUTF16(IDS_PROFILES_LOCAL_PROFILE_STATE);
@@ -55,7 +53,7 @@ void ProfileListDesktop::RebuildMenu() {
   }
 }
 
-absl::optional<size_t> ProfileListDesktop::MenuIndexFromProfilePath(
+std::optional<size_t> ProfileListDesktop::MenuIndexFromProfilePath(
     const base::FilePath& path) const {
   const size_t menu_count = GetNumberOfItems();
 
@@ -65,7 +63,7 @@ absl::optional<size_t> ProfileListDesktop::MenuIndexFromProfilePath(
       return i;
   }
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 void ProfileListDesktop::ActiveProfilePathChanged(

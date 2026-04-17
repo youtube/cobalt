@@ -9,6 +9,7 @@
 #include "TestSuite.h"
 
 #include "common/debug.h"
+#include "common/hash_containers.h"
 #include "common/platform.h"
 #include "common/string_utils.h"
 #include "common/system_utils.h"
@@ -52,6 +53,9 @@ constexpr char kArtifactsFakeTestName[] = "TestArtifactsFakeTest";
 
 constexpr char kTSanOptionsEnvVar[]  = "TSAN_OPTIONS";
 constexpr char kUBSanOptionsEnvVar[] = "UBSAN_OPTIONS";
+
+[[maybe_unused]] constexpr char kVkLoaderDisableDLLUnloadingEnvVar[] =
+    "VK_LOADER_DISABLE_DYNAMIC_LIBRARY_UNLOADING";
 
 // Note: we use a fairly high test timeout to allow for the first test in a batch to be slow.
 // Ideally we could use a separate timeout for the slow first test.
@@ -318,7 +322,12 @@ void UpdateCurrentTestResult(const testing::TestResult &resultIn, TestResults *r
     }
     else
     {
-        resultOut.type = TestResultType::Pass;
+        // With --gtest_repeat the same test is seen multiple times, so resultOut.type may have been
+        // previously set to e.g. ::Fail. Only set to ::Pass if there was no other result yet.
+        if (resultOut.type == TestResultType::NoResult)
+        {
+            resultOut.type = TestResultType::Pass;
+        }
     }
 
     resultOut.elapsedTimeSeconds.back() = resultsOut->currentTestTimer.getElapsedWallClockTime();
@@ -716,19 +725,28 @@ std::string GetConfigNameFromTestIdentifier(const TestIdentifier &id)
 
 TestQueue BatchTests(const std::vector<TestIdentifier> &tests, int batchSize)
 {
-    // First sort tests by configuration.
-    angle::HashMap<std::string, std::vector<TestIdentifier>> testsSortedByConfig;
+    // First group tests by configuration.
+    angle::HashMap<std::string, std::vector<TestIdentifier>> testsGroupedByConfig;
     for (const TestIdentifier &id : tests)
     {
         std::string config = GetConfigNameFromTestIdentifier(id);
-        testsSortedByConfig[config].push_back(id);
+        testsGroupedByConfig[config].push_back(id);
     }
+
+    // Sort configs for consistent ordering.
+    std::vector<std::string> configs;
+    configs.reserve(testsGroupedByConfig.size());
+    for (const auto &configAndIds : testsGroupedByConfig)
+    {
+        configs.push_back(configAndIds.first);
+    }
+    std::sort(configs.begin(), configs.end());
 
     // Then group into batches by 'batchSize'.
     TestQueue testQueue;
-    for (const auto &configAndIds : testsSortedByConfig)
+    for (const auto &config : configs)
     {
-        const std::vector<TestIdentifier> &configTests = configAndIds.second;
+        const std::vector<TestIdentifier> &configTests = testsGroupedByConfig[config];
 
         // Count the number of batches needed for this config.
         int batchesForConfig = static_cast<int>(configTests.size() + batchSize - 1) / batchSize;
@@ -765,7 +783,7 @@ void ListTests(const std::map<TestIdentifier, TestResult> &resultsMap)
 
 // Prints the names of the tests matching the user-specified filter flag.
 // This matches the output from googletest/src/gtest.cc but is much much faster for large filters.
-// See http://anglebug.com/5164
+// See http://anglebug.com/42263725
 void GTestListTests(const std::map<TestIdentifier, TestResult> &resultsMap)
 {
     std::map<std::string, std::vector<std::string>> suites;
@@ -989,7 +1007,7 @@ TestSuite::TestSuite(int *argc, char **argv, std::function<void()> registerTests
 #endif
 
 #if defined(ANGLE_PLATFORM_WINDOWS)
-    testing::GTEST_FLAG(catch_exceptions) = false;
+    GTEST_FLAG_SET(catch_exceptions, false);
 #endif
 
     if (*argc <= 0)
@@ -1032,7 +1050,7 @@ TestSuite::TestSuite(int *argc, char **argv, std::function<void()> registerTests
 #if defined(ANGLE_PLATFORM_FUCHSIA)
     if (mBotMode)
     {
-        printf("Note: Bot mode is not available on Fuchsia. See http://anglebug.com/7312\n");
+        printf("Note: Bot mode is not available on Fuchsia. See http://anglebug.com/42265786\n");
         mBotMode = false;
     }
 #endif
@@ -1051,6 +1069,14 @@ TestSuite::TestSuite(int *argc, char **argv, std::function<void()> registerTests
         mCrashCallback = [this]() { onCrashOrTimeout(TestResultType::Crash); };
         InitCrashHandler(&mCrashCallback);
     }
+
+#if defined(ANGLE_PLATFORM_WINDOWS) || defined(ANGLE_PLATFORM_LINUX)
+    if (IsASan())
+    {
+        // Set before `registerTestsCallback()` call
+        SetEnvironmentVar(kVkLoaderDisableDLLUnloadingEnvVar, "1");
+    }
+#endif
 
     registerTestsCallback();
 
@@ -1101,6 +1127,10 @@ TestSuite::TestSuite(int *argc, char **argv, std::function<void()> registerTests
         else if (conditions[GPUTestConfig::kConditionApple])
         {
             SetEnvironmentVar(kPreferredDeviceEnvVar, "apple");
+        }
+        else if (conditions[GPUTestConfig::kConditionQualcomm])
+        {
+            SetEnvironmentVar(kPreferredDeviceEnvVar, "qualcomm");
         }
     }
 
@@ -1548,6 +1578,9 @@ bool TestSuite::finishProcess(ProcessInfo *processInfo)
         {
             printf(" (TIMEOUT in %0.1lf s)\n", result.elapsedTimeSeconds.back());
             mFailureCount++;
+
+            const std::string &batchStdout = processInfo->process->getStdout();
+            PrintTestOutputSnippet(id, result, batchStdout);
         }
         else
         {
@@ -1948,7 +1981,7 @@ bool TestSuite::logAnyUnusedTestExpectations()
     }
     if (anyUnused)
     {
-        std::cerr << "Failed to validate test expectations." << unusedMsgStream.str() << std::endl;
+        std::cerr << "Found unused test expectations:" << unusedMsgStream.str() << std::endl;
         return true;
     }
     return false;

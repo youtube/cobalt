@@ -31,7 +31,7 @@
 #include <utility>
 
 #include "mojo/public/cpp/bindings/remote.h"
-#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/file_path_conversion.h"
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
@@ -142,9 +142,10 @@ void FileChooser::DidCloseChooser() {
 
 FileChooserFileInfoPtr CreateFileChooserFileInfoNative(
     const String& path,
-    const String& display_name) {
+    const String& display_name,
+    const Vector<String>& base_subdirs) {
   return FileChooserFileInfo::NewNativeFile(
-      NativeFileInfo::New(StringToFilePath(path), display_name));
+      NativeFileInfo::New(StringToFilePath(path), display_name, base_subdirs));
 }
 
 FileChooserFileInfoPtr CreateFileChooserFileInfoFileSystem(

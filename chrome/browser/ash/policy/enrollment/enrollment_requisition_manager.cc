@@ -4,9 +4,11 @@
 
 #include "chrome/browser/ash/policy/enrollment/enrollment_requisition_manager.h"
 
+#include <string_view>
+
 #include "base/logging.h"
-#include "build/chromeos_buildflags.h"
 #include "build/config/chromebox_for_meetings/buildflags.h"
+#include "build/config/cuttlefish/buildflags.h"
 #include "chrome/browser/ash/login/demo_mode/demo_setup_controller.h"
 #include "chrome/browser/ash/login/startup_utils.h"
 #include "chrome/browser/browser_process.h"
@@ -23,7 +25,9 @@ using ::ash::system::StatisticsProvider;
 const char EnrollmentRequisitionManager::kNoRequisition[] = "none";
 const char EnrollmentRequisitionManager::kRemoraRequisition[] = "remora";
 const char EnrollmentRequisitionManager::kSharkRequisition[] = "shark";
-const char EnrollmentRequisitionManager::kRialtoRequisition[] = "rialto";
+const char EnrollmentRequisitionManager::kDemoRequisition[] = "cros-demo-mode";
+const char EnrollmentRequisitionManager::kCuttlefishRequisition[] =
+    "cuttlefish";
 
 // static
 void EnrollmentRequisitionManager::Initialize() {
@@ -39,17 +43,14 @@ void EnrollmentRequisitionManager::Initialize() {
   const PrefService::Preference* pref =
       local_state->FindPreference(prefs::kDeviceEnrollmentRequisition);
   if (pref->IsDefaultValue()) {
-    const absl::optional<base::StringPiece> requisition =
+    const std::optional<std::string_view> requisition =
         provider->GetMachineStatistic(ash::system::kOemDeviceRequisitionKey);
 
     if (requisition && !requisition->empty()) {
-      // TODO(b/259661300): Remove copy of `requisition` once
-      // `PrefService::SetString()` uses StringPiece as an argument.
       local_state->SetString(prefs::kDeviceEnrollmentRequisition,
-                             std::string(requisition.value()));
+                             requisition.value());
       if (requisition == kRemoraRequisition ||
-          requisition == kSharkRequisition ||
-          requisition == kRialtoRequisition) {
+          requisition == kSharkRequisition) {
         SetDeviceEnrollmentAutoStart();
       } else {
         const bool auto_start = StatisticsProvider::FlagValueToBool(
@@ -84,7 +85,7 @@ std::string EnrollmentRequisitionManager::GetDeviceRequisition() {
 // static
 void EnrollmentRequisitionManager::SetDeviceRequisition(
     const std::string& requisition) {
-  // TODO(crbug.com/1271134): Logging as "WARNING" to make sure it's preserved
+  // TODO(crbug.com/40805389): Logging as "WARNING" to make sure it's preserved
   // in the logs.
   LOG(WARNING) << "SetDeviceRequisition " << requisition;
 
@@ -120,6 +121,14 @@ bool EnrollmentRequisitionManager::IsMeetDevice() {
 #else
   return IsRemoraRequisition();
 #endif  // BUILDFLAG(PLATFORM_CFM)
+}
+
+bool EnrollmentRequisitionManager::IsCuttlefishDevice() {
+#if BUILDFLAG(PLATFORM_CUTTLEFISH)
+  return true;
+#else
+  return false;
+#endif  // BUILDFLAG(PLATFORM_CUTTLEFISH)
 }
 
 // static
@@ -159,6 +168,8 @@ void EnrollmentRequisitionManager::RegisterPrefs(PrefRegistrySimple* registry) {
                                std::string());
   registry->RegisterBooleanPref(prefs::kDeviceEnrollmentAutoStart, false);
   registry->RegisterBooleanPref(prefs::kDeviceEnrollmentCanExit, true);
+  registry->RegisterStringPref(prefs::kEnrollmentVersionOS, std::string());
+  registry->RegisterStringPref(prefs::kEnrollmentVersionBrowser, std::string());
 }
 
 }  // namespace policy

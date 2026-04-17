@@ -14,6 +14,8 @@
 //
 // - void SetUpCommandLine(base::CommandLine* command_line), e.g. to add
 //   command-line flags to enable / configure the feature being tested.
+//   NOTE: There is no need to call ContentBrowserTest::SetUpCommandLine() from
+//   the override method, as ContentBrowserTest::SetUpCommandLine() is empty.
 //
 // - void SetUpOnMainThread(), to run test set-up steps on the browser main
 //   thread, e.g. installing hooks in the browser process for testing. Note that
@@ -34,11 +36,16 @@
 #include "content/public/test/browser_test_base.h"
 
 #if BUILDFLAG(IS_MAC)
-#include "base/mac/scoped_nsautorelease_pool.h"
+#include <optional>
+
+#include "base/apple/scoped_nsautorelease_pool.h"
+#include "base/memory/stack_allocated.h"
+#include "base/test/scoped_path_override.h"
 #endif
 
 namespace content {
 class Shell;
+class TestBrowserContext;
 
 // Base class for browser tests which use content_shell.
 class ContentBrowserTest : public BrowserTestBase {
@@ -64,11 +71,15 @@ class ContentBrowserTest : public BrowserTestBase {
   // Returns the window for the test.
   Shell* shell() const { return shell_; }
 
-  // File path to test data, relative to DIR_SOURCE_ROOT.
+  // Creates a test browser context with a file path that's appropriate for
+  // browser tests.
+  std::unique_ptr<TestBrowserContext> CreateTestBrowserContext();
+
+  // File path to test data, relative to DIR_SRC_TEST_DATA_ROOT.
   base::FilePath GetTestDataFilePath();
 
  private:
-  raw_ptr<Shell, DanglingUntriaged> shell_ = nullptr;
+  raw_ptr<Shell, AcrossTasksDanglingUntriaged> shell_ = nullptr;
 
 #if BUILDFLAG(IS_MAC)
   // On Mac, without the following autorelease pool, code which is directly
@@ -78,7 +89,10 @@ class ContentBrowserTest : public BrowserTestBase {
   // deallocation via an autorelease pool (such as browser window closure and
   // browser shutdown). To avoid this, the following pool is recycled after each
   // time code is directly executed.
-  raw_ptr<base::mac::ScopedNSAutoreleasePool> pool_ = nullptr;
+  STACK_ALLOCATED_IGNORE("https://crbug.com/1424190")
+  std::optional<base::apple::ScopedNSAutoreleasePool> pool_;
+
+  std::optional<base::ScopedPathOverride> file_exe_override_;
 #endif
 
   // Used to detect incorrect overriding of PreRunTestOnMainThread() with

@@ -6,6 +6,7 @@
 #define NET_REPORTING_REPORTING_REPORT_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/time/time.h"
@@ -14,7 +15,7 @@
 #include "net/base/net_export.h"
 #include "net/base/network_anonymization_key.h"
 #include "net/reporting/reporting_endpoint.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "net/reporting/reporting_target_type.h"
 #include "url/gurl.h"
 
 namespace net {
@@ -39,18 +40,16 @@ struct NET_EXPORT ReportingReport {
     SUCCESS,
   };
 
-  // TODO(chlily): Remove |attempts| argument as it is (almost?) always 0.
-  ReportingReport(
-      const absl::optional<base::UnguessableToken>& reporting_source,
-      const NetworkAnonymizationKey& network_anonymization_key,
-      const GURL& url,
-      const std::string& user_agent,
-      const std::string& group,
-      const std::string& type,
-      base::Value::Dict body,
-      int depth,
-      base::TimeTicks queued,
-      int attempts);
+  ReportingReport(const std::optional<base::UnguessableToken>& reporting_source,
+                  const NetworkAnonymizationKey& network_anonymization_key,
+                  const GURL& url,
+                  const std::string& user_agent,
+                  const std::string& group,
+                  const std::string& type,
+                  base::Value::Dict body,
+                  int depth,
+                  base::TimeTicks queued,
+                  ReportingTargetType target_type);
 
   // Do NOT use this constructor outside of mojo deserialization context.
   ReportingReport();
@@ -60,11 +59,11 @@ struct NET_EXPORT ReportingReport {
   ReportingReport& operator=(ReportingReport&& other);
   ~ReportingReport();
 
-  // Bundles together the NIK, origin of the report URL, and group name.
-  // This is not exactly the same as the group key of the endpoint that the
-  // report will be delivered to. The origin may differ if the endpoint is
-  // configured for a superdomain of the report's origin. The NIK and group name
-  // will be the same.
+  // Bundles together the NAK, reporting source, origin of the report URL, group
+  // name, and target type. This is not exactly the same as the group key of the
+  // endpoint that the report will be delivered to. The origin may differ if the
+  // endpoint is configured for a superdomain of the report's origin. The NAK,
+  // group name, and target type will be the same.
   ReportingEndpointGroupKey GetGroupKey() const;
 
   static void RecordReportDiscardedForNoURLRequestContext();
@@ -82,7 +81,7 @@ struct NET_EXPORT ReportingReport {
   // endpoint group without a source. Reports without a source token can only be
   // delivered to endpoint groups without one.
   // (Not included in the delivered report.)
-  absl::optional<base::UnguessableToken> reporting_source;
+  std::optional<base::UnguessableToken> reporting_source;
 
   // The NAK of the request that triggered this report. (Not included in the
   // delivered report.)
@@ -123,6 +122,11 @@ struct NET_EXPORT ReportingReport {
   int attempts = 0;
 
   Status status = Status::QUEUED;
+
+  // Used to distinguish web developer and enterprise entities so that
+  // enterprise reports aren’t sent to web developer endpoints and web developer
+  // reports aren’t sent to enterprise endpoints
+  ReportingTargetType target_type = ReportingTargetType::kDeveloper;
 };
 
 }  // namespace net

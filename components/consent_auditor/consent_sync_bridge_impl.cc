@@ -4,18 +4,16 @@
 
 #include "components/consent_auditor/consent_sync_bridge_impl.h"
 
-#include <set>
+#include <map>
 #include <utility>
-#include <vector>
 
-#include "base/big_endian.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/location.h"
 #include "base/logging.h"
+#include "base/numerics/byte_conversions.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
-#include "build/build_config.h"
-#include "components/sync/model/data_type_activation_request.h"
+#include "base/trace_event/trace_event.h"
 #include "components/sync/model/entity_change.h"
 #include "components/sync/model/metadata_batch.h"
 #include "components/sync/model/mutable_data_batch.h"
@@ -24,21 +22,17 @@
 namespace consent_auditor {
 
 using sync_pb::UserConsentSpecifics;
+using syncer::DataTypeLocalChangeProcessor;
+using syncer::DataTypeStore;
+using syncer::DataTypeSyncBridge;
 using syncer::EntityChange;
 using syncer::EntityChangeList;
 using syncer::EntityData;
 using syncer::MetadataBatch;
 using syncer::MetadataChangeList;
 using syncer::ModelError;
-using syncer::ModelTypeChangeProcessor;
-using syncer::ModelTypeStore;
-using syncer::ModelTypeSyncBridge;
 using syncer::MutableDataBatch;
-using syncer::OnceModelTypeStoreFactory;
-using IdList = ModelTypeStore::IdList;
-using Record = ModelTypeStore::Record;
-using RecordList = ModelTypeStore::RecordList;
-using WriteBatch = ModelTypeStore::WriteBatch;
+using syncer::OnceDataTypeStoreFactory;
 
 namespace {
 
@@ -47,8 +41,9 @@ std::string GetStorageKeyFromSpecifics(const UserConsentSpecifics& specifics) {
   // which allows leveldb to append new writes, which it is best at.
   // TODO(skym): Until we force |event_time_usec| to never conflict, this has
   // the potential for errors.
-  std::string key(8, 0);
-  base::WriteBigEndian(&key[0], specifics.client_consent_time_usec());
+  std::string key(8u, char{0});
+  base::as_writable_byte_span(key).copy_from(base::U64ToBigEndian(
+      base::checked_cast<uint64_t>(specifics.client_consent_time_usec())));
   return key;
 }
 
@@ -64,40 +59,49 @@ std::unique_ptr<EntityData> MoveToEntityData(
 }  // namespace
 
 ConsentSyncBridgeImpl::ConsentSyncBridgeImpl(
-    OnceModelTypeStoreFactory store_factory,
-    std::unique_ptr<ModelTypeChangeProcessor> change_processor)
-    : ModelTypeSyncBridge(std::move(change_processor)) {
-  std::move(store_factory)
-      .Run(syncer::USER_CONSENTS,
-           base::BindOnce(&ConsentSyncBridgeImpl::OnStoreCreated,
-                          weak_ptr_factory_.GetWeakPtr()));
+    OnceDataTypeStoreFactory store_factory,
+    std::unique_ptr<DataTypeLocalChangeProcessor> change_processor)
+    : DataTypeSyncBridge(std::move(change_processor)) {
+  StoreWithCache::CreateAndLoad(
+      std::move(store_factory), syncer::USER_CONSENTS,
+      base::BindOnce(&ConsentSyncBridgeImpl::OnStoreLoaded,
+                     weak_ptr_factory_.GetWeakPtr()));
 }
 
 ConsentSyncBridgeImpl::~ConsentSyncBridgeImpl() {
-  if (!deferred_consents_while_initializing_.empty())
+  if (!deferred_consents_while_initializing_.empty()) {
     LOG(ERROR) << "Non-empty event queue at shutdown!";
+  }
+  // TODO(crbug.com/362428820): Remove logging once investigation is complete.
+  if (store_) {
+    VLOG(1) << "UserConsents during destruction: "
+            << store_->in_memory_data().size();
+  }
 }
 
 std::unique_ptr<MetadataChangeList>
 ConsentSyncBridgeImpl::CreateMetadataChangeList() {
-  return WriteBatch::CreateMetadataChangeList();
+  return DataTypeStore::WriteBatch::CreateMetadataChangeList();
 }
 
-absl::optional<ModelError> ConsentSyncBridgeImpl::MergeFullSyncData(
+std::optional<ModelError> ConsentSyncBridgeImpl::MergeFullSyncData(
     std::unique_ptr<MetadataChangeList> metadata_change_list,
     EntityChangeList entity_data) {
   DCHECK(entity_data.empty());
   DCHECK(change_processor()->IsTrackingMetadata());
-  DCHECK(!change_processor()->TrackedAccountId().empty());
-  ReadAllDataAndResubmit();
+  DCHECK(!change_processor()->TrackedGaiaId().empty());
+  ResubmitAllData();
   return ApplyIncrementalSyncChanges(std::move(metadata_change_list),
                                      std::move(entity_data));
 }
 
-absl::optional<ModelError> ConsentSyncBridgeImpl::ApplyIncrementalSyncChanges(
+std::optional<ModelError> ConsentSyncBridgeImpl::ApplyIncrementalSyncChanges(
     std::unique_ptr<MetadataChangeList> metadata_change_list,
     EntityChangeList entity_changes) {
-  std::unique_ptr<WriteBatch> batch = store_->CreateWriteBatch();
+  CHECK(store_);
+
+  std::unique_ptr<StoreWithCache::WriteBatch> batch =
+      store_->CreateWriteBatch();
   for (const std::unique_ptr<EntityChange>& change : entity_changes) {
     DCHECK_EQ(EntityChange::ACTION_DELETE, change->type());
     batch->DeleteData(change->storage_key());
@@ -105,98 +109,105 @@ absl::optional<ModelError> ConsentSyncBridgeImpl::ApplyIncrementalSyncChanges(
 
   batch->TakeMetadataChangesFrom(std::move(metadata_change_list));
   store_->CommitWriteBatch(std::move(batch),
-                           base::BindOnce(&ConsentSyncBridgeImpl::OnCommit,
+                           base::BindOnce(&ConsentSyncBridgeImpl::OnStoreCommit,
                                           weak_ptr_factory_.GetWeakPtr()));
   return {};
 }
 
-void ConsentSyncBridgeImpl::GetData(StorageKeyList storage_keys,
-                                    DataCallback callback) {
-  store_->ReadData(
-      storage_keys,
-      base::BindOnce(&ConsentSyncBridgeImpl::OnReadData,
-                     weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+std::unique_ptr<syncer::DataBatch> ConsentSyncBridgeImpl::GetDataForCommit(
+    StorageKeyList storage_keys) {
+  CHECK(store_);
+
+  auto batch = std::make_unique<MutableDataBatch>();
+  const std::map<std::string, UserConsentSpecifics>& in_memory_data =
+      store_->in_memory_data();
+  for (const std::string& storage_key : storage_keys) {
+    auto it = in_memory_data.find(storage_key);
+    if (it != in_memory_data.end()) {
+      auto specifics = std::make_unique<UserConsentSpecifics>(it->second);
+      batch->Put(it->first, MoveToEntityData(std::move(specifics)));
+    }
+  }
+  return batch;
 }
 
-void ConsentSyncBridgeImpl::GetAllDataForDebugging(DataCallback callback) {
-  store_->ReadAllData(base::BindOnce(&ConsentSyncBridgeImpl::OnReadAllData,
-                                     weak_ptr_factory_.GetWeakPtr(),
-                                     std::move(callback)));
+std::unique_ptr<syncer::DataBatch>
+ConsentSyncBridgeImpl::GetAllDataForDebugging() {
+  CHECK(store_);
+
+  auto batch = std::make_unique<MutableDataBatch>();
+  for (const auto& [storage_key, specifics] : store_->in_memory_data()) {
+    auto specifics_copy = std::make_unique<UserConsentSpecifics>(specifics);
+    batch->Put(storage_key, MoveToEntityData(std::move(specifics_copy)));
+  }
+  return batch;
 }
 
-std::string ConsentSyncBridgeImpl::GetClientTag(const EntityData& entity_data) {
+std::string ConsentSyncBridgeImpl::GetClientTag(
+    const EntityData& entity_data) const {
   return GetStorageKey(entity_data);
 }
 
 std::string ConsentSyncBridgeImpl::GetStorageKey(
-    const EntityData& entity_data) {
+    const EntityData& entity_data) const {
   return GetStorageKeyFromSpecifics(entity_data.specifics.user_consent());
+}
+
+bool ConsentSyncBridgeImpl::IsEntityDataValid(
+    const EntityData& entity_data) const {
+  // USER_CONSENT is a commit only data type so this method is not called.
+  NOTREACHED();
 }
 
 void ConsentSyncBridgeImpl::ApplyDisableSyncChanges(
     std::unique_ptr<MetadataChangeList> delete_metadata_change_list) {
   // Sync can only be stopped after initialization.
   DCHECK(deferred_consents_while_initializing_.empty());
+  CHECK(store_);
 
   // Preserve all consents in the store, but delete their metadata, because it
-  // may become invalid when the sync is reenabled. It is important to report
-  // all user consents, thus, they are persisted for some time even after
-  // signout. We will try to resubmit these consents once the sync is enabled
-  // again. This may lead to same consent being submitted multiple times, but
-  // this is allowed.
-  std::unique_ptr<WriteBatch> batch = store_->CreateWriteBatch();
+  // may become invalid when sync is reenabled. It is important to report all
+  // user consents, thus, they are persisted for some time even after signout.
+  // The bridge will try to resubmit these consents once sync is enabled again.
+  // This may lead to same consent being submitted multiple times, but this is
+  // allowed.
+  std::unique_ptr<StoreWithCache::WriteBatch> batch =
+      store_->CreateWriteBatch();
   batch->TakeMetadataChangesFrom(std::move(delete_metadata_change_list));
 
   store_->CommitWriteBatch(std::move(batch),
-                           base::BindOnce(&ConsentSyncBridgeImpl::OnCommit,
+                           base::BindOnce(&ConsentSyncBridgeImpl::OnStoreCommit,
                                           weak_ptr_factory_.GetWeakPtr()));
 }
 
-void ConsentSyncBridgeImpl::ReadAllDataAndResubmit() {
-  DCHECK(!change_processor()->TrackedAccountId().empty());
+void ConsentSyncBridgeImpl::ResubmitAllData() {
+  DCHECK(!change_processor()->TrackedGaiaId().empty());
   DCHECK(change_processor()->IsTrackingMetadata());
-  DCHECK(store_);
-  store_->ReadAllData(
-      base::BindOnce(&ConsentSyncBridgeImpl::OnReadAllDataToResubmit,
-                     weak_ptr_factory_.GetWeakPtr()));
-}
+  CHECK(store_);
 
-void ConsentSyncBridgeImpl::OnReadAllDataToResubmit(
-    const absl::optional<ModelError>& error,
-    std::unique_ptr<RecordList> data_records) {
-  if (change_processor()->TrackedAccountId().empty()) {
-    // Meanwhile the sync has been disabled. We will try next time.
-    return;
-  }
-  DCHECK(change_processor()->IsTrackingMetadata());
+  std::unique_ptr<StoreWithCache::WriteBatch> batch =
+      store_->CreateWriteBatch();
 
-  if (error) {
-    change_processor()->ReportError(*error);
-    return;
-  }
-
-  std::unique_ptr<WriteBatch> batch = store_->CreateWriteBatch();
-
-  for (const Record& r : *data_records) {
-    auto specifics = std::make_unique<UserConsentSpecifics>();
-    if (specifics->ParseFromString(r.value)) {
-      if (specifics->account_id() == change_processor()->TrackedAccountId()) {
-        change_processor()->Put(r.id, MoveToEntityData(std::move(specifics)),
-                                batch->GetMetadataChangeList());
-      }
+  for (const auto& [storage_key, specifics] : store_->in_memory_data()) {
+    if (specifics.obfuscated_gaia_id() ==
+        change_processor()->TrackedGaiaId().ToString()) {
+      auto specifics_copy = std::make_unique<UserConsentSpecifics>(specifics);
+      change_processor()->Put(storage_key,
+                              MoveToEntityData(std::move(specifics_copy)),
+                              batch->GetMetadataChangeList());
     }
   }
 
   store_->CommitWriteBatch(std::move(batch),
-                           base::BindOnce(&ConsentSyncBridgeImpl::OnCommit,
+                           base::BindOnce(&ConsentSyncBridgeImpl::OnStoreCommit,
                                           weak_ptr_factory_.GetWeakPtr()));
 }
 
 void ConsentSyncBridgeImpl::RecordConsent(
     std::unique_ptr<UserConsentSpecifics> specifics) {
-  // TODO(vitaliii): Sanity-check specifics->account_id() against
+  // TODO(vitaliii): Sanity-check specifics->obfuscated_gaia_id() against
   // change_processor()->TrackedAccountId(), maybe DCHECK.
-  DCHECK(!specifics->account_id().empty());
+  DCHECK(!specifics->obfuscated_gaia_id().empty());
   if (store_) {
     RecordConsentImpl(std::move(specifics));
     return;
@@ -210,110 +221,70 @@ std::string ConsentSyncBridgeImpl::GetStorageKeyFromSpecificsForTest(
   return GetStorageKeyFromSpecifics(specifics);
 }
 
-std::unique_ptr<ModelTypeStore> ConsentSyncBridgeImpl::StealStoreForTest() {
-  return std::move(store_);
+std::unique_ptr<DataTypeStore> ConsentSyncBridgeImpl::StealStoreForTest() {
+  return StoreWithCache::ExtractUnderlyingStoreForTest(std::move(store_));
 }
 
 void ConsentSyncBridgeImpl::RecordConsentImpl(
     std::unique_ptr<UserConsentSpecifics> specifics) {
-  DCHECK(store_);
+  CHECK(store_);
 
   std::string storage_key = GetStorageKeyFromSpecifics(*specifics);
-  std::unique_ptr<WriteBatch> batch = store_->CreateWriteBatch();
-  batch->WriteData(storage_key, specifics->SerializeAsString());
+  std::unique_ptr<StoreWithCache::WriteBatch> batch =
+      store_->CreateWriteBatch();
+  batch->WriteData(storage_key, *specifics);
 
-  if (specifics->account_id() == change_processor()->TrackedAccountId()) {
+  if (specifics->obfuscated_gaia_id() ==
+      change_processor()->TrackedGaiaId().ToString()) {
     change_processor()->Put(storage_key, MoveToEntityData(std::move(specifics)),
                             batch->GetMetadataChangeList());
   }
 
   store_->CommitWriteBatch(std::move(batch),
-                           base::BindOnce(&ConsentSyncBridgeImpl::OnCommit,
+                           base::BindOnce(&ConsentSyncBridgeImpl::OnStoreCommit,
                                           weak_ptr_factory_.GetWeakPtr()));
 }
 
-base::WeakPtr<syncer::ModelTypeControllerDelegate>
+base::WeakPtr<syncer::DataTypeControllerDelegate>
 ConsentSyncBridgeImpl::GetControllerDelegate() {
   return change_processor()->GetControllerDelegate();
 }
 
 void ConsentSyncBridgeImpl::ProcessQueuedEvents() {
-  for (std::unique_ptr<sync_pb::UserConsentSpecifics>& event :
+  for (std::unique_ptr<UserConsentSpecifics>& event :
        deferred_consents_while_initializing_) {
     RecordConsentImpl(std::move(event));
   }
   deferred_consents_while_initializing_.clear();
 }
 
-void ConsentSyncBridgeImpl::OnStoreCreated(
-    const absl::optional<ModelError>& error,
-    std::unique_ptr<ModelTypeStore> store) {
+void ConsentSyncBridgeImpl::OnStoreLoaded(
+    const std::optional<ModelError>& error,
+    std::unique_ptr<StoreWithCache> store,
+    std::unique_ptr<MetadataBatch> metadata_batch) {
+  TRACE_EVENT0("ui", "ConsentSyncBridgeImpl::OnStoreLoaded");
   if (error) {
     change_processor()->ReportError(*error);
     return;
   }
 
   store_ = std::move(store);
-  store_->ReadAllMetadata(
-      base::BindOnce(&ConsentSyncBridgeImpl::OnReadAllMetadata,
-                     weak_ptr_factory_.GetWeakPtr()));
-}
 
-void ConsentSyncBridgeImpl::OnReadAllMetadata(
-    const absl::optional<ModelError>& error,
-    std::unique_ptr<MetadataBatch> metadata_batch) {
-  if (error) {
-    change_processor()->ReportError(*error);
-  } else {
-    change_processor()->ModelReadyToSync(std::move(metadata_batch));
-    if (!change_processor()->TrackedAccountId().empty()) {
-      // We resubmit all data in case the client crashed immediately after
-      // MergeFullSyncData(), where submissions are supposed to happen and
-      // metadata populated. This would be simpler if MergeFullSyncData() were
-      // asynchronous.
-      ReadAllDataAndResubmit();
-    }
-    ProcessQueuedEvents();
+  change_processor()->ModelReadyToSync(std::move(metadata_batch));
+  if (!change_processor()->TrackedGaiaId().empty()) {
+    // Resubmit all data in case the client crashed immediately after
+    // MergeFullSyncData(), where submissions are supposed to happen and
+    // metadata populated.
+    ResubmitAllData();
   }
+  ProcessQueuedEvents();
 }
 
-void ConsentSyncBridgeImpl::OnCommit(const absl::optional<ModelError>& error) {
+void ConsentSyncBridgeImpl::OnStoreCommit(
+    const std::optional<ModelError>& error) {
   if (error) {
     change_processor()->ReportError(*error);
   }
-}
-
-void ConsentSyncBridgeImpl::OnReadData(
-    DataCallback callback,
-    const absl::optional<ModelError>& error,
-    std::unique_ptr<RecordList> data_records,
-    std::unique_ptr<IdList> missing_id_list) {
-  OnReadAllData(std::move(callback), error, std::move(data_records));
-}
-
-void ConsentSyncBridgeImpl::OnReadAllData(
-    DataCallback callback,
-    const absl::optional<ModelError>& error,
-    std::unique_ptr<RecordList> data_records) {
-  if (error) {
-    change_processor()->ReportError(*error);
-    return;
-  }
-
-  auto batch = std::make_unique<MutableDataBatch>();
-  for (const Record& r : *data_records) {
-    auto specifics = std::make_unique<UserConsentSpecifics>();
-
-    if (specifics->ParseFromString(r.value)) {
-      DCHECK_EQ(r.id, GetStorageKeyFromSpecifics(*specifics));
-      batch->Put(r.id, MoveToEntityData(std::move(specifics)));
-    } else {
-      change_processor()->ReportError(
-          {FROM_HERE, "Failed deserializing user events."});
-      return;
-    }
-  }
-  std::move(callback).Run(std::move(batch));
 }
 
 }  // namespace consent_auditor

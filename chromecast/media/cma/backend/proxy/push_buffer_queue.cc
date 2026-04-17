@@ -2,12 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chromecast/media/cma/backend/proxy/push_buffer_queue.h"
 
 #include <atomic>
 
 #include "base/notreached.h"
-#include "base/template_util.h"
 #include "chromecast/media/api/decoder_buffer_base.h"
 #include "third_party/protobuf/src/google/protobuf/util/delimited_message_util.h"
 
@@ -32,9 +36,9 @@ constexpr size_t PushBufferQueue::kBufferSizeBytes;
 PushBufferQueue::PushBufferQueue()
     : producer_handler_(this),
       consumer_handler_(this),
-      consumer_stream_(absl::in_place, &consumer_handler_),
-      protobuf_consumer_stream_(absl::in_place, &consumer_stream_.value(), 1),
-      producer_stream_(absl::in_place, &producer_handler_) {
+      consumer_stream_(std::in_place, &consumer_handler_),
+      protobuf_consumer_stream_(std::in_place, &consumer_stream_.value(), 1),
+      producer_stream_(std::in_place, &producer_handler_) {
   DETACH_FROM_SEQUENCE(producer_sequence_checker_);
   DETACH_FROM_SEQUENCE(consumer_sequence_checker_);
 }
@@ -70,7 +74,7 @@ bool PushBufferQueue::PushBufferImpl(const PushBufferRequest& request) {
     // when the entire |buffer_| is full at time of writing.
     bytes_written_during_current_write_ = 0;
     producer_handler_.overflow();
-    producer_stream_ = absl::nullopt;
+    producer_stream_ = std::nullopt;
     producer_stream_.emplace(&producer_handler_);
   }
 
@@ -82,7 +86,7 @@ bool PushBufferQueue::HasBufferedData() const {
   return !is_in_invalid_state_ && GetAvailableyByteCount() != size_t{0};
 }
 
-absl::optional<PushBufferQueue::PushBufferRequest>
+std::optional<PushBufferQueue::PushBufferRequest>
 PushBufferQueue::GetBufferedData() {
   auto result = GetBufferedDataImpl();
   if (result.has_value()) {
@@ -92,7 +96,7 @@ PushBufferQueue::GetBufferedData() {
   return result;
 }
 
-absl::optional<PushBufferQueue::PushBufferRequest>
+std::optional<PushBufferQueue::PushBufferRequest>
 PushBufferQueue::GetBufferedDataImpl() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(consumer_sequence_checker_);
   DCHECK(HasBufferedData());
@@ -111,9 +115,6 @@ PushBufferQueue::GetBufferedDataImpl() {
   // The former case is not expected to occur, but is handled to be safe.
   // The latter case is only expected if the buffer is written to when not
   // enough space is available to handle the new write.
-  //
-  // TODO(rwkeane): Eliminate handling of the former case after validating this
-  // doesn't occur in practice.
   if (!succeeded) {
     consecuitive_read_failures_++;
     if (+consecuitive_read_failures_ > kMaximumFailedReadAttempts) {
@@ -127,12 +128,12 @@ PushBufferQueue::GetBufferedDataImpl() {
 
     // If |!succeeded|, the streams have ended up in an unexpected state and
     // need to be recreated.
-    protobuf_consumer_stream_ = absl::nullopt;
-    consumer_stream_ = absl::nullopt;
+    protobuf_consumer_stream_ = std::nullopt;
+    consumer_stream_ = std::nullopt;
     consumer_stream_.emplace(&consumer_handler_);
     protobuf_consumer_stream_.emplace(&consumer_stream_.value(), 1);
 
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   consecuitive_read_failures_ = 0;

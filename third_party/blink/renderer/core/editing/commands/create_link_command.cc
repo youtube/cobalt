@@ -60,10 +60,18 @@ void CreateLinkCommand::DoApply(EditingState* editing_state) {
       return;
     SetEndingSelection(SelectionForUndoStep::From(
         SelectionInDOMTree::Builder()
-            .Collapse(Position::InParentBeforeNode(*anchor_element))
-            .Extend(Position::InParentAfterNode(*anchor_element))
+            .Collapse(Position::FirstPositionInNode(*anchor_element))
+            .Extend(Position::LastPositionInNode(*anchor_element))
             .Build()));
   }
+}
+
+InputEvent::InputType CreateLinkCommand::GetInputType() const {
+  return InputEvent::InputType::kInsertLink;
+}
+
+String CreateLinkCommand::TextDataForInputEvent() const {
+  return url_;
 }
 
 }  // namespace blink

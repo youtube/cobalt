@@ -8,9 +8,10 @@
 #include <vector>
 
 #include "base/base64.h"
-#include "chrome/browser/ssl/security_state_tab_helper.h"
 #include "components/security_state/content/content_utils.h"
+#include "components/security_state/content/security_state_tab_helper.h"
 #include "content/public/browser/web_contents.h"
+#include "net/base/net_errors.h"
 #include "net/cert/x509_certificate.h"
 #include "net/cert/x509_util.h"
 #include "net/ssl/ssl_cipher_suite_names.h"
@@ -43,18 +44,15 @@ std::string SecurityLevelToProtocolSecurityState(
       return protocol::Security::SecurityStateEnum::Neutral;
     case security_state::WARNING:
       return protocol::Security::SecurityStateEnum::Insecure;
-    case security_state::SECURE_WITH_POLICY_INSTALLED_CERT:
     case security_state::SECURE:
       return protocol::Security::SecurityStateEnum::Secure;
     case security_state::DANGEROUS:
       return protocol::Security::SecurityStateEnum::InsecureBroken;
     case security_state::SECURITY_LEVEL_COUNT:
       NOTREACHED();
-      return protocol::Security::SecurityStateEnum::Neutral;
   }
 
   NOTREACHED();
-  return protocol::Security::SecurityStateEnum::Neutral;
 }
 
 std::unique_ptr<protocol::Security::CertificateSecurityState>
@@ -62,14 +60,12 @@ CreateCertificateSecurityState(
     const security_state::VisibleSecurityState& state) {
   auto certificate = std::make_unique<protocol::Array<protocol::String>>();
   if (state.certificate) {
-    certificate->emplace_back();
-    base::Base64Encode(net::x509_util::CryptoBufferAsStringPiece(
-                           state.certificate->cert_buffer()),
-                       &certificate->back());
+    certificate->push_back(
+        base::Base64Encode(net::x509_util::CryptoBufferAsStringPiece(
+            state.certificate->cert_buffer())));
     for (const auto& cert : state.certificate->intermediate_buffers()) {
-      certificate->emplace_back();
-      base::Base64Encode(net::x509_util::CryptoBufferAsStringPiece(cert.get()),
-                         &certificate->back());
+      certificate->push_back(base::Base64Encode(
+          net::x509_util::CryptoBufferAsStringPiece(cert.get())));
     }
   }
 
@@ -99,8 +95,8 @@ CreateCertificateSecurityState(
   if (state.certificate) {
     subject_name = state.certificate->subject().common_name;
     issuer_name = state.certificate->issuer().common_name;
-    valid_from = state.certificate->valid_start().ToDoubleT();
-    valid_to = state.certificate->valid_expiry().ToDoubleT();
+    valid_from = state.certificate->valid_start().InSecondsFSinceUnixEpoch();
+    valid_to = state.certificate->valid_expiry().InSecondsFSinceUnixEpoch();
   }
 
   bool certificate_has_weak_signature =
@@ -167,9 +163,7 @@ std::unique_ptr<protocol::Security::SafetyTipInfo> CreateSafetyTipInfo(
 }
 
 std::unique_ptr<protocol::Security::VisibleSecurityState>
-CreateVisibleSecurityState(content::WebContents* web_contents) {
-  SecurityStateTabHelper* helper =
-      SecurityStateTabHelper::FromWebContents(web_contents);
+CreateVisibleSecurityState(SecurityStateTabHelper* helper) {
   DCHECK(helper);
   auto state = helper->GetVisibleSecurityState();
   std::string security_state =
@@ -248,7 +242,7 @@ SecurityHandler::SecurityHandler(content::WebContents* web_contents,
   protocol::Security::Dispatcher::wire(dispatcher, this);
 }
 
-SecurityHandler::~SecurityHandler() {}
+SecurityHandler::~SecurityHandler() = default;
 
 protocol::Response SecurityHandler::Enable() {
   if (enabled_)
@@ -271,6 +265,10 @@ void SecurityHandler::DidChangeVisibleSecurityState() {
   if (!enabled_)
     return;
 
-  auto visible_security_state = CreateVisibleSecurityState(web_contents());
+  SecurityStateTabHelper* helper = web_contents() ? SecurityStateTabHelper::FromWebContents(web_contents()) : nullptr;
+  if (!helper)
+    return;
+
+  auto visible_security_state = CreateVisibleSecurityState(helper);
   frontend_->VisibleSecurityStateChanged(std::move(visible_security_state));
 }

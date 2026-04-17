@@ -4,9 +4,10 @@
 
 #include "components/safe_browsing/content/browser/triggers/trigger_throttler.h"
 
+#include <algorithm>
+
 #include "base/containers/contains.h"
 #include "base/metrics/field_trial_params.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/time/default_clock.h"
@@ -46,7 +47,7 @@ bool TryFindQuotaForTrigger(
     const TriggerType trigger_type,
     const std::vector<TriggerTypeAndQuotaItem>& trigger_quota_list,
     size_t* out_quota) {
-  const auto& trigger_quota_iter = base::ranges::find(
+  const auto& trigger_quota_iter = std::ranges::find(
       trigger_quota_list, trigger_type, &TriggerTypeAndQuotaItem::first);
   if (trigger_quota_iter != trigger_quota_list.end()) {
     *out_quota = trigger_quota_iter->second;
@@ -64,7 +65,7 @@ TriggerThrottler::TriggerThrottler(PrefService* local_state_prefs)
   LoadTriggerEventsFromPref();
 }
 
-TriggerThrottler::~TriggerThrottler() {}
+TriggerThrottler::~TriggerThrottler() = default;
 
 void TriggerThrottler::SetClockForTesting(base::Clock* test_clock) {
   clock_ = test_clock;
@@ -166,7 +167,7 @@ void TriggerThrottler::LoadTriggerEventsFromPref() {
     for (const auto& timestamp : trigger_pair.second.GetList()) {
       if (timestamp.is_double())
         trigger_events_[trigger_type].push_back(
-            base::Time::FromDoubleT(timestamp.GetDouble()));
+            base::Time::FromSecondsSinceUnixEpoch(timestamp.GetDouble()));
     }
   }
 }
@@ -179,7 +180,7 @@ void TriggerThrottler::WriteTriggerEventsToPref() {
   for (const auto& trigger_item : trigger_events_) {
     base::Value::List timestamps;
     for (const base::Time timestamp : trigger_item.second) {
-      timestamps.Append(timestamp.ToDoubleT());
+      timestamps.Append(timestamp.InSecondsFSinceUnixEpoch());
     }
 
     trigger_dict.Set(base::NumberToString(static_cast<int>(trigger_item.first)),
@@ -197,6 +198,7 @@ size_t TriggerThrottler::GetDailyQuotaForTrigger(
     case TriggerType::SECURITY_INTERSTITIAL:
     case TriggerType::GAIA_PASSWORD_REUSE:
     case TriggerType::APK_DOWNLOAD:
+    case TriggerType::PHISHY_SITE_INTERACTION:
       return kUnlimitedTriggerQuota;
 
     case TriggerType::DEPRECATED_AD_POPUP:

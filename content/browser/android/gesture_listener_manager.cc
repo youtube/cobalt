@@ -8,14 +8,14 @@
 #include "content/browser/android/gesture_listener_manager.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/browser/web_contents/web_contents_view_android.h"
-#include "content/public/android/content_jni_headers/GestureListenerManagerImpl_jni.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
-#include "third_party/blink/public/mojom/input/input_handler.mojom-forward.h"
 #include "ui/events/android/gesture_event_type.h"
-#include "ui/events/blink/did_overscroll_params.h"
 #include "ui/gfx/geometry/size_f.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "content/public/android/content_jni_headers/GestureListenerManagerImpl_jni.h"
 
 using blink::WebGestureEvent;
 using blink::WebInputEvent;
@@ -66,8 +66,14 @@ int ToGestureEventType(WebInputEvent::Type type) {
     default:
       NOTREACHED() << "Invalid source gesture type: "
                    << WebInputEvent::GetName(type);
-      return -1;
   }
+}
+
+bool IsUserInteractionInputType(WebInputEvent::Type event_type) {
+  return event_type == WebInputEvent::Type::kGestureTap ||
+         event_type == WebInputEvent::Type::kGestureLongTap ||
+         event_type == WebInputEvent::Type::kGestureLongPress ||
+         event_type == WebInputEvent::Type::kMouseDown;
 }
 
 }  // namespace
@@ -81,7 +87,7 @@ class GestureListenerManager::ResetScrollObserver : public WebContentsObserver {
   ResetScrollObserver(const ResetScrollObserver&) = delete;
   ResetScrollObserver& operator=(const ResetScrollObserver&) = delete;
 
-  void DidFinishNavigation(NavigationHandle* navigation_handle) override;
+  void PrimaryPageChanged(Page& page) override;
   void PrimaryMainFrameRenderProcessGone(
       base::TerminationStatus status) override;
 
@@ -94,9 +100,8 @@ GestureListenerManager::ResetScrollObserver::ResetScrollObserver(
     GestureListenerManager* manager)
     : WebContentsObserver(web_contents), manager_(manager) {}
 
-void GestureListenerManager::ResetScrollObserver::DidFinishNavigation(
-    NavigationHandle* navigation_handle) {
-  manager_->OnNavigationFinished(navigation_handle);
+void GestureListenerManager::ResetScrollObserver::PrimaryPageChanged(Page&) {
+  manager_->OnPrimaryPageChanged();
 }
 
 void GestureListenerManager::ResetScrollObserver::
@@ -108,11 +113,20 @@ GestureListenerManager::GestureListenerManager(JNIEnv* env,
                                                const JavaParamRef<jobject>& obj,
                                                WebContentsImpl* web_contents)
     : RenderWidgetHostConnector(web_contents),
+      WebContentsObserver(web_contents),
       reset_scroll_observer_(new ResetScrollObserver(web_contents, this)),
       web_contents_(web_contents),
-      java_ref_(env, obj) {}
+      java_ref_(env, obj) {
+  RenderFrameHost* host = web_contents->GetPrimaryMainFrame();
+  if (host) {
+    host->GetRenderWidgetHost()->AddInputEventObserver(this);
+    observed_render_frames_.insert(host->GetGlobalId());
+  }
+}
 
 GestureListenerManager::~GestureListenerManager() {
+  UnobserveRenderFrames();
+
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> j_obj = java_ref_.get(env);
   if (j_obj.is_null())
@@ -148,19 +162,57 @@ void GestureListenerManager::SetRootScrollOffsetUpdateFrequency(
     jint frequency) {
   auto new_frequency =
       static_cast<cc::mojom::RootScrollOffsetUpdateFrequency>(frequency);
-  if (root_scroll_offset_update_frequency_ == new_frequency) {
-    return;
-  }
-
   root_scroll_offset_update_frequency_ = new_frequency;
   if (rwhva_)
     rwhva_->UpdateRootScrollOffsetUpdateFrequency();
 }
 
+void GestureListenerManager::RenderFrameDeleted(
+    RenderFrameHost* render_frame_host) {
+  if (static_cast<RenderFrameHostImpl*>(render_frame_host)->is_local_root() &&
+      observed_render_frames_.erase(render_frame_host->GetGlobalId())) {
+    render_frame_host->GetRenderWidgetHost()->RemoveInputEventObserver(this);
+  }
+}
+
+void GestureListenerManager::RenderFrameHostChanged(RenderFrameHost* old_host,
+                                                    RenderFrameHost* new_host) {
+  if (new_host &&
+      static_cast<RenderFrameHostImpl*>(new_host)->is_local_root() &&
+      observed_render_frames_.insert(new_host->GetGlobalId()).second) {
+    new_host->GetRenderWidgetHost()->AddInputEventObserver(this);
+  }
+}
+
+void GestureListenerManager::OnInputEvent(const RenderWidgetHost& widget,
+                                          const blink::WebInputEvent& event) {
+  const blink::mojom::EventType event_type = event.GetType();
+
+  if (IsUserInteractionInputType(event_type)) {
+    web_contents_->GetNativeView()->RequestFocus();
+  }
+
+  if (WebInputEvent::IsTouchEventType(event_type) &&
+      static_cast<const blink::WebTouchEvent&>(event).IsTouchSequenceStart()) {
+    UpdateOnTouchDown();
+    return;
+  }
+
+  if (event_type == blink::mojom::EventType::kGestureFlingStart) {
+    DCHECK(!is_in_a_fling_);
+    is_in_a_fling_ = true;
+  } else if (event_type == blink::mojom::EventType::kGestureFlingCancel ||
+             event_type == blink::mojom::EventType::kGestureScrollEnd) {
+    if (is_in_a_fling_) {
+      DidStopFlinging();
+    }
+    is_in_a_fling_ = false;
+  }
+}
+
 void GestureListenerManager::GestureEventAck(
     const blink::WebGestureEvent& event,
-    blink::mojom::InputEventResultState ack_result,
-    blink::mojom::ScrollResultDataPtr scroll_result_data) {
+    blink::mojom::InputEventResultState ack_result) {
   // This is called to fix crash happening while WebContents is being
   // destroyed. See https://crbug.com/803244#c20
   if (web_contents_->IsBeingDestroyed())
@@ -181,14 +233,22 @@ void GestureListenerManager::GestureEventAck(
         env, j_obj, /*isDirectionUp*/ event.data.scroll_begin.delta_y_hint > 0);
     return;
   }
-  float x = -1.f, y = -1.f;
-  if (scroll_result_data && scroll_result_data->root_scroll_offset) {
-    x = scroll_result_data->root_scroll_offset->x();
-    y = scroll_result_data->root_scroll_offset->y();
-  }
 
   Java_GestureListenerManagerImpl_onEventAck(
-      env, j_obj, static_cast<int>(event.GetType()), consumed, x, y);
+      env, j_obj, static_cast<int>(event.GetType()), consumed);
+}
+
+void GestureListenerManager::OnInputEventAck(
+    const RenderWidgetHost& widget,
+    blink::mojom::InputEventResultSource source,
+    blink::mojom::InputEventResultState state,
+    const blink::WebInputEvent& event) {
+  if (!WebInputEvent::IsGestureEventType(event.GetType())) {
+    return;
+  }
+  const blink::WebGestureEvent& gesture_event =
+      static_cast<const blink::WebGestureEvent&>(event);
+  GestureEventAck(gesture_event, state);
 }
 
 void GestureListenerManager::DidStopFlinging() {
@@ -200,18 +260,14 @@ void GestureListenerManager::DidStopFlinging() {
 }
 
 bool GestureListenerManager::FilterInputEvent(const WebInputEvent& event) {
-  if (event.GetType() != WebInputEvent::Type::kGestureTap &&
-      event.GetType() != WebInputEvent::Type::kGestureLongTap &&
-      event.GetType() != WebInputEvent::Type::kGestureLongPress &&
-      event.GetType() != WebInputEvent::Type::kMouseDown)
+  if (!IsUserInteractionInputType(event.GetType())) {
     return false;
+  }
 
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> j_obj = java_ref_.get(env);
   if (j_obj.is_null())
     return false;
-
-  web_contents_->GetNativeView()->RequestFocus();
 
   if (event.GetType() == WebInputEvent::Type::kMouseDown)
     return false;
@@ -222,17 +278,6 @@ bool GestureListenerManager::FilterInputEvent(const WebInputEvent& event) {
   return Java_GestureListenerManagerImpl_filterTapOrPressEvent(
       env, j_obj, gesture_type, gesture.PositionInWidget().x() * dip_scale,
       gesture.PositionInWidget().y() * dip_scale);
-}
-
-void GestureListenerManager::DidOverscroll(
-    const ui::DidOverscrollParams& params) {
-  JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jobject> j_obj = java_ref_.get(env);
-  if (j_obj.is_null())
-    return;
-  float x = params.accumulated_overscroll.x();
-  float y = params.accumulated_overscroll.y();
-  return Java_GestureListenerManagerImpl_didOverscroll(env, j_obj, x, y);
 }
 
 // All positions and sizes (except |top_shown_pix|) are in CSS pixels.
@@ -288,13 +333,8 @@ void GestureListenerManager::UpdateRenderProcessConnection(
   rwhva_ = new_rwhva;
 }
 
-void GestureListenerManager::OnNavigationFinished(
-    NavigationHandle* navigation_handle) {
-  if (navigation_handle->IsInPrimaryMainFrame() &&
-      navigation_handle->HasCommitted() &&
-      !navigation_handle->IsSameDocument()) {
-    ResetPopupsAndInput(false);
-  }
+void GestureListenerManager::OnPrimaryPageChanged() {
+  ResetPopupsAndInput(false);
 }
 
 void GestureListenerManager::OnRenderProcessGone() {
@@ -317,6 +357,20 @@ void GestureListenerManager::ResetPopupsAndInput(bool render_process_gone) {
     return;
   Java_GestureListenerManagerImpl_resetPopupsAndInput(env, obj,
                                                       render_process_gone);
+}
+
+void GestureListenerManager::UnobserveRenderFrames() {
+  for (GlobalRenderFrameHostId& id : observed_render_frames_) {
+    RenderFrameHost* rfh = RenderFrameHost::FromID(id);
+    if (!rfh) {
+      continue;
+    }
+    RenderWidgetHost* rwh = rfh->GetRenderWidgetHost();
+    if (rwh) {
+      rwh->RemoveInputEventObserver(this);
+    }
+  }
+  observed_render_frames_.clear();
 }
 
 jlong JNI_GestureListenerManagerImpl_Init(

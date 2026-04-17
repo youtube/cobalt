@@ -6,15 +6,14 @@
 #include <stdint.h>
 #include <memory>
 
-#include "base/at_exit.h"
 #include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
-#include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "media/base/media.h"
+#include "media/base/decoder_buffer.h"
 #include "media/base/media_tracks.h"
 #include "media/base/media_util.h"
 #include "media/base/test_data_util.h"
@@ -101,7 +100,7 @@ class StreamReader {
 StreamReader::StreamReader(media::Demuxer* demuxer,
                            bool enable_bitstream_converter) {
   std::vector<media::DemuxerStream*> streams = demuxer->GetAllStreams();
-  for (auto* stream : streams) {
+  for (media::DemuxerStream* stream : streams) {
     streams_.push_back(stream);
     end_of_stream_.push_back(false);
     last_read_timestamp_.push_back(media::kNoTimestamp);

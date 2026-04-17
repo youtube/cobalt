@@ -9,7 +9,6 @@
 #include "chrome/browser/ui/webui/access_code_cast/access_code_cast_dialog.h"
 #include "chrome/browser/ui/webui/metrics_handler.h"
 #include "chrome/browser/ui/webui/plural_string_handler.h"
-#include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/access_code_cast_resources.h"
@@ -20,18 +19,25 @@
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/web_ui_data_source.h"
+#include "ui/base/webui/web_ui_util.h"
+#include "ui/webui/color_change_listener/color_change_handler.h"
+#include "ui/webui/webui_util.h"
 
 namespace media_router {
+
+bool AccessCodeCastUIConfig::IsWebUIEnabled(
+    content::BrowserContext* browser_context) {
+  Profile* profile = Profile::FromBrowserContext(browser_context);
+  return media_router::GetAccessCodeCastEnabledPref(profile);
+}
 
 AccessCodeCastUI::AccessCodeCastUI(content::WebUI* web_ui)
     : MojoWebDialogUI(web_ui) {
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       web_ui->GetWebContents()->GetBrowserContext(),
       chrome::kChromeUIAccessCodeCastHost);
-  webui::SetupWebUIDataSource(
-      source,
-      base::make_span(kAccessCodeCastResources, kAccessCodeCastResourcesSize),
-      IDR_ACCESS_CODE_CAST_INDEX_HTML);
+  webui::SetupWebUIDataSource(source, kAccessCodeCastResources,
+                              IDR_ACCESS_CODE_CAST_INDEX_HTML);
 
   static constexpr webui::LocalizedString kStrings[] = {
       {"accessCodeMessage", IDS_ACCESS_CODE_CAST_ACCESS_CODE_MESSAGE},
@@ -41,6 +47,7 @@ AccessCodeCastUI::AccessCodeCastUI(content::WebUI* web_ui)
       {"dialogTitle", IDS_ACCESS_CODE_CAST_DIALOG_TITLE},
       {"enterCharacter", IDS_ACCESS_CODE_CAST_ENTER_CHARACTER},
       {"errorAccessCode", IDS_ACCESS_CODE_CAST_ERROR_ACCESS_CODE},
+      {"errorDifferentNetwork", IDS_ACCESS_CODE_CAST_ERROR_DIFFERENT_NETWORK},
       {"errorNetwork", IDS_ACCESS_CODE_CAST_ERROR_NETWORK},
       {"errorPermission", IDS_ACCESS_CODE_CAST_ERROR_PERMISSION},
       {"errorProfileSync", IDS_ACCESS_CODE_CAST_ERROR_PROFILE_SYNC},
@@ -97,6 +104,12 @@ void AccessCodeCastUI::BindInterface(
         receiver) {
   factory_receiver_.reset();
   factory_receiver_.Bind(std::move(receiver));
+}
+
+void AccessCodeCastUI::BindInterface(
+    mojo::PendingReceiver<color_change_listener::mojom::PageHandler> receiver) {
+  color_provider_handler_ = std::make_unique<ui::ColorChangeHandler>(
+      web_ui()->GetWebContents(), std::move(receiver));
 }
 
 void AccessCodeCastUI::CreatePageHandler(

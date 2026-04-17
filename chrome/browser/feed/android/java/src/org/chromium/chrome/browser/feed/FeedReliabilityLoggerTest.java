@@ -13,34 +13,43 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.chrome.browser.xsurface.FeedLaunchReliabilityLogger;
-import org.chromium.chrome.browser.xsurface.FeedLaunchReliabilityLogger.StreamType;
-import org.chromium.chrome.browser.xsurface.FeedUserInteractionReliabilityLogger;
-import org.chromium.chrome.browser.xsurface.FeedUserInteractionReliabilityLogger.ClosedReason;
+import org.chromium.chrome.browser.xsurface.feed.FeedCardOpeningReliabilityLogger;
+import org.chromium.chrome.browser.xsurface.feed.FeedCardOpeningReliabilityLogger.PageLoadError;
+import org.chromium.chrome.browser.xsurface.feed.FeedLaunchReliabilityLogger;
+import org.chromium.chrome.browser.xsurface.feed.FeedLaunchReliabilityLogger.StreamType;
+import org.chromium.chrome.browser.xsurface.feed.FeedUserInteractionReliabilityLogger;
+import org.chromium.chrome.browser.xsurface.feed.FeedUserInteractionReliabilityLogger.ClosedReason;
 import org.chromium.components.feed.proto.wire.ReliabilityLoggingEnums.DiscoverLaunchResult;
+import org.chromium.net.NetError;
 
 /** Unit tests for {@link FeedReliabilityLogger}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class FeedReliabilityLoggerTest {
-    @Mock
-    FeedLaunchReliabilityLogger mLaunchLogger;
-    @Mock
-    FeedUserInteractionReliabilityLogger mUserInteractionLogger;
+    static final int CARD_CATEGORY = 101;
+    static final int PAGE_ID = 5;
+
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Mock FeedLaunchReliabilityLogger mLaunchLogger;
+    @Mock FeedUserInteractionReliabilityLogger mUserInteractionLogger;
+    @Mock FeedCardOpeningReliabilityLogger mCardOpeningReliabilityLogger;
 
     FeedReliabilityLogger mFeedReliabilityLogger;
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
-        mFeedReliabilityLogger = new FeedReliabilityLogger(mLaunchLogger, mUserInteractionLogger);
+        mFeedReliabilityLogger =
+                new FeedReliabilityLogger(
+                        mLaunchLogger, mUserInteractionLogger, mCardOpeningReliabilityLogger);
     }
 
     @Test
@@ -86,28 +95,28 @@ public class FeedReliabilityLoggerTest {
     @Test
     public void testOnUrlFocusChange_gainFocus_launchInProgress() {
         when(mLaunchLogger.isLaunchInProgress()).thenReturn(true);
-        mFeedReliabilityLogger.onUrlFocusChange(/*hasFocus=*/true);
+        mFeedReliabilityLogger.onUrlFocusChange(/* hasFocus= */ true);
         verify(mLaunchLogger, never()).cancelPendingFinished();
     }
 
     @Test
     public void testOnUrlFocusChange_gainFocus_launchNotInProgress() {
         when(mLaunchLogger.isLaunchInProgress()).thenReturn(false);
-        mFeedReliabilityLogger.onUrlFocusChange(/*hasFocus=*/true);
+        mFeedReliabilityLogger.onUrlFocusChange(/* hasFocus= */ true);
         verify(mLaunchLogger, never()).cancelPendingFinished();
     }
 
     @Test
     public void testOnUrlFocusChange_loseFocus_launchInProgress() {
         when(mLaunchLogger.isLaunchInProgress()).thenReturn(true);
-        mFeedReliabilityLogger.onUrlFocusChange(/*hasFocus=*/false);
+        mFeedReliabilityLogger.onUrlFocusChange(/* hasFocus= */ false);
         verify(mLaunchLogger, times(1)).cancelPendingFinished();
     }
 
     @Test
     public void testOnUrlFocusChange_loseFocus_launchNotInProgress() {
         when(mLaunchLogger.isLaunchInProgress()).thenReturn(false);
-        mFeedReliabilityLogger.onUrlFocusChange(/*hasFocus=*/false);
+        mFeedReliabilityLogger.onUrlFocusChange(/* hasFocus= */ false);
         verify(mLaunchLogger, never()).cancelPendingFinished();
     }
 
@@ -145,7 +154,6 @@ public class FeedReliabilityLoggerTest {
                 .logLaunchFinished(
                         anyLong(), eq(DiscoverLaunchResult.SWITCHED_FEED_TABS.getNumber()));
         verify(mLaunchLogger).logSwitchedFeeds(eq(StreamType.FOR_YOU), anyLong());
-        verify(mUserInteractionLogger).onStreamClosed(eq(ClosedReason.SWITCH_STREAM));
     }
 
     @Test
@@ -159,7 +167,7 @@ public class FeedReliabilityLoggerTest {
     @Test
     public void testOnUnbindStream() {
         when(mLaunchLogger.isLaunchInProgress()).thenReturn(true);
-        mFeedReliabilityLogger.onUnbindStream();
+        mFeedReliabilityLogger.onUnbindStream(ClosedReason.LEAVE_FEED);
         verify(mLaunchLogger)
                 .logLaunchFinished(
                         anyLong(), eq(DiscoverLaunchResult.FRAGMENT_STOPPED.getNumber()));
@@ -169,9 +177,39 @@ public class FeedReliabilityLoggerTest {
     @Test
     public void testOnOpenCard() {
         when(mLaunchLogger.isLaunchInProgress()).thenReturn(true);
-        mFeedReliabilityLogger.onOpenCard();
+        mFeedReliabilityLogger.onOpenCard(PAGE_ID, CARD_CATEGORY);
         verify(mLaunchLogger)
                 .logLaunchFinished(anyLong(), eq(DiscoverLaunchResult.CARD_TAPPED.getNumber()));
-        verify(mUserInteractionLogger).onStreamClosed(eq(ClosedReason.OPEN_CARD));
+    }
+
+    @Test
+    public void testCardOpeningReliabilityLogger() {
+        mFeedReliabilityLogger.onOpenCard(PAGE_ID, CARD_CATEGORY);
+        verify(mCardOpeningReliabilityLogger).onCardClicked(eq(PAGE_ID), eq(CARD_CATEGORY));
+
+        mFeedReliabilityLogger.onPageLoadStarted(PAGE_ID);
+        verify(mCardOpeningReliabilityLogger).onPageLoadStarted(PAGE_ID);
+
+        mFeedReliabilityLogger.onPageFirstContentfulPaint(PAGE_ID);
+        verify(mCardOpeningReliabilityLogger).onPageFirstContentfulPaint(PAGE_ID);
+
+        mFeedReliabilityLogger.onPageLoadFinished(PAGE_ID);
+        verify(mCardOpeningReliabilityLogger).onPageLoadFinished(PAGE_ID);
+
+        mFeedReliabilityLogger.onPageLoadFailed(PAGE_ID, NetError.ERR_INTERNET_DISCONNECTED);
+        verify(mCardOpeningReliabilityLogger)
+                .onPageLoadFailed(PAGE_ID, PageLoadError.INTERNET_DISCONNECTED);
+
+        mFeedReliabilityLogger.onPageLoadFailed(PAGE_ID, NetError.ERR_CONNECTION_TIMED_OUT);
+        verify(mCardOpeningReliabilityLogger)
+                .onPageLoadFailed(PAGE_ID, PageLoadError.CONNECTION_TIMED_OUT);
+
+        mFeedReliabilityLogger.onPageLoadFailed(PAGE_ID, NetError.ERR_NAME_RESOLUTION_FAILED);
+        verify(mCardOpeningReliabilityLogger)
+                .onPageLoadFailed(PAGE_ID, PageLoadError.NAME_RESOLUTION_FAILED);
+
+        mFeedReliabilityLogger.onPageLoadFailed(PAGE_ID, NetError.ERR_ABORTED);
+        verify(mCardOpeningReliabilityLogger)
+                .onPageLoadFailed(PAGE_ID, PageLoadError.PAGE_LOAD_ERROR);
     }
 }

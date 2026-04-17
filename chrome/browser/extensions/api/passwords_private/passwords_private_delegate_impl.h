@@ -8,6 +8,7 @@
 #include <stddef.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -15,7 +16,9 @@
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "build/build_config.h"
+#include "chrome/browser/extensions/api/passwords_private/password_access_auth_timeout_handler.h"
 #include "chrome/browser/extensions/api/passwords_private/password_check_delegate.h"
 #include "chrome/browser/extensions/api/passwords_private/passwords_private_delegate.h"
 #include "chrome/browser/extensions/api/passwords_private/passwords_private_utils.h"
@@ -24,15 +27,14 @@
 #include "chrome/common/extensions/api/passwords_private.h"
 #include "components/device_reauth/device_authenticator.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/password_manager/core/browser/export/export_progress_status.h"
 #include "components/password_manager/core/browser/export/password_manager_exporter.h"
-#include "components/password_manager/core/browser/password_access_authenticator.h"
-#include "components/password_manager/core/browser/password_account_storage_settings_watcher.h"
-#include "components/password_manager/core/browser/reauth_purpose.h"
+#include "components/password_manager/core/browser/sharing/recipients_fetcher.h"
 #include "components/password_manager/core/browser/ui/credential_ui_entry.h"
-#include "components/password_manager/core/browser/ui/export_progress_status.h"
 #include "components/password_manager/core/browser/ui/saved_passwords_presenter.h"
+#include "components/sync/service/sync_service.h"
+#include "components/sync/service/sync_service_observer.h"
 #include "extensions/browser/extension_function.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class Profile;
 
@@ -44,14 +46,21 @@ namespace web_app {
 class WebAppInstallManager;
 }
 
+namespace password_manager {
+class RecipientsFetcher;
+}
+
 namespace extensions {
 
 // Concrete PasswordsPrivateDelegate implementation.
 class PasswordsPrivateDelegateImpl
     : public PasswordsPrivateDelegate,
       public password_manager::SavedPasswordsPresenter::Observer,
+      public syncer::SyncServiceObserver,
       public web_app::WebAppInstallManagerObserver {
  public:
+  using AuthResultCallback = base::OnceCallback<void(bool)>;
+
   explicit PasswordsPrivateDelegateImpl(Profile* profile);
 
   PasswordsPrivateDelegateImpl(const PasswordsPrivateDelegateImpl&) = delete;
@@ -62,19 +71,17 @@ class PasswordsPrivateDelegateImpl
   void GetSavedPasswordsList(UiEntriesCallback callback) override;
   CredentialsGroups GetCredentialGroups() override;
   void GetPasswordExceptionsList(ExceptionEntriesCallback callback) override;
-  absl::optional<api::passwords_private::UrlCollection> GetUrlCollection(
+  std::optional<api::passwords_private::UrlCollection> GetUrlCollection(
       const std::string& url) override;
-  bool IsAccountStoreDefault(content::WebContents* web_contents) override;
   bool AddPassword(const std::string& url,
                    const std::u16string& username,
                    const std::u16string& password,
                    const std::u16string& note,
                    bool use_account_store,
                    content::WebContents* web_contents) override;
-  absl::optional<int> ChangeSavedPassword(
-      int id,
-      const api::passwords_private::ChangeSavedPasswordParams& params) override;
-  void RemoveSavedPassword(
+  bool ChangeCredential(
+      const api::passwords_private::PasswordUiEntry& credential) override;
+  void RemoveCredential(
       int id,
       api::passwords_private::PasswordStoreSet from_stores) override;
   void RemovePasswordException(int id) override;
@@ -88,6 +95,8 @@ class PasswordsPrivateDelegateImpl
                                  content::WebContents* web_contents) override;
   void MovePasswordsToAccount(const std::vector<int>& ids,
                               content::WebContents* web_contents) override;
+  void FetchFamilyMembers(FetchFamilyResultsCallback callback) override;
+  void SharePassword(int id, const ShareRecipients& recipients) override;
   void ImportPasswords(api::passwords_private::PasswordStoreSet to_store,
                        ImportResultsCallback results_callback,
                        content::WebContents* web_contents) override;
@@ -98,13 +107,12 @@ class PasswordsPrivateDelegateImpl
   void ExportPasswords(
       base::OnceCallback<void(const std::string&)> accepted_callback,
       content::WebContents* web_contents) override;
-  void CancelExportPasswords() override;
   api::passwords_private::ExportProgressStatus GetExportProgressStatus()
       override;
-  bool IsOptedInForAccountStorage() override;
-  // TODO(crbug.com/1102294): Mimic the signature in PasswordFeatureManager.
-  void SetAccountStorageOptIn(bool opt_in,
-                              content::WebContents* web_contents) override;
+  bool IsAccountStorageEnabled() override;
+  // TODO(crbug.com/40138722): Mimic the signature in PasswordFeatureManager.
+  void SetAccountStorageEnabled(bool enabled,
+                                content::WebContents* web_contents) override;
   std::vector<api::passwords_private::PasswordUiEntry> GetInsecureCredentials()
       override;
   std::vector<api::passwords_private::PasswordUiEntryList>
@@ -113,66 +121,84 @@ class PasswordsPrivateDelegateImpl
       const api::passwords_private::PasswordUiEntry& credential) override;
   bool UnmuteInsecureCredential(
       const api::passwords_private::PasswordUiEntry& credential) override;
-  void RecordChangePasswordFlowStarted(
-      const api::passwords_private::PasswordUiEntry& credential) override;
   void StartPasswordCheck(StartPasswordCheckCallback callback) override;
-  void StopPasswordCheck() override;
   api::passwords_private::PasswordCheckStatus GetPasswordCheckStatus() override;
   password_manager::InsecureCredentialsManager* GetInsecureCredentialsManager()
       override;
-  void ExtendAuthValidity() override;
+  void RestartAuthTimer() override;
   void SwitchBiometricAuthBeforeFillingState(
-      content::WebContents* web_contents) override;
+      content::WebContents* web_contents,
+      AuthenticationCallback callback) override;
   void ShowAddShortcutDialog(content::WebContents* web_contents) override;
   void ShowExportedFileInShell(content::WebContents* web_contents,
                                std::string file_path) override;
+  void ChangePasswordManagerPin(
+      content::WebContents* web_contents,
+      base::OnceCallback<void(bool)> success_callback) override;
+  void IsPasswordManagerPinAvailable(
+      content::WebContents* web_contents,
+      base::OnceCallback<void(bool)> pin_available_callback) override;
+  void DisconnectCloudAuthenticator(
+      content::WebContents* web_contents,
+      base::OnceCallback<void(bool)> success_callback) override;
+  bool IsConnectedToCloudAuthenticator(
+      content::WebContents* web_contents) override;
+  void DeleteAllPasswordManagerData(
+      content::WebContents* web_contents,
+      base::OnceCallback<void(bool)> success_callback) override;
+
+  base::WeakPtr<PasswordsPrivateDelegate> AsWeakPtr() override;
+
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
+  std::unique_ptr<device_reauth::DeviceAuthenticator> GetDeviceAuthenticator(
+      content::WebContents* web_contents,
+      base::TimeDelta auth_validity_period);
+#endif
 
 #if defined(UNIT_TEST)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
+  void SetDeviceAuthenticatorForTesting(
+      std::unique_ptr<device_reauth::DeviceAuthenticator>
+          device_authenticator) {
+    test_device_authenticator_ = std::move(device_authenticator);
+  }
+#endif
+
   int GetIdForCredential(
       const password_manager::CredentialUIEntry& credential) {
     return credential_id_generator_.GenerateId(credential);
-  }
-
-  // Use this in tests to mock the OS-level reauthentication.
-  void set_os_reauth_call(
-      password_manager::PasswordAccessAuthenticator::ReauthCallback
-          os_reauth_call) {
-    password_access_authenticator_.set_os_reauth_call(
-        std::move(os_reauth_call));
   }
 
   void SetPorterForTesting(
       std::unique_ptr<PasswordManagerPorterInterface> porter) {
     password_manager_porter_ = std::move(porter);
   }
+
+  void SetRecipientsFetcherForTesting(
+      std::unique_ptr<password_manager::RecipientsFetcher>
+          sharing_password_recipients_fetcher) {
+    sharing_password_recipients_fetcher_ =
+        std::move(sharing_password_recipients_fetcher);
+  }
+
 #endif  // defined(UNIT_TEST)
 
  private:
   ~PasswordsPrivateDelegateImpl() override;
 
   // password_manager::SavedPasswordsPresenter::Observer implementation.
-  void OnSavedPasswordsChanged() override;
+  void OnSavedPasswordsChanged(
+      const password_manager::PasswordStoreChangeList& changes) override;
 
   // web_app::WebAppInstallManagerObserver implementation.
-  void OnWebAppInstalledWithOsHooks(const web_app::AppId& app_id) override;
+  void OnWebAppInstalledWithOsHooks(const webapps::AppId& app_id) override;
   void OnWebAppInstallManagerDestroyed() override;
-
-  // Called after the lists are fetched. Once both lists have been set, the
-  // class is considered initialized and any queued functions (which could
-  // not be executed immediately due to uninitialized data) are invoked.
-  void InitializeIfNecessary();
-
-  // Executes a given callback by either invoking it immediately if the class
-  // has been initialized or by deferring it until initialization has completed.
-  void ExecuteFunction(base::OnceClosure callback);
 
   void SetCredentials(
       std::vector<password_manager::CredentialUIEntry> credentials);
 
-  void RemoveEntryInternal(
-      int id,
-      api::passwords_private::PasswordStoreSet from_stores);
-  void UndoRemoveSavedPasswordOrExceptionInternal();
+  void MaybeShowPasswordShareButtonIPH(
+      base::WeakPtr<content::WebContents> web_contents);
 
   // Callback for when the password list has been written to the destination.
   void OnPasswordsExportProgress(
@@ -186,14 +212,16 @@ class PasswordsPrivateDelegateImpl
       bool authenticated);
 
   // Callback for RequestCredentialDetails() after authentication check.
-  void OnRequestCredentialDetailsAuthResult(const std::vector<int>& ids,
-                                            UiEntriesCallback callback,
-                                            bool authenticated);
+  void OnRequestCredentialDetailsAuthResult(
+      const std::vector<int>& ids,
+      UiEntriesCallback callback,
+      base::WeakPtr<content::WebContents> web_contents,
+      bool authenticated);
 
   // Callback for ExportPasswords() after authentication check.
   void OnExportPasswordsAuthResult(
       base::OnceCallback<void(const std::string&)> accepted_callback,
-      content::WebContents* web_contents,
+      base::WeakPtr<content::WebContents> web_contents,
       bool authenticated);
 
   // Callback for ContinueImport() after authentication check.
@@ -201,16 +229,19 @@ class PasswordsPrivateDelegateImpl
                                    const std::vector<int>& selected_ids,
                                    bool authenticated);
 
-  void OnAccountStorageOptInStateChanged();
+  // Callback for DeleteAllPasswordManagerData() after authentication check.
+  void OnDeleteAllDataAuthResult(
+      base::OnceCallback<void(bool)> success_callback,
+      bool authenticated);
 
-  // Decides whether an authentication check is successful. Passes the result
-  // to |callback|. True indicates that no extra work is needed. False
-  // indicates that OS-dependent UI to present OS account login challenge
-  // should be shown.
-  void OsReauthCall(
-      password_manager::ReauthPurpose purpose,
-      password_manager::PasswordAccessAuthenticator::AuthResultCallback
-          callback);
+  // SyncServiceObserver overrides.
+  void OnStateChanged(syncer::SyncService* sync_service) override;
+  void OnSyncShutdown(syncer::SyncService* sync) override;
+
+  void OnFetchingFamilyMembersCompleted(
+      FetchFamilyResultsCallback callback,
+      std::vector<password_manager::RecipientInfo> recipients_info,
+      password_manager::FetchFamilyMembersRequestStatus request_status);
 
   // Records user action and emits histogram values for retrieving |entry|.
   void EmitHistogramsForCredentialAccess(
@@ -218,16 +249,16 @@ class PasswordsPrivateDelegateImpl
       api::passwords_private::PlaintextReason reason);
 
   // Callback for biometric authentication after authentication check.
-  void OnReauthCompleted();
+  void OnReauthCompleted(bool authenticated);
 
   // Invokes PasswordsPrivateEventRouter::OnPasswordManagerAuthTimeout().
   void OsReauthTimeoutCall();
 
   // Authenticate the user using os-authentication.
-  void AuthenticateUser(
-      const std::u16string& message,
-      password_manager::PasswordAccessAuthenticator::AuthResultCallback
-          callback);
+  void AuthenticateUser(content::WebContents* web_contents,
+                        base::TimeDelta auth_validity_period,
+                        const std::u16string& message,
+                        AuthResultCallback auth_callback);
 
   extensions::api::passwords_private::PasswordUiEntry
   CreatePasswordUiEntryFromCredentialUiEntry(
@@ -242,10 +273,7 @@ class PasswordsPrivateDelegateImpl
   // Used to control the export and import flows.
   std::unique_ptr<PasswordManagerPorterInterface> password_manager_porter_;
 
-  password_manager::PasswordAccessAuthenticator password_access_authenticator_;
-
-  std::unique_ptr<password_manager::PasswordAccountStorageSettingsWatcher>
-      password_account_storage_settings_watcher_;
+  PasswordAccessAuthTimeoutHandler auth_timeout_handler_;
 
   PasswordCheckDelegate password_check_delegate_;
 
@@ -261,25 +289,27 @@ class PasswordsPrivateDelegateImpl
   // Whether SetCredentials has been called, and whether this class has been
   // initialized.
   bool current_entries_initialized_;
-  bool is_initialized_;
 
-  // Vector of callbacks which are queued up before the password store has been
-  // initialized. Once SetCredentials() has been called, this class is
-  // considered initialized and can these callbacks are invoked.
-  std::vector<base::OnceClosure> pre_initialization_callbacks_;
+  // Vectors of callbacks which are queued up before the password store has been
+  // initialized.
   std::vector<UiEntriesCallback> get_saved_passwords_list_callbacks_;
   std::vector<ExceptionEntriesCallback> get_password_exception_list_callbacks_;
 
-  // The WebContents used when invoking this API. Used to fetch the
-  // NativeWindow for the window where the API was called.
-  raw_ptr<content::WebContents> web_contents_;
-
   // Device authenticator used to authenticate users in settings.
-  scoped_refptr<device_reauth::DeviceAuthenticator> device_authenticator_;
+  std::unique_ptr<device_reauth::DeviceAuthenticator> device_authenticator_;
+
+  base::ScopedObservation<syncer::SyncService, syncer::SyncServiceObserver>
+      sync_service_observation_{this};
 
   base::ScopedObservation<web_app::WebAppInstallManager,
                           web_app::WebAppInstallManagerObserver>
       install_manager_observation_{this};
+
+  std::unique_ptr<password_manager::RecipientsFetcher>
+      sharing_password_recipients_fetcher_;
+
+  std::unique_ptr<device_reauth::DeviceAuthenticator>
+      test_device_authenticator_;
 
   base::WeakPtrFactory<PasswordsPrivateDelegateImpl> weak_ptr_factory_{this};
 };

@@ -6,7 +6,7 @@
 #define BASE_MAC_SCOPED_SENDING_EVENT_H_
 
 #include "base/base_export.h"
-#include "base/message_loop/message_pump_mac.h"
+#include "base/message_loop/message_pump_apple.h"
 
 // Nested event loops can pump IPC messages, including
 // script-initiated tab closes, which could release objects that the
@@ -20,7 +20,7 @@
 // CrAppControlProtocol lets ScopedSendingEvent tell the embedding
 // NSApplication what to return from -handlingSendEvent.
 
-@protocol CrAppControlProtocol<CrAppProtocol>
+@protocol CrAppControlProtocol <CrAppProtocol>
 - (void)setHandlingSendEvent:(BOOL)handlingSendEvent;
 @end
 

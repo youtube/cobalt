@@ -52,10 +52,6 @@ class HEADLESS_EXPORT HeadlessBrowserContext {
   // Returns all web contents owned by this browser context.
   virtual std::vector<HeadlessWebContents*> GetAllWebContents() = 0;
 
-  // See HeadlessBrowser::GetWebContentsForDevToolsAgentHostId.
-  virtual HeadlessWebContents* GetWebContentsForDevToolsAgentHostId(
-      const std::string& devtools_agent_host_id) = 0;
-
   // Destroy this BrowserContext and all WebContents associated with it.
   virtual void Close() = 0;
 
@@ -94,6 +90,7 @@ class HEADLESS_EXPORT HeadlessBrowserContext::Builder {
   Builder& SetProxyConfig(std::unique_ptr<net::ProxyConfig> proxy_config);
   Builder& SetWindowSize(const gfx::Size& window_size);
   Builder& SetUserDataDir(const base::FilePath& user_data_dir);
+  Builder& SetDiskCacheDir(const base::FilePath& disk_cache_dir);
   Builder& SetIncognitoMode(bool incognito_mode);
   Builder& SetBlockNewWebContents(bool block_new_web_contents);
 

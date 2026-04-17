@@ -4,12 +4,18 @@
 
 package org.chromium.chrome.browser.language.settings;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 import android.text.TextUtils;
 import android.util.AttributeSet;
 
-import org.chromium.chrome.browser.preferences.PrefChangeRegistrar;
+import androidx.fragment.app.Fragment;
+
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.settings.ChromeBasePreference;
+import org.chromium.components.prefs.PrefChangeRegistrar;
 
 import java.util.ArrayList;
 
@@ -17,12 +23,13 @@ import java.util.ArrayList;
  * Chrome Preference that is used to launch a {@link LanguageItemListFragment}. The preference
  * summary is updated to refelect the first elements of the list.
  */
-public class LanguageItemListPreference
-        extends ChromeBasePreference implements PrefChangeRegistrar.PrefObserver {
+@NullMarked
+public class LanguageItemListPreference extends ChromeBasePreference
+        implements PrefChangeRegistrar.PrefObserver {
     // Default number of items to list in a collection preference summary.
     private static final int COLLECTION_SUMMARY_ITEM_LIMIT = 3;
 
-    private LanguageItemListFragment.ListDelegate mLanguageItemListDelegate;
+    private LanguageItemListFragment.@Nullable ListDelegate mLanguageItemListDelegate;
 
     public LanguageItemListPreference(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -34,10 +41,11 @@ public class LanguageItemListPreference
     }
 
     /**
-     * @return The name of the Fragment to launch when this preference is clicked.
+     * @return The class of the Fragment to launch when this preference is clicked.
      */
-    public String getFragmentClassName() {
-        return mLanguageItemListDelegate.getFragmentClassName();
+    public Class<? extends Fragment> getFragmentClass() {
+        assumeNonNull(mLanguageItemListDelegate);
+        return mLanguageItemListDelegate.getFragmentClass();
     }
 
     /**
@@ -65,7 +73,7 @@ public class LanguageItemListPreference
      * @param languages List of LanguageItems.
      * @return Comma sepperated string of language display names.
      */
-    private String makeSummary() {
+    private @Nullable String makeSummary() {
         if (mLanguageItemListDelegate == null) return null;
         int index = 0;
         ArrayList<String> languageNames = new ArrayList<String>();
@@ -73,7 +81,7 @@ public class LanguageItemListPreference
             if (++index > COLLECTION_SUMMARY_ITEM_LIMIT) break;
             languageNames.add(item.getDisplayName());
         }
-        // TODO(crbug.com/1181224): Make sure to localize the separator.
+        // TODO(crbug.com/40170296): Make sure to localize the separator.
         return TextUtils.join(", ", languageNames);
     }
 }

@@ -1,9 +1,12 @@
 #include "quiche/balsa/header_properties.h"
 
 #include <array>
+#include <cstdint>
 
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/string_view.h"
+#include "quiche/common/platform/api/quiche_flag_utils.h"
+#include "quiche/common/platform/api/quiche_flags.h"
 #include "quiche/common/quiche_text_utils.h"
 
 namespace quiche::header_properties {
@@ -15,7 +18,8 @@ using MultivaluedHeadersSet =
                         StringPieceCaseEqual>;
 
 MultivaluedHeadersSet* buildMultivaluedHeaders() {
-  return new MultivaluedHeadersSet({
+  MultivaluedHeadersSet* multivalued_headers = new MultivaluedHeadersSet({
+      // clang-format off
       "accept",
       "accept-charset",
       "accept-encoding",
@@ -56,23 +60,72 @@ MultivaluedHeadersSet* buildMultivaluedHeaders() {
       "x-forwarded-for",
       // Internal Google usage gives this cache-control syntax
       "x-go" /**/ "ogle-cache-control",
+      // clang-format on
   });
+  return multivalued_headers;
 }
 
-std::array<bool, 256> buildInvalidHeaderKeyCharLookupTable() {
-  std::array<bool, 256> invalidCharTable;
-  invalidCharTable.fill(false);
+constexpr std::array<bool, 256> buildInvalidHeaderKeyCharLookupTable() {
+  std::array<bool, 256> invalidCharTable{};
   for (uint8_t c : kInvalidHeaderKeyCharList) {
     invalidCharTable[c] = true;
   }
   return invalidCharTable;
 }
 
-std::array<bool, 256> buildInvalidCharLookupTable() {
-  std::array<bool, 256> invalidCharTable;
-  invalidCharTable.fill(false);
+constexpr std::array<bool, 256>
+buildInvalidHeaderKeyCharLookupTableAllowDoubleQuote() {
+  std::array<bool, 256> invalidCharTable{};
+  for (uint8_t c : kInvalidHeaderKeyCharListAllowDoubleQuote) {
+    invalidCharTable[c] = true;
+  }
+  return invalidCharTable;
+}
+
+constexpr std::array<bool, 256> buildInvalidCharLookupTable() {
+  std::array<bool, 256> invalidCharTable{};
   for (uint8_t c : kInvalidHeaderCharList) {
     invalidCharTable[c] = true;
+  }
+  return invalidCharTable;
+}
+
+constexpr std::array<bool, 256> kAllTrueArray = {
+    true, true, true, true, true, true, true, true, true, true, true, true,
+    true, true, true, true, true, true, true, true, true, true, true, true,
+    true, true, true, true, true, true, true, true, true, true, true, true,
+    true, true, true, true, true, true, true, true, true, true, true, true,
+    true, true, true, true, true, true, true, true, true, true, true, true,
+    true, true, true, true, true, true, true, true, true, true, true, true,
+    true, true, true, true, true, true, true, true, true, true, true, true,
+    true, true, true, true, true, true, true, true, true, true, true, true,
+    true, true, true, true, true, true, true, true, true, true, true, true,
+    true, true, true, true, true, true, true, true, true, true, true, true,
+    true, true, true, true, true, true, true, true, true, true, true, true,
+    true, true, true, true, true, true, true, true, true, true, true, true,
+    true, true, true, true, true, true, true, true, true, true, true, true,
+    true, true, true, true, true, true, true, true, true, true, true, true,
+    true, true, true, true, true, true, true, true, true, true, true, true,
+    true, true, true, true, true, true, true, true, true, true, true, true,
+    true, true, true, true, true, true, true, true, true, true, true, true,
+    true, true, true, true, true, true, true, true, true, true, true, true,
+    true, true, true, true, true, true, true, true, true, true, true, true,
+    true, true, true, true, true, true, true, true, true, true, true, true,
+    true, true, true, true, true, true, true, true, true, true, true, true,
+    true, true, true, true};
+
+constexpr std::array<bool, 256> buildInvalidPathCharLookupTable() {
+  std::array<bool, 256> invalidCharTable = kAllTrueArray;
+  for (uint8_t c : kValidPathCharList) {
+    invalidCharTable[c] = false;
+  }
+  return invalidCharTable;
+}
+
+constexpr std::array<bool, 256> buildInvalidQueryCharLookupTable() {
+  std::array<bool, 256> invalidCharTable = kAllTrueArray;
+  for (uint8_t c : kValidQueryCharList) {
+    invalidCharTable[c] = false;
   }
   return invalidCharTable;
 }
@@ -92,6 +145,13 @@ bool IsInvalidHeaderKeyChar(uint8_t c) {
   return invalidHeaderKeyCharTable[c];
 }
 
+bool IsInvalidHeaderKeyCharAllowDoubleQuote(uint8_t c) {
+  static const std::array<bool, 256> invalidHeaderKeyCharTable =
+      buildInvalidHeaderKeyCharLookupTableAllowDoubleQuote();
+
+  return invalidHeaderKeyCharTable[c];
+}
+
 bool IsInvalidHeaderChar(uint8_t c) {
   static const std::array<bool, 256> invalidCharTable =
       buildInvalidCharLookupTable();
@@ -102,6 +162,28 @@ bool IsInvalidHeaderChar(uint8_t c) {
 bool HasInvalidHeaderChars(absl::string_view value) {
   for (const char c : value) {
     if (IsInvalidHeaderChar(c)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool HasInvalidPathChar(absl::string_view value) {
+  static const std::array<bool, 256> invalidCharTable =
+      buildInvalidPathCharLookupTable();
+  for (const char c : value) {
+    if (invalidCharTable[c]) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool HasInvalidQueryChar(absl::string_view value) {
+  static const std::array<bool, 256> invalidCharTable =
+      buildInvalidQueryCharLookupTable();
+  for (const char c : value) {
+    if (invalidCharTable[c]) {
       return true;
     }
   }

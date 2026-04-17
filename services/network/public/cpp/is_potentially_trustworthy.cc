@@ -4,7 +4,10 @@
 
 #include "services/network/public/cpp/is_potentially_trustworthy.h"
 
+#include <algorithm>
 #include <iterator>
+#include <optional>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -14,19 +17,16 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/no_destructor.h"
 #include "base/numerics/checked_math.h"
-#include "base/ranges/algorithm.h"
 #include "base/sequence_checker.h"
 #include "base/strings/pattern.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "net/base/ip_address.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "net/base/url_util.h"
 #include "services/network/public/cpp/network_switches.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/origin.h"
 #include "url/scheme_host_port.h"
 #include "url/url_canon.h"
@@ -48,7 +48,7 @@ bool PatternCanMatchIpV4Host(const std::string& hostname_pattern) {
   // IsValidWildcardPattern() ensures there is at least one '*'.
   DCHECK(!hostname_pattern.empty());
 
-  std::vector<base::StringPiece> components = base::SplitStringPiece(
+  std::vector<std::string_view> components = base::SplitStringPiece(
       hostname_pattern, ".", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
   // If there are more than 4, it can't match an IPv4 IP.
   if (components.size() > 4)
@@ -65,8 +65,7 @@ bool PatternCanMatchIpV4Host(const std::string& hostname_pattern) {
     if (component == "*") {
       wildcards_replaced += "0";
     } else {
-      wildcards_replaced =
-          wildcards_replaced.append(component.begin(), component.end());
+      wildcards_replaced += component;
     }
   }
 
@@ -238,7 +237,7 @@ std::vector<std::string> ParseSecureOriginAllowlistFromCmdline() {
 
   std::vector<std::string> origin_patterns =
       ParseSecureOriginAllowlist(origins_str);
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // For Crostini, we allow access to the default VM/container as a secure
   // origin via the hostname penguin.linux.test. We are required to use a
   // wildcard for the prefix because we do not know what the port number is.
@@ -261,7 +260,7 @@ bool IsAllowlisted(const std::vector<std::string>& allowlist,
   return false;
 }
 
-bool IsSchemeConsideredAuthenticated(base::StringPiece scheme) {
+bool IsSchemeConsideredAuthenticated(std::string_view scheme) {
   // The code below is based on the specification at
   // https://w3c.github.io/webappsec-secure-contexts/#potentially-trustworthy-origin
 
@@ -373,8 +372,8 @@ std::vector<std::string> SecureOriginAllowlist::GetCurrentAllowlist() {
 
   std::vector<std::string> result;
   result.reserve(cmdline_allowlist_.size() + auxiliary_allowlist_.size());
-  base::ranges::copy(cmdline_allowlist_, std::back_inserter(result));
-  base::ranges::copy(auxiliary_allowlist_, std::back_inserter(result));
+  std::ranges::copy(cmdline_allowlist_, std::back_inserter(result));
+  std::ranges::copy(auxiliary_allowlist_, std::back_inserter(result));
   return result;
 }
 

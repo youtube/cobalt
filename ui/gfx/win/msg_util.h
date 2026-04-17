@@ -64,7 +64,6 @@
   break;                                                      \
   default:                                                    \
     NOTREACHED() << "Invalid message map ID: " << dwMsgMapID; \
-    break;                                                    \
     }                                                         \
     return FALSE;                                             \
     }

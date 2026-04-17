@@ -2,12 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "gpu/command_buffer/service/shared_memory_region_wrapper.h"
 
 #include "base/logging.h"
 #include "base/numerics/checked_math.h"
 #include "base/system/sys_info.h"
-#include "gpu/command_buffer/common/gpu_memory_buffer_support.h"
 #include "ui/gfx/buffer_format_util.h"
 #include "ui/gfx/gpu_memory_buffer.h"
 
@@ -50,11 +54,10 @@ SharedMemoryRegionWrapper::~SharedMemoryRegionWrapper() = default;
 bool SharedMemoryRegionWrapper::Initialize(
     const gfx::GpuMemoryBufferHandle& handle,
     const gfx::Size& size,
-    gfx::BufferFormat format,
-    gfx::BufferPlane plane) {
+    gfx::BufferFormat format) {
   DCHECK(!mapping_.IsValid());
 
-  if (!handle.region.IsValid()) {
+  if (!handle.region().IsValid()) {
     DLOG(ERROR) << "Invalid GMB shared memory region.";
     return false;
   }
@@ -87,7 +90,7 @@ bool SharedMemoryRegionWrapper::Initialize(
   }
 
   const size_t map_size = checked_size.ValueOrDie();
-  mapping_ = handle.region.MapAt(static_cast<off_t>(map_offset), map_size);
+  mapping_ = handle.region().MapAt(static_cast<off_t>(map_offset), map_size);
   if (!mapping_.IsValid()) {
     DLOG(ERROR) << "Failed to map shared memory.";
     return false;
@@ -96,38 +99,20 @@ bool SharedMemoryRegionWrapper::Initialize(
   size_t num_planes = gfx::NumberOfPlanesForLinearBufferFormat(format);
   planes_.resize(num_planes);
 
-  if (num_planes > 1 && plane == gfx::BufferPlane::DEFAULT) {
-    // The offset/stride only make sense when GpuMemoryBufferHandle is for a
-    // single plane. Stride should be set as the expected stride for first plane
-    // and offset should always be zero.
-    DCHECK_EQ(static_cast<size_t>(handle.stride),
-              gfx::RowSizeForBufferFormat(size.width(), format, /*plane=*/0));
-    DCHECK_EQ(handle.offset, 0u);
+  // The offset/stride only make sense when GpuMemoryBufferHandle is for a
+  // single plane. Stride should be set as the expected stride for first plane
+  // and offset should always be zero.
+  DCHECK_EQ(static_cast<size_t>(handle.stride),
+            gfx::RowSizeForBufferFormat(size.width(), format, /*plane=*/0));
+  DCHECK_EQ(handle.offset, 0u);
 
-    for (size_t plane_index = 0; plane_index < num_planes; ++plane_index) {
-      const size_t plane_offset =
-          gfx::BufferOffsetForBufferFormat(size, format, plane_index);
-
-      planes_[plane_index].offset = memory_offset + plane_offset;
-      planes_[plane_index].stride =
-          RowSizeForBufferFormat(size.width(), format, plane_index);
-    }
-  } else {
-    // Add plane offset separately so that we map the entire buffer even if
-    // we're accessing an individual plane - this helps with shared memory
-    // overlays on Windows by allowing access via the Y plane shared image only.
-    const size_t plane_index = GetPlaneIndex(plane, format);
+  for (size_t plane_index = 0; plane_index < num_planes; ++plane_index) {
     const size_t plane_offset =
         gfx::BufferOffsetForBufferFormat(size, format, plane_index);
-#if DCHECK_IS_ON()
-    const gfx::Size plane_size = GetPlaneSize(plane, size);
-    const size_t plane_size_bytes =
-        gfx::PlaneSizeForBufferFormat(plane_size, format, plane_index);
-    DCHECK_LE(memory_offset + plane_offset + plane_size_bytes, map_size);
-#endif
 
-    planes_[0].offset = memory_offset + plane_offset;
-    planes_[0].stride = handle.stride;
+    planes_[plane_index].offset = memory_offset + plane_offset;
+    planes_[plane_index].stride =
+        gfx::RowSizeForBufferFormat(size.width(), format, plane_index);
   }
 
   return true;
@@ -137,14 +122,23 @@ bool SharedMemoryRegionWrapper::IsValid() const {
   return mapping_.IsValid();
 }
 
-uint8_t* SharedMemoryRegionWrapper::GetMemory(int plane_index) const {
+const uint8_t* SharedMemoryRegionWrapper::GetMemory(int plane_index) const {
   DCHECK(IsValid());
-  return mapping_.GetMemoryAs<uint8_t>() + planes_[plane_index].offset;
+  return mapping_.GetMemoryAs<const uint8_t>() + planes_[plane_index].offset;
 }
 
 size_t SharedMemoryRegionWrapper::GetStride(int plane_index) const {
   DCHECK(IsValid());
   return planes_[plane_index].stride;
+}
+
+base::span<const uint8_t> SharedMemoryRegionWrapper::GetMemoryPlanes() const {
+  DCHECK(IsValid());
+  auto full_mapped_span =
+      base::span(mapping_.GetMemoryAs<const uint8_t>(), mapping_.mapped_size());
+  // It is possible that the first plane starts at a non-zero offset. So we
+  // subspan at this offset.
+  return full_mapped_span.subspan(planes_[0].offset);
 }
 
 SkPixmap SharedMemoryRegionWrapper::MakePixmapForPlane(const SkImageInfo& info,

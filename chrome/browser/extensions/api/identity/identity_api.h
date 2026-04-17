@@ -5,29 +5,36 @@
 #ifndef CHROME_BROWSER_EXTENSIONS_API_IDENTITY_IDENTITY_API_H_
 #define CHROME_BROWSER_EXTENSIONS_API_IDENTITY_IDENTITY_API_H_
 
+#include <optional>
 #include <string>
 #include <utility>
 
 #include "base/callback_list.h"
+#include "base/containers/flat_set.h"
 #include "base/feature_list.h"
+#include "base/functional/callback_forward.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
-#include "chrome/browser/extensions/api/identity/identity_clear_all_cached_auth_tokens_function.h"
 #include "chrome/browser/extensions/api/identity/identity_get_accounts_function.h"
-#include "chrome/browser/extensions/api/identity/identity_get_auth_token_function.h"
 #include "chrome/browser/extensions/api/identity/identity_get_profile_user_info_function.h"
-#include "chrome/browser/extensions/api/identity/identity_launch_web_auth_flow_function.h"
 #include "chrome/browser/extensions/api/identity/identity_mint_queue.h"
-#include "chrome/browser/extensions/api/identity/identity_remove_cached_auth_token_function.h"
 #include "chrome/browser/extensions/api/identity/identity_token_cache.h"
-#include "chrome/browser/extensions/api/identity/web_auth_flow.h"
 #include "components/signin/public/base/signin_buildflags.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "extensions/browser/browser_context_keyed_api_factory.h"
 #include "extensions/browser/event_router.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "google_apis/gaia/gaia_id.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/extensions/api/identity/identity_unimplemented_functions_android.h"
+#else
+#include "chrome/browser/extensions/api/identity/identity_clear_all_cached_auth_tokens_function.h"
+#include "chrome/browser/extensions/api/identity/identity_get_auth_token_function.h"
+#include "chrome/browser/extensions/api/identity/identity_launch_web_auth_flow_function.h"
+#include "chrome/browser/extensions/api/identity/identity_remove_cached_auth_token_function.h"
+#endif
 
 namespace content {
 class BrowserContext;
@@ -40,9 +47,6 @@ namespace extensions {
 class IdentityAPI : public BrowserContextKeyedAPI,
                     public signin::IdentityManager::Observer {
  public:
-  using OnSetConsentResultSignature = void(const std::string&,
-                                           const std::string&);
-
   explicit IdentityAPI(content::BrowserContext* context);
   ~IdentityAPI() override;
 
@@ -53,21 +57,14 @@ class IdentityAPI : public BrowserContextKeyedAPI,
 
   // GAIA id cache.
   void SetGaiaIdForExtension(const std::string& extension_id,
-                             const std::string& gaia_id);
-  // Returns |absl::nullopt| if no GAIA id is saved for |extension_id|.
+                             const GaiaId& gaia_id);
+  // Returns |std::nullopt| if no GAIA id is saved for `extension_id`.
   // Otherwise, returns GAIA id previously saved via SetGaiaIdForExtension().
-  absl::optional<std::string> GetGaiaIdForExtension(
-      const std::string& extension_id);
+  std::optional<GaiaId> GetGaiaIdForExtension(const std::string& extension_id);
   void EraseGaiaIdForExtension(const std::string& extension_id);
   // If refresh tokens have been loaded, erases GAIA ids of accounts that are no
   // longer signed in to Chrome for all extensions.
   void EraseStaleGaiaIdsForAllExtensions();
-
-  // Consent result.
-  void SetConsentResult(const std::string& result,
-                        const std::string& window_id);
-  base::CallbackListSubscription RegisterOnSetConsentResultCallback(
-      const base::RepeatingCallback<OnSetConsentResultSignature>& callback);
 
   // BrowserContextKeyedAPI:
   void Shutdown() override;
@@ -89,6 +86,28 @@ class IdentityAPI : public BrowserContextKeyedAPI,
   // account only.
   bool AreExtensionsRestrictedToPrimaryAccount();
 
+  // Returns accounts that extension have access to.
+  // This returns empty if Chrome is not signed in. Otherwise, returns all
+  // accounts in the `identity_manager_`.
+  std::vector<CoreAccountInfo> GetAccountsWithRefreshTokensForExtensions();
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  // Shows the Chrome sign in dialog for extensions if:
+  // - The dialog is not already showing
+  // - The user is signed in on the web but not to Chrome
+  // `on_complete` is guaranteed to be called.
+  void MaybeShowChromeSigninDialog(
+      const std::u16string& extension_name_for_display,
+      base::OnceClosure on_complete);
+
+  // Callback to be called when the tests triggers showing UI.
+  // Should be used in unittests.
+  void SetSkipUIForTesting(
+      base::OnceCallback<void(base::OnceClosure)> callback) {
+    skip_ui_for_testing_callback_ = std::move(callback);
+  }
+#endif
+
  private:
   friend class BrowserContextKeyedAPIFactory<IdentityAPI>;
   friend class IdentityAPITest;
@@ -103,7 +122,13 @@ class IdentityAPI : public BrowserContextKeyedAPI,
               ExtensionPrefs* extension_prefs,
               EventRouter* event_router);
 
+  // Returns true if extensions have access to Chrome accounts.
+  // Access requires Chrome to be signed in.
+  bool HasAccessToChromeAccounts() const;
+
   // signin::IdentityManager::Observer:
+  void OnPrimaryAccountChanged(
+      const signin::PrimaryAccountChangeEvent& event_details) override;
   void OnRefreshTokensLoaded() override;
   void OnRefreshTokenUpdatedForAccount(
       const CoreAccountInfo& account_info) override;
@@ -113,8 +138,12 @@ class IdentityAPI : public BrowserContextKeyedAPI,
   void OnExtendedAccountInfoRemoved(const AccountInfo& info) override;
 
   // Fires the chrome.identity.onSignInChanged event.
-  void FireOnAccountSignInChanged(const std::string& gaia_id,
-                                  bool is_signed_in);
+  void FireOnAccountSignInChanged(const GaiaId& gaia_id, bool is_signed_in);
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  void OnChromeSigninDialogDestroyed();
+  void HandleSkipUIForTesting(base::OnceClosure on_complete);
+#endif
 
   const raw_ptr<Profile> profile_;
   const raw_ptr<signin::IdentityManager> identity_manager_;
@@ -123,12 +152,20 @@ class IdentityAPI : public BrowserContextKeyedAPI,
 
   IdentityMintRequestQueue mint_queue_;
   IdentityTokenCache token_cache_;
+  // Contains Gaia Id of accounts known to extensions.
+  base::flat_set<GaiaId> accounts_known_to_extensions_;
 
   OnSignInChangedCallback on_signin_changed_callback_for_testing_;
 
-  base::RepeatingCallbackList<OnSetConsentResultSignature>
-      on_set_consent_result_callback_list_;
   base::OnceCallbackList<void()> on_shutdown_callback_list_;
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  bool is_chrome_signin_dialog_open_ = false;
+  std::vector<base::OnceClosure> on_chrome_signin_dialog_completed_;
+  // Should only be set in unittests.
+  base::OnceCallback<void(base::OnceClosure)> skip_ui_for_testing_callback_;
+  base::WeakPtrFactory<IdentityAPI> weak_ptr_factory_{this};
+#endif
 };
 
 template <>

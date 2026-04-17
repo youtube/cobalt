@@ -7,8 +7,9 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
-#include "base/strings/string_piece.h"
+#include "components/metrics/metrics_log.h"
 #include "components/metrics/metrics_log_uploader.h"
 #include "third_party/metrics_proto/reporting_info.pb.h"
 #include "url/gurl.h"
@@ -30,7 +31,7 @@ class NetMetricsLogUploader : public MetricsLogUploader {
   NetMetricsLogUploader(
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
       const GURL& server_url,
-      base::StringPiece mime_type,
+      std::string_view mime_type,
       MetricsLogUploader::MetricServiceType service_type,
       const MetricsLogUploader::UploadCallback& on_upload_complete);
 
@@ -41,7 +42,7 @@ class NetMetricsLogUploader : public MetricsLogUploader {
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
       const GURL& server_url,
       const GURL& insecure_server_url,
-      base::StringPiece mime_type,
+      std::string_view mime_type,
       MetricsLogUploader::MetricServiceType service_type,
       const MetricsLogUploader::UploadCallback& on_upload_complete);
 
@@ -53,6 +54,7 @@ class NetMetricsLogUploader : public MetricsLogUploader {
   // MetricsLogUploader:
   // Uploads a log to the server_url specified in the constructor.
   void UploadLog(const std::string& compressed_log_data,
+                 const LogMetadata& log_metadata,
                  const std::string& log_hash,
                  const std::string& log_signature,
                  const ReportingInfo& reporting_info) override;
@@ -60,6 +62,7 @@ class NetMetricsLogUploader : public MetricsLogUploader {
  private:
   // Uploads a log to a URL passed as a parameter.
   void UploadLogToURL(const std::string& compressed_log_data,
+                      const LogMetadata& log_metadata,
                       const std::string& log_hash,
                       const std::string& log_signature,
                       const ReportingInfo& reporting_info,

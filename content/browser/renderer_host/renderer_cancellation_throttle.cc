@@ -48,6 +48,16 @@ RendererCancellationThrottle::~RendererCancellationThrottle() = default;
 
 NavigationThrottle::ThrottleCheckResult
 RendererCancellationThrottle::WillProcessResponse() {
+  return WaitForRendererCancellationIfNeeded();
+}
+
+NavigationThrottle::ThrottleCheckResult
+RendererCancellationThrottle::WillCommitWithoutUrlLoader() {
+  return WaitForRendererCancellationIfNeeded();
+}
+
+NavigationThrottle::ThrottleCheckResult
+RendererCancellationThrottle::WaitForRendererCancellationIfNeeded() {
   NavigationRequest* request = NavigationRequest::From(navigation_handle());
   DCHECK(request);
   if (request->renderer_cancellation_window_ended()) {
@@ -57,11 +67,14 @@ RendererCancellationThrottle::WillProcessResponse() {
   }
 
   if (!request->GetRenderFrameHost() ||
-      request->GetRenderFrameHost()->GetSiteInstance() !=
-          request->frame_tree_node()->current_frame_host()->GetSiteInstance()) {
-    // Only defer same-SiteInstance navigations, as only those navigations
+      request->GetRenderFrameHost()->GetSiteInstance()->group() !=
+          request->frame_tree_node()
+              ->current_frame_host()
+              ->GetSiteInstance()
+              ->group()) {
+    // Only defer same-SiteInstanceGroup navigations, as only those navigations
     // were previously guaranteed to be cancelable from the same JS task it
-    // started on (see comment in the header file for more details).
+    // started on (see class level comment for more details).
     return NavigationThrottle::PROCEED;
   }
 
@@ -91,7 +104,16 @@ void RendererCancellationThrottle::OnTimeout() {
   // Warn that the renderer is unresponsive.
   NavigationRequest* request = NavigationRequest::From(navigation_handle());
   DCHECK(request);
-  request->GetRenderFrameHost()->GetRenderWidgetHost()->RendererIsUnresponsive(
+
+  auto* previous_rfh =
+      RenderFrameHostImpl::FromID(request->GetPreviousRenderFrameHostId());
+  if (!previous_rfh) {
+    return;
+  }
+
+  previous_rfh->GetRenderWidgetHost()->RendererIsUnresponsive(
+      RenderWidgetHostImpl::RendererIsUnresponsiveReason::
+          kRendererCancellationThrottleTimeout,
       base::BindRepeating(&RendererCancellationThrottle::RestartTimeout,
                           weak_factory_.GetWeakPtr()));
 }

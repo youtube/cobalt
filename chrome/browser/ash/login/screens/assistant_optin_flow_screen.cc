@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "ash/constants/ash_features.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/ash/assistant/assistant_util.h"
 #include "chrome/browser/ash/login/users/chrome_user_manager_util.h"
@@ -30,12 +31,14 @@ bool g_libassistant_enabled = false;
 
 // static
 std::string AssistantOptInFlowScreen::GetResultString(Result result) {
+  // LINT.IfChange(UsageMetrics)
   switch (result) {
     case Result::NEXT:
       return "Next";
     case Result::NOT_APPLICABLE:
       return BaseScreen::kNotApplicable;
   }
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/oobe/histograms.xml)
 }
 
 AssistantOptInFlowScreen::AssistantOptInFlowScreen(
@@ -51,8 +54,13 @@ AssistantOptInFlowScreen::AssistantOptInFlowScreen(
 AssistantOptInFlowScreen::~AssistantOptInFlowScreen() = default;
 
 bool AssistantOptInFlowScreen::MaybeSkip(WizardContext& context) {
+  if (features::IsOobeSkipAssistantEnabled()) {
+    exit_callback_.Run(Result::NOT_APPLICABLE);
+    return true;
+  }
+
   if (context.skip_post_login_screens_for_tests || !g_libassistant_enabled ||
-      chrome_user_manager_util::IsPublicSessionOrEphemeralLogin()) {
+      chrome_user_manager_util::IsManagedGuestSessionOrEphemeralLogin()) {
     exit_callback_.Run(Result::NOT_APPLICABLE);
     return true;
   }

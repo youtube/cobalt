@@ -19,6 +19,7 @@
 #include <random>
 
 #include "perfetto/base/time.h"
+#include "perfetto/ext/base/utils.h"
 
 namespace perfetto {
 namespace base {
@@ -26,23 +27,48 @@ namespace {
 
 constexpr char kHexmap[] = {'0', '1', '2', '3', '4', '5', '6', '7',
                             '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+
 }  // namespace
 
-// See https://www.ietf.org/rfc/rfc4122.txt
+// A globally unique 128-bit number.
+// In the early days of perfetto we were (sorta) respecting rfc4122. Later we
+// started replacing the LSB of the UUID with the statsd subscription ID in
+// other parts of the codebase (see perfetto_cmd.cc) for the convenience of
+// trace lookups, so rfc4122 made no sense as it just reduced entropy.
 Uuid Uuidv4() {
-  static std::minstd_rand rng(static_cast<uint32_t>(GetBootTimeNs().count()));
-  Uuid uuid;
-  auto& data = *uuid.data();
+  // Mix different sources of entropy to reduce the chances of collisions.
+  // Only using boot time is not enough. Under the assumption that most traces
+  // are started around the same time at boot, within a 1s window, the birthday
+  // paradox gives a chance of 90% collisions with 70k traces over a 1e9 space
+  // (Number of ns in a 1s window).
+  // We deliberately don't use /dev/urandom as that might block for
+  // unpredictable time if the system is idle (and is not portable).
+  // The UUID does NOT need to be cryptographically secure, but random enough
+  // to avoid collisions across a large number of devices.
+  uint64_t boot_ns = static_cast<uint64_t>(GetBootTimeNs().count());
+  uint64_t epoch_ns = static_cast<uint64_t>(GetWallTimeNs().count());
 
-  for (size_t i = 0; i < 16; ++i)
-    data[i] = static_cast<uint8_t>(rng());
+  // Use code ASLR as entropy source.
+  uint32_t code_ptr =
+      static_cast<uint32_t>(reinterpret_cast<uint64_t>(&Uuidv4) >> 12);
 
-  // version:
-  data[6] = (data[6] & 0x0f) | 0x40;
-  // clock_seq_hi_and_reserved:
-  data[8] = (data[8] & 0x3f) | 0x80;
+  // Use stack ASLR as a further entropy source.
+  uint32_t stack_ptr =
+      static_cast<uint32_t>(reinterpret_cast<uint64_t>(&code_ptr) >> 12);
 
-  return uuid;
+  uint32_t entropy[] = {static_cast<uint32_t>(boot_ns >> 32),
+                        static_cast<uint32_t>(boot_ns),
+                        static_cast<uint32_t>(epoch_ns >> 32),
+                        static_cast<uint32_t>(epoch_ns),
+                        code_ptr,
+                        stack_ptr};
+  std::seed_seq entropy_seq(entropy, entropy + ArraySize(entropy));
+
+  auto words = std::array<uint32_t, 4>();
+  entropy_seq.generate(words.begin(), words.end());
+  uint64_t msb = static_cast<uint64_t>(words[0]) << 32u | words[1];
+  uint64_t lsb = static_cast<uint64_t>(words[2]) << 32u | words[3];
+  return Uuid(static_cast<int64_t>(lsb), static_cast<int64_t>(msb));
 }
 
 Uuid::Uuid() {}

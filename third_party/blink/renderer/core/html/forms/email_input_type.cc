@@ -26,20 +26,18 @@
 #include <unicode/idna.h>
 #include <unicode/unistr.h>
 #include <unicode/uvernum.h>
+
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/strings/grit/blink_strings.h"
-#include "third_party/blink/renderer/bindings/core/v8/script_regexp.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
 #include "third_party/blink/renderer/core/html/parser/html_parser_idioms.h"
 #include "third_party/blink/renderer/core/input_type_names.h"
 #include "third_party/blink/renderer/core/page/chrome_client.h"
+#include "third_party/blink/renderer/platform/bindings/script_regexp.h"
 #include "third_party/blink/renderer/platform/text/platform_locale.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
-
-#if U_ICU_VERSION_MAJOR_NUM >= 59
-#include <unicode/char16ptr.h>
-#endif
+#include "third_party/blink/renderer/platform/wtf/text/unicode_string.h"
 
 namespace {
 
@@ -56,7 +54,7 @@ const char kEmailPattern[] =
 const int32_t kMaximumDomainNameLength = 255;
 
 // Use the same option as in url/url_canon_icu.cc
-// TODO(crbug.com/694157): Change the options if UseIDNA2008NonTransitional flag
+// TODO(crbug.com/40086853): Change the options now that IDNA2008NonTransitional
 // is enabled.
 const int32_t kIdnaConversionOption = UIDNA_CHECK_BIDI;
 
@@ -64,9 +62,9 @@ const int32_t kIdnaConversionOption = UIDNA_CHECK_BIDI;
 
 namespace blink {
 
-ScriptRegexp* EmailInputType::CreateEmailRegexp() {
-  return MakeGarbageCollected<ScriptRegexp>(kEmailPattern,
-                                            kTextCaseUnicodeInsensitive);
+ScriptRegexp* EmailInputType::CreateEmailRegexp(v8::Isolate* isolate) {
+  return MakeGarbageCollected<ScriptRegexp>(isolate, kEmailPattern,
+                                            kTextCaseASCIIInsensitive);
 }
 
 Vector<String> EmailInputType::ParseMultipleValues(const String& value) {
@@ -89,7 +87,8 @@ String EmailInputType::ConvertEmailAddressToASCII(const ScriptRegexp& regexp,
   // build.) TODO(jshin): In an unlikely case this is a perf-issue, treat
   // 8bit and non-8bit strings separately.
   host.Ensure16Bit();
-  icu::UnicodeString idn_domain_name(host.Characters16(), host.length());
+  icu::UnicodeString idn_domain_name(UNSAFE_TODO(host.Characters16()),
+                                     host.length());
   icu::UnicodeString domain_name;
 
   // Leak |idna| at the end.
@@ -105,11 +104,7 @@ String EmailInputType::ConvertEmailAddressToASCII(const ScriptRegexp& regexp,
 
   StringBuilder builder;
   builder.Append(address, 0, at_position + 1);
-#if U_ICU_VERSION_MAJOR_NUM >= 59
-  builder.Append(icu::toUCharPtr(domain_name.getBuffer()), domain_name.length());
-#else
-  builder.Append(domain_name.getBuffer(), domain_name.length());
-#endif
+  builder.Append(WTF::unicode::ToSpan(domain_name));
   String ascii_email = builder.ToString();
   return IsValidEmailAddress(regexp, ascii_email) ? ascii_email : address;
 }
@@ -182,10 +177,6 @@ void EmailInputType::CountUsage() {
     if (has_max_length)
       CountUsageIfVisible(WebFeature::kInputTypeEmailMultipleMaxLength);
   }
-}
-
-const AtomicString& EmailInputType::FormControlType() const {
-  return input_type_names::kEmail;
 }
 
 // The return value is an invalid email address string if the specified string
@@ -324,6 +315,10 @@ String EmailInputType::VisibleValue() const {
     builder.Append(ConvertEmailAddressToUnicode(addresses[i]));
   }
   return builder.ToString();
+}
+
+void EmailInputType::MultipleAttributeChanged() {
+  GetElement().SetValueFromRenderer(SanitizeValue(GetElement().Value()));
 }
 
 }  // namespace blink

@@ -4,6 +4,8 @@
 
 package org.chromium.mojo.bindings;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.mojo.system.Core;
 import org.chromium.mojo.system.MessagePipeHandle;
 import org.chromium.mojo.system.MessagePipeHandle.ReadMessageResult;
@@ -22,39 +24,30 @@ import java.nio.ByteBuffer;
  * The method |start| must be called before the {@link Connector} will start listening to incoming
  * messages.
  */
+@NullMarked
 public class Connector implements MessageReceiver, HandleOwner<MessagePipeHandle> {
 
-    /**
-     * The callback that is notified when the state of the owned handle changes.
-     */
+    /** The callback that is notified when the state of the owned handle changes. */
     private final WatcherCallback mWatcherCallback = new WatcherCallback();
 
-    /**
-     * The owned message pipe.
-     */
+    /** The owned message pipe. */
     private final MessagePipeHandle mMessagePipeHandle;
 
-    /**
-     * A watcher which is notified when a new message is available on the owned message pipe.
-     */
+    /** A watcher which is notified when a new message is available on the owned message pipe. */
     private final Watcher mWatcher;
 
-    /**
-     * The {@link MessageReceiver} to which received messages are sent.
-     */
-    private MessageReceiver mIncomingMessageReceiver;
+    /** The {@link MessageReceiver} to which received messages are sent. */
+    private @Nullable MessageReceiver mIncomingMessageReceiver;
 
-    /**
-     * The error handler to notify of errors.
-     */
-    private ConnectionErrorHandler mErrorHandler;
+    /** The error handler to notify of errors. */
+    private @Nullable ConnectionErrorHandler mErrorHandler;
 
     /**
      * Create a new connector over a |messagePipeHandle|. The created connector will use the default
      * {@link AsyncWaiter} from the {@link Core} implementation of |messagePipeHandle|.
      */
     public Connector(MessagePipeHandle messagePipeHandle) {
-        this(messagePipeHandle, BindingsHelper.getWatcherForHandle(messagePipeHandle));
+        this(messagePipeHandle, BindingsHelper.getWatcherForHandleNonNull(messagePipeHandle));
     }
 
     /**
@@ -66,9 +59,7 @@ public class Connector implements MessageReceiver, HandleOwner<MessagePipeHandle
         mWatcher = watcher;
     }
 
-    /**
-     * Set the {@link MessageReceiver} that will receive message from the owned message pipe.
-     */
+    /** Set the {@link MessageReceiver} that will receive message from the owned message pipe. */
     public void setIncomingMessageReceiver(MessageReceiver incomingMessageReceiver) {
         mIncomingMessageReceiver = incomingMessageReceiver;
     }
@@ -81,9 +72,7 @@ public class Connector implements MessageReceiver, HandleOwner<MessagePipeHandle
         mErrorHandler = errorHandler;
     }
 
-    /**
-     * Start listening for incoming messages.
-     */
+    /** Start listening for incoming messages. */
     public void start() {
         mWatcher.start(mMessagePipeHandle, Core.HandleSignals.READABLE, mWatcherCallback);
     }
@@ -94,8 +83,8 @@ public class Connector implements MessageReceiver, HandleOwner<MessagePipeHandle
     @Override
     public boolean accept(Message message) {
         try {
-            mMessagePipeHandle.writeMessage(message.getData(),
-                    message.getHandles(), MessagePipeHandle.WriteFlags.NONE);
+            mMessagePipeHandle.writeMessage(
+                    message.getData(), message.getHandles(), MessagePipeHandle.WriteFlags.NONE);
             return true;
         } catch (MojoException e) {
             onError(e);
@@ -141,7 +130,6 @@ public class Connector implements MessageReceiver, HandleOwner<MessagePipeHandle
         public void onResult(int result) {
             Connector.this.onWatcherResult(result);
         }
-
     }
 
     /**
@@ -166,9 +154,7 @@ public class Connector implements MessageReceiver, HandleOwner<MessagePipeHandle
         }
     }
 
-    /**
-     * Read all available messages on the owned message pipe.
-     */
+    /** Read all available messages on the owned message pipe. */
     private void readOutstandingMessages() {
         ResultAnd<Boolean> result;
         do {
@@ -197,7 +183,7 @@ public class Connector implements MessageReceiver, HandleOwner<MessagePipeHandle
      *            be <code>null</code>, in which case the message is discarded.
      */
     static ResultAnd<Boolean> readAndDispatchMessage(
-            MessagePipeHandle handle, MessageReceiver receiver) {
+            MessagePipeHandle handle, @Nullable MessageReceiver receiver) {
         ResultAnd<ReadMessageResult> result = handle.readMessage(MessagePipeHandle.ReadFlags.NONE);
         if (result.getMojoResult() != MojoResult.OK) {
             return new ResultAnd<Boolean>(result.getMojoResult(), false);
@@ -207,8 +193,10 @@ public class Connector implements MessageReceiver, HandleOwner<MessagePipeHandle
         if (receiver != null) {
             boolean accepted;
             try {
-                accepted = receiver.accept(
-                        new Message(ByteBuffer.wrap(readResult.mData), readResult.mHandles));
+                accepted =
+                        receiver.accept(
+                                new Message(
+                                        ByteBuffer.wrap(readResult.mData), readResult.mHandles));
             } catch (RuntimeException e) {
                 // The DefaultExceptionHandler will decide whether any uncaught exception will
                 // close the connection or not.

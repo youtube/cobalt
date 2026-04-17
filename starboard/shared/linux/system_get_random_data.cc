@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Adapted from base/rand_util_posix.cc
-
+// clang-format off
 #include "starboard/system.h"
+// clang-format on
+
+// Adapted from base/rand_util_posix.cc
 
 #include <fcntl.h>
 #include <pthread.h>

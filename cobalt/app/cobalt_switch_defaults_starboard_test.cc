@@ -17,17 +17,16 @@
 #include <vector>
 
 #include "base/base_switches.h"
-#include "base/files/file_path.h"
+#include "build/buildflag.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
-#include "cobalt_switch_defaults_starboard.h"
+#include "cobalt_switch_defaults.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gl/gl_switches.h"
-#include "ui/ozone/public/ozone_switches.h"
 
 namespace cobalt {
 namespace {
@@ -103,14 +102,13 @@ TEST(CobaltSwitchDefaultsTest, AlwaysEnabledSwitches) {
   const int input_argc = static_cast<int>(input_argv.size());
   CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
 
-  std::vector<const char*> always_on_switches {
-    ::switches::kForceVideoOverlays, ::switches::kSingleProcess,
-        ::switches::kIgnoreGpuBlocklist,
+  std::vector<const char*> always_on_switches{
+      ::switches::kForceVideoOverlays, ::switches::kSingleProcess,
+      ::switches::kIgnoreGpuBlocklist,
 #if BUILDFLAG(IS_ANDROID)
-        ::switches::kUserLevelMemoryPressureSignalParams,
+      ::switches::kUserLevelMemoryPressureSignalParams,
 #endif  // BUILDFLAG(IS_ANDROID)
-        sandbox::policy::switches::kNoSandbox
-  };
+      sandbox::policy::switches::kNoSandbox};
 
   for (const auto& switch_key : always_on_switches) {
     EXPECT_TRUE(HasSwitch(cmd_line_pxr, switch_key));

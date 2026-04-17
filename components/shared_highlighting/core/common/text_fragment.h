@@ -5,10 +5,11 @@
 #ifndef COMPONENTS_SHARED_HIGHLIGHTING_CORE_COMMON_TEXT_FRAGMENT_H_
 #define COMPONENTS_SHARED_HIGHLIGHTING_CORE_COMMON_TEXT_FRAGMENT_H_
 
+#include <optional>
 #include <string>
+#include <string_view>
 
 #include "base/values.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace shared_highlighting {
 
@@ -23,31 +24,39 @@ class TextFragment {
                const std::string& prefix,
                const std::string& suffix);
   TextFragment(const TextFragment& other);
+  TextFragment& operator=(const TextFragment& other);
   ~TextFragment();
 
   // Returns a TextFragment instance created from a |fragment_string| whose
   // special characters have been escaped. The given string is expected to have
   // the traditional text fragment format:
   // [prefix-,]textStart[,textEnd][,-suffix]
-  // Returns |absl::nullopt| if parsing failed.
-  static absl::optional<TextFragment> FromEscapedString(
-      std::string escaped_string);
+  // Returns |std::nullopt| if parsing failed.
+  static std::optional<TextFragment> FromEscapedString(
+      std::string_view escaped_string);
 
   // Returns a TextFragment instance created from a dictionary |value|
   // containing the right set of values. The values stored in |value| must be
   // already unescaped.
-  // Returns |absl::nullopt| if parsing failed.
-  static absl::optional<TextFragment> FromValue(const base::Value* value);
+  // Returns |std::nullopt| if parsing failed.
+  static std::optional<TextFragment> FromValue(const base::Value* value);
 
-  const std::string text_start() const { return text_start_; }
-  const std::string text_end() const { return text_end_; }
-  const std::string prefix() const { return prefix_; }
-  const std::string suffix() const { return suffix_; }
+  const std::string& text_start() const { return text_start_; }
+  const std::string& text_end() const { return text_end_; }
+  const std::string& prefix() const { return prefix_; }
+  const std::string& suffix() const { return suffix_; }
 
-  // Converts the current fragment to its escaped URL parameter format:
-  // text=[prefix-,]textStart[,textEnd][,-suffix]
-  // Returns an empty string if |text_start| does not have a value.
-  std::string ToEscapedString() const;
+  // Converts the current fragment to its escaped URL parameter format. Returns
+  // an empty string if |text_start| does not have a value.
+  enum class EscapedStringFormat {
+    // [prefix-,]textStart[,textEnd][,=suffix]
+    kWithoutTextDirective,
+    // text=[prefix-,]textStart[,textEnd][,=suffix]
+    kWithTextDirective,
+  };
+  std::string ToEscapedString(
+      EscapedStringFormat format =
+          EscapedStringFormat::kWithTextDirective) const;
 
   // Converts the current fragment to a dictionary Value.
   base::Value ToValue() const;

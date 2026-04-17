@@ -5,10 +5,11 @@
 #ifndef UI_GFX_GEOMETRY_AXIS_TRANSFORM2D_H_
 #define UI_GFX_GEOMETRY_AXIS_TRANSFORM2D_H_
 
+#include <optional>
+
 #include "base/check_op.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "base/component_export.h"
 #include "ui/gfx/geometry/clamp_float_geometry.h"
-#include "ui/gfx/geometry/geometry_export.h"
 #include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/geometry/vector2d_f.h"
 
@@ -25,7 +26,7 @@ struct DecomposedTransform;
 // Results of the *Map* methods are clamped with ClampFloatGeometry().
 // See the definition of the function for details.
 //
-class GEOMETRY_EXPORT AxisTransform2d {
+class COMPONENT_EXPORT(GEOMETRY) AxisTransform2d {
  public:
   constexpr AxisTransform2d() = default;
   constexpr AxisTransform2d(float scale, const Vector2dF& translation)
@@ -36,12 +37,8 @@ class GEOMETRY_EXPORT AxisTransform2d {
     return AxisTransform2d(scale, translation);
   }
 
-  constexpr bool operator==(const AxisTransform2d& other) const {
-    return scale_ == other.scale_ && translation_ == other.translation_;
-  }
-  constexpr bool operator!=(const AxisTransform2d& other) const {
-    return !(*this == other);
-  }
+  friend constexpr bool operator==(const AxisTransform2d&,
+                                   const AxisTransform2d&) = default;
 
   void PreScale(const Vector2dF& scale) { scale_.Scale(scale.x(), scale.y()); }
   void PostScale(const Vector2dF& scale) {
@@ -68,7 +65,7 @@ class GEOMETRY_EXPORT AxisTransform2d {
   bool IsInvertible() const {
     // Check float determinant (stricter than checking each component or double
     // determinant) to keep consistency with Matrix44.
-    // TODO(crbug.com/1359528): This may be stricter than necessary. Revisit
+    // TODO(crbug.com/40237414): This may be stricter than necessary. Revisit
     // this after combination of gfx::Transform and blink::TransformationMatrix.
     return std::isnormal(scale_.x() * scale_.y());
   }

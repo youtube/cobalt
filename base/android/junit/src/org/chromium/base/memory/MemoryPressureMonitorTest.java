@@ -9,7 +9,6 @@ import android.os.Looper;
 
 import androidx.test.filters.SmallTest;
 
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -24,9 +23,7 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 
 import java.util.concurrent.TimeUnit;
 
-/**
- * Test for MemoryPressureMonitor.
- */
+/** Test for MemoryPressureMonitor. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class MemoryPressureMonitorTest {
@@ -56,7 +53,7 @@ public class MemoryPressureMonitorTest {
     }
 
     private static class TestPressureSupplier implements Supplier<Integer> {
-        private @MemoryPressureLevel Integer mPressure;
+        private final @MemoryPressureLevel Integer mPressure;
         private boolean mIsCalled;
 
         public TestPressureSupplier(@MemoryPressureLevel Integer pressure) {
@@ -93,15 +90,7 @@ public class MemoryPressureMonitorTest {
         mMonitor.setCurrentPressureSupplierForTesting(null);
     }
 
-    @After
-    public void tearDown() {
-        ThreadUtils.clearUiThreadForTesting();
-    }
-
-    /**
-     * Runs all UiThread tasks posted |delayMs| in the future.
-     * @param delayMs
-     */
+    /** Runs all UiThread tasks posted |delayMs| in the future. */
     private void runUiThreadFor(long delayMs) {
         ShadowLooper.idleMainLooper(delayMs, TimeUnit.MILLISECONDS);
     }
@@ -109,24 +98,25 @@ public class MemoryPressureMonitorTest {
     @Test
     @SmallTest
     public void testTrimLevelTranslation() {
-        Integer[][] trimLevelToPressureMap = {//
-                // Levels >= TRIM_MEMORY_COMPLETE map to CRITICAL.
-                {ComponentCallbacks2.TRIM_MEMORY_COMPLETE + 1, MemoryPressureLevel.CRITICAL},
-                {ComponentCallbacks2.TRIM_MEMORY_COMPLETE, MemoryPressureLevel.CRITICAL},
+        Integer[][] trimLevelToPressureMap = { //
+            // Levels >= TRIM_MEMORY_COMPLETE map to CRITICAL.
+            {ComponentCallbacks2.TRIM_MEMORY_COMPLETE + 1, MemoryPressureLevel.CRITICAL},
+            {ComponentCallbacks2.TRIM_MEMORY_COMPLETE, MemoryPressureLevel.CRITICAL},
 
-                // TRIM_MEMORY_RUNNING_CRITICAL maps to CRITICAL.
-                {ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL, MemoryPressureLevel.CRITICAL},
+            // TRIM_MEMORY_RUNNING_CRITICAL maps to CRITICAL.
+            {ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL, MemoryPressureLevel.CRITICAL},
 
-                // Levels < TRIM_MEMORY_COMPLETE && >= TRIM_MEMORY_BACKGROUND map to MODERATE.
-                {ComponentCallbacks2.TRIM_MEMORY_COMPLETE - 1, MemoryPressureLevel.MODERATE},
-                {ComponentCallbacks2.TRIM_MEMORY_BACKGROUND + 1, MemoryPressureLevel.MODERATE},
-                {ComponentCallbacks2.TRIM_MEMORY_BACKGROUND, MemoryPressureLevel.MODERATE},
+            // Levels < TRIM_MEMORY_COMPLETE && >= TRIM_MEMORY_BACKGROUND map to MODERATE.
+            {ComponentCallbacks2.TRIM_MEMORY_COMPLETE - 1, MemoryPressureLevel.MODERATE},
+            {ComponentCallbacks2.TRIM_MEMORY_BACKGROUND + 1, MemoryPressureLevel.MODERATE},
+            {ComponentCallbacks2.TRIM_MEMORY_BACKGROUND, MemoryPressureLevel.MODERATE},
 
-                // Other levels are not mapped.
-                {ComponentCallbacks2.TRIM_MEMORY_BACKGROUND - 1, null},
-                {ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW, null},
-                {ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE, null},
-                {ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN, null}};
+            // Other levels are not mapped.
+            {ComponentCallbacks2.TRIM_MEMORY_BACKGROUND - 1, null},
+            {ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW, null},
+            {ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE, null},
+            {ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN, null}
+        };
         for (Integer[] trimLevelAndPressure : trimLevelToPressureMap) {
             int trimLevel = trimLevelAndPressure[0];
             Integer expectedPressure = trimLevelAndPressure[1];
@@ -238,7 +228,7 @@ public class MemoryPressureMonitorTest {
                 new TestPressureSupplier(MemoryPressureLevel.MODERATE);
         mMonitor.setCurrentPressureSupplierForTesting(pressureSupplier);
 
-        mMonitor.enablePolling();
+        mMonitor.enablePolling(false);
 
         // When polling is enabled, current pressure should be retrieved and reported.
         pressureSupplier.assertCalled();
@@ -254,7 +244,7 @@ public class MemoryPressureMonitorTest {
         TestPressureSupplier pressureSupplier = new TestPressureSupplier(null);
         mMonitor.setCurrentPressureSupplierForTesting(pressureSupplier);
 
-        mMonitor.enablePolling();
+        mMonitor.enablePolling(false);
 
         // The pressure supplier should be called, but its null result should be ignored.
         pressureSupplier.assertCalled();
@@ -272,7 +262,7 @@ public class MemoryPressureMonitorTest {
 
         // The notification above started a throttling interval, so we shouldn't ask for the
         // current pressure when polling is enabled.
-        mMonitor.enablePolling();
+        mMonitor.enablePolling(false);
 
         pressureSupplier.assertNotCalled();
     }
@@ -290,7 +280,7 @@ public class MemoryPressureMonitorTest {
         mMonitor.notifyPressure(MemoryPressureLevel.CRITICAL);
         callback.reset();
 
-        mMonitor.enablePolling();
+        mMonitor.enablePolling(false);
 
         runUiThreadFor(THROTTLING_INTERVAL_MS - 1);
 
@@ -313,7 +303,7 @@ public class MemoryPressureMonitorTest {
 
         mMonitor.notifyPressure(MemoryPressureLevel.MODERATE);
 
-        mMonitor.enablePolling();
+        mMonitor.enablePolling(false);
 
         runUiThreadFor(THROTTLING_INTERVAL_MS);
 
@@ -331,7 +321,7 @@ public class MemoryPressureMonitorTest {
         mMonitor.notifyPressure(MemoryPressureLevel.MODERATE);
         mMonitor.notifyPressure(MemoryPressureLevel.CRITICAL);
 
-        mMonitor.enablePolling();
+        mMonitor.enablePolling(false);
 
         runUiThreadFor(THROTTLING_INTERVAL_MS);
 
@@ -348,7 +338,7 @@ public class MemoryPressureMonitorTest {
 
         mMonitor.notifyPressure(MemoryPressureLevel.CRITICAL);
 
-        mMonitor.enablePolling();
+        mMonitor.enablePolling(false);
 
         runUiThreadFor(THROTTLING_INTERVAL_MS - 1);
 

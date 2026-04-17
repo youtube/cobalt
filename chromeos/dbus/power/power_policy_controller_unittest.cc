@@ -43,7 +43,7 @@ class PowerPolicyControllerTest : public testing::Test {
     return FakePowerManagerClient::Get();
   }
 
-  raw_ptr<PowerPolicyController, ExperimentalAsh> policy_controller_;
+  raw_ptr<PowerPolicyController, DanglingUntriaged> policy_controller_;
   base::test::SingleThreadTaskEnvironment task_environment_;
 };
 
@@ -408,6 +408,20 @@ TEST_F(PowerPolicyControllerTest, DoNothingOnLidClosedWhileSigningOut) {
   expected_policy.set_lid_closed_action(
       power_manager::PowerManagementPolicy_Action_DO_NOTHING);
   // Lid-closed action successfully changed to "do nothing".
+  EXPECT_EQ(
+      PowerPolicyController::GetPolicyDebugString(expected_policy),
+      PowerPolicyController::GetPolicyDebugString(power_manager()->policy()));
+}
+
+TEST_F(PowerPolicyControllerTest, DoNothingWhenIdleInDemoMode) {
+  policy_controller_->SetShouldDoNothingWhenIdleInDemoMode();
+
+  power_manager::PowerManagementPolicy expected_policy;
+  expected_policy.set_ac_idle_action(
+      power_manager::PowerManagementPolicy_Action_DO_NOTHING);
+  expected_policy.set_battery_idle_action(
+      power_manager::PowerManagementPolicy_Action_DO_NOTHING);
+
   EXPECT_EQ(
       PowerPolicyController::GetPolicyDebugString(expected_policy),
       PowerPolicyController::GetPolicyDebugString(power_manager()->policy()));

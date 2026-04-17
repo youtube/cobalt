@@ -2,15 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ui/views/autofill/payments/autofill_error_dialog_view_native_views.h"
+
 #include "base/run_loop.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "chrome/browser/ui/autofill/payments/autofill_error_dialog_controller_impl.h"
-#include "chrome/browser/ui/autofill/payments/autofill_error_dialog_view.h"
+#include "chrome/browser/ui/autofill/payments/payments_view_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/test/test_browser_dialog.h"
-#include "chrome/browser/ui/views/autofill/payments/autofill_error_dialog_view_native_views.h"
 #include "components/autofill/core/browser/payments/autofill_error_dialog_context.h"
+#include "components/autofill/core/browser/ui/payments/autofill_error_dialog_controller_impl.h"
+#include "components/autofill/core/browser/ui/payments/autofill_error_dialog_view.h"
+#include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_contents_user_data.h"
 #include "content/public/test/browser_test.h"
 
 namespace autofill {
@@ -23,17 +27,13 @@ class AutofillErrorDialogViewNativeViewsBrowserTest
       public testing::WithParamInterface<std::tuple<bool, bool>> {
  public:
   AutofillErrorDialogViewNativeViewsBrowserTest() = default;
+
   ~AutofillErrorDialogViewNativeViewsBrowserTest() override = default;
+
   AutofillErrorDialogViewNativeViewsBrowserTest(
       const AutofillErrorDialogViewNativeViewsBrowserTest&) = delete;
   AutofillErrorDialogViewNativeViewsBrowserTest& operator=(
       const AutofillErrorDialogViewNativeViewsBrowserTest&) = delete;
-
-  // DialogBrowserTest:
-  void SetUpOnMainThread() override {
-    controller_ = std::make_unique<AutofillErrorDialogControllerImpl>(
-        browser()->tab_strip_model()->GetActiveWebContents());
-  }
 
   void ShowUi(const std::string& name) override {
     AutofillErrorDialogContext autofill_error_dialog_context;
@@ -52,35 +52,52 @@ class AutofillErrorDialogViewNativeViewsBrowserTest
     } else if (name.find("permanent") != std::string::npos) {
       autofill_error_dialog_context.type =
           AutofillErrorDialogType::kVirtualCardPermanentError;
+    } else if (name.find("bnpl") != std::string::npos) {
+      autofill_error_dialog_context.type =
+          AutofillErrorDialogType::kBnplPermanentError;
     } else {
       CHECK_NE(name.find("eligibility"), std::string::npos);
       autofill_error_dialog_context.type =
           AutofillErrorDialogType::kVirtualCardNotEligibleError;
     }
 
-    controller()->Show(autofill_error_dialog_context);
+    autofill_error_dialog_controller_ =
+        std::make_unique<AutofillErrorDialogControllerImpl>(
+            autofill_error_dialog_context);
+    autofill_error_dialog_controller_->Show(base::BindOnce(
+        &CreateAndShowAutofillErrorDialog, base::Unretained(controller()),
+        base::Unretained(contents())));
   }
 
   AutofillErrorDialogViewNativeViews* GetDialogViews() {
-    if (!controller())
+    if (!autofill_error_dialog_controller_) {
       return nullptr;
+    }
 
-    AutofillErrorDialogView* dialog_view =
-        controller()->autofill_error_dialog_view();
-    if (!dialog_view)
+    base::WeakPtr<AutofillErrorDialogView> dialog_view =
+        autofill_error_dialog_controller_->autofill_error_dialog_view();
+    if (!dialog_view) {
       return nullptr;
+    }
 
-    return static_cast<AutofillErrorDialogViewNativeViews*>(dialog_view);
+    return static_cast<AutofillErrorDialogViewNativeViews*>(dialog_view.get());
   }
-
-  AutofillErrorDialogControllerImpl* controller() { return controller_.get(); }
 
   bool server_did_return_title() { return std::get<0>(GetParam()); }
 
   bool server_did_return_description() { return std::get<1>(GetParam()); }
 
+  AutofillErrorDialogControllerImpl* controller() {
+    return autofill_error_dialog_controller_.get();
+  }
+
+  content::WebContents* contents() {
+    return browser()->tab_strip_model()->GetActiveWebContents();
+  }
+
  private:
-  std::unique_ptr<AutofillErrorDialogControllerImpl> controller_;
+  std::unique_ptr<AutofillErrorDialogControllerImpl>
+      autofill_error_dialog_controller_;
 };
 
 INSTANTIATE_TEST_SUITE_P(,
@@ -147,6 +164,28 @@ IN_PROC_BROWSER_TEST_P(AutofillErrorDialogViewNativeViewsBrowserTest,
           "Autofill.ErrorDialogShown.WithServerText"),
       BucketsAre(base::Bucket(
           AutofillErrorDialogType::kVirtualCardNotEligibleError,
+          /*count=*/server_did_return_title() && server_did_return_description()
+              ? 1
+              : 0)));
+}
+
+// Verify that the dialog is shown, and the metrics for shown are incremented
+// correctly for a BNPL error.
+IN_PROC_BROWSER_TEST_P(AutofillErrorDialogViewNativeViewsBrowserTest,
+                       InvokeUi_bnpl) {
+  base::HistogramTester histogram_tester;
+
+  ShowAndVerifyUi();
+
+  // Verify that the metric for shown is incremented.
+  EXPECT_THAT(histogram_tester.GetAllSamples("Autofill.ErrorDialogShown"),
+              BucketsAre(base::Bucket(
+                  AutofillErrorDialogType::kBnplPermanentError, 1)));
+  EXPECT_THAT(
+      histogram_tester.GetAllSamples(
+          "Autofill.ErrorDialogShown.WithServerText"),
+      BucketsAre(base::Bucket(
+          AutofillErrorDialogType::kBnplPermanentError,
           /*count=*/server_did_return_title() && server_did_return_description()
               ? 1
               : 0)));

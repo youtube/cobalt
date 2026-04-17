@@ -84,7 +84,6 @@ void OOMKillsMonitor::Initialize(PrefService* pref_service) {
 
   if (monitoring_started_) {
     NOTREACHED() << "OOM kiils monitor should only be initialized once";
-    return;
   }
 
   monitoring_started_ = true;

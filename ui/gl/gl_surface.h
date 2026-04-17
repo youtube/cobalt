@@ -5,23 +5,12 @@
 #ifndef UI_GL_GL_SURFACE_H_
 #define UI_GL_GL_SURFACE_H_
 
-#include <vector>
-
 #include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "build/build_config.h"
-#include "mojo/public/cpp/bindings/pending_receiver.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "ui/gfx/delegated_ink_metadata.h"
 #include "ui/gfx/frame_data.h"
-#include "ui/gfx/geometry/rect.h"
-#include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/geometry/size.h"
-#include "ui/gfx/geometry/vector2d.h"
-#include "ui/gfx/native_widget_types.h"
-#include "ui/gfx/overlay_priority_hint.h"
-#include "ui/gfx/overlay_transform.h"
 #include "ui/gfx/presentation_feedback.h"
 #include "ui/gfx/surface_origin.h"
 #include "ui/gfx/swap_result.h"
@@ -44,23 +33,18 @@
 #endif
 
 namespace gfx {
-namespace mojom {
-class DelegatedInkPointRenderer;
-}  // namespace mojom
 class ColorSpace;
 class VSyncProvider;
 }  // namespace gfx
 
 namespace gl {
 
-struct DCLayerOverlayParams;
 class GLContext;
 class EGLTimestampClient;
 
 // Encapsulates a surface that can be rendered to with GL, hiding platform
 // specific management.
-class GL_EXPORT GLSurface : public base::RefCounted<GLSurface>,
-                            public base::SupportsWeakPtr<GLSurface> {
+class GL_EXPORT GLSurface : public base::RefCounted<GLSurface> {
  public:
   GLSurface();
 
@@ -93,11 +77,6 @@ class GL_EXPORT GLSurface : public base::RefCounted<GLSurface>,
   // failed, it is possible that the context is no longer current.
   virtual bool Recreate();
 
-  // Unschedule the CommandExecutor and return true to abort the processing of
-  // a GL draw call to this surface and defer it until the CommandExecutor is
-  // rescheduled.
-  virtual bool DeferDraws();
-
   // Returns true if this surface is offscreen.
   virtual bool IsOffscreen() = 0;
 
@@ -118,9 +97,6 @@ class GL_EXPORT GLSurface : public base::RefCounted<GLSurface>,
 
   // Get the underlying platform specific surface "handle".
   virtual void* GetHandle() = 0;
-
-  // Returns whether or not the surface supports SwapBuffersWithBounds
-  virtual bool SupportsSwapBuffersWithBounds();
 
   // Returns whether or not the surface supports PostSubBuffer.
   virtual bool SupportsPostSubBuffer();
@@ -151,13 +127,6 @@ class GL_EXPORT GLSurface : public base::RefCounted<GLSurface>,
                                 PresentationCallback presentation_callback,
                                 gfx::FrameData data);
 
-  // Swap buffers with content bounds. If it returns SWAP_FAILED, it is possible
-  // that the context is no longer current.
-  virtual gfx::SwapResult SwapBuffersWithBounds(
-      const std::vector<gfx::Rect>& rects,
-      PresentationCallback callback,
-      gfx::FrameData data);
-
   // Copy part of the backbuffer to the frontbuffer. If it returns SWAP_FAILED,
   // it is possible that the context is no longer current.
   virtual gfx::SwapResult PostSubBuffer(int x,
@@ -184,10 +153,6 @@ class GL_EXPORT GLSurface : public base::RefCounted<GLSurface>,
   // on error.
   virtual bool OnMakeCurrent(GLContext* context);
 
-  // Used for explicit buffer management.
-  virtual bool SetBackbufferAllocation(bool allocated);
-  virtual void SetFrontbufferAllocation(bool allocated);
-
   // Get a handle used to share the surface with another process. Returns null
   // if this is not possible.
   virtual void* GetShareHandle();
@@ -212,12 +177,6 @@ class GL_EXPORT GLSurface : public base::RefCounted<GLSurface>,
   // default. Does nothing if vsync cannot be changed.
   virtual void SetVSyncEnabled(bool enabled);
 
-  virtual bool ScheduleDCLayer(std::unique_ptr<DCLayerOverlayParams> params);
-
-  // Enables or disables DC layers, returning success. If failed, it is possible
-  // that the context is no longer current.
-  virtual bool SetEnableDCLayers(bool enable);
-
   virtual bool IsSurfaceless() const;
 
   virtual gfx::SurfaceOrigin GetOrigin() const;
@@ -226,21 +185,9 @@ class GL_EXPORT GLSurface : public base::RefCounted<GLSurface>,
   // the next buffer may be 2 frames old.
   virtual bool BuffersFlipped() const;
 
-  virtual bool SupportsDCLayers() const;
-
-  virtual bool SupportsProtectedVideo() const;
-
   // Returns true if we are allowed to adopt a size different from the
   // platform's proposed surface size.
   virtual bool SupportsOverridePlatformSize() const;
-
-  // Set the rectangle that will be drawn into on the surface, returning
-  // success. If failed, it is possible that the context is no longer current.
-  virtual bool SetDrawRectangle(const gfx::Rect& rect);
-
-  // This is the amount by which the scissor and viewport rectangles should be
-  // offset.
-  virtual gfx::Vector2d GetDrawOffset() const;
 
   // Support for eglGetFrameTimestamps.
   virtual bool SupportsSwapTimestamps() const;
@@ -256,24 +203,14 @@ class GL_EXPORT GLSurface : public base::RefCounted<GLSurface>,
   // Return the interface used for querying EGL timestamps.
   virtual EGLTimestampClient* GetEGLTimestampClient();
 
-  virtual bool SupportsGpuVSync() const;
-
-  virtual void SetGpuVSyncEnabled(bool enabled);
-
-  virtual void SetFrameRate(float frame_rate) {}
   static GLSurface* GetCurrent();
 
   virtual void SetCurrent();
   virtual bool IsCurrent();
 
-  static bool ExtensionsContain(const char* extensions, const char* name);
+  base::WeakPtr<GLSurface> AsWeakPtr();
 
-  virtual bool SupportsDelegatedInk();
-  virtual void SetDelegatedInkTrailStartPoint(
-      std::unique_ptr<gfx::DelegatedInkMetadata> metadata) {}
-  virtual void InitDelegatedInkPointRendererReceiver(
-      mojo::PendingReceiver<gfx::mojom::DelegatedInkPointRenderer>
-          pending_receiver);
+  static bool ExtensionsContain(const char* extensions, const char* name);
 
   // This should be called at most once at GPU process startup time.
   static void SetForcedGpuPreference(GpuPreference gpu_preference);
@@ -284,6 +221,9 @@ class GL_EXPORT GLSurface : public base::RefCounted<GLSurface>,
  protected:
   virtual ~GLSurface();
 
+  void InvalidateWeakPtrs();
+  bool HasWeakPtrs();
+
   static GpuPreference forced_gpu_preference_;
 
  private:
@@ -291,96 +231,8 @@ class GL_EXPORT GLSurface : public base::RefCounted<GLSurface>,
 
   friend class base::RefCounted<GLSurface>;
   friend class GLContext;
-};
 
-// Implementation of GLSurface that forwards all calls through to another
-// GLSurface.
-class GL_EXPORT GLSurfaceAdapter : public GLSurface {
- public:
-  explicit GLSurfaceAdapter(GLSurface* surface);
-
-  GLSurfaceAdapter(const GLSurfaceAdapter&) = delete;
-  GLSurfaceAdapter& operator=(const GLSurfaceAdapter&) = delete;
-
-  bool Initialize(GLSurfaceFormat format) override;
-  void Destroy() override;
-  bool Resize(const gfx::Size& size,
-              float scale_factor,
-              const gfx::ColorSpace& color_space,
-              bool has_alpha) override;
-  bool Recreate() override;
-  bool DeferDraws() override;
-  bool IsOffscreen() override;
-  gfx::SwapResult SwapBuffers(PresentationCallback callback,
-                              gfx::FrameData data) override;
-  void SwapBuffersAsync(SwapCompletionCallback completion_callback,
-                        PresentationCallback presentation_callback,
-                        gfx::FrameData data) override;
-  gfx::SwapResult SwapBuffersWithBounds(const std::vector<gfx::Rect>& rects,
-                                        PresentationCallback callback,
-                                        gfx::FrameData data) override;
-  gfx::SwapResult PostSubBuffer(int x,
-                                int y,
-                                int width,
-                                int height,
-                                PresentationCallback callback,
-                                gfx::FrameData data) override;
-  void PostSubBufferAsync(int x,
-                          int y,
-                          int width,
-                          int height,
-                          SwapCompletionCallback completion_callback,
-                          PresentationCallback presentation_callback,
-                          gfx::FrameData data) override;
-  bool SupportsSwapBuffersWithBounds() override;
-  bool SupportsPostSubBuffer() override;
-  bool SupportsAsyncSwap() override;
-  gfx::Size GetSize() override;
-  void* GetHandle() override;
-  unsigned int GetBackingFramebufferObject() override;
-  bool OnMakeCurrent(GLContext* context) override;
-  bool SetBackbufferAllocation(bool allocated) override;
-  void SetFrontbufferAllocation(bool allocated) override;
-  void* GetShareHandle() override;
-  GLDisplay* GetGLDisplay() override;
-  void* GetConfig() override;
-  GLSurfaceFormat GetFormat() override;
-  gfx::VSyncProvider* GetVSyncProvider() override;
-  void SetVSyncEnabled(bool enabled) override;
-  bool ScheduleDCLayer(std::unique_ptr<DCLayerOverlayParams> params) override;
-  bool SetEnableDCLayers(bool enable) override;
-  bool IsSurfaceless() const override;
-  gfx::SurfaceOrigin GetOrigin() const override;
-  bool BuffersFlipped() const override;
-  bool SupportsDCLayers() const override;
-  bool SupportsProtectedVideo() const override;
-  bool SupportsOverridePlatformSize() const override;
-  bool SetDrawRectangle(const gfx::Rect& rect) override;
-  gfx::Vector2d GetDrawOffset() const override;
-  bool SupportsSwapTimestamps() const override;
-  void SetEnableSwapTimestamps() override;
-  bool SupportsPlaneGpuFences() const override;
-  int GetBufferCount() const override;
-  bool SupportsGpuVSync() const override;
-  void SetGpuVSyncEnabled(bool enabled) override;
-  void SetFrameRate(float frame_rate) override;
-  void SetCurrent() override;
-  bool IsCurrent() override;
-
-  bool SupportsDelegatedInk() override;
-  void SetDelegatedInkTrailStartPoint(
-      std::unique_ptr<gfx::DelegatedInkMetadata> metadata) override;
-  void InitDelegatedInkPointRendererReceiver(
-      mojo::PendingReceiver<gfx::mojom::DelegatedInkPointRenderer>
-          pending_receiver) override;
-
-  GLSurface* surface() const { return surface_.get(); }
-
- protected:
-  ~GLSurfaceAdapter() override;
-
- private:
-  scoped_refptr<GLSurface> surface_;
+  base::WeakPtrFactory<GLSurface> weak_ptr_factory_{this};
 };
 
 // Wraps GLSurface in scoped_refptr and tries to initializes it. Returns a
@@ -388,10 +240,6 @@ class GL_EXPORT GLSurfaceAdapter : public GLSurface {
 // initialization fails.
 GL_EXPORT scoped_refptr<GLSurface> InitializeGLSurface(
     scoped_refptr<GLSurface> surface);
-
-GL_EXPORT scoped_refptr<GLSurface> InitializeGLSurfaceWithFormat(
-    scoped_refptr<GLSurface> surface,
-    GLSurfaceFormat format);
 
 }  // namespace gl
 

@@ -11,14 +11,14 @@ namespace ash {
 
 // The corner radius of a bubble, like the system tray bubble or the
 // productivity launcher bubble.
-constexpr int kBubbleCornerRadius = 16;
+inline constexpr int kBubbleCornerRadius = 16;
 
 // Padding used for bubbles that represent a menu of options, like the system
 // tray bubble or the switch access menu.
-constexpr int kBubbleMenuPadding = 8;
+inline constexpr int kBubbleMenuPadding = 8;
 
 // The elevation used for system tray bubble.
-constexpr SystemShadow::Type kBubbleShadowType =
+inline constexpr SystemShadow::Type kBubbleShadowType =
     SystemShadow::Type::kElevation12;
 
 }  // namespace ash

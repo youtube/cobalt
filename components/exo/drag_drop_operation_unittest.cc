@@ -5,11 +5,11 @@
 #include "components/exo/drag_drop_operation.h"
 
 #include <memory>
+#include <vector>
 
 #include "ash/drag_drop/drag_drop_controller.h"
 #include "ash/shell.h"
 #include "ash/test_shell_delegate.h"
-#include "base/containers/flat_map.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
@@ -26,10 +26,10 @@
 #include "components/exo/test/exo_test_base.h"
 #include "components/exo/test/exo_test_data_exchange_delegate.h"
 #include "components/exo/test/shell_surface_builder.h"
+#include "components/exo/test/test_data_source_delegate.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "ui/aura/client/drag_drop_client.h"
 #include "ui/base/data_transfer_policy/data_transfer_endpoint.h"
-#include "ui/base/data_transfer_policy/data_transfer_policy_controller.h"
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom-shared.h"
 #include "ui/events/test/event_generator.h"
 #include "ui/gfx/geometry/point_f.h"
@@ -38,6 +38,7 @@
 namespace exo {
 namespace {
 
+using test::TestDataSourceDelegate;
 using ::testing::_;
 using ::testing::NiceMock;
 using ::testing::Property;
@@ -119,8 +120,7 @@ TEST_F(DragDropOperationTest, DeleteDataSourceDuringDragging) {
   ash::Shell::GetPrimaryRootWindow()->AddChild(origin_surface->window());
 
   gfx::Size buffer_size(100, 100);
-  std::unique_ptr<Buffer> buffer(
-      new Buffer(exo_test_helper()->CreateGpuMemoryBuffer(buffer_size)));
+  auto buffer = test::ExoTestHelper::CreateBuffer(buffer_size);
   auto icon_surface = std::make_unique<Surface>();
   icon_surface->Attach(buffer.get());
 
@@ -162,25 +162,20 @@ class MockShellDelegate : public ash::TestShellDelegate {
 class DragDropOperationTestWithWebUITabStripTest
     : public DragDropOperationTest {
  public:
-  DragDropOperationTestWithWebUITabStripTest() {
-    scoped_feature_list_.InitAndEnableFeature(
-        ash::features::kWebUITabStripTabDragIntegration);
-  }
+  DragDropOperationTestWithWebUITabStripTest() = default;
 
   // DragDropOperationTest:
   void SetUp() override {
     auto mock_shell_delegate = std::make_unique<NiceMock<MockShellDelegate>>();
     mock_shell_delegate_ = mock_shell_delegate.get();
-
-    ExoTestBase::SetUp(std::move(mock_shell_delegate));
-    aura::client::GetDragDropClient(ash::Shell::GetPrimaryRootWindow())
-        ->AddObserver(this);
+    set_shell_delegate(std::move(mock_shell_delegate));
+    DragDropOperationTest::SetUp();
   }
 
   MockShellDelegate* mock_shell_delegate() { return mock_shell_delegate_; }
 
  private:
-  raw_ptr<NiceMock<MockShellDelegate>, ExperimentalAsh> mock_shell_delegate_ =
+  raw_ptr<NiceMock<MockShellDelegate>, DanglingUntriaged> mock_shell_delegate_ =
       nullptr;
   base::test::ScopedFeatureList scoped_feature_list_;
 };
@@ -192,7 +187,7 @@ TEST_F(DragDropOperationTestWithWebUITabStripTest,
   auto delegate = std::make_unique<TestDataSourceDelegate>();
   auto data_source = std::make_unique<DataSource>(delegate.get());
   data_source->Offer(kWindowDragMimeType);
-  delegate->SetData(kWindowDragMimeType, std::vector<uint8_t>());
+  delegate->SetData(kWindowDragMimeType, std::string());
 
   ON_CALL(*mock_shell_delegate(), IsTabDrag(_)).WillByDefault(Return(true));
 
@@ -201,8 +196,7 @@ TEST_F(DragDropOperationTestWithWebUITabStripTest,
   auto* origin_surface = shell_surface->surface_for_testing();
 
   gfx::Size buffer_size(100, 100);
-  std::unique_ptr<Buffer> buffer(
-      new Buffer(exo_test_helper()->CreateGpuMemoryBuffer(buffer_size)));
+  auto buffer = test::ExoTestHelper::CreateBuffer(buffer_size);
   auto icon_surface = std::make_unique<Surface>();
   icon_surface->Attach(buffer.get());
 
@@ -254,8 +248,7 @@ TEST_F(DragDropOperationTest, DragDropFromPopup) {
   origin_surface->Commit();
 
   gfx::Size buffer_size(32, 32);
-  std::unique_ptr<Buffer> buffer(
-      new Buffer(exo_test_helper()->CreateGpuMemoryBuffer(buffer_size)));
+  auto buffer = test::ExoTestHelper::CreateBuffer(buffer_size);
   auto icon_surface = std::make_unique<Surface>();
   icon_surface->Attach(buffer.get());
 
@@ -318,8 +311,7 @@ TEST_F(DragDropOperationTest, DragDropFromNestedPopup) {
   origin_surface->Commit();
 
   gfx::Size buffer_size(32, 32);
-  std::unique_ptr<Buffer> buffer(
-      new Buffer(exo_test_helper()->CreateGpuMemoryBuffer(buffer_size)));
+  auto buffer = test::ExoTestHelper::CreateBuffer(buffer_size);
   auto icon_surface = std::make_unique<Surface>();
   icon_surface->Attach(buffer.get());
 
@@ -359,164 +351,6 @@ TEST_F(DragDropOperationTest, DragDropFromNestedPopup) {
   generator.ReleaseLeftButton();
   EXPECT_EQ(0, GetDragStartCountAndReset());
   EXPECT_EQ(1, GetDragEndCountAndReset());
-}
-
-namespace {
-
-class MockDataTransferPolicyController
-    : public ui::DataTransferPolicyController {
- public:
-  MOCK_METHOD3(IsClipboardReadAllowed,
-               bool(const ui::DataTransferEndpoint* const data_src,
-                    const ui::DataTransferEndpoint* const data_dst,
-                    const absl::optional<size_t> size));
-  MOCK_METHOD5(PasteIfAllowed,
-               void(const ui::DataTransferEndpoint* const data_src,
-                    const ui::DataTransferEndpoint* const data_dst,
-                    const absl::optional<size_t> size,
-                    content::RenderFrameHost* rfh,
-                    base::OnceCallback<void(bool)> callback));
-  MOCK_METHOD3(DropIfAllowed,
-               void(const ui::OSExchangeData* drag_data,
-                    const ui::DataTransferEndpoint* data_dst,
-                    base::OnceClosure drop_cb));
-};
-
-}  // namespace
-
-// Lacros sends additional metadata about the drag and drop source (e.g. origin
-// URL). This synchronizes the source metadata between Lacros to Ash. This is
-// used in Data Leak Prevention restrictions where admins can restrict data from
-// being copied from restricted locations.
-TEST_F(DragDropOperationTest, DragDropCheckSourceFromLacros) {
-  static_cast<ash::DragDropController*>(
-      aura::client::GetDragDropClient(ash::Shell::GetPrimaryRootWindow()))
-      ->set_should_block_during_drag_drop(false);
-  TestDataExchangeDelegate data_exchange_delegate;
-  data_exchange_delegate.set_endpoint_type(ui::EndpointType::kLacros);
-
-  auto delegate = std::make_unique<TestDataSourceDelegate>();
-  auto data_source = std::make_unique<DataSource>(delegate.get());
-
-  auto dlp_controller = std::make_unique<MockDataTransferPolicyController>();
-
-  // Encoded source DataTransferEndpoint.
-  const std::string kEncodedTestDte =
-      R"({"endpoint_type":"url","url":"https://www.google.com"})";
-  const std::string kDteMimeType = "chromium/x-data-transfer-endpoint";
-
-  data_source->Offer(kDteMimeType);
-  delegate->SetData(kDteMimeType, std::vector<uint8_t>(kEncodedTestDte.begin(),
-                                                       kEncodedTestDte.end()));
-
-  auto origin_surface = std::make_unique<Surface>();
-  ash::Shell::GetPrimaryRootWindow()->AddChild(origin_surface->window());
-
-  gfx::Size buffer_size(100, 100);
-  std::unique_ptr<Buffer> buffer(
-      new Buffer(exo_test_helper()->CreateGpuMemoryBuffer(buffer_size)));
-  auto icon_surface = std::make_unique<Surface>();
-  icon_surface->Attach(buffer.get());
-
-  // Expect the encoded endpoint from Lacros to be correctly parsed.
-  EXPECT_CALL(*dlp_controller, DropIfAllowed)
-      .WillOnce([&](const ui::OSExchangeData* drag_data,
-                    const ui::DataTransferEndpoint* data_dst,
-                    base::OnceClosure drop_cb) {
-        ASSERT_TRUE(drag_data);
-        auto* data_src = drag_data->GetSource();
-        ASSERT_TRUE(data_src->IsUrlType());
-        EXPECT_EQ(data_src->GetURL()->spec(), "https://www.google.com/");
-        std::move(drop_cb).Run();
-      });
-
-  base::RunLoop run_loop;
-  set_drag_blocked_callback(run_loop.QuitClosure());
-
-  ui::test::EventGenerator generator(origin_surface->window()->GetRootWindow(),
-                                     origin_surface->window());
-  generator.PressLeftButton();
-  gfx::Point location =
-      generator.current_screen_location() -
-      origin_surface->window()->GetBoundsInScreen().OffsetFromOrigin();
-  auto operation = DragDropOperation::Create(
-      &data_exchange_delegate, data_source.get(), origin_surface.get(),
-      icon_surface.get(), gfx::PointF(location),
-      ui::mojom::DragEventSource::kMouse);
-  icon_surface->Commit();
-
-  run_loop.Run();
-
-  generator.MoveMouseBy(150, 150);
-  generator.ReleaseLeftButton();
-
-  ::testing::Mock::VerifyAndClearExpectations(dlp_controller.get());
-}
-
-// Additional source metadata should be ignored from non-Lacros instances.
-TEST_F(DragDropOperationTest, DragDropCheckSourceFromNonLacros) {
-  static_cast<ash::DragDropController*>(
-      aura::client::GetDragDropClient(ash::Shell::GetPrimaryRootWindow()))
-      ->set_should_block_during_drag_drop(false);
-  TestDataExchangeDelegate data_exchange_delegate;
-  data_exchange_delegate.set_endpoint_type(ui::EndpointType::kCrostini);
-
-  auto delegate = std::make_unique<TestDataSourceDelegate>();
-  auto data_source = std::make_unique<DataSource>(delegate.get());
-
-  auto dlp_controller = std::make_unique<MockDataTransferPolicyController>();
-
-  // Encoded source DataTransferEndpoint.
-  const std::string kEncodedTestDte =
-      R"({"endpoint_type":"url","url":"https://www.google.com"})";
-  const std::string kDteMimeType = "chromium/x-data-transfer-endpoint";
-
-  data_source->Offer(kDteMimeType);
-  delegate->SetData(kDteMimeType, std::vector<uint8_t>(kEncodedTestDte.begin(),
-                                                       kEncodedTestDte.end()));
-
-  auto origin_surface = std::make_unique<Surface>();
-  ash::Shell::GetPrimaryRootWindow()->AddChild(origin_surface->window());
-
-  gfx::Size buffer_size(100, 100);
-  std::unique_ptr<Buffer> buffer(
-      new Buffer(exo_test_helper()->CreateGpuMemoryBuffer(buffer_size)));
-  auto icon_surface = std::make_unique<Surface>();
-  icon_surface->Attach(buffer.get());
-
-  // Expect the encoded endpoint from non-Lacros to be ignored.
-  EXPECT_CALL(*dlp_controller, DropIfAllowed)
-      .WillOnce([&](const ui::OSExchangeData* drag_data,
-                    const ui::DataTransferEndpoint* data_dst,
-                    base::OnceClosure drop_cb) {
-        ASSERT_TRUE(drag_data);
-        auto* data_src = drag_data->GetSource();
-        EXPECT_FALSE(data_src->IsUrlType());
-        EXPECT_EQ(data_src->type(), ui::EndpointType::kCrostini);
-        std::move(drop_cb).Run();
-      });
-
-  base::RunLoop run_loop;
-  set_drag_blocked_callback(run_loop.QuitClosure());
-
-  ui::test::EventGenerator generator(origin_surface->window()->GetRootWindow(),
-                                     origin_surface->window());
-  generator.PressLeftButton();
-  gfx::Point location =
-      generator.current_screen_location() -
-      origin_surface->window()->GetBoundsInScreen().OffsetFromOrigin();
-  auto operation = DragDropOperation::Create(
-      &data_exchange_delegate, data_source.get(), origin_surface.get(),
-      icon_surface.get(), gfx::PointF(location),
-      ui::mojom::DragEventSource::kMouse);
-  icon_surface->Commit();
-
-  run_loop.Run();
-
-  generator.MoveMouseBy(150, 150);
-  generator.ReleaseLeftButton();
-
-  ::testing::Mock::VerifyAndClearExpectations(dlp_controller.get());
 }
 
 }  // namespace exo

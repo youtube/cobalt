@@ -29,7 +29,6 @@ class StubClientNativePixmapFactory : public gfx::ClientNativePixmapFactory {
       gfx::BufferFormat format,
       gfx::BufferUsage usage) override {
     NOTREACHED();
-    return nullptr;
   }
 };
 

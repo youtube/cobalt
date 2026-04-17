@@ -4,20 +4,21 @@
 
 #include "services/audio/loopback_stream.h"
 
+#include <algorithm>
 #include <string>
+#include <utility>
 
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
-#include "base/ranges/algorithm.h"
 #include "base/sync_socket.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/default_tick_clock.h"
 #include "base/trace_event/trace_event.h"
+#include "base/types/zip.h"
 #include "media/base/audio_bus.h"
 #include "media/base/vector_math.h"
 #include "mojo/public/cpp/system/buffer.h"
 #include "mojo/public/cpp/system/platform_handle.h"
-#include "third_party/abseil-cpp/absl/utility/utility.h"
 
 namespace audio {
 
@@ -72,14 +73,14 @@ LoopbackStream::LoopbackStream(
           [](const std::string& message) { VLOG(1) << message; }),
       shared_memory_count, params, &foreign_socket);
   if (writer) {
-    base::ReadOnlySharedMemoryRegion shared_memory_region =
+    base::UnsafeSharedMemoryRegion shared_memory_region =
         writer->TakeSharedMemoryRegion();
     mojo::PlatformHandle socket_handle;
     if (shared_memory_region.IsValid()) {
       socket_handle = mojo::PlatformHandle(foreign_socket.Take());
       if (socket_handle.is_valid()) {
         std::move(created_callback)
-            .Run({absl::in_place, std::move(shared_memory_region),
+            .Run({std::in_place, std::move(shared_memory_region),
                   std::move(socket_handle)});
         network_.reset(new FlowNetwork(std::move(flow_task_runner), params,
                                        std::move(writer)));
@@ -260,8 +261,8 @@ void LoopbackStream::FlowNetwork::RemoveInput(SnooperNode* node) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(control_sequence_);
 
   base::AutoLock scoped_lock(lock_);
-  const auto it = base::ranges::find(inputs_, node);
-  DCHECK(it != inputs_.end());
+  const auto it = std::ranges::find(inputs_, node);
+  CHECK(it != inputs_.end());
   inputs_.erase(it);
 }
 
@@ -317,7 +318,7 @@ void LoopbackStream::FlowNetwork::GenerateMoreAudio() {
     // underruns in the inputs. http://crbug.com/934770
     delayed_capture_time = next_generate_time_ - capture_delay_;
     for (SnooperNode* node : inputs_) {
-      const absl::optional<base::TimeTicks> suggestion =
+      const std::optional<base::TimeTicks> suggestion =
           node->SuggestLatestRenderTime(mix_bus_->frames());
       if (suggestion.value_or(delayed_capture_time) < delayed_capture_time) {
         const base::TimeDelta increase = delayed_capture_time - (*suggestion);
@@ -352,10 +353,9 @@ void LoopbackStream::FlowNetwork::GenerateMoreAudio() {
         }
         do {
           (*it)->Render(delayed_capture_time, transfer_bus_.get());
-          for (int ch = 0; ch < transfer_bus_->channels(); ++ch) {
-            media::vector_math::FMAC(transfer_bus_->channel(ch), volume_,
-                                     transfer_bus_->frames(),
-                                     mix_bus_->channel(ch));
+          for (auto [src_ch, dest_ch] : base::zip(transfer_bus_->AllChannels(),
+                                                  mix_bus_->AllChannels())) {
+            media::vector_math::FMAC(src_ch, volume_, dest_ch);
           }
           ++it;
         } while (it != inputs_.end());
@@ -364,8 +364,7 @@ void LoopbackStream::FlowNetwork::GenerateMoreAudio() {
   }
 
   // Insert the result into the AudioDataPipe.
-  writer_->Write(mix_bus_.get(), output_volume, false, delayed_capture_time,
-                 {});
+  writer_->Write(mix_bus_.get(), output_volume, delayed_capture_time, {});
 
   // Determine when to generate more audio again. This is done by advancing the
   // frame count by one interval's worth, then computing the TimeTicks

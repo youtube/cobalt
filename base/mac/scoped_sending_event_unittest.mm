@@ -6,7 +6,6 @@
 
 #import <Foundation/Foundation.h>
 
-#include "base/mac/scoped_nsobject.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #ifdef LEAK_SANITIZER
@@ -40,13 +39,13 @@ class ScopedSendingEventTest : public testing::Test {
     // object since the leak is a side-effect of object creation.
     __lsan::ScopedDisabler disable;
 #endif
-    app_.reset([[ScopedSendingEventTestCrApp alloc] init]);
-    NSApp = app_.get();
+    app_ = [[ScopedSendingEventTestCrApp alloc] init];
+    NSApp = app_;
   }
   ~ScopedSendingEventTest() override { NSApp = nil; }
 
  private:
-  base::scoped_nsobject<ScopedSendingEventTestCrApp> app_;
+  ScopedSendingEventTestCrApp* __strong app_;
 };
 
 // Sets the flag within scope, resets when leaving scope.

@@ -12,10 +12,10 @@
 #include "ash/shell.h"
 #include "ash/system/power/power_event_observer_test_api.h"
 #include "ash/test/ash_test_base.h"
-#include "ash/wallpaper/wallpaper_widget_controller.h"
+#include "ash/wallpaper/views/wallpaper_widget_controller.h"
 #include "ash/wm/lock_state_controller.h"
 #include "ash/wm/lock_state_controller_test_api.h"
-#include "ash/wm/test_session_state_animator.h"
+#include "ash/wm/test/test_session_state_animator.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/time/time.h"
@@ -27,7 +27,7 @@
 #include "ui/aura/window_tree_host.h"
 #include "ui/compositor/compositor.h"
 #include "ui/compositor/scoped_animation_duration_scale_mode.h"
-#include "ui/display/fake/fake_display_snapshot.h"
+#include "ui/display/manager/test/fake_display_snapshot.h"
 
 namespace ash {
 
@@ -51,7 +51,7 @@ class PowerEventObserverTest : public AshTestBase {
  protected:
   int GetNumVisibleCompositors() {
     int result = 0;
-    for (auto* window : Shell::GetAllRootWindows()) {
+    for (aura::Window* window : Shell::GetAllRootWindows()) {
       if (window->GetHost()->compositor()->IsVisible())
         ++result;
     }
@@ -65,7 +65,7 @@ class PowerEventObserverTest : public AshTestBase {
     return Shell::Get()->session_controller()->IsScreenLocked();
   }
 
-  raw_ptr<PowerEventObserver, ExperimentalAsh> observer_ = nullptr;
+  raw_ptr<PowerEventObserver, DanglingUntriaged> observer_ = nullptr;
 };
 
 TEST_F(PowerEventObserverTest, LockBeforeSuspend) {
@@ -92,10 +92,10 @@ TEST_F(PowerEventObserverTest, LockBeforeSuspend) {
   test_api.CompositingDidCommit(compositor);
   observer_->OnLockAnimationsComplete();
 
-  // Verify that CompositingStarted and CompositingEnded observed before
+  // Verify that CompositingStarted and CompositingAckDeprecated observed before
   // CompositingDidCommit are ignored.
   test_api.CompositingStarted(compositor);
-  test_api.CompositingEnded(compositor);
+  test_api.CompositingAckDeprecated(compositor);
   EXPECT_EQ(1, client->num_pending_suspend_readiness_callbacks());
   EXPECT_EQ(1, GetNumVisibleCompositors());
 
@@ -109,7 +109,7 @@ TEST_F(PowerEventObserverTest, LockBeforeSuspend) {
   EXPECT_EQ(1, client->num_pending_suspend_readiness_callbacks());
   EXPECT_EQ(1, GetNumVisibleCompositors());
 
-  test_api.CompositingEnded(compositor);
+  test_api.CompositingAckDeprecated(compositor);
   EXPECT_EQ(0, client->num_pending_suspend_readiness_callbacks());
   EXPECT_EQ(0, GetNumVisibleCompositors());
 
@@ -256,7 +256,7 @@ TEST_F(PowerEventObserverTest, DelaySuspendForCompositing_MultiDisplay) {
   observer_->OnLockAnimationsComplete();
 
   test_api.CompositingStarted(secondary_compositor);
-  test_api.CompositingEnded(secondary_compositor);
+  test_api.CompositingAckDeprecated(secondary_compositor);
 
   EXPECT_EQ(1, client->num_pending_suspend_readiness_callbacks());
   EXPECT_EQ(2, GetNumVisibleCompositors());
@@ -267,7 +267,7 @@ TEST_F(PowerEventObserverTest, DelaySuspendForCompositing_MultiDisplay) {
   test_api.CompositeFrame(secondary_compositor);
 
   // Even though compositing for one display is done, changes to compositor
-  // visibility, and suspend readines state should be delayed until compositing
+  // visibility, and suspend readiness state should be delayed until compositing
   // for the other display finishes.
   EXPECT_EQ(1, client->num_pending_suspend_readiness_callbacks());
   EXPECT_EQ(2, GetNumVisibleCompositors());
@@ -303,7 +303,7 @@ TEST_F(PowerEventObserverTest,
   test_api.CompositeFrame(primary_compositor);
 
   // Even though compositing for one display is done, changes to compositor
-  // visibility, and suspend readines state should be delayed until compositing
+  // visibility, and suspend readiness state should be delayed until compositing
   // for the other display finishes.
   EXPECT_EQ(1, client->num_pending_suspend_readiness_callbacks());
   EXPECT_EQ(2, GetNumVisibleCompositors());
@@ -381,53 +381,6 @@ TEST_F(PowerEventObserverTest, ImmediateLockAnimations) {
       SessionStateAnimator::ANIMATION_SPEED_IMMEDIATE));
   EXPECT_EQ(0u, test_animator->GetAnimationCount());
   EXPECT_FALSE(lock_state_test_api.is_animating_lock());
-}
-
-// Tests that the lock screen is dismissed after a resume from hibernate.
-TEST_F(PowerEventObserverTest, HibernateDismissesLockScreen) {
-  SetCanLockScreen(true);
-  SetShouldLockScreenAutomatically(true);
-  ASSERT_FALSE(GetLockedState());
-
-  // First check that the screen locks after a regular suspend/resume.
-  power_manager::SuspendDone suspend_done = power_manager::SuspendDone();
-  observer_->SuspendImminent(power_manager::SuspendImminent_Reason_OTHER);
-  EXPECT_TRUE(GetLockedState());
-  observer_->SuspendDoneEx(suspend_done);
-  EXPECT_TRUE(GetLockedState());
-
-  // Then check that a suspend and resume from hibernate unlocks the screen.
-  observer_->SuspendImminent(power_manager::SuspendImminent_Reason_OTHER);
-  EXPECT_TRUE(GetLockedState());
-  suspend_done.set_deepest_state(
-      power_manager::SuspendDone_SuspendState_TO_DISK);
-  observer_->SuspendDoneEx(suspend_done);
-  EXPECT_FALSE(GetLockedState());
-}
-
-// Verifies that hibernate suspend and resume does not attempt to hide the lock
-// screen if the session does not get locked during suspend.
-TEST_F(PowerEventObserverTest, HibernateWithUnlockedScreen) {
-  SetCanLockScreen(false);
-  SetShouldLockScreenAutomatically(false);
-
-  // Suspend, and verify screen does not get locked.
-  observer_->SuspendImminent(power_manager::SuspendImminent_Reason_OTHER);
-  ASSERT_FALSE(GetLockedState());
-
-  power_manager::SuspendDone suspend_done = power_manager::SuspendDone();
-  suspend_done.set_deepest_state(
-      power_manager::SuspendDone_SuspendState_TO_DISK);
-  observer_->SuspendDoneEx(suspend_done);
-  // Verify that screen lock hide was not requested in response to session
-  // resume. Unlock animation runs in two stages - first fades the lock screen
-  // UI out, and then fades the in-session UI in. The second stage runs in
-  // response to sessions state change, which is not expected in case session is
-  // not locked in the first place. Running the first stage of unlock animation
-  // may leave UI in incorrect state - for example, shelf would remain fully
-  // transparent. See https::/b/262315987.
-  EXPECT_EQ(0, GetSessionControllerClient()->request_hide_lock_screen_count());
-  EXPECT_FALSE(GetLockedState());
 }
 
 // Tests that displays will not be considered ready to suspend until the
@@ -635,7 +588,7 @@ TEST_F(PowerEventObserverTest, DisplayRemovedDuringWallpaperAnimation) {
   base::RunLoop().RunUntilIdle();
 
   // Start suspend and verify the suspend proceeds when the primary window's
-  // compositors go throug two compositing cycles.
+  // compositors go through two compositing cycles.
   observer_->SuspendImminent(power_manager::SuspendImminent_Reason_OTHER);
 
   ui::Compositor* compositor =
@@ -697,11 +650,13 @@ TEST_F(PowerEventObserverTest, LockOnLidCloseWhenDocked) {
           .Build();
 
   auto set_docked = [&](bool docked) {
-    std::vector<display::DisplaySnapshot*> displays({internal_display.get()});
+    std::vector<raw_ptr<display::DisplaySnapshot, VectorExperimental>> displays(
+        {internal_display.get()});
     if (docked) {
       displays.push_back(external_display.get());
     }
-    Shell::Get()->projecting_observer()->OnDisplayModeChanged(displays);
+    Shell::Get()->projecting_observer()->OnDisplayConfigurationChanged(
+        displays);
   };
 
   SetCanLockScreen(true);
@@ -759,7 +714,7 @@ TEST_F(LockOnSuspendUsageTest, LockOnSuspendUsage) {
               1)));
 }
 
-// TODO(crbug.com/1425006): Test is failing on "Linux ChromiumOS MSan Tests".
+// TODO(crbug.com/40898491): Test is failing on "Linux ChromiumOS MSan Tests".
 #if defined(MEMORY_SANITIZER)
 #define MAYBE_No_ShouldLockScreenAutomatically \
   DISABLED_No_ShouldLockScreenAutomatically

@@ -6,6 +6,7 @@
 
 #include <fuchsia/web/cpp/fidl.h>
 #include <lib/fit/function.h>
+
 #include <memory>
 #include <string>
 #include <utility>
@@ -44,7 +45,7 @@ constexpr char kCdmDataSubdirectoryName[] = "cdm_data";
 constexpr char kProfileSubdirectoryName[] = "web_profile";
 
 // Name of the file used to detect cache erasure.
-// TODO(crbug.com/1188780): Remove once an explicit cache flush signal exists.
+// TODO(crbug.com/40755074): Remove once an explicit cache flush signal exists.
 constexpr char kSentinelFileName[] = ".sentinel";
 
 // Ephemeral remote debugging port used by child contexts.
@@ -61,7 +62,7 @@ base::FilePath GetStagedForDeletionDirectoryPath() {
 
 // Deletes files/directories staged for deletion during the previous run.
 // We delete synchronously on main thread for simplicity. Note that this
-// overall mechanism is a temporary solution. TODO(crbug.com/1146480): migrate
+// overall mechanism is a temporary solution. TODO(crbug.com/40730097): migrate
 // to the framework mechanism of clearing session data when available.
 void DeleteStagedForDeletionDirectoryIfExists() {
   const base::FilePath staged_for_deletion_directory =
@@ -82,7 +83,7 @@ void DeleteStagedForDeletionDirectoryIfExists() {
                << " ms";
 }
 
-// TODO(crbug.com/1134719): Consider removing this flag once Media Capabilities
+// TODO(crbug.com/40151573): Consider removing this flag once Media Capabilities
 // is supported.
 void EnsureSoftwareVideoDecodersAreDisabled(
     ::fuchsia::web::ContextFeatureFlags* features) {
@@ -97,19 +98,19 @@ void EnsureSoftwareVideoDecodersAreDisabled(
 // Exits the Runner process if creation of data storage fails for any reason.
 void SetDataParamsForMainContext(fuchsia::web::CreateContextParams* params) {
   // Set the web data quota based on the CastRunner configuration.
-  const absl::optional<base::Value::Dict>& config =
+  const std::optional<base::Value::Dict>& config =
       fuchsia_component_support::LoadPackageConfig();
   if (!config)
     return;
 
   constexpr char kDataQuotaBytesSwitch[] = "data-quota-bytes";
-  const absl::optional<int> data_quota_bytes =
+  const std::optional<int> data_quota_bytes =
       config->FindInt(kDataQuotaBytesSwitch);
   if (!data_quota_bytes)
     return;
 
   // Allow best-effort persistent of Cast application data.
-  // TODO(crbug.com/1148334): Remove the need for an explicit quota to be
+  // TODO(crbug.com/42050202): Remove the need for an explicit quota to be
   // configured, once the platform provides storage quotas.
   const auto profile_path = base::FilePath(base::kPersistedCacheDirectoryPath)
                                 .Append(kProfileSubdirectoryName);
@@ -130,11 +131,11 @@ void SetDataParamsForMainContext(fuchsia::web::CreateContextParams* params) {
 // CDM data persistence is always enabled, with an optional soft quota.
 // Exits the Runner if creation of CDM storage fails for any reason.
 void SetCdmParamsForMainContext(fuchsia::web::CreateContextParams* params) {
-  const absl::optional<base::Value::Dict>& config =
+  const std::optional<base::Value::Dict>& config =
       fuchsia_component_support::LoadPackageConfig();
   if (config) {
     constexpr char kCdmDataQuotaBytesSwitch[] = "cdm-data-quota-bytes";
-    const absl::optional<int> cdm_data_quota_bytes =
+    const std::optional<int> cdm_data_quota_bytes =
         config->FindInt(kCdmDataQuotaBytesSwitch);
     if (cdm_data_quota_bytes)
       params->set_cdm_data_quota_bytes(*cdm_data_quota_bytes);
@@ -239,6 +240,11 @@ void CastRunner::Start(
   }
 }
 
+void CastRunner::handle_unknown_method(uint64_t ordinal,
+                                       bool method_has_response) {
+  LOG(ERROR) << "Unknown method called on CastRunner. Ordinal: " << ordinal;
+}
+
 void CastRunner::DeletePersistentData(DeletePersistentDataCallback callback) {
   if (data_reset_in_progress_) {
     // Repeated requests to DeletePersistentData are not supported.
@@ -255,7 +261,7 @@ void CastRunner::LaunchPendingComponent(PendingCastComponent* pending_component,
                                         CastComponent::Params params) {
   DCHECK(cors_exempt_headers_);
 
-  // TODO(crbug.com/1082821): Remove |web_content_url| once the Cast Streaming
+  // TODO(crbug.com/40131115): Remove |web_content_url| once the Cast Streaming
   // Receiver component has been implemented.
   GURL web_content_url(params.application_config.web_url());
   if (IsAppConfigForCastStreaming(params.application_config))
@@ -310,15 +316,14 @@ WebContentRunner::WebInstanceConfig CastRunner::GetCommonWebInstanceConfig() {
 
   WebContentRunner::WebInstanceConfig config;
 
-  constexpr char const* kSwitchesToCopy[] = {
+  static constexpr char const* kSwitchesToCopy[] = {
       // Must match the value in `content/public/common/content_switches.cc`.
       "enable-logging",
       // Must match the value in `ui/ozone/public/ozone_switches.cc`.
       "ozone-platform",
   };
   config.extra_args.CopySwitchesFrom(*base::CommandLine::ForCurrentProcess(),
-                                     kSwitchesToCopy,
-                                     std::size(kSwitchesToCopy));
+                                     kSwitchesToCopy);
 
   config.params.set_features(fuchsia::web::ContextFeatureFlags::AUDIO);
 
@@ -358,7 +363,7 @@ WebContentRunner::WebInstanceConfig CastRunner::GetMainWebInstanceConfig() {
   // The fuchsia.media.Audio implementation provided to the Runner in existing
   // integrations always supports echo cancellation.
   //
-  // TODO(crbug.com/852834): Remove once AudioManagerFuchsia is updated to
+  // TODO(crbug.com/42050621): Remove once AudioManagerFuchsia is updated to
   // get this information from AudioCapturerFactory.
   config.extra_args.AppendSwitch(kAudioCapturerWithEchoCancellationSwitch);
 
@@ -380,10 +385,11 @@ WebContentRunner::WebInstanceConfig CastRunner::GetMainWebInstanceConfig() {
   SetDataParamsForMainContext(&config.params);
 
   // Create a sentinel file to detect if the cache is erased.
-  // TODO(crbug.com/1188780): Remove once an explicit cache flush signal exists.
+  // TODO(crbug.com/40755074): Remove once an explicit cache flush signal
+  // exists.
   CreatePersistedCacheSentinel();
 
-  // TODO(crbug.com/1023514): Remove this switch when it is no longer
+  // TODO(crbug.com/40050660): Remove this switch when it is no longer
   // necessary.
   config.params.set_unsafely_treat_insecure_origins_as_secure(
       {"allow-running-insecure-content", "disable-mixed-content-autoupgrade"});
@@ -415,26 +421,26 @@ CastRunner::GetIsolatedWebInstanceConfigForCastStreaming() {
   return config;
 }
 
-absl::optional<WebContentRunner::WebInstanceConfig>
+std::optional<WebContentRunner::WebInstanceConfig>
 CastRunner::GetWebInstanceConfigForAppConfig(
     chromium::cast::ApplicationConfig* app_config) {
   if (IsAppConfigForCastStreaming(*app_config)) {
-    // TODO(crbug.com/1082821): Remove this once the CastStreamingReceiver
+    // TODO(crbug.com/40131115): Remove this once the CastStreamingReceiver
     // Component has been implemented.
-    return absl::make_optional(GetIsolatedWebInstanceConfigForCastStreaming());
+    return std::make_optional(GetIsolatedWebInstanceConfigForCastStreaming());
   }
 
   const bool is_isolated_app =
       app_config->has_content_directories_for_isolated_application();
   if (is_isolated_app) {
-    return absl::make_optional(
+    return std::make_optional(
         GetIsolatedWebInstanceConfigWithFuchsiaDirs(std::move(
             *app_config
                  ->mutable_content_directories_for_isolated_application())));
   }
 
   // No need to create an isolated context in other cases.
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 WebContentRunner* CastRunner::CreateIsolatedRunner(
@@ -455,7 +461,7 @@ WebContentRunner* CastRunner::CreateIsolatedRunner(
 
 void CastRunner::OnIsolatedContextEmpty(WebContentRunner* context) {
   auto it = isolated_contexts_.find(context);
-  DCHECK(it != isolated_contexts_.end());
+  CHECK(it != isolated_contexts_.end());
   isolated_contexts_.erase(it);
 }
 

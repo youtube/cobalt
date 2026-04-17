@@ -111,7 +111,7 @@ class KEYBOARD_EXPORT KeyboardUIController
   void Reload();
 
   // Rebuilds the keyboard by disabling and enabling it again.
-  // TODO(https://crbug.com/845780): Can this be replaced with |Reload|?
+  // TODO(crbug.com/40577582): Can this be replaced with |Reload|?
   void RebuildKeyboardIfEnabled();
 
   // Management of the observer list.
@@ -137,9 +137,9 @@ class KEYBOARD_EXPORT KeyboardUIController
 
   // Hide the keyboard because the user has chosen to specifically hide the
   // keyboard, such as pressing the dismiss button.
-  // TODO(https://crbug.com/845780): Rename this to
+  // TODO(crbug.com/40577582): Rename this to
   // HideKeyboardExplicitlyByUser.
-  // TODO(https://crbug.com/845780): Audit and switch callers to
+  // TODO(crbug.com/40577582): Audit and switch callers to
   // HideKeyboardImplicitlyByUser where appropriate.
   void HideKeyboardByUser();
 
@@ -169,6 +169,10 @@ class KEYBOARD_EXPORT KeyboardUIController
   // Force the keyboard to show up in the specific display if not showing and
   // lock the keyboard
   void ShowKeyboardInDisplay(const display::Display& display);
+
+  // Controls whether `ShowKeyboardIfWithinTransientBlurThreshold` should show
+  // the keyboard.
+  void SetShouldShowOnTransientBlur(bool should_show);
 
   // Returns the bounds in root window for the visible portion of the keyboard.
   // An empty rectangle will get returned when the keyboard is hidden.
@@ -372,7 +376,8 @@ class KEYBOARD_EXPORT KeyboardUIController
 
   // Notifies observers that the visual or occluded bounds of the keyboard
   // window are changing.
-  void NotifyKeyboardBoundsChanging(const gfx::Rect& new_bounds_in_root);
+  void NotifyKeyboardBoundsChanging(const gfx::Rect& new_bounds_in_root,
+                                    bool is_temporary = false);
 
   // Called when the keyboard window has loaded. Shows the keyboard if
   // |show_on_keyboard_window_load_| is true.
@@ -412,12 +417,12 @@ class KEYBOARD_EXPORT KeyboardUIController
   std::unique_ptr<KeyboardUIFactory> ui_factory_;
   std::unique_ptr<KeyboardUI> ui_;
   std::unique_ptr<ui::VirtualKeyboardController> virtual_keyboard_controller_;
-  raw_ptr<KeyboardLayoutDelegate, ExperimentalAsh> layout_delegate_ = nullptr;
+  raw_ptr<KeyboardLayoutDelegate, DanglingUntriaged> layout_delegate_ = nullptr;
   base::ScopedObservation<ui::InputMethod, ui::InputMethodObserver>
       ime_observation_{this};
 
   // Container window that the keyboard window is a child of.
-  raw_ptr<aura::Window, ExperimentalAsh> parent_container_ = nullptr;
+  raw_ptr<aura::Window> parent_container_ = nullptr;
 
   // CallbackAnimationObserver should be destroyed before |ui_| because it uses
   // |ui_|'s animator.
@@ -456,6 +461,7 @@ class KEYBOARD_EXPORT KeyboardUIController
   NotificationManager notification_manager_;
 
   base::Time time_of_last_blur_ = base::Time::UnixEpoch();
+  bool should_show_on_transient_blur_ = true;
 
   DisplayUtil display_util_;
 

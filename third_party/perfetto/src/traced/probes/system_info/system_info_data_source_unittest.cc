@@ -16,6 +16,7 @@
 
 #include "src/traced/probes/system_info/system_info_data_source.h"
 #include "src/traced/probes/common/cpu_freq_info_for_testing.h"
+#include "src/traced/probes/system_info/cpu_info_features_allowlist.h"
 #include "src/tracing/core/trace_writer_for_testing.h"
 #include "test/gtest_and_gmock.h"
 
@@ -27,6 +28,8 @@ using ::testing::Return;
 
 namespace perfetto {
 namespace {
+
+static const uint32_t CPU_COUNT = 8;
 
 const char kMockCpuInfoAndroid[] = R"(
 Processor	: AArch64 Processor rev 13 (aarch64)
@@ -41,7 +44,7 @@ CPU revision	: 12
 
 processor	: 1
 BogoMIPS	: 38.00
-Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp
+Features	: fp mte mte3
 CPU implementer	: 0x51
 CPU architecture: 8
 CPU variant	: 0x7
@@ -106,6 +109,9 @@ Hardware	: Qualcomm Technologies, Inc SDM670
 
 )";
 
+const char* kMockCpuCapacityInfoAndroid[8] = {
+    "200\n", "200\n", "200\n", "600\n", "600\n", "600\n", "1024\n", "1024\n"};
+
 class TestSystemInfoDataSource : public SystemInfoDataSource {
  public:
   TestSystemInfoDataSource(std::unique_ptr<TraceWriter> writer,
@@ -138,6 +144,14 @@ TEST_F(SystemInfoDataSourceTest, CpuInfoAndroid) {
   auto data_source = GetSystemInfoDataSource();
   EXPECT_CALL(*data_source, ReadFile("/proc/cpuinfo"))
       .WillOnce(Return(kMockCpuInfoAndroid));
+
+  for (uint32_t cpu_index = 0; cpu_index < CPU_COUNT; cpu_index++) {
+    EXPECT_CALL(*data_source,
+                ReadFile("/sys/devices/system/cpu/cpu" +
+                         std::to_string(cpu_index) + "/cpu_capacity"))
+        .WillOnce(Return(kMockCpuCapacityInfoAndroid[cpu_index]));
+  }
+
   data_source->Start();
 
   protos::gen::TracePacket packet = writer_raw_->GetOnlyTracePacket();
@@ -149,11 +163,42 @@ TEST_F(SystemInfoDataSourceTest, CpuInfoAndroid) {
   ASSERT_THAT(cpu.frequencies(),
               ElementsAre(300000, 576000, 748800, 998400, 1209600, 1324800,
                           1516800, 1612800, 1708800));
+  ASSERT_TRUE(cpu.has_arm_identifier());
+  auto id = cpu.arm_identifier();
+  ASSERT_EQ(id.implementer(), 0x51U);
+  ASSERT_EQ(id.architecture(), 8U);
+  ASSERT_EQ(id.variant(), 0x7U);
+  ASSERT_EQ(id.part(), 0x803U);
+  ASSERT_EQ(id.revision(), 12U);
+
+  ASSERT_EQ(cpu.capacity(), static_cast<uint32_t>(200));
   cpu = cpu_info.cpus()[1];
   ASSERT_EQ(cpu.processor(), "AArch64 Processor rev 13 (aarch64)");
   ASSERT_THAT(cpu.frequencies(),
               ElementsAre(300000, 652800, 825600, 979200, 1132800, 1363200,
                           1536000, 1747200, 1843200, 1996800, 2803200));
+  ASSERT_TRUE(cpu.has_arm_identifier());
+  id = cpu.arm_identifier();
+  ASSERT_EQ(id.implementer(), 0x51U);
+  ASSERT_EQ(id.architecture(), 8U);
+  ASSERT_EQ(id.variant(), 0x7U);
+  ASSERT_EQ(id.part(), 0x803U);
+  ASSERT_EQ(id.revision(), 12U);
+  ASSERT_TRUE(cpu.features() & (1u << 0));
+  ASSERT_STREQ(kCpuInfoFeatures[0], "mte");
+  ASSERT_TRUE(cpu.features() & (1u << 1));
+  ASSERT_STREQ(kCpuInfoFeatures[1], "mte3");
+
+  cpu = cpu_info.cpus()[7];
+  ASSERT_EQ(cpu.capacity(), static_cast<uint32_t>(1024));
+  ASSERT_TRUE(cpu.has_arm_identifier());
+  id = cpu.arm_identifier();
+  ASSERT_EQ(id.implementer(), 0x51U);
+  ASSERT_EQ(id.architecture(), 8U);
+  ASSERT_EQ(id.variant(), 0x6U);
+  ASSERT_EQ(id.part(), 0x802U);
+  ASSERT_EQ(id.revision(), 13U);
+  ASSERT_EQ(cpu.features(), 0U);
 }
 
 }  // namespace

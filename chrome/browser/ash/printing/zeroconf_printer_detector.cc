@@ -2,18 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ash/printing/zeroconf_printer_detector.h"
 
+#include <algorithm>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/containers/contains.h"
-#include "base/containers/cxx20_erase.h"
 #include "base/containers/fixed_flat_set.h"
-#include "base/hash/md5.h"
-#include "base/ranges/algorithm.h"
-#include "base/strings/string_piece.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -22,8 +26,15 @@
 #include "chrome/browser/local_discovery/service_discovery_shared_client.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/device_event_log/device_event_log.h"
+#include "crypto/obsolete/md5.h"
 
 namespace ash {
+
+namespace printing {
+crypto::obsolete::Md5 MakeMd5HasherForZeroconf() {
+  return {};
+}
+}  // namespace printing
 
 // Supported service names for printers.
 const char ZeroconfPrinterDetector::kIppServiceName[] = "_ipp._tcp.local";
@@ -53,7 +64,7 @@ constexpr std::array<const char*, 6> kServiceNames = {
 // protocol.  Don't allow IPP/IPPS connections for printers in this list.
 // Printers in this list should be all lowercase.  See b/268531843 for more
 // context.
-constexpr auto kIppRejectList = base::MakeFixedFlatSet<base::StringPiece>({
+constexpr auto kIppRejectList = base::MakeFixedFlatSet<std::string_view>({
     "brother mfc-9340cdw",
     "canon e480 series",
     "canon ib4000 series",
@@ -96,14 +107,11 @@ class ParsedMetadata {
   // Parse out metadata from sd to fill this structure.
   explicit ParsedMetadata(const ServiceDescription& sd) {
     for (const std::string& m : sd.metadata) {
-      size_t equal_pos = m.find('=');
-      if (equal_pos == std::string::npos) {
-        // Malformed, skip it.
+      auto parts = base::SplitStringOnce(m, '=');
+      if (!parts) {
         continue;
       }
-      base::StringPiece key(m.data(), equal_pos);
-      base::StringPiece value(m.data() + equal_pos + 1,
-                              m.length() - (equal_pos + 1));
+      auto [key, value] = *parts;
       if (key == "note") {
         note = std::string(value);
       } else if (key == "pdl") {
@@ -143,19 +151,16 @@ class ParsedMetadata {
 // all to be considered the same printer.
 std::string ZeroconfPrinterId(const ServiceDescription& service,
                               const ParsedMetadata& metadata) {
-  base::MD5Context ctx;
-  base::MD5Init(&ctx);
-  base::MD5Update(&ctx, service.instance_name());
-  base::MD5Update(&ctx, metadata.product);
-  base::MD5Update(&ctx, metadata.UUID);
-  base::MD5Update(&ctx, metadata.usb_MFG);
-  base::MD5Update(&ctx, metadata.usb_MDL);
-  base::MD5Update(&ctx, metadata.ty);
-  base::MD5Update(&ctx, metadata.rp);
-  base::MD5Digest digest;
-  base::MD5Final(&digest, &ctx);
+  auto md5 = ash::printing::MakeMd5HasherForZeroconf();
+  md5.Update(service.instance_name());
+  md5.Update(metadata.product);
+  md5.Update(metadata.UUID);
+  md5.Update(metadata.usb_MFG);
+  md5.Update(metadata.usb_MDL);
+  md5.Update(metadata.ty);
+  md5.Update(metadata.rp);
   return base::StringPrintf("zeroconf-%s",
-                            base::MD5DigestToBase16(digest).c_str());
+                            base::ToLowerASCII(base::HexEncode(md5.Finish())));
 }
 
 // Attempt to fill |detected_printer| using the information in
@@ -173,17 +178,23 @@ bool ConvertToPrinter(const std::string& service_type,
                        << " printer with missing service name.";
     return false;
   }
-  if (service_description.ip_address.empty()) {
-    PRINTER_LOG(ERROR) << "Found zeroconf " << service_type
-                       << " printer named '" << service_description.service_name
-                       << "' with missing IP address.";
+  if (service_description.address.port() == 0) {
+    // Bonjour printers are required to register the _printer._tcp name even if
+    // they don't support LPD.  If they don't support LPD, they use a port of 0
+    // to indicate this, so it is not an error.
+    if (service_type != ZeroconfPrinterDetector::kLpdServiceName) {
+      PRINTER_LOG(ERROR) << "Found zeroconf " << service_type
+                         << " printer named '"
+                         << service_description.service_name
+                         << "' with invalid port.";
+    }
     return false;
   }
-  if (service_description.address.port() == 0) {
-    PRINTER_LOG(ERROR) << "Found zeroconf " << service_type
-                       << " printer named '" << service_description.service_name
-                       << "' with invalid port.";
-    return false;
+  if (service_description.ip_address.empty()) {
+    PRINTER_LOG(DEBUG) << "Zeroconf " << service_type << " printer named '"
+                       << service_description.service_name
+                       << "' is missing IP address.  Continuing with hostname: "
+                       << service_description.address.HostForURL();
   }
 
   chromeos::Printer& printer = detected_printer->printer;
@@ -214,7 +225,6 @@ bool ConvertToPrinter(const std::string& service_type,
     // a service other than the ones above.
     NOTREACHED() << "Zeroconf printer with unknown service type "
                  << service_description.service_type();
-    return false;
   }
 
   if (!uri.SetHostEncoded(service_description.address.HostForURL()) ||
@@ -255,13 +265,13 @@ bool ConvertToPrinter(const std::string& service_type,
         metadata.pdl, ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
     if (!media_types.empty() && !media_types.back().empty()) {
       // Prune any empty splits.
-      base::EraseIf(media_types, [](base::StringPiece s) { return s.empty(); });
+      std::erase_if(media_types, [](std::string_view s) { return s.empty(); });
 
-      base::ranges::transform(
+      std::ranges::transform(
           media_types,
           std::back_inserter(
               detected_printer->ppd_search_data.supported_document_formats),
-          [](base::StringPiece s) { return base::ToLowerASCII(s); });
+          [](std::string_view s) { return base::ToLowerASCII(s); });
     }
   }
 
@@ -295,7 +305,7 @@ class ZeroconfPrinterDetectorImpl : public ZeroconfPrinterDetector {
     }
   }
 
-  ~ZeroconfPrinterDetectorImpl() override {}
+  ~ZeroconfPrinterDetectorImpl() override = default;
 
   // PrinterDetector override.
   void RegisterPrintersFoundCallback(OnPrintersFoundCallback cb) override {
@@ -378,6 +388,8 @@ class ZeroconfPrinterDetectorImpl : public ZeroconfPrinterDetector {
     DCHECK(lister_entry != device_listers_.end());
     lister_entry->second->DiscoverNewDevices();
   }
+
+  void OnPermissionRejected() override {}
 
   // Create a new device lister for the given |service_type| and add it
   // to the ones managed by this object.

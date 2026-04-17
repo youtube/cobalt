@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/events/ozone/evdev/event_device_test_util.h"
 
 #include <stdint.h>
@@ -1489,6 +1494,71 @@ const DeviceCapabilities kSymbolTechBarcodeScanner = {
     /* abs_axis */ nullptr,
     /* abs_axis_count */ 0,
     /* kbd_function_row_physmap */ "",
+    /* kbd_top_row_layout */ "",
+};
+
+const DeviceAbsoluteAxis kRexHeatmapTouchScreenAbsAxes[] = {
+    {ABS_X, {0, 0, 3600, 0, 0, 12}},
+    {ABS_Y, {0, 0, 2256, 0, 0, 12}},
+    {ABS_PRESSURE, {0, 0, 255, 0, 0, 0}},
+    {ABS_MT_SLOT, {0, 0, 9, 0, 0, 0}},
+    {ABS_MT_TOUCH_MAJOR, {0, 0, 255, 0, 0, 1}},
+    {ABS_MT_TOUCH_MINOR, {0, 0, 255, 0, 0, 1}},
+    {ABS_MT_ORIENTATION, {0, 0, 1, 0, 0, 0}},
+    {ABS_MT_POSITION_X, {0, 0, 3600, 0, 0, 12}},
+    {ABS_MT_POSITION_Y, {0, 0, 2256, 0, 0, 12}},
+    {ABS_MT_TOOL_TYPE, {0, 0, 2, 0, 0, 0}},
+    {ABS_MT_TRACKING_ID, {0, 0, 65535, 0, 0, 0}},
+    {ABS_MT_PRESSURE, {0, 0, 255, 0, 0, 0}},
+};
+
+const DeviceCapabilities kRexHeatmapTouchScreen = {
+    /* path */
+    "/sys/devices/pci0000:00/0000:00:1e.2/pxa2xx-spi.6/spi_master/spi0/"
+    "spi-ELAN9006:00/001C:04F3:4222.0001/input/input6/event5",
+    /* name */ "spi 04F3:4222",
+    /* phys */ "spi-ELAN9006:00",
+    /* uniq */ "",
+    /* bustype */ "001c",
+    /* vendor */ "04f3",
+    /* product */ "4222",
+    /* version */ "0300",
+    /* prop */ "2",
+    /* ev */ "1b",
+    /* key */ "400 0 0 0 0 0",
+    /* rel */ "0",
+    /* abs */ "6f3800001000003",
+    /* msc */ "20",
+    /* sw */ "0",
+    /* led */ "0",
+    /* ff */ "0",
+    kRexHeatmapTouchScreenAbsAxes,
+    std::size(kRexHeatmapTouchScreenAbsAxes),
+};
+
+const DeviceCapabilities kSplitModifierKeyboard = {
+    /* path */ "/sys/devices/platform/i8042/serio0/input/input3/event3",
+    /* name */ "AT Translated Set 2 keyboard",
+    /* phys */ "isa0060/serio0/input0",
+    /* uniq */ "",
+    /* bustype */ "0011",
+    /* vendor */ "0001",
+    /* product */ "0001",
+    /* version */ "ab83",
+    /* prop */ "0",
+    /* ev */ "120013",
+    /* key */
+    "80 0 10000 0 10000000000000 0 100006300000000 180201040004000 "
+    "3d1ebfdf53cfff9f fbfffffffffffffe",
+    /* rel */ "0",
+    /* abs */ "0",
+    /* msc */ "10",
+    /* sw */ "0",
+    /* led */ "7",
+    /* ff */ "0",
+    /* abs_axis */ nullptr,
+    /* abs_axis_count */ 0,
+    /* kbd_function_row_physmap */ "EA E7 91 92 93 94 95 97 98 9A 9B A0 B0 AE",
     /* kbd_top_row_layout */ "",
 };
 

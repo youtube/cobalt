@@ -93,7 +93,35 @@ d3d11::BlendStateKey RenderStateCache::GetBlendStateKey(const gl::Context *conte
         {
             key.blendStateExt.setEnabledIndexed(keyBlendIndex, true);
             key.blendStateExt.setEquationsIndexed(keyBlendIndex, sourceIndex, blendStateExt);
-            key.blendStateExt.setFactorsIndexed(keyBlendIndex, sourceIndex, blendStateExt);
+
+            // MIN and MAX operations do not need factors, so use default values to further
+            // reduce the number of unique keys. Additionally, ID3D11Device::CreateBlendState
+            // fails if SRC1 factors are specified together with MIN or MAX operations.
+            const gl::BlendEquationType equationColor =
+                blendStateExt.getEquationColorIndexed(sourceIndex);
+            const gl::BlendEquationType equationAlpha =
+                blendStateExt.getEquationAlphaIndexed(sourceIndex);
+            const bool setColorFactors = equationColor != gl::BlendEquationType::Min &&
+                                         equationColor != gl::BlendEquationType::Max;
+            const bool setAlphaFactors = equationAlpha != gl::BlendEquationType::Min &&
+                                         equationAlpha != gl::BlendEquationType::Max;
+            if (setColorFactors || setAlphaFactors)
+            {
+                const gl::BlendFactorType srcColor =
+                    setColorFactors ? blendStateExt.getSrcColorIndexed(sourceIndex)
+                                    : gl::BlendFactorType::One;
+                const gl::BlendFactorType dstColor =
+                    setColorFactors ? blendStateExt.getDstColorIndexed(sourceIndex)
+                                    : gl::BlendFactorType::Zero;
+                const gl::BlendFactorType srcAlpha =
+                    setAlphaFactors ? blendStateExt.getSrcAlphaIndexed(sourceIndex)
+                                    : gl::BlendFactorType::One;
+                const gl::BlendFactorType dstAlpha =
+                    setAlphaFactors ? blendStateExt.getDstAlphaIndexed(sourceIndex)
+                                    : gl::BlendFactorType::Zero;
+                key.blendStateExt.setFactorsIndexed(keyBlendIndex, srcColor, dstColor, srcAlpha,
+                                                    dstAlpha);
+            }
         }
         keyBlendIndex++;
     }
@@ -190,7 +218,8 @@ angle::Result RenderStateCache::getRasterizerState(const gl::Context *context,
     }
 
     D3D11_RASTERIZER_DESC rasterDesc;
-    rasterDesc.FillMode              = D3D11_FILL_SOLID;
+    rasterDesc.FillMode =
+        rasterState.polygonMode == gl::PolygonMode::Fill ? D3D11_FILL_SOLID : D3D11_FILL_WIREFRAME;
     rasterDesc.CullMode              = cullMode;
     rasterDesc.FrontCounterClockwise = (rasterState.frontFace == GL_CCW) ? FALSE : TRUE;
     rasterDesc.DepthClipEnable       = !rasterState.depthClamp;
@@ -198,7 +227,7 @@ angle::Result RenderStateCache::getRasterizerState(const gl::Context *context,
     rasterDesc.MultisampleEnable     = rasterState.multiSample;
     rasterDesc.AntialiasedLineEnable = FALSE;
 
-    if (rasterState.polygonOffsetFill)
+    if (rasterState.isPolygonOffsetEnabled())
     {
         rasterDesc.DepthBias            = (INT)rasterState.polygonOffsetUnits;
         rasterDesc.DepthBiasClamp       = rasterState.polygonOffsetClamp;

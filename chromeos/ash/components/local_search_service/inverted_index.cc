@@ -58,8 +58,8 @@ TfidfCache BuildTfidf(uint32_t num_docs_from_last_update,
                       const Dictionary& dictionary,
                       const TermSet& terms_to_be_updated,
                       const TfidfCache& tfidf_cache) {
-  // TODO(crbug/1137560): consider moving the helper functions inside the class
-  // so that we can use SequenceChecker.
+  // TODO(crbug.com/40152719): consider moving the helper functions inside the
+  // class so that we can use SequenceChecker.
   TfidfCache new_cache(tfidf_cache);
   // If number of documents doesn't change from the last time index was built,
   // we only need to update terms in |terms_to_be_updated|. Otherwise we need
@@ -174,8 +174,10 @@ InvertedIndex::InvertedIndex() {
 InvertedIndex::~InvertedIndex() = default;
 
 PostingList InvertedIndex::FindTerm(const std::u16string& term) const {
-  if (dictionary_.find(term) != dictionary_.end())
-    return dictionary_.at(term);
+  auto it = dictionary_.find(term);
+  if (it != dictionary_.end()) {
+    return it->second;
+  }
 
   return {};
 }
@@ -281,8 +283,9 @@ void InvertedIndex::UpdateDocuments(
 
 std::vector<TfidfResult> InvertedIndex::GetTfidf(
     const std::u16string& term) const {
-  if (tfidf_cache_.find(term) != tfidf_cache_.end()) {
-    return tfidf_cache_.at(term);
+  auto it = tfidf_cache_.find(term);
+  if (it != tfidf_cache_.end()) {
+    return it->second;
   }
 
   return {};

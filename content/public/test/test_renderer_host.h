@@ -39,17 +39,19 @@ class AuraTestHelper;
 }
 }  // namespace aura
 
-namespace blink {
+namespace network {
 struct ParsedPermissionsPolicyDeclaration;
 using ParsedPermissionsPolicy = std::vector<ParsedPermissionsPolicyDeclaration>;
+}  // namespace network
 
-namespace web_pref {
+namespace blink::web_pref {
 struct WebPreferences;
-}
-}  // namespace blink
+}  // namespace blink::web_pref
 
 namespace display {
+#if BUILDFLAG(IS_ANDROID)
 class Screen;
+#endif
 class ScopedNativeScreen;
 }  // namespace display
 
@@ -102,7 +104,6 @@ class RenderFrameHostTester {
                                     const IPC::Message& msg);
 
   // Commit the load pending in the given |controller| if any.
-  // TODO(ahemery): This should take a WebContents directly.
   static void CommitPendingLoad(NavigationController* controller);
 
   virtual ~RenderFrameHostTester() {}
@@ -120,7 +121,7 @@ class RenderFrameHostTester {
   // used as the container policy.
   virtual RenderFrameHost* AppendChildWithPolicy(
       const std::string& frame_name,
-      const blink::ParsedPermissionsPolicy& allow) = 0;
+      const network::ParsedPermissionsPolicy& allow) = 0;
 
   // Same as AppendChild above, but simulates the `credentialless` attribute
   // being added.
@@ -146,6 +147,9 @@ class RenderFrameHostTester {
   // RenderFrameHost::AddMessageToConsole in this frame.
   virtual const std::vector<std::string>& GetConsoleMessages() = 0;
 
+  // Clears the console messages logged in this frame.
+  virtual void ClearConsoleMessages() = 0;
+
   // Get a count of the total number of heavy ad issues reported.
   virtual int GetHeavyAdIssueCount(HeavyAdIssueType type) = 0;
 
@@ -164,6 +168,11 @@ class RenderFrameHostTester {
   // Creates the WebUsbService and binds `receiver`.
   virtual void CreateWebUsbServiceForTesting(
       mojo::PendingReceiver<blink::mojom::WebUsbService> receiver) = 0;
+
+  // Detaches the LocalFrame mojo connection to the renderer. This is useful
+  // when tests override the creation logic for the LocalFrame and need the
+  // connection to be re-initialized.
+  virtual void ResetLocalFrame() = 0;
 };
 
 // An interface and utility for driving tests of RenderViewHost.
@@ -254,7 +263,7 @@ class RenderViewHostTestHarness : public ::testing::Test {
   NavigationController& controller();
 
   // The contents under test.
-  WebContents* web_contents();
+  WebContents* web_contents() const;
 
   // RVH/RFH getters are shorthand for oft-used bits of web_contents().
 
@@ -294,6 +303,10 @@ class RenderViewHostTestHarness : public ::testing::Test {
   // rely on the focused frame not being null.
   void FocusWebContentsOnMainFrame();
 
+  // Sets the focused frame to the `rfh` for tests that rely on the focused
+  // frame not being null.
+  void FocusWebContentsOnFrame(content::RenderFrameHost* rfh);
+
  protected:
   // testing::Test
   void SetUp() override;
@@ -330,7 +343,7 @@ class RenderViewHostTestHarness : public ::testing::Test {
 
   std::unique_ptr<ContentBrowserConsistencyChecker> consistency_checker_;
 
-  // TODO(crbug.com/1011275): This is a temporary work around to fix flakiness
+  // TODO(crbug.com/40101830): This is a temporary work around to fix flakiness
   // on tests. The default behavior of the network stack is to allocate a
   // leaking SystemDnsConfigChangeNotifier. This holds on to a set of
   // FilePathWatchers on Posix and ObjectWatchers on Windows that outlive
@@ -349,7 +362,7 @@ class RenderViewHostTestHarness : public ::testing::Test {
 #if BUILDFLAG(IS_WIN)
   std::unique_ptr<ui::ScopedOleInitializer> ole_initializer_;
 #endif
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_APPLE)
   std::unique_ptr<display::ScopedNativeScreen> screen_;
 #endif
 #if defined(USE_AURA)

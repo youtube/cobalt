@@ -23,6 +23,15 @@ enum ProfileInstallResult {
   kErrorInvalidActivationCode,  // Given activation code is invalid.
 };
 
+// Represents the method used for eSIM profile installation attempts.
+enum ProfileInstallMethod {
+  kViaSmds,
+  kViaQrCodeAfterSmds,
+  kViaQrCodeSkippedSmds,
+  kViaActivationCodeAfterSmds,
+  kViaActivationCodeSkippedSmds,
+};
+
 // Result code for operations on Euicc and ESimProfile.
 enum ESimOperationResult {
     kSuccess,                     // Operation succeeded.
@@ -95,10 +104,11 @@ interface ESimManager {
   GetAvailableEuiccs() => (array<pending_remote<Euicc>> euiccs);
 };
 
-// Euicc interface represents an EUICC (Embedded Universal Integrated
-// Circuit Card) hardware available on the device and provides operations
-// on the EUICC. Each Euicc may have multiple ESimProfiles installed/pending
-// under it.
+// Euicc interface represents an EUICC (Embedded Universal Integrated Circuit
+// Card) hardware available on the device and provides operations on the EUICC.
+// Each Euicc may have multiple ESimProfiles installed/pending under it.
+// Instances of this interface are owned in the browser process in Ash. They
+// will be accessed from WebUI or System UI code in the browser process.
 interface Euicc {
   // Returns properties struct for this Euicc.
   GetProperties() => (EuiccProperties properties);
@@ -108,12 +118,15 @@ interface Euicc {
   // profiles on the Euicc.
   GetProfileList() => (array<pending_remote<ESimProfile>> profiles);
 
-  // Starts a request for pending profiles for this Euicc from SMDS.
-  // Returns a status indicating result of the operation. This
-  // method updates the pending profiles list before succeeding. This method
-  // is used to allow the user to explicit trigger a request to check for
-  // new profiles that may have been pushed to SMDS.
-  RequestPendingProfiles() => (ESimOperationResult result);
+  // Performs SM-DS scans against verified SM-DS servers and requests all
+  // profiles available for this device. This method will return the combined
+  // list of all profiles found across all SM-DS servers.
+  RequestAvailableProfiles() =>
+    (ESimOperationResult result, array<ESimProfileProperties> profiles);
+
+  // Refreshes the list of profiles installed on this EUICC. This operation
+  // will also update the cache of profiles that Chrome uses for the UI.
+  RefreshInstalledProfiles() => (ESimOperationResult result);
 
   // Installs a profile with given |activation_code| and |confirmation_code|
   // on this Euicc. Returns the  result code and ESimProfile that was just
@@ -122,11 +135,11 @@ interface Euicc {
   // previous call to RequestPendingProfiles or directly from the user through
   // a QR code. If |confirmation_code| is required but not supplied or if it’s
   // invalid then a kErrorNeedsConfirmationCode result is returned. The
-  // |is_install_via_qr_code| value should indicate whether the activation_code
-  // was entered manually or scanned from QR Code.
+  // |install_method| value indicates the method used for this installation
+  // attempt, e.g. via QR code.
   InstallProfileFromActivationCode(string activation_code,
                                    string confirmation_code,
-                                   bool is_install_via_qr_code) =>
+                                   ProfileInstallMethod install_method) =>
     (ProfileInstallResult result, pending_remote<ESimProfile>? profile);
 
   // Returns a QR Code image representing the EID of this Euicc. A null value is

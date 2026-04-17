@@ -4,13 +4,16 @@
 
 #include "chrome/browser/ash/login/saml/password_sync_token_verifier_factory.h"
 
-#include "chrome/browser/ash/login/saml/in_session_password_sync_manager_factory.h"
+#include <memory>
+
+#include "base/no_destructor.h"
 #include "chrome/browser/ash/login/saml/password_sync_token_verifier.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/profiles/profile_keyed_service_factory.h"
+#include "chrome/browser/profiles/profile_selections.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/user_manager/user.h"
-#include "components/user_manager/user_manager.h"
 #include "content/public/browser/browser_context.h"
 
 namespace ash {
@@ -18,7 +21,8 @@ namespace ash {
 // static
 PasswordSyncTokenVerifierFactory*
 PasswordSyncTokenVerifierFactory::GetInstance() {
-  return base::Singleton<PasswordSyncTokenVerifierFactory>::get();
+  static base::NoDestructor<PasswordSyncTokenVerifierFactory> instance;
+  return instance.get();
 }
 
 // static
@@ -33,16 +37,18 @@ PasswordSyncTokenVerifierFactory::PasswordSyncTokenVerifierFactory()
           "PasswordSyncTokenVerifier",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
+              // TODO(crbug.com/40257657): Check if this service is needed in
               // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
-              .Build()) {
-  DependsOn(InSessionPasswordSyncManagerFactory::GetInstance());
-}
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOriginalOnly)
+              .Build()) {}
 
 PasswordSyncTokenVerifierFactory::~PasswordSyncTokenVerifierFactory() = default;
 
-KeyedService* PasswordSyncTokenVerifierFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+PasswordSyncTokenVerifierFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
   user_manager::User* user = ProfileHelper::Get()->GetUserByProfile(profile);
@@ -52,7 +58,7 @@ KeyedService* PasswordSyncTokenVerifierFactory::BuildServiceInstanceFor(
       !user->using_saml()) {
     return nullptr;
   }
-  return new PasswordSyncTokenVerifier(profile);
+  return std::make_unique<PasswordSyncTokenVerifier>(profile);
 }
 
 }  // namespace ash

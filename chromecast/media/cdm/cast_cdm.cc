@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chromecast/media/cdm/cast_cdm.h"
 
 #include <memory>
@@ -11,7 +16,6 @@
 #include "base/location.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chromecast/media/base/decrypt_context_impl.h"
-#include "chromecast/media/base/media_caps.h"
 #include "chromecast/media/common/media_resource_tracker.h"
 #include "media/base/cdm_key_information.h"
 #include "media/base/cdm_promise.h"
@@ -90,7 +94,6 @@ int HdcpVersionX10(::media::HdcpVersion hdcp_version) {
 
     default:
       NOTREACHED();
-      return 0;
   }
 }
 
@@ -139,7 +142,9 @@ void CastCdm::GetStatusForPolicy(
     ::media::HdcpVersion min_hdcp_version,
     std::unique_ptr<::media::KeyStatusCdmPromise> promise) {
   int min_hdcp_x10 = HdcpVersionX10(min_hdcp_version);
-  int cur_hdcp_x10 = MediaCapabilities::GetHdcpVersion();
+  // TODO(sanfin): Implement a function to get the current HDCP version in the
+  // browser process.
+  int cur_hdcp_x10 = 0;
   promise->resolve(cur_hdcp_x10 >= min_hdcp_x10 ? KeyStatus::USABLE
                                                 : KeyStatus::OUTPUT_RESTRICTED);
 }
@@ -158,9 +163,9 @@ void CastCdm::OnSessionClosed(const std::string& session_id,
 void CastCdm::OnSessionKeysChange(const std::string& session_id,
                                   bool newly_usable_keys,
                                   ::media::CdmKeysInfo keys_info) {
-  logging::LogMessage log_message(__FILE__, __LINE__, logging::LOG_INFO);
+  logging::LogMessage log_message(__FILE__, __LINE__, logging::LOGGING_INFO);
   log_message.stream() << "keystatuseschange ";
-  int status_count[kKeyStatusCount] = {0};
+  int status_count[kKeyStatusCount] = {};
   for (const auto& key_info : keys_info) {
     status_count[key_info->status]++;
   }

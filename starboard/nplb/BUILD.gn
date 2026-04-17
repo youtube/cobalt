@@ -13,8 +13,6 @@
 # limitations under the License.
 
 import("//cobalt/build/configs/hacks.gni")
-import("//starboard/build/buildflags.gni")
-import("//starboard/build/config/os_definitions.gni")
 import("//testing/test.gni")
 
 declare_args() {
@@ -33,6 +31,9 @@ config("wnos") {
     "-Wno-unused-local-typedef",
     "-Wno-unreachable-code",
     "-Wno-unreachable-code-break",
+
+    # Do not warn about variable length arrays
+    "-Wno-vla-cxx-extension",
   ]
 }
 
@@ -41,10 +42,6 @@ test("nplb") {
 
   # TODO(b/432821616): Move |media_sources| to a source_set.
   media_sources = [
-    "//starboard/shared/starboard/drm/drm_test_helpers.cc",
-    "//starboard/shared/starboard/drm/drm_test_helpers.h",
-    "//starboard/testing/fake_graphics_context_provider.cc",
-    "//starboard/testing/fake_graphics_context_provider.h",
     "audio_sink_create_test.cc",
     "audio_sink_destroy_test.cc",
     "audio_sink_get_max_channels_test.cc",
@@ -85,10 +82,8 @@ test("nplb") {
     "player_write_sample_test.cc",
   ]
 
-  sources = [ "//starboard/common/test_main.cc" ]
-
   # All platforms use the Starboard Media functionality.
-  sources += media_sources
+  sources = media_sources
 
   if (is_starboard) {
     # TODO(b/432821616): Move |starboard_platform_sources| to a source_set.
@@ -96,7 +91,6 @@ test("nplb") {
       "align_test.cc",
       "char_is_signed_test.cc",
       "configuration_test.cc",
-      "cpu_features_get_test.cc",
       "egl_test.cc",
       "extern_c_test.cc",
       "file_atomic_replace_test.cc",
@@ -124,6 +118,7 @@ test("nplb") {
       "posix_compliance/malloc_usable_size_test.cc",
       "posix_compliance/posix_aligned_alloc_test.cc",
       "posix_compliance/posix_arpa_inet_test.cc",
+      "posix_compliance/posix_asctime_r_test.cc",
       "posix_compliance/posix_auxv_getauxval_test.cc",
       "posix_compliance/posix_clock_nanosleep_test.cc",
       "posix_compliance/posix_condition_variable_broadcast_test.cc",
@@ -132,6 +127,7 @@ test("nplb") {
       "posix_compliance/posix_condition_variable_signal_test.cc",
       "posix_compliance/posix_condition_variable_wait_test.cc",
       "posix_compliance/posix_condition_variable_wait_timed_test.cc",
+      "posix_compliance/posix_ctime_r_test.cc",
       "posix_compliance/posix_directory_get_next_readdir_r_test.cc",
       "posix_compliance/posix_directory_get_next_readdir_test.cc",
       "posix_compliance/posix_directory_open_test.cc",
@@ -143,6 +139,7 @@ test("nplb") {
       "posix_compliance/posix_epoll_wait_test.cc",
       "posix_compliance/posix_eventfd_test.cc",
       "posix_compliance/posix_fcntl_test.cc",
+      "posix_compliance/posix_fdopendir_test.cc",
       "posix_compliance/posix_file_can_open_test.cc",
       "posix_compliance/posix_file_close_test.cc",
       "posix_compliance/posix_file_delete_test.cc",
@@ -162,6 +159,14 @@ test("nplb") {
       "posix_compliance/posix_getcwd_test.cc",
       "posix_compliance/posix_isatty_test.cc",
       "posix_compliance/posix_link_test.cc",
+      "posix_compliance/posix_locale_helpers.cc",
+      "posix_compliance/posix_locale_helpers.h",
+      "posix_compliance/posix_locale_langinfo_test.cc",
+      "posix_compliance/posix_locale_langinfo_test_data.cc.inc",
+      "posix_compliance/posix_locale_localeconv_test.cc",
+      "posix_compliance/posix_locale_localeconv_test_data.cc.inc",
+      "posix_compliance/posix_locale_set_test.cc",
+      "posix_compliance/posix_locale_thread_test.cc",
       "posix_compliance/posix_lstat_test.cc",
       "posix_compliance/posix_memory_allocate_test.cc",
       "posix_compliance/posix_memory_deallocate_aligned_test.cc",
@@ -180,6 +185,7 @@ test("nplb") {
       "posix_compliance/posix_poll_test.cc",
       "posix_compliance/posix_posix_memory_allocate_aligned_test.cc",
       "posix_compliance/posix_prctl_test.cc",
+      "posix_compliance/posix_priority_test.cc",
       "posix_compliance/posix_process_test.cc",
       "posix_compliance/posix_rand_r_test.cc",
       "posix_compliance/posix_rand_test.cc",
@@ -187,6 +193,8 @@ test("nplb") {
       "posix_compliance/posix_readlink_test.cc",
       "posix_compliance/posix_realpath_test.cc",
       "posix_compliance/posix_rename_test.cc",
+      "posix_compliance/posix_resource_limit_test.cc",
+      "posix_compliance/posix_sched_getaffinity_test.cc",
       "posix_compliance/posix_select_test.cc",
       "posix_compliance/posix_semaphore_test.cc",
       "posix_compliance/posix_signal_test.cc",
@@ -210,6 +218,8 @@ test("nplb") {
       "posix_compliance/posix_socket_shutdown_test.cc",
       "posix_compliance/posix_socketpair_test.cc",
       "posix_compliance/posix_stat_test.cc",
+      "posix_compliance/posix_stdio_test.cc",
+      "posix_compliance/posix_strftime_test.cc",
       "posix_compliance/posix_string_compare_no_case_n_test.cc",
       "posix_compliance/posix_string_compare_no_case_test.cc",
       "posix_compliance/posix_string_format_test.cc",
@@ -236,6 +246,7 @@ test("nplb") {
       "posix_compliance/posix_thread_rwlock_test.cc",
       "posix_compliance/posix_thread_set_name_test.cc",
       "posix_compliance/posix_thread_sleep_test.cc",
+      "posix_compliance/posix_thread_static_init_test.cc",
       "posix_compliance/posix_thread_yield_test.cc",
       "posix_compliance/posix_time_clock_gettime_test.cc",
       "posix_compliance/posix_time_clock_test.cc",
@@ -310,15 +321,6 @@ test("nplb") {
       "window_get_size_test.cc",
     ]
     sources += starboard_platform_sources
-    if (enable_cobalt_hermetic_hacks) {
-      sources -= [
-        # TODO: b/400512503 - Fix build errors.
-        "posix_compliance/posix_condition_variable_wait_test.cc",
-        "posix_compliance/posix_condition_variable_wait_timed_test.cc",
-        "thread_test.cc",
-        "vertical_video_test.cc",
-      ]
-    }
   }
 
   configs += [
@@ -331,20 +333,21 @@ test("nplb") {
 
   deps = [
     "//starboard:starboard_group",
+    "//starboard:starboard_test_main",
     "//starboard/common",
     "//starboard/common:file_wrapper",
+    "//starboard/egl_and_gles:buildflags",
     "//starboard/nplb/compiler_compliance:cpp14_supported",
+    "//starboard/shared/starboard/drm:drm_test_helpers",
     "//starboard/shared/starboard/media:media_util",
+    "//starboard/shared/starboard/player:player_test_data",
     "//starboard/shared/starboard/player:video_dmp",
+    "//starboard/testing:fake_graphics_context_provider",
     "//testing/gmock",
     "//testing/gtest",
   ]
 
   deps += cobalt_platform_dependencies
-
-  if (is_internal_build) {
-    deps += [ "//internal/starboard/private/nplb:nplb_private" ]
-  }
 
   if (sb_enable_cpp17_audit) {
     deps += [ "//starboard/nplb/compiler_compliance:cpp17_supported" ]
@@ -354,20 +357,11 @@ test("nplb") {
     deps += [ "//starboard/nplb/compiler_compliance:cpp20_supported" ]
   }
 
-  data_deps = [
-    "//starboard/nplb/testdata/file_tests:nplb_file_tests_data",
-    "//starboard/shared/starboard/player:player_download_test_data",
-  ]
-
-  if (is_clang) {
-    # signedness_and_size_of_enum_test.cc casts -1 to enum value
-    cflags = [ "-Wno-enum-constexpr-conversion" ]
-  }
+  data_deps = [ "//starboard/nplb/testdata/file_tests:nplb_file_tests_data" ]
 
   if (sb_is_evergreen_compatible) {
     sources += [
       "nplb_evergreen_compat_tests/checks.h",
-      "nplb_evergreen_compat_tests/crashpad_config_test.cc",
       "nplb_evergreen_compat_tests/executable_memory_test.cc",
       "nplb_evergreen_compat_tests/fonts_test.cc",
       "nplb_evergreen_compat_tests/loader_app_metrics_test.cc",
@@ -375,6 +369,11 @@ test("nplb") {
       "nplb_evergreen_compat_tests/sabi_test.cc",
       "nplb_evergreen_compat_tests/storage_test.cc",
     ]
+
+    if (use_evergreen) {
+      sources += [ "nplb_evergreen_compat_tests/crashpad_config_test.cc" ]
+    }
+
     data_deps += [
       "//starboard/content/fonts:copy_font_data",
       "//starboard/content/ssl:copy_ssl_certificates_evergreen",

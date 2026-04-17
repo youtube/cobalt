@@ -10,58 +10,52 @@ since the version previous to it.
 ## Version 17
 Starboard 17 fully switches to POSIX APIs.
 
+### Removed SbCPUFeaturesGet
+The functionality is migrated to use `getauxval` instead.
+
 ### Added the following POSIX symbols:
+* `access`
 * `aligned_alloc`
-* `fdatasync`
+* `chmod`
+* `clock_nanosleep`
 * `dup`
 * `dup2`
 * `epoll_create`
 * `epoll_create1`
 * `epoll_ctl`
 * `epoll_wait`
+* `eventfd`
+* `fchmod`
+* `fchown`
+* `fdatasync`
+* `fdopendir`
+* `fstatat`
+* `gai_strerror`
+* `getauxval`
 * `getcwd`
+* `geteuid`
 * `getpeername`
+* `getpid`
+* `getpriority`
+* `getrlimit`
 * `getsockopt`
 * `isatty`
 * `kill`
 * `link`
-* `lstat`
 * `madvise`
 * `malloc_usable_size`
 * `mincore`
 * `mkdtemp`
 * `mkostemp`
 * `mkstemp`
+* `openat`
+* `pathconf`
 * `pause`
 * `pipe`
-* `pread`
-* `pwrite`
-* `raise`
-* `rand`
-* `rand_r`
-* `readlink`
-* `recvmsg`
-* `rename`
-* `sched_get_priority_max`
-* `sched_get_priority_min`
-* `select`
-* `signal`
-* `srand`
-* `symlink`
-* `recvmmsg`
-* `access`
-* `chmod`
-* `clock_nanosleep`
-* `eventfd`
-* `fchmod`
-* `fchown`
-* `gai_strerror`
-* `getauxval`
-* `geteuid`
-* `getpid`
-* `pathconf`
 * `pipe2`
 * `poll`
+* `prctl`
+* `pread`
 * `pthread_attr_getschedpolicy`
 * `pthread_attr_getscope`
 * `pthread_attr_getstack`
@@ -86,37 +80,66 @@ Starboard 17 fully switches to POSIX APIs.
 * `pthread_rwlock_wrlock`
 * `pthread_setschedparam`
 * `pthread_sigmask`
+* `pwrite`
+* `raise`
+* `rand`
+* `rand_r`
 * `readdir`
+* `readlink`
+* `readv`
 * `realpath`
+* `recvmmsg`
+* `recvmsg`
+* `rename`
+* `sched_getaffinity`
+* `sched_get_priority_max`
+* `sched_get_priority_min`
+* `select`
 * `sem_destroy`
 * `sem_init`
 * `sem_post`
 * `sem_timedwait`
 * `sem_wait`
 * `sendmsg`
+* `setpriority`
 * `shutdown`
 * `sigaction`
+* `signal`
 * `socketpair`
+* `srand`
 * `statvfs`
+* `symlink`
 * `sysconf`
 * `uname`
+* `unlinkat`
 * `utimensat`
 * `writev`
+
+### Removed the following POSIX Symbols:
+The following were removed in favor of more modern POSIX APIs added above.
+* `open`
+* `stat`
 
 ### From `starboard/time_zone.h`
  * Removed `SbTimeZoneGetCurrent`. The time offset is now derived
    from the name returned by `SbTimeZoneGetName`, using the zoneinfo
    that is in the included ICU data.
 
-### Removed the followoing SbEvents:
+### Introduces new system property kSbSystemPathFilesDirectory.
+
+Path to directory for permanent storage. Both read and write access are
+required. The path is used primarily for DOM localStorage and HTTP cookies
+persistence.
+
+### Removed the following SbEvents:
 * `kSbEventTypeUser`.
 * `kSbEventTypeAccessibilitySettingsChanged`
 * `kSbEventTypeAccessibilityCaptionSettingsChanged`
-* `kSbEventTypeAccessibilityTextToSpeechSettingsChanged`
 * `kSbEventTypeOnScreenKeyboardShown`
 * `kSbEventTypeOnScreenKeyboardHidden`
 * `kSbEventTypeOnScreenKeyboardFocused`
 * `kSbEventTypeOnScreenKeyboardBlurred`
+* `kSbEventTypeVerticalSync`
 
 ### Removed `starboard/accessibility.h`
 The functionality is migrated to a starboard extension.
@@ -164,10 +187,17 @@ Their Sb prefixes were removed and renamed to `MediaIsAudioSupported()`,
 `MediaIsSupported()`, and `MediaIsVideoSupported()`.  They are also moved from
 the global namespace into ::starboard::shared::starboard::media.
 
+### Updated `kSbEventTypeAccessibilityTextToSpeechSettingsChanged` SbEvent
+Now the data field of this SbEvent type is a boolean indicating if text-to-speech is enabled.
+
+### Removed unused methods
+* `SbMediaGetMaxBufferCapacity`. This method is no longer used. Use
+  `SbMediaGetAudioBufferBudget` and `SbMediaGetVideoBufferBudget` instead.
+
 ## Version 16
 A key update in Starboard version 16 is the adoption of POSIX APIs.
 For a full overview of Starboard POSIX migrations, please refer to
-[migration guide](/starboard/doc/starboard_16_posix.md).
+[migration guide](/starboard/doc/starboard_17_posix.md).
 
 #### Added new configuration constant `kHasPartialAudioFramesSupport`
 Set this to true if your platform supports partial audio frames.

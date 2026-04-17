@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 
+#include <array>
 #include <string>
 
 #include "base/functional/callback.h"
@@ -36,7 +37,7 @@ class ImmutableArray {
   }
 
  private:
-  T data_[size];
+  std::array<T, size> data_;
 };
 
 // Creates a corrupt file to be used in tests.

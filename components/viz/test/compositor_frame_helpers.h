@@ -6,17 +6,19 @@
 #define COMPONENTS_VIZ_TEST_COMPOSITOR_FRAME_HELPERS_H_
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/memory/weak_ptr.h"
 #include "components/viz/common/quads/compositor_frame.h"
 #include "components/viz/common/quads/compositor_render_pass.h"
 #include "components/viz/common/quads/frame_deadline.h"
+#include "components/viz/common/quads/offset_tag.h"
 #include "components/viz/common/resources/transferable_resource.h"
 #include "components/viz/common/surfaces/surface_id.h"
 #include "components/viz/service/display/aggregated_frame.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/skia/include/core/SkBlendMode.h"
+#include "ui/gfx/video_types.h"
 #include "ui/latency/latency_info.h"
 
 namespace viz {
@@ -45,12 +47,11 @@ struct RenderPassQuadParams {
 
 struct TextureQuadParams {
   bool needs_blending = false;
-  bool premultiplied_alpha = false;
   SkColor4f background_color = SkColors::kGreen;
-  float vertex_opacity[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-  bool flipped = false;
   bool nearest_neighbor = false;
   bool secure_output_only = false;
+  gfx::ProtectedVideoType protected_video_type =
+      gfx::ProtectedVideoType::kClear;
 };
 
 // Helper to build a CompositorRenderPass and add quads to it. By default the
@@ -84,6 +85,7 @@ class RenderPassBuilder {
   RenderPassBuilder& SetHasDamageFromContributingContent(bool val);
   RenderPassBuilder& AddFilter(const cc::FilterOperation& filter);
   RenderPassBuilder& AddBackdropFilter(const cc::FilterOperation& filter);
+  RenderPassBuilder& SetTransformToRootTarget(const gfx::Transform& transform);
 
   // Creates a new stub CopyOutputRequest and adds it to the render pass. If
   // |request_out| is not null the pointer will set to the newly created
@@ -151,7 +153,7 @@ class RenderPassBuilder {
   RenderPassBuilder& SetQuadOpacity(float opacity);
 
   // Sets SharedQuadState::clip_rect for the last quad.
-  RenderPassBuilder& SetQuadClipRect(absl::optional<gfx::Rect> clip_rect);
+  RenderPassBuilder& SetQuadClipRect(std::optional<gfx::Rect> clip_rect);
 
   // Sets the damage_rect for the last quad. This is only valid to call if the
   // last quad has a `damage_rect` member.
@@ -167,6 +169,13 @@ class RenderPassBuilder {
 
   // Sets SharedQuadState::layer_id for the last quad.
   RenderPassBuilder& SetQuadLayerId(uint32_t layer_id);
+
+  // Sets SharedQuadState::offset_tag for the last quad.
+  RenderPassBuilder& SetQuadOffsetTag(const OffsetTag& tag);
+
+  // Sets SharedQuadState::mask_filter_info for the last quad.
+  RenderPassBuilder& SetQuadMaskFilterInfo(
+      const gfx::MaskFilterInfo& mask_filter_info);
 
  private:
   // Appends and returns a new SharedQuadState for quad.
@@ -236,14 +245,18 @@ class CompositorFrameBuilder {
       std::vector<SurfaceId> activation_dependencies);
   CompositorFrameBuilder& SetDeadline(const FrameDeadline& deadline);
   CompositorFrameBuilder& SetSendFrameTokenToEmbedder(bool send);
+  CompositorFrameBuilder& SetIsHandlingInteraction(
+      bool is_handling_interaction);
 
   CompositorFrameBuilder& AddDelegatedInkMetadata(
       const gfx::DelegatedInkMetadata& metadata);
+  CompositorFrameBuilder& AddOffsetTagDefinition(
+      const OffsetTagDefinition& definition);
 
  private:
   CompositorFrame MakeInitCompositorFrame() const;
 
-  absl::optional<CompositorFrame> frame_;
+  std::optional<CompositorFrame> frame_;
   CompositorRenderPassId::Generator render_pass_id_generator_;
 };
 
@@ -265,6 +278,9 @@ CompositorFrame MakeCompositorFrame(CompositorRenderPassList render_pass_list);
 
 // Makes an aggregated frame out of the default compositor frame.
 AggregatedFrame MakeDefaultAggregatedFrame(size_t num_render_passes = 1);
+
+CompositorFrame MakeDefaultInteractiveCompositorFrame(
+    uint64_t source_id = BeginFrameArgs::kManualSourceId);
 
 // Creates a CompositorFrame that will be valid once its render_pass_list is
 // initialized.

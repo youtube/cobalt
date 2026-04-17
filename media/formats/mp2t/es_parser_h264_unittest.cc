@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "media/formats/mp2t/es_parser_h264.h"
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -10,13 +12,13 @@
 #include <vector>
 
 #include "base/check.h"
+#include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "media/base/stream_parser_buffer.h"
-#include "media/formats/mp2t/es_parser_h264.h"
 #include "media/formats/mp2t/es_parser_test_base.h"
-#include "media/video/h264_parser.h"
+#include "media/parsers/h264_parser.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {
@@ -120,11 +122,12 @@ void EsParserH264Test::InsertAUD() {
     access_units_with_aud[k].offset = offset;
     access_units_with_aud[k].size = access_units_[k].size + sizeof(aud);
 
-    memcpy(&stream_with_aud[offset], aud, sizeof(aud));
+    UNSAFE_TODO(memcpy(&stream_with_aud[offset], aud, sizeof(aud)));
     offset += sizeof(aud);
 
-    memcpy(&stream_with_aud[offset],
-           &stream_[access_units_[k].offset], access_units_[k].size);
+    UNSAFE_TODO(memcpy(&stream_with_aud[offset],
+                       &stream_[access_units_[k].offset],
+                       access_units_[k].size));
     offset += access_units_[k].size;
   }
 

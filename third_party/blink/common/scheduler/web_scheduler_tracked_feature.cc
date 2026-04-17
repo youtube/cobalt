@@ -8,6 +8,8 @@
 #include <map>
 #include <vector>
 
+#include "third_party/blink/public/common/features.h"
+
 namespace blink {
 namespace scheduler {
 
@@ -23,110 +25,129 @@ struct FeatureNames {
 FeatureNames FeatureToNames(WebSchedulerTrackedFeature feature) {
   switch (feature) {
     case WebSchedulerTrackedFeature::kWebSocket:
-      return {"WebSocket", "WebSocket"};
+      return {"websocket", "WebSocket live connection"};
+    case WebSchedulerTrackedFeature::kWebSocketSticky:
+      return {"websocket", "WebSocket used"};
     case WebSchedulerTrackedFeature::kWebTransport:
-      return {"WebTransport", "WebTransport"};
+      return {"webtransport", "WebTransport live connection"};
+    case WebSchedulerTrackedFeature::kWebTransportSticky:
+      return {"webtransport", "WebTransport used"};
     case WebSchedulerTrackedFeature::kWebRTC:
-      return {"WebRTC", "WebRTC"};
+      return {"rtc", "WebRTC live connection"};
+    case WebSchedulerTrackedFeature::kWebRTCSticky:
+      return {"rtc", "WebRTC used"};
     case WebSchedulerTrackedFeature::kMainResourceHasCacheControlNoCache:
-      return {"MainResourceHasCacheControlNoCache",
+      return {"response-cache-control-no-cache",
               "main resource has Cache-Control: No-Cache"};
     case WebSchedulerTrackedFeature::kMainResourceHasCacheControlNoStore:
-      return {"MainResourceHasCacheControlNoStore",
+      return {"response-cache-control-no-store",
               "main resource has Cache-Control: No-Store"};
     case WebSchedulerTrackedFeature::kSubresourceHasCacheControlNoCache:
-      return {"SubresourceHasCacheControlNoCache",
+      return {"response-cache-control-no-cache",
               "subresource has Cache-Control: No-Cache"};
     case WebSchedulerTrackedFeature::kSubresourceHasCacheControlNoStore:
-      return {"SubresourceHasCacheControlNoStore",
+      return {"response-cache-control-no-store",
               "subresource has Cache-Control: No-Store"};
     case WebSchedulerTrackedFeature::kContainsPlugins:
-      return {"ContainsPlugins", "page contains plugins"};
+      return {"plugins", "page contains plugins"};
     case WebSchedulerTrackedFeature::kDocumentLoaded:
-      return {"DocumentLoaded", "document loaded"};
-    case WebSchedulerTrackedFeature::kDedicatedWorkerOrWorklet:
-      return {"DedicatedWorkerOrWorklet",
-              "Dedicated worker or worklet present"};
+      return {"document-loaded", "document loaded"};
     case WebSchedulerTrackedFeature::kSharedWorker:
-      return {"SharedWorker", "Shared worker present"};
+      return {"sharedworker", "Shared worker present"};
     case WebSchedulerTrackedFeature::kOutstandingNetworkRequestFetch:
-      return {"OutstandingNetworkRequestFetch",
-              "outstanding network request (fetch)"};
+      return {"fetch", "outstanding network request (fetch)"};
     case WebSchedulerTrackedFeature::kOutstandingNetworkRequestXHR:
-      return {"OutstandingNetworkRequestXHR",
+      return {"outstanding-network-request",
               "outstanding network request (XHR)"};
     case WebSchedulerTrackedFeature::kOutstandingNetworkRequestOthers:
-      return {"OutstandingNetworkRequestOthers",
+      return {"outstanding-network-request",
               "outstanding network request (others)"};
-    case WebSchedulerTrackedFeature::kOutstandingIndexedDBTransaction:
-      return {"OutstandingIndexedDBTransaction",
-              "outstanding IndexedDB transaction"};
     case WebSchedulerTrackedFeature::kRequestedMIDIPermission:
-      return {"RequestedMIDIPermission", "requested midi permission"};
+      return {"midi", "requested midi permission"};
     case WebSchedulerTrackedFeature::kRequestedAudioCapturePermission:
-      return {"RequestedAudioCapturePermission",
-              "requested audio capture permission"};
+      return {"audio-capture", "requested audio capture permission"};
     case WebSchedulerTrackedFeature::kRequestedVideoCapturePermission:
-      return {"RequestedVideoCapturePermission",
-              "requested video capture permission"};
+      return {"video-capture", "requested video capture permission"};
     case WebSchedulerTrackedFeature::kRequestedBackForwardCacheBlockedSensors:
-      return {"RequestedBackForwardCacheBlockedSensors",
-              "requested sensors permission"};
+      return {"sensors", "requested sensors permission"};
     case WebSchedulerTrackedFeature::kRequestedBackgroundWorkPermission:
-      return {"RequestedBackgroundWorkPermission",
-              "requested background work permission"};
+      return {"background-work", "requested background work permission"};
     case WebSchedulerTrackedFeature::kBroadcastChannel:
-      return {"BroadcastChannel", "requested broadcast channel permission"};
-    case WebSchedulerTrackedFeature::kIndexedDBConnection:
-      return {"IndexedDBConnection", "IndexedDB connection present"};
+      return {"broadcastchannel", "requested broadcast channel permission"};
     case WebSchedulerTrackedFeature::kWebXR:
-      return {"WebXR", "WebXR"};
+      return {"webxrdevice", "WebXR"};
     case WebSchedulerTrackedFeature::kWebLocks:
-      return {"WebLocks", "WebLocks"};
+      return {"lock", "WebLocks"};
     case WebSchedulerTrackedFeature::kWebHID:
-      return {"WebHID", "WebHID"};
+      return {"webhid", "WebHID"};
     case WebSchedulerTrackedFeature::kWebShare:
-      return {"WebShare", "WebShare"};
+      return {"webshare", "WebShare"};
     case WebSchedulerTrackedFeature::kRequestedStorageAccessGrant:
-      return {"RequestedStorageAccessGrant",
-              "requested storage access permission"};
+      return {"storageaccess", "requested storage access permission"};
     case WebSchedulerTrackedFeature::kWebNfc:
-      return {"WebNfc", "WebNfc"};
+      return {"webnfc", "WebNfc"};
     case WebSchedulerTrackedFeature::kPrinting:
-      return {"Printing", "Printing"};
-    case WebSchedulerTrackedFeature::kWebDatabase:
-      return {"WebDatabase", "WebDatabase"};
+      return {base::FeatureList::IsEnabled(
+                  features::kBackForwardCacheUpdateNotRestoredReasonsName)
+                  ? "masked"
+                  : "printing",
+              "Printing"};
     case WebSchedulerTrackedFeature::kPictureInPicture:
-      return {"PictureInPicture", "PictureInPicture"};
-    case WebSchedulerTrackedFeature::kPortal:
-      return {"Portal", "Portal"};
+      return {"pictureinpicturewindow", "PictureInPicture"};
     case WebSchedulerTrackedFeature::kSpeechRecognizer:
-      return {"SpeechRecognizer", "SpeechRecognizer"};
+      return {"speechrecognition", "SpeechRecognizer"};
     case WebSchedulerTrackedFeature::kIdleManager:
-      return {"IdleManager", "IdleManager"};
+      return {"idledetector", "IdleManager"};
     case WebSchedulerTrackedFeature::kPaymentManager:
-      return {"PaymentManager", "PaymentManager"};
-    case WebSchedulerTrackedFeature::kSpeechSynthesis:
-      return {"SpeechSynthesis", "SpeechSynthesis"};
+      return {"paymentrequest", "PaymentManager"};
     case WebSchedulerTrackedFeature::kKeyboardLock:
-      return {"KeyboardLock", "KeyboardLock"};
+      return {"keyboardlock", "KeyboardLock"};
     case WebSchedulerTrackedFeature::kWebOTPService:
-      return {"WebOTPService", "SMSService"};
+      return {"otpcredential", "SMSService"};
     case WebSchedulerTrackedFeature::kOutstandingNetworkRequestDirectSocket:
-      return {"OutstandingNetworkRequestDirectSocket",
+      return {"outstanding-network-request",
               "outstanding network request (direct socket)"};
     case WebSchedulerTrackedFeature::kInjectedJavascript:
-      return {"InjectedJavascript", "External javascript injected"};
+      return {base::FeatureList::IsEnabled(
+                  features::kBackForwardCacheUpdateNotRestoredReasonsName)
+                  ? "masked"
+                  : "injected-javascript",
+              "External javascript injected"};
     case WebSchedulerTrackedFeature::kInjectedStyleSheet:
-      return {"InjectedStyleSheet", "External systesheet injected"};
+      return {base::FeatureList::IsEnabled(
+                  features::kBackForwardCacheUpdateNotRestoredReasonsName)
+                  ? "masked"
+                  : "injected-stylesheet",
+              "External stylesheet injected"};
     case WebSchedulerTrackedFeature::kKeepaliveRequest:
-      return {"KeepaliveRequest", "requests with keepalive set"};
+      return {"response-keep-alive", "requests with keepalive set"};
     case WebSchedulerTrackedFeature::kDummy:
       return {"Dummy", "Dummy for testing"};
-    case WebSchedulerTrackedFeature::kAuthorizationHeader:
-      return {"AuthorizationHeader", "Authorization header used"};
+    case WebSchedulerTrackedFeature::
+        kJsNetworkRequestReceivedCacheControlNoStoreResource:
+      return {"response-cache-control-no-store-with-js-network-request",
+              "JavaScript network request received Cache-Control: no-store "
+              "resource"};
     case WebSchedulerTrackedFeature::kIndexedDBEvent:
-      return {"IndexedDBEvent", "IndexedDB event is pending"};
+      return {"idbversionchangeevent", "IndexedDB event is pending"};
+    case WebSchedulerTrackedFeature::kWebSerial:
+      return {"webserial", "Serial port open"};
+    case WebSchedulerTrackedFeature::kSmartCard:
+      return {"smartcardconnection", "SmartCardContext used"};
+    case WebSchedulerTrackedFeature::kLiveMediaStreamTrack:
+      return {"mediastream", "page has live MediaStreamTrack"};
+    case WebSchedulerTrackedFeature::kUnloadHandler:
+      return {base::FeatureList::IsEnabled(
+                  features::kBackForwardCacheUpdateNotRestoredReasonsName)
+                  ? "unload-handler"
+                  : "unload-listener",
+              "page contains unload handler"};
+    case WebSchedulerTrackedFeature::kParserAborted:
+      return {"parser-aborted", "parser was aborted"};
+    case WebSchedulerTrackedFeature::kWebBluetooth:
+      return {"webbluetooth", "Active Bluetooth connection"};
+    case WebSchedulerTrackedFeature::kWebAuthentication:
+      return {"webauthn", "Active WebAuthn transaction"};
   }
   return {};
 }
@@ -161,12 +182,12 @@ std::string FeatureToShortString(WebSchedulerTrackedFeature feature) {
   return FeatureToNames(feature).short_name;
 }
 
-absl::optional<WebSchedulerTrackedFeature> StringToFeature(
+std::optional<WebSchedulerTrackedFeature> StringToFeature(
     const std::string& str) {
   auto map = ShortStringToFeatureMap();
   auto it = map.find(str);
   if (it == map.end()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return it->second;
 }
@@ -190,32 +211,35 @@ bool IsFeatureSticky(WebSchedulerTrackedFeature feature) {
 }
 
 WebSchedulerTrackedFeatures StickyFeatures() {
-  constexpr WebSchedulerTrackedFeatures features = WebSchedulerTrackedFeatures(
-      WebSchedulerTrackedFeature::kMainResourceHasCacheControlNoStore,
-      WebSchedulerTrackedFeature::kMainResourceHasCacheControlNoCache,
-      WebSchedulerTrackedFeature::kSubresourceHasCacheControlNoStore,
-      WebSchedulerTrackedFeature::kSubresourceHasCacheControlNoCache,
-      WebSchedulerTrackedFeature::kContainsPlugins,
-      WebSchedulerTrackedFeature::kDocumentLoaded,
-      WebSchedulerTrackedFeature::kRequestedMIDIPermission,
-      WebSchedulerTrackedFeature::kRequestedAudioCapturePermission,
-      WebSchedulerTrackedFeature::kRequestedVideoCapturePermission,
-      WebSchedulerTrackedFeature::kRequestedBackForwardCacheBlockedSensors,
-      WebSchedulerTrackedFeature::kRequestedBackgroundWorkPermission,
-      WebSchedulerTrackedFeature::kWebLocks,
-      WebSchedulerTrackedFeature::kRequestedStorageAccessGrant,
-      WebSchedulerTrackedFeature::kWebNfc,
-      WebSchedulerTrackedFeature::kPrinting,
-      WebSchedulerTrackedFeature::kPictureInPicture,
-      WebSchedulerTrackedFeature::kIdleManager,
-      WebSchedulerTrackedFeature::kPaymentManager,
-      WebSchedulerTrackedFeature::kWebOTPService,
-      WebSchedulerTrackedFeature::kInjectedJavascript,
-      WebSchedulerTrackedFeature::kInjectedStyleSheet,
-      WebSchedulerTrackedFeature::kKeepaliveRequest,
-      WebSchedulerTrackedFeature::kDummy,
-      WebSchedulerTrackedFeature::kAuthorizationHeader);
-  return features;
+  return {WebSchedulerTrackedFeature::kMainResourceHasCacheControlNoStore,
+          WebSchedulerTrackedFeature::kMainResourceHasCacheControlNoCache,
+          WebSchedulerTrackedFeature::kSubresourceHasCacheControlNoStore,
+          WebSchedulerTrackedFeature::kSubresourceHasCacheControlNoCache,
+          WebSchedulerTrackedFeature::kContainsPlugins,
+          WebSchedulerTrackedFeature::kDocumentLoaded,
+          WebSchedulerTrackedFeature::kRequestedMIDIPermission,
+          WebSchedulerTrackedFeature::kRequestedAudioCapturePermission,
+          WebSchedulerTrackedFeature::kRequestedVideoCapturePermission,
+          WebSchedulerTrackedFeature::kRequestedBackForwardCacheBlockedSensors,
+          WebSchedulerTrackedFeature::kRequestedBackgroundWorkPermission,
+          WebSchedulerTrackedFeature::kWebLocks,
+          WebSchedulerTrackedFeature::kRequestedStorageAccessGrant,
+          WebSchedulerTrackedFeature::kWebNfc,
+          WebSchedulerTrackedFeature::kPrinting,
+          WebSchedulerTrackedFeature::kPictureInPicture,
+          WebSchedulerTrackedFeature::kIdleManager,
+          WebSchedulerTrackedFeature::kPaymentManager,
+          WebSchedulerTrackedFeature::kWebOTPService,
+          WebSchedulerTrackedFeature::kInjectedJavascript,
+          WebSchedulerTrackedFeature::kInjectedStyleSheet,
+          WebSchedulerTrackedFeature::kKeepaliveRequest,
+          WebSchedulerTrackedFeature::kDummy,
+          WebSchedulerTrackedFeature::
+              kJsNetworkRequestReceivedCacheControlNoStoreResource,
+          WebSchedulerTrackedFeature::kWebRTCSticky,
+          WebSchedulerTrackedFeature::kWebSocketSticky,
+          WebSchedulerTrackedFeature::kWebTransportSticky,
+          WebSchedulerTrackedFeature::kParserAborted};
 }
 
 // static

@@ -12,7 +12,6 @@
 #include "chrome/browser/ash/app_mode/kiosk_app_icon_loader.h"
 #include "components/account_id/account_id.h"
 #include "components/prefs/scoped_user_pref_update.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/image/image_skia.h"
 
 namespace base {
@@ -40,7 +39,7 @@ class KioskAppDataBase {
   const gfx::ImageSkia& icon() const { return icon_; }
 
   // Clears locally cached data.
-  void ClearCache();
+  void ClearCache() const;
 
  protected:
   // Helper to save name and icon to provided dictionary.
@@ -53,10 +52,10 @@ class KioskAppDataBase {
   // This method does not load the icon from disk.
   bool LoadFromDictionary(const base::Value::Dict& dict);
 
-  // Starts loading the icon from |icon_path_|;
+  // Starts loading the icon from `icon_path_`;
   void DecodeIcon(KioskAppIconLoader::ResultCallback callback);
 
-  // Helper to cache |icon| to |cache_dir|.
+  // Helper to cache `icon` to `cache_dir`.
   void SaveIcon(const SkBitmap& icon, const base::FilePath& cache_dir);
 
   // In protected section to allow derived classes to modify.

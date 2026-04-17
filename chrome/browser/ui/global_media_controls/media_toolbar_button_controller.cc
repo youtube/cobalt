@@ -30,13 +30,18 @@ void MediaToolbarButtonController::OnMediaDialogOpened() {
 
 void MediaToolbarButtonController::OnMediaDialogClosed() {
   UpdateToolbarButtonState();
+  // Triggered when media playback is active and a casting session is initiated,
+  // prompting the user to manage their casting session.
   delegate_->MaybeShowStopCastingPromo();
+  // Triggered exclusively for local media content, encourages the user to begin
+  // casting if a compatible sink is available.
+  delegate_->MaybeShowLocalMediaCastingPromo();
 }
 
 void MediaToolbarButtonController::ShowToolbarButton() {
   if (delegate_display_state_ != DisplayState::kShown) {
-    delegate_->Enable();
     delegate_->Show();
+    delegate_->Enable();
     delegate_display_state_ = DisplayState::kShown;
   }
 }
@@ -48,15 +53,17 @@ void MediaToolbarButtonController::UpdateToolbarButtonState() {
   }
 
   if (!item_manager_->HasFrozenItems()) {
-    if (delegate_display_state_ != DisplayState::kHidden)
+    if (delegate_display_state_ != DisplayState::kHidden) {
       delegate_->Hide();
+    }
     delegate_display_state_ = DisplayState::kHidden;
     return;
   }
 
   if (!item_manager_->HasOpenDialog()) {
-    if (delegate_display_state_ != DisplayState::kDisabled)
+    if (delegate_display_state_ != DisplayState::kDisabled) {
       delegate_->Disable();
+    }
     delegate_display_state_ = DisplayState::kDisabled;
   }
 }

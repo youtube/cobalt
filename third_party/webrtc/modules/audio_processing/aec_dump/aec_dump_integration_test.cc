@@ -9,23 +9,30 @@
  */
 
 #include <array>
+#include <cstdint>
 #include <memory>
 #include <utility>
 
+#include "api/audio/audio_processing.h"
+#include "api/audio/builtin_audio_processing_builder.h"
+#include "api/environment/environment_factory.h"
+#include "api/scoped_refptr.h"
 #include "modules/audio_processing/aec_dump/mock_aec_dump.h"
-#include "modules/audio_processing/audio_processing_impl.h"
-#include "modules/audio_processing/include/audio_processing.h"
-#include "modules/audio_processing/test/audio_processing_builder_for_testing.h"
+#include "rtc_base/checks.h"
+#include "test/gmock.h"
+#include "test/gtest.h"
 
 using ::testing::_;
 using ::testing::AtLeast;
 using ::testing::Exactly;
+using ::testing::Matcher;
 using ::testing::StrictMock;
 
 namespace {
-rtc::scoped_refptr<webrtc::AudioProcessing> CreateAudioProcessing() {
-  rtc::scoped_refptr<webrtc::AudioProcessing> apm(
-      webrtc::AudioProcessingBuilderForTesting().Create());
+webrtc::scoped_refptr<webrtc::AudioProcessing> CreateAudioProcessing() {
+  webrtc::scoped_refptr<webrtc::AudioProcessing> apm =
+      webrtc::BuiltinAudioProcessingBuilder().Build(
+          webrtc::CreateEnvironment());
   RTC_DCHECK(apm);
   return apm;
 }
@@ -57,7 +64,8 @@ TEST(AecDumpIntegration,
   frame.fill(0.f);
   webrtc::StreamConfig stream_config(kNumSampleRateHz, kNumChannels);
 
-  EXPECT_CALL(*mock_aec_dump.get(), WriteRenderStreamMessage(_, _, _))
+  EXPECT_CALL(*mock_aec_dump.get(),
+              WriteRenderStreamMessage(Matcher<const int16_t*>(_), _, _))
       .Times(Exactly(1));
 
   apm->AttachAecDump(std::move(mock_aec_dump));

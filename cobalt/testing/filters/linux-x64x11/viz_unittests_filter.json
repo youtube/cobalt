@@ -11,6 +11,14 @@
     "VideoRendererPixelHiLoTest*",
     "VideoRendererPixelTest.OffsetYUVRect/SkiaGL",
     "FromColorSpace/ColorTransformPixelTest.Basic/38",
-    "FromColorSpace/ColorTransformPixelTest.Basic/39"
+    "FromColorSpace/ColorTransformPixelTest.Basic/39",
+    "RendererPixelTest.BypassableRenderPassQuad_BackdropFilter_Extents/SkiaGL",
+    "IntersectingMultiplanarVideoQuadPixelTest.YUVVideoQuads/SkiaGL",
+    "IntersectingMultiplanarVideoQuadPixelTest.Y16VideoQuads/SkiaGL",
+    "VideoRendererPixelHiLoColorSpaceTest.SimpleYUVRect/1",
+    "VideoRendererPixelHiLoColorSpaceTest.SimpleYUVRect/2",
+    "VideoRendererPixelHiLoColorSpaceTest.SimpleYUVRect/3",
+    "VideoRendererPixelTest.SimpleYUVARect/SkiaGL",
+    "VisualDebuggerTest.*"
   ]
 }

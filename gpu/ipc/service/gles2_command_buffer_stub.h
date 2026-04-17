@@ -7,20 +7,16 @@
 
 #include "base/containers/circular_deque.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/weak_ptr.h"
 #include "build/build_config.h"
 #include "gpu/ipc/service/command_buffer_stub.h"
-#include "gpu/ipc/service/image_transport_surface_delegate.h"
 #include "ui/gfx/gpu_fence_handle.h"
 
 namespace gpu {
 
 struct Mailbox;
 
-class GPU_IPC_SERVICE_EXPORT GLES2CommandBufferStub
-    : public CommandBufferStub,
-      public ImageTransportSurfaceDelegate,
-      public base::SupportsWeakPtr<GLES2CommandBufferStub> {
+class GPU_IPC_SERVICE_EXPORT GLES2CommandBufferStub final
+    : public CommandBufferStub {
  public:
   GLES2CommandBufferStub(GpuChannel* channel,
                          const mojom::CreateCommandBufferParams& init_params,
@@ -43,22 +39,13 @@ class GPU_IPC_SERVICE_EXPORT GLES2CommandBufferStub
       base::UnsafeSharedMemoryRegion shared_state_shm) override;
   MemoryTracker* GetContextGroupMemoryTracker() const override;
 
+  base::WeakPtr<CommandBufferStub> AsWeakPtr() override;
+
   // DecoderClient implementation.
   void OnGpuSwitched(gl::GpuPreference active_gpu_heuristic) override;
 
-// ImageTransportSurfaceDelegate implementation:
-#if BUILDFLAG(IS_WIN)
-  void AddChildWindowToBrowser(gpu::SurfaceHandle child_window) override;
-#endif
-  const gles2::FeatureInfo* GetFeatureInfo() const override;
-  const GpuPreferences& GetGpuPreferences() const override;
-  viz::GpuVSyncCallback GetGpuVSyncCallback() override;
-  base::TimeDelta GetGpuBlockedTimeSinceLastSwap() override;
-
  private:
   // CommandBufferStub overrides:
-  void OnTakeFrontBuffer(const Mailbox& mailbox) override;
-  void OnReturnFrontBuffer(const Mailbox& mailbox, bool is_lost) override;
   void OnSetDefaultFramebufferSharedImage(const Mailbox& mailbox,
                                           int samples_count,
                                           bool preserve,
@@ -69,8 +56,6 @@ class GPU_IPC_SERVICE_EXPORT GLES2CommandBufferStub
                                 gfx::GpuFenceHandle handle) override;
   void GetGpuFenceHandle(uint32_t gpu_fence_id,
                          GetGpuFenceHandleCallback callback) override;
-
-  void OnSwapBuffers(uint64_t swap_id, uint32_t flags) override;
 
   // The group of contexts that share namespaces with this context.
   scoped_refptr<gles2::ContextGroup> context_group_;

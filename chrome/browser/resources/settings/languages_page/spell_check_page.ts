@@ -8,19 +8,18 @@
  */
 
 import 'chrome://resources/cr_elements/cr_button/cr_button.js';
+// <if expr="_google_chrome or not is_macosx">
+import 'chrome://resources/cr_elements/cr_collapse/cr_collapse.js';
+// </if>
 import 'chrome://resources/cr_elements/cr_link_row/cr_link_row.js';
 import 'chrome://resources/cr_elements/cr_toggle/cr_toggle.js';
 import 'chrome://resources/cr_elements/icons.html.js';
-import 'chrome://resources/cr_elements/policy/cr_policy_pref_indicator.js';
+import '/shared/settings/controls/cr_policy_pref_indicator.js';
 import 'chrome://resources/cr_elements/cr_shared_style.css.js';
 import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
 import 'chrome://resources/js/action_link.js';
 import 'chrome://resources/cr_elements/action_link.css.js';
-// <if expr="_google_chrome or not is_macosx">
-import 'chrome://resources/polymer/v3_0/iron-collapse/iron-collapse.js';
-// </if>
-import 'chrome://resources/polymer/v3_0/iron-flex-layout/iron-flex-layout-classes.js';
-import 'chrome://resources/polymer/v3_0/iron-icon/iron-icon.js';
+import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
 import '../controls/controlled_radio_button.js';
 import '../controls/settings_radio_group.js';
 import '../controls/settings_toggle_button.js';
@@ -34,20 +33,22 @@ import './edit_dictionary_page.js';
 
 // </if>
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
-import {focusWithoutInk} from 'chrome://resources/js/focus_without_ink.js';
-import {PrefsMixin} from 'chrome://resources/cr_components/settings_prefs/prefs_mixin.js';
+import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {DomRepeatEvent, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {assert} from 'chrome://resources/js/assert.js';
+import {focusWithoutInk} from 'chrome://resources/js/focus_without_ink.js';
+import type {DomRepeatEvent} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {BaseMixin} from '../base_mixin.js';
-import {SettingsToggleButtonElement} from '../controls/settings_toggle_button.js';
-import {FocusConfig} from '../focus_config.js';
+import type {SettingsToggleButtonElement} from '../controls/settings_toggle_button.js';
+import type {FocusConfig} from '../focus_config.js';
 import {routes} from '../route.js';
 import {Router} from '../router.js';
 
-import {LanguageSettingsActionType, LanguageSettingsMetricsProxy, LanguageSettingsMetricsProxyImpl} from './languages_settings_metrics_proxy.js';
-import {LanguageHelper, LanguagesModel, LanguageState, SpellCheckLanguageState} from './languages_types.js';
+import type {LanguageSettingsMetricsProxy} from './languages_settings_metrics_proxy.js';
+import {LanguageSettingsActionType, LanguageSettingsMetricsProxyImpl} from './languages_settings_metrics_proxy.js';
+import type {LanguageHelper, LanguagesModel, LanguageState, SpellCheckLanguageState} from './languages_types.js';
 import {getTemplate} from './spell_check_page.html.js';
 
 const SettingsSpellCheckPageElementBase =
@@ -65,14 +66,6 @@ export class SettingsSpellCheckPageElement extends
 
   static get properties() {
     return {
-      /**
-       * Preferences state.
-       */
-      prefs: {
-        type: Object,
-        notify: true,
-      },
-
       /**
        * Read-only reference to the languages model provided by the
        * 'settings-languages' instance.
@@ -123,26 +116,29 @@ export class SettingsSpellCheckPageElement extends
   }
   // </if>
 
-  languages?: LanguagesModel;
-  languageHelper: LanguageHelper;
-  private spellCheckLanguages_: Array<LanguageState|SpellCheckLanguageState>;
-  private hideSpellCheckLanguages_: boolean;
-  private focusConfig_: FocusConfig;
+  declare languages?: LanguagesModel;
+  declare languageHelper: LanguageHelper;
+  // <if expr="not is_macosx">
+  declare private spellCheckLanguages_:
+      Array<LanguageState|SpellCheckLanguageState>;
+  // </if>
+  declare private hideSpellCheckLanguages_: boolean;
+  declare private focusConfig_: FocusConfig;
   private languageSettingsMetricsProxy_: LanguageSettingsMetricsProxy =
       LanguageSettingsMetricsProxyImpl.getInstance();
 
   private onSpellCheckToggleChange_(e: Event) {
     this.languageSettingsMetricsProxy_.recordSettingsMetric(
-      (e.target as SettingsToggleButtonElement).checked ?
-          LanguageSettingsActionType.ENABLE_SPELL_CHECK_GLOBALLY :
-          LanguageSettingsActionType.DISABLE_SPELL_CHECK_GLOBALLY);
+        (e.target as SettingsToggleButtonElement).checked ?
+            LanguageSettingsActionType.ENABLE_SPELL_CHECK_GLOBALLY :
+            LanguageSettingsActionType.DISABLE_SPELL_CHECK_GLOBALLY);
   }
 
   private onSelectedSpellingServiceChange_() {
     this.languageSettingsMetricsProxy_.recordSettingsMetric(
-      this.prefs.spellcheck.use_spelling_service.value ?
-          LanguageSettingsActionType.SELECT_ENHANCED_SPELL_CHECK :
-          LanguageSettingsActionType.SELECT_BASIC_SPELL_CHECK);
+        this.prefs.spellcheck.use_spelling_service.value ?
+            LanguageSettingsActionType.SELECT_ENHANCED_SPELL_CHECK :
+            LanguageSettingsActionType.SELECT_BASIC_SPELL_CHECK);
   }
 
   // <if expr="not is_macosx">
@@ -224,7 +220,7 @@ export class SettingsSpellCheckPageElement extends
       // Hide list of spell check languages if there is only 1 language
       // and we don't need to display any errors for that language
 
-      // TODO(crbug/1124888): Make hideSpellCheckLanugages_ a computed property
+      // TODO(crbug.com/40147587): Make hideSpellCheckLanugages_ a computed property
       this.hideSpellCheckLanguages_ = !singleLanguage.isManaged &&
           singleLanguage.downloadDictionaryFailureCount === 0;
     } else {
@@ -270,9 +266,9 @@ export class SettingsSpellCheckPageElement extends
         item.language.code, !item.spellCheckEnabled);
 
     this.languageSettingsMetricsProxy_.recordSettingsMetric(
-      item.spellCheckEnabled ?
-          LanguageSettingsActionType.ENABLE_SPELL_CHECK_FOR_LANGUAGE :
-          LanguageSettingsActionType.DISABLE_SPELL_CHECK_FOR_LANGUAGE);
+        item.spellCheckEnabled ?
+            LanguageSettingsActionType.ENABLE_SPELL_CHECK_FOR_LANGUAGE :
+            LanguageSettingsActionType.DISABLE_SPELL_CHECK_FOR_LANGUAGE);
   }
 
   /**

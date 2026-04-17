@@ -16,12 +16,14 @@
 #include <memory>
 #include <string>
 
+#include "api/array_view.h"
 #include "api/media_stream_interface.h"
 #include "api/scoped_refptr.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_sink_interface.h"
 #include "examples/peerconnection/client/main_wnd.h"
 #include "examples/peerconnection/client/peer_connection_client.h"
+#include "rtc_base/buffer.h"
 
 // Forward declarations.
 typedef struct _GtkWidget GtkWidget;
@@ -81,7 +83,7 @@ class GtkMainWnd : public MainWindow {
   void Draw(GtkWidget* widget, cairo_t* cr);
 
  protected:
-  class VideoRenderer : public rtc::VideoSinkInterface<webrtc::VideoFrame> {
+  class VideoRenderer : public webrtc::VideoSinkInterface<webrtc::VideoFrame> {
    public:
     VideoRenderer(GtkMainWnd* main_wnd,
                   webrtc::VideoTrackInterface* track_to_render);
@@ -90,7 +92,7 @@ class GtkMainWnd : public MainWindow {
     // VideoSinkInterface implementation
     void OnFrame(const webrtc::VideoFrame& frame) override;
 
-    const uint8_t* image() const { return image_.get(); }
+    webrtc::ArrayView<const uint8_t> image() const { return image_; }
 
     int width() const { return width_; }
 
@@ -98,11 +100,11 @@ class GtkMainWnd : public MainWindow {
 
    protected:
     void SetSize(int width, int height);
-    std::unique_ptr<uint8_t[]> image_;
+    webrtc::Buffer image_;
     int width_;
     int height_;
     GtkMainWnd* main_wnd_;
-    rtc::scoped_refptr<webrtc::VideoTrackInterface> rendered_track_;
+    webrtc::scoped_refptr<webrtc::VideoTrackInterface> rendered_track_;
   };
 
  protected:
@@ -119,9 +121,9 @@ class GtkMainWnd : public MainWindow {
   bool autocall_;
   std::unique_ptr<VideoRenderer> local_renderer_;
   std::unique_ptr<VideoRenderer> remote_renderer_;
-  int width_;
-  int height_;
-  std::unique_ptr<uint8_t[]> draw_buffer_;
+  int width_ = 0;
+  int height_ = 0;
+  webrtc::Buffer draw_buffer_;
   int draw_buffer_size_;
 };
 

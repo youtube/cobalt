@@ -67,14 +67,14 @@ double ScoreComponent(const google::protobuf::Map<std::string, float>& weights,
 
 RankerModelStatus ValidateModel(const RankerModel& model) {
   if (model.proto().model_case() != RankerModelProto::kTranslate)
-    return RankerModelStatus::VALIDATION_FAILED;
+    return RankerModelStatus::kValidationFailed;
 
   if (model.proto().translate().model_revision_case() !=
       TranslateRankerModel::kTranslateLogisticRegressionModel) {
-    return RankerModelStatus::INCOMPATIBLE;
+    return RankerModelStatus::kIncompatible;
   }
 
-  return RankerModelStatus::OK;
+  return RankerModelStatus::kOk;
 }
 
 }  // namespace
@@ -260,8 +260,6 @@ bool TranslateRankerImpl::ShouldOfferTranslation(
   translate_metrics_logger->LogRankerStart();
   bool result = GetModelDecision(*translate_event);
   translate_metrics_logger->LogRankerFinish();
-
-  UMA_HISTOGRAM_BOOLEAN("Translate.Ranker.QueryResult", result);
 
   translate_event->set_ranker_response(result ? TranslateEventProto::SHOW
                                               : TranslateEventProto::DONT_SHOW);

@@ -24,30 +24,6 @@ namespace internal {
 // static
 AtomicEntryFlag WriteBarrier::write_barrier_enabled_;
 
-namespace {
-
-template <MarkerBase::WriteBarrierType type>
-void ProcessMarkValue(HeapObjectHeader& header, MarkerBase* marker,
-                      const void* value) {
-  DCHECK(marker->heap().is_incremental_marking_in_progress());
-  DCHECK(header.IsMarked<AccessMode::kAtomic>());
-  DCHECK(marker);
-
-  if (V8_UNLIKELY(header.IsInConstruction<AccessMode::kNonAtomic>())) {
-    // In construction objects are traced only if they are unmarked. If marking
-    // reaches this object again when it is fully constructed, it will re-mark
-    // it and tracing it as a previously not fully constructed object would know
-    // to bail out.
-    header.Unmark<AccessMode::kAtomic>();
-    marker->WriteBarrierForInConstructionObject(header);
-    return;
-  }
-
-  marker->WriteBarrierForObject<type>(header);
-}
-
-}  // namespace
-
 // static
 void WriteBarrier::DijkstraMarkingBarrierSlowWithSentinelCheck(
     const void* value) {
@@ -65,13 +41,12 @@ void WriteBarrier::DijkstraMarkingBarrierSlow(const void* value) {
   DCHECK(heap.marker());
   // No write barriers should be executed from atomic pause marking.
   DCHECK(!heap.in_atomic_pause());
+  DCHECK(heap.is_incremental_marking_in_progress());
 
   auto& header =
       const_cast<HeapObjectHeader&>(page->ObjectHeaderFromInnerAddress(value));
-  if (!header.TryMarkAtomic()) return;
-
-  ProcessMarkValue<MarkerBase::WriteBarrierType::kDijkstra>(
-      header, heap.marker(), value);
+  heap.marker()->WriteBarrierForObject<MarkerBase::WriteBarrierType::kDijkstra>(
+      header);
 }
 
 // static
@@ -110,13 +85,12 @@ void WriteBarrier::SteeleMarkingBarrierSlow(const void* value) {
   DCHECK(heap.marker());
   // No write barriers should be executed from atomic pause marking.
   DCHECK(!heap.in_atomic_pause());
+  DCHECK(heap.is_incremental_marking_in_progress());
 
   auto& header =
       const_cast<HeapObjectHeader&>(page->ObjectHeaderFromInnerAddress(value));
-  if (!header.IsMarked<AccessMode::kAtomic>()) return;
-
-  ProcessMarkValue<MarkerBase::WriteBarrierType::kSteele>(header, heap.marker(),
-                                                          value);
+  heap.marker()->WriteBarrierForObject<MarkerBase::WriteBarrierType::kSteele>(
+      header);
 }
 
 #if defined(CPPGC_YOUNG_GENERATION)
@@ -128,7 +102,7 @@ void WriteBarrier::GenerationalBarrierSlow(const CagedHeapLocalData& local_data,
                                            HeapHandle* heap_handle) {
   DCHECK(slot);
   DCHECK(heap_handle);
-  DCHECK_GT(kCagedHeapReservationSize, value_offset);
+  DCHECK_GT(api_constants::kCagedHeapMaxReservationSize, value_offset);
   // A write during atomic pause (e.g. pre-finalizer) may trigger the slow path
   // of the barrier. This is a result of the order of bailouts where not marking
   // results in applying the generational barrier.
@@ -148,7 +122,7 @@ void WriteBarrier::GenerationalBarrierForUncompressedSlotSlow(
     const void* slot, uintptr_t value_offset, HeapHandle* heap_handle) {
   DCHECK(slot);
   DCHECK(heap_handle);
-  DCHECK_GT(kCagedHeapReservationSize, value_offset);
+  DCHECK_GT(api_constants::kCagedHeapMaxReservationSize, value_offset);
   // A write during atomic pause (e.g. pre-finalizer) may trigger the slow path
   // of the barrier. This is a result of the order of bailouts where not marking
   // results in applying the generational barrier.

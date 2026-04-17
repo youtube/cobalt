@@ -6,11 +6,11 @@
 #define CHROME_BROWSER_ENTERPRISE_CONNECTORS_DEVICE_TRUST_KEY_MANAGEMENT_CORE_PERSISTENCE_LINUX_KEY_PERSISTENCE_DELEGATE_H_
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/files/file.h"
 #include "chrome/browser/enterprise/connectors/device_trust/key_management/core/persistence/key_persistence_delegate.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 class FilePath;
@@ -30,8 +30,12 @@ class LinuxKeyPersistenceDelegate : public KeyPersistenceDelegate {
   bool CheckRotationPermissions() override;
   bool StoreKeyPair(KeyPersistenceDelegate::KeyTrustLevel trust_level,
                     std::vector<uint8_t> wrapped) override;
-  std::unique_ptr<SigningKeyPair> LoadKeyPair() override;
-  std::unique_ptr<SigningKeyPair> CreateKeyPair() override;
+  scoped_refptr<SigningKeyPair> LoadKeyPair(
+      KeyStorageType type,
+      LoadPersistedKeyResult* result) override;
+  scoped_refptr<SigningKeyPair> CreateKeyPair() override;
+  bool PromoteTemporaryKeyPair() override;
+  bool DeleteKeyPair(KeyStorageType type) override;
 
  private:
   friend class LinuxKeyPersistenceDelegateTest;
@@ -42,7 +46,7 @@ class LinuxKeyPersistenceDelegate : public KeyPersistenceDelegate {
 
   // Signing key file instance used for handling concurrency during the
   // key rotation process.
-  absl::optional<base::File> locked_file_;
+  std::optional<base::File> locked_file_;
 };
 
 }  // namespace enterprise_connectors

@@ -42,7 +42,6 @@ CecServiceClient::PowerState ConvertDBusPowerState(int32_t power_state) {
       return CecServiceClient::PowerState::kUnknown;
     default:
       NOTREACHED() << "Received unknown state " << power_state;
-      return CecServiceClient::PowerState::kUnknown;
   }
 }
 

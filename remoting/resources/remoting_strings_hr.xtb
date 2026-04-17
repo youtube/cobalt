@@ -4,7 +4,6 @@
 <translation id="1002108253973310084">Otkrivena je nekompatibilna verzija protokola. Provjerite je li na oba računala instalirana najnovija verzija softvera pa pokušajte ponovo.</translation>
 <translation id="1008557486741366299">Ne sada</translation>
 <translation id="1201402288615127009">Dalje</translation>
-<translation id="1296511125400541222">Autorska prava 2023. Autori Chromiuma. Sva prava pridržana.</translation>
 <translation id="1297009705180977556">Pogreška pri povezivanju s računalom <ph name="HOSTNAME" /></translation>
 <translation id="1450760146488584666">Traženi objekt ne postoji.</translation>
 <translation id="1480046233931937785">Sudjelovali</translation>
@@ -29,7 +28,7 @@ Ako je okvir "<ph name="SERVICE_SCRIPT_NAME" />" već potvrđen, uklonite kvači
 <translation id="2329392777730037872">Otvaranje URL-a <ph name="URL" /> na klijentu nije uspjelo.</translation>
 <translation id="2359808026110333948">Nastavi</translation>
 <translation id="2366718077645204424">Nije moguće pristupiti hostu. To je vjerojatno zbog konfiguracije mreže koju upotrebljavate.</translation>
-<translation id="2370754117186920852"><ph name="OPTIONAL_OFFLINE_REASON" />  Posljednji put viđen online <ph name="RELATIVE_TIMESTAMP" />.</translation>
+<translation id="242591256144136845">Autorska prava 2025. Google LLC. Sva prava pridržana.</translation>
 <translation id="2504109125669302160">Dodijeli usluzi <ph name="PRODUCT_NAME" /> dopuštenje za "Pristupačnost"</translation>
 <translation id="2509394361235492552">Povezano s računalom <ph name="HOSTNAME" /></translation>
 <translation id="2540992418118313681">Želite li dijeliti ovo računalo tako da ga neki drugi korisnik može vidjeti i upravljati njime?</translation>
@@ -41,6 +40,7 @@ Ako je okvir "<ph name="SERVICE_SCRIPT_NAME" />" već potvrđen, uklonite kvači
 <translation id="2758123043070977469">Bilo je problema s autentifikacijom, prijavite se ponovo.</translation>
 <translation id="2803375539583399270">Unesite PIN</translation>
 <translation id="2919669478609886916">Ovaj uređaj trenutačno dijelite s drugim korisnikom. Želite li nastaviti dijeljenje?</translation>
+<translation id="2929683002824598593">Podijeli uređaj</translation>
 <translation id="2939145106548231838">Autentifikacija na hostu</translation>
 <translation id="3027681561976217984">Način dodira</translation>
 <translation id="3106379468611574572">Udaljeno računalo ne odgovara na zahtjev za povezivanje. Provjerite je li na mreži i pokušajte ponovo.</translation>
@@ -54,7 +54,6 @@ Ako je okvir "<ph name="SERVICE_SCRIPT_NAME" />" već potvrđen, uklonite kvači
 <translation id="3423542133075182604">Postupak daljinskog postavljanja sigurnosnog ključa</translation>
 <translation id="3581045510967524389">Nije bilo moguće povezati se s mrežom. Provjerite je li uređaj na mreži.</translation>
 <translation id="3596628256176442606">Ta usluga omogućuje dolazne veze s klijenata usluge Chromoting.</translation>
-<translation id="369442766917958684">Offline.</translation>
 <translation id="3695446226812920698">Saznajte kako</translation>
 <translation id="3776024066357219166">Završila je vaša sesija u aplikaciji Udaljena radna površina Chrome.</translation>
 <translation id="3858860766373142691">Naziv</translation>
@@ -89,12 +88,12 @@ Ako je okvir "<ph name="SERVICE_SCRIPT_NAME" />" već potvrđen, uklonite kvači
 <translation id="4808503597364150972">Unesite svoj PIN za host <ph name="HOSTNAME" />.</translation>
 <translation id="4812684235631257312">Host:</translation>
 <translation id="4867841927763172006">Pošalji PrtScn</translation>
-<translation id="4960795469833295568">Autorska prava 2023. Google LLC. Sva prava pridržana.</translation>
 <translation id="4974476491460646149">Zatvorena je veza s računalom <ph name="HOSTNAME" /></translation>
 <translation id="4985296110227979402">Prvo morate postaviti računalo za daljinski pristup</translation>
 <translation id="4987330545941822761">Udaljena radna površina Chrome ne može odrediti preglednik za lokalno otvaranje URL-ova. Odaberite ga na popisu u nastavku.</translation>
 <translation id="5064360042339518108"><ph name="HOSTNAME" /> (van mreže)</translation>
 <translation id="507204348399810022">Jeste li sigurni da želite onemogućiti daljinske veze s hostom <ph name="HOSTNAME" />?</translation>
+<translation id="5095424396646120601">izvješćivanje o rušenju preglednika</translation>
 <translation id="5170982930780719864">Nevažeći ID hosta.</translation>
 <translation id="5204575267916639804">FAQ</translation>
 <translation id="5222676887888702881">Odjava</translation>
@@ -107,7 +106,6 @@ Ako je okvir "<ph name="SERVICE_SCRIPT_NAME" />" već potvrđen, uklonite kvači
 <translation id="5601503069213153581">PIN</translation>
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="5708869785009007625">Vaša se radna površina trenutačno dijeli s korisnikom <ph name="USER" />.</translation>
-<translation id="5750083143895808682">Prijavljeni ste kao <ph name="EMAIL_ADDRESS" />.</translation>
 <translation id="579702532610384533">Ponovno povezivanje</translation>
 <translation id="5810269635982033450">Zaslon se ponaša kao dodirna podloga</translation>
 <translation id="5823554426827907568">Korisnik <ph name="CLIENT_USERNAME" /> zatražio je pristup za pregled vašeg zaslona i upravljanje vašom tipkovnicom i mišem. Pritisnite <ph name="IDS_SHARE_CONFIRM_DIALOG_DECLINE" /> ako ne očekujete taj zahtjev. U suprotnom odaberite <ph name="IDS_SHARE_CONFIRM_DIALOG_CONFIRM" /> da biste dopustili povezivanje kad budete spremni.</translation>
@@ -121,10 +119,12 @@ Ako je okvir "<ph name="SERVICE_SCRIPT_NAME" />" već potvrđen, uklonite kvači
 <translation id="6178645564515549384">Lokalni host za slanje poruka za udaljenu pomoć</translation>
 <translation id="618120821413932081">Ažurirajte razlučivost udaljenog računala da odgovara prozoru</translation>
 <translation id="6223301979382383752">Otvori postavke snimanja zaslona</translation>
+<translation id="6252344563748670011">Korisnik <ph name="CLIENT_USERNAME" /> zatražio je pristup za pregled vašeg zaslona i upravljanje vašom tipkovnicom i mišem. Želite li podijeliti svoj uređaj?</translation>
 <translation id="6284412385303060032">Host koji je pokrenut na zaslonu za prijavu na konzolu isključio se radi podrške za način zavjese prelaskom na host koji je pokrenut u sesiji korisnika.</translation>
 <translation id="6542902059648396432">Prijavi problem…</translation>
 <translation id="6583902294974160967">Podrška</translation>
 <translation id="6612717000975622067">Pošalji Ctrl-Alt-Del</translation>
+<translation id="6625262630437221505">{0,plural, =1{Ako ne poduzmete radnju, uređaj će automatski započeti dijeljenje za # sekundu.}one{Ako ne poduzmete radnju, uređaj će automatski započeti dijeljenje za # sekundu.}few{Ako ne poduzmete radnju, uređaj će automatski započeti dijeljenje za # sekunde.}other{Ako ne poduzmete radnju, uređaj će automatski započeti dijeljenje za # sekundi.}}</translation>
 <translation id="6654753848497929428">Dijeli</translation>
 <translation id="677755392401385740">Host je pokrenut za korisnika: <ph name="HOST_USERNAME" />.</translation>
 <translation id="6902524959760471898">Pomoćna aplikacija za otvaranje URL-a na klijentu proizvoda <ph name="PRODUCT_NAME" /></translation>
@@ -138,6 +138,7 @@ Ako je okvir "<ph name="SERVICE_SCRIPT_NAME" />" već potvrđen, uklonite kvači
 <translation id="7067321367069083429">Zaslon se ponaša kao dodirni zaslon</translation>
 <translation id="7116737094673640201">Dobro došli na Udaljenu radnu površinu Chrome</translation>
 <translation id="7144878232160441200">Pokušaj ponovno</translation>
+<translation id="7298392173540380852">Autorska prava 2025. Autori Chromiuma. Sva prava pridržana.</translation>
 <translation id="7312846573060934304">Host je izvan mreže.</translation>
 <translation id="7319983568955948908">Zaustavi dijeljenje</translation>
 <translation id="7359298090707901886">Odabrani preglednik ne može se upotrebljavati za otvaranje URL-ova na lokalnom računalu.</translation>

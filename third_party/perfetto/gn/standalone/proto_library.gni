@@ -22,6 +22,14 @@ if (host_os == "win") {
 
 template("proto_library") {
   assert(defined(invoker.sources))
+
+  # This is used in chromium build.
+  not_needed(invoker,
+             [
+               "generator_visibility",
+               "proto_deps",
+             ])
+
   proto_sources = invoker.sources
 
   # All the proto imports should be relative to the project root.
@@ -170,6 +178,10 @@ template("proto_library") {
       ]
     }
 
+    metadata = {
+      proto_import_dirs = import_dirs
+    }
+
     if (generate_cc) {
       cc_generator_options_ = ""
       if (defined(invoker.cc_generator_options)) {
@@ -218,13 +230,6 @@ template("proto_library") {
       deps = []
     }
 
-    # TODO(hjd): Avoid adding to deps here this.
-    # When we generate BUILD files we need find the transitive proto,
-    # dependencies, so also add link_deps to actual deps so they show up
-    # in gn desc.
-    if (defined(invoker.link_deps)) {
-      deps += invoker.link_deps
-    }
     if (generate_with_plugin) {
       inputs += [ plugin_path ]
       if (defined(plugin_host_label)) {
@@ -233,8 +238,11 @@ template("proto_library") {
       }
     }
 
-    if (defined(invoker.deps)) {
+    if (generate_descriptor != "") {
       deps += invoker.deps
+    }
+    if (defined(invoker.link_deps)) {
+      deps += invoker.link_deps
     }
   }  # action(action_name)
 
@@ -294,6 +302,9 @@ template("proto_library") {
       deps += [ ":$action_name" ]
       if (defined(invoker.deps)) {
         deps += invoker.deps
+      }
+      if (defined(invoker.link_deps)) {
+        deps += invoker.link_deps
       }
     }  # source_set(source_set_name)
   }

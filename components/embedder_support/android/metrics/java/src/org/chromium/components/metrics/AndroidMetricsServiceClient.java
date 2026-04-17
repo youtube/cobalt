@@ -7,21 +7,22 @@ package org.chromium.components.metrics;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
 
-import androidx.annotation.VisibleForTesting;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
 
+import org.chromium.base.BuildInfo;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
-/**
- * Helps the native AndroidMetricsServiceClient call Android Java APIs over JNI.
- */
+/** Helps the native AndroidMetricsServiceClient call Android Java APIs over JNI. */
 @JNINamespace("metrics")
+@NullMarked
 public class AndroidMetricsServiceClient {
     private static final String PLAY_STORE_PACKAGE_NAME = "com.android.vending";
 
-    private static @InstallerPackageType Integer sInstallerPackageTypeForTesting;
+    private static @InstallerPackageType @Nullable Integer sInstallerPackageTypeForTesting;
 
     @CalledByNative
     private static @InstallerPackageType int getInstallerPackageType() {
@@ -31,14 +32,10 @@ public class AndroidMetricsServiceClient {
         }
         // Only record if it's a system app or it was installed from Play Store.
         Context ctx = ContextUtils.getApplicationContext();
-        String packageName = ctx.getPackageName();
-        if (packageName != null) {
-            if ((ctx.getApplicationInfo().flags & ApplicationInfo.FLAG_SYSTEM) != 0) {
-                return InstallerPackageType.SYSTEM_APP;
-            } else if (PLAY_STORE_PACKAGE_NAME.equals(
-                               ctx.getPackageManager().getInstallerPackageName(packageName))) {
-                return InstallerPackageType.GOOGLE_PLAY_STORE;
-            }
+        if ((ctx.getApplicationInfo().flags & ApplicationInfo.FLAG_SYSTEM) != 0) {
+            return InstallerPackageType.SYSTEM_APP;
+        } else if (PLAY_STORE_PACKAGE_NAME.equals(BuildInfo.getInstance().installerPackageName)) {
+            return InstallerPackageType.GOOGLE_PLAY_STORE;
         }
         return InstallerPackageType.OTHER;
     }
@@ -47,11 +44,9 @@ public class AndroidMetricsServiceClient {
     private static String getAppPackageName() {
         // Return this unconditionally; let native code enforce whether or not it's OK to include
         // this in the logs.
-        Context ctx = ContextUtils.getApplicationContext();
-        return ctx.getPackageName();
+        return BuildInfo.getInstance().hostPackageName;
     }
 
-    @VisibleForTesting
     public static void setInstallerPackageTypeForTesting(@InstallerPackageType int type) {
         ThreadUtils.assertOnUiThread();
         sInstallerPackageTypeForTesting = type;

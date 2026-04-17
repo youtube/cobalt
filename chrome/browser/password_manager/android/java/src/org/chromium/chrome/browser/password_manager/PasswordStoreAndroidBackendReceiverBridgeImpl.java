@@ -4,9 +4,11 @@
 
 package org.chromium.chrome.browser.password_manager;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.build.annotations.NullMarked;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -18,10 +20,11 @@ import java.lang.annotation.Target;
  * password store backend that forwards operation callbacks to the native password manager.
  */
 @JNINamespace("password_manager")
+@NullMarked
 class PasswordStoreAndroidBackendReceiverBridgeImpl {
     /**
-     * Each operation sent to the passwords API will be assigned a JobId. The native side uses
-     * this ID to map an API response to the job that invoked it.
+     * Each operation sent to the passwords API will be assigned a JobId. The native side uses this
+     * ID to map an API response to the job that invoked it.
      */
     @Target(ElementType.TYPE_USE)
     @Retention(RetentionPolicy.SOURCE)
@@ -47,28 +50,55 @@ class PasswordStoreAndroidBackendReceiverBridgeImpl {
         Integer connectionResultCode =
                 PasswordManagerAndroidBackendUtil.getConnectionResultCode(exception);
 
-        PasswordStoreAndroidBackendReceiverBridgeImplJni.get().onError(mNativeBackendReceiverBridge,
-                jobId, error, apiErrorCode, connectionResultCode != null,
-                connectionResultCode == null ? -1 : connectionResultCode.intValue());
+        PasswordStoreAndroidBackendReceiverBridgeImplJni.get()
+                .onError(
+                        mNativeBackendReceiverBridge,
+                        jobId,
+                        error,
+                        apiErrorCode,
+                        connectionResultCode != null,
+                        connectionResultCode == null ? -1 : connectionResultCode.intValue());
     }
 
     void onCompleteWithLogins(@JobId int jobId, byte[] passwords) {
         if (mNativeBackendReceiverBridge == 0) return;
-        PasswordStoreAndroidBackendReceiverBridgeImplJni.get().onCompleteWithLogins(
-                mNativeBackendReceiverBridge, jobId, passwords);
+        PasswordStoreAndroidBackendReceiverBridgeImplJni.get()
+                .onCompleteWithLogins(mNativeBackendReceiverBridge, jobId, passwords);
+    }
+
+    void onCompleteWithBrandedLogins(@JobId int jobId, byte[] passwords) {
+        if (mNativeBackendReceiverBridge == 0) return;
+        PasswordStoreAndroidBackendReceiverBridgeImplJni.get()
+                .onCompleteWithBrandedLogins(mNativeBackendReceiverBridge, jobId, passwords);
+    }
+
+    void onCompleteWithAffiliatedLogins(@JobId int jobId, byte[] passwords) {
+        if (mNativeBackendReceiverBridge == 0) return;
+        PasswordStoreAndroidBackendReceiverBridgeImplJni.get()
+                .onCompleteWithAffiliatedLogins(mNativeBackendReceiverBridge, jobId, passwords);
     }
 
     void onLoginChanged(@JobId int jobId) {
         if (mNativeBackendReceiverBridge == 0) return;
-        PasswordStoreAndroidBackendReceiverBridgeImplJni.get().onLoginChanged(
-                mNativeBackendReceiverBridge, jobId);
+        PasswordStoreAndroidBackendReceiverBridgeImplJni.get()
+                .onLoginChanged(mNativeBackendReceiverBridge, jobId);
     }
 
-    void onError(@JobId int jobId, int errorType, int apiErrorCode, boolean hasConnectionResult,
+    void onError(
+            @JobId int jobId,
+            int errorType,
+            int apiErrorCode,
+            boolean hasConnectionResult,
             int connectionResultStatusCode) {
         if (mNativeBackendReceiverBridge == 0) return;
-        PasswordStoreAndroidBackendReceiverBridgeImplJni.get().onError(mNativeBackendReceiverBridge,
-                jobId, errorType, apiErrorCode, hasConnectionResult, connectionResultStatusCode);
+        PasswordStoreAndroidBackendReceiverBridgeImplJni.get()
+                .onError(
+                        mNativeBackendReceiverBridge,
+                        jobId,
+                        errorType,
+                        apiErrorCode,
+                        hasConnectionResult,
+                        connectionResultStatusCode);
     }
 
     @CalledByNative
@@ -78,12 +108,30 @@ class PasswordStoreAndroidBackendReceiverBridgeImpl {
 
     @NativeMethods
     interface Natives {
-        void onCompleteWithLogins(long nativePasswordStoreAndroidBackendReceiverBridgeImpl,
-                @JobId int jobId, byte[] passwords);
+        void onCompleteWithLogins(
+                long nativePasswordStoreAndroidBackendReceiverBridgeImpl,
+                @JobId int jobId,
+                byte[] passwords);
+
+        void onCompleteWithBrandedLogins(
+                long nativePasswordStoreAndroidBackendReceiverBridgeImpl,
+                @JobId int jobId,
+                byte[] passwords);
+
+        void onCompleteWithAffiliatedLogins(
+                long nativePasswordStoreAndroidBackendReceiverBridgeImpl,
+                @JobId int jobId,
+                byte[] passwords);
+
         void onLoginChanged(
                 long nativePasswordStoreAndroidBackendReceiverBridgeImpl, @JobId int jobId);
-        void onError(long nativePasswordStoreAndroidBackendReceiverBridgeImpl, @JobId int jobId,
-                int errorType, int apiErrorCode, boolean hasConnectionResult,
+
+        void onError(
+                long nativePasswordStoreAndroidBackendReceiverBridgeImpl,
+                @JobId int jobId,
+                int errorType,
+                int apiErrorCode,
+                boolean hasConnectionResult,
                 int connectionResultStatusCode);
     }
 }

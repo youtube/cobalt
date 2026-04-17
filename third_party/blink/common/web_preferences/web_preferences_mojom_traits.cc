@@ -23,10 +23,6 @@ bool StructTraits<blink::mojom::WebPreferencesDataView,
       !data.ReadCursiveFontFamilyMap(&out->cursive_font_family_map) ||
       !data.ReadFantasyFontFamilyMap(&out->fantasy_font_family_map) ||
       !data.ReadMathFontFamilyMap(&out->math_font_family_map) ||
-      !data.ReadLazyFrameLoadingDistanceThresholdsPx(
-          &out->lazy_frame_loading_distance_thresholds_px) ||
-      !data.ReadLazyImageLoadingDistanceThresholdsPx(
-          &out->lazy_image_loading_distance_thresholds_px) ||
       !data.ReadDefaultEncoding(&out->default_encoding) ||
       !data.ReadTextTrackBackgroundColor(&out->text_track_background_color) ||
       !data.ReadTextTrackTextColor(&out->text_track_text_color) ||
@@ -47,7 +43,8 @@ bool StructTraits<blink::mojom::WebPreferencesDataView,
           &out->low_priority_iframes_threshold) ||
       !data.ReadNetworkQualityEstimatorWebHoldback(
           &out->network_quality_estimator_web_holdback) ||
-      !data.ReadWebAppScope(&out->web_app_scope)
+      !data.ReadWebAppScope(&out->web_app_scope) ||
+      !data.ReadRootScrollbarThemeColor(&out->root_scrollbar_theme_color)
 #if BUILDFLAG(IS_ANDROID)
       || !data.ReadDefaultVideoPosterUrl(&out->default_video_poster_url)
 #endif
@@ -59,6 +56,8 @@ bool StructTraits<blink::mojom::WebPreferencesDataView,
   out->minimum_font_size = data.minimum_font_size();
   out->minimum_logical_font_size = data.minimum_logical_font_size();
   out->context_menu_on_mouse_up = data.context_menu_on_mouse_up();
+  out->always_show_context_menu_on_touch =
+      data.always_show_context_menu_on_touch();
   out->javascript_enabled = data.javascript_enabled();
   out->web_security_enabled = data.web_security_enabled();
   out->loads_images_automatically = data.loads_images_automatically();
@@ -74,7 +73,6 @@ bool StructTraits<blink::mojom::WebPreferencesDataView,
   out->dns_prefetching_enabled = data.dns_prefetching_enabled();
   out->data_saver_enabled = data.data_saver_enabled();
   out->local_storage_enabled = data.local_storage_enabled();
-  out->databases_enabled = data.databases_enabled();
   out->tabs_to_links = data.tabs_to_links();
   out->disable_ipc_flooding_protection = data.disable_ipc_flooding_protection();
   out->hyperlink_auditing_enabled = data.hyperlink_auditing_enabled();
@@ -89,7 +87,8 @@ bool StructTraits<blink::mojom::WebPreferencesDataView,
       data.privileged_webgl_extensions_enabled();
   out->webgl_errors_to_console_enabled = data.webgl_errors_to_console_enabled();
   out->hide_scrollbars = data.hide_scrollbars();
-  out->enable_webkit_scrollbar_styling = data.enable_webkit_scrollbar_styling();
+  out->prefers_default_scrollbar_styles =
+      data.prefers_default_scrollbar_styles();
   out->accelerated_2d_canvas_enabled = data.accelerated_2d_canvas_enabled();
   out->canvas_2d_layers_enabled = data.canvas_2d_layers_enabled();
   out->antialiased_2d_canvas_disabled = data.antialiased_2d_canvas_disabled();
@@ -113,8 +112,9 @@ bool StructTraits<blink::mojom::WebPreferencesDataView,
   out->should_clear_document_background =
       data.should_clear_document_background();
   out->enable_scroll_animator = data.enable_scroll_animator();
-  out->threaded_scrolling_enabled = data.threaded_scrolling_enabled();
   out->prefers_reduced_motion = data.prefers_reduced_motion();
+  out->prefers_reduced_transparency = data.prefers_reduced_transparency();
+  out->inverted_colors = data.inverted_colors();
   out->touch_event_feature_detection_enabled =
       data.touch_event_feature_detection_enabled();
   out->pointer_events_max_touch_points = data.pointer_events_max_touch_points();
@@ -130,6 +130,8 @@ bool StructTraits<blink::mojom::WebPreferencesDataView,
       data.target_blank_implies_no_opener_enabled_will_be_removed();
   out->allow_non_empty_navigator_plugins =
       data.allow_non_empty_navigator_plugins();
+  out->ignore_permission_for_device_changed_event =
+      data.ignore_permission_for_device_changed_event();
   out->number_of_cpu_cores = data.number_of_cpu_cores();
   out->editing_behavior = data.editing_behavior();
   out->supports_multiple_windows = data.supports_multiple_windows();
@@ -146,9 +148,6 @@ bool StructTraits<blink::mojom::WebPreferencesDataView,
       data.initialize_at_minimum_page_scale();
   out->smart_insert_delete_enabled = data.smart_insert_delete_enabled();
   out->spatial_navigation_enabled = data.spatial_navigation_enabled();
-  out->navigate_on_drag_drop = data.navigate_on_drag_drop();
-  out->fake_no_alloc_direct_call_for_testing_enabled =
-      data.fake_no_alloc_direct_call_for_testing_enabled();
   out->v8_cache_options = data.v8_cache_options();
   out->record_whole_document = data.record_whole_document();
   out->stylus_handwriting_enabled = data.stylus_handwriting_enabled();
@@ -165,12 +164,12 @@ bool StructTraits<blink::mojom::WebPreferencesDataView,
   out->text_autosizing_enabled = data.text_autosizing_enabled();
 #if BUILDFLAG(IS_ANDROID)
   out->font_scale_factor = data.font_scale_factor();
+  out->font_weight_adjustment = data.font_weight_adjustment();
+  out->text_size_contrast_factor = data.text_size_contrast_factor();
   out->device_scale_adjustment = data.device_scale_adjustment();
   out->force_enable_zoom = data.force_enable_zoom();
   out->support_deprecated_target_density_dpi =
       data.support_deprecated_target_density_dpi();
-  out->use_legacy_background_size_shorthand_behavior =
-      data.use_legacy_background_size_shorthand_behavior();
   out->wide_viewport_quirk = data.wide_viewport_quirk();
   out->use_wide_viewport = data.use_wide_viewport();
   out->force_zero_layout_height = data.force_zero_layout_height();
@@ -198,6 +197,7 @@ bool StructTraits<blink::mojom::WebPreferencesDataView,
   out->scroll_top_left_interop_enabled = data.scroll_top_left_interop_enabled();
   out->disable_accelerated_small_canvases =
       data.disable_accelerated_small_canvases();
+  out->long_press_link_select_text = data.long_press_link_select_text();
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA)
@@ -219,6 +219,10 @@ bool StructTraits<blink::mojom::WebPreferencesDataView,
       data.require_transient_activation_for_get_display_media();
   out->require_transient_activation_for_show_file_or_directory_picker =
       data.require_transient_activation_for_show_file_or_directory_picker();
+  out->in_forced_colors = data.in_forced_colors();
+  out->is_forced_colors_disabled = data.is_forced_colors_disabled();
+  out->preferred_root_scrollbar_color_scheme =
+      data.preferred_root_scrollbar_color_scheme();
   out->preferred_color_scheme = data.preferred_color_scheme();
   out->preferred_contrast = data.preferred_contrast();
   out->picture_in_picture_enabled = data.picture_in_picture_enabled();
@@ -227,10 +231,16 @@ bool StructTraits<blink::mojom::WebPreferencesDataView,
   out->allow_mixed_content_upgrades = data.allow_mixed_content_upgrades();
   out->always_show_focus = data.always_show_focus();
   out->touch_drag_drop_enabled = data.touch_drag_drop_enabled();
+  out->touch_dragend_context_menu = data.touch_dragend_context_menu();
   out->webxr_immersive_ar_allowed = data.webxr_immersive_ar_allowed();
   out->renderer_wide_named_frame_lookup =
       data.renderer_wide_named_frame_lookup();
   out->modal_context_menu = data.modal_context_menu();
+  out->dynamic_safe_area_insets_enabled =
+      data.dynamic_safe_area_insets_enabled();
+  out->subapps_apis_require_user_gesture_and_authorization =
+      data.require_transient_activation_and_user_confirmation_for_subapps_api();
+  out->payment_request_enabled = data.payment_request_enabled();
   return true;
 }
 

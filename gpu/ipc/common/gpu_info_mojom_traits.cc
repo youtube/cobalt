@@ -27,7 +27,6 @@ bool StructTraits<gpu::mojom::GpuDeviceDataView, gpu::GPUInfo::GPUDevice>::Read(
   out->sub_sys_id = data.sub_sys_id();
 #endif  // BUILDFLAG(IS_WIN)
   out->active = data.active();
-  out->cuda_compute_capability_major = data.cuda_compute_capability_major();
   return data.ReadVendorString(&out->vendor_string) &&
          data.ReadDeviceString(&out->device_string) &&
 #if BUILDFLAG(IS_WIN)
@@ -36,6 +35,69 @@ bool StructTraits<gpu::mojom::GpuDeviceDataView, gpu::GPUInfo::GPUDevice>::Read(
          data.ReadDriverVendor(&out->driver_vendor) &&
          data.ReadDriverVersion(&out->driver_version) &&
          data.ReadGpuPreference(&out->gpu_preference);
+}
+
+// static
+gpu::mojom::SkiaBackendType
+EnumTraits<gpu::mojom::SkiaBackendType, gpu::SkiaBackendType>::ToMojom(
+    gpu::SkiaBackendType type) {
+  switch (type) {
+    case gpu::SkiaBackendType::kUnknown:
+      return gpu::mojom::SkiaBackendType::kUnknown;
+    case gpu::SkiaBackendType::kNone:
+      return gpu::mojom::SkiaBackendType::kNone;
+    case gpu::SkiaBackendType::kGaneshGL:
+      return gpu::mojom::SkiaBackendType::kGaneshGL;
+    case gpu::SkiaBackendType::kGaneshVulkan:
+      return gpu::mojom::SkiaBackendType::kGaneshVulkan;
+    case gpu::SkiaBackendType::kGraphiteDawnVulkan:
+      return gpu::mojom::SkiaBackendType::kGraphiteDawnVulkan;
+    case gpu::SkiaBackendType::kGraphiteDawnMetal:
+      return gpu::mojom::SkiaBackendType::kGraphiteDawnMetal;
+    case gpu::SkiaBackendType::kGraphiteDawnD3D11:
+      return gpu::mojom::SkiaBackendType::kGraphiteDawnD3D11;
+    case gpu::SkiaBackendType::kGraphiteDawnD3D12:
+      return gpu::mojom::SkiaBackendType::kGraphiteDawnD3D12;
+    case gpu::SkiaBackendType::kGraphiteMetal:
+      return gpu::mojom::SkiaBackendType::kGraphiteMetal;
+  }
+  NOTREACHED() << "Invalid SkiaBackendType:" << static_cast<int>(type);
+}
+
+// static
+bool EnumTraits<gpu::mojom::SkiaBackendType, gpu::SkiaBackendType>::FromMojom(
+    gpu::mojom::SkiaBackendType input,
+    gpu::SkiaBackendType* out) {
+  switch (input) {
+    case gpu::mojom::SkiaBackendType::kUnknown:
+      *out = gpu::SkiaBackendType::kUnknown;
+      return true;
+    case gpu::mojom::SkiaBackendType::kNone:
+      *out = gpu::SkiaBackendType::kNone;
+      return true;
+    case gpu::mojom::SkiaBackendType::kGaneshGL:
+      *out = gpu::SkiaBackendType::kGaneshGL;
+      return true;
+    case gpu::mojom::SkiaBackendType::kGaneshVulkan:
+      *out = gpu::SkiaBackendType::kGaneshVulkan;
+      return true;
+    case gpu::mojom::SkiaBackendType::kGraphiteDawnVulkan:
+      *out = gpu::SkiaBackendType::kGraphiteDawnVulkan;
+      return true;
+    case gpu::mojom::SkiaBackendType::kGraphiteDawnMetal:
+      *out = gpu::SkiaBackendType::kGraphiteDawnMetal;
+      return true;
+    case gpu::mojom::SkiaBackendType::kGraphiteDawnD3D11:
+      *out = gpu::SkiaBackendType::kGraphiteDawnD3D11;
+      return true;
+    case gpu::mojom::SkiaBackendType::kGraphiteDawnD3D12:
+      *out = gpu::SkiaBackendType::kGraphiteDawnD3D12;
+      return true;
+    case gpu::mojom::SkiaBackendType::kGraphiteMetal:
+      *out = gpu::SkiaBackendType::kGraphiteMetal;
+      return true;
+  }
+  NOTREACHED() << "Invalid SkiaBackendType: " << input;
 }
 
 // static
@@ -103,8 +165,6 @@ EnumTraits<gpu::mojom::VideoCodecProfile, gpu::VideoCodecProfile>::ToMojom(
           HEVCPROFILE_HIGH_THROUGHPUT_SCREEN_EXTENDED;
     case gpu::VideoCodecProfile::DOLBYVISION_PROFILE0:
       return gpu::mojom::VideoCodecProfile::DOLBYVISION_PROFILE0;
-    case gpu::VideoCodecProfile::DOLBYVISION_PROFILE4:
-      return gpu::mojom::VideoCodecProfile::DOLBYVISION_PROFILE4;
     case gpu::VideoCodecProfile::DOLBYVISION_PROFILE5:
       return gpu::mojom::VideoCodecProfile::DOLBYVISION_PROFILE5;
     case gpu::VideoCodecProfile::DOLBYVISION_PROFILE7:
@@ -121,9 +181,38 @@ EnumTraits<gpu::mojom::VideoCodecProfile, gpu::VideoCodecProfile>::ToMojom(
       return gpu::mojom::VideoCodecProfile::AV1PROFILE_PROFILE_HIGH;
     case gpu::VideoCodecProfile::AV1PROFILE_PROFILE_PRO:
       return gpu::mojom::VideoCodecProfile::AV1PROFILE_PROFILE_PRO;
+    case gpu::VideoCodecProfile::VVCPROFILE_MAIN10:
+      return gpu::mojom::VideoCodecProfile::VVCPROFILE_MAIN10;
+    case gpu::VideoCodecProfile::VVCPROFILE_MAIN12:
+      return gpu::mojom::VideoCodecProfile::VVCPROFILE_MAIN12;
+    case gpu::VideoCodecProfile::VVCPROFILE_MAIN12_INTRA:
+      return gpu::mojom::VideoCodecProfile::VVCPROFILE_MAIN12_INTRA;
+    case gpu::VideoCodecProfile::VVCPROIFLE_MULTILAYER_MAIN10:
+      return gpu::mojom::VideoCodecProfile::VVCPROIFLE_MULTILAYER_MAIN10;
+    case gpu::VideoCodecProfile::VVCPROFILE_MAIN10_444:
+      return gpu::mojom::VideoCodecProfile::VVCPROFILE_MAIN10_444;
+    case gpu::VideoCodecProfile::VVCPROFILE_MAIN12_444:
+      return gpu::mojom::VideoCodecProfile::VVCPROFILE_MAIN12_444;
+    case gpu::VideoCodecProfile::VVCPROFILE_MAIN16_444:
+      return gpu::mojom::VideoCodecProfile::VVCPROFILE_MAIN16_444;
+    case gpu::VideoCodecProfile::VVCPROFILE_MAIN12_444_INTRA:
+      return gpu::mojom::VideoCodecProfile::VVCPROFILE_MAIN12_444_INTRA;
+    case gpu::VideoCodecProfile::VVCPROFILE_MAIN16_444_INTRA:
+      return gpu::mojom::VideoCodecProfile::VVCPROFILE_MAIN16_444_INTRA;
+    case gpu::VideoCodecProfile::VVCPROFILE_MULTILAYER_MAIN10_444:
+      return gpu::mojom::VideoCodecProfile::VVCPROFILE_MULTILAYER_MAIN10_444;
+    case gpu::VideoCodecProfile::VVCPROFILE_MAIN10_STILL_PICTURE:
+      return gpu::mojom::VideoCodecProfile::VVCPROFILE_MAIN10_STILL_PICTURE;
+    case gpu::VideoCodecProfile::VVCPROFILE_MAIN12_STILL_PICTURE:
+      return gpu::mojom::VideoCodecProfile::VVCPROFILE_MAIN12_STILL_PICTURE;
+    case gpu::VideoCodecProfile::VVCPROFILE_MAIN10_444_STILL_PICTURE:
+      return gpu::mojom::VideoCodecProfile::VVCPROFILE_MAIN10_444_STILL_PICTURE;
+    case gpu::VideoCodecProfile::VVCPROFILE_MAIN12_444_STILL_PICTURE:
+      return gpu::mojom::VideoCodecProfile::VVCPROFILE_MAIN12_444_STILL_PICTURE;
+    case gpu::VideoCodecProfile::VVCPROFILE_MAIN16_444_STILL_PICTURE:
+      return gpu::mojom::VideoCodecProfile::VVCPROFILE_MAIN12_444_STILL_PICTURE;
   }
   NOTREACHED() << "Invalid VideoCodecProfile:" << video_codec_profile;
-  return gpu::mojom::VideoCodecProfile::VIDEO_CODEC_PROFILE_UNKNOWN;
 }
 
 // static
@@ -220,9 +309,6 @@ bool EnumTraits<gpu::mojom::VideoCodecProfile, gpu::VideoCodecProfile>::
     case gpu::mojom::VideoCodecProfile::DOLBYVISION_PROFILE0:
       *out = gpu::VideoCodecProfile::DOLBYVISION_PROFILE0;
       return true;
-    case gpu::mojom::VideoCodecProfile::DOLBYVISION_PROFILE4:
-      *out = gpu::VideoCodecProfile::DOLBYVISION_PROFILE4;
-      return true;
     case gpu::mojom::VideoCodecProfile::DOLBYVISION_PROFILE5:
       *out = gpu::VideoCodecProfile::DOLBYVISION_PROFILE5;
       return true;
@@ -247,9 +333,53 @@ bool EnumTraits<gpu::mojom::VideoCodecProfile, gpu::VideoCodecProfile>::
     case gpu::mojom::VideoCodecProfile::AV1PROFILE_PROFILE_PRO:
       *out = gpu::VideoCodecProfile::AV1PROFILE_PROFILE_PRO;
       return true;
+    case gpu::mojom::VideoCodecProfile::VVCPROFILE_MAIN10:
+      *out = gpu::VideoCodecProfile::VVCPROFILE_MAIN10;
+      return true;
+    case gpu::mojom::VideoCodecProfile::VVCPROFILE_MAIN12:
+      *out = gpu::VideoCodecProfile::VVCPROFILE_MAIN12;
+      return true;
+    case gpu::mojom::VideoCodecProfile::VVCPROFILE_MAIN12_INTRA:
+      *out = gpu::VideoCodecProfile::VVCPROFILE_MAIN12_INTRA;
+      return true;
+    case gpu::mojom::VideoCodecProfile::VVCPROIFLE_MULTILAYER_MAIN10:
+      *out = gpu::VideoCodecProfile::VVCPROIFLE_MULTILAYER_MAIN10;
+      return true;
+    case gpu::mojom::VideoCodecProfile::VVCPROFILE_MAIN10_444:
+      *out = gpu::VideoCodecProfile::VVCPROFILE_MAIN10_444;
+      return true;
+    case gpu::mojom::VideoCodecProfile::VVCPROFILE_MAIN12_444:
+      *out = gpu::VideoCodecProfile::VVCPROFILE_MAIN12_444;
+      return true;
+    case gpu::mojom::VideoCodecProfile::VVCPROFILE_MAIN16_444:
+      *out = gpu::VideoCodecProfile::VVCPROFILE_MAIN16_444;
+      return true;
+    case gpu::mojom::VideoCodecProfile::VVCPROFILE_MAIN12_444_INTRA:
+      *out = gpu::VideoCodecProfile::VVCPROFILE_MAIN12_444_INTRA;
+      return true;
+    case gpu::mojom::VideoCodecProfile::VVCPROFILE_MAIN16_444_INTRA:
+      *out = gpu::VideoCodecProfile::VVCPROFILE_MAIN16_444_INTRA;
+      return true;
+    case gpu::mojom::VideoCodecProfile::VVCPROFILE_MULTILAYER_MAIN10_444:
+      *out = gpu::VideoCodecProfile::VVCPROFILE_MULTILAYER_MAIN10_444;
+      return true;
+    case gpu::mojom::VideoCodecProfile::VVCPROFILE_MAIN10_STILL_PICTURE:
+      *out = gpu::VideoCodecProfile::VVCPROFILE_MAIN10_STILL_PICTURE;
+      return true;
+    case gpu::mojom::VideoCodecProfile::VVCPROFILE_MAIN12_STILL_PICTURE:
+      *out = gpu::VideoCodecProfile::VVCPROFILE_MAIN12_STILL_PICTURE;
+      return true;
+    case gpu::mojom::VideoCodecProfile::VVCPROFILE_MAIN10_444_STILL_PICTURE:
+      *out = gpu::VideoCodecProfile::VVCPROFILE_MAIN10_444_STILL_PICTURE;
+      return true;
+    case gpu::mojom::VideoCodecProfile::VVCPROFILE_MAIN12_444_STILL_PICTURE:
+      *out = gpu::VideoCodecProfile::VVCPROFILE_MAIN12_444_STILL_PICTURE;
+      return true;
+    case gpu::mojom::VideoCodecProfile::VVCPROFILE_MAIN16_444_STILL_PICTURE:
+      *out = gpu::VideoCodecProfile::VVCPROFILE_MAIN12_444_STILL_PICTURE;
+      return true;
   }
   NOTREACHED() << "Invalid VideoCodecProfile: " << input;
-  return false;
 }
 
 // static
@@ -299,6 +429,8 @@ gpu::mojom::ImageDecodeAcceleratorType EnumTraits<
     case gpu::ImageDecodeAcceleratorType::kUnknown:
       return gpu::mojom::ImageDecodeAcceleratorType::kUnknown;
   }
+  NOTREACHED() << "Invalid ImageDecodeAcceleratorType: "
+               << static_cast<int>(image_type);
 }
 
 // static
@@ -318,7 +450,6 @@ bool EnumTraits<gpu::mojom::ImageDecodeAcceleratorType,
       return true;
   }
   NOTREACHED() << "Invalid ImageDecodeAcceleratorType: " << input;
-  return false;
 }
 
 // static
@@ -334,6 +465,8 @@ EnumTraits<gpu::mojom::ImageDecodeAcceleratorSubsampling,
     case gpu::ImageDecodeAcceleratorSubsampling::k444:
       return gpu::mojom::ImageDecodeAcceleratorSubsampling::k444;
   }
+  NOTREACHED() << "Invalid ImageDecodeAcceleratorSubsampling: "
+               << static_cast<int>(subsampling);
 }
 
 // static
@@ -353,7 +486,6 @@ bool EnumTraits<gpu::mojom::ImageDecodeAcceleratorSubsampling,
       return true;
   }
   NOTREACHED() << "Invalid ImageDecodeAcceleratorSubsampling: " << input;
-  return false;
 }
 
 // static
@@ -382,6 +514,7 @@ EnumTraits<gpu::mojom::OverlaySupport, gpu::OverlaySupport>::ToMojom(
     case gpu::OverlaySupport::kSoftware:
       return gpu::mojom::OverlaySupport::SOFTWARE;
   }
+  NOTREACHED() << "Invalid OverlaySupport: " << static_cast<int>(support);
 }
 
 bool EnumTraits<gpu::mojom::OverlaySupport, gpu::OverlaySupport>::FromMojom(
@@ -390,18 +523,18 @@ bool EnumTraits<gpu::mojom::OverlaySupport, gpu::OverlaySupport>::FromMojom(
   switch (input) {
     case gpu::mojom::OverlaySupport::NONE:
       *out = gpu::OverlaySupport::kNone;
-      break;
+      return true;
     case gpu::mojom::OverlaySupport::DIRECT:
       *out = gpu::OverlaySupport::kDirect;
-      break;
+      return true;
     case gpu::mojom::OverlaySupport::SCALING:
       *out = gpu::OverlaySupport::kScaling;
-      break;
+      return true;
     case gpu::mojom::OverlaySupport::SOFTWARE:
       *out = gpu::OverlaySupport::kSoftware;
-      break;
+      return true;
   }
-  return true;
+  NOTREACHED() << "Invalid OverlaySupport: " << input;
 }
 
 bool StructTraits<gpu::mojom::OverlayInfoDataView, gpu::OverlayInfo>::Read(
@@ -412,7 +545,8 @@ bool StructTraits<gpu::mojom::OverlayInfoDataView, gpu::OverlayInfo>::Read(
   return data.ReadYuy2OverlaySupport(&out->yuy2_overlay_support) &&
          data.ReadNv12OverlaySupport(&out->nv12_overlay_support) &&
          data.ReadBgra8OverlaySupport(&out->bgra8_overlay_support) &&
-         data.ReadRgb10a2OverlaySupport(&out->rgb10a2_overlay_support);
+         data.ReadRgb10a2OverlaySupport(&out->rgb10a2_overlay_support) &&
+         data.ReadP010OverlaySupport(&out->p010_overlay_support);
 }
 #endif
 
@@ -427,13 +561,6 @@ bool StructTraits<gpu::mojom::GpuInfoDataView, gpu::GPUInfo>::Read(
   out->passthrough_cmd_decoder = data.passthrough_cmd_decoder();
   out->can_support_threaded_texture_mailbox =
       data.can_support_threaded_texture_mailbox();
-#if BUILDFLAG(IS_MAC)
-  if (!gpu::ValidateMacOSSpecificTextureTarget(
-          data.macos_specific_texture_target())) {
-    return false;
-  }
-  out->macos_specific_texture_target = data.macos_specific_texture_target();
-#endif  // BUILDFLAG(IS_MAC)
   out->jpeg_decode_accelerator_supported =
       data.jpeg_decode_accelerator_supported();
 
@@ -441,20 +568,26 @@ bool StructTraits<gpu::mojom::GpuInfoDataView, gpu::GPUInfo>::Read(
   out->visibility_callback_call_count = data.visibility_callback_call_count();
 
 #if BUILDFLAG(IS_WIN)
+  out->directml_feature_level = data.directml_feature_level();
   out->d3d12_feature_level = data.d3d12_feature_level();
   out->vulkan_version = data.vulkan_version();
   out->shared_image_d3d = data.shared_image_d3d();
+#endif
+#if BUILDFLAG(ENABLE_VULKAN)
+  out->hardware_supports_vulkan = data.hardware_supports_vulkan();
 #endif
 
   return data.ReadInitializationTime(&out->initialization_time) &&
          data.ReadGpu(&out->gpu) &&
          data.ReadSecondaryGpus(&out->secondary_gpus) &&
+         data.ReadNpus(&out->npus) &&
          data.ReadPixelShaderVersion(&out->pixel_shader_version) &&
          data.ReadVertexShaderVersion(&out->vertex_shader_version) &&
          data.ReadMaxMsaaSamples(&out->max_msaa_samples) &&
          data.ReadMachineModelName(&out->machine_model_name) &&
          data.ReadMachineModelVersion(&out->machine_model_version) &&
          data.ReadDisplayType(&out->display_type) &&
+         data.ReadSkiaBackendType(&out->skia_backend_type) &&
          data.ReadGlVersion(&out->gl_version) &&
          data.ReadGlVendor(&out->gl_vendor) &&
          data.ReadGlRenderer(&out->gl_renderer) &&
@@ -466,7 +599,6 @@ bool StructTraits<gpu::mojom::GpuInfoDataView, gpu::GPUInfo>::Read(
          data.ReadDirectRenderingVersion(&out->direct_rendering_version) &&
 #if BUILDFLAG(IS_WIN)
          data.ReadOverlayInfo(&out->overlay_info) &&
-         data.ReadDxDiagnostics(&out->dx_diagnostics) &&
 #endif
          data.ReadVideoDecodeAcceleratorSupportedProfiles(
              &out->video_decode_accelerator_supported_profiles) &&

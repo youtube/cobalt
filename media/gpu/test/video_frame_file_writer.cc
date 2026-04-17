@@ -2,9 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/gpu/test/video_frame_file_writer.h"
 
-#include <sys/mman.h>
 #include <utility>
 #include <vector>
 
@@ -14,13 +18,16 @@
 #include "base/memory/ptr_util.h"
 #include "base/strings/stringprintf.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "media/gpu/buildflags.h"
 #include "media/gpu/video_frame_mapper.h"
 #include "media/gpu/video_frame_mapper_factory.h"
 #include "media/media_buildflags.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/codec/png_codec.h"
+
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
+#include <sys/mman.h>
+#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
 
 namespace media {
 namespace test {
@@ -146,23 +153,31 @@ void VideoFrameFileWriter::ProcessVideoFrameTask(
     size_t frame_index) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(writer_thread_sequence_checker_);
 
-  base::FilePath::StringType filename;
   const gfx::Size& visible_size = video_frame->visible_rect().size();
-  base::SStringPrintf(&filename, FILE_PATH_LITERAL("frame_%04zu_%dx%d"),
-                      frame_index, visible_size.width(), visible_size.height());
-  if (!output_file_prefix_.empty())
-    filename = output_file_prefix_ + FILE_PATH_LITERAL("_") + filename;
+
+  base::FilePath file_path;
+  if (!output_file_prefix_.empty()) {
+    file_path = base::FilePath(output_file_prefix_)
+                    .AppendASCII("_")
+                    .Append(base::FilePath::FromASCII(base::StringPrintf(
+                        "frame_%04zu_%dx%d", frame_index, visible_size.width(),
+                        visible_size.height())));
+  } else {
+    file_path = base::FilePath::FromASCII(
+        base::StringPrintf("frame_%04zu_%dx%d", frame_index,
+                           visible_size.width(), visible_size.height()));
+  }
 
   // Copies to |frame| in this function so that |video_frame| stays alive until
   // in the end of function.
   auto frame = video_frame;
-#if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
   if (frame->storage_type() == VideoFrame::STORAGE_GPU_MEMORY_BUFFER) {
     // TODO(andrescj): This is a workaround. ClientNativePixmapFactoryDmabuf
-    // creates ClientNativePixmapOpaque for SCANOUT_VDA_WRITE buffers which does
-    // not allow us to map GpuMemoryBuffers easily for testing. Therefore, we
-    // extract the dma-buf FDs. Alternatively, we could consider creating our
-    // own ClientNativePixmapFactory for testing.
+    // creates ClientNativePixmapOpaque for SCANOUT_VDA_WRITE buffers which
+    // does not allow us to map GpuMemoryBuffers easily for testing.
+    // Therefore, we extract the dma-buf FDs. Alternatively, we could consider
+    // creating our own ClientNativePixmapFactory for testing.
     frame = CreateDmabufVideoFrame(frame.get());
     if (!frame) {
       LOG(ERROR) << "Failed to create Dmabuf-backed VideoFrame from "
@@ -173,19 +188,19 @@ void VideoFrameFileWriter::ProcessVideoFrameTask(
   // Create VideoFrameMapper if not yet created. The decoder's output pixel
   // format is not known yet when creating the VideoFrameWriter. We can only
   // create the VideoFrameMapper upon receiving the first video frame.
-  if (frame->storage_type() == VideoFrame::STORAGE_DMABUFS &&
+  if ((frame->storage_type() == VideoFrame::STORAGE_DMABUFS) &&
       !video_frame_mapper_) {
     video_frame_mapper_ = VideoFrameMapperFactory::CreateMapper(
         frame->format(), frame->storage_type());
     ASSERT_TRUE(video_frame_mapper_) << "Failed to create VideoFrameMapper";
   }
-#endif  // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
   switch (output_format_) {
     case OutputFormat::kPNG:
-      WriteVideoFramePNG(frame, base::FilePath(filename));
+      WriteVideoFramePNG(frame, file_path);
       break;
     case OutputFormat::kYUV:
-      WriteVideoFrameYUV(frame, base::FilePath(filename));
+      WriteVideoFrameYUV(frame, file_path);
       break;
   }
 
@@ -199,18 +214,13 @@ void VideoFrameFileWriter::WriteVideoFramePNG(
     const base::FilePath& filename) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(writer_thread_sequence_checker_);
 
-  if (VideoFrame::BytesPerElement(video_frame->format(), 0) > 1) {
-    LOG(ERROR) << "We don't support more than 8 bits color depth for PNG"
-               << " output. Please use YUV output";
-    return;
-  }
   auto mapped_frame = video_frame;
-#if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
   if (video_frame->storage_type() == VideoFrame::STORAGE_DMABUFS) {
     CHECK(video_frame_mapper_);
     mapped_frame = video_frame_mapper_->Map(std::move(video_frame), PROT_READ);
   }
-#endif  // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 
   if (!mapped_frame) {
     LOG(ERROR) << "Failed to map video frame";
@@ -224,19 +234,16 @@ void VideoFrameFileWriter::WriteVideoFramePNG(
   }
 
   // Convert the ARGB frame to PNG.
-  std::vector<uint8_t> png_output;
-  const bool png_encode_status = gfx::PNGCodec::Encode(
-      argb_out_frame->visible_data(VideoFrame::kARGBPlane),
+  std::optional<std::vector<uint8_t>> png_output = gfx::PNGCodec::Encode(
+      argb_out_frame->visible_data(VideoFrame::Plane::kARGB),
       gfx::PNGCodec::FORMAT_BGRA, argb_out_frame->visible_rect().size(),
-      argb_out_frame->stride(VideoFrame::kARGBPlane),
-      true, /* discard_transparency */
-      std::vector<gfx::PNGCodec::Comment>(), &png_output);
-  ASSERT_TRUE(png_encode_status);
+      argb_out_frame->stride(VideoFrame::Plane::kARGB),
+      /*discard_transparency=*/true, std::vector<gfx::PNGCodec::Comment>());
 
   // Write the PNG data to file.
   base::FilePath file_path(
       output_folder_.Append(filename).AddExtension(FILE_PATH_LITERAL(".png")));
-  ASSERT_TRUE(base::WriteFile(file_path, png_output));
+  ASSERT_TRUE(base::WriteFile(file_path, png_output.value()));
 }
 
 void VideoFrameFileWriter::WriteVideoFrameYUV(
@@ -245,12 +252,13 @@ void VideoFrameFileWriter::WriteVideoFrameYUV(
   DCHECK_CALLED_ON_VALID_SEQUENCE(writer_thread_sequence_checker_);
 
   auto mapped_frame = video_frame;
-#if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
   if (video_frame->storage_type() == VideoFrame::STORAGE_DMABUFS) {
     CHECK(video_frame_mapper_);
     mapped_frame = video_frame_mapper_->Map(std::move(video_frame), PROT_READ);
   }
-#endif
+#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
+
   if (!mapped_frame) {
     LOG(ERROR) << "Failed to map video frame";
     return;

@@ -11,17 +11,18 @@
 #include "base/scoped_observation.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_registry_observer.h"
+#include "extensions/common/extension_id.h"
 
 namespace extensions {
 
 // A helper class that listen for ExtensionRegistry notifications.
 class TestExtensionRegistryObserver : public ExtensionRegistryObserver {
  public:
-  // If |extension_id| is provided, listens only to events relating to that
+  // If `extension_id` is provided, listens only to events relating to that
   // extension. Otherwise, listens to all events.
   explicit TestExtensionRegistryObserver(ExtensionRegistry* registry);
   TestExtensionRegistryObserver(ExtensionRegistry* registry,
-                                const std::string& extension_id);
+                                const ExtensionId& extension_id);
 
   TestExtensionRegistryObserver(const TestExtensionRegistryObserver&) = delete;
   TestExtensionRegistryObserver& operator=(
@@ -75,7 +76,7 @@ class TestExtensionRegistryObserver : public ExtensionRegistryObserver {
   base::ScopedObservation<ExtensionRegistry, ExtensionRegistryObserver>
       extension_registry_observation_{this};
 
-  std::string extension_id_;
+  ExtensionId extension_id_;
 };
 
 }  // namespace extensions

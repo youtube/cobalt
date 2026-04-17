@@ -38,9 +38,11 @@ SurfaceState::SurfaceState(SurfaceID idIn,
       timestampsEnabled(false),
       autoRefreshEnabled(false),
       directComposition(false),
-      swapBehavior(EGL_NONE)
+      swapBehavior(EGL_NONE),
+      swapInterval(0)
 {
     directComposition = attributes.get(EGL_DIRECT_COMPOSITION_ANGLE, EGL_FALSE) == EGL_TRUE;
+    swapInterval      = attributes.getAsInt(EGL_SWAP_INTERVAL_ANGLE, 1);
 }
 
 SurfaceState::~SurfaceState()
@@ -56,11 +58,6 @@ bool SurfaceState::isRobustResourceInitEnabled() const
 bool SurfaceState::hasProtectedContent() const
 {
     return attributes.get(EGL_PROTECTED_CONTENT_EXT, EGL_FALSE) == EGL_TRUE;
-}
-
-EGLint SurfaceState::getPreferredSwapInterval() const
-{
-    return attributes.getAsInt(EGL_SWAP_INTERVAL_ANGLE, 1);
 }
 
 Surface::Surface(EGLint surfaceType,
@@ -94,6 +91,8 @@ Surface::Surface(EGLint surfaceType,
       // FIXME: Determine actual pixel aspect ratio
       mPixelAspectRatio(static_cast<EGLint>(1.0 * EGL_DISPLAY_SCALING)),
       mRenderBuffer(EGL_BACK_BUFFER),
+      mRequestedRenderBuffer(EGL_BACK_BUFFER),
+      mRequestedSwapInterval(mState.swapInterval),
       mOrientation(0),
       mTexture(nullptr),
       mColorFormat(config->renderTargetFormat),
@@ -117,12 +116,14 @@ Surface::Surface(EGLint surfaceType,
 
     if (mType == EGL_PIXMAP_BIT)
     {
-        mRenderBuffer = EGL_SINGLE_BUFFER;
+        mRenderBuffer          = EGL_SINGLE_BUFFER;
+        mRequestedRenderBuffer = EGL_SINGLE_BUFFER;
     }
 
     if (mType == EGL_WINDOW_BIT)
     {
-        mRenderBuffer = mState.attributes.getAsInt(EGL_RENDER_BUFFER, EGL_BACK_BUFFER);
+        mRenderBuffer          = mState.attributes.getAsInt(EGL_RENDER_BUFFER, EGL_BACK_BUFFER);
+        mRequestedRenderBuffer = mRenderBuffer;
     }
 
     mGLColorspace =
@@ -182,8 +183,13 @@ Error Surface::destroyImpl(const Display *display)
     return NoError();
 }
 
-void Surface::postSwap(const gl::Context *context)
+void Surface::postSwap(const gl::Context *context, const rx::SurfaceSwapFeedback &feedback)
 {
+    if (feedback.swapChainImageChanged)
+    {
+        context->onSwapChainImageChanged();
+    }
+
     if (mRobustResourceInitialization && mState.swapBehavior != EGL_BUFFER_PRESERVED)
     {
         mColorInitState        = gl::InitState::MayNeedInit;
@@ -205,7 +211,7 @@ Error Surface::initialize(const Display *display)
     // EGL_BAD_MATCH error
     if (!gl::ColorspaceFormatOverride(mGLColorspace, &overrideRenderTargetFormat))
     {
-        return egl::EglBadMatch();
+        return egl::Error(EGL_BAD_MATCH);
     }
 
     // If an override is required update mState.config as well
@@ -226,6 +232,13 @@ Error Surface::initialize(const Display *display)
     // Must happen after implementation initialize for Android.
     mState.swapBehavior = mImplementation->getSwapBehavior();
 
+    // Update render buffer based on what the impl supports.
+    if ((mType == EGL_WINDOW_BIT) && mRenderBuffer == EGL_SINGLE_BUFFER &&
+        !mImplementation->supportsSingleRenderBuffer())
+    {
+        mRenderBuffer = EGL_BACK_BUFFER;
+    }
+
     if (mBuftype == EGL_IOSURFACE_ANGLE)
     {
         GLenum internalFormat =
@@ -242,7 +255,7 @@ Error Surface::initialize(const Display *display)
     }
     if (mBuftype == EGL_D3D_TEXTURE_ANGLE)
     {
-        const angle::Format *colorFormat = mImplementation->getD3DTextureColorFormat();
+        const angle::Format *colorFormat = mImplementation->getClientBufferTextureColorFormat();
         ASSERT(colorFormat != nullptr);
         GLenum internalFormat = colorFormat->fboImplementationInternalFormat;
         mColorFormat          = gl::Format(internalFormat, colorFormat->componentType);
@@ -268,7 +281,7 @@ Error Surface::makeCurrent(const gl::Context *context)
 {
     if (isLocked())
     {
-        return EglBadAccess();
+        return egl::Error(EGL_BAD_ACCESS);
     }
     ANGLE_TRY(mImplementation->makeCurrent(context));
     mIsCurrentOnAnyContext = true;
@@ -334,8 +347,10 @@ Error Surface::swap(gl::Context *context)
 
     context->getState().getOverlay()->onSwap();
 
-    ANGLE_TRY(mImplementation->swap(context));
-    postSwap(context);
+    ANGLE_TRY(updatePropertiesOnSwap(context));
+
+    rx::SurfaceSwapFeedback feedback;
+    ANGLE_TRY_WITH_FINALLY(mImplementation->swap(context, &feedback), postSwap(context, feedback));
     return NoError();
 }
 
@@ -346,20 +361,11 @@ Error Surface::swapWithDamage(gl::Context *context, const EGLint *rects, EGLint 
 
     context->getState().getOverlay()->onSwap();
 
-    ANGLE_TRY(mImplementation->swapWithDamage(context, rects, n_rects));
-    postSwap(context);
-    return NoError();
-}
+    ANGLE_TRY(updatePropertiesOnSwap(context));
 
-Error Surface::swapWithFrameToken(gl::Context *context, EGLFrameTokenANGLE frameToken)
-{
-    ANGLE_TRACE_EVENT0("gpu.angle", "egl::Surface::swapWithFrameToken");
-    context->onPreSwap();
-
-    context->getState().getOverlay()->onSwap();
-
-    ANGLE_TRY(mImplementation->swapWithFrameToken(context, frameToken));
-    postSwap(context);
+    rx::SurfaceSwapFeedback feedback;
+    ANGLE_TRY_WITH_FINALLY(mImplementation->swapWithDamage(context, rects, n_rects, &feedback),
+                           postSwap(context, feedback));
     return NoError();
 }
 
@@ -376,8 +382,10 @@ Error Surface::postSubBuffer(const gl::Context *context,
 
     context->getState().getOverlay()->onSwap();
 
+    ANGLE_TRY(updatePropertiesOnSwap(context));
     ANGLE_TRY(mImplementation->postSubBuffer(context, x, y, width, height));
-    postSwap(context);
+    rx::SurfaceSwapFeedback feedback;
+    postSwap(context, feedback);
     return NoError();
 }
 
@@ -396,9 +404,15 @@ EGLint Surface::isPostSubBufferSupported() const
     return mPostSubBufferRequested && mImplementation->isPostSubBufferSupported();
 }
 
-void Surface::setSwapInterval(EGLint interval)
+void Surface::setRequestedSwapInterval(EGLint interval)
 {
-    mImplementation->setSwapInterval(interval);
+    mRequestedSwapInterval = interval;
+}
+
+void Surface::setSwapInterval(const Display *display, EGLint interval)
+{
+    mImplementation->setSwapInterval(display, interval);
+    mState.swapInterval = interval;
 }
 
 void Surface::setMipmapLevel(EGLint level)
@@ -447,6 +461,11 @@ EGLint Surface::getPixelAspectRatio() const
 EGLenum Surface::getRenderBuffer() const
 {
     return mRenderBuffer;
+}
+
+EGLenum Surface::getRequestedRenderBuffer() const
+{
+    return mRequestedRenderBuffer;
 }
 
 EGLenum Surface::getSwapBehavior() const
@@ -554,7 +573,11 @@ Error Surface::bindTexImage(gl::Context *context, gl::Texture *texture, EGLint b
 {
     ASSERT(!mTexture);
     ANGLE_TRY(mImplementation->bindTexImage(context, texture, buffer));
-
+    Surface *previousSurface = texture->getBoundSurface();
+    if (previousSurface != nullptr)
+    {
+        ANGLE_TRY(previousSurface->releaseTexImage(context, buffer));
+    }
     if (texture->bindTexImageFromSurface(context, this) == angle::Result::Stop)
     {
         return Error(EGL_BAD_SURFACE);
@@ -592,6 +615,12 @@ Error Surface::releaseTexImageFromTexture(const gl::Context *context)
     ASSERT(mTexture);
     mTexture = nullptr;
     return releaseRef(context->getDisplay());
+}
+
+bool Surface::isAttachmentSpecified(const gl::ImageIndex & /*imageIndex*/) const
+{
+    // Surface is always specified even if it has 0 sizes.
+    return true;
 }
 
 gl::Extents Surface::getAttachmentSize(const gl::ImageIndex & /*target*/) const
@@ -760,9 +789,6 @@ void Surface::onSubjectStateChange(angle::SubjectIndex index, angle::SubjectMess
         case angle::SubjectMessage::SurfaceChanged:
             onStateChange(angle::SubjectMessage::SurfaceChanged);
             break;
-        case angle::SubjectMessage::SwapchainImageChanged:
-            onStateChange(angle::SubjectMessage::SwapchainImageChanged);
-            break;
         default:
             UNREACHABLE();
             break;
@@ -773,6 +799,26 @@ Error Surface::setRenderBuffer(EGLint renderBuffer)
 {
     ANGLE_TRY(mImplementation->setRenderBuffer(renderBuffer));
     mRenderBuffer = renderBuffer;
+    return NoError();
+}
+
+void Surface::setRequestedRenderBuffer(EGLint requestedRenderBuffer)
+{
+    mRequestedRenderBuffer = requestedRenderBuffer;
+}
+
+Error Surface::updatePropertiesOnSwap(const gl::Context *context)
+{
+    if ((mRenderBuffer != mRequestedRenderBuffer) &&
+        context->getDisplay()->getExtensions().mutableRenderBufferKHR &&
+        (getConfig()->surfaceType & EGL_MUTABLE_RENDER_BUFFER_BIT_KHR))
+    {
+        ANGLE_TRY(setRenderBuffer(mRequestedRenderBuffer));
+    }
+    if (mState.swapInterval != mRequestedSwapInterval)
+    {
+        setSwapInterval(context->getDisplay(), mRequestedSwapInterval);
+    }
     return NoError();
 }
 
@@ -856,6 +902,11 @@ EGLint Surface::getBitmapPixelSize() const
 EGLAttribKHR Surface::getBitmapPointer() const
 {
     return static_cast<EGLAttribKHR>((intptr_t)mLockBufferPtr);
+}
+
+EGLint Surface::getCompressionRate(const egl::Display *display) const
+{
+    return mImplementation->getCompressionRate(display);
 }
 
 egl::Error Surface::lockSurfaceKHR(const egl::Display *display, const AttributeMap &attributes)

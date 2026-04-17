@@ -7,13 +7,16 @@
 #include "chrome/grit/generated_resources.h"
 #include "chrome/services/util_win/public/mojom/util_win.mojom.h"
 #include "content/public/browser/service_process_host.h"
+#include "content/public/common/content_switches.h"
 
 mojo::Remote<chrome::mojom::UtilWin> LaunchUtilWinServiceInstance() {
+  content::ServiceProcessHost::Options options;
+  options.WithDisplayName(IDS_UTILITY_PROCESS_UTILITY_WIN_NAME);
+  options.WithExtraCommandLineSwitches({switches::kMessageLoopTypeUi});
+
   // Runs with kNoSandbox from sandbox.mojom.Sandbox.
   return content::ServiceProcessHost::Launch<chrome::mojom::UtilWin>(
-      content::ServiceProcessHost::Options()
-          .WithDisplayName(IDS_UTILITY_PROCESS_UTILITY_WIN_NAME)
-          .Pass());
+      options.Pass());
 }
 
 mojo::Remote<chrome::mojom::ProcessorMetrics> LaunchProcessorMetricsService() {

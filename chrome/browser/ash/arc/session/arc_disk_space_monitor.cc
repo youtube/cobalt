@@ -4,7 +4,6 @@
 
 #include "chrome/browser/ash/arc/session/arc_disk_space_monitor.h"
 
-#include "ash/components/arc/arc_util.h"
 #include "ash/public/cpp/notification_utils.h"
 #include "base/logging.h"
 #include "chrome/app/vector_icons/vector_icons.h"
@@ -14,6 +13,8 @@
 #include "chrome/browser/notifications/notification_display_service_factory.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/ash/components/dbus/spaced/spaced_client.h"
+#include "chromeos/ash/components/demo_mode/utils/demo_session_utils.h"
+#include "chromeos/ash/experiences/arc/arc_util.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/chromeos/resources/grit/ui_chromeos_resources.h"
@@ -80,7 +81,7 @@ void ArcDiskSpaceMonitor::CheckDiskSpace() {
                      weak_ptr_factory_.GetWeakPtr()));
 }
 
-void ArcDiskSpaceMonitor::OnGetFreeDiskSpace(absl::optional<int64_t> reply) {
+void ArcDiskSpaceMonitor::OnGetFreeDiskSpace(std::optional<int64_t> reply) {
   if (!reply.has_value() || reply.value() < 0) {
     LOG(ERROR) << "spaced::GetFreeDiskSpace failed. "
                << "Deactivating ArcDiskSpaceMonitor.";
@@ -122,6 +123,10 @@ void ArcDiskSpaceMonitor::OnGetFreeDiskSpace(absl::optional<int64_t> reply) {
   } else {
     ScheduleCheckDiskSpace(kDiskSpaceCheckIntervalLong);
   }
+
+  if (on_get_free_disk_space_callback_for_testing_) {
+    std::move(on_get_free_disk_space_callback_for_testing_).Run();
+  }
 }
 
 void ArcDiskSpaceMonitor::MaybeShowNotification(bool is_pre_stop) {
@@ -133,6 +138,12 @@ void ArcDiskSpaceMonitor::MaybeShowNotification(bool is_pre_stop) {
       return;
     }
     pre_stop_notification_last_shown_time_ = base::Time::Now();
+  }
+
+  if (ash::demo_mode::IsDeviceInDemoMode()) {
+    LOG(WARNING) << "Device is low on disk space, but the notification was "
+                 << "suppressed on a demo mode device.";
+    return;
   }
 
   const std::string notification_id = is_pre_stop
@@ -158,12 +169,12 @@ void ArcDiskSpaceMonitor::MaybeShowNotification(bool is_pre_stop) {
                                  kDiskSpaceMonitorNotifierId, catalog_name),
       /*optional_fields=*/message_center::RichNotificationData(),
       base::MakeRefCounted<message_center::HandleNotificationClickDelegate>(
-          base::BindRepeating([](absl::optional<int> button_index) {})),
+          base::BindRepeating([](std::optional<int> button_index) {})),
       kNotificationStorageFullIcon,
       message_center::SystemNotificationWarningLevel::CRITICAL_WARNING);
 
   Profile* profile = arc::ArcSessionManager::Get()->profile();
-  NotificationDisplayService::GetForProfile(profile)->Display(
+  NotificationDisplayServiceFactory::GetForProfile(profile)->Display(
       NotificationHandler::Type::TRANSIENT, notification,
       /*metadata=*/nullptr);
 }

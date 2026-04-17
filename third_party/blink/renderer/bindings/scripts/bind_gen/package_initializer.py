@@ -2,11 +2,13 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import os.path
 import web_idl
 
 from . import style_format
+from .codegen_tracing import CodeGenTracing
 from .path_manager import PathManager
-
+from .union_name_mapper import UnionNameMapper
 
 def init(**kwargs):
     """
@@ -58,7 +60,8 @@ class PackageInitializer(object):
         return cls._the_instance
 
     def __init__(self, web_idl_database_path, root_src_dir, root_gen_dir,
-                 component_reldirs, enable_style_format):
+                 component_reldirs, enable_style_format,
+                 enable_code_generation_tracing):
         """
         Args:
             web_idl_database_path: File path to the web_idl.Database.
@@ -69,6 +72,9 @@ class PackageInitializer(object):
             component_reldirs: Pairs of component and output directory.
             enable_style_format: Enable style formatting of the generated
                 files.
+            enable_code_generation_tracing: Enable tracing of code generation
+                to see which Python code generates which line of generated
+                code.
         """
 
         self._web_idl_database_path = web_idl_database_path
@@ -76,6 +82,7 @@ class PackageInitializer(object):
         self._root_gen_dir = root_gen_dir
         self._component_reldirs = component_reldirs
         self._enable_style_format = enable_style_format
+        self._enable_code_generation_tracing = enable_code_generation_tracing
 
     def init(self):
         if PackageInitializer._the_instance:
@@ -91,13 +98,31 @@ class PackageInitializer(object):
         PackageInitializer._the_web_idl_database = (
             web_idl.Database.read_from_file(self._web_idl_database_path))
 
+        union_name_config = os.path.abspath(
+            os.path.join(self._root_src_dir, "third_party", "blink",
+                         "renderer", "bindings", "union_name_map.conf"))
+        union_name_mapper = UnionNameMapper.init(
+            union_name_config, PackageInitializer._the_web_idl_database)
+        PathManager.init(root_src_dir=self._root_src_dir,
+                         root_gen_dir=self._root_gen_dir,
+                         component_reldirs=self._component_reldirs,
+                         union_name_mapper=union_name_mapper)
+
         style_format.init(root_src_dir=self._root_src_dir,
                           enable_style_format=self._enable_style_format)
 
-        PathManager.init(
-            root_src_dir=self._root_src_dir,
-            root_gen_dir=self._root_gen_dir,
-            component_reldirs=self._component_reldirs)
+        if self._enable_code_generation_tracing:
+            CodeGenTracing.enable_code_generation_tracing()
+            # The following Python modules are generally not interesting, so
+            # skip the functions in the modules.
+            from . import code_node
+            from . import code_node_cxx
+            from . import codegen_utils
+            CodeGenTracing.add_modules_to_be_ignored([
+                code_node,
+                code_node_cxx,
+                codegen_utils,
+            ])
 
     def web_idl_database(self):
         """Returns the global instance of web_idl.Database."""

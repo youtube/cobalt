@@ -5,10 +5,12 @@
 #ifndef MOJO_PUBLIC_CPP_BINDINGS_LIB_TEMPLATE_UTIL_H_
 #define MOJO_PUBLIC_CPP_BINDINGS_LIB_TEMPLATE_UTIL_H_
 
+#include <optional>
 #include <type_traits>
 
-namespace mojo {
-namespace internal {
+#include "mojo/public/cpp/bindings/optional_as_pointer.h"
+
+namespace mojo::internal {
 
 // A helper template to determine if given type is non-const move-only-type,
 // i.e. if a value of the given type should be passed via std::move() in a
@@ -30,7 +32,13 @@ struct AlwaysFalse {
   static const bool value = false;
 };
 
-}  // namespace internal
-}  // namespace mojo
+template <typename T>
+using IsAbslOptional = IsSpecializationOf<std::optional, std::decay_t<T>>;
+
+template <typename T>
+using IsOptionalAsPointer =
+    IsSpecializationOf<mojo::OptionalAsPointer, std::decay_t<T>>;
+
+}  // namespace mojo::internal
 
 #endif  // MOJO_PUBLIC_CPP_BINDINGS_LIB_TEMPLATE_UTIL_H_

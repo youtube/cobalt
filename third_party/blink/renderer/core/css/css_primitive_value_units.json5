@@ -224,7 +224,7 @@
     },
     {
       name: "fr",
-      unit_type: "kFraction",
+      unit_type: "kFlex",
     },
     {
       name: "turn",
@@ -245,6 +245,14 @@
     {
       name: "rlh",
       unit_type: "kRlhs",
+    },
+    {
+      name: "cap",
+      unit_type: "kCaps",
+    },
+    {
+      name: "rcap",
+      unit_type: "kRcaps",
     },
     {
       name: "__qem",

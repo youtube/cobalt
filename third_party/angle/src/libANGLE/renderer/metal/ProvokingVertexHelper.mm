@@ -99,8 +99,7 @@ static inline gl::PrimitiveMode getNewPrimitiveMode(const uint fixIndexBufferKey
             return gl::PrimitiveMode::InvalidEnum;
     }
 }
-ProvokingVertexHelper::ProvokingVertexHelper(ContextMtl *context)
-    : mIndexBuffers(false), mPipelineCache(this)
+ProvokingVertexHelper::ProvokingVertexHelper(ContextMtl *context) : mIndexBuffers(false)
 {
     mIndexBuffers.initialize(context, kInitialIndexBufferSize, mtl::kIndexBufferOffsetAlignment, 0);
 }
@@ -108,7 +107,6 @@ ProvokingVertexHelper::ProvokingVertexHelper(ContextMtl *context)
 void ProvokingVertexHelper::onDestroy(ContextMtl *context)
 {
     mIndexBuffers.destroy(context);
-    mPipelineCache.clear();
 }
 
 void ProvokingVertexHelper::releaseInFlightBuffers(ContextMtl *contextMtl)
@@ -143,55 +141,64 @@ static uint buildIndexBufferKey(const mtl::ProvokingVertexComputePipelineDesc &p
     return indexBufferKey;
 }
 
-bool ProvokingVertexHelper::hasSpecializedShader(
-    gl::ShaderType shaderType,
-    const mtl::ProvokingVertexComputePipelineDesc &renderPipelineDesc)
+angle::Result ProvokingVertexHelper::getComputePipleineState(
+    ContextMtl *context,
+    const mtl::ProvokingVertexComputePipelineDesc &desc,
+    angle::ObjCPtr<id<MTLComputePipelineState>> *outComputePipeline)
 {
-    return true;
-}
-
-angle::Result ProvokingVertexHelper::getSpecializedShader(
-    rx::mtl::Context *context,
-    gl::ShaderType shaderType,
-    const mtl::ProvokingVertexComputePipelineDesc &pipelineDesc,
-    id<MTLFunction> *shaderOut)
-{
-    id<MTLLibrary> provokingVertexLibrary = context->getDisplay()->getDefaultShadersLib();
-    uint indexBufferKey                   = buildIndexBufferKey(pipelineDesc);
-    auto fcValues = mtl::adoptObjCObj([[MTLFunctionConstantValues alloc] init]);
-    [fcValues setConstantValue:&indexBufferKey type:MTLDataTypeUInt withName:@"fixIndexBufferKey"];
-    if (pipelineDesc.generateIndices)
+    auto iter = mComputeFunctions.find(desc);
+    if (iter != mComputeFunctions.end())
     {
-        return CreateMslShader(context, provokingVertexLibrary, @"genIndexBuffer", fcValues.get(),
-                               shaderOut);
+        return context->getPipelineCache().getComputePipeline(context, iter->second,
+                                                              outComputePipeline);
+    }
+
+    id<MTLLibrary> provokingVertexLibrary = context->getDisplay()->getDefaultShadersLib();
+    uint indexBufferKey                   = buildIndexBufferKey(desc);
+    auto fcValues = angle::adoptObjCPtr([[MTLFunctionConstantValues alloc] init]);
+    [fcValues setConstantValue:&indexBufferKey type:MTLDataTypeUInt withName:@"fixIndexBufferKey"];
+
+    angle::ObjCPtr<id<MTLFunction>> computeShader;
+    if (desc.generateIndices)
+    {
+        ANGLE_TRY(CreateMslShader(context, provokingVertexLibrary, @"genIndexBuffer",
+                                  fcValues.get(), &computeShader));
     }
     else
     {
-        return CreateMslShader(context, provokingVertexLibrary, @"fixIndexBuffer", fcValues.get(),
-                               shaderOut);
+        ANGLE_TRY(CreateMslShader(context, provokingVertexLibrary, @"fixIndexBuffer",
+                                  fcValues.get(), &computeShader));
     }
+    mComputeFunctions[desc] = computeShader;
+
+    return context->getPipelineCache().getComputePipeline(context, computeShader,
+                                                          outComputePipeline);
 }
 
-void ProvokingVertexHelper::prepareCommandEncoderForDescriptor(
+angle::Result ProvokingVertexHelper::prepareCommandEncoderForDescriptor(
     ContextMtl *context,
     mtl::ComputeCommandEncoder *encoder,
     mtl::ProvokingVertexComputePipelineDesc desc)
 {
-    auto pipelineState = mPipelineCache.getComputePipelineState(context, desc);
+    angle::ObjCPtr<id<MTLComputePipelineState>> pipelineState;
+    ANGLE_TRY(getComputePipleineState(context, desc, &pipelineState));
 
     encoder->setComputePipelineState(pipelineState);
-    mCachedDesc = desc;
+
+    return angle::Result::Continue;
 }
-mtl::BufferRef ProvokingVertexHelper::preconditionIndexBuffer(ContextMtl *context,
-                                                              mtl::BufferRef indexBuffer,
-                                                              size_t indexCount,
-                                                              size_t indexOffset,
-                                                              bool primitiveRestartEnabled,
-                                                              gl::PrimitiveMode primitiveMode,
-                                                              gl::DrawElementsType elementsType,
-                                                              size_t &outIndexCount,
-                                                              size_t &outIndexOffset,
-                                                              gl::PrimitiveMode &outPrimitiveMode)
+
+angle::Result ProvokingVertexHelper::preconditionIndexBuffer(ContextMtl *context,
+                                                             mtl::BufferRef indexBuffer,
+                                                             size_t indexCount,
+                                                             size_t indexOffset,
+                                                             bool primitiveRestartEnabled,
+                                                             gl::PrimitiveMode primitiveMode,
+                                                             gl::DrawElementsType elementsType,
+                                                             size_t &outIndexCount,
+                                                             size_t &outIndexOffset,
+                                                             gl::PrimitiveMode &outPrimitiveMode,
+                                                             mtl::BufferRef &outNewBuffer)
 {
     // Get specialized program
     // Upload index buffer
@@ -207,22 +214,18 @@ mtl::BufferRef ProvokingVertexHelper::preconditionIndexBuffer(ContextMtl *contex
     size_t indexSize   = gl::GetDrawElementsTypeSize(elementsType);
     size_t newOffset   = 0;
     mtl::BufferRef newBuffer;
-    if (mIndexBuffers.allocate(context, newIndexCount * indexSize + indexOffset, nullptr,
-                               &newBuffer, &newOffset) == angle::Result::Stop)
-    {
-        return nullptr;
-    }
-    uint indexCountEncoded     = (uint)indexCount;
+    ANGLE_TRY(mIndexBuffers.allocate(context, newIndexCount * indexSize + indexOffset, nullptr,
+                                     &newBuffer, &newOffset));
     auto threadsPerThreadgroup = MTLSizeMake(MIN(primCount, 64u), 1, 1);
 
     mtl::ComputeCommandEncoder *encoder =
         context->getComputeCommandEncoderWithoutEndingRenderEncoder();
-    prepareCommandEncoderForDescriptor(context, encoder, pipelineDesc);
+    ANGLE_TRY(prepareCommandEncoderForDescriptor(context, encoder, pipelineDesc));
     encoder->setBuffer(indexBuffer, static_cast<uint32_t>(indexOffset), 0);
     encoder->setBufferForWrite(
         newBuffer, static_cast<uint32_t>(indexOffset) + static_cast<uint32_t>(newOffset), 1);
-    encoder->setData(&indexCountEncoded, 2);
-    encoder->setData(&primCount, 3);
+    encoder->setData(static_cast<uint>(indexCount), 2);
+    encoder->setData(primCount, 3);
     encoder->dispatch(
         MTLSizeMake((primCount + threadsPerThreadgroup.width - 1) / threadsPerThreadgroup.width, 1,
                     1),
@@ -230,17 +233,19 @@ mtl::BufferRef ProvokingVertexHelper::preconditionIndexBuffer(ContextMtl *contex
     outIndexCount    = newIndexCount;
     outIndexOffset   = newOffset;
     outPrimitiveMode = getNewPrimitiveMode(indexBufferKey);
-    return newBuffer;
+    outNewBuffer     = newBuffer;
+    return angle::Result::Continue;
 }
 
-mtl::BufferRef ProvokingVertexHelper::generateIndexBuffer(ContextMtl *context,
-                                                          size_t first,
-                                                          size_t indexCount,
-                                                          gl::PrimitiveMode primitiveMode,
-                                                          gl::DrawElementsType elementsType,
-                                                          size_t &outIndexCount,
-                                                          size_t &outIndexOffset,
-                                                          gl::PrimitiveMode &outPrimitiveMode)
+angle::Result ProvokingVertexHelper::generateIndexBuffer(ContextMtl *context,
+                                                         size_t first,
+                                                         size_t indexCount,
+                                                         gl::PrimitiveMode primitiveMode,
+                                                         gl::DrawElementsType elementsType,
+                                                         size_t &outIndexCount,
+                                                         size_t &outIndexOffset,
+                                                         gl::PrimitiveMode &outPrimitiveMode,
+                                                         mtl::BufferRef &outNewBuffer)
 {
     // Get specialized program
     // Upload index buffer
@@ -256,23 +261,17 @@ mtl::BufferRef ProvokingVertexHelper::generateIndexBuffer(ContextMtl *context,
     size_t indexSize      = gl::GetDrawElementsTypeSize(elementsType);
     size_t newIndexOffset = 0;
     mtl::BufferRef newBuffer;
-    if (mIndexBuffers.allocate(context, newIndexCount * indexSize, nullptr, &newBuffer,
-                               &newIndexOffset) == angle::Result::Stop)
-    {
-        return nullptr;
-    }
-    uint indexCountEncoded     = static_cast<uint>(indexCount);
-    uint firstVertexEncoded    = static_cast<uint>(first);
-    uint indexOffsetEncoded    = static_cast<uint>(newIndexOffset);
+    ANGLE_TRY(mIndexBuffers.allocate(context, newIndexCount * indexSize, nullptr, &newBuffer,
+                                     &newIndexOffset));
     auto threadsPerThreadgroup = MTLSizeMake(MIN(primCount, 64u), 1, 1);
 
     mtl::ComputeCommandEncoder *encoder =
         context->getComputeCommandEncoderWithoutEndingRenderEncoder();
-    prepareCommandEncoderForDescriptor(context, encoder, pipelineDesc);
-    encoder->setBufferForWrite(newBuffer, indexOffsetEncoded, 1);
-    encoder->setData(indexCountEncoded, 2);
+    ANGLE_TRY(prepareCommandEncoderForDescriptor(context, encoder, pipelineDesc));
+    encoder->setBufferForWrite(newBuffer, static_cast<uint>(newIndexOffset), 1);
+    encoder->setData(static_cast<uint>(indexCount), 2);
     encoder->setData(primCount, 3);
-    encoder->setData(firstVertexEncoded, 4);
+    encoder->setData(static_cast<uint>(first), 4);
     encoder->dispatch(
         MTLSizeMake((primCount + threadsPerThreadgroup.width - 1) / threadsPerThreadgroup.width, 1,
                     1),
@@ -280,7 +279,8 @@ mtl::BufferRef ProvokingVertexHelper::generateIndexBuffer(ContextMtl *context,
     outIndexCount    = newIndexCount;
     outIndexOffset   = newIndexOffset;
     outPrimitiveMode = getNewPrimitiveMode(indexBufferKey);
-    return newBuffer;
+    outNewBuffer     = newBuffer;
+    return angle::Result::Continue;
 }
 
 }  // namespace rx

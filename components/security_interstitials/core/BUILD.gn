@@ -36,6 +36,8 @@ static_library("core") {
     "ssl_error_ui.h",
     "urls.cc",
     "urls.h",
+    "utils.cc",
+    "utils.h",
   ]
 
   if (!is_ios) {
@@ -53,6 +55,7 @@ static_library("core") {
     "//base",
     "//base:i18n",
     "//components/content_settings/core/browser",
+    "//components/feature_engagement/public",
     "//components/google/core/common",
     "//components/history/core/browser",
     "//components/metrics",
@@ -60,6 +63,7 @@ static_library("core") {
     "//components/policy/core/common",
     "//components/prefs",
     "//components/resources",
+    "//components/safe_browsing/core/common:common",
     "//components/ssl_errors",
     "//components/strings",
     "//components/url_formatter",
@@ -69,33 +73,52 @@ static_library("core") {
   ]
 
   public_deps = [ "//components/security_interstitials/core/common/mojom" ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 }
 
 static_library("unsafe_resource") {
   sources = [
     "unsafe_resource.cc",
     "unsafe_resource.h",
+    "unsafe_resource_locator.cc",
+    "unsafe_resource_locator.h",
   ]
 
   deps = [
     "//base",
     "//components/safe_browsing/core/browser/db:hit_report",
     "//components/safe_browsing/core/browser/db:util",
-    "//components/safe_browsing/core/common:common",
     "//components/safe_browsing/core/common/proto:realtimeapi_proto",
     "//net",
     "//services/network/public/mojom",
   ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 }
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "ssl_error_options_mask_unittest.cc" ]
+  sources = [
+    "insecure_form_util_unittest.cc",
+    "metrics_helper_unittest.cc",
+    "ssl_error_options_mask_unittest.cc",
+  ]
 
   deps = [
     ":core",
+    ":insecure_form_util",
     "//base",
+    "//base/test:test_support",
     "//net",
     "//testing/gtest",
   ]
+}
+
+source_set("insecure_form_util") {
+  sources = [
+    "insecure_form_util.cc",
+    "insecure_form_util.h",
+  ]
+  deps = [ "//services/network/public/cpp:cpp" ]
 }

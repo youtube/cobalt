@@ -6,10 +6,10 @@
 #define CHROME_BROWSER_ENTERPRISE_BROWSER_MANAGEMENT_BROWSER_MANAGEMENT_STATUS_PROVIDER_H_
 
 #include "base/memory/raw_ptr.h"
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "components/policy/core/common/management/management_service.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
 #endif
 
@@ -68,8 +68,36 @@ class ProfileCloudManagementStatusProvider final
   raw_ptr<Profile> profile_;
 };
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-// This is both a device and browser management status provider for ChromeOS.
+class LocalTestPolicyUserManagementProvider final
+    : public policy::ManagementStatusProvider {
+ public:
+  explicit LocalTestPolicyUserManagementProvider(Profile* profile);
+  ~LocalTestPolicyUserManagementProvider() final;
+
+ protected:
+  // ManagementStatusProvider impl
+  EnterpriseManagementAuthority FetchAuthority() final;
+
+ private:
+  raw_ptr<Profile> profile_;
+};
+
+class LocalTestPolicyBrowserManagementProvider final
+    : public policy::ManagementStatusProvider {
+ public:
+  explicit LocalTestPolicyBrowserManagementProvider(Profile* profile);
+  ~LocalTestPolicyBrowserManagementProvider() final;
+
+ protected:
+  // ManagementStatusProvider impl
+  EnterpriseManagementAuthority FetchAuthority() final;
+
+ private:
+  raw_ptr<Profile> profile_;
+};
+
+#if BUILDFLAG(IS_CHROMEOS)
+// Returns the platform management status of ChromeOS devices.
 class DeviceManagementStatusProvider final
     : public policy::ManagementStatusProvider {
  public:

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "remoting/protocol/channel_socket_adapter.h"
 
 #include <limits>
@@ -14,12 +19,15 @@
 namespace remoting::protocol {
 
 TransportChannelSocketAdapter::TransportChannelSocketAdapter(
-    cricket::IceTransportInternal* ice_transport)
+    webrtc::IceTransportInternal* ice_transport)
     : channel_(ice_transport) {
   DCHECK(channel_);
 
-  channel_->SignalReadPacket.connect(
-      this, &TransportChannelSocketAdapter::OnNewPacket);
+  channel_->RegisterReceivedPacketCallback(
+      this, [&](webrtc::PacketTransportInternal* transport,
+                const webrtc::ReceivedIpPacket& packet) {
+        OnNewPacket(transport, packet);
+      });
   channel_->SignalWritableState.connect(
       this, &TransportChannelSocketAdapter::OnWritableState);
   channel_->SignalDestroyed.connect(
@@ -30,6 +38,11 @@ TransportChannelSocketAdapter::~TransportChannelSocketAdapter() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (destruction_callback_) {
     std::move(destruction_callback_).Run();
+  }
+  if (channel_) {
+    // Channel may still exist in unit tests. We must deregister packet callback
+    // in order to prevent callbacks after destruction.
+    channel_->DeregisterReceivedPacketCallback(this);
   }
 }
 
@@ -74,7 +87,7 @@ int TransportChannelSocketAdapter::Send(
   }
 
   int result;
-  rtc::PacketOptions options;
+  webrtc::AsyncSocketPacketOptions options;
   if (channel_->writable()) {
     result = channel_->SendPacket(buffer->data(), buffer_size, options);
     if (result < 0) {
@@ -107,7 +120,7 @@ void TransportChannelSocketAdapter::Close(int error_code) {
 
   DCHECK(error_code != net::OK);
   closed_error_code_ = error_code;
-  channel_->SignalReadPacket.disconnect(this);
+  channel_->DeregisterReceivedPacketCallback(this);
   channel_->SignalDestroyed.disconnect(this);
   channel_ = nullptr;
 
@@ -127,24 +140,22 @@ void TransportChannelSocketAdapter::Close(int error_code) {
 }
 
 void TransportChannelSocketAdapter::OnNewPacket(
-    rtc::PacketTransportInternal* transport,
-    const char* data,
-    size_t data_size,
-    const int64_t& packet_time,
-    int flags) {
+    webrtc::PacketTransportInternal* transport,
+    const webrtc::ReceivedIpPacket& packet) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK_EQ(transport, channel_);
   if (!read_callback_.is_null()) {
     DCHECK(read_buffer_.get());
-    CHECK_LT(data_size, static_cast<size_t>(std::numeric_limits<int>::max()));
-
+    CHECK_LT(packet.payload().size(),
+             static_cast<size_t>(std::numeric_limits<int>::max()));
+    size_t data_size = packet.payload().size();
     if (read_buffer_size_ < static_cast<int>(data_size)) {
       LOG(WARNING) << "Data buffer is smaller than the received packet. "
                    << "Dropping the data that doesn't fit.";
       data_size = read_buffer_size_;
     }
 
-    memcpy(read_buffer_->data(), data, data_size);
+    memcpy(read_buffer_->data(), packet.payload().data(), data_size);
 
     net::CompletionRepeatingCallback callback = read_callback_;
     read_callback_.Reset();
@@ -157,11 +168,11 @@ void TransportChannelSocketAdapter::OnNewPacket(
 }
 
 void TransportChannelSocketAdapter::OnWritableState(
-    rtc::PacketTransportInternal* transport) {
+    webrtc::PacketTransportInternal* transport) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Try to send the packet if there is a pending write.
   if (!write_callback_.is_null()) {
-    rtc::PacketOptions options;
+    webrtc::AsyncSocketPacketOptions options;
     int result = channel_->SendPacket(write_buffer_->data(), write_buffer_size_,
                                       options);
     if (result < 0) {
@@ -178,7 +189,7 @@ void TransportChannelSocketAdapter::OnWritableState(
 }
 
 void TransportChannelSocketAdapter::OnChannelDestroyed(
-    cricket::IceTransportInternal* channel) {
+    webrtc::IceTransportInternal* channel) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK_EQ(channel, channel_);
   Close(net::ERR_CONNECTION_ABORTED);

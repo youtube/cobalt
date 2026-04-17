@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "base/memory/scoped_refptr.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/test_simple_task_runner.h"
 #include "build/build_config.h"
@@ -41,8 +42,8 @@ MATCHER_P(ResourceHasUrl, gurl, "") {
 
 class SuspiciousSiteTriggerTest : public content::RenderViewHostTestHarness {
  public:
-  SuspiciousSiteTriggerTest() : task_runner_(new base::TestSimpleTaskRunner) {}
-  ~SuspiciousSiteTriggerTest() override {}
+  SuspiciousSiteTriggerTest() = default;
+  ~SuspiciousSiteTriggerTest() override = default;
 
   void SetUp() override {
     content::RenderViewHostTestHarness::SetUp();
@@ -163,7 +164,8 @@ class SuspiciousSiteTriggerTest : public content::RenderViewHostTestHarness {
   TestingPrefServiceSimple prefs_;
   MockTriggerManager trigger_manager_;
   base::HistogramTester histograms_;
-  scoped_refptr<base::TestSimpleTaskRunner> task_runner_;
+  scoped_refptr<base::TestSimpleTaskRunner> task_runner_ =
+      base::MakeRefCounted<base::TestSimpleTaskRunner>();
 };
 
 TEST_F(SuspiciousSiteTriggerTest, RegularPageNonSuspicious) {
@@ -175,7 +177,7 @@ TEST_F(SuspiciousSiteTriggerTest, RegularPageNonSuspicious) {
               StartCollectingThreatDetailsWithReason(_, _, _, _, _, _, _, _))
       .Times(0);
   EXPECT_CALL(*get_trigger_manager(),
-              FinishCollectingThreatDetails(_, _, _, _, _, _))
+              FinishCollectingThreatDetails(_, _, _, _, _, _, _, _))
       .Times(0);
 
   RenderFrameHost* main_frame = NavigateMainFrame(kCleanUrl);
@@ -192,13 +194,7 @@ TEST_F(SuspiciousSiteTriggerTest, RegularPageNonSuspicious) {
   ExpectNoReportRejection();
 }
 
-// crbug.com/1010037: fails on win.
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_SuspiciousHitDuringLoad DISABLED_SuspiciousHitDuringLoad
-#else
-#define MAYBE_SuspiciousHitDuringLoad SuspiciousHitDuringLoad
-#endif
-TEST_F(SuspiciousSiteTriggerTest, MAYBE_SuspiciousHitDuringLoad) {
+TEST_F(SuspiciousSiteTriggerTest, SuspiciousHitDuringLoad) {
   // When a suspicious site is detected in the middle of a page load, a report
   // is created after the page load has finished.
   CreateTrigger(/*monitor_mode=*/false);
@@ -208,9 +204,10 @@ TEST_F(SuspiciousSiteTriggerTest, MAYBE_SuspiciousHitDuringLoad) {
       .Times(1)
       .WillOnce(Return(true));
   EXPECT_CALL(*get_trigger_manager(),
-              FinishCollectingThreatDetails(_, _, _, _, _, _))
+              FinishCollectingThreatDetails(_, _, _, _, _, _, _, _))
       .Times(1)
-      .WillOnce(Return(true));
+      .WillOnce(Return(
+          MockTriggerManager::FinishCollectingThreatDetailsResult(true, true)));
 
   RenderFrameHost* main_frame = NavigateMainFrame(kCleanUrl);
   CreateAndNavigateSubFrame(kSuspiciousUrl, main_frame);
@@ -246,9 +243,10 @@ TEST_F(SuspiciousSiteTriggerTest, SuspiciousHitAfterLoad) {
       .Times(1)
       .WillOnce(Return(true));
   EXPECT_CALL(*get_trigger_manager(),
-              FinishCollectingThreatDetails(_, _, _, _, _, _))
+              FinishCollectingThreatDetails(_, _, _, _, _, _, _, _))
       .Times(1)
-      .WillOnce(Return(true));
+      .WillOnce(Return(
+          MockTriggerManager::FinishCollectingThreatDetailsResult(true, true)));
 
   RenderFrameHost* main_frame = NavigateMainFrame(kCleanUrl);
   CreateAndNavigateSubFrame(kSuspiciousUrl, main_frame);
@@ -285,7 +283,7 @@ TEST_F(SuspiciousSiteTriggerTest, ReportRejectedByTriggerManager) {
           DoAll(SetArgPointee<7>(TriggerManagerReason::DAILY_QUOTA_EXCEEDED),
                 Return(false)));
   EXPECT_CALL(*get_trigger_manager(),
-              FinishCollectingThreatDetails(_, _, _, _, _, _))
+              FinishCollectingThreatDetails(_, _, _, _, _, _, _, _))
       .Times(0);
 
   RenderFrameHost* main_frame = NavigateMainFrame(kCleanUrl);
@@ -324,7 +322,7 @@ TEST_F(SuspiciousSiteTriggerTest, NewNavigationMidLoad_NotSuspicious) {
               StartCollectingThreatDetailsWithReason(_, _, _, _, _, _, _, _))
       .Times(0);
   EXPECT_CALL(*get_trigger_manager(),
-              FinishCollectingThreatDetails(_, _, _, _, _, _))
+              FinishCollectingThreatDetails(_, _, _, _, _, _, _, _))
       .Times(0);
 
   RenderFrameHost* main_frame = NavigateMainFrame(kCleanUrl);
@@ -355,7 +353,7 @@ TEST_F(SuspiciousSiteTriggerTest, NewNavigationMidLoad_Suspicious) {
               StartCollectingThreatDetailsWithReason(_, _, _, _, _, _, _, _))
       .Times(0);
   EXPECT_CALL(*get_trigger_manager(),
-              FinishCollectingThreatDetails(_, _, _, _, _, _))
+              FinishCollectingThreatDetails(_, _, _, _, _, _, _, _))
       .Times(0);
 
   RenderFrameHost* main_frame = NavigateMainFrame(kCleanUrl);
@@ -393,7 +391,7 @@ TEST_F(SuspiciousSiteTriggerTest, MonitorMode_NotSuspicious) {
               StartCollectingThreatDetailsWithReason(_, _, _, _, _, _, _, _))
       .Times(0);
   EXPECT_CALL(*get_trigger_manager(),
-              FinishCollectingThreatDetails(_, _, _, _, _, _))
+              FinishCollectingThreatDetails(_, _, _, _, _, _, _, _))
       .Times(0);
 
   RenderFrameHost* main_frame = NavigateMainFrame(kCleanUrl);
@@ -420,7 +418,7 @@ TEST_F(SuspiciousSiteTriggerTest, MonitorMode_SuspiciousHitDuringLoad) {
               StartCollectingThreatDetailsWithReason(_, _, _, _, _, _, _, _))
       .Times(0);
   EXPECT_CALL(*get_trigger_manager(),
-              FinishCollectingThreatDetails(_, _, _, _, _, _))
+              FinishCollectingThreatDetails(_, _, _, _, _, _, _, _))
       .Times(0);
 
   RenderFrameHost* main_frame = NavigateMainFrame(kCleanUrl);
@@ -456,7 +454,7 @@ TEST_F(SuspiciousSiteTriggerTest, VisibleURLChangeMidLoad_NotSuspicious) {
               StartCollectingThreatDetailsWithReason(_, _, _, _, _, _, _, _))
       .Times(0);
   EXPECT_CALL(*get_trigger_manager(),
-              FinishCollectingThreatDetails(_, _, _, _, _, _))
+              FinishCollectingThreatDetails(_, _, _, _, _, _, _, _))
       .Times(0);
 
   NavigateMainFrame(kCleanUrl);
@@ -494,9 +492,10 @@ TEST_F(SuspiciousSiteTriggerTest, VisibleURLChangeMidLoad_Suspicious) {
       .Times(1)
       .WillOnce(Return(true));
   EXPECT_CALL(*get_trigger_manager(),
-              FinishCollectingThreatDetails(_, _, _, _, _, _))
+              FinishCollectingThreatDetails(_, _, _, _, _, _, _, _))
       .Times(1)
-      .WillOnce(Return(true));
+      .WillOnce(Return(
+          MockTriggerManager::FinishCollectingThreatDetailsResult(true, true)));
 
   // Change visible URL by starting a new navigation without committing it.
   // Sanity check the visible URL changed.

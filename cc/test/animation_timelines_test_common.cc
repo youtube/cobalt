@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/containers/contains.h"
 #include "base/memory/ptr_util.h"
 #include "cc/animation/animation.h"
 #include "cc/animation/animation_events.h"
@@ -60,7 +61,6 @@ float TestLayer::brightness() const {
   }
 
   NOTREACHED();
-  return 0;
 }
 
 float TestLayer::invert() const {
@@ -71,7 +71,6 @@ float TestLayer::invert() const {
   }
 
   NOTREACHED();
-  return 0;
 }
 
 TestHostClient::TestHostClient(ThreadInstance thread_instance)
@@ -196,7 +195,7 @@ void TestHostClient::RegisterElementId(ElementId element_id,
   ElementIdToTestLayer& layers_in_tree = list_type == ElementListType::ACTIVE
                                              ? layers_in_active_tree_
                                              : layers_in_pending_tree_;
-  DCHECK(layers_in_tree.find(element_id) == layers_in_tree.end());
+  DCHECK(!base::Contains(layers_in_tree, element_id));
   layers_in_tree[element_id] = TestLayer::Create();
 }
 
@@ -206,7 +205,7 @@ void TestHostClient::UnregisterElementId(ElementId element_id,
                                              ? layers_in_active_tree_
                                              : layers_in_pending_tree_;
   auto kv = layers_in_tree.find(element_id);
-  DCHECK(kv != layers_in_tree.end());
+  CHECK(kv != layers_in_tree.end());
   layers_in_tree.erase(kv);
 }
 
@@ -412,11 +411,11 @@ void TestAnimationDelegate::NotifyAnimationTakeover(
 }
 
 void TestAnimationDelegate::NotifyLocalTimeUpdated(
-    absl::optional<base::TimeDelta> local_time) {}
+    std::optional<base::TimeDelta> local_time) {}
 
 AnimationTimelinesTest::AnimationTimelinesTest()
-    : client_(ThreadInstance::MAIN),
-      client_impl_(ThreadInstance::IMPL),
+    : client_(ThreadInstance::kMain),
+      client_impl_(ThreadInstance::kImpl),
       host_(nullptr),
       host_impl_(nullptr),
       timeline_id_(AnimationIdProvider::NextTimelineId()),

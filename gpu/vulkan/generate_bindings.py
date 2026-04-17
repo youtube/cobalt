@@ -15,7 +15,7 @@ from string import Template
 from subprocess import call
 
 vulkan_reg_path = path.join(path.dirname(__file__), "..", "..", "third_party",
-                            "vulkan-deps", "vulkan-headers", "src", "registry")
+                            "vulkan-headers", "src", "registry")
 sys.path.append(vulkan_reg_path)
 from reg import Registry
 
@@ -45,6 +45,7 @@ VULKAN_INSTANCE_FUNCTIONS = [
       'vkEnumerateDeviceLayerProperties',
       'vkEnumeratePhysicalDevices',
       'vkGetDeviceProcAddr',
+      'vkGetPhysicalDeviceExternalSemaphoreProperties',
       'vkGetPhysicalDeviceFeatures2',
       'vkGetPhysicalDeviceFormatProperties',
       'vkGetPhysicalDeviceFormatProperties2',
@@ -123,13 +124,21 @@ VULKAN_DEVICE_FUNCTIONS = [
       'vkBindImageMemory',
       'vkBindImageMemory2',
       'vkCmdBeginRenderPass',
+      'vkCmdBindDescriptorSets',
+      'vkCmdBindPipeline',
+      'vkCmdBindVertexBuffers',
       'vkCmdCopyBuffer',
       'vkCmdCopyBufferToImage',
+      'vkCmdCopyImage',
       'vkCmdCopyImageToBuffer',
+      'vkCmdDraw',
       'vkCmdEndRenderPass',
       'vkCmdExecuteCommands',
       'vkCmdNextSubpass',
       'vkCmdPipelineBarrier',
+      'vkCmdPushConstants',
+      'vkCmdSetScissor',
+      'vkCmdSetViewport',
       'vkCreateBuffer',
       'vkCreateCommandPool',
       'vkCreateDescriptorPool',
@@ -139,6 +148,7 @@ VULKAN_DEVICE_FUNCTIONS = [
       'vkCreateGraphicsPipelines',
       'vkCreateImage',
       'vkCreateImageView',
+      'vkCreatePipelineLayout',
       'vkCreateRenderPass',
       'vkCreateSampler',
       'vkCreateSemaphore',
@@ -152,6 +162,8 @@ VULKAN_DEVICE_FUNCTIONS = [
       'vkDestroyFramebuffer',
       'vkDestroyImage',
       'vkDestroyImageView',
+      'vkDestroyPipeline',
+      'vkDestroyPipelineLayout',
       'vkDestroyRenderPass',
       'vkDestroySampler',
       'vkDestroySemaphore',
@@ -282,6 +294,18 @@ LICENSE_AND_HEADER = """\
 
 """
 
+def WriteReset(out_file, functions):
+ for group in functions:
+    if 'ifdef' in group:
+      out_file.write('#if %s\n' % group['ifdef'])
+
+    for func in group['functions']:
+      out_file.write('%s = nullptr;\n' % func)
+
+    if 'ifdef' in group:
+      out_file.write('#endif  // %s\n' % group['ifdef'])
+    out_file.write('\n')
+
 def WriteFunctionsInternal(out_file, functions, gen_content,
                            check_extension=False):
   for group in functions:
@@ -355,9 +379,14 @@ def WriteMacros(out_file, functions):
 
     callstat = ''
     if func in ('vkQueueSubmit', 'vkQueueWaitIdle', 'vkQueuePresentKHR'):
-        callstat = '''base::AutoLockMaybe auto_lock
-        (gpu::GetVulkanFunctionPointers()->per_queue_lock_map[queue].get());
-        \n'''
+        callstat = 'gpu::VulkanQueueLock* lock = nullptr;\n'
+        callstat += '''auto it = gpu::GetVulkanFunctionPointers()->
+        per_queue_lock_map.find(queue);\n'''
+        callstat += '''if (it != gpu::GetVulkanFunctionPointers()->
+        per_queue_lock_map.end()) {\n'''
+        callstat += '\tlock = it->second.get();\n'
+        callstat += '}\n'
+        callstat += 'gpu::VulkanQueueAutoLockMaybe auto_lock(lock);\n'
 
     callstat += 'return gpu::GetVulkanFunctionPointers()->%s(' % func
     paramdecl = '('
@@ -387,6 +416,75 @@ def GenerateHeaderFile(out_file):
 #define GPU_VULKAN_VULKAN_FUNCTION_POINTERS_H_
 
 #include <vulkan/vulkan.h>
+// vulkan.h includes <X11/Xlib.h> when VK_USE_PLATFORM_XLIB_KHR is defined
+// after https://github.com/KhronosGroup/Vulkan-Headers/pull/534.
+// This defines some macros which break build, so undefine them here.
+#undef Above
+#undef AllTemporary
+#undef AlreadyGrabbed
+#undef Always
+#undef AsyncBoth
+#undef AsyncKeyboard
+#undef AsyncPointer
+#undef Below
+#undef Bool
+#undef BottomIf
+#undef Button1
+#undef Button2
+#undef Button3
+#undef Button4
+#undef Button5
+#undef ButtonPress
+#undef ButtonRelease
+#undef ClipByChildren
+#undef Complex
+#undef Convex
+#undef CopyFromParent
+#undef CurrentTime
+#undef DestroyAll
+#undef DirectColor
+#undef DisplayString
+#undef EnterNotify
+#undef GrayScale
+#undef IncludeInferiors
+#undef InputFocus
+#undef InputOnly
+#undef InputOutput
+#undef KeyPress
+#undef KeyRelease
+#undef LSBFirst
+#undef LeaveNotify
+#undef LowerHighest
+#undef MSBFirst
+#undef Nonconvex
+#undef None
+#undef NotUseful
+#undef Opposite
+#undef ParentRelative
+#undef PointerRoot
+#undef PointerWindow
+#undef PseudoColor
+#undef RaiseLowest
+#undef ReplayKeyboard
+#undef ReplayPointer
+#undef RetainPermanent
+#undef RetainTemporary
+#undef StaticColor
+#undef StaticGray
+#undef Success
+#undef SyncBoth
+#undef SyncKeyboard
+#undef SyncPointer
+#undef TopIf
+#undef TrueColor
+#undef Unsorted
+#undef WhenMapped
+#undef XYBitmap
+#undef XYPixmap
+#undef YSorted
+#undef YXBanded
+#undef YXSorted
+#undef ZPixmap
 
 #include <memory>
 
@@ -394,8 +492,8 @@ def GenerateHeaderFile(out_file):
 #include "base/component_export.h"
 #include "base/containers/flat_map.h"
 #include "base/native_library.h"
-#include "base/synchronization/lock.h"
 #include "build/build_config.h"
+#include "gpu/vulkan/vulkan_queue_lock.h"
 #include "ui/gfx/extension_set.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -448,11 +546,13 @@ struct COMPONENT_EXPORT(VULKAN) VulkanFunctionPointers {
       uint32_t api_version,
       const gfx::ExtensionSet& enabled_extensions);
 
+  void ResetForTesting();
+
   // This is used to allow thread safe access to a given vulkan queue when
   // multiple gpu threads are accessing it. Note that this map will be only
   // accessed by multiple gpu threads concurrently to read the data, so it
   // should be thread safe to use this map by multiple threads.
-  base::flat_map<VkQueue, std::unique_ptr<base::Lock>> per_queue_lock_map;
+  base::flat_map<VkQueue, std::unique_ptr<VulkanQueueLock>> per_queue_lock_map;
 
   template<typename T>
   class VulkanFunction;
@@ -471,6 +571,8 @@ struct COMPONENT_EXPORT(VULKAN) VulkanFunctionPointers {
     }
 
     Fn get() const { return fn_; }
+
+    void OverrideForTesting(Fn fn) { fn_ = fn; }
 
    private:
     friend VulkanFunctionPointers;
@@ -544,11 +646,12 @@ struct COMPONENT_EXPORT(VULKAN) VulkanFunctionPointers {
 
 def WriteFunctionPointerInitialization(out_file, proc_addr_function, parent,
                                        functions):
-  template = Template("""  ${name} = reinterpret_cast<PFN_${name}>(
-    ${get_proc_addr}(${parent}, "${name}${extension_suffix}"));
+  template = Template("""  constexpr char k${name}${extension_suffix}[] =
+    "${name}${extension_suffix}";
+  ${name} = reinterpret_cast<PFN_${name}>(
+    ${get_proc_addr}(${parent}, k${name}${extension_suffix}));
   if (!${name}) {
-    DLOG(WARNING) << "Failed to bind vulkan entrypoint: "
-                  << "${name}${extension_suffix}";
+    LogGetProcError(k${name}${extension_suffix});
     return false;
   }
 
@@ -582,10 +685,18 @@ def GenerateSourceFile(out_file):
 
 #include "gpu/vulkan/vulkan_function_pointers.h"
 
+#include "base/check_op.h"
+#include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
 
 namespace gpu {
+
+namespace {
+NOINLINE void LogGetProcError(const char* funcName) {
+  LOG(WARNING) << "Failed to bind vulkan entrypoint: " << funcName;
+}
+}
 
 VulkanFunctionPointers* GetVulkanFunctionPointers() {
   static base::NoDestructor<VulkanFunctionPointers> vulkan_function_pointers;
@@ -606,8 +717,10 @@ bool VulkanFunctionPointers::BindUnassociatedFunctionPointersFromLoaderLib(
   vkGetInstanceProcAddr = reinterpret_cast<PFN_vkGetInstanceProcAddr>(
       base::GetFunctionPointerFromNativeLibrary(loader_library_,
                                                 "vkGetInstanceProcAddr"));
-  if (!vkGetInstanceProcAddr)
+  if (!vkGetInstanceProcAddr) {
+    LOG(WARNING) << "Failed to find vkGetInstanceProcAddr";
     return false;
+  }
   return BindUnassociatedFunctionPointersCommon();
 }
 
@@ -661,6 +774,25 @@ bool VulkanFunctionPointers::BindDeviceFunctionPointers(
   out_file.write("""\
 
   return true;
+}
+
+void VulkanFunctionPointers::ResetForTesting() {
+  base::AutoLock lock(write_lock_);
+
+  per_queue_lock_map.clear();
+  loader_library_ = nullptr;
+  vkGetInstanceProcAddr = nullptr;
+
+""")
+
+  WriteReset(
+      out_file, VULKAN_UNASSOCIATED_FUNCTIONS)
+  WriteReset(
+      out_file, VULKAN_INSTANCE_FUNCTIONS)
+  WriteReset(
+      out_file, VULKAN_DEVICE_FUNCTIONS)
+
+  out_file.write("""\
 }
 
 }  // namespace gpu

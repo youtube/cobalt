@@ -5,14 +5,15 @@
 #ifndef CHROME_BROWSER_NEW_TAB_PAGE_ONE_GOOGLE_BAR_ONE_GOOGLE_BAR_LOADER_IMPL_H_
 #define CHROME_BROWSER_NEW_TAB_PAGE_ONE_GOOGLE_BAR_ONE_GOOGLE_BAR_LOADER_IMPL_H_
 
+#include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/new_tab_page/one_google_bar/one_google_bar_loader.h"
 #include "services/data_decoder/public/cpp/data_decoder.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace network {
 class SimpleURLLoader;
@@ -37,7 +38,8 @@ class OneGoogleBarLoaderImpl : public OneGoogleBarLoader {
 
   GURL GetLoadURLForTesting() const override;
 
-  bool SetAdditionalQueryParams(const std::string& value) override;
+  void SetAdditionalQueryParams(
+      const std::map<std::string, std::string>& params) override;
 
  private:
   class AuthenticatedURLLoader;
@@ -49,15 +51,16 @@ class OneGoogleBarLoaderImpl : public OneGoogleBarLoader {
 
   void JsonParsed(data_decoder::DataDecoder::ValueOrError result);
 
-  void Respond(Status status, const absl::optional<OneGoogleBarData>& data);
+  void Respond(Status status, const std::optional<OneGoogleBarData>& data);
 
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
   const std::string application_locale_;
   const bool account_consistency_mirror_required_;
+  const bool async_bar_parts_;
 
   std::vector<OneGoogleCallback> callbacks_;
   std::unique_ptr<AuthenticatedURLLoader> pending_request_;
-  std::string additional_query_params_;
+  std::map<std::string, std::string> additional_query_params_;
 
   base::WeakPtrFactory<OneGoogleBarLoaderImpl> weak_ptr_factory_{this};
 };

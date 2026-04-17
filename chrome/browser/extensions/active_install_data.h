@@ -5,16 +5,19 @@
 #ifndef CHROME_BROWSER_EXTENSIONS_ACTIVE_INSTALL_DATA_H_
 #define CHROME_BROWSER_EXTENSIONS_ACTIVE_INSTALL_DATA_H_
 
-#include <string>
+#include "extensions/buildflags/buildflags.h"
+#include "extensions/common/extension_id.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 namespace extensions {
 
 // Details of an active extension install.
 struct ActiveInstallData {
   ActiveInstallData() = default;
-  explicit ActiveInstallData(const std::string& extension_id);
+  explicit ActiveInstallData(const ExtensionId& extension_id);
 
-  std::string extension_id;
+  ExtensionId extension_id;
   int percent_downloaded = 0;
 };
 

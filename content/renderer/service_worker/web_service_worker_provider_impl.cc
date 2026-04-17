@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/containers/to_vector.h"
 #include "base/functional/bind.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/trace_event/trace_event.h"
@@ -228,7 +229,7 @@ void WebServiceWorkerProviderImpl::CountFeature(
 void WebServiceWorkerProviderImpl::OnRegistered(
     std::unique_ptr<WebServiceWorkerRegistrationCallbacks> callbacks,
     blink::mojom::ServiceWorkerErrorType error,
-    const absl::optional<std::string>& error_msg,
+    const std::optional<std::string>& error_msg,
     blink::mojom::ServiceWorkerRegistrationObjectInfoPtr registration) {
   TRACE_EVENT_NESTABLE_ASYNC_END2(
       "ServiceWorker", "WebServiceWorkerProviderImpl::RegisterServiceWorker",
@@ -254,7 +255,7 @@ void WebServiceWorkerProviderImpl::OnRegistered(
 void WebServiceWorkerProviderImpl::OnDidGetRegistration(
     std::unique_ptr<WebServiceWorkerGetRegistrationCallbacks> callbacks,
     blink::mojom::ServiceWorkerErrorType error,
-    const absl::optional<std::string>& error_msg,
+    const std::optional<std::string>& error_msg,
     blink::mojom::ServiceWorkerRegistrationObjectInfoPtr registration) {
   TRACE_EVENT_NESTABLE_ASYNC_END2(
       "ServiceWorker", "WebServiceWorkerProviderImpl::GetRegistration",
@@ -282,8 +283,8 @@ void WebServiceWorkerProviderImpl::OnDidGetRegistration(
 void WebServiceWorkerProviderImpl::OnDidGetRegistrations(
     std::unique_ptr<WebServiceWorkerGetRegistrationsCallbacks> callbacks,
     blink::mojom::ServiceWorkerErrorType error,
-    const absl::optional<std::string>& error_msg,
-    absl::optional<
+    const std::optional<std::string>& error_msg,
+    std::optional<
         std::vector<blink::mojom::ServiceWorkerRegistrationObjectInfoPtr>>
         infos) {
   TRACE_EVENT_NESTABLE_ASYNC_END2(
@@ -300,16 +301,10 @@ void WebServiceWorkerProviderImpl::OnDidGetRegistrations(
 
   DCHECK(!error_msg);
   DCHECK(infos);
-  blink::WebVector<blink::WebServiceWorkerRegistrationObjectInfo> registrations;
-  registrations.reserve(infos->size());
-  for (size_t i = 0; i < infos->size(); ++i) {
-    DCHECK_NE(blink::mojom::kInvalidServiceWorkerRegistrationId,
-              (*infos)[i]->registration_id);
-    registrations.emplace_back(
-        std::move((*infos)[i])
-            .To<blink::WebServiceWorkerRegistrationObjectInfo>());
-  }
-  callbacks->OnSuccess(std::move(registrations));
+  callbacks->OnSuccess(base::ToVector(std::move(*infos), [](auto&& info) {
+    return std::move(info)
+        .template To<blink::WebServiceWorkerRegistrationObjectInfo>();
+  }));
 }
 
 void WebServiceWorkerProviderImpl::OnDidGetRegistrationForReady(

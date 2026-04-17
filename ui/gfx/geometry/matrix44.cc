@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/354829279): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/gfx/geometry/matrix44.h"
 
 #include <algorithm>
@@ -123,7 +128,7 @@ void Matrix44::PreTranslate3d(double dx, double dy, double dz) {
 }
 
 void Matrix44::PostTranslate(double dx, double dy) {
-  if (LIKELY(!HasPerspective())) {
+  if (!HasPerspective()) [[likely]] {
     matrix_[3][0] += dx;
     matrix_[3][1] += dy;
   } else {
@@ -147,7 +152,7 @@ void Matrix44::PostTranslate3d(double dx, double dy, double dz) {
   if (AllTrue(t == Double4{0, 0, 0, 0}))
     return;
 
-  if (LIKELY(!HasPerspective())) {
+  if (!HasPerspective()) [[likely]] {
     SetCol(3, Col(3) + t);
   } else {
     for (int i = 0; i < 4; ++i)
@@ -261,7 +266,7 @@ void Matrix44::Skew(double tan_skew_x, double tan_skew_y) {
   SetCol(1, c1 + c0 * tan_skew_x);
 }
 
-void Matrix44::ApplyDecomposedSkews(const double skews[3]) {
+void Matrix44::ApplyDecomposedSkews(base::span<const double, 3> skews) {
   Double4 c0 = Col(0);
   Double4 c1 = Col(1);
   Double4 c2 = Col(2);
@@ -435,8 +440,8 @@ void Matrix44::Flatten() {
   SetCol(2, Double4{0, 0, 1, 0});
 }
 
-// TODO(crbug.com/1359528): Consider letting this function always succeed.
-absl::optional<DecomposedTransform> Matrix44::Decompose2d() const {
+// TODO(crbug.com/40237414): Consider letting this function always succeed.
+std::optional<DecomposedTransform> Matrix44::Decompose2d() const {
   DCHECK(Is2dTransform());
 
   // https://www.w3.org/TR/css-transforms-1/#decomposing-a-2d-matrix.
@@ -461,7 +466,7 @@ absl::optional<DecomposedTransform> Matrix44::Decompose2d() const {
   double determinant = m11 * m22 - m12 * m21;
   // Test for matrix being singular.
   if (determinant == 0)
-    return absl::nullopt;
+    return std::nullopt;
 
   DecomposedTransform decomp;
 
@@ -544,7 +549,7 @@ absl::optional<DecomposedTransform> Matrix44::Decompose2d() const {
   return decomp;
 }
 
-absl::optional<DecomposedTransform> Matrix44::Decompose() const {
+std::optional<DecomposedTransform> Matrix44::Decompose() const {
   // See documentation of Transform::Decompose() for why we need the 2d branch.
   if (Is2dTransform())
     return Decompose2d();
@@ -558,7 +563,7 @@ absl::optional<DecomposedTransform> Matrix44::Decompose() const {
 
   // Normalize the matrix.
   if (!std::isnormal(c3[3]))
-    return absl::nullopt;
+    return std::nullopt;
 
   double inv_w = 1.0 / c3[3];
   c0 *= inv_w;
@@ -576,7 +581,7 @@ absl::optional<DecomposedTransform> Matrix44::Decompose() const {
   Double4 inverse_c2 = c2;
   Double4 inverse_c3 = c3;
   if (!InverseWithDouble4Cols(inverse_c0, inverse_c1, inverse_c2, inverse_c3))
-    return absl::nullopt;
+    return std::nullopt;
 
   DecomposedTransform decomp;
 
@@ -617,7 +622,7 @@ absl::optional<DecomposedTransform> Matrix44::Decompose() const {
 
   // Compute X scale factor and normalize the first column.
   if (!extract_scale(c0, decomp.scale[0]))
-    return absl::nullopt;
+    return std::nullopt;
 
   // Compute XY shear factor and make 2nd column orthogonal to 1st.
   decomp.skew[0] = epsilon_to_zero(sum3(c0 * c1));
@@ -625,7 +630,7 @@ absl::optional<DecomposedTransform> Matrix44::Decompose() const {
 
   // Now, compute Y scale and normalize 2nd column.
   if (!extract_scale(c1, decomp.scale[1]))
-    return absl::nullopt;
+    return std::nullopt;
 
   decomp.skew[0] /= decomp.scale[1];
 
@@ -637,7 +642,7 @@ absl::optional<DecomposedTransform> Matrix44::Decompose() const {
 
   // Next, get Z scale and normalize the 3rd column.
   if (!extract_scale(c2, decomp.scale[2]))
-    return absl::nullopt;
+    return std::nullopt;
 
   decomp.skew[1] /= decomp.scale[2];
   decomp.skew[2] /= decomp.scale[2];

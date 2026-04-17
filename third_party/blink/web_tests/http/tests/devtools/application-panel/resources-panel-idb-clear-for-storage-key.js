@@ -2,22 +2,27 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {TestRunner} from 'test_runner';
+import {ApplicationTestRunner} from 'application_test_runner';
+import {ConsoleTestRunner} from 'console_test_runner';
+
+import * as Common from 'devtools/core/common/common.js';
+import * as Application from 'devtools/panels/application/application.js';
+
 (async function() {
   TestRunner.addResult(`Validate IndexeddbModel clearForStorageKey\n`);
-  await TestRunner.loadLegacyModule('console'); await TestRunner.loadTestModule('application_test_runner');
   // Note: every test that uses a storage API must manually clean-up state from previous tests.
   await ApplicationTestRunner.resetState();
 
-  await TestRunner.loadLegacyModule('console'); await TestRunner.loadTestModule('console_test_runner');
   await TestRunner.showPanel('resources');
 
-  const model = TestRunner.mainTarget.model(Resources.IndexedDBModel);
-  const view = UI.panels.resources;
+  const model = TestRunner.mainTarget.model(Application.IndexedDBModel.IndexedDBModel);
+  const view = Application.ResourcesPanel.ResourcesPanel.instance();
 
   function createIndexedDBInMainFrame(callback) {
     var mainFrameId = TestRunner.resourceTreeModel.mainFrame.id;
     ApplicationTestRunner.createDatabase(mainFrameId, 'Database-main-frame', () => {
-      var event = model.addEventListener(Resources.IndexedDBModel.Events.DatabaseAdded, () => {
+      var event = model.addEventListener(Application.IndexedDBModel.Events.DatabaseAdded, () => {
         Common.EventTarget.removeEventListeners([event]);
         callback();
       });
@@ -30,13 +35,13 @@
     TestRunner.addResult('Database Length: ' + databases.length);
     TestRunner.addResult('Database Entries:');
     for (let j = 0; j < databases.length; ++j)
-      TestRunner.addResult(`  Storage key:${databases[j].storageKey}, Database Name:${databases[j].name}`);
+      TestRunner.addResult(`  Storage key:${databases[j].storageBucket.storageKey}, Database Name:${databases[j].name}`);
     TestRunner.addResult('**done**\n');
   }
 
   TestRunner.addResult('Create IndexedDB in main frame');
   await new Promise(createIndexedDBInMainFrame);
-  await TestRunner.addSnifferPromise(UI.panels.resources.sidebar.indexedDBListTreeElement, 'indexedDBLoadedForTest');
+  await TestRunner.addSnifferPromise(Application.ResourcesPanel.ResourcesPanel.instance().sidebar.indexedDBListTreeElement, 'indexedDBLoadedForTest');
   dumpDatabases();
 
   TestRunner.addResult('Removing bogus security origin...');

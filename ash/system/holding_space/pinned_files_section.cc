@@ -29,10 +29,12 @@
 #include "components/prefs/pref_service.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_id.h"
 #include "ui/compositor/layer.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/paint_vector_icon.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/animation/ink_drop.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/button/button.h"
@@ -60,16 +62,16 @@ constexpr int kPlaceholderGSuiteIconSpacing = 8;
 
 // Create a builder for an image view for the given G Suite icon.
 views::Builder<views::ImageView> CreateGSuiteIcon(const gfx::VectorIcon& icon) {
-  return views::Builder<views::ImageView>().SetImage(gfx::CreateVectorIcon(
-      icon, kPlaceholderGSuiteIconSize, gfx::kPlaceholderColor));
+  return views::Builder<views::ImageView>().SetImage(
+      ui::ImageModel::FromVectorIcon(icon, gfx::kPlaceholderColor,
+                                     kPlaceholderGSuiteIconSize));
 }
 #endif
 
 // Returns true if the given pref service or currently active features are in a
 // state where the placeholder should be shown in the pinned files section.
 bool ShouldShowPlaceholder(PrefService* prefs) {
-  if (features::IsHoldingSpacePredictabilityEnabled() ||
-      features::IsHoldingSpaceSuggestionsEnabled()) {
+  if (features::IsHoldingSpaceSuggestionsEnabled()) {
     return true;
   }
 
@@ -97,6 +99,8 @@ std::u16string GetPlaceholderText(bool drive_disabled) {
 // FilesAppChip ----------------------------------------------------------------
 
 class FilesAppChip : public views::Button {
+  METADATA_HEADER(FilesAppChip, views::Button)
+
  public:
   explicit FilesAppChip(views::Button::PressedCallback pressed_callback)
       : views::Button(std::move(pressed_callback)) {
@@ -109,13 +113,11 @@ class FilesAppChip : public views::Button {
 
  private:
   // views::Button:
-  gfx::Size CalculatePreferredSize() const override {
-    const int width = views::Button::CalculatePreferredSize().width();
-    return gfx::Size(width, GetHeightForWidth(width));
-  }
-
-  int GetHeightForWidth(int width) const override {
-    return kFilesAppChipHeight;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override {
+    const int width =
+        views::Button::CalculatePreferredSize(available_size).width();
+    return gfx::Size(width, kFilesAppChipHeight);
   }
 
   void OnThemeChanged() override {
@@ -128,7 +130,7 @@ class FilesAppChip : public views::Button {
   }
 
   void Init() {
-    SetAccessibleName(l10n_util::GetStringUTF16(
+    GetViewAccessibility().SetName(l10n_util::GetStringUTF16(
         IDS_ASH_HOLDING_SPACE_PINNED_FILES_APP_CHIP_TEXT));
     SetID(kHoldingSpaceFilesAppChipId);
 
@@ -146,8 +148,8 @@ class FilesAppChip : public views::Button {
 
     // Icon.
     auto* icon = AddChildView(std::make_unique<views::ImageView>());
-    icon->SetImage(gfx::CreateVectorIcon(kFilesAppIcon, kFilesAppChipIconSize,
-                                         gfx::kPlaceholderColor));
+    icon->SetImage(ui::ImageModel::FromVectorIcon(
+        kFilesAppIcon, gfx::kPlaceholderColor, kFilesAppChipIconSize));
 
     // Label.
     auto* label =
@@ -160,10 +162,13 @@ class FilesAppChip : public views::Button {
     views::FocusRing::Get(this)->SetColorId(ui::kColorAshFocusRing);
 
     // Background.
-    SetBackground(views::CreateThemedRoundedRectBackground(
+    SetBackground(views::CreateRoundedRectBackground(
         kColorAshControlBackgroundColorInactive, kFilesAppChipHeight / 2.f));
   }
 };
+
+BEGIN_METADATA(FilesAppChip)
+END_METADATA
 
 }  // namespace
 
@@ -176,10 +181,6 @@ PinnedFilesSection::PinnedFilesSection(HoldingSpaceViewDelegate* delegate)
 }
 
 PinnedFilesSection::~PinnedFilesSection() = default;
-
-const char* PinnedFilesSection::GetClassName() const {
-  return "PinnedFilesSection";
-}
 
 gfx::Size PinnedFilesSection::GetMinimumSize() const {
   // The pinned files section is scrollable so can be laid out smaller than its
@@ -209,8 +210,7 @@ std::unique_ptr<views::View> PinnedFilesSection::CreateContainer() {
 
 std::unique_ptr<HoldingSpaceItemView> PinnedFilesSection::CreateView(
     const HoldingSpaceItem* item) {
-  if (!(features::IsHoldingSpaceSuggestionsEnabled() ||
-        features::IsHoldingSpacePredictabilityEnabled())) {
+  if (!features::IsHoldingSpaceSuggestionsEnabled()) {
     // When `PinnedFilesSection::CreateView()` is called it implies that the
     // user has at some point in time pinned a file to holding space. That being
     // the case, the placeholder is no longer relevant and can be destroyed.
@@ -277,8 +277,7 @@ void PinnedFilesSection::OnFilesAppChipPressed(const ui::Event& event) {
 
   HoldingSpaceController::Get()->client()->OpenMyFiles(base::DoNothing());
 
-  if (!(features::IsHoldingSpaceSuggestionsEnabled() ||
-        features::IsHoldingSpacePredictabilityEnabled())) {
+  if (!features::IsHoldingSpaceSuggestionsEnabled()) {
     // Once the user has pressed the Files app chip, the placeholder should no
     // longer be displayed. This is accomplished by destroying it. If the
     // holding space model is empty, the holding space tray will also need to
@@ -287,5 +286,8 @@ void PinnedFilesSection::OnFilesAppChipPressed(const ui::Event& event) {
     delegate()->UpdateTrayVisibility();
   }
 }
+
+BEGIN_METADATA(PinnedFilesSection)
+END_METADATA
 
 }  // namespace ash

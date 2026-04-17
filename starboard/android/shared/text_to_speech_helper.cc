@@ -14,19 +14,13 @@
 
 #include "starboard/android/shared/text_to_speech_helper.h"
 
-#include "starboard/android/shared/application_android.h"
+#include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
 #include "starboard/android/shared/starboard_bridge.h"
-#include "starboard/common/memory.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/CobaltTextToSpeechHelper_jni.h"
 
 namespace starboard {
-
-// TODO: (cobalt b/372559388) Update namespace to jni_zero.
-using base::android::AttachCurrentThread;
-using base::android::ScopedJavaGlobalRef;
-using base::android::ScopedJavaLocalRef;
 
 CobaltTextToSpeechHelper* CobaltTextToSpeechHelper::GetInstance() {
   return base::Singleton<CobaltTextToSpeechHelper>::get();
@@ -40,32 +34,22 @@ void CobaltTextToSpeechHelper::Initialize(JNIEnv* env) {
       StarboardBridge::GetInstance()->GetTextToSpeechHelper(env);
 }
 
-void CobaltTextToSpeechHelper::AddObserver(TextToSpeechObserver* observer) {
-  base::AutoLock lock(observers_lock_);
-  observers_.AddObserver(observer);
-}
-
-void CobaltTextToSpeechHelper::RemoveObserver(TextToSpeechObserver* observer) {
-  base::AutoLock lock(observers_lock_);
-  observers_.RemoveObserver(observer);
-}
-
 bool CobaltTextToSpeechHelper::IsTextToSpeechEnabled(JNIEnv* env) const {
   bool enabled = Java_CobaltTextToSpeechHelper_isScreenReaderEnabled(
       env, j_text_to_speech_helper_);
   return enabled;
 }
 
-void CobaltTextToSpeechHelper::SendTextToSpeechChangeEvent() const {
-  base::AutoLock lock(observers_lock_);
-  for (TextToSpeechObserver& observer : observers_) {
-    observer.ObserveTextToSpeechChange();
-  }
+void CobaltTextToSpeechHelper::SendTextToSpeechChangeEvent(bool enabled) const {
+  cobalt::browser::H5vccAccessibilityManager::GetInstance()
+      ->OnTextToSpeechStateChanged(enabled);
 }
 
 void JNI_CobaltTextToSpeechHelper_SendTTSChangedEvent(JNIEnv* env) {
   CobaltTextToSpeechHelper::GetInstance()->Initialize(env);
-  CobaltTextToSpeechHelper::GetInstance()->SendTextToSpeechChangeEvent();
+  bool enabled =
+      CobaltTextToSpeechHelper::GetInstance()->IsTextToSpeechEnabled(env);
+  CobaltTextToSpeechHelper::GetInstance()->SendTextToSpeechChangeEvent(enabled);
 }
 
 }  // namespace starboard

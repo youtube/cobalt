@@ -17,6 +17,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_simple_task_runner.h"
 #include "components/metrics/clean_exit_beacon.h"
+#include "components/metrics/content/subprocess_metrics_provider.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
@@ -158,6 +159,8 @@ class AndroidMetricsServiceClientTest : public testing::Test {
         task_runner_(new base::TestSimpleTaskRunner) {
     // Required by MetricsService.
     base::SetRecordActionTaskRunner(task_runner_);
+    // Needed because RegisterMetricsProvidersAndInitState() checks for this.
+    metrics::SubprocessMetricsProvider::CreateInstance();
   }
 
   AndroidMetricsServiceClientTest(const AndroidMetricsServiceClientTest&) =
@@ -172,7 +175,12 @@ class AndroidMetricsServiceClientTest : public testing::Test {
   }
 
  protected:
-  ~AndroidMetricsServiceClientTest() override = default;
+  ~AndroidMetricsServiceClientTest() override {
+    // The global allocator has to be detached here so that no metrics created
+    // by code called below get stored in it as that would make for potential
+    // use-after-free operations if that code is called again.
+    base::GlobalHistogramAllocator::ReleaseForTesting();
+  }
 
  private:
   content::BrowserTaskEnvironment task_environment_;

@@ -31,6 +31,7 @@
 
 #include "anglebase/no_destructor.h"
 #include "common/Optional.h"
+#include "common/SimpleMutex.h"
 #include "common/angleutils.h"
 #include "common/entry_points_enum_autogen.h"
 #include "common/system_utils.h"
@@ -43,7 +44,7 @@ namespace
 
 DebugAnnotator *g_debugAnnotator = nullptr;
 
-std::mutex *g_debugMutex = nullptr;
+angle::SimpleMutex *g_debugMutex = nullptr;
 
 constexpr std::array<const char *, LOG_NUM_SEVERITIES> g_logSeverityNames = {
     {"EVENT", "INFO", "WARN", "ERR", "FATAL"}};
@@ -58,6 +59,9 @@ bool ShouldCreateLogMessage(LogSeverity severity)
 {
 #if defined(ANGLE_TRACE_ENABLED)
     return true;
+#elif defined(ANGLE_ALWAYS_LOG_INFO)
+    return severity == LOG_FATAL || severity == LOG_ERR || severity == LOG_WARN ||
+           severity == LOG_INFO;
 #elif defined(ANGLE_ENABLE_ASSERTS)
     return severity == LOG_FATAL || severity == LOG_ERR || severity == LOG_WARN;
 #else
@@ -123,11 +127,11 @@ void InitializeDebugMutexIfNeeded()
 {
     if (g_debugMutex == nullptr)
     {
-        g_debugMutex = new std::mutex();
+        g_debugMutex = new angle::SimpleMutex();
     }
 }
 
-std::mutex &GetDebugMutex()
+angle::SimpleMutex &GetDebugMutex()
 {
     ASSERT(g_debugMutex);
     return *g_debugMutex;
@@ -181,10 +185,10 @@ LogMessage::LogMessage(const char *file, const char *function, int line, LogSeve
 LogMessage::~LogMessage()
 {
     {
-        std::unique_lock<std::mutex> lock;
+        std::unique_lock<angle::SimpleMutex> lock;
         if (g_debugMutex != nullptr)
         {
-            lock = std::unique_lock<std::mutex>(*g_debugMutex);
+            lock = std::unique_lock<angle::SimpleMutex>(*g_debugMutex);
         }
 
         if (DebugAnnotationsInitialized() && (mSeverity > LOG_INFO))
@@ -261,7 +265,10 @@ void Trace(LogSeverity severity, const char *message)
         }
         __android_log_print(android_priority, "ANGLE", "%s: %s\n", LogSeverityName(severity),
                             str.c_str());
-#elif defined(ANGLE_PLATFORM_APPLE)
+        // Note: we also log to stdout/stderr below.
+#endif
+
+#if defined(ANGLE_PLATFORM_APPLE)
         if (__builtin_available(macOS 10.12, iOS 10.0, *))
         {
             os_log_type_t apple_log_type = OS_LOG_TYPE_DEFAULT;

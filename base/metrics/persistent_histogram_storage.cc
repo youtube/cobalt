@@ -2,7 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "base/metrics/persistent_histogram_storage.h"
+
+#include <cinttypes>
+#include <string_view>
 
 #include "base/files/file_util.h"
 #include "base/files/important_file_writer.h"
@@ -33,15 +41,17 @@ void* AllocateLocalMemory(size_t size) {
 #if BUILDFLAG(IS_WIN)
   address =
       ::VirtualAlloc(nullptr, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-  if (address)
+  if (address) {
     return address;
+  }
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   // MAP_ANON is deprecated on Linux but MAP_ANONYMOUS is not universal on Mac.
   // MAP_SHARED is not available on Linux <2.4 but required on Mac.
   address = ::mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED,
                    -1, 0);
-  if (address != MAP_FAILED)
+  if (address != MAP_FAILED) {
     return address;
+  }
 #else
 #error This architecture is not (yet) supported.
 #endif
@@ -50,8 +60,9 @@ void* AllocateLocalMemory(size_t size) {
   // achieve the same basic result but the acquired memory has to be
   // explicitly zeroed and thus realized immediately (i.e. all pages are
   // added to the process now instead of only when first accessed).
-  if (!base::UncheckedMalloc(size, &address))
+  if (!base::UncheckedMalloc(size, &address)) {
     return nullptr;
+  }
   DCHECK(address);
   memset(address, 0, size);
   return address;
@@ -62,7 +73,7 @@ void* AllocateLocalMemory(size_t size) {
 namespace base {
 
 PersistentHistogramStorage::PersistentHistogramStorage(
-    StringPiece allocator_name,
+    std::string_view allocator_name,
     StorageDirManagement storage_dir_management)
     : storage_dir_management_(storage_dir_management) {
   DCHECK(!allocator_name.empty());
@@ -73,8 +84,9 @@ PersistentHistogramStorage::PersistentHistogramStorage(
   // (no metric persistence) rather that generating a crash that won't be
   // caught/reported.
   void* memory = AllocateLocalMemory(kAllocSize);
-  if (!memory)
+  if (!memory) {
     return;
+  }
 
   GlobalHistogramAllocator::CreateWithPersistentMemory(memory, kAllocSize, 0,
                                                        0,  // No identifier.
@@ -84,13 +96,15 @@ PersistentHistogramStorage::PersistentHistogramStorage(
 
 PersistentHistogramStorage::~PersistentHistogramStorage() {
   PersistentHistogramAllocator* allocator = GlobalHistogramAllocator::Get();
-  if (!allocator)
+  if (!allocator) {
     return;
+  }
 
   allocator->UpdateTrackingHistograms();
 
-  if (disabled_)
+  if (disabled_) {
     return;
+  }
 
   // Stop if the storage base directory has not been properly set.
   if (storage_base_dir_.empty()) {
@@ -127,21 +141,18 @@ PersistentHistogramStorage::~PersistentHistogramStorage() {
       break;
   }
 
-  // Save data using the current time as the filename. The actual filename
-  // doesn't matter (so long as it ends with the correct extension) but this
-  // works as well as anything.
-  Time::Exploded exploded;
-  Time::Now().LocalExplode(&exploded);
+  // Save data using the process ID and microseconds since Windows Epoch for the
+  // filename with the correct extension. Using this format prevents collisions
+  // between multiple processes using the same provider name.
   const FilePath file_path =
       storage_dir
-          .AppendASCII(StringPrintf("%04d%02d%02d%02d%02d%02d", exploded.year,
-                                    exploded.month, exploded.day_of_month,
-                                    exploded.hour, exploded.minute,
-                                    exploded.second))
+          .AppendASCII(StringPrintf(
+              "%" CrPRIdPid "_%" PRId64, GetCurrentProcId(),
+              Time::Now().ToDeltaSinceWindowsEpoch().InMicroseconds()))
           .AddExtension(PersistentMemoryAllocator::kFileExtension);
 
-  StringPiece contents(static_cast<const char*>(allocator->data()),
-                       allocator->used());
+  std::string_view contents(static_cast<const char*>(allocator->data()),
+                            allocator->used());
   if (!ImportantFileWriter::WriteFileAtomically(file_path, contents)) {
     LOG(ERROR) << "Persistent histograms fail to write to file: "
                << file_path.value();

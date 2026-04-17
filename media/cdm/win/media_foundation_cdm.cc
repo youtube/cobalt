@@ -2,16 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/cdm/win/media_foundation_cdm.h"
 
 #include <mferror.h>
-
 #include <stdlib.h>
+
 #include <vector>
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/not_fatal_until.h"
 #include "base/rand_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
@@ -119,8 +125,8 @@ int GetHdcpValue(HdcpVersion hdcp_version) {
 // the generated session ID is `DUMMY_9F656F4D76BE30D4`.
 std::string GenerateDummySessionId() {
   uint8_t random_bytes[8];
-  base::RandBytes(random_bytes, sizeof(random_bytes));
-  return "DUMMY_" + base::HexEncode(random_bytes, sizeof(random_bytes));
+  base::RandBytes(random_bytes);
+  return "DUMMY_" + base::HexEncode(random_bytes);
 }
 
 class CdmProxyImpl : public MediaFoundationCdmProxy {
@@ -307,13 +313,13 @@ MediaFoundationCdm::MediaFoundationCdm(
       session_keys_change_cb_(session_keys_change_cb),
       session_expiration_update_cb_(session_expiration_update_cb) {
   DVLOG_FUNC(1);
-  DCHECK(!uma_prefix_.empty());
-  DCHECK(create_mf_cdm_cb_);
-  DCHECK(is_type_supported_cb_);
-  DCHECK(session_message_cb_);
-  DCHECK(session_closed_cb_);
-  DCHECK(session_keys_change_cb_);
-  DCHECK(session_expiration_update_cb_);
+  CHECK(!uma_prefix_.empty(), base::NotFatalUntil::M140);
+  CHECK(create_mf_cdm_cb_, base::NotFatalUntil::M140);
+  CHECK(is_type_supported_cb_, base::NotFatalUntil::M140);
+  CHECK(session_message_cb_, base::NotFatalUntil::M140);
+  CHECK(session_closed_cb_, base::NotFatalUntil::M140);
+  CHECK(session_keys_change_cb_, base::NotFatalUntil::M140);
+  CHECK(session_expiration_update_cb_, base::NotFatalUntil::M140);
 }
 
 MediaFoundationCdm::~MediaFoundationCdm() {
@@ -325,7 +331,7 @@ HRESULT MediaFoundationCdm::Initialize() {
   ComPtr<IMFContentDecryptionModule> mf_cdm;
   create_mf_cdm_cb_.Run(hr, mf_cdm);
   if (!mf_cdm) {
-    DCHECK(FAILED(hr));
+    CHECK(FAILED(hr), base::NotFatalUntil::M140);
 
     if (hr == DRM_E_TEE_INVALID_HWDRM_STATE) {
       OnCdmEvent(CdmEvent::kHardwareContextReset, hr);
@@ -517,7 +523,7 @@ void MediaFoundationCdm::CloseSession(
     std::unique_ptr<SimpleCdmPromise> promise) {
   DVLOG_FUNC(1);
 
-  // TODO(crbug.com/1298192): Handle DRM_E_TEE_INVALID_HWDRM_STATE. Right now
+  // TODO(crbug.com/40215444): Handle DRM_E_TEE_INVALID_HWDRM_STATE. Right now
   // DRM_E_TEE_INVALID_HWDRM_STATE is very rare in CloseSession() and there's
   // an open discussion on how this should behave in EME spec discussion.
   CloseSessionInternal(session_id, CdmSessionClosedReason::kClose,
@@ -593,9 +599,9 @@ bool MediaFoundationCdm::OnSessionId(
                 << ", session_id=" << session_id;
 
   auto itr = pending_sessions_.find(session_token);
-  DCHECK(itr != pending_sessions_.end());
+  CHECK(itr != pending_sessions_.end());
   auto session = std::move(itr->second);
-  DCHECK(session);
+  CHECK(session, base::NotFatalUntil::M140);
   pending_sessions_.erase(itr);
 
   if (session_id.empty() || sessions_.count(session_id)) {
@@ -687,7 +693,7 @@ void MediaFoundationCdm::OnHardwareContextReset() {
   // Recreates IMFContentDecryptionModule so we can create new sessions.
   if (FAILED(Initialize())) {
     DLOG(ERROR) << __func__ << ": Re-initialization failed";
-    DCHECK(!mf_cdm_);
+    CHECK(!mf_cdm_, base::NotFatalUntil::M140);
   }
 }
 

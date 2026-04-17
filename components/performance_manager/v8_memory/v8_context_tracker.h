@@ -41,11 +41,9 @@ class V8ContextTrackerDataStore;
 // added to the Graph.
 class V8ContextTracker final
     : public execution_context::ExecutionContextObserverDefaultImpl,
-      public GraphObserver,
-      public GraphOwned,
-      public GraphRegisteredImpl<V8ContextTracker>,
-      public NodeDataDescriberDefaultImpl,
-      public ProcessNode::ObserverDefaultImpl {
+      public ProcessNodeObserver,
+      public GraphOwnedAndRegistered<V8ContextTracker>,
+      public NodeDataDescriberDefaultImpl {
  public:
   using DataStore = internal::V8ContextTrackerDataStore;
 
@@ -209,9 +207,6 @@ class V8ContextTracker final
   void OnBeforeExecutionContextRemoved(
       const execution_context::ExecutionContext* ec) final;
 
-  // Implementation of GraphObserver.
-  void OnBeforeGraphDestroyed(Graph* graph) final;
-
   // Implementation of GraphOwned.
   void OnPassedToGraph(Graph* graph) final;
   void OnTakenFromGraph(Graph* graph) final;
@@ -223,7 +218,7 @@ class V8ContextTracker final
       const ProcessNode* node) const final;
   base::Value::Dict DescribeWorkerNodeData(const WorkerNode* node) const final;
 
-  // Implementation of ProcessNode::ObserverDefaultImpl.
+  // Implementation of ProcessNodeObserver.
   void OnBeforeProcessNodeRemoved(const ProcessNode* node) final;
 
   // OnIframeAttached bounces over to the UI thread to

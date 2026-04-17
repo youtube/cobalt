@@ -46,10 +46,10 @@ class TextFragmentGenerationNavigationTest
   GenerateAndNavigate(std::string html_content,
                       std::string* start_parent_id,
                       int start_offset_in_parent,
-                      absl::optional<int> start_text_offset,
+                      std::optional<int> start_text_offset,
                       std::string* end_parent_id,
                       int end_offset_in_parent,
-                      absl::optional<int> end_text_offset,
+                      std::optional<int> end_text_offset,
                       std::string selected_text,
                       std::string* highlight_text) override;
 
@@ -57,10 +57,10 @@ class TextFragmentGenerationNavigationTest
 
   RangeInFlatTree* GetSelectionRange(std::string* start_parent_id,
                                      int start_offset_in_parent,
-                                     absl::optional<int> start_text_offset,
+                                     std::optional<int> start_text_offset,
                                      std::string* end_parent_id,
                                      int end_offset_in_parent,
-                                     absl::optional<int> end_text_offset);
+                                     std::optional<int> end_text_offset);
 
   String GenerateSelector(const RangeInFlatTree& selection_range);
 
@@ -101,23 +101,23 @@ void TextFragmentGenerationNavigationTest::LoadHTML(String url,
 RangeInFlatTree* TextFragmentGenerationNavigationTest::GetSelectionRange(
     std::string* start_parent_id,
     int start_offset_in_parent,
-    absl::optional<int> start_text_offset,
+    std::optional<int> start_text_offset,
     std::string* end_parent_id,
     int end_offset_in_parent,
-    absl::optional<int> end_text_offset) {
+    std::optional<int> end_text_offset) {
   // Parent of start node will be the node with `start_parent_id` id
   // or the DOM body if no `start_parent_id`.
-  Node* start_parent_node =
-      start_parent_id == nullptr
-          ? GetDocument().body()
-          : GetDocument().getElementById(start_parent_id->c_str());
+  Node* start_parent_node = start_parent_id == nullptr
+                                ? GetDocument().body()
+                                : GetDocument().getElementById(
+                                      AtomicString(start_parent_id->c_str()));
 
   // Parent of end node will be the node with `end_parent_id` id
   // or the DOM body if no `end_parent_id`.
   Node* end_parent_node =
       end_parent_id == nullptr
           ? GetDocument().body()
-          : GetDocument().getElementById(end_parent_id->c_str());
+          : GetDocument().getElementById(AtomicString(end_parent_id->c_str()));
 
   const Node* start_node =
       start_parent_node->childNodes()->item(start_offset_in_parent);
@@ -151,7 +151,7 @@ String TextFragmentGenerationNavigationTest::GenerateSelector(
 }
 
 String TextFragmentGenerationNavigationTest::GetHighlightedText() {
-  auto* container = AnnotationAgentContainerImpl::From(GetDocument());
+  auto* container = AnnotationAgentContainerImpl::CreateIfNeeded(GetDocument());
   // Returns a null string, distinguishable from an empty string.
   if (!container)
     return String();
@@ -171,10 +171,10 @@ TextFragmentGenerationNavigationTest::GenerateAndNavigate(
     std::string html_content,
     std::string* start_parent_id,
     int start_offset_in_parent,
-    absl::optional<int> start_text_offset,
+    std::optional<int> start_text_offset,
     std::string* end_parent_id,
     int end_offset_in_parent,
-    absl::optional<int> end_text_offset,
+    std::optional<int> end_text_offset,
     std::string selected_text,
     std::string* highlight_text) {
   String base_url = "https://example.com/test.html";

@@ -4,18 +4,11 @@
 #ifndef MEDIA_GPU_V4L2_TEST_H264_DPB_H_
 #define MEDIA_GPU_V4L2_TEST_H264_DPB_H_
 
-// build_config.h must come before BUILDFLAG()
-#include "build/build_config.h"
-
-// ChromeOS specific header; does not exist upstream
-#if BUILDFLAG(IS_CHROMEOS)
-#include <linux/media/h264-ctrls-upstream.h>
-#endif
-
-#include "media/video/h264_parser.h"
-
 #include <map>
 #include <set>
+
+#include "media/parsers/h264_parser.h"
+#include "ui/gfx/geometry/rect.h"
 
 namespace media {
 namespace v4l2_test {
@@ -24,6 +17,9 @@ namespace v4l2_test {
 // slice including how the slice is reordered. It is used as
 // elements in the decoded picture buffer class H264DPB.
 struct H264SliceMetadata {
+  H264SliceMetadata();
+  H264SliceMetadata(const H264SliceMetadata&);
+
   H264SliceHeader slice_header;
   int bottom_field_order_cnt = 0;
   int frame_num = -1;
@@ -43,6 +39,9 @@ struct H264SliceMetadata {
   // Picture number for picture which is marked as long term as defined in
   // section 7.4.3.1.
   int long_term_pic_num = 0;
+  // The CAPTURE queue index this slice is queued in.
+  int capture_queue_buffer_id = -1;
+  gfx::Rect visible_rect_;
 };
 
 // H264DPB is a class representing a Decoded Picture Buffer (DPB).
@@ -95,7 +94,9 @@ class H264DPB : public std::map<uint64_t, H264SliceMetadata> {
   // Removes long term reference picture marking from |H264SliceMetadata|
   // objects that have a long term frame index greater than index.
   void UnmarkLongTermPicsGreaterThanFrameIndex(const int index);
-
+  // Returns a set of indices on the CAPTURE queue which are
+  // currently in use and cannot be refreshed.
+  std::set<int> GetHeldCaptureIds() const;
   // Maximum number of elements in the DPB. This is utilized by the
   // decoder for updating elements in the DPB.
   size_t max_dpb_size_ = -1;

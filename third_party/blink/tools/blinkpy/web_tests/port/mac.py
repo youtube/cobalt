@@ -35,28 +35,33 @@ _log = logging.getLogger(__name__)
 
 
 class MacPort(base.Port):
-    SUPPORTED_VERSIONS = ('mac10.13', 'mac10.14', 'mac10.15', 'mac11',
-                          'mac11-arm64', 'mac12', 'mac12-arm64', 'mac13',
-                          'mac13-arm64')
+    SUPPORTED_VERSIONS = ('mac11', 'mac11-arm64', 'mac12', 'mac12-arm64',
+                          'mac13', 'mac13-arm64', 'mac14', 'mac14-arm64',
+                          'mac15', 'mac15-arm64')
     port_name = 'mac'
 
     FALLBACK_PATHS = {}
 
-    FALLBACK_PATHS['mac13'] = ['mac']
+    FALLBACK_PATHS['mac15'] = ['mac']
+    FALLBACK_PATHS['mac15-arm64'] = ['mac-mac15-arm64'
+                                     ] + FALLBACK_PATHS['mac15']
+    FALLBACK_PATHS['mac14'] = ['mac-mac14'] + FALLBACK_PATHS['mac15']
+    FALLBACK_PATHS['mac14-arm64'] = ['mac-mac14-arm64'
+                                     ] + FALLBACK_PATHS['mac15-arm64']
+    FALLBACK_PATHS['mac13'] = ['mac-mac13'] + FALLBACK_PATHS['mac14']
     FALLBACK_PATHS['mac13-arm64'] = ['mac-mac13-arm64'
-                                     ] + FALLBACK_PATHS['mac13']
-
+                                     ] + FALLBACK_PATHS['mac14-arm64']
     FALLBACK_PATHS['mac12'] = ['mac-mac12'] + FALLBACK_PATHS['mac13']
     FALLBACK_PATHS['mac12-arm64'] = ['mac-mac12-arm64'
-                                     ] + FALLBACK_PATHS['mac12']
+                                     ] + FALLBACK_PATHS['mac13-arm64']
     FALLBACK_PATHS['mac11'] = ['mac-mac11'] + FALLBACK_PATHS['mac12']
     FALLBACK_PATHS['mac11-arm64'] = ['mac-mac11-arm64'
-                                     ] + FALLBACK_PATHS['mac11']
-    FALLBACK_PATHS['mac10.15'] = ['mac-mac10.15'] + FALLBACK_PATHS['mac11']
-    FALLBACK_PATHS['mac10.14'] = ['mac-mac10.14'] + FALLBACK_PATHS['mac10.15']
-    FALLBACK_PATHS['mac10.13'] = ['mac-mac10.13'] + FALLBACK_PATHS['mac10.14']
+                                     ] + FALLBACK_PATHS['mac12-arm64']
 
     CONTENT_SHELL_NAME = 'Content Shell'
+    CHROME_NAME = 'Chromium'
+    # `//headless:headless_shell` is built as a plain executable, not as an
+    # `.app` bundle, so there's no need to override `HEADLESS_SHELL_NAME` here.
 
     BUILD_REQUIREMENTS_URL = 'https://chromium.googlesource.com/chromium/src/+/main/docs/mac_build_instructions.md'
 
@@ -115,20 +120,20 @@ class MacPort(base.Port):
         config_file_basename = 'apache2-httpd-%s-php7.conf' % (self._apache_version(),)
         return self._filesystem.join(self.apache_config_directory(), config_file_basename)
 
-    def default_smoke_test_only(self):
-        # only run platform specific tests on older mac versions
-        if self._version in {'mac10.13', 'mac10.14'}:
-            return True
-        return super().default_smoke_test_only()
+    def path_to_driver(self, target=None):
+        if self.driver_name() == self.HEADLESS_SHELL_NAME:
+            return super().path_to_driver(target)
+        return self.build_path(self.driver_name() + '.app',
+                               'Contents',
+                               'MacOS',
+                               self.driver_name(),
+                               target=target)
 
     def path_to_smoke_tests_file(self):
-        if self._version in {'mac10.13', 'mac10.14'}:
-            return self._filesystem.join(self.web_tests_dir(), 'SmokeTests',
-                                         'Mac.txt')
-        return super().path_to_smoke_tests_file()
+        config_name = self.flag_specific_config_name()
+        if config_name:
+            _, smoke_file = self.flag_specific_configs()[config_name]
+            return self._filesystem.join(self.web_tests_dir(), smoke_file)
 
-    def _path_to_driver(self, target=None):
-        return self._build_path_with_target(target,
-                                            self.driver_name() + '.app',
-                                            'Contents', 'MacOS',
-                                            self.driver_name())
+        return self._filesystem.join(self.web_tests_dir(), 'TestLists',
+                                     'MacOld.txt')

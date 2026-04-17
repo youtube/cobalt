@@ -11,7 +11,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "ui/events/gesture_detection/gesture_detection_export.h"
-#include "ui/events/gesture_detection/velocity_tracker_state.h"
+#include "ui/events/velocity_tracker/velocity_tracker_state.h"
 
 namespace ui {
 
@@ -93,7 +93,7 @@ class GESTURE_DETECTION_EXPORT GestureDetector {
 
     // Whether a longpress should be generated immediately when a stylus button
     // is pressed, given that the longpress timeout is still active.
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     bool stylus_button_accelerated_longpress_enabled = true;
 #else
     bool stylus_button_accelerated_longpress_enabled = false;

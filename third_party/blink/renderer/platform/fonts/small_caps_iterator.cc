@@ -9,11 +9,10 @@
 
 namespace blink {
 
-SmallCapsIterator::SmallCapsIterator(const UChar* buffer, unsigned buffer_size)
-    : utf16_iterator_(std::make_unique<UTF16TextIterator>(buffer, buffer_size)),
-      buffer_size_(buffer_size),
+SmallCapsIterator::SmallCapsIterator(base::span<const UChar> buffer)
+    : utf16_iterator_(buffer),
       next_u_char32_(0),
-      at_end_(buffer_size == 0),
+      at_end_(buffer.empty()),
       current_small_caps_behavior_(kSmallCapsInvalid) {}
 
 bool SmallCapsIterator::Consume(unsigned* caps_limit,
@@ -21,7 +20,7 @@ bool SmallCapsIterator::Consume(unsigned* caps_limit,
   if (at_end_)
     return false;
 
-  while (utf16_iterator_->Consume(next_u_char32_)) {
+  while (utf16_iterator_.Consume(next_u_char32_)) {
     previous_small_caps_behavior_ = current_small_caps_behavior_;
     // Skipping over combining marks, as these combine with the small-caps
     // uppercased text as well and we do not need to split by their
@@ -35,13 +34,13 @@ bool SmallCapsIterator::Consume(unsigned* caps_limit,
 
     if (previous_small_caps_behavior_ != current_small_caps_behavior_ &&
         previous_small_caps_behavior_ != kSmallCapsInvalid) {
-      *caps_limit = utf16_iterator_->Offset();
+      *caps_limit = utf16_iterator_.Offset();
       *small_caps_behavior = previous_small_caps_behavior_;
       return true;
     }
-    utf16_iterator_->Advance();
+    utf16_iterator_.Advance();
   }
-  *caps_limit = buffer_size_;
+  *caps_limit = utf16_iterator_.Size();
   *small_caps_behavior = current_small_caps_behavior_;
   at_end_ = true;
   return true;

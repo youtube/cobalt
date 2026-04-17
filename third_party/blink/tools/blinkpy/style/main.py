@@ -22,9 +22,11 @@
 
 import codecs
 import logging
+import os
 import sys
 
 from blinkpy.common.host import Host
+from blinkpy.common.path_finder import get_chromium_src_dir
 from blinkpy.style import checker
 from blinkpy.style.checker import StyleProcessor
 from blinkpy.style.filereader import TextFileReader
@@ -138,26 +140,29 @@ class CheckBlinkStyle(object):
         (paths, options) = parser.parse(args)
 
         configuration = checker.check_blink_style_configuration(options)
-
-        paths = change_directory(
-            host.filesystem,
-            checkout_root=host.git().checkout_root,
-            paths=paths)
-
         style_processor = StyleProcessor(configuration)
         file_reader = TextFileReader(host.filesystem, style_processor)
 
-        if paths and not options.diff_files:
+        chromium_src_dir = get_chromium_src_dir()
+        paths = change_directory(
+            host.filesystem,
+            checkout_root=chromium_src_dir,
+            paths=paths)
+
+        if os.getcwd().startswith('/google/cog/cloud'):
             file_reader.process_paths(paths)
         else:
-            changed_files = paths if options.diff_files else None
-            patch = host.git().create_patch(
-                options.git_commit, changed_files=changed_files)
-            # create_patch intentionally returns binary data, but we have to
-            # decode it because patch_checker.check assumes str data.
-            patch = patch.decode()
-            patch_checker = PatchReader(file_reader)
-            patch_checker.check(patch)
+            if paths and not options.diff_files:
+                file_reader.process_paths(paths)
+            else:
+                changed_files = paths if options.diff_files else None
+                patch = host.git().create_patch(
+                    options.git_commit, changed_files=changed_files)
+                # create_patch intentionally returns binary data, but we have to
+                # decode it because patch_checker.check assumes str data.
+                patch = patch.decode()
+                patch_checker = PatchReader(file_reader)
+                patch_checker.check(patch)
 
         error_count = style_processor.error_count
         file_count = file_reader.file_count

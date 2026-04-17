@@ -4,21 +4,18 @@
 
 #import "ios/web/content/navigation/content_navigation_context.h"
 
+#import <optional>
+
 #import "base/notreached.h"
 #import "content/public/browser/navigation_handle.h"
 #import "net/base/net_errors.h"
-#import "third_party/abseil-cpp/absl/types/optional.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace web {
 
-absl::optional<NSInteger> GetIOSErrorForNetError(int net_error_code) {
+std::optional<NSInteger> GetIOSErrorForNetError(int net_error_code) {
   switch (net_error_code) {
     case net::ERR_ACCESS_DENIED:
-      // TODO(crbug.com/1419001): no analog for
+      // TODO(crbug.com/40257932): no analog for
       // kCFURLErrorBackgroundSessionInUseByAnotherProcess.
       return kCFURLErrorNoPermissionsToReadFile;
     case net::ERR_CONNECTION_ABORTED:
@@ -26,7 +23,7 @@ absl::optional<NSInteger> GetIOSErrorForNetError(int net_error_code) {
     case net::ERR_FAILED:
       return kCFURLErrorUserAuthenticationRequired;
     case net::ERR_ABORTED:
-      // TODO(crbug.com/1419001) no analog for
+      // TODO(crbug.com/40257932) no analog for
       // kCFURLErrorUserCancelledAuthentication.
       return kCFURLErrorCancelled;
     case net::ERR_INVALID_URL:
@@ -36,14 +33,14 @@ absl::optional<NSInteger> GetIOSErrorForNetError(int net_error_code) {
     case net::ERR_UNKNOWN_URL_SCHEME:
       return kCFURLErrorUnsupportedURL;
     case net::ERR_NAME_NOT_RESOLVED:
-      // TODO(crbug.com/1419001) no analog for
+      // TODO(crbug.com/40257932) no analog for
       // kCFURLErrorRedirectToNonExistentLocation.
       return kCFURLErrorCannotFindHost;
     // Note, we do no not handle mapping any iOS error code back to
     // ERR_SOCKET_NOT_CONNECTED so we will piggy-back on this code here.
     case net::ERR_SOCKET_NOT_CONNECTED:
     case net::ERR_CONNECTION_FAILED:
-      // TODO(crbug.com/1419001) no analog for kCFURLErrorCallIsActive.
+      // TODO(crbug.com/40257932) no analog for kCFURLErrorCallIsActive.
       return kCFURLErrorCannotConnectToHost;
     case net::ERR_CONNECTION_CLOSED:
       return kCFURLErrorNetworkConnectionLost;
@@ -54,17 +51,17 @@ absl::optional<NSInteger> GetIOSErrorForNetError(int net_error_code) {
     case net::ERR_INSUFFICIENT_RESOURCES:
       return kCFURLErrorResourceUnavailable;
     case net::ERR_INTERNET_DISCONNECTED:
-      // TODO(crbug.com/1419001): no analog for
+      // TODO(crbug.com/40257932): no analog for
       // kCFURLErrorInternationalRoamingOff.
-      // TODO(crbug.com/1419001): no analog for kCFURLErrorDataNotAllowed.
+      // TODO(crbug.com/40257932): no analog for kCFURLErrorDataNotAllowed.
       return kCFURLErrorNotConnectedToInternet;
     case net::ERR_INVALID_RESPONSE:
-      // TODO(crbug.com/1419001) no analog for kCFURLErrorCannotParseResponse.
+      // TODO(crbug.com/40257932) no analog for kCFURLErrorCannotParseResponse.
       return kCFURLErrorBadServerResponse;
     case net::ERR_EMPTY_RESPONSE:
       return kCFURLErrorZeroByteResource;
     case net::ERR_CONTENT_DECODING_FAILED:
-      // TODO(crbug.com/1419001): no analog for kCFURLErrorCannotDecodeRawData.
+      // TODO(crbug.com/40257932): no analog for kCFURLErrorCannotDecodeRawData.
       return kCFURLErrorCannotDecodeContentData;
     case net::ERR_CONTENT_LENGTH_MISMATCH:
       return kCFURLErrorRequestBodyStreamExhausted;
@@ -77,11 +74,11 @@ absl::optional<NSInteger> GetIOSErrorForNetError(int net_error_code) {
     case net::ERR_SSL_PROTOCOL_ERROR:
       return kCFURLErrorSecureConnectionFailed;
     case net::ERR_CERT_DATE_INVALID:
-      // TODO(crbug.com/1419001): no analog for
+      // TODO(crbug.com/40257932): no analog for
       // kCFURLErrorServerCertificateNotYetValid.
       return kCFURLErrorServerCertificateHasBadDate;
     case net::ERR_CERT_AUTHORITY_INVALID:
-      // TODO(crbug.com/1419001): no analog for
+      // TODO(crbug.com/40257932): no analog for
       // kCFURLErrorServerCertificateHasUnknownRoot.
       return kCFURLErrorServerCertificateUntrusted;
     case net::ERR_BAD_SSL_CLIENT_AUTH_CERT:
@@ -91,7 +88,7 @@ absl::optional<NSInteger> GetIOSErrorForNetError(int net_error_code) {
     default:
       break;
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 NavigationContext* ContentNavigationContext::GetOrCreate(
@@ -112,39 +109,39 @@ WebState* ContentNavigationContext::GetWebState() {
 }
 
 int64_t ContentNavigationContext::GetNavigationId() const {
-  return handle_.GetNavigationId();
+  return handle_->GetNavigationId();
 }
 
 const GURL& ContentNavigationContext::GetUrl() const {
-  return handle_.GetURL();
+  return handle_->GetURL();
 }
 
 bool ContentNavigationContext::HasUserGesture() const {
-  return handle_.HasUserGesture();
+  return handle_->HasUserGesture();
 }
 
 ui::PageTransition ContentNavigationContext::GetPageTransition() const {
-  return handle_.GetPageTransition();
+  return handle_->GetPageTransition();
 }
 
 bool ContentNavigationContext::IsSameDocument() const {
-  return handle_.IsSameDocument();
+  return handle_->IsSameDocument();
 }
 
 bool ContentNavigationContext::HasCommitted() const {
-  return handle_.HasCommitted();
+  return handle_->HasCommitted();
 }
 
 bool ContentNavigationContext::IsDownload() const {
-  return handle_.IsDownload();
+  return handle_->IsDownload();
 }
 
 bool ContentNavigationContext::IsPost() const {
-  return handle_.IsPost();
+  return handle_->IsPost();
 }
 
 NSError* ContentNavigationContext::GetError() const {
-  net::Error net_error_code = handle_.GetNetErrorCode();
+  net::Error net_error_code = handle_->GetNetErrorCode();
   if (net_error_code == net::OK) {
     error_ = nil;
   } else {
@@ -161,15 +158,15 @@ NSError* ContentNavigationContext::GetError() const {
 }
 
 net::HttpResponseHeaders* ContentNavigationContext::GetResponseHeaders() const {
-  return const_cast<net::HttpResponseHeaders*>(handle_.GetResponseHeaders());
+  return const_cast<net::HttpResponseHeaders*>(handle_->GetResponseHeaders());
 }
 
 bool ContentNavigationContext::IsRendererInitiated() const {
-  return handle_.IsRendererInitiated();
+  return handle_->IsRendererInitiated();
 }
 
 HttpsUpgradeType ContentNavigationContext::GetFailedHttpsUpgradeType() const {
-  // TODO(crbug.com/1419001): Determine an analog.
+  // TODO(crbug.com/40257932): Determine an analog.
   return HttpsUpgradeType::kNone;
 }
 

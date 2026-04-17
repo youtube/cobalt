@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_PERFORMANCE_MANAGER_PERSISTENCE_SITE_DATA_SITE_DATA_IMPL_H_
 #define COMPONENTS_PERFORMANCE_MANAGER_PERSISTENCE_SITE_DATA_SITE_DATA_IMPL_H_
 
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -20,7 +21,6 @@
 #include "components/performance_manager/persistence/site_data/site_data_store.h"
 #include "components/performance_manager/persistence/site_data/tab_visibility.h"
 #include "components/performance_manager/public/persistence/site_data/feature_usage.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/origin.h"
 
 namespace performance_manager {
@@ -183,8 +183,7 @@ class SiteDataImpl : public base::RefCounted<SiteDataImpl> {
 
   // Helper functions to convert from/to the internal representation that is
   // used to store TimeDelta values in the |SiteDataProto| protobuf.
-  static base::TimeDelta InternalRepresentationToTimeDelta(
-      ::google::protobuf::int64 value) {
+  static base::TimeDelta InternalRepresentationToTimeDelta(int64_t value) {
     return base::Seconds(value);
   }
   static int64_t TimeDeltaToInternalRepresentation(base::TimeDelta delta) {
@@ -226,8 +225,7 @@ class SiteDataImpl : public base::RefCounted<SiteDataImpl> {
 
   // Helper function to update a given |SiteDataFeatureProto| when a
   // feature gets used.
-  void NotifyFeatureUsage(SiteDataFeatureProto* feature_proto,
-                          const char* feature_name);
+  void NotifyFeatureUsage(SiteDataFeatureProto* feature_proto);
 
   bool IsLoaded() const {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -236,7 +234,7 @@ class SiteDataImpl : public base::RefCounted<SiteDataImpl> {
 
   // Callback that needs to be called by the data store once it has finished
   // trying to read the protobuf.
-  void OnInitCallback(absl::optional<SiteDataProto> site_characteristic_proto);
+  void OnInitCallback(std::optional<SiteDataProto> site_characteristic_proto);
 
   // Decrement the |loaded_tabs_in_background_count_| counter and update the
   // local feature observation durations if necessary.
@@ -283,7 +281,7 @@ class SiteDataImpl : public base::RefCounted<SiteDataImpl> {
 
   // The data store used to store the site characteristics, it should outlive
   // this object.
-  const raw_ptr<SiteDataStore> data_store_;
+  const raw_ptr<SiteDataStore, DanglingUntriaged> data_store_;
 
   // The delegate that should get notified when this object is about to get
   // destroyed, it should outlive this object.

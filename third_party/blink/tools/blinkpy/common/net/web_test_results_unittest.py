@@ -44,7 +44,8 @@ class WebTestResultsTest(unittest.TestCase):
                         "actual_text": ["fast/dom/many-mismatches-actual.txt"],
                         "expected_text": ["fast/dom/many-mismatches-expected.txt"],
                         "actual_image": ["fast/dom/many-mismatches-actual.png"],
-                        "expected_image": ["fast/dom/many-mismatches-expected.png"]
+                        "expected_image": ["fast/dom/many-mismatches-expected.png"],
+                        "stderr": ["fast/dom/many-mismatches-stderr.txt"]
                     },
                     "is_unexpected": true
                 },
@@ -94,7 +95,7 @@ class WebTestResultsTest(unittest.TestCase):
                     "is_missing_text": true
                 },
                 "prototype-slow.html": {
-                    "expected": "SLOW",
+                    "expected": "TIMEOUT",
                     "actual": "FAIL",
                     "is_unexpected": true
                 }
@@ -121,17 +122,44 @@ class WebTestResultsTest(unittest.TestCase):
     "builder_name": "mock_builder_name"
 });"""
 
+    another_full_results_json = b"""ADD_RESULTS({
+    "tests": {
+        "fast": {
+            "dom": {
+                "many-mismatches.html": {
+                    "expected": "PASS",
+                    "actual": "CRASH",
+                    "artifacts": {
+                        "expected_text": ["fast/dom/many-mismatches-expected.txt"],
+                        "stderr": ["fast/dom/many-mismatches-stderr.txt"],
+                        "crash-log": ["fast/dom/many-mismatches-crash.log"]
+                    },
+                    "is_unexpected": true
+                }
+            }
+        }
+    },
+    "skipped": 450,
+    "num_regressions": 1,
+    "layout_tests_dir": "/b/build/slave/Webkit_Mac11_5/build/src/third_party/blink/web_tests",
+    "version": 3,
+    "num_passes": 0,
+    "num_flaky": 0,
+    "chromium_revision": "1234",
+    "builder_name": "another_builder_name"
+});"""
+
     def test_empty_results_from_string(self):
         self.assertIsNone(WebTestResults.results_from_string(None))
         self.assertIsNone(WebTestResults.results_from_string(''))
 
     def test_was_interrupted(self):
-        self.assertTrue(
-            WebTestResults.results_from_string(
-                b'ADD_RESULTS({"tests":{},"interrupted":true});').interrupted)
-        self.assertFalse(
-            WebTestResults.results_from_string(
-                b'ADD_RESULTS({"tests":{},"interrupted":false});').interrupted)
+        results = WebTestResults.results_from_string(
+            b'ADD_RESULTS({"tests":{},"interrupted":true});')
+        self.assertIsNotNone(results.incomplete_reason)
+        results = WebTestResults.results_from_string(
+            b'ADD_RESULTS({"tests":{},"interrupted":false});')
+        self.assertIsNone(results.incomplete_reason)
 
     def test_chromium_revision(self):
         self.assertEqual(
@@ -158,6 +186,18 @@ class WebTestResultsTest(unittest.TestCase):
         results = WebTestResults.results_from_string(
             self.example_full_results_json)
         self.assertFalse(results.result_for_test('nonexistent.html'))
+
+    def test_merge_results(self):
+        results = WebTestResults.results_from_string(
+            self.example_full_results_json)
+        another_results = WebTestResults.results_from_string(
+            self.another_full_results_json)
+        results.merge_results(another_results)
+        new_result = results.result_for_test('fast/dom/many-mismatches.html')
+        self.assertEqual(new_result.actual_results(), ['FAIL', 'CRASH'])
+        self.assertEqual(len(new_result.artifacts.get('stderr')), 2)
+        self.assertEqual(len(new_result.artifacts.get('expected_text')), 1)
+        self.assertTrue('crash-log' in new_result.artifacts)
 
     # The following are tests for a single WebTestResult.
 

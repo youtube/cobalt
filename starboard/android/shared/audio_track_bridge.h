@@ -16,12 +16,14 @@
 #define STARBOARD_ANDROID_SHARED_AUDIO_TRACK_BRIDGE_H_
 
 #include <jni.h>
+
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 
 #include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
 #include "starboard/media.h"
-#include "starboard/types.h"
 
 namespace starboard {
 
@@ -69,6 +71,8 @@ class AudioTrackBridge {
                   int64_t sync_time,
                   JNIEnv* env = base::android::AttachCurrentThread());
 
+  void SetPlaybackRate(double playback_rate,
+                       JNIEnv* env = base::android::AttachCurrentThread());
   void SetVolume(double volume,
                  JNIEnv* env = base::android::AttachCurrentThread());
 
@@ -81,6 +85,7 @@ class AudioTrackBridge {
   int GetUnderrunCount(JNIEnv* env = base::android::AttachCurrentThread());
   int GetStartThresholdInFrames(
       JNIEnv* env = base::android::AttachCurrentThread());
+  int GetPlayState(JNIEnv* env = base::android::AttachCurrentThread());
 
  private:
   int max_samples_per_write_;

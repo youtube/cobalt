@@ -38,7 +38,6 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "client/crash_report_database.h"
 #include "client/crashpad_client.h"
 #include "client/crashpad_info.h"
@@ -57,7 +56,7 @@
 #include "util/string/split_string.h"
 #include "util/synchronization/semaphore.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "handler/linux/cros_crash_report_exception_handler.h"
 #endif
 
@@ -71,7 +70,7 @@
 #include <libgen.h>
 #include <signal.h>
 
-#include "base/mac/scoped_mach_port.h"
+#include "base/apple/scoped_mach_port.h"
 #include "handler/mac/crash_report_exception_handler.h"
 #include "handler/mac/exception_handler_server.h"
 #include "handler/mac/file_limit_annotation.h"
@@ -88,6 +87,10 @@
 #include "util/win/initial_client_data.h"
 #include "util/win/session_end_watcher.h"
 #endif  // BUILDFLAG(IS_APPLE)
+
+#if BUILDFLAG(IS_NATIVE_TARGET)
+#include <functional>
+#endif
 
 namespace crashpad {
 
@@ -188,11 +191,18 @@ void Usage(const base::FilePath& me) {
   // clang-format on
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_NATIVE_TARGET)
+"      --evergreen-information=EVERGREEN_INFORMATION_ADDRESS\n"
+"                              the address of a EvegreenInfo struct.\n"
+"      --ca-certificates-path=CA_CERTIFICATES_PATH\n"
+"                              the path to a directory containing root CA\n"
+"                              certs to use for report uploads\n"
+#endif  // BUILDFLAG(IS_NATIVE_TARGET)
       // clang-format off
 "      --url=URL               send crash reports to this Breakpad server URL,\n"
 "                              only if uploads are enabled for the database\n"
   // clang-format on
-#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_CHROMEOS)
       // clang-format off
 "      --use-cros-crash-reporter\n"
 "                              pass crash reports to /sbin/crash_reporter\n"
@@ -205,7 +215,7 @@ void Usage(const base::FilePath& me) {
 "                              crash_reporter, thus skipping metrics consent\n"
 "                              checks\n"
   // clang-format on
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 #if BUILDFLAG(IS_ANDROID)
       // clang-format off
 "      --write-minidump-to-log write minidump to log\n"
@@ -235,6 +245,10 @@ struct Options {
   VMAddress sanitization_information_address;
   int initial_client_fd;
   bool shared_client_connection;
+#if BUILDFLAG(IS_NATIVE_TARGET)
+  VMAddress evergreen_information_address;
+  base::FilePath ca_certificates_path;
+#endif  // BUILDFLAG(IS_NATIVE_TARGET)
 #if BUILDFLAG(IS_ANDROID)
   bool write_minidump_to_log;
   bool write_minidump_to_database;
@@ -248,11 +262,11 @@ struct Options {
   bool periodic_tasks;
   bool rate_limit;
   bool upload_gzip;
-#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_CHROMEOS)
   bool use_cros_crash_reporter = false;
   base::FilePath minidump_dir_for_tests;
   bool always_allow_feedback = false;
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 #if defined(ATTACHMENTS_SUPPORTED)
   std::vector<base::FilePath> attachments;
 #endif  // ATTACHMENTS_SUPPORTED
@@ -551,7 +565,7 @@ class ScopedStoppable {
 
 void InitCrashpadLogging() {
   logging::LoggingSettings settings;
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   settings.logging_dest = logging::LOG_TO_FILE;
   settings.log_file_path = "/var/log/chrome/chrome";
 #elif BUILDFLAG(IS_WIN)
@@ -621,12 +635,16 @@ int HandlerMain(int argc,
     kOptionSharedClientConnection,
     kOptionTraceParentWithException,
 #endif
+#if BUILDFLAG(IS_NATIVE_TARGET)
+    kOptionEvergreenInformaton,
+    kOptionCACertificatesPath,
+#endif  // BUILDFLAG(IS_NATIVE_TARGET)
     kOptionURL,
-#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_CHROMEOS)
     kOptionUseCrosCrashReporter,
     kOptionMinidumpDirForTests,
     kOptionAlwaysAllowFeedback,
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 #if BUILDFLAG(IS_ANDROID)
     kOptionWriteMinidumpToLog,
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -705,8 +723,18 @@ int HandlerMain(int argc,
      kOptionTraceParentWithException},
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_NATIVE_TARGET)
+    {"evergreen-information",
+     required_argument,
+     nullptr,
+     kOptionEvergreenInformaton},
+    {"ca-certificates-path",
+     required_argument,
+     nullptr,
+     kOptionCACertificatesPath},
+#endif  // BUILDFLAG(IS_NATIVE_TARGET)
     {"url", required_argument, nullptr, kOptionURL},
-#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_CHROMEOS)
     {"use-cros-crash-reporter",
      no_argument,
      nullptr,
@@ -716,7 +744,7 @@ int HandlerMain(int argc,
      nullptr,
      kOptionMinidumpDirForTests},
     {"always-allow-feedback", no_argument, nullptr, kOptionAlwaysAllowFeedback},
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 #if BUILDFLAG(IS_ANDROID)
     {"write-minidump-to-log", no_argument, nullptr, kOptionWriteMinidumpToLog},
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -875,11 +903,27 @@ int HandlerMain(int argc,
       }
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_NATIVE_TARGET)
+      case kOptionEvergreenInformaton: {
+        if (!StringToNumber(optarg,
+                            &options.evergreen_information_address)) {
+          ToolSupport::UsageHint(me,
+                                 "failed to parse --evergreen-information");
+          return ExitFailure();
+        }
+        break;
+      }
+      case kOptionCACertificatesPath: {
+        options.ca_certificates_path = base::FilePath(
+            ToolSupport::CommandLineArgumentToFilePathStringType(optarg));
+        break;
+      }
+#endif  // BUILDFLAG(IS_NATIVE_TARGET)
       case kOptionURL: {
         options.url = optarg;
         break;
       }
-#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_CHROMEOS)
       case kOptionUseCrosCrashReporter: {
         options.use_cros_crash_reporter = true;
         break;
@@ -893,7 +937,7 @@ int HandlerMain(int argc,
         options.always_allow_feedback = true;
         break;
       }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 #if BUILDFLAG(IS_ANDROID)
       case kOptionWriteMinidumpToLog: {
         options.write_minidump_to_log = true;
@@ -1016,6 +1060,28 @@ int HandlerMain(int argc,
     return ExitFailure();
   }
 
+#if BUILDFLAG(IS_NATIVE_TARGET)
+  ScopedStoppable prune_thread;
+  // TODO: b/446889385 - Cobalt: re-evaluate the max database size when we have
+  // better data about the distribution of minidump sizes for chrobalt.
+  constexpr size_t kMaxSizeInKb = 1024 * 5;  // 5 MB, per go/crashpad-db-mgmt
+  constexpr int kMaxAgeInDays = 365;
+  prune_thread.Reset(new PruneCrashReportThread(
+      database.get(),
+      // DatabaseSizePruneCondition must be the LHS condition so that it is
+      // always evaluated; see similar comment in PruneCondition::GetDefault().
+      std::make_unique<BinaryPruneCondition>(
+          BinaryPruneCondition::OR,
+          new DatabaseSizePruneCondition(kMaxSizeInKb),
+          new AgePruneCondition(kMaxAgeInDays))));
+  prune_thread.Get()->Start();
+
+  CrashReportUploadThread::ProcessPendingReportsObservationCallback
+      prune_now_cb = std::bind(
+          &crashpad::PruneCrashReportThread::PruneNow,
+          (crashpad::PruneCrashReportThread*) prune_thread.Get());
+#endif  // BUILDFLAG(IS_NATIVE_TARGET)
+
   ScopedStoppable upload_thread;
   if (!options.url.empty()) {
     // TODO(scottmg): options.rate_limit should be removed when we have a
@@ -1031,8 +1097,15 @@ int HandlerMain(int argc,
     upload_thread.Reset(new CrashReportUploadThread(
         database.get(),
         options.url,
+#if BUILDFLAG(IS_NATIVE_TARGET)
+        options.ca_certificates_path,
+#endif
         upload_thread_options,
+#if BUILDFLAG(IS_NATIVE_TARGET)
+        prune_now_cb));
+#else  // BUILDFLAG(IS_NATIVE_TARGET)
         CrashReportUploadThread::ProcessPendingReportsObservationCallback()));
+#endif  // BUILDFLAG(IS_NATIVE_TARGET)
     upload_thread.Get()->Start();
   }
 
@@ -1042,7 +1115,7 @@ int HandlerMain(int argc,
   std::unique_ptr<CrashReportExceptionHandler> exception_handler;
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_CHROMEOS)
   if (options.use_cros_crash_reporter) {
     auto cros_handler = std::make_unique<CrosCrashReportExceptionHandler>(
         database.get(),
@@ -1085,7 +1158,7 @@ int HandlerMain(int argc,
       false,
 #endif  // BUILDFLAG(IS_LINUX)
       user_stream_sources);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   if (options.exception_information_address) {
@@ -1093,6 +1166,10 @@ int HandlerMain(int argc,
     info.exception_information_address = options.exception_information_address;
     info.sanitization_information_address =
         options.sanitization_information_address;
+#if BUILDFLAG(IS_NATIVE_TARGET)
+    info.evergreen_information_address =
+        options.evergreen_information_address;
+#endif  // BUILDFLAG(IS_NATIVE_TARGET)
     return exception_handler->HandleException(getppid(), geteuid(), info)
                ? EXIT_SUCCESS
                : ExitFailure();
@@ -1100,12 +1177,17 @@ int HandlerMain(int argc,
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
 
+#if !BUILDFLAG(IS_NATIVE_TARGET)
+  // This is dead code anyway when the handler is started in response to a
+  // crash, which it always is for Cobalt, and by not even building this we make
+  // it more clear that there is only one prune thread instantiated (above).
   ScopedStoppable prune_thread;
   if (options.periodic_tasks) {
     prune_thread.Reset(new PruneCrashReportThread(
         database.get(), PruneCondition::GetDefault()));
     prune_thread.Get()->Start();
   }
+#endif  // !BUILDFLAG(IS_NATIVE_TARGET)
 
 #if BUILDFLAG(IS_APPLE)
   if (options.mach_service.empty()) {
@@ -1113,7 +1195,7 @@ int HandlerMain(int argc,
     CloseStdinAndStdout();
   }
 
-  base::mac::ScopedMachReceiveRight receive_right;
+  base::apple::ScopedMachReceiveRight receive_right;
 
   if (options.handshake_fd >= 0) {
     receive_right.reset(

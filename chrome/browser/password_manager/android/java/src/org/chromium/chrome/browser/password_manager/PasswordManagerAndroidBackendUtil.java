@@ -3,23 +3,22 @@
 // found in the LICENSE file.
 package org.chromium.chrome.browser.password_manager;
 
-import static org.chromium.chrome.browser.password_manager.PasswordManagerHelper.usesUnifiedPasswordManagerUI;
-
 import android.app.PendingIntent;
-
-import androidx.annotation.Nullable;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.common.api.ResolvableApiException;
 
 import org.chromium.base.Log;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.password_manager.CredentialManagerLauncher.CredentialManagerError;
 
 /**
- * Collection of utilities used by classes interacting with the password manager backend
- * in Google Mobile Services.
+ * Collection of utilities used by classes interacting with the password manager backend in Google
+ * Mobile Services.
  */
+@NullMarked
 class PasswordManagerAndroidBackendUtil {
     private static final String TAG = "PwdManagerBackend";
 
@@ -41,9 +40,9 @@ class PasswordManagerAndroidBackendUtil {
                     .errorCode;
         }
         if (exception instanceof ApiException) {
-            return CredentialManagerError.API_ERROR;
+            return CredentialManagerError.API_EXCEPTION;
         }
-        return CredentialManagerError.UNCATEGORIZED;
+        return CredentialManagerError.OTHER_API_ERROR;
     }
 
     static int getApiErrorCode(Exception exception) {
@@ -53,8 +52,7 @@ class PasswordManagerAndroidBackendUtil {
         return 0; // '0' means SUCCESS.
     }
 
-    @Nullable
-    static Integer getConnectionResultCode(Exception exception) {
+    static @Nullable Integer getConnectionResultCode(Exception exception) {
         if (!(exception instanceof ApiException)) return null;
 
         ConnectionResult connectionResult =
@@ -65,8 +63,6 @@ class PasswordManagerAndroidBackendUtil {
     }
 
     static void handleResolvableApiException(ResolvableApiException exception) {
-        if (!usesUnifiedPasswordManagerUI()) return;
-
         // No special resolution for the authentication errors is needed since the user has already
         // been prompted to reauthenticate by Google services and Sync in Chrome.
         if (exception.getStatusCode() == ChromeSyncStatusCode.AUTH_ERROR_RESOLVABLE) return;

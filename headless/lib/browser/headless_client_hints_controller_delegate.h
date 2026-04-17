@@ -53,9 +53,6 @@ class HEADLESS_EXPORT HeadlessClientHintsControllerDelegate
   bool IsJavaScriptAllowed(const GURL& url,
                            content::RenderFrameHost* parent_rfh) override;
 
-  bool AreThirdPartyCookiesBlocked(const GURL& url,
-                                   content::RenderFrameHost* rfh) override;
-
   blink::UserAgentMetadata GetUserAgentMetadata() override;
 
   void PersistClientHints(
@@ -77,7 +74,7 @@ class HEADLESS_EXPORT HeadlessClientHintsControllerDelegate
  private:
   ClientHintsContainer persist_hints_;
   std::vector<::network::mojom::WebClientHintsType> additional_hints_;
-  // TODO(https://crbug.com/1419042): Allow customizing this.
+  // TODO(crbug.com/40257952): Allow customizing this.
   gfx::Size viewport_size_ = {800, 600};
 };
 

@@ -96,12 +96,12 @@ class TestRunResults(object):
     def interrupted(self) -> bool:
         return self.interrupt_reason is not None
 
-    def add(self, test_result, expected, test_is_slow):
+    def add(self, test_result, test_is_slow):
         result_type_for_stats = test_result.type
         self.tests_by_expectation[result_type_for_stats].add(
             test_result.test_name)
         if self.result_sink:
-            self.result_sink.sink(expected, test_result, self.expectations)
+            self.result_sink.sink(test_result)
 
         self.results_by_name[test_result.test_name] = test_result
         if test_result.type != ResultType.Skip:
@@ -110,7 +110,7 @@ class TestRunResults(object):
         if len(test_result.failures):
             self.total_failures += 1
             self.failures_by_name[test_result.test_name] = test_result.failures
-        if expected:
+        if test_result.is_expected:
             self.expected += 1
             if test_result.type == ResultType.Skip:
                 self.expected_skips += 1
@@ -345,7 +345,7 @@ def summarize_results(port_obj,
         # once they pass), this is equivalent to saying that all of the
         # results were unexpected failures.
         last_result = actual_types[-1]
-        if not expectations.matches_an_expected_result(test_name, last_result):
+        if last_result not in expected_results:
             test_dict['is_unexpected'] = True
             if last_result != ResultType.Pass:
                 test_dict['is_regression'] = True
@@ -366,26 +366,7 @@ def summarize_results(port_obj,
                 artifact_dict = test_dict.setdefault('artifacts', {})
                 artifact_dict.setdefault(artifact_name, []).extend(artifacts)
 
-        # Store test hierarchically by directory. e.g.
-        # foo/bar/baz.html: test_dict
-        # foo/bar/baz1.html: test_dict
-        #
-        # becomes
-        # foo: {
-        #     bar: {
-        #         baz.html: test_dict,
-        #         baz1.html: test_dict
-        #     }
-        # }
-        parts = test_name.split('/')
-        current_map = tests
-        for i, part in enumerate(parts):
-            if i == (len(parts) - 1):
-                current_map[part] = test_dict
-                break
-            if part not in current_map:
-                current_map[part] = {}
-            current_map = current_map[part]
+        convert_to_hierarchical_view(tests, test_name, test_dict)
 
     results['tests'] = tests
     results['num_passes'] = num_passes
@@ -425,6 +406,29 @@ def summarize_results(port_obj,
                 path)
 
     return results
+
+
+def convert_to_hierarchical_view(tests, test_name, test_dict):
+    # Store test hierarchically by directory. e.g.
+    # foo/bar/baz.html: test_dict
+    # foo/bar/baz1.html: test_dict
+    #
+    # becomes
+    # foo: {
+    #     bar: {
+    #         baz.html: test_dict,
+    #         baz1.html: test_dict
+    #     }
+    # }
+    parts = test_name.split('/')
+    current_map = tests
+    for i, part in enumerate(parts):
+        if i == (len(parts) - 1):
+            current_map[part] = test_dict
+            break
+        if part not in current_map:
+            current_map[part] = {}
+        current_map = current_map[part]
 
 
 def _worker_number(worker_name):

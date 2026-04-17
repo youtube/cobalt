@@ -4,6 +4,8 @@
 
 #include "ash/public/cpp/holding_space/holding_space_test_api.h"
 
+#include <algorithm>
+
 #include "ash/drag_drop/drag_drop_controller.h"
 #include "ash/public/cpp/holding_space/holding_space_constants.h"
 #include "ash/public/cpp/holding_space/holding_space_item.h"
@@ -16,7 +18,6 @@
 #include "ash/system/holding_space/holding_space_item_view.h"
 #include "ash/system/holding_space/holding_space_tray.h"
 #include "ash/system/status_area_widget.h"
-#include "base/ranges/algorithm.h"
 #include "ui/events/test/event_generator.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/view.h"
@@ -33,9 +34,10 @@ template <typename T>
 void FindDescendentsOfClass(views::View* parent,
                             std::vector<views::View*>* descendents) {
   if (parent) {
-    for (auto* child : parent->children()) {
-      if (child->GetClassName() == T::kViewClassName)
+    for (views::View* child : parent->children()) {
+      if (IsViewClass<T>(child)) {
         descendents->push_back(child);
+      }
       FindDescendentsOfClass<T>(child, descendents);
     }
   }
@@ -65,8 +67,9 @@ HoldingSpaceTestApi::HoldingSpaceTestApi()
 }
 
 HoldingSpaceTestApi::~HoldingSpaceTestApi() {
-  if (!Shell::HasInstance())
+  if (!Shell::HasInstance()) {
     return;
+  }
 
   holding_space_tray_->set_use_zero_previews_update_delay_for_testing(false);
   // Enable blocking during drag/drop that was disabled for holding space tests.
@@ -80,13 +83,15 @@ aura::Window* HoldingSpaceTestApi::GetRootWindowForNewWindows() {
 }
 
 void HoldingSpaceTestApi::Show() {
-  if (!IsShowing())
+  if (!IsShowing()) {
     TapOn(holding_space_tray_);
+  }
 }
 
 void HoldingSpaceTestApi::Close() {
-  if (IsShowing())
+  if (IsShowing()) {
     TapOn(holding_space_tray_);
+  }
 }
 
 bool HoldingSpaceTestApi::IsShowing() {
@@ -100,7 +105,7 @@ bool HoldingSpaceTestApi::IsShowingInShelf() {
 
 const base::FilePath& HoldingSpaceTestApi::GetHoldingSpaceItemFilePath(
     const views::View* item_view) const {
-  return HoldingSpaceItemView::Cast(item_view)->item()->file_path();
+  return HoldingSpaceItemView::Cast(item_view)->item()->file().file_path;
 }
 
 const std::string& HoldingSpaceTestApi::GetHoldingSpaceItemId(
@@ -112,7 +117,7 @@ views::View* HoldingSpaceTestApi::GetHoldingSpaceItemView(
     const std::vector<views::View*>& item_views,
     const std::string& item_id) {
   auto it =
-      base::ranges::find(item_views, item_id, [](const views::View* item_view) {
+      std::ranges::find(item_views, item_id, [](const views::View* item_view) {
         return HoldingSpaceItemView::Cast(item_view)->item_id();
       });
   return it != item_views.end() ? *it : nullptr;
@@ -225,15 +230,17 @@ views::View* HoldingSpaceTestApi::GetBubble() {
 }
 
 views::View* HoldingSpaceTestApi::GetPinnedFilesBubble() {
-  if (!holding_space_tray_->GetBubbleView())
+  if (!holding_space_tray_->GetBubbleView()) {
     return nullptr;
+  }
   return holding_space_tray_->GetBubbleView()->GetViewByID(
       kHoldingSpacePinnedFilesBubbleId);
 }
 
 bool HoldingSpaceTestApi::PinnedFilesBubbleShown() const {
-  if (!holding_space_tray_->GetBubbleView())
+  if (!holding_space_tray_->GetBubbleView()) {
     return false;
+  }
 
   views::View* bubble = holding_space_tray_->GetBubbleView()->GetViewByID(
       kHoldingSpacePinnedFilesBubbleId);
@@ -241,15 +248,17 @@ bool HoldingSpaceTestApi::PinnedFilesBubbleShown() const {
 }
 
 views::View* HoldingSpaceTestApi::GetRecentFilesBubble() {
-  if (!holding_space_tray_->GetBubbleView())
+  if (!holding_space_tray_->GetBubbleView()) {
     return nullptr;
+  }
   return holding_space_tray_->GetBubbleView()->GetViewByID(
       kHoldingSpaceRecentFilesBubbleId);
 }
 
 bool HoldingSpaceTestApi::RecentFilesBubbleShown() const {
-  if (!holding_space_tray_->GetBubbleView())
+  if (!holding_space_tray_->GetBubbleView()) {
     return false;
+  }
 
   views::View* bubble = holding_space_tray_->GetBubbleView()->GetViewByID(
       kHoldingSpaceRecentFilesBubbleId);
@@ -257,8 +266,9 @@ bool HoldingSpaceTestApi::RecentFilesBubbleShown() const {
 }
 
 bool HoldingSpaceTestApi::RecentFilesPlaceholderShown() const {
-  if (!holding_space_tray_->GetBubbleView())
+  if (!holding_space_tray_->GetBubbleView()) {
     return false;
+  }
 
   views::View* placeholder = holding_space_tray_->GetBubbleView()->GetViewByID(
       kHoldingSpaceRecentFilesPlaceholderId);

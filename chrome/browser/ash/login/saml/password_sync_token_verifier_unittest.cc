@@ -4,10 +4,15 @@
 
 #include "chrome/browser/ash/login/saml/password_sync_token_verifier.h"
 
+#include <memory>
+#include <utility>
+
 #include "base/memory/raw_ptr.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "base/time/default_clock.h"
+#include "base/test/task_environment.h"
+#include "base/time/time.h"
 #include "chrome/browser/ash/login/login_pref_names.h"
+#include "chrome/browser/ash/login/saml/password_sync_token_fetcher.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile_manager.h"
@@ -15,18 +20,22 @@
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
 #include "chromeos/ash/components/login/auth/public/user_context.h"
+#include "components/prefs/pref_registry.h"
 #include "components/user_manager/known_user.h"
 #include "components/user_manager/scoped_user_manager.h"
 #include "components/user_manager/user_names.h"
+#include "components/user_manager/user_type.h"
 #include "content/public/test/browser_task_environment.h"
+#include "google_apis/gaia/gaia_id.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace ash {
 namespace {
 
-const char kSAMLUserId1[] = "12345";
-const char kSAMLUserEmail1[] = "alice@corp.example.com";
+constexpr GaiaId::Literal kSAMLUserId1("12345");
+constexpr char kSAMLUserEmail1[] = "alice@corp.example.com";
 
-const char kSyncToken[] = "sync-token-1";
+constexpr char kSyncToken[] = "sync-token-1";
 
 constexpr base::TimeDelta kSyncTokenCheckInterval = base::Minutes(6);
 
@@ -54,22 +63,15 @@ class PasswordSyncTokenVerifierTest : public testing::Test {
       base::test::TaskEnvironment::MainThreadType::UI,
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   TestingProfileManager profile_manager_{TestingBrowserProcess::GetGlobal()};
-  raw_ptr<TestingProfile, ExperimentalAsh> primary_profile_ = nullptr;
+  raw_ptr<TestingProfile> primary_profile_ = nullptr;
 
-  raw_ptr<FakeChromeUserManager, ExperimentalAsh> user_manager_ = nullptr;
-  std::unique_ptr<user_manager::ScopedUserManager> scoped_user_manager_;
+  user_manager::TypedScopedUserManager<FakeChromeUserManager> user_manager_;
   std::unique_ptr<PasswordSyncTokenVerifier> verifier_;
   std::unique_ptr<user_manager::KnownUser> known_user_;
 };
 
-PasswordSyncTokenVerifierTest::PasswordSyncTokenVerifierTest() {
-  std::unique_ptr<FakeChromeUserManager> fake_user_manager =
-      std::make_unique<FakeChromeUserManager>();
-  scoped_user_manager_ = std::make_unique<user_manager::ScopedUserManager>(
-      std::move(fake_user_manager));
-
-  user_manager_ =
-      static_cast<FakeChromeUserManager*>(user_manager::UserManager::Get());
+PasswordSyncTokenVerifierTest::PasswordSyncTokenVerifierTest()
+    : user_manager_(std::make_unique<FakeChromeUserManager>()) {
   known_user_ = std::make_unique<user_manager::KnownUser>(
       g_browser_process->local_state());
 }
@@ -84,7 +86,7 @@ void PasswordSyncTokenVerifierTest::SetUp() {
 
   user_manager_->AddUserWithAffiliationAndTypeAndProfile(
       saml_login_account_id_, /* is_affiliated = */ false,
-      user_manager::UserType::USER_TYPE_REGULAR, primary_profile_);
+      user_manager::UserType::kRegular, primary_profile_);
   user_manager_->LoginUser(saml_login_account_id_);
   // ActiveUser in FakeChromeUserManager needs to be set explicitly.
   user_manager_->SwitchActiveUser(saml_login_account_id_);
@@ -172,9 +174,6 @@ TEST_F(PasswordSyncTokenVerifierTest, SyncTokenNotSet) {
   verifier_->OnTokenFetched(kSyncToken);
   EXPECT_EQ(*known_user_->GetPasswordSyncToken(saml_login_account_id_),
             kSyncToken);
-  EXPECT_EQ(
-      primary_profile_->GetPrefs()->GetString(prefs::kSamlPasswordSyncToken),
-      kSyncToken);
 }
 
 TEST_F(PasswordSyncTokenVerifierTest, InitialSyncTokenListEmpty) {
@@ -184,9 +183,6 @@ TEST_F(PasswordSyncTokenVerifierTest, InitialSyncTokenListEmpty) {
   verifier_->OnTokenCreated(kSyncToken);
   EXPECT_EQ(*known_user_->GetPasswordSyncToken(saml_login_account_id_),
             kSyncToken);
-  EXPECT_EQ(
-      primary_profile_->GetPrefs()->GetString(prefs::kSamlPasswordSyncToken),
-      kSyncToken);
 }
 
 TEST_F(PasswordSyncTokenVerifierTest, SyncTokenInitForUser) {
@@ -197,9 +193,6 @@ TEST_F(PasswordSyncTokenVerifierTest, SyncTokenInitForUser) {
   verifier_->OnTokenCreated(kSyncToken);
   EXPECT_EQ(*known_user_->GetPasswordSyncToken(saml_login_account_id_),
             kSyncToken);
-  EXPECT_EQ(
-      primary_profile_->GetPrefs()->GetString(prefs::kSamlPasswordSyncToken),
-      kSyncToken);
   // Start regular polling after session init.
   test_environment_.FastForwardBy(kSyncTokenCheckInterval);
   OnTokenVerified(true);
@@ -208,10 +201,6 @@ TEST_F(PasswordSyncTokenVerifierTest, SyncTokenInitForUser) {
 
 TEST_F(PasswordSyncTokenVerifierTest, SyncTokenPrefsAreNotSyncable) {
   CreatePasswordSyncTokenVerifier();
-  EXPECT_EQ(primary_profile_->GetPrefs()
-                ->FindPreference(prefs::kSamlPasswordSyncToken)
-                ->registration_flags(),
-            PrefRegistry::NO_REGISTRATION_FLAGS);
   EXPECT_EQ(primary_profile_->GetPrefs()
                 ->FindPreference(prefs::kSamlInSessionPasswordChangeEnabled)
                 ->registration_flags(),

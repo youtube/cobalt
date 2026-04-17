@@ -14,13 +14,15 @@ import android.view.View;
 
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
 import org.mockito.invocation.InvocationOnMock;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.mockito.stubbing.Answer;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
@@ -36,22 +38,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Config(manifest = Config.NONE)
 @LooperMode(LooperMode.Mode.LEGACY)
 public class KeyboardHideHelperUnitTest {
-    @Mock
-    private Runnable mKeyboardHiddenCallback;
-    @Mock
-    private View mRootView;
-    @Mock
-    private WindowDelegate mWindowDelegate;
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Mock private Runnable mKeyboardHiddenCallback;
+    @Mock private View mRootView;
+    @Mock private WindowDelegate mWindowDelegate;
 
-    @Spy
-    private View mView;
+    @Spy private View mView;
 
     private KeyboardHideHelper mKeyboardHideHelper;
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
-
         mView = spy(new View(RuntimeEnvironment.application));
         mKeyboardHideHelper = new KeyboardHideHelper(mView, mKeyboardHiddenCallback);
     }
@@ -74,13 +71,14 @@ public class KeyboardHideHelperUnitTest {
     public void testHideNotifiedOnSizeDecrease_WithWindowDelegate() {
         mKeyboardHideHelper.setWindowDelegate(mWindowDelegate);
         final AtomicInteger height = new AtomicInteger(300);
-        Answer<Void> windowVisibleDisplayFrameAnswer = new Answer<Void>() {
-            @Override
-            public Void answer(InvocationOnMock invocation) {
-                ((Rect) invocation.getArgument(0)).set(0, 0, 100, height.get());
-                return null;
-            }
-        };
+        Answer<Void> windowVisibleDisplayFrameAnswer =
+                new Answer<Void>() {
+                    @Override
+                    public Void answer(InvocationOnMock invocation) {
+                        ((Rect) invocation.getArgument(0)).set(0, 0, 100, height.get());
+                        return null;
+                    }
+                };
         Mockito.doAnswer(windowVisibleDisplayFrameAnswer)
                 .when(mWindowDelegate)
                 .getWindowVisibleDisplayFrame(Mockito.any(Rect.class));

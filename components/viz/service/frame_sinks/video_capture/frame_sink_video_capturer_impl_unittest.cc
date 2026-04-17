@@ -2,41 +2,60 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/viz/service/frame_sinks/video_capture/frame_sink_video_capturer_impl.h"
 
+#include <map>
+#include <optional>
 #include <string>
+#include <tuple>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/shared_memory_mapping.h"
+#include "base/notimplemented.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
 #include "base/test/test_mock_time_task_runner.h"
 #include "base/time/time.h"
-#include "base/unguessable_token.h"
+#include "base/token.h"
+#include "cc/base/math_util.h"
 #include "components/viz/common/frame_sinks/begin_frame_args.h"
 #include "components/viz/common/frame_sinks/copy_output_request.h"
 #include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "components/viz/common/frame_sinks/copy_output_util.h"
+#include "components/viz/common/resources/shared_image_format_utils.h"
 #include "components/viz/common/surfaces/subtree_capture_id.h"
 #include "components/viz/common/surfaces/video_capture_target.h"
+#include "components/viz/service/frame_sinks/gmb_video_frame_pool_context_provider.h"
 #include "components/viz/service/frame_sinks/video_capture/frame_sink_video_capturer_manager.h"
+#include "components/viz/test/test_context_provider.h"
+#include "gpu/command_buffer/client/client_shared_image.h"
+#include "gpu/command_buffer/client/test_shared_image_interface.h"
+#include "media/base/format_utils.h"
 #include "media/base/limits.h"
+#include "media/base/test_helpers.h"
 #include "media/base/video_util.h"
 #include "media/capture/mojom/video_capture_buffer.mojom.h"
 #include "media/capture/mojom/video_capture_types.mojom.h"
+#include "media/video/renderable_gpu_memory_buffer_video_frame_pool.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "services/viz/privileged/mojom/compositing/frame_sink_video_capture.mojom.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/gfx/color_space.h"
+#include "ui/gfx/color_utils.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
@@ -77,6 +96,56 @@ bool CompareVarsInCompositorFrameMetadata(
          gfx::PointF(*rso_x, *rso_y) == root_scroll_offset;
 }
 
+// The following functions, CopyOutputRequestFormatToVideoPixelFormat and
+// GetColorSpaceForPixelFormat only deal with pixel_format_ which is the user
+// requested format, so we only have to care media::PIXEL_FORMAT_ARGB, and
+// ResultFormat::RGBA. GetBufferFormatForVideoPixelFormat and
+// GetBufferSizeInPixelsForVideoPixelFormat needs to deal with the GMB and frame
+// result passed from the capture callback, it could be RGBA/BGRA depends on
+// which platform we are, so we have to handle both media::PIXEL_FORMAT_ARGB
+// and media::PIXEL_FORMAT_ABGR.
+
+media::VideoPixelFormat CopyOutputRequestFormatToVideoPixelFormat(
+    CopyOutputRequest::ResultFormat format) {
+  switch (format) {
+    case CopyOutputRequest::ResultFormat::I420_PLANES:
+      return media::PIXEL_FORMAT_I420;
+    case CopyOutputRequest::ResultFormat::NV12:
+      return media::PIXEL_FORMAT_NV12;
+    case CopyOutputRequest::ResultFormat::RGBA:
+      return media::PIXEL_FORMAT_ARGB;
+    default:
+      NOTREACHED();
+  }
+}
+
+gfx::ColorSpace GetColorSpaceForPixelFormat(media::VideoPixelFormat format) {
+  switch (format) {
+    case media::PIXEL_FORMAT_I420:
+    case media::PIXEL_FORMAT_NV12:
+      return gfx::ColorSpace::CreateREC709();
+    case media::PIXEL_FORMAT_ARGB:
+      return gfx::ColorSpace::CreateSRGB();
+    default:
+      NOTREACHED();
+  }
+}
+
+gfx::Size GetBufferSizeInPixelsForVideoPixelFormat(
+    media::VideoPixelFormat format,
+    const gfx::Size& coded_size) {
+  switch (format) {
+    case media::PIXEL_FORMAT_ABGR:
+    case media::PIXEL_FORMAT_ARGB:
+      return coded_size;
+    case media::PIXEL_FORMAT_NV12:
+      return {cc::MathUtil::CheckedRoundUp(coded_size.width(), 2),
+              cc::MathUtil::CheckedRoundUp(coded_size.height(), 2)};
+    default:
+      NOTREACHED();
+  }
+}
+
 // Dummy frame sink ID.
 const VideoCaptureTarget kVideoCaptureTarget(FrameSinkId(1, 1));
 
@@ -84,19 +153,30 @@ const VideoCaptureTarget kVideoCaptureTarget(FrameSinkId(1, 1));
 constexpr auto kVsyncInterval = base::Seconds(1) / 60;
 
 const struct SizeSet {
-  // The source rect of the compositor frame sink's Surface.
-  gfx::Rect source_rect;
-  // The size of the VideoFrames produced by the capturer.
-  gfx::Size capture_size;
   // The location of the letterboxed content within each VideoFrame. All pixels
   // outside of this region should be black.
-  gfx::Rect expected_content_rect;
-} kSizeSets[5] = {
-    {gfx::Rect(0, 0, 100, 100), gfx::Size(32, 18), gfx::Rect(6, 0, 18, 18)},
-    {gfx::Rect(0, 0, 64, 18), gfx::Size(32, 18), gfx::Rect(0, 4, 32, 8)},
-    {gfx::Rect(0, 0, 64, 18), gfx::Size(64, 18), gfx::Rect(0, 0, 64, 18)},
-    {gfx::Rect(0, 0, 100, 100), gfx::Size(16, 8), gfx::Rect(0, 0, 8, 8)},
-    {gfx::Rect(1, 2, 640, 478), gfx::Size(16, 16), gfx::Rect(0, 0, 16, 12)}};
+  // The expected content rect varies if the format changes. So we dynamically
+  // calculate the rect with format.
+  gfx::Rect ExpectedContentRect(media::VideoPixelFormat format) const {
+    return FrameSinkVideoCapturerImpl::GetContentRectangle(
+        gfx::Rect(capture_size), source_size, format);
+  }
+
+  gfx::Rect ExpectedContentRect(CopyOutputRequest::ResultFormat format) const {
+    return ExpectedContentRect(
+        CopyOutputRequestFormatToVideoPixelFormat(format));
+  }
+
+  // The source size of the compositor frame sink's Surface.
+  gfx::Size source_size;
+
+  // The size of the VideoFrames produced by the capturer.
+  gfx::Size capture_size;
+} kSizeSets[5] = {{gfx::Size(100, 100), gfx::Size(32, 18)},
+                  {gfx::Size(64, 18), gfx::Size(32, 18)},
+                  {gfx::Size(64, 18), gfx::Size(64, 18)},
+                  {gfx::Size(100, 100), gfx::Size(16, 8)},
+                  {gfx::Size(640, 478), gfx::Size(16, 16)}};
 
 constexpr float kDefaultDeviceScaleFactor = 1.f;
 constexpr float kDefaultPageScaleFactor = 1.f;
@@ -107,6 +187,11 @@ struct YUVColor {
   uint8_t u;
   uint8_t v;
 };
+
+YUVColor RGBToYUV(uint32_t argb) {
+  auto yuv = media::RGBToYUV(argb);
+  return {std::get<0>(yuv), std::get<1>(yuv), std::get<2>(yuv)};
+}
 
 // Forces any pending Mojo method calls between the capturer and consumer to be
 // made.
@@ -128,10 +213,11 @@ class MockFrameSinkManager : public FrameSinkVideoCapturerManager {
 
 class MockConsumer : public mojom::FrameSinkVideoConsumer {
  public:
-  MockConsumer() {}
+  MockConsumer()
+      : test_sii_(base::MakeRefCounted<gpu::TestSharedImageInterface>()) {}
 
   MOCK_METHOD0(OnFrameCapturedMock, void());
-  MOCK_METHOD1(OnNewCropVersion, void(uint32_t));
+  MOCK_METHOD1(OnNewSubCaptureTargetVersion, void(uint32_t));
   MOCK_METHOD0(OnStopped, void());
   MOCK_METHOD1(OnLog, void(const std::string&));
 
@@ -159,48 +245,72 @@ class MockConsumer : public mojom::FrameSinkVideoConsumer {
       const gfx::Rect& expected_content_rect,
       mojo::PendingRemote<mojom::FrameSinkVideoConsumerFrameCallbacks>
           callbacks) final {
-    CHECK(data->is_read_only_shmem_region());
-    base::ReadOnlySharedMemoryRegion& shmem_region =
-        data->get_read_only_shmem_region();
+    CHECK(info);
 
-    // The |data| parameter is not nullable and mojo type mapping for
-    // `base::ReadOnlySharedMemoryRegion` defines that nullable version of it is
-    // the same type, with null check being equivalent to IsValid() check. Given
-    // the above, we should never be able to receive a read only shmem region
-    // that is not valid - mojo will enforce it for us.
-    DCHECK(shmem_region.IsValid());
+    mojo::Remote callbacks_remote(std::move(callbacks));
+    scoped_refptr<media::VideoFrame> frame;
 
-    const auto required_bytes_to_hold_planes =
-        static_cast<uint32_t>(info->coded_size.GetArea() * 3 / 2);
-    ASSERT_LE(required_bytes_to_hold_planes, shmem_region.GetSize());
-    ASSERT_TRUE(info);
+    if (data->is_read_only_shmem_region()) {
+      // kDefault + I420 / RGBA
+      base::ReadOnlySharedMemoryRegion& shmem_region =
+          data->get_read_only_shmem_region();
 
-    mojo::Remote<mojom::FrameSinkVideoConsumerFrameCallbacks> callbacks_remote(
-        std::move(callbacks));
-    ASSERT_TRUE(callbacks_remote.get());
+      // The |data| parameter is not nullable and mojo type mapping for
+      // `base::ReadOnlySharedMemoryRegion` defines that nullable version of it
+      // is the same type, with null check being equivalent to IsValid() check.
+      // Given the above, we should never be able to receive a read only shmem
+      // region that is not valid - mojo will enforce it for us.
+      CHECK(shmem_region.IsValid());
 
-    // Map the shared memory buffer and re-constitute a VideoFrame instance
-    // around it for analysis via TakeFrame().
-    base::ReadOnlySharedMemoryMapping mapping = shmem_region.Map();
-    ASSERT_TRUE(mapping.IsValid());
-    ASSERT_LE(
-        media::VideoFrame::AllocationSize(info->pixel_format, info->coded_size),
-        mapping.size());
-    scoped_refptr<media::VideoFrame> frame =
-        media::VideoFrame::WrapExternalData(
-            info->pixel_format, info->coded_size, info->visible_rect,
-            info->visible_rect.size(),
-            const_cast<uint8_t*>(static_cast<const uint8_t*>(mapping.memory())),
-            mapping.size(), info->timestamp);
-    ASSERT_TRUE(frame);
+      auto required_bytes_to_hold_planes = media::VideoFrame::AllocationSize(
+          info->pixel_format, info->coded_size);
+      ASSERT_LE(required_bytes_to_hold_planes, shmem_region.GetSize());
+
+      // Map the shared memory buffer and re-constitute a VideoFrame instance
+      // around it for analysis via TakeFrame().
+      base::ReadOnlySharedMemoryMapping mapping = shmem_region.Map();
+      ASSERT_TRUE(mapping.IsValid());
+      ASSERT_LE(required_bytes_to_hold_planes, mapping.size());
+      frame = media::VideoFrame::WrapExternalData(
+          info->pixel_format, info->coded_size, info->visible_rect,
+          info->visible_rect.size(), mapping.GetMemoryAs<const uint8_t>(),
+          mapping.size(), info->timestamp);
+      ASSERT_TRUE(frame);
+      frame->AddDestructionObserver(
+          base::BindOnce([](base::ReadOnlySharedMemoryMapping mapping) {},
+                         std::move(mapping)));
+    } else if (data->is_gpu_memory_buffer_handle()) {
+      // kNativeTexture + NV12 / RGBA
+      // Create a test GpuMemoryBuffer as these test don't run the code to
+      // produce GPU frames. The mailbox values aren't important since
+      // IsLetterboxedFrame does no verification for GMB VideoFrames.
+      test_sii_->UseTestGMBInSharedImageCreationWithBufferUsage();
+
+      // Setting some default usage in order to get a mappable shared image.
+      const auto si_usage = gpu::SHARED_IMAGE_USAGE_CPU_WRITE_ONLY |
+                            gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
+      const auto si_format = GetSharedImageFormat(
+          VideoPixelFormatToGfxBufferFormat(info->pixel_format).value());
+      const auto si_size = GetBufferSizeInPixelsForVideoPixelFormat(
+          info->pixel_format, info->coded_size);
+      // Create a mappable shared image.
+      auto shared_image = test_sii_->CreateSharedImage(
+          {si_format, si_size, gfx::ColorSpace(),
+           gpu::SharedImageUsageSet(si_usage), "FrameSinkVideoCapturerTest"},
+          gpu::kNullSurfaceHandle, gfx::BufferUsage::GPU_READ);
+      // The frame is only gonna tell Letterbox to skip the test.
+      frame = VideoFrame::WrapMappableSharedImage(
+          std::move(shared_image), test_sii_->GenVerifiedSyncToken(),
+          base::NullCallback(), info->visible_rect, info->visible_rect.size(),
+          info->timestamp);
+      ASSERT_TRUE(frame);
+    } else {
+      NOTREACHED();
+    }
+
     frame->set_metadata(info->metadata);
-    if (info->color_space.has_value())
-      frame->set_color_space(info->color_space.value());
-
-    frame->AddDestructionObserver(base::BindOnce(
-        [](base::ReadOnlySharedMemoryMapping mapping) {}, std::move(mapping)));
+    frame->set_color_space(info->color_space);
     OnFrameCapturedMock();
-
     frames_.push_back(std::move(frame));
     done_callbacks_.push_back(
         base::BindOnce(&mojom::FrameSinkVideoConsumerFrameCallbacks::Done,
@@ -216,40 +326,83 @@ class MockConsumer : public mojom::FrameSinkVideoConsumer {
   mojo::Receiver<mojom::FrameSinkVideoConsumer> receiver_{this};
   std::vector<scoped_refptr<VideoFrame>> frames_;
   std::vector<base::OnceClosure> done_callbacks_;
+  scoped_refptr<gpu::TestSharedImageInterface> test_sii_;
+};
+
+class FakeGpuCopyResult : public CopyOutputResult {
+ public:
+  FakeGpuCopyResult(Format format, const gfx::Rect rect)
+      : CopyOutputResult(format,
+                         CopyOutputResult::Destination::kNativeTextures,
+                         rect,
+                         false),
+        result_(TextureResult(
+            gpu::Mailbox{},
+            GetColorSpaceForPixelFormat(
+                CopyOutputRequestFormatToVideoPixelFormat(format)))) {}
+
+  const TextureResult* GetTextureResult() const final { return &result_; }
+
+ private:
+  TextureResult result_;
+};
+
+class SolidColorRGBAResult : public CopyOutputResult {
+ public:
+  SolidColorRGBAResult(const gfx::Rect rect, SkColor color)
+      : CopyOutputResult(CopyOutputResult::Format::RGBA,
+                         CopyOutputResult::Destination::kSystemMemory,
+                         rect,
+                         false) {
+    bitmap_.setInfo(SkImageInfo::MakeN32Premul(size().width(), size().height(),
+                                               SkColorSpace::MakeSRGB()));
+    bitmap_.allocPixels();
+    bitmap_.eraseColor(color);
+  }
+
+  // Instead of manually copying pixels to the buffer, we can use the existing
+  // default implementation of CopyOutputRequest, and just pass the prepared
+  // bitmap.
+  const SkBitmap& AsSkBitmap() const final { return bitmap_; }
+
+ private:
+  SkBitmap bitmap_;
 };
 
 class SolidColorI420Result : public CopyOutputResult {
  public:
   SolidColorI420Result(const gfx::Rect rect, YUVColor color)
       : CopyOutputResult(CopyOutputResult::Format::I420_PLANES,
-                         CopyOutputResult::Destination::kNativeTextures,
+                         CopyOutputResult::Destination::kSystemMemory,
                          rect,
                          false),
         color_(color) {}
 
-  bool ReadI420Planes(uint8_t* y_out,
+  bool ReadI420Planes(base::span<uint8_t> y_out,
                       int y_out_stride,
-                      uint8_t* u_out,
+                      base::span<uint8_t> u_out,
                       int u_out_stride,
-                      uint8_t* v_out,
+                      base::span<uint8_t> v_out,
                       int v_out_stride) const final {
-    CHECK(y_out);
-    CHECK(y_out_stride >= size().width());
-    CHECK(u_out);
+    CHECK_GE(y_out_stride, size().width());
+    // TODO(crbug.com/384959115): Add a helper to compute plane sizes in
+    // CopyOutputResult.
     const int chroma_width = (size().width() + 1) / 2;
-    CHECK(u_out_stride >= chroma_width);
-    CHECK(v_out);
-    CHECK(v_out_stride >= chroma_width);
-    for (int i = 0; i < size().height(); ++i, y_out += y_out_stride) {
-      memset(y_out, color_.y, size().width());
-    }
+    CHECK_GE(u_out_stride, chroma_width);
+    CHECK_GE(v_out_stride, chroma_width);
     const int chroma_height = (size().height() + 1) / 2;
-    for (int i = 0; i < chroma_height; ++i, u_out += u_out_stride) {
-      memset(u_out, color_.u, chroma_width);
-    }
-    for (int i = 0; i < chroma_height; ++i, v_out += v_out_stride) {
-      memset(v_out, color_.v, chroma_width);
-    }
+
+    auto fill_fn = [](base::span<uint8_t> buffer, size_t stride_bytes,
+                      size_t width_bytes, size_t height, uint8_t color) {
+      for (size_t i = 0; i < height; ++i) {
+        std::ranges::fill(buffer.subspan(i * stride_bytes, width_bytes), color);
+      }
+    };
+
+    fill_fn(y_out, y_out_stride, size().width(), size().height(), color_.y);
+    fill_fn(u_out, u_out_stride, chroma_width, chroma_height, color_.u);
+    fill_fn(v_out, v_out_stride, chroma_width, chroma_height, color_.v);
+
     return true;
   }
 
@@ -275,38 +428,51 @@ class FakeCapturableFrameSink : public CapturableFrameSink {
     ASSERT_FALSE(client_);
     ASSERT_TRUE(client);
     client_ = client;
-    if (client_->IsVideoCaptureStarted())
+    if (client_->IsVideoCaptureStarted()) {
       OnClientCaptureStarted();
+    }
   }
 
   void DetachCaptureClient(Client* client) override {
     ASSERT_TRUE(client);
     ASSERT_EQ(client, client_);
-    if (client_->IsVideoCaptureStarted())
+    if (client_->IsVideoCaptureStarted()) {
       OnClientCaptureStopped();
+    }
 
     client_ = nullptr;
   }
 
-  gfx::Rect GetCopyOutputRequestRegion(
+  std::optional<CapturableFrameSink::RegionProperties>
+  GetRequestRegionProperties(
       const VideoCaptureSubTarget& sub_target) const override {
-    if (absl::holds_alternative<RegionCaptureCropId>(sub_target)) {
+    if (size_set_.source_size.IsEmpty()) {
+      return {};
+    }
+
+    CapturableFrameSink::RegionProperties out;
+    out.root_render_pass_size = size_set_.source_size;
+    if (IsEntireTabCapture(sub_target)) {
+      out.render_pass_subrect = gfx::Rect(out.root_render_pass_size);
+    } else if (IsRegionCapture(sub_target)) {
       current_capture_id_ = SubtreeCaptureId();
-      current_crop_id_ = absl::get<RegionCaptureCropId>(sub_target);
-      if (!current_crop_id_.is_zero()) {
-        return crop_bounds_;
+      current_crop_id_ = std::get<RegionCaptureCropId>(sub_target);
+      if (current_crop_id_.is_zero() || crop_bounds_.IsEmpty()) {
+        return {};
       }
-      return {};
-    }
-    if (absl::holds_alternative<SubtreeCaptureId>(sub_target)) {
-      current_capture_id_ = absl::get<SubtreeCaptureId>(sub_target);
+
+      out.render_pass_subrect = crop_bounds_;
+    } else if (IsSubtreeCapture(sub_target)) {
+      current_capture_id_ = std::get<SubtreeCaptureId>(sub_target);
       current_crop_id_ = RegionCaptureCropId();
-      if (current_capture_id_.is_valid()) {
-        return capture_bounds_;
+      if (!current_capture_id_.is_valid() || capture_bounds_.IsEmpty()) {
+        return {};
       }
-      return {};
+
+      out.render_pass_subrect = capture_bounds_;
     }
-    return size_set_.source_rect;
+
+    return out;
   }
 
   void OnClientCaptureStarted() override { ++number_clients_capturing_; }
@@ -316,19 +482,47 @@ class FakeCapturableFrameSink : public CapturableFrameSink {
   void RequestCopyOfOutput(
       PendingCopyOutputRequest pending_copy_output_request) override {
     auto& request = pending_copy_output_request.copy_output_request;
-    EXPECT_EQ(CopyOutputResult::Format::I420_PLANES, request->result_format());
     EXPECT_NE(base::UnguessableToken(), request->source());
-
     if (pending_copy_output_request.subtree_capture_id.is_valid()) {
       EXPECT_EQ(capture_bounds_, request->area());
     } else {
-      EXPECT_TRUE(size_set_.source_rect.Contains(request->area()));
+      EXPECT_TRUE(gfx::Rect(size_set_.source_size).Contains(request->area()));
     }
-    EXPECT_EQ(gfx::Rect(size_set_.expected_content_rect.size()),
-              request->result_selection());
+    auto expected_content_rect = gfx::Rect(
+        size_set_.ExpectedContentRect(request->result_format()).size());
+    EXPECT_EQ(expected_content_rect, request->result_selection());
 
-    auto result = std::make_unique<SolidColorI420Result>(
-        request->result_selection(), color_);
+    std::unique_ptr<CopyOutputResult> result;
+    switch (request->result_destination()) {
+      case CopyOutputResult::Destination::kSystemMemory: {
+        // We need to construct the source frame.
+        switch (request->result_format()) {
+          case CopyOutputRequest::ResultFormat::I420_PLANES: {
+            result = std::make_unique<SolidColorI420Result>(
+                request->result_selection(), RGBToYUV(color_));
+            break;
+          }
+          case CopyOutputRequest::ResultFormat::RGBA: {
+            result = std::make_unique<SolidColorRGBAResult>(
+                request->result_selection(), color_);
+            break;
+          }
+          default: {
+            NOTREACHED();
+          }
+        }
+        break;
+      }
+      case CopyOutputResult::Destination::kNativeTextures: {
+        // We don't need to provide a real GPU result.
+        result = std::make_unique<FakeGpuCopyResult>(
+            request->result_format(), request->result_selection());
+        break;
+      }
+      default: {
+        NOTREACHED();
+      }
+    }
     results_.push_back(base::BindOnce(
         [](std::unique_ptr<CopyOutputRequest> request,
            std::unique_ptr<CopyOutputResult> result) {
@@ -341,7 +535,7 @@ class FakeCapturableFrameSink : public CapturableFrameSink {
     return &metadata_;
   }
 
-  const gfx::Size& source_size() const { return size_set_.source_rect.size(); }
+  const gfx::Size& source_size() const { return size_set_.source_size; }
 
   const RegionCaptureCropId& current_crop_id() const {
     return current_crop_id_;
@@ -365,13 +559,13 @@ class FakeCapturableFrameSink : public CapturableFrameSink {
     metadata_ = metadata.Clone();
   }
 
-  void SetCopyOutputColor(YUVColor color) { color_ = color; }
+  void SetCopyOutputColor(SkColor color) { color_ = color; }
 
   // Returns number of copy output result callbacks that have been prepared to
-  // be sent back to the capturer. A new result callback is inserted every time
-  // a new CopyOutputRequest arrives and does not correspond to the number of
-  // results that have actually already been sent. Sending a result is done via
-  // |SendCopyOutputResult()|.
+  // be sent back to the capturer. A new result callback is inserted every
+  // time a new CopyOutputRequest arrives and does not correspond to the
+  // number of results that have actually already been sent. Sending a result
+  // is done via |SendCopyOutputResult()|.
   int num_copy_results() const { return results_.size(); }
 
   void SendCopyOutputResult(int offset) {
@@ -390,7 +584,8 @@ class FakeCapturableFrameSink : public CapturableFrameSink {
   // Number of clients that have started capturing.
   int number_clients_capturing_ = 0;
   raw_ptr<CapturableFrameSink::Client> client_ = nullptr;
-  YUVColor color_ = {0xde, 0xad, 0xbf};
+  // YUV {0xde, 0xad, 0xbf};
+  SkColor color_ = SkColorSetARGB(255, 255, 161, 255);
   SizeSet size_set_;
   CompositorFrameMetadata metadata_;
   scoped_refptr<base::TestMockTimeTaskRunner> task_runner_;
@@ -421,67 +616,134 @@ class InstrumentedVideoCaptureOracle : public media::VideoCaptureOracle {
   }
 
   gfx::Size capture_size() const override {
-    if (forced_capture_size_.has_value())
+    if (forced_capture_size_.has_value()) {
       return forced_capture_size_.value();
+    }
     return media::VideoCaptureOracle::capture_size();
   }
 
-  void set_forced_capture_size(absl::optional<gfx::Size> size) {
+  void set_forced_capture_size(std::optional<gfx::Size> size) {
     forced_capture_size_ = size;
   }
 
  private:
   bool return_false_on_complete_capture_;
-  absl::optional<gfx::Size> forced_capture_size_;
+  std::optional<gfx::Size> forced_capture_size_;
 };
+
+namespace {
+bool IsLetterboxedI420Plane(int plane,
+                            uint8_t component,
+                            gfx::Rect content_rect,
+                            const VideoFrame& frame,
+                            testing::MatchResultListener* result_listener) {
+  gfx::Rect content_rect_copy = content_rect;
+  if (plane != VideoFrame::Plane::kY) {
+    content_rect_copy = gfx::Rect(
+        content_rect_copy.x() / 2, content_rect_copy.y() / 2,
+        content_rect_copy.width() / 2, content_rect_copy.height() / 2);
+  }
+  for (int row = 0; row < frame.rows(plane); ++row) {
+    const uint8_t* p = frame.visible_data(plane) + row * frame.stride(plane);
+    for (int col = 0; col < frame.row_bytes(plane); ++col) {
+      if (content_rect_copy.Contains(gfx::Point(col, row))) {
+        if (p[col] != component) {
+          *result_listener << " where pixel at (" << col << ", " << row
+                           << ") should be inside content rectangle and the "
+                              "component should match 0x"
+                           << std::hex << static_cast<unsigned int>(component)
+                           << " but is 0x" << std::hex
+                           << static_cast<unsigned int>(p[col]);
+          return false;
+        }
+      } else {  // Letterbox border around content.
+        if (plane == VideoFrame::Plane::kY && p[col] != 0x00) {
+          *result_listener << " where pixel at (" << col << ", " << row
+                           << ") should be outside content rectangle and the "
+                              "component should match 0x00 but is 0x"
+                           << std::hex << static_cast<unsigned int>(p[col]);
+          return false;
+        }
+      }
+    }
+  }
+  return true;
+}
+
+bool IsLetterboxedRGBA(SkColor color,
+                       gfx::Rect content_rect,
+                       const VideoFrame& frame,
+                       testing::MatchResultListener* result_listener) {
+  SkBitmap bitmap;
+  auto bitmap_info = SkImageInfo::MakeN32Premul(frame.coded_size().width(),
+                                                frame.coded_size().height());
+  bitmap.installPixels(
+      bitmap_info,
+      const_cast<uint8_t*>(frame.visible_data(VideoFrame::Plane::kARGB)),
+      frame.stride(VideoFrame::Plane::kARGB));
+
+  for (int row = 0; row < bitmap.height(); ++row) {
+    for (int col = 0; col < bitmap.width(); ++col) {
+      SkColor pixel = bitmap.getColor(col, row);
+      if (content_rect.Contains(gfx::Point(col, row))) {
+        if (pixel != color) {
+          *result_listener << " where pixel at (" << col << ", " << row
+                           << ") should be inside content rectangle and the "
+                              "component should match "
+                           << color_utils::SkColorToRgbString(color)
+                           << " but is "
+                           << color_utils::SkColorToRgbString(pixel);
+          return false;
+        }
+      } else {  // Letterbox border around content.
+        constexpr SkColor kLetterboxColor = SK_ColorTRANSPARENT;
+        if (pixel != kLetterboxColor) {
+          *result_listener << " where pixel at (" << col << ", " << row
+                           << ") should be outside content rectangle and the "
+                              "component should match "
+                           << color_utils::SkColorToRgbString(kLetterboxColor)
+                           << " but is "
+                           << color_utils::SkColorToRgbString(pixel);
+          return false;
+        }
+      }
+    }
+  }
+  return true;
+}
+}  // namespace
 
 // Matcher that returns true if the content region of a letterboxed VideoFrame
 // is filled with the given color, and black everywhere else.
-MATCHER_P2(IsLetterboxedFrame, color, content_rect, "") {
+MATCHER_P3(IsLetterboxedFrame, color, content_rect, pixel_format, "") {
   if (!arg) {
     return false;
   }
 
   const VideoFrame& frame = *arg;
-  const gfx::Rect kContentRect = content_rect;
 
-  const auto IsLetterboxedPlane = [&frame, kContentRect, result_listener](
-                                      int plane, uint8_t component) {
-    gfx::Rect content_rect_copy = kContentRect;
-    if (plane != VideoFrame::kYPlane) {
-      content_rect_copy = gfx::Rect(
-          content_rect_copy.x() / 2, content_rect_copy.y() / 2,
-          content_rect_copy.width() / 2, content_rect_copy.height() / 2);
-    }
-    for (int row = 0; row < frame.rows(plane); ++row) {
-      const uint8_t* p = frame.visible_data(plane) + row * frame.stride(plane);
-      for (int col = 0; col < frame.row_bytes(plane); ++col) {
-        if (content_rect_copy.Contains(gfx::Point(col, row))) {
-          if (p[col] != component) {
-            *result_listener << " where pixel at (" << col << ", " << row
-                             << ") should be inside content rectangle and the "
-                                "component should match 0x"
-                             << std::hex << component << " but is 0x"
-                             << std::hex << static_cast<unsigned int>(p[col]);
-            return false;
-          }
-        } else {  // Letterbox border around content.
-          if (plane == VideoFrame::kYPlane && p[col] != 0x00) {
-            *result_listener << " where pixel at (" << col << ", " << row
-                             << ") should be outside content rectangle and the "
-                                "component should match 0x00 but is 0x"
-                             << std::hex << static_cast<unsigned int>(p[col]);
-            return false;
-          }
-        }
-      }
-    }
+  // Pretend kUseGpuMemoryBuffer rendered corrected data.
+  if (frame.HasMappableGpuBuffer()) {
     return true;
-  };
+  }
 
-  return IsLetterboxedPlane(VideoFrame::kYPlane, color.y) &&
-         IsLetterboxedPlane(VideoFrame::kUPlane, color.u) &&
-         IsLetterboxedPlane(VideoFrame::kVPlane, color.v);
+  switch (pixel_format) {
+    case media::PIXEL_FORMAT_ARGB: {
+      return IsLetterboxedRGBA(color, content_rect, frame, result_listener);
+    }
+    case media::PIXEL_FORMAT_I420: {
+      const YUVColor yuvColor = RGBToYUV(color);
+      return IsLetterboxedI420Plane(VideoFrame::Plane::kY, yuvColor.y,
+                                    content_rect, frame, result_listener) &&
+             IsLetterboxedI420Plane(VideoFrame::Plane::kU, yuvColor.u,
+                                    content_rect, frame, result_listener) &&
+             IsLetterboxedI420Plane(VideoFrame::Plane::kV, yuvColor.v,
+                                    content_rect, frame, result_listener);
+    }
+    default: {
+      NOTREACHED();
+    }
+  }
 }
 
 class TestVideoCaptureOverlay : public VideoCaptureOverlay {
@@ -489,7 +751,7 @@ class TestVideoCaptureOverlay : public VideoCaptureOverlay {
   using PropertiesCallback =
       base::RepeatingCallback<void(const CapturedFrameProperties&)>;
   TestVideoCaptureOverlay(
-      FrameSource* frame_source,
+      FrameSource& frame_source,
       mojo::PendingReceiver<mojom::FrameSinkVideoCaptureOverlay> receiver,
       PropertiesCallback properties_cb)
       : VideoCaptureOverlay(frame_source, std::move(receiver)),
@@ -506,17 +768,75 @@ class TestVideoCaptureOverlay : public VideoCaptureOverlay {
   PropertiesCallback properties_cb_;
 };
 
+class TestGmbVideoFramePoolContext
+    : public media::RenderableGpuMemoryBufferVideoFramePool::Context {
+ public:
+  TestGmbVideoFramePoolContext()
+      : context_provider_(TestContextProvider::Create()) {}
+  ~TestGmbVideoFramePoolContext() override = default;
+
+  scoped_refptr<gpu::ClientSharedImage> CreateSharedImage(
+      const gfx::Size& size,
+      gfx::BufferUsage buffer_usage,
+      const SharedImageFormat& si_format,
+      const gfx::ColorSpace& color_space,
+      gpu::SharedImageUsageSet usage,
+      gpu::SyncToken& sync_token) override {
+    context_provider_->SharedImageInterface()
+        ->UseTestGMBInSharedImageCreationWithBufferUsage();
+    return context_provider_->SharedImageInterface()->CreateSharedImage(
+        {si_format, size, color_space, usage,
+         "FrameSinkVideoCapturerImplUnittest"},
+        gpu::kNullSurfaceHandle, buffer_usage);
+  }
+
+  void DestroySharedImage(
+      const gpu::SyncToken& sync_token,
+      scoped_refptr<gpu::ClientSharedImage> shared_image) override {
+    CHECK(shared_image);
+    shared_image->UpdateDestructionSyncToken(sync_token);
+  }
+
+  const gpu::SharedImageCapabilities& GetCapabilities() override {
+    return context_provider_->SharedImageInterface()->GetCapabilities();
+  }
+
+ private:
+  scoped_refptr<TestContextProvider> context_provider_;
+};
+
+class TestGmbVideoFramePoolContextProvider
+    : public GmbVideoFramePoolContextProvider {
+ public:
+  ~TestGmbVideoFramePoolContextProvider() override = default;
+
+  std::unique_ptr<media::RenderableGpuMemoryBufferVideoFramePool::Context>
+  CreateContext(base::OnceClosure on_context_lost) final {
+    return std::make_unique<TestGmbVideoFramePoolContext>();
+  }
+};
+
 }  // namespace
 
-class FrameSinkVideoCapturerTest : public testing::Test {
+class FrameSinkVideoCapturerTest
+    : public testing::Test,
+      public testing::WithParamInterface<
+          std::tuple<mojom::BufferFormatPreference, media::VideoPixelFormat>> {
  public:
-  FrameSinkVideoCapturerTest() : size_set_(kSizeSets[0]) {
+  FrameSinkVideoCapturerTest()
+      : size_set_(kSizeSets[0]),
+        buffer_format_preference_(std::get<0>(GetParam())),
+        pixel_format_(std::get<1>(GetParam())) {
     auto oracle = std::make_unique<InstrumentedVideoCaptureOracle>(
         true /* enable_auto_throttling */);
     oracle_ = oracle.get();
+
+    gmb_context_provider_ =
+        std::make_unique<TestGmbVideoFramePoolContextProvider>();
+
     capturer_ = std::make_unique<FrameSinkVideoCapturerImpl>(
-        &frame_sink_manager_, nullptr, mojo::NullReceiver(), std::move(oracle),
-        false);
+        frame_sink_manager_, gmb_context_provider_.get(), mojo::NullReceiver(),
+        std::move(oracle), false);
   }
 
   void SetUp() override {
@@ -542,8 +862,8 @@ class FrameSinkVideoCapturerTest : public testing::Test {
     // these tests, set a specific format and color space.
     ASSERT_EQ(FrameSinkVideoCapturerImpl::kDefaultPixelFormat,
               capturer_->pixel_format_);
-    capturer_->SetFormat(media::PIXEL_FORMAT_I420);
-    ASSERT_EQ(media::PIXEL_FORMAT_I420, capturer_->pixel_format_);
+    capturer_->SetFormat(pixel_format_);
+    ASSERT_EQ(pixel_format_, capturer_->pixel_format_);
 
     // Set min capture period as small as possible so that the
     // media::VideoCapturerOracle used by the capturer will want to capture
@@ -558,16 +878,19 @@ class FrameSinkVideoCapturerTest : public testing::Test {
 
   void TearDown() override { task_runner_->ClearPendingTasks(); }
 
-  void StartCapture(MockConsumer* consumer,
-                    mojom::BufferFormatPreference buffer_format_preference =
-                        mojom::BufferFormatPreference::kDefault) {
-    capturer_->Start(consumer->BindVideoConsumer(), buffer_format_preference);
+  void StartCapture(MockConsumer* consumer) {
+    capturer_->Start(consumer->BindVideoConsumer(), buffer_format_preference_);
     PropagateMojoTasks();
   }
 
   void StopCapture() {
     capturer_->Stop();
     PropagateMojoTasks();
+  }
+
+  bool IsUsingGpuMemoryBuffer() {
+    return buffer_format_preference_ ==
+           mojom::BufferFormatPreference::kPreferGpuMemoryBuffer;
   }
 
   base::TimeTicks GetNextVsync() const {
@@ -644,18 +967,24 @@ class FrameSinkVideoCapturerTest : public testing::Test {
   base::TimeTicks start_time_;
   MockFrameSinkManager frame_sink_manager_;
   FakeCapturableFrameSink frame_sink_;
+
+  std::unique_ptr<TestGmbVideoFramePoolContextProvider> gmb_context_provider_;
   std::unique_ptr<FrameSinkVideoCapturerImpl> capturer_;
+
   raw_ptr<InstrumentedVideoCaptureOracle> oracle_;
+  mojom::BufferFormatPreference buffer_format_preference_;
+  media::VideoPixelFormat pixel_format_;
 };
 
 // Tests that the capturer attaches to a frame sink immediately, in the case
 // where the frame sink was already known by the manager.
-TEST_F(FrameSinkVideoCapturerTest, ResolvesTargetImmediately) {
+TEST_P(FrameSinkVideoCapturerTest, ResolvesTargetImmediately) {
   EXPECT_CALL(frame_sink_manager_, FindCapturableFrameSink(kVideoCaptureTarget))
       .WillRepeatedly(Return(&frame_sink_));
 
   EXPECT_FALSE(capturer_->target());
-  capturer_->ChangeTarget(kVideoCaptureTarget, /*crop_version=*/0);
+  capturer_->ChangeTarget(kVideoCaptureTarget,
+                          /*sub_capture_target_version=*/0);
   EXPECT_EQ(kVideoCaptureTarget.frame_sink_id,
             capturer_->target()->frame_sink_id);
   EXPECT_EQ(capturer_.get(), frame_sink_.attached_client());
@@ -663,12 +992,13 @@ TEST_F(FrameSinkVideoCapturerTest, ResolvesTargetImmediately) {
 
 // Tests that the capturer attaches to a frame sink later, in the case where the
 // frame sink becomes known to the manager at some later point.
-TEST_F(FrameSinkVideoCapturerTest, ResolvesTargetLater) {
+TEST_P(FrameSinkVideoCapturerTest, ResolvesTargetLater) {
   EXPECT_CALL(frame_sink_manager_, FindCapturableFrameSink(kVideoCaptureTarget))
       .WillRepeatedly(Return(nullptr));
 
   EXPECT_FALSE(capturer_->target());
-  capturer_->ChangeTarget(kVideoCaptureTarget, /*crop_version=*/0);
+  capturer_->ChangeTarget(kVideoCaptureTarget,
+                          /*sub_capture_target_version=*/0);
   EXPECT_EQ(kVideoCaptureTarget.frame_sink_id,
             capturer_->target()->frame_sink_id);
   EXPECT_EQ(nullptr, frame_sink_.attached_client());
@@ -679,7 +1009,7 @@ TEST_F(FrameSinkVideoCapturerTest, ResolvesTargetLater) {
 
 // Tests that no initial frame is sent after Start() is called until after the
 // target has been resolved.
-TEST_F(FrameSinkVideoCapturerTest, PostponesCaptureWithoutATarget) {
+TEST_P(FrameSinkVideoCapturerTest, PostponesCaptureWithoutATarget) {
   EXPECT_CALL(frame_sink_manager_, FindCapturableFrameSink(kVideoCaptureTarget))
       .WillRepeatedly(Return(&frame_sink_));
 
@@ -704,7 +1034,8 @@ TEST_F(FrameSinkVideoCapturerTest, PostponesCaptureWithoutATarget) {
 
   // Now, set the target. As it resolves, the capturer will immediately attempt
   // a refresh capture, which will cancel the timer and trigger a copy request.
-  capturer_->ChangeTarget(kVideoCaptureTarget, /*crop_version=*/0);
+  capturer_->ChangeTarget(kVideoCaptureTarget,
+                          /*sub_capture_target_version=*/0);
   EXPECT_EQ(1, frame_sink_.num_copy_results());
   EXPECT_FALSE(IsRefreshRetryTimerRunning());
 
@@ -715,12 +1046,13 @@ TEST_F(FrameSinkVideoCapturerTest, PostponesCaptureWithoutATarget) {
 // An end-to-end pipeline test where compositor updates trigger the capturer to
 // make copy requests, and a stream of video frames is delivered to the
 // consumer.
-TEST_F(FrameSinkVideoCapturerTest, CapturesCompositedFrames) {
-  frame_sink_.SetCopyOutputColor(YUVColor{0x80, 0x80, 0x80});
+TEST_P(FrameSinkVideoCapturerTest, CapturesCompositedFrames) {
+  frame_sink_.SetCopyOutputColor(SkColorSetARGB(255, 128, 128, 128));
   EXPECT_CALL(frame_sink_manager_, FindCapturableFrameSink(kVideoCaptureTarget))
       .WillRepeatedly(Return(&frame_sink_));
 
-  capturer_->ChangeTarget(kVideoCaptureTarget, /*crop_version=*/0);
+  capturer_->ChangeTarget(kVideoCaptureTarget,
+                          /*sub_capture_target_version=*/0);
   EXPECT_FALSE(IsRefreshRetryTimerRunning());
 
   MockConsumer consumer;
@@ -742,8 +1074,9 @@ TEST_F(FrameSinkVideoCapturerTest, CapturesCompositedFrames) {
   frame_sink_.SendCopyOutputResult(0);
   ASSERT_EQ(num_refresh_frames, consumer.num_frames_received());
   EXPECT_THAT(consumer.TakeFrame(0),
-              IsLetterboxedFrame(YUVColor{0x80, 0x80, 0x80},
-                                 size_set().expected_content_rect));
+              IsLetterboxedFrame(SkColorSetARGB(255, 128, 128, 128),
+                                 size_set().ExpectedContentRect(pixel_format_),
+                                 pixel_format_));
   consumer.SendDoneNotification(0);
 
   // Drive the capturer pipeline for a series of frame composites.
@@ -759,14 +1092,14 @@ TEST_F(FrameSinkVideoCapturerTest, CapturesCompositedFrames) {
 
     // Change the content of the frame sink and notify the capturer of the
     // damage.
-    const YUVColor color = {static_cast<uint8_t>(i << 4),
-                            static_cast<uint8_t>((i << 4) + 0x10),
-                            static_cast<uint8_t>((i << 4) + 0x20)};
+    const SkColor color = SkColorSetARGB(255, static_cast<uint8_t>(i << 4),
+                                         static_cast<uint8_t>((i << 4) + 0x10),
+                                         static_cast<uint8_t>((i << 4) + 0x20));
     frame_sink_.SetCopyOutputColor(color);
     task_runner_->FastForwardBy(kVsyncInterval / 4);
     const base::TimeTicks expected_capture_begin_time =
         task_runner_->NowTicks();
-    NotifyFrameDamaged(size_set().source_rect);
+    NotifyFrameDamaged(gfx::Rect(size_set().source_size));
 
     // The frame sink should have received a CopyOutputRequest. Simulate a short
     // pause before the result is sent back to the capturer, and the capturer
@@ -780,8 +1113,9 @@ TEST_F(FrameSinkVideoCapturerTest, CapturesCompositedFrames) {
     // Verify the frame is the right size, has the right content, and has
     // required metadata set.
     const scoped_refptr<VideoFrame> frame = consumer.TakeFrame(i);
-    EXPECT_THAT(frame,
-                IsLetterboxedFrame(color, size_set().expected_content_rect));
+    EXPECT_THAT(frame, IsLetterboxedFrame(
+                           color, size_set().ExpectedContentRect(pixel_format_),
+                           pixel_format_));
     EXPECT_EQ(size_set().capture_size, frame->coded_size());
     EXPECT_EQ(gfx::Rect(size_set().capture_size), frame->visible_rect());
     EXPECT_LT(last_timestamp, frame->timestamp());
@@ -789,7 +1123,7 @@ TEST_F(FrameSinkVideoCapturerTest, CapturesCompositedFrames) {
     const VideoFrameMetadata& metadata = frame->metadata();
     EXPECT_EQ(expected_capture_begin_time, *metadata.capture_begin_time);
     EXPECT_EQ(expected_capture_end_time, *metadata.capture_end_time);
-    EXPECT_EQ(gfx::ColorSpace::CreateREC709(), frame->ColorSpace());
+    EXPECT_EQ(GetColorSpaceForPixelFormat(pixel_format_), frame->ColorSpace());
     // frame_duration is an estimate computed by the VideoCaptureOracle, so it
     // its exact value is not being checked here.
     EXPECT_TRUE(metadata.frame_duration.has_value());
@@ -811,11 +1145,12 @@ TEST_F(FrameSinkVideoCapturerTest, CapturesCompositedFrames) {
 // Tests that frame capturing halts when too many frames are allocated, whether
 // that is because there are too many copy requests in-flight or because the
 // consumer has not finished consuming frames fast enough.
-TEST_F(FrameSinkVideoCapturerTest, HaltsWhenPoolIsFull) {
+TEST_P(FrameSinkVideoCapturerTest, HaltsWhenPoolIsFull) {
   EXPECT_CALL(frame_sink_manager_, FindCapturableFrameSink(kVideoCaptureTarget))
       .WillRepeatedly(Return(&frame_sink_));
 
-  capturer_->ChangeTarget(kVideoCaptureTarget, /*crop_version=*/0);
+  capturer_->ChangeTarget(kVideoCaptureTarget,
+                          /*sub_capture_target_version=*/0);
 
   NiceMock<MockConsumer> consumer;
   StartCapture(&consumer);
@@ -828,7 +1163,7 @@ TEST_F(FrameSinkVideoCapturerTest, HaltsWhenPoolIsFull) {
   int num_frames = FrameSinkVideoCapturerImpl::kFramePoolCapacity;
   for (int i = num_refresh_frames; i < num_frames; ++i) {
     AdvanceClockToNextVsync();
-    NotifyFrameDamaged(size_set().source_rect);
+    NotifyFrameDamaged(gfx::Rect(size_set().source_size));
     // The oracle should not be rejecting captures caused by compositor updates.
     ASSERT_FALSE(IsRefreshRetryTimerRunning());
   }
@@ -839,7 +1174,7 @@ TEST_F(FrameSinkVideoCapturerTest, HaltsWhenPoolIsFull) {
   // scheduled to account for the capture of changed content that could not take
   // place.
   AdvanceClockToNextVsync();
-  NotifyFrameDamaged(size_set().source_rect);
+  NotifyFrameDamaged(gfx::Rect(size_set().source_size));
   ASSERT_EQ(num_frames, frame_sink_.num_copy_results());
   EXPECT_TRUE(IsRefreshRetryTimerRunning());
 
@@ -849,7 +1184,7 @@ TEST_F(FrameSinkVideoCapturerTest, HaltsWhenPoolIsFull) {
   frame_sink_.SendCopyOutputResult(0);
   ASSERT_EQ(1, consumer.num_frames_received());
   AdvanceClockToNextVsync();
-  NotifyFrameDamaged(size_set().source_rect);
+  NotifyFrameDamaged(gfx::Rect(size_set().source_size));
   ASSERT_EQ(num_frames, frame_sink_.num_copy_results());
   EXPECT_TRUE(IsRefreshRetryTimerRunning());
 
@@ -861,7 +1196,7 @@ TEST_F(FrameSinkVideoCapturerTest, HaltsWhenPoolIsFull) {
   EXPECT_TRUE(consumer.TakeFrame(0));
   consumer.SendDoneNotification(0);
   AdvanceClockToNextVsync();
-  NotifyFrameDamaged(size_set().source_rect);
+  NotifyFrameDamaged(gfx::Rect(size_set().source_size));
   ASSERT_EQ(num_frames, frame_sink_.num_copy_results());
   EXPECT_TRUE(IsRefreshRetryTimerRunning());
 
@@ -876,7 +1211,7 @@ TEST_F(FrameSinkVideoCapturerTest, HaltsWhenPoolIsFull) {
   EXPECT_TRUE(consumer.TakeFrame(1));
   consumer.SendDoneNotification(1);
   AdvanceClockToNextVsync();
-  NotifyFrameDamaged(size_set().source_rect);
+  NotifyFrameDamaged(gfx::Rect(size_set().source_size));
   ++num_frames;
   ASSERT_EQ(num_frames, frame_sink_.num_copy_results());
   EXPECT_FALSE(IsRefreshRetryTimerRunning());
@@ -885,7 +1220,7 @@ TEST_F(FrameSinkVideoCapturerTest, HaltsWhenPoolIsFull) {
   // because the pipeline became saturated again. Once again, the refresh timer
   // should be started to account for the need to capture at some future point.
   AdvanceClockToNextVsync();
-  NotifyFrameDamaged(size_set().source_rect);
+  NotifyFrameDamaged(gfx::Rect(size_set().source_size));
   ASSERT_EQ(num_frames, frame_sink_.num_copy_results());
   EXPECT_TRUE(IsRefreshRetryTimerRunning());
 
@@ -900,7 +1235,7 @@ TEST_F(FrameSinkVideoCapturerTest, HaltsWhenPoolIsFull) {
   }
   ASSERT_EQ(frame_sink_.num_copy_results(), consumer.num_frames_received());
   AdvanceClockToNextVsync();
-  NotifyFrameDamaged(size_set().source_rect);
+  NotifyFrameDamaged(gfx::Rect(size_set().source_size));
   ++num_frames;
   ASSERT_EQ(num_frames, frame_sink_.num_copy_results());
   EXPECT_FALSE(IsRefreshRetryTimerRunning());
@@ -915,7 +1250,7 @@ TEST_F(FrameSinkVideoCapturerTest, HaltsWhenPoolIsFull) {
     consumer.SendDoneNotification(i);
   }
   AdvanceClockToNextVsync();
-  NotifyFrameDamaged(size_set().source_rect);
+  NotifyFrameDamaged(gfx::Rect(size_set().source_size));
   ++num_frames;
   ASSERT_EQ(num_frames, frame_sink_.num_copy_results());
   EXPECT_FALSE(IsRefreshRetryTimerRunning());
@@ -928,14 +1263,15 @@ TEST_F(FrameSinkVideoCapturerTest, HaltsWhenPoolIsFull) {
 
 // Tests that copy requests completed out-of-order are accounted for by the
 // capturer, with results delivered to the consumer in-order.
-TEST_F(FrameSinkVideoCapturerTest, DeliversFramesInOrder) {
-  std::vector<YUVColor> colors;
-  colors.push_back(YUVColor{0x00, 0x80, 0x80});
+TEST_P(FrameSinkVideoCapturerTest, DeliversFramesInOrder) {
+  std::vector<SkColor> colors;
+  colors.push_back(SkColorSetARGB(255, 0, 0, 0));
   frame_sink_.SetCopyOutputColor(colors.back());
   EXPECT_CALL(frame_sink_manager_, FindCapturableFrameSink(kVideoCaptureTarget))
       .WillRepeatedly(Return(&frame_sink_));
 
-  capturer_->ChangeTarget(kVideoCaptureTarget, /*crop_version=*/0);
+  capturer_->ChangeTarget(kVideoCaptureTarget,
+                          /*sub_capture_target_version=*/0);
 
   NiceMock<MockConsumer> consumer;
   StartCapture(&consumer);
@@ -947,38 +1283,45 @@ TEST_F(FrameSinkVideoCapturerTest, DeliversFramesInOrder) {
   constexpr int num_frames = 5;
   ASSERT_EQ(num_refresh_frames, frame_sink_.num_copy_results());
   for (int i = num_refresh_frames; i < num_frames; ++i) {
-    colors.push_back(YUVColor{static_cast<uint8_t>(i << 4),
-                              static_cast<uint8_t>((i << 4) + 0x10),
-                              static_cast<uint8_t>((i << 4) + 0x20)});
+    colors.push_back(SkColorSetARGB(255, static_cast<uint8_t>(i << 4),
+                                    static_cast<uint8_t>((i << 4) + 0x10),
+                                    static_cast<uint8_t>((i << 4) + 0x20)));
     frame_sink_.SetCopyOutputColor(colors.back());
     AdvanceClockToNextVsync();
-    NotifyFrameDamaged(size_set().source_rect);
+    NotifyFrameDamaged(gfx::Rect(size_set().source_size));
   }
   ASSERT_EQ(num_frames, frame_sink_.num_copy_results());
 
   // Complete the copy requests out-of-order. Check that frames are not
   // delivered until they can all be delivered in-order, and that the content of
   // each video frame is correct.
+  const auto expected_content_rect =
+      size_set().ExpectedContentRect(pixel_format_);
   frame_sink_.SendCopyOutputResult(0);
   ASSERT_EQ(1, consumer.num_frames_received());
-  EXPECT_THAT(consumer.TakeFrame(0),
-              IsLetterboxedFrame(colors[0], size_set().expected_content_rect));
+  EXPECT_THAT(
+      consumer.TakeFrame(0),
+      IsLetterboxedFrame(colors[0], expected_content_rect, pixel_format_));
   frame_sink_.SendCopyOutputResult(2);
   ASSERT_EQ(1, consumer.num_frames_received());  // Waiting for frame 1.
   frame_sink_.SendCopyOutputResult(3);
   ASSERT_EQ(1, consumer.num_frames_received());  // Still waiting for frame 1.
   frame_sink_.SendCopyOutputResult(1);
   ASSERT_EQ(4, consumer.num_frames_received());  // Sent frames 1, 2, and 3.
-  EXPECT_THAT(consumer.TakeFrame(1),
-              IsLetterboxedFrame(colors[1], size_set().expected_content_rect));
-  EXPECT_THAT(consumer.TakeFrame(2),
-              IsLetterboxedFrame(colors[2], size_set().expected_content_rect));
-  EXPECT_THAT(consumer.TakeFrame(3),
-              IsLetterboxedFrame(colors[3], size_set().expected_content_rect));
+  EXPECT_THAT(
+      consumer.TakeFrame(1),
+      IsLetterboxedFrame(colors[1], expected_content_rect, pixel_format_));
+  EXPECT_THAT(
+      consumer.TakeFrame(2),
+      IsLetterboxedFrame(colors[2], expected_content_rect, pixel_format_));
+  EXPECT_THAT(
+      consumer.TakeFrame(3),
+      IsLetterboxedFrame(colors[3], expected_content_rect, pixel_format_));
   frame_sink_.SendCopyOutputResult(4);
   ASSERT_EQ(5, consumer.num_frames_received());
-  EXPECT_THAT(consumer.TakeFrame(4),
-              IsLetterboxedFrame(colors[4], size_set().expected_content_rect));
+  EXPECT_THAT(
+      consumer.TakeFrame(4),
+      IsLetterboxedFrame(colors[4], expected_content_rect, pixel_format_));
 
   StopCapture();
 }
@@ -986,13 +1329,14 @@ TEST_F(FrameSinkVideoCapturerTest, DeliversFramesInOrder) {
 // Tests that in-flight copy requests are canceled when the capturer is
 // stopped. When it is started again with a new consumer, only the results from
 // newer copy requests should appear in video frames delivered to the consumer.
-TEST_F(FrameSinkVideoCapturerTest, CancelsInFlightCapturesOnStop) {
-  const YUVColor color1 = {0xaa, 0xbb, 0xcc};
+TEST_P(FrameSinkVideoCapturerTest, CancelsInFlightCapturesOnStop) {
+  const SkColor color1 = SkColorSetARGB(255, 255, 95, 255);
   frame_sink_.SetCopyOutputColor(color1);
   EXPECT_CALL(frame_sink_manager_, FindCapturableFrameSink(kVideoCaptureTarget))
       .WillRepeatedly(Return(&frame_sink_));
 
-  capturer_->ChangeTarget(kVideoCaptureTarget, /*crop_version=*/0);
+  capturer_->ChangeTarget(kVideoCaptureTarget,
+                          /*sub_capture_target_version=*/0);
 
   // Start capturing to the first consumer.
   MockConsumer consumer;
@@ -1009,7 +1353,7 @@ TEST_F(FrameSinkVideoCapturerTest, CancelsInFlightCapturesOnStop) {
   for (int i = num_refresh_frames; i < num_copy_requests; ++i) {
     SCOPED_TRACE(testing::Message() << "frame #" << i);
     AdvanceClockToNextVsync();
-    NotifyFrameDamaged(size_set().source_rect);
+    NotifyFrameDamaged(gfx::Rect(size_set().source_size));
   }
   ASSERT_EQ(num_copy_requests, frame_sink_.num_copy_results());
 
@@ -1020,14 +1364,16 @@ TEST_F(FrameSinkVideoCapturerTest, CancelsInFlightCapturesOnStop) {
     frame_sink_.SendCopyOutputResult(i);
     ASSERT_EQ(i + 1, consumer.num_frames_received());
     EXPECT_THAT(consumer.TakeFrame(i),
-                IsLetterboxedFrame(color1, size_set().expected_content_rect));
+                IsLetterboxedFrame(
+                    color1, size_set().ExpectedContentRect(pixel_format_),
+                    pixel_format_));
   }
 
   // Stopping capture should cancel the remaning copy requests.
   StopCapture();
 
   // Change the content color and start capturing to the second consumer.
-  const YUVColor color2 = {0xdd, 0xee, 0xff};
+  const SkColor color2 = SkColorSetARGB(255, 255, 91, 255);
   frame_sink_.SetCopyOutputColor(color2);
   MockConsumer consumer2;
   const int num_captures_for_second_consumer = 3;
@@ -1057,7 +1403,7 @@ TEST_F(FrameSinkVideoCapturerTest, CancelsInFlightCapturesOnStop) {
     if (i == 0) {
       // Expect that advancing the clock caused the refresh timer to fire.
     } else {
-      NotifyFrameDamaged(size_set().source_rect);
+      NotifyFrameDamaged(gfx::Rect(size_set().source_size));
     }
     ++num_copy_requests;
     ASSERT_EQ(num_copy_requests, frame_sink_.num_copy_results());
@@ -1066,7 +1412,9 @@ TEST_F(FrameSinkVideoCapturerTest, CancelsInFlightCapturesOnStop) {
     ++num_completed_captures;
     ASSERT_EQ(num_completed_captures, consumer2.num_frames_received());
     EXPECT_THAT(consumer2.TakeFrame(consumer2.num_frames_received() - 1),
-                IsLetterboxedFrame(color2, size_set().expected_content_rect));
+                IsLetterboxedFrame(
+                    color2, size_set().ExpectedContentRect(pixel_format_),
+                    pixel_format_));
   }
 
   StopCapture();
@@ -1074,12 +1422,13 @@ TEST_F(FrameSinkVideoCapturerTest, CancelsInFlightCapturesOnStop) {
 
 // Tests that refresh requests ultimately result in a frame being delivered to
 // the consumer.
-TEST_F(FrameSinkVideoCapturerTest, EventuallySendsARefreshFrame) {
-  frame_sink_.SetCopyOutputColor(YUVColor{0x80, 0x80, 0x80});
+TEST_P(FrameSinkVideoCapturerTest, EventuallySendsARefreshFrame) {
+  frame_sink_.SetCopyOutputColor(SkColorSetARGB(255, 128, 128, 128));
   EXPECT_CALL(frame_sink_manager_, FindCapturableFrameSink(kVideoCaptureTarget))
       .WillRepeatedly(Return(&frame_sink_));
 
-  capturer_->ChangeTarget(kVideoCaptureTarget, /*crop_version=*/0);
+  capturer_->ChangeTarget(kVideoCaptureTarget,
+                          /*sub_capture_target_version=*/0);
 
   MockConsumer consumer;
   const int num_refresh_frames = 2;  // Initial, plus later refresh.
@@ -1101,7 +1450,7 @@ TEST_F(FrameSinkVideoCapturerTest, EventuallySendsARefreshFrame) {
   int num_frames = 1 + num_update_frames;
   for (int i = 1; i < num_frames; ++i) {
     AdvanceClockToNextVsync();
-    NotifyFrameDamaged(size_set().source_rect);
+    NotifyFrameDamaged(gfx::Rect(size_set().source_size));
     ASSERT_EQ(i + 1, frame_sink_.num_copy_results());
     ASSERT_FALSE(IsRefreshRetryTimerRunning());
     frame_sink_.SendCopyOutputResult(i);
@@ -1129,12 +1478,13 @@ TEST_F(FrameSinkVideoCapturerTest, EventuallySendsARefreshFrame) {
 
 // Tests that refresh demands result in a frame being delivered to
 // the consumer in a timely fashion.
-TEST_F(FrameSinkVideoCapturerTest, RefreshDemandsAreProperlyHandled) {
-  frame_sink_.SetCopyOutputColor(YUVColor{0x80, 0x80, 0x80});
+TEST_P(FrameSinkVideoCapturerTest, RefreshDemandsAreProperlyHandled) {
+  frame_sink_.SetCopyOutputColor(SkColorSetARGB(255, 128, 128, 128));
   EXPECT_CALL(frame_sink_manager_, FindCapturableFrameSink(kVideoCaptureTarget))
       .WillRepeatedly(Return(&frame_sink_));
 
-  capturer_->ChangeTarget(kVideoCaptureTarget, /*crop_version=*/0);
+  capturer_->ChangeTarget(kVideoCaptureTarget,
+                          /*sub_capture_target_version=*/0);
 
   MockConsumer consumer;
   EXPECT_CALL(consumer, OnFrameCapturedMock()).Times(3);
@@ -1179,12 +1529,13 @@ TEST_F(FrameSinkVideoCapturerTest, RefreshDemandsAreProperlyHandled) {
 
 // Tests that the capturer honors requested refresh frames (see
 // crbug.com/1320798)
-TEST_F(FrameSinkVideoCapturerTest, HonorsRequestRefreshFrame) {
-  frame_sink_.SetCopyOutputColor(YUVColor{0x80, 0x80, 0x80});
+TEST_P(FrameSinkVideoCapturerTest, HonorsRequestRefreshFrame) {
+  frame_sink_.SetCopyOutputColor(SkColorSetARGB(255, 128, 128, 128));
   ON_CALL(frame_sink_manager_, FindCapturableFrameSink(kVideoCaptureTarget))
       .WillByDefault(Return(&frame_sink_));
 
-  capturer_->ChangeTarget(kVideoCaptureTarget, /*crop_version=*/0);
+  capturer_->ChangeTarget(kVideoCaptureTarget,
+                          /*sub_capture_target_version=*/0);
 
   // Start off and consume the immediate refresh and copy result.
   MockConsumer consumer;
@@ -1218,13 +1569,14 @@ TEST_F(FrameSinkVideoCapturerTest, HonorsRequestRefreshFrame) {
 
 // Tests that full capture happens on capture resolution change due to oracle,
 // but only once and resurrected frames are used after that.
-TEST_F(FrameSinkVideoCapturerTest,
+TEST_P(FrameSinkVideoCapturerTest,
        ResurrectsFramesForChangingCaptureResolution) {
-  frame_sink_.SetCopyOutputColor(YUVColor{0x80, 0x80, 0x80});
+  frame_sink_.SetCopyOutputColor(SkColorSetARGB(255, 128, 128, 128));
   EXPECT_CALL(frame_sink_manager_, FindCapturableFrameSink(kVideoCaptureTarget))
       .WillRepeatedly(Return(&frame_sink_));
 
-  capturer_->ChangeTarget(kVideoCaptureTarget, /*crop_version=*/0);
+  capturer_->ChangeTarget(kVideoCaptureTarget,
+                          /*sub_capture_target_version=*/0);
 
   MockConsumer consumer;
   constexpr int num_refresh_frames = 3;  // Initial, plus two refreshes after
@@ -1318,10 +1670,11 @@ TEST_F(FrameSinkVideoCapturerTest,
 // |page_scale_factor| and |root_scroll_offset|) are sent along with each frame,
 // and refreshes cause variables of the cached CompositorFrameMetadata
 // (|last_frame_metadata|) to be used.
-TEST_F(FrameSinkVideoCapturerTest, CompositorFrameMetadataReachesConsumer) {
+TEST_P(FrameSinkVideoCapturerTest, CompositorFrameMetadataReachesConsumer) {
   EXPECT_CALL(frame_sink_manager_, FindCapturableFrameSink(kVideoCaptureTarget))
       .WillRepeatedly(Return(&frame_sink_));
-  capturer_->ChangeTarget(kVideoCaptureTarget, /*crop_version=*/0);
+  capturer_->ChangeTarget(kVideoCaptureTarget,
+                          /*sub_capture_target_version=*/0);
 
   MockConsumer consumer;
   // Initial refresh frame for starting capture, plus later refresh.
@@ -1352,7 +1705,7 @@ TEST_F(FrameSinkVideoCapturerTest, CompositorFrameMetadataReachesConsumer) {
   // Notify frame damage with new metadata, and expect that the refresh frame
   // is delivered to the consumer with this new metadata.
   AdvanceClockToNextVsync();
-  NotifyFrameDamaged(size_set().source_rect, kNewDeviceScaleFactor,
+  NotifyFrameDamaged(gfx::Rect(size_set().source_size), kNewDeviceScaleFactor,
                      kNewPageScaleFactor, kNewRootScrollOffset);
   frame_sink_.SendCopyOutputResult(++cur_frame_index);
   ++expected_frames_count;
@@ -1378,10 +1731,11 @@ TEST_F(FrameSinkVideoCapturerTest, CompositorFrameMetadataReachesConsumer) {
 
 // Tests that frame metadata CAPTURE_COUNTER and CAPTURE_UPDATE_RECT are sent to
 // the consumer as part of each frame delivery.
-TEST_F(FrameSinkVideoCapturerTest, DeliversUpdateRectAndCaptureCounter) {
+TEST_P(FrameSinkVideoCapturerTest, DeliversUpdateRectAndCaptureCounter) {
   EXPECT_CALL(frame_sink_manager_, FindCapturableFrameSink(kVideoCaptureTarget))
       .WillRepeatedly(Return(&frame_sink_));
-  capturer_->ChangeTarget(kVideoCaptureTarget, /*crop_version=*/0);
+  capturer_->ChangeTarget(kVideoCaptureTarget,
+                          /*sub_capture_target_version=*/0);
 
   MockConsumer consumer;
   StartCapture(&consumer);
@@ -1405,16 +1759,21 @@ TEST_F(FrameSinkVideoCapturerTest, DeliversUpdateRectAndCaptureCounter) {
   const gfx::Rect kSourceDamageRect = gfx::Rect(3, 7, 60, 45);
   gfx::Rect expected_frame_update_rect = copy_output::ComputeResultRect(
       kSourceDamageRect,
-      gfx::Vector2d(size_set().source_rect.size().width(),
-                    size_set().source_rect.size().height()),
-      gfx::Vector2d(size_set().expected_content_rect.width(),
-                    size_set().expected_content_rect.height()));
+      gfx::Vector2d(size_set().source_size.width(),
+                    size_set().source_size.height()),
+      gfx::Vector2d(size_set().ExpectedContentRect(pixel_format_).width(),
+                    size_set().ExpectedContentRect(pixel_format_).height()));
   expected_frame_update_rect.Offset(
-      size_set().expected_content_rect.OffsetFromOrigin());
-  EXPECT_FALSE(AlignsWithI420SubsamplingBoundaries(expected_frame_update_rect));
-  expected_frame_update_rect =
-      ExpandRectToI420SubsampleBoundaries(expected_frame_update_rect);
-  EXPECT_TRUE(AlignsWithI420SubsamplingBoundaries(expected_frame_update_rect));
+      size_set().ExpectedContentRect(pixel_format_).OffsetFromOrigin());
+  // Do not align when we are testing RGBA
+  if (pixel_format_ != media::PIXEL_FORMAT_ARGB) {
+    EXPECT_FALSE(
+        AlignsWithI420SubsamplingBoundaries(expected_frame_update_rect));
+    expected_frame_update_rect =
+        ExpandRectToI420SubsampleBoundaries(expected_frame_update_rect);
+    EXPECT_TRUE(
+        AlignsWithI420SubsamplingBoundaries(expected_frame_update_rect));
+  }
 
   // Notify frame damage with custom damage rect, and expect that the refresh
   // frame is delivered to the consumer with a corresponding |update_rect|.
@@ -1493,10 +1852,11 @@ TEST_F(FrameSinkVideoCapturerTest, DeliversUpdateRectAndCaptureCounter) {
 // Tests that when captured frames being dropped before delivery, the
 // CAPTURE_COUNTER metadata value sent to the consumer reflects the frame drops
 // indicating that CAPTURE_UPDATE_RECT must be ignored.
-TEST_F(FrameSinkVideoCapturerTest, CaptureCounterSkipsWhenFramesAreDropped) {
+TEST_P(FrameSinkVideoCapturerTest, CaptureCounterSkipsWhenFramesAreDropped) {
   EXPECT_CALL(frame_sink_manager_, FindCapturableFrameSink(kVideoCaptureTarget))
       .WillRepeatedly(Return(&frame_sink_));
-  capturer_->ChangeTarget(kVideoCaptureTarget, /*crop_version=*/0);
+  capturer_->ChangeTarget(kVideoCaptureTarget,
+                          /*sub_capture_target_version=*/0);
 
   MockConsumer consumer;
   StartCapture(&consumer);
@@ -1544,11 +1904,12 @@ TEST_F(FrameSinkVideoCapturerTest, CaptureCounterSkipsWhenFramesAreDropped) {
   StopCapture();
 }
 
-TEST_F(FrameSinkVideoCapturerTest, ClientCaptureStartsAndStops) {
+TEST_P(FrameSinkVideoCapturerTest, ClientCaptureStartsAndStops) {
   EXPECT_CALL(frame_sink_manager_, FindCapturableFrameSink(kVideoCaptureTarget))
       .WillRepeatedly(Return(&frame_sink_));
 
-  capturer_->ChangeTarget(kVideoCaptureTarget, /*crop_version=*/0);
+  capturer_->ChangeTarget(kVideoCaptureTarget,
+                          /*sub_capture_target_version=*/0);
   EXPECT_EQ(frame_sink_.number_clients_capturing(), 0);
 
   // Start capturing. frame_sink_ should now have one client capturing.
@@ -1561,11 +1922,12 @@ TEST_F(FrameSinkVideoCapturerTest, ClientCaptureStartsAndStops) {
   EXPECT_EQ(frame_sink_.number_clients_capturing(), 0);
 }
 
-TEST_F(FrameSinkVideoCapturerTest, RegionCaptureCropId) {
+TEST_P(FrameSinkVideoCapturerTest, RegionCaptureCropId) {
   SwitchToSizeSet(kSizeSets[4]);
   EXPECT_CALL(frame_sink_manager_, FindCapturableFrameSink(kVideoCaptureTarget))
       .WillRepeatedly(Return(&frame_sink_));
-  capturer_->ChangeTarget(kVideoCaptureTarget, /*crop_version=*/0);
+  capturer_->ChangeTarget(kVideoCaptureTarget,
+                          /*sub_capture_target_version=*/0);
   EXPECT_EQ(frame_sink_.number_clients_capturing(), 0);
 
   const auto kCropId = RegionCaptureCropId::CreateRandom();
@@ -1575,7 +1937,7 @@ TEST_F(FrameSinkVideoCapturerTest, RegionCaptureCropId) {
   frame_sink_.set_crop_bounds(kCropBounds);
   EXPECT_CALL(frame_sink_manager_, FindCapturableFrameSink(target))
       .WillRepeatedly(Return(&frame_sink_));
-  capturer_->ChangeTarget(std::move(target), /*crop_version=*/1);
+  capturer_->ChangeTarget(std::move(target), /*sub_capture_target_version=*/1);
 
   // Start capturing. frame_sink_ should now have one client capturing.
   NiceMock<MockConsumer> consumer;
@@ -1586,7 +1948,7 @@ TEST_F(FrameSinkVideoCapturerTest, RegionCaptureCropId) {
   EXPECT_EQ(kCropId, frame_sink_.current_crop_id());
 }
 
-TEST_F(FrameSinkVideoCapturerTest,
+TEST_P(FrameSinkVideoCapturerTest,
        RegionCaptureTargetIsSetLaterWhenNotInitiallyAvailable) {
   SwitchToSizeSet(kSizeSets[4]);
 
@@ -1598,7 +1960,7 @@ TEST_F(FrameSinkVideoCapturerTest,
   VideoCaptureTarget target(kVideoCaptureTarget.frame_sink_id, kCropId);
   EXPECT_CALL(frame_sink_manager_, FindCapturableFrameSink(target))
       .WillRepeatedly(Return(nullptr));
-  capturer_->ChangeTarget(target, /*crop_version=*/0);
+  capturer_->ChangeTarget(target, /*sub_capture_target_version=*/0);
 
   // Start capture, although we don't have a frame sink yet.
   NiceMock<MockConsumer> consumer;
@@ -1619,9 +1981,9 @@ TEST_F(FrameSinkVideoCapturerTest,
 
 // Tests that frames can be successfully delivered after one is dropped due to
 // having a zero-sized capture region.
-TEST_F(FrameSinkVideoCapturerTest, HandlesFrameWithEmptyRegion) {
+TEST_P(FrameSinkVideoCapturerTest, HandlesFrameWithEmptyRegion) {
   const auto kCropId = RegionCaptureCropId::CreateRandom();
-  constexpr gfx::Rect kValidCropBounds{1, 2, 640, 478};
+  constexpr gfx::Rect kValidCropBounds{10, 2, 630, 476};
 
   SwitchToSizeSet(kSizeSets[4]);
   VideoCaptureTarget target(kVideoCaptureTarget.frame_sink_id, kCropId);
@@ -1635,7 +1997,7 @@ TEST_F(FrameSinkVideoCapturerTest, HandlesFrameWithEmptyRegion) {
 
   // Start capturing. frame_sink_ should now have one client capturing.
   StartCapture(&consumer);
-  capturer_->ChangeTarget(target, /*crop_version=*/0);
+  capturer_->ChangeTarget(target, /*sub_capture_target_version=*/0);
   EXPECT_EQ(frame_sink_.number_clients_capturing(), 1);
 
   // No copy requests should have been issued/executed.
@@ -1687,10 +2049,10 @@ TEST_F(FrameSinkVideoCapturerTest, HandlesFrameWithEmptyRegion) {
 // having a capture region that does not intersect with the compositor frame. In
 // the past, it was possible for a dropped frame to cause the delivery queue to
 // no longer be emptied. See https://crbug.com/1300742.
-TEST_F(FrameSinkVideoCapturerTest, HandlesFrameWithRegionCroppedToZero) {
+TEST_P(FrameSinkVideoCapturerTest, HandlesFrameWithRegionCroppedToZero) {
   const auto kCropId = RegionCaptureCropId::CreateRandom();
   constexpr gfx::Rect kInvalidCropBounds{800, 600, 100, 100};
-  constexpr gfx::Rect kValidCropBounds{1, 2, 640, 478};
+  constexpr gfx::Rect kValidCropBounds{1, 2, 638, 476};
 
   SwitchToSizeSet(kSizeSets[4]);
   VideoCaptureTarget target(kVideoCaptureTarget.frame_sink_id, kCropId);
@@ -1704,7 +2066,7 @@ TEST_F(FrameSinkVideoCapturerTest, HandlesFrameWithRegionCroppedToZero) {
 
   // Start capturing. frame_sink_ should now have one client capturing.
   StartCapture(&consumer);
-  capturer_->ChangeTarget(target, /*crop_version=*/0);
+  capturer_->ChangeTarget(target, /*sub_capture_target_version=*/0);
   EXPECT_EQ(frame_sink_.number_clients_capturing(), 1);
 
   // No copy requests should have been issued/executed.
@@ -1734,17 +2096,21 @@ TEST_F(FrameSinkVideoCapturerTest, HandlesFrameWithRegionCroppedToZero) {
   EXPECT_FALSE(IsRefreshRetryTimerRunning());
 }
 
-TEST_F(FrameSinkVideoCapturerTest, ProperlyHandlesCaptureSizeForOverlay) {
+TEST_P(FrameSinkVideoCapturerTest, ProperlyHandlesCaptureSizeForOverlay) {
+  // Skip this test for GMB, as it is not rendered by us.
+  if (IsUsingGpuMemoryBuffer()) {
+    return;
+  }
+
   SwitchToSizeSet(kSizeSets[4]);
-  constexpr gfx::Rect kValidCropBounds{1, 2, 639, 477};
-  (kSizeSets[4].source_rect.Contains(kValidCropBounds));
+  constexpr gfx::Rect kValidCropBounds{1, 2, 638, 476};
   const auto kCropId = RegionCaptureCropId::CreateRandom();
 
   // First, create the overlay.
   mojo::Remote<mojom::FrameSinkVideoCaptureOverlay> overlay_remote;
-  absl::optional<VideoCaptureOverlay::CapturedFrameProperties> frame_properties;
+  std::optional<VideoCaptureOverlay::CapturedFrameProperties> frame_properties;
   auto test_overlay = std::make_unique<TestVideoCaptureOverlay>(
-      capturer_.get(), overlay_remote.BindNewPipeAndPassReceiver(),
+      *capturer_, overlay_remote.BindNewPipeAndPassReceiver(),
       base::BindLambdaForTesting(
           [&](const VideoCaptureOverlay::CapturedFrameProperties& properties) {
             frame_properties = properties;
@@ -1754,10 +2120,10 @@ TEST_F(FrameSinkVideoCapturerTest, ProperlyHandlesCaptureSizeForOverlay) {
   // Change to the appropriate target.
   VideoCaptureTarget target(kVideoCaptureTarget.frame_sink_id, kCropId);
   frame_sink_.set_crop_bounds(kValidCropBounds);
-  frame_sink_.SetCopyOutputColor(YUVColor{0x80, 0x80, 0x80});
+  frame_sink_.SetCopyOutputColor(SkColorSetARGB(255, 128, 128, 128));
   EXPECT_CALL(frame_sink_manager_, FindCapturableFrameSink(target))
       .WillRepeatedly(Return(&frame_sink_));
-  capturer_->ChangeTarget(std::move(target), /*crop_version=*/0);
+  capturer_->ChangeTarget(std::move(target), /*sub_capture_target_version=*/0);
 
   MockConsumer consumer;
   EXPECT_CALL(consumer, OnFrameCapturedMock());
@@ -1776,21 +2142,22 @@ TEST_F(FrameSinkVideoCapturerTest, ProperlyHandlesCaptureSizeForOverlay) {
   // The overlay should have been rendered with the compositor region using
   // the entire frame, which is larger than the sub region.
   EXPECT_TRUE(frame_properties) << "didn't produce an overlay.";
-  EXPECT_EQ(kSizeSets[4].source_rect, frame_properties->compositor_region);
-  EXPECT_EQ(kValidCropBounds, frame_properties->sub_region);
-  EXPECT_EQ((gfx::Rect{0, 2, 16, 12}), frame_properties->content_region);
+  EXPECT_EQ(kSizeSets[4].source_size,
+            frame_properties->region_properties.root_render_pass_size);
+  EXPECT_EQ(kValidCropBounds,
+            frame_properties->region_properties.render_pass_subrect);
+  EXPECT_EQ((gfx::Rect{0, 2, 16, 12}), frame_properties->content_rect);
 }
 
-TEST_F(FrameSinkVideoCapturerTest, HandlesSubtreeCaptureId) {
+TEST_P(FrameSinkVideoCapturerTest, HandlesSubtreeCaptureId) {
   SwitchToSizeSet(kSizeSets[4]);
   constexpr gfx::Rect kCaptureBounds{1, 2, 1024, 768};
-  constexpr SubtreeCaptureId kCaptureId{1234567u};
-
+  constexpr SubtreeCaptureId kCaptureId(base::Token(0u, 1234567u));
   VideoCaptureTarget target(kVideoCaptureTarget.frame_sink_id, kCaptureId);
   frame_sink_.set_capture_bounds(kCaptureBounds);
   EXPECT_CALL(frame_sink_manager_, FindCapturableFrameSink(target))
       .WillRepeatedly(Return(&frame_sink_));
-  capturer_->ChangeTarget(std::move(target), /*crop_version=*/0);
+  capturer_->ChangeTarget(std::move(target), /*sub_capture_target_version=*/0);
 
   // Start capturing. frame_sink_ should now have one client capturing.
   NiceMock<MockConsumer> consumer;
@@ -1802,16 +2169,21 @@ TEST_F(FrameSinkVideoCapturerTest, HandlesSubtreeCaptureId) {
   EXPECT_EQ(kCaptureId, frame_sink_.current_capture_id());
 }
 
-TEST_F(FrameSinkVideoCapturerTest, ProperlyHandlesSubtreeSizeForOverlay) {
+TEST_P(FrameSinkVideoCapturerTest, ProperlyHandlesSubtreeSizeForOverlay) {
+  // Skip this test for GMB, as it is not rendered by us.
+  if (IsUsingGpuMemoryBuffer()) {
+    return;
+  }
+
   SwitchToSizeSet(kSizeSets[4]);
-  constexpr gfx::Rect kCaptureBounds{1, 2, 639, 477};
-  constexpr SubtreeCaptureId kCaptureId{1234567u};
+  constexpr gfx::Rect kCaptureBounds{0, 0, 640, 478};
+  constexpr SubtreeCaptureId kCaptureId(base::Token(0u, 1234567u));
 
   // First, create the overlay.
   mojo::Remote<mojom::FrameSinkVideoCaptureOverlay> overlay_remote;
-  absl::optional<VideoCaptureOverlay::CapturedFrameProperties> frame_properties;
+  std::optional<VideoCaptureOverlay::CapturedFrameProperties> frame_properties;
   auto test_overlay = std::make_unique<TestVideoCaptureOverlay>(
-      capturer_.get(), overlay_remote.BindNewPipeAndPassReceiver(),
+      *capturer_, overlay_remote.BindNewPipeAndPassReceiver(),
       base::BindLambdaForTesting(
           [&](const VideoCaptureOverlay::CapturedFrameProperties& properties) {
             frame_properties = properties;
@@ -1821,10 +2193,10 @@ TEST_F(FrameSinkVideoCapturerTest, ProperlyHandlesSubtreeSizeForOverlay) {
   // Change to the appropriate target.
   VideoCaptureTarget target(kVideoCaptureTarget.frame_sink_id, kCaptureId);
   frame_sink_.set_capture_bounds(kCaptureBounds);
-  frame_sink_.SetCopyOutputColor(YUVColor{0x80, 0x80, 0x80});
+  frame_sink_.SetCopyOutputColor(SkColorSetARGB(255, 128, 128, 128));
   EXPECT_CALL(frame_sink_manager_, FindCapturableFrameSink(target))
       .WillRepeatedly(Return(&frame_sink_));
-  capturer_->ChangeTarget(std::move(target), /*crop_version=*/0);
+  capturer_->ChangeTarget(std::move(target), /*sub_capture_target_version=*/0);
 
   MockConsumer consumer;
   EXPECT_CALL(consumer, OnFrameCapturedMock());
@@ -1843,12 +2215,14 @@ TEST_F(FrameSinkVideoCapturerTest, ProperlyHandlesSubtreeSizeForOverlay) {
   // The overlay should have been rendered with the content and compositor
   // regions set to the same value.
   EXPECT_TRUE(frame_properties) << "didn't produce an overlay.";
-  EXPECT_EQ(kCaptureBounds, frame_properties->compositor_region);
-  EXPECT_EQ(kCaptureBounds, frame_properties->sub_region);
-  EXPECT_EQ((gfx::Rect{0, 2, 16, 12}), frame_properties->content_region);
+  EXPECT_EQ(kCaptureBounds.size(),
+            frame_properties->region_properties.root_render_pass_size);
+  EXPECT_EQ(kCaptureBounds,
+            frame_properties->region_properties.render_pass_subrect);
+  EXPECT_EQ((gfx::Rect{0, 2, 16, 12}), frame_properties->content_rect);
 }
 
-TEST_F(FrameSinkVideoCapturerTest, HandlesNullSubTargetPtrCorrectly) {
+TEST_P(FrameSinkVideoCapturerTest, HandlesNullSubTargetPtrCorrectly) {
   SwitchToSizeSet(kSizeSets[4]);
   EXPECT_CALL(frame_sink_manager_, FindCapturableFrameSink(kVideoCaptureTarget))
       .WillRepeatedly(Return(&frame_sink_));
@@ -1857,7 +2231,7 @@ TEST_F(FrameSinkVideoCapturerTest, HandlesNullSubTargetPtrCorrectly) {
   // the SubTarget is a mojom variant, the default SubTarget::New() is actually
   // a zero value subtree capture identifier.
   capturer_->ChangeTarget(VideoCaptureTarget(kVideoCaptureTarget),
-                          /*crop_version=*/0);
+                          /*sub_capture_target_version=*/0);
   EXPECT_EQ(frame_sink_.number_clients_capturing(), 0);
 
   // Start capturing. frame_sink_ should now have one client capturing.
@@ -1867,5 +2241,18 @@ TEST_F(FrameSinkVideoCapturerTest, HandlesNullSubTargetPtrCorrectly) {
   EXPECT_EQ(SubtreeCaptureId(), frame_sink_.current_capture_id());
   EXPECT_EQ(RegionCaptureCropId(), frame_sink_.current_crop_id());
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    FrameSinkVideoCapturerTest,
+    testing::Values(
+        std::tuple(mojom::BufferFormatPreference::kDefault,
+                   media::PIXEL_FORMAT_I420),
+        std::tuple(mojom::BufferFormatPreference::kDefault,
+                   media::PIXEL_FORMAT_ARGB),
+        std::tuple(mojom::BufferFormatPreference::kPreferGpuMemoryBuffer,
+                   media::PIXEL_FORMAT_NV12),
+        std::tuple(mojom::BufferFormatPreference::kPreferGpuMemoryBuffer,
+                   media::PIXEL_FORMAT_ARGB)));
 
 }  // namespace viz

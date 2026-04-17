@@ -4,8 +4,13 @@
 
 module ash.camera_app.mojom;
 
-import "ash/components/arc/mojom/camera_intent.mojom";
+import "chromeos/ash/experiences/arc/mojom/camera_intent.mojom";
+import "ash/webui/camera_app_ui/events_sender.mojom";
+import "ash/webui/camera_app_ui/ocr.mojom";
+import "ash/webui/camera_app_ui/pdf_builder.mojom";
+import "ash/webui/camera_app_ui/types.mojom";
 import "chromeos/services/machine_learning/public/mojom/document_scanner_param_types.mojom";
+import "mojo/public/mojom/base/big_buffer.mojom";
 import "ui/gfx/geometry/mojom/geometry.mojom";
 import "url/mojom/url.mojom";
 
@@ -20,19 +25,38 @@ interface TabletModeMonitor {
 // Screen backlight state.
 // Reference from ash/public/cpp/screen_backlight_type.h
 enum ScreenState {
-    ON,
-    OFF,
-    OFF_AUTO,
+  kOn,
+  kOff,
+  kOffAuto,
 };
 
-// Ready state for document scanner.
-enum DocumentScannerReadyState {
-  // The library is not supported on the device.
-  NOT_SUPPORTED,
-  // The library is supported but needs to wait for its installation.
-  SUPPORTED_BUT_NOT_READY,
-  // The library is supported and ready.
-  SUPPORTED_AND_READY,
+// Lid state.
+// Reference from media/capture/video/chromeos/mojom/system_event_monitor.mojom
+// Dulplication has the following advantages.
+//   1. 'cca.py dev' doesn't need to parse system_event_monitor.mojom.
+//   2. Make CameraAppHelper independent of system_event_monitor.mojom.
+//   3. No need to generate js mojo files for system_event_monitor.mojom.
+//
+// LINT.IfChange(LidState)
+enum LidState {
+  kOpen,                   // Lid is open.
+  kClosed,                 // Lid is closed.
+  kNotPresent,             // No lid is present
+};
+// LINT.ThenChange(//media/capture/video/chromeos/mojom/system_event_monitor.mojom:LidState)
+
+// Configurations which can be provided by Wi-Fi QR Code.
+struct WifiConfig {
+  // Required fields.
+  string ssid;
+  WifiSecurityType security;
+
+  // Optional fields.
+  string? password;
+  WifiEapMethod? eap_method;
+  WifiEapPhase2Method? eap_phase2_method;
+  string? eap_identity;
+  string? eap_anonymous_identity;
 };
 
 // Interface for monitoring screen state of device. The state is detected from
@@ -41,6 +65,14 @@ enum DocumentScannerReadyState {
 interface ScreenStateMonitor {
   // Updates with the latest changed screen state.
   Update(ScreenState state);
+};
+
+// Interface for monitoring lock state of screen. The state is detected from
+// Chrome browser process and is notified to Chrome Camera App in renderer
+// process.
+interface ScreenLockedMonitor {
+  // Updates when the lock state of screen got changed.
+  Update(bool is_screen_locked);
 };
 
 // Interface for monitoring the existence of external screen. The state is
@@ -57,48 +89,67 @@ interface CameraUsageOwnershipMonitor {
   OnCameraUsageOwnershipChanged(bool has_usage) => ();
 };
 
+// Interface to monitor lid state changes.
+interface LidStateMonitor {
+  // Updates when the lid state is changed.
+  Update(LidState lid_status);
+};
+
+// Interface for monitoring state of software privacy switch. The sw privacy
+// switch is available on th Privacy Hub of OS settings page. It allows users
+// to disable cameras at OS level for privacy concern. The state is detected
+// from Chrome browser process and is notified to Chrome Camera App in renderer
+// process.
+interface SWPrivacySwitchMonitor {
+  // Updates when the state of sw privacy switch got changed.
+  Update(bool is_sw_privacy_switch_on);
+};
+
 // The window states that we care about.
 enum WindowStateType {
-  MINIMIZED = 0,
-  MAXIMIZED = 1,
-  FULLSCREEN = 2,
-  REGULAR = 3,  // None of the above.
+  kMinimized = 0,
+  kMaximized = 1,
+  kFullscreen = 2,
+  kRegular = 3,  // None of the above.
 };
 
 // Interface for monitoring window states.
 interface WindowStateMonitor {
   // Updates when any of the window states are changed.
   OnWindowStateChanged(array<WindowStateType> states);
+
+  // Updates when the window focus state is changed.
+  OnWindowFocusChanged(bool is_focus);
 };
 
 // The possible result of the file deletion monitor.
 enum FileMonitorResult {
   // The file is deleted.
-  DELETED = 0,
+  kDeleted = 0,
 
   // The request is canceled since there is another monitor request.
-  CANCELED = 1,
+  kCanceled = 1,
 
   // Fails to monitor the file due to errors.
-  ERROR = 2,
+  kError = 2,
 };
 
 enum StorageMonitorStatus {
   // There are enough storage space to operate CCA functionalities.
-  NORMAL = 0,
+  kNormal = 0,
 
   // Storage is getting low, display warning to users.
-  LOW = 1,
+  kLow = 1,
 
   // Storage is almost full. Should stop ongoing recording and don't allow new
   // recording.
-  CRITICALLY_LOW = 2,
+  kCriticallyLow = 2,
 
   // Monitoring got canceled since there is another monitor request.
-  CANCELED = 3,
+  kCanceled = 3,
 
   // Monitoring get errors.
-  ERROR = 4,
+  kError = 4,
 };
 
 // Interface to monitor storage status changes.
@@ -132,17 +183,11 @@ interface WindowStateController {
   Focus() => ();
 };
 
-enum ToteMetricFormat {
-  PHOTO = 0,
-  SCAN_JPG = 1,
-  SCAN_PDF = 2,
-  VIDEO_GIF = 3,
-  VIDEO_MP4 = 4,
-};
-
-enum DocumentOutputFormat {
-  JPEG = 0,
-  PDF = 1,
+// The values for generating a custom aspect ratio order.
+enum AspectRatio {
+  kOthers = 0,
+  k4To3 = 1,
+  k16To9 = 2,
 };
 
 // Interface for communication between Chrome Camera App (Remote) and Chrome
@@ -199,12 +244,6 @@ interface CameraAppHelper {
   // Opens the given URL in the browser.
   OpenUrlInBrowser(url.mojom.Url url);
 
-  // Sets the monitor to monitor the camera usage ownership changed. If the
-  // window operation is not supported for current instance, return false.
-  SetCameraUsageMonitor(
-      pending_remote<CameraUsageOwnershipMonitor> usage_monitor)
-          => (bool is_success);
-
   // Gets the controller to control and monitor the window state of app.
   GetWindowStateController()
       => (pending_remote<WindowStateController> controller);
@@ -214,17 +253,14 @@ interface CameraAppHelper {
   // will be used to generate the URI for the broadcast.
   SendNewCaptureBroadcast(bool is_video, string name);
 
-  // Notifies Tote client when a photo/pdf/video/gif is captured.
-  NotifyTote(ToteMetricFormat format, string name);
-
   // Monitors the deletion for given file |name| in the camera folder. The
   // function will return when the deletion happens, or when another monitor
   // request is raised, or when the error occurs. We can determine the cases
   // by result.
   MonitorFileDeletion(string name) => (FileMonitorResult result);
 
-  // Returns the ready type of the document scanner on the device.
-  GetDocumentScannerReadyState() => (DocumentScannerReadyState ready_state);
+  // Check if document scanner is supported.
+  IsDocumentScannerSupported() => (bool is_supported);
 
   // Registers a callback which will be resolved once the document scanner is
   // ready or when it fails to load. If the document scanner is not supported on
@@ -242,19 +278,14 @@ interface CameraAppHelper {
       => (array<gfx.mojom.PointF> corners);
 
   // Does the post processing for document given by its |jpeg_data|, document
-  // |corners|, clockwise rotate in |rotation| degrees and convert the result
-  // to the desired |output_format|. The input |corners| should be the ones
-  // based on the image with corrected orientation.  And it is guaranteed that
-  // the output |doc_data| will have none or corrected
+  // |corners|, clockwise rotate in |rotation| degrees. The input |corners|
+  // should be the ones based on the image with corrected orientation. And it is
+  // guaranteed that the output |doc_data| will have none or corrected
   // orientation.
   ConvertToDocument(array<uint8> jpeg_data,
                     array<gfx.mojom.PointF, 4> corners,
-                    chromeos.machine_learning.mojom.Rotation rotation,
-                    DocumentOutputFormat output_format)
+                    chromeos.machine_learning.mojom.Rotation rotation)
       => (array<uint8> doc_data);
-
-  // Converts the given |jpegs_data| to PDF format.
-  ConvertToPdf(array<array<uint8>> jpegs_data) => (array<uint8> pdf_data);
 
   // Triggers HaTS survey for the camera app if all the conditions match:
   // 1. The camera app session is longer than 15 seconds
@@ -273,4 +304,44 @@ interface CameraAppHelper {
   // Open "Storage management" page directly. This page is inside Settings app,
   // under "Device" section.
   OpenStorageManagement();
+
+  // Opens the Wi-Fi connection dialog and fills the dialog with provided
+  // `config` extracted from QR code. Since the call won't invoke the network
+  // connection directly, no error message will be returned when the config is
+  // incorrect.
+  OpenWifiDialog(WifiConfig config);
+
+  // Registers a LidStateMonitor instance and returns the initial status.
+  // Calling the Update() whenever the lid state changes.
+  SetLidStateMonitor(pending_remote<LidStateMonitor> monitor)
+      => (LidState lid_status);
+
+  // Registers a SWPrivacySwitchMonitor instance and returns the initial status.
+  // Calling the Update() whenever the sw privacy switch state changes.
+  SetSWPrivacySwitchMonitor(pending_remote<SWPrivacySwitchMonitor> monitor)
+      => (bool is_sw_privacy_switch_on);
+
+  // Gets an event sender which can be used to send events to CrOS Events.
+  GetEventsSender() => (pending_remote<EventsSender> events_sender);
+
+  // Registers a ScreenLockedMonitor instance and returns the initial lock
+  // state of screen.
+  // Calling the Update() whenever the screen is locked/unlocked.
+  SetScreenLockedMonitor(pending_remote<ScreenLockedMonitor> monitor)
+      => (bool is_screen_locked);
+
+  // Returns the first page of a PDF as a JPEG.
+  RenderPdfAsJpeg(array<uint8> pdf_data) => (array<uint8> jpeg_data);
+
+  // Performs OCR on the image and returns the OCR result.
+  PerformOcr(mojo_base.mojom.BigBuffer jpeg_data) => (OcrResult ocr_result);
+
+  // Same as `PerformOcr`, but using `array<uint8>`.
+  PerformOcrInline(array<uint8> jpeg_data) => (OcrResult ocr_result);
+
+  // Creates a PDF builder.
+  CreatePdfBuilder(pending_receiver<PdfBuilder> builder);
+
+  // Returns the custom aspect ratio order for the device.
+  GetAspectRatioOrder() => (array<AspectRatio> order);
 };

@@ -6,12 +6,15 @@ package org.chromium.android_webview;
 
 import android.text.TextUtils;
 
-import androidx.annotation.Nullable;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
 
+import org.chromium.android_webview.common.Lifetime;
 import org.chromium.base.TraceRecordMode;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -21,13 +24,11 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 
-/**
- * Manages tracing functionality in WebView.
- */
+/** Manages tracing functionality in WebView. */
+@Lifetime.Singleton
 @JNINamespace("android_webview")
+@NullMarked
 public class AwTracingController {
-    private static final String TAG = "AwTracingController";
-
     public static final int RESULT_SUCCESS = 0;
     public static final int RESULT_ALREADY_TRACING = 1;
     public static final int RESULT_INVALID_CATEGORIES = 2;
@@ -44,30 +45,43 @@ public class AwTracingController {
     private static final List<String> CATEGORIES_ALL_LIST = new ArrayList<>(Arrays.asList("*"));
     private static final List<String> CATEGORIES_ANDROID_WEBVIEW_LIST =
             new ArrayList<>(Arrays.asList("android_webview", "Java", "toplevel"));
-    private static final List<String> CATEGORIES_WEB_DEVELOPER_LIST = new ArrayList<>(
-            Arrays.asList("blink", "cc", "netlog", "renderer.scheduler", "toplevel", "v8"));
-    private static final List<String> CATEGORIES_INPUT_LATENCY_LIST = new ArrayList<>(
-            Arrays.asList("benchmark", "input", "evdev", "renderer.scheduler", "toplevel"));
+    private static final List<String> CATEGORIES_WEB_DEVELOPER_LIST =
+            new ArrayList<>(
+                    Arrays.asList("blink", "cc", "netlog", "renderer.scheduler", "toplevel", "v8"));
+    private static final List<String> CATEGORIES_INPUT_LATENCY_LIST =
+            new ArrayList<>(
+                    Arrays.asList("benchmark", "input", "evdev", "renderer.scheduler", "toplevel"));
     private static final List<String> CATEGORIES_RENDERING_LIST =
             new ArrayList<>(Arrays.asList("blink", "cc", "gpu", "toplevel"));
-    private static final List<String> CATEGORIES_JAVASCRIPT_AND_RENDERING_LIST = new ArrayList<>(
-            Arrays.asList("blink", "cc", "gpu", "renderer.scheduler", "v8", "toplevel"));
-    private static final List<String> CATEGORIES_FRAME_VIEWER_LIST = new ArrayList<>(
-            Arrays.asList("blink", "cc", "gpu", "renderer.scheduler", "v8", "toplevel",
-                    "disabled-by-default-cc.debug", "disabled-by-default-cc.debug.picture",
-                    "disabled-by-default-cc.debug.display_items"));
+    private static final List<String> CATEGORIES_JAVASCRIPT_AND_RENDERING_LIST =
+            new ArrayList<>(
+                    Arrays.asList("blink", "cc", "gpu", "renderer.scheduler", "v8", "toplevel"));
+    private static final List<String> CATEGORIES_FRAME_VIEWER_LIST =
+            new ArrayList<>(
+                    Arrays.asList(
+                            "blink",
+                            "cc",
+                            "gpu",
+                            "renderer.scheduler",
+                            "v8",
+                            "toplevel",
+                            "disabled-by-default-cc.debug",
+                            "disabled-by-default-cc.debug.picture",
+                            "disabled-by-default-cc.debug.display_items"));
 
     private static final List<List<String>> PREDEFINED_CATEGORIES_LIST =
-            new ArrayList<List<String>>(Arrays.asList(CATEGORIES_ALL_LIST, // CATEGORIES_ALL
-                    CATEGORIES_ANDROID_WEBVIEW_LIST, // CATEGORIES_ANDROID_WEBVIEW
-                    CATEGORIES_WEB_DEVELOPER_LIST, // CATEGORIES_WEB_DEVELOPER
-                    CATEGORIES_INPUT_LATENCY_LIST, // CATEGORIES_INPUT_LATENCY
-                    CATEGORIES_RENDERING_LIST, // CATEGORIES_RENDERING
-                    CATEGORIES_JAVASCRIPT_AND_RENDERING_LIST, // CATEGORIES_JAVASCRIPT_AND_RENDERING
-                    CATEGORIES_FRAME_VIEWER_LIST // CATEGORIES_FRAME_VIEWER
-                    ));
+            new ArrayList<List<String>>(
+                    Arrays.asList(
+                            CATEGORIES_ALL_LIST, // CATEGORIES_ALL
+                            CATEGORIES_ANDROID_WEBVIEW_LIST, // CATEGORIES_ANDROID_WEBVIEW
+                            CATEGORIES_WEB_DEVELOPER_LIST, // CATEGORIES_WEB_DEVELOPER
+                            CATEGORIES_INPUT_LATENCY_LIST, // CATEGORIES_INPUT_LATENCY
+                            CATEGORIES_RENDERING_LIST, // CATEGORIES_RENDERING
+                            CATEGORIES_JAVASCRIPT_AND_RENDERING_LIST, // CATEGORIES_JAVASCRIPT_AND_RENDERING
+                            CATEGORIES_FRAME_VIEWER_LIST // CATEGORIES_FRAME_VIEWER
+                            ));
 
-    private OutputStream mOutputStream;
+    private @Nullable OutputStream mOutputStream;
 
     // TODO(timvolodine): consider caching mIsTracing value for efficiency.
     // boolean mIsTracing;
@@ -77,16 +91,18 @@ public class AwTracingController {
     }
 
     // Start tracing
-    public int start(Collection<Integer> predefinedCategories,
-            Collection<String> customIncludedCategories, int mode) {
+    public int start(
+            Collection<Integer> predefinedCategories,
+            Collection<String> customIncludedCategories,
+            int mode) {
         if (isTracing()) return RESULT_ALREADY_TRACING;
         if (!isValid(customIncludedCategories)) return RESULT_INVALID_CATEGORIES;
         if (!isValidMode(mode)) return RESULT_INVALID_MODE;
 
         String categoryFilter =
                 constructCategoryFilterString(predefinedCategories, customIncludedCategories);
-        AwTracingControllerJni.get().start(
-                mNativeAwTracingController, AwTracingController.this, categoryFilter, mode);
+        AwTracingControllerJni.get()
+                .start(mNativeAwTracingController, AwTracingController.this, categoryFilter, mode);
         return RESULT_SUCCESS;
     }
 
@@ -94,14 +110,14 @@ public class AwTracingController {
     public boolean stopAndFlush(@Nullable OutputStream outputStream) {
         if (!isTracing()) return false;
         mOutputStream = outputStream;
-        AwTracingControllerJni.get().stopAndFlush(
-                mNativeAwTracingController, AwTracingController.this);
+        AwTracingControllerJni.get()
+                .stopAndFlush(mNativeAwTracingController, AwTracingController.this);
         return true;
     }
 
     public boolean isTracing() {
-        return AwTracingControllerJni.get().isTracing(
-                mNativeAwTracingController, AwTracingController.this);
+        return AwTracingControllerJni.get()
+                .isTracing(mNativeAwTracingController, AwTracingController.this);
     }
 
     // Combines configuration bits into a category string usable by chromium.
@@ -156,14 +172,20 @@ public class AwTracingController {
         }
     }
 
-    private long mNativeAwTracingController;
+    private final long mNativeAwTracingController;
 
     @NativeMethods
     interface Natives {
         long init(AwTracingController caller);
-        boolean start(long nativeAwTracingController, AwTracingController caller, String categories,
+
+        boolean start(
+                long nativeAwTracingController,
+                AwTracingController caller,
+                @JniType("std::string") String categories,
                 int traceMode);
+
         boolean stopAndFlush(long nativeAwTracingController, AwTracingController caller);
+
         boolean isTracing(long nativeAwTracingController, AwTracingController caller);
     }
 }

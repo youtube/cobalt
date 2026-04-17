@@ -4,24 +4,32 @@
 
 #include "components/attribution_reporting/filters.h"
 
+#include <stddef.h>
+
+#include <algorithm>
+#include <limits>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "base/check.h"
 #include "base/containers/contains.h"
+#include "base/containers/flat_set.h"
 #include "base/metrics/histogram_base.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
-#include "base/ranges/algorithm.h"
+#include "base/strings/string_util.h"
+#include "base/time/time.h"
 #include "base/types/expected.h"
+#include "base/types/expected_macros.h"
 #include "base/values.h"
 #include "components/attribution_reporting/constants.h"
+#include "components/attribution_reporting/parsing_utils.h"
 #include "components/attribution_reporting/source_registration_error.mojom.h"
 #include "components/attribution_reporting/source_type.h"
 #include "components/attribution_reporting/source_type.mojom-forward.h"
 #include "components/attribution_reporting/trigger_registration_error.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace attribution_reporting {
 
@@ -30,44 +38,39 @@ namespace {
 using ::attribution_reporting::mojom::SourceRegistrationError;
 using ::attribution_reporting::mojom::TriggerRegistrationError;
 
-enum class FilterValuesError {
-  kListWrongType,
-  kValueWrongType,
-  kTooManyKeys,
-  kKeyTooLong,
-  kListTooLong,
-  kValueTooLong,
-};
-
-constexpr char kFilters[] = "filters";
 constexpr char kNotFilters[] = "not_filters";
 
-bool IsValidForSource(const FilterValues& filter_values) {
+base::expected<void, FilterValuesError> ValidateForSource(
+    const FilterValues& filter_values) {
   if (filter_values.contains(FilterData::kSourceTypeFilterKey)) {
-    return false;
+    return base::unexpected(FilterValuesError::kKeyReserved);
   }
 
-  if (filter_values.size() > kMaxFiltersPerSource)
-    return false;
+  if (filter_values.size() > kMaxFiltersPerSource) {
+    return base::unexpected(FilterValuesError::kTooManyKeys);
+  }
 
   for (const auto& [filter, values] : filter_values) {
-    if (filter.size() > kMaxBytesPerFilterString)
-      return false;
+    if (filter.size() > kMaxBytesPerFilterString) {
+      return base::unexpected(FilterValuesError::kKeyTooLong);
+    }
 
-    if (values.size() > kMaxValuesPerFilter)
-      return false;
+    if (values.size() > kMaxValuesPerFilter) {
+      return base::unexpected(FilterValuesError::kListTooLong);
+    }
 
     for (const auto& value : values) {
-      if (value.size() > kMaxBytesPerFilterString)
-        return false;
+      if (value.size() > kMaxBytesPerFilterString) {
+        return base::unexpected(FilterValuesError::kValueTooLong);
+      }
     }
   }
 
-  return true;
+  return base::ok();
 }
 
 // Records the Conversions.FiltersPerFilterData metric.
-void RecordFiltersPerFilterData(base::HistogramBase::Sample count) {
+void RecordFiltersPerFilterData(base::HistogramBase::Sample32 count) {
   const int kExclusiveMaxHistogramValue = 101;
 
   static_assert(
@@ -81,7 +84,7 @@ void RecordFiltersPerFilterData(base::HistogramBase::Sample count) {
 }
 
 // Records the Conversions.ValuesPerFilter metric.
-void RecordValuesPerFilter(base::HistogramBase::Sample count) {
+void RecordValuesPerFilter(base::HistogramBase::Sample32 count) {
   const int kExclusiveMaxHistogramValue = 101;
 
   static_assert(kMaxValuesPerFilter < kExclusiveMaxHistogramValue,
@@ -92,9 +95,11 @@ void RecordValuesPerFilter(base::HistogramBase::Sample count) {
 
 base::expected<FilterValues, FilterValuesError> ParseFilterValuesFromJSON(
     base::Value::Dict dict,
-    const bool check_sizes) {
+    const size_t max_filters,
+    const size_t max_string_size,
+    const size_t max_set_size) {
   const size_t num_filters = dict.size();
-  if (check_sizes && num_filters > kMaxFiltersPerSource) {
+  if (num_filters > max_filters) {
     return base::unexpected(FilterValuesError::kTooManyKeys);
   }
 
@@ -104,46 +109,48 @@ base::expected<FilterValues, FilterValuesError> ParseFilterValuesFromJSON(
   filter_values.reserve(dict.size());
 
   for (auto [filter, value] : dict) {
-    if (check_sizes && filter.size() > kMaxBytesPerFilterString) {
+    if (base::StartsWith(filter, FilterConfig::kReservedKeyPrefix)) {
+      return base::unexpected(FilterValuesError::kKeyReserved);
+    }
+
+    if (filter.size() > max_string_size) {
       return base::unexpected(FilterValuesError::kKeyTooLong);
     }
 
     base::Value::List* list = value.GetIfList();
-    if (!list)
+    if (!list) {
       return base::unexpected(FilterValuesError::kListWrongType);
-
-    const size_t num_values = list->size();
-    if (check_sizes && num_values > kMaxValuesPerFilter) {
-      return base::unexpected(FilterValuesError::kListTooLong);
     }
 
-    RecordValuesPerFilter(num_values);
+    RecordValuesPerFilter(list->size());
 
-    std::vector<std::string> values;
-    values.reserve(num_values);
+    ASSIGN_OR_RETURN(
+        base::flat_set<std::string> values,
+        ExtractStringSet(std::move(*list), max_string_size, max_set_size),
+        [](StringSetError error) {
+          switch (error) {
+            case StringSetError::kWrongType:
+              return FilterValuesError::kValueWrongType;
+            case StringSetError::kStringTooLong:
+              return FilterValuesError::kValueTooLong;
+            case StringSetError::kSetTooLong:
+              return FilterValuesError::kListTooLong;
+          }
+          NOTREACHED();
+        });
 
-    for (base::Value& item : *list) {
-      std::string* string = item.GetIfString();
-      if (!string)
-        return base::unexpected(FilterValuesError::kValueWrongType);
-
-      if (check_sizes && string->size() > kMaxBytesPerFilterString) {
-        return base::unexpected(FilterValuesError::kValueTooLong);
-      }
-
-      values.push_back(std::move(*string));
-    }
-
-    filter_values.emplace_back(filter, std::move(values));
+    filter_values.emplace_back(filter, std::move(values).extract());
   }
 
   return FilterValues(base::sorted_unique, std::move(filter_values));
 }
 
+}  // namespace
+
 base::Value::Dict FilterValuesToJson(const FilterValues& filter_values) {
   base::Value::Dict dict;
-  for (auto [key, values] : filter_values) {
-    base::Value::List list;
+  for (const auto& [key, values] : filter_values) {
+    auto list = base::Value::List::with_capacity(values.size());
     for (const auto& value : values) {
       list.Append(value);
     }
@@ -152,13 +159,19 @@ base::Value::Dict FilterValuesToJson(const FilterValues& filter_values) {
   return dict;
 }
 
-}  // namespace
+// static
+std::optional<FilterData> FilterData::Create(FilterValues filter_values) {
+  if (!ValidateForSource(filter_values).has_value()) {
+    return std::nullopt;
+  }
+
+  return FilterData(std::move(filter_values));
+}
 
 // static
-absl::optional<FilterData> FilterData::Create(FilterValues filter_values) {
-  if (!IsValidForSource(filter_values))
-    return absl::nullopt;
-
+base::expected<FilterData, FilterValuesError> FilterData::CreateForTesting(
+    FilterValues filter_values) {
+  RETURN_IF_ERROR(ValidateForSource(filter_values));
   return FilterData(std::move(filter_values));
 }
 
@@ -171,42 +184,44 @@ base::expected<FilterData, SourceRegistrationError> FilterData::FromJSON(
 
   base::Value::Dict* dict = input_value->GetIfDict();
   if (!dict) {
-    return base::unexpected(SourceRegistrationError::kFilterDataWrongType);
+    return base::unexpected(SourceRegistrationError::kFilterDataDictInvalid);
   }
 
   if (dict->contains(kSourceTypeFilterKey)) {
-    return base::unexpected(
-        SourceRegistrationError::kFilterDataHasSourceTypeKey);
+    return base::unexpected(SourceRegistrationError::kFilterDataKeyReserved);
   }
 
-  auto filter_values = ParseFilterValuesFromJSON(std::move(*dict),
-                                                 /*check_sizes=*/true);
-  if (filter_values.has_value())
-    return FilterData(std::move(*filter_values));
-
-  switch (filter_values.error()) {
-    case FilterValuesError::kTooManyKeys:
-      return base::unexpected(SourceRegistrationError::kFilterDataTooManyKeys);
-    case FilterValuesError::kKeyTooLong:
-      return base::unexpected(SourceRegistrationError::kFilterDataKeyTooLong);
-    case FilterValuesError::kListWrongType:
-      return base::unexpected(
-          SourceRegistrationError::kFilterDataListWrongType);
-    case FilterValuesError::kListTooLong:
-      return base::unexpected(SourceRegistrationError::kFilterDataListTooLong);
-    case FilterValuesError::kValueWrongType:
-      return base::unexpected(
-          SourceRegistrationError::kFilterDataValueWrongType);
-    case FilterValuesError::kValueTooLong:
-      return base::unexpected(SourceRegistrationError::kFilterDataValueTooLong);
-  }
+  const auto map_errors = [](FilterValuesError error) {
+    switch (error) {
+      case FilterValuesError::kKeyReserved:
+        return SourceRegistrationError::kFilterDataKeyReserved;
+      case FilterValuesError::kTooManyKeys:
+        return SourceRegistrationError::kFilterDataDictInvalid;
+      case FilterValuesError::kKeyTooLong:
+        return SourceRegistrationError::kFilterDataKeyTooLong;
+      case FilterValuesError::kListWrongType:
+      case FilterValuesError::kListTooLong:
+        return SourceRegistrationError::kFilterDataListInvalid;
+      case FilterValuesError::kValueWrongType:
+      case FilterValuesError::kValueTooLong:
+        return SourceRegistrationError::kFilterDataListValueInvalid;
+    }
+  };
+  ASSIGN_OR_RETURN(
+      auto filter_values,
+      ParseFilterValuesFromJSON(std::move(*dict),
+                                /*max_filters=*/kMaxFiltersPerSource,
+                                /*max_string_size=*/kMaxBytesPerFilterString,
+                                /*max_set_size=*/kMaxValuesPerFilter)
+          .transform_error(map_errors));
+  return FilterData(std::move(filter_values));
 }
 
 FilterData::FilterData() = default;
 
 FilterData::FilterData(FilterValues filter_values)
     : filter_values_(std::move(filter_values)) {
-  DCHECK(IsValidForSource(filter_values_));
+  CHECK(ValidateForSource(filter_values_).has_value());
 }
 
 FilterData::~FilterData() = default;
@@ -224,11 +239,23 @@ base::Value::Dict FilterData::ToJson() const {
 }
 
 bool FilterData::Matches(mojom::SourceType source_type,
+                         base::Time source_time,
+                         base::Time trigger_time,
                          const FiltersDisjunction& filters,
                          bool negated) const {
   if (filters.empty()) {
     return true;
   }
+
+  // While contradictory, it is possible for a source to have an assigned time
+  // of T and a trigger that is attributed to it to have a time of T-X e.g. due
+  // to user-initiated clock changes. see: https://crbug.com/1486489
+  //
+  // TODO(crbug.com/40282914): Assume `source_time` is smaller than
+  // `trigger_time` once attribution time resolution is implemented in storage.
+  const base::TimeDelta duration_since_source_registration =
+      (source_time < trigger_time) ? trigger_time - source_time
+                                   : base::Microseconds(0);
 
   // A filter_value is considered matched if the filter key is only present
   // either on the source or trigger, or the intersection of the filter values
@@ -237,55 +264,99 @@ bool FilterData::Matches(mojom::SourceType source_type,
   // If the filters are negated, the behavior should be that every single filter
   // key does not match between the two (negating the function result is not
   // sufficient by the API definition).
-  return base::ranges::any_of(
-      filters, [&](const auto& trigger_filter_values) {
-        return base::ranges::all_of(
-            trigger_filter_values, [&](const auto& trigger_filter) {
-              if (trigger_filter.first == kSourceTypeFilterKey) {
-                bool has_intersection = base::ranges::any_of(
-                    trigger_filter.second, [&](const std::string& value) {
-                      return value == SourceTypeName(source_type);
-                    });
+  return std::ranges::any_of(filters, [&](const FilterConfig& config) {
+    if (config.lookback_window()) {
+      if (duration_since_source_registration >
+          config.lookback_window().value()) {
+        if (!negated) {
+          return false;
+        }
+      } else if (negated) {
+        return false;
+      }
+    }
 
-                return negated != has_intersection;
-              }
+    return std::ranges::all_of(
+        config.filter_values(), [&](const auto& trigger_filter) {
+          if (trigger_filter.first == kSourceTypeFilterKey) {
+            bool has_intersection = std::ranges::any_of(
+                trigger_filter.second, [&](const std::string& value) {
+                  return value == SourceTypeName(source_type);
+                });
 
-              auto source_filter = filter_values_.find(trigger_filter.first);
-              if (source_filter == filter_values_.end()) {
-                return true;
-              }
+            return negated != has_intersection;
+          }
 
-              // Desired behavior is to treat any empty set of values as a
-              // single unique value itself. This means:
-              //  - x:[] match x:[] is false when negated, and true otherwise.
-              //  - x:[1,2,3] match x:[] is true when negated, and false
-              //  otherwise.
-              if (trigger_filter.second.empty()) {
-                return negated != source_filter->second.empty();
-              }
+          auto source_filter = filter_values_.find(trigger_filter.first);
+          if (source_filter == filter_values_.end()) {
+            return true;
+          }
 
-              bool has_intersection = base::ranges::any_of(
-                  trigger_filter.second, [&](const std::string& value) {
-                    return base::Contains(source_filter->second, value);
-                  });
-              // Negating filters are considered matched if the intersection of
-              // the filter values is empty.
-              return negated != has_intersection;
-            });
-      });
+          // Desired behavior is to treat any empty set of values as a
+          // single unique value itself. This means:
+          //  - x:[] match x:[] is false when negated, and true otherwise.
+          //  - x:[1,2,3] match x:[] is true when negated, and false
+          //  otherwise.
+          if (trigger_filter.second.empty()) {
+            return negated != source_filter->second.empty();
+          }
+
+          bool has_intersection = std::ranges::any_of(
+              trigger_filter.second, [&](const std::string& value) {
+                return base::Contains(source_filter->second, value);
+              });
+          // Negating filters are considered matched if the intersection of
+          // the filter values is empty.
+          return negated != has_intersection;
+        });
+  });
 }
 
 bool FilterData::MatchesForTesting(mojom::SourceType source_type,
+                                   base::Time source_time,
+                                   base::Time trigger_time,
                                    const FiltersDisjunction& filters,
                                    bool negated) const {
-  return Matches(source_type, filters, negated);
+  return Matches(source_type, source_time, trigger_time, filters, negated);
 }
 
 bool FilterData::Matches(mojom::SourceType source_type,
+                         base::Time source_time,
+                         base::Time trigger_time,
                          const FilterPair& filters) const {
-  return Matches(source_type, filters.positive, /*negated=*/false) &&
-         Matches(source_type, filters.negative, /*negated=*/true);
+  return Matches(source_type, source_time, trigger_time, filters.positive,
+                 /*negated=*/false) &&
+         Matches(source_type, source_time, trigger_time, filters.negative,
+                 /*negated=*/true);
 }
+
+FilterConfig::FilterConfig() = default;
+
+std::optional<FilterConfig> FilterConfig::Create(
+    FilterValues filter_values,
+    std::optional<base::TimeDelta> lookback_window) {
+  if (lookback_window && !lookback_window->is_positive()) {
+    return std::nullopt;
+  }
+  return FilterConfig(std::move(filter_values), lookback_window);
+}
+
+FilterConfig::FilterConfig(FilterValues filter_values,
+                           std::optional<base::TimeDelta> lookback_window)
+    : lookback_window_(lookback_window),
+      filter_values_(std::move(filter_values)) {
+  CHECK(!lookback_window_.has_value() || lookback_window_->is_positive());
+}
+
+FilterConfig::~FilterConfig() = default;
+
+FilterConfig::FilterConfig(const FilterConfig&) = default;
+
+FilterConfig::FilterConfig(FilterConfig&&) = default;
+
+FilterConfig& FilterConfig::operator=(const FilterConfig&) = default;
+
+FilterConfig& FilterConfig::operator=(FilterConfig&&) = default;
 
 namespace {
 
@@ -295,58 +366,97 @@ base::expected<FiltersDisjunction, TriggerRegistrationError> FiltersFromJSON(
     return FiltersDisjunction();
   }
 
-  FiltersDisjunction disjunction;
-  const auto append_if_valid =
-      [&disjunction](
-          base::Value& value) -> absl::optional<TriggerRegistrationError> {
-    base::Value::Dict* dict = value.GetIfDict();
-    if (!dict) {
-      return TriggerRegistrationError::kFiltersWrongType;
-    }
-
-    auto filter_values =
-        ParseFilterValuesFromJSON(std::move(*dict), /*check_sizes=*/false);
-    if (filter_values.has_value()) {
-      if (!filter_values->empty()) {
-        disjunction.push_back(std::move(filter_values.value()));
-      }
-      return absl::nullopt;
-    }
-
-    switch (filter_values.error()) {
-      case FilterValuesError::kListWrongType:
-        return TriggerRegistrationError::kFiltersListWrongType;
+  const auto map_errors = [](FilterValuesError error,
+                             TriggerRegistrationError value_error,
+                             TriggerRegistrationError reserved_key_error) {
+    switch (error) {
       case FilterValuesError::kValueWrongType:
-        return TriggerRegistrationError::kFiltersValueWrongType;
+      case FilterValuesError::kListWrongType:
+        return value_error;
+      case FilterValuesError::kKeyReserved:
+        return reserved_key_error;
       case FilterValuesError::kTooManyKeys:
       case FilterValuesError::kKeyTooLong:
       case FilterValuesError::kListTooLong:
       case FilterValuesError::kValueTooLong:
         NOTREACHED();
-        return TriggerRegistrationError::kFiltersListWrongType;
     }
+  };
+
+  FiltersDisjunction disjunction;
+
+  using AppendIfValidResult = base::expected<void, TriggerRegistrationError>;
+
+  const auto append_if_valid =
+      [&](base::Value& value, TriggerRegistrationError value_error,
+          TriggerRegistrationError lookback_window_error,
+          TriggerRegistrationError reserved_key_error) -> AppendIfValidResult {
+    base::Value::Dict* dict = value.GetIfDict();
+    if (!dict) {
+      return base::unexpected(TriggerRegistrationError::kFiltersWrongType);
+    }
+
+    std::optional<base::TimeDelta> lookback_window;
+    if (std::optional<base::Value> lookback_window_value =
+            dict->Extract(FilterConfig::kLookbackWindowKey)) {
+      ASSIGN_OR_RETURN(lookback_window, ParseDuration(*lookback_window_value),
+                       [lookback_window_error](ParseError) {
+                         return lookback_window_error;
+                       });
+
+      if (!lookback_window->is_positive()) {
+        return base::unexpected(lookback_window_error);
+      }
+    }
+
+    ASSIGN_OR_RETURN(auto filter_values,
+                     ParseFilterValuesFromJSON(
+                         std::move(*dict),
+                         /*max_filters=*/std::numeric_limits<size_t>::max(),
+                         /*max_string_size=*/std::numeric_limits<size_t>::max(),
+                         /*max_set_size=*/std::numeric_limits<size_t>::max())
+                         .transform_error([&](FilterValuesError error) {
+                           return map_errors(error, value_error,
+                                             reserved_key_error);
+                         }));
+
+    if (!filter_values.empty() || lookback_window.has_value()) {
+      auto config =
+          FilterConfig::Create(std::move(filter_values), lookback_window);
+      CHECK(config.has_value());
+      disjunction.emplace_back(*std::move(config));
+    }
+    return base::ok();
   };
 
   if (base::Value::List* list = input_value->GetIfList()) {
     disjunction.reserve(list->size());
     for (base::Value& item : *list) {
-      if (auto error = append_if_valid(item)) {
-        return base::unexpected(*error);
-      }
+      RETURN_IF_ERROR(append_if_valid(
+          item, TriggerRegistrationError::kFiltersListValueInvalid,
+          TriggerRegistrationError::kFiltersListLookbackWindowValueInvalid,
+          TriggerRegistrationError::kFiltersListUsingReservedKey));
     }
-    return disjunction;
+  } else {
+    RETURN_IF_ERROR(append_if_valid(
+        *input_value, TriggerRegistrationError::kFiltersValueInvalid,
+        TriggerRegistrationError::kFiltersLookbackWindowValueInvalid,
+        TriggerRegistrationError::kFiltersUsingReservedKey));
   }
 
-  if (auto error = append_if_valid(*input_value)) {
-    return base::unexpected(*error);
-  }
   return disjunction;
 }
 
 base::Value::List ToJson(const FiltersDisjunction& filters) {
-  base::Value::List list;
-  for (const auto& filter_values : filters) {
-    list.Append(FilterValuesToJson(filter_values));
+  auto list = base::Value::List::with_capacity(filters.size());
+  for (const auto& filter_config : filters) {
+    base::Value::Dict dict = FilterValuesToJson(filter_config.filter_values());
+    if (filter_config.lookback_window().has_value()) {
+      dict.Set(FilterConfig::kLookbackWindowKey,
+               static_cast<int>(
+                   filter_config.lookback_window().value().InSeconds()));
+    }
+    list.Append(std::move(dict));
   }
   return list;
 }
@@ -354,19 +464,11 @@ base::Value::List ToJson(const FiltersDisjunction& filters) {
 }  // namespace
 
 // static
-base::expected<FilterPair, mojom::TriggerRegistrationError>
-FilterPair::FromJSON(base::Value::Dict& dict) {
-  auto positive = FiltersFromJSON(dict.Find(kFilters));
-  if (!positive.has_value()) {
-    return base::unexpected(positive.error());
-  }
-
-  auto negative = FiltersFromJSON(dict.Find(kNotFilters));
-  if (!negative.has_value()) {
-    return base::unexpected(negative.error());
-  }
-
-  return FilterPair(std::move(*positive), std::move(*negative));
+base::expected<FilterPair, TriggerRegistrationError> FilterPair::FromJSON(
+    base::Value::Dict& dict) {
+  ASSIGN_OR_RETURN(auto positive, FiltersFromJSON(dict.Find(kFilters)));
+  ASSIGN_OR_RETURN(auto negative, FiltersFromJSON(dict.Find(kNotFilters)));
+  return FilterPair(std::move(positive), std::move(negative));
 }
 
 FilterPair::FilterPair() = default;

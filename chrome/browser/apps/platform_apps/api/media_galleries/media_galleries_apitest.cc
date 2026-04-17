@@ -16,6 +16,7 @@
 #include "base/run_loop.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/test_timeouts.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/values.h"
@@ -27,9 +28,12 @@
 #include "chrome/browser/apps/platform_apps/api/media_galleries/media_galleries_api.h"
 #include "chrome/browser/apps/platform_apps/app_browsertest_util.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/chrome_browser_main_extra_parts_nacl_deprecation.h"
 #include "chrome/browser/media_galleries/media_file_system_registry.h"
 #include "chrome/browser/media_galleries/media_galleries_preferences.h"
 #include "chrome/browser/media_galleries/media_galleries_test_util.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser.h"
 #include "chrome/common/chrome_paths.h"
 #include "components/nacl/common/buildflags.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
@@ -47,7 +51,7 @@
 #include "media/media_buildflags.h"
 
 #if BUILDFLAG(IS_MAC)
-#include "base/mac/foundation_util.h"
+#include "base/apple/foundation_util.h"
 #include "base/strings/sys_string_conversions.h"
 #endif  // BUILDFLAG(IS_MAC)
 
@@ -76,7 +80,7 @@ base::FilePath::CharType kDevicePath[] = FILE_PATH_LITERAL("/qux");
 class MediaGalleriesPlatformAppBrowserTest : public PlatformAppBrowserTest {
  protected:
   MediaGalleriesPlatformAppBrowserTest() : test_jpg_size_(0) {}
-  ~MediaGalleriesPlatformAppBrowserTest() override {}
+  ~MediaGalleriesPlatformAppBrowserTest() override = default;
 
   void SetUpOnMainThread() override {
     PlatformAppBrowserTest::SetUpOnMainThread();
@@ -88,10 +92,10 @@ class MediaGalleriesPlatformAppBrowserTest : public PlatformAppBrowserTest {
     extensions::ProcessManager::SetEventPageIdleTimeForTesting(
         TestTimeouts::action_max_timeout().InMilliseconds());
 
-    int64_t file_size;
-    ASSERT_TRUE(base::GetFileSize(GetCommonDataDir().AppendASCII("test.jpg"),
-                                  &file_size));
-    test_jpg_size_ = base::checked_cast<int>(file_size);
+    std::optional<int64_t> file_size =
+        base::GetFileSize(GetCommonDataDir().AppendASCII("test.jpg"));
+    ASSERT_TRUE(file_size.has_value());
+    test_jpg_size_ = base::checked_cast<int>(file_size.value());
   }
 
   void TearDownOnMainThread() override {
@@ -247,6 +251,11 @@ class MediaGalleriesPlatformAppBrowserTest : public PlatformAppBrowserTest {
 #if BUILDFLAG(ENABLE_NACL)
 class MediaGalleriesPlatformAppPpapiTest
     : public MediaGalleriesPlatformAppBrowserTest {
+ public:
+  MediaGalleriesPlatformAppPpapiTest() {
+    feature_list_.InitAndEnableFeature(kNaclAllow);
+  }
+
  protected:
   void SetUpCommandLine(base::CommandLine* command_line) override {
     MediaGalleriesPlatformAppBrowserTest::SetUpCommandLine(command_line);
@@ -268,6 +277,7 @@ class MediaGalleriesPlatformAppPpapiTest
 
  private:
   base::FilePath app_dir_;
+  base::test::ScopedFeatureList feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(MediaGalleriesPlatformAppPpapiTest, SendFilesystem) {

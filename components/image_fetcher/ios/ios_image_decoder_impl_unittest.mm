@@ -13,10 +13,6 @@
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/image/image.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 static unsigned char kJPGImage[] = {
@@ -62,7 +58,7 @@ class IOSImageDecoderImplTest : public PlatformTest {
     ios_image_decoder_impl_ = CreateIOSImageDecoder();
   }
 
-  ~IOSImageDecoderImplTest() override {}
+  ~IOSImageDecoderImplTest() override = default;
 
   base::test::TaskEnvironment scoped_task_evironment_;
   std::unique_ptr<ImageDecoder> ios_image_decoder_impl_;

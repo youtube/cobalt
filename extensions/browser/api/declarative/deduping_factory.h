@@ -9,17 +9,17 @@
 
 #include <list>
 #include <string>
-#include <unordered_map>
-#include <unordered_set>
 
 #include "base/check.h"
 #include "base/compiler_specific.h"
 #include "base/containers/contains.h"
+#include "base/containers/flat_map.h"
+#include "base/containers/flat_set.h"
 #include "base/memory/ref_counted.h"
 
 namespace extensions {
 
-// Factory class that stores a cache of the last |N| created objects of each
+// Factory class that stores a cache of the last `N` created objects of each
 // kind. These objects need to be immutable, refcounted objects that are derived
 // from BaseClassT. The objects do not need to be RefCountedThreadSafe. If a new
 // instance of an object is created that is identical to a pre-existing object,
@@ -35,11 +35,11 @@ namespace extensions {
 template <typename BaseClassT, typename ValueT>
 class DedupingFactory {
  public:
-  // Factory methods for BaseClass instances. |value| contains e.g. the json
-  // dictionary that describes the object to be instantiated. |error| is used
+  // Factory methods for BaseClass instances. `value` contains e.g. the json
+  // dictionary that describes the object to be instantiated. `error` is used
   // to return error messages in case the extension passed an action that was
-  // syntactically correct but semantically incorrect. |bad_message| is set to
-  // true in case |dict| does not confirm to the validated JSON specification.
+  // syntactically correct but semantically incorrect. `bad_message` is set to
+  // true in case `dict` does not confirm to the validated JSON specification.
   typedef scoped_refptr<const BaseClassT> (*FactoryMethod)(
       const std::string& instance_type,
       ValueT /* value */,
@@ -55,7 +55,7 @@ class DedupingFactory {
     IS_NOT_PARAMETERIZED
   };
 
-  // Creates a DedupingFactory with a MRU cache of size |max_number_prototypes|
+  // Creates a DedupingFactory with a MRU cache of size `max_number_prototypes`
   // per instance_type. If we find a match within the cache, the factory reuses
   // that instance instead of creating a new one. The cache size should not be
   // too large because we probe linearly whether an element is in the cache.
@@ -81,10 +81,10 @@ class DedupingFactory {
   typedef std::string InstanceType;
   // Cache of previous prototypes in most-recently-used order. Most recently
   // used objects are at the end.
-  typedef std::list<scoped_refptr<const BaseClassT> > PrototypeList;
-  typedef std::unordered_map<InstanceType, PrototypeList> ExistingPrototypes;
-  typedef std::unordered_map<InstanceType, FactoryMethod> FactoryMethods;
-  typedef std::unordered_set<InstanceType> ParameterizedTypes;
+  using PrototypeList = std::list<scoped_refptr<const BaseClassT>>;
+  using ExistingPrototypes = base::flat_map<InstanceType, PrototypeList>;
+  using FactoryMethods = base::flat_map<InstanceType, FactoryMethod>;
+  using ParameterizedTypes = base::flat_set<InstanceType>;
 
   const size_t max_number_prototypes_;
   ExistingPrototypes prototypes_;
@@ -107,8 +107,9 @@ void DedupingFactory<BaseClassT, ValueT>::RegisterFactoryMethod(
     FactoryMethod factory_method) {
   DCHECK(!base::Contains(factory_methods_, instance_type));
   factory_methods_[instance_type] = factory_method;
-  if (parameterized == IS_PARAMETERIZED)
+  if (parameterized == IS_PARAMETERIZED) {
     parameterized_types_.insert(instance_type);
+  }
 }
 
 template <typename BaseClassT, typename ValueT>
@@ -137,8 +138,9 @@ DedupingFactory<BaseClassT, ValueT>::Instantiate(
     if (prototypes.empty()) {
       scoped_refptr<const BaseClassT> new_object =
           (*factory_method)(instance_type, value, error, bad_message);
-      if (!new_object.get() || !error->empty() || *bad_message)
+      if (!new_object.get() || !error->empty() || *bad_message) {
         return scoped_refptr<const BaseClassT>();
+      }
       prototypes.push_back(new_object);
     }
     return prototypes.front();
@@ -147,8 +149,9 @@ DedupingFactory<BaseClassT, ValueT>::Instantiate(
   // Handle parameterized objects.
   scoped_refptr<const BaseClassT> new_object =
       (*factory_method)(instance_type, value, error, bad_message);
-  if (!new_object.get() || !error->empty() || *bad_message)
+  if (!new_object.get() || !error->empty() || *bad_message) {
     return scoped_refptr<const BaseClassT>();
+  }
 
   size_t length = 0;
   for (typename PrototypeList::iterator i = prototypes.begin();

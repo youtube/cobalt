@@ -18,7 +18,10 @@ namespace
 {
 
 class TextureUploadFormatTest : public ANGLETest<>
-{};
+{
+  protected:
+    void TestAll(const bool usePBO);
+};
 
 struct TexFormat final
 {
@@ -144,7 +147,7 @@ void EncodeThenZeroAndCopy(DestT &dest, const float srcVals[4])
 // Upload (1,2,5,3) to integer formats, and (1,2,5,3)/8.0 to float formats.
 // Draw a point into a 1x1 renderbuffer and readback the result for comparison with expectations.
 // Test all internalFormat/unpackFormat/unpackType combinations from ES3.0.
-TEST_P(TextureUploadFormatTest, All)
+void TextureUploadFormatTest::TestAll(const bool usePBO)
 {
     ANGLE_SKIP_TEST_IF(IsD3D9());
 
@@ -224,6 +227,7 @@ TEST_P(TextureUploadFormatTest, All)
         const auto actual = ReadColor(0, 0);
 
         GLColor expected;
+        std::optional<GLColor> alternativeExpected;
         switch (format.unpackFormat)
         {
             case GL_RGBA:
@@ -238,20 +242,10 @@ TEST_P(TextureUploadFormatTest, All)
                 break;
             case GL_DEPTH_COMPONENT:
             case GL_DEPTH_STENCIL:
-                // Metal back-end requires swizzle feature to return (depth, 0, 0, 1) from sampling
-                // a depth texture.
-                // http://anglebug.com/5243
-                if (IsMetal() && !IsMetalTextureSwizzleAvailable())
-                {
-                    // If texture swizzle is not supported, we should only compare the first
-                    // component.
-                    expected = {refVals[0], actual[1], actual[2], actual[3]};
-                }
-                else
-                {
-
-                    expected = {refVals[0], 0, 0, 255};
-                }
+                expected = {refVals[0], 0, 0, 255};
+                // The green and blue channels are undefined. Some backends treat these textures are
+                // luminance while others return 0 in g/b channels.
+                alternativeExpected = {refVals[0], refVals[0], refVals[0], 255};
                 break;
             case GL_RED:
                 expected = {refVals[0], 0, 0, 255};
@@ -283,12 +277,13 @@ TEST_P(TextureUploadFormatTest, All)
 
         ASSERT_GL_NO_ERROR();
         auto result = actual.ExpectNear(expected, err);
-        if (!result)
+        if (!result && alternativeExpected.has_value())
         {
-            result << " [" << EnumStr(format.internalFormat) << "/" << EnumStr(format.unpackFormat)
-                   << "/" << EnumStr(format.unpackType) << " " << info << "]";
+            result = actual.ExpectNear(*alternativeExpected, err);
         }
-        EXPECT_TRUE(result);
+        EXPECT_TRUE(result) << " [" << EnumStr(format.internalFormat) << "/"
+                            << EnumStr(format.unpackFormat) << "/" << EnumStr(format.unpackType)
+                            << " " << info << "]";
     };
 
     // Provide buffers for test data, and a func to run the test on both the data directly, and on
@@ -298,8 +293,24 @@ TEST_P(TextureUploadFormatTest, All)
     std::array<uint8_t, sizeof(float) * 4> srcBuffer;
 
     std::array<uint8_t, srcBuffer.size() * 2> subrectBuffer;
+
+    GLBuffer pboBuffer;
+    if (usePBO)
+    {
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pboBuffer);
+        glBufferData(GL_PIXEL_UNPACK_BUFFER, subrectBuffer.size(), nullptr, GL_DYNAMIC_DRAW);
+    }
+
     const auto fnTest = [&](const TexFormat &format, const GLColor &err) {
-        fnTestData(format, srcBuffer.data(), err, "simple");
+        if (usePBO)
+        {
+            glBufferSubData(GL_PIXEL_UNPACK_BUFFER, 0, srcBuffer.size(), srcBuffer.data());
+            fnTestData(format, nullptr, err, "simple");
+        }
+        else
+        {
+            fnTestData(format, srcBuffer.data(), err, "simple");
+        }
 
         if (!hasSubrectUploads)
             return;
@@ -310,7 +321,15 @@ TEST_P(TextureUploadFormatTest, All)
 
         subrectBuffer.fill(0);
         memcpy(subrectBuffer.data() + bytesPerPixel, srcBuffer.data(), bytesPerPixel);
-        fnTestData(format, subrectBuffer.data(), err, "subrect");
+        if (usePBO)
+        {
+            glBufferSubData(GL_PIXEL_UNPACK_BUFFER, 0, subrectBuffer.size(), subrectBuffer.data());
+            fnTestData(format, nullptr, err, "simple");
+        }
+        else
+        {
+            fnTestData(format, subrectBuffer.data(), err, "subrect");
+        }
 
         glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
     };
@@ -346,6 +365,15 @@ TEST_P(TextureUploadFormatTest, All)
         fnTest(TexFormat(GL_LUMINANCE_ALPHA, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE), {1, 1, 1, 1});
         fnTest(TexFormat(GL_LUMINANCE, GL_LUMINANCE, GL_UNSIGNED_BYTE), {1, 1, 1, 0});
         fnTest(TexFormat(GL_ALPHA, GL_ALPHA, GL_UNSIGNED_BYTE), {0, 0, 0, 1});
+        if (IsGLExtensionEnabled("GL_OES_required_internalformat"))
+        {
+            fnTest(TexFormat(GL_LUMINANCE4_ALPHA4_OES, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE),
+                   {4, 4, 4, 4});
+            fnTest(TexFormat(GL_LUMINANCE8_ALPHA8_OES, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE),
+                   {1, 1, 1, 1});
+            fnTest(TexFormat(GL_LUMINANCE8_OES, GL_LUMINANCE, GL_UNSIGNED_BYTE), {1, 1, 1, 0});
+            fnTest(TexFormat(GL_ALPHA8_OES, GL_ALPHA, GL_UNSIGNED_BYTE), {0, 0, 0, 1});
+        }
     }
 
     // RGBA+BYTE
@@ -392,6 +420,7 @@ TEST_P(TextureUploadFormatTest, All)
         ZeroAndCopy(srcBuffer, src);
 
         fnTest(TexFormat(GL_RGBA, GL_RGBA, GL_UNSIGNED_SHORT_5_5_5_1), {8, 8, 8, 255});
+        fnTest(TexFormat(GL_RGB5_A1, GL_RGBA, GL_UNSIGNED_SHORT_5_5_5_1), {8, 8, 8, 255});
     }
 
     // RGBA+UNSIGNED_INT_2_10_10_10_REV
@@ -627,6 +656,19 @@ TEST_P(TextureUploadFormatTest, All)
     }
 
     EXPECT_GL_NO_ERROR();
+}
+
+// Test uploadings without PBO
+TEST_P(TextureUploadFormatTest, All)
+{
+    TestAll(/*usePBO=*/false);
+}
+
+// Test uploadings with PBO
+TEST_P(TextureUploadFormatTest, AllWithPBO)
+{
+    ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3);
+    TestAll(/*usePBO=*/true);
 }
 
 ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(TextureUploadFormatTest);

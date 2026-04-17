@@ -5,6 +5,7 @@
 #include "build/build_config.h"
 #include "chrome/common/privacy_budget/scoped_privacy_budget_config.h"
 #include "chrome/test/base/chrome_test_utils.h"
+#include "chrome/test/base/platform_browser_test.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -12,12 +13,6 @@
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/privacy_budget/identifiable_surface.h"
-
-#if BUILDFLAG(IS_ANDROID)
-#include "chrome/test/base/android/android_browser_test.h"
-#else
-#include "chrome/test/base/in_process_browser_test.h"
-#endif
 
 namespace {
 
@@ -91,8 +86,8 @@ struct MetricKeyValue {
 // Verify that there's only one entry of type |type|, and return the the
 // |input_key|, |value| pair.
 template <typename MapType>
-absl::optional<MetricKeyValue> ExtractKeyOfType(IdentifiableSurface::Type type,
-                                                const MapType& metrics) {
+std::optional<MetricKeyValue> ExtractKeyOfType(IdentifiableSurface::Type type,
+                                               const MapType& metrics) {
   MetricKeyValue last_result = {};
   for (const auto& pair : metrics) {
     auto surface = IdentifiableSurface::FromMetricHash(pair.first);
@@ -102,7 +97,7 @@ absl::optional<MetricKeyValue> ExtractKeyOfType(IdentifiableSurface::Type type,
                       << static_cast<uint64_t>(type)
                       << ". First input hash: " << last_result.input_key
                       << " second input hash: " << surface.GetInputHash();
-        return absl::nullopt;
+        return std::nullopt;
       }
       last_result.input_key = surface.GetInputHash();
       last_result.value = pair.second;
@@ -141,7 +136,7 @@ IN_PROC_BROWSER_TEST_F(DISABLED_CanvasInputKeyBrowserTest,
   // adjust this test to deal.
   ASSERT_EQ(1u, merged_entries.size());
 
-  absl::optional<MetricKeyValue> canvas_key_value =
+  std::optional<MetricKeyValue> canvas_key_value =
       ExtractKeyOfType(IdentifiableSurface::Type::kCanvasReadback,
                        merged_entries.begin()->second->metrics);
   ASSERT_TRUE(canvas_key_value);

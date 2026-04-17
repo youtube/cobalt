@@ -6,6 +6,7 @@
 #define COMPONENTS_SERVICES_APP_SERVICE_PUBLIC_CPP_PREFERRED_APPS_LIST_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -14,7 +15,6 @@
 #include "components/services/app_service/public/cpp/intent_filter.h"
 #include "components/services/app_service/public/cpp/preferred_app.h"
 #include "components/services/app_service/public/cpp/preferred_apps_list_handle.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class GURL;
 
@@ -52,14 +52,6 @@ class PreferredAppsList : public PreferredAppsListHandle {
   // Returns the deleted filters, if any.
   IntentFilters DeleteSupportedLinks(const std::string& app_id);
 
-  // Applies all of the |changes| in a single bulk update. This method is
-  // intended to only be called from |OnPreferredAppsChanged| App Service
-  // subscriber overrides.
-  // Note that removed filters are processed before new filters are added. If
-  // the same filter appears in both |changes->added_filters| and
-  // |changes->removed_filters|, it be removed and then immediately added back.
-  void ApplyBulkUpdate(apps::PreferredAppChangesPtr changes);
-
   // PreferredAppsListHandler overrides:
   bool IsInitialized() const override;
   size_t GetEntrySize() const override;
@@ -67,9 +59,9 @@ class PreferredAppsList : public PreferredAppsListHandle {
   const PreferredApps& GetReference() const override;
   bool IsPreferredAppForSupportedLinks(
       const std::string& app_id) const override;
-  absl::optional<std::string> FindPreferredAppForUrl(
+  std::optional<std::string> FindPreferredAppForUrl(
       const GURL& url) const override;
-  absl::optional<std::string> FindPreferredAppForIntent(
+  std::optional<std::string> FindPreferredAppForIntent(
       const IntentPtr& intent) const override;
   base::flat_set<std::string> FindPreferredAppsForFilters(
       const IntentFilters& intent_filters) const override;

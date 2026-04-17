@@ -43,13 +43,11 @@ class NetworkQualityMetricsReporter
              const TrackIdStreamInfoMap* reporter_helper) override;
   void OnStatsReports(
       absl::string_view pc_label,
-      const rtc::scoped_refptr<const RTCStatsReport>& report) override;
+      const scoped_refptr<const RTCStatsReport>& report) override;
   void StopAndReportResults() override;
 
  private:
   struct PCStats {
-    // TODO(nisse): Separate audio and video counters. Depends on standard stat
-    // counters, enabled by field trial "WebRTC-UseStandardBytesStats".
     DataSize payload_received = DataSize::Zero();
     DataSize payload_sent = DataSize::Zero();
   };

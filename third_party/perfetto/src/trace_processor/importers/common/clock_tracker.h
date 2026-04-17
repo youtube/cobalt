@@ -21,6 +21,7 @@
 
 #include <array>
 #include <cinttypes>
+#include <cstdint>
 #include <map>
 #include <optional>
 #include <random>
@@ -28,14 +29,12 @@
 #include <vector>
 
 #include "perfetto/base/logging.h"
+#include "perfetto/ext/base/flat_hash_map.h"
 #include "perfetto/ext/base/status_or.h"
-#include "perfetto/ext/base/string_utils.h"
+#include "perfetto/public/compiler.h"
 #include "src/trace_processor/importers/common/metadata_tracker.h"
-#include "src/trace_processor/storage/trace_storage.h"
 #include "src/trace_processor/types/trace_processor_context.h"
-
-#include "protos/perfetto/common/builtin_clock.pbzero.h"
-#include "protos/perfetto/trace/clock_snapshot.pbzero.h"
+#include "src/trace_processor/util/status_macros.h"
 
 namespace perfetto {
 namespace trace_processor {
@@ -154,17 +153,44 @@ class ClockTracker {
 
   // Converts a sequence-scoped clock ids to a global clock id that can be
   // passed as argument to ClockTracker functions.
-  static ClockId SeqenceToGlobalClock(uint32_t seq_id, uint32_t clock_id) {
+  static ClockId SequenceToGlobalClock(uint32_t seq_id, uint32_t clock_id) {
     PERFETTO_DCHECK(IsSequenceClock(clock_id));
     return (static_cast<int64_t>(seq_id) << 32) | clock_id;
   }
+
+  void set_timezone_offset(int64_t offset) { timezone_offset_ = offset; }
+
+  std::optional<int64_t> timezone_offset() const { return timezone_offset_; }
 
   // Appends a new snapshot for the given clock domains.
   // This is typically called by the code that reads the ClockSnapshot packet.
   // Returns the internal snapshot id of this set of clocks.
   base::StatusOr<uint32_t> AddSnapshot(const std::vector<ClockTimestamp>&);
 
-  base::StatusOr<int64_t> ToTraceTime(ClockId clock_id, int64_t timestamp) {
+  // Sets clock offset for the given clock domain to convert to the host trace
+  // time. This is typically called by the code that reads the RemoteClockSync
+  // packet. Typically only the offset of |trace_time_clock_id_| (which is
+  // CLOCK_BOOTTIME) is used.
+  void SetClockOffset(ClockId clock_id, int64_t offset) {
+    clock_offsets_[clock_id] = offset;
+  }
+
+  // Apply the clock offset to convert remote trace times to host trace time.
+  PERFETTO_ALWAYS_INLINE int64_t ToHostTraceTime(int64_t timestamp) {
+    if (PERFETTO_LIKELY(!context_->machine_id())) {
+      // No need to convert host timestamps.
+      return timestamp;
+    }
+
+    // Find the offset for |trace_time_clock_id_| and apply the offset, or
+    // default offset 0 if not offset is found for |trace_time_clock_id_|.
+    int64_t clock_offset = clock_offsets_[trace_time_clock_id_];
+    return timestamp - clock_offset;
+  }
+
+  PERFETTO_ALWAYS_INLINE base::StatusOr<int64_t> ToTraceTime(
+      ClockId clock_id,
+      int64_t timestamp) {
     if (PERFETTO_UNLIKELY(!trace_time_clock_id_used_for_conversion_)) {
       context_->metadata_tracker->SetMetadata(
           metadata::trace_time_clock_id,
@@ -172,9 +198,14 @@ class ClockTracker {
       trace_time_clock_id_used_for_conversion_ = true;
     }
     trace_time_clock_id_used_for_conversion_ = true;
-    if (clock_id == trace_time_clock_id_)
-      return timestamp;
-    return Convert(clock_id, timestamp, trace_time_clock_id_);
+
+    if (clock_id == trace_time_clock_id_) {
+      return ToHostTraceTime(timestamp);
+    }
+
+    ASSIGN_OR_RETURN(int64_t ts,
+                     Convert(clock_id, timestamp, trace_time_clock_id_));
+    return ToHostTraceTime(ts);
   }
 
   // If trace clock and source clock are available in the snapshot will return
@@ -186,7 +217,7 @@ class ClockTracker {
     PERFETTO_DCHECK(!IsSequenceClock(clock_id));
     if (trace_time_clock_id_used_for_conversion_ &&
         trace_time_clock_id_ != clock_id) {
-      PERFETTO_ELOG("Not updating trace time clock from %" PRIu64 " to %" PRIu64
+      PERFETTO_ELOG("Not updating trace time clock from %" PRId64 " to %" PRId64
                     " because the old clock was already used for timestamp "
                     "conversion - ClockSnapshot too late in trace?",
                     trace_time_clock_id_, clock_id);
@@ -197,8 +228,19 @@ class ClockTracker {
         metadata::trace_time_clock_id, Variadic::Integer(trace_time_clock_id_));
   }
 
+  bool HasPathToTraceTime(ClockId clock_id) {
+    if (clock_id == trace_time_clock_id_) {
+      return true;
+    }
+    return FindPath(clock_id, trace_time_clock_id_).valid();
+  }
+
   void set_cache_lookups_disabled_for_testing(bool v) {
     cache_lookups_disabled_for_testing_ = v;
+  }
+
+  const base::FlatHashMap<ClockId, int64_t>& clock_offsets_for_testing() {
+    return clock_offsets_;
   }
 
  private:
@@ -344,6 +386,8 @@ class ClockTracker {
   std::minstd_rand rnd_;  // For cache eviction.
   uint32_t cur_snapshot_id_ = 0;
   bool trace_time_clock_id_used_for_conversion_ = false;
+  base::FlatHashMap<ClockId, int64_t> clock_offsets_;
+  std::optional<int64_t> timezone_offset_;
 };
 
 }  // namespace trace_processor

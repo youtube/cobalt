@@ -19,7 +19,6 @@ const char* RequestModeToString(network::mojom::RequestMode mode) {
       return "navigate";
   }
   NOTREACHED();
-  return "";
 }
 
 }  // namespace network

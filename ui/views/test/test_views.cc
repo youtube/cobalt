@@ -4,6 +4,7 @@
 
 #include "ui/views/test/test_views.h"
 
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/events/event.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/widget/native_widget_private.h"
@@ -18,7 +19,8 @@ StaticSizedView::StaticSizedView(const gfx::Size& preferred_size)
 
 StaticSizedView::~StaticSizedView() = default;
 
-gfx::Size StaticSizedView::CalculatePreferredSize() const {
+gfx::Size StaticSizedView::CalculatePreferredSize(
+    const SizeBounds& /*available_size*/) const {
   return preferred_size_;
 }
 
@@ -30,6 +32,9 @@ gfx::Size StaticSizedView::GetMaximumSize() const {
   return maximum_size_;
 }
 
+BEGIN_METADATA(StaticSizedView)
+END_METADATA
+
 ProportionallySizedView::ProportionallySizedView(int factor)
     : factor_(factor) {}
 
@@ -40,15 +45,20 @@ void ProportionallySizedView::SetPreferredWidth(int width) {
   PreferredSizeChanged();
 }
 
-int ProportionallySizedView::GetHeightForWidth(int w) const {
-  return w * factor_;
+gfx::Size ProportionallySizedView::CalculatePreferredSize(
+    const SizeBounds& available_size) const {
+  if (preferred_width_ >= 0) {
+    return gfx::Size(preferred_width_, preferred_width_ * factor_);
+  } else if (available_size.width().is_bounded()) {
+    int w = available_size.width().value();
+    return gfx::Size(w, w * factor_);
+  } else {
+    return View::CalculatePreferredSize(available_size);
+  }
 }
 
-gfx::Size ProportionallySizedView::CalculatePreferredSize() const {
-  if (preferred_width_ >= 0)
-    return gfx::Size(preferred_width_, GetHeightForWidth(preferred_width_));
-  return View::CalculatePreferredSize();
-}
+BEGIN_METADATA(ProportionallySizedView)
+END_METADATA
 
 CloseWidgetView::CloseWidgetView(ui::EventType event_type)
     : event_type_(event_type) {}
@@ -62,10 +72,14 @@ void CloseWidgetView::OnEvent(ui::Event* event) {
     GetWidget()->native_widget_private()->CloseNow();
   } else {
     View::OnEvent(event);
-    if (!event->IsTouchEvent())
+    if (!event->IsTouchEvent()) {
       event->SetHandled();
+    }
   }
 }
+
+BEGIN_METADATA(CloseWidgetView)
+END_METADATA
 
 EventCountView::EventCountView() = default;
 
@@ -81,7 +95,7 @@ void EventCountView::ResetCounts() {
 
 void EventCountView::OnMouseMoved(const ui::MouseEvent& event) {
   // MouseMove events are not re-dispatched from the RootView.
-  ++event_count_[ui::ET_MOUSE_MOVED];
+  ++event_count_[ui::EventType::kMouseMoved];
   last_flags_ = 0;
 }
 
@@ -104,9 +118,13 @@ void EventCountView::OnGestureEvent(ui::GestureEvent* event) {
 void EventCountView::RecordEvent(ui::Event* event) {
   ++event_count_[event->type()];
   last_flags_ = event->flags();
-  if (handle_mode_ == CONSUME_EVENTS)
+  if (handle_mode_ == HandleMode::kConsumeEvents) {
     event->SetHandled();
+  }
 }
+
+BEGIN_METADATA(EventCountView)
+END_METADATA
 
 ResizeAwareParentView::ResizeAwareParentView() {
   SetLayoutManager(
@@ -114,7 +132,10 @@ ResizeAwareParentView::ResizeAwareParentView() {
 }
 
 void ResizeAwareParentView::ChildPreferredSizeChanged(View* child) {
-  Layout();
+  DeprecatedLayoutImmediately();
 }
+
+BEGIN_METADATA(ResizeAwareParentView)
+END_METADATA
 
 }  // namespace views

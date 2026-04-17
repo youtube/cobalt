@@ -15,8 +15,8 @@
 #include "chrome/browser/notifications/profile_notification.h"
 
 // A platform bridge that uses Ash's message center to display notifications.
-// Forwards requests to a helper implementation class, which either makes
-// in-process C++ calls (pre-lacros) or mojo calls (post-lacros).
+// Forwards requests to a helper implementation class that makes in-process C++
+// calls.
 class NotificationPlatformBridgeChromeOs
     : public NotificationPlatformBridge,
       public NotificationPlatformBridgeDelegate {
@@ -36,6 +36,10 @@ class NotificationPlatformBridgeChromeOs
   void Close(Profile* profile, const std::string& notification_id) override;
   void GetDisplayed(Profile* profile,
                     GetDisplayedNotificationsCallback callback) const override;
+  void GetDisplayedForOrigin(
+      Profile* profile,
+      const GURL& origin,
+      GetDisplayedNotificationsCallback callback) const override;
   void SetReadyCallback(NotificationBridgeReadyCallback callback) override;
   void DisplayServiceShutDown(Profile* profile) override;
 
@@ -45,7 +49,7 @@ class NotificationPlatformBridgeChromeOs
   void HandleNotificationButtonClicked(
       const std::string& id,
       int button_index,
-      const absl::optional<std::u16string>& reply) override;
+      const std::optional<std::u16string>& reply) override;
   void HandleNotificationSettingsButtonClicked(const std::string& id) override;
   void DisableNotification(const std::string& id) override;
 

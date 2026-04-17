@@ -7,6 +7,8 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/compiler/node-marker.h"
+#include "src/compiler/node-properties.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -16,7 +18,7 @@ class TickCounter;
 
 namespace compiler {
 
-class Graph;
+class TFGraph;
 class JSHeapBroker;
 class Node;
 class ObserveNodeManager;
@@ -128,9 +130,15 @@ class AdvancedReducer : public Reducer {
   }
 
   // Relax the control uses of {node} by immediately replacing them with the
-  // control input to {node}.
-  void RelaxControls(Node* node) {
-    ReplaceWithValue(node, node, node, nullptr);
+  // either the given {control} node, or the control input to {node}.
+  void RelaxControls(Node* node, Node* control = nullptr) {
+    ReplaceWithValue(node, node, node, control);
+  }
+
+  void MergeControlToEnd(TFGraph* graph, CommonOperatorBuilder* common,
+                         Node* node) {
+    NodeProperties::MergeControlToEnd(graph, common, node);
+    Revisit(graph->end());
   }
 
  private:
@@ -142,7 +150,7 @@ class AdvancedReducer : public Reducer {
 class V8_EXPORT_PRIVATE GraphReducer
     : public NON_EXPORTED_BASE(AdvancedReducer::Editor) {
  public:
-  GraphReducer(Zone* zone, Graph* graph, TickCounter* tick_counter,
+  GraphReducer(Zone* zone, TFGraph* graph, TickCounter* tick_counter,
                JSHeapBroker* broker, Node* dead = nullptr,
                ObserveNodeManager* observe_node_manager = nullptr);
   ~GraphReducer() override;
@@ -150,7 +158,7 @@ class V8_EXPORT_PRIVATE GraphReducer
   GraphReducer(const GraphReducer&) = delete;
   GraphReducer& operator=(const GraphReducer&) = delete;
 
-  Graph* graph() const { return graph_; }
+  TFGraph* graph() const { return graph_; }
 
   void AddReducer(Reducer* reducer);
 
@@ -193,7 +201,7 @@ class V8_EXPORT_PRIVATE GraphReducer
   bool Recurse(Node* node);
   void Revisit(Node* node) final;
 
-  Graph* const graph_;
+  TFGraph* const graph_;
   Node* const dead_;
   NodeMarker<State> state_;
   ZoneVector<Reducer*> reducers_;

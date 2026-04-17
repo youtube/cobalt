@@ -10,6 +10,13 @@
 
 #include "api/audio_codecs/opus/audio_decoder_multi_channel_opus.h"
 
+#include <memory>
+#include <optional>
+#include <string>
+#include <vector>
+
+#include "api/audio_codecs/audio_decoder.h"
+#include "api/audio_codecs/audio_format.h"
 #include "modules/audio_coding/codecs/opus/audio_coder_opus_common.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -25,15 +32,15 @@ TEST(AudioDecoderMultiOpusTest, GetFormatParameter) {
                                    {"num_streams", "2"}});
 
   EXPECT_EQ(GetFormatParameter(sdp_format, "channel_mapping"),
-            absl::optional<std::string>("0,1,2,3"));
+            std::optional<std::string>("0,1,2,3"));
 
   EXPECT_EQ(GetFormatParameter<int>(sdp_format, "coupled_streams"),
-            absl::optional<int>(2));
+            std::optional<int>(2));
 
-  EXPECT_EQ(GetFormatParameter(sdp_format, "missing"), absl::nullopt);
+  EXPECT_EQ(GetFormatParameter(sdp_format, "missing"), std::nullopt);
 
   EXPECT_EQ(GetFormatParameter<int>(sdp_format, "channel_mapping"),
-            absl::nullopt);
+            std::nullopt);
 }
 
 TEST(AudioDecoderMultiOpusTest, InvalidChannelMappings) {
@@ -43,7 +50,7 @@ TEST(AudioDecoderMultiOpusTest, InvalidChannelMappings) {
                                     {{"channel_mapping", "3,0"},
                                      {"coupled_streams", "1"},
                                      {"num_streams", "2"}});
-    const absl::optional<AudioDecoderMultiChannelOpus::Config> decoder_config =
+    const std::optional<AudioDecoderMultiChannelOpus::Config> decoder_config =
         AudioDecoderMultiChannelOpus::SdpToConfig(sdp_format);
     EXPECT_FALSE(decoder_config.has_value());
   }
@@ -54,7 +61,7 @@ TEST(AudioDecoderMultiOpusTest, InvalidChannelMappings) {
                                     {{"channel_mapping", "0,1,2,3,4,5"},
                                      {"coupled_streams", "0"},
                                      {"num_streams", "2"}});
-    const absl::optional<AudioDecoderMultiChannelOpus::Config> decoder_config =
+    const std::optional<AudioDecoderMultiChannelOpus::Config> decoder_config =
         AudioDecoderMultiChannelOpus::SdpToConfig(sdp_format);
     EXPECT_FALSE(decoder_config.has_value());
   }
@@ -63,7 +70,7 @@ TEST(AudioDecoderMultiOpusTest, InvalidChannelMappings) {
     const SdpAudioFormat sdp_format(
         "multiopus", 48000, 5,
         {{"channel_mapping", "0,1,two,3,4"}, {"coupled_streams", "0"}});
-    const absl::optional<AudioDecoderMultiChannelOpus::Config> decoder_config =
+    const std::optional<AudioDecoderMultiChannelOpus::Config> decoder_config =
         AudioDecoderMultiChannelOpus::SdpToConfig(sdp_format);
     EXPECT_FALSE(decoder_config.has_value());
   }
@@ -75,7 +82,7 @@ TEST(AudioDecoderMultiOpusTest, ValidSdpToConfigProducesCorrectConfig) {
                                    {"coupled_streams", "2"},
                                    {"num_streams", "2"}});
 
-  const absl::optional<AudioDecoderMultiChannelOpus::Config> decoder_config =
+  const std::optional<AudioDecoderMultiChannelOpus::Config> decoder_config =
       AudioDecoderMultiChannelOpus::SdpToConfig(sdp_format);
 
   ASSERT_TRUE(decoder_config.has_value());
@@ -92,7 +99,7 @@ TEST(AudioDecoderMultiOpusTest, InvalidSdpToConfigDoesNotProduceConfig) {
                                      {"coupled_stream", "2"},
                                      {"num_streams", "2"}});
 
-    const absl::optional<AudioDecoderMultiChannelOpus::Config> decoder_config =
+    const std::optional<AudioDecoderMultiChannelOpus::Config> decoder_config =
         AudioDecoderMultiChannelOpus::SdpToConfig(sdp_format);
 
     EXPECT_FALSE(decoder_config.has_value());
@@ -104,7 +111,7 @@ TEST(AudioDecoderMultiOpusTest, InvalidSdpToConfigDoesNotProduceConfig) {
                                      {"coupled_streams", "2"},
                                      {"num_streams", "2"}});
 
-    const absl::optional<AudioDecoderMultiChannelOpus::Config> decoder_config =
+    const std::optional<AudioDecoderMultiChannelOpus::Config> decoder_config =
         AudioDecoderMultiChannelOpus::SdpToConfig(sdp_format);
 
     EXPECT_FALSE(decoder_config.has_value());
@@ -117,7 +124,7 @@ TEST(AudioDecoderMultiOpusTest, CodecsCanBeCreated) {
                                    {"coupled_streams", "2"},
                                    {"num_streams", "2"}});
 
-  const absl::optional<AudioDecoderMultiChannelOpus::Config> decoder_config =
+  const std::optional<AudioDecoderMultiChannelOpus::Config> decoder_config =
       AudioDecoderMultiChannelOpus::SdpToConfig(sdp_format);
 
   ASSERT_TRUE(decoder_config.has_value());
@@ -135,7 +142,7 @@ TEST(AudioDecoderMultiOpusTest, AdvertisedCodecsCanBeCreated) {
   EXPECT_FALSE(specs.empty());
 
   for (const AudioCodecSpec& spec : specs) {
-    const absl::optional<AudioDecoderMultiChannelOpus::Config> decoder_config =
+    const std::optional<AudioDecoderMultiChannelOpus::Config> decoder_config =
         AudioDecoderMultiChannelOpus::SdpToConfig(spec.format);
     ASSERT_TRUE(decoder_config.has_value());
 

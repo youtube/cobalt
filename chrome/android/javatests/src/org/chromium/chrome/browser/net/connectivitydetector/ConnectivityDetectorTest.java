@@ -13,51 +13,51 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.BaseJUnit4ClassRunner;
 import org.chromium.base.test.util.Batch;
+import org.chromium.base.test.util.DisabledTest;
 import org.chromium.content_public.browser.test.NativeLibraryTestUtils;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.net.test.EmbeddedTestServerRule;
 
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Tests for {@link ConnectivityDetector}.
- */
+/** Tests for {@link ConnectivityDetector}. */
 @RunWith(BaseJUnit4ClassRunner.class)
 @Batch(Batch.UNIT_TESTS)
 public class ConnectivityDetectorTest implements ConnectivityDetector.Observer {
     private static final int TIMEOUT_MS = 5000;
 
-    @ClassRule
-    public static EmbeddedTestServerRule sTestServerRule = new EmbeddedTestServerRule();
+    @ClassRule public static EmbeddedTestServerRule sTestServerRule = new EmbeddedTestServerRule();
 
     private ConnectivityDetector mConnectivityDetector;
     private @ConnectivityDetector.ConnectionState int mConnectionState =
             ConnectivityDetector.ConnectionState.NONE;
-    private Semaphore mSemaphore = new Semaphore(0);
+    private final Semaphore mSemaphore = new Semaphore(0);
     // This test focuses on testing ConnectivityDetector functionalities, including http probes.
     // So don't skip http probes here.
-    private ConnectivityDetectorDelegateStub mConnectivityDetectorDelegate =
-            new ConnectivityDetectorDelegateStub(ConnectivityDetector.ConnectionState.NO_INTERNET,
-                    false /*shouldSkipHttpProbes*/);
+    private final ConnectivityDetectorDelegateStub mConnectivityDetectorDelegate =
+            new ConnectivityDetectorDelegateStub(
+                    ConnectivityDetector.ConnectionState.NO_INTERNET, /* skipHttpProbes= */ false);
 
     @Before
     public void setUp() throws Exception {
         NativeLibraryTestUtils.loadNativeLibraryNoBrowserProcess();
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            if (!NetworkChangeNotifier.isInitialized()) {
-                NetworkChangeNotifier.init();
-            }
-            NetworkChangeNotifier.forceConnectivityState(true);
-            ConnectivityDetector.overrideConnectivityCheckInitialDelayMs(1000);
-            ConnectivityDetector.setDelegateForTesting(mConnectivityDetectorDelegate);
-            mConnectivityDetector = new ConnectivityDetector(this, "ConnectivityDetectorTest");
-            mConnectivityDetectorDelegate.setConnectionStateFromSystem(
-                    ConnectivityDetector.ConnectionState.NONE);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    if (!NetworkChangeNotifier.isInitialized()) {
+                        NetworkChangeNotifier.init();
+                    }
+                    NetworkChangeNotifier.forceConnectivityState(true);
+                    ConnectivityDetector.overrideConnectivityCheckInitialDelayMs(1000);
+                    ConnectivityDetector.setDelegateForTesting(mConnectivityDetectorDelegate);
+                    mConnectivityDetector =
+                            new ConnectivityDetector(this, "ConnectivityDetectorTest");
+                    mConnectivityDetectorDelegate.setConnectionStateFromSystem(
+                            ConnectivityDetector.ConnectionState.NONE);
+                });
 
         // Wait until the initial detection logic finishes to give all tests the same starting
         // point.
@@ -158,6 +158,7 @@ public class ConnectivityDetectorTest implements ConnectivityDetector.Observer {
 
     @Test
     @MediumTest
+    @DisabledTest(message = "b/343926825")
     public void testProbeDefaultUrlReturning200WithContent() throws Exception {
         String testUrl = sTestServerRule.getServer().getURL("/echo?status=200");
 
@@ -311,35 +312,43 @@ public class ConnectivityDetectorTest implements ConnectivityDetector.Observer {
     }
 
     private static void setNetworkConnectivity(boolean connected) {
-        TestThreadUtils.runOnUiThreadBlocking(
-                () -> { NetworkChangeNotifier.forceConnectivityState(connected); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    NetworkChangeNotifier.forceConnectivityState(connected);
+                });
     }
 
     private boolean hasScheduledRetry() {
         final boolean[] result = new boolean[1];
-        TestThreadUtils.runOnUiThreadBlocking(
-                () -> { result[0] = mConnectivityDetector.getHandlerForTesting().hasMessages(0); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    result[0] = mConnectivityDetector.getHandlerForTesting().hasMessages(0);
+                });
         return result[0];
     }
 
     private void checkConnectivityViaDefaultUrl() throws Exception {
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mConnectivityDetector.setUseDefaultUrlForTesting(true);
-            mConnectivityDetector.checkConnectivityViaHttpProbe();
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mConnectivityDetector.setUseDefaultUrlForTesting(true);
+                    mConnectivityDetector.checkConnectivityViaHttpProbe();
+                });
         Assert.assertTrue(mSemaphore.tryAcquire(TIMEOUT_MS, TimeUnit.MILLISECONDS));
     }
 
     private void checkConnectivityViaFallbackUrl() throws Exception {
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mConnectivityDetector.setUseDefaultUrlForTesting(false);
-            mConnectivityDetector.checkConnectivityViaHttpProbe();
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mConnectivityDetector.setUseDefaultUrlForTesting(false);
+                    mConnectivityDetector.checkConnectivityViaHttpProbe();
+                });
         Assert.assertTrue(mSemaphore.tryAcquire(TIMEOUT_MS, TimeUnit.MILLISECONDS));
     }
 
     private void setConnectionState(@ConnectivityDetector.ConnectionState int connectionState) {
-        TestThreadUtils.runOnUiThreadBlocking(
-                () -> { mConnectivityDetector.forceConnectionStateForTesting(connectionState); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mConnectivityDetector.forceConnectionStateForTesting(connectionState);
+                });
     }
 }

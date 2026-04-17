@@ -1,3 +1,5 @@
-dpenning@chromium.org
 dljames@chromium.org
-tbergquist@chromium.org
+dpenning@chromium.org
+shaktisahu@chromium.org
+
+per-file internal/*sync_bridge*=file://components/sync/OWNERS

@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "ash/constants/ash_features.h"
 #include "chrome/browser/ash/input_method/longpress_suggester.h"
 #include "chrome/browser/ash/input_method/suggestion_enums.h"
 #include "chrome/browser/ash/input_method/suggestion_handler_interface.h"
@@ -50,8 +51,8 @@ bool LongpressControlVSuggester::TrySuggestWithSurroundingText(
 
 bool LongpressControlVSuggester::AcceptSuggestion(size_t index) {
   if (!focused_context_id_.has_value()) {
-    LOG(ERROR)
-        << "suggest: Accepted long-press Ctrl+V suggestion with no context id.";
+    LOG(ERROR) << "suggest: Accepted long-press Ctrl+V suggestion but had no "
+                  "context to replace originally pasted content.";
     Reset();
     return true;
   }
@@ -71,13 +72,12 @@ bool LongpressControlVSuggester::AcceptSuggestion(size_t index) {
       LOG(ERROR) << "suggest: Accepted long-press Ctrl+V suggestion without "
                     "replacing originally pasted content: "
                  << error;
-      Reset();
-      return true;
     }
+  } else {
+    LOG(ERROR) << "suggest: Accepted long-press Ctrl+V suggestion but could "
+                  "not attempt to replace originally pasted content.";
   }
 
-  LOG(ERROR) << "suggest: Accepted long-press Ctrl+V suggestion without "
-                "replacing originally pasted content.";
   Reset();
   return true;
 }

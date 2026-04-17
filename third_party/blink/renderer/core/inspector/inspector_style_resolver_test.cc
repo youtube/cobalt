@@ -14,6 +14,7 @@
 #include "third_party/blink/renderer/core/style/computed_style_constants.h"
 #include "third_party/blink/renderer/core/testing/dummy_page_holder.h"
 #include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 
 namespace blink {
 
@@ -24,6 +25,8 @@ class InspectorStyleResolverTest : public testing::Test {
   Document& GetDocument() { return dummy_page_holder_->GetDocument(); }
 
  private:
+  test::TaskEnvironment task_environment_;
+
   std::unique_ptr<DummyPageHolder> dummy_page_holder_;
 };
 
@@ -43,16 +46,16 @@ TEST_F(InspectorStyleResolverTest, DirectlyMatchedRules) {
     <div id="grid">
     </div>
   )HTML");
-  Element* grid = GetDocument().getElementById("grid");
+  Element* grid = GetDocument().getElementById(AtomicString("grid"));
   InspectorStyleResolver resolver(grid, kPseudoIdNone, g_null_atom);
   RuleIndexList* matched_rules = resolver.MatchedRules();
   // Some rules are coming for UA.
-  EXPECT_EQ(2u, matched_rules->size());
-  auto rule = matched_rules->at(1);
+  EXPECT_EQ(matched_rules->size(), 3u);
+  CSSRule* rule = matched_rules->at(2).rule.Get();
   EXPECT_EQ(
       "#grid { display: grid; gap: 10px; grid-template-columns: 100px 1fr 20%; "
       "}",
-      rule.first->cssText());
+      rule->cssText());
 }
 
 TEST_F(InspectorStyleResolverTest, ParentRules) {
@@ -73,27 +76,26 @@ TEST_F(InspectorStyleResolverTest, ParentRules) {
       <div id="grid"></div>
     </div>
   )HTML");
-  Element* grid = GetDocument().getElementById("grid");
+  Element* grid = GetDocument().getElementById(AtomicString("grid"));
   InspectorStyleResolver resolver(grid, kPseudoIdNone, g_null_atom);
   HeapVector<Member<InspectorCSSMatchedRules>> parent_rules =
       resolver.ParentRules();
-  Element* grid_container = GetDocument().getElementById("grid-container");
+  Element* grid_container =
+      GetDocument().getElementById(AtomicString("grid-container"));
   // Some rules are coming for UA.
-  EXPECT_EQ(3u, parent_rules.size());
+  EXPECT_EQ(parent_rules.size(), 3u);
   // grid_container is the first parent.
-  EXPECT_EQ(grid_container, parent_rules.at(0)->element);
+  EXPECT_EQ(parent_rules.at(0)->element, grid_container);
   // Some rules are coming from UA.
-  EXPECT_EQ(2u, parent_rules.at(0)->matched_rules->size());
-  auto rule = parent_rules.at(0)->matched_rules->at(1);
-  EXPECT_EQ(
-      "#grid-container { display: inline-grid; gap: 5px; "
-      "grid-template-columns: 50px 1fr 10%; }",
-      rule.first->cssText());
+  EXPECT_EQ(parent_rules.at(0)->matched_rules->size(), 3u);
+  CSSRule* rule = parent_rules.at(0)->matched_rules->at(2).rule.Get();
+  EXPECT_EQ(rule->cssText(),
+            "#grid-container { display: inline-grid; gap: 5px; "
+            "grid-template-columns: 50px 1fr 10%; }");
 }
 
 TEST_F(InspectorStyleResolverTest, HighlightPseudoInheritance) {
   ScopedHighlightInheritanceForTest highlight_inheritance(true);
-  ScopedHighlightAPIForTest highlight_api(true);
 
   GetDocument().body()->setInnerHTML(R"HTML(
     <style>
@@ -127,10 +129,10 @@ TEST_F(InspectorStyleResolverTest, HighlightPseudoInheritance) {
       </div>
     </body>
   )HTML");
-  Element* target = GetDocument().getElementById("target");
-  Element* middle = GetDocument().getElementById("middle");
-  Element* outer = GetDocument().getElementById("outer");
-  Element* body = GetDocument().QuerySelector("body");
+  Element* target = GetDocument().getElementById(AtomicString("target"));
+  Element* middle = GetDocument().getElementById(AtomicString("middle"));
+  Element* outer = GetDocument().getElementById(AtomicString("outer"));
+  Element* body = GetDocument().QuerySelector(AtomicString("body"));
   InspectorStyleResolver resolver(target, kPseudoIdNone, g_null_atom);
   HeapVector<Member<InspectorCSSMatchedPseudoElements>> parent_pseudos =
       resolver.ParentPseudoElementRules();
@@ -145,15 +147,16 @@ TEST_F(InspectorStyleResolverTest, HighlightPseudoInheritance) {
       2u,
       parent_pseudos.at(0)->pseudo_element_rules.at(0)->matched_rules->size());
   EXPECT_EQ("#middle::highlight(foo) { color: red; }",
+
             parent_pseudos.at(0)
                 ->pseudo_element_rules.at(0)
                 ->matched_rules->at(0)
-                .first->cssText());
+                .rule->cssText());
   EXPECT_EQ("#middle::highlight(bar) { color: orange; }",
             parent_pseudos.at(0)
                 ->pseudo_element_rules.at(0)
                 ->matched_rules->at(1)
-                .first->cssText());
+                .rule->cssText());
 
   // <div>
   EXPECT_EQ(0u, parent_pseudos.at(1)->pseudo_element_rules.size());
@@ -170,7 +173,7 @@ TEST_F(InspectorStyleResolverTest, HighlightPseudoInheritance) {
             parent_pseudos.at(2)
                 ->pseudo_element_rules.at(0)
                 ->matched_rules->at(0)
-                .first->cssText());
+                .rule->cssText());
 
   // <body>
   EXPECT_EQ(body, parent_pseudos.at(3)->element);

@@ -7,20 +7,27 @@
 
 #include <jni.h>
 
+#include <optional>
+#include <string>
+
 #include "base/android/jni_android.h"
+#include "base/android/scoped_java_ref.h"
+#include "ui/android/ui_android_export.h"
 #include "ui/display/screen_base.h"
+#include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace ui {
 
+class DisplayAndroidManagerTest;
 class WindowAndroid;
 
-class DisplayAndroidManager : public display::ScreenBase {
+class UI_ANDROID_EXPORT DisplayAndroidManager : public display::ScreenBase {
  public:
   DisplayAndroidManager(const DisplayAndroidManager&) = delete;
   DisplayAndroidManager& operator=(const DisplayAndroidManager&) = delete;
 
-  ~DisplayAndroidManager() override;
+  ~DisplayAndroidManager() override = default;
 
   // Screen interface.
 
@@ -31,40 +38,52 @@ class DisplayAndroidManager : public display::ScreenBase {
       const gfx::Point& point) const override;
   display::Display GetDisplayMatching(
       const gfx::Rect& match_rect) const override;
+  std::optional<float> GetPreferredScaleFactorForView(
+      gfx::NativeView view) const override;
 
   // Methods called from Java.
 
   void UpdateDisplay(JNIEnv* env,
-                     const base::android::JavaParamRef<jobject>& jobject,
+                     const base::android::JavaParamRef<jobject>& jObject,
                      jint sdkDisplayId,
-                     jint width,
-                     jint height,
+                     const base::android::JavaRef<jstring>& label,
+                     const base::android::JavaRef<jintArray>& jBounds,
+                     const base::android::JavaRef<jintArray>& jInsets,
                      jfloat dipScale,
                      jint rotationDegrees,
                      jint bitsPerPixel,
                      jint bitsPerComponent,
                      jboolean isWideColorGamut,
-                     jfloat hdrMaxLuminanceRatio);
+                     jboolean isHdr,
+                     jfloat hdrMaxLuminanceRatio,
+                     jboolean isInternal);
   void RemoveDisplay(JNIEnv* env,
-                     const base::android::JavaParamRef<jobject>& jobject,
+                     const base::android::JavaParamRef<jobject>& jObject,
                      jint sdkDisplayId);
   void SetPrimaryDisplayId(JNIEnv* env,
-                           const base::android::JavaParamRef<jobject>& jobject,
+                           const base::android::JavaParamRef<jobject>& jObject,
                            jint sdkDisplayId);
 
  private:
   friend class WindowAndroid;
+  friend class DisplayAndroidManagerTest;
+
   friend void SetScreenAndroid(bool use_display_wide_color_gamut);
+
   explicit DisplayAndroidManager(bool use_display_wide_color_gamut);
 
   static void DoUpdateDisplay(display::Display* display,
-                              gfx::Size size_in_pixels,
-                              float dipScale,
-                              int rotationDegrees,
-                              int bitsPerPixel,
-                              int bitsPerComponent,
-                              jfloat hdrMaxLuminanceRatio,
-                              bool isWideColorGamut);
+                              const std::string& label,
+                              const gfx::Rect& bounds,
+                              const gfx::Rect& work_area,
+                              const gfx::Size& size_in_pixels,
+                              float dip_scale,
+                              int rotation_degrees,
+                              int bits_per_pixel,
+                              int bits_per_component,
+                              bool is_wide_color_gamut,
+                              bool is_hdr,
+                              jfloat hdr_max_luminance_ratio);
 
   const bool use_display_wide_color_gamut_;
   int primary_display_id_ = 0;

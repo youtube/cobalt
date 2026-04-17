@@ -4,6 +4,8 @@
 
 #include "ui/events/devices/input_device_observer_win.h"
 
+#include <windows.h>
+
 #include <string>
 #include <utility>
 
@@ -11,15 +13,12 @@
 #include "base/functional/callback.h"
 #include "base/memory/singleton.h"
 
-#include <windows.h>
-
 // This macro provides the implementation for the observer notification methods.
-#define WIN_NOTIFY_OBSERVERS(method_decl, input_device_types) \
-  void InputDeviceObserverWin::method_decl {                  \
-    for (InputDeviceEventObserver & observer : observers_) {  \
-      observer.OnInputDeviceConfigurationChanged(             \
-          InputDeviceEventObserver::input_device_types);      \
-    }                                                         \
+#define WIN_NOTIFY_OBSERVERS(method_decl, input_device_types)         \
+  void InputDeviceObserverWin::method_decl {                          \
+    observers_.Notify(                                                \
+        &InputDeviceEventObserver::OnInputDeviceConfigurationChanged, \
+        InputDeviceEventObserver::input_device_types);                \
   }
 
 namespace ui {

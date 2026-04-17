@@ -120,11 +120,10 @@ if (parent == window) {
   });
 }
 
-function checkLastError() {
-  if (!chrome.runtime.lastError)
-    return;
-  if (chrome.runtime.lastError.message == kCouldNotEstablishConnection)
+function throwResultError(errorMessage) {
+  if (errorMessage == kCouldNotEstablishConnection) {
     throw new ResultError(results.COULD_NOT_ESTABLISH_CONNECTION_ERROR);
+  }
   throw new ResultError(results.OTHER_ERROR);
 }
 
@@ -168,10 +167,6 @@ function checkResponse(response, expectedMessage, isApp) {
   throw new ResultError(results.INCORRECT_RESPONSE_MESSAGE);
 }
 
-function sendToBrowser(msg) {
-  domAutomationController.send(msg);
-}
-
 function sendToBrowserForTlsChannelId(result) {
   // Because the TLS channel ID tests read the TLS either an error code or the
   // TLS channel ID string from the same value, they require the result code
@@ -207,13 +202,15 @@ window.actions = {
     var iframe = document.createElement('iframe');
     // When iframe has loaded, notify it of our tab location (probably
     // document.location) to use in its assertions, then continue.
-    iframe.addEventListener('load', function listener() {
-      iframe.removeEventListener('load', listener);
-      iframe.contentWindow.postMessage(tabLocationHref, '*');
-      sendToBrowser(true);
+    return new Promise(resolve => {
+      iframe.addEventListener('load', function listener() {
+        iframe.removeEventListener('load', listener);
+        iframe.contentWindow.postMessage(tabLocationHref, '*');
+        resolve(true);
+      });
+      iframe.src = src;
+      document.body.appendChild(iframe);
     });
-    iframe.src = src;
-    document.body.appendChild(iframe);
   }
 };
 
@@ -222,47 +219,35 @@ window.assertions = {
     try {
       checkRuntime();
 
-      if (!message)
+      if (!message) {
         message = kMessage;
+      }
 
       async function canSendMessage() {
-        const response = await new Promise((resolve) => {
-          chrome.runtime.sendMessage(extensionId, message, function(response) {
-            resolve(response);
-          });
-        });
-        checkLastError();
+        const response = await new Promise((resolve, reject) => {
+          chrome.runtime.sendMessage(
+              extensionId, message, function(response) {
+                if (chrome.runtime.lastError) {
+                  reject(chrome.runtime.lastError.message);
+                }
+                resolve(response);
+              });
+        }).catch(throwResultError);
         checkResponse(response, message, isApp);
       }
 
       async function canConnectAndSendMessages() {
         var port = chrome.runtime.connect(extensionId);
-        return new Promise((resolve, reject) => {
-          port.postMessage(message, function() {
-            try {
-              checkLastError();
-            } catch(err) {
-              reject(err);
-            }
-          });
-          port.postMessage(message, function() {
-            try {
-              checkLastError();
-            } catch(err) {
-              reject(err);
-            }
-          });
+        return new Promise((resolve) => {
+          port.postMessage(message);
+          port.postMessage(message);
           var pendingResponses = 2;
-          port.onMessage.addListener(async function(response) {
+          port.onMessage.addListener(function(response) {
             pendingResponses--;
-            try {
-              checkLastError();
-              checkResponse(response, message, isApp);
-            } catch (err) {
-              return reject(err);
-            }
-            if (pendingResponses == 0)
+            checkResponse(response, message, isApp);
+            if (pendingResponses == 0) {
               return resolve(results.OK);
+            }
           });
         });
       }
@@ -274,6 +259,19 @@ window.assertions = {
         return err.result;
       }
       throw err;
+    }
+  },
+
+  canUseSendMessagePromise: async function(extensionId, isApp) {
+    try {
+      const response = await chrome.runtime.sendMessage(extensionId, kMessage);
+      checkResponse(response, kMessage, isApp);
+      return results.OK;
+    } catch (error) {
+      if (error instanceof ResultError) {
+        return error.result;
+      }
+      throw error;
     }
   },
 
@@ -289,15 +287,13 @@ window.assertions = {
     function runIllegalFunction(fun) {
       try {
         fun();
-      } catch(e) {
+      } catch (e) {
         return true;
       }
       console.error('Function did not throw exception: ' + fun);
-      sendToBrowser(false);
       return false;
     }
-    var result =
-        runIllegalFunction(chrome.runtime.connect) &&
+    return runIllegalFunction(chrome.runtime.connect) &&
         runIllegalFunction(function() {
           chrome.runtime.connect('');
         }) &&
@@ -319,8 +315,7 @@ window.assertions = {
         }) &&
         runIllegalFunction(function() {
           chrome.runtime.sendMessage('', 42);
-        }) &&
-        sendToBrowser(true);
+        });
   },
 
   areAnyRuntimePropertiesDefined: function(names) {
@@ -333,7 +328,7 @@ window.assertions = {
         }
       });
     }
-    sendToBrowser(result);
+    return result;
   },
 
   getTlsChannelIdFromPortConnect: function(extensionId, includeTlsChannelId,

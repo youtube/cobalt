@@ -6,17 +6,21 @@ package org.chromium.chrome.browser.background_sync;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+
 import org.chromium.base.Log;
-import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.components.externalauth.ExternalAuthUtils;
 
 /**
  * Used to check whether Google Play Services version on the device is as
  * expected for BackgroundSync. This check is made at browser startup.
  */
+@NullMarked
 final class GooglePlayServicesChecker {
     private static final String TAG = "PlayServicesChecker";
+
     private GooglePlayServicesChecker() {}
 
     /**

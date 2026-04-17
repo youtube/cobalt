@@ -11,11 +11,8 @@ import org.mockito.ArgumentMatcher;
 
 import java.util.Iterator;
 
-/**
- * Utilities for comparing JSON objects and strings.
- */
+/** Utilities for comparing JSON objects and strings. */
 public class JSONTestUtils {
-    private static final String TAG = "MediaRouter";
     private static final String ANY_PREFIX = "ANY_";
 
     private static boolean isPureJSONObjectEqual(JSONObject expected, JSONObject actual) {
@@ -96,7 +93,7 @@ public class JSONTestUtils {
 
     /** Matcher to determine whether a JSON string is equal to the expected one. */
     public static class JSONStringLike implements ArgumentMatcher<String> {
-        private JSONObject mExpected;
+        private final JSONObject mExpected;
 
         public JSONStringLike(JSONObject expected) {
             mExpected = expected;

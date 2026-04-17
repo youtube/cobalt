@@ -29,8 +29,10 @@
 
 extern "C++" {
 
+#include <optional>
 #include <sstream>
 #include <string>
+#include <string_view>
 
 // Force SB_LOGGING_IS_OFFICIAL_BUILD to 0 for all build configurations.
 //
@@ -70,6 +72,15 @@ std::ostream& operator<<(std::ostream& out, const Stack& stack);
 std::ostream& operator<<(std::ostream& out, const wchar_t* wstr);
 std::ostream& operator<<(std::ostream& out, const std::wstring& wstr);
 
+// Helper function to print a std::optional of data.
+template <typename T>
+std::ostream& operator<<(std::ostream& out, const std::optional<T>& v) {
+  if (v) {
+    return out << *v;
+  }
+  return out << "(nullopt)";
+}
+
 const SbLogPriority SB_LOG_INFO = kSbLogPriorityInfo;
 const SbLogPriority SB_LOG_WARNING = kSbLogPriorityWarning;
 const SbLogPriority SB_LOG_ERROR = kSbLogPriorityError;
@@ -102,17 +113,6 @@ class LogMessageVoidify {
   // higher than ?:
   void operator&(std::ostream&);
 };
-
-// Aliases not to break CI tests.
-// See https://paste.googleplex.com/4527409416241152
-// TODO: b/441955897 - Update CI test to use flattened namespace
-namespace logging {
-using ::starboard::SB_LOG_0;
-using ::starboard::SB_LOG_ERROR;
-using ::starboard::SB_LOG_FATAL;
-using ::starboard::SB_LOG_INFO;
-using ::starboard::SB_LOG_WARNING;
-}  // namespace logging
 
 }  // namespace starboard
 

@@ -11,7 +11,9 @@
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/json/json_writer.h"
 #include "base/run_loop.h"
+#include "base/strings/string_util.h"
 #include "base/system/sys_info.h"
 #include "base/test/values_test_util.h"
 #include "base/threading/thread.h"
@@ -24,6 +26,8 @@
 #include "chrome/test/chromedriver/logging.h"
 #include "chrome/test/chromedriver/session.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+using testing::ContainsRegex;
 
 TEST(SessionCommandsTest, ExecuteGetTimeouts) {
   Session session("id");
@@ -340,7 +344,7 @@ namespace {
 class DetachChrome : public StubChrome {
  public:
   DetachChrome() : quit_called_(false) {}
-  ~DetachChrome() override {}
+  ~DetachChrome() override = default;
 
   // Overridden from Chrome:
   Status Quit() override {
@@ -394,6 +398,22 @@ TEST(SessionCommandsTest, MatchCapabilitiesVirtualAuthenticatorsLargeBlob) {
   // Don't match values other than bools.
   merged.clear();
   merged.Set("webauthn:extension:largeBlob", "not a bool");
+  EXPECT_FALSE(MatchCapabilities(merged));
+}
+
+TEST(SessionCommandsTest, MatchCapabilitiesFedCm) {
+  // Match fedcm:accounts.
+  base::Value::Dict merged;
+  merged.SetByDottedPath("fedcm:accounts", true);
+  EXPECT_TRUE(MatchCapabilities(merged));
+
+  // Don't match false.
+  merged.SetByDottedPath("fedcm:accounts", false);
+  EXPECT_FALSE(MatchCapabilities(merged));
+
+  // Don't match values other than bools.
+  merged.clear();
+  merged.Set("fedcm:accounts", "not a bool");
   EXPECT_FALSE(MatchCapabilities(merged));
 }
 
@@ -476,21 +496,18 @@ TEST(SessionCommandsTest, ConfigureHeadlessSession_dotNotation) {
   base::Value::List args;
   args.Append("headless");
   caps.SetByDottedPath("goog:chromeOptions.args", base::Value(std::move(args)));
-
-  base::Value::Dict prefs;
-  prefs.SetByDottedPath("download.default_directory",
-                        base::Value("/examples/python/downloads"));
-  caps.SetByDottedPath("goog:chromeOptions.prefs", prefs.Clone());
+  caps.SetByDottedPath("goog:chromeOptions.prefs.download.default_directory",
+                       "/examples/python/downloads");
 
   Status status = capabilities.Parse(caps);
   BrowserInfo binfo;
-  binfo.is_headless = true;
+  binfo.is_headless_shell = true;
   MockChrome* chrome = new MockChrome(binfo);
   Session session("id", std::unique_ptr<Chrome>(chrome));
 
   status = internal::ConfigureHeadlessSession(&session, capabilities);
   ASSERT_EQ(kOk, status.code()) << status.message();
-  ASSERT_TRUE(session.chrome->GetBrowserInfo()->is_headless);
+  ASSERT_TRUE(session.chrome->GetBrowserInfo()->is_headless_shell);
   ASSERT_STREQ("/examples/python/downloads",
                session.headless_download_directory->c_str());
 }
@@ -501,21 +518,18 @@ TEST(SessionCommandsTest, ConfigureHeadlessSession_nestedMap) {
   base::Value::List args;
   args.Append("headless");
   caps.SetByDottedPath("goog:chromeOptions.args", base::Value(std::move(args)));
-
-  base::Value* prefs =
-      caps.SetByDottedPath("goog:chromeOptions.prefs", base::Value::Dict());
-  base::Value::Dict* download = prefs->GetDict().EnsureDict("download");
-  download->Set("default_directory", "/examples/python/downloads");
+  caps.SetByDottedPath("goog:chromeOptions.prefs.download.default_directory",
+                       "/examples/python/downloads");
 
   Status status = capabilities.Parse(caps);
   BrowserInfo binfo;
-  binfo.is_headless = true;
+  binfo.is_headless_shell = true;
   MockChrome* chrome = new MockChrome(binfo);
   Session session("id", std::unique_ptr<Chrome>(chrome));
 
   status = internal::ConfigureHeadlessSession(&session, capabilities);
   ASSERT_EQ(kOk, status.code()) << status.message();
-  ASSERT_TRUE(session.chrome->GetBrowserInfo()->is_headless);
+  ASSERT_TRUE(session.chrome->GetBrowserInfo()->is_headless_shell);
   ASSERT_STREQ("/examples/python/downloads",
                session.headless_download_directory->c_str());
 }
@@ -529,23 +543,21 @@ TEST(SessionCommandsTest, ConfigureHeadlessSession_noDownloadDir) {
 
   Status status = capabilities.Parse(caps);
   BrowserInfo binfo;
-  binfo.is_headless = true;
+  binfo.is_headless_shell = true;
   MockChrome* chrome = new MockChrome(binfo);
   Session session("id", std::unique_ptr<Chrome>(chrome));
 
   status = internal::ConfigureHeadlessSession(&session, capabilities);
   ASSERT_EQ(kOk, status.code()) << status.message();
-  ASSERT_TRUE(session.chrome->GetBrowserInfo()->is_headless);
+  ASSERT_TRUE(session.chrome->GetBrowserInfo()->is_headless_shell);
   ASSERT_STREQ(".", session.headless_download_directory->c_str());
 }
 
 TEST(SessionCommandsTest, ConfigureHeadlessSession_notHeadless) {
   Capabilities capabilities;
   base::Value::Dict caps;
-  base::Value* prefs =
-      caps.SetByDottedPath("goog:chromeOptions.prefs", base::Value::Dict());
-  base::Value::Dict* download = prefs->GetDict().EnsureDict("download");
-  download->Set("default_directory", "/examples/python/downloads");
+  caps.SetByDottedPath("goog:chromeOptions.prefs.download.default_directory",
+                       "/examples/python/downloads");
 
   Status status = capabilities.Parse(caps);
   BrowserInfo binfo;
@@ -554,7 +566,7 @@ TEST(SessionCommandsTest, ConfigureHeadlessSession_notHeadless) {
 
   status = internal::ConfigureHeadlessSession(&session, capabilities);
   ASSERT_EQ(kOk, status.code()) << status.message();
-  ASSERT_FALSE(session.chrome->GetBrowserInfo()->is_headless);
+  ASSERT_FALSE(session.chrome->GetBrowserInfo()->is_headless_shell);
   ASSERT_FALSE(session.headless_download_directory);
 }
 
@@ -597,7 +609,8 @@ TEST(SessionCommandsTest, ConfigureSession_allSet) {
   ASSERT_NE(desired_caps_out, nullptr);
   ASSERT_TRUE(capabilities_out.logging_prefs["driver"]);
   // Verify session settings are correct
-  ASSERT_EQ(kAccept, session.unhandled_prompt_behavior);
+  ASSERT_EQ(::prompt_behavior::kAccept,
+            session.unhandled_prompt_behavior.CapabilityView().GetString());
   ASSERT_EQ(base::Seconds(57), session.implicit_wait);
   ASSERT_EQ(base::Seconds(29), session.page_load_timeout);
   ASSERT_EQ(base::Seconds(21), session.script_timeout);
@@ -632,7 +645,8 @@ TEST(SessionCommandsTest, ConfigureSession_defaults) {
   ASSERT_FALSE(session.strict_file_interactability);
   ASSERT_EQ(Log::Level::kWarning, session.driver_log.get()->min_level());
   // w3c values:
-  ASSERT_EQ(kDismissAndNotify, session.unhandled_prompt_behavior);
+  ASSERT_EQ(::prompt_behavior::kDismissAndNotify,
+            session.unhandled_prompt_behavior.CapabilityView().GetString());
 }
 
 TEST(SessionCommandsTest, ConfigureSession_legacyDefault) {
@@ -658,5 +672,75 @@ TEST(SessionCommandsTest, ConfigureSession_legacyDefault) {
   ASSERT_EQ(kOk, status.code()) << status.message();
   ASSERT_NE(desired_caps_out, nullptr);
   // legacy values:
-  ASSERT_EQ(kIgnore, session.unhandled_prompt_behavior);
+  ASSERT_EQ(::prompt_behavior::kIgnore,
+            session.unhandled_prompt_behavior.CapabilityView().GetString());
+}
+
+TEST(SessionCommandsTest, ConfigureSession_unhandledPromptBehaviorDict) {
+  BrowserInfo binfo;
+  MockChrome* chrome = new MockChrome(binfo);
+  Session session("id", std::unique_ptr<Chrome>(chrome));
+
+  base::Value::Dict params_in = base::test::ParseJsonDict(
+      R"({
+        "capabilities": {
+          "alwaysMatch": {
+            "unhandledPromptBehavior": {
+              "alert": "accept",
+              "confirm": "dismiss",
+              "prompt": "ignore",
+              "beforeUnload": "accept"
+            }
+          },
+        }
+      })");
+  const base::Value::Dict* desired_caps_out = nullptr;
+  base::Value::Dict merged_out;
+  Capabilities capabilities_out;
+
+  Status status = internal::ConfigureSession(
+      &session, params_in, desired_caps_out, merged_out, &capabilities_out);
+  ASSERT_EQ(kOk, status.code()) << status.message();
+  ASSERT_NE(desired_caps_out, nullptr);
+  // Testing specific values could be fragile, but want to verify they are set
+
+  std::string json;
+  base::JSONWriter::Write(session.unhandled_prompt_behavior.CapabilityView(),
+                          &json);
+  ASSERT_EQ(
+      "{\"alert\":\"accept\",\"beforeUnload\":\"accept\",\"confirm\":"
+      "\"dismiss\",\"prompt\":\"ignore\"}",
+      json);
+}
+
+TEST(SessionCommandsTest, ForwardBidiCommand_noBidiCommand) {
+  BrowserInfo binfo;
+  MockChrome* chrome = new MockChrome(binfo);
+  Session session("id", std::unique_ptr<Chrome>(chrome));
+
+  base::Value::Dict command = base::test::ParseJsonDict(
+      R"({
+        "connectionId": 1,
+      })");
+
+  Status status = ForwardBidiCommand(&session, command, nullptr);
+  ASSERT_EQ(kUnknownError, status.code()) << status.message();
+  EXPECT_THAT(status.message(),
+              ContainsRegex("bidiCommand is missing in params"));
+}
+
+TEST(SessionCommandsTest, ForwardBidiCommand_noConnectionId) {
+  BrowserInfo binfo;
+  MockChrome* chrome = new MockChrome(binfo);
+  Session session("id", std::unique_ptr<Chrome>(chrome));
+
+  base::Value::Dict command = base::test::ParseJsonDict(
+      R"({
+        "bidiCommand": {}
+      })");
+
+  Status status = ForwardBidiCommand(&session, command, nullptr);
+  ASSERT_EQ(kUnknownCommand, status.code()) << status.message();
+  EXPECT_THAT(status.message(),
+              ContainsRegex("connectionId is missing in params"));
 }

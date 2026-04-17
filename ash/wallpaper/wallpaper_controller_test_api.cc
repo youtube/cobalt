@@ -42,11 +42,10 @@ WallpaperControllerTestApi::~WallpaperControllerTestApi() = default;
 void WallpaperControllerTestApi::StartWallpaperPreview() {
   // Preview mode is considered active when the two callbacks have non-empty
   // values. Their specific values don't matter for testing purpose.
-  controller_->confirm_preview_wallpaper_callback_ =
-      base::BindOnce(&WallpaperControllerImpl::SetWallpaperFromInfo,
-                     controller_->weak_factory_.GetWeakPtr(),
-                     AccountId::FromUserEmail("user@test.com"),
-                     kTestWallpaperInfo, /*show_wallpaper=*/true);
+  controller_->confirm_preview_wallpaper_callback_ = base::BindOnce(
+      &WallpaperControllerImpl::SetWallpaperFromInfo,
+      controller_->weak_factory_.GetWeakPtr(),
+      AccountId::FromUserEmail("user@test.com"), kTestWallpaperInfo);
   controller_->reload_preview_wallpaper_callback_ = base::BindRepeating(
       &WallpaperControllerImpl::ShowWallpaperImage,
       controller_->weak_factory_.GetWeakPtr(),
@@ -81,11 +80,19 @@ void WallpaperControllerTestApi::ResetCalculatedColors() {
 
 void WallpaperControllerTestApi::SetDefaultWallpaper(
     const AccountId& account_id) {
-  base::Time::Exploded exploded{
+  static constexpr base::Time::Exploded kTime = {
       .year = 2023, .month = 2, .day_of_month = 13, .hour = 4};
   base::Time time;
-  CHECK(base::Time::FromUTCExploded(exploded, &time));
+  CHECK(base::Time::FromUTCExploded(kTime, &time));
   controller_->SetDefaultWallpaperInfo(account_id, time);
+}
+
+void WallpaperControllerTestApi::ShowWallpaperImage(
+    const WallpaperInfo& wallpaper_info,
+    bool preview_mode,
+    bool is_override) {
+  controller_->ShowWallpaperImage(CreateImageWithColor(SK_ColorBLUE),
+                                  wallpaper_info, preview_mode, is_override);
 }
 
 }  // namespace ash

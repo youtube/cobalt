@@ -8,6 +8,7 @@
 
 #include "services/network/public/mojom/attribution.mojom-blink.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
+#include "third_party/blink/renderer/platform/loader/fetch/fetch_initiator_type_names.h"
 #include "third_party/blink/renderer/platform/network/http_names.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
@@ -28,8 +29,7 @@ ScriptFetchOptions::ScriptFetchOptions(
     network::mojom::CredentialsMode credentials_mode,
     network::mojom::ReferrerPolicy referrer_policy,
     mojom::blink::FetchPriorityHint fetch_priority_hint,
-    RenderBlockingBehavior render_blocking_behavior,
-    RejectCoepUnsafeNone reject_coep_unsafe_none)
+    RenderBlockingBehavior render_blocking_behavior)
     : nonce_(nonce),
       integrity_metadata_(integrity_metadata),
       integrity_attribute_(integrity_attribute),
@@ -37,8 +37,7 @@ ScriptFetchOptions::ScriptFetchOptions(
       credentials_mode_(credentials_mode),
       referrer_policy_(referrer_policy),
       fetch_priority_hint_(fetch_priority_hint),
-      render_blocking_behavior_(render_blocking_behavior),
-      reject_coep_unsafe_none_(reject_coep_unsafe_none) {}
+      render_blocking_behavior_(render_blocking_behavior) {}
 
 ScriptFetchOptions::~ScriptFetchOptions() = default;
 
@@ -46,18 +45,19 @@ ScriptFetchOptions::~ScriptFetchOptions() = default;
 FetchParameters ScriptFetchOptions::CreateFetchParameters(
     const KURL& url,
     const SecurityOrigin* security_origin,
-    scoped_refptr<const DOMWrapperWorld> world_for_csp,
+    const DOMWrapperWorld* world_for_csp,
     CrossOriginAttributeValue cross_origin,
     const WTF::TextEncoding& encoding,
-    FetchParameters::DeferOption defer) const {
+    FetchParameters::DeferOption defer,
+    const FeatureContext* feature_context) const {
   // Step 1. Let request be the result of creating a potential-CORS request
   // given url, ... [spec text]
   ResourceRequest resource_request(url);
 
   // Step 1. ... "script", ... [spec text]
-  ResourceLoaderOptions resource_loader_options(std::move(world_for_csp));
-  resource_loader_options.initiator_info.name = "script";
-  resource_loader_options.reject_coep_unsafe_none = reject_coep_unsafe_none_;
+  ResourceLoaderOptions resource_loader_options(world_for_csp);
+  resource_loader_options.initiator_info.name =
+      fetch_initiator_type_names::kScript;
   FetchParameters params(std::move(resource_request), resource_loader_options);
   params.SetRequestContext(mojom::blink::RequestContextType::SCRIPT);
   params.SetRequestDestination(network::mojom::RequestDestination::kScript);
@@ -81,7 +81,7 @@ FetchParameters ScriptFetchOptions::CreateFetchParameters(
   // its integrity metadata to options's integrity metadata, [spec text]
   params.SetIntegrityMetadata(GetIntegrityMetadata());
   params.MutableResourceRequest().SetFetchIntegrity(
-      GetIntegrityAttributeValue());
+      GetIntegrityAttributeValue(), feature_context);
 
   // its parser metadata to options's parser metadata, [spec text]
   params.SetParserDisposition(ParserState());

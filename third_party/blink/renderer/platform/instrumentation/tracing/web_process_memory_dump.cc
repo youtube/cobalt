@@ -10,7 +10,6 @@
 #include "base/memory/discardable_memory.h"
 #include "base/memory/ptr_util.h"
 #include "base/trace_event/process_memory_dump.h"
-#include "base/trace_event/trace_event_memory_overhead.h"
 #include "base/trace_event/traced_value.h"
 #include "skia/ext/skia_trace_memory_dump_impl.h"
 #include "third_party/blink/renderer/platform/instrumentation/tracing/web_memory_allocator_dump.h"
@@ -20,9 +19,9 @@ namespace blink {
 
 WebProcessMemoryDump::WebProcessMemoryDump()
     : owned_process_memory_dump_(new base::trace_event::ProcessMemoryDump(
-          {base::trace_event::MemoryDumpLevelOfDetail::DETAILED})),
+          {base::trace_event::MemoryDumpLevelOfDetail::kDetailed})),
       process_memory_dump_(owned_process_memory_dump_.get()),
-      level_of_detail_(base::trace_event::MemoryDumpLevelOfDetail::DETAILED) {}
+      level_of_detail_(base::trace_event::MemoryDumpLevelOfDetail::kDetailed) {}
 
 WebProcessMemoryDump::WebProcessMemoryDump(
     base::trace_event::MemoryDumpLevelOfDetail level_of_detail,
@@ -161,16 +160,6 @@ WebProcessMemoryDump::CreateDiscardableMemoryAllocatorDump(
       discardable->CreateMemoryAllocatorDump(name.c_str(),
                                              process_memory_dump_);
   return CreateWebMemoryAllocatorDump(dump);
-}
-
-void WebProcessMemoryDump::DumpHeapUsage(
-    const std::unordered_map<base::trace_event::AllocationContext,
-                             base::trace_event::AllocationMetrics>&
-        metrics_by_context,
-    base::trace_event::TraceEventMemoryOverhead& overhead,
-    const char* allocator_name) {
-  process_memory_dump_->DumpHeapUsage(metrics_by_context, overhead,
-                                      allocator_name);
 }
 
 }  // namespace content

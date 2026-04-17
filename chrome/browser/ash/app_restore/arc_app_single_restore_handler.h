@@ -5,9 +5,11 @@
 #ifndef CHROME_BROWSER_ASH_APP_RESTORE_ARC_APP_SINGLE_RESTORE_HANDLER_H_
 #define CHROME_BROWSER_ASH_APP_RESTORE_ARC_APP_SINGLE_RESTORE_HANDLER_H_
 
+#include <optional>
 #include <string>
 
 #include "base/functional/callback_forward.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
@@ -16,7 +18,6 @@
 #include "chrome/browser/ash/arc/window_predictor/window_predictor_utils.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/services/app_service/public/cpp/intent.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash::app_restore {
 
@@ -64,11 +65,10 @@ class ArcAppSingleRestoreHandler
   void SendAppLaunchRequestToARC();
 
   // For test usage.
-  raw_ptr<full_restore::ArcGhostWindowHandler, ExperimentalAsh>
-      ghost_window_handler_ = nullptr;
+  raw_ptr<full_restore::ArcGhostWindowHandler> ghost_window_handler_ = nullptr;
 
-  raw_ptr<Profile, ExperimentalAsh> profile_;
-  absl::optional<std::string> app_id_;
+  raw_ptr<Profile> profile_;
+  std::optional<std::string> app_id_;
   bool is_cancelled_ = false;
 
   apps::IntentPtr intent_;
@@ -88,4 +88,4 @@ class ArcAppSingleRestoreHandler
 
 }  // namespace ash::app_restore
 
-#endif
+#endif  // CHROME_BROWSER_ASH_APP_RESTORE_ARC_APP_SINGLE_RESTORE_HANDLER_H_

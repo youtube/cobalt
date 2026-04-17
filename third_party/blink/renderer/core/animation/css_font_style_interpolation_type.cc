@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "base/memory/ptr_util.h"
-#include "third_party/blink/renderer/core/css/css_primitive_value_mappings.h"
+#include "third_party/blink/renderer/core/css/css_identifier_value.h"
 #include "third_party/blink/renderer/core/css/resolver/style_builder_converter.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
@@ -31,19 +31,20 @@ class InheritedFontStyleChecker
 
 InterpolationValue CSSFontStyleInterpolationType::CreateFontStyleValue(
     FontSelectionValue font_style) const {
-  return InterpolationValue(std::make_unique<InterpolableNumber>(font_style));
+  return InterpolationValue(
+      MakeGarbageCollected<InterpolableNumber>(font_style));
 }
 
 InterpolationValue CSSFontStyleInterpolationType::MaybeConvertNeutral(
     const InterpolationValue&,
     ConversionCheckers&) const {
-  return InterpolationValue(std::make_unique<InterpolableNumber>(0));
+  return InterpolationValue(MakeGarbageCollected<InterpolableNumber>(0));
 }
 
 InterpolationValue CSSFontStyleInterpolationType::MaybeConvertInitial(
     const StyleResolverState&,
     ConversionCheckers& conversion_checkers) const {
-  return CreateFontStyleValue(NormalSlopeValue());
+  return CreateFontStyleValue(kNormalSlopeValue);
 }
 
 InterpolationValue CSSFontStyleInterpolationType::MaybeConvertInherit(
@@ -52,21 +53,22 @@ InterpolationValue CSSFontStyleInterpolationType::MaybeConvertInherit(
   DCHECK(state.ParentStyle());
   FontSelectionValue inherited_font_style = state.ParentStyle()->GetFontStyle();
   conversion_checkers.push_back(
-      std::make_unique<InheritedFontStyleChecker>(inherited_font_style));
+      MakeGarbageCollected<InheritedFontStyleChecker>(inherited_font_style));
   return CreateFontStyleValue(inherited_font_style);
 }
 
 InterpolationValue CSSFontStyleInterpolationType::MaybeConvertValue(
     const CSSValue& value,
-    const StyleResolverState* state,
+    const StyleResolverState& state,
     ConversionCheckers& conversion_checkers) const {
-  auto* identifier_value = DynamicTo<CSSIdentifierValue>(value);
+  const auto* identifier_value = DynamicTo<CSSIdentifierValue>(value);
   if (identifier_value &&
       identifier_value->GetValueID() == CSSValueID::kItalic) {
     return nullptr;
   }
-  return CreateFontStyleValue(
-      StyleBuilderConverterBase::ConvertFontStyle(value));
+  // TODO(40946458): Don't resolve angle here, use unresolved version instead.
+  return CreateFontStyleValue(StyleBuilderConverterBase::ConvertFontStyle(
+      state.CssToLengthConversionData(), value));
 }
 
 InterpolationValue
@@ -79,9 +81,10 @@ void CSSFontStyleInterpolationType::ApplyStandardPropertyValue(
     const InterpolableValue& interpolable_value,
     const NonInterpolableValue*,
     StyleResolverState& state) const {
-  state.GetFontBuilder().SetStyle(FontSelectionValue(
-      ClampTo(To<InterpolableNumber>(interpolable_value).Value(),
-              MinObliqueValue(), MaxObliqueValue())));
+  state.GetFontBuilder().SetStyle(
+      FontSelectionValue(ClampTo(To<InterpolableNumber>(interpolable_value)
+                                     .Value(state.CssToLengthConversionData()),
+                                 kMinObliqueValue, kMaxObliqueValue)));
 }
 
 }  // namespace blink

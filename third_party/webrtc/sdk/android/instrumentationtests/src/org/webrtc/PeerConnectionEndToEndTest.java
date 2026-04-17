@@ -169,7 +169,12 @@ public class PeerConnectionEndToEndTest {
     // TODO(bugs.webrtc.org/8491): Remove NoSynchronizedMethodCheck suppression.
     @SuppressWarnings("NoSynchronizedMethodCheck")
     public synchronized void onSignalingChange(SignalingState newState) {
-      assertEquals(expectedSignalingChanges.remove(), newState);
+      if (expectedSignalingChanges.isEmpty()) {
+        Logging.d(TAG, name + "Got an unexpected signaling state change " + newState);
+        return;
+      }
+
+      assertEquals(newState, expectedSignalingChanges.remove());
     }
 
     // TODO(bugs.webrtc.org/8491): Remove NoSynchronizedMethodCheck suppression.
@@ -199,7 +204,7 @@ public class PeerConnectionEndToEndTest {
         return;
       }
 
-      assertEquals(expectedIceConnectionChanges.remove(), newState);
+      assertEquals(newState, expectedIceConnectionChanges.remove());
     }
 
     @Override
@@ -215,7 +220,7 @@ public class PeerConnectionEndToEndTest {
         return;
       }
 
-      assertEquals(expectedStandardizedIceConnectionChanges.remove(), newState);
+      assertEquals(newState, expectedStandardizedIceConnectionChanges.remove());
     }
 
     // TODO(bugs.webrtc.org/8491): Remove NoSynchronizedMethodCheck suppression.
@@ -233,7 +238,7 @@ public class PeerConnectionEndToEndTest {
         return;
       }
 
-      assertEquals(expectedConnectionChanges.remove(), newState);
+      assertEquals(newState, expectedConnectionChanges.remove());
     }
 
     @Override
@@ -261,8 +266,9 @@ public class PeerConnectionEndToEndTest {
       }
       if (expectedIceGatheringChanges.isEmpty()) {
         Logging.d(TAG, name + "Got an unexpected ICE gathering change " + newState);
+        return;
       }
-      assertEquals(expectedIceGatheringChanges.remove(), newState);
+      assertEquals(newState, expectedIceGatheringChanges.remove());
     }
 
     // TODO(bugs.webrtc.org/8491): Remove NoSynchronizedMethodCheck suppression.
@@ -518,13 +524,13 @@ public class PeerConnectionEndToEndTest {
       //   stall a wait).  Use callbacks to fire off dependent steps instead of
       //   explicitly waiting, so there can be just a single wait at the end of
       //   the test.
-      long endTime = System.currentTimeMillis() + 1000 * timeoutSeconds;
+      long endTime = System.currentTimeMillis() + 1000L * timeoutSeconds;
       TreeSet<String> prev = null;
       TreeSet<String> stillWaitingForExpectations = unsatisfiedExpectations();
       while (!stillWaitingForExpectations.isEmpty()) {
         if (!stillWaitingForExpectations.equals(prev)) {
           Logging.d(TAG,
-              name + " still waiting at\n    " + (new Throwable()).getStackTrace()[1]
+              name + " still waiting at\n    " + new Throwable().getStackTrace()[1]
                   + "\n    for: " + Arrays.toString(stillWaitingForExpectations.toArray()));
         }
         if (endTime < System.currentTimeMillis()) {
@@ -543,7 +549,7 @@ public class PeerConnectionEndToEndTest {
       }
       if (prev == null) {
         Logging.d(
-            TAG, name + " didn't need to wait at\n    " + (new Throwable()).getStackTrace()[1]);
+            TAG, name + " didn't need to wait at\n    " + new Throwable().getStackTrace()[1]);
       }
       return true;
     }
@@ -582,7 +588,7 @@ public class PeerConnectionEndToEndTest {
     }
   }
 
-  private static class SdpObserverLatch implements SdpObserver {
+  static class SdpObserverLatch implements SdpObserver {
     private boolean success;
     private @Nullable SessionDescription sdp;
     private @Nullable String error;
@@ -810,10 +816,10 @@ public class PeerConnectionEndToEndTest {
     assertEquals(answeringPC.getLocalDescription().type, answerSdp.type);
     assertEquals(answeringPC.getRemoteDescription().type, offerSdp.type);
 
-    assertEquals(offeringPC.getSenders().size(), 2);
-    assertEquals(offeringPC.getReceivers().size(), 2);
-    assertEquals(answeringPC.getSenders().size(), 2);
-    assertEquals(answeringPC.getReceivers().size(), 2);
+    assertEquals(2, offeringPC.getSenders().size());
+    assertEquals(2, offeringPC.getReceivers().size());
+    assertEquals(2, answeringPC.getSenders().size());
+    assertEquals(2, answeringPC.getReceivers().size());
 
     offeringExpectations.expectFirstPacketReceived();
     answeringExpectations.expectFirstPacketReceived();
@@ -1121,6 +1127,99 @@ public class PeerConnectionEndToEndTest {
     answeringPC = null;
     factory.dispose();
     System.gc();
+  }
+
+  @Test
+  @MediumTest
+  public void testSurfaceIceCandidatesBeforeIceGatheringStateComplete() throws Exception {
+    // Allow loopback interfaces too since our Android devices often don't
+    // have those.
+    PeerConnectionFactory.Options options = new PeerConnectionFactory.Options();
+    options.networkIgnoreMask = 0;
+    PeerConnectionFactory factory =
+        PeerConnectionFactory.builder().setOptions(options).createPeerConnectionFactory();
+
+    List<PeerConnection.IceServer> iceServers = new ArrayList<>();
+    iceServers.add(
+        PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer());
+
+    PeerConnection.RTCConfiguration rtcConfig = new PeerConnection.RTCConfiguration(iceServers);
+    rtcConfig.sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN;
+
+    ObserverExpectations offeringExpectations = new ObserverExpectations("PCTest:offerer");
+    PeerConnection offeringPC = factory.createPeerConnection(rtcConfig, offeringExpectations);
+    assertNotNull(offeringPC);
+
+    offeringExpectations.expectRenegotiationNeeded();
+    DataChannel offeringDC = offeringPC.createDataChannel("offeringDC", new DataChannel.Init());
+
+    offeringExpectations.expectIceCandidates(2);
+
+    SdpObserverLatch sdpLatch = new SdpObserverLatch();
+    offeringPC.createOffer(sdpLatch, new MediaConstraints());
+    assertTrue(sdpLatch.await());
+    SessionDescription offerSdp = sdpLatch.getSdp();
+
+    sdpLatch = new SdpObserverLatch();
+    offeringPC.setLocalDescription(sdpLatch, offerSdp);
+
+    assertTrue(offeringExpectations.waitForAllExpectationsToBeSatisfied(DEFAULT_TIMEOUT_SECONDS));
+    assertEquals(IceGatheringState.GATHERING, offeringPC.iceGatheringState());
+
+    ObserverExpectations answeringExpectations = new ObserverExpectations("PCTest:answerer");
+    PeerConnection answeringPC = factory.createPeerConnection(rtcConfig, answeringExpectations);
+    assertNotNull(answeringPC);
+
+    sdpLatch = new SdpObserverLatch();
+    answeringPC.setRemoteDescription(sdpLatch, offerSdp);
+    assertTrue(sdpLatch.await());
+
+    sdpLatch = new SdpObserverLatch();
+    answeringPC.createAnswer(sdpLatch, new MediaConstraints());
+    assertTrue(sdpLatch.await());
+    SessionDescription answerSdp = sdpLatch.getSdp();
+
+    answeringExpectations.expectIceCandidates(2);
+
+    sdpLatch = new SdpObserverLatch();
+    answeringPC.setLocalDescription(sdpLatch, answerSdp);
+    assertTrue(sdpLatch.await());
+
+    assertTrue(answeringExpectations.waitForAllExpectationsToBeSatisfied(DEFAULT_TIMEOUT_SECONDS));
+    assertEquals(IceGatheringState.GATHERING, answeringPC.iceGatheringState());
+
+    sdpLatch = new SdpObserverLatch();
+    offeringPC.setRemoteDescription(sdpLatch, answerSdp);
+    assertTrue(sdpLatch.await());
+
+    assertTrue(offeringExpectations.waitForAllExpectationsToBeSatisfied(DEFAULT_TIMEOUT_SECONDS));
+    assertEquals(IceGatheringState.GATHERING, offeringPC.iceGatheringState());
+
+    // SCTP DataChannels are announced via OPEN messages over the established
+    // connection (not via SDP), so answeringExpectations can only register
+    // expecting the channel during ICE.
+    answeringExpectations.expectDataChannel("offeringDC");
+    answeringExpectations.expectStateChange(DataChannel.State.OPEN);
+
+    offeringExpectations.expectIceGatheringChange(IceGatheringState.COMPLETE);
+    answeringExpectations.expectIceGatheringChange(IceGatheringState.COMPLETE);
+
+    // Wait for at least one ice candidate from the offering PC and forward them to
+    // the answering PC.
+    for (IceCandidate candidate : offeringExpectations.getAtLeastOneIceCandidate()) {
+      answeringPC.addIceCandidate(candidate);
+    }
+    // Wait for at least one ice candidate from the answering PC and forward them to
+    // the offering PC.
+    for (IceCandidate candidate : answeringExpectations.getAtLeastOneIceCandidate()) {
+      offeringPC.addIceCandidate(candidate);
+    }
+
+    assertTrue(offeringExpectations.waitForAllExpectationsToBeSatisfied(DEFAULT_TIMEOUT_SECONDS));
+    assertTrue(answeringExpectations.waitForAllExpectationsToBeSatisfied(DEFAULT_TIMEOUT_SECONDS));
+
+    assertEquals(IceGatheringState.COMPLETE, offeringPC.iceGatheringState());
+    assertEquals(IceGatheringState.COMPLETE, answeringPC.iceGatheringState());
   }
 
   // Tests that ICE candidates that are not allowed by an ICE transport type, thus not being
@@ -1461,8 +1560,8 @@ public class PeerConnectionEndToEndTest {
     assertTrue(sdpLatch.await());
     // Sanity check that we get one remote stream with one audio track.
     MediaStream remoteStream = expectations.gotRemoteStreams.iterator().next();
-    assertEquals(remoteStream.audioTracks.size(), 1);
-    assertEquals(remoteStream.videoTracks.size(), 0);
+    assertEquals(1, remoteStream.audioTracks.size());
+    assertEquals(0, remoteStream.videoTracks.size());
 
     // Add a video track...
     final CameraEnumerator enumerator = new Camera1Enumerator(false /* captureToTexture */);
@@ -1488,8 +1587,8 @@ public class PeerConnectionEndToEndTest {
     pcUnderTest.setRemoteDescription(sdpLatch, offerSdp);
     assertTrue(sdpLatch.await());
     // The remote stream should now have a video track.
-    assertEquals(remoteStream.audioTracks.size(), 1);
-    assertEquals(remoteStream.videoTracks.size(), 1);
+    assertEquals(1, remoteStream.audioTracks.size());
+    assertEquals(1, remoteStream.videoTracks.size());
 
     // Finally, create another offer with the audio track removed.
     offeringExpectations.expectRenegotiationNeeded();
@@ -1506,8 +1605,8 @@ public class PeerConnectionEndToEndTest {
     pcUnderTest.setRemoteDescription(sdpLatch, offerSdp);
     assertTrue(sdpLatch.await());
     // The remote stream should no longer have an audio track.
-    assertEquals(remoteStream.audioTracks.size(), 0);
-    assertEquals(remoteStream.videoTracks.size(), 1);
+    assertEquals(0, remoteStream.audioTracks.size());
+    assertEquals(1, remoteStream.videoTracks.size());
 
     // Free the Java-land objects. Video capturer and source aren't owned by
     // the PeerConnection and need to be disposed separately.
@@ -1645,7 +1744,7 @@ public class PeerConnectionEndToEndTest {
     Logging.d(TAG, "FYI stats: ");
     int reportIndex = -1;
     for (StatsReport[] reports : expectations.takeStatsReports()) {
-      Logging.d(TAG, " Report #" + (++reportIndex));
+      Logging.d(TAG, " Report #" + ++reportIndex);
       for (int i = 0; i < reports.length; ++i) {
         Logging.d(TAG, "  " + reports[i].toString());
       }

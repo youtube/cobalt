@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/component_export.h"
@@ -21,7 +22,6 @@
 #include "net/base/upload_data_stream.h"
 #include "services/network/public/cpp/resource_request_body.h"
 #include "services/network/public/mojom/chunked_data_pipe_getter.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 class IOBuffer;
@@ -83,7 +83,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) ChunkedDataPipeUploadDataStream
 
   void OnDataPipeGetterClosed();
 
-  void WriteToCacheIfNeeded(net::IOBuffer* buf, uint32_t num_bytes);
+  void WriteToCacheIfNeeded(net::IOBuffer* buf, size_t num_bytes);
   int ReadFromCacheIfNeeded(net::IOBuffer* buf, int buf_len);
 
   scoped_refptr<ResourceRequestBody> resource_request_body_;
@@ -100,7 +100,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) ChunkedDataPipeUploadDataStream
 
   // Total size of input, as passed to ReadCallback(). nullptr until size is
   // received.
-  absl::optional<uint64_t> size_;
+  std::optional<uint64_t> size_;
 
   uint64_t bytes_read_ = 0;
 

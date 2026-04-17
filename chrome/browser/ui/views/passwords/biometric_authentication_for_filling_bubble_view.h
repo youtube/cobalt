@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,11 +7,15 @@
 
 #include "chrome/browser/ui/passwords/bubble_controllers/biometric_authentication_for_filling_bubble_controller.h"
 #include "chrome/browser/ui/views/passwords/password_bubble_view_base.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 
 // Bubble prompting user to enable biometric authentication before filling
 // passwords.
 class BiometricAuthenticationForFillingBubbleView
     : public PasswordBubbleViewBase {
+  METADATA_HEADER(BiometricAuthenticationForFillingBubbleView,
+                  PasswordBubbleViewBase)
+
  public:
   BiometricAuthenticationForFillingBubbleView(
       content::WebContents* web_contents,

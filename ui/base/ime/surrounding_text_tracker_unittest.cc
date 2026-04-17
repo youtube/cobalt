@@ -4,10 +4,57 @@
 
 #include "ui/base/ime/surrounding_text_tracker.h"
 
+#include <string_view>
+
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/ime/composition_text.h"
 
 namespace ui {
+
+TEST(SurroundingTextTracker, StateGetSurroundingTextRange) {
+  SurroundingTextTracker::State state{u"abcde", /*utf16_offset=*/10,
+                                      /*selection=*/gfx::Range(),
+                                      /*composition=*/gfx::Range()};
+
+  EXPECT_EQ(gfx::Range(10, 15), state.GetSurroundingTextRange());
+}
+
+TEST(SurroundingTextTracker, StateGetCompositionText) {
+  {
+    SurroundingTextTracker::State state{u"abcde", /*utf16_offset=*/10,
+                                        /*selection=*/gfx::Range(),
+                                        /*composition=*/gfx::Range()};
+
+    // Empty composition range is valid. Empty composition is expected.
+    EXPECT_EQ(std::u16string_view(), state.GetCompositionText());
+  }
+
+  {
+    SurroundingTextTracker::State state{u"abcde", /*utf16_offset=*/10,
+                                        /*selection=*/gfx::Range(),
+                                        /*composition=*/gfx::Range(11, 13)};
+
+    EXPECT_EQ(std::u16string_view(u"bc"), state.GetCompositionText());
+  }
+
+  {
+    SurroundingTextTracker::State state{u"abcde", /*utf16_offset=*/10,
+                                        /*selection=*/gfx::Range(),
+                                        /*composition=*/gfx::Range(1, 3)};
+
+    // Out of the range case.
+    EXPECT_EQ(std::nullopt, state.GetCompositionText());
+  }
+
+  {
+    SurroundingTextTracker::State state{u"abcde", /*utf16_offset=*/10,
+                                        /*selection=*/gfx::Range(),
+                                        /*composition=*/gfx::Range(8, 12)};
+
+    // Overlapping but not fully covered case.
+    EXPECT_EQ(std::nullopt, state.GetCompositionText());
+  }
+}
 
 TEST(SurroundingTextTracker, SetCompositionText) {
   SurroundingTextTracker tracker;
@@ -569,6 +616,22 @@ TEST(SurroundingTextTracker, InsertText) {
   EXPECT_TRUE(tracker.predicted_state().composition.is_empty());
   EXPECT_EQ(SurroundingTextTracker::UpdateResult::kUpdated,
             tracker.Update(u"xyz", 13u, gfx::Range(16)));
+
+  // Regression test for https://crrev.com/c/5947938
+  tracker.Reset();
+  ASSERT_EQ(SurroundingTextTracker::UpdateResult::kReset,
+            tracker.Update(u"abcdefg", 5u, gfx::Range(13, 14)));
+
+  {
+    std::u16string s = u"xyz";
+    tracker.OnInsertText(
+        s, TextInputClient::InsertTextCursorBehavior::kMoveCursorAfterText);
+
+    tracker.OnInsertText(
+        s, TextInputClient::InsertTextCursorBehavior::kMoveCursorAfterText);
+  }
+  EXPECT_EQ(SurroundingTextTracker::UpdateResult::kUpdated,
+            tracker.Update(u"yz", 14u, gfx::Range(16)));
 }
 
 TEST(SurroundingTextTracker, InsertTextWithComposition) {
@@ -711,6 +774,20 @@ TEST(SurroundingTextTracker, ExtendSelectionAndDelete) {
               tracker.predicted_state().selection);
     EXPECT_TRUE(tracker.predicted_state().composition.is_empty());
   }
+}
+
+TEST(SurroundingTextTracker, CancelCompositionResetsCompositionOnly) {
+  SurroundingTextTracker tracker;
+  ui::CompositionText composition;
+  composition.text = u"abc";
+  composition.selection = gfx::Range(3);  // at the end.
+  tracker.OnSetCompositionText(composition);
+
+  tracker.CancelComposition();
+
+  EXPECT_EQ(u"abc", tracker.predicted_state().surrounding_text);
+  EXPECT_EQ(gfx::Range(3), tracker.predicted_state().selection);
+  EXPECT_TRUE(tracker.predicted_state().composition.is_empty());
 }
 
 }  // namespace ui

@@ -11,6 +11,10 @@
 // Specific cases utils
 // ********************
 
+// The maximum size category the LocationBarSteadyView adjusts its font to.
+UIContentSizeCategory LocationBarSteadyViewMaxSizeCategory();
+
+// The normal font for the LocationBarSteadyView.
 UIFont* LocationBarSteadyViewFont(UIContentSizeCategory currentCategory);
 
 #endif  // IOS_CHROME_BROWSER_SHARED_UI_UTIL_DYNAMIC_TYPE_UTIL_H_

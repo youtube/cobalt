@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,7 +17,7 @@
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_checker.h"
-#include "chrome/browser/ash/policy/dlp/dlp_files_controller.h"
+#include "chrome/browser/chromeos/policy/dlp/dlp_files_controller.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_rules_manager.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_rules_manager_factory.h"
 #include "components/file_access/scoped_file_access.h"
@@ -29,7 +29,6 @@
 namespace policy {
 namespace {
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
 void GotAccess(base::WeakPtr<DlpCopyOrMoveHookDelegate> hook_delegate,
                const storage::FileSystemURL& source,
                const storage::FileSystemURL& destination,
@@ -51,7 +50,6 @@ void GotAccess(base::WeakPtr<DlpCopyOrMoveHookDelegate> hook_delegate,
     std::move(callback).Run(base::File::FILE_ERROR_SECURITY);
   }
 }
-#endif
 
 void RequestCopyAccess(base::WeakPtr<DlpCopyOrMoveHookDelegate> hook_delegate,
                        const storage::FileSystemURL& source,
@@ -59,9 +57,6 @@ void RequestCopyAccess(base::WeakPtr<DlpCopyOrMoveHookDelegate> hook_delegate,
                        DlpCopyOrMoveHookDelegate::StatusCallback callback) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
-// TODO(http://b/259183766): We might need to consider the lacros case,
-// too.
-#if BUILDFLAG(IS_CHROMEOS_ASH)
   DlpRulesManager* dlp_rules_manager =
       DlpRulesManagerFactory::GetForPrimaryProfile();
   if (!dlp_rules_manager) {
@@ -78,9 +73,6 @@ void RequestCopyAccess(base::WeakPtr<DlpCopyOrMoveHookDelegate> hook_delegate,
       source, destination,
       base::BindOnce(&policy::GotAccess, hook_delegate, source, destination,
                      std::move(callback)));
-#else
-  NOTREACHED();
-#endif
 }
 
 }  // namespace
@@ -108,10 +100,8 @@ void DlpCopyOrMoveHookDelegate::OnBeginProcessFile(
       base::BindPostTaskToCurrentDefault(std::move(callback));
   content::GetUIThreadTaskRunner({})->PostTask(
       FROM_HERE,
-      base::BindOnce(
-          &RequestCopyAccess,
-          base::SupportsWeakPtr<DlpCopyOrMoveHookDelegate>::AsWeakPtr(),
-          source_url, destination_url, std::move(continuation)));
+      base::BindOnce(&RequestCopyAccess, weak_ptr_factory_.GetWeakPtr(),
+                     source_url, destination_url, std::move(continuation)));
 }
 
 void DlpCopyOrMoveHookDelegate::OnEndCopy(
@@ -129,8 +119,10 @@ void DlpCopyOrMoveHookDelegate::OnEndMove(
 void DlpCopyOrMoveHookDelegate::OnError(
     const storage::FileSystemURL& source_url,
     const storage::FileSystemURL& destination_url,
-    base::File::Error error) {
+    base::File::Error error,
+    ErrorCallback callback) {
   OnEnd(source_url, destination_url);
+  std::move(callback).Run(ErrorAction::kDefault);
 }
 
 void DlpCopyOrMoveHookDelegate::OnEnd(

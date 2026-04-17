@@ -29,6 +29,7 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/net_errors.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 namespace download {
 
@@ -172,10 +173,15 @@ class COMPONENTS_DOWNLOAD_EXPORT BaseFile {
   //     that originated this download. Will be used to annotate source
   //     information and also to determine the relative danger level of the
   //     file.
+  //
+  // `request_initiator`: Initiating origin for the request. This will
+  //     be used in place of the `source_url` when the `source_url` is not
+  //     suitable for reporting to the OS.
   void AnnotateWithSourceInformation(
       const std::string& client_guid,
       const GURL& source_url,
       const GURL& referrer_url,
+      const std::optional<url::Origin>& request_initiator,
       mojo::PendingRemote<quarantine::mojom::Quarantine> remote_quarantine,
       OnAnnotationDoneCallback on_annotation_done_callback);
 
@@ -272,8 +278,7 @@ class COMPONENTS_DOWNLOAD_EXPORT BaseFile {
 
   // Callback invoked by quarantine service. Also called by
   // OnQuarantineServiceError after manually applying mark-of-the-web.
-  void OnFileQuarantined(bool connection_error,
-                         quarantine::mojom::QuarantineFileResult result);
+  void OnFileQuarantined(quarantine::mojom::QuarantineFileResult result);
 
   // Full path to the file including the file name.
   base::FilePath full_path_;

@@ -14,6 +14,7 @@
 
 #include <array>
 #include <cmath>
+#include <numbers>
 #include <vector>
 
 #include "api/array_view.h"
@@ -29,7 +30,7 @@
 namespace webrtc {
 namespace {
 
-constexpr float kPi = 3.141592f;
+constexpr float kPi = std::numbers::pi_v<float>;
 
 void ProduceSinusoidInNoise(int sample_rate_hz,
                             size_t sinusoid_channel,
@@ -84,7 +85,7 @@ void RunNarrowBandDetectionTest(size_t num_channels) {
       render_delay_buffer->PrepareCaptureProcessing();
 
       analyzer.Update(*render_delay_buffer->GetRenderBuffer(),
-                      known_delay ? absl::optional<size_t>(0) : absl::nullopt);
+                      known_delay ? std::optional<size_t>(0) : std::nullopt);
     }
   };
 
@@ -107,7 +108,7 @@ void RunNarrowBandDetectionTest(size_t num_channels) {
 }
 
 std::string ProduceDebugText(size_t num_channels) {
-  rtc::StringBuilder ss;
+  StringBuilder ss;
   ss << "number of channels: " << num_channels;
   return ss.Release();
 }
@@ -149,7 +150,7 @@ TEST(RenderSignalAnalyzer, NoFalseDetectionOfNarrowBands) {
       render_delay_buffer->PrepareCaptureProcessing();
 
       analyzer.Update(*render_delay_buffer->GetRenderBuffer(),
-                      absl::optional<size_t>(0));
+                      std::optional<size_t>(0));
     }
 
     mask.fill(1.f);

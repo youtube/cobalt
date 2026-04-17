@@ -58,11 +58,11 @@ class MockStorageArea : public mojom::blink::StorageArea {
       mojo::PendingRemote<mojom::blink::StorageAreaObserver> observer) override;
   void Put(const Vector<uint8_t>& key,
            const Vector<uint8_t>& value,
-           const absl::optional<Vector<uint8_t>>& client_old_value,
+           const std::optional<Vector<uint8_t>>& client_old_value,
            const String& source,
            PutCallback callback) override;
   void Delete(const Vector<uint8_t>& key,
-              const absl::optional<Vector<uint8_t>>& client_old_value,
+              const std::optional<Vector<uint8_t>>& client_old_value,
               const String& source,
               DeleteCallback callback) override;
   void DeleteAll(
@@ -73,6 +73,7 @@ class MockStorageArea : public mojom::blink::StorageArea {
   void GetAll(
       mojo::PendingRemote<mojom::blink::StorageAreaObserver> new_observer,
       GetAllCallback callback) override;
+  void Checkpoint() override;
 
   // Methods and members for use by test fixtures.
   bool HasBindings() { return !receivers_.empty(); }
@@ -101,6 +102,7 @@ class MockStorageArea : public mojom::blink::StorageArea {
     return observed_delete_alls_;
   }
   size_t observer_count() const { return observer_count_; }
+  size_t observed_checkpoints() const { return observed_checkpoints_; }
 
  private:
   int observed_get_alls_ = 0;
@@ -108,6 +110,7 @@ class MockStorageArea : public mojom::blink::StorageArea {
   Vector<ObservedDelete> observed_deletes_;
   Vector<String> observed_delete_alls_;
   size_t observer_count_ = 0;
+  size_t observed_checkpoints_ = 0;
 
   Vector<KeyValue> key_values_;
 

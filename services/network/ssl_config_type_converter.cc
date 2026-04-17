@@ -4,25 +4,12 @@
 
 #include "services/network/ssl_config_type_converter.h"
 
+#include <optional>
+
 #include "base/check_op.h"
 #include "base/notreached.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace mojo {
-
-namespace {
-absl::optional<bool> OptionalBoolFromMojo(network::mojom::OptionalBool v) {
-  switch (v) {
-    case network::mojom::OptionalBool::kTrue:
-      return absl::make_optional(true);
-    case network::mojom::OptionalBool::kFalse:
-      return absl::make_optional(false);
-    case network::mojom::OptionalBool::kUnset:
-      return absl::nullopt;
-  }
-  NOTREACHED_NORETURN();
-}
-}  // namespace
 
 int MojoSSLVersionToNetSSLVersion(network::mojom::SSLVersion mojo_version) {
   switch (mojo_version) {
@@ -32,7 +19,6 @@ int MojoSSLVersionToNetSSLVersion(network::mojom::SSLVersion mojo_version) {
       return net::SSL_PROTOCOL_VERSION_TLS1_3;
   }
   NOTREACHED();
-  return net::SSL_PROTOCOL_VERSION_TLS1_3;
 }
 
 net::SSLContextConfig MojoSSLConfigToSSLContextConfig(
@@ -46,10 +32,9 @@ net::SSLContextConfig MojoSSLConfigToSSLContextConfig(
   DCHECK_LE(net_config.version_min, net_config.version_max);
 
   net_config.disabled_cipher_suites = mojo_config->disabled_cipher_suites;
-  net_config.post_quantum_enabled = mojo_config->post_quantum_enabled;
+  net_config.post_quantum_key_agreement_enabled =
+      mojo_config->post_quantum_key_agreement_enabled;
   net_config.ech_enabled = mojo_config->ech_enabled;
-  net_config.insecure_hash_override =
-      OptionalBoolFromMojo(mojo_config->insecure_hash_override);
   return net_config;
 }
 
@@ -61,8 +46,6 @@ net::CertVerifier::Config MojoSSLConfigToCertVerifierConfig(
       mojo_config->rev_checking_required_local_anchors;
   net_config.enable_sha1_local_anchors =
       mojo_config->sha1_local_anchors_enabled;
-  net_config.disable_symantec_enforcement =
-      mojo_config->symantec_enforcement_disabled;
 
   return net_config;
 }

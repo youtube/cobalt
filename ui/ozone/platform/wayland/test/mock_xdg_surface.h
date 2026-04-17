@@ -52,7 +52,7 @@ class MockXdgSurface : public ServerObject {
   // Has either toplevel role..
   std::unique_ptr<MockXdgTopLevel> xdg_toplevel_;
   // Or popup role.
-  raw_ptr<TestXdgPopup> xdg_popup_ = nullptr;
+  raw_ptr<TestXdgPopup, DanglingUntriaged> xdg_popup_ = nullptr;
 
   // MockSurface that is the ground for this xdg_surface.
   raw_ptr<wl_resource> surface_ = nullptr;

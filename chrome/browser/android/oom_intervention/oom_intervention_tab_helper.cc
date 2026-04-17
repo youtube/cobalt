@@ -8,7 +8,6 @@
 #include <utility>
 
 #include "base/functional/bind.h"
-#include "base/metrics/histogram_macros.h"
 #include "chrome/browser/android/oom_intervention/oom_intervention_config.h"
 #include "chrome/browser/android/oom_intervention/oom_intervention_decider.h"
 #include "components/back_forward_cache/back_forward_cache_disable.h"
@@ -23,9 +22,6 @@
 #include "third_party/blink/public/common/oom_intervention/oom_intervention_types.h"
 
 namespace {
-
-constexpr base::TimeDelta kRendererHighMemoryUsageDetectionWindow =
-    base::Seconds(60);
 
 content::WebContents* g_last_visible_web_contents = nullptr;
 
@@ -64,25 +60,9 @@ void OomInterventionTabHelper::OnHighMemoryUsage() {
     near_oom_reduction_message_delegate_.ShowMessage(web_contents(), this);
     intervention_state_ = InterventionState::UI_SHOWN;
   }
-  if (!last_navigation_timestamp_.is_null()) {
-    base::TimeDelta time_since_last_navigation =
-        base::TimeTicks::Now() - last_navigation_timestamp_;
-    UMA_HISTOGRAM_COUNTS_1M(
-        "Memory.Experimental.OomIntervention."
-        "RendererTimeSinceLastNavigationAtDetection",
-        time_since_last_navigation.InSeconds());
-  }
-
-  DCHECK(!start_monitor_timestamp_.is_null());
-  base::TimeDelta time_since_start_monitor =
-      base::TimeTicks::Now() - start_monitor_timestamp_;
-  UMA_HISTOGRAM_COUNTS_1M(
-      "Memory.Experimental.OomIntervention."
-      "RendererTimeSinceStartMonitoringAtDetection",
-      time_since_start_monitor.InSeconds());
 
   near_oom_detected_time_ = base::TimeTicks::Now();
-  renderer_detection_timer_.AbandonAndStop();
+  renderer_detection_timer_.Stop();
 }
 
 void OomInterventionTabHelper::AcceptIntervention() {
@@ -137,8 +117,6 @@ void OomInterventionTabHelper::DidStartNavigation(
     return;
   }
 
-  last_navigation_timestamp_ = base::TimeTicks::Now();
-
   // Filter out the first navigation.
   if (!navigation_started_) {
     navigation_started_ = true;
@@ -184,9 +162,13 @@ void OomInterventionTabHelper::OnCrashDumpProcessed(
     int rph_id,
     const crash_reporter::CrashMetricsReporter::ReportedCrashTypeSet&
         reported_counts) {
-  if (rph_id !=
-      web_contents()->GetPrimaryPage().GetMainDocument().GetProcess()->GetID())
+  if (rph_id != web_contents()
+                    ->GetPrimaryPage()
+                    .GetMainDocument()
+                    .GetProcess()
+                    ->GetDeprecatedID()) {
     return;
+  }
   if (!reported_counts.count(
           crash_reporter::CrashMetricsReporter::ProcessedCrashCounts::
               kRendererForegroundVisibleOom)) {
@@ -197,16 +179,6 @@ void OomInterventionTabHelper::OnCrashDumpProcessed(
   if (near_oom_detected_time_) {
     ResetInterventionState();
   }
-
-  base::TimeDelta time_since_last_navigation;
-  if (!last_navigation_timestamp_.is_null()) {
-    time_since_last_navigation =
-        base::TimeTicks::Now() - last_navigation_timestamp_;
-  }
-  UMA_HISTOGRAM_COUNTS_1M(
-      "Memory.Experimental.OomIntervention."
-      "RendererTimeSinceLastNavigationAtOOM",
-      time_since_last_navigation.InSeconds());
 
   if (decider_) {
     DCHECK(!web_contents()->GetBrowserContext()->IsOffTheRecord());
@@ -233,10 +205,6 @@ void OomInterventionTabHelper::StartMonitoringIfNeeded() {
     if (receiver_.is_bound())
       return;
     StartDetectionInRenderer();
-  } else if (config->is_swap_monitor_enabled()) {
-    subscription_ = NearOomMonitor::GetInstance()->RegisterCallback(
-        base::BindRepeating(&OomInterventionTabHelper::OnNearOomDetected,
-                            base::Unretained(this)));
   }
 }
 
@@ -264,8 +232,6 @@ void OomInterventionTabHelper::StartDetectionInRenderer() {
     }
   }
 
-  start_monitor_timestamp_ = base::TimeTicks::Now();
-
   content::RenderFrameHost& main_frame =
       web_contents()->GetPrimaryPage().GetMainDocument();
 
@@ -287,32 +253,10 @@ void OomInterventionTabHelper::StartDetectionInRenderer() {
       renderer_pause_enabled, navigate_ads_enabled, purge_v8_memory_enabled);
 }
 
-void OomInterventionTabHelper::OnNearOomDetected() {
-  DCHECK(!OomInterventionConfig::GetInstance()->should_detect_in_renderer());
-  DCHECK_EQ(web_contents()->GetVisibility(), content::Visibility::VISIBLE);
-  DCHECK(!near_oom_detected_time_);
-  subscription_ = {};
-
-  StartDetectionInRenderer();
-  DCHECK(!renderer_detection_timer_.IsRunning());
-  renderer_detection_timer_.Start(
-      FROM_HERE, kRendererHighMemoryUsageDetectionWindow,
-      base::BindOnce(&OomInterventionTabHelper::
-                         OnDetectionWindowElapsedWithoutHighMemoryUsage,
-                     weak_ptr_factory_.GetWeakPtr()));
-}
-
-void OomInterventionTabHelper::
-    OnDetectionWindowElapsedWithoutHighMemoryUsage() {
-  ResetInterventionState();
-  ResetInterfaces();
-  StartMonitoringIfNeeded();
-}
-
 void OomInterventionTabHelper::ResetInterventionState() {
   near_oom_detected_time_.reset();
   intervention_state_ = InterventionState::NOT_TRIGGERED;
-  renderer_detection_timer_.AbandonAndStop();
+  renderer_detection_timer_.Stop();
 }
 
 void OomInterventionTabHelper::ResetInterfaces() {

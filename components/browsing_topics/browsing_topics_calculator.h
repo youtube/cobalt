@@ -13,6 +13,8 @@
 #include "base/memory/raw_ptr.h"
 #include "base/task/cancelable_task_tracker.h"
 #include "base/time/time.h"
+#include "base/timer/timer.h"
+#include "components/browsing_topics/annotator.h"
 #include "components/browsing_topics/common/common_types.h"
 #include "components/browsing_topics/epoch_topics.h"
 #include "components/history/core/browser/history_types.h"
@@ -29,11 +31,6 @@ namespace content {
 class BrowsingTopicsSiteDataManager;
 }  // namespace content
 
-namespace optimization_guide {
-class PageContentAnnotationsService;
-class BatchAnnotationResult;
-}  // namespace optimization_guide
-
 namespace browsing_topics {
 
 // Responsible for doing a one-off browsing topics calculation. It will:
@@ -42,32 +39,23 @@ namespace browsing_topics {
 // Topics API was called on.
 // 3) Query the `HistoryService` for the hosts of the pages the API was called
 // on.
-// 4) Query the `PageContentAnnotationsService` with a set of hosts, to get the
-// corresponding topics.
+// 4) Query the `Annotator` with a set of hosts, to get the corresponding
+// topics.
 // 5) Derive `EpochTopics` (i.e. the top topics and the their observed-by
 // contexts), and return it as the final result.
 class BrowsingTopicsCalculator {
  public:
-  // These values are persisted to logs. Entries should not be renumbered and
-  // numeric values should never be reused.
-  enum class CalculatorResultStatus {
-    kSuccess = 0,
-    kFailurePermissionDenied = 1,
-    kFailureApiUsageContextQueryError = 2,
-    kFailureAnnotationExecutionError = 3,
-    kFailureTaxonomyVersionNotSupportedInBinary = 4,
-
-    kMaxValue = kFailureTaxonomyVersionNotSupportedInBinary,
-  };
-
   using CalculateCompletedCallback = base::OnceCallback<void(EpochTopics)>;
 
   BrowsingTopicsCalculator(
       privacy_sandbox::PrivacySandboxSettings* privacy_sandbox_settings,
       history::HistoryService* history_service,
       content::BrowsingTopicsSiteDataManager* site_data_manager,
-      optimization_guide::PageContentAnnotationsService* annotations_service,
+      Annotator* annotator,
       const base::circular_deque<EpochTopics>& epochs,
+      bool is_manually_triggered,
+      int previous_timeout_count,
+      base::Time session_start_time,
       CalculateCompletedCallback callback);
 
   BrowsingTopicsCalculator(const BrowsingTopicsCalculator&) = delete;
@@ -77,12 +65,25 @@ class BrowsingTopicsCalculator {
 
   virtual ~BrowsingTopicsCalculator();
 
+  bool is_manually_triggered() const { return is_manually_triggered_; }
+
+  int previous_timeout_count() const { return previous_timeout_count_; }
+
  protected:
   // This method exists for the purposes of overriding in tests.
   virtual uint64_t GenerateRandUint64();
   virtual void CheckCanCalculate();
 
  private:
+  enum class Progress {
+    kStarted,
+    kApiUsageRequested,
+    kHistoryRequested,
+    kModelRequested,
+    kAnnotationRequested,
+    kCompleted,
+  };
+
   // Get the top `kBrowsingTopicsNumberOfTopTopicsPerEpoch` topics. If there
   // aren't enough topics, pad with random ones. Return the result topics, and
   // the starting index of the padded topics (or
@@ -91,7 +92,6 @@ class BrowsingTopicsCalculator {
   void DeriveTopTopics(
       const std::map<HashedHost, size_t>& history_hosts_count,
       const std::map<HashedHost, std::set<Topic>>& host_topics_map,
-      size_t taxonomy_size,
       std::vector<Topic>& top_topics,
       size_t& padded_top_topics_start_index,
       size_t& history_topics_count);
@@ -101,22 +101,20 @@ class BrowsingTopicsCalculator {
 
   void OnGetRecentlyVisitedURLsCompleted(history::QueryResults results);
 
-  void OnRequestModelCompleted(std::vector<std::string> raw_hosts,
-                               bool successful);
+  void OnRequestModelCompleted(std::vector<std::string> raw_hosts);
 
-  void OnGetTopicsForHostsCompleted(
-      const std::vector<optimization_guide::BatchAnnotationResult>& results);
+  void OnGetTopicsForHostsCompleted(const std::vector<Annotation>& results);
 
-  void OnCalculateCompleted(CalculatorResultStatus status,
-                            EpochTopics epoch_topics);
+  void OnCalculateCompleted(EpochTopics epoch_topics);
+
+  void OnCalculationHanging();
 
   // Those pointers are safe to hold and use throughout the lifetime of
   // `BrowsingTopicsService`, which owns this object.
   raw_ptr<privacy_sandbox::PrivacySandboxSettings> privacy_sandbox_settings_;
   raw_ptr<history::HistoryService> history_service_;
   raw_ptr<content::BrowsingTopicsSiteDataManager> site_data_manager_;
-  raw_ptr<optimization_guide::PageContentAnnotationsService>
-      annotations_service_;
+  raw_ptr<Annotator> annotator_;
 
   CalculateCompletedCallback calculate_completed_callback_;
 
@@ -125,6 +123,8 @@ class BrowsingTopicsCalculator {
 
   base::Time history_data_start_time_;
   base::Time api_usage_context_data_start_time_;
+
+  Progress progress_ = Progress::kStarted;
 
   // The history hosts over
   // `kBrowsingTopicsNumberOfEpochsOfObservationDataToUseForFiltering` epochs,
@@ -137,6 +137,18 @@ class BrowsingTopicsCalculator {
 
   // Used for the async tasks querying the HistoryService.
   base::CancelableTaskTracker history_task_tracker_;
+
+  // Whether this calculator was generated via the topics-internals page rather
+  // than via a scheduled task.
+  bool is_manually_triggered_;
+
+  // The number of previous hanging calculations.
+  int previous_timeout_count_;
+
+  // The timeout timer for each async operation.
+  base::OneShotTimer timeout_timer_;
+
+  base::Time session_start_time_;
 
   base::WeakPtrFactory<BrowsingTopicsCalculator> weak_ptr_factory_{this};
 };

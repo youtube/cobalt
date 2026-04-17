@@ -5,10 +5,10 @@
 #include "chrome/browser/ash/arc/print_spooler/print_session_impl.h"
 
 #include <limits>
+#include <optional>
 #include <string>
 #include <utility>
 
-#include "ash/components/arc/mojom/print_common.mojom.h"
 #include "base/containers/span.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
@@ -22,10 +22,15 @@
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "chrome/browser/ash/arc/print_spooler/arc_print_spooler_util.h"
+#include "chrome/browser/pdf/pdf_pref_names.h"
 #include "chrome/browser/printing/print_view_manager_common.h"
 #include "chrome/browser/printing/printing_service.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/services/printing/public/mojom/printing_service.mojom.h"
-#include "components/arc/intent_helper/custom_tab.h"
+#include "chromeos/ash/experiences/arc/intent_helper/custom_tab.h"
+#include "chromeos/ash/experiences/arc/mojom/print_common.mojom.h"
+#include "components/pdf/browser/pdf_document_helper.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/browser/web_contents.h"
 #include "mojo/public/c/system/types.h"
 #include "net/base/filename_util.h"
@@ -35,7 +40,6 @@
 #include "printing/print_settings.h"
 #include "printing/print_settings_conversion.h"
 #include "printing/units.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/aura/window.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -51,7 +55,7 @@ constexpr int kMinimumPdfSize = 50;
 
 // Converts a color mode to its Mojo type.
 mojom::PrintColorMode ToArcColorMode(int color_mode) {
-  absl::optional<bool> is_color = printing::IsColorModelSelected(
+  std::optional<bool> is_color = printing::IsColorModelSelected(
       printing::ColorModeToColorModel(color_mode));
   return is_color.value() ? mojom::PrintColorMode::COLOR
                           : mojom::PrintColorMode::MONOCHROME;
@@ -86,14 +90,14 @@ mojom::PrintAttributesPtr GetPrintAttributes(
   if (vendor_id && !vendor_id->empty()) {
     id = *vendor_id;
   }
-  absl::optional<int> width_microns =
+  std::optional<int> width_microns =
       media_size_value->FindInt(printing::kSettingMediaSizeWidthMicrons);
-  absl::optional<int> height_microns =
+  std::optional<int> height_microns =
       media_size_value->FindInt(printing::kSettingMediaSizeHeightMicrons);
   if (!width_microns.has_value() || !height_microns.has_value())
     return nullptr;
   // Swap the width and height if layout is landscape.
-  absl::optional<bool> landscape =
+  std::optional<bool> landscape =
       job_settings.FindBool(printing::kSettingLandscape);
   if (!landscape.has_value())
     return nullptr;
@@ -121,13 +125,13 @@ mojom::PrintAttributesPtr GetPrintAttributes(
   mojom::PrintMarginsPtr margins = mojom::PrintMargins::New(0, 0, 0, 0);
 
   // PrintColorMode:
-  absl::optional<int> color = job_settings.FindInt(printing::kSettingColor);
+  std::optional<int> color = job_settings.FindInt(printing::kSettingColor);
   if (!color.has_value())
     return nullptr;
   mojom::PrintColorMode color_mode = ToArcColorMode(color.value());
 
   // PrintDuplexMode:
-  absl::optional<int> duplex =
+  std::optional<int> duplex =
       job_settings.FindInt(printing::kSettingDuplexMode);
   if (!duplex.has_value())
     return nullptr;
@@ -204,6 +208,18 @@ bool IsPdfPluginLoaded(content::WebContents* web_contents) {
 
   if (!plugin_frame->IsDocumentOnLoadCompletedInMainFrame()) {
     VLOG(1) << "Plugin frame still loading.";
+    return false;
+  }
+
+  // The plugin has loaded.  Now make sure it finished loading the document.
+  auto* pdf_helper =
+      pdf::PDFDocumentHelper::MaybeGetForWebContents(web_contents);
+  if (!pdf_helper) {
+    VLOG(1) << "PDFDocumentHelper not ready yet.";
+    return false;
+  }
+  if (!pdf_helper->IsDocumentLoadComplete()) {
+    VLOG(1) << "PDFDocumentHelper has not finished loading yet.";
     return false;
   }
 
@@ -325,6 +341,13 @@ void PrintSessionImpl::OnPreviewDocumentRead(
     pdf_flattener_.set_disconnect_handler(
         base::BindOnce(&PrintSessionImpl::OnPdfFlattenerDisconnected,
                        weak_ptr_factory_.GetWeakPtr()));
+    const PrefService* prefs =
+        Profile::FromBrowserContext(web_contents_->GetBrowserContext())
+            ->GetPrefs();
+    if (prefs->IsManagedPreference(prefs::kPdfUseSkiaRendererEnabled)) {
+      pdf_flattener_->SetUseSkiaRendererPolicy(
+          prefs->GetBoolean(prefs::kPdfUseSkiaRendererEnabled));
+    }
   }
 
   bool inserted = callbacks_.emplace(request_id, std::move(callback)).second;
@@ -338,9 +361,11 @@ void PrintSessionImpl::OnPreviewDocumentRead(
 
 void PrintSessionImpl::OnPdfFlattened(
     int request_id,
-    base::ReadOnlySharedMemoryRegion flattened_document_region) {
+    printing::mojom::FlattenPdfResultPtr result) {
   auto it = callbacks_.find(request_id);
-  std::move(it->second).Run(std::move(flattened_document_region));
+  std::move(it->second)
+      .Run(result ? std::move(result->flattened_pdf_region)
+                  : base::ReadOnlySharedMemoryRegion());
   callbacks_.erase(it);
 }
 
@@ -386,9 +411,13 @@ void PrintSessionImpl::StartPrintAfterPluginIsLoaded() {
 }
 
 void PrintSessionImpl::StartPrintNow() {
-  printing::StartPrint(web_contents_.get(),
-                       print_renderer_receiver_.BindNewEndpointAndPassRemote(),
-                       false, false);
+  VLOG(1) << "Starting print preview.";
+  if (!printing::StartPrint(
+          web_contents_.get(),
+          print_renderer_receiver_.BindNewEndpointAndPassRemote(), false,
+          false)) {
+    LOG(ERROR) << "Failed to start print preview.";
+  }
 }
 
 WEB_CONTENTS_USER_DATA_KEY_IMPL(PrintSessionImpl);

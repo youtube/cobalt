@@ -14,7 +14,6 @@
 #include "chrome/browser/ash/arc/session/arc_session_manager.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
-#include "chrome/browser/supervised_user/supervised_user_service.h"
 #include "chrome/browser/supervised_user/supervised_user_service_factory.h"
 #include "chrome/browser/ui/webui/ash/add_supervision/add_supervision.mojom.h"
 #include "chrome/browser/ui/webui/ash/add_supervision/add_supervision_handler_utils.h"
@@ -25,6 +24,7 @@
 #include "components/signin/public/identity_manager/access_token_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/scope_set.h"
+#include "components/supervised_user/core/browser/supervised_user_service.h"
 #include "components/user_manager/user_manager.h"
 #include "content/public/browser/web_ui.h"
 #include "google_apis/gaia/gaia_constants.h"
@@ -42,9 +42,13 @@ AddSupervisionHandler::AddSupervisionHandler(
     : web_ui_(web_ui),
       identity_manager_(identity_manager),
       receiver_(this, std::move(receiver)),
-      delegate_(delegate) {}
+      delegate_(delegate) {
+  identity_manager_observation_.Observe(identity_manager_);
+}
 
-AddSupervisionHandler::~AddSupervisionHandler() = default;
+AddSupervisionHandler::~AddSupervisionHandler() {
+  identity_manager_observation_.Reset();
+}
 
 void AddSupervisionHandler::RequestClose(RequestCloseCallback callback) {
   bool dialog_closed = delegate_->CloseDialog();
@@ -75,20 +79,26 @@ void AddSupervisionHandler::GetInstalledArcApps(
   std::vector<std::string> installed_arc_apps;
   apps::AppServiceProxyFactory::GetForProfile(profile)
       ->AppRegistryCache()
-      .ForEachApp([&installed_arc_apps,
-                   profile](const apps::AppUpdate& update) {
-        if (ShouldIncludeAppUpdate(update)) {
-          std::string package_name =
-              arc::AppIdToArcPackageName(update.AppId(), profile);
-          if (!package_name.empty())
-            installed_arc_apps.push_back(package_name);
-        }
-      });
+      .ForEachApp(
+          [&installed_arc_apps, profile](const apps::AppUpdate& update) {
+            if (ShouldIncludeAppUpdate(update)) {
+              std::string package_name =
+                  arc::AppIdToArcPackageName(update.AppId(), profile);
+              if (!package_name.empty()) {
+                installed_arc_apps.push_back(package_name);
+              }
+            }
+          });
 
   std::move(callback).Run(installed_arc_apps);
 }
 
 void AddSupervisionHandler::GetOAuthToken(GetOAuthTokenCallback callback) {
+  if (!identity_manager_) {
+    std::move(callback).Run(
+        add_supervision::mojom::OAuthTokenFetchStatus::ERROR, "");
+    return;
+  }
   signin::ScopeSet scopes;
   scopes.insert(GaiaConstants::kKidsSupervisionSetupChildOAuth2Scope);
   scopes.insert(GaiaConstants::kPeopleApiReadOnlyOAuth2Scope);
@@ -110,7 +120,7 @@ void AddSupervisionHandler::LogOut() {
 }
 
 void AddSupervisionHandler::NotifySupervisionEnabled() {
-  SupervisedUserService* service =
+  supervised_user::SupervisedUserService* service =
       SupervisedUserServiceFactory::GetForProfile(Profile::FromWebUI(web_ui_));
   service->set_signout_required_after_supervision_enabled();
 
@@ -123,6 +133,12 @@ void AddSupervisionHandler::NotifySupervisionEnabled() {
   // Record UMA metric that user has completed Add Supervision process.
   AddSupervisionMetricsRecorder::GetInstance()->RecordAddSupervisionEnrollment(
       AddSupervisionMetricsRecorder::EnrollmentState::kCompleted);
+}
+
+void AddSupervisionHandler::OnIdentityManagerShutdown(
+    signin::IdentityManager* identity_manager) {
+  identity_manager_observation_.Reset();
+  identity_manager_ = nullptr;
 }
 
 void AddSupervisionHandler::OnAccessTokenFetchComplete(

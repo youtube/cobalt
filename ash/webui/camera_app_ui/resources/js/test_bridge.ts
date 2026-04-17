@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 /**
- * @file
+ * @fileoverview
  * This scripts should only be loaded as a SharedWorker and the worker is only
  * used for communication between Tast tests and CCA instance. Generally, the
  * SharedWorker will first be created by Tast tests when constructing the test
@@ -14,7 +14,7 @@
 
 import {AppWindow} from './app_window.js';
 import {assert} from './assert.js';
-import * as Comlink from './lib/comlink.js';
+import * as comlink from './lib/comlink.js';
 
 /**
  * Pending unbound AppWindow requested by tast waiting to be bound by next
@@ -29,15 +29,20 @@ let pendingAppWindow: AppWindow|null = null;
 let fromColdStart = true;
 
 /**
+ * Whether the app is running in a test environment.
+ */
+let useInTestSession = false;
+
+/**
  * Registers a pending unbound AppWindow which will be bound with the URL
  * later once the window is created. This method is expected to be called in
  * Tast tests.
  */
-export function registerUnboundWindow(): AppWindow&Comlink.ProxyMarked {
+export function registerUnboundWindow(): AppWindow&comlink.ProxyMarked {
   assert(pendingAppWindow === null);
   const appWindow = new AppWindow(fromColdStart);
   pendingAppWindow = appWindow;
-  return Comlink.proxy(appWindow);
+  return comlink.proxy(appWindow);
 }
 
 /**
@@ -45,22 +50,43 @@ export function registerUnboundWindow(): AppWindow&Comlink.ProxyMarked {
  *
  * @param url The URL to bind.
  */
-function bindWindow(url: string): (AppWindow&Comlink.ProxyMarked)|null {
+function bindWindow(url: string): (AppWindow&comlink.ProxyMarked)|null {
   fromColdStart = false;
   if (pendingAppWindow !== null) {
     const appWindow = pendingAppWindow;
     pendingAppWindow = null;
     appWindow.bindUrl(url);
-    return Comlink.proxy(appWindow);
+    return comlink.proxy(appWindow);
   }
   return null;
 }
 
+/**
+ * Returns whether the app is running in a test environment.
+ */
+function isInTestSession(): boolean {
+  return useInTestSession;
+}
+
+/**
+ * Sets that this camera app session is running in a test environment. This
+ * method is expected to be called from Tast tests.
+ */
+function setUseInTestSession(): void {
+  useInTestSession = true;
+}
+
+// This is needed since we currently have the same tsconfig for files running
+// in SharedWorker and in CCA.
+// TODO(b/213408699): Remove this after the tsconfig are separated.
+// eslint-disable-next-line @typescript-eslint/consistent-type-assertions
 const sharedWorkerScope = self as SharedWorkerGlobalScope;
 
 export interface TestBridge {
   bindWindow: typeof bindWindow;
+  isInTestSession: typeof isInTestSession;
   registerUnboundWindow: typeof registerUnboundWindow;
+  setUseInTestSession: typeof setUseInTestSession;
 }
 
 /**
@@ -68,10 +94,12 @@ export interface TestBridge {
  */
 sharedWorkerScope.onconnect = (event: MessageEvent) => {
   const port = event.ports[0];
-  Comlink.expose(
+  comlink.expose(
       {
         bindWindow,
+        isInTestSession,
         registerUnboundWindow,
+        setUseInTestSession,
       },
       port);
   port.start();

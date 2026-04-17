@@ -6,14 +6,14 @@ package org.chromium.components.signin.test.util;
 
 import static org.mockito.Mockito.doReturn;
 
-import android.accounts.Account;
 import android.os.Handler;
 import android.os.Looper;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JniType;
 import org.mockito.Mockito;
 
 import org.chromium.base.Promise;
-import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.test.util.LooperUtils;
 import org.chromium.components.signin.AccountManagerFacade;
 import org.chromium.components.signin.AccountManagerFacadeProvider;
@@ -29,24 +29,19 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 final class AccountCapabilitiesFetcherTestUtil {
     private AccountManagerFacade mMockFacade;
-    private Account mExpectedAccount;
+    private CoreAccountInfo mExpectedAccount;
     private Promise<AccountCapabilities> mCapabilitiesPromise;
 
-    /**
-     * Stubs AccountManagerFacade for native tests.
-     */
+    /** Stubs AccountManagerFacade for native tests. */
     @CalledByNative
     public AccountCapabilitiesFetcherTestUtil() {
         mMockFacade = Mockito.mock(AccountManagerFacade.class);
         AccountManagerFacadeProvider.setInstanceForTests(mMockFacade);
     }
 
-    /**
-     * Restores the global state after the test completes.
-     */
+    /** Restores the global state after the test completes. */
     @CalledByNative
     public void destroy() {
-        AccountManagerFacadeProvider.resetInstanceForTests();
         mMockFacade = null;
     }
 
@@ -55,14 +50,14 @@ final class AccountCapabilitiesFetcherTestUtil {
      * with {@code accountInfo}.
      */
     @CalledByNative
-    public void expectAccount(CoreAccountInfo accountInfo) {
+    public void expectAccount(@JniType("CoreAccountInfo") CoreAccountInfo accountInfo) {
         // Only one account at a time is supported.
         assert mCapabilitiesPromise == null;
         assert mExpectedAccount == null;
 
-        mExpectedAccount = CoreAccountInfo.getAndroidAccountFrom(accountInfo);
+        mExpectedAccount = accountInfo;
         mCapabilitiesPromise = new Promise<>();
-        doReturn(mCapabilitiesPromise).when(mMockFacade).getAccountCapabilities(mExpectedAccount);
+        doReturn(mCapabilitiesPromise).when(mMockFacade).getAccountCapabilities(accountInfo);
     }
 
     /**
@@ -70,15 +65,17 @@ final class AccountCapabilitiesFetcherTestUtil {
      * #expectAccount} has been called with the same {@code accountInfo} parameter.
      */
     @CalledByNative
-    public void returnCapabilities(CoreAccountInfo accountInfo, AccountCapabilities capabilities) {
+    public void returnCapabilities(
+            @JniType("CoreAccountInfo") CoreAccountInfo accountInfo,
+            AccountCapabilities capabilities) {
         assert mCapabilitiesPromise != null;
         assert mExpectedAccount != null;
-        assert mExpectedAccount.equals(CoreAccountInfo.getAndroidAccountFrom(accountInfo));
+        assert mExpectedAccount.equals(accountInfo);
 
         mCapabilitiesPromise.fulfill(capabilities);
         // `Promise` posts callback tasks on Android Looper which is not integrated with native
         // RunLoop in NativeTest. Run these tasks synchronously now.
-        // TODO(crbug.com/1135593): remove this hack once Promise uses PostTask.
+        // TODO(crbug.com/40723709): remove this hack once Promise uses PostTask.
         runLooperTasks();
 
         mCapabilitiesPromise = null;
@@ -91,12 +88,18 @@ final class AccountCapabilitiesFetcherTestUtil {
      */
     private static void runLooperTasks() {
         AtomicBoolean called = new AtomicBoolean(false);
-        new Handler(Looper.myLooper()).post(() -> { called.set(true); });
+        new Handler(Looper.myLooper())
+                .post(
+                        () -> {
+                            called.set(true);
+                        });
 
         do {
             try {
                 LooperUtils.runSingleNestedLooperTask();
-            } catch (IllegalArgumentException | IllegalAccessException | SecurityException
+            } catch (IllegalArgumentException
+                    | IllegalAccessException
+                    | SecurityException
                     | InvocationTargetException e) {
                 throw new RuntimeException(e);
             }

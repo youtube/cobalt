@@ -51,6 +51,14 @@ encoder{{level}}.{{kind|encode_method(variable, offset, bit)}};
 {%- endif %}
 {%- endmacro %}
 
+{%- macro decode_nullable_value_packed_field(variable, original_field, has_value_pf, value_pf, level=0) %}
+if (decoder{{level}}.{{has_value_pf.field.kind|decode_method(8+has_value_pf.offset, has_value_pf.bit)}}) {
+  {{variable}} = new {{original_field.kind|java_type}}(decoder{{level}}.{{value_pf.field.kind|decode_method(8+value_pf.offset, value_pf.bit)}});
+} else {
+  {{variable}} = null;
+}
+{%- endmacro %}
+
 {%- macro decode(variable, kind, offset, bit, level=0) %}
 {%- if kind|is_struct_kind or
       kind|is_pointer_array_kind or
@@ -101,7 +109,12 @@ if ({{variable}} != null) {
 {
 {%-     endif %}
     for (int i{{level+1}} = 0; i{{level+1}} < {{variable}}.length; ++i{{level+1}}) {
+{%-     if kind.kind|is_nullable_kind %}
+        if ({{variable}}[i{{level+1}}] == null)
+          continue;
+{%-     endif %}
         {{kind.kind|java_class_for_enum}}.validate({{variable}}[i{{level+1}}]);
+        {{variable}}[i{{level+1}}] = {{kind.kind|java_class_for_enum}}.toKnownValue({{variable}}[i{{level+1}}]);
     }
 }
 {%-   elif kind|is_enum_kind %}
@@ -112,6 +125,10 @@ if ({{variable}} != null) {
 {%- endmacro %}
 
 {%- macro struct_def(struct, inner_class=False) %}
+{%- if not inner_class %}
+@NullMarked
+@SuppressWarnings("NullAway")
+{%- endif %}
 {{'static' if inner_class else 'public'}} final class {{struct|name}} extends org.chromium.mojo.bindings.Struct {
 
     private static final int STRUCT_SIZE = {{struct.versions[-1].num_bytes}};
@@ -132,7 +149,7 @@ if ({{variable}} != null) {
 {%- if struct.fields %}
 
 {%-   for field in struct.fields %}
-    public {{field.kind|java_type}} {{field|name}};
+    public {{field.kind|java_type(with_nullable=True)}} {{field|name}};
 {%-   endfor %}
 {%- endif %}
 
@@ -166,7 +183,7 @@ if ({{variable}} != null) {
     }
 
     @SuppressWarnings("unchecked")
-    public static {{struct|name}} decode(org.chromium.mojo.bindings.Decoder decoder0) {
+    public static {{struct|name}} decode(org.chromium.mojo.bindings.@Nullable Decoder decoder0) {
         if (decoder0 == null) {
             return null;
         }
@@ -189,9 +206,20 @@ if ({{variable}} != null) {
             if (elementsOrVersion >= {{packed_field.min_version}}) {
 {%-       endif %}
 {%-     endif %}
+{%-     if packed_field|is_nullable_value_kind_packed_field %}
+{%-       if packed_field|is_primary_nullable_value_kind_packed_field %}
+{%-         set original_field = packed_field.original_field %}
+{%-         set has_value_pf = packed_field %}
+{%-         set value_pf = packed_field.linked_value_packed_field %}
+                {
+                    {{decode_nullable_value_packed_field('result.' ~ original_field|name, original_field, has_value_pf, value_pf)|indent(16)}}
+                }
+{%-       endif %}
+{%-     else %}
                 {
                     {{decode('result.' ~ packed_field.field|name, packed_field.field.kind, 8+packed_field.offset, packed_field.bit)|indent(16)}}
                 }
+{%-     endif %}
 {%-   endfor %}
 {%- endfor %}
 {%- if prev_ver[-1] != 0 %}
@@ -214,7 +242,31 @@ if ({{variable}} != null) {
 {%- endif %}
 {%- for byte in struct.bytes %}
 {%-   for packed_field in byte.packed_fields %}
+{%-     if packed_field|is_nullable_value_kind_packed_field %}
+{%-       if packed_field|is_primary_nullable_value_kind_packed_field %}
+{%-         set original_field = packed_field.original_field %}
+{%-         set has_value_pf = packed_field %}
+{%-         set value_pf = packed_field.linked_value_packed_field %}
+        final boolean {{has_value_pf.field|name}} = this.{{original_field|name}} != null;
+{%-         if value_pf.field.kind|is_enum_kind %}
+        final {{value_pf.field.kind|java_type}} {{value_pf.field|name}} = {{has_value_pf.field|name}}
+            ? this.{{original_field|name}}
+            : {{value_pf.field.kind|java_class_for_enum}}.MIN_VALUE;
+{%-         elif value_pf.field.kind|is_bool_kind %}
+        final {{value_pf.field.kind|java_type}} {{value_pf.field|name}} = {{has_value_pf.field|name}}
+            ? this.{{original_field|name}}
+            : false;
+{%-         else %}
+        final {{value_pf.field.kind|java_type}} {{value_pf.field|name}} = {{has_value_pf.field|name}}
+            ? this.{{original_field|name}}
+            : 0;
+{%-         endif %}
+        {{encode(has_value_pf.field|name, has_value_pf.field.kind, 8+has_value_pf.offset, has_value_pf.bit)|indent(8)}}
+        {{encode(value_pf.field|name, value_pf.field.kind, 8+value_pf.offset, value_pf.bit)|indent(8)}}
+{%-       endif %}
+{%-     else %}
         {{encode('this.' ~ packed_field.field|name, packed_field.field.kind, 8+packed_field.offset, packed_field.bit)|indent(8)}}
+{%-     endif %}
 {%-   endfor %}
 {%- endfor %}
     }
@@ -223,6 +275,8 @@ if ({{variable}} != null) {
 
 
 {%- macro union_def(union) %}
+@NullMarked
+@SuppressWarnings("NullAway")
 public final class {{union|name}} extends org.chromium.mojo.bindings.Union {
 
     public static final class Tag {
@@ -232,17 +286,17 @@ public final class {{union|name}} extends org.chromium.mojo.bindings.Union {
     };
 
 {%-   for field in union.fields %}
-    private {{field.kind|java_type}} m{{field|ucc}};
+    private {{field.kind|java_type(with_nullable=True)}} m{{field|ucc}};
 {%-   endfor %}
 
 {%-   for field in union.fields %}
 
-    public void set{{field|ucc}}({{field.kind|java_type}} {{field|name}}) {
+    public void set{{field|ucc}}({{field.kind|java_type(with_nullable=True)}} {{field|name}}) {
         this.mTag = Tag.{{field|ucc}};
         this.m{{field|ucc}} = {{field|name}};
     }
 
-    public {{field.kind|java_type}} get{{field|ucc}}() {
+    public {{field.kind|java_type(with_nullable=True)}} get{{field|ucc}}() {
         assert this.mTag == Tag.{{field|ucc}};
         return this.m{{field|ucc}};
     }

@@ -6,15 +6,14 @@
 
 #include "base/run_loop.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "components/viz/common/gpu/context_lost_observer.h"
-#include "components/viz/common/gpu/context_provider.h"
+#include "components/viz/common/gpu/raster_context_provider.h"
 #include "content/browser/gpu/browser_gpu_channel_host_factory.h"
 #include "content/browser/gpu/gpu_data_manager_impl.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/content_browser_test.h"
 #include "gpu/GLES2/gl2extchromium.h"
-#include "gpu/command_buffer/client/gles2_interface.h"
+#include "gpu/command_buffer/client/raster_interface.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "ui/compositor/compositor.h"
 
@@ -30,8 +29,7 @@ class MockContextLostObserver : public viz::ContextLostObserver {
 
 // TODO(crbug.com/394083, crbug.com/1305007, crbug.com/1302879): Flaky on
 // ChromeOS, Linux, and Windows.
-#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS_LACROS) || BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
 #define MAYBE_TestLostContext DISABLED_TestLostContext
 #else
 #define MAYBE_TestLostContext TestLostContext
@@ -45,8 +43,8 @@ IN_PROC_BROWSER_TEST_F(ImageTransportFactoryBrowserTest,
   if (GpuDataManagerImpl::GetInstance()->IsGpuCompositingDisabled())
     return;
 
-  scoped_refptr<viz::ContextProvider> context_provider =
-      factory->GetContextFactory()->SharedMainThreadContextProvider();
+  scoped_refptr<viz::RasterContextProvider> context_provider =
+      factory->GetContextFactory()->SharedMainThreadRasterContextProvider();
 
   MockContextLostObserver observer;
   context_provider->AddObserver(&observer);
@@ -55,13 +53,13 @@ IN_PROC_BROWSER_TEST_F(ImageTransportFactoryBrowserTest,
   EXPECT_CALL(observer, OnContextLost())
       .WillOnce(testing::Invoke(&run_loop, &base::RunLoop::Quit));
 
-  gpu::gles2::GLES2Interface* gl = context_provider->ContextGL();
-  gl->LoseContextCHROMIUM(GL_GUILTY_CONTEXT_RESET_ARB,
+  gpu::raster::RasterInterface* ri = context_provider->RasterInterface();
+  ri->LoseContextCHROMIUM(GL_GUILTY_CONTEXT_RESET_ARB,
                           GL_INNOCENT_CONTEXT_RESET_ARB);
 
   // We have to flush to make sure that the client side gets a chance to notice
   // the context is gone.
-  gl->Flush();
+  ri->Flush();
 
   run_loop.Run();
 

@@ -89,11 +89,8 @@ class MediaConstraints {
   static const char kEnableIPv6[];  // googIPv6
   // Temporary constraint to enable suspend below min bitrate feature.
   static const char kEnableVideoSuspendBelowMinBitrate[];
-  // googSuspendBelowMinBitrate
-  // Constraint to enable combined audio+video bandwidth estimation.
-  static const char kCombinedAudioVideoBwe[];  // googCombinedAudioVideoBwe
-  static const char kScreencastMinBitrate[];   // googScreencastMinBitrate
-  static const char kCpuOveruseDetection[];    // googCpuOveruseDetection
+  static const char kScreencastMinBitrate[];  // googScreencastMinBitrate
+  static const char kCpuOveruseDetection[];   // googCpuOveruseDetection
 
   // Constraint to enable negotiating raw RTP packetization using attribute
   // "a=packetization:<payload_type> raw" in the SDP for all video payload.
@@ -121,7 +118,7 @@ void CopyConstraintsIntoRtcConfiguration(
 
 // Copy all relevant constraints into an AudioOptions object.
 void CopyConstraintsIntoAudioOptions(const MediaConstraints* constraints,
-                                     cricket::AudioOptions* options);
+                                     AudioOptions* options);
 
 bool CopyConstraintsIntoOfferAnswerOptions(
     const MediaConstraints* constraints,

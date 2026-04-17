@@ -3,12 +3,12 @@
 // found in the LICENSE file.
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/containers/flat_set.h"
 #include "base/functional/bind.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/events/event.h"
 #include "ui/events/keyboard_hook.h"
 #include "ui/events/keycodes/dom/dom_code.h"
@@ -63,7 +63,7 @@ ModifierKeyboardHookWinTest::~ModifierKeyboardHookWinTest() = default;
 
 void ModifierKeyboardHookWinTest::SetUp() {
   keyboard_hook_ = KeyboardHookWinBase::CreateModifierKeyboardHookForTesting(
-      absl::optional<base::flat_set<DomCode>>(),
+      std::optional<base::flat_set<DomCode>>(),
       base::BindRepeating(&ModifierKeyboardHookWinTest::HandleKeyPress,
                           base::Unretained(this)));
 
@@ -111,10 +111,10 @@ void VerifyKeyEvent(KeyEvent* key_event,
                     bool key_down,
                     bool is_repeat) {
   if (key_down) {
-    ASSERT_EQ(key_event->type(), ET_KEY_PRESSED);
+    ASSERT_EQ(key_event->type(), EventType::kKeyPressed);
     ASSERT_EQ(key_event->is_repeat(), is_repeat);
   } else {
-    ASSERT_EQ(key_event->type(), ET_KEY_RELEASED);
+    ASSERT_EQ(key_event->type(), EventType::kKeyReleased);
     ASSERT_FALSE(key_event->is_repeat());
   }
   ASSERT_EQ(key_event->key_code(), non_located_key_code);

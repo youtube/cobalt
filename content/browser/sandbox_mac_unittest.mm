@@ -2,38 +2,35 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "sandbox/policy/mac/sandbox_mac.h"
+
 #import <Cocoa/Cocoa.h>
 #import <Foundation/Foundation.h>
-
 #include <fcntl.h>
 
+#include "base/apple/foundation_util.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/command_line.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_file.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/mac/foundation_util.h"
 #include "base/mac/mac_util.h"
-#include "base/mac/scoped_cftyperef.h"
 #include "base/memory/read_only_shared_memory_region.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/shared_memory_mapping.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/process/kill.h"
 #include "base/strings/strcat.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/multiprocess_test.h"
 #include "base/test/test_timeouts.h"
 #include "content/browser/sandbox_parameters_mac.h"
-#include "crypto/openssl_util.h"
-#include "ppapi/buildflags/buildflags.h"
-#include "sandbox/mac/sandbox_compiler.h"
+#include "sandbox/mac/sandbox_serializer.h"
 #include "sandbox/mac/seatbelt.h"
 #include "sandbox/mac/seatbelt_exec.h"
-#include "sandbox/policy/mac/sandbox_mac.h"
 #include "sandbox/policy/mojom/sandbox.mojom.h"
 #include "sandbox/policy/switches.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -66,28 +63,25 @@ class SandboxMacTest : public base::MultiProcessTest {
                          sandbox::mojom::Sandbox sandbox_type) {
     std::string profile =
         sandbox::policy::GetSandboxProfile(sandbox_type) + kTempDirSuffix;
-    sandbox::SandboxCompiler compiler;
-    compiler.SetProfile(profile);
-    SetupSandboxParameters(sandbox_type,
-                           *base::CommandLine::ForCurrentProcess(),
-#if BUILDFLAG(ENABLE_PPAPI)
-                           /*plugins=*/{},
-#endif
-                           &compiler);
-    sandbox::mac::SandboxPolicy policy;
-    std::string error;
-    ASSERT_TRUE(compiler.CompilePolicyToProto(policy, error)) << error;
+    sandbox::SandboxSerializer serializer(
+        sandbox::SandboxSerializer::Target::kSource);
+
+    serializer.SetProfile(profile);
+    SetupSandboxParameters(
+        sandbox_type, *base::CommandLine::ForCurrentProcess(), &serializer);
+    std::string error, serialized;
+    CHECK(serializer.SerializePolicy(serialized, error)) << error;
 
     sandbox::SeatbeltExecClient client;
     pipe_ = client.GetReadFD();
     ASSERT_GE(pipe_, 0);
 
     base::LaunchOptions options;
-    options.fds_to_remap.push_back(std::make_pair(pipe_, pipe_));
+    options.fds_to_remap.emplace_back(pipe_, pipe_);
 
     base::Process process = SpawnChildWithOptions(procname, options);
     ASSERT_TRUE(process.IsValid());
-    ASSERT_TRUE(client.SendPolicy(policy));
+    ASSERT_TRUE(client.SendPolicy(serialized));
 
     int rv = -1;
     ASSERT_TRUE(base::WaitForMultiprocessTestChildExit(
@@ -101,10 +95,6 @@ class SandboxMacTest : public base::MultiProcessTest {
         sandbox::mojom::Sandbox::kAudio,
         sandbox::mojom::Sandbox::kCdm,
         sandbox::mojom::Sandbox::kGpu,
-        sandbox::mojom::Sandbox::kNaClLoader,
-#if BUILDFLAG(ENABLE_PPAPI)
-        sandbox::mojom::Sandbox::kPpapi,
-#endif
         sandbox::mojom::Sandbox::kPrintBackend,
         sandbox::mojom::Sandbox::kPrintCompositor,
         sandbox::mojom::Sandbox::kRenderer,
@@ -172,7 +162,7 @@ MULTIPROCESS_TEST_MAIN(ClipboardAccessProcess) {
   CHECK(!pasteboard_name.empty());
   CHECK([NSPasteboard pasteboardWithName:base::SysUTF8ToNSString(
                                              pasteboard_name)] == nil);
-  CHECK([NSPasteboard generalPasteboard] == nil);
+  CHECK(NSPasteboard.generalPasteboard == nil);
 
   return 0;
 }
@@ -180,9 +170,9 @@ MULTIPROCESS_TEST_MAIN(ClipboardAccessProcess) {
 TEST_F(SandboxMacTest, ClipboardAccess) {
   scoped_refptr<ui::UniquePasteboard> pb = new ui::UniquePasteboard;
   ASSERT_TRUE(pb->get());
-  EXPECT_EQ([[pb->get() types] count], 0U);
+  EXPECT_EQ(pb->get().types.count, 0U);
 
-  extra_data_ = base::SysNSStringToUTF8([pb->get() name]);
+  extra_data_ = base::SysNSStringToUTF8(pb->get().name);
 
   ExecuteInAllSandboxTypes("ClipboardAccessProcess",
                            base::BindRepeating(
@@ -195,7 +185,6 @@ TEST_F(SandboxMacTest, ClipboardAccess) {
 MULTIPROCESS_TEST_MAIN(SSLProcess) {
   CheckCreateSeatbeltServer();
 
-  crypto::EnsureOpenSSLInit();
   // Ensure that RAND_bytes is functional within the sandbox.
   uint8_t byte;
   CHECK(RAND_bytes(&byte, 1) == 1);
@@ -206,13 +195,17 @@ TEST_F(SandboxMacTest, SSLInitTest) {
   ExecuteInAllSandboxTypes("SSLProcess", base::RepeatingClosure());
 }
 
+// This test checks to make sure that `__builtin_available()` (and therefore the
+// Objective-C equivalent `@available()`) work within a sandbox. When revving
+// the macOS releases supported by Chromium, bump this up. This value
+// specifically matches the oldest macOS release supported by Chromium.
 MULTIPROCESS_TEST_MAIN(BuiltinAvailable) {
   CheckCreateSeatbeltServer();
 
-  if (__builtin_available(macOS 10.13, *)) {
+  if (__builtin_available(macOS 11, *)) {
     // Can't negate a __builtin_available condition. But success!
   } else {
-    return 13;
+    return 15;
   }
 
   return 0;
@@ -225,7 +218,7 @@ TEST_F(SandboxMacTest, BuiltinAvailable) {
 MULTIPROCESS_TEST_MAIN(NetworkProcessPrefs) {
   CheckCreateSeatbeltServer();
 
-  const std::string kBundleId = base::mac::BaseBundleID();
+  const std::string kBundleId(base::apple::BaseBundleID());
   const std::string kUserName = base::SysNSStringToUTF8(NSUserName());
   const std::vector<std::string> kPaths = {
       "/Library/Managed Preferences/.GlobalPreferences.plist",

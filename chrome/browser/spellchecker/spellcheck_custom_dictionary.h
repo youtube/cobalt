@@ -12,7 +12,7 @@
 #include "base/cancelable_callback.h"
 #include "base/files/file_path.h"
 #include "base/gtest_prod_util.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/task/sequenced_task_runner.h"
@@ -38,8 +38,8 @@ class SyncChangeProcessor;
 //   foo
 //   checksum_v1 = ec3df4034567e59e119fcf87f2d9bad4
 //
-class SpellcheckCustomDictionary : public SpellcheckDictionary,
-                                   public syncer::SyncableService {
+class SpellcheckCustomDictionary final : public SpellcheckDictionary,
+                                         public syncer::SyncableService {
  public:
   // A change to the dictionary.
   class Change {
@@ -169,15 +169,16 @@ class SpellcheckCustomDictionary : public SpellcheckDictionary,
 
   // Overridden from syncer::SyncableService:
   void WaitUntilReadyToSync(base::OnceClosure done) override;
-  absl::optional<syncer::ModelError> MergeDataAndStartSyncing(
-      syncer::ModelType type,
+  std::optional<syncer::ModelError> MergeDataAndStartSyncing(
+      syncer::DataType type,
       const syncer::SyncDataList& initial_sync_data,
       std::unique_ptr<syncer::SyncChangeProcessor> sync_processor) override;
-  void StopSyncing(syncer::ModelType type) override;
-  syncer::SyncDataList GetAllSyncDataForTesting(syncer::ModelType type) const;
-  absl::optional<syncer::ModelError> ProcessSyncChanges(
+  void StopSyncing(syncer::DataType type) override;
+  syncer::SyncDataList GetAllSyncDataForTesting(syncer::DataType type) const;
+  std::optional<syncer::ModelError> ProcessSyncChanges(
       const base::Location& from_here,
       const syncer::SyncChangeList& change_list) override;
+  base::WeakPtr<SyncableService> AsWeakPtr() override;
 
  private:
   friend class DictionarySyncIntegrationTestHelper;
@@ -216,7 +217,7 @@ class SpellcheckCustomDictionary : public SpellcheckDictionary,
   // Notifies the sync service of the |dictionary_change|. Syncs up to the
   // maximum syncable words on the server. Disables syncing of this dictionary
   // if the server contains the maximum number of syncable words.
-  absl::optional<syncer::ModelError> Sync(const Change& dictionary_change);
+  std::optional<syncer::ModelError> Sync(const Change& dictionary_change);
 
   // Notifies observers of the dictionary change if the dictionary has been
   // changed.

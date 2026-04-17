@@ -92,7 +92,7 @@ grid-with-areas{
     "isKeyboardFocusable": false,
     "accessibleName": "",
     "accessibleRole": "generic",
-    "layoutObjectName": "LayoutNGGrid",
+    "layoutObjectName": "LayoutGrid",
     "showAccessibilityInfo": true
   },
   "gridInfo": [
@@ -266,21 +266,6 @@ grid-with-areas{
         }
       ],
       "areaNames": {
-        "header": [
-          "M",
-          0,
-          0,
-          "L",
-          401,
-          0,
-          "L",
-          401,
-          295.5,
-          "L",
-          0,
-          295.5,
-          "Z"
-        ],
         "sidebar": [
           "M",
           0,
@@ -294,6 +279,21 @@ grid-with-areas{
           "L",
           0,
           601,
+          "Z"
+        ],
+        "header": [
+          "M",
+          0,
+          0,
+          "L",
+          401,
+          0,
+          "L",
+          401,
+          295.5,
+          "L",
+          0,
+          295.5,
           "Z"
         ],
         "main": [
@@ -315,18 +315,8 @@ grid-with-areas{
       "rowLineNameOffsets": [
         {
           "x": 0,
-          "y": 0,
-          "name": "header-start"
-        },
-        {
-          "x": 0,
           "y": 601,
           "name": "sidebar-end"
-        },
-        {
-          "x": 0,
-          "y": 300.5,
-          "name": "header-end"
         },
         {
           "x": 0,
@@ -336,7 +326,17 @@ grid-with-areas{
         {
           "x": 0,
           "y": 300.5,
+          "name": "header-end"
+        },
+        {
+          "x": 0,
+          "y": 300.5,
           "name": "main-start"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "name": "header-start"
         },
         {
           "x": 0,
@@ -346,11 +346,6 @@ grid-with-areas{
       ],
       "columnLineNameOffsets": [
         {
-          "x": 0,
-          "y": 0,
-          "name": "header-start"
-        },
-        {
           "x": 200.5,
           "y": 0,
           "name": "sidebar-end"
@@ -358,17 +353,22 @@ grid-with-areas{
         {
           "x": 401,
           "y": 0,
-          "name": "header-end"
+          "name": "main-end"
         },
         {
           "x": 401,
           "y": 0,
-          "name": "main-end"
+          "name": "header-end"
         },
         {
           "x": 200.5,
           "y": 0,
           "name": "main-start"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "name": "header-start"
         },
         {
           "x": 0,

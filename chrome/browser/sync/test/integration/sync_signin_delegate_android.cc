@@ -4,19 +4,29 @@
 
 #include "chrome/browser/sync/test/integration/sync_signin_delegate_android.h"
 
+#include "base/notreached.h"
 #include "chrome/browser/sync/test/integration/sync_test_utils_android.h"
 
 void SyncSigninDelegateAndroid::SigninFake(Profile* profile,
-                                           const std::string& username) {
-  sync_test_utils_android::SetUpAccountAndSignInForTesting();
+                                           const std::string& username,
+                                           signin::ConsentLevel consent_level) {
+  sync_test_utils_android::SetUpFakeAccountAndSignInForTesting(username,
+                                                               consent_level);
 }
 
 bool SyncSigninDelegateAndroid::SigninUI(Profile* profile,
                                          const std::string& username,
-                                         const std::string& password) {
-  return false;
+                                         const std::string& password,
+                                         signin::ConsentLevel consent_level) {
+  sync_test_utils_android::SetUpLiveAccountAndSignInForTesting(
+      username, password, consent_level);
+  return true;
 }
 
-bool SyncSigninDelegateAndroid::ConfirmSigninUI(Profile* profile) {
+bool SyncSigninDelegateAndroid::ConfirmSyncUI(Profile* profile) {
   return true;
+}
+
+void SyncSigninDelegateAndroid::SignOutPrimaryAccount(Profile* profile) {
+  sync_test_utils_android::SignOutForTesting();
 }

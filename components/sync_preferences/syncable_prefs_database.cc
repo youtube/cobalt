@@ -4,28 +4,35 @@
 
 #include "components/sync_preferences/syncable_prefs_database.h"
 
+#include <string_view>
+
 #include "base/logging.h"
-#include "build/chromeos_buildflags.h"
+#include "components/sync/base/features.h"
 
 namespace sync_preferences {
 
-SyncablePrefMetadata::SyncablePrefMetadata(int syncable_pref_id,
-                                           syncer::ModelType model_type)
-    : syncable_pref_id_(syncable_pref_id), model_type_(model_type) {
-  // TODO(crbug.com/1424774): Allow OS_* types only if IS_CHROMEOS_ASH is true.
-  // This isn't the case now because of an outlier entry in
-  // common_syncable_prefs_database.
-  DCHECK(model_type_ == syncer::PREFERENCES ||
-         model_type_ == syncer::PRIORITY_PREFERENCES ||
-         model_type_ == syncer::OS_PREFERENCES ||
-         model_type_ == syncer::OS_PRIORITY_PREFERENCES)
-      << "Invalid type " << model_type_
-      << " for syncable pref with id=" << syncable_pref_id_;
+bool SyncablePrefsDatabase::IsPreferenceSyncable(
+    std::string_view pref_name) const {
+  return GetSyncablePrefMetadata(pref_name).has_value();
 }
 
-bool SyncablePrefsDatabase::IsPreferenceSyncable(
-    const std::string& pref_name) const {
-  return GetSyncablePrefMetadata(pref_name).has_value();
+bool SyncablePrefsDatabase::IsPreferenceMergeable(
+    std::string_view pref_name) const {
+  std::optional<SyncablePrefMetadata> metadata =
+      GetSyncablePrefMetadata(pref_name);
+  CHECK(metadata.has_value());
+  return metadata->merge_behavior() != MergeBehavior::kNone;
+}
+
+bool SyncablePrefsDatabase::IsPreferenceAlwaysSyncing(
+    std::string_view pref_name) const {
+  CHECK(base::FeatureList::IsEnabled(
+      syncer::kSyncSupportAlwaysSyncingPriorityPreferences));
+  std::optional<SyncablePrefMetadata> metadata =
+      GetSyncablePrefMetadata(pref_name);
+  CHECK(metadata.has_value());
+  return metadata->pref_sensitivity() ==
+         PrefSensitivity::kExemptFromUserControlWhileSignedIn;
 }
 
 }  // namespace sync_preferences

@@ -24,7 +24,7 @@ class UserContext;
 // Callbacks will be called on the UI thread:
 // 1. On successful authentication, will call consumer_->OnAuthSuccess().
 // 2. On failure, will call consumer_->OnAuthFailure().
-// 3. On password change, will call consumer_->OnPasswordChangeDetected().
+// 3. On password change, will call consumer_->OnOnlinePasswordUnusable().
 class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH) Authenticator
     : public base::RefCountedThreadSafe<Authenticator> {
  public:
@@ -35,18 +35,21 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH) Authenticator
 
   // Given externally authenticated username and password (part of
   // |user_context|), this method attempts to complete authentication process.
-  virtual void CompleteLogin(std::unique_ptr<UserContext> user_context) = 0;
+  virtual void CompleteLogin(bool ephemeral,
+                             std::unique_ptr<UserContext> user_context) = 0;
 
   // Given a user credentials in |user_context|,
   // this method attempts to authenticate to login.
   // Must be called on the UI thread.
   virtual void AuthenticateToLogin(
+      bool ephemeral,
       std::unique_ptr<UserContext> user_context) = 0;
 
   // Given a user credentials in |user_context|,
   // this method attempts to authenticate to unlock.
   // Must be called on the UI thread.
   virtual void AuthenticateToUnlock(
+      bool ephemeral,
       std::unique_ptr<UserContext> user_context) = 0;
 
   // Initiates incognito ("browse without signing in") login.
@@ -62,18 +65,18 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH) Authenticator
   virtual void LoginAsKioskAccount(const AccountId& app_account_id,
                                    bool ephemeral) = 0;
 
-  // Initiates login into ARC kiosk mode account identified by |app_account_id|.
-  // The |app_account_id| is a generated account id for the account.
-  // ARC kiosk mode mounts a public cryptohome.
-  // |ephemeral| controls whether cryptohome is ephemeral or persistent.
-  virtual void LoginAsArcKioskAccount(const AccountId& app_account_id,
-                                      bool ephemeral) = 0;
-
   // Initiates login into web kiosk mode account identified by |app_account_id|.
   // The |app_account_id| is a generated account id for the account.
   // Web kiosk mode mounts a public cryptohome.
   // |ephemeral| controls whether cryptohome is ephemeral or persistent.
   virtual void LoginAsWebKioskAccount(const AccountId& app_account_id,
+                                      bool ephemeral) = 0;
+
+  // Initiates login into IWA kiosk mode account identified by |app_account_id|.
+  // The |app_account_id| is a generated account id for the account.
+  // IWA kiosk mode mounts a public cryptohome.
+  // |ephemeral| controls whether cryptohome is ephemeral or persistent.
+  virtual void LoginAsIwaKioskAccount(const AccountId& app_account_id,
                                       bool ephemeral) = 0;
 
   // Continues the login of persistent user that is already authenticated via
@@ -88,29 +91,13 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH) Authenticator
   // Must be called on the UI thread.
   virtual void OnAuthFailure(const AuthFailure& error) = 0;
 
-  // Call these methods on the UI thread.
-  // If a password logs the user in online, but cannot be used to
-  // mount their cryptohome, we expect that a password change has
-  // occurred.
-  // Call this method to migrate the user's encrypted data
-  // forward to use their new password. |old_password| is the password
-  // their data was last encrypted with.
-  // |user_context| contains key with new password to be set up.
-  virtual void RecoverEncryptedData(std::unique_ptr<UserContext> user_context,
-                                    const std::string& old_password) = 0;
-
-  // Call this method to erase the user's encrypted data
-  // and create a new cryptohome.
-  virtual void ResyncEncryptedData(
-      std::unique_ptr<UserContext> user_context) = 0;
-
   // Sets consumer explicitly.
   void SetConsumer(AuthStatusConsumer* consumer);
 
  protected:
   virtual ~Authenticator();
 
-  raw_ptr<AuthStatusConsumer, ExperimentalAsh> consumer_;
+  raw_ptr<AuthStatusConsumer, DanglingUntriaged> consumer_;
 
  private:
   friend class base::RefCountedThreadSafe<Authenticator>;

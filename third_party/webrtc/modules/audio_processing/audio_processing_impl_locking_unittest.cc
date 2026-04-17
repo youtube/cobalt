@@ -13,14 +13,15 @@
 #include <vector>
 
 #include "api/array_view.h"
+#include "api/audio/builtin_audio_processing_builder.h"
+#include "api/environment/environment_factory.h"
 #include "modules/audio_processing/audio_processing_impl.h"
-#include "modules/audio_processing/test/audio_processing_builder_for_testing.h"
 #include "modules/audio_processing/test/test_utils.h"
 #include "rtc_base/event.h"
 #include "rtc_base/platform_thread.h"
 #include "rtc_base/random.h"
 #include "rtc_base/synchronization/mutex.h"
-#include "system_wrappers/include/sleep.h"
+#include "rtc_base/thread.h"
 #include "test/gtest.h"
 
 namespace webrtc {
@@ -226,8 +227,8 @@ struct TestConfig {
         auto available_rates =
             (test_config.aec_type ==
                      AecType::BasicWebRtcAecSettingsWithAecMobile
-                 ? rtc::ArrayView<const int>(sample_rates, 2)
-                 : rtc::ArrayView<const int>(sample_rates));
+                 ? ArrayView<const int>(sample_rates, 2)
+                 : ArrayView<const int>(sample_rates));
 
         for (auto rate : available_rates) {
           test_config.initial_sample_rate_hz = rate;
@@ -304,8 +305,8 @@ class CaptureProcessor {
  public:
   CaptureProcessor(int max_frame_size,
                    RandomGenerator* rand_gen,
-                   rtc::Event* render_call_event,
-                   rtc::Event* capture_call_event,
+                   Event* render_call_event,
+                   Event* capture_call_event,
                    FrameCounters* shared_counters_state,
                    const TestConfig* test_config,
                    AudioProcessing* apm);
@@ -321,8 +322,8 @@ class CaptureProcessor {
   void ApplyRuntimeSettingScheme();
 
   RandomGenerator* const rand_gen_ = nullptr;
-  rtc::Event* const render_call_event_ = nullptr;
-  rtc::Event* const capture_call_event_ = nullptr;
+  Event* const render_call_event_ = nullptr;
+  Event* const capture_call_event_ = nullptr;
   FrameCounters* const frame_counters_ = nullptr;
   const TestConfig* const test_config_ = nullptr;
   AudioProcessing* const apm_ = nullptr;
@@ -348,8 +349,8 @@ class RenderProcessor {
  public:
   RenderProcessor(int max_frame_size,
                   RandomGenerator* rand_gen,
-                  rtc::Event* render_call_event,
-                  rtc::Event* capture_call_event,
+                  Event* render_call_event,
+                  Event* capture_call_event,
                   FrameCounters* shared_counters_state,
                   const TestConfig* test_config,
                   AudioProcessing* apm);
@@ -365,8 +366,8 @@ class RenderProcessor {
   void ApplyRuntimeSettingScheme();
 
   RandomGenerator* const rand_gen_ = nullptr;
-  rtc::Event* const render_call_event_ = nullptr;
-  rtc::Event* const capture_call_event_ = nullptr;
+  Event* const render_call_event_ = nullptr;
+  Event* const capture_call_event_ = nullptr;
   FrameCounters* const frame_counters_ = nullptr;
   const TestConfig* const test_config_ = nullptr;
   AudioProcessing* const apm_ = nullptr;
@@ -395,14 +396,14 @@ class AudioProcessingImplLockTest
   // Start the threads used in the test.
   void StartThreads() {
     const auto attributes =
-        rtc::ThreadAttributes().SetPriority(rtc::ThreadPriority::kRealtime);
-    render_thread_ = rtc::PlatformThread::SpawnJoinable(
+        ThreadAttributes().SetPriority(ThreadPriority::kRealtime);
+    render_thread_ = PlatformThread::SpawnJoinable(
         [this] {
           while (!MaybeEndTest())
             render_thread_state_.Process();
         },
         "render", attributes);
-    capture_thread_ = rtc::PlatformThread::SpawnJoinable(
+    capture_thread_ = PlatformThread::SpawnJoinable(
         [this] {
           while (!MaybeEndTest()) {
             capture_thread_state_.Process();
@@ -410,7 +411,7 @@ class AudioProcessingImplLockTest
         },
         "capture", attributes);
 
-    stats_thread_ = rtc::PlatformThread::SpawnJoinable(
+    stats_thread_ = PlatformThread::SpawnJoinable(
         [this] {
           while (!MaybeEndTest())
             stats_thread_state_.Process();
@@ -419,28 +420,28 @@ class AudioProcessingImplLockTest
   }
 
   // Event handlers for the test.
-  rtc::Event test_complete_;
-  rtc::Event render_call_event_;
-  rtc::Event capture_call_event_;
+  Event test_complete_;
+  Event render_call_event_;
+  Event capture_call_event_;
 
   // Thread related variables.
   mutable RandomGenerator rand_gen_;
 
   const TestConfig test_config_;
-  rtc::scoped_refptr<AudioProcessing> apm_;
+  scoped_refptr<AudioProcessing> apm_;
   FrameCounters frame_counters_;
   RenderProcessor render_thread_state_;
   CaptureProcessor capture_thread_state_;
   StatsProcessor stats_thread_state_;
-  rtc::PlatformThread render_thread_;
-  rtc::PlatformThread capture_thread_;
-  rtc::PlatformThread stats_thread_;
+  PlatformThread render_thread_;
+  PlatformThread capture_thread_;
+  PlatformThread stats_thread_;
 };
 
 // Sleeps a random time between 0 and max_sleep milliseconds.
 void SleepRandomMs(int max_sleep, RandomGenerator* rand_gen) {
   int sleeptime = rand_gen->RandInt(0, max_sleep);
-  SleepMs(sleeptime);
+  Thread::SleepMs(sleeptime);
 }
 
 // Populates a float audio frame with random data.
@@ -461,7 +462,7 @@ void PopulateAudioFrame(float** frame,
 void PopulateAudioFrame(float amplitude,
                         size_t num_channels,
                         size_t samples_per_channel,
-                        rtc::ArrayView<int16_t> frame,
+                        ArrayView<int16_t> frame,
                         RandomGenerator* rand_gen) {
   ASSERT_GT(amplitude, 0);
   ASSERT_LE(amplitude, 32767);
@@ -488,9 +489,9 @@ AudioProcessing::Config GetApmTestConfig(AecType aec_type) {
 
 AudioProcessingImplLockTest::AudioProcessingImplLockTest()
     : test_config_(GetParam()),
-      apm_(AudioProcessingBuilderForTesting()
+      apm_(BuiltinAudioProcessingBuilder()
                .SetConfig(GetApmTestConfig(test_config_.aec_type))
-               .Create()),
+               .Build(CreateEnvironment())),
       render_thread_state_(kMaxFrameSize,
                            &rand_gen_,
                            &render_call_event_,
@@ -556,8 +557,8 @@ void StatsProcessor::Process() {
 
 CaptureProcessor::CaptureProcessor(int max_frame_size,
                                    RandomGenerator* rand_gen,
-                                   rtc::Event* render_call_event,
-                                   rtc::Event* capture_call_event,
+                                   Event* render_call_event,
+                                   Event* capture_call_event,
                                    FrameCounters* shared_counters_state,
                                    const TestConfig* test_config,
                                    AudioProcessing* apm)
@@ -577,7 +578,7 @@ void CaptureProcessor::Process() {
   // Ensure that the number of render and capture calls do not
   // differ too much.
   if (frame_counters_->CaptureMinusRenderCounters() > kMaxCallDifference) {
-    render_call_event_->Wait(rtc::Event::kForever);
+    render_call_event_->Wait(Event::kForever);
   }
 
   // Apply any specified capture side APM non-processing runtime calls.
@@ -782,8 +783,8 @@ void CaptureProcessor::ApplyRuntimeSettingScheme() {
 
 RenderProcessor::RenderProcessor(int max_frame_size,
                                  RandomGenerator* rand_gen,
-                                 rtc::Event* render_call_event,
-                                 rtc::Event* capture_call_event,
+                                 Event* render_call_event,
+                                 Event* capture_call_event,
                                  FrameCounters* shared_counters_state,
                                  const TestConfig* test_config,
                                  AudioProcessing* apm)
@@ -801,7 +802,7 @@ void RenderProcessor::Process() {
   // before the first render call is performed (implicitly
   // required by the APM API).
   if (first_render_call_) {
-    capture_call_event_->Wait(rtc::Event::kForever);
+    capture_call_event_->Wait(Event::kForever);
     first_render_call_ = false;
   }
 
@@ -811,7 +812,7 @@ void RenderProcessor::Process() {
   // Ensure that the number of render and capture calls do not
   // differ too much.
   if (frame_counters_->RenderMinusCaptureCounters() > kMaxCallDifference) {
-    capture_call_event_->Wait(rtc::Event::kForever);
+    capture_call_event_->Wait(Event::kForever);
   }
 
   // Apply any specified render side APM non-processing runtime calls.

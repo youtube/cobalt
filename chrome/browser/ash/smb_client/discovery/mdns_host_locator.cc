@@ -17,8 +17,7 @@
 #include "net/dns/public/dns_protocol.h"
 #include "net/dns/record_rdata.h"
 
-namespace ash {
-namespace smb_client {
+namespace ash::smb_client {
 
 namespace {
 
@@ -37,14 +36,12 @@ constexpr int32_t kATransactionFlags =
 }  // namespace
 
 Hostname RemoveLocal(const std::string& raw_hostname) {
-  if (!base::EndsWith(raw_hostname, kMdnsLocalString,
-                      base::CompareCase::INSENSITIVE_ASCII)) {
+  auto consumed = base::RemoveSuffix(raw_hostname, kMdnsLocalString,
+                                     base::CompareCase::INSENSITIVE_ASCII);
+  if (!consumed) {
     return raw_hostname;
   }
-
-  DCHECK_GE(raw_hostname.size(), strlen(kMdnsLocalString));
-  size_t ending_pos = raw_hostname.size() - strlen(kMdnsLocalString);
-  return raw_hostname.substr(0, ending_pos);
+  return std::string(*consumed);
 }
 
 class MDnsHostLocator::Impl {
@@ -350,5 +347,4 @@ void MDnsHostLocator::Impl::FireCallback(bool success) {
   std::move(callback_).Run(success, std::move(results_));
 }
 
-}  // namespace smb_client
-}  // namespace ash
+}  // namespace ash::smb_client

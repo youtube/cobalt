@@ -29,6 +29,18 @@ class GLES2Interface;
 
 namespace ppapi {
 
+struct Graphics3DContextAttribs {
+  gfx::Size offscreen_framebuffer_size;
+  // -1 if invalid or unspecified.
+  int32_t alpha_size = -1;
+  int32_t depth_size = -1;
+  int32_t stencil_size = -1;
+  int32_t samples = -1;
+  int32_t sample_buffers = -1;
+  bool buffer_preserved = true;
+  bool single_buffer = false;
+};
+
 class PPAPI_SHARED_EXPORT PPB_Graphics3D_Shared
     : public Resource,
       public thunk::PPB_Graphics3D_API {
@@ -68,10 +80,9 @@ class PPAPI_SHARED_EXPORT PPB_Graphics3D_Shared
   void SwapBuffersACK(int32_t pp_error);
 
  protected:
-  PPB_Graphics3D_Shared(PP_Instance instance, bool use_shared_images_swapchain);
+  explicit PPB_Graphics3D_Shared(PP_Instance instance);
   PPB_Graphics3D_Shared(const HostResource& host_resource,
-                        const gfx::Size& size,
-                        bool use_shared_images_swapchain);
+                        const gfx::Size& size);
   ~PPB_Graphics3D_Shared() override;
 
   virtual gpu::CommandBuffer* GetCommandBuffer() = 0;
@@ -83,8 +94,6 @@ class PPAPI_SHARED_EXPORT PPB_Graphics3D_Shared
   bool HasPendingSwap() const;
   bool CreateGLES2Impl(gpu::gles2::GLES2Implementation* share_gles2);
   void DestroyGLES2Impl();
-
-  const bool use_shared_images_swapchain_;
 
  private:
   std::unique_ptr<gpu::gles2::GLES2CmdHelper> gles2_helper_;

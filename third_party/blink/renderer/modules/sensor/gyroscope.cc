@@ -4,7 +4,7 @@
 
 #include "third_party/blink/renderer/modules/sensor/gyroscope.h"
 
-#include "third_party/blink/public/mojom/permissions_policy/permissions_policy_feature.mojom-blink.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-blink.h"
 
 using device::mojom::blink::SensorType;
 
@@ -31,24 +31,24 @@ Gyroscope::Gyroscope(ExecutionContext* execution_context,
              options,
              exception_state,
              SensorType::GYROSCOPE,
-             {mojom::blink::PermissionsPolicyFeature::kGyroscope}) {}
+             {network::mojom::PermissionsPolicyFeature::kGyroscope}) {}
 
-absl::optional<double> Gyroscope::x() const {
+std::optional<double> Gyroscope::x() const {
   if (hasReading())
     return GetReading().gyro.x;
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-absl::optional<double> Gyroscope::y() const {
+std::optional<double> Gyroscope::y() const {
   if (hasReading())
     return GetReading().gyro.y;
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-absl::optional<double> Gyroscope::z() const {
+std::optional<double> Gyroscope::z() const {
   if (hasReading())
     return GetReading().gyro.z;
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 void Gyroscope::Trace(Visitor* visitor) const {

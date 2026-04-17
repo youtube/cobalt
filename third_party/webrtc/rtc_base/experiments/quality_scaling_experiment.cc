@@ -11,13 +11,22 @@
 
 #include <stdio.h>
 
+#include <optional>
 #include <string>
 
+#include "absl/strings/match.h"
+#include "api/field_trials_view.h"
+#include "api/video/video_codec_type.h"
+#include "api/video_codecs/video_encoder.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/experiments/field_trial_parser.h"
 #include "rtc_base/logging.h"
-#include "system_wrappers/include/field_trial.h"
 
 namespace webrtc {
 namespace {
+
+// This experiment controls QP thresholds for VP8, VP9, H264 and Generic codecs.
+// Generic includes H265X but not standard H265.
 constexpr char kFieldTrial[] = "WebRTC-Video-QualityScaling";
 constexpr int kMinQp = 1;
 constexpr int kMaxVp8Qp = 127;
@@ -26,33 +35,68 @@ constexpr int kMaxH264Qp = 51;
 constexpr int kMaxGenericQp = 255;
 
 #if !defined(WEBRTC_IOS)
+// On non-iOS, this default string is used unless explicitly overriden.
+// TODO(https://crbug.com/400338987): For use cases that does not explicitly
+// turn the QP experiment on (e.g. Chrome), it does not make sense for this QP
+// threshold to override the QP thresholds provided by the encoder
+// implementation - we should trust that an encoder implementation that reports
+// its own QP thresholds would know best, and only use these as a fallback for
+// when the encoder does not specify any.
 constexpr char kDefaultQualityScalingSetttings[] =
     "Enabled-29,95,149,205,24,37,26,36,0.9995,0.9999,1";
 #endif
 
-absl::optional<VideoEncoder::QpThresholds> GetThresholds(int low,
-                                                         int high,
-                                                         int max) {
+std::optional<VideoEncoder::QpThresholds> GetThresholds(int low,
+                                                        int high,
+                                                        int max) {
   if (low < kMinQp || high > max || high < low)
-    return absl::nullopt;
+    return std::nullopt;
 
   RTC_LOG(LS_INFO) << "QP thresholds: low: " << low << ", high: " << high;
-  return absl::optional<VideoEncoder::QpThresholds>(
+  return std::optional<VideoEncoder::QpThresholds>(
       VideoEncoder::QpThresholds(low, high));
 }
+
+// This experiment controls QP thresholds for standard H265 (not H265X).
+// - Only for debugging/experimentation. Once QP thresholds have been determined
+//   it is up to the encoder implementation to provide
+//   VideoEncoder::EncoderInfo::scaling_settings.
+//
+// Example usage:
+// --force-fieldtrials=WebRTC-H265-QualityScaling/low_qp:27,high_qp:35/
+struct WebRTCH265QualityScaling {
+  static constexpr char kFieldTrialName[] = "WebRTC-H265-QualityScaling";
+
+  WebRTCH265QualityScaling(const FieldTrialsView& field_trials)
+      : low_qp("low_qp"), high_qp("high_qp") {
+    ParseFieldTrial({&low_qp, &high_qp}, field_trials.Lookup(kFieldTrialName));
+  }
+
+  bool IsEnabled() const { return low_qp && high_qp; }
+  VideoEncoder::QpThresholds ToQpThresholds() const {
+    RTC_DCHECK(IsEnabled());
+    return VideoEncoder::QpThresholds(*low_qp, *high_qp);
+  }
+
+  FieldTrialOptional<int> low_qp;
+  FieldTrialOptional<int> high_qp;
+};
 }  // namespace
 
-bool QualityScalingExperiment::Enabled() {
+bool QualityScalingExperiment::Enabled(const FieldTrialsView& field_trials) {
+  WebRTCH265QualityScaling h265_quality_scaling(field_trials);
+  return
 #if defined(WEBRTC_IOS)
-  return webrtc::field_trial::IsEnabled(kFieldTrial);
+      absl::StartsWith(field_trials.Lookup(kFieldTrial), "Enabled") ||
 #else
-  return !webrtc::field_trial::IsDisabled(kFieldTrial);
+      !absl::StartsWith(field_trials.Lookup(kFieldTrial), "Disabled") ||
 #endif
+      h265_quality_scaling.IsEnabled();
 }
 
-absl::optional<QualityScalingExperiment::Settings>
-QualityScalingExperiment::ParseSettings() {
-  std::string group = webrtc::field_trial::FindFullName(kFieldTrial);
+std::optional<QualityScalingExperiment::Settings>
+QualityScalingExperiment::ParseSettings(const FieldTrialsView& field_trials) {
+  std::string group = field_trials.Lookup(kFieldTrial);
   // TODO(http://crbug.com/webrtc/12401): Completely remove the experiment code
   // after few releases.
 #if !defined(WEBRTC_IOS)
@@ -65,16 +109,23 @@ QualityScalingExperiment::ParseSettings() {
              &s.h264_high, &s.generic_low, &s.generic_high, &s.alpha_high,
              &s.alpha_low, &s.drop) != 11) {
     RTC_LOG(LS_WARNING) << "Invalid number of parameters provided.";
-    return absl::nullopt;
+    return std::nullopt;
   }
   return s;
 }
 
-absl::optional<VideoEncoder::QpThresholds>
-QualityScalingExperiment::GetQpThresholds(VideoCodecType codec_type) {
-  const auto settings = ParseSettings();
+std::optional<VideoEncoder::QpThresholds>
+QualityScalingExperiment::GetQpThresholds(VideoCodecType codec_type,
+                                          const FieldTrialsView& field_trials) {
+  if (codec_type == kVideoCodecH265) {
+    WebRTCH265QualityScaling h265_quality_scaling(field_trials);
+    if (h265_quality_scaling.IsEnabled()) {
+      return h265_quality_scaling.ToQpThresholds();
+    }
+  }
+  const auto settings = ParseSettings(field_trials);
   if (!settings)
-    return absl::nullopt;
+    return std::nullopt;
 
   switch (codec_type) {
     case kVideoCodecVP8:
@@ -87,12 +138,13 @@ QualityScalingExperiment::GetQpThresholds(VideoCodecType codec_type) {
       return GetThresholds(settings->generic_low, settings->generic_high,
                            kMaxGenericQp);
     default:
-      return absl::nullopt;
+      return std::nullopt;
   }
 }
 
-QualityScalingExperiment::Config QualityScalingExperiment::GetConfig() {
-  const auto settings = ParseSettings();
+QualityScalingExperiment::Config QualityScalingExperiment::GetConfig(
+    const FieldTrialsView& field_trials) {
+  const auto settings = ParseSettings(field_trials);
   if (!settings)
     return Config();
 

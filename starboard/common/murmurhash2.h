@@ -15,8 +15,7 @@
 #ifndef STARBOARD_COMMON_MURMURHASH2_H_
 #define STARBOARD_COMMON_MURMURHASH2_H_
 
-#include <memory>
-#include "starboard/types.h"
+#include <cstdint>
 
 namespace starboard {
 

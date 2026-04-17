@@ -1,6 +1,10 @@
 #include "quiche/http2/adapter/nghttp2_adapter.h"
 
+#include <cstring>
+#include <iterator>
 #include <memory>
+#include <utility>
+#include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/str_cat.h"
@@ -19,11 +23,35 @@ namespace {
 
 using ConnectionError = Http2VisitorInterface::ConnectionError;
 
-// A metadata source that deletes itself upon completion.
-class SelfDeletingMetadataSource : public MetadataSource {
+const size_t kFrameHeaderSize = 9;
+
+// A nghttp2-style `nghttp2_data_source_read_callback`.
+ssize_t DataFrameReadCallback(nghttp2_session* /* session */, int32_t stream_id,
+                              uint8_t* /* buf */, size_t length,
+                              uint32_t* data_flags, nghttp2_data_source* source,
+                              void* /* user_data */) {
+  NgHttp2Adapter* adapter = reinterpret_cast<NgHttp2Adapter*>(source->ptr);
+  return adapter->DelegateReadCallback(stream_id, length, data_flags);
+}
+
+// A nghttp2-style `nghttp2_send_data_callback`.
+int DataFrameSendCallback(nghttp2_session* /* session */, nghttp2_frame* frame,
+                          const uint8_t* framehd, size_t length,
+                          nghttp2_data_source* source, void* /* user_data */) {
+  NgHttp2Adapter* adapter = reinterpret_cast<NgHttp2Adapter*>(source->ptr);
+  return adapter->DelegateSendCallback(frame->hd.stream_id, framehd, length);
+}
+
+}  // anonymous namespace
+
+// A metadata source that notifies the owning NgHttp2Adapter upon completion or
+// failure.
+class NgHttp2Adapter::NotifyingMetadataSource : public MetadataSource {
  public:
-  explicit SelfDeletingMetadataSource(std::unique_ptr<MetadataSource> source)
-      : source_(std::move(source)) {}
+  explicit NotifyingMetadataSource(NgHttp2Adapter* adapter,
+                                   Http2StreamId stream_id,
+                                   std::unique_ptr<MetadataSource> source)
+      : adapter_(adapter), stream_id_(stream_id), source_(std::move(source)) {}
 
   size_t NumFrames(size_t max_frame_size) const override {
     return source_->NumFrames(max_frame_size);
@@ -32,21 +60,52 @@ class SelfDeletingMetadataSource : public MetadataSource {
   std::pair<int64_t, bool> Pack(uint8_t* dest, size_t dest_len) override {
     const auto result = source_->Pack(dest, dest_len);
     if (result.first < 0 || result.second) {
-      delete this;
+      adapter_->RemovePendingMetadata(stream_id_);
     }
     return result;
   }
 
   void OnFailure() override {
     source_->OnFailure();
-    delete this;
+    adapter_->RemovePendingMetadata(stream_id_);
   }
 
  private:
+  NgHttp2Adapter* const adapter_;
+  const Http2StreamId stream_id_;
   std::unique_ptr<MetadataSource> source_;
 };
 
-}  // anonymous namespace
+// A metadata source that notifies the owning NgHttp2Adapter upon completion or
+// failure.
+class NgHttp2Adapter::NotifyingVisitorMetadataSource : public MetadataSource {
+ public:
+  explicit NotifyingVisitorMetadataSource(NgHttp2Adapter* adapter,
+                                          Http2StreamId stream_id,
+                                          Http2VisitorInterface& visitor)
+      : adapter_(adapter), stream_id_(stream_id), visitor_(visitor) {}
+
+  size_t NumFrames(size_t /*max_frame_size*/) const override {
+    QUICHE_LOG(DFATAL) << "Should not be invoked.";
+    return 0;
+  }
+
+  std::pair<int64_t, bool> Pack(uint8_t* dest, size_t dest_len) override {
+    const auto [packed, end_metadata] =
+        visitor_.PackMetadataForStream(stream_id_, dest, dest_len);
+    if (packed < 0 || end_metadata) {
+      adapter_->RemovePendingMetadata(stream_id_);
+    }
+    return {packed, end_metadata};
+  }
+
+  void OnFailure() override { adapter_->RemovePendingMetadata(stream_id_); }
+
+ private:
+  NgHttp2Adapter* const adapter_;
+  const Http2StreamId stream_id_;
+  Http2VisitorInterface& visitor_;
+};
 
 /* static */
 std::unique_ptr<NgHttp2Adapter> NgHttp2Adapter::CreateClientAdapter(
@@ -128,13 +187,15 @@ void NgHttp2Adapter::SubmitWindowUpdate(Http2StreamId stream_id,
 void NgHttp2Adapter::SubmitMetadata(Http2StreamId stream_id,
                                     size_t max_frame_size,
                                     std::unique_ptr<MetadataSource> source) {
-  auto* wrapped_source = new SelfDeletingMetadataSource(std::move(source));
+  auto wrapped_source = std::make_unique<NotifyingMetadataSource>(
+      this, stream_id, std::move(source));
   const size_t num_frames = wrapped_source->NumFrames(max_frame_size);
   size_t num_successes = 0;
   for (size_t i = 1; i <= num_frames; ++i) {
-    const int result = nghttp2_submit_extension(
-        session_->raw_ptr(), kMetadataFrameType,
-        i == num_frames ? kMetadataEndFlag : 0, stream_id, wrapped_source);
+    const int result =
+        nghttp2_submit_extension(session_->raw_ptr(), kMetadataFrameType,
+                                 i == num_frames ? kMetadataEndFlag : 0,
+                                 stream_id, wrapped_source.get());
     if (result != 0) {
       QUICHE_LOG(DFATAL) << "Failed to submit extension frame " << i << " of "
                          << num_frames;
@@ -142,8 +203,36 @@ void NgHttp2Adapter::SubmitMetadata(Http2StreamId stream_id,
     }
     ++num_successes;
   }
-  if (num_successes == 0) {
-    delete wrapped_source;
+  if (num_successes > 0) {
+    // Finds the MetadataSourceVec for `stream_id` or inserts a new one if not
+    // present.
+    auto [it, _] = stream_metadata_.insert({stream_id, MetadataSourceVec{}});
+    it->second.push_back(std::move(wrapped_source));
+  }
+}
+
+void NgHttp2Adapter::SubmitMetadata(Http2StreamId stream_id,
+                                    size_t num_frames) {
+  auto wrapped_source = std::make_unique<NotifyingVisitorMetadataSource>(
+      this, stream_id, visitor_);
+  size_t num_successes = 0;
+  for (size_t i = 1; i <= num_frames; ++i) {
+    const int result =
+        nghttp2_submit_extension(session_->raw_ptr(), kMetadataFrameType,
+                                 i == num_frames ? kMetadataEndFlag : 0,
+                                 stream_id, wrapped_source.get());
+    if (result != 0) {
+      QUICHE_LOG(DFATAL) << "Failed to submit extension frame " << i << " of "
+                         << num_frames;
+      break;
+    }
+    ++num_successes;
+  }
+  if (num_successes > 0) {
+    // Finds the MetadataSourceVec for `stream_id` or inserts a new one if not
+    // present.
+    auto [it, _] = stream_metadata_.insert({stream_id, MetadataSourceVec{}});
+    it->second.push_back(std::move(wrapped_source));
   }
 }
 
@@ -211,31 +300,36 @@ void NgHttp2Adapter::SubmitRst(Http2StreamId stream_id,
   }
 }
 
-int32_t NgHttp2Adapter::SubmitRequest(
-    absl::Span<const Header> headers,
-    std::unique_ptr<DataFrameSource> data_source, void* stream_user_data) {
+int32_t NgHttp2Adapter::SubmitRequest(absl::Span<const Header> headers,
+                                      bool end_stream, void* stream_user_data) {
   auto nvs = GetNghttp2Nvs(headers);
-  std::unique_ptr<nghttp2_data_provider> provider =
-      MakeDataProvider(data_source.get());
+  std::unique_ptr<nghttp2_data_provider> provider;
+
+  if (!end_stream) {
+    provider = std::make_unique<nghttp2_data_provider>();
+    provider->source.ptr = this;
+    provider->read_callback = &DataFrameReadCallback;
+  }
 
   int32_t stream_id =
       nghttp2_submit_request(session_->raw_ptr(), nullptr, nvs.data(),
                              nvs.size(), provider.get(), stream_user_data);
-  sources_.emplace(stream_id, std::move(data_source));
   QUICHE_VLOG(1) << "Submitted request with " << nvs.size()
                  << " request headers and user data " << stream_user_data
                  << "; resulted in stream " << stream_id;
   return stream_id;
 }
 
-int NgHttp2Adapter::SubmitResponse(
-    Http2StreamId stream_id, absl::Span<const Header> headers,
-    std::unique_ptr<DataFrameSource> data_source) {
+int NgHttp2Adapter::SubmitResponse(Http2StreamId stream_id,
+                                   absl::Span<const Header> headers,
+                                   bool end_stream) {
   auto nvs = GetNghttp2Nvs(headers);
-  std::unique_ptr<nghttp2_data_provider> provider =
-      MakeDataProvider(data_source.get());
-
-  sources_.emplace(stream_id, std::move(data_source));
+  std::unique_ptr<nghttp2_data_provider> provider;
+  if (!end_stream) {
+    provider = std::make_unique<nghttp2_data_provider>();
+    provider->source.ptr = this;
+    provider->read_callback = &DataFrameReadCallback;
+  }
 
   int result = nghttp2_submit_response(session_->raw_ptr(), stream_id,
                                        nvs.data(), nvs.size(), provider.get());
@@ -268,8 +362,29 @@ bool NgHttp2Adapter::ResumeStream(Http2StreamId stream_id) {
   return 0 == nghttp2_session_resume_data(session_->raw_ptr(), stream_id);
 }
 
-void NgHttp2Adapter::RemoveStream(Http2StreamId stream_id) {
-  sources_.erase(stream_id);
+void NgHttp2Adapter::FrameNotSent(Http2StreamId stream_id, uint8_t frame_type) {
+  if (frame_type == kMetadataFrameType) {
+    RemovePendingMetadata(stream_id);
+  }
+}
+
+void NgHttp2Adapter::RemoveStream(Http2StreamId /*stream_id*/) {}
+
+ssize_t NgHttp2Adapter::DelegateReadCallback(int32_t stream_id,
+                                             size_t max_length,
+                                             uint32_t* data_flags) {
+  // Forward to the visitor.
+  return callbacks::VisitorReadCallback(visitor_, stream_id, max_length,
+                                        data_flags);
+}
+
+int NgHttp2Adapter::DelegateSendCallback(int32_t stream_id,
+                                         const uint8_t* framehd,
+                                         size_t length) {
+  // Forward to the visitor.
+  visitor_.SendDataFrame(stream_id, ToStringView(framehd, kFrameHeaderSize),
+                         length);
+  return 0;
 }
 
 NgHttp2Adapter::NgHttp2Adapter(Http2VisitorInterface& visitor,
@@ -296,13 +411,23 @@ void NgHttp2Adapter::Initialize() {
     options_ = owned_options;
   }
 
-  session_ =
-      std::make_unique<NgHttp2Session>(perspective_, callbacks::Create(),
-                                       options_, static_cast<void*>(&visitor_));
+  session_ = std::make_unique<NgHttp2Session>(
+      perspective_, callbacks::Create(&DataFrameSendCallback), options_,
+      static_cast<void*>(&visitor_));
   if (owned_options != nullptr) {
     nghttp2_option_del(owned_options);
   }
   options_ = nullptr;
+}
+
+void NgHttp2Adapter::RemovePendingMetadata(Http2StreamId stream_id) {
+  auto it = stream_metadata_.find(stream_id);
+  if (it != stream_metadata_.end()) {
+    it->second.erase(it->second.begin());
+    if (it->second.empty()) {
+      stream_metadata_.erase(it);
+    }
+  }
 }
 
 }  // namespace adapter

@@ -12,18 +12,24 @@
 #include "ui/gfx/canvas.h"
 #include "ui/views/background.h"
 #include "ui/views/view.h"
+#include "ui/views/widget/widget.h"
 
 TabGroupHighlight::TabGroupHighlight(TabGroupViews* tab_group_views,
                                      const tab_groups::TabGroupId& group,
                                      const TabGroupStyle& style)
-    : tab_group_views_(tab_group_views), group_(group), style_(style) {}
+    : tab_group_views_(tab_group_views), group_(group), style_(style) {
+  // Don't accept any mouse events, otherwise this will prevent tabs and group
+  // headers from getting clicked.
+  SetCanProcessEventsWithinSubtree(false);
+}
 
 void TabGroupHighlight::UpdateBounds(views::View* leading_view,
                                      views::View* trailing_view) {
   // If there are no views to highlight, do nothing. Our visibility is
   // controlled by our parent TabDragContext.
-  if (!leading_view)
+  if (!leading_view) {
     return;
+  }
   gfx::Rect bounds = leading_view->bounds();
   bounds.UnionEvenIfEmpty(trailing_view->bounds());
   SetBoundsRect(bounds);
@@ -34,22 +40,10 @@ void TabGroupHighlight::OnPaint(gfx::Canvas* canvas) {
   cc::PaintFlags flags;
   flags.setAntiAlias(true);
   flags.setStyle(cc::PaintFlags::kFill_Style);
-
-  // Draw two layers to simulate the color of other non-active selected tabs,
-  // which use a similar drawing strategy (see GM2TabStyle::PaintTab()).
-  // This is needed because the group background color alone would be slightly
-  // transparent, so instead it's drawn over the inactive background color.
-  flags.setColor(tab_group_views_->GetTabBackgroundColor());
+  flags.setColor(TabStyle::Get()->GetTabBackgroundColor(
+      TabStyle::TabSelectionState::kSelected, /*hovered=*/false,
+      GetWidget()->ShouldPaintAsActive(), *GetColorProvider()));
   canvas->DrawPath(path, flags);
-
-  flags.setColor(tab_group_views_->GetGroupBackgroundColor());
-  canvas->DrawPath(path, flags);
-}
-
-bool TabGroupHighlight::GetCanProcessEventsWithinSubtree() const {
-  // Don't accept any mouse events, otherwise this will prevent tabs and group
-  // headers from getting clicked.
-  return false;
 }
 
 SkPath TabGroupHighlight::GetPath() const {
@@ -60,19 +54,20 @@ SkPath TabGroupHighlight::GetPath() const {
   // the tabs around it, so there are no special cases needed when determining
   // its shape.
   const int corner_radius = TabStyle::Get()->GetBottomCornerRadius();
+  const int top = GetLayoutConstant(TAB_STRIP_PADDING);
 
   SkPath path;
   path.moveTo(0, bounds().height());
   path.arcTo(corner_radius, corner_radius, 0, SkPath::kSmall_ArcSize,
              SkPathDirection::kCCW, corner_radius,
              bounds().height() - corner_radius);
-  path.lineTo(corner_radius, corner_radius);
+  path.lineTo(corner_radius, top + corner_radius);
   path.arcTo(corner_radius, corner_radius, 0, SkPath::kSmall_ArcSize,
-             SkPathDirection::kCW, 2 * corner_radius, 0);
-  path.lineTo(bounds().width() - 2 * corner_radius, 0);
+             SkPathDirection::kCW, 2 * corner_radius, top);
+  path.lineTo(bounds().width() - 2 * corner_radius, top);
   path.arcTo(corner_radius, corner_radius, 0, SkPath::kSmall_ArcSize,
              SkPathDirection::kCW, bounds().width() - corner_radius,
-             corner_radius);
+             top + corner_radius);
   path.lineTo(bounds().width() - corner_radius,
               bounds().height() - corner_radius);
   path.arcTo(corner_radius, corner_radius, 0, SkPath::kSmall_ArcSize,
@@ -82,5 +77,5 @@ SkPath TabGroupHighlight::GetPath() const {
   return path;
 }
 
-BEGIN_METADATA(TabGroupHighlight, views::View)
+BEGIN_METADATA(TabGroupHighlight)
 END_METADATA

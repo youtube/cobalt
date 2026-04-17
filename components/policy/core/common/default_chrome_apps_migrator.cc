@@ -14,21 +14,21 @@ namespace {
 std::map<std::string, std::string> GetChromeAppToWebAppMapping() {
   return std::map<std::string, std::string>({
       {"ejjicmeblgpmajnghnpcppodonldlgfn",
-       "https://calendar.google.com/calendar/installwebapp?usp=chrome_default"},
+       "https://calendar.google.com/calendar/installwebapp?usp=admin"},
       {"aohghmighlieiainnegkcijnfilokake",
-       "https://docs.google.com/document/installwebapp?usp=chrome_default"},
+       "https://docs.google.com/document/installwebapp?usp=admin"},
       {"apdfllckaahabafndbhieahigkjlhalf",
-       "https://drive.google.com/drive/installwebapp?usp=chrome_default"},
+       "https://drive.google.com/drive/installwebapp?usp=admin"},
       {"pjkljhegncpnkpknbcohdijeoejaedia",
-       "https://mail.google.com/mail/installwebapp?usp=chrome_default"},
+       "https://mail.google.com/mail/installwebapp?usp=admin"},
       {"felcaaldnbdncclmgdcncolpebgiejap",
-       "https://docs.google.com/spreadsheets/installwebapp?usp=chrome_default"},
+       "https://docs.google.com/spreadsheets/installwebapp?usp=admin"},
       {"aapocclcgogkmnckokdopfmhonfmgoek",
-       "https://docs.google.com/presentation/installwebapp?usp=chrome_default"},
+       "https://docs.google.com/presentation/installwebapp?usp=admin"},
       {"blpcfgokakmgnkcojhhkbfbldkacnbeo",
        "https://www.youtube.com/s/notifications/manifest/cr_install.html"},
       {"hmjkmjkepdijhoojdojkdfohbdgmmhki",
-       "https://keep.google.com/installwebapp?usp=chrome_default"},
+       "https://keep.google.com/installwebapp?usp=admin"},
   });
 }
 
@@ -120,7 +120,8 @@ void DefaultChromeAppsMigrator::EnsurePolicyValueIsList(
         policies->Get(key::kExtensionInstallForcelist);
     PolicyMap::Entry policy_entry(
         forcelist_entry->level, forcelist_entry->scope, forcelist_entry->source,
-        base::Value(base::Value::Type::LIST), nullptr);
+        base::Value(base::Value::Type::LIST), /*external_data_fetcher=*/nullptr,
+        policies->GetPolicyDetails(policy_name));
     // If `policy_value` has wrong type, add message before overriding value.
     if (policy_value) {
       policy_entry.AddMessage(PolicyMap::MessageType::kError,

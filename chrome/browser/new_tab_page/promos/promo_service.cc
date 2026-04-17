@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "chrome/browser/new_tab_page/promos/promo_service.h"
 
 #include <utility>
@@ -96,12 +101,11 @@ GURL GetApiUrl() {
 // otherwise.
 // Additionally, there can be a "log_url" or "id" field in the promo. Those are
 // populated if found. They're not set for emergency promos. |data| will never
-// be absl::nullopt if top level dictionary keys of "update" and "promos" are
+// be std::nullopt if top level dictionary keys of "update" and "promos" are
 // present. Note: the "log_url" (if found), is resolved against
 // GetGoogleBaseUrl() to form a valid GURL.
-bool JsonToPromoData(const base::Value& value,
-                     absl::optional<PromoData>* data) {
-  *data = absl::nullopt;
+bool JsonToPromoData(const base::Value& value, std::optional<PromoData>* data) {
+  *data = std::nullopt;
 
   if (!value.is_dict()) {
     DVLOG(1) << "Parse error: top-level dictionary not found";
@@ -223,6 +227,7 @@ void PromoService::Refresh() {
   resource_request->url = GetApiUrl();
   resource_request->request_initiator =
       url::Origin::Create(GURL(chrome::kChromeUINewTabURL));
+  resource_request->credentials_mode = network::mojom::CredentialsMode::kOmit;
 
   simple_loader_ = network::SimpleURLLoader::Create(std::move(resource_request),
                                                     traffic_annotation);
@@ -237,7 +242,7 @@ void PromoService::OnLoadDone(std::unique_ptr<std::string> response_body) {
     // This represents network errors (i.e. the server did not provide a
     // response).
     DVLOG(1) << "Request failed with error: " << simple_loader_->NetError();
-    PromoDataLoaded(Status::TRANSIENT_ERROR, absl::nullopt);
+    PromoDataLoaded(Status::TRANSIENT_ERROR, std::nullopt);
     return;
   }
 
@@ -245,11 +250,10 @@ void PromoService::OnLoadDone(std::unique_ptr<std::string> response_body) {
   response.swap(*response_body);
 
   // The response may start with )]}'. Ignore this.
-  if (base::StartsWith(response, kXSSIResponsePreamble,
-                       base::CompareCase::SENSITIVE)) {
-    response = response.substr(strlen(kXSSIResponsePreamble));
+  auto remainder = base::RemovePrefix(response, kXSSIResponsePreamble);
+  if (remainder) {
+    response = std::string(*remainder);
   }
-
   data_decoder::DataDecoder::ParseJsonIsolated(
       response, base::BindOnce(&PromoService::OnJsonParsed,
                                weak_ptr_factory_.GetWeakPtr()));
@@ -259,11 +263,11 @@ void PromoService::OnJsonParsed(
     data_decoder::DataDecoder::ValueOrError result) {
   if (!result.has_value()) {
     DVLOG(1) << "Parsing JSON failed: " << result.error();
-    PromoDataLoaded(Status::FATAL_ERROR, absl::nullopt);
+    PromoDataLoaded(Status::FATAL_ERROR, std::nullopt);
     return;
   }
 
-  absl::optional<PromoData> data;
+  std::optional<PromoData> data;
   PromoService::Status status;
 
   if (JsonToPromoData(*result, &data)) {
@@ -291,7 +295,7 @@ void PromoService::RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterDictionaryPref(prefs::kNtpPromoBlocklist);
 }
 
-const absl::optional<PromoData>& PromoService::promo_data() const {
+const std::optional<PromoData>& PromoService::promo_data() const {
   return promo_data_;
 }
 
@@ -319,7 +323,7 @@ void PromoService::BlocklistPromo(const std::string& promo_id) {
     promo_data_ = PromoData();
     promo_status_ = Status::OK_BUT_BLOCKED;
     NotifyObservers();
-    // TODO(crbug.com/1003508): hide promos on existing, already-opened NTPs.
+    // TODO(crbug.com/40098612): hide promos on existing, already-opened NTPs.
   }
 }
 
@@ -337,7 +341,7 @@ void PromoService::UndoBlocklistPromo(const std::string& promo_id) {
 }
 
 void PromoService::PromoDataLoaded(Status status,
-                                   const absl::optional<PromoData>& data) {
+                                   const std::optional<PromoData>& data) {
   // In case of transient errors, keep our cached data (if any), but still
   // notify observers of the finished load (attempt).
   if (status != Status::TRANSIENT_ERROR) {

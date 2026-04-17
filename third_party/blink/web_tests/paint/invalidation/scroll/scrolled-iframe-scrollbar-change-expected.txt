@@ -6,18 +6,14 @@
       "contentsOpaque": true,
       "backgroundColor": "#FF0000",
       "invalidations": [
-        [787, 2, 15, 600],
         [779, 2, 15, 592]
       ]
     },
     {
-      "name": "LayoutNGBlockFlow (positioned) DIV id='overlay'",
+      "name": "LayoutBlockFlow (positioned) DIV id='overlay'",
       "bounds": [800, 600],
       "contentsOpaque": true,
       "backgroundColor": "#008000",
-      "invalidations": [
-        [0, 0, 800, 600]
-      ],
       "transform": 1
     }
   ],

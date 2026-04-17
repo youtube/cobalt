@@ -37,6 +37,7 @@ class NetworkingPrivateServiceClient
   // worker thread. The deletion task is posted from the destructor.
   explicit NetworkingPrivateServiceClient(
       std::unique_ptr<wifi::WiFiService> wifi_service);
+  ~NetworkingPrivateServiceClient() override;
 
   NetworkingPrivateServiceClient(const NetworkingPrivateServiceClient&) =
       delete;
@@ -116,7 +117,7 @@ class NetworkingPrivateServiceClient
   // Callbacks to extension api function objects. Keep reference to API object
   // and are released in ShutdownOnUIThread. Run when WiFiService calls back
   // into NetworkingPrivateServiceClient's callback wrappers.
-  typedef int32_t ServiceCallbacksID;
+  using ServiceCallbacksID = int32_t;
   struct ServiceCallbacks {
     ServiceCallbacks();
     ~ServiceCallbacks();
@@ -132,8 +133,6 @@ class NetworkingPrivateServiceClient
     ServiceCallbacksID id;
   };
   using ServiceCallbacksMap = base::IDMap<std::unique_ptr<ServiceCallbacks>>;
-
-  ~NetworkingPrivateServiceClient() override;
 
   // Callback wrappers.
   void AfterGetProperties(PropertiesCallback callback,

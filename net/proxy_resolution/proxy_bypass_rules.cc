@@ -34,8 +34,8 @@ const char kBypassSimpleHostnames[] = "<local>";
 bool IsLinkLocalIP(const GURL& url) {
   // Quick fail if definitely not link-local, to avoid doing unnecessary work in
   // common case.
-  if (!(base::StartsWith(url.host_piece(), "169.254.") ||
-        base::StartsWith(url.host_piece(), "["))) {
+  if (!(url.host_piece().starts_with("169.254.") ||
+        url.host_piece().starts_with("["))) {
     return false;
   }
 
@@ -53,8 +53,9 @@ bool IsLinkLocalIP(const GURL& url) {
 // addresses. However for proxy resolving such URLs should bypass the use
 // of a PAC script, since the destination is local.
 bool IsIPv4MappedLoopback(const GURL& url) {
-  if (!base::StartsWith(url.host_piece(), "[::ffff"))
+  if (!url.host_piece().starts_with("[::ffff")) {
     return false;
+  }
 
   IPAddress ip_address;
   if (!ip_address.AssignFromIPLiteral(url.HostNoBracketsPiece()))
@@ -102,8 +103,8 @@ class SubtractImplicitBypassesRule : public SchemeHostPortMatcherRule {
 };
 
 std::unique_ptr<SchemeHostPortMatcherRule> ParseRule(
-    base::StringPiece raw_untrimmed) {
-  base::StringPiece raw =
+    std::string_view raw_untrimmed) {
+  std::string_view raw =
       base::TrimWhitespaceASCII(raw_untrimmed, base::TRIM_ALL);
 
   // <local> and <-loopback> are special syntax used by WinInet's bypass list
@@ -191,7 +192,7 @@ void ProxyBypassRules::PrependRuleToBypassSimpleHostnames() {
   matcher_.AddAsFirstRule(std::make_unique<BypassSimpleHostnamesRule>());
 }
 
-bool ProxyBypassRules::AddRuleFromString(base::StringPiece raw_untrimmed) {
+bool ProxyBypassRules::AddRuleFromString(std::string_view raw_untrimmed) {
   auto rule = ParseRule(raw_untrimmed);
 
   if (rule) {

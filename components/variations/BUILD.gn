@@ -3,7 +3,7 @@
 # found in the LICENSE file.
 
 import("//build/buildflag_header.gni")
-import("//build/config/chromecast_build.gni")
+import("//build/config/cast.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//testing/test.gni")
@@ -17,8 +17,7 @@ if (is_android) {
   import("//build/config/android/rules.gni")
 }
 
-large_variation_key_size_enabled =
-    is_castos || is_cast_android || is_chromeos_lacros
+large_variation_key_size_enabled = is_castos || is_cast_android
 
 buildflag_header("buildflags") {
   header = "buildflags.h"
@@ -50,8 +49,14 @@ component("variations") {
     "entropy_provider.h",
     "fake_crash.cc",
     "fake_crash.h",
+    "field_trial_internals_utils.cc",
+    "field_trial_internals_utils.h",
     "hashing.cc",
     "hashing.h",
+    "limited_entropy_mode_gate.cc",
+    "limited_entropy_mode_gate.h",
+    "limited_layer_entropy_cost_tracker.cc",
+    "limited_layer_entropy_cost_tracker.h",
     "metrics.cc",
     "metrics.h",
     "platform_field_trials.h",
@@ -59,6 +64,8 @@ component("variations") {
     "pref_names.h",
     "processed_study.cc",
     "processed_study.h",
+    "seed_reader_writer.cc",
+    "seed_reader_writer.h",
     "seed_response.cc",
     "seed_response.h",
     "study_filtering.cc",
@@ -82,6 +89,9 @@ component("variations") {
     "variations_murmur_hash.h",
     "variations_request_scheduler.cc",
     "variations_request_scheduler.h",
+    "variations_safe_seed_store.h",
+    "variations_safe_seed_store_local_state.cc",
+    "variations_safe_seed_store_local_state.h",
     "variations_seed_processor.cc",
     "variations_seed_processor.h",
     "variations_seed_simulator.cc",
@@ -104,15 +114,7 @@ component("variations") {
     ]
   }
 
-  if (is_android) {
-    sources += [
-      "android/variations_associated_data_android.cc",
-      "android/variations_seed_bridge.cc",
-      "android/variations_seed_bridge.h",
-    ]
-  }
-
-  if (is_chromeos_ash) {
+  if (is_chromeos) {
     sources += [
       "variations_crash_keys_chromeos.cc",
       "variations_crash_keys_chromeos.h",
@@ -129,7 +131,6 @@ component("variations") {
     ":buildflags",
     ":variations_mojom",
     "proto",
-    "//build:chromeos_buildflags",
     "//components/crash/core/common:crash_key",
     "//components/prefs",
     "//components/version_info",
@@ -139,15 +140,34 @@ component("variations") {
   ]
 
   if (is_android) {
-    deps += [ ":jni" ]
+    sources += [
+      "android/variations_seed_bridge.cc",
+      "android/variations_seed_bridge.h",
+      "variations_crash_keys_android.cc",
+      "variations_crash_keys_android.h",
+    ]
+    deps += [
+      "//components/crash/android:anr_collector_jni_headers",
+      "//components/crash/android:anr_build_id_provider",
+      "//components/variations/android:variations_seed_jni",
+    ]
+  }
+
+  if (is_chromeos) {
+    deps += [
+      "//chromeos/ash/components/dbus/featured",
+      "//chromeos/ash/components/dbus/featured:proto",
+    ]
   }
 }
 
 if (is_android) {
-  generate_jni("jni") {
-    sources = [
-      "android/java/src/org/chromium/components/variations/VariationsAssociatedData.java",
-      "android/java/src/org/chromium/components/variations/firstrun/VariationsSeedBridge.java",
+  static_library("variations_associated_data") {
+    sources = [ "android/variations_associated_data_android.cc" ]
+    deps = [
+      ":variations",
+      "//components/variations/android:variations_data_jni",
+      "//components/variations/net",
     ]
   }
 
@@ -181,8 +201,8 @@ static_library("test_support") {
   sources = [
     "scoped_variations_ids_provider.cc",
     "scoped_variations_ids_provider.h",
-    "variations_params_manager.cc",
-    "variations_params_manager.h",
+    "service/test_variations_service.cc",
+    "service/test_variations_service.h",
     "variations_test_utils.cc",
     "variations_test_utils.h",
   ]
@@ -198,6 +218,10 @@ static_library("test_support") {
     "//base/test:test_support",
     "//components/metrics",
     "//components/prefs:prefs",
+    "//components/variations/service",
+    "//components/web_resource:test_support",
+    "//services/network:test_support",
+    "//services/network/public/cpp:cpp",
     "//third_party/zlib/google:compression_utils",
   ]
 }
@@ -210,16 +234,20 @@ source_set("unit_tests") {
     "child_process_field_trial_syncer_unittest.cc",
     "client_filterable_state_unittest.cc",
     "entropy_provider_unittest.cc",
+    "field_trial_internals_utils_unittest.cc",
     "hashing_unittest.cc",
+    "limited_layer_entropy_cost_tracker_unittest.cc",
     "net/variations_command_line_unittest.cc",
     "net/variations_http_headers_unittest.cc",
     "processed_study_unittest.cc",
+    "seed_reader_writer_unittest.cc",
     "simulate_for_crosstalk_unittest.cc",
     "study_filtering_unittest.cc",
     "synthetic_trial_registry_unittest.cc",
     "uniformity_unittest.cc",
     "variations_associated_data_unittest.cc",
     "variations_ids_provider_unittest.cc",
+    "variations_layers_unittest.cc",
     "variations_murmur_hash_unittest.cc",
     "variations_request_scheduler_unittest.cc",
     "variations_seed_processor_unittest.cc",
@@ -232,7 +260,7 @@ source_set("unit_tests") {
     sources += [ "variations_request_scheduler_mobile_unittest.cc" ]
   }
 
-  if (is_chromeos_ash) {
+  if (is_chromeos) {
     sources += [ "variations_crash_keys_chromeos_unittest.cc" ]
   }
 
@@ -240,7 +268,7 @@ source_set("unit_tests") {
   # build returns the crash keys in the unit-test, not the "variations"
   # target. The test verifies the keys in the "variations" target, not the
   # test. As such, it fails in component builds.
-  # TODO(crbug.com/1186718): Enable this unittest for is_fuchsia when crash keys
+  # TODO(crbug.com/40172607): Enable this unittest for is_fuchsia when crash keys
   # are supported on Fuchsia.
   if (!is_component_build && !is_fuchsia) {
     sources += [ "variations_crash_keys_unittest.cc" ]
@@ -254,6 +282,7 @@ source_set("unit_tests") {
     "net",
     "proto",
     "//base/test:test_support",
+    "//base/version_info:channel",
     "//components/crash/core/common:crash_key",
     "//components/prefs:test_support",
     "//components/variations/field_trial_config:field_trial_config",
@@ -264,6 +293,13 @@ source_set("unit_tests") {
     "//third_party/zlib/google:compression_utils",
     "//url",
   ]
+
+  if (is_chromeos) {
+    deps += [
+      "//chromeos/ash/components/dbus/featured",
+      "//chromeos/ash/components/dbus/featured:proto",
+    ]
+  }
 }
 
 # Convenience testing target
@@ -283,8 +319,7 @@ if (use_fuzzing_engine_with_lpm) {
 
     import_dirs = [ "//components/variations/proto" ]
 
-    proto_deps = [ "//components/variations/proto" ]
-    link_deps = [ "//components/variations/proto" ]
+    deps = [ "//components/variations/proto" ]
   }
   fuzzer_test("create_trial_from_study_fuzzer") {
     sources = [ "fuzzers/create_trial_from_study_fuzzer.cc" ]

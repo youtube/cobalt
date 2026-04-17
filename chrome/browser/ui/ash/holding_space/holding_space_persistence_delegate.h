@@ -30,13 +30,15 @@ using HoldingSpaceItemPtr = std::unique_ptr<HoldingSpaceItem>;
 class HoldingSpacePersistenceDelegate
     : public HoldingSpaceKeyedServiceDelegate {
  public:
-  // TODO(crbug.com/1131266): Move to `ash::holding_space_prefs`.
+  // TODO(crbug.com/40150129): Move to `ash::holding_space_prefs`.
   // Preference path at which holding space items are persisted.
   // NOTE: Any changes to persistence must be backwards compatible.
   static constexpr char kPersistencePath[] = "ash.holding_space.items";
 
-  // Callback to invoke when holding space persistence has been restored.
-  using PersistenceRestoredCallback = base::OnceClosure;
+  // Callback to invoke when holding space persistence has been restored to
+  // add the restored items to the holding space model.
+  using PersistenceRestoredCallback =
+      base::OnceCallback<void(std::vector<HoldingSpaceItemPtr>)>;
 
   HoldingSpacePersistenceDelegate(
       HoldingSpaceKeyedService* service,
@@ -59,8 +61,9 @@ class HoldingSpacePersistenceDelegate
       const std::vector<const HoldingSpaceItem*>& items) override;
   void OnHoldingSpaceItemsRemoved(
       const std::vector<const HoldingSpaceItem*>& items) override;
-  void OnHoldingSpaceItemUpdated(const HoldingSpaceItem* item,
-                                 uint32_t updated_fields) override;
+  void OnHoldingSpaceItemUpdated(
+      const HoldingSpaceItem* item,
+      const HoldingSpaceItemUpdatedFields& updated_fields) override;
 
   // Restores the holding space model from persistent storage.
   void RestoreModelFromPersistence();
@@ -70,7 +73,7 @@ class HoldingSpacePersistenceDelegate
   void MaybeRemoveItemsFromPersistence();
 
   // Owned by `HoldingSpaceKeyedService`.
-  const raw_ptr<ThumbnailLoader, ExperimentalAsh> thumbnail_loader_;
+  const raw_ptr<ThumbnailLoader> thumbnail_loader_;
 
   // Callback to invoke when holding space persistence has been restored.
   PersistenceRestoredCallback persistence_restored_callback_;

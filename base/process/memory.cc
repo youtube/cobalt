@@ -2,20 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "base/process/memory.h"
 
 #include <string.h>
 
 #include "base/allocator/buildflags.h"
-#include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
-#include "base/cxx17_backports.h"
 #include "base/debug/alias.h"
 #include "base/immediate_crash.h"
 #include "base/logging.h"
 #include "build/build_config.h"
+#include "partition_alloc/buildflags.h"
 
-#if BUILDFLAG(USE_PARTITION_ALLOC)
-#include "base/allocator/partition_allocator/page_allocator.h"
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC)
+#include "partition_alloc/page_allocator.h"  // nogncheck
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -29,7 +33,7 @@ namespace base {
 // Defined in memory_mac.mm for macOS + use_partition_alloc_as_malloc=false.
 // In case of use_partition_alloc_as_malloc=true, no need to route the call to
 // the system default calloc of macOS.
-#if !BUILDFLAG(IS_APPLE) || BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#if !BUILDFLAG(IS_APPLE) || PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 
 bool UncheckedCalloc(size_t num_items, size_t size, void** result) {
   const size_t alloc_size = num_items * size;
@@ -40,18 +44,19 @@ bool UncheckedCalloc(size_t num_items, size_t size, void** result) {
     return false;
   }
 
-  if (!UncheckedMalloc(alloc_size, result))
+  if (!UncheckedMalloc(alloc_size, result)) {
     return false;
+  }
 
   memset(*result, 0, alloc_size);
   return true;
 }
 
-#endif  // !BUILDFLAG(IS_APPLE) || BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#endif  // !BUILDFLAG(IS_APPLE) || PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 
 namespace internal {
 bool ReleaseAddressSpaceReservation() {
-#if BUILDFLAG(USE_PARTITION_ALLOC)
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC)
   return partition_alloc::ReleaseReservation();
 #else
   return false;

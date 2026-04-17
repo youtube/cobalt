@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <variant>
 
 #include "base/metrics/histogram_macros.h"
 #include "build/build_config.h"
@@ -15,12 +16,17 @@
 #include "components/viz/common/quads/solid_color_draw_quad.h"
 #include "components/viz/common/quads/texture_draw_quad.h"
 #include "components/viz/common/quads/tile_draw_quad.h"
-#include "components/viz/common/quads/yuv_video_draw_quad.h"
 #include "components/viz/service/display/display_resource_provider.h"
-#include "gpu/GLES2/gl2extchromium.h"
-#include "third_party/skia/include/core/SkDeferredDisplayList.h"
+#include "components/viz/service/display/overlay_candidate_factory.h"
 #include "ui/base/cocoa/remote_layer_api.h"
 #include "ui/gfx/buffer_types.h"
+#include "ui/gl/gl_bindings.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "components/viz/common/quads/video_hole_draw_quad.h"
+#include "components/viz/service/display/overlay_candidate.h"
+#include "components/viz/service/display/starboard/video_geometry_setter.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace viz {
 
@@ -34,17 +40,17 @@ namespace {
 // disabled.
 constexpr size_t kLayerLimitDefault = 128;
 
-// The new limit if kCALayerNewLimit is enabled. It can be overriden by the
+// The new limit if kCALayerNewLimit is enabled. It can be overridden by the
 // "default" feature parameters.
-constexpr size_t kLayerNewLimitDefault = 512;
+constexpr size_t kLayerNewLimitDefault = 1024;
 
 // The default CALayer number allowed for CoreAnimation with many videos (video
 // count >= kMaxNumVideos) when kCALayerNewLimit is disabled.
 constexpr size_t kLayerLimitWithManyVideos = 300;
 
 // The new limit with many videos if kCALayerNewLimit is enabled. It can be
-// overriden by the "many-video" feature parameters.
-constexpr size_t kLayerNewLimitWithManyVideos = 512;
+// overridden by the "many-video" feature parameters.
+constexpr size_t kLayerNewLimitWithManyVideos = 1024;
 
 // If there are too many RenderPassDrawQuads, we shouldn't use Core
 // Animation to present them as individual layers, since that potentially
@@ -80,11 +86,13 @@ bool FilterOperationSupported(const cc::FilterOperation& operation) {
 }
 
 gfx::CALayerResult FromRenderPassQuad(
-    DisplayResourceProvider* resource_provider,
+    const DisplayResourceProvider* resource_provider,
     const AggregatedRenderPassDrawQuad* quad,
-    const base::flat_map<AggregatedRenderPassId, cc::FilterOperations*>&
+    const base::flat_map<AggregatedRenderPassId,
+                         raw_ptr<cc::FilterOperations, CtnExperimental>>&
         render_pass_filters,
-    const base::flat_map<AggregatedRenderPassId, cc::FilterOperations*>&
+    const base::flat_map<AggregatedRenderPassId,
+                         raw_ptr<cc::FilterOperations, CtnExperimental>>&
         render_pass_backdrop_filters,
     OverlayCandidate* ca_layer_overlay) {
   if (render_pass_backdrop_filters.count(quad->render_pass_id)) {
@@ -104,19 +112,20 @@ gfx::CALayerResult FromRenderPassQuad(
     }
   }
 
-  // TODO(crbug.com/1215491): support not 2d axis aligned clipping.
+  // TODO(crbug.com/40769959): support not 2d axis aligned clipping.
   if (shared_quad_state->clip_rect &&
       !shared_quad_state->quad_to_target_transform.Preserves2dAxisAlignment()) {
     return gfx::kCALayerFailedQuadClipping;
   }
 
-  // TODO(crbug.com/1215491): support not 2d axis aligned mask.
+  // TODO(crbug.com/40769959): support not 2d axis aligned mask.
   if (!shared_quad_state->mask_filter_info.IsEmpty() &&
       !shared_quad_state->quad_to_target_transform.Preserves2dAxisAlignment()) {
     return gfx::kCALayerFailedRenderPassPassMask;
   }
 
   ca_layer_overlay->rpdq = quad;
+  ca_layer_overlay->is_render_pass_draw_quad = true;
   ca_layer_overlay->uv_rect = gfx::RectF(0, 0, 1, 1);
 
   // For RenderPassDrawQuad, the opacity is applied when its ddl is recorded, so
@@ -139,14 +148,18 @@ gfx::CALayerResult FromSolidColorDrawQuad(const SolidColorDrawQuad* quad,
   return gfx::kCALayerSuccess;
 }
 
-gfx::CALayerResult FromTextureQuad(DisplayResourceProvider* resource_provider,
-                                   const TextureDrawQuad* quad,
-                                   OverlayCandidate* ca_layer_overlay) {
-  ResourceId resource_id = quad->resource_id();
-  if (!resource_provider->IsOverlayCandidate(resource_id))
+gfx::CALayerResult FromTextureQuad(
+    const DisplayResourceProvider* resource_provider,
+    const TextureDrawQuad* quad,
+    OverlayCandidate* ca_layer_overlay) {
+  ResourceId resource_id = quad->resource_id;
+  if (!resource_provider->IsOverlayCandidate(resource_id)) {
     return gfx::kCALayerFailedTextureNotCandidate;
-  if (quad->y_flipped) {
-    auto transform = absl::get<gfx::Transform>(ca_layer_overlay->transform);
+  }
+  const bool y_flipped =
+      resource_provider->GetOrigin(resource_id) == kBottomLeft_GrSurfaceOrigin;
+  if (y_flipped) {
+    auto transform = std::get<gfx::Transform>(ca_layer_overlay->transform);
     // The anchor point is at the bottom-left corner of the CALayer. The
     // transformation that flips the contents of the layer without changing its
     // frame is the composition of a vertical flip about the anchor point, and a
@@ -159,86 +172,19 @@ gfx::CALayerResult FromTextureQuad(DisplayResourceProvider* resource_provider,
   ca_layer_overlay->uv_rect =
       BoundingRect(quad->uv_top_left, quad->uv_bottom_right);
   ca_layer_overlay->color = quad->background_color;
-  for (int i = 1; i < 4; ++i) {
-    if (quad->vertex_opacity[i] != quad->vertex_opacity[0])
-      return gfx::kCALayerFailedDifferentVertexOpacities;
-  }
-  ca_layer_overlay->opacity *= quad->vertex_opacity[0];
   ca_layer_overlay->nearest_neighbor_filter = quad->nearest_neighbor;
-  ca_layer_overlay->hdr_mode = quad->hdr_mode;
-  ca_layer_overlay->hdr_metadata = quad->hdr_metadata;
+  ca_layer_overlay->hdr_metadata =
+      resource_provider->GetHDRMetadata(resource_id);
   if (quad->is_video_frame)
     ca_layer_overlay->protected_video_type = quad->protected_video_type;
   return gfx::kCALayerSuccess;
 }
 
-gfx::CALayerResult FromYUVVideoQuad(DisplayResourceProvider* resource_provider,
-                                    const YUVVideoDrawQuad* quad,
-                                    OverlayCandidate* ca_layer_overlay,
-                                    bool& video_with_odd_width_out,
-                                    bool& video_with_odd_height_out,
-                                    bool& video_with_odd_x_out,
-                                    bool& video_with_odd_y_out) {
-  // For YUVVideoDrawQuads, the Y and UV planes alias the same underlying
-  // IOSurface. Ensure all planes are overlays and have the same contents
-  // rect. Then use the Y plane as the resource for the overlay.
-  ResourceId y_resource_id = quad->y_plane_resource_id();
-  if (!resource_provider->IsOverlayCandidate(y_resource_id) ||
-      !resource_provider->IsOverlayCandidate(quad->u_plane_resource_id()) ||
-      !resource_provider->IsOverlayCandidate(quad->v_plane_resource_id())) {
-    return gfx::kCALayerFailedYUVNotCandidate;
-  }
-
-  if (quad->y_plane_resource_id() == quad->u_plane_resource_id() ||
-      quad->y_plane_resource_id() == quad->v_plane_resource_id() ||
-      quad->u_plane_resource_id() != quad->v_plane_resource_id()) {
-    return gfx::kCALayerFailedYUVInvalidPlanes;
-  }
-
-  // Use division to calculate |ya_contents_rect| instead of using
-  // gfx::ScaleRect (which would multiply by the reciprocal), to avoid
-  // introducing excessive floating-point errors.
-  gfx::RectF ya_contents_rect = {
-      (quad->ya_tex_coord_rect().x() / quad->ya_tex_size().width()),
-      (quad->ya_tex_coord_rect().y() / quad->ya_tex_size().height()),
-      (quad->ya_tex_coord_rect().width() / quad->ya_tex_size().width()),
-      (quad->ya_tex_coord_rect().height() / quad->ya_tex_size().height())};
-  gfx::RectF uv_contents_rect = {
-      (quad->uv_tex_coord_rect().x() / quad->uv_tex_size().width()),
-      (quad->uv_tex_coord_rect().y() / quad->uv_tex_size().height()),
-      (quad->uv_tex_coord_rect().width() / quad->uv_tex_size().width()),
-      (quad->uv_tex_coord_rect().height() / quad->uv_tex_size().height())};
-  // For odd-sized videos, |ya_tex_coord_rect| and |uv_tex_coord_rect| might not
-  // be identical.
-  float tolerance_x = 1.5f / quad->uv_tex_size().width();
-  float tolerance_y = 1.5f / quad->uv_tex_size().height();
-  if (!ya_contents_rect.ApproximatelyEqual(uv_contents_rect, tolerance_x,
-                                           tolerance_y)) {
-    return gfx::kCALayerFailedYUVTexcoordMismatch;
-  }
-
-  // Check any odd sized and odd offset video in the current frame.
-  if (quad->ya_tex_size().width() % 2)
-    video_with_odd_width_out = true;
-  if (quad->ya_tex_size().height() % 2)
-    video_with_odd_height_out = true;
-  float integer = 0;
-  if (std::modf(quad->ya_tex_coord_rect().x() / 2.f, &integer) != 0)
-    video_with_odd_x_out = true;
-  if (std::modf(quad->ya_tex_coord_rect().y() / 2.f, &integer) != 0)
-    video_with_odd_y_out = true;
-
-  ca_layer_overlay->resource_id = y_resource_id;
-  ca_layer_overlay->uv_rect = ya_contents_rect;
-  ca_layer_overlay->hdr_metadata = quad->hdr_metadata;
-  ca_layer_overlay->protected_video_type = quad->protected_video_type;
-  return gfx::kCALayerSuccess;
-}
-
-gfx::CALayerResult FromTileQuad(DisplayResourceProvider* resource_provider,
-                                const TileDrawQuad* quad,
-                                OverlayCandidate* ca_layer_overlay) {
-  ResourceId resource_id = quad->resource_id();
+gfx::CALayerResult FromTileQuad(
+    const DisplayResourceProvider* resource_provider,
+    const TileDrawQuad* quad,
+    OverlayCandidate* ca_layer_overlay) {
+  ResourceId resource_id = quad->resource_id;
   if (!resource_provider->IsOverlayCandidate(resource_id))
     return gfx::kCALayerFailedTileNotCandidate;
   ca_layer_overlay->resource_id = resource_id;
@@ -252,12 +198,14 @@ gfx::CALayerResult FromTileQuad(DisplayResourceProvider* resource_provider,
 class CALayerOverlayProcessorInternal {
  public:
   gfx::CALayerResult FromDrawQuad(
-      DisplayResourceProvider* resource_provider,
+      const DisplayResourceProvider* resource_provider,
       const gfx::RectF& display_rect,
       const DrawQuad* quad,
-      const base::flat_map<AggregatedRenderPassId, cc::FilterOperations*>&
+      const base::flat_map<AggregatedRenderPassId,
+                           raw_ptr<cc::FilterOperations, CtnExperimental>>&
           render_pass_filters,
-      const base::flat_map<AggregatedRenderPassId, cc::FilterOperations*>&
+      const base::flat_map<AggregatedRenderPassId,
+                           raw_ptr<cc::FilterOperations, CtnExperimental>>&
           render_pass_backdrop_filters,
       OverlayCandidate* ca_layer_overlay,
       bool* skip,
@@ -313,9 +261,9 @@ class CALayerOverlayProcessorInternal {
       case DrawQuad::Material::kTextureContent: {
         const TextureDrawQuad* texture_draw_quad =
             TextureDrawQuad::MaterialCast(quad);
-        // Stream video counts as a yuv draw quad.
-        if (texture_draw_quad->is_stream_video)
+        if (texture_draw_quad->is_video_frame) {
           yuv_draw_quad_count += 1;
+        }
         return FromTextureQuad(resource_provider, texture_draw_quad,
                                ca_layer_overlay);
       }
@@ -336,12 +284,16 @@ class CALayerOverlayProcessorInternal {
             ca_layer_overlay);
       case DrawQuad::Material::kSurfaceContent:
         return gfx::kCALayerFailedSurfaceContent;
-      case DrawQuad::Material::kYuvVideoContent:
-        yuv_draw_quad_count++;
-        return FromYUVVideoQuad(
-            resource_provider, YUVVideoDrawQuad::MaterialCast(quad),
-            ca_layer_overlay, video_with_odd_width_, video_with_odd_height_,
-            video_with_odd_x_, video_with_odd_y_);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      // To make hole punching work, we want to avoid the quad-to-CALayer code
+      // path because it is complicated to punch a hole through the CALayer
+      // hierarchy created by CARendererLayerTree.
+      //
+      // To do so, kVideoHole quads will make ProcessForCALayerOverlays() return
+      // false and force PutQuadInSeparateOverlay() to be called.
+      case DrawQuad::Material::kVideoHole:
+        return gfx::kCALayerFailedOverlayDisabled;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       default:
         break;
     }
@@ -418,15 +370,18 @@ bool CALayerOverlayProcessor::AreClipSettingsValid(
 }
 
 void CALayerOverlayProcessor::PutForcedOverlayContentIntoUnderlays(
-    DisplayResourceProvider* resource_provider,
+    const DisplayResourceProvider* resource_provider,
     AggregatedRenderPass* render_pass,
     const gfx::RectF& display_rect,
     QuadList* quad_list,
-    const base::flat_map<AggregatedRenderPassId, cc::FilterOperations*>&
+    const base::flat_map<AggregatedRenderPassId,
+                         raw_ptr<cc::FilterOperations, CtnExperimental>>&
         render_pass_filters,
-    const base::flat_map<AggregatedRenderPassId, cc::FilterOperations*>&
+    const base::flat_map<AggregatedRenderPassId,
+                         raw_ptr<cc::FilterOperations, CtnExperimental>>&
         render_pass_backdrop_filters,
-    OverlayCandidateList* ca_layer_overlays) const {
+    OverlayCandidateList* ca_layer_overlays,
+    const OverlayCandidateFactory& candidate_factory) const {
   bool failed = false;
 
   for (auto it = quad_list->begin(); it != quad_list->end(); ++it) {
@@ -435,14 +390,11 @@ void CALayerOverlayProcessor::PutForcedOverlayContentIntoUnderlays(
     gfx::ProtectedVideoType protected_video_type =
         gfx::ProtectedVideoType::kClear;
 
-    // Put hardware protected video into an overlay
-    if (quad->material == ContentDrawQuadBase::Material::kYuvVideoContent) {
-      const YUVVideoDrawQuad* video_quad = YUVVideoDrawQuad::MaterialCast(quad);
-      if (video_quad->protected_video_type != gfx::ProtectedVideoType::kClear) {
-        force_quad_to_overlay = true;
-        protected_video_type = video_quad->protected_video_type;
-      }
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    if (quad->material == DrawQuad::Material::kVideoHole) {
+      force_quad_to_overlay = true;
     }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
     if (quad->material == ContentDrawQuadBase::Material::kTextureContent) {
       const TextureDrawQuad* texture_quad = TextureDrawQuad::MaterialCast(quad);
@@ -456,17 +408,18 @@ void CALayerOverlayProcessor::PutForcedOverlayContentIntoUnderlays(
 
       // Put HDR videos into an underlay.
       if (enable_hdr_underlays_) {
-        if (resource_provider->GetOverlayColorSpace(texture_quad->resource_id())
-                .IsHDR())
+        if (resource_provider->GetColorSpace(texture_quad->resource_id)
+                .IsHDR()) {
           force_quad_to_overlay = true;
+        }
       }
     }
 
     if (force_quad_to_overlay) {
-      if (!PutQuadInSeparateOverlay(it, resource_provider, render_pass,
-                                    display_rect, quad, render_pass_filters,
-                                    render_pass_backdrop_filters,
-                                    protected_video_type, ca_layer_overlays)) {
+      if (!PutQuadInSeparateOverlay(
+              it, resource_provider, render_pass, display_rect, quad,
+              render_pass_filters, render_pass_backdrop_filters,
+              protected_video_type, ca_layer_overlays, candidate_factory)) {
         failed = true;
         break;
       }
@@ -478,11 +431,13 @@ void CALayerOverlayProcessor::PutForcedOverlayContentIntoUnderlays(
 
 bool CALayerOverlayProcessor::ProcessForCALayerOverlays(
     AggregatedRenderPass* render_pass,
-    DisplayResourceProvider* resource_provider,
+    const DisplayResourceProvider* resource_provider,
     const gfx::RectF& display_rect,
-    const base::flat_map<AggregatedRenderPassId, cc::FilterOperations*>&
+    const base::flat_map<AggregatedRenderPassId,
+                         raw_ptr<cc::FilterOperations, CtnExperimental>>&
         render_pass_filters,
-    const base::flat_map<AggregatedRenderPassId, cc::FilterOperations*>&
+    const base::flat_map<AggregatedRenderPassId,
+                         raw_ptr<cc::FilterOperations, CtnExperimental>>&
         render_pass_backdrop_filters,
     OverlayCandidateList* ca_layer_overlays) {
   const QuadList& quad_list = render_pass->quad_list;
@@ -492,7 +447,9 @@ bool CALayerOverlayProcessor::ProcessForCALayerOverlays(
   // Skip overlay processing
   if (!overlays_allowed_ || !enable_ca_renderer_) {
     result = gfx::kCALayerFailedOverlayDisabled;
-  } else if (video_capture_enabled_) {
+  } else if (render_pass->video_capture_enabled) {
+    // The CARenderer is disabled when video capture is enabled.
+    // https://crbug.com/836351, https://crbug.com/1290384
     result = gfx::kCALayerFailedVideoCaptureEnabled;
   } else if (!render_pass->copy_requests.empty()) {
     result = gfx::kCALayerFailedCopyRequests;
@@ -563,16 +520,19 @@ bool CALayerOverlayProcessor::ProcessForCALayerOverlays(
 
 bool CALayerOverlayProcessor::PutQuadInSeparateOverlay(
     QuadList::Iterator at,
-    DisplayResourceProvider* resource_provider,
+    const DisplayResourceProvider* resource_provider,
     AggregatedRenderPass* render_pass,
     const gfx::RectF& display_rect,
     const DrawQuad* quad,
-    const base::flat_map<AggregatedRenderPassId, cc::FilterOperations*>&
+    const base::flat_map<AggregatedRenderPassId,
+                         raw_ptr<cc::FilterOperations, CtnExperimental>>&
         render_pass_filters,
-    const base::flat_map<AggregatedRenderPassId, cc::FilterOperations*>&
+    const base::flat_map<AggregatedRenderPassId,
+                         raw_ptr<cc::FilterOperations, CtnExperimental>>&
         render_pass_backdrop_filters,
     gfx::ProtectedVideoType protected_video_type,
-    OverlayCandidateList* ca_layer_overlays) const {
+    OverlayCandidateList* ca_layer_overlays,
+    const OverlayCandidateFactory& candidate_factory) const {
   CALayerOverlayProcessorInternal processor;
   OverlayCandidate ca_layer;
   bool skip = false;
@@ -582,8 +542,15 @@ bool CALayerOverlayProcessor::PutQuadInSeparateOverlay(
       resource_provider, display_rect, quad, render_pass_filters,
       render_pass_backdrop_filters, &ca_layer, &skip, &render_pass_draw_quad,
       yuv_draw_quad_count);
-  if (result != gfx::kCALayerSuccess)
+  if (result != gfx::kCALayerSuccess
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      // When doing hole-punching, the call above will fail but FromDrawQuad()
+      // below provides the information this function needs.
+      && at->material != DrawQuad::Material::kVideoHole
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+  ) {
     return false;
+  }
 
   if (skip)
     return true;
@@ -591,10 +558,30 @@ bool CALayerOverlayProcessor::PutQuadInSeparateOverlay(
   if (!AreClipSettingsValid(ca_layer, ca_layer_overlays))
     return true;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  const bool is_video_hole = at->material == DrawQuad::Material::kVideoHole;
+  if (is_video_hole) {
+    CHECK_EQ(candidate_factory.FromDrawQuad(*at, ca_layer),
+             OverlayCandidate::CandidateStatus::kSuccess);
+    DCHECK(GetVideoGeometrySetter());
+    GetVideoGeometrySetter()->SetVideoGeometry(
+        ca_layer.display_rect,
+        std::get<gfx::OverlayTransform>(ca_layer.transform),
+        VideoHoleDrawQuad::MaterialCast(*at)->overlay_plane_id);
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   ca_layer.protected_video_type = protected_video_type;
-  render_pass->ReplaceExistingQuadWithSolidColor(at, SkColors::kTransparent,
-                                                 SkBlendMode::kSrcOver);
-  ca_layer_overlays->push_back(ca_layer);
+  render_pass->ReplaceExistingQuadWithHolePunch(at);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // The video hole quad has been replaced. Do not add it to |ca_layer_overlays|
+  // since it does not have a resource id, which causes
+  // SkiaRenderer::ScheduleOverlays() to hit an assertion.
+  if (!is_video_hole)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+  {
+    ca_layer_overlays->push_back(ca_layer);
+  }
   return true;
 }
 

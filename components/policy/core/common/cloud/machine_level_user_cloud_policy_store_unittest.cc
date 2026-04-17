@@ -4,6 +4,7 @@
 
 #include "components/policy/core/common/cloud/machine_level_user_cloud_policy_store.h"
 
+#include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
@@ -15,6 +16,7 @@
 #include "components/policy/core/common/cloud/cloud_policy_util.h"
 #include "components/policy/core/common/cloud/mock_cloud_policy_store.h"
 #include "components/policy/core/common/cloud/test/policy_builder.h"
+#include "components/policy/core/common/policy_switches.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -36,7 +38,7 @@ class MachineLevelUserCloudPolicyStoreTest : public ::testing::Test {
       : task_environment_(base::test::TaskEnvironment::MainThreadType::UI) {
     policy_.SetDefaultInitialSigningKey();
     policy_.policy_data().set_policy_type(
-        GetMachineLevelUserCloudPolicyTypeForCurrentOS());
+        dm_protocol::kChromeMachineLevelUserCloudPolicyType);
     policy_.payload().mutable_searchsuggestenabled()->set_value(false);
     policy_.Build();
   }
@@ -45,13 +47,17 @@ class MachineLevelUserCloudPolicyStoreTest : public ::testing::Test {
   MachineLevelUserCloudPolicyStoreTest& operator=(
       const MachineLevelUserCloudPolicyStoreTest&) = delete;
 
-  ~MachineLevelUserCloudPolicyStoreTest() override {}
+  ~MachineLevelUserCloudPolicyStoreTest() override = default;
 
   void SetUp() override {
     ASSERT_TRUE(tmp_policy_dir_.CreateUniqueTempDir());
     updater_policy_dir_ =
         tmp_policy_dir_.GetPath().AppendASCII("updater_policies");
     store_ = CreateStore();
+    base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+    command_line->AppendSwitchASCII(
+        switches::kPolicyVerificationKey,
+        PolicyBuilder::GetEncodedPolicyVerificationKey());
   }
 
   void SetExpectedPolicyMap(PolicySource source) {
@@ -64,7 +70,7 @@ class MachineLevelUserCloudPolicyStoreTest : public ::testing::Test {
   std::unique_ptr<MachineLevelUserCloudPolicyStore> CreateStore() {
     std::unique_ptr<MachineLevelUserCloudPolicyStore> store =
         MachineLevelUserCloudPolicyStore::Create(
-            DMToken::CreateValidTokenForTesting(PolicyBuilder::kFakeToken),
+            DMToken::CreateValidToken(PolicyBuilder::kFakeToken),
             PolicyBuilder::kFakeDeviceId, updater_policy_dir_,
             tmp_policy_dir_.GetPath(),
             base::SingleThreadTaskRunner::GetCurrentDefault());
@@ -116,8 +122,7 @@ class MachineLevelUserCloudPolicyStoreTest : public ::testing::Test {
 };
 
 TEST_F(MachineLevelUserCloudPolicyStoreTest, LoadWithoutDMToken) {
-  store_->SetupRegistration(DMToken::CreateEmptyTokenForTesting(),
-                            std::string());
+  store_->SetupRegistration(DMToken::CreateEmptyToken(), std::string());
   EXPECT_FALSE(store_->policy());
   EXPECT_TRUE(store_->policy_map().empty());
 
@@ -134,8 +139,7 @@ TEST_F(MachineLevelUserCloudPolicyStoreTest, LoadWithoutDMToken) {
 }
 
 TEST_F(MachineLevelUserCloudPolicyStoreTest, LoadImmediatelyWithoutDMToken) {
-  store_->SetupRegistration(DMToken::CreateEmptyTokenForTesting(),
-                            std::string());
+  store_->SetupRegistration(DMToken::CreateEmptyToken(), std::string());
   EXPECT_FALSE(store_->policy());
   EXPECT_TRUE(store_->policy_map().empty());
 
@@ -382,7 +386,7 @@ TEST_F(MachineLevelUserCloudPolicyStoreTest,
   ::testing::Mock::VerifyAndClearExpectations(&observer_);
 
   std::unique_ptr<MachineLevelUserCloudPolicyStore> loader = CreateStore();
-  loader->SetupRegistration(DMToken(DMToken::Status::kValid, "bad_token"),
+  loader->SetupRegistration(DMToken::CreateValidToken("bad_token"),
                             "invalid_client_id");
   EXPECT_CALL(observer_, OnStoreError(loader.get()));
   loader->Load();

@@ -87,7 +87,6 @@ StyleSheetCandidate::Type StyleSheetCandidate::TypeOf(Node& node) {
     }
 
     NOTREACHED();
-    return kInvalid;
   }
 
   if (IsA<SVGStyleElement>(node)) {
@@ -95,7 +94,6 @@ StyleSheetCandidate::Type StyleSheetCandidate::TypeOf(Node& node) {
   }
 
   NOTREACHED();
-  return kInvalid;
 }
 
 StyleSheet* StyleSheetCandidate::Sheet() const {
@@ -110,7 +108,6 @@ StyleSheet* StyleSheetCandidate::Sheet() const {
       return To<ProcessingInstruction>(GetNode()).sheet();
     default:
       NOTREACHED();
-      return nullptr;
   }
 }
 

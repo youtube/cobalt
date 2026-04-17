@@ -4,7 +4,10 @@
 
 package org.chromium.support_lib_boundary;
 
-/**
- * Boundary interface for WebResourceRequest.
- */
-public interface WebResourceRequestBoundaryInterface { boolean isRedirect(); }
+import org.jspecify.annotations.NullMarked;
+
+/** Boundary interface for WebResourceRequest. */
+@NullMarked
+public interface WebResourceRequestBoundaryInterface {
+    boolean isRedirect();
+}

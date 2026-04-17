@@ -26,14 +26,11 @@ class BytecodeGeneratorTest : public TestWithContext {
     i::v8_flags.always_turbofan = false;
     i::v8_flags.allow_natives_syntax = true;
     i::v8_flags.enable_lazy_source_positions = false;
+    i::v8_flags.function_context_cells = false;
     TestWithContext::SetUpTestSuite();
   }
 
-  void SetUp() override {
-    // TODO(v8:13723): Remove once TDZ elision ships.
-    i::v8_flags.ignition_elide_redundant_tdz_checks = false;
-    TestWithContext::SetUp();
-  }
+  void SetUp() override { TestWithContext::SetUp(); }
 
   BytecodeExpectationsPrinter& printer() { return printer_; }
 
@@ -1124,6 +1121,40 @@ TEST_F(BytecodeGeneratorTest, CompareTypeOf) {
 
   CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("CompareTypeOf.golden")));
+}
+
+TEST_F(BytecodeGeneratorTest, VariableWithHint) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("test");
+
+  std::string snippets[] = {
+      "var test;\n"
+      "(function () {\n"
+      "    function foo() {\n"
+      "        let a = typeof('str'); if (a === 'string') {}\n"
+      "        let b = typeof('str'); if (b === 1) {}\n"
+      "        let c = typeof('str'); c = 1; if (c === 'string') {}\n"
+      "        let d = typeof('str');\n"
+      "        if (d === 'string' || d === 'number') {}\n"
+      "        let e = 'hello world';\n"
+      "        if (e == 'string' || e == 'number') {}\n"
+      "        let f = 'hi';\n"
+      "        for (let i = 0; i < 2; ++i) {\n"
+      "            if (f === 'hi') {}\n"
+      "        }\n"
+      "        let g = true;\n"
+      "        if (g === 's') {}\n"
+      "        let j = true;\n"
+      "        let k = j || 's';\n"
+      "        if (k === 's') {}\n"
+      "    }\n"
+      "    foo();\n"
+      "    test = foo;\n"
+      "})();\n",
+  };
+
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
+                     LoadGolden("VariableWithHint.golden")));
 }
 
 TEST_F(BytecodeGeneratorTest, CompareBoolean) {
@@ -3211,8 +3242,6 @@ TEST_F(BytecodeGeneratorTest, ElideRedundantLoadOperationOfImmutableContext) {
 }
 
 TEST_F(BytecodeGeneratorTest, ElideRedundantHoleChecks) {
-  i::v8_flags.ignition_elide_redundant_tdz_checks = true;
-
   printer().set_wrap(false);
   printer().set_test_function_name("f");
 

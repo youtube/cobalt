@@ -4,10 +4,10 @@
 
 #include "base/task/thread_pool/job_task_source.h"
 
+#include <bit>
 #include <type_traits>
 #include <utility>
 
-#include "base/bits.h"
 #include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -16,14 +16,12 @@
 #include "base/task/common/checked_lock.h"
 #include "base/task/task_features.h"
 #include "base/task/thread_pool/pooled_task_runner_delegate.h"
-#include "base/template_util.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "base/time/time_override.h"
 #include "base/trace_event/base_tracing.h"
 
-namespace base {
-namespace internal {
+namespace base::internal {
 
 namespace {
 
@@ -92,8 +90,7 @@ JobTaskSource::JobTaskSource(const Location& from_here,
                              RepeatingCallback<void(JobDelegate*)> worker_task,
                              MaxConcurrencyCallback max_concurrency_callback,
                              PooledTaskRunnerDelegate* delegate)
-    : TaskSource(traits, nullptr, TaskSourceExecutionMode::kJob),
-      from_here_(from_here),
+    : TaskSource(traits, TaskSourceExecutionMode::kJob),
       max_concurrency_callback_(std::move(max_concurrency_callback)),
       worker_task_(std::move(worker_task)),
       primary_task_(base::BindRepeating(
@@ -104,9 +101,11 @@ JobTaskSource::JobTaskSource(const Location& from_here,
             self->worker_task_.Run(&job_delegate);
           },
           base::Unretained(this))),
+      task_metadata_(from_here),
       ready_time_(TimeTicks::Now()),
       delegate_(delegate) {
   DCHECK(delegate_);
+  task_metadata_.sequence_num = -1;
 }
 
 JobTaskSource::~JobTaskSource() {
@@ -115,14 +114,23 @@ JobTaskSource::~JobTaskSource() {
 }
 
 ExecutionEnvironment JobTaskSource::GetExecutionEnvironment() {
-  return {SequenceToken::Create(), nullptr};
+  return {SequenceToken::Create()};
+}
+
+void JobTaskSource::WillEnqueue(int sequence_num, TaskAnnotator& annotator) {
+  if (task_metadata_.sequence_num != -1) {
+    // WillEnqueue() was already called.
+    return;
+  }
+  task_metadata_.sequence_num = sequence_num;
+  annotator.WillQueueTask("ThreadPool_PostJob", &task_metadata_);
 }
 
 bool JobTaskSource::WillJoin() {
   TRACE_EVENT0("base", "Job.WaitForParticipationOpportunity");
   CheckedAutoLock auto_lock(worker_lock_);
   DCHECK(!worker_released_condition_);  // This may only be called once.
-  worker_released_condition_ = worker_lock_.CreateConditionVariable();
+  worker_lock_.CreateConditionVariableAndEmplace(worker_released_condition_);
   // Prevent wait from triggering a ScopedBlockingCall as this would cause
   // |ThreadGroup::lock_| to be acquired, causing lock inversion.
   worker_released_condition_->declare_only_used_while_idle();
@@ -198,8 +206,9 @@ bool JobTaskSource::WaitForParticipationOpportunity() {
   join_flag_.Reset();
 
   // Case A:
-  if (state.worker_count() <= max_concurrency && !state.is_canceled())
+  if (state.worker_count() <= max_concurrency && !state.is_canceled()) {
     return true;
+  }
   // Case B:
   // Only the joining thread remains.
   DCHECK_EQ(state.worker_count(), 1U);
@@ -219,17 +228,20 @@ TaskSource::RunStatus JobTaskSource::WillRunTask() {
   //   B) |worker_count| is already at |max_concurrency|.
   //   C) |max_concurrency| was lowered below or to |worker_count|.
   // Case A:
-  if (state_before_add.is_canceled())
+  if (state_before_add.is_canceled()) {
     return RunStatus::kDisallowed;
+  }
 
   const size_t max_concurrency =
       GetMaxConcurrency(state_before_add.worker_count());
-  if (state_before_add.worker_count() < max_concurrency)
+  if (state_before_add.worker_count() < max_concurrency) {
     state_before_add = state_.IncrementWorkerCount();
+  }
   const size_t worker_count_before_add = state_before_add.worker_count();
   // Case B) or C):
-  if (worker_count_before_add >= max_concurrency)
+  if (worker_count_before_add >= max_concurrency) {
     return RunStatus::kDisallowed;
+  }
 
   DCHECK_LT(worker_count_before_add, max_concurrency);
   return max_concurrency == worker_count_before_add + 1
@@ -241,12 +253,14 @@ size_t JobTaskSource::GetRemainingConcurrency() const {
   // It is safe to read |state_| without a lock since this variable is atomic,
   // and no other state is synchronized with GetRemainingConcurrency().
   const auto state = TS_UNCHECKED_READ(state_).Load();
-  if (state.is_canceled())
+  if (state.is_canceled()) {
     return 0;
+  }
   const size_t max_concurrency = GetMaxConcurrency(state.worker_count());
   // Avoid underflows.
-  if (state.worker_count() > max_concurrency)
+  if (state.worker_count() > max_concurrency) {
     return 0;
+  }
   return max_concurrency - state.worker_count();
 }
 
@@ -264,15 +278,17 @@ size_t JobTaskSource::GetWorkerCount() const {
 void JobTaskSource::NotifyConcurrencyIncrease() {
   // Avoid unnecessary locks when NotifyConcurrencyIncrease() is spuriously
   // called.
-  if (GetRemainingConcurrency() == 0)
+  if (GetRemainingConcurrency() == 0) {
     return;
+  }
 
   {
     // Lock is taken to access |join_flag_| below and signal
     // |worker_released_condition_|.
     CheckedAutoLock auto_lock(worker_lock_);
-    if (join_flag_.ShouldWorkerSignal())
+    if (join_flag_.ShouldWorkerSignal()) {
       worker_released_condition_->Signal();
+    }
   }
 
   // Make sure the task source is in the queue if not already.
@@ -306,7 +322,7 @@ uint8_t JobTaskSource::AcquireTaskId() {
   do {
     // Count trailing one bits. This is the id of the right-most 0-bit in
     // |assigned_task_ids|.
-    task_id = bits::CountTrailingZeroBits(~assigned_task_ids);
+    task_id = std::countr_one(assigned_task_ids);
     new_assigned_task_ids = assigned_task_ids | (uint32_t(1) << task_id);
   } while (!assigned_task_ids_.compare_exchange_weak(
       assigned_task_ids, new_assigned_task_ids, std::memory_order_acquire,
@@ -334,7 +350,7 @@ Task JobTaskSource::TakeTask(TaskSource::Transaction* transaction) {
   // if |transaction| is nullptr.
   DCHECK_GT(TS_UNCHECKED_READ(state_).Load().worker_count(), 0U);
   DCHECK(primary_task_);
-  return Task(from_here_, primary_task_, TimeTicks(), TimeDelta());
+  return {task_metadata_, primary_task_};
 }
 
 bool JobTaskSource::DidProcessTask(TaskSource::Transaction* /*transaction*/) {
@@ -343,12 +359,14 @@ bool JobTaskSource::DidProcessTask(TaskSource::Transaction* /*transaction*/) {
   CheckedAutoLock auto_lock(worker_lock_);
   const auto state_before_sub = state_.DecrementWorkerCount();
 
-  if (join_flag_.ShouldWorkerSignal())
+  if (join_flag_.ShouldWorkerSignal()) {
     worker_released_condition_->Signal();
+  }
 
   // A canceled task source should never get re-enqueued.
-  if (state_before_sub.is_canceled())
+  if (state_before_sub.is_canceled()) {
     return false;
+  }
 
   DCHECK_GT(state_before_sub.worker_count(), 0U);
 
@@ -385,16 +403,15 @@ TimeTicks JobTaskSource::GetDelayedSortKey() const {
 // However, the class still needs to provide an override.
 bool JobTaskSource::HasReadyTasks(TimeTicks now) const {
   NOTREACHED();
-  return true;
 }
 
-Task JobTaskSource::Clear(TaskSource::Transaction* transaction) {
+std::optional<Task> JobTaskSource::Clear(TaskSource::Transaction* transaction) {
   Cancel();
+
   // Nothing is cleared since other workers might still racily run tasks. For
   // simplicity, the destructor will take care of it once all references are
   // released.
-  return Task(from_here_, DoNothing(), TimeTicks(), TimeDelta());
+  return std::nullopt;
 }
 
-}  // namespace internal
-}  // namespace base
+}  // namespace base::internal

@@ -8,16 +8,23 @@
 
 #include <algorithm>
 #include <string>
+#include <tuple>
 #include <utility>
 
+#include "base/feature_list.h"
+#include "base/i18n/rtl.h"
 #include "base/memory/raw_ptr.h"
+#include "base/scoped_observation.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/skia/include/core/SkCanvas.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/accessibility/ax_node_data.h"
+#include "ui/display/screen.h"
+#include "ui/display/test/test_screen.h"
 #include "ui/events/event_utils.h"
 #include "ui/events/test/event_generator.h"
 #include "ui/gfx/text_utils.h"
@@ -40,6 +47,8 @@
 // friend classes.
 namespace views {
 
+constexpr int kGroupingIndicatorSize = 6;
+
 class TableViewTestHelper {
  public:
   explicit TableViewTestHelper(TableView* table) : table_(table) {}
@@ -57,7 +66,7 @@ class TableViewTestHelper {
 
   size_t visible_col_count() { return table_->visible_columns().size(); }
 
-  absl::optional<size_t> GetActiveVisibleColumnIndex() {
+  std::optional<size_t> GetActiveVisibleColumnIndex() {
     return table_->GetActiveVisibleColumnIndex();
   }
 
@@ -94,6 +103,12 @@ class TableViewTestHelper {
 
   gfx::Rect GetActiveCellBounds() const {
     return table_->GetActiveCellBounds();
+  }
+
+  void SelectRowsInRangeFrom(size_t view_index,
+                             bool select,
+                             ui::ListSelectionModel* model) {
+    table_->SelectRowsInRangeFrom(view_index, select, model);
   }
 
   std::vector<std::vector<gfx::Rect>> GenerateExpectedBounds() {
@@ -139,17 +154,48 @@ class TableViewTestHelper {
     return expected_bounds;
   }
 
+  int GetCellMargin() const { return table_->GetCellMargin(); }
+
+  int GetCellElementSpacing() const { return table_->GetCellElementSpacing(); }
+
+  gfx::Rect GetPaintIconSrcBounds(const gfx::Size& image_size,
+                                  int image_dest_width) {
+    return table_->GetPaintIconSrcBounds(image_size, image_dest_width);
+  }
+
+  gfx::Rect GetPaintIconDestBounds(const gfx::Rect& cell_bounds,
+                                   int text_bounds_x) {
+    return table_->GetPaintIconDestBounds(cell_bounds, text_bounds_x);
+  }
+
+  const std::optional<GroupRange>& GetHoveredRows() const {
+    return table_->hovered_rows_;
+  }
+
+  gfx::Transform GetHoverLayerTransform() const {
+    return table_->hover_layer_.transform();
+  }
+
+  void SetHover(gfx::Point view_coordinates) {
+    table_->SetHover(view_coordinates);
+  }
+
+  void ClearHover() { table_->ClearHover(); }
+
+  gfx::Point GetScrollOffset() { return table_->scroll_offset_; }
+
+  void ScrollTableTo(gfx::PointF offset) {
+    ScrollView* scroll_view = ScrollView::GetScrollViewForContents(table_);
+    EXPECT_NE(scroll_view, nullptr);
+
+    scroll_view->ScrollToOffset(offset);
+  }
+
  private:
-  raw_ptr<TableView> table_;
+  const raw_ptr<TableView> table_;
 };
 
 namespace {
-
-#if BUILDFLAG(IS_MAC)
-constexpr int kCtrlOrCmdMask = ui::EF_COMMAND_DOWN;
-#else
-constexpr int kCtrlOrCmdMask = ui::EF_CONTROL_DOWN;
-#endif
 
 // TestTableModel2 -------------------------------------------------------------
 
@@ -168,6 +214,9 @@ class TestTableModel2 : public ui::TableModel {
 
   TestTableModel2(const TestTableModel2&) = delete;
   TestTableModel2& operator=(const TestTableModel2&) = delete;
+
+  // Clears the model entirely, leaving it empty.
+  void Clear();
 
   // Adds a new row at index |row| with values |c1_value| and |c2_value|.
   void AddRow(size_t row, int c1_value, int c2_value);
@@ -202,7 +251,7 @@ class TestTableModel2 : public ui::TableModel {
  private:
   raw_ptr<ui::TableModelObserver> observer_ = nullptr;
 
-  absl::optional<std::u16string> tooltip_;
+  std::optional<std::u16string> tooltip_;
 
   // The data.
   std::vector<std::vector<int>> rows_;
@@ -215,14 +264,19 @@ TestTableModel2::TestTableModel2() {
   AddRow(3, 3, 0);
 }
 
+void TestTableModel2::Clear() {
+  RemoveRows(0, rows_.size());
+}
+
 void TestTableModel2::AddRow(size_t row, int c1_value, int c2_value) {
   DCHECK(row <= rows_.size());
   std::vector<int> new_row;
   new_row.push_back(c1_value);
   new_row.push_back(c2_value);
   rows_.insert(rows_.begin() + row, new_row);
-  if (observer_)
+  if (observer_) {
     observer_->OnItemsAdded(row, 1);
+  }
 }
 
 void TestTableModel2::AddRows(size_t row, size_t length, int value_multiplier) {
@@ -236,15 +290,17 @@ void TestTableModel2::AddRows(size_t row, size_t length, int value_multiplier) {
     }
   }
 
-  if (observer_ && length > 0)
+  if (observer_ && length > 0) {
     observer_->OnItemsAdded(row, length);
+  }
 }
 
 void TestTableModel2::RemoveRow(size_t row) {
   DCHECK(row < rows_.size());
   rows_.erase(rows_.begin() + row);
-  if (observer_)
+  if (observer_) {
     observer_->OnItemsRemoved(row, 1);
+  }
 }
 
 void TestTableModel2::RemoveRows(size_t row, size_t length) {
@@ -254,16 +310,18 @@ void TestTableModel2::RemoveRows(size_t row, size_t length) {
         rows_.begin() + std::clamp(row + length, size_t{0}, rows_.size()));
   }
 
-  if (observer_ && length > 0)
+  if (observer_ && length > 0) {
     observer_->OnItemsRemoved(row, length);
+  }
 }
 
 void TestTableModel2::ChangeRow(size_t row, int c1_value, int c2_value) {
   DCHECK(row < rows_.size());
   rows_[row][0] = c1_value;
   rows_[row][1] = c2_value;
-  if (observer_)
+  if (observer_) {
     observer_->OnItemsChanged(row, 1);
+  }
 }
 
 void TestTableModel2::MoveRows(size_t row_from, size_t length, size_t row_to) {
@@ -275,8 +333,9 @@ void TestTableModel2::MoveRows(size_t row_from, size_t length, size_t row_to) {
   std::vector<std::vector<int>> temp(old_start, old_start + length);
   rows_.erase(old_start, old_start + length);
   rows_.insert(rows_.begin() + row_to, temp.begin(), temp.end());
-  if (observer_)
+  if (observer_) {
     observer_->OnItemsMoved(row_from, length, row_to);
+  }
 }
 
 void TestTableModel2::SetTooltip(const std::u16string& tooltip) {
@@ -307,8 +366,9 @@ int TestTableModel2::CompareValues(size_t row1, size_t row2, int column_id) {
 std::string GetViewToModelAsString(TableView* table) {
   std::string result;
   for (size_t i = 0; i < table->GetRowCount(); ++i) {
-    if (i != 0)
+    if (i != 0) {
       result += " ";
+    }
     result += base::NumberToString(table->ViewToModel(i));
   }
   return result;
@@ -318,8 +378,9 @@ std::string GetViewToModelAsString(TableView* table) {
 std::string GetModelToViewAsString(TableView* table) {
   std::string result;
   for (size_t i = 0; i < table->GetRowCount(); ++i) {
-    if (i != 0)
+    if (i != 0) {
       result += " ";
+    }
     result += base::NumberToString(table->ModelToView(i));
   }
   return result;
@@ -330,15 +391,17 @@ std::string GetModelToViewAsString(TableView* table) {
 std::string GetRowsInViewOrderAsString(TableView* table) {
   std::string result;
   for (size_t i = 0; i < table->GetRowCount(); ++i) {
-    if (i != 0)
+    if (i != 0) {
       result += ", ";  // Comma between each row.
+    }
 
     // Format row |i| like this: "[value1, value2, value3]"
     result += "[";
     for (size_t j = 0; j < table->visible_columns().size(); ++j) {
       const ui::TableColumn& column = table->GetVisibleColumn(j).column;
-      if (j != 0)
+      if (j != 0) {
         result += ", ";  // Comma between each value in the row.
+      }
 
       result += base::UTF16ToUTF8(
           table->model()->GetText(table->ViewToModel(i), column.id));
@@ -355,8 +418,9 @@ std::string GetRowsInVirtualViewAsString(TableView* table) {
   std::string result;
 
   for (size_t row_index = 0; row_index < virtual_children.size(); row_index++) {
-    if (row_index != 0)
+    if (row_index != 0) {
       result += ", ";  // Comma between each row.
+    }
 
     const auto& row = virtual_children[row_index];
 
@@ -364,8 +428,9 @@ std::string GetRowsInVirtualViewAsString(TableView* table) {
 
     for (size_t cell_index = 0; cell_index < row->children().size();
          cell_index++) {
-      if (cell_index != 0)
+      if (cell_index != 0) {
         result += ", ";  // Comma between each value in the row.
+      }
 
       const auto& cell = row->children()[cell_index];
       const ui::AXNodeData& cell_data = cell->GetData();
@@ -384,8 +449,9 @@ std::string GetHeaderRowAsString(TableView* table) {
 
   for (size_t col_index = 0; col_index < table->visible_columns().size();
        ++col_index) {
-    if (col_index != 0)
+    if (col_index != 0) {
       result += ", ";  // Comma between each column.
+    }
 
     result +=
         base::UTF16ToUTF8(table->GetVisibleColumn(col_index).column.title);
@@ -397,21 +463,21 @@ std::string GetHeaderRowAsString(TableView* table) {
 }
 
 bool PressLeftMouseAt(views::View* target, const gfx::Point& point) {
-  const ui::MouseEvent pressed(ui::ET_MOUSE_PRESSED, point, point,
+  const ui::MouseEvent pressed(ui::EventType::kMousePressed, point, point,
                                ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
                                ui::EF_LEFT_MOUSE_BUTTON);
   return target->OnMousePressed(pressed);
 }
 
 void ReleaseLeftMouseAt(views::View* target, const gfx::Point& point) {
-  const ui::MouseEvent release(ui::ET_MOUSE_RELEASED, point, point,
+  const ui::MouseEvent release(ui::EventType::kMouseReleased, point, point,
                                ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
                                ui::EF_LEFT_MOUSE_BUTTON);
   target->OnMouseReleased(release);
 }
 
 bool DragLeftMouseTo(views::View* target, const gfx::Point& point) {
-  const ui::MouseEvent dragged(ui::ET_MOUSE_DRAGGED, point, point,
+  const ui::MouseEvent dragged(ui::EventType::kMouseDragged, point, point,
                                ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
                                0);
   return target->OnMouseDragged(dragged);
@@ -422,7 +488,9 @@ bool DragLeftMouseTo(views::View* target, const gfx::Point& point) {
 // The test parameter is used to control whether or not to test the TableView
 // using the default construction path.
 class TableViewTest : public ViewsTestBase,
-                      public ::testing::WithParamInterface<bool> {
+                      public ::testing::WithParamInterface<
+                          std::tuple</*use_default_construction=*/bool,
+                                     /*use_rtl=*/bool>> {
  public:
   TableViewTest() = default;
 
@@ -443,23 +511,25 @@ class TableViewTest : public ViewsTestBase,
     std::unique_ptr<TableView> table;
 
     // Run the tests using both default and non-default TableView construction.
-    if (GetParam()) {
+    if (use_default_construction()) {
       table = std::make_unique<TableView>();
-      table->Init(model_.get(), columns, TEXT_ONLY, false);
+      table->Init(model_.get(), columns, TableType::kTextOnly, false);
     } else {
-      table =
-          std::make_unique<TableView>(model_.get(), columns, TEXT_ONLY, false);
+      table = std::make_unique<TableView>(model_.get(), columns,
+                                          TableType::kTextOnly, false);
     }
     table_ = table.get();
     auto scroll_view = TableView::CreateScrollViewWithTable(std::move(table));
+    scroll_view_ = scroll_view.get();
     scroll_view->SetBounds(0, 0, 10000, 10000);
     helper_ = std::make_unique<TableViewTestHelper>(table_);
 
     widget_ = std::make_unique<Widget>();
     Widget::InitParams params =
-        CreateParams(Widget::InitParams::TYPE_WINDOW_FRAMELESS);
+        CreateParams(Widget::InitParams::CLIENT_OWNS_WIDGET,
+                     Widget::InitParams::TYPE_WINDOW_FRAMELESS);
     params.bounds = gfx::Rect(0, 0, 650, 650);
-    params.delegate = GetWidgetDelegate(widget_.get());
+    params.delegate = ConfigureWidgetDelegate();
     widget_->Init(std::move(params));
     test::RunScheduledLayout(
         widget_->GetRootView()->AddChildView(std::move(scroll_view)));
@@ -467,6 +537,9 @@ class TableViewTest : public ViewsTestBase,
   }
 
   void TearDown() override {
+    table_ = nullptr;
+    scroll_view_ = nullptr;
+    helper_.reset();
     widget_.reset();
     ViewsTestBase::TearDown();
   }
@@ -529,9 +602,7 @@ class TableViewTest : public ViewsTestBase,
       const int normalized_index = index - first_row_index;
 
       // Make sure the stored row index matches the row index in the table.
-      const ui::AXNodeData& row_data = row->GetCustomData();
-      const int stored_index =
-          row_data.GetIntAttribute(ax::mojom::IntAttribute::kTableRowIndex);
+      const int stored_index = row->GetTableRowIndex();
       EXPECT_EQ(stored_index, normalized_index);
     }
   }
@@ -543,7 +614,7 @@ class TableViewTest : public ViewsTestBase,
       const std::vector<std::vector<gfx::Rect>>& expected_bounds) {
     auto& virtual_children = view_accessibility.virtual_children();
     EXPECT_EQ(virtual_children.size(), expected_bounds.size());
-    EXPECT_EQ((size_t)(table_->GetRowCount()) + 1U, expected_bounds.size());
+    EXPECT_EQ(table_->GetRowCount() + 1U, expected_bounds.size());
 
     for (size_t row_index = 0; row_index < virtual_children.size();
          row_index++) {
@@ -557,6 +628,12 @@ class TableViewTest : public ViewsTestBase,
           ui::AXCoordinateSystem::kScreenDIPs,
           ui::AXClippingBehavior::kUnclipped, &offscreen_result);
       EXPECT_EQ(row_custom_bounds, expected_bounds[row_index][0]);
+      if (table_->GetVisibleBounds().Intersects(
+              expected_bounds[row_index][0])) {
+        EXPECT_FALSE(row_data.HasState(ax::mojom::State::kInvisible));
+      } else {
+        EXPECT_TRUE(row_data.HasState(ax::mojom::State::kInvisible));
+      }
 
       EXPECT_EQ(row->children().size(), expected_bounds[row_index].size() - 1U);
       EXPECT_EQ(row->children().size(), helper_->visible_col_count());
@@ -566,10 +643,11 @@ class TableViewTest : public ViewsTestBase,
         ASSERT_TRUE(cell);
         const ui::AXNodeData& cell_data = cell->GetData();
 
-        if (row_index == 0)
+        if (row_index == 0) {
           EXPECT_EQ(ax::mojom::Role::kColumnHeader, cell_data.role);
-        else
-          EXPECT_EQ(ax::mojom::Role::kCell, cell_data.role);
+        } else {
+          EXPECT_EQ(ax::mojom::Role::kGridCell, cell_data.role);
+        }
 
         // Add 1 to get the cell's index into |expected_bounds| since the first
         // entry is the row's bounds.
@@ -579,21 +657,49 @@ class TableViewTest : public ViewsTestBase,
             ui::AXClippingBehavior::kUnclipped, &offscreen_result);
         EXPECT_EQ(cell_custom_bounds,
                   expected_bounds[row_index][expected_bounds_index]);
+        if (table_->GetVisibleBounds().Intersects(
+                expected_bounds[row_index][expected_bounds_index])) {
+          EXPECT_FALSE(cell_data.HasState(ax::mojom::State::kInvisible));
+        } else {
+          EXPECT_TRUE(cell_data.HasState(ax::mojom::State::kInvisible));
+        }
       }
     }
   }
 
+  void SetColumnWidthForHorizontalScrollBarVisibility() {
+    EXPECT_EQ(2u, helper_->visible_col_count());
+    EXPECT_EQ(4u, table_->GetRowCount());
+    // Initially no active visible column.
+    EXPECT_FALSE(helper_->GetActiveVisibleColumnIndex().has_value());
+    EXPECT_FALSE(scroll_view_->horizontal_scroll_bar()->GetVisible());
+    scroll_view_->SetBounds(0, 0, 800, 800);
+    // Set the column width to make the horizontal scroll bar visible.
+    constexpr int kColumn0Width = 500;
+    constexpr int kColumn1Width = 1000;
+    table_->SetVisibleColumnWidth(0, kColumn0Width);
+    table_->SetVisibleColumnWidth(1, kColumn1Width);
+    test::RunScheduledLayout(scroll_view_);
+    EXPECT_EQ(table_->GetVisibleColumn(0).width, kColumn0Width);
+    EXPECT_EQ(table_->GetVisibleColumn(1).width, kColumn1Width);
+    EXPECT_TRUE(scroll_view_->horizontal_scroll_bar()->GetVisible());
+  }
+
+  bool use_default_construction() const { return std::get<0>(GetParam()); }
+  bool use_rtl() const { return std::get<1>(GetParam()); }
+
  protected:
-  virtual WidgetDelegate* GetWidgetDelegate(Widget* widget) { return nullptr; }
+  virtual WidgetDelegate* ConfigureWidgetDelegate() { return nullptr; }
 
   std::unique_ptr<TestTableModel2> model_;
 
-  // Owned by |parent_|.
+  // Owned by the scroll view owned by `widget_`.
   raw_ptr<TableView> table_ = nullptr;
+  raw_ptr<ScrollView> scroll_view_ = nullptr;
 
   std::unique_ptr<TableViewTestHelper> helper_;
 
-  UniqueWidgetPtr widget_;
+  std::unique_ptr<Widget> widget_;
 
  private:
   gfx::Point GetPointForRow(int row) {
@@ -602,7 +708,23 @@ class TableViewTest : public ViewsTestBase,
   }
 };
 
-INSTANTIATE_TEST_SUITE_P(All, TableViewTest, testing::Values(false, true));
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    TableViewTest,
+    testing::Combine(/*use_default_construction=*/testing::Bool(),
+                     /*use_rtl=*/testing::Bool()));
+
+// Using one of the arrow keys (which normally change selection) with an empty
+// table must leave the selection state empty.
+// Regression test for https://issues.chromium.org/issues/342341277
+TEST_P(TableViewTest, SelectedIndexWithNoRows) {
+  model_->Clear();
+  table_->RequestFocus();
+  EXPECT_TRUE(table_->selection_model().empty());
+  table_->OnKeyPressed(
+      ui::KeyEvent(ui::EventType::kKeyPressed, ui::VKEY_DOWN, 0));
+  EXPECT_TRUE(table_->selection_model().empty());
+}
 
 // Verifies GetPaintRegion.
 TEST_P(TableViewTest, GetPaintRegion) {
@@ -661,7 +783,7 @@ TEST_P(TableViewTest, RebuildVirtualAccessibilityChildren) {
     for (const auto& cell : row->children()) {
       ASSERT_TRUE(cell);
       const ui::AXNodeData& cell_data = cell->GetData();
-      EXPECT_EQ(ax::mojom::Role::kCell, cell_data.role);
+      EXPECT_EQ(ax::mojom::Role::kGridCell, cell_data.role);
       EXPECT_EQ(i, static_cast<size_t>(cell_data.GetIntAttribute(
                        ax::mojom::IntAttribute::kTableCellRowIndex)));
       EXPECT_EQ(j++, cell_data.GetIntAttribute(
@@ -669,6 +791,21 @@ TEST_P(TableViewTest, RebuildVirtualAccessibilityChildren) {
       ASSERT_FALSE(cell_data.HasState(ax::mojom::State::kInvisible));
     }
   }
+}
+
+// Regression test for crbug.com/384944872
+TEST_P(TableViewTest, RebuildingAXTreeShouldAlwaysAddHeader) {
+  // The number of virtual_children() should be 1 header + 4 rows.
+  EXPECT_EQ(table_->GetViewAccessibility().virtual_children().size(), 5U);
+
+  // Remove all table entries.
+  model_->RemoveRows(0, model_->RowCount());
+
+  // Trigger a rebuild.
+  table_->OnModelChanged();
+
+  // Header should be included in the ax-tree, even if there are no rows.
+  EXPECT_EQ(table_->GetViewAccessibility().virtual_children().size(), 1U);
 }
 
 // Verifies the bounding rect of each virtual accessibility child of the
@@ -693,6 +830,79 @@ TEST_P(TableViewTest, UpdateVirtualAccessibilityChildrenBoundsWithResize) {
   auto expected_bounds_after_resize = helper_->GenerateExpectedBounds();
   VerifyTableAccChildrenBounds(table_->GetViewAccessibility(),
                                expected_bounds_after_resize);
+}
+
+TEST_P(TableViewTest, AccessibleTableColumnCount) {
+  const ViewAccessibility& view_accessibility = table_->GetViewAccessibility();
+  ui::AXNodeData data;
+  view_accessibility.GetAccessibleNodeData(&data);
+  EXPECT_EQ(helper_->visible_col_count(),
+            static_cast<size_t>(data.GetIntAttribute(
+                ax::mojom::IntAttribute::kTableColumnCount)));
+
+  table_->SetColumnVisibility(1, false);
+
+  data = ui::AXNodeData();
+  view_accessibility.GetAccessibleNodeData(&data);
+  EXPECT_EQ(helper_->visible_col_count(),
+            static_cast<size_t>(data.GetIntAttribute(
+                ax::mojom::IntAttribute::kTableColumnCount)));
+
+  std::vector<ui::TableColumn> new_columns(3);
+
+  data = ui::AXNodeData();
+  view_accessibility.GetAccessibleNodeData(&data);
+  EXPECT_EQ(helper_->visible_col_count(),
+            static_cast<size_t>(data.GetIntAttribute(
+                ax::mojom::IntAttribute::kTableColumnCount)));
+}
+
+TEST_P(TableViewTest, AccessibleTableRowCount) {
+  const ViewAccessibility& view_accessibility = table_->GetViewAccessibility();
+  ui::AXNodeData data;
+  view_accessibility.GetAccessibleNodeData(&data);
+  EXPECT_EQ(table_->GetRowCount(),
+            static_cast<size_t>(
+                data.GetIntAttribute(ax::mojom::IntAttribute::kTableRowCount)));
+
+  // Move rows to validate OnItemsMoved.
+  model_->MoveRows(0, 1, 1);
+  data = ui::AXNodeData();
+  view_accessibility.GetAccessibleNodeData(&data);
+  EXPECT_EQ(table_->GetRowCount(),
+            static_cast<size_t>(
+                data.GetIntAttribute(ax::mojom::IntAttribute::kTableRowCount)));
+
+  // Change rows to validate OnItemsChanged.
+  model_->ChangeRow(3, -1, 0);
+  data = ui::AXNodeData();
+  view_accessibility.GetAccessibleNodeData(&data);
+  EXPECT_EQ(table_->GetRowCount(),
+            static_cast<size_t>(
+                data.GetIntAttribute(ax::mojom::IntAttribute::kTableRowCount)));
+
+  // Remove rows to validate OnItemsRemoved.
+  model_->RemoveRow(0);
+  data = ui::AXNodeData();
+  view_accessibility.GetAccessibleNodeData(&data);
+  EXPECT_EQ(table_->GetRowCount(),
+            static_cast<size_t>(
+                data.GetIntAttribute(ax::mojom::IntAttribute::kTableRowCount)));
+
+  // Add rows to validate OnItemsAdded
+  model_->AddRows(1, 2, /*value_multiplier=*/10);
+  data = ui::AXNodeData();
+  view_accessibility.GetAccessibleNodeData(&data);
+  EXPECT_EQ(table_->GetRowCount(),
+            static_cast<size_t>(
+                data.GetIntAttribute(ax::mojom::IntAttribute::kTableRowCount)));
+
+  table_->OnModelChanged();
+  data = ui::AXNodeData();
+  view_accessibility.GetAccessibleNodeData(&data);
+  EXPECT_EQ(table_->GetRowCount(),
+            static_cast<size_t>(
+                data.GetIntAttribute(ax::mojom::IntAttribute::kTableRowCount)));
 }
 
 TEST_P(TableViewTest, UpdateVirtualAccessibilityChildrenBoundsHideColumn) {
@@ -720,7 +930,7 @@ TEST_P(TableViewTest, GetVirtualAccessibilityCell) {
       const AXVirtualView* cell = helper_->GetVirtualAccessibilityCell(i, j);
       ASSERT_TRUE(cell);
       const ui::AXNodeData& cell_data = cell->GetData();
-      EXPECT_EQ(ax::mojom::Role::kCell, cell_data.role);
+      EXPECT_EQ(ax::mojom::Role::kGridCell, cell_data.role);
       EXPECT_EQ(i, static_cast<size_t>(cell_data.GetIntAttribute(
                        ax::mojom::IntAttribute::kTableCellRowIndex)));
       EXPECT_EQ(j, static_cast<size_t>(cell_data.GetIntAttribute(
@@ -734,22 +944,38 @@ TEST_P(TableViewTest, ChangingCellFiresAccessibilityEvent) {
   table_->GetViewAccessibility().set_accessibility_events_callback(
       base::BindLambdaForTesting(
           [&](const ui::AXPlatformNodeDelegate*, const ax::mojom::Event event) {
-            if (event == ax::mojom::Event::kTextChanged)
+            if (event == ax::mojom::Event::kTextChanged) {
               ++text_changed_count;
+            }
           }));
 
-  // A kTextChanged event is fired when a cell's data is accessed and
-  // its computed accessible text isn't the same as the previously cached
-  // value. Ensure that the cached value is correctly updated so that
-  // retrieving the data multiple times doesn't result in firing additional
-  // kTextChanged events.
+  // First we make sure that simply accessing the data will not fire the event.
   const AXVirtualView* cell = helper_->GetVirtualAccessibilityCell(0, 0);
   ASSERT_TRUE(cell);
   ui::AXNodeData cell_data;
-  for (int i = 0; i < 100; ++i)
+  for (int i = 0; i < 100; ++i) {
     cell_data = cell->GetData();
+  }
+  EXPECT_EQ(0, text_changed_count);
 
-  EXPECT_EQ(1, text_changed_count);
+  // A kTextChanged event is fired when a cell's data is changed and
+  // its computed accessible text isn't the same as the previously cached
+  // value.
+  // Change the [3, 0] cell to [-1, 0].
+  model_->ChangeRow(3, -1, 0);
+  // When the platform does not support keyboard navigation by cell,
+  // we end up changing the accessible name on both the row and the cell,
+  // which will trigger two events.
+  if constexpr (!PlatformStyle::kTableViewSupportsKeyboardNavigationByCell) {
+    EXPECT_EQ(2, text_changed_count);
+  } else {
+    EXPECT_EQ(1, text_changed_count);
+  }
+  text_changed_count = 0;
+
+  // Ensure that "changing" the cell to the same value doesn't fire the event.
+  model_->ChangeRow(3, -1, 0);
+  EXPECT_EQ(0, text_changed_count);
 }
 
 // Verifies SetColumnVisibility().
@@ -818,11 +1044,11 @@ TEST_P(TableViewTest, ResizeViaGesture) {
   // Drag the mouse 1 pixel to the left.
   ui::GestureEvent scroll_begin(
       x, 0, 0, base::TimeTicks(),
-      ui::GestureEventDetails(ui::ET_GESTURE_SCROLL_BEGIN));
+      ui::GestureEventDetails(ui::EventType::kGestureScrollBegin));
   helper_->header()->OnGestureEvent(&scroll_begin);
   ui::GestureEvent scroll_update(
       x - 1, 0, 0, base::TimeTicks(),
-      ui::GestureEventDetails(ui::ET_GESTURE_SCROLL_UPDATE));
+      ui::GestureEventDetails(ui::EventType::kGestureScrollUpdate));
   helper_->header()->OnGestureEvent(&scroll_update);
 
   // This should shrink the first column and pull the second column in.
@@ -833,8 +1059,9 @@ TEST_P(TableViewTest, ResizeViaGesture) {
 // Verifies resizing a column works with the keyboard.
 // The resize keyboard amount is 5 pixels.
 TEST_P(TableViewTest, ResizeViaKeyboard) {
-  if (!PlatformStyle::kTableViewSupportsKeyboardNavigationByCell)
-    return;
+  if constexpr (!PlatformStyle::kTableViewSupportsKeyboardNavigationByCell) {
+    GTEST_SKIP() << "platform doesn't support table keyboard navigation";
+  }
 
   table_->RequestFocus();
   const int x = table_->GetVisibleColumn(0).width;
@@ -867,7 +1094,6 @@ TEST_P(TableViewTest, ResizeViaKeyboard) {
 // Verifies resizing a column won't reduce the column width below the width of
 // the column's title text.
 TEST_P(TableViewTest, ResizeHonorsMinimum) {
-  TableViewTestHelper helper(table_);
   const int x = table_->GetVisibleColumn(0).width;
   EXPECT_NE(0, x);
 
@@ -875,7 +1101,7 @@ TEST_P(TableViewTest, ResizeHonorsMinimum) {
   DragLeftMouseTo(helper_->header(), gfx::Point(20, 0));
 
   int title_width = gfx::GetStringWidth(
-      table_->GetVisibleColumn(0).column.title, helper.font_list());
+      table_->GetVisibleColumn(0).column.title, helper_->font_list());
   EXPECT_LT(title_width, table_->GetVisibleColumn(0).width);
 
   int old_width = table_->GetVisibleColumn(0).width;
@@ -1037,8 +1263,9 @@ TEST_P(TableViewTest, SortOnMouse) {
 // Verifies that pressing the space bar when a particular visible column is
 // active will sort by that column.
 TEST_P(TableViewTest, SortOnSpaceBar) {
-  if (!PlatformStyle::kTableViewSupportsKeyboardNavigationByCell)
-    return;
+  if constexpr (!PlatformStyle::kTableViewSupportsKeyboardNavigationByCell) {
+    GTEST_SKIP() << "platform doesn't support table keyboard navigation";
+  }
 
   table_->RequestFocus();
   ASSERT_TRUE(table_->sort_descriptors().empty());
@@ -1116,7 +1343,8 @@ TEST_P(TableViewTest, ActiveCellBoundsFollowColumnSorting) {
 }
 
 TEST_P(TableViewTest, Tooltip) {
-  // Column 0 uses the TableModel's GetTooltipText override for tooltips.
+  // Column 0 uses the TableModel's GetRenderedTooltipText override for
+  // tooltips.
   table_->SetVisibleColumnWidth(0, 10);
   auto local_point_for_row = [&](int row) {
     return gfx::Point(5, (row + 0.5) * table_->GetRowHeight());
@@ -1124,13 +1352,16 @@ TEST_P(TableViewTest, Tooltip) {
   auto expected = [](int row) {
     return u"Tooltip" + base::NumberToString16(row);
   };
-  EXPECT_EQ(expected(0), table_->GetTooltipText(local_point_for_row(0)));
-  EXPECT_EQ(expected(1), table_->GetTooltipText(local_point_for_row(1)));
-  EXPECT_EQ(expected(2), table_->GetTooltipText(local_point_for_row(2)));
+  EXPECT_EQ(expected(0),
+            table_->GetRenderedTooltipText(local_point_for_row(0)));
+  EXPECT_EQ(expected(1),
+            table_->GetRenderedTooltipText(local_point_for_row(1)));
+  EXPECT_EQ(expected(2),
+            table_->GetRenderedTooltipText(local_point_for_row(2)));
 
   // Hovering another column will return that cell's text instead.
   const gfx::Point point(15, local_point_for_row(0).y());
-  EXPECT_EQ(model_->GetText(0, 1), table_->GetTooltipText(point));
+  EXPECT_EQ(model_->GetText(0, 1), table_->GetRenderedTooltipText(point));
 }
 
 namespace {
@@ -1148,8 +1379,10 @@ class TableGrouperImpl : public TableGrouper {
   void GetGroupRange(size_t model_index, GroupRange* range) override {
     size_t offset = 0;
     size_t range_index = 0;
-    for (; range_index < ranges_.size() && offset < model_index; ++range_index)
+    for (; range_index < ranges_.size() && offset < model_index;
+         ++range_index) {
       offset += ranges_[range_index];
+    }
 
     if (offset == model_index) {
       range->start = model_index;
@@ -1237,11 +1470,124 @@ TEST_P(TableViewTest, Grouping) {
   EXPECT_EQ("2 3 0 1", GetModelToViewAsString(table_));
 }
 
+TEST_P(TableViewTest, VirtualAccessibilitySetSelectionAll) {
+  table_->SetSelectionAll(true);
+  // Set only the first column as the active column.
+  table_->SetActiveVisibleColumnIndex(0);
+
+  for (size_t i = 0; i < table_->GetRowCount(); ++i) {
+    const AXVirtualView* row = helper_->GetVirtualAccessibilityBodyRow(i);
+    ASSERT_TRUE(row);
+    const ui::AXNodeData& row_data = row->GetData();
+    // Make sure all rows are selected.
+    EXPECT_TRUE(row_data.GetBoolAttribute(ax::mojom::BoolAttribute::kSelected));
+    for (size_t j = 0; j < helper_->visible_col_count(); ++j) {
+      const AXVirtualView* cell = helper_->GetVirtualAccessibilityCell(i, j);
+      ASSERT_TRUE(cell);
+      const ui::AXNodeData& cell_data = cell->GetData();
+      // Only the cells in the first column should be selected.
+      if (PlatformStyle::kTableViewSupportsKeyboardNavigationByCell && j == 0) {
+        EXPECT_TRUE(
+            cell_data.GetBoolAttribute(ax::mojom::BoolAttribute::kSelected));
+      } else {
+        EXPECT_FALSE(
+            cell_data.HasBoolAttribute(ax::mojom::BoolAttribute::kSelected));
+      }
+    }
+  }
+}
+
+TEST_P(TableViewTest, VirtualAccessibilitySetSelectionRowsInRange) {
+  // Configure the grouper so that there are two groups:
+  // A 0
+  //   1
+  // B 2
+  //   3
+  TableGrouperImpl grouper;
+  grouper.SetRanges({2, 2});
+  table_->SetGrouper(&grouper);
+  ui::ListSelectionModel new_selection;
+  // Should only select the second group.
+  helper_->SelectRowsInRangeFrom(2, true, &new_selection);
+  helper_->SetSelectionModel(new_selection);
+  // Set only the second column as the active column.
+  table_->SetActiveVisibleColumnIndex(1);
+
+  for (size_t i = 0; i < table_->GetRowCount(); ++i) {
+    const AXVirtualView* row = helper_->GetVirtualAccessibilityBodyRow(i);
+    ASSERT_TRUE(row);
+    const ui::AXNodeData& row_data = row->GetData();
+    if (i == 2 || i == 3) {
+      EXPECT_TRUE(
+          row_data.GetBoolAttribute(ax::mojom::BoolAttribute::kSelected));
+    } else {
+      EXPECT_FALSE(
+          row_data.GetBoolAttribute(ax::mojom::BoolAttribute::kSelected));
+    }
+    for (size_t j = 0; j < helper_->visible_col_count(); ++j) {
+      const AXVirtualView* cell = helper_->GetVirtualAccessibilityCell(i, j);
+      ASSERT_TRUE(cell);
+      const ui::AXNodeData& cell_data = cell->GetData();
+      if (PlatformStyle::kTableViewSupportsKeyboardNavigationByCell && j == 1 &&
+          (i == 2 || i == 3)) {
+        EXPECT_TRUE(
+            cell_data.GetBoolAttribute(ax::mojom::BoolAttribute::kSelected));
+      } else {
+        EXPECT_FALSE(
+            cell_data.HasBoolAttribute(ax::mojom::BoolAttribute::kSelected));
+      }
+    }
+  }
+
+  ui::ListSelectionModel new_selection2;
+  // Unselect the selected cells.
+  helper_->SelectRowsInRangeFrom(2, false, &new_selection2);
+  helper_->SetSelectionModel(new_selection2);
+
+  for (size_t i = 0; i < table_->GetRowCount(); ++i) {
+    const AXVirtualView* row = helper_->GetVirtualAccessibilityBodyRow(i);
+    ASSERT_TRUE(row);
+    const ui::AXNodeData& row_data = row->GetData();
+    EXPECT_FALSE(
+        row_data.GetBoolAttribute(ax::mojom::BoolAttribute::kSelected));
+    for (size_t j = 0; j < helper_->visible_col_count(); ++j) {
+      const AXVirtualView* cell = helper_->GetVirtualAccessibilityCell(i, j);
+      ASSERT_TRUE(cell);
+      const ui::AXNodeData& cell_data = cell->GetData();
+      EXPECT_FALSE(
+          cell_data.GetBoolAttribute(ax::mojom::BoolAttribute::kSelected));
+    }
+  }
+}
+
+TEST_P(TableViewTest, VirtualAccessibilitySelectOnRemove) {
+  table_->Select(2);
+  model_->RemoveRow(2);
+
+  for (size_t i = 0; i < table_->GetRowCount(); ++i) {
+    const AXVirtualView* row = helper_->GetVirtualAccessibilityBodyRow(i);
+    ASSERT_TRUE(row);
+    const ui::AXNodeData& row_data = row->GetData();
+    // Only the new row at index 2 should be selected.
+    if (i == 2) {
+      EXPECT_TRUE(
+          row_data.GetBoolAttribute(ax::mojom::BoolAttribute::kSelected));
+    } else {
+      EXPECT_FALSE(
+          row_data.GetBoolAttribute(ax::mojom::BoolAttribute::kSelected));
+    }
+  }
+}
+
 namespace {
 
 class TableViewObserverImpl : public TableViewObserver {
  public:
-  TableViewObserverImpl() = default;
+  explicit TableViewObserverImpl(TableView* view) {
+    observation_.Observe(view);
+  }
+
+  ~TableViewObserverImpl() override = default;
 
   TableViewObserverImpl(const TableViewObserverImpl&) = delete;
   TableViewObserverImpl& operator=(const TableViewObserverImpl&) = delete;
@@ -1256,15 +1602,16 @@ class TableViewObserverImpl : public TableViewObserver {
   void OnSelectionChanged() override { selection_changed_count_++; }
 
  private:
+  const raw_ptr<TableView> view_;
   int selection_changed_count_ = 0;
+  base::ScopedObservation<TableView, TableViewObserver> observation_{this};
 };
 
 }  // namespace
 
 // Assertions around changing the selection.
 TEST_P(TableViewTest, Selection) {
-  TableViewObserverImpl observer;
-  table_->set_observer(&observer);
+  TableViewObserverImpl observer(table_);
 
   // Initially no selection.
   EXPECT_EQ("active=<none> anchor=<none> selection=", SelectionStateAsString());
@@ -1354,13 +1701,10 @@ TEST_P(TableViewTest, Selection) {
   model_->RemoveRows(4, 2);
   EXPECT_EQ(1, observer.GetChangedCountAndClear());
   EXPECT_EQ("active=0 anchor=0 selection=0", SelectionStateAsString());
-
-  table_->set_observer(nullptr);
 }
 
 TEST_P(TableViewTest, SelectAll) {
-  TableViewObserverImpl observer;
-  table_->set_observer(&observer);
+  TableViewObserverImpl observer(table_);
 
   // Initially no selection.
   EXPECT_EQ("active=<none> anchor=<none> selection=", SelectionStateAsString());
@@ -1383,8 +1727,7 @@ TEST_P(TableViewTest, SelectAll) {
 }
 
 TEST_P(TableViewTest, RemoveUnselectedRows) {
-  TableViewObserverImpl observer;
-  table_->set_observer(&observer);
+  TableViewObserverImpl observer(table_);
 
   // Select a middle row.
   table_->Select(2);
@@ -1403,9 +1746,6 @@ TEST_P(TableViewTest, RemoveUnselectedRows) {
 }
 
 TEST_P(TableViewTest, AddingRemovingMultipleRows) {
-  TableViewObserverImpl observer;
-  table_->set_observer(&observer);
-
   VerifyTableViewAndAXOrder("[0, 1], [1, 1], [2, 2], [3, 0]");
 
   model_->AddRows(0, 3, 10);
@@ -1426,8 +1766,7 @@ TEST_P(TableViewTest, AddingRemovingMultipleRows) {
 // select 0 -> [0] 1
 // remove 0 -> 0 (none selected)
 TEST_P(TableViewTest, SelectionNoSelectOnRemove) {
-  TableViewObserverImpl observer;
-  table_->set_observer(&observer);
+  TableViewObserverImpl observer(table_);
   table_->SetSelectOnRemove(false);
 
   // Initially no selection.
@@ -1464,8 +1803,6 @@ TEST_P(TableViewTest, SelectionNoSelectOnRemove) {
   model_->RemoveRow(0);
   EXPECT_EQ(1, observer.GetChangedCountAndClear());
   EXPECT_EQ("active=<none> anchor=<none> selection=", SelectionStateAsString());
-
-  table_->set_observer(nullptr);
 }
 
 // No touch on desktop Mac. Tracked in http://crbug.com/445520.
@@ -1475,8 +1812,7 @@ TEST_P(TableViewTest, SelectOnTap) {
   // Initially no selection.
   EXPECT_EQ("active=<none> anchor=<none> selection=", SelectionStateAsString());
 
-  TableViewObserverImpl observer;
-  table_->set_observer(&observer);
+  TableViewObserverImpl observer(table_);
 
   // Tap on the first row, should select it and focus the table.
   EXPECT_FALSE(table_->HasFocus());
@@ -1484,8 +1820,6 @@ TEST_P(TableViewTest, SelectOnTap) {
   EXPECT_TRUE(table_->HasFocus());
   EXPECT_EQ(1, observer.GetChangedCountAndClear());
   EXPECT_EQ("active=0 anchor=0 selection=0", SelectionStateAsString());
-
-  table_->set_observer(nullptr);
 }
 #endif
 
@@ -1502,8 +1836,7 @@ TEST_P(TableViewTest, KeyUpDown) {
   grouper.SetRanges({2, 1, 2});
   table_->SetGrouper(&grouper);
 
-  TableViewObserverImpl observer;
-  table_->set_observer(&observer);
+  TableViewObserverImpl observer(table_);
   table_->RequestFocus();
 
   // Initially no selection.
@@ -1563,7 +1896,7 @@ TEST_P(TableViewTest, KeyUpDown) {
 
   EXPECT_EQ("2 3 4 0 1", GetViewToModelAsString(table_));
 
-  table_->Select(absl::nullopt);
+  table_->Select(std::nullopt);
   EXPECT_EQ("active=<none> anchor=<none> selection=", SelectionStateAsString());
 
   observer.GetChangedCountAndClear();
@@ -1609,17 +1942,15 @@ TEST_P(TableViewTest, KeyUpDown) {
   EXPECT_TRUE(table_->header_row_is_active());
   EXPECT_EQ(1, observer.GetChangedCountAndClear());
   EXPECT_EQ("active=<none> anchor=<none> selection=", SelectionStateAsString());
-
-  table_->set_observer(nullptr);
 }
 
 // Verifies left/right correctly navigate through visible columns.
 TEST_P(TableViewTest, KeyLeftRight) {
-  if (!PlatformStyle::kTableViewSupportsKeyboardNavigationByCell)
-    return;
+  if constexpr (!PlatformStyle::kTableViewSupportsKeyboardNavigationByCell) {
+    GTEST_SKIP() << "platform doesn't support table keyboard navigation";
+  }
 
-  TableViewObserverImpl observer;
-  table_->set_observer(&observer);
+  TableViewObserverImpl observer(table_);
   table_->RequestFocus();
 
   // Initially no active visible column.
@@ -1708,8 +2039,143 @@ TEST_P(TableViewTest, KeyLeftRight) {
   EXPECT_EQ(1u, helper_->GetActiveVisibleColumnIndex());
   EXPECT_EQ(0, observer.GetChangedCountAndClear());
   EXPECT_EQ("active=1 anchor=1 selection=1", SelectionStateAsString());
+}
 
-  table_->set_observer(nullptr);
+// Verify table view that the left/right navigation scrolls the visible rect
+// correctly.
+TEST_P(TableViewTest, KeyLeftRightScrollRectToVisibleInTableView) {
+  if constexpr (!PlatformStyle::kTableViewSupportsKeyboardNavigationByCell) {
+    GTEST_SKIP() << "platform doesn't support table keyboard navigation";
+  }
+
+  table_->RequestFocus();
+  EXPECT_EQ(2u, helper_->visible_col_count());
+  // Initially no active visible column.
+  EXPECT_FALSE(helper_->GetActiveVisibleColumnIndex().has_value());
+  EXPECT_FALSE(scroll_view_->horizontal_scroll_bar()->GetVisible());
+  scroll_view_->SetBounds(0, 0, 800, 800);
+  // Set the column width to make the horizontal scroll bar visible.
+  constexpr int kColumn0Width = 500;
+  constexpr int kColumn1Width = 1000;
+  table_->SetVisibleColumnWidth(0, kColumn0Width);
+  table_->SetVisibleColumnWidth(1, kColumn1Width);
+  test::RunScheduledLayout(scroll_view_);
+  EXPECT_EQ(table_->GetVisibleColumn(0).width, kColumn0Width);
+  EXPECT_EQ(table_->GetVisibleColumn(1).width, kColumn1Width);
+  EXPECT_TRUE(scroll_view_->horizontal_scroll_bar()->GetVisible());
+
+  gfx::Rect visible_bounds = table_->GetVisibleBounds();
+  PressKey(ui::VKEY_RIGHT);
+  test::RunScheduledLayout(scroll_view_);
+  EXPECT_EQ(0u, helper_->GetActiveVisibleColumnIndex());
+  EXPECT_EQ(visible_bounds, table_->GetVisibleBounds());
+
+  PressKey(ui::VKEY_RIGHT);
+  test::RunScheduledLayout(scroll_view_);
+  EXPECT_EQ(1u, helper_->GetActiveVisibleColumnIndex());
+  EXPECT_EQ(table_->GetVisibleBounds(),
+            gfx::Rect(kColumn0Width, visible_bounds.y(), visible_bounds.width(),
+                      visible_bounds.height()));
+
+  PressKey(ui::VKEY_LEFT);
+  test::RunScheduledLayout(scroll_view_);
+  EXPECT_EQ(0u, helper_->GetActiveVisibleColumnIndex());
+  EXPECT_EQ(visible_bounds, table_->GetVisibleBounds());
+}
+
+// Verify table header that the left/right navigation scrolls the visible rect
+// correctly.
+TEST_P(TableViewTest, KeyLeftRightScrollRectToVisibleInTableHeader) {
+  if constexpr (!PlatformStyle::kTableViewSupportsKeyboardNavigationByCell) {
+    GTEST_SKIP() << "platform doesn't support table keyboard navigation";
+  }
+
+  table_->RequestFocus();
+  SetColumnWidthForHorizontalScrollBarVisibility();
+  gfx::Rect visible_bounds = table_->GetVisibleBounds();
+
+  // Navigate to the table header
+  PressKey(ui::VKEY_RIGHT);
+  EXPECT_FALSE(table_->header_row_is_active());
+  PressKey(ui::VKEY_UP);
+  EXPECT_TRUE(table_->header_row_is_active());
+
+  test::RunScheduledLayout(scroll_view_);
+  EXPECT_EQ(0u, helper_->GetActiveVisibleColumnIndex());
+  EXPECT_EQ(visible_bounds, table_->GetVisibleBounds());
+
+  PressKey(ui::VKEY_RIGHT);
+  test::RunScheduledLayout(scroll_view_);
+  EXPECT_EQ(1u, helper_->GetActiveVisibleColumnIndex());
+  EXPECT_EQ(table_->GetVisibleBounds(),
+            gfx::Rect(table_->GetVisibleColumn(0).width, visible_bounds.y(),
+                      visible_bounds.width(), visible_bounds.height()));
+
+  PressKey(ui::VKEY_LEFT);
+  test::RunScheduledLayout(scroll_view_);
+  EXPECT_EQ(0u, helper_->GetActiveVisibleColumnIndex());
+  EXPECT_EQ(visible_bounds, table_->GetVisibleBounds());
+}
+
+// Verify that the table view visible bounds remains stable when up/down
+// switching between different rows when the layout is RTL or LTR. use_rtl()
+// returns true for testing the RTL layout and false for testing the LTR layout
+TEST_P(TableViewTest, KeyUpDownHorizontalScrollbarStability) {
+  if constexpr (!PlatformStyle::kTableViewSupportsKeyboardNavigationByCell) {
+    GTEST_SKIP() << "platform doesn't support table keyboard navigation";
+  }
+  EXPECT_FALSE(base::i18n::IsRTL());
+  if (use_rtl()) {
+    base::i18n::SetRTLForTesting(true);
+    EXPECT_TRUE(base::i18n::IsRTL());
+  }
+  table_->RequestFocus();
+  SetColumnWidthForHorizontalScrollBarVisibility();
+  gfx::Rect visible_bounds = table_->GetVisibleBounds();
+  PressKey(ui::VKEY_DOWN);
+  EXPECT_EQ(1u, table_->ViewToModel(1));
+  EXPECT_EQ(visible_bounds, table_->GetVisibleBounds());
+
+  PressKey(ui::VKEY_DOWN);
+  EXPECT_EQ(2u, table_->ViewToModel(2));
+  EXPECT_EQ(visible_bounds, table_->GetVisibleBounds());
+
+  PressKey(ui::VKEY_UP);
+  EXPECT_EQ(1u, table_->ViewToModel(1));
+  EXPECT_EQ(visible_bounds, table_->GetVisibleBounds());
+  if (use_rtl()) {
+    base::i18n::SetRTLForTesting(false);
+  }
+  EXPECT_FALSE(base::i18n::IsRTL());
+}
+
+// Verify that the table view visible boundsr remains stable when clicking on
+// different rows when the layout is RTL or LTR. use_rtl() returns true for
+// testing the RTL layout and false for testing the LTR layout
+TEST_P(TableViewTest, ClickRowHorizontalScrollbarStability) {
+  EXPECT_FALSE(base::i18n::IsRTL());
+  if (use_rtl()) {
+    base::i18n::SetRTLForTesting(true);
+    EXPECT_TRUE(base::i18n::IsRTL());
+  }
+  table_->RequestFocus();
+  SetColumnWidthForHorizontalScrollBarVisibility();
+  gfx::Rect visible_bounds = table_->GetVisibleBounds();
+  ClickOnRow(1, 0);
+  EXPECT_EQ(1u, table_->ViewToModel(1));
+  EXPECT_EQ(visible_bounds, table_->GetVisibleBounds());
+
+  ClickOnRow(2, 0);
+  EXPECT_EQ(2u, table_->ViewToModel(2));
+  EXPECT_EQ(visible_bounds, table_->GetVisibleBounds());
+
+  ClickOnRow(3, 0);
+  EXPECT_EQ(3u, table_->ViewToModel(3));
+  EXPECT_EQ(visible_bounds, table_->GetVisibleBounds());
+  if (use_rtl()) {
+    base::i18n::SetRTLForTesting(false);
+  }
+  EXPECT_FALSE(base::i18n::IsRTL());
 }
 
 // Verifies home/end do the right thing.
@@ -1725,8 +2191,7 @@ TEST_P(TableViewTest, HomeEnd) {
   grouper.SetRanges({2, 1, 2});
   table_->SetGrouper(&grouper);
 
-  TableViewObserverImpl observer;
-  table_->set_observer(&observer);
+  TableViewObserverImpl observer(table_);
   table_->RequestFocus();
 
   // Initially no selection.
@@ -1743,8 +2208,6 @@ TEST_P(TableViewTest, HomeEnd) {
   PressKey(ui::VKEY_HOME);
   EXPECT_EQ(1, observer.GetChangedCountAndClear());
   EXPECT_EQ("active=0 anchor=0 selection=0 1", SelectionStateAsString());
-
-  table_->set_observer(nullptr);
 }
 
 // Verifies multiple selection gestures work (control-click, shift-click ...).
@@ -1763,8 +2226,7 @@ TEST_P(TableViewTest, Multiselection) {
   // Initially no selection.
   EXPECT_EQ("active=<none> anchor=<none> selection=", SelectionStateAsString());
 
-  TableViewObserverImpl observer;
-  table_->set_observer(&observer);
+  TableViewObserverImpl observer(table_);
 
   // Click on the first row, should select it and the second row.
   ClickOnRow(0, 0);
@@ -1782,12 +2244,12 @@ TEST_P(TableViewTest, Multiselection) {
   EXPECT_EQ("active=2 anchor=4 selection=2 3 4", SelectionStateAsString());
 
   // Control click on third row, should toggle it.
-  ClickOnRow(2, kCtrlOrCmdMask);
+  ClickOnRow(2, ui::EF_PLATFORM_ACCELERATOR);
   EXPECT_EQ(1, observer.GetChangedCountAndClear());
   EXPECT_EQ("active=2 anchor=2 selection=3 4", SelectionStateAsString());
 
   // Control-shift click on second row, should extend selection to it.
-  ClickOnRow(1, kCtrlOrCmdMask | ui::EF_SHIFT_DOWN);
+  ClickOnRow(1, ui::EF_PLATFORM_ACCELERATOR | ui::EF_SHIFT_DOWN);
   EXPECT_EQ(1, observer.GetChangedCountAndClear());
   EXPECT_EQ("active=1 anchor=2 selection=0 1 2 3 4", SelectionStateAsString());
 
@@ -1795,8 +2257,6 @@ TEST_P(TableViewTest, Multiselection) {
   ClickOnRow(4, 0);
   EXPECT_EQ(1, observer.GetChangedCountAndClear());
   EXPECT_EQ("active=4 anchor=4 selection=3 4", SelectionStateAsString());
-
-  table_->set_observer(nullptr);
 }
 
 // Verifies multiple selection gestures work when sorted.
@@ -1824,8 +2284,7 @@ TEST_P(TableViewTest, MultiselectionWithSort) {
   // Initially no selection.
   EXPECT_EQ("active=<none> anchor=<none> selection=", SelectionStateAsString());
 
-  TableViewObserverImpl observer;
-  table_->set_observer(&observer);
+  TableViewObserverImpl observer(table_);
 
   // Click on the third row, should select it and the second row.
   ClickOnRow(2, 0);
@@ -1844,8 +2303,7 @@ TEST_P(TableViewTest, MoveRowsWithMultipleSelection) {
   // Hide column 1.
   table_->SetColumnVisibility(1, false);
 
-  TableViewObserverImpl observer;
-  table_->set_observer(&observer);
+  TableViewObserverImpl observer(table_);
 
   // Select three rows.
   ClickOnRow(2, 0);
@@ -1890,8 +2348,6 @@ TEST_P(TableViewTest, MoveRowsWithMultipleSelection) {
   EXPECT_EQ(0, observer.GetChangedCountAndClear());
   EXPECT_EQ("active=4 anchor=3 selection=1 3 4", SelectionStateAsString());
   VerifyTableViewAndAXOrder("[1], [77], [0], [2], [3]");
-
-  table_->set_observer(nullptr);
 }
 
 TEST_P(TableViewTest, MoveRowsWithMultipleSelectionAndSort) {
@@ -1904,8 +2360,7 @@ TEST_P(TableViewTest, MoveRowsWithMultipleSelectionAndSort) {
   const char* kViewOrder = "[0], [1], [2], [3], [77]";
   VerifyTableViewAndAXOrder(kViewOrder);
 
-  TableViewObserverImpl observer;
-  table_->set_observer(&observer);
+  TableViewObserverImpl observer(table_);
 
   // Select three rows.
   ClickOnRow(2, 0);
@@ -1949,8 +2404,6 @@ TEST_P(TableViewTest, MoveRowsWithMultipleSelectionAndSort) {
   EXPECT_EQ(0, observer.GetChangedCountAndClear());
   EXPECT_EQ("active=3 anchor=2 selection=2 3 4", SelectionStateAsString());
   VerifyTableViewAndAXOrder(kViewOrder);
-
-  table_->set_observer(nullptr);
 }
 
 // Verifies we don't crash after removing the selected row when there is
@@ -1984,10 +2437,10 @@ TEST_P(TableViewTest, RemovingSortedRowsDoesNotCauseOverflow) {
   EXPECT_EQ("3 2 1 0", GetViewToModelAsString(table_));
   EXPECT_EQ("3 2 1 0", GetModelToViewAsString(table_));
 
-  // Removing rows can result in callbacks to GetTooltipText(). Above mappings
-  // will cause TableView to try to access the text for the first view row and
-  // consequently attempt to access the last element in the model via the
-  // `view_to_model_` mapping. This will result in a crash if the view-model
+  // Removing rows can result in callbacks to GetRenderedTooltipText(). Above
+  // mappings will cause TableView to try to access the text for the first view
+  // row and consequently attempt to access the last element in the model via
+  // the `view_to_model_` mapping. This will result in a crash if the view-model
   // mappings have not been appropriately updated.
   model_->SetTooltip(u"");
   model_->RemoveRow(0);
@@ -2029,8 +2482,9 @@ TEST_P(TableViewTest, TableHeaderRowAccessibleViewFocusable) {
 // Ensure that the TableView's header columns are keyboard accessible.
 // Tests for crbug.com/1189851.
 TEST_P(TableViewTest, TableHeaderColumnAccessibleViewsFocusable) {
-  if (!PlatformStyle::kTableViewSupportsKeyboardNavigationByCell)
-    return;
+  if constexpr (!PlatformStyle::kTableViewSupportsKeyboardNavigationByCell) {
+    GTEST_SKIP() << "platform doesn't support table keyboard navigation";
+  }
 
   ASSERT_NE(nullptr, helper_->header());
   table_->RequestFocus();
@@ -2066,40 +2520,6 @@ TEST_P(TableViewTest, TableHeaderColumnAccessibleViewsFocusable) {
             view_accessibility.FocusedVirtualChild());
 }
 
-namespace {
-
-class RemoveFocusChangeListenerDelegate : public WidgetDelegate {
- public:
-  explicit RemoveFocusChangeListenerDelegate(Widget* widget)
-      : listener_(nullptr) {
-    RegisterDeleteDelegateCallback(base::BindOnce(
-        [](Widget* widget, RemoveFocusChangeListenerDelegate* delegate) {
-          widget->GetFocusManager()->RemoveFocusChangeListener(
-              delegate->listener_);
-        },
-        base::Unretained(widget), base::Unretained(this)));
-  }
-
-  RemoveFocusChangeListenerDelegate(const RemoveFocusChangeListenerDelegate&) =
-      delete;
-  RemoveFocusChangeListenerDelegate& operator=(
-      const RemoveFocusChangeListenerDelegate&) = delete;
-
-  ~RemoveFocusChangeListenerDelegate() override = default;
-
-  void SetFocusChangeListener(FocusChangeListener* listener);
-
- private:
-  raw_ptr<FocusChangeListener> listener_;
-};
-
-void RemoveFocusChangeListenerDelegate::SetFocusChangeListener(
-    FocusChangeListener* listener) {
-  listener_ = listener;
-}
-
-}  // namespace
-
 class TableViewFocusTest : public TableViewTest {
  public:
   TableViewFocusTest() = default;
@@ -2107,43 +2527,55 @@ class TableViewFocusTest : public TableViewTest {
   TableViewFocusTest(const TableViewFocusTest&) = delete;
   TableViewFocusTest& operator=(const TableViewFocusTest&) = delete;
 
- protected:
-  WidgetDelegate* GetWidgetDelegate(Widget* widget) override;
+  TestFocusChangeListener* listener() { return &listener_; }
 
-  RemoveFocusChangeListenerDelegate* GetFocusChangeListenerDelegate() {
-    return delegate_.get();
+ protected:
+  WidgetDelegate* ConfigureWidgetDelegate() override {
+    delegate_.RegisterDeleteDelegateCallback(
+        WidgetDelegate::RegisterDeleteCallbackPassKey(),
+        base::BindOnce(&TableViewFocusTest::OnDeleteDelegate,
+                       base::Unretained(this)));
+    delegate_.RegisterWidgetInitializedCallback(base::BindOnce(
+        &TableViewFocusTest::OnWidgetInitialized, base::Unretained(this)));
+    return &delegate_;
+  }
+
+  void OnWidgetInitialized() {
+    delegate_.GetWidget()->GetFocusManager()->AddFocusChangeListener(
+        &listener_);
+  }
+
+  void OnDeleteDelegate() {
+    delegate_.GetWidget()->GetFocusManager()->RemoveFocusChangeListener(
+        &listener_);
   }
 
  private:
-  std::unique_ptr<RemoveFocusChangeListenerDelegate> delegate_;
+  WidgetDelegate delegate_;
+  TestFocusChangeListener listener_;
 };
 
-WidgetDelegate* TableViewFocusTest::GetWidgetDelegate(Widget* widget) {
-  delegate_ = std::make_unique<RemoveFocusChangeListenerDelegate>(widget);
-  return delegate_.get();
-}
-
-INSTANTIATE_TEST_SUITE_P(All, TableViewFocusTest, testing::Values(false, true));
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    TableViewFocusTest,
+    testing::Combine(/*use_default_construction=*/testing::Bool(),
+                     /*use_rtl=*/testing::Bool()));
 
 // Verifies that the active focus is cleared when the widget is destroyed.
 // In MD mode, if that doesn't happen a DCHECK in View::DoRemoveChildView(...)
 // will trigger due to an attempt to modify the child view list while iterating.
 TEST_P(TableViewFocusTest, FocusClearedDuringWidgetDestruction) {
-  TestFocusChangeListener listener;
-  GetFocusChangeListenerDelegate()->SetFocusChangeListener(&listener);
-
-  widget_->GetFocusManager()->AddFocusChangeListener(&listener);
   table_->RequestFocus();
 
-  ASSERT_EQ(1u, listener.focus_changes().size());
-  EXPECT_EQ(listener.focus_changes()[0], ViewPair(nullptr, table_));
-  listener.ClearFocusChanges();
+  ASSERT_EQ(1u, listener()->focus_changes().size());
+  EXPECT_EQ(listener()->focus_changes()[0], ViewPair(nullptr, table_));
+  listener()->ClearFocusChanges();
 
   // Now destroy the widget. This should *not* cause a DCHECK in
   // View::DoRemoveChildView(...).
-  widget_.reset();
-  ASSERT_EQ(1u, listener.focus_changes().size());
-  EXPECT_EQ(listener.focus_changes()[0], ViewPair(table_, nullptr));
+  widget_->Close();
+  ASSERT_EQ(1u, listener()->focus_changes().size());
+  EXPECT_EQ(listener()->focus_changes()[0], ViewPair(table_, nullptr));
 }
 
 class TableViewDefaultConstructabilityTest : public ViewsTestBase {
@@ -2158,7 +2590,9 @@ class TableViewDefaultConstructabilityTest : public ViewsTestBase {
   void SetUp() override {
     ViewsTestBase::SetUp();
     widget_ = std::make_unique<Widget>();
-    Widget::InitParams params = CreateParams(Widget::InitParams::TYPE_WINDOW);
+    Widget::InitParams params =
+        CreateParams(Widget::InitParams::CLIENT_OWNS_WIDGET,
+                     Widget::InitParams::TYPE_WINDOW);
     params.bounds = gfx::Rect(0, 0, 650, 650);
     widget_->Init(std::move(params));
     widget_->Show();
@@ -2180,5 +2614,601 @@ TEST_F(TableViewDefaultConstructabilityTest, TestFunctionalWithoutModel) {
       TableView::CreateScrollViewWithTable(std::make_unique<TableView>());
   scroll_view->SetBounds(0, 0, 10000, 10000);
   widget()->client_view()->AddChildView(std::move(scroll_view));
+}
+
+class TestTableModel3 : public TestTableModel2 {
+ public:
+  TestTableModel3() {
+    icon_.allocN32Pixels(48, 48);
+    SkCanvas canvas(icon_, SkSurfaceProps{});
+    canvas.drawColor(SK_ColorRED);
+  }
+
+  TestTableModel3(const TestTableModel3&) = delete;
+  TestTableModel3& operator=(const TestTableModel3&) = delete;
+  ui::ImageModel GetIcon(size_t row) override {
+    return ui::ImageModel::FromImageSkia(
+        gfx::ImageSkia::CreateFrom1xBitmap(icon_));
+  }
+
+ private:
+  SkBitmap icon_;
+};
+
+// Tests mouse hovering on TableView.
+class TableViewMouseHoverTest : public ViewsTestBase {
+ public:
+  TableViewMouseHoverTest() = default;
+  TableViewMouseHoverTest(const TableViewMouseHoverTest&) = delete;
+  TableViewMouseHoverTest& operator=(const TableViewMouseHoverTest&) = delete;
+  ~TableViewMouseHoverTest() override = default;
+
+  void SetUp() override {
+// MacOS needs it's own custom test screen defined, otherwise it defaults to
+// using the real screen.
+#if BUILDFLAG(IS_MAC)
+    test_screen_ = std::make_unique<display::test::TestScreen>();
+    display::Screen::SetScreenInstance(test_screen_.get());
+#endif
+    ViewsTestBase::SetUp();
+
+    model_ = std::make_unique<TestTableModel3>();
+    std::vector<ui::TableColumn> columns(2);
+    columns[0].title = u"A";
+    columns[0].sortable = true;
+    columns[1].title = u"B";
+    columns[1].id = 1;
+    columns[1].sortable = true;
+
+    auto table = std::make_unique<TableView>(model_.get(), columns,
+                                             TableType::kIconAndText, false);
+    table_ = table.get();
+    auto scroll_view = TableView::CreateScrollViewWithTable(std::move(table));
+    scroll_view_ = scroll_view.get();
+    scroll_view->SetBounds(0, 0, 1000, 1000);
+    helper_ = std::make_unique<TableViewTestHelper>(table_);
+
+    widget_ = std::make_unique<Widget>();
+    Widget::InitParams params =
+        CreateParams(Widget::InitParams::CLIENT_OWNS_WIDGET,
+                     Widget::InitParams::TYPE_WINDOW_FRAMELESS);
+    params.bounds = gfx::Rect(0, 0, 650, 650);
+    widget_->Init(std::move(params));
+    test::RunScheduledLayout(
+        widget_->GetRootView()->AddChildView(std::move(scroll_view)));
+    widget_->Show();
+
+#if BUILDFLAG(IS_MAC)
+    // Required for macOS
+    table_->SetAlternatingRowColorsEnabledForTesting(false);
+#endif
+    table_->SetMouseHoveringEnabled(true);
+  }
+
+  void TearDown() override {
+    table_ = nullptr;
+    scroll_view_ = nullptr;
+    helper_.reset();
+    widget_.reset();
+    ViewsTestBase::TearDown();
+    display::Screen::SetScreenInstance(nullptr);
+    test_screen_.reset();
+  }
+
+  void VerifyTableViewOrder(std::string expected_view_order) {
+    // The table views should match the expected view order.
+    EXPECT_EQ(expected_view_order, GetRowsInViewOrderAsString(table_));
+
+    // Update the expected view order to have header information if exists.
+    if (helper_->header()) {
+      expected_view_order =
+          GetHeaderRowAsString(table_) + ", " + expected_view_order;
+    }
+
+    EXPECT_EQ(expected_view_order, GetRowsInVirtualViewAsString(table_));
+  }
+
+  void MoveMouseTo(gfx::Point point_in_table_view) {
+    const gfx::NativeWindow& window = GetRootWindow(widget_.get());
+    ui::test::EventGenerator generator(window);
+
+    // Account for window position.
+    gfx::Rect table_rect = table_->GetBoundsInScreen();
+    point_in_table_view.Offset(table_rect.x(), table_rect.y());
+
+    // Perform move (note: this will trigger OnMouseMoved()).
+    generator.MoveMouseTo(point_in_table_view);
+
+    // Send appropriate events.
+    if (table_->GetLocalBounds().Intersects(gfx::Rect(
+            point_in_table_view.x(), point_in_table_view.y(), 1, 1))) {
+      generator.SendMouseEnter();
+    } else {
+      generator.SendMouseExit();
+    }
+  }
+
+  gfx::Point GetPointForRow(size_t row) {
+    return gfx::Point(10, (row * table_->GetRowHeight()) + 10);
+  }
+
+ protected:
+  std::unique_ptr<TestTableModel2> model_;
+  raw_ptr<TableView> table_ = nullptr;
+  raw_ptr<ScrollView> scroll_view_ = nullptr;
+  std::unique_ptr<TableViewTestHelper> helper_;
+  UniqueWidgetPtr widget_;
+
+  // Only used on MacOS.
+  std::unique_ptr<display::test::TestScreen> test_screen_;
+};
+
+#define EXPECT_HOVERED_ROWS(range) EXPECT_EQ(helper_->GetHoveredRows(), (range))
+#define EXPECT_HOVERED_TRANSFORM(x, y, width, height)                     \
+  EXPECT_EQ(helper_->GetHoverLayerTransform(),                            \
+            gfx::Transform(gfx::AxisTransform2d::FromScaleAndTranslation( \
+                gfx::Vector2dF((width), (height)), gfx::Vector2dF((x), (y)))))
+#define EXPECT_SCROLL_OFFSET(x, y) \
+  EXPECT_EQ(helper_->GetScrollOffset(), gfx::Point(x, y))
+#define EXPECT_SCROLL_OFFSET_NE(x, y) \
+  EXPECT_NE(helper_->GetScrollOffset(), gfx::Point(x, y))
+
+TEST_F(TableViewMouseHoverTest, TestMouseHoverKillSwitch) {
+  EXPECT_EQ(4u, model_->RowCount());
+  EXPECT_EQ(2u, helper_->visible_col_count());
+
+  // Test Killswitch
+  table_->SetMouseHoveringEnabled(false);
+  EXPECT_FALSE(table_->IsHoverEffectEnabled());
+
+  // Test that the hovered rows get reset, even if mouse hovering gets disabled
+  // while hovering a group.
+  table_->SetMouseHoveringEnabled(true);
+  MoveMouseTo(GetPointForRow(0));
+  EXPECT_HOVERED_ROWS(GroupRange(0, 1));
+
+  table_->SetMouseHoveringEnabled(false);
+  EXPECT_HOVERED_ROWS(std::nullopt);
+}
+
+TEST_F(TableViewMouseHoverTest, TestMouseHoverSingleRow) {
+  EXPECT_EQ(4u, model_->RowCount());
+  EXPECT_EQ(2u, helper_->visible_col_count());
+
+  // Hover the first row.
+  MoveMouseTo(GetPointForRow(0));
+  EXPECT_HOVERED_ROWS(GroupRange(0, 1));
+
+  // Explicitly unhover the mouse.
+  helper_->ClearHover();
+  EXPECT_HOVERED_ROWS(std::nullopt);
+
+  // Hover the second row.
+  MoveMouseTo(GetPointForRow(1));
+  EXPECT_HOVERED_ROWS(GroupRange(1, 1));
+
+  // Out of bounds hover.
+  MoveMouseTo(GetPointForRow(table_->GetRowCount()));
+  EXPECT_HOVERED_ROWS(std::nullopt);
+
+  MoveMouseTo(GetPointForRow(-1));
+  EXPECT_HOVERED_ROWS(std::nullopt);
+}
+
+TEST_F(TableViewMouseHoverTest, TestMouseHoverMultiRow) {
+  EXPECT_EQ(4u, model_->RowCount());
+  EXPECT_EQ(2u, helper_->visible_col_count());
+
+  // Configure the grouper so that there is one group at the end:
+  // A 1
+  // B 2
+  // C 3
+  //   4
+  TableGrouperImpl grouper;
+  grouper.SetRanges({1, 1, 2});
+  table_->SetGrouper(&grouper);
+
+  // Hover the last row (4 in diagram), and expect that (3) is also hovered.
+  MoveMouseTo(GetPointForRow(3));
+  EXPECT_HOVERED_ROWS(GroupRange(2, 2));
+
+  // Hover the second to last row (3 in diagram), and expect (3, 4) is hovered.
+  MoveMouseTo(GetPointForRow(2));
+  EXPECT_HOVERED_ROWS(GroupRange(2, 2));
+}
+
+TEST_F(TableViewMouseHoverTest, TestHoverWhileSorting) {
+  // The hovered row(s) can be tricky to find, since the data in the model vs.
+  // the data onscreen have different indices based on the sort. This test
+  // ensures `hovered_rows_` is operating on model indices, and the hover layer
+  // receives the correct transform.
+
+  // Configure the grouper so that there is one group at the end:
+  // A 0 1
+  // B 1 1
+  // C 2 2
+  //   3 0
+  TableGrouperImpl grouper;
+  grouper.SetRanges({1, 1, 2});
+  table_->SetGrouper(&grouper);
+
+  // Rows should be in default order.
+  ASSERT_EQ(0u, table_->sort_descriptors().size());
+  VerifyTableViewOrder("[0, 1], [1, 1], [2, 2], [3, 0]");
+
+  // First, Expect that hovering the second row only highlights that row.
+  //
+  // A 0 1
+  // B 1 1 <- Data under cursor
+  // C 2 2
+  //   3 0
+  MoveMouseTo(GetPointForRow(1));
+  EXPECT_HOVERED_ROWS(GroupRange(1, 1));
+
+  // Assert Hover Layer Bounds encapsulate the second row.
+  //
+  // A 0 1
+  // B 1 1 <- Hovered
+  // C 2 2
+  //   3 0
+  EXPECT_HOVERED_TRANSFORM(/*x=*/0, /*y=*/table_->GetRowHeight(),
+                           /*width=*/table_->bounds().width(),
+                           /*height=*/table_->GetRowHeight());
+
+  // Next, Toggle the sort (first column descending).
+  //
+  // C 2 2
+  //   3 0
+  // B 1 1
+  // A 0 1
+  table_->ToggleSortOrder(0);
+  table_->ToggleSortOrder(0);
+  ASSERT_EQ(1u, table_->sort_descriptors().size());
+  EXPECT_FALSE(table_->sort_descriptors()[0].ascending);
+  VerifyTableViewOrder("[2, 2], [3, 0], [1, 1], [0, 1]");
+
+  // Expect that the hover updates automatically (no explicit mouse movement),
+  // and highlights the group it's under (which should be rows {2,3} in terms
+  // of model indices, and {0, 1} in terms of view indices).
+  //
+  // C 2 2
+  //   3 0 <- Data under cursor
+  // B 1 1
+  // A 0 1
+  EXPECT_HOVERED_ROWS(GroupRange(2, 2));
+
+  // Assert Hover Layer Bounds encapsulates the first and second row.
+  //
+  // C 2 2 <- Hovered
+  //   3 0 <- Hovered
+  // B 1 1
+  // A 0 1
+  EXPECT_HOVERED_TRANSFORM(/*x=*/0, /*y=*/0,
+                           /*width=*/table_->bounds().width(),
+                           /*height=*/table_->GetRowHeight() * 2);
+}
+
+TEST_F(TableViewMouseHoverTest, TestScrollingHoverInteraction) {
+  EXPECT_NE(ScrollView::GetScrollViewForContents(table_), nullptr);
+
+  // The cursor is stationary on the first row. Coordinates = ScrollView bounds
+  //
+  // (0,0)
+  //      A 0 <- Cursor
+  //      B 1
+  //      C 2
+  //      D 3
+  // (0, height)
+  MoveMouseTo(GetPointForRow(0));
+  EXPECT_HOVERED_ROWS(GroupRange(0, 1));
+  EXPECT_HOVERED_TRANSFORM(/*x=*/0, /*y=*/0,
+                           /*width=*/table_->GetLocalBounds().width(),
+                           /*height=*/table_->GetRowHeight());
+
+  // The ScrollView is being scrolled (via trackpad, mousewheel, etc.). The
+  // hovered row should change, and the transform should adjust based on the
+  // scroll offset.
+  //
+  //      A 0
+  // (0,0)
+  //      B 1  <- Cursor
+  //      C 2
+  //      D 3
+  //     <empty space>
+  // (0, height)
+  helper_->ScrollTableTo(gfx::PointF(0, table_->GetRowHeight()));
+  EXPECT_SCROLL_OFFSET(0, table_->GetRowHeight());
+  EXPECT_HOVERED_ROWS(GroupRange(1, 1));
+  EXPECT_HOVERED_TRANSFORM(/*x=*/0, /*y=*/0,
+                           /*width=*/table_->GetLocalBounds().width(),
+                           /*height=*/table_->GetRowHeight());
+}
+
+TEST_F(TableViewMouseHoverTest, TestUpdatingScrollOffsetUponLayoutDeprecation) {
+  // When a layout shift occurs in TableView, if it is part of a ScrollView, the
+  // scroll offset should be updated.
+  EXPECT_NE(ScrollView::GetScrollViewForContents(table_), nullptr);
+
+  // There should be no starting offset.
+  EXPECT_SCROLL_OFFSET(0, 0);
+
+  // After scrolling, there should be some offset.
+  helper_->ScrollTableTo(gfx::PointF(0, 100));
+  EXPECT_SCROLL_OFFSET(0, 100);
+
+  // Then verify that a layout shift caused the offset to be updated (only
+  // devices with kScrollWithLayers disabled.)
+  table_->SetBounds(table_->GetLocalBounds().x(), table_->GetLocalBounds().y(),
+                    table_->GetLocalBounds().width(),
+                    table_->GetLocalBounds().height() - 10);
+  if (base::FeatureList::IsEnabled(features::kUiCompositorScrollWithLayers)) {
+    EXPECT_SCROLL_OFFSET(0, 100);
+  } else {
+    EXPECT_SCROLL_OFFSET_NE(0, 100);
+  }
+}
+
+TEST_F(TableViewMouseHoverTest, TestHoveringSelectedGroup) {
+  // Sort by default on column 0, ascending.
+  table_->ToggleSortOrder(0);
+  ASSERT_EQ(1u, table_->sort_descriptors().size());
+  EXPECT_TRUE(table_->sort_descriptors()[0].ascending);
+  VerifyTableViewOrder("[0, 1], [1, 1], [2, 2], [3, 0]");
+
+  // User hovers over first row.
+  MoveMouseTo(GetPointForRow(0));
+  EXPECT_HOVERED_ROWS(GroupRange(0, 1));
+
+  // User selects first row; hover should be cleared upon selection.
+  ui::ListSelectionModel new_selection;
+  helper_->SelectRowsInRangeFrom(0, true, &new_selection);
+  helper_->SetSelectionModel(new_selection);
+  EXPECT_HOVERED_ROWS(std::nullopt);
+
+  // User hovers over second row.
+  MoveMouseTo(GetPointForRow(1));
+  EXPECT_HOVERED_ROWS(GroupRange(1, 1));
+
+  // Update second row (model index) so that first (selected) and second
+  // (non-selected, hovered) rows swap. The hover should be cleared since the
+  // first row is selected, but it's now underneath the second row.
+  model_->ChangeRow(1, -1, 1);
+  VerifyTableViewOrder("[-1, 1], [0, 1], [2, 2], [3, 0]");
+  EXPECT_HOVERED_ROWS(std::nullopt);
+}
+
+// The test calculation paint icon bounds.
+class TableViewPaintIconBoundsTest : public ViewsTestBase {
+ public:
+  TableViewPaintIconBoundsTest() = default;
+  TableViewPaintIconBoundsTest(const TableViewPaintIconBoundsTest&) = delete;
+  TableViewPaintIconBoundsTest& operator=(const TableViewPaintIconBoundsTest&) =
+      delete;
+  ~TableViewPaintIconBoundsTest() override = default;
+
+  void SetUp() override {
+    ViewsTestBase::SetUp();
+
+    model_ = std::make_unique<TestTableModel3>();
+    std::vector<ui::TableColumn> columns(2);
+    columns[0].title = u"A";
+    columns[0].sortable = true;
+    columns[1].title = u"B";
+    columns[1].id = 1;
+    columns[1].sortable = true;
+
+    auto table = std::make_unique<TableView>(model_.get(), columns,
+                                             TableType::kTextOnly, false);
+    table_ = table.get();
+    auto scroll_view = TableView::CreateScrollViewWithTable(std::move(table));
+    scroll_view->SetBounds(0, 0, 1000, 1000);
+    helper_ = std::make_unique<TableViewTestHelper>(table_);
+
+    widget_ = std::make_unique<Widget>();
+    Widget::InitParams params =
+        CreateParams(Widget::InitParams::CLIENT_OWNS_WIDGET,
+                     Widget::InitParams::TYPE_WINDOW_FRAMELESS);
+    params.bounds = gfx::Rect(0, 0, 650, 650);
+    widget_->Init(std::move(params));
+    test::RunScheduledLayout(
+        widget_->GetRootView()->AddChildView(std::move(scroll_view)));
+    widget_->Show();
+  }
+
+  void TearDown() override {
+    table_ = nullptr;
+    helper_.reset();
+    widget_.reset();
+    ViewsTestBase::TearDown();
+  }
+
+ protected:
+  std::unique_ptr<TestTableModel2> model_;
+  raw_ptr<TableView> table_ = nullptr;
+  std::unique_ptr<TableViewTestHelper> helper_;
+  UniqueWidgetPtr widget_;
+};
+
+TEST_F(TableViewPaintIconBoundsTest, TestPaintIconBoundsForNormally) {
+  EXPECT_EQ(2u, helper_->visible_col_count());
+  int cell_margin = helper_->GetCellMargin();
+  int cell_element_spacing = helper_->GetCellElementSpacing();
+  gfx::ImageSkia image =
+      model_->GetIcon(0).Rasterize(table_->GetColorProvider());
+  EXPECT_FALSE(image.isNull());
+  int first_column_min_width =
+      cell_margin + cell_element_spacing + kGroupingIndicatorSize;
+  gfx::Rect cell_bounds = helper_->GetCellBounds(0, 0);
+  // icon can be paint within the cell bounds.
+  EXPECT_GT(cell_bounds.width(),
+            first_column_min_width + ui::TableModel::kIconSize);
+  gfx::Rect text_bounds = cell_bounds;
+  text_bounds.Inset(gfx::Insets::VH(0, cell_margin));
+  text_bounds.Inset(
+      gfx::Insets().set_left(kGroupingIndicatorSize + cell_element_spacing));
+  EXPECT_EQ(text_bounds.x(), first_column_min_width);
+
+  // If the cell size is sufficient to draw the icon, whether it is LTR or RTL,
+  // the `src_image_bounds` will be the size of the original image,
+  // which is (0, 0, image.width(), image.height()).
+  {
+    EXPECT_FALSE(base::i18n::IsRTL());
+    gfx::Rect dest_image_bounds =
+        helper_->GetPaintIconDestBounds(cell_bounds, text_bounds.x());
+    // If it is an LTR layout, the `dest_image_bounds.x()` will be the minimum
+    // width of the first column, and the size of `dest_image_bounds` will be
+    // ui::TableModel::kIconSize.
+    EXPECT_EQ(
+        dest_image_bounds,
+        gfx::Rect(first_column_min_width,
+                  cell_bounds.y() +
+                      (cell_bounds.height() - ui::TableModel::kIconSize) / 2,
+                  ui::TableModel::kIconSize, ui::TableModel::kIconSize));
+    gfx::Rect src_image_bounds =
+        helper_->GetPaintIconSrcBounds(image.size(), dest_image_bounds.width());
+
+    EXPECT_EQ(src_image_bounds, gfx::Rect(image.size()));
+  }
+  {
+    base::i18n::SetRTLForTesting(true);
+    EXPECT_TRUE(base::i18n::IsRTL());
+    gfx::Rect dest_image_bounds =
+        helper_->GetPaintIconDestBounds(cell_bounds, text_bounds.x());
+    // If it is an RTL layout, the `dest_image_bounds.x()` will be the
+    // table_view's width minus the minimum width of the first column and
+    // ui::TableModel::kIconSize, and the size of `dest_image_bounds` will be
+    // ui::TableModel::kIconSize.
+    EXPECT_EQ(
+        dest_image_bounds,
+        gfx::Rect(table_->width() - first_column_min_width -
+                      ui::TableModel::kIconSize,
+                  cell_bounds.y() +
+                      (cell_bounds.height() - ui::TableModel::kIconSize) / 2,
+                  ui::TableModel::kIconSize, ui::TableModel::kIconSize));
+    gfx::Rect src_image_bounds =
+        helper_->GetPaintIconSrcBounds(image.size(), dest_image_bounds.width());
+    EXPECT_EQ(src_image_bounds, gfx::Rect(image.size()));
+    base::i18n::SetRTLForTesting(false);
+  }
+}
+
+TEST_F(TableViewPaintIconBoundsTest, TestPaintIconBoundsForClipped) {
+  EXPECT_EQ(2u, helper_->visible_col_count());
+  int cell_margin = helper_->GetCellMargin();
+  int cell_element_spacing = helper_->GetCellElementSpacing();
+  gfx::ImageSkia image =
+      model_->GetIcon(0).Rasterize(table_->GetColorProvider());
+  EXPECT_FALSE(image.isNull());
+  int first_column_min_width =
+      cell_margin + cell_element_spacing + kGroupingIndicatorSize;
+  // Adjust the width of the first column so that only half of the icon can be
+  // displayed
+  int dest_image_width = ui::TableModel::kIconSize / 2;
+  int x = table_->GetVisibleColumn(0).width;
+  int resize_pixels = x - (first_column_min_width + dest_image_width);
+  PressLeftMouseAt(helper_->header(), gfx::Point(x, 0));
+  DragLeftMouseTo(helper_->header(), gfx::Point(x - resize_pixels, 0));
+
+  gfx::Rect cell_bounds = helper_->GetCellBounds(0, 0);
+  // If the cell size is only sufficient to draw half of the icon
+  EXPECT_EQ(cell_bounds.width(), first_column_min_width + dest_image_width);
+  gfx::Rect text_bounds = cell_bounds;
+  text_bounds.Inset(gfx::Insets::VH(0, cell_margin));
+  text_bounds.Inset(
+      gfx::Insets().set_left(kGroupingIndicatorSize + cell_element_spacing));
+  {
+    // When the layout is LTR.
+    EXPECT_FALSE(base::i18n::IsRTL());
+    gfx::Rect dest_image_bounds =
+        helper_->GetPaintIconDestBounds(cell_bounds, text_bounds.x());
+    // The `dest_image_bounds.x()` should be equal to the minimum width of the
+    // first column. The `dest_image_bounds.width()` should be equal to half of
+    // ui::TableModel::kIconSize.
+    EXPECT_EQ(
+        dest_image_bounds,
+        gfx::Rect(first_column_min_width,
+                  cell_bounds.y() +
+                      (cell_bounds.height() - ui::TableModel::kIconSize) / 2,
+                  dest_image_width, ui::TableModel::kIconSize));
+    // The right boundary of `dest_image_bounds` should be equal to the right
+    // boundary of the cell when  clipped icon.
+    EXPECT_EQ(dest_image_bounds.right(), cell_bounds.right());
+    gfx::Rect src_image_bounds =
+        helper_->GetPaintIconSrcBounds(image.size(), dest_image_bounds.width());
+
+    // `src_image_bounds.x()` should be 0 (clipping starts from the left side of
+    // the original image). The `src_image_bounds.width()` should be equal
+    // to half of `image.width()`.
+    EXPECT_EQ(src_image_bounds,
+              gfx::Rect(0, 0, image.width() / 2, image.height()));
+  }
+  {
+    // When the layout is RTL.
+    base::i18n::SetRTLForTesting(true);
+    EXPECT_TRUE(base::i18n::IsRTL());
+    gfx::Rect dest_image_bounds =
+        helper_->GetPaintIconDestBounds(cell_bounds, text_bounds.x());
+    // The `dest_image_bounds.x()` should be equal to the table_view's width
+    // minus the minimum width of the first column and half of
+    // ui::TableModel::kIconSize.The `dest_image_bounds.width()` should be equal
+    // to half of ui::TableModel::kIconSize.
+    EXPECT_EQ(
+        dest_image_bounds,
+        gfx::Rect(table_->width() - (first_column_min_width + dest_image_width),
+                  cell_bounds.y() +
+                      (cell_bounds.height() - ui::TableModel::kIconSize) / 2,
+                  dest_image_width, ui::TableModel::kIconSize));
+    // The left boundary of `dest_image_bounds` should be equal to the left
+    // boundary of the cell when  clipped icon.
+    EXPECT_EQ(dest_image_bounds.x(), table_->GetMirroredRect(cell_bounds).x());
+    gfx::Rect src_image_bounds =
+        helper_->GetPaintIconSrcBounds(image.size(), dest_image_bounds.width());
+    // `src_image_bounds.x()` should be equal to the width of the original image
+    // minus the width of the clipped icon. The `src_image_bounds.width()`
+    // should be equal to half of `image.width()`
+    EXPECT_EQ(src_image_bounds,
+              gfx::Rect(image.width() - src_image_bounds.width(), 0,
+                        image.width() / 2, image.height()));
+    base::i18n::SetRTLForTesting(false);
+  }
+}
+
+TEST_F(TableViewPaintIconBoundsTest, TestPaintIconBoundsNotNeedDisplay) {
+  EXPECT_EQ(2u, helper_->visible_col_count());
+  int cell_margin = helper_->GetCellMargin();
+  int cell_element_spacing = helper_->GetCellElementSpacing();
+  gfx::ImageSkia image =
+      model_->GetIcon(0).Rasterize(table_->GetColorProvider());
+  EXPECT_FALSE(image.isNull());
+  int first_column_min_width =
+      cell_margin + cell_element_spacing + kGroupingIndicatorSize;
+  // Adjust the width of the first column. icon not need display
+  int x = table_->GetVisibleColumn(0).width;
+  int resize_pixels = x - first_column_min_width;
+  PressLeftMouseAt(helper_->header(), gfx::Point(x, 0));
+  DragLeftMouseTo(helper_->header(), gfx::Point(x - resize_pixels, 0));
+
+  gfx::Rect cell_bounds = helper_->GetCellBounds(0, 0);
+  EXPECT_EQ(cell_bounds.width(), first_column_min_width);
+  gfx::Rect text_bounds = cell_bounds;
+  text_bounds.Inset(gfx::Insets::VH(0, cell_margin));
+  text_bounds.Inset(
+      gfx::Insets().set_left(kGroupingIndicatorSize + cell_element_spacing));
+  // If the bounds of the cell is not sufficient to draw the icon, whether it is
+  // LTR or RTL, the `dest_image_bounds` will be empty.
+  {
+    EXPECT_FALSE(base::i18n::IsRTL());
+    gfx::Rect dest_image_bounds =
+        helper_->GetPaintIconDestBounds(cell_bounds, text_bounds.x());
+    EXPECT_TRUE(dest_image_bounds.IsEmpty());
+  }
+  {
+    base::i18n::SetRTLForTesting(true);
+    EXPECT_TRUE(base::i18n::IsRTL());
+    gfx::Rect dest_image_bounds =
+        helper_->GetPaintIconDestBounds(cell_bounds, text_bounds.x());
+    EXPECT_TRUE(dest_image_bounds.IsEmpty());
+    base::i18n::SetRTLForTesting(false);
+  }
 }
 }  // namespace views

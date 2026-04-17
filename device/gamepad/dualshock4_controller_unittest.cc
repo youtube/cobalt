@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "base/containers/to_vector.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -110,16 +111,10 @@ class FakeHidWriter : public HidWriter {
 class Dualshock4ControllerTest : public testing::Test {
  public:
   Dualshock4ControllerTest()
-      : usb_start_vibration_report_(kUsbStartVibration,
-                                    kUsbStartVibration + kUsbReportLength),
-        usb_stop_vibration_report_(kUsbStopVibration,
-                                   kUsbStopVibration + kUsbReportLength),
-        bluetooth_start_vibration_report_(
-            kBtStartVibration,
-            kBtStartVibration + kBluetoothReportLength),
-        bluetooth_stop_vibration_report_(
-            kBtStopVibration,
-            kBtStopVibration + kBluetoothReportLength),
+      : usb_start_vibration_report_(base::ToVector(kUsbStartVibration)),
+        usb_stop_vibration_report_(base::ToVector(kUsbStopVibration)),
+        bluetooth_start_vibration_report_(base::ToVector(kBtStartVibration)),
+        bluetooth_stop_vibration_report_(base::ToVector(kBtStopVibration)),
         callback_count_(0),
         callback_result_(
             mojom::GamepadHapticsResult::GamepadHapticsResultError) {
@@ -178,8 +173,8 @@ class Dualshock4ControllerTest : public testing::Test {
   const std::vector<uint8_t> bluetooth_stop_vibration_report_;
   int callback_count_;
   mojom::GamepadHapticsResult callback_result_;
-  raw_ptr<FakeHidWriter> usb_writer_;
-  raw_ptr<FakeHidWriter> bluetooth_writer_;
+  raw_ptr<FakeHidWriter, DanglingUntriaged> usb_writer_;
+  raw_ptr<FakeHidWriter, DanglingUntriaged> bluetooth_writer_;
   std::unique_ptr<Dualshock4Controller> ds4_usb_;
   std::unique_ptr<Dualshock4Controller> ds4_bluetooth_;
   base::test::TaskEnvironment task_environment_{

@@ -50,7 +50,6 @@ class BuilderList:
             "is_try_builder": Whether the builder is a trybot.
             "main": The main name of the builder. It is deprecated, but still required
                 by test-results.appspot.com API."
-            "has_webdriver_tests": Whether webdriver_tests_suite runs on this builder.
 
         Possible refactoring note: Potentially, it might make sense to use
         blinkpy.common.net.results_fetcher.Builder and add port_name and
@@ -107,44 +106,9 @@ class BuilderList:
     def builders_for_rebaselining(self) -> Set[str]:
         try_builders = {
             builder
-            for builder in self.filter_builders(is_try=True,
-                                                exclude_specifiers={'android'})
-            if not self.uses_wptrunner(builder)
+            for builder in self.filter_builders(is_try=True)
         }
-        # Remove CQ builders whose port is a duplicate of a *-blink-rel builder
-        # to avoid wasting resources.
-        for blink_builder, cq_builder in self.try_bots_with_cq_mirror():
-            if blink_builder in try_builders and cq_builder in try_builders:
-                try_builders.remove(cq_builder)
         return try_builders
-
-    def try_bots_with_cq_mirror(self):
-        """Returns a sorted list of (try_builder_names, cq_mirror_builder_names).
-
-        When all steps in a blink-rel trybot exist in a cq trybot and the port
-        name matches, we say that blink-rel trybot has a cq mirror, and thus
-        there is no need to trigger both the blink-rel trybot and its cq mirror.
-
-        As of today, this should return:
-        [("linux-blink-rel", "linux-rel"),
-         ("mac12.0-blink-rel", "mac-rel"),
-         ("win10.20h2-blink-rel", "win-rel")]
-        """
-        rv = []
-        all_blink_rel_trybots = sorted(
-            set(self.all_try_builder_names()) -
-            set(self.all_cq_try_builder_names()))
-        for builder_name in all_blink_rel_trybots:
-            step_names = set(self.step_names_for_builder(builder_name))
-            for cq_builder_name in self.all_cq_try_builder_names():
-                if (self.port_name_for_builder_name(cq_builder_name) !=
-                        self.port_name_for_builder_name(builder_name)):
-                    continue
-                cq_step_names = self.step_names_for_builder(cq_builder_name)
-                if step_names.issubset(cq_step_names):
-                    rv.append((builder_name, cq_builder_name))
-                    break
-        return rv
 
     def all_continuous_builder_names(self):
         return self.filter_builders(is_try=False)
@@ -190,16 +154,16 @@ class BuilderList:
         return sorted(builders)
 
     def all_port_names(self):
-        return sorted({b['port_name'] for b in self._builders.values()})
+        port_names = set()
+        for builder_name, builder in self._builders.items():
+            port_names.add(builder['port_name'])
+        return sorted(port_names)
 
     def bucket_for_builder(self, builder_name):
         return self._builders[builder_name].get('bucket', '')
 
     def main_for_builder(self, builder_name):
         return self._builders[builder_name].get('main', '')
-
-    def has_webdriver_tests_for_builder(self, builder_name):
-        return self._builders[builder_name].get('has_webdriver_tests')
 
     def port_name_for_builder_name(self, builder_name):
         return self._builders[builder_name]['port_name']
@@ -221,15 +185,6 @@ class BuilderList:
 
     def is_try_server_builder(self, builder_name):
         return self._builders[builder_name].get('is_try_builder', False)
-
-    def uses_wptrunner(self, builder_name: str) -> bool:
-        return any(
-            step.get('uses_wptrunner', 'wpt_tests_suite' in step_name)
-            for step_name, step in self._steps(builder_name).items())
-
-    def product_for_build_step(self, builder_name: str, step_name: str) -> str:
-        steps = self._steps(builder_name)
-        return steps[step_name].get('product', 'content_shell')
 
     def has_experimental_steps(self, builder_name):
         steps = self.step_names_for_builder(builder_name)
@@ -287,7 +242,7 @@ class BuilderList:
         """Returns the builder name for a give version and build type.
 
         Args:
-            version: A string with the OS version specifier. e.g. "Trusty", "Win10".
+            version: A string with the OS or OS version specifier. e.g. "Win10".
             build_type: A string with the build type. e.g. "Debug" or "Release".
 
         Returns:

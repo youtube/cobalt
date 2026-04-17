@@ -4,13 +4,14 @@
 
 #include "third_party/blink/renderer/modules/gamepad/gamepad_shared_memory_reader.h"
 
+#include "base/compiler_specific.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "device/gamepad/public/cpp/gamepads.h"
 #include "device/gamepad/public/mojom/gamepad_hardware_buffer.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
-#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/modules/gamepad/gamepad_listener.h"
 
@@ -61,10 +62,9 @@ void GamepadSharedMemoryReader::Start(blink::GamepadListener* listener) {
 
   renderer_shared_buffer_mapping_ = renderer_shared_buffer_region_.Map();
   CHECK(renderer_shared_buffer_mapping_.IsValid());
-  const void* memory = renderer_shared_buffer_mapping_.memory();
-  CHECK(memory);
-  gamepad_hardware_buffer_ =
-      static_cast<const device::GamepadHardwareBuffer*>(memory);
+  gamepad_hardware_buffer_ = renderer_shared_buffer_mapping_
+                                 .GetMemoryAs<device::GamepadHardwareBuffer>();
+  CHECK(gamepad_hardware_buffer_);
 }
 
 void GamepadSharedMemoryReader::Stop() {
@@ -102,7 +102,8 @@ void GamepadSharedMemoryReader::SampleGamepads(device::Gamepads* gamepads) {
   base::subtle::Atomic32 version;
   do {
     version = gamepad_hardware_buffer_->seqlock.ReadBegin();
-    memcpy(&read_into, &gamepad_hardware_buffer_->data, sizeof(read_into));
+    UNSAFE_TODO(
+        memcpy(&read_into, &gamepad_hardware_buffer_->data, sizeof(read_into)));
     ++contention_count;
     if (contention_count == kMaximumContentionCount)
       break;
@@ -117,7 +118,7 @@ void GamepadSharedMemoryReader::SampleGamepads(device::Gamepads* gamepads) {
   }
 
   // New data was read successfully, copy it into the output buffer.
-  memcpy(gamepads, &read_into, sizeof(*gamepads));
+  UNSAFE_TODO(memcpy(gamepads, &read_into, sizeof(*gamepads)));
 
   if (!ever_interacted_with_) {
     // Clear the connected flag if the user hasn't interacted with any of the
@@ -150,11 +151,6 @@ void GamepadSharedMemoryReader::GamepadDisconnected(
     const device::Gamepad& gamepad) {
   if (listener_)
     listener_->DidDisconnectGamepad(index, gamepad);
-}
-
-void GamepadSharedMemoryReader::GamepadChanged(
-    device::mojom::blink::GamepadChangesPtr change) {
-  // TODO(crbug.com/856290): use these calls to Generate Button Event.
 }
 
 }  // namespace blink

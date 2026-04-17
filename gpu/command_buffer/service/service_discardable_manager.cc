@@ -67,7 +67,6 @@ size_t DiscardableCacheSizeLimitForPressure(
 
     default:
       NOTREACHED();
-      return 0;
   }
 }
 
@@ -113,7 +112,7 @@ bool ServiceDiscardableManager::OnMemoryDump(
   using base::trace_event::MemoryAllocatorDump;
   using base::trace_event::MemoryDumpLevelOfDetail;
 
-  if (args.level_of_detail == MemoryDumpLevelOfDetail::BACKGROUND) {
+  if (args.level_of_detail == MemoryDumpLevelOfDetail::kBackground) {
     std::string dump_name =
         base::StringPrintf("gpu/discardable_cache/cache_0x%" PRIXPTR,
                            reinterpret_cast<uintptr_t>(this));
@@ -292,7 +291,7 @@ bool ServiceDiscardableManager::IsEntryLockedForTesting(
     uint32_t texture_id,
     gles2::TextureManager* texture_manager) const {
   auto found = entries_.Peek({texture_id, texture_manager});
-  DCHECK(found != entries_.end());
+  CHECK(found != entries_.end());
 
   return found->second.handle.IsLockedForTesting();
 }
@@ -301,7 +300,7 @@ gles2::TextureRef* ServiceDiscardableManager::UnlockedTextureRefForTesting(
     uint32_t texture_id,
     gles2::TextureManager* texture_manager) const {
   auto found = entries_.Peek({texture_id, texture_manager});
-  DCHECK(found != entries_.end());
+  CHECK(found != entries_.end());
 
   return found->second.unlocked_texture_ref.get();
 }

@@ -6,7 +6,7 @@
 
 #include <algorithm>
 
-#include "ash/constants/ash_features.h"
+#include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/i18n/number_formatting.h"
 #include "base/logging.h"
@@ -17,13 +17,15 @@
 #include "build/branding_buildflags.h"
 #include "chrome/browser/ash/login/configuration_keys.h"
 #include "chrome/browser/ash/login/error_screens_histogram_helper.h"
+#include "chrome/browser/ash/login/login_pref_names.h"
 #include "chrome/browser/ash/login/screens/network_error.h"
 #include "chrome/browser/ash/login/wizard_context.h"
+#include "chrome/browser/ash/login/wizard_controller.h"
 #include "chrome/browser/ash/system/timezone_util.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/ui/webui/ash/login/update_screen_handler.h"
 #include "chrome/common/pref_names.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/ash/components/network/network_state.h"
 #include "components/prefs/pref_service.h"
@@ -54,6 +56,14 @@ constexpr const base::TimeDelta kDefaultShowDelay = base::Microseconds(400);
 
 // When battery percent is lower and DISCHARGING warn user about it.
 const double kInsufficientBatteryPercent = 50;
+
+// Passing "--quick-start-test-forced-update" on the command line will simulate
+// the "Forced Update" flow after the wifi credentials transfer is complete.
+// This is for testing only and will not install an actual update. If this
+// switch is present, the Chromebook reboots and attempts to automatically
+// resume the Quick Start connection after reboot.
+constexpr char kQuickStartTestForcedUpdateSwitch[] =
+    "quick-start-test-forced-update";
 
 void RecordDownloadingTime(base::TimeDelta duration) {
   base::UmaHistogramLongTimes("OOBE.UpdateScreen.UpdateDownloadingTime",
@@ -86,10 +96,15 @@ void RecordUpdateStages(const base::TimeDelta check_time,
   RecordFinalizeTime(finalize_time);
 }
 
+void RecordUpdateCheckTimeout(bool timeout) {
+  base::UmaHistogramBoolean("OOBE.UpdateScreen.CheckTimeout", timeout);
+}
+
 }  // namespace
 
 // static
 std::string UpdateScreen::GetResultString(Result result) {
+  // LINT.IfChange(UsageMetrics)
   switch (result) {
     case Result::UPDATE_NOT_REQUIRED:
       return "UpdateNotRequired";
@@ -99,7 +114,10 @@ std::string UpdateScreen::GetResultString(Result result) {
       return BaseScreen::kNotApplicable;
     case Result::UPDATE_OPT_OUT_INFO_SHOWN:
       return "UpdateNotRequired_OptOutInfo";
+    case Result::UPDATE_CHECK_TIMEOUT:
+      return "UpdateCheckTimeout";
   }
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/oobe/histograms.xml)
 }
 
 UpdateScreen::UpdateScreen(base::WeakPtr<UpdateView> view,
@@ -284,6 +302,9 @@ void UpdateScreen::DelayErrorMessage() {
 
 void UpdateScreen::UpdateInfoChanged(
     const VersionUpdater::UpdateInfo& update_info) {
+  if (is_hidden()) {
+    return;
+  }
   const update_engine::StatusResult& status = update_info.status;
   hide_progress_on_exit_ = false;
   has_critical_update_ =
@@ -293,6 +314,26 @@ void UpdateScreen::UpdateInfoChanged(
     MakeSureScreenIsShown();
     return;
   }
+
+  // For testing resuming Quick Start after an update with the
+  // kQuickStartTestForcedUpdateSwitch only.
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          kQuickStartTestForcedUpdateSwitch) &&
+      context()->quick_start_setup_ongoing) {
+    WizardController::default_controller()
+        ->quick_start_controller()
+        ->PrepareForUpdate(/*is_forced=*/true);
+    did_prepare_quick_start_for_update_ = true;
+    view_->SetUpdateState(UpdateView::UIState::kUpdateInProgress);
+    // Set that critical update applied in OOBE.
+    g_browser_process->local_state()->SetBoolean(
+        prefs::kOobeCriticalUpdateCompleted, true);
+    wait_reboot_timer_.Start(FROM_HERE, wait_before_reboot_time_,
+                             version_updater_.get(),
+                             &VersionUpdater::RebootAfterUpdate);
+    return;
+  }
+
   switch (status.current_operation()) {
     case update_engine::Operation::CHECKING_FOR_UPDATE:
       if (view_)
@@ -326,21 +367,32 @@ void UpdateScreen::UpdateInfoChanged(
       SetUpdateStatusMessage(update_info.better_update_progress,
                              update_info.total_time_left);
       MakeSureScreenIsShown();
-      if (!is_critical_checked_) {
-        // Because update engine doesn't send UPDATE_STATUS_UPDATE_AVAILABLE we
-        // need to check if update is critical on first downloading
-        // notification.
-        is_critical_checked_ = true;
-        if (!HasCriticalUpdate()) {
-          VLOG(1) << "Non-critical update available: " << status.new_version();
-          hide_progress_on_exit_ = true;
-          ExitUpdate(Result::UPDATE_NOT_REQUIRED);
-        } else {
-          check_time_ = tick_clock_->NowTicks() - start_update_stage_;
-          start_update_stage_ = start_update_downloading_ =
-              tick_clock_->NowTicks();
-          VLOG(1) << "Critical update available: " << status.new_version();
-        }
+
+      if (is_critical_checked_) {
+        break;
+      }
+
+      // Because update engine doesn't send UPDATE_STATUS_UPDATE_AVAILABLE we
+      // need to check if update is critical on first downloading
+      // notification.
+      is_critical_checked_ = true;
+
+      if (!HasCriticalUpdate()) {
+        VLOG(1) << "Non-critical update available: " << status.new_version();
+        hide_progress_on_exit_ = true;
+        ExitUpdate(Result::UPDATE_NOT_REQUIRED);
+        break;
+      }
+
+      check_time_ = tick_clock_->NowTicks() - start_update_stage_;
+      start_update_stage_ = start_update_downloading_ = tick_clock_->NowTicks();
+      VLOG(1) << "Critical update available: " << status.new_version();
+
+      if (context()->quick_start_setup_ongoing) {
+        WizardController::default_controller()
+            ->quick_start_controller()
+            ->PrepareForUpdate(/*is_forced=*/true);
+        did_prepare_quick_start_for_update_ = true;
       }
       break;
     case update_engine::Operation::VERIFYING:
@@ -358,6 +410,9 @@ void UpdateScreen::UpdateInfoChanged(
     case update_engine::Operation::FINALIZING:
       if (view_)
         view_->SetUpdateState(UpdateView::UIState::kUpdateInProgress);
+      // set that critical update applied in OOBE.
+      g_browser_process->local_state()->SetBoolean(
+          prefs::kOobeCriticalUpdateCompleted, true);
       SetUpdateStatusMessage(update_info.better_update_progress,
                              update_info.total_time_left);
       // Make sure that VERIFYING and FINALIZING stages are recorded correctly.
@@ -405,6 +460,14 @@ void UpdateScreen::UpdateInfoChanged(
 }
 
 void UpdateScreen::FinishExitUpdate(Result result) {
+  if (did_prepare_quick_start_for_update_) {
+    WizardController::default_controller()
+        ->quick_start_controller()
+        ->ResumeSessionAfterCancelledUpdate();
+  }
+
+  RecordUpdateCheckTimeout(result == Result::UPDATE_CHECK_TIMEOUT);
+
   if (!start_update_stage_.is_null() && check_time_.is_zero()) {
     check_time_ = tick_clock_->NowTicks() - start_update_stage_;
     RecordCheckTime(check_time_);
@@ -455,7 +518,7 @@ void UpdateScreen::SetUpdateStatusMessage(int percent,
 void UpdateScreen::UpdateBatteryWarningVisibility() {
   if (!view_)
     return;
-  const absl::optional<power_manager::PowerSupplyProperties>& proto =
+  const std::optional<power_manager::PowerSupplyProperties>& proto =
       chromeos::PowerManagerClient::Get()->GetLastStatus();
   if (!proto.has_value())
     return;
@@ -484,8 +547,6 @@ void UpdateScreen::MakeSureScreenIsShown() {
     view_->SetAutoTransition(
         !AccessibilityManager::Get()->IsSpokenFeedbackEnabled());
   }
-  // `is_opt_out_enabled_` can be true only if the feature is enabled.
-  DCHECK(!is_opt_out_enabled_ || features::IsConsumerAutoUpdateToggleAllowed());
   view_->Show(is_opt_out_enabled_);
 }
 
@@ -524,11 +585,9 @@ void UpdateScreen::OnErrorScreenHidden() {
 
 // static
 bool UpdateScreen::CheckIfOptOutIsEnabled() {
-  if (!features::IsConsumerAutoUpdateToggleAllowed())
-    return false;
   auto country = system::GetCountryCodeFromTimezoneIfAvailable(
       g_browser_process->local_state()->GetString(
-          prefs::kSigninScreenTimezone));
+          ::prefs::kSigninScreenTimezone));
   if (!country.has_value()) {
     return false;
   }

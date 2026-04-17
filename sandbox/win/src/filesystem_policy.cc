@@ -14,6 +14,7 @@
 
 #include "base/notreached.h"
 #include "base/win/scoped_handle.h"
+#include "base/win/windows_handle_util.h"
 #include "sandbox/win/src/internal_types.h"
 #include "sandbox/win/src/ipc_tags.h"
 #include "sandbox/win/src/nt_internals.h"
@@ -64,12 +65,8 @@ NTSTATUS NtCreateFileInTarget(HANDLE* target_file_handle,
     return status;
   }
 
-  if (!SameObject(local_handle, obj_attributes->ObjectName->Buffer)) {
-    // The handle points somewhere else. Fail the operation.
-    ::CloseHandle(local_handle);
-    return STATUS_ACCESS_DENIED;
-  }
-
+  // `local_handle` must be valid from CreateFile() call, `target_process` is
+  // trusted and `target_file_handle` is an outparam.
   if (!::DuplicateHandle(::GetCurrentProcess(), local_handle, target_process,
                          target_file_handle, 0, false,
                          DUPLICATE_CLOSE_SOURCE | DUPLICATE_SAME_ACCESS)) {
@@ -81,27 +78,19 @@ NTSTATUS NtCreateFileInTarget(HANDLE* target_file_handle,
 }  // namespace.
 
 bool FileSystemPolicy::GenerateRules(const wchar_t* name,
-                                     Semantics semantics,
+                                     FileSemantics semantics,
                                      LowLevelPolicy* policy) {
-  CHECK(semantics == Semantics::kFilesAllowReadonly ||
-        semantics == Semantics::kFilesAllowAny);
   std::wstring mod_name(name);
   if (mod_name.empty()) {
     return false;
   }
 
   bool is_pipe = IsPipe(mod_name);
-  if (!PreProcessName(&mod_name)) {
-    // The path to be added might contain a reparse point.
-    NOTREACHED();
-    return false;
-  }
 
-  // TODO(cpu) bug 32224: This prefix add is a hack because we don't have the
-  // infrastructure to normalize names. In any case we need to escape the
-  // question marks.
-  if (_wcsnicmp(mod_name.c_str(), kNTDevicePrefix, kNTDevicePrefixLen)) {
-    mod_name = FixNTPrefixForMatch(mod_name);
+  // If the path starts with '\' then we assume it's a native path, otherwise
+  // it's a Win32 path and we need to add the NT DOS devices prefix.
+  if (mod_name[0] != L'\\') {
+    mod_name.insert(0, kNTPrefix);
     name = mod_name.c_str();
   }
 
@@ -113,7 +102,7 @@ bool FileSystemPolicy::GenerateRules(const wchar_t* name,
   PolicyRule query(result);
   PolicyRule query_full(result);
 
-  if (semantics == Semantics::kFilesAllowReadonly) {
+  if (semantics == FileSemantics::kAllowReadonly) {
     // We consider all flags that are not known to be readonly as potentially
     // used for write.
     DWORD allowed_flags = FILE_READ_DATA | FILE_READ_ATTRIBUTES | FILE_READ_EA |
@@ -126,30 +115,30 @@ bool FileSystemPolicy::GenerateRules(const wchar_t* name,
     create.AddNumberMatch(IF, OpenFile::OPENONLY, true, EQUAL);
   }
 
-  if (!create.AddStringMatch(IF, OpenFile::NAME, name, CASE_INSENSITIVE) ||
+  if (!create.AddStringMatch(IF, OpenFile::NAME, name) ||
       !policy->AddRule(IpcTag::NTCREATEFILE, &create)) {
     return false;
   }
 
-  if (!open.AddStringMatch(IF, OpenFile::NAME, name, CASE_INSENSITIVE) ||
+  if (!open.AddStringMatch(IF, OpenFile::NAME, name) ||
       !policy->AddRule(IpcTag::NTOPENFILE, &open)) {
     return false;
   }
 
-  if (!query.AddStringMatch(IF, OpenFile::NAME, name, CASE_INSENSITIVE) ||
+  if (!query.AddStringMatch(IF, OpenFile::NAME, name) ||
       !policy->AddRule(IpcTag::NTQUERYATTRIBUTESFILE, &query)) {
     return false;
   }
 
-  if (!query_full.AddStringMatch(IF, OpenFile::NAME, name, CASE_INSENSITIVE) ||
+  if (!query_full.AddStringMatch(IF, OpenFile::NAME, name) ||
       !policy->AddRule(IpcTag::NTQUERYFULLATTRIBUTESFILE, &query_full)) {
     return false;
   }
 
   // Rename is not allowed for read-only and does not make sense for pipes.
-  if (semantics == Semantics::kFilesAllowAny && !is_pipe) {
+  if (semantics == FileSemantics::kAllowAny && !is_pipe) {
     PolicyRule rename(result);
-    if (!rename.AddStringMatch(IF, OpenFile::NAME, name, CASE_INSENSITIVE) ||
+    if (!rename.AddStringMatch(IF, OpenFile::NAME, name) ||
         !policy->AddRule(IpcTag::NTSETINFO_RENAME, &rename)) {
       return false;
     }
@@ -273,6 +262,13 @@ bool FileSystemPolicy::SetInformationFileAction(EvalResult eval_result,
     return false;
   }
 
+  // `target_file_handle` is not trustworthy, providing a pseudohandle here
+  // will cause it to be sent to SetInformationFile which is likely harmless,
+  // but ok to reject before duplication.
+  if (base::win::IsPseudoHandle(target_file_handle)) {
+    return false;
+  }
+
   HANDLE local_handle = nullptr;
   if (!::DuplicateHandle(client_info.process, target_file_handle,
                          ::GetCurrentProcess(), &local_handle, 0, false,
@@ -289,38 +285,6 @@ bool FileSystemPolicy::SetInformationFileAction(EvalResult eval_result,
       local_handle, io_block, file_info, length, file_info_class);
 
   return true;
-}
-
-bool PreProcessName(std::wstring* path) {
-  ConvertToLongPath(path);
-
-  if (ERROR_NOT_A_REPARSE_POINT == IsReparsePoint(*path))
-    return true;
-
-  // We can't process a reparsed file.
-  return false;
-}
-
-std::wstring FixNTPrefixForMatch(const std::wstring& name) {
-  std::wstring mod_name = name;
-
-  // NT prefix escaped for rule matcher
-  const wchar_t kNTPrefixEscaped[] = L"\\/?/?\\";
-  const int kNTPrefixEscapedLen = std::size(kNTPrefixEscaped) - 1;
-
-  if (0 != mod_name.compare(0, kNTPrefixLen, kNTPrefix)) {
-    if (0 != mod_name.compare(0, kNTPrefixEscapedLen, kNTPrefixEscaped)) {
-      // TODO(nsylvain): Find a better way to do name resolution. Right now we
-      // take the name and we expand it.
-      mod_name.insert(0, kNTPrefixEscaped);
-    }
-  } else {
-    // Start of name matches NT prefix, replace with escaped format
-    // Fixes bug: 334882
-    mod_name.replace(0, kNTPrefixLen, kNTPrefixEscaped);
-  }
-
-  return mod_name;
 }
 
 }  // namespace sandbox

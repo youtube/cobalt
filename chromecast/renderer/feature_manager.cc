@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/check.h"
+#include "base/containers/contains.h"
 #include "base/logging.h"
 #include "base/values.h"
 #include "chromecast/base/cast_features.h"
@@ -34,7 +35,7 @@ FeatureManager::FeatureManager(content::RenderFrame* render_frame)
     : content::RenderFrameObserver(render_frame),
       configured_(false),
       can_install_bindings_(false),
-      dev_origin_(GURL::EmptyGURL()),
+      dev_origin_(GURL()),
       secure_origin_set_(false) {
   registry_.AddInterface(base::BindRepeating(
       &FeatureManager::OnFeatureManagerRequest, base::Unretained(this)));
@@ -135,13 +136,13 @@ void FeatureManager::OnFeatureManagerRequest(
 }
 
 bool FeatureManager::FeatureEnabled(const std::string& feature) const {
-  return features_map_.find(feature) != features_map_.end();
+  return base::Contains(features_map_, feature);
 }
 
 const chromecast::shell::mojom::FeaturePtr& FeatureManager::GetFeature(
     const std::string& feature) const {
   auto itor = features_map_.find(feature);
-  DCHECK(itor != features_map_.end());
+  CHECK(itor != features_map_.end());
   return itor->second;
 }
 

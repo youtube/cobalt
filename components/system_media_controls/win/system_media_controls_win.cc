@@ -14,7 +14,9 @@
 #include <utility>
 #include <vector>
 
-#include "base/strings/string_piece.h"
+#include "base/check_is_test.h"
+#include "base/functional/callback.h"
+#include "base/memory/weak_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/win/core_winrt_util.h"
 #include "base/win/scoped_hstring.h"
@@ -24,13 +26,25 @@
 
 namespace system_media_controls {
 
+// For testing only.
+base::RepeatingCallback<void(bool)>*
+    g_on_visibility_changed_for_testing_callback = nullptr;
+
 // static
 std::unique_ptr<SystemMediaControls> SystemMediaControls::Create(
-    const std::string& product_name) {
-  auto service = std::make_unique<internal::SystemMediaControlsWin>();
+    const std::string& product_name,
+    int window) {
+  auto service = std::make_unique<internal::SystemMediaControlsWin>(window);
   if (service->Initialize())
     return std::move(service);
   return nullptr;
+}
+
+// static
+void SystemMediaControls::SetVisibilityChangedCallbackForTesting(
+    base::RepeatingCallback<void(bool)>* callback) {
+  CHECK_IS_TEST();
+  g_on_visibility_changed_for_testing_callback = callback;
 }
 
 namespace internal {
@@ -51,18 +65,9 @@ using ABI::Windows::Storage::Streams::IRandomAccessStream;
 using ABI::Windows::Storage::Streams::IRandomAccessStreamReference;
 using ABI::Windows::Storage::Streams::IRandomAccessStreamReferenceStatics;
 
-// static
-SystemMediaControlsWin* SystemMediaControlsWin::GetInstance() {
-  return instance_;
-}
-
-// static
-SystemMediaControlsWin* SystemMediaControlsWin::instance_ = nullptr;
-
-SystemMediaControlsWin::SystemMediaControlsWin() {
-  DCHECK(!instance_);
-  instance_ = this;
-}
+SystemMediaControlsWin::SystemMediaControlsWin(int window)
+    : is_for_web_app_(window != -1),
+      web_app_window_(reinterpret_cast<HWND>(window)) {}
 
 SystemMediaControlsWin::~SystemMediaControlsWin() {
   if (has_valid_button_pressed_registration_token_) {
@@ -80,9 +85,6 @@ SystemMediaControlsWin::~SystemMediaControlsWin() {
     }
     ClearMetadata();
   }
-
-  DCHECK_EQ(instance_, this);
-  instance_ = nullptr;
 }
 
 bool SystemMediaControlsWin::Initialize() {
@@ -98,16 +100,29 @@ bool SystemMediaControlsWin::Initialize() {
   if (FAILED(hr))
     return false;
 
-  hr = interop->GetForWindow(gfx::SingletonHwnd::GetInstance()->hwnd(),
-                             IID_PPV_ARGS(&system_media_controls_));
+  if (is_for_web_app_) {
+    hr = interop->GetForWindow(web_app_window_,
+                               IID_PPV_ARGS(&system_media_controls_));
+  } else {
+    hr = interop->GetForWindow(gfx::SingletonHwnd::GetInstance()->hwnd(),
+                               IID_PPV_ARGS(&system_media_controls_));
+  }
   if (FAILED(hr))
     return false;
 
+  auto weak_ptr = weak_factory_.GetWeakPtr();
   auto button_pressed_handler =
       Microsoft::WRL::Callback<ABI::Windows::Foundation::ITypedEventHandler<
           SystemMediaTransportControls*,
           SystemMediaTransportControlsButtonPressedEventArgs*>>(
-          &SystemMediaControlsWin::ButtonPressed);
+          [weak_ptr](
+              ISystemMediaTransportControls* sender,
+              ISystemMediaTransportControlsButtonPressedEventArgs* args) {
+            if (weak_ptr) {
+              weak_ptr.get()->ButtonPressed(sender, args);
+            }
+            return S_OK;
+          });
   hr = system_media_controls_->add_ButtonPressed(
       button_pressed_handler.Get(), &button_pressed_registration_token_);
   if (FAILED(hr))
@@ -118,6 +133,8 @@ bool SystemMediaControlsWin::Initialize() {
   hr = system_media_controls_->put_IsEnabled(true);
   if (FAILED(hr))
     return false;
+
+  OnEnabledStatusChangedForTesting();
 
   hr = system_media_controls_->get_DisplayUpdater(&display_updater_);
   if (FAILED(hr))
@@ -196,11 +213,18 @@ void SystemMediaControlsWin::SetIsSeekToEnabled(bool value) {
     return;
 
   if (value) {
+    auto weak_ptr = weak_factory_.GetWeakPtr();
     auto playback_position_change_requested_handler =
         Microsoft::WRL::Callback<ABI::Windows::Foundation::ITypedEventHandler<
             SystemMediaTransportControls*,
             PlaybackPositionChangeRequestedEventArgs*>>(
-            &SystemMediaControlsWin::PlaybackPositionChangeRequested);
+            [weak_ptr](ISystemMediaTransportControls* sender,
+                       IPlaybackPositionChangeRequestedEventArgs* args) {
+              if (weak_ptr) {
+                weak_ptr.get()->PlaybackPositionChangeRequested(sender, args);
+              }
+              return S_OK;
+            });
     hr = system_media_controls_2->add_PlaybackPositionChangeRequested(
         playback_position_change_requested_handler.Get(),
         &playback_position_change_requested_registration_token_);
@@ -267,9 +291,12 @@ void SystemMediaControlsWin::SetThumbnail(const SkBitmap& bitmap) {
                                              &icon_data_writer_);
   DCHECK(SUCCEEDED(hr));
 
-  std::vector<unsigned char> icon_png;
-  gfx::PNGCodec::EncodeBGRASkBitmap(bitmap, false, &icon_png);
-  hr = icon_data_writer_->WriteBytes(icon_png.size(), (BYTE*)icon_png.data());
+  std::optional<std::vector<uint8_t>> icon_png =
+      gfx::PNGCodec::EncodeBGRASkBitmap(bitmap, /*discard_transparency=*/false);
+  if (icon_png) {
+    hr = icon_data_writer_->WriteBytes(icon_png.value().size(),
+                                       (BYTE*)icon_png.value().data());
+  }
   DCHECK(SUCCEEDED(hr));
 
   // Store the written bytes in the stream, an async operation.
@@ -385,6 +412,8 @@ void SystemMediaControlsWin::ClearMetadata() {
   // SMTC, we need to tell them that we are disabled.
   hr = system_media_controls_->put_IsEnabled(false);
   DCHECK(SUCCEEDED(hr));
+
+  OnEnabledStatusChangedForTesting();
 }
 
 void SystemMediaControlsWin::UpdateDisplay() {
@@ -393,6 +422,8 @@ void SystemMediaControlsWin::UpdateDisplay() {
   DCHECK(display_updater_);
   HRESULT hr = system_media_controls_->put_IsEnabled(true);
   DCHECK(SUCCEEDED(hr));
+
+  OnEnabledStatusChangedForTesting();
 
   // |ClearAll()| unsets the type, if we don't set it again then the artist
   // won't be displayed.
@@ -404,34 +435,42 @@ void SystemMediaControlsWin::UpdateDisplay() {
   DCHECK(SUCCEEDED(hr));
 }
 
+bool SystemMediaControlsWin::GetVisibilityForTesting() const {
+  DCHECK(initialized_);
+  boolean is_enabled;
+  HRESULT hr = system_media_controls_->get_IsEnabled(&is_enabled);
+  DCHECK(SUCCEEDED(hr));
+  return is_enabled;
+}
+
 void SystemMediaControlsWin::OnPlay() {
   for (SystemMediaControlsObserver& obs : observers_)
-    obs.OnPlay();
+    obs.OnPlay(this);
 }
 
 void SystemMediaControlsWin::OnPause() {
   for (SystemMediaControlsObserver& obs : observers_)
-    obs.OnPause();
+    obs.OnPause(this);
 }
 
 void SystemMediaControlsWin::OnNext() {
   for (SystemMediaControlsObserver& obs : observers_)
-    obs.OnNext();
+    obs.OnNext(this);
 }
 
 void SystemMediaControlsWin::OnPrevious() {
   for (SystemMediaControlsObserver& obs : observers_)
-    obs.OnPrevious();
+    obs.OnPrevious(this);
 }
 
 void SystemMediaControlsWin::OnStop() {
   for (SystemMediaControlsObserver& obs : observers_)
-    obs.OnStop();
+    obs.OnStop(this);
 }
 
 void SystemMediaControlsWin::OnSeekTo(const base::TimeDelta& time) {
   for (SystemMediaControlsObserver& obs : observers_)
-    obs.OnSeekTo(time);
+    obs.OnSeekTo(this, time);
 }
 
 ABI::Windows::Media::MediaPlaybackStatus
@@ -448,10 +487,8 @@ SystemMediaControlsWin::GetSmtcPlaybackStatus(PlaybackStatus status) {
           MediaPlaybackStatus_Stopped;
   }
   NOTREACHED();
-  return ABI::Windows::Media::MediaPlaybackStatus::MediaPlaybackStatus_Stopped;
 }
 
-// static
 HRESULT SystemMediaControlsWin::ButtonPressed(
     ISystemMediaTransportControls* sender,
     ISystemMediaTransportControlsButtonPressedEventArgs* args) {
@@ -460,28 +497,26 @@ HRESULT SystemMediaControlsWin::ButtonPressed(
   if (FAILED(hr))
     return hr;
 
-  SystemMediaControlsWin* impl = GetInstance();
-
   switch (button) {
     case SystemMediaTransportControlsButton::
         SystemMediaTransportControlsButton_Play:
-      impl->OnPlay();
+      OnPlay();
       break;
     case SystemMediaTransportControlsButton::
         SystemMediaTransportControlsButton_Pause:
-      impl->OnPause();
+      OnPause();
       break;
     case SystemMediaTransportControlsButton::
         SystemMediaTransportControlsButton_Next:
-      impl->OnNext();
+      OnNext();
       break;
     case SystemMediaTransportControlsButton::
         SystemMediaTransportControlsButton_Previous:
-      impl->OnPrevious();
+      OnPrevious();
       break;
     case SystemMediaTransportControlsButton::
         SystemMediaTransportControlsButton_Stop:
-      impl->OnStop();
+      OnStop();
       break;
     case SystemMediaTransportControlsButton::
         SystemMediaTransportControlsButton_Record:
@@ -499,7 +534,6 @@ HRESULT SystemMediaControlsWin::ButtonPressed(
   return S_OK;
 }
 
-// static
 HRESULT SystemMediaControlsWin::PlaybackPositionChangeRequested(
     ISystemMediaTransportControls* sender,
     IPlaybackPositionChangeRequestedEventArgs* args) {
@@ -508,10 +542,16 @@ HRESULT SystemMediaControlsWin::PlaybackPositionChangeRequested(
   if (FAILED(hr))
     return hr;
 
-  SystemMediaControlsWin* impl = GetInstance();
-  impl->OnSeekTo(base::TimeDelta::FromWinrtTimeSpan(position));
+  OnSeekTo(base::TimeDelta::FromWinrtTimeSpan(position));
 
   return S_OK;
+}
+
+void SystemMediaControlsWin::OnEnabledStatusChangedForTesting() {
+  if (g_on_visibility_changed_for_testing_callback) {
+    g_on_visibility_changed_for_testing_callback->Run(
+        GetVisibilityForTesting());
+  }
 }
 
 }  // namespace internal

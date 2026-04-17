@@ -12,8 +12,9 @@
 #include "ash/app_list/app_list_metrics.h"
 #include "ash/app_menu/app_menu_model_adapter.h"
 #include "ash/ash_export.h"
-#include "ui/base/models/simple_menu_model.h"
-#include "ui/base/ui_base_types.h"
+#include "ash/public/cpp/app_list/app_list_types.h"
+#include "ui/base/mojom/menu_source_type.mojom-forward.h"
+#include "ui/menus/simple_menu_model.h"
 
 namespace ash {
 
@@ -25,28 +26,29 @@ class ASH_EXPORT AppListMenuModelAdapter : public AppMenuModelAdapter {
   // metrics, if a new value is added make sure to modify
   // RecordHistogramOnMenuClosed().
   enum AppListViewAppType {
-    FULLSCREEN_SEARCH_RESULT = 0,
-    FULLSCREEN_SUGGESTED = 1,
-    FULLSCREEN_APP_GRID = 2,
-
     // Usage removed.
+    // FULLSCREEN_SEARCH_RESULT = 0,
+    // FULLSCREEN_SUGGESTED = 1,
+    // FULLSCREEN_APP_GRID = 2,
     // PEEKING_SUGGESTED = 3,
     // HALF_SEARCH_RESULT = 4,
     // SEARCH_RESULT = 5,
 
     PRODUCTIVITY_LAUNCHER_RECENT_APP = 6,
     PRODUCTIVITY_LAUNCHER_APP_GRID = 7,
-    APP_LIST_APP_TYPE_LAST = 8
+    PRODUCTIVITY_LAUNCHER_APPS_COLLECTIONS = 8,
+    APP_LIST_APP_TYPE_LAST = 9
   };
 
   AppListMenuModelAdapter(const std::string& app_id,
                           std::unique_ptr<ui::SimpleMenuModel> menu_model,
                           views::Widget* widget_owner,
-                          ui::MenuSourceType source_type,
+                          ui::mojom::MenuSourceType source_type,
                           const AppLaunchedMetricParams& metric_params,
                           AppListViewAppType type,
                           base::OnceClosure on_menu_closed_callback,
-                          bool is_tablet_mode);
+                          bool is_tablet_mode,
+                          AppCollection collection);
 
   AppListMenuModelAdapter(const AppListMenuModelAdapter&) = delete;
   AppListMenuModelAdapter& operator=(const AppListMenuModelAdapter&) = delete;
@@ -69,6 +71,8 @@ class ASH_EXPORT AppListMenuModelAdapter : public AppMenuModelAdapter {
 
   // The type of app which is using this object to show a menu.
   const AppListViewAppType type_;
+
+  const AppCollection collection_;
 };
 
 }  // namespace ash

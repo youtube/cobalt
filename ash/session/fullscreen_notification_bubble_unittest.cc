@@ -12,6 +12,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/aura/window.h"
+#include "ui/base/mojom/window_show_state.mojom.h"
 #include "ui/views/widget/widget.h"
 
 namespace ash {
@@ -38,7 +39,7 @@ class FullscreenNotificationBubbleTest : public AshTestBase {
     // Create a test window in full screen mode.
     window_ = CreateTestWindow();
     window_->SetProperty(aura::client::kShowStateKey,
-                         ui::SHOW_STATE_FULLSCREEN);
+                         ui::mojom::WindowShowState::kFullscreen);
     window_state_ = WindowState::Get(window_.get());
 
     bubble_ = std::make_unique<FullscreenNotificationBubble>();
@@ -54,7 +55,7 @@ class FullscreenNotificationBubbleTest : public AshTestBase {
   std::unique_ptr<aura::Window> window_;
   std::unique_ptr<FullscreenNotificationBubble> bubble_;
 
-  raw_ptr<WindowState, ExperimentalAsh> window_state_ = nullptr;
+  raw_ptr<WindowState, DanglingUntriaged> window_state_ = nullptr;
 };
 
 TEST_F(FullscreenNotificationBubbleTest, AutoHideBubbleAfterDelay) {

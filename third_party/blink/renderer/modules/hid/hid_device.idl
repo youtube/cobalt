@@ -10,6 +10,7 @@
 [
     ActiveScriptWrappable,
     Exposed(ServiceWorker WebHIDOnServiceWorkers,
+            DedicatedWorker WebHID,
             Window WebHID),
     SecureContext
 ] interface HIDDevice : EventTarget {
@@ -36,14 +37,14 @@
         CallWith=ScriptState,
         RaisesException,
         MeasureAs=HidDeviceOpen
-    ] Promise<void> open();
+    ] Promise<undefined> open();
     // Close the connection to the device. The promise is resolved once the
     // device is closed.
-    [CallWith=ScriptState, MeasureAs=HidDeviceClose] Promise<void> close();
+    [CallWith=ScriptState, MeasureAs=HidDeviceClose] Promise<undefined> close();
 
     // Revoke permission to the device. The promise is resolved once the
     // device is forgotten.
-    [CallWith=ScriptState, RaisesException] Promise<void> forget();
+    [CallWith=ScriptState, RaisesException] Promise<undefined> forget();
 
     // Send an output report to the device. Set |reportId| to the first byte of
     // the report and |data| to the remaining bytes. Set |reportId| to zero if
@@ -52,8 +53,8 @@
     [
         CallWith=ScriptState,
         MeasureAs=HidDeviceSendReport
-    ] Promise<void> sendReport(
-        [EnforceRange] octet reportId, BufferSource data);
+    ] Promise<undefined> sendReport(
+        [EnforceRange] octet reportId, [PassAsSpan] BufferSource data);
 
     // Send a feature report to the device. Set |reportId| to the first byte of
     // the report and |data| to the remaining bytes. Set |reportId| to zero if
@@ -62,8 +63,8 @@
     [
         CallWith=ScriptState,
         MeasureAs=HidDeviceSendFeatureReport
-    ] Promise<void> sendFeatureReport(
-        [EnforceRange] octet reportId, BufferSource data);
+    ] Promise<undefined> sendFeatureReport(
+        [EnforceRange] octet reportId, [PassAsSpan] BufferSource data);
 
     // Request a feature report from the device. Set |reportId| to the ID of the
     // feature report to request, or zero if the device does not use report IDs.

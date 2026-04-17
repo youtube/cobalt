@@ -44,11 +44,14 @@ namespace storage {
 //  * Replace any rows with relevant test data needed for below.
 //  * Add newlines between statements as necessary.
 //
+// Add the new test file to the target "tests_bundle_data" in
+// components/services/storage/BUILD.gn.
+//
 // Add a new test to `shared_storage_database_migration_unittest.cc` named
 // "MigrateVersionNToCurrent" where N is the previous database version.
 //
 // Update other tests in `shared_storage_database_migration_unittest.cc` as
-// necessary.
+// necessary; in particular, "Migrate*ToCurrent" may need to be updated.
 //
 // Update the expectations in `VerifySharedStorageTablesAndColumns()` of
 // `components/services/storage/shared_storage/shared_storage_test_utils.cc`
@@ -63,6 +66,7 @@ namespace storage {
 // deprecating the version that they're using, however, then you MUST update
 // them (and ensure that any test data file name changes are also reflected in
 // the code of the unit tests that load them):
+//  * shared_storage.v*.filescheme.sql
 //  * shared_storage.v*.single_origin.sql
 //  * shared_storage.v*.iterator.sql
 //  * shared_storage.v*.empty_values_mapping.5origins.sql

@@ -21,9 +21,14 @@
 #include "base/containers/flat_map.h"
 #include "base/memory/scoped_refptr.h"
 #include "build/build_config.h"
-#include "third_party/blink/public/mojom/choosers/file_chooser.mojom-forward.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/native_widget_types.h"
+
+#if defined(USE_AURA) && defined(SHELL_USE_TOOLKIT_VIEWS)
+namespace views {
+class ViewsDelegate;
+}
+#endif
 
 #if BUILDFLAG(IS_APPLE)
 #include "ui/display/screen.h"
@@ -32,10 +37,10 @@
 class GURL;
 
 namespace content {
-class FileSelectListener;
 class JavaScriptDialogManager;
 class Shell;
 class ShellPlatformDataAura;
+class ShellTestBase;
 class RenderFrameHost;
 class WebContents;
 
@@ -47,7 +52,23 @@ class ShellPlatformDelegate {
   virtual ~ShellPlatformDelegate();
 
   // Helper for one time initialization of application.
-  virtual void Initialize(const gfx::Size& default_window_size);
+  virtual void Initialize(const gfx::Size& default_window_size,
+                          bool is_visible);
+
+  // Returns true if the application is in a visible state.
+  bool IsVisible() const;
+
+  // Lifecycle signals called from the application.
+  virtual void OnBlur();
+  virtual void OnFocus();
+  virtual void OnConceal();
+  virtual void OnReveal();
+  virtual void OnFreeze();
+  virtual void OnUnfreeze();
+  virtual void OnStop();
+
+  virtual void RevealShell(Shell* shell);
+  virtual void ConcealShell(Shell* shell);
 
   // Called after creating a Shell instance, with its initial size.
   virtual void CreatePlatformWindow(Shell* shell,
@@ -68,6 +89,12 @@ class ShellPlatformDelegate {
 
   // Links the WebContents into the newly created window.
   virtual void SetContents(Shell* shell);
+
+  // Load the splash screen WebContents.
+  virtual void LoadSplashScreenContents(Shell* shell);
+
+  // Update WebContents into the newly created window.
+  virtual void UpdateContents(Shell* shell);
 
   // Resize the web contents in the shell window to the given size.
   virtual void ResizeWebContent(Shell* shell, const gfx::Size& content_size);
@@ -96,9 +123,9 @@ class ShellPlatformDelegate {
   virtual std::unique_ptr<JavaScriptDialogManager>
   CreateJavaScriptDialogManager(Shell* shell);
 
-  // Requests handling of locking the mouse. This returns true if the request
-  // has been handled, otherwise false.
-  virtual bool HandleRequestToLockMouse(Shell* shell,
+  // Requests handling of locking the mouse pointer. This returns true if the
+  // request has been handled, otherwise false.
+  virtual bool HandlePointerLockRequest(Shell* shell,
                                         WebContents* web_contents,
                                         bool user_gesture,
                                         bool last_unlocked_by_target);
@@ -110,13 +137,6 @@ class ShellPlatformDelegate {
   // Destroy the Shell. Returns true if the ShellPlatformDelegate did the
   // destruction. Returns false if the Shell should destroy itself.
   virtual bool DestroyShell(Shell* shell);
-
-  // Called when a file selection is to be done.
-  // This function is responsible for calling listener->FileSelected() or
-  // listener->FileSelectionCanceled().
-  virtual void RunFileChooser(RenderFrameHost* render_frame_host,
-                              scoped_refptr<FileSelectListener> listener,
-                              const blink::mojom::FileChooserParams& params);
 
 #if !BUILDFLAG(IS_ANDROID)
   // Returns the native window. Valid after calling CreatePlatformWindow().
@@ -138,9 +158,20 @@ class ShellPlatformDelegate {
 
   // Forwarded from WebContentsObserver.
   void LoadProgressChanged(Shell* shell, double progress);
+
+  void SetSkipForTesting(bool skip_for_testing) {
+    skip_for_testing_ = skip_for_testing;
+  }
 #endif
 
  protected:
+  void CreatePlatformWindowInternal(Shell* shell,
+                                    const gfx::Size& initial_size);
+
+#if defined(USE_AURA) && defined(SHELL_USE_TOOLKIT_VIEWS)
+  // Allows the test subclasses to override the ViewsDelegate.
+  virtual std::unique_ptr<views::ViewsDelegate> CreateViewsDelegate();
+#endif
 #if defined(USE_AURA) && !defined(SHELL_USE_TOOLKIT_VIEWS)
   // Helper to avoid duplicating aura's ShellPlatformDelegate in web tests. If
   // this hack gets expanded to become more expansive then we should just
@@ -150,6 +181,8 @@ class ShellPlatformDelegate {
 #endif
 
  private:
+  friend class ShellTestBase;
+  friend class MockShellPlatformDelegate;
 #if BUILDFLAG(IS_APPLE)
   std::unique_ptr<display::ScopedNativeScreen> screen_;
 #endif
@@ -160,11 +193,15 @@ class ShellPlatformDelegate {
   // Holds an instance of ShellData for each Shell.
   base::flat_map<Shell*, ShellData> shell_data_map_;
 
+  bool is_visible_ = true;
+
   // Data held in ShellPlatformDelegate that is shared between all Shells. This
   // is created in Initialize(), and is defined for each platform
   // implementation.
   struct PlatformData;
   std::unique_ptr<PlatformData> platform_;
+
+  bool skip_for_testing_ = false;
 };
 
 }  // namespace content

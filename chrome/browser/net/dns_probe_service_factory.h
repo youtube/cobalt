@@ -7,10 +7,11 @@
 
 #include <memory>
 
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 #include "base/time/tick_clock.h"
 #include "chrome/browser/profiles/profile_keyed_service_factory.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "services/network/public/cpp/network_context_getter.h"
 #include "services/network/public/mojom/host_resolver.mojom-forward.h"
 
 class KeyedService;
@@ -19,20 +20,12 @@ namespace content {
 class BrowserContext;
 }
 
-namespace network {
-namespace mojom {
-class NetworkContext;
-}
-}  // namespace network
-
 namespace chrome_browser_net {
 
 class DnsProbeService;
 
 class DnsProbeServiceFactory : public ProfileKeyedServiceFactory {
  public:
-  using NetworkContextGetter =
-      base::RepeatingCallback<network::mojom::NetworkContext*(void)>;
   using DnsConfigChangeManagerGetter = base::RepeatingCallback<
       mojo::Remote<network::mojom::DnsConfigChangeManager>(void)>;
 
@@ -52,18 +45,18 @@ class DnsProbeServiceFactory : public ProfileKeyedServiceFactory {
   // getting them from a BrowserContext, and uses |tick_clock| for cache
   // expiration.
   static std::unique_ptr<DnsProbeService> CreateForTesting(
-      const NetworkContextGetter& network_context_getter,
+      const network::NetworkContextGetter& network_context_getter,
       const DnsConfigChangeManagerGetter& dns_config_change_manager_getter,
       const base::TickClock* tick_clock);
 
  private:
-  friend struct base::DefaultSingletonTraits<DnsProbeServiceFactory>;
+  friend base::NoDestructor<DnsProbeServiceFactory>;
 
   DnsProbeServiceFactory();
   ~DnsProbeServiceFactory() override;
 
   // BrowserContextKeyedServiceFactory implementation:
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
 };
 

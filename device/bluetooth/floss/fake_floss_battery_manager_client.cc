@@ -14,16 +14,25 @@ FakeFlossBatteryManagerClient::~FakeFlossBatteryManagerClient() = default;
 void FakeFlossBatteryManagerClient::Init(dbus::Bus* bus,
                                          const std::string& service_name,
                                          const int adapter_index,
+                                         base::Version version,
                                          base::OnceClosure on_ready) {
+  version_ = version;
   std::move(on_ready).Run();
 }
 
 void FakeFlossBatteryManagerClient::GetBatteryInformation(
-    ResponseCallback<absl::optional<BatterySet>> callback,
+    ResponseCallback<std::optional<BatterySet>> callback,
     const FlossDeviceId& device) {
-  std::move(callback).Run(DBusResult<absl::optional<BatterySet>>({}));
-}
+  floss::Battery battery;
+  battery.percentage = kDefaultBatteryPercentage;
+  battery.variant = "";
 
+  floss::BatterySet battery_set;
+  battery_set.address = device.address;
+  battery_set.batteries.push_back(battery);
+
+  std::move(callback).Run(DBusResult<BatterySet>(battery_set));
+}
 void FakeFlossBatteryManagerClient::AddObserver(
     FlossBatteryManagerClientObserver* observer) {}
 

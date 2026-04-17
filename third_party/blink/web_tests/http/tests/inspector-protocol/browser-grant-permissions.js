@@ -1,4 +1,4 @@
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
   const {page, session, dp} = await testRunner.startBlank(
       `Test that permissions could be granted`);
 
@@ -25,7 +25,7 @@
     waitPermission({name: 'microphone'}, 'granted'),
   ]);
 
-  await grant('geolocation', 'audioCapture', 'videoCapturePanTiltZoom');
+  await grant('geolocation', 'audioCapture', 'cameraPanTiltZoom');
   await Promise.all([
     waitPermission({name: 'geolocation'}, 'granted'),
     waitPermission({name: 'microphone'}, 'granted'),

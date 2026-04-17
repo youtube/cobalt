@@ -27,8 +27,7 @@ class KeywordRanker : public Ranker {
 
   // Ranker:
   void Start(const std::u16string& query,
-             ResultsMap& results,
-             CategoriesList& categories) override;
+             const CategoriesList& categories) override;
   void UpdateResultRanks(ResultsMap& results, ProviderType provider) override;
   void Train(const LaunchData& launch) override;
 

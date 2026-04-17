@@ -4,8 +4,7 @@
 
 #include "chromeos/ash/components/phonehub/fake_onboarding_ui_tracker.h"
 
-namespace ash {
-namespace phonehub {
+namespace ash::phonehub {
 
 FakeOnboardingUiTracker::FakeOnboardingUiTracker() = default;
 
@@ -28,9 +27,10 @@ void FakeOnboardingUiTracker::DismissSetupUi() {
   SetShouldShowOnboardingUi(false);
 }
 
-void FakeOnboardingUiTracker::HandleGetStarted() {
+void FakeOnboardingUiTracker::HandleGetStarted(
+    bool is_icon_clicked_when_nudge_visible) {
   ++handle_get_started_call_count_;
+  is_icon_clicked_when_nudge_visible_ = is_icon_clicked_when_nudge_visible;
 }
 
-}  // namespace phonehub
-}  // namespace ash
+}  // namespace ash::phonehub

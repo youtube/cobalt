@@ -4,14 +4,15 @@
 
 #include "chrome/browser/web_applications/test/os_integration_test_override_impl.h"
 
-#include <codecvt>
 #include <map>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <tuple>
 #include <vector>
 
+#include "base/base_paths.h"
 #include "base/check_is_test.h"
 #include "base/containers/contains.h"
 #include "base/containers/span.h"
@@ -26,30 +27,36 @@
 #include "base/run_loop.h"
 #include "base/strings/string_util.h"
 #include "base/synchronization/lock.h"
+#include "base/test/bind.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/types/expected.h"
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_test_override.h"
 #include "chrome/browser/web_applications/os_integration/web_app_file_handler_registration.h"
+#include "chrome/browser/web_applications/test/fake_environment.h"
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_icon_generator.h"
 #include "chrome/browser/web_applications/web_app_icon_manager.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "components/webapps/common/web_app_id.h"
+#include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
+
+#if BUILDFLAG(IS_LINUX)
+#include "base/nix/xdg_util.h"
+#endif
 
 #if BUILDFLAG(IS_MAC)
 #include <ImageIO/ImageIO.h>
 
+#include "base/apple/foundation_util.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/files/scoped_temp_dir.h"
-#include "base/mac/foundation_util.h"
-#include "base/mac/scoped_cftyperef.h"
 #include "chrome/browser/shell_integration.h"
-#include "chrome/browser/web_applications/app_shim_registry_mac.h"
+#include "chrome/browser/web_applications/os_integration/mac/app_shim_registry.h"
 #include "net/base/filename_util.h"
 #import "skia/ext/skia_utils_mac.h"
 #endif
@@ -58,6 +65,7 @@
 #include <windows.h>
 
 #include <shellapi.h>
+
 #include "base/command_line.h"
 #include "base/containers/contains.h"
 #include "base/containers/flat_map.h"
@@ -66,6 +74,7 @@
 #include "base/strings/string_split.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/test_reg_util_win.h"
 #include "base/win/registry.h"
 #include "base/win/scoped_gdi_object.h"
 #include "base/win/shortcut.h"
@@ -76,6 +85,7 @@
 #include "chrome/browser/win/jumplist_updater.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/install_static/install_util.h"
+#include "chrome/installer/util/install_util.h"
 #include "chrome/installer/util/shell_util.h"
 #include "third_party/re2/src/re2/re2.h"
 #include "ui/gfx/icon_util.h"
@@ -85,17 +95,10 @@ namespace web_app {
 
 namespace {
 
-std::string GetAllFilesInDir(const base::FilePath& file_path) {
-  std::vector<std::string> files_as_strs;
-  base::FileEnumerator files(file_path, true, base::FileEnumerator::FILES);
-  for (base::FilePath current = files.Next(); !current.empty();
-       current = files.Next()) {
-    files_as_strs.push_back(current.AsUTF8Unsafe());
-  }
-  return base::JoinString(base::make_span(files_as_strs), "\n  ");
-}
-
 #if BUILDFLAG(IS_WIN)
+constexpr wchar_t kUninstallRegistryKey[] =
+    L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\";
+
 base::FilePath GetShortcutProfile(base::FilePath shortcut_path) {
   base::FilePath shortcut_profile;
   std::wstring cmd_line_string;
@@ -129,54 +132,148 @@ std::vector<std::wstring> GetFileExtensionsForProgId(
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 // Performs a blocking read of app icons from the disk.
-SkColor IconManagerReadIconTopLeftColorForSize(WebAppIconManager& icon_manager,
-                                               const AppId& app_id,
-                                               SquareSizePx size_px) {
-  SkColor result = SK_ColorTRANSPARENT;
+std::optional<SkBitmap> IconManagerReadIconForSize(
+    WebAppIconManager& icon_manager,
+    const webapps::AppId& app_id,
+    SquareSizePx size_px) {
   if (!icon_manager.HasIcons(app_id, IconPurpose::ANY, {size_px})) {
-    return result;
+    return std::nullopt;
   }
+  std::optional<SkBitmap> result = std::nullopt;
   base::RunLoop run_loop;
   icon_manager.ReadIcons(
       app_id, IconPurpose::ANY, {size_px},
-      base::BindOnce(
-          [](base::RunLoop* run_loop, SkColor* result, SquareSizePx size_px,
-             std::map<SquareSizePx, SkBitmap> icon_bitmaps) {
+      base::BindLambdaForTesting(
+          [&](std::map<SquareSizePx, SkBitmap> icon_bitmaps) {
             CHECK(base::Contains(icon_bitmaps, size_px));
-            *result = icon_bitmaps.at(size_px).getColor(0, 0);
-            run_loop->Quit();
-          },
-          &run_loop, &result, size_px));
+            result = icon_bitmaps.at(size_px);
+            run_loop.Quit();
+          }));
   run_loop.Run();
   return result;
 }
 #endif
 
+#if BUILDFLAG(IS_MAC)
+// Note: This signature matches the one below for Windows.
+// TODO(https://crbug.com/385198233): Split the files entirely by platform.
+std::optional<SkBitmap> GetIconFromShortcutFile(
+    const base::FilePath& shortcut_path) {
+  CHECK(base::PathExists(shortcut_path));
+  base::FilePath icon_path =
+      shortcut_path.AppendASCII("Contents/Resources/app.icns");
+  base::apple::ScopedCFTypeRef<CFDictionaryRef> empty_dict(
+      CFDictionaryCreate(nullptr, nullptr, nullptr, 0, nullptr, nullptr));
+  base::apple::ScopedCFTypeRef<CFURLRef> url =
+      base::apple::FilePathToCFURL(icon_path);
+  base::apple::ScopedCFTypeRef<CGImageSourceRef> source(
+      CGImageSourceCreateWithURL(url.get(), nullptr));
+  if (!source) {
+    return std::nullopt;
+  }
+  // Get the first icon in the .icns file (index 0)
+  base::apple::ScopedCFTypeRef<CGImageRef> cg_image(
+      CGImageSourceCreateImageAtIndex(source.get(), 0, empty_dict.get()));
+  if (!cg_image) {
+    return std::nullopt;
+  }
+  SkBitmap bitmap = skia::CGImageToSkBitmap(cg_image.get());
+  if (bitmap.empty()) {
+    return std::nullopt;
+  }
+  return bitmap;
+}
+#endif  // BUILDFLAG(IS_MAC)
+
+#if BUILDFLAG(IS_WIN)
+// Note: This signature matches the one above for Mac.
+// TODO(https://crbug.com/385198233): Split the files entirely by platform.
+std::optional<SkBitmap> GetIconFromShortcutFile(
+    const base::FilePath& shortcut_path) {
+  CHECK(base::PathExists(shortcut_path));
+  SHFILEINFO file_info = {0};
+  if (!SHGetFileInfo(shortcut_path.value().c_str(), FILE_ATTRIBUTE_NORMAL,
+                     &file_info, sizeof(file_info),
+                     SHGFI_ICON | 0 | SHGFI_USEFILEATTRIBUTES)) {
+    return std::nullopt;
+  }
+  const SkBitmap bitmap = IconUtil::CreateSkBitmapFromHICON(file_info.hIcon);
+  if (bitmap.empty()) {
+    return std::nullopt;
+  }
+  return bitmap;
+}
+#endif
+
 }  // namespace
 
-OsIntegrationTestOverrideImpl::BlockingRegistration::BlockingRegistration() =
-    default;
-OsIntegrationTestOverrideImpl::BlockingRegistration::~BlockingRegistration() {
-  base::ScopedAllowBlockingForTesting blocking;
-  base::RunLoop wait_until_destruction_loop;
-  // Lock the destrunction closure
-  {
-    base::AutoLock lock(test_override->destruction_closure_lock);
-    CHECK(!test_override->on_destruction_)
-        << "Cannot have multiple registrations at the same time.";
-    // Set the destruction closure for the scoped override object.
-    test_override->on_destruction_.ReplaceClosure(
-        wait_until_destruction_loop.QuitClosure());
+OsIntegrationTestOverrideBlockingRegistration::
+    OsIntegrationTestOverrideBlockingRegistration() {
+  scoped_refptr<OsIntegrationTestOverride> test_override =
+      OsIntegrationTestOverride::GetOrCreateForBlockingRegistration([]() {
+        base::FilePath base_path;
+#if BUILDFLAG(IS_MAC)
+        // Mac app shims must be put within the user's home directory to allow
+        // LaunchServices to index it. Otherwise, while launching may succeed,
+        // some functionality like file handling does not work correctly.
+        base_path = base::GetHomeDir();
+#endif
+        return base::WrapRefCounted<OsIntegrationTestOverride>(
+            new OsIntegrationTestOverrideImpl(base_path));
+      });
+  test_override_ =
+      base::WrapRefCounted(test_override->AsOsIntegrationTestOverrideImpl());
+}
 
-    // Unregister the override so new handles cannot be acquired.
-    OsIntegrationTestOverride::SetForTesting(nullptr);
+OsIntegrationTestOverrideBlockingRegistration::
+    ~OsIntegrationTestOverrideBlockingRegistration() {
+  base::ScopedAllowBlockingForTesting blocking;
+  std::optional<base::RunLoop> wait_until_destruction_loop;
+
+  // Safely decrement the blocking registration refcount, and if this was the
+  // last one, clear the global state & listen for destruction of all overrides.
+  // We want to wait for all overrides to destroy as this cleans up the OS
+  // integration disk state.
+  {
+    base::AutoLock lock(test_override_->destruction_closure_lock_);
+    CHECK(!test_override_->on_destruction_)
+        << "Cannot have multiple registrations waiting for destruction at the "
+           "same time, only the last one should.";
+    bool is_last_registration = OsIntegrationTestOverride::
+        DecreaseBlockingRegistrationCountMaybeReset();
+    if (is_last_registration) {
+      // This object can be destroyed after the task environment has already
+      // been destroyed in tests. If that's the case, we cannot create a
+      // base::RunLoop and we can simply destruct.
+      if (base::SequencedTaskRunner::HasCurrentDefault()) {
+        wait_until_destruction_loop.emplace();
+        test_override_->on_destruction_.ReplaceClosure(
+            wait_until_destruction_loop->QuitClosure());
+      } else {
+        // This should be the last reference if there is no task environment and
+        // this was the last registration. If this fails, that means that a test
+        // or something else has saved a scoped_refptr to the
+        // OsIntegrationTestOverride and hasn't released it before destroying
+        // the registration. Since there is no task runner, this is likely in
+        // the test harness being destroyed after the registration (and after
+        // the task environment).
+        CHECK(test_override_->HasOneRef());
+      }
+    }
   }
 
   // Release the override & wait until all references are released.
   // Note: The `test_override` MUST be released before waiting on the run
   // loop, as then it will hang forever.
-  test_override.reset();
-  wait_until_destruction_loop.Run();
+  test_override_.reset();
+  if (wait_until_destruction_loop) {
+    wait_until_destruction_loop->Run();
+  }
+}
+
+OsIntegrationTestOverrideImpl&
+OsIntegrationTestOverrideBlockingRegistration::test_override() const {
+  return *OsIntegrationTestOverrideImpl::Get();
 }
 
 // static
@@ -195,20 +292,14 @@ OsIntegrationTestOverrideImpl::Get() {
 
 // static
 std::unique_ptr<OsIntegrationTestOverrideImpl::BlockingRegistration>
-OsIntegrationTestOverrideImpl::OverrideForTesting(
-    const base::FilePath& base_path) {
-  auto test_override =
-      base::WrapRefCounted(new OsIntegrationTestOverrideImpl(base_path));
-  OsIntegrationTestOverride::SetForTesting(test_override);
-  std::unique_ptr<BlockingRegistration> registration =
-      std::make_unique<BlockingRegistration>();
-  registration->test_override = std::move(test_override);
-  return registration;
+OsIntegrationTestOverrideImpl::OverrideForTesting() {
+  return std::make_unique<
+      OsIntegrationTestOverrideImpl::BlockingRegistration>();
 }
 
 bool OsIntegrationTestOverrideImpl::SimulateDeleteShortcutsByUser(
     Profile* profile,
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     const std::string& app_name) {
 #if BUILDFLAG(IS_WIN)
   base::FilePath desktop_shortcut_path =
@@ -232,27 +323,21 @@ bool OsIntegrationTestOverrideImpl::SimulateDeleteShortcutsByUser(
   return base::DeleteFile(desktop_shortcut_path);
 #else
   NOTREACHED() << "Not implemented on ChromeOS/Fuchsia ";
-  return true;
-#endif
-}
-
-bool OsIntegrationTestOverrideImpl::ForceDeleteAllShortcuts() {
-#if BUILDFLAG(IS_WIN)
-  return DeleteDesktopDirOnWin() && DeleteApplicationMenuDirOnWin();
-#elif BUILDFLAG(IS_MAC)
-  return DeleteChromeAppsDir();
-#elif BUILDFLAG(IS_LINUX)
-  return DeleteDesktopDirOnLinux();
-#else
-  NOTREACHED() << "Not implemented on ChromeOS/Fuchsia ";
-  return true;
 #endif
 }
 
 #if BUILDFLAG(IS_MAC)
 bool OsIntegrationTestOverrideImpl::DeleteChromeAppsDir() {
   if (chrome_apps_folder_.IsValid()) {
-    return chrome_apps_folder_.Delete();
+    bool success = chrome_apps_folder_.Delete();
+    if (!success) {
+      // Creating shortcuts kicks of an asynchronous task to eventually update
+      // the icon of `chrome_apps_folder_`. If that task happens to run during
+      // the above Delete() call deletion might fail. If that is the case, a
+      // single retry should be enough to be able to delete the folder anyway.
+      success = chrome_apps_folder_.Delete();
+    }
+    return success;
   } else {
     return false;
   }
@@ -289,7 +374,7 @@ bool OsIntegrationTestOverrideImpl::DeleteDesktopDirOnLinux() {
 
 bool OsIntegrationTestOverrideImpl::IsRunOnOsLoginEnabled(
     Profile* profile,
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     const std::string& app_name) {
 #if BUILDFLAG(IS_LINUX)
   std::string shortcut_filename =
@@ -306,13 +391,12 @@ bool OsIntegrationTestOverrideImpl::IsRunOnOsLoginEnabled(
   return startup_enabled_[app_shortcut_path];
 #else
   NOTREACHED() << "Not implemented on ChromeOS/Fuchsia ";
-  return true;
 #endif
 }
 
 bool OsIntegrationTestOverrideImpl::IsFileExtensionHandled(
     Profile* profile,
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     std::string app_name,
     std::string file_extension) {
   base::ScopedAllowBlockingForTesting allow_blocking;
@@ -348,8 +432,7 @@ bool OsIntegrationTestOverrideImpl::IsFileExtensionHandled(
       shell_integration::CanApplicationHandleURL(app_path, test_file_url);
   base::DeleteFile(test_file_path);
 #elif BUILDFLAG(IS_LINUX)
-  base::FilePath user_applications_dir =
-      applications_dir().Append("applications");
+  base::FilePath user_applications_dir = applications();
   bool database_update_called = false;
   for (const LinuxFileRegistration& command : linux_file_registration_) {
     if (base::Contains(command.xdg_command, app_id) &&
@@ -377,37 +460,60 @@ bool OsIntegrationTestOverrideImpl::IsFileExtensionHandled(
   return is_file_handled;
 }
 
-absl::optional<SkColor>
-OsIntegrationTestOverrideImpl::GetShortcutIconTopLeftColor(
+std::optional<SkBitmap> OsIntegrationTestOverrideImpl::GetShortcutIcon(
     Profile* profile,
-    base::FilePath shortcut_dir,
-    const AppId& app_id,
+    std::optional<base::FilePath> shortcut_dir,
+    const webapps::AppId& app_id,
     const std::string& app_name,
-    SquareSizePx size_px) {
+    SquareSizePx suggested_size_px) {
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
-  base::FilePath shortcut_path =
-      GetShortcutPath(profile, shortcut_dir, app_id, app_name);
-  if (!base::PathExists(shortcut_path)) {
-    return absl::nullopt;
+  if (!shortcut_dir.has_value()) {
+#if BUILDFLAG(IS_MAC)
+    shortcut_dir = chrome_apps_folder();
+#elif BUILDFLAG(IS_WIN)
+    shortcut_dir = application_menu();
+#endif
   }
-  return GetIconTopLeftColorFromShortcutFile(shortcut_path);
+  CHECK(!shortcut_dir->empty());
+  base::FilePath shortcut_path =
+      GetShortcutPath(profile, *shortcut_dir, app_id, app_name);
+  if (!base::PathExists(shortcut_path)) {
+    return std::nullopt;
+  }
+  return GetIconFromShortcutFile(shortcut_path);
 #elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   WebAppProvider* provider = WebAppProvider::GetForLocalAppsUnchecked(profile);
   if (!provider) {
-    return absl::nullopt;
+    return std::nullopt;
   }
-  return IconManagerReadIconTopLeftColorForSize(provider->icon_manager(),
-                                                app_id, size_px);
+  return IconManagerReadIconForSize(provider->icon_manager(), app_id,
+                                    suggested_size_px);
 #else
   NOTREACHED() << "Not implemented on Fuchsia";
-  return absl::nullopt;
 #endif
+}
+
+std::optional<SkColor>
+OsIntegrationTestOverrideImpl::GetShortcutIconTopLeftColor(
+    Profile* profile,
+    base::FilePath shortcut_dir,
+    const webapps::AppId& app_id,
+    const std::string& app_name,
+    SquareSizePx size_px) {
+  std::optional<SkBitmap> bitmap = GetShortcutIcon(
+      profile,
+      shortcut_dir.empty() ? std::nullopt : std::optional(shortcut_dir), app_id,
+      app_name, size_px);
+  if (!bitmap) {
+    return std::nullopt;
+  }
+  return bitmap->getColor(0, 0);
 }
 
 base::FilePath OsIntegrationTestOverrideImpl::GetShortcutPath(
     Profile* profile,
     base::FilePath shortcut_dir,
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     const std::string& app_name) {
 #if BUILDFLAG(IS_WIN)
   base::FileEnumerator enumerator(shortcut_dir, false,
@@ -428,7 +534,7 @@ base::FilePath OsIntegrationTestOverrideImpl::GetShortcutPath(
   std::string shortcut_filename = app_name + ".app";
   base::FilePath shortcut_path = shortcut_dir.Append(shortcut_filename);
   // Exits early if the app id is empty because the verification won't work.
-  // TODO(crbug.com/1289865): Figure a way to find the profile that has the app
+  // TODO(crbug.com/40212146): Figure a way to find the profile that has the app
   //                          installed without using app ID.
   if (app_id.empty()) {
     return shortcut_path;
@@ -454,15 +560,14 @@ base::FilePath OsIntegrationTestOverrideImpl::GetShortcutPath(
 
 bool OsIntegrationTestOverrideImpl::IsShortcutCreated(
     Profile* profile,
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     const std::string& app_name) {
 #if BUILDFLAG(IS_WIN)
-  base::FilePath desktop_shortcut_path =
-      GetShortcutPath(profile, desktop(), app_id, app_name);
+  // A shortcut, at minimum, is in the start menu / 'application menu'
+  // directory on Windows.
   base::FilePath application_menu_shortcut_path =
       GetShortcutPath(profile, application_menu(), app_id, app_name);
-  return (base::PathExists(desktop_shortcut_path) &&
-          base::PathExists(application_menu_shortcut_path));
+  return base::PathExists(application_menu_shortcut_path);
 #elif BUILDFLAG(IS_MAC)
   base::FilePath app_shortcut_path =
       GetShortcutPath(profile, chrome_apps_folder(), app_id, app_name);
@@ -473,7 +578,6 @@ bool OsIntegrationTestOverrideImpl::IsShortcutCreated(
   return base::PathExists(desktop_shortcut_path);
 #else
   NOTREACHED() << "Not implemented on ChromeOS/Fuchsia ";
-  return true;
 #endif
 }
 
@@ -506,14 +610,14 @@ bool OsIntegrationTestOverrideImpl::IsShortcutsMenuRegisteredForApp(
   return base::Contains(jump_list_entry_map_, app_user_model_id);
 }
 
+#endif  // BUILDFLAG(IS_WIN)
+
 base::expected<bool, std::string>
 OsIntegrationTestOverrideImpl::IsUninstallRegisteredWithOs(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     const std::string& app_name,
     Profile* profile) {
-  constexpr wchar_t kUninstallRegistryKey[] =
-      L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall";
-
+#if BUILDFLAG(IS_WIN)
   base::win::RegKey uninstall_reg_key;
   LONG result = uninstall_reg_key.Open(HKEY_CURRENT_USER, kUninstallRegistryKey,
                                        KEY_READ);
@@ -602,8 +706,10 @@ OsIntegrationTestOverrideImpl::IsUninstallRegisteredWithOs(
   }
 
   return true;
-}
+#else
+  return base::unexpected("Uninstall registration not supported.");
 #endif  // BUILDFLAG(IS_WIN)
+}
 
 const OsIntegrationTestOverrideImpl::AppProtocolList&
 OsIntegrationTestOverrideImpl::protocol_scheme_registrations() {
@@ -628,16 +734,18 @@ void OsIntegrationTestOverrideImpl::DeleteShortcutsMenuJumpListEntryForApp(
   jump_list_entry_map_.erase(app_user_model_id);
   shortcut_menu_apps_registered_.erase(app_user_model_id);
 }
-const base::FilePath& OsIntegrationTestOverrideImpl::desktop() {
+
+base::FilePath OsIntegrationTestOverrideImpl::desktop() {
   return desktop_.GetPath();
 }
-const base::FilePath& OsIntegrationTestOverrideImpl::application_menu() {
-  return application_menu_.GetPath();
+base::FilePath OsIntegrationTestOverrideImpl::application_menu() {
+  return application_menu_.GetPath().Append(
+      InstallUtil::GetChromeAppsShortcutDirName());
 }
-const base::FilePath& OsIntegrationTestOverrideImpl::quick_launch() {
+base::FilePath OsIntegrationTestOverrideImpl::quick_launch() {
   return quick_launch_.GetPath();
 }
-const base::FilePath& OsIntegrationTestOverrideImpl::startup() {
+base::FilePath OsIntegrationTestOverrideImpl::startup() {
   return startup_.GetPath();
 }
 #endif  // BUILDFLAG(IS_WIN)
@@ -646,7 +754,7 @@ const base::FilePath& OsIntegrationTestOverrideImpl::startup() {
 bool OsIntegrationTestOverrideImpl::IsChromeAppsValid() {
   return chrome_apps_folder_.IsValid();
 }
-const base::FilePath& OsIntegrationTestOverrideImpl::chrome_apps_folder() {
+base::FilePath OsIntegrationTestOverrideImpl::chrome_apps_folder() {
   return chrome_apps_folder_.GetPath();
 }
 void OsIntegrationTestOverrideImpl::EnableOrDisablePathOnLogin(
@@ -657,19 +765,25 @@ void OsIntegrationTestOverrideImpl::EnableOrDisablePathOnLogin(
 #endif  // BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_LINUX)
-const base::FilePath& OsIntegrationTestOverrideImpl::desktop() {
+base::FilePath OsIntegrationTestOverrideImpl::desktop() {
   return desktop_.GetPath();
 }
-const base::FilePath& OsIntegrationTestOverrideImpl::startup() {
-  return startup_.GetPath();
+base::FilePath OsIntegrationTestOverrideImpl::startup() {
+  return xdg_config_home_dir_.GetPath().Append("autostart");
 }
-const base::FilePath& OsIntegrationTestOverrideImpl::applications_dir() {
-  return applications_dir_.GetPath();
+base::FilePath OsIntegrationTestOverrideImpl::applications() {
+  return xdg_data_home_dir_.GetPath().Append("applications");
+}
+base::FilePath OsIntegrationTestOverrideImpl::xdg_data_home_dir() {
+  return xdg_data_home_dir_.GetPath();
+}
+base::Environment* OsIntegrationTestOverrideImpl::environment() {
+  return &environment_;
 }
 #endif  // BUILDFLAG(IS_LINUX)
 
 void OsIntegrationTestOverrideImpl::RegisterProtocolSchemes(
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     std::vector<std::string> protocols) {
   protocol_scheme_registrations_.emplace_back(app_id, std::move(protocols));
 }
@@ -678,49 +792,41 @@ OsIntegrationTestOverrideImpl::OsIntegrationTestOverrideImpl(
     const base::FilePath& base_path) {
   // Initialize all directories used. The success & the CHECK are separated to
   // ensure that these function calls occur on release builds.
-  if (!base_path.empty()) {
-#if BUILDFLAG(IS_WIN)
-    bool success = desktop_.CreateUniqueTempDirUnderPath(base_path);
-    CHECK(success);
-    success = application_menu_.CreateUniqueTempDirUnderPath(base_path);
-    CHECK(success);
-    success = quick_launch_.CreateUniqueTempDirUnderPath(base_path);
-    CHECK(success);
-    success = startup_.CreateUniqueTempDirUnderPath(base_path);
-    CHECK(success);
-#elif BUILDFLAG(IS_MAC)
-    bool success = chrome_apps_folder_.CreateUniqueTempDirUnderPath(base_path);
-    CHECK(success);
-#elif BUILDFLAG(IS_LINUX)
-    bool success = desktop_.CreateUniqueTempDirUnderPath(base_path);
-    CHECK(success);
-    success = startup_.CreateUniqueTempDirUnderPath(base_path);
-    CHECK(success);
-    success = applications_dir_.CreateUniqueTempDirUnderPath(base_path);
-    CHECK(success);
-#endif
+
+  bool success;
+  if (base_path.empty()) {
+    success = outer_temp_dir_.CreateUniqueTempDir();
   } else {
-#if BUILDFLAG(IS_WIN)
-    bool success = desktop_.CreateUniqueTempDir();
-    CHECK(success);
-    success = application_menu_.CreateUniqueTempDir();
-    CHECK(success);
-    success = quick_launch_.CreateUniqueTempDir();
-    CHECK(success);
-    success = startup_.CreateUniqueTempDir();
-    CHECK(success);
-#elif BUILDFLAG(IS_MAC)
-    bool success = chrome_apps_folder_.CreateUniqueTempDir();
-    CHECK(success);
-#elif BUILDFLAG(IS_LINUX)
-    bool success = desktop_.CreateUniqueTempDir();
-    CHECK(success);
-    success = startup_.CreateUniqueTempDir();
-    CHECK(success);
-    success = applications_dir_.CreateUniqueTempDir();
-    CHECK(success);
-#endif
+    success = outer_temp_dir_.CreateUniqueTempDirUnderPath(base_path);
   }
+  CHECK(success);
+#if BUILDFLAG(IS_WIN)
+  success = desktop_.CreateUniqueTempDirUnderPath(outer_temp_dir_.GetPath());
+  CHECK(success);
+  success =
+      application_menu_.CreateUniqueTempDirUnderPath(outer_temp_dir_.GetPath());
+  CHECK(success);
+  success =
+      quick_launch_.CreateUniqueTempDirUnderPath(outer_temp_dir_.GetPath());
+  CHECK(success);
+  success = startup_.CreateUniqueTempDirUnderPath(outer_temp_dir_.GetPath());
+  CHECK(success);
+#elif BUILDFLAG(IS_MAC)
+  success = chrome_apps_folder_.CreateUniqueTempDirUnderPath(
+      outer_temp_dir_.GetPath());
+  CHECK(success);
+#elif BUILDFLAG(IS_LINUX)
+  success = desktop_.CreateUniqueTempDirUnderPath(outer_temp_dir_.GetPath());
+  CHECK(success);
+  success = startup_.CreateUniqueTempDirUnderPath(outer_temp_dir_.GetPath());
+  CHECK(success);
+  success = xdg_config_home_dir_.CreateUniqueTempDirUnderPath(
+      outer_temp_dir_.GetPath());
+  CHECK(success);
+  success = xdg_data_home_dir_.CreateUniqueTempDirUnderPath(
+      outer_temp_dir_.GetPath());
+  CHECK(success);
+#endif
 
 #if BUILDFLAG(IS_LINUX)
   auto callback = base::BindRepeating([](base::FilePath filename_in,
@@ -736,101 +842,74 @@ OsIntegrationTestOverrideImpl::OsIntegrationTestOverrideImpl(
     return true;
   });
   SetUpdateMimeInfoDatabaseOnLinuxCallbackForTesting(std::move(callback));
+  user_desktop_override_ = std::make_unique<base::ScopedPathOverride>(
+      base::DIR_USER_DESKTOP, desktop_.GetPath());
+  base::FilePath applications_path =
+      xdg_data_home_dir_.GetPath().AppendASCII("applications");
+  CHECK(base::CreateDirectory(applications_path))
+      << "could not create applications directory.";
+  base::FilePath autostart_path =
+      xdg_config_home_dir_.GetPath().AppendASCII("autostart");
+  CHECK(base::CreateDirectory(autostart_path))
+      << "could not create applications directory.";
+  environment_.Set("XDG_DATA_HOME", xdg_data_home_dir_.GetPath().value());
+  environment_.Set(base::nix::kXdgConfigHomeEnvVar,
+                   xdg_config_home_dir_.GetPath().value());
 #endif
 
 #if BUILDFLAG(IS_WIN)
-  registry_override_.OverrideRegistry(HKEY_CURRENT_USER);
-  base::win::RegKey key;
+  const HKEY kRoot = HKEY_CURRENT_USER;
+  registry_override_.OverrideRegistry(kRoot);
   // In a real registry, this key would exist, but since we're using
   // hive override, it's empty, so we create this key.
-  key.Create(HKEY_CURRENT_USER,
-             L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
-             KEY_SET_VALUE);
+  CHECK(base::win::RegKey(kRoot, kUninstallRegistryKey, KEY_CREATE_SUB_KEY)
+            .Valid());
+  CHECK_EQ(base::win::RegKey().Create(kRoot, kUninstallRegistryKey, KEY_WRITE),
+           ERROR_SUCCESS);
+
+  desktop_override_ = std::make_unique<base::ScopedPathOverride>(
+      base::DIR_USER_DESKTOP, desktop_.GetPath());
+  desktop_common_override_ = std::make_unique<base::ScopedPathOverride>(
+      base::DIR_COMMON_DESKTOP, desktop_.GetPath());
+
+  start_menu_override_ = std::make_unique<base::ScopedPathOverride>(
+      base::DIR_START_MENU, application_menu_.GetPath());
+  start_menu_common_override_ = std::make_unique<base::ScopedPathOverride>(
+      base::DIR_COMMON_START_MENU, application_menu_.GetPath());
+
+  quick_launch_override_ = std::make_unique<base::ScopedPathOverride>(
+      base::DIR_USER_QUICK_LAUNCH, startup_.GetPath());
+
+  startup_override_ = std::make_unique<base::ScopedPathOverride>(
+      base::DIR_USER_STARTUP, startup_.GetPath());
+  startup_common_override_ = std::make_unique<base::ScopedPathOverride>(
+      base::DIR_COMMON_STARTUP, startup_.GetPath());
 #endif
 }
 
 OsIntegrationTestOverrideImpl::~OsIntegrationTestOverrideImpl() {
-  std::vector<base::ScopedTempDir*> directories;
+  // Perform any cleanup necessary to clean OS integration state that isn't
+  // already handled by the destruction of the member variables.
+
+  // Sometimes the test deletes the directory manually - so use !IsValid() to
+  // allow this to occur without causing an issue.
 #if BUILDFLAG(IS_WIN)
-  directories = {&desktop_, &application_menu_, &quick_launch_, &startup_};
+  EXPECT_TRUE(!desktop_.IsValid() || desktop_.Delete());
+  EXPECT_TRUE(!application_menu_.IsValid() || application_menu_.Delete());
+  EXPECT_TRUE(!quick_launch_.IsValid() || quick_launch_.Delete());
+  EXPECT_TRUE(!startup_.IsValid() || startup_.Delete());
 #elif BUILDFLAG(IS_MAC)
-  directories = {&chrome_apps_folder_};
-  // Checks and cleans up possible hidden files in directories.
-  std::vector<std::string> hidden_files{"Icon\r", ".localized"};
-  for (base::ScopedTempDir* dir : directories) {
-    if (dir->IsValid()) {
-      for (auto& f : hidden_files) {
-        base::FilePath path = dir->GetPath().Append(f);
-        if (base::PathExists(path)) {
-          base::DeletePathRecursively(path);
-        }
-      }
-    }
-  }
+  EXPECT_TRUE(!chrome_apps_folder_.IsValid() || DeleteChromeAppsDir());
 #elif BUILDFLAG(IS_LINUX)
+  EXPECT_TRUE(!desktop_.IsValid() || desktop_.Delete());
+  EXPECT_TRUE(!startup_.IsValid() || startup_.Delete());
+  EXPECT_TRUE(!xdg_data_home_dir_.IsValid() || xdg_data_home_dir_.Delete());
+  EXPECT_TRUE(!xdg_config_home_dir_.IsValid() || xdg_config_home_dir_.Delete());
   // Reset the file handling callback.
-  SetUpdateMimeInfoDatabaseOnLinuxCallbackForTesting(
-      UpdateMimeInfoDatabaseOnLinuxCallback());
-  directories = {&desktop_, &applications_dir_};
+  SetUpdateMimeInfoDatabaseOnLinuxCallbackForTesting(base::NullCallback());
 #endif
-  for (base::ScopedTempDir* dir : directories) {
-    if (!dir->IsValid()) {
-      continue;
-    }
-    CHECK(base::IsDirectoryEmpty(dir->GetPath()))
-        << "Directory not empty: " << dir->GetPath().AsUTF8Unsafe()
-        << ". Please uninstall all webapps that have been installed while "
-           "shortcuts were overriden. Contents:\n"
-        << GetAllFilesInDir(dir->GetPath());
-  }
-  {
-    base::AutoLock lock(destruction_closure_lock);
-    on_destruction_.RunAndReset();
-  }
 }
 
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
-SkColor OsIntegrationTestOverrideImpl::GetIconTopLeftColorFromShortcutFile(
-    const base::FilePath& shortcut_path) {
-  CHECK(base::PathExists(shortcut_path));
-#if BUILDFLAG(IS_MAC)
-  base::FilePath icon_path =
-      shortcut_path.AppendASCII("Contents/Resources/app.icns");
-  base::ScopedCFTypeRef<CFDictionaryRef> empty_dict(
-      CFDictionaryCreate(nullptr, nullptr, nullptr, 0, nullptr, nullptr));
-  base::ScopedCFTypeRef<CFURLRef> url = base::mac::FilePathToCFURL(icon_path);
-  base::ScopedCFTypeRef<CGImageSourceRef> source(
-      CGImageSourceCreateWithURL(url, nullptr));
-  if (!source) {
-    return 0;
-  }
-  // Get the first icon in the .icns file (index 0)
-  base::ScopedCFTypeRef<CGImageRef> cg_image(
-      CGImageSourceCreateImageAtIndex(source, 0, empty_dict));
-  if (!cg_image) {
-    return 0;
-  }
-  SkBitmap bitmap = skia::CGImageToSkBitmap(cg_image);
-  if (bitmap.empty()) {
-    return 0;
-  }
-  return bitmap.getColor(0, 0);
-#elif BUILDFLAG(IS_WIN)
-  SHFILEINFO file_info = {0};
-  if (SHGetFileInfo(shortcut_path.value().c_str(), FILE_ATTRIBUTE_NORMAL,
-                    &file_info, sizeof(file_info),
-                    SHGFI_ICON | 0 | SHGFI_USEFILEATTRIBUTES)) {
-    const SkBitmap bitmap = IconUtil::CreateSkBitmapFromHICON(file_info.hIcon);
-    if (bitmap.empty()) {
-      return 0;
-    }
-    return bitmap.getColor(0, 0);
-  } else {
-    return 0;
-  }
-#endif
-}
-#endif
 
 #if BUILDFLAG(IS_WIN)
 SkColor OsIntegrationTestOverrideImpl::ReadColorFromShortcutMenuIcoFile(
@@ -838,7 +917,7 @@ SkColor OsIntegrationTestOverrideImpl::ReadColorFromShortcutMenuIcoFile(
   HICON icon = static_cast<HICON>(
       LoadImage(NULL, file_path.value().c_str(), IMAGE_ICON, 32, 32,
                 LR_LOADTRANSPARENT | LR_LOADFROMFILE));
-  base::win::ScopedHICON scoped_icon(icon);
+  base::win::ScopedGDIObject<HICON> scoped_icon(icon);
   SkBitmap output_image =
       IconUtil::CreateSkBitmapFromHICON(scoped_icon.get(), gfx::Size(32, 32));
   SkColor color = output_image.getColor(output_image.dimensions().width() / 2,

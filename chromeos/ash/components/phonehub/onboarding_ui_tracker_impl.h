@@ -14,8 +14,7 @@
 class PrefRegistrySimple;
 class PrefService;
 
-namespace ash {
-namespace phonehub {
+namespace ash::phonehub {
 
 // OnboardingUiTracker implementation that uses the
 // |kHideOnboardingUi| pref to determine whether the Onboarding UI should be
@@ -40,7 +39,7 @@ class OnboardingUiTrackerImpl
   // OnboardingUiTracker:
   bool ShouldShowOnboardingUi() const override;
   void DismissSetupUi() override;
-  void HandleGetStarted() override;
+  void HandleGetStarted(bool is_icon_clicked_when_nudge_visible) override;
 
  private:
   // FeatureStatusProvider::Observer:
@@ -53,15 +52,13 @@ class OnboardingUiTrackerImpl
 
   bool ComputeShouldShowOnboardingUi();
   void UpdateShouldShowOnboardingUi();
-  raw_ptr<PrefService, ExperimentalAsh> pref_service_;
-  raw_ptr<FeatureStatusProvider, ExperimentalAsh> feature_status_provider_;
-  raw_ptr<multidevice_setup::MultiDeviceSetupClient, ExperimentalAsh>
-      multidevice_setup_client_;
+  raw_ptr<PrefService> pref_service_;
+  raw_ptr<FeatureStatusProvider> feature_status_provider_;
+  raw_ptr<multidevice_setup::MultiDeviceSetupClient> multidevice_setup_client_;
   bool should_show_onboarding_ui_;
   base::RepeatingClosure show_multidevice_setup_dialog_callback_;
 };
 
-}  // namespace phonehub
-}  // namespace ash
+}  // namespace ash::phonehub
 
 #endif  // CHROMEOS_ASH_COMPONENTS_PHONEHUB_ONBOARDING_UI_TRACKER_IMPL_H_

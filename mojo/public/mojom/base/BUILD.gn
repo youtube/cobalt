@@ -3,15 +3,21 @@
 # found in the LICENSE file.
 
 import("//mojo/public/tools/bindings/mojom.gni")
+import("//third_party/protobuf/proto_library.gni")
 
 mojom_component("base") {
   generate_java = true
+  generate_rust = true
   sources = [
+    "absl_status.mojom",
     "application_state.mojom",
+    "battery_power_status.mojom",
     "big_buffer.mojom",
     "big_string.mojom",
     "binder.mojom",
     "byte_string.mojom",
+    "empty.mojom",
+    "error.mojom",
     "file.mojom",
     "file_error.mojom",
     "file_info.mojom",
@@ -19,12 +25,13 @@ mojom_component("base") {
     "generic_pending_associated_receiver.mojom",
     "generic_pending_receiver.mojom",
     "int128.mojom",
+    "jserror.mojom",
     "memory_allocator_dump_cross_process_uid.mojom",
     "memory_pressure_level.mojom",
     "message_pump_type.mojom",
     "process_id.mojom",
+    "process_priority.mojom",
     "read_only_buffer.mojom",
-    "read_only_file.mojom",
     "ref_counted_memory.mojom",
     "safe_base_name.mojom",
     "shared_memory.mojom",
@@ -34,6 +41,7 @@ mojom_component("base") {
     "time.mojom",
     "token.mojom",
     "unguessable_token.mojom",
+    "uuid.mojom",
     "values.mojom",
     "version.mojom",
   ]
@@ -52,6 +60,10 @@ mojom_component("base") {
   }
 
   webui_module_path = "chrome://resources/mojo/mojo/public/mojom/base"
+
+  # Always generate legacy bindings since this target is used by Blink, fuzzers,
+  # etc and not just by WebUI.
+  generate_legacy_js_bindings = true
 
   output_prefix = "mojo_base_mojom"
   macro_prefix = "MOJO_BASE_MOJOM"
@@ -128,6 +140,10 @@ mojom_component("base") {
       types = [
         {
           mojom = "mojo_base.mojom.FilePath"
+          cpp = "::base::FilePath"
+        },
+        {
+          mojom = "mojo_base.mojom.RelativeFilePath"
           cpp = "::base::FilePath"
         },
       ]
@@ -265,6 +281,11 @@ mojom_component("base") {
           copyable_pass_by_value = true
         },
         {
+          mojom = "mojo_base.mojom.JSTime"
+          cpp = "::base::Time"
+          copyable_pass_by_value = true
+        },
+        {
           mojom = "mojo_base.mojom.TimeDelta"
           cpp = "::base::TimeDelta"
           copyable_pass_by_value = true
@@ -304,6 +325,19 @@ mojom_component("base") {
       ]
       traits_headers =
           [ "//mojo/public/cpp/base/unguessable_token_mojom_traits.h" ]
+      traits_public_deps = [
+        "//base",
+        "//mojo/public/cpp/base:shared_typemap_traits",
+      ]
+    },
+    {
+      types = [
+        {
+          mojom = "mojo_base.mojom.Uuid"
+          cpp = "::base::Uuid"
+        },
+      ]
+      traits_headers = [ "//mojo/public/cpp/base/uuid_mojom_traits.h" ]
       traits_public_deps = [
         "//base",
         "//mojo/public/cpp/base:shared_typemap_traits",
@@ -439,6 +473,20 @@ mojom_component("base") {
     {
       types = [
         {
+          mojom = "mojo_base.mojom.ProcessPriority"
+          cpp = "::base::Process::Priority"
+        },
+      ]
+      traits_headers =
+          [ "//mojo/public/cpp/base/process_priority_mojom_traits.h" ]
+      traits_public_deps = [
+        "//base",
+        "//mojo/public/cpp/base:typemap_traits",
+      ]
+    },
+    {
+      types = [
+        {
           mojom = "mojo_base.mojom.RefCountedMemory"
           cpp = "::scoped_refptr<::base::RefCountedMemory>"
           copyable_pass_by_value = true
@@ -491,6 +539,20 @@ mojom_component("base") {
         },
       ]
       traits_headers = [ "//mojo/public/cpp/base/thread_type_mojom_traits.h" ]
+      traits_public_deps = [
+        "//base",
+        "//mojo/public/cpp/base:typemap_traits",
+      ]
+    },
+    {
+      types = [
+        {
+          mojom = "mojo_base.mojom.BatteryPowerStatus"
+          cpp = "::base::PowerStateObserver::BatteryPowerStatus"
+        },
+      ]
+      traits_headers =
+          [ "//mojo/public/cpp/base/battery_power_status_traits.h" ]
       traits_public_deps = [
         "//base",
         "//mojo/public/cpp/base:typemap_traits",
@@ -588,4 +650,82 @@ mojom_component("base") {
       ]
     },
   ]
+
+  ts_typemaps = [
+    {
+      source = "time_converters.ts"
+      types = [
+        {
+          converter = "JsTimeConverter"
+          mojom = "mojo_base.mojom.JSTime"
+          ts = "Date"
+        },
+      ]
+    },
+    {
+      source = "jserror_converter.ts"
+      types = [
+        {
+          converter = "JsErrorConverter"
+          mojom = "mojo_base.mojom.JsError"
+          ts = "Object"
+        },
+      ]
+    },
+    {
+      source = "unguessable_token_converter.ts"
+      types = [
+        {
+          converter = "UnguessableTokenConverter"
+          mojom = "mojo_base.mojom.UnguessableToken"
+
+          # Tokens will be in the form of a 32 char hexadecimal string
+          # which represents the underlying 128 bits of token. E.g.:
+          #   "00001111222233334444555566667777"
+          # Note that *all* tokens must be 32 char strings, it is not
+          # permissible to use a truncated representation of a token,
+          # for example:
+          #   "01" <== not permissible!
+          # this is because APIs would typically use string operations
+          # when working with the mapped token. Therefore, the equality
+          # and comparison operators should be transitive between the mapped
+          # type and the mojo type. For example:
+          #   str(token) === str(mojo(str(token)))
+          # we do NOT want to allow the following scenario:
+          #   "0x1" != "0x00001", but mojo("0x1") == mojo("0x00001)
+          ts = "string"
+        },
+      ]
+    },
+  ]
+}
+
+mojom_component("protobuf_support") {
+  sources = [ "proto_wrapper.mojom" ]
+  generate_java = true
+  webui_module_path = "chrome://resources/mojo/mojo/public/mojom/base"
+  generate_legacy_js_bindings = true
+  output_prefix = "mojo_base_mojom_protobuf_support"
+  macro_prefix = "MOJO_BASE_MOJOM_PROTOBUF_SUPPORT"
+  cpp_typemaps = [
+    {
+      types = [
+        {
+          mojom = "mojo_base.mojom.ProtoWrapper"
+          cpp = "::mojo_base::ProtoWrapper"
+          move_only = true
+          default_constructible = false
+        },
+      ]
+      traits_headers = [ "//mojo/public/cpp/base/proto_wrapper_mojom_traits.h" ]
+      traits_public_deps = [
+        ":base",
+        "//base",
+        "//mojo/public/cpp/base:protobuf_support_traits",
+        "//mojo/public/cpp/base:shared_typemap_traits",
+      ]
+    },
+  ]
+  blink_cpp_typemaps = cpp_typemaps
+  public_deps = [ ":base" ]
 }

@@ -5,6 +5,7 @@
 #include "chrome/installer/util/self_cleaning_temp_dir.h"
 
 #include <windows.h>
+
 #include <stdint.h>
 #include <wincrypt.h>
 
@@ -29,7 +30,7 @@ std::string GetRandomFilename() {
   EXPECT_NE(FALSE, CryptReleaseContext(crypt_ctx, 0));
 
   // Hexify the value.
-  std::string result(base::HexEncode(&data[0], std::size(data)));
+  std::string result = base::HexEncode(data);
   EXPECT_EQ(8u, result.size());
 
   // Replace the first digit with the letter 'R' (for "random", get it?).

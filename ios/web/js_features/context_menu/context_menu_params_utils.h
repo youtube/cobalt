@@ -5,11 +5,8 @@
 #ifndef IOS_WEB_JS_FEATURES_CONTEXT_MENU_CONTEXT_MENU_PARAMS_UTILS_H_
 #define IOS_WEB_JS_FEATURES_CONTEXT_MENU_CONTEXT_MENU_PARAMS_UTILS_H_
 
+#import "base/values.h"
 #import "ios/web/public/ui/context_menu_params.h"
-
-namespace base {
-class Value;
-}  // namespace base
 
 namespace web {
 
@@ -22,7 +19,8 @@ inline constexpr double kContextMenuMaxScreenshotSize = 1e7;
 // If set, all these fields must have String values.
 // This constructor does not set fields relative to the touch event (view and
 // location).
-ContextMenuParams ContextMenuParamsFromElementDictionary(base::Value* element);
+ContextMenuParams ContextMenuParamsFromElementDictionary(
+    const base::Value::Dict& element);
 
 }  // namespace web
 

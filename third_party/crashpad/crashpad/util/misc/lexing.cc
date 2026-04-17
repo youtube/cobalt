@@ -14,23 +14,23 @@
 
 #include "util/misc/lexing.h"
 
-#include <ctype.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
 #include <limits>
+#include <string_view>
 
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
+#include "base/strings/string_util.h"
 
 namespace crashpad {
 
 namespace {
 
-#define MAKE_ADAPTER(type, function)                                        \
-  bool ConvertStringToNumber(const base::StringPiece& input, type* value) { \
-    return function(input, value);                                          \
+#define MAKE_ADAPTER(type, function)                                \
+  bool ConvertStringToNumber(std::string_view input, type* value) { \
+    return function(input, value);                                  \
   }
 MAKE_ADAPTER(int, base::StringToInt)
 MAKE_ADAPTER(unsigned int, base::StringToUint)
@@ -55,11 +55,10 @@ bool AdvancePastNumber(const char** input, T* value) {
   if (std::numeric_limits<T>::is_signed && **input == '-') {
     ++length;
   }
-  while (isdigit((*input)[length])) {
+  while (base::IsAsciiDigit((*input)[length])) {
     ++length;
   }
-  bool success =
-      ConvertStringToNumber(base::StringPiece(*input, length), value);
+  bool success = ConvertStringToNumber(std::string_view(*input, length), value);
   if (success) {
     *input += length;
     return true;

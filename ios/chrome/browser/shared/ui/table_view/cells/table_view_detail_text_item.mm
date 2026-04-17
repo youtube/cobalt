@@ -5,15 +5,11 @@
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_detail_text_item.h"
 
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
-#import "ios/chrome/browser/shared/ui/table_view/chrome_table_view_styler.h"
+#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/table_view/table_view_cells_constants.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 #pragma mark - TableViewDetailTextItem
 
@@ -160,8 +156,27 @@
     // Make sure there are top and bottom margins of at least `margin`.
     AddOptionalVerticalPadding(self.contentView, containerView,
                                kTableViewTwoLabelsCellVerticalSpacing);
+
+    if (@available(iOS 17, *)) {
+      NSArray<UITrait>* traits = TraitCollectionSetForTraits(
+          @[ UITraitPreferredContentSizeCategory.class ]);
+      __weak __typeof(self) weakSelf = self;
+      UITraitChangeHandler handler = ^(id<UITraitEnvironment> traitEnvironment,
+                                       UITraitCollection* previousCollection) {
+        [weakSelf updateNumberOfLinesOnTraitChange:previousCollection];
+      };
+      [self registerForTraitChanges:traits withHandler:handler];
+    }
   }
   return self;
+}
+
+#pragma mark - Properties
+
+- (void)setAllowMultilineDetailText:(BOOL)allowMultilineDetailText {
+  _allowMultilineDetailText = allowMultilineDetailText;
+
+  _detailTextLabel.numberOfLines = _allowMultilineDetailText ? 0 : 1;
 }
 
 #pragma mark - UIReusableView
@@ -175,8 +190,37 @@
 
 #pragma mark - UIView
 
+#if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
 - (void)traitCollectionDidChange:(UITraitCollection*)previousTraitCollection {
   [super traitCollectionDidChange:previousTraitCollection];
+  if (@available(iOS 17, *)) {
+    return;
+  }
+  [self updateNumberOfLinesOnTraitChange:previousTraitCollection];
+}
+#endif
+
+- (void)layoutSubviews {
+  if (UIContentSizeCategoryIsAccessibilityCategory(
+          self.traitCollection.preferredContentSizeCategory)) {
+    // Make sure that the multiline labels width isn't changed when the
+    // accessory is set.
+    self.detailTextLabel.preferredMaxLayoutWidth =
+        self.bounds.size.width -
+        (kTableViewAccessoryWidth + 2 * kTableViewHorizontalSpacing);
+    self.textLabel.preferredMaxLayoutWidth =
+        self.bounds.size.width -
+        (kTableViewAccessoryWidth + 2 * kTableViewHorizontalSpacing);
+  }
+  [super layoutSubviews];
+}
+
+#pragma mark - Private
+
+// Updates the `detailTextLabel`'s and/or the `textLabel`'s numberOfLines
+// property when the UITraitPreferredContentSizeCategory changes on the device.
+- (void)updateNumberOfLinesOnTraitChange:
+    (UITraitCollection*)previousTraitCollection {
   BOOL isCurrentCategoryAccessibility =
       UIContentSizeCategoryIsAccessibilityCategory(
           self.traitCollection.preferredContentSizeCategory);
@@ -194,21 +238,6 @@
       self.detailTextLabel.numberOfLines = 0;
     }
   }
-}
-
-- (void)layoutSubviews {
-  if (UIContentSizeCategoryIsAccessibilityCategory(
-          self.traitCollection.preferredContentSizeCategory)) {
-    // Make sure that the multiline labels width isn't changed when the
-    // accessory is set.
-    self.detailTextLabel.preferredMaxLayoutWidth =
-        self.bounds.size.width -
-        (kTableViewAccessoryWidth + 2 * kTableViewHorizontalSpacing);
-    self.textLabel.preferredMaxLayoutWidth =
-        self.bounds.size.width -
-        (kTableViewAccessoryWidth + 2 * kTableViewHorizontalSpacing);
-  }
-  [super layoutSubviews];
 }
 
 @end

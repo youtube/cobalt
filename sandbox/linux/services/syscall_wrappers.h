@@ -19,6 +19,7 @@ struct cap_hdr;
 struct cap_data;
 struct kernel_stat;
 struct kernel_stat64;
+struct landlock_ruleset_attr;
 
 namespace sandbox {
 
@@ -98,6 +99,18 @@ SANDBOX_EXPORT int sys_fstatat64(int dirfd,
                                  const char* pathname,
                                  struct kernel_stat64* stat_buf,
                                  int flags);
+
+// Some systems do not have Landlock available.
+SANDBOX_EXPORT int landlock_create_ruleset(
+    const struct landlock_ruleset_attr* const attr,
+    const size_t size,
+    const uint32_t flags);
+SANDBOX_EXPORT int landlock_add_rule(const int ruleset_fd,
+                                     const int rule_type,
+                                     const void* const rule_attr,
+                                     const uint32_t flags);
+SANDBOX_EXPORT int landlock_restrict_self(const int ruleset_fd,
+                                          const uint32_t flags);
 
 }  // namespace sandbox
 

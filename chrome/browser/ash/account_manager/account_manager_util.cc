@@ -17,6 +17,7 @@
 #include "chrome/browser/profiles/profiles_state.h"
 #include "chromeos/ash/components/account_manager/account_manager_factory.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_types.h"
+#include "chromeos/components/mgs/managed_guest_session_utils.h"
 #include "components/account_manager_core/chromeos/account_manager.h"
 #include "components/account_manager_core/chromeos/account_manager_mojo_service.h"
 #include "components/account_manager_core/chromeos/account_manager_ui.h"
@@ -34,19 +35,21 @@ bool IsAccountManagerAvailable(Profile* profile) {
   }
 
   // Account Manager is unavailable on Guest (Incognito) Sessions.
-  if (profile->IsGuestSession() || profile->IsOffTheRecord())
+  if (profile->IsGuestSession() || profile->IsOffTheRecord()) {
     return false;
+  }
 
   // In Web kiosk mode, we should not enable account manager since we use robot
   // accounts.
   if (user_manager::UserManager::IsInitialized() &&
-      user_manager::UserManager::Get()->IsLoggedInAsWebKioskApp()) {
+      user_manager::UserManager::Get()->IsLoggedInAsKioskWebApp()) {
     return false;
   }
 
-  // Account Manager is unavailable on Managed Guest Sessions / Public Sessions.
-  if (profiles::IsPublicSession())
+  // Account Manager is unavailable on Managed Guest Sessions.
+  if (chromeos::IsManagedGuestSession()) {
     return false;
+  }
 
   // Available in all other cases.
   return true;

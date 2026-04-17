@@ -6,6 +6,7 @@
 #define CONTENT_BROWSER_BACKGROUND_FETCH_STORAGE_GET_INITIALIZATION_DATA_TASK_H_
 
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -17,7 +18,6 @@
 #include "content/common/background_fetch/background_fetch_types.h"
 #include "content/common/content_export.h"
 #include "net/base/isolation_info.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/service_worker/service_worker_status_code.h"
 #include "third_party/blink/public/mojom/background_fetch/background_fetch.mojom.h"
 #include "third_party/skia/include/core/SkBitmap.h"
@@ -57,7 +57,7 @@ struct CONTENT_EXPORT BackgroundFetchInitializationData {
   blink::mojom::BackgroundFetchError error =
       blink::mojom::BackgroundFetchError::NONE;
 
-  absl::optional<net::IsolationInfo> isolation_info;
+  std::optional<net::IsolationInfo> isolation_info;
 };
 
 using GetInitializationDataCallback =
@@ -67,7 +67,7 @@ using GetInitializationDataCallback =
 // Gets all the data needed to resume fetches. The task starts by getting
 // all the <ServiceWorker Registration ID, Background Fetch Unique ID>
 // pairs available.
-//    * TODO(crbug.com/853060): Consider persisting which SWIDs contain BGF
+//    * TODO(crbug.com/41394781): Consider persisting which SWIDs contain BGF
 //    info.
 // Then for every Background Fetch Unique ID the required information is
 // queried from the ServiceWorker Database to fill an instance of

@@ -63,7 +63,6 @@ int64_t QuotaReservation::OpenFile(int32_t id,
             url, &platform_file_path);
     if (error != base::File::FILE_OK) {
       NOTREACHED();
-      return 0;
     }
   } else {
     // For test.
@@ -80,7 +79,6 @@ int64_t QuotaReservation::OpenFile(int32_t id,
     return max_written_offset;
   }
   NOTREACHED();
-  return 0;
 }
 
 void QuotaReservation::CloseFile(int32_t id,

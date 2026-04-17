@@ -15,7 +15,7 @@
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/extensions/menu_manager.h"
-#include "ui/base/models/simple_menu_model.h"
+#include "ui/menus/simple_menu_model.h"
 
 class ExtensionContextMenuBrowserTest;
 
@@ -39,7 +39,7 @@ class ContextMenuMatcher {
   // Returns true if the given id is one generated for extension context menu.
   static bool IsExtensionsCustomCommandId(int id);
 
-  // The |filter| will be called on possibly matching menu items, and its
+  // The `filter` will be called on possibly matching menu items, and its
   // result is used to determine which items to actually append to the menu.
   ContextMenuMatcher(content::BrowserContext* context,
                      ui::SimpleMenuModel::Delegate* delegate,
@@ -52,14 +52,16 @@ class ContextMenuMatcher {
   ~ContextMenuMatcher();
 
   // This is a helper function to append items for one particular extension.
-  // The |index| parameter is used for assigning id's, and is incremented for
-  // each item actually added. |is_action_menu| is used for browser and page
+  // The `index` parameter is used for assigning id's, and is incremented for
+  // each item actually added. `is_action_menu` is used for browser and page
   // action context menus, in which menu items are not placed in submenus
   // and the extension's icon is not shown.
-  void AppendExtensionItems(const MenuItem::ExtensionKey& extension_key,
-                            const std::u16string& selection_text,
-                            int* index,
-                            bool is_action_menu);
+  void AppendExtensionItems(
+      const MenuItem::ExtensionKey& extension_key,
+      const std::u16string& selection_text,
+      int* index,
+      bool is_action_menu,
+      const std::u16string& group_title = std::u16string());
 
   // Returns true if the given menu_model has any visible items.
   bool HasVisibleItems(ui::MenuModel* menu_model) const;
@@ -93,8 +95,8 @@ class ContextMenuMatcher {
 
   bool GetRelevantExtensionTopLevelItems(
       const MenuItem::ExtensionKey& extension_key,
-      const Extension** extension,
-      bool* can_cross_incognito,
+      const Extension*& extension,
+      bool& can_cross_incognito,
       MenuItem::List* items);
 
   MenuItem::List GetRelevantExtensionItems(const MenuItem::OwnedList& items,
@@ -112,7 +114,7 @@ class ContextMenuMatcher {
   extensions::MenuItem* GetExtensionMenuItem(int id) const;
 
   // This will set the icon on the most recently-added item in the menu_model_.
-  void SetExtensionIcon(const std::string& extension_id);
+  void SetExtensionIcon(const MenuItem::ExtensionKey& extension_key);
 
   raw_ptr<content::BrowserContext, DanglingUntriaged> browser_context_;
   raw_ptr<ui::SimpleMenuModel, DanglingUntriaged> menu_model_;

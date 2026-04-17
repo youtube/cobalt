@@ -79,7 +79,7 @@ IconStore::IconTypeBundleMap CreateIcons() {
 
 class MockNotificationStore : public CollectionStore<NotificationEntry> {
  public:
-  MockNotificationStore() {}
+  MockNotificationStore() = default;
   MockNotificationStore(const MockNotificationStore&) = delete;
   MockNotificationStore& operator=(const MockNotificationStore&) = delete;
 
@@ -99,7 +99,7 @@ class MockNotificationStore : public CollectionStore<NotificationEntry> {
 
 class MockIconStore : public IconStore {
  public:
-  MockIconStore() {}
+  MockIconStore() = default;
   MockIconStore(const MockIconStore&) = delete;
   MockIconStore& operator=(const MockIconStore&) = delete;
 
@@ -211,8 +211,8 @@ class ScheduledNotificationManagerTest : public testing::Test {
 
  private:
   base::test::TaskEnvironment task_environment_;
-  raw_ptr<MockNotificationStore> notification_store_;
-  raw_ptr<MockIconStore> icon_store_;
+  raw_ptr<MockNotificationStore, DanglingUntriaged> notification_store_;
+  raw_ptr<MockIconStore, DanglingUntriaged> icon_store_;
   std::vector<SchedulerClientType> clients_;
   std::unique_ptr<ScheduledNotificationManager> manager_;
   SchedulerConfig config_;

@@ -20,7 +20,19 @@ namespace scheduler {
 class WebThreadScheduler;
 }  // namespace scheduler
 
+namespace test {
+class TaskEnvironment;
+}  // namespace test
+
 class RAILModeObserver;
+
+class ExecuteAfterCurrentTaskRestricted {
+ private:
+  // Permitted users of `ThreadScheduler::ExecuteAfterCurrentTaskForTesting()`.
+  friend class DOMScheduler;
+
+  ExecuteAfterCurrentTaskRestricted() = default;
+};
 
 // This class is used to submit tasks and pass other information from Blink to
 // the platform's main thread scheduler.
@@ -63,6 +75,10 @@ class PLATFORM_EXPORT MainThreadScheduler : public ThreadScheduler {
 
   virtual void RemoveRAILModeObserver(RAILModeObserver const* observer) = 0;
 
+  // Calls the callback for each unique isolate that bound to the main thread.
+  virtual void ForEachMainThreadIsolate(
+      base::RepeatingCallback<void(v8::Isolate* isolate)> callback) = 0;
+
   // Returns a list of all unique attributions that are marked for event
   // dispatch. If |include_continuous| is true, include event types from
   // "continuous" sources (see PendingUserInput::IsContinuousEventTypes).
@@ -73,6 +89,11 @@ class PLATFORM_EXPORT MainThreadScheduler : public ThreadScheduler {
 
   // Test helpers
 
+  // Runs `on_completion_task` after the current task has finished.
+  virtual void ExecuteAfterCurrentTaskForTesting(
+      base::OnceClosure on_completion_task,
+      ExecuteAfterCurrentTaskRestricted) = 0;
+
   // Starts an idle period, allowing pending idle tasks to run. Idle tasks can
   // only run within an idle period, which is determined based on compositor
   // signals. This method enables idle tasks to run in tests outside of a
@@ -80,12 +101,16 @@ class PLATFORM_EXPORT MainThreadScheduler : public ThreadScheduler {
   // before this method was called have run.
   virtual void StartIdlePeriodForTesting() = 0;
 
+  // See WebThreadScheduler::SetRendererBackgrounded().
+  virtual void SetRendererBackgroundedForTesting(bool backgrounded) = 0;
+
  private:
   // For `ToWebMainThreadScheduler`.
   friend class scheduler::WebThreadScheduler;
 
   // For `Isolate`.
   friend class ScopedMainThreadOverrider;
+  friend class test::TaskEnvironment;
 
   // Get the isolate previously set with `SetV8Isolate`. This method is scoped
   // private so only friends can use it. Other users should use

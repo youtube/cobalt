@@ -47,10 +47,16 @@ class H5vccExperimentsImpl
   void SetExperimentState(base::Value::Dict,
                           SetExperimentStateCallback) override;
   void ResetExperimentState(ResetExperimentStateCallback) override;
-  void GetActiveExperimentIds(GetActiveExperimentIdsCallback) override;
+  void GetActiveExperimentConfigData(
+      GetActiveExperimentConfigDataCallback) override;
   void GetFeature(const std::string& feature_name, GetFeatureCallback) override;
-  void GetFeatureParam(const std::string& feature_param_name,
-                       GetFeatureParamCallback) override;
+  void GetLatestExperimentConfigHashData(
+      GetLatestExperimentConfigHashDataCallback) override;
+  void SetLatestExperimentConfigHashData(
+      const std::string& hash_data,
+      SetLatestExperimentConfigHashDataCallback) override;
+  void SetFinchParameters(base::Value::Dict settings,
+                          SetFinchParametersCallback) override;
 
  private:
   H5vccExperimentsImpl(content::RenderFrameHost& render_frame_host,

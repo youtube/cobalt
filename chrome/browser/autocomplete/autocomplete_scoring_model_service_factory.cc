@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
@@ -17,7 +17,8 @@
 // static
 AutocompleteScoringModelServiceFactory*
 AutocompleteScoringModelServiceFactory::GetInstance() {
-  return base::Singleton<AutocompleteScoringModelServiceFactory>::get();
+  static base::NoDestructor<AutocompleteScoringModelServiceFactory> instance;
+  return instance.get();
 }
 
 // static
@@ -34,9 +35,12 @@ AutocompleteScoringModelServiceFactory::AutocompleteScoringModelServiceFactory()
           // original and the OTR modes.
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOwnInstance)
-              // TODO(crbug.com/1418376): Check if this service is needed in
+              // TODO(crbug.com/40257657): Check if this service is needed in
               // Guest mode (likely not since local history is unavailable).
               .WithGuest(ProfileSelection::kOriginalOnly)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOwnInstance)
               .Build()) {
   DependsOn(OptimizationGuideKeyedServiceFactory::GetInstance());
 }

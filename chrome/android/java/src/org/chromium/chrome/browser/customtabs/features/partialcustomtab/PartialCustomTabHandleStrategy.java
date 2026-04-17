@@ -8,11 +8,9 @@ import android.content.Context;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.VelocityTracker;
-import android.view.View.OnClickListener;
 
 import androidx.core.view.MotionEventCompat;
 
-import org.chromium.base.Callback;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.browser.customtabs.features.partialcustomtab.PartialCustomTabBottomSheetStrategy.HeightStatus;
@@ -20,11 +18,9 @@ import org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbar;
 
 import java.util.function.BooleanSupplier;
 
-/**
- * Handling touch events for resizing the Window.
- */
-class PartialCustomTabHandleStrategy
-        extends GestureDetector.SimpleOnGestureListener implements CustomTabToolbar.HandleStrategy {
+/** Handling touch events for resizing the Window. */
+class PartialCustomTabHandleStrategy extends GestureDetector.SimpleOnGestureListener
+        implements CustomTabToolbar.HandleStrategy {
     /**
      * The base duration of the settling animation of the sheet. 218 ms is a spec for material
      * design (this is the minimum time a user is guaranteed to pay attention to something).
@@ -33,18 +29,18 @@ class PartialCustomTabHandleStrategy
 
     private static final int FLING_THRESHOLD_PX = 100;
 
-    private static final int FLING_VELOCITY_PIXELS_PER_MS = 1000;
+    static final int FLING_VELOCITY_PIXELS_PER_MS = 1000;
 
     private final GestureDetector mGestureDetector;
-    private final SimpleHandleStrategy mCloseHandler;
     private float mLastPosY;
     private float mDeltaY;
     private boolean mSeenFirstMoveOrDown;
-    private VelocityTracker mVelocityTracker;
+    private final VelocityTracker mVelocityTracker;
+    private Runnable mCloseHandler;
 
-    private BooleanSupplier mIsFullHeight;
-    private Supplier<Integer> mStatus;
-    private DragEventCallback mDragEventCallback;
+    private final BooleanSupplier mIsFullHeight;
+    private final Supplier<Integer> mStatus;
+    private final DragEventCallback mDragEventCallback;
 
     /** Callback for drag events. */
     interface DragEventCallback {
@@ -62,19 +58,21 @@ class PartialCustomTabHandleStrategy
 
         /**
          * Drag action is finished.
-         * @param flingDistance fling distance when the drag action ends up in fling action.
-         *        Zero if not.
+         *
+         * @param flingDistance fling distance when the drag action ends up in fling action. Zero if
+         *     not.
          */
-        void onDragEnd(int flingDistance);
+        boolean onDragEnd(int flingDistance);
     }
 
-    public PartialCustomTabHandleStrategy(Context context, BooleanSupplier isFullHeight,
-            Supplier<Integer> status, DragEventCallback dragEventCallback,
-            Callback<Runnable> closeAnimation) {
+    public PartialCustomTabHandleStrategy(
+            Context context,
+            BooleanSupplier isFullHeight,
+            Supplier<Integer> status,
+            DragEventCallback dragEventCallback) {
         mIsFullHeight = isFullHeight;
         mStatus = status;
         mDragEventCallback = dragEventCallback;
-        mCloseHandler = new SimpleHandleStrategy(closeAnimation);
         mGestureDetector = new GestureDetector(context, this, ThreadUtils.getUiThreadHandler());
         mVelocityTracker = VelocityTracker.obtain();
     }
@@ -119,7 +117,9 @@ class PartialCustomTabHandleStrategy
                     float v = Math.abs(mVelocityTracker.getYVelocity());
                     int flingDist = Math.abs(v) < FLING_THRESHOLD_PX ? 0 : getFlingDistance(v);
                     int direction = (int) Math.signum(mDeltaY);
-                    mDragEventCallback.onDragEnd((int) (flingDist * direction));
+                    if (!mDragEventCallback.onDragEnd((int) (flingDist * direction))) {
+                        mCloseHandler.run();
+                    }
                     mSeenFirstMoveOrDown = false;
                 }
                 return true;
@@ -129,18 +129,8 @@ class PartialCustomTabHandleStrategy
     }
 
     @Override
-    public void setCloseClickHandler(OnClickListener listener) {
-        mCloseHandler.setCloseClickHandler(listener);
-    }
-
-    @Override
-    public void startCloseAnimation() {
-        mCloseHandler.startCloseAnimation();
-    }
-
-    @Override
-    public void close() {
-        mCloseHandler.close();
+    public void setCloseClickHandler(Runnable handler) {
+        mCloseHandler = handler;
     }
 
     @Override

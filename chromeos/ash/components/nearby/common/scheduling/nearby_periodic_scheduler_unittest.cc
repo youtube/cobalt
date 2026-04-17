@@ -41,7 +41,7 @@ class NearbyPeriodicSchedulerTest : public ::testing::Test {
     scheduler_ = std::make_unique<NearbyPeriodicScheduler>(
         kTestRequestPeriod, /*retry_failures=*/true,
         /*require_connectivity=*/true, kTestPrefName, &pref_service_,
-        base::DoNothing(), task_environment_.GetMockClock());
+        base::DoNothing(), Feature::NS, task_environment_.GetMockClock());
   }
 
   base::Time Now() const { return task_environment_.GetMockClock()->Now(); }
@@ -68,7 +68,7 @@ TEST_F(NearbyPeriodicSchedulerTest, PeriodicRequest) {
 
   // Immediately runs a first-time periodic request.
   scheduler()->Start();
-  absl::optional<base::TimeDelta> time_until_next_request =
+  std::optional<base::TimeDelta> time_until_next_request =
       scheduler()->GetTimeUntilNextRequest();
   EXPECT_EQ(base::Seconds(0), scheduler()->GetTimeUntilNextRequest());
   FastForward(*time_until_next_request);

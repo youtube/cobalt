@@ -2,8 +2,6 @@
    Use of this source code is governed by a BSD-style license that can be
    found in the LICENSE file. */
 
-/* This is the stylesheet for the interstitial when the
-   "WebFilterInterstitialRefresh" flag is enabled. */
 
 body {
   --avatar-stroke-color: var(--google-gray-50);
@@ -14,7 +12,7 @@ body {
   --paragraph-color: var(--google-gray-700);
   --callout-text-color: var(--google-gray-900);
   --callout-bg-color: var(--google-gray-100);
-  font-family: "Roboto", sans-serif;
+  font-family: 'Roboto', sans-serif;
   padding: 24px 24px 20px 24px;
 }
 
@@ -74,6 +72,13 @@ button:active {
   border-color: var(--focused-details-button-border);
 }
 
+#family-link-kite-icon {
+  height: 20px;
+  width: 20px;
+  margin-right: 16px;
+  overflow: visible;
+}
+
 h1,
 p,
 .custodian-contact {
@@ -82,7 +87,6 @@ p,
 
 h1 {
   color: var(--header-color);
-  font-family: "Google Sans", sans-serif;
   font-size: 24px;
   font-weight: normal;
   margin: 0 0 16px;
@@ -149,7 +153,7 @@ p {
 .avatar-img {
   border: none;
   border-radius: 50%;
-  content: -webkit-image-set(url(default_100_percent/logo_avatar_circle_blue_color.png) 1x,
+  content: image-set(url(default_100_percent/logo_avatar_circle_blue_color.png) 1x,
       url(default_200_percent/logo_avatar_circle_blue_color.png) 2x);
   float: left;
   height: 40px;
@@ -253,6 +257,10 @@ button:focus-visible {
     --custodian-name-color: var(--google-gray-500);
     --header-color: #e9eaed;
     --paragraph-color: var(--google-gray-500);
+  }
+
+    #family-link-kite-icon {
+    fill: #F1F3F4;
   }
 
   .secondary-button {

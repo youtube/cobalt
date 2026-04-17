@@ -4,13 +4,11 @@
 
 #import "components/autofill/ios/form_util/form_util_java_script_feature.h"
 
-#include "base/no_destructor.h"
-#include "base/values.h"
+#import "base/no_destructor.h"
+#import "base/values.h"
+#import "components/autofill/ios/form_util/autofill_form_features_java_script_feature.h"
+#import "ios/web/public/js_messaging/content_world.h"
 #import "ios/web/public/js_messaging/java_script_feature_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 const char kFillScriptName[] = "fill";
@@ -27,9 +25,10 @@ FormUtilJavaScriptFeature* FormUtilJavaScriptFeature::GetInstance() {
 
 FormUtilJavaScriptFeature::FormUtilJavaScriptFeature()
     : web::JavaScriptFeature(
-          // TODO(crbug.com/1175793): Move autofill code to kIsolatedWorld
-          // once all scripts are converted to JavaScriptFeatures.
-          web::ContentWorld::kPageContentWorld,
+          // Form submission detection hook in the page content world
+          // requires fill.ts and form.ts. That is why injection in both
+          // worlds is required.
+          web::ContentWorld::kAllContentWorlds,
           {FeatureScript::CreateWithFilename(
                kFillScriptName,
                FeatureScript::InjectionTime::kDocumentStart,
@@ -40,17 +39,13 @@ FormUtilJavaScriptFeature::FormUtilJavaScriptFeature()
                FeatureScript::InjectionTime::kDocumentStart,
                FeatureScript::TargetFrames::kAllFrames,
                FeatureScript::ReinjectionBehavior::kInjectOncePerWindow)},
-          {web::java_script_features::GetCommonJavaScriptFeature(),
-           web::java_script_features::GetMessageJavaScriptFeature()}) {}
+          {
+              web::java_script_features::GetCommonJavaScriptFeature(),
+              web::java_script_features::GetMessageJavaScriptFeature(),
+              // Form extraction logic requires feature flags.
+              AutofillFormFeaturesJavaScriptFeature::GetInstance(),
+          }) {}
 
 FormUtilJavaScriptFeature::~FormUtilJavaScriptFeature() = default;
-
-void FormUtilJavaScriptFeature::SetUpForUniqueIDsWithInitialState(
-    web::WebFrame* frame,
-    uint32_t next_available_id) {
-  std::vector<base::Value> parameters;
-  parameters.emplace_back(static_cast<int>(next_available_id));
-  CallJavaScriptFunction(frame, "fill.setUpForUniqueIDs", parameters);
-}
 
 }  // namespace autofill

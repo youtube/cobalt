@@ -15,6 +15,7 @@
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 
 #include "base/functional/bind.h"
+#include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom.h"
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_impl.h"
 #include "cobalt/browser/h5vcc_accessibility/public/mojom/h5vcc_accessibility.mojom.h"
@@ -24,10 +25,16 @@
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom.h"
 #include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_impl.h"
 #include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom.h"
-#include "cobalt/browser/h5vcc_system/h5vcc_system_impl.h"
+#include "cobalt/browser/h5vcc_settings/h5vcc_settings_impl.h"
+#include "cobalt/browser/h5vcc_settings/public/mojom/h5vcc_settings.mojom.h"
+#include "cobalt/browser/h5vcc_storage/h5vcc_storage_impl.h"
+#include "cobalt/browser/h5vcc_storage/public/mojom/h5vcc_storage.mojom.h"
+#include "cobalt/browser/h5vcc_system/h5vcc_system_impl_base.h"
 #include "cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom.h"
 #include "cobalt/browser/performance/performance_impl.h"
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
+#include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
+#include "cobalt/media/service/platform_window_provider_service.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "content/public/browser/render_frame_host.h"
@@ -36,7 +43,24 @@
 #include "cobalt/browser/crash_annotator/crash_annotator_impl.h"
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 
+#include "cobalt/browser/h5vcc_platform_service/h5vcc_platform_service_manager_impl.h"
+#include "cobalt/browser/h5vcc_platform_service/public/mojom/h5vcc_platform_service.mojom.h"
+
 namespace cobalt {
+
+namespace {
+
+void BindPlatformWindowProvider(
+    content::RenderFrameHost* rfh,
+    mojo::PendingReceiver<media::mojom::PlatformWindowProvider> receiver) {
+#if BUILDFLAG(IS_STARBOARD)
+  if (auto* client = CobaltContentBrowserClient::Get()) {
+    client->AddPendingWindowReceiver(std::move(receiver));
+  }
+#endif
+}
+
+}  // namespace
 
 #if BUILDFLAG(IS_ANDROIDTV)
 template <typename Interface>
@@ -47,6 +71,7 @@ void ForwardToJavaFrame(content::RenderFrameHost* render_frame_host,
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 
 void PopulateCobaltFrameBinders(
+    absl::optional<int64_t> app_startup_timestamp,
     content::RenderFrameHost* render_frame_host,
     mojo::BinderMapWithContext<content::RenderFrameHost*>* binder_map) {
 // We want to use the Java Mojo implementation for 1P ATV only.
@@ -68,8 +93,17 @@ void PopulateCobaltFrameBinders(
       base::BindRepeating(&h5vcc_system::H5vccSystemImpl::Create));
   binder_map->Add<h5vcc_runtime::mojom::H5vccRuntime>(
       base::BindRepeating(&h5vcc_runtime::H5vccRuntimeImpl::Create));
-  binder_map->Add<performance::mojom::CobaltPerformance>(
-      base::BindRepeating(&performance::PerformanceImpl::Create));
+  binder_map->Add<h5vcc_settings::mojom::H5vccSettings>(
+      base::BindRepeating(&h5vcc_settings::H5vccSettingsImpl::Create));
+  binder_map->Add<performance::mojom::CobaltPerformance>(base::BindRepeating(
+      &performance::PerformanceImpl::Create, app_startup_timestamp));
+  binder_map->Add<h5vcc_storage::mojom::H5vccStorage>(
+      base::BindRepeating(&h5vcc_storage::H5vccStorageImpl::Create));
+  binder_map->Add<media::mojom::PlatformWindowProvider>(
+      base::BindRepeating(&BindPlatformWindowProvider));
+  binder_map->Add<h5vcc_platform_service::mojom::H5vccPlatformServiceManager>(
+      base::BindRepeating(&h5vcc_platform_service::
+                              H5vccPlatformServiceManagerImpl::GetOrCreate));
 }
 
 }  // namespace cobalt

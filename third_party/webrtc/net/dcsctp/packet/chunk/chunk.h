@@ -16,13 +16,13 @@
 #include <cstdint>
 #include <iterator>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "api/array_view.h"
 #include "net/dcsctp/packet/data.h"
 #include "net/dcsctp/packet/error_cause/error_cause.h"
@@ -52,7 +52,7 @@ class Chunk {
 
 // Introspects the chunk in `data` and returns a human readable textual
 // representation of it, to be used in debugging.
-std::string DebugConvertChunkToString(rtc::ArrayView<const uint8_t> data);
+std::string DebugConvertChunkToString(webrtc::ArrayView<const uint8_t> data);
 
 struct ChunkConfig {
   static constexpr int kTypeSizeInBytes = 1;

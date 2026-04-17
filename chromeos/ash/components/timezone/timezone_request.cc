@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chromeos/ash/components/timezone/timezone_request.h"
 
 #include <stddef.h>
@@ -275,7 +280,7 @@ bool ParseServerResponse(const GURL& server_url,
 
   const bool status_ok = (timezone->status == TimeZoneResponseData::OK);
 
-  absl::optional<double> dst_offset =
+  std::optional<double> dst_offset =
       response_object.FindDouble(kDstOffsetString);
   if (dst_offset.has_value()) {
     timezone->dstOffset = dst_offset.value();
@@ -285,7 +290,7 @@ bool ParseServerResponse(const GURL& server_url,
     return false;
   }
 
-  absl::optional<double> raw_offset =
+  std::optional<double> raw_offset =
       response_object.FindDouble(kRawOffsetString);
   if (raw_offset.has_value()) {
     timezone->rawOffset = raw_offset.value();

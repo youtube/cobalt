@@ -10,15 +10,17 @@
 
 #include "modules/audio_mixer/frame_combiner.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <initializer_list>
 #include <numeric>
 #include <string>
-#include <type_traits>
 #include <vector>
 
-#include "absl/types/optional.h"
 #include "api/array_view.h"
+#include "api/audio/audio_frame.h"
+#include "api/audio/audio_view.h"
+#include "api/audio/channel_layout.h"
 #include "api/rtp_packet_info.h"
 #include "api/rtp_packet_infos.h"
 #include "api/units/timestamp.h"
@@ -48,7 +50,7 @@ struct FrameCombinerConfig {
 std::string ProduceDebugText(int sample_rate_hz,
                              int number_of_channels,
                              int number_of_sources) {
-  rtc::StringBuilder ss;
+  StringBuilder ss;
   ss << "Sample rate: " << sample_rate_hz << " ,";
   ss << "number of channels: " << number_of_channels << " ,";
   ss << "number of sources: " << number_of_sources;
@@ -56,7 +58,7 @@ std::string ProduceDebugText(int sample_rate_hz,
 }
 
 std::string ProduceDebugText(const FrameCombinerConfig& config) {
-  rtc::StringBuilder ss;
+  StringBuilder ss;
   ss << "Sample rate: " << config.sample_rate_hz << " ,";
   ss << "number of channels: " << config.number_of_channels << " ,";
   ss << "limiter active: " << (config.use_limiter ? "on" : "off") << " ,";
@@ -82,7 +84,7 @@ void SetUpFrames(int sample_rate_hz, int number_of_channels) {
   frame2.packet_infos_ = RtpPacketInfos({packet_info2, packet_info3});
 
   for (auto* frame : {&frame1, &frame2}) {
-    frame->UpdateFrame(0, nullptr, rtc::CheckedDivExact(sample_rate_hz, 100),
+    frame->UpdateFrame(0, nullptr, CheckedDivExact(sample_rate_hz, 100),
                        sample_rate_hz, AudioFrame::kNormalSpeech,
                        AudioFrame::kVadActive, number_of_channels);
   }
@@ -139,11 +141,13 @@ TEST(FrameCombiner, ContainsAllRtpPacketInfos) {
   }
 }
 
-// There are DCHECKs in place to check for invalid parameters.
-TEST(FrameCombinerDeathTest, DebugBuildCrashesWithManyChannels) {
+#if GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
+// There are CHECKs in place to check for invalid parameters.
+TEST(FrameCombinerDeathTest, BuildCrashesWithManyChannels) {
   FrameCombiner combiner(true);
   for (const int rate : {8000, 18000, 34000, 48000}) {
     for (const int number_of_channels : {10, 20, 21}) {
+      RTC_DCHECK_LE(number_of_channels, kMaxNumberOfAudioChannels);
       if (static_cast<size_t>(rate / 100 * number_of_channels) >
           AudioFrame::kMaxDataSizeSamples) {
         continue;
@@ -157,18 +161,14 @@ TEST(FrameCombinerDeathTest, DebugBuildCrashesWithManyChannels) {
       const std::vector<AudioFrame*> frames_to_combine(
           all_frames.begin(), all_frames.begin() + number_of_frames);
       AudioFrame audio_frame_for_mixing;
-#if RTC_DCHECK_IS_ON && GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
       EXPECT_DEATH(
           combiner.Combine(frames_to_combine, number_of_channels, rate,
                            frames_to_combine.size(), &audio_frame_for_mixing),
           "");
-#elif !RTC_DCHECK_IS_ON
-      combiner.Combine(frames_to_combine, number_of_channels, rate,
-                       frames_to_combine.size(), &audio_frame_for_mixing);
-#endif
     }
   }
 }
+#endif  // GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
 
 TEST(FrameCombinerDeathTest, DebugBuildCrashesWithHighRate) {
   FrameCombiner combiner(true);
@@ -187,14 +187,13 @@ TEST(FrameCombinerDeathTest, DebugBuildCrashesWithHighRate) {
       const std::vector<AudioFrame*> frames_to_combine(
           all_frames.begin(), all_frames.begin() + number_of_frames);
       AudioFrame audio_frame_for_mixing;
-#if RTC_DCHECK_IS_ON && GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
+#if GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
       EXPECT_DEATH(
           combiner.Combine(frames_to_combine, number_of_channels, rate,
                            frames_to_combine.size(), &audio_frame_for_mixing),
-          "");
-#elif !RTC_DCHECK_IS_ON
-      combiner.Combine(frames_to_combine, number_of_channels, rate,
-                       frames_to_combine.size(), &audio_frame_for_mixing);
+          "")
+          << "number_of_channels=" << number_of_channels << ", rate=" << rate
+          << ", frames to combine=" << frames_to_combine.size();
 #endif
     }
   }
@@ -249,7 +248,8 @@ TEST(FrameCombiner, CombiningZeroFramesShouldProduceSilence) {
 TEST(FrameCombiner, CombiningOneFrameShouldNotChangeFrame) {
   FrameCombiner combiner(false);
   for (const int rate : {8000, 10000, 11000, 32000, 44100}) {
-    for (const int number_of_channels : {1, 2, 4, 8, 10}) {
+    // kMaxConcurrentChannels is 8.
+    for (const int number_of_channels : {1, 2, 4, kMaxConcurrentChannels}) {
       SCOPED_TRACE(ProduceDebugText(rate, number_of_channels, 1));
 
       AudioFrame audio_frame_for_mixing;
@@ -320,9 +320,9 @@ TEST(FrameCombiner, GainCurveIsSmoothForAlternatingNumberOfStreams) {
                        config.sample_rate_hz, number_of_streams,
                        &audio_frame_for_mixing);
       cumulative_change += change_calculator.CalculateGainChange(
-          rtc::ArrayView<const int16_t>(frame1.data(), number_of_samples),
-          rtc::ArrayView<const int16_t>(audio_frame_for_mixing.data(),
-                                        number_of_samples));
+          ArrayView<const int16_t>(frame1.data(), number_of_samples),
+          ArrayView<const int16_t>(audio_frame_for_mixing.data(),
+                                   number_of_samples));
     }
 
     // Check that the gain doesn't vary too much.

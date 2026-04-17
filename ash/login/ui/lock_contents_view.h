@@ -7,6 +7,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -18,31 +19,34 @@
 #include "ash/login/ui/login_data_dispatcher.h"
 #include "ash/login/ui/login_display_style.h"
 #include "ash/login/ui/login_error_bubble.h"
-#include "ash/login/ui/login_tooltip_view.h"
 #include "ash/login/ui/management_bubble.h"
+#include "ash/login/ui/management_disclosure_dialog.h"
 #include "ash/login/ui/non_accessible_view.h"
 #include "ash/login/ui/user_state.h"
 #include "ash/public/cpp/keyboard/keyboard_controller_observer.h"
 #include "ash/public/cpp/login_accelerators.h"
 #include "ash/public/cpp/login_types.h"
+#include "ash/public/cpp/management_disclosure_client.h"
 #include "ash/public/cpp/smartlock_state.h"
-#include "ash/public/cpp/system_tray_observer.h"
 #include "ash/system/enterprise/enterprise_domain_observer.h"
 #include "ash/system/model/enterprise_domain_model.h"
+#include "ash/system/tray/system_tray_observer.h"
 #include "base/containers/flat_map.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
-#include "chromeos/ash/components/login/auth/auth_metrics_recorder.h"
+#include "chromeos/ash/components/login/auth/auth_events_recorder.h"
 #include "chromeos/dbus/power/power_manager_client.h"
 #include "chromeos/dbus/power_manager/power_supply_properties.pb.h"
 #include "components/account_id/account_id.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "components/user_manager/multi_user/multi_user_sign_in_policy.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/display/display_observer.h"
 #include "ui/display/screen.h"
+#include "ui/views/focus/focus_manager.h"
 #include "ui/views/view.h"
+#include "ui/views/widget/widget.h"
 
 namespace keyboard {
 class KeyboardUIController;
@@ -55,19 +59,14 @@ class BoxLayout;
 namespace ash {
 
 class KioskAppDefaultMessage;
-class LockScreenMediaControlsView;
+class LockScreenMediaView;
 class LoginAuthUserView;
 class LoginBigUserView;
 class LoginCameraTimeoutView;
 class LoginDetachableBaseModel;
 class LoginExpandedPublicAccountView;
 class LoginUserView;
-class NoteActionLaunchButton;
 class ScrollableUsersListView;
-
-namespace mojom {
-enum class TrayActionState;
-}
 
 enum class BottomIndicatorState {
   kNone,
@@ -80,15 +79,17 @@ enum class BottomIndicatorState {
 // but it is always shown on the primary display. There is only one instance
 // at a time.
 class ASH_EXPORT LockContentsView
-    : public NonAccessibleView,
+    : public views::View,
       public LoginDataDispatcher::Observer,
       public SystemTrayObserver,
       public display::DisplayObserver,
       public KeyboardControllerObserver,
       public chromeos::PowerManagerClient::Observer,
-      public EnterpriseDomainObserver {
+      public EnterpriseDomainObserver,
+      public views::FocusChangeListener {
+  METADATA_HEADER(LockContentsView, views::View)
+
  public:
-  METADATA_HEADER(LockContentsView);
   friend class LockContentsViewTestApi;
 
   enum class DisplayStyle {
@@ -106,7 +107,6 @@ class ASH_EXPORT LockContentsView
   static const int kLoginAttemptsBeforeGaiaDialog;
 
   LockContentsView(
-      mojom::TrayActionState initial_note_action_state,
       LockScreen::ScreenType screen_type,
       LoginDataDispatcher* data_dispatcher,
       std::unique_ptr<LoginDetachableBaseModel> detachable_base_model);
@@ -123,22 +123,30 @@ class ASH_EXPORT LockContentsView
   void ShowAdbEnabled();
   void ToggleSystemInfo();
   void ShowParentAccessDialog();
+  // Shows the current device privacy disclosures.
+  void ShowManagementDisclosureDialog();
   void SetHasKioskApp(bool has_kiosk_apps);
 
   // views::View:
-  void Layout() override;
   void AddedToWidget() override;
+  void RemovedFromWidget() override;
   void OnFocus() override;
   bool OnKeyPressed(const ui::KeyEvent& event) override;
   void AboutToRequestFocusFromTabTraversal(bool reverse) override;
-  void GetAccessibleNodeData(ui::AXNodeData* node_data) override;
   bool AcceleratorPressed(const ui::Accelerator& accelerator) override;
 
   // LoginDataDispatcher::Observer:
   void OnUsersChanged(const std::vector<LoginUserInfo>& users) override;
   void OnUserAvatarChanged(const AccountId& account_id,
                            const UserAvatar& avatar) override;
-  void OnPinEnabledForUserChanged(const AccountId& user, bool enabled) override;
+  void OnUserAuthFactorsChanged(
+      const AccountId& user,
+      cryptohome::AuthFactorsSet auth_factors,
+      cryptohome::PinLockAvailability pin_available_at) override;
+  void OnPinEnabledForUserChanged(
+      const AccountId& user,
+      bool enabled,
+      cryptohome::PinLockAvailability available_at) override;
   void OnChallengeResponseAuthEnabledForUserChanged(const AccountId& user,
                                                     bool enabled) override;
   void OnFingerprintStateChanged(const AccountId& account_id,
@@ -154,17 +162,12 @@ class ASH_EXPORT LockContentsView
   void OnAuthDisabledForUser(
       const AccountId& user,
       const AuthDisabledData& auth_disabled_data) override;
+  void OnAuthenticationStageChanged(
+      const AuthenticationStage auth_stage) override;
   void OnSetTpmLockedState(const AccountId& user,
                            bool is_locked,
                            base::TimeDelta time_left) override;
-  void OnLockScreenNoteStateChanged(mojom::TrayActionState state) override;
-  void OnTapToUnlockEnabledForUserChanged(const AccountId& user,
-                                          bool enabled) override;
   void OnForceOnlineSignInForUser(const AccountId& user) override;
-  // TODO(https://crbug.com/1233614): Delete this method in favor of
-  // OnSmartLockStateChanged once Smart Lock UI revamp is enabled.
-  void OnShowEasyUnlockIcon(const AccountId& user,
-                            const EasyUnlockIconInfo& icon_info) override;
   void OnWarningMessageUpdated(const std::u16string& message) override;
   void OnSystemInfoChanged(bool show,
                            bool enforced,
@@ -187,7 +190,6 @@ class ASH_EXPORT LockContentsView
       bool show_full_management_disclosure) override;
   void OnDetachableBasePairingStatusChanged(
       DetachableBasePairingStatus pairing_status) override;
-  void OnFocusLeavingLockScreenApps(bool reverse) override;
   void OnOobeDialogStateChanged(OobeDialogState state) override;
 
   void MaybeUpdateExpandedView(const AccountId& account_id,
@@ -206,36 +208,20 @@ class ASH_EXPORT LockContentsView
   // chromeos::PowerManagerClient::Observer:
   void SuspendImminent(power_manager::SuspendImminent::Reason reason) override;
 
-  // ash::EnterpriseDomainObserver
+  // ash::EnterpriseDomainObserver:
   void OnDeviceEnterpriseInfoChanged() override;
   void OnEnterpriseAccountDomainChanged() override;
 
-  void ShowAuthErrorMessageForDebug(int unlock_attempt);
-
-  // Called for debugging to make |user| managed and display an icon along with
-  // a note in the menu user view.
-  void ToggleManagementForUserForDebug(const AccountId& user);
-
-  // Called for debugging to make |user| having a multiprofile policy.
-  void SetMultiprofilePolicyForUserForDebug(
-      const AccountId& user,
-      const MultiProfileUserBehavior& multiprofile_policy);
-
-  // Called for debugging to toggle forced online sign-in form |user|.
-  void ToggleForceOnlineSignInForUserForDebug(const AccountId& user);
-
-  // Called for debugging to remove forced online sign-in form |user|.
-  void UndoForceOnlineSignInForUserForDebug(const AccountId& user);
-
-  // Test API. Set device to have kiosk license.
-  void SetKioskLicenseModeForTesting(bool is_kiosk_license_mode);
-
-  // Called by LockScreenMediaControlsView.
-  void CreateMediaControlsLayout();
-  void HideMediaControlsLayout();
+  // Called by LockScreenMediaView:
+  void CreateMediaView();
+  void HideMediaView();
   bool AreMediaControlsEnabled() const;
 
+  void OnDidChangeFocus(View* focused_before, View* focused_now) override;
+
  private:
+  class LockContentsViewLayout;
+
   using DisplayLayoutAction = base::RepeatingCallback<void(bool landscape)>;
 
   // Focus the next/previous widget.
@@ -249,8 +235,8 @@ class ASH_EXPORT LockContentsView
                             int portrait_dist,
                             bool landscape);
 
-  // Set |spacing_middle| for media controls.
-  void SetMediaControlsSpacing(bool landscape);
+  // Set |spacing_middle| for |media_view_|.
+  void SetMediaViewSpacing(bool landscape);
 
   // 1-2 users.
   void CreateLowDensityLayout(
@@ -266,29 +252,11 @@ class ASH_EXPORT LockContentsView
       views::BoxLayout* main_layout,
       std::unique_ptr<LoginBigUserView> primary_big_view);
 
-  // Lay out the entire view. This is called when the view is attached to a
-  // widget and when the screen is rotated.
-  void DoLayout();
-
-  // Lay out the top header. This is called when the children of the top header
-  // change contents or visibility.
-  void LayoutTopHeader();
-
-  // Lay out the bottom status indicator. This is called when system information
-  // is shown if ADB is enabled and at the initialization of lock screen if the
-  // device is enrolled.
-  void LayoutBottomStatusIndicator();
-
-  // Lay out the user adding screen indicator. This is called when a secondary
-  // user is being added.
-  void LayoutUserAddingScreenIndicator();
-
-  // Lay out the expanded public session view.
-  void LayoutPublicSessionView();
-
   // Adds |layout_action| to |layout_actions_| and immediately executes it with
   // the current rotation.
   void AddDisplayLayoutAction(const DisplayLayoutAction& layout_action);
+
+  void RunDisplayLayoutActions();
 
   // Change the active |auth_user_|. If |is_primary| is true, the active auth
   // switches to |opt_secondary_big_view_|. If |is_primary| is false, the active
@@ -327,20 +295,14 @@ class ASH_EXPORT LockContentsView
   // Called after the big user change has taken place.
   void OnBigUserChanged();
 
-  // Shows the correct (cached) easy unlock icon for the given auth user.
-  void UpdateEasyUnlockIconForUser(const AccountId& user);
-
   // Get the current active big user view.
   LoginBigUserView* CurrentBigUserView();
 
   // Opens an error bubble to indicate authentication failure.
-  void ShowAuthErrorMessage();
+  void ShowAuthErrorMessage(bool authenticated_by_pin);
 
   // Hides the error bubble indicating authentication failure if open.
   void HideAuthErrorMessage();
-
-  // Called when the easy unlock icon is hovered.
-  void OnEasyUnlockIconHovered();
 
   // Called when LoginAuthFactorsView enters/exits a state where an auth
   // factor wants to hide the password and pin fields.
@@ -416,44 +378,55 @@ class ASH_EXPORT LockContentsView
   // Record the number of password attempts for the given account id to UMA.
   // Afterwards reset the number of attempts.
   void RecordAndResetPasswordAttempts(
-      AuthMetricsRecorder::AuthenticationOutcome outcome,
+      AuthEventsRecorder::AuthenticationOutcome outcome,
       AccountId account_id);
+
+  // Updates the layout with the new users list.
+  void ApplyUserChanges(const std::vector<LoginUserInfo>& users);
+
+  // Shows the pin auth and hides the pin delay message on the user pod when pin
+  // becomes available after being soft-locked.
+  void OnPinUnlock(const AccountId& account_id);
+
+  // Checks whether `pin_available_at` is past and pin needs to be enabled
+  // again.
+  void CheckIfPinEnabled(const AccountId& account_id);
+
+  void ForceSyncLayoutOfAllViews();
+
+  void UpdateAccessiblePreviousAndNextFocus();
 
   const LockScreen::ScreenType screen_type_;
 
   std::vector<UserState> users_;
 
-  const raw_ptr<LoginDataDispatcher, ExperimentalAsh>
+  const raw_ptr<LoginDataDispatcher, LeakedDanglingUntriaged>
       data_dispatcher_;  // Unowned.
   std::unique_ptr<LoginDetachableBaseModel> detachable_base_model_;
 
-  raw_ptr<LoginBigUserView, ExperimentalAsh> primary_big_view_ = nullptr;
-  raw_ptr<LoginBigUserView, ExperimentalAsh> opt_secondary_big_view_ = nullptr;
-  raw_ptr<ScrollableUsersListView, ExperimentalAsh> users_list_ = nullptr;
+  raw_ptr<LoginBigUserView> primary_big_view_ = nullptr;
+  raw_ptr<LoginBigUserView> opt_secondary_big_view_ = nullptr;
+  raw_ptr<ScrollableUsersListView> users_list_ = nullptr;
 
-  // View for media controls that appear on the lock screen if user enabled.
-  raw_ptr<LockScreenMediaControlsView, ExperimentalAsh> media_controls_view_ =
-      nullptr;
-  raw_ptr<views::View, ExperimentalAsh> middle_spacing_view_ = nullptr;
+  // View for media controls that appear on the lock screen if it is enabled.
+  raw_ptr<LockScreenMediaView> media_view_ = nullptr;
+  raw_ptr<views::View> middle_spacing_view_ = nullptr;
 
   // View that contains the note action button and the system info labels,
   // placed on the top right corner of the screen without affecting layout of
   // other views.
-  raw_ptr<views::View, ExperimentalAsh> top_header_ = nullptr;
-
-  // View for launching a note taking action handler from the lock screen.
-  raw_ptr<NoteActionLaunchButton, ExperimentalAsh> note_action_ = nullptr;
+  raw_ptr<views::View> top_header_ = nullptr;
 
   // View for showing the version, enterprise and bluetooth info.
-  raw_ptr<views::View, ExperimentalAsh> system_info_ = nullptr;
+  raw_ptr<views::View> system_info_ = nullptr;
 
   // Contains authentication user and the additional user views.
-  raw_ptr<NonAccessibleView, ExperimentalAsh> main_view_ = nullptr;
+  raw_ptr<NonAccessibleView> main_view_ = nullptr;
 
   // If the kiosk app button is not visible, the kiosk app default message would
   // be shown.
-  raw_ptr<KioskAppDefaultMessage, DanglingUntriaged> kiosk_default_message_ =
-      nullptr;
+  raw_ptr<KioskAppDefaultMessage, AcrossTasksDanglingUntriaged>
+      kiosk_default_message_ = nullptr;
 
   // Actions that should be executed before a new layout happens caused by a
   // display change (eg. screen rotation). A full layout pass is performed after
@@ -468,25 +441,27 @@ class ASH_EXPORT LockContentsView
   // All error bubbles and the tooltip view are child views of LockContentsView,
   // and will be torn down when LockContentsView is torn down.
   // Bubble for displaying authentication error.
-  raw_ptr<AuthErrorBubble, ExperimentalAsh> auth_error_bubble_;
+  raw_ptr<AuthErrorBubble> auth_error_bubble_;
   // Bubble for displaying detachable base errors.
-  raw_ptr<LoginErrorBubble, ExperimentalAsh> detachable_base_error_bubble_;
-  // Bubble for displaying easy-unlock tooltips.
-  raw_ptr<LoginTooltipView, ExperimentalAsh> tooltip_bubble_;
+  raw_ptr<LoginErrorBubble> detachable_base_error_bubble_;
   // Bubble for displaying management details.
-  raw_ptr<ManagementBubble, ExperimentalAsh> management_bubble_;
+  raw_ptr<ManagementBubble> management_bubble_;
   // Indicator at top of screen for displaying a warning message when a
   // secondary user is being added.
-  raw_ptr<views::View, ExperimentalAsh> user_adding_screen_indicator_ = nullptr;
+  raw_ptr<views::View> user_adding_screen_indicator_ = nullptr;
   // Bubble for displaying warning banner message.
-  raw_ptr<LoginErrorBubble, ExperimentalAsh> warning_banner_bubble_;
+  raw_ptr<LoginErrorBubble> warning_banner_bubble_;
+
+  // The current ManagementDisclosureDialog, if one exists.
+  // Shows the list of device privacy disclosures.
+  base::WeakPtr<ManagementDisclosureDialog> management_disclosure_dialog_;
 
   // View that is shown on login timeout with camera usage.
-  base::raw_ptr<LoginCameraTimeoutView, DanglingUntriaged>
+  raw_ptr<LoginCameraTimeoutView, AcrossTasksDanglingUntriaged>
       login_camera_timeout_view_ = nullptr;
 
   // Bottom status indicator displaying entreprise domain or ADB enabled alert
-  raw_ptr<BottomStatusIndicator, ExperimentalAsh> bottom_status_indicator_;
+  raw_ptr<BottomStatusIndicator> bottom_status_indicator_;
 
   // Tracks the visibility of the extension Ui window.
   bool extension_ui_visible_ = false;
@@ -495,16 +470,8 @@ class ASH_EXPORT LockContentsView
   base::flat_map<AccountId, int> unlock_attempt_by_user_;
   base::flat_map<AccountId, int> pin_unlock_attempt_by_user_;
 
-  // Whether a lock screen app is currently active (i.e. lock screen note action
-  // state is reported as kActive by the data dispatcher).
-  bool lock_screen_apps_active_ = false;
-
   // Tracks the visibility of the OOBE dialog.
   bool oobe_dialog_visible_ = false;
-
-  // Whether the lock screen note is disabled. Used to override the actual lock
-  // screen note state.
-  bool disable_lock_screen_note_ = false;
 
   // Whether the device is enrolled with Kiosk SKU.
   bool kiosk_license_mode_ = false;
@@ -513,15 +480,14 @@ class ASH_EXPORT LockContentsView
 
   // Whether the system information should be displayed or not be displayed
   // forcedly according to policy settings.
-  absl::optional<bool> enable_system_info_enforced_ = absl::nullopt;
+  std::optional<bool> enable_system_info_enforced_ = std::nullopt;
 
   // Whether the system information is intended to be displayed if possible.
   // (e.g., Alt-V is pressed, particular OS channels)
   bool enable_system_info_if_possible_ = false;
 
   // Expanded view for public account user to select language and keyboard.
-  raw_ptr<LoginExpandedPublicAccountView, ExperimentalAsh> expanded_view_ =
-      nullptr;
+  raw_ptr<LoginExpandedPublicAccountView> expanded_view_ = nullptr;
 
   // Whether the virtual keyboard is currently shown. Used to determine whether
   // to show the PIN keyboard or not.
@@ -539,6 +505,17 @@ class ASH_EXPORT LockContentsView
 
   BottomIndicatorState bottom_status_indicator_state_ =
       BottomIndicatorState::kNone;
+
+  // When OnUsersChanged called during authentication this object stores
+  // the users info till the authentication finished.
+  std::optional<std::vector<LoginUserInfo>> pending_users_change_;
+
+  // Client to communicate with chrome for displaying the management disclosure.
+  raw_ptr<ManagementDisclosureClient> management_disclosure_client_ = nullptr;
+
+  // The widget this view is attached to. This field is here so that we can
+  // remove `this` as FocusChangeListener in `RemovedFromWidget`.
+  base::WeakPtr<views::Widget> widget_;
 
   base::WeakPtrFactory<LockContentsView> weak_ptr_factory_{this};
 };

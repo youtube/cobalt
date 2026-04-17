@@ -7,17 +7,20 @@
 
 #import <Foundation/Foundation.h>
 
-#include "base/functional/callback.h"
-#include "base/no_destructor.h"
-#include "base/values.h"
-#include "components/autofill/core/common/unique_ids.h"
+#import "base/functional/callback.h"
+#import "base/no_destructor.h"
+#import "base/values.h"
+#import "components/autofill/core/common/unique_ids.h"
 #import "ios/web/public/js_messaging/java_script_feature.h"
+#import "ios/web/public/js_messaging/script_message.h"
 
 namespace web {
 class WebFrame;
 }  // namespace web
 
 namespace autofill {
+
+class AutofillRendererIDJavaScriptFeature;
 
 // Communicates with the JavaScript file, autofill_controller.js, which contains
 // form parsing and autofill functions.
@@ -27,14 +30,10 @@ class AutofillJavaScriptFeature : public web::JavaScriptFeature {
   // needed.
   static AutofillJavaScriptFeature* GetInstance();
 
-  // Adds a delay between filling the form fields in frame.
-  void AddJSDelayInFrame(web::WebFrame* frame);
-
   // Extracts forms from a web `frame`. Only forms with at least
   // `required_fields_count` fields are extracted. `callback` is called
   // with the JSON string of forms of a web page.  `callback` cannot be nil.
   void FetchForms(web::WebFrame* frame,
-                  NSUInteger required_fields_count,
                   base::OnceCallback<void(NSString*)> callback);
 
   // Fills `data` into the active form field in `frame`, then executes the
@@ -42,6 +41,13 @@ class AutofillJavaScriptFeature : public web::JavaScriptFeature {
   void FillActiveFormField(web::WebFrame* frame,
                            base::Value::Dict data,
                            base::OnceCallback<void(BOOL)> callback);
+
+  // Fills `data` into the field identified by `data['renderer_id']`,
+  // then executes callback. This is similar to `FillActiveFormField`, but does
+  // not require that the target element be the active element.
+  void FillSpecificFormField(web::WebFrame* frame,
+                             base::Value::Dict data,
+                             base::OnceCallback<void(BOOL)> callback);
 
   // Fills a number of fields in the same named form for full-form Autofill.
   // Applies Autofill CSS (i.e. yellow background) to filled elements.
@@ -73,8 +79,19 @@ class AutofillJavaScriptFeature : public web::JavaScriptFeature {
   // Marks up the form with autofill field prediction data (diagnostic tool).
   void FillPredictionData(web::WebFrame* frame, base::Value::Dict data);
 
+  // web::JavaScriptFeature:
+  std::optional<std::string> GetScriptMessageHandlerName() const override;
+
+ protected:
+  // web::JavaScriptFeature:
+  void ScriptMessageReceived(web::WebState* web_state,
+                             const web::ScriptMessage& message) override;
+
  private:
   friend class base::NoDestructor<AutofillJavaScriptFeature>;
+  // TODO(crbug.com/359538514): Remove friend once isolated world for Autofill
+  // is launched.
+  friend class TestAutofillJavaScriptFeatureContainer;
 
   AutofillJavaScriptFeature();
   ~AutofillJavaScriptFeature() override;
@@ -82,6 +99,11 @@ class AutofillJavaScriptFeature : public web::JavaScriptFeature {
   AutofillJavaScriptFeature(const AutofillJavaScriptFeature&) = delete;
   AutofillJavaScriptFeature& operator=(const AutofillJavaScriptFeature&) =
       delete;
+
+  //  TODO(crbug.com/359538514): Remove test constructor once isolated world for
+  //  Autofill is launched.
+  AutofillJavaScriptFeature(
+      AutofillRendererIDJavaScriptFeature* renderer_id_feature);
 };
 
 }  // namespace autofill

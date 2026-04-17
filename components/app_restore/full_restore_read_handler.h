@@ -26,14 +26,15 @@
 
 namespace app_restore {
 struct AppLaunchInfo;
+struct AppRestoreData;
 class RestoreData;
 struct WindowInfo;
 }  // namespace app_restore
 
 namespace ash {
+class AppLaunchInfoSaveWaiter;
 namespace full_restore {
-class FullRestoreAppLaunchHandlerBrowserTest;
-class FullRestoreAppLaunchHandlerSystemWebAppsBrowserTest;
+class FullRestoreAppLaunchHandlerTestBase;
 class FullRestoreServiceTestHavingFullRestoreFile;
 }  // namespace full_restore
 }  // namespace ash
@@ -152,10 +153,6 @@ class COMPONENT_EXPORT(APP_RESTORE) FullRestoreReadHandler
   // Returns the restore window id for the ARC app's |session_id|.
   int32_t GetArcRestoreWindowIdForSessionId(int32_t session_id);
 
-  // Returns the restore window id for the Lacros window with
-  // `lacros_window_id`.
-  int32_t GetLacrosRestoreWindowId(const std::string& lacros_window_id) const;
-
   // Sets |arc session id| for |window_id| to |arc_session_id_to_window_id_|.
   // |arc session id| is assigned when ARC apps are restored.
   void SetArcSessionIdForWindowId(int32_t arc_session_id, int32_t window_id);
@@ -171,9 +168,8 @@ class COMPONENT_EXPORT(APP_RESTORE) FullRestoreReadHandler
   void AddChromeBrowserLaunchInfoForTesting(const base::FilePath& profile_path);
 
  private:
-  friend class ash::full_restore::FullRestoreAppLaunchHandlerBrowserTest;
-  friend class ash::full_restore::
-      FullRestoreAppLaunchHandlerSystemWebAppsBrowserTest;
+  friend class ash::AppLaunchInfoSaveWaiter;
+  friend class ash::full_restore::FullRestoreAppLaunchHandlerTestBase;
   friend class ash::full_restore::FullRestoreServiceTestHavingFullRestoreFile;
   friend class FullRestoreReadHandlerTestApi;
 
@@ -185,10 +181,6 @@ class COMPONENT_EXPORT(APP_RESTORE) FullRestoreReadHandler
   // Returns true if ARC restore launching is thought to be underway on
   // `primary_profile_path_`.
   bool IsArcRestoreRunning() const;
-
-  // Returns true if Lacros restore launching is thought to be underway on
-  // `primary_profile_path_`.
-  bool IsLacrosRestoreRunning() const;
 
   // Invoked when reading the restore data from |profile_path| is finished, and
   // calls |callback| to notify that the reading operation is done.

@@ -10,7 +10,6 @@ assert(!is_android && !is_ios)
 mojom("mojo_bindings") {
   sources = [ "app_management.mojom" ]
   webui_module_path = "chrome://resources/cr_components/app_management/"
-  use_typescript_sources = true
 
   public_deps = [
     "//mojo/public/mojom/base",
@@ -56,16 +55,13 @@ mojom("mojo_bindings") {
         },
       ]
       traits_headers = [
-        "//ui/webui/resources/cr_components/app_management/app_management_mojom_traits.h",
         "//components/services/app_service/public/cpp/app_types.h",
         "//components/services/app_service/public/cpp/permission.h",
         "//components/services/app_service/public/cpp/run_on_os_login_types.h",
+        "//ui/webui/resources/cr_components/app_management/app_management_mojom_traits.h",
       ]
       traits_sources = [ "//ui/webui/resources/cr_components/app_management/app_management_mojom_traits.cc" ]
-      traits_public_deps = [
-        "//components/services/app_service/public/cpp:app_types",
-        "//components/services/app_service/public/cpp:run_on_os_login",
-      ]
+      traits_public_deps = [ "//components/services/app_service" ]
     },
   ]
 }
@@ -73,29 +69,12 @@ mojom("mojo_bindings") {
 build_webui("build") {
   grd_prefix = "cr_components_app_management"
 
-  web_component_files = [
-    "file_handling_item.ts",
-    "more_permissions_item.ts",
-    "permission_item.ts",
-    "run_on_os_login_item.ts",
-    "toggle_row.ts",
-    "uninstall_button.ts",
-    "window_mode_item.ts",
-  ]
-
-  non_web_component_files = [
+  ts_files = [
+    "browser_proxy.ts",
     "constants.ts",
     "permission_constants.ts",
     "permission_util.ts",
-    "browser_proxy.ts",
     "util.ts",
-  ]
-
-  icons_html_files = [ "icons.html" ]
-
-  css_files = [
-    "app_management_shared_style.css",
-    "shared_vars.css",
   ]
 
   mojo_files_deps = [ ":mojo_bindings_ts__generator" ]
@@ -104,13 +83,15 @@ build_webui("build") {
   ts_out_dir =
       "$root_gen_dir/ui/webui/resources/tsc/cr_components/app_management"
   ts_composite = true
+
+  # Do not add a dependency on //ui/webui/resources/cr_elements:build_ts here,
+  # since this target is also used by OS Settings.
   ts_deps = [
-    "//third_party/polymer/v3_0:library",
-    "//ui/webui/resources/cr_elements:build_ts",
     "//ui/webui/resources/js:build_ts",
     "//ui/webui/resources/mojo:build_ts",
   ]
   ts_definitions = [ "//tools/typescript/definitions/metrics_private.d.ts" ]
+  webui_context_type = "relative"
   generate_grdp = true
   grd_resource_path_prefix = rebase_path(".", "//ui/webui/resources")
 }

@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "base/check.h"
+#include "base/files/file_util.h"
 #include "build/build_config.h"
 
 namespace cc {
@@ -40,6 +41,10 @@ bool ValidateFinalStateIsForMainThread(FrameInfo::FrameFinalState state) {
 
 }  // namespace
 
+FrameInfo::FrameInfo() = default;
+FrameInfo::FrameInfo(const FrameInfo& other) = default;
+FrameInfo::~FrameInfo() = default;
+
 bool FrameInfo::IsDroppedAffectingSmoothness() const {
   // If neither of the threads are expected to be smooth, then this frame cannot
   // affect smoothness.
@@ -51,8 +56,9 @@ bool FrameInfo::IsDroppedAffectingSmoothness() const {
 
 void FrameInfo::MergeWith(const FrameInfo& other) {
 #if BUILDFLAG(IS_ANDROID)
-  // TODO(1278168): on android-webview, multiple frames can be submitted against
-  // the same BeginFrameArgs. This can trip the DCHECK()s in this function.
+  // TODO(crbug.com/40208073): on android-webview, multiple frames can be
+  // submitted against the same BeginFrameArgs. This can trip the DCHECK()s in
+  // this function.
   if (was_merged)
     return;
   if (main_thread_response == MainThreadResponse::kIncluded &&
@@ -84,6 +90,15 @@ void FrameInfo::MergeWith(const FrameInfo& other) {
 
     compositor_update_was_dropped =
         other.final_state == FrameFinalState::kDropped;
+    raster_property_was_dropped =
+        other.final_state_raster_property == FrameFinalState::kDropped;
+    raster_scroll_was_dropped =
+        other.final_state_raster_scroll == FrameFinalState::kDropped;
+
+    compositor_final_state = other.final_state;
+    compositor_termination_time = other.termination_time;
+    main_final_state = final_state;
+    main_termination_time = termination_time;
   } else {
     // |this| does not include main-thread updates. Therefore:
     //   - |other| must include main-thread updates.
@@ -93,6 +108,15 @@ void FrameInfo::MergeWith(const FrameInfo& other) {
 
     main_update_was_dropped = other.final_state == FrameFinalState::kDropped;
     compositor_update_was_dropped = final_state == FrameFinalState::kDropped;
+    raster_property_was_dropped =
+        final_state_raster_property == FrameFinalState::kDropped;
+    raster_scroll_was_dropped =
+        final_state_raster_scroll == FrameFinalState::kDropped;
+
+    compositor_final_state = final_state;
+    compositor_termination_time = termination_time;
+    main_final_state = other.final_state;
+    main_termination_time = other.termination_time;
   }
 
   was_merged = true;
@@ -111,8 +135,9 @@ void FrameInfo::MergeWith(const FrameInfo& other) {
     }
   }
 
-  if (other.has_missing_content)
-    has_missing_content = true;
+  checkerboarded_needs_raster |= other.checkerboarded_needs_raster;
+  checkerboarded_needs_record |= other.checkerboarded_needs_record;
+  did_raster_inducing_scroll |= other.did_raster_inducing_scroll;
 
   if (other.final_state == FrameFinalState::kDropped)
     final_state = FrameFinalState::kDropped;
@@ -131,7 +156,7 @@ void FrameInfo::MergeWith(const FrameInfo& other) {
     smooth_thread = SmoothThread::kSmoothNone;
   }
 
-  total_latency = std::max(total_latency, other.total_latency);
+  termination_time = std::max(termination_time, other.termination_time);
 
   // Validate the state after the merge.
   DCHECK(Validate());
@@ -156,6 +181,28 @@ bool FrameInfo::WasSmoothCompositorUpdateDropped() const {
   if (was_merged)
     return compositor_update_was_dropped;
   return final_state == FrameFinalState::kDropped;
+}
+
+bool FrameInfo::WasSmoothRasterScrollUpdateDropped() const {
+  if (!IsCompositorSmooth(smooth_thread)) {
+    return false;
+  }
+
+  if (was_merged) {
+    return raster_scroll_was_dropped;
+  }
+  return final_state_raster_scroll == FrameFinalState::kDropped;
+}
+
+bool FrameInfo::WasSmoothRasterPropertyUpdateDropped() const {
+  if (!IsCompositorSmooth(smooth_thread_raster_property)) {
+    return false;
+  }
+
+  if (was_merged) {
+    return raster_property_was_dropped;
+  }
+  return final_state_raster_property == FrameFinalState::kDropped;
 }
 
 bool FrameInfo::WasSmoothMainUpdateDropped() const {
@@ -199,6 +246,40 @@ bool FrameInfo::IsScrollPrioritizeFrameDropped() const {
       return WasSmoothMainUpdateDropped();
     case SmoothEffectDrivingThread::kUnknown:
       return IsDroppedAffectingSmoothness();
+    case SmoothEffectDrivingThread::kRaster:
+      return true;
+  }
+}
+
+FrameInfo::FrameFinalState FrameInfo::GetFinalStateForThread(
+    SmoothEffectDrivingThread thread) const {
+  if (!was_merged) {
+    return final_state;
+  }
+  switch (thread) {
+    case SmoothEffectDrivingThread::kCompositor:
+      return compositor_final_state;
+    case SmoothEffectDrivingThread::kMain:
+      return main_final_state;
+    case SmoothEffectDrivingThread::kRaster:
+    case SmoothEffectDrivingThread::kUnknown:
+      return final_state;
+  }
+}
+
+base::TimeTicks FrameInfo::GetTerminationTimeForThread(
+    SmoothEffectDrivingThread thread) const {
+  if (!was_merged) {
+    return termination_time;
+  }
+  switch (thread) {
+    case SmoothEffectDrivingThread::kCompositor:
+      return compositor_termination_time;
+    case SmoothEffectDrivingThread::kMain:
+      return main_termination_time;
+    case SmoothEffectDrivingThread::kUnknown:
+    case SmoothEffectDrivingThread::kRaster:
+      return termination_time;
   }
 }
 

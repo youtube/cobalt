@@ -13,6 +13,7 @@
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
+#include "third_party/blink/renderer/core/lcp_critical_path_predictor/lcp_critical_path_predictor.h"
 #include "third_party/blink/renderer/core/loader/document_loader.h"
 #include "third_party/blink/renderer/core/loader/preload_helper.h"
 #include "third_party/blink/renderer/core/script/document_write_intervention.h"
@@ -53,30 +54,33 @@ bool PreloadRequest::ExclusionInfo::ShouldExclude(
 }
 
 KURL PreloadRequest::CompleteURL(Document* document) {
-  if (!base_url_.IsEmpty())
-    return document->CompleteURLWithOverride(resource_url_, base_url_);
-  return document->CompleteURL(resource_url_);
+  if (!base_url_.IsEmpty()) {
+    return document->CompleteURLWithOverride(resource_url_, base_url_,
+                                             Document::kIsPreload);
+  }
+  return document->CompleteURL(resource_url_, Document::kIsPreload);
 }
 
 // static
 std::unique_ptr<PreloadRequest> PreloadRequest::CreateIfNeeded(
     const String& initiator_name,
-    const TextPosition& initiator_position,
     const String& resource_url,
     const KURL& base_url,
     ResourceType resource_type,
     const network::mojom::ReferrerPolicy referrer_policy,
     ResourceFetcher::IsImageSet is_image_set,
     const ExclusionInfo* exclusion_info,
-    absl::optional<float> resource_width,
-    absl::optional<float> resource_height,
+    std::optional<float> resource_width,
+    std::optional<float> resource_height,
     RequestType request_type) {
   // Never preload data URLs. We also disallow relative ref URLs which become
   // data URLs if the document's URL is a data URL. We don't want to create
   // extra resource requests with data URLs to avoid copy / initialization
   // overhead, which can be significant for large URLs.
   if (resource_url.empty() || resource_url.StartsWith("#") ||
-      ProtocolIs(resource_url, "data")) {
+      (ProtocolIs(resource_url, "data") &&
+       (!RuntimeEnabledFeatures::PreloadLinkRelDataUrlsEnabled() ||
+        request_type != PreloadRequest::kRequestTypeLinkRelPreload))) {
     return nullptr;
   }
 
@@ -84,16 +88,14 @@ std::unique_ptr<PreloadRequest> PreloadRequest::CreateIfNeeded(
     return nullptr;
 
   return base::WrapUnique(new PreloadRequest(
-      initiator_name, initiator_position, resource_url, base_url, resource_type,
-      resource_width, resource_height, request_type, referrer_policy,
-      is_image_set));
+      initiator_name, resource_url, base_url, resource_type, resource_width,
+      resource_height, request_type, referrer_policy, is_image_set));
 }
 
 Resource* PreloadRequest::Start(Document* document) {
   DCHECK(document->domWindow());
-  base::TimeTicks discovery_timestamp = base::TimeTicks::Now();
   base::UmaHistogramTimes("Blink.PreloadRequestWaitTime",
-                          discovery_timestamp - creation_time_);
+                          base::TimeTicks::Now() - creation_time_);
 
   FetchInitiatorInfo initiator_info;
   initiator_info.name = AtomicString(initiator_name_);
@@ -101,7 +103,11 @@ Resource* PreloadRequest::Start(Document* document) {
 
   const KURL& url = CompleteURL(document);
   // Data URLs are filtered out in the preload scanner.
-  DCHECK(!url.ProtocolIsData());
+  // If the PreloadLinkRelDataUrls feature is enabled, only data URLs that are
+  // not preloaded via the link element are filtered out in the preload scanner.
+  DCHECK(!url.ProtocolIsData() ||
+         (RuntimeEnabledFeatures::PreloadLinkRelDataUrlsEnabled() &&
+          request_type_ == RequestType::kRequestTypeLinkRelPreload));
 
   ResourceRequest resource_request(url);
   resource_request.SetReferrerPolicy(referrer_policy_);
@@ -110,26 +116,39 @@ Resource* PreloadRequest::Start(Document* document) {
       ResourceFetcher::DetermineRequestContext(resource_type_, is_image_set_));
   resource_request.SetRequestDestination(
       ResourceFetcher::DetermineRequestDestination(resource_type_));
-
+  resource_request.SetExpectedPublicKeys(integrity_metadata_);
   resource_request.SetFetchPriorityHint(fetch_priority_hint_);
 
   // Disable issue logging to avoid duplicates, since `CanRegister()` will be
   // called again later.
   if (is_attribution_reporting_eligible_img_or_script_ &&
       document->domWindow()->GetFrame()->GetAttributionSrcLoader()->CanRegister(
-          url, /*element=*/nullptr,
-          /*request_id=*/absl::nullopt, /*log_issues=*/false)) {
+          url, /*element=*/nullptr, /*log_issues=*/false)) {
     resource_request.SetAttributionReportingEligibility(
         network::mojom::AttributionReportingEligibility::kEventSourceOrTrigger);
   }
 
+  bool shared_storage_writable_opted_in =
+      shared_storage_writable_opted_in_ &&
+      RuntimeEnabledFeatures::SharedStorageAPIEnabled(document->domWindow()) &&
+      document->domWindow()->IsSecureContext() &&
+      !document->domWindow()->GetSecurityOrigin()->IsOpaque();
+  resource_request.SetSharedStorageWritableOptedIn(
+      shared_storage_writable_opted_in);
+  if (shared_storage_writable_opted_in) {
+    CHECK_EQ(resource_type_, ResourceType::kImage);
+    UseCounter::Count(document, WebFeature::kSharedStorageAPI_Image_Attribute);
+  }
+
+  bool browsing_topics =
+      browsing_topics_eligible_ && RuntimeEnabledFeatures::TopicsAPIEnabled() &&
+      document->domWindow()->IsSecureContext() &&
+      !document->domWindow()->GetSecurityOrigin()->IsOpaque();
+  resource_request.SetBrowsingTopics(browsing_topics);
+
   ResourceLoaderOptions options(document->domWindow()->GetCurrentWorld());
   options.initiator_info = initiator_info;
   FetchParameters params(std::move(resource_request), options);
-
-  if (resource_type_ == ResourceType::kImage) {
-    params.SetDiscoveryTime(discovery_timestamp);
-  }
 
   auto* origin = document->domWindow()->GetSecurityOrigin();
   if (script_type_ == mojom::blink::ScriptType::kModule) {
@@ -171,8 +190,23 @@ Resource* PreloadRequest::Start(Document* document) {
     // We intentionally ignore the returned value, because we don't resend
     // the async request to the blocked script here.
     MaybeDisallowFetchForDocWrittenScript(params, *document);
+
+    if (base::FeatureList::IsEnabled(features::kLCPScriptObserver)) {
+      if (LCPCriticalPathPredictor* lcpp = document->GetFrame()->GetLCPP()) {
+        if (lcpp->lcp_influencer_scripts().Contains(url)) {
+          is_potentially_lcp_influencer_ = true;
+        }
+      }
+    }
   }
   params.SetRenderBlockingBehavior(render_blocking_behavior_);
+
+  params.SetIsPotentiallyLCPElement(is_potentially_lcp_element_);
+  params.SetIsPotentiallyLCPInfluencer(is_potentially_lcp_influencer_);
+
+  if (LCPCriticalPathPredictor* lcpp = document->GetFrame()->GetLCPP()) {
+    lcpp->OnStartPreload(url, resource_type_);
+  }
 
   return PreloadHelper::StartPreload(resource_type_, params, *document);
 }

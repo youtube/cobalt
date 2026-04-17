@@ -4,9 +4,10 @@
 
 package org.chromium.chromecast.base;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+
 import org.chromium.base.Log;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
 
 import java.io.PrintWriter;
 import java.util.HashMap;
@@ -21,11 +22,10 @@ public final class DumpstateWriter {
 
     private static DumpstateWriter sDumpstateWriter;
 
-    private Map<String, String> mDumpValues;
+    private final Map<String, String> mDumpValues = new HashMap<>();
 
     public DumpstateWriter() {
         sDumpstateWriter = this;
-        mDumpValues = new HashMap<>();
     }
 
     public void writeDumpValues(PrintWriter writer) {

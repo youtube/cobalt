@@ -2,19 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ash/login/ui/login_password_view.h"
-#include "base/memory/raw_ptr.h"
+#include "ash/login/ui/login_pin_view.h"
 
 #include <algorithm>
 #include <memory>
 #include <set>
 #include <vector>
 
-#include "ash/login/ui/login_pin_view.h"
+#include "ash/login/ui/login_password_view.h"
 #include "ash/login/ui/login_test_base.h"
 #include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
 #include "base/timer/mock_timer.h"
 #include "ui/events/test/event_generator.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/widget/widget.h"
 
 namespace ash {
@@ -50,9 +51,9 @@ class LoginPinViewTest : public LoginTestBase {
   void OnPinBackspace() { ++backspace_; }
   void OnPinSubmit() { ++submit_; }
 
-  raw_ptr<LoginPinView, ExperimentalAsh> view_ =
+  raw_ptr<LoginPinView, DanglingUntriaged> view_ =
       nullptr;  // Owned by test widget view hierarchy.
-  absl::optional<int> value_;
+  std::optional<int> value_;
   // Number of times the backspace event has been fired.
   int backspace_ = 0;
   // Number of times the submit event has been fired.
@@ -267,6 +268,16 @@ TEST_F(LoginPinViewTest, SubmitButtonClick) {
   EXPECT_EQ(0, submit_);
   generator->PressLeftButton();
   EXPECT_EQ(1, submit_);
+}
+
+TEST_F(LoginPinViewTest, PinButtonAccessibleProperties) {
+  CreateLoginPinViewWithStyle(LoginPinView::Style::kAlphanumeric);
+  LoginPinView::TestApi test_api(view_);
+  ui::AXNodeData data;
+
+  test_api.GetSubmitButton()->GetViewAccessibility().GetAccessibleNodeData(
+      &data);
+  EXPECT_EQ(ax::mojom::Role::kButton, data.role);
 }
 
 }  // namespace ash

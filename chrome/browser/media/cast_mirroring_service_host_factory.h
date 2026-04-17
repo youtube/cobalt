@@ -7,6 +7,7 @@
 
 #include "base/no_destructor.h"
 #include "chrome/browser/media/mirroring_service_host.h"
+#include "content/public/browser/frame_tree_node_id.h"
 
 namespace mirroring {
 
@@ -22,12 +23,12 @@ class CastMirroringServiceHostFactory : public MirroringServiceHostFactory {
   // Returns CastMirroringServiceHost instance if there exist a WebContents
   // connected to `frame_tree_node_id`, otherwise returns nullptr.
   std::unique_ptr<MirroringServiceHost> GetForTab(
-      int32_t frame_tree_node_id) override;
+      content::FrameTreeNodeId frame_tree_node_id) override;
 
   // Returns CastMirroringServiceHost instance if `media_id` has a value,
   // otherwise returns nullptr.
   std::unique_ptr<MirroringServiceHost> GetForDesktop(
-      const absl::optional<std::string>& media_id) override;
+      const std::optional<std::string>& media_id) override;
 
   // Returns CastMirroringServiceHost instance if there exist a WebContents
   // connected to `frame_tree_node_id` and `presentation_url` is a valid URL,
@@ -35,7 +36,7 @@ class CastMirroringServiceHostFactory : public MirroringServiceHostFactory {
   std::unique_ptr<MirroringServiceHost> GetForOffscreenTab(
       const GURL& presentation_url,
       const std::string& presentation_id,
-      int32_t frame_tree_node_id) override;
+      content::FrameTreeNodeId frame_tree_node_id) override;
 
  private:
   friend class base::NoDestructor<CastMirroringServiceHostFactory>;

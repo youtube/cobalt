@@ -41,6 +41,7 @@ class AsyncTabParamsManagerImpl internal constructor() : AsyncTabParamsManager {
     return data
   }
 
+  @SuppressWarnings("UseKtx")
   private inline fun forEachTab(action: (tab: Tab) -> Unit) {
     val params = mAsyncTabParams
     for (i in 0 until params.size()) {
@@ -57,17 +58,18 @@ class AsyncTabParamsManagerImpl internal constructor() : AsyncTabParamsManager {
 
     override fun hasIncognitoTabs(): Boolean {
       mAsyncTabParamsManager.forEachTab {
-        if (it.isIncognito) return true
+        if (it.isIncognitoBranded) return true
       }
       return false
     }
 
+    @SuppressWarnings("UseKtx")
     override fun closeAllIncognitoTabs() {
       val params = mAsyncTabParamsManager.mAsyncTabParams
       // removeAt() does not invalidate indices so long as no read operations are made.
       val clone = params.clone()
       for (i in 0 until clone.size()) {
-        if (clone.valueAt(i).tabToReparent?.isIncognito ?: false) {
+        if (clone.valueAt(i).tabToReparent?.isIncognitoBranded ?: false) {
           params.removeAt(i)
         }
       }

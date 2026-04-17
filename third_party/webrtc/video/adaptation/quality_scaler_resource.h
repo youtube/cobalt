@@ -11,17 +11,15 @@
 #ifndef VIDEO_ADAPTATION_QUALITY_SCALER_RESOURCE_H_
 #define VIDEO_ADAPTATION_QUALITY_SCALER_RESOURCE_H_
 
+#include <cstdint>
 #include <memory>
-#include <queue>
-#include <string>
 
-#include "absl/types/optional.h"
+#include "api/field_trials_view.h"
 #include "api/scoped_refptr.h"
-#include "api/video/video_adaptation_reason.h"
+#include "api/video/encoded_image.h"
 #include "api/video_codecs/video_encoder.h"
-#include "call/adaptation/degradation_preference_provider.h"
-#include "call/adaptation/resource_adaptation_processor_interface.h"
 #include "modules/video_coding/utility/quality_scaler.h"
+#include "rtc_base/thread_annotations.h"
 #include "video/adaptation/video_stream_encoder_resource.h"
 
 namespace webrtc {
@@ -30,17 +28,17 @@ namespace webrtc {
 class QualityScalerResource : public VideoStreamEncoderResource,
                               public QualityScalerQpUsageHandlerInterface {
  public:
-  static rtc::scoped_refptr<QualityScalerResource> Create();
+  static scoped_refptr<QualityScalerResource> Create();
 
   QualityScalerResource();
   ~QualityScalerResource() override;
 
   bool is_started() const;
 
-  void StartCheckForOveruse(VideoEncoder::QpThresholds qp_thresholds);
+  void StartCheckForOveruse(VideoEncoder::QpThresholds qp_thresholds,
+                            const FieldTrialsView& field_trials);
   void StopCheckForOveruse();
   void SetQpThresholds(VideoEncoder::QpThresholds qp_thresholds);
-  bool QpFastFilterLow();
   void OnEncodeCompleted(const EncodedImage& encoded_image,
                          int64_t time_sent_in_us);
   void OnFrameDropped(EncodedImageCallback::DropReason reason);

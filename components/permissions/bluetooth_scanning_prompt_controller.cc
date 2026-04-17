@@ -4,7 +4,8 @@
 
 #include "components/permissions/bluetooth_scanning_prompt_controller.h"
 
-#include "base/ranges/algorithm.h"
+#include <algorithm>
+
 #include "base/strings/utf_string_conversions.h"
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -17,7 +18,8 @@ BluetoothScanningPromptController::BluetoothScanningPromptController(
     std::u16string title)
     : ChooserController(title), event_handler_(event_handler) {}
 
-BluetoothScanningPromptController::~BluetoothScanningPromptController() {}
+BluetoothScanningPromptController::~BluetoothScanningPromptController() =
+    default;
 
 bool BluetoothScanningPromptController::ShouldShowHelpButton() const {
   return false;
@@ -63,9 +65,9 @@ std::u16string BluetoothScanningPromptController::GetOption(
   DCHECK_LT(index, device_ids_.size());
   const std::string& device_id = device_ids_[index];
   const auto& device_name_it = device_id_to_name_map_.find(device_id);
-  DCHECK(device_name_it != device_id_to_name_map_.end());
+  CHECK(device_name_it != device_id_to_name_map_.end());
   const auto& it = device_name_counts_.find(device_name_it->second);
-  DCHECK(it != device_name_counts_.end());
+  CHECK(it != device_name_counts_.end());
   return it->second == 1
              ? device_name_it->second
              : l10n_util::GetStringFUTF16(
@@ -116,7 +118,7 @@ void BluetoothScanningPromptController::AddOrUpdateDevice(
       name_it->second = device_name_for_display;
 
       const auto& it = device_name_counts_.find(previous_device_name);
-      DCHECK(it != device_name_counts_.end());
+      CHECK(it != device_name_counts_.end());
       DCHECK_GT(it->second, 0);
 
       if (--(it->second) == 0)
@@ -125,9 +127,9 @@ void BluetoothScanningPromptController::AddOrUpdateDevice(
       ++device_name_counts_[device_name_for_display];
     }
 
-    auto device_id_it = base::ranges::find(device_ids_, device_id);
+    auto device_id_it = std::ranges::find(device_ids_, device_id);
 
-    DCHECK(device_id_it != device_ids_.end());
+    CHECK(device_id_it != device_ids_.end());
     if (view())
       view()->OnOptionUpdated(device_id_it - device_ids_.begin());
     return;

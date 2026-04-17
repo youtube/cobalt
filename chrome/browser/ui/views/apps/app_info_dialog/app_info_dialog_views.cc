@@ -12,10 +12,7 @@
 #include "base/functional/bind.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/apps/app_info_dialog.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/scoped_tabbed_browser_displayer.h"
 #include "chrome/browser/ui/views/apps/app_info_dialog/app_info_dialog_container.h"
@@ -28,13 +25,13 @@
 #include "chrome/common/buildflags.h"
 #include "chrome/common/chrome_switches.h"
 #include "components/app_constants/constants.h"
-#include "components/constrained_window/constrained_window_views.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/manifest.h"
 #include "extensions/common/manifest_handlers/app_display_info.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
@@ -45,71 +42,13 @@
 #include "ui/views/widget/widget.h"
 #include "ui/views/window/dialog_delegate.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ash/app_list/arc/arc_app_list_prefs.h"
 #include "chrome/browser/ash/app_list/arc/arc_app_utils.h"
 #include "chrome/browser/ash/arc/arc_util.h"
-#include "chrome/browser/ash/system_web_apps/system_web_app_manager.h"
 #include "chrome/browser/ui/views/apps/app_info_dialog/arc_app_info_links_panel.h"
+#include "chromeos/ash/experiences/arc/app/arc_app_constants.h"
 #endif
-
-namespace {
-
-constexpr gfx::Size kDialogSize = gfx::Size(380, 490);
-
-}  // namespace
-
-bool CanPlatformShowAppInfoDialog() {
-#if BUILDFLAG(IS_MAC)
-  return false;
-#else
-  return true;
-#endif
-}
-
-bool CanShowAppInfoDialog(Profile* profile, const std::string& extension_id) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  auto* system_web_app_manager = ash::SystemWebAppManager::Get(profile);
-  if (system_web_app_manager &&
-      system_web_app_manager->IsSystemWebApp(extension_id)) {
-    return false;
-  }
-
-  const extensions::ExtensionRegistry* registry =
-      extensions::ExtensionRegistry::Get(profile);
-  const extensions::Extension* extension =
-      registry->GetInstalledExtension(extension_id);
-
-  if (!extension) {
-    return false;
-  }
-
-  // App Management only displays apps that are displayed in the launcher.
-  if (!extensions::AppDisplayInfo::ShouldDisplayInAppLauncher(*extension)) {
-    return false;
-  }
-#endif
-  return CanPlatformShowAppInfoDialog();
-}
-
-void ShowAppInfoInNativeDialog(content::WebContents* web_contents,
-                               Profile* profile,
-                               const extensions::Extension* app,
-                               base::OnceClosure close_callback) {
-  views::DialogDelegate* dialog = CreateDialogContainerForView(
-      std::make_unique<AppInfoDialog>(profile, app), kDialogSize,
-      std::move(close_callback));
-  views::Widget* dialog_widget;
-  if (dialog->GetModalType() == ui::MODAL_TYPE_CHILD) {
-    dialog_widget =
-        constrained_window::ShowWebModalDialogViews(dialog, web_contents);
-  } else {
-    gfx::NativeWindow window = web_contents->GetTopLevelNativeWindow();
-    dialog_widget =
-        constrained_window::CreateBrowserModalDialogViews(dialog, window);
-    dialog_widget->Show();
-  }
-}
 
 base::WeakPtr<AppInfoDialog>& AppInfoDialog::GetLastDialogForTesting() {
   static base::NoDestructor<base::WeakPtr<AppInfoDialog>> last_dialog;
@@ -135,7 +74,7 @@ AppInfoDialog::AppInfoDialog(Profile* profile, const extensions::Extension* app)
   dialog_body_contents->AddChildView(
       std::make_unique<AppInfoPermissionsPanel>(profile, app));
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // When Google Play Store is enabled and the Settings app is available, show
   // the "Manage supported links" link for Chrome.
   if (app->id() == app_constants::kChromeAppId &&
@@ -166,14 +105,15 @@ AppInfoDialog::AppInfoDialog(Profile* profile, const extensions::Extension* app)
   layout->SetFlexForView(dialog_body_, 1);
 
   auto dialog_footer = AppInfoFooterPanel::CreateFooterPanel(profile, app);
-  if (dialog_footer)
+  if (dialog_footer) {
     dialog_footer_ = AddChildView(std::move(dialog_footer));
+  }
 
   // Close the dialog if the app is uninstalled, unloaded, or if the profile is
   // destroyed.
   StartObservingExtensionRegistry();
 
-  GetLastDialogForTesting() = AsWeakPtr();
+  GetLastDialogForTesting() = weak_ptr_factory_.GetWeakPtr();
 }
 
 AppInfoDialog::~AppInfoDialog() {
@@ -192,8 +132,9 @@ void AppInfoDialog::StartObservingExtensionRegistry() {
 }
 
 void AppInfoDialog::StopObservingExtensionRegistry() {
-  if (extension_registry_)
+  if (extension_registry_) {
     extension_registry_->RemoveObserver(this);
+  }
   extension_registry_ = nullptr;
 }
 
@@ -214,8 +155,9 @@ void AppInfoDialog::OnExtensionUnloaded(
     content::BrowserContext* browser_context,
     const extensions::Extension* extension,
     extensions::UnloadedExtensionReason reason) {
-  if (extension->id() != app_id_)
+  if (extension->id() != app_id_) {
     return;
+  }
 
   Close();
 }
@@ -224,8 +166,9 @@ void AppInfoDialog::OnExtensionUninstalled(
     content::BrowserContext* browser_context,
     const extensions::Extension* extension,
     extensions::UninstallReason reason) {
-  if (extension->id() != app_id_)
+  if (extension->id() != app_id_) {
     return;
+  }
 
   Close();
 }
@@ -236,5 +179,5 @@ void AppInfoDialog::OnShutdown(extensions::ExtensionRegistry* registry) {
   Close();
 }
 
-BEGIN_METADATA(AppInfoDialog, views::View)
+BEGIN_METADATA(AppInfoDialog)
 END_METADATA

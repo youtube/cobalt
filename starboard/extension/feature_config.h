@@ -27,6 +27,8 @@
 // Doing it this way guarantees that features defined in the Chrobalt side and
 // starboard side share the same names, param types and initial default values.
 
+// NOLINT(build/header_guard)
+
 #include "build/build_config.h"
 #include "starboard/configuration.h"
 
@@ -99,6 +101,10 @@ FEATURE_LIST_START
 // #endif // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 
 #if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+// By default, app provisioning is disabled. Set the following variable to true
+// to enable app provisioning.
+STARBOARD_FEATURE(kEnableAppProvisioning, "EnableAppProvisioning", false)
+
 // By default, Cobalt recreates MediaCodec when Reset() during Seek().
 // Set the following variable to true to force it Flush() MediaCodec
 // during Seek().
@@ -120,6 +126,20 @@ STARBOARD_FEATURE(kForceResetAudioDecoder, "ForceResetAudioDecoder", false)
 // enabling tunnel mode on all playbacks.
 STARBOARD_FEATURE(kForceTunnelMode, "ForceTunnelMode", false)
 
+// By default, Cobalt pauses AudioTrack without play state from AudioTrack.
+// Set the following variable to true to force it using play state from
+// AudioTrack while pausing the playback.
+STARBOARD_FEATURE(kPauseUsingAudioTrackState,
+                  "PauseUsingAudioTrackState",
+                  false)
+
+// Cobalt VideoRenderAlgorithm used to release video frames immediately after
+// playback starts. Set the following variable to true to make it release video
+// frames until the underlying audio sink actually starts.
+STARBOARD_FEATURE(kReleaseVideoFramesAfterAudioStarts,
+                  "ReleaseVideoFramesAfterAudioStarts",
+                  false)
+
 // By default, set the following to true to use stub decoder as audio/video
 // decoder.
 STARBOARD_FEATURE(kUseStubAudioDecoder, "UseStubAudioDecoder", false)
@@ -132,6 +152,19 @@ STARBOARD_FEATURE(kUseStubVideoDecoder, "UseStubVideoDecoder", false)
 // '--enable-features=VideoDecoderDelayUsecOverride:ResetDelayUsec/10ms'.
 STARBOARD_FEATURE(kVideoDecoderDelayUsecOverride,
                   "VideoDecoderDelayUsecOverride",
+                  false)
+
+// By default, software video codec can be selected when software codec is not
+// required. Set the following variable to true to prevent using low performance
+// software video decoder in MediaCapabilitiesCache when software codec is not
+// explicitly required.
+STARBOARD_FEATURE(kRejectLowPerformanceSoftwareDecoder,
+                  "RejectLowPerformanceSoftwareDecoder",
+                  false)
+
+// Set the following variable to true to enable av1 startup optimization.
+STARBOARD_FEATURE(kEnableAv1StartupOptimization,
+                  "EnableAv1StartupOptimization",
                   false)
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_LIST_END

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "sandbox/linux/services/scoped_process.h"
 
 #include <fcntl.h>
@@ -54,7 +55,6 @@ ScopedProcess::ScopedProcess(base::OnceClosure child_callback)
     CHECK_EQ(1, HANDLE_EINTR(write(pipe_fds_[1], kSynchronisationChar, 1)));
     WaitForever();
     NOTREACHED();
-    _exit(1);
   }
 
   PCHECK(0 == IGNORE_EINTR(close(pipe_fds_[1])));
@@ -93,7 +93,7 @@ int ScopedProcess::WaitForExit(bool* got_signaled) {
              process_info.si_code == CLD_DUMPED) {
     *got_signaled = true;
   } else {
-    CHECK(false) << "ScopedProcess needs to be extended for si_code "
+    NOTREACHED() << "ScopedProcess needs to be extended for si_code "
                  << process_info.si_code;
   }
   return process_info.si_status;

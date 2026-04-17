@@ -56,11 +56,11 @@ namespace {
 // https://en.wikipedia.org/wiki/Cumulative_distribution_function
 //
 // This data was last updated using a 28-day average of metrics recorded on
-// 2023-03-12.
-const int k20thPercentileRSSI = -81;
-const int k40thPercentileRSSI = -73;
-const int k60thPercentileRSSI = -65;
-const int k80thPercentileRSSI = -55;
+// 2024-03-10.
+const int k20thPercentileRSSI = -83;
+const int k40thPercentileRSSI = -76;
+const int k60thPercentileRSSI = -68;
+const int k80thPercentileRSSI = -57;
 
 // Client name for logging in BLE scanning.
 constexpr char kScanClientName[] = "Web Bluetooth Device Chooser";
@@ -170,8 +170,8 @@ bool MatchesFilters(
     const std::string* device_name,
     const UUIDSet& device_uuids,
     const ManufacturerDataMap& device_manufacturer_data,
-    const absl::optional<
-        std::vector<blink::mojom::WebBluetoothLeScanFilterPtr>>& filters) {
+    const std::optional<std::vector<blink::mojom::WebBluetoothLeScanFilterPtr>>&
+        filters) {
   DCHECK(HasValidFilter(filters));
   for (const auto& filter : filters.value()) {
     if (MatchesFilter(device_name, device_uuids, device_manufacturer_data,
@@ -325,6 +325,10 @@ void BluetoothDeviceChooserController::GetDevice(
     return;
   }
 
+  CheckAdapterAndStartGettingDevices();
+}
+
+void BluetoothDeviceChooserController::CheckAdapterAndStartGettingDevices() {
   if (adapter_->GetOsPermissionStatus() ==
       device::BluetoothAdapter::PermissionStatus::kDenied) {
     chooser_->SetAdapterPresence(
@@ -373,7 +377,7 @@ void BluetoothDeviceChooserController::AddFilteredDevice(
       MatchesFilters(base::OptionalToPtr(device.GetName()), device.GetUUIDs(),
                      device.GetManufacturerData(), options_->exclusion_filters);
   if (options_->accept_all_devices || (device_matches && !device_excluded)) {
-    absl::optional<int8_t> rssi = device.GetInquiryRSSI();
+    std::optional<int8_t> rssi = device.GetInquiryRSSI();
     std::string device_id = device.GetAddress();
     device_ids_.insert(device_id);
     chooser_->AddOrUpdateDevice(
@@ -412,19 +416,19 @@ int BluetoothDeviceChooserController::CalculateSignalStrengthLevel(
   RecordRSSISignalStrength(rssi);
 
   if (rssi < k20thPercentileRSSI) {
-    RecordRSSISignalStrengthLevel(content::UMARSSISignalStrengthLevel::LEVEL_0);
+    RecordRSSISignalStrengthLevel(content::UMARSSISignalStrengthLevel::kLevel0);
     return 0;
   } else if (rssi < k40thPercentileRSSI) {
-    RecordRSSISignalStrengthLevel(content::UMARSSISignalStrengthLevel::LEVEL_1);
+    RecordRSSISignalStrengthLevel(content::UMARSSISignalStrengthLevel::kLevel1);
     return 1;
   } else if (rssi < k60thPercentileRSSI) {
-    RecordRSSISignalStrengthLevel(content::UMARSSISignalStrengthLevel::LEVEL_2);
+    RecordRSSISignalStrengthLevel(content::UMARSSISignalStrengthLevel::kLevel2);
     return 2;
   } else if (rssi < k80thPercentileRSSI) {
-    RecordRSSISignalStrengthLevel(content::UMARSSISignalStrengthLevel::LEVEL_3);
+    RecordRSSISignalStrengthLevel(content::UMARSSISignalStrengthLevel::kLevel3);
     return 3;
   } else {
-    RecordRSSISignalStrengthLevel(content::UMARSSISignalStrengthLevel::LEVEL_4);
+    RecordRSSISignalStrengthLevel(content::UMARSSISignalStrengthLevel::kLevel4);
     return 4;
   }
 }
@@ -442,7 +446,8 @@ void BluetoothDeviceChooserController::SetTestScanDurationForTesting(
 }
 
 void BluetoothDeviceChooserController::PopulateConnectedDevices() {
-  // TODO(crbug.com/728897): Use RetrieveGattConnectedDevices once implemented.
+  // TODO(crbug.com/41322850): Use RetrieveGattConnectedDevices once
+  // implemented.
   for (const device::BluetoothDevice* device : adapter_->GetDevices()) {
     if (device->IsGattConnected()) {
       AddFilteredDevice(*device);
@@ -506,9 +511,8 @@ void BluetoothDeviceChooserController::OnBluetoothChooserEvent(
   switch (event) {
     case BluetoothChooserEvent::RESCAN:
       device_ids_.clear();
-      PopulateConnectedDevices();
       DCHECK(chooser_);
-      StartDeviceDiscovery();
+      CheckAdapterAndStartGettingDevices();
       // No need to close the chooser so we return.
       return;
     case BluetoothChooserEvent::DENIED_PERMISSION:
@@ -565,8 +569,8 @@ void BluetoothDeviceChooserController::PostErrorCallback(
 // static
 std::unique_ptr<device::BluetoothDiscoveryFilter>
 BluetoothDeviceChooserController::ComputeScanFilter(
-    const absl::optional<
-        std::vector<blink::mojom::WebBluetoothLeScanFilterPtr>>& filters) {
+    const std::optional<std::vector<blink::mojom::WebBluetoothLeScanFilterPtr>>&
+        filters) {
   // There isn't much support for GATT over BR/EDR from neither platforms nor
   // devices so performing a Dual scan will find devices that the API is not
   // able to interact with. To avoid wasting power and confusing users with

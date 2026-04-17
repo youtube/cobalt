@@ -38,9 +38,11 @@
 #include "starboard/common/player.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
+#include "starboard/extension/experimental_features.h"
 #if COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
 #include "starboard/extension/player_set_max_video_input_size.h"
 #endif  // COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
+#include "starboard/extension/player_set_video_surface_view.h"
 
 namespace media {
 
@@ -84,77 +86,18 @@ void SetDiscardPadding(
       discard_padding.second.InMicroseconds();
 }
 
+const int* ToIntPointer(const std::optional<int>& val) {
+  if (!val) {
+    return nullptr;
+  }
+  return &*val;
+}
+
 }  // namespace
 
 #if COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING
 SB_ONCE_INITIALIZE_FUNCTION(StatisticsWrapper, StatisticsWrapper::GetInstance);
 #endif  // COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING
-
-SbPlayerBridge::CallbackHelper::CallbackHelper(SbPlayerBridge* player_bridge)
-    : player_bridge_(player_bridge) {}
-
-void SbPlayerBridge::CallbackHelper::ClearDecoderBufferCache() {
-  if (!player_bridge_) {
-    return;
-  }
-  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
-
-  player_bridge_->ClearDecoderBufferCache();
-}
-
-void SbPlayerBridge::CallbackHelper::OnDecoderStatus(void* player,
-                                                     SbMediaType type,
-                                                     SbPlayerDecoderState state,
-                                                     int ticket) {
-  if (!player_bridge_) {
-    return;
-  }
-  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
-
-  player_bridge_->OnDecoderStatus(static_cast<SbPlayer>(player), type, state,
-                                  ticket);
-}
-
-void SbPlayerBridge::CallbackHelper::OnPlayerStatus(void* player,
-                                                    SbPlayerState state,
-                                                    int ticket) {
-  if (!player_bridge_) {
-    return;
-  }
-  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
-
-  player_bridge_->OnPlayerStatus(static_cast<SbPlayer>(player), state, ticket);
-}
-
-void SbPlayerBridge::CallbackHelper::OnPlayerError(void* player,
-                                                   SbPlayerError error,
-                                                   const std::string& message) {
-  if (!player_bridge_) {
-    return;
-  }
-  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
-
-  player_bridge_->OnPlayerError(static_cast<SbPlayer>(player), error, message);
-}
-
-void SbPlayerBridge::CallbackHelper::OnDeallocateSample(
-    const void* sample_buffer) {
-  if (!player_bridge_) {
-    return;
-  }
-  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
-
-  player_bridge_->OnDeallocateSample(sample_buffer);
-}
-
-void SbPlayerBridge::CallbackHelper::ResetPlayer() {
-  if (!player_bridge_) {
-    return;
-  }
-  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
-
-  player_bridge_ = nullptr;
-}
 
 #if SB_HAS(PLAYER_WITH_URL)
 SbPlayerBridge::SbPlayerBridge(
@@ -163,7 +106,6 @@ SbPlayerBridge::SbPlayerBridge(
     const std::string& url,
     SbWindow window,
     Host* host,
-    SbPlayerSetBoundsHelper* set_bounds_helper,
     bool allow_resume_after_suspend,
     SbPlayerOutputMode default_output_mode,
     const OnEncryptedMediaInitDataEncounteredCB&
@@ -173,11 +115,8 @@ SbPlayerBridge::SbPlayerBridge(
     : url_(url),
       sbplayer_interface_(interface),
       task_runner_(task_runner),
-      callback_helper_(
-          new CallbackHelper(ALLOW_THIS_IN_INITIALIZER_LIST(this))),
       window_(window),
       host_(host),
-      set_bounds_helper_(set_bounds_helper),
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
       allow_resume_after_suspend_(allow_resume_after_suspend),
 #endif
@@ -188,17 +127,15 @@ SbPlayerBridge::SbPlayerBridge(
       pipeline_identifier_(pipeline_identifier),
       is_url_based_(true) {
   DCHECK(host_);
-  DCHECK(set_bounds_helper_);
 
   output_mode_ = ComputeSbUrlPlayerOutputMode(default_output_mode);
 
   CreateUrlPlayer(url_);
 
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
-  task_runner->PostTask(
-      FROM_HERE, base::BindRepeatedly(
-                     &SbPlayerBridge::CallbackHelper::ClearDecoderBufferCache,
-                     callback_helper_));
+  task_runner->PostTask(FROM_HERE,
+                        base::BindOnce(&SbPlayerBridge::ClearDecoderBufferCache,
+                                       weak_factory_.GetWeakPtr()));
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -215,14 +152,18 @@ SbPlayerBridge::SbPlayerBridge(
     SbWindow window,
     SbDrmSystem drm_system,
     Host* host,
-    SbPlayerSetBoundsHelper* set_bounds_helper,
     bool allow_resume_after_suspend,
     SbPlayerOutputMode default_output_mode,
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
     DecodeTargetProvider* const decode_target_provider,
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
     const std::string& max_video_capabilities,
-    int max_video_input_size
+    int max_video_input_size,
+    const ExperimentalFeatures& experimental_features
+#if BUILDFLAG(IS_ANDROID)
+    ,
+    jobject surface_view
+#endif  // BUILDFLAG(IS_ANDROID)
 #if COBALT_MEDIA_ENABLE_CVAL
     ,
     std::string pipeline_identifier
@@ -232,11 +173,9 @@ SbPlayerBridge::SbPlayerBridge(
       task_runner_(task_runner),
       get_decode_target_graphics_context_provider_func_(
           get_decode_target_graphics_context_provider_func),
-      callback_helper_(new CallbackHelper(this)),
       window_(window),
       drm_system_(drm_system),
       host_(host),
-      set_bounds_helper_(set_bounds_helper),
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
       allow_resume_after_suspend_(allow_resume_after_suspend),
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
@@ -254,15 +193,20 @@ SbPlayerBridge::SbPlayerBridge(
       pipeline_identifier_(pipeline_identifier),
 #endif  // COBALT_MEDIA_ENABLE_CVAL
 #if SB_HAS(PLAYER_WITH_URL)
-      is_url_based_(false)
+      is_url_based_(false),
 #endif  // SB_HAS(PLAYER_WITH_URL
-          max_video_capabilities_(max_video_capabilities) {
+      max_video_capabilities_(max_video_capabilities),
+      experimental_features_(experimental_features)
+#if BUILDFLAG(IS_ANDROID)
+      ,
+      surface_view_(surface_view)
+#endif  // BUILDFLAG(IS_ANDROID)
+{
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   DCHECK(!get_decode_target_graphics_context_provider_func_.is_null());
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   DCHECK(audio_config.IsValidConfig() || video_config.IsValidConfig());
   DCHECK(host_);
-  DCHECK(set_bounds_helper_);
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   DCHECK(decode_target_provider_);
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
@@ -285,9 +229,8 @@ SbPlayerBridge::SbPlayerBridge(
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
   if (SbPlayerIsValid(player_)) {
     task_runner->PostTask(
-        FROM_HERE, base::BindRepeatedly(
-                       &SbPlayerBridge::CallbackHelper::ClearDecoderBufferCache,
-                       callback_helper_));
+        FROM_HERE, base::BindOnce(&SbPlayerBridge::ClearDecoderBufferCache,
+                                  weak_factory_.GetWeakPtr()));
   }
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 }
@@ -295,8 +238,7 @@ SbPlayerBridge::SbPlayerBridge(
 SbPlayerBridge::~SbPlayerBridge() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
-  callback_helper_->ResetPlayer();
-  set_bounds_helper_->SetPlayerBridge(NULL);
+  weak_factory_.InvalidateWeakPtrs();
 
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   decode_target_provider_->SetOutputMode(
@@ -367,7 +309,7 @@ void SbPlayerBridge::WriteBuffers(
     if (type == DemuxerStream::Type::AUDIO) {
       decoder_buffer_cache_.AddBuffers(buffers, audio_stream_info_);
     } else {
-      DCHECK(type == DemuxerStream::Type::VIDEO);
+      DCHECK_EQ(type, DemuxerStream::Type::VIDEO);
       decoder_buffer_cache_.AddBuffers(buffers, video_stream_info_);
     }
     if (state_ != kSuspended) {
@@ -377,14 +319,19 @@ void SbPlayerBridge::WriteBuffers(
   }
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 
-  WriteBuffersInternal<SbPlayerSampleInfo>(type, buffers, &audio_stream_info_,
-                                           &video_stream_info_);
+  WriteBuffersInternal(type, buffers, &audio_stream_info_, &video_stream_info_);
 }
 
-void SbPlayerBridge::SetBounds(int z_index, const gfx::Rect& rect) {
+void SbPlayerBridge::SetBounds(const gfx::Rect& rect) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
-  set_bounds_z_index_ = z_index;
+  // On certain platforms (e.g., Linux), the Cobalt renderer draws layers from
+  // back to front. A monotonically increasing sequence is used to generate a
+  // unique z-index for each player, ensuring video layers are stacked
+  // correctly.
+  static base::AtomicSequenceNumber s_z_index;
+
+  set_bounds_z_index_ = s_z_index.GetNext();
   set_bounds_rect_ = rect;
 
   if (state_ == kSuspended) {
@@ -433,8 +380,6 @@ void SbPlayerBridge::Seek(TimeDelta time) {
 
   ++ticket_;
   sbplayer_interface_->Seek(player_, time, ticket_);
-
-  sbplayer_interface_->SetPlaybackRate(player_, playback_rate_);
 }
 
 void SbPlayerBridge::SetVolume(float volume) {
@@ -597,8 +542,6 @@ void SbPlayerBridge::Suspend() {
 
   sbplayer_interface_->SetPlaybackRate(player_, 0.0);
 
-  set_bounds_helper_->SetPlayerBridge(NULL);
-
   PlayerInfo info{&cached_video_frames_decoded_, &cached_video_frames_dropped_,
                   nullptr, nullptr, &preroll_timestamp_};
   GetInfo(&info);
@@ -687,10 +630,10 @@ void SbPlayerBridge::EncryptedMediaInitDataEncounteredCB(
     const char* init_data_type,
     const unsigned char* init_data,
     unsigned int init_data_length) {
-  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
-  DCHECK(!helper->on_encrypted_media_init_data_encountered_cb_.is_null());
-  // TODO: Use callback_helper here.
-  helper->on_encrypted_media_init_data_encountered_cb_.Run(
+  SbPlayerBridge* sbplayer_bridge = static_cast<SbPlayerBridge*>(context);
+  DCHECK(
+      !sbplayer_bridge->on_encrypted_media_init_data_encountered_cb_.is_null());
+  sbplayer_bridge->on_encrypted_media_init_data_encountered_cb_.Run(
       init_data_type, init_data, init_data_length);
 }
 
@@ -727,8 +670,6 @@ void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
 
   decode_target_provider_->SetOutputMode(
       ToVideoFrameProviderOutputMode(output_mode_));
-
-  set_bounds_helper_->SetPlayerBridge(this);
 
   UpdateBounds();
 }
@@ -793,6 +734,54 @@ void SbPlayerBridge::CreatePlayer() {
         ->SetMaxVideoInputSizeForCurrentThread(max_video_input_size_);
   }
 #endif  // COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
+#if BUILDFLAG(IS_ANDROID)
+  const StarboardExtensionPlayerSetVideoSurfaceViewApi*
+      player_set_video_surface_view_extension =
+          static_cast<const StarboardExtensionPlayerSetVideoSurfaceViewApi*>(
+              SbSystemGetExtension(
+                  kStarboardExtensionPlayerSetVideoSurfaceViewName));
+  if (player_set_video_surface_view_extension &&
+      strcmp(player_set_video_surface_view_extension->name,
+             kStarboardExtensionPlayerSetVideoSurfaceViewName) == 0 &&
+      player_set_video_surface_view_extension->version >= 1) {
+    player_set_video_surface_view_extension
+        ->SetVideoSurfaceViewForCurrentThread(surface_view_);
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
+
+  const StarboardExtensionExperimentalFeaturesConfigurationApi*
+      experimental_features_extension = static_cast<
+          const StarboardExtensionExperimentalFeaturesConfigurationApi*>(
+          SbSystemGetExtension(
+              kStarboardExtensionExperimentalFeaturesConfigurationName));
+  if (experimental_features_extension &&
+      strcmp(experimental_features_extension->name,
+             kStarboardExtensionExperimentalFeaturesConfigurationName) == 0 &&
+      experimental_features_extension->version >= 1) {
+    StarboardExtensionExperimentalFeatures extension_features = {};
+
+    extension_features.disable_low_performance_sw_decoder =
+        experimental_features_.disable_low_performance_sw_decoder;
+    extension_features.enable_av1_startup_optimization =
+        experimental_features_.enable_av1_startup_optimization;
+    extension_features.flush_decoder_during_reset =
+        experimental_features_.enable_flush_during_seek;
+    extension_features.reset_audio_decoder =
+        experimental_features_.enable_reset_audio_decoder;
+    extension_features.video_decoder_initial_preroll_count = ToIntPointer(
+        experimental_features_.video_decoder_initial_preroll_count);
+    extension_features.video_renderer_min_decoded_frames =
+        ToIntPointer(experimental_features_.video_renderer_min_decoded_frames);
+    extension_features.video_renderer_min_input_buffers =
+        ToIntPointer(experimental_features_.video_renderer_min_input_buffers);
+
+    // Note: Some flags (e.g., 'max_samples_per_write') are not mapped here as
+    // they are directly consumed by StarboardRenderer.
+
+    experimental_features_extension->SetExperimentalFeaturesForCurrentThread(
+        &extension_features);
+  }
+
   player_ = sbplayer_interface_->Create(
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
@@ -828,7 +817,6 @@ void SbPlayerBridge::CreatePlayer() {
   decode_target_provider_->SetOutputMode(
       ToVideoFrameProviderOutputMode(output_mode_));
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-  set_bounds_helper_->SetPlayerBridge(this);
 
   UpdateBounds();
 }
@@ -849,13 +837,7 @@ void SbPlayerBridge::WriteNextBuffersFromCache(DemuxerStream::Type type,
     decoder_buffer_cache_.ReadBuffers(&buffers, max_buffers_per_write,
                                       &stream_info);
     if (buffers.size() > 0) {
-      if (sbplayer_interface_->IsEnhancedAudioExtensionEnabled()) {
-        WriteBuffersInternal<CobaltExtensionEnhancedAudioPlayerSampleInfo>(
-            type, buffers, &stream_info, nullptr);
-      } else {
-        WriteBuffersInternal<SbPlayerSampleInfo>(type, buffers, &stream_info,
-                                                 nullptr);
-      }
+      WriteBuffersInternal(type, buffers, &stream_info, nullptr);
     }
   } else {
     DCHECK_EQ(type, DemuxerStream::VIDEO);
@@ -864,19 +846,12 @@ void SbPlayerBridge::WriteNextBuffersFromCache(DemuxerStream::Type type,
     decoder_buffer_cache_.ReadBuffers(&buffers, max_buffers_per_write,
                                       &stream_info);
     if (buffers.size() > 0) {
-      if (sbplayer_interface_->IsEnhancedAudioExtensionEnabled()) {
-        WriteBuffersInternal<CobaltExtensionEnhancedAudioPlayerSampleInfo>(
-            type, buffers, nullptr, &stream_info);
-      } else {
-        WriteBuffersInternal<SbPlayerSampleInfo>(type, buffers, nullptr,
-                                                 &stream_info);
-      }
+      WriteBuffersInternal(type, buffers, nullptr, &stream_info);
     }
   }
 }
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 
-template <typename PlayerSampleInfo>
 void SbPlayerBridge::WriteBuffersInternal(
     DemuxerStream::Type type,
     const std::vector<scoped_refptr<DecoderBuffer>>& buffers,
@@ -893,7 +868,7 @@ void SbPlayerBridge::WriteBuffersInternal(
     return;
   }
 
-  std::vector<PlayerSampleInfo> gathered_sbplayer_sample_infos;
+  std::vector<SbPlayerSampleInfo> gathered_sbplayer_sample_infos;
   std::vector<SbDrmSampleInfo> gathered_sbplayer_sample_infos_drm_info;
   std::vector<SbDrmSubSampleMapping>
       gathered_sbplayer_sample_infos_subsample_mapping;
@@ -917,7 +892,7 @@ void SbPlayerBridge::WriteBuffersInternal(
     }
 
     if (auto [iter, inserted] = decoding_buffers_.try_emplace(
-            buffer->data(), buffer, /*usage_count=*/1, sample_type);
+            buffer->handle(), buffer, /*usage_count=*/1, sample_type);
         !inserted) {
       ++iter->second.usage_count;
     }
@@ -948,17 +923,18 @@ void SbPlayerBridge::WriteBuffersInternal(
     SbPlayerSampleSideData* side_data =
         &gathered_sbplayer_sample_infos_side_data[i];
 
-    PlayerSampleInfo sample_info = {};
+    SbPlayerSampleInfo sample_info = {};
     sample_info.type = sample_type;
-    sample_info.buffer = buffer->data();
-    sample_info.buffer_size = buffer->data_size();
+    // Cast the handle to void* to reuse the existing SbPlayerWriteSamples().
+    sample_info.buffer = reinterpret_cast<void*>(buffer->handle());
+    sample_info.buffer_size = buffer->size();
     sample_info.timestamp = buffer->timestamp().InMicroseconds();
 
-    if (buffer->side_data_size() > 0) {
+    if (buffer->side_data() && !buffer->side_data()->alpha_data.empty()) {
       // We only support at most one side data currently.
       side_data->type = kMatroskaBlockAdditional;
-      side_data->data = buffer->side_data();
-      side_data->size = buffer->side_data_size();
+      side_data->data = buffer->side_data()->alpha_data.data();
+      side_data->size = buffer->side_data()->alpha_data.size();
       sample_info.side_data = side_data;
       sample_info.side_data_count = 1;
     }
@@ -969,7 +945,7 @@ void SbPlayerBridge::WriteBuffersInternal(
       SetDiscardPadding(buffer->discard_padding(),
                         &sample_info.audio_sample_info);
     } else {
-      DCHECK(sample_type == kSbMediaTypeVideo);
+      DCHECK_EQ(sample_type, kSbMediaTypeVideo);
       DCHECK(video_stream_info);
       SetStreamInfo(*video_stream_info, &sample_info.video_sample_info);
       sample_info.video_sample_info.is_key_frame = buffer->is_key_frame();
@@ -1072,8 +1048,8 @@ void SbPlayerBridge::ClearDecoderBufferCache() {
 
   task_runner_->PostDelayedTask(
       FROM_HERE,
-      base::Bind(&SbPlayerBridge::CallbackHelper::ClearDecoderBufferCache,
-                 callback_helper_),
+      base::BindOnce(&SbPlayerBridge::ClearDecoderBufferCache,
+                     weak_factory_.GetWeakPtr()),
       TimeDelta::FromMilliseconds(kClearDecoderCacheIntervalInMilliseconds));
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 }
@@ -1186,7 +1162,8 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
 #endif  // SB_HAS(PLAYER_WITH_URL)
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
-  DecodingBuffers::iterator iter = decoding_buffers_.find(sample_buffer);
+  DecodingBuffers::iterator iter = decoding_buffers_.find(
+      reinterpret_cast<DecoderBuffer::Allocator::Handle>(sample_buffer));
   DCHECK(iter != decoding_buffers_.end());
   if (iter == decoding_buffers_.end()) {
     LOG(ERROR) << "SbPlayerBridge::OnDeallocateSample encounters unknown "
@@ -1196,9 +1173,9 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
 
   DecodingBuffer& decoding_buffer = iter->second;
   if (decoding_buffer.type == kSbMediaTypeAudio) {
-    cached_audio_bytes_decoded_ += decoding_buffer.buffer->data_size();
+    cached_audio_bytes_decoded_ += decoding_buffer.buffer->size();
   } else {
-    cached_video_bytes_decoded_ += decoding_buffer.buffer->data_size();
+    cached_video_bytes_decoded_ += decoding_buffer.buffer->size();
   }
   --decoding_buffer.usage_count;
   DCHECK_GE(decoding_buffer.usage_count, 0);
@@ -1220,18 +1197,34 @@ bool SbPlayerBridge::TryToSetPlayerCreationErrorMessage(
   return false;
 }
 
+void SbPlayerBridge::OnDecoderStatusTask(void* player,
+                                         SbMediaType type,
+                                         SbPlayerDecoderState state,
+                                         int ticket) {
+  OnDecoderStatus(static_cast<SbPlayer>(player), type, state, ticket);
+}
+
 // static
 void SbPlayerBridge::DecoderStatusCB(SbPlayer player,
                                      void* context,
                                      SbMediaType type,
                                      SbPlayerDecoderState state,
                                      int ticket) {
-  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
-  helper->task_runner_->PostTask(
+  SbPlayerBridge* sbplayer_bridge = static_cast<SbPlayerBridge*>(context);
+  sbplayer_bridge->task_runner_->PostTask(
       FROM_HERE,
-      base::BindOnce(&SbPlayerBridge::CallbackHelper::OnDecoderStatus,
-                     helper->callback_helper_, static_cast<void*>(player), type,
-                     state, ticket));
+      base::BindOnce(&SbPlayerBridge::OnDecoderStatusTask,
+                     sbplayer_bridge->weak_factory_.GetWeakPtr(),
+                     // SAFETY: The `player` handle refers to `player_`, a
+                     // member of SbPlayerBridge. Its validity is guaranteed by
+                     // the WeakPtr check for SbPlayerBridge's lifetime.
+                     static_cast<void*>(player), type, state, ticket));
+}
+
+void SbPlayerBridge::OnPlayerStatusTask(void* player,
+                                        SbPlayerState state,
+                                        int ticket) {
+  OnPlayerStatus(static_cast<SbPlayer>(player), state, ticket);
 }
 
 // static
@@ -1239,11 +1232,21 @@ void SbPlayerBridge::PlayerStatusCB(SbPlayer player,
                                     void* context,
                                     SbPlayerState state,
                                     int ticket) {
-  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
-  helper->task_runner_->PostTask(
-      FROM_HERE, base::BindOnce(&SbPlayerBridge::CallbackHelper::OnPlayerStatus,
-                                helper->callback_helper_,
-                                static_cast<void*>(player), state, ticket));
+  SbPlayerBridge* sbplayer_bridge = static_cast<SbPlayerBridge*>(context);
+  sbplayer_bridge->task_runner_->PostTask(
+      FROM_HERE,
+      base::BindOnce(&SbPlayerBridge::OnPlayerStatusTask,
+                     sbplayer_bridge->weak_factory_.GetWeakPtr(),
+                     // SAFETY: The `player` handle refers to `player_`, a
+                     // member of SbPlayerBridge. Its validity is guaranteed by
+                     // the WeakPtr check for SbPlayerBridge's lifetime.
+                     static_cast<void*>(player), state, ticket));
+}
+
+void SbPlayerBridge::OnPlayerErrorTask(void* player,
+                                       SbPlayerError error,
+                                       const std::string& message) {
+  OnPlayerError(static_cast<SbPlayer>(player), error, message);
 }
 
 // static
@@ -1251,30 +1254,44 @@ void SbPlayerBridge::PlayerErrorCB(SbPlayer player,
                                    void* context,
                                    SbPlayerError error,
                                    const char* message) {
-  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
+  SbPlayerBridge* sbplayer_bridge = static_cast<SbPlayerBridge*>(context);
   if (player == kSbPlayerInvalid) {
     // TODO: Simplify by combining the functionality of
     // TryToSetPlayerCreationErrorMessage() with OnPlayerError().
-    if (helper->TryToSetPlayerCreationErrorMessage(message)) {
+    if (sbplayer_bridge->TryToSetPlayerCreationErrorMessage(
+            std::string(message ? message : ""))) {
       return;
     }
   }
-  helper->task_runner_->PostTask(
+  sbplayer_bridge->task_runner_->PostTask(
       FROM_HERE,
-      base::BindOnce(&SbPlayerBridge::CallbackHelper::OnPlayerError,
-                     helper->callback_helper_, static_cast<void*>(player),
-                     error, message ? std::string(message) : ""));
+      base::BindOnce(&SbPlayerBridge::OnPlayerErrorTask,
+                     sbplayer_bridge->weak_factory_.GetWeakPtr(),
+                     // SAFETY: The `player` handle refers to `player_`, a
+                     // member of SbPlayerBridge. Its validity is guaranteed by
+                     // the WeakPtr check for SbPlayerBridge's lifetime.
+                     static_cast<void*>(player), error,
+                     message ? std::string(message) : ""));
+}
+
+void SbPlayerBridge::OnDeallocateSampleTask(const void* sample_buffer) {
+  OnDeallocateSample(sample_buffer);
 }
 
 // static
 void SbPlayerBridge::DeallocateSampleCB(SbPlayer player,
                                         void* context,
                                         const void* sample_buffer) {
-  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
-  helper->task_runner_->PostTask(
+  SbPlayerBridge* sbplayer_bridge = static_cast<SbPlayerBridge*>(context);
+  sbplayer_bridge->task_runner_->PostTask(
       FROM_HERE,
-      base::BindOnce(&SbPlayerBridge::CallbackHelper::OnDeallocateSample,
-                     helper->callback_helper_, sample_buffer));
+      base::BindOnce(
+          &SbPlayerBridge::OnDeallocateSampleTask,
+          sbplayer_bridge->weak_factory_.GetWeakPtr(),
+          // SAFETY: `sample_buffer` points to memory owned by
+          // `decoding_buffers_`, a member of SbPlayerBridge. Its validity is
+          // guaranteed by the WeakPtr check for SbPlayerBridge's lifetime.
+          sample_buffer));
 }
 
 #if SB_HAS(PLAYER_WITH_URL)

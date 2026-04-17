@@ -6,8 +6,7 @@ found in the LICENSE file.
 -->
 
 <resources>
-    <declare-styleable name="TabThumbnailPlaceHolder">
-        <attr name="colorTileBase" format="color" />
-        <attr name="elevationTileBase" format="dimension" />
+    <declare-styleable name="TabGroupVisualDataTextInputLayout">
+        <attr name="emptyErrorMessage" format="string" />
     </declare-styleable>
 </resources>

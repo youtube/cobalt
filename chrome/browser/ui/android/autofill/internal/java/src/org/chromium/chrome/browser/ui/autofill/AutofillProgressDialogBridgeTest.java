@@ -4,13 +4,22 @@
 
 package org.chromium.chrome.browser.ui.autofill;
 
+import static com.google.common.truth.Truth.assertThat;
+
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.drawable.Drawable;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.TextView;
 
+import androidx.core.content.res.ResourcesCompat;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.filters.SmallTest;
 
@@ -24,21 +33,16 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.base.test.util.JniMocker;
 import org.chromium.chrome.browser.ui.autofill.internal.R;
 import org.chromium.ui.modaldialog.ModalDialogManager.ModalDialogType;
 import org.chromium.ui.modaldialog.ModalDialogProperties;
+import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.test.util.modaldialog.FakeModalDialogManager;
 
-/**
- * Unit tests for {@link AutofillProgressDialogBridge}
- */
+/** Unit tests for {@link AutofillProgressDialogBridge} */
 @RunWith(BaseRobolectricTestRunner.class)
 public class AutofillProgressDialogBridgeTest {
-    @Rule
-    public MockitoRule mMockitoRule = MockitoJUnit.rule();
-    @Rule
-    public JniMocker mMocker = new JniMocker();
+    @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     private static final String PROGRESS_DIALOG_TITLE = "Verify your card";
     private static final String PROGRESS_DIALOG_MESSAGE = "Contacting your bank...";
@@ -46,25 +50,28 @@ public class AutofillProgressDialogBridgeTest {
     private static final String PROGRESS_DIALOG_BUTTON_LABEL = "Cancel";
     private static final long NATIVE_AUTOFILL_PROGRESS_DIALOG_VIEW = 100L;
 
-    @Mock
-    private AutofillProgressDialogBridge.Natives mNativeMock;
+    @Mock private AutofillProgressDialogBridge.Natives mNativeMock;
 
     private AutofillProgressDialogBridge mAutofillProgressDialogBridge;
     private FakeModalDialogManager mModalDialogManager;
+    private Resources mResources;
 
     private void showProgressDialog() {
-        mAutofillProgressDialogBridge.showDialog(PROGRESS_DIALOG_TITLE, PROGRESS_DIALOG_MESSAGE,
-                PROGRESS_DIALOG_BUTTON_LABEL, /* iconId= */ 0);
+        mAutofillProgressDialogBridge.showDialog(
+                PROGRESS_DIALOG_TITLE, PROGRESS_DIALOG_MESSAGE, PROGRESS_DIALOG_BUTTON_LABEL);
     }
 
     @Before
     public void setUp() {
         reset(mNativeMock);
         mModalDialogManager = new FakeModalDialogManager(ModalDialogType.TAB);
+        mResources = ApplicationProvider.getApplicationContext().getResources();
         mAutofillProgressDialogBridge =
-                new AutofillProgressDialogBridge(NATIVE_AUTOFILL_PROGRESS_DIALOG_VIEW,
-                        mModalDialogManager, ApplicationProvider.getApplicationContext());
-        mMocker.mock(AutofillProgressDialogBridgeJni.TEST_HOOKS, mNativeMock);
+                new AutofillProgressDialogBridge(
+                        NATIVE_AUTOFILL_PROGRESS_DIALOG_VIEW,
+                        mModalDialogManager,
+                        ApplicationProvider.getApplicationContext());
+        AutofillProgressDialogBridgeJni.setInstanceForTesting(mNativeMock);
     }
 
     @Test
@@ -115,5 +122,44 @@ public class AutofillProgressDialogBridgeTest {
         mModalDialogManager.clickNegativeButton();
 
         verify(mNativeMock, times(1)).onDismissed(NATIVE_AUTOFILL_PROGRESS_DIALOG_VIEW);
+    }
+
+    @Test
+    @SmallTest
+    public void testTitleView() throws Exception {
+        showProgressDialog();
+
+        PropertyModel model = mModalDialogManager.getShownDialogModel();
+        Assert.assertNotNull(model);
+
+        View customView = model.get(ModalDialogProperties.CUSTOM_VIEW);
+
+        // Verify that the title set by custom view is correct.
+        TextView title = customView.findViewById(R.id.title);
+        assertThat(title.getVisibility()).isEqualTo(View.VISIBLE);
+        assertThat(title.getText()).isEqualTo(PROGRESS_DIALOG_TITLE);
+
+        // Verify that the title icon set by custom view is correct.
+        ImageView title_icon = customView.findViewById(R.id.title_icon);
+        Drawable expectedDrawable =
+                ResourcesCompat.getDrawable(
+                        mResources,
+                        R.drawable.google_pay,
+                        ApplicationProvider.getApplicationContext().getTheme());
+        assertThat(title_icon.getVisibility()).isEqualTo(View.VISIBLE);
+        assertTrue(getBitmap(expectedDrawable).sameAs(getBitmap(title_icon.getDrawable())));
+    }
+
+    // Convert a drawable to a Bitmap for comparison.
+    private static Bitmap getBitmap(Drawable drawable) {
+        Bitmap bitmap =
+                Bitmap.createBitmap(
+                        drawable.getIntrinsicWidth(),
+                        drawable.getIntrinsicHeight(),
+                        Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+        drawable.draw(canvas);
+        return bitmap;
     }
 }

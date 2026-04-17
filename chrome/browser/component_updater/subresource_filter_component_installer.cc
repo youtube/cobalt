@@ -4,6 +4,7 @@
 
 #include "chrome/browser/component_updater/subresource_filter_component_installer.h"
 
+#include <optional>
 #include <utility>
 
 #include "base/files/file_path.h"
@@ -11,15 +12,14 @@
 #include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/path_service.h"
-#include "base/strings/string_piece.h"
 #include "base/values.h"
 #include "base/version.h"
 #include "chrome/browser/browser_process.h"
 #include "components/component_updater/component_updater_paths.h"
-#include "components/subresource_filter/content/browser/ruleset_service.h"
+#include "components/subresource_filter/content/shared/browser/ruleset_service.h"
 #include "components/subresource_filter/core/browser/subresource_filter_constants.h"
 #include "components/subresource_filter/core/browser/subresource_filter_features.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "components/subresource_filter/core/common/constants.h"
 
 using component_updater::ComponentUpdateService;
 
@@ -74,7 +74,7 @@ void SubresourceFilterComponentInstallerPolicy::ComponentReady(
     base::Value::Dict manifest) {
   DCHECK(!install_dir.empty());
   DVLOG(1) << "Subresource Filter Version Ready: " << install_dir.value();
-  absl::optional<int> ruleset_format =
+  std::optional<int> ruleset_format =
       manifest.FindInt(kManifestRulesetFormatKey);
   if (!ruleset_format || *ruleset_format != kCurrentRulesetFormat) {
     DVLOG(1) << "Bailing out.";
@@ -104,7 +104,8 @@ bool SubresourceFilterComponentInstallerPolicy::VerifyInstallation(
 
 base::FilePath
 SubresourceFilterComponentInstallerPolicy::GetRelativeInstallDir() const {
-  return base::FilePath(subresource_filter::kTopLevelDirectoryName)
+  return base::FilePath(
+             subresource_filter::kSafeBrowsingRulesetConfig.top_level_directory)
       .Append(subresource_filter::kUnindexedRulesetBaseDirectoryName);
 }
 
@@ -125,8 +126,9 @@ std::string SubresourceFilterComponentInstallerPolicy::GetInstallerTag() {
           ->lexicographically_greatest_ruleset_flavor());
 
   // Allow the empty, and 4 non-empty ruleset flavor identifiers: a, b, c, d.
-  if (ruleset_flavor.empty())
+  if (ruleset_flavor.empty()) {
     return ruleset_flavor;
+  }
 
   if (ruleset_flavor.size() == 1 && ruleset_flavor.at(0) >= 'a' &&
       ruleset_flavor.at(0) <= 'd') {
@@ -143,8 +145,9 @@ update_client::InstallerAttributes
 SubresourceFilterComponentInstallerPolicy::GetInstallerAttributes() const {
   update_client::InstallerAttributes attributes;
   std::string installer_tag = GetInstallerTag();
-  if (!installer_tag.empty())
+  if (!installer_tag.empty()) {
     attributes["tag"] = installer_tag;
+  }
   return attributes;
 }
 

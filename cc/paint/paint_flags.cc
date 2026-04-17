@@ -4,6 +4,7 @@
 
 #include "cc/paint/paint_flags.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "base/memory/values_equivalent.h"
@@ -12,13 +13,11 @@
 #include "cc/paint/paint_op.h"
 #include "cc/paint/paint_op_buffer.h"
 #include "cc/paint/paint_shader.h"
+#include "third_party/skia/include/core/SkColorFilter.h"
+#include "third_party/skia/include/core/SkPathEffect.h"
 #include "third_party/skia/include/core/SkPathUtils.h"
 
 namespace {
-
-bool affects_alpha(const SkColorFilter* cf) {
-  return cf && !cf->isAlphaUnchanged();
-}
 
 template <typename T>
 bool AreValuesEqualForTesting(const sk_sp<T>& a, const sk_sp<T>& b) {
@@ -27,53 +26,55 @@ bool AreValuesEqualForTesting(const sk_sp<T>& a, const sk_sp<T>& b) {
   });
 }
 
-bool AreSkFlattenablesEqualForTesting(const sk_sp<SkFlattenable> a,  // IN-TEST
-                                      const sk_sp<SkFlattenable> b) {
-  return base::ValuesEquivalent(
-      a, b, [](const SkFlattenable& x, const SkFlattenable& y) {
-        return x.serialize()->equals(y.serialize().get());
-      });
-}
-
 }  // namespace
 
 namespace cc {
 
-PaintFlags::PaintFlags() {
+CorePaintFlags::CorePaintFlags() {
   // Match SkPaint defaults.
   bitfields_uint_ = 0u;
   bitfields_.cap_type_ = SkPaint::kDefault_Cap;
   bitfields_.join_type_ = SkPaint::kDefault_Join;
   bitfields_.style_ = SkPaint::kFill_Style;
+  bitfields_.blend_mode_ = static_cast<int>(SkBlendMode::kSrcOver);
   bitfields_.filter_quality_ =
       static_cast<int>(PaintFlags::FilterQuality::kNone);
+  bitfields_.dynamic_range_limit_standard_mix_ = 0;
+  bitfields_.dynamic_range_limit_constrained_high_mix_ = 0;
 
   static_assert(sizeof(bitfields_) <= sizeof(bitfields_uint_),
                 "Too many bitfields");
 }
 
+bool CorePaintFlags::operator==(const CorePaintFlags& other) const {
+  return color_ == other.color_ && width_ == other.width_ &&
+         miter_limit_ == other.miter_limit_ &&
+         bitfields_uint_ == other.bitfields_uint_;
+}
+
+PaintFlags::PaintFlags() = default;
+
 PaintFlags::PaintFlags(const PaintFlags& flags) = default;
 
+PaintFlags::PaintFlags(const CorePaintFlags& flags) : CorePaintFlags(flags) {}
+
 PaintFlags::PaintFlags(PaintFlags&& other) = default;
-
-PaintFlags::~PaintFlags() {
-  // TODO(enne): non-default dtor to investigate http://crbug.com/790915
-
-  // Sanity check accessing this object doesn't crash.
-  blend_mode_ = static_cast<uint32_t>(SkBlendMode::kLastMode);
-
-  // Free refcounted objects one by one.
-  path_effect_.reset();
-  shader_.reset();
-  mask_filter_.reset();
-  color_filter_.reset();
-  draw_looper_.reset();
-  image_filter_.reset();
-}
 
 PaintFlags& PaintFlags::operator=(const PaintFlags& other) = default;
 
 PaintFlags& PaintFlags::operator=(PaintFlags&& other) = default;
+
+PaintFlags::~PaintFlags() = default;
+
+bool PaintFlags::CanConvertToCorePaintFlags() const {
+  return IsValid() && !path_effect_ && !shader_ && !color_filter_ &&
+         !draw_looper_ && !image_filter_;
+}
+
+CorePaintFlags PaintFlags::ToCorePaintFlags() const {
+  DCHECK(CanConvertToCorePaintFlags());
+  return CorePaintFlags(*this);
+}
 
 void PaintFlags::setImageFilter(sk_sp<PaintFilter> filter) {
   image_filter_ = std::move(filter);
@@ -99,8 +100,8 @@ bool PaintFlags::nothingToDraw() const {
     case SkBlendMode::kDstOut:
     case SkBlendMode::kDstOver:
     case SkBlendMode::kPlus:
-      if (getAlpha() == 0) {
-        return !affects_alpha(color_filter_.get()) && !image_filter_;
+      if (isFullyTransparent()) {
+        return !color_filter_ && !image_filter_;
       }
       break;
     case SkBlendMode::kDst:
@@ -120,32 +121,41 @@ bool PaintFlags::getFillPath(const SkPath& src,
 }
 
 bool PaintFlags::SupportsFoldingAlpha() const {
-  if (getBlendMode() != SkBlendMode::kSrcOver)
+  if (getBlendMode() != SkBlendMode::kSrcOver) {
     return false;
-  if (getColorFilter())
+  }
+  if (getColorFilter()) {
     return false;
-  if (getImageFilter())
+  }
+  if (getImageFilter()) {
     return false;
-  if (getLooper())
+  }
+  if (getLooper()) {
     return false;
+  }
   return true;
 }
 
 SkPaint PaintFlags::ToSkPaint() const {
   SkPaint paint;
-  paint.setPathEffect(path_effect_);
-  if (shader_)
+  if (path_effect_) {
+    paint.setPathEffect(path_effect_->GetSkPathEffect());
+  }
+  if (shader_) {
     paint.setShader(shader_->GetSkShader(getFilterQuality()));
-  paint.setMaskFilter(mask_filter_);
-  paint.setColorFilter(color_filter_);
-  if (image_filter_)
+  }
+  if (color_filter_) {
+    paint.setColorFilter(color_filter_->sk_color_filter_);
+  }
+  if (image_filter_) {
     paint.setImageFilter(image_filter_->cached_sk_filter_);
-  paint.setColor(color_);
-  paint.setStrokeWidth(width_);
-  paint.setStrokeMiter(miter_limit_);
+  }
+  paint.setColor(getColor4f());
+  paint.setStrokeWidth(getStrokeWidth());
+  paint.setStrokeMiter(getStrokeMiter());
   paint.setBlendMode(getBlendMode());
-  paint.setAntiAlias(bitfields_.antialias_);
-  paint.setDither(bitfields_.dither_);
+  paint.setAntiAlias(isAntiAlias());
+  paint.setDither(isDither());
   paint.setStrokeCap(static_cast<SkPaint::Cap>(getStrokeCap()));
   paint.setStrokeJoin(static_cast<SkPaint::Join>(getStrokeJoin()));
   paint.setStyle(static_cast<SkPaint::Style>(getStyle()));
@@ -154,21 +164,42 @@ SkPaint PaintFlags::ToSkPaint() const {
 
 SkSamplingOptions PaintFlags::FilterQualityToSkSamplingOptions(
     PaintFlags::FilterQuality filter_quality) {
+  return FilterQualityToSkSamplingOptions(filter_quality,
+                                          ScalingOperation::kDefault);
+}
+
+SkSamplingOptions PaintFlags::FilterQualityToSkSamplingOptions(
+    PaintFlags::FilterQuality filter_quality,
+    PaintFlags::ScalingOperation scaling_op) {
   switch (filter_quality) {
     case PaintFlags::FilterQuality::kHigh:
-      return SkSamplingOptions(SkCubicResampler::CatmullRom());
+      switch (scaling_op) {
+        case PaintFlags::ScalingOperation::kDefault:
+          return SkSamplingOptions(SkCubicResampler::CatmullRom());
+        case PaintFlags::ScalingOperation::kUnknown:
+          return SkSamplingOptions(SkFilterMode::kLinear,
+                                   SkMipmapMode::kLinear);
+        case PaintFlags::ScalingOperation::kUpscale:
+          return SkSamplingOptions(SkCubicResampler::Mitchell());
+      }
     case PaintFlags::FilterQuality::kMedium:
-      return SkSamplingOptions(SkFilterMode::kLinear, SkMipmapMode::kNearest);
+      switch (scaling_op) {
+        case PaintFlags::ScalingOperation::kDefault:
+          return SkSamplingOptions(SkFilterMode::kLinear,
+                                   SkMipmapMode::kNearest);
+        case PaintFlags::ScalingOperation::kUnknown:
+        case PaintFlags::ScalingOperation::kUpscale:
+          return SkSamplingOptions(SkFilterMode::kLinear,
+                                   SkMipmapMode::kLinear);
+      }
     case PaintFlags::FilterQuality::kLow:
       return SkSamplingOptions(SkFilterMode::kLinear, SkMipmapMode::kNone);
     case PaintFlags::FilterQuality::kNone:
       return SkSamplingOptions(SkFilterMode::kNearest, SkMipmapMode::kNone);
-    default:
-      NOTREACHED();
   }
 }
 
-bool PaintFlags::IsValid() const {
+bool CorePaintFlags::IsValid() const {
   return PaintOp::IsValidPaintFlagsSkBlendMode(getBlendMode());
 }
 
@@ -177,29 +208,57 @@ bool PaintFlags::EqualsForTesting(const PaintFlags& other) const {
   // comparisons on all the ref'd skia objects on the SkPaint, which
   // is not true after serialization.
   return getColor() == other.getColor() &&
-         getStrokeWidth() == getStrokeWidth() &&
+         getStrokeWidth() == other.getStrokeWidth() &&
          getStrokeMiter() == other.getStrokeMiter() &&
          getBlendMode() == other.getBlendMode() &&
          getStrokeCap() == other.getStrokeCap() &&
          getStrokeJoin() == other.getStrokeJoin() &&
          getStyle() == other.getStyle() &&
          getFilterQuality() == other.getFilterQuality() &&
-         AreSkFlattenablesEqualForTesting(path_effect_,  // IN-TEST
-                                          other.path_effect_) &&
-         AreSkFlattenablesEqualForTesting(mask_filter_,  // IN-TEST
-                                          other.mask_filter_) &&
-         AreSkFlattenablesEqualForTesting(color_filter_,  // IN-TEST
-                                          other.color_filter_) &&
-         AreSkFlattenablesEqualForTesting(draw_looper_,  // IN-TEST
-                                          other.draw_looper_) &&
+         getDynamicRangeLimit() == other.getDynamicRangeLimit() &&
+         isArcClosed() == other.isArcClosed() &&
+         AreValuesEqualForTesting(path_effect_,  // IN-TEST
+                                  other.path_effect_) &&
+         AreValuesEqualForTesting(color_filter_,  // IN-TEST
+                                  other.color_filter_) &&
+         AreValuesEqualForTesting(draw_looper_,  // IN-TEST
+                                  other.draw_looper_) &&
          AreValuesEqualForTesting(image_filter_,  // IN-TEST
                                   other.image_filter_) &&
          AreValuesEqualForTesting(shader_, other.shader_);  // IN-TEST
 }
 
-bool PaintFlags::HasDiscardableImages() const {
-  return (shader_ && shader_->has_discardable_images()) ||
-         (image_filter_ && image_filter_->has_discardable_images());
+bool PaintFlags::HasDiscardableImages(
+    gfx::ContentColorUsage* content_color_usage) const {
+  bool has_discardable_images = false;
+  if (shader_) {
+    has_discardable_images = shader_->HasDiscardableImages(content_color_usage);
+  }
+  if (image_filter_ && image_filter_->has_discardable_images()) {
+    if (content_color_usage) {
+      *content_color_usage =
+          std::max(*content_color_usage, image_filter_->GetContentColorUsage());
+    }
+    has_discardable_images = true;
+  }
+  return has_discardable_images;
+}
+
+float PaintFlags::DynamicRangeLimitMixture::ComputeHdrHeadroom(
+    float target_hdr_headroom) const {
+  if (constrained_high_mix == 0.f && standard_mix == 0.f) {
+    return target_hdr_headroom;
+  }
+  const float high_mix = 1.f - constrained_high_mix - standard_mix;
+
+  // Average the headrooms in log-space.
+  const float log2_high_headroom = std::log2(target_hdr_headroom);
+  const float log2_constrained_high_headroom =
+      std::min(1.f, log2_high_headroom);
+  const float log2_standard_headroom = 0.f;
+  return std::exp2(standard_mix * log2_standard_headroom +
+                   constrained_high_mix * log2_constrained_high_headroom +
+                   high_mix * log2_high_headroom);
 }
 
 }  // namespace cc

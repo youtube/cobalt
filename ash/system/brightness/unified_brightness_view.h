@@ -21,13 +21,13 @@ namespace ash {
 class ASH_EXPORT UnifiedBrightnessView
     : public UnifiedSliderView,
       public UnifiedSystemTrayModel::Observer {
- public:
-  METADATA_HEADER(UnifiedBrightnessView);
+  METADATA_HEADER(UnifiedBrightnessView, UnifiedSliderView)
 
+ public:
   UnifiedBrightnessView(UnifiedBrightnessSliderController* controller,
                         scoped_refptr<UnifiedSystemTrayModel> model,
-                        absl::optional<views::Button::PressedCallback>
-                            detailed_button_callback = absl::nullopt);
+                        std::optional<views::Button::PressedCallback>
+                            detailed_button_callback = std::nullopt);
   UnifiedBrightnessView(const UnifiedBrightnessView&) = delete;
   UnifiedBrightnessView& operator=(const UnifiedBrightnessView&) = delete;
   ~UnifiedBrightnessView() override;
@@ -44,7 +44,20 @@ class ASH_EXPORT UnifiedBrightnessView
       &kUnifiedMenuBrightnessHighIcon,    // High brightness.
   };
 
+  // The maximum index of `kBrightnessLevelIcons`.
+  static constexpr int kBrightnessLevels = std::size(kBrightnessLevelIcons) - 1;
+
+  IconButton* more_button() { return more_button_; }
+
+  IconButton* night_light_button() { return night_light_button_; }
+
  private:
+  friend class UnifiedBrightnessViewTest;
+
+  // Get vector icon reference that corresponds to the given brightness level.
+  // `level` is between 0.0 to 1.0.
+  const gfx::VectorIcon& GetBrightnessIconForLevel(float level);
+
   // Callback called when `night_light_button_` is pressed.
   void OnNightLightButtonPressed();
 
@@ -55,10 +68,10 @@ class ASH_EXPORT UnifiedBrightnessView
   void VisibilityChanged(View* starting_from, bool is_visible) override;
 
   scoped_refptr<UnifiedSystemTrayModel> model_;
-  const raw_ptr<NightLightControllerImpl, ExperimentalAsh>
-      night_light_controller_;
+  const raw_ptr<NightLightControllerImpl> night_light_controller_;
   // Owned by the views hierarchy.
-  raw_ptr<IconButton, ExperimentalAsh> night_light_button_ = nullptr;
+  raw_ptr<IconButton> night_light_button_ = nullptr;
+  raw_ptr<IconButton> more_button_ = nullptr;
 };
 
 }  // namespace ash

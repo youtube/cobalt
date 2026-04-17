@@ -9,22 +9,23 @@
  * components directly).
  */
 import '//resources/cr_elements/cr_button/cr_button.js';
-import '//resources/cr_elements/cr_hidden_style.css.js';
 import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
-import '//resources/cr_elements/cr_shared_vars.css.js';
+import '//resources/cr_elements/cr_icon/cr_icon.js';
 import '//resources/cr_elements/icons.html.js';
-import '//resources/polymer/v3_0/iron-icon/iron-icon.js';
 import './help_bubble_icons.html.js';
 
-import {CrButtonElement} from '//resources/cr_elements/cr_button/cr_button.js';
-import {CrIconButtonElement} from '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
-import {assert, assertNotReached} from '//resources/js/assert_ts.js';
+import type {CrButtonElement} from '//resources/cr_elements/cr_button/cr_button.js';
+import type {CrIconButtonElement} from '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
+import {assert, assertNotReached} from '//resources/js/assert.js';
 import {isWindows} from '//resources/js/platform.js';
-import {DomRepeat, DomRepeatEvent, PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {InsetsF} from 'chrome://resources/mojo/ui/gfx/geometry/mojom/geometry.mojom-webui.js';
+import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
+import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
+import type {InsetsF} from '//resources/mojo/ui/gfx/geometry/mojom/geometry.mojom-webui.js';
 
-import {getTemplate} from './help_bubble.html.js';
-import {HelpBubbleArrowPosition, HelpBubbleButtonParams, Progress} from './help_bubble.mojom-webui.js';
+import {getCss} from './help_bubble.css.js';
+import {getHtml} from './help_bubble.html.js';
+import type {HelpBubbleButtonParams, Progress} from './help_bubble.mojom-webui.js';
+import {HelpBubbleArrowPosition} from './help_bubble.mojom-webui.js';
 
 const ACTION_BUTTON_ID_PREFIX = 'action-button-';
 
@@ -37,13 +38,13 @@ export const HELP_BUBBLE_SCROLL_ANCHOR_OPTIONS: ScrollIntoViewOptions = {
 };
 
 export type HelpBubbleDismissedEvent = CustomEvent<{
-  nativeId: any,
+  nativeId: string,
   fromActionButton: boolean,
   buttonIndex?: number,
 }>;
 
 export type HelpBubbleTimedOutEvent = CustomEvent<{
-  nativeId: any,
+  nativeId: string,
 }>;
 
 export function debounceEnd(fn: Function, time: number = 50): () => void {
@@ -59,7 +60,6 @@ export interface HelpBubbleElement {
     arrow: HTMLElement,
     bodyIcon: HTMLElement,
     buttons: HTMLElement,
-    buttonlist: DomRepeat,
     close: CrIconButtonElement,
     main: HTMLElement,
     mainBody: HTMLElement,
@@ -70,45 +70,67 @@ export interface HelpBubbleElement {
   };
 }
 
-export class HelpBubbleElement extends PolymerElement {
+export class HelpBubbleElement extends CrLitElement {
   static get is() {
     return 'help-bubble';
   }
 
-  static get template() {
-    return getTemplate();
+  static override get styles() {
+    return getCss();
   }
 
-  static get properties() {
+  override render() {
+    return getHtml.bind(this)();
+  }
+
+  static override get properties() {
     return {
       nativeId: {
         type: String,
-        value: '',
-        reflectToAttribute: true,
+        reflect: true,
       },
       position: {
         type: HelpBubbleArrowPosition,
-        value: HelpBubbleArrowPosition.TOP_CENTER,
-        reflectToAttribute: true,
+        reflect: true,
+      },
+      bodyIconName: {type: String},
+      bodyIconAltText: {type: String},
+      progress: {type: Object},
+      titleText: {type: String},
+      bodyText: {type: String},
+      buttons: {type: Array},
+      sortedButtons: {type: Array},
+      closeButtonAltText: {type: String},
+      closeButtonTabIndex: {type: Number},
+
+      progressData_: {
+        type: Array,
+        state: true,
       },
     };
   }
 
-  nativeId: any;
-  bodyText: string;
-  titleText: string;
-  closeButtonAltText: string;
-  closeButtonTabIndex: number = 0;
-  position: HelpBubbleArrowPosition;
-  buttons: HelpBubbleButtonParams[] = [];
-  progress: Progress|null = null;
-  bodyIconName: string|null;
-  bodyIconAltText: string;
+  accessor nativeId: string = '';
+  accessor bodyText: string = '';
+  accessor titleText: string = '';
+  accessor closeButtonAltText: string = '';
+  accessor closeButtonTabIndex: number = 0;
+  accessor position: HelpBubbleArrowPosition =
+      HelpBubbleArrowPosition.TOP_CENTER;
+  accessor buttons: HelpBubbleButtonParams[] = [];
+  accessor sortedButtons: HelpBubbleButtonParams[] = [];
+  accessor progress: Progress|null = null;
+  accessor bodyIconName: string|null = null;
+  accessor bodyIconAltText: string = '';
+
   timeoutMs: number|null = null;
   timeoutTimerId: number|null = null;
   debouncedUpdate: (() => void)|null = null;
-  padding: InsetsF = new InsetsF();
+  padding: InsetsF = {top: 0, bottom: 0, left: 0, right: 0};
   fixed: boolean = false;
+  focusAnchor: boolean = false;
+
+  private buttonListObserver_: MutationObserver|null = null;
 
   /**
    * HTMLElement corresponding to |this.nativeId|.
@@ -119,7 +141,7 @@ export class HelpBubbleElement extends PolymerElement {
    * Backing data for the dom-repeat that generates progress indicators.
    * The elements are placeholders only.
    */
-  private progressData_: void[] = [];
+  protected accessor progressData_: boolean[] = [];
 
   /**
    * Watches the offsetParent for resize events, allowing the bubble to be
@@ -127,6 +149,13 @@ export class HelpBubbleElement extends PolymerElement {
    * target can be filtered/expanded/repositioned.
    */
   private resizeObserver_: ResizeObserver|null = null;
+
+  override willUpdate(changedProperties: PropertyValues<this>) {
+    super.willUpdate(changedProperties);
+    if (changedProperties.has('buttons')) {
+      this.sortedButtons = this.buttons.toSorted(this.buttonSortFunc_);
+    }
+  }
 
   /**
    * Shows the bubble.
@@ -137,6 +166,7 @@ export class HelpBubbleElement extends PolymerElement {
     // Set up the progress track.
     if (this.progress) {
       this.progressData_ = new Array(this.progress.total);
+      this.progressData_.fill(true);
     } else {
       this.progressData_ = [];
     }
@@ -161,17 +191,15 @@ export class HelpBubbleElement extends PolymerElement {
       }
     }, 50);
 
-    this.$.buttonlist.addEventListener(
-        'rendered-item-count-changed', this.debouncedUpdate);
+    this.buttonListObserver_ = new MutationObserver(this.debouncedUpdate);
+    this.buttonListObserver_.observe(this.$.buttons, {childList: true});
     window.addEventListener('resize', this.debouncedUpdate);
 
     if (this.timeoutMs !== null) {
       const timedOutCallback = () => {
-        this.dispatchEvent(new CustomEvent(HELP_BUBBLE_TIMED_OUT_EVENT, {
-          detail: {
-            nativeId: this.nativeId,
-          },
-        }));
+        this.fire(HELP_BUBBLE_TIMED_OUT_EVENT, {
+          nativeId: this.nativeId,
+        });
       };
       this.timeoutTimerId = setTimeout(timedOutCallback, this.timeoutMs);
     }
@@ -205,10 +233,12 @@ export class HelpBubbleElement extends PolymerElement {
       clearInterval(this.timeoutTimerId);
       this.timeoutTimerId = null;
     }
+    if (this.buttonListObserver_) {
+      this.buttonListObserver_.disconnect();
+      this.buttonListObserver_ = null;
+    }
     if (this.debouncedUpdate) {
       window.removeEventListener('resize', this.debouncedUpdate);
-      this.$.buttonlist.removeEventListener(
-          'rendered-item-count-changed', this.debouncedUpdate);
       this.debouncedUpdate = null;
     }
   }
@@ -233,12 +263,25 @@ export class HelpBubbleElement extends PolymerElement {
    * Focuses a button in the bubble.
    */
   override focus() {
-    this.$.buttonlist.render();
-    const button: HTMLElement =
-        this.$.buttons.querySelector('cr-button.default-button') ||
-        this.$.buttons.querySelector('cr-button') || this.$.close;
-    assert(button);
-    button.focus();
+    // First try to focus either the default button or any action button.
+    const defaultButton =
+        this.$.buttons.querySelector<HTMLElement>('cr-button.default-button') ||
+        this.$.buttons.querySelector('cr-button');
+    if (defaultButton) {
+      defaultButton.focus();
+      return;
+    }
+
+    // As a fallback, focus the close button before trying to focus the anchor;
+    // this will allow the focus to stay on the close button if the anchor
+    // cannot be focused.
+    this.$.close.focus();
+
+    // Maybe try to focus the anchor. This is preferable to focusing the close
+    // button, but not every element can be focused.
+    if (this.anchorElement_ && this.focusAnchor) {
+      this.anchorElement_.focus();
+    }
   }
 
   /**
@@ -249,21 +292,19 @@ export class HelpBubbleElement extends PolymerElement {
     return isWindows;
   }
 
-  private dismiss_() {
+  protected dismiss_() {
     assert(this.nativeId, 'Dismiss: expected help bubble to have a native id.');
-    this.dispatchEvent(new CustomEvent(HELP_BUBBLE_DISMISSED_EVENT, {
-      detail: {
-        nativeId: this.nativeId,
-        fromActionButton: false,
-      },
-    }));
+    this.fire(HELP_BUBBLE_DISMISSED_EVENT, {
+      nativeId: this.nativeId,
+      fromActionButton: false,
+    });
   }
 
   /**
    * Handles ESC keypress (dismiss bubble) and prevents it from propagating up
    * to parent elements.
    */
-  private onKeyDown_(e: KeyboardEvent) {
+  protected onKeyDown_(e: KeyboardEvent) {
     if (e.key === 'Escape') {
       e.stopPropagation();
       this.dismiss_();
@@ -274,35 +315,32 @@ export class HelpBubbleElement extends PolymerElement {
    * Prevent event propagation. Attach to any event that should not bubble up
    * out of the help bubble.
    */
-  private blockPropagation_(e: Event) {
+  protected blockPropagation_(e: Event) {
     e.stopPropagation();
   }
 
-  private getProgressClass_(index: number): string {
+  protected getProgressClass_(index: number): string {
     return index < this.progress!.current ? 'current-progress' :
                                             'total-progress';
   }
 
-  private shouldShowTitleInTopContainer_(
-      progress: Progress|null, titleText: string): boolean {
-    return !!titleText && !progress;
+  protected shouldShowTitleInTopContainer_(): boolean {
+    return !!this.titleText && !this.progress;
   }
 
-  private shouldShowBodyInTopContainer_(
-      progress: Progress|null, titleText: string): boolean {
-    return !progress && !titleText;
+  protected shouldShowBodyInTopContainer_(): boolean {
+    return !this.progress && !this.titleText;
   }
 
-  private shouldShowBodyInMain_(progress: Progress|null, titleText: string):
-      boolean {
-    return !!progress || !!titleText;
+  protected shouldShowBodyInMain_(): boolean {
+    return !!this.progress || !!this.titleText;
   }
 
-  private shouldShowBodyIcon_(bodyIconName: string): boolean {
-    return bodyIconName !== null && bodyIconName !== '';
+  protected shouldShowBodyIcon_(): boolean {
+    return this.bodyIconName !== null && this.bodyIconName !== '';
   }
 
-  private onButtonClick_(e: DomRepeatEvent<HelpBubbleButtonParams>) {
+  protected onButtonClick_(e: MouseEvent) {
     assert(
         this.nativeId,
         'Action button clicked: expected help bubble to have a native ID.');
@@ -310,25 +348,28 @@ export class HelpBubbleElement extends PolymerElement {
     // dom-repeat. However, the index is stored in the node's identifier.
     const index: number = parseInt(
         (e.target as Element).id.substring(ACTION_BUTTON_ID_PREFIX.length));
-    this.dispatchEvent(new CustomEvent(HELP_BUBBLE_DISMISSED_EVENT, {
-      detail: {
-        nativeId: this.nativeId,
-        fromActionButton: true,
-        buttonIndex: index,
-      },
-    }));
+    this.fire(HELP_BUBBLE_DISMISSED_EVENT, {
+      nativeId: this.nativeId,
+      fromActionButton: true,
+      buttonIndex: index,
+    });
   }
 
-  private getButtonId_(index: number): string {
+  protected getButtonId_(item: HelpBubbleButtonParams): string {
+    const index = this.buttons.indexOf(item);
+    assert(index > -1);
     return ACTION_BUTTON_ID_PREFIX + index;
   }
 
-  private getButtonClass_(isDefault: boolean): string {
-    return isDefault ? 'default-button' : '';
+  protected getButtonClass_(isDefault: boolean): string {
+    return isDefault ? 'default-button focus-outline-visible' :
+                       'focus-outline-visible';
   }
 
-  private getButtonTabIndex_(index: number, isDefault: boolean): number {
-    return isDefault ? 1 : index + 2;
+  protected getButtonTabIndex_(item: HelpBubbleButtonParams): number {
+    const index = this.buttons.indexOf(item);
+    assert(index > -1);
+    return item.isDefault ? 1 : index + 2;
   }
 
   private buttonSortFunc_(
@@ -348,10 +389,10 @@ export class HelpBubbleElement extends PolymerElement {
    * Determine classes that describe the arrow position relative to the
    * HelpBubble
    */
-  private getArrowClass_(position: HelpBubbleArrowPosition): string {
+  protected getArrowClass_(): string {
     let classList = '';
     // `*-edge` classes move arrow to a HelpBubble edge
-    switch (position) {
+    switch (this.position) {
       case HelpBubbleArrowPosition.TOP_LEFT:
       case HelpBubbleArrowPosition.TOP_CENTER:
       case HelpBubbleArrowPosition.TOP_RIGHT:
@@ -373,10 +414,10 @@ export class HelpBubbleElement extends PolymerElement {
         classList = 'right-edge ';
         break;
       default:
-        assertNotReached('Unknown help bubble position: ' + position);
+        assertNotReached('Unknown help bubble position: ' + this.position);
     }
     // `*-position` classes move arrow along the HelpBubble edge
-    switch (position) {
+    switch (this.position) {
       case HelpBubbleArrowPosition.TOP_LEFT:
       case HelpBubbleArrowPosition.BOTTOM_LEFT:
         classList += 'left-position';
@@ -402,7 +443,7 @@ export class HelpBubbleElement extends PolymerElement {
         classList += 'bottom-position';
         break;
       default:
-        assertNotReached('Unknown help bubble position: ' + position);
+        assertNotReached('Unknown help bubble position: ' + this.position);
     }
     return classList;
   }

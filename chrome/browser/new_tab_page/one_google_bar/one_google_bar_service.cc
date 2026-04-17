@@ -77,21 +77,22 @@ void OneGoogleBarService::SetLanguageCodeForTesting(
   language_code_ = language_code;
 }
 
-bool OneGoogleBarService::SetAdditionalQueryParams(const std::string& value) {
-  return loader_->SetAdditionalQueryParams(value);
+void OneGoogleBarService::SetAdditionalQueryParams(
+    const std::map<std::string, std::string>& params) {
+  return loader_->SetAdditionalQueryParams(params);
 }
 
 void OneGoogleBarService::SigninStatusChanged() {
   // If we have cached data, clear it and notify observers.
   if (one_google_bar_data_.has_value()) {
-    one_google_bar_data_ = absl::nullopt;
+    one_google_bar_data_ = std::nullopt;
     NotifyObservers();
   }
 }
 
 void OneGoogleBarService::OneGoogleBarDataLoaded(
     OneGoogleBarLoader::Status status,
-    const absl::optional<OneGoogleBarData>& data) {
+    const std::optional<OneGoogleBarData>& data) {
   // In case of transient errors, keep our cached data (if any), but still
   // notify observers of the finished load (attempt).
   if (status != OneGoogleBarLoader::Status::TRANSIENT_ERROR) {

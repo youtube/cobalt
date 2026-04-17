@@ -21,11 +21,10 @@
 # For example, to compile a Chrome source tree in /g/src for an
 # auron_paine CrOS device with the system root cached in /g/.cros_cache,
 # the following GN arguments must be provided to configure
-# cross-compilation with Goma acceleration. (NB: additional variables
+# cross-compilation with RBE acceleration. (NB: additional variables
 # will be necessary to successfully compile a working CrOS Chrome. See
 # the definition of GYP_DEFINES inside a sysroot shell.)
 #
-# goma_dir = "/g/.cros_cache/common/goma+2"
 # target_sysroot= /g/.cros_cache/chrome-sdk/tarballs/auron_paine+7644.0.0+sysroot_chromeos-base_chromeos-chrome.tar.xz"
 # cros_target_cc = "x86_64-cros-linux-gnu-gcc -B/g/.cros_cache/chrome-sdk/tarballs/auron_paine+7657.0.0+target_toolchain/usr/x86_64-pc-linux-gnu/x86_64-cros-linux-gnu/binutils-bin/2.25.51-gold"
 # cros_target_cxx = "x86_64-cros-linux-gnu-g++ -B/g/.cros_cache/chrome-sdk/tarballs/auron_paine+7657.0.0+target_toolchain/usr/x86_64-pc-linux-gnu/x86_64-cros-linux-gnu/binutils-bin/2.25.51-gold"
@@ -37,9 +36,9 @@ import("//build/config/compiler/compiler.gni")
 
 declare_args() {
   # These must be specified for a board-specific build.
-  cros_target_ar = "ar"
-  cros_target_cc = "gcc"
-  cros_target_cxx = "g++"
+  cros_target_ar = "${clang_base_path}/bin/llvm-ar"
+  cros_target_cc = "${clang_base_path}/bin/clang"
+  cros_target_cxx = "${clang_base_path}/bin/clang++"
   cros_target_nm = ""
   cros_target_readelf = ""
 
@@ -77,9 +76,9 @@ declare_args() {
   cros_nacl_bootstrap_extra_cxxflags = ""
   cros_nacl_bootstrap_extra_ldflags = ""
 
-  cros_nacl_helper_arm32_ar = "ar"
-  cros_nacl_helper_arm32_cc = "gcc"
-  cros_nacl_helper_arm32_cxx = "g++"
+  cros_nacl_helper_arm32_ar = "${clang_base_path}/bin/llvm-ar"
+  cros_nacl_helper_arm32_cc = "${clang_base_path}/bin/clang"
+  cros_nacl_helper_arm32_cxx = "${clang_base_path}/bin/clang++"
   cros_nacl_helper_arm32_readelf = ""
   cros_nacl_helper_arm32_sysroot = ""
 }

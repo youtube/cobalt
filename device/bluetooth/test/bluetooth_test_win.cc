@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "device/bluetooth/test/bluetooth_test_win.h"
 
 #include <windows.devices.bluetooth.h>
@@ -67,6 +72,7 @@ namespace device {
 
 namespace {
 
+using ABI::Windows::Devices::Bluetooth::BluetoothCacheMode;
 using ABI::Windows::Devices::Bluetooth::IBluetoothAdapter;
 using ABI::Windows::Devices::Bluetooth::IBluetoothAdapterStatics;
 using ABI::Windows::Devices::Bluetooth::IBluetoothLEDevice;
@@ -278,10 +284,10 @@ void BluetoothTestWin::StartLowEnergyDiscoverySession() {
 }
 
 BluetoothDevice* BluetoothTestWin::SimulateLowEnergyDevice(int device_ordinal) {
-  NOTREACHED_NORETURN();
+  NOTREACHED();
 }
 
-absl::optional<BluetoothUUID> BluetoothTestWin::GetTargetGattService(
+std::optional<BluetoothUUID> BluetoothTestWin::GetTargetGattService(
     BluetoothDevice* device) {
   auto* const ble_device =
       static_cast<TestBluetoothDeviceWinrt*>(device)->ble_device();
@@ -386,7 +392,12 @@ BluetoothTestWinrt::BluetoothTestWinrt() {
   } else {
     disabled.push_back(kNewBLEGattSessionHandling);
   }
-  // TODO(crbug.com/1335586): Remove once `kWebBluetoothConfirmPairingSupport`
+  if (GetParam().uncached_gatt_discovery_for_gatt_connection) {
+    enabled.push_back(features::kUncachedGattDiscoveryForGattConnection);
+  } else {
+    disabled.push_back(features::kUncachedGattDiscoveryForGattConnection);
+  }
+  // TODO(crbug.com/40847175): Remove once `kWebBluetoothConfirmPairingSupport`
   // is enabled by default.
   enabled.push_back(features::kWebBluetoothConfirmPairingSupport);
   scoped_feature_list_.InitWithFeatures(enabled, disabled);
@@ -401,6 +412,10 @@ BluetoothTestWinrt::~BluetoothTestWinrt() {
 bool BluetoothTestWinrt::UsesNewGattSessionHandling() const {
   return GetParam().new_gatt_session_handling_enabled &&
          base::win::GetVersion() >= base::win::Version::WIN10_RS3;
+}
+
+bool BluetoothTestWinrt::UncachedGattDiscoveryForGattConnection() const {
+  return GetParam().uncached_gatt_discovery_for_gatt_connection;
 }
 
 bool BluetoothTestWinrt::PlatformSupportsLowEnergy() {
@@ -549,7 +564,7 @@ void BluetoothTestWinrt::SimulateConfirmOnly(BluetoothDevice* device) {
 }
 
 void BluetoothTestWinrt::SimulateDisplayPin(BluetoothDevice* device,
-                                            base::StringPiece display_pin) {
+                                            std::string_view display_pin) {
   auto* const ble_device =
       static_cast<TestBluetoothDeviceWinrt*>(device)->ble_device();
   DCHECK(ble_device);
@@ -834,6 +849,14 @@ void BluetoothTestWinrt::OnFakeBluetoothDeviceConnectGattAttempt() {
 
 void BluetoothTestWinrt::OnFakeBluetoothDeviceGattServiceDiscoveryAttempt() {
   ++gatt_discovery_attempts_;
+}
+
+void BluetoothTestWinrt::
+    OnFakeBluetoothDeviceGattServiceDiscoveryAttemptWithCacheMode(
+        BluetoothCacheMode cache_mode) {
+  // There shouldn't be any code path explicitly using cached mode.
+  CHECK_EQ(cache_mode, BluetoothCacheMode::BluetoothCacheMode_Uncached);
+  ++gatt_discovery_attempts_with_uncached_mode_;
 }
 
 void BluetoothTestWinrt::OnFakeBluetoothGattDisconnect() {

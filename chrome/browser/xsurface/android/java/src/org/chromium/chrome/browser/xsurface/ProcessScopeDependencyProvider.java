@@ -7,7 +7,9 @@ package org.chromium.chrome.browser.xsurface;
 import android.content.Context;
 
 import androidx.annotation.IntDef;
-import androidx.annotation.Nullable;
+
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -17,31 +19,19 @@ import java.lang.annotation.RetentionPolicy;
  *
  * Provides application-level dependencies for an external surface.
  */
+@NullMarked
 public interface ProcessScopeDependencyProvider {
     /**
      * Resolves a library name such as "foo" to an absolute path. The library name should be in the
      * same format given to System.loadLibrary().
      */
     public interface LibraryResolver {
-        String resolvePath(String libName);
+        @Nullable String resolvePath(String libName);
     }
 
     /** @return the context associated with the application. */
-    @Nullable
-    default Context getContext() {
+    default @Nullable Context getContext() {
         return null;
-    }
-
-    /** Returns the account name of the signed-in user, or the empty string. */
-    @Deprecated
-    default String getAccountName() {
-        return "";
-    }
-
-    /** Returns the client instance id for this chrome. */
-    @Deprecated
-    default String getClientInstanceId() {
-        return "";
     }
 
     /** Returns the collection of currently active experiment ids. */
@@ -49,22 +39,34 @@ public interface ProcessScopeDependencyProvider {
         return new int[0];
     }
 
-    /**
-     * Provides experimental feature state to xsurface implementations.
-     */
-    public interface FeatureStateProvider {
-        boolean isFeatureActive(String featureName);
-        boolean getBooleanParameterValue(
-                String featureName, String paramName, boolean defaultValue);
-        int getIntegerParameterValue(String featureName, String paramName, int defaultValue);
-        double getDoubleParameterValue(String featureName, String paramName, double defaultValue);
+    /** Returns the server-provided feed launch CUI metadata. */
+    default byte[] getFeedLaunchCuiMetadata() {
+        return new byte[0];
     }
 
     /**
-     * Returns whether a feature is active.
+     * Provides experimental feature state to xsurface implementations.
      *
-     * The returned function must be called on the UI thread.
+     * <p>Must be called on the UI thread.
+     *
+     * <p>WARNING: These methods can crash Chrome!
+     *
+     * <p>You must add the feature to kFeaturesExposedToJava in
+     * chrome/browser/flags/android/chrome_feature_list.cc before querying for the feature with
+     * these methods. Chrome will crash if it doesn't find the feature.
      */
+    public interface FeatureStateProvider {
+        boolean isFeatureActive(String featureName);
+
+        boolean getBooleanParameterValue(
+                String featureName, String paramName, boolean defaultValue);
+
+        int getIntegerParameterValue(String featureName, String paramName, int defaultValue);
+
+        double getDoubleParameterValue(String featureName, String paramName, double defaultValue);
+    }
+
+    /** Returns the FeatureStateProvider. */
     default FeatureStateProvider getFeatureStateProvider() {
         return new FeatureStateProvider() {
             @Override
@@ -98,16 +100,8 @@ public interface ProcessScopeDependencyProvider {
     /** @see {Log.w} */
     default void logWarning(String tag, String messageTemplate, Object... args) {}
 
-    /**
-     * Returns an ImageFetchClient. ImageFetchClient should only be used for fetching images.
-     */
-    @Nullable
-    default ImageFetchClient getImageFetchClient() {
-        return null;
-    }
-
-    @Nullable
-    default PersistentKeyValueCache getPersistentKeyValueCache() {
+    /** Returns an ImageFetchClient. ImageFetchClient should only be used for fetching images. */
+    default @Nullable ImageFetchClient getImageFetchClient() {
         return null;
     }
 
@@ -129,8 +123,7 @@ public interface ProcessScopeDependencyProvider {
      * Returns a LibraryResolver to be used for resolving native library paths. If null is
      * returned, the default library loading mechanism should be used.
      */
-    @Nullable
-    default LibraryResolver getLibraryResolver() {
+    default @Nullable LibraryResolver getLibraryResolver() {
         return null;
     }
 
@@ -144,7 +137,7 @@ public interface ProcessScopeDependencyProvider {
     }
 
     /** Returns the google API key. */
-    default String getGoogleApiKey() {
+    default @Nullable String getGoogleApiKey() {
         return null;
     }
 
@@ -173,22 +166,6 @@ public interface ProcessScopeDependencyProvider {
         return "";
     }
 
-    /**
-     * Stores a view FeedAction for eventual upload. 'data' is a serialized FeedAction protobuf
-     * message.
-     */
-    default void processViewAction(byte[] data, LoggingParameters loggingParameters) {}
-
-    /**
-     * Reports whether the visibility log upload was successful.
-     *
-     * @param success - whether the upload was successful
-     */
-    @Deprecated
-    default void reportOnUploadVisibilityLog(boolean success) {
-        reportOnUploadVisibilityLog(VisibilityLogType.UNSPECIFIED, success);
-    }
-
     // Visibility log types that can be uploaded.
     @IntDef({VisibilityLogType.UNSPECIFIED, VisibilityLogType.VIEW, VisibilityLogType.CLICK})
     @Retention(RetentionPolicy.SOURCE)
@@ -212,4 +189,22 @@ public interface ProcessScopeDependencyProvider {
      * @param enabled - whether logging is enabled
      */
     default void reportVisibilityLoggingEnabled(boolean enabled) {}
+
+    /** Must return true to enable ReliabilityLoggingTestUtil. */
+    default boolean enableAppFlowDebugging() {
+        return false;
+    }
+
+    /** @return the Color provider. */
+    @Deprecated
+    default @Nullable ColorProvider getColorProvider() {
+        return null;
+    }
+
+    /**
+     * @return True if it is connected to the Internet.
+     */
+    default boolean isNetworkOnline() {
+        return true;
+    }
 }

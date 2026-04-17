@@ -15,6 +15,7 @@ import org.chromium.chrome.browser.share.share_sheet.ChromeOptionShareCallback;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.SheetState;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.StateChangeReason;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetObserver;
 
 /**
@@ -39,10 +40,16 @@ public abstract class BaseScreenshotCoordinator implements BottomSheetObserver {
      * @param chromeOptionShareCallback An interface to share sheet APIs.
      * @param sheetController The {@link BottomSheetController} for the current activity.
      */
-    public BaseScreenshotCoordinator(Activity activity, String shareUrl,
+    public BaseScreenshotCoordinator(
+            Activity activity,
+            String shareUrl,
             ChromeOptionShareCallback chromeOptionShareCallback,
             BottomSheetController sheetController) {
-        this(activity, shareUrl, chromeOptionShareCallback, sheetController,
+        this(
+                activity,
+                shareUrl,
+                chromeOptionShareCallback,
+                sheetController,
                 new EditorScreenshotTask(activity, sheetController));
     }
 
@@ -56,9 +63,12 @@ public abstract class BaseScreenshotCoordinator implements BottomSheetObserver {
      * @param screenshotSource The Source interface to use to take a screenshot.
      */
     @VisibleForTesting
-    protected BaseScreenshotCoordinator(Activity activity, String shareUrl,
+    protected BaseScreenshotCoordinator(
+            Activity activity,
+            String shareUrl,
             ChromeOptionShareCallback chromeOptionShareCallback,
-            BottomSheetController sheetController, EditorScreenshotSource screenshotSource) {
+            BottomSheetController sheetController,
+            EditorScreenshotSource screenshotSource) {
         mActivity = activity;
         mShareUrl = shareUrl;
         mChromeOptionShareCallback = chromeOptionShareCallback;
@@ -66,35 +76,30 @@ public abstract class BaseScreenshotCoordinator implements BottomSheetObserver {
         mScreenshotSource = screenshotSource;
     }
 
-    /**
-     * Takes a screenshot of the current tab and invokes the handler method.
-     */
+    /** Takes a screenshot of the current tab and invokes the handler method. */
     public void captureScreenshot() {
-        mScreenshotSource.capture(() -> {
-            mScreenshot = mScreenshotSource.getScreenshot();
-            handleScreenshot();
-        });
+        mScreenshotSource.capture(
+                () -> {
+                    mScreenshot = mScreenshotSource.getScreenshot();
+                    handleScreenshot();
+                });
     }
 
-    /**
-     * Invoked when the screenshot data is received. To be overridden by subclasses.
-     */
+    /** Invoked when the screenshot data is received. To be overridden by subclasses. */
     protected abstract void handleScreenshot();
 
-    /**
-     * BottomSheetObserver implementation.
-     */
+    /** BottomSheetObserver implementation. */
     @Override
-    public void onSheetOpened(int reason) {}
+    public void onSheetOpened(@StateChangeReason int reason) {}
 
     @Override
-    public void onSheetClosed(int reason) {}
+    public void onSheetClosed(@StateChangeReason int reason) {}
 
     @Override
     public void onSheetOffsetChanged(float heightFraction, float offsetPx) {}
 
     @Override
-    public void onSheetStateChanged(int newState, int reason) {
+    public void onSheetStateChanged(@SheetState int newState, @StateChangeReason int reason) {
         if (newState == SheetState.HIDDEN) {
             // Clean up the observer since the coordinator is discarded when the sheet is hidden.
             mBottomSheetController.removeObserver(this);

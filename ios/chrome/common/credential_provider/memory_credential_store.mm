@@ -4,19 +4,17 @@
 
 #import "ios/chrome/common/credential_provider/memory_credential_store.h"
 
+#import "base/apple/foundation_util.h"
 #import "base/check.h"
-#import "base/mac/foundation_util.h"
 #import "base/notreached.h"
 #import "base/strings/sys_string_conversions.h"
 #import "ios/chrome/common/credential_provider/archivable_credential.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ios/chrome/common/credential_provider/credential_store_util.h"
 
 @interface MemoryCredentialStore ()
 
-// Working queue used to sync the mutable set operations.
+// Working queue used to sync the mutable set and offload expensive get
+// operations.
 @property(nonatomic) dispatch_queue_t workingQueue;
 
 // The in-memory storage.
@@ -41,29 +39,43 @@
 
 - (NSArray<id<Credential>>*)credentials {
   __block NSArray<id<Credential>>* credentials;
+  __weak __typeof(self) weakSelf = self;
   dispatch_sync(self.workingQueue, ^{
-    credentials = [self.memoryStorage allValues];
+    credentials = [weakSelf allMemoryStorageValues];
   });
   return credentials;
 }
 
+- (void)getCredentialsWithCompletion:
+    (void (^)(NSArray<id<Credential>>*))completion {
+  CHECK(completion);
+  __weak __typeof(self) weakSelf = self;
+  dispatch_async(self.workingQueue, ^{
+    completion([weakSelf allMemoryStorageValues]);
+  });
+}
+
 - (void)saveDataWithCompletion:(void (^)(NSError* error))completion {
   // No-op.
-  completion(nil);
+  if (completion) {
+    completion(nil);
+  }
 }
 
 - (void)removeAllCredentials {
+  __weak __typeof(self) weakSelf = self;
   dispatch_barrier_async(self.workingQueue, ^{
-    [self.memoryStorage removeAllObjects];
+    [weakSelf.memoryStorage removeAllObjects];
   });
 }
 
 - (void)addCredential:(id<Credential>)credential {
   DCHECK(credential.recordIdentifier)
       << "credential must have a record identifier";
+  __weak __typeof(self) weakSelf = self;
   dispatch_barrier_async(self.workingQueue, ^{
-    self.memoryStorage[credential.recordIdentifier] =
-        base::mac::ObjCCastStrict<ArchivableCredential>(credential);
+    weakSelf.memoryStorage[credential.recordIdentifier] =
+        base::apple::ObjCCastStrict<ArchivableCredential>(credential);
   });
 }
 
@@ -74,16 +86,18 @@
 
 - (void)removeCredentialWithRecordIdentifier:(NSString*)recordIdentifier {
   DCHECK(recordIdentifier.length) << "Invalid `recordIdentifier` was passed.";
+  __weak __typeof(self) weakSelf = self;
   dispatch_barrier_async(self.workingQueue, ^{
-    self.memoryStorage[recordIdentifier] = nil;
+    weakSelf.memoryStorage[recordIdentifier] = nil;
   });
 }
 
 - (id<Credential>)credentialWithRecordIdentifier:(NSString*)recordIdentifier {
   DCHECK(recordIdentifier.length);
   __block id<Credential> credential;
+  __weak __typeof(self) weakSelf = self;
   dispatch_sync(self.workingQueue, ^{
-    credential = self.memoryStorage[recordIdentifier];
+    credential = weakSelf.memoryStorage[recordIdentifier];
   });
   return credential;
 }
@@ -105,6 +119,13 @@
 // Loads the store from disk.
 - (NSMutableDictionary<NSString*, ArchivableCredential*>*)loadStorage {
   return [[NSMutableDictionary alloc] init];
+}
+
+#pragma mark - Private
+
+// Returns all values from the `memoryStorage` dictionary.
+- (NSArray<ArchivableCredential*>*)allMemoryStorageValues {
+  return [self.memoryStorage allValues];
 }
 
 @end

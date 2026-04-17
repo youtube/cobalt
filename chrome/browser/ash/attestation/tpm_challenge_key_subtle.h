@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_ASH_ATTESTATION_TPM_CHALLENGE_KEY_SUBTLE_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/functional/callback.h"
@@ -22,7 +23,6 @@
 #include "chromeos/dbus/tpm_manager/tpm_manager.pb.h"
 #include "components/account_id/account_id.h"
 #include "components/user_manager/user.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class Profile;
 
@@ -47,7 +47,7 @@ class TpmChallengeKeySubtleFactory final {
   // |profile| may be nullptr - then it is assumed that this is a device-wide
   // instance that is only intended to be used with machine keys.
   static std::unique_ptr<TpmChallengeKeySubtle> CreateForPreparedKey(
-      AttestationKeyType key_type,
+      ::attestation::VerifiedAccessFlow flow_type,
       bool will_register_key,
       ::attestation::KeyType key_crypto_type,
       const std::string& key_name,
@@ -92,13 +92,13 @@ class TpmChallengeKeySubtle {
   // |will_register_key| is true, challenge response will contain SPKAC and the
   // key can be registered using StartRegisterKeyStep method.
   virtual void StartPrepareKeyStep(
-      AttestationKeyType key_type,
+      ::attestation::VerifiedAccessFlow flow_type,
       bool will_register_key,
       ::attestation::KeyType key_crypto_type,
       const std::string& key_name,
       Profile* profile,
       TpmChallengeKeyCallback callback,
-      const absl::optional<std::string>& signals) = 0;
+      const std::optional<std::string>& signals) = 0;
 
   // Generates a VA challenge response using the key pair prepared by
   // |PrepareKey| method. Returns VA challenge response via |callback|. In case
@@ -120,12 +120,13 @@ class TpmChallengeKeySubtle {
   // Restores internal state of the object as if it would be after
   // |StartPrepareKeyStep|. |public_key| is required only if |will_register_key|
   // is true.
-  virtual void RestorePreparedKeyState(AttestationKeyType key_type,
-                                       bool will_register_key,
-                                       ::attestation::KeyType key_crypto_type,
-                                       const std::string& key_name,
-                                       const std::string& public_key,
-                                       Profile* profile) = 0;
+  virtual void RestorePreparedKeyState(
+      ::attestation::VerifiedAccessFlow flow_type,
+      bool will_register_key,
+      ::attestation::KeyType key_crypto_type,
+      const std::string& key_name,
+      const std::string& public_key,
+      Profile* profile) = 0;
 };
 
 //================= TpmChallengeKeySubtleImpl ==================================
@@ -145,36 +146,40 @@ class TpmChallengeKeySubtleImpl final : public TpmChallengeKeySubtle {
   ~TpmChallengeKeySubtleImpl() override;
 
   // TpmChallengeKeySubtle
-  void StartPrepareKeyStep(AttestationKeyType key_type,
+  void StartPrepareKeyStep(::attestation::VerifiedAccessFlow flow_type,
                            bool will_register_key,
                            ::attestation::KeyType key_crypto_type,
                            const std::string& key_name,
                            Profile* profile,
                            TpmChallengeKeyCallback callback,
-                           const absl::optional<std::string>& signals) override;
+                           const std::optional<std::string>& signals) override;
   void StartSignChallengeStep(const std::string& challenge,
                               TpmChallengeKeyCallback callback) override;
   void StartRegisterKeyStep(TpmChallengeKeyCallback callback) override;
 
  private:
   // TpmChallengeKeySubtle
-  void RestorePreparedKeyState(AttestationKeyType key_type,
+  void RestorePreparedKeyState(::attestation::VerifiedAccessFlow flow_type,
                                bool will_register_key,
                                ::attestation::KeyType key_crypto_type,
                                const std::string& key_name,
                                const std::string& public_key,
                                Profile* profile) override;
 
-  void PrepareUserKey();
-  void PrepareMachineKey();
+  void PrepareEnterpriseUserFlow();
+  void PrepareEnterpriseMachineFlow();
+  void PrepareDeviceTrustConnectorFlow();
+
+  // Returns true if the user is managed.
+  // If this is a device-wide instance without a user-associated `profile_`,
+  // returns false.
+  bool IsUserManaged() const;
 
   // Returns true if the user is managed and is affiliated with the domain the
   // device is enrolled to.
   // If this is a device-wide instance without a user-associated |profile_|,
   // returns false.
   bool IsUserAffiliated() const;
-  // Returns true if remote attestation is allowed and the setting is managed.
-  bool IsRemoteAttestationEnabledForUser() const;
 
   // Returns the user email (for user key) or an empty string (for machine key).
   std::string GetEmail() const;
@@ -185,12 +190,18 @@ class TpmChallengeKeySubtleImpl final : public TpmChallengeKeySubtle {
   // Returns the AccountId associated with |profile_|. Will return
   // EmptyAccountId() if GetUser() returns nullptr.
   AccountId GetAccountId() const;
-  // Returns `GetAccountId()` if the key type is `KEY_USER`; otherwise, returns
-  // empty `AccountId` for `KEY_DEVICE`.
+  // Returns `GetAccountId()` if the flow type uses a user key, returns empty
+  // `AccountId` if the flow type uses a device key.
   AccountId GetAccountIdForAttestationFlow() const;
-  // Returns the account id in string if the key type is `KEY_USER`; otherwise,
-  // returns empty string for `KEY_DEVICE`.
+  // Returns the account id in string if the flow type uses a user key, returns
+  // an empty string if the flow type uses a device key.
   std::string GetUsernameForAttestationClient() const;
+  // Returns whether or not the challenge response should include the
+  // certificate of the signing key depending on the VA flow type.
+  bool ShouldIncludeSigningKeyCertificate() const;
+  // Returns whether or not the challenge response should include the device
+  // management / enterprise obfuscated customer ID of the device.
+  bool ShouldIncludeCustomerId() const;
 
   // Actually prepares a key after all checks are passed and if `can_continue`
   // is true.
@@ -204,12 +215,6 @@ class TpmChallengeKeySubtleImpl final : public TpmChallengeKeySubtle {
   void RegisterKeyCallback(
       const ::attestation::RegisterKeyWithChapsTokenReply& reply);
   void MarkCorporateKeyCallback(chromeos::platform_keys::Status status);
-
-  // Returns a trusted value from CrosSettings indicating if the device
-  // attestation is enabled.
-  void GetDeviceAttestationEnabled(
-      const base::RepeatingCallback<void(bool)>& callback);
-  void GetDeviceAttestationEnabledCallback(bool enabled);
 
   void GetEnrollmentPreparationsCallback(
       const ::attestation::GetEnrollmentPreparationsReply& reply);
@@ -228,17 +233,18 @@ class TpmChallengeKeySubtleImpl final : public TpmChallengeKeySubtle {
   void RunCallback(const TpmChallengeKeyResult& result);
 
   std::unique_ptr<AttestationFlow> default_attestation_flow_;
-  raw_ptr<AttestationFlow, ExperimentalAsh> attestation_flow_ = nullptr;
+  raw_ptr<AttestationFlow, LeakedDanglingUntriaged> attestation_flow_ = nullptr;
   // Can be nullptr.
-  raw_ptr<MachineCertificateUploader, ExperimentalAsh>
+  raw_ptr<MachineCertificateUploader, LeakedDanglingUntriaged>
       machine_certificate_uploader_ = nullptr;
 
   TpmChallengeKeyCallback callback_;
   // |profile_| may be nullptr if this is an instance that is used device-wide
   // and only intended to work with machine keys.
-  raw_ptr<Profile, ExperimentalAsh> profile_ = nullptr;
+  raw_ptr<Profile, DanglingUntriaged> profile_ = nullptr;
 
-  AttestationKeyType key_type_ = AttestationKeyType::KEY_DEVICE;
+  ::attestation::VerifiedAccessFlow flow_type_ =
+      ::attestation::ENTERPRISE_MACHINE;
   bool will_register_key_ = false;
   ::attestation::KeyType key_crypto_type_ = ::attestation::KEY_TYPE_RSA;
   // See the comment for TpmChallengeKey::BuildResponse for more context about
@@ -249,7 +255,7 @@ class TpmChallengeKeySubtleImpl final : public TpmChallengeKeySubtle {
   // as corporate.
   std::string public_key_;
   // Signals from Context Aware Access.
-  absl::optional<std::string> signals_;
+  std::optional<std::string> signals_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 

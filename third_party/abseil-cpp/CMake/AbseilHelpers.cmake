@@ -80,7 +80,7 @@ endif()
 #     absl::fantastic_lib
 # )
 #
-# TODO: Implement "ALWAYSLINK"
+# TODO(b/320467376): Implement "ALWAYSLINK".
 function(absl_cc_library)
   cmake_parse_arguments(ABSL_CC_LIB
     "DISABLE_INSTALL;PUBLIC;TESTONLY"
@@ -187,7 +187,15 @@ function(absl_cc_library)
       endif()
     endforeach()
     foreach(cflag ${ABSL_CC_LIB_COPTS})
-      if(${cflag} MATCHES "^(-Wno|/wd)")
+      # Strip out the CMake-specific `SHELL:` prefix, which is used to construct
+      # a group of space-separated options.
+      # https://cmake.org/cmake/help/v3.30/command/target_compile_options.html#option-de-duplication
+      string(REGEX REPLACE "^SHELL:" "" cflag "${cflag}")
+      if(${cflag} MATCHES "^-Xarch_")
+        # An -Xarch_ flag implies that its successor only applies to the
+        # specified platform. Such option groups are each specified in a single
+        # `SHELL:`-prefixed string in the COPTS list, which we simply ignore.
+      elseif(${cflag} MATCHES "^(-Wno-|/wd)")
         # These flags are needed to suppress warnings that might fire in our headers.
         set(PC_CFLAGS "${PC_CFLAGS} ${cflag}")
       elseif(${cflag} MATCHES "^(-W|/w[1234eo])")
@@ -211,7 +219,7 @@ Description: Abseil ${_NAME} library\n\
 URL: https://abseil.io/\n\
 Version: ${PC_VERSION}\n\
 Requires:${PC_DEPS}\n\
-Libs: -L\${libdir} ${PC_LINKOPTS} $<$<NOT:$<BOOL:${ABSL_CC_LIB_IS_INTERFACE}>>:${LNK_LIB}>\n\
+Libs: -L\${libdir} $<$<NOT:$<BOOL:${ABSL_CC_LIB_IS_INTERFACE}>>:${LNK_LIB}> ${PC_LINKOPTS}\n\
 Cflags: -I\${includedir}${PC_CFLAGS}\n")
     INSTALL(FILES "${CMAKE_BINARY_DIR}/lib/pkgconfig/absl_${_NAME}.pc"
             DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
@@ -250,6 +258,13 @@ Cflags: -I\${includedir}${PC_CFLAGS}\n")
     elseif(_build_type STREQUAL "static" OR _build_type STREQUAL "shared")
       add_library(${_NAME} "")
       target_sources(${_NAME} PRIVATE ${ABSL_CC_LIB_SRCS} ${ABSL_CC_LIB_HDRS})
+      if(APPLE)
+        set_target_properties(${_NAME} PROPERTIES
+          INSTALL_RPATH "@loader_path")
+      elseif(UNIX)
+        set_target_properties(${_NAME} PROPERTIES
+          INSTALL_RPATH "$ORIGIN")
+      endif()
       target_link_libraries(${_NAME}
       PUBLIC ${ABSL_CC_LIB_DEPS}
       PRIVATE
@@ -286,9 +301,9 @@ Cflags: -I\${includedir}${PC_CFLAGS}\n")
     endif()
 
     if(ABSL_PROPAGATE_CXX_STD)
-      # Abseil libraries require C++14 as the current minimum standard. When
-      # compiled with C++17 (either because it is the compiler's default or
-      # explicitly requested), then Abseil requires C++17.
+      # Abseil libraries require C++17 as the current minimum standard. When
+      # compiled with a higher standard (either because it is the compiler's
+      # default or explicitly requested), then Abseil requires that standard.
       target_compile_features(${_NAME} PUBLIC ${ABSL_INTERNAL_CXX_STD_FEATURE})
     endif()
 
@@ -298,7 +313,7 @@ Cflags: -I\${includedir}${PC_CFLAGS}\n")
     if(ABSL_ENABLE_INSTALL)
       set_target_properties(${_NAME} PROPERTIES
         OUTPUT_NAME "absl_${_NAME}"
-        SOVERSION 0
+        SOVERSION "${ABSL_SOVERSION}"
       )
     endif()
   else()
@@ -323,7 +338,7 @@ Cflags: -I\${includedir}${PC_CFLAGS}\n")
     target_compile_definitions(${_NAME} INTERFACE ${ABSL_CC_LIB_DEFINES})
 
     if(ABSL_PROPAGATE_CXX_STD)
-      # Abseil libraries require C++14 as the current minimum standard.
+      # Abseil libraries require C++17 as the current minimum standard.
       # Top-level application CMake projects should ensure a consistent C++
       # standard for all compiled sources by setting CMAKE_CXX_STANDARD.
       target_compile_features(${_NAME} INTERFACE ${ABSL_INTERNAL_CXX_STD_FEATURE})
@@ -413,6 +428,10 @@ function(absl_cc_test)
       DEPS ${ABSL_CC_TEST_DEPS}
       OUTPUT ABSL_CC_TEST_DEPS
     )
+    absl_internal_dll_targets(
+      DEPS ${ABSL_CC_TEST_LINKOPTS}
+      OUTPUT ABSL_CC_TEST_LINKOPTS
+    )
   else()
     target_compile_definitions(${_NAME}
       PUBLIC
@@ -431,7 +450,7 @@ function(absl_cc_test)
   set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER}/test)
 
   if(ABSL_PROPAGATE_CXX_STD)
-    # Abseil libraries require C++14 as the current minimum standard.
+    # Abseil libraries require C++17 as the current minimum standard.
     # Top-level application CMake projects should ensure a consistent C++
     # standard for all compiled sources by setting CMAKE_CXX_STANDARD.
     target_compile_features(${_NAME} PUBLIC ${ABSL_INTERNAL_CXX_STD_FEATURE})

@@ -39,6 +39,19 @@
 #include "src/ipc/test/test_socket.h"
 #include "test/gtest_and_gmock.h"
 
+#if (PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) || \
+     PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID))
+#define SKIP_IF_VSOCK_LOOPBACK_NOT_SUPPORTED()                                 \
+  do {                                                                         \
+    auto raw_sock =                                                            \
+        UnixSocketRaw::CreateMayFail(SockFamily::kVsock, SockType::kStream);   \
+    if (!raw_sock || !raw_sock.Bind("vsock://1:10000")) {                      \
+      GTEST_SKIP() << "vsock testing skipped: loopback address unsupported.\n" \
+                   << "Please run sudo modprobe vsock-loopback";               \
+    }                                                                          \
+  } while (0)
+#endif
+
 namespace perfetto {
 namespace base {
 namespace {
@@ -422,21 +435,103 @@ TEST_F(UnixSocketTest, ReleaseSocket) {
   ASSERT_STREQ(buf, "test");
 }
 
-TEST_F(UnixSocketTest, TcpStream) {
-  char host_and_port[32];
-  int attempt = 0;
-  std::unique_ptr<UnixSocket> srv;
-
-  // Try listening on a random port. Some ports might be taken by other syste
-  // services. Do a bunch of attempts on different ports before giving up.
-  do {
-    base::SprintfTrunc(host_and_port, sizeof(host_and_port), "127.0.0.1:%d",
-                       10000 + (rand() % 10000));
-    srv = UnixSocket::Listen(host_and_port, &event_listener_, &task_runner_,
-                             SockFamily::kInet, SockType::kStream);
-  } while ((!srv || !srv->is_listening()) && attempt++ < 10);
+// Tests that the return value of GetSockAddr() returns a well formatted address
+// that can be passed to UnixSocket::Connect().
+TEST_F(UnixSocketTest, GetSockAddrTcp4) {
+  auto srv = UnixSocket::Listen("127.0.0.1:0", &event_listener_, &task_runner_,
+                                SockFamily::kInet, SockType::kStream);
   ASSERT_TRUE(srv->is_listening());
 
+  auto cli =
+      UnixSocket::Connect(srv->GetSockAddr(), &event_listener_, &task_runner_,
+                          SockFamily::kInet, SockType::kStream);
+  EXPECT_CALL(event_listener_, OnConnect(cli.get(), true))
+      .WillOnce(InvokeWithoutArgs(task_runner_.CreateCheckpoint("connected")));
+  task_runner_.RunUntilCheckpoint("connected");
+}
+
+TEST_F(UnixSocketTest, GetSockAddrTcp6) {
+  auto srv = UnixSocket::Listen("[::1]:0", &event_listener_, &task_runner_,
+                                SockFamily::kInet6, SockType::kStream);
+  if (!srv)
+    GTEST_SKIP() << "This test requires IPv6 support in the OS. Skipping";
+
+  ASSERT_TRUE(srv->is_listening());
+  auto cli =
+      UnixSocket::Connect(srv->GetSockAddr(), &event_listener_, &task_runner_,
+                          SockFamily::kInet6, SockType::kStream);
+
+  EXPECT_CALL(event_listener_, OnConnect(cli.get(), true))
+      .WillOnce(InvokeWithoutArgs(task_runner_.CreateCheckpoint("connected")));
+  task_runner_.RunUntilCheckpoint("connected");
+}
+
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) ||   \
+    PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID) || \
+    PERFETTO_BUILDFLAG(PERFETTO_OS_MAC)
+TEST_F(UnixSocketTest, GetSockAddrUnixLinked) {
+  TempDir tmp_dir = TempDir::Create();
+  std::string sock_path = tmp_dir.path() + "/test.sock";
+  auto srv = UnixSocket::Listen(sock_path, &event_listener_, &task_runner_,
+                                SockFamily::kUnix, SockType::kStream);
+  ASSERT_TRUE(srv->is_listening());
+  EXPECT_EQ(sock_path, srv->GetSockAddr());
+  auto cli =
+      UnixSocket::Connect(srv->GetSockAddr(), &event_listener_, &task_runner_,
+                          SockFamily::kUnix, SockType::kStream);
+  EXPECT_CALL(event_listener_, OnConnect(cli.get(), true))
+      .WillOnce(InvokeWithoutArgs(task_runner_.CreateCheckpoint("connected")));
+  task_runner_.RunUntilCheckpoint("connected");
+  cli.reset();
+  srv.reset();
+  remove(sock_path.c_str());
+}
+#endif
+
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) || \
+    PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
+TEST_F(UnixSocketTest, GetSockAddrUnixAbstract) {
+  StackString<128> sock_name("@perfetto_sock_%d_%d", getpid(), rand() % 100000);
+
+  auto srv =
+      UnixSocket::Listen(sock_name.ToStdString(), &event_listener_,
+                         &task_runner_, SockFamily::kUnix, SockType::kStream);
+  ASSERT_TRUE(srv->is_listening());
+  EXPECT_EQ(sock_name.ToStdString(), srv->GetSockAddr());
+  auto cli =
+      UnixSocket::Connect(srv->GetSockAddr(), &event_listener_, &task_runner_,
+                          SockFamily::kUnix, SockType::kStream);
+  EXPECT_CALL(event_listener_, OnConnect(cli.get(), true))
+      .WillOnce(InvokeWithoutArgs(task_runner_.CreateCheckpoint("connected")));
+  task_runner_.RunUntilCheckpoint("connected");
+}
+#endif
+
+#if (PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) || \
+     PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID))
+TEST_F(UnixSocketTest, GetSockAddrVsock) {
+  SKIP_IF_VSOCK_LOOPBACK_NOT_SUPPORTED();
+
+  auto srv = UnixSocket::Listen("vsock://1:-1", &event_listener_, &task_runner_,
+                                SockFamily::kVsock, SockType::kStream);
+  ASSERT_TRUE(srv->is_listening());
+  auto cli =
+      UnixSocket::Connect(srv->GetSockAddr(), &event_listener_, &task_runner_,
+                          SockFamily::kVsock, SockType::kStream);
+
+  EXPECT_CALL(event_listener_, OnConnect(cli.get(), true))
+      .WillOnce(InvokeWithoutArgs(task_runner_.CreateCheckpoint("connected")));
+  task_runner_.RunUntilCheckpoint("connected");
+}
+#endif
+
+TEST_F(UnixSocketTest, TcpStream) {
+  // Listen on a random port.
+  std::unique_ptr<UnixSocket> srv =
+      UnixSocket::Listen("127.0.0.1:0", &event_listener_, &task_runner_,
+                         SockFamily::kInet, SockType::kStream);
+  ASSERT_TRUE(srv->is_listening());
+  std::string host_and_port = srv->GetSockAddr();
   constexpr size_t kNumClients = 3;
   std::unique_ptr<UnixSocket> cli[kNumClients];
   EXPECT_CALL(event_listener_, OnNewIncomingConnection(srv.get(), _))
@@ -983,7 +1078,7 @@ TEST_F(UnixSocketTest, Sockaddr_FilesystemLinked) {
   // Create a raw socket and manually connect to that (to avoid getting affected
   // by accidental future bugs in the logic that populates struct sockaddr_un).
   auto cli = UnixSocketRaw::CreateMayFail(SockFamily::kUnix, SockType::kStream);
-  struct sockaddr_un addr {};
+  struct sockaddr_un addr{};
   addr.sun_family = AF_UNIX;
   StringCopy(addr.sun_path, sock_path.c_str(), sizeof(addr.sun_path));
   ASSERT_EQ(0, connect(cli.fd(), reinterpret_cast<struct sockaddr*>(&addr),
@@ -1005,7 +1100,7 @@ TEST_F(UnixSocketTest, Sockaddr_AbstractUnix) {
   ASSERT_TRUE(srv && srv->is_listening());
 
   auto cli = UnixSocketRaw::CreateMayFail(SockFamily::kUnix, SockType::kStream);
-  struct sockaddr_un addr {};
+  struct sockaddr_un addr{};
   addr.sun_family = AF_UNIX;
   StringCopy(addr.sun_path, sock_name.c_str(), sizeof(addr.sun_path));
   addr.sun_path[0] = '\0';
@@ -1014,7 +1109,81 @@ TEST_F(UnixSocketTest, Sockaddr_AbstractUnix) {
   ASSERT_EQ(0, connect(cli.fd(), reinterpret_cast<struct sockaddr*>(&addr),
                        addr_len));
 }
+
+TEST_F(UnixSocketTest, VSockStream) {
+  SKIP_IF_VSOCK_LOOPBACK_NOT_SUPPORTED();
+
+  // Set up the server. Use the loopback CID (1) and a random port number.
+  auto srv = UnixSocket::Listen("vsock://1:-1", &event_listener_, &task_runner_,
+                                SockFamily::kVsock, SockType::kStream);
+  ASSERT_TRUE(srv && srv->is_listening());
+
+  std::unique_ptr<UnixSocket> prod;
+  EXPECT_CALL(event_listener_, OnNewIncomingConnection(srv.get(), _))
+      .WillOnce(Invoke([&](UnixSocket*, UnixSocket* s) {
+        // OnDisconnect() might spuriously happen depending on the dtor order.
+        EXPECT_CALL(event_listener_, OnDisconnect(s)).Times(AtLeast(0));
+        EXPECT_CALL(event_listener_, OnDataAvailable(s))
+            .WillRepeatedly(Invoke([](UnixSocket* prod_sock) {
+              prod_sock->ReceiveString();  // Read connection EOF;
+            }));
+        ASSERT_TRUE(s->SendStr("welcome"));
+      }));
+
+  // Set up the client.
+  prod =
+      UnixSocket::Connect(srv->GetSockAddr(), &event_listener_, &task_runner_,
+                          SockFamily::kVsock, SockType::kStream);
+  auto checkpoint = task_runner_.CreateCheckpoint("prod_connected");
+  EXPECT_CALL(event_listener_, OnDisconnect(prod.get())).Times(AtLeast(0));
+  EXPECT_CALL(event_listener_, OnConnect(prod.get(), true));
+  EXPECT_CALL(event_listener_, OnDataAvailable(prod.get()))
+      .WillRepeatedly(Invoke([checkpoint](UnixSocket* s) {
+        auto str = s->ReceiveString();
+        if (str.empty())
+          return;  // Connection EOF.
+        ASSERT_EQ("welcome", str);
+        checkpoint();
+      }));
+
+  task_runner_.RunUntilCheckpoint("prod_connected");
+  ASSERT_TRUE(Mock::VerifyAndClearExpectations(prod.get()));
+}
 #endif  // OS_LINUX || OS_ANDROID
+
+TEST_F(UnixSocketTest, GetSockFamily) {
+  ASSERT_EQ(GetSockFamily(""), SockFamily::kUnspec);
+  ASSERT_EQ(GetSockFamily("/path/to/sock"), SockFamily::kUnix);
+  ASSERT_EQ(GetSockFamily("local_dir_sock"), SockFamily::kUnix);
+  ASSERT_EQ(GetSockFamily("@abstract"), SockFamily::kUnix);
+  ASSERT_EQ(GetSockFamily("0.0.0.0:80"), SockFamily::kInet);
+  ASSERT_EQ(GetSockFamily("127.0.0.1:80"), SockFamily::kInet);
+  ASSERT_EQ(GetSockFamily("[effe::acca]:1234"), SockFamily::kInet6);
+  ASSERT_EQ(GetSockFamily("[::1]:123456"), SockFamily::kInet6);
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) || \
+    PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
+  ASSERT_EQ(GetSockFamily("vsock://-1:10000"), SockFamily::kVsock);
+#endif
+}
+
+TEST_F(UnixSocketTest, ShmemSupported) {
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+  ASSERT_EQ(SockShmemSupported(""), true);
+#else  // PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+  ASSERT_EQ(SockShmemSupported(""), false);
+  ASSERT_EQ(SockShmemSupported("/path/to/sock"), true);
+  ASSERT_EQ(SockShmemSupported("local_dir_sock"), true);
+  ASSERT_EQ(SockShmemSupported("@abstract"), true);
+  ASSERT_EQ(SockShmemSupported("0.0.0.0:80"), false);
+  ASSERT_EQ(SockShmemSupported("127.0.0.1:80"), false);
+  ASSERT_EQ(SockShmemSupported("[effe::acca]:1234"), false);
+  ASSERT_EQ(SockShmemSupported("[::1]:123456"), false);
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) || \
+    PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
+  ASSERT_EQ(SockShmemSupported("vsock://-1:10000"), false);
+#endif
+#endif  // !PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
+}
 
 }  // namespace
 }  // namespace base

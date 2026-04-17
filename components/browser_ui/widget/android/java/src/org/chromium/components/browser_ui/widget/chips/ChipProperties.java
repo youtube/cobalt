@@ -5,6 +5,7 @@
 package org.chromium.components.browser_ui.widget.chips;
 
 import org.chromium.base.Callback;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModel.ReadableIntPropertyKey;
@@ -14,6 +15,7 @@ import org.chromium.ui.modelutil.PropertyModel.WritableIntPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableObjectPropertyKey;
 
 /** Properties that describe a single chip in a list/group of chips. */
+@NullMarked
 public class ChipProperties {
     /** ID for a basic chip in it's containing recycler view. */
     public static final int BASIC_CHIP = 0;
@@ -57,6 +59,21 @@ public class ChipProperties {
     /** The max width a chip's text should have in PX. Use {@link #SHOW_WHOLE_TEXT} for no limit. */
     public static final WritableIntPropertyKey TEXT_MAX_WIDTH_PX = new WritableIntPropertyKey();
 
-    public static final PropertyKey[] ALL_KEYS = new PropertyKey[] {APPLY_ICON_TINT, CLICK_HANDLER,
-            CONTENT_DESCRIPTION, ENABLED, ICON, ID, SELECTED, TEXT, TEXT_MAX_WIDTH_PX};
+    // Res id for the style to apply to the primary text view of the chip.
+    public static final WritableIntPropertyKey PRIMARY_TEXT_APPEARANCE =
+            new WritableIntPropertyKey();
+
+    public static final PropertyKey[] ALL_KEYS =
+            new PropertyKey[] {
+                APPLY_ICON_TINT,
+                CLICK_HANDLER,
+                CONTENT_DESCRIPTION,
+                ENABLED,
+                ICON,
+                ID,
+                PRIMARY_TEXT_APPEARANCE,
+                SELECTED,
+                TEXT,
+                TEXT_MAX_WIDTH_PX
+            };
 }

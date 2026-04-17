@@ -6,8 +6,8 @@
 
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -15,6 +15,7 @@
 #include "content/public/test/content_browser_test_utils.h"
 #include "content/shell/browser/shell.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
+#include "third_party/blink/public/common/features_generated.h"
 #include "ui/base/clipboard/clipboard_buffer.h"
 #include "ui/base/clipboard/file_info.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
@@ -27,6 +28,11 @@ namespace content {
 
 class FileSystemAccessClipboardBrowserTest : public ContentBrowserTest {
  public:
+  FileSystemAccessClipboardBrowserTest() {
+    scoped_features_.InitAndEnableFeature(
+        blink::features::kFileSystemAccessLocal);
+  }
+
   void SetUp() override {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
     ASSERT_TRUE(embedded_test_server()->Start());
@@ -58,6 +64,7 @@ class FileSystemAccessClipboardBrowserTest : public ContentBrowserTest {
 
  protected:
   base::ScopedTempDir temp_dir_;
+  base::test::ScopedFeatureList scoped_features_;
 };
 
 IN_PROC_BROWSER_TEST_F(FileSystemAccessClipboardBrowserTest, File) {
@@ -136,19 +143,19 @@ IN_PROC_BROWSER_TEST_F(FileSystemAccessClipboardBrowserTest, Directory) {
              "    const fileItem = event.clipboardData.items[0];"
              "    directoryHandle = await fileItem.getAsFileSystemHandle();"
              "    if (directoryHandle.kind !== 'directory') {"
-             "       reject('The dragged item was a file, expected it to be ' +"
-             "              'a directory.');"
+             "      reject('The dragged item was a file, expected it to be ' +"
+             "             'a directory.');"
              "    }"
              "    let directoryContents = [];"
              "    for await (let fileName of directoryHandle.keys()) {"
-             "       directoryContents.push(fileName);"
-             "     };"
-             "     if (directoryContents.length !== 1) {"
-             "       reject('There were ', directoryContents.length,"
-             "              ' files in the clipboard directory. Expected 1.');"
-             "     }"
-             "     resolve(directoryContents.pop());"
-             "   };"
+             "      directoryContents.push(fileName);"
+             "    };"
+             "    if (directoryContents.length !== 1) {"
+             "      reject('There were ', directoryContents.length,"
+             "             ' files in the clipboard directory. Expected 1.');"
+             "    }"
+             "    resolve(directoryContents.pop());"
+             "  };"
              "});"));
 
   // Create a directory with a file inside and place on the clipboard.

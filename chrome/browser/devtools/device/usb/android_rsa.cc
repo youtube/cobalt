@@ -2,6 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <array>
+
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/devtools/device/usb/android_rsa.h"
 
 #include <stddef.h>
@@ -10,8 +17,11 @@
 
 #include <limits>
 #include <memory>
+#include <numeric>
+#include <string_view>
 
 #include "base/base64.h"
+#include "base/containers/span.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/pref_names.h"
 #include "components/sync_preferences/pref_service_syncable.h"
@@ -35,8 +45,8 @@ static const char kDummyRSAPublicKey[] =
 typedef struct RSAPublicKey {
   int len;                    // Length of n[] in number of uint32_t
   uint32_t n0inv;             // -1 / n[0] mod 2^32
-  uint32_t n[kRSANumWords];   // modulus as little endian array
-  uint32_t rr[kRSANumWords];  // R^2 as little endian array
+  std::array<uint32_t, kRSANumWords> n;   // modulus as little endian array
+  std::array<uint32_t, kRSANumWords> rr;  // R^2 as little endian array
   int exponent;               // 3 or 65537
 } RSAPublicKey;
 
@@ -136,7 +146,7 @@ uint64_t BnGuess(uint32_t* a, uint32_t* b, uint64_t from, uint64_t to) {
   if (from + 1 >= to)
     return from;
 
-  uint64_t guess = (from + to) / 2;
+  uint64_t guess = std::midpoint(from, to);
   uint32_t* t = BnMul(b, static_cast<uint32_t>(guess));
   int result = BnCompare(a, t);
   BnFree(t);
@@ -206,7 +216,7 @@ std::unique_ptr<crypto::RSAPrivateKey> AndroidRSAPrivateKey(Profile* profile) {
       return nullptr;
 
     std::string key_string(key_info.begin(), key_info.end());
-    base::Base64Encode(key_string, &encoded_key);
+    encoded_key = base::Base64Encode(key_string);
     profile->GetPrefs()->SetString(prefs::kDevToolsAdbKey,
                                    encoded_key);
   }
@@ -221,7 +231,7 @@ std::string AndroidRSAPublicKey(crypto::RSAPrivateKey* key) {
   key->ExportPublicKey(&public_key);
   std::string asn1(public_key.begin(), public_key.end());
 
-  base::StringPiece pk;
+  std::string_view pk;
   if (!net::asn1::ExtractSubjectPublicKeyFromSPKI(asn1, &pk))
     return kDummyRSAPublicKey;
 
@@ -262,10 +272,7 @@ std::string AndroidRSAPublicKey(crypto::RSAPrivateKey* key) {
   BnFree(r);
   BnFree(rr);
 
-  std::string output;
-  std::string input(reinterpret_cast<char*>(&pkey), sizeof(pkey));
-  base::Base64Encode(input, &output);
-  return output;
+  return base::Base64Encode(base::byte_span_from_ref(pkey));
 }
 
 std::string AndroidRSASign(crypto::RSAPrivateKey* key,

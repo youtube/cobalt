@@ -15,8 +15,6 @@
 #ifndef STARBOARD_SHARED_FFMPEG_FFMPEG_VIDEO_DECODER_IMPL_H_
 #define STARBOARD_SHARED_FFMPEG_FFMPEG_VIDEO_DECODER_IMPL_H_
 
-#include <pthread.h>
-
 #include <limits>
 #include <mutex>
 #include <optional>
@@ -26,6 +24,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/queue.h"
 #include "starboard/common/ref_counted.h"
+#include "starboard/common/thread.h"
 #include "starboard/media.h"
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
@@ -80,6 +79,21 @@ class FfmpegVideoDecoderImpl<FFMPEG> : public FfmpegVideoDecoder {
 #endif  // LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(52, 8, 0)
 
  private:
+  class DecoderThread : public Thread {
+   public:
+    explicit DecoderThread(FfmpegVideoDecoderImpl<FFMPEG>* decoder)
+        : Thread("ff_video_dec"), decoder_(decoder) {
+      SB_CHECK(decoder_);
+    }
+    void Run() override {
+      SbThreadSetPriority(kSbThreadPriorityHigh);
+      decoder_->DecoderThreadFunc();
+    }
+
+   private:
+    FfmpegVideoDecoderImpl<FFMPEG>* const decoder_;
+  };
+
   enum EventType {
     kInvalid,
     kReset,
@@ -100,7 +114,6 @@ class FfmpegVideoDecoderImpl<FFMPEG> : public FfmpegVideoDecoder {
         : type(kWriteInputBuffer), input_buffer(input_buffer) {}
   };
 
-  static void* ThreadEntryPoint(void* context);
   void DecoderThreadFunc();
 
   bool DecodePacket(AVPacket* packet);
@@ -137,7 +150,7 @@ class FfmpegVideoDecoderImpl<FFMPEG> : public FfmpegVideoDecoder {
   bool error_occurred_;
 
   // Working thread to avoid lengthy decoding work block the player thread.
-  std::optional<pthread_t> decoder_thread_;
+  std::unique_ptr<Thread> decoder_thread_;
 
   // Decode-to-texture related state.
   SbPlayerOutputMode output_mode_;

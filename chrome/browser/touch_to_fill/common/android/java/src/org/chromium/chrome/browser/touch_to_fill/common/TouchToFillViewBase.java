@@ -4,67 +4,84 @@
 
 package org.chromium.chrome.browser.touch_to_fill.common;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.view.View;
 import android.view.View.MeasureSpec;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewGroup.MarginLayoutParams;
 import android.widget.RelativeLayout;
 
-import androidx.annotation.Nullable;
 import androidx.annotation.Px;
 import androidx.annotation.VisibleForTesting;
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.chromium.base.Callback;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.autofill.bottom_sheet_utils.DetailScreenScrollListener;
-import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetObserver;
 import org.chromium.components.browser_ui.bottomsheet.EmptyBottomSheetObserver;
+import org.chromium.ui.accessibility.AccessibilityState;
 import org.chromium.ui.base.LocalizationUtils;
 import org.chromium.ui.base.ViewUtils;
-/**
- * This is a base class for the Touch to Fill View classes.
- */
+
+import java.util.Set;
+
+/** This is a base class for the Touch to Fill View classes. */
+@NullMarked
 public abstract class TouchToFillViewBase implements BottomSheetContent {
     private static final int MAX_FULLY_VISIBLE_CREDENTIAL_COUNT = 3;
 
     private final BottomSheetController mBottomSheetController;
     private final RelativeLayout mContentView;
     private final DetailScreenScrollListener mScrollListener;
-    private Callback<Integer> mDismissHandler;
-    private RecyclerView mSheetItemListView;
+    private @Nullable Callback<Integer> mDismissHandler;
+    private final RecyclerView mSheetItemListView;
 
-    private final BottomSheetObserver mBottomSheetObserver = new EmptyBottomSheetObserver() {
-        @Override
-        public void onSheetClosed(@BottomSheetController.StateChangeReason int reason) {
-            super.onSheetClosed(reason);
-            assert mDismissHandler != null;
-            mDismissHandler.onResult(reason);
-            mBottomSheetController.removeObserver(mBottomSheetObserver);
-        }
+    private final BottomSheetObserver mBottomSheetObserver =
+            new EmptyBottomSheetObserver() {
+                @Override
+                public void onSheetClosed(@BottomSheetController.StateChangeReason int reason) {
+                    if (mBottomSheetController.getCurrentSheetContent()
+                            != TouchToFillViewBase.this) {
+                        return;
+                    }
+                    super.onSheetClosed(reason);
+                    assert mDismissHandler != null;
+                    mDismissHandler.onResult(reason);
+                    mBottomSheetController.removeObserver(mBottomSheetObserver);
+                }
 
-        @Override
-        public void onSheetStateChanged(int newState, int reason) {
-            super.onSheetStateChanged(newState, reason);
-            if (newState == BottomSheetController.SheetState.FULL) {
-                // The list of items should be scrollable in full state.
-                mSheetItemListView.suppressLayout(false);
-            } else if (newState == BottomSheetController.SheetState.HALF
-                    && mScrollListener.isScrolledToTop()) {
-                // The list of items should not be scrollable when the sheet transitions into half
-                // state if it's scrolled to the top. If the list is currently scrolled away from
-                // the top, it should stay scrolled in half state until the user scrolls to the top.
-                mSheetItemListView.suppressLayout(true);
-            }
-            if (newState != BottomSheetController.SheetState.HIDDEN) return;
-            // This is a fail-safe for cases where onSheetClosed isn't triggered.
-            mDismissHandler.onResult(BottomSheetController.StateChangeReason.NONE);
-            mBottomSheetController.removeObserver(mBottomSheetObserver);
-        }
-    };
+                @Override
+                public void onSheetStateChanged(int newState, int reason) {
+                    if (mBottomSheetController.getCurrentSheetContent()
+                            != TouchToFillViewBase.this) {
+                        return;
+                    }
+                    super.onSheetStateChanged(newState, reason);
+                    if (newState == BottomSheetController.SheetState.FULL) {
+                        // The list of items should be scrollable in full state.
+                        mSheetItemListView.suppressLayout(false);
+                    } else if (newState == BottomSheetController.SheetState.HALF
+                            && mScrollListener.isScrolledToTop()) {
+                        // The list of items should not be scrollable when the sheet transitions
+                        // into half state if it's scrolled to the top. If the list is currently
+                        // scrolled away from the top, it should stay scrolled in half state until
+                        // the user scrolls to the top.
+                        mSheetItemListView.suppressLayout(true);
+                    }
+                    if (newState != BottomSheetController.SheetState.HIDDEN) return;
+                    // This is a fail-safe for cases where onSheetClosed isn't triggered.
+                    assumeNonNull(mDismissHandler);
+                    mDismissHandler.onResult(BottomSheetController.StateChangeReason.NONE);
+                    mBottomSheetController.removeObserver(mBottomSheetObserver);
+                }
+            };
 
     /**
      * Used to access the handlebar to measure it.
@@ -86,9 +103,9 @@ public abstract class TouchToFillViewBase implements BottomSheetContent {
 
     /**
      * Used as a helper for the suggestion list height calculation.
-     * @return the item type of the suggestions in the list on the {@link BottomSheet}.
+     * @return the item types of the suggestions in the list on the {@link BottomSheet}.
      */
-    protected abstract int listedItemType();
+    protected abstract Set<Integer> listedItemTypes();
 
     /**
      * Used as a helper for the suggestion list height calculation.
@@ -96,23 +113,49 @@ public abstract class TouchToFillViewBase implements BottomSheetContent {
      */
     protected abstract int footerItemType();
 
+    /**
+     * @param bottomSheetController The {@link BottomSheetController} used to show/hide the sheet.
+     * @param contentView The content of the bottom sheet.
+     * @param suppressCollectionA11y Disables/enables setting the collection related a11y node info,
+     *                               basically removing the "2 of 4" part in a regular RecycleView
+     *                               item announcement. Setting it to `true` implies that the item
+     *                               content description is updated accordingly for items that are
+     *                               eligible for indexing from the UI perspective.
+     */
     public TouchToFillViewBase(
-            BottomSheetController bottomSheetController, RelativeLayout contentView) {
+            BottomSheetController bottomSheetController,
+            RelativeLayout contentView,
+            Boolean suppressCollectionA11y) {
         mBottomSheetController = bottomSheetController;
         mContentView = contentView;
         mSheetItemListView = getContentView().findViewById(R.id.sheet_item_list);
 
-        mSheetItemListView.setLayoutManager(new LinearLayoutManager(
-                mSheetItemListView.getContext(), LinearLayoutManager.VERTICAL, false) {
-            @Override
-            public boolean isAutoMeasureEnabled() {
-                return true;
-            }
-        });
+        mSheetItemListView.setLayoutManager(
+                new LinearLayoutManager(
+                        mSheetItemListView.getContext(), LinearLayoutManager.VERTICAL, false) {
+                    @Override
+                    public boolean isAutoMeasureEnabled() {
+                        return true;
+                    }
+
+                    @Override
+                    public void onInitializeAccessibilityNodeInfo(
+                            RecyclerView.Recycler recycler,
+                            RecyclerView.State state,
+                            AccessibilityNodeInfoCompat info) {
+                        if (!suppressCollectionA11y) {
+                            super.onInitializeAccessibilityNodeInfo(recycler, state, info);
+                        }
+                    }
+                });
+
+        mContentView.setOnGenericMotionListener((v, e) -> true); // Filter background interaction.
 
         // Apply RTL layout changes.
-        int layoutDirection = LocalizationUtils.isLayoutRtl() ? View.LAYOUT_DIRECTION_RTL
-                                                              : View.LAYOUT_DIRECTION_LTR;
+        int layoutDirection =
+                LocalizationUtils.isLayoutRtl()
+                        ? View.LAYOUT_DIRECTION_RTL
+                        : View.LAYOUT_DIRECTION_LTR;
         mContentView.setLayoutDirection(layoutDirection);
 
         mScrollListener = new DetailScreenScrollListener(mBottomSheetController);
@@ -139,7 +182,6 @@ public abstract class TouchToFillViewBase implements BottomSheetContent {
             remeasure();
             mBottomSheetController.addObserver(mBottomSheetObserver);
             if (!mBottomSheetController.requestShowContent(this, true)) {
-                mBottomSheetController.removeObserver(mBottomSheetObserver);
                 return false;
             }
         } else {
@@ -165,11 +207,10 @@ public abstract class TouchToFillViewBase implements BottomSheetContent {
      */
     protected @Px int getMaximumSheetHeightPx() {
         if (mSheetItemListView.getAdapter() == null) {
-            // TODO(crbug.com/1330933): Assert this condition in setVisible. Should never happen.
+            // TODO(crbug.com/40843561): Assert this condition in setVisible. Should never happen.
             return BottomSheetContent.HeightMode.DEFAULT;
         }
-        @Px
-        int requiredMaxHeight = getHeightWhenFullyExtendedPx();
+        @Px int requiredMaxHeight = getHeightWhenFullyExtendedPx();
         if (requiredMaxHeight <= mBottomSheetController.getContainerHeight()) {
             return requiredMaxHeight;
         }
@@ -179,7 +220,7 @@ public abstract class TouchToFillViewBase implements BottomSheetContent {
     }
 
     /**
-     * Returns the height of the half state. Does not show the footer items. For 1 suggestion  (plus
+     * Returns the height of the half state. Does not show the footer items. For 1 suggestion (plus
      * fill button), 2 or 3 suggestions, it shows all items fully. For 4+ suggestions, it shows the
      * first 3.5 suggestion to encourage scrolling.
      *
@@ -187,25 +228,26 @@ public abstract class TouchToFillViewBase implements BottomSheetContent {
      */
     protected @Px int getDesiredSheetHeightPx() {
         if (mSheetItemListView.getAdapter() == null) {
-            // TODO(crbug.com/1330933): Assert this condition in setVisible. Should never happen.
+            // TODO(crbug.com/40843561): Assert this condition in setVisible. Should never happen.
             return BottomSheetContent.HeightMode.DEFAULT;
         }
-        int height = getHeightWithMarginsPx(getHandlebar(), false)
-                + getSheetItemListHeightWithMarginsPx(true);
+        int height =
+                getHeightWithMarginsPx(getHandlebar(), false)
+                        + getSheetItemListHeightWithMarginsPx(true);
         return height;
     }
 
     private @Px int getHeightWhenFullyExtendedPx() {
         assert mContentView.getMeasuredHeight() > 0 : "ContentView hasn't been measured.";
-        int height = getHeightWithMarginsPx(getHandlebar(), false)
-                + getSheetItemListHeightWithMarginsPx(false);
+        int height =
+                getHeightWithMarginsPx(getHandlebar(), false)
+                        + getSheetItemListHeightWithMarginsPx(false);
         return height;
     }
 
     private @Px int getSheetItemListHeightWithMarginsPx(boolean showOnlyInitialItems) {
         assert mSheetItemListView.getMeasuredHeight() > 0 : "Sheet item list hasn't been measured.";
-        @Px
-        int totalHeight = 0;
+        @Px int totalHeight = 0;
         int visibleItems = 0;
         for (int posInSheet = 0; posInSheet < mSheetItemListView.getChildCount(); posInSheet++) {
             View child = mSheetItemListView.getChildAt(posInSheet);
@@ -228,7 +270,7 @@ public abstract class TouchToFillViewBase implements BottomSheetContent {
 
     private static @Px int getHeightWithMarginsPx(View view, boolean shouldPeek) {
         assert view.getMeasuredHeight() > 0 : "View hasn't been measured.";
-        return getMarginsPx(view, /*excludeBottomMargin=*/shouldPeek)
+        return getMarginsPx(view, /* excludeBottomMargin= */ shouldPeek)
                 + (shouldPeek ? view.getMeasuredHeight() / 2 : view.getMeasuredHeight());
     }
 
@@ -241,12 +283,8 @@ public abstract class TouchToFillViewBase implements BottomSheetContent {
         return 0;
     }
 
-    /**
-     * Measures the content of the bottom sheet.
-     */
+    /** Measures the content of the bottom sheet. */
     protected void remeasure() {
-        RelativeLayout.LayoutParams sheetItemListLayoutParams =
-                (RelativeLayout.LayoutParams) mSheetItemListView.getLayoutParams();
         mContentView.measure(
                 View.MeasureSpec.makeMeasureSpec(getInsetDisplayWidthPx(), MeasureSpec.AT_MOST),
                 MeasureSpec.UNSPECIFIED);
@@ -262,17 +300,19 @@ public abstract class TouchToFillViewBase implements BottomSheetContent {
 
     private boolean isListedItem(View childInSheetView) {
         int posInAdapter = mSheetItemListView.getChildAdapterPosition(childInSheetView);
-        return mSheetItemListView.getAdapter().getItemViewType(posInAdapter) == listedItemType();
+        assumeNonNull(mSheetItemListView.getAdapter());
+        return listedItemTypes()
+                .contains(mSheetItemListView.getAdapter().getItemViewType(posInAdapter));
     }
 
     private boolean isFooterItem(View childInSheetView) {
         int posInAdapter = mSheetItemListView.getChildAdapterPosition(childInSheetView);
+        assumeNonNull(mSheetItemListView.getAdapter());
         return mSheetItemListView.getAdapter().getItemViewType(posInAdapter) == footerItemType();
     }
 
-    @Nullable
     @Override
-    public View getToolbarView() {
+    public @Nullable View getToolbarView() {
         return null;
     }
 
@@ -293,13 +333,8 @@ public abstract class TouchToFillViewBase implements BottomSheetContent {
 
     @Override
     public boolean skipHalfStateOnScrollingDown() {
-        // Skip the half state if TalkBack is enabled.
-        return ChromeAccessibilityUtil.get().isTouchExplorationEnabled();
-    }
-
-    @Override
-    public int getPeekHeight() {
-        return BottomSheetContent.HeightMode.DISABLED;
+        // Skip the half state if a service requesting touch exploration is enabled.
+        return AccessibilityState.isTouchExplorationEnabled();
     }
 
     @Override
@@ -311,8 +346,8 @@ public abstract class TouchToFillViewBase implements BottomSheetContent {
 
     @Override
     public float getHalfHeightRatio() {
-        // Disable the half state when TalkBack is on.
-        if (ChromeAccessibilityUtil.get().isTouchExplorationEnabled()) return HeightMode.DISABLED;
+        // Disable the half state when touch exploration is enabled.
+        if (skipHalfStateOnScrollingDown()) return HeightMode.DISABLED;
         return Math.min(getDesiredSheetHeightPx(), mBottomSheetController.getContainerHeight())
                 / (float) mBottomSheetController.getContainerHeight();
     }

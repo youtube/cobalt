@@ -14,7 +14,7 @@
 #include "base/types/pass_key.h"
 #include "base/values.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
-#include "chrome/browser/web_applications/web_app_id.h"
+#include "components/webapps/common/web_app_id.h"
 
 class Profile;
 
@@ -36,14 +36,14 @@ class WebAppInstallManager {
   virtual void AddObserver(WebAppInstallManagerObserver* observer);
   virtual void RemoveObserver(WebAppInstallManagerObserver* observer);
 
-  virtual void NotifyWebAppInstalled(const AppId& app_id);
-  virtual void NotifyWebAppInstalledWithOsHooks(const AppId& app_id);
+  virtual void NotifyWebAppInstalled(const webapps::AppId& app_id);
+  virtual void NotifyWebAppInstalledWithOsHooks(const webapps::AppId& app_id);
+  virtual void NotifyWebAppSourceRemoved(const webapps::AppId& app_id);
   virtual void NotifyWebAppUninstalled(
-      const AppId& app_id,
+      const webapps::AppId& app_id,
       webapps::WebappUninstallSource uninstall_source);
-  virtual void NotifyWebAppManifestUpdated(const AppId& app_id,
-                                           base::StringPiece old_name);
-  virtual void NotifyWebAppWillBeUninstalled(const AppId& app_id);
+  virtual void NotifyWebAppManifestUpdated(const webapps::AppId& app_id);
+  virtual void NotifyWebAppWillBeUninstalled(const webapps::AppId& app_id);
   virtual void NotifyWebAppInstallManagerDestroyed();
 
   // Collects icon read/write errors (unbounded) if the |kRecordWebAppDebugInfo|
@@ -51,7 +51,7 @@ class WebAppInstallManager {
   using ErrorLog = base::Value::List;
   const ErrorLog* error_log() const { return error_log_.get(); }
 
-  // TODO(crbug.com/1322974): migrate loggign to WebAppCommandManager after all
+  // TODO(crbug.com/40224498): migrate loggign to WebAppCommandManager after all
   // tasks are migrated to the command system.
   void TakeCommandErrorLog(base::PassKey<WebAppCommandManager>,
                            base::Value::Dict log);
@@ -63,13 +63,14 @@ class WebAppInstallManager {
 
   void LogErrorObject(base::Value::Dict object);
 
-  const raw_ptr<Profile> profile_;
+  const raw_ptr<Profile, DanglingUntriaged> profile_;
 
   std::unique_ptr<ErrorLog> error_log_;
   bool error_log_updated_ = false;
   bool error_log_writing_in_progress_ = false;
 
-  base::ObserverList<WebAppInstallManagerObserver> observers_;
+  base::ObserverList<WebAppInstallManagerObserver, /*check_empty=*/true>
+      observers_;
 
   base::WeakPtrFactory<WebAppInstallManager> weak_ptr_factory_{this};
 };

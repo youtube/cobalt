@@ -11,7 +11,6 @@
 #include "base/time/time.h"
 #include "base/values.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
-#include "url/gurl.h"
 
 namespace base {
 class Clock;
@@ -41,6 +40,7 @@ class HttpsOnlyModeAllowlist {
   // attempt to upgrade it to HTTPS.
   bool IsHttpAllowedForHost(const std::string& host,
                             bool is_nondefault_storage) const;
+  bool IsHttpAllowedForAnyHost(bool is_nondefault_storage) const;
 
   // Revokes all HTTP exceptions made by the user for host.
   void RevokeUserAllowExceptions(const std::string& host);
@@ -62,7 +62,7 @@ class HttpsOnlyModeAllowlist {
 
  private:
   raw_ptr<HostContentSettingsMap> host_content_settings_map_;
-  raw_ptr<base::Clock, DanglingUntriaged> clock_;
+  raw_ptr<base::Clock> clock_;
   base::TimeDelta expiration_timeout_;
 
   // Tracks sites that are allowed to load over HTTP when HTTPS-First Mode is

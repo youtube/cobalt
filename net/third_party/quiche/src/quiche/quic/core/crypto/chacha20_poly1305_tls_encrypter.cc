@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/crypto/chacha20_poly1305_tls_encrypter.h"
 
+#include <limits>
+
 #include "openssl/evp.h"
 
 namespace quic {
@@ -16,7 +18,7 @@ const size_t kNonceSize = 12;
 }  // namespace
 
 ChaCha20Poly1305TlsEncrypter::ChaCha20Poly1305TlsEncrypter()
-    : ChaChaBaseEncrypter(EVP_aead_chacha20_poly1305, kKeySize, kAuthTagSize,
+    : ChaChaBaseEncrypter(EVP_aead_chacha20_poly1305(), kKeySize, kAuthTagSize,
                           kNonceSize,
                           /* use_ietf_nonce_construction */ true) {
   static_assert(kKeySize <= kMaxKeySize, "key size too big");

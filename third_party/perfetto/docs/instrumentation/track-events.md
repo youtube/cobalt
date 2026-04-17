@@ -32,7 +32,7 @@ There are a few main types of track events:
 - **Flows**, which are used to connect related slices that span different
     tracks together. For example, if an image file is first loaded from
     the network and then decoded on a thread pool, a flow event can be used to
-    highlight its path through the system. (Not fully implemented yet).
+    highlight its path through the system.
 
 The [Perfetto UI](https://ui.perfetto.dev) has built in support for track
 events, which provides a useful way to quickly visualize the internal
@@ -262,17 +262,22 @@ following order:
 7. Pattern matches in disabled categories.
 8. Pattern matches in disabled tags.
 
-If none of the steps produced a match, the category is enabled by default. In
-other words, every category is implicitly enabled unless specifically disabled.
+If none of the steps produced a match, the category:
+* is enabled by default in the C++ API
+* is disabled by default in the C API.
+
+Specifying an `enabled_categories: "*"` or `disabled_categories: "*"` helps
+achieving a consistent behavior explicitly.
+
 For example:
 
 | Setting                         | Needed configuration                         |
 | ------------------------------- | -------------------------------------------- |
-| Enable just specific categories | `enabled_categories = [“foo”, “bar”, “baz”]` |
-|                                 | `disabled_categories = [“*”]`                |
-| Enable all non-slow categories  | (Happens by default.)                        |
-| Enable specific tags            | `disabled_tags = [“*”]`                      |
-|                                 | `enabled_tags = [“foo”, “bar”]`              |
+| Enable just specific categories | `enabled_categories = ["foo", "bar", "baz"]` |
+|                                 | `disabled_categories = ["*"]`                |
+| Enable all non-slow categories  | `enabled_categories = ["*"] `                |
+| Enable specific tags            | `disabled_tags = ["*"]`                      |
+|                                 | `enabled_tags = ["foo", "bar"]`              |
 
 ## Dynamic and test-only categories
 

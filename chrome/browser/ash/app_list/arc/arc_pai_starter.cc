@@ -9,15 +9,15 @@
 #include <string>
 #include <utility>
 
-#include "ash/components/arc/arc_prefs.h"
-#include "ash/components/arc/arc_util.h"
-#include "ash/components/arc/session/arc_bridge_service.h"
-#include "ash/components/arc/session/arc_service_manager.h"
 #include "base/functional/bind.h"
 #include "chrome/browser/ash/app_list/arc/arc_app_utils.h"
 #include "chrome/browser/ash/arc/arc_optin_uma.h"
 #include "chrome/browser/ash/arc/policy/arc_policy_util.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chromeos/ash/experiences/arc/arc_prefs.h"
+#include "chromeos/ash/experiences/arc/arc_util.h"
+#include "chromeos/ash/experiences/arc/session/arc_bridge_service.h"
+#include "chromeos/ash/experiences/arc/session/arc_service_manager.h"
 #include "components/prefs/pref_service.h"
 #include "ui/events/event_constants.h"
 
@@ -65,17 +65,6 @@ std::unique_ptr<ArcPaiStarter> ArcPaiStarter::CreateIfNeeded(Profile* profile) {
   return std::make_unique<ArcPaiStarter>(profile);
 }
 
-void ArcPaiStarter::AcquireLock() {
-  DCHECK(!locked_);
-  locked_ = true;
-}
-
-void ArcPaiStarter::ReleaseLock() {
-  DCHECK(locked_);
-  locked_ = false;
-  MaybeStartPai();
-}
-
 void ArcPaiStarter::AddOnStartCallback(base::OnceClosure callback) {
   if (started_) {
     std::move(callback).Run();
@@ -94,8 +83,9 @@ void ArcPaiStarter::MaybeStartPai() {
   // flow failed and no condition is changed to trigger |MaybeStartPai|.
   retry_timer_.Stop();
 
-  if (started_ || pending_ || locked_ || IsArcPlayAutoInstallDisabled())
+  if (started_ || pending_ || IsArcPlayAutoInstallDisabled()) {
     return;
+  }
 
   ArcAppListPrefs* const prefs = ArcAppListPrefs::Get(profile_);
   DCHECK(prefs);

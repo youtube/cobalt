@@ -32,11 +32,11 @@ CrashLog::CrashLog(LocalDOMWindow& window)
 
 void CrashLog::ContextDestroyed() {}
 
-ScriptPromise CrashLog::setString(ScriptState* script_state,
-                                  const String& key,
-                                  const String& value,
-                                  ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+ScriptPromise<IDLBoolean> CrashLog::setString(ScriptState* script_state,
+                                              const String& key,
+                                              const String& value,
+                                              ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLBoolean>>(
       script_state, exception_state.GetContext());
 
   EnsureReceiverIsBound();
@@ -49,7 +49,8 @@ ScriptPromise CrashLog::setString(ScriptState* script_state,
   return resolver->Promise();
 }
 
-void CrashLog::OnSetString(ScriptPromiseResolver* resolver, bool result) {
+void CrashLog::OnSetString(ScriptPromiseResolver<IDLBoolean>* resolver,
+                           bool result) {
   resolver->Resolve(result);
 }
 

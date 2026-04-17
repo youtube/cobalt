@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/system.h"
+// clang-format on
 
 #include <string>
 
 #include "base/android/jni_android.h"
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_state.h"
-#include "starboard/android/shared/jni_utils.h"
+#include "base/android/jni_string.h"
+#include "base/android/scoped_java_ref.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
 
@@ -35,10 +37,9 @@ class LocaleInfo {
   LocaleInfo() {
     JNIEnv* env = base::android::AttachCurrentThread();
 
-    ScopedLocalJavaRef<jstring> result(JniCallObjectMethodOrAbort(
-        env, JNIState::GetStarboardBridge(), "systemGetLocaleId",
-        "()Ljava/lang/String;"));
-    locale_id = JniGetStringStandardUTFOrAbort(env, result.Get());
+    base::android::ScopedJavaLocalRef<jstring> result =
+        StarboardBridge::GetInstance()->GetSystemLocaleId(env);
+    locale_id = base::android::ConvertJavaStringToUTF8(env, result.obj());
   }
 };
 

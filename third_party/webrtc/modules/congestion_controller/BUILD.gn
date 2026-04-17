@@ -8,17 +8,8 @@
 
 import("../../webrtc.gni")
 
-config("bwe_test_logging") {
-  if (rtc_enable_bwe_test_logging) {
-    defines = [ "BWE_TEST_LOGGING_COMPILE_TIME_ENABLE=1" ]
-  } else {
-    defines = [ "BWE_TEST_LOGGING_COMPILE_TIME_ENABLE=0" ]
-  }
-}
-
 rtc_library("congestion_controller") {
   visibility = [ "*" ]
-  configs += [ ":bwe_test_logging" ]
   sources = [
     "include/receive_side_congestion_controller.h",
     "receive_side_congestion_controller.cc",
@@ -27,17 +18,27 @@ rtc_library("congestion_controller") {
   ]
 
   deps = [
+    "..:module_api",
     "../../api:rtp_parameters",
+    "../../api:sequence_checker",
+    "../../api/environment",
     "../../api/transport:network_control",
     "../../api/units:data_rate",
+    "../../api/units:data_size",
     "../../api/units:time_delta",
     "../../api/units:timestamp",
     "../../rtc_base:logging",
     "../../rtc_base:macromagic",
+    "../../rtc_base/experiments:field_trial_parser",
     "../../rtc_base/synchronization:mutex",
+    "../../system_wrappers",
     "../pacing",
     "../remote_bitrate_estimator",
+    "../remote_bitrate_estimator:congestion_control_feedback_generator",
+    "../remote_bitrate_estimator:transport_sequence_number_feedback_generator",
     "../rtp_rtcp:rtp_rtcp_format",
+    "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/base:nullability",
   ]
 }
 
@@ -51,13 +52,17 @@ if (rtc_include_tests && !build_with_chromium) {
     ]
     deps = [
       ":congestion_controller",
+      "../../api:rtp_parameters",
+      "../../api/environment:environment_factory",
       "../../api/test/network_emulation",
       "../../api/test/network_emulation:create_cross_traffic",
       "../../api/units:data_rate",
       "../../api/units:data_size",
       "../../api/units:time_delta",
       "../../api/units:timestamp",
+      "../../rtc_base:buffer",
       "../../system_wrappers",
+      "../../test:explicit_key_value_config",
       "../../test:test_support",
       "../../test/scenario",
       "../pacing",

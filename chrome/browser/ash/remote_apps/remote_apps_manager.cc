@@ -6,11 +6,14 @@
 
 #include <utility>
 
+#include "ash/app_list/app_list_controller_impl.h"
 #include "ash/public/cpp/app_menu_constants.h"
 #include "ash/public/cpp/image_downloader.h"
+#include "ash/shell.h"
 #include "base/functional/bind.h"
 #include "base/i18n/rtl.h"
 #include "base/memory/raw_ptr.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "cc/paint/paint_flags.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
@@ -18,12 +21,12 @@
 #include "chrome/browser/ash/app_list/app_list_model_updater.h"
 #include "chrome/browser/ash/app_list/app_list_syncable_service.h"
 #include "chrome/browser/ash/app_list/app_list_syncable_service_factory.h"
+#include "chrome/browser/ash/app_list/app_list_util.h"
 #include "chrome/browser/ash/app_list/chrome_app_list_item.h"
 #include "chrome/browser/ash/app_list/chrome_app_list_model_updater.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/ash/remote_apps/remote_apps_impl.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/app_list/app_list_util.h"
 #include "chrome/common/apps/platform_apps/api/enterprise_remote_apps.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/account_id/account_id.h"
@@ -267,6 +270,19 @@ void RemoteAppsManager::SortLauncherWithRemoteAppsFirst() {
       ->RequestAppListSort(AppListSortOrder::kAlphabeticalEphemeralAppFirst);
 }
 
+RemoteAppsError RemoteAppsManager::SetPinnedApps(
+    const std::vector<std::string>& app_ids) {
+  if (app_ids.size() > 1) {
+    return RemoteAppsError::kPinningMultipleAppsNotSupported;
+  }
+
+  // Providing an empty app id will reset the pinned app.
+  std::string app_id = app_ids.empty() ? "" : app_ids[0];
+  bool success =
+      Shell::Get()->app_list_controller()->SetHomeButtonQuickApp(app_id);
+  return success ? RemoteAppsError::kNone : RemoteAppsError::kFailedToPinAnApp;
+}
+
 std::string RemoteAppsManager::AddFolder(const std::string& folder_name,
                                          bool add_to_front) {
   const RemoteAppsModel::FolderInfo& folder_info =
@@ -326,7 +342,7 @@ void RemoteAppsManager::BindRemoteAppsAndAppLaunchObserverForLacros(
     mojo::PendingRemote<chromeos::remote_apps::mojom::RemoteAppLaunchObserver>
         pending_observer) {
   remote_apps_impl_.BindRemoteAppsAndAppLaunchObserver(
-      absl::nullopt, std::move(pending_remote_apps),
+      std::nullopt, std::move(pending_remote_apps),
       std::move(pending_observer));
 }
 

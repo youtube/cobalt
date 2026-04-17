@@ -12,7 +12,6 @@
 #include <string>
 #include <vector>
 
-#include "base/auto_reset.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
@@ -103,6 +102,13 @@ class COMPOSITOR_EXPORT Layer : public LayerAnimationDelegate,
     sync_visibility_with_source_ = sync_visibility;
   }
 
+  // This method is relevant only if this layer is a mirror destination layer.
+  // Sets whether this mirror layer's rounded corners are synchronized with the
+  // source layer's rounded corners.
+  void set_sync_rounded_corners_with_source(bool sync_rounded_corners) {
+    sync_rounded_corners_with_source_ = sync_rounded_corners;
+  }
+
   // Sets up this layer to mirror output of |subtree_reflected_layer|, including
   // its entire hierarchy. |this| should be of type LAYER_SOLID_COLOR and should
   // not be a descendant of |subtree_reflected_layer|. This is achieved by using
@@ -160,7 +166,9 @@ class COMPOSITOR_EXPORT Layer : public LayerAnimationDelegate,
   void StackBelow(Layer* child, Layer* other);
 
   // Returns the child Layers.
-  const std::vector<Layer*>& children() const { return children_; }
+  const std::vector<raw_ptr<Layer, VectorExperimental>>& children() const {
+    return children_;
+  }
 
   // The parent.
   const Layer* parent() const { return parent_; }
@@ -174,7 +182,7 @@ class COMPOSITOR_EXPORT Layer : public LayerAnimationDelegate,
   // The layer's animator is responsible for causing automatic animations when
   // properties are set. It also manages a queue of pending animations and
   // handles blending of animations. The layer takes ownership of the animator.
-  void SetAnimator(LayerAnimator* animator);
+  void SetAnimator(scoped_refptr<LayerAnimator> animator);
 
   // Returns the layer's animator. Creates a default animator of one has not
   // been set. Will not return NULL.
@@ -301,12 +309,27 @@ class COMPOSITOR_EXPORT Layer : public LayerAnimationDelegate,
   // If a custom layer color matrix was set, this clears it.
   void ClearLayerCustomColorMatrix();
 
+  // Applies an offset to the Layer, after all other backdrop and filter effects
+  // other than clipping. This offset is not reflected in the layer bounds.
+  void SetLayerOffset(const gfx::Point& offset);
+  const gfx::Point& layer_offset() const { return layer_offset_; }
+
   // Zoom the background by a factor of |zoom|. The effect is blended along the
   // edge across |inset| pixels.
+  // NOTE: Background zoom does not currently work with software compositing,
+  // see crbug.com/1451898. Usage should generally be limited to ash chrome,
+  // which does not rely on software compositing. Elsewhere, background zoom can
+  // still be set, but it will have no effect when software compositing is used
+  // (e.g. as a fallback when the GPU process has crashed too many times).
   void SetBackgroundZoom(float zoom, int inset);
 
-  // Applies an offset when drawing pixels for the layer background filter.
-  void SetBackgroundOffset(const gfx::Point& background_offset);
+  // Set the rounded clip bounds of the backdrop filter effect, relative to
+  // this Layer's coordinate space. Backdrop effects are only visible and can
+  // only sample from the intersection of the Layer's bounds and any set
+  // backdrop filter bounds.
+  void SetBackdropFilterBounds(const SkPath& backdrop_filter_bounds);
+  void SetBackdropFilterBounds(const gfx::RRectF& backdrop_filter_bounds);
+  void ClearBackdropFilterBounds();
 
   // Set the shape of this layer.
   const ShapeRects* alpha_shape() const { return alpha_shape_.get(); }
@@ -349,7 +372,8 @@ class COMPOSITOR_EXPORT Layer : public LayerAnimationDelegate,
   void SetAcceptEvents(bool accept_events);
   bool accept_events() const { return accept_events_; }
 
-  // Sets a rounded corner clip on the layer.
+  // Gets/sets a rounded corner clip on the layer.
+  gfx::RoundedCornersF GetTargetRoundedCornerRadius() const;
   void SetRoundedCornerRadius(const gfx::RoundedCornersF& corner_radii);
   const gfx::RoundedCornersF& rounded_corner_radii() const {
     return cc_layer_->corner_radii();
@@ -391,6 +415,8 @@ class COMPOSITOR_EXPORT Layer : public LayerAnimationDelegate,
   // Note: Setting a layer non-opaque has significant performance impact,
   // especially on low-end Chrome OS devices. Please ensure you are not
   // adding unnecessary overdraw. When in doubt, talk to the graphics team.
+  // NOTE: Opacity of SOLID_COLOR layer is determined by the color's alpha
+  // channel. Calling this on SOLID_COLOR results in check failure.
   void SetFillsBoundsOpaquely(bool fills_bounds_opaquely);
   bool fills_bounds_opaquely() const { return fills_bounds_opaquely_; }
 
@@ -402,18 +428,24 @@ class COMPOSITOR_EXPORT Layer : public LayerAnimationDelegate,
   void SetName(const std::string& name);
 
   // Set new TransferableResource for this layer. This method only supports
-  // a gpu-backed |resource|.
+  // a gpu-backed |resource| which is assumed to have top-left origin.
   void SetTransferableResource(const viz::TransferableResource& resource,
                                viz::ReleaseCallback release_callback,
                                gfx::Size texture_size_in_dip);
   void SetTextureSize(gfx::Size texture_size_in_dip);
-  void SetTextureFlipped(bool flipped);
-  bool TextureFlipped() const;
 
-  // TODO(fsamuel): Update this comment.
   // Begins showing content from a surface with a particular ID.
+  // TODO(crbug.com/40285157): with surface sync, size shouldn't rely on
+  // `frame_size_in_dip` anymore, so this method can be deleted, and
+  // surface_size uses `bounds_` instead.
   void SetShowSurface(const viz::SurfaceId& surface_id,
                       const gfx::Size& frame_size_in_dip,
+                      SkColor default_background_color,
+                      const cc::DeadlinePolicy& deadline_policy,
+                      bool stretch_content_to_fill_bounds);
+
+  // Updates the surface to a particular ID without changing size.
+  void SetShowSurface(const viz::SurfaceId& surface_id,
                       SkColor default_background_color,
                       const cc::DeadlinePolicy& deadline_policy,
                       bool stretch_content_to_fill_bounds);
@@ -435,6 +467,10 @@ class COMPOSITOR_EXPORT Layer : public LayerAnimationDelegate,
 
   bool has_external_content() const {
     return texture_layer_.get() || surface_layer_.get();
+  }
+
+  const viz::SurfaceId& external_content_surface_id() const {
+    return surface_layer_->surface_id();
   }
 
   // Show a solid color instead of delegated or surface contents.
@@ -483,7 +519,10 @@ class COMPOSITOR_EXPORT Layer : public LayerAnimationDelegate,
   // Notifies the layer that the device scale factor has changed.
   void OnDeviceScaleFactorChanged(float device_scale_factor);
 
-  // Requets a copy of the layer's output as a texture or bitmap.
+  // Requests a copy of the layer's output as a texture or bitmap. If the
+  // request does not have the result task runner, this will be set to
+  // the compositor's task runner, which means the layer must be added to
+  // compositor before requesting.
   void RequestCopyOfOutput(std::unique_ptr<viz::CopyOutputRequest> request);
 
   // Invoked when scrolling performed by the cc::InputHandler is committed. This
@@ -504,7 +543,6 @@ class COMPOSITOR_EXPORT Layer : public LayerAnimationDelegate,
   void SetScrollOffset(const gfx::PointF& offset);
 
   // ContentLayerClient implementation.
-  gfx::Rect PaintableRegion() const override;
   scoped_refptr<cc::DisplayItemList> PaintContentsToDisplayList() override;
   bool FillsBoundsCompletely() const override;
 
@@ -514,7 +552,6 @@ class COMPOSITOR_EXPORT Layer : public LayerAnimationDelegate,
 
   // TextureLayerClient implementation.
   bool PrepareTransferableResource(
-      cc::SharedBitmapIdRegistrar* bitmap_registar,
       viz::TransferableResource* resource,
       viz::ReleaseCallback* release_callback) override;
 
@@ -570,6 +607,8 @@ class COMPOSITOR_EXPORT Layer : public LayerAnimationDelegate,
   // set to stretch to fill bounds.
   void SetSurfaceSize(gfx::Size surface_size_in_dip);
 
+  base::WeakPtr<Layer> AsWeakPtr();
+
   bool ContainsMirrorForTest(Layer* mirror) const;
 
   void SetCompositorForTesting(Compositor* compositor) {
@@ -577,8 +616,6 @@ class COMPOSITOR_EXPORT Layer : public LayerAnimationDelegate,
   }
 
  private:
-  // TODO(https://crbug.com/1242749): temporary while tracking down crash.
-  friend class Compositor;
   friend class LayerOwner;
   class LayerMirror;
   class SubpixelPositionOffsetCache;
@@ -614,7 +651,7 @@ class COMPOSITOR_EXPORT Layer : public LayerAnimationDelegate,
                                   PropertyChangeReason reason) override;
   void SetGrayscaleFromAnimation(float grayscale,
                                  PropertyChangeReason reason) override;
-  void SetColorFromAnimation(SkColor color,
+  void SetColorFromAnimation(SkColor4f color,
                              PropertyChangeReason reason) override;
   void SetClipRectFromAnimation(const gfx::Rect& clip_rect,
                                 PropertyChangeReason reason) override;
@@ -630,7 +667,7 @@ class COMPOSITOR_EXPORT Layer : public LayerAnimationDelegate,
   bool GetVisibilityForAnimation() const override;
   float GetBrightnessForAnimation() const override;
   float GetGrayscaleForAnimation() const override;
-  SkColor GetColorForAnimation() const override;
+  SkColor4f GetColorForAnimation() const override;
   gfx::Rect GetClipRectForAnimation() const override;
   gfx::RoundedCornersF GetRoundedCornersForAnimation() const override;
   const gfx::LinearGradient& GetGradientMaskForAnimation() const override;
@@ -639,7 +676,6 @@ class COMPOSITOR_EXPORT Layer : public LayerAnimationDelegate,
   cc::Layer* GetCcLayer() const override;
   LayerThreadedAnimationDelegate* GetThreadedAnimationDelegate() override;
   LayerAnimatorCollection* GetLayerAnimatorCollection() override;
-  absl::optional<int> GetFrameNumber() const override;
   float GetRefreshRate() const override;
 
   // Creates a corresponding composited layer for |type_|.
@@ -698,7 +734,7 @@ class COMPOSITOR_EXPORT Layer : public LayerAnimationDelegate,
   raw_ptr<Layer> parent_;
 
   // This layer's children, in bottom-to-top stacking order.
-  std::vector<Layer*> children_;
+  std::vector<raw_ptr<Layer, VectorExperimental>> children_;
 
   std::vector<std::unique_ptr<LayerMirror>> mirrors_;
 
@@ -706,7 +742,7 @@ class COMPOSITOR_EXPORT Layer : public LayerAnimationDelegate,
   raw_ptr<Layer> subtree_reflected_layer_ = nullptr;
 
   // List of layers reflecting this layer and its subtree, if any.
-  base::flat_set<Layer*> subtree_reflecting_layers_;
+  base::flat_set<raw_ptr<Layer, CtnExperimental>> subtree_reflecting_layers_;
 
   // If true, and this is a destination mirror layer, changes to the bounds of
   // the source layer are propagated to this mirror layer.
@@ -715,6 +751,10 @@ class COMPOSITOR_EXPORT Layer : public LayerAnimationDelegate,
   // If true, and this is a destination mirror layer, changes in the source
   // layer's visibility are propagated to this mirror layer.
   bool sync_visibility_with_source_ = true;
+
+  // If true, and this is a destination mirror layer, changes in the rounded
+  // corners of the source layer are propagated to this mirror layer.
+  bool sync_rounded_corners_with_source_ = true;
 
   gfx::Rect bounds_;
 
@@ -728,7 +768,7 @@ class COMPOSITOR_EXPORT Layer : public LayerAnimationDelegate,
   // does not affect the layer's descendants.
   bool accept_events_ = true;
 
-  // See SetFillsBoundsOpaquely(). Defaults to true.
+  // See SetFillsBoundsOpaquely().
   bool fills_bounds_opaquely_;
 
   bool fills_bounds_completely_;
@@ -753,6 +793,8 @@ class COMPOSITOR_EXPORT Layer : public LayerAnimationDelegate,
   float layer_sepia_;
   float layer_hue_rotation_;
   std::unique_ptr<cc::FilterOperation::Matrix> layer_custom_color_matrix_;
+  // Offset to apply when drawing pixels for the layer.
+  gfx::Point layer_offset_;
 
   // The associated mask layer with this layer.
   raw_ptr<Layer> layer_mask_;
@@ -768,17 +810,15 @@ class COMPOSITOR_EXPORT Layer : public LayerAnimationDelegate,
   // Width of the border in pixels, where the scaling is blended.
   int zoom_inset_;
 
-  // Offset to apply when drawing pixels for the layer background filter.
-  gfx::Point background_offset_;
-
   // Shape of the window.
   std::unique_ptr<ShapeRects> alpha_shape_;
 
   std::string name_;
 
-  raw_ptr<LayerDelegate, DanglingUntriaged> delegate_;
+  raw_ptr<LayerDelegate, DanglingUntriaged> delegate_ = nullptr;
 
-  base::ObserverList<LayerObserver>::Unchecked observer_list_;
+  base::ObserverList<LayerObserver>::UncheckedAndDanglingUntriaged
+      observer_list_;
 
   raw_ptr<LayerOwner> owner_;
 
@@ -830,10 +870,6 @@ class COMPOSITOR_EXPORT Layer : public LayerAnimationDelegate,
   // If the value == 0, means we should not perform trilinear filtering on the
   // layer.
   unsigned trilinear_filtering_request_;
-
-  // TODO(https://crbug.com/1242749): temporary while tracking down crash.
-  bool in_send_damaged_rects_ = false;
-  bool sending_damaged_rects_for_descendants_ = false;
 
   base::WeakPtrFactory<Layer> weak_ptr_factory_{this};
 };

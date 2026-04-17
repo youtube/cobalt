@@ -4,6 +4,10 @@
 
 #include "quiche/quic/core/quic_path_validator.h"
 
+#include <memory>
+#include <ostream>
+#include <utility>
+
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
@@ -169,7 +173,7 @@ void QuicPathValidator::MaybeWritePacketToAddress(
                 << path_context_->peer_address();
   path_context_->WriterToUse()->WritePacket(
       buffer, buf_len, path_context_->self_address().host(),
-      path_context_->peer_address(), nullptr);
+      path_context_->peer_address(), nullptr, QuicPacketWriterParams());
 }
 
 }  // namespace quic

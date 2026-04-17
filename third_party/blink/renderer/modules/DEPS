@@ -1,8 +1,12 @@
 include_rules = [
     "+base/atomic_sequence_num.h",
     "+base/memory/scoped_refptr.h",
+    "+base/containers/heap_array.h",
+    "+base/containers/span.h",
+    "+mojo/public/cpp/base",
     "+mojo/public/cpp/bindings",
     "+mojo/public/cpp/system",
+    "+mojo/public/cpp/test_support",
     "+net/base/net_errors.h",
     "+services/device/public/mojom",
     "+services/network/public/cpp/shared_url_loader_factory.h",
@@ -24,6 +28,8 @@ include_rules = [
     "+ui/display/screen_info.h",
     "+ui/display/screen_infos.h",
     "+ui/display/mojom",
+    "+ui/color",
+    "+ui/gfx/animation/keyframe/timing_function.h",
     "+ui/gfx/geometry",
     "-web",
 ]
@@ -60,13 +66,15 @@ specific_include_rules = {
     ],
 
     "tcp_writable_stream_wrapper.h": [
-        "+base/allocator/partition_allocator/partition_root.h",
+        "+partition_alloc/partition_root.h",
     ],
     ".*_stream_wrapper.cc": [
         "+net/base/ip_endpoint.h",
     ],
     ".*socket.cc": [
-        "+base/barrier_callback.h",
         "+base/functional/identity.h",
     ],
+    "web_printing_manager.cc": [
+      "+printing/buildflags/buildflags.h",
+    ]
 }

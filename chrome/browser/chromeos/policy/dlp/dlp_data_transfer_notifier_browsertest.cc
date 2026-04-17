@@ -7,6 +7,7 @@
 #include "base/functional/callback_helpers.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "content/public/test/browser_test.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/views/test/widget_test.h"
 #include "ui/views/widget/widget.h"
@@ -31,8 +32,8 @@ class MockDlpDataTransferNotifier : public DlpDataTransferNotifier {
 
   // DlpDataTransferNotifier:
   void NotifyBlockedAction(
-      const ui::DataTransferEndpoint* const data_src,
-      const ui::DataTransferEndpoint* const data_dst) override {}
+      base::optional_ref<const ui::DataTransferEndpoint> data_src,
+      base::optional_ref<const ui::DataTransferEndpoint> data_dst) override {}
 
   MOCK_METHOD(void, OnWidgetDestroying, (views::Widget*), (override));
 
@@ -65,12 +66,7 @@ IN_PROC_BROWSER_TEST_F(DlpDataTransferNotifierBrowserTest, ShowBlockBubble) {
 
   views::test::WidgetDestroyedWaiter waiter(notifier_.widget_.get());
   EXPECT_TRUE(notifier_.widget_->IsVisible());
-
-  // The DLP notification bubble widget is initialized but never activated on
-  // Lacros.
-#if BUILDFLAG(IS_CHROMEOS_ASH)
   EXPECT_TRUE(notifier_.widget_->IsActive());
-#endif
 
   // By the time OnWidgetDestroying() is called, notifier_.widget_ is already
   // NULL so the assertion would fail if we pass it as expected arg here.
@@ -93,12 +89,7 @@ IN_PROC_BROWSER_TEST_F(DlpDataTransferNotifierBrowserTest, ShowWarningBubble) {
 
   views::test::WidgetDestroyedWaiter waiter(notifier_.widget_.get());
   EXPECT_TRUE(notifier_.widget_->IsVisible());
-
-  // The DLP notification bubble widget is initialized but never activated on
-  // Lacros.
-#if BUILDFLAG(IS_CHROMEOS_ASH)
   EXPECT_TRUE(notifier_.widget_->IsActive());
-#endif
 
   // By the time OnWidgetDestroying() is called, notifier_.widget_ is already
   // NULL so the assertion would fail if we pass it as expected arg here.
@@ -118,12 +109,7 @@ IN_PROC_BROWSER_TEST_F(DlpDataTransferNotifierBrowserTest, OnWidgetDestroying) {
   ASSERT_TRUE(notifier_.widget_.get());
 
   EXPECT_TRUE(notifier_.widget_->IsVisible());
-
-  // The DLP notification bubble widget is initialized but never activated on
-  // Lacros.
-#if BUILDFLAG(IS_CHROMEOS_ASH)
   EXPECT_TRUE(notifier_.widget_->IsActive());
-#endif
 
   // Fake that widget is being destroyed, so we can check that the notifier_ is
   // no longer observing it.

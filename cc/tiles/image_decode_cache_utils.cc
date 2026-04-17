@@ -30,7 +30,6 @@ bool ImageDecodeCacheUtils::ShouldEvictCaches(
       return true;
   }
   NOTREACHED();
-  return false;
 }
 
 // static

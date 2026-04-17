@@ -2,19 +2,29 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/events/ozone/evdev/event_device_info.h"
 
 #include <linux/input.h>
 
+#include <array>
 #include <cstring>
 
 #include "base/containers/fixed_flat_set.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/types/fixed_array.h"
 #include "ui/events/devices/device_util_linux.h"
+#include "ui/events/ozone/evdev/keyboard_mouse_combo_device_metrics.h"
 #include "ui/events/ozone/features.h"
 
 #if !defined(EVIOCGMTSLOTS)
@@ -43,6 +53,10 @@ struct DeviceId {
   }
 };
 
+constexpr auto kKeyboardAllowlist = base::MakeFixedFlatSet<DeviceId>({
+    {0x2516, 0x0016},  // CM Storm Quickfire Pro Ultimate
+});
+
 constexpr auto kKeyboardBlocklist = base::MakeFixedFlatSet<DeviceId>({
     {0x0111, 0x1830},  // SteelSeries Rival 3 Wireless (Bluetooth)
     {0x0111, 0x183a},  // SteelSeries Aerox 3 Wireless (Bluetooth)
@@ -52,22 +66,30 @@ constexpr auto kKeyboardBlocklist = base::MakeFixedFlatSet<DeviceId>({
     {0x03f0, 0x4e41},  // HP OMEN Vector Wireless Mouse
     {0x03f0, 0xa407},  // HP X4000 Wireless Mouse
     {0x045e, 0x0745},  // Microsoft Wireless Mobile Mouse 6000
+    {0x045e, 0x07a2},  // Microsoft Sculpt Comfort Mouse
     {0x045e, 0x0821},  // Microsoft Surface Precision Mouse
+    {0x045e, 0x0827},  // Microsoft Modern Mobile Mouse
     {0x045e, 0x082a},  // Microsoft Pro IntelliMouse
     {0x045e, 0x082f},  // Microsoft Bluetooth Mouse
     {0x045e, 0x0845},  // Microsoft Ocean Plastic Mouse
+    {0x045e, 0x0932},  // Microsoft Surface Arc Mouse
     {0x045e, 0x095d},  // Microsoft Surface Mobile Mouse
     {0x045e, 0x0b05},  // Xbox One Elite Series 2 gamepad
     {0x046d, 0x4026},  // Logitech T400
+    {0x046d, 0x404a},  // Logitech MX Anywhere 2 (Unifying)
     {0x046d, 0x405e},  // Logitech M720 Triathlon (Unifying)
     {0x046d, 0x4069},  // Logitech MX Master 2S (Unifying) // nocheck
     {0x046d, 0x406b},  // Logitech M585 (Unifying)
+    {0x046d, 0x406f},  // Logitech MX Ergo
     {0x046d, 0x4072},  // Logitech MX Anywhere 2 (Unifying)
+    {0x046d, 0x407b},  // Logitech MX Vertical
     {0x046d, 0x4080},  // Logitech Pebble M350
+    {0x046d, 0x4082},  // Logitech MX Master 3 (Unifying)
     {0x046d, 0xb00d},  // Logitech T630 Ultrathin
     {0x046d, 0xb011},  // Logitech M558
     {0x046d, 0xb012},  // Logitech MX Master (Bluetooth) // nocheck
     {0x046d, 0xb013},  // Logitech MX Anywhere 2 (Bluetooth)
+    {0x046d, 0xb014},  // Logitech M337
     {0x046d, 0xb015},  // Logitech M720 Triathlon (Bluetooth)
     {0x046d, 0xb016},  // Logitech M535
     {0x046d, 0xb017},  // Logitech MX Master / Anywhere 2 (Bluetooth) // nocheck
@@ -81,17 +103,28 @@ constexpr auto kKeyboardBlocklist = base::MakeFixedFlatSet<DeviceId>({
     {0x046d, 0xb024},  // Logitech G604 Lightspeed Gaming Mouse (Bluetooth)
     {0x046d, 0xb503},  // Logitech Spotlight Presentation Remote (Bluetooth)
     {0x046d, 0xb505},  // Logitech R500 (Bluetooth)
+    {0x046d, 0xc087},  // Logitech G703
+    {0x046d, 0xc088},  // Logitech G Pro Wireless (USB)
+    {0x046d, 0xc08b},  // Logitech G502 Hero
+    {0x046d, 0xc08c},  // Logitech G Pro Gaming Mouse (Wired)
+    {0x046d, 0xc091},  // Logitech G903
+    {0x046d, 0xc092},  // Logitech G203 LIGHTSYNC
     {0x046d, 0xc093},  // Logitech M500s
-    {0x046d, 0xc534},  // Logitech M170
+    {0x046d, 0xc094},  // Logitech G Pro Wireless X Superlight (USB)
+    {0x046d, 0xc09d},  // Logitech G203
     {0x046d, 0xc53e},  // Logitech Spotlight Presentation Remote (USB dongle)
     {0x04b4, 0x121f},  // SteelSeries Ikari
     {0x056e, 0x0134},  // Elecom Enelo IR LED Mouse 350
     {0x056e, 0x0141},  // Elecom EPRIM Blue LED 5 button mouse 228
     {0x056e, 0x0159},  // Elecom Blue LED Mouse 203
     {0x05e0, 0x1200},  // Symbol Technologies / Zebra LS2208 barcode scanner
+    {0x093a, 0x2533},  // CyberPower Mouse
+    {0x0951, 0x16d3},  // HyperX Pulsefire Surge
+    {0x0951, 0x16de},  // HyperX Pulsefire Core
+    {0x0951, 0x16e2},  // HyperX Pulsefire Dart
     {0x0951, 0x1727},  // HyperX Pulsefire Haste Gaming Mouse
-    {0x0a5c, 0x8502},  // PageFlip Firefly (Bluetooth)
-    {0x0c45, 0x7403},  // RDing FootSwitch1F1
+    {0x0b05, 0x1949},  // ASUS ROG Strix Impact II
+    {0x0b33, 0x3022},  // Contour Design RollerMouse Pro
     {0x1038, 0x0470},  // SteelSeries Reaper Edge
     {0x1038, 0x0471},  // SteelSeries Rival Rescuer
     {0x1038, 0x0472},  // SteelSeries Rival 150 net café
@@ -239,17 +272,33 @@ constexpr auto kKeyboardBlocklist = base::MakeFixedFlatSet<DeviceId>({
     {0x1050, 0x0010},  // Yubico.com Yubikey
     {0x1050, 0x0407},  // Yubico.com Yubikey 4 OTP+U2F+CCID
     {0x12cf, 0x0490},  // Acer Cestus 325
+    {0x1532, 0x005c},  // Razer DeathAdder Elite
+    {0x1532, 0x0062},  // Razer Atheris
+    {0x1532, 0x0071},  // Razer DeathAdder Essential - White
+    {0x1532, 0x0078},  // Razer Viper
     {0x1532, 0x007a},  // Razer Viper Ultimate (Wired)
     {0x1532, 0x007b},  // Razer Viper Ultimate (Wireless)
+    {0x1532, 0x007d},  // Razer DeathAdder V2 Pro
+    {0x1532, 0x0083},  // Razer Basilsk X HyperSpeed
+    {0x1532, 0x008a},  // Razer Viper Mini
+    {0x1532, 0x0094},  // Razer Orochi V2 (USB dongle)
+    {0x1532, 0x0098},  // Razer DeathAdder Essential
     {0x1532, 0x009a},  // Razer Pro Click Mini (Dongle)
     {0x1532, 0x009b},  // Razer Pro Click Mini (Bluetooth)
+    {0x1532, 0x00b6},  // Razer DeathAdder V3 Pro
     {0x17ef, 0x60be},  // Lenovo Legion M200 RGB Gaming Mouse
     {0x17ef, 0x60e4},  // Lenovo Legion M300 RGB Gaming Mouse
     {0x17ef, 0x6123},  // Lenovo USB-C Wired Compact Mouse
     {0x1b1c, 0x1b7a},  // Corsair Sabre Pro Champion Gaming Mouse
     {0x1b1c, 0x1b94},  // Corsair Katar Pro Wireless (USB dongle)
+    {0x1b1c, 0x1b9e},  // Corsair M65 RGB
     {0x1bae, 0x1b1c},  // Corsair Katar Pro Wireless (Bluetooth)
+    {0x1b1c, 0x1bac},  // Corsair Katar Pro
     {0x1bcf, 0x08a0},  // Kensington Pro Fit Full-size
+    {0x1e7d, 0x2c88},  // ROCCAT Kone Pro
+    {0x1e7d, 0x2c8a},  // ROCCAT Kone Pro Air
+    {0x1e7d, 0x2ca6},  // ROCCAT Burst Pro Air (USB dongle)
+    {0x1e7d, 0x2cab},  // ROCCAT Burst Pro Air
     {0x2201, 0x0100},  // AirTurn PEDpro
     {0x256c, 0x006d},  // Huion HS64
     {0x258a, 0x1007},  // Acer Cestus 330
@@ -257,10 +306,15 @@ constexpr auto kKeyboardBlocklist = base::MakeFixedFlatSet<DeviceId>({
     {0x28bd, 0x0914},  // XP-Pen Star G640
     {0x28bd, 0x091f},  // XP-Pen Artist 12 Pro
     {0x28bd, 0x0928},  // XP-Pen Deco mini7W
+    {0x5043, 0x5442},  // Ploopy Trackball
 });
 
 constexpr DeviceId kStylusButtonDevices[] = {
     {0x413c, 0x81d5},  // Dell Active Pen PN579X
+};
+
+constexpr DeviceId kHeatmapSupportedDevices[] = {
+    {0x04f3, 0x4222},  // Rex
 };
 
 // Certain devices need to be forced to use libinput in place of
@@ -284,6 +338,10 @@ bool IsForceLibinput(const EventDeviceInfo& devinfo) {
 const uint16_t kSteelSeriesBluetoothVendorId = 0x0111;
 const uint16_t kSteelSeriesStratusDuoBluetoothProductId = 0x1431;
 const uint16_t kSteelSeriesStratusPlusBluetoothProductId = 0x1434;
+
+const uint16_t kFlossVirtualSuspendVendorId = 0x0000;
+const uint16_t kFlossVirtualSuspendProductId = 0x0000;
+const char kFlossVirtualSuspendName[] = "VIRTUAL_SUSPEND_UHID";
 
 bool GetEventBits(int fd,
                   const base::FilePath& path,
@@ -379,12 +437,14 @@ void AssignBitset(const unsigned long* src,
 }
 
 bool IsDenylistedAbsoluteMouseDevice(const input_id& id) {
-  static constexpr struct {
+  struct USBLegacyDenyListedDevices {
     uint16_t vid;
     uint16_t pid;
-  } kUSBLegacyDenyListedDevices[] = {
-      {0x222a, 0x0001},  // ILITEK ILITEK-TP
   };
+  constexpr static auto kUSBLegacyDenyListedDevices =
+      std::to_array<USBLegacyDenyListedDevices>({
+          {0x222a, 0x0001},  // ILITEK ILITEK-TP
+      });
 
   for (size_t i = 0; i < std::size(kUSBLegacyDenyListedDevices); ++i) {
     if (id.vendor == kUSBLegacyDenyListedDevices[i].vid &&
@@ -448,19 +508,18 @@ bool EventDeviceInfo::Initialize(int fd, const base::FilePath& path) {
   int max_num_slots = GetAbsMtSlotCount();
 
   // |request| is MT code + slots.
-  int32_t request[max_num_slots + 1];
-  int32_t* request_code = &request[0];
-  int32_t* request_slots = &request[1];
+  base::FixedArray<int32_t> request(max_num_slots + 1);
+  int32_t& request_code = request.front();
   for (unsigned int i = EVDEV_ABS_MT_FIRST; i <= EVDEV_ABS_MT_LAST; ++i) {
     if (!HasAbsEvent(i))
       continue;
 
-    memset(request, 0, sizeof(request));
-    *request_code = i;
-    GetSlotValues(fd, path, request, max_num_slots + 1);
+    memset(request.data(), 0, request.memsize());
+    request_code = i;
+    GetSlotValues(fd, path, request.data(), max_num_slots + 1);
 
     std::vector<int32_t>* slots = &slot_values_[i - EVDEV_ABS_MT_FIRST];
-    slots->assign(request_slots, request_slots + max_num_slots);
+    slots->assign(request.begin() + 1, request.begin() + 1 + max_num_slots);
   }
 
   if (!GetDeviceName(fd, path, &name_))
@@ -605,6 +664,16 @@ bool EventDeviceInfo::HasProp(unsigned int code) const {
   return EvdevBitIsSet(prop_bits_.data(), code);
 }
 
+bool EventDeviceInfo::SupportsHeatmap() const {
+  for (const auto& device_id : kHeatmapSupportedDevices) {
+    if (input_id_.vendor == device_id.vendor &&
+        input_id_.product == device_id.product_id) {
+      return true;
+    }
+  }
+  return false;
+}
+
 int32_t EventDeviceInfo::GetAbsMinimum(unsigned int code) const {
   return abs_info_[code].minimum;
 }
@@ -680,7 +749,6 @@ bool EventDeviceInfo::HasDirect() const {
   }
 
   NOTREACHED();
-  return false;
 }
 
 bool EventDeviceInfo::HasPointer() const {
@@ -700,7 +768,6 @@ bool EventDeviceInfo::HasPointer() const {
   }
 
   NOTREACHED();
-  return false;
 }
 
 bool EventDeviceInfo::HasStylus() const {
@@ -742,16 +809,42 @@ bool EventDeviceInfo::UseLibinput() const {
   return useLibinput;
 }
 
+void RecordBlocklistedKeyboardMetric(input_id input_id_) {
+  static base::NoDestructor<base::flat_set<DeviceId>> logged_devices;
+  auto [_, inserted] =
+      logged_devices->insert({input_id_.vendor, input_id_.product});
+  if (inserted) {
+    base::UmaHistogramEnumeration(
+        "ChromeOS.Inputs.ComboDeviceClassification",
+        ComboDeviceClassification::kKnownKeyboardImposter);
+  }
+}
+
 bool IsInKeyboardBlockList(input_id input_id_) {
   DeviceId id = {input_id_.vendor, input_id_.product};
-  return kKeyboardBlocklist.contains(id);
+  if (kKeyboardBlocklist.contains(id)) {
+    RecordBlocklistedKeyboardMetric(input_id_);
+    return true;
+  }
+
+  return false;
+}
+
+bool IsInKeyboardAllowList(input_id input_id_) {
+  DeviceId id = {input_id_.vendor, input_id_.product};
+  return kKeyboardAllowlist.contains(id);
 }
 
 bool EventDeviceInfo::HasKeyboard() const {
-  return GetKeyboardType() == KeyboardType::VALID_KEYBOARD;
+  KeyboardType type = GetKeyboardType();
+  return type == KeyboardType::VALID_KEYBOARD ||
+         type == KeyboardType::IN_ALLOWLIST;
 }
 
 KeyboardType EventDeviceInfo::GetKeyboardType() const {
+  if (IsInKeyboardAllowList(input_id_)) {
+    return KeyboardType::IN_ALLOWLIST;
+  }
   if (!HasEventType(EV_KEY))
     return KeyboardType::NOT_KEYBOARD;
   if (IsInKeyboardBlockList(input_id_))
@@ -775,6 +868,15 @@ bool EventDeviceInfo::HasMouse() const {
   if (input_id_.vendor == kSteelSeriesBluetoothVendorId &&
       (input_id_.product == kSteelSeriesStratusDuoBluetoothProductId ||
       input_id_.product == kSteelSeriesStratusPlusBluetoothProductId)) {
+    return false;
+  }
+
+  // When floss is enabled, it presents a virtual device used to wake the device
+  // on bluetooth connection. This long term should be reduced down to not
+  // appear as a mouse. For now, filter it out directly. (b/309017352)
+  if (input_id_.vendor == kFlossVirtualSuspendVendorId &&
+      input_id_.product == kFlossVirtualSuspendProductId &&
+      name_ == kFlossVirtualSuspendName) {
     return false;
   }
 
@@ -867,30 +969,35 @@ bool EventDeviceInfo::SupportsRumble() const {
 
 // static
 ui::InputDeviceType EventDeviceInfo::GetInputDeviceTypeFromId(input_id id) {
-  static constexpr struct {
+  struct USBInternalDevices {
     uint16_t vid;
     uint16_t pid;
-  } kUSBInternalDevices[] = {
-      {0x18d1, 0x502b},  // Google, Hammer PID (soraka)
-      {0x18d1, 0x5030},  // Google, Whiskers PID (nocturne)
-      {0x18d1, 0x503c},  // Google, Masterball PID (krane) // nocheck
-      {0x18d1, 0x503d},  // Google, Magnemite PID (kodama)
-      {0x18d1, 0x5044},  // Google, Moonball PID (kakadu)
-      {0x18d1, 0x504c},  // Google, Zed PID (coachz)
-      {0x18d1, 0x5050},  // Google, Don PID (katsu)
-      {0x18d1, 0x5052},  // Google, Star PID (homestar)
-      {0x18d1, 0x5056},  // Google, bland PID (mrbland)
-      {0x18d1, 0x5057},  // Google, eel PID (wormdingler)
-      {0x18d1, 0x505B},  // Google, Duck PID (quackingstick)
-      {0x18d1, 0x5061},  // Google, Jewel PID (starmie)
-      {0x1fd2, 0x8103},  // LG, Internal TouchScreen PID
   };
+  constexpr static auto kUSBInternalDevices =
+      std::to_array<USBInternalDevices>({
+          {0x18d1, 0x502b},  // Google, Hammer PID (soraka)
+          {0x18d1, 0x5030},  // Google, Whiskers PID (nocturne)
+          {0x18d1, 0x503c},  // Google, Masterball PID (krane) // nocheck
+          {0x18d1, 0x503d},  // Google, Magnemite PID (kodama)
+          {0x18d1, 0x5044},  // Google, Moonball PID (kakadu)
+          {0x18d1, 0x504c},  // Google, Zed PID (coachz)
+          {0x18d1, 0x5050},  // Google, Don PID (katsu)
+          {0x18d1, 0x5052},  // Google, Star PID (homestar)
+          {0x18d1, 0x5056},  // Google, bland PID (mrbland)
+          {0x18d1, 0x5057},  // Google, eel PID (wormdingler)
+          {0x18d1, 0x505B},  // Google, Duck PID (quackingstick)
+          {0x18d1, 0x5061},  // Google, Jewel PID (starmie)
+          {0x18d1, 0x5067},  // Google, Spikyrock (wugtrio)
+          {0x18d1, 0x5074},  // Google, Whitebeard (wyrdeer)
+          {0x1fd2, 0x8103},  // LG, Internal TouchScreen PID
+      });
 
   if (id.bustype == BUS_USB) {
     for (size_t i = 0; i < std::size(kUSBInternalDevices); ++i) {
       if (id.vendor == kUSBInternalDevices[i].vid &&
-          id.product == kUSBInternalDevices[i].pid)
+          id.product == kUSBInternalDevices[i].pid) {
         return InputDeviceType::INPUT_DEVICE_INTERNAL;
+      }
     }
   }
 
@@ -971,6 +1078,8 @@ std::ostream& operator<<(std::ostream& os, const KeyboardType value) {
       return os << "ui::KeyboardType::STYLUS_BUTTON_DEVICE";
     case KeyboardType::VALID_KEYBOARD:
       return os << "ui::KeyboardType::VALID_KEYBOARD";
+    case KeyboardType::IN_ALLOWLIST:
+      return os << "ui::KeyboardType::IN_ALLOWLIST";
   }
   return os << "ui::KeyboardType::unknown_value("
             << static_cast<unsigned int>(value) << ")";

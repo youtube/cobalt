@@ -24,7 +24,7 @@ using FaviconID = int64_t;
 // Defines the icon types.
 //
 // IMPORTANT: these values must stay in sync with the FaviconType enum in
-// tools/metrics/histograms/enum.xml.
+// tools/metrics/histograms/enums.xml.
 // When you update the types please also check if it needs to be reflected in
 // blink::mojom::FaviconIconType enums
 //
@@ -103,10 +103,12 @@ using FaviconRawBitmapData = FaviconRawBitmapResult;
 struct LargeIconResult {
   explicit LargeIconResult(const FaviconRawBitmapResult& bitmap_in);
 
-  // Takes ownership of |fallback_icon_style_in|.
-  explicit LargeIconResult(FallbackIconStyle* fallback_icon_style_in);
+  explicit LargeIconResult(
+      std::unique_ptr<FallbackIconStyle> fallback_icon_style_in);
 
   ~LargeIconResult();
+
+  LargeIconResult(LargeIconResult&& result);
 
   // The bitmap from the favicon database if the database has a sufficiently
   // large one.
@@ -125,7 +127,8 @@ struct LargeIconImageResult {
                                 const GURL& icon_url_in);
 
   // Takes ownership of |fallback_icon_style_in|.
-  explicit LargeIconImageResult(FallbackIconStyle* fallback_icon_style_in);
+  explicit LargeIconImageResult(
+      std::unique_ptr<FallbackIconStyle> fallback_icon_style_in);
 
   ~LargeIconImageResult();
 
@@ -145,6 +148,7 @@ struct LargeIconImageResult {
 // favicon server. Used for UMA enum GoogleFaviconServerRequestStatus, so do not
 // change existing values. Insert new values at the end, and update the
 // histogram definition.
+// GENERATED_JAVA_ENUM_PACKAGE: org.chromium.components.favicon
 enum class GoogleFaviconServerRequestStatus {
   // Request sent out and the favicon successfully fetched.
   SUCCESS = 0,

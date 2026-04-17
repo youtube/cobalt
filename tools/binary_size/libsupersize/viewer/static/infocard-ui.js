@@ -273,13 +273,14 @@ const displayInfocard = (() => {
        * infocard that represent a particular symbol type.
        */
       this._infoRows = {
+        a: this._tableBody.querySelector('.arsc-info'),
         b: this._tableBody.querySelector('.bss-info'),
         d: this._tableBody.querySelector('.data-info'),
         r: this._tableBody.querySelector('.rodata-info'),
         t: this._tableBody.querySelector('.text-info'),
         R: this._tableBody.querySelector('.relro-info'),
-        x: this._tableBody.querySelector('.dexnon-info'),
-        m: this._tableBody.querySelector('.dex-info'),
+        x: this._tableBody.querySelector('.dexother-info'),
+        m: this._tableBody.querySelector('.dexmethod-info'),
         p: this._tableBody.querySelector('.pak-info'),
         P: this._tableBody.querySelector('.paknon-info'),
         o: this._tableBody.querySelector('.other-info'),

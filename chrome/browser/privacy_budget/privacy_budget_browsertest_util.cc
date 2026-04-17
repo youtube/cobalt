@@ -4,6 +4,8 @@
 
 #include "chrome/browser/privacy_budget/privacy_budget_browsertest_util.h"
 
+#include "base/memory/raw_ptr.h"
+#include "chrome/browser/metrics/chrome_metrics_service_accessor.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/test/base/chrome_test_utils.h"
 #include "content/public/test/browser_test_utils.h"
@@ -47,12 +49,12 @@ PrivacyBudgetBrowserTestBaseWithTestRecorder::GetReportedSurfaceKeys(
 
 int PrivacyBudgetBrowserTestBaseWithTestRecorder::GetSurfaceKeyCount(
     uint64_t expected_key) {
-  std::vector<const ukm::mojom::UkmEntry*> entries =
+  std::vector<raw_ptr<const ukm::mojom::UkmEntry, VectorExperimental>> entries =
       ukm_recorder_->GetEntriesByName(
           ukm::builders::Identifiability::kEntryName);
 
   int count = 0;
-  for (const auto* entry : entries) {
+  for (const ukm::mojom::UkmEntry* entry : entries) {
     for (const auto& metric : entry->metrics) {
       if (expected_key == metric.first)
         count++;
@@ -105,7 +107,7 @@ bool PrivacyBudgetBrowserTestBaseWithUkmRecording::EnableUkmRecording() {
 
   // UpdateUploadPermissions causes the MetricsServicesManager to look at the
   // consent signals and re-evaluate whether reporting should be enabled.
-  g_browser_process->GetMetricsServicesManager()->UpdateUploadPermissions(true);
+  g_browser_process->GetMetricsServicesManager()->UpdateUploadPermissions();
 
   // The following sequence synchronously completes UkmService initialization
   // (if it wasn't initialized yet) and flushes any accumulated metrics.
@@ -123,9 +125,14 @@ bool PrivacyBudgetBrowserTestBaseWithUkmRecording::DisableUkmRecording() {
       << "DisableUkmRecording() should only be called after "
          "EnableUkmRecording()";
   is_metrics_reporting_enabled_ = false;
-  g_browser_process->GetMetricsServicesManager()->UpdateUploadPermissions(true);
+  g_browser_process->GetMetricsServicesManager()->UpdateUploadPermissions();
   ChromeMetricsServiceAccessor::SetMetricsAndCrashReportingForTesting(nullptr);
   return !ukm::UkmTestHelper(ukm_service()).IsRecordingEnabled();
+}
+
+content::WebContents*
+PrivacyBudgetBrowserTestBaseWithUkmRecording::web_contents() {
+  return chrome_test_utils::GetActiveWebContents(this);
 }
 
 void PrivacyBudgetBrowserTestBaseWithUkmRecording::TearDown() {

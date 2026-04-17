@@ -35,7 +35,7 @@ class Eviction {
   void TrimCache(bool empty);
 
   // Updates the ranking information for an entry.
-  void UpdateRank(EntryImpl* entry, bool modified);
+  void UpdateRank(EntryImpl* entry);
 
   // Notifications of interesting events for a given entry.
   void OnOpenEntry(EntryImpl* entry);
@@ -60,7 +60,7 @@ class Eviction {
   // new eviction algorithm. This code will replace the original methods when
   // finished.
   void TrimCacheV2(bool empty);
-  void UpdateRankV2(EntryImpl* entry, bool modified);
+  void UpdateRankV2(EntryImpl* entry);
   void OnOpenEntryV2(EntryImpl* entry);
   void OnCreateEntryV2(EntryImpl* entry);
   void OnDoomEntryV2(EntryImpl* entry);
@@ -71,7 +71,6 @@ class Eviction {
 
   bool NodeIsOldEnough(CacheRankingsBlock* node, int list);
   int SelectListByLength(Rankings::ScopedRankingsBlock* next);
-  void ReportListStats();
 
   raw_ptr<BackendImpl> backend_ = nullptr;
   raw_ptr<Rankings> rankings_;

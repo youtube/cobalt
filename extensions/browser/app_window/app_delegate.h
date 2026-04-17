@@ -24,6 +24,7 @@ namespace content {
 enum class PictureInPictureResult;
 class BrowserContext;
 class FileSelectListener;
+class NavigationHandle;
 class RenderFrameHost;
 class WebContents;
 struct OpenURLParams;
@@ -56,7 +57,9 @@ class AppDelegate {
   virtual content::WebContents* OpenURLFromTab(
       content::BrowserContext* context,
       content::WebContents* source,
-      const content::OpenURLParams& params) = 0;
+      const content::OpenURLParams& params,
+      base::OnceCallback<void(content::NavigationHandle&)>
+          navigation_handle_callback) = 0;
   virtual void AddNewContents(
       content::BrowserContext* context,
       std::unique_ptr<content::WebContents> new_contents,
@@ -77,7 +80,7 @@ class AppDelegate {
       const Extension* extension) = 0;
   virtual bool CheckMediaAccessPermission(
       content::RenderFrameHost* render_frame_host,
-      const GURL& security_origin,
+      const url::Origin& security_origin,
       blink::mojom::MediaStreamType type,
       const Extension* extension) = 0;
   virtual int PreferredIconSize() const = 0;
@@ -87,17 +90,12 @@ class AppDelegate {
                                      bool blocked) = 0;
   virtual bool IsWebContentsVisible(content::WebContents* web_contents) = 0;
 
-  // |callback| will be called when the process is about to terminate.
+  // `callback` will be called when the process is about to terminate.
   virtual void SetTerminatingCallback(base::OnceClosure callback) = 0;
 
   // Called when the app is hidden or shown.
   virtual void OnHide() = 0;
   virtual void OnShow() = 0;
-
-  // Called when app web contents finishes focus traversal - gives the delegate
-  // a chance to handle the focus change.
-  // Return whether focus has been handled.
-  virtual bool TakeFocus(content::WebContents* web_contents, bool reverse) = 0;
 
   // Notifies the Picture-in-Picture controller that there is a new player
   // entering Picture-in-Picture.

@@ -52,7 +52,7 @@ SourceType ToProtobufSourceType(SourceIdType source_id_type) {
       return SourceType::WEBAPK_ID;
     case SourceIdType::PAYMENT_APP_ID:
       return SourceType::PAYMENT_APP_ID;
-    case SourceIdType::DESKTOP_WEB_APP_ID:
+    case SourceIdType::DEPRECATED_DESKTOP_WEB_APP_ID:
       return SourceType::DESKTOP_WEB_APP_ID;
     case SourceIdType::WORKER_ID:
       return SourceType::WORKER_ID;
@@ -66,8 +66,10 @@ SourceType ToProtobufSourceType(SourceIdType source_id_type) {
       return SourceType::CHROMEOS_WEBSITE_ID;
     case SourceIdType::EXTENSION_ID:
       return SourceType::EXTENSION_ID;
-    case SourceIdType::SOFT_NAVIGATION_ID:
-      return SourceType::SOFT_NAVIGATION_ID;
+    case SourceIdType::NOTIFICATION_ID:
+      return SourceType::NOTIFICATION_ID;
+    case SourceIdType::CDM_ID:
+      return SourceType::CDM_ID;
   }
 }
 
@@ -83,9 +85,12 @@ AndroidActivityType ToProtobufActivityType(int32_t type) {
       return AndroidActivityType::WEB_APP;
     case 4:
       return AndroidActivityType::WEB_APK;
+    case 5:
+      return AndroidActivityType::PRE_FIRST_TAB;
+    case 6:
+      return AndroidActivityType::AUTH_TAB;
     default:
       NOTREACHED();
-      return AndroidActivityType::TABBED;
   }
 }
 

@@ -17,20 +17,34 @@
 #ifndef COBALT_SHELL_COMMON_SHELL_SWITCHES_H_
 #define COBALT_SHELL_COMMON_SHELL_SWITCHES_H_
 
-#include "build/build_config.h"
+#include <cstddef>
 
 namespace switches {
 
-extern const char kContentShellDataPath[];
+inline constexpr char kDefaultURL[] = "https://www.youtube.com/tv";
+inline constexpr char kSplashScreenURL[] = "h5vcc-embedded://splash.html";
+inline constexpr char16_t kDefaultSplashCacheName[] = u"default";
+// 10MB limit for splash video to prevent memory exhaustion.
+// Current cobalt/shell/embedded_resources/loader_embedded_resources/splash.webm
+// is around 20KB, so 10MB should be sufficient.
+inline constexpr size_t kMaxSplashContentSize = 10 * 1024 * 1024;
+
+extern const char kContentShellUserDataDir[];
 extern const char kCrashDumpsDir[];
+extern const char kDisableSplashScreen[];
 extern const char kDisableSystemFontCheck[];
 extern const char kContentShellHostWindowSize[];
 extern const char kContentShellHideToolbar[];
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-extern const char kContentShellDevToolsTabTarget[];
-#endif
+extern const char kForceVideoSplashScreen[];
 extern const char kIsolatedContextOrigins[];
+extern const char kOmitDeviceAuthenticationQueryParameters[];
 extern const char kRemoteDebuggingAddress[];
+extern const char kSplashScreenShutdownDelayMs[];
+extern const char kTestRegisterStandardScheme[];
+
+// Checks if the splash screen should be created.
+// Returns false if kDisableSplashScreen is present.
+bool ShouldCreateSplashScreen();
 
 }  // namespace switches
 

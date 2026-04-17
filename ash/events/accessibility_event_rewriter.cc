@@ -4,15 +4,17 @@
 
 #include "ash/events/accessibility_event_rewriter.h"
 
-#include "ash/accessibility/accessibility_controller_impl.h"
+#include "ash/accessibility/accessibility_controller.h"
 #include "ash/accessibility/magnifier/docked_magnifier_controller.h"
 #include "ash/accessibility/magnifier/fullscreen_magnifier_controller.h"
+#include "ash/accessibility/mouse_keys/mouse_keys_controller.h"
 #include "ash/accessibility/switch_access/point_scan_controller.h"
 #include "ash/constants/ash_constants.h"
 #include "ash/keyboard/keyboard_util.h"
 #include "ash/public/cpp/accessibility_event_rewriter_delegate.h"
 #include "ash/shell.h"
 #include "base/system/sys_info.h"
+#include "ui/accessibility/accessibility_features.h"
 #include "ui/events/ash/event_rewriter_ash.h"
 #include "ui/events/devices/device_data_manager.h"
 #include "ui/events/event.h"
@@ -27,16 +29,15 @@ namespace {
 // Returns a ui::InputDeviceType given a Switch Access string device type.
 ui::InputDeviceType GetInputDeviceType(
     const std::string& switch_access_device_type) {
-  if (switch_access_device_type == kSwitchAccessInternalDevice)
+  if (switch_access_device_type == kSwitchAccessInternalDevice) {
     return ui::INPUT_DEVICE_INTERNAL;
-  if (switch_access_device_type == kSwitchAccessUsbDevice)
+  } else if (switch_access_device_type == kSwitchAccessUsbDevice) {
     return ui::INPUT_DEVICE_USB;
-  if (switch_access_device_type == kSwitchAccessBluetoothDevice)
+  } else if (switch_access_device_type == kSwitchAccessBluetoothDevice) {
     return ui::INPUT_DEVICE_BLUETOOTH;
-  // On Chrome OS emulated on Linux, the keyboard is always "UNKNOWN".
-  if (base::SysInfo::IsRunningOnChromeOS())
-    NOTREACHED();
-  return ui::INPUT_DEVICE_UNKNOWN;
+  } else {
+    return ui::INPUT_DEVICE_UNKNOWN;
+  }
 }
 }  // namespace
 
@@ -126,7 +127,12 @@ bool AccessibilityEventRewriter::RewriteEventForChromeVox(
   if (event.IsKeyEvent()) {
     const ui::KeyEvent* key_event = event.AsKeyEvent();
     ui::EventRewriterAsh::MutableKeyState state(key_event);
-    event_rewriter_ash_->RewriteModifierKeys(*key_event, &state);
+
+    // On new rewriter sequence, modifiers are already rewritten before
+    // this rewriter.
+    if (!features::IsKeyboardRewriterFixEnabled()) {
+      event_rewriter_ash_->RewriteModifierKeys(*key_event, &state);
+    }
 
     // Remove the Search modifier before asking for function keys to be
     // rewritten, then restore the flags. This allows ChromeVox to receive keys
@@ -146,7 +152,7 @@ bool AccessibilityEventRewriter::RewriteEventForChromeVox(
     if (try_rewriting_positional_keys_for_chromevox_) {
       const ui::KeyboardCode remapped_key_code =
           ui::KeycodeConverter::MapPositionalDomCodeToUSShortcutKey(
-              key_event->code());
+              key_event->code(), key_event->key_code());
       if (remapped_key_code != ui::VKEY_UNKNOWN)
         rewritten_key_event->set_key_code(remapped_key_code);
     }
@@ -155,7 +161,8 @@ bool AccessibilityEventRewriter::RewriteEventForChromeVox(
 
     // Always capture the Search key.
     capture |= rewritten_key_event->IsCommandDown() ||
-               rewritten_key_event->key_code() == ui::VKEY_LWIN;
+               rewritten_key_event->key_code() == ui::VKEY_LWIN ||
+               rewritten_key_event->key_code() == ui::VKEY_RWIN;
 
     // Don't capture tab as it gets consumed by Blink so never comes back
     // unhandled. In third_party/WebKit/Source/core/input/EventHandler.cpp, a
@@ -180,7 +187,11 @@ bool AccessibilityEventRewriter::RewriteEventForSwitchAccess(
 
   const ui::KeyEvent* key_event = event.AsKeyEvent();
   ui::EventRewriterAsh::MutableKeyState state(key_event);
-  event_rewriter_ash_->RewriteModifierKeys(*key_event, &state);
+  // On new rewriter sequence, modifiers are already rewritten before
+  // this rewriter.
+  if (!features::IsKeyboardRewriterFixEnabled()) {
+    event_rewriter_ash_->RewriteModifierKeys(*key_event, &state);
+  }
   event_rewriter_ash_->RewriteFunctionKeys(*key_event, &state);
 
   std::unique_ptr<ui::Event> rewritten_event;
@@ -210,15 +221,14 @@ bool AccessibilityEventRewriter::RewriteEventForSwitchAccess(
     return false;
   }
 
-  if (key_event->type() == ui::ET_KEY_PRESSED) {
-    AccessibilityControllerImpl* accessibility_controller =
+  if (key_event->type() == ui::EventType::kKeyPressed) {
+    AccessibilityController* accessibility_controller =
         Shell::Get()->accessibility_controller();
 
     if (accessibility_controller->IsPointScanEnabled()) {
       PointScanController* point_scan_controller =
           accessibility_controller->GetPointScanController();
-      absl::optional<gfx::PointF> point =
-          point_scan_controller->OnPointSelect();
+      std::optional<gfx::PointF> point = point_scan_controller->OnPointSelect();
       if (point.has_value()) {
         delegate_->SendPointScanPoint(point.value());
       }
@@ -244,7 +254,7 @@ bool AccessibilityEventRewriter::RewriteEventForMagnifier(
     return false;
   }
 
-  if (key_event->type() == ui::ET_KEY_PRESSED) {
+  if (key_event->type() == ui::EventType::kKeyPressed) {
     // If first time key is pressed (e.g. not repeat), start scrolling.
     if (!(key_event->flags() & ui::EF_IS_REPEAT))
       OnMagnifierKeyPressed(key_event);
@@ -253,7 +263,7 @@ bool AccessibilityEventRewriter::RewriteEventForMagnifier(
     return true;
   }
 
-  if (key_event->type() == ui::ET_KEY_RELEASED) {
+  if (key_event->type() == ui::EventType::kKeyReleased) {
     OnMagnifierKeyReleased(key_event);
     return true;
   }
@@ -301,15 +311,15 @@ void AccessibilityEventRewriter::OnMagnifierKeyReleased(
 void AccessibilityEventRewriter::MaybeSendMouseEvent(const ui::Event& event) {
   // Mouse moves are the only pertinent event for accessibility component
   // extensions.
+  AccessibilityController* accessibility_controller =
+      Shell::Get()->accessibility_controller();
   if (send_mouse_events_ &&
-      (event.type() == ui::ET_MOUSE_MOVED ||
-       event.type() == ui::ET_MOUSE_DRAGGED) &&
-      (Shell::Get()
-           ->accessibility_controller()
-           ->fullscreen_magnifier()
-           .enabled() ||
-       Shell::Get()->accessibility_controller()->docked_magnifier().enabled() ||
-       Shell::Get()->accessibility_controller()->spoken_feedback().enabled())) {
+      (event.type() == ui::EventType::kMouseMoved ||
+       event.type() == ui::EventType::kMouseDragged) &&
+      (accessibility_controller->fullscreen_magnifier().enabled() ||
+       accessibility_controller->docked_magnifier().enabled() ||
+       accessibility_controller->spoken_feedback().enabled() ||
+       accessibility_controller->face_gaze().enabled())) {
     delegate_->DispatchMouseEvent(event.Clone());
   }
 }
@@ -321,7 +331,13 @@ ui::EventDispatchDetails AccessibilityEventRewriter::RewriteEvent(
   if (!delegate_)
     return SendEvent(continuation, &event);
 
-  if (Shell::Get()->accessibility_controller()->IsSwitchAccessRunning()) {
+  // TODO(259372916): Switch to using the tray icon visibility.
+  if (::features::IsAccessibilityMouseKeysEnabled()) {
+    captured = Shell::Get()->mouse_keys_controller()->RewriteEvent(event);
+  }
+
+  if (!captured &&
+      Shell::Get()->accessibility_controller()->IsSwitchAccessRunning()) {
     captured = RewriteEventForSwitchAccess(event, continuation);
   }
 

@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/task/sequenced_task_runner.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "components/reporting/util/status.h"
@@ -38,9 +39,9 @@ class MockDelegate : public DisconnectableClient::Delegate {
   }
 
   void Respond(Status status) override {
-    DCHECK(completion_cb_);
+    CHECK(completion_cb_);
     if (!status.ok()) {
-      std::move(completion_cb_).Run(status);
+      std::move(completion_cb_).Run(base::unexpected(status));
       return;
     }
     std::move(completion_cb_).Run(input_ * 2);
@@ -67,12 +68,13 @@ class FailDelegate : public DisconnectableClient::Delegate {
   }
 
   void Respond(Status status) override {
-    DCHECK(completion_cb_);
+    CHECK(completion_cb_);
     if (!status.ok()) {
-      std::move(completion_cb_).Run(status);
+      std::move(completion_cb_).Run(base::unexpected(status));
       return;
     }
-    std::move(completion_cb_).Run(Status(error::CANCELLED, "Failed in test"));
+    std::move(completion_cb_)
+        .Run(base::unexpected(Status(error::CANCELLED, "Failed in test")));
   }
 
  private:
@@ -99,11 +101,11 @@ TEST_F(DisconnectableClientTest, NormalConnection) {
       std::make_unique<MockDelegate>(222, base::TimeDelta(), res2.cb()));
 
   auto result = res1.result();
-  ASSERT_OK(result) << result.status();
-  EXPECT_THAT(result.ValueOrDie(), Eq(222));
+  ASSERT_TRUE(result.has_value()) << result.error();
+  EXPECT_THAT(result.value(), Eq(222));
   result = res2.result();
-  ASSERT_OK(result) << result.status();
-  EXPECT_THAT(result.ValueOrDie(), Eq(444));
+  ASSERT_TRUE(result.has_value()) << result.error();
+  EXPECT_THAT(result.value(), Eq(444));
 }
 
 TEST_F(DisconnectableClientTest, NoConnection) {
@@ -112,9 +114,9 @@ TEST_F(DisconnectableClientTest, NoConnection) {
       std::make_unique<MockDelegate>(111, base::TimeDelta(), res.cb()));
 
   auto result = res.result();
-  ASSERT_FALSE(result.ok());
-  ASSERT_THAT(result.status().error_code(), Eq(error::UNAVAILABLE))
-      << result.status();
+  ASSERT_FALSE(result.has_value());
+  ASSERT_THAT(result.error().error_code(), Eq(error::UNAVAILABLE))
+      << result.error();
 }
 
 TEST_F(DisconnectableClientTest, FailedCallOnNormalConnection) {
@@ -133,21 +135,21 @@ TEST_F(DisconnectableClientTest, FailedCallOnNormalConnection) {
   task_environment_.FastForwardBy(base::Seconds(1));
 
   auto result = res1.result();
-  ASSERT_OK(result) << result.status();
-  EXPECT_THAT(result.ValueOrDie(), Eq(222));
+  ASSERT_TRUE(result.has_value()) << result.error();
+  EXPECT_THAT(result.value(), Eq(222));
 
   task_environment_.FastForwardBy(base::Seconds(1));
 
   result = res2.result();
-  ASSERT_FALSE(result.ok());
-  ASSERT_THAT(result.status().error_code(), Eq(error::CANCELLED))
-      << result.status();
+  ASSERT_FALSE(result.has_value());
+  ASSERT_THAT(result.error().error_code(), Eq(error::CANCELLED))
+      << result.error();
 
   task_environment_.FastForwardBy(base::Seconds(1));
 
   result = res3.result();
-  ASSERT_OK(result) << result.status();
-  EXPECT_THAT(result.ValueOrDie(), Eq(444));
+  ASSERT_TRUE(result.has_value()) << result.error();
+  EXPECT_THAT(result.value(), Eq(444));
 }
 
 TEST_F(DisconnectableClientTest, DroppedConnection) {
@@ -163,15 +165,15 @@ TEST_F(DisconnectableClientTest, DroppedConnection) {
   task_environment_.FastForwardBy(base::Seconds(1));
 
   auto result = res1.result();
-  ASSERT_OK(result) << result.status();
-  EXPECT_THAT(result.ValueOrDie(), Eq(222));
+  ASSERT_TRUE(result.has_value()) << result.error();
+  EXPECT_THAT(result.value(), Eq(222));
 
   client_.SetAvailability(/*is_available=*/false);
 
   result = res2.result();
-  ASSERT_FALSE(result.ok());
-  ASSERT_THAT(result.status().error_code(), Eq(error::UNAVAILABLE))
-      << result.status();
+  ASSERT_FALSE(result.has_value());
+  ASSERT_THAT(result.error().error_code(), Eq(error::UNAVAILABLE))
+      << result.error();
 }
 
 TEST_F(DisconnectableClientTest, FailedCallOnDroppedConnection) {
@@ -190,22 +192,22 @@ TEST_F(DisconnectableClientTest, FailedCallOnDroppedConnection) {
   task_environment_.FastForwardBy(base::Seconds(1));
 
   auto result = res1.result();
-  ASSERT_OK(result) << result.status();
-  EXPECT_THAT(result.ValueOrDie(), Eq(222));
+  ASSERT_TRUE(result.has_value()) << result.error();
+  EXPECT_THAT(result.value(), Eq(222));
 
   client_.SetAvailability(/*is_available=*/false);
 
   task_environment_.FastForwardBy(base::Seconds(1));
 
   result = res2.result();
-  ASSERT_FALSE(result.ok());
-  ASSERT_THAT(result.status().error_code(), Eq(error::UNAVAILABLE))
-      << result.status();
+  ASSERT_FALSE(result.has_value());
+  ASSERT_THAT(result.error().error_code(), Eq(error::UNAVAILABLE))
+      << result.error();
 
   result = res3.result();
-  ASSERT_FALSE(result.ok());
-  ASSERT_THAT(result.status().error_code(), Eq(error::UNAVAILABLE))
-      << result.status();
+  ASSERT_FALSE(result.has_value());
+  ASSERT_THAT(result.error().error_code(), Eq(error::UNAVAILABLE))
+      << result.error();
 }
 
 TEST_F(DisconnectableClientTest, ConnectionDroppedThenRestored) {
@@ -222,17 +224,17 @@ TEST_F(DisconnectableClientTest, ConnectionDroppedThenRestored) {
   task_environment_.FastForwardBy(base::Seconds(1));
 
   auto result = res1.result();
-  ASSERT_OK(result) << result.status();
-  EXPECT_THAT(result.ValueOrDie(), Eq(222));
+  ASSERT_TRUE(result.has_value()) << result.error();
+  EXPECT_THAT(result.value(), Eq(222));
 
   client_.SetAvailability(/*is_available=*/false);
 
   task_environment_.FastForwardBy(base::Seconds(1));
 
   result = res2.result();
-  ASSERT_FALSE(result.ok());
-  ASSERT_THAT(result.status().error_code(), Eq(error::UNAVAILABLE))
-      << result.status();
+  ASSERT_FALSE(result.has_value());
+  ASSERT_THAT(result.error().error_code(), Eq(error::UNAVAILABLE))
+      << result.error();
 
   client_.SetAvailability(/*is_available=*/true);
 
@@ -242,8 +244,91 @@ TEST_F(DisconnectableClientTest, ConnectionDroppedThenRestored) {
   task_environment_.FastForwardBy(base::Seconds(1));
 
   result = res3.result();
-  ASSERT_OK(result) << result.status();
-  EXPECT_THAT(result.ValueOrDie(), Eq(666));
+  ASSERT_TRUE(result.has_value()) << result.error();
+  EXPECT_THAT(result.value(), Eq(666));
 }
 
+TEST_F(DisconnectableClientTest, NormalConnectionBeyondLimit) {
+  client_.SetAvailability(/*is_available=*/true);
+
+  // Set jobs limit to 2 for this test.
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitFromCommandLine(
+      "EnableReportingDelegateJobsLimit<study:max_running/2", "");
+
+  test::TestEvent<StatusOr<int64_t>> res1;
+  test::TestEvent<StatusOr<int64_t>> res2;
+  test::TestEvent<StatusOr<int64_t>> res3;
+  client_.MaybeMakeCall(
+      std::make_unique<MockDelegate>(111, base::Seconds(10), res1.cb()));
+  client_.MaybeMakeCall(
+      std::make_unique<MockDelegate>(222, base::Seconds(10), res2.cb()));
+  client_.MaybeMakeCall(
+      std::make_unique<MockDelegate>(333, base::Seconds(5), res3.cb()));
+
+  // No result right after launch.
+  EXPECT_TRUE(res1.no_result());
+  EXPECT_TRUE(res2.no_result());
+  EXPECT_TRUE(res3.no_result());
+
+  // Because of the limit, only the first two delegates would be finished,
+  // even though the third one takes less time.
+  task_environment_.FastForwardBy(base::Seconds(10));
+  auto result = res1.result();
+  ASSERT_TRUE(result.has_value()) << result.error();
+  EXPECT_THAT(result.value(), Eq(222));
+  result = res2.result();
+  ASSERT_TRUE(result.has_value()) << result.error();
+  EXPECT_THAT(result.value(), Eq(444));
+  EXPECT_TRUE(res3.no_result());
+
+  // Afterward the third delegate can finish.
+  task_environment_.FastForwardBy(base::Seconds(5));
+  result = res3.result();
+  ASSERT_TRUE(result.has_value()) << result.error();
+  EXPECT_THAT(result.value(), Eq(666));
+}
+
+TEST_F(DisconnectableClientTest, ConnectionGoingDownBeyondLimit) {
+  client_.SetAvailability(/*is_available=*/true);
+
+  // Set jobs limit to 2 for this test.
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitFromCommandLine(
+      "EnableReportingDelegateJobsLimit<study:max_running/2", "");
+
+  test::TestEvent<StatusOr<int64_t>> res1;
+  test::TestEvent<StatusOr<int64_t>> res2;
+  test::TestEvent<StatusOr<int64_t>> res3;
+  client_.MaybeMakeCall(
+      std::make_unique<MockDelegate>(111, base::Seconds(10), res1.cb()));
+  client_.MaybeMakeCall(
+      std::make_unique<MockDelegate>(222, base::Seconds(10), res2.cb()));
+  client_.MaybeMakeCall(
+      std::make_unique<MockDelegate>(333, base::Seconds(5), res3.cb()));
+
+  // No result right after launch.
+  EXPECT_TRUE(res1.no_result());
+  EXPECT_TRUE(res2.no_result());
+  EXPECT_TRUE(res3.no_result());
+
+  // Because of the limit, only the first two delegates would be finished,
+  // even though the third one takes less time.
+  task_environment_.FastForwardBy(base::Seconds(10));
+  auto result = res1.result();
+  ASSERT_TRUE(result.has_value()) << result.error();
+  EXPECT_THAT(result.value(), Eq(222));
+  result = res2.result();
+  ASSERT_TRUE(result.has_value()) << result.error();
+  EXPECT_THAT(result.value(), Eq(444));
+  EXPECT_TRUE(res3.no_result());
+
+  // Afterward the third delegate can start, but connection is down.
+  client_.SetAvailability(/*is_available=*/false);
+  task_environment_.FastForwardBy(base::Seconds(5));
+  result = res3.result();
+  ASSERT_FALSE(result.has_value());
+  ASSERT_THAT(result.error().error_code(), Eq(error::UNAVAILABLE))
+      << result.error();
+}
 }  // namespace reporting

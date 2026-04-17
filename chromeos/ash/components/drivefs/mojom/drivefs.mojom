@@ -5,6 +5,8 @@
 module drivefs.mojom;
 
 import "chromeos/components/drivefs/mojom/drivefs_native_messaging.mojom";
+import "chromeos/ash/components/drivefs/mojom/notifications.mojom";
+
 import "mojo/public/mojom/base/file_path.mojom";
 import "mojo/public/mojom/base/time.mojom";
 
@@ -134,12 +136,21 @@ interface DriveFs {
   GetMetadataByStableId(int64 stable_id) => (
       FileError error, FileMetadata? metadata);
 
-  // Attempts to cancel an in progress upload. `path` must be made absolute
+  // Indicates what CelloFS should do after the upload is cancelled.
+  enum CancelUploadMode {
+    kTrashAfterCancellation,
+    kDeleteAfterCancellation,
+  };
+
+  // Attempts to cancel an in progress upload and either trash or delete the
+  // file afterwards, depending on `cancel_mode`. `path` must be made absolute
   // from the drive mount point.
-  CancelUploadByPath(mojo_base.mojom.FilePath path);
+  CancelUploadByPath(mojo_base.mojom.FilePath path,
+                      CancelUploadMode cancel_mode);
 
   // Enable Docs offline explicitly.
-  SetDocsOfflineEnabled(bool enabled) => (FileError error);
+  SetDocsOfflineEnabled(bool enabled) =>
+      (FileError error, DocsOfflineEnableStatus status);
 
   // Returns the total space used by files that have been pinned.
   GetOfflineFilesSpaceUsage() => (FileError error, int64 space_used);
@@ -147,6 +158,47 @@ interface DriveFs {
   // Unpins all currently pinned items and force evicts them from the cache.
   // NOTE: Force eviction does not work for hosted documents.
   ClearOfflineFiles() => (FileError error);
+
+  // Uploads a file by skipping any remaining queue time, if possible.
+  ImmediatelyUpload(mojo_base.mojom.FilePath path) => (FileError error);
+
+  // Forces the server to export any pending paired doc content into a new
+  // revision.
+  UpdateFromPairedDoc(mojo_base.mojom.FilePath path) => (FileError error);
+
+  // Pulls the updated file content from the server into the cache, if a newer
+  // revision is available.
+  GetItemFromCloudStore(mojo_base.mojom.FilePath path) => (FileError error);
+
+  // Gets counts of files in docs offline extension.
+  GetDocsOfflineStats() => (FileError error, DocsOfflineStats counts);
+
+  // Gets the mirror sync status for a specific file.
+  GetMirrorSyncStatusForFile(mojo_base.mojom.FilePath path) =>
+      (MirrorItemSyncingStatus status);
+
+  // Gets the mirror sync status for a specific directory.
+  GetMirrorSyncStatusForDirectory(mojo_base.mojom.FilePath path) =>
+      (MirrorItemSyncingStatus status);
+};
+
+[Extensible]
+enum DocsOfflineEnableStatus {
+  [Default] kUnknown,
+  kSuccess,
+  kAlreadyEnabled,
+  kUnknownError,
+  kDisableUnsupported,
+  kOfflineEligible,
+  kOfflineIneligibleUnknown,
+  kOfflineIneligibleOtherUser,
+  kOfflineIneligibleDbInInvalidState,
+  kOfflineIneligiblePolicyDisallow,
+  kOfflineIneligibleNoExtension,
+  kOfflineIneligibleInsufficientDiskSpace,
+  kNativeMessageHostError,
+  kNativeMessageClientError,
+  kSystemError,
 };
 
 // Implemented by Chrome, used from DriveFS.
@@ -216,6 +268,27 @@ interface DriveFsDelegate {
   // Invoked when the syncing status changes for items that are being tracked by
   // the mirror stack.
   OnMirrorSyncingStatusUpdate(SyncingStatus status);
+
+  // Invoked when the syncing status changes for items that are being tracked by
+  // either the streaming or the mirror stack - with the guarantee that if an
+  // event is dispatched for a given path, then a "completed" event will also
+  // eventually be dispatched for the same path (i.e., paths never linger in an
+  // incompleted state).
+  // For more details, see: b/269694669
+  OnItemProgress(ProgressEvent progress_event);
+
+  // Get an access token for `client_id` and `app_id` with access to `scopes`.
+  // `access_token` is only valid if the `status` is `kSuccess`.
+  GetAccessTokenWithExpiry(string client_id,
+    string app_id,
+    array<string> scopes) => (AccessTokenStatus status,
+                              AccessToken? access_token);
+
+  // Invoked when a notification of interest is sent from DriveFS.
+  OnNotificationReceived(DriveFsNotification notification);
+
+  // Invoke when a mirror sync error is sent from DriveFS.
+  OnMirrorSyncError(MirrorSyncErrorList error_list);
 };
 
 [Extensible]
@@ -228,7 +301,7 @@ enum CSESupport {
   kListing,
 };
 
-// Next MinVersion: 8
+// Next MinVersion: 9
 struct DriveFsConfiguration {
   string user_email;
 
@@ -238,7 +311,7 @@ struct DriveFsConfiguration {
   [MinVersion=2]
   bool enable_metrics = false;
 
-  // The directory name to use for lost and found within the user's My files
+  // The directory name to use for lost and found within the user's MyFiles
   // directory.
   [MinVersion=3]
   string? lost_and_found_directory_name;
@@ -249,17 +322,27 @@ struct DriveFsConfiguration {
   [MinVersion=5]
   bool enable_verbose_logging = false;
 
-  // Whether the network service bridge is available. This is enabled on CrOS by
-  // the |drive-fs-chrome-networking| flag.
-  [MinVersion=6]
-  bool enable_cros_network = false;
-
   // The level of CSE files support Chrome expects from DriveFS and can handle.
   // CSE stands for Client-Side Encryption and is an enterprise technology to
   // encrypt data with a key not accessible by Google.
   // See more: https://support.google.com/a/answer/10741897
   [MinVersion=7]
   CSESupport cse_support = kNone;
+
+  // Whether the "last modifying user" file metadata should be fetched by
+  // default.
+  [MinVersion=8]
+  bool fetch_modifying_user_metadata = false;
+
+  // Whether the "sharing user" file metadata should be fetched by default.
+  [MinVersion=8]
+  bool fetch_sharing_user_metadata = false;
+};
+
+// The OAuth token in string form along with the time the token expires.
+struct AccessToken {
+  string token;
+  mojo_base.mojom.Time expiry_time;
 };
 
 enum AccessTokenStatus {
@@ -325,6 +408,7 @@ enum FileError {
   kNoConnection = -16,
   kNoLocalSpace = -17,
   kServiceUnavailable = -18,
+  kOkWithMoreResults = -19,
 };
 
 // Errors received from DriveFS to be forwarded to the file manager UI.
@@ -362,7 +446,12 @@ struct DialogReason {
   mojo_base.mojom.FilePath path;
 };
 
-// Next MinVersion: 9
+struct UserInfo {
+  // The user name to display in the UI.
+  string display_name;
+};
+
+// Next MinVersion: 11
 struct FileMetadata {
   [Extensible] enum Type {
     // A regular file.
@@ -437,9 +526,34 @@ struct FileMetadata {
 
   // Whether the item is in the trash bin.
   [MinVersion=8] bool trashed = false;
+
+  // The time the file was last modified by the user.
+  // Note: This piece of metadata will not be present for files whose
+  // metadata was last fetched with Drive FS configured using
+  // false fetch_modifying_user_metadata value.
+  [MinVersion=9] mojo_base.mojom.Time? modified_by_me_time;
+
+  // Information about the last user that modified the file.
+  // Note: This piece of metadata will not be present for files whose
+  // metadata was last fetched with Drive FS configured using
+  // false fetch_modifying_user_metadata value.
+  [MinVersion=9] UserInfo? last_modifying_user;
+
+  // The time the file was shared with the user.
+  [MinVersion=9] mojo_base.mojom.Time? shared_with_me_time;
+
+  // Information about the user that shared the file with the user.
+  // Note: This piece of metadata will not be present for files whose
+  // metadata was last fetched with Drive FS configured using
+  // false fetch_sharing_user_metadata value.
+  [MinVersion=9] UserInfo? sharing_user;
+
+  // The title of the file.
+  [MinVersion=10] string? title;
 };
 
 // Details relating to the target item that a shortcut refers to.
+// Next MinVersion: 2
 struct ShortcutDetails {
   int64 target_stable_id = 0;
 
@@ -454,6 +568,9 @@ struct ShortcutDetails {
   // In the case the target the shortcut points to can't be found or doesn't
   // have permission, relay that information back.
   LookupStatus target_lookup_status;
+
+  // The absolute path on disk of the target this shortcut points to.
+  [MinVersion=1] mojo_base.mojom.FilePath? target_path;
 };
 
 struct ImageMetadata {
@@ -502,8 +619,8 @@ struct SharedDriveQuota {
 };
 
 // Reason why this event occurred.
-// TODO(crbug.com/896777): Put this inside ItemEvent once the fix for the linked
-// bug is in libchrome.
+// TODO(crbug.com/41421508): Put this inside ItemEvent once the fix for the
+// linked bug is in libchrome.
 [Extensible]
 enum ItemEventReason {
   // Due to sync traffic from file transfers.
@@ -519,6 +636,8 @@ struct ItemEvent {
     kInProgress,
     kCompleted,
     kFailed,
+    kCancelledAndDeleted,
+    kCancelledAndTrashed,
   };
 
   // The stable ID used by DriveFS.
@@ -540,6 +659,26 @@ struct ItemEvent {
 
   // True if it's a download event, else it's an upload event.
   [MinVersion=2] bool is_download = false;
+};
+
+// A report of a change in the Sync Progress of a file or folder.
+// Next MinVersion: 1
+struct ProgressEvent {
+  // The stable ID used by DriveFS.
+  int64 stable_id;
+
+  // Absolute path of the file or directory.
+  string path;
+
+  // Progress given by signed byte, ranging from 0 to 100.
+  // * 0 progress is considered "queued";
+  // * 100 progress is considered "completed";
+  // * Anything in between is considered "in progress";
+  // * Other values are not defined.
+  uint8 progress;
+
+  // Absolute path of the file or directory.
+  [MinVersion=1] mojo_base.mojom.FilePath? file_path;
 };
 
 struct SyncingStatus {
@@ -565,12 +704,13 @@ struct FileChange {
 };
 
 // Definition of the search request sent to DriveFS.
-// Next MinVersion: 6
+// Next MinVersion: 7
 struct QueryParameters {
   // Where this request should go to.
   enum QuerySource {
     kLocalOnly = 0,
     kCloudOnly = 1,
+    kLocalAndCloud = 2,
   };
 
   // Which field should be used for sorting the results.
@@ -580,6 +720,7 @@ struct QueryParameters {
     kLastModified = 1,
     kLastViewedByMe = 2,
     kFileSize = 3,
+    kSharedWithMe = 4,
   };
 
   enum SortDirection {
@@ -649,9 +790,21 @@ struct QueryParameters {
 
   // The stable ID of the parent directory to search for.
   [MinVersion=5] int64 parent_stable_id = 0;
+
+  // The operator applied to the viewed_time field. Used only if the
+  // viewed_time field is not empty. If the document's  viewed_time is T,
+  // we check if
+  //    T viewed_time_operator viewed_time
+  [MinVersion=6] DateComparisonOperator viewed_time_operator;
+
+  // Only show results that, if their viewed time is T, it holds true that
+  // T viewed_time_operator viewed_time.
+  // For example, if the viewed_time_operator is kGreaterThan we only show
+  // files with viewed time T greater than the one specified in this field.
+  [MinVersion=6] mojo_base.mojom.Time? viewed_time;
 };
 
-// TODO(crbug.com/896777): Put this inside QueryParameters once linked bug is
+// TODO(crbug.com/41421508): Put this inside QueryParameters once linked bug is
 // fixed.
 enum QueryKind {
   // Regular search.
@@ -779,4 +932,49 @@ interface HttpDelegate {
   // should be deferred until all data is read.
   // See |URLLoaderClient::OnComplete|
   OnRequestComplete(HttpCompletionStatus status);
+};
+
+// Counts of files in docs offline extension.
+struct DocsOfflineStats {
+  // The total number of files. -1 when extension is not available.
+  int32 total;
+
+  // The number of files available offline. -1 when extension is not available.
+  int32 available_offline;
+};
+
+// Mirror sync status for a specific file or directory, should match:
+// google3/apps/drive/fs/proto/mirror_sync_status.proto
+enum MirrorItemSyncingStatus {
+  kUnknown,
+  kSynced,
+  kSyncing,
+  kSyncError,
+};
+
+// Mirror sync errors received from DriveFS to be forwarded to the file manager
+// UI.
+struct MirrorSyncError {
+  [Extensible] enum Type {
+    [Default] kUnknown,
+    kGenericUploadFailure,
+    kGenericDownloadFailure,
+    kMultipleFailures,
+    kExceedsCloudDownloadQuota,
+    kNoDiskSpace,
+    kExceedsCloudStorageQuota,
+    kExceedsCloudUploadQuota,
+  };
+
+  Type type;
+
+  // The name of the file where an error was encountered.
+  string name;
+
+  // The stable id of the file where an error was encountered
+  int64 stable_id;
+};
+
+struct MirrorSyncErrorList {
+  array<MirrorSyncError> errors;
 };

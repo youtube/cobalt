@@ -2,13 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "components/autofill/core/browser/payments/payments_requests/update_virtual_card_enrollment_request.h"
+
 #include <memory>
 #include <tuple>
 
+#include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
 #include "base/json/json_reader.h"
 #include "base/strings/string_number_conversions.h"
-#include "components/autofill/core/browser/payments/payments_requests/update_virtual_card_enrollment_request.h"
+#include "base/test/scoped_feature_list.h"
 #include "components/autofill/core/browser/payments/virtual_card_enrollment_flow.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -27,8 +30,13 @@ class UpdateVirtualCardEnrollmentRequestTest
       const UpdateVirtualCardEnrollmentRequestTest&) = delete;
   ~UpdateVirtualCardEnrollmentRequestTest() override = default;
 
-  void SetUp() override {
-    PaymentsClient::UpdateVirtualCardEnrollmentRequestDetails request_details;
+  void SetUp() override { CreateRequest(); }
+
+  // Creates an UpdateVirtualCardEnrollmentRequest based on the current test
+  // parameters, and stores it in `request_`. Can be re-called to recreate the
+  // request as needed.
+  void CreateRequest() {
+    UpdateVirtualCardEnrollmentRequestDetails request_details;
     request_details.virtual_card_enrollment_request_type =
         std::get<0>(GetParam());
     request_details.virtual_card_enrollment_source = std::get<1>(GetParam());
@@ -46,7 +54,7 @@ class UpdateVirtualCardEnrollmentRequestTest
     return request_.get();
   }
 
-  const absl::optional<std::string>& GetParsedResponse() const {
+  const std::optional<std::string>& GetParsedResponse() const {
     return request_->enroll_result_;
   }
 
@@ -80,12 +88,12 @@ TEST_P(UpdateVirtualCardEnrollmentRequestTest, GetRequestContent) {
       case VirtualCardEnrollmentSource::kDownstream:
       case VirtualCardEnrollmentSource::kSettingsPage:
         billable_service_number =
-            base::NumberToString(kUnmaskCardBillableServiceNumber);
+            base::NumberToString(kUnmaskPaymentMethodBillableServiceNumber);
         channel_type = "CHROME_DOWNSTREAM";
         break;
       case VirtualCardEnrollmentSource::kUpstream:
         billable_service_number =
-            base::NumberToString(kUploadCardBillableServiceNumber);
+            base::NumberToString(kUploadPaymentMethodBillableServiceNumber);
         channel_type = "CHROME_UPSTREAM";
         break;
       default:
@@ -114,13 +122,14 @@ TEST_P(UpdateVirtualCardEnrollmentRequestTest, GetRequestContent) {
     EXPECT_TRUE(GetRequest()->GetRequestContent().find("instrument_id") !=
                 std::string::npos);
     EXPECT_TRUE(GetRequest()->GetRequestContent().find(base::NumberToString(
-                    kUnmaskCardBillableServiceNumber)) != std::string::npos);
+                    kUnmaskPaymentMethodBillableServiceNumber)) !=
+                std::string::npos);
   }
 }
 
 TEST_P(UpdateVirtualCardEnrollmentRequestTest, ParseResponse) {
   if (std::get<0>(GetParam()) == VirtualCardEnrollmentRequestType::kEnroll) {
-    absl::optional<base::Value> response =
+    std::optional<base::Value> response =
         base::JSONReader::Read("{ \"enroll_result\": \"ENROLL_SUCCESS\" }");
     ASSERT_TRUE(response.has_value());
     GetRequest()->ParseResponse(response->GetDict());
@@ -133,11 +142,45 @@ TEST_P(UpdateVirtualCardEnrollmentRequestTest, ParseResponse) {
             VirtualCardEnrollmentRequestType::kUnenroll);
   // Unenroll is only available from the settings page.
   if (std::get<1>(GetParam()) == VirtualCardEnrollmentSource::kSettingsPage) {
-    absl::optional<base::Value> response = base::JSONReader::Read("{}");
+    std::optional<base::Value> response = base::JSONReader::Read("{}");
     ASSERT_TRUE(response.has_value());
     GetRequest()->ParseResponse(response->GetDict());
 
     EXPECT_TRUE(GetRequest()->IsResponseComplete());
+  }
+}
+
+TEST_P(UpdateVirtualCardEnrollmentRequestTest,
+       EnrollDoesNotHaveTimeoutWithoutFlag) {
+  if (std::get<0>(GetParam()) != VirtualCardEnrollmentRequestType::kEnroll) {
+    // TODO(crbug.com/40605207): Use GTEST_SKIP once supported.
+    return;
+  }
+
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      features::kAutofillVcnEnrollRequestTimeout);
+
+  // Re-create the request with the flag now set.
+  CreateRequest();
+  EXPECT_FALSE(GetRequest()->GetTimeout().has_value());
+}
+
+TEST_P(UpdateVirtualCardEnrollmentRequestTest, EnrollHasTimeoutWhenFlagSet) {
+  base::FieldTrialParams params;
+  params["autofill_vcn_enroll_request_timeout_milliseconds"] = "6000";
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kAutofillVcnEnrollRequestTimeout, params);
+
+  // Re-create the request with the flag now set.
+  CreateRequest();
+
+  if (std::get<0>(GetParam()) == VirtualCardEnrollmentRequestType::kEnroll) {
+    EXPECT_EQ(*GetRequest()->GetTimeout(), base::Milliseconds(6000));
+  } else {
+    // Currently only Enroll has a client-side timeout set.
+    EXPECT_FALSE(GetRequest()->GetTimeout().has_value());
   }
 }
 

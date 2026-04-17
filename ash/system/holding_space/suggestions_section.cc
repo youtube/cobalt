@@ -20,15 +20,18 @@
 #include "ash/system/holding_space/holding_space_util.h"
 #include "base/functional/bind.h"
 #include "base/i18n/rtl.h"
+#include "base/memory/raw_ptr.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/geometry/rrect_f.h"
 #include "ui/gfx/paint_vector_icon.h"
 #include "ui/gfx/text_constants.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/focus_ring.h"
 #include "ui/views/controls/image_view.h"
@@ -62,8 +65,8 @@ class Header : public views::Button {
             holding_space_ui::CreateSuggestionsSectionHeaderLabel(
                 IDS_ASH_HOLDING_SPACE_SUGGESTIONS_TITLE)
                 .SetHorizontalAlignment(gfx::HorizontalAlignment::ALIGN_LEFT)
-                .SetProperty(views::kFlexBehaviorKey,
-                             views::FlexSpecification().WithWeight(1)),
+                .SetProperty(views::kBoxLayoutFlexKey,
+                             views::BoxLayoutFlexSpecification()),
             views::Builder<views::ImageView>().CopyAddressTo(&chevron_).SetID(
                 kHoldingSpaceSuggestionsChevronIconId))
         .BuildChildren();
@@ -101,21 +104,11 @@ class Header : public views::Button {
   }
 
  private:
-  // views::Button:
-  void GetAccessibleNodeData(ui::AXNodeData* node_data) override {
-    views::Button::GetAccessibleNodeData(node_data);
-
-    // Add expanded/collapsed state to `node_data`.
-    auto* prefs = Shell::Get()->session_controller()->GetActivePrefService();
-    node_data->AddState(holding_space_prefs::IsSuggestionsExpanded(prefs)
-                            ? ax::mojom::State::kExpanded
-                            : ax::mojom::State::kCollapsed);
-  }
-
   void OnPressed() {
     auto* prefs = Shell::Get()->session_controller()->GetActivePrefService();
     bool expanded = holding_space_prefs::IsSuggestionsExpanded(prefs);
     holding_space_prefs::SetSuggestionsExpanded(prefs, !expanded);
+    UpdateExpandedCollapsedAccessibleState(!expanded);
 
     holding_space_metrics::RecordSuggestionsAction(
         expanded ? holding_space_metrics::SuggestionsAction::kCollapse
@@ -125,19 +118,24 @@ class Header : public views::Button {
   void UpdateState() {
     // Chevron.
     auto* prefs = Shell::Get()->session_controller()->GetActivePrefService();
+    bool expanded = holding_space_prefs::IsSuggestionsExpanded(prefs);
     chevron_->SetImage(ui::ImageModel::FromVectorIcon(
-        holding_space_prefs::IsSuggestionsExpanded(prefs)
-            ? kChevronUpSmallIcon
-            : kChevronDownSmallIcon,
+        expanded ? kChevronUpSmallIcon : kChevronDownSmallIcon,
         kColorAshIconColorSecondary, kHoldingSpaceSectionChevronIconSize));
 
-    // Accessibility.
-    NotifyAccessibilityEvent(ax::mojom::Event::kStateChanged,
-                             /*send_native_event=*/true);
+    UpdateExpandedCollapsedAccessibleState(expanded);
+  }
+
+  void UpdateExpandedCollapsedAccessibleState(bool expanded) const {
+    if (expanded) {
+      GetViewAccessibility().SetIsExpanded();
+    } else {
+      GetViewAccessibility().SetIsCollapsed();
+    }
   }
 
   // Owned by view hierarchy.
-  views::ImageView* chevron_ = nullptr;
+  raw_ptr<views::ImageView> chevron_ = nullptr;
 
   // The user can expand and collapse the suggestions section by activating the
   // section header. This registrar is associated with the active user pref
@@ -169,10 +167,6 @@ SuggestionsSection::SuggestionsSection(HoldingSpaceViewDelegate* delegate)
 
 SuggestionsSection::~SuggestionsSection() = default;
 
-const char* SuggestionsSection::GetClassName() const {
-  return "SuggestionsSection";
-}
-
 std::unique_ptr<views::View> SuggestionsSection::CreateHeader() {
   return std::make_unique<Header>();
 }
@@ -196,5 +190,8 @@ bool SuggestionsSection::IsExpanded() {
   auto* prefs = Shell::Get()->session_controller()->GetActivePrefService();
   return holding_space_prefs::IsSuggestionsExpanded(prefs);
 }
+
+BEGIN_METADATA(SuggestionsSection)
+END_METADATA
 
 }  // namespace ash

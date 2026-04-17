@@ -5,34 +5,36 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_AUTOFILL_AUTOFILL_BUBBLE_HANDLER_IMPL_H_
 #define CHROME_BROWSER_UI_VIEWS_AUTOFILL_AUTOFILL_BUBBLE_HANDLER_IMPL_H_
 
+#include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/ui/autofill/autofill_bubble_handler.h"
-#include "chrome/browser/ui/views/profiles/avatar_toolbar_button.h"
-#include "components/autofill/core/browser/personal_data_manager.h"
-#include "components/autofill/core/browser/personal_data_manager_observer.h"
+#include "components/autofill/core/browser/ui/payments/payments_ui_closed_reasons.h"
+#include "components/autofill/core/browser/ui/payments/save_payment_method_and_virtual_card_enroll_confirmation_ui_params.h"
+#include "components/signin/public/base/signin_buildflags.h"
 
-class Browser;
+class PageActionIconView;
 class ToolbarButtonProvider;
 
 namespace content {
 class WebContents;
 }
 
+namespace views {
+class View;
+}
+
 namespace autofill {
 class AutofillBubbleBase;
-class LocalCardMigrationBubbleController;
+class FilledCardInformationBubbleController;
 class SaveCardBubbleController;
 class IbanBubbleController;
-class SaveUPIBubble;
 enum class IbanBubbleType;
 
-class AutofillBubbleHandlerImpl : public AutofillBubbleHandler,
-                                  public PersonalDataManagerObserver,
-                                  public AvatarToolbarButton::Observer {
+class AutofillBubbleHandlerImpl : public AutofillBubbleHandler {
  public:
-  AutofillBubbleHandlerImpl(Browser* browser,
-                            ToolbarButtonProvider* toolbar_button_provider);
+  explicit AutofillBubbleHandlerImpl(
+      ToolbarButtonProvider* toolbar_button_provider);
 
   AutofillBubbleHandlerImpl(const AutofillBubbleHandlerImpl&) = delete;
   AutofillBubbleHandlerImpl& operator=(const AutofillBubbleHandlerImpl&) =
@@ -50,62 +52,59 @@ class AutofillBubbleHandlerImpl : public AutofillBubbleHandler,
                                      bool is_user_gesture,
                                      IbanBubbleType bubble_type) override;
 
-  AutofillBubbleBase* ShowLocalCardMigrationBubble(
-      content::WebContents* web_contents,
-      LocalCardMigrationBubbleController* controller,
-      bool is_user_gesture) override;
   AutofillBubbleBase* ShowOfferNotificationBubble(
       content::WebContents* contents,
       OfferNotificationBubbleController* controller,
       bool is_user_gesture) override;
-  SaveUPIBubble* ShowSaveUPIBubble(
+  AutofillBubbleBase* ShowSaveAutofillAiDataBubble(
       content::WebContents* web_contents,
-      SaveUPIBubbleController* controller) override;
+      autofill_ai::SaveOrUpdateAutofillAiDataController* controller) override;
   AutofillBubbleBase* ShowSaveAddressProfileBubble(
       content::WebContents* web_contents,
-      SaveUpdateAddressProfileBubbleController* controller,
+      std::unique_ptr<SaveAddressBubbleController> controller,
       bool is_user_gesture) override;
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  AutofillBubbleBase* ShowAddressSignInPromo(
+      content::WebContents* web_contents,
+      const AutofillProfile& autofill_profile) override;
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
   AutofillBubbleBase* ShowUpdateAddressProfileBubble(
       content::WebContents* web_contents,
-      SaveUpdateAddressProfileBubbleController* controller,
+      std::unique_ptr<UpdateAddressBubbleController> controller,
       bool is_user_gesture) override;
-  AutofillBubbleBase* ShowEditAddressProfileDialog(
+  AutofillBubbleBase* ShowFilledCardInformationBubble(
       content::WebContents* web_contents,
-      EditAddressProfileDialogController* controller) override;
-  AutofillBubbleBase* ShowVirtualCardManualFallbackBubble(
-      content::WebContents* web_contents,
-      VirtualCardManualFallbackBubbleController* controller,
+      FilledCardInformationBubbleController* controller,
       bool is_user_gesture) override;
   AutofillBubbleBase* ShowVirtualCardEnrollBubble(
       content::WebContents* web_contents,
       VirtualCardEnrollBubbleController* controller,
       bool is_user_gesture) override;
-
-  void OnPasswordSaved() override;
-
-  // PersonalDataManagerObserver:
-  void OnCreditCardSaved(bool should_show_sign_in_promo_if_applicable) override;
-
-  // AvatarToolbarButton::Observer:
-  void OnAvatarHighlightAnimationFinished() override;
+  AutofillBubbleBase* ShowVirtualCardEnrollConfirmationBubble(
+      content::WebContents* web_contents,
+      VirtualCardEnrollBubbleController* controller) override;
+  AutofillBubbleBase* ShowMandatoryReauthBubble(
+      content::WebContents* web_contents,
+      MandatoryReauthBubbleController* controller,
+      bool is_user_gesture,
+      MandatoryReauthBubbleType bubble_type) override;
+  AutofillBubbleBase* ShowSaveCardConfirmationBubble(
+      content::WebContents* web_contents,
+      SaveCardBubbleController* controller) override;
+  AutofillBubbleBase* ShowSaveIbanConfirmationBubble(
+      content::WebContents* web_contents,
+      IbanBubbleController* controller) override;
 
  private:
-  // Executes highlight animation on toolbar's avatar icon.
-  void ShowAvatarHighlightAnimation();
+  // Show the save card and virtual card enrollment confirmation bubble.
+  AutofillBubbleBase* ShowSaveCardAndVirtualCardEnrollConfirmationBubble(
+      views::View* anchor_view,
+      content::WebContents* web_contents,
+      base::OnceCallback<void(PaymentsUiClosedReason)> controller_hide_callback,
+      PageActionIconView* icon_view,
+      SavePaymentMethodAndVirtualCardEnrollConfirmationUiParams ui_params);
 
-  raw_ptr<Browser, DanglingUntriaged> browser_ = nullptr;
-
-  raw_ptr<ToolbarButtonProvider, DanglingUntriaged> toolbar_button_provider_ =
-      nullptr;
-
-  // Whether a save local card sign in promo bubble could pop up from the avatar
-  // button after the highlight animation finishes.
-  bool should_show_sign_in_promo_if_applicable_ = false;
-
-  base::ScopedObservation<PersonalDataManager, PersonalDataManagerObserver>
-      personal_data_manager_observation_{this};
-  base::ScopedObservation<AvatarToolbarButton, AvatarToolbarButton::Observer>
-      avatar_toolbar_button_observation_{this};
+  raw_ptr<ToolbarButtonProvider> toolbar_button_provider_ = nullptr;
 };
 
 }  // namespace autofill

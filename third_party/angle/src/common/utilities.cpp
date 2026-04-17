@@ -27,68 +27,42 @@ namespace
 template <class IndexType>
 gl::IndexRange ComputeTypedIndexRange(const IndexType *indices,
                                       size_t count,
-                                      bool primitiveRestartEnabled,
-                                      GLuint primitiveRestartIndex)
+                                      bool primitiveRestartEnabled)
 {
-    ASSERT(count > 0);
-
-    IndexType minIndex                = 0;
-    IndexType maxIndex                = 0;
-    size_t nonPrimitiveRestartIndices = 0;
+    constexpr IndexType primitiveRestartIndex = std::numeric_limits<IndexType>::max();
+    IndexType minIndex                        = primitiveRestartIndex;
+    IndexType maxIndex                        = 0;
+    bool hasVertices                          = false;
 
     if (primitiveRestartEnabled)
     {
-        // Find the first non-primitive restart index to initialize the min and max values
-        size_t i = 0;
-        for (; i < count; i++)
+        for (size_t i = 0; i < count; i++)
         {
-            if (indices[i] != primitiveRestartIndex)
+            IndexType index = indices[i];
+            if (index == primitiveRestartIndex)
             {
-                minIndex = indices[i];
-                maxIndex = indices[i];
-                nonPrimitiveRestartIndices++;
-                break;
+                continue;
             }
-        }
-
-        // Loop over the rest of the indices
-        for (; i < count; i++)
-        {
-            if (indices[i] != primitiveRestartIndex)
-            {
-                if (minIndex > indices[i])
-                {
-                    minIndex = indices[i];
-                }
-                if (maxIndex < indices[i])
-                {
-                    maxIndex = indices[i];
-                }
-                nonPrimitiveRestartIndices++;
-            }
+            hasVertices = true;
+            minIndex    = std::min(minIndex, index);
+            maxIndex    = std::max(maxIndex, index);
         }
     }
     else
     {
-        minIndex                   = indices[0];
-        maxIndex                   = indices[0];
-        nonPrimitiveRestartIndices = count;
-
-        for (size_t i = 1; i < count; i++)
+        for (size_t i = 0; i < count; i++)
         {
-            if (minIndex > indices[i])
-            {
-                minIndex = indices[i];
-            }
-            if (maxIndex < indices[i])
-            {
-                maxIndex = indices[i];
-            }
+            IndexType index = indices[i];
+            minIndex        = std::min(minIndex, index);
+            maxIndex        = std::max(maxIndex, index);
         }
+        hasVertices = count > 0;
     }
-
-    return gl::IndexRange(static_cast<size_t>(minIndex), static_cast<size_t>(maxIndex),
-                          nonPrimitiveRestartIndices);
+    if (!hasVertices)
+    {
+        return gl::IndexRange();
+    }
+    return gl::IndexRange(minIndex, maxIndex);
 }
 
 }  // anonymous namespace
@@ -703,16 +677,13 @@ IndexRange ComputeIndexRange(DrawElementsType indexType,
     {
         case DrawElementsType::UnsignedByte:
             return ComputeTypedIndexRange(static_cast<const GLubyte *>(indices), count,
-                                          primitiveRestartEnabled,
-                                          GetPrimitiveRestartIndex(indexType));
+                                          primitiveRestartEnabled);
         case DrawElementsType::UnsignedShort:
             return ComputeTypedIndexRange(static_cast<const GLushort *>(indices), count,
-                                          primitiveRestartEnabled,
-                                          GetPrimitiveRestartIndex(indexType));
+                                          primitiveRestartEnabled);
         case DrawElementsType::UnsignedInt:
             return ComputeTypedIndexRange(static_cast<const GLuint *>(indices), count,
-                                          primitiveRestartEnabled,
-                                          GetPrimitiveRestartIndex(indexType));
+                                          primitiveRestartEnabled);
         default:
             UNREACHABLE();
             return IndexRange();
@@ -908,12 +879,18 @@ std::string ParseResourceName(const std::string &name, std::vector<unsigned int>
     {
         size_t open  = name.find_last_of('[', baseNameLength - 1);
         size_t close = name.find_last_of(']', baseNameLength - 1);
-        hasIndex     = (open != std::string::npos) && (close == baseNameLength - 1);
+        hasIndex =
+            (open != std::string::npos) && (close == baseNameLength - 1) && (close != open + 1);
         if (hasIndex)
         {
             baseNameLength = open;
             if (outSubscripts)
             {
+                if (!isdigit(name[open + 1]))
+                {
+                    outSubscripts->push_back(GL_INVALID_INDEX);
+                    break;
+                }
                 int index = atoi(name.substr(open + 1).c_str());
                 if (index >= 0)
                 {
@@ -1296,6 +1273,7 @@ bool IsExternalImageTarget(EGLenum target)
     {
         case EGL_NATIVE_BUFFER_ANDROID:
         case EGL_D3D11_TEXTURE_ANGLE:
+        case EGL_WEBGPU_TEXTURE_ANGLE:
         case EGL_LINUX_DMA_BUF_EXT:
         case EGL_METAL_TEXTURE_ANGLE:
         case EGL_VULKAN_IMAGE_ANGLE:
@@ -1397,7 +1375,6 @@ bool IsDrawEntryPoint(EntryPoint entryPoint)
         case EntryPoint::GLDrawArraysIndirect:
         case EntryPoint::GLDrawArraysInstanced:
         case EntryPoint::GLDrawArraysInstancedANGLE:
-        case EntryPoint::GLDrawArraysInstancedBaseInstance:
         case EntryPoint::GLDrawArraysInstancedBaseInstanceANGLE:
         case EntryPoint::GLDrawArraysInstancedEXT:
         case EntryPoint::GLDrawElements:
@@ -1407,14 +1384,10 @@ bool IsDrawEntryPoint(EntryPoint entryPoint)
         case EntryPoint::GLDrawElementsIndirect:
         case EntryPoint::GLDrawElementsInstanced:
         case EntryPoint::GLDrawElementsInstancedANGLE:
-        case EntryPoint::GLDrawElementsInstancedBaseInstance:
-        case EntryPoint::GLDrawElementsInstancedBaseVertex:
-        case EntryPoint::GLDrawElementsInstancedBaseVertexBaseInstance:
         case EntryPoint::GLDrawElementsInstancedBaseVertexBaseInstanceANGLE:
         case EntryPoint::GLDrawElementsInstancedBaseVertexEXT:
         case EntryPoint::GLDrawElementsInstancedBaseVertexOES:
         case EntryPoint::GLDrawElementsInstancedEXT:
-        case EntryPoint::GLDrawPixels:
         case EntryPoint::GLDrawRangeElements:
         case EntryPoint::GLDrawRangeElementsBaseVertex:
         case EntryPoint::GLDrawRangeElementsBaseVertexEXT:
@@ -1427,10 +1400,6 @@ bool IsDrawEntryPoint(EntryPoint entryPoint)
         case EntryPoint::GLDrawTexsvOES:
         case EntryPoint::GLDrawTexxOES:
         case EntryPoint::GLDrawTexxvOES:
-        case EntryPoint::GLDrawTransformFeedback:
-        case EntryPoint::GLDrawTransformFeedbackInstanced:
-        case EntryPoint::GLDrawTransformFeedbackStream:
-        case EntryPoint::GLDrawTransformFeedbackStreamInstanced:
             return true;
         default:
             return false;
@@ -1470,10 +1439,8 @@ bool IsQueryEntryPoint(EntryPoint entryPoint)
     {
         case EntryPoint::GLBeginQuery:
         case EntryPoint::GLBeginQueryEXT:
-        case EntryPoint::GLBeginQueryIndexed:
         case EntryPoint::GLEndQuery:
         case EntryPoint::GLEndQueryEXT:
-        case EntryPoint::GLEndQueryIndexed:
             return true;
         default:
             return false;
@@ -1498,15 +1465,3 @@ void writeFile(const char *path, const void *content, size_t size)
     return;
 #endif  // !ANGLE_ENABLE_WINDOWS_UWP
 }
-
-#if defined(ANGLE_PLATFORM_WINDOWS)
-
-// Causes the thread to relinquish the remainder of its time slice to any
-// other thread that is ready to run.If there are no other threads ready
-// to run, the function returns immediately, and the thread continues execution.
-void ScheduleYield()
-{
-    Sleep(0);
-}
-
-#endif

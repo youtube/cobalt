@@ -7,9 +7,16 @@
 #include <map>
 #include <memory>
 
+#include "base/containers/contains.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
 #include "ui/base/interaction/element_identifier.h"
+
+// Note the variation in logging used in this file. For assertions about values
+// passed within Chromium, CHECK is used, but for callbacks derived from OS
+// notifications, LOG(ERROR) is used, as hard failure is not desired for
+// something out of Chromium's control, but a very noisy failure is desired so
+// that it can be noticed and fixed.
 
 namespace ui {
 
@@ -26,16 +33,20 @@ gfx::Rect TrackedElementMac::GetScreenBounds() const {
   return screen_bounds_;
 }
 
+// Holds all data regarding elements in a specific NSMenu or its children, and
+// handles dispatching of ElementTracker events.
 class ElementTrackerMac::MenuData {
  public:
   explicit MenuData(ElementContext context) : context_(context) {
-    DCHECK(context);
+    CHECK(context);
   }
 
   ~MenuData() {
-    for (const auto& element : elements_) {
+    LOG_IF(ERROR, !elements_.empty())
+        << "Destroying menu data before all elements are hidden.";
+    for (auto& [identifier, element] : elements_) {
       ui::ElementTracker::GetFrameworkDelegate()->NotifyElementHidden(
-          element.second.get());
+          element.get());
     }
   }
 
@@ -44,33 +55,35 @@ class ElementTrackerMac::MenuData {
 
   ElementContext context() const { return context_; }
 
+  // Adds an element representing a menu item. The item must not already exist.
   void AddElement(ElementIdentifier identifier,
                   const gfx::Rect& screen_bounds) {
     const auto result =
         elements_.emplace(identifier, std::make_unique<TrackedElementMac>(
                                           identifier, context_, screen_bounds));
-    DCHECK(result.second);
+    LOG_IF(ERROR, !result.second) << "Element " << identifier << " added twice";
     ui::ElementTracker::GetFrameworkDelegate()->NotifyElementShown(
         result.first->second.get());
   }
 
+  // Notifies that the specified element has been activated.
   void ActivateElement(ElementIdentifier identifier) {
     const auto it = elements_.find(identifier);
-    if (it != elements_.end()) {
-      ui::ElementTracker::GetFrameworkDelegate()->NotifyElementActivated(
-          it->second.get());
-    } else {
-      NOTREACHED() << "Element " << identifier
-                   << " had its activation sent after it was hidden. This may "
-                      "be due to a race condition with renderer context menus; "
-                      "see crbug.com/1418614 for the state of current efforts "
-                      "to diagnose and fix the problem.";
+    if (it == elements_.end()) {
+      LOG(ERROR) << "Element " << identifier << " activated after being hidden";
+      return;
     }
+    ui::ElementTracker::GetFrameworkDelegate()->NotifyElementActivated(
+        it->second.get());
   }
 
+  // Notifies that the element with `identifier` was hidden.
   void HideElement(ElementIdentifier identifier) {
     const auto it = elements_.find(identifier);
-    DCHECK(it != elements_.end());
+    if (it == elements_.end()) {
+      LOG(ERROR) << "Element " << identifier << " hidden multiple times";
+      return;
+    }
     ui::ElementTracker::GetFrameworkDelegate()->NotifyElementHidden(
         it->second.get());
     elements_.erase(it);
@@ -78,6 +91,8 @@ class ElementTrackerMac::MenuData {
 
  private:
   const ElementContext context_;
+
+  // Keeps track of all "live" elements being tracked by this object.
   std::map<ElementIdentifier, std::unique_ptr<TrackedElementMac>> elements_;
 };
 
@@ -90,12 +105,12 @@ ElementTrackerMac* ElementTrackerMac::GetInstance() {
 void ElementTrackerMac::NotifyMenuWillShow(NSMenu* menu,
                                            ElementContext context) {
   const auto result = root_menu_to_data_.emplace(menu, context);
-  DCHECK(result.second);
+  LOG_IF(ERROR, !result.second) << "Menu added twice";
 }
 
 void ElementTrackerMac::NotifyMenuDoneShowing(NSMenu* menu) {
   const auto result = root_menu_to_data_.erase(menu);
-  DCHECK(result);
+  LOG_IF(ERROR, !result) << "Menu removed twice";
 }
 
 void ElementTrackerMac::NotifyMenuItemShown(NSMenu* menu,
@@ -104,6 +119,8 @@ void ElementTrackerMac::NotifyMenuItemShown(NSMenu* menu,
   const auto it = root_menu_to_data_.find(GetRootMenu(menu));
   if (it != root_menu_to_data_.end()) {
     it->second.AddElement(identifier, screen_bounds);
+  } else {
+    LOG(ERROR) << "Element " << identifier << " shown with unknown menu";
   }
 }
 
@@ -112,6 +129,8 @@ void ElementTrackerMac::NotifyMenuItemActivated(NSMenu* menu,
   const auto it = root_menu_to_data_.find(GetRootMenu(menu));
   if (it != root_menu_to_data_.end()) {
     it->second.ActivateElement(identifier);
+  } else {
+    LOG(ERROR) << "Element " << identifier << " activated with unknown menu";
   }
 }
 
@@ -120,6 +139,8 @@ void ElementTrackerMac::NotifyMenuItemHidden(NSMenu* menu,
   const auto it = root_menu_to_data_.find(GetRootMenu(menu));
   if (it != root_menu_to_data_.end()) {
     it->second.HideElement(identifier);
+  } else {
+    LOG(ERROR) << "Element " << identifier << " hidden with unknown menu";
   }
 }
 
@@ -136,8 +157,8 @@ ElementTrackerMac::ElementTrackerMac() = default;
 ElementTrackerMac::~ElementTrackerMac() = default;
 
 NSMenu* ElementTrackerMac::GetRootMenu(NSMenu* menu) const {
-  while ([menu supermenu]) {
-    menu = [menu supermenu];
+  while (menu.supermenu) {
+    menu = menu.supermenu;
   }
   return menu;
 }

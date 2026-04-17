@@ -7,7 +7,7 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/ui/views/webid/account_selection_bubble_view_interface.h"
+#include "chrome/browser/ui/views/webid/account_selection_view_base.h"
 #include "components/image_fetcher/core/image_fetcher.h"
 #include "content/public/browser/identity_request_account.h"
 #include "content/public/browser/identity_request_dialog_controller.h"
@@ -18,173 +18,136 @@
 #include "ui/views/view.h"
 
 namespace views {
-class Checkbox;
 class ImageButton;
-class ImageView;
 class Label;
-class MdTextButton;
 }  // namespace views
 
-namespace {
-class IdpImageView;
-}  // namespace
+namespace webid {
 
 // Bubble dialog that is used in the FedCM flow. It creates a dialog with an
 // account chooser for the user, and it changes the content of that dialog as
 // user moves through the FedCM flow steps.
 class AccountSelectionBubbleView : public views::BubbleDialogDelegateView,
-                                   public AccountSelectionBubbleViewInterface {
+                                   public AccountSelectionViewBase {
+  METADATA_HEADER(AccountSelectionBubbleView, views::BubbleDialogDelegateView)
+
  public:
-  // Used to observe changes to the account selection bubble.
-  class Observer {
-   public:
-    enum class LinkType { PRIVACY_POLICY, TERMS_OF_SERVICE };
-
-    // Called when a user either selects the account from the multi-account
-    // chooser or clicks the "continue" button.
-    // Takes `account` as well as `idp_display_data` since passing `account_id`
-    // is insufficient in the multiple IDP case. The caller should pass a cref,
-    // as these objects are owned by the observer.
-    virtual void OnAccountSelected(
-        const content::IdentityRequestAccount& account,
-        const IdentityProviderDisplayData& idp_display_data,
-        const ui::Event& event) = 0;
-
-    // Called when the user clicks "privacy policy" or "terms of service" link.
-    virtual void OnLinkClicked(LinkType link_type,
-                               const GURL& url,
-                               const ui::Event& event) = 0;
-
-    // Called when the user clicks "back" button.
-    virtual void OnBackButtonClicked() = 0;
-
-    // Called when the user clicks "close" button.
-    virtual void OnCloseButtonClicked(const ui::Event& event) = 0;
-
-    // Called when the user clicks "sign in to IDP" button on failure dialog.
-    virtual void ShowModalDialogView(const GURL& url) = 0;
-  };
-
-  METADATA_HEADER(AccountSelectionBubbleView);
   AccountSelectionBubbleView(
-      const std::u16string& top_frame_for_display,
-      const absl::optional<std::u16string>& iframe_for_display,
-      const absl::optional<std::u16string>& idp_title,
+      const content::RelyingPartyData& rp_data,
+      const std::optional<std::u16string>& idp_title,
       blink::mojom::RpContext rp_context,
-      bool show_auto_reauthn_checkbox,
       views::View* anchor_view,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-      Observer* observer);
+      FedCmAccountSelectionView* owner);
   ~AccountSelectionBubbleView() override;
 
-  // AccountSelectionBubbleViewInterface:
-  void ShowMultiAccountPicker(const std::vector<IdentityProviderDisplayData>&
-                                  idp_display_data_list) override;
-  void ShowVerifyingSheet(const content::IdentityRequestAccount& account,
-                          const IdentityProviderDisplayData& idp_display_data,
+  // AccountSelectionViewBase:
+  void ShowMultiAccountPicker(
+      const std::vector<IdentityRequestAccountPtr>& accounts,
+      const std::vector<IdentityProviderDataPtr>& idp_list,
+      const gfx::Image& rp_icon,
+      bool show_back_button) override;
+  void ShowVerifyingSheet(const IdentityRequestAccountPtr& account,
                           const std::u16string& title) override;
 
-  void ShowSingleAccountConfirmDialog(
-      const std::u16string& top_frame_for_display,
-      const absl::optional<std::u16string>& iframe_for_display,
-      const content::IdentityRequestAccount& account,
-      const IdentityProviderDisplayData& idp_display_data,
-      bool show_back_button) override;
+  void ShowSingleAccountConfirmDialog(const IdentityRequestAccountPtr& account,
+                                      bool show_back_button) override;
 
   void ShowFailureDialog(
-      const std::u16string& top_frame_for_display,
-      const absl::optional<std::u16string>& iframe_for_display,
       const std::u16string& idp_for_display,
       const content::IdentityProviderMetadata& idp_metadata) override;
 
-  // Populates `idp_images` when an IDP image has been fetched.
-  void AddIdpImage(const GURL& image_url, gfx::ImageSkia idp_image);
+  void ShowErrorDialog(const std::u16string& idp_for_display,
+                       const content::IdentityProviderMetadata& idp_metadata,
+                       const std::optional<TokenError>& error) override;
+
+  void ShowRequestPermissionDialog(
+      const IdentityRequestAccountPtr& account) override;
 
   std::string GetDialogTitle() const override;
-  absl::optional<std::string> GetDialogSubtitle() const override;
+  std::optional<std::string> GetDialogSubtitle() const override;
 
- private:
+  // views::BubbleDialogDelegateView:
   gfx::Rect GetBubbleBounds() override;
 
-  // Returns a View containing the logo of the identity provider. Creates the
-  // `header_icon_view_` if `has_idp_icon` is true.
-  std::unique_ptr<views::View> CreateHeaderView(bool has_idp_icon);
+ private:
+  FRIEND_TEST_ALL_PREFIXES(AccountSelectionBubbleViewTest,
+                           WebContentsLargeEnoughToFitDialog);
 
-  // Returns a View for single account chooser. It contains the account
-  // information, disclosure text and a button for the user to confirm the
-  // selection. The size of the `idp_display_data.accounts` vector must be 1.
-  std::unique_ptr<views::View> CreateSingleAccountChooser(
-      const IdentityProviderDisplayData& idp_display_data,
-      const content::IdentityRequestAccount& account);
+  // Returns a View containing the logo of the identity provider.
+  std::unique_ptr<views::View> CreateHeaderView();
 
-  // Returns a View for multiple account chooser. It contains the info for each
-  // account in a button, so the user can pick an account.
-  std::unique_ptr<views::View> CreateMultipleAccountChooser(
-      const std::vector<IdentityProviderDisplayData>& idp_display_data_list);
+  // Returns a pair <View, Button> where the first element is the View for
+  // single account chooser. This View contains the account information,
+  // disclosure text and a button for the user to confirm the selection. The
+  // second element is the button for the user to confirm the selection.
+  std::pair<std::unique_ptr<views::View>, views::MdTextButton*>
+  CreateSingleAccountChooser(const IdentityRequestAccountPtr& account);
 
-  // Creates a row containing the IDP icon as well as the IDP ETLD+1. Used in
-  // the multi IDP scenario, when the user is selecting from multiple accounts.
-  std::unique_ptr<views::View> CreateIdpHeaderRowForMultiIdp(
+  // Adds a separator as well as a multiple account chooser. The chooser
+  // contains the info for each account in a button, so the user can pick an
+  // account. It also contains mismatch login URLs in the multiple IDP case.
+  void AddSeparatorAndMultipleAccountChooser(
+      const std::vector<IdentityRequestAccountPtr>& accounts,
+      const std::vector<IdentityProviderDataPtr>& idp_list);
+
+  // Adds the accounts provided to the given view. This method does not reorder
+  // the accounts, and assumes they are provided in the correct order.
+  void AddAccounts(const std::vector<IdentityRequestAccountPtr>& accounts,
+                   views::View* accounts_content,
+                   bool is_multi_idp);
+
+  // Invoked whenever the expandable account chooser is scrolled.
+  void OnExpandableAccountsScrolled();
+
+  // Returns a view containing a button for the user to login to an IDP for
+  // which there was a login status mismatch, to be used in the multiple account
+  // chooser case.
+  std::unique_ptr<views::View> CreateMultiIdpLoginRow(
       const std::u16string& idp_for_display,
-      const content::IdentityProviderMetadata& idp_metadata);
+      const IdentityProviderDataPtr& idp_data);
 
-  // Returns a View containing information about an account: the picture for
-  // the account on the left, and information about the account on the right.
-  // |should_hover| determines whether the account row is a HoverButton or
-  // not.
-  std::unique_ptr<views::View> CreateAccountRow(
-      const content::IdentityRequestAccount& account,
-      const IdentityProviderDisplayData& idp_display_data,
-      bool should_hover);
+  // Creates the "Use other account" button when showing a dialog with one IDP.
+  std::unique_ptr<views::View> CreateSingleIdpUseOtherAccountButton(
+      const content::IdentityProviderMetadata& idp_metadata,
+      const std::u16string& title,
+      int icon_margin);
 
   // Updates the header title, the header icon visibility and the header back
-  // button visibiltiy. `idp_metadata` is not null when we need to set a header
-  // image based on the IDP.
-  void UpdateHeader(const content::IdentityProviderMetadata& idp_metadata,
-                    const std::u16string subpage_title,
-                    const std::u16string subpage_subtitle,
-                    bool show_back_button);
-
-  // Sets the brand views::ImageView visibility and image. Initiates the
-  // download of the brand icon if necessary.
-  void ConfigureIdpBrandImageView(
-      IdpImageView* image_view,
-      const content::IdentityProviderMetadata& idp_metadata);
+  // button visibility. `idp_image` is not empty when we need to set a header
+  // image based on the IDP. `should_circle_crop_header_icon` determines whether
+  // the icon passed should be cropped or not. Some icons like the RP icon are
+  // not meant to be cropped, and some icons like the badged account icon are
+  // cropped on the backend, so they should not be cropped here.
+  void UpdateHeader(const gfx::Image& idp_image,
+                    const std::u16string& title,
+                    const std::u16string& subtitle,
+                    bool show_back_button,
+                    bool should_circle_crop_header_icon);
 
   // Removes all children except for `header_view_`.
   void RemoveNonHeaderChildViews();
 
-  // Opens a modal dialog view that renders the given `url`.
-  void ShowModalDialogView(const GURL& url);
+  // Creates the "Choose an account" button, showing some IDP domains as well.
+  // Prioritizes showing any IDPs for which there was a login status mismatch.
+  std::unique_ptr<views::View> CreateChooseAnAccountButton(
+      const std::vector<std::u16string>& mismatch_idps,
+      const std::vector<std::u16string>& non_mismatch_idps);
 
-  // The ImageFetcher used to fetch the account pictures for FedCM.
-  std::unique_ptr<image_fetcher::ImageFetcher> image_fetcher_;
-
-  // The accessible title.
-  std::u16string accessible_title_;
-
-  // The initial title for the dialog.
+  // The current title for the dialog.
   std::u16string title_;
 
-  // The initial subtitle for the dialog.
+  // The current subtitle for the dialog.
   std::u16string subtitle_;
 
+  // The relying party context to show in the title.
   blink::mojom::RpContext rp_context_;
-
-  // The images for the IDP icons. Stored so that they can be reused upon
-  // pressing the back button after choosing an account on the multi IDP
-  // chooser.
-  base::flat_map<GURL, gfx::ImageSkia> idp_images_;
-
-  // Whether the dialog has been populated via either ShowMultiAccountPicker()
-  // or ShowVerifyingSheet().
-  bool has_sheet_{false};
 
   // View containing the logo of the identity provider and the title.
   raw_ptr<views::View> header_view_ = nullptr;
 
   // View containing the header IDP icon, if one needs to be used.
-  raw_ptr<IdpImageView> header_icon_view_ = nullptr;
+  raw_ptr<BrandIconImageView> header_icon_view_ = nullptr;
 
   // View containing the back button.
   raw_ptr<views::ImageButton> back_button_ = nullptr;
@@ -192,28 +155,14 @@ class AccountSelectionBubbleView : public views::BubbleDialogDelegateView,
   // View containing the bubble title.
   raw_ptr<views::Label> title_label_ = nullptr;
 
-  // View containing the bubble subtitle, which is empty if the iframe domain
-  // does not need to be displayed.
+  // View containing the bubble subtitle.
   raw_ptr<views::Label> subtitle_label_ = nullptr;
-
-  // View containing the continue button.
-  raw_ptr<views::MdTextButton> continue_button_ = nullptr;
-
-  // View containing the sign in to IDP button.
-  raw_ptr<views::MdTextButton> signin_to_idp_button_ = nullptr;
-
-  // Auto re-authn opt-out checkbox.
-  raw_ptr<views::Checkbox> auto_reauthn_checkbox_ = nullptr;
-
-  // Whether to show the auto re-authn opt-out checkbox;
-  bool show_auto_reauthn_checkbox_{false};
-
-  // Observes events on AccountSelectionBubbleView.
-  raw_ptr<Observer> observer_{nullptr};
 
   // Used to ensure that callbacks are not run if the AccountSelectionBubbleView
   // is destroyed.
   base::WeakPtrFactory<AccountSelectionBubbleView> weak_ptr_factory_{this};
 };
+
+}  // namespace webid
 
 #endif  // CHROME_BROWSER_UI_VIEWS_WEBID_ACCOUNT_SELECTION_BUBBLE_VIEW_H_

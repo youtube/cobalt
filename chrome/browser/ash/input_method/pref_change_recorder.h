@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "base/containers/flat_map.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/ash/input_method/autocorrect_enums.h"
 #include "chrome/browser/ash/input_method/input_method_options_observer.h"
@@ -52,7 +53,7 @@ class PrefChangeRecorder {
   AutocorrectPrefs autocorrect_prefs_;
 
   // PrefService* must outlive the lifetime of this instance.
-  PrefService* pref_service_;
+  raw_ptr<PrefService> pref_service_;
 
   base::WeakPtrFactory<PrefChangeRecorder> weak_ptr_factory_{this};
 };

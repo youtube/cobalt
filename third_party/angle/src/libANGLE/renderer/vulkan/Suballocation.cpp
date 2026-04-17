@@ -11,8 +11,8 @@
 
 #include "libANGLE/renderer/vulkan/Suballocation.h"
 #include "libANGLE/Context.h"
-#include "libANGLE/renderer/vulkan/RendererVk.h"
 #include "libANGLE/renderer/vulkan/vk_mem_alloc_wrapper.h"
+#include "libANGLE/renderer/vulkan/vk_renderer.h"
 
 namespace rx
 {
@@ -63,14 +63,12 @@ BufferBlock::~BufferBlock()
     ASSERT(!mVirtualBlock.valid());
     ASSERT(!mBuffer.valid());
     ASSERT(!mDeviceMemory.valid());
-    ASSERT(mDescriptorSetCacheManager.empty());
 }
 
-void BufferBlock::destroy(RendererVk *renderer)
+void BufferBlock::destroy(Renderer *renderer)
 {
     VkDevice device = renderer->getDevice();
 
-    mDescriptorSetCacheManager.destroyKeys(renderer);
     if (mMappedMemory)
     {
         unmap(device);
@@ -84,20 +82,20 @@ void BufferBlock::destroy(RendererVk *renderer)
     mDeviceMemory.destroy(device);
 }
 
-angle::Result BufferBlock::init(Context *context,
-                                Buffer &buffer,
-                                uint32_t memoryTypeIndex,
-                                vma::VirtualBlockCreateFlags flags,
-                                DeviceMemory &deviceMemory,
-                                VkMemoryPropertyFlags memoryPropertyFlags,
-                                VkDeviceSize size)
+VkResult BufferBlock::init(ErrorContext *context,
+                           Buffer &buffer,
+                           uint32_t memoryTypeIndex,
+                           vma::VirtualBlockCreateFlags flags,
+                           DeviceMemory &deviceMemory,
+                           VkMemoryPropertyFlags memoryPropertyFlags,
+                           VkDeviceSize size)
 {
-    RendererVk *renderer = context->getRenderer();
+    Renderer *renderer = context->getRenderer();
     ASSERT(!mVirtualBlock.valid());
     ASSERT(!mBuffer.valid());
     ASSERT(!mDeviceMemory.valid());
 
-    ANGLE_VK_TRY(context, mVirtualBlock.init(renderer->getDevice(), flags, size));
+    VK_RESULT_TRY(mVirtualBlock.init(renderer->getDevice(), flags, size));
 
     mBuffer               = std::move(buffer);
     mDeviceMemory         = std::move(deviceMemory);
@@ -109,10 +107,10 @@ angle::Result BufferBlock::init(Context *context,
     mMappedMemory         = nullptr;
     mSerial               = renderer->getResourceSerialFactory().generateBufferSerial();
 
-    return angle::Result::Continue;
+    return VK_SUCCESS;
 }
 
-void BufferBlock::initWithoutVirtualBlock(Context *context,
+void BufferBlock::initWithoutVirtualBlock(ErrorContext *context,
                                           Buffer &buffer,
                                           MemoryAllocationType memoryAllocationType,
                                           uint32_t memoryTypeIndex,
@@ -121,7 +119,7 @@ void BufferBlock::initWithoutVirtualBlock(Context *context,
                                           VkDeviceSize size,
                                           VkDeviceSize allocatedBufferSize)
 {
-    RendererVk *renderer = context->getRenderer();
+    Renderer *renderer = context->getRenderer();
     ASSERT(!mVirtualBlock.valid());
     ASSERT(!mBuffer.valid());
     ASSERT(!mDeviceMemory.valid());
@@ -140,7 +138,7 @@ void BufferBlock::initWithoutVirtualBlock(Context *context,
 VkResult BufferBlock::map(const VkDevice device)
 {
     ASSERT(mMappedMemory == nullptr);
-    return mDeviceMemory.map(device, 0, mSize, 0, &mMappedMemory);
+    return mDeviceMemory.map(device, 0, mAllocatedBufferSize, 0, &mMappedMemory);
 }
 
 void BufferBlock::unmap(const VkDevice device)
@@ -154,14 +152,14 @@ VkResult BufferBlock::allocate(VkDeviceSize size,
                                VmaVirtualAllocation *allocationOut,
                                VkDeviceSize *offsetOut)
 {
-    std::unique_lock<std::mutex> lock(mVirtualBlockMutex);
+    std::unique_lock<angle::SimpleMutex> lock(mVirtualBlockMutex);
     mCountRemainsEmpty = 0;
     return mVirtualBlock.allocate(size, alignment, allocationOut, offsetOut);
 }
 
 void BufferBlock::free(VmaVirtualAllocation allocation, VkDeviceSize offset)
 {
-    std::unique_lock<std::mutex> lock(mVirtualBlockMutex);
+    std::unique_lock<angle::SimpleMutex> lock(mVirtualBlockMutex);
     mVirtualBlock.free(allocation, offset);
 }
 
@@ -172,18 +170,54 @@ int32_t BufferBlock::getAndIncrementEmptyCounter()
 
 void BufferBlock::calculateStats(vma::StatInfo *pStatInfo) const
 {
-    std::unique_lock<std::mutex> lock(mVirtualBlockMutex);
+    std::unique_lock<angle::SimpleMutex> lock(mVirtualBlockMutex);
     mVirtualBlock.calculateStats(pStatInfo);
 }
 
 // BufferSuballocation implementation.
-VkResult BufferSuballocation::map(Context *context)
+VkResult BufferSuballocation::map(ErrorContext *context)
 {
     return mBufferBlock->map(context->getDevice());
 }
 
-// SharedBufferSuballocationGarbage implementation.
-bool SharedBufferSuballocationGarbage::destroyIfComplete(RendererVk *renderer)
+void BufferSuballocation::flush(Renderer *renderer)
+{
+    if (!isCoherent())
+    {
+        const VkDeviceSize nonCoherentAtomSize =
+            renderer->getPhysicalDeviceProperties().limits.nonCoherentAtomSize;
+
+        VkMappedMemoryRange mappedRange = {};
+        mappedRange.sType               = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+        mappedRange.memory              = mBufferBlock->getDeviceMemory().getHandle();
+        mappedRange.offset              = getOffset();
+        mappedRange.size                = roundUp<VkDeviceSize>(mSize, nonCoherentAtomSize);
+
+        ASSERT(mappedRange.size <= mBufferBlock->getAllocatedBufferSize());
+        mBufferBlock->getDeviceMemory().flush(renderer->getDevice(), mappedRange);
+    }
+}
+
+void BufferSuballocation::invalidate(Renderer *renderer)
+{
+    if (!isCoherent())
+    {
+        const VkDeviceSize nonCoherentAtomSize =
+            renderer->getPhysicalDeviceProperties().limits.nonCoherentAtomSize;
+
+        VkMappedMemoryRange mappedRange = {};
+        mappedRange.sType               = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+        mappedRange.memory              = mBufferBlock->getDeviceMemory().getHandle();
+        mappedRange.offset              = getOffset();
+        mappedRange.size                = roundUp<VkDeviceSize>(mSize, nonCoherentAtomSize);
+
+        ASSERT(mappedRange.size <= mBufferBlock->getAllocatedBufferSize());
+        mBufferBlock->getDeviceMemory().invalidate(renderer->getDevice(), mappedRange);
+    }
+}
+
+// BufferSuballocationGarbage implementation.
+bool BufferSuballocationGarbage::destroyIfComplete(Renderer *renderer)
 {
     if (renderer->hasResourceUseFinished(mLifetime))
     {
@@ -194,7 +228,7 @@ bool SharedBufferSuballocationGarbage::destroyIfComplete(RendererVk *renderer)
     return false;
 }
 
-bool SharedBufferSuballocationGarbage::hasResourceUseSubmitted(RendererVk *renderer) const
+bool BufferSuballocationGarbage::hasResourceUseSubmitted(Renderer *renderer) const
 {
     return renderer->hasResourceUseSubmitted(mLifetime);
 }

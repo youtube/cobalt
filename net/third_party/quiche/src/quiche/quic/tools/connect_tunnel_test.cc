@@ -5,6 +5,8 @@
 #include "quiche/quic/tools/connect_tunnel.h"
 
 #include <cstdint>
+#include <memory>
+#include <string>
 #include <utility>
 
 #include "absl/container/flat_hash_set.h"
@@ -22,9 +24,9 @@
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
-#include "quiche/common/platform/api/quiche_mem_slice.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/spdy/core/http2_header_block.h"
+#include "quiche/common/quiche_mem_slice.h"
 
 namespace quic::test {
 namespace {
@@ -99,6 +101,11 @@ class MockSocket : public ConnectingClientSocket {
 class ConnectTunnelTest : public quiche::test::QuicheTest {
  public:
   void SetUp() override {
+#if defined(_WIN32)
+    WSADATA wsa_data;
+    const WORD version_required = MAKEWORD(2, 2);
+    ASSERT_EQ(WSAStartup(version_required, &wsa_data), 0);
+#endif
     auto socket = std::make_unique<StrictMock<MockSocket>>();
     socket_ = socket.get();
     ON_CALL(socket_factory_,
@@ -133,7 +140,7 @@ TEST_F(ConnectTunnelTest, OpenTunnel) {
     tunnel_.ReceiveComplete(absl::CancelledError());
   }));
 
-  spdy::Http2HeaderBlock expected_response_headers;
+  quiche::HttpHeaderBlock expected_response_headers;
   expected_response_headers[":status"] = "200";
   QuicBackendResponse expected_response;
   expected_response.set_headers(std::move(expected_response_headers));
@@ -147,7 +154,7 @@ TEST_F(ConnectTunnelTest, OpenTunnel) {
                         Property(&QuicBackendResponse::trailers, IsEmpty()),
                         Property(&QuicBackendResponse::body, IsEmpty()))));
 
-  spdy::Http2HeaderBlock request_headers;
+  quiche::HttpHeaderBlock request_headers;
   request_headers[":method"] = "CONNECT";
   request_headers[":authority"] =
       absl::StrCat(kAcceptableDestination, ":", kAcceptablePort);
@@ -165,7 +172,7 @@ TEST_F(ConnectTunnelTest, OpenTunnelToIpv4LiteralDestination) {
     tunnel_.ReceiveComplete(absl::CancelledError());
   }));
 
-  spdy::Http2HeaderBlock expected_response_headers;
+  quiche::HttpHeaderBlock expected_response_headers;
   expected_response_headers[":status"] = "200";
   QuicBackendResponse expected_response;
   expected_response.set_headers(std::move(expected_response_headers));
@@ -179,7 +186,7 @@ TEST_F(ConnectTunnelTest, OpenTunnelToIpv4LiteralDestination) {
                         Property(&QuicBackendResponse::trailers, IsEmpty()),
                         Property(&QuicBackendResponse::body, IsEmpty()))));
 
-  spdy::Http2HeaderBlock request_headers;
+  quiche::HttpHeaderBlock request_headers;
   request_headers[":method"] = "CONNECT";
   request_headers[":authority"] =
       absl::StrCat(TestLoopback4().ToString(), ":", kAcceptablePort);
@@ -197,7 +204,7 @@ TEST_F(ConnectTunnelTest, OpenTunnelToIpv6LiteralDestination) {
     tunnel_.ReceiveComplete(absl::CancelledError());
   }));
 
-  spdy::Http2HeaderBlock expected_response_headers;
+  quiche::HttpHeaderBlock expected_response_headers;
   expected_response_headers[":status"] = "200";
   QuicBackendResponse expected_response;
   expected_response.set_headers(std::move(expected_response_headers));
@@ -211,7 +218,7 @@ TEST_F(ConnectTunnelTest, OpenTunnelToIpv6LiteralDestination) {
                         Property(&QuicBackendResponse::trailers, IsEmpty()),
                         Property(&QuicBackendResponse::body, IsEmpty()))));
 
-  spdy::Http2HeaderBlock request_headers;
+  quiche::HttpHeaderBlock request_headers;
   request_headers[":method"] = "CONNECT";
   request_headers[":authority"] =
       absl::StrCat("[", TestLoopback6().ToString(), "]:", kAcceptablePort);
@@ -228,7 +235,7 @@ TEST_F(ConnectTunnelTest, OpenTunnelWithMalformedRequest) {
                   &QuicResetStreamError::ietf_application_code,
                   static_cast<uint64_t>(QuicHttp3ErrorCode::MESSAGE_ERROR))));
 
-  spdy::Http2HeaderBlock request_headers;
+  quiche::HttpHeaderBlock request_headers;
   request_headers[":method"] = "CONNECT";
   // No ":authority" header.
 
@@ -244,7 +251,7 @@ TEST_F(ConnectTunnelTest, OpenTunnelWithUnacceptableDestination) {
           &QuicResetStreamError::ietf_application_code,
           static_cast<uint64_t>(QuicHttp3ErrorCode::REQUEST_REJECTED))));
 
-  spdy::Http2HeaderBlock request_headers;
+  quiche::HttpHeaderBlock request_headers;
   request_headers[":method"] = "CONNECT";
   request_headers[":authority"] = "unacceptable.test:100";
 
@@ -266,7 +273,7 @@ TEST_F(ConnectTunnelTest, ReceiveFromDestination) {
 
   EXPECT_CALL(request_handler_, SendStreamData(kData, /*close_stream=*/false));
 
-  spdy::Http2HeaderBlock request_headers;
+  quiche::HttpHeaderBlock request_headers;
   request_headers[":method"] = "CONNECT";
   request_headers[":authority"] =
       absl::StrCat(kAcceptableDestination, ":", kAcceptablePort);
@@ -292,7 +299,7 @@ TEST_F(ConnectTunnelTest, SendToDestination) {
 
   EXPECT_CALL(request_handler_, OnResponseBackendComplete(_));
 
-  spdy::Http2HeaderBlock request_headers;
+  quiche::HttpHeaderBlock request_headers;
   request_headers[":method"] = "CONNECT";
   request_headers[":authority"] =
       absl::StrCat(kAcceptableDestination, ":", kAcceptablePort);
@@ -310,7 +317,7 @@ TEST_F(ConnectTunnelTest, DestinationDisconnect) {
   EXPECT_CALL(request_handler_, OnResponseBackendComplete(_));
   EXPECT_CALL(request_handler_, SendStreamData("", /*close_stream=*/true));
 
-  spdy::Http2HeaderBlock request_headers;
+  quiche::HttpHeaderBlock request_headers;
   request_headers[":method"] = "CONNECT";
   request_headers[":authority"] =
       absl::StrCat(kAcceptableDestination, ":", kAcceptablePort);
@@ -336,7 +343,7 @@ TEST_F(ConnectTunnelTest, DestinationTcpConnectionError) {
                   &QuicResetStreamError::ietf_application_code,
                   static_cast<uint64_t>(QuicHttp3ErrorCode::CONNECT_ERROR))));
 
-  spdy::Http2HeaderBlock request_headers;
+  quiche::HttpHeaderBlock request_headers;
   request_headers[":method"] = "CONNECT";
   request_headers[":authority"] =
       absl::StrCat(kAcceptableDestination, ":", kAcceptablePort);

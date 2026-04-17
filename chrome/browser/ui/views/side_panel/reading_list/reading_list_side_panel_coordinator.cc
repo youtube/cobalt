@@ -16,6 +16,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/image_model.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/views/vector_icons.h"
 
 ReadingListSidePanelCoordinator::ReadingListSidePanelCoordinator(
@@ -27,18 +28,18 @@ ReadingListSidePanelCoordinator::~ReadingListSidePanelCoordinator() = default;
 void ReadingListSidePanelCoordinator::CreateAndRegisterEntry(
     SidePanelRegistry* global_registry) {
   global_registry->Register(std::make_unique<SidePanelEntry>(
-      SidePanelEntry::Id::kReadingList,
-      l10n_util::GetStringUTF16(IDS_READ_LATER_TITLE),
-      ui::ImageModel::FromVectorIcon(kReadLaterIcon, ui::kColorIcon),
+      SidePanelEntry::Key(SidePanelEntry::Id::kReadingList),
       base::BindRepeating(
           &ReadingListSidePanelCoordinator::CreateReadingListWebView,
-          base::Unretained(this))));
+          base::Unretained(this)),
+      SidePanelEntry::kSidePanelDefaultContentWidth));
 }
 
 std::unique_ptr<views::View>
-ReadingListSidePanelCoordinator::CreateReadingListWebView() {
-  return std::make_unique<ReadLaterSidePanelWebView>(&GetBrowser(),
+ReadingListSidePanelCoordinator::CreateReadingListWebView(
+    SidePanelEntryScope& scope) {
+  return std::make_unique<ReadLaterSidePanelWebView>(&GetBrowser(), scope,
                                                      base::RepeatingClosure());
 }
 
-WEB_CONTENTS_USER_DATA_KEY_IMPL(ReadingListSidePanelCoordinator);
+BROWSER_USER_DATA_KEY_IMPL(ReadingListSidePanelCoordinator);

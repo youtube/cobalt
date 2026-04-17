@@ -35,7 +35,7 @@ group("gtk") {
     "//remoting/host/file_transfer",
     "//remoting/host/it2me:common",
     "//remoting/host/it2me:main",
-    "//remoting/host/linux",
+    "//remoting/host/linux:platform_impls",
     "//remoting/host/remote_open_url:common",
     "//remoting/test:it2me_standalone_host_main",
     "//webrtc/examples:peerconnection_client",

@@ -2,24 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/browser/sharing/click_to_call/click_to_call_context_menu_observer.h"
+#include "chrome/browser/sharing/click_to_call/click_to_call_utils.h"
 
 #include <memory>
 
 #include "base/test/scoped_feature_list.h"
-#include "chrome/browser/sharing/click_to_call/click_to_call_utils.h"
-#include "chrome/browser/sharing/features.h"
-#include "chrome/browser/sharing/mock_sharing_service.h"
-#include "chrome/browser/sharing/sharing_fcm_handler.h"
-#include "chrome/browser/sharing/sharing_fcm_sender.h"
-#include "chrome/browser/sharing/sharing_handler_registry.h"
-#include "chrome/browser/sharing/sharing_service.h"
+#include "chrome/browser/sharing/click_to_call/click_to_call_context_menu_observer.h"
 #include "chrome/browser/sharing/sharing_service_factory.h"
-#include "chrome/browser/sharing/sharing_sync_preference.h"
-#include "chrome/browser/sharing/vapid_key_manager.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/prefs/pref_service.h"
+#include "components/sharing_message/features.h"
+#include "components/sharing_message/mock_sharing_service.h"
+#include "components/sharing_message/pref_names.h"
+#include "components/sharing_message/sharing_fcm_handler.h"
+#include "components/sharing_message/sharing_fcm_sender.h"
+#include "components/sharing_message/sharing_handler_registry.h"
+#include "components/sharing_message/sharing_service.h"
+#include "components/sharing_message/sharing_sync_preference.h"
+#include "components/sharing_message/vapid_key_manager.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -31,7 +31,7 @@ using ::testing::Eq;
 using ::testing::NiceMock;
 using ::testing::Return;
 
-using SharingMessage = chrome_browser_sharing::SharingMessage;
+using SharingMessage = components_sharing_message::SharingMessage;
 
 namespace {
 
@@ -63,7 +63,7 @@ class ClickToCallUtilsTest : public testing::Test {
         use_incognito_profile
             ? profile_.GetPrimaryOTRProfile(/*create_if_needed=*/true)
             : &profile_;
-    absl::optional<std::string> phone_number =
+    std::optional<std::string> phone_number =
         ExtractPhoneNumberForClickToCall(profile_to_use, selection_text);
     EXPECT_FALSE(phone_number.has_value())
         << " Found phone number: " << phone_number.value()
@@ -164,9 +164,9 @@ TEST_F(ClickToCallUtilsTest,
   expectations.emplace("78.0.3904.108", "78.0.3904.108");
 
   for (auto& expectation : expectations) {
-    absl::optional<std::string> phone_number =
+    std::optional<std::string> phone_number =
         ExtractPhoneNumberForClickToCall(&profile_, expectation.first);
-    ASSERT_NE(absl::nullopt, phone_number);
+    ASSERT_NE(std::nullopt, phone_number);
     EXPECT_EQ(expectation.second, phone_number.value());
   }
 }
@@ -196,19 +196,19 @@ TEST_F(ClickToCallUtilsTest,
 
 TEST_F(ClickToCallUtilsTest, SelectionText_Length) {
   // Expect text length of 30 to pass.
-  EXPECT_NE(absl::nullopt, ExtractPhoneNumberForClickToCall(
-                               &profile_, " +1 2 3 4 5 6 7 8 9 0 1 2 3 45"));
+  EXPECT_NE(std::nullopt, ExtractPhoneNumberForClickToCall(
+                              &profile_, " +1 2 3 4 5 6 7 8 9 0 1 2 3 45"));
   // Expect text length of 31 to fail.
-  EXPECT_EQ(absl::nullopt, ExtractPhoneNumberForClickToCall(
-                               &profile_, " +1 2 3 4 5 6 7 8 9 0 1 2 3 4 5"));
+  EXPECT_EQ(std::nullopt, ExtractPhoneNumberForClickToCall(
+                              &profile_, " +1 2 3 4 5 6 7 8 9 0 1 2 3 4 5"));
 }
 
 TEST_F(ClickToCallUtilsTest, SelectionText_Digits) {
   // Expect text with 15 digits to pass.
-  EXPECT_NE(absl::nullopt,
+  EXPECT_NE(std::nullopt,
             ExtractPhoneNumberForClickToCall(&profile_, "+123456789012345"));
   // Expect text with 16 digits to fail.
-  EXPECT_EQ(absl::nullopt,
+  EXPECT_EQ(std::nullopt,
             ExtractPhoneNumberForClickToCall(&profile_, "+1234567890123456"));
 }
 

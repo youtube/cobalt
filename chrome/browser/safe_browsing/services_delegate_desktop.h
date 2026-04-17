@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "chrome/browser/safe_browsing/services_delegate.h"
+#include "components/safe_browsing/core/browser/db/hash_prefix_map.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 
 namespace safe_browsing {
@@ -21,7 +22,7 @@ struct V4ProtocolConfig;
 // ServicesDelegate::Create().
 class ServicesDelegateDesktop : public ServicesDelegate {
  public:
-  ServicesDelegateDesktop(SafeBrowsingService* safe_browsing_service,
+  ServicesDelegateDesktop(SafeBrowsingServiceImpl* safe_browsing_service,
                           ServicesDelegate::ServicesCreator* services_creator);
 
   ServicesDelegateDesktop(const ServicesDelegateDesktop&) = delete;
@@ -45,10 +46,10 @@ class ServicesDelegateDesktop : public ServicesDelegate {
   void AddDownloadManager(content::DownloadManager* download_manager) override;
   DownloadProtectionService* GetDownloadService() override;
 
-  void StartOnSBThread(
+  void StartOnUIThread(
       scoped_refptr<network::SharedURLLoaderFactory> browser_url_loader_factory,
       const V4ProtocolConfig& v4_config) override;
-  void StopOnSBThread(bool shutdown) override;
+  void StopOnUIThread(bool shutdown) override;
 
   void OnProfileWillBeDestroyed(Profile* profile) override;
 

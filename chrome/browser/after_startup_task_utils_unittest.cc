@@ -42,7 +42,6 @@ class WrappedTaskRunner : public base::SequencedTaskRunner {
                                   base::TimeDelta delay) override {
     // Not implemented.
     NOTREACHED();
-    return false;
   }
 
   bool RunsTasksInCurrentSequence() const override {
@@ -63,7 +62,7 @@ class WrappedTaskRunner : public base::SequencedTaskRunner {
   }
 
  private:
-  ~WrappedTaskRunner() override {}
+  ~WrappedTaskRunner() override = default;
 
   void RunWrappedTask(base::OnceClosure task) {
     ++ran_task_count_;

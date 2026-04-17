@@ -11,7 +11,13 @@
 #include "rtc_base/platform_thread.h"
 
 #include <algorithm>
-#include <memory>
+#include <functional>
+#include <optional>
+#include <string>
+#include <utility>
+
+#include "absl/strings/string_view.h"
+#include "rtc_base/platform_thread_types.h"
 
 #if !defined(WEBRTC_WIN)
 #include <sched.h>
@@ -19,7 +25,7 @@
 
 #include "rtc_base/checks.h"
 
-namespace rtc {
+namespace webrtc {
 namespace {
 
 #if defined(WEBRTC_WIN)
@@ -41,8 +47,10 @@ bool SetPriority(ThreadPriority priority) {
 #if defined(WEBRTC_WIN)
   return SetThreadPriority(GetCurrentThread(),
                            Win32PriorityFromThreadPriority(priority)) != FALSE;
-#elif defined(__native_client__) || defined(WEBRTC_FUCHSIA)
-  // Setting thread priorities is not supported in NaCl or Fuchsia.
+#elif defined(__native_client__) || defined(WEBRTC_FUCHSIA) || \
+    (defined(__EMSCRIPTEN__) && !defined(__EMSCRIPTEN_PTHREADS__))
+  // Setting thread priorities is not supported in NaCl, Fuchsia or Emscripten
+  // without pthreads.
   return true;
 #elif defined(WEBRTC_CHROMIUM_BUILD) && defined(WEBRTC_LINUX)
   // TODO(tommi): Switch to the same mechanism as Chromium uses for changing
@@ -100,7 +108,7 @@ void* RunPlatformThread(void* param) {
   auto function = static_cast<std::function<void()>*>(param);
   (*function)();
   delete function;
-  return 0;
+  return nullptr;
 }
 #endif  // defined(WEBRTC_WIN)
 
@@ -111,14 +119,14 @@ PlatformThread::PlatformThread(Handle handle, bool joinable)
 
 PlatformThread::PlatformThread(PlatformThread&& rhs)
     : handle_(rhs.handle_), joinable_(rhs.joinable_) {
-  rhs.handle_ = absl::nullopt;
+  rhs.handle_ = std::nullopt;
 }
 
 PlatformThread& PlatformThread::operator=(PlatformThread&& rhs) {
   Finalize();
   handle_ = rhs.handle_;
   joinable_ = rhs.joinable_;
-  rhs.handle_ = absl::nullopt;
+  rhs.handle_ = std::nullopt;
   return *this;
 }
 
@@ -142,7 +150,7 @@ PlatformThread PlatformThread::SpawnDetached(
                      /*joinable=*/false);
 }
 
-absl::optional<PlatformThread::Handle> PlatformThread::GetHandle() const {
+std::optional<PlatformThread::Handle> PlatformThread::GetHandle() const {
   return handle_;
 }
 
@@ -165,7 +173,7 @@ void PlatformThread::Finalize() {
   if (joinable_)
     RTC_CHECK_EQ(0, pthread_join(*handle_, nullptr));
 #endif
-  handle_ = absl::nullopt;
+  handle_ = std::nullopt;
 }
 
 PlatformThread PlatformThread::SpawnThread(
@@ -180,7 +188,7 @@ PlatformThread PlatformThread::SpawnThread(
   auto start_thread_function_ptr =
       new std::function<void()>([thread_function = std::move(thread_function),
                                  name = std::string(name), attributes] {
-        rtc::SetCurrentThreadName(name.c_str());
+        SetCurrentThreadName(name.c_str());
         SetPriority(attributes.priority);
         thread_function();
       });
@@ -208,4 +216,4 @@ PlatformThread PlatformThread::SpawnThread(
   return PlatformThread(handle, joinable);
 }
 
-}  // namespace rtc
+}  // namespace webrtc

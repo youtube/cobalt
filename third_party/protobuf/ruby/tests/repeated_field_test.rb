@@ -1,29 +1,36 @@
 #!/usr/bin/ruby
 
 require 'google/protobuf'
+require 'repeated_field_test_pb'
 require 'test/unit'
 
 class RepeatedFieldTest < Test::Unit::TestCase
+  TestMessage = RepeatedFieldTestProtos::TestMessage
+  TestMessage2 = RepeatedFieldTestProtos::TestMessage2
 
   def test_acts_like_enumerator
     m = TestMessage.new
     (Enumerable.instance_methods - TestMessage.new.repeated_string.methods).each do |method_name|
-      assert m.repeated_string.respond_to?(method_name) == true, "does not respond to #{method_name}"
+      assert_respond_to m.repeated_string, method_name
     end
   end
 
   def test_acts_like_an_array
     m = TestMessage.new
     arr_methods = ([].methods - TestMessage.new.repeated_string.methods)
-    # jRuby additions to the Array class that we can ignore
+    # JRuby additions to the Array class that we ignore
     arr_methods -= [ :indices, :iter_for_each, :iter_for_each_index,
       :iter_for_each_with_index, :dimensions, :copy_data, :copy_data_simple,
       :nitems, :iter_for_reverse_each, :indexes, :append, :prepend]
-    arr_methods -= [:union, :difference, :filter!]
-    arr_methods -= [:intersection, :deconstruct] # ruby 2.7 methods we can ignore
-    arr_methods -= [:intersect?] # ruby 3.1 methods we can ignore
+    arr_methods -= [:filter!]
+    # ruby 2.7 methods we ignore
+    arr_methods -= [:deconstruct, :resolve_feature_path]
+    # ruby 3.1 methods we ignore
+    arr_methods -= [:intersect?]
+    # ruby 3.4 methods we ignore
+    arr_methods -= [:fetch_values]
     arr_methods.each do |method_name|
-      assert m.repeated_string.respond_to?(method_name) == true, "does not respond to #{method_name}"
+      assert_respond_to m.repeated_string, method_name
     end
   end
 
@@ -31,24 +38,27 @@ class RepeatedFieldTest < Test::Unit::TestCase
     m = TestMessage.new
     repeated_field_names(TestMessage).each do |field_name|
       assert_nil m.send(field_name).first
-      assert_equal [], m.send(field_name).first(0)
-      assert_equal [], m.send(field_name).first(1)
+      assert_empty m.send(field_name).first(0)
     end
 
     fill_test_msg(m)
-    assert_equal -10, m.repeated_int32.first
-    assert_equal -1_000_000, m.repeated_int64.first
+    assert_equal( -10, m.repeated_int32.first )
+    assert_equal( -1_000_000, m.repeated_int64.first )
     assert_equal 10, m.repeated_uint32.first
     assert_equal 1_000_000, m.repeated_uint64.first
-    assert_equal true, m.repeated_bool.first
-    assert_equal -1.01,  m.repeated_float.first.round(2)
-    assert_equal -1.0000000000001, m.repeated_double.first
+    assert m.repeated_bool.first
+    assert_equal( -1.01,  m.repeated_float.first.round(2) )
+    assert_equal( -1.0000000000001, m.repeated_double.first )
     assert_equal 'foo', m.repeated_string.first
     assert_equal "bar".encode!('ASCII-8BIT'), m.repeated_bytes.first
     assert_equal TestMessage2.new(:foo => 1), m.repeated_msg.first
     assert_equal :A, m.repeated_enum.first
 
-    assert_equal [], m.repeated_int32.first(0)
+    err = assert_raises(ArgumentError) do
+      m.repeated_int32.first(-1)
+    end
+    assert_equal "negative array size", err.message
+    assert_empty m.repeated_int32.first(0)
     assert_equal [-10], m.repeated_int32.first(1)
     assert_equal [-10, -11], m.repeated_int32.first(2)
     assert_equal [-10, -11], m.repeated_int32.first(3)
@@ -61,17 +71,26 @@ class RepeatedFieldTest < Test::Unit::TestCase
       assert_nil m.send(field_name).first
     end
     fill_test_msg(m)
-    assert_equal -11, m.repeated_int32.last
-    assert_equal -1_000_001, m.repeated_int64.last
+    assert_equal( -11, m.repeated_int32.last )
+    assert_equal( -1_000_001, m.repeated_int64.last )
     assert_equal 11, m.repeated_uint32.last
     assert_equal 1_000_001, m.repeated_uint64.last
-    assert_equal false, m.repeated_bool.last
-    assert_equal -1.02, m.repeated_float.last.round(2)
-    assert_equal -1.0000000000002, m.repeated_double.last
+    refute m.repeated_bool.last
+    assert_equal( -1.02, m.repeated_float.last.round(2) )
+    assert_equal( -1.0000000000002, m.repeated_double.last )
     assert_equal 'bar', m.repeated_string.last
     assert_equal "foo".encode!('ASCII-8BIT'), m.repeated_bytes.last
     assert_equal TestMessage2.new(:foo => 2), m.repeated_msg.last
     assert_equal :B, m.repeated_enum.last
+
+    err = assert_raises(ArgumentError) do
+      m.repeated_int32.last(-1)
+    end
+    assert_equal "negative array size", err.message
+    assert_empty m.repeated_int32.last(0)
+    assert_equal [-11], m.repeated_int32.last(1)
+    assert_equal [-10, -11], m.repeated_int32.last(2)
+    assert_equal [-10, -11], m.repeated_int32.last(3)
   end
 
 
@@ -82,20 +101,20 @@ class RepeatedFieldTest < Test::Unit::TestCase
     end
     fill_test_msg(m)
 
-    assert_equal -11, m.repeated_int32.pop
-    assert_equal -10, m.repeated_int32.pop
-    assert_equal -1_000_001, m.repeated_int64.pop
-    assert_equal -1_000_000, m.repeated_int64.pop
+    assert_equal( -11, m.repeated_int32.pop )
+    assert_equal( -10, m.repeated_int32.pop )
+    assert_equal( -1_000_001, m.repeated_int64.pop )
+    assert_equal( -1_000_000, m.repeated_int64.pop )
     assert_equal 11, m.repeated_uint32.pop
     assert_equal 10, m.repeated_uint32.pop
     assert_equal 1_000_001, m.repeated_uint64.pop
     assert_equal 1_000_000, m.repeated_uint64.pop
-    assert_equal false, m.repeated_bool.pop
-    assert_equal true, m.repeated_bool.pop
-    assert_equal -1.02,  m.repeated_float.pop.round(2)
-    assert_equal -1.01,  m.repeated_float.pop.round(2)
-    assert_equal -1.0000000000002, m.repeated_double.pop
-    assert_equal -1.0000000000001, m.repeated_double.pop
+    refute m.repeated_bool.pop
+    assert m.repeated_bool.pop
+    assert_equal( -1.02,  m.repeated_float.pop.round(2) )
+    assert_equal( -1.01,  m.repeated_float.pop.round(2) )
+    assert_equal( -1.0000000000002, m.repeated_double.pop )
+    assert_equal( -1.0000000000001, m.repeated_double.pop )
     assert_equal 'bar', m.repeated_string.pop
     assert_equal 'foo', m.repeated_string.pop
     assert_equal "foo".encode!('ASCII-8BIT'), m.repeated_bytes.pop
@@ -128,19 +147,33 @@ class RepeatedFieldTest < Test::Unit::TestCase
   end
 
 
+  def test_each_index
+    m = TestMessage.new
+    5.times{|i| m.repeated_string << 'string' }
+
+    expected = 0
+    m.repeated_string.each_index do |idx|
+      assert_equal expected, idx
+      expected += 1
+      assert_equal 'string', m.repeated_string[idx]
+    end
+    assert_equal 5, expected
+  end
+
+
   def test_empty?
     m = TestMessage.new
-    assert_equal true, m.repeated_string.empty?
+    assert_empty m.repeated_string
     m.repeated_string << 'foo'
-    assert_equal false, m.repeated_string.empty?
+    refute_empty m.repeated_string
     m.repeated_string << 'bar'
-    assert_equal false, m.repeated_string.empty?
+    refute_empty m.repeated_string
   end
 
   def test_reassign
     m = TestMessage.new
     m.repeated_msg = Google::Protobuf::RepeatedField.new(:message, TestMessage2, [TestMessage2.new(:foo => 1)])
-    assert_equal m.repeated_msg.first, TestMessage2.new(:foo => 1)
+    assert_equal TestMessage2.new(:foo => 1), m.repeated_msg.first
   end
 
   def test_array_accessor
@@ -161,6 +194,39 @@ class RepeatedFieldTest < Test::Unit::TestCase
     end
     check_self_modifying_method(m.repeated_string, reference_arr) do |arr|
       arr[0..2]
+    end
+    check_self_modifying_method(m.repeated_string, reference_arr) do |arr|
+      arr[0..5]
+    end
+    check_self_modifying_method(m.repeated_string, reference_arr) do |arr|
+      arr[0..-1]
+    end
+    check_self_modifying_method(m.repeated_string, reference_arr) do |arr|
+      arr[0..-3]
+    end
+    check_self_modifying_method(m.repeated_string, reference_arr) do |arr|
+      arr[0...-1] # Exclusive range
+    end
+    check_self_modifying_method(m.repeated_string, reference_arr) do |arr|
+      arr[0...-3] # Exclusive range
+    end
+    check_self_modifying_method(m.repeated_string, reference_arr) do |arr|
+      arr[-2..-1]
+    end
+    check_self_modifying_method(m.repeated_string, reference_arr) do |arr|
+      arr[-5..-1]
+    end
+    check_self_modifying_method(m.repeated_string, reference_arr) do |arr|
+      eval "arr[0..]"
+    end
+    check_self_modifying_method(m.repeated_string, reference_arr) do |arr|
+      eval "arr[..-1]"
+    end
+    check_self_modifying_method(m.repeated_string, reference_arr) do |arr|
+      eval "arr[0...]" # Exclusive range
+    end
+    check_self_modifying_method(m.repeated_string, reference_arr) do |arr|
+      eval "arr[...-1]" # Exclusive range
     end
     check_self_modifying_method(m.repeated_string, reference_arr) do |arr|
       arr[-1, 1]
@@ -207,7 +273,7 @@ class RepeatedFieldTest < Test::Unit::TestCase
     m.repeated_msg[3] = TestMessage2.new(:foo => 1)
     assert_equal [nil, nil, nil, TestMessage2.new(:foo => 1)], m.repeated_msg
     m.repeated_enum[3] = :A
-    assert_equal [:Default, :Default, :Default, :A], m.repeated_enum
+    assert_equal [:DEFAULT, :DEFAULT, :DEFAULT, :A], m.repeated_enum
 
     # check_self_modifying_method(m.repeated_string, reference_arr) do |arr|
     #   arr[20] = 'spacious'
@@ -265,7 +331,7 @@ class RepeatedFieldTest < Test::Unit::TestCase
     m.repeated_string += reference_arr.clone
     assert_equal reference_arr, m.repeated_string
     reference_arr << 'fizz'
-    assert_not_equal reference_arr, m.repeated_string
+    refute_equal reference_arr, m.repeated_string
     m.repeated_string << 'fizz'
     assert_equal reference_arr, m.repeated_string
   end
@@ -279,7 +345,7 @@ class RepeatedFieldTest < Test::Unit::TestCase
     hash = m.repeated_string.hash
     assert_equal hash, m.repeated_string.hash
     m.repeated_string << 'j'
-    assert_not_equal hash, m.repeated_string.hash
+    refute_equal hash, m.repeated_string.hash
   end
 
   def test_plus
@@ -487,11 +553,8 @@ class RepeatedFieldTest < Test::Unit::TestCase
   def test_shuffle!
     m = TestMessage.new
     m.repeated_string += %w(foo bar baz)
-    orig_repeated_string = m.repeated_string.clone
     result = m.repeated_string.shuffle!
     assert_equal m.repeated_string, result
-    # NOTE: sometimes it doesn't change the order...
-    # assert_not_equal m.repeated_string.to_a, orig_repeated_string.to_a
   end
 
   def test_slice!
@@ -603,51 +666,4 @@ class RepeatedFieldTest < Test::Unit::TestCase
     test_msg.repeated_enum   << :A
     test_msg.repeated_enum   << :B
   end
-
-
-  pool = Google::Protobuf::DescriptorPool.new
-  pool.build do
-
-    add_message "TestMessage" do
-      optional :optional_int32,  :int32,        1
-      optional :optional_int64,  :int64,        2
-      optional :optional_uint32, :uint32,       3
-      optional :optional_uint64, :uint64,       4
-      optional :optional_bool,   :bool,         5
-      optional :optional_float,  :float,        6
-      optional :optional_double, :double,       7
-      optional :optional_string, :string,       8
-      optional :optional_bytes,  :bytes,        9
-      optional :optional_msg,    :message,      10, "TestMessage2"
-      optional :optional_enum,   :enum,         11, "TestEnum"
-
-      repeated :repeated_int32,  :int32,        12
-      repeated :repeated_int64,  :int64,        13
-      repeated :repeated_uint32, :uint32,       14
-      repeated :repeated_uint64, :uint64,       15
-      repeated :repeated_bool,   :bool,         16
-      repeated :repeated_float,  :float,        17
-      repeated :repeated_double, :double,       18
-      repeated :repeated_string, :string,       19
-      repeated :repeated_bytes,  :bytes,        20
-      repeated :repeated_msg,    :message,      21, "TestMessage2"
-      repeated :repeated_enum,   :enum,         22, "TestEnum"
-    end
-    add_message "TestMessage2" do
-      optional :foo, :int32, 1
-    end
-
-    add_enum "TestEnum" do
-      value :Default, 0
-      value :A, 1
-      value :B, 2
-      value :C, 3
-    end
-  end
-
-  TestMessage = pool.lookup("TestMessage").msgclass
-  TestMessage2 = pool.lookup("TestMessage2").msgclass
-  TestEnum = pool.lookup("TestEnum").enummodule
-
-
 end

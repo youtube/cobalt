@@ -21,6 +21,13 @@ assert(use_starboard_media, "This file is only for use_starboard_media builds")
 import("//media/media_options.gni")
 import("//starboard/build/buildflags.gni")
 
+config("disable_unreachable_warnings") {
+  cflags = [
+    "-Wno-unreachable-code-return",
+    "-Wno-unreachable-code-break",
+  ]
+}
+
 source_set("starboard") {
   visibility = [ "//media" ]
 
@@ -77,18 +84,18 @@ source_set("starboard") {
 
   if (use_starboard_media) {
     sources += [
-      "bidirectional_fit_reuse_allocator.h",
+      "bidirectional_fit_decoder_buffer_allocator_strategy.h",
       "bind_host_receiver_callback.h",
       "decoder_buffer_allocator.cc",
       "decoder_buffer_allocator.h",
-      "decoder_buffer_allocator_strategy.h",
+      "decoder_buffer_memory_info.cc",
       "decoder_buffer_memory_info.h",
+      "media_buffer_pool_decoder_buffer_allocator_strategy.cc",
+      "media_buffer_pool_decoder_buffer_allocator_strategy.h",
       "sbplayer_bridge.cc",
       "sbplayer_bridge.h",
       "sbplayer_interface.cc",
       "sbplayer_interface.h",
-      "sbplayer_set_bounds_helper.cc",
-      "sbplayer_set_bounds_helper.h",
       "starboard_cdm.cc",
       "starboard_cdm.h",
       "starboard_cdm_factory.cc",
@@ -123,7 +130,10 @@ source_set("starboard") {
   # TODO(b/380940036): remove the circular dependency.
   allow_circular_includes_from = [ "//media/base" ]
 
-  configs += [ "//media:subcomponent_config" ]
+  configs += [
+    ":disable_unreachable_warnings",
+    "//media:subcomponent_config",
+  ]
 }
 
 source_set("unit_tests") {
@@ -138,8 +148,10 @@ source_set("unit_tests") {
   }
   if (use_starboard_media) {
     sources += [
-      "bidirectional_fit_reuse_allocator_test.cc",
+      "decoder_buffer_allocator_strategy_test.cc",
       "decoder_buffer_allocator_test.cc",
+      "media_buffer_pool_decoder_buffer_allocator_strategy_test.cc",
+      "starboard_memory_allocator_test.cc",
       "starboard_renderer_unittest.cc",
       "starboard_utils_test.cc",
     ]

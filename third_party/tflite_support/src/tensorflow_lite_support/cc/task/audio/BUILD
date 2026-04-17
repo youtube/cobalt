@@ -4,7 +4,6 @@ load(
 )
 
 package(
-    default_applicable_licenses = ["//tensorflow_lite_support:license"],
     default_visibility = [
         "//visibility:public",
     ],
@@ -16,7 +15,7 @@ cc_library_with_tflite(
     srcs = ["audio_classifier.cc"],
     hdrs = ["audio_classifier.h"],
     tflite_deps = [
-        "@org_tensorflow//tensorflow/lite/core/shims:builtin_ops",
+        "@org_tensorflow//tensorflow/lite/kernels:builtin_ops",
         "//tensorflow_lite_support/cc/task/processor:classification_postprocessor",
         "//tensorflow_lite_support/cc/task/processor:audio_preprocessor",
         "//tensorflow_lite_support/cc/task/core:base_task_api",
@@ -24,7 +23,6 @@ cc_library_with_tflite(
     ],
     deps = [
         "//tensorflow_lite_support/cc:common",
-        "//tensorflow_lite_support/cc/port:integral_types",
         "//tensorflow_lite_support/cc/port:statusor",
         "//tensorflow_lite_support/cc/task/audio/core:audio_buffer",
         "//tensorflow_lite_support/cc/task/audio/proto:audio_classifier_options_cc_proto",

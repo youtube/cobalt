@@ -6,12 +6,15 @@
 import 'chrome://settings/lazy_load.js';
 
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {SettingsSimpleConfirmationDialogElement, PaymentsManagerImpl, SettingsCreditCardEditDialogElement, SettingsVirtualCardUnenrollDialogElement} from 'chrome://settings/lazy_load.js';
-import {CrButtonElement, loadTimeData} from 'chrome://settings/settings.js';
+import type {CrInputElement, SettingsSimpleConfirmationDialogElement, SettingsCreditCardEditDialogElement, SettingsVirtualCardUnenrollDialogElement} from 'chrome://settings/lazy_load.js';
+import {PaymentsManagerImpl} from 'chrome://settings/lazy_load.js';
+import type {CrButtonElement} from 'chrome://settings/settings.js';
+import {loadTimeData} from 'chrome://settings/settings.js';
 import {assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {eventToPromise, whenAttributeIs} from 'chrome://webui-test/test_util.js';
+import {eventToPromise, isVisible, whenAttributeIs} from 'chrome://webui-test/test_util.js';
 
-import {createCreditCardEntry, createEmptyCreditCardEntry, TestPaymentsManager} from './passwords_and_autofill_fake_data.js';
+import type {TestPaymentsManager} from './autofill_fake_data.js';
+import {createCreditCardEntry, createEmptyCreditCardEntry} from './autofill_fake_data.js';
 import {createPaymentsSection, getDefaultExpectations, getLocalAndServerCreditCardListItems, getCardRowShadowRoot} from './payments_section_utils.js';
 
 // clang-format on
@@ -21,8 +24,6 @@ suite('PaymentsSectionCardDialogs', function() {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     loadTimeData.overrideValues({
       migrationEnabled: true,
-      removeCardExpirationAndTypeTitles: true,
-      virtualCardEnrollmentEnabled: true,
       showIbansSettings: true,
     });
   });
@@ -33,8 +34,18 @@ suite('PaymentsSectionCardDialogs', function() {
   function createCreditCardDialog(
       creditCardItem: chrome.autofillPrivate.CreditCardEntry):
       SettingsCreditCardEditDialogElement {
+    return createCreditCardDialogWithPrefs(creditCardItem, {});
+  }
+
+  /**
+   * Creates the Edit Credit Card dialog with prefs.
+   */
+  function createCreditCardDialogWithPrefs(
+      creditCardItem: chrome.autofillPrivate.CreditCardEntry,
+      prefsValues: any): SettingsCreditCardEditDialogElement {
     const dialog = document.createElement('settings-credit-card-edit-dialog');
     dialog.creditCard = creditCardItem;
+    dialog.prefs = {autofill: prefsValues};
     document.body.appendChild(dialog);
     flush();
     return dialog;
@@ -52,6 +63,17 @@ suite('PaymentsSectionCardDialogs', function() {
     document.body.appendChild(dialog);
     flush();
     return dialog;
+  }
+
+  /**
+   * Helper function to simulate input on a CrInput element.
+   */
+  async function simulateInput(
+      inputElement: CrInputElement, input: string): Promise<void> {
+    inputElement.focus();
+    inputElement.value = input;
+    await inputElement.updateComplete;
+    inputElement.dispatchEvent(new CustomEvent('input'));
   }
 
   test('verifyAddVsEditCreditCardTitle', function() {
@@ -158,39 +180,222 @@ suite('PaymentsSectionCardDialogs', function() {
         });
   });
 
-  test('verify save new credit card', function() {
+  test('verifySaveNewCreditCard', async function() {
+    loadTimeData.overrideValues({
+      cvcStorageAvailable: true,
+    });
+
     const creditCard = createEmptyCreditCardEntry();
+    const creditCardDialog = createCreditCardDialogWithPrefs(
+        creditCard, {payment_cvc_storage: {value: true}});
+    await whenAttributeIs(creditCardDialog.$.dialog, 'open', '');
+
+    // Not expired, but still can't be saved, because there's no card number.
+    const expiredError =
+        creditCardDialog.shadowRoot!.querySelector<HTMLElement>(
+            '#expiredError');
+    assertEquals('hidden', getComputedStyle(expiredError!).visibility);
+
+    const saveButton =
+        creditCardDialog.shadowRoot!.querySelector<CrButtonElement>(
+            '#saveButton');
+    assertTrue(saveButton!.disabled);
+
+    // Add a card number to enable saving.
+    creditCardDialog.set('rawCardNumber_', '4444333322221111');
+    flush();
+
+    assertEquals('hidden', getComputedStyle(expiredError!).visibility);
+    assertFalse(saveButton!.disabled);
+
+    const cvcInput =
+        creditCardDialog.shadowRoot!.querySelector<HTMLInputElement>(
+            '#cvcInput');
+    assertTrue(!!cvcInput);
+    assertTrue(isVisible(cvcInput));
+    cvcInput.value = '123';
+
+    const savedPromise = eventToPromise('save-credit-card', creditCardDialog);
+    saveButton!.click();
+    const event = await savedPromise;
+
+    assertEquals(creditCard.guid, event.detail.guid);
+    assertEquals(creditCard.cvc, event.detail.cvc);
+  });
+
+  test('verifyOnlyValidCardNumbersAllowed_ValidCases', async function() {
+    const creditCard = createCreditCardEntry();
     const creditCardDialog = createCreditCardDialog(creditCard);
 
-    return whenAttributeIs(creditCardDialog.$.dialog, 'open', '')
-        .then(function() {
-          // Not expired, but still can't be saved, because there's no
-          // name.
-          const expiredError =
-              creditCardDialog.shadowRoot!.querySelector<HTMLElement>(
-                  '#expiredError');
-          assertEquals('hidden', getComputedStyle(expiredError!).visibility);
+    await whenAttributeIs(creditCardDialog.$.dialog, 'open', '');
 
-          const saveButton =
-              creditCardDialog.shadowRoot!.querySelector<CrButtonElement>(
-                  '#saveButton');
-          assertTrue(saveButton!.disabled);
+    const numberInput =
+        creditCardDialog.shadowRoot!.querySelector<CrInputElement>(
+            '#numberInput');
+    assertTrue(!!numberInput, 'Precondition failed: numberInput should exist.');
 
-          // Add a name.
-          creditCardDialog.set('name_', 'Jane Doe');
+    const saveButton =
+        creditCardDialog.shadowRoot!.querySelector<CrButtonElement>(
+            '#saveButton');
+    assertTrue(!!saveButton, 'Precondition failed: saveButton should exist.');
+
+    // Taken from //components/autofill/core/browser/validation_unittest.cc
+    const validCardNumbers = [
+      '378282246310005',     '3714 4963 5398 431',  '3787-3449-3671-000',
+      '5610591081018250',    '3056 9309 0259 04',   '3852-0000-0232-37',
+      '6011111111111117',    '6011 0009 9013 9424', '3530-1113-3330-0000',
+      '3566002020360505',
+      '5555 5555 5555 4444',  // Mastercard.
+      '5105-1051-0510-5100',
+      '4111111111111111',  // Visa.
+      '4012 8888 8888 1881', '4222-2222-2222-2',    '5019717010103742',
+      '6331101999990016',    '6247130048162403',
+      '4532261615476013542',  // Visa, 19 digits.
+      '5067071446391278',     // Elo.
+    ];
+    for (const cardNumber of validCardNumbers) {
+      // First set the input to something invalid, to reset the dialog.
+      await simulateInput(numberInput, '0000000000000001');
+      flush();
+      assertTrue(
+          numberInput.invalid,
+          'Precondition failed: numberInput should initially be invalid');
+      assertTrue(
+          saveButton.disabled,
+          'Precondition failed: saveButton should initially be disabled');
+
+      // Now check the test case.
+      await simulateInput(numberInput, cardNumber);
+      flush();
+      assertFalse(numberInput.invalid, `Expected ${cardNumber} to be valid`);
+      assertFalse(
+          saveButton.disabled,
+          `Expected save button to be enabled for ${cardNumber}`);
+
+      // Blur the input; the card should continue to be considered valid.
+      numberInput.blur();
+      assertFalse(
+          numberInput.invalid, `Expected ${cardNumber} to be valid after blur`);
+      assertFalse(
+          saveButton.disabled,
+          `Expected save button to be enabled for ${cardNumber} after blur`);
+    }
+  });
+
+  test(
+      'verifyOnlyValidCardNumbersAllowed_InvalidCasesWithNoError',
+      async function() {
+        const creditCard = createCreditCardEntry();
+        const creditCardDialog = createCreditCardDialog(creditCard);
+
+        await whenAttributeIs(creditCardDialog.$.dialog, 'open', '');
+
+        const numberInput =
+            creditCardDialog.shadowRoot!.querySelector<CrInputElement>(
+                '#numberInput');
+        assertTrue(
+            !!numberInput, 'Precondition failed: numberInput should exist.');
+
+        const saveButton =
+            creditCardDialog.shadowRoot!.querySelector<CrButtonElement>(
+                '#saveButton');
+        assertTrue(
+            !!saveButton, 'Precondition failed: saveButton should exist.');
+
+        // These are numbers for which we should only disable the save button
+        // but not show an error to the user. Partially taken from
+        // //components/autofill/core/browser/validation_unittest.cc
+        const invalidCardNumbers = [
+          '4111 1111 112',       // passes a Luhn check but is < 12 characters
+          '4111-1111-1111-123',  // fails a Luhn check but is < 16 characters
+        ];
+        for (const cardNumber of invalidCardNumbers) {
+          // First set the input to something valid, to reset the dialog.
+          await simulateInput(numberInput, '4444333322221111');
           flush();
+          assertFalse(
+              numberInput.invalid,
+              'Precondition failed: numberInput should initially be valid');
+          assertFalse(
+              saveButton.disabled,
+              'Precondition failed: saveButton should initially be enabled');
 
-          assertEquals('hidden', getComputedStyle(expiredError!).visibility);
-          assertFalse(saveButton!.disabled);
+          // Now check the test case.
+          await simulateInput(numberInput, cardNumber);
+          flush();
+          assertFalse(
+              numberInput.invalid, `Expected ${cardNumber} to be valid`);
+          assertTrue(
+              saveButton.disabled,
+              `Expected save button to be disabled for ${cardNumber}`);
 
-          const savedPromise =
-              eventToPromise('save-credit-card', creditCardDialog);
-          saveButton!.click();
-          return savedPromise;
-        })
-        .then(function(event) {
-          assertEquals(creditCard.guid, event.detail.guid);
-        });
+          // Blur the input; this should do full verification and change the
+          // card to be invalid.
+          numberInput.blur();
+          assertTrue(
+              numberInput.invalid,
+              `Expected ${cardNumber} to be invalid after blur`);
+          assertTrue(
+              saveButton.disabled,
+              `Expected save button to be disabled for ${
+                  cardNumber} after blur`);
+        }
+      });
+
+  test('verifyOnlyValidCardNumbersAllowed_InvalidCases', async function() {
+    const creditCard = createCreditCardEntry();
+    const creditCardDialog = createCreditCardDialog(creditCard);
+
+    await whenAttributeIs(creditCardDialog.$.dialog, 'open', '');
+
+    const numberInput =
+        creditCardDialog.shadowRoot!.querySelector<CrInputElement>(
+            '#numberInput');
+    assertTrue(!!numberInput, 'Precondition failed: numberInput should exist.');
+
+    const saveButton =
+        creditCardDialog.shadowRoot!.querySelector<CrButtonElement>(
+            '#saveButton');
+    assertTrue(!!saveButton, 'Precondition failed: saveButton should exist.');
+
+    // These are numbers for which we should both disable the save button and
+    // show an error to the user.
+    // Partially taken from
+    // //components/autofill/core/browser/validation_unittest.cc
+    const invalidCardNumbers = [
+      '41111111111111111115',  // passes a Luhn check but is too long
+      '4111-1111-1111-1110',   // >= 16 characters and wrong Luhn checksum
+      '3056 9309 0259 04aa',   // non-digit characters
+    ];
+    for (const cardNumber of invalidCardNumbers) {
+      // First set the input to something valid, to reset the dialog.
+      await simulateInput(numberInput, '4444333322221111');
+      flush();
+      assertFalse(
+          numberInput.invalid,
+          'Precondition failed: numberInput should initially be valid');
+      assertFalse(
+          saveButton.disabled,
+          'Precondition failed: saveButton should initially be enabled');
+
+      // Now check the test case.
+      await simulateInput(numberInput, cardNumber);
+      flush();
+      assertTrue(numberInput.invalid, `Expected ${cardNumber} to be invalid`);
+      assertTrue(
+          saveButton.disabled,
+          `Expected save button to be disabled for ${cardNumber}`);
+
+      // Blur the input; the card number should remain invalid.
+      numberInput.blur();
+      assertTrue(
+          numberInput.invalid,
+          `Expected ${cardNumber} to still be invalid after blur`);
+      assertTrue(
+          saveButton.disabled,
+          `Expected save button to still be disabled for ${
+              cardNumber} after blur`);
+    }
   });
 
   test('verifyNotEditedEntryAfterCancel', async function() {
@@ -202,7 +407,7 @@ suite('PaymentsSectionCardDialogs', function() {
     // Edit a entry.
     creditCardDialog.set('name_', 'EditedName');
     creditCardDialog.set('nickname_', 'NickName');
-    creditCardDialog.set('cardNumber_', '0000000000001234');
+    creditCardDialog.set('rawCardNumber_', '0000000000001234');
     flush();
 
     const cancelButton =
@@ -216,7 +421,7 @@ suite('PaymentsSectionCardDialogs', function() {
     await whenAttributeIs(creditCardDialog.$.dialog, 'open', '');
 
     assertEquals(creditCardDialog.get('name_'), creditCard.name);
-    assertEquals(creditCardDialog.get('cardNumber_'), creditCard.cardNumber);
+    assertEquals(creditCardDialog.get('rawCardNumber_'), creditCard.cardNumber);
     assertEquals(creditCardDialog.get('nickname_'), creditCard.nickname);
   });
 
@@ -248,12 +453,12 @@ suite('PaymentsSectionCardDialogs', function() {
     const creditCard = createCreditCardEntry();
 
     creditCard.metadata!.isLocal = true;
-    creditCard.metadata!.isCached = false;
     creditCard.metadata!.isVirtualCardEnrollmentEligible = false;
     creditCard.metadata!.isVirtualCardEnrolled = false;
 
     const section = await createPaymentsSection(
-        [creditCard], /*ibans=*/[], /*upiIds=*/[], /*prefValues=*/ {});
+        [creditCard], /*ibans=*/[], /*payOverTimeIssuers=*/[],
+        /*prefValues=*/ {});
     assertEquals(1, getLocalAndServerCreditCardListItems().length);
 
     const rowShadowRoot = getCardRowShadowRoot(section.$.paymentsList);
@@ -296,12 +501,12 @@ suite('PaymentsSectionCardDialogs', function() {
     const creditCard = createCreditCardEntry();
 
     creditCard.metadata!.isLocal = true;
-    creditCard.metadata!.isCached = false;
     creditCard.metadata!.isVirtualCardEnrollmentEligible = false;
     creditCard.metadata!.isVirtualCardEnrolled = false;
 
     const section = await createPaymentsSection(
-        [creditCard], /*ibans=*/[], /*upiIds=*/[], /*prefValues=*/ {});
+        [creditCard], /*ibans=*/[], /*payOverTimeIssuers=*/[],
+        /*prefValues=*/ {});
     assertEquals(1, getLocalAndServerCreditCardListItems().length);
 
     const rowShadowRoot = getCardRowShadowRoot(section.$.paymentsList);
@@ -363,5 +568,89 @@ suite('PaymentsSectionCardDialogs', function() {
 
     // Wait for dialogs to open before finishing test.
     return whenAttributeIs(dialog.$.dialog, 'open', '');
+  });
+
+  [true, false].forEach((cvcStorageToggleEnabled) => {
+    test(`verifyCvcInputVisible_${cvcStorageToggleEnabled}`, async function() {
+      loadTimeData.overrideValues({
+        cvcStorageAvailable: true,
+      });
+      const creditCard = createCreditCardEntry();
+      const creditCardDialog = createCreditCardDialogWithPrefs(
+          creditCard, {payment_cvc_storage: {value: cvcStorageToggleEnabled}});
+
+      await whenAttributeIs(creditCardDialog.$.dialog, 'open', '');
+
+      const cvcInput =
+          creditCardDialog.shadowRoot!.querySelector<HTMLInputElement>(
+              '#cvcInput');
+      assertEquals(cvcStorageToggleEnabled, !!cvcInput);
+      assertEquals(cvcStorageToggleEnabled, isVisible(cvcInput));
+    });
+  });
+
+  test('verifyCvcInputTitleAndPlaceholder', async function() {
+    loadTimeData.overrideValues({
+      cvcStorageAvailable: true,
+    });
+    const creditCard = createCreditCardEntry();
+    const creditCardDialog = createCreditCardDialogWithPrefs(
+        creditCard, {payment_cvc_storage: {value: true}});
+
+    await whenAttributeIs(creditCardDialog.$.dialog, 'open', '');
+    const cvcInput =
+        creditCardDialog.shadowRoot!.querySelector<HTMLInputElement>(
+            '#cvcInput');
+    assertTrue(!!cvcInput);
+    assertTrue(isVisible(cvcInput));
+
+    const cvcInputTitle =
+        cvcInput.shadowRoot!.querySelector<HTMLElement>(
+                                '#label')!.textContent!.trim();
+    assertTrue(!!cvcInputTitle);
+    assertEquals(
+        loadTimeData.getString('creditCardCvcInputTitle'), cvcInputTitle);
+
+    const cvcInputBoxPlaceholder =
+        cvcInput.shadowRoot!.querySelector<HTMLInputElement>(
+                                '#input')!.placeholder.trim();
+    assertTrue(!!cvcInputBoxPlaceholder);
+    assertEquals(
+        loadTimeData.getString('creditCardCvcInputPlaceholder'),
+        cvcInputBoxPlaceholder);
+  });
+
+  test('verifyCvcInputImageTitle', async function() {
+    loadTimeData.overrideValues({
+      cvcStorageAvailable: true,
+    });
+    const creditCard = createEmptyCreditCardEntry();
+    const creditCardDialog = createCreditCardDialogWithPrefs(
+        creditCard, {payment_cvc_storage: {value: true}});
+
+    await whenAttributeIs(creditCardDialog.$.dialog, 'open', '');
+    const cvcInputImage =
+        creditCardDialog.shadowRoot!.querySelector<HTMLImageElement>(
+            '#cvcImage');
+    assertTrue(!!cvcInputImage);
+    assertEquals(
+        loadTimeData.getString('creditCardCvcImageTitle'), cvcInputImage.title);
+
+    const numberInput =
+        creditCardDialog.shadowRoot!.querySelector<CrInputElement>(
+            '#numberInput');
+    assertTrue(!!numberInput);
+    assertTrue(isVisible(numberInput));
+
+    // AmEx card entry.
+    await simulateInput(numberInput, '34');
+    assertEquals(
+        loadTimeData.getString('creditCardCvcAmexImageTitle'),
+        cvcInputImage.title);
+
+    // Non-AmEx card entry.
+    await simulateInput(numberInput, '42');
+    assertEquals(
+        loadTimeData.getString('creditCardCvcImageTitle'), cvcInputImage.title);
   });
 });

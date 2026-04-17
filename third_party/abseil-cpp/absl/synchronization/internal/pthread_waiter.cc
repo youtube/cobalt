@@ -58,10 +58,6 @@ class PthreadMutexHolder {
 };
 }  // namespace
 
-#ifdef ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
-constexpr char PthreadWaiter::kName[];
-#endif
-
 PthreadWaiter::PthreadWaiter() : waiter_count_(0), wakeup_count_(0) {
   const int err = pthread_mutex_init(&mu_, 0);
   if (err != 0) {
@@ -80,6 +76,8 @@ PthreadWaiter::PthreadWaiter() : waiter_count_(0), wakeup_count_(0) {
 
 #if defined(__GLIBC__) && \
     (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 30))
+#define ABSL_INTERNAL_HAVE_PTHREAD_COND_CLOCKWAIT 1
+#elif defined(__ANDROID_API__) && __ANDROID_API__ >= 30
 #define ABSL_INTERNAL_HAVE_PTHREAD_COND_CLOCKWAIT 1
 #endif
 

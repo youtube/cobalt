@@ -4,7 +4,6 @@
 
 #include "third_party/blink/renderer/core/editing/commands/insert_list_command.h"
 
-#include "third_party/blink/renderer/core/dom/parent_node.h"
 #include "third_party/blink/renderer/core/dom/text.h"
 #include "third_party/blink/renderer/core/editing/frame_selection.h"
 #include "third_party/blink/renderer/core/editing/selection_template.h"
@@ -106,7 +105,7 @@ TEST_F(InsertListCommandTest, CleanupNodeSameAsDestinationNode) {
   EXPECT_EQ(
       "<ul><li><table><colgroup><col>"
       "</colgroup></table></li>"
-      "<li><button>|</button></li></ul><br>",
+      "<li><button>|</button></li></ul>",
       GetSelectionTextFromBody());
 }
 
@@ -120,11 +119,8 @@ TEST_F(InsertListCommandTest, InsertListOnEmptyHiddenElements) {
 
   // Crash happens here.
   EXPECT_FALSE(command->Apply());
-  EXPECT_EQ(
-      "<button>"
-      "|<ul><li><br></li></ul>"
-      "</button>",
-      GetSelectionTextFromBody());
+  EXPECT_EQ("^<button><ul><li><br></li></ul></button>|",
+            GetSelectionTextFromBody());
 }
 
 // Refer https://crbug.com/797520
@@ -141,11 +137,7 @@ TEST_F(InsertListCommandTest, InsertListWithCollapsedVisibility) {
 
   // Crash happens here.
   EXPECT_FALSE(command->Apply());
-  EXPECT_EQ(
-      "<dl>"
-      "<ol></ol><ul>^a|</ul>"
-      "</dl>",
-      GetSelectionTextFromBody());
+  EXPECT_EQ("^<dl><ol></ol><ul>a</ul></dl>|", GetSelectionTextFromBody());
 }
 
 // Refer https://crbug.com/1183158
@@ -185,7 +177,7 @@ TEST_F(InsertListCommandTest, ListifyInputInTableCell) {
   Selection().SetSelection(
       SetSelectionTextToBody(
           "^<ruby><div style='display: table-cell'><input style='display: "
-          "table-cell' type='file' maxlength='100'><select>|"),
+          "table-cell' type='file' maxlength='100'><select></div></ruby>|"),
       SetSelectionOptions());
   auto* command = MakeGarbageCollected<InsertListCommand>(
       GetDocument(), InsertListCommand::kUnorderedList);
@@ -193,11 +185,11 @@ TEST_F(InsertListCommandTest, ListifyInputInTableCell) {
   // Crash happens here.
   EXPECT_TRUE(command->Apply());
   EXPECT_EQ(
-      "<ruby><div style=\"display: "
-      "table-cell\"><ul><li>^<br></li><li><ruby><div style=\"display: "
-      "table-cell\">|<input maxlength=\"100\" style=\"display: table-cell\" "
-      "type=\"file\"></div></ruby></li><li><select></select></li></ul></div></"
-      "ruby>",
+      "<ruby><div style=\"display: table-cell\"><ul><li><ruby><div "
+      "style=\"display: table-cell\">"
+      "^<input maxlength=\"100\" style=\"display: table-cell\" "
+      "type=\"file\">|</div></ruby>"
+      "</li><li><select></select></li></ul></div></ruby>",
       GetSelectionTextFromBody());
 }
 
@@ -217,9 +209,9 @@ TEST_F(InsertListCommandTest, ListifyInputInTableCell1) {
   // Crash happens here.
   EXPECT_TRUE(command->Apply());
   EXPECT_EQ(
-      "<div contenteditable=\"true\">^<br><ol><li><ruby><rb><ol><li><br></li>"
-      "<li><ruby><rb><input></rb></ruby></li><li><br></li><li><br></li></ol>"
-      "</rb></ruby></li></ol>|XXX<br><div></div></div>",
+      "<div contenteditable=\"true\">^<br><ol><li><ruby><rb><ol><li><ruby>"
+      "<rb><input></rb></ruby></li></ol></rb></ruby></li></ol>XXX|<div></div>"
+      "</div>",
       GetSelectionTextFromBody());
 }
 
@@ -231,9 +223,9 @@ TEST_F(InsertListCommandTest, NonCanonicalVisiblePosition) {
   SetBodyInnerHTML(
       "<textarea></textarea><svg></svg><select></select><div><input></div>");
   const Position& base =
-      Position::BeforeNode(*document.QuerySelector("select"));
+      Position::BeforeNode(*document.QuerySelector(AtomicString("select")));
   const Position& extent =
-      Position::AfterNode(*document.QuerySelector("input"));
+      Position::AfterNode(*document.QuerySelector(AtomicString("input")));
   Selection().SetSelection(
       SelectionInDOMTree::Builder().Collapse(base).Extend(extent).Build(),
       SetSelectionOptions());
@@ -252,7 +244,7 @@ TEST_F(InsertListCommandTest, NonCanonicalVisiblePosition) {
   // Crash happens here.
   EXPECT_TRUE(command->Apply());
   EXPECT_EQ(
-      "<ul><li><textarea></textarea>^<svg></svg><select></select></li>"
+      "<ul><li><textarea></textarea><svg></svg>^<select></select></li>"
       "<li><input>|</li></ul>",
       GetSelectionTextFromBody());
 }
@@ -331,7 +323,8 @@ TEST_F(InsertListCommandTest, SelectionFromEndOfTableToAfterTable) {
   // Crash happens here.
   EXPECT_TRUE(command->Apply());
   EXPECT_EQ(
-      "<table><tbody><tr><td><ol><li>|<br></li></ol></td></tr></tbody></table>",
+      "<table><tbody><tr><td><ol><li>^<br></li></ol></td></tr></tbody></"
+      "table>|",
       GetSelectionTextFromBody());
 }
 

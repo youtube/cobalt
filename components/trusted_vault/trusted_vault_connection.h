@@ -6,12 +6,20 @@
 #define COMPONENTS_TRUSTED_VAULT_TRUSTED_VAULT_CONNECTION_H_
 
 #include <memory>
+#include <optional>
+#include <set>
+#include <variant>
 #include <vector>
 
-#include "base/functional/callback.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "base/functional/callback_forward.h"
+#include "base/time/time.h"
+#include "base/types/strong_alias.h"
 
 struct CoreAccountInfo;
+
+namespace trusted_vault_pb {
+enum SecurityDomainMember_MemberType : int;
+}  // namespace trusted_vault_pb
 
 namespace trusted_vault {
 
@@ -68,6 +76,7 @@ enum class TrustedVaultDownloadKeysStatus {
 // should not be renumbered and numeric values should never be reused, only add
 // at the end and. Also remember to update in tools/metrics/histograms/enums.xml
 // TrustedVaultRecoverabilityStatus enum.
+// LINT.IfChange(TrustedVaultRecoverabilityStatus)
 enum class TrustedVaultRecoverabilityStatus {
   // Recoverability status not retrieved due to network, http or protocol error.
   kNotDegraded = 0,
@@ -75,8 +84,144 @@ enum class TrustedVaultRecoverabilityStatus {
   kError = 2,
   kMaxValue = kError,
 };
+// LINT.ThenChange(/tools/metrics/histograms/metadata/trusted_vault/enums.xml:TrustedVaultRecoverabilityStatus)
 
-enum class AuthenticationFactorType { kPhysicalDevice, kUnspecified };
+// Contains metadata about a Google Password Manager PIN that is stored in
+// a trusted vault and can be used for recovery.
+struct UsableRecoveryPinMetadata {
+  UsableRecoveryPinMetadata(std::string wrapped_pin, base::Time expiry);
+  UsableRecoveryPinMetadata(const UsableRecoveryPinMetadata&);
+  UsableRecoveryPinMetadata& operator=(const UsableRecoveryPinMetadata&);
+  UsableRecoveryPinMetadata(UsableRecoveryPinMetadata&&);
+  UsableRecoveryPinMetadata& operator=(UsableRecoveryPinMetadata&&);
+  ~UsableRecoveryPinMetadata();
+
+  bool operator==(const UsableRecoveryPinMetadata&) const;
+
+  // The encrypted PIN value, for validation.
+  std::string wrapped_pin;
+  // The time when the underlying recovery-key-store entry will expire. Ignored
+  // when uploading.
+  base::Time expiry;
+};
+
+// Contains information about a Google Password Manager PIN that is stored in
+// a trusted vault.
+struct GpmPinMetadata {
+  GpmPinMetadata(std::optional<std::string> public_key,
+                 std::optional<UsableRecoveryPinMetadata> pin_metadata);
+  GpmPinMetadata(const GpmPinMetadata&);
+  GpmPinMetadata& operator=(const GpmPinMetadata&);
+  GpmPinMetadata(GpmPinMetadata&&);
+  GpmPinMetadata& operator=(GpmPinMetadata&&);
+  ~GpmPinMetadata();
+
+  bool operator==(const GpmPinMetadata&) const;
+
+  // The securebox public key for the virtual member. This will always have a
+  // value when this metadata is downloaded with
+  // `DownloadAuthenticationFactorsRegistrationState`. When used with
+  // `RegisterAuthenticationFactor`, this can be empty to upload the first GPM
+  // PIN to an account, but it must be set to replace a GPM PIN.
+  std::optional<std::string> public_key;
+
+  // Contains metadata about the PIN member. If present, the PIN can be used for
+  // recovery. If not present, the PIN cannot be used for recovery, but it might
+  // be necessary to refer to its properties when changing or renewing it.
+  std::optional<UsableRecoveryPinMetadata> usable_pin_metadata;
+};
+
+// A MemberKeys contains the cryptographic outputs needed to add or use an
+// authentication factor: the trusted vault key, encrypted to the public key of
+// the member, and an authenticator of that public key.
+struct MemberKeys {
+  MemberKeys(int version,
+             std::vector<uint8_t> wrapped_key,
+             std::vector<uint8_t> proof);
+  MemberKeys(const MemberKeys&) = delete;
+  MemberKeys& operator=(const MemberKeys&) = delete;
+  MemberKeys(MemberKeys&&);
+  MemberKeys& operator=(MemberKeys&&);
+  ~MemberKeys();
+
+  int version;
+  std::vector<uint8_t> wrapped_key;
+  std::vector<uint8_t> proof;
+};
+
+// A vault member public key and its member keys.
+struct VaultMember {
+  VaultMember(std::unique_ptr<SecureBoxPublicKey> public_key,
+              std::vector<MemberKeys> member_keys);
+  VaultMember(const VaultMember&) = delete;
+  VaultMember& operator=(const VaultMember&) = delete;
+  VaultMember(VaultMember&&);
+  VaultMember& operator=(VaultMember&&);
+  ~VaultMember();
+
+  std::unique_ptr<SecureBoxPublicKey> public_key;
+  std::vector<MemberKeys> member_keys;
+};
+
+// The result of calling
+// DownloadAuthenticationFactorsRegistrationState.
+struct DownloadAuthenticationFactorsRegistrationStateResult {
+  DownloadAuthenticationFactorsRegistrationStateResult();
+  DownloadAuthenticationFactorsRegistrationStateResult(
+      DownloadAuthenticationFactorsRegistrationStateResult&&);
+  DownloadAuthenticationFactorsRegistrationStateResult& operator=(
+      DownloadAuthenticationFactorsRegistrationStateResult&&);
+  ~DownloadAuthenticationFactorsRegistrationStateResult();
+
+  // These values are persisted in histograms. Entries should not be renumbered
+  // and numeric values should never be reused.
+  enum class State {
+    // The state of the security domain could not be determined.
+    kError = 0,
+    // The security domain is empty and thus doesn't have any secrets.
+    kEmpty = 1,
+    // The security domain is non-empty, but has virtual devices that are valid
+    // for recovery.
+    kRecoverable = 2,
+    // The security domain is non-empty, but has no virtual devices that can be
+    // used for recovery.
+    kIrrecoverable = 3,
+    kMaxValue = kIrrecoverable,
+  };
+  State state = State::kError;
+
+  // If there are members in the domain then this will contain the current key
+  // version.
+  std::optional<int> key_version;
+
+  // The expiry time of any LSKF virtual devices.
+  std::vector<base::Time> lskf_expiries;
+
+  // If a Google Password Manager PIN is a member of the domain, then this will
+  // contain its metadata.
+  std::optional<GpmPinMetadata> gpm_pin_metadata;
+
+  // The list of iCloud recovery key domain members.
+  std::vector<VaultMember> icloud_keys;
+};
+
+// Authentication factor types:
+using LocalPhysicalDevice =
+    base::StrongAlias<class LocalPhysicalDeviceTag, std::monostate>;
+using LockScreenKnowledgeFactor =
+    base::StrongAlias<class VirtualDeviceTag, std::monostate>;
+using ICloudKeychain =
+    base::StrongAlias<class ICloudKeychainTag, std::monostate>;
+// UnspecifiedAuthenticationFactorType carries a type hint for the backend.
+using UnspecifiedAuthenticationFactorType =
+    base::StrongAlias<class UnspecifiedAuthenticationFactorTypeTag, int>;
+
+using AuthenticationFactorTypeAndRegistrationParams =
+    std::variant<LocalPhysicalDevice,
+                 LockScreenKnowledgeFactor,
+                 UnspecifiedAuthenticationFactorType,
+                 GpmPinMetadata,
+                 ICloudKeychain>;
 
 struct TrustedVaultKeyAndVersion {
   TrustedVaultKeyAndVersion(const std::vector<uint8_t>& key, int version);
@@ -84,28 +229,42 @@ struct TrustedVaultKeyAndVersion {
   TrustedVaultKeyAndVersion& operator=(const TrustedVaultKeyAndVersion& other);
   ~TrustedVaultKeyAndVersion();
 
+  bool operator==(const TrustedVaultKeyAndVersion& other) const;
+
   std::vector<uint8_t> key;
   int version;
 };
+
+// Returns a vector of `TrustedVaultKeyAndVersion` given a vector of keys and
+// the version of the last key, assuming that the versions are sequential.
+std::vector<TrustedVaultKeyAndVersion> GetTrustedVaultKeysWithVersions(
+    const std::vector<std::vector<uint8_t>>& trusted_vault_keys,
+    int last_key_version);
+
+// A MemberKeysSource provides a method of calculating the values needed to
+// add an authenticator factor.
+using MemberKeysSource =
+    std::variant<std::vector<TrustedVaultKeyAndVersion>, MemberKeys>;
 
 // Supports interaction with vault service, all methods must called on trusted
 // vault backend sequence.
 class TrustedVaultConnection {
  public:
+  // The result of attempting to add a member to the security domain. If the
+  // status is successful then `key_version` carries the current version of
+  // the security domain, otherwise it's zero.
   using RegisterAuthenticationFactorCallback =
-      base::OnceCallback<void(TrustedVaultRegistrationStatus)>;
-  // If registration request was successful without local keys, it means only
-  // constant key exists server-side and it's exposed as
-  // |vault_key_and_version|.
-  using RegisterDeviceWithoutKeysCallback = base::OnceCallback<void(
-      TrustedVaultRegistrationStatus,
-      const TrustedVaultKeyAndVersion& /*vault_key_and_version*/)>;
+      base::OnceCallback<void(TrustedVaultRegistrationStatus,
+                              /*key_version=*/int)>;
   using DownloadNewKeysCallback =
       base::OnceCallback<void(TrustedVaultDownloadKeysStatus,
                               const std::vector<std::vector<uint8_t>>& /*keys*/,
                               int /*last_key_version*/)>;
   using IsRecoverabilityDegradedCallback =
       base::OnceCallback<void(TrustedVaultRecoverabilityStatus)>;
+  using DownloadAuthenticationFactorsRegistrationStateCallback =
+      base::OnceCallback<void(
+          DownloadAuthenticationFactorsRegistrationStateResult)>;
 
   // Used to control ongoing request lifetime, destroying Request object causes
   // request cancellation.
@@ -129,22 +288,22 @@ class TrustedVaultConnection {
   // returned object is destroyed earlier. Caller should hold returned request
   // object until |callback| call or until request needs to be cancelled.
   // |trusted_vault_keys| must be ordered by version and must not be empty.
+  // TODO(crbug.com/406191378): Rename to ...RecoveryFactor.
   [[nodiscard]] virtual std::unique_ptr<Request> RegisterAuthenticationFactor(
       const CoreAccountInfo& account_info,
-      const std::vector<std::vector<uint8_t>>& trusted_vault_keys,
-      int last_trusted_vault_key_version,
+      const MemberKeysSource& member_keys_source,
       const SecureBoxPublicKey& authentication_factor_public_key,
-      AuthenticationFactorType authentication_factor_type,
-      absl::optional<int> authentication_factor_type_hint,
+      AuthenticationFactorTypeAndRegistrationParams
+          authentication_factor_type_and_registration_params,
       RegisterAuthenticationFactorCallback callback) = 0;
 
   // Special version of the above for the case where the caller has no local
   // keys available. Attempts to register the device using constant key. May
   // succeed only if constant key is the only key known server-side.
-  [[nodiscard]] virtual std::unique_ptr<Request> RegisterDeviceWithoutKeys(
+  [[nodiscard]] virtual std::unique_ptr<Request> RegisterLocalDeviceWithoutKeys(
       const CoreAccountInfo& account_info,
       const SecureBoxPublicKey& device_public_key,
-      RegisterDeviceWithoutKeysCallback callback) = 0;
+      RegisterAuthenticationFactorCallback callback) = 0;
 
   // Asynchronously attempts to download new vault keys (e.g. keys with version
   // greater than the on in |last_trusted_vault_key_and_version|) from the
@@ -163,6 +322,35 @@ class TrustedVaultConnection {
   DownloadIsRecoverabilityDegraded(
       const CoreAccountInfo& account_info,
       IsRecoverabilityDegradedCallback callback) = 0;
+
+  // Enumerates the members of the security domain and determines the
+  // recoverability of the security domain. (See the values of
+  // `DownloadAuthenticationFactorsRegistrationStateResult`.)
+  // |keep_alive_callback| will be called whenever there's a partial response
+  // from the server, i.e. we got a response but we still need more data.
+  // TODO(crbug.com/406191378): Rename to ...RecoveryFactor.
+  [[nodiscard]] virtual std::unique_ptr<Request>
+  DownloadAuthenticationFactorsRegistrationState(
+      const CoreAccountInfo& account_info,
+      DownloadAuthenticationFactorsRegistrationStateCallback callback,
+      base::RepeatingClosure keep_alive_callback) = 0;
+
+  // Enumerates the members of the security domain and determines the
+  // recoverability of the security domain. (See the values of
+  // `DownloadAuthenticationFactorsRegistrationStateResult`.)
+  // If |AuthenticationFactorType| is non-empty, then only information from the
+  // authentication factor types in that set is fetched and taken into account
+  // when constructing the result. |keep_alive_callback| will be called whenever
+  // there's a partial response from the server, i.e. we got a response but we
+  // still need more data.
+  // TODO(crbug.com/406191378): Rename to ...RecoveryFactor.
+  [[nodiscard]] virtual std::unique_ptr<Request>
+  DownloadAuthenticationFactorsRegistrationState(
+      const CoreAccountInfo& account_info,
+      std::set<trusted_vault_pb::SecurityDomainMember_MemberType>
+          recovery_factor_filter,
+      DownloadAuthenticationFactorsRegistrationStateCallback callback,
+      base::RepeatingClosure keep_alive_callback) = 0;
 };
 
 }  // namespace trusted_vault

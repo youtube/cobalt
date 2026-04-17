@@ -18,7 +18,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(IS_WIN)
-#include "sandbox/features.h"
+#include "sandbox/policy/features.h"
 #endif
 
 namespace policy {
@@ -26,7 +26,7 @@ namespace policy {
 class NetworkServiceSandboxEnabledTest
     : public InProcessBrowserTest,
       public ::testing::WithParamInterface<
-          /*policy::key::kNetworkServiceSandboxEnabled=*/absl::optional<bool>> {
+          /*policy::key::kNetworkServiceSandboxEnabled=*/std::optional<bool>> {
  public:
   // InProcessBrowserTest implementation:
   void SetUp() override {
@@ -58,8 +58,9 @@ IN_PROC_BROWSER_TEST_P(NetworkServiceSandboxEnabledTest, IsRespected) {
 #if BUILDFLAG(IS_WIN)
   // On Windows, the policy is ignored if the platform does not support
   // sandboxing at all, e.g. pre Windows 10.
-  if (!sandbox::features::IsAppContainerSandboxSupported())
+  if (!sandbox::policy::features::IsNetworkSandboxSupported()) {
     expected_value = false;
+  }
 #endif
   ChromeContentBrowserClient client;
   EXPECT_EQ(expected_value, client.ShouldSandboxNetworkService());
@@ -79,6 +80,6 @@ INSTANTIATE_TEST_SUITE_P(
     NotSet,
     NetworkServiceSandboxEnabledTest,
     ::testing::Values(
-        /*policy::key::kNetworkServiceSandboxEnabled=*/absl::nullopt));
+        /*policy::key::kNetworkServiceSandboxEnabled=*/std::nullopt));
 
 }  // namespace policy

@@ -85,8 +85,6 @@ class WprProxySimulatorTestRunner(test_runner.SimulatorTestRunner):
       if not os.path.exists(self.host_app_path):
         raise test_runner.AppNotFoundError(self.host_app_path)
 
-    self.use_trusted_cert = True
-
     self.test_attempt_count = {}
 
     replay_path = os.path.abspath(replay_path)
@@ -142,7 +140,7 @@ class WprProxySimulatorTestRunner(test_runner.SimulatorTestRunner):
         self.version, self.platform, test_name,
         self.test_attempt_count[test_name])
     out_dir = os.path.join(self.out_dir, destination_folder)
-    return wpr_egtests_app.command(out_dir, destination, self.shards)
+    return wpr_egtests_app.command(out_dir, destination, self.clones)
 
   def get_launch_env(self):
     """Returns a dict of environment variables to use to launch the test app.
@@ -171,10 +169,10 @@ class WprProxySimulatorTestRunner(test_runner.SimulatorTestRunner):
     LOGGER.info('Running test for recipe %s', recipe_path)
     self.wprgo_start(replay_path)
 
-    # TODO(crbug.com/881096): Consider reusing get_launch_command
+    # TODO(crbug.com/40592367): Consider reusing get_launch_command
     #  and adding the autofillautomation flag to it
 
-    # TODO(crbug.com/881096): We only run AutofillAutomationTestCase
+    # TODO(crbug.com/40592367): We only run AutofillAutomationTestCase
     #  as we have other unit tests in the suite which are not related
     #  to testing website recipe/replays. We should consider moving
     #  one or the other to a different suite.
@@ -262,7 +260,7 @@ class WprProxySimulatorTestRunner(test_runner.SimulatorTestRunner):
         ['xcrun', 'simctl', 'keychain', udid, 'add-root-cert', cert_path])
     subprocess.check_call(['xcrun', 'simctl', 'shutdown', udid])
 
-  def _run(self, cmd, shards=1):
+  def _run(self, cmd, clones=1):
     """Runs the specified command, parsing GTest output.
 
     Args:
@@ -275,17 +273,17 @@ class WprProxySimulatorTestRunner(test_runner.SimulatorTestRunner):
     Returns:
       TestResult.ResultCollection() object.
     Raises:
-      ShardingDisabledError: If shards > 1 as currently sharding is not
-        supported.
+      ParallelSimDisabledError: If clones > 1 as currently parallel simulators
+        are not supported.
       SystemAlertPresentError: If system alert is shown on the device.
     """
     overall_result = ResultCollection()
-    if shards > 1:
-      # TODO(crbug.com/881096): reimplement sharding in the future
-      raise test_runner.ShardingDisabledError()
+    if clones > 1:
+      # TODO(crbug.com/40592367): reimplement parallel simulators in the future
+      raise test_runner.ParallelSimDisabledError()
 
-    # TODO(crbug.com/812705): Implement test sharding for unit tests.
-    # TODO(crbug.com/812712): Use thread pool for DeviceTestRunner as well.
+    # TODO(crbug.com/41370857): Implement test parallel simulators for unit tests.
+    # TODO(crbug.com/41370858): Use thread pool for DeviceTestRunner as well.
 
     # Create a simulator for these tests, and prepare it with the
     # certificate needed for HTTPS proxying.
@@ -328,8 +326,11 @@ class WprProxySimulatorTestRunner(test_runner.SimulatorTestRunner):
     return overall_result
 
 
-  def get_launch_command(self, test_app=None, out_dir=None,
-                         destination=None, shards=1):
+  def get_launch_command(self,
+                         test_app=None,
+                         out_dir=None,
+                         destination=None,
+                         clones=1):
     """Returns a config dict for the test, instead of the real launch command.
     Normally this is passed into _run as the command it should use, but since
     the WPR runner builds its own cmd, we use this to configure the function.
@@ -338,7 +339,7 @@ class WprProxySimulatorTestRunner(test_runner.SimulatorTestRunner):
       test_app: A test app needed to run.
       out_dir: (str) A path for results.
       destination: (str) A destination of device/simulator.
-      shards: (int) How many shards the tests should be divided into.
+      clones: (int) How many simulator clones the tests should be divided over.
 
     Returns:
       A dict forming the configuration for the test.

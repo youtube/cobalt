@@ -96,7 +96,7 @@ for message parameters.
 | `string`                      | UTF-8 encoded string.
 | `array<T>`                    | Array of any Mojom type *T*; for example, `array<uint8>` or `array<array<string>>`.
 | `array<T, N>`                 | Fixed-length array of any Mojom type *T*. The parameter *N* must be an integral constant.
-| `map<S, T>`                   | Associated array maping values of type *S* to values of type *T*. *S* may be a `string`, `enum`, or numeric type.
+| `map<S, T>`                   | Associated array mapping values of type *S* to values of type *T*. *S* may be a `string`, `enum`, or numeric type.
 | `handle`                      | Generic Mojo handle. May be any type of handle, including a wrapped native platform handle.
 | `handle<message_pipe>`        | Generic message pipe handle.
 | `handle<shared_buffer>`       | Shared buffer handle.
@@ -107,7 +107,7 @@ for message parameters.
 | *`pending_receiver<InterfaceType>`*            | A pending receiver for any user-defined Mojom interface type. This is sugar for a more strongly-typed message pipe handle which is expected to receive request messages and should therefore eventually be bound to an implementation of the interface.
 | *`pending_associated_remote<InterfaceType>`*  | An associated interface handle. See [Associated Interfaces](#Associated-Interfaces)
 | *`pending_associated_receiver<InterfaceType>`* | A pending associated receiver. See [Associated Interfaces](#Associated-Interfaces)
-| *T*?                          | An optional (nullable) value. Primitive numeric types (integers, floats, booleans, and enums) are not nullable. All other types are nullable.
+| *T*?                          | An optional (nullable) value. Primitive numeric types (integers, floats, booleans, and enums) used to be non-nullable, but they are now nullable. (see https://crbug.com/657632)
 
 ### Modules
 
@@ -197,19 +197,21 @@ interface SampleInterface {
 };
 
 struct AllTheThings {
-  // Note that these types can never be marked nullable!
+  // All the primitive numeric types may be nullable.
   bool boolean_value;
+  bool? maybe_a_bool;
   int8 signed_8bit_value = 42;
-  uint8 unsigned_8bit_value;
-  int16 signed_16bit_value;
-  uint16 unsigned_16bit_value;
-  int32 signed_32bit_value;
-  uint32 unsigned_32bit_value;
-  int64 signed_64bit_value;
-  uint64 unsigned_64bit_value;
-  float float_value_32bit;
-  double float_value_64bit;
-  AnEnum enum_value = AnEnum.kYes;
+  int8? maybe_signed_8bit_value = 42;
+  uint8? maybe_unsigned_8bit_value;
+  int16? maybe_signed_16bit_value;
+  uint16? maybe_unsigned_16bit_value;
+  int32? maybe_signed_32bit_value;
+  uint32? maybe_unsigned_32bit_value;
+  int64? maybe_signed_64bit_value;
+  uint64? maybe_unsigned_64bit_value;
+  float? maybe_float_value_32bit;
+  double? maybe_float_value_64bit;
+  AnEnum? maybe_enum_value = AnEnum.kYes;
 
   // Strings may be nullable.
   string? maybe_a_string_maybe_not;
@@ -230,9 +232,9 @@ struct AllTheThings {
   // Arrays of arrays of arrays... are fine.
   array<array<array<AnEnum>>> this_works_but_really_plz_stop;
 
-  // The element type may be nullable if it's a type which is allowed to be
-  // nullable.
+  // The element type may be nullable unless it's a primitive numeric type.
   array<AllTheThings?> more_maybe_things;
+  // array<int32?> no_primitive_in_array; This doesn't work.
 
   // Fixed-size arrays get some extra validation on the receiving end to ensure
   // that the correct number of elements is always received.
@@ -240,11 +242,13 @@ struct AllTheThings {
 
   // Maps follow many of the same rules as arrays. Key types may be any
   // non-handle, non-collection type, and value types may be any supported
-  // struct field type. Maps may also be nullable.
+  // struct field type. Please note that nullable primitive numeric types
+  // cannot be the key or value. Maps themselves may be nullable.
   map<string, int32> one_map;
   map<AnEnum, string>? maybe_another_map;
   map<StringPair, AllTheThings?>? maybe_a_pretty_weird_but_valid_map;
   map<StringPair, map<int32, array<map<string, string>?>?>?> ridiculous;
+  // map<string?, int32?>; This doesn't work.
 
   // And finally, all handle types are valid as struct fields and may be
   // nullable. Note that interfaces and interface requests (the "Foo" and
@@ -350,6 +354,37 @@ struct Employee {
 
 The effect of nested definitions on generated bindings varies depending on the
 target language. See [documentation for individual target languages](#Generated-Code-For-Target-Languages).
+
+### Features
+
+Features can be declared with a `name` and `default_state` and can be attached
+in mojo to interfaces or methods using the `RuntimeFeature` attribute. If the
+feature is disabled at runtime, the method will crash and the interface will
+refuse to be bound / instantiated. Features cannot be serialized to be sent over
+IPC at this time.
+
+```
+module experimental.mojom;
+
+feature kUseElevators {
+  const string name = "UseElevators";
+  const bool default_state = false;
+};
+
+[RuntimeFeature=kUseElevators]
+interface Elevator {
+  // This interface cannot be bound or called if the feature is disabled.
+};
+
+interface Building {
+  // This method cannot be called if the feature is disabled.
+  [RuntimeFeature=kUseElevators]
+  CallElevator(int floor);
+
+  // This method can be called.
+  RingDoorbell(int volume);
+};
+```
 
 ### Interfaces
 
@@ -461,17 +496,29 @@ interesting attributes supported today.
   string representation as specified by RFC 4122. New UUIDs can be generated
   with common tools such as `uuidgen`.
 
+* **`[RuntimeFeature=feature]`**
+  The `RuntimeFeature` attribute should reference a mojo `feature`. If this
+  feature is enabled (e.g. using `--enable-features={feature.name}`) then the
+  interface behaves entirely as expected. If the feature is not enabled the
+  interface cannot be bound to a concrete receiver or remote - attempting to do
+  so will result in the receiver or remote being reset() to an unbound state.
+  Note that this is a different concept to the build-time `EnableIf` directive.
+  `RuntimeFeature` is currently only supported for C++ bindings and has no
+  effect for, say, Java or TypeScript bindings (see https://crbug.com/1278253).
+
 * **`[EnableIf=value]`**:
   The `EnableIf` attribute is used to conditionally enable definitions when the
   mojom is parsed. If the `mojom` target in the GN file does not include the
   matching `value` in the list of `enabled_features`, the definition will be
   disabled. This is useful for mojom definitions that only make sense on one
   platform. Note that the `EnableIf` attribute can only be set once per
-  definition and cannot be set at the same time as `EnableIfNot`. Also be aware
-  that only one condition can be tested, `EnableIf=value,xyz` introduces a new
-  `xyz` attribute. `xyz` is not part of the `EnableIf` condition that depends
-  only on the feature `value`. Complex conditions can be introduced via
-  enabled_features in `build.gn` files.
+  definition and cannot be set at the same time as `EnableIfNot`. Multiple
+  conditions can be tested using `|` (any, e.g. `EnableIf=is_win|is_linux`) and
+  `&` (all, e.g. `Enableif=is_official_build&is_win`). You cannot mix `&` and
+  `|` in one condition. More complex conditions can be introduced by defining
+  your own features via `enabled_features` in `build.gn` files. Also be aware
+  that a comma introduces a new attribute, so `EnableIf=value,xyz` means
+  `EnableIf=value` and applies the `xyz` attribute.
 
 * **`[EnableIfNot=value]`**:
   The `EnableIfNot` attribute is used to conditionally enable definitions when
@@ -479,7 +526,10 @@ interesting attributes supported today.
   matching `value` in the list of `enabled_features`, the definition will be
   disabled. This is useful for mojom definitions that only make sense on all but
   one platform. Note that the `EnableIfNot` attribute can only be set once per
-  definition and cannot be set at the same time as `EnableIf`.
+  definition and cannot be set at the same time as `EnableIf`. Multiple
+  conditions can be tested using `|` (any, e.g. `EnableIfNot=is_win|is_linux`)
+  and `&` (all, e.g. `EnableifNot=is_official_build&is_win`). You cannot mix `&`
+  and `|` in one condition.
 
 * **`[ServiceSandbox=value]`**:
   The `ServiceSandbox` attribute is used in Chromium to tag which sandbox a
@@ -511,6 +561,51 @@ interesting attributes supported today.
   `AllowedContext` attribute to a method is a strong indication that you need
    a detailed security review of your design - please reach out to the security
    team.
+
+* **`[SupportsUrgent]`**:
+  The `SupportsUrgent` attribute is used in conjunction with
+  `mojo::UrgentMessageScope` in Chromium to tag messages as having high
+  priority. The IPC layer notifies the underlying scheduler upon both receiving
+  and processing an urgent message. At present, this attribute only affects
+  channel associated messages in the renderer process.
+
+* **`[UnlimitedSize]`**
+  The `UnlimitedSize` attribute is used to tag methods that are expected
+  to have large payload size exceeding Mojo's predefined threshold.
+  Without this tag, those methods would trigger a `DumpWithoutCrashing`
+  call. Instead of using `UnlimitedSize`, consider refactoring to avoid
+  such message contents, for example by batching calls or leveraging
+  shared memory where feasible.
+
+* **`[EstimateSize]`**:
+  The `EstimateSize` attribute can be used to tag methods with large
+  payload sizes that tend to cause frequent reallocations during
+  serialization. This attribute instructs Mojo to track the history of
+  recent allocation sizes for the method. With this information, Mojo
+  can make better decisions about subsequent allocations, rather than
+  gradually expanding the serialization buffer. Since the tracking
+  adds a small amount of runtime overhead, use the `EstimateSize` tag
+  selectively – only for frequently-called methods with large payloads
+  that may trigger many allocations.
+
+* **`[SendValidation=feature]`**:
+  The `SendValidation` attribute should reference a mojo `feature`.  If this
+  feature is enabled (e.g. using `--enable-features={feature.name}`) then when
+  the method message is serialized, the serialization result will be validated
+  immediately for errors in addition to at the point of deserialization. This
+  can help diagnose bugs only found in production.
+
+  Note: SendValidation can be binary size expensive, so use sparingly.
+
+  `SendValidation` is currently only supported for C++ bindings and has no
+  effect for, say, Java or TypeScript bindings (see https://crbug.com/1278253).
+
+* **`[DispatchDebugAlias]`**:
+  The `DispatchDebugAlias` attribute can be used on an interface to opt into
+  having every dispatched message retain an aliased copy of the message ID on
+  the stack for the duration of the dispatch. This can aid in crash debugging
+  if other factors such as inlining or code folding end up obscuring the message
+  information. This generates extra code, so it is not the default behavior.
 
 ## Generated Code For Target Languages
 
@@ -661,8 +756,16 @@ struct Employee {
 
 *** note
 **NOTE:** Mojo object or handle types added with a `MinVersion` **MUST** be
-optional (nullable) or primitive. See [Primitive Types](#Primitive-Types) for
-details on nullable values.
+optional (nullable). On the other hand, primitive numeric types (including
+enums) added with a `MinVersion` are allowed to be either nullable or
+non-nullable.
+
+See [Primitive Types](#Primitive-Types) for details on nullable values.
+
+See
+[Ensuring Backward Compatible Behavior](#Ensuring-Backward-Compatible-Behavior)
+for more details on choosing between nullable and non-nullable primitive numeric
+types.
 ***
 
 By default, fields belong to version 0. New fields must be appended to the
@@ -710,6 +813,18 @@ struct Employee {
 };
 ```
 
+**Conversion between Different Versions**
+
+When a struct of version X is passed to a destination using version Y:
+
+* If X is older than Y, then all fields newer than version X are populated
+    automatically: `null` for nullable types, and `0`/`false` for primitive
+    numeric types, including enums. See
+    [Ensuring Backward Compatible Behavior](#ensuring-backward-compatible-behavior)
+    for more details on choosing between nullable and non-nullable primitive
+    numeric types.
+* If X is newer than Y, then all fields newer than version Y are truncated.
+
 ### Versioned Interfaces
 
 There are two dimensions on which an interface can be extended
@@ -720,8 +835,30 @@ There are two dimensions on which an interface can be extended
     that the version number is scoped to the whole interface rather than to any
     individual parameter list.
 
-    Please note that adding a response to a message which did not previously
-    expect a response is a not a backwards-compatible change.
+``` cpp
+// Old version:
+interface HumanResourceDatabase {
+  QueryEmployee(uint64 id) => (Employee? employee);
+};
+
+// New version:
+interface HumanResourceDatabase {
+  QueryEmployee(uint64 id, [MinVersion=1] bool retrieve_finger_print)
+      => (Employee? employee,
+          [MinVersion=1] array<uint8>? finger_print);
+};
+```
+
+When you pass the parameter list of a request or response method to a
+destination using a different version of an interface, the conversion rules of
+[versioned structs](#Versioned-Structs) also apply. Unrecognized fields from
+a newer version are silently discarded; missing fields from an older version are
+populated automatically with `null`/`0`/`false`.
+
+*** note
+**NOTE:** Adding a response to a message which did not previously expect a
+response is a not a backwards-compatible change.
+***
 
 **Appending New Methods**
 :   Similarly, you can reorder methods with explicit ordinal values as long as
@@ -732,17 +869,12 @@ For example:
 ``` cpp
 // Old version:
 interface HumanResourceDatabase {
-  AddEmployee(Employee employee) => (bool success);
   QueryEmployee(uint64 id) => (Employee? employee);
 };
 
 // New version:
 interface HumanResourceDatabase {
-  AddEmployee(Employee employee) => (bool success);
-
-  QueryEmployee(uint64 id, [MinVersion=1] bool retrieve_finger_print)
-      => (Employee? employee,
-          [MinVersion=1] array<uint8>? finger_print);
+  QueryEmployee(uint64 id) => (Employee? employee);
 
   [MinVersion=1]
   AttachFingerPrint(uint64 id, array<uint8> finger_print)
@@ -750,10 +882,7 @@ interface HumanResourceDatabase {
 };
 ```
 
-Similar to [versioned structs](#Versioned-Structs), when you pass the parameter
-list of a request or response method to a destination using an older version of
-an interface, unrecognized fields are silently discarded. However, if the method
-call itself is not recognized, it is considered a validation error and the
+If a method call is not recognized, it is considered a validation error and the
 receiver will close its end of the interface pipe. For example, if a client on
 version 1 of the above interface sends an `AttachFingerPrint` request to an
 implementation of version 0, the client will be disconnected.
@@ -824,6 +953,87 @@ struct NewStruct {
 };
 ```
 
+### Ensuring Backward Compatible Behavior
+
+In addition to following versioning rules to ensure an interface is
+syntactically backward compatible, it is important to also ensure it is
+semantically backward compatible. When a client uses version X of a mojom
+definition to communicate with a service using a different version Y:
+
+* If X is newer than Y, the client will receive downgraded service as if it
+    initiates the communication with version Y. If silently downgraded service
+    is not desirable or not achievable (e.g., calling a method that doesn't
+    exist at the service side), the client is responsible for querying service
+    side version and act accordingly.
+* If X is older than Y, the service is responsible for behaving in the same way
+    as an older service running version X, or report an error if the interface
+    itself supports such error reporting.
+
+**Choosing between Nullable and Non-nullable Primitive Numeric Types**
+
+Primitive numeric types, including enums, are allowed to be either nullable or
+non-nullable when extending structs or method parameter lists. There are several
+tradeoffs to consider when choosing between the two:
+
+* Nullable numeric primitives: they can offer more semantic safety for new
+    fields because it is more obvious that such fields are optional, and whether
+    their values are set.
+* Non-nullable numeric primitives: The caveat is that they can be used only if
+    auto-populated `0`/`false` doesn't break backward compatibility. (See
+    example below.) When they are used properly, however, there are some
+    benefits: they are slightly more efficient (although that is usually
+    negligible). And they can avoid additional null checks if value `0`/`false`
+    already represents the invalid state.
+
+*** note
+**NOTE**: A non-nullable enum's automatically populated value is distinct from
+the value used when an extensible enum is deserialised with an enumerator value
+that is not defined in the current enum definition (the enum's
+[`[Default]` enumerator value](/mojo/public/cpp/bindings/README.md#versioned-enums),
+if one exists).
+***
+
+If the consequences of auto-populated `0`/`false` have not been thoroughly and
+carefully considered, prefer nullable numeric primitives.
+
+Consider an example where a non-nullable numeric primitive breaks backward
+compatibility:
+
+``` cpp
+// WRONG:
+// Supports a third operand with non-nullable int32 in version 1.
+Multiply(int32 operand1, int32 operand2, [MinVersion=1] int32 operand3)
+    => (int64 result);
+```
+
+In this case, it is wrong to use non-nullable `int32` for `operand3`, because
+when a client using version 0 calls a service implementing version 1, `operand3`
+is automatically populated with value `0`, the `result` will always be 0!
+
+Consider an example where a non-nullable numeric primitive results in more
+intuitive code:
+
+``` cpp
+// Awesome encoding is only available from version >= 1.
+CompressFile(string filename, [MinVersion=1] bool uses_awesome_encoding);
+```
+
+In the example above, using non-nullable `bool` for `uses_awesome_encoding`
+makes sense. Because when a client uses version 0 definition to call
+`CompressFile()` with a service implementing version 1, `uses_awesome_encoding`
+is automatically populated with `false`, which matches the version 0 behavior
+naturally and preserves backward compatibility.
+
+As a comparison, if `uses_awesome_encoding` is defined as `bool?`, it is mapped
+to `std::optional<bool>`. The service needs to add additional null checks:
+
+``` cpp
+// Verbose and less intuitive code:
+if (uses_awesome_encoding.value_or(false)) { ... }
+// or:
+if (uses_awesome_encoding && *uses_awesome_encoding) { ... }
+```
+
 ## Component targets
 
 If there are multiple components depending on the same mojom target within one binary,
@@ -850,7 +1060,7 @@ Statement = ModuleStatement | ImportStatement | Definition
 
 ModuleStatement = AttributeSection "module" Identifier ";"
 ImportStatement = "import" StringLiteral ";"
-Definition = Struct Union Interface Enum Const
+Definition = Struct Union Interface Enum Feature Const
 
 AttributeSection = <empty> | "[" AttributeList "]"
 AttributeList = <empty> | NonEmptyAttributeList
@@ -877,7 +1087,7 @@ InterfaceBody = <empty>
               | InterfaceBody Const
               | InterfaceBody Enum
               | InterfaceBody Method
-Method = AttributeSection Name Ordinal "(" ParamterList ")" Response ";"
+Method = AttributeSection Name Ordinal "(" ParameterList ")" Response ";"
 ParameterList = <empty> | NonEmptyParameterList
 NonEmptyParameterList = Parameter
                       | Parameter "," NonEmptyParameterList
@@ -914,6 +1124,13 @@ NonEmptyEnumValueList = EnumValue | NonEmptyEnumValueList "," EnumValue
 EnumValue = AttributeSection Name
           | AttributeSection Name "=" Integer
           | AttributeSection Name "=" Identifier
+
+; Note: `feature` is a weak keyword and can appear as, say, a struct field name.
+Feature = AttributeSection "feature" Name "{" FeatureBody "}" ";"
+       | AttributeSection "feature" Name ";"
+FeatureBody = <empty>
+           | FeatureBody FeatureField
+FeatureField = AttributeSection TypeSpec Name Default ";"
 
 Const = "const" TypeSpec Name "=" Constant ";"
 

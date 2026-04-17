@@ -17,9 +17,10 @@
 #include "base/test/simple_test_clock.h"
 #include "base/test/task_environment.h"
 #include "chromeos/ash/components/multidevice/remote_device_test_util.h"
+#include "chromeos/ash/components/timer_factory/fake_timer_factory.h"
+#include "chromeos/ash/components/timer_factory/timer_factory.h"
 #include "chromeos/ash/services/secure_channel/authenticated_channel_impl.h"
 #include "chromeos/ash/services/secure_channel/ble_advertiser_impl.h"
-#include "chromeos/ash/services/secure_channel/ble_constants.h"
 #include "chromeos/ash/services/secure_channel/ble_initiator_failure_type.h"
 #include "chromeos/ash/services/secure_channel/ble_listener_failure_type.h"
 #include "chromeos/ash/services/secure_channel/ble_weave_client_connection.h"
@@ -31,7 +32,7 @@
 #include "chromeos/ash/services/secure_channel/fake_connection.h"
 #include "chromeos/ash/services/secure_channel/fake_secure_channel_connection.h"
 #include "chromeos/ash/services/secure_channel/fake_secure_channel_disconnector.h"
-#include "chromeos/ash/services/secure_channel/fake_timer_factory.h"
+#include "chromeos/ash/services/secure_channel/public/cpp/shared/ble_constants.h"
 #include "chromeos/ash/services/secure_channel/secure_channel.h"
 #include "device/bluetooth/public/cpp/bluetooth_uuid.h"
 #include "device/bluetooth/test/mock_bluetooth_adapter.h"
@@ -50,9 +51,10 @@ constexpr base::TimeDelta kConnectionToAuthenticationTime = base::Seconds(1);
 
 class FakeBleAdvertiserFactory : public BleAdvertiserImpl::Factory {
  public:
-  FakeBleAdvertiserFactory(FakeBluetoothHelper* expected_fake_bluetooth_helper,
-                           FakeBleSynchronizer* expected_fake_ble_synchronizer,
-                           FakeTimerFactory* expected_fake_timer_factory)
+  FakeBleAdvertiserFactory(
+      FakeBluetoothHelper* expected_fake_bluetooth_helper,
+      FakeBleSynchronizer* expected_fake_ble_synchronizer,
+      ash::timer_factory::FakeTimerFactory* expected_fake_timer_factory)
       : expected_fake_bluetooth_helper_(expected_fake_bluetooth_helper),
         expected_fake_ble_synchronizer_(expected_fake_ble_synchronizer),
         expected_fake_timer_factory_(expected_fake_timer_factory) {}
@@ -70,7 +72,7 @@ class FakeBleAdvertiserFactory : public BleAdvertiserImpl::Factory {
       BleAdvertiser::Delegate* delegate,
       BluetoothHelper* bluetooth_helper,
       BleSynchronizerBase* ble_synchronizer_base,
-      TimerFactory* timer_factory,
+      ash::timer_factory::TimerFactory* timer_factory,
       scoped_refptr<base::SequencedTaskRunner> sequenced_task_runner) override {
     EXPECT_EQ(expected_fake_bluetooth_helper_, bluetooth_helper);
     EXPECT_EQ(expected_fake_ble_synchronizer_, ble_synchronizer_base);
@@ -82,11 +84,14 @@ class FakeBleAdvertiserFactory : public BleAdvertiserImpl::Factory {
     return instance;
   }
 
-  raw_ptr<FakeBleAdvertiser, ExperimentalAsh> instance_ = nullptr;
+  raw_ptr<FakeBleAdvertiser, DanglingUntriaged> instance_ = nullptr;
 
-  raw_ptr<FakeBluetoothHelper, ExperimentalAsh> expected_fake_bluetooth_helper_;
-  raw_ptr<FakeBleSynchronizer, ExperimentalAsh> expected_fake_ble_synchronizer_;
-  raw_ptr<FakeTimerFactory, ExperimentalAsh> expected_fake_timer_factory_;
+  raw_ptr<FakeBluetoothHelper, DanglingUntriaged>
+      expected_fake_bluetooth_helper_;
+  raw_ptr<FakeBleSynchronizer, DanglingUntriaged>
+      expected_fake_ble_synchronizer_;
+  raw_ptr<ash::timer_factory::FakeTimerFactory, DanglingUntriaged>
+      expected_fake_timer_factory_;
 };
 
 class FakeWeaveClientConnectionFactory
@@ -130,10 +135,10 @@ class FakeWeaveClientConnectionFactory
 
   scoped_refptr<testing::NiceMock<device::MockBluetoothAdapter>>
       expected_mock_adapter_;
-  raw_ptr<device::MockBluetoothDevice, ExperimentalAsh>
+  raw_ptr<device::MockBluetoothDevice, DanglingUntriaged>
       expected_bluetooth_device_;
 
-  raw_ptr<FakeConnection, ExperimentalAsh> last_created_instance_ = nullptr;
+  raw_ptr<FakeConnection, DanglingUntriaged> last_created_instance_ = nullptr;
 };
 
 class FakeSecureChannelFactory : public SecureChannel::Factory {
@@ -165,10 +170,11 @@ class FakeSecureChannelFactory : public SecureChannel::Factory {
     return instance;
   }
 
-  raw_ptr<FakeWeaveClientConnectionFactory, ExperimentalAsh>
+  raw_ptr<FakeWeaveClientConnectionFactory>
       fake_weave_client_connection_factory_;
 
-  FakeSecureChannelConnection* last_created_instance_ = nullptr;
+  raw_ptr<FakeSecureChannelConnection, DanglingUntriaged>
+      last_created_instance_ = nullptr;
 };
 
 class FakeAuthenticatedChannelFactory
@@ -218,10 +224,12 @@ class FakeAuthenticatedChannelFactory
     return instance;
   }
 
-  FakeSecureChannelConnection* expected_fake_secure_channel_ = nullptr;
+  raw_ptr<FakeSecureChannelConnection, DanglingUntriaged>
+      expected_fake_secure_channel_ = nullptr;
   bool expected_to_be_background_advertisement_ = false;
 
-  FakeAuthenticatedChannel* last_created_instance_ = nullptr;
+  raw_ptr<FakeAuthenticatedChannel, DanglingUntriaged> last_created_instance_ =
+      nullptr;
 };
 
 }  // namespace
@@ -253,7 +261,8 @@ class SecureChannelBleConnectionManagerImplTest : public testing::Test {
     fake_secure_channel_disconnector_ =
         std::make_unique<FakeSecureChannelDisconnector>();
 
-    fake_timer_factory_ = std::make_unique<FakeTimerFactory>();
+    fake_timer_factory_ =
+        std::make_unique<ash::timer_factory::FakeTimerFactory>();
 
     test_clock_ = std::make_unique<base::SimpleTestClock>();
     test_clock_->SetNow(base::Time::UnixEpoch());
@@ -634,7 +643,7 @@ class SecureChannelBleConnectionManagerImplTest : public testing::Test {
     successful_connections_.push_back(
         std::make_pair(device_id_pair, std::move(authenticated_channel)));
 
-    absl::optional<std::tuple<DeviceIdPair, ConnectionRole, ConnectionPriority>>
+    std::optional<std::tuple<DeviceIdPair, ConnectionRole, ConnectionPriority>>
         tuple_which_received_callback;
     for (const auto& tuple :
          remote_device_id_to_metadata_map_[device_id_pair.remote_device_id()]) {
@@ -779,7 +788,7 @@ class SecureChannelBleConnectionManagerImplTest : public testing::Test {
   std::unique_ptr<FakeBleScanner> fake_ble_scanner_;
   std::unique_ptr<FakeSecureChannelDisconnector>
       fake_secure_channel_disconnector_;
-  std::unique_ptr<FakeTimerFactory> fake_timer_factory_;
+  std::unique_ptr<ash::timer_factory::FakeTimerFactory> fake_timer_factory_;
   std::unique_ptr<base::SimpleTestClock> test_clock_;
 
   std::unique_ptr<BleConnectionManager> manager_;

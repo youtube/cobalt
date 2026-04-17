@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "starboard/common/ref_counted.h"
+
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 

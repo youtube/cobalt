@@ -21,7 +21,6 @@
 #include "base/system/sys_info.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "chrome/browser/metrics/perf/cpu_identity.h"
 #include "chrome/browser/metrics/perf/windowed_incognito_observer.h"
@@ -48,6 +47,9 @@ const char kPerfLBRCallgraphPPPCmd[] =
     "-- record -a -e cycles:ppp -c 6000011 --call-graph lbr";
 const char kPerfLBRCmd[] = "-- record -a -e r20c4 -b -c 800011";
 const char kPerfLBRCmdAtom[] = "-- record -a -e rc4 -b -c 800011";
+const char kPerfLBRCmdTremont[] = "-- record -a -e rc0c4 -b -c 800011";
+const char kPerfLBRCmdAlderLake[] =
+    "-- record -a -e cpu_core/r20c4/ -e cpu_atom/rc0c4/ -b -c 800011";
 const char kPerfITLBMissCyclesCmdIvyBridge[] =
     "-- record -a -e itlb_misses.walk_duration -c 30001";
 const char kPerfITLBMissCyclesCmdSkylake[] =
@@ -55,6 +57,8 @@ const char kPerfITLBMissCyclesCmdSkylake[] =
 const char kPerfITLBMissCyclesCmdAtom[] =
     "-- record -a -e page_walks.i_side_cycles -c 30001";
 const char kPerfITLBMissCyclesCmdTremont[] = "-- record -a -e r1085 -c 30001";
+const char kPerfITLBMissCyclesCmdAlderLake[] =
+    "-- record -a -e cpu_core/r1011/ -e cpu_atom/r1085/ -c 30001";
 const char kPerfLLCMissesCmd[] = "-- record -a -e r412e -g -c 30007";
 const char kPerfLLCMissesPreciseCmd[] = "-- record -a -e r412e:pp -g -c 30007";
 const char kPerfDTLBMissesDAPGoldmont[] =
@@ -67,12 +71,12 @@ const char kPerfDTLBMissesDAPSkylake[] =
 
 const char kPerfETMCmd[] =
     "--run_inject --inject_args inject;--itrace=i512il;--strip -- record -a -e "
-    "cs_etm/autofdo/u";
+    "cs_etm/autofdo/";
 
 // Converts a protobuf to serialized format as a byte vector.
 std::vector<uint8_t> SerializeMessageToVector(
     const google::protobuf::MessageLite& message) {
-  std::vector<uint8_t> result(message.ByteSize());
+  std::vector<uint8_t> result(message.ByteSizeLong());
   message.SerializeToArray(result.data(), result.size());
   return result;
 }
@@ -319,8 +323,6 @@ class PerfCollectorTest : public testing::Test {
   std::vector<SampledProfile> cached_profile_data_;
 
   std::unique_ptr<TestPerfCollector> perf_collector_;
-
-  base::test::ScopedFeatureList feature_list_;
 };
 
 TEST_F(PerfCollectorTest, CheckSetup) {
@@ -369,7 +371,7 @@ TEST_F(PerfCollectorTest, NoCollectionWhenProfileCacheFull) {
 // ParseOutputProtoIfValid().
 TEST_F(PerfCollectorTest, IncognitoWindowOpened) {
   PerfDataProto perf_data_proto = GetExamplePerfDataProto();
-  EXPECT_GT(perf_data_proto.ByteSize(), 0);
+  EXPECT_GT(perf_data_proto.ByteSizeLong(), 0U);
   task_environment_.RunUntilIdle();
 
   auto sampled_profile = std::make_unique<SampledProfile>();
@@ -690,7 +692,61 @@ TEST_F(PerfCollectorTest, DefaultCommandsBasedOnUarch_Tremont) {
   EXPECT_TRUE(DoesCommandSampleCycles(cmds[1].value));
   EXPECT_TRUE(base::Contains(cmds, kPerfLBRCallgraphPPPCmd,
                              &RandomSelector::WeightAndValue::value));
-  EXPECT_TRUE(base::Contains(cmds, kPerfLBRCmd,
+  EXPECT_TRUE(base::Contains(cmds, kPerfLBRCmdTremont,
+                             &RandomSelector::WeightAndValue::value));
+  EXPECT_TRUE(base::Contains(cmds, kPerfLLCMissesPreciseCmd,
+                             &RandomSelector::WeightAndValue::value));
+  EXPECT_TRUE(base::Contains(cmds, kPerfITLBMissCyclesCmdTremont,
+                             &RandomSelector::WeightAndValue::value));
+  EXPECT_TRUE(base::Contains(cmds, kPerfDTLBMissesDAPTremont,
+                             &RandomSelector::WeightAndValue::value));
+}
+
+TEST_F(PerfCollectorTest, DefaultCommandsBasedOnUarch_AlderLake) {
+  CPUIdentity cpuid;
+  cpuid.arch = "x86_64";
+  cpuid.vendor = "GenuineIntel";
+  cpuid.family = 0x06;
+  cpuid.model = 0x9a;  // AlderLake
+  cpuid.model_name = "";
+  cpuid.release = "6.6.30";
+  std::vector<RandomSelector::WeightAndValue> cmds =
+      internal::GetDefaultCommandsForCpuModel(cpuid, "");
+  ASSERT_GE(cmds.size(), 2UL);
+  EXPECT_EQ(cmds[0].value, kPerfCyclesPPPHGCmd);
+  EXPECT_TRUE(DoesCommandSampleCycles(cmds[0].value));
+  EXPECT_EQ(cmds[1].value, kPerfFPCallgraphPPPHGCmd);
+  EXPECT_TRUE(DoesCommandSampleCycles(cmds[1].value));
+  EXPECT_TRUE(base::Contains(cmds, kPerfLBRCallgraphPPPCmd,
+                             &RandomSelector::WeightAndValue::value));
+  EXPECT_TRUE(base::Contains(cmds, kPerfLBRCmdAlderLake,
+                             &RandomSelector::WeightAndValue::value));
+  EXPECT_TRUE(base::Contains(cmds, kPerfLLCMissesPreciseCmd,
+                             &RandomSelector::WeightAndValue::value));
+  EXPECT_TRUE(base::Contains(cmds, kPerfITLBMissCyclesCmdAlderLake,
+                             &RandomSelector::WeightAndValue::value));
+  EXPECT_TRUE(base::Contains(cmds, kPerfDTLBMissesDAPTremont,
+                             &RandomSelector::WeightAndValue::value));
+}
+
+TEST_F(PerfCollectorTest, DefaultCommandsBasedOnUarch_Gracemont) {
+  CPUIdentity cpuid;
+  cpuid.arch = "x86_64";
+  cpuid.vendor = "GenuineIntel";
+  cpuid.family = 0x06;
+  cpuid.model = 0xbe;  // Gracemont
+  cpuid.model_name = "";
+  cpuid.release = "6.6.30";
+  std::vector<RandomSelector::WeightAndValue> cmds =
+      internal::GetDefaultCommandsForCpuModel(cpuid, "");
+  ASSERT_GE(cmds.size(), 2UL);
+  EXPECT_EQ(cmds[0].value, kPerfCyclesPPPHGCmd);
+  EXPECT_TRUE(DoesCommandSampleCycles(cmds[0].value));
+  EXPECT_EQ(cmds[1].value, kPerfFPCallgraphPPPHGCmd);
+  EXPECT_TRUE(DoesCommandSampleCycles(cmds[1].value));
+  EXPECT_TRUE(base::Contains(cmds, kPerfLBRCallgraphPPPCmd,
+                             &RandomSelector::WeightAndValue::value));
+  EXPECT_TRUE(base::Contains(cmds, kPerfLBRCmdTremont,
                              &RandomSelector::WeightAndValue::value));
   EXPECT_TRUE(base::Contains(cmds, kPerfLLCMissesPreciseCmd,
                              &RandomSelector::WeightAndValue::value));
@@ -764,7 +820,6 @@ TEST_F(PerfCollectorTest, DefaultCommandsBasedOnArch_Arm64) {
 }
 
 TEST_F(PerfCollectorTest, DefaultCommandsBasedOnArch_Arm64_ETM) {
-  feature_list_.InitAndEnableFeature(kCWPCollectsETM);
   CPUIdentity cpuid;
   cpuid.arch = "aarch64";
   cpuid.vendor = "";
@@ -1214,7 +1269,7 @@ TEST_F(PerfCollectorTest, CommandEventType) {
 
 class PerfCollectorCollectionParamsTest : public testing::Test {
  public:
-  PerfCollectorCollectionParamsTest() {}
+  PerfCollectorCollectionParamsTest() = default;
 
   PerfCollectorCollectionParamsTest(const PerfCollectorCollectionParamsTest&) =
       delete;

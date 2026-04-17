@@ -5,16 +5,25 @@
 #ifndef CHROME_BROWSER_UI_WEB_APPLICATIONS_TEST_ISOLATED_WEB_APP_TEST_UTILS_H_
 #define CHROME_BROWSER_UI_WEB_APPLICATIONS_TEST_ISOLATED_WEB_APP_TEST_UTILS_H_
 
+#include <memory>
 #include <string>
-#include <vector>
+#include <string_view>
 
 #include "base/files/file_path.h"
-#include "base/strings/string_piece.h"
+#include "base/files/file_util.h"
 #include "base/test/scoped_feature_list.h"
-#include "chrome/browser/ui/web_applications/web_app_controller_browsertest.h"
-#include "components/web_package/signed_web_bundles/signed_web_bundle_id.h"
-#include "components/web_package/test_support/signed_web_bundles/web_bundle_signer.h"
-#include "components/web_package/web_bundle_builder.h"
+#include "base/threading/thread_restrictions.h"
+#include "base/version.h"
+#include "chrome/browser/ui/web_applications/web_app_browsertest_base.h"
+#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_source.h"
+#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_storage_location.h"
+#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_update_manager.h"
+#include "chrome/browser/web_applications/web_app.h"
+#include "chrome/browser/web_applications/web_app_provider.h"
+#include "components/version_info/channel.h"
+#include "components/webapps/browser/installable/installable_metrics.h"
+#include "extensions/common/features/feature_channel.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "ui/base/window_open_disposition.h"
 
 class Browser;
@@ -37,25 +46,7 @@ namespace web_app {
 
 class IsolatedWebAppUrlInfo;
 
-inline constexpr uint8_t kTestPublicKey[] = {
-    0xE4, 0xD5, 0x16, 0xC9, 0x85, 0x9A, 0xF8, 0x63, 0x56, 0xA3, 0x51,
-    0x66, 0x7D, 0xBD, 0x00, 0x43, 0x61, 0x10, 0x1A, 0x92, 0xD4, 0x02,
-    0x72, 0xFE, 0x2B, 0xCE, 0x81, 0xBB, 0x3B, 0x71, 0x3F, 0x2D};
-
-inline constexpr uint8_t kTestPrivateKey[] = {
-    0x1F, 0x27, 0x3F, 0x93, 0xE9, 0x59, 0x4E, 0xC7, 0x88, 0x82, 0xC7, 0x49,
-    0xF8, 0x79, 0x3D, 0x8C, 0xDB, 0xE4, 0x60, 0x1C, 0x21, 0xF1, 0xD9, 0xF9,
-    0xBC, 0x3A, 0xB5, 0xC7, 0x7F, 0x2D, 0x95, 0xE1,
-    // public key (part of the private key)
-    0xE4, 0xD5, 0x16, 0xC9, 0x85, 0x9A, 0xF8, 0x63, 0x56, 0xA3, 0x51, 0x66,
-    0x7D, 0xBD, 0x00, 0x43, 0x61, 0x10, 0x1A, 0x92, 0xD4, 0x02, 0x72, 0xFE,
-    0x2B, 0xCE, 0x81, 0xBB, 0x3B, 0x71, 0x3F, 0x2D};
-
-// Derived from `kTestPublicKey`.
-inline constexpr base::StringPiece kTestEd25519WebBundleId =
-    "4tkrnsmftl4ggvvdkfth3piainqragus2qbhf7rlz2a3wo3rh4wqaaic";
-
-class IsolatedWebAppBrowserTestHarness : public WebAppControllerBrowserTest {
+class IsolatedWebAppBrowserTestHarness : public WebAppBrowserTestBase {
  public:
   IsolatedWebAppBrowserTestHarness();
   IsolatedWebAppBrowserTestHarness(const IsolatedWebAppBrowserTestHarness&) =
@@ -66,10 +57,11 @@ class IsolatedWebAppBrowserTestHarness : public WebAppControllerBrowserTest {
 
  protected:
   std::unique_ptr<net::EmbeddedTestServer> CreateAndStartServer(
-      const base::FilePath::StringPieceType& chrome_test_data_relative_root);
+      base::FilePath::StringViewType chrome_test_data_relative_root);
   IsolatedWebAppUrlInfo InstallDevModeProxyIsolatedWebApp(
       const url::Origin& origin);
-  content::RenderFrameHost* OpenApp(const AppId& app_id);
+  content::RenderFrameHost* OpenApp(const webapps::AppId& app_id,
+                                    std::string_view path = "");
   content::RenderFrameHost* NavigateToURLInNewTab(
       Browser* window,
       const GURL& url,
@@ -79,62 +71,166 @@ class IsolatedWebAppBrowserTestHarness : public WebAppControllerBrowserTest {
 
  private:
   base::test::ScopedFeatureList iwa_scoped_feature_list_;
+  // Various IsolatedWebAppBrowsing tests fail on official builds because
+  // stable channel doesn't enable a required feature.
+  // TODO(b/309153867): Remove this when underlying issue is figured out.
+  extensions::ScopedCurrentChannel channel_{version_info::Channel::CANARY};
+};
+
+class UpdateDiscoveryTaskResultWaiter
+    : public IsolatedWebAppUpdateManager::Observer {
+  using TaskResultCallback = base::OnceCallback<void(
+      IsolatedWebAppUpdateDiscoveryTask::CompletionStatus status)>;
+
+ public:
+  UpdateDiscoveryTaskResultWaiter(WebAppProvider& provider,
+                                  const webapps::AppId expected_app_id,
+                                  TaskResultCallback callback);
+  ~UpdateDiscoveryTaskResultWaiter() override;
+
+  // IsolatedWebAppUpdateManager::Observer:
+  void OnUpdateDiscoveryTaskCompleted(
+      const webapps::AppId& app_id,
+      IsolatedWebAppUpdateDiscoveryTask::CompletionStatus status) override;
+
+ private:
+  const webapps::AppId expected_app_id_;
+  TaskResultCallback callback_;
+  const raw_ref<WebAppProvider> provider_;
+
+  base::ScopedObservation<IsolatedWebAppUpdateManager,
+                          IsolatedWebAppUpdateManager::Observer>
+      observation_{this};
+};
+
+class UpdateApplyTaskResultWaiter
+    : public IsolatedWebAppUpdateManager::Observer {
+  using TaskResultCallback = base::OnceCallback<void(
+      IsolatedWebAppUpdateApplyTask::CompletionStatus status)>;
+
+ public:
+  UpdateApplyTaskResultWaiter(WebAppProvider& provider,
+                              const webapps::AppId expected_app_id,
+                              TaskResultCallback callback);
+  ~UpdateApplyTaskResultWaiter() override;
+
+  // IsolatedWebAppUpdateManager::Observer:
+  void OnUpdateApplyTaskCompleted(
+      const webapps::AppId& app_id,
+      IsolatedWebAppUpdateApplyTask::CompletionStatus status) override;
+
+ private:
+  const webapps::AppId expected_app_id_;
+  TaskResultCallback callback_;
+  const raw_ref<WebAppProvider> provider_;
+
+  base::ScopedObservation<IsolatedWebAppUpdateManager,
+                          IsolatedWebAppUpdateManager::Observer>
+      observation_{this};
 };
 
 std::unique_ptr<net::EmbeddedTestServer> CreateAndStartDevServer(
-    const base::FilePath::StringPieceType& chrome_test_data_relative_root);
+    base::FilePath::StringViewType chrome_test_data_relative_root);
 
 IsolatedWebAppUrlInfo InstallDevModeProxyIsolatedWebApp(
     Profile* profile,
     const url::Origin& proxy_origin);
 
 content::RenderFrameHost* OpenIsolatedWebApp(Profile* profile,
-                                             const AppId& app_id);
+                                             const webapps::AppId& app_id,
+                                             std::string_view path = "");
 
 void CreateIframe(content::RenderFrameHost* parent_frame,
                   const std::string& iframe_id,
                   const GURL& url,
                   const std::string& permissions_policy);
 
-struct TestSignedWebBundle {
-  TestSignedWebBundle(std::vector<uint8_t> data,
-                      const web_package::SignedWebBundleId& id);
+// Simulates navigating `web_contents` main frame to the provided isolated-app:
+// URL for unit tests. `TestWebContents::NavigateAndCommit` won't work for IWAs
+// because they require COI headers, but the IsolatedWebAppURLLoaderFactory
+// that injects them isn't run in RenderViewHostTestHarness-based unit tests.
+void SimulateIsolatedWebAppNavigation(content::WebContents* web_contents,
+                                      const GURL& url);
 
-  TestSignedWebBundle(const TestSignedWebBundle&);
-  TestSignedWebBundle(TestSignedWebBundle&&);
+// Commits a pending IWA navigation in `web_contents`. This should be called
+// instead of `RenderFrameHostTester::CommitPendingLoad` in IWAs because COI
+// headers need to be injected.
+void CommitPendingIsolatedWebAppNavigation(content::WebContents* web_contents);
 
-  ~TestSignedWebBundle();
+// TODO(cmfcmf): Move more test utils into this `test` namespace
+namespace test {
+namespace {
+using ::testing::AllOf;
+using ::testing::ExplainMatchResult;
+using ::testing::Field;
+using ::testing::Optional;
+using ::testing::Pointee;
+using ::testing::Property;
+}  // namespace
 
-  std::vector<uint8_t> data;
-  web_package::SignedWebBundleId id;
-};
+MATCHER_P(IsInIwaRandomDir, profile_directory, "") {
+  *result_listener << "where the profile directory is " << profile_directory;
+  return arg.DirName().DirName() == profile_directory.Append(kIwaDirName) &&
+         arg.BaseName() == base::FilePath(kMainSwbnFileName);
+}
 
-class TestSignedWebBundleBuilder {
- public:
-  explicit TestSignedWebBundleBuilder(
-      web_package::WebBundleSigner::KeyPair key_pair =
-          web_package::WebBundleSigner::KeyPair::CreateRandom());
+MATCHER(FileExists, "") {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  return base::PathExists(arg) && !base::DirectoryExists(arg);
+}
 
-  // Adds a manifest type payload to the bundle.
-  void AddManifest(base::StringPiece manifest_string);
+MATCHER_P(OwnedIwaBundleExists, profile_directory, "") {
+  *result_listener << "where the profile directory is " << profile_directory;
+  base::FilePath path = arg.GetPath(profile_directory);
+  return ExplainMatchResult(
+      AllOf(IsInIwaRandomDir(profile_directory), FileExists()), path,
+      result_listener);
+}
 
-  // Adds a image/PNG type payload to the bundle.
-  void AddPngImage(base::StringPiece url, base::StringPiece image_string);
+MATCHER_P2(IwaIs, untranslated_name, isolation_data, "") {
+  return ExplainMatchResult(
+      Pointee(AllOf(
+          Property("untranslated_name", &WebApp::untranslated_name,
+                   untranslated_name),
+          Property("isolation_data", &WebApp::isolation_data, isolation_data))),
+      arg, result_listener);
+}
 
-  TestSignedWebBundle Build();
+MATCHER_P5(IsolationDataIs,
+           location,
+           version,
+           controlled_frame_partitions,
+           pending_update_info,
+           integrity_block_data,
+           "") {
+  return ExplainMatchResult(
+      Optional(AllOf(
+          Property("location", &IsolationData::location, location),
+          Property("version", &IsolationData::version, version),
+          Property("controlled_frame_partitions",
+                   &IsolationData::controlled_frame_partitions,
+                   controlled_frame_partitions),
+          Property("pending_update_info", &IsolationData::pending_update_info,
+                   pending_update_info),
+          Property("integrity_block_data", &IsolationData::integrity_block_data,
+                   integrity_block_data))),
+      arg, result_listener);
+}
 
- private:
-  web_package::WebBundleSigner::KeyPair key_pair_;
-  web_package::WebBundleBuilder builder_;
-};
+MATCHER_P3(PendingUpdateInfoIs, location, version, integrity_block_data, "") {
+  return ExplainMatchResult(
+      Optional(AllOf(
+          Field("location", &IsolationData::PendingUpdateInfo::location,
+                location),
+          Field("version", &IsolationData::PendingUpdateInfo::version, version),
+          Field("integrity_block_data",
+                &IsolationData::PendingUpdateInfo::integrity_block_data,
+                integrity_block_data))),
+      arg, result_listener);
+}
 
-TestSignedWebBundle BuildDefaultTestSignedWebBundle();
+}  // namespace test
 
-// Adds an Isolated Web App to the WebAppRegistrar. The IWA will have an empty
-// filepath for |IsolatedWebAppLocation|.
-AppId AddDummyIsolatedAppToRegistry(Profile* profile,
-                                    const GURL& start_url,
-                                    const std::string& name);
 }  // namespace web_app
 
 #endif  // CHROME_BROWSER_UI_WEB_APPLICATIONS_TEST_ISOLATED_WEB_APP_TEST_UTILS_H_

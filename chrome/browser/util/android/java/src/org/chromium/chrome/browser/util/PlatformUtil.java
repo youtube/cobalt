@@ -9,13 +9,14 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 
+import org.jni_zero.CalledByNative;
+
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
-import org.chromium.base.annotations.CalledByNative;
+import org.chromium.build.annotations.NullMarked;
 
-/**
- * Utility class for providing platform functionalities.
- */
+/** Utility class for providing platform functionalities. */
+@NullMarked
 public class PlatformUtil {
     private static final String TAG = "PlatformUtil";
 

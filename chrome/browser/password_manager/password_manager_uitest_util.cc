@@ -4,6 +4,8 @@
 
 #include "chrome/browser/password_manager/password_manager_uitest_util.h"
 
+#include "chrome/browser/ui/autofill/chrome_autofill_client.h"
+#include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 void TestGenerationPopupObserver::OnPopupShown(
@@ -28,8 +30,9 @@ GenerationUIState TestGenerationPopupObserver::state() const {
 
 // Waits until the popup is in specified status.
 void TestGenerationPopupObserver::WaitForStatus(GenerationPopup status) {
-  if (status == popup_showing_)
+  if (status == popup_showing_) {
     return;
+  }
   SCOPED_TRACE(::testing::Message()
                << "WaitForStatus " << static_cast<int>(status));
   base::RunLoop run_loop;
@@ -52,6 +55,10 @@ void TestGenerationPopupObserver::MaybeQuitRunLoop() {
   }
 }
 
+ObservingAutofillClient::ObservingAutofillClient(
+    content::WebContents* web_contents)
+    : autofill::ChromeAutofillClient(web_contents) {}
+
 void ObservingAutofillClient::WaitForAutofillPopup() {
   base::RunLoop run_loop;
   run_loop_ = &run_loop;
@@ -59,12 +66,13 @@ void ObservingAutofillClient::WaitForAutofillPopup() {
   DCHECK(!run_loop_);
 }
 
-void ObservingAutofillClient::ShowAutofillPopup(
+autofill::AutofillClient::SuggestionUiSessionId
+ObservingAutofillClient::ShowAutofillSuggestions(
     const autofill::AutofillClient::PopupOpenArgs& open_args,
-    base::WeakPtr<autofill::AutofillPopupDelegate> delegate) {
-  if (run_loop_)
+    base::WeakPtr<autofill::AutofillSuggestionDelegate> delegate) {
+  if (run_loop_) {
     run_loop_->Quit();
+  }
   run_loop_ = nullptr;
+  return SuggestionUiSessionId();
 }
-
-WEB_CONTENTS_USER_DATA_KEY_IMPL(ObservingAutofillClient);

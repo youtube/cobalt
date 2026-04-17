@@ -18,11 +18,14 @@ import org.robolectric.shadow.api.Shadow;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.CallbackHelper;
 
-/**
- * Unit tests for DeferredStartupHandler.
- */
+import java.util.ArrayList;
+import java.util.List;
+
+/** Unit tests for DeferredStartupHandler. */
 @RunWith(BaseRobolectricTestRunner.class)
-@Config(manifest = Config.NONE, shadows = {ShadowIdleHandlerAwareMessageQueue.class})
+@Config(
+        manifest = Config.NONE,
+        shadows = {ShadowIdleHandlerAwareMessageQueue.class})
 @LooperMode(LooperMode.Mode.LEGACY)
 public class DeferredStartupHandlerTest {
     private DeferredStartupHandler mDeferredStartupHandler;
@@ -53,7 +56,7 @@ public class DeferredStartupHandlerTest {
     }
 
     @Test
-    public void addDeferredTask_MultipleTask() {
+    public void addDeferredTask_MultipleSingleTasks() {
         CallbackHelper helper = new CallbackHelper();
         mDeferredStartupHandler.addDeferredTask(() -> helper.notifyCalled());
         mDeferredStartupHandler.addDeferredTask(() -> helper.notifyCalled());
@@ -79,13 +82,42 @@ public class DeferredStartupHandlerTest {
     }
 
     @Test
+    public void addDeferredTask_MultipleTasks() {
+        CallbackHelper helper = new CallbackHelper();
+        List<Runnable> tasks = new ArrayList<>();
+        tasks.add(() -> helper.notifyCalled());
+        tasks.add(() -> helper.notifyCalled());
+        tasks.add(() -> helper.notifyCalled());
+        mDeferredStartupHandler.addDeferredTasks(tasks);
+
+        Assert.assertEquals(0, helper.getCallCount());
+        Assert.assertEquals(0, mShadowMessageQueue.getIdleHandlers().size());
+
+        mDeferredStartupHandler.queueDeferredTasksOnIdleHandler();
+        Assert.assertEquals(1, mShadowMessageQueue.getIdleHandlers().size());
+
+        mShadowMessageQueue.runIdleHandlers();
+        Assert.assertEquals(1, helper.getCallCount());
+        Assert.assertEquals(1, mShadowMessageQueue.getIdleHandlers().size());
+
+        mShadowMessageQueue.runIdleHandlers();
+        Assert.assertEquals(2, helper.getCallCount());
+        Assert.assertEquals(1, mShadowMessageQueue.getIdleHandlers().size());
+
+        mShadowMessageQueue.runIdleHandlers();
+        Assert.assertEquals(3, helper.getCallCount());
+        Assert.assertEquals(0, mShadowMessageQueue.getIdleHandlers().size());
+    }
+
+    @Test
     public void addDeferredTask_WhileIdleHandlerRunning() {
         CallbackHelper helper = new CallbackHelper();
-        mDeferredStartupHandler.addDeferredTask(() -> {
-            helper.notifyCalled();
-            // Add a new deferred task.
-            mDeferredStartupHandler.addDeferredTask(() -> helper.notifyCalled());
-        });
+        mDeferredStartupHandler.addDeferredTask(
+                () -> {
+                    helper.notifyCalled();
+                    // Add a new deferred task.
+                    mDeferredStartupHandler.addDeferredTask(() -> helper.notifyCalled());
+                });
 
         Assert.assertEquals(0, helper.getCallCount());
         Assert.assertEquals(0, mShadowMessageQueue.getIdleHandlers().size());

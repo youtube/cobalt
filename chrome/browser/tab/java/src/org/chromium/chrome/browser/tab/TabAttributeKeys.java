@@ -6,16 +6,21 @@ package org.chromium.chrome.browser.tab;
 
 import androidx.annotation.StringDef;
 
+import org.chromium.build.annotations.NullMarked;
+
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-/**
- * List of attributes used for {@link TabAttributes}.
- */
-@StringDef({TabAttributeKeys.GROUPED_WITH_PARENT, TabAttributeKeys.MODAL_DIALOG_SHOWING,
-        TabAttributeKeys.PARENT_TAB_TASK_ID, TabAttributeKeys.PARENT_TAB_ROOT_TASK_ID,
-        TabAttributeKeys.ENTER_FULLSCREEN})
+/** List of attributes used for {@link TabAttributes}. */
+@StringDef({
+    TabAttributeKeys.GROUPED_WITH_PARENT,
+    TabAttributeKeys.MODAL_DIALOG_SHOWING,
+    TabAttributeKeys.PARENT_TAB_TASK_ID,
+    TabAttributeKeys.PARENT_TAB_ROOT_TASK_ID,
+    TabAttributeKeys.ENTER_FULLSCREEN
+})
 @Retention(RetentionPolicy.SOURCE)
+@NullMarked
 public @interface TabAttributeKeys {
     /** Whether the tab should be grouped with its parent tab. True by default. */
     String GROUPED_WITH_PARENT = "isTabGroupedWithParent";
@@ -26,9 +31,7 @@ public @interface TabAttributeKeys {
     /** Parent Tab Task Id. See NavigationTaskId (navigation_task_id.h) for definition */
     String PARENT_TAB_TASK_ID = "ParentTaskId";
 
-    /**
-     * Parent Tab Root Task Id. See NavigationTaskId (navigation_task_id.h) for definition
-     */
+    /** Parent Tab Root Task Id. See NavigationTaskId (navigation_task_id.h) for definition */
     String PARENT_TAB_ROOT_TASK_ID = "ParentRootTaskId";
 
     /** A runnable to delay the enabling of fullscreen mode if necessary. */

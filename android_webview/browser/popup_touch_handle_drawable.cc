@@ -4,6 +4,7 @@
 
 #include "android_webview/browser/popup_touch_handle_drawable.h"
 
+// Must come after all headers that specialize FromJniType() / ToJniType().
 #include "android_webview/browser_jni_headers/PopupTouchHandleDrawable_jni.h"
 
 using base::android::JavaParamRef;
@@ -13,7 +14,7 @@ namespace android_webview {
 
 PopupTouchHandleDrawable::PopupTouchHandleDrawable(
     JNIEnv* env,
-    jobject obj,
+    const jni_zero::JavaRef<jobject>& obj,
     float horizontal_padding_ratio)
     : java_ref_(env, obj),
       drawable_horizontal_padding_ratio_(horizontal_padding_ratio) {
@@ -21,14 +22,14 @@ PopupTouchHandleDrawable::PopupTouchHandleDrawable(
 }
 
 PopupTouchHandleDrawable::~PopupTouchHandleDrawable() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
   if (obj)
     Java_PopupTouchHandleDrawable_destroy(env, obj);
 }
 
 void PopupTouchHandleDrawable::SetEnabled(bool enabled) {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
   if (!obj)
     return;
@@ -42,7 +43,7 @@ void PopupTouchHandleDrawable::SetOrientation(
     ui::TouchHandleOrientation orientation,
     bool mirror_vertical,
     bool mirror_horizontal) {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
   if (obj) {
     Java_PopupTouchHandleDrawable_setOrientation(
@@ -52,7 +53,7 @@ void PopupTouchHandleDrawable::SetOrientation(
 }
 
 void PopupTouchHandleDrawable::SetOrigin(const gfx::PointF& origin) {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
   if (obj) {
     Java_PopupTouchHandleDrawable_setOrigin(env, obj, origin.x(), origin.y());
@@ -60,7 +61,7 @@ void PopupTouchHandleDrawable::SetOrigin(const gfx::PointF& origin) {
 }
 
 void PopupTouchHandleDrawable::SetAlpha(float alpha) {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
   bool visible = alpha > 0;
   if (obj)
@@ -68,7 +69,7 @@ void PopupTouchHandleDrawable::SetAlpha(float alpha) {
 }
 
 gfx::RectF PopupTouchHandleDrawable::GetVisibleBounds() const {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
   if (!obj)
     return gfx::RectF();

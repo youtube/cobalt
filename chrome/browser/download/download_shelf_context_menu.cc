@@ -17,12 +17,8 @@
 #include "content/public/common/content_features.h"
 #include "extensions/common/extension.h"
 #include "ui/base/l10n/l10n_util.h"
-#include "ui/base/models/simple_menu_model.h"
 #include "ui/gfx/color_palette.h"
-
-#if BUILDFLAG(IS_WIN)
-#include "chrome/browser/ui/pdf/adobe_reader_info_win.h"
-#endif
+#include "ui/menus/simple_menu_model.h"
 
 using InsecureDownloadStatus = download::DownloadItem::InsecureDownloadStatus;
 
@@ -50,7 +46,7 @@ void DownloadShelfContextMenu::RecordCommandsEnabled(
     return;
   }
 
-  for (int command_int = 1; command_int < DownloadCommands::Command::MAX;
+  for (int command_int = 0; command_int <= DownloadCommands::Command::kMaxValue;
        command_int++) {
     if (model->GetIndexOfCommandId(command_int).has_value() &&
         IsCommandIdEnabled(command_int)) {
@@ -169,10 +165,6 @@ std::u16string DownloadShelfContextMenu::GetLabelForCommandId(
             download_commands_->CanOpenPdfInSystemViewer();
         if (can_open_pdf_in_system_viewer) {
           id = IDS_DOWNLOAD_MENU_PLATFORM_OPEN_ALWAYS;
-#if BUILDFLAG(IS_WIN)
-          if (IsAdobeReaderDefaultPDFViewer())
-            id = IDS_DOWNLOAD_MENU_ALWAYS_OPEN_PDF_IN_READER;
-#endif  // BUILDFLAG(IS_WIN)
           break;
         }
       }
@@ -197,19 +189,22 @@ std::u16string DownloadShelfContextMenu::GetLabelForCommandId(
     case DownloadCommands::COPY_TO_CLIPBOARD:
       // This command is implemented only for the Download notification.
       NOTREACHED();
-      break;
     case DownloadCommands::DEEP_SCAN:
       id = IDS_DOWNLOAD_MENU_DEEP_SCAN;
       break;
-    case DownloadCommands::BYPASS_DEEP_SCANNING:
+    case DownloadCommands::BYPASS_DEEP_SCANNING_AND_OPEN:
       id = IDS_OPEN_DOWNLOAD_NOW;
       break;
     // These commands are not supported on the context menu.
     case DownloadCommands::REVIEW:
     case DownloadCommands::RETRY:
-    case DownloadCommands::MAX:
+    case DownloadCommands::CANCEL_DEEP_SCAN:
+    case DownloadCommands::LEARN_MORE_DOWNLOAD_BLOCKED:
+    case DownloadCommands::OPEN_SAFE_BROWSING_SETTING:
+    case DownloadCommands::BYPASS_DEEP_SCANNING:
+    case DownloadCommands::OPEN_WITH_MEDIA_APP:
+    case DownloadCommands::EDIT_WITH_MEDIA_APP:
       NOTREACHED();
-      break;
   }
   CHECK(id != -1);
   return l10n_util::GetStringUTF16(id);
@@ -396,8 +391,8 @@ ui::SimpleMenuModel* DownloadShelfContextMenu::GetDeepScanningMenuModel(
       GetLabelForCommandId(DownloadCommands::DISCARD));
 
   deep_scanning_menu_model_->AddItem(
-      DownloadCommands::BYPASS_DEEP_SCANNING,
-      GetLabelForCommandId(DownloadCommands::BYPASS_DEEP_SCANNING));
+      DownloadCommands::BYPASS_DEEP_SCANNING_AND_OPEN,
+      GetLabelForCommandId(DownloadCommands::BYPASS_DEEP_SCANNING_AND_OPEN));
 
   deep_scanning_menu_model_->AddSeparator(ui::NORMAL_SEPARATOR);
 

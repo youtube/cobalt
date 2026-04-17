@@ -36,11 +36,14 @@ class ASH_EXPORT SelectToSpeakEventHandler : public ui::EventHandler {
   // in an inactive state.
   void SetSelectToSpeakStateSelecting(bool is_selecting);
 
+  bool IsKeyDownForTesting(ui::KeyboardCode code) const;
+
  private:
   // ui::EventHandler:
   void OnKeyEvent(ui::KeyEvent* event) override;
   void OnMouseEvent(ui::MouseEvent* event) override;
   void OnTouchEvent(ui::TouchEvent* event) override;
+  std::string_view GetLogContext() const override;
 
   // Returns true if Select to Speak is enabled.
   bool IsSelectToSpeakEnabled();
@@ -112,7 +115,7 @@ class ASH_EXPORT SelectToSpeakEventHandler : public ui::EventHandler {
   std::set<ui::KeyboardCode> keys_currently_down_;
 
   // The delegate used to send key events to the Select-to-Speak extension.
-  raw_ptr<SelectToSpeakEventHandlerDelegate, ExperimentalAsh> delegate_;
+  raw_ptr<SelectToSpeakEventHandlerDelegate> delegate_;
 };
 
 }  // namespace ash

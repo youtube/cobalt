@@ -22,16 +22,13 @@
 #include <map>
 #include <set>
 #include <stack>
+#include <string>
 #include <vector>
 
 #include <google/protobuf/compiler/code_generator.h>
 #include <google/protobuf/compiler/importer.h>
 #include <google/protobuf/compiler/plugin.h>
-#include <google/protobuf/dynamic_message.h>
 #include <google/protobuf/io/printer.h>
-#include <google/protobuf/io/zero_copy_stream_impl.h>
-#include <google/protobuf/util/field_comparator.h>
-#include <google/protobuf/util/message_differencer.h>
 
 #include "perfetto/ext/base/string_utils.h"
 
@@ -77,7 +74,7 @@ class CppObjGenerator : public ::google::protobuf::compiler::CodeGenerator {
   void GenClassDef(const Descriptor*, Printer*) const;
 
   std::vector<std::string> GetNamespaces(const FileDescriptor* file) const {
-    std::string pkg = file->package() + wrapper_namespace_;
+    std::string pkg = std::string(file->package()) + wrapper_namespace_;
     return SplitString(pkg, ".");
   }
 
@@ -87,7 +84,7 @@ class CppObjGenerator : public ::google::protobuf::compiler::CodeGenerator {
     full_type.append(msg->name());
     for (const Descriptor* par = msg->containing_type(); par;
          par = par->containing_type()) {
-      full_type.insert(0, par->name() + "_");
+      full_type.insert(0, std::string(par->name()) + "_");
     }
     if (with_namespace) {
       std::string prefix;
@@ -99,7 +96,13 @@ class CppObjGenerator : public ::google::protobuf::compiler::CodeGenerator {
     return full_type;
   }
 
+  template <class T>
+  bool HasSamePackage(const T* descriptor) const {
+    return descriptor->file()->package() == package_;
+  }
+
   mutable std::string wrapper_namespace_;
+  mutable std::string package_;
 };
 
 CppObjGenerator::CppObjGenerator() = default;
@@ -120,8 +123,10 @@ bool CppObjGenerator::Generate(const google::protobuf::FileDescriptor* file,
     }
   }
 
+  package_ = file->package();
+
   auto get_file_name = [](const FileDescriptor* proto) {
-    return StripSuffix(proto->name(), ".proto") + ".gen";
+    return StripSuffix(std::string(proto->name()), ".proto") + ".gen";
   };
 
   const std::unique_ptr<ZeroCopyOutputStream> h_fstream(
@@ -133,7 +138,8 @@ bool CppObjGenerator::Generate(const google::protobuf::FileDescriptor* file,
   Printer h_printer(h_fstream.get(), '$');
   Printer cc_printer(cc_fstream.get(), '$');
 
-  std::string include_guard = file->package() + "_" + file->name() + "_CPP_H_";
+  std::string include_guard = std::string(file->package()) + "_" +
+                              std::string(file->name()) + "_CPP_H_";
   include_guard = ToUpper(include_guard);
   include_guard = StripChars(include_guard, ".-/\\", '_');
 
@@ -175,7 +181,7 @@ bool CppObjGenerator::Generate(const google::protobuf::FileDescriptor* file,
     for (int i = 0; i < msg->field_count(); i++) {
       const FieldDescriptor* field = msg->field(i);
       if (field->options().lazy()) {
-        lazy_imports.insert(field->message_type()->file()->name());
+        lazy_imports.insert(std::string(field->message_type()->file()->name()));
       }
     }
   }
@@ -189,11 +195,12 @@ bool CppObjGenerator::Generate(const google::protobuf::FileDescriptor* file,
     const FileDescriptor* cur = imports_to_visit.back();
     imports_to_visit.pop_back();
     imports_visited.insert(cur);
-    std::string base_name = StripSuffix(cur->name(), ".proto");
+    std::string base_name = StripSuffix(std::string(cur->name()), ".proto");
     cc_printer.Print("#include \"$f$.gen.h\"\n", "f", base_name);
     for (int i = 0; i < cur->dependency_count(); i++) {
       const FileDescriptor* dep = cur->dependency(i);
-      if (imports_visited.count(dep) || lazy_imports.count(dep->name()))
+      if (imports_visited.count(dep) ||
+          lazy_imports.count(std::string(dep->name())))
         continue;
       imports_to_visit.push_back(dep);
     }
@@ -247,7 +254,7 @@ bool CppObjGenerator::Generate(const google::protobuf::FileDescriptor* file,
     for (int i = 0; i < msg->field_count(); i++) {
       const FieldDescriptor* field = msg->field(i);
       if (field->has_default_value()) {
-        *error = "field " + field->name() +
+        *error = "field " + std::string(field->name()) +
                  ": Explicitly declared default values are not supported";
         return false;
       }
@@ -376,10 +383,16 @@ std::string CppObjGenerator::GetCppType(const FieldDescriptor* field,
       return constref ? "const std::string&" : "std::string";
     case FieldDescriptor::TYPE_MESSAGE:
       assert(!field->options().lazy());
-      return constref ? "const " + GetFullName(field->message_type()) + "&"
-                      : GetFullName(field->message_type());
+      return constref
+                 ? "const " +
+                       GetFullName(field->message_type(),
+                                   !HasSamePackage(field->message_type())) +
+                       "&"
+                 : GetFullName(field->message_type(),
+                               !HasSamePackage(field->message_type()));
     case FieldDescriptor::TYPE_ENUM:
-      return GetFullName(field->enum_type());
+      return GetFullName(field->enum_type(),
+                         !HasSamePackage(field->enum_type()));
     case FieldDescriptor::TYPE_GROUP:
       abort();
   }
@@ -479,6 +492,15 @@ std::string CppObjGenerator::GetPackedWireType(
   abort();
 }
 
+std::string IntLiteralString(int number) {
+  // Special case for -2147483648. If int is 32-bit, the compiler will
+  // misinterpret it.
+  if (number == std::numeric_limits<int32_t>::min()) {
+    return "-2147483647 - 1";
+  }
+  return std::to_string(number);
+}
+
 void CppObjGenerator::GenEnum(const EnumDescriptor* enum_desc,
                               Printer* p) const {
   std::string full_name = GetFullName(enum_desc);
@@ -499,8 +521,8 @@ void CppObjGenerator::GenEnum(const EnumDescriptor* enum_desc,
   p->Print("enum $f$ : int {\n", "f", full_name);
   for (int e = 0; e < enum_desc->value_count(); e++) {
     const EnumValueDescriptor* value = enum_desc->value(e);
-    p->Print("  $p$$n$ = $v$,\n", "p", prefix, "n", value->name(), "v",
-             std::to_string(value->number()));
+    p->Print("  $p$$n$ = $v$,\n", "p", prefix, "n", std::string(value->name()),
+             "v", IntLiteralString(value->number()));
   }
   p->Print("};\n");
 }
@@ -514,15 +536,16 @@ void CppObjGenerator::GenEnumAliases(const EnumDescriptor* enum_desc,
   std::string full_name = GetFullName(enum_desc);
   for (int e = 0; e < enum_desc->value_count(); e++) {
     const EnumValueDescriptor* value = enum_desc->value(e);
+    std::string value_name(value->name());
     p->Print("static constexpr auto $n$ = $f$_$n$;\n", "f", full_name, "n",
-             value->name());
+             value_name);
     if (value->number() < min_value) {
       min_value = value->number();
-      min_name = full_name + "_" + value->name();
+      min_name = full_name + "_" + value_name;
     }
     if (value->number() > max_value) {
       max_value = value->number();
-      max_name = full_name + "_" + value->name();
+      max_name = full_name + "_" + value_name;
     }
   }
   p->Print("static constexpr auto $n$_MIN = $m$;\n", "n", enum_desc->name(),
@@ -558,7 +581,7 @@ void CppObjGenerator::GenClassDecl(const Descriptor* msg, Printer* p) const {
   p->Print("enum FieldNumbers {\n");
   for (int i = 0; i < msg->field_count(); i++) {
     const FieldDescriptor* field = msg->field(i);
-    std::string name = field->camelcase_name();
+    std::string name(field->camelcase_name());
     name[0] = perfetto::base::Uppercase(name[0]);
     p->Print("  k$n$FieldNumber = $num$,\n", "n", name, "num",
              std::to_string(field->number()));
@@ -588,63 +611,61 @@ void CppObjGenerator::GenClassDecl(const Descriptor* msg, Printer* p) const {
     const FieldDescriptor* field = msg->field(i);
     auto set_bit = "_has_field_.set(" + std::to_string(field->number()) + ")";
     p->Print("\n");
+    std::string lowercase_name(field->lowercase_name());
     if (field->options().lazy()) {
       p->Print("const std::string& $n$_raw() const { return $n$_; }\n", "n",
-               field->lowercase_name());
+               lowercase_name);
       p->Print(
           "void set_$n$_raw(const std::string& raw) { $n$_ = raw; $s$; }\n",
-          "n", field->lowercase_name(), "s", set_bit);
+          "n", lowercase_name, "s", set_bit);
     } else if (!field->is_repeated()) {
       p->Print("bool has_$n$() const { return _has_field_[$bit$]; }\n", "n",
-               field->lowercase_name(), "bit", std::to_string(field->number()));
+               lowercase_name, "bit", std::to_string(field->number()));
       if (field->type() == TYPE_MESSAGE) {
         p->Print("$t$ $n$() const { return *$n$_; }\n", "t",
-                 GetCppType(field, true), "n", field->lowercase_name());
+                 GetCppType(field, true), "n", lowercase_name);
         p->Print("$t$* mutable_$n$() { $s$; return $n$_.get(); }\n", "t",
-                 GetCppType(field, false), "n", field->lowercase_name(), "s",
-                 set_bit);
+                 GetCppType(field, false), "n", lowercase_name, "s", set_bit);
       } else {
         p->Print("$t$ $n$() const { return $n$_; }\n", "t",
-                 GetCppType(field, true), "n", field->lowercase_name());
+                 GetCppType(field, true), "n", lowercase_name);
         p->Print("void set_$n$($t$ value) { $n$_ = value; $s$; }\n", "t",
-                 GetCppType(field, true), "n", field->lowercase_name(), "s",
-                 set_bit);
+                 GetCppType(field, true), "n", lowercase_name, "s", set_bit);
         if (field->type() == FieldDescriptor::TYPE_BYTES) {
           p->Print(
               "void set_$n$(const void* p, size_t s) { "
               "$n$_.assign(reinterpret_cast<const char*>(p), s); $s$; }\n",
-              "n", field->lowercase_name(), "s", set_bit);
+              "n", lowercase_name, "s", set_bit);
         }
       }
     } else {  // is_repeated()
       p->Print("const std::vector<$t$>& $n$() const { return $n$_; }\n", "t",
-               GetCppType(field, false), "n", field->lowercase_name());
+               GetCppType(field, false), "n", lowercase_name);
       p->Print("std::vector<$t$>* mutable_$n$() { return &$n$_; }\n", "t",
-               GetCppType(field, false), "n", field->lowercase_name());
+               GetCppType(field, false), "n", lowercase_name);
 
       // Generate accessors for repeated message types in the .cc file so that
       // the header doesn't depend on the full definition of all nested types.
       if (field->type() == TYPE_MESSAGE) {
         p->Print("int $n$_size() const;\n", "t", GetCppType(field, false), "n",
-                 field->lowercase_name());
-        p->Print("void clear_$n$();\n", "n", field->lowercase_name());
+                 lowercase_name);
+        p->Print("void clear_$n$();\n", "n", lowercase_name);
         p->Print("$t$* add_$n$();\n", "t", GetCppType(field, false), "n",
-                 field->lowercase_name());
+                 lowercase_name);
       } else {  // Primitive type.
         p->Print(
             "int $n$_size() const { return static_cast<int>($n$_.size()); }\n",
-            "t", GetCppType(field, false), "n", field->lowercase_name());
-        p->Print("void clear_$n$() { $n$_.clear(); }\n", "n",
-                 field->lowercase_name());
+            "t", GetCppType(field, false), "n", lowercase_name);
+        p->Print("void clear_$n$() { $n$_.clear(); }\n", "n", lowercase_name);
         p->Print("void add_$n$($t$ value) { $n$_.emplace_back(value); }\n", "t",
-                 GetCppType(field, false), "n", field->lowercase_name());
+                 GetCppType(field, false), "n", lowercase_name);
         // TODO(primiano): this should be done only for TYPE_MESSAGE.
         // Unfortuntely we didn't realize before and now we have a bunch of code
         // that does: *msg->add_int_value() = 42 instead of
         // msg->add_int_value(42).
         p->Print(
             "$t$* add_$n$() { $n$_.emplace_back(); return &$n$_.back(); }\n",
-            "t", GetCppType(field, false), "n", field->lowercase_name());
+            "t", GetCppType(field, false), "n", lowercase_name);
       }
     }
   }
@@ -656,21 +677,21 @@ void CppObjGenerator::GenClassDecl(const Descriptor* msg, Printer* p) const {
   int max_field_id = 1;
   for (int i = 0; i < msg->field_count(); i++) {
     const FieldDescriptor* field = msg->field(i);
+    std::string lowercase_name(field->lowercase_name());
     max_field_id = std::max(max_field_id, field->number());
     if (field->options().lazy()) {
-      p->Print("std::string $n$_;  // [lazy=true]\n", "n",
-               field->lowercase_name());
+      p->Print("std::string $n$_;  // [lazy=true]\n", "n", lowercase_name);
     } else if (!field->is_repeated()) {
       std::string type = GetCppType(field, false);
       if (field->type() == TYPE_MESSAGE) {
         type = "::protozero::CopyablePtr<" + type + ">";
-        p->Print("$t$ $n$_;\n", "t", type, "n", field->lowercase_name());
+        p->Print("$t$ $n$_;\n", "t", type, "n", lowercase_name);
       } else {
-        p->Print("$t$ $n$_{};\n", "t", type, "n", field->lowercase_name());
+        p->Print("$t$ $n$_{};\n", "t", type, "n", lowercase_name);
       }
     } else {  // is_repeated()
       p->Print("std::vector<$t$> $n$_;\n", "t", GetCppType(field, false), "n",
-               field->lowercase_name());
+               lowercase_name);
     }
   }
   p->Print("\n");
@@ -702,9 +723,14 @@ void CppObjGenerator::GenClassDef(const Descriptor* msg, Printer* p) const {
   p->Print("bool $n$::operator==(const $n$& other) const {\n", "n", full_name);
   p->Indent();
 
-  p->Print("return unknown_fields_ == other.unknown_fields_");
+  p->Print(
+      "return ::protozero::internal::gen_helpers::EqualsField(unknown_fields_, "
+      "other.unknown_fields_)");
   for (int i = 0; i < msg->field_count(); i++)
-    p->Print("\n && $n$_ == other.$n$_", "n", msg->field(i)->lowercase_name());
+    p->Print(
+        "\n && ::protozero::internal::gen_helpers::EqualsField($n$_, "
+        "other.$n$_)",
+        "n", std::string(msg->field(i)->lowercase_name()));
   p->Print(";");
   p->Outdent();
   p->Print("\n}\n\n");
@@ -716,16 +742,15 @@ void CppObjGenerator::GenClassDef(const Descriptor* msg, Printer* p) const {
         field->type() != TYPE_MESSAGE) {
       continue;
     }
+    std::string lowercase_name(field->lowercase_name());
     p->Print(
         "int $c$::$n$_size() const { return static_cast<int>($n$_.size()); }\n",
-        "c", full_name, "t", GetCppType(field, false), "n",
-        field->lowercase_name());
+        "c", full_name, "t", GetCppType(field, false), "n", lowercase_name);
     p->Print("void $c$::clear_$n$() { $n$_.clear(); }\n", "c", full_name, "n",
-             field->lowercase_name());
+             lowercase_name);
     p->Print(
         "$t$* $c$::add_$n$() { $n$_.emplace_back(); return &$n$_.back(); }\n",
-        "c", full_name, "t", GetCppType(field, false), "n",
-        field->lowercase_name());
+        "c", full_name, "t", GetCppType(field, false), "n", lowercase_name);
   }
 
   std::string proto_type = GetFullName(msg, true);
@@ -736,8 +761,9 @@ void CppObjGenerator::GenClassDef(const Descriptor* msg, Printer* p) const {
   p->Indent();
   for (int i = 0; i < msg->field_count(); i++) {
     const FieldDescriptor* field = msg->field(i);
+    std::string lowercase_name(field->lowercase_name());
     if (field->is_repeated())
-      p->Print("$n$_.clear();\n", "n", field->lowercase_name());
+      p->Print("$n$_.clear();\n", "n", lowercase_name);
   }
   p->Print("unknown_fields_.clear();\n");
   p->Print("bool packed_error = false;\n");
@@ -753,14 +779,15 @@ void CppObjGenerator::GenClassDef(const Descriptor* msg, Printer* p) const {
   p->Indent();
   for (int i = 0; i < msg->field_count(); i++) {
     const FieldDescriptor* field = msg->field(i);
+    std::string lowercase_name(field->lowercase_name());
     p->Print("case $id$ /* $n$ */:\n", "id", std::to_string(field->number()),
-             "n", field->lowercase_name());
+             "n", lowercase_name);
     p->Indent();
     if (field->options().lazy()) {
       p->Print(
           "::protozero::internal::gen_helpers::DeserializeString(field, "
           "&$n$_);\n",
-          "n", field->lowercase_name());
+          "n", lowercase_name);
     } else {
       std::string statement;
       if (field->type() == TYPE_MESSAGE) {
@@ -787,18 +814,16 @@ void CppObjGenerator::GenClassDef(const Descriptor* msg, Printer* p) const {
             "(!::protozero::internal::gen_helpers::DeserializePackedRepeated"
             "<$w$, $c$>(field, &$n$_)) {\n",
             "w", GetPackedWireType(field), "c", GetCppType(field, false), "n",
-            field->lowercase_name());
+            lowercase_name);
         p->Print("  packed_error = true;");
         p->Print("}\n");
       } else if (field->is_repeated()) {
-        p->Print("$n$_.emplace_back();\n", "n", field->lowercase_name());
-        p->Print(statement.c_str(), "rval",
-                 field->lowercase_name() + "_.back()");
+        p->Print("$n$_.emplace_back();\n", "n", lowercase_name);
+        p->Print(statement.c_str(), "rval", lowercase_name + "_.back()");
       } else if (field->type() == TYPE_MESSAGE) {
-        p->Print(statement.c_str(), "rval",
-                 "(*" + field->lowercase_name() + "_)");
+        p->Print(statement.c_str(), "rval", "(*" + lowercase_name + "_)");
       } else {
-        p->Print(statement.c_str(), "rval", field->lowercase_name() + "_");
+        p->Print(statement.c_str(), "rval", lowercase_name + "_");
       }
     }
     p->Print("break;\n");
@@ -841,9 +866,10 @@ void CppObjGenerator::GenClassDef(const Descriptor* msg, Printer* p) const {
   p->Indent();
   for (int i = 0; i < msg->field_count(); i++) {
     const FieldDescriptor* field = msg->field(i);
+    std::string lowercase_name(field->lowercase_name());
     std::map<std::string, std::string> args;
     args["id"] = std::to_string(field->number());
-    args["n"] = field->lowercase_name();
+    args["n"] = lowercase_name;
     p->Print(args, "// Field $id$: $n$\n");
     if (field->is_packed()) {
       PERFETTO_CHECK(field->is_repeated());
@@ -862,8 +888,8 @@ void CppObjGenerator::GenClassDef(const Descriptor* msg, Printer* p) const {
         args["rvalue"] = "it";
       } else {
         p->Print(args, "if (_has_field_[$id$]) {\n");
-        args["lvalue"] = "(*" + field->lowercase_name() + "_)";
-        args["rvalue"] = field->lowercase_name() + "_";
+        args["lvalue"] = "(*" + lowercase_name + "_)";
+        args["rvalue"] = lowercase_name + "_";
       }
       p->Indent();
       if (field->options().lazy()) {

@@ -25,13 +25,13 @@ SurfaceGL::~SurfaceGL() {}
 egl::Error SurfaceGL::getSyncValues(EGLuint64KHR *ust, EGLuint64KHR *msc, EGLuint64KHR *sbc)
 {
     UNREACHABLE();
-    return egl::EglBadSurface();
+    return egl::Error(EGL_BAD_SURFACE);
 }
 
 egl::Error SurfaceGL::getMscRate(EGLint *numerator, EGLint *denominator)
 {
     UNIMPLEMENTED();
-    return egl::EglBadAccess();
+    return egl::Error(EGL_BAD_ACCESS);
 }
 
 angle::Result SurfaceGL::initializeContents(const gl::Context *context,
@@ -46,12 +46,17 @@ angle::Result SurfaceGL::initializeContents(const gl::Context *context,
     switch (binding)
     {
         case GL_BACK:
-            ANGLE_TRY(blitter->clearFramebuffer(context, true, false, false, framebufferGL));
-            break;
+        {
+            gl::DrawBufferMask colorAttachments{0};
+            ANGLE_TRY(
+                blitter->clearFramebuffer(context, colorAttachments, false, false, framebufferGL));
+        }
+        break;
 
         case GL_DEPTH:
         case GL_STENCIL:
-            ANGLE_TRY(blitter->clearFramebuffer(context, false, true, true, framebufferGL));
+            ANGLE_TRY(blitter->clearFramebuffer(context, gl::DrawBufferMask(), true, true,
+                                                framebufferGL));
             break;
 
         default:

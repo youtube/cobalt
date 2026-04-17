@@ -6,14 +6,10 @@
 
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_multi_line_text_edit_item_delegate.h"
-#import "ios/chrome/browser/shared/ui/table_view/chrome_table_view_styler.h"
+#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/table_view/table_view_cells_constants.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 
@@ -34,6 +30,7 @@ const CGFloat kSymbolSize = 15;
   if (self) {
     self.cellClass = [TableViewMultiLineTextEditCell class];
     _validText = YES;
+    _textFieldInteractionEnabled = YES;
   }
   return self;
 }
@@ -65,6 +62,10 @@ const CGFloat kSymbolSize = 15;
     cell.iconView.hidden = NO;
     [cell.iconView setImage:[self errorImage]];
     cell.iconView.tintColor = [UIColor colorNamed:kRedColor];
+  }
+
+  if (!self.textFieldInteractionEnabled) {
+    cell.textView.userInteractionEnabled = NO;
   }
 }
 

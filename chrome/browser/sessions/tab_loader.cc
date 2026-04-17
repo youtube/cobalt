@@ -14,6 +14,7 @@
 #include "base/system/sys_info.h"
 #include "base/time/default_tick_clock.h"
 #include "base/trace_event/memory_pressure_level_proto.h"
+#include "base/trace_event/named_trigger.h"
 #include "base/trace_event/typed_macros.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
@@ -22,7 +23,6 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "components/favicon/content/content_favicon_driver.h"
-#include "content/public/browser/background_tracing_manager.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
@@ -33,8 +33,7 @@ using resource_coordinator::TabLoadTracker;
 namespace {
 
 void BackgroundTracingTrigger() {
-  content::BackgroundTracingManager::GetInstance().EmitNamedTrigger(
-      "session-restore-config");
+  base::trace_event::EmitNamedTrigger("session-restore-config");
 }
 
 const base::TickClock* GetDefaultTickClock() {
@@ -487,7 +486,7 @@ void TabLoader::MarkTabAsLoadInitiated(WebContents* contents) {
   // This can only be called for a tab that is waiting to be loaded so this
   // should never fail.
   auto it = FindTabToLoad(contents);
-  DCHECK(it != tabs_to_load_.end());
+  CHECK(it != tabs_to_load_.end());
   tabs_to_load_.erase(it);
   delegate_->RemoveTabForScoring(contents);
 
@@ -544,7 +543,7 @@ void TabLoader::MarkTabAsDeferred(content::WebContents* contents) {
   // This can only be called for a tab that is waiting to be loaded so this
   // should never fail.
   auto it = FindTabToLoad(contents);
-  DCHECK(it != tabs_to_load_.end());
+  CHECK(it != tabs_to_load_.end());
   tabs_to_load_.erase(it);
   delegate_->RemoveTabForScoring(contents);
 }
@@ -659,7 +658,7 @@ void TabLoader::LoadNextTab(bool due_to_timeout) {
 
   // Get the browser associated with this contents and determine if its in the
   // process of being closed.
-  Browser* browser = chrome::FindBrowserWithWebContents(contents);
+  Browser* browser = chrome::FindBrowserWithTab(contents);
   if (IsBrowserClosing(browser)) {
     RemoveTab(contents);
     StartTimerIfNeeded();

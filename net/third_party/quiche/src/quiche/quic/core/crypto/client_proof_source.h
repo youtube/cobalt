@@ -15,13 +15,13 @@ namespace quic {
 
 // ClientProofSource is the interface for a QUIC client to provide client certs
 // and keys based on server hostname. It is only used by TLS handshakes.
-class QUIC_EXPORT_PRIVATE ClientProofSource {
+class QUICHE_EXPORT ClientProofSource {
  public:
   using Chain = ProofSource::Chain;
 
   virtual ~ClientProofSource() {}
 
-  struct QUIC_EXPORT_PRIVATE CertAndKey {
+  struct QUICHE_EXPORT CertAndKey {
     CertAndKey(quiche::QuicheReferenceCountedPointer<Chain> chain,
                CertificatePrivateKey private_key)
         : chain(std::move(chain)), private_key(std::move(private_key)) {}
@@ -37,13 +37,13 @@ class QUIC_EXPORT_PRIVATE ClientProofSource {
   // |server_hostname| is typically a full domain name(www.foo.com), but it
   // could also be a wildcard domain(*.foo.com), or a "*" which will return the
   // default cert.
-  virtual const CertAndKey* GetCertAndKey(
+  virtual std::shared_ptr<const CertAndKey> GetCertAndKey(
       absl::string_view server_hostname) const = 0;
 };
 
 // DefaultClientProofSource is an implementation that simply keeps an in memory
 // map of server hostnames to certs.
-class QUIC_EXPORT_PRIVATE DefaultClientProofSource : public ClientProofSource {
+class QUICHE_EXPORT DefaultClientProofSource : public ClientProofSource {
  public:
   ~DefaultClientProofSource() override {}
 
@@ -58,10 +58,12 @@ class QUIC_EXPORT_PRIVATE DefaultClientProofSource : public ClientProofSource {
                      CertificatePrivateKey private_key);
 
   // ClientProofSource implementation
-  const CertAndKey* GetCertAndKey(absl::string_view hostname) const override;
+  std::shared_ptr<const CertAndKey> GetCertAndKey(
+      absl::string_view hostname) const override;
 
  private:
-  const CertAndKey* LookupExact(absl::string_view map_key) const;
+  std::shared_ptr<const CertAndKey> LookupExact(
+      absl::string_view map_key) const;
   absl::flat_hash_map<std::string, std::shared_ptr<CertAndKey>> cert_and_keys_;
 };
 

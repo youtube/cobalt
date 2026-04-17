@@ -13,6 +13,7 @@
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/mojom/script/script_type.mojom.h"
 #include "third_party/blink/public/mojom/worker/shared_worker_creation_context_type.mojom.h"
+#include "third_party/blink/public/mojom/worker/shared_worker_info.mojom.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -34,7 +35,9 @@ class CONTENT_EXPORT SharedWorkerInstance {
       network::mojom::CredentialsMode credentials_mode,
       const std::string& name,
       const blink::StorageKey& storage_key,
-      blink::mojom::SharedWorkerCreationContextType creation_context_type);
+      blink::mojom::SharedWorkerCreationContextType creation_context_type,
+      blink::mojom::SharedWorkerSameSiteCookies same_site_cookies,
+      bool extended_lifetime);
   SharedWorkerInstance(const SharedWorkerInstance& other);
   SharedWorkerInstance(SharedWorkerInstance&& other);
   SharedWorkerInstance& operator=(const SharedWorkerInstance& other) = delete;
@@ -46,9 +49,13 @@ class CONTENT_EXPORT SharedWorkerInstance {
   // in the HTML spec:
   // https://html.spec.whatwg.org/multipage/workers.html#shared-workers-and-the-sharedworker-interface
   // Note that we are using StorageKey to represent the constructor origin.
-  bool Matches(const GURL& url,
-               const std::string& name,
-               const blink::StorageKey& storage_key) const;
+  // A match for the same_site_cookies setting is also performed per:
+  // https://privacycg.github.io/saa-non-cookie-storage/shared-workers.html
+  bool Matches(
+      const GURL& url,
+      const std::string& name,
+      const blink::StorageKey& storage_key,
+      const blink::mojom::SharedWorkerSameSiteCookies same_site_cookies) const;
 
   // Accessors.
   const GURL& url() const { return url_; }
@@ -58,9 +65,20 @@ class CONTENT_EXPORT SharedWorkerInstance {
     return credentials_mode_;
   }
   const blink::StorageKey& storage_key() const { return storage_key_; }
+  const url::Origin& renderer_origin() const { return renderer_origin_; }
   blink::mojom::SharedWorkerCreationContextType creation_context_type() const {
     return creation_context_type_;
   }
+
+  blink::mojom::SharedWorkerSameSiteCookies same_site_cookies() const {
+    return same_site_cookies_;
+  }
+  bool DoesRequireCrossSiteRequestForCookies() const {
+    return storage_key_.IsThirdPartyContext() ||
+           same_site_cookies_ ==
+               blink::mojom::SharedWorkerSameSiteCookies::kNone;
+  }
+  bool extended_lifetime() const { return extended_lifetime_; }
 
  private:
   const GURL url_;
@@ -77,7 +95,20 @@ class CONTENT_EXPORT SharedWorkerInstance {
   // https://html.spec.whatwg.org/multipage/workers.html#concept-sharedworkerglobalscope-constructor-origin
   const blink::StorageKey storage_key_;
 
+  // The origin used by this shared worker on the renderer side. This will
+  // be the same as the storage key's origin, except in the case of data: URL
+  // workers, as described in the linked bug.
+  // TODO(crbug.com/40051700): Make the storage key's origin always match this.
+  const url::Origin renderer_origin_;
+
   const blink::mojom::SharedWorkerCreationContextType creation_context_type_;
+
+  const blink::mojom::SharedWorkerSameSiteCookies same_site_cookies_;
+
+  // Indicates if SharedWorker should extend its lifetime on all clients
+  // have been destructed.
+  // See: https://github.com/whatwg/html/issues/10997
+  const bool extended_lifetime_;
 };
 
 }  // namespace content

@@ -34,6 +34,18 @@ class CircularBuffer {
     this.instances[this.numFrames % this.maxSize] = frame;
     this.numFrames++;
   }
+
+  oldestIndex() {
+    if (this.numFrames <= this.maxSize) {
+      return 0;
+    } else {
+      return this.numFrames - this.maxSize;
+    }
+  }
+
+  newestIndex() {
+    return this.numFrames -  1;
+  }
 }
 
 // Represents a single frame, and contains all associated data.
@@ -43,6 +55,10 @@ class DrawFrame {
   static maxBufferNumFrames = 60*60;
   static frameBuffer = new CircularBuffer(DrawFrame.maxBufferNumFrames);
   static buffer_map = new Object();
+  static demo_thread = {
+    thread_name: "demo thread",
+    thread_id: -1,
+  };
   static count() { return DrawFrame.frameBuffer.instances.length; }
 
   static get(index) {
@@ -56,12 +72,15 @@ class DrawFrame {
       height: parseInt(json.windowy),
     };
     this.logs_ = json.logs;
-    this.drawTexts_ = json.text;
     this.drawCalls_ = json.drawcalls.map(c => new DrawCall(c));
     this.buffer_map = json.buff_map;
+    this.resetFilter();
 
     this.threadMapping_ = {}
 
+    if (!('threads' in json)) {
+      json.threads = [DrawFrame.demo_thread];
+    }
     json.threads.forEach(t => {
       // If new thread has not been registered yet, then register it.
       if (!(Thread.isThreadRegistered(t.thread_name))) {
@@ -76,7 +95,6 @@ class DrawFrame {
                                            threadAlpha: "10"};
     });
 
-    this.submissionFreezeIndex_ = -1;
     if (json.new_sources) {
       for (const s of json.new_sources) {
         new Source(s);
@@ -102,42 +120,13 @@ class DrawFrame {
     this.json_ = json;
 
     DrawFrame.frameBuffer.push(this);
-
-    // Update scrubber as new frames come in
-    const scrubberFrame = document.querySelector('#scrubberframe');
-
-    scrubberFrame.max = DrawFrame.frameBuffer.numFrames - 1;
-
-    // Handle scrubber when # of frames reached cap of circular buffer.
-    if (DrawFrame.frameBuffer.numFrames > DrawFrame.frameBuffer.maxSize) {
-      const oldestFrameId = DrawFrame.frameBuffer.numFrames
-                            - DrawFrame.frameBuffer.maxSize;
-
-      scrubberFrame.min = oldestFrameId;
-      // Once the scrubber reaches the left very (oldest frame),
-      // update scrubber value to match scrubber min value and
-      // update drawing on canvas to match correspondingly.
-      if (scrubberFrame.value <= scrubberFrame.min) {
-        scrubberFrame.value = oldestFrameId;
-        Player.instance.forward();
-      }
-    }
-    // Handle scrubber when # of frames haven't yet reached buffer cap.
-    else {
-      scrubberFrame.min = 0;
-    }
   }
 
   submissionCount() {
-    return this.drawCalls_.length + this.drawTexts_.length + this.logs_.length;
+    return this.drawCalls_.length + this.logs_.length;
   }
 
-  submissionFreezeIndex() {
-    return this.submissionFreezeIndex_ >= 0 ? (this.submissionFreezeIndex_) :
-      (this.submissionCount() - 1);
-  }
-
-  updateCanvasSize(canvas, scale, orientationDeg) {
+  updateCanvasSize(canvas, context, scale, orientationDeg, fcTransX, fcTransY) {
     // Swap canvas width/height for 90 or 270 deg rotations
     if (orientationDeg === 90 || orientationDeg === 270) {
       canvas.width = this.size_.height * scale;
@@ -153,6 +142,17 @@ class DrawFrame {
     const padding = 20;
     canvas.width += padding * 2;
     canvas.height += padding * 2;
+
+    // Fill the actual frame bounds to an opaque color.
+    context.save();
+    context.fillStyle = "white";
+    context.fillRect(
+      fcTransX+padding, // Translate to account for freecam.
+      fcTransY+padding, // Translate to account for freecam.
+      canvas.width - padding * 2,
+      canvas.height - padding * 2
+    );
+    context.restore();
   }
 
   getFilter(source_index) {
@@ -174,7 +174,7 @@ class DrawFrame {
     return filter;
   }
 
-  draw(canvas, context, scale, orientationDeg) {
+  draw(canvas, context, scale, orientationDeg, fcTransX, fcTransY) {
     // Look at global state of all threads and copy those states
     // to the current frame's threadID-to-state mapping.
     for (const threadId of Object.keys(this.threadMapping_)) {
@@ -189,6 +189,10 @@ class DrawFrame {
               Thread.getThread(mappedThread.threadName).overrideFilters_;
     }
 
+    // Translate accordingly for freecam zoom based on mouse pos.
+    // Translation values initlaized to 0 when not in freecam mode.
+    context.translate(fcTransX, fcTransY);
+
     // Generate a transform from frame space to canvas space.
     context.translate(canvas.width / 2, canvas.height / 2);
     if (orientationDeg === FlipEnum.HorizontalFlip.id) {
@@ -202,7 +206,13 @@ class DrawFrame {
     context.translate(-this.size_.width / 2, -this.size_.height / 2);
 
     for (const call of this.drawCalls_) {
-      if (call.drawIndex_ > this.submissionFreezeIndex()) break;
+      // Assumed to be a positional text call.
+      if (call.text) {
+        continue;
+      }
+      if (!this.withinFilter(call.drawIndex_)) {
+        continue;
+      }
 
       // If thread not enabled, then skip draw call from this thread.
       if (!this.threadMapping_[call.threadId_].threadEnabled) {
@@ -229,33 +239,38 @@ class DrawFrame {
     }
 
 
-    for (const text of this.drawTexts_) {
+    for (const text of this.drawCalls_) {
+      // Not a positional text call.
+      if (!text.text) {
+        continue;
+      }
       // If thread not enabled, then skip text calls from this thread.
-      if (!this.threadMapping_[text.thread_id].threadEnabled) {
+      if (!this.threadMapping_[text.threadId_].threadEnabled) {
+        continue;
+      }
+      if (!this.withinFilter(text.drawIndex_)) {
         continue;
       }
 
-      if (text.drawindex > this.submissionFreezeIndex()) break;
-
       var color;
       // If thread is overriding, take thread color.
-      if (this.threadMapping_[text.thread_id].overrideFilters) {
-        color = this.threadMapping_[text.thread_id].threadColor;
+      if (this.threadMapping_[text.threadId_].overrideFilters) {
+        color = this.threadMapping_[text.threadId_].threadColor;
       }
       // Otherwise, take filter's color.
       else {
-        let filter = this.getFilter(text.source_index);
+        let filter = this.getFilter(text.sourceIndex_);
         if (!filter) continue;
 
         color = (filter && filter.drawColor) ?
-          filter.drawColor : text.option.color;
+          filter.drawColor : text.color_;
       }
       context.fillStyle = color;
       // TODO: This should also create some DrawText object or something.
       this.drawText(context,
                     text.text,
-                    text.pos[0],
-                    text.pos[1],
+                    text.pos_.x,
+                    text.pos_.y,
                     transformMatrix);
     }
   }
@@ -298,8 +313,13 @@ class DrawFrame {
 
   appendLogs(logContainer) {
     for (const log of this.logs_) {
-      if (log.drawindex > this.submissionFreezeIndex()) break;
+      if (!this.withinFilter(log.drawindex)) {
+        continue;
+      }
 
+      if (!('thread_id' in log)) {
+        log.thread_id = DrawFrame.demo_thread.thread_id;
+      }
       // If thread not enabled, then skip draw call from this thread.
       if (!this.threadMapping_[log.thread_id].threadEnabled) {
         continue;
@@ -329,12 +349,26 @@ class DrawFrame {
     }
   }
 
-  unfreeze() {
-    this.submissionFreezeIndex_ = -1;
+  resetFilter() {
+    this.filter(-1, -1);
   }
 
-  freeze(index) {
-    this.submissionFreezeIndex_ = index;
+  filter(minIndex, maxIndex) {
+    this.minIndex_ = minIndex === -1 ? 0 : minIndex;
+    this.maxIndex_ = maxIndex === -1 ? this.submissionCount() : maxIndex;
+  }
+
+  minIndex() {
+    return this.minIndex_;
+  }
+
+  maxIndex() {
+    return this.maxIndex_;
+  }
+
+  // True iff drawIndex is in [minIndex_, maxIndex).
+  withinFilter(drawIndex) {
+    return drawIndex >= this.minIndex_ && drawIndex < this.maxIndex_;
   }
 
   toJSON() {
@@ -354,8 +388,8 @@ class Viewer {
     this.currentFrameIndex_ = -1;
     this.viewScale = 1.0;
     this.viewOrientation = 0;
-    this.translationX = 0;
-    this.translationY = 0;
+    this.freeCamTranslationX = 0;
+    this.freeCamTranslationY = 0;
   }
 
   updateCurrentFrame() {
@@ -363,37 +397,21 @@ class Viewer {
     this.updateLogs_();
   }
 
-  drawNextFrame() {
-    // When we switch to a different frame, we need to unfreeze the current
-    // frame (to make sure the frame draws completely the next time it is drawn
-    // in the player).
-    this.unfreeze();
-    if (DrawFrame.get(this.currentFrameIndex_ + 1)) {
-      ++this.currentFrameIndex_;
-      this.updateCurrentFrame();
-      return true;
-    }
-  }
-
-  drawPreviousFrame() {
-    // When we switch to a different frame, we need to unfreeze the current
-    // frame (to make sure the frame draws completely the next time it is drawn
-    // in the player).
-    this.unfreeze();
-    if (DrawFrame.get(this.currentFrameIndex_ - 1)) {
-      --this.currentFrameIndex_;
-      this.updateCurrentFrame();
-    }
-  }
-
   redrawCurrentFrame_() {
     const frame = this.getCurrentFrame();
     if (!frame) return;
-    frame.updateCanvasSize(this.canvas_, this.viewScale, this.viewOrientation);
+    frame.updateCanvasSize(this.canvas_,
+                           this.drawContext_,
+                           this.viewScale,
+                           this.viewOrientation,
+                           this.freeCamTranslationX,
+                           this.freeCamTranslationY);
     frame.draw(this.canvas_,
                this.drawContext_,
                this.viewScale,
-               this.viewOrientation);
+               this.viewOrientation,
+               this.freeCamTranslationX,
+               this.freeCamTranslationY);
   }
 
   updateLogs_() {
@@ -417,32 +435,33 @@ class Viewer {
     this.viewOrientation = orientationAsInt;
   }
 
-  freezeFrame(frameIndex, drawIndex) {
+  setFrame(frameIndex, minIndex = -1, maxIndex = -1) {
     if (DrawFrame.get(frameIndex)) {
       this.currentFrameIndex_ = frameIndex;
-      this.getCurrentFrame().freeze(drawIndex);
+      this.getCurrentFrame().filter(minIndex, maxIndex);
       this.updateCurrentFrame();
     }
   }
 
-  unfreeze() {
-    const frame = this.getCurrentFrame();
-    if (frame) frame.unfreeze();
+  resetTranslation() {
+    this.freeCamTranslationX = 0;
+    this.freeCamTranslationY = 0;
   }
 
   zoomToMouse(currentMouseX, currentMouseY, delta) {
-    var factor = 1.1;
-    if (delta > 0) {
-      factor = 0.9;
-    }
-    // this.translationX = currentMouseX;
-    // this.translationY = currentMouseY;
-    // this.updateCurrentFrame();
-    this.viewScale *= factor;
+    const factor = delta < 0 ? 1.05 : 0.95;
+
+    const newScale = this.viewScale * factor;
+
+    // Adjust translation to keep the zoom centered around the mouse.
+    const worldMouseX = (currentMouseX - this.freeCamTranslationX) / this.viewScale;
+    const worldMouseY = (currentMouseY - this.freeCamTranslationY) / this.viewScale;
+
+    this.freeCamTranslationX -= worldMouseX * (newScale - this.viewScale);
+    this.freeCamTranslationY -= worldMouseY * (newScale - this.viewScale);
+
+    this.viewScale = newScale;
     this.updateCurrentFrame();
-    // this.translationX = -currentMouseX;
-    // this.translationY = -currentMouseY;
-    // this.updateCurrentFrame();
   }
 };
 
@@ -451,12 +470,12 @@ class Viewer {
 class Player {
   static instances = [];
 
-  constructor(viewer, draw_cb) {
+  constructor(viewer, updateUi) {
     this.viewer_ = viewer;
     this.paused_ = false;
     this.nextFrameScheduled_ = false;
-
-    this.drawCb_ = draw_cb;
+    this.live_ = true;
+    this.updateUi_ = updateUi;
 
     Player.instances[0] = this;
   }
@@ -465,9 +484,17 @@ class Player {
     this.paused_ = false;
     if (this.nextFrameScheduled_) return;
 
-    const drawn = this.viewer_.drawNextFrame();
+    if (this.viewer_.currentFrameIndex == DrawFrame.frameBuffer.newestIndex()) {
+      return;
+    }
+
+    if (this.live_) {
+      this.drawNewestFrame_();
+    } else {
+      this.drawNextFrame_();
+    }
+
     this.didDrawNewFrame_();
-    if (!drawn) return;
 
     this.nextFrameScheduled_ = true;
     requestAnimationFrame(() => {
@@ -477,28 +504,34 @@ class Player {
     });
   }
 
+  live() {
+    this.live_ = true;
+    this.play();
+  }
+
   pause() {
     this.paused_ = true;
+    this.live_ = false;
   }
 
   rewind() {
     this.pause();
-    this.viewer_.drawPreviousFrame();
+    this.drawPreviousFrame_();
     this.didDrawNewFrame_();
   }
 
   forward() {
     this.pause();
-    this.viewer_.drawNextFrame();
+    this.drawNextFrame_();
     this.didDrawNewFrame_();
   }
 
   // Pauses after drawing at most |drawIndex| number of calls of the
   // |frameIndex|-th frame.
-  // Draws all calls if |drawIndex| is not set.
-  freezeFrame(frameIndex, drawIndex = -1) {
+  // Draws all calls if |minIndex| and |maxIndex| are not set.
+  freezeFrame(frameIndex, minIndex = -1, maxIndex = -1) {
     this.pause();
-    this.viewer_.freezeFrame(parseInt(frameIndex), parseInt(drawIndex));
+    this.viewer_.setFrame(frameIndex, minIndex, maxIndex);
     this.didDrawNewFrame_();
   }
 
@@ -523,16 +556,37 @@ class Player {
     this.viewer_.updateCurrentFrame();
   }
 
+  drawNewestFrame_() {
+    let newest = DrawFrame.frameBuffer.newestIndex();
+    this.viewer_.setFrame(newest);
+  }
+
+  drawNextFrame_() {
+    this.viewer_.setFrame(this.viewer_.currentFrameIndex + 1);
+  }
+
+  drawPreviousFrame_() {
+    this.viewer_.setFrame(this.viewer_.currentFrameIndex - 1);
+  }
+
   didDrawNewFrame_() {
-    this.drawCb_(this.viewer_.getCurrentFrame());
+    this.updateUi_(this.viewer_.getCurrentFrame());
   }
 
   get currentFrameIndex() { return this.viewer_.currentFrameIndex; }
 
   onNewFrame() {
+    let oldest = DrawFrame.frameBuffer.oldestIndex();
+    if (this.currentFrameIndex < oldest) {
+      this.viewer_.setFrame(oldest, -1, -1);
+    }
+    this.didDrawNewFrame_();
+
     // If the player is not paused, and a new frame is received, then make sure
     // the next frame is drawn.
-    if (!this.paused_) this.play();
+    if (!this.paused_) {
+      this.play();
+    }
   }
 
   static get instance() { return Player.instances[0]; }

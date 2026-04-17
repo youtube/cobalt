@@ -5,8 +5,6 @@
 #include "base/command_line.h"
 #include "base/files/file_util.h"
 #include "base/run_loop.h"
-#include "build/chromeos_buildflags.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/media/webrtc/webrtc_browsertest_base.h"
 #include "chrome/browser/media/webrtc/webrtc_browsertest_common.h"
@@ -20,7 +18,6 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings_types.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -35,13 +32,13 @@
 
 class MediaStreamPermissionTest : public WebRtcTestBase {
  public:
-  MediaStreamPermissionTest() {}
+  MediaStreamPermissionTest() = default;
 
   MediaStreamPermissionTest(const MediaStreamPermissionTest&) = delete;
   MediaStreamPermissionTest& operator=(const MediaStreamPermissionTest&) =
       delete;
 
-  ~MediaStreamPermissionTest() override {}
+  ~MediaStreamPermissionTest() override = default;
 
   // InProcessBrowserTest:
   void SetUp() override {

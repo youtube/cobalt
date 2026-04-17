@@ -8,7 +8,7 @@
 
 #include "base/json/values_util.h"
 #include "base/strings/utf_string_conversions.h"
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/enterprise/reporting/extension_info.h"
 #include "chrome/browser/enterprise/reporting/extension_request/extension_request_report_generator.h"
@@ -41,6 +41,7 @@ void ProfileReportGeneratorDesktop::GetExtensionInfo(
 
 void ProfileReportGeneratorDesktop::GetExtensionRequest(
     enterprise_management::ChromeUserProfileInfo* report) {
+#if BUILDFLAG(ENABLE_EXTENSIONS)
   if (!profile_->GetPrefs()->GetBoolean(prefs::kCloudExtensionRequestEnabled))
     return;
   const base::Value::Dict& pending_requests =
@@ -54,9 +55,9 @@ void ProfileReportGeneratorDesktop::GetExtensionRequest(
       extension_urls::GetDefaultWebstoreUpdateUrl().spec();
 
   int number_of_requests = 0;
-  for (auto it : pending_requests) {
+  for (auto [extension_id, request_data] : pending_requests) {
     if (!ExtensionRequestReportGenerator::ShouldUploadExtensionRequest(
-            it.first, webstore_update_url, extension_management)) {
+            extension_id, webstore_update_url, extension_management)) {
       continue;
     }
 
@@ -67,18 +68,21 @@ void ProfileReportGeneratorDesktop::GetExtensionRequest(
       break;
 
     auto* request = report->add_extension_requests();
-    request->set_id(it.first);
-    absl::optional<base::Time> timestamp = ::base::ValueToTime(
-        it.second.GetDict().Find(extension_misc::kExtensionRequestTimestamp));
-    if (timestamp)
-      request->set_request_timestamp(timestamp->ToJavaTime());
+    request->set_id(extension_id);
 
-    const std::string* justification = it.second.FindStringKey(
+    const auto& request_data_dict = request_data.GetDict();
+    std::optional<base::Time> timestamp = ::base::ValueToTime(
+        request_data_dict.Find(extension_misc::kExtensionRequestTimestamp));
+    if (timestamp)
+      request->set_request_timestamp(timestamp->InMillisecondsSinceUnixEpoch());
+
+    const std::string* justification = request_data_dict.FindString(
         extension_misc::kExtensionWorkflowJustification);
     if (justification) {
       request->set_justification(*justification);
     }
   }
+#endif
 }
 
 }  // namespace enterprise_reporting

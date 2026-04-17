@@ -5,25 +5,28 @@
 #include "chrome/browser/metrics/variations/chrome_variations_service_client.h"
 
 #include "base/feature_list.h"
+#include "base/path_service.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/google/google_brand.h"
-#include "chrome/browser/metrics/variations/google_groups_updater_service_factory.h"
+#include "chrome/browser/metrics/variations/google_groups_manager_factory.h"
 #include "chrome/browser/net/system_network_context_manager.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/common/channel_info.h"
+#include "chrome/common/chrome_paths.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/variations/pref_names.h"
 #include "components/variations/seed_response.h"
-#include "components/variations/service/google_groups_updater_service.h"
+#include "components/variations/service/google_groups_manager.h"
+#include "components/variations/service/limited_entropy_synthetic_trial.h"
 #include "components/variations/service/variations_service_client.h"
+#include "components/variations/synthetic_trials.h"
 #include "components/version_info/version_info.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/upgrade_detector/build_state.h"
 #endif
 
@@ -31,14 +34,9 @@
 #include "components/variations/android/variations_seed_bridge.h"
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/settings/cros_settings.h"
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chromeos/ash/components/install_attributes/install_attributes.h"
-#endif
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chrome/browser/policy/chrome_browser_policy_connector.h"
-#include "chromeos/crosapi/mojom/device_settings_service.mojom.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 #endif
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
@@ -50,11 +48,11 @@ ChromeVariationsServiceClient::ChromeVariationsServiceClient() = default;
 ChromeVariationsServiceClient::~ChromeVariationsServiceClient() = default;
 
 base::Version ChromeVariationsServiceClient::GetVersionForSimulation() {
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
   const auto* build_state = g_browser_process->GetBuildState();
   if (build_state->installed_version().has_value())
     return *build_state->installed_version();
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
 
   // TODO(asvitkine): Get the version that will be used on restart instead of
   // the current version on Android, iOS and ChromeOS.
@@ -74,38 +72,19 @@ ChromeVariationsServiceClient::GetNetworkTimeTracker() {
 
 bool ChromeVariationsServiceClient::OverridesRestrictParameter(
     std::string* parameter) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   ash::CrosSettings::Get()->GetString(ash::kVariationsRestrictParameter,
                                       parameter);
   return true;
-#elif BUILDFLAG(IS_CHROMEOS_LACROS)
-  const absl::optional<std::string>& policy_value =
-      g_browser_process->browser_policy_connector()
-          ->GetDeviceSettings()
-          ->device_variations_restrict_parameter;
-  if (!policy_value) {
-    return false;
-  }
-
-  *parameter = *policy_value;
-  return true;
 #else
   return false;
 #endif
 }
 
-bool ChromeVariationsServiceClient::IsEnterprise() {
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
-  return base::IsEnterpriseDevice();
-#elif BUILDFLAG(IS_CHROMEOS_ASH)
-  return ash::InstallAttributes::Get()->IsEnterpriseManaged();
-#else
-  return false;
-#endif
-}
-
-version_info::Channel ChromeVariationsServiceClient::GetChannel() {
-  return chrome::GetChannel();
+base::FilePath ChromeVariationsServiceClient::GetVariationsSeedFileDir() {
+  base::FilePath seed_file_dir;
+  base::PathService::Get(chrome::DIR_USER_DATA, &seed_file_dir);
+  return seed_file_dir;
 }
 
 std::unique_ptr<variations::SeedResponse>
@@ -117,6 +96,16 @@ ChromeVariationsServiceClient::TakeSeedFromNativeVariationsSeedStore() {
   return seed;
 #else
   return nullptr;
+#endif
+}
+
+bool ChromeVariationsServiceClient::IsEnterprise() {
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+  return base::IsEnterpriseDevice();
+#elif BUILDFLAG(IS_CHROMEOS)
+  return ash::InstallAttributes::Get()->IsEnterpriseManaged();
+#else
+  return false;
 #endif
 }
 
@@ -145,4 +134,8 @@ void ChromeVariationsServiceClient::
   for (const auto& profile : variations_profiles_to_delete) {
     variations_prefs_dict.Remove(profile);
   }
+}
+
+version_info::Channel ChromeVariationsServiceClient::GetChannel() {
+  return chrome::GetChannel();
 }

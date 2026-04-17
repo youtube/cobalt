@@ -20,21 +20,17 @@
 #include <cstring>
 
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 
 void CopyUtsField(const char* src, size_t src_sz, char* dest, size_t dest_sz) {
   if (src == nullptr || dest == nullptr) {
     return;
   }
 
-  if (dest_sz < src_sz) {
-    SB_LOG(WARNING) << "Wrapper utsname field size " << dest_sz
-                    << " is smaller than platform utsname field size "
-                    << src_sz;
+  if (starboard::strlcpy(dest, src, dest_sz) >= dest_sz) {
+    SB_LOG(WARNING) << "Truncated utsname field."
+                    << " src_sz=" << src_sz << " dest_sz=" << dest_sz;
   }
-
-  memset(dest, 0, dest_sz);
-  auto copy_size = std::min(src_sz, dest_sz);
-  memcpy(dest, src, copy_size);
 }
 
 SB_EXPORT int __abi_wrap_uname(struct musl_utsname* musl_uts) {

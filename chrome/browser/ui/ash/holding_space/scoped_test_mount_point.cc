@@ -5,12 +5,11 @@
 #include "chrome/browser/ui/ash/holding_space/scoped_test_mount_point.h"
 
 #include "base/files/file_util.h"
-#include "chrome/browser/ash/file_manager/app_id.h"
 #include "chrome/browser/ash/file_manager/fileapi_util.h"
 #include "chrome/browser/ash/file_manager/path_util.h"
 #include "chrome/browser/ash/file_manager/volume_manager_factory.h"
+#include "chrome/browser/ash/fileapi/file_system_backend.h"
 #include "storage/browser/file_system/external_mount_points.h"
-#include "storage/browser/file_system/file_system_backend.h"
 #include "storage/browser/file_system/file_system_context.h"
 
 namespace ash {
@@ -57,8 +56,8 @@ void ScopedTestMountPoint::Mount(Profile* profile) {
   storage::ExternalMountPoints::GetSystemInstance()->RegisterFileSystem(
       name_, file_system_type_, storage::FileSystemMountOption(),
       temp_dir_.GetPath());
-  file_manager::util::GetFileManagerFileSystemContext(profile)
-      ->external_backend()
+  ash::FileSystemBackend::Get(
+      *file_manager::util::GetFileManagerFileSystemContext(profile))
       ->GrantFileAccessToOrigin(file_manager::util::GetFilesAppOrigin(),
                                 base::FilePath(name_));
   if (file_manager::VolumeManager::Get(profile_)) {
@@ -76,10 +75,12 @@ base::FilePath ScopedTestMountPoint::CreateFile(
     const base::FilePath& relative_path,
     const std::string& content) {
   const base::FilePath path = GetRootPath().Append(relative_path);
-  if (!base::CreateDirectory(path.DirName()))
+  if (!base::CreateDirectory(path.DirName())) {
     return base::FilePath();
-  if (!base::WriteFile(path, content))
+  }
+  if (!base::WriteFile(path, content)) {
     return base::FilePath();
+  }
   return path;
 }
 

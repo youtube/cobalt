@@ -58,7 +58,7 @@ class InterceptNavigationDelegate : public base::SupportsUserData::Data {
   // base::EscapeExternalHandlerValue() invoked on URLs passed to
   // ShouldIgnoreNavigation() before the navigation is processed.
   InterceptNavigationDelegate(JNIEnv* env,
-                              jobject jdelegate,
+                              const jni_zero::JavaRef<jobject>& jdelegate,
                               bool escape_external_handler_value = false);
 
   InterceptNavigationDelegate(const InterceptNavigationDelegate&) = delete;
@@ -79,11 +79,20 @@ class InterceptNavigationDelegate : public base::SupportsUserData::Data {
 
   // Creates a InterceptNavigationThrottle that will direct all callbacks to
   // the InterceptNavigationDelegate.
-  static std::unique_ptr<content::NavigationThrottle> MaybeCreateThrottleFor(
-      content::NavigationHandle* handle,
-      navigation_interception::SynchronyMode mode);
+  static void MaybeCreateAndAdd(content::NavigationThrottleRegistry& registry,
+                                navigation_interception::SynchronyMode mode);
 
-  bool ShouldIgnoreNavigation(content::NavigationHandle* navigation_handle);
+  void ShouldIgnoreNavigation(
+      content::NavigationHandle* navigation_handle,
+      bool should_run_async,
+      InterceptNavigationThrottle::ResultCallback result_callback);
+
+  void OnShouldIgnoreNavigationResult(bool should_ignore);
+
+  // Requests that clients finish any pending ShouldIgnore checks synchronously.
+  // If finishing the check synchronously is not possible, further
+  // redirects/commits will be deferred.
+  void RequestFinishPendingShouldIgnoreCheck();
 
   // See ContentBrowserClient::HandleExternalProtocol for the semantics around
   // |out_factory|.
@@ -91,7 +100,7 @@ class InterceptNavigationDelegate : public base::SupportsUserData::Data {
       const GURL& url,
       ui::PageTransition page_transition,
       bool has_user_gesture,
-      const absl::optional<url::Origin>& initiating_origin,
+      const std::optional<url::Origin>& initiating_origin,
       mojo::PendingRemote<network::mojom::URLLoaderFactory>* out_factory);
 
   // To be called when a main frame requests a resource with a user gesture (eg.
@@ -117,6 +126,9 @@ class InterceptNavigationDelegate : public base::SupportsUserData::Data {
   // An empty URL if an async action is pending, or a URL to redirect to when
   // the URLLoader is ready.
   std::unique_ptr<GURL> subframe_redirect_url_;
+
+  InterceptNavigationThrottle::ResultCallback should_ignore_result_callback_;
+
   base::WeakPtrFactory<InterceptNavigationDelegate> weak_ptr_factory_{this};
 };
 

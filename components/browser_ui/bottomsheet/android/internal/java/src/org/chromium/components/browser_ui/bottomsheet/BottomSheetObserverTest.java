@@ -9,7 +9,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
-import android.graphics.Color;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -25,25 +24,22 @@ import org.junit.runner.RunWith;
 
 import org.chromium.base.Callback;
 import org.chromium.base.MathUtils;
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.BaseJUnit4ClassRunner;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CallbackHelper;
-import org.chromium.base.test.util.Restriction;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.StateChangeReason;
-import org.chromium.components.browser_ui.widget.scrim.ScrimCoordinator;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
+import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.ui.test.util.BlankUiTestActivity;
-import org.chromium.ui.test.util.UiRestriction;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
 /** This class tests the functionality of the {@link BottomSheetObserver}. */
 @RunWith(BaseJUnit4ClassRunner.class)
-@Restriction(UiRestriction.RESTRICTION_TYPE_PHONE) // Bottom sheet is only used on phones.
 @Batch(Batch.PER_CLASS)
 public class BottomSheetObserverTest {
     /** An observer used to record events that occur with respect to the bottom sheet. */
@@ -112,7 +108,7 @@ public class BottomSheetObserverTest {
     private TestSheetObserver mObserver;
     private TestBottomSheetContent mSheetContent;
     private BottomSheetControllerImpl mBottomSheetController;
-    private ScrimCoordinator mScrimCoordinator;
+    private ScrimManager mScrimManager;
     private BottomSheetTestSupport mTestSupport;
 
     @BeforeClass
@@ -124,46 +120,47 @@ public class BottomSheetObserverTest {
     @Before
     public void setUp() throws Exception {
         ViewGroup rootView = sTestRule.getActivity().findViewById(android.R.id.content);
-        TestThreadUtils.runOnUiThreadBlocking(() -> rootView.removeAllViews());
+        ThreadUtils.runOnUiThreadBlocking(() -> rootView.removeAllViews());
 
-        mScrimCoordinator = new ScrimCoordinator(
-                sTestRule.getActivity(), new ScrimCoordinator.SystemUiScrimDelegate() {
-                    @Override
-                    public void setStatusBarScrimFraction(float scrimFraction) {
-                        // Intentional noop
-                    }
-
-                    @Override
-                    public void setNavigationBarScrimFraction(float scrimFraction) {
-                        // Intentional noop
-                    }
-                }, rootView, Color.WHITE);
-
-        mBottomSheetController = TestThreadUtils.runOnUiThreadBlocking(() -> {
-            Supplier<ScrimCoordinator> scrimSupplier = () -> mScrimCoordinator;
-            Callback<View> initializedCallback = (v) -> {};
-            return new BottomSheetControllerImpl(scrimSupplier, initializedCallback,
-                    sTestRule.getActivity().getWindow(), KeyboardVisibilityDelegate.getInstance(),
-                    () -> rootView);
-        });
+        mBottomSheetController =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> {
+                            mScrimManager = new ScrimManager(sTestRule.getActivity(), rootView);
+                            Supplier<ScrimManager> scrimSupplier = () -> mScrimManager;
+                            Callback<View> initializedCallback = (v) -> {};
+                            return new BottomSheetControllerImpl(
+                                    scrimSupplier,
+                                    initializedCallback,
+                                    sTestRule.getActivity().getWindow(),
+                                    KeyboardVisibilityDelegate.getInstance(),
+                                    () -> rootView,
+                                    false,
+                                    () -> 0,
+                                    /* desktopWindowStateManager= */ null);
+                        });
 
         mTestSupport = new BottomSheetTestSupport(mBottomSheetController);
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mSheetContent = new TestBottomSheetContent(
-                    sTestRule.getActivity(), BottomSheetContent.ContentPriority.HIGH, false);
-            mBottomSheetController.requestShowContent(mSheetContent, false);
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mSheetContent =
+                            new TestBottomSheetContent(
+                                    sTestRule.getActivity(),
+                                    BottomSheetContent.ContentPriority.HIGH,
+                                    false);
+                    mBottomSheetController.requestShowContent(mSheetContent, false);
 
-            mObserver = new TestSheetObserver();
-            mBottomSheetController.addObserver(mObserver);
-        });
+                    mObserver = new TestSheetObserver();
+                    mBottomSheetController.addObserver(mObserver);
+                });
     }
 
     @After
     public void tearDown() {
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mBottomSheetController.destroy();
-            mScrimCoordinator.destroy();
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mBottomSheetController.destroy();
+                    mScrimManager.destroy();
+                });
     }
 
     /** Test that the onSheetClosed event is triggered if the sheet is closed without animation. */
@@ -204,6 +201,7 @@ public class BottomSheetObserverTest {
 
     /**
      * Run different versions of the onSheetClosed event test.
+     *
      * @param animationEnabled Whether to run the test with animation.
      * @param peekStateEnabled Whether the sheet's content has a peek state.
      */
@@ -212,11 +210,13 @@ public class BottomSheetObserverTest {
         CallbackHelper hiddenHelper = mObserver.mHiddenCallbackHelper;
         int initialHideEvents = hiddenHelper.getCallCount();
 
-        TestThreadUtils.runOnUiThreadBlocking(
+        ThreadUtils.runOnUiThreadBlocking(
                 () -> mTestSupport.setSheetState(BottomSheetController.SheetState.FULL, false));
 
-        mSheetContent.setPeekHeight(peekStateEnabled ? BottomSheetContent.HeightMode.DEFAULT
-                                                     : BottomSheetContent.HeightMode.DISABLED);
+        mSheetContent.setPeekHeight(
+                peekStateEnabled
+                        ? BottomSheetContent.HeightMode.DEFAULT
+                        : BottomSheetContent.HeightMode.DISABLED);
 
         CallbackHelper closedCallbackHelper = mObserver.mClosedCallbackHelper;
 
@@ -224,24 +224,30 @@ public class BottomSheetObserverTest {
 
         int closedCallbackCount = closedCallbackHelper.getCallCount();
 
-        int targetState = peekStateEnabled ? BottomSheetController.SheetState.PEEK
-                                           : BottomSheetController.SheetState.HIDDEN;
-        TestThreadUtils.runOnUiThreadBlocking(
+        int targetState =
+                peekStateEnabled
+                        ? BottomSheetController.SheetState.PEEK
+                        : BottomSheetController.SheetState.HIDDEN;
+        ThreadUtils.runOnUiThreadBlocking(
                 () -> mTestSupport.setSheetState(targetState, animationEnabled));
 
         closedCallbackHelper.waitForCallback(closedCallbackCount, 1);
 
         if (targetState == BottomSheetController.SheetState.HIDDEN) {
             hiddenHelper.waitForCallback(initialHideEvents, 1);
-            assertFalse(TestThreadUtils.runOnUiThreadBlocking(
-                    ()
-                            -> mBottomSheetController.getBottomSheetBackPressHandler()
-                                       .getHandleBackPressChangedSupplier()
-                                       .get()));
+            assertFalse(
+                    ThreadUtils.runOnUiThreadBlocking(
+                            () ->
+                                    mBottomSheetController
+                                            .getBottomSheetBackPressHandler()
+                                            .getHandleBackPressChangedSupplier()
+                                            .get()));
         }
 
         assertEquals(initialOpenedCount, mObserver.mOpenedCallbackHelper.getCallCount());
-        assertEquals("Close event should have only been called once.", closedCallbackCount + 1,
+        assertEquals(
+                "Close event should have only been called once.",
+                closedCallbackCount + 1,
                 closedCallbackHelper.getCallCount());
     }
 
@@ -283,13 +289,16 @@ public class BottomSheetObserverTest {
 
     /**
      * Run different versions of the onSheetOpened event test.
+     *
      * @param animationEnabled Whether to run the test with animation.
      * @param peekStateEnabled Whether the sheet's content has a peek state.
      */
     private void runOpenEventTest(boolean animationEnabled, boolean peekStateEnabled)
             throws TimeoutException, ExecutionException {
-        mSheetContent.setPeekHeight(peekStateEnabled ? BottomSheetContent.HeightMode.DEFAULT
-                                                     : BottomSheetContent.HeightMode.DISABLED);
+        mSheetContent.setPeekHeight(
+                peekStateEnabled
+                        ? BottomSheetContent.HeightMode.DEFAULT
+                        : BottomSheetContent.HeightMode.DISABLED);
 
         CallbackHelper fullCallbackHelper = mObserver.mFullCallbackHelper;
         int initialFullCount = fullCallbackHelper.getCallCount();
@@ -298,43 +307,49 @@ public class BottomSheetObserverTest {
         CallbackHelper closedCallbackHelper = mObserver.mClosedCallbackHelper;
         int initialClosedCount = closedCallbackHelper.getCallCount();
 
-        TestThreadUtils.runOnUiThreadBlocking(
+        ThreadUtils.runOnUiThreadBlocking(
                 () -> mTestSupport.setSheetState(mTestSupport.getOpeningState(), false));
 
-        assertNotEquals("Sheet should not be hidden.", mBottomSheetController.getSheetState(),
+        assertNotEquals(
+                "Sheet should not be hidden.",
+                mBottomSheetController.getSheetState(),
                 BottomSheetController.SheetState.HIDDEN);
         if (!peekStateEnabled) {
-            assertNotEquals("Sheet should be above the peeking state when peek is disabled.",
-                    mBottomSheetController.getSheetState(), BottomSheetController.SheetState.PEEK);
+            assertNotEquals(
+                    "Sheet should be above the peeking state when peek is disabled.",
+                    mBottomSheetController.getSheetState(),
+                    BottomSheetController.SheetState.PEEK);
         }
 
-        TestThreadUtils.runOnUiThreadBlocking(
-                ()
-                        -> mTestSupport.setSheetState(
+        ThreadUtils.runOnUiThreadBlocking(
+                () ->
+                        mTestSupport.setSheetState(
                                 BottomSheetController.SheetState.FULL, animationEnabled));
 
         openedCallbackHelper.waitForCallback(openedCallbackCount, 1);
         fullCallbackHelper.waitForCallback(initialFullCount, 1);
 
-        assertEquals("Open event should have only been called once.", openedCallbackCount + 1,
+        assertEquals(
+                "Open event should have only been called once.",
+                openedCallbackCount + 1,
                 openedCallbackHelper.getCallCount());
 
         assertEquals(initialClosedCount, closedCallbackHelper.getCallCount());
 
-        assertTrue(TestThreadUtils.runOnUiThreadBlocking(
-                ()
-                        -> mBottomSheetController.getBottomSheetBackPressHandler()
-                                   .getHandleBackPressChangedSupplier()
-                                   .get()));
+        assertTrue(
+                ThreadUtils.runOnUiThreadBlocking(
+                        () ->
+                                mBottomSheetController
+                                        .getBottomSheetBackPressHandler()
+                                        .getHandleBackPressChangedSupplier()
+                                        .get()));
     }
 
-    /**
-     * Test the onOffsetChanged event.
-     */
+    /** Test the onOffsetChanged event. */
     @Test
     @MediumTest
     public void testOffsetChangedEvent() throws TimeoutException {
-        TestThreadUtils.runOnUiThreadBlocking(
+        ThreadUtils.runOnUiThreadBlocking(
                 () -> mTestSupport.setSheetState(BottomSheetController.SheetState.FULL, false));
         CallbackHelper callbackHelper = mObserver.mOffsetChangedCallbackHelper;
 
@@ -348,21 +363,21 @@ public class BottomSheetObserverTest {
 
         // When in the hidden state, the transition value should be 0.
         int callbackCount = callbackHelper.getCallCount();
-        TestThreadUtils.runOnUiThreadBlocking(
+        ThreadUtils.runOnUiThreadBlocking(
                 () -> mTestSupport.setSheetOffsetFromBottom(hiddenHeight, StateChangeReason.NONE));
         callbackHelper.waitForCallback(callbackCount, 1);
         assertEquals(0f, mObserver.getLastOffsetChangedValue(), MathUtils.EPSILON);
 
         // When in the full state, the transition value should be 1.
         callbackCount = callbackHelper.getCallCount();
-        TestThreadUtils.runOnUiThreadBlocking(
+        ThreadUtils.runOnUiThreadBlocking(
                 () -> mTestSupport.setSheetOffsetFromBottom(fullHeight, StateChangeReason.NONE));
         callbackHelper.waitForCallback(callbackCount, 1);
         assertEquals(1f, mObserver.getLastOffsetChangedValue(), MathUtils.EPSILON);
 
         // Halfway between peek and full should send 0.5.
         callbackCount = callbackHelper.getCallCount();
-        TestThreadUtils.runOnUiThreadBlocking(
+        ThreadUtils.runOnUiThreadBlocking(
                 () -> mTestSupport.setSheetOffsetFromBottom(midPeekFull, StateChangeReason.NONE));
         callbackHelper.waitForCallback(callbackCount, 1);
         assertEquals(0.5f, mObserver.getLastOffsetChangedValue(), MathUtils.EPSILON);
@@ -379,35 +394,40 @@ public class BottomSheetObserverTest {
         CallbackHelper callbackHelper = mObserver.mContentChangedCallbackHelper;
         int callCount = callbackHelper.getCallCount();
 
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            // We wrap the View in a FrameLayout as we need something to read the
-            // hard coded height in the layout params. There is no way to create a
-            // View with a specific height on its own as View::onMeasure will by
-            // default set its height/width to be the minimum height/width of its
-            // background (if any) or expand as much as it can.
-            final ViewGroup contentView = new FrameLayout(sTestRule.getActivity());
-            View child = new View(sTestRule.getActivity());
-            child.setLayoutParams(new ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, wrappedContentHeight));
-            contentView.addView(child);
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    // We wrap the View in a FrameLayout as we need something to read the
+                    // hard coded height in the layout params. There is no way to create a
+                    // View with a specific height on its own as View::onMeasure will by
+                    // default set its height/width to be the minimum height/width of its
+                    // background (if any) or expand as much as it can.
+                    final ViewGroup contentView = new FrameLayout(sTestRule.getActivity());
+                    View child = new View(sTestRule.getActivity());
+                    child.setLayoutParams(
+                            new ViewGroup.LayoutParams(
+                                    ViewGroup.LayoutParams.MATCH_PARENT, wrappedContentHeight));
+                    contentView.addView(child);
 
-            mTestSupport.showContent(new TestBottomSheetContent(
-                    sTestRule.getActivity(), BottomSheetContent.ContentPriority.HIGH, false) {
-                @Override
-                public View getContentView() {
-                    return contentView;
-                }
+                    mTestSupport.showContent(
+                            new TestBottomSheetContent(
+                                    sTestRule.getActivity(),
+                                    BottomSheetContent.ContentPriority.HIGH,
+                                    false) {
+                                @Override
+                                public View getContentView() {
+                                    return contentView;
+                                }
 
-                @Override
-                public float getFullHeightRatio() {
-                    return HeightMode.WRAP_CONTENT;
-                }
-            });
-        });
+                                @Override
+                                public float getFullHeightRatio() {
+                                    return HeightMode.WRAP_CONTENT;
+                                }
+                            });
+                });
         callbackHelper.waitForCallback(callCount);
 
         // HALF state is forbidden when wrapping the content.
-        TestThreadUtils.runOnUiThreadBlocking(
+        ThreadUtils.runOnUiThreadBlocking(
                 () -> mTestSupport.setSheetState(BottomSheetController.SheetState.HALF, false));
         assertEquals(BottomSheetController.SheetState.FULL, mBottomSheetController.getSheetState());
 

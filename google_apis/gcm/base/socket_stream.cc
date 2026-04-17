@@ -2,13 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "google_apis/gcm/base/socket_stream.h"
 
-#include <stddef.h>
+#include <algorithm>
+#include <cstddef>
 #include <cstring>
 
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/numerics/safe_conversions.h"
 #include "net/base/io_buffer.h"
 #include "net/socket/stream_socket.h"
 
@@ -26,7 +34,8 @@ SocketInputStream::SocketInputStream(mojo::ScopedDataPipeConsumerHandle stream)
     : stream_(std::move(stream)),
       stream_watcher_(FROM_HERE, mojo::SimpleWatcher::ArmingPolicy::MANUAL),
       read_size_(0),
-      io_buffer_(base::MakeRefCounted<net::IOBuffer>(kDefaultBufferSize)),
+      io_buffer_(
+          base::MakeRefCounted<net::IOBufferWithSize>(kDefaultBufferSize)),
       read_buffer_(
           base::MakeRefCounted<net::DrainableIOBuffer>(io_buffer_,
                                                        kDefaultBufferSize)),
@@ -46,7 +55,6 @@ SocketInputStream::~SocketInputStream() {
 bool SocketInputStream::Next(const void** data, int* size) {
   if (GetState() != EMPTY && GetState() != READY) {
     NOTREACHED() << "Invalid input stream read attempt.";
-    return false;
   }
 
   if (GetState() == EMPTY) {
@@ -106,7 +114,7 @@ net::Error SocketInputStream::Refresh(base::OnceClosure callback,
     return net::OK;
   }
 
-  read_size_ = byte_limit;
+  read_size_ = base::checked_cast<size_t>(byte_limit);
   read_callback_ = std::move(callback);
   stream_watcher_.ArmOrNotify();
   last_error_ = net::ERR_IO_PENDING;
@@ -119,11 +127,11 @@ void SocketInputStream::ReadMore(
   DCHECK(read_callback_);
   DCHECK_NE(0u, read_size_);
 
-  uint32_t num_bytes = read_size_;
+  size_t num_bytes = read_size_;
   if (result == MOJO_RESULT_OK) {
     DVLOG(1) << "Refreshing input stream, limit of " << num_bytes << " bytes.";
-    result = stream_->ReadData(read_buffer_->data(), &num_bytes,
-                               MOJO_READ_DATA_FLAG_NONE);
+    result = stream_->ReadData(MOJO_READ_DATA_FLAG_NONE,
+                               read_buffer_->first(num_bytes), num_bytes);
     DVLOG(1) << "Read returned mojo result" << result;
   }
 
@@ -152,7 +160,7 @@ void SocketInputStream::ReadMore(
     return;
 
   last_error_ = net::OK;
-  read_buffer_->DidConsume(num_bytes);
+  read_buffer_->DidConsume(base::checked_cast<uint32_t>(num_bytes));
   // TODO(zea): investigating crbug.com/409985
   CHECK_GT(UnreadByteCount(), 0);
 
@@ -178,7 +186,9 @@ void SocketInputStream::RebuildBuffer() {
     DVLOG(1) << "Have " << unread_data_size
              << " unread bytes remaining, shifting.";
     // Move any remaining unread data to the start of the buffer;
-    std::memmove(io_buffer_->data(), unread_data_ptr, unread_data_size);
+    std::copy(static_cast<const char*>(unread_data_ptr),
+              static_cast<const char*>(unread_data_ptr) + unread_data_size,
+              io_buffer_->data());
   } else {
     DVLOG(1) << "Have " << unread_data_size << " unread bytes remaining.";
   }
@@ -284,11 +294,14 @@ void SocketOutputStream::WriteMore(MojoResult result,
   DCHECK(write_callback_);
   DCHECK(write_buffer_);
 
-  uint32_t num_bytes = write_buffer_->BytesRemaining();
-  DVLOG(1) << "Flushing " << num_bytes << " bytes into socket.";
+  const base::span<const uint8_t> bytes = write_buffer_->first(
+      base::checked_cast<size_t>(write_buffer_->BytesRemaining()));
+  DVLOG(1) << "Flushing " << bytes.size() << " bytes into socket.";
+
+  size_t bytes_written = 0;
   if (result == MOJO_RESULT_OK) {
-    result = stream_->WriteData(write_buffer_->data(), &num_bytes,
-                                MOJO_WRITE_DATA_FLAG_NONE);
+    result =
+        stream_->WriteData(bytes, MOJO_WRITE_DATA_FLAG_NONE, bytes_written);
   }
   if (result == MOJO_RESULT_SHOULD_WAIT) {
     stream_watcher_.ArmOrNotify();
@@ -300,15 +313,15 @@ void SocketOutputStream::WriteMore(MojoResult result,
     std::move(write_callback_).Run();
     return;
   }
-  DVLOG(1) << "Wrote  " << num_bytes;
+  DVLOG(1) << "Wrote  " << bytes_written;
   // If an error occurred before the completion callback could complete, ignore
   // the result.
   if (GetState() == CLOSED)
     return;
 
-  DCHECK_GE(num_bytes, 0u);
+  DCHECK_GE(bytes_written, 0u);
   last_error_ = net::OK;
-  write_buffer_->DidConsume(num_bytes);
+  write_buffer_->DidConsume(base::checked_cast<uint32_t>(bytes_written));
   if (write_buffer_->BytesRemaining() > 0) {
     DVLOG(1) << "Partial flush complete. Retrying.";
     // Only a partial write was completed. Flush again to finish the write.

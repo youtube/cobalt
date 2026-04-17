@@ -1,16 +1,16 @@
-/* Copyright (c) 2015, Google Inc.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
+// Copyright 2015 The BoringSSL Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "file_test.h"
 
@@ -98,7 +98,7 @@ FileTest::ReadResult FileTest::ReadNext() {
   ClearTest();
 
   static const size_t kBufLen = 8192 * 4;
-  std::unique_ptr<char[]> buf(new char[kBufLen]);
+  auto buf = std::make_unique<char[]>(kBufLen);
 
   bool in_instruction_block = false;
   is_at_new_instruction_block_ = false;
@@ -409,8 +409,7 @@ int FileTestMain(FileTestFunc run_test, void *arg, const char *path) {
 }
 
 int FileTestMain(const FileTest::Options &opts) {
-  std::unique_ptr<FileLineReader> reader(
-      new FileLineReader(opts.path));
+  auto reader = std::make_unique<FileLineReader>(opts.path);
   if (!reader->is_open()) {
     fprintf(stderr, "Could not open file %s: %s.\n", opts.path,
             strerror(errno));

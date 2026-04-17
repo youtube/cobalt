@@ -8,8 +8,8 @@ import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bu
 
 import {BrowserProxy} from './browser_proxy.js';
 import {getTemplate} from './launcher_internals.html.js';
-import {PageCallbackRouter, Result} from './launcher_internals.mojom-webui.js';
-import {LauncherResultsTableElement} from './results_table.js';
+import type {PageCallbackRouter, Result} from './launcher_internals.mojom-webui.js';
+import type {LauncherResultsTableElement} from './results_table.js';
 
 interface LauncherInternalsElement {
   $: {
@@ -87,13 +87,13 @@ class LauncherInternalsElement extends PolymerElement {
     }
 
     if (searchResults.length > 0) {
-      if (this.query != query) {
+      if (this.query !== query) {
         // Only reset search results if the query changes.
         this.$.searchResults.clearResults();
         this.query = query;
       }
 
-      if (this.keywords != keywords) {
+      if (this.keywords !== keywords) {
         this.keywords = keywords;
       }
 

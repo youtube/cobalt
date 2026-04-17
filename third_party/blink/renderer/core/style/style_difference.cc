@@ -25,7 +25,6 @@ std::ostream& operator<<(std::ostream& out, const StyleDifference& diff) {
       break;
     default:
       NOTREACHED();
-      break;
   }
 
   out << ", reshape=" << diff.needs_reshape_;
@@ -43,7 +42,6 @@ std::ostream& operator<<(std::ostream& out, const StyleDifference& diff) {
       break;
     default:
       NOTREACHED();
-      break;
   }
 
   out << ", recomputeVisualOverflow=" << diff.recompute_visual_overflow_;
@@ -83,7 +81,6 @@ std::ostream& operator<<(std::ostream& out, const StyleDifference& diff) {
           break;
         default:
           NOTREACHED();
-          break;
       }
     }
   }

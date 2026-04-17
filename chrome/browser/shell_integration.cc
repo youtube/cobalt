@@ -18,9 +18,8 @@
 #include "base/task/single_thread_task_runner_thread_mode.h"
 #include "base/task/task_traits.h"
 #include "base/threading/scoped_blocking_call.h"
+#include "build/branding_buildflags.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
-#include "chrome/browser/chrome_for_testing/buildflags.h"
 #include "chrome/browser/policy/policy_path_parser.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/chrome_switches.h"
@@ -29,7 +28,7 @@
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/ash_switches.h"
 #endif
 
@@ -41,7 +40,7 @@
 
 #if !BUILDFLAG(IS_WIN)
 #include "chrome/common/channel_info.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "ui/base/l10n/l10n_util.h"
 #endif
 
@@ -51,8 +50,8 @@ namespace shell_integration {
 
 namespace {
 
-// TODO(crbug.com/773563): Remove |g_sequenced_task_runner| and use an instance
-// field / singleton instead.
+// TODO(crbug.com/40544199): Remove |g_sequenced_task_runner| and use an
+// instance field / singleton instead.
 #if BUILDFLAG(IS_WIN)
 base::LazyThreadPoolCOMSTATaskRunner g_sequenced_task_runner =
     LAZY_COM_STA_TASK_RUNNER_INITIALIZER(
@@ -75,7 +74,6 @@ bool IsValidDefaultWebClientState(DefaultWebClientState state) {
       break;
   }
   NOTREACHED();
-  return false;
 }
 
 void RunCallback(DefaultWebClientWorkerCallback callback,
@@ -144,6 +142,21 @@ base::CommandLine CommandLineArgsForLauncher(
   return new_cmd_line;
 }
 
+base::CommandLine CommandLineArgsForUrlShortcut(
+    const base::FilePath& chrome_exe_program,
+    const base::FilePath& profile_path,
+    const GURL& url) {
+  CHECK(!chrome_exe_program.empty());
+  CHECK(!profile_path.empty());
+  CHECK(url.is_valid());
+  base::CommandLine new_cmd_line(chrome_exe_program);
+  AppendProfileArgs(profile_path, &new_cmd_line);
+  new_cmd_line.AppendSwitch(switches::kIgnoreProfileDirectoryIfNotExists);
+  new_cmd_line.AppendArg(url.spec());
+
+  return new_cmd_line;
+}
+
 void AppendProfileArgs(const base::FilePath& profile_path,
                        base::CommandLine* command_line) {
   DCHECK(command_line);
@@ -162,7 +175,7 @@ void AppendProfileArgs(const base::FilePath& profile_path,
       command_line->AppendSwitchPath(switches::kUserDataDir, user_data_dir);
   }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   base::FilePath profile =
       cmd_line.GetSwitchValuePath(ash::switches::kLoginProfile);
   if (!profile.empty())
@@ -267,31 +280,41 @@ DefaultBrowserWorker::DefaultBrowserWorker()
 
 DefaultBrowserWorker::~DefaultBrowserWorker() = default;
 
+// static
+bool DefaultBrowserWorker::g_disable_set_as_default_for_testing = false;
+
+// static
+void DefaultBrowserWorker::DisableSetAsDefaultForTesting() {
+  g_disable_set_as_default_for_testing = true;
+}
+
 DefaultWebClientState DefaultBrowserWorker::CheckIsDefaultImpl() {
   return GetDefaultBrowser();
 }
 
 void DefaultBrowserWorker::SetAsDefaultImpl(
     base::OnceClosure on_finished_callback) {
-  switch (GetDefaultBrowserSetPermission()) {
-    case SET_DEFAULT_NOT_ALLOWED:
-      // This is a no-op on channels where set-default is not allowed, but not
-      // an error.
-      break;
-    case SET_DEFAULT_UNATTENDED:
-      SetAsDefaultBrowser();
-      break;
-    case SET_DEFAULT_INTERACTIVE:
+  if (!g_disable_set_as_default_for_testing) {
+    switch (GetDefaultBrowserSetPermission()) {
+      case SET_DEFAULT_NOT_ALLOWED:
+        // This is a no-op on channels where set-default is not allowed, but not
+        // an error.
+        break;
+      case SET_DEFAULT_UNATTENDED:
+        SetAsDefaultBrowser();
+        break;
+      case SET_DEFAULT_INTERACTIVE:
 #if BUILDFLAG(IS_WIN)
-      if (interactive_permitted_) {
-        win::SetAsDefaultBrowserUsingSystemSettings(
-            std::move(on_finished_callback));
-        // Early return because the function above takes care of calling
-        // `on_finished_callback`.
-        return;
-      }
+        if (interactive_permitted_) {
+          win::SetAsDefaultBrowserUsingSystemSettings(
+              std::move(on_finished_callback));
+          // Early return because the function above takes care of calling
+          // `on_finished_callback`.
+          return;
+        }
 #endif  // BUILDFLAG(IS_WIN)
-      break;
+        break;
+    }
   }
   std::move(on_finished_callback).Run();
 }

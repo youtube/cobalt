@@ -2,19 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#import "ios/chrome/common/ui/reauthentication/reauthentication_module_for_testing.h"
-
 #import <LocalAuthentication/LocalAuthentication.h>
 
+#import "ios/chrome/common/ui/reauthentication/reauthentication_module_for_testing.h"
 #import "testing/gmock/include/gmock/gmock.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/platform_test.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "third_party/ocmock/gtest_support.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 @interface TestingSuccessfulReauthTimeAccessor
     : NSObject <SuccessfulReauthTimeAccessor> {
@@ -65,7 +60,7 @@ class ReauthenticationModuleTest : public PlatformTest {
 // Tests that reauthentication is not reused when reuse is not permitted
 // even if the time interval since the previous reauthentication is less
 // than 60 seconds.
-// TODO(crbug.com/1173774): The test fails on device.
+// TODO(crbug.com/40167264): The test fails on device.
 #if TARGET_IPHONE_SIMULATOR
 #define MAYBE_ReauthReuseNotPermitted ReauthReuseNotPermitted
 #else
@@ -97,7 +92,7 @@ TEST_F(ReauthenticationModuleTest, MAYBE_ReauthReuseNotPermitted) {
 // Tests that the previous reauthentication is reused when reuse is permitted
 // and the last successful reauthentication occured less than 60 seconds
 // before the current attempt.
-// TODO(crbug.com/1173774): The test fails on device.
+// TODO(crbug.com/40167264): The test fails on device.
 #if TARGET_IPHONE_SIMULATOR
 #define MAYBE_ReauthReusePermittedLessThanSixtySeconds \
   ReauthReusePermittedLessThanSixtySeconds
@@ -139,7 +134,7 @@ TEST_F(ReauthenticationModuleTest,
 // Tests that the previous reauthentication is not reused when reuse is
 // permitted, but the last successful reauthentication occured more than 60
 // seconds before the current attempt.
-// TODO(crbug.com/1173774): The test fails on device.
+// TODO(crbug.com/40167264): The test fails on device.
 #if TARGET_IPHONE_SIMULATOR
 #define MAYBE_ReauthReusePermittedMoreThanSixtySeconds \
   ReauthReusePermittedMoreThanSixtySeconds

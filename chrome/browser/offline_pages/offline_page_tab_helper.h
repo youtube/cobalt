@@ -171,8 +171,6 @@ class OfflinePageTabHelper
   // Finalize the offline info when the navigation is done.
   void FinalizeOfflineInfo(content::NavigationHandle* navigation_handle);
 
-  void ReportOfflinePageMetrics();
-
   // Reload the URL in order to fetch the offline page on certain net errors.
   void TryLoadingOfflinePageOnNetError(
       content::NavigationHandle* navigation_handle);
@@ -208,8 +206,8 @@ class OfflinePageTabHelper
 
   bool reloading_url_on_net_error_ = false;
 
-  // TODO(crbug.com/827215): We only really want interface messages for the main
-  // frame but this is not easily done with the current helper classes.
+  // TODO(crbug.com/40569331): We only really want interface messages for the
+  // main frame but this is not easily done with the current helper classes.
   content::RenderFrameHostReceiverSet<mojom::MhtmlPageNotifier>
       mhtml_page_notifier_receivers_;
 

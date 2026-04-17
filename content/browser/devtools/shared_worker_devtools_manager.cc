@@ -4,7 +4,9 @@
 
 #include "content/browser/devtools/shared_worker_devtools_manager.h"
 
-#include "base/ranges/algorithm.h"
+#include <algorithm>
+
+#include "base/containers/contains.h"
 #include "content/browser/devtools/shared_worker_devtools_agent_host.h"
 #include "content/browser/worker_host/shared_worker_host.h"
 #include "content/public/browser/browser_thread.h"
@@ -28,9 +30,9 @@ void SharedWorkerDevToolsManager::WorkerCreated(
     bool* pause_on_start,
     base::UnguessableToken* devtools_worker_token) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  DCHECK(live_hosts_.find(worker_host) == live_hosts_.end());
+  DCHECK(!base::Contains(live_hosts_, worker_host));
 
-  auto it = base::ranges::find_if(
+  auto it = std::ranges::find_if(
       terminated_hosts_,
       [&worker_host](SharedWorkerDevToolsAgentHost* agent_host) {
         return agent_host->Matches(worker_host);

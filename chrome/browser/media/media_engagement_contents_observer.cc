@@ -50,26 +50,6 @@ const gfx::Size MediaEngagementContentsObserver::kSignificantSize =
 const base::TimeDelta MediaEngagementContentsObserver::kMaxShortPlaybackTime =
     base::Seconds(3);
 
-const char* const
-    MediaEngagementContentsObserver::kHistogramScoreAtPlaybackName =
-        "Media.Engagement.ScoreAtPlayback";
-
-const char* const MediaEngagementContentsObserver::
-    kHistogramSignificantNotAddedFirstTimeName =
-        "Media.Engagement.SignificantPlayers.PlayerNotAdded.FirstTime";
-
-const char* const MediaEngagementContentsObserver::
-    kHistogramSignificantNotAddedAfterFirstTimeName =
-        "Media.Engagement.SignificantPlayers.PlayerNotAdded.AfterFirstTime";
-
-const char* const
-    MediaEngagementContentsObserver::kHistogramSignificantRemovedName =
-        "Media.Engagement.SignificantPlayers.PlayerRemoved";
-
-const int MediaEngagementContentsObserver::kMaxInsignificantPlaybackReason =
-    static_cast<int>(MediaEngagementContentsObserver::
-                         InsignificantPlaybackReason::kReasonMax);
-
 const base::TimeDelta
     MediaEngagementContentsObserver::kSignificantMediaPlaybackTime =
         base::Seconds(7);
@@ -219,28 +199,6 @@ void MediaEngagementContentsObserver::MediaStartedPlaying(
 
   MaybeInsertRemoveSignificantPlayer(media_player_id);
   UpdatePlayerTimer(media_player_id);
-  RecordEngagementScoreToHistogramAtPlayback(media_player_id);
-}
-
-void MediaEngagementContentsObserver::
-    RecordEngagementScoreToHistogramAtPlayback(
-        const content::MediaPlayerId& id) {
-  if (!session_)
-    return;
-
-  PlayerState& state = GetPlayerState(id);
-  if (!state.playing.value_or(false) || state.muted.value_or(true) ||
-      !state.has_audio.value_or(false) || !state.has_video.value_or(false) ||
-      state.score_recorded) {
-    return;
-  }
-
-  int percentage =
-      round(service_->GetEngagementScore(session_->origin()) * 100);
-  UMA_HISTOGRAM_PERCENTAGE(
-      MediaEngagementContentsObserver::kHistogramScoreAtPlaybackName,
-      percentage);
-  state.score_recorded = true;
 }
 
 void MediaEngagementContentsObserver::MediaMutedStatusChanged(
@@ -249,7 +207,6 @@ void MediaEngagementContentsObserver::MediaMutedStatusChanged(
   GetPlayerState(id).muted = muted;
   MaybeInsertRemoveSignificantPlayer(id);
   UpdatePlayerTimer(id);
-  RecordEngagementScoreToHistogramAtPlayback(id);
 }
 
 void MediaEngagementContentsObserver::MediaResized(
@@ -302,36 +259,6 @@ void MediaEngagementContentsObserver::DidUpdateAudioMutingState(bool muted) {
   UpdateAudioContextTimer();
 }
 
-std::vector<MediaEngagementContentsObserver::InsignificantPlaybackReason>
-MediaEngagementContentsObserver::GetInsignificantPlayerReasons(
-    const PlayerState& state) {
-  std::vector<MediaEngagementContentsObserver::InsignificantPlaybackReason>
-      reasons;
-
-  if (state.muted.value_or(true)) {
-    reasons.push_back(MediaEngagementContentsObserver::
-                          InsignificantPlaybackReason::kAudioMuted);
-  }
-
-  if (!state.playing.value_or(false)) {
-    reasons.push_back(MediaEngagementContentsObserver::
-                          InsignificantPlaybackReason::kMediaPaused);
-  }
-
-  if (!state.significant_size.value_or(false) &&
-      state.has_video.value_or(false)) {
-    reasons.push_back(MediaEngagementContentsObserver::
-                          InsignificantPlaybackReason::kFrameSizeTooSmall);
-  }
-
-  if (!state.has_audio.value_or(false)) {
-    reasons.push_back(MediaEngagementContentsObserver::
-                          InsignificantPlaybackReason::kNoAudioTrack);
-  }
-
-  return reasons;
-}
-
 bool MediaEngagementContentsObserver::IsPlayerStateComplete(
     const PlayerState& state) {
   return state.muted.has_value() && state.playing.has_value() &&
@@ -344,6 +271,8 @@ void MediaEngagementContentsObserver::OnSignificantMediaPlaybackTimeForPlayer(
     const content::MediaPlayerId& id) {
   // Clear the timer.
   auto audible_row = audible_players_.find(id);
+  CHECK(audible_row != audible_players_.end());
+
   audible_row->second.second = nullptr;
 
   // Check that the tab is not muted.
@@ -386,48 +315,6 @@ void MediaEngagementContentsObserver::
   session_->RecordSignificantAudioContextPlayback();
 }
 
-void MediaEngagementContentsObserver::RecordInsignificantReasons(
-    std::vector<MediaEngagementContentsObserver::InsignificantPlaybackReason>
-        reasons,
-    const PlayerState& state,
-    MediaEngagementContentsObserver::InsignificantHistogram histogram) {
-  DCHECK(IsPlayerStateComplete(state));
-
-  std::string histogram_name;
-  switch (histogram) {
-    case MediaEngagementContentsObserver::InsignificantHistogram::
-        kPlayerRemoved:
-      histogram_name =
-          MediaEngagementContentsObserver::kHistogramSignificantRemovedName;
-      break;
-    case MediaEngagementContentsObserver::InsignificantHistogram::
-        kPlayerNotAddedFirstTime:
-      histogram_name = MediaEngagementContentsObserver::
-          kHistogramSignificantNotAddedFirstTimeName;
-      break;
-    case MediaEngagementContentsObserver::InsignificantHistogram::
-        kPlayerNotAddedAfterFirstTime:
-      histogram_name = MediaEngagementContentsObserver::
-          kHistogramSignificantNotAddedAfterFirstTimeName;
-      break;
-    default:
-      NOTREACHED();
-      break;
-  }
-
-  base::HistogramBase* base_histogram = base::LinearHistogram::FactoryGet(
-      histogram_name, 1,
-      MediaEngagementContentsObserver::kMaxInsignificantPlaybackReason,
-      MediaEngagementContentsObserver::kMaxInsignificantPlaybackReason + 1,
-      base::HistogramBase::kUmaTargetedHistogramFlag);
-
-  for (auto reason : reasons)
-    base_histogram->Add(static_cast<int>(reason));
-
-  base_histogram->Add(static_cast<int>(
-      MediaEngagementContentsObserver::InsignificantPlaybackReason::kCount));
-}
-
 void MediaEngagementContentsObserver::MaybeInsertRemoveSignificantPlayer(
     const content::MediaPlayerId& id) {
   // If we have not received the whole player state yet then we can't be
@@ -444,38 +331,42 @@ void MediaEngagementContentsObserver::MaybeInsertRemoveSignificantPlayer(
     audible_players_.emplace(id, std::make_pair(false, nullptr));
   }
 
-  bool is_currently_significant =
+  const bool is_currently_listed_significant =
       significant_players_.find(id) != significant_players_.end();
-  std::vector<MediaEngagementContentsObserver::InsignificantPlaybackReason>
-      reasons = GetInsignificantPlayerReasons(state);
 
-  if (is_currently_significant) {
-    if (!reasons.empty()) {
-      // We are considered significant and we have reasons why we shouldn't
-      // be, so we should make the player not significant.
+  if (is_currently_listed_significant) {
+    if (!IsSignificantPlayer(id)) {
       significant_players_.erase(id);
-      RecordInsignificantReasons(reasons, state,
-                                 MediaEngagementContentsObserver::
-                                     InsignificantHistogram::kPlayerRemoved);
     }
   } else {
-    if (reasons.empty()) {
-      // We are not considered significant but we don't have any reasons
-      // why we shouldn't be. Make the player significant.
+    if (IsSignificantPlayer(id)) {
       significant_players_.insert(id);
-    } else if (state.reasons_recorded) {
-      RecordInsignificantReasons(
-          reasons, state,
-          MediaEngagementContentsObserver::InsignificantHistogram::
-              kPlayerNotAddedAfterFirstTime);
-    } else {
-      RecordInsignificantReasons(
-          reasons, state,
-          MediaEngagementContentsObserver::InsignificantHistogram::
-              kPlayerNotAddedFirstTime);
-      state.reasons_recorded = true;
     }
   }
+}
+
+bool MediaEngagementContentsObserver::IsSignificantPlayer(
+    const content::MediaPlayerId& id) {
+  const PlayerState& state = GetPlayerState(id);
+
+  if (state.muted.value_or(true)) {
+    return false;
+  }
+
+  if (!state.playing.value_or(false)) {
+    return false;
+  }
+
+  if (!state.significant_size.value_or(false) &&
+      state.has_video.value_or(false)) {
+    return false;
+  }
+
+  if (!state.has_audio.value_or(false)) {
+    return false;
+  }
+
+  return true;
 }
 
 void MediaEngagementContentsObserver::UpdatePlayerTimer(
@@ -596,25 +487,9 @@ void MediaEngagementContentsObserver::ReadyToCommitNavigation(
                                                : handle->GetRenderFrameHost()
                                                      ->GetOutermostMainFrame()
                                                      ->GetLastCommittedURL());
-  MediaEngagementScore score = service_->CreateEngagementScore(origin);
-  bool has_high_engagement = score.high_score();
-
-  if (base::FeatureList::IsEnabled(media::kMediaEngagementHTTPSOnly))
-    DCHECK(!has_high_engagement || (origin.scheme() == url::kHttpsScheme));
-
-  // If the preloaded feature flag is enabled and the number of visits is less
-  // than the number of visits required to have an MEI score we should check the
-  // global data.
-  if (!has_high_engagement &&
-      score.visits() < MediaEngagementScore::GetScoreMinVisits() &&
-      base::FeatureList::IsEnabled(media::kPreloadMediaEngagementData)) {
-    has_high_engagement =
-        MediaEngagementPreloadedList::GetInstance()->CheckOriginIsPresent(
-            origin);
-  }
 
   // If we have high media engagement then we should send that to Blink.
-  if (has_high_engagement) {
+  if (service_->HasHighEngagement(origin)) {
     SendEngagementLevelToFrame(url::Origin::Create(handle->GetURL()),
                                handle->GetRenderFrameHost());
   }
@@ -622,7 +497,7 @@ void MediaEngagementContentsObserver::ReadyToCommitNavigation(
 
 content::WebContents* MediaEngagementContentsObserver::GetOpener() const {
 #if !BUILDFLAG(IS_ANDROID)
-  for (auto* browser : *BrowserList::GetInstance()) {
+  for (Browser* browser : *BrowserList::GetInstance()) {
     if (browser->profile() != service_->profile())
       continue;
 
@@ -631,8 +506,10 @@ content::WebContents* MediaEngagementContentsObserver::GetOpener() const {
     if (index == TabStripModel::kNoTab)
       continue;
 
-    // Whether or not the |opener| is null, this is the right tab strip.
-    return browser->tab_strip_model()->GetOpenerOfWebContentsAt(index);
+    // Whether or not the `opener` is null, this is the right tab strip.
+    const tabs::TabInterface* tab =
+        browser->tab_strip_model()->GetOpenerOfTabAt(index);
+    return tab ? tab->GetContents() : nullptr;
   }
 #endif  // !BUILDFLAG(IS_ANDROID)
 

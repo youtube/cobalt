@@ -11,11 +11,9 @@
 #ifndef API_VIDEO_VIDEO_SINK_INTERFACE_H_
 #define API_VIDEO_VIDEO_SINK_INTERFACE_H_
 
-#include "absl/types/optional.h"
 #include "api/video_track_source_constraints.h"
-#include "rtc_base/checks.h"
 
-namespace rtc {
+namespace webrtc {
 
 template <typename VideoFrameT>
 class VideoSinkInterface {
@@ -31,9 +29,17 @@ class VideoSinkInterface {
   // Called on the network thread when video constraints change.
   // TODO(crbug/1255737): make pure virtual once downstream project adapts.
   virtual void OnConstraintsChanged(
-      const webrtc::VideoTrackSourceConstraints& constraints) {}
+      const VideoTrackSourceConstraints& /* constraints */) {}
 };
 
+}  //  namespace webrtc
+
+// Re-export symbols from the webrtc namespace for backwards compatibility.
+// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
+#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
+namespace rtc {
+using ::webrtc::VideoSinkInterface;
 }  // namespace rtc
+#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // API_VIDEO_VIDEO_SINK_INTERFACE_H_

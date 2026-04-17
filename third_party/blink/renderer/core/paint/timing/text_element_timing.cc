@@ -6,6 +6,7 @@
 
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/element.h"
+#include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
 #include "third_party/blink/renderer/core/paint/timing/element_timing_utils.h"
 #include "third_party/blink/renderer/core/paint/timing/image_element_timing.h"
@@ -43,42 +44,79 @@ gfx::RectF TextElementTiming::ComputeIntersectionRect(
     const LocalFrameView* frame_view) {
   Node* node = object.GetNode();
   DCHECK(node);
-  if (!NeededForElementTiming(*node))
+  if (!NeededForTiming(*node)) {
     return gfx::RectF();
+  }
 
   return ElementTimingUtils::ComputeIntersectionRect(
       &frame_view->GetFrame(), aggregated_visual_rect, property_tree_state);
 }
 
-bool TextElementTiming::CanReportElements() const {
+bool TextElementTiming::CanReportToElementTiming() const {
   DCHECK(performance_);
   return performance_->HasObserverFor(PerformanceEntry::kElement) ||
          !performance_->IsElementTimingBufferFull();
 }
+bool TextElementTiming::CanReportToContainerTiming() {
+  DCHECK(performance_);
+  if (!RuntimeEnabledFeatures::ContainerTimingEnabled()) {
+    return false;
+  }
+  EnsureContainerTiming();
+  return container_timing_->CanReportToContainerTiming();
+}
+bool TextElementTiming::CanReportElements() {
+  return CanReportToElementTiming() || CanReportToContainerTiming();
+}
 
-void TextElementTiming::OnTextObjectPainted(const TextRecord& record) {
+void TextElementTiming::OnTextObjectPainted(
+    const TextRecord& record,
+    const DOMPaintTimingInfo& paint_timing_info) {
+  DCHECK(record.is_needed_for_timing_);
   Node* node = record.node_;
-  if (!node || node->IsInShadowTree())
-    return;
 
-  // Text aggregators should be Elements!
-  DCHECK(node->IsElementNode());
+  // Text aggregators need to be Elements. This will not be the case if the
+  // aggregator is the LayoutView (a Document node), though. This will be the
+  // only aggregator we have if the text is for an @page margin, since that is
+  // on the outside of the DOM.
+  //
+  // TODO(paint-dev): Document why it's necessary to check for null, and whether
+  // we're in a shadow tree.
+  if (!node || node->IsInShadowTree() || !node->IsElementNode()) {
+    return;
+  }
+
   auto* element = To<Element>(node);
-  if (!element->FastHasAttribute(html_names::kElementtimingAttr))
-    return;
 
-  const AtomicString& id = element->GetIdAttribute();
-  DEFINE_STATIC_LOCAL(const AtomicString, kTextPaint, ("text-paint"));
-  performance_->AddElementTiming(
-      kTextPaint, g_empty_string, record.element_timing_rect_,
-      record.paint_time, base::TimeTicks(),
-      element->FastGetAttribute(html_names::kElementtimingAttr), gfx::Size(),
-      id, element);
+  if (CanReportToElementTiming() &&
+      element->FastHasAttribute(html_names::kElementtimingAttr)) {
+    DEFINE_STATIC_LOCAL(const AtomicString, kTextPaint, ("text-paint"));
+    const AtomicString& id = element->GetIdAttribute();
+    performance_->AddElementTiming(
+        kTextPaint, g_empty_string, record.element_timing_rect_,
+        paint_timing_info, base::TimeTicks(),
+        element->FastGetAttribute(html_names::kElementtimingAttr), gfx::Size(),
+        id, element);
+  }
+  if (CanReportToContainerTiming()) {
+    container_timing_->OnElementPainted(paint_timing_info, element,
+                                        record.element_timing_rect_);
+  }
 }
 
 void TextElementTiming::Trace(Visitor* visitor) const {
   Supplement<LocalDOMWindow>::Trace(visitor);
   visitor->Trace(performance_);
+  visitor->Trace(container_timing_);
+}
+
+void TextElementTiming::EnsureContainerTiming() {
+  if (container_timing_) {
+    return;
+  }
+  LocalDOMWindow* window = GetSupplementable();
+  DCHECK(window);
+  container_timing_ = ContainerTiming::From(*window);
 }
 
 }  // namespace blink

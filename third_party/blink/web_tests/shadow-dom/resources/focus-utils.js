@@ -1,5 +1,8 @@
 'use strict';
 
+// This set of utils also requires the inclusion of
+// third_party/blink/web_tests/shadow-dom/resources/shadow-dom.js.
+
 function innermostActiveElement(element) {
   element = element || document.activeElement;
   if (isIFrameElement(element)) {
@@ -74,4 +77,10 @@ function assert_focus_navigation_backward(elements) {
     'length of elements should be greater than or equal to 2.');
   for (var i = 0; i + 1 < elements.length; ++i)
     assert_focus_navigation(elements[i], elements[i + 1], 'backward');
+}
+
+function assert_focus_navigation_bidirectional(elements) {
+  assert_focus_navigation_forward(elements);
+  elements.reverse();
+  assert_focus_navigation_backward(elements);
 }

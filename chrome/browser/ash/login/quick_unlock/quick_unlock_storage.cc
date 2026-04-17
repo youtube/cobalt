@@ -34,7 +34,7 @@ QuickUnlockStorage::QuickUnlockStorage(Profile* profile)
   pin_storage_prefs_ = std::make_unique<PinStoragePrefs>(profile->GetPrefs());
 }
 
-QuickUnlockStorage::~QuickUnlockStorage() {}
+QuickUnlockStorage::~QuickUnlockStorage() = default;
 
 void QuickUnlockStorage::SetClockForTesting(base::Clock* test_clock) {
   clock_ = test_clock;
@@ -71,13 +71,6 @@ bool QuickUnlockStorage::IsPinAuthenticationAvailable(Purpose purpose) const {
 bool QuickUnlockStorage::TryAuthenticatePin(const Key& key, Purpose purpose) {
   return HasStrongAuth() &&
          pin_storage_prefs()->TryAuthenticatePin(key, purpose);
-}
-
-std::string QuickUnlockStorage::CreateAuthToken(
-    const UserContext& user_context) {
-  auth_token_ = std::make_unique<AuthToken>(user_context);
-  DCHECK(auth_token_->Identifier().has_value());
-  return *auth_token_->Identifier();
 }
 
 AuthToken* QuickUnlockStorage::GetAuthToken() {

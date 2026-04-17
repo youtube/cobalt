@@ -8,9 +8,8 @@
 #include <string>
 
 namespace autofill {
-struct FormData;
+class FormData;
 struct PasswordFormFillData;
-struct FormData;
 }  // namespace autofill
 
 namespace password_manager {
@@ -22,7 +21,7 @@ namespace test_helpers {
 // Populates |form_data| with test values.
 void SetPasswordFormFillData(const std::string& origin,
                              const char* form_name,
-                             uint32_t unique_renderer_id,
+                             uint32_t form_id,
                              const char* username_field,
                              uint32_t username_field_id,
                              const char* username_value,
@@ -35,7 +34,7 @@ void SetPasswordFormFillData(const std::string& origin,
 
 // Populates |fill_data| with test values.
 void SetFillData(const std::string& origin,
-                 uint32_t unique_renderer_id,
+                 uint32_t form_id,
                  uint32_t username_field_id,
                  const char* username_value,
                  uint32_t password_field_id,
@@ -44,7 +43,7 @@ void SetFillData(const std::string& origin,
 
 // Populates |form_data| with test values.
 void SetFormData(const std::string& origin,
-                 uint32_t unique_renderer_id,
+                 uint32_t form_id,
                  uint32_t username_field_id,
                  const char* username_value,
                  uint32_t password_field_id,

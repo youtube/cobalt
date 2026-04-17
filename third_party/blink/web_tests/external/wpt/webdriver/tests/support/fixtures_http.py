@@ -1,25 +1,25 @@
 import base64
 
 import pytest
-from webdriver.error import NoSuchAlertException
+from webdriver.error import NoSuchAlertException, NoSuchWindowException
 
 from tests.support.image import png_dimensions, ImageDifference
 from tests.support.sync import Poll
 
 
 @pytest.fixture
-def add_event_listeners(session):
+def add_event_listeners():
     """Register listeners for tracked events on element."""
     def add_event_listeners(element, tracked_events):
         element.session.execute_script("""
-            let element = arguments[0];
-            let trackedEvents = arguments[1];
+            const element = arguments[0];
+            const trackedEvents = arguments[1];
 
             if (!("events" in window)) {
               window.events = [];
             }
 
-            for (var i = 0; i < trackedEvents.length; i++) {
+            for (let i = 0; i < trackedEvents.length; i++) {
               element.addEventListener(trackedEvents[i], function (event) {
                 window.events.push(event.type);
               });
@@ -156,6 +156,26 @@ def create_frame(session):
 
 
 @pytest.fixture
+def http_new_tab(session):
+    """Create a new tab to run the test isolated."""
+    original_handle = session.window_handle
+    new_handle = session.new_window(type_hint="tab")
+
+    session.window_handle = new_handle
+
+    yield
+
+    try:
+        # Make sure to close the correct tab that we opened before.
+        session.window_handle = new_handle
+        session.window.close()
+    except NoSuchWindowException:
+        pass
+
+    session.window_handle = original_handle
+
+
+@pytest.fixture
 def stale_element(current_session, get_test_page):
     """Create a stale element reference
 
@@ -203,7 +223,7 @@ def render_pdf_to_png_http(current_session, url):
         assert 0 <= index < len(result)
 
         image_string = result[index]
-        image_string_without_data_type = image_string[image_string.find(",") + 1 :]
+        image_string_without_data_type = image_string[image_string.find(",") + 1:]
 
         return base64.b64decode(image_string_without_data_type)
 
@@ -228,7 +248,7 @@ def compare_png_http(current_session, url):
 
         current_session.url = url("/webdriver/tests/support/html/render.html")
         result = current_session.execute_async_script(
-            f"""const callback = arguments[arguments.length - 1]; callback(compare(arguments[0], arguments[1], arguments[2], arguments[3]))""",
+            "const callback = arguments[arguments.length - 1]; callback(compare(arguments[0], arguments[1], arguments[2], arguments[3]))",
             args=[base64.encodebytes(img1).decode(), base64.encodebytes(img2).decode(), width, height],
         )
 

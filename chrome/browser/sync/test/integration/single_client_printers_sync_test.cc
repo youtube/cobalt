@@ -40,7 +40,7 @@ class SingleClientPrintersSyncTest : public SyncTest {
   }
 
   bool UseVerifier() override {
-    // TODO(crbug.com/1137770): rewrite tests to not use verifier.
+    // TODO(crbug.com/40724972): rewrite tests to not use verifier.
     return true;
   }
 };
@@ -119,7 +119,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientPrintersSyncTest, AddPrintServerPrinter) {
 
   // Start the sync.
   ASSERT_TRUE(SetupSync());
-  absl::optional<sync_pb::PrinterSpecifics> spec_printer =
+  std::optional<sync_pb::PrinterSpecifics> spec_printer =
       bridge->GetPrinter(spec_printer_id);
   ASSERT_TRUE(spec_printer);
 

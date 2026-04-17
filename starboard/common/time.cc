@@ -39,7 +39,6 @@ int64_t CurrentMonotonicTime() {
     return 0;
   }
   return ToMicroseconds(ts);
-  ;
 }
 
 int64_t CurrentMonotonicThreadTime() {
@@ -49,7 +48,6 @@ int64_t CurrentMonotonicThreadTime() {
     return 0;
   }
   return ToMicroseconds(ts);
-  ;
 }
 
 int64_t CurrentPosixTime() {

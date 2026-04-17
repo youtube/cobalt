@@ -9,8 +9,10 @@
 #include <algorithm>
 
 #include "base/auto_reset.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
+#include "storage/browser/quota/quota_features.h"
 #include "storage/browser/quota/quota_manager_impl.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/mojom/quota/quota_types.mojom.h"
@@ -20,22 +22,22 @@ namespace {
 constexpr int64_t kMBytes = 1024 * 1024;
 constexpr double kUsageRatioToStartEviction = 0.7;
 constexpr int kThresholdOfErrorsToStopEviction = 5;
-constexpr int kHistogramReportIntervalMinutes = 60;
+constexpr base::TimeDelta kHistogramReportInterval = base::Minutes(60);
 constexpr double kDiskSpaceShortageAllowanceRatio = 0.5;
 
 void UmaHistogramMbytes(const std::string& name, int sample) {
   base::UmaHistogramCustomCounts(name, sample / kMBytes, 1,
                                  10 * 1024 * 1024 /* 10 TB */, 100);
 }
+
 }  // namespace
 
 namespace storage {
 
 QuotaTemporaryStorageEvictor::QuotaTemporaryStorageEvictor(
     QuotaEvictionHandler* quota_eviction_handler,
-    int64_t interval_ms)
-    : quota_eviction_handler_(quota_eviction_handler),
-      interval_ms_(interval_ms) {
+    base::TimeDelta interval)
+    : quota_eviction_handler_(quota_eviction_handler), interval_(interval) {
   DCHECK(quota_eviction_handler);
 }
 
@@ -64,20 +66,13 @@ void QuotaTemporaryStorageEvictor::ReportPerRoundHistogram() {
   base::Time now = base::Time::Now();
   base::UmaHistogramTimes("Quota.TimeSpentToAEvictionRound",
                           now - round_statistics_.start_time);
-  if (!time_of_end_of_last_round_.is_null()) {
-    base::UmaHistogramCustomTimes("Quota.TimeDeltaOfEvictionRounds",
-                                  now - time_of_end_of_last_round_,
-                                  base::Minutes(1), base::Days(1), 50);
-  }
-  time_of_end_of_last_round_ = now;
-
   UmaHistogramMbytes("Quota.DiskspaceShortage",
                      round_statistics_.diskspace_shortage_at_round);
   UmaHistogramMbytes("Quota.EvictedBytesPerRound",
                      round_statistics_.usage_on_beginning_of_round -
                          round_statistics_.usage_on_end_of_round);
   base::UmaHistogramCounts1M("Quota.NumberOfEvictedBucketsPerRound",
-                             round_statistics_.num_evicted_buckets_in_round);
+                             round_statistics_.num_evicted_buckets);
 }
 
 void QuotaTemporaryStorageEvictor::ReportPerHourHistogram() {
@@ -90,8 +85,6 @@ void QuotaTemporaryStorageEvictor::ReportPerHourHistogram() {
                              stats_in_hour.num_evicted_buckets);
   base::UmaHistogramCounts1M("Quota.EvictionRoundsPerHour",
                              stats_in_hour.num_eviction_rounds);
-  base::UmaHistogramCounts1M("Quota.SkippedEvictionRoundsPerHour",
-                             stats_in_hour.num_skipped_eviction_rounds);
 }
 
 void QuotaTemporaryStorageEvictor::OnEvictionRoundStarted() {
@@ -107,7 +100,7 @@ void QuotaTemporaryStorageEvictor::OnEvictionRoundFinished() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   // Check if skipped round
-  if (round_statistics_.num_evicted_buckets_in_round) {
+  if (round_statistics_.num_evicted_buckets) {
     ReportPerRoundHistogram();
     time_of_end_of_last_nonskipped_round_ = base::Time::Now();
   } else {
@@ -137,32 +130,27 @@ void QuotaTemporaryStorageEvictor::Start() {
   }
 
   base::AutoReset<bool> auto_reset(&timer_disabled_for_testing_, false);
-  StartEvictionTimerWithDelay(0);
+  StartEvictionTimerWithDelay(base::TimeDelta());
 
   if (histogram_timer_.IsRunning())
     return;
 
-  histogram_timer_.Start(FROM_HERE,
-                         base::Minutes(kHistogramReportIntervalMinutes), this,
+  histogram_timer_.Start(FROM_HERE, kHistogramReportInterval, this,
                          &QuotaTemporaryStorageEvictor::ReportPerHourHistogram);
 }
 
 void QuotaTemporaryStorageEvictor::StartEvictionTimerWithDelay(
-    int64_t delay_ms) {
+    base::TimeDelta delay) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (eviction_timer_.IsRunning() || timer_disabled_for_testing_)
     return;
-  eviction_timer_.Start(FROM_HERE, base::Milliseconds(delay_ms), this,
+  eviction_timer_.Start(FROM_HERE, delay, this,
                         &QuotaTemporaryStorageEvictor::ConsiderEviction);
 }
 
 void QuotaTemporaryStorageEvictor::ConsiderEviction() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // Only look for expired buckets once per round.
-  if (in_round()) {
-    OnEvictedExpiredBuckets(blink::mojom::QuotaStatusCode::kOk);
-    return;
-  }
+  CHECK(!in_round());
   OnEvictionRoundStarted();
   quota_eviction_handler_->EvictExpiredBuckets(
       base::BindOnce(&QuotaTemporaryStorageEvictor::OnEvictedExpiredBuckets,
@@ -216,13 +204,11 @@ void QuotaTemporaryStorageEvictor::OnGotEvictionRoundInfo(
 
   int64_t amount_to_evict = std::max(usage_overage, diskspace_shortage);
   if (status == blink::mojom::QuotaStatusCode::kOk && amount_to_evict > 0) {
-    // Space is getting tight. Get the least recently used storage key and
-    // continue.
     // TODO(michaeln): if the reason for eviction is low physical disk space,
     // make 'unlimited' storage keys subject to eviction too.
-    quota_eviction_handler_->GetEvictionBucket(
-        blink::mojom::StorageType::kTemporary,
-        base::BindOnce(&QuotaTemporaryStorageEvictor::OnGotEvictionBucket,
+    quota_eviction_handler_->GetEvictionBuckets(
+        amount_to_evict,
+        base::BindOnce(&QuotaTemporaryStorageEvictor::OnGotEvictionBuckets,
                        weak_factory_.GetWeakPtr()));
     return;
   }
@@ -230,7 +216,7 @@ void QuotaTemporaryStorageEvictor::OnGotEvictionRoundInfo(
   // No action required, sleep for a while and check again later.
   if (statistics_.num_errors_on_getting_usage_and_quota <
       kThresholdOfErrorsToStopEviction) {
-    StartEvictionTimerWithDelay(interval_ms_);
+    StartEvictionTimerWithDelay(interval_);
   } else {
     // TODO(dmikurube): Add error handling for the case status is not OK.
     // TODO(dmikurube): Try restarting eviction after a while.
@@ -240,43 +226,32 @@ void QuotaTemporaryStorageEvictor::OnGotEvictionRoundInfo(
   OnEvictionRoundFinished();
 }
 
-void QuotaTemporaryStorageEvictor::OnGotEvictionBucket(
-    const absl::optional<BucketLocator>& bucket) {
+void QuotaTemporaryStorageEvictor::OnGotEvictionBuckets(
+    const std::set<BucketLocator>& buckets) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (!bucket.has_value()) {
-    StartEvictionTimerWithDelay(interval_ms_);
+  if (buckets.empty()) {
+    StartEvictionTimerWithDelay(interval_);
     OnEvictionRoundFinished();
     return;
   }
 
-  DCHECK(!bucket->storage_key.origin().GetURL().is_empty());
-
   quota_eviction_handler_->EvictBucketData(
-      bucket.value(),
-      base::BindOnce(&QuotaTemporaryStorageEvictor::OnEvictionComplete,
-                     weak_factory_.GetWeakPtr()));
+      buckets, base::BindOnce(&QuotaTemporaryStorageEvictor::OnEvictionComplete,
+                              weak_factory_.GetWeakPtr(), buckets.size()));
 }
 
-void QuotaTemporaryStorageEvictor::OnEvictionComplete(QuotaError status) {
+void QuotaTemporaryStorageEvictor::OnEvictionComplete(
+    int expected_evicted_buckets,
+    int actual_evicted_buckets) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  // Just calling ConsiderEviction() or StartEvictionTimerWithDelay() here is
-  // ok. No need to deal with the case that all of the Delete operations fail
-  // for a certain bucket. It doesn't result in trying to evict the same bucket
-  // permanently. The evictor skips buckets which had deletion errors a few
-  // times.
+  statistics_.num_evicted_buckets += actual_evicted_buckets;
+  round_statistics_.num_evicted_buckets += actual_evicted_buckets;
 
-  if (status == QuotaError::kNone) {
-    ++statistics_.num_evicted_buckets;
-    ++round_statistics_.num_evicted_buckets_in_round;
-    // We many need to get rid of more space so reconsider immediately.
-    ConsiderEviction();
-  } else {
-    // Sleep for a while and retry again until we see too many errors.
-    StartEvictionTimerWithDelay(interval_ms_);
-    OnEvictionRoundFinished();
-  }
+  StartEvictionTimerWithDelay(interval_);
+  OnEvictionRoundFinished();
+  return;
 }
 
 }  // namespace storage

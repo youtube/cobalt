@@ -13,6 +13,7 @@ from .code_node import EmptyNode
 from .code_node import LiteralNode
 from .code_node import SequenceNode
 from .code_node import render_code_node
+from .codegen_accumulator import IncludeDefinition
 from .codegen_accumulator import CodeGenAccumulator
 from .path_manager import PathManager
 
@@ -60,17 +61,22 @@ def make_header_include_directives(accumulator):
         def __str__(self):
             lines = []
 
+            def eol_comment(header: IncludeDefinition) -> str:
+                return f"  // {header.annotation}" if header.annotation else ""
+
             if self._accumulator.stdcpp_include_headers:
-                lines.extend([
-                    "#include <{}>".format(header) for header in sorted(
-                        self._accumulator.stdcpp_include_headers)
-                ])
+                lines.extend(
+                    sorted([
+                        "#include <{}>{}".format(h.filename, eol_comment(h))
+                        for h in self._accumulator.stdcpp_include_headers
+                    ]))
                 lines.append("")
 
-            lines.extend([
-                "#include \"{}\"".format(header)
-                for header in sorted(self._accumulator.include_headers)
-            ])
+            lines.extend(
+                sorted([
+                    '#include "{}"{}'.format(h.filename, eol_comment(h))
+                    for h in self._accumulator.include_headers
+                ]))
 
             return "\n".join(lines)
 
@@ -83,6 +89,7 @@ def collect_forward_decls_and_include_headers(idl_types):
 
     header_forward_decls = set()
     header_include_headers = set()
+    header_stdcpp_include_headers = set()
     source_forward_decls = set()
     source_include_headers = set()
 
@@ -109,7 +116,7 @@ def collect_forward_decls_and_include_headers(idl_types):
             ])
         elif idl_type.is_nullable:
             if not blink_type_info(idl_type.inner_type).has_null_value:
-                header_include_headers.add("third_party/abseil-cpp/absl/types/optional.h")
+                header_stdcpp_include_headers.add("optional")
         elif idl_type.is_promise:
             header_include_headers.add(
                 "third_party/blink/renderer/bindings/core/v8/script_promise.h")
@@ -123,8 +130,10 @@ def collect_forward_decls_and_include_headers(idl_types):
                 "third_party/blink/renderer/platform/wtf/text/wtf_string.h")
         elif idl_type.is_typedef:
             pass
-        elif idl_type.is_void:
-            pass
+        elif idl_type.is_undefined:
+            header_include_headers.add(
+                "third_party/blink/renderer/bindings/core/v8/native_value_traits_impl.h"
+            )
         elif idl_type.type_definition_object:
             type_def_obj = idl_type.type_definition_object
             if type_def_obj.is_enumeration:
@@ -155,8 +164,13 @@ def collect_forward_decls_and_include_headers(idl_types):
     for idl_type in idl_types:
         idl_type.apply_to_all_composing_elements(collect)
 
-    return (header_forward_decls, header_include_headers, source_forward_decls,
-            source_include_headers)
+    return (
+        header_forward_decls,
+        header_include_headers,
+        header_stdcpp_include_headers,
+        source_forward_decls,
+        source_include_headers,
+    )
 
 
 def component_export(component, for_testing):
@@ -180,6 +194,8 @@ def component_export_header(component, for_testing):
         return "third_party/blink/renderer/modules/modules_export.h"
     elif component == "extensions_chromeos":
         return "third_party/blink/renderer/extensions/chromeos/extensions_chromeos_export.h"
+    elif component == "extensions_webview":
+        return "third_party/blink/renderer/extensions/webview/extensions_webview_export.h"
     else:
         assert False
 

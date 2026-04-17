@@ -4,14 +4,21 @@
 
 #include "chromeos/ash/components/cryptohome/auth_factor_conversions.h"
 
+#include <optional>
 #include <utility>
 #include <vector>
 
+#include "base/check.h"
 #include "base/check_op.h"
 #include "base/logging.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
-#include "base/strings/string_number_conversions.h"
+#include "chromeos/ash/components/cryptohome/auth_factor.h"
+#include "chromeos/ash/components/cryptohome/auth_factor_input.h"
+#include "chromeos/ash/components/cryptohome/common_types.h"
+#include "chromeos/ash/components/dbus/cryptohome/UserDataAuth.pb.h"
 #include "chromeos/ash/components/dbus/cryptohome/auth_factor.pb.h"
+#include "chromeos/ash/components/dbus/cryptohome/recoverable_key_store.pb.h"
 
 namespace cryptohome {
 
@@ -19,13 +26,88 @@ namespace {
 
 using ::ash::ChallengeResponseKey;
 
+KnowledgeFactorHashAlgorithm ConvertHashTypeToProto(
+    KnowledgeFactorHashAlgorithmWrapper algorithm) {
+  using Algorithm = KnowledgeFactorHashAlgorithmWrapper;
+  switch (algorithm) {
+    case Algorithm::kSha256TopHalf:
+      return KnowledgeFactorHashAlgorithm::HASH_TYPE_SHA256_TOP_HALF;
+    case Algorithm::kPbkdf2Aes2561234:
+      return KnowledgeFactorHashAlgorithm::HASH_TYPE_PBKDF2_AES256_1234;
+  }
+}
+
+void ConvertKnowledgeFactorHashInfoToProto(
+    const KnowledgeFactorHashInfo& hash_info,
+    user_data_auth::KnowledgeFactorHashInfo& hash_info_proto) {
+  hash_info_proto.set_algorithm(ConvertHashTypeToProto(hash_info.algorithm));
+  hash_info_proto.set_salt(hash_info.salt);
+  hash_info_proto.set_should_generate_key_store(
+      hash_info.should_generate_key_store);
+}
+
+PinStatus PasrePinFactorStatus(const user_data_auth::StatusInfo& proto) {
+  base::TimeDelta available_in = base::TimeDelta::Max();
+  if (proto.time_available_in() != std::numeric_limits<uint64_t>::max()) {
+    available_in = base::Milliseconds(proto.time_available_in());
+  }
+  CHECK(!available_in.is_negative());
+  return PinStatus{available_in};
+}
+
+PasswordMetadata ParsePasswordMetadata(
+    const user_data_auth::AuthFactor& proto) {
+  std::optional<KnowledgeFactorHashInfo> hash_info;
+  if (proto.has_password_metadata() &&
+      proto.password_metadata().has_hash_info()) {
+    const user_data_auth::KnowledgeFactorHashInfo& hash_info_proto =
+        proto.password_metadata().hash_info();
+    DCHECK_EQ(hash_info_proto.algorithm(),
+              KnowledgeFactorHashAlgorithm::HASH_TYPE_SHA256_TOP_HALF);
+    return hash_info_proto.should_generate_key_store()
+               ? PasswordMetadata::CreateForLocalPassword(
+                     SystemSalt(hash_info_proto.salt()))
+               : PasswordMetadata::CreateForOnlinePassword(
+                     SystemSalt(hash_info_proto.salt()));
+  }
+  return PasswordMetadata::CreateWithoutSalt();
+}
+
+PinMetadata ParsePinMetadata(const user_data_auth::AuthFactor& proto) {
+  std::optional<KnowledgeFactorHashInfo> hash_info;
+  if (proto.has_pin_metadata() && proto.pin_metadata().has_hash_info()) {
+    const user_data_auth::KnowledgeFactorHashInfo& hash_info_proto =
+        proto.pin_metadata().hash_info();
+    DCHECK_EQ(hash_info_proto.algorithm(),
+              KnowledgeFactorHashAlgorithm::HASH_TYPE_PBKDF2_AES256_1234);
+    DCHECK(hash_info_proto.should_generate_key_store());
+    return PinMetadata::Create(PinSalt(hash_info_proto.salt()));
+  }
+  return PinMetadata::CreateWithoutSalt();
+}
+
+LockoutPolicy ConvertLockoutPolicyProtoToLockoutPolicy(
+    user_data_auth::LockoutPolicy lockout_policy) {
+  switch (lockout_policy) {
+    case user_data_auth::LOCKOUT_POLICY_NONE:
+      return LockoutPolicy::kNone;
+    case user_data_auth::LOCKOUT_POLICY_ATTEMPT_LIMITED:
+      return LockoutPolicy::kAttemptLimited;
+    case user_data_auth::LOCKOUT_POLICY_TIME_LIMITED:
+      return LockoutPolicy::kTimeLimited;
+    case user_data_auth::LOCKOUT_POLICY_UNKNOWN:
+      // Fallthrough for all unknown or new values.
+    default:
+      return LockoutPolicy::kUnknown;
+  }
+}
+
 }  // namespace
 
 user_data_auth::AuthFactorType ConvertFactorTypeToProto(AuthFactorType type) {
   switch (type) {
     case AuthFactorType::kUnknownLegacy:
       NOTREACHED() << "Unknown factor type should never be sent to cryptohome";
-      return user_data_auth::AUTH_FACTOR_TYPE_UNSPECIFIED;
     case AuthFactorType::kPassword:
       return user_data_auth::AUTH_FACTOR_TYPE_PASSWORD;
     case AuthFactorType::kPin:
@@ -38,18 +120,20 @@ user_data_auth::AuthFactorType ConvertFactorTypeToProto(AuthFactorType type) {
       return user_data_auth::AUTH_FACTOR_TYPE_SMART_CARD;
     case AuthFactorType::kLegacyFingerprint:
       return user_data_auth::AUTH_FACTOR_TYPE_LEGACY_FINGERPRINT;
+    case AuthFactorType::kFingerprint:
+      return user_data_auth::AUTH_FACTOR_TYPE_FINGERPRINT;
   }
 }
 
-absl::optional<AuthFactorType> SafeConvertFactorTypeFromProto(
+std::optional<AuthFactorType> SafeConvertFactorTypeFromProto(
     user_data_auth::AuthFactorType type) {
   switch (type) {
     case user_data_auth::AUTH_FACTOR_TYPE_UNSPECIFIED:
       LOG(WARNING) << "Unknown factor type should be handled separately";
-      return absl::nullopt;
+      return std::nullopt;
     case user_data_auth::AUTH_FACTOR_TYPE_LEGACY_FINGERPRINT:
       LOG(WARNING) << "Fingerprint factor type should never be returned";
-      return absl::nullopt;
+      return std::nullopt;
     case user_data_auth::AUTH_FACTOR_TYPE_PASSWORD:
       return AuthFactorType::kPassword;
     case user_data_auth::AUTH_FACTOR_TYPE_PIN:
@@ -60,12 +144,14 @@ absl::optional<AuthFactorType> SafeConvertFactorTypeFromProto(
       return AuthFactorType::kKiosk;
     case user_data_auth::AUTH_FACTOR_TYPE_SMART_CARD:
       return AuthFactorType::kSmartCard;
+    case user_data_auth::AUTH_FACTOR_TYPE_FINGERPRINT:
+      return AuthFactorType::kFingerprint;
     default:
       LOG(WARNING)
           << "Unknown auth factor type " << static_cast<int>(type)
           << " Probably factor was added in cryptohome, but is not supported "
              "in chrome yet.";
-      return absl::nullopt;
+      return std::nullopt;
   }
 }
 
@@ -73,10 +159,8 @@ AuthFactorType ConvertFactorTypeFromProto(user_data_auth::AuthFactorType type) {
   switch (type) {
     case user_data_auth::AUTH_FACTOR_TYPE_UNSPECIFIED:
       LOG(FATAL) << "Unknown factor type should be handled separately";
-      return AuthFactorType::kUnknownLegacy;
     case user_data_auth::AUTH_FACTOR_TYPE_LEGACY_FINGERPRINT:
       LOG(FATAL) << "Fingerprint factor type should never be returned";
-      return AuthFactorType::kUnknownLegacy;
     case user_data_auth::AUTH_FACTOR_TYPE_PASSWORD:
       return AuthFactorType::kPassword;
     case user_data_auth::AUTH_FACTOR_TYPE_PIN:
@@ -87,10 +171,11 @@ AuthFactorType ConvertFactorTypeFromProto(user_data_auth::AuthFactorType type) {
       return AuthFactorType::kKiosk;
     case user_data_auth::AUTH_FACTOR_TYPE_SMART_CARD:
       return AuthFactorType::kSmartCard;
+    case user_data_auth::AUTH_FACTOR_TYPE_FINGERPRINT:
+      return AuthFactorType::kFingerprint;
     default:
       // Use `--ignore-unknown-auth-factors` to avoid this.
       LOG(FATAL) << "Unknown auth factor type " << static_cast<int>(type);
-      return AuthFactorType::kUnknownLegacy;
   }
 }
 
@@ -132,14 +217,31 @@ void SerializeAuthFactor(const AuthFactor& factor,
   }
 
   switch (factor.ref().type()) {
-    case AuthFactorType::kPassword:
-      out_proto->mutable_password_metadata();
+    case AuthFactorType::kPassword: {
+      user_data_auth::PasswordMetadata& password_metadata_proto =
+          *out_proto->mutable_password_metadata();
+      if (factor.GetPasswordMetadata().hash_info().has_value()) {
+        ConvertKnowledgeFactorHashInfoToProto(
+            *factor.GetPasswordMetadata().hash_info(),
+            *password_metadata_proto.mutable_hash_info());
+      }
       break;
-    case AuthFactorType::kPin:
-      out_proto->mutable_pin_metadata();
+    }
+    case AuthFactorType::kPin: {
+        out_proto->mutable_common_metadata()->set_lockout_policy(
+            user_data_auth::LOCKOUT_POLICY_TIME_LIMITED);
+      user_data_auth::PinMetadata& pin_metadata_proto =
+          *out_proto->mutable_pin_metadata();
+      if (factor.GetPinMetadata().hash_info().has_value()) {
+        ConvertKnowledgeFactorHashInfoToProto(
+            *factor.GetPinMetadata().hash_info(),
+            *pin_metadata_proto.mutable_hash_info());
+      }
       break;
+    }
     case AuthFactorType::kRecovery:
-      out_proto->mutable_cryptohome_recovery_metadata();
+      out_proto->mutable_cryptohome_recovery_metadata()->set_mediator_pub_key(
+          factor.GetCryptohomeRecoveryMetadata().mediator_pub_key);
       break;
     case AuthFactorType::kKiosk:
       out_proto->mutable_kiosk_metadata();
@@ -148,12 +250,13 @@ void SerializeAuthFactor(const AuthFactor& factor,
       out_proto->mutable_smart_card_metadata()->set_public_key_spki_der(
           factor.GetSmartCardMetadata().public_key_spki_der);
       break;
+    case AuthFactorType::kFingerprint:
+      out_proto->mutable_fingerprint_metadata();
+      break;
     case AuthFactorType::kLegacyFingerprint:
       LOG(FATAL) << "Legacy fingerprint factor type should never be serialized";
-      break;
     case AuthFactorType::kUnknownLegacy:
       LOG(FATAL) << "Unknown factor type should never be serialized";
-      break;
     default:
       NOTIMPLEMENTED() << "Auth factor "
                        << static_cast<int>(factor.ref().type())
@@ -182,11 +285,12 @@ void SerializeAuthInput(const AuthFactorRef& ref,
         proto_input->set_recovery_response(recovery_auth.recovery_data);
       } else {
         const auto& recovery_creation = auth_input.GetRecoveryCreationInput();
-        const bool result = base::HexStringToString(
-            recovery_creation.pub_key, proto_input->mutable_mediator_pub_key());
-        CHECK(result);
-        proto_input->set_user_gaia_id(recovery_creation.user_gaia_id);
+        proto_input->set_mediator_pub_key(recovery_creation.pub_key);
+        proto_input->set_user_gaia_id(
+            recovery_creation.user_gaia_id.ToString());
         proto_input->set_device_user_id(recovery_creation.device_user_id);
+        proto_input->set_ensure_fresh_recovery_id(
+            recovery_creation.ensure_fresh_recovery_id);
       }
     } break;
     case AuthFactorType::kKiosk:
@@ -209,9 +313,13 @@ void SerializeAuthInput(const AuthFactorRef& ref,
       // only the signal. Creating empty input for `oneof` to work.
       out_proto->mutable_legacy_fingerprint_input();
       break;
+    case AuthFactorType::kFingerprint:
+      // Fingerprint does not use any information from the Ash side,
+      // only the signal. Creating empty input for `oneof` to work.
+      out_proto->mutable_fingerprint_input();
+      break;
     case AuthFactorType::kUnknownLegacy:
       LOG(FATAL) << "Unknown factor type should never be serialized";
-      break;
     default:
       NOTIMPLEMENTED() << "Auth factor "
                        << static_cast<int>(auth_input.GetType())
@@ -220,59 +328,81 @@ void SerializeAuthInput(const AuthFactorRef& ref,
   }
 }
 
-AuthFactor DeserializeAuthFactor(const user_data_auth::AuthFactor& proto,
-                                 AuthFactorType fallback_type) {
+AuthFactor DeserializeAuthFactor(
+    const user_data_auth::AuthFactorWithStatus& proto,
+    AuthFactorType fallback_type) {
+  CHECK(proto.has_auth_factor());
+  auto factor_proto = proto.auth_factor();
   AuthFactorType type;
-  if (proto.type() == user_data_auth::AUTH_FACTOR_TYPE_UNSPECIFIED) {
+  if (factor_proto.type() == user_data_auth::AUTH_FACTOR_TYPE_UNSPECIFIED) {
     LOG(WARNING) << "Unspecified auth factor type found, treating it as a "
                  << static_cast<int>(fallback_type);
     type = fallback_type;
   } else {
-    type = ConvertFactorTypeFromProto(proto.type());
+    type = ConvertFactorTypeFromProto(factor_proto.type());
     // TODO(b/243808147): Remove this hack after fixing cryptohome to return
     // `AUTH_FACTOR_TYPE_UNSPECIFIED` for legacy kiosk keysets.
     if (fallback_type == cryptohome::AuthFactorType::kKiosk &&
         type != cryptohome::AuthFactorType::kKiosk) {
-      LOG(WARNING) << "Fixup kiosk key type for " << proto.label() << " "
-                   << proto.type();
+      LOG(WARNING) << "Fixup kiosk key type for " << factor_proto.label() << " "
+                   << factor_proto.type();
       type = cryptohome::AuthFactorType::kKiosk;
     }
   }
-  AuthFactorRef ref(type, KeyLabel{proto.label()});
+  AuthFactorRef ref(type, KeyLabel{factor_proto.label()});
   ComponentVersion chrome_ver{kFallbackFactorVersion};
   ComponentVersion chromeos_ver{kFallbackFactorVersion};
-  if (proto.has_common_metadata()) {
-    if (!proto.common_metadata().chrome_version_last_updated().empty()) {
-      chrome_ver = ComponentVersion(
-          proto.common_metadata().chrome_version_last_updated());
+  LockoutPolicy lockout_policy = LockoutPolicy::kUnknown;
+  if (factor_proto.has_common_metadata()) {
+    auto common_metadata_proto = factor_proto.common_metadata();
+    if (!common_metadata_proto.chrome_version_last_updated().empty()) {
+      chrome_ver =
+          ComponentVersion(common_metadata_proto.chrome_version_last_updated());
     }
-    if (!proto.common_metadata().chromeos_version_last_updated().empty()) {
+    if (!common_metadata_proto.chromeos_version_last_updated().empty()) {
       chromeos_ver = ComponentVersion(
-          proto.common_metadata().chromeos_version_last_updated());
+          common_metadata_proto.chromeos_version_last_updated());
     }
+    lockout_policy = ConvertLockoutPolicyProtoToLockoutPolicy(
+        common_metadata_proto.lockout_policy());
   }
   AuthFactorCommonMetadata common_metadata{std::move(chrome_ver),
-                                           std::move(chromeos_ver)};
+                                           std::move(chromeos_ver),
+                                           std::move(lockout_policy)};
 
   // Ignore is_active_for_login for now
   switch (type) {
-    case AuthFactorType::kPassword:
-      return AuthFactor(std::move(ref), std::move(common_metadata));
-    case AuthFactorType::kRecovery:
-      return AuthFactor(std::move(ref), std::move(common_metadata));
+    case AuthFactorType::kPassword: {
+      auto password_metadata = ParsePasswordMetadata(factor_proto);
+      return AuthFactor(std::move(ref), std::move(common_metadata),
+                        std::move(password_metadata));
+    }
+    case AuthFactorType::kRecovery: {
+      if (!factor_proto.has_cryptohome_recovery_metadata()) {
+        return AuthFactor(std::move(ref), std::move(common_metadata));
+      }
+      CryptohomeRecoveryMetadata recovery_metadata;
+      recovery_metadata.mediator_pub_key =
+          factor_proto.cryptohome_recovery_metadata().mediator_pub_key();
+      return AuthFactor(std::move(ref), std::move(common_metadata),
+                        std::move(recovery_metadata));
+    }
     case AuthFactorType::kKiosk:
       return AuthFactor(std::move(ref), std::move(common_metadata));
     case AuthFactorType::kPin: {
-      DCHECK(proto.has_pin_metadata());
-      PinStatus pin_status{proto.pin_metadata().auth_locked()};
+      DCHECK(factor_proto.has_pin_metadata());
+      auto pin_metadata = ParsePinMetadata(factor_proto);
+      PinStatus pin_status = proto.has_status_info()
+                                 ? PasrePinFactorStatus(proto.status_info())
+                                 : PinStatus();
       return AuthFactor(std::move(ref), std::move(common_metadata),
-                        std::move(pin_status));
+                        std::move(pin_metadata), std::move(pin_status));
     }
     case AuthFactorType::kSmartCard: {
-      DCHECK(proto.has_smart_card_metadata());
+      DCHECK(factor_proto.has_smart_card_metadata());
       SmartCardMetadata smart_card_metadata;
       smart_card_metadata.public_key_spki_der =
-          proto.smart_card_metadata().public_key_spki_der();
+          factor_proto.smart_card_metadata().public_key_spki_der();
       return AuthFactor(std::move(ref), std::move(common_metadata),
                         std::move(smart_card_metadata));
     }
@@ -280,6 +410,12 @@ AuthFactor DeserializeAuthFactor(const user_data_auth::AuthFactor& proto,
       LOG(FATAL) << "Legacy fingerprint factor should never be returned"
                  << " by cryptohome.";
       __builtin_unreachable();
+    }
+    case AuthFactorType::kFingerprint: {
+      DCHECK(factor_proto.has_fingerprint_metadata());
+      FingerprintMetadata fingerprint_metadata;
+      return AuthFactor(std::move(ref), std::move(common_metadata),
+                        std::move(fingerprint_metadata));
     }
     case AuthFactorType::kUnknownLegacy:
       LOG(FATAL) << "Should already be handled above";

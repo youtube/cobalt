@@ -5,13 +5,13 @@
 #include "third_party/blink/renderer/modules/mediastream/mock_media_stream_registry.h"
 
 #include <memory>
+#include <vector>
 
 #include "base/memory/ptr_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "media/base/audio_parameters.h"
 #include "third_party/blink/public/platform/scheduler/test/renderer_scheduler_test_support.h"
 #include "third_party/blink/public/platform/web_string.h"
-#include "third_party/blink/public/platform/web_vector.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream_video_track.h"
 #include "third_party/blink/renderer/modules/mediastream/mock_media_stream_video_source.h"
 #include "third_party/blink/renderer/modules/mediastream/video_track_adapter_settings.h"
@@ -61,7 +61,7 @@ void MockMediaStreamRegistry::Init() {
 MockMediaStreamVideoSource* MockMediaStreamRegistry::AddVideoTrack(
     const String& track_id,
     const VideoTrackAdapterSettings& adapter_settings,
-    const absl::optional<bool>& noise_reduction,
+    const std::optional<bool>& noise_reduction,
     bool is_screencast,
     double min_frame_rate) {
   auto native_source = std::make_unique<MockMediaStreamVideoSource>();
@@ -74,8 +74,8 @@ MockMediaStreamVideoSource* MockMediaStreamRegistry::AddVideoTrack(
       track_id, source,
       std::make_unique<MediaStreamVideoTrack>(
           native_source_ptr, adapter_settings, noise_reduction, is_screencast,
-          min_frame_rate, absl::nullopt /* pan */, absl::nullopt /* tilt */,
-          absl::nullopt /* zoom */, false /* pan_tilt_zoom_allowed */,
+          min_frame_rate, nullptr /* device_settings */,
+          false /* pan_tilt_zoom_allowed */,
           MediaStreamVideoSource::ConstraintsOnceCallback(),
           true /* enabled */));
   descriptor_->AddRemoteTrack(component);
@@ -85,7 +85,7 @@ MockMediaStreamVideoSource* MockMediaStreamRegistry::AddVideoTrack(
 MockMediaStreamVideoSource* MockMediaStreamRegistry::AddVideoTrack(
     const String& track_id) {
   return AddVideoTrack(track_id, VideoTrackAdapterSettings(),
-                       absl::optional<bool>(), false /* is_screncast */,
+                       std::optional<bool>(), false /* is_screncast */,
                        0.0 /* min_frame_rate */);
 }
 

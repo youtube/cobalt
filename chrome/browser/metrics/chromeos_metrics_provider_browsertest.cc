@@ -29,9 +29,10 @@ using UkmEntry = ukm::builders::ChromeOS_DeviceManagement;
 // Returns the user type for logging in.
 ash::LoggedInUserMixin::LogInType GetLogInType(
     user_manager::UserType user_type) {
-  if (user_type == user_manager::USER_TYPE_CHILD)
+  if (user_type == user_manager::UserType::kChild) {
     return ash::LoggedInUserMixin::LogInType::kChild;
-  return ash::LoggedInUserMixin::LogInType::kRegular;
+  }
+  return ash::LoggedInUserMixin::LogInType::kConsumer;
 }
 
 void ProvideHistograms() {
@@ -54,8 +55,9 @@ class ChromeOSMetricsProviderTest
     : public MixinBasedInProcessBrowserTest,
       public testing::WithParamInterface<user_manager::UserType> {
  protected:
-  ash::LoggedInUserMixin logged_in_user_mixin_{
-      &mixin_host_, GetLogInType(GetParam()), embedded_test_server(), this};
+  ash::LoggedInUserMixin logged_in_user_mixin_{&mixin_host_, /*test_base=*/this,
+                                               embedded_test_server(),
+                                               GetLogInType(GetParam())};
 };
 
 IN_PROC_BROWSER_TEST_P(ChromeOSMetricsProviderTest, PrimaryUserType) {
@@ -79,8 +81,8 @@ IN_PROC_BROWSER_TEST_P(ChromeOSMetricsProviderTest, PrimaryUserType) {
 
 INSTANTIATE_TEST_SUITE_P(,
                          ChromeOSMetricsProviderTest,
-                         testing::Values(user_manager::USER_TYPE_REGULAR,
-                                         user_manager::USER_TYPE_CHILD));
+                         testing::Values(user_manager::UserType::kRegular,
+                                         user_manager::UserType::kChild));
 
 class ChromeOSMetricsProviderGuestModeTest
     : public MixinBasedInProcessBrowserTest {
@@ -94,7 +96,7 @@ IN_PROC_BROWSER_TEST_F(ChromeOSMetricsProviderGuestModeTest, PrimaryUserType) {
   ProvideHistograms();
 
   histogram_tester.ExpectUniqueSample("UMA.PrimaryUserType",
-                                      user_manager::USER_TYPE_GUEST, 1);
+                                      user_manager::UserType::kGuest, 1);
 }
 
 class ChromeOSMetricsProviderEnrolledDeviceTest

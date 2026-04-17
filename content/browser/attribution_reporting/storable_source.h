@@ -10,14 +10,11 @@
 #include "content/browser/attribution_reporting/common_source_info.h"
 #include "content/browser/attribution_reporting/store_source_result.mojom.h"
 #include "content/common/content_export.h"
+#include "services/metrics/public/cpp/ukm_source_id.h"
 
 namespace attribution_reporting {
 class SuitableOrigin;
 }  // namespace attribution_reporting
-
-namespace base {
-class Time;
-}  // namespace base
 
 namespace content {
 
@@ -28,10 +25,10 @@ class CONTENT_EXPORT StorableSource {
 
   StorableSource(attribution_reporting::SuitableOrigin reporting_origin,
                  attribution_reporting::SourceRegistration,
-                 base::Time source_time,
                  attribution_reporting::SuitableOrigin source_origin,
                  attribution_reporting::mojom::SourceType,
-                 bool is_within_fenced_frame);
+                 bool is_within_fenced_frame,
+                 ukm::SourceId);
 
   ~StorableSource();
 
@@ -53,6 +50,15 @@ class CONTENT_EXPORT StorableSource {
 
   bool is_within_fenced_frame() const { return is_within_fenced_frame_; }
 
+  void set_cookie_based_debug_allowed(bool value) {
+    common_info_.set_cookie_based_debug_allowed(value);
+  }
+
+  ukm::SourceId ukm_source_id() const { return ukm_source_id_; }
+
+  friend bool operator==(const StorableSource&,
+                         const StorableSource&) = default;
+
  private:
   attribution_reporting::SourceRegistration registration_;
 
@@ -61,8 +67,8 @@ class CONTENT_EXPORT StorableSource {
   // Whether the source is registered within a fenced frame tree.
   bool is_within_fenced_frame_;
 
-  // When adding new members, the corresponding `operator==()` definition in
-  // `attribution_test_utils.h` should also be updated.
+  // The source ID used to record UKM.
+  ukm::SourceId ukm_source_id_;
 };
 
 }  // namespace content

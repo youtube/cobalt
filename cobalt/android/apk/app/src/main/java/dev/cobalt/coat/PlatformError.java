@@ -21,16 +21,27 @@ import android.app.Dialog;
 import android.content.ActivityNotFoundException;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
+import android.view.KeyEvent;
 import androidx.annotation.IntDef;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import org.chromium.content_public.browser.WebContents;
+import org.jni_zero.NativeMethods;
 
-/** Shows an ErrorDialog to inform the user of a Starboard platform error. */
+/**
+ * Shows an ErrorDialog to inform the user of a network platform error.
+ * The dialog should appear if the device has no wifi or ethernet connection.
+ * It should also appear in cases of "weak" internet (ie. connected to a network
+ * that doesn't have internet like a router that was just unplugged) as well as if
+ * the connection is experiencing DNS resolution errors. Prompts the user to retry
+ * or to navigate to the device's network settings menu.
+*/
 public class PlatformError
     implements DialogInterface.OnClickListener, DialogInterface.OnDismissListener {
 
@@ -52,26 +63,30 @@ public class PlatformError
   // Button IDs for CONNECTION_ERROR
   private static final int RETRY_BUTTON = 1;
   private static final int NETWORK_SETTINGS_BUTTON = 2;
+  private static final int DISMISS_BUTTON = 3;
 
-  private final Holder<Activity> activityHolder;
-  private final @ErrorType int errorType;
-  private final long data;
-  private final Handler uiThreadHandler;
+  private static final String RETRY_PARAM_KEY = "netdialog_retry";
+  private static final String RETRY_PARAM_VALUE = "1";
 
-  private Dialog dialog;
-  private int response;
+  private final Holder<Activity> mActivityHolder;
+  private final @ErrorType int mErrorType;
+  private final long mData;
+  private final Handler mUiThreadHandler;
+
+  private Dialog mDialog;
+  private int mResponse;
 
   public PlatformError(Holder<Activity> activityHolder, @ErrorType int errorType, long data) {
-    this.activityHolder = activityHolder;
-    this.errorType = errorType;
-    this.data = data;
-    uiThreadHandler = new Handler(Looper.getMainLooper());
-    response = CANCELLED;
+    mActivityHolder = activityHolder;
+    mErrorType = errorType;
+    mData = data;
+    mUiThreadHandler = new Handler(Looper.getMainLooper());
+    mResponse = CANCELLED;
   }
 
   /** Display the error. */
   public void raise() {
-    uiThreadHandler.post(
+    mUiThreadHandler.post(
         new Runnable() {
           @Override
           public void run() {
@@ -80,51 +95,104 @@ public class PlatformError
         });
   }
 
+  public void setResponse(@Response int response) {
+    mResponse = response;
+  }
+
   private void showDialogOnUiThread() {
-    Activity activity = activityHolder.get();
+    Activity activity = mActivityHolder.get();
     if (activity == null) {
-      sendResponse(CANCELLED, data);
+      sendResponse(CANCELLED, mData);
       return;
     }
     ErrorDialog.Builder dialogBuilder = new ErrorDialog.Builder(activity);
-    switch (errorType) {
+    switch (mErrorType) {
       case CONNECTION_ERROR:
         dialogBuilder
             .setMessage(R.string.starboard_platform_connection_error)
             .addButton(RETRY_BUTTON, R.string.starboard_platform_retry)
-            .addButton(NETWORK_SETTINGS_BUTTON, R.string.starboard_platform_network_settings);
+            .addButton(NETWORK_SETTINGS_BUTTON, R.string.starboard_platform_network_settings)
+            .addButton(DISMISS_BUTTON, R.string.starboard_platform_dismiss);
         break;
       default:
-        Log.e(TAG, "Unknown platform error " + errorType);
+        Log.e(TAG, "Unknown platform error " + mErrorType);
         return;
     }
-    dialog = dialogBuilder.setButtonClickListener(this).setOnDismissListener(this).create();
-    dialog.show();
+    mDialog = dialogBuilder.setButtonClickListener(this).setOnDismissListener(this).create();
+
+    // When the user presses the back button, suspend the app without dismissing the dialog
+    mDialog.setOnKeyListener(
+        (dialog, keyCode, event) -> {
+          if ((keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_ESCAPE)
+              && event.getAction() == KeyEvent.ACTION_DOWN) {
+            CobaltActivity cobaltActivity = (CobaltActivity) mActivityHolder.get();
+            if (cobaltActivity != null) {
+              cobaltActivity.getStarboardBridge().requestSuspend();
+            }
+            // Consume the event and do not dismiss the dialog.
+            return true;
+          }
+          return false;
+        });
+
+    mDialog.show();
+  }
+
+  public void dismiss() {
+    mUiThreadHandler.post(
+        () -> {
+          if (mDialog != null) {
+            mDialog.dismiss();
+          }
+        });
+  }
+
+  public boolean isShowing() {
+    return mDialog != null && mDialog.isShowing();
   }
 
   @Override
   public void onClick(DialogInterface dialogInterface, int whichButton) {
-    if (errorType == CONNECTION_ERROR) {
-      CobaltActivity cobaltActivity = (CobaltActivity) activityHolder.get();
+    if (mErrorType == CONNECTION_ERROR) {
+      CobaltActivity cobaltActivity = (CobaltActivity) mActivityHolder.get();
       switch (whichButton) {
         case NETWORK_SETTINGS_BUTTON:
-          response = POSITIVE;
+          mResponse = POSITIVE;
           if (cobaltActivity != null) {
-            cobaltActivity.mShouldReloadOnResume = true;
             try {
               cobaltActivity.startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
             } catch (ActivityNotFoundException e) {
               Log.e(TAG, "Failed to start activity for ACTION_WIFI_SETTINGS.");
             }
           }
-          dialog.dismiss();
           break;
         case RETRY_BUTTON:
-          response = POSITIVE;
+          mResponse = POSITIVE;
+          mDialog.dismiss();
+          // cobaltActivity should not be null but could be if the Activity was stopped (e.g.
+          // backgrounded) and StarboardBridge cleared the Holder, but a pending dialog click was
+          // still processed.
           if (cobaltActivity != null) {
-            cobaltActivity.getActiveWebContents().getNavigationController().reload(true);
+            WebContents webContents = cobaltActivity.getActiveWebContents();
+            if (webContents == null) {
+              Log.e(TAG, "WebContents is null and not available to reload the URL.");
+            } else {
+              String currentUrl = webContents.getVisibleUrl() != null ? webContents.getVisibleUrl().getSpec() : "";
+
+              // Reloading the web contents as a fallback if the URL is empty to attempt a fresh navigation.
+              // Otherwise, add a param to the URL to indicate a bootstrap request with a retry from the network dialog
+              if (currentUrl.isEmpty()) {
+                Log.i(TAG, "Visible URL is empty; cannot append retry parameter. Reloading the WebContents");
+                webContents.getNavigationController().reload(/*param=*/true);
+              } else {
+                cobaltActivity.getActiveShell().loadUrl(addRetryUrlParam(currentUrl));
+              }
+            }
           }
-          dialog.dismiss();
+          break;
+        case DISMISS_BUTTON:
+          mResponse = NEGATIVE;
+          mDialog.dismiss();
           break;
         default: // fall out
       }
@@ -133,18 +201,31 @@ public class PlatformError
 
   @Override
   public void onDismiss(DialogInterface dialogInterface) {
-    dialog = null;
-      CobaltActivity cobaltActivity = (CobaltActivity) activityHolder.get();
-      if (cobaltActivity != null && response == CANCELLED) {
-        cobaltActivity.mShouldReloadOnResume = true;
-        cobaltActivity.getStarboardBridge().requestSuspend();
-      }
+    mDialog = null;
   }
 
   /** Informs Starboard when the error is dismissed. */
   protected void sendResponse(@PlatformError.Response int response, long data) {
-    nativeSendResponse(response, data);
+    PlatformErrorJni.get().sendResponse(response, data);
   }
 
-  private native void nativeSendResponse(@PlatformError.Response int response, long data);
+  @NativeMethods
+  interface Natives {
+    void sendResponse(@PlatformError.Response int response, long data);
+  }
+
+  //TODO(b/496219065): Add unit tests for retry URL param logic
+  /** Adds a retry param to the URL if not already present to differentiate
+   *  bootstrap requests that originate from a network dialog retry.
+   */
+  private String addRetryUrlParam(String url) {
+    Uri parsedUri = Uri.parse(url);
+    if (parsedUri.getQueryParameter(RETRY_PARAM_KEY) == null) {
+      Uri.Builder uriBuilder = parsedUri.buildUpon();
+      uriBuilder.appendQueryParameter(RETRY_PARAM_KEY, RETRY_PARAM_VALUE);
+      return uriBuilder.build().toString();
+    }
+    return url;
+  }
+
 }

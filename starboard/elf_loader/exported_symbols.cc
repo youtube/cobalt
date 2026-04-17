@@ -14,9 +14,13 @@
 
 #include "starboard/elf_loader/exported_symbols.h"
 
+// clang-format off
 #include "build/build_config.h"
+// clang-format off
 
 #include <dirent.h>
+
+#include "build/build_config.h"
 
 // TODO: Cobalt b/421944504 - Cleanup once we are done with all the symbols.
 #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
@@ -36,13 +40,13 @@
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/uio.h>
 #include <unistd.h>
 
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/cpu_features.h"
 #include "starboard/decode_target.h"
 #include "starboard/egl.h"
 #include "starboard/event.h"
@@ -61,6 +65,8 @@
 #include "starboard/shared/modular/starboard_layer_posix_poll_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_prctl_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_resource_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_sched_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_semaphore_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_signal_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_socket_abi_wrappers.h"
@@ -117,7 +123,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbAudioSinkIsAudioFrameStorageTypeSupported);
   REGISTER_SYMBOL(SbAudioSinkIsAudioSampleTypeSupported);
   REGISTER_SYMBOL(SbAudioSinkIsValid);
-  REGISTER_SYMBOL(SbCPUFeaturesGet);
   REGISTER_SYMBOL(SbDecodeTargetGetInfo);
   REGISTER_SYMBOL(SbDecodeTargetRelease);
   REGISTER_SYMBOL(SbDrmCloseSession);
@@ -148,7 +153,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMediaGetBufferGarbageCollectionDurationThreshold);
   REGISTER_SYMBOL(SbMediaGetBufferPadding);
   REGISTER_SYMBOL(SbMediaGetInitialBufferCapacity);
-  REGISTER_SYMBOL(SbMediaGetMaxBufferCapacity);
   REGISTER_SYMBOL(SbMediaGetProgressiveBufferBudget);
   REGISTER_SYMBOL(SbMediaGetVideoBufferBudget);
   REGISTER_SYMBOL(SbMediaIsBufferPoolAllocateOnDemand);
@@ -252,7 +256,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(kill);
   REGISTER_SYMBOL(link);
   REGISTER_SYMBOL(listen);
-  REGISTER_SYMBOL(lstat);
   REGISTER_SYMBOL(madvise);
   REGISTER_SYMBOL(malloc);
   REGISTER_SYMBOL(malloc_usable_size);
@@ -264,7 +267,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(mprotect);
   REGISTER_SYMBOL(msync);
   REGISTER_SYMBOL(munmap);
-  REGISTER_SYMBOL(open);
   REGISTER_SYMBOL(pause);
   REGISTER_SYMBOL(pipe);
   REGISTER_SYMBOL(posix_memalign);
@@ -281,7 +283,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(recvfrom);
   REGISTER_SYMBOL(recvmsg);
   REGISTER_SYMBOL(rename);
-  REGISTER_SYMBOL(rmdir);
   REGISTER_SYMBOL(sched_get_priority_max);
   REGISTER_SYMBOL(sched_get_priority_min);
   REGISTER_SYMBOL(sched_yield);
@@ -290,16 +291,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(sendto);
   REGISTER_SYMBOL(signal);
   REGISTER_SYMBOL(socket);
-  REGISTER_SYMBOL(snprintf);
-  REGISTER_SYMBOL(sprintf);
   REGISTER_SYMBOL(srand);
   REGISTER_SYMBOL(symlink);
-  REGISTER_SYMBOL(unlink);
   REGISTER_SYMBOL(usleep);
-  REGISTER_SYMBOL(vfwprintf);
-  REGISTER_SYMBOL(vsnprintf);
-  REGISTER_SYMBOL(vsscanf);
-  REGISTER_SYMBOL(vswprintf);
   REGISTER_SYMBOL(write);
 
   // Linux APIs
@@ -328,7 +322,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(fchmod);
   REGISTER_WRAPPER(fchown);
   REGISTER_WRAPPER(fcntl);
+  REGISTER_WRAPPER(fdopendir);
   REGISTER_WRAPPER(fstat);
+  REGISTER_WRAPPER(fstatat);
   REGISTER_WRAPPER(freeaddrinfo);
   REGISTER_WRAPPER(ftruncate);
   REGISTER_WRAPPER(gai_strerror);
@@ -337,15 +333,12 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(geteuid);
   REGISTER_WRAPPER(getifaddrs);
   REGISTER_WRAPPER(getpid);
+  REGISTER_WRAPPER(getuid);
+  REGISTER_WRAPPER(getpriority);
+  REGISTER_WRAPPER(getrlimit);
   REGISTER_WRAPPER(lseek);
-
-  // TODO: Cobalt - b/424001809.
-  // Add tests for lstat. The wrapper is added to allow running
-  // on raspi-2 as without the wrapper the lstat symbol is not found in
-  // the fallback dlsym call.
-  REGISTER_WRAPPER(lstat);
-
   REGISTER_WRAPPER(mmap);
+  REGISTER_WRAPPER(openat);
   REGISTER_WRAPPER(opendir);
   REGISTER_WRAPPER(pathconf);
   REGISTER_WRAPPER(pipe2);
@@ -411,6 +404,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(pthread_sigmask);
   REGISTER_WRAPPER(readdir);
   REGISTER_WRAPPER(readdir_r);
+  REGISTER_WRAPPER(sched_getaffinity);
+  REGISTER_WRAPPER(readv);
   REGISTER_WRAPPER(setsockopt);
   REGISTER_WRAPPER(sem_destroy);
   REGISTER_WRAPPER(sem_init);
@@ -418,13 +413,14 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(sem_timedwait);
   REGISTER_WRAPPER(sem_wait);
   REGISTER_WRAPPER(sendmsg);
+  REGISTER_WRAPPER(setpriority);
   REGISTER_WRAPPER(shutdown);
   REGISTER_WRAPPER(sigaction);
   REGISTER_WRAPPER(socketpair);
-  REGISTER_WRAPPER(stat);
   REGISTER_WRAPPER(statvfs);
   REGISTER_WRAPPER(sysconf);
   REGISTER_WRAPPER(uname);
+  REGISTER_WRAPPER(unlinkat);
   REGISTER_WRAPPER(utimensat);
   REGISTER_WRAPPER(writev);
 

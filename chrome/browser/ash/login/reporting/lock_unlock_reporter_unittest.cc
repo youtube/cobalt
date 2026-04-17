@@ -1,8 +1,10 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "chrome/browser/ash/login/reporting/lock_unlock_reporter.h"
+
+#include <string_view>
 
 #include "base/memory/raw_ptr.h"
 #include "base/task/sequenced_task_runner.h"
@@ -25,6 +27,8 @@
 
 using testing::_;
 using testing::Eq;
+using testing::Gt;
+using testing::IsEmpty;
 using testing::StrEq;
 
 namespace ash {
@@ -50,10 +54,7 @@ class LockUnlockTestHelper {
   void Init() {
     chromeos::PowerManagerClient::InitializeFake();
     SessionManagerClient::InitializeFake();
-    auto user_manager = std::make_unique<FakeChromeUserManager>();
-    user_manager_ = user_manager.get();
-    user_manager_enabler_ = std::make_unique<user_manager::ScopedUserManager>(
-        std::move(user_manager));
+    fake_user_manager_.Reset(std::make_unique<ash::FakeChromeUserManager>());
   }
 
   void Shutdown() { chromeos::PowerManagerClient::Shutdown(); }
@@ -64,14 +65,13 @@ class LockUnlockTestHelper {
 
   std::unique_ptr<TestingProfile> CreateRegularUserProfile() {
     AccountId account_id = AccountId::FromUserEmail(kFakeEmail);
-    auto* const user = user_manager_->AddUser(account_id);
+    auto* const user = fake_user_manager_->AddUser(account_id);
     TestingProfile::Builder profile_builder;
     profile_builder.SetProfileName(user->GetAccountId().GetUserEmail());
     auto profile = profile_builder.Build();
-    ProfileHelper::Get()->SetProfileToUserMappingForTesting(user);
     ProfileHelper::Get()->SetUserToProfileMappingForTesting(user,
                                                             profile.get());
-    user_manager_->LoginUser(user->GetAccountId(), true);
+    fake_user_manager_->LoginUser(user->GetAccountId(), true);
     return profile;
   }
 
@@ -89,7 +89,7 @@ class LockUnlockTestHelper {
 
     ON_CALL(*mock_queue, AddRecord(_, ::reporting::Priority::SECURITY, _))
         .WillByDefault(
-            [this, status](base::StringPiece record_string,
+            [this, status](std::string_view record_string,
                            ::reporting::Priority event_priority,
                            ::reporting::ReportQueue::EnqueueCallback cb) {
               ++report_count_;
@@ -110,8 +110,8 @@ class LockUnlockTestHelper {
   int GetReportCount() { return report_count_; }
 
  private:
-  raw_ptr<FakeChromeUserManager, ExperimentalAsh> user_manager_;
-  std::unique_ptr<user_manager::ScopedUserManager> user_manager_enabler_;
+  user_manager::TypedScopedUserManager<ash::FakeChromeUserManager>
+      fake_user_manager_;
   content::BrowserTaskEnvironment task_environment_;
 
   LockUnlockRecord record_;
@@ -122,7 +122,7 @@ class LockUnlockTestHelper {
 class LockUnlockReporterTest
     : public ::testing::TestWithParam<LockUnlockReporterTestCase> {
  protected:
-  LockUnlockReporterTest() {}
+  LockUnlockReporterTest() = default;
 
   void SetUp() override { test_helper_.Init(); }
 
@@ -130,6 +130,35 @@ class LockUnlockReporterTest
 
   LockUnlockTestHelper test_helper_;
 };
+
+// When the device is locked/unlocked by an unaffiliated user a unique user ID
+// for this device should be reported.
+TEST_F(LockUnlockReporterTest, ReportUnaffiliatedUserId) {
+  policy::ManagedSessionService managed_session_service;
+  auto reporter_helper = test_helper_.GetReporterHelper(
+      /*reporting_enabled=*/true,
+      /*should_report_user=*/false);
+
+  auto reporter = LockUnlockReporter::CreateForTest(std::move(reporter_helper),
+                                                    &managed_session_service);
+
+  auto profile = test_helper_.CreateRegularUserProfile();
+  auto* const user = ProfileHelper::Get()->GetUserByProfile(profile.get());
+  managed_session_service.OnUserProfileLoaded(user->GetAccountId());
+
+  test_helper_.session_manager()->SetSessionState(
+      session_manager::SessionState::LOCKED);
+  managed_session_service.OnSessionStateChanged();
+
+  const LockUnlockRecord& record = test_helper_.GetRecord();
+  ASSERT_THAT(test_helper_.GetReportCount(), Eq(1));
+  EXPECT_TRUE(record.has_event_timestamp_sec());
+  EXPECT_FALSE(record.has_unlock_event());
+  EXPECT_FALSE(record.has_affiliated_user());
+  EXPECT_TRUE(record.has_unaffiliated_user());
+  EXPECT_TRUE(record.unaffiliated_user().has_user_id_num());
+  EXPECT_TRUE(record.has_lock_event());
+}
 
 TEST_F(LockUnlockReporterTest, ReportLockPolicyEnabled) {
   policy::ManagedSessionService managed_session_service;

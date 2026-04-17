@@ -5,6 +5,8 @@
 #include "chrome/browser/ash/policy/reporting/metrics_reporting/apps/app_usage_telemetry_sampler.h"
 
 #include <memory>
+#include <optional>
+#include <string>
 
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
@@ -19,7 +21,6 @@
 #include "components/services/app_service/public/cpp/app_types.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace reporting {
 
@@ -39,7 +40,7 @@ void AppUsageTelemetrySampler::MaybeCollect(OptionalMetricCallback callback) {
   }
   if (!profile_) {
     // Profile has be destructed. Return.
-    std::move(callback).Run(absl::nullopt);
+    std::move(callback).Run(std::nullopt);
     return;
   }
 
@@ -50,7 +51,7 @@ void AppUsageTelemetrySampler::MaybeCollect(OptionalMetricCallback callback) {
   const PrefService* const user_prefs = profile_->GetPrefs();
   if (!user_prefs->HasPrefPath(::apps::kAppUsageTime)) {
     // No usage data in the pref store.
-    std::move(callback).Run(absl::nullopt);
+    std::move(callback).Run(std::nullopt);
     return;
   }
 
@@ -58,19 +59,26 @@ void AppUsageTelemetrySampler::MaybeCollect(OptionalMetricCallback callback) {
   for (auto usage_it : user_prefs->GetDict(::apps::kAppUsageTime)) {
     ::apps::AppPlatformMetrics::UsageTime usage_time(usage_it.second);
     if (usage_time.reporting_usage_time < metrics::kMinimumAppUsageTime) {
-      // No reporting usage tracked by the `AppUsageCollector` since it was last
+      // No reporting usage tracked by the `AppUsageObserver` since it was last
       // enabled, so we skip. The `AppPlatformMetrics` component will
       // subsequently delete this entry once it reports its UKM snapshot.
-      DCHECK(usage_time.reporting_usage_time.is_zero());
+      CHECK(usage_time.reporting_usage_time.is_zero());
       continue;
     }
 
     ::apps::AppType app_type =
         ::apps::GetAppType(profile_.get(), usage_time.app_id);
+    std::string public_app_id = usage_time.app_id;
+    if (!usage_time.app_publisher_id.empty()) {
+      // Use publisher id if there is one set. Mostly needed for android apps,
+      // web apps, etc. because they include public app identifiers.
+      public_app_id = usage_time.app_publisher_id;
+    }
+
     AppUsageData::AppUsage* const app_usage =
         app_usage_data->mutable_app_usage()->Add();
     app_usage->set_app_instance_id(usage_it.first);
-    app_usage->set_app_id(usage_time.app_id);
+    app_usage->set_app_id(public_app_id);
     app_usage->set_app_type(
         ::apps::ConvertAppTypeToProtoApplicationType(app_type));
     app_usage->set_running_time_ms(
@@ -79,7 +87,7 @@ void AppUsageTelemetrySampler::MaybeCollect(OptionalMetricCallback callback) {
 
   if (app_usage_data->app_usage().empty()) {
     // No app instance usage to report.
-    std::move(callback).Run(absl::nullopt);
+    std::move(callback).Run(std::nullopt);
     return;
   }
 
@@ -90,12 +98,12 @@ void AppUsageTelemetrySampler::MaybeCollect(OptionalMetricCallback callback) {
 void AppUsageTelemetrySampler::ResetAppUsageDataInPrefStore(
     const AppUsageData* app_usage_data) {
   DCHECK_CURRENTLY_ON(::content::BrowserThread::UI);
-  DCHECK(profile_);
+  CHECK(profile_);
   ScopedDictPrefUpdate usage_dict_pref(profile_->GetPrefs(),
                                        ::apps::kAppUsageTime);
   for (const auto& usage_info : app_usage_data->app_usage()) {
     const std::string& instance_id = usage_info.app_instance_id();
-    DCHECK(usage_dict_pref->contains(instance_id))
+    CHECK(usage_dict_pref->contains(instance_id))
         << "Missing app usage data for instance: " << instance_id;
 
     // Reduce usage time tracked in the pref store based on the data that was

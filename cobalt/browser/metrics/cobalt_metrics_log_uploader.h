@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_METRICS_LOG_UPLOADER_H_
-#define COBALT_METRICS_LOG_UPLOADER_H_
+#ifndef COBALT_BROWSER_METRICS_COBALT_METRICS_LOG_UPLOADER_H_
+#define COBALT_BROWSER_METRICS_COBALT_METRICS_LOG_UPLOADER_H_
 
 #include <string>
 
@@ -39,6 +39,7 @@ class CobaltMetricsLogUploader : public metrics::MetricsLogUploader {
   ~CobaltMetricsLogUploader() = default;
 
   void UploadLog(const std::string& compressed_log_data,
+                 const metrics::LogMetadata& log_metadata,
                  const std::string& log_hash,
                  const std::string& log_signature,
                  const metrics::ReportingInfo& reporting_info) override;
@@ -61,12 +62,16 @@ class CobaltMetricsLogUploader : public metrics::MetricsLogUploader {
   // Cleans up and resets any open listeners.
   void OnCloseConnection();
 
-  base::WeakPtrFactory<CobaltMetricsLogUploader> weak_factory_{this};
   mojo::Remote<h5vcc_metrics::mojom::MetricsListener> metrics_listener_;
   const ::metrics::MetricsLogUploader::MetricServiceType service_type_;
   ::metrics::MetricsLogUploader::UploadCallback on_upload_complete_;
+
+  // NOTE: Do not add member variables after weak_factory_
+  // It should be the first one destroyed among all members.
+  // See base/memory/weak_ptr.h.
+  base::WeakPtrFactory<CobaltMetricsLogUploader> weak_factory_{this};
 };
 
 }  // namespace cobalt
 
-#endif  // COBALT_METRICS_LOG_UPLOADER_H_
+#endif  // COBALT_BROWSER_METRICS_COBALT_METRICS_LOG_UPLOADER_H_

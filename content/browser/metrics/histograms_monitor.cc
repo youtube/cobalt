@@ -4,6 +4,7 @@
 
 #include "content/browser/metrics/histograms_monitor.h"
 
+#include "base/containers/map_util.h"
 #include "base/metrics/histogram_samples.h"
 #include "base/metrics/statistics_recorder.h"
 
@@ -13,21 +14,20 @@ HistogramsMonitor::HistogramsMonitor() = default;
 
 HistogramsMonitor::~HistogramsMonitor() = default;
 
-void HistogramsMonitor::StartMonitoring(const std::string& query) {
-  query_ = query;
+void HistogramsMonitor::StartMonitoring() {
   histograms_snapshot_.clear();
   // Save a snapshot of all current histograms that will be used as a baseline.
-  for (const auto* const histogram : base::StatisticsRecorder::WithName(
-           base::StatisticsRecorder::GetHistograms(), query_)) {
-    histograms_snapshot_[histogram->histogram_name()] =
-        histogram->SnapshotSamples();
+  for (const auto* histogram : base::StatisticsRecorder::GetHistograms()) {
+    base::InsertOrAssign(histograms_snapshot_, histogram->histogram_name(),
+                         histogram->SnapshotSamples());
   }
 }
 
-base::Value::List HistogramsMonitor::GetDiff() {
+base::Value::List HistogramsMonitor::GetDiff(const std::string& query) {
   base::StatisticsRecorder::Histograms histograms =
       base::StatisticsRecorder::Sort(base::StatisticsRecorder::WithName(
-          base::StatisticsRecorder::GetHistograms(), query_));
+          base::StatisticsRecorder::GetHistograms(), query,
+          /*case_sensitive=*/false));
   return GetDiffInternal(histograms);
 }
 

@@ -32,6 +32,8 @@
 #include "base/check_op.h"
 #include "base/memory/memory_pressure_listener.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/synchronization/lock.h"
 #include "cc/paint/paint_image_generator.h"
 #include "third_party/blink/renderer/platform/graphics/image_frame_generator.h"
@@ -40,7 +42,6 @@
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/doubly_linked_list.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
-#include "third_party/blink/renderer/platform/wtf/threading_primitives.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "third_party/skia/include/core/SkSize.h"
 #include "third_party/skia/include/core/SkTypes.h"
@@ -52,7 +53,7 @@ namespace blink {
 // 2. Size of the image.
 // 3. ImageDecoder::AlphaOption
 struct DecoderCacheKey {
-  const blink::ImageFrameGenerator* gen_;
+  raw_ptr<const blink::ImageFrameGenerator> gen_;
   SkISize size_;
   blink::ImageDecoder::AlphaOption alpha_option_;
   cc::PaintImage::GeneratorClientId client_id_;
@@ -109,12 +110,15 @@ class CacheEntry : public DoublyLinkedListNode<CacheEntry> {
   virtual CacheType GetType() const = 0;
 
  protected:
-  const ImageFrameGenerator* generator_;
+  raw_ptr<const ImageFrameGenerator> generator_;
   int use_count_;
 
  private:
-  CacheEntry* prev_;
-  CacheEntry* next_;
+  // RAW_PTR_EXCLUSION: Rewriting causes a crash, because a base class ctor
+  // accesses child class ptr fields before they're initialized (see
+  // crbug.com/349213429).
+  RAW_PTR_EXCLUSION CacheEntry* prev_;
+  RAW_PTR_EXCLUSION CacheEntry* next_;
 };
 
 class DecoderCacheEntry final : public CacheEntry {
@@ -177,9 +181,9 @@ struct HashTraits<blink::DecoderCacheKey>
     : GenericHashTraits<blink::DecoderCacheKey> {
   STATIC_ONLY(HashTraits);
   static unsigned GetHash(const blink::DecoderCacheKey& p) {
-    auto first =
-        HashInts(WTF::GetHash(const_cast<blink::ImageFrameGenerator*>(p.gen_)),
-                 WTF::GetHash(p.size_));
+    auto first = HashInts(
+        WTF::GetHash(const_cast<blink::ImageFrameGenerator*>(p.gen_.get())),
+        WTF::GetHash(p.size_));
     auto second = HashInts(WTF::GetHash(static_cast<uint8_t>(p.alpha_option_)),
                            p.client_id_);
     return HashInts(first, second);

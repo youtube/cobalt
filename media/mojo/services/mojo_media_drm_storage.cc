@@ -4,6 +4,7 @@
 
 #include "media/mojo/services/mojo_media_drm_storage.h"
 
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -12,7 +13,6 @@
 #include "base/unguessable_token.h"
 #include "media/mojo/mojom/media_drm_storage.mojom.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
 
@@ -30,7 +30,7 @@ MojoMediaDrmStorage::~MojoMediaDrmStorage() {}
 void MojoMediaDrmStorage::Initialize(InitCB init_cb) {
   DVLOG(1) << __func__;
   media_drm_storage_->Initialize(mojo::WrapCallbackWithDefaultInvokeIfNotRun(
-      std::move(init_cb), false, absl::nullopt));
+      std::move(init_cb), false, std::nullopt));
 }
 
 void MojoMediaDrmStorage::OnProvisioned(ResultCB result_cb) {
@@ -82,6 +82,10 @@ void MojoMediaDrmStorage::OnPersistentSessionLoaded(
                      std::move(session_data->key_set_id),
                      std::move(session_data->mime_type), session_data->key_type)
                : nullptr);
+}
+
+base::WeakPtr<MediaDrmStorage> MojoMediaDrmStorage::AsWeakPtr() {
+  return weak_factory_.GetWeakPtr();
 }
 
 }  // namespace media

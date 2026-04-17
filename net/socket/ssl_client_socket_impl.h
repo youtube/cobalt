@@ -9,7 +9,9 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/compiler_specific.h"
@@ -17,7 +19,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/time/time.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/io_buffer.h"
@@ -29,11 +30,9 @@
 #include "net/socket/ssl_client_socket.h"
 #include "net/socket/stream_socket.h"
 #include "net/ssl/openssl_ssl_util.h"
-#include "net/ssl/ssl_client_cert_type.h"
 #include "net/ssl/ssl_client_session_cache.h"
 #include "net/ssl/ssl_config.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 
@@ -76,11 +75,9 @@ class SSLClientSocketImpl : public SSLClientSocket,
   std::vector<uint8_t> GetECHRetryConfigs() override;
 
   // SSLSocket implementation.
-  int ExportKeyingMaterial(base::StringPiece label,
-                           bool has_context,
-                           base::StringPiece context,
-                           unsigned char* out,
-                           unsigned int outlen) override;
+  int ExportKeyingMaterial(std::string_view label,
+                           std::optional<base::span<const uint8_t>> context,
+                           base::span<uint8_t> out) override;
 
   // StreamSocket implementation.
   int Connect(CompletionOnceCallback callback) override;
@@ -92,9 +89,8 @@ class SSLClientSocketImpl : public SSLClientSocket,
   int GetLocalAddress(IPEndPoint* address) const override;
   const NetLogWithSource& NetLog() const override;
   bool WasEverUsed() const override;
-  bool WasAlpnNegotiated() const override;
   NextProto GetNegotiatedProtocol() const override;
-  absl::optional<base::StringPiece> GetPeerApplicationSettings() const override;
+  std::optional<std::string_view> GetPeerApplicationSettings() const override;
   bool GetSSLInfo(SSLInfo* ssl_info) override;
   int64_t GetTotalReceivedBytes() const override;
   void GetSSLCertRequestInfo(
@@ -139,7 +135,7 @@ class SSLClientSocketImpl : public SSLClientSocket,
   void OnHandshakeIOComplete(int result);
 
   int DoHandshakeLoop(int last_io_result);
-  int DoPayloadRead(IOBuffer* buf, int buf_len);
+  int DoPayloadRead(base::span<uint8_t> buf);
   int DoPayloadWrite();
   void DoPeek();
 
@@ -154,7 +150,6 @@ class SSLClientSocketImpl : public SSLClientSocket,
   static ssl_verify_result_t VerifyCertCallback(SSL* ssl, uint8_t* out_alert);
   ssl_verify_result_t VerifyCert();
   ssl_verify_result_t HandleVerifyResult();
-  int CheckCTCompliance();
 
   // Callback from the SSL layer that indicates the remote server is requesting
   // a certificate for this client.
@@ -165,7 +160,7 @@ class SSLClientSocketImpl : public SSLClientSocket,
 
   // Returns a session cache key for this socket.
   SSLClientSessionCache::Key GetSessionCacheKey(
-      absl::optional<IPAddress> dest_ip_addr) const;
+      std::optional<IPAddress> dest_ip_addr) const;
 
   // Returns true if renegotiations are allowed.
   bool IsRenegotiationAllowed() const;
@@ -174,15 +169,11 @@ class SSLClientSocketImpl : public SSLClientSocket,
   bool IsCachingEnabled() const;
 
   // Callbacks for operations with the private key.
-  ssl_private_key_result_t PrivateKeySignCallback(uint8_t* out,
-                                                  size_t* out_len,
-                                                  size_t max_out,
-                                                  uint16_t algorithm,
-                                                  const uint8_t* in,
-                                                  size_t in_len);
-  ssl_private_key_result_t PrivateKeyCompleteCallback(uint8_t* out,
-                                                      size_t* out_len,
-                                                      size_t max_out);
+  ssl_private_key_result_t PrivateKeySignCallback(
+      uint16_t algorithm,
+      base::span<const uint8_t> input);
+  ssl_private_key_result_t PrivateKeyCompleteCallback(base::span<uint8_t> buf,
+                                                      size_t* out_len);
 
   void OnPrivateKeyComplete(Error error, const std::vector<uint8_t>& signature);
 
@@ -205,7 +196,7 @@ class SSLClientSocketImpl : public SSLClientSocket,
                           OpenSSLErrorInfo* info);
 
   // Wraps SSL_get0_ech_name_override. See documentation for that function.
-  base::StringPiece GetECHNameOverride() const;
+  std::string_view GetECHNameOverride() const;
 
   // Returns true if |cert| is one of the certs in |allowed_bad_certs|.
   // The expected cert status is written to |cert_status|. |*cert_status| can
@@ -224,7 +215,6 @@ class SSLClientSocketImpl : public SSLClientSocket,
   // Used by Write function.
   scoped_refptr<IOBuffer> user_write_buf_;
   int user_write_buf_len_;
-  bool first_post_handshake_write_ = true;
 
   // True if we've already handled the result of our attempt to use early data.
   bool handled_early_data_result_ = false;
@@ -256,7 +246,6 @@ class SSLClientSocketImpl : public SSLClientSocket,
   const raw_ptr<SSLClientContext> context_;
 
   std::unique_ptr<CertVerifier::Request> cert_verifier_request_;
-  base::TimeTicks start_cert_verification_time_;
 
   // Result from Cert Verifier.
   int cert_verification_result_;
@@ -288,18 +277,13 @@ class SSLClientSocketImpl : public SSLClientSocket,
   // True if certificate verification used an ECH name override.
   bool used_ech_name_override_ = false;
 
-  NextProto negotiated_protocol_ = kProtoUnknown;
+  NextProto negotiated_protocol_ = NextProto::kProtoUnknown;
 
   // Set to true if a CertificateRequest was received.
   bool certificate_requested_ = false;
 
   int signature_result_;
   std::vector<uint8_t> signature_;
-
-  // pinning_failure_log contains a message produced by
-  // TransportSecurityState::CheckPublicKeyPins in the event of a
-  // pinning failure. It is a (somewhat) human-readable string.
-  std::string pinning_failure_log_;
 
   // True if PKP is bypassed due to a local trust anchor.
   bool pkp_bypassed_ = false;

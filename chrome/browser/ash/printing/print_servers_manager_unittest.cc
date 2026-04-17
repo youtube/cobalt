@@ -11,9 +11,11 @@
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/task_environment.h"
-#include "chrome/browser/ash/printing/print_servers_provider.h"
+#include "chrome/browser/ash/printing/enterprise/print_servers_provider.h"
 #include "chrome/browser/ash/printing/server_printers_provider.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/testing_browser_process.h"
@@ -62,17 +64,21 @@ class FakePrintServersProvider : public PrintServersProvider {
   ~FakePrintServersProvider() override = default;
 
   void AddObserver(Observer* observer) override { observer_ = observer; }
-  void RemoveObserver(Observer* observer) override {}
+  void RemoveObserver(Observer* observer) override { observer_ = nullptr; }
   void SetData(std::unique_ptr<std::string> data) override {}
   void SetAllowlistPref(PrefService* prefs,
                         const std::string& allowlist_pref) override {}
   void ClearData() override {}
 
-  absl::optional<std::vector<PrintServer>> GetPrintServers() override {
+  std::optional<std::vector<PrintServer>> GetPrintServers() override {
     return print_servers_;
   }
 
-  void SetPrintServers(absl::optional<std::vector<PrintServer>> print_servers) {
+  base::WeakPtr<PrintServersProvider> AsWeakPtr() override {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
+  void SetPrintServers(std::optional<std::vector<PrintServer>> print_servers) {
     print_servers_ = print_servers;
     if (observer_) {
       observer_->OnServersChanged(print_servers.has_value(),
@@ -81,8 +87,9 @@ class FakePrintServersProvider : public PrintServersProvider {
   }
 
  private:
-  absl::optional<std::vector<PrintServer>> print_servers_;
-  raw_ptr<PrintServersProvider::Observer, ExperimentalAsh> observer_;
+  std::optional<std::vector<PrintServer>> print_servers_;
+  raw_ptr<PrintServersProvider::Observer> observer_ = nullptr;
+  base::WeakPtrFactory<FakePrintServersProvider> weak_ptr_factory_{this};
 };
 
 class PrintServersManagerTest : public testing::Test,
@@ -105,7 +112,7 @@ class PrintServersManagerTest : public testing::Test,
     manager_->AddObserver(this);
   }
 
-  ~PrintServersManagerTest() override {}
+  ~PrintServersManagerTest() override = default;
 
   static PrintServer CreatePrintServer(std::string id,
                                        std::string server_url,
@@ -122,7 +129,7 @@ class PrintServersManagerTest : public testing::Test,
   // Captured printer lists from observer callbacks.
   base::flat_map<PrinterClass, std::vector<Printer>> observed_printers_;
 
-  raw_ptr<FakeServerPrintersProvider, ExperimentalAsh>
+  raw_ptr<FakeServerPrintersProvider, DanglingUntriaged>
       server_printers_provider_;
   FakePrintServersProvider user_policy_print_servers_provider_;
   FakePrintServersProvider device_policy_print_servers_provider_;

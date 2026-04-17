@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {AnnotationTool, SaveRequestType, ViewerInkHostElement} from 'chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/pdf_viewer_wrapper.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import type {AnnotationTool, ViewerInkHostElement} from 'chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/pdf_viewer_wrapper.js';
+import {AnnotationMode, SaveRequestType} from 'chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/pdf_viewer_wrapper.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 
 import {waitFor} from './test_util.js';
@@ -18,27 +19,28 @@ function animationFrame(): Promise<void> {
 }
 
 function contentElement(): HTMLElement {
-  return viewer.shadowRoot!.elementFromPoint(innerWidth / 2, innerHeight / 2) as
+  return viewer.shadowRoot.elementFromPoint(innerWidth / 2, innerHeight / 2) as
       HTMLElement;
 }
 
 function isAnnotationMode(): boolean {
-  return viewer.$.toolbar.annotationMode;
+  return viewer.$.toolbar.annotationMode === AnnotationMode.DRAW;
 }
 
 chrome.test.runTests([
   function testAnnotationsEnabled() {
     const toolbar = viewer.$.toolbar;
-    chrome.test.assertTrue(loadTimeData.getBoolean('pdfAnnotationsEnabled'));
     chrome.test.assertTrue(
-        toolbar.shadowRoot!.querySelector('#annotate') != null);
+        loadTimeData.getBoolean('pdfInk1AnnotationsEnabled'));
+    chrome.test.assertTrue(
+        toolbar.shadowRoot.querySelector('#annotate') != null);
     chrome.test.succeed();
   },
   async function testEnterAnnotationMode() {
     chrome.test.assertEq('EMBED', contentElement().tagName);
 
     // Enter annotation mode.
-    viewer.$.toolbar.toggleAnnotation();
+    viewer.$.toolbar.setAnnotationMode(AnnotationMode.DRAW);
     await viewer.loaded;
     chrome.test.assertEq('VIEWER-INK-HOST', contentElement().tagName);
     chrome.test.succeed();
@@ -72,8 +74,8 @@ chrome.test.runTests([
         dark_light_left: -105.75,
         right: 718.5,
         dark_light_right: 717.75,
-        bottom: -412.5,
-        dark_light_bottom: -411.75,
+        bottom: -408.75,
+        dark_light_bottom: -408.0,
       },
       {
         top: 2.25,
@@ -82,8 +84,8 @@ chrome.test.runTests([
         dark_light_left: -3.75,
         right: 408.75,
         dark_light_right: 408,
-        bottom: -205.125,
-        dark_light_bottom: -204.75,
+        bottom: -203.25,
+        dark_light_bottom: -202.875,
       },
       {
         top: -35.25,
@@ -92,8 +94,8 @@ chrome.test.runTests([
         dark_light_left: 33.75,
         right: 446.25,
         dark_light_right: 445.5,
-        bottom: -242.625,
-        dark_light_bottom: -242.25,
+        bottom: -240.75,
+        dark_light_bottom: -240.375,
       },
     ];
 
@@ -126,7 +128,7 @@ chrome.test.runTests([
     // Pen defaults.
     const viewerPdfToolbar = viewer.$.toolbar;
     const viewerAnnotationsBar =
-        viewerPdfToolbar.shadowRoot!.querySelector('viewer-annotations-bar')!;
+        viewerPdfToolbar.shadowRoot.querySelector('viewer-annotations-bar')!;
     const pen = viewerAnnotationsBar.$.pen;
     pen.click();
     chrome.test.assertTrue(!!toolOrNull);
@@ -206,7 +208,7 @@ chrome.test.runTests([
     const inkHost = contentElement();
     const viewerPdfToolbar = viewer.$.toolbar;
     const viewerAnnotationsBar =
-        viewerPdfToolbar.shadowRoot!.querySelector('viewer-annotations-bar')!;
+        viewerPdfToolbar.shadowRoot.querySelector('viewer-annotations-bar')!;
     const undo = viewerAnnotationsBar.$.undo;
     const redo = viewerAnnotationsBar.$.redo;
 
@@ -240,7 +242,7 @@ chrome.test.runTests([
     chrome.test.assertEq(redo.disabled, true);
     chrome.test.succeed();
   },
-  async function testPointerEvents() {
+  function testPointerEvents() {
     chrome.test.assertTrue(isAnnotationMode());
     const inkHost = contentElement() as ViewerInkHostElement;
     inkHost.resetPenMode();
@@ -351,7 +353,7 @@ chrome.test.runTests([
     ]);
     chrome.test.succeed();
   },
-  async function testTouchPanGestures() {
+  function testTouchPanGestures() {
     // Ensure that we have an out-of-bounds area.
     viewer.viewport.setZoom(0.5);
     chrome.test.assertTrue(isAnnotationMode());
@@ -443,7 +445,7 @@ chrome.test.runTests([
   async function testExitAnnotationMode() {
     chrome.test.assertTrue(isAnnotationMode());
     // Exit annotation mode.
-    viewer.$.toolbar.toggleAnnotation();
+    viewer.$.toolbar.setAnnotationMode(AnnotationMode.OFF);
     await viewer.loaded;
     chrome.test.assertEq('EMBED', contentElement().tagName);
     chrome.test.succeed();

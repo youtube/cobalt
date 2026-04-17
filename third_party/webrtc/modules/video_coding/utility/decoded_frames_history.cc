@@ -11,6 +11,9 @@
 #include "modules/video_coding/utility/decoded_frames_history.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <optional>
 
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
@@ -74,11 +77,11 @@ void DecodedFramesHistory::Clear() {
   last_frame_id_.reset();
 }
 
-absl::optional<int64_t> DecodedFramesHistory::GetLastDecodedFrameId() const {
+std::optional<int64_t> DecodedFramesHistory::GetLastDecodedFrameId() const {
   return last_decoded_frame_;
 }
 
-absl::optional<uint32_t> DecodedFramesHistory::GetLastDecodedFrameTimestamp()
+std::optional<uint32_t> DecodedFramesHistory::GetLastDecodedFrameTimestamp()
     const {
   return last_decoded_frame_timestamp_;
 }

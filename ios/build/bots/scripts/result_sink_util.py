@@ -10,13 +10,34 @@ import logging
 import os
 import requests
 import sys
+import traceback
+
+import constants
+
+# import protos for exceptions reporting
+THIS_DIR = os.path.abspath(os.path.dirname(__file__))
+CHROMIUM_SRC_DIR = os.path.abspath(os.path.join(THIS_DIR, '../../../..'))
+sys.path.extend([
+    os.path.abspath(os.path.join(CHROMIUM_SRC_DIR, 'build/util/lib/proto')),
+    os.path.abspath(os.path.join(CHROMIUM_SRC_DIR, 'build/util/'))
+])
+import measures
+import exception_recorder
+
+from google.protobuf import json_format
+from google.protobuf import any_pb2
 
 LOGGER = logging.getLogger(__name__)
 # VALID_STATUSES is a list of valid status values for test_result['status'].
 # The full list can be obtained at
 # https://source.chromium.org/chromium/infra/infra/+/main:go/src/go.chromium.org/luci/resultdb/proto/v1/test_result.proto;drc=ca12b9f52b27f064b0fa47c39baa3b011ffa5790;l=151-174
 VALID_STATUSES = {"PASS", "FAIL", "CRASH", "ABORT", "SKIP"}
-CRASH_MESSAGE = 'App crashed and disconnected.'
+
+EXTENDED_PROPERTIES_KEY = 'extendedProperties'
+
+def format_exception_stacktrace(e: Exception):
+  exception_trace = traceback.format_exception(type(e), e, e.__traceback__)
+  return exception_trace
 
 
 def _compose_test_result(test_id,
@@ -87,13 +108,19 @@ def _compose_test_result(test_id,
       # serializable in order for the eventual json.dumps to succeed
       message = base64.b64encode(test_log.encode('utf-8')).decode('utf-8')
     test_result['summaryHtml'] = '<text-artifact artifact-id="Test Log" />'
-    if CRASH_MESSAGE in test_log:
-      test_result['failureReason'] = {'primaryErrorMessage': CRASH_MESSAGE}
     test_result['artifacts'].update({
         'Test Log': {
             'contents': message
         },
     })
+    # assign primary error message if the host app crashed
+    if constants.CRASH_MESSAGE in test_log:
+      primary_error_message = constants.CRASH_MESSAGE
+      if constants.ASAN_ERROR in test_log:
+        primary_error_message += f' {constants.ASAN_ERROR}'
+      test_result['failureReason'] = {
+          'primaryErrorMessage': primary_error_message
+      }
   if not test_result['artifacts']:
     test_result.pop('artifacts')
 
@@ -101,6 +128,13 @@ def _compose_test_result(test_id,
     test_result['duration'] = '%.9fs' % (duration / 1000.0)
 
   return test_result
+
+
+def _to_camel_case(s):
+  """Converts the string s from snake_case to lowerCamelCase."""
+
+  elems = s.split('_')
+  return elems[0] + ''.join(elem.capitalize() for elem in elems[1:])
 
 
 class ResultSinkClient(object):
@@ -180,3 +214,75 @@ class ResultSinkClient(object):
         data=json.dumps({'testResults': [test_result]}),
     )
     res.raise_for_status()
+
+  def post_extended_properties(self):
+    """Posts extended properties to server with retry.
+    """
+    if not self.sink:
+      return
+    try_count = 0
+    try_count_max = 2
+    while try_count < try_count_max:
+      try_count += 1
+      try:
+        self._post_extended_properties()
+        break
+      except Exception as e:
+        logging.error("Got error %s when uploading extended properties.", e)
+        if try_count < try_count_max:
+          # Upload can fail due to record size being too big. In this case,
+          # report just the upload failure.
+          exception_recorder.clear()
+          measures.clear()
+          exception_recorder.register(e)
+        else:
+          # Swallow the exception if the upload fails again and hit the max
+          # try so that it won't fail the test task (and it shouldn't).
+          logging.error("Hit max retry. Skip uploading extended properties.")
+
+  def _post_extended_properties(self):
+    """Posts extended properties to server.
+
+    Assumes self.sink has been initialized.
+
+    Packages exception_occurrences_pb2 and test_script_metrics_pb2 and sends an
+    UpdateInvocation post request to result sink.
+    """
+    invocation = {EXTENDED_PROPERTIES_KEY: {}}
+    paths = []
+
+    # Sink server by default decodes payload with protojson, i.e. codecJSONV2
+    # in https://source.chromium.org/search?q=f:server.go%20func:requestCodec
+    # which requires loweCamelCase names in the json request.
+    # For the value for update mask, see "JSON Encoding of Field Masks" in
+    # https://protobuf.dev/reference/protobuf/google.protobuf/#field-masks
+    if exception_recorder.size() > 0:
+      invocation[EXTENDED_PROPERTIES_KEY][
+          exception_recorder.EXCEPTION_OCCURRENCES_KEY] = \
+            exception_recorder.to_dict()
+      paths.append('%s.%s' % (EXTENDED_PROPERTIES_KEY,
+                              _to_camel_case(exception_recorder.EXCEPTION_OCCURRENCES_KEY)))
+
+    if measures.size() > 0:
+      invocation[EXTENDED_PROPERTIES_KEY][measures.TEST_SCRIPT_METRICS_KEY] = \
+        measures.to_dict()
+      paths.append('%s.%s' %
+                   (EXTENDED_PROPERTIES_KEY, _to_camel_case(measures.TEST_SCRIPT_METRICS_KEY)))
+
+    req = {'invocation': invocation, 'updateMask': ','.join(paths)}
+
+    inv_data = json.dumps(req, sort_keys=True)
+
+    LOGGER.info(inv_data)
+
+    updateInvo_url = (
+        'http://%s/prpc/luci.resultsink.v1.Sink/UpdateInvocation' %
+        self.sink['address'])
+    res = self._session.post(
+        url=updateInvo_url,
+        headers=self.headers,
+        data=inv_data,
+    )
+    res.raise_for_status()
+
+

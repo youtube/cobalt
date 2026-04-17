@@ -11,12 +11,12 @@
 #include <utility>
 #include <vector>
 
+#include "quiche/http2/core/http2_constants.h"
 #include "quiche/http2/decoder/decode_buffer.h"
 #include "quiche/http2/hpack/decoder/hpack_decoder_listener.h"
 #include "quiche/http2/hpack/decoder/hpack_decoder_state.h"
 #include "quiche/http2/hpack/decoder/hpack_decoder_tables.h"
 #include "quiche/http2/hpack/http2_hpack_constants.h"
-#include "quiche/http2/http2_constants.h"
 #include "quiche/http2/test_tools/hpack_block_builder.h"
 #include "quiche/http2/test_tools/hpack_example.h"
 #include "quiche/http2/test_tools/http2_random.h"
@@ -62,8 +62,8 @@ typedef std::vector<HpackHeaderEntry> HpackHeaderEntries;
 class MockHpackDecoderListener : public HpackDecoderListener {
  public:
   MOCK_METHOD(void, OnHeaderListStart, (), (override));
-  MOCK_METHOD(void, OnHeader,
-              (const std::string& name, const std::string& value), (override));
+  MOCK_METHOD(void, OnHeader, (absl::string_view name, absl::string_view value),
+              (override));
   MOCK_METHOD(void, OnHeaderListEnd, (), (override));
   MOCK_METHOD(void, OnHeaderErrorDetected, (absl::string_view error_message),
               (override));
@@ -91,7 +91,7 @@ class HpackDecoderTest : public quiche::test::QuicheTestWithParam<bool>,
   // Called for each header name-value pair that is decoded, in the order they
   // appear in the HPACK block. Multiple values for a given key will be emitted
   // as multiple calls to OnHeader.
-  void OnHeader(const std::string& name, const std::string& value) override {
+  void OnHeader(absl::string_view name, absl::string_view value) override {
     ASSERT_TRUE(saw_start_);
     ASSERT_FALSE(saw_end_);
     header_entries_.emplace_back(name, value);

@@ -20,11 +20,14 @@
 #include "ui/base/interaction/element_tracker.h"
 #include "ui/base/interaction/expect_call_in_scope.h"
 #include "ui/base/interaction/interaction_test_util.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/combobox_model.h"
 #include "ui/base/models/simple_combobox_model.h"
-#include "ui/base/models/simple_menu_model.h"
-#include "ui/base/ui_base_types.h"
+#include "ui/base/mojom/menu_source_type.mojom.h"
 #include "ui/gfx/range/range.h"
+#include "ui/menus/simple_menu_model.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/button/label_button.h"
@@ -64,6 +67,8 @@ constexpr int kMenuID1 = 1;
 constexpr int kMenuID2 = 2;
 
 class DefaultActionTestView : public View {
+  METADATA_HEADER(DefaultActionTestView, View)
+
  public:
   DefaultActionTestView() = default;
   ~DefaultActionTestView() override = default;
@@ -81,7 +86,12 @@ class DefaultActionTestView : public View {
   bool activated_ = false;
 };
 
+BEGIN_METADATA(DefaultActionTestView)
+END_METADATA
+
 class AcceleratorView : public View {
+  METADATA_HEADER(AcceleratorView, View)
+
  public:
   explicit AcceleratorView(ui::Accelerator accelerator)
       : accelerator_(accelerator) {
@@ -104,6 +114,9 @@ class AcceleratorView : public View {
   bool pressed_ = false;
 };
 
+BEGIN_METADATA(AcceleratorView)
+END_METADATA
+
 }  // namespace
 
 class InteractionTestUtilViewsTest
@@ -117,9 +130,9 @@ class InteractionTestUtilViewsTest
   std::unique_ptr<Widget> CreateWidget() {
     auto widget = std::make_unique<Widget>();
     Widget::InitParams params =
-        CreateParams(Widget::InitParams::TYPE_WINDOW_FRAMELESS);
-    params.ownership = Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET;
-    params.bounds = gfx::Rect(0, 0, 650, 650);
+        CreateParams(Widget::InitParams::CLIENT_OWNS_WIDGET,
+                     Widget::InitParams::TYPE_WINDOW_FRAMELESS);
+    params.bounds = gfx::Rect(0, 0, 300, 300);
     widget->Init(std::move(params));
     auto* contents = widget->SetContentsView(std::make_unique<View>());
     auto* layout = contents->SetLayoutManager(std::make_unique<FlexLayout>());
@@ -151,7 +164,7 @@ class InteractionTestUtilViewsTest
         std::make_unique<MenuRunner>(menu_model_.get(), MenuRunner::NO_FLAGS);
     menu_runner_->RunMenuAt(
         widget_.get(), nullptr, gfx::Rect(gfx::Point(), gfx::Size(200, 200)),
-        MenuAnchorPosition::kTopLeft, ui::MENU_SOURCE_MOUSE);
+        MenuAnchorPosition::kTopLeft, ui::mojom::MenuSourceType::kMouse);
 
     menu_item_ = AsViewClass<MenuItemView>(ElementToView(
         ui::ElementTracker::GetElementTracker()->GetFirstMatchingElement(
@@ -165,9 +178,9 @@ class InteractionTestUtilViewsTest
   }
 
   void CloseMenu() {
+    menu_item_ = nullptr;
     menu_runner_.reset();
     menu_model_.reset();
-    menu_item_ = nullptr;
   }
 
   void SetUp() override {
@@ -185,10 +198,11 @@ class InteractionTestUtilViewsTest
 
   void TearDown() override {
     test_util_.reset();
-    if (menu_runner_)
+    if (menu_runner_) {
       CloseMenu();
-    widget_.reset();
+    }
     contents_ = nullptr;
+    widget_.reset();
     ViewsTestBase::TearDown();
   }
 
@@ -299,13 +313,14 @@ TEST_P(InteractionTestUtilViewsTest, SelectTab) {
 TEST_P(InteractionTestUtilViewsTest, SelectDropdownItem_Combobox) {
 #if BUILDFLAG(IS_MAC)
   // Only kDontCare is supported on Mac.
-  if (GetParam() != ui::test::InteractionTestUtil::InputType::kDontCare)
+  if (GetParam() != ui::test::InteractionTestUtil::InputType::kDontCare) {
     GTEST_SKIP();
+  }
 #endif
 
   auto* const box = contents_->AddChildView(
       std::make_unique<Combobox>(CreateComboboxModel()));
-  box->SetAccessibleName(u"Combobox");
+  box->GetViewAccessibility().SetName(u"Combobox");
   widget_->LayoutRootViewIfNecessary();
   auto* const box_el =
       views::ElementTrackerViews::GetInstance()->GetElementForView(box, true);
@@ -323,13 +338,14 @@ TEST_P(InteractionTestUtilViewsTest, SelectDropdownItem_Combobox) {
 TEST_P(InteractionTestUtilViewsTest, SelectDropdownItem_EditableCombobox) {
 #if BUILDFLAG(IS_MAC)
   // Only kDontCare is supported on Mac.
-  if (GetParam() != ui::test::InteractionTestUtil::InputType::kDontCare)
+  if (GetParam() != ui::test::InteractionTestUtil::InputType::kDontCare) {
     GTEST_SKIP();
+  }
 #endif
 
   auto* const box = contents_->AddChildView(
       std::make_unique<EditableCombobox>(CreateComboboxModel()));
-  box->SetAccessibleName(u"Editable Combobox");
+  box->GetViewAccessibility().SetName(u"Editable Combobox");
   widget_->LayoutRootViewIfNecessary();
   auto* const box_el =
       views::ElementTrackerViews::GetInstance()->GetElementForView(box, true);
@@ -347,14 +363,15 @@ TEST_P(InteractionTestUtilViewsTest, SelectDropdownItem_EditableCombobox) {
 TEST_P(InteractionTestUtilViewsTest, SelectDropdownItem_Combobox_NoArrow) {
 #if BUILDFLAG(IS_MAC)
   // Only kDontCare is supported on Mac.
-  if (GetParam() != ui::test::InteractionTestUtil::InputType::kDontCare)
+  if (GetParam() != ui::test::InteractionTestUtil::InputType::kDontCare) {
     GTEST_SKIP();
+  }
 #endif
 
   auto* const box = contents_->AddChildView(
       std::make_unique<Combobox>(CreateComboboxModel()));
   box->SetShouldShowArrow(false);
-  box->SetAccessibleName(u"Combobox");
+  box->GetViewAccessibility().SetName(u"Combobox");
   widget_->LayoutRootViewIfNecessary();
   auto* const box_el =
       views::ElementTrackerViews::GetInstance()->GetElementForView(box, true);
@@ -373,8 +390,9 @@ TEST_P(InteractionTestUtilViewsTest,
        SelectDropdownItem_EditableCombobox_NoArrow) {
 #if BUILDFLAG(IS_MAC)
   // Only kDontCare is supported on Mac.
-  if (GetParam() != ui::test::InteractionTestUtil::InputType::kDontCare)
+  if (GetParam() != ui::test::InteractionTestUtil::InputType::kDontCare) {
     GTEST_SKIP();
+  }
 #endif
 
   // These cases are not supported for editable combobox without an arrow
@@ -387,7 +405,7 @@ TEST_P(InteractionTestUtilViewsTest,
   auto* const box = contents_->AddChildView(std::make_unique<EditableCombobox>(
       CreateComboboxModel(), false, true, EditableCombobox::kDefaultTextContext,
       EditableCombobox::kDefaultTextStyle, /* display_arrow =*/false));
-  box->SetAccessibleName(u"Editable Combobox");
+  box->GetViewAccessibility().SetName(u"Editable Combobox");
   auto* const box_el =
       views::ElementTrackerViews::GetInstance()->GetElementForView(box, true);
   EXPECT_EQ(ui::test::ActionResult::kSucceeded,
@@ -434,7 +452,7 @@ TEST_F(InteractionTestUtilViewsTest, EnterText_Textfield) {
 TEST_F(InteractionTestUtilViewsTest, EnterText_EditableCombobox) {
   auto* const box = contents_->AddChildView(
       std::make_unique<EditableCombobox>(CreateComboboxModel()));
-  box->SetAccessibleName(u"Editable Combobox");
+  box->GetViewAccessibility().SetName(u"Editable Combobox");
   widget_->LayoutRootViewIfNecessary();
 
   auto* const box_el =
@@ -465,7 +483,8 @@ TEST_F(InteractionTestUtilViewsTest, EnterText_EditableCombobox) {
 TEST_F(InteractionTestUtilViewsTest, ActivateSurface) {
   // Create a bubble that will close on deactivation.
   auto dialog_ptr = std::make_unique<BubbleDialogDelegateView>(
-      contents_, BubbleBorder::Arrow::TOP_LEFT);
+      BubbleDialogDelegateView::CreatePassKey(), contents_,
+      BubbleBorder::Arrow::TOP_LEFT);
   dialog_ptr->set_close_on_deactivate(true);
   auto* widget = BubbleDialogDelegateView::CreateBubble(std::move(dialog_ptr));
   WidgetVisibleWaiter shown_waiter(widget);
@@ -500,7 +519,8 @@ TEST_F(InteractionTestUtilViewsTest, Confirm) {
   UNCALLED_MOCK_CALLBACK(base::OnceClosure, accept);
 
   auto dialog_ptr = std::make_unique<BubbleDialogDelegateView>(
-      contents_, BubbleBorder::Arrow::TOP_LEFT);
+      BubbleDialogDelegateView::CreatePassKey(), contents_,
+      BubbleBorder::Arrow::TOP_LEFT);
   auto* dialog = dialog_ptr.get();
   dialog->SetAcceptCallback(accept.Get());
   auto* widget = BubbleDialogDelegateView::CreateBubble(std::move(dialog_ptr));

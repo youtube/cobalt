@@ -6,7 +6,9 @@
 
 #include <string>
 #include <utility>
+#include <vector>
 
+#include "base/containers/span.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -14,7 +16,6 @@
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/rand_util.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/win/registry.h"
 #include "chrome/installer/util/scoped_token_privilege.h"
@@ -52,9 +53,8 @@ class ScopedUserHive {
 
 ScopedUserHive::ScopedUserHive(const base::FilePath& hive_file) {
   // Generate a random name for the key at which the file will be loaded.
-  std::string buffer = base::RandBytesAsString(10);
-  subkey_name_ = base::ASCIIToWide(
-      base32::Base32Encode(buffer, base32::Base32EncodePolicy::OMIT_PADDING));
+  subkey_name_ = base::ASCIIToWide(base32::Base32Encode(
+      base::RandBytesAsVector(10), base32::Base32EncodePolicy::OMIT_PADDING));
   DCHECK_EQ(16U, subkey_name_.size());
 
   LONG result = ::RegLoadKey(HKEY_LOCAL_MACHINE, subkey_name_.c_str(),

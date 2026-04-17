@@ -9,6 +9,7 @@
 #include "base/functional/callback_helpers.h"
 #include "cc/resources/ui_resource_bitmap.h"
 #include "cc/test/fake_layer_tree_host_impl.h"
+#include "components/viz/client/client_resource_provider.h"
 
 namespace cc {
 
@@ -29,9 +30,9 @@ void FakeUIResourceLayerTreeHostImpl::CreateUIResource(
 
   data.resource_id_for_export = resource_provider()->ImportResource(
       viz::TransferableResource::MakeGpu(
-          gpu::Mailbox::GenerateForSharedImage(), GL_TEXTURE_2D,
-          gpu::SyncToken(), bitmap.GetSize(),
-          viz::SinglePlaneFormat::kRGBA_8888, false /* is_overlay_candidate */),
+          gpu::Mailbox::Generate(), GL_TEXTURE_2D, gpu::SyncToken(),
+          bitmap.GetSize(), viz::SinglePlaneFormat::kRGBA_8888,
+          false /* is_overlay_candidate */),
       base::DoNothing());
 
   data.opaque = bitmap.GetOpaque();
@@ -57,7 +58,7 @@ viz::ResourceId FakeUIResourceLayerTreeHostImpl::ResourceIdForUIResource(
 bool FakeUIResourceLayerTreeHostImpl::IsUIResourceOpaque(UIResourceId uid)
     const {
   auto iter = fake_ui_resource_map_.find(uid);
-  DCHECK(iter != fake_ui_resource_map_.end());
+  CHECK(iter != fake_ui_resource_map_.end());
   return iter->second.opaque;
 }
 

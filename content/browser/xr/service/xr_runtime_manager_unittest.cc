@@ -39,10 +39,11 @@ class XRRuntimeManagerTest : public testing::Test {
     provider_ = new device::FakeVRDeviceProvider();
     providers.emplace_back(base::WrapUnique(provider_.get()));
     xr_runtime_manager_ =
-        XRRuntimeManagerImpl::CreateInstance(std::move(providers));
+        XRRuntimeManagerImpl::CreateInstance(std::move(providers), nullptr);
   }
 
   void TearDown() override {
+    ClearProvider();
     DropRuntimeManagerRef();
     EXPECT_EQ(XRRuntimeManager::GetInstanceIfCreated(), nullptr);
   }
@@ -63,7 +64,7 @@ class XRRuntimeManagerTest : public testing::Test {
 
   scoped_refptr<XRRuntimeManagerImpl> GetRuntimeManager() {
     EXPECT_NE(XRRuntimeManager::GetInstanceIfCreated(), nullptr);
-    return XRRuntimeManagerImpl::GetOrCreateInstance();
+    return XRRuntimeManagerImpl::GetOrCreateInstanceForTesting();
   }
 
   device::mojom::XRRuntime* GetRuntimeForTest(
@@ -84,20 +85,15 @@ class XRRuntimeManagerTest : public testing::Test {
   // reference counting behavior of the XRRuntimeManagerImpl singleton.
   void DropRuntimeManagerRef() { xr_runtime_manager_ = nullptr; }
 
+  void ClearProvider() { provider_ = nullptr; }
+
  private:
   raw_ptr<device::FakeVRDeviceProvider> provider_ = nullptr;
   scoped_refptr<XRRuntimeManagerImpl> xr_runtime_manager_;
 };
 
 TEST_F(XRRuntimeManagerTest, InitializationTest) {
-  EXPECT_FALSE(Provider()->Initialized());
-
-  // Calling GetDevices should initialize the service if it hasn't been
-  // initialized yet or the providesr have been released.
-  // The mojom::VRService should initialize each of it's providers upon it's own
-  // initialization. And SetClient method in VRService class will invoke
-  // GetVRDevices too.
-  auto service = BindService();
+  // Returns true because XRRuntimeManagerImpl is created at the constructor.
   EXPECT_TRUE(Provider()->Initialized());
 }
 
@@ -124,6 +120,7 @@ TEST_F(XRRuntimeManagerTest, DeviceManagerRegistration) {
   EXPECT_EQ(1u, ServiceCount());
   service_2.reset();
 
+  ClearProvider();
   DropRuntimeManagerRef();
   EXPECT_EQ(XRRuntimeManager::GetInstanceIfCreated(), nullptr);
 }

@@ -17,6 +17,7 @@ enum class SourceView {
   kShelfNavigationView = 0,
   kShelfView,
   kStatusAreaView,
+  kDeskButton,
 };
 
 // ShelfFocusCycler handles the special focus transitions from the Login UI,
@@ -38,6 +39,9 @@ class ASH_EXPORT ShelfFocusCycler {
   // Focuses the navigation widget (back and home buttons).
   void FocusNavigation(bool last_element);
 
+  // Focuses the desk button widget.
+  void FocusDeskButton(bool last_element);
+
   // Focuses the shelf widget (app shortcuts).
   void FocusShelf(bool last_element);
 
@@ -46,7 +50,7 @@ class ASH_EXPORT ShelfFocusCycler {
 
  private:
   // Owned by RootWindowController.
-  raw_ptr<Shelf, ExperimentalAsh> shelf_;
+  raw_ptr<Shelf> shelf_;
 };
 
 }  // namespace ash

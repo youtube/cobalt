@@ -47,6 +47,7 @@ _DEPS_ARCH_MAP = {
     'raspi': '/home/pi/test/',
     'rdk': '/data/test/',
 }
+_GCS_ARCHIVE_DEVICE_FAMILIES = ('rdk', 'raspi')
 
 # This is needed because driver expects cobalt.apk, but we publish
 # Cobalt.apk
@@ -171,6 +172,8 @@ def _unit_test_files(args: argparse.Namespace, target_name: str) -> List[str]:
   """Builds the list of files for a unit test request."""
   is_modular_raspi = 'builder-raspi-2-modular' in args.label
 
+  # TODO: b/432536319 - Use flag to determine file ending.
+
   if args.device_family == 'android':
     return [
         f'test_apk={args.gcs_archive_path}/{target_name}-debug.apk',
@@ -182,7 +185,7 @@ def _unit_test_files(args: argparse.Namespace, target_name: str) -> List[str]:
         f'bin={args.gcs_archive_path}/{target_name}',
         f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.gz',
     ]
-  elif args.device_family in ['rdk', 'raspi']:
+  elif args.device_family in _GCS_ARCHIVE_DEVICE_FAMILIES:
     return [
         f'bin={args.gcs_archive_path}/{target_name}.py',
         f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.gz',
@@ -206,6 +209,7 @@ def _unit_test_params(args: argparse.Namespace, target_name: str,
   if args.test_attempts:
     # Must delete existing results when retries are enabled.
     params.append('gcs_delete_before_upload=true')
+
   return params
 
 
@@ -220,8 +224,9 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
     raise ValueError(f'--targets is not in JSON format: {e}') from e
 
   for target_data in targets:
+    test_type = args.test_type
 
-    if args.test_type == 'unit_test':
+    if test_type == 'unit_test':
       if not device_type or not device_pool:
         raise ValueError('Dimensions not specified: device_type, device_pool')
       test_target = target_data
@@ -236,12 +241,13 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       command_line_args = ' '.join([
           f'--gtest_output=xml:{dir_on_device}/{target_name}_testoutput.xml',
           f'--gtest_filter={gtest_filter}',
+          '--single-process-tests',
       ])
       test_cmd_args = [f'command_line_args={command_line_args}']
       files = _unit_test_files(args, target_name)
       params = _unit_test_params(args, target_name, dir_on_device)
 
-    elif args.test_type == 'e2e_test':
+    elif test_type in ('e2e_test', 'yts_test', 'browser_test', 'yts_wpt_test'):
       test_target = target_data['target']
       test_attempts = target_data.get('test_attempts', '')
       if test_attempts:
@@ -249,11 +255,24 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       elif args.test_attempts:
         test_args.extend([f'test_attempts={args.test_attempts}'])
       test_cmd_args = []
-      files = [f'cobalt_path={args.cobalt_path}']
-      params = [f'yt_binary_name={_E2E_DEFAULT_YT_BINARY_NAME}']
+      files = []
+      if test_type in ('browser_test', 'yts_wpt_test'):
+        test_type = 'e2e_test'
+        params = []
+      else:
+        params = [f'yt_binary_name={_E2E_DEFAULT_YT_BINARY_NAME}']
+        if args.device_family in _GCS_ARCHIVE_DEVICE_FAMILIES:
+          params.append(f'gcs_cobalt_archive=gs://{args.cobalt_path}.zip')
+        else:
+          bigstore_path = f'/bigstore/{args.cobalt_path}/{args.artifact_name}'
+          if test_type == 'yts_test':
+            files.append(f'build_apk={bigstore_path}')
+            params.append('app=dev.cobalt.coat')
+          else:
+            files.append(f'cobalt_path={bigstore_path}')
 
     else:
-      raise ValueError(f'Unsupported test type: {args.test_type}')
+      raise ValueError(f'Unsupported test type: {test_type}')
 
     test_requests.append({
         'device_type': device_type,
@@ -263,7 +282,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
         'files': files,
         'params': params,
         'test_target': test_target,
-        'test_type': args.test_type,
+        'test_type': test_type,
     })
 
   return test_requests
@@ -307,13 +326,14 @@ def main() -> int:
       '--test_type',
       type=str,
       required=True,
-      choices=['unit_test', 'e2e_test'],
+      choices=[
+          'unit_test', 'e2e_test', 'yts_test', 'browser_test', 'yts_wpt_test'
+      ],
       help='Type of test to run.',
   )
   trigger_args.add_argument(
       '--device_family',
       type=str,
-      choices=['android', 'raspi', 'rdk'],
       help='Family of device to run tests on.',
   )
   trigger_args.add_argument(
@@ -349,7 +369,7 @@ def main() -> int:
   trigger_args.add_argument(
       '--job_timeout_sec',
       type=str,
-      default='2100',
+      default='2700',
       help='Timeout in seconds for the job. Must be set higher and '
       'start_timeout_sec and test_timeout_sec combined.',
   )
@@ -392,6 +412,12 @@ def main() -> int:
       type=str,
       help='Path to Cobalt apk.',
   )
+  e2e_test_group.add_argument(
+      '--artifact_name',
+      type=str,
+      help=('Artifact name, used to specify the cobalt path in non-evergreen'
+            ' workflows'),
+  )
 
   # Watch command
   watch_parser = subparsers.add_parser(
@@ -407,9 +433,9 @@ def main() -> int:
   args = parser.parse_args()
 
   # TODO(b/428961033): Let argparse handle these checks as required arguments.
-  if args.test_type == 'e2e_test':
+  if args.test_type in ('e2e_test', 'yts_test'):
     if not args.cobalt_path:
-      raise ValueError('--cobalt_path is required for e2e_test')
+      raise ValueError('--cobalt_path is required for e2e_test or yts_test')
   elif args.test_type == 'unit_test':
     if not args.device_family:
       raise ValueError('--device_family is required for unit_test')

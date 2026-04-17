@@ -93,7 +93,7 @@ mojom::AudioFocusRequestStatePtr AudioFocusRequest::ToAudioFocusRequestState()
   request->request_id = id_;
   request->source_name = source_name_;
   request->source_id =
-      identity_.is_empty() ? absl::nullopt : absl::make_optional(identity_);
+      identity_.is_empty() ? std::nullopt : std::make_optional(identity_);
   return request;
 }
 
@@ -173,6 +173,10 @@ void AudioFocusRequest::GetMediaImageBitmap(
       image, minimum_size_px, desired_size_px,
       base::BindOnce(&AudioFocusRequest::OnImageDownloaded,
                      base::Unretained(this), std::move(callback)));
+}
+
+void AudioFocusRequest::FlushForTesting() {
+  session_.FlushForTesting();  // IN-TEST
 }
 
 void AudioFocusRequest::SetSessionInfo(

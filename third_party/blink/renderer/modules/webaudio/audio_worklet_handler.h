@@ -25,9 +25,7 @@ class ExceptionState;
 class MessagePort;
 class ScriptState;
 
-class AudioWorkletHandler final
-    : public AudioHandler,
-      public base::SupportsWeakPtr<AudioWorkletHandler> {
+class AudioWorkletHandler final : public AudioHandler {
  public:
   static scoped_refptr<AudioWorkletHandler> Create(
       AudioNode&,
@@ -70,6 +68,10 @@ class AudioWorkletHandler final
       HashMap<String, scoped_refptr<AudioParamHandler>> param_handler_map,
       const AudioWorkletNodeOptions*);
 
+  // Used to avoid code duplication when using scoped objects that affect
+  // `Process`.
+  void ProcessInternal(uint32_t frames_to_process);
+
   String name_;
 
   double tail_time_ = std::numeric_limits<double>::infinity();
@@ -82,11 +84,16 @@ class AudioWorkletHandler final
   Vector<scoped_refptr<AudioBus>> inputs_;
   Vector<scoped_refptr<AudioBus>> outputs_;
 
+  // For unconnected outputs, the handler needs to provide an AudioBus object
+  // to the AudioWorkletProcessor.
+  Vector<scoped_refptr<AudioBus>> unconnected_outputs_;
+
   HashMap<String, scoped_refptr<AudioParamHandler>> param_handler_map_;
   HashMap<String, std::unique_ptr<AudioFloatArray>> param_value_map_;
 
-  // TODO(): Adjust this if needed based on the result of the process
-  // method or the value of `tail_time_`.
+  // TODO(crbug.com/1447088): The tail time of AudioWorkletNode is decided by
+  // the active processing flag. So it doesn't need an automatic tail time
+  // management from the renderer.
   bool RequiresTailProcessing() const override { return true; }
 
   scoped_refptr<base::SingleThreadTaskRunner> main_thread_task_runner_;
@@ -98,6 +105,11 @@ class AudioWorkletHandler final
   // lifecycle of an AudioWorkletNode and its handler. This flag becomes false
   // when a processor stops invoking the user-defined `process()` callback.
   bool is_processor_active_ = true;
+
+  // Cached feature flag value
+  const bool allow_denormal_in_processing_;
+
+  base::WeakPtrFactory<AudioWorkletHandler> weak_ptr_factory_{this};
 };
 
 }  // namespace blink

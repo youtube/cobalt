@@ -58,8 +58,6 @@ bool InitializeStaticGLBindings(GLImplementationParts implementation) {
     default:
       NOTREACHED();
   }
-
-  return false;
 }
 
 void ShutdownGLPlatform(GLDisplay* display) {

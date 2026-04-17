@@ -20,6 +20,13 @@
 #include "mojo/public/cpp/bindings/shared_remote.h"
 #include "ui/base/l10n/l10n_util_mac.h"
 #include "ui/gfx/image/image.h"
+#include "url/origin.h"
+
+// This class implements the Chromium interface to a deprecated API. It is in
+// the process of being replaced, and warnings about its deprecation are not
+// helpful. https://crbug.com/1127306
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 
 @interface AlertNSNotificationCenterDelegate
     : NSObject <NSUserNotificationCenterDelegate>
@@ -32,10 +39,11 @@ namespace {
 
 NotificationOperation GetNotificationOperationFromNotification(
     NSUserNotification* notification) {
-  if ([notification activationType] == NSUserNotificationActivationTypeNone)
+  if (notification.activationType == NSUserNotificationActivationTypeNone) {
     return NotificationOperation::kClose;
+  }
 
-  if ([notification activationType] !=
+  if (notification.activationType !=
       NSUserNotificationActivationTypeActionButtonClicked) {
     return NotificationOperation::kClick;
   }
@@ -57,7 +65,7 @@ NotificationOperation GetNotificationOperationFromNotification(
         [[notification valueForKey:@"_alternateActionIndex"] intValue];
   }
 
-  bool has_settings_button = [[[notification userInfo]
+  bool has_settings_button = [[notification.userInfo
       objectForKey:mac_notifications::kNotificationHasSettingsButton]
       boolValue];
   bool clicked_last_button = button_index == button_count - 1;
@@ -70,7 +78,7 @@ NotificationOperation GetNotificationOperationFromNotification(
 }
 
 int GetActionButtonIndexFromNotification(NSUserNotification* notification) {
-  if ([notification activationType] !=
+  if (notification.activationType !=
           NSUserNotificationActivationTypeActionButtonClicked ||
       GetNotificationOperationFromNotification(notification) !=
           NotificationOperation::kClick) {
@@ -104,14 +112,6 @@ void AddActionButtons(
   // Force the notification to always show its action buttons.
   [notification setValue:@YES forKey:@"_showsButtons"];
 
-  // A default close button label is provided by the platform but we explicitly
-  // override it in case the user decides to not use the OS language in Chrome.
-  // macOS 11 already shows a close button in the top-left corner.
-  if (!base::mac::IsAtLeastOS11()) {
-    [notification setOtherButtonTitle:l10n_util::GetNSString(
-                                          IDS_NOTIFICATION_BUTTON_CLOSE)];
-  }
-
   NSMutableArray* action_buttons = [NSMutableArray arrayWithCapacity:3];
   for (const auto& button : buttons)
     [action_buttons addObject:base::SysUTF16ToNSString(button->title)];
@@ -127,13 +127,13 @@ void AddActionButtons(
         addObject:l10n_util::GetNSString(IDS_NOTIFICATION_BUTTON_SETTINGS)];
   }
 
-  if ([action_buttons count] == 0) {
+  if (action_buttons.count == 0) {
     // Don't show action button if no actions needed.
     [notification setHasActionButton:NO];
     return;
   }
 
-  if ([action_buttons count] == 1) {
+  if (action_buttons.count == 1) {
     // Only one action so we don't need a menu. Just set the button title.
     [notification setActionButtonTitle:[action_buttons firstObject]];
     return;
@@ -144,16 +144,11 @@ void AddActionButtons(
   DCHECK([notification
       respondsToSelector:@selector(_alternateActionButtonTitles)]);
 
-  // macOS 11 does not support overriding the text of the overflow button and
+  // macOS does not support overriding the text of the overflow button and
   // will always show "Options" via this API. Setting actionButtonTitle just
   // appends another button into the overflow menu. Only the new UNNotification
-  // API allows overriding this title on macOS 11.
-  if (base::mac::IsAtLeastOS11()) {
-    [notification setValue:@NO forKey:@"_hasActionButton"];
-  } else {
-    [notification setActionButtonTitle:l10n_util::GetNSString(
-                                           IDS_NOTIFICATION_BUTTON_MORE)];
-  }
+  // API allows overriding this title.
+  [notification setValue:@NO forKey:@"_hasActionButton"];
 
   // Show the alternate menu with developer actions and settings if needed.
   [notification setValue:@YES forKey:@"_alwaysShowAlternateActionMenu"];
@@ -171,47 +166,47 @@ MacNotificationServiceNS::MacNotificationServiceNS(
     : binding_(this, std::move(service)),
       delegate_([[AlertNSNotificationCenterDelegate alloc]
           initWithActionHandler:std::move(handler)]),
-      notification_center_([notification_center retain]) {
-  [notification_center_ setDelegate:delegate_.get()];
+      notification_center_(notification_center) {
+  notification_center_.delegate = delegate_;
 }
 
 MacNotificationServiceNS::~MacNotificationServiceNS() {
-  [notification_center_ setDelegate:nil];
+  notification_center_.delegate = nil;
 }
 
 void MacNotificationServiceNS::DisplayNotification(
     mojom::NotificationPtr notification) {
-  base::scoped_nsobject<NSUserNotification> toast(
-      [[NSUserNotification alloc] init]);
+  NSUserNotification* toast = [[NSUserNotification alloc] init];
 
-  [toast setTitle:base::SysUTF16ToNSString(notification->title)];
-  [toast setSubtitle:base::SysUTF16ToNSString(notification->subtitle)];
-  [toast setInformativeText:base::SysUTF16ToNSString(notification->body)];
-  [toast setUserInfo:GetMacNotificationUserInfo(notification)];
+  toast.title = base::SysUTF16ToNSString(notification->title);
+  toast.subtitle = base::SysUTF16ToNSString(notification->subtitle);
+  toast.informativeText = base::SysUTF16ToNSString(notification->body);
+  toast.userInfo = GetMacNotificationUserInfo(notification);
 
-  AddActionButtons(toast.get(), notification->buttons,
+  AddActionButtons(toast, notification->buttons,
                    notification->show_settings_button);
 
   if (!notification->icon.isNull())
-    [toast setContentImage:gfx::Image(notification->icon).ToNSImage()];
+    toast.contentImage = gfx::Image(notification->icon).ToNSImage();
 
   NSString* notification_id =
       base::SysUTF8ToNSString(DeriveMacNotificationId(notification->meta->id));
-  [toast setIdentifier:notification_id];
+  toast.identifier = notification_id;
 
-  [notification_center_ deliverNotification:toast.get()];
+  [notification_center_ deliverNotification:toast];
 }
 
 void MacNotificationServiceNS::GetDisplayedNotifications(
     mojom::ProfileIdentifierPtr profile,
+    const std::optional<GURL>& origin,
     GetDisplayedNotificationsCallback callback) {
   std::vector<mojom::NotificationIdentifierPtr> notifications;
   // Note: |profile| might be null if we want all notifications.
   NSString* profile_id = profile ? base::SysUTF8ToNSString(profile->id) : nil;
   bool incognito = profile && profile->incognito;
 
-  for (NSUserNotification* toast in
-       [notification_center_ deliveredNotifications]) {
+  for (NSUserNotification* toast in notification_center_
+           .deliveredNotifications) {
     NSString* toast_id = [toast.userInfo objectForKey:kNotificationId];
     NSString* toast_profile_id =
         [toast.userInfo objectForKey:kNotificationProfileId];
@@ -220,10 +215,15 @@ void MacNotificationServiceNS::GetDisplayedNotifications(
 
     if (!profile_id || ([profile_id isEqualToString:toast_profile_id] &&
                         incognito == toast_incognito)) {
-      auto profile_identifier = mojom::ProfileIdentifier::New(
-          base::SysNSStringToUTF8(toast_profile_id), toast_incognito);
-      notifications.push_back(mojom::NotificationIdentifier::New(
-          base::SysNSStringToUTF8(toast_id), std::move(profile_identifier)));
+      NSString* toast_origin_url =
+          [toast.userInfo objectForKey:kNotificationOrigin];
+      GURL toast_origin = GURL(base::SysNSStringToUTF8(toast_origin_url));
+      if (!origin.has_value() || url::IsSameOriginWith(toast_origin, *origin)) {
+        auto profile_identifier = mojom::ProfileIdentifier::New(
+            base::SysNSStringToUTF8(toast_profile_id), toast_incognito);
+        notifications.push_back(mojom::NotificationIdentifier::New(
+            base::SysNSStringToUTF8(toast_id), std::move(profile_identifier)));
+      }
     }
   }
 
@@ -236,8 +236,8 @@ void MacNotificationServiceNS::CloseNotification(
   NSString* profile_id = base::SysUTF8ToNSString(identifier->profile->id);
   bool incognito = identifier->profile->incognito;
 
-  for (NSUserNotification* toast in
-       [notification_center_ deliveredNotifications]) {
+  for (NSUserNotification* toast in notification_center_
+           .deliveredNotifications) {
     NSString* toast_id = [toast.userInfo objectForKey:kNotificationId];
     NSString* toast_profile_id =
         [toast.userInfo objectForKey:kNotificationProfileId];
@@ -258,8 +258,8 @@ void MacNotificationServiceNS::CloseNotificationsForProfile(
   NSString* profile_id = base::SysUTF8ToNSString(profile->id);
   bool incognito = profile->incognito;
 
-  for (NSUserNotification* toast in
-       [notification_center_ deliveredNotifications]) {
+  for (NSUserNotification* toast in notification_center_
+           .deliveredNotifications) {
     NSString* toast_profile_id =
         [toast.userInfo objectForKey:kNotificationProfileId];
     BOOL toast_incognito =
@@ -274,6 +274,16 @@ void MacNotificationServiceNS::CloseNotificationsForProfile(
 
 void MacNotificationServiceNS::CloseAllNotifications() {
   [notification_center_ removeAllDeliveredNotifications];
+}
+
+void MacNotificationServiceNS::OkayToTerminateService(
+    OkayToTerminateServiceCallback callback) {
+  GetDisplayedNotifications(
+      /*profile=*/nullptr, /*origin=*/std::nullopt,
+      base::BindOnce([](std::vector<mojom::NotificationIdentifierPtr>
+                            notifications) {
+        return notifications.empty();
+      }).Then(std::move(callback)));
 }
 
 }  // namespace mac_notifications
@@ -297,16 +307,16 @@ void MacNotificationServiceNS::CloseAllNotifications() {
 - (void)userNotificationCenter:(NSUserNotificationCenter*)center
        didActivateNotification:(NSUserNotification*)notification {
   mac_notifications::mojom::NotificationMetadataPtr meta =
-      mac_notifications::GetMacNotificationMetadata([notification userInfo]);
+      mac_notifications::GetMacNotificationMetadata(notification.userInfo);
   NotificationOperation operation =
       GetNotificationOperationFromNotification(notification);
   int buttonIndex = GetActionButtonIndexFromNotification(notification);
   auto actionInfo = mac_notifications::mojom::NotificationActionInfo::New(
-      std::move(meta), operation, buttonIndex, /*reply=*/absl::nullopt);
+      std::move(meta), operation, buttonIndex, /*reply=*/std::nullopt);
   _handler->OnNotificationAction(std::move(actionInfo));
 }
 
-// Overriden from _NSUserNotificationCenterDelegatePrivate.
+// Overridden from _NSUserNotificationCenterDelegatePrivate.
 // Emitted when a user clicks the "Close" button in the notification.
 // It not is emitted if the notification is closed from the notification
 // center or if the app is not running at the time the Close button is
@@ -315,15 +325,15 @@ void MacNotificationServiceNS::CloseAllNotifications() {
 - (void)userNotificationCenter:(NSUserNotificationCenter*)center
                didDismissAlert:(NSUserNotification*)notification {
   mac_notifications::mojom::NotificationMetadataPtr meta =
-      mac_notifications::GetMacNotificationMetadata([notification userInfo]);
+      mac_notifications::GetMacNotificationMetadata(notification.userInfo);
   auto operation = NotificationOperation::kClose;
   int buttonIndex = kNotificationInvalidButtonIndex;
   auto actionInfo = mac_notifications::mojom::NotificationActionInfo::New(
-      std::move(meta), operation, buttonIndex, /*reply=*/absl::nullopt);
+      std::move(meta), operation, buttonIndex, /*reply=*/std::nullopt);
   _handler->OnNotificationAction(std::move(actionInfo));
 }
 
-// Overriden from _NSUserNotificationCenterDelegatePrivate.
+// Overridden from _NSUserNotificationCenterDelegatePrivate.
 // Emitted when a user closes a notification from the notification center.
 // This is an undocumented method introduced in 10.8 according to
 // https://bugzilla.mozilla.org/show_bug.cgi?id=852648#c21
@@ -332,11 +342,11 @@ void MacNotificationServiceNS::CloseAllNotifications() {
   for (NSUserNotification* notification in notifications) {
     DCHECK(notification);
     mac_notifications::mojom::NotificationMetadataPtr meta =
-        mac_notifications::GetMacNotificationMetadata([notification userInfo]);
+        mac_notifications::GetMacNotificationMetadata(notification.userInfo);
     auto operation = NotificationOperation::kClose;
     int buttonIndex = kNotificationInvalidButtonIndex;
     auto actionInfo = mac_notifications::mojom::NotificationActionInfo::New(
-        std::move(meta), operation, buttonIndex, /*reply=*/absl::nullopt);
+        std::move(meta), operation, buttonIndex, /*reply=*/std::nullopt);
     _handler->OnNotificationAction(std::move(actionInfo));
   }
 }
@@ -348,3 +358,5 @@ void MacNotificationServiceNS::CloseAllNotifications() {
 }
 
 @end
+
+#pragma clang diagnostic pop

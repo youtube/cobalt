@@ -26,10 +26,10 @@ int __abi_wrap_prctl(int option,
 int prctl(int option, ...) {
   va_list args;
   va_start(args, option);
-  long arg2 = va_arg(args, long);
-  long arg3 = va_arg(args, long);
-  long arg4 = va_arg(args, long);
-  long arg5 = va_arg(args, long);
+  unsigned long arg2 = va_arg(args, unsigned long);
+  unsigned long arg3 = va_arg(args, unsigned long);
+  unsigned long arg4 = va_arg(args, unsigned long);
+  unsigned long arg5 = va_arg(args, unsigned long);
   va_end(args);
   return __abi_wrap_prctl(option, arg2, arg3, arg4, arg5);
 }

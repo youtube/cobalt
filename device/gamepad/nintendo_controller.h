@@ -6,6 +6,7 @@
 #define DEVICE_GAMEPAD_NINTENDO_CONTROLLER_H_
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/cancelable_callback.h"
@@ -18,7 +19,6 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/device/public/mojom/hid.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace device {
 
@@ -115,7 +115,8 @@ class NintendoController final : public AbstractHapticGamepad {
 
   ~NintendoController() override;
 
-  // Create a NintendoController for a newly-connected HID device.
+  // Create a NintendoController for a newly-connected HID device. It may return
+  // a nullptr if `device_info`, does not represent a compatible device.
   static std::unique_ptr<NintendoController> Create(
       int source_id,
       mojom::HidDeviceInfoPtr device_info,
@@ -188,6 +189,7 @@ class NintendoController final : public AbstractHapticGamepad {
   base::WeakPtr<AbstractHapticGamepad> GetWeakPtr() override;
 
   NintendoController(int source_id,
+                     GamepadBusType bus_type,
                      mojom::HidDeviceInfoPtr device_info,
                      mojom::HidManager* hid_manager);
   NintendoController(int source_id,
@@ -227,8 +229,6 @@ class NintendoController final : public AbstractHapticGamepad {
     kPendingReadAnalogStickCalibration,
     // Enable vibration.
     kPendingEnableVibration,
-    // Turn on the Home light.
-    kPendingSetHomeLight,
     // Set standard full mode (60 Hz).
     kPendingSetInputReportMode,
     // Wait for controller data to be received.
@@ -291,7 +291,7 @@ class NintendoController final : public AbstractHapticGamepad {
   void OnReadInputReport(
       bool success,
       uint8_t report_id,
-      const absl::optional<std::vector<uint8_t>>& report_bytes);
+      const std::optional<std::vector<uint8_t>>& report_bytes);
 
   // Request to send an output report to the underlying HID device. If
   // |expect_reply| is true, a timeout is armed that will retry the current
@@ -318,12 +318,6 @@ class NintendoController final : public AbstractHapticGamepad {
   void RequestEnableVibration(bool enable);
   void RequestEnableImu(bool enable);
   void RequestSetPlayerLights(uint8_t light_pattern);
-  void RequestSetHomeLight(uint8_t minicycle_count,
-                           uint8_t minicycle_duration,
-                           uint8_t start_intensity,
-                           uint8_t cycle_count,
-                           const std::vector<uint8_t>& minicycle_data);
-  void RequestSetHomeLightIntensity(double intensity);
   void RequestSetImuSensitivity(uint8_t gyro_sensitivity,
                                 uint8_t accelerometer_sensitivity,
                                 uint8_t gyro_performance_rate,

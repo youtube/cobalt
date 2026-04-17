@@ -14,6 +14,7 @@
 #include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/test/bind.h"
+#include "base/test/gtest_util.h"
 #include "base/test/test_timeouts.h"
 #include "base/threading/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -27,22 +28,12 @@ void NopInvokeFunc() {}
 // a type we declared in the anonymous namespace above to remove any chance of
 // colliding with another instantiation and breaking the one-definition-rule.
 struct FakeBindState : internal::BindStateBase {
-  FakeBindState() : BindStateBase(&NopInvokeFunc, &Destroy, &IsCancelled) {}
+  FakeBindState() : BindStateBase(&NopInvokeFunc, &Destroy) {}
 
  private:
   ~FakeBindState() = default;
   static void Destroy(const internal::BindStateBase* self) {
     delete static_cast<const FakeBindState*>(self);
-  }
-  static bool IsCancelled(const internal::BindStateBase*,
-                          internal::BindStateBase::CancellationQueryMode mode) {
-    switch (mode) {
-      case internal::BindStateBase::IS_CANCELLED:
-        return false;
-      case internal::BindStateBase::MAYBE_VALID:
-        return true;
-    }
-    NOTREACHED();
   }
 };
 
@@ -62,21 +53,20 @@ class CallbackTest : public ::testing::Test {
 };
 
 TEST_F(CallbackTest, Types) {
-  static_assert(std::is_same<void, OnceClosure::ResultType>::value, "");
-  static_assert(std::is_same<void(), OnceClosure::RunType>::value, "");
+  static_assert(std::is_same_v<void, OnceClosure::ResultType>, "");
+  static_assert(std::is_same_v<void(), OnceClosure::RunType>, "");
 
   using OnceCallbackT = OnceCallback<double(int, char)>;
-  static_assert(std::is_same<double, OnceCallbackT::ResultType>::value, "");
-  static_assert(std::is_same<double(int, char), OnceCallbackT::RunType>::value,
-                "");
+  static_assert(std::is_same_v<double, OnceCallbackT::ResultType>, "");
+  static_assert(std::is_same_v<double(int, char), OnceCallbackT::RunType>, "");
 
-  static_assert(std::is_same<void, RepeatingClosure::ResultType>::value, "");
-  static_assert(std::is_same<void(), RepeatingClosure::RunType>::value, "");
+  static_assert(std::is_same_v<void, RepeatingClosure::ResultType>, "");
+  static_assert(std::is_same_v<void(), RepeatingClosure::RunType>, "");
 
   using RepeatingCallbackT = RepeatingCallback<bool(float, short)>;
-  static_assert(std::is_same<bool, RepeatingCallbackT::ResultType>::value, "");
-  static_assert(
-      std::is_same<bool(float, short), RepeatingCallbackT::RunType>::value, "");
+  static_assert(std::is_same_v<bool, RepeatingCallbackT::ResultType>, "");
+  static_assert(std::is_same_v<bool(float, short), RepeatingCallbackT::RunType>,
+                "");
 }
 
 // Ensure we can create unbound callbacks. We need this to be able to store
@@ -154,7 +144,7 @@ TEST_F(CallbackTest, NullAfterMoveRun) {
   const RepeatingClosure cb2 = BindRepeating([] {});
   ASSERT_TRUE(cb2);
   std::move(cb2).Run();
-  EXPECT_TRUE(cb2);
+  EXPECT_TRUE(cb2);  // NOLINT(bugprone-use-after-move)
 
   OnceCallback<void(void*)> cb3 = BindOnce([](void* param) {
     EXPECT_TRUE(static_cast<OnceCallback<void(void*)>*>(param)->is_null());
@@ -165,7 +155,7 @@ TEST_F(CallbackTest, NullAfterMoveRun) {
 }
 
 TEST_F(CallbackTest, MaybeValidReturnsTrue) {
-  RepeatingCallback<void()> cb = BindRepeating([]() {});
+  RepeatingCallback<void()> cb = BindRepeating([] {});
   // By default, MaybeValid() just returns true all the time.
   EXPECT_TRUE(cb.MaybeValid());
   cb.Run();
@@ -175,29 +165,28 @@ TEST_F(CallbackTest, MaybeValidReturnsTrue) {
 TEST_F(CallbackTest, ThenResetsOriginalCallback) {
   {
     // OnceCallback::Then() always destroys the original callback.
-    OnceClosure orig = base::BindOnce([]() {});
+    OnceClosure orig = base::BindOnce([] {});
     EXPECT_TRUE(!!orig);
-    OnceClosure joined = std::move(orig).Then(base::BindOnce([]() {}));
+    OnceClosure joined = std::move(orig).Then(base::BindOnce([] {}));
     EXPECT_TRUE(!!joined);
-    EXPECT_FALSE(!!orig);
+    EXPECT_FALSE(!!orig);  // NOLINT(bugprone-use-after-move)
   }
   {
     // RepeatingCallback::Then() destroys the original callback if it's an
     // rvalue.
-    RepeatingClosure orig = base::BindRepeating([]() {});
+    RepeatingClosure orig = base::BindRepeating([] {});
     EXPECT_TRUE(!!orig);
-    RepeatingClosure joined =
-        std::move(orig).Then(base::BindRepeating([]() {}));
+    RepeatingClosure joined = std::move(orig).Then(base::BindRepeating([] {}));
     EXPECT_TRUE(!!joined);
-    EXPECT_FALSE(!!orig);
+    EXPECT_FALSE(!!orig);  // NOLINT(bugprone-use-after-move)
   }
   {
     // RepeatingCallback::Then() doesn't destroy the original callback if it's
     // not an rvalue.
-    RepeatingClosure orig = base::BindRepeating([]() {});
+    RepeatingClosure orig = base::BindRepeating([] {});
     RepeatingClosure copy = orig;
     EXPECT_TRUE(!!orig);
-    RepeatingClosure joined = orig.Then(base::BindRepeating([]() {}));
+    RepeatingClosure joined = orig.Then(base::BindRepeating([] {}));
     EXPECT_TRUE(!!joined);
     EXPECT_TRUE(!!orig);
     // The original callback is not changed.
@@ -211,8 +200,8 @@ TEST_F(CallbackTest, ThenResetsOriginalCallback) {
 // that holds 2 OnceCallbacks which it will run.
 TEST_F(CallbackTest, ThenCanConvertRepeatingToOnce) {
   {
-    RepeatingClosure repeating_closure = base::BindRepeating([]() {});
-    OnceClosure once_closure = base::BindOnce([]() {});
+    RepeatingClosure repeating_closure = base::BindRepeating([] {});
+    OnceClosure once_closure = base::BindOnce([] {});
     std::move(once_closure).Then(repeating_closure).Run();
 
     RepeatingCallback<int(int)> repeating_callback =
@@ -222,8 +211,8 @@ TEST_F(CallbackTest, ThenCanConvertRepeatingToOnce) {
     EXPECT_EQ(3, std::move(once_callback).Then(repeating_callback).Run(1));
   }
   {
-    RepeatingClosure repeating_closure = base::BindRepeating([]() {});
-    OnceClosure once_closure = base::BindOnce([]() {});
+    RepeatingClosure repeating_closure = base::BindRepeating([] {});
+    OnceClosure once_closure = base::BindOnce([] {});
     std::move(once_closure).Then(std::move(repeating_closure)).Run();
 
     RepeatingCallback<int(int)> repeating_callback =
@@ -308,23 +297,19 @@ class CallbackThenTest<use_once, R(Args...), ThenR> {
   static auto GetInner(std::string& s) { return Bind(&Inner<R, ThenR>, &s); }
 
  private:
-  template <bool bind_once = use_once,
-            typename F,
-            typename... FArgs,
-            std::enable_if_t<bind_once, int> = 0>
+  template <typename F, typename... FArgs>
+    requires(use_once)
   static auto Bind(F function, FArgs... args) {
     return BindOnce(function, std::forward<FArgs>(args)...);
   }
-  template <bool bind_once = use_once,
-            typename F,
-            typename... FArgs,
-            std::enable_if_t<!bind_once, int> = 0>
+  template <typename F, typename... FArgs>
+    requires(!use_once)
   static auto Bind(F function, FArgs... args) {
     return BindRepeating(function, std::forward<FArgs>(args)...);
   }
 
-  template <typename R2 = R,
-            std::enable_if_t<!std::is_void<R2>::value, int> = 0>
+  template <typename R2 = R>
+    requires(!std::is_void_v<R2>)
   static int Outer(std::string* s,
                    std::unique_ptr<int> a,
                    std::unique_ptr<int> b) {
@@ -332,72 +317,67 @@ class CallbackThenTest<use_once, R(Args...), ThenR> {
     *s += base::NumberToString(*a) + base::NumberToString(*b);
     return *a + *b;
   }
-  template <typename R2 = R,
-            std::enable_if_t<!std::is_void<R2>::value, int> = 0>
+  template <typename R2 = R>
+    requires(!std::is_void_v<R2>)
   static int Outer(std::string* s, int a, int b) {
     *s += "Outer";
     *s += base::NumberToString(a) + base::NumberToString(b);
     return a + b;
   }
-  template <typename R2 = R,
-            std::enable_if_t<!std::is_void<R2>::value, int> = 0>
+  template <typename R2 = R>
+    requires(!std::is_void_v<R2>)
   static int Outer(std::string* s) {
     *s += "Outer";
     *s += "None";
     return 99;
   }
 
-  template <typename R2 = R, std::enable_if_t<std::is_void<R2>::value, int> = 0>
+  template <typename R2 = R>
+    requires(std::is_void_v<R2>)
   static void Outer(std::string* s,
                     std::unique_ptr<int> a,
                     std::unique_ptr<int> b) {
     *s += "Outer";
     *s += base::NumberToString(*a) + base::NumberToString(*b);
   }
-  template <typename R2 = R, std::enable_if_t<std::is_void<R2>::value, int> = 0>
+  template <typename R2 = R>
+    requires(std::is_void_v<R2>)
   static void Outer(std::string* s, int a, int b) {
     *s += "Outer";
     *s += base::NumberToString(a) + base::NumberToString(b);
   }
-  template <typename R2 = R, std::enable_if_t<std::is_void<R2>::value, int> = 0>
+  template <typename R2 = R>
+    requires(std::is_void_v<R2>)
   static void Outer(std::string* s) {
     *s += "Outer";
     *s += "None";
   }
 
-  template <typename OuterR,
-            typename InnerR,
-            std::enable_if_t<!std::is_void<OuterR>::value, int> = 0,
-            std::enable_if_t<!std::is_void<InnerR>::value, int> = 0>
+  template <typename OuterR, typename InnerR>
+    requires(!std::is_void_v<OuterR> && !std::is_void_v<InnerR>)
   static int Inner(std::string* s, OuterR a) {
-    static_assert(std::is_same<InnerR, int>::value, "Use int return type");
+    static_assert(std::is_same_v<InnerR, int>, "Use int return type");
     *s += "Inner";
     *s += base::NumberToString(a);
     return a;
   }
-  template <typename OuterR,
-            typename InnerR,
-            std::enable_if_t<std::is_void<OuterR>::value, int> = 0,
-            std::enable_if_t<!std::is_void<InnerR>::value, int> = 0>
+  template <typename OuterR, typename InnerR>
+    requires(std::is_void_v<OuterR> && !std::is_void_v<InnerR>)
   static int Inner(std::string* s) {
-    static_assert(std::is_same<InnerR, int>::value, "Use int return type");
+    static_assert(std::is_same_v<InnerR, int>, "Use int return type");
     *s += "Inner";
     *s += "None";
     return 99;
   }
 
-  template <typename OuterR,
-            typename InnerR,
-            std::enable_if_t<!std::is_void<OuterR>::value, int> = 0,
-            std::enable_if_t<std::is_void<InnerR>::value, int> = 0>
+  template <typename OuterR, typename InnerR>
+    requires(!std::is_void_v<OuterR> && std::is_void_v<InnerR>)
   static void Inner(std::string* s, OuterR a) {
     *s += "Inner";
     *s += base::NumberToString(a);
   }
-  template <typename OuterR,
-            typename InnerR,
-            std::enable_if_t<std::is_void<OuterR>::value, int> = 0,
-            std::enable_if_t<std::is_void<InnerR>::value, int> = 0>
+  template <typename OuterR, typename InnerR>
+    requires(std::is_void_v<OuterR> && std::is_void_v<InnerR>)
   static void Inner(std::string* s) {
     *s += "Inner";
     *s += "None";
@@ -719,8 +699,9 @@ TEST_F(CallbackTest, MaybeValidInvalidateWeakPtrsOnOtherSequence) {
             // Check that MaybeValid() _eventually_ returns false.
             const TimeDelta timeout = TestTimeouts::tiny_timeout();
             const TimeTicks begin = TimeTicks::Now();
-            while (cb.MaybeValid() && (TimeTicks::Now() - begin) < timeout)
+            while (cb.MaybeValid() && (TimeTicks::Now() - begin) < timeout) {
               PlatformThread::YieldCurrentThread();
+            }
             EXPECT_FALSE(cb.MaybeValid());
           },
           cb));
@@ -775,6 +756,27 @@ TEST_F(CallbackTest, CallbackHasLastRefOnContainingObject) {
   CallbackOwner* owner = new CallbackOwner(&deleted);
   owner->Reset();
   ASSERT_TRUE(deleted);
+}
+
+// According to legends, it is good practice to put death tests into their own
+// test suite, so they are grouped separately from regular tests, since death
+// tests are somewhat slow and have quirks that can slow down test running if
+// intermixed.
+TEST(CallbackDeathTest, RunNullCallbackChecks) {
+  {
+    base::OnceClosure closure;
+    EXPECT_CHECK_DEATH(std::move(closure).Run());
+  }
+
+  {
+    base::RepeatingClosure closure;
+    EXPECT_CHECK_DEATH(std::move(closure).Run());
+  }
+
+  {
+    base::RepeatingClosure closure;
+    EXPECT_CHECK_DEATH(closure.Run());
+  }
 }
 
 }  // namespace

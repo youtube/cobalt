@@ -44,6 +44,8 @@ SB_EXPORT int __abi_wrap_readdir_r(musl_dir* dirp,
 
 SB_EXPORT struct musl_dir* __abi_wrap_opendir(const char* name);
 
+SB_EXPORT struct musl_dir* __abi_wrap_fdopendir(int fd);
+
 SB_EXPORT int __abi_wrap_closedir(musl_dir* musl_directory);
 
 SB_EXPORT struct musl_dirent* __abi_wrap_readdir(musl_dir* dirp);

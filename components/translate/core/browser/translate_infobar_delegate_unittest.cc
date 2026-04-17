@@ -8,13 +8,13 @@
 #include <vector>
 
 #include "base/test/task_environment.h"
-#include "build/chromeos_buildflags.h"
 #include "components/infobars/core/infobar.h"
 #include "components/infobars/core/infobar_manager.h"
 #include "components/language/core/browser/accept_languages_service.h"
 #include "components/language/core/browser/language_model.h"
 #include "components/language/core/browser/language_prefs.h"
 #include "components/language/core/browser/pref_names.h"
+#include "components/language_detection/core/constants.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "components/translate/core/browser/mock_translate_client.h"
@@ -24,7 +24,6 @@
 #include "components/translate/core/browser/translate_manager.h"
 #include "components/translate/core/browser/translate_pref_names.h"
 #include "components/translate/core/browser/translate_prefs.h"
-#include "components/translate/core/common/translate_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace translate {
@@ -46,7 +45,7 @@ class TestInfoBarManager : public infobars::InfoBarManager {
  public:
   TestInfoBarManager() = default;
   // infobars::InfoBarManager:
-  ~TestInfoBarManager() override {}
+  ~TestInfoBarManager() override = default;
 
   // infobars::InfoBarManager:
   int GetActiveEntryID() override { return 0; }
@@ -105,7 +104,7 @@ class TranslateInfoBarDelegateTest : public ::testing::Test {
     language::LanguagePrefs::RegisterProfilePrefs(pref_service_->registry());
     pref_service_->SetString(testing::accept_languages_prefs, std::string());
     pref_service_->SetString(language::prefs::kAcceptLanguages, std::string());
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     pref_service_->SetString(language::prefs::kPreferredLanguages,
                              std::string());
 #endif
@@ -147,7 +146,7 @@ class TranslateInfoBarDelegateTest : public ::testing::Test {
 TEST_F(TranslateInfoBarDelegateTest, CreateTranslateInfobarDelegate) {
   ::testing::StrictMock<MockObserver> mock_observer;
   ::testing::StrictMock<MockManagerObserver> mock_manager_observer;
-  EXPECT_EQ(infobar_manager_->infobar_count(), 0u);
+  EXPECT_EQ(infobar_manager_->infobars().size(), 0u);
   infobar_manager_->AddObserver(&mock_manager_observer);
 
   EXPECT_CALL(mock_manager_observer, OnInfoBarAdded(_));
@@ -158,9 +157,9 @@ TEST_F(TranslateInfoBarDelegateTest, CreateTranslateInfobarDelegate) {
       kSourceLanguage, kTargetLanguage, TranslateErrors::NONE,
       /*triggered_from_menu=*/false);
 
-  EXPECT_EQ(infobar_manager_->infobar_count(), 1u);
+  EXPECT_EQ(infobar_manager_->infobars().size(), 1u);
   TranslateInfoBarDelegate* delegate =
-      infobar_manager_->infobar_at(0)->delegate()->AsTranslateInfoBarDelegate();
+      infobar_manager_->infobars()[0]->delegate()->AsTranslateInfoBarDelegate();
   delegate->AddObserver(&mock_observer);
   EXPECT_FALSE(delegate->is_error());
   EXPECT_EQ(TranslateStep::TRANSLATE_STEP_TRANSLATING,
@@ -180,9 +179,9 @@ TEST_F(TranslateInfoBarDelegateTest, CreateTranslateInfobarDelegate) {
       kSourceLanguage, kTargetLanguage, TranslateErrors::NONE,
       /*triggered_from_menu=*/false);
 
-  EXPECT_EQ(infobar_manager_->infobar_count(), 1u);
+  EXPECT_EQ(infobar_manager_->infobars().size(), 1u);
   TranslateInfoBarDelegate* delegate_after =
-      infobar_manager_->infobar_at(0)->delegate()->AsTranslateInfoBarDelegate();
+      infobar_manager_->infobars()[0]->delegate()->AsTranslateInfoBarDelegate();
 
   EXPECT_EQ(delegate_after->translate_step(),
             TranslateStep::TRANSLATE_STEP_AFTER_TRANSLATE);
@@ -194,9 +193,9 @@ TEST_F(TranslateInfoBarDelegateTest, CreateTranslateInfobarDelegate) {
       kSourceLanguage, kTargetLanguage, TranslateErrors::NONE,
       /*triggered_from_menu=*/false);
 
-  EXPECT_EQ(infobar_manager_->infobar_count(), 1u);
+  EXPECT_EQ(infobar_manager_->infobars().size(), 1u);
   TranslateInfoBarDelegate* delegate_final =
-      infobar_manager_->infobar_at(0)->delegate()->AsTranslateInfoBarDelegate();
+      infobar_manager_->infobars()[0]->delegate()->AsTranslateInfoBarDelegate();
   ASSERT_EQ(delegate_final->translate_step(),
             TranslateStep::TRANSLATE_STEP_AFTER_TRANSLATE);
   delegate->RemoveObserver(&mock_observer);
@@ -206,7 +205,7 @@ TEST_F(TranslateInfoBarDelegateTest, CreateTranslateInfobarDelegate) {
 TEST_F(TranslateInfoBarDelegateTest, CreateTranslateInfobarDelegateFromMenu) {
   ::testing::StrictMock<MockObserver> mock_observer;
   ::testing::StrictMock<MockManagerObserver> mock_manager_observer;
-  EXPECT_EQ(infobar_manager_->infobar_count(), 0u);
+  EXPECT_EQ(infobar_manager_->infobars().size(), 0u);
   infobar_manager_->AddObserver(&mock_manager_observer);
 
   EXPECT_CALL(mock_manager_observer, OnInfoBarAdded(_));
@@ -217,8 +216,8 @@ TEST_F(TranslateInfoBarDelegateTest, CreateTranslateInfobarDelegateFromMenu) {
       kSourceLanguage, kTargetLanguage, TranslateErrors::NONE,
       /*triggered_from_menu=*/true);
 
-  EXPECT_EQ(infobar_manager_->infobar_count(), 1u);
-  infobars::InfoBar* infobar = infobar_manager_->infobar_at(0);
+  EXPECT_EQ(infobar_manager_->infobars().size(), 1u);
+  infobars::InfoBar* infobar = infobar_manager_->infobars()[0];
   TranslateInfoBarDelegate* delegate =
       infobar->delegate()->AsTranslateInfoBarDelegate();
   delegate->AddObserver(&mock_observer);
@@ -240,9 +239,9 @@ TEST_F(TranslateInfoBarDelegateTest, CreateTranslateInfobarDelegateFromMenu) {
       kSourceLanguage, kTargetLanguage, TranslateErrors::NONE,
       /*triggered_from_menu=*/true);
 
-  EXPECT_EQ(infobar_manager_->infobar_count(), 1u);
+  EXPECT_EQ(infobar_manager_->infobars().size(), 1u);
   TranslateInfoBarDelegate* delegate_after =
-      infobar_manager_->infobar_at(0)->delegate()->AsTranslateInfoBarDelegate();
+      infobar_manager_->infobars()[0]->delegate()->AsTranslateInfoBarDelegate();
   delegate_after->AddObserver(&mock_observer);
 
   EXPECT_EQ(delegate_after->translate_step(),
@@ -255,9 +254,9 @@ TEST_F(TranslateInfoBarDelegateTest, CreateTranslateInfobarDelegateFromMenu) {
       kSourceLanguage, kTargetLanguage, TranslateErrors::NONE,
       /*triggered_from_menu=*/true);
 
-  EXPECT_EQ(infobar_manager_->infobar_count(), 1u);
+  EXPECT_EQ(infobar_manager_->infobars().size(), 1u);
   TranslateInfoBarDelegate* delegate_final =
-      infobar_manager_->infobar_at(0)->delegate()->AsTranslateInfoBarDelegate();
+      infobar_manager_->infobars()[0]->delegate()->AsTranslateInfoBarDelegate();
   ASSERT_EQ(delegate_final->translate_step(),
             TranslateStep::TRANSLATE_STEP_AFTER_TRANSLATE);
 
@@ -290,7 +289,7 @@ TEST_F(TranslateInfoBarDelegateTest, IsTranslatableLanguage) {
   base::Value::List& update_list = update.Get();
   update_list.Append(kSourceLanguage);
   pref_service_->SetString(language::prefs::kAcceptLanguages, kSourceLanguage);
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   pref_service_->SetString(language::prefs::kPreferredLanguages,
                            kSourceLanguage);
 #endif
@@ -311,7 +310,7 @@ TEST_F(TranslateInfoBarDelegateTest, ShouldAutoAlwaysTranslate) {
 
   const base::Value::Dict* dict =
       &pref_service_->GetDict(TranslatePrefs::kPrefTranslateAutoAlwaysCount);
-  absl::optional<int> translate_auto_always_count =
+  std::optional<int> translate_auto_always_count =
       dict->FindInt(kSourceLanguage);
   EXPECT_FALSE(translate_auto_always_count.has_value());
 
@@ -321,16 +320,16 @@ TEST_F(TranslateInfoBarDelegateTest, ShouldAutoAlwaysTranslate) {
       kSourceLanguage, kTargetLanguage, TranslateErrors::NONE,
       /*triggered_from_menu=*/false);
   TranslateInfoBarDelegate* delegate =
-      infobar_manager_->infobar_at(0)->delegate()->AsTranslateInfoBarDelegate();
+      infobar_manager_->infobars()[0]->delegate()->AsTranslateInfoBarDelegate();
   EXPECT_TRUE(delegate->ShouldAutoAlwaysTranslate());
 
-  absl::optional<int> count =
+  std::optional<int> count =
       update_translate_accepted_dict.FindInt(kSourceLanguage);
-  EXPECT_EQ(absl::optional<int>(0), count);
+  EXPECT_EQ(std::optional<int>(0), count);
   // Get the dictionary again in order to update it.
   dict = &pref_service_->GetDict(TranslatePrefs::kPrefTranslateAutoAlwaysCount);
   translate_auto_always_count = dict->FindInt(kSourceLanguage);
-  EXPECT_EQ(absl::optional<int>(1), translate_auto_always_count);
+  EXPECT_EQ(std::optional<int>(1), translate_auto_always_count);
 }
 
 TEST_F(TranslateInfoBarDelegateTest, ShouldNotAutoAlwaysTranslateUnknown) {
@@ -339,31 +338,33 @@ TEST_F(TranslateInfoBarDelegateTest, ShouldNotAutoAlwaysTranslateUnknown) {
   base::Value::Dict& update_translate_accepted_dict =
       update_translate_accepted_count.Get();
   // Should not trigger auto always translate for unknown source language.
-  update_translate_accepted_dict.Set(kUnknownLanguageCode,
+  update_translate_accepted_dict.Set(language_detection::kUnknownLanguageCode,
                                      kAutoAlwaysThreshold + 1);
 
   const base::Value::Dict* dict =
       &pref_service_->GetDict(TranslatePrefs::kPrefTranslateAutoAlwaysCount);
-  absl::optional<int> translate_auto_always_count =
-      dict->FindInt(kUnknownLanguageCode);
+  std::optional<int> translate_auto_always_count =
+      dict->FindInt(language_detection::kUnknownLanguageCode);
   EXPECT_FALSE(translate_auto_always_count.has_value());
 
   TranslateInfoBarDelegate::Create(
       /*replace_existing_infobar=*/true, manager_->GetWeakPtr(),
       infobar_manager_.get(), TranslateStep::TRANSLATE_STEP_TRANSLATING,
-      kUnknownLanguageCode, kTargetLanguage, TranslateErrors::NONE,
+      language_detection::kUnknownLanguageCode, kTargetLanguage,
+      TranslateErrors::NONE,
       /*triggered_from_menu=*/false);
   TranslateInfoBarDelegate* delegate =
-      infobar_manager_->infobar_at(0)->delegate()->AsTranslateInfoBarDelegate();
+      infobar_manager_->infobars()[0]->delegate()->AsTranslateInfoBarDelegate();
   EXPECT_FALSE(delegate->ShouldAutoAlwaysTranslate());
 
-  absl::optional<int> count =
+  std::optional<int> count =
       update_translate_accepted_dict.FindInt(kSourceLanguage);
   // Always translate not triggered, so count should be unchanged.
   EXPECT_FALSE(count.has_value());
   // Get the dictionary again in order to update it.
   dict = &pref_service_->GetDict(TranslatePrefs::kPrefTranslateAutoAlwaysCount);
-  translate_auto_always_count = dict->FindInt(kUnknownLanguageCode);
+  translate_auto_always_count =
+      dict->FindInt(language_detection::kUnknownLanguageCode);
   EXPECT_FALSE(translate_auto_always_count.has_value());
 }
 
@@ -376,9 +377,9 @@ TEST_F(TranslateInfoBarDelegateTest, ShouldNotAutoAlwaysTranslate) {
       kSourceLanguage, kTargetLanguage, TranslateErrors::NONE,
       /*triggered_from_menu=*/false);
 
-  EXPECT_EQ(infobar_manager_->infobar_count(), 1u);
+  EXPECT_EQ(infobar_manager_->infobars().size(), 1u);
   TranslateInfoBarDelegate* delegate =
-      infobar_manager_->infobar_at(0)->delegate()->AsTranslateInfoBarDelegate();
+      infobar_manager_->infobars()[0]->delegate()->AsTranslateInfoBarDelegate();
   EXPECT_FALSE(delegate->ShouldAutoAlwaysTranslate());
 }
 
@@ -397,7 +398,7 @@ TEST_F(TranslateInfoBarDelegateTest, ShouldAutoNeverTranslate) {
 
   const base::Value::Dict* dict =
       &pref_service_->GetDict(TranslatePrefs::kPrefTranslateAutoNeverCount);
-  absl::optional<int> translate_auto_never_count =
+  std::optional<int> translate_auto_never_count =
       dict->FindInt(kSourceLanguage);
   ASSERT_FALSE(translate_auto_never_count.has_value());
 
@@ -407,16 +408,16 @@ TEST_F(TranslateInfoBarDelegateTest, ShouldAutoNeverTranslate) {
       kSourceLanguage, kTargetLanguage, TranslateErrors::NONE,
       /*triggered_from_menu=*/false);
   TranslateInfoBarDelegate* delegate =
-      infobar_manager_->infobar_at(0)->delegate()->AsTranslateInfoBarDelegate();
+      infobar_manager_->infobars()[0]->delegate()->AsTranslateInfoBarDelegate();
   EXPECT_TRUE(delegate->ShouldAutoNeverTranslate());
 
-  absl::optional<int> count =
+  std::optional<int> count =
       update_translate_denied_dict.FindInt(kSourceLanguage);
-  EXPECT_EQ(absl::optional<int>(0), count);
+  EXPECT_EQ(std::optional<int>(0), count);
   // Get the dictionary again in order to update it.
   dict = &pref_service_->GetDict(TranslatePrefs::kPrefTranslateAutoNeverCount);
   translate_auto_never_count = dict->FindInt(kSourceLanguage);
-  ASSERT_EQ(absl::optional<int>(1), translate_auto_never_count);
+  ASSERT_EQ(std::optional<int>(1), translate_auto_never_count);
 }
 
 TEST_F(TranslateInfoBarDelegateTest, ShouldAutoNeverTranslate_Not) {
@@ -428,9 +429,9 @@ TEST_F(TranslateInfoBarDelegateTest, ShouldAutoNeverTranslate_Not) {
       kSourceLanguage, kTargetLanguage, TranslateErrors::NONE,
       /*triggered_from_menu=*/false);
 
-  EXPECT_EQ(infobar_manager_->infobar_count(), 1u);
+  EXPECT_EQ(infobar_manager_->infobars().size(), 1u);
   TranslateInfoBarDelegate* delegate =
-      infobar_manager_->infobar_at(0)->delegate()->AsTranslateInfoBarDelegate();
+      infobar_manager_->infobars()[0]->delegate()->AsTranslateInfoBarDelegate();
   EXPECT_FALSE(delegate->ShouldAutoNeverTranslate());
 }
 

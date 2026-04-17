@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "third_party/blink/renderer/platform/fonts/font_unique_name_lookup.h"
+// clang-format on
+
 #include "third_party/blink/renderer/platform/fonts/starboard/font_unique_name_lookup_starboard.h"
 
 namespace blink {

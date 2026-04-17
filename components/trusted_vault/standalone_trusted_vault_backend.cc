@@ -7,172 +7,49 @@
 #include <algorithm>
 #include <memory>
 #include <utility>
+#include <vector>
 
-#include "base/containers/contains.h"
-#include "base/containers/cxx20_erase.h"
 #include "base/containers/flat_set.h"
 #include "base/containers/span.h"
 #include "base/feature_list.h"
-#include "base/files/file_util.h"
-#include "base/files/important_file_writer.h"
+#include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
-#include "base/hash/md5.h"
-#include "base/logging.h"
+#include "base/memory/ptr_util.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/ranges/algorithm.h"
 #include "base/sequence_checker.h"
 #include "base/stl_util.h"
 #include "base/task/sequenced_task_runner.h"
-#include "base/time/clock.h"
-#include "base/time/default_clock.h"
-#include "base/time/time.h"
-#include "components/os_crypt/sync/os_crypt.h"
+#include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/accounts_in_cookie_jar_info.h"
-#include "components/sync/base/features.h"
-#include "components/sync/base/time.h"
-#include "components/sync/driver/trusted_vault_histograms.h"
+#include "components/trusted_vault/features.h"
+#include "components/trusted_vault/local_recovery_factor.h"
+#include "components/trusted_vault/physical_device_recovery_factor.h"
 #include "components/trusted_vault/proto/local_trusted_vault.pb.h"
 #include "components/trusted_vault/proto_string_bytes_conversion.h"
+#include "components/trusted_vault/proto_time_conversion.h"
 #include "components/trusted_vault/securebox.h"
+#include "components/trusted_vault/standalone_trusted_vault_server_constants.h"
+#include "components/trusted_vault/standalone_trusted_vault_storage.h"
 #include "components/trusted_vault/trusted_vault_connection.h"
 #include "components/trusted_vault/trusted_vault_histograms.h"
 #include "components/trusted_vault/trusted_vault_server_constants.h"
+#include "components/trusted_vault/trusted_vault_throttling_connection_impl.h"
 #include "google_apis/gaia/gaia_auth_util.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "google_apis/gaia/google_service_auth_error.h"
+
+#if BUILDFLAG(IS_MAC)
+#include "components/trusted_vault/icloud_keychain_recovery_factor.h"
+#endif
 
 namespace trusted_vault {
 
 namespace {
 
-constexpr int kCurrentLocalTrustedVaultVersion = 2;
-constexpr int kCurrentDeviceRegistrationVersion = 1;
-constexpr base::TimeDelta kVerifyDeviceRegistrationDelay = base::Seconds(10);
-
-trusted_vault_pb::LocalTrustedVault ReadEncryptedFile(
-    const base::FilePath& file_path) {
-  trusted_vault_pb::LocalTrustedVault proto;
-  std::string ciphertext;
-  std::string decrypted_content;
-  if (!base::ReadFileToString(file_path, &ciphertext)) {
-    return proto;
-  }
-
-  const bool decryption_success =
-      OSCrypt::DecryptString(ciphertext, &decrypted_content);
-  base::UmaHistogramBoolean("Sync.TrustedVaultLocalDataDecryptionIsSuccessful",
-                            decryption_success);
-  if (decryption_success) {
-    proto.ParseFromString(decrypted_content);
-  }
-
-  return proto;
-}
-
-trusted_vault_pb::LocalTrustedVault ReadMD5HashedFile(
-    const base::FilePath& file_path) {
-  std::string file_content;
-
-  trusted_vault_pb::LocalTrustedVault data_proto;
-  if (!base::PathExists(file_path)) {
-    trusted_vault::RecordTrustedVaultFileReadStatus(
-        TrustedVaultFileReadStatusForUMA::kNotFound);
-    return data_proto;
-  }
-  if (!base::ReadFileToString(file_path, &file_content)) {
-    trusted_vault::RecordTrustedVaultFileReadStatus(
-        TrustedVaultFileReadStatusForUMA::kFileReadFailed);
-    return data_proto;
-  }
-  trusted_vault_pb::LocalTrustedVaultFileContent file_proto;
-  if (!file_proto.ParseFromString(file_content)) {
-    trusted_vault::RecordTrustedVaultFileReadStatus(
-        TrustedVaultFileReadStatusForUMA::kFileProtoDeserializationFailed);
-    return data_proto;
-  }
-
-  if (base::MD5String(file_proto.serialized_local_trusted_vault()) !=
-      file_proto.md5_digest_hex_string()) {
-    trusted_vault::RecordTrustedVaultFileReadStatus(
-        TrustedVaultFileReadStatusForUMA::kMD5DigestMismatch);
-    return data_proto;
-  }
-
-  if (!data_proto.ParseFromString(
-          file_proto.serialized_local_trusted_vault())) {
-    trusted_vault::RecordTrustedVaultFileReadStatus(
-        TrustedVaultFileReadStatusForUMA::kDataProtoDeserializationFailed);
-    return data_proto;
-  }
-  trusted_vault::RecordTrustedVaultFileReadStatus(
-      TrustedVaultFileReadStatusForUMA::kSuccess);
-  return data_proto;
-}
-
-void WriteMD5HashedFileToDisk(const trusted_vault_pb::LocalTrustedVault& data,
-                              const base::FilePath& file_path) {
-  trusted_vault_pb::LocalTrustedVaultFileContent file_proto;
-  file_proto.set_serialized_local_trusted_vault(data.SerializeAsString());
-  file_proto.set_md5_digest_hex_string(
-      base::MD5String(file_proto.serialized_local_trusted_vault()));
-  bool success = base::ImportantFileWriter::WriteFileAtomically(
-      file_path, file_proto.SerializeAsString());
-  if (!success) {
-    DLOG(ERROR) << "Failed to write trusted vault file.";
-  }
-  base::UmaHistogramBoolean("Sync.TrustedVaultFileWriteSuccess", success);
-}
-
-void MaybeMigrateDataFile(const base::FilePath& old_file_path,
-                          const base::FilePath& new_file_path) {
-  if (!base::PathExists(old_file_path)) {
-    return;
-  }
-  if (!base::PathExists(new_file_path)) {
-    // Only write to `new_file_path` if it doesn't exist yet to prevent
-    // overwriting the content with stale data.
-    trusted_vault_pb::LocalTrustedVault proto =
-        ReadEncryptedFile(old_file_path);
-    WriteMD5HashedFileToDisk(proto, new_file_path);
-  }
-  if (base::PathExists(new_file_path)) {
-    base::DeleteFile(old_file_path);
-  }
-}
-
-bool HasNonConstantKey(
-    const trusted_vault_pb::LocalTrustedVaultPerUser& per_user_vault) {
-  std::string constant_key_as_proto_string;
-  AssignBytesToProtoString(GetConstantTrustedVaultKey(),
-                           &constant_key_as_proto_string);
-  for (const trusted_vault_pb::LocalTrustedVaultKey& key :
-       per_user_vault.vault_key()) {
-    if (key.key_material() != constant_key_as_proto_string) {
-      return true;
-    }
-  }
-  return false;
-}
-
-std::vector<std::vector<uint8_t>> GetAllVaultKeys(
-    const trusted_vault_pb::LocalTrustedVaultPerUser& per_user_vault) {
-  std::vector<std::vector<uint8_t>> vault_keys;
-  for (const trusted_vault_pb::LocalTrustedVaultKey& key :
-       per_user_vault.vault_key()) {
-    vault_keys.emplace_back(ProtoStringToBytes(key.key_material()));
-  }
-  return vault_keys;
-}
-
-void DownloadIsRecoverabilityDegradedCompleted(
-    base::OnceCallback<void(bool)> cb,
-    TrustedVaultRecoverabilityStatus status) {
-  std::move(cb).Run(status == TrustedVaultRecoverabilityStatus::kDegraded);
-}
-
-base::flat_set<std::string> GetGaiaIDs(
+base::flat_set<GaiaId> GetGaiaIDs(
     const std::vector<gaia::ListedAccount>& listed_accounts) {
-  base::flat_set<std::string> result;
+  base::flat_set<GaiaId> result;
   for (const gaia::ListedAccount& listed_account : listed_accounts) {
     result.insert(listed_account.gaia_id);
   }
@@ -194,76 +71,101 @@ bool PersistentAuthErrorWasResolved(
                  kNoPersistentAuthErrors;
 }
 
-TrustedVaultDeviceRegistrationOutcomeForUMA
-GetDeviceRegistrationOutcomeForUMAFromResponse(
+TrustedVaultRecoverKeysOutcomeForUMA
+GetRecoverKeysOutcomeForUMAFromRecoveryStatus(
+    LocalRecoveryFactor::RecoveryStatus recovery_status) {
+  switch (recovery_status) {
+    case LocalRecoveryFactor::RecoveryStatus::kSuccess:
+      return TrustedVaultRecoverKeysOutcomeForUMA::kSuccess;
+    case LocalRecoveryFactor::RecoveryStatus::kNoNewKeys:
+      return TrustedVaultRecoverKeysOutcomeForUMA::kNoNewKeys;
+    case LocalRecoveryFactor::RecoveryStatus::kFailure:
+      return TrustedVaultRecoverKeysOutcomeForUMA::kFailure;
+  }
+
+  NOTREACHED();
+}
+
+TrustedVaultRecoveryFactorRegistrationOutcomeForUMA
+GetRecoveryFactorRegistrationOutcomeForUMAFromResponse(
     TrustedVaultRegistrationStatus response_status) {
   switch (response_status) {
     case TrustedVaultRegistrationStatus::kSuccess:
-      return TrustedVaultDeviceRegistrationOutcomeForUMA::kSuccess;
+      return TrustedVaultRecoveryFactorRegistrationOutcomeForUMA::kSuccess;
     case TrustedVaultRegistrationStatus::kAlreadyRegistered:
-      return TrustedVaultDeviceRegistrationOutcomeForUMA::kAlreadyRegistered;
+      return TrustedVaultRecoveryFactorRegistrationOutcomeForUMA::
+          kAlreadyRegistered;
     case TrustedVaultRegistrationStatus::kLocalDataObsolete:
-      return TrustedVaultDeviceRegistrationOutcomeForUMA::kLocalDataObsolete;
+      return TrustedVaultRecoveryFactorRegistrationOutcomeForUMA::
+          kLocalDataObsolete;
     case TrustedVaultRegistrationStatus::kTransientAccessTokenFetchError:
-      return TrustedVaultDeviceRegistrationOutcomeForUMA::
+      return TrustedVaultRecoveryFactorRegistrationOutcomeForUMA::
           kTransientAccessTokenFetchError;
     case TrustedVaultRegistrationStatus::kPersistentAccessTokenFetchError:
-      return TrustedVaultDeviceRegistrationOutcomeForUMA::
+      return TrustedVaultRecoveryFactorRegistrationOutcomeForUMA::
           kPersistentAccessTokenFetchError;
     case TrustedVaultRegistrationStatus::
         kPrimaryAccountChangeAccessTokenFetchError:
-      return TrustedVaultDeviceRegistrationOutcomeForUMA::
+      return TrustedVaultRecoveryFactorRegistrationOutcomeForUMA::
           kPrimaryAccountChangeAccessTokenFetchError;
     case TrustedVaultRegistrationStatus::kNetworkError:
-      return TrustedVaultDeviceRegistrationOutcomeForUMA::kNetworkError;
+      return TrustedVaultRecoveryFactorRegistrationOutcomeForUMA::kNetworkError;
     case TrustedVaultRegistrationStatus::kOtherError:
-      return TrustedVaultDeviceRegistrationOutcomeForUMA::kOtherError;
+      return TrustedVaultRecoveryFactorRegistrationOutcomeForUMA::kOtherError;
   }
   NOTREACHED();
-  return TrustedVaultDeviceRegistrationOutcomeForUMA::kOtherError;
 }
 
-// Version 0 may contain corrupted data: missing constant key if the client
-// was affected by crbug.com/1267391, this function injects constant key if it's
-// not stored and there is exactly one non-constant key. |local_trusted_vault|
-// must not be null and must have |version| set to 0.
-void UpgradeToVersion1(
-    trusted_vault_pb::LocalTrustedVault* local_trusted_vault) {
-  DCHECK(local_trusted_vault);
-  DCHECK_EQ(local_trusted_vault->data_version(), 0);
+class LocalRecoveryFactorsFactoryImpl
+    : public StandaloneTrustedVaultBackend::LocalRecoveryFactorsFactory {
+ public:
+#if BUILDFLAG(IS_MAC)
+  explicit LocalRecoveryFactorsFactoryImpl(
+      const std::string& icloud_keychain_access_group_prefix)
+      : icloud_keychain_access_group_prefix_(
+            icloud_keychain_access_group_prefix) {}
+#else
+  LocalRecoveryFactorsFactoryImpl() = default;
+#endif
+  LocalRecoveryFactorsFactoryImpl(const LocalRecoveryFactorsFactoryImpl&) =
+      delete;
+  ~LocalRecoveryFactorsFactoryImpl() override = default;
 
-  std::string constant_key_as_proto_string;
-  AssignBytesToProtoString(GetConstantTrustedVaultKey(),
-                           &constant_key_as_proto_string);
+  LocalRecoveryFactorsFactoryImpl& operator=(
+      const LocalRecoveryFactorsFactoryImpl&) = delete;
 
-  for (trusted_vault_pb::LocalTrustedVaultPerUser& per_user_vault :
-       *local_trusted_vault->mutable_user()) {
-    if (per_user_vault.vault_key_size() == 1 &&
-        per_user_vault.vault_key(0).key_material() !=
-            constant_key_as_proto_string) {
-      // Add constant key in the beginning.
-      *per_user_vault.add_vault_key() = per_user_vault.vault_key(0);
-      per_user_vault.mutable_vault_key(0)->set_key_material(
-          constant_key_as_proto_string);
+  std::vector<std::unique_ptr<LocalRecoveryFactor>> CreateLocalRecoveryFactors(
+      SecurityDomainId security_domain_id,
+      StandaloneTrustedVaultStorage* storage,
+      TrustedVaultThrottlingConnection* connection,
+      const CoreAccountInfo& primary_account) override {
+    std::vector<std::unique_ptr<LocalRecoveryFactor>> local_recovery_factors;
+    local_recovery_factors.emplace_back(
+        std::make_unique<PhysicalDeviceRecoveryFactor>(
+            security_domain_id, storage, connection, primary_account));
+#if BUILDFLAG(IS_MAC)
+    if (base::FeatureList::IsEnabled(kEnableICloudKeychainRecoveryFactor)) {
+      // Note: The iCloud Keychain recovery factor needs to come after the
+      // physical device recovery factor.
+      // Retrieval attempts are performed in order, and since retrieving using
+      // the iCloud Keychain is significantly more heavy weight than from the
+      // physical device recovery factor, we want to make sure that the latter
+      // is attempted first.
+      local_recovery_factors.emplace_back(
+          std::make_unique<ICloudKeychainRecoveryFactor>(
+              icloud_keychain_access_group_prefix_, security_domain_id, storage,
+              connection, primary_account));
     }
-  }
-  local_trusted_vault->set_data_version(1);
-}
+#endif
 
-// Version 1 may contain `keys_marked_as_stale_by_consumer` (before the field
-// was renamed) accidentally set to true, upgrade to version 2 resets it to
-// false.
-void UpgradeToVersion2(
-    trusted_vault_pb::LocalTrustedVault* local_trusted_vault) {
-  DCHECK(local_trusted_vault);
-  DCHECK_EQ(local_trusted_vault->data_version(), 1);
-
-  for (trusted_vault_pb::LocalTrustedVaultPerUser& per_user_vault :
-       *local_trusted_vault->mutable_user()) {
-    per_user_vault.set_keys_marked_as_stale_by_consumer(false);
+    return local_recovery_factors;
   }
-  local_trusted_vault->set_data_version(2);
-}
+
+ private:
+#if BUILDFLAG(IS_MAC)
+  const std::string icloud_keychain_access_group_prefix_;
+#endif
+};
 
 }  // namespace
 
@@ -294,59 +196,82 @@ StandaloneTrustedVaultBackend::PendingGetIsRecoverabilityDegraded::operator=(
 StandaloneTrustedVaultBackend::PendingGetIsRecoverabilityDegraded::
     ~PendingGetIsRecoverabilityDegraded() = default;
 
-// static
-TrustedVaultDownloadKeysStatusForUMA
-StandaloneTrustedVaultBackend::GetDownloadKeysStatusForUMAFromResponse(
-    TrustedVaultDownloadKeysStatus response_status) {
-  switch (response_status) {
-    case TrustedVaultDownloadKeysStatus::kSuccess:
-      return TrustedVaultDownloadKeysStatusForUMA::kSuccess;
-    case TrustedVaultDownloadKeysStatus::kMemberNotFound:
-      return TrustedVaultDownloadKeysStatusForUMA::kMemberNotFound;
-    case TrustedVaultDownloadKeysStatus::kMembershipNotFound:
-      return TrustedVaultDownloadKeysStatusForUMA::kMembershipNotFound;
-    case TrustedVaultDownloadKeysStatus::kMembershipCorrupted:
-      return TrustedVaultDownloadKeysStatusForUMA::kMembershipCorrupted;
-    case TrustedVaultDownloadKeysStatus::kMembershipEmpty:
-      return TrustedVaultDownloadKeysStatusForUMA::kMembershipEmpty;
-    case TrustedVaultDownloadKeysStatus::kNoNewKeys:
-      return TrustedVaultDownloadKeysStatusForUMA::kNoNewKeys;
-    case TrustedVaultDownloadKeysStatus::kKeyProofsVerificationFailed:
-      return TrustedVaultDownloadKeysStatusForUMA::kKeyProofsVerificationFailed;
-    case TrustedVaultDownloadKeysStatus::kAccessTokenFetchingFailure:
-      return TrustedVaultDownloadKeysStatusForUMA::kAccessTokenFetchingFailure;
-    case TrustedVaultDownloadKeysStatus::kNetworkError:
-      return TrustedVaultDownloadKeysStatusForUMA::kNetworkError;
-    case TrustedVaultDownloadKeysStatus::kOtherError:
-      return TrustedVaultDownloadKeysStatusForUMA::kOtherError;
-  }
+StandaloneTrustedVaultBackend::OngoingFetchKeys::OngoingFetchKeys() = default;
 
-  NOTREACHED();
-  return TrustedVaultDownloadKeysStatusForUMA::kOtherError;
+StandaloneTrustedVaultBackend::OngoingFetchKeys::OngoingFetchKeys(
+    OngoingFetchKeys&&) = default;
+
+StandaloneTrustedVaultBackend::OngoingFetchKeys&
+StandaloneTrustedVaultBackend::OngoingFetchKeys::operator=(OngoingFetchKeys&&) =
+    default;
+
+StandaloneTrustedVaultBackend::OngoingFetchKeys::~OngoingFetchKeys() = default;
+
+StandaloneTrustedVaultBackend::StandaloneTrustedVaultBackend(
+#if BUILDFLAG(IS_MAC)
+    const std::string& icloud_keychain_access_group_prefix,
+#endif
+    SecurityDomainId security_domain_id,
+    std::unique_ptr<StandaloneTrustedVaultStorage> storage,
+    std::unique_ptr<Delegate> delegate,
+    std::unique_ptr<TrustedVaultConnection> connection)
+    : security_domain_id_(security_domain_id),
+      storage_(std::move(storage)),
+      delegate_(std::move(delegate)),
+      connection_(connection
+                      ? std::make_unique<TrustedVaultThrottlingConnectionImpl>(
+                            std::move(connection),
+                            storage_.get())
+                      : nullptr),
+#if BUILDFLAG(IS_MAC)
+      local_recovery_factors_factory_(
+          std::make_unique<LocalRecoveryFactorsFactoryImpl>(
+              icloud_keychain_access_group_prefix))
+#else
+      local_recovery_factors_factory_(
+          std::make_unique<LocalRecoveryFactorsFactoryImpl>())
+#endif
+{
 }
 
 StandaloneTrustedVaultBackend::StandaloneTrustedVaultBackend(
-    const base::FilePath& md5_hashed_file_path,
-    const base::FilePath& deprecated_encrypted_file_path,
+    SecurityDomainId security_domain_id,
+    std::unique_ptr<StandaloneTrustedVaultStorage> storage,
     std::unique_ptr<Delegate> delegate,
-    std::unique_ptr<TrustedVaultConnection> connection)
-    : md5_hashed_file_path_(md5_hashed_file_path),
-      deprecated_encrypted_file_path_(deprecated_encrypted_file_path),
+    std::unique_ptr<TrustedVaultThrottlingConnection> connection,
+    std::unique_ptr<LocalRecoveryFactorsFactory> local_recovery_factors_factory)
+    : security_domain_id_(security_domain_id),
+      storage_(std::move(storage)),
       delegate_(std::move(delegate)),
       connection_(std::move(connection)),
-      clock_(base::DefaultClock::GetInstance()) {}
+      local_recovery_factors_factory_(
+          std::move(local_recovery_factors_factory)) {}
 
 StandaloneTrustedVaultBackend::~StandaloneTrustedVaultBackend() = default;
+
+// static
+scoped_refptr<StandaloneTrustedVaultBackend>
+StandaloneTrustedVaultBackend::CreateForTesting(
+    SecurityDomainId security_domain_id,
+    std::unique_ptr<StandaloneTrustedVaultStorage> storage,
+    std::unique_ptr<StandaloneTrustedVaultBackend::Delegate> delegate,
+    std::unique_ptr<TrustedVaultThrottlingConnection> connection,
+    std::unique_ptr<LocalRecoveryFactorsFactory>
+        local_recovery_factors_factory) {
+  return base::WrapRefCounted(new StandaloneTrustedVaultBackend(
+      security_domain_id, std::move(storage), std::move(delegate),
+      std::move(connection), std::move(local_recovery_factors_factory)));
+}
 
 void StandaloneTrustedVaultBackend::WriteDegradedRecoverabilityState(
     const trusted_vault_pb::LocalTrustedVaultDegradedRecoverabilityState&
         degraded_recoverability_state) {
   DCHECK(primary_account_.has_value());
   trusted_vault_pb::LocalTrustedVaultPerUser* per_user_vault =
-      FindUserVault(primary_account_->gaia);
+      storage_->FindUserVault(primary_account_->gaia);
   *per_user_vault->mutable_degraded_recoverability_state() =
       degraded_recoverability_state;
-  WriteDataToDisk();
+  storage_->WriteDataToDisk();
 }
 
 void StandaloneTrustedVaultBackend::OnDegradedRecoverabilityChanged() {
@@ -354,133 +279,88 @@ void StandaloneTrustedVaultBackend::OnDegradedRecoverabilityChanged() {
 }
 
 void StandaloneTrustedVaultBackend::ReadDataFromDisk() {
-  // TODO(crbug.com/1374650): Migration from legacy file was enabled in M108,
-  // clean it up once at least one year passed.
-  MaybeMigrateDataFile(deprecated_encrypted_file_path_, md5_hashed_file_path_);
-  data_ = ReadMD5HashedFile(md5_hashed_file_path_);
-
-  if (data_.user_size() == 0) {
-    // No data, set the current version and omit writing the file.
-    data_.set_data_version(kCurrentLocalTrustedVaultVersion);
-  }
-
-  if (data_.data_version() == 0) {
-    UpgradeToVersion1(&data_);
-    WriteDataToDisk();
-  }
-
-  if (data_.data_version() == 1) {
-    UpgradeToVersion2(&data_);
-    WriteDataToDisk();
-  }
-
-  DCHECK_EQ(data_.data_version(), kCurrentLocalTrustedVaultVersion);
+  storage_->ReadDataFromDisk();
 }
 
 void StandaloneTrustedVaultBackend::FetchKeys(
     const CoreAccountInfo& account_info,
     FetchKeysCallback callback) {
-  // Concurrent keys fetches aren't supported.
-  DCHECK(ongoing_fetch_keys_callback_.is_null());
   DCHECK(!callback.is_null());
 
-  ongoing_fetch_keys_callback_ = std::move(callback);
-  ongoing_fetch_keys_gaia_id_ = account_info.gaia;
-
   const trusted_vault_pb::LocalTrustedVaultPerUser* per_user_vault =
-      FindUserVault(account_info.gaia);
+      storage_->FindUserVault(account_info.gaia);
 
-  if (per_user_vault && HasNonConstantKey(*per_user_vault) &&
+  if (per_user_vault &&
+      StandaloneTrustedVaultStorage::HasNonConstantKey(*per_user_vault) &&
       !per_user_vault->keys_marked_as_stale_by_consumer()) {
     // There are locally available keys, which weren't marked as stale. Keys
     // download attempt is not needed.
-    FulfillOngoingFetchKeys(/*status_for_uma=*/absl::nullopt);
+    FulfillFetchKeys(account_info.gaia, std::move(callback),
+                     /*status_for_uma=*/std::nullopt);
     return;
   }
   if (!connection_) {
-    // Feature disabled.
-    FulfillOngoingFetchKeys(/*status_for_uma=*/absl::nullopt);
+    // Keys downloading is disabled.
+    FulfillFetchKeys(account_info.gaia, std::move(callback),
+                     /*status_for_uma=*/std::nullopt);
     return;
   }
-  // TODO(crbug.com/1413179): This check seems redundant with the current
-  // SetPrimaryAccount() logic. Replace with DCHECK() once some confirming UMA
-  // data available.
   if (!primary_account_.has_value() ||
       primary_account_->gaia != account_info.gaia) {
     // Keys download attempt is not possible because there is no primary
     // account.
-    FulfillOngoingFetchKeys(
-        TrustedVaultDownloadKeysStatusForUMA::kNoPrimaryAccount);
+    FulfillFetchKeys(account_info.gaia, std::move(callback),
+                     TrustedVaultRecoverKeysOutcomeForUMA::kNoPrimaryAccount);
     return;
   }
-  DCHECK(per_user_vault);
-  if (!per_user_vault->local_device_registration_info().device_registered()) {
-    // Keys download attempt is not possible because the device is not
-    // registered.
-    FulfillOngoingFetchKeys(
-        TrustedVaultDownloadKeysStatusForUMA::kDeviceNotRegistered);
+  if (ongoing_fetch_keys_.has_value()) {
+    // Keys downloading is only supported for primary account, thus gaia_id
+    // should be the same for |ongoing_fetch_keys_| and |account_info|.
+    CHECK_EQ(ongoing_fetch_keys_->gaia_id, primary_account_->gaia);
+    CHECK_EQ(ongoing_fetch_keys_->gaia_id, account_info.gaia);
+    // Download keys request is in progress already, |callback| will be invoked
+    // upon its completion.
+    ongoing_fetch_keys_->callbacks.emplace_back(std::move(callback));
     return;
   }
-  if (AreConnectionRequestsThrottled()) {
-    // Keys download attempt is not possible.
-    FulfillOngoingFetchKeys(
-        TrustedVaultDownloadKeysStatusForUMA::kThrottledClientSide);
-    return;
-  }
+  CHECK(per_user_vault);
 
-  // Current state guarantees there is no ongoing keys downloading requests to
-  // the server:
-  // 1. Current |primary_account_| is |account_info|, so there is no ongoing
-  // request for other accounts.
-  // 2. Concurrent FetchKeys() calls aren't supported, so there is no keys
-  // download for |account_info|.
-  DCHECK(!ongoing_keys_downloading_request_);
+  ongoing_fetch_keys_ = OngoingFetchKeys();
+  ongoing_fetch_keys_->gaia_id = account_info.gaia;
+  ongoing_fetch_keys_->callbacks.emplace_back(std::move(callback));
 
-  std::unique_ptr<SecureBoxKeyPair> key_pair =
-      SecureBoxKeyPair::CreateByPrivateKeyImport(
-          ProtoStringToBytes(per_user_vault->local_device_registration_info()
-                                 .private_key_material()));
-  if (!key_pair) {
-    // Corrupted state: device is registered, but |key_pair| can't be imported.
-    // TODO(crbug.com/1094326): restore from this state (throw away the key and
-    // trigger device registration again).
-    FulfillOngoingFetchKeys(TrustedVaultDownloadKeysStatusForUMA::
-                                kCorruptedLocalDeviceRegistration);
-    return;
-  }
+  // |connection_| and |primary_account_| are checked to be present above, so
+  // |local_recovery_factors| can't be empty.
+  CHECK(!local_recovery_factors_.empty());
+  AttemptRecoveryFactor(0);
+}
 
-  // Guaranteed by |device_registered| check above.
-  DCHECK(!per_user_vault->vault_key().empty());
-  // |this| outlives |connection_| and |ongoing_keys_downloading_request_|, so
-  // it's safe to use base::Unretained() here.
-  ongoing_keys_downloading_request_ = connection_->DownloadNewKeys(
-      *primary_account_,
-      TrustedVaultKeyAndVersion(
-          ProtoStringToBytes(
-              per_user_vault->vault_key().rbegin()->key_material()),
-          per_user_vault->last_vault_key_version()),
-      std::move(key_pair),
-      base::BindOnce(&StandaloneTrustedVaultBackend::OnKeysDownloaded,
-                     base::Unretained(this)));
-  DCHECK(ongoing_keys_downloading_request_);
+void StandaloneTrustedVaultBackend::AttemptRecoveryFactor(
+    size_t local_recovery_factor) {
+  CHECK(local_recovery_factor >= 0 &&
+        local_recovery_factor < local_recovery_factors_.size());
+  local_recovery_factors_[local_recovery_factor]->AttemptRecovery(
+      // |this| outlives |local_recovery_factors_|, and destroying
+      // |local_recovery_factors_| guarantees cancellation of all callbacks.
+      base::BindOnce(&StandaloneTrustedVaultBackend::OnKeysRecovered,
+                     base::Unretained(this), local_recovery_factor));
 }
 
 void StandaloneTrustedVaultBackend::StoreKeys(
-    const std::string& gaia_id,
+    const GaiaId& gaia_id,
     const std::vector<std::vector<uint8_t>>& keys,
     int last_key_version) {
   // Find or create user for |gaid_id|.
   trusted_vault_pb::LocalTrustedVaultPerUser* per_user_vault =
-      FindUserVault(gaia_id);
+      storage_->FindUserVault(gaia_id);
   if (!per_user_vault) {
-    per_user_vault = data_.add_user();
-    per_user_vault->set_gaia_id(gaia_id);
+    per_user_vault = storage_->AddUserVault(gaia_id);
   }
 
-  // Having retrieved (or downloaded) new keys indicates that past failures may
-  // no longer be relevant.
-  per_user_vault->mutable_local_device_registration_info()
-      ->set_last_registration_returned_local_data_obsolete(false);
+  // Having retrieved (or downloaded) new keys indicates that information about
+  // past registration attempts (and probably failures) may no longer be
+  // relevant.
+  per_user_vault->set_last_registration_returned_local_data_obsolete(false);
 
   // Replace all keys.
   per_user_vault->set_last_vault_key_version(last_key_version);
@@ -491,12 +371,12 @@ void StandaloneTrustedVaultBackend::StoreKeys(
         key, per_user_vault->add_vault_key()->mutable_key_material());
   }
 
-  WriteDataToDisk();
-  MaybeRegisterDevice();
+  storage_->WriteDataToDisk();
+  MaybeRegisterLocalRecoveryFactors();
 }
 
 void StandaloneTrustedVaultBackend::SetPrimaryAccount(
-    const absl::optional<CoreAccountInfo>& primary_account,
+    const std::optional<CoreAccountInfo>& primary_account,
     RefreshTokenErrorState refresh_token_error_state) {
   const RefreshTokenErrorState previous_refresh_token_error_state =
       refresh_token_error_state_;
@@ -511,171 +391,133 @@ void StandaloneTrustedVaultBackend::SetPrimaryAccount(
     if (PersistentAuthErrorWasResolved(previous_refresh_token_error_state,
                                        refresh_token_error_state_)) {
       MaybeProcessPendingTrustedRecoveryMethod();
-      MaybeRegisterDevice();
+      MaybeRegisterLocalRecoveryFactors();
 
-      // |degraded_recoverability_handler_| is null unless
-      // |kSyncTrustedVaultPeriodicDegradedRecoverabilityPolling| is set.
-      if (degraded_recoverability_handler_) {
-        // TODO(crbug.com/1247990): Add Integration test.
-        degraded_recoverability_handler_->HintDegradedRecoverabilityChanged(
-            TrustedVaultHintDegradedRecoverabilityChangedReasonForUMA::
-                kPersistentAuthErrorResolved);
-      }
+      CHECK(degraded_recoverability_handler_);
+      degraded_recoverability_handler_->HintDegradedRecoverabilityChanged(
+          TrustedVaultHintDegradedRecoverabilityChangedReasonForUMA::
+              kPersistentAuthErrorResolved);
     }
 
     return;
   }
 
   primary_account_ = primary_account;
-  ongoing_device_registration_request_ = nullptr;
-  ongoing_keys_downloading_request_ = nullptr;
   degraded_recoverability_handler_ = nullptr;
-  ongoing_get_recoverability_request_.reset();
   ongoing_add_recovery_method_request_.reset();
+  // This aborts all ongoing recoveries / registrations.
+  local_recovery_factors_.clear();
   RemoveNonPrimaryAccountKeysIfMarkedForDeletion();
-  // TODO(crbug.com/1413179): revisit this when supporting FetchKeys() call
-  // before SetPrimaryAccount().
-  FulfillOngoingFetchKeys(TrustedVaultDownloadKeysStatusForUMA::kAborted);
+  // Make sure to call pending callbacks, now that ongoing recoveries were
+  // aborted.
+  FulfillOngoingFetchKeys(TrustedVaultRecoverKeysOutcomeForUMA::kAborted);
 
   if (!primary_account_.has_value()) {
     return;
   }
 
   trusted_vault_pb::LocalTrustedVaultPerUser* per_user_vault =
-      FindUserVault(primary_account->gaia);
+      storage_->FindUserVault(primary_account->gaia);
   if (!per_user_vault) {
-    per_user_vault = data_.add_user();
-    per_user_vault->set_gaia_id(primary_account->gaia);
-  }
-  if (base::FeatureList::IsEnabled(
-          syncer::kSyncTrustedVaultPeriodicDegradedRecoverabilityPolling)) {
-    degraded_recoverability_handler_ =
-        std::make_unique<TrustedVaultDegradedRecoverabilityHandler>(
-            connection_.get(), /*delegate=*/this, primary_account_.value(),
-            per_user_vault->degraded_recoverability_state());
-    // Should process `pending_get_is_recoverability_degraded_` if it belongs to
-    // the current primary account.
-    // TODO(crbug.com/1413179): |pending_get_is_recoverability_degraded_| should
-    // be redundant now. GetRecoverabilityIsDegraded() should be called after
-    // SetPrimaryAccount(). This logic is similar to FetchKeys() reporting
-    // kNoPrimaryAccount, once there is data confirming that this bucked is not
-    // recorded, it should be safe to remove.
-    if (pending_get_is_recoverability_degraded_.has_value() &&
-        pending_get_is_recoverability_degraded_->account_info ==
-            primary_account_) {
-      degraded_recoverability_handler_->GetIsRecoverabilityDegraded(std::move(
-          pending_get_is_recoverability_degraded_->completion_callback));
-    }
-    pending_get_is_recoverability_degraded_.reset();
+    per_user_vault = storage_->AddUserVault(primary_account->gaia);
   }
 
-  const absl::optional<TrustedVaultDeviceRegistrationStateForUMA>
-      registration_state = MaybeRegisterDevice();
-
-  if (registration_state.has_value() &&
-      !device_registration_state_recorded_to_uma_) {
-    device_registration_state_recorded_to_uma_ = true;
-    base::UmaHistogramBoolean(
-        "Sync.TrustedVaultDeviceRegistered",
-        per_user_vault->local_device_registration_info().device_registered());
-    trusted_vault::RecordTrustedVaultDeviceRegistrationState(
-        *registration_state);
-
-    // If the local state indicates that the device is already registered and
-    // there is no ongoing re-registration attempt, and behind a feature toggle,
-    // trigger a procedure to verify that the server has a consistent state
-    // (i.e. downloading of new keys should succeed but return no new keys).
-    if (*registration_state ==
-            TrustedVaultDeviceRegistrationStateForUMA::kAlreadyRegisteredV1 &&
-        base::FeatureList::IsEnabled(
-            syncer::kSyncTrustedVaultVerifyDeviceRegistration)) {
-      base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-          FROM_HERE,
-          base::BindOnce(
-              &StandaloneTrustedVaultBackend::VerifyDeviceRegistrationForUMA,
-              base::WrapRefCounted(this), primary_account->gaia),
-          kVerifyDeviceRegistrationDelay);
-    }
+  if (connection_) {
+    // |storage_| and |connection_| outlive |local_recovery_factors_|, so
+    // passing raw pointers is ok.
+    local_recovery_factors_ =
+        local_recovery_factors_factory_->CreateLocalRecoveryFactors(
+            security_domain_id_, storage_.get(), connection_.get(),
+            *primary_account_);
   }
 
+  degraded_recoverability_handler_ =
+      std::make_unique<TrustedVaultDegradedRecoverabilityHandler>(
+          connection_.get(), /*delegate=*/this, primary_account_.value(),
+          per_user_vault->degraded_recoverability_state());
+  // Should process `pending_get_is_recoverability_degraded_` if it belongs to
+  // the current primary account.
+  // TODO(crbug.com/40255601): |pending_get_is_recoverability_degraded_| should
+  // be redundant now. GetRecoverabilityIsDegraded() should be called after
+  // SetPrimaryAccount(). This logic is similar to FetchKeys() reporting
+  // kNoPrimaryAccount, once there is data confirming that this bucked is not
+  // recorded, it should be safe to remove.
+  if (pending_get_is_recoverability_degraded_.has_value() &&
+      pending_get_is_recoverability_degraded_->account_info ==
+          primary_account_) {
+    degraded_recoverability_handler_->GetIsRecoverabilityDegraded(std::move(
+        pending_get_is_recoverability_degraded_->completion_callback));
+  }
+  pending_get_is_recoverability_degraded_.reset();
+
+  MaybeRegisterLocalRecoveryFactors();
   MaybeProcessPendingTrustedRecoveryMethod();
 }
 
 void StandaloneTrustedVaultBackend::UpdateAccountsInCookieJarInfo(
     const signin::AccountsInCookieJarInfo& accounts_in_cookie_jar_info) {
-  const base::flat_set<std::string> gaia_ids_in_cookie_jar =
-      base::STLSetUnion<base::flat_set<std::string>>(
-          GetGaiaIDs(accounts_in_cookie_jar_info.signed_in_accounts),
-          GetGaiaIDs(accounts_in_cookie_jar_info.signed_out_accounts));
+  const base::flat_set<GaiaId> gaia_ids_in_cookie_jar =
+      base::STLSetUnion<base::flat_set<GaiaId>>(
+          GetGaiaIDs(accounts_in_cookie_jar_info
+                         .GetPotentiallyInvalidSignedInAccounts()),
+          GetGaiaIDs(accounts_in_cookie_jar_info.GetSignedOutAccounts()));
 
   // Primary account data shouldn't be removed immediately, but it needs to be
   // removed once account become non-primary if it was ever removed from cookie
   // jar.
   if (primary_account_.has_value() &&
-      !base::Contains(gaia_ids_in_cookie_jar, primary_account_->gaia)) {
+      !gaia_ids_in_cookie_jar.contains(primary_account_->gaia)) {
     trusted_vault_pb::LocalTrustedVaultPerUser* primary_account_data_ =
-        FindUserVault(primary_account_->gaia);
+        storage_->FindUserVault(primary_account_->gaia);
     primary_account_data_->set_should_delete_keys_when_non_primary(true);
   }
 
   auto should_remove_user_data =
       [&gaia_ids_in_cookie_jar, &primary_account = primary_account_](
           const trusted_vault_pb::LocalTrustedVaultPerUser& per_user_data) {
-        const std::string& gaia_id = per_user_data.gaia_id();
+        const GaiaId gaia_id(per_user_data.gaia_id());
         if (primary_account.has_value() && gaia_id == primary_account->gaia) {
           // Don't delete primary account data.
           return false;
         }
         // Delete data if account isn't in cookie jar.
-        return !base::Contains(gaia_ids_in_cookie_jar, gaia_id);
+        return !gaia_ids_in_cookie_jar.contains(gaia_id);
       };
 
-  data_.mutable_user()->erase(
-      base::ranges::remove_if(*data_.mutable_user(), should_remove_user_data),
-      data_.mutable_user()->end());
-  WriteDataToDisk();
+  storage_->RemoveUserVaults(should_remove_user_data);
+  storage_->WriteDataToDisk();
 }
 
 bool StandaloneTrustedVaultBackend::MarkLocalKeysAsStale(
     const CoreAccountInfo& account_info) {
   trusted_vault_pb::LocalTrustedVaultPerUser* per_user_vault =
-      FindUserVault(account_info.gaia);
+      storage_->FindUserVault(account_info.gaia);
   if (!per_user_vault || per_user_vault->keys_marked_as_stale_by_consumer()) {
     // No keys available for |account_info| or they are already marked as stale.
     return false;
   }
 
   per_user_vault->set_keys_marked_as_stale_by_consumer(true);
-  WriteDataToDisk();
+  storage_->WriteDataToDisk();
   return true;
 }
 
 void StandaloneTrustedVaultBackend::GetIsRecoverabilityDegraded(
     const CoreAccountInfo& account_info,
     base::OnceCallback<void(bool)> cb) {
-  if (base::FeatureList::IsEnabled(
-          syncer::kSyncTrustedVaultPeriodicDegradedRecoverabilityPolling)) {
-    if (account_info == primary_account_) {
-      degraded_recoverability_handler_->GetIsRecoverabilityDegraded(
-          std::move(cb));
-      return;
-    }
-    pending_get_is_recoverability_degraded_ =
-        PendingGetIsRecoverabilityDegraded();
-    pending_get_is_recoverability_degraded_->account_info = account_info;
-    pending_get_is_recoverability_degraded_->completion_callback =
-        std::move(cb);
+  if (account_info == primary_account_) {
+    degraded_recoverability_handler_->GetIsRecoverabilityDegraded(
+        std::move(cb));
     return;
   }
-  ongoing_get_recoverability_request_ =
-      connection_->DownloadIsRecoverabilityDegraded(
-          account_info,
-          base::BindOnce(&DownloadIsRecoverabilityDegradedCompleted,
-                         std::move(cb)));
+  pending_get_is_recoverability_degraded_ =
+      PendingGetIsRecoverabilityDegraded();
+  pending_get_is_recoverability_degraded_->account_info = account_info;
+  pending_get_is_recoverability_degraded_->completion_callback = std::move(cb);
 }
 
 void StandaloneTrustedVaultBackend::AddTrustedRecoveryMethod(
-    const std::string& gaia_id,
+    const GaiaId& gaia_id,
     const std::vector<uint8_t>& public_key,
     int method_type_hint,
     base::OnceClosure cb) {
@@ -707,7 +549,7 @@ void StandaloneTrustedVaultBackend::AddTrustedRecoveryMethod(
   }
 
   trusted_vault_pb::LocalTrustedVaultPerUser* per_user_vault =
-      FindUserVault(gaia_id);
+      storage_->FindUserVault(gaia_id);
   DCHECK(per_user_vault);
 
   if (per_user_vault->vault_key().empty()) {
@@ -737,43 +579,46 @@ void StandaloneTrustedVaultBackend::AddTrustedRecoveryMethod(
   // base::Unretained() here.
   ongoing_add_recovery_method_request_ =
       connection_->RegisterAuthenticationFactor(
-          *primary_account_, GetAllVaultKeys(*per_user_vault),
-          per_user_vault->last_vault_key_version(), *imported_public_key,
-          AuthenticationFactorType::kUnspecified, method_type_hint,
-          base::BindOnce(
+          *primary_account_,
+          GetTrustedVaultKeysWithVersions(
+              StandaloneTrustedVaultStorage::GetAllVaultKeys(*per_user_vault),
+              per_user_vault->last_vault_key_version()),
+          *imported_public_key,
+          UnspecifiedAuthenticationFactorType(method_type_hint),
+          base::IgnoreArgs<TrustedVaultRegistrationStatus, int>(base::BindOnce(
               &StandaloneTrustedVaultBackend::OnTrustedRecoveryMethodAdded,
-              base::Unretained(this), std::move(cb)));
+              base::Unretained(this), std::move(cb))));
 }
 
 void StandaloneTrustedVaultBackend::ClearLocalDataForAccount(
     const CoreAccountInfo& account_info) {
   trusted_vault_pb::LocalTrustedVaultPerUser* per_user_vault =
-      FindUserVault(account_info.gaia);
+      storage_->FindUserVault(account_info.gaia);
   if (!per_user_vault) {
     return;
   }
 
   *per_user_vault = trusted_vault_pb::LocalTrustedVaultPerUser();
-  per_user_vault->set_gaia_id(account_info.gaia);
-  WriteDataToDisk();
+  per_user_vault->set_gaia_id(account_info.gaia.ToString());
+  storage_->WriteDataToDisk();
 
   // This codepath invoked as part of sync reset. While sync reset can cause
   // resetting primary account, this is not the case for Chrome OS and Butter
-  // mode. Trigger device registration attempt immediately as it can succeed in
-  // these cases.
-  MaybeRegisterDevice();
+  // mode. Trigger recovery factor registration attempt immediately as it can
+  // succeed in these cases.
+  MaybeRegisterLocalRecoveryFactors();
 }
 
-absl::optional<CoreAccountInfo>
+std::optional<CoreAccountInfo>
 StandaloneTrustedVaultBackend::GetPrimaryAccountForTesting() const {
   return primary_account_;
 }
 
 trusted_vault_pb::LocalDeviceRegistrationInfo
 StandaloneTrustedVaultBackend::GetDeviceRegistrationInfoForTesting(
-    const std::string& gaia_id) {
+    const GaiaId& gaia_id) {
   trusted_vault_pb::LocalTrustedVaultPerUser* per_user_vault =
-      FindUserVault(gaia_id);
+      storage_->FindUserVault(gaia_id);
   if (!per_user_vault) {
     return trusted_vault_pb::LocalDeviceRegistrationInfo();
   }
@@ -786,30 +631,14 @@ StandaloneTrustedVaultBackend::GetLastAddedRecoveryMethodPublicKeyForTesting()
   return last_added_recovery_method_public_key_for_testing_;
 }
 
-void StandaloneTrustedVaultBackend::SetDeviceRegisteredVersionForTesting(
-    const std::string& gaia_id,
-    int version) {
+int StandaloneTrustedVaultBackend::GetLastKeyVersionForTesting(
+    const GaiaId& gaia_id) {
   trusted_vault_pb::LocalTrustedVaultPerUser* per_user_vault =
-      FindUserVault(gaia_id);
-  DCHECK(per_user_vault);
-  per_user_vault->mutable_local_device_registration_info()
-      ->set_device_registered_version(version);
-  WriteDataToDisk();
-}
-
-void StandaloneTrustedVaultBackend::
-    SetLastRegistrationReturnedLocalDataObsoleteForTesting(
-        const std::string& gaia_id) {
-  trusted_vault_pb::LocalTrustedVaultPerUser* per_user_vault =
-      FindUserVault(gaia_id);
-  DCHECK(per_user_vault);
-  per_user_vault->mutable_local_device_registration_info()
-      ->set_last_registration_returned_local_data_obsolete(true);
-  WriteDataToDisk();
-}
-
-void StandaloneTrustedVaultBackend::SetClockForTesting(base::Clock* clock) {
-  clock_ = clock;
+      storage_->FindUserVault(gaia_id);
+  if (!per_user_vault) {
+    return -1;
+  }
+  return per_user_vault->last_vault_key_version();
 }
 
 bool StandaloneTrustedVaultBackend::HasPendingTrustedRecoveryMethodForTesting()
@@ -817,98 +646,33 @@ bool StandaloneTrustedVaultBackend::HasPendingTrustedRecoveryMethodForTesting()
   return pending_trusted_recovery_method_.has_value();
 }
 
-bool StandaloneTrustedVaultBackend::AreConnectionRequestsThrottledForTesting() {
-  return AreConnectionRequestsThrottled();
-}
-
-absl::optional<TrustedVaultDeviceRegistrationStateForUMA>
-StandaloneTrustedVaultBackend::MaybeRegisterDevice() {
-  // TODO(crbug.com/1413179): in case of transient failure this function is
+void StandaloneTrustedVaultBackend::MaybeRegisterLocalRecoveryFactors() {
+  // TODO(crbug.com/40255601): in case of transient failure this function is
   // likely to be not called until the browser restart; implement retry logic.
-  if (!connection_) {
-    // Feature disabled.
-    return absl::nullopt;
+
+  const bool should_record_metrics =
+      !recovery_factor_registration_state_recorded_to_uma_;
+  for (auto& factor : local_recovery_factors_) {
+    // Unretained because |this| outlives |local_recovery_factors_| (and
+    // destroying |local_recovery_factors_| cancels all callbacks).
+    const std::optional<TrustedVaultRecoveryFactorRegistrationStateForUMA>
+        registration_state = factor->MaybeRegister(base::BindOnce(
+            &StandaloneTrustedVaultBackend::OnRecoveryFactorRegistered,
+            base::Unretained(this), factor->GetRecoveryFactorType()));
+
+    if (registration_state.has_value() && should_record_metrics) {
+      recovery_factor_registration_state_recorded_to_uma_ = true;
+      base::UmaHistogramBoolean(
+          base::StrCat({"TrustedVault.RecoveryFactorRegistered.",
+                        GetLocalRecoveryFactorNameForUma(
+                            factor->GetRecoveryFactorType()),
+                        ".", GetSecurityDomainNameForUma(security_domain_id_)}),
+          factor->IsRegistered());
+      RecordTrustedVaultRecoveryFactorRegistrationState(
+          factor->GetRecoveryFactorType(), security_domain_id_,
+          *registration_state);
+    }
   }
-
-  if (!primary_account_.has_value()) {
-    // Device registration is supported only for |primary_account_|.
-    return absl::nullopt;
-  }
-
-  // |per_user_vault| must be created before calling this function.
-  trusted_vault_pb::LocalTrustedVaultPerUser* per_user_vault =
-      FindUserVault(primary_account_->gaia);
-  DCHECK(per_user_vault);
-
-  if (per_user_vault->local_device_registration_info().device_registered() &&
-      per_user_vault->local_device_registration_info()
-              .device_registered_version() ==
-          kCurrentDeviceRegistrationVersion) {
-    static_assert(kCurrentDeviceRegistrationVersion == 1);
-    return TrustedVaultDeviceRegistrationStateForUMA::kAlreadyRegisteredV1;
-  }
-
-  if (per_user_vault->local_device_registration_info()
-          .last_registration_returned_local_data_obsolete()) {
-    // Client already knows that existing vault keys (or their absence) isn't
-    // sufficient for device registration. Fresh keys should be obtained first.
-    return TrustedVaultDeviceRegistrationStateForUMA::kLocalKeysAreStale;
-  }
-
-  if (AreConnectionRequestsThrottled()) {
-    return TrustedVaultDeviceRegistrationStateForUMA::kThrottledClientSide;
-  }
-
-  std::unique_ptr<SecureBoxKeyPair> key_pair;
-  if (per_user_vault->has_local_device_registration_info()) {
-    key_pair = SecureBoxKeyPair::CreateByPrivateKeyImport(
-        /*private_key_bytes=*/ProtoStringToBytes(
-            per_user_vault->local_device_registration_info()
-                .private_key_material()));
-  }
-
-  const bool had_generated_key_pair = key_pair != nullptr;
-
-  if (!key_pair) {
-    key_pair = SecureBoxKeyPair::GenerateRandom();
-    // It's possible that device will be successfully registered, but the client
-    // won't persist this state (for example response doesn't reach the client
-    // or registration callback is cancelled). To avoid duplicated registrations
-    // device key is stored before sending the registration request, so the same
-    // key will be used for future registration attempts.
-    AssignBytesToProtoString(
-        key_pair->private_key().ExportToBytes(),
-        per_user_vault->mutable_local_device_registration_info()
-            ->mutable_private_key_material());
-    WriteDataToDisk();
-  }
-
-  // |this| outlives |connection_| and |ongoing_device_registration_request_|,
-  // so it's safe to use base::Unretained() here.
-  if (HasNonConstantKey(*per_user_vault)) {
-    ongoing_device_registration_request_ =
-        connection_->RegisterAuthenticationFactor(
-            *primary_account_, GetAllVaultKeys(*per_user_vault),
-            per_user_vault->last_vault_key_version(), key_pair->public_key(),
-            AuthenticationFactorType::kPhysicalDevice,
-            /*authentication_factor_type_hint=*/absl::nullopt,
-            base::BindOnce(&StandaloneTrustedVaultBackend::OnDeviceRegistered,
-                           base::Unretained(this)));
-  } else {
-    ongoing_device_registration_request_ =
-        connection_->RegisterDeviceWithoutKeys(
-            *primary_account_, key_pair->public_key(),
-            base::BindOnce(
-                &StandaloneTrustedVaultBackend::OnDeviceRegisteredWithoutKeys,
-                base::Unretained(this)));
-  }
-
-  DCHECK(ongoing_device_registration_request_);
-
-  return had_generated_key_pair ? TrustedVaultDeviceRegistrationStateForUMA::
-                                      kAttemptingRegistrationWithExistingKeyPair
-                                : TrustedVaultDeviceRegistrationStateForUMA::
-                                      kAttemptingRegistrationWithNewKeyPair;
 }
 
 void StandaloneTrustedVaultBackend::MaybeProcessPendingTrustedRecoveryMethod() {
@@ -931,257 +695,160 @@ void StandaloneTrustedVaultBackend::MaybeProcessPendingTrustedRecoveryMethod() {
   DCHECK(!pending_trusted_recovery_method_.has_value());
 }
 
-void StandaloneTrustedVaultBackend::OnDeviceRegistered(
-    TrustedVaultRegistrationStatus status) {
-  // If |primary_account_| was changed meanwhile, this callback must be
-  // cancelled.
-  DCHECK(primary_account_.has_value());
-
-  // This method should be called only as a result of
-  // |ongoing_device_registration_request_| completion/failure, verify this
-  // condition and destroy |ongoing_device_registration_request_| as it's not
-  // needed anymore.
-  DCHECK(ongoing_device_registration_request_);
-  ongoing_device_registration_request_ = nullptr;
-
-  trusted_vault_pb::LocalTrustedVaultPerUser* per_user_vault =
-      FindUserVault(primary_account_->gaia);
-  DCHECK(per_user_vault);
-
-  // Registration is only attempted if the was no previous failure with
-  // |kLocalDataObsolete|. If this precondition wasn't guaranteed here, the
-  // field would need to be reset for some cases below such as `kSuccess` and
-  // `kAlreadyRegistered`.
-  DCHECK(!per_user_vault->local_device_registration_info()
-              .last_registration_returned_local_data_obsolete());
-  trusted_vault::RecordTrustedVaultDeviceRegistrationOutcome(
-      GetDeviceRegistrationOutcomeForUMAFromResponse(status));
-  switch (status) {
-    case TrustedVaultRegistrationStatus::kSuccess:
-    case TrustedVaultRegistrationStatus::kAlreadyRegistered:
-      // kAlreadyRegistered handled as success, because it only means that
-      // client doesn't fully handled successful device registration before.
-      per_user_vault->mutable_local_device_registration_info()
-          ->set_device_registered(true);
-      per_user_vault->mutable_local_device_registration_info()
-          ->set_device_registered_version(kCurrentDeviceRegistrationVersion);
-      WriteDataToDisk();
-      return;
-    case TrustedVaultRegistrationStatus::kLocalDataObsolete:
-      per_user_vault->mutable_local_device_registration_info()
-          ->set_last_registration_returned_local_data_obsolete(true);
-      WriteDataToDisk();
-      return;
-    case TrustedVaultRegistrationStatus::kTransientAccessTokenFetchError:
-    case TrustedVaultRegistrationStatus::kPersistentAccessTokenFetchError:
-    case TrustedVaultRegistrationStatus::
-        kPrimaryAccountChangeAccessTokenFetchError:
-    case TrustedVaultRegistrationStatus::kNetworkError:
-      // Request wasn't sent to the server, so there is no need for throttling.
-      return;
-    case TrustedVaultRegistrationStatus::kOtherError:
-      RecordFailedConnectionRequestForThrottling();
-      return;
-  }
-}
-
-void StandaloneTrustedVaultBackend::OnDeviceRegisteredWithoutKeys(
+void StandaloneTrustedVaultBackend::OnRecoveryFactorRegistered(
+    LocalRecoveryFactorType local_recovery_factor_type,
     TrustedVaultRegistrationStatus status,
-    const TrustedVaultKeyAndVersion& vault_key_and_version) {
+    int key_version,
+    bool had_local_keys) {
   // If |primary_account_| was changed meanwhile, this callback must be
   // cancelled.
   DCHECK(primary_account_.has_value());
 
-  // This method should be called only as a result of
-  // |ongoing_device_registration_request_| completion/failure, verify this
-  // condition, |ongoing_device_registration_request_| will be destroyed later
-  // by OnDeviceRegistered() call.
-  DCHECK(ongoing_device_registration_request_);
-
   trusted_vault_pb::LocalTrustedVaultPerUser* per_user_vault =
-      FindUserVault(primary_account_->gaia);
+      storage_->FindUserVault(primary_account_->gaia);
   DCHECK(per_user_vault);
 
-  // This method can be called only if device registration was triggered while
-  // no local keys available. Detected server-side key should be stored upon
-  // successful completion, but |vault_key| emptiness still needs to be checked
-  // before that - there might be StoreKeys() call during handling the request.
+  RecordTrustedVaultRecoveryFactorRegistrationOutcome(
+      local_recovery_factor_type, security_domain_id_,
+      GetRecoveryFactorRegistrationOutcomeForUMAFromResponse(status));
+
   switch (status) {
     case TrustedVaultRegistrationStatus::kSuccess:
     case TrustedVaultRegistrationStatus::kAlreadyRegistered:
-      // This method can be called only if device registration was triggered
-      // while no local non-constant keys available. Detected server-side key
-      // should be stored upon successful completion (or if device was already
-      // registered, e.g. previous response wasn't handled properly), but
-      // absence of non-constant keys still needs to be checked before that -
-      // there might be StoreKeys() call during handling the request.
-      if (!HasNonConstantKey(*per_user_vault)) {
-        AssignBytesToProtoString(
-            vault_key_and_version.key,
-            per_user_vault->add_vault_key()->mutable_key_material());
-        per_user_vault->set_last_vault_key_version(
-            vault_key_and_version.version);
-        // WriteToDisk() will be called by OnDeviceRegistered().
+      if (!had_local_keys) {
+        // Recover factor registration was triggered while no local non-constant
+        // keys were available. Detected server-side key should be stored upon
+        // successful completion (or if recovery factor was already registered,
+        // e.g. previous response wasn't handled properly), but absence of
+        // keys (non-constant or constant) still needs to be checked before that
+        // - there might be StoreKeys() call during handling the request.
+        if (per_user_vault->vault_key_size() == 0) {
+          AssignBytesToProtoString(
+              GetConstantTrustedVaultKey(),
+              per_user_vault->add_vault_key()->mutable_key_material());
+          per_user_vault->set_last_vault_key_version(key_version);
+          storage_->WriteDataToDisk();
+        }
       }
       break;
+    case TrustedVaultRegistrationStatus::kLocalDataObsolete:
     case TrustedVaultRegistrationStatus::kTransientAccessTokenFetchError:
     case TrustedVaultRegistrationStatus::kPersistentAccessTokenFetchError:
     case TrustedVaultRegistrationStatus::
         kPrimaryAccountChangeAccessTokenFetchError:
-    case TrustedVaultRegistrationStatus::kLocalDataObsolete:
     case TrustedVaultRegistrationStatus::kNetworkError:
+      // Request wasn't sent to the server, so there is no need for throttling.
+      return;
     case TrustedVaultRegistrationStatus::kOtherError:
-      break;
+      connection_->RecordFailedRequestForThrottling(*primary_account_);
+      return;
   }
-  OnDeviceRegistered(status);
 }
 
-void StandaloneTrustedVaultBackend::OnKeysDownloaded(
-    TrustedVaultDownloadKeysStatus status,
-    const std::vector<std::vector<uint8_t>>& new_vault_keys,
+void StandaloneTrustedVaultBackend::OnKeysRecovered(
+    size_t current_local_recovery_factor,
+    LocalRecoveryFactor::RecoveryStatus recovery_status,
+    const std::vector<std::vector<uint8_t>>& downloaded_vault_keys,
     int last_vault_key_version) {
-  DCHECK(primary_account_.has_value());
-  DCHECK(!ongoing_fetch_keys_callback_.is_null());
-  DCHECK_EQ(*ongoing_fetch_keys_gaia_id_, primary_account_->gaia);
+  CHECK(primary_account_.has_value());
+  // This method should be called only as a result of fetching keys attributed
+  // to current |ongoing_fetch_keys_|.
+  CHECK(ongoing_fetch_keys_);
+  CHECK_EQ(ongoing_fetch_keys_->gaia_id, primary_account_->gaia);
 
-  // This method should be called only as a result of
-  // |ongoing_keys_downloading_request_| completion/failure, verify this
-  // condition and destroy |ongoing_keys_downloading_request_| as it's not
-  // needed anymore.
-  DCHECK(ongoing_keys_downloading_request_);
-  ongoing_keys_downloading_request_ = nullptr;
-
-  trusted_vault_pb::LocalTrustedVaultPerUser* per_user_vault =
-      FindUserVault(primary_account_->gaia);
-  DCHECK(per_user_vault);
-  switch (status) {
-    case TrustedVaultDownloadKeysStatus::kSuccess: {
-      // Store all vault keys (including already known) as they required for
-      // adding recovery method and might still be useful for decryption (e.g.
-      // key rotation wasn't complete).
-      std::vector<std::vector<uint8_t>> vault_keys =
-          GetAllVaultKeys(*per_user_vault);
-      base::ranges::copy(new_vault_keys, std::back_inserter(vault_keys));
-      StoreKeys(primary_account_->gaia, vault_keys, last_vault_key_version);
+  bool should_attempt_next_recovery_factor = true;
+  switch (recovery_status) {
+    case LocalRecoveryFactor::RecoveryStatus::kSuccess: {
+      // |downloaded_vault_keys| doesn't necessary have all keys known to the
+      // backend, because some old keys may have been deleted from the server
+      // already. Not preserving old keys is acceptable and desired here, since
+      // the opposite can make some operations (such as registering
+      // authentication factors) impossible.
+      StoreKeys(primary_account_->gaia, downloaded_vault_keys,
+                last_vault_key_version);
+      should_attempt_next_recovery_factor = false;
       break;
     }
-    case TrustedVaultDownloadKeysStatus::kMemberNotFound:
-    case TrustedVaultDownloadKeysStatus::kMembershipNotFound:
-    case TrustedVaultDownloadKeysStatus::kMembershipCorrupted:
-    case TrustedVaultDownloadKeysStatus::kMembershipEmpty:
-    case TrustedVaultDownloadKeysStatus::kKeyProofsVerificationFailed: {
-      // Unable to download new keys due to known protocol errors. The only way
-      // to go out of these states is to receive new vault keys through external
-      // StoreKeys() call. It's safe to mark device as not registered regardless
-      // of the cause (device registration will be triggered once new vault keys
-      // are available).
-      per_user_vault->mutable_local_device_registration_info()
-          ->set_device_registered(false);
-      per_user_vault->mutable_local_device_registration_info()
-          ->clear_device_registered_version();
-      WriteDataToDisk();
+    case LocalRecoveryFactor::RecoveryStatus::kNoNewKeys: {
+      // Persist the keys even though there are no new ones, since some old keys
+      // could be removed from the server.
+      StoreKeys(primary_account_->gaia, downloaded_vault_keys,
+                last_vault_key_version);
+      // The server state for different recovery factors is guaranteed to be the
+      // same (i.e. they'd return the same keys). So there's no point in trying
+      // other recovery factors in this case.
+      should_attempt_next_recovery_factor = false;
       break;
     }
-    case TrustedVaultDownloadKeysStatus::kNoNewKeys:
-      // The registration itself exists, but there's no additional keys to
-      // download. This is bad because key download attempts are triggered for
-      // the case where local keys have been marked as stale, which means the
-      // user is likely in an unrecoverable state.
-      RecordFailedConnectionRequestForThrottling();
-      break;
-    case TrustedVaultDownloadKeysStatus::kAccessTokenFetchingFailure:
-    case TrustedVaultDownloadKeysStatus::kNetworkError:
-      // Request wasn't sent to the server, so there is no need for throttling.
-      break;
-    case TrustedVaultDownloadKeysStatus::kOtherError:
-      RecordFailedConnectionRequestForThrottling();
+    case LocalRecoveryFactor::RecoveryStatus::kFailure:
       break;
   }
 
-  // In all cases the ongoing fetch keys request should be fulfilled.
-  FulfillOngoingFetchKeys(GetDownloadKeysStatusForUMAFromResponse(status));
+  if (should_attempt_next_recovery_factor) {
+    const size_t next_local_recovery_factor = current_local_recovery_factor + 1;
+    if (next_local_recovery_factor < local_recovery_factors_.size()) {
+      AttemptRecoveryFactor(next_local_recovery_factor);
+      return;
+    }
+  }
+
+  // We don't want to attempt the next recovery factor, or we ran out of local
+  // recovery factors to try. Give up with the status from the last recovery
+  // factor.
+  FulfillOngoingFetchKeys(
+      GetRecoverKeysOutcomeForUMAFromRecoveryStatus(recovery_status));
 }
 
 void StandaloneTrustedVaultBackend::OnTrustedRecoveryMethodAdded(
-    base::OnceClosure cb,
-    TrustedVaultRegistrationStatus status) {
+    base::OnceClosure cb) {
   DCHECK(ongoing_add_recovery_method_request_);
   ongoing_add_recovery_method_request_ = nullptr;
 
   std::move(cb).Run();
-  if (base::FeatureList::IsEnabled(
-          syncer::kSyncTrustedVaultPeriodicDegradedRecoverabilityPolling)) {
-    degraded_recoverability_handler_->HintDegradedRecoverabilityChanged(
-        TrustedVaultHintDegradedRecoverabilityChangedReasonForUMA::
-            kRecoveryMethodAdded);
-  } else {
-    delegate_->NotifyRecoverabilityDegradedChanged();
-  }
+
+  degraded_recoverability_handler_->HintDegradedRecoverabilityChanged(
+      TrustedVaultHintDegradedRecoverabilityChangedReasonForUMA::
+          kRecoveryMethodAdded);
 }
 
 void StandaloneTrustedVaultBackend::FulfillOngoingFetchKeys(
-    absl::optional<TrustedVaultDownloadKeysStatusForUMA> status_for_uma) {
-  if (!ongoing_fetch_keys_gaia_id_.has_value()) {
+    std::optional<TrustedVaultRecoverKeysOutcomeForUMA> status_for_uma) {
+  if (!ongoing_fetch_keys_.has_value()) {
     return;
   }
-  DCHECK(!ongoing_fetch_keys_callback_.is_null());
 
+  // Invoking callbacks may in theory cause side effects (like changing
+  // |ongoing_fetch_keys_|), making a local copy to avoid them.
+  auto ongoing_fetch_keys = std::move(*ongoing_fetch_keys_);
+  ongoing_fetch_keys_ = std::nullopt;
+
+  for (auto& callback : ongoing_fetch_keys.callbacks) {
+    FulfillFetchKeys(ongoing_fetch_keys.gaia_id, std::move(callback),
+                     status_for_uma);
+  }
+}
+
+void StandaloneTrustedVaultBackend::FulfillFetchKeys(
+    const GaiaId& gaia_id,
+    FetchKeysCallback callback,
+    std::optional<TrustedVaultRecoverKeysOutcomeForUMA> status_for_uma) {
   const trusted_vault_pb::LocalTrustedVaultPerUser* per_user_vault =
-      FindUserVault(*ongoing_fetch_keys_gaia_id_);
+      storage_->FindUserVault(gaia_id);
 
   if (status_for_uma.has_value()) {
-    const bool also_log_with_v1_suffix =
-        per_user_vault &&
-        per_user_vault->local_device_registration_info().device_registered() &&
-        per_user_vault->local_device_registration_info()
-                .device_registered_version() == 1;
-    trusted_vault::RecordTrustedVaultDownloadKeysStatus(
-        *status_for_uma, also_log_with_v1_suffix);
+    RecordTrustedVaultRecoverKeysOutcome(security_domain_id_, *status_for_uma);
   }
 
   std::vector<std::vector<uint8_t>> vault_keys;
   if (per_user_vault) {
-    vault_keys = GetAllVaultKeys(*per_user_vault);
-    base::EraseIf(vault_keys, [](const std::vector<uint8_t>& key) {
+    vault_keys =
+        StandaloneTrustedVaultStorage::GetAllVaultKeys(*per_user_vault);
+    std::erase_if(vault_keys, [](const std::vector<uint8_t>& key) {
       return key == GetConstantTrustedVaultKey();
     });
   }
 
-  std::move(ongoing_fetch_keys_callback_).Run(vault_keys);
-  ongoing_fetch_keys_callback_.Reset();
-  ongoing_fetch_keys_gaia_id_.reset();
-}
-
-bool StandaloneTrustedVaultBackend::AreConnectionRequestsThrottled() {
-  DCHECK(clock_);
-  DCHECK(primary_account_.has_value());
-
-  trusted_vault_pb::LocalTrustedVaultPerUser* per_user_vault =
-      FindUserVault(primary_account_->gaia);
-  DCHECK(per_user_vault);
-
-  const base::Time current_time = clock_->Now();
-  base::Time last_failed_request_time = syncer::ProtoTimeToTime(
-      per_user_vault->last_failed_request_millis_since_unix_epoch());
-
-  // Fix |last_failed_request_time| if it's set to the future.
-  if (last_failed_request_time > current_time) {
-    // Immediately unthrottle, but don't write new state to the file.
-    last_failed_request_time = base::Time();
-  }
-
-  return last_failed_request_time + kThrottlingDuration > current_time;
-}
-
-void StandaloneTrustedVaultBackend::
-    RecordFailedConnectionRequestForThrottling() {
-  DCHECK(clock_);
-  DCHECK(primary_account_.has_value());
-
-  FindUserVault(primary_account_->gaia)
-      ->set_last_failed_request_millis_since_unix_epoch(
-          syncer::TimeToProtoTime(clock_->Now()));
-  WriteDataToDisk();
+  std::move(callback).Run(vault_keys);
 }
 
 void StandaloneTrustedVaultBackend::
@@ -1191,86 +858,11 @@ void StandaloneTrustedVaultBackend::
           const trusted_vault_pb::LocalTrustedVaultPerUser& per_user_data) {
         return per_user_data.should_delete_keys_when_non_primary() &&
                (!primary_account.has_value() ||
-                primary_account->gaia != per_user_data.gaia_id());
+                primary_account->gaia != GaiaId(per_user_data.gaia_id()));
       };
 
-  data_.mutable_user()->erase(
-      base::ranges::remove_if(*data_.mutable_user(), should_remove_user_data),
-      data_.mutable_user()->end());
-  WriteDataToDisk();
-}
-
-trusted_vault_pb::LocalTrustedVaultPerUser*
-StandaloneTrustedVaultBackend::FindUserVault(const std::string& gaia_id) {
-  for (int i = 0; i < data_.user_size(); ++i) {
-    if (data_.user(i).gaia_id() == gaia_id) {
-      return data_.mutable_user(i);
-    }
-  }
-  return nullptr;
-}
-
-void StandaloneTrustedVaultBackend::VerifyDeviceRegistrationForUMA(
-    const std::string& gaia_id) {
-  const trusted_vault_pb::LocalTrustedVaultPerUser* per_user_vault =
-      FindUserVault(gaia_id);
-
-  // Ignore call if things have changed since the task was scheduled, although
-  // in normal circumstances it shouldn't happen.
-  if (!connection_ || !primary_account_.has_value() ||
-      primary_account_->gaia != gaia_id || !per_user_vault ||
-      !per_user_vault->local_device_registration_info().device_registered()) {
-    return;
-  }
-
-  static_assert(kCurrentDeviceRegistrationVersion == 1);
-  const bool also_log_with_v1_suffix =
-      per_user_vault->local_device_registration_info()
-          .device_registered_version() == 1;
-
-  if (AreConnectionRequestsThrottled()) {
-    // Keys download attempt is not possible.
-    trusted_vault::RecordVerifyRegistrationStatus(
-        TrustedVaultDownloadKeysStatusForUMA::kThrottledClientSide,
-        also_log_with_v1_suffix);
-    return;
-  }
-
-  std::unique_ptr<SecureBoxKeyPair> key_pair =
-      SecureBoxKeyPair::CreateByPrivateKeyImport(
-          ProtoStringToBytes(per_user_vault->local_device_registration_info()
-                                 .private_key_material()));
-  if (!key_pair) {
-    trusted_vault::RecordVerifyRegistrationStatus(
-        TrustedVaultDownloadKeysStatusForUMA::kCorruptedLocalDeviceRegistration,
-        also_log_with_v1_suffix);
-    return;
-  }
-
-  // Guaranteed by |device_registered| check above.
-  DCHECK(!per_user_vault->vault_key().empty());
-
-  ongoing_verify_registration_request_ = connection_->DownloadNewKeys(
-      *primary_account_,
-      TrustedVaultKeyAndVersion(
-          ProtoStringToBytes(
-              per_user_vault->vault_key().rbegin()->key_material()),
-          per_user_vault->last_vault_key_version()),
-      std::move(key_pair),
-      base::BindOnce(
-          [](bool also_log_with_v1_suffix,
-             TrustedVaultDownloadKeysStatus status,
-             const std::vector<std::vector<uint8_t>>& new_vault_keys,
-             int last_vault_key_version) {
-            trusted_vault::RecordVerifyRegistrationStatus(
-                GetDownloadKeysStatusForUMAFromResponse(status),
-                also_log_with_v1_suffix);
-          },
-          also_log_with_v1_suffix));
-}
-
-void StandaloneTrustedVaultBackend::WriteDataToDisk() {
-  WriteMD5HashedFileToDisk(data_, md5_hashed_file_path_);
+  storage_->RemoveUserVaults(should_remove_user_data);
+  storage_->WriteDataToDisk();
 }
 
 }  // namespace trusted_vault

@@ -5,7 +5,6 @@
 #include "components/policy/core/common/management/platform_management_service.h"
 
 #include "base/memory/singleton.h"
-#include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
@@ -54,7 +53,7 @@ void PlatformManagementService::AddLocalBrowserManagementStatusProvider(
   has_local_browser_managment_status_provider_ = true;
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 void PlatformManagementService::AddChromeOsStatusProvider(
     std::unique_ptr<ManagementStatusProvider> provider) {
   AddManagementStatusProvider(std::move(provider));
@@ -94,9 +93,6 @@ void PlatformManagementService::UpdateCache(
   }
   ManagementAuthorityTrustworthiness next =
       GetManagementAuthorityTrustworthiness();
-  base::UmaHistogramBoolean(
-      "Enterprise.ManagementAuthorityTrustworthiness.Cache.ValueChange",
-      previous != next);
   if (callback)
     std::move(callback).Run(previous, next);
 }

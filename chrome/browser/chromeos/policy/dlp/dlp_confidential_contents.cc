@@ -4,17 +4,16 @@
 
 #include "chrome/browser/chromeos/policy/dlp/dlp_confidential_contents.h"
 
+#include <algorithm>
 #include <memory>
 #include <vector>
 
-#include "base/containers/cxx20_erase_vector.h"
-#include "base/ranges/algorithm.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
-#include "chrome/browser/chromeos/policy/dlp/dlp_histogram_helper.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_rules_manager.h"
 #include "chrome/browser/favicon/favicon_utils.h"
+#include "components/enterprise/data_controls/core/browser/dlp_histogram_helper.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/web_contents.h"
@@ -62,11 +61,6 @@ DlpConfidentialContent& DlpConfidentialContent::operator=(
 bool DlpConfidentialContent::operator==(
     const DlpConfidentialContent& other) const {
   return url == other.url;
-}
-
-bool DlpConfidentialContent::operator!=(
-    const DlpConfidentialContent& other) const {
-  return !(*this == other);
 }
 
 bool DlpConfidentialContent::operator<(
@@ -141,7 +135,7 @@ void DlpConfidentialContents::InsertOrUpdate(
     const DlpConfidentialContents& other) {
   contents_.insert(other.contents_.begin(), other.contents_.end());
   for (auto other_content : other.contents_) {
-    auto it = base::ranges::find_if(
+    auto it = std::ranges::find_if(
         contents_, [&other_content](const DlpConfidentialContent& content) {
           return content == other_content &&
                  content.title != other_content.title;
@@ -180,15 +174,16 @@ void DlpConfidentialContentsCache::Cache(
   if (entries_.size() > cache_size_limit_) {
     entries_.pop_back();
   }
-  DlpCountHistogram(dlp::kConfidentialContentsCount, entries_.size(),
-                    cache_size_limit_);
+  data_controls::DlpCountHistogram(
+      data_controls::dlp::kConfidentialContentsCount, entries_.size(),
+      cache_size_limit_);
 }
 
 bool DlpConfidentialContentsCache::Contains(
     content::WebContents* web_contents,
     DlpRulesManager::Restriction restriction) const {
   const GURL url = web_contents->GetLastCommittedURL();
-  return base::ranges::any_of(
+  return std::ranges::any_of(
       entries_, [&](const std::unique_ptr<Entry>& entry) {
         return entry->restriction == restriction &&
                entry->content.url.EqualsIgnoringRef(url);
@@ -198,7 +193,7 @@ bool DlpConfidentialContentsCache::Contains(
 bool DlpConfidentialContentsCache::Contains(
     const DlpConfidentialContent& content,
     DlpRulesManager::Restriction restriction) const {
-  return base::ranges::any_of(
+  return std::ranges::any_of(
       entries_, [&](const std::unique_ptr<Entry>& entry) {
         return entry->restriction == restriction &&
                entry->content.url.EqualsIgnoringRef(content.url);

@@ -14,11 +14,11 @@
 
 #include <sched.h>
 #include <unistd.h>
+
 #include <atomic>
 
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
-
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"

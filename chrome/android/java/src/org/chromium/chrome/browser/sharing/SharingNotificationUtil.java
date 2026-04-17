@@ -13,7 +13,6 @@ import android.os.Build;
 
 import androidx.annotation.DrawableRes;
 import androidx.annotation.Nullable;
-import androidx.core.app.NotificationCompat;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.chrome.R;
@@ -21,15 +20,13 @@ import org.chromium.chrome.browser.notifications.NotificationUmaTracker;
 import org.chromium.chrome.browser.notifications.NotificationUmaTracker.SystemNotificationType;
 import org.chromium.chrome.browser.notifications.NotificationWrapperBuilderFactory;
 import org.chromium.chrome.browser.notifications.channels.ChromeChannelDefinitions;
-import org.chromium.components.browser_ui.notifications.NotificationManagerProxyImpl;
+import org.chromium.components.browser_ui.notifications.BaseNotificationManagerProxyFactory;
 import org.chromium.components.browser_ui.notifications.NotificationMetadata;
 import org.chromium.components.browser_ui.notifications.NotificationWrapper;
 import org.chromium.components.browser_ui.notifications.NotificationWrapperBuilder;
 import org.chromium.components.browser_ui.notifications.PendingIntentProvider;
 
-/**
- * Provides common functionality for handling sharing notifications.
- */
+/** Provides common functionality for handling sharing notifications. */
 public final class SharingNotificationUtil {
     /**
      * Shows a notification with a configuration common to all sharing notifications.
@@ -47,16 +44,24 @@ public final class SharingNotificationUtil {
      * @param color The color to be used for the notification.
      * @param startsActivity Whether the {@code contentIntent} starts an Activity.
      */
-    public static void showNotification(@SystemNotificationType int type, String group, int id,
-            PendingIntentProvider contentIntent, PendingIntentProvider deleteIntent,
-            PendingIntentProvider confirmIntent, PendingIntentProvider cancelIntent,
-            String contentTitle, String contentText, @DrawableRes int smallIconId,
-            @DrawableRes int largeIconId, int color, boolean startsActivity) {
+    public static void showNotification(
+            @SystemNotificationType int type,
+            String group,
+            int id,
+            PendingIntentProvider contentIntent,
+            PendingIntentProvider deleteIntent,
+            PendingIntentProvider confirmIntent,
+            PendingIntentProvider cancelIntent,
+            String contentTitle,
+            String contentText,
+            @DrawableRes int smallIconId,
+            @DrawableRes int largeIconId,
+            int color,
+            boolean startsActivity) {
         Context context = ContextUtils.getApplicationContext();
         Resources resources = context.getResources();
         NotificationWrapperBuilder builder =
-                NotificationWrapperBuilderFactory
-                        .createNotificationWrapperBuilder(
+                NotificationWrapperBuilderFactory.createNotificationWrapperBuilder(
                                 ChromeChannelDefinitions.ChannelId.SHARING,
                                 new NotificationMetadata(type, group, id))
                         .setContentTitle(contentTitle)
@@ -64,7 +69,6 @@ public final class SharingNotificationUtil {
                         .setBigTextStyle(contentText)
                         .setColor(context.getColor(color))
                         .setGroup(group)
-                        .setPriorityBeforeO(NotificationCompat.PRIORITY_HIGH)
                         .setSmallIcon(smallIconId)
                         .setAutoCancel(true)
                         .setDefaults(Notification.DEFAULT_ALL);
@@ -82,12 +86,18 @@ public final class SharingNotificationUtil {
             builder.setDeleteIntent(deleteIntent);
         }
         if (confirmIntent != null) {
-            builder.addAction(R.drawable.ic_checkmark_24dp, resources.getString(R.string.submit),
-                    confirmIntent, NotificationUmaTracker.ActionType.SHARING_CONFIRM);
+            builder.addAction(
+                    R.drawable.ic_checkmark_24dp,
+                    resources.getString(R.string.submit),
+                    confirmIntent,
+                    NotificationUmaTracker.ActionType.SHARING_CONFIRM);
         }
         if (cancelIntent != null) {
-            builder.addAction(R.drawable.ic_cancel_circle, resources.getString(R.string.cancel),
-                    cancelIntent, NotificationUmaTracker.ActionType.SHARING_CANCEL);
+            builder.addAction(
+                    R.drawable.ic_cancel_circle,
+                    resources.getString(R.string.cancel),
+                    cancelIntent,
+                    NotificationUmaTracker.ActionType.SHARING_CANCEL);
         }
 
         if (largeIconId != 0) {
@@ -96,14 +106,13 @@ public final class SharingNotificationUtil {
         }
         NotificationWrapper notification = builder.buildNotificationWrapper();
 
-        new NotificationManagerProxyImpl(context).notify(notification);
-        NotificationUmaTracker.getInstance().onNotificationShown(
-                type, notification.getNotification());
+        BaseNotificationManagerProxyFactory.create().notify(notification);
+        NotificationUmaTracker.getInstance()
+                .onNotificationShown(type, notification.getNotification());
     }
 
     public static void dismissNotification(String tag, int notificationId) {
-        Context context = ContextUtils.getApplicationContext();
-        new NotificationManagerProxyImpl(context).cancel(tag, notificationId);
+        BaseNotificationManagerProxyFactory.create().cancel(tag, notificationId);
     }
 
     /**
@@ -121,23 +130,21 @@ public final class SharingNotificationUtil {
         String contentTitle =
                 resources.getString(R.string.sharing_sending_notification_title, targetName);
         NotificationWrapperBuilder builder =
-                NotificationWrapperBuilderFactory
-                        .createNotificationWrapperBuilder(
+                NotificationWrapperBuilderFactory.createNotificationWrapperBuilder(
                                 ChromeChannelDefinitions.ChannelId.SHARING,
                                 new NotificationMetadata(type, group, id))
                         .setContentTitle(contentTitle)
                         .setGroup(group)
                         .setColor(context.getColor(R.color.default_icon_color_accent1_baseline))
-                        .setPriorityBeforeO(NotificationCompat.PRIORITY_HIGH)
                         .setSmallIcon(R.drawable.ic_devices_16dp)
-                        .setProgress(/*max=*/0, /*percentage=*/0, true)
+                        .setProgress(/* max= */ 0, /* percentage= */ 0, true)
                         .setOngoing(true)
                         .setDefaults(Notification.DEFAULT_ALL);
         NotificationWrapper notification = builder.buildNotificationWrapper();
 
-        new NotificationManagerProxyImpl(context).notify(notification);
-        NotificationUmaTracker.getInstance().onNotificationShown(
-                type, notification.getNotification());
+        BaseNotificationManagerProxyFactory.create().notify(notification);
+        NotificationUmaTracker.getInstance()
+                .onNotificationShown(type, notification.getNotification());
     }
 
     /**
@@ -150,20 +157,22 @@ public final class SharingNotificationUtil {
      * @param contentText The text shown in the notification.
      * @param tryAgainIntent PendingIntent to try sharing to same device again.
      */
-    public static void showSendErrorNotification(@SystemNotificationType int type, String group,
-            int id, String contentTitle, String contentText,
+    public static void showSendErrorNotification(
+            @SystemNotificationType int type,
+            String group,
+            int id,
+            String contentTitle,
+            String contentText,
             @Nullable PendingIntentProvider tryAgainIntent) {
         Context context = ContextUtils.getApplicationContext();
         Resources resources = context.getResources();
         NotificationWrapperBuilder builder =
-                NotificationWrapperBuilderFactory
-                        .createNotificationWrapperBuilder(
+                NotificationWrapperBuilderFactory.createNotificationWrapperBuilder(
                                 ChromeChannelDefinitions.ChannelId.SHARING,
                                 new NotificationMetadata(type, group, id))
                         .setContentTitle(contentTitle)
                         .setGroup(group)
                         .setColor(context.getColor(R.color.google_red_600))
-                        .setPriorityBeforeO(NotificationCompat.PRIORITY_HIGH)
                         .setSmallIcon(R.drawable.ic_error_outline_red_24dp)
                         .setContentText(contentText)
                         .setDefaults(Notification.DEFAULT_ALL)
@@ -171,15 +180,18 @@ public final class SharingNotificationUtil {
 
         if (tryAgainIntent != null) {
             builder.setContentIntent(tryAgainIntent)
-                    .addAction(R.drawable.ic_cancel_circle, resources.getString(R.string.try_again),
-                            tryAgainIntent, NotificationUmaTracker.ActionType.SHARING_TRY_AGAIN);
+                    .addAction(
+                            R.drawable.ic_cancel_circle,
+                            resources.getString(R.string.try_again),
+                            tryAgainIntent,
+                            NotificationUmaTracker.ActionType.SHARING_TRY_AGAIN);
         }
 
         NotificationWrapper notification = builder.buildWithBigTextStyle(contentText);
 
-        new NotificationManagerProxyImpl(context).notify(notification);
-        NotificationUmaTracker.getInstance().onNotificationShown(
-                type, notification.getNotification());
+        BaseNotificationManagerProxyFactory.create().notify(notification);
+        NotificationUmaTracker.getInstance()
+                .onNotificationShown(type, notification.getNotification());
     }
 
     private SharingNotificationUtil() {}

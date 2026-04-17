@@ -4,6 +4,7 @@
 # found in the LICENSE file.
 """Unittests for the web test stale expectation remover data types."""
 
+import datetime
 from typing import Dict
 import unittest
 
@@ -14,23 +15,33 @@ FULL_PASS = common_data_types.FULL_PASS
 NEVER_PASS = common_data_types.NEVER_PASS
 PARTIAL_PASS = common_data_types.PARTIAL_PASS
 
+NON_WILDCARD = common_data_types.WildcardType.NON_WILDCARD
+SIMPLE_WILDCARD = common_data_types.WildcardType.SIMPLE_WILDCARD
+FULL_WILDCARD = common_data_types.WildcardType.FULL_WILDCARD
+
 
 class WebTestExpectationUnittest(unittest.TestCase):
-    def testCompareWildcard(self) -> None:
-        """Tests that wildcard comparisons work as expected."""
-        e = data_types.WebTestExpectation('test*', ['tag1'], 'Failure')
-        self.assertTrue(e._CompareWildcard('testing123'))
+
+    def testCompareSimpleWildcard(self) -> None:
+        """Tests that simple wildcard comparisons work as expected."""
+        e = data_types.WebTestExpectation('test*', ['tag1'], 'Failure',
+                                          SIMPLE_WILDCARD)
+        self.assertTrue(e._CompareSimpleWildcard('testing123'))
         self.assertTrue(
-            e._CompareWildcard('virtual/some-identifier/testing123'))
-        self.assertTrue(e._CompareWildcard('test'))
-        self.assertTrue(e._CompareWildcard('virtual/some-identifier/test'))
-        self.assertFalse(e._CompareWildcard('tes'))
-        self.assertFalse(e._CompareWildcard('/virtual/some-identifier/test'))
-        self.assertFalse(e._CompareWildcard('virtual/some/malformed/test'))
+            e._CompareSimpleWildcard('virtual/some-identifier/testing123'))
+        self.assertTrue(e._CompareSimpleWildcard('test'))
+        self.assertTrue(
+            e._CompareSimpleWildcard('virtual/some-identifier/test'))
+        self.assertFalse(e._CompareSimpleWildcard('tes'))
+        self.assertFalse(
+            e._CompareSimpleWildcard('/virtual/some-identifier/test'))
+        self.assertFalse(
+            e._CompareSimpleWildcard('virtual/some/malformed/test'))
 
     def testCompareNonWildcard(self) -> None:
         """Tests that non-wildcard comparisons work as expected."""
-        e = data_types.WebTestExpectation('test', ['tag1'], 'Failure')
+        e = data_types.WebTestExpectation('test', ['tag1'], 'Failure',
+                                          NON_WILDCARD)
         self.assertTrue(e._CompareNonWildcard('test'))
         self.assertTrue(e._CompareNonWildcard('virtual/some-identifier/test'))
         self.assertFalse(e._CompareNonWildcard('tes'))
@@ -38,27 +49,31 @@ class WebTestExpectationUnittest(unittest.TestCase):
             e._CompareNonWildcard('/virtual/some-identifier/test'))
         self.assertFalse(e._CompareNonWildcard('virtual/some/malformed/test'))
 
+    def testCompareFullWildcard(self):
+        """Tests that full wildcard comparisons fail as expected."""
+        e = data_types.WebTestExpectation('t*st', ['tag1'], 'Failure',
+                                          FULL_WILDCARD)
+        with self.assertRaisesRegexp(
+                RuntimeError,
+                'Full wildcards are not supported for Blink tests'):
+            e._CompareFullWildcard('test')
+
     def testProcessTagsForFileUse(self) -> None:
         """Tests that tags are properly capitalized for use in files."""
-        e = data_types.WebTestExpectation('test', ['tag1'], 'Failure')
+        e = data_types.WebTestExpectation('test', ['tag1'], 'Failure',
+                                          NON_WILDCARD)
         self.assertEqual(e.AsExpectationFileString(),
                          '[ Tag1 ] test [ Failure ]')
 
 
 class WebTestResultUnittest(unittest.TestCase):
-    def testSetDurationString(self) -> None:
-        """Tests that strings are properly converted when setting durations."""
-        result = data_types.WebTestResult('foo', ['debug'], 'Pass', 'step',
-                                          'build_id')
-        result.SetDuration(str(1), str(2))
-        self.assertTrue(result.is_slow_result)
-
     def testSetDurationNotSlow(self) -> None:
         """Tests that setting a duration for a non-slow result works."""
         result = data_types.WebTestResult('foo', ['debug'], 'Pass', 'step',
                                           'build_id')
         # The cutoff should be 30% of the timeout.
-        result.SetDuration(30, 100000)
+        result.SetDuration(datetime.timedelta(seconds=30),
+                           datetime.timedelta(seconds=100))
         self.assertFalse(result.is_slow_result)
 
     def testSetDurationSlow(self) -> None:
@@ -66,21 +81,8 @@ class WebTestResultUnittest(unittest.TestCase):
         result = data_types.WebTestResult('foo', ['debug'], 'Pass', 'step',
                                           'build_id')
         # The cutoff should be 30% of the timeout.
-        result.SetDuration(30.01, 100)
-        self.assertTrue(result.is_slow_result)
-
-    def testSetDurationNotSlowSeconds(self) -> None:
-        """Tests that setting a duration for non-slow in seconds works."""
-        result = data_types.WebTestResult('foo', ['debug'], 'Pass', 'step',
-                                          'build_id')
-        result.SetDuration(30, 100)
-        self.assertFalse(result.is_slow_result)
-
-    def testSetDurationSlowSeconds(self) -> None:
-        """Tests that setting a duration for a slow result in seconds works."""
-        result = data_types.WebTestResult('foo', ['debug'], 'Pass', 'step',
-                                          'build_id')
-        result.SetDuration(30.01, 100)
+        result.SetDuration(datetime.timedelta(seconds=30.01),
+                           datetime.timedelta(seconds=100))
         self.assertTrue(result.is_slow_result)
 
 
@@ -130,7 +132,8 @@ class WebTestBuildStatsUnittest(unittest.TestCase):
 
     def testNeverNeededExpectationSlowExpectation(self) -> None:
         """Tests that special logic is used for Slow-only expectations."""
-        expectation = data_types.WebTestExpectation('foo', ['debug'], 'Slow')
+        expectation = data_types.WebTestExpectation('foo', ['debug'], 'Slow',
+                                                    NON_WILDCARD)
         stats = data_types.WebTestBuildStats()
         # The fact that this failed should be ignored.
         stats.AddFailedBuild('build_id', frozenset())
@@ -141,7 +144,8 @@ class WebTestBuildStatsUnittest(unittest.TestCase):
     def testNeverNeededExpectationMixedSlowExpectation(self) -> None:
         """Tests that special logic is used for mixed Slow expectations."""
         expectation = data_types.WebTestExpectation('foo', ['debug'],
-                                                    ['Slow', 'Failure'])
+                                                    ['Slow', 'Failure'],
+                                                    NON_WILDCARD)
         stats = data_types.WebTestBuildStats()
         # This should only return true if there are no slow builds AND there
         # are no failed builds.
@@ -162,7 +166,7 @@ class WebTestBuildStatsUnittest(unittest.TestCase):
     def testNeverNeededExpectationNoSlowExpectation(self) -> None:
         """Tests that no special logic is used for non-Slow expectations."""
         expectation = data_types.WebTestExpectation('foo', ['debug'],
-                                                    'Failure')
+                                                    'Failure', NON_WILDCARD)
         stats = data_types.WebTestBuildStats()
         stats.AddPassedBuild(frozenset())
         self.assertTrue(stats.NeverNeededExpectation(expectation))
@@ -174,7 +178,8 @@ class WebTestBuildStatsUnittest(unittest.TestCase):
 
     def testAlwaysNeededExpectationSlowExpectation(self) -> None:
         """Tests that special logic is used for Slow-only expectations."""
-        expectation = data_types.WebTestExpectation('foo', ['debug'], 'Slow')
+        expectation = data_types.WebTestExpectation('foo', ['debug'], 'Slow',
+                                                    NON_WILDCARD)
         stats = data_types.WebTestBuildStats()
         # The fact that this failed should be ignored.
         stats.AddFailedBuild('build_id', frozenset())
@@ -185,7 +190,8 @@ class WebTestBuildStatsUnittest(unittest.TestCase):
     def testAlwaysNeededExpectationMixedSlowExpectations(self) -> None:
         """Tests that special logic is used for mixed Slow expectations."""
         expectation = data_types.WebTestExpectation('foo', ['debug'],
-                                                    ['Slow', 'Failure'])
+                                                    ['Slow', 'Failure'],
+                                                    NON_WILDCARD)
         stats = data_types.WebTestBuildStats()
         # This should return true if either all builds failed OR all builds were
         # slow.
@@ -206,7 +212,7 @@ class WebTestBuildStatsUnittest(unittest.TestCase):
     def testAlwaysNeededExpectationNoSlowExpectation(self) -> None:
         """Tests that no special logic is used for non-Slow expectations."""
         expectation = data_types.WebTestExpectation('foo', ['debug'],
-                                                    'Failure')
+                                                    'Failure', NON_WILDCARD)
         stats = data_types.WebTestBuildStats()
         stats.AddFailedBuild('build_id', frozenset())
         self.assertTrue(stats.AlwaysNeededExpectation(expectation))
@@ -234,7 +240,8 @@ class WebTestTestExpectationMapUnittest(unittest.TestCase):
         result = data_types.WebTestResult('foo', ['debug'], 'Pass', 'step',
                                           'build_id')
         # Test adding a non-slow result.
-        result.SetDuration(1, 10)
+        result.SetDuration(datetime.timedelta(seconds=1),
+                           datetime.timedelta(seconds=10))
         stats = data_types.WebTestBuildStats()
         expectation_map._AddSingleResult(result, stats)
         expected_stats = data_types.WebTestBuildStats()
@@ -242,7 +249,8 @@ class WebTestTestExpectationMapUnittest(unittest.TestCase):
         self.assertEqual(stats, expected_stats)
 
         # Test adding a slow result.
-        result.SetDuration(1, 2)
+        result.SetDuration(datetime.timedelta(seconds=1),
+                           datetime.timedelta(seconds=2))
         stats = data_types.WebTestBuildStats()
         expectation_map._AddSingleResult(result, stats)
         expected_stats = data_types.WebTestBuildStats()
@@ -255,9 +263,9 @@ class WebTestTestExpectationMapUnittest(unittest.TestCase):
         expectation_map = data_types.WebTestTestExpectationMap()
 
         pass_map = _CreateEmptyPassMap()
-        pass_map[FULL_PASS]['chromium/ci:WebKit Linux ASAN'] = (
+        pass_map[FULL_PASS]['chromium/ci:linux-blink-asan-rel'] = (
             common_data_types.StepBuildStatsMap())
-        pass_map[FULL_PASS]['chromium/ci:WebKit Linux MSAN'] = (
+        pass_map[FULL_PASS]['chromium/ci:linux-blink-msan-rel'] = (
             common_data_types.StepBuildStatsMap())
         pass_map[NEVER_PASS]['Some Bot'] = (
             common_data_types.StepBuildStatsMap())
@@ -265,9 +273,9 @@ class WebTestTestExpectationMapUnittest(unittest.TestCase):
             expectation_map._ShouldTreatSemiStaleAsActive(pass_map))
 
         pass_map = _CreateEmptyPassMap()
-        pass_map[FULL_PASS]['chromium/ci:WebKit Linux ASAN'] = (
+        pass_map[FULL_PASS]['chromium/ci:linux-blink-asan-rel'] = (
             common_data_types.StepBuildStatsMap())
-        pass_map[FULL_PASS]['chromium/ci:WebKit Linux MSAN'] = (
+        pass_map[FULL_PASS]['chromium/ci:linux-blink-msan-rel'] = (
             common_data_types.StepBuildStatsMap())
         pass_map[PARTIAL_PASS]['Some Bot'] = (
             common_data_types.StepBuildStatsMap())
@@ -280,9 +288,9 @@ class WebTestTestExpectationMapUnittest(unittest.TestCase):
         expectation_map = data_types.WebTestTestExpectationMap()
 
         pass_map = _CreateEmptyPassMap()
-        pass_map[FULL_PASS]['chromium/ci:WebKit Linux ASAN'] = (
+        pass_map[FULL_PASS]['chromium/ci:linux-blink-asan-rel'] = (
             common_data_types.StepBuildStatsMap())
-        pass_map[FULL_PASS]['chromium/ci:WebKit Linux MSAN'] = (
+        pass_map[FULL_PASS]['chromium/ci:linux-blink-msan-rel'] = (
             common_data_types.StepBuildStatsMap())
         self.assertFalse(
             expectation_map._ShouldTreatSemiStaleAsActive(pass_map))
@@ -292,17 +300,17 @@ class WebTestTestExpectationMapUnittest(unittest.TestCase):
         expectation_map = data_types.WebTestTestExpectationMap()
 
         pass_map = _CreateEmptyPassMap()
-        pass_map[FULL_PASS]['chromium/ci:WebKit Linux ASAN'] = (
+        pass_map[FULL_PASS]['chromium/ci:linux-blink-asan-rel'] = (
             common_data_types.StepBuildStatsMap())
-        pass_map[NEVER_PASS]['chromium/ci:WebKit Linux MSAN'] = (
+        pass_map[NEVER_PASS]['chromium/ci:linux-blink-msan-rel'] = (
             common_data_types.StepBuildStatsMap())
         self.assertTrue(
             expectation_map._ShouldTreatSemiStaleAsActive(pass_map))
 
         pass_map = _CreateEmptyPassMap()
-        pass_map[NEVER_PASS]['chromium/ci:WebKit Linux ASAN'] = (
+        pass_map[NEVER_PASS]['chromium/ci:linux-blink-asan-rel'] = (
             common_data_types.StepBuildStatsMap())
-        pass_map[FULL_PASS]['chromium/ci:WebKit Linux MSAN'] = (
+        pass_map[FULL_PASS]['chromium/ci:linux-blink-msan-rel'] = (
             common_data_types.StepBuildStatsMap())
         self.assertTrue(
             expectation_map._ShouldTreatSemiStaleAsActive(pass_map))
@@ -312,9 +320,9 @@ class WebTestTestExpectationMapUnittest(unittest.TestCase):
         expectation_map = data_types.WebTestTestExpectationMap()
 
         pass_map = _CreateEmptyPassMap()
-        pass_map[FULL_PASS]['chromium/ci:WebKit Linux ASAN'] = (
+        pass_map[FULL_PASS]['chromium/ci:linux-blink-asan-rel'] = (
             common_data_types.StepBuildStatsMap())
-        pass_map[FULL_PASS]['chromium/ci:WebKit Linux MSAN'] = (
+        pass_map[FULL_PASS]['chromium/ci:linux-blink-msan-rel'] = (
             common_data_types.StepBuildStatsMap())
         pass_map[FULL_PASS]['Foo Bot'] = common_data_types.StepBuildStatsMap()
         pass_map[NEVER_PASS]['Some Bot'] = (

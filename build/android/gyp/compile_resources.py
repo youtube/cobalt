@@ -39,8 +39,6 @@ import zip_helpers
 
 # Pngs that we shouldn't convert to webp. Please add rationale when updating.
 _PNG_WEBP_EXCLUSION_PATTERN = re.compile('|'.join([
-    # Crashes on Galaxy S5 running L (https://crbug.com/807059).
-    r'.*star_gray\.png',
     # Android requires pngs for 9-patch images.
     r'.*\.9\.png',
     # Daydream requires pngs for icon files.
@@ -126,6 +124,8 @@ def _ParseArgs(args):
       '--debuggable',
       action='store_true',
       help='Whether to add android:debuggable="true".')
+  input_opts.add_argument('--static-library-version',
+                          help='Version code for static library.')
   input_opts.add_argument('--version-code', help='Version code for apk.')
   input_opts.add_argument('--version-name', help='Version name for apk.')
   input_opts.add_argument(
@@ -196,9 +196,6 @@ def _ParseArgs(args):
   output_opts.add_argument(
       '--proguard-file', help='Path to proguard.txt generated file.')
   output_opts.add_argument(
-      '--proguard-file-main-dex',
-      help='Path to proguard.txt generated file for main dex.')
-  output_opts.add_argument(
       '--emit-ids-out', help='Path to file produced by aapt2 --emit-ids.')
 
   diff_utils.AddCommandLineFlags(parser)
@@ -226,6 +223,13 @@ def _ParseArgs(args):
 
   if options.package_id and options.shared_resources:
     parser.error('--package-id and --shared-resources are mutually exclusive')
+
+  if options.static_library_version and (options.static_library_version !=
+                                         options.version_code):
+    assert options.static_library_version == options.version_code, (
+        f'static_library_version={options.static_library_version} must equal '
+        f'version_code={options.version_code}. Please verify the version code '
+        'map for this target is defined correctly.')
 
   return options
 
@@ -341,8 +345,6 @@ def _MoveImagesToNonMdpiFolders(res_root, path_info):
     dst_dir = os.path.join(res_root, dst_dir_name)
     build_utils.MakeDirectory(dst_dir)
     for src_file_name in os.listdir(src_dir):
-      if not os.path.splitext(src_file_name)[1] in ('.png', '.webp', ''):
-        continue
       src_file = os.path.join(src_dir, src_file_name)
       dst_file = os.path.join(dst_dir, src_file_name)
       assert not os.path.lexists(dst_file)
@@ -746,6 +748,7 @@ def _PackageApk(options, build):
       'link',
       '--auto-add-overlay',
       '--no-version-vectors',
+      '--no-xml-namespaces',
       '--output-text-symbols',
       build.r_txt_path,
   ]
@@ -755,8 +758,6 @@ def _PackageApk(options, build):
   if options.proguard_file:
     link_command += ['--proguard', build.proguard_path]
     link_command += ['--proguard-minimal-keep-rules']
-  if options.proguard_file_main_dex:
-    link_command += ['--proguard-main-dex', build.proguard_main_dex_path]
   if options.emit_ids_out:
     link_command += ['--emit-ids', build.emit_ids_path]
 
@@ -764,9 +765,6 @@ def _PackageApk(options, build):
   #       can be used with recent versions of aapt2.
   if options.shared_resources:
     link_command.append('--shared-lib')
-
-  if int(options.min_sdk_version) > 21:
-    link_command.append('--no-xml-namespaces')
 
   if options.package_id:
     link_command += [
@@ -896,7 +894,6 @@ def _WriteOutputs(options, build):
       (options.arsc_path, build.arsc_path),
       (options.proto_path, build.proto_path),
       (options.proguard_file, build.proguard_path),
-      (options.proguard_file_main_dex, build.proguard_main_dex_path),
       (options.emit_ids_out, build.emit_ids_path),
       (options.info_path, build.info_path),
   ]

@@ -23,7 +23,7 @@ void FakeSerialEnumerator::AddDevicePath(const base::FilePath& path) {
 
 void FakeSerialEnumerator::RemoveDevicePath(const base::FilePath& path) {
   auto it = paths_.find(path);
-  DCHECK(it != paths_.end());
+  CHECK(it != paths_.end());
   base::UnguessableToken token = it->second;
   paths_.erase(it);
   RemovePort(token);

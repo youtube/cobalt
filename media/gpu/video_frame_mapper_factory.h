@@ -17,14 +17,14 @@ namespace media {
 // The appropriate VideoFrameMapper is a platform-dependent.
 class MEDIA_GPU_EXPORT VideoFrameMapperFactory {
  public:
-  // Create an instance of the frame mapper that maps a video frame whose format
-  // is |format| and storage type is |storage_type|.
+  // Tries to create a VideoFrameMapper suitable for mapping VideoFrames
+  // described by |format| and |storage_type|.
   static std::unique_ptr<VideoFrameMapper> CreateMapper(
       VideoPixelFormat format,
       VideoFrame::StorageType storage_type);
 
-  // |linear_buffer_mapper| stands for a created mapper type. If true, the
-  // mapper will expect frames passed to it to be in linear format.
+  // Tries to create a VideoFrameMapper suitable for mapping VideoFrames
+  // described by |format| and |storage_type|.
   static std::unique_ptr<VideoFrameMapper> CreateMapper(
       VideoPixelFormat format,
       VideoFrame::StorageType storage_type,

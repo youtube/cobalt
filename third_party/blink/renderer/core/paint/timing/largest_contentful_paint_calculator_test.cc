@@ -10,8 +10,10 @@
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/renderer/core/frame/web_local_frame_impl.h"
 #include "third_party/blink/renderer/core/html/html_image_element.h"
+#include "third_party/blink/renderer/core/paint/timing/image_paint_timing_detector.h"
 #include "third_party/blink/renderer/core/paint/timing/paint_timing_detector.h"
 #include "third_party/blink/renderer/core/paint/timing/paint_timing_test_helper.h"
+#include "third_party/blink/renderer/core/paint/timing/text_paint_timing_detector.h"
 #include "third_party/blink/renderer/core/testing/core_unit_test_helper.h"
 #include "third_party/blink/renderer/platform/graphics/unaccelerated_static_bitmap_image.h"
 #include "third_party/skia/include/core/SkImage.h"
@@ -60,7 +62,7 @@ class LargestContentfulPaintCalculatorTest : public RenderingTest {
   }
 
   void SetImage(const char* id, int width, int height, int bytes = 0) {
-    To<HTMLImageElement>(GetDocument().getElementById(id))
+    To<HTMLImageElement>(GetElementById(id))
         ->SetImageForTest(CreateImageForTest(width, height, bytes));
   }
 
@@ -70,7 +72,7 @@ class LargestContentfulPaintCalculatorTest : public RenderingTest {
     sk_sp<SkColorSpace> src_rgb_color_space = SkColorSpace::MakeSRGB();
     SkImageInfo raster_image_info =
         SkImageInfo::MakeN32Premul(width, height, src_rgb_color_space);
-    sk_sp<SkSurface> surface(SkSurface::MakeRaster(raster_image_info));
+    sk_sp<SkSurface> surface(SkSurfaces::Raster(raster_image_info));
     sk_sp<SkImage> image = surface->makeImageSnapshot();
     scoped_refptr<UnacceleratedStaticBitmapImage> original_image_data =
         UnacceleratedStaticBitmapImage::Create(image);
@@ -78,9 +80,8 @@ class LargestContentfulPaintCalculatorTest : public RenderingTest {
     // vector of 0s to the image. This is used for bits-per-pixel
     // calculations.
     if (bytes > 0) {
-      Vector<char> img_data(bytes);
       scoped_refptr<SharedBuffer> shared_buffer =
-          SharedBuffer::AdoptVector(img_data);
+          SharedBuffer::Create(Vector<char>(bytes));
       original_image_data->SetData(shared_buffer, /*all_data_received=*/true);
     }
     ImageResourceContent* original_image_content =
@@ -100,18 +101,24 @@ class LargestContentfulPaintCalculatorTest : public RenderingTest {
     return GetLargestContentfulPaintCalculator()->count_candidates_;
   }
 
+  void InvokePresentationPromise(
+      MockPaintTimingCallbackManager* callback_manager) {
+    base::TimeTicks presentation_time = simulated_clock_.NowTicks();
+    DOMHighResTimeStamp timestamp =
+        (presentation_time -
+         WindowPerformance::GetTimeOrigin(GetDocument().domWindow()))
+            .InMillisecondsF();
+    callback_manager->InvokePresentationTimeCallback(presentation_time,
+                                                     {timestamp, timestamp});
+  }
+
   void UpdateLargestContentfulPaintCandidate() {
-    GetFrame()
-        .View()
-        ->GetPaintTimingDetector()
-        .UpdateLargestContentfulPaintCandidate();
+    GetFrame().View()->GetPaintTimingDetector().UpdateLcpCandidate();
   }
 
   void SimulateContentPresentationPromise() {
-    mock_text_callback_manager_->InvokePresentationTimeCallback(
-        simulated_clock_.NowTicks());
-    mock_image_callback_manager_->InvokePresentationTimeCallback(
-        simulated_clock_.NowTicks());
+    InvokePresentationPromise(mock_text_callback_manager_.Get());
+    InvokePresentationPromise(mock_image_callback_manager_.Get());
     // Outside the tests, this is invoked by
     // |PaintTimingCallbackManagerImpl::ReportPaintTime|.
     UpdateLargestContentfulPaintCandidate();
@@ -120,8 +127,7 @@ class LargestContentfulPaintCalculatorTest : public RenderingTest {
   // Outside the tests, the text callback and the image callback are run
   // together, as in |SimulateContentPresentationPromise|.
   void SimulateImagePresentationPromise() {
-    mock_image_callback_manager_->InvokePresentationTimeCallback(
-        simulated_clock_.NowTicks());
+    InvokePresentationPromise(mock_image_callback_manager_.Get());
     // Outside the tests, this is invoked by
     // |PaintTimingCallbackManagerImpl::ReportPaintTime|.
     UpdateLargestContentfulPaintCandidate();
@@ -130,8 +136,7 @@ class LargestContentfulPaintCalculatorTest : public RenderingTest {
   // Outside the tests, the text callback and the image callback are run
   // together, as in |SimulateContentPresentationPromise|.
   void SimulateTextPresentationPromise() {
-    mock_text_callback_manager_->InvokePresentationTimeCallback(
-        simulated_clock_.NowTicks());
+    InvokePresentationPromise(mock_text_callback_manager_.Get());
     // Outside the tests, this is invoked by
     // |PaintTimingCallbackManagerImpl::ReportPaintTime|.
     UpdateLargestContentfulPaintCandidate();
@@ -218,7 +223,7 @@ TEST_F(LargestContentfulPaintCalculatorTest, ImageSmallerText) {
     <img id='target'/>
     <p>.</p>
   )HTML");
-  SetImage("target", 100, 200);
+  SetImage("target", 100, 200, /*bytes=*/250);
   UpdateAllLifecyclePhasesForTest();
   SimulateImagePresentationPromise();
   EXPECT_EQ(LargestReportedSize(), 20000u);
@@ -227,7 +232,7 @@ TEST_F(LargestContentfulPaintCalculatorTest, ImageSmallerText) {
 
   // Text should not be reported, since it is smaller than the image.
   EXPECT_EQ(LargestReportedSize(), 20000u);
-  EXPECT_FLOAT_EQ(LargestContentfulPaintCandidateImageBPP(), 0.0f);
+  EXPECT_FLOAT_EQ(LargestContentfulPaintCandidateImageBPP(), 0.1f);
   EXPECT_EQ(CountCandidates(), 1u);
   trace_analyzer::Stop();
 }
@@ -238,7 +243,7 @@ TEST_F(LargestContentfulPaintCalculatorTest, TextLargerImage) {
     <img id='target'/>
     <p>.</p>
   )HTML");
-  SetImage("target", 100, 200);
+  SetImage("target", 100, 200, /*bytes=*/250);
   UpdateAllLifecyclePhasesForTest();
   SimulateContentPresentationPromise();
 
@@ -253,11 +258,12 @@ TEST_F(LargestContentfulPaintCalculatorTest, TextSmallerImage) {
     <img id='target'/>
     <p>This text should be larger than the image!!!!</p>
   )HTML");
-  SetImage("target", 3, 3);
+  SetImage("target", 3, 3, /*bytes=*/9);
   UpdateAllLifecyclePhasesForTest();
   SimulateContentPresentationPromise();
 
-  // Image should not be reported, since it is smaller than the text.
+  // Image should not be reported, since it is smaller than the text. No image
+  // BPP should be recorded.
   EXPECT_GT(LargestReportedSize(), 9u);
   EXPECT_FLOAT_EQ(LargestContentfulPaintCandidateImageBPP(), 0.0f);
   EXPECT_EQ(CountCandidates(), 1u);
@@ -281,7 +287,7 @@ TEST_F(LargestContentfulPaintCalculatorTest, LargestImageRemoved) {
   EXPECT_FLOAT_EQ(LargestContentfulPaintCandidateImageBPP(), 0.08f);
   EXPECT_EQ(CountCandidates(), 1u);
 
-  GetDocument().getElementById("large")->remove();
+  GetDocument().getElementById(AtomicString("large"))->remove();
   UpdateAllLifecyclePhasesForTest();
   // The LCP does not move after the image is removed.
   EXPECT_EQ(LargestReportedSize(), 20000u);
@@ -301,7 +307,7 @@ TEST_F(LargestContentfulPaintCalculatorTest, LargestTextRemoved) {
     </p>
     <p id='small'>.</p>
   )HTML");
-  SetImage("medium", 10, 5);
+  SetImage("medium", 10, 5, /*bytes=*/50);
   UpdateAllLifecyclePhasesForTest();
   SimulateImagePresentationPromise();
   SimulateTextPresentationPromise();
@@ -310,7 +316,7 @@ TEST_F(LargestContentfulPaintCalculatorTest, LargestTextRemoved) {
   // Image presentation occurred first, so we have would have two candidates.
   EXPECT_EQ(CountCandidates(), 2u);
 
-  GetDocument().getElementById("large")->remove();
+  GetDocument().getElementById(AtomicString("large"))->remove();
   UpdateAllLifecyclePhasesForTest();
   // The LCP should not move after removal.
   EXPECT_GT(LargestReportedSize(), 50u);
@@ -331,15 +337,13 @@ TEST_F(LargestContentfulPaintCalculatorTest, NoPaint) {
 
 TEST_F(LargestContentfulPaintCalculatorTest, SingleImageExcludedForEntropy) {
   base::test::ScopedFeatureList scoped_features;
-  scoped_features.InitAndEnableFeatureWithParameters(
-      blink::features::kExcludeLowEntropyImagesFromLCP, {{"min_bpp", "2.0"}});
   SetBodyInnerHTML(R"HTML(
     <!DOCTYPE html>
     <img id='target'/>
   )HTML");
-  // 600 bytes will cause a calculated entropy of 0.32bpp, which is below the
+  // 600 bytes will cause a calculated entropy of 0.032bpp, which is below the
   // 2bpp threshold.
-  SetImage("target", 100, 150, 600);
+  SetImage("target", 100, 150, 60);
   UpdateAllLifecyclePhasesForTest();
   UpdateLargestContentfulPaintCandidate();
 
@@ -350,17 +354,15 @@ TEST_F(LargestContentfulPaintCalculatorTest, SingleImageExcludedForEntropy) {
 
 TEST_F(LargestContentfulPaintCalculatorTest, LargerImageExcludedForEntropy) {
   base::test::ScopedFeatureList scoped_features;
-  scoped_features.InitAndEnableFeatureWithParameters(
-      blink::features::kExcludeLowEntropyImagesFromLCP, {{"min_bpp", "2.0"}});
   SetBodyInnerHTML(R"HTML(
     <!DOCTYPE html>
     <img id='small'/>
     <img id='large'/>
   )HTML");
-  // Smaller image has 16 bpp of entropy, enough to be considered for LCP.
-  // Larger image has only 0.32 bpp, which is below the 2bpp threshold.
+  // Smaller image has 1.6 bpp of entropy, enough to be considered for LCP.
+  // Larger image has only 0.032 bpp, which is below the 2bpp threshold.
   SetImage("small", 3, 3, 18);
-  SetImage("large", 100, 200, 800);
+  SetImage("large", 100, 200, 80);
   UpdateAllLifecyclePhasesForTest();
   SimulateImagePresentationPromise();
 
@@ -373,8 +375,6 @@ TEST_F(LargestContentfulPaintCalculatorTest, LargerImageExcludedForEntropy) {
 TEST_F(LargestContentfulPaintCalculatorTest,
        LowEntropyImageNotExcludedAtLowerThreshold) {
   base::test::ScopedFeatureList scoped_features;
-  scoped_features.InitAndEnableFeatureWithParameters(
-      blink::features::kExcludeLowEntropyImagesFromLCP, {{"min_bpp", "0.02"}});
   SetBodyInnerHTML(R"HTML(
     <!DOCTYPE html>
     <img id='small'/>

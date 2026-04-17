@@ -21,9 +21,13 @@
 #include <utility>
 
 #include "perfetto/base/build_config.h"
+#include "perfetto/base/compiler.h"
+#include "perfetto/base/logging.h"
 #include "perfetto/base/task_runner.h"
 #include "perfetto/base/time.h"
 #include "perfetto/ext/base/crash_keys.h"
+#include "perfetto/ext/base/sys_types.h"
+#include "perfetto/ext/base/unix_socket.h"
 #include "perfetto/ext/base/utils.h"
 #include "perfetto/ext/ipc/service.h"
 #include "perfetto/ext/ipc/service_descriptor.h"
@@ -42,28 +46,73 @@ constexpr base::SockFamily kHostSockFamily =
 
 base::CrashKey g_crash_key_uid("ipc_uid");
 
-uid_t GetPosixPeerUid(base::UnixSocket* sock) {
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN) || \
-    PERFETTO_BUILDFLAG(PERFETTO_OS_FUCHSIA)
-  base::ignore_result(sock);
-  // Unsupported. Must be != kInvalidUid or the PacketValidator will fail.
-  return 0;
-#else
-  return sock->peer_uid_posix();
-#endif
-}
+base::MachineID GenerateMachineID(base::UnixSocket* sock,
+                                  const std::string& machine_id_hint) {
+  // The special value of base::kDefaultMachineID is reserved for local
+  // producers.
+  if (!sock->is_connected() || sock->family() == base::SockFamily::kUnix)
+    return base::kDefaultMachineID;
 
-pid_t GetLinuxPeerPid(base::UnixSocket* sock) {
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) || \
-    PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
-  return sock->peer_pid_linux();
-#else
-  base::ignore_result(sock);
-  return base::kInvalidPid;  // Unsupported.
-#endif
-}
+  base::Hasher hasher;
+  // Use the hint from the client, or fallback to hostname if the client
+  // doesn't provide a hint.
+  if (!machine_id_hint.empty()) {
+    hasher.Update(machine_id_hint);
+  } else {
+    // Use the socket address without the port number part as the hint.
+    auto host_id = sock->GetSockAddr();
+    auto pos = std::string::npos;
+    switch (sock->family()) {
+      case base::SockFamily::kInet:
+        PERFETTO_FALLTHROUGH;
+      case base::SockFamily::kInet6:
+        PERFETTO_FALLTHROUGH;
+      case base::SockFamily::kVsock:
+        pos = host_id.rfind(":");
+        if (pos != std::string::npos)
+          host_id.resize(pos);
+        break;
+      case base::SockFamily::kUnspec:
+        PERFETTO_FALLTHROUGH;
+      case base::SockFamily::kUnix:
+        PERFETTO_DFATAL("Should be unreachable.");
+        return base::kDefaultMachineID;
+    }
+    hasher.Update(host_id);
+  }
 
+  // Take the lower 32-bit from the hash.
+  uint32_t digest = static_cast<uint32_t>(hasher.digest());
+  // Avoid the extremely unlikely case that the hasher digest happens to be 0.
+  return digest == base::kDefaultMachineID ? 1 : digest;
+}
 }  // namespace
+
+uid_t HostImpl::ClientConnection::GetPosixPeerUid() const {
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) ||   \
+    PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID) || \
+    PERFETTO_BUILDFLAG(PERFETTO_OS_APPLE)
+  if (sock->family() == base::SockFamily::kUnix)
+    return sock->peer_uid_posix();
+#endif
+
+  // For non-unix sockets, check if the UID is set in OnSetPeerIdentity().
+  if (uid_override != base::kInvalidUid)
+    return uid_override;
+  // Must be != kInvalidUid or the PacketValidator will fail.
+  return 0;
+}
+
+pid_t HostImpl::ClientConnection::GetLinuxPeerPid() const {
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX_BUT_NOT_QNX) || \
+    PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
+  if (sock->family() == base::SockFamily::kUnix)
+    return sock->peer_pid_linux();
+#endif
+
+  // For non-unix sockets, return the PID set in OnSetPeerIdentity().
+  return pid_override;
+}
 
 // static
 std::unique_ptr<Host> Host::CreateInstance(const char* socket_name,
@@ -102,7 +151,8 @@ HostImpl::HostImpl(const char* socket_name, base::TaskRunner* task_runner)
     : task_runner_(task_runner), weak_ptr_factory_(this) {
   PERFETTO_DCHECK_THREAD(thread_checker_);
   sock_ = base::UnixSocket::Listen(socket_name, this, task_runner_,
-                                   kHostSockFamily, base::SockType::kStream);
+                                   base::GetSockFamily(socket_name),
+                                   base::SockType::kStream);
   if (!sock_) {
     PERFETTO_PLOG("Failed to create %s", socket_name);
   }
@@ -122,6 +172,8 @@ bool HostImpl::ExposeService(std::unique_ptr<Service> service) {
     PERFETTO_DLOG("Duplicate ExposeService(): %s", service_name.c_str());
     return false;
   }
+  service->use_shmem_emulation_ =
+      sock() && !base::SockShmemSupported(sock()->family());
   ServiceID sid = ++last_service_id_;
   ExposedService exposed_service(sid, service_name, std::move(service));
   services_.emplace(sid, std::move(exposed_service));
@@ -174,7 +226,7 @@ void HostImpl::OnDataAvailable(base::UnixSocket* sock) {
   ClientConnection* client = it->second;
   BufferedFrameDeserializer& frame_deserializer = client->frame_deserializer;
 
-  auto peer_uid = GetPosixPeerUid(client->sock.get());
+  auto peer_uid = client->GetPosixPeerUid();
   auto scoped_key = g_crash_key_uid.SetScoped(static_cast<int64_t>(peer_uid));
 
   size_t rsize;
@@ -204,6 +256,8 @@ void HostImpl::OnReceivedFrame(ClientConnection* client,
     return OnBindService(client, req_frame);
   if (req_frame.has_msg_invoke_method())
     return OnInvokeMethod(client, req_frame);
+  if (req_frame.has_set_peer_identity())
+    return OnSetPeerIdentity(client, req_frame);
 
   PERFETTO_DLOG("Received invalid RPC frame from client %" PRIu64, client->id);
   Frame reply_frame;
@@ -271,14 +325,36 @@ void HostImpl::OnInvokeMethod(ClientConnection* client,
     });
   }
 
-  auto peer_uid = GetPosixPeerUid(client->sock.get());
+  auto peer_uid = client->GetPosixPeerUid();
   auto scoped_key = g_crash_key_uid.SetScoped(static_cast<int64_t>(peer_uid));
-  service->client_info_ =
-      ClientInfo(client->id, peer_uid, GetLinuxPeerPid(client->sock.get()));
+  service->client_info_ = ClientInfo(
+      client->id, peer_uid, client->GetLinuxPeerPid(), client->GetMachineID());
   service->received_fd_ = &client->received_fd;
   method.invoker(service, *decoded_req_args, std::move(deferred_reply));
   service->received_fd_ = nullptr;
   service->client_info_ = ClientInfo();
+}
+
+void HostImpl::OnSetPeerIdentity(ClientConnection* client,
+                                 const Frame& req_frame) {
+  if (client->sock->family() == base::SockFamily::kUnix) {
+    PERFETTO_DLOG("SetPeerIdentity is ignored for unix socket connections.");
+    return;
+  }
+
+  // This is can only be set once by the relay service.
+  if (client->pid_override != base::kInvalidPid ||
+      client->uid_override != base::kInvalidUid) {
+    PERFETTO_DLOG("Already received SetPeerIdentity.");
+    return;
+  }
+
+  const auto& set_peer_identity = req_frame.set_peer_identity();
+  client->pid_override = set_peer_identity.pid();
+  client->uid_override = static_cast<uid_t>(set_peer_identity.uid());
+
+  client->machine_id = GenerateMachineID(client->sock.get(),
+                                         set_peer_identity.machine_id_hint());
 }
 
 void HostImpl::ReplyToMethodInvocation(ClientID client_id,
@@ -307,7 +383,7 @@ void HostImpl::ReplyToMethodInvocation(ClientID client_id,
 
 // static
 void HostImpl::SendFrame(ClientConnection* client, const Frame& frame, int fd) {
-  auto peer_uid = GetPosixPeerUid(client->sock.get());
+  auto peer_uid = client->GetPosixPeerUid();
   auto scoped_key = g_crash_key_uid.SetScoped(static_cast<int64_t>(peer_uid));
 
   std::string buf = BufferedFrameDeserializer::Serialize(frame);
@@ -340,10 +416,12 @@ void HostImpl::OnDisconnect(base::UnixSocket* sock) {
   auto it = clients_by_socket_.find(sock);
   if (it == clients_by_socket_.end())
     return;
-  ClientID client_id = it->second->id;
+  auto* client = it->second;
+  ClientID client_id = client->id;
 
-  ClientInfo client_info(client_id, GetPosixPeerUid(sock),
-                         GetLinuxPeerPid(sock));
+  ClientInfo client_info(client_id, client->GetPosixPeerUid(),
+                         client->GetLinuxPeerPid(), client->GetMachineID());
+
   clients_by_socket_.erase(it);
   PERFETTO_DCHECK(clients_.count(client_id));
   clients_.erase(client_id);

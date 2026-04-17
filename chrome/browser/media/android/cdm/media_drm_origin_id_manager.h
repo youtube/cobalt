@@ -6,16 +6,17 @@
 #define CHROME_BROWSER_MEDIA_ANDROID_CDM_MEDIA_DRM_ORIGIN_ID_MANAGER_H_
 
 #include <memory>
+#include <optional>
 
 #include "base/containers/queue.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/threading/thread_checker.h"
+#include "base/types/pass_key.h"
 #include "base/unguessable_token.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "media/base/media_drm_storage.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class MediaDrmOriginIdManagerFactory;
 class PrefRegistrySimple;
@@ -50,6 +51,11 @@ class MediaDrmOriginIdManager : public KeyedService {
 
   static void RegisterProfilePrefs(PrefRegistrySimple* registry);
 
+  // MediaDrmOriginIdManager should only be created by
+  // MediaDrmOriginIdManagerFactory.
+  explicit MediaDrmOriginIdManager(
+      PrefService* pref_service,
+      base::PassKey<MediaDrmOriginIdManagerFactory>);
   // Destructor must be public as it's used in std::unique_ptr<>.
   ~MediaDrmOriginIdManager() override;
 
@@ -59,7 +65,7 @@ class MediaDrmOriginIdManager : public KeyedService {
   // Asynchronously returns a preprovisioned origin ID using |callback|, if one
   // is available. If none are available, an un-provisioned origin ID is
   // returned.
-  // TODO(crbug.com/917527): Return an empty origin ID once callers
+  // TODO(crbug.com/41433110): Return an empty origin ID once callers
   // can handle it.
   void GetOriginId(ProvisionedOriginIdCB callback);
 
@@ -71,10 +77,6 @@ class MediaDrmOriginIdManager : public KeyedService {
  private:
   class NetworkObserver;
   friend class MediaDrmOriginIdManagerFactory;
-
-  // MediaDrmOriginIdManager should only be created by
-  // MediaDrmOriginIdManagerFactory.
-  explicit MediaDrmOriginIdManager(PrefService* pref_service);
 
   // Complete the pre-provisioning steps.
   void ResumePreProvisionIfNecessary(
@@ -106,7 +108,7 @@ class MediaDrmOriginIdManager : public KeyedService {
 
   // True if per-application provisioning is supported. If nullopt, then
   // support has not yet been determined.
-  absl::optional<bool> is_per_application_provisioning_supported_;
+  std::optional<bool> is_per_application_provisioning_supported_;
 
   // When testing don't call MediaDrm to provision the origin ID, just call
   // this CB and use the value returned to indicate if provisioning succeeded or

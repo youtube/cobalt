@@ -5,6 +5,9 @@
 #ifndef COMPONENTS_VIZ_SERVICE_FRAME_SINKS_VIDEO_DETECTOR_H_
 #define COMPONENTS_VIZ_SERVICE_FRAME_SINKS_VIDEO_DETECTOR_H_
 
+#include <memory>
+#include <vector>
+
 #include "base/memory/raw_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/default_tick_clock.h"
@@ -62,10 +65,12 @@ class VIZ_SERVICE_EXPORT VideoDetector : public SurfaceObserver {
 
   // Number of video-sized updates that we must see within a second in a client
   // before we assume that a video is playing.
-  static constexpr int kMinFramesPerSecond = 15;
+  static constexpr int kMinFramesPerSecond = 5;
 
-  // Timeout after which video is no longer considered to be playing.
-  static constexpr base::TimeDelta kVideoTimeout = base::Milliseconds(1000);
+  // A video will no longer be consider playing at some interval between
+  // 'kMinVideoTimeout' to 'kMaxVideoTimeout'.
+  static constexpr base::TimeDelta kMinVideoTimeout = base::Milliseconds(500);
+  static constexpr base::TimeDelta kMaxVideoTimeout = base::Milliseconds(1000);
 
   // Duration video must be playing in a client before it is reported to
   // observers.
@@ -80,7 +85,8 @@ class VIZ_SERVICE_EXPORT VideoDetector : public SurfaceObserver {
   void OnSurfaceActivated(const SurfaceId& surface_id) override {}
   void OnSurfaceMarkedForDestruction(const SurfaceId& surface_id) override {}
   bool OnSurfaceDamaged(const SurfaceId& surface_id,
-                        const BeginFrameAck& ack) override;
+                        const BeginFrameAck& ack,
+                        HandleInteraction handle_interaction) override;
   void OnSurfaceDestroyed(const SurfaceId& surface_id) override {}
   void OnSurfaceDamageExpected(const SurfaceId& surface_id,
                                const BeginFrameArgs& args) override {}

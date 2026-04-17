@@ -4,14 +4,16 @@
 
 package org.chromium.chrome.browser.test_dummy;
 
-import androidx.appcompat.app.AppCompatActivity;
+import android.app.Activity;
 
 import org.chromium.base.CommandLine;
-import org.chromium.base.StrictModeContext;
+import org.chromium.base.library_loader.LibraryLoader;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.modules.test_dummy.TestDummyModuleProvider;
 
-/** Helper activity to launch test dummy module.  */
-public class TestDummyActivity extends AppCompatActivity {
+/** Helper activity to launch test dummy module. */
+@NullMarked
+public class TestDummyActivity extends Activity {
     private static final String ENABLE_TEST_DUMMY_MODULE = "enable-test-dummy-module";
 
     @Override
@@ -21,12 +23,11 @@ public class TestDummyActivity extends AppCompatActivity {
             finish();
             return;
         }
+        LibraryLoader.getInstance().ensureInitialized();
         if (TestDummyModuleProvider.isModuleInstalled()) {
             onModuleInstalled(true);
         } else {
-            try (StrictModeContext ignored = StrictModeContext.allowAllThreadPolicies()) {
-                TestDummyModuleProvider.installModule(this::onModuleInstalled);
-            }
+            TestDummyModuleProvider.installModule(this::onModuleInstalled);
         }
     }
 

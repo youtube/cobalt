@@ -26,14 +26,19 @@ class EmptyModuleRecordResolver final : public ModuleRecordResolver {
   const ModuleScript* GetModuleScriptFromModuleRecord(
       v8::Local<v8::Module>) const override {
     NOTREACHED();
-    return nullptr;
   }
 
   v8::Local<v8::Module> Resolve(const ModuleRequest& module_request,
                                 v8::Local<v8::Module> referrer,
                                 ExceptionState&) override {
     NOTREACHED();
-    return v8::Local<v8::Module>();
+  }
+
+  v8::Local<v8::WasmModuleObject> ResolveSource(
+      const ModuleRequest& module_request,
+      v8::Local<v8::Module> referrer,
+      ExceptionState&) override {
+    NOTREACHED();
   }
 };
 
@@ -51,7 +56,6 @@ void DummyModulator::Trace(Visitor* visitor) const {
 
 ScriptState* DummyModulator::GetScriptState() {
   NOTREACHED();
-  return nullptr;
 }
 
 mojom::blink::V8CacheOptions DummyModulator::GetV8CacheOptions() const {
@@ -68,7 +72,6 @@ ModuleRecordResolver* DummyModulator::GetModuleRecordResolver() {
 
 base::SingleThreadTaskRunner* DummyModulator::TaskRunner() {
   NOTREACHED();
-  return nullptr;
 }
 
 void DummyModulator::FetchTree(const KURL&,
@@ -78,7 +81,9 @@ void DummyModulator::FetchTree(const KURL&,
                                network::mojom::RequestDestination,
                                const ScriptFetchOptions&,
                                ModuleScriptCustomFetchType,
-                               ModuleTreeClient*) {
+                               ModuleTreeClient*,
+                               ModuleImportPhase,
+                               String referrer) {
   NOTREACHED();
 }
 
@@ -101,14 +106,20 @@ void DummyModulator::FetchDescendantsForInlineScript(
 
 ModuleScript* DummyModulator::GetFetchedModuleScript(const KURL&, ModuleType) {
   NOTREACHED();
-  return nullptr;
 }
 
 KURL DummyModulator::ResolveModuleSpecifier(const String&,
                                             const KURL&,
                                             String*) {
   NOTREACHED();
-  return KURL();
+}
+
+String DummyModulator::GetIntegrityMetadataString(const KURL&) const {
+  return String();
+}
+
+IntegrityMetadataSet DummyModulator::GetIntegrityMetadata(const KURL&) const {
+  return IntegrityMetadataSet();
 }
 
 bool DummyModulator::HasValidContext() {
@@ -117,14 +128,13 @@ bool DummyModulator::HasValidContext() {
 
 void DummyModulator::ResolveDynamically(const ModuleRequest& module_request,
                                         const ReferrerScriptInfo&,
-                                        ScriptPromiseResolver*) {
+                                        ScriptPromiseResolver<IDLAny>*) {
   NOTREACHED();
 }
 
 ModuleImportMeta DummyModulator::HostGetImportMetaProperties(
     v8::Local<v8::Module>) const {
   NOTREACHED();
-  return ModuleImportMeta(String());
 }
 
 ModuleType DummyModulator::ModuleTypeFromRequest(
@@ -132,8 +142,9 @@ ModuleType DummyModulator::ModuleTypeFromRequest(
   String module_type_string = module_request.GetModuleTypeString();
   if (module_type_string.IsNull()) {
     // Per https://github.com/whatwg/html/pull/5883, if no type assertion is
-    // provided then the import should be treated as a JavaScript module.
-    return ModuleType::kJavaScript;
+    // provided then the import should be treated as a JavaScript-or-Wasm
+    // module.
+    return ModuleType::kJavaScriptOrWasm;
   } else if (module_type_string == "json") {
     // Per https://github.com/whatwg/html/pull/5658, a "json" type assertion
     // indicates that the import should be treated as a JSON module script.
@@ -154,7 +165,6 @@ ModuleScriptFetcher* DummyModulator::CreateModuleScriptFetcher(
     ModuleScriptCustomFetchType,
     base::PassKey<ModuleScriptLoader> pass_key) {
   NOTREACHED();
-  return nullptr;
 }
 
 void DummyModulator::ProduceCacheModuleTreeTopLevel(ModuleScript*) {}

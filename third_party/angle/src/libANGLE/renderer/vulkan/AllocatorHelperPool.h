@@ -32,7 +32,6 @@ class DedicatedCommandBlockAllocator
   public:
     DedicatedCommandBlockAllocator() = default;
     void resetAllocator();
-    bool hasAllocatorLinks() const { return false; }
 
     static constexpr size_t kDefaultPoolAllocatorPageSize = 16 * 1024;
     void init()
@@ -41,10 +40,6 @@ class DedicatedCommandBlockAllocator
         // Push a scope into the pool allocator so we can easily free and re-init on reset()
         mAllocator.push();
     }
-
-    // Placeholder functions for attaching and detaching the allocator.
-    void attachAllocator(DedicatedCommandMemoryAllocator *allocator) {}
-    DedicatedCommandMemoryAllocator *detachAllocator(bool isCommandBufferEmpty) { return nullptr; }
 
     DedicatedCommandMemoryAllocator *getAllocator() { return &mAllocator; }
 
@@ -71,9 +66,9 @@ class DedicatedCommandBlockPool final
     static_assert(sizeof(CommandHeaderIDType) < kCommandHeaderSize, "Check size of CommandHeader");
     // Pool Alloc uses 16kB pages w/ 16byte header = 16368bytes. To minimize waste
     //  using a 16368/12 = 1364. Also better perf than 1024 due to fewer block allocations
-    static constexpr size_t kBlockSize = 1364;
-    // Make sure block size is 4-byte aligned to avoid Android errors
-    static_assert((kBlockSize % 4) == 0, "Check kBlockSize alignment");
+    static constexpr size_t kBlockSize = 1360;
+    // Make sure block size is 8-byte aligned to avoid ASAN errors.
+    static_assert((kBlockSize % 8) == 0, "Check kBlockSize alignment");
 
     void setCommandBuffer(priv::SecondaryCommandBuffer *commandBuffer)
     {
@@ -124,11 +119,6 @@ class DedicatedCommandBlockPool final
 
         *headerOut = updateHeaderAndAllocatorParams(allocationSize);
     }
-
-    // Placeholder functions
-    void terminateLastCommandBlock() {}
-    void attachAllocator(vk::DedicatedCommandMemoryAllocator *source) {}
-    void detachAllocator(vk::DedicatedCommandMemoryAllocator *destination) {}
 
   private:
     void allocateNewBlock(size_t blockSize = kBlockSize);

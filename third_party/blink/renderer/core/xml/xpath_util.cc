@@ -81,7 +81,6 @@ bool IsValidContextNode(Node* node) {
       return false;
   }
   NOTREACHED();
-  return false;
 }
 
 bool IsXMLSpace(UChar ch) {

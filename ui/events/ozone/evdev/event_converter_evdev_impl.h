@@ -6,6 +6,7 @@
 #define UI_EVENTS_OZONE_EVDEV_EVENT_CONVERTER_EVDEV_IMPL_H_
 
 #include <bitset>
+#include <ostream>
 
 #include "base/component_export.h"
 #include "base/files/file_path.h"
@@ -22,6 +23,10 @@
 #include "ui/events/ozone/evdev/keyboard_evdev.h"
 #include "ui/events/ozone/evdev/mouse_button_map_evdev.h"
 #include "ui/ozone/public/input_controller.h"
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "ui/events/ozone/evdev/microphone_mute_key_metrics.h"
+#endif
 
 struct input_event;
 
@@ -52,12 +57,17 @@ class COMPONENT_EXPORT(EVDEV) EventConverterEvdevImpl
   bool HasCapsLockLed() const override;
   bool HasStylusSwitch() const override;
   ui::StylusState GetStylusSwitchState() override;
+  bool HasAssistantKey() const override;
+  bool HasFunctionKey() const override;
   void SetKeyFilter(bool enable_filter,
                     std::vector<DomCode> allowed_keys) override;
   void OnDisabled() override;
   std::vector<uint64_t> GetKeyboardKeyBits() const override;
+  void SetBlockModifiers(bool block_modifiers) override;
 
   void ProcessEvents(const struct input_event* inputs, int count);
+
+  std::ostream& DescribeForLog(std::ostream& os) const override;
 
  private:
   void ConvertKeyEvent(const input_event& input);
@@ -93,6 +103,10 @@ class COMPONENT_EXPORT(EVDEV) EventConverterEvdevImpl
   bool has_touchpad_;
   bool has_numberpad_;
   bool has_stylus_switch_;
+  // `has_assistant_key_` can only be true if the device is a keyboard.
+  bool has_assistant_key_;
+  // `has_function_key_` can only be true if the device is a keyboard.
+  bool has_function_key_;
 
   // LEDs for this device.
   bool has_caps_lock_led_;
@@ -117,6 +131,9 @@ class COMPONENT_EXPORT(EVDEV) EventConverterEvdevImpl
   // Pressed keys bitset.
   std::bitset<KEY_CNT> key_state_;
 
+  // Whether modifier keys should be blocked from the input device.
+  bool block_modifiers_ = false;
+
   // Last mouse button state.
   static const int kMouseButtonCount = BTN_JOYSTICK - BTN_MOUSE;
   std::bitset<kMouseButtonCount> mouse_button_state_;
@@ -132,6 +149,13 @@ class COMPONENT_EXPORT(EVDEV) EventConverterEvdevImpl
 
   // Supported keyboard key bits.
   std::vector<uint64_t> key_bits_;
+
+  // Whether telephony device phone mute scan code should be blocked.
+  bool block_telephony_device_phone_mute_ = false;
+
+#if BUILDFLAG(IS_CHROMEOS)
+  std::unique_ptr<MicrophoneMuteKeyMetrics> microphone_mute_key_metrics_;
+#endif
 };
 
 }  // namespace ui

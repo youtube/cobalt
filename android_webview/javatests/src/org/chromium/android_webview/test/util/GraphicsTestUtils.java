@@ -14,19 +14,19 @@ import org.junit.Assert;
 import org.chromium.android_webview.AwContents;
 import org.chromium.android_webview.test.AwActivityTestRule;
 import org.chromium.android_webview.test.AwTestContainerView;
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CallbackHelper;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 import org.chromium.ui.display.DisplayAndroid;
 
 import java.util.concurrent.TimeoutException;
 
-/**
- * Graphics-related test utils.
- */
+/** Graphics-related test utils. */
 public class GraphicsTestUtils {
     public static float dipScaleForContext(Context context) {
-        return TestThreadUtils.runOnUiThreadBlockingNoException(
-                () -> { return DisplayAndroid.getNonMultiDisplay(context).getDipScale(); });
+        return ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    return DisplayAndroid.getNonMultiDisplay(context).getDipScale();
+                });
     }
 
     /**
@@ -42,8 +42,7 @@ public class GraphicsTestUtils {
 
     public static Bitmap drawAwContentsOnUiThread(
             final AwContents awContents, final int width, final int height) {
-        return TestThreadUtils.runOnUiThreadBlockingNoException(
-                () -> drawAwContents(awContents, width, height));
+        return ThreadUtils.runOnUiThreadBlocking(() -> drawAwContents(awContents, width, height));
     }
 
     /**
@@ -77,18 +76,22 @@ public class GraphicsTestUtils {
 
     public static int sampleBackgroundColorOnUiThread(final AwContents awContents)
             throws Exception {
-        return TestThreadUtils.runOnUiThreadBlocking(
+        return ThreadUtils.runOnUiThreadBlocking(
                 () -> drawAwContents(awContents, 10, 10, 0, 0).getPixel(0, 0));
     }
 
     // Gets the pixel color at the center of AwContents.
     public static int getPixelColorAtCenterOfView(
             final AwContents awContents, final AwTestContainerView testContainerView) {
-        return TestThreadUtils.runOnUiThreadBlockingNoException(
-                () -> drawAwContents(awContents, 2, 2,
-                                -(float) testContainerView.getWidth() / 2,
-                                -(float) testContainerView.getHeight() / 2)
-                                   .getPixel(0, 0));
+        return ThreadUtils.runOnUiThreadBlocking(
+                () ->
+                        drawAwContents(
+                                        awContents,
+                                        2,
+                                        2,
+                                        -(float) testContainerView.getWidth() / 2,
+                                        -(float) testContainerView.getHeight() / 2)
+                                .getPixel(0, 0));
     }
 
     public static void pollForBackgroundColor(final AwContents awContents, final int c) {
@@ -103,7 +106,7 @@ public class GraphicsTestUtils {
         if (dx != null && dy != null) {
             canvas.translate(dx, dy);
         }
-        awContents.onDraw(canvas);
+        awContents.getViewMethods().onDraw(canvas);
         return bitmap;
     }
 
@@ -114,20 +117,23 @@ public class GraphicsTestUtils {
         for (int i = 0; i < 100; ++i) {
             final CallbackHelper callbackHelper = new CallbackHelper();
             final Object[] resultHolder = new Object[1];
-            TestThreadUtils.runOnUiThreadBlocking(() -> {
-                testView.readbackQuadrantColors((int[] result) -> {
-                    resultHolder[0] = result;
-                    callbackHelper.notifyCalled();
-                });
-            });
+            ThreadUtils.runOnUiThreadBlocking(
+                    () -> {
+                        testView.readbackQuadrantColors(
+                                (int[] result) -> {
+                                    resultHolder[0] = result;
+                                    callbackHelper.notifyCalled();
+                                });
+                    });
             try {
-                callbackHelper.waitForFirst();
+                callbackHelper.waitForOnly();
             } catch (TimeoutException e) {
                 continue;
             }
             int[] quadrantColors = (int[]) resultHolder[0];
             lastQuadrantColors = quadrantColors;
-            if (quadrantColors != null && expectedQuadrantColors[0] == quadrantColors[0]
+            if (quadrantColors != null
+                    && expectedQuadrantColors[0] == quadrantColors[0]
                     && expectedQuadrantColors[1] == quadrantColors[1]
                     && expectedQuadrantColors[2] == quadrantColors[2]
                     && expectedQuadrantColors[3] == quadrantColors[3]) {

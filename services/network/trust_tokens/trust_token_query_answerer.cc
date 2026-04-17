@@ -29,7 +29,7 @@ TrustTokenQueryAnswerer::~TrustTokenQueryAnswerer() = default;
 
 void TrustTokenQueryAnswerer::HasTrustTokens(const url::Origin& issuer,
                                              HasTrustTokensCallback callback) {
-  absl::optional<SuitableTrustTokenOrigin> maybe_suitable_issuer =
+  std::optional<SuitableTrustTokenOrigin> maybe_suitable_issuer =
       SuitableTrustTokenOrigin::Create(issuer);
 
   if (!maybe_suitable_issuer) {
@@ -48,7 +48,7 @@ void TrustTokenQueryAnswerer::HasTrustTokens(const url::Origin& issuer,
 void TrustTokenQueryAnswerer::HasRedemptionRecord(
     const url::Origin& issuer,
     HasRedemptionRecordCallback callback) {
-  absl::optional<SuitableTrustTokenOrigin> maybe_suitable_issuer =
+  std::optional<SuitableTrustTokenOrigin> maybe_suitable_issuer =
       SuitableTrustTokenOrigin::Create(issuer);
 
   if (!maybe_suitable_issuer) {
@@ -72,7 +72,7 @@ void TrustTokenQueryAnswerer::AnswerTokenQueryWithStore(
 
   if (!trust_token_store->SetAssociation(issuer, top_frame_origin_)) {
     std::move(callback).Run(mojom::HasTrustTokensResult::New(
-        mojom::TrustTokenOperationStatus::kResourceExhausted,
+        mojom::TrustTokenOperationStatus::kSiteIssuerLimit,
         /*has_trust_tokens=*/false));
     return;
   }

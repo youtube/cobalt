@@ -6,18 +6,21 @@
 #define ASH_USER_EDUCATION_USER_EDUCATION_ASH_TEST_BASE_H_
 
 #include "ash/test/ash_test_base.h"
+#include "ash/user_education/mock_user_education_delegate.h"
 #include "base/memory/raw_ptr.h"
-
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace ash {
-
-class MockUserEducationDelegate;
 
 // Base class for tests of user education in Ash. Note that this class:
 // * Installs a `MockUserEducationDelegate` during `SetUp()`.
 // * Does NOT add user sessions during `SetUp()`.
 class UserEducationAshTestBase : public NoSessionAshTestBase {
+ public:
+  explicit UserEducationAshTestBase(
+      base::test::TaskEnvironment::TimeSource time_source =
+          base::test::TaskEnvironment::TimeSource::SYSTEM_TIME);
+
  protected:
   // NoSessionAshTestBase:
   void SetUp() override;
@@ -31,7 +34,7 @@ class UserEducationAshTestBase : public NoSessionAshTestBase {
  private:
   // The mocked delegate which facilitates communication between Ash and user
   // education services in the browser. Created during `SetUp()`.
-  raw_ptr<testing::NiceMock<MockUserEducationDelegate>, ExperimentalAsh>
+  raw_ptr<testing::NiceMock<MockUserEducationDelegate>, DanglingUntriaged>
       user_education_delegate_ = nullptr;
 };
 

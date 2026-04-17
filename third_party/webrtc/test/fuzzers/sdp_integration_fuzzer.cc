@@ -11,8 +11,20 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <memory>
+#include <string>
+#include <utility>
+
 #include "absl/strings/string_view.h"
+#include "api/jsep.h"
+#include "api/make_ref_counted.h"
+#include "api/peer_connection_interface.h"
+#include "api/test/rtc_error_matchers.h"
 #include "pc/test/integration_test_helpers.h"
+#include "pc/test/mock_peer_connection_observers.h"
+#include "rtc_base/checks.h"
+#include "test/gmock.h"
+#include "test/wait_until.h"
 
 namespace webrtc {
 
@@ -27,22 +39,26 @@ class FuzzerTest : public PeerConnectionIntegrationBaseTest {
     // generated are discarded.
 
     auto srd_observer =
-        rtc::make_ref_counted<FakeSetRemoteDescriptionObserver>();
+        webrtc::make_ref_counted<FakeSetRemoteDescriptionObserver>();
 
     SdpParseError error;
-    std::unique_ptr<SessionDescriptionInterface> sdp(
-        CreateSessionDescription("offer", std::string(message), &error));
+    std::unique_ptr<SessionDescriptionInterface> sdp =
+        CreateSessionDescription(SdpType::kOffer, std::string(message), &error);
     caller()->pc()->SetRemoteDescription(std::move(sdp), srd_observer);
     // Wait a short time for observer to be called. Timeout is short
     // because the fuzzer should be trying many branches.
-    EXPECT_TRUE_WAIT(srd_observer->called(), 100);
+    EXPECT_THAT(
+        WaitUntil([&] { return srd_observer->called(); }, ::testing::IsTrue()),
+        IsRtcOk());
 
     // If set-remote-description was successful, try to answer.
     auto sld_observer =
-        rtc::make_ref_counted<FakeSetLocalDescriptionObserver>();
+        webrtc::make_ref_counted<FakeSetLocalDescriptionObserver>();
     if (srd_observer->error().ok()) {
       caller()->pc()->SetLocalDescription(sld_observer);
-      EXPECT_TRUE_WAIT(sld_observer->called(), 100);
+      EXPECT_THAT(WaitUntil([&] { return sld_observer->called(); },
+                            ::testing::IsTrue()),
+                  IsRtcOk());
     }
     // If there is an EXPECT failure, die here.
     RTC_CHECK(!HasFailure());

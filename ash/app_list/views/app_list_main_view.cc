@@ -34,6 +34,7 @@
 #include "base/functional/callback.h"
 #include "base/strings/string_util.h"
 #include "ui/aura/window.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/layer.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/views/border.h"
@@ -55,6 +56,7 @@ AppListMainView::AppListMainView(AppListViewDelegate* delegate,
   // grid fits in the display.
   SetPaintToLayer();
   layer()->SetFillsBoundsOpaquely(false);
+  SetUseDefaultFillLayout(true);
 }
 
 AppListMainView::~AppListMainView() = default;
@@ -92,25 +94,10 @@ void AppListMainView::ShowAppListWhenReady() {
     GetWidget()->Show();
 }
 
-void AppListMainView::SetDragAndDropHostOfCurrentAppList(
-    ApplicationDragAndDropHost* drag_and_drop_host) {
-  contents_view_->SetDragAndDropHostOfCurrentAppList(drag_and_drop_host);
-}
-
 PaginationModel* AppListMainView::GetAppsPaginationModel() {
   return contents_view_->apps_container_view()
       ->apps_grid_view()
       ->pagination_model();
-}
-
-const char* AppListMainView::GetClassName() const {
-  return "AppListMainView";
-}
-
-void AppListMainView::Layout() {
-  gfx::Rect rect = GetContentsBounds();
-  if (!rect.IsEmpty())
-    contents_view_->SetBoundsRect(rect);
 }
 
 void AppListMainView::QueryChanged(const std::u16string& trimmed_query,
@@ -124,8 +111,9 @@ void AppListMainView::QueryChanged(const std::u16string& trimmed_query,
 
 void AppListMainView::ActiveChanged(SearchBoxViewBase* sender) {
   // Do not update views on closing.
-  if (app_list_view_->app_list_state() == AppListViewState::kClosed)
+  if (app_list_view_->app_list_state() == AppListViewState::kClosed) {
     return;
+  }
 
   if (search_box_view_->is_search_box_active()) {
     // Show zero state suggestions when search box is activated with an empty
@@ -143,8 +131,9 @@ void AppListMainView::ActiveChanged(SearchBoxViewBase* sender) {
 void AppListMainView::OnSearchBoxKeyEvent(ui::KeyEvent* event) {
   app_list_view_->RedirectKeyEventToSearchBox(event);
 
-  if (!IsUnhandledUpDownKeyEvent(*event))
+  if (!IsUnhandledUpDownKeyEvent(*event)) {
     return;
+  }
 
   // Handles arrow key events from the search box while the search box is
   // inactive. This covers both folder traversal and apps grid traversal. Search
@@ -153,13 +142,15 @@ void AppListMainView::OnSearchBoxKeyEvent(ui::KeyEvent* event) {
       contents_view_->GetPageView(contents_view_->GetActivePageIndex());
   views::View* next_view = nullptr;
 
-  if (event->key_code() == ui::VKEY_UP)
+  if (event->key_code() == ui::VKEY_UP) {
     next_view = page->GetLastFocusableView();
-  else
+  } else {
     next_view = page->GetFirstFocusableView();
+  }
 
-  if (next_view)
+  if (next_view) {
     next_view->RequestFocus();
+  }
   event->SetHandled();
 }
 
@@ -169,13 +160,17 @@ bool AppListMainView::CanSelectSearchResults() {
 }
 
 void AppListMainView::AssistantButtonPressed() {
-  delegate_->StartAssistant();
+  delegate_->StartAssistant(
+      assistant::AssistantEntryPoint::kLauncherSearchBoxIcon);
 }
 
 void AppListMainView::CloseButtonPressed() {
   // Deactivate the search box.
-  search_box_view_->SetSearchBoxActive(false, ui::ET_UNKNOWN);
+  search_box_view_->SetSearchBoxActive(false, ui::EventType::kUnknown);
   search_box_view_->ClearSearch();
 }
+
+BEGIN_METADATA(AppListMainView)
+END_METADATA
 
 }  // namespace ash

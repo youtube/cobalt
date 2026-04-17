@@ -4,10 +4,14 @@
 
 package org.chromium.mojo.bindings;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
 /**
  * An {@link ExceptionHandler} is notified of any {@link RuntimeException} happening in the
  * bindings or any of the callbacks.
  */
+@NullMarked
 public interface ExceptionHandler {
     /**
      * Receives a notification that an unhandled {@link RuntimeException} has been thrown in an
@@ -23,7 +27,7 @@ public interface ExceptionHandler {
      * also delegate the handling of the exceptions to another instance of ExceptionHandler.
      */
     public static class DefaultExceptionHandler implements ExceptionHandler {
-        private ExceptionHandler mDelegate;
+        private @Nullable ExceptionHandler mDelegate;
 
         @Override
         public boolean handleException(RuntimeException e) {
@@ -35,23 +39,17 @@ public interface ExceptionHandler {
 
         private DefaultExceptionHandler() {}
 
-        /**
-         * Static class that implements the initialization-on-demand holder idiom.
-         */
+        /** Static class that implements the initialization-on-demand holder idiom. */
         private static class LazyHolder {
             static final DefaultExceptionHandler INSTANCE = new DefaultExceptionHandler();
         }
 
-        /**
-         * Gets the singleton instance for the DefaultExceptionHandler.
-         */
+        /** Gets the singleton instance for the DefaultExceptionHandler. */
         public static DefaultExceptionHandler getInstance() {
             return LazyHolder.INSTANCE;
         }
 
-        /**
-         * Sets a delegate ExceptionHandler, in case throwing an exception is not desirable.
-         */
+        /** Sets a delegate ExceptionHandler, in case throwing an exception is not desirable. */
         public void setDelegate(ExceptionHandler exceptionHandler) {
             mDelegate = exceptionHandler;
         }

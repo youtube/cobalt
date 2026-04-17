@@ -5,9 +5,11 @@
 #include "components/external_intents/android/test_child_frame_navigation_observer.h"
 
 #include "base/android/jni_android.h"
-#include "components/external_intents/android/test_support_java_jni_headers/TestChildFrameNavigationObserver_jni.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/external_intents/android/test_support_java_jni_headers/TestChildFrameNavigationObserver_jni.h"
 
 using base::android::AttachCurrentThread;
 using base::android::JavaParamRef;
@@ -53,7 +55,20 @@ void JNI_TestChildFrameNavigationObserver_CreateAndAttachToNativeWebContents(
 
 void TestChildFrameNavigationObserver::DidFinishNavigation(
     NavigationHandle* navigation_handle) {
+  if (navigation_handle->IsInPrimaryMainFrame()) {
+    return;
+  }
   external_intents::Java_TestChildFrameNavigationObserver_didFinishNavigation(
+      AttachCurrentThread(), java_test_observer_,
+      navigation_handle->GetJavaNavigationHandle());
+}
+
+void TestChildFrameNavigationObserver::DidStartNavigation(
+    NavigationHandle* navigation_handle) {
+  if (navigation_handle->IsInPrimaryMainFrame()) {
+    return;
+  }
+  external_intents::Java_TestChildFrameNavigationObserver_didStartNavigation(
       AttachCurrentThread(), java_test_observer_,
       navigation_handle->GetJavaNavigationHandle());
 }

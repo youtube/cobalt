@@ -19,9 +19,10 @@ import {parseHtmlSubset, sanitizeInnerHtml, SanitizeInnerHtmlOpts} from './parse
 /** @polymerBehavior */
 export const I18nBehavior = {
   // <if expr="chromeos_ash">
-  // Dynamic locale changes are only relevant in ChromeOS OOBE/Login flows.
-  // On other platforms Chrome process is restarted upon locale changes.
-  // TODO(crbug.com/955194): move it to OobeI18nBehavior.
+  // Dynamic locale changes are only relevant in the multidevice_setup step in
+  // ChromeOS OOBE/Login flows. On other platforms Chrome process is restarted
+  // upon locale changes.
+  // TODO(b/328408932): Migrate multidevice_setup to use oobe_i18n_mixin
   properties: {
     /**
      * The locale the UI is presented in. Used to signal dynamic locale
@@ -80,7 +81,7 @@ export const I18nBehavior = {
    * Polymer bindings that are inner-h-t-m-l, for example.
    * @param {string} id The ID of the string to translate.
    * @param {SanitizeInnerHtmlOpts=} opts
-   * @return {string}
+   * @return {TrustedHTML}
    */
   i18nAdvanced(id, opts) {
     opts = opts || {};

@@ -5,6 +5,7 @@
 #include "chrome/browser/extensions/api/omnibox/suggestion_parser.h"
 
 #include <memory>
+#include <string_view>
 
 #include "base/run_loop.h"
 #include "base/test/bind.h"
@@ -19,11 +20,11 @@ namespace extensions {
 namespace {
 
 constexpr api::omnibox::DescriptionStyleType kMatch =
-    api::omnibox::DESCRIPTION_STYLE_TYPE_MATCH;
+    api::omnibox::DescriptionStyleType::kMatch;
 constexpr api::omnibox::DescriptionStyleType kDim =
-    api::omnibox::DESCRIPTION_STYLE_TYPE_DIM;
+    api::omnibox::DescriptionStyleType::kDim;
 constexpr api::omnibox::DescriptionStyleType kUrl =
-    api::omnibox::DESCRIPTION_STYLE_TYPE_URL;
+    api::omnibox::DescriptionStyleType::kUrl;
 
 // A custom matcher for an omnibox::MatchClassification.
 testing::Matcher<api::omnibox::MatchClassification> GetStyleMatcher(
@@ -48,7 +49,7 @@ class SuggestionParserUnitTest : public testing::Test {
 
   // A helper method to synchronously parses `str` as input and return the
   // result.
-  DescriptionAndStyles ParseSingleInput(base::StringPiece str) {
+  DescriptionAndStyles ParseSingleInput(std::string_view str) {
     DescriptionAndStylesResult result;
     ParseImpl({str}, &result);
     if (result.descriptions_and_styles.size() != 1) {
@@ -61,7 +62,7 @@ class SuggestionParserUnitTest : public testing::Test {
   }
   // Same as above, accepting multiple string inputs.
   std::vector<DescriptionAndStyles> ParseInputs(
-      const std::vector<base::StringPiece>& strs) {
+      const std::vector<std::string_view>& strs) {
     DescriptionAndStylesResult result;
     ParseImpl(strs, &result);
     EXPECT_EQ(std::string(), result.error);
@@ -69,14 +70,14 @@ class SuggestionParserUnitTest : public testing::Test {
   }
 
   // Returns the parsing error from attempting to parse `strs`.
-  std::string GetParseError(const std::vector<base::StringPiece>& strs) {
+  std::string GetParseError(const std::vector<std::string_view>& strs) {
     DescriptionAndStylesResult result;
     ParseImpl(strs, &result);
     return result.error;
   }
 
  private:
-  void ParseImpl(const std::vector<base::StringPiece>& strs,
+  void ParseImpl(const std::vector<std::string_view>& strs,
                  DescriptionAndStylesResult* result_out) {
     base::test::TestFuture<DescriptionAndStylesResult> parse_future;
     if (strs.size() == 1) {

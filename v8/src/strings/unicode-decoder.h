@@ -15,7 +15,7 @@ namespace internal {
 // non-one-byte character, rather than directly to the non-one-byte character.
 // If the return value is >= the passed length, the entire string was
 // one-byte.
-inline int NonAsciiStart(const uint8_t* chars, int length) {
+inline uint32_t NonAsciiStart(const uint8_t* chars, uint32_t length) {
   const uint8_t* start = chars;
   const uint8_t* limit = chars + length;
 
@@ -23,7 +23,7 @@ inline int NonAsciiStart(const uint8_t* chars, int length) {
     // Check unaligned bytes.
     while (!IsAligned(reinterpret_cast<intptr_t>(chars), kIntptrSize)) {
       if (*chars > unibrow::Utf8::kMaxOneByteChar) {
-        return static_cast<int>(chars - start);
+        return static_cast<uint32_t>(chars - start);
       }
       ++chars;
     }
@@ -32,7 +32,7 @@ inline int NonAsciiStart(const uint8_t* chars, int length) {
     const uintptr_t non_one_byte_mask = kUintptrAllBitsSet / 0xFF * 0x80;
     while (chars + sizeof(uintptr_t) <= limit) {
       if (*reinterpret_cast<const uintptr_t*>(chars) & non_one_byte_mask) {
-        return static_cast<int>(chars - start);
+        return static_cast<uint32_t>(chars - start);
       }
       chars += sizeof(uintptr_t);
     }
@@ -40,12 +40,12 @@ inline int NonAsciiStart(const uint8_t* chars, int length) {
   // Check remaining unaligned bytes.
   while (chars < limit) {
     if (*chars > unibrow::Utf8::kMaxOneByteChar) {
-      return static_cast<int>(chars - start);
+      return static_cast<uint32_t>(chars - start);
     }
     ++chars;
   }
 
-  return static_cast<int>(chars - start);
+  return static_cast<uint32_t>(chars - start);
 }
 
 template <class Decoder>
@@ -68,10 +68,10 @@ class Utf8DecoderBase {
   }
 
   template <typename Char>
-  void Decode(Char* out, const base::Vector<const uint8_t>& data);
+  void Decode(Char* out, base::Vector<const uint8_t> data);
 
  protected:
-  explicit Utf8DecoderBase(const base::Vector<const uint8_t>& data);
+  explicit Utf8DecoderBase(base::Vector<const uint8_t> data);
   Encoding encoding_;
   int non_ascii_start_;
   int utf16_length_;
@@ -80,7 +80,7 @@ class Utf8DecoderBase {
 class V8_EXPORT_PRIVATE Utf8Decoder final
     : public Utf8DecoderBase<Utf8Decoder> {
  public:
-  explicit Utf8Decoder(const base::Vector<const uint8_t>& data)
+  explicit Utf8Decoder(base::Vector<const uint8_t> data)
       : Utf8DecoderBase(data) {}
 
   // This decoder never fails; an invalid byte sequence decodes to U+FFFD and
@@ -97,7 +97,7 @@ class V8_EXPORT_PRIVATE Utf8Decoder final
 // isolated surrogates.
 class Wtf8Decoder : public Utf8DecoderBase<Wtf8Decoder> {
  public:
-  explicit Wtf8Decoder(const base::Vector<const uint8_t>& data)
+  explicit Wtf8Decoder(base::Vector<const uint8_t> data)
       : Utf8DecoderBase(data) {}
 
   bool is_invalid() const { return encoding_ == Encoding::kInvalid; }
@@ -107,7 +107,7 @@ class Wtf8Decoder : public Utf8DecoderBase<Wtf8Decoder> {
 // with U+FFFD, we have a separate Encoding::kInvalid state.
 class StrictUtf8Decoder : public Utf8DecoderBase<StrictUtf8Decoder> {
  public:
-  explicit StrictUtf8Decoder(const base::Vector<const uint8_t>& data)
+  explicit StrictUtf8Decoder(base::Vector<const uint8_t> data)
       : Utf8DecoderBase(data) {}
 
   bool is_invalid() const { return encoding_ == Encoding::kInvalid; }

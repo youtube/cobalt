@@ -13,7 +13,7 @@ import '../settings_shared.css.js';
 import '../i18n_setup.js';
 
 import {getInstance as getAnnouncerInstance} from 'chrome://resources/cr_elements/cr_a11y_announcer/cr_a11y_announcer.js';
-import {CrInputElement} from 'chrome://resources/cr_elements/cr_input/cr_input.js';
+import type {CrInputElement} from 'chrome://resources/cr_elements/cr_input/cr_input.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
@@ -65,10 +65,10 @@ export class SettingsSecurityKeysPinFieldElement extends
     };
   }
 
-  minPinLength: number;
-  private error_: string;
-  private value_: string;
-  private inputVisible_: boolean;
+  declare minPinLength: number;
+  declare private error_: string;
+  declare private value_: string;
+  declare private inputVisible_: boolean;
 
   /** Focuses the PIN input field. */
   override focus() {

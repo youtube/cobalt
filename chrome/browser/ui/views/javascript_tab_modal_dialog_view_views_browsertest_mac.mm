@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #import <Accessibility/Accessibility.h>
+
 #include <string>
 
 #include "base/functional/bind.h"
@@ -34,10 +35,11 @@ IN_PROC_BROWSER_TEST_F(JavaScriptTabModalDialogViewViewsBrowserTestMac,
 
   // The RootView of a JavaScript alert dialog should have the accessible role
   // of dialog. On the Mac, that is exposed as the subrole of a group.
-  gfx::NativeViewAccessible native_dialog = dialog_views->GetWidget()
-                                                ->GetRootView()
-                                                ->GetViewAccessibility()
-                                                .GetNativeObject();
+  id native_dialog = dialog_views->GetWidget()
+                         ->GetRootView()
+                         ->GetViewAccessibility()
+                         .GetNativeObject()
+                         .Get();
   EXPECT_EQ(NSAccessibilityGroupRole, [native_dialog accessibilityRole]);
   EXPECT_TRUE([@"AXApplicationDialog"
       isEqualToString:(NSString*)[native_dialog accessibilitySubrole]]);
@@ -45,34 +47,28 @@ IN_PROC_BROWSER_TEST_F(JavaScriptTabModalDialogViewViewsBrowserTestMac,
   // JavaScriptTabModalDialogViewViews sets the accessible description of the
   // RootView to the message contents. That description is set with
   // kDescriptionFrom set to kAriaDescription, which is exposed in
-  // accessibilityHelp before macOS 11 and in accessibilityCustomContent
-  // for macOS 11 and later.
-  if (@available(macOS 11.0, *)) {
-    NSString* description = nil;
-    ASSERT_TRUE(
-        [native_dialog conformsToProtocol:@protocol(AXCustomContentProvider)]);
-    auto element_with_content =
-        static_cast<id<AXCustomContentProvider>>(native_dialog);
-    for (AXCustomContent* content in element_with_content
-             .accessibilityCustomContent) {
-      if ([content.label isEqualToString:@"description"]) {
-        // There should be only one AXCustomContent with the label
-        // "description".
-        EXPECT_EQ(description, nil);
-        description = content.value;
-      }
+  // accessibilityCustomContent.
+  NSString* description = nil;
+  ASSERT_TRUE(
+      [native_dialog conformsToProtocol:@protocol(AXCustomContentProvider)]);
+  auto element_with_content =
+      static_cast<id<AXCustomContentProvider>>(native_dialog);
+  for (AXCustomContent* content in element_with_content
+           .accessibilityCustomContent) {
+    if ([content.label isEqualToString:@"description"]) {
+      // There should be only one AXCustomContent with the label
+      // "description".
+      EXPECT_EQ(description, nil);
+      description = content.value;
     }
-    EXPECT_EQ(message, base::SysNSStringToUTF16(description));
-  } else {
-    EXPECT_EQ(message,
-              base::SysNSStringToUTF16([native_dialog accessibilityHelp]));
   }
+  EXPECT_EQ(message, base::SysNSStringToUTF16(description));
 
   // While some screen readers use the accessible description to know what to
   // present to the user, VoiceOver currently does not. Therefore, we set the
   // accessibilityLabel of the native window to contain both the title and
   // the message so that both are presented to the user.
-  gfx::NativeViewAccessible native_window = [native_dialog accessibilityParent];
+  id native_window = [native_dialog accessibilityParent];
   EXPECT_EQ(NSAccessibilityWindowRole, [native_window accessibilityRole]);
   EXPECT_EQ(title + u", " + message,
             base::SysNSStringToUTF16([native_window accessibilityLabel]));

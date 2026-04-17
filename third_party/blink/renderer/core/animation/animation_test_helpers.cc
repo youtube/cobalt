@@ -6,7 +6,7 @@
 
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/core/animation/css_interpolation_environment.h"
-#include "third_party/blink/renderer/core/animation/css_interpolation_types_map.h"
+#include "third_party/blink/renderer/core/animation/interpolation_types_map.h"
 #include "third_party/blink/renderer/core/animation/invalidatable_interpolation.h"
 #include "third_party/blink/renderer/core/css/css_test_helpers.h"
 #include "third_party/blink/renderer/core/css/cssom/css_keyword_value.h"
@@ -95,7 +95,7 @@ void EnsureInterpolatedValueCached(ActiveInterpolations* interpolations,
   state.SetStyle(initial_style);
 
   ActiveInterpolationsMap map;
-  map.Set(PropertyHandle("--unused"), interpolations);
+  map.Set(PropertyHandle(AtomicString("--unused")), interpolations);
 
   StyleCascade cascade(state);
   cascade.AddInterpolations(&map, CascadeOrigin::kAnimation);

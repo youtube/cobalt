@@ -13,10 +13,6 @@
 #import "ios/chrome/credential_provider_extension/ui/feature_flags.h"
 #import "ios/chrome/credential_provider_extension/ui/ui_util.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 @interface CredentialListMediator () <CredentialListHandler>
 
 // The UI Handler of the feature.
@@ -69,49 +65,11 @@
   [self.consumer
       setTopPrompt:PromptForServiceIdentifiers(self.serviceIdentifiers)];
 
+  __weak __typeof(self) weakSelf = self;
   dispatch_queue_t priorityQueue =
       dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0ul);
   dispatch_async(priorityQueue, ^{
-    self.allCredentials = [self.credentialStore.credentials
-        sortedArrayUsingComparator:^NSComparisonResult(id<Credential> obj1,
-                                                       id<Credential> obj2) {
-          return [obj1.serviceName compare:obj2.serviceName];
-        }];
-
-    NSMutableArray* suggestions = [[NSMutableArray alloc] init];
-    for (id<Credential> credential in self.allCredentials) {
-      for (ASCredentialServiceIdentifier* identifier in self
-               .serviceIdentifiers) {
-        if (credential.serviceName &&
-            [identifier.identifier
-                localizedStandardContainsString:credential.serviceName]) {
-          [suggestions addObject:credential];
-          break;
-        }
-        if (credential.serviceIdentifier &&
-            [identifier.identifier
-                localizedStandardContainsString:credential.serviceIdentifier]) {
-          [suggestions addObject:credential];
-          break;
-        }
-      }
-    }
-    self.suggestedCredentials = suggestions;
-
-    dispatch_async(dispatch_get_main_queue(), ^{
-      // TODO(crbug.com/1297158): Remove the serviceIdentifier check once the
-      // new password screen properly supports user url entry.
-      BOOL canCreatePassword =
-          IsPasswordCreationUserEnabled() && self.serviceIdentifiers.count > 0;
-      if (!canCreatePassword && !self.allCredentials.count) {
-        [self.UIHandler showEmptyCredentials];
-        return;
-      }
-      [self.consumer presentSuggestedPasswords:self.suggestedCredentials
-                                  allPasswords:self.allCredentials
-                                 showSearchBar:self.allCredentials.count > 0
-                         showNewPasswordOption:canCreatePassword];
-    });
+    [weakSelf fetchAndPresentRelevantCredentials];
   });
 }
 
@@ -127,23 +85,23 @@
 }
 
 - (void)updateResultsWithFilter:(NSString*)filter {
-  // TODO(crbug.com/1297158): Remove the serviceIdentifier check once the
+  // TODO(crbug.com/40215043): Remove the serviceIdentifier check once the
   // new password screen properly supports user url entry.
   BOOL showNewPasswordOption = !filter.length &&
                                IsPasswordCreationUserEnabled() &&
                                self.serviceIdentifiers.count > 0;
   if (!filter.length) {
-    [self.consumer presentSuggestedPasswords:self.suggestedCredentials
-                                allPasswords:self.allCredentials
-                               showSearchBar:YES
-                       showNewPasswordOption:showNewPasswordOption];
+    [self.consumer presentSuggestedCredentials:self.suggestedCredentials
+                                allCredentials:self.allCredentials
+                                 showSearchBar:YES
+                         showNewPasswordOption:showNewPasswordOption];
     return;
   }
 
   NSMutableArray<id<Credential>>* suggested = [[NSMutableArray alloc] init];
   for (id<Credential> credential in self.suggestedCredentials) {
     if ([credential.serviceName localizedStandardContainsString:filter] ||
-        [credential.user localizedStandardContainsString:filter]) {
+        [credential.username localizedStandardContainsString:filter]) {
       [suggested addObject:credential];
     }
   }
@@ -151,14 +109,14 @@
   NSMutableArray<id<Credential>>* all = [[NSMutableArray alloc] init];
   for (id<Credential> credential in self.allCredentials) {
     if ([credential.serviceName localizedStandardContainsString:filter] ||
-        [credential.user localizedStandardContainsString:filter]) {
+        [credential.username localizedStandardContainsString:filter]) {
       [all addObject:credential];
     }
   }
-  [self.consumer presentSuggestedPasswords:suggested
-                              allPasswords:all
-                             showSearchBar:YES
-                     showNewPasswordOption:showNewPasswordOption];
+  [self.consumer presentSuggestedCredentials:suggested
+                              allCredentials:all
+                               showSearchBar:YES
+                       showNewPasswordOption:showNewPasswordOption];
 }
 
 - (void)showDetailsForCredential:(id<Credential>)credential {
@@ -167,6 +125,150 @@
 
 - (void)newPasswordWasSelected {
   [self.UIHandler showCreateNewPasswordUI];
+}
+
+#pragma mark - Private
+
+// Fetches and presents credentials that are relevant to the service the user is
+// trying to log into.
+- (void)fetchAndPresentRelevantCredentials {
+  self.allCredentials = [self fetchAllCredentials];
+  self.suggestedCredentials = [self filterCredentials];
+
+  __weak __typeof(self) weakSelf = self;
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [weakSelf presentCredentials];
+  });
+}
+
+// Returns all credentials from the credential store, filtered by request type
+// and sorted by service name.
+- (NSArray<id<Credential>>*)fetchAllCredentials {
+  NSString* relyingPartyIdentifier = [self.UIHandler relyingPartyIdentifier];
+
+  // Figure out which type(s) of credentials to keep.
+  BOOL includePasswords = NO;
+  BOOL includePasskeys = NO;
+  if (relyingPartyIdentifier) {
+    // When showing passkeys, only include passwords if there's at least one
+    // that matches the service identifiers.
+    includePasswords = IsPasskeysM2Enabled() &&
+                       [self hasPasswordThatMatchesServiceIdentifiers];
+    includePasskeys = YES;
+  } else {
+    includePasswords = YES;
+  }
+
+  NSArray<id<Credential>>* credentials = [self.credentialStore.credentials
+      filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(
+                                                   id<Credential> credential,
+                                                   NSDictionary* bindings) {
+        BOOL isPassword = !credential.isPasskey;
+        BOOL isValidPasskey =
+            credential.isPasskey &&
+            [credential.rpId isEqualToString:relyingPartyIdentifier];
+
+        return (includePasswords && isPassword) ||
+               (includePasskeys && isValidPasskey);
+      }]];
+
+  // Only sort `credentials` if the Passkeys M2 feature is enabled or if there's
+  // no relying party identifier. Otherwise, it means that the `credentials`
+  // list only contains passkeys, and hence there's no need to sort as they all
+  // have the same `rpId`.
+  if (IsPasskeysM2Enabled() || !relyingPartyIdentifier) {
+    credentials = [credentials sortedArrayUsingComparator:^NSComparisonResult(
+                                   id<Credential> obj1, id<Credential> obj2) {
+      NSString* firstIdentifier = obj1.isPasskey ? obj1.rpId : obj1.serviceName;
+      NSString* secondIdentifier =
+          obj2.isPasskey ? obj2.rpId : obj2.serviceName;
+      return [firstIdentifier compare:secondIdentifier];
+    }];
+  }
+
+  return credentials;
+}
+
+// Returns the list of allowed credentials that are related to the relying
+// party/service identifiers.
+- (NSArray<id<Credential>>*)filterCredentials {
+  NSMutableArray* filteredCredentials = [[NSMutableArray alloc] init];
+  NSArray<NSData*>* allowedCredentials = [self.UIHandler allowedCredentials];
+  // If the `allowedCredentials` array is empty, then the relying party accepts
+  // any passkey credential.
+  BOOL isAnyPasskeyAllowed = allowedCredentials.count == 0;
+  if (!IsPasskeysM2Enabled() && [self.UIHandler relyingPartyIdentifier] &&
+      isAnyPasskeyAllowed) {
+    // Return the `allCredentials` array as it only contains passkeys.
+    return self.allCredentials;
+  }
+
+  for (id<Credential> credential in self.allCredentials) {
+    if (credential.isPasskey) {
+      if (isAnyPasskeyAllowed ||
+          [allowedCredentials containsObject:credential.credentialId]) {
+        [filteredCredentials addObject:credential];
+      }
+    } else if (!credential.isPasskey &&
+               [self passwordCredential:credential
+                   matchesServiceIdentifiers:self.serviceIdentifiers]) {
+      [filteredCredentials addObject:credential];
+    }
+  }
+
+  return filteredCredentials;
+}
+
+// Returns `YES` if the provided `credential` matches at least one of the
+// `serviceIdentifiers`.
+- (BOOL)passwordCredential:(id<Credential>)credential
+    matchesServiceIdentifiers:
+        (NSArray<ASCredentialServiceIdentifier*>*)serviceIdentifiers {
+  for (ASCredentialServiceIdentifier* identifier in serviceIdentifiers) {
+    BOOL serviceNameMatches =
+        credential.serviceName &&
+        [identifier.identifier
+            localizedStandardContainsString:credential.serviceName];
+    BOOL serviceIdentifierMatches =
+        credential.serviceIdentifier &&
+        [identifier.identifier
+            localizedStandardContainsString:credential.serviceIdentifier];
+    if (serviceNameMatches || serviceIdentifierMatches) {
+      return YES;
+    }
+  }
+  return NO;
+}
+
+// Returns `YES` if at least one of the saved password credentials matches the
+// `serviceIdentifiers`.
+- (BOOL)hasPasswordThatMatchesServiceIdentifiers {
+  __weak __typeof(self) weakSelf = self;
+  NSUInteger indexOfMatchingPassword = [self.credentialStore.credentials
+      indexOfObjectPassingTest:^BOOL(id<Credential> credential, NSUInteger,
+                                     BOOL*) {
+        return !credential.isPasskey &&
+               [weakSelf passwordCredential:credential
+                   matchesServiceIdentifiers:weakSelf.serviceIdentifiers];
+      }];
+  return indexOfMatchingPassword != NSNotFound;
+}
+
+// Tells the consumer to show the passed in suggested and all credentials.
+- (void)presentCredentials {
+  // TODO(crbug.com/40215043): Remove the serviceIdentifier check once the
+  // new password screen properly supports user url entry.
+  BOOL canCreatePassword = ![self.UIHandler relyingPartyIdentifier] &&
+                           IsPasswordCreationUserEnabled() &&
+                           self.serviceIdentifiers.count > 0;
+  if (!canCreatePassword && !self.allCredentials.count) {
+    [self.UIHandler showEmptyCredentials];
+    return;
+  }
+  [self.consumer presentSuggestedCredentials:self.suggestedCredentials
+                              allCredentials:self.allCredentials
+                               showSearchBar:self.allCredentials.count > 0
+                       showNewPasswordOption:canCreatePassword];
 }
 
 @end

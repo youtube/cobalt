@@ -13,31 +13,32 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
-import android.widget.ScrollView;
+
+import org.chromium.components.browser_ui.widget.FadingEdgeScrollView;
 
 /**
- * Simple wrapper on top of a ScrollView that will acquire focus when tapped.  Ensures the
- * New Tab page receives focus when clicked. This is only used in the Incognito NTP.
+ * Simple wrapper on top of a ScrollView that will acquire focus when tapped. Ensures the New Tab
+ * page receives focus when clicked. This is only used in the Incognito NTP.
  */
-public class NewTabPageScrollView extends ScrollView {
+public class NewTabPageScrollView extends FadingEdgeScrollView {
 
-    private GestureDetector mGestureDetector;
+    private final GestureDetector mGestureDetector;
 
-    /**
-     * Constructor needed to inflate from XML.
-     */
+    /** Constructor needed to inflate from XML. */
     public NewTabPageScrollView(Context context, AttributeSet attrs) {
         super(context, attrs);
 
-        mGestureDetector = new GestureDetector(
-                getContext(), new GestureDetector.SimpleOnGestureListener() {
-                    @Override
-                    public boolean onSingleTapUp(MotionEvent e) {
-                        boolean retVal = super.onSingleTapUp(e);
-                        requestFocus();
-                        return retVal;
-                    }
-                });
+        mGestureDetector =
+                new GestureDetector(
+                        getContext(),
+                        new GestureDetector.SimpleOnGestureListener() {
+                            @Override
+                            public boolean onSingleTapUp(MotionEvent e) {
+                                boolean retVal = super.onSingleTapUp(e);
+                                requestFocus();
+                                return retVal;
+                            }
+                        });
     }
 
     @Override

@@ -6,7 +6,7 @@
 
 #include <cstdint>
 
-#include "base/allocator/partition_allocator/partition_alloc_constants.h"
+#include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
@@ -20,6 +20,8 @@
 #include "content/public/browser/browser_thread.h"
 #include "mojo/public/cpp/base/big_buffer.h"
 #include "net/base/io_buffer.h"
+#include "net/base/net_errors.h"
+#include "partition_alloc/partition_alloc_constants.h"
 #include "storage/browser/file_system/file_system_context.h"
 #include "storage/browser/file_system/file_system_operation_runner.h"
 #include "storage/browser/file_system/file_system_url.h"
@@ -127,7 +129,7 @@ void FileSystemAccessFileDelegateHostImpl::DidRead(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (rv < 0) {
-    std::move(callback).Run(absl::optional<mojo_base::BigBuffer>(),
+    std::move(callback).Run(std::optional<mojo_base::BigBuffer>(),
                             storage::NetErrorToFileError(rv),
                             /*bytes_read=*/0);
     return;
@@ -139,7 +141,7 @@ void FileSystemAccessFileDelegateHostImpl::DidRead(
   // information across processes.
   if (static_cast<size_t>(bytes_read) < result.size()) {
     size_t bytes_to_fill = result.size() - static_cast<size_t>(bytes_read);
-    memset(result.data() + bytes_read, 0, bytes_to_fill);
+    UNSAFE_TODO(memset(result.data() + bytes_read, 0, bytes_to_fill));
   }
 
   std::move(callback).Run(std::move(result), base::File::Error::FILE_OK,
@@ -197,7 +199,9 @@ void FileSystemAccessFileDelegateHostImpl::GetLength(
             std::move(callback).Run(file_error, 0);
           },
           std::move(callback)),
-      url(), storage::FileSystemOperation::GET_METADATA_FIELD_SIZE);
+      url(),
+      storage::FileSystemOperation::GetMetadataFieldSet(
+          {storage::FileSystemOperation::GetMetadataField::kSize}));
 }
 
 void FileSystemAccessFileDelegateHostImpl::SetLength(

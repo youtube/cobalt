@@ -7,8 +7,8 @@
 #include "base/functional/callback_helpers.h"
 #include "base/token.h"
 #include "chrome/browser/nearby_sharing/instantmessaging/proto/instantmessaging.pb.h"
-#include "chrome/browser/nearby_sharing/logging/logging.h"
 #include "chrome/browser/nearby_sharing/webrtc_request_builder.h"
+#include "components/cross_device/logging/logging.h"
 
 WebRtcSignalingMessenger::WebRtcSignalingMessenger(
     signin::IdentityManager* identity_manager,
@@ -21,16 +21,16 @@ WebRtcSignalingMessenger::~WebRtcSignalingMessenger() = default;
 void WebRtcSignalingMessenger::SendMessage(
     const std::string& self_id,
     const std::string& peer_id,
-    sharing::mojom::LocationHintPtr location_hint,
+    ::sharing::mojom::LocationHintPtr location_hint,
     const std::string& message,
     SendMessageCallback callback) {
   chrome_browser_nearby_sharing_instantmessaging::SendMessageExpressRequest
       request = BuildSendRequest(self_id, peer_id, std::move(location_hint));
 
-  NS_LOG(VERBOSE) << __func__ << ": self_id=" << self_id
-                  << ", peer_id=" << peer_id
-                  << ", request_id=" << request.header().request_id()
-                  << ", message size=" << message.size();
+  CD_LOG(VERBOSE, Feature::NEARBY_INFRA)
+      << __func__ << ": self_id=" << self_id << ", peer_id=" << peer_id
+      << ", request_id=" << request.header().request_id()
+      << ", message size=" << message.size();
 
   chrome_browser_nearby_sharing_instantmessaging::InboxMessage* inbox_message =
       request.mutable_message();
@@ -64,8 +64,8 @@ void WebRtcSignalingMessenger::SendMessage(
 
 void WebRtcSignalingMessenger::StartReceivingMessages(
     const std::string& self_id,
-    sharing::mojom::LocationHintPtr location_hint,
-    mojo::PendingRemote<sharing::mojom::IncomingMessagesListener>
+    ::sharing::mojom::LocationHintPtr location_hint,
+    mojo::PendingRemote<::sharing::mojom::IncomingMessagesListener>
         incoming_messages_listener,
     StartReceivingMessagesCallback callback) {
   // Starts a self owned mojo pipe for the receive session that can be stopped

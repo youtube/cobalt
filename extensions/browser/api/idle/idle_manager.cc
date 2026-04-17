@@ -13,13 +13,11 @@
 #include "extensions/browser/event_router.h"
 #include "extensions/common/api/idle.h"
 #include "extensions/common/extension.h"
+#include "extensions/common/extension_id.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chromeos/dbus/power/power_policy_controller.h"
-#elif BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chromeos/lacros/lacros_service.h"
-#include "chromeos/lacros/system_idle_cache.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace keys = extensions::idle_api_constants;
 namespace idle = extensions::api::idle;
@@ -36,7 +34,7 @@ class DefaultEventDelegate : public IdleManager::EventDelegate {
   explicit DefaultEventDelegate(content::BrowserContext* context);
   ~DefaultEventDelegate() override;
 
-  void OnStateChanged(const std::string& extension_id,
+  void OnStateChanged(const ExtensionId& extension_id,
                       ui::IdleState new_state) override;
   void RegisterObserver(EventRouter::Observer* observer) override;
   void UnregisterObserver(EventRouter::Observer* observer) override;
@@ -52,7 +50,7 @@ DefaultEventDelegate::DefaultEventDelegate(content::BrowserContext* context)
 DefaultEventDelegate::~DefaultEventDelegate() {
 }
 
-void DefaultEventDelegate::OnStateChanged(const std::string& extension_id,
+void DefaultEventDelegate::OnStateChanged(const ExtensionId& extension_id,
                                           ui::IdleState new_state) {
   base::Value::List args;
   args.Append(IdleManager::CreateIdleValue(new_state));
@@ -176,12 +174,12 @@ ui::IdleState IdleManager::QueryState(int threshold) {
   return idle_time_provider_->CalculateIdleState(threshold);
 }
 
-void IdleManager::SetThreshold(const std::string& extension_id, int threshold) {
+void IdleManager::SetThreshold(const ExtensionId& extension_id, int threshold) {
   DCHECK(thread_checker_.CalledOnValidThread());
   GetMonitor(extension_id)->threshold = threshold;
 }
 
-int IdleManager::GetThresholdForTest(const std::string& extension_id) const {
+int IdleManager::GetThresholdForTest(const ExtensionId& extension_id) const {
   DCHECK(thread_checker_.CalledOnValidThread());
   auto it = monitors_.find(extension_id);
 
@@ -190,14 +188,12 @@ int IdleManager::GetThresholdForTest(const std::string& extension_id) const {
 
 base::TimeDelta IdleManager::GetAutoLockDelay() const {
   DCHECK(thread_checker_.CalledOnValidThread());
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   return chromeos::PowerPolicyController::Get()
       ->GetMaxPolicyAutoScreenLockDelay();
-#elif BUILDFLAG(IS_CHROMEOS_LACROS)
-  return chromeos::LacrosService::Get()->system_idle_cache()->auto_lock_delay();
 #else
   return base::TimeDelta();
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
 // static
@@ -227,7 +223,7 @@ void IdleManager::SetIdleTimeProviderForTest(
   idle_time_provider_ = std::move(idle_time_provider);
 }
 
-IdleMonitor* IdleManager::GetMonitor(const std::string& extension_id) {
+IdleMonitor* IdleManager::GetMonitor(const ExtensionId& extension_id) {
   DCHECK(thread_checker_.CalledOnValidThread());
   auto it = monitors_.find(extension_id);
 

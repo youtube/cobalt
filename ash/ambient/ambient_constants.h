@@ -5,6 +5,7 @@
 #ifndef ASH_AMBIENT_AMBIENT_CONSTANTS_H_
 #define ASH_AMBIENT_AMBIENT_CONSTANTS_H_
 
+#include "ash/webui/personalization_app/mojom/personalization_app.mojom-shared.h"
 #include "base/time/time.h"
 
 namespace ash {
@@ -62,6 +63,12 @@ constexpr int kMediaStringGradientWidthDip = 20;
 // UMA user action constants.
 constexpr char kScreenSaverPreviewUserAction[] =
     "AmbientMode.ScreenSaverPreview.Started";
+
+inline constexpr personalization_app::mojom::AmbientTheme kDefaultAmbientTheme =
+    personalization_app::mojom::AmbientTheme::kSlideshow;
+
+// Special string to identify devices that support time-of-day Jupiter asset.
+inline constexpr std::string_view kJupiterScreensaverCustomizationId = "navi";
 
 }  // namespace ash
 

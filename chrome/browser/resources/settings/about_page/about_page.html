@@ -1,4 +1,4 @@
-    <style include="cr-shared-style settings-shared settings-page-styles iron-flex">
+    <style include="cr-shared-style settings-shared settings-page-styles">
       :host {
         --about-page-image-space: 10px;
       }
@@ -18,7 +18,7 @@
         margin-top: auto;
       }
 
-      img {
+      #product-logo {
         margin-inline-end: var(--about-page-image-space);
       }
 
@@ -28,12 +28,17 @@
         text-align: center;
       }
 
-      iron-icon[icon='settings:check-circle'] {
+      cr-icon[icon='cr:check-circle'] {
         fill: var(--cr-checked-color);
       }
 
-      iron-icon[icon='cr:error'] {
+      cr-icon[icon='cr:error'] {
         fill: var(--settings-error-color);
+      }
+
+      #throbber {
+        height: var(--cr-icon-size);
+        vertical-align: middle;
       }
 
       cr-button {
@@ -55,12 +60,15 @@
 <if expr="not chromeos_ash">
         <div class="icon-container"
             hidden="[[!shouldShowIcons_(showUpdateStatus_)]]">
-          <iron-icon
-              icon$="[[getUpdateStatusIcon_(
+          <cr-icon
+              hidden="[[shouldShowThrobber_(
                   obsoleteSystemInfo_, currentUpdateStatusEvent_)]]"
-              src="[[getThrobberSrcIfUpdating_(
+              icon$="[[getUpdateStatusIcon_(
                   obsoleteSystemInfo_, currentUpdateStatusEvent_)]]">
-          </iron-icon>
+          </cr-icon>
+          <img id="throbber" src="chrome://resources/images/throbber_small.svg"
+              hidden="[[!shouldShowThrobber_(
+                  obsoleteSystemInfo_, currentUpdateStatusEvent_)]]">
         </div>
 </if>
         <div class="flex cr-padded-text">
@@ -127,15 +135,12 @@
       <cr-link-row class="hr" id="reportIssue" on-click="onReportIssueClick_"
           hidden="[[!prefs.feedback_allowed.value]]"
           label="$i18n{aboutReportAnIssue}" external></cr-link-row>
-      <cr-link-row class="hr" id="getTheMostOutOfChrome"
-          on-click="onGetTheMostOutOfChromeClick_"
-          label="$i18n{getTheMostOutOfChrome}"
-          sub-label="$i18n{getTheMostOutOfChromeDescription}"
-          role-description="$i18n{subpageArrowRoleDescription}"
-          hidden$="[[!showGetTheMostOutOfChromeSection_]]"></cr-link-row>
+      <cr-link-row class="hr" id="privacyPolicy"
+        on-click="onPrivacyPolicyClick_" label="$i18n{aboutPrivacyPolicy}"
+        external></cr-link-row>
 </if>
       <cr-link-row class="hr" on-click="onManagementPageClick_"
-          start-icon="cr:domain" label="$i18n{managementPage}"
+          start-icon="[[managedByIcon_]]" label="$i18n{managementPage}"
           role-description="$i18n{subpageArrowRoleDescription}"
           hidden$="[[!isManaged_]]"></cr-link-row>
     </settings-section>
@@ -150,9 +155,9 @@
         <div class="info-section">
           <div class="secondary">$i18nRaw{aboutProductLicense}</div>
         </div>
-<if expr="_google_chrome">
+<if expr="_google_chrome or _is_chrome_for_testing_branded">
         <div class="secondary">
-          <a href="$i18n{aboutTermsURL}">$i18n{aboutProductTos}</a>
+          <a id="tos" href="$i18n{aboutTermsURL}">$i18n{aboutProductTos}</a>
         </div>
 </if>
 <if expr="not chromeos_ash">

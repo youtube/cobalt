@@ -69,12 +69,12 @@ ConvertToIncompatibleApplication(const std::string& name,
     return nullptr;
 
   const base::Value::Dict& dict = value.GetDict();
-  absl::optional<bool> registry_is_hkcu = dict.FindBool("registry_is_hkcu");
+  std::optional<bool> registry_is_hkcu = dict.FindBool("registry_is_hkcu");
   const std::string* registry_key_path = dict.FindString("registry_key_path");
-  absl::optional<int> registry_wow64_access =
+  std::optional<int> registry_wow64_access =
       dict.FindInt("registry_wow64_access");
-  absl::optional<bool> allow_load = dict.FindBool("allow_load");
-  absl::optional<int> type = dict.FindInt("type");
+  std::optional<bool> allow_load = dict.FindBool("allow_load");
+  std::optional<int> type = dict.FindInt("type");
   const std::string* message_url = dict.FindString("message_url");
 
   // All of the above are required for a valid application.
@@ -266,8 +266,7 @@ bool IncompatibleApplicationsUpdater::IsWarningEnabled() {
 bool IncompatibleApplicationsUpdater::HasCachedApplications() {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
-  if (!ModuleDatabase::IsThirdPartyBlockingPolicyEnabled() ||
-      !IsWarningEnabled()) {
+  if (!IsWarningEnabled()) {
     return false;
   }
 
@@ -289,7 +288,6 @@ bool IncompatibleApplicationsUpdater::HasCachedApplications() {
 std::vector<IncompatibleApplicationsUpdater::IncompatibleApplication>
 IncompatibleApplicationsUpdater::GetCachedApplications() {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  DCHECK(ModuleDatabase::IsThirdPartyBlockingPolicyEnabled());
   DCHECK(IsWarningEnabled());
 
   std::vector<IncompatibleApplication> valid_applications;
@@ -459,7 +457,7 @@ IncompatibleApplicationsUpdater::GetModuleWarningDecision(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   auto it = module_warning_decisions_.find(module_key);
-  DCHECK(it != module_warning_decisions_.end());
+  CHECK(it != module_warning_decisions_.end());
   return it->second;
 }
 

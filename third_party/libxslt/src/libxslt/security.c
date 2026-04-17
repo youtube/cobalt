@@ -37,7 +37,7 @@
 #endif
 
 #include <libxml/xmlmemory.h>
-#include <libxml/tree.h>
+#include <libxml/parser.h>
 #include <libxml/uri.h>
 #include "xslt.h"
 #include "xsltInternals.h"
@@ -421,6 +421,19 @@ xsltCheckRead(xsltSecurityPrefsPtr sec,
     int ret;
     xmlURIPtr uri;
     xsltSecurityCheck check;
+
+    if (xmlStrstr(URL, BAD_CAST "://") == NULL) {
+	check = xsltGetSecurityPrefs(sec, XSLT_SECPREF_READ_FILE);
+	if (check != NULL) {
+            ret = check(sec, ctxt, (const char *) URL);
+            if (ret == 0) {
+                xsltTransformError(ctxt, NULL, NULL,
+                             "Local file read for %s refused\n", URL);
+                return(0);
+            }
+        }
+        return(1);
+    }
 
     uri = xmlParseURI((const char *)URL);
     if (uri == NULL) {

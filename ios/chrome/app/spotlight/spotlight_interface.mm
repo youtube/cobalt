@@ -7,10 +7,7 @@
 #import "base/check.h"
 #import "ios/chrome/app/spotlight/spotlight_logger.h"
 #import "ios/chrome/app/spotlight/spotlight_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ios/chrome/browser/shared/public/features/features.h"
 
 @interface SpotlightInterface ()
 
@@ -20,12 +17,16 @@
 @end
 
 @implementation SpotlightInterface
+@synthesize searchableIndex = _searchableIndex;
 
 + (SpotlightInterface*)defaultInterface {
   static SpotlightInterface* const kDefaultSpotlightInterface =
       [[SpotlightInterface alloc]
-          initWithSearchableIndex:[CSSearchableIndex defaultSearchableIndex]
-                           logger:[SpotlightLogger sharedLogger]
+          initWithSearchableIndex:(base::FeatureList::IsEnabled(
+                                       kSpotlightNeverRetainIndex)
+                                       ? nil
+                                       : [CSSearchableIndex
+                                             defaultSearchableIndex])
                       maxAttempts:spotlight::kMaxAttempts - 1];
   return kDefaultSpotlightInterface;
 }
@@ -37,46 +38,41 @@
     completionHandler:(BlockWithError)completionHandler {
   DCHECK(completionHandler);
 
-  blockToRetry(^(NSError* error) {
-    if (error && retryCount > 0) {
-      [SpotlightInterface doWithRetry:blockToRetry
-                           retryCount:retryCount - 1
-                    completionHandler:completionHandler];
-    } else {
-      dispatch_async(dispatch_get_main_queue(), ^{
-        completionHandler(error);
-      });
-    }
-  });
+  dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
+                 ^{
+                   blockToRetry(^(NSError* error) {
+                     if (error && retryCount > 0) {
+                       [SpotlightInterface doWithRetry:blockToRetry
+                                            retryCount:retryCount - 1
+                                     completionHandler:completionHandler];
+                     } else {
+                       dispatch_async(dispatch_get_main_queue(), ^{
+                         completionHandler(error);
+                       });
+                     }
+                   });
+                 });
 }
 
 - (instancetype)initWithSearchableIndex:(CSSearchableIndex*)searchableIndex
-                                 logger:(SpotlightLogger*)logger
                             maxAttempts:(NSUInteger)maxAttempts {
   self = [super init];
   if (self) {
     _searchableIndex = searchableIndex;
-    _logger = logger;
     _maxAttempts = maxAttempts;
   }
   return self;
 }
 
-- (void)indexSearchableItems:(NSArray<CSSearchableItem*>*)items
-           completionHandler:(BlockWithError)completionHandler {
+- (CSSearchableIndex*)searchableIndex {
+  if (_searchableIndex) {
+    return _searchableIndex;
+  }
+  return [CSSearchableIndex defaultSearchableIndex];
+}
+
+- (void)indexSearchableItems:(NSArray<CSSearchableItem*>*)items {
   __weak SpotlightInterface* weakSelf = self;
-
-  BlockWithError augmentedCallback = ^(NSError* error) {
-    [SpotlightLogger logSpotlightError:error];
-
-    if (!error) {
-      [weakSelf.logger logIndexedItems:items];
-    }
-
-    if (completionHandler) {
-      completionHandler(error);
-    }
-  };
 
   void (^addItems)(BlockWithError) = ^(BlockWithError errorBlock) {
     [weakSelf.searchableIndex indexSearchableItems:items
@@ -85,7 +81,9 @@
 
   [SpotlightInterface doWithRetry:addItems
                        retryCount:self.maxAttempts
-                completionHandler:augmentedCallback];
+                completionHandler:^(NSError* error) {
+                  [SpotlightLogger logSpotlightError:error];
+                }];
 }
 
 - (void)deleteSearchableItemsWithIdentifiers:(NSArray<NSString*>*)identifiers
@@ -94,10 +92,6 @@
 
   BlockWithError augmentedCallback = ^(NSError* error) {
     [SpotlightLogger logSpotlightError:error];
-
-    if (!error) {
-      [weakSelf.logger logDeletionOfItemsWithIdentifiers:identifiers];
-    }
 
     if (completionHandler) {
       completionHandler(error);
@@ -123,10 +117,6 @@
   BlockWithError augmentedCallback = ^(NSError* error) {
     [SpotlightLogger logSpotlightError:error];
 
-    if (!error) {
-      [weakSelf.logger logDeletionOfItemsInDomains:domainIdentifiers];
-    }
-
     if (completionHandler) {
       completionHandler(error);
     }
@@ -148,14 +138,7 @@
   __weak SpotlightInterface* weakSelf = self;
 
   BlockWithError augmentedCallback = ^(NSError* error) {
-    [[NSUserDefaults standardUserDefaults]
-        removeObjectForKey:@(spotlight::kSpotlightLastIndexingDateKey)];
-
     [SpotlightLogger logSpotlightError:error];
-
-    if (!error) {
-      [weakSelf.logger logDeletionOfAllItems];
-    }
 
     if (completionHandler) {
       completionHandler(error);

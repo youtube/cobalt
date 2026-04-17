@@ -58,7 +58,7 @@ class RepeatingMimeBoundaryGenerator
   RepeatingMimeBoundaryGenerator& operator=(
       const RepeatingMimeBoundaryGenerator&) = delete;
 
-  ~RepeatingMimeBoundaryGenerator() override {}
+  ~RepeatingMimeBoundaryGenerator() override = default;
 
   // MimeBoundaryGenerator:
   std::string GenerateBoundary() const override {
@@ -179,7 +179,8 @@ class FakeOAuth2AccessTokenManagerDelegate
   std::unique_ptr<OAuth2AccessTokenFetcher> CreateAccessTokenFetcher(
       const CoreAccountId& account_id,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-      OAuth2AccessTokenConsumer* consumer) override {
+      OAuth2AccessTokenConsumer* consumer,
+      const std::string& token_binding_challenge) override {
     EXPECT_EQ(CoreAccountId::FromRobotEmail(kRobotAccountId), account_id);
     return GaiaAccessTokenFetcher::
         CreateExchangeRefreshTokenForAccessTokenInstance(
@@ -269,7 +270,7 @@ class UploadJobTestBase : public testing::Test, public UploadJob::Delegate {
 
 class UploadFlowTest : public UploadJobTestBase {
  public:
-  UploadFlowTest() {}
+  UploadFlowTest() = default;
 
   // UploadJobTestBase:
   void SetUp() override {
@@ -390,7 +391,7 @@ TEST_F(UploadFlowTest, InternalServerError) {
 
 class UploadRequestTest : public UploadJobTestBase {
  public:
-  UploadRequestTest() {}
+  UploadRequestTest() = default;
 
   // UploadJobTestBase:
   void SetUp() override {

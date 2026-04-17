@@ -10,9 +10,9 @@
 #include "base/run_loop.h"
 #include "ui/compositor/compositor_observer.h"
 
-class Compositor;
-
 namespace ui {
+
+class Compositor;
 
 // This is only to be used for test. It allows execution of other tasks on
 // the current message loop before the current task finishs (there is a
@@ -48,7 +48,7 @@ class DrawWaiterForTest : public CompositorObserver {
   void OnCompositingDidCommit(Compositor* compositor) override;
   void OnCompositingStarted(Compositor* compositor,
                             base::TimeTicks start_time) override;
-  void OnCompositingEnded(Compositor* compositor) override;
+  void OnCompositingAckDeprecated(Compositor* compositor) override;
 
   std::unique_ptr<base::RunLoop> wait_run_loop_;
 

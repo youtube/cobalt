@@ -4,6 +4,7 @@
 
 #include "quiche/quic/test_tools/quic_server_peer.h"
 
+#include "absl/memory/memory.h"
 #include "quiche/quic/core/quic_dispatcher.h"
 #include "quiche/quic/core/quic_packet_reader.h"
 #include "quiche/quic/tools/quic_server.h"
@@ -14,8 +15,8 @@ namespace test {
 // static
 bool QuicServerPeer::SetSmallSocket(QuicServer* server) {
   int size = 1024 * 10;
-  return setsockopt(server->fd_, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size)) !=
-         -1;
+  return setsockopt(server->fd_, SOL_SOCKET, SO_RCVBUF,
+                    reinterpret_cast<char*>(&size), sizeof(size)) != -1;
 }
 
 // static
@@ -25,7 +26,7 @@ QuicDispatcher* QuicServerPeer::GetDispatcher(QuicServer* server) {
 
 // static
 void QuicServerPeer::SetReader(QuicServer* server, QuicPacketReader* reader) {
-  server->packet_reader_.reset(reader);
+  server->io_->OverridePacketReaderForTests(absl::WrapUnique(reader));
 }
 
 }  // namespace test

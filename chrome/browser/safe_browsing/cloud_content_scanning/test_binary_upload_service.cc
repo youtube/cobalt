@@ -4,13 +4,17 @@
 
 #include "chrome/browser/safe_browsing/cloud_content_scanning/test_binary_upload_service.h"
 
-#include "chrome/browser/safe_browsing/cloud_content_scanning/binary_fcm_service.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 
 namespace safe_browsing {
 
 TestBinaryUploadService::TestBinaryUploadService() = default;
+TestBinaryUploadService::~TestBinaryUploadService() = default;
+
+base::WeakPtr<BinaryUploadService> TestBinaryUploadService::AsWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
+}
 
 void TestBinaryUploadService::MaybeUploadForDeepScanning(
     std::unique_ptr<Request> request) {

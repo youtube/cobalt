@@ -5,10 +5,13 @@
 #ifndef BASE_MEMORY_SAFE_REF_H_
 #define BASE_MEMORY_SAFE_REF_H_
 
-#include "base/check.h"
-#include "base/memory/weak_ptr.h"
-
+#include <compare>
+#include <concepts>
 #include <utility>
+
+#include "base/check.h"
+#include "base/memory/safe_ref_traits.h"
+#include "base/memory/weak_ptr.h"
 
 namespace base {
 
@@ -20,8 +23,8 @@ namespace base {
 // destroyed. However, unlike a `T*` or `T&`, a logic bug will manifest as a
 // benign crash instead of as a Use-after-Free.
 //
-// SafeRef pointers can not be null (as expressed by the "Ref" suffix instead of
-// "Ptr"). A SafeRef can be wrapped in an absl::optional if it should not always
+// SafeRef pointers cannot be null (as expressed by the "Ref" suffix instead of
+// "Ptr"). A SafeRef can be wrapped in an std::optional if it should not always
 // point to something valid. (A SafePtr sibling type can be introduced if this
 // is problematic, or if consuming moves are needed!)
 //
@@ -34,6 +37,10 @@ namespace base {
 // pointee invalid when the base::WeakPtrFactory is invalidated, in the same way
 // as base::WeakPtr does, including after a call to InvalidateWeakPtrs().
 //
+// SafeRefTraits are only meant to mark SafeRefs that were found to be dangling,
+// thus one should not use this flag to disable dangling pointer detection on
+// SafeRef. This parameter is set to SafeRefTraits::kEmpty by default.
+//
 // THREAD SAFETY: SafeRef pointers (like base::WeakPtr) may only be used on the
 // sequence (or thread) where the associated base::WeakPtrFactory will be
 // invalidated and/or destroyed. They are safe to passively hold or to destroy
@@ -43,7 +50,7 @@ namespace base {
 // smart pointer abstraction which is not tied to base::WeakPtrFactory, such as
 // raw_ptr<T> from the MiraclePtr project (though perhaps a non-nullable raw_ref
 // equivalent).
-template <typename T>
+template <typename T, SafeRefTraits Traits /*= SafeRefTraits::kEmpty*/>
 class SafeRef {
  public:
   // No default constructor, since there's no null state. Use an optional
@@ -77,8 +84,8 @@ class SafeRef {
   }
 
   // Copy conversion from SafeRef<U>.
-  template <typename U,
-            typename = std::enable_if_t<std::is_convertible_v<U*, T*>>>
+  template <typename U>
+    requires(std::convertible_to<U*, T*>)
   // NOLINTNEXTLINE(google-explicit-constructor)
   SafeRef(const SafeRef<U>& other)
       : ref_(other.ref_),
@@ -115,6 +122,12 @@ class SafeRef {
     return *this;
   }
 
+  // Ordered by the pointer, not the pointee.
+  template <typename U>
+  std::strong_ordering operator<=>(const SafeRef<U>& other) const {
+    return ptr_ <=> other.ptr_;
+  }
+
   // Provide access to the underlying T as a reference. Will CHECK() if the T
   // pointee is no longer alive.
   T& operator*() const {
@@ -130,7 +143,7 @@ class SafeRef {
   }
 
  private:
-  template <typename U>
+  template <typename U, SafeRefTraits PassedTraits>
   friend class SafeRef;
   template <typename U>
   friend SafeRef<U> internal::MakeSafeRefFromWeakPtrInternals(
@@ -146,10 +159,13 @@ class SafeRef {
 
   internal::WeakReference ref_;
 
+  static constexpr RawPtrTraits PtrTrait = Traits == SafeRefTraits::kEmpty
+                                               ? RawPtrTraits::kEmpty
+                                               : DanglingUntriaged;
   // This pointer is only valid when ref_.is_valid() is true.  Otherwise, its
   // value is undefined (as opposed to nullptr). Unlike WeakPtr, this raw_ptr is
   // not allowed to dangle.
-  raw_ptr<T> ptr_;
+  raw_ptr<T, PtrTrait> ptr_;
 };
 
 namespace internal {

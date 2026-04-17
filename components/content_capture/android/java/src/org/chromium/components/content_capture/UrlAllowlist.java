@@ -6,6 +6,9 @@ package org.chromium.components.content_capture;
 
 import android.net.Uri;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
 import java.util.HashSet;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -15,21 +18,18 @@ import java.util.regex.Pattern;
  * This is helper classes for ContentCaptureConsumer to implement shouldCapture method. Only host
  * is matched.
  */
+@NullMarked
 public class UrlAllowlist {
-    private HashSet<String> mAllowedUrls;
-    private List<Pattern> mAllowedRe;
+    private final @Nullable HashSet<String> mAllowedUrls;
+    private final @Nullable List<Pattern> mAllowedRe;
 
-    /**
-     * Nothing is allowed if both allowedUrls and allowedRes is null or empty.
-     */
-    public UrlAllowlist(HashSet<String> allowedUrls, List<Pattern> allowedRe) {
+    /** Nothing is allowed if both allowedUrls and allowedRes is null or empty. */
+    public UrlAllowlist(@Nullable HashSet<String> allowedUrls, @Nullable List<Pattern> allowedRe) {
         mAllowedUrls = allowedUrls;
         mAllowedRe = allowedRe;
     }
 
-    /**
-     * @return if any of the given urls's host allowed.
-     */
+    /** @return if any of the given urls's host allowed. */
     public boolean isAllowed(String[] urls) {
         if (mAllowedRe == null && mAllowedUrls == null) return false;
         for (String url : urls) {

@@ -16,25 +16,37 @@
 
 #include "src/trace_processor/util/proto_to_args_parser.h"
 
-#include "perfetto/ext/base/string_view.h"
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <ios>
+#include <limits>
+#include <map>
+#include <memory>
+#include <optional>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "perfetto/base/status.h"
+#include "perfetto/protozero/field.h"
 #include "perfetto/protozero/packed_repeated_fields.h"
+#include "perfetto/protozero/proto_utils.h"
 #include "perfetto/protozero/scattered_heap_buffer.h"
 #include "perfetto/trace_processor/trace_blob.h"
 #include "perfetto/trace_processor/trace_blob_view.h"
-#include "protos/perfetto/common/descriptor.pbzero.h"
-#include "protos/perfetto/trace/track_event/source_location.pbzero.h"
 #include "src/protozero/test/example_proto/test_messages.pbzero.h"
 #include "src/trace_processor/test_messages.descriptor.h"
+#include "src/trace_processor/util/descriptors.h"
 #include "src/trace_processor/util/interned_message_view.h"
 #include "test/gtest_and_gmock.h"
 
-#include <cstdint>
-#include <limits>
-#include <sstream>
+#include "protos/perfetto/trace/interned_data/interned_data.pbzero.h"
+#include "protos/perfetto/trace/track_event/source_location.pbzero.h"
 
-namespace perfetto {
-namespace trace_processor {
-namespace util {
+namespace perfetto::trace_processor::util {
 namespace {
 
 constexpr size_t kChunkSize = 42;
@@ -91,16 +103,23 @@ class ProtoToArgsParserTest : public ::testing::Test,
     args_.push_back(ss.str());
   }
 
+  void AddBytes(const Key& key, const protozero::ConstBytes& value) override {
+    std::stringstream ss;
+    ss << key.flat_key << " " << key.key << " <bytes size=" << value.size
+       << ">";
+    args_.push_back(ss.str());
+  }
+
   void AddDouble(const Key& key, double value) override {
     std::stringstream ss;
     ss << key.flat_key << " " << key.key << " " << value;
     args_.push_back(ss.str());
   }
 
-  void AddPointer(const Key& key, const void* value) override {
+  void AddPointer(const Key& key, uint64_t value) override {
     std::stringstream ss;
-    ss << key.flat_key << " " << key.key << " " << std::hex
-       << reinterpret_cast<uintptr_t>(value) << std::dec;
+    ss << key.flat_key << " " << key.key << " " << std::hex << value
+       << std::dec;
     args_.push_back(ss.str());
   }
 
@@ -176,6 +195,7 @@ TEST_F(ProtoToArgsParserTest, BasicSingleLayerProto) {
   msg->add_repeated_int32(-1);
   msg->add_repeated_int32(100);
   msg->add_repeated_int32(2000000);
+  msg->set_field_bytes({0, 1, 2});
 
   auto binary_proto = msg.SerializeAsArray();
 
@@ -212,7 +232,8 @@ TEST_F(ProtoToArgsParserTest, BasicSingleLayerProto) {
           "repeated_int32 repeated_int32[0] 1",
           "repeated_int32 repeated_int32[1] -1",
           "repeated_int32 repeated_int32[2] 100",
-          "repeated_int32 repeated_int32[3] 2000000"));
+          "repeated_int32 repeated_int32[3] 2000000",
+          "field_bytes field_bytes <bytes size=3>"));
 }
 
 TEST_F(ProtoToArgsParserTest, NestedProto) {
@@ -653,7 +674,55 @@ TEST_F(ProtoToArgsParserTest, PackedFields) {
           "field_double field_double[3] 1.79769e+308"));
 }
 
+TEST_F(ProtoToArgsParserTest, AddsDefaults) {
+  using namespace protozero::test::protos::pbzero;
+  protozero::HeapBuffered<EveryField> msg{kChunkSize, kChunkSize};
+  msg->set_field_int32(-1);
+  msg->add_repeated_string("test");
+  msg->add_repeated_sfixed32(1);
+  msg->add_repeated_fixed64(1);
+  msg->set_nested_enum(EveryField::PONG);
+
+  auto binary_proto = msg.SerializeAsArray();
+
+  DescriptorPool pool;
+  auto status = pool.AddFromFileDescriptorSet(kTestMessagesDescriptor.data(),
+                                              kTestMessagesDescriptor.size());
+  ProtoToArgsParser parser(pool);
+  ASSERT_TRUE(status.ok()) << "Failed to parse kTestMessagesDescriptor: "
+                           << status.message();
+
+  status = parser.ParseMessage(
+      protozero::ConstBytes{binary_proto.data(), binary_proto.size()},
+      ".protozero.test.protos.EveryField", nullptr, *this, nullptr, true);
+
+  EXPECT_TRUE(status.ok()) << "AddsDefaults failed with error: "
+                           << status.message();
+
+  EXPECT_THAT(
+      args(),
+      testing::UnorderedElementsAre(
+          "field_int32 field_int32 -1",  // exists in message
+          "repeated_string repeated_string[0] test",
+          "repeated_sfixed32 repeated_sfixed32[0] 1",
+          "repeated_fixed64 repeated_fixed64[0] 1",
+          "nested_enum nested_enum PONG",
+          "field_bytes field_bytes <bytes size=0>",
+          "field_string field_string [NULL]",  // null if no string default
+          "field_nested field_nested [NULL]",  // no defaults for inner fields
+          "field_bool field_bool false",
+          "repeated_int32 repeated_int32 [NULL]",  // null for repeated fields
+          "field_double field_double 0", "field_float field_float 0",
+          "field_sfixed64 field_sfixed64 0", "field_sfixed32 field_sfixed32 0",
+          "field_fixed64 field_fixed64 0", "field_sint64 field_sint64 0",
+          "big_enum big_enum 0", "field_fixed32 field_fixed32 0",
+          "field_sint32 field_sint32 0",
+          "signed_enum signed_enum NEUTRAL",  // translates default enum
+          "small_enum small_enum NOT_TO_BE",
+          "very_negative_enum very_negative_enum DEF",
+          "field_uint64 field_uint64 0", "field_uint32 field_uint32 0",
+          "field_int64 field_int64 0"));
+}
+
 }  // namespace
-}  // namespace util
-}  // namespace trace_processor
-}  // namespace perfetto
+}  // namespace perfetto::trace_processor::util

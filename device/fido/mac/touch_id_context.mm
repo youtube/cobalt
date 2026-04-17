@@ -8,54 +8,28 @@
 #import <Foundation/Foundation.h>
 #include <Security/Security.h>
 
+#include "base/apple/bridging.h"
+#include "base/apple/foundation_util.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
-#include "base/mac/foundation_util.h"
-#include "base/mac/scoped_cftyperef.h"
 #include "base/memory/ptr_util.h"
 #include "base/strings/sys_string_conversions.h"
-#import "base/task/sequenced_task_runner.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "components/device_event_log/device_event_log.h"
+#include "crypto/apple_keychain_util.h"
+#include "crypto/apple_keychain_v2.h"
 #include "device/fido/mac/authenticator_config.h"
-#include "device/fido/mac/keychain.h"
 
-namespace device {
-namespace fido {
-namespace mac {
+using base::apple::CFToNSPtrCast;
+using base::apple::NSToCFPtrCast;
+
+namespace device::fido::mac {
 
 namespace {
-
-// Returns whether the main executable is signed with a keychain-access-groups
-// entitlement that contains |keychain_access_group|. This is required for the
-// TouchIdAuthenticator to access key material stored in the Touch ID secure
-// enclave.
-bool ExecutableHasKeychainAccessGroupEntitlement(
-    const std::string& keychain_access_group) {
-  base::ScopedCFTypeRef<SecTaskRef> task(SecTaskCreateFromSelf(nullptr));
-  if (!task) {
-    return false;
-  }
-
-  base::ScopedCFTypeRef<CFTypeRef> entitlement_value_cftype(
-      SecTaskCopyValueForEntitlement(task, CFSTR("keychain-access-groups"),
-                                     nullptr));
-  if (!entitlement_value_cftype) {
-    return false;
-  }
-
-  NSArray* entitlement_value_nsarray = base::mac::CFToNSCast(
-      base::mac::CFCast<CFArrayRef>(entitlement_value_cftype));
-  if (!entitlement_value_nsarray) {
-    return false;
-  }
-
-  return [entitlement_value_nsarray
-      containsObject:base::SysUTF8ToNSString(keychain_access_group)];
-}
 
 // Returns whether creating a key pair in the secure enclave succeeds. Keys are
 // not persisted to the keychain.
@@ -63,25 +37,24 @@ bool CanCreateSecureEnclaveKeyPairBlocking() {
   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
                                                 base::BlockingType::MAY_BLOCK);
 
-  base::ScopedCFTypeRef<CFMutableDictionaryRef> params(
-      CFDictionaryCreateMutable(kCFAllocatorDefault, 0,
-                                &kCFTypeDictionaryKeyCallBacks,
-                                &kCFTypeDictionaryValueCallBacks));
-  CFDictionarySetValue(params, kSecAttrKeyType,
-                       kSecAttrKeyTypeECSECPrimeRandom);
-  CFDictionarySetValue(params, kSecAttrKeySizeInBits, @256);
-  CFDictionarySetValue(params, kSecAttrTokenID, kSecAttrTokenIDSecureEnclave);
-  CFDictionarySetValue(params, kSecAttrIsPermanent, @NO);
+  NSDictionary* params = @{
+    CFToNSPtrCast(kSecAttrKeyType) :
+        CFToNSPtrCast(kSecAttrKeyTypeECSECPrimeRandom),
+    CFToNSPtrCast(kSecAttrKeySizeInBits) : @256,
+    CFToNSPtrCast(kSecAttrTokenID) :
+        CFToNSPtrCast(kSecAttrTokenIDSecureEnclave),
+    CFToNSPtrCast(kSecAttrIsPermanent) : @NO,
+  };
 
-  base::ScopedCFTypeRef<CFErrorRef> cferr;
-  base::ScopedCFTypeRef<SecKeyRef> private_key(
-      Keychain::GetInstance().KeyCreateRandomKey(params,
-                                                 cferr.InitializeInto()));
+  base::apple::ScopedCFTypeRef<CFErrorRef> cferr;
+  base::apple::ScopedCFTypeRef<SecKeyRef> private_key(
+      crypto::AppleKeychainV2::GetInstance().KeyCreateRandomKey(
+          NSToCFPtrCast(params), cferr.InitializeInto()));
   return !!private_key;
 }
 
-base::ScopedCFTypeRef<SecAccessControlRef> CreateDefaultAccessControl() {
-  return base::ScopedCFTypeRef<SecAccessControlRef>(
+base::apple::ScopedCFTypeRef<SecAccessControlRef> CreateDefaultAccessControl() {
+  return base::apple::ScopedCFTypeRef<SecAccessControlRef>(
       SecAccessControlCreateWithFlags(
           kCFAllocatorDefault, kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
           kSecAccessControlPrivateKeyUsage | kSecAccessControlUserPresence,
@@ -111,7 +84,7 @@ bool TouchIdContext::TouchIdAvailableImpl(AuthenticatorConfig config) {
   // entitlement that is configured by the embedder; that user authentication
   // with biometry, watch, or device passcode possible; and that the device has
   // a secure enclave.
-  if (!ExecutableHasKeychainAccessGroupEntitlement(
+  if (!crypto::ExecutableHasKeychainAccessGroupEntitlement(
           config.keychain_access_group)) {
     FIDO_LOG(ERROR)
         << "Touch ID authenticator unavailable because keychain-access-group "
@@ -120,7 +93,7 @@ bool TouchIdContext::TouchIdAvailableImpl(AuthenticatorConfig config) {
     return false;
   }
 
-  base::scoped_nsobject<LAContext> context([[LAContext alloc] init]);
+  LAContext* context = [[LAContext alloc] init];
   NSError* nserr;
   if (![context canEvaluatePolicy:LAPolicyDeviceOwnerAuthentication
                             error:&nserr]) {
@@ -171,9 +144,9 @@ void TouchIdContext::PromptTouchId(const std::u16string& reason,
   // SecAccessControl, but for older credentials we used kSecAttrAccessControl
   // attribute to ensure the keychain would only produce signatures in exchange
   // for biometrics or device password.
-  base::ScopedCFTypeRef<SecAccessControlRef> access_control =
+  base::apple::ScopedCFTypeRef<SecAccessControlRef> access_control =
       CreateDefaultAccessControl();
-  [context_ evaluateAccessControl:access_control
+  [context_ evaluateAccessControl:access_control.get()
                         operation:LAAccessControlOperationUseKeySign
                   localizedReason:base::SysUTF16ToNSString(reason)
                             reply:^(BOOL success, NSError* error) {
@@ -188,12 +161,10 @@ void TouchIdContext::PromptTouchId(const std::u16string& reason,
                                 // |error| is autoreleased in this block. It
                                 // is not currently passed onto the other
                                 // thread running the callback; but if it
-                                // were, it would have to be retained first
-                                // (and probably captured in a
-                                // scoped_nsobject<NSError>).
+                                // were, it would have to be retained first.
                                 DCHECK(error != nil);
                                 DVLOG(1) << "Touch ID prompt failed: "
-                                         << base::mac::NSToCFCast(error);
+                                         << base::apple::NSToCFPtrCast(error);
                               }
                               runner->PostTask(
                                   FROM_HERE,
@@ -206,6 +177,4 @@ void TouchIdContext::RunCallback(bool success) {
   std::move(callback_).Run(success);
 }
 
-}  // namespace mac
-}  // namespace fido
-}  // namespace device
+}  // namespace device::fido::mac

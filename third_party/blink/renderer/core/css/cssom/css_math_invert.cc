@@ -7,7 +7,6 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_cssnumericvalue_double.h"
 #include "third_party/blink/renderer/core/css/css_math_expression_node.h"
 #include "third_party/blink/renderer/core/css/cssom/css_numeric_sum_value.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 
 namespace blink {
@@ -16,10 +15,10 @@ V8CSSNumberish* CSSMathInvert::value() {
   return MakeGarbageCollected<V8CSSNumberish>(value_);
 }
 
-absl::optional<CSSNumericSumValue> CSSMathInvert::SumValue() const {
+std::optional<CSSNumericSumValue> CSSMathInvert::SumValue() const {
   auto sum = value_->SumValue();
   if (!sum.has_value() || sum->terms.size() != 1) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   for (auto& unit_exponent : sum->terms[0].units) {

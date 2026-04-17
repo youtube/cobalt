@@ -4,6 +4,8 @@
 
 #include "third_party/blink/renderer/core/html/html_bdi_element.h"
 
+#include "third_party/blink/renderer/core/dom/document.h"
+
 namespace blink {
 
 HTMLBDIElement::HTMLBDIElement(Document& document)
@@ -11,7 +13,7 @@ HTMLBDIElement::HTMLBDIElement(Document& document)
   // <bdi> defaults to dir="auto"
   // https://html.spec.whatwg.org/C/#the-bdi-element
   SetSelfOrAncestorHasDirAutoAttribute();
-  GetDocument().SetDirAttributeDirty();
+  GetDocument().SetHasDirAttribute();
 }
 
 }  // namespace blink

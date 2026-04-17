@@ -48,7 +48,7 @@ void SettingsPrivateEventRouter::Shutdown() {
   EventRouter::Get(context_)->UnregisterObserver(this);
 
   if (listening_) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     cros_settings_subscription_map_.clear();
 #endif
     const PrefsUtil::TypedPrefMap& keys = prefs_util_->GetAllowlistedKeys();
@@ -99,7 +99,7 @@ void SettingsPrivateEventRouter::StartOrStopListeningForPrefsChanges() {
     for (const auto& it : keys) {
       std::string pref_name = it.first;
       if (prefs_util_->IsCrosSetting(pref_name)) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
         base::CallbackListSubscription subscription =
             ash::CrosSettings::Get()->AddSettingsObserver(
                 pref_name.c_str(),
@@ -122,7 +122,7 @@ void SettingsPrivateEventRouter::StartOrStopListeningForPrefsChanges() {
     const PrefsUtil::TypedPrefMap& keys = prefs_util_->GetAllowlistedKeys();
     for (const auto& it : keys) {
       if (prefs_util_->IsCrosSetting(it.first)) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
         cros_settings_subscription_map_.erase(it.first);
 #endif
       } else if (generated_prefs && generated_prefs->HasPref(it.first)) {
@@ -152,7 +152,7 @@ void SettingsPrivateEventRouter::SendPrefChange(const std::string& pref_name) {
     return;
   }
 
-  absl::optional<api::settings_private::PrefObject> pref_object =
+  std::optional<api::settings_private::PrefObject> pref_object =
       prefs_util_->GetPref(pref_name);
 
   std::vector<api::settings_private::PrefObject> prefs;
@@ -161,15 +161,16 @@ void SettingsPrivateEventRouter::SendPrefChange(const std::string& pref_name) {
 
   auto args(api::settings_private::OnPrefsChanged::Create(prefs));
 
-  std::unique_ptr<Event> extension_event(new Event(
-      events::SETTINGS_PRIVATE_ON_PREFS_CHANGED,
-      api::settings_private::OnPrefsChanged::kEventName, std::move(args)));
+  std::unique_ptr<Event> extension_event =
+      std::make_unique<Event>(events::SETTINGS_PRIVATE_ON_PREFS_CHANGED,
+                              api::settings_private::OnPrefsChanged::kEventName,
+                              std::move(args), context_);
   event_router->BroadcastEvent(std::move(extension_event));
 }
 
-SettingsPrivateEventRouter* SettingsPrivateEventRouter::Create(
+std::unique_ptr<SettingsPrivateEventRouter> SettingsPrivateEventRouter::Create(
     content::BrowserContext* context) {
-  return new SettingsPrivateEventRouter(context);
+  return std::make_unique<SettingsPrivateEventRouter>(context);
 }
 
 }  // namespace extensions

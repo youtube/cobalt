@@ -38,6 +38,24 @@
 #include <mach/vm_page_size.h>
 #endif
 
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX_BUT_NOT_QNX) || \
+    PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
+#include <sys/prctl.h>
+
+#ifndef PR_GET_TAGGED_ADDR_CTRL
+#define PR_GET_TAGGED_ADDR_CTRL 56
+#endif
+
+#ifndef PR_TAGGED_ADDR_ENABLE
+#define PR_TAGGED_ADDR_ENABLE (1UL << 0)
+#endif
+
+#ifndef PR_MTE_TCF_SYNC
+#define PR_MTE_TCF_SYNC (1UL << 1)
+#endif
+
+#endif  // OS_LINUX | OS_ANDROID
+
 #if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
 #include <Windows.h>
 #include <io.h>
@@ -55,9 +73,16 @@
 #define PERFETTO_M_PURGE -101
 #endif  // M_PURGE
 
+#ifdef M_PURGE_ALL
+#define PERFETTO_M_PURGE_ALL M_PURGE_ALL
+#else
+// Only available in in-tree builds and on newer SDKs.
+#define PERFETTO_M_PURGE_ALL -104
+#endif  // M_PURGE
+
 namespace {
 extern "C" {
-using MalloptType = void (*)(int, int);
+using MalloptType = int (*)(int, int);
 }
 }  // namespace
 #endif  // OS_ANDROID
@@ -129,6 +154,34 @@ CheckCpuOptimizations() {
 namespace perfetto {
 namespace base {
 
+namespace internal {
+
+std::atomic<uint32_t> g_cached_page_size{0};
+
+uint32_t GetSysPageSizeSlowpath() {
+  uint32_t page_size = 0;
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) || \
+    PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
+  const int page_size_int = getpagesize();
+  // If sysconf() fails for obscure reasons (e.g. SELinux denial) assume the
+  // page size is 4KB. This is to avoid regressing subtle SDK usages, as old
+  // versions of this code had a static constant baked in.
+  page_size = static_cast<uint32_t>(page_size_int > 0 ? page_size_int : 4096);
+#elif PERFETTO_BUILDFLAG(PERFETTO_OS_APPLE)
+  page_size = static_cast<uint32_t>(vm_page_size);
+#else
+  page_size = 4096;
+#endif
+
+  PERFETTO_CHECK(page_size > 0 && page_size % 4096 == 0);
+
+  // Races here are fine because any thread will write the same value.
+  g_cached_page_size.store(page_size, std::memory_order_relaxed);
+  return page_size;
+}
+
+}  // namespace internal
+
 void MaybeReleaseAllocatorMemToOS() {
 #if PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
   // mallopt() on Android requires SDK level 26. Many targets and embedders
@@ -140,28 +193,9 @@ void MaybeReleaseAllocatorMemToOS() {
       reinterpret_cast<MalloptType>(dlsym(RTLD_DEFAULT, "mallopt"));
   if (!mallopt_fn)
     return;
-  mallopt_fn(PERFETTO_M_PURGE, 0);
-#endif
-}
-
-uint32_t GetSysPageSize() {
-  ignore_result(kPageSize);  // Just to keep the amalgamated build happy.
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) || \
-    PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
-  static std::atomic<uint32_t> page_size{0};
-  // This function might be called in hot paths. Avoid calling getpagesize() all
-  // the times, in many implementations getpagesize() calls sysconf() which is
-  // not cheap.
-  uint32_t cached_value = page_size.load(std::memory_order_relaxed);
-  if (PERFETTO_UNLIKELY(cached_value == 0)) {
-    cached_value = static_cast<uint32_t>(getpagesize());
-    page_size.store(cached_value, std::memory_order_relaxed);
+  if (mallopt_fn(PERFETTO_M_PURGE_ALL, 0) == 0) {
+    mallopt_fn(PERFETTO_M_PURGE, 0);
   }
-  return cached_value;
-#elif PERFETTO_BUILDFLAG(PERFETTO_OS_APPLE)
-  return static_cast<uint32_t>(vm_page_size);
-#else
-  return 4096;
 #endif
 }
 
@@ -198,7 +232,8 @@ void UnsetEnv(const std::string& key) {
 void Daemonize(std::function<int()> parent_cb) {
 #if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) ||   \
     PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID) || \
-    PERFETTO_BUILDFLAG(PERFETTO_OS_APPLE)
+    (PERFETTO_BUILDFLAG(PERFETTO_OS_APPLE) &&  \
+     !PERFETTO_BUILDFLAG(PERFETTO_OS_APPLE_TVOS))
   Pipe pipe = Pipe::Create(Pipe::kBothBlock);
   pid_t pid;
   switch (pid = fork()) {
@@ -299,6 +334,23 @@ void AlignedFree(void* ptr) {
   _aligned_free(ptr);  // MSDN says it is fine to pass nullptr.
 #else
   free(ptr);
+#endif
+}
+
+bool IsSyncMemoryTaggingEnabled() {
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX_BUT_NOT_QNX) || \
+    PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
+  // Compute only once per lifetime of the process.
+  static bool cached_value = [] {
+    const int res = prctl(PR_GET_TAGGED_ADDR_CTRL, 0, 0, 0, 0);
+    if (res < 0)
+      return false;
+    const uint32_t actl = static_cast<uint32_t>(res);
+    return (actl & PR_TAGGED_ADDR_ENABLE) && (actl & PR_MTE_TCF_SYNC);
+  }();
+  return cached_value;
+#else
+  return false;
 #endif
 }
 

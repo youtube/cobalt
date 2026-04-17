@@ -8,7 +8,6 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
-#include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/common/webui_url_constants.h"
@@ -22,11 +21,13 @@
 #include "content/public/browser/web_ui_controller.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "ui/gfx/native_widget_types.h"
+#include "ui/webui/webui_util.h"
 
 namespace {
 
 void AddAppManagementStrings(content::WebUIDataSource* html_source) {
   static constexpr webui::LocalizedString kLocalizedStrings[] = {
+      {"cancel", IDS_CANCEL},
       {"close", IDS_CLOSE},
       {"title", IDS_WEB_APP_SETTINGS_TITLE},
       {"appManagementAppInstalledByPolicyLabel",
@@ -34,6 +35,13 @@ void AddAppManagementStrings(content::WebUIDataSource* html_source) {
       {"appManagementFileHandlingHeader",
        IDS_APP_MANAGEMENT_FILE_HANDLING_HEADER},
       {"appManagementNotificationsLabel", IDS_APP_MANAGEMENT_NOTIFICATIONS},
+#if BUILDFLAG(IS_MAC)
+      {"appManagementNotificationsDescription",
+       IDS_APP_MANAGEMENT_NOTIFICATIONS_DESCRIPTION},
+#endif
+      {"appManagementAppVersionTitle", IDS_APP_MANAGEMENT_APP_VERSION_TITLE},
+      {"appManagementAppSizeTitle", IDS_APP_MANAGEMENT_APP_SIZE_TITLE},
+      {"appManagementAppDataSizeTitle", IDS_APP_MANAGEMENT_APP_DATA_SIZE_TITLE},
       {"appManagementPermissionsLabel", IDS_APP_MANAGEMENT_PERMISSIONS},
       {"appManagementLocationPermissionLabel", IDS_APP_MANAGEMENT_LOCATION},
       {"appManagementMicrophonePermissionLabel", IDS_APP_MANAGEMENT_MICROPHONE},
@@ -48,11 +56,53 @@ void AddAppManagementStrings(content::WebUIDataSource* html_source) {
        IDS_APP_MANAGEMENT_FILE_HANDLING_OVERFLOW_DIALOG_TITLE},
       {"fileHandlingSetDefaults",
        IDS_APP_MANAGEMENT_FILE_HANDLING_SET_DEFAULTS_LINK},
+      {"appManagementIntentSettingsDialogTitle",
+       IDS_APP_MANAGEMENT_INTENT_SETTINGS_DIALOG_TITLE},
+      {"appManagementIntentSettingsTitle",
+       IDS_APP_MANAGEMENT_INTENT_SETTINGS_TITLE},
+      {"appManagementIntentOverlapDialogTitle",
+       IDS_APP_MANAGEMENT_INTENT_OVERLAP_DIALOG_TITLE},
+      {"appManagementIntentOverlapChangeButton",
+       IDS_APP_MANAGEMENT_INTENT_OVERLAP_CHANGE_BUTTON},
+      {"appManagementIntentSharingOpenBrowserLabel",
+       IDS_APP_MANAGEMENT_INTENT_SHARING_BROWSER_OPEN},
+      {"appManagementIntentSharingOpenAppLabel",
+       IDS_APP_MANAGEMENT_INTENT_SHARING_APP_OPEN},
+      {"appManagementIntentOverlapWarningText1App",
+       IDS_APP_MANAGEMENT_INTENT_OVERLAP_WARNING_TEXT_1_APP},
+      {"appManagementIntentOverlapWarningText2Apps",
+       IDS_APP_MANAGEMENT_INTENT_OVERLAP_WARNING_TEXT_2_APPS},
+      {"appManagementIntentOverlapWarningText3Apps",
+       IDS_APP_MANAGEMENT_INTENT_OVERLAP_WARNING_TEXT_3_APPS},
+      {"appManagementIntentOverlapWarningText4Apps",
+       IDS_APP_MANAGEMENT_INTENT_OVERLAP_WARNING_TEXT_4_APPS},
+      {"appManagementIntentOverlapWarningText5OrMoreApps",
+       IDS_APP_MANAGEMENT_INTENT_OVERLAP_WARNING_TEXT_5_OR_MORE_APPS},
+      {"appManagementIntentOverlapDialogText1App",
+       IDS_APP_MANAGEMENT_INTENT_OVERLAP_DIALOG_TEXT_1_APP},
+      {"appManagementIntentOverlapDialogText2Apps",
+       IDS_APP_MANAGEMENT_INTENT_OVERLAP_DIALOG_TEXT_2_APPS},
+      {"appManagementIntentOverlapDialogText3Apps",
+       IDS_APP_MANAGEMENT_INTENT_OVERLAP_DIALOG_TEXT_3_APPS},
+      {"appManagementIntentOverlapDialogText4Apps",
+       IDS_APP_MANAGEMENT_INTENT_OVERLAP_DIALOG_TEXT_4_APPS},
+      {"appManagementIntentOverlapDialogText5OrMoreApps",
+       IDS_APP_MANAGEMENT_INTENT_OVERLAP_DIALOG_TEXT_5_OR_MORE_APPS},
+      {"appManagementIntentSharingTabExplanation",
+       IDS_APP_MANAGEMENT_INTENT_SHARING_TAB_EXPLANATION},
+      {"appManagementAppContentLabel", IDS_APP_MANAGEMENT_APP_CONTENT_TITLE},
+      {"appManagementAppContentSublabel",
+       IDS_APP_MANAGEMENT_APP_CONTENT_SUBTITLE},
+      {"appManagementAppContentDialogSublabel",
+       IDS_APP_MANAGEMENT_APP_CONTENT_DIALOG_SUBTITLE},
+      {"appManagementPermissionsWithOriginLabel",
+       IDS_APP_MANAGEMENT_PERMISSIONS_WITH_ORIGIN},
   };
   html_source->AddLocalizedStrings(kLocalizedStrings);
 }
 
-class WebAppSettingsWindowDelegate : public AppManagementPageHandler::Delegate {
+class WebAppSettingsWindowDelegate
+    : public AppManagementPageHandlerBase::Delegate {
  public:
   explicit WebAppSettingsWindowDelegate(Profile* profile) : profile_(profile) {}
 
@@ -65,13 +115,13 @@ class WebAppSettingsWindowDelegate : public AppManagementPageHandler::Delegate {
   }
 
  private:
-  raw_ptr<Profile, DanglingUntriaged> profile_;
+  raw_ptr<Profile, AcrossTasksDanglingUntriaged> profile_;
 };
 
 }  // namespace
 
 // static
-std::unique_ptr<AppManagementPageHandler::Delegate>
+std::unique_ptr<AppManagementPageHandlerBase::Delegate>
 WebAppSettingsUI::CreateAppManagementPageHandlerDelegate(Profile* profile) {
   return std::make_unique<WebAppSettingsWindowDelegate>(profile);
 }
@@ -87,10 +137,8 @@ WebAppSettingsUI::WebAppSettingsUI(content::WebUI* web_ui)
   AddAppManagementStrings(html_source);
 
   // Add required resources.
-  webui::SetupWebUIDataSource(
-      html_source,
-      base::make_span(kAppSettingsResources, kAppSettingsResourcesSize),
-      IDR_APP_SETTINGS_WEB_APP_SETTINGS_HTML);
+  webui::SetupWebUIDataSource(html_source, kAppSettingsResources,
+                              IDR_APP_SETTINGS_WEB_APP_SETTINGS_HTML);
 
   auto* provider = web_app::WebAppProvider::GetForWebApps(profile);
   install_manager_observation_.Observe(&provider->install_manager());
@@ -110,14 +158,15 @@ void WebAppSettingsUI::BindInterface(
 }
 
 void WebAppSettingsUI::OnWebAppUninstalled(
-    const web_app::AppId& app_id,
+    const webapps::AppId& app_id,
     webapps::WebappUninstallSource uninstall_source) {
   auto* web_contents = web_ui()->GetWebContents();
-  const web_app::AppId current_app_id =
+  const webapps::AppId current_app_id =
       web_app::GetAppIdFromAppSettingsUrl(web_contents->GetURL());
 
-  if (app_id == current_app_id)
+  if (app_id == current_app_id) {
     web_contents->ClosePage();
+  }
 }
 
 void WebAppSettingsUI::OnWebAppInstallManagerDestroyed() {

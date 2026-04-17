@@ -274,7 +274,7 @@ scoped_refptr<EncodedFormData> FormData::EncodeFormData(
             : Encode(entry->Value()),
         encoding_type);
   }
-  form_data->AppendData(encoded_data.data(), encoded_data.size());
+  form_data->AppendData(encoded_data);
   return form_data;
 }
 
@@ -327,7 +327,7 @@ scoped_refptr<EncodedFormData> FormData::EncodeMultiPartFormData() {
     FormDataEncoder::FinishMultiPartHeader(header);
 
     // Append body
-    form_data->AppendData(header.data(), header.size());
+    form_data->AppendData(header);
     if (entry->GetBlob()) {
       if (entry->GetBlob()->HasBackingFile()) {
         auto* file = To<File>(entry->GetBlob());
@@ -335,21 +335,18 @@ scoped_refptr<EncodedFormData> FormData::EncodeMultiPartFormData() {
         if (!file->GetPath().empty())
           form_data->AppendFile(file->GetPath(), file->LastModifiedTime());
       } else {
-        form_data->AppendBlob(entry->GetBlob()->Uuid(),
-                              entry->GetBlob()->GetBlobDataHandle());
+        form_data->AppendBlob(entry->GetBlob()->GetBlobDataHandle());
       }
     } else {
       std::string encoded_value =
           Encode(NormalizeLineEndingsToCRLF(entry->Value()));
-      form_data->AppendData(
-          encoded_value.c_str(),
-          base::checked_cast<wtf_size_t>(encoded_value.length()));
+      form_data->AppendData(encoded_value);
     }
-    form_data->AppendData("\r\n", 2);
+    form_data->AppendData(base::span_from_cstring("\r\n"));
   }
   FormDataEncoder::AddBoundaryToMultiPartHeader(
       encoded_data, form_data->Boundary().data(), true);
-  form_data->AppendData(encoded_data.data(), encoded_data.size());
+  form_data->AppendData(encoded_data);
   return form_data;
 }
 
@@ -413,7 +410,8 @@ void FormData::AppendToControlState(FormControlState& state) const {
   }
 }
 
-FormData* FormData::CreateFromControlState(const FormControlState& state,
+FormData* FormData::CreateFromControlState(ExecutionContext& execution_context,
+                                           const FormControlState& state,
                                            wtf_size_t& index) {
   bool ok = false;
   uint64_t length = state[index].ToUInt64Strict(&ok);
@@ -428,10 +426,12 @@ FormData* FormData::CreateFromControlState(const FormControlState& state,
     const String& name = state[index++];
     const String& entry_type = state[index++];
     if (entry_type == "File") {
-      if (auto* file = File::CreateFromControlState(state, index))
+      if (auto* file =
+              File::CreateFromControlState(&execution_context, state, index)) {
         form_data->append(name, file);
-      else
+      } else {
         return nullptr;
+      }
     } else if (entry_type == "USVString") {
       form_data->append(name, state[index++]);
     } else {

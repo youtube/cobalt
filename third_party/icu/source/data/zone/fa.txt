@@ -258,6 +258,9 @@ fa{
         "America:Chihuahua"{
             ec{"چیواوا"}
         }
+        "America:Ciudad_Juarez"{
+            ec{"سیوداد خوارز"}
+        }
         "America:Coral_Harbour"{
             ec{"اتکوکان"}
         }
@@ -1299,7 +1302,7 @@ fa{
             ls{"وقت افغانستان"}
         }
         "meta:Africa_Central"{
-            ls{"وقت مرکز افریقا"}
+            ls{"وقت مرکز آفریقا"}
         }
         "meta:Africa_Eastern"{
             ls{"وقت شرق افریقا"}
@@ -1928,7 +1931,6 @@ fa{
         "meta:Yukon"{
             ls{"وقت یوکان"}
         }
-        fallbackFormat{"{1} ({0})"}
         gmtFormat{"{0} گرینویچ"}
         gmtZeroFormat{"گرینویچ"}
         hourFormat{"‎+HH:mm;‎−HH:mm"}

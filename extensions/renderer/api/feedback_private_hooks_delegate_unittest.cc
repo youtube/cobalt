@@ -6,6 +6,7 @@
 
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_builder.h"
+#include "extensions/common/mojom/context_type.mojom.h"
 #include "extensions/common/mojom/frame.mojom.h"
 #include "extensions/renderer/bindings/api_binding_test_util.h"
 #include "extensions/renderer/native_extension_bindings_system.h"
@@ -19,7 +20,7 @@ using FeedbackPrivateHooksDelegateTest = NativeExtensionBindingsSystemUnittest;
 // Tests that the result modifier used in the sendFeedback handle request hook
 // results in callback-based calls getting a response with multiple arguments
 // and promise-based calls getting a response with a single object.
-// TODO(crbug.com/1378143): Disabled on ASAN due to bot failures caused by an
+// TODO(crbug.com/40243802): Disabled on ASAN due to bot failures caused by an
 // underlying gin issue.
 #if defined(ADDRESS_SANITIZER)
 #define MAYBE_SendFeedback DISABLED_SendFeedback
@@ -36,7 +37,7 @@ TEST_F(FeedbackPrivateHooksDelegateTest, MAYBE_SendFeedback) {
   v8::HandleScope handle_scope(isolate());
   v8::Local<v8::Context> context = MainContext();
   ScriptContext* script_context =
-      CreateScriptContext(context, nullptr, Feature::WEBUI_CONTEXT);
+      CreateScriptContext(context, nullptr, mojom::ContextType::kWebUi);
   script_context->set_url(GURL("chrome://feedback"));
   bindings_system()->UpdateBindingsForContext(script_context);
 

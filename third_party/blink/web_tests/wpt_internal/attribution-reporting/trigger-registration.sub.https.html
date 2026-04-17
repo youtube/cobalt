@@ -13,7 +13,7 @@
 <script src="/resources/testdriver-vendor.js"></script>
 <script src="/resources/testharness.js"></script>
 <script src="/resources/testharnessreport.js"></script>
-<script src="resources/helpers.js"></script>
+<script src="/attribution-reporting/resources/helpers.js"></script>
 <body>
 <script>
 attribution_reporting_promise_test(async t => {
@@ -22,12 +22,11 @@ attribution_reporting_promise_test(async t => {
     destination: 'https://{{host}}',
     source_event_id: generateSourceEventId(),
   };
-  await registerAttributionSrc({
-    cookie: attributionDebugCookie,
+  registerAttributionSrc({
     source
   });
   await waitForSourceToBeRegistered(source.source_event_id);
-  await registerAttributionSrc({
+  registerAttributionSrc({
     trigger: {
       event_trigger_data: [{}],
     },

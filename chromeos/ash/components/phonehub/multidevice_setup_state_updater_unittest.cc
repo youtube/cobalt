@@ -10,8 +10,7 @@
 #include "components/prefs/testing_pref_service.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace ash {
-namespace phonehub {
+namespace ash::phonehub {
 
 using multidevice_setup::mojom::Feature;
 using multidevice_setup::mojom::FeatureState;
@@ -70,7 +69,7 @@ class MultideviceSetupStateUpdaterTest : public testing::Test {
 
   void SetHostStatus(HostStatus host_status) {
     fake_multidevice_setup_client_.SetHostStatusWithDevice(
-        std::make_pair(host_status, absl::nullopt /* host_device */));
+        std::make_pair(host_status, std::nullopt /* host_device */));
   }
 
   multidevice_setup::FakeMultiDeviceSetupClient*
@@ -91,11 +90,10 @@ class MultideviceSetupStateUpdaterTest : public testing::Test {
   }
 
  private:
-  std::unique_ptr<MultideviceSetupStateUpdater> updater_;
-
   TestingPrefServiceSimple pref_service_;
   multidevice_setup::FakeMultiDeviceSetupClient fake_multidevice_setup_client_;
   FakeMultideviceFeatureAccessManager fake_multidevice_feature_access_manager_;
+  std::unique_ptr<MultideviceSetupStateUpdater> updater_;
 };
 
 TEST_F(MultideviceSetupStateUpdaterTest, EnablePhoneHub) {
@@ -109,7 +107,7 @@ TEST_F(MultideviceSetupStateUpdaterTest, EnablePhoneHub) {
   SetHostStatus(HostStatus::kHostVerified);
   fake_multidevice_setup_client()->InvokePendingSetFeatureEnabledStateCallback(
       /*expected_feature=*/Feature::kPhoneHub,
-      /*expected_enabled=*/true, /*expected_auth_token=*/absl::nullopt,
+      /*expected_enabled=*/true, /*expected_auth_token=*/std::nullopt,
       /*success=*/true);
 }
 
@@ -126,7 +124,7 @@ TEST_F(MultideviceSetupStateUpdaterTest, EnablePhoneHub_SetButNotVerified) {
   SetHostStatus(HostStatus::kHostVerified);
   fake_multidevice_setup_client()->InvokePendingSetFeatureEnabledStateCallback(
       /*expected_feature=*/Feature::kPhoneHub,
-      /*expected_enabled=*/true, /*expected_auth_token=*/absl::nullopt,
+      /*expected_enabled=*/true, /*expected_auth_token=*/std::nullopt,
       /*success=*/true);
 }
 
@@ -143,7 +141,7 @@ TEST_F(MultideviceSetupStateUpdaterTest,
   SetFeatureState(Feature::kPhoneHub, FeatureState::kDisabledByUser);
   fake_multidevice_setup_client()->InvokePendingSetFeatureEnabledStateCallback(
       /*expected_feature=*/Feature::kPhoneHub,
-      /*expected_enabled=*/true, /*expected_auth_token=*/absl::nullopt,
+      /*expected_enabled=*/true, /*expected_auth_token=*/std::nullopt,
       /*success=*/true);
 }
 
@@ -160,7 +158,7 @@ TEST_F(MultideviceSetupStateUpdaterTest,
   SetHostStatus(HostStatus::kHostVerified);
   fake_multidevice_setup_client()->InvokePendingSetFeatureEnabledStateCallback(
       /*expected_feature=*/Feature::kPhoneHub,
-      /*expected_enabled=*/true, /*expected_auth_token=*/absl::nullopt,
+      /*expected_enabled=*/true, /*expected_auth_token=*/std::nullopt,
       /*success=*/true);
 }
 
@@ -183,7 +181,7 @@ TEST_F(MultideviceSetupStateUpdaterTest,
   // The Phone Hub feature is automatically re-enabled.
   fake_multidevice_setup_client()->InvokePendingSetFeatureEnabledStateCallback(
       /*expected_feature=*/Feature::kPhoneHub,
-      /*expected_enabled=*/true, /*expected_auth_token=*/absl::nullopt,
+      /*expected_enabled=*/true, /*expected_auth_token=*/std::nullopt,
       /*success=*/true);
 }
 
@@ -209,7 +207,7 @@ TEST_F(MultideviceSetupStateUpdaterTest, EnablePhoneHub_PersistIntentToEnable) {
   // The Phone Hub feature is expected to be enabled.
   fake_multidevice_setup_client()->InvokePendingSetFeatureEnabledStateCallback(
       /*expected_feature=*/Feature::kPhoneHub,
-      /*expected_enabled=*/true, /*expected_auth_token=*/absl::nullopt,
+      /*expected_enabled=*/true, /*expected_auth_token=*/std::nullopt,
       /*success=*/true);
 }
 
@@ -238,7 +236,7 @@ TEST_F(
   // The Phone Hub feature is expected to be enabled.
   fake_multidevice_setup_client()->InvokePendingSetFeatureEnabledStateCallback(
       /*expected_feature=*/Feature::kPhoneHub,
-      /*expected_enabled=*/true, /*expected_auth_token=*/absl::nullopt,
+      /*expected_enabled=*/true, /*expected_auth_token=*/std::nullopt,
       /*success=*/true);
 }
 
@@ -251,7 +249,7 @@ TEST_F(MultideviceSetupStateUpdaterTest, RevokePhoneHubNotificationsAccess) {
   SetNotificationAccess(false);
   fake_multidevice_setup_client()->InvokePendingSetFeatureEnabledStateCallback(
       /*expected_feature=*/Feature::kPhoneHubNotifications,
-      /*expected_enabled=*/false, /*expected_auth_token=*/absl::nullopt,
+      /*expected_enabled=*/false, /*expected_auth_token=*/std::nullopt,
       /*success=*/true);
 }
 
@@ -267,7 +265,7 @@ TEST_F(MultideviceSetupStateUpdaterTest, InvokePhoneHubNotificationsAccess) {
   SetNotificationAccess(true);
   fake_multidevice_setup_client()->InvokePendingSetFeatureEnabledStateCallback(
       /*expected_feature=*/Feature::kPhoneHubNotifications,
-      /*expected_enabled=*/true, /*expected_auth_token=*/absl::nullopt,
+      /*expected_enabled=*/true, /*expected_auth_token=*/std::nullopt,
       /*success=*/true);
 }
 
@@ -282,7 +280,7 @@ TEST_F(MultideviceSetupStateUpdaterTest,
   ForceNotifyNotificationAccessChanged();
   fake_multidevice_setup_client()->InvokePendingSetFeatureEnabledStateCallback(
       /*expected_feature=*/Feature::kPhoneHubNotifications,
-      /*expected_enabled=*/true, /*expected_auth_token=*/absl::nullopt,
+      /*expected_enabled=*/true, /*expected_auth_token=*/std::nullopt,
       /*success=*/true);
 }
 
@@ -315,7 +313,7 @@ TEST_F(MultideviceSetupStateUpdaterTest,
   ForceNotifyCameraRollAccessChanged();
   fake_multidevice_setup_client()->InvokePendingSetFeatureEnabledStateCallback(
       /*expected_feature=*/Feature::kPhoneHubCameraRoll,
-      /*expected_enabled=*/true, /*expected_auth_token=*/absl::nullopt,
+      /*expected_enabled=*/true, /*expected_auth_token=*/std::nullopt,
       /*success=*/true);
 }
 
@@ -362,7 +360,7 @@ TEST_F(MultideviceSetupStateUpdaterTest, RevokePhoneHubCameraRollAccess) {
   SetCameraRollAccess(false);
   fake_multidevice_setup_client()->InvokePendingSetFeatureEnabledStateCallback(
       /*expected_feature=*/Feature::kPhoneHubCameraRoll,
-      /*expected_enabled=*/false, /*expected_auth_token=*/absl::nullopt,
+      /*expected_enabled=*/false, /*expected_auth_token=*/std::nullopt,
       /*success=*/true);
 }
 
@@ -377,9 +375,8 @@ TEST_F(MultideviceSetupStateUpdaterTest, InvokePhoneHubCameraRollAccess) {
   SetCameraRollAccess(true);
   fake_multidevice_setup_client()->InvokePendingSetFeatureEnabledStateCallback(
       /*expected_feature=*/Feature::kPhoneHubCameraRoll,
-      /*expected_enabled=*/true, /*expected_auth_token=*/absl::nullopt,
+      /*expected_enabled=*/true, /*expected_auth_token=*/std::nullopt,
       /*success=*/true);
 }
 
-}  // namespace phonehub
-}  // namespace ash
+}  // namespace ash::phonehub

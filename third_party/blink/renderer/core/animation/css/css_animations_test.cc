@@ -6,6 +6,8 @@
 
 #include "cc/animation/animation.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_animation_trigger_type.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_timeline_range_offset.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_cssnumericvalue_double.h"
 #include "third_party/blink/renderer/core/animation/animation.h"
 #include "third_party/blink/renderer/core/animation/animation_test_helpers.h"
@@ -13,13 +15,13 @@
 #include "third_party/blink/renderer/core/animation/element_animations.h"
 #include "third_party/blink/renderer/core/css/cssom/css_numeric_value.h"
 #include "third_party/blink/renderer/core/dom/dom_token_list.h"
-#include "third_party/blink/renderer/core/dom/node_computed_style.h"
 #include "third_party/blink/renderer/core/dom/pseudo_element.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/page/page_animator.h"
 #include "third_party/blink/renderer/core/testing/core_unit_test_helper.h"
 #include "third_party/blink/renderer/platform/animation/compositor_animation.h"
 #include "third_party/blink/renderer/platform/animation/compositor_animation_delegate.h"
+#include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/testing/paint_test_configurations.h"
 #include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 
@@ -34,30 +36,27 @@ namespace blink {
 
 class CSSAnimationsTest : public RenderingTest, public PaintTestConfigurations {
  public:
-  CSSAnimationsTest() {
+  CSSAnimationsTest()
+      : RenderingTest(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {
     EnablePlatform();
     platform()->SetThreadedAnimationEnabled(true);
   }
 
   void SetUp() override {
-    platform()->SetAutoAdvanceNowToPendingTasks(false);
     EnableCompositing();
     RenderingTest::SetUp();
     SetUpAnimationClockForTesting();
     // Advance timer to document time.
-    platform()->AdvanceClockSeconds(
-        GetDocument().Timeline().ZeroTime().InSecondsF());
+    AdvanceClock(
+        base::Seconds(GetDocument().Timeline().ZeroTime().InSecondsF()));
   }
 
   void TearDown() override {
-    platform()->SetAutoAdvanceNowToPendingTasks(true);
     platform()->RunUntilIdle();
     RenderingTest::TearDown();
   }
 
-  base::TimeTicks TimelineTime() {
-    return platform()->test_task_runner()->NowTicks();
-  }
+  base::TimeTicks TimelineTime() { return platform()->NowTicks(); }
 
   void StartAnimationOnCompositor(Animation* animation) {
     static_cast<CompositorAnimationDelegate*>(animation)
@@ -66,10 +65,9 @@ class CSSAnimationsTest : public RenderingTest, public PaintTestConfigurations {
   }
 
   void AdvanceClockSeconds(double seconds) {
-    platform()->AdvanceClockSeconds(seconds);
+    PageTestBase::AdvanceClock(base::Seconds(seconds));
     platform()->RunUntilIdle();
-    GetPage().Animator().ServiceScriptedAnimations(
-        platform()->test_task_runner()->NowTicks());
+    GetPage().Animator().ServiceScriptedAnimations(platform()->NowTicks());
   }
 
   double GetContrastFilterAmount(Element* element) {
@@ -106,6 +104,15 @@ class CSSAnimationsTest : public RenderingTest, public PaintTestConfigurations {
     DCHECK(!IsUseCounted(feature));
   }
 
+  wtf_size_t DeferredTimelinesCount(Element* element) const {
+    ElementAnimations* element_animations = element->GetElementAnimations();
+    if (!element_animations) {
+      return 0;
+    }
+    CSSAnimations& css_animations = element_animations->CssAnimations();
+    return css_animations.timeline_data_.GetDeferredTimelines().size();
+  }
+
  private:
   void SetUpAnimationClockForTesting() {
     GetPage().Animator().Clock().ResetTimeForTesting();
@@ -126,8 +133,8 @@ TEST_P(CSSAnimationsTest, RetargetedTransition) {
     </style>
     <div id='test'>TEST</div>
   )HTML");
-  Element* element = GetDocument().getElementById("test");
-  element->setAttribute(html_names::kClassAttr, "contrast1");
+  Element* element = GetDocument().getElementById(AtomicString("test"));
+  element->setAttribute(html_names::kClassAttr, AtomicString("contrast1"));
   UpdateAllLifecyclePhasesForTest();
   ElementAnimations* animations = element->GetElementAnimations();
   EXPECT_EQ(1u, animations->Animations().size());
@@ -138,7 +145,7 @@ TEST_P(CSSAnimationsTest, RetargetedTransition) {
   AdvanceClockSeconds(0.8);
 
   // Starting the second transition should retarget the active transition.
-  element->setAttribute(html_names::kClassAttr, "contrast2");
+  element->setAttribute(html_names::kClassAttr, AtomicString("contrast2"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_NEAR(0.6, GetContrastFilterAmount(element), kTolerance);
 
@@ -160,8 +167,8 @@ TEST_P(CSSAnimationsTest, IncompatibleRetargetedTransition) {
     </style>
     <div id='test'>TEST</div>
   )HTML");
-  Element* element = GetDocument().getElementById("test");
-  element->setAttribute(html_names::kClassAttr, "saturate");
+  Element* element = GetDocument().getElementById(AtomicString("test"));
+  element->setAttribute(html_names::kClassAttr, AtomicString("saturate"));
   UpdateAllLifecyclePhasesForTest();
   ElementAnimations* animations = element->GetElementAnimations();
   EXPECT_EQ(1u, animations->Animations().size());
@@ -177,54 +184,11 @@ TEST_P(CSSAnimationsTest, IncompatibleRetargetedTransition) {
                   GetSaturateFilterAmount(element));
 
   // Now we start a contrast filter. Since it will try to combine with
-  // the in progress saturate filter, and be incompatible, there will be a
-  // discrete transition and it will apply halfway through the transition.
-  element->setAttribute(html_names::kClassAttr, "contrast");
-  UpdateAllLifecyclePhasesForTest();
-  EXPECT_FLOAT_EQ(1.0 * (1 - 0.003) + 0.2 * 0.003,
-                  GetSaturateFilterAmount(element));
-
-  AdvanceClockSeconds(0.5);
+  // the in progress saturate filter, and be incompatible, there should
+  // be no transition and should immediately apply on the next frame.
+  element->setAttribute(html_names::kClassAttr, AtomicString("contrast"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(0.2, GetContrastFilterAmount(element));
-}
-
-TEST_P(CSSAnimationsTest, CompositedBackgroundColorSnapshot) {
-  ScopedCompositeBGColorAnimationForTest scoped_feature(true);
-
-  SetBodyInnerHTML(R"HTML(
-    <style>
-      @keyframes anim {
-        from { background-color: red; }
-        to { background-color: green; }
-      }
-      #test {
-        animation: anim 10s linear;
-      }
-    </style>
-    <div id='test'></div>
-  )HTML");
-  Element* element = GetDocument().getElementById("test");
-  ASSERT_TRUE(element);
-  UpdateAllLifecyclePhasesForTest();
-  ASSERT_TRUE(element->GetComputedStyle());
-  ASSERT_TRUE(element->parentNode());
-  EXPECT_TRUE(element->ComputedStyleRef().HasCurrentCompositableAnimation());
-
-  ElementAnimations* animations = element->GetElementAnimations();
-  ASSERT_TRUE(animations);
-  ASSERT_EQ(1u, animations->Animations().size());
-  Animation* animation = (*animations->Animations().begin()).key;
-
-  InvalidateCompositorKeyframesSnapshot(animation);
-  CSSAnimationUpdate update;
-  CSSAnimations::CalculateCompositorAnimationUpdate(
-      update, *element, *element, element->ComputedStyleRef(),
-      element->parentNode()->GetComputedStyle(),
-      /* was_window_resized */ false, /* force update */ false);
-
-  ASSERT_EQ(1u, update.UpdatedCompositorKeyframes().size());
-  EXPECT_EQ(animation, update.UpdatedCompositorKeyframes()[0].Get());
 }
 
 // Verifies that newly created/cancelled transitions are both taken into
@@ -243,21 +207,22 @@ TEST_P(CSSAnimationsTest, AnimationFlags_Transitions) {
     </style>
     <div id=test></div>
   )HTML");
-  Element* element = GetDocument().getElementById("test");
+  Element* element = GetDocument().getElementById(AtomicString("test"));
   EXPECT_FALSE(element->ComputedStyleRef().HasCurrentFilterAnimation());
 
   // Newly created transition:
-  element->setAttribute(html_names::kClassAttr, "contrast30");
+  element->setAttribute(html_names::kClassAttr, AtomicString("contrast30"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_TRUE(element->ComputedStyleRef().HasCurrentFilterAnimation());
 
   // Already running (and unmodified) transition:
-  element->setAttribute(html_names::kClassAttr, "contrast30 unrelated");
+  element->setAttribute(html_names::kClassAttr,
+                        AtomicString("contrast30 unrelated"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_TRUE(element->ComputedStyleRef().HasCurrentFilterAnimation());
 
   // Cancelled transition:
-  element->setAttribute(html_names::kClassAttr, "cancel");
+  element->setAttribute(html_names::kClassAttr, AtomicString("cancel"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_FALSE(element->ComputedStyleRef().HasCurrentFilterAnimation());
 }
@@ -279,18 +244,19 @@ TEST_P(CSSAnimationsTest, AnimationFlags_Animations) {
     </style>
     <div id=test></div>
   )HTML");
-  Element* element = GetDocument().getElementById("test");
+  Element* element = GetDocument().getElementById(AtomicString("test"));
   EXPECT_FALSE(element->ComputedStyleRef().HasCurrentOpacityAnimation());
   EXPECT_FALSE(element->ComputedStyleRef().HasCurrentTransformAnimation());
 
   // Newly created animation:
-  element->setAttribute(html_names::kClassAttr, "animate");
+  element->setAttribute(html_names::kClassAttr, AtomicString("animate"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_TRUE(element->ComputedStyleRef().HasCurrentOpacityAnimation());
   EXPECT_FALSE(element->ComputedStyleRef().HasCurrentTransformAnimation());
 
   // Already running (and unmodified) animation:
-  element->setAttribute(html_names::kClassAttr, "animate unrelated");
+  element->setAttribute(html_names::kClassAttr,
+                        AtomicString("animate unrelated"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_TRUE(element->ComputedStyleRef().HasCurrentOpacityAnimation());
   EXPECT_FALSE(element->ComputedStyleRef().HasCurrentTransformAnimation());
@@ -304,13 +270,14 @@ TEST_P(CSSAnimationsTest, AnimationFlags_Animations) {
   EXPECT_TRUE(element->ComputedStyleRef().HasCurrentTransformAnimation());
 
   // Update CSS animation:
-  element->setAttribute(html_names::kClassAttr, "animate newtiming");
+  element->setAttribute(html_names::kClassAttr,
+                        AtomicString("animate newtiming"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_TRUE(element->ComputedStyleRef().HasCurrentOpacityAnimation());
   EXPECT_TRUE(element->ComputedStyleRef().HasCurrentTransformAnimation());
 
   // Cancel CSS animation:
-  element->setAttribute(html_names::kClassAttr, "cancel");
+  element->setAttribute(html_names::kClassAttr, AtomicString("cancel"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_FALSE(element->ComputedStyleRef().HasCurrentOpacityAnimation());
   EXPECT_TRUE(element->ComputedStyleRef().HasCurrentTransformAnimation());
@@ -341,9 +308,6 @@ bool BackdropFilterFlag(const ComputedStyle& style) {
 }
 bool BackgroundColorFlag(const ComputedStyle& style) {
   return style.HasCurrentBackgroundColorAnimation();
-}
-bool ClipPathFlag(const ComputedStyle& style) {
-  return style.HasCurrentClipPathAnimation();
 }
 
 bool CompositedOpacityFlag(const ComputedStyle& style) {
@@ -386,7 +350,6 @@ FlagData flag_data[] = {
     {"filter", "contrast(10%)", "contrast(20%)", FilterFlag},
     {"backdrop-filter", "blur(10px)", "blur(20px)", BackdropFilterFlag},
     {"background-color", "red", "blue", BackgroundColorFlag},
-    {"clip-path", "circle(10%)", "circle(20%)", ClipPathFlag},
 };
 
 FlagData compositor_flag_data[] = {
@@ -441,11 +404,11 @@ TEST_P(CSSAnimationsTest, AllAnimationFlags_Transitions) {
     SCOPED_TRACE(html);
 
     SetBodyInnerHTML(html);
-    Element* element = GetDocument().getElementById("test");
+    Element* element = GetDocument().getElementById(AtomicString("test"));
     ASSERT_TRUE(element);
     EXPECT_FALSE(data.get_flag(element->ComputedStyleRef()));
 
-    element->setAttribute(html_names::kClassAttr, "after");
+    element->setAttribute(html_names::kClassAttr, AtomicString("after"));
     UpdateAllLifecyclePhasesForTest();
     EXPECT_TRUE(data.get_flag(element->ComputedStyleRef()));
   }
@@ -458,11 +421,11 @@ TEST_P(CSSAnimationsTest, AllAnimationFlags_Transitions_Compositor) {
     SCOPED_TRACE(html);
 
     SetBodyInnerHTML(html);
-    Element* element = GetDocument().getElementById("test");
+    Element* element = GetDocument().getElementById(AtomicString("test"));
     ASSERT_TRUE(element);
     EXPECT_FALSE(data.get_flag(element->ComputedStyleRef()));
 
-    element->setAttribute(html_names::kClassAttr, "after");
+    element->setAttribute(html_names::kClassAttr, AtomicString("after"));
     UpdateAllLifecyclePhasesForTest();
     EXPECT_FALSE(data.get_flag(element->ComputedStyleRef()));
 
@@ -483,11 +446,11 @@ TEST_P(CSSAnimationsTest, AllAnimationFlags_CSSAnimations) {
     SCOPED_TRACE(html);
 
     SetBodyInnerHTML(html);
-    Element* element = GetDocument().getElementById("test");
+    Element* element = GetDocument().getElementById(AtomicString("test"));
     ASSERT_TRUE(element);
     EXPECT_FALSE(data.get_flag(element->ComputedStyleRef()));
 
-    element->setAttribute(html_names::kClassAttr, "after");
+    element->setAttribute(html_names::kClassAttr, AtomicString("after"));
     UpdateAllLifecyclePhasesForTest();
     EXPECT_TRUE(data.get_flag(element->ComputedStyleRef()));
   }
@@ -500,11 +463,11 @@ TEST_P(CSSAnimationsTest, AllAnimationFlags_CSSAnimations_Compositor) {
     SCOPED_TRACE(html);
 
     SetBodyInnerHTML(html);
-    Element* element = GetDocument().getElementById("test");
+    Element* element = GetDocument().getElementById(AtomicString("test"));
     ASSERT_TRUE(element);
     EXPECT_FALSE(data.get_flag(element->ComputedStyleRef()));
 
-    element->setAttribute(html_names::kClassAttr, "after");
+    element->setAttribute(html_names::kClassAttr, AtomicString("after"));
     UpdateAllLifecyclePhasesForTest();
     EXPECT_FALSE(data.get_flag(element->ComputedStyleRef()));
 
@@ -524,7 +487,7 @@ TEST_P(CSSAnimationsTest, AllAnimationFlags_JSAnimations) {
     SCOPED_TRACE(data.property);
 
     SetBodyInnerHTML("<div id=test>Test</div>");
-    Element* element = GetDocument().getElementById("test");
+    Element* element = GetDocument().getElementById(AtomicString("test"));
     ASSERT_TRUE(element);
     EXPECT_FALSE(data.get_flag(element->ComputedStyleRef()));
 
@@ -546,7 +509,7 @@ TEST_P(CSSAnimationsTest, AllAnimationFlags_JSAnimations_Compositor) {
     SCOPED_TRACE(data.property);
 
     SetBodyInnerHTML("<div id=test>Test</div>");
-    Element* element = GetDocument().getElementById("test");
+    Element* element = GetDocument().getElementById(AtomicString("test"));
     ASSERT_TRUE(element);
     EXPECT_FALSE(data.get_flag(element->ComputedStyleRef()));
 
@@ -566,7 +529,7 @@ TEST_P(CSSAnimationsTest, AllAnimationFlags_JSAnimations_Compositor) {
   }
 }
 
-TEST_P(CSSAnimationsTest, AnimationFlags_CompositablePaintAnimationChanged) {
+TEST_P(CSSAnimationsTest, CompositedAnimationUpdateCausesPaintInvalidation) {
   ScopedCompositeBGColorAnimationForTest scoped_feature(true);
 
   SetBodyInnerHTML(R"HTML(
@@ -583,37 +546,44 @@ TEST_P(CSSAnimationsTest, AnimationFlags_CompositablePaintAnimationChanged) {
     <div id=test>Test</div>
   )HTML");
 
-  Element* element = GetDocument().getElementById("test");
+  Element* element = GetDocument().getElementById(AtomicString("test"));
+  LayoutObject* lo = element->GetLayoutObject();
   ASSERT_TRUE(element);
 
   // Not animating yet:
   EXPECT_FALSE(
       element->ComputedStyleRef().HasCurrentBackgroundColorAnimation());
-  EXPECT_FALSE(element->ComputedStyleRef().CompositablePaintAnimationChanged());
 
   // Newly created CSS animation:
-  element->classList().Add("animate");
+  element->classList().Add(AtomicString("animate"));
+  GetDocument().View()->UpdateLifecycleToCompositingInputsClean(
+      DocumentUpdateReason::kTest);
+  EXPECT_TRUE(lo->ShouldDoFullPaintInvalidation());
   UpdateAllLifecyclePhasesForTest();
   EXPECT_TRUE(element->ComputedStyleRef().HasCurrentBackgroundColorAnimation());
-  EXPECT_TRUE(element->ComputedStyleRef().CompositablePaintAnimationChanged());
-
   // Do an unrelated change to clear the flag.
-  element->classList().toggle("unrelated", ASSERT_NO_EXCEPTION);
+  element->classList().toggle(AtomicString("unrelated"), ASSERT_NO_EXCEPTION);
+  GetDocument().View()->UpdateLifecycleToCompositingInputsClean(
+      DocumentUpdateReason::kTest);
+  EXPECT_FALSE(lo->ShouldDoFullPaintInvalidation());
   UpdateAllLifecyclePhasesForTest();
   EXPECT_TRUE(element->ComputedStyleRef().HasCurrentBackgroundColorAnimation());
-  EXPECT_FALSE(element->ComputedStyleRef().CompositablePaintAnimationChanged());
 
   // Updated CSS animation:
-  element->classList().Add("newtiming");
+  element->classList().Add(AtomicString("newtiming"));
+  GetDocument().View()->UpdateLifecycleToCompositingInputsClean(
+      DocumentUpdateReason::kTest);
+  EXPECT_TRUE(lo->ShouldDoFullPaintInvalidation());
   UpdateAllLifecyclePhasesForTest();
   EXPECT_TRUE(element->ComputedStyleRef().HasCurrentBackgroundColorAnimation());
-  EXPECT_TRUE(element->ComputedStyleRef().CompositablePaintAnimationChanged());
 
   // Do an unrelated change to clear the flag.
-  element->classList().toggle("unrelated", ASSERT_NO_EXCEPTION);
+  element->classList().toggle(AtomicString("unrelated"), ASSERT_NO_EXCEPTION);
+  GetDocument().View()->UpdateLifecycleToCompositingInputsClean(
+      DocumentUpdateReason::kTest);
+  EXPECT_FALSE(lo->ShouldDoFullPaintInvalidation());
   UpdateAllLifecyclePhasesForTest();
   EXPECT_TRUE(element->ComputedStyleRef().HasCurrentBackgroundColorAnimation());
-  EXPECT_FALSE(element->ComputedStyleRef().CompositablePaintAnimationChanged());
 
   // Modify the animation outside of a style resolve:
   ElementAnimations* animations = element->GetElementAnimations();
@@ -622,45 +592,20 @@ TEST_P(CSSAnimationsTest, AnimationFlags_CompositablePaintAnimationChanged) {
   animation->setStartTime(MakeGarbageCollected<V8CSSNumberish>(0.5),
                           ASSERT_NO_EXCEPTION);
   EXPECT_TRUE(animation->CompositorPending());
+  GetDocument().View()->UpdateLifecycleToCompositingInputsClean(
+      DocumentUpdateReason::kTest);
+  EXPECT_TRUE(lo->ShouldDoFullPaintInvalidation());
   UpdateAllLifecyclePhasesForTest();
   EXPECT_TRUE(element->ComputedStyleRef().HasCurrentBackgroundColorAnimation());
-  EXPECT_TRUE(element->ComputedStyleRef().CompositablePaintAnimationChanged());
   EXPECT_FALSE(animation->CompositorPending());
 
   // Do an unrelated change to clear the flag.
-  element->classList().toggle("unrelated", ASSERT_NO_EXCEPTION);
+  element->classList().toggle(AtomicString("unrelated"), ASSERT_NO_EXCEPTION);
+  GetDocument().View()->UpdateLifecycleToCompositingInputsClean(
+      DocumentUpdateReason::kTest);
+  EXPECT_FALSE(lo->ShouldDoFullPaintInvalidation());
   UpdateAllLifecyclePhasesForTest();
   EXPECT_TRUE(element->ComputedStyleRef().HasCurrentBackgroundColorAnimation());
-  EXPECT_FALSE(element->ComputedStyleRef().CompositablePaintAnimationChanged());
-
-  // Change compositor snapshot values:
-  //
-  // TODO(crbug.com/1245806): We could invalidate the keyframes by using e.g.
-  // var()-references, and changing them in the base style, but it does
-  // currently not work for composited animations, hence the snapshot is
-  // invalidated artificially.
-  InvalidateCompositorKeyframesSnapshot(animation);
-  // Also do an "unrelated" change, to avoid IsAnimationStyleChange()==true.
-  element->classList().toggle("unrelated", ASSERT_NO_EXCEPTION);
-  UpdateAllLifecyclePhasesForTest();
-  EXPECT_TRUE(element->ComputedStyleRef().HasCurrentBackgroundColorAnimation());
-  EXPECT_TRUE(element->ComputedStyleRef().CompositablePaintAnimationChanged());
-
-  // Do an unrelated change to clear the flag.
-  element->classList().toggle("unrelated", ASSERT_NO_EXCEPTION);
-  UpdateAllLifecyclePhasesForTest();
-  EXPECT_TRUE(element->ComputedStyleRef().HasCurrentBackgroundColorAnimation());
-  EXPECT_FALSE(element->ComputedStyleRef().CompositablePaintAnimationChanged());
-
-  // Verify that paint is invalidated by a forced style resolve.
-  ASSERT_TRUE(element->GetLayoutObject());
-  EXPECT_FALSE(element->GetLayoutObject()->ShouldCheckForPaintInvalidation());
-  element->classList().toggle("newtiming", ASSERT_NO_EXCEPTION);
-  GetDocument().UpdateStyleAndLayoutTree();
-  EXPECT_TRUE(element->ComputedStyleRef().HasCurrentBackgroundColorAnimation());
-  EXPECT_TRUE(element->ComputedStyleRef().CompositablePaintAnimationChanged());
-  ASSERT_TRUE(element->GetLayoutObject());
-  EXPECT_TRUE(element->GetLayoutObject()->ShouldCheckForPaintInvalidation());
 }
 
 TEST_P(CSSAnimationsTest, UpdateAnimationFlags_AnimatingElement) {
@@ -683,7 +628,7 @@ TEST_P(CSSAnimationsTest, UpdateAnimationFlags_AnimatingElement) {
     <div id=test>Test</div>
   )HTML");
 
-  Element* element = GetDocument().getElementById("test");
+  Element* element = GetDocument().getElementById(AtomicString("test"));
   ASSERT_TRUE(element);
 
   Element* before = element->GetPseudoElement(kPseudoIdBefore);
@@ -718,7 +663,7 @@ TEST_P(CSSAnimationsTest, CSSTransitionBlockedByAnimationUseCounter) {
     <div id=test class=animate>Test</div>
   )HTML");
 
-  Element* element = GetDocument().getElementById("test");
+  Element* element = GetDocument().getElementById(AtomicString("test"));
   ASSERT_TRUE(element);
 
   // Verify that we see animation effects.
@@ -728,7 +673,7 @@ TEST_P(CSSAnimationsTest, CSSTransitionBlockedByAnimationUseCounter) {
 
   // Attempt to trigger transition. This should not work, because there's a
   // current animation on the same property.
-  element->classList().Add("change");
+  element->classList().Add(AtomicString("change"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(15, element->ComputedStyleRef().ZIndex());
   EXPECT_TRUE(IsUseCounted(WebFeature::kCSSTransitionBlockedByAnimation));
@@ -737,15 +682,15 @@ TEST_P(CSSAnimationsTest, CSSTransitionBlockedByAnimationUseCounter) {
   // Transition should still not trigger because of
   // |previous_active_interpolations_for_animations_|.
   ClearUseCounter(WebFeature::kCSSTransitionBlockedByAnimation);
-  element->classList().Remove("animate");
-  element->classList().Remove("change");
+  element->classList().Remove(AtomicString("animate"));
+  element->classList().Remove(AtomicString("change"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(0, element->ComputedStyleRef().ZIndex());
   EXPECT_TRUE(IsUseCounted(WebFeature::kCSSTransitionBlockedByAnimation));
 
   // Finally trigger the transition.
   ClearUseCounter(WebFeature::kCSSTransitionBlockedByAnimation);
-  element->classList().Add("change");
+  element->classList().Add(AtomicString("change"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(50, element->ComputedStyleRef().ZIndex());
   EXPECT_FALSE(IsUseCounted(WebFeature::kCSSTransitionBlockedByAnimation));
@@ -758,6 +703,8 @@ TEST_P(CSSAnimationsTest, CSSTransitionBlockedByAnimationUseCounter) {
 class CSSAnimationsCompositorSyncTest : public CSSAnimationsTest {
  public:
   CSSAnimationsCompositorSyncTest() = default;
+  explicit CSSAnimationsCompositorSyncTest(bool auto_start)
+      : auto_start_(auto_start) {}
 
   void SetUp() override {
     CSSAnimationsTest::SetUp();
@@ -780,17 +727,23 @@ class CSSAnimationsCompositorSyncTest : public CSSAnimationsTest {
       <div id='test'>TEST</div>
     )HTML");
 
-    element_ = GetDocument().getElementById("test");
+    element_ = GetDocument().getElementById(AtomicString("test"));
     UpdateAllLifecyclePhasesForTest();
     ElementAnimations* animations = element_->GetElementAnimations();
     EXPECT_FALSE(animations);
 
-    element_->setAttribute(html_names::kClassAttr, "fade");
+    element_->setAttribute(html_names::kClassAttr, AtomicString("fade"));
     UpdateAllLifecyclePhasesForTest();
+
+    if (!auto_start_) {
+      return;
+    }
+
     SyncAnimationOnCompositor(/*needs_start_time*/ true);
 
     Animation* animation = GetAnimation();
     EXPECT_TRUE(animation->HasActiveAnimationsOnCompositor());
+    VerifyCompositorStartTime(TimelineTime().since_origin().InMillisecondsF());
     VerifyCompositorPlaybackRate(1.0);
     VerifyCompositorTimeOffset(0.0);
     VerifyCompositorIterationTime(0);
@@ -800,6 +753,8 @@ class CSSAnimationsCompositorSyncTest : public CSSAnimationsTest {
     UpdateAllLifecyclePhasesForTest();
     EXPECT_NEAR(0.5, element_->GetComputedStyle()->Opacity(), kTolerance);
     EXPECT_EQ(compositor_group, animation->CompositorGroup());
+    VerifyCompositorStartTime(TimelineTime().since_origin().InMillisecondsF() -
+                              500);
     VerifyCompositorPlaybackRate(1.0);
     VerifyCompositorTimeOffset(0.0);
     VerifyCompositorIterationTime(500);
@@ -811,7 +766,7 @@ class CSSAnimationsCompositorSyncTest : public CSSAnimationsTest {
     // persist the reference.
     ElementAnimations* element_animations = element_->GetElementAnimations();
     EXPECT_EQ(1u, element_animations->Animations().size());
-    return (*element_animations->Animations().begin()).key;
+    return (*element_animations->Animations().begin()).key.Get();
   }
 
   void NotifyStartTime() {
@@ -857,6 +812,13 @@ class CSSAnimationsCompositorSyncTest : public CSSAnimationsTest {
                 kTimeToleranceMilliseconds);
   }
 
+  void VerifyCompositorStartTime(double expected_value) {
+    cc::KeyframeModel* keyframe_model = GetCompositorKeyframeForOpacity();
+    EXPECT_NEAR(expected_value,
+                keyframe_model->start_time().since_origin().InMillisecondsF(),
+                kTimeToleranceMilliseconds);
+  }
+
   base::TimeDelta CompositorIterationTime() {
     cc::KeyframeModel* keyframe_model = GetCompositorKeyframeForOpacity();
     return keyframe_model->TrimTimeToCurrentIteration(TimelineTime());
@@ -874,14 +836,39 @@ class CSSAnimationsCompositorSyncTest : public CSSAnimationsTest {
     const gfx::FloatAnimationCurve* opacity_curve =
         gfx::FloatAnimationCurve::ToFloatAnimationCurve(
             keyframe_model->curve());
-    EXPECT_NEAR(expected_value, opacity_curve->GetValue(iteration_time),
+    EXPECT_NEAR(expected_value,
+                opacity_curve->GetTransformedValue(
+                    iteration_time, gfx::TimingFunction::LimitDirection::RIGHT),
                 kTolerance);
   }
 
   Persistent<Element> element_;
+  bool auto_start_ = true;
+};
+
+class CSSAnimationsCompositorStartTest
+    : public CSSAnimationsCompositorSyncTest {
+ public:
+  CSSAnimationsCompositorStartTest() : CSSAnimationsCompositorSyncTest(false) {}
 };
 
 INSTANTIATE_PAINT_TEST_SUITE_P(CSSAnimationsCompositorSyncTest);
+
+// Verifies that cancel is immediately reflected in style update despite being
+// deferred on the compositor until PreCommit.
+TEST_P(CSSAnimationsCompositorSyncTest, AsyncCancel) {
+  Animation* animation = GetAnimation();
+  EXPECT_TRUE(
+      element_->GetComputedStyle()->IsRunningOpacityAnimationOnCompositor());
+  animation->cancel();
+  GetDocument().View()->UpdateLifecycleToLayoutClean(
+      DocumentUpdateReason::kTest);
+  EXPECT_FALSE(animation->HasActiveAnimationsOnCompositor());
+  EXPECT_FALSE(
+      element_->GetComputedStyle()->IsRunningOpacityAnimationOnCompositor());
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_FALSE(animation->HasActiveAnimationsOnCompositor());
+}
 
 // Verifies that changes to the playback rate are synced with the compositor.
 TEST_P(CSSAnimationsCompositorSyncTest, UpdatePlaybackRate) {
@@ -903,6 +890,8 @@ TEST_P(CSSAnimationsCompositorSyncTest, UpdatePlaybackRate) {
   // is calculated as follows:
   // time_offset = current_time / playback_rate = 0.5 / 0.5 = 1.0.
   VerifyCompositorTimeOffset(1000);
+  // Start time must have been reset.
+  VerifyCompositorStartTime(TimelineTime().since_origin().InMillisecondsF());
   VerifyCompositorIterationTime(500);
   VerifyCompositorOpacity(0.5);
 
@@ -913,6 +902,8 @@ TEST_P(CSSAnimationsCompositorSyncTest, UpdatePlaybackRate) {
   EXPECT_NEAR(0.25, element_->GetComputedStyle()->Opacity(), kTolerance);
   EXPECT_EQ(post_update_compositor_group, animation->CompositorGroup());
   VerifyCompositorTimeOffset(1000);
+  VerifyCompositorStartTime(TimelineTime().since_origin().InMillisecondsF() -
+                            500);
   VerifyCompositorIterationTime(750);
   VerifyCompositorOpacity(0.25);
 }
@@ -937,6 +928,8 @@ TEST_P(CSSAnimationsCompositorSyncTest, Reverse) {
   SyncAnimationOnCompositor(/*needs_start_time*/ true);
 
   // Verify updates to cc Keyframe model.
+  // Start time must have been reset.
+  VerifyCompositorStartTime(TimelineTime().since_origin().InMillisecondsF());
   VerifyCompositorPlaybackRate(-1.0);
   VerifyCompositorTimeOffset(500);
   VerifyCompositorIterationTime(500);
@@ -948,6 +941,8 @@ TEST_P(CSSAnimationsCompositorSyncTest, Reverse) {
   UpdateAllLifecyclePhasesForTest();
   EXPECT_NEAR(0.75, element_->GetComputedStyle()->Opacity(), kTolerance);
   EXPECT_EQ(post_update_compositor_group, animation->CompositorGroup());
+  VerifyCompositorStartTime(TimelineTime().since_origin().InMillisecondsF() -
+                            250);
   VerifyCompositorIterationTime(250);
   VerifyCompositorOpacity(0.75);
 }
@@ -980,6 +975,7 @@ TEST_P(CSSAnimationsCompositorSyncTest, SetStartTime) {
   SyncAnimationOnCompositor(/*needs_start_time*/ false);
 
   // Verify updates to cc Keyframe model.
+  VerifyCompositorStartTime(new_start_time->GetAsDouble());
   VerifyCompositorPlaybackRate(1.0);
   VerifyCompositorTimeOffset(0.0);
   VerifyCompositorIterationTime(250);
@@ -991,6 +987,7 @@ TEST_P(CSSAnimationsCompositorSyncTest, SetStartTime) {
   UpdateAllLifecyclePhasesForTest();
   EXPECT_NEAR(0.5, element_->GetComputedStyle()->Opacity(), kTolerance);
   EXPECT_EQ(post_update_compositor_group, animation->CompositorGroup());
+  VerifyCompositorStartTime(new_start_time->GetAsDouble());
   VerifyCompositorIterationTime(500);
   VerifyCompositorOpacity(0.5);
 }
@@ -1018,6 +1015,8 @@ TEST_P(CSSAnimationsCompositorSyncTest, SetCurrentTime) {
   SyncAnimationOnCompositor(/*needs_start_time*/ false);
 
   // Verify updates to cc Keyframe model.
+  // Start time should be set to the recalculated value.
+  VerifyCompositorStartTime(animation->startTime()->GetAsDouble());
   VerifyCompositorPlaybackRate(1.0);
   VerifyCompositorTimeOffset(0.0);
   VerifyCompositorIterationTime(750);
@@ -1033,11 +1032,83 @@ TEST_P(CSSAnimationsCompositorSyncTest, SetCurrentTime) {
   VerifyCompositorOpacity(0.05);
 }
 
+TEST_P(CSSAnimationsCompositorSyncTest, PendingCancel) {
+  Animation* animation = GetAnimation();
+  EXPECT_TRUE(animation->HasActiveAnimationsOnCompositor());
+  animation->cancel();
+  // Cancel is still pending. We avoid stopping on the compositor until commit
+  // to prevent blocking on a protected sequence longer than necessary.
+  EXPECT_FALSE(animation->HasActiveAnimationsOnCompositor());
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_FALSE(animation->HasActiveAnimationsOnCompositor());
+}
+
+TEST_P(CSSAnimationsCompositorSyncTest, CancelThenPlay) {
+  Animation* animation = GetAnimation();
+  EXPECT_TRUE(animation->HasActiveAnimationsOnCompositor());
+  animation->cancel();
+  animation->play();
+  EXPECT_FALSE(animation->HasActiveAnimationsOnCompositor());
+  UpdateAllLifecyclePhasesForTest();
+  SyncAnimationOnCompositor(/*needs_start_time*/ true);
+  // Animation is rewound to the start.
+  VerifyCompositorOpacity(1.0);
+  EXPECT_TRUE(animation->HasActiveAnimationsOnCompositor());
+}
+
+TEST_P(CSSAnimationsCompositorSyncTest, PauseSetCurrentTimePlay) {
+  // Opacity changes linearly from 1 to 0 over 1 second. The setup leaves the
+  // animation at the midpoint.
+  Animation* animation = GetAnimation();
+
+  // Advances the clock, and ensures that the compositor animation is not
+  // restarted and that it remains in sync.
+  AdvanceClockSeconds(0.2);
+  UpdateAllLifecyclePhasesForTest();
+  VerifyCompositorOpacity(0.3);
+
+  animation->pause();
+  // Advance current time.
+  animation->setCurrentTime(MakeGarbageCollected<V8CSSNumberish>(750),
+                            ASSERT_NO_EXCEPTION);
+  animation->play();
+  UpdateAllLifecyclePhasesForTest();
+  SyncAnimationOnCompositor(/*needs_start_time*/ true);
+  VerifyCompositorOpacity(0.25);
+}
+
+INSTANTIATE_PAINT_TEST_SUITE_P(CSSAnimationsCompositorStartTest);
+
+// Simulate slow start of a composited animation (e.g. due to paint holding).
+TEST_P(CSSAnimationsCompositorStartTest, DelayedStart) {
+  // Opacity changes linearly from 1 to 0 over 1 second.
+  // Animation has not been started on the compositor.
+  Animation* animation = GetAnimation();
+
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_FALSE(animation->StartTimeInternal());
+  EXPECT_TRUE(animation->HasActiveAnimationsOnCompositor());
+
+  AdvanceClockSeconds(0.1);
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_FALSE(animation->StartTimeInternal());
+  EXPECT_TRUE(animation->HasActiveAnimationsOnCompositor());
+  AdvanceClockSeconds(0.1);
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_FALSE(animation->StartTimeInternal());
+  EXPECT_TRUE(animation->HasActiveAnimationsOnCompositor());
+
+  SyncAnimationOnCompositor(/*needs_start_time*/ true);
+  EXPECT_TRUE(animation->StartTimeInternal());
+  EXPECT_TRUE(animation->HasActiveAnimationsOnCompositor());
+  VerifyCompositorOpacity(1.0);
+}
+
 TEST_P(CSSAnimationsTest, LingeringTimelineAttachments) {
   SetBodyInnerHTML(R"HTML(
     <style>
-      .defer {
-        scroll-timeline: t1 defer;
+      .scope {
+        timeline-scope: --t1;
       }
       #scroller {
         overflow: auto;
@@ -1048,18 +1119,18 @@ TEST_P(CSSAnimationsTest, LingeringTimelineAttachments) {
         width: 50px;
         height: 200px;
       }
-      .ancestor-timeline {
-        scroll-timeline: t1 ancestor;
+      .timeline {
+        scroll-timeline: --t1;
       }
     </style>
-    <div class=defer>
-      <div id=scroller class=ancestor-timeline>
+    <div class=scope>
+      <div id=scroller class=timeline>
         <div></div>
       </div>
     </div>
   )HTML");
 
-  Element* scroller = GetDocument().getElementById("scroller");
+  Element* scroller = GetDocument().getElementById(AtomicString("scroller"));
   ASSERT_TRUE(scroller);
 
   ElementAnimations* element_animations = scroller->GetElementAnimations();
@@ -1068,11 +1139,860 @@ TEST_P(CSSAnimationsTest, LingeringTimelineAttachments) {
   const CSSAnimations& css_animations = element_animations->CssAnimations();
   EXPECT_TRUE(css_animations.HasTimelines());
 
-  scroller->classList().Remove("ancestor-timeline");
+  scroller->classList().Remove(AtomicString("timeline"));
   UpdateAllLifecyclePhasesForTest();
 
   // No timeline data should linger on #scroller's CSSAnimations.
   EXPECT_FALSE(css_animations.HasTimelines());
+}
+
+TEST_P(CSSAnimationsTest, DeferredTimelineUpdate) {
+  SetBodyInnerHTML(R"HTML(
+    <div id=target>Target</div>
+  )HTML");
+
+  Element* target = GetElementById("target");
+  ASSERT_TRUE(target);
+
+  EXPECT_EQ(0u, DeferredTimelinesCount(target));
+
+  target->SetInlineStyleProperty(CSSPropertyID::kTimelineScope, "--t1");
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_EQ(1u, DeferredTimelinesCount(target));
+
+  target->SetInlineStyleProperty(CSSPropertyID::kTimelineScope, "--t1, --t2");
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_EQ(2u, DeferredTimelinesCount(target));
+
+  target->SetInlineStyleProperty(CSSPropertyID::kTimelineScope, "none");
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_EQ(0u, DeferredTimelinesCount(target));
+}
+
+TEST_P(CSSAnimationsTest, OpacityUnchangedWhileDeferred) {
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      @keyframes fade {
+        to {
+          opacity: 0.5;
+        }
+      }
+      #target {
+          width: 100px;
+          height: 100px;
+          background-color: green;
+          animation-name: fade;
+          animation-duration: 3s;
+      }
+    </style>
+    <div id="target"></div>
+  )HTML");
+
+  Element* target = GetDocument().getElementById(AtomicString("target"));
+
+  // The animation must be waiting on a deferred start time.
+  ElementAnimations* animations = target->GetElementAnimations();
+  ASSERT_EQ(1u, animations->Animations().size());
+  Animation* animation = (*animations->Animations().begin()).key;
+  ASSERT_TRUE(animation->WaitingOnDeferredStartTime());
+
+  // Ensure the opacity doesn't change, since the animation hasn't started.
+  EXPECT_EQ(target->GetComputedStyle()->Opacity(), 1);
+}
+
+void VerifyTriggerRangeBoundary(
+    const AnimationTrigger::RangeBoundary* actual,
+    const AnimationTrigger::RangeBoundary* expected) {
+  if (expected->IsString()) {
+    EXPECT_EQ(actual->GetAsString(), expected->GetAsString());
+  } else {
+    TimelineRangeOffset* expected_offset = expected->GetAsTimelineRangeOffset();
+    TimelineRangeOffset* actual_offset = actual->GetAsTimelineRangeOffset();
+    if (expected_offset->hasRangeName()) {
+      EXPECT_EQ(expected_offset->rangeName(), actual_offset->rangeName());
+    }
+
+    if (expected_offset->hasOffset()) {
+      EXPECT_TRUE(expected_offset->offset()->Equals(*actual_offset->offset()));
+    }
+  }
+}
+
+class CSSAnimationsTriggerTest : public CSSAnimationsTest {
+ public:
+  using Type = AnimationTrigger::Type;
+
+  void TestAnimationTrigger(
+      AnimationTrigger* trigger,
+      AnimationTrigger::Type expected_type,
+      std::optional<bool> expect_view_timeline,
+      AnimationTrigger::RangeBoundary* expected_start,
+      AnimationTrigger::RangeBoundary* expected_end,
+      AnimationTrigger::RangeBoundary* expected_exit_start,
+      AnimationTrigger::RangeBoundary* expected_exit_end);
+
+  void TestRangeStartChange(
+      Element* target,
+      Animation* animation,
+      AtomicString new_class,
+      bool expect_same,
+      const AnimationTrigger::RangeBoundary* expected_bounday);
+
+  AnimationTrigger::RangeBoundary* MakeRangeOffsetBoundary(
+      std::optional<V8TimelineRange::Enum> range,
+      std::optional<int> pct) {
+    TimelineRangeOffset* offset = MakeGarbageCollected<TimelineRangeOffset>();
+    if (range) {
+      offset->setRangeName(V8TimelineRange(*range));
+    }
+    if (pct) {
+      offset->setOffset(
+          CSSNumericValue::FromCSSValue(*CSSNumericLiteralValue::Create(
+              *pct, CSSNumericLiteralValue::UnitType::kPercentage)));
+    }
+    return MakeGarbageCollected<AnimationTrigger::RangeBoundary>(offset);
+  }
+};
+
+INSTANTIATE_PAINT_TEST_SUITE_P(CSSAnimationsTriggerTest);
+
+void CSSAnimationsTriggerTest::TestAnimationTrigger(
+    AnimationTrigger* trigger,
+    AnimationTrigger::Type expected_type,
+    std::optional<bool> expect_view_timeline,
+    AnimationTrigger::RangeBoundary* expected_start,
+    AnimationTrigger::RangeBoundary* expected_end,
+    AnimationTrigger::RangeBoundary* expected_exit_start,
+    AnimationTrigger::RangeBoundary* expected_exit_end) {
+  EXPECT_NE(trigger, nullptr);
+  EXPECT_EQ(trigger->type(), expected_type);
+
+  AnimationTimeline* timeline = trigger->timeline();
+  if (!expect_view_timeline.has_value()) {
+    EXPECT_EQ(timeline, &GetDocument().Timeline());
+  } else if (expect_view_timeline.value() == false) {
+    EXPECT_TRUE(timeline->IsScrollTimeline());
+  } else {
+    EXPECT_TRUE(timeline->IsViewTimeline());
+  }
+
+  const AnimationTrigger::RangeBoundary* range_start =
+      trigger->rangeStart(nullptr);
+  VerifyTriggerRangeBoundary(range_start, expected_start);
+
+  const AnimationTrigger::RangeBoundary* range_end = trigger->rangeEnd(nullptr);
+  VerifyTriggerRangeBoundary(range_end, expected_end);
+
+  const AnimationTrigger::RangeBoundary* exit_range_start =
+      trigger->exitRangeStart(nullptr);
+  VerifyTriggerRangeBoundary(exit_range_start, expected_exit_start);
+
+  const AnimationTrigger::RangeBoundary* exit_range_end =
+      trigger->exitRangeEnd(nullptr);
+  VerifyTriggerRangeBoundary(exit_range_end, expected_exit_end);
+}
+
+TEST_P(CSSAnimationsTriggerTest, AnimationTriggerOnceOnly) {
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      @keyframes myAnim {
+        from { transform: scaleX(1); }
+        to { transform: scaleX(5); }
+      }
+      .subject {
+        height: 50px;
+        width: 50px;
+        animation: myAnim linear 0.5s forwards;
+        animation-trigger: once;
+      }
+     .scroller {
+        overflow-y: scroll;
+        height: 500px;
+        width: 500px;
+        border: solid 1px;
+        position: relative;
+      }
+      #space {
+        width: 50px;
+        height: 600px;
+      }
+    </style>
+    <div id="scroller" class="scroller">
+      <div id="space"></div>
+      <div id="target" class="subject"></div>
+      <div id="space"></div>
+    </div>
+  )HTML");
+
+  Element* target = GetDocument().getElementById(AtomicString("target"));
+  ElementAnimations* animations = target->GetElementAnimations();
+  Animation* animation = (*animations->Animations().begin()).key;
+
+  AnimationTrigger* trigger = animation->trigger();
+
+  AnimationTrigger::RangeBoundary* normal =
+      MakeGarbageCollected<AnimationTrigger::RangeBoundary>("normal");
+  AnimationTrigger::RangeBoundary* auto_offset =
+      MakeGarbageCollected<AnimationTrigger::RangeBoundary>("auto");
+  TestAnimationTrigger(trigger, V8AnimationTriggerType(Type::Enum::kOnce),
+                       /* expect_view_timeline */ std::nullopt, normal, normal,
+                       auto_offset, auto_offset);
+}
+
+TEST_P(CSSAnimationsTriggerTest, AnimationTriggerViewOnly) {
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      @keyframes myAnim {
+        from { transform: scaleX(1); }
+        to { transform: scaleX(5); }
+      }
+      .subject {
+        height: 50px;
+        width: 50px;
+        animation: myAnim linear 0.5s forwards;
+        animation-trigger: view();
+      }
+     .scroller {
+        overflow-y: scroll;
+        height: 500px;
+        width: 500px;
+        border: solid 1px;
+        position: relative;
+      }
+      #space {
+        width: 50px;
+        height: 600px;
+      }
+    </style>
+    <div id="scroller" class="scroller">
+      <div id="space"></div>
+      <div id="target" class="subject"></div>
+      <div id="space"></div>
+    </div>
+  )HTML");
+
+  Element* target = GetDocument().getElementById(AtomicString("target"));
+  ElementAnimations* animations = target->GetElementAnimations();
+  Animation* animation = (*animations->Animations().begin()).key;
+
+  AnimationTrigger* trigger = animation->trigger();
+  AnimationTrigger::RangeBoundary* normal =
+      MakeGarbageCollected<AnimationTrigger::RangeBoundary>("normal");
+  AnimationTrigger::RangeBoundary* auto_offset =
+      MakeGarbageCollected<AnimationTrigger::RangeBoundary>("auto");
+  TestAnimationTrigger(trigger, V8AnimationTriggerType(Type::Enum::kOnce),
+                       /* expect_view_timeline */ true, normal, normal,
+                       auto_offset, auto_offset);
+}
+
+TEST_P(CSSAnimationsTriggerTest, AnimationTriggerScrollOnce) {
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      @keyframes myAnim {
+        from { transform: scaleX(1); }
+        to { transform: scaleX(5); }
+      }
+      .subject {
+        height: 50px;
+        width: 50px;
+        animation: myAnim linear 0.5s forwards;
+        animation-trigger: scroll() once 25% 75%;
+      }
+     .scroller {
+        overflow-y: scroll;
+        height: 500px;
+        width: 500px;
+        border: solid 1px;
+        position: relative;
+      }
+      #space {
+        width: 50px;
+        height: 600px;
+      }
+    </style>
+    <div id="scroller" class="scroller">
+      <div id="space"></div>
+      <div id="target" class="subject"></div>
+      <div id="space"></div>
+    </div>
+  )HTML");
+
+  Element* target = GetDocument().getElementById(AtomicString("target"));
+  ElementAnimations* animations = target->GetElementAnimations();
+  Animation* animation = (*animations->Animations().begin()).key;
+
+  AnimationTrigger* trigger = animation->trigger();
+  EXPECT_NE(trigger, nullptr);
+
+  AnimationTrigger::RangeBoundary* pct25 =
+      MakeRangeOffsetBoundary(std::nullopt, 25);
+  AnimationTrigger::RangeBoundary* pct75 =
+      MakeRangeOffsetBoundary(std::nullopt, 75);
+  AnimationTrigger::RangeBoundary* auto_offset =
+      MakeGarbageCollected<AnimationTrigger::RangeBoundary>("auto");
+
+  TestAnimationTrigger(trigger, V8AnimationTriggerType(Type::Enum::kOnce),
+                       /* expect_view_timeline */ false, pct25, pct75,
+                       auto_offset, auto_offset);
+}
+
+TEST_P(CSSAnimationsTriggerTest, AnimationTriggerViewAlternate) {
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      @keyframes myAnim {
+        from { transform: scaleX(1); }
+        to { transform: scaleX(5); }
+      }
+      .subject {
+        height: 50px;
+        width: 50px;
+        animation: myAnim linear 0.5s forwards;
+        animation-trigger: view() alternate contain 10% contain 90%;
+      }
+     .scroller {
+        overflow-y: scroll;
+        height: 500px;
+        width: 500px;
+        border: solid 1px;
+        position: relative;
+      }
+      #space {
+        width: 50px;
+        height: 600px;
+      }
+    </style>
+    <div id="scroller" class="scroller">
+      <div id="space"></div>
+      <div id="target" class="subject"></div>
+      <div id="space"></div>
+    </div>
+  )HTML");
+
+  Element* target = GetDocument().getElementById(AtomicString("target"));
+
+  ElementAnimations* animations = target->GetElementAnimations();
+  Animation* animation = (*animations->Animations().begin()).key;
+
+  AnimationTrigger* trigger = animation->trigger();
+  EXPECT_NE(trigger, nullptr);
+
+  AnimationTrigger::RangeBoundary* contain10 =
+      MakeRangeOffsetBoundary(V8TimelineRange::Enum::kContain, 10);
+  AnimationTrigger::RangeBoundary* contain90 =
+      MakeRangeOffsetBoundary(V8TimelineRange::Enum::kContain, 90);
+  AnimationTrigger::RangeBoundary* auto_offset =
+      MakeGarbageCollected<AnimationTrigger::RangeBoundary>("auto");
+
+  TestAnimationTrigger(trigger, V8AnimationTriggerType(Type::Enum::kAlternate),
+                       /* expect_view_timeline */ true, contain10, contain90,
+                       auto_offset, auto_offset);
+}
+
+TEST_P(CSSAnimationsTriggerTest, AnimationTriggerViewRepeat) {
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      @keyframes myAnim {
+        from { transform: scaleX(1); }
+        to { transform: scaleX(5); }
+      }
+      .subject {
+        height: 50px;
+        width: 50px;
+        animation: myAnim linear 0.5s forwards;
+        animation-trigger: view() repeat contain 10% contain 90% cover 1% cover 99%;
+      }
+     .scroller {
+        overflow-y: scroll;
+        height: 500px;
+        width: 500px;
+        border: solid 1px;
+        position: relative;
+      }
+      #space {
+        width: 50px;
+        height: 600px;
+      }
+    </style>
+    <div id="scroller" class="scroller">
+      <div id="space"></div>
+      <div id="target" class="subject"></div>
+      <div id="space"></div>
+    </div>
+  )HTML");
+
+  Element* target = GetDocument().getElementById(AtomicString("target"));
+
+  ElementAnimations* animations = target->GetElementAnimations();
+  Animation* animation = (*animations->Animations().begin()).key;
+
+  AnimationTrigger* trigger = animation->trigger();
+  EXPECT_NE(trigger, nullptr);
+
+  AnimationTrigger::RangeBoundary* contain10 =
+      MakeRangeOffsetBoundary(V8TimelineRange::Enum::kContain, 10);
+  AnimationTrigger::RangeBoundary* contain90 =
+      MakeRangeOffsetBoundary(V8TimelineRange::Enum::kContain, 90);
+  AnimationTrigger::RangeBoundary* cover1 =
+      MakeRangeOffsetBoundary(V8TimelineRange::Enum::kCover, 1);
+  AnimationTrigger::RangeBoundary* cover99 =
+      MakeRangeOffsetBoundary(V8TimelineRange::Enum::kCover, 99);
+
+  TestAnimationTrigger(trigger, V8AnimationTriggerType(Type::Enum::kRepeat),
+                       true, contain10, contain90, cover1, cover99);
+}
+
+TEST_P(CSSAnimationsTriggerTest, AnimationTriggerNamedTimeline) {
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      @keyframes myAnim {
+        from { transform: scaleX(1); }
+        to { transform: scaleX(5); }
+      }
+      .subject {
+        height: 50px;
+        width: 50px;
+        view-timeline: --viewtimeline;
+      }
+      #target {
+        animation: myAnim linear 0.5s forwards;
+        animation-trigger: --viewtimeline repeat contain 10% contain 90%;
+      }
+     .scroller {
+        overflow-y: scroll;
+        height: 500px;
+        width: 500px;
+        border: solid 1px;
+        position: relative;
+      }
+      #space {
+        width: 50px;
+        height: 600px;
+      }
+      #wrapper {
+        timeline-scope: --viewtimeline;
+      }
+    </style>
+    <div id="wrapper">
+      <div id="scroller" class="scroller">
+        <div id="space"></div>
+        <div class="subject"></div>
+        <div id="space"></div>
+      </div>
+      <div id="target"></div>
+    </div>
+  )HTML");
+
+  Element* target = GetDocument().getElementById(AtomicString("target"));
+
+  ElementAnimations* animations = target->GetElementAnimations();
+  Animation* animation = (*animations->Animations().begin()).key;
+
+  AnimationTrigger* trigger = animation->trigger();
+  EXPECT_NE(trigger, nullptr);
+
+  EXPECT_EQ(trigger->type(), V8AnimationTriggerType::Enum::kRepeat);
+
+  EXPECT_FALSE(trigger->GetTimelineInternal()->IsScrollTimeline());
+  EXPECT_TRUE(trigger->timeline()->IsViewTimeline());
+}
+
+TEST_P(CSSAnimationsTriggerTest, AnimationTriggerChangeTimeline) {
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      @keyframes stretch {
+        from { transform: scaleX(1); }
+        to { transform: scaleX(5); }
+      }
+      .subject {
+        height: 50px;
+        width: 50px;
+      }
+      #target {
+        animation: stretch linear 0.5s forwards;
+      }
+      .view_trigger {
+        animation-trigger: view() repeat contain 10% contain 90%;
+      }
+      .scroll_trigger {
+        animation-trigger: --scrolltimeline repeat contain 10% contain 90%;
+      }
+     .scroller {
+        overflow-y: scroll;
+        height: 500px;
+        width: 500px;
+        border: solid 1px;
+        position: relative;
+        scroll-timeline-name: --scrolltimeline;
+      }
+      #space {
+        width: 50px;
+        height: 600px;
+      }
+      #wrapper {
+        timeline-scope: --scrolltimeline;
+      }
+    </style>
+    <div id="wrapper">
+      <div id="scroller" class="scroller">
+        <div id="space"></div>
+        <div class="subject"></div>
+        <div id="space"></div>
+      </div>
+      <div id="target"></div>
+    </div>
+  )HTML");
+
+  Element* target = GetDocument().getElementById(AtomicString("target"));
+  UpdateAllLifecyclePhasesForTest();
+
+  ElementAnimations* animations = target->GetElementAnimations();
+  Animation* animation = (*animations->Animations().begin()).key;
+
+  AnimationTrigger* trigger = animation->trigger();
+  EXPECT_NE(trigger, nullptr);
+
+  EXPECT_EQ(trigger->timeline(), &GetDocument().Timeline());
+
+  target->setAttribute(html_names::kClassAttr, AtomicString("view_trigger"));
+
+  AnimationTrigger* view_trigger = animation->trigger();
+  EXPECT_NE(trigger, view_trigger);
+  EXPECT_NE(view_trigger->timeline(), nullptr);
+  EXPECT_TRUE(view_trigger->timeline()->IsViewTimeline());
+
+  target->setAttribute(html_names::kClassAttr, AtomicString("scroll_trigger"));
+
+  AnimationTrigger* scroll_trigger = animation->trigger();
+  EXPECT_NE(view_trigger, scroll_trigger);
+  EXPECT_NE(scroll_trigger->GetTimelineInternal(), nullptr);
+  EXPECT_FALSE(scroll_trigger->GetTimelineInternal()->IsScrollTimeline());
+  EXPECT_FALSE(scroll_trigger->timeline()->IsViewTimeline());
+  EXPECT_TRUE(scroll_trigger->timeline()->IsScrollTimeline());
+}
+
+TEST_P(CSSAnimationsTriggerTest, AnimationTriggerChangeType) {
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      @keyframes stretch {
+        from { transform: scaleX(1); }
+        to { transform: scaleX(5); }
+      }
+      .subject {
+        height: 50px;
+        width: 50px;
+      }
+      #target {
+        animation: stretch linear 0.5s forwards;
+      }
+      .repeat_trigger {
+        animation-trigger: view() repeat contain 10% contain 90%;
+      }
+      .once_trigger {
+        animation-trigger: view() once contain 10% contain 90%;
+      }
+     .scroller {
+        overflow-y: scroll;
+        height: 500px;
+        width: 500px;
+        border: solid 1px;
+        position: relative;
+      }
+      #space {
+        width: 50px;
+        height: 600px;
+      }
+    </style>
+    <div id="wrapper">
+      <div id="scroller" class="scroller">
+        <div id="space"></div>
+        <div class="subject"></div>
+        <div id="space"></div>
+      </div>
+      <div id="target"></div>
+    </div>
+  )HTML");
+
+  Element* target = GetDocument().getElementById(AtomicString("target"));
+
+  ElementAnimations* animations = target->GetElementAnimations();
+  Animation* animation = (*animations->Animations().begin()).key;
+
+  AnimationTrigger* trigger = animation->trigger();
+  EXPECT_NE(trigger, nullptr);
+
+  EXPECT_EQ(trigger->timeline(), &GetDocument().Timeline());
+
+  target->classList().Add(AtomicString("repeat_trigger"));
+
+  AnimationTrigger* repeat_trigger = animation->trigger();
+  EXPECT_NE(trigger, repeat_trigger);
+  EXPECT_EQ(repeat_trigger->type(), AnimationTrigger::Type::Enum::kRepeat);
+
+  target->classList().Remove(AtomicString("repeat_trigger"));
+  target->classList().Add(AtomicString("once_trigger"));
+
+  AnimationTrigger* once_trigger = animation->trigger();
+  EXPECT_NE(once_trigger, repeat_trigger);
+  EXPECT_EQ(once_trigger->type(), AnimationTrigger::Type::Enum::kOnce);
+}
+
+void CSSAnimationsTriggerTest::TestRangeStartChange(
+    Element* target,
+    Animation* animation,
+    AtomicString new_class,
+    bool expect_same,
+    const AnimationTrigger::RangeBoundary* expected_boundary) {
+  AnimationTrigger* old_trigger = animation->trigger();
+  target->setAttribute(html_names::kClassAttr, new_class);
+  AnimationTrigger* new_trigger = animation->trigger();
+  if (expect_same) {
+    EXPECT_EQ(old_trigger, new_trigger);
+  } else {
+    EXPECT_NE(old_trigger, new_trigger);
+  }
+  VerifyTriggerRangeBoundary(new_trigger->rangeStart(nullptr),
+                             expected_boundary);
+}
+
+TEST_P(CSSAnimationsTriggerTest, AnimationTriggerChangeRangeStart) {
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      @keyframes stretch {
+        from { transform: scaleX(1); }
+        to { transform: scaleX(5); }
+      }
+      .subject {
+        height: 50px;
+        width: 50px;
+      }
+      #target {
+        animation: stretch linear 0.5s forwards;
+      }
+      .normal_trigger {
+        animation-trigger: view() repeat;
+      }
+      .normal_trigger2 {
+        animation-trigger: view() repeat;
+      }
+      .contain10_trigger {
+        animation-trigger: view() once contain 10%;
+      }
+      .contain10_trigger2 {
+        animation-trigger: view() once contain 10%;
+      }
+      .contain90_trigger {
+        animation-trigger: view() once contain 90%;
+      }
+      .cover90_trigger {
+        animation-trigger: view() once cover 90%;
+      }
+     .scroller {
+        overflow-y: scroll;
+        height: 500px;
+        width: 500px;
+        border: solid 1px;
+        position: relative;
+      }
+      #space {
+        width: 50px;
+        height: 600px;
+      }
+    </style>
+    <div id="wrapper">
+      <div id="scroller" class="scroller">
+        <div id="space"></div>
+        <div id="target" class="subject"></div>
+        <div id="space"></div>
+      </div>
+    </div>
+  )HTML");
+
+  Element* target = GetDocument().getElementById(AtomicString("target"));
+  ElementAnimations* animations = target->GetElementAnimations();
+  Animation* animation = (*animations->Animations().begin()).key;
+
+  AnimationTrigger* trigger = animation->trigger();
+  EXPECT_NE(trigger, nullptr);
+  EXPECT_EQ(trigger->timeline(), &GetDocument().Timeline());
+
+  const AnimationTrigger::RangeBoundary* normal =
+      MakeGarbageCollected<AnimationTrigger::RangeBoundary>(String("normal"));
+  TestRangeStartChange(target, animation, AtomicString("normal_trigger"),
+                       /* expect_same */ false, normal);
+  TestRangeStartChange(target, animation, AtomicString("normal_trigger2"),
+                       /* expect_same */ true, normal);
+
+  AnimationTrigger::RangeBoundary* contain10 =
+      MakeRangeOffsetBoundary(V8TimelineRange::Enum::kContain, 10);
+  TestRangeStartChange(target, animation, AtomicString("contain10_trigger"),
+                       /* expect_same */ false, contain10);
+  TestRangeStartChange(target, animation, AtomicString("contain10_trigger2"),
+                       /* expect_same */ true, contain10);
+
+  AnimationTrigger::RangeBoundary* contain90 =
+      MakeRangeOffsetBoundary(V8TimelineRange::Enum::kContain, 90);
+  TestRangeStartChange(target, animation, AtomicString("contain90_trigger"),
+                       /* expect_same */ false, contain90);
+
+  AnimationTrigger::RangeBoundary* cover90 =
+      MakeRangeOffsetBoundary(V8TimelineRange::Enum::kCover, 90);
+  TestRangeStartChange(target, animation, AtomicString("cover90_trigger"),
+                       /* expect_same */ false, cover90);
+}
+
+TEST_P(CSSAnimationsTriggerTest, NonTriggerChange) {
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      @keyframes stretch {
+        from { transform: scaleX(1); }
+        to { transform: scaleX(5); }
+      }
+      .subject50x50 {
+        height: 50px;
+        width: 50px;
+      }
+      .subject100x100 {
+        height: 100px;
+        width: 100px;
+      }
+      .target {
+        height: 10px;
+        width: 10px;
+        animation: stretch linear 0.5s forwards;
+        animation-trigger: view() once contain 10% contain 90%;
+      }
+      .scroll_tl {
+        animation-timeline: scroll();
+      }
+      .view_tl {
+        animation-timeline: view();
+      }
+      .range_contain {
+        animation-range: contain 10% contain 90%;
+      }
+      .range_cover {
+        animation-range: cover 1% cover 99%;
+      }
+     .scroller {
+        overflow-y: scroll;
+        height: 500px;
+        width: 500px;
+        border: solid 1px;
+        position: relative;
+      }
+      #space {
+        width: 50px;
+        height: 600px;
+      }
+    </style>
+    <div id="wrapper">
+      <div id="scroller" class="scroller">
+        <div id="space"></div>
+        <div id="target" class="target subject50x50"></div>
+        <div id="space"></div>
+      </div>
+    </div>
+  )HTML");
+
+  Element* target = GetDocument().getElementById(AtomicString("target"));
+  ElementAnimations* animations = target->GetElementAnimations();
+  Animation* animation = (*animations->Animations().begin()).key;
+
+  AnimationTrigger* original_trigger = animation->trigger();
+  EXPECT_NE(original_trigger, nullptr);
+  EXPECT_TRUE(original_trigger->timeline()->IsViewTimeline());
+
+  target->classList().Add(AtomicString("subject100x100"));
+  EXPECT_EQ(original_trigger, animation->trigger());
+
+  EXPECT_FALSE(animation->timeline()->IsScrollTimeline());
+  target->classList().Add(AtomicString("scroll_tl"));
+  EXPECT_EQ(original_trigger, animation->trigger());
+  EXPECT_TRUE(animation->timeline()->IsScrollTimeline());
+
+  EXPECT_FALSE(animation->timeline()->IsViewTimeline());
+  target->classList().Remove(AtomicString("scroll_tl"));
+  target->classList().Add(AtomicString("view_tl"));
+  EXPECT_EQ(original_trigger, animation->trigger());
+  EXPECT_TRUE(animation->timeline()->IsViewTimeline());
+
+  const AnimationTrigger::RangeBoundary* normal =
+      MakeGarbageCollected<AnimationTrigger::RangeBoundary>(String("normal"));
+  VerifyTriggerRangeBoundary(animation->rangeStart(), normal);
+  target->classList().Add(AtomicString("range_contain"));
+  EXPECT_EQ(original_trigger, animation->trigger());
+  AnimationTrigger::RangeBoundary* contain10 =
+      MakeRangeOffsetBoundary(V8TimelineRange::Enum::kContain, 10);
+  VerifyTriggerRangeBoundary(animation->rangeStart(), contain10);
+
+  target->classList().Remove(AtomicString("range_contain"));
+  target->classList().Add(AtomicString("range_cover"));
+  EXPECT_EQ(original_trigger, animation->trigger());
+  AnimationTrigger::RangeBoundary* cover1 =
+      MakeRangeOffsetBoundary(V8TimelineRange::Enum::kCover, 1);
+  VerifyTriggerRangeBoundary(animation->rangeStart(), cover1);
+}
+
+TEST_P(CSSAnimationsTriggerTest, IgnoreCSSAfterJSSetsTrigger) {
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      @keyframes stretch {
+        from { transform: scaleX(1); }
+        to { transform: scaleX(5); }
+      }
+      .subject {
+        height: 50px;
+        width: 50px;
+      }
+      #target {
+        animation: stretch linear 0.5s forwards;
+      }
+      .once_trigger {
+        animation-trigger: view() once contain 10% contain 90%;
+      }
+      .repeat_trigger {
+        animation-trigger: view() repeat contain 10% contain 90%;
+      }
+     .scroller {
+        overflow-y: scroll;
+        height: 500px;
+        width: 500px;
+        border: solid 1px;
+        position: relative;
+      }
+      #space {
+        width: 50px;
+        height: 600px;
+      }
+    </style>
+    <div id="wrapper">
+      <div id="scroller" class="scroller">
+        <div id="space"></div>
+        <div class="subject"></div>
+        <div id="space"></div>
+      </div>
+      <div id="target" class="once_trigger"></div>
+    </div>
+  )HTML");
+
+  Element* target = GetDocument().getElementById(AtomicString("target"));
+
+  ElementAnimations* animations = target->GetElementAnimations();
+  Animation* animation = (*animations->Animations().begin()).key;
+
+  AnimationTrigger* trigger = animation->trigger();
+  EXPECT_NE(trigger, nullptr);
+  EXPECT_EQ(trigger->type(), AnimationTrigger::Type::Enum::kOnce);
+
+  AnimationTrigger* js_trigger = MakeGarbageCollected<AnimationTrigger>(
+      &GetDocument().Timeline(),
+      AnimationTrigger::Type(AnimationTrigger::Type::Enum::kAlternate), nullptr,
+      nullptr, nullptr, nullptr);
+  animation->setTrigger(js_trigger);
+  EXPECT_EQ(animation->trigger(), js_trigger);
+
+  target->setAttribute(html_names::kClassAttr, AtomicString("repeat_trigger"));
+  EXPECT_EQ(animation->trigger(), js_trigger);
 }
 
 }  // namespace blink

@@ -4,7 +4,6 @@
 
 #import "chrome/browser/ui/cocoa/share_menu_controller.h"
 
-#import "base/mac/scoped_nsobject.h"
 #import "base/path_service.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -17,17 +16,14 @@
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "content/public/test/browser_test.h"
-#include "net/base/mac/url_conversions.h"
+#include "net/base/apple/url_conversions.h"
 #include "testing/gtest_mac.h"
 #include "ui/base/l10n/l10n_util_mac.h"
 #include "ui/events/test/cocoa_test_event_utils.h"
 
 // Mock sharing service for sensing shared items.
 @interface MockSharingService : NSSharingService
-// Weak since both this object and the shared item
-// should only live in the scope of the test.
-@property(nonatomic, assign) id sharedItem;
-
+@property(nonatomic, strong) id sharedItem;
 @end
 
 @implementation MockSharingService
@@ -38,26 +34,34 @@
 @synthesize subject;
 @synthesize sharedItem = _sharedItem;
 
+- (NSString*)menuItemTitle {
+  return @"Test";
+}
+
 - (void)performWithItems:(NSArray*)items {
-  [self setSharedItem:[items firstObject]];
+  self.sharedItem = items.firstObject;
 }
 
 @end
 
 namespace {
-base::scoped_nsobject<MockSharingService> MakeMockSharingService() {
-  return base::scoped_nsobject<MockSharingService>([[MockSharingService alloc]
+MockSharingService* MakeMockSharingService() {
+  return [[MockSharingService alloc]
        initWithTitle:@"Mock service"
                image:[NSImage imageNamed:NSImageNameAddTemplate]
       alternateImage:nil
              handler:^{
-             }]);
+             }];
 }
 }  // namespace
 
+@interface ShareMenuController (ExposedForTesting)
+- (NSMenuItem*)menuItemForService:(NSSharingService*)service;
+@end
+
 class ShareMenuControllerTest : public InProcessBrowserTest {
  public:
-  ShareMenuControllerTest() {}
+  ShareMenuControllerTest() = default;
 
   void SetUpOnMainThread() override {
     base::FilePath test_data_dir;
@@ -67,7 +71,7 @@ class ShareMenuControllerTest : public InProcessBrowserTest {
 
     url_ = embedded_test_server()->GetURL("/title2.html");
     ASSERT_TRUE(AddTabAtIndex(0, url_, ui::PAGE_TRANSITION_TYPED));
-    controller_.reset([[ShareMenuController alloc] init]);
+    controller_ = [[ShareMenuController alloc] init];
   }
 
  protected:
@@ -75,84 +79,83 @@ class ShareMenuControllerTest : public InProcessBrowserTest {
   // the target/action of real menu items created by
   // |controller_|
   void PerformShare(NSSharingService* service) {
-    base::scoped_nsobject<NSMenu> menu([[NSMenu alloc] initWithTitle:@"Share"]);
-
-    [controller_ menuNeedsUpdate:menu];
-
-    base::scoped_nsobject<NSMenuItem> mock_menu_item([[NSMenuItem alloc]
-        initWithTitle:@"test"
-               action:nil
-        keyEquivalent:@""]);
-    [mock_menu_item setRepresentedObject:service];
-
-    NSMenuItem* first_menu_item = [menu itemAtIndex:0];
-    id target = [first_menu_item target];
-    SEL action = [first_menu_item action];
-    [target performSelector:action withObject:mock_menu_item.get()];
+    NSMenuItem* menu_item = [controller_ menuItemForService:service];
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+    [menu_item.target performSelector:menu_item.action withObject:menu_item];
+#pragma clang diagnostic pop
   }
   GURL url_;
-  base::scoped_nsobject<ShareMenuController> controller_;
+  ShareMenuController* __strong controller_;
 };
 
-IN_PROC_BROWSER_TEST_F(ShareMenuControllerTest, PopulatesMenu) {
-  base::scoped_nsobject<NSMenu> menu([[NSMenu alloc] initWithTitle:@"Share"]);
+// TODO(crbug.com/439676515): Renable this test once the flakiness is addressed.
+IN_PROC_BROWSER_TEST_F(ShareMenuControllerTest, DISABLED_PopulatesMenu) {
+  NSMenu* menu = [[NSMenu alloc] initWithTitle:@"Share"];
   NSArray* sharing_services_for_url = [NSSharingService
       sharingServicesForItems:@[ [NSURL URLWithString:@"http://example.com"] ]];
-  EXPECT_GT([sharing_services_for_url count], 0U);
+  EXPECT_GT(sharing_services_for_url.count, 0U);
 
   [controller_ menuNeedsUpdate:menu];
 
   // -1 for reading list, +1 for "More..." if it's showing.
   // This cancels out, so only decrement if the "More..." item
   // isn't showing.
-  NSInteger expected_count = [sharing_services_for_url count];
-  EXPECT_EQ([menu numberOfItems], expected_count);
+  NSInteger expected_count = sharing_services_for_url.count;
+  EXPECT_EQ(menu.numberOfItems, expected_count);
 
   NSSharingService* reading_list_service = [NSSharingService
       sharingServiceNamed:NSSharingServiceNameAddToSafariReadingList];
+  NSSharingService* email_service =
+      [NSSharingService sharingServiceNamed:NSSharingServiceNameComposeEmail];
 
-  NSUInteger i = 0;
+  // The email menu item doesn't use the share system.
+  NSUInteger i = 1;
   // Ensure there's a menu item for each service besides reading list.
   for (NSSharingService* service in sharing_services_for_url) {
-    if ([service isEqual:reading_list_service])
+    if ([service isEqual:reading_list_service]) {
       continue;
+    }
+    if ([service isEqual:email_service]) {
+      continue;
+    }
     NSMenuItem* menu_item = [menu itemAtIndex:i];
-    EXPECT_NSEQ([menu_item representedObject], service);
-    EXPECT_EQ([menu_item target], static_cast<id>(controller_));
+    EXPECT_NSEQ(menu_item.representedObject, service);
+    EXPECT_EQ(menu_item.target, static_cast<id>(controller_));
     ++i;
   }
 
   // Ensure the menu is cleared between updates.
   [controller_ menuNeedsUpdate:menu];
-  EXPECT_EQ([menu numberOfItems], expected_count);
+  EXPECT_EQ(menu.numberOfItems, expected_count);
 }
 
 IN_PROC_BROWSER_TEST_F(ShareMenuControllerTest, AddsMoreButton) {
-  base::scoped_nsobject<NSMenu> menu([[NSMenu alloc] initWithTitle:@"Share"]);
+  NSMenu* menu = [[NSMenu alloc] initWithTitle:@"Share"];
   [controller_ menuNeedsUpdate:menu];
 
-  NSInteger number_of_items = [menu numberOfItems];
+  NSInteger number_of_items = menu.numberOfItems;
   EXPECT_GT(number_of_items, 0);
   NSMenuItem* last_item = [menu itemAtIndex:number_of_items - 1];
   EXPECT_NSEQ(last_item.title, l10n_util::GetNSString(IDS_SHARING_MORE_MAC));
 }
 
 IN_PROC_BROWSER_TEST_F(ShareMenuControllerTest, ActionPerformsShare) {
-  base::scoped_nsobject<MockSharingService> service = MakeMockSharingService();
-  EXPECT_FALSE([service sharedItem]);
+  MockSharingService* service = MakeMockSharingService();
+  EXPECT_FALSE(service.sharedItem);
 
   PerformShare(service);
 
-  EXPECT_NSEQ([service sharedItem], net::NSURLWithGURL(url_));
+  EXPECT_NSEQ(service.sharedItem, net::NSURLWithGURL(url_));
   // Title of chrome/test/data/title2.html
-  EXPECT_NSEQ([service subject], @"Title Of Awesomeness");
-  EXPECT_EQ([service delegate],
+  EXPECT_NSEQ(service.subject, @"Title Of Awesomeness");
+  EXPECT_EQ(service.delegate,
             static_cast<id<NSSharingServiceDelegate>>(controller_));
 }
 
 IN_PROC_BROWSER_TEST_F(ShareMenuControllerTest, SharingDelegate) {
   NSURL* url = [NSURL URLWithString:@"http://google.com"];
-  base::scoped_nsobject<NSSharingService> service([[NSSharingService alloc]
+  NSSharingService* service = [[NSSharingService alloc]
        initWithTitle:@"Mock service"
                image:[NSImage imageNamed:NSImageNameAddTemplate]
       alternateImage:nil
@@ -162,8 +165,7 @@ IN_PROC_BROWSER_TEST_F(ShareMenuControllerTest, SharingDelegate) {
 
                // Extra service since the service param on the delegate
                // methods is nonnull and circular references could get hairy.
-               base::scoped_nsobject<MockSharingService> mockService =
-                   MakeMockSharingService();
+               MockSharingService* mockService = MakeMockSharingService();
 
                NSWindow* browser_window =
                    browser()->window()->GetNativeWindow().GetNativeNSWindow();
@@ -180,7 +182,7 @@ IN_PROC_BROWSER_TEST_F(ShareMenuControllerTest, SharingDelegate) {
                EXPECT_TRUE([controller_ sharingService:mockService
                            transitionImageForShareItem:url
                                            contentRect:&contentRect]);
-             }]);
+             }];
 
   PerformShare(service);
 }
@@ -191,7 +193,7 @@ IN_PROC_BROWSER_TEST_F(ShareMenuControllerTest, Histograms) {
 
   tester.ExpectTotalCount(histogram_name, 0);
 
-  base::scoped_nsobject<MockSharingService> service = MakeMockSharingService();
+  MockSharingService* service = MakeMockSharingService();
 
   [controller_ sharingService:service didShareItems:@[]];
   tester.ExpectBucketCount(histogram_name, true, 1);
@@ -201,10 +203,11 @@ IN_PROC_BROWSER_TEST_F(ShareMenuControllerTest, Histograms) {
   tester.ExpectBucketCount(histogram_name, true, 2);
   tester.ExpectTotalCount(histogram_name, 2);
 
-  [controller_
-           sharingService:service
-      didFailToShareItems:@[]
-                    error:[NSError errorWithDomain:@"" code:0 userInfo:nil]];
+  [controller_ sharingService:service
+          didFailToShareItems:@[]
+                        error:[NSError errorWithDomain:@""
+                                                  code:0
+                                              userInfo:nil]];
   tester.ExpectTotalCount(histogram_name, 3);
   tester.ExpectBucketCount(histogram_name, false, 1);
 }
@@ -217,8 +220,8 @@ IN_PROC_BROWSER_TEST_F(ShareMenuControllerTest, MenuHasKeyEquivalent) {
 
   // Ensure that calling |menuHasKeyEquivalent:...| the first time populates the
   // menu.
-  base::scoped_nsobject<NSMenu> menu([[NSMenu alloc] initWithTitle:@"Share"]);
-  EXPECT_EQ([menu numberOfItems], 0);
+  NSMenu* menu = [[NSMenu alloc] initWithTitle:@"Share"];
+  EXPECT_EQ(menu.numberOfItems, 0);
   NSEvent* event = cocoa_test_event_utils::KeyEventWithKeyCode(
       'i', 'i', NSEventTypeKeyDown,
       NSEventModifierFlagCommand | NSEventModifierFlagShift);

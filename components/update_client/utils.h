@@ -5,21 +5,21 @@
 #ifndef COMPONENTS_UPDATE_CLIENT_UTILS_H_
 #define COMPONENTS_UPDATE_CLIENT_UTILS_H_
 
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "base/files/file_path.h"
 #include "base/functional/callback_forward.h"
+#include "base/time/time.h"
 #include "base/values.h"
 #include "components/update_client/update_client.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class GURL;
 
 namespace update_client {
 
-class Component;
 struct CrxComponent;
 
 extern const char kArchAmd64[];
@@ -30,9 +30,6 @@ extern const char kArchArm64[];
 // Installer attributes are component-specific metadata, which may be serialized
 // in an update check request.
 using InstallerAttribute = std::pair<std::string, std::string>;
-
-// Returns true if the |component| contains a valid differential update url.
-bool HasDiffUpdate(const Component& component);
 
 // Returns true if the |status_code| represents a server error 5xx.
 bool IsHttpServerError(int status_code);
@@ -55,7 +52,7 @@ bool DeleteEmptyDirectory(const base::FilePath& filepath);
 std::string GetCrxComponentID(const CrxComponent& component);
 
 // Returns a CRX id from a public key hash.
-std::string GetCrxIdFromPublicKeyHash(const std::vector<uint8_t>& pk_hash);
+std::string GetCrxIdFromPublicKeyHash(base::span<const uint8_t> pk_hash);
 
 // Returns true if the actual SHA-256 hash of the |filepath| matches the
 // |expected_hash|.
@@ -81,20 +78,8 @@ CrxInstaller::Result InstallFunctionWrapper(
 // Deserializes the CRX manifest. The top level must be a dictionary.
 // Returns a base::Value::Dict object of type dictionary on success, or nullopt
 // on failure.
-absl::optional<base::Value::Dict> ReadManifest(
+std::optional<base::Value::Dict> ReadManifest(
     const base::FilePath& unpack_path);
-
-// Converts a custom, specific installer error (and optionally extended error)
-// to an installer result.
-template <typename T>
-CrxInstaller::Result ToInstallerResult(const T& error, int extended_error = 0) {
-  static_assert(std::is_enum<T>::value,
-                "Use an enum class to define custom installer errors");
-  return CrxInstaller::Result(
-      static_cast<int>(update_client::InstallError::CUSTOM_ERROR_BASE) +
-          static_cast<int>(error),
-      extended_error);
-}
 
 // Returns a string representation of the processor architecture. Uses
 // `base::win::OSInfo::IsWowX86OnARM64` and
@@ -103,6 +88,19 @@ CrxInstaller::Result ToInstallerResult(const T& error, int extended_error = 0) {
 // If not, or not Windows, falls back to
 // `base::SysInfo().OperatingSystemArchitecture`.
 std::string GetArchitecture();
+
+// Retries recursively deleting the given path five times using
+// `base::DeletePathRecursively`, sleeping for a second between successive
+// tries. Returns true if successful, false otherwise. This function is used
+// when there is a likelihood that the files in `path` can be locked
+// temporarily, such as by antivirus software.
+bool RetryDeletePathRecursively(const base::FilePath& path);
+
+// Similar to `RetryDeletePathRecursively`above, but allows specifying the
+// number of `tries` and the `seconds_between_tries`.
+bool RetryDeletePathRecursivelyCustom(const base::FilePath& path,
+                                      size_t tries,
+                                      base::TimeDelta seconds_between_tries);
 
 }  // namespace update_client
 

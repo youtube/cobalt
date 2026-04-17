@@ -62,9 +62,10 @@
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/tools/fake_proof_verifier.h"
 #include "quiche/quic/tools/quic_url.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_text_utils.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 namespace {
 
@@ -100,6 +101,10 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(bool, quiet, false,
                                 "Set to true for a quieter output experience.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    bool, output_resolved_server_address, false,
+    "Set to true to print the resolved IP of the server.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, quic_version, "",
     "QUIC version to speak, e.g. 21. If not set, then all available "
     "versions are offered in the handshake. Also supports wire versions "
@@ -114,10 +119,6 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, client_connection_options, "",
     "Client connection options as ASCII tags separated by commas, "
     "e.g. \"ABCD,EFGH\"");
-
-DEFINE_QUICHE_COMMAND_LINE_FLAG(bool, quic_ietf_draft, false,
-                                "Use the IETF draft version. This also enables "
-                                "required internal QUIC flags.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, version_mismatch_ok, false,
@@ -146,6 +147,10 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(int32_t, initial_mtu, 0,
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
     int32_t, num_requests, 1,
     "How many sequential requests to make on a single connection.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(bool, ignore_errors, false,
+                                "If true, ignore connection/response errors "
+                                "and send all num_requests anyway.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, disable_certificate_verification, false,
@@ -258,17 +263,6 @@ int QuicToyClient::SendRequestsAndPrintResponses(
 
   quic::ParsedQuicVersionVector versions = quic::CurrentSupportedVersions();
 
-  if (quiche::GetQuicheCommandLineFlag(FLAGS_quic_ietf_draft)) {
-    quic::QuicVersionInitializeSupportForIetfDraft();
-    versions = {};
-    for (const ParsedQuicVersion& version : AllSupportedVersions()) {
-      if (version.HasIetfQuicFrames() &&
-          version.handshake_protocol == quic::PROTOCOL_TLS1_3) {
-        versions.push_back(version);
-      }
-    }
-  }
-
   std::string quic_version_string =
       quiche::GetQuicheCommandLineFlag(FLAGS_quic_version);
   if (!quic_version_string.empty()) {
@@ -318,13 +312,9 @@ int QuicToyClient::SendRequestsAndPrintResponses(
         ParseQuicTagVector(client_connection_options_string));
   }
   if (quiche::GetQuicheCommandLineFlag(FLAGS_multi_packet_chlo)) {
-    // Make the ClientHello span multiple packets by adding a custom transport
-    // parameter.
-    constexpr auto kCustomParameter =
-        static_cast<TransportParameters::TransportParameterId>(0x173E);
-    std::string custom_value(2000, '?');
-    config.custom_transport_parameters_to_send()[kCustomParameter] =
-        custom_value;
+    // Make the ClientHello span multiple packets by adding a large 'discard'
+    // transport parameter.
+    config.SetDiscardLengthToSend(2000);
   }
   config.set_max_time_before_crypto_handshake(
       QuicTime::Delta::FromMilliseconds(quiche::GetQuicheCommandLineFlag(
@@ -374,8 +364,10 @@ int QuicToyClient::SendRequestsAndPrintResponses(
       << "The length of --server_connection_id must be even. It is "
       << server_connection_id_hex_string.size() << "-byte long.";
   if (!server_connection_id_hex_string.empty()) {
-    const std::string server_connection_id_bytes =
-        absl::HexStringToBytes(server_connection_id_hex_string);
+    std::string server_connection_id_bytes;
+    QUICHE_CHECK(absl::HexStringToBytes(server_connection_id_hex_string,
+                                        &server_connection_id_bytes))
+        << "Failed to parse --server_connection_id hex string.";
     client->set_server_connection_id_override(QuicConnectionId(
         server_connection_id_bytes.data(), server_connection_id_bytes.size()));
   }
@@ -423,19 +415,25 @@ int QuicToyClient::SendRequestsAndPrintResponses(
               << client->session()->error_details() << std::endl;
     return 1;
   }
-  std::cerr << "Connected to " << host << ":" << port << std::endl;
+
+  std::cout << "Connected to " << host << ":" << port;
+  if (quiche::GetQuicheCommandLineFlag(FLAGS_output_resolved_server_address)) {
+    std::cout << ", resolved IP " << client->server_address().host().ToString();
+  }
+  std::cout << std::endl;
 
   // Construct the string body from flags, if provided.
   std::string body = quiche::GetQuicheCommandLineFlag(FLAGS_body);
   if (!quiche::GetQuicheCommandLineFlag(FLAGS_body_hex).empty()) {
     QUICHE_DCHECK(quiche::GetQuicheCommandLineFlag(FLAGS_body).empty())
         << "Only set one of --body and --body_hex.";
-    body = absl::HexStringToBytes(
-        quiche::GetQuicheCommandLineFlag(FLAGS_body_hex));
+    const bool success = absl::HexStringToBytes(
+        quiche::GetQuicheCommandLineFlag(FLAGS_body_hex), &body);
+    QUICHE_DCHECK(success) << "Failed to parse --body_hex.";
   }
 
   // Construct a GET or POST request for supplied URL.
-  spdy::Http2HeaderBlock header_block;
+  quiche::HttpHeaderBlock header_block;
   header_block[":method"] = body.empty() ? "GET" : "POST";
   header_block[":scheme"] = url.scheme();
   header_block[":authority"] = url.HostPort();
@@ -468,10 +466,7 @@ int QuicToyClient::SendRequestsAndPrintResponses(
       std::cout << "headers:" << header_block.DebugString();
       if (!quiche::GetQuicheCommandLineFlag(FLAGS_body_hex).empty()) {
         // Print the user provided hex, rather than binary body.
-        std::cout << "body:\n"
-                  << QuicheTextUtils::HexDump(absl::HexStringToBytes(
-                         quiche::GetQuicheCommandLineFlag(FLAGS_body_hex)))
-                  << std::endl;
+        std::cout << "body:\n" << QuicheTextUtils::HexDump(body) << std::endl;
       } else {
         std::cout << "body: " << body << std::endl;
       }
@@ -498,13 +493,18 @@ int QuicToyClient::SendRequestsAndPrintResponses(
                 << std::endl;
       std::cout << "early data accepted: " << client->EarlyDataAccepted()
                 << std::endl;
+      QUIC_LOG(INFO) << "Request completed with TTFB(us): "
+                     << client->latest_ttfb().ToMicroseconds() << ", TTLB(us): "
+                     << client->latest_ttlb().ToMicroseconds();
     }
 
     if (!client->connected()) {
       std::cerr << "Request caused connection failure. Error: "
                 << quic::QuicErrorCodeToString(client->session()->error())
                 << std::endl;
-      return 1;
+      if (!quiche::GetQuicheCommandLineFlag(FLAGS_ignore_errors)) {
+        return 1;
+      }
     }
 
     int response_code = client->latest_response_code();
@@ -517,11 +517,15 @@ int QuicToyClient::SendRequestsAndPrintResponses(
       } else {
         std::cout << "Request failed (redirect " << response_code << ")."
                   << std::endl;
-        return 1;
+        if (!quiche::GetQuicheCommandLineFlag(FLAGS_ignore_errors)) {
+          return 1;
+        }
       }
     } else {
       std::cout << "Request failed (" << response_code << ")." << std::endl;
-      return 1;
+      if (!quiche::GetQuicheCommandLineFlag(FLAGS_ignore_errors)) {
+        return 1;
+      }
     }
 
     if (i + 1 < num_requests) {  // There are more requests to perform.
@@ -536,7 +540,9 @@ int QuicToyClient::SendRequestsAndPrintResponses(
         if (!client->Connect()) {
           std::cerr << "Failed to reconnect client between requests."
                     << std::endl;
-          return 1;
+          if (!quiche::GetQuicheCommandLineFlag(FLAGS_ignore_errors)) {
+            return 1;
+          }
         }
       } else if (!quiche::GetQuicheCommandLineFlag(
                      FLAGS_disable_port_changes)) {

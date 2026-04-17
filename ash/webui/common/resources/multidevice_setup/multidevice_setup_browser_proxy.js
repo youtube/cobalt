@@ -1,16 +1,16 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 import {sendWithPromise} from 'chrome://resources/ash/common/cr.m.js';
-import {addSingletonGetter} from 'chrome://resources/ash/common/cr_deprecated.js';
 
 /** @interface */
 export class BrowserProxy {
   /**
    * Requests profile information; namely, a dictionary containing the user's
    * e-mail address and profile photo.
-   * @return {!Promise<{profilePhotoUrl: string, email: string}>}
+   * @return {!Promise<{profilePhotoUrl: string, email: string,
+   *     authenticateByPin: boolean}>}
    */
   getProfileInfo() {}
 
@@ -23,15 +23,24 @@ export class BrowserProxy {
 
 /** @implements {BrowserProxy} */
 export class BrowserProxyImpl {
-  /** @override */
   getProfileInfo() {
     return sendWithPromise('getProfileInfo');
   }
 
-  /** @override */
   openMultiDeviceSettings() {
     chrome.send('openMultiDeviceSettings');
   }
+
+  /** @return {!BrowserProxy} */
+  static getInstance() {
+    return instance || (instance = new BrowserProxyImpl());
+  }
+
+  /** @param {!BrowserProxy} obj */
+  static setInstance(obj) {
+    instance = obj;
+  }
 }
 
-addSingletonGetter(BrowserProxyImpl);
+/** @type {?BrowserProxy} */
+let instance = null;

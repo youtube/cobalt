@@ -7,13 +7,12 @@
 #include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/core/editing/frame_selection.h"
+#include "third_party/blink/renderer/core/layout/inline/inline_cursor.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/ng_inline_cursor.h"
 #include "third_party/blink/renderer/core/paint/paint_and_raster_invalidation_test.h"
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
 #include "third_party/blink/renderer/core/testing/core_unit_test_helper.h"
 #include "third_party/blink/renderer/platform/json/json_values.h"
-#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 
 namespace blink {
 
@@ -98,27 +97,29 @@ TEST_F(ObjectPaintInvalidatorTest, VisibilityHidden) {
     <div id="target"></div>
   )HTML");
 
-  auto* target_element = GetDocument().getElementById("target");
+  auto* target_element = GetDocument().getElementById(AtomicString("target"));
   const auto* target = target_element->GetLayoutObject();
   ValidateDisplayItemClient(target);
   EXPECT_TRUE(IsValidDisplayItemClient(target));
 
-  target_element->setAttribute(html_names::kStyleAttr, "width: 200px");
+  target_element->setAttribute(html_names::kStyleAttr,
+                               AtomicString("width: 200px"));
   GetDocument().View()->UpdateAllLifecyclePhasesExceptPaint(
       DocumentUpdateReason::kTest);
   EXPECT_TRUE(IsValidDisplayItemClient(target));
   UpdateAllLifecyclePhasesForTest();
 
-  target_element->setAttribute(html_names::kStyleAttr,
-                               "width: 200px; visibility: visible");
+  target_element->setAttribute(
+      html_names::kStyleAttr,
+      AtomicString("width: 200px; visibility: visible"));
   GetDocument().View()->UpdateAllLifecyclePhasesExceptPaint(
       DocumentUpdateReason::kTest);
   EXPECT_FALSE(IsValidDisplayItemClient(target));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_TRUE(IsValidDisplayItemClient(target));
 
-  target_element->setAttribute(html_names::kStyleAttr,
-                               "width: 200px; visibility: hidden");
+  target_element->setAttribute(
+      html_names::kStyleAttr, AtomicString("width: 200px; visibility: hidden"));
   GetDocument().View()->UpdateAllLifecyclePhasesExceptPaint(
       DocumentUpdateReason::kTest);
   EXPECT_FALSE(IsValidDisplayItemClient(target));
@@ -133,14 +134,15 @@ TEST_F(ObjectPaintInvalidatorTest,
     <div id='target' style="color: rgb(80, 230, 175);">Text</div>
   )HTML");
 
-  auto* div = GetDocument().getElementById("target");
+  auto* div = GetDocument().getElementById(AtomicString("target"));
   auto* text = div->firstChild();
   const auto* object = text->GetLayoutObject();
   ValidateDisplayItemClient(object);
   EXPECT_TRUE(IsValidDisplayItemClient(object));
   EXPECT_FALSE(object->ShouldCheckForPaintInvalidation());
 
-  div->setAttribute(html_names::kStyleAttr, "color: rgb(80, 100, 175)");
+  div->setAttribute(html_names::kStyleAttr,
+                    AtomicString("color: rgb(80, 100, 175)"));
   GetDocument().View()->UpdateLifecycleToLayoutClean(
       DocumentUpdateReason::kTest);
   EXPECT_FALSE(IsValidDisplayItemClient(object));

@@ -11,7 +11,7 @@
  * Event 'loaded' will be fired when the page has been successfully loaded.
  */
 
-import '//resources/cr_elements/cr_dialog/cr_dialog.js';
+import '//resources/ash/common/cr_elements/cr_dialog/cr_dialog.js';
 import '//resources/polymer/v3_0/iron-icon/iron-icon.js';
 import '../components/dialogs/oobe_adaptive_dialog.js';
 import '../components/buttons/oobe_next_button.js';
@@ -22,14 +22,14 @@ import './assistant_icons.html.js';
 import './setting_zippy.js';
 
 import {loadTimeData} from '//resources/ash/common/load_time_data.m.js';
-import {afterNextRender, html, mixinBehaviors, Polymer, PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {afterNextRender, PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {OobeDialogHostBehavior} from '../components/behaviors/oobe_dialog_host_behavior.js';
-import {OobeI18nBehavior, OobeI18nBehaviorInterface} from '../components/behaviors/oobe_i18n_behavior.js';
+import {OobeDialogHostMixin} from '../components/mixins/oobe_dialog_host_mixin.js';
+import {OobeI18nMixin} from '../components/mixins/oobe_i18n_mixin.js';
 
+import {getTemplate} from './assistant_value_prop.html.js';
 import {BrowserProxyImpl} from './browser_proxy.js';
-import {AssistantNativeIconType, HtmlSanitizer, webviewStripLinksContentScript} from './utils.js';
-
+import {HtmlSanitizer, webviewStripLinksContentScript} from './utils.js';
 
 /**
  * Name of the screen.
@@ -42,7 +42,7 @@ const VALUE_PROP_SCREEN_ID = 'ValuePropScreen';
  * @extends {PolymerElement}
  */
 const AssistantValuePropBase =
-    mixinBehaviors([OobeI18nBehavior, OobeDialogHostBehavior], PolymerElement);
+    OobeDialogHostMixin(OobeI18nMixin(PolymerElement));
 
 /**
  * @polymer
@@ -53,7 +53,7 @@ class AssistantValueProp extends AssistantValuePropBase {
   }
 
   static get template() {
-    return html`{__html_template__}`;
+    return getTemplate();
   }
 
   static get properties() {
@@ -284,7 +284,7 @@ class AssistantValueProp extends AssistantValuePropBase {
    * Handles event when value prop webview cannot be loaded.
    */
   onWebViewErrorOccurred(details) {
-    if (details && details.error == 'net::ERR_ABORTED') {
+    if (details && details.error === 'net::ERR_ABORTED') {
       // Retry triggers net::ERR_ABORTED, so ignore it.
       // TODO(b/232592745): Replace with a state machine to handle aborts
       // gracefully and avoid duplicate reloads.
@@ -325,14 +325,14 @@ class AssistantValueProp extends AssistantValuePropBase {
       return;
     }
     this.headerReceived_ = true;
-    if (details.statusCode == '404') {
-      if (details.url != this.defaultUrl) {
+    if (details.statusCode === 404) {
+      if (details.url !== this.defaultUrl) {
         this.reloadWithDefaultUrl_ = true;
         return;
       } else {
         this.onWebViewErrorOccurred();
       }
-    } else if (details.statusCode != '200') {
+    } else if (details.statusCode !== 200) {
       this.onWebViewErrorOccurred();
     }
   }
@@ -387,22 +387,8 @@ class AssistantValueProp extends AssistantValuePropBase {
       for (const j in zippy_data[i]) {
         const data = zippy_data[i][j];
         const zippy = document.createElement('setting-zippy');
-        if (data['useNativeIcons']) {
-          zippy.nativeIconType = data['nativeIconType'];
-          zippy.setAttribute('nativeIconLabel', data['title']);
-        } else {
-          // TODO(crbug.com/1313994) - Remove hard coded colors in OOBE
-          const background = this.isMinorMode_ ?
-              getComputedStyle(document.body)
-                  .getPropertyValue('--cros-highlight-color' /* gblue50 */) :
-              getComputedStyle(document.body)
-                  .getPropertyValue('--cros-bg-color');
-          zippy.setAttribute(
-              'icon-src',
-              'data:text/html;charset=utf-8,' +
-                  encodeURIComponent(zippy.getWrappedIcon(
-                      data['iconUri'], data['title'], background)));
-        }
+        zippy.nativeIconType = data['nativeIconType'];
+        zippy.setAttribute('nativeIconLabel', data['title']);
         zippy.setAttribute('step', i);
         zippy.hideLine = this.isMinorMode_;
         zippy.cardStyle = this.isMinorMode_;
@@ -410,6 +396,7 @@ class AssistantValueProp extends AssistantValuePropBase {
         const title = document.createElement('div');
         title.slot = 'title';
         title.innerHTML = this.sanitizer_.sanitizeHtml(data['name']);
+        title.setAttribute('id', 'title-' + i);
         zippy.appendChild(title);
 
         const content = document.createElement('div');
@@ -417,8 +404,8 @@ class AssistantValueProp extends AssistantValuePropBase {
 
         const description = document.createElement('div');
         description.innerHTML =
-            this.sanitizer_.sanitizeHtml(data['description']);
-        description.innerHTML += '&ensp;';
+            this.sanitizer_.sanitizeHtml(data['description'] + '&ensp;');
+        description.setAttribute('id', 'description-' + i);
 
         const learnMoreLink = document.createElement('a');
         learnMoreLink.textContent = data['popupLink'];
@@ -437,6 +424,7 @@ class AssistantValueProp extends AssistantValuePropBase {
           const additionalInfo = document.createElement('div');
           additionalInfo.innerHTML =
               this.sanitizer_.sanitizeHtml(data['additionalInfo']);
+          additionalInfo.setAttribute('id', 'additional-info-' + i);
           content.appendChild(document.createElement('br'));
           content.appendChild(additionalInfo);
         }
@@ -489,9 +477,11 @@ class AssistantValueProp extends AssistantValuePropBase {
     // The webview animation only starts playing when it is focused (in order
     // to make sure the animation and the caption are in sync).
     this.valuePropView_.focus();
-    this.async(() => {
+    setTimeout(() => {
       this.buttonsDisabled = false;
-      this.$['next-button'].focus();
+      if (!this.isMinorMode_) {
+        this.$['next-button'].focus();
+      }
     }, 300);
 
     if (!this.hidden && !this.screenShown_) {
@@ -526,7 +516,9 @@ class AssistantValueProp extends AssistantValuePropBase {
     this.currentConsentStep_ += 1;
     this.showContentForStep_(this.currentConsentStep_);
     this.buttonsDisabled = false;
-    this.$['next-button'].focus();
+    if (!this.isMinorMode_) {
+      this.$['next-button'].focus();
+    }
   }
 
   /**
@@ -535,10 +527,10 @@ class AssistantValueProp extends AssistantValuePropBase {
    */
   showContentForStep_(step) {
     for (const subtitle of this.$['subtitle-container'].children) {
-      subtitle.hidden = subtitle.getAttribute('step') != step;
+      subtitle.hidden = parseInt(subtitle.getAttribute('step')) !== step;
     }
     for (const zippy of this.$['consents-container'].children) {
-      zippy.hidden = zippy.getAttribute('step') != step;
+      zippy.hidden = parseInt(zippy.getAttribute('step')) !== step;
     }
   }
 

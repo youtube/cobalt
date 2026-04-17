@@ -10,7 +10,7 @@ namespace blink {
 namespace scheduler {
 
 // static
-const char* TaskTypeNames::TaskTypeToString(TaskType task_type) {
+perfetto::StaticString TaskTypeNames::TaskTypeToString(TaskType task_type) {
   // These names are used in finch trials and should not be changed.
   switch (task_type) {
     case TaskType::kDeprecatedNone:
@@ -23,6 +23,8 @@ const char* TaskTypeNames::TaskTypeToString(TaskType task_type) {
       return "Networking";
     case TaskType::kNetworkingUnfreezable:
       return "NetworkingUnfreezable";
+    case TaskType::kNetworkingUnfreezableRenderBlockingLoading:
+      return "NetworkingUnfreezableRenderBlockingLoading";
     case TaskType::kNetworkingControl:
       return "NetworkingControl";
     case TaskType::kLowPriorityScriptExecution:
@@ -81,6 +83,10 @@ const char* TaskTypeNames::TaskTypeToString(TaskType task_type) {
       return "WebLocks";
     case TaskType::kStorage:
       return "Storage";
+    case TaskType::kClipboard:
+      return "Clipboard";
+    case TaskType::kMachineLearning:
+      return "MachineLearning";
     case TaskType::kInternalDefault:
       return "InternalDefault";
     case TaskType::kInternalLoading:
@@ -99,6 +105,10 @@ const char* TaskTypeNames::TaskTypeToString(TaskType task_type) {
       return "InternalInspector";
     case TaskType::kMainThreadTaskQueueV8:
       return "MainThreadTaskQueueV8";
+    case TaskType::kMainThreadTaskQueueV8UserVisible:
+      return "MainThreadTaskQueueV8UserVisible";
+    case TaskType::kMainThreadTaskQueueV8BestEffort:
+      return "MainThreadTaskQueueV8BestEffort";
     case TaskType::kMainThreadTaskQueueCompositor:
       return "MainThreadTaskQueueCompositor";
     case TaskType::kMainThreadTaskQueueDefault:
@@ -157,10 +167,11 @@ const char* TaskTypeNames::TaskTypeToString(TaskType task_type) {
       return "WebGPU";
     case TaskType::kInternalPostMessageForwarding:
       return "InternalPostMessageForwarding";
+    case TaskType::kInternalAutofill:
+      return "InternalAutofill";
   }
   // FrameSchedulerImpl should not call this for invalid TaskTypes.
   NOTREACHED();
-  return "";
 }
 
 }  // namespace scheduler

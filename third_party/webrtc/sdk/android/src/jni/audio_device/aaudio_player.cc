@@ -133,16 +133,16 @@ int AAudioPlayer::SetSpeakerVolume(uint32_t volume) {
   return -1;
 }
 
-absl::optional<uint32_t> AAudioPlayer::SpeakerVolume() const {
-  return absl::nullopt;
+std::optional<uint32_t> AAudioPlayer::SpeakerVolume() const {
+  return std::nullopt;
 }
 
-absl::optional<uint32_t> AAudioPlayer::MaxSpeakerVolume() const {
-  return absl::nullopt;
+std::optional<uint32_t> AAudioPlayer::MaxSpeakerVolume() const {
+  return std::nullopt;
 }
 
-absl::optional<uint32_t> AAudioPlayer::MinSpeakerVolume() const {
-  return absl::nullopt;
+std::optional<uint32_t> AAudioPlayer::MinSpeakerVolume() const {
+  return std::nullopt;
 }
 
 void AAudioPlayer::OnErrorCallback(aaudio_result_t error) {
@@ -207,8 +207,8 @@ aaudio_data_callback_result_t AAudioPlayer::OnDataCallback(void* audio_data,
     memset(audio_data, 0, num_bytes);
   } else {
     fine_audio_buffer_->GetPlayoutData(
-        rtc::MakeArrayView(static_cast<int16_t*>(audio_data),
-                           aaudio_.samples_per_frame() * num_frames),
+        webrtc::MakeArrayView(static_cast<int16_t*>(audio_data),
+                              aaudio_.samples_per_frame() * num_frames),
         static_cast<int>(latency_millis_ + 0.5));
   }
 

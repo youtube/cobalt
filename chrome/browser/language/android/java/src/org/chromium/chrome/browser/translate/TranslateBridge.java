@@ -4,10 +4,17 @@
 
 package org.chromium.chrome.browser.translate;
 
+import static org.chromium.build.NullUtil.assertNonNull;
+
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.LocaleUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.language.settings.LanguageItem;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.content_public.browser.WebContents;
 
@@ -15,25 +22,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * Bridge class that lets Android code access native code to execute translate on a tab.
- */
+/** Bridge class that lets Android code access native code to execute translate on a tab. */
+@NullMarked
 public class TranslateBridge {
     /**
      * Translates the given tab when the necessary state has been computed (e.g. source language).
      */
     public static void translateTabWhenReady(Tab tab) {
-        TranslateBridgeJni.get().manualTranslateWhenReady(tab.getWebContents());
-    }
-
-    /**
-     * Initates a translation on the given tab to the given target language. All metrics reported
-     * for this translation assume that this translation was initiated from the Translate UI. If the
-     * translation from the Context Menu or by some other means, then an extra signal needs to be
-     * passed through.
-     */
-    public static void translateTabToLanguage(Tab tab, String targetLanguageCode) {
-        TranslateBridgeJni.get().translateToLanguage(tab.getWebContents(), targetLanguageCode);
+        TranslateBridgeJni.get().manualTranslateWhenReady(assertNonNull(tab.getWebContents()));
     }
 
     /**
@@ -41,7 +37,7 @@ public class TranslateBridge {
      * Logging should only be performed when this method is called to show the translate menu item.
      */
     public static boolean canManuallyTranslate(Tab tab, boolean menuLogging) {
-        return canManuallyTranslate(tab.getWebContents(), menuLogging);
+        return canManuallyTranslate(assertNonNull(tab.getWebContents()), menuLogging);
     }
 
     /**
@@ -52,240 +48,310 @@ public class TranslateBridge {
         return TranslateBridgeJni.get().canManuallyTranslate(webContents, menuLogging);
     }
 
-    /**
-     * Returns true iff we're in a state where the manual translate IPH could be shown.
-     */
-    public static boolean shouldShowManualTranslateIPH(Tab tab) {
-        return TranslateBridgeJni.get().shouldShowManualTranslateIPH(tab.getWebContents());
+    /** Returns true iff we're in a state where the manual translate IPH could be shown. */
+    public static boolean shouldShowManualTranslateIph(Tab tab) {
+        return TranslateBridgeJni.get()
+                .shouldShowManualTranslateIph(assertNonNull(tab.getWebContents()));
     }
 
     /**
-     * Sets the language that the contents of the tab needs to be translated to.
-     * No-op in case target language is invalid or not supported.
+     * Sets the language that the contents of the tab needs to be translated to. No-op in case
+     * target language is invalid or not supported.
+     *
      * @param targetLanguage language code in ISO 639 format.
      * @param shouldAutoTranslate If true, the page should be automatically translated immediately
-     *                            to targetLanguage.
+     *     to targetLanguage.
      */
     public static void setPredefinedTargetLanguage(
             Tab tab, String targetLanguage, boolean shouldAutoTranslate) {
-        TranslateBridgeJni.get().setPredefinedTargetLanguage(
-                tab.getWebContents(), targetLanguage, shouldAutoTranslate);
+        TranslateBridgeJni.get()
+                .setPredefinedTargetLanguage(
+                        assertNonNull(tab.getWebContents()), targetLanguage, shouldAutoTranslate);
     }
 
     /**
-     * Get the page source language of the given Tab.
-     * @param tab The tab to get source language code for.
-     * @return String The source language code. Empty string if no language has been detected.
-     */
-    public static String getSourceLanguage(Tab tab) {
-        return getSourceLanguage(tab.getWebContents());
-    }
-
-    /**
-     * Get the page source language of the given contents.
-     * @param webContents The web contents to get source language code for.
-     * @return String The source language code. Empty string if no language has been detected.
-     */
-    public static String getSourceLanguage(WebContents webContents) {
-        return TranslateBridgeJni.get().getSourceLanguage(webContents);
-    }
-
-    /**
-     * Get the current page language of the given Tab.
-     * @param tab The tab to get current language code for.
-     * @return String The current language code. Empty string if no language has been detected.
-     */
-    public static String getCurrentLanguage(Tab tab) {
-        return getCurrentLanguage(tab.getWebContents());
-    }
-
-    /**
-     * Get the current page language of the given contents.
-     * @param webContents The web contents to get current language code for.
-     * @return String The current language code. Empty string if no language has been detected.
-     */
-    public static String getCurrentLanguage(WebContents webContents) {
-        return TranslateBridgeJni.get().getCurrentLanguage(webContents);
-    }
-
-    /**
+     * @param profile The current {@link Profile} for this session.
      * @return The best target language based on what the Translate Service knows about the user.
      */
-    public static String getTargetLanguage() {
-        return TranslateBridgeJni.get().getTargetLanguage();
+    public static String getTargetLanguage(Profile profile) {
+        return TranslateBridgeJni.get().getTargetLanguage(profile);
     }
 
     /**
      * The target language is stored in Translate format, which uses the old deprecated Java codes
      * for several languages (Hebrew, Indonesian), and uses "tl" while Chromium uses "fil" for
      * Tagalog/Filipino. This converts the target language into the correct Chromium format.
+     *
+     * @param profile The current {@link Profile} for this session.
      * @return The Chrome version of the users translate target language.
      */
-    public static String getTargetLanguageForChromium() {
-        return LocaleUtils.getUpdatedLanguageForChromium(getTargetLanguage());
+    public static String getTargetLanguageForChromium(Profile profile) {
+        return LocaleUtils.getUpdatedLanguageForChromium(getTargetLanguage(profile));
     }
 
     /**
      * Set the default target language the Translate Service will use.
-     * @param String targetLanguage Language code of new target language.
+     *
+     * @param profile The current {@link Profile} for this session.
+     * @param targetLanguage Language code of new target language.
      */
-    public static void setDefaultTargetLanguage(String targetLanguage) {
-        TranslateBridgeJni.get().setDefaultTargetLanguage(targetLanguage);
+    public static void setDefaultTargetLanguage(Profile profile, @Nullable String targetLanguage) {
+        TranslateBridgeJni.get().setDefaultTargetLanguage(profile, targetLanguage);
     }
 
     @CalledByNative
-    private static void addNewLanguageItemToList(List<LanguageItem> list, String code,
-            String displayName, String nativeDisplayName, boolean supportTranslate) {
+    private static void addNewLanguageItemToList(
+            List<LanguageItem> list,
+            @JniType("std::string") String code,
+            @JniType("std::string") String displayName,
+            @JniType("std::string") String nativeDisplayName,
+            boolean supportTranslate) {
         list.add(new LanguageItem(code, displayName, nativeDisplayName, supportTranslate));
     }
 
     /**
      * Reset accept-languages to its default value.
+     *
+     * @param profile The current {@link Profile} for this session.
      * @param defaultLocale A fall-back value such as en_US, de_DE, zh_CN, etc.
      */
-    public static void resetAcceptLanguages(String defaultLocale) {
-        TranslateBridgeJni.get().resetAcceptLanguages(defaultLocale);
+    public static void resetAcceptLanguages(Profile profile, String defaultLocale) {
+        TranslateBridgeJni.get().resetAcceptLanguages(profile, defaultLocale);
     }
 
     /**
+     * @param profile The current {@link Profile} for this session.
      * @return A list of LanguageItems sorted by display name that represent all languages that can
-     * be on the Chrome accept languages list.
+     *     be on the Chrome accept languages list.
      */
-    public static List<LanguageItem> getChromeLanguageList() {
+    public static List<LanguageItem> getChromeLanguageList(Profile profile) {
         List<LanguageItem> list = new ArrayList<>();
-        TranslateBridgeJni.get().getChromeAcceptLanguages(list);
+        TranslateBridgeJni.get().getChromeAcceptLanguages(profile, list);
         return list;
     }
 
     /**
-     * @return A sorted list of accept language codes for the current user.
-     *         Note that for the signed-in user, the list might contain some language codes from
-     *         other platforms but not supported on Android.
+     * @param profile The current {@link Profile} for this session.
+     * @return A sorted list of accept language codes for the current user. Note that for the
+     *     signed-in user, the list might contain some language codes from other platforms but not
+     *     supported on Android.
      */
-    public static List<String> getUserLanguageCodes() {
-        return new ArrayList<>(Arrays.asList(TranslateBridgeJni.get().getUserAcceptLanguages()));
-    }
-
-    /** @return List of languages to always translate. */
-    public static List<String> getAlwaysTranslateLanguages() {
+    public static List<String> getUserLanguageCodes(Profile profile) {
         return new ArrayList<>(
-                Arrays.asList(TranslateBridgeJni.get().getAlwaysTranslateLanguages()));
+                Arrays.asList(TranslateBridgeJni.get().getUserAcceptLanguages(profile)));
     }
 
-    /** @return List of languages that translation should not be prompted for. */
-    public static List<String> getNeverTranslateLanguages() {
+    /**
+     * @param profile The current {@link Profile} for this session.
+     * @return List of languages to always translate.
+     */
+    public static List<String> getAlwaysTranslateLanguages(Profile profile) {
         return new ArrayList<>(
-                Arrays.asList(TranslateBridgeJni.get().getNeverTranslateLanguages()));
+                Arrays.asList(TranslateBridgeJni.get().getAlwaysTranslateLanguages(profile)));
     }
 
+    /**
+     * @param profile The current {@link Profile} for this session.
+     * @return List of languages that translation should not be prompted for.
+     */
+    public static List<String> getNeverTranslateLanguages(Profile profile) {
+        return new ArrayList<>(
+                Arrays.asList(TranslateBridgeJni.get().getNeverTranslateLanguages(profile)));
+    }
+
+    /**
+     * Specifies whether a language should be automatically translated.
+     *
+     * @param profile The current {@link Profile} for this session.
+     * @param languageCode A valid language code to update.
+     * @param alwaysTranslate Whether the specified language should be automatically translated.
+     */
     public static void setLanguageAlwaysTranslateState(
-            String languageCode, boolean alwaysTranslate) {
-        TranslateBridgeJni.get().setLanguageAlwaysTranslateState(languageCode, alwaysTranslate);
+            Profile profile, @Nullable String languageCode, boolean alwaysTranslate) {
+        TranslateBridgeJni.get()
+                .setLanguageAlwaysTranslateState(profile, languageCode, alwaysTranslate);
     }
 
     /**
      * Update accept language for the current user.
+     *
+     * @param profile The current {@link Profile} for this session.
      * @param languageCode A valid language code to update.
      * @param add Whether this is an "add" operation or "delete" operation.
      */
-    public static void updateUserAcceptLanguages(String languageCode, boolean add) {
-        TranslateBridgeJni.get().updateUserAcceptLanguages(languageCode, add);
+    public static void updateUserAcceptLanguages(
+            Profile profile, @Nullable String languageCode, boolean add) {
+        TranslateBridgeJni.get().updateUserAcceptLanguages(profile, languageCode, add);
     }
 
     /**
      * Move a language to the given position of the user's accept language.
+     *
+     * @param profile The current {@link Profile} for this session.
      * @param languageCode A valid language code to set.
      * @param offset The offset from the original position of the language.
      */
-    public static void moveAcceptLanguage(String languageCode, int offset) {
-        TranslateBridgeJni.get().moveAcceptLanguage(languageCode, offset);
+    public static void moveAcceptLanguage(Profile profile, String languageCode, int offset) {
+        TranslateBridgeJni.get().moveAcceptLanguage(profile, languageCode, offset);
     }
 
     /**
      * Given an array of language codes, sets the order of the user's accepted languages to match.
+     *
+     * @param profile The current {@link Profile} for this session.
      * @param codes The new order for the user's accepted languages.
      */
-    public static void setLanguageOrder(String[] codes) {
-        TranslateBridgeJni.get().setLanguageOrder(codes);
+    public static void setLanguageOrder(Profile profile, String[] codes) {
+        TranslateBridgeJni.get().setLanguageOrder(profile, codes);
     }
 
     /**
+     * @param profile The current {@link Profile} for this session.
      * @param language The language code to check.
      * @return boolean Whether the given string is blocked for translation.
      */
-    public static boolean isBlockedLanguage(String language) {
-        return TranslateBridgeJni.get().isBlockedLanguage(language);
+    public static boolean isBlockedLanguage(Profile profile, String language) {
+        return TranslateBridgeJni.get().isBlockedLanguage(profile, language);
     }
 
     /**
      * Sets the blocked state of a given language.
+     *
+     * @param profile The current {@link Profile} for this session.
      * @param languageCode A valid language code to change.
      * @param blocked Whether to set language blocked.
      */
-    public static void setLanguageBlockedState(String languageCode, boolean blocked) {
-        TranslateBridgeJni.get().setLanguageBlockedState(languageCode, blocked);
+    public static void setLanguageBlockedState(
+            Profile profile, @Nullable String languageCode, boolean blocked) {
+        TranslateBridgeJni.get().setLanguageBlockedState(profile, languageCode, blocked);
     }
 
     /**
-     * @return Whether the explicit language prompt was shown at least once.
-     */
-    public static boolean getExplicitLanguageAskPromptShown() {
-        return TranslateBridgeJni.get().getExplicitLanguageAskPromptShown();
-    }
-
-    /**
-     * @param shown The value to set the underlying pref to: whether the prompt
-     * was shown to the user at least once.
-     */
-    public static void setExplicitLanguageAskPromptShown(boolean shown) {
-        TranslateBridgeJni.get().setExplicitLanguageAskPromptShown(shown);
-    }
-
-    /**
+     * @param profile The current {@link Profile} for this session.
      * @return Whether the app language prompt has been shown or not.
      */
-    public static boolean getAppLanguagePromptShown() {
-        return TranslateBridgeJni.get().getAppLanguagePromptShown();
+    public static boolean getAppLanguagePromptShown(Profile profile) {
+        return TranslateBridgeJni.get().getAppLanguagePromptShown(profile);
     }
 
-    /**
-     * Set the pref indicating the app language prompt has been shown to the user.
-     */
-    public static void setAppLanguagePromptShown() {
-        TranslateBridgeJni.get().setAppLanguagePromptShown();
+    /** Set the pref indicating the app language prompt has been shown to the user. */
+    public static void setAppLanguagePromptShown(Profile profile) {
+        TranslateBridgeJni.get().setAppLanguagePromptShown(profile);
     }
 
     public static void setIgnoreMissingKeyForTesting(boolean ignore) {
         TranslateBridgeJni.get().setIgnoreMissingKeyForTesting(ignore); // IN-TEST
     }
 
+    /**
+     * Get current page language.
+     *
+     * @param tab Tab to get the current language for
+     * @return The current language code or empty string if no language detected.
+     */
+    public static String getCurrentLanguage(Tab tab) {
+        return getCurrentLanguage(assertNonNull(tab.getWebContents()));
+    }
+
+    /**
+     * Get the current page language.
+     *
+     * @param webContents Web contents to get the current language for
+     * @return The current language code or empty string if no language detected.
+     */
+    public static String getCurrentLanguage(WebContents webContents) {
+        return TranslateBridgeJni.get().getCurrentLanguage(webContents);
+    }
+
+    /**
+     * Add an observer for translation events.
+     *
+     * @param webContents WebContents to observe.
+     * @param observer Observer.
+     * @return Native observer pointer, needed for removeTranslationObserver().
+     */
+    public static long addTranslationObserver(
+            WebContents webContents, TranslationObserver observer) {
+        return TranslateBridgeJni.get().addTranslationObserver(webContents, observer);
+    }
+
+    /**
+     * Remove a previously added TranslationObserver, destroying the native observer.
+     *
+     * @param webContents WebContents the observer was registered on.
+     * @param observerNativePtr Pointer to the native observer object.
+     */
+    public static void removeTranslationObserver(WebContents webContents, long observerNativePtr) {
+        TranslateBridgeJni.get().removeTranslationObserver(webContents, observerNativePtr);
+    }
+
+    /** Whether or not the WebContents have been translated. */
+    public static boolean isPageTranslated(WebContents webContents) {
+        return TranslateBridgeJni.get().isPageTranslated(webContents);
+    }
+
     @NativeMethods
     public interface Natives {
+        long addTranslationObserver(WebContents webContents, TranslationObserver observer);
+
+        void removeTranslationObserver(WebContents webContents, long observerNativePtr);
+
         void manualTranslateWhenReady(WebContents webContents);
-        void translateToLanguage(WebContents webContents, String targetLanguageCode);
+
         boolean canManuallyTranslate(WebContents webContents, boolean menuLogging);
-        boolean shouldShowManualTranslateIPH(WebContents webContents);
+
+        boolean shouldShowManualTranslateIph(WebContents webContents);
+
+        boolean isPageTranslated(WebContents webContents);
+
         void setPredefinedTargetLanguage(
-                WebContents webContents, String targetLanguage, boolean shouldAutoTranslate);
-        String getSourceLanguage(WebContents webContents);
-        String getCurrentLanguage(WebContents webContents);
-        String getTargetLanguage();
-        void setDefaultTargetLanguage(String targetLanguage);
-        void resetAcceptLanguages(String defaultLocale);
-        void getChromeAcceptLanguages(List<LanguageItem> list);
-        String[] getUserAcceptLanguages();
-        String[] getAlwaysTranslateLanguages();
-        String[] getNeverTranslateLanguages();
-        void setLanguageAlwaysTranslateState(String language, boolean alwaysTranslate);
-        void updateUserAcceptLanguages(String language, boolean add);
-        void moveAcceptLanguage(String language, int offset);
-        void setLanguageOrder(String[] codes);
-        boolean isBlockedLanguage(String language);
-        void setLanguageBlockedState(String language, boolean blocked);
-        boolean getExplicitLanguageAskPromptShown();
-        void setExplicitLanguageAskPromptShown(boolean shown);
-        boolean getAppLanguagePromptShown();
-        void setAppLanguagePromptShown();
+                WebContents webContents,
+                @JniType("std::string") String targetLanguage,
+                boolean shouldAutoTranslate);
+
+        @JniType("std::string")
+        String getTargetLanguage(Profile profile);
+
+        void setDefaultTargetLanguage(
+                Profile profile, @JniType("std::string") @Nullable String targetLanguage);
+
+        void resetAcceptLanguages(Profile profile, @JniType("std::string") String defaultLocale);
+
+        void getChromeAcceptLanguages(Profile profile, List<LanguageItem> list);
+
+        String[] getUserAcceptLanguages(Profile profile);
+
+        String[] getAlwaysTranslateLanguages(Profile profile);
+
+        String[] getNeverTranslateLanguages(Profile profile);
+
+        void setLanguageAlwaysTranslateState(
+                Profile profile,
+                @JniType("std::string") @Nullable String language,
+                boolean alwaysTranslate);
+
+        void updateUserAcceptLanguages(
+                Profile profile, @JniType("std::string") @Nullable String language, boolean add);
+
+        void moveAcceptLanguage(
+                Profile profile, @JniType("std::string") String language, int offset);
+
+        void setLanguageOrder(Profile profile, String[] codes);
+
+        boolean isBlockedLanguage(Profile profile, @JniType("std::string") String language);
+
+        void setLanguageBlockedState(
+                Profile profile,
+                @JniType("std::string") @Nullable String language,
+                boolean blocked);
+
+        boolean getAppLanguagePromptShown(Profile profile);
+
+        void setAppLanguagePromptShown(Profile profile);
+
         void setIgnoreMissingKeyForTesting(boolean ignore);
+
+        @JniType("std::string")
+        String getCurrentLanguage(WebContents webContents);
     }
 }

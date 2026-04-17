@@ -4,12 +4,14 @@
 
 #include "chrome/browser/ui/views/page_info/security_information_view.h"
 
+#include <utility>
+
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
+#include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/views/accessibility/non_accessible_image_view.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/page_info/page_info_view_factory.h"
-#include "components/strings/grit/components_chromium_strings.h"
+#include "components/strings/grit/components_branded_strings.h"
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -57,16 +59,17 @@ SecurityInformationView::SecurityInformationView(int side_margin) {
       views::style::CONTEXT_DIALOG_BODY_TEXT);
   security_summary_label_->SetID(
       PageInfoViewFactory::VIEW_ID_PAGE_INFO_SECURITY_SUMMARY_LABEL);
+  security_summary_label_->SetDefaultEnabledColorId(kColorPageInfoForeground);
   // The label defaults to a single line, which would force the dialog wider;
   // instead give it a width that's the minimum we want it to have.  Then the
   // TableLayout will stretch it back out into any additional space available.
-  const int min_label_width =
+  min_label_width_ =
       PageInfoViewFactory::kMinBubbleWidth - side_margin * 2 -
       PageInfoViewFactory::GetConnectionSecureIcon().Size().width() -
       icon_label_spacing;
-  security_summary_label_->SizeToFit(min_label_width);
+  security_summary_label_->SizeToFit(min_label_width_);
 
-  auto start_secondary_row = [=]() {
+  auto start_secondary_row = [=, this]() {
     layout->AddRows(1, views::TableLayout::kFixedSize);
     AddChildView(std::make_unique<views::View>());  // Skipping the icon column.
   };
@@ -76,8 +79,10 @@ SecurityInformationView::SecurityInformationView(int side_margin) {
       AddChildView(std::make_unique<views::StyledLabel>());
   security_details_label_->SetID(
       PageInfoViewFactory::VIEW_ID_PAGE_INFO_SECURITY_DETAILS_LABEL);
-  security_details_label_->SetDefaultTextStyle(views::style::STYLE_SECONDARY);
-  security_details_label_->SizeToFit(min_label_width);
+  security_details_label_->SetDefaultTextStyle(views::style::STYLE_BODY_4);
+  security_details_label_->SetDefaultEnabledColorId(
+      kColorPageInfoSubtitleForeground);
+  security_details_label_->SizeToFit(min_label_width_);
 
   start_secondary_row();
   reset_decisions_label_container_ =
@@ -91,7 +96,7 @@ SecurityInformationView::SecurityInformationView(int side_margin) {
       AddChildView(std::make_unique<views::View>());
 
   const int end_padding =
-      layout_provider->GetDistanceMetric(DISTANCE_CONTROL_LIST_VERTICAL);
+      layout_provider->GetDistanceMetric(views::DISTANCE_CONTROL_LIST_VERTICAL);
   layout->AddPaddingRow(views::TableLayout::kFixedSize, end_padding);
 }
 
@@ -107,7 +112,7 @@ void SecurityInformationView::SetSummary(const std::u16string& summary_text,
   security_summary_label_->SetDefaultTextStyle(text_style);
 }
 
-void SecurityInformationView::SetDetails(
+void SecurityInformationView::SetDetailsWithLearnMore(
     const std::u16string& details_text,
     views::Link::ClickedCallback security_details_callback) {
   std::vector<std::u16string> subst;
@@ -126,6 +131,10 @@ void SecurityInformationView::SetDetails(
           security_details_callback);
 
   security_details_label_->AddStyleRange(details_range, link_style);
+}
+
+void SecurityInformationView::SetDetails(const std::u16string& details_text) {
+  security_details_label_->SetText(details_text);
 }
 
 void SecurityInformationView::AddResetDecisionsLabel(
@@ -148,8 +157,11 @@ void SecurityInformationView::AddResetDecisionsLabel(
   views::StyledLabel* reset_cert_decisions_label =
       reset_decisions_label_container_->AddChildView(
           std::make_unique<views::StyledLabel>());
-  reset_cert_decisions_label->SetDefaultTextStyle(
-      views::style::STYLE_SECONDARY);
+  reset_cert_decisions_label->SetID(
+      PageInfoViewFactory::VIEW_ID_PAGE_INFO_RESET_DECISIONS_LABEL);
+  reset_cert_decisions_label->SetDefaultTextStyle(views::style::STYLE_BODY_4);
+  reset_cert_decisions_label->SetDefaultEnabledColorId(
+      kColorPageInfoSubtitleForeground);
   reset_cert_decisions_label->SetText(text);
   gfx::Range link_range(offsets[1], text.length());
 
@@ -197,26 +209,27 @@ void SecurityInformationView::AddPasswordReuseButtons(
       change_password_template = IDS_PAGE_INFO_PROTECT_ACCOUNT_BUTTON;
       break;
     default:
-      NOTREACHED_NORETURN();
+      NOTREACHED();
   }
 
   std::unique_ptr<views::MdTextButton> change_password_button;
   if (change_password_template) {
     change_password_button = std::make_unique<views::MdTextButton>(
-        change_password_callback,
+        std::move(change_password_callback),
         l10n_util::GetStringUTF16(change_password_template));
-    change_password_button->SetProminent(true);
+    change_password_button->SetStyle(ui::ButtonStyle::kProminent);
     change_password_button->SetID(
         PageInfoViewFactory::VIEW_ID_PAGE_INFO_BUTTON_CHANGE_PASSWORD);
   }
   auto allowlist_password_reuse_button = std::make_unique<views::MdTextButton>(
-      password_reuse_callback,
+      std::move(password_reuse_callback),
       l10n_util::GetStringUTF16(IDS_PAGE_INFO_ALLOWLIST_PASSWORD_REUSE_BUTTON));
   allowlist_password_reuse_button->SetID(
       PageInfoViewFactory::VIEW_ID_PAGE_INFO_BUTTON_ALLOWLIST_PASSWORD_REUSE);
 
   int kSpacingBetweenButtons = 8;
-  // TODO(crbug.com/1263516): Fix alignment if the buttons don't fit in one row.
+  // TODO(crbug.com/40800258): Fix alignment if the buttons don't fit in one
+  // row.
   auto layout = std::make_unique<views::BoxLayout>(
       views::BoxLayout::Orientation::kHorizontal, gfx::Insets(),
       kSpacingBetweenButtons);
@@ -225,7 +238,7 @@ void SecurityInformationView::AddPasswordReuseButtons(
   layout->set_main_axis_alignment(views::BoxLayout::MainAxisAlignment::kStart);
   password_reuse_button_container_->SetLayoutManager(std::move(layout));
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
   if (change_password_button) {
     password_reuse_button_container_->AddChildView(
         std::move(change_password_button));
@@ -244,9 +257,18 @@ void SecurityInformationView::AddPasswordReuseButtons(
   // Add padding at the top.
   password_reuse_button_container_->SetBorder(
       views::CreateEmptyBorder(gfx::Insets::TLBR(8, 0, 0, 0)));
+  int w = password_reuse_button_container_->GetPreferredSize().width();
+  if (w > min_label_width_) {
+    AdjustContentWidth(w);
+  }
 
   InvalidateLayout();
 }
 
-BEGIN_METADATA(SecurityInformationView, views::View)
+void SecurityInformationView::AdjustContentWidth(int w) {
+  security_summary_label_->SizeToFit(w);
+  security_details_label_->SizeToFit(w);
+}
+
+BEGIN_METADATA(SecurityInformationView)
 END_METADATA

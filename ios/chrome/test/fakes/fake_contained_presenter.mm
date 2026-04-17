@@ -5,11 +5,7 @@
 #import "ios/chrome/test/fakes/fake_contained_presenter.h"
 
 #import "base/check.h"
-#import "ios/chrome/browser/ui/presenters/contained_presenter_delegate.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ios/chrome/browser/presenters/ui_bundled/contained_presenter_delegate.h"
 
 @implementation FakeContainedPresenter
 @synthesize baseViewController = _baseViewController;

@@ -97,7 +97,7 @@ class Rankings {
 
   // If we have multiple lists, we have to iterate through all at the same time.
   // This structure keeps track of where we are on the iteration.
-  // TODO(https://crbug.com/1409814) refactor this struct to make it clearer
+  // TODO(crbug.com/40889343) refactor this struct to make it clearer
   // this owns the `nodes`.
   struct Iterator {
     Iterator();
@@ -123,7 +123,7 @@ class Rankings {
   void Reset();
 
   // Inserts a given entry at the head of the queue.
-  void Insert(CacheRankingsBlock* node, bool modified, List list);
+  void Insert(CacheRankingsBlock* node, List list);
 
   // Removes a given entry from the LRU list. If |strict| is true, this method
   // assumes that |node| is not pointed to by an active iterator. On the other
@@ -133,7 +133,7 @@ class Rankings {
   void Remove(CacheRankingsBlock* node, List list, bool strict);
 
   // Moves a given entry to the head.
-  void UpdateRank(CacheRankingsBlock* node, bool modified, List list);
+  void UpdateRank(CacheRankingsBlock* node, List list);
 
   // Iterates through the list.
   CacheRankingsBlock* GetNext(CacheRankingsBlock* node, List list);

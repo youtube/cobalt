@@ -11,16 +11,15 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_base.h"
-#include "base/strings/string_piece_forward.h"
 #include "base/time/time.h"
-#include "build/chromeos_buildflags.h"
 #include "components/metrics/metrics_reporting_default_state.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/metrics_proto/chrome_user_metrics_extension.pb.h"
 #include "third_party/metrics_proto/system_profile.pb.h"
 
@@ -37,23 +36,35 @@ class NetworkTimeTracker;
 
 namespace metrics {
 
+// This SourceType is saved in Local state by unsent_log_store.cc and entries
+// should not be renumbered.
+enum UkmLogSourceType {
+  UKM_ONLY = 0,            // Log contains only UKM data.
+  APPKM_ONLY = 1,          // Log contains only AppKM data.
+  BOTH_UKM_AND_APPKM = 2,  // Log contains both AppKM and UKM data.
+};
+
 // Holds optional metadata associated with a log to be stored.
 struct LogMetadata {
   LogMetadata();
-  LogMetadata(absl::optional<base::HistogramBase::Count> samples_count,
-              absl::optional<uint64_t> user_id);
+  LogMetadata(std::optional<base::HistogramBase::Count32> samples_count,
+              std::optional<uint64_t> user_id,
+              std::optional<UkmLogSourceType> log_source_type);
   LogMetadata(const LogMetadata& other);
   ~LogMetadata();
 
   // Adds |sample_count| to |samples_count|. If |samples_count| is empty, then
   // |sample_count| will populate |samples_count|.
-  void AddSampleCount(base::HistogramBase::Count sample_count);
+  void AddSampleCount(base::HistogramBase::Count32 sample_count);
 
   // The total number of samples in this log if applicable.
-  absl::optional<base::HistogramBase::Count> samples_count;
+  std::optional<base::HistogramBase::Count32> samples_count;
 
   // User id associated with the log.
-  absl::optional<uint64_t> user_id;
+  std::optional<uint64_t> user_id;
+
+  // For UKM logs, indicates the type of data.
+  std::optional<UkmLogSourceType> log_source_type;
 };
 
 class MetricsServiceClient;
@@ -65,7 +76,7 @@ constexpr int kOmniboxEventLimit = 5000;
 constexpr int kUserActionEventLimit = 5000;
 
 SystemProfileProto::InstallerPackage ToInstallerPackage(
-    base::StringPiece installer_package_name);
+    std::string_view installer_package_name);
 }  // namespace internal
 
 class MetricsLog {
@@ -132,6 +143,21 @@ class MetricsLog {
       const std::string& package_name,
       SystemProfileProto* system_profile);
 
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+  // Increments the global foreground/background ID. Must be called on the main
+  // thread.
+  static void IncrementFgBgId();
+
+  // Clears/unsets the log's `fg_bg_id` system profile field.
+  void ClearFgBgId();
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+
+  // Assign a unique finalized record id to this log.
+  void AssignFinalizedRecordId(PrefService* local_state);
+
+  // Sets the creation source for this log.
+  void SetLogCreationType(ChromeUserMetricsExtension::LogType log_type);
+
   // Assign a unique record id to this log.
   void AssignRecordId(PrefService* local_state);
 
@@ -139,7 +165,7 @@ class MetricsLog {
   void RecordUserAction(const std::string& key, base::TimeTicks action_time);
 
   // Record any changes in a given histogram for transmission.
-  void RecordHistogramDelta(const std::string& histogram_name,
+  void RecordHistogramDelta(std::string_view histogram_name,
                             const base::HistogramSamples& snapshot);
 
   // TODO(rkaplow): I think this can be a little refactored as it currently
@@ -162,27 +188,35 @@ class MetricsLog {
   void RecordPreviousSessionData(DelegatingProvider* delegating_provider,
                                  PrefService* local_state);
 
-  // Populates the log with data about the current session. The uptimes are used
-  // to populate the log with info about how long Chrome has been running.
+  // Populates the log with data about the current session.
   // |delegating_provider| forwards the call to provide data to registered
   // MetricsProviders. |local_state| is used to schedule a write because a side
   // effect of providing some data is updating Local State prefs.
-  void RecordCurrentSessionData(base::TimeDelta incremental_uptime,
-                                base::TimeDelta uptime,
-                                DelegatingProvider* delegating_provider,
+  void RecordCurrentSessionData(DelegatingProvider* delegating_provider,
                                 PrefService* local_state);
+
+  // Returns the current time using |network_clock_| if non-null (falls back to
+  // |clock_| otherwise). If |record_time_zone| is true, the returned time will
+  // also be populated with the time zone. Must be called on the main thread.
+  ChromeUserMetricsExtension::RealLocalTime GetCurrentClockTime(
+      bool record_time_zone);
 
   // Finalizes the log. Calling this function will make a call to CloseLog().
   // |truncate_events| determines whether user action and omnibox data within
   // the log should be trimmed/truncated (for bandwidth concerns).
   // |current_app_version| is the current version of the application, and is
   // used to determine whether the log data was obtained in a previous version.
-  // The serialized proto of the finalized log will be written to |encoded_log|.
-  void FinalizeLog(bool truncate_events,
-                   const std::string& current_app_version,
-                   std::string* encoded_log);
+  // |close_time| is roughly the current time -- it is provided as a param
+  // since computing the current time can sometimes only be done on the main
+  // thread, and this method may be called on a background thread. The
+  // serialized proto of the finalized log will be written to |encoded_log|.
+  void FinalizeLog(
+      bool truncate_events,
+      const std::string& current_app_version,
+      std::optional<ChromeUserMetricsExtension::RealLocalTime> close_time,
+      std::string* encoded_log);
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // Assigns a user ID to the log. This should be called immediately after
   // consotruction if it should be applied.
   void SetUserId(const std::string& user_id);
@@ -212,13 +246,6 @@ class MetricsLog {
   // Write the default state of the enable metrics checkbox.
   void WriteMetricsEnableDefault(EnableMetricsDefault metrics_default,
                                  SystemProfileProto* system_profile);
-
-  // Within the stability group, write attributes that need to be updated asap
-  // and can't be delayed until the user decides to restart chromium.
-  // Delaying these stats would bias metrics away from happy long lived
-  // chromium processes (ones that don't crash, and keep on running).
-  void WriteRealtimeStabilityAttributes(base::TimeDelta incremental_uptime,
-                                        base::TimeDelta uptime);
 
   // closed_ is true when record has been packed up for sending, and should
   // no longer be written to.  It is only used for sanity checking.

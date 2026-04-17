@@ -19,13 +19,15 @@ namespace origin_trials {
 // not part of the tokens sort order with respect to being inserted in sorted
 // sets.
 struct PersistedTrialToken {
+  bool match_subdomains;
   std::string trial_name;
   base::Time token_expiry;
   blink::TrialToken::UsageRestriction usage_restriction;
   std::string token_signature;
   base::flat_set<std::string> partition_sites;
 
-  PersistedTrialToken(std::string name,
+  PersistedTrialToken(bool match_subdomains,
+                      std::string name,
                       base::Time expiry,
                       blink::TrialToken::UsageRestriction usage,
                       std::string signature,
@@ -51,19 +53,18 @@ struct PersistedTrialToken {
   bool InAnyPartition() const;
 
   // Return true if this token matches the information in |trial_token|,
-  // specifically trial name, expiry time, and signature.
+  // specifically the origin, match subdomains, trial name, expiry time, and
+  // signature attributes.
   bool Matches(const blink::TrialToken& trial_token) const;
+
+  // Equality operator for testing.
+  friend bool operator==(const PersistedTrialToken&,
+                         const PersistedTrialToken&) = default;
 };
 
 // Comparison operator to let us store PersistedTokens in a flat_set.
 // Does not take partitioning metadata into account.
 bool operator<(const PersistedTrialToken& a, const PersistedTrialToken& b);
-
-// Equality operator for testing.
-bool operator==(const PersistedTrialToken& a, const PersistedTrialToken& b);
-
-// In-equality operator for testing
-bool operator!=(const PersistedTrialToken& a, const PersistedTrialToken& b);
 
 // Stream operator, mainly for GTEST output
 std::ostream& operator<<(std::ostream& out, const PersistedTrialToken& token);

@@ -2,8 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/services/storage/service_worker/service_worker_resource_ops.h"
 
+#include "base/containers/span.h"
 #include "base/numerics/checked_math.h"
 #include "base/pickle.h"
 #include "base/task/sequenced_task_runner.h"
@@ -76,31 +82,8 @@ std::unique_ptr<base::Pickle> ConvertToPickle(
 
   const bool kSkipTransientHeaders = true;
   const bool kTruncated = false;
-  auto pickle = std::make_unique<base::Pickle>();
-  response_info.Persist(pickle.get(), kSkipTransientHeaders, kTruncated);
-  return pickle;
+  return response_info.MakePickle(kSkipTransientHeaders, kTruncated);
 }
-
-// An IOBuffer that wraps a pickle's data. Used to write URLResponseHead.
-class WrappedPickleIOBuffer : public net::WrappedIOBuffer {
- public:
-  explicit WrappedPickleIOBuffer(std::unique_ptr<const base::Pickle> pickle)
-      : net::WrappedIOBuffer(reinterpret_cast<const char*>(pickle->data())),
-        pickle_(std::move(pickle)) {
-    DCHECK(pickle_->data());
-  }
-
-  size_t size() const { return pickle_->size(); }
-
- private:
-  ~WrappedPickleIOBuffer() override {
-    // `data_` is a pointer on `pickle_` and should be nullified before that to
-    // prevent it from being dangling.
-    data_ = nullptr;
-  }
-
-  const std::unique_ptr<const base::Pickle> pickle_;
-};
 
 }  // namespace
 
@@ -317,14 +300,12 @@ class ServiceWorkerResourceReaderImpl::DataReader {
       return;
     }
 
-    uint32_t num_bytes = 0;
     MojoResult rv = network::NetToMojoPendingBuffer::BeginWrite(
-        &producer_handle_, &pending_buffer_, &num_bytes);
+        &producer_handle_, &pending_buffer_);
     switch (rv) {
       case MOJO_RESULT_INVALID_ARGUMENT:
       case MOJO_RESULT_BUSY:
         NOTREACHED();
-        return;
       case MOJO_RESULT_FAILED_PRECONDITION:
         Complete(net::ERR_ABORTED);
         return;
@@ -338,9 +319,10 @@ class ServiceWorkerResourceReaderImpl::DataReader {
         break;
     }
 
+    uint32_t num_bytes = pending_buffer_->size();
     num_bytes = std::min(num_bytes, blink::BlobUtils::GetDataPipeChunkSize());
-    scoped_refptr<network::NetToMojoIOBuffer> buffer =
-        base::MakeRefCounted<network::NetToMojoIOBuffer>(pending_buffer_.get());
+    auto buffer =
+        base::MakeRefCounted<network::NetToMojoIOBuffer>(pending_buffer_);
 
     net::IOBuffer* raw_buffer = buffer.get();
     int read_bytes = owner_->entry_opener_.entry()->Read(
@@ -506,8 +488,8 @@ void ServiceWorkerResourceReaderImpl::ContinueReadResponseHead() {
     return;
   }
 
-  auto buffer =
-      base::MakeRefCounted<net::IOBuffer>(base::checked_cast<size_t>(size));
+  auto buffer = base::MakeRefCounted<net::IOBufferWithSize>(
+      base::checked_cast<size_t>(size));
   int rv = entry_opener_.entry()->Read(
       kResponseInfoIndex, /*offset=*/0, buffer.get(), size,
       base::BindOnce(&ServiceWorkerResourceReaderImpl::DidReadHttpResponseInfo,
@@ -533,7 +515,8 @@ void ServiceWorkerResourceReaderImpl::DidReadHttpResponseInfo(
   }
 
   // Deserialize the http info structure, ensuring we got headers.
-  base::Pickle pickle(buffer->data(), status);
+  base::Pickle pickle = base::Pickle::WithUnownedBuffer(base::as_bytes(
+      base::span(buffer->data(), base::checked_cast<size_t>(status))));
   auto http_info = std::make_unique<net::HttpResponseInfo>();
   bool response_truncated = false;
   if (!http_info->InitFromPickle(pickle, &response_truncated) ||
@@ -599,10 +582,10 @@ void ServiceWorkerResourceReaderImpl::CompleteReadResponseHead(int status) {
 #endif
   DCHECK(read_response_head_callback_);
 
-  absl::optional<mojo_base::BigBuffer> metadata =
+  std::optional<mojo_base::BigBuffer> metadata =
       metadata_buffer_
-          ? absl::optional<mojo_base::BigBuffer>(metadata_buffer_->TakeBuffer())
-          : absl::nullopt;
+          ? std::optional<mojo_base::BigBuffer>(metadata_buffer_->TakeBuffer())
+          : std::nullopt;
 
   metadata_buffer_ = nullptr;
 
@@ -672,7 +655,7 @@ void ServiceWorkerResourceWriterImpl::WriteResponseHeadToEntry(
 
   std::unique_ptr<const base::Pickle> pickle =
       ConvertToPickle(std::move(response_head));
-  auto buffer = base::MakeRefCounted<WrappedPickleIOBuffer>(std::move(pickle));
+  auto buffer = base::MakeRefCounted<net::PickledIOBuffer>(std::move(pickle));
 
   size_t write_amount = buffer->size();
   int rv = entry_creator_.entry()->Write(

@@ -4,6 +4,8 @@
 
 #include "chrome/browser/extensions/extension_apitest.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/version_info/version_info.h"
 #include "content/public/browser/storage_partition.h"
@@ -11,7 +13,9 @@
 #include "content/public/test/prerender_test_util.h"
 #include "extensions/browser/api/declarative/rules_registry.h"
 #include "extensions/browser/api/declarative/rules_registry_service.h"
+#include "extensions/browser/extension_action.h"
 #include "extensions/browser/extension_action_manager.h"
+#include "extensions/browser/rules_registry_ids.h"
 #include "extensions/common/features/feature_channel.h"
 #include "extensions/test/extension_test_message_listener.h"
 #include "extensions/test/test_extension_dir.h"
@@ -41,7 +45,7 @@ class SetIconAPITest : public ExtensionApiTest {
       // Set the channel to "trunk" since declarativeContent is restricted
       // to trunk.
       : current_channel_(version_info::Channel::UNKNOWN) {}
-  ~SetIconAPITest() override {}
+  ~SetIconAPITest() override = default;
 
  protected:
   const Extension* LoadTestExtension() {
@@ -70,8 +74,9 @@ class SetIconAPITest : public ExtensionApiTest {
 )");
     ExtensionTestMessageListener ready("ready");
     const Extension* extension = LoadExtension(ext_dir_.UnpackedPath());
-    if (!extension)
+    if (!extension) {
       return nullptr;
+    }
 
     // Wait for declarative rules to be set up.
     profile()->GetDefaultStoragePartition()->FlushNetworkInterfaceForTesting();
@@ -108,11 +113,11 @@ IN_PROC_BROWSER_TEST_F(SetIconAPITest, Overview) {
   ASSERT_TRUE(action);
 
   EXPECT_TRUE(action->GetDeclarativeIcon(tab_id).IsEmpty());
-  EXPECT_FALSE(NavigateInRenderer(tab, GURL("http://example.com/?show")));
+  EXPECT_FALSE(NavigateInRenderer(tab, GURL("https://example.com/?show")));
   EXPECT_FALSE(action->GetDeclarativeIcon(tab_id).IsEmpty());
 
   // Navigating to an unmatched page should reset the icon.
-  EXPECT_FALSE(NavigateInRenderer(tab, GURL("http://example.com/?hide")));
+  EXPECT_FALSE(NavigateInRenderer(tab, GURL("https://example.com/?hide")));
   EXPECT_TRUE(action->GetDeclarativeIcon(tab_id).IsEmpty());
 }
 
@@ -123,7 +128,7 @@ IN_PROC_BROWSER_TEST_F(SetIconAPITest, Parameter) {
 
   scoped_refptr<RulesRegistry> rules_registry =
       extensions::RulesRegistryService::Get(browser()->profile())
-          ->GetRulesRegistry(RulesRegistryService::kDefaultRulesRegistryID,
+          ->GetRulesRegistry(rules_registry_ids::kDefaultRulesRegistryID,
                              "declarativeContent.onPageChanged");
   ASSERT_TRUE(rules_registry);
 
@@ -153,12 +158,14 @@ class SetIconAPIPrerenderingTest : public SetIconAPITest {
   ~SetIconAPIPrerenderingTest() override = default;
 
  protected:
-  int Prerender(const GURL& url) { return prerender_helper_.AddPrerender(url); }
+  content::FrameTreeNodeId Prerender(const GURL& url) {
+    return prerender_helper_.AddPrerender(url);
+  }
   void Activate(const GURL& url) { prerender_helper_.NavigatePrimaryPage(url); }
 
  private:
   void SetUp() override {
-    prerender_helper_.SetUp(embedded_test_server());
+    prerender_helper_.RegisterServerRequestMonitor(embedded_test_server());
     ExtensionApiTest::SetUp();
   }
 
@@ -186,8 +193,8 @@ IN_PROC_BROWSER_TEST_F(SetIconAPIPrerenderingTest, Overview) {
   // Prerendering an unmatched page should not reset the icon.
   const GURL kPrerenderingUrl =
       embedded_test_server()->GetURL("/empty.html?hide");
-  int host_id = Prerender(kPrerenderingUrl);
-  ASSERT_NE(content::RenderFrameHost::kNoFrameTreeNodeId, host_id);
+  content::FrameTreeNodeId host_id = Prerender(kPrerenderingUrl);
+  ASSERT_TRUE(host_id);
   EXPECT_FALSE(action->GetDeclarativeIcon(tab_id).IsEmpty());
 
   // Activating the unmatched page should reset the icon.

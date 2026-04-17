@@ -5,6 +5,7 @@
 #include "components/site_engagement/content/site_engagement_score.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <utility>
 
@@ -27,15 +28,15 @@ namespace site_engagement {
 namespace {
 
 // Delta within which to consider scores equal.
-const double kScoreDelta = 0.001;
+constexpr double kScoreDelta = 0.001;
 
 // Delta within which to consider internal time values equal. Internal time
 // values are in microseconds, so this delta comes out at one second.
-const double kTimeDelta = 1000000;
+constexpr double kTimeDelta = 1000000;
 
 // Number of days after the last launch of an origin from an installed shortcut
 // for which WEB_APP_INSTALLED_POINTS will be added to the engagement score.
-const int kMaxDaysSinceShortcutLaunch = 10;
+constexpr int kMaxDaysSinceShortcutLaunch = 10;
 
 bool DoublesConsideredDifferent(double value1, double value2, double delta) {
   double abs_difference = fabs(value1 - value2);
@@ -188,7 +189,7 @@ void SiteEngagementScore::SetParamValuesForTesting() {
 }
 // static
 void SiteEngagementScore::UpdateFromVariations(const char* param_name) {
-  double param_vals[MAX_VARIATION];
+  std::array<double, MAX_VARIATION> param_vals;
 
   for (int i = 0; i < MAX_VARIATION; ++i) {
     std::string param_string =
@@ -221,7 +222,7 @@ SiteEngagementScore::SiteEngagementScore(base::Clock* clock,
 
 SiteEngagementScore::SiteEngagementScore(SiteEngagementScore&& other) = default;
 
-SiteEngagementScore::~SiteEngagementScore() {}
+SiteEngagementScore::~SiteEngagementScore() = default;
 
 SiteEngagementScore& SiteEngagementScore::operator=(
     SiteEngagementScore&& other) = default;
@@ -320,6 +321,14 @@ void SiteEngagementScore::Reset(double points,
   last_engagement_time_ = last_engagement_time;
 }
 
+void SiteEngagementScore::SetLastEngagementTime(const base::Time& time) {
+  if (!last_engagement_time_.is_null() &&
+      time.LocalMidnight() != last_engagement_time_.LocalMidnight()) {
+    points_added_today_ = 0;
+  }
+  last_engagement_time_ = time;
+}
+
 bool SiteEngagementScore::UpdateScoreDict(base::Value::Dict& score_dict) {
   double raw_score_orig = score_dict.FindDouble(kRawScoreKey).value_or(0);
   double points_added_today_orig =
@@ -357,7 +366,7 @@ bool SiteEngagementScore::UpdateScoreDict(base::Value::Dict& score_dict) {
 SiteEngagementScore::SiteEngagementScore(
     base::Clock* clock,
     const GURL& origin,
-    absl::optional<base::Value::Dict> score_dict)
+    std::optional<base::Value::Dict> score_dict)
     : clock_(clock),
       raw_score_(0),
       points_added_today_(0),
@@ -373,13 +382,13 @@ SiteEngagementScore::SiteEngagementScore(
   points_added_today_ =
       score_dict_->FindDouble(kPointsAddedTodayKey).value_or(0);
 
-  absl::optional<double> maybe_last_engagement_time =
+  std::optional<double> maybe_last_engagement_time =
       score_dict_->FindDouble(kLastEngagementTimeKey);
   if (maybe_last_engagement_time.has_value())
     last_engagement_time_ =
         base::Time::FromInternalValue(maybe_last_engagement_time.value());
 
-  absl::optional<double> maybe_last_shortcut_launch_time =
+  std::optional<double> maybe_last_shortcut_launch_time =
       score_dict_->FindDouble(kLastShortcutLaunchTimeKey);
   if (maybe_last_shortcut_launch_time.has_value())
     last_shortcut_launch_time_ =

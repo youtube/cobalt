@@ -45,8 +45,8 @@ class SecurityTokenRequestControllerTest : public LoginTestBase {
 
   // Simulates mouse press event on a |button|.
   void SimulateButtonPress(views::Button* button) {
-    ui::MouseEvent event(ui::ET_MOUSE_PRESSED, gfx::Point(), gfx::Point(),
-                         ui::EventTimeForNow(), 0, 0);
+    ui::MouseEvent event(ui::EventType::kMousePressed, gfx::Point(),
+                         gfx::Point(), ui::EventTimeForNow(), 0, 0);
     views::test::ButtonTestApi(button).NotifyClick(event);
   }
 
@@ -86,7 +86,7 @@ class SecurityTokenRequestControllerTest : public LoginTestBase {
   // Number of times the UI was closed.
   int ui_closed_by_user_calls_ = 0;
 
-  raw_ptr<PinRequestView, ExperimentalAsh> view_ =
+  raw_ptr<PinRequestView, DanglingUntriaged> view_ =
       nullptr;  // Owned by test widget view hierarchy.
 
  private:

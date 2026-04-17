@@ -8,10 +8,6 @@
 #import "base/strings/sys_string_conversions.h"
 #import "ios/web/public/web_client.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace web {
 
 NSString* CreateLocalBlockingJsonRuleList() {
@@ -42,7 +38,7 @@ NSString* CreateLocalBlockingJsonRuleList() {
       ],
     } mutableCopy],
     @"action" : @{
-      @"type" : @"allow",
+      @"type" : @"ignore-previous-rules",
     },
   } mutableCopy];
 

@@ -16,6 +16,7 @@
 #include "extensions/browser/api/storage/weak_unlimited_settings_storage.h"
 #include "extensions/common/api/storage.h"
 #include "extensions/common/extension.h"
+#include "extensions/common/extension_id.h"
 #include "extensions/common/permissions/permissions_data.h"
 
 using content::BrowserThread;
@@ -63,7 +64,7 @@ void LocalValueStoreCache::RunWithValueStoreForExtension(
   }
 }
 
-void LocalValueStoreCache::DeleteStorageSoon(const std::string& extension_id) {
+void LocalValueStoreCache::DeleteStorageSoon(const ExtensionId& extension_id) {
   DCHECK(IsOnBackendSequence());
   storage_map_.erase(extension_id);
 
@@ -79,8 +80,9 @@ void LocalValueStoreCache::DeleteStorageSoon(const std::string& extension_id) {
 value_store::ValueStore* LocalValueStoreCache::GetStorage(
     const Extension* extension) {
   auto iter = storage_map_.find(extension->id());
-  if (iter != storage_map_.end())
+  if (iter != storage_map_.end()) {
     return iter->second.get();
+  }
 
   value_store_util::ModelType model_type =
       extension->is_app() ? value_store_util::ModelType::APP

@@ -122,24 +122,33 @@ class BufferMtl : public BufferImpl, public BufferHolderMtl
                           gl::BufferBinding target,
                           const void *data,
                           size_t size,
-                          gl::BufferUsage usage) override;
+                          gl::BufferUsage usage,
+                          BufferFeedback *feedback) override;
     angle::Result setSubData(const gl::Context *context,
                              gl::BufferBinding target,
                              const void *data,
                              size_t size,
-                             size_t offset) override;
+                             size_t offset,
+                             BufferFeedback *feedback) override;
     angle::Result copySubData(const gl::Context *context,
                               BufferImpl *source,
                               GLintptr sourceOffset,
                               GLintptr destOffset,
-                              GLsizeiptr size) override;
-    angle::Result map(const gl::Context *context, GLenum access, void **mapPtr) override;
+                              GLsizeiptr size,
+                              BufferFeedback *feedback) override;
+    angle::Result map(const gl::Context *context,
+                      GLenum access,
+                      void **mapPtr,
+                      BufferFeedback *feedback) override;
     angle::Result mapRange(const gl::Context *context,
                            size_t offset,
                            size_t length,
                            GLbitfield access,
-                           void **mapPtr) override;
-    angle::Result unmap(const gl::Context *context, GLboolean *result) override;
+                           void **mapPtr,
+                           BufferFeedback *feedback) override;
+    angle::Result unmap(const gl::Context *context,
+                        GLboolean *result,
+                        BufferFeedback *feedback) override;
 
     angle::Result getIndexRange(const gl::Context *context,
                                 gl::DrawElementsType type,
@@ -156,7 +165,8 @@ class BufferMtl : public BufferImpl, public BufferHolderMtl
                                       size_t count,
                                       std::pair<uint32_t, uint32_t> *outIndices);
 
-    const uint8_t *getClientShadowCopyData(ContextMtl *contextMtl);
+    const uint8_t *getBufferDataReadOnly(ContextMtl *contextMtl);
+    bool isSafeToReadFromBufferViaBlit(ContextMtl *contextMtl);
 
     ConversionBufferMtl *getVertexConversionBuffer(ContextMtl *context,
                                                    angle::FormatID formatID,
@@ -183,36 +193,55 @@ class BufferMtl : public BufferImpl, public BufferHolderMtl
         const mtl::BufferRef clientBuffer);
 
   private:
+    angle::Result allocateNewMetalBuffer(ContextMtl *contextMtl,
+                                         MTLStorageMode storageMode,
+                                         size_t size,
+                                         bool returnOldBufferImmediately,
+                                         BufferFeedback *feedback);
+
     angle::Result setDataImpl(const gl::Context *context,
                               gl::BufferBinding target,
                               const void *data,
                               size_t size,
-                              gl::BufferUsage usage);
+                              gl::BufferUsage usage,
+                              BufferFeedback *feedback);
     angle::Result setSubDataImpl(const gl::Context *context,
                                  const void *data,
                                  size_t size,
-                                 size_t offset);
+                                 size_t offset,
+                                 BufferFeedback *feedback);
 
-    angle::Result commitShadowCopy(const gl::Context *context);
-    angle::Result commitShadowCopy(const gl::Context *context, size_t size);
+    angle::Result commitShadowCopy(ContextMtl *contextMtl, BufferFeedback *feedback);
+    angle::Result commitShadowCopy(ContextMtl *contextMtl, size_t size, BufferFeedback *feedback);
 
     void markConversionBuffersDirty();
     void clearConversionBuffers();
+
+    angle::Result putDataInNewBufferAndStartUsingNewBuffer(ContextMtl *contextMtl,
+                                                           const uint8_t *srcPtr,
+                                                           size_t sizeToCopy,
+                                                           size_t offset,
+                                                           BufferFeedback *feedback);
+    angle::Result updateExistingBufferViaBlitFromStagingBuffer(ContextMtl *contextMtl,
+                                                               const uint8_t *srcPtr,
+                                                               size_t sizeToCopy,
+                                                               size_t offset);
+    angle::Result copyDataToExistingBufferViaCPU(ContextMtl *contextMtl,
+                                                 const uint8_t *srcPtr,
+                                                 size_t sizeToCopy,
+                                                 size_t offset);
+    angle::Result updateShadowCopyThenCopyShadowToNewBuffer(ContextMtl *contextMtl,
+                                                            const uint8_t *srcPtr,
+                                                            size_t sizeToCopy,
+                                                            size_t offset,
+                                                            BufferFeedback *feedback);
 
     bool clientShadowCopyDataNeedSync(ContextMtl *contextMtl);
     void ensureShadowCopySyncedFromGPU(ContextMtl *contextMtl);
     uint8_t *syncAndObtainShadowCopy(ContextMtl *contextMtl);
 
-    // Convenient method
-    const uint8_t *getClientShadowCopyData(const gl::Context *context)
-    {
-        return getClientShadowCopyData(mtl::GetImpl(context));
-    }
-    // Client side shadow buffer
+    // Optional client side shadow buffer
     angle::MemoryBuffer mShadowCopy;
-
-    // GPU side buffers pool
-    mtl::BufferPool mBufferPool;
 
     // A cache of converted vertex data.
     std::vector<VertexConversionBufferMtl> mVertexConversionBuffers;
@@ -231,6 +260,9 @@ class BufferMtl : public BufferImpl, public BufferHolderMtl
     };
     std::optional<RestartRangeCache> mRestartRangeCache;
     std::vector<IndexRange> mRestartIndices;
+    size_t mGLSize        = 0;  // size GL asked for (vs size we actually allocated)
+    size_t mRevisionCount = 0;  // for generating labels only
+    gl::BufferUsage mUsage;
 };
 
 class SimpleWeakBufferHolderMtl : public BufferHolderMtl

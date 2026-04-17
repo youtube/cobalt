@@ -2,22 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#import "ios/web_view/internal/autofill/cwv_autofill_controller_internal.h"
-
+#import <algorithm>
 #import <memory>
 #import <string>
 #import <vector>
 
+#import "base/apple/foundation_util.h"
 #import "base/functional/callback.h"
-#import "base/mac/foundation_util.h"
 #import "base/notreached.h"
-#import "base/ranges/algorithm.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/values.h"
-#import "components/autofill/core/browser/browser_autofill_manager.h"
 #import "components/autofill/core/browser/form_structure.h"
+#import "components/autofill/core/browser/foundations/browser_autofill_manager.h"
 #import "components/autofill/core/browser/payments/legal_message_line.h"
-#import "components/autofill/core/browser/ui/popup_item_ids.h"
+#import "components/autofill/core/browser/payments/payments_autofill_client.h"
+#import "components/autofill/core/browser/suggestions/suggestion_type.h"
 #import "components/autofill/ios/browser/autofill_agent.h"
 #import "components/autofill/ios/browser/autofill_driver_ios.h"
 #import "components/autofill/ios/browser/autofill_driver_ios_factory.h"
@@ -25,18 +24,16 @@
 #import "components/autofill/ios/browser/autofill_util.h"
 #import "components/autofill/ios/browser/suggestion_controller_java_script_feature.h"
 #import "components/autofill/ios/form_util/form_activity_params.h"
-#import "components/autofill/ios/form_util/unique_id_data_tab_helper.h"
 #import "components/keyed_service/core/service_access_type.h"
 #import "components/password_manager/core/browser/leak_detection_dialog_utils.h"
-#import "components/password_manager/ios/ios_password_manager_driver.h"
-#import "components/password_manager/ios/ios_password_manager_driver_factory.h"
 #import "components/password_manager/ios/shared_password_controller.h"
-#import "components/sync/driver/sync_service.h"
+#import "components/sync/service/sync_service.h"
 #import "ios/web/public/js_messaging/web_frame.h"
-#import "ios/web/public/js_messaging/web_frame_util.h"
 #import "ios/web/public/js_messaging/web_frames_manager.h"
 #import "ios/web/public/web_state.h"
 #import "ios/web_view/internal/app/application_context.h"
+#import "ios/web_view/internal/autofill/cwv_autofill_controller+testing.h"
+#import "ios/web_view/internal/autofill/cwv_autofill_controller_internal.h"
 #import "ios/web_view/internal/autofill/cwv_autofill_form_internal.h"
 #import "ios/web_view/internal/autofill/cwv_autofill_profile_internal.h"
 #import "ios/web_view/internal/autofill/cwv_autofill_suggestion_internal.h"
@@ -48,20 +45,18 @@
 #import "ios/web_view/internal/autofill/web_view_autofill_log_router_factory.h"
 #import "ios/web_view/internal/autofill/web_view_personal_data_manager_factory.h"
 #import "ios/web_view/internal/autofill/web_view_strike_database_factory.h"
+#import "ios/web_view/internal/cwv_web_view_internal.h"
 #import "ios/web_view/internal/passwords/cwv_password_internal.h"
 #import "ios/web_view/internal/signin/web_view_identity_manager_factory.h"
 #import "ios/web_view/internal/web_view_browser_state.h"
 #import "ios/web_view/public/cwv_autofill_controller_delegate.h"
-#import "net/base/mac/url_conversions.h"
+#import "ios/web_view/public/cwv_web_view.h"
+#import "net/base/apple/url_conversions.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
-using autofill::FormRendererId;
 using autofill::FieldRendererId;
-using UserDecision =
-    autofill::AutofillClient::SaveAddressProfileOfferUserDecision;
+using autofill::FormData;
+using autofill::FormRendererId;
+using UserDecision = autofill::AutofillClient::AddressPromptUserDecision;
 
 @implementation CWVAutofillController {
   // Bridge to observe the |webState|.
@@ -93,27 +88,47 @@ using UserDecision =
   std::unique_ptr<autofill::FormActivityObserverBridge>
       _formActivityObserverBridge;
 
+  NSString* _lastFormActivityFormName;
+  NSString* _lastFormActivityFieldIdentifier;
+  NSString* _lastFormActivityFrameID;
   std::string _lastFormActivityWebFrameID;
   NSString* _lastFormActivityTypedValue;
   NSString* _lastFormActivityType;
-  FormRendererId _lastFormActivityUniqueFormID;
-  FieldRendererId _lastFormActivityUniqueFieldID;
+  FormRendererId _lastFormActivityFormRendererID;
+  FieldRendererId _lastFormActivityFieldRendererID;
 }
 
 @synthesize delegate = _delegate;
 
+- (instancetype)initWithWebState:(web::WebState*)webState
+                   autofillAgent:(AutofillAgent*)autofillAgent
+                 passwordManager:
+                     (std::unique_ptr<password_manager::PasswordManager>)
+                         passwordManager
+           passwordManagerClient:
+               (std::unique_ptr<ios_web_view::WebViewPasswordManagerClient>)
+                   passwordManagerClient
+              passwordController:(SharedPasswordController*)passwordController {
+  self = [self initWithWebState:webState
+          autofillClientForTest:nullptr
+                  autofillAgent:autofillAgent
+                passwordManager:std::move(passwordManager)
+          passwordManagerClient:std::move(passwordManagerClient)
+             passwordController:passwordController];
+  return self;
+}
+
 - (instancetype)
          initWithWebState:(web::WebState*)webState
-           autofillClient:(std::unique_ptr<autofill::WebViewAutofillClientIOS>)
-                              autofillClient
+    autofillClientForTest:(std::unique_ptr<autofill::WebViewAutofillClientIOS>)
+                              autofillClientForTest
             autofillAgent:(AutofillAgent*)autofillAgent
           passwordManager:(std::unique_ptr<password_manager::PasswordManager>)
                               passwordManager
     passwordManagerClient:
         (std::unique_ptr<ios_web_view::WebViewPasswordManagerClient>)
             passwordManagerClient
-       passwordController:(SharedPasswordController*)passwordController
-        applicationLocale:(const std::string&)applicationLocale {
+       passwordController:(SharedPasswordController*)passwordController {
   self = [super init];
   if (self) {
     DCHECK(webState);
@@ -128,11 +143,18 @@ using UserDecision =
     _formActivityObserverBridge =
         std::make_unique<autofill::FormActivityObserverBridge>(webState, self);
 
-    _autofillClient = std::move(autofillClient);
-    _autofillClient->set_bridge(self);
-
-    autofill::AutofillDriverIOSFactory::CreateForWebState(
-        _webState, _autofillClient.get(), self, applicationLocale);
+    auto from_web_state_impl =
+        [](web::WebState* web_state) -> autofill::AutofillClientIOS* {
+      if (CWVWebView* web_view = [CWVWebView webViewForWebState:web_state]) {
+        CWVAutofillController* controller = web_view.autofillController;
+        return [controller autofillClient];
+      }
+      return nullptr;
+    };
+    _autofillClient = autofillClientForTest
+                          ? std::move(autofillClientForTest)
+                          : autofill::WebViewAutofillClientIOS::Create(
+                                from_web_state_impl, _webState, self);
 
     _passwordManagerClient = std::move(passwordManagerClient);
     _passwordManagerClient->set_bridge(self);
@@ -154,6 +176,10 @@ using UserDecision =
 
 #pragma mark - Public Methods
 
+- (autofill::WebViewAutofillClientIOS*)autofillClient {
+  return _autofillClient.get();
+}
+
 - (void)clearFormWithName:(NSString*)formName
           fieldIdentifier:(NSString*)fieldIdentifier
                   frameID:(NSString*)frameID
@@ -163,8 +189,8 @@ using UserDecision =
   web::WebFrame* frame =
       feature->GetWebFramesManager(_webState)->GetFrameWithId(
           base::SysNSStringToUTF8(frameID));
-  feature->ClearAutofilledFieldsForForm(frame, _lastFormActivityUniqueFormID,
-                                        _lastFormActivityUniqueFieldID,
+  feature->ClearAutofilledFieldsForForm(frame, _lastFormActivityFormRendererID,
+                                        _lastFormActivityFieldRendererID,
                                         base::BindOnce(^(NSString*) {
                                           if (completionHandler) {
                                             completionHandler();
@@ -190,16 +216,21 @@ using UserDecision =
         }
       };
 
+  _lastFormActivityFormName = formName;
+  _lastFormActivityFrameID = frameID;
+  _lastFormActivityFieldIdentifier = fieldIdentifier;
+
   // Construct query.
   FormSuggestionProviderQuery* formQuery = [[FormSuggestionProviderQuery alloc]
       initWithFormName:formName
-          uniqueFormID:_lastFormActivityUniqueFormID
+        formRendererID:_lastFormActivityFormRendererID
        fieldIdentifier:fieldIdentifier
-         uniqueFieldID:_lastFormActivityUniqueFieldID
+       fieldRendererID:_lastFormActivityFieldRendererID
              fieldType:fieldType
                   type:_lastFormActivityType
             typedValue:_lastFormActivityTypedValue
-               frameID:frameID];
+               frameID:frameID
+          onlyPassword:NO];
   // It is necessary to call |checkIfSuggestionsAvailableForForm| before
   // |retrieveSuggestionsForForm| because the former actually queries the db,
   // while the latter merely returns them.
@@ -247,13 +278,15 @@ using UserDecision =
 }
 
 - (void)acceptSuggestion:(CWVAutofillSuggestion*)suggestion
+                 atIndex:(NSInteger)index
        completionHandler:(nullable void (^)(void))completionHandler {
   if (suggestion.isPasswordSuggestion) {
     [_passwordController didSelectSuggestion:suggestion.formSuggestion
+                                     atIndex:index
                                         form:suggestion.formName
-                                uniqueFormID:_lastFormActivityUniqueFormID
+                              formRendererID:_lastFormActivityFormRendererID
                              fieldIdentifier:suggestion.fieldIdentifier
-                               uniqueFieldID:_lastFormActivityUniqueFieldID
+                             fieldRendererID:_lastFormActivityFieldRendererID
                                      frameID:suggestion.frameID
                            completionHandler:^{
                              if (completionHandler) {
@@ -262,10 +295,11 @@ using UserDecision =
                            }];
   } else {
     [_autofillAgent didSelectSuggestion:suggestion.formSuggestion
+                                atIndex:index
                                    form:suggestion.formName
-                           uniqueFormID:_lastFormActivityUniqueFormID
+                         formRendererID:_lastFormActivityFormRendererID
                         fieldIdentifier:suggestion.fieldIdentifier
-                          uniqueFieldID:_lastFormActivityUniqueFieldID
+                        fieldRendererID:_lastFormActivityFieldRendererID
                                 frameID:suggestion.frameID
                       completionHandler:^{
                         if (completionHandler) {
@@ -275,6 +309,32 @@ using UserDecision =
   }
 }
 
+- (void)acceptCreditCardAsSuggestion:(CWVCreditCard*)card
+                             atIndex:(NSInteger)index
+                   completionHandler:
+                       (nullable void (^)(void))completionHandler {
+  FormSuggestion* suggestion = [FormSuggestion
+      suggestionWithValue:nil
+       displayDescription:nil
+                     icon:nil
+                     type:autofill::SuggestionType::kCreditCardEntry
+                  payload:autofill::Suggestion::Guid(card.internalCard->guid())
+           requiresReauth:NO];
+
+  [_autofillAgent didSelectSuggestion:suggestion
+                              atIndex:index
+                                 form:_lastFormActivityFormName
+                       formRendererID:_lastFormActivityFormRendererID
+                      fieldIdentifier:_lastFormActivityFieldIdentifier
+                      fieldRendererID:_lastFormActivityFieldRendererID
+                              frameID:_lastFormActivityFrameID
+                    completionHandler:^{
+                      if (completionHandler) {
+                        completionHandler();
+                      }
+                    }];
+}
+
 - (void)focusPreviousField {
   web::WebFramesManager* framesManager =
       autofill::AutofillJavaScriptFeature::GetInstance()->GetWebFramesManager(
@@ -282,8 +342,9 @@ using UserDecision =
   web::WebFrame* frame =
       framesManager->GetFrameWithId(_lastFormActivityWebFrameID);
 
-  if (!frame)
+  if (!frame) {
     return;
+  }
 
   autofill::SuggestionControllerJavaScriptFeature::GetInstance()
       ->SelectPreviousElementInFrame(frame);
@@ -296,8 +357,9 @@ using UserDecision =
   web::WebFrame* frame =
       framesManager->GetFrameWithId(_lastFormActivityWebFrameID);
 
-  if (!frame)
+  if (!frame) {
     return;
+  }
 
   autofill::SuggestionControllerJavaScriptFeature::GetInstance()
       ->SelectNextElementInFrame(frame);
@@ -319,19 +381,19 @@ using UserDecision =
 #pragma mark - CWVAutofillClientIOSBridge
 
 - (void)showAutofillPopup:(const std::vector<autofill::Suggestion>&)suggestions
-            popupDelegate:
-                (const base::WeakPtr<autofill::AutofillPopupDelegate>&)
-                    delegate {
-  // frontend_id is > 0 for Autofill suggestions, == 0 for Autocomplete
-  // suggestions, and < 0 for special suggestions such as clear form.
+       suggestionDelegate:
+           (const base::WeakPtr<autofill::AutofillSuggestionDelegate>&)
+               delegate {
   // We only want Autofill suggestions.
   std::vector<autofill::Suggestion> filtered_suggestions;
-  base::ranges::copy_if(suggestions, std::back_inserter(filtered_suggestions),
-                        [](const autofill::Suggestion& suggestion) {
-                          return suggestion.frontend_id > 0;
-                        });
+  std::ranges::copy_if(
+      suggestions, std::back_inserter(filtered_suggestions),
+      [](const autofill::Suggestion& suggestion) {
+        return suggestion.type == autofill::SuggestionType::kAddressEntry ||
+               suggestion.type == autofill::SuggestionType::kCreditCardEntry;
+      });
   [_autofillAgent showAutofillPopup:filtered_suggestions
-                      popupDelegate:delegate];
+                 suggestionDelegate:delegate];
 }
 
 - (void)hideAutofillPopup {
@@ -342,14 +404,19 @@ using UserDecision =
   return [_autofillAgent isLastQueriedField:fieldId];
 }
 
+- (void)showPlusAddressEmailOverrideNotification:
+    (base::OnceClosure)emailOverrideUndoCallback {
+  NOTIMPLEMENTED();
+}
+
 - (void)
-    confirmSaveCreditCardToCloud:(const autofill::CreditCard&)creditCard
-               legalMessageLines:(autofill::LegalMessageLines)legalMessageLines
-           saveCreditCardOptions:
-               (autofill::AutofillClient::SaveCreditCardOptions)
-                   saveCreditCardOptions
-                        callback:(autofill::AutofillClient::
-                                      UploadSaveCardPromptCallback)callback {
+    showSaveCreditCardToCloud:(const autofill::CreditCard&)creditCard
+            legalMessageLines:(autofill::LegalMessageLines)legalMessageLines
+        saveCreditCardOptions:
+            (autofill::payments::PaymentsAutofillClient::SaveCreditCardOptions)
+                saveCreditCardOptions
+                     callback:(autofill::payments::PaymentsAutofillClient::
+                                   UploadSaveCardPromptCallback)callback {
   if (![_delegate respondsToSelector:@selector(autofillController:
                                           saveCreditCardWithSaver:)]) {
     return;
@@ -372,8 +439,8 @@ using UserDecision =
             (const autofill::CardUnmaskPromptOptions&)cardUnmaskPromptOptions
                        delegate:(base::WeakPtr<autofill::CardUnmaskDelegate>)
                                     delegate {
-  if ([_delegate respondsToSelector:@selector
-                 (autofillController:verifyCreditCardWithVerifier:)]) {
+  if ([_delegate respondsToSelector:@selector(autofillController:
+                                        verifyCreditCardWithVerifier:)]) {
     ios_web_view::WebViewBrowserState* browserState =
         ios_web_view::WebViewBrowserState::FromBrowserState(
             _webState->GetBrowserState());
@@ -391,7 +458,7 @@ using UserDecision =
 }
 
 - (void)didReceiveUnmaskVerificationResult:
-    (autofill::AutofillClient::PaymentsRpcResult)result {
+    (autofill::payments::PaymentsAutofillClient::PaymentsRpcResult)result {
   [_verifier didReceiveUnmaskVerificationResult:result];
 }
 
@@ -401,18 +468,6 @@ using UserDecision =
   } else if (_saver) {
     [_saver loadRiskData:std::move(callback)];
   }
-}
-
-- (void)propagateAutofillPredictionsForForms:
-            (const std::vector<autofill::FormStructure*>&)forms
-                                     inFrame:(web::WebFrame*)frame {
-  IOSPasswordManagerDriver* driver =
-      IOSPasswordManagerDriverFactory::FromWebStateAndWebFrame(_webState,
-                                                               frame);
-  if (!driver) {
-    return;
-  }
-  _passwordManager->ProcessAutofillPredictions(driver, forms);
 }
 
 - (void)
@@ -459,12 +514,20 @@ using UserDecision =
 
 #pragma mark - AutofillDriverIOSBridge
 
-- (void)fillFormData:(const autofill::FormData&)form
-             inFrame:(web::WebFrame*)frame {
-  [_autofillAgent fillFormData:form inFrame:frame];
+- (void)fillData:(const std::vector<autofill::FormFieldData::FillData>&)form
+         inFrame:(web::WebFrame*)frame {
+  [_autofillAgent fillData:form inFrame:frame];
 }
 
-- (void)handleParsedForms:(const std::vector<autofill::FormStructure*>&)forms
+- (void)fillSpecificFormField:(const autofill::FieldRendererId&)field
+                    withValue:(const std::u16string)value
+                      inFrame:(web::WebFrame*)frame {
+  // Not supported.
+}
+
+- (void)handleParsedForms:
+            (const std::vector<
+                raw_ptr<autofill::FormStructure, VectorExperimental>>&)forms
                   inFrame:(web::WebFrame*)frame {
   if (![_delegate respondsToSelector:@selector(autofillController:
                                                      didFindForms:frameID:)]) {
@@ -488,6 +551,21 @@ using UserDecision =
   // Not supported.
 }
 
+- (void)notifyFormsSeen:(const std::vector<autofill::FormData>&)updatedForms
+                inFrame:(web::WebFrame*)frame {
+  [_autofillAgent notifyFormsSeen:updatedForms inFrame:frame];
+}
+
+- (void)fetchFormsFiltered:(BOOL)filtered
+                  withName:(const std::u16string&)formName
+                   inFrame:(web::WebFrame*)frame
+         completionHandler:(FormFetchCompletion)completionHandler {
+  [_autofillAgent fetchFormsFiltered:filtered
+                            withName:formName
+                             inFrame:frame
+                   completionHandler:std::move(completionHandler)];
+}
+
 #pragma mark - CRWWebStateObserver
 
 - (void)webState:(web::WebState*)webState
@@ -495,18 +573,20 @@ using UserDecision =
                     inFrame:(web::WebFrame*)frame {
   DCHECK_EQ(_webState, webState);
 
+  std::string frame_id = frame ? frame->GetFrameId() : "";
+
   NSString* nsFormName = base::SysUTF8ToNSString(params.form_name);
-  _lastFormActivityUniqueFormID = params.unique_form_id;
+  _lastFormActivityFormRendererID = params.form_renderer_id;
   NSString* nsFieldIdentifier =
       base::SysUTF8ToNSString(params.field_identifier);
-  _lastFormActivityUniqueFieldID = params.unique_field_id;
+  _lastFormActivityFieldRendererID = params.field_renderer_id;
   NSString* nsFieldType = base::SysUTF8ToNSString(params.field_type);
-  NSString* nsFrameID = base::SysUTF8ToNSString(GetWebFrameId(frame));
+  NSString* nsFrameID = base::SysUTF8ToNSString(frame_id);
   NSString* nsValue = base::SysUTF8ToNSString(params.value);
   NSString* nsType = base::SysUTF8ToNSString(params.type);
   BOOL userInitiated = params.has_user_gesture;
 
-  _lastFormActivityWebFrameID = GetWebFrameId(frame);
+  _lastFormActivityWebFrameID = frame_id;
   _lastFormActivityTypedValue = nsValue;
   _lastFormActivityType = nsType;
   if (params.type == "focus") {
@@ -554,15 +634,14 @@ using UserDecision =
 }
 
 - (void)webState:(web::WebState*)webState
-    didSubmitDocumentWithFormNamed:(const std::string&)formName
-                          withData:(const std::string&)formData
-                    hasUserGesture:(BOOL)userInitiated
-                           inFrame:(web::WebFrame*)frame {
+    didSubmitDocumentWithFormData:(const autofill::FormData&)formData
+                   hasUserGesture:(BOOL)userInitiated
+                          inFrame:(web::WebFrame*)frame {
   if ([_delegate respondsToSelector:@selector
                  (autofillController:
                      didSubmitFormWithName:frameID:userInitiated:)]) {
     [_delegate autofillController:self
-            didSubmitFormWithName:base::SysUTF8ToNSString(formName)
+            didSubmitFormWithName:base::SysUTF16ToNSString(formData.name())
                           frameID:base::SysUTF8ToNSString(frame->GetFrameId())
                     userInitiated:userInitiated];
   }
@@ -655,7 +734,7 @@ using UserDecision =
                           << "A password update can only be accepted or "
                              "ignored.";
                       if (decision == CWVPasswordUserDecisionYes) {
-                        formPtr->Update(credentials);
+                        formPtr->Save();
                       }
                     }];
 }
@@ -704,6 +783,17 @@ using UserDecision =
   // No op
 }
 
+- (void)showSignedInWithSavedCredentialMessage {
+  [self didLoginWithExistingPassword];
+}
+
+- (void)didLoginWithExistingPassword {
+  if ([self.delegate respondsToSelector:@selector
+                     (autofillControllerDidLoginWithExistingPassword:)]) {
+    [self.delegate autofillControllerDidLoginWithExistingPassword:self];
+  }
+}
+
 #pragma mark - SharedPasswordControllerDelegate
 
 - (password_manager::PasswordManagerClient*)passwordManagerClient {
@@ -712,6 +802,8 @@ using UserDecision =
 
 - (void)sharedPasswordController:(SharedPasswordController*)controller
     showGeneratedPotentialPassword:(NSString*)generatedPotentialPassword
+                         proactive:(BOOL)proactive
+                             frame:(base::WeakPtr<web::WebFrame>)frame
                    decisionHandler:(void (^)(BOOL accept))decisionHandler {
   if ([self.delegate
           respondsToSelector:@selector(autofillController:
@@ -727,21 +819,24 @@ using UserDecision =
 
 - (void)attachListenersForBottomSheet:
             (const std::vector<autofill::FieldRendererId>&)rendererIds
-                              inFrame:(web::WebFrame*)frame {
+                           forFrameId:(const std::string&)frameId {
+  // No op.
+}
+
+- (void)attachListenersForPasswordGenerationBottomSheet:
+            (const std::vector<autofill::FieldRendererId>&)rendererIds
+                                             forFrameId:
+                                                 (const std::string&)frameId {
+  // No op.
+}
+
+- (void)detachListenersForBottomSheet:(const std::string&)frameId {
   // No op.
 }
 
 - (void)sharedPasswordController:(SharedPasswordController*)controller
              didAcceptSuggestion:(FormSuggestion*)suggestion {
   // No op.
-}
-
-- (BOOL)shouldShowAccountStorageNotice {
-  return false;
-}
-
-- (void)showAccountStorageNotice:(void (^)())completion {
-  NOTREACHED_NORETURN();
 }
 
 @end

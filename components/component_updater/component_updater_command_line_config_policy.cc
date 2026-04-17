@@ -23,26 +23,27 @@ namespace {
 // use these values in production code.
 
 // Speed up the initial component checking.
-const char kSwitchFastUpdate[] = "fast-update";
+constexpr char kSwitchFastUpdate[] = "fast-update";
 
 // Disables pings. Pings are the requests sent to the update server that report
 // the success or the failure of component install or update attempts.
-const char kSwitchDisablePings[] = "disable-pings";
+constexpr char kSwitchDisablePings[] = "disable-pings";
 
 // Sets the URL for updates.
-const char kSwitchUrlSource[] = "url-source";
+constexpr char kSwitchUrlSource[] = "url-source";
 
 // Disables differential updates.
-const char kSwitchDisableDeltaUpdates[] = "disable-delta-updates";
+constexpr char kSwitchDisableDeltaUpdates[] = "disable-delta-updates";
 
 // Configures the initial delay before the first component update check. The
 // value is in seconds.
-const char kInitialDelay[] = "initial-delay";
+constexpr char kInitialDelay[] = "initial-delay";
 
-#if BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 // Disables background downloads.
-const char kSwitchDisableBackgroundDownloads[] = "disable-background-downloads";
-#endif  // BUILDFLAG(IS_WIN)
+constexpr char kSwitchDisableBackgroundDownloads[] =
+    "disable-background-downloads";
+#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 
 // If there is an element of |vec| of the form |test|=.*, returns the right-
 // hand side of that assignment. Otherwise, returns an empty string.
@@ -50,13 +51,11 @@ const char kSwitchDisableBackgroundDownloads[] = "disable-background-downloads";
 // further nesting of switch arguments.
 std::string GetSwitchArgument(const std::vector<std::string>& vec,
                               const char* test) {
-  if (vec.empty())
-    return std::string();
-  for (auto it = vec.begin(); it != vec.end(); ++it) {
-    const std::size_t found = it->find("=");
+  for (const std::string& s : vec) {
+    const auto found = s.find("=");
     if (found != std::string::npos) {
-      if (it->substr(0, found) == test) {
-        return it->substr(found + 1);
+      if (s.substr(0, found) == test) {
+        return s.substr(found + 1);
       }
     }
   }
@@ -66,17 +65,17 @@ std::string GetSwitchArgument(const std::vector<std::string>& vec,
 }  // namespace
 
 // Add "testrequest=1" attribute to the update check request.
-const char kSwitchTestRequestParam[] = "test-request";
+constexpr char kSwitchTestRequestParam[] = "test-request";
 
 ComponentUpdaterCommandLineConfigPolicy::
     ComponentUpdaterCommandLineConfigPolicy(const base::CommandLine* cmdline) {
-  DCHECK(cmdline);
+  CHECK(cmdline);
   // Parse comma-delimited debug flags.
   std::vector<std::string> switch_values = base::SplitString(
       cmdline->GetSwitchValueASCII(switches::kComponentUpdater), ",",
       base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
 
-#if BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
   background_downloads_enabled_ =
       !base::Contains(switch_values, kSwitchDisableBackgroundDownloads);
 #else
@@ -92,14 +91,14 @@ ComponentUpdaterCommandLineConfigPolicy::
       GetSwitchArgument(switch_values, kSwitchUrlSource);
   if (!switch_url_source.empty()) {
     url_source_override_ = GURL(switch_url_source);
-    DCHECK(url_source_override_.is_valid());
   }
 
   const std::string initial_delay =
       GetSwitchArgument(switch_values, kInitialDelay);
   double initial_delay_seconds = 0;
-  if (base::StringToDouble(initial_delay, &initial_delay_seconds))
+  if (base::StringToDouble(initial_delay, &initial_delay_seconds)) {
     initial_delay_ = base::Seconds(initial_delay_seconds);
+  }
 }
 
 bool ComponentUpdaterCommandLineConfigPolicy::BackgroundDownloadsEnabled()

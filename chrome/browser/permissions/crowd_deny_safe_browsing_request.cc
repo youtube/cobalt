@@ -34,11 +34,15 @@ constexpr base::TimeDelta kSafeBrowsingCheckTimeout = base::Seconds(2);
 class CrowdDenySafeBrowsingRequest::SafeBrowsingClient
     : public safe_browsing::SafeBrowsingDatabaseManager::Client {
  public:
-  SafeBrowsingClient(scoped_refptr<safe_browsing::SafeBrowsingDatabaseManager>
-                         database_manager,
-                     base::WeakPtr<CrowdDenySafeBrowsingRequest> handler,
-                     scoped_refptr<base::TaskRunner> handler_task_runner)
-      : database_manager_(database_manager),
+  SafeBrowsingClient(
+      base::PassKey<safe_browsing::SafeBrowsingDatabaseManager::Client>
+          pass_key,
+      scoped_refptr<safe_browsing::SafeBrowsingDatabaseManager>
+          database_manager,
+      base::WeakPtr<CrowdDenySafeBrowsingRequest> handler,
+      scoped_refptr<base::TaskRunner> handler_task_runner)
+      : safe_browsing::SafeBrowsingDatabaseManager::Client(std::move(pass_key)),
+        database_manager_(database_manager),
         handler_(handler),
         handler_task_runner_(handler_task_runner) {}
 
@@ -48,10 +52,7 @@ class CrowdDenySafeBrowsingRequest::SafeBrowsingClient
   }
 
   void CheckOrigin(const url::Origin& origin) {
-    DCHECK_CURRENTLY_ON(
-        base::FeatureList::IsEnabled(safe_browsing::kSafeBrowsingOnUIThread)
-            ? content::BrowserThread::UI
-            : content::BrowserThread::IO);
+    DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
     // Start the timer before the call to CheckApiBlocklistUrl(), as it may
     // call back into OnCheckApiBlocklistUrlResult() synchronously.
@@ -59,7 +60,7 @@ class CrowdDenySafeBrowsingRequest::SafeBrowsingClient
                    &SafeBrowsingClient::OnTimeout);
 
     if (database_manager_->CheckApiBlocklistUrl(origin.GetURL(), this)) {
-      timeout_.AbandonAndStop();
+      timeout_.Stop();
       SendResultToHandler(Verdict::kAcceptable);
     }
   }
@@ -92,7 +93,7 @@ class CrowdDenySafeBrowsingRequest::SafeBrowsingClient
   void OnCheckApiBlocklistUrlResult(
       const GURL& url,
       const safe_browsing::ThreatMetadata& metadata) override {
-    timeout_.AbandonAndStop();
+    timeout_.Stop();
     SendResultToHandler(ExtractVerdictFromMetadata(metadata));
   }
 
@@ -113,23 +114,13 @@ CrowdDenySafeBrowsingRequest::CrowdDenySafeBrowsingRequest(
       clock_(clock),
       request_start_time_(clock->Now()) {
   client_ = std::make_unique<SafeBrowsingClient>(
+      safe_browsing::SafeBrowsingDatabaseManager::Client::GetPassKey(),
       database_manager, weak_factory_.GetWeakPtr(),
       base::SequencedTaskRunner::GetCurrentDefault());
-  if (base::FeatureList::IsEnabled(safe_browsing::kSafeBrowsingOnUIThread)) {
-    client_->CheckOrigin(origin);
-  } else {
-    content::GetIOThreadTaskRunner({})->PostTask(
-        FROM_HERE, base::BindOnce(&SafeBrowsingClient::CheckOrigin,
-                                  base::Unretained(client_.get()), origin));
-  }
+  client_->CheckOrigin(origin);
 }
 
-CrowdDenySafeBrowsingRequest::~CrowdDenySafeBrowsingRequest() {
-  if (!base::FeatureList::IsEnabled(safe_browsing::kSafeBrowsingOnUIThread)) {
-    content::BrowserThread::DeleteSoon(content::BrowserThread::IO, FROM_HERE,
-                                       client_.release());
-  }
-}
+CrowdDenySafeBrowsingRequest::~CrowdDenySafeBrowsingRequest() = default;
 
 void CrowdDenySafeBrowsingRequest::OnReceivedResult(Verdict verdict) {
   base::UmaHistogramTimes("Permissions.CrowdDeny.SafeBrowsing.RequestDuration",

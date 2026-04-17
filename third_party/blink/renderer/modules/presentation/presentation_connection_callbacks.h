@@ -5,9 +5,11 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_PRESENTATION_PRESENTATION_CONNECTION_CALLBACKS_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_PRESENTATION_PRESENTATION_CONNECTION_CALLBACKS_H_
 
+#include "base/gtest_prod_util.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "third_party/blink/public/mojom/presentation/presentation.mojom-blink-forward.h"
+#include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
@@ -15,8 +17,8 @@
 namespace blink {
 
 class ControllerPresentationConnection;
+class PresentationConnection;
 class PresentationRequest;
-class ScriptPromiseResolver;
 
 // PresentationConnectionCallbacks resolves or rejects the provided resolver's
 // underlying promise depending on the result passed to the callback. On
@@ -28,9 +30,12 @@ class MODULES_EXPORT PresentationConnectionCallbacks final {
   USING_FAST_MALLOC(PresentationConnectionCallbacks);
 
  public:
-  PresentationConnectionCallbacks(ScriptPromiseResolver*, PresentationRequest*);
-  PresentationConnectionCallbacks(ScriptPromiseResolver*,
-                                  ControllerPresentationConnection*);
+  PresentationConnectionCallbacks(
+      ScriptPromiseResolver<PresentationConnection>*,
+      PresentationRequest*);
+  PresentationConnectionCallbacks(
+      ScriptPromiseResolver<PresentationConnection>*,
+      ControllerPresentationConnection*);
 
   PresentationConnectionCallbacks(const PresentationConnectionCallbacks&) =
       delete;
@@ -55,7 +60,7 @@ class MODULES_EXPORT PresentationConnectionCallbacks final {
                      connection_receiver);
   void OnError(const mojom::blink::PresentationError&);
 
-  Persistent<ScriptPromiseResolver> resolver_;
+  Persistent<ScriptPromiseResolver<PresentationConnection>> resolver_;
   Persistent<PresentationRequest> request_;
   WeakPersistent<ControllerPresentationConnection> connection_;
 };

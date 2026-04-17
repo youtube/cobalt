@@ -120,7 +120,7 @@ class PossiblyEmptyBuckets {
   FRIEND_TEST(PossiblyEmptyBucketsTest, WordsForBuckets);
 };
 
-static_assert(std::is_standard_layout<PossiblyEmptyBuckets>::value);
+static_assert(std::is_standard_layout_v<PossiblyEmptyBuckets>);
 static_assert(sizeof(PossiblyEmptyBuckets) == kSystemPointerSize);
 
 class SlotSet final : public ::heap::base::BasicSlotSet<kTaggedSize> {
@@ -134,12 +134,24 @@ class SlotSet final : public ::heap::base::BasicSlotSet<kTaggedSize> {
     return static_cast<SlotSet*>(BasicSlotSet::Allocate(buckets));
   }
 
+  template <v8::internal::AccessMode access_mode>
+  static constexpr BasicSlotSet::AccessMode ConvertAccessMode() {
+    switch (access_mode) {
+      case v8::internal::AccessMode::ATOMIC:
+        return BasicSlotSet::AccessMode::ATOMIC;
+      case v8::internal::AccessMode::NON_ATOMIC:
+        return BasicSlotSet::AccessMode::NON_ATOMIC;
+    }
+  }
+
   // Similar to BasicSlotSet::Iterate() but Callback takes the parameter of type
   // MaybeObjectSlot.
-  template <typename Callback>
+  template <
+      v8::internal::AccessMode access_mode = v8::internal::AccessMode::ATOMIC,
+      typename Callback>
   size_t Iterate(Address chunk_start, size_t start_bucket, size_t end_bucket,
                  Callback callback, EmptyBucketMode mode) {
-    return BasicSlotSet::Iterate(
+    return BasicSlotSet::Iterate<ConvertAccessMode<access_mode>()>(
         chunk_start, start_bucket, end_bucket,
         [&callback](Address slot) { return callback(MaybeObjectSlot(slot)); },
         [this, mode](size_t bucket_index) {
@@ -201,18 +213,21 @@ class SlotSet final : public ::heap::base::BasicSlotSet<kTaggedSize> {
       if (!other_bucket) continue;
       Bucket* bucket = LoadBucket<AccessMode::NON_ATOMIC>(bucket_index);
       if (bucket == nullptr) {
-        bucket = new Bucket;
-        CHECK(SwapInNewBucket<AccessMode::NON_ATOMIC>(bucket_index, bucket));
-      }
-      for (int cell_index = 0; cell_index < kCellsPerBucket; cell_index++) {
-        bucket->SetCellBits(cell_index, *other_bucket->cell(cell_index));
+        other->StoreBucket<AccessMode::NON_ATOMIC>(bucket_index, nullptr);
+        StoreBucket<AccessMode::NON_ATOMIC>(bucket_index, other_bucket);
+      } else {
+        for (int cell_index = 0; cell_index < kCellsPerBucket; cell_index++) {
+          bucket->SetCellBits<AccessMode::NON_ATOMIC>(
+              cell_index,
+              other_bucket->LoadCell<AccessMode::NON_ATOMIC>(cell_index));
+        }
       }
     }
   }
 };
 
-static_assert(std::is_standard_layout<SlotSet>::value);
-static_assert(std::is_standard_layout<SlotSet::Bucket>::value);
+static_assert(std::is_standard_layout_v<SlotSet>);
+static_assert(std::is_standard_layout_v<SlotSet::Bucket>);
 
 enum class SlotType : uint8_t {
   // Full pointer sized slot storing an object start address.
@@ -250,11 +265,11 @@ enum class SlotType : uint8_t {
 
 // Data structure for maintaining a list of typed slots in a page.
 // Typed slots can only appear in Code objects, so
-// the maximum possible offset is limited by the LargePage::kMaxCodePageSize.
-// The implementation is a chain of chunks, where each chunk is an array of
-// encoded (slot type, slot offset) pairs.
-// There is no duplicate detection and we do not expect many duplicates because
-// typed slots contain V8 internal pointers that are not directly exposed to JS.
+// the maximum possible offset is limited by the
+// LargePageMetadata::kMaxCodePageSize. The implementation is a chain of chunks,
+// where each chunk is an array of encoded (slot type, slot offset) pairs. There
+// is no duplicate detection and we do not expect many duplicates because typed
+// slots contain V8 internal pointers that are not directly exposed to JS.
 class V8_EXPORT_PRIVATE TypedSlots {
  public:
   static const int kMaxOffset = 1 << 29;
@@ -350,9 +365,6 @@ class V8_EXPORT_PRIVATE TypedSlotSet : public TypedSlots {
 
   // Asserts that there are no recorded slots in the specified ranges.
   void AssertNoInvalidSlots(const FreeRangesMap& invalid_ranges);
-
-  // Frees empty chunks accumulated by PREFREE_EMPTY_CHUNKS.
-  void FreeToBeFreedChunks();
 
  private:
   template <typename Callback>

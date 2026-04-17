@@ -12,26 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/player.h"
+// clang-format on
+
 #include <memory>
 #include <string>
 #include <utility>
-
-#include "starboard/player.h"
 
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
+#include "starboard/player.h"
 #include "starboard/shared/media_session/playback_state.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
-
-#if SB_PLAYER_ENABLE_VIDEO_DUMPER
-#include SB_PLAYER_DMP_WRITER_INCLUDE_PATH
-#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
 using ::starboard::MimeType;
 
@@ -203,14 +202,14 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
       std::make_unique<starboard::FilterBasedPlayerWorkerHandler>(
           creation_param, provider);
 
-  SbPlayer player = starboard::SbPlayerPrivateImpl::CreateInstance(
+  auto player = std::make_unique<starboard::SbPlayerPrivateImpl>(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
       player_status_func, player_error_func, context, std::move(handler));
 
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
-  starboard::VideoDmpWriter::OnPlayerCreate(player, audio_codec, video_codec,
-                                            drm_system, &audio_stream_info);
+  starboard::VideoDmpWriter::OnPlayerCreate(
+      player.get(), audio_codec, video_codec, drm_system, &audio_stream_info);
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
-  return player;
+  return player.release();
 }

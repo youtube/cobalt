@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <iterator>
 
-#include "ash/components/arc/arc_prefs.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
@@ -22,6 +21,7 @@
 #include "chrome/browser/ash/policy/reporting/install_event_logger_base.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chromeos/ash/experiences/arc/arc_prefs.h"
 #include "components/policy/core/common/policy_map.h"
 #include "components/policy/core/common/policy_namespace.h"
 #include "components/policy/policy_constants.h"
@@ -148,7 +148,7 @@ void ArcAppInstallEventLogger::OnComplianceReportReceived(
   std::set<std::string> noncompliant_apps_in_report;
   for (const auto& detail : *details) {
     const base::Value::Dict& details_dict = detail.GetDict();
-    const absl::optional<int> reason =
+    const std::optional<int> reason =
         details_dict.FindInt("nonComplianceReason");
     if (!reason || *reason != kNonComplianceReasonAppNotInstalled) {
       continue;

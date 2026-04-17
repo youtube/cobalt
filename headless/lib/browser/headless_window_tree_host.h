@@ -21,7 +21,7 @@ class WindowParentingClient;
 }
 
 namespace ui {
-enum class DomCode;
+enum class DomCode : uint32_t;
 }
 
 namespace headless {
@@ -53,17 +53,13 @@ class HeadlessWindowTreeHost : public aura::WindowTreeHost,
   void SetCapture() override;
   void ReleaseCapture() override;
   bool CaptureSystemKeyEventsImpl(
-      absl::optional<base::flat_set<ui::DomCode>> codes) override;
+      std::optional<base::flat_set<ui::DomCode>> codes) override;
   void ReleaseSystemKeyEventCapture() override;
   bool IsKeyLocked(ui::DomCode dom_code) override;
   base::flat_map<std::string, std::string> GetKeyboardLayoutMap() override;
   void SetCursorNative(gfx::NativeCursor cursor_type) override;
   void MoveCursorToScreenLocationInPixels(const gfx::Point& location) override;
   void OnCursorVisibilityChangedNative(bool show) override;
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  std::string GetUniqueId() const override;
-#endif
 
  private:
   gfx::Rect bounds_;

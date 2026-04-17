@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 // Provides a minimal wrapping of the Blink image decoders. Used to perform
 // a non-threaded, memory-to-memory image decode using micro second accuracy
 // clocks to measure image decode time.
@@ -32,7 +37,7 @@ scoped_refptr<SharedBuffer> ReadFile(const char* name) {
     perror(name);
     exit(2);
   }
-  return SharedBuffer::Create(file.data(), file.size());
+  return SharedBuffer::Create(file);
 }
 
 struct ImageMeta {
@@ -54,7 +59,8 @@ void DecodeImageData(SharedBuffer* data, ImageMeta* image) {
 
   std::unique_ptr<ImageDecoder> decoder = ImageDecoder::Create(
       data, all_data_received, ImageDecoder::kAlphaPremultiplied,
-      ImageDecoder::kDefaultBitDepth, ColorBehavior::Ignore());
+      ImageDecoder::kDefaultBitDepth, ColorBehavior::kIgnore,
+      cc::AuxImage::kDefault, Platform::GetMaxDecodedImageBytes());
 
   auto start = std::chrono::steady_clock::now();
 

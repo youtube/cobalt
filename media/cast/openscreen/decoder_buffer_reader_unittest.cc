@@ -31,7 +31,7 @@ class DecoderBufferReaderTest : public testing::Test {
     // NOTE: This is INTENTIONALLY different from the above, to ensure that the
     // data() field is overwritten.
     uint8_t data[] = {42, 43, 44};
-    populated_buffer_ = media::DecoderBuffer::CopyFrom(data, 3);
+    populated_buffer_ = media::DecoderBuffer::CopyFrom(data);
   }
 
   ~DecoderBufferReaderTest() override = default;
@@ -53,7 +53,7 @@ class DecoderBufferReaderTest : public testing::Test {
   }
 
   void WriteBufferData() {
-    writer_->Write(serialized_data_.data(), serialized_data_.size(),
+    writer_->Write(serialized_data_,
                    base::BindOnce(&DecoderBufferReaderTest::OnWriteDone,
                                   base::Unretained(this)));
   }
@@ -68,18 +68,14 @@ class DecoderBufferReaderTest : public testing::Test {
 
     // Set the data size to that of the new data so it will be properly
     // deserialized.
-    buffer->data_size = serialized_data_.size();
+    buffer->get_data()->data_size = serialized_data_.size();
     buffer_reader_->ProvideBuffer(std::move(buffer));
   }
 
   // DecoderBufferReader::Client overrides.
   void OnBufferReady(scoped_refptr<media::DecoderBuffer> buffer) {
     EXPECT_TRUE(buffer->MatchesMetadataForTesting(*populated_buffer_));
-
-    ASSERT_EQ(buffer->data_size(), serialized_data_.size());
-    EXPECT_TRUE(!memcmp(buffer->data(), serialized_data_.data(),
-                        serialized_data_.size()));
-
+    EXPECT_EQ(base::span(*buffer), base::span(serialized_data_));
     has_buffer_been_read_ = true;
   }
 

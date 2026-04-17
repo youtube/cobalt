@@ -10,10 +10,10 @@ import "mojo/public/mojom/base/time.mojom";
 import "mojo/public/mojom/base/values.mojom";
 import "services/network/public/mojom/cookie_manager.mojom";
 import "services/network/public/mojom/url_loader_factory.mojom";
+import "third_party/blink/public/mojom/associated_interfaces/associated_interfaces.mojom";
 import "third_party/blink/public/mojom/background_fetch/background_fetch.mojom";
 import "third_party/blink/public/mojom/devtools/console_message.mojom";
 import "third_party/blink/public/mojom/fetch/fetch_api_response.mojom";
-import "third_party/blink/public/mojom/frame/reporting_observer.mojom";
 import "third_party/blink/public/mojom/loader/url_loader_factory_bundle.mojom";
 import "third_party/blink/public/mojom/messaging/transferable_message.mojom";
 import "third_party/blink/public/mojom/notifications/notification.mojom";
@@ -27,9 +27,23 @@ import "third_party/blink/public/mojom/service_worker/service_worker_event_statu
 import "third_party/blink/public/mojom/service_worker/service_worker_fetch_response_callback.mojom";
 import "third_party/blink/public/mojom/service_worker/service_worker_object.mojom";
 import "third_party/blink/public/mojom/service_worker/service_worker_registration.mojom";
+import "third_party/blink/public/mojom/service_worker/service_worker_router_rule.mojom";
 import "third_party/blink/public/mojom/storage_key/storage_key.mojom";
 import "url/mojom/origin.mojom";
 import "url/mojom/url.mojom";
+
+// Enum to represent the service worker focus error.
+enum FocusError {
+  CLIENT_NOT_FOUND,
+  CLIENT_INACTIVE
+};
+
+// The result of a FocusClient request. On success, |client| tells service worker client
+// information of the focused window. Otherwise, |error_code| describes the failure.
+union FocusResult {
+  ServiceWorkerClientInfo client;
+  FocusError error_code;
+};
 
 // Host for a running service worker execution context. Implemented in the
 // browser process. The service worker running in the renderer process uses this
@@ -82,10 +96,7 @@ interface ServiceWorkerHost {
 
   // Corresponds to WindowClient#focus(). Requests the browser to focus the
   // client with |client_uuid|.
-  // On success, |client| contains service worker client information of the
-  // focused window.
-  // Otherwise, |client| is null.
-  FocusClient(string client_uuid) => (ServiceWorkerClientInfo? client);
+  FocusClient(string client_uuid) => (FocusResult result);
 
   // Corresponds to WindowClient#navigate(). Requests the browser to navigate
   // the client with |client_uuid| to |url|.
@@ -112,6 +123,16 @@ interface ServiceWorkerHost {
   // On success, |error| is kNone without |error_msg| set.
   // Otherwise, |error| and |error_msg| describe the failure.
   ClaimClients() => (ServiceWorkerErrorType error, string? error_msg);
+
+  // Corresponds to InstallEvent#addRoutes(). Adds service worker router rules,
+  // which are evaluated before the regular navigation path. i.e. evaluated
+  // before the service worker fetch handler is invoked.
+  //
+  // The callback with |is_parse_error| true indicates that the evaluator faced
+  // a parse error of regex, and could not initialize the router evaluator.
+  // Otherwise, |is_parse_error| is false to indicate that the evaluator is
+  // initialized.
+  AddRoutes(ServiceWorkerRouterRules rules) => (bool is_parse_error);
 };
 
 struct ExtendableMessageEvent {
@@ -187,10 +208,11 @@ interface ServiceWorker {
   // be notified to ReportingObservers registered with the global scope.
   InitializeGlobalScope(
       pending_associated_remote<ServiceWorkerHost> service_worker_host,
+      pending_associated_remote<blink.mojom.AssociatedInterfaceProvider> associated_interfaces_to_browser,
+      pending_associated_receiver<blink.mojom.AssociatedInterfaceProvider> associated_interfaces_from_browser,
       ServiceWorkerRegistrationObjectInfo registration_info,
       ServiceWorkerObjectInfo service_worker_info,
       FetchHandlerExistence fetch_handler_existence,
-      pending_receiver<ReportingObserver>? reporting_observer_receiver,
       AncestorFrameType ancestor_frame_type,
       blink.mojom.StorageKey storage_key);
 

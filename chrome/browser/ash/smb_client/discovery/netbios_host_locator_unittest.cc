@@ -14,8 +14,7 @@
 #include "net/base/ip_endpoint.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace ash {
-namespace smb_client {
+namespace ash::smb_client {
 namespace {
 
 // Helper method to create a NetworkInterface for testing.
@@ -177,15 +176,21 @@ TEST_F(NetBiosHostLocatorTest, ShouldUseWifiAndEthernetInterfaces) {
 
   const net::NetworkInterface interface_ethernet = CreateNetworkInterface(
       net::IPAddress::IPv4Localhost(), 24 /* prefix_length */,
-      net::NetworkChangeNotifier::CONNECTION_WIFI);
+      net::NetworkChangeNotifier::CONNECTION_ETHERNET);
 
   const net::NetworkInterface interface_bluetooth = CreateNetworkInterface(
       net::IPAddress::IPv4Localhost(), 24 /* prefix_length */,
       net::NetworkChangeNotifier::CONNECTION_BLUETOOTH);
 
+  // For IPv4 the max length should be 32 bits.
+  const net::NetworkInterface invalid_length = CreateNetworkInterface(
+      net::IPAddress::IPv4Localhost(), 40 /* prefix_length */,
+      net::NetworkChangeNotifier::CONNECTION_ETHERNET);
+
   EXPECT_TRUE(ShouldUseInterface(interface_wifi));
   EXPECT_TRUE(ShouldUseInterface(interface_ethernet));
   EXPECT_FALSE(ShouldUseInterface(interface_bluetooth));
+  EXPECT_FALSE(ShouldUseInterface(invalid_length));
 }
 
 // ShouldUseInterface returns true for IPv4 interfaces but false for IPv6
@@ -432,5 +437,4 @@ TEST_F(NetBiosHostLocatorTest, SecondIPUsedForResults) {
   task_runner_->FastForwardBy(base::Seconds(kNetBiosDiscoveryTimeoutSeconds));
 }
 
-}  // namespace smb_client
-}  // namespace ash
+}  // namespace ash::smb_client

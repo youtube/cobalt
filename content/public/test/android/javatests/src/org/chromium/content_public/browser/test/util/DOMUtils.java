@@ -4,37 +4,41 @@
 
 package org.chromium.content_public.browser.test.util;
 
+import static org.hamcrest.CoreMatchers.is;
+
 import android.app.Activity;
+import android.app.Instrumentation;
 import android.graphics.Rect;
 import android.util.JsonReader;
 import android.view.View;
 
 import org.hamcrest.Matchers;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 import org.junit.Assert;
 
 import org.chromium.base.ContextUtils;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.CriteriaNotSatisfiedException;
 import org.chromium.content.browser.RenderCoordinatesImpl;
 import org.chromium.content.browser.webcontents.WebContentsImpl;
+import org.chromium.content_public.browser.ImeAdapter;
 import org.chromium.content_public.browser.WebContents;
 
 import java.io.IOException;
 import java.io.StringReader;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-/**
- * Collection of DOM-based utilities.
- */
+/** Collection of DOM-based utilities. */
 @JNINamespace("content")
 public class DOMUtils {
     private static final long MEDIA_TIMEOUT_SECONDS = 10L;
     private static final long MEDIA_TIMEOUT_MILLISECONDS = MEDIA_TIMEOUT_SECONDS * 1000;
+    private static final String RESULT_OK = "RESULT_OK";
+    private static final String RESULT_ELEMENT_NOT_FOUND = "RESULT_ELEMENT_NOT_FOUND";
 
     /**
      * Plays the media with given {@code id}.
@@ -107,17 +111,21 @@ public class DOMUtils {
      * @param id The element's id to check.
      */
     public static void waitForMediaPlay(final WebContents webContents, final String id) {
-        CriteriaHelper.pollInstrumentationThread(() -> {
-            try {
-                // Playback can't be reliably detected until current time moves forward.
-                Criteria.checkThat(DOMUtils.isMediaPaused(webContents, id), Matchers.is(false));
-                Criteria.checkThat(
-                        DOMUtils.getCurrentTime(webContents, id), Matchers.greaterThan(0d));
-            } catch (TimeoutException e) {
-                // Intentionally do nothing
-                throw new CriteriaNotSatisfiedException(e);
-            }
-        }, MEDIA_TIMEOUT_MILLISECONDS, CriteriaHelper.DEFAULT_POLLING_INTERVAL);
+        CriteriaHelper.pollInstrumentationThread(
+                () -> {
+                    try {
+                        // Playback can't be reliably detected until current time moves forward.
+                        Criteria.checkThat(
+                                DOMUtils.isMediaPaused(webContents, id), Matchers.is(false));
+                        Criteria.checkThat(
+                                DOMUtils.getCurrentTime(webContents, id), Matchers.greaterThan(0d));
+                    } catch (TimeoutException e) {
+                        // Intentionally do nothing
+                        throw new CriteriaNotSatisfiedException(e);
+                    }
+                },
+                MEDIA_TIMEOUT_MILLISECONDS,
+                CriteriaHelper.DEFAULT_POLLING_INTERVAL);
     }
 
     /**
@@ -126,15 +134,18 @@ public class DOMUtils {
      * @param id The element's id to check.
      */
     public static void waitForMediaPauseBeforeEnd(final WebContents webContents, final String id) {
-        CriteriaHelper.pollInstrumentationThread(() -> {
-            try {
-                Criteria.checkThat(DOMUtils.isMediaPaused(webContents, id), Matchers.is(true));
-                Criteria.checkThat(DOMUtils.isMediaEnded(webContents, id), Matchers.is(false));
-            } catch (TimeoutException e) {
-                // Intentionally do nothing
-                throw new CriteriaNotSatisfiedException(e);
-            }
-        });
+        CriteriaHelper.pollInstrumentationThread(
+                () -> {
+                    try {
+                        Criteria.checkThat(
+                                DOMUtils.isMediaPaused(webContents, id), Matchers.is(true));
+                        Criteria.checkThat(
+                                DOMUtils.isMediaEnded(webContents, id), Matchers.is(false));
+                    } catch (TimeoutException e) {
+                        // Intentionally do nothing
+                        throw new CriteriaNotSatisfiedException(e);
+                    }
+                });
     }
 
     /**
@@ -187,7 +198,62 @@ public class DOMUtils {
     }
 
     /**
+     * Returns the rect with the document viewport.
+     *
+     * @param webContents The WebContents in which the node lives.
+     * @return The rect for the viewport, which always has a [0,0] top left.
+     */
+    public static Rect getDocumentViewport(final WebContents webContents) throws TimeoutException {
+        StringBuilder sb = new StringBuilder();
+        sb.append("(function() {");
+        sb.append(
+                "  return [Math.round(window.visualViewport.width),"
+                        + " Math.round(window.visualViewport.height)];");
+        sb.append("})();");
+
+        String jsonText =
+                JavaScriptUtils.executeJavaScriptAndWaitForResult(webContents, sb.toString());
+        Assert.assertFalse(
+                "Failed to retrieve document viewport", jsonText.trim().equalsIgnoreCase("null"));
+        int[] wh = readJsonIntArray(jsonText, 2);
+        return new Rect(0, 0, wh[0], wh[1]);
+    }
+
+    /**
+     * Returns the client rect for a node by its id.
+     *
+     * @param webContents The WebContents in which the node lives.
+     * @param nodeId The id of the node.
+     * @return The client rect for the node.
+     */
+    public static Rect getNodeClientRect(final WebContents webContents, String nodeId)
+            throws TimeoutException {
+        String elementGetterJs = "document.getElementById('" + nodeId + "')";
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("(function() {");
+        sb.append("  var node = " + elementGetterJs + ";");
+        sb.append("  if (!node) return null;");
+        sb.append("  var r = node.getBoundingClientRect();");
+        sb.append(
+                "  return [Math.round(r.left), Math.round(r.top), Math.round(r.right),"
+                        + " Math.round(r.bottom)];");
+        sb.append("})();");
+
+        String jsonText =
+                JavaScriptUtils.executeJavaScriptAndWaitForResult(webContents, sb.toString());
+
+        Assert.assertFalse(
+                "Failed to retrieve client rect for element: " + elementGetterJs,
+                jsonText.trim().equalsIgnoreCase("null"));
+        int[] r = readJsonIntArray(jsonText, 4);
+
+        return new Rect(r[0], r[1], r[2], r[3]);
+    }
+
+    /**
      * Focus a DOM node by its id.
+     *
      * @param webContents The WebContents in which the node lives.
      * @param nodeId The id of the node.
      */
@@ -233,7 +299,7 @@ public class DOMUtils {
      */
     public static boolean clickNode(final WebContents webContents, String nodeId)
             throws TimeoutException {
-        return clickNode(webContents, nodeId, true /* goThroughRootAndroidView */);
+        return clickNode(webContents, nodeId, /* goThroughRootAndroidView= */ true);
     }
 
     /**
@@ -243,10 +309,11 @@ public class DOMUtils {
      * @param goThroughRootAndroidView Whether the input should be routed through the Root View for
      *        the CVC.
      */
-    public static boolean clickNode(final WebContents webContents, String nodeId,
-            boolean goThroughRootAndroidView) throws TimeoutException {
+    public static boolean clickNode(
+            final WebContents webContents, String nodeId, boolean goThroughRootAndroidView)
+            throws TimeoutException {
         return clickNode(
-                webContents, nodeId, goThroughRootAndroidView, true /* shouldScrollIntoView */);
+                webContents, nodeId, goThroughRootAndroidView, /* shouldScrollIntoView= */ true);
     }
 
     /**
@@ -257,8 +324,11 @@ public class DOMUtils {
      *        the CVC.
      * @param shouldScrollIntoView Whether to scroll the node into view first.
      */
-    public static boolean clickNode(final WebContents webContents, String nodeId,
-            boolean goThroughRootAndroidView, boolean shouldScrollIntoView)
+    public static boolean clickNode(
+            final WebContents webContents,
+            String nodeId,
+            boolean goThroughRootAndroidView,
+            boolean shouldScrollIntoView)
             throws TimeoutException {
         if (shouldScrollIntoView) scrollNodeIntoView(webContents, nodeId);
         int[] clickTarget = getClickTargetForNode(webContents, nodeId);
@@ -325,14 +395,27 @@ public class DOMUtils {
      * @param stepCount How many move steps to include in the drag.
      * @param downTime When the drag was started, in millis since the epoch.
      */
-    public static void dragNodeTo(final WebContents webContents, String fromNodeId, String toNodeId,
-            int stepCount, long downTime) throws TimeoutException {
-        int[] fromTarget = getClickTargetForNodeByJs(
-                webContents, "document.getElementById('" + fromNodeId + "')");
-        int[] toTarget = getClickTargetForNodeByJs(
-                webContents, "document.getElementById('" + toNodeId + "')");
-        TouchCommon.dragTo(getActivity(webContents), fromTarget[0], fromTarget[1], toTarget[0],
-                toTarget[1], stepCount, downTime);
+    public static void dragNodeTo(
+            final WebContents webContents,
+            String fromNodeId,
+            String toNodeId,
+            int stepCount,
+            long downTime)
+            throws TimeoutException {
+        int[] fromTarget =
+                getClickTargetForNodeByJs(
+                        webContents, "document.getElementById('" + fromNodeId + "')");
+        int[] toTarget =
+                getClickTargetForNodeByJs(
+                        webContents, "document.getElementById('" + toNodeId + "')");
+        TouchCommon.dragTo(
+                getActivity(webContents),
+                fromTarget[0],
+                fromTarget[1],
+                toTarget[0],
+                toTarget[1],
+                stepCount,
+                downTime);
     }
 
     /**
@@ -405,7 +488,22 @@ public class DOMUtils {
     }
 
     /**
+     * Right-click a DOM node by its id.
+     *
+     * @param webContents The WebContents in which the node lives.
+     * @param jsCode js code that returns an element.
+     */
+    public static void rightClickNodeByJs(
+            Instrumentation instrumentation, final WebContents webContents, String jsCode)
+            throws TimeoutException {
+        int[] clickTarget = getClickTargetForNodeByJs(webContents, jsCode);
+        ClickUtils.mouseContextClickView(
+                instrumentation, getContainerView(webContents), clickTarget[0], clickTarget[1]);
+    }
+
+    /**
      * Scrolls the view to ensure that the required DOM node is visible.
+     *
      * @param webContents The WebContents in which the node lives.
      * @param nodeId The id of the node.
      */
@@ -454,8 +552,9 @@ public class DOMUtils {
      * @param nodeId The id of the node.
      * @return the value of the field.
      */
-    public static String getNodeField(String fieldName, final WebContents webContents,
-            String nodeId) throws TimeoutException {
+    public static String getNodeField(
+            String fieldName, final WebContents webContents, String nodeId)
+            throws TimeoutException {
         return getNodeField(fieldName, webContents, nodeId, String.class);
     }
 
@@ -466,15 +565,17 @@ public class DOMUtils {
      */
     public static void waitForNonZeroNodeBounds(
             final WebContents webContents, final String nodeId) {
-        CriteriaHelper.pollInstrumentationThread(() -> {
-            try {
-                Criteria.checkThat(
-                        DOMUtils.getNodeBounds(webContents, nodeId).isEmpty(), Matchers.is(false));
-            } catch (TimeoutException e) {
-                // Intentionally do nothing
-                throw new CriteriaNotSatisfiedException(e);
-            }
-        });
+        CriteriaHelper.pollInstrumentationThread(
+                () -> {
+                    try {
+                        Criteria.checkThat(
+                                DOMUtils.getNodeBounds(webContents, nodeId).isEmpty(),
+                                Matchers.is(false));
+                    } catch (TimeoutException e) {
+                        // Intentionally do nothing
+                        throw new CriteriaNotSatisfiedException(e);
+                    }
+                });
     }
 
     /**
@@ -485,8 +586,9 @@ public class DOMUtils {
      * @param valueType The type of the value to read.
      * @return the field's value.
      */
-    public static <T> T getNodeField(String fieldName, final WebContents webContents, String nodeId,
-            Class<T> valueType) throws TimeoutException {
+    public static <T> T getNodeField(
+            String fieldName, final WebContents webContents, String nodeId, Class<T> valueType)
+            throws TimeoutException {
         StringBuilder sb = new StringBuilder();
         sb.append("(function() {");
         sb.append("  var node = document.getElementById('" + nodeId + "');");
@@ -496,7 +598,8 @@ public class DOMUtils {
 
         String jsonText =
                 JavaScriptUtils.executeJavaScriptAndWaitForResult(webContents, sb.toString());
-        Assert.assertFalse("Failed to retrieve contents for " + nodeId,
+        Assert.assertFalse(
+                "Failed to retrieve contents for " + nodeId,
                 jsonText.trim().equalsIgnoreCase("null"));
         return readValue(jsonText, valueType);
     }
@@ -509,8 +612,9 @@ public class DOMUtils {
      * @param valueType The type of the value to read.
      * @return the attributes' value or null if there is no attribute with such attributeName.
      */
-    public static <T> T getNodeAttribute(String attributeName, final WebContents webContents,
-            String nodeId, Class<T> valueType) throws InterruptedException, TimeoutException {
+    public static <T> T getNodeAttribute(
+            String attributeName, final WebContents webContents, String nodeId, Class<T> valueType)
+            throws InterruptedException, TimeoutException {
         StringBuilder sb = new StringBuilder();
         sb.append("(function() {");
         sb.append("  var node = document.getElementById('" + nodeId + "');");
@@ -618,18 +722,15 @@ public class DOMUtils {
         // does not account for visual viewport offset.
         RenderCoordinatesImpl coord = ((WebContentsImpl) webContents).getRenderCoordinates();
         int clickX = (int) coord.fromLocalCssToPix(bounds.exactCenterX());
-        int clickY = (int) coord.fromLocalCssToPix(bounds.exactCenterY())
-                + getMaybeTopControlsHeight(webContents);
+        int clickY =
+                (int) coord.fromLocalCssToPix(bounds.exactCenterY())
+                        + getMaybeTopControlsHeight(webContents);
         return new int[] {clickX, clickY};
     }
 
     private static int getMaybeTopControlsHeight(final WebContents webContents) {
-        try {
-            return TestThreadUtils.runOnUiThreadBlocking(
-                    () -> DOMUtilsJni.get().getTopControlsShrinkBlinkHeight(webContents));
-        } catch (ExecutionException e) {
-            return 0;
-        }
+        return ThreadUtils.runOnUiThreadBlocking(
+                () -> DOMUtilsJni.get().getTopControlsShrinkBlinkHeight(webContents));
     }
 
     /**
@@ -658,31 +759,130 @@ public class DOMUtils {
         String jsonText =
                 JavaScriptUtils.executeJavaScriptAndWaitForResult(webContents, sb.toString());
 
-        Assert.assertFalse("Failed to retrieve bounds for element: " + jsCode,
+        Assert.assertFalse(
+                "Failed to retrieve bounds for element: " + jsCode,
                 jsonText.trim().equalsIgnoreCase("null"));
 
+        int[] bounds = readJsonIntArray(jsonText, 4);
+        return new Rect(bounds[0], bounds[1], bounds[0] + bounds[2], bounds[1] + bounds[3]);
+    }
+
+    private static int[] readJsonIntArray(String jsonText, int size) {
         JsonReader jsonReader = new JsonReader(new StringReader(jsonText));
-        int[] bounds = new int[4];
+        int[] result = new int[size];
+        int i = 0;
         try {
             jsonReader.beginArray();
-            int i = 0;
             while (jsonReader.hasNext()) {
-                bounds[i++] = jsonReader.nextInt();
+                if (i >= size) {
+                    Assert.fail("Json array was larger than size " + size + ": " + jsonText);
+                }
+                result[i++] = jsonReader.nextInt();
             }
             jsonReader.endArray();
-            Assert.assertEquals("Invalid bounds returned.", 4, i);
+            Assert.assertEquals("Json array was smaller than size " + size, size, i);
 
             jsonReader.close();
         } catch (IOException exception) {
-            Assert.fail("Failed to evaluate JavaScript: " + jsonText + "\n" + exception);
+            Assert.fail("Failed to read json array: " + jsonText + "\n" + exception);
         }
-
-        return new Rect(bounds[0], bounds[1], bounds[0] + bounds[2], bounds[1] + bounds[3]);
+        return result;
     }
 
     private static String createScriptToClickNode(String nodeId) {
         String script = "document.getElementById('" + nodeId + "').click();";
         return script;
+    }
+
+    /**
+     * Prints the text into the text field node simulating the keyboard input. The node needs to be
+     * focused at first to bring up the keyboard.
+     *
+     * @param webContents The WebContents in which the node lives.
+     * @param nodeId The id of the text input node.
+     * @param input The text to be entered into the text field.
+     */
+    public static void enterInputIntoTextField(WebContents webContents, String nodeId, String input)
+            throws TimeoutException {
+        Assert.assertTrue(
+                "Input should be a non-empty string", input != null && input.length() > 0);
+        ImeAdapter imeAdapter = WebContentsUtils.getImeAdapter(webContents);
+        TestInputMethodManagerWrapper inputMethodManagerWrapper =
+                TestInputMethodManagerWrapper.create(imeAdapter);
+        imeAdapter.setInputMethodManagerWrapper(inputMethodManagerWrapper);
+        DOMUtils.focusNode(webContents, nodeId);
+        CriteriaHelper.pollInstrumentationThread(
+                () -> {
+                    try {
+                        Criteria.checkThat(DOMUtils.getFocusedNode(webContents), is(nodeId));
+                    } catch (TimeoutException e) {
+                        throw new CriteriaNotSatisfiedException(e);
+                    }
+                });
+
+        // Wait for the text field to get focused and the virtual keyboard to be activated.
+        CriteriaHelper.pollInstrumentationThread(
+                () -> {
+                    Criteria.checkThat(
+                            inputMethodManagerWrapper.isActive(
+                                    DOMUtils.getContainerView(webContents)),
+                            is(true));
+                });
+
+        // Enter the text.
+        imeAdapter.setComposingTextForTest(input, 1);
+        // Wait for the input to finish. After finishing the input, it will update the selection to
+        // move the cursor to the right position. This indicated that the input has finished.
+        waitForTextFieldValue(webContents, nodeId, input);
+    }
+
+    private static void waitForTextFieldValue(
+            WebContents webContents, String textFieldId, String value) throws TimeoutException {
+        StringBuilder func = new StringBuilder();
+        func.append("function valueCheck() {");
+        func.append("  var element = document.getElementById('" + textFieldId + "');");
+        func.append("  return element && element.value == '" + value + "';");
+        func.append("}");
+
+        func.append("(async function() {");
+        func.append("var res = await new Promise(resolve => {");
+        func.append("  if (valueCheck()) {");
+        func.append("    return resolve('" + RESULT_OK + "');");
+
+        func.append("  } else {");
+        func.append("    var element = document.getElementById('" + textFieldId + "');");
+        func.append("    if (!element)");
+        func.append("      return resolve('" + RESULT_ELEMENT_NOT_FOUND + "');");
+
+        func.append("    element.oninput = function() {");
+        func.append("      if (valueCheck()) {");
+        func.append("        element.oninput = undefined;");
+        func.append("        return resolve('" + RESULT_OK + "');");
+        func.append("      }");
+        func.append("    };");
+        func.append("  }");
+        func.append("});");
+        func.append("window.domAutomationController.send([res]);");
+        func.append("})();");
+
+        String jsonText =
+                JavaScriptUtils.runJavascriptWithAsyncResult(webContents, func.toString());
+        Assert.assertFalse(
+                "Failed to verify input for field " + textFieldId,
+                jsonText.trim().equalsIgnoreCase("null"));
+        String result = readValue(jsonText, String.class);
+        if (RESULT_ELEMENT_NOT_FOUND.equals(result)) {
+            Assert.fail(
+                    "Expected to find element with id " + textFieldId + ", but didn't find any.");
+        }
+        if (!RESULT_OK.equals(result)) {
+            Assert.fail(
+                    "Actual value of the field "
+                            + textFieldId
+                            + " is different from the expected value "
+                            + value
+                            + ".");
+        }
     }
 
     @NativeMethods

@@ -4,6 +4,8 @@
 
 package org.chromium.mojo.bindings;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.mojo.system.Handle;
 import org.chromium.mojo.system.MessagePipeHandle;
 
@@ -14,22 +16,17 @@ import java.util.List;
  * A raw message to be sent/received from a {@link MessagePipeHandle}. Note that this can contain
  * any data, not necessarily a Mojo message with a proper header. See also {@link ServiceMessage}.
  */
+@NullMarked
 public class Message {
 
-    /**
-     * The data of the message.
-     */
+    /** The data of the message. */
     private final ByteBuffer mBuffer;
 
-    /**
-     * The handles of the message.
-     */
-    private final List<? extends Handle> mHandles;
+    /** The handles of the message. */
+    private final @Nullable List<? extends Handle> mHandles;
 
-    /**
-     * This message interpreted as a message for a mojo service with an appropriate header.
-     */
-    private ServiceMessage mWithHeader;
+    /** This message interpreted as a message for a mojo service with an appropriate header. */
+    private @Nullable ServiceMessage mWithHeader;
 
     /**
      * Constructor.
@@ -37,28 +34,23 @@ public class Message {
      * @param buffer The buffer containing the bytes to send. This must be a direct buffer.
      * @param handles The list of handles to send.
      */
-    public Message(ByteBuffer buffer, List<? extends Handle> handles) {
+    public Message(ByteBuffer buffer, @Nullable List<? extends Handle> handles) {
         mBuffer = buffer;
         mHandles = handles;
     }
 
-    /**
-     * The data of the message.
-     */
+    /** The data of the message. */
     public ByteBuffer getData() {
         return mBuffer;
     }
 
-    /**
-     * The handles of the message.
-     */
+    /** The handles of the message. */
     public List<? extends Handle> getHandles() {
+        assert mHandles != null;
         return mHandles;
     }
 
-    /**
-     * Returns the message interpreted as a message for a mojo service.
-     */
+    /** Returns the message interpreted as a message for a mojo service. */
     public ServiceMessage asServiceMessage() {
         if (mWithHeader == null) {
             mWithHeader = new ServiceMessage(this);

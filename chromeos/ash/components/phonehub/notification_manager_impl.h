@@ -5,15 +5,15 @@
 #ifndef CHROMEOS_ASH_COMPONENTS_PHONEHUB_NOTIFICATION_MANAGER_IMPL_H_
 #define CHROMEOS_ASH_COMPONENTS_PHONEHUB_NOTIFICATION_MANAGER_IMPL_H_
 
+#include <optional>
+
 #include "base/memory/raw_ptr.h"
 #include "chromeos/ash/components/phonehub/notification.h"
 #include "chromeos/ash/components/phonehub/notification_manager.h"
 #include "chromeos/ash/services/multidevice_setup/public/cpp/multidevice_setup_client.h"
 #include "chromeos/ash/services/multidevice_setup/public/mojom/multidevice_setup.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
-namespace ash {
-namespace phonehub {
+namespace ash::phonehub {
 
 class MessageSender;
 class UserActionRecorder;
@@ -39,15 +39,13 @@ class NotificationManagerImpl
       const multidevice_setup::MultiDeviceSetupClient::FeatureStatesMap&
           feature_states_map) override;
 
-  raw_ptr<MessageSender, ExperimentalAsh> message_sender_;
-  raw_ptr<UserActionRecorder, ExperimentalAsh> user_action_recorder_;
-  raw_ptr<multidevice_setup::MultiDeviceSetupClient, ExperimentalAsh>
-      multidevice_setup_client_;
-  absl::optional<multidevice_setup::mojom::FeatureState>
+  raw_ptr<MessageSender> message_sender_;
+  raw_ptr<UserActionRecorder> user_action_recorder_;
+  raw_ptr<multidevice_setup::MultiDeviceSetupClient> multidevice_setup_client_;
+  std::optional<multidevice_setup::mojom::FeatureState>
       notifications_feature_status_;
 };
 
-}  // namespace phonehub
-}  // namespace ash
+}  // namespace ash::phonehub
 
 #endif  // CHROMEOS_ASH_COMPONENTS_PHONEHUB_NOTIFICATION_MANAGER_IMPL_H_

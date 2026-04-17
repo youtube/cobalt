@@ -9,6 +9,7 @@ import android.text.TextUtils;
 import androidx.annotation.IntDef;
 
 import org.chromium.base.FileUtils;
+import org.chromium.build.annotations.NullMarked;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -22,12 +23,28 @@ import java.util.Map;
  * downloaded content, so the file types and categorizations are based on typically downloaded file
  * types.
  */
+@NullMarked
 public final class FileExtensions {
     /** A list of enumerated file extensions. */
     // These statics are used for UMA logging. Please update the AndroidDownloadFilterType enum in
     // histograms.xml if these change.
-    @IntDef({Type.OTHER, Type.APK, Type.CSV, Type.DOC, Type.DOCX, Type.EXE, Type.PDF, Type.PPT,
-            Type.PPTX, Type.PSD, Type.RTF, Type.TXT, Type.XLS, Type.XLSX, Type.ZIP})
+    @IntDef({
+        Type.OTHER,
+        Type.APK,
+        Type.CSV,
+        Type.DOC,
+        Type.DOCX,
+        Type.EXE,
+        Type.PDF,
+        Type.PPT,
+        Type.PPTX,
+        Type.PSD,
+        Type.RTF,
+        Type.TXT,
+        Type.XLS,
+        Type.XLSX,
+        Type.ZIP
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface Type {
         int OTHER = 0;
@@ -49,6 +66,7 @@ public final class FileExtensions {
     }
 
     private static final Map<String, Integer> EXTENSIONS_MAP;
+
     static {
         Map<String, Integer> extensions = new HashMap<>();
         extensions.put("apk", Type.APK);

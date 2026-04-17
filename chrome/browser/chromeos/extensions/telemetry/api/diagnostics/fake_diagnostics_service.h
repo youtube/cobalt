@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_CHROMEOS_EXTENSIONS_TELEMETRY_API_DIAGNOSTICS_FAKE_DIAGNOSTICS_SERVICE_H_
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/values.h"
@@ -14,7 +15,6 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace chromeos {
 
@@ -39,7 +39,7 @@ class FakeDiagnosticsService : public crosapi::mojom::DiagnosticsService {
                         GetRoutineUpdateCallback callback) override;
   void RunAcPowerRoutine(
       crosapi::mojom::DiagnosticsAcPowerStatusEnum expected_status,
-      const absl::optional<std::string>& expected_power_type,
+      const std::optional<std::string>& expected_power_type,
       RunAcPowerRoutineCallback callback) override;
   void RunBatteryCapacityRoutine(
       RunBatteryCapacityRoutineCallback callback) override;
@@ -53,6 +53,16 @@ class FakeDiagnosticsService : public crosapi::mojom::DiagnosticsService {
       RunBatteryDischargeRoutineCallback callback) override;
   void RunBatteryHealthRoutine(
       RunBatteryHealthRoutineCallback callback) override;
+  void RunBluetoothDiscoveryRoutine(
+      RunBluetoothDiscoveryRoutineCallback callback) override;
+  void RunBluetoothPairingRoutine(
+      const std::string& peripheral_id,
+      RunBluetoothPairingRoutineCallback callback) override;
+  void RunBluetoothPowerRoutine(
+      RunBluetoothPowerRoutineCallback callback) override;
+  void RunBluetoothScanningRoutine(
+      uint32_t length_seconds,
+      RunBluetoothScanningRoutineCallback callback) override;
   void RunCpuCacheRoutine(uint32_t length_seconds,
                           RunCpuCacheRoutineCallback callback) override;
   void RunCpuStressRoutine(uint32_t length_seconds,
@@ -80,9 +90,9 @@ class FakeDiagnosticsService : public crosapi::mojom::DiagnosticsService {
   void RunNvmeSelfTestRoutine(
       crosapi::mojom::DiagnosticsNvmeSelfTestTypeEnum nvme_self_test_type,
       RunNvmeSelfTestRoutineCallback callback) override;
-  void RunNvmeWearLevelRoutine(
+  void DEPRECATED_RunNvmeWearLevelRoutine(
       uint32_t wear_level_threshold,
-      RunNvmeWearLevelRoutineCallback callback) override;
+      DEPRECATED_RunNvmeWearLevelRoutineCallback callback) override;
   void RunPrimeSearchRoutine(uint32_t length_seconds,
                              RunPrimeSearchRoutineCallback callback) override;
   void RunSensitiveSensorRoutine(
@@ -92,6 +102,11 @@ class FakeDiagnosticsService : public crosapi::mojom::DiagnosticsService {
   void RunSmartctlCheckRoutine(
       crosapi::mojom::UInt32ValuePtr percentage_used_threshold,
       RunSmartctlCheckRoutineCallback callback) override;
+  void RunUfsLifetimeRoutine(RunUfsLifetimeRoutineCallback callback) override;
+  void RunPowerButtonRoutine(uint32_t timeout_seconds,
+                             RunPowerButtonRoutineCallback callback) override;
+  void RunAudioDriverRoutine(RunAudioDriverRoutineCallback callback) override;
+  void RunFanRoutine(RunFanRoutineCallback callback) override;
 
   // Sets the return value for |Run*Routine|.
   void SetRunRoutineResponse(

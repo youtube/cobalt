@@ -4,9 +4,10 @@
 
 #include "content/browser/network/cross_origin_embedder_policy_reporter.h"
 
+#include <optional>
+#include <string_view>
 #include <vector>
 
-#include "base/strings/string_piece.h"
 #include "base/test/task_environment.h"
 #include "base/unguessable_token.h"
 #include "base/values.h"
@@ -16,7 +17,6 @@
 #include "services/network/public/cpp/request_destination.h"
 #include "services/network/test/test_network_context.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/mojom/frame/reporting_observer.mojom.h"
 
 namespace content {
@@ -50,13 +50,11 @@ class TestNetworkContext : public network::TestNetworkContext {
       const std::string& type,
       const std::string& group,
       const GURL& url,
-      const absl::optional<base::UnguessableToken>& reporting_source,
+      const std::optional<base::UnguessableToken>& reporting_source,
       const net::NetworkAnonymizationKey& network_anonymization_key,
-      const absl::optional<std::string>& user_agent,
       base::Value::Dict body) override {
-    DCHECK(!user_agent);
-    reports_.emplace_back(
-        Report(type, group, url, network_anonymization_key, std::move(body)));
+    reports_.emplace_back(type, group, url, network_anonymization_key,
+                          std::move(body));
   }
 
   const std::vector<Report>& reports() const { return reports_; }
@@ -99,9 +97,9 @@ class CrossOriginEmbedderPolicyReporterTest : public testing::Test {
   }
   void InvalidateWeakPtrs() { storage_partition_.InvalidateWeakPtrs(); }
   const TestNetworkContext& network_context() const { return network_context_; }
-  base::Value::Dict CreateBodyForCorp(base::StringPiece blocked_url,
+  base::Value::Dict CreateBodyForCorp(std::string_view blocked_url,
                                       RequestDestination destination,
-                                      base::StringPiece disposition) const {
+                                      std::string_view disposition) const {
     base::Value::Dict dict;
     for (const auto& pair :
          CreateBodyForCorpInternal(blocked_url, destination, disposition)) {
@@ -110,8 +108,8 @@ class CrossOriginEmbedderPolicyReporterTest : public testing::Test {
     return dict;
   }
 
-  base::Value::Dict CreateBodyForNavigation(base::StringPiece blocked_url,
-                                            base::StringPiece disposition) {
+  base::Value::Dict CreateBodyForNavigation(std::string_view blocked_url,
+                                            std::string_view disposition) {
     base::Value::Dict dict;
     for (const auto& pair :
          CreateBodyInternal("navigation", blocked_url, disposition)) {
@@ -121,8 +119,8 @@ class CrossOriginEmbedderPolicyReporterTest : public testing::Test {
   }
 
   base::Value::Dict CreateBodyForWorkerInitialization(
-      base::StringPiece blocked_url,
-      base::StringPiece disposition) {
+      std::string_view blocked_url,
+      std::string_view disposition) {
     base::Value::Dict dict;
     for (const auto& pair : CreateBodyInternal("worker initialization",
                                                blocked_url, disposition)) {
@@ -132,9 +130,9 @@ class CrossOriginEmbedderPolicyReporterTest : public testing::Test {
   }
 
   blink::mojom::ReportBodyPtr CreateMojomBodyForCorp(
-      base::StringPiece blocked_url,
+      std::string_view blocked_url,
       RequestDestination destination,
-      base::StringPiece disposition) {
+      std::string_view disposition) {
     auto body = blink::mojom::ReportBody::New();
     for (const auto& pair :
          CreateBodyForCorpInternal(blocked_url, destination, disposition)) {
@@ -145,8 +143,8 @@ class CrossOriginEmbedderPolicyReporterTest : public testing::Test {
   }
 
   blink::mojom::ReportBodyPtr CreateMojomBodyForNavigation(
-      base::StringPiece blocked_url,
-      base::StringPiece disposition) {
+      std::string_view blocked_url,
+      std::string_view disposition) {
     auto body = blink::mojom::ReportBody::New();
     for (const auto& pair :
          CreateBodyInternal("navigation", blocked_url, disposition)) {
@@ -157,8 +155,8 @@ class CrossOriginEmbedderPolicyReporterTest : public testing::Test {
   }
 
   blink::mojom::ReportBodyPtr CreateMojomBodyForWorkerInitialization(
-      base::StringPiece blocked_url,
-      base::StringPiece disposition) {
+      std::string_view blocked_url,
+      std::string_view disposition) {
     auto body = blink::mojom::ReportBody::New();
     for (const auto& pair : CreateBodyInternal("worker initialization",
                                                blocked_url, disposition)) {
@@ -170,9 +168,9 @@ class CrossOriginEmbedderPolicyReporterTest : public testing::Test {
 
  private:
   std::vector<std::pair<std::string, std::string>> CreateBodyForCorpInternal(
-      base::StringPiece blocked_url,
+      std::string_view blocked_url,
       RequestDestination destination,
-      base::StringPiece disposition) const {
+      std::string_view disposition) const {
     return {std::make_pair("type", "corp"),
             std::make_pair("blockedURL", std::string(blocked_url)),
             std::make_pair("destination",
@@ -181,9 +179,9 @@ class CrossOriginEmbedderPolicyReporterTest : public testing::Test {
   }
 
   std::vector<std::pair<std::string, std::string>> CreateBodyInternal(
-      base::StringPiece type,
-      base::StringPiece blocked_url,
-      base::StringPiece disposition) const {
+      std::string_view type,
+      std::string_view blocked_url,
+      std::string_view disposition) const {
     return {std::make_pair("type", std::string(type)),
             std::make_pair("blockedURL", std::string(blocked_url)),
             std::make_pair("disposition", std::string(disposition))};
@@ -197,7 +195,7 @@ class CrossOriginEmbedderPolicyReporterTest : public testing::Test {
 TEST_F(CrossOriginEmbedderPolicyReporterTest, NullEndpointsForCorp) {
   const GURL kContextUrl("https://example.com/path");
   CrossOriginEmbedderPolicyReporter reporter(
-      GetStoragePartition(), kContextUrl, absl::nullopt, absl::nullopt,
+      GetStoragePartition(), kContextUrl, std::nullopt, std::nullopt,
       base::UnguessableToken::Create(), net::NetworkAnonymizationKey());
 
   reporter.QueueCorpViolationReport(GURL("https://www1.example.com/y"),
@@ -282,7 +280,7 @@ TEST_F(CrossOriginEmbedderPolicyReporterTest, ObserverForCorp) {
   TestObserver observer(observer_remote.InitWithNewPipeAndPassReceiver());
 
   CrossOriginEmbedderPolicyReporter reporter(
-      GetStoragePartition(), kContextUrl, absl::nullopt, absl::nullopt,
+      GetStoragePartition(), kContextUrl, std::nullopt, std::nullopt,
       base::UnguessableToken::Create(), net::NetworkAnonymizationKey());
   reporter.BindObserver(std::move(observer_remote));
   reporter.QueueCorpViolationReport(GURL("https://u:p@www1.example.com/x"),
@@ -348,7 +346,7 @@ TEST_F(CrossOriginEmbedderPolicyReporterTest, Clone) {
 TEST_F(CrossOriginEmbedderPolicyReporterTest, NullEndpointsForNavigation) {
   const GURL kContextUrl("https://example.com/path");
   CrossOriginEmbedderPolicyReporter reporter(
-      GetStoragePartition(), kContextUrl, absl::nullopt, absl::nullopt,
+      GetStoragePartition(), kContextUrl, std::nullopt, std::nullopt,
       base::UnguessableToken::Create(), net::NetworkAnonymizationKey());
 
   reporter.QueueNavigationReport(GURL("https://www1.example.com/y"),
@@ -392,7 +390,7 @@ TEST_F(CrossOriginEmbedderPolicyReporterTest, ObserverForNavigation) {
   TestObserver observer(observer_remote.InitWithNewPipeAndPassReceiver());
 
   CrossOriginEmbedderPolicyReporter reporter(
-      GetStoragePartition(), kContextUrl, absl::nullopt, absl::nullopt,
+      GetStoragePartition(), kContextUrl, std::nullopt, std::nullopt,
       base::UnguessableToken::Create(), net::NetworkAnonymizationKey());
   reporter.BindObserver(std::move(observer_remote));
   reporter.QueueNavigationReport(GURL("https://www1.example.com/x#foo?bar=baz"),
@@ -447,7 +445,7 @@ TEST_F(CrossOriginEmbedderPolicyReporterTest,
        NullEndpointsForWorkerInitialization) {
   const GURL kContextUrl("https://example.com/path");
   CrossOriginEmbedderPolicyReporter reporter(
-      GetStoragePartition(), kContextUrl, absl::nullopt, absl::nullopt,
+      GetStoragePartition(), kContextUrl, std::nullopt, std::nullopt,
       base::UnguessableToken::Create(), net::NetworkAnonymizationKey());
 
   reporter.QueueWorkerInitializationReport(
@@ -495,7 +493,7 @@ TEST_F(CrossOriginEmbedderPolicyReporterTest, ObserverForWorkerInitialization) {
   TestObserver observer(observer_remote.InitWithNewPipeAndPassReceiver());
 
   CrossOriginEmbedderPolicyReporter reporter(
-      GetStoragePartition(), kContextUrl, absl::nullopt, absl::nullopt,
+      GetStoragePartition(), kContextUrl, std::nullopt, std::nullopt,
       base::UnguessableToken::Create(), net::NetworkAnonymizationKey());
   reporter.BindObserver(std::move(observer_remote));
   reporter.QueueWorkerInitializationReport(

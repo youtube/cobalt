@@ -15,20 +15,22 @@ NearbyPeriodicScheduler::NearbyPeriodicScheduler(base::TimeDelta request_period,
                                                  const std::string& pref_name,
                                                  PrefService* pref_service,
                                                  OnRequestCallback callback,
+                                                 Feature logging_feature,
                                                  const base::Clock* clock)
     : NearbySchedulerBase(retry_failures,
                           require_connectivity,
                           pref_name,
                           pref_service,
                           std::move(callback),
+                          logging_feature,
                           clock),
       request_period_(request_period) {}
 
 NearbyPeriodicScheduler::~NearbyPeriodicScheduler() = default;
 
-absl::optional<base::TimeDelta>
+std::optional<base::TimeDelta>
 NearbyPeriodicScheduler::TimeUntilRecurringRequest(base::Time now) const {
-  absl::optional<base::Time> last_success_time = GetLastSuccessTime();
+  std::optional<base::Time> last_success_time = GetLastSuccessTime();
 
   // Immediately run a first-time request.
   if (!last_success_time) {

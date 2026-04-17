@@ -9,7 +9,6 @@
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "build/build_config.h"
-#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/controls/button/image_button.h"
@@ -28,10 +27,11 @@ class InkDropContainerView;
 ///////////////////////////////////////////////////////////////////////////////
 class NewTabButton : public views::ImageButton,
                      public views::MaskedTargeterDelegate {
- public:
-  METADATA_HEADER(NewTabButton);
+  METADATA_HEADER(NewTabButton, views::ImageButton)
 
+ public:
   static const gfx::Size kButtonSize;
+  static const int kIconSize;
 
   NewTabButton(TabStrip* tab_strip, PressedCallback callback);
   NewTabButton(const NewTabButton&) = delete;
@@ -41,7 +41,7 @@ class NewTabButton : public views::ImageButton,
   // Called when the tab strip transitions to/from single tab mode, the frame
   // state changes or the accent color changes.  Updates the glyph colors for
   // the best contrast on the background.
-  virtual void FrameColorsChanged();
+  void FrameColorsChanged();
 
   void AnimateToStateForTesting(views::InkDropState state);
 
@@ -60,10 +60,9 @@ class NewTabButton : public views::ImageButton,
   // Returns the radius to use for the button corners.
   virtual int GetCornerRadius() const;
 
-  // Returns the path for the given |origin| and |scale|.  If |extend_to_top| is
+  // Returns the path for the given `origin`.  If `extend_to_top` is
   // true, the path is extended vertically to y = 0.
   virtual SkPath GetBorderPath(const gfx::Point& origin,
-                               float scale,
                                bool extend_to_top) const;
 
   // views::ImageButton:
@@ -82,16 +81,22 @@ class NewTabButton : public views::ImageButton,
   void OnGestureEvent(ui::GestureEvent* event) override;
   void NotifyClick(const ui::Event& event) override;
   void PaintButtonContents(gfx::Canvas* canvas) override;
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
 
   // views::MaskedTargeterDelegate:
   bool GetHitTestMask(SkPath* mask) const override;
 
-  // Paints the fill region of the button into |canvas|.
+  // The NewTabButton consists of a foreground image on top of a background
+  // texture. First we paint the background with PaintFill. This is clipped to a
+  // circle to make the button appear circular. Then we paint the
+  // foreground image with PaintIcon.
+  //
+  // Paints the fill region of the button into `canvas`.
   void PaintFill(gfx::Canvas* canvas) const;
 
   // Tab strip that contains this button.
-  raw_ptr<TabStrip, DanglingUntriaged> tab_strip_;
+  raw_ptr<TabStrip, AcrossTasksDanglingUntriaged> tab_strip_;
 
   // Contains our ink drop layer so it can paint above our background.
   raw_ptr<views::InkDropContainerView, DanglingUntriaged> ink_drop_container_;

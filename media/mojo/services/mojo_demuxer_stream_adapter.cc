@@ -12,7 +12,9 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/trace_event/trace_event.h"
 #include "media/base/decoder_buffer.h"
+#include "media/base/demuxer_stream.h"
 #include "media/mojo/common/media_type_converters.h"
 #include "media/mojo/common/mojo_decoder_buffer_converter.h"
 #include "mojo/public/cpp/system/data_pipe.h"
@@ -76,12 +78,12 @@ std::string MojoDemuxerStreamAdapter::mime_type() const {
 void MojoDemuxerStreamAdapter::OnStreamReady(
     Type type,
     mojo::ScopedDataPipeConsumerHandle consumer_handle,
-    const absl::optional<AudioDecoderConfig>& audio_config,
+    const std::optional<AudioDecoderConfig>& audio_config,
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    const absl::optional<VideoDecoderConfig>& video_config,
+    const std::optional<VideoDecoderConfig>& video_config,
     const std::string& mime_type) {
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
-    const absl::optional<VideoDecoderConfig>& video_config) {
+    const std::optional<VideoDecoderConfig>& video_config) {
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   DVLOG(1) << __func__;
   DCHECK_EQ(UNKNOWN, type_);
@@ -103,9 +105,10 @@ void MojoDemuxerStreamAdapter::OnStreamReady(
 void MojoDemuxerStreamAdapter::OnBufferReady(
     Status status,
     std::vector<mojom::DecoderBufferPtr> batch_buffers,
-    const absl::optional<AudioDecoderConfig>& audio_config,
-    const absl::optional<VideoDecoderConfig>& video_config) {
-  DVLOG(3) << __func__ << ": status=" << status
+    const std::optional<AudioDecoderConfig>& audio_config,
+    const std::optional<VideoDecoderConfig>& video_config) {
+  DVLOG(3) << __func__
+           << ": status=" << ::media::DemuxerStream::GetStatusName(status)
            << ", batch_buffers.size=" << batch_buffers.size();
   DCHECK(read_cb_);
   DCHECK_NE(type_, UNKNOWN);
@@ -122,45 +125,74 @@ void MojoDemuxerStreamAdapter::OnBufferReady(
   }
 
   DCHECK_EQ(status, kOk);
+  DCHECK_GT(batch_buffers.size(), 0u);
+
   status_ = status;
   actual_read_count_ = batch_buffers.size();
-  for (mojom::DecoderBufferPtr& buffer : batch_buffers) {
-    mojo_decoder_buffer_reader_->ReadDecoderBuffer(
-        std::move(buffer),
-        base::BindOnce(&MojoDemuxerStreamAdapter::OnBufferRead,
-                       weak_factory_.GetWeakPtr()));
-  }
+
+  batch_buffers_ = std::move(batch_buffers);
+  mojo_decoder_buffer_reader_->ReadDecoderBuffer(
+      std::move(batch_buffers_[0]),
+      base::BindOnce(&MojoDemuxerStreamAdapter::OnBufferRead,
+                     weak_factory_.GetWeakPtr()));
 }
 
 void MojoDemuxerStreamAdapter::OnBufferRead(
     scoped_refptr<DecoderBuffer> buffer) {
   if (!buffer) {
-    std::move(read_cb_).Run(kAborted, {});
+    DVLOG(1) << __func__ << ": null buffer";
     buffer_queue_.clear();
+    std::move(read_cb_).Run(kAborted, {});
+    return;
+  }
+  buffer_queue_.push_back(buffer);
+
+  if (buffer_queue_.size() < actual_read_count_) {
+    int next_read_index = buffer_queue_.size();
+    // The `mojo_decoder_buffer_reader_` will run callback(OnBufferRead()) after
+    // reading a buffer from data pipe, in order to avoid reentrance
+    // OnBufferRead() and potential stack overflow , we use
+    // base::BindPostTaskToCurrentDefault here. Each callback will correspond
+    // one buffer until all buffers have been read.
+    mojo_decoder_buffer_reader_->ReadDecoderBuffer(
+        std::move(batch_buffers_[next_read_index]),
+        base::BindPostTaskToCurrentDefault(
+            base::BindOnce(&MojoDemuxerStreamAdapter::OnBufferRead,
+                           weak_factory_.GetWeakPtr())));
     return;
   }
 
-  buffer_queue_.push_back(buffer);
-  if (buffer_queue_.size() == actual_read_count_) {
-    std::move(read_cb_).Run(status_, buffer_queue_);
-    actual_read_count_ = 0;
-    buffer_queue_.clear();
-  }
+  DCHECK_EQ(buffer_queue_.size(), actual_read_count_);
+  actual_read_count_ = 0;
+  DemuxerStream::DecoderBufferVector buffer_queue;
+  buffer_queue_.swap(buffer_queue);
+  std::move(read_cb_).Run(status_, std::move(buffer_queue));
 }
 
 void MojoDemuxerStreamAdapter::UpdateConfig(
-    const absl::optional<AudioDecoderConfig>& audio_config,
-    const absl::optional<VideoDecoderConfig>& video_config) {
+    const std::optional<AudioDecoderConfig>& audio_config,
+    const std::optional<VideoDecoderConfig>& video_config) {
   DCHECK_NE(type_, Type::UNKNOWN);
+  std::string old_decoder_config_str;
 
   switch(type_) {
     case AUDIO:
       DCHECK(audio_config && !video_config);
+      old_decoder_config_str = audio_config_.AsHumanReadableString();
       audio_config_ = audio_config.value();
+      TRACE_EVENT_INSTANT2(
+          "media", "MojoDemuxerStreamAdapter.UpdateConfig.Audio",
+          TRACE_EVENT_SCOPE_THREAD, "CurrentConfig", old_decoder_config_str,
+          "NewConfig", audio_config_.AsHumanReadableString());
       break;
     case VIDEO:
       DCHECK(video_config && !audio_config);
+      old_decoder_config_str = video_config_.AsHumanReadableString();
       video_config_ = video_config.value();
+      TRACE_EVENT_INSTANT2(
+          "media", "MojoDemuxerStreamAdapter.UpdateConfig.Video",
+          TRACE_EVENT_SCOPE_THREAD, "CurrentConfig", old_decoder_config_str,
+          "NewConfig", video_config_.AsHumanReadableString());
       break;
     default:
       NOTREACHED();

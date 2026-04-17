@@ -23,8 +23,8 @@ OverlayVk::~OverlayVk() = default;
 
 void OverlayVk::onDestroy(const gl::Context *context)
 {
-    RendererVk *renderer = vk::GetImpl(context)->getRenderer();
-    VkDevice device      = renderer->getDevice();
+    vk::Renderer *renderer = vk::GetImpl(context)->getRenderer();
+    VkDevice device        = renderer->getDevice();
 
     mFontImage.destroy(renderer);
     mFontImageView.destroy(device);
@@ -32,7 +32,7 @@ void OverlayVk::onDestroy(const gl::Context *context)
 
 angle::Result OverlayVk::createFont(ContextVk *contextVk)
 {
-    RendererVk *renderer = contextVk->getRenderer();
+    vk::Renderer *renderer = contextVk->getRenderer();
 
     // Create a buffer to stage font data upload.
     VkBufferCreateInfo bufferCreateInfo = {};
@@ -65,13 +65,15 @@ angle::Result OverlayVk::createFont(ContextVk *contextVk)
         renderer->getFormat(angle::FormatID::R8_UNORM), 1,
         VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, gl::LevelIndex(0),
         gl::overlay::kFontMipCount, gl::overlay::kFontCharacters, kNoRobustInit, false));
-    ANGLE_TRY(mFontImage.initMemory(contextVk, false, renderer->getMemoryProperties(),
-                                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                                    vk::MemoryAllocationType::FontImage));
-    ANGLE_TRY(mFontImage.initImageView(
+
+    ANGLE_TRY(contextVk->initImageAllocation(&mFontImage, false, renderer->getMemoryProperties(),
+                                             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                                             vk::MemoryAllocationType::FontImage));
+
+    ANGLE_TRY(mFontImage.initLayerImageView(
         contextVk, gl::TextureType::_2DArray, VK_IMAGE_ASPECT_COLOR_BIT, gl::SwizzleState(),
-        &mFontImageView, vk::LevelIndex(0), gl::overlay::kFontMipCount,
-        vk::ImageHelper::kDefaultImageViewUsageFlags));
+        &mFontImageView, vk::LevelIndex(0), gl::overlay::kFontMipCount, 0,
+        mFontImage.getLayerCount()));
 
     // Copy font data from staging buffer.
     vk::CommandBufferAccess access;
@@ -120,7 +122,7 @@ angle::Result OverlayVk::onPresent(ContextVk *contextVk,
         ANGLE_TRY(createFont(contextVk));
     }
 
-    RendererVk *renderer = contextVk->getRenderer();
+    vk::Renderer *renderer = contextVk->getRenderer();
 
     vk::RendererScoped<vk::BufferHelper> textDataBuffer(renderer);
     vk::RendererScoped<vk::BufferHelper> graphDataBuffer(renderer);

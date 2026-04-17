@@ -6,6 +6,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/core/css/css_property_value_set.h"
+#include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/event_type_names.h"
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
@@ -19,7 +20,7 @@ class MediaControlAnimatedArrowContainerElementTest : public PageTestBase {
     PageTestBase::SetUp();
     arrow_element_ = MakeGarbageCollected<
         MediaControlAnimatedArrowContainerElement::AnimatedArrow>(
-        "test", GetDocument());
+        AtomicString("test"), GetDocument());
     GetDocument().body()->AppendChild(arrow_element_);
   }
 
@@ -40,16 +41,17 @@ class MediaControlAnimatedArrowContainerElementTest : public PageTestBase {
 
   void SimulateAnimationIteration() {
     Event* event = Event::Create(event_type_names::kAnimationiteration);
-    GetElementById("arrow-3")->DispatchEvent(*event);
+    GetElementById(AtomicString("arrow-3"))->DispatchEvent(*event);
   }
 
  private:
   bool SVGElementHasDisplayValue() {
-    return GetElementById("jump")->InlineStyle()->HasProperty(
-        CSSPropertyID::kDisplay);
+    return GetElementById(AtomicString("jump"))
+        ->InlineStyle()
+        ->HasProperty(CSSPropertyID::kDisplay);
   }
 
-  bool SVGElementIsPresent() { return GetElementById("jump"); }
+  bool SVGElementIsPresent() { return GetElementById(AtomicString("jump")); }
 
   Element* GetElementById(const AtomicString& id) {
     return GetDocument().body()->getElementById(id);

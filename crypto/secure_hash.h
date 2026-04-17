@@ -9,6 +9,7 @@
 
 #include <memory>
 
+#include "base/containers/span.h"
 #include "crypto/crypto_export.h"
 
 namespace crypto {
@@ -16,6 +17,9 @@ namespace crypto {
 // A wrapper to calculate secure hashes incrementally, allowing to
 // be used when the full input is not known in advance. The end result will the
 // same as if we have the full input in advance.
+//
+// TODO(https://issues.chromium.org/issues/374310081): Move this into
+// crypto/hash.h along with the oneshot functions.
 class CRYPTO_EXPORT SecureHash {
  public:
   enum Algorithm {
@@ -30,9 +34,16 @@ class CRYPTO_EXPORT SecureHash {
 
   static std::unique_ptr<SecureHash> Create(Algorithm type);
 
-  virtual void Update(const void* input, size_t len) = 0;
-  virtual void Finish(void* output, size_t len) = 0;
+  virtual void Update(base::span<const uint8_t> input) = 0;
+  virtual void Finish(base::span<uint8_t> output) = 0;
+
   virtual size_t GetHashLength() const = 0;
+
+  // Deprecated non-span APIs - do not add new uses of them, and please remove
+  // existing uses.
+  // TODO(https://crbug.com/364687923): Delete these.
+  void Update(const void* input, size_t len);
+  void Finish(void* output, size_t len);
 
   // Create a clone of this SecureHash. The returned clone and this both
   // represent the same hash state. But from this point on, calling

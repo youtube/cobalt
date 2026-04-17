@@ -13,16 +13,15 @@ namespace ash {
 
 // A label which is not focusable with ChromeVox.
 class ASH_EXPORT UnfocusableLabel : public views::Label {
- public:
-  METADATA_HEADER(UnfocusableLabel);
+  METADATA_HEADER(UnfocusableLabel, views::Label)
 
-  UnfocusableLabel() = default;
+ public:
+  UnfocusableLabel();
 
   UnfocusableLabel(const UnfocusableLabel&) = delete;
   UnfocusableLabel& operator=(const UnfocusableLabel&) = delete;
 
   ~UnfocusableLabel() override;
-  void GetAccessibleNodeData(ui::AXNodeData* node_data) override;
 };
 
 }  // namespace ash

@@ -2,10 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
-import("//testing/test.gni")
-
-assert(is_chromeos_ash, "Phone Hub is Ash only")
+assert(is_chromeos, "Phone Hub is ChromeOS only")
 
 static_library("phonehub") {
   sources = [
@@ -35,8 +32,6 @@ static_library("phonehub") {
     "connection_scheduler.h",
     "connection_scheduler_impl.cc",
     "connection_scheduler_impl.h",
-    "cros_state_message_recorder.cc",
-    "cros_state_message_recorder.h",
     "cros_state_sender.cc",
     "cros_state_sender.h",
     "do_not_disturb_controller.cc",
@@ -102,6 +97,10 @@ static_library("phonehub") {
     "phone_hub_manager_impl.h",
     "phone_hub_metrics_recorder.cc",
     "phone_hub_metrics_recorder.h",
+    "phone_hub_structured_metrics_logger.cc",
+    "phone_hub_structured_metrics_logger.h",
+    "phone_hub_ui_readiness_recorder.cc",
+    "phone_hub_ui_readiness_recorder.h",
     "phone_model.cc",
     "phone_model.h",
     "phone_status_model.cc",
@@ -113,6 +112,7 @@ static_library("phonehub") {
     "ping_manager_impl.h",
     "pref_names.cc",
     "pref_names.h",
+    "public/cpp/attestation_certificate_generator.cc",
     "public/cpp/attestation_certificate_generator.h",
     "recent_app_click_observer.h",
     "recent_apps_interaction_handler.cc",
@@ -138,6 +138,7 @@ static_library("phonehub") {
 
   deps = [
     "//ash/constants",
+    "//ash/public/cpp:cpp",
     "//ash/resources/vector_icons",
     "//ash/webui/eche_app_ui:eche_app_ui_pref",
     "//ash/webui/eche_app_ui:eche_connection_status",
@@ -156,6 +157,8 @@ static_library("phonehub") {
     "//chromeos/dbus/power",
     "//chromeos/services/network_config/public/cpp",
     "//components/keyed_service/core",
+    "//components/metrics/structured:structured_events",
+    "//components/metrics/structured:structured_metrics_features",
     "//components/prefs",
     "//components/session_manager/core",
     "//device/bluetooth",
@@ -264,7 +267,6 @@ source_set("unit_tests") {
     "camera_roll_manager_impl_unittest.cc",
     "camera_roll_thumbnail_decoder_impl_unittest.cc",
     "connection_scheduler_impl_unittest.cc",
-    "cros_state_message_recorder_unittest.cc",
     "cros_state_sender_unittest.cc",
     "do_not_disturb_controller_impl_unittest.cc",
     "feature_setup_response_processor_unittest.cc",
@@ -281,6 +283,8 @@ source_set("unit_tests") {
     "notification_manager_impl_unittest.cc",
     "notification_processor_unittest.cc",
     "onboarding_ui_tracker_impl_unittest.cc",
+    "phone_hub_structured_metrics_logger_unittest.cc",
+    "phone_hub_ui_readiness_recorder_unittest.cc",
     "phone_status_model_unittest.cc",
     "phone_status_processor_unittest.cc",
     "ping_manager_impl_unittest.cc",
@@ -315,6 +319,7 @@ source_set("unit_tests") {
     "//chromeos/ash/services/secure_channel/public/cpp/client:test_support",
     "//chromeos/ash/services/secure_channel/public/mojom",
     "//chromeos/dbus/power",
+    "//components/metrics/structured:structured_metrics_features",
     "//components/prefs:test_support",
     "//components/session_manager/core",
     "//device/bluetooth:mocks",

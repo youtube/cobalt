@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_BASE_ATOMICOPS_H_
+#define V8_BASE_ATOMICOPS_H_
+
 // The routines exported by this module are subtle.  If you use them, even if
 // you get the code right, it will depend on careful reasoning about atomicity
 // and memory ordering; it will be less readable, and harder to maintain.  If
@@ -22,9 +25,6 @@
 // to use these.
 //
 
-#ifndef V8_BASE_ATOMICOPS_H_
-#define V8_BASE_ATOMICOPS_H_
-
 #include <stdint.h>
 
 #include <atomic>
@@ -39,21 +39,9 @@
 #include "src/base/build_config.h"
 #include "src/base/macros.h"
 
-#if defined(V8_OS_STARBOARD)
-#include "starboard/atomic.h"
-#endif  // V8_OS_STARBOARD
-
 namespace v8 {
 namespace base {
 
-#ifdef V8_OS_STARBOARD
-using Atomic8 = SbAtomic8;
-using Atomic16 = int16_t;
-using Atomic32 = SbAtomic32;
-#if SB_IS_64_BIT
-using Atomic64 = SbAtomic64;
-#endif
-#else
 using Atomic8 = char;
 using Atomic16 = int16_t;
 using Atomic32 = int32_t;
@@ -66,7 +54,6 @@ using Atomic64 = int64_t;
 using Atomic64 = intptr_t;
 #endif  // defined(__ILP32__)
 #endif  // defined(V8_HOST_ARCH_64_BIT)
-#endif  // V8_OS_STARBOARD
 
 // Use AtomicWord for a machine-sized pointer. It will use the Atomic32 or
 // Atomic64 routines below, depending on your architecture.
@@ -175,6 +162,14 @@ inline Atomic32 AcquireRelease_CompareAndSwap(volatile Atomic32* ptr,
   atomic_compare_exchange_strong_explicit(
       helper::to_std_atomic(ptr), &old_value, new_value,
       std::memory_order_acq_rel, std::memory_order_acquire);
+  return old_value;
+}
+
+inline Atomic32 SeqCst_CompareAndSwap(volatile Atomic32* ptr,
+                                      Atomic32 old_value, Atomic32 new_value) {
+  atomic_compare_exchange_strong_explicit(
+      helper::to_std_atomic(ptr), &old_value, new_value,
+      std::memory_order_seq_cst, std::memory_order_seq_cst);
   return old_value;
 }
 
@@ -309,6 +304,14 @@ inline Atomic64 AcquireRelease_CompareAndSwap(volatile Atomic64* ptr,
   std::atomic_compare_exchange_strong_explicit(
       helper::to_std_atomic(ptr), &old_value, new_value,
       std::memory_order_acq_rel, std::memory_order_acquire);
+  return old_value;
+}
+
+inline Atomic64 SeqCst_CompareAndSwap(volatile Atomic64* ptr,
+                                      Atomic64 old_value, Atomic64 new_value) {
+  std::atomic_compare_exchange_strong_explicit(
+      helper::to_std_atomic(ptr), &old_value, new_value,
+      std::memory_order_seq_cst, std::memory_order_seq_cst);
   return old_value;
 }
 

@@ -37,16 +37,13 @@
 #include "third_party/blink/renderer/core/html/forms/html_form_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
 #include "third_party/blink/renderer/core/input_type_names.h"
+#include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/platform/text/platform_locale.h"
 
 namespace blink {
 
 void ResetInputType::CountUsage() {
   CountUsageIfVisible(WebFeature::kInputTypeReset);
-}
-
-const AtomicString& ResetInputType::FormControlType() const {
-  return input_type_names::kReset;
 }
 
 bool ResetInputType::SupportsValidation() const {
@@ -64,8 +61,10 @@ String ResetInputType::DefaultLabel() const {
   return GetLocale().QueryString(IDS_FORM_RESET_LABEL);
 }
 
-bool ResetInputType::IsTextButton() const {
-  return true;
+void ResetInputType::AdjustStyle(ComputedStyleBuilder& builder) {
+  builder.SetShouldIgnoreOverflowPropertyForInlineBlockBaseline();
+  builder.SetInlineBlockBaselineEdge(EInlineBlockBaselineEdge::kContentBox);
+  BaseButtonInputType::AdjustStyle(builder);
 }
 
 }  // namespace blink

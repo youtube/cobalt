@@ -11,8 +11,8 @@ import android.view.WindowManager;
 
 import androidx.core.content.FileProvider;
 
-import org.chromium.base.ContentUriUtils;
 import org.chromium.base.ContextUtils;
+import org.chromium.base.FileProviderUtils;
 import org.chromium.base.StrictModeContext;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
@@ -34,7 +34,7 @@ public abstract class ContentShellBrowserTestActivity extends NativeBrowserTestA
     private ShellManager mShellManager;
     private WindowAndroid mWindowAndroid;
 
-    private static class FileProviderHelper implements ContentUriUtils.FileProviderUtil {
+    private static class FileProviderHelper implements FileProviderUtils.FileProviderUtil {
         // Keep this variable in sync with the value defined in file_paths.xml.
         private static final String API_AUTHORITY_SUFFIX = ".FileProvider";
 
@@ -45,6 +45,7 @@ public abstract class ContentShellBrowserTestActivity extends NativeBrowserTestA
                     appContext, appContext.getPackageName() + API_AUTHORITY_SUFFIX, file);
         }
     }
+
     /**
      * Initializes the browser process.
      *
@@ -57,12 +58,17 @@ public abstract class ContentShellBrowserTestActivity extends NativeBrowserTestA
             LibraryLoader.getInstance().ensureInitialized();
         }
 
-        ContentUriUtils.setFileProviderUtil(new FileProviderHelper());
+        FileProviderUtils.setFileProviderUtil(new FileProviderHelper());
         setContentView(getTestActivityViewId());
         mShellManager = (ShellManager) findViewById(getShellManagerViewId());
         IntentRequestTracker intentRequestTracker = IntentRequestTracker.createFromActivity(this);
-        mWindowAndroid = new ActivityWindowAndroid(
-                this, /* listenToActivityState= */ true, intentRequestTracker);
+        mWindowAndroid =
+                new ActivityWindowAndroid(
+                        this,
+                        /* listenToActivityState= */ true,
+                        intentRequestTracker,
+                        /* insetObserver= */ null,
+                        /* trackOcclusion= */ true);
         mShellManager.setWindow(mWindowAndroid);
 
         Window wind = this.getWindow();
@@ -70,38 +76,47 @@ public abstract class ContentShellBrowserTestActivity extends NativeBrowserTestA
         wind.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED);
         wind.addFlags(WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
 
-        BrowserStartupController.getInstance().setContentMainCallbackForTests(() -> {
-            // This jumps into C++ to set up and run the test harness. The test harness runs
-            // ContentMain()-equivalent code, and then waits for javaStartupTasksComplete()
-            // to be called.
-            runTests();
-        });
-        BrowserStartupController.getInstance().startBrowserProcessesAsync(
-                LibraryProcessType.PROCESS_BROWSER, false, false, new StartupCallback() {
-                    @Override
-                    public void onSuccess() {
-                        // The C++ test harness is running thanks to runTests() above, but it
-                        // waits for Java initialization to complete. This tells C++ that it may
-                        // continue now to finish running the tests.
-                        NativeBrowserTest.javaStartupTasksComplete();
-                    }
-                    @Override
-                    public void onFailure() {
-                        throw new RuntimeException("Failed to startBrowserProcessesAsync()");
-                    }
-                });
+        BrowserStartupController.getInstance()
+                .setContentMainCallbackForTests(
+                        () -> {
+                            // This jumps into C++ to set up and run the test harness. The test
+                            // harness runs ContentMain()-equivalent code, and then waits for
+                            // javaStartupTasksComplete() to be called.
+                            runTests();
+                        });
+        BrowserStartupController.getInstance()
+                .startBrowserProcessesAsync(
+                        LibraryProcessType.PROCESS_BROWSER,
+                        false,
+                        false,
+                        new StartupCallback() {
+                            @Override
+                            public void onSuccess() {
+                                // The C++ test harness is running thanks to runTests() above, but
+                                // it waits for Java initialization to complete. This tells C++
+                                // that it may continue now to finish running the tests.
+                                NativeBrowserTest.javaStartupTasksComplete();
+                            }
+
+                            @Override
+                            public void onFailure() {
+                                throw new RuntimeException(
+                                        "Failed to startBrowserProcessesAsync()");
+                            }
+                        });
     }
 
-    @Override
     /**
      * Ensure that the user data directory gets overridden to getPrivateDataDirectory() (which is
      * cleared at the start of every run); the directory that ANDROID_APP_DATA_DIR is set to in the
-     * context of Java browsertests is not cleared as it also holds persistent state, which
-     * causes test failures due to state bleedthrough. See crbug.com/617734 for details.
+     * context of Java browsertests is not cleared as it also holds persistent state, which causes
+     * test failures due to state bleedthrough. See crbug.com/617734 for details.
      */
+    @Override
     protected String getUserDataDirectoryCommandLineSwitch() {
-        return "data-path";
+        return "user-data-dir";
     }
+
     protected abstract int getTestActivityViewId();
 
     protected abstract int getShellManagerViewId();

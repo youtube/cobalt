@@ -64,10 +64,10 @@ if (rtc_include_tests) {
         ":desktop_capture_mock",
         ":primitives",
         ":screen_drawer",
-        "../../rtc_base/third_party/base64",
-        "../../system_wrappers",
+        "../../api:array_view",
+        "../../rtc_base:base64",
+        "../../rtc_base:threading",
         "../../test:test_support",
-        "../../test:video_test_support",
       ]
       sources += [
         "screen_capturer_integration_test.cc",
@@ -158,12 +158,9 @@ if (rtc_include_tests) {
       "../../rtc_base:logging",
       "../../rtc_base:macromagic",
       "../../rtc_base:random",
-      "../../rtc_base:timeutils",
-
-      # TODO(bugs.webrtc.org/9987): Remove this dep on rtc_base:rtc_base once
-      # rtc_base:threading is fully defined.
       "../../rtc_base:task_queue_for_test",
       "../../rtc_base:threading",
+      "../../rtc_base:timeutils",
       "../../system_wrappers",
       "../../test:test_support",
     ]
@@ -173,6 +170,7 @@ if (rtc_include_tests) {
         "win/cursor_unittest.cc",
         "win/cursor_unittest_resources.h",
         "win/cursor_unittest_resources.rc",
+        "win/full_screen_win_application_handler_unittest.cc",
         "win/screen_capture_utils_unittest.cc",
         "win/screen_capturer_win_directx_unittest.cc",
         "win/test_support/test_window.cc",
@@ -235,9 +233,9 @@ if (rtc_include_tests) {
       "../../api:scoped_refptr",
       "../../rtc_base:checks",
       "../../rtc_base:logging",
-      "../../system_wrappers",
+      "../../rtc_base:threading",
+      "//third_party/abseil-cpp/absl/strings:string_view",
     ]
-    absl_deps = [ "//third_party/abseil-cpp/absl/strings" ]
 
     if (is_posix || is_fuchsia) {
       sources += [
@@ -277,7 +275,11 @@ if ((is_linux || is_chromeos) && rtc_use_pipewire) {
 rtc_library("desktop_capture") {
   visibility = [ "*" ]
   defines = []
-  deps = []
+  deps = [
+    "//third_party/abseil-cpp/absl/memory",
+    "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:string_view",
+  ]
   public_configs = [ ":x11_config" ]
   sources = [
     "blank_detector_desktop_capturer_wrapper.cc",
@@ -334,6 +336,8 @@ rtc_library("desktop_capture") {
       "mac/desktop_configuration.h",
       "mac/desktop_configuration_monitor.cc",
       "mac/desktop_configuration_monitor.h",
+      "mac/desktop_frame_utils.cc",
+      "mac/desktop_frame_utils.h",
       "mac/full_screen_mac_application_handler.cc",
       "mac/full_screen_mac_application_handler.h",
       "mac/window_list_utils.cc",
@@ -403,8 +407,11 @@ rtc_library("desktop_capture") {
       "Xdamage",
       "Xext",
       "Xfixes",
-      "Xrender",
+
+      # Xrandr depends on Xrender and needs to be listed before its dependency.
       "Xrandr",
+
+      "Xrender",
       "Xtst",
     ]
   }
@@ -451,8 +458,7 @@ rtc_library("desktop_capture") {
       "../../rtc_base:divide_round",
       "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.sysmem",
       "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.ui.composition",
-      "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.ui.scenic",
-      "//third_party/fuchsia-sdk/sdk/pkg/scenic_cpp",
+      "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.ui.display.singleton",
       "//third_party/fuchsia-sdk/sdk/pkg/sys_cpp",
     ]
   }
@@ -519,6 +525,7 @@ rtc_library("desktop_capture") {
       "shcore.lib",
     ]
     deps += [
+      "../../rtc_base:threading",
       "../../rtc_base:win32",
       "../../rtc_base/containers:flat_map",
       "../../rtc_base/win:create_direct3d_device",
@@ -526,12 +533,6 @@ rtc_library("desktop_capture") {
       "../../rtc_base/win:windows_version",
     ]
   }
-
-  absl_deps = [
-    "//third_party/abseil-cpp/absl/memory",
-    "//third_party/abseil-cpp/absl/strings",
-    "//third_party/abseil-cpp/absl/types:optional",
-  ]
 
   if (rtc_use_x11_extensions) {
     deps += [ "../../rtc_base:sanitizer" ]
@@ -593,6 +594,7 @@ rtc_library("desktop_capture") {
     libs += [ "dwmapi.lib" ]
     deps += [
       "../../rtc_base:rtc_event",
+      "../../rtc_base:threading",
       "../../rtc_base/win:hstring",
     ]
   }
@@ -626,8 +628,12 @@ if (is_mac) {
       "mac/desktop_frame_iosurface.mm",
       "mac/desktop_frame_provider.h",
       "mac/desktop_frame_provider.mm",
+      "mac/sck_picker_handle.h",
+      "mac/sck_picker_handle.mm",
       "mac/screen_capturer_mac.h",
       "mac/screen_capturer_mac.mm",
+      "mac/screen_capturer_sck.h",
+      "mac/screen_capturer_sck.mm",
       "mac/window_list_utils.h",
       "mouse_cursor.h",
       "mouse_cursor_monitor.h",
@@ -650,16 +656,21 @@ if (is_mac) {
       "../../rtc_base:event_tracer",
       "../../rtc_base:logging",
       "../../rtc_base:macromagic",
+      "../../rtc_base:safe_conversions",
       "../../rtc_base:timeutils",
       "../../rtc_base/synchronization:mutex",
       "../../rtc_base/system:rtc_export",
       "../../sdk:helpers_objc",
+      "//third_party/abseil-cpp/absl/base:core_headers",
+      "//third_party/abseil-cpp/absl/strings:str_format",
     ]
     frameworks = [
       "AppKit.framework",
+      "CoreVideo.framework",
       "IOKit.framework",
       "IOSurface.framework",
     ]
+    weak_frameworks = [ "ScreenCaptureKit.framework" ]  # macOS 12.3
   }
 }
 

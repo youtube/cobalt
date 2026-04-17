@@ -10,6 +10,7 @@
 #include "src/debug/debug-scope-iterator.h"
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
+#include "src/execution/frames.h"
 #include "src/execution/isolate.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -68,10 +69,11 @@ void DebugStackTraceIterator::Advance() {
 
 int DebugStackTraceIterator::GetContextId() const {
   DCHECK(!Done());
-  Handle<Object> context = frame_inspector_->GetContext();
-  if (context->IsContext()) {
-    Object value = Context::cast(*context).native_context().debug_context_id();
-    if (value.IsSmi()) return Smi::ToInt(value);
+  DirectHandle<Object> context = frame_inspector_->GetContext();
+  if (IsContext(*context)) {
+    Tagged<Object> value =
+        Cast<Context>(*context)->native_context()->debug_context_id();
+    if (IsSmi(value)) return Smi::ToInt(value);
   }
   return 0;
 }
@@ -79,13 +81,13 @@ int DebugStackTraceIterator::GetContextId() const {
 v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
   DCHECK(!Done());
   if (frame_inspector_->IsJavaScript() &&
-      frame_inspector_->GetFunction()->shared().kind() ==
+      frame_inspector_->GetFunction()->shared()->kind() ==
           FunctionKind::kArrowFunction) {
     // FrameInspector is not able to get receiver for arrow function.
     // So let's try to fetch it using same logic as is used to retrieve 'this'
     // during DebugEvaluate::Local.
-    Handle<JSFunction> function = frame_inspector_->GetFunction();
-    Handle<Context> context(function->context(), isolate_);
+    DirectHandle<JSFunction> function = frame_inspector_->GetFunction();
+    DirectHandle<Context> context(function->context(), isolate_);
     // Arrow function defined in top level function without references to
     // variables may have NativeContext as context.
     if (!context->IsFunctionContext()) return v8::MaybeLocal<v8::Value>();
@@ -98,16 +100,16 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
       return v8::MaybeLocal<v8::Value>();
     }
     DisallowGarbageCollection no_gc;
-    int slot_index = context->scope_info().ContextSlotIndex(
-        ReadOnlyRoots(isolate_).this_string_handle());
+    int slot_index = context->scope_info()->ContextSlotIndex(
+        *isolate_->factory()->this_string());
     if (slot_index < 0) return v8::MaybeLocal<v8::Value>();
-    Handle<Object> value = handle(context->get(slot_index), isolate_);
-    if (value->IsTheHole(isolate_)) return v8::MaybeLocal<v8::Value>();
+    DirectHandle<Object> value(context->GetNoCell(slot_index), isolate_);
+    if (IsTheHole(*value, isolate_)) return v8::MaybeLocal<v8::Value>();
     return Utils::ToLocal(value);
   }
 
-  Handle<Object> value = frame_inspector_->GetReceiver();
-  if (value.is_null() || (value->IsSmi() || !value->IsTheHole(isolate_))) {
+  DirectHandle<Object> value = frame_inspector_->GetReceiver();
+  if (value.is_null() || (IsSmi(*value) || !IsTheHole(*value, isolate_))) {
     return Utils::ToLocal(value);
   }
   return v8::MaybeLocal<v8::Value>();
@@ -121,7 +123,7 @@ v8::Local<v8::Value> DebugStackTraceIterator::GetReturnValue() const {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   CHECK_NOT_NULL(iterator_.frame());
-  bool is_optimized = iterator_.frame()->is_optimized();
+  bool is_optimized = iterator_.frame()->is_optimized_js();
   if (is_optimized || !is_top_frame_ ||
       !isolate_->debug()->IsBreakAtReturn(iterator_.javascript_frame())) {
     return v8::Local<v8::Value>();
@@ -136,9 +138,9 @@ v8::Local<v8::String> DebugStackTraceIterator::GetFunctionDebugName() const {
 
 v8::Local<v8::debug::Script> DebugStackTraceIterator::GetScript() const {
   DCHECK(!Done());
-  Handle<Object> value = frame_inspector_->GetScript();
-  if (!value->IsScript()) return v8::Local<v8::debug::Script>();
-  return ToApiHandle<debug::Script>(Handle<Script>::cast(value));
+  DirectHandle<Object> value = frame_inspector_->GetScript();
+  if (!IsScript(*value)) return v8::Local<v8::debug::Script>();
+  return ToApiHandle<debug::Script>(Cast<Script>(value));
 }
 
 debug::Location DebugStackTraceIterator::GetSourceLocation() const {
@@ -157,11 +159,19 @@ debug::Location DebugStackTraceIterator::GetFunctionLocation() const {
                                func->GetScriptColumnNumber());
   }
 #if V8_ENABLE_WEBASSEMBLY
-  if (iterator_.frame()->is_wasm()) {
-    auto frame = WasmFrame::cast(iterator_.frame());
+#if V8_ENABLE_DRUMBRAKE
+  if (iterator_.frame()->is_wasm_interpreter_entry()) {
+    auto frame = WasmInterpreterEntryFrame::cast(iterator_.frame());
     Handle<WasmInstanceObject> instance(frame->wasm_instance(), isolate_);
     auto offset =
-        instance->module()->functions[frame->function_index()].code.offset();
+        instance->module()->functions[frame->function_index(0)].code.offset();
+    return v8::debug::Location(inlined_frame_index_, offset);
+  }
+#endif  // V8_ENABLE_DRUMBRAKE
+  if (iterator_.frame()->is_wasm()) {
+    auto frame = WasmFrame::cast(iterator_.frame());
+    const wasm::WasmModule* module = frame->trusted_instance_data()->module();
+    auto offset = module->functions[frame->function_index()].code.offset();
     return v8::debug::Location(0, offset);
   }
 #endif
@@ -185,9 +195,18 @@ std::unique_ptr<v8::debug::ScopeIterator>
 DebugStackTraceIterator::GetScopeIterator() const {
   DCHECK(!Done());
 #if V8_ENABLE_WEBASSEMBLY
-  if (iterator_.frame()->is_wasm()) {
-    return GetWasmScopeIterator(WasmFrame::cast(iterator_.frame()));
+#if V8_ENABLE_DRUMBRAKE
+  if (iterator_.frame()->is_wasm_interpreter_entry()) {
+    return GetWasmInterpreterScopeIterator(
+        WasmInterpreterEntryFrame::cast(iterator_.frame()));
+  } else {
+#endif  // V8_ENABLE_DRUMBRAKE
+    if (iterator_.frame()->is_wasm()) {
+      return GetWasmScopeIterator(WasmFrame::cast(iterator_.frame()));
+    }
+#if V8_ENABLE_DRUMBRAKE
   }
+#endif  // V8_ENABLE_DRUMBRAKE
 #endif  // V8_ENABLE_WEBASSEMBLY
   return std::make_unique<DebugScopeIterator>(isolate_, frame_inspector_.get());
 }
@@ -218,14 +237,13 @@ bool DebugStackTraceIterator::CanBeRestarted() const {
 void DebugStackTraceIterator::UpdateInlineFrameIndexAndResumableFnOnStack() {
   CHECK(!iterator_.done());
 
-  std::vector<FrameSummary> frames;
-  iterator_.frame()->Summarize(&frames);
-  inlined_frame_index_ = static_cast<int>(frames.size());
+  FrameSummaries summaries = iterator_.frame()->Summarize();
+  inlined_frame_index_ = static_cast<int>(summaries.size());
 
   if (resumable_fn_on_stack_) return;
 
   StackFrame* frame = iterator_.frame();
-  if (!frame->is_java_script()) return;
+  if (!frame->is_javascript()) return;
 
   std::vector<Handle<SharedFunctionInfo>> shareds;
   JavaScriptFrame::cast(frame)->GetFunctions(&shareds);
@@ -240,14 +258,13 @@ void DebugStackTraceIterator::UpdateInlineFrameIndexAndResumableFnOnStack() {
 v8::MaybeLocal<v8::Value> DebugStackTraceIterator::Evaluate(
     v8::Local<v8::String> source, bool throw_on_side_effect) {
   DCHECK(!Done());
-  Handle<Object> value;
+  DirectHandle<Object> value;
 
   i::SafeForInterruptsScope safe_for_interrupt_scope(isolate_);
-  if (!DebugEvaluate::Local(isolate_, iterator_.frame()->id(),
-                            inlined_frame_index_, Utils::OpenHandle(*source),
-                            throw_on_side_effect)
+  if (!DebugEvaluate::Local(
+           isolate_, iterator_.frame()->id(), inlined_frame_index_,
+           Utils::OpenDirectHandle(*source), throw_on_side_effect)
            .ToHandle(&value)) {
-    isolate_->OptionalRescheduleException(false);
     return v8::MaybeLocal<v8::Value>();
   }
   return Utils::ToLocal(value);

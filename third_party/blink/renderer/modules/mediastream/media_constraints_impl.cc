@@ -32,7 +32,6 @@
 
 #include "build/build_config.h"
 #include "third_party/blink/public/platform/web_string.h"
-#include "third_party/blink/renderer/bindings/core/v8/array_value.h"
 #include "third_party/blink/renderer/bindings/core/v8/dictionary.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_string_stringsequence.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_constrain_boolean_parameters.h"
@@ -61,6 +60,8 @@
 namespace blink {
 namespace media_constraints_impl {
 
+namespace {
+
 // A naked value is treated as an "ideal" value in the basic constraints,
 // but as an exact value in "advanced" constraints.
 // https://w3c.github.io/mediacapture-main/#constrainable-interface
@@ -70,11 +71,11 @@ enum class NakedValueDisposition { kTreatAsIdeal, kTreatAsExact };
 struct NameValueStringConstraint {
   NameValueStringConstraint() = default;
 
-  NameValueStringConstraint(WebString name, WebString value)
+  NameValueStringConstraint(String name, String value)
       : name_(name), value_(value) {}
 
-  WebString name_;
-  WebString value_;
+  String name_;
+  String value_;
 };
 
 // Legal constraint names.
@@ -97,15 +98,6 @@ const char kMediaStreamRenderToAssociatedSink[] =
 // RenderToAssociatedSink will be going away some time.
 const char kEchoCancellation[] = "echoCancellation";
 const char kDisableLocalEcho[] = "disableLocalEcho";
-const char kGoogEchoCancellation[] = "googEchoCancellation";
-const char kGoogExperimentalEchoCancellation[] = "googEchoCancellation2";
-const char kGoogAutoGainControl[] = "googAutoGainControl";
-const char kGoogNoiseSuppression[] = "googNoiseSuppression";
-const char kGoogExperimentalNoiseSuppression[] = "googNoiseSuppression2";
-const char kGoogHighpassFilter[] = "googHighpassFilter";
-const char kGoogAudioMirroring[] = "googAudioMirroring";
-// Audio constraints.
-const char kDAEchoCancellation[] = "googDAEchoCancellation";
 // Google-specific constraint keys for a local video source (getUserMedia).
 const char kNoiseReduction[] = "googNoiseReduction";
 
@@ -130,16 +122,15 @@ static bool ParseOptionalConstraintsVectorElement(
   DummyExceptionStateForTesting exception_state;
   const Vector<String>& local_names =
       constraint.GetPropertyNames(exception_state);
-  if (exception_state.HadException())
+  if (exception_state.HadException() || local_names.size() != 1) {
     return false;
-  if (local_names.size() != 1)
-    return false;
+  }
   const String& key = local_names[0];
-  String value;
-  bool ok = DictionaryHelper::Get(constraint, key, value);
-  if (!ok)
+  std::optional<String> value = constraint.Get<IDLString>(key, exception_state);
+  if (exception_state.HadException() || !value) {
     return false;
-  optional_constraints_vector.push_back(NameValueStringConstraint(key, value));
+  }
+  optional_constraints_vector.push_back(NameValueStringConstraint(key, *value));
   return true;
 }
 
@@ -165,8 +156,8 @@ static bool Parse(const MediaTrackConstraints* constraints_in,
   return true;
 }
 
-static bool ToBoolean(const WebString& as_web_string) {
-  return as_web_string.Equals("true");
+static bool ToBoolean(const String& as_string) {
+  return as_string == "true";
   // TODO(hta): Check against "false" and return error if it's neither.
   // https://crbug.com/576582
 }
@@ -179,60 +170,42 @@ static void ParseOldStyleNames(
     UseCounter::Count(context, WebFeature::kOldConstraintsParsed);
   }
   for (const NameValueStringConstraint& constraint : old_names) {
-    if (constraint.name_.Equals(kMinAspectRatio)) {
+    if (constraint.name_ == kMinAspectRatio) {
       result.aspect_ratio.SetMin(atof(constraint.value_.Utf8().c_str()));
-    } else if (constraint.name_.Equals(kMaxAspectRatio)) {
+    } else if (constraint.name_ == kMaxAspectRatio) {
       result.aspect_ratio.SetMax(atof(constraint.value_.Utf8().c_str()));
-    } else if (constraint.name_.Equals(kMaxWidth)) {
+    } else if (constraint.name_ == kMaxWidth) {
       result.width.SetMax(atoi(constraint.value_.Utf8().c_str()));
-    } else if (constraint.name_.Equals(kMinWidth)) {
+    } else if (constraint.name_ == kMinWidth) {
       result.width.SetMin(atoi(constraint.value_.Utf8().c_str()));
-    } else if (constraint.name_.Equals(kMaxHeight)) {
+    } else if (constraint.name_ == kMaxHeight) {
       result.height.SetMax(atoi(constraint.value_.Utf8().c_str()));
-    } else if (constraint.name_.Equals(kMinHeight)) {
+    } else if (constraint.name_ == kMinHeight) {
       result.height.SetMin(atoi(constraint.value_.Utf8().c_str()));
-    } else if (constraint.name_.Equals(kMinFrameRate)) {
+    } else if (constraint.name_ == kMinFrameRate) {
       result.frame_rate.SetMin(atof(constraint.value_.Utf8().c_str()));
-    } else if (constraint.name_.Equals(kMaxFrameRate)) {
+    } else if (constraint.name_ == kMaxFrameRate) {
       result.frame_rate.SetMax(atof(constraint.value_.Utf8().c_str()));
-    } else if (constraint.name_.Equals(kEchoCancellation)) {
+    } else if (constraint.name_ == kEchoCancellation) {
       result.echo_cancellation.SetExact(ToBoolean(constraint.value_));
-    } else if (constraint.name_.Equals(kMediaStreamSource)) {
+    } else if (constraint.name_ == kMediaStreamSource) {
       // TODO(hta): This has only a few legal values. Should be
       // represented as an enum, and cause type errors.
       // https://crbug.com/576582
       result.media_stream_source.SetExact(constraint.value_);
-    } else if (constraint.name_.Equals(kDisableLocalEcho) &&
+    } else if (constraint.name_ == kDisableLocalEcho &&
                RuntimeEnabledFeatures::
                    DesktopCaptureDisableLocalEchoControlEnabled()) {
       result.disable_local_echo.SetExact(ToBoolean(constraint.value_));
-    } else if (constraint.name_.Equals(kMediaStreamSourceId) ||
-               constraint.name_.Equals(kMediaStreamSourceInfoId)) {
+    } else if (constraint.name_ == kMediaStreamSourceId ||
+               constraint.name_ == kMediaStreamSourceInfoId) {
       result.device_id.SetExact(constraint.value_);
-    } else if (constraint.name_.Equals(kMediaStreamRenderToAssociatedSink)) {
+    } else if (constraint.name_ == kMediaStreamRenderToAssociatedSink) {
       // TODO(hta): This is a boolean represented as string.
       // Should give TypeError when it's not parseable.
       // https://crbug.com/576582
       result.render_to_associated_sink.SetExact(ToBoolean(constraint.value_));
-    } else if (constraint.name_.Equals(kGoogEchoCancellation)) {
-      result.goog_echo_cancellation.SetExact(ToBoolean(constraint.value_));
-    } else if (constraint.name_.Equals(kGoogExperimentalEchoCancellation)) {
-      result.goog_experimental_echo_cancellation.SetExact(
-          ToBoolean(constraint.value_));
-    } else if (constraint.name_.Equals(kGoogAutoGainControl)) {
-      result.goog_auto_gain_control.SetExact(ToBoolean(constraint.value_));
-    } else if (constraint.name_.Equals(kGoogNoiseSuppression)) {
-      result.goog_noise_suppression.SetExact(ToBoolean(constraint.value_));
-    } else if (constraint.name_.Equals(kGoogExperimentalNoiseSuppression)) {
-      result.goog_experimental_noise_suppression.SetExact(
-          ToBoolean(constraint.value_));
-    } else if (constraint.name_.Equals(kGoogHighpassFilter)) {
-      result.goog_highpass_filter.SetExact(ToBoolean(constraint.value_));
-    } else if (constraint.name_.Equals(kGoogAudioMirroring)) {
-      result.goog_audio_mirroring.SetExact(ToBoolean(constraint.value_));
-    } else if (constraint.name_.Equals(kDAEchoCancellation)) {
-      result.goog_da_echo_cancellation.SetExact(ToBoolean(constraint.value_));
-    } else if (constraint.name_.Equals(kNoiseReduction)) {
+    } else if (constraint.name_ == kNoiseReduction) {
       result.goog_noise_reduction.SetExact(ToBoolean(constraint.value_));
     }
     // else: Nothing. Unrecognized constraints are simply ignored.
@@ -331,10 +304,18 @@ void CopyDoubleConstraint(const V8ConstrainDouble* blink_union_form,
 void CopyBooleanOrDoubleConstraint(
     const V8UnionBooleanOrConstrainDouble* blink_union_form,
     NakedValueDisposition naked_treatment,
-    DoubleConstraint& web_form) {
+    DoubleOrBooleanConstraint& web_form) {
   switch (blink_union_form->GetContentType()) {
     case V8UnionBooleanOrConstrainDouble::ContentType::kBoolean:
-      web_form.SetIsPresent(blink_union_form->GetAsBoolean());
+      web_form.SetIsPresent(true);
+      switch (naked_treatment) {
+        case NakedValueDisposition::kTreatAsIdeal:
+          web_form.SetIdealBoolean(blink_union_form->GetAsBoolean());
+          break;
+        case NakedValueDisposition::kTreatAsExact:
+          web_form.SetExactBoolean(blink_union_form->GetAsBoolean());
+          break;
+      }
       break;
     case V8UnionBooleanOrConstrainDouble::ContentType::kConstrainDoubleRange:
     case V8UnionBooleanOrConstrainDouble::ContentType::kDouble:
@@ -380,7 +361,6 @@ bool ValidateStringConstraint(
     }
   }
   NOTREACHED();
-  return false;
 }
 
 bool ValidateStringConstraint(const V8ConstrainDOMString* blink_union_form,
@@ -406,7 +386,6 @@ bool ValidateStringConstraint(const V8ConstrainDOMString* blink_union_form,
                                error_message);
   }
   NOTREACHED();
-  return false;
 }
 
 [[nodiscard]] bool ValidateAndCopyStringConstraint(
@@ -557,12 +536,17 @@ bool ValidateAndCopyConstraintSet(
 
   if (constraints_in->hasAutoGainControl()) {
     CopyBooleanConstraint(constraints_in->autoGainControl(), naked_treatment,
-                          constraint_buffer.goog_auto_gain_control);
+                          constraint_buffer.auto_gain_control);
   }
 
   if (constraints_in->hasNoiseSuppression()) {
     CopyBooleanConstraint(constraints_in->noiseSuppression(), naked_treatment,
-                          constraint_buffer.goog_noise_suppression);
+                          constraint_buffer.noise_suppression);
+  }
+
+  if (constraints_in->hasVoiceIsolation()) {
+    CopyBooleanConstraint(constraints_in->voiceIsolation(), naked_treatment,
+                          constraint_buffer.voice_isolation);
   }
 
   if (constraints_in->hasLatency()) {
@@ -591,6 +575,52 @@ bool ValidateAndCopyConstraintSet(
     }
   }
 
+  if (constraints_in->hasExposureCompensation()) {
+    CopyDoubleConstraint(constraints_in->exposureCompensation(),
+                         naked_treatment,
+                         constraint_buffer.exposure_compensation);
+  }
+
+  if (constraints_in->hasExposureTime()) {
+    CopyDoubleConstraint(constraints_in->exposureTime(), naked_treatment,
+                         constraint_buffer.exposure_time);
+  }
+
+  if (constraints_in->hasColorTemperature()) {
+    CopyDoubleConstraint(constraints_in->colorTemperature(), naked_treatment,
+                         constraint_buffer.color_temperature);
+  }
+
+  if (constraints_in->hasIso()) {
+    CopyDoubleConstraint(constraints_in->iso(), naked_treatment,
+                         constraint_buffer.iso);
+  }
+
+  if (constraints_in->hasBrightness()) {
+    CopyDoubleConstraint(constraints_in->brightness(), naked_treatment,
+                         constraint_buffer.brightness);
+  }
+
+  if (constraints_in->hasContrast()) {
+    CopyDoubleConstraint(constraints_in->contrast(), naked_treatment,
+                         constraint_buffer.contrast);
+  }
+
+  if (constraints_in->hasSaturation()) {
+    CopyDoubleConstraint(constraints_in->saturation(), naked_treatment,
+                         constraint_buffer.saturation);
+  }
+
+  if (constraints_in->hasSharpness()) {
+    CopyDoubleConstraint(constraints_in->sharpness(), naked_treatment,
+                         constraint_buffer.sharpness);
+  }
+
+  if (constraints_in->hasFocusDistance()) {
+    CopyDoubleConstraint(constraints_in->focusDistance(), naked_treatment,
+                         constraint_buffer.focus_distance);
+  }
+
   if (constraints_in->hasPan()) {
     CopyBooleanOrDoubleConstraint(constraints_in->pan(), naked_treatment,
                                   constraint_buffer.pan);
@@ -606,6 +636,32 @@ bool ValidateAndCopyConstraintSet(
                                   constraint_buffer.zoom);
   }
 
+  if (constraints_in->hasTorch()) {
+    CopyBooleanConstraint(constraints_in->torch(), naked_treatment,
+                          constraint_buffer.torch);
+  }
+
+  if (constraints_in->hasBackgroundBlur()) {
+    CopyBooleanConstraint(constraints_in->backgroundBlur(), naked_treatment,
+                          constraint_buffer.background_blur);
+  }
+
+  if (constraints_in->hasBackgroundSegmentationMask()) {
+    CopyBooleanConstraint(constraints_in->backgroundSegmentationMask(),
+                          naked_treatment,
+                          constraint_buffer.background_segmentation_mask);
+  }
+
+  if (constraints_in->hasEyeGazeCorrection()) {
+    CopyBooleanConstraint(constraints_in->eyeGazeCorrection(), naked_treatment,
+                          constraint_buffer.eye_gaze_correction);
+  }
+
+  if (constraints_in->hasFaceFraming()) {
+    CopyBooleanConstraint(constraints_in->faceFraming(), naked_treatment,
+                          constraint_buffer.face_framing);
+  }
+
   if (constraints_in->hasDisplaySurface()) {
     if (!ValidateAndCopyStringConstraint(
             constraints_in->displaySurface(), naked_treatment,
@@ -619,8 +675,307 @@ bool ValidateAndCopyConstraintSet(
                           naked_treatment,
                           constraint_buffer.suppress_local_audio_playback);
   }
+
+  if (constraints_in->hasRestrictOwnAudio()) {
+    CopyBooleanConstraint(constraints_in->restrictOwnAudio(), naked_treatment,
+                          constraint_buffer.restrict_own_audio);
+  }
+
   return true;
 }
+
+template <class T>
+bool UseNakedBooleanNotNumeric(const T& input, NakedValueDisposition which) {
+  if (input.HasExact() || input.HasIdeal() || input.HasMin() ||
+      input.HasMax()) {
+    return false;
+  }
+  switch (which) {
+    case NakedValueDisposition::kTreatAsIdeal:
+      return input.HasIdealBoolean();
+    case NakedValueDisposition::kTreatAsExact:
+      return input.HasExactBoolean();
+  }
+  NOTREACHED();
+}
+
+template <class T>
+bool UseNakedNumeric(const T& input, NakedValueDisposition which) {
+  switch (which) {
+    case NakedValueDisposition::kTreatAsIdeal:
+      return input.HasIdeal() &&
+             !(input.HasExact() || input.HasMin() || input.HasMax());
+      break;
+    case NakedValueDisposition::kTreatAsExact:
+      return input.HasExact() &&
+             !(input.HasIdeal() || input.HasMin() || input.HasMax());
+      break;
+  }
+  NOTREACHED();
+}
+
+template <class T>
+bool UseNakedNonNumeric(const T& input, NakedValueDisposition which) {
+  switch (which) {
+    case NakedValueDisposition::kTreatAsIdeal:
+      return input.HasIdeal() && !input.HasExact();
+      break;
+    case NakedValueDisposition::kTreatAsExact:
+      return input.HasExact() && !input.HasIdeal();
+      break;
+  }
+  NOTREACHED();
+}
+
+template <class T>
+bool GetNakedBoolean(const T& input, NakedValueDisposition which) {
+  switch (which) {
+    case NakedValueDisposition::kTreatAsIdeal:
+      return input.IdealBoolean();
+    case NakedValueDisposition::kTreatAsExact:
+      return input.ExactBoolean();
+  }
+  NOTREACHED();
+}
+
+template <typename U, class T>
+U GetNakedValue(const T& input, NakedValueDisposition which) {
+  switch (which) {
+    case NakedValueDisposition::kTreatAsIdeal:
+      return input.Ideal();
+      break;
+    case NakedValueDisposition::kTreatAsExact:
+      return input.Exact();
+      break;
+  }
+  NOTREACHED();
+}
+
+V8ConstrainLong* ConvertLong(const LongConstraint& input,
+                             NakedValueDisposition naked_treatment) {
+  if (UseNakedNumeric(input, naked_treatment)) {
+    return MakeGarbageCollected<V8ConstrainLong>(
+        GetNakedValue<uint32_t>(input, naked_treatment));
+  } else if (!input.IsUnconstrained()) {
+    ConstrainLongRange* output = ConstrainLongRange::Create();
+    if (input.HasExact())
+      output->setExact(input.Exact());
+    if (input.HasMin())
+      output->setMin(input.Min());
+    if (input.HasMax())
+      output->setMax(input.Max());
+    if (input.HasIdeal())
+      output->setIdeal(input.Ideal());
+    return MakeGarbageCollected<V8ConstrainLong>(output);
+  }
+  return nullptr;
+}
+
+V8ConstrainDouble* ConvertDouble(const DoubleConstraint& input,
+                                 NakedValueDisposition naked_treatment) {
+  if (UseNakedNumeric(input, naked_treatment)) {
+    return MakeGarbageCollected<V8ConstrainDouble>(
+        GetNakedValue<double>(input, naked_treatment));
+  } else if (!input.IsUnconstrained()) {
+    ConstrainDoubleRange* output = ConstrainDoubleRange::Create();
+    if (input.HasExact())
+      output->setExact(input.Exact());
+    if (input.HasIdeal())
+      output->setIdeal(input.Ideal());
+    if (input.HasMin())
+      output->setMin(input.Min());
+    if (input.HasMax())
+      output->setMax(input.Max());
+    return MakeGarbageCollected<V8ConstrainDouble>(output);
+  }
+  return nullptr;
+}
+
+V8UnionBooleanOrConstrainDouble* ConvertBooleanOrDouble(
+    const DoubleOrBooleanConstraint& input,
+    NakedValueDisposition naked_treatment) {
+  if (UseNakedNumeric(input, naked_treatment)) {
+    return MakeGarbageCollected<V8UnionBooleanOrConstrainDouble>(
+        GetNakedValue<double>(input, naked_treatment));
+  } else if (UseNakedBooleanNotNumeric(input, naked_treatment)) {
+    return MakeGarbageCollected<V8UnionBooleanOrConstrainDouble>(
+        GetNakedBoolean(input, naked_treatment));
+  } else if (!input.IsUnconstrained()) {
+    ConstrainDoubleRange* output = ConstrainDoubleRange::Create();
+    if (input.HasExact())
+      output->setExact(input.Exact());
+    if (input.HasIdeal())
+      output->setIdeal(input.Ideal());
+    if (input.HasMin())
+      output->setMin(input.Min());
+    if (input.HasMax())
+      output->setMax(input.Max());
+    return MakeGarbageCollected<V8UnionBooleanOrConstrainDouble>(output);
+  }
+  return nullptr;
+}
+
+V8UnionStringOrStringSequence* ConvertStringSequence(
+    const Vector<String>& input) {
+  if (input.size() > 1) {
+    return MakeGarbageCollected<V8UnionStringOrStringSequence>(input);
+  } else if (!input.empty()) {
+    return MakeGarbageCollected<V8UnionStringOrStringSequence>(input[0]);
+  }
+  return nullptr;
+}
+
+V8ConstrainDOMString* ConvertString(const StringConstraint& input,
+                                    NakedValueDisposition naked_treatment) {
+  if (UseNakedNonNumeric(input, naked_treatment)) {
+    const Vector<String>& input_buffer(
+        GetNakedValue<const Vector<String>&>(input, naked_treatment));
+    if (input_buffer.size() > 1) {
+      return MakeGarbageCollected<V8ConstrainDOMString>(input_buffer);
+    } else if (!input_buffer.empty()) {
+      return MakeGarbageCollected<V8ConstrainDOMString>(input_buffer[0]);
+    }
+    return nullptr;
+  } else if (!input.IsUnconstrained()) {
+    ConstrainDOMStringParameters* output =
+        ConstrainDOMStringParameters::Create();
+    if (input.HasExact())
+      output->setExact(ConvertStringSequence(input.Exact()));
+    if (input.HasIdeal())
+      output->setIdeal(ConvertStringSequence(input.Ideal()));
+    return MakeGarbageCollected<V8ConstrainDOMString>(output);
+  }
+  return nullptr;
+}
+
+V8ConstrainBoolean* ConvertBoolean(const BooleanConstraint& input,
+                                   NakedValueDisposition naked_treatment) {
+  if (UseNakedNonNumeric(input, naked_treatment)) {
+    return MakeGarbageCollected<V8ConstrainBoolean>(
+        GetNakedValue<bool>(input, naked_treatment));
+  } else if (!input.IsUnconstrained()) {
+    ConstrainBooleanParameters* output = ConstrainBooleanParameters::Create();
+    if (input.HasExact())
+      output->setExact(input.Exact());
+    if (input.HasIdeal())
+      output->setIdeal(input.Ideal());
+    return MakeGarbageCollected<V8ConstrainBoolean>(output);
+  }
+  return nullptr;
+}
+
+void ConvertConstraintSet(const MediaTrackConstraintSetPlatform& input,
+                          NakedValueDisposition naked_treatment,
+                          MediaTrackConstraintSet* output) {
+  if (!input.width.IsUnconstrained())
+    output->setWidth(ConvertLong(input.width, naked_treatment));
+  if (!input.height.IsUnconstrained())
+    output->setHeight(ConvertLong(input.height, naked_treatment));
+  if (!input.aspect_ratio.IsUnconstrained())
+    output->setAspectRatio(ConvertDouble(input.aspect_ratio, naked_treatment));
+  if (!input.frame_rate.IsUnconstrained())
+    output->setFrameRate(ConvertDouble(input.frame_rate, naked_treatment));
+  if (!input.facing_mode.IsUnconstrained())
+    output->setFacingMode(ConvertString(input.facing_mode, naked_treatment));
+  if (!input.resize_mode.IsUnconstrained())
+    output->setResizeMode(ConvertString(input.resize_mode, naked_treatment));
+  if (!input.sample_rate.IsUnconstrained())
+    output->setSampleRate(ConvertLong(input.sample_rate, naked_treatment));
+  if (!input.sample_size.IsUnconstrained())
+    output->setSampleSize(ConvertLong(input.sample_size, naked_treatment));
+  if (!input.echo_cancellation.IsUnconstrained()) {
+    output->setEchoCancellation(
+        ConvertBoolean(input.echo_cancellation, naked_treatment));
+  }
+  if (!input.auto_gain_control.IsUnconstrained()) {
+    output->setAutoGainControl(
+        ConvertBoolean(input.auto_gain_control, naked_treatment));
+  }
+  if (!input.noise_suppression.IsUnconstrained()) {
+    output->setNoiseSuppression(
+        ConvertBoolean(input.noise_suppression, naked_treatment));
+  }
+  if (!input.voice_isolation.IsUnconstrained()) {
+    output->setVoiceIsolation(
+        ConvertBoolean(input.voice_isolation, naked_treatment));
+  }
+  if (!input.latency.IsUnconstrained())
+    output->setLatency(ConvertDouble(input.latency, naked_treatment));
+  if (!input.channel_count.IsUnconstrained())
+    output->setChannelCount(ConvertLong(input.channel_count, naked_treatment));
+  if (!input.device_id.IsUnconstrained())
+    output->setDeviceId(ConvertString(input.device_id, naked_treatment));
+  if (!input.group_id.IsUnconstrained())
+    output->setGroupId(ConvertString(input.group_id, naked_treatment));
+  if (!input.exposure_compensation.IsUnconstrained()) {
+    output->setExposureCompensation(
+        ConvertDouble(input.exposure_compensation, naked_treatment));
+  }
+  if (!input.exposure_time.IsUnconstrained()) {
+    output->setExposureTime(
+        ConvertDouble(input.exposure_time, naked_treatment));
+  }
+  if (!input.color_temperature.IsUnconstrained()) {
+    output->setColorTemperature(
+        ConvertDouble(input.color_temperature, naked_treatment));
+  }
+  if (!input.iso.IsUnconstrained()) {
+    output->setIso(ConvertDouble(input.iso, naked_treatment));
+  }
+  if (!input.brightness.IsUnconstrained()) {
+    output->setBrightness(ConvertDouble(input.brightness, naked_treatment));
+  }
+  if (!input.contrast.IsUnconstrained()) {
+    output->setContrast(ConvertDouble(input.contrast, naked_treatment));
+  }
+  if (!input.saturation.IsUnconstrained()) {
+    output->setSaturation(ConvertDouble(input.saturation, naked_treatment));
+  }
+  if (!input.sharpness.IsUnconstrained()) {
+    output->setSharpness(ConvertDouble(input.sharpness, naked_treatment));
+  }
+  if (!input.focus_distance.IsUnconstrained()) {
+    output->setFocusDistance(
+        ConvertDouble(input.focus_distance, naked_treatment));
+  }
+  if (!input.pan.IsUnconstrained())
+    output->setPan(ConvertBooleanOrDouble(input.pan, naked_treatment));
+  if (!input.tilt.IsUnconstrained())
+    output->setTilt(ConvertBooleanOrDouble(input.tilt, naked_treatment));
+  if (!input.zoom.IsUnconstrained())
+    output->setZoom(ConvertBooleanOrDouble(input.zoom, naked_treatment));
+  if (!input.torch.IsUnconstrained()) {
+    output->setTorch(ConvertBoolean(input.torch, naked_treatment));
+  }
+  if (!input.background_blur.IsUnconstrained()) {
+    output->setBackgroundBlur(
+        ConvertBoolean(input.background_blur, naked_treatment));
+  }
+  if (!input.background_segmentation_mask.IsUnconstrained()) {
+    output->setBackgroundSegmentationMask(
+        ConvertBoolean(input.background_segmentation_mask, naked_treatment));
+  }
+  if (!input.eye_gaze_correction.IsUnconstrained()) {
+    output->setEyeGazeCorrection(
+        ConvertBoolean(input.eye_gaze_correction, naked_treatment));
+  }
+  if (!input.face_framing.IsUnconstrained()) {
+    output->setFaceFraming(ConvertBoolean(input.face_framing, naked_treatment));
+  }
+  if (!input.suppress_local_audio_playback.IsUnconstrained()) {
+    output->setSuppressLocalAudioPlayback(
+        ConvertBoolean(input.suppress_local_audio_playback, naked_treatment));
+  }
+  if (!input.restrict_own_audio.IsUnconstrained()) {
+    output->setRestrictOwnAudio(
+        ConvertBoolean(input.restrict_own_audio, naked_treatment));
+  }
+  // TODO(hta): Decide the future of the nonstandard constraints.
+  // If they go forward, they need to be added here.
+  // https://crbug.com/605673
+}
+
+}  // namespace
 
 MediaConstraints ConvertTrackConstraintsToMediaConstraints(
     const MediaTrackConstraints* constraints_in,
@@ -681,221 +1036,6 @@ MediaConstraints Create() {
   MediaConstraints constraints;
   constraints.Initialize();
   return constraints;
-}
-
-template <class T>
-bool UseNakedNumeric(T input, NakedValueDisposition which) {
-  switch (which) {
-    case NakedValueDisposition::kTreatAsIdeal:
-      return input.HasIdeal() &&
-             !(input.HasExact() || input.HasMin() || input.HasMax());
-      break;
-    case NakedValueDisposition::kTreatAsExact:
-      return input.HasExact() &&
-             !(input.HasIdeal() || input.HasMin() || input.HasMax());
-      break;
-  }
-  NOTREACHED();
-  return false;
-}
-
-template <class T>
-bool UseNakedNonNumeric(T input, NakedValueDisposition which) {
-  switch (which) {
-    case NakedValueDisposition::kTreatAsIdeal:
-      return input.HasIdeal() && !input.HasExact();
-      break;
-    case NakedValueDisposition::kTreatAsExact:
-      return input.HasExact() && !input.HasIdeal();
-      break;
-  }
-  NOTREACHED();
-  return false;
-}
-
-template <typename U, class T>
-U GetNakedValue(T input, NakedValueDisposition which) {
-  switch (which) {
-    case NakedValueDisposition::kTreatAsIdeal:
-      return input.Ideal();
-      break;
-    case NakedValueDisposition::kTreatAsExact:
-      return input.Exact();
-      break;
-  }
-  NOTREACHED();
-  return input.Exact();
-}
-
-V8ConstrainLong* ConvertLong(const LongConstraint& input,
-                             NakedValueDisposition naked_treatment) {
-  if (UseNakedNumeric(input, naked_treatment)) {
-    return MakeGarbageCollected<V8ConstrainLong>(
-        GetNakedValue<uint32_t>(input, naked_treatment));
-  } else if (!input.IsUnconstrained()) {
-    ConstrainLongRange* output = ConstrainLongRange::Create();
-    if (input.HasExact())
-      output->setExact(input.Exact());
-    if (input.HasMin())
-      output->setMin(input.Min());
-    if (input.HasMax())
-      output->setMax(input.Max());
-    if (input.HasIdeal())
-      output->setIdeal(input.Ideal());
-    return MakeGarbageCollected<V8ConstrainLong>(output);
-  }
-  return nullptr;
-}
-
-V8ConstrainDouble* ConvertDouble(const DoubleConstraint& input,
-                                 NakedValueDisposition naked_treatment) {
-  if (UseNakedNumeric(input, naked_treatment)) {
-    return MakeGarbageCollected<V8ConstrainDouble>(
-        GetNakedValue<double>(input, naked_treatment));
-  } else if (!input.IsUnconstrained()) {
-    ConstrainDoubleRange* output = ConstrainDoubleRange::Create();
-    if (input.HasExact())
-      output->setExact(input.Exact());
-    if (input.HasIdeal())
-      output->setIdeal(input.Ideal());
-    if (input.HasMin())
-      output->setMin(input.Min());
-    if (input.HasMax())
-      output->setMax(input.Max());
-    return MakeGarbageCollected<V8ConstrainDouble>(output);
-  }
-  return nullptr;
-}
-
-V8UnionBooleanOrConstrainDouble* ConvertBooleanOrDouble(
-    const DoubleConstraint& input,
-    NakedValueDisposition naked_treatment) {
-  if (UseNakedNumeric(input, naked_treatment)) {
-    return MakeGarbageCollected<V8UnionBooleanOrConstrainDouble>(
-        GetNakedValue<double>(input, naked_treatment));
-  } else if (!input.IsUnconstrained()) {
-    ConstrainDoubleRange* output = ConstrainDoubleRange::Create();
-    if (input.HasExact())
-      output->setExact(input.Exact());
-    if (input.HasIdeal())
-      output->setIdeal(input.Ideal());
-    if (input.HasMin())
-      output->setMin(input.Min());
-    if (input.HasMax())
-      output->setMax(input.Max());
-    return MakeGarbageCollected<V8UnionBooleanOrConstrainDouble>(output);
-  }
-  return nullptr;
-}
-
-V8UnionStringOrStringSequence* ConvertStringSequence(
-    const WebVector<WebString>& input) {
-  if (input.size() > 1) {
-    Vector<String> buffer;
-    for (const auto& scanner : input)
-      buffer.push_back(scanner);
-    return MakeGarbageCollected<V8UnionStringOrStringSequence>(
-        std::move(buffer));
-  } else if (!input.empty()) {
-    return MakeGarbageCollected<V8UnionStringOrStringSequence>(input[0]);
-  }
-  return nullptr;
-}
-
-V8ConstrainDOMString* ConvertString(const StringConstraint& input,
-                                    NakedValueDisposition naked_treatment) {
-  if (UseNakedNonNumeric(input, naked_treatment)) {
-    WebVector<WebString> input_buffer(
-        GetNakedValue<WebVector<WebString>>(input, naked_treatment));
-    if (input_buffer.size() > 1) {
-      Vector<String> buffer;
-      for (const auto& scanner : input_buffer)
-        buffer.push_back(scanner);
-      return MakeGarbageCollected<V8ConstrainDOMString>(std::move(buffer));
-    } else if (!input_buffer.empty()) {
-      return MakeGarbageCollected<V8ConstrainDOMString>(input_buffer[0]);
-    }
-    return nullptr;
-  } else if (!input.IsUnconstrained()) {
-    ConstrainDOMStringParameters* output =
-        ConstrainDOMStringParameters::Create();
-    if (input.HasExact())
-      output->setExact(ConvertStringSequence(input.Exact()));
-    if (input.HasIdeal())
-      output->setIdeal(ConvertStringSequence(input.Ideal()));
-    return MakeGarbageCollected<V8ConstrainDOMString>(output);
-  }
-  return nullptr;
-}
-
-V8ConstrainBoolean* ConvertBoolean(const BooleanConstraint& input,
-                                   NakedValueDisposition naked_treatment) {
-  if (UseNakedNonNumeric(input, naked_treatment)) {
-    return MakeGarbageCollected<V8ConstrainBoolean>(
-        GetNakedValue<bool>(input, naked_treatment));
-  } else if (!input.IsUnconstrained()) {
-    ConstrainBooleanParameters* output = ConstrainBooleanParameters::Create();
-    if (input.HasExact())
-      output->setExact(input.Exact());
-    if (input.HasIdeal())
-      output->setIdeal(input.Ideal());
-    return MakeGarbageCollected<V8ConstrainBoolean>(output);
-  }
-  return nullptr;
-}
-
-void ConvertConstraintSet(const MediaTrackConstraintSetPlatform& input,
-                          NakedValueDisposition naked_treatment,
-                          MediaTrackConstraintSet* output) {
-  if (!input.width.IsUnconstrained())
-    output->setWidth(ConvertLong(input.width, naked_treatment));
-  if (!input.height.IsUnconstrained())
-    output->setHeight(ConvertLong(input.height, naked_treatment));
-  if (!input.aspect_ratio.IsUnconstrained())
-    output->setAspectRatio(ConvertDouble(input.aspect_ratio, naked_treatment));
-  if (!input.frame_rate.IsUnconstrained())
-    output->setFrameRate(ConvertDouble(input.frame_rate, naked_treatment));
-  if (!input.facing_mode.IsUnconstrained())
-    output->setFacingMode(ConvertString(input.facing_mode, naked_treatment));
-  if (!input.resize_mode.IsUnconstrained())
-    output->setResizeMode(ConvertString(input.resize_mode, naked_treatment));
-  if (!input.sample_rate.IsUnconstrained())
-    output->setSampleRate(ConvertLong(input.sample_rate, naked_treatment));
-  if (!input.sample_size.IsUnconstrained())
-    output->setSampleSize(ConvertLong(input.sample_size, naked_treatment));
-  if (!input.echo_cancellation.IsUnconstrained()) {
-    output->setEchoCancellation(
-        ConvertBoolean(input.echo_cancellation, naked_treatment));
-  }
-  if (!input.goog_auto_gain_control.IsUnconstrained()) {
-    output->setAutoGainControl(
-        ConvertBoolean(input.goog_auto_gain_control, naked_treatment));
-  }
-  if (!input.goog_noise_suppression.IsUnconstrained()) {
-    output->setNoiseSuppression(
-        ConvertBoolean(input.goog_noise_suppression, naked_treatment));
-  }
-  if (!input.latency.IsUnconstrained())
-    output->setLatency(ConvertDouble(input.latency, naked_treatment));
-  if (!input.channel_count.IsUnconstrained())
-    output->setChannelCount(ConvertLong(input.channel_count, naked_treatment));
-  if (!input.device_id.IsUnconstrained())
-    output->setDeviceId(ConvertString(input.device_id, naked_treatment));
-  if (!input.group_id.IsUnconstrained())
-    output->setGroupId(ConvertString(input.group_id, naked_treatment));
-  if (!input.pan.IsUnconstrained())
-    output->setPan(ConvertBooleanOrDouble(input.pan, naked_treatment));
-  if (!input.tilt.IsUnconstrained())
-    output->setTilt(ConvertBooleanOrDouble(input.tilt, naked_treatment));
-  if (!input.zoom.IsUnconstrained())
-    output->setZoom(ConvertBooleanOrDouble(input.zoom, naked_treatment));
-  if (!input.suppress_local_audio_playback.IsUnconstrained()) {
-    output->setSuppressLocalAudioPlayback(
-        ConvertBoolean(input.suppress_local_audio_playback, naked_treatment));
-  }
-  // TODO(hta): Decide the future of the nonstandard constraints.
-  // If they go forward, they need to be added here.
-  // https://crbug.com/605673
 }
 
 MediaTrackConstraints* ConvertConstraints(const MediaConstraints& input) {

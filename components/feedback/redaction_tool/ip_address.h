@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 // This is a copy of net/base/ip_address.h circa 2023. It should be used only by
 // components/feedback/redaction_tool/.
 // We need a copy because the components/feedback/redaction_tool source code is
@@ -16,10 +21,10 @@
 #include <algorithm>
 #include <array>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/check_op.h"
-#include "base/strings/string_piece.h"
 #include "base/values.h"
 
 namespace redaction_internal {
@@ -89,7 +94,6 @@ class IPAddressBytes {
   }
 
   bool operator<(const IPAddressBytes& other) const;
-  bool operator!=(const IPAddressBytes& other) const;
   bool operator==(const IPAddressBytes& other) const;
 
   size_t EstimateMemoryUsage() const;
@@ -188,7 +192,7 @@ class IPAddress {
   //
   // When parsing fails, the original value of |this| will be overwritten such
   // that |this->empty()| and |!this->IsValid()|.
-  [[nodiscard]] bool AssignFromIPLiteral(base::StringPiece ip_literal);
+  [[nodiscard]] bool AssignFromIPLiteral(std::string_view ip_literal);
 
   // Returns the underlying bytes.
   const IPAddressBytes& bytes() const { return ip_address_; }
@@ -214,8 +218,7 @@ class IPAddress {
   // Returns an IPAddress instance representing the :: address.
   static IPAddress IPv6AllZeros();
 
-  bool operator==(const IPAddress& that) const;
-  bool operator!=(const IPAddress& that) const;
+  friend bool operator==(const IPAddress&, const IPAddress&) = default;
   bool operator<(const IPAddress& that) const;
 
   // Must be a valid address (per IsValid()).

@@ -4,6 +4,8 @@
 
 #include "components/security_interstitials/content/ssl_error_navigation_throttle.h"
 
+#include <memory>
+
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
@@ -14,6 +16,7 @@
 #include "components/security_interstitials/core/ssl_error_ui.h"
 #include "content/public/browser/navigation_throttle.h"
 #include "content/public/test/mock_navigation_handle.h"
+#include "content/public/test/mock_navigation_throttle_registry.h"
 #include "content/public/test/test_renderer_host.h"
 #include "net/cert/cert_status_flags.h"
 #include "net/test/cert_test_util.h"
@@ -29,16 +32,6 @@ CreateMetricsHelperForTest(const GURL& request_url) {
   return std::make_unique<security_interstitials::MetricsHelper>(
       request_url, report_details, /*history_service=*/nullptr);
 }
-
-// A minimal SSLCertReporter implementation.
-class FakeSSLCertReporter : public SSLCertReporter {
- public:
-  void ReportInvalidCertificateChain(
-      const std::string& serialized_report) override {
-    // Reports are not expected to be sent in this context.
-    NOTREACHED();
-  }
-};
 
 // A SecurityInterstitialPage implementation that does the minimum necessary
 // to satisfy SSLErrorNavigationThrottle's expectations of the instance passed
@@ -70,7 +63,7 @@ class FakeSSLBlockingPage
                       /*support_url=*/GURL(),
                       controller()) {}
 
-  ~FakeSSLBlockingPage() override {}
+  ~FakeSSLBlockingPage() override = default;
 
   // SecurityInterstitialPage:
   void OnInterstitialClosing() override {}
@@ -91,7 +84,6 @@ void MockHandleSSLError(
     int cert_error,
     const net::SSLInfo& ssl_info,
     const GURL& request_url,
-    std::unique_ptr<SSLCertReporter> ssl_cert_reporter,
     base::OnceCallback<
         void(std::unique_ptr<security_interstitials::SecurityInterstitialPage>)>
         blocking_page_ready_callback) {
@@ -118,13 +110,12 @@ bool ShouldIgnoreInterstitialBecauseNavigationDefaultedToHttps(
 class TestSSLErrorNavigationThrottle : public SSLErrorNavigationThrottle {
  public:
   TestSSLErrorNavigationThrottle(
-      content::NavigationHandle* handle,
+      content::NavigationThrottleRegistry& registry,
       bool async_handle_ssl_error,
       base::OnceCallback<void(content::NavigationThrottle::ThrottleCheckResult)>
           on_cancel_deferred_navigation)
       : SSLErrorNavigationThrottle(
-            handle,
-            std::make_unique<FakeSSLCertReporter>(),
+            registry,
             base::BindOnce(&MockHandleSSLError, async_handle_ssl_error),
             base::BindOnce(&IsInHostedApp),
             base::BindOnce(
@@ -152,7 +143,7 @@ class SSLErrorNavigationThrottleTest
     : public content::RenderViewHostTestHarness,
       public testing::WithParamInterface<bool> {
  public:
-  SSLErrorNavigationThrottleTest() {}
+  SSLErrorNavigationThrottleTest() = default;
 
   SSLErrorNavigationThrottleTest(const SSLErrorNavigationThrottleTest&) =
       delete;
@@ -164,8 +155,11 @@ class SSLErrorNavigationThrottleTest
     handle_ = std::make_unique<content::MockNavigationHandle>(web_contents());
     handle_->set_has_committed(true);
     async_ = GetParam();
+    registry_ = std::make_unique<content::MockNavigationThrottleRegistry>(
+        handle_.get(),
+        content::MockNavigationThrottleRegistry::RegistrationMode::kHold);
     throttle_ = std::make_unique<TestSSLErrorNavigationThrottle>(
-        handle_.get(), async_,
+        *registry_.get(), async_,
         base::BindOnce(&SSLErrorNavigationThrottleTest::RecordDeferredResult,
                        base::Unretained(this)));
   }
@@ -178,6 +172,7 @@ class SSLErrorNavigationThrottleTest
  protected:
   bool async_ = false;
   std::unique_ptr<content::MockNavigationHandle> handle_;
+  std::unique_ptr<content::MockNavigationThrottleRegistry> registry_;
   std::unique_ptr<TestSSLErrorNavigationThrottle> throttle_;
   content::NavigationThrottle::ThrottleCheckResult deferred_result_ =
       content::NavigationThrottle::DEFER;

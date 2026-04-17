@@ -33,6 +33,29 @@ class FileSystemURL;
 class FileWriterDelegate;
 class ShareableFileReference;
 
+// Operation type called by FileSystemOperationRunner.
+enum class OperationType {
+  kNone,
+  kCreateFile,
+  kCreateDirectory,
+  kCreateSnapshotFile,
+  kCopy,
+  kCopyInForeignFile,
+  kMove,
+  kDirectoryExists,
+  kFileExists,
+  kGetMetadata,
+  kReadDirectory,
+  kRemove,
+  kWrite,
+  kTruncate,
+  kTouchFile,
+  kOpenFile,
+  kCloseFile,
+  kGetLocalPath,
+  kCancel,
+};
+
 // The interface class for FileSystemOperation implementations.
 //
 // This interface defines file system operations required to implement
@@ -58,6 +81,7 @@ class FileSystemOperation {
  public:
   COMPONENT_EXPORT(STORAGE_BROWSER)
   static std::unique_ptr<FileSystemOperation> Create(
+      OperationType type,
       const FileSystemURL& url,
       FileSystemContext* file_system_context,
       std::unique_ptr<FileSystemOperationContext> operation_context);
@@ -173,22 +197,28 @@ class FileSystemOperation {
                                             CopyOrMoveOption::kFirst,
                                             CopyOrMoveOption::kLast>;
 
-  // Fields requested for the GetMetadata method. Used as a bitmask.
-  enum GetMetadataField {
-    GET_METADATA_FIELD_NONE = 0,
+  // Fields requested for the GetMetadata method. Used as an EnumSet to allow
+  // multiple fields to be specified.
+  enum class GetMetadataField {
+    // Returns the size of the target. Undefined for directories. See also
+    // kRecursiveSize.
+    kSize,
 
-    // Returns the size of the target. Undefined for directories.
-    // See also GET_METADATA_FIELD_TOTAL_SIZE.
-    GET_METADATA_FIELD_SIZE = 1 << 0,
+    kIsDirectory,
 
-    GET_METADATA_FIELD_IS_DIRECTORY = 1 << 1,
-
-    GET_METADATA_FIELD_LAST_MODIFIED = 1 << 2,
+    kLastModified,
 
     // If the target is directory, then total size of directory contents
-    // is returned, otherwise it's identical to GET_METADATA_FIELD_SIZE.
-    GET_METADATA_FIELD_TOTAL_SIZE = 1 << 3,
+    // is returned, otherwise it's identical to kSize.
+    kRecursiveSize,
+
+    kFirst = kSize,
+    kLast = kRecursiveSize
   };
+
+  using GetMetadataFieldSet = base::EnumSet<GetMetadataField,
+                                            GetMetadataField::kFirst,
+                                            GetMetadataField::kLast>;
 
   // Used for Write().
   using WriteCallback = base::RepeatingCallback<
@@ -255,7 +285,7 @@ class FileSystemOperation {
   //   CopyInForeignFile and CreateDirectory on dest filesystem
   //   for cross-filesystem case.
   //
-  // TODO(crbug.com/171284): Restore directory timestamps after the Move
+  // TODO(crbug.com/40960653): Restore directory timestamps after the Move
   //                         operation.
   virtual void Move(
       const FileSystemURL& src_path,
@@ -275,7 +305,7 @@ class FileSystemOperation {
 
   // Gets the metadata of a file or directory at |path|.
   virtual void GetMetadata(const FileSystemURL& path,
-                           int fields,
+                           GetMetadataFieldSet fields,
                            GetMetadataCallback callback) = 0;
 
   // Reads contents of a directory at |path|.
@@ -448,29 +478,6 @@ class FileSystemOperation {
       base::FilePath* platform_path) = 0;
 
  protected:
-  // Used only for internal assertions.
-  enum OperationType {
-    kOperationNone,
-    kOperationCreateFile,
-    kOperationCreateDirectory,
-    kOperationCreateSnapshotFile,
-    kOperationCopy,
-    kOperationCopyInForeignFile,
-    kOperationMove,
-    kOperationDirectoryExists,
-    kOperationFileExists,
-    kOperationGetMetadata,
-    kOperationReadDirectory,
-    kOperationRemove,
-    kOperationWrite,
-    kOperationTruncate,
-    kOperationTouchFile,
-    kOperationOpenFile,
-    kOperationCloseFile,
-    kOperationGetLocalPath,
-    kOperationCancel,
-  };
-
   FileSystemOperation() = default;
 
   // Allows subclasses to call the FileSystemOperationImpl constructor.

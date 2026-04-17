@@ -7,8 +7,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/task/sequenced_task_runner.h"
 
-namespace nearby {
-namespace chrome {
+namespace nearby::chrome {
 
 namespace {
 
@@ -32,6 +31,8 @@ void LogWriteResult(connections::mojom::Medium medium, bool success) {
     case connections::mojom::Medium::kWebRtc:
     case connections::mojom::Medium::kBleL2Cap:
     case connections::mojom::Medium::kUsb:
+    case connections::mojom::Medium::kWebRtcNonCellular:
+    case connections::mojom::Medium::kAwdl:
       break;
   }
 }
@@ -139,13 +140,14 @@ void OutputStreamImpl::SendMore(MojoResult result,
   }
 
   if (result == MOJO_RESULT_OK) {
-    uint32_t num_bytes = static_cast<uint32_t>(pending_write_buffer_->size() -
-                                               pending_write_buffer_pos_);
-    result = send_stream_->WriteData(
-        pending_write_buffer_->data() + pending_write_buffer_pos_, &num_bytes,
-        MOJO_WRITE_DATA_FLAG_NONE);
+    base::span<const uint8_t> buffer =
+        base::as_byte_span(*pending_write_buffer_)
+            .subspan(pending_write_buffer_pos_);
+    size_t bytes_written = 0;
+    result = send_stream_->WriteData(buffer, MOJO_WRITE_DATA_FLAG_NONE,
+                                     bytes_written);
     if (result == MOJO_RESULT_OK) {
-      pending_write_buffer_pos_ += num_bytes;
+      pending_write_buffer_pos_ += bytes_written;
     }
   }
 
@@ -185,5 +187,4 @@ void OutputStreamImpl::DoClose(base::WaitableEvent* task_run_waitable_event) {
   }
 }
 
-}  // namespace chrome
-}  // namespace nearby
+}  // namespace nearby::chrome

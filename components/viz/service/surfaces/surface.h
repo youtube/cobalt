@@ -10,6 +10,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <unordered_set>
 #include <utility>
@@ -31,12 +32,7 @@
 #include "components/viz/service/surfaces/surface_client.h"
 #include "components/viz/service/surfaces/surface_dependency_deadline.h"
 #include "components/viz/service/viz_service_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/size.h"
-
-namespace cc {
-class CopyOutputRequest;
-}
 
 namespace gfx {
 struct PresentationFeedback;
@@ -49,6 +45,7 @@ class LatencyInfo;
 
 namespace viz {
 
+class CopyOutputRequest;
 class SurfaceAllocationGroup;
 class SurfaceManager;
 
@@ -121,12 +118,15 @@ class VIZ_SERVICE_EXPORT Surface final {
   enum QueueFrameResult { REJECTED, ACCEPTED_ACTIVE, ACCEPTED_PENDING };
 
   using CommitPredicate =
-      base::RepeatingCallback<bool(const SurfaceId&, const BeginFrameId&)>;
+      base::FunctionRef<bool(const SurfaceId&, const BeginFrameId&)>;
 
+  // `pending_copy_surface_id`, when valid, becomes an
+  // `active_referenced_surfaces_` of `this`.
   Surface(const SurfaceInfo& surface_info,
           SurfaceManager* surface_manager,
           SurfaceAllocationGroup* allocation_group,
           base::WeakPtr<SurfaceClient> surface_client,
+          const SurfaceId& pending_copy_surface_id,
           size_t max_uncommitted_frames);
 
   Surface(const Surface&) = delete;
@@ -152,7 +152,7 @@ class VIZ_SERVICE_EXPORT Surface final {
 
   bool has_deadline() const { return deadline_ && deadline_->has_deadline(); }
 
-  absl::optional<base::TimeTicks> deadline_for_testing() const {
+  std::optional<base::TimeTicks> deadline_for_testing() const {
     return deadline_->deadline_for_testing();
   }
 
@@ -179,6 +179,12 @@ class VIZ_SERVICE_EXPORT Surface final {
   // it's marked as respecting deadlines.
   void ActivatePendingFrameForDeadline();
 
+  // Places the copy-of-output request on the render pass defined by
+  // |PendingCopyOutputRequest::subtree_capture_id| if such a render pass
+  // exists, otherwise the request will be ignored.
+  void RequestCopyOfOutput(
+      PendingCopyOutputRequest pending_copy_output_request);
+
   using CopyRequestsMap =
       std::multimap<CompositorRenderPassId, std::unique_ptr<CopyOutputRequest>>;
 
@@ -197,18 +203,20 @@ class VIZ_SERVICE_EXPORT Surface final {
   // Returns the most recent frame or frame metadata that is eligible to be
   // rendered. You must check whether HasActiveFrame() returns true before
   // calling these methods.
-  // Note that we prefer to call GetActiveFrameMetadata if the only thing that
-  // is required from the frame is the metadata.
+  // Note that we prefer to call GetActiveFrameMetadata or
+  // GetFrameIntervalInputs if the only thing that is required from the frame.
   const CompositorFrame& GetActiveFrame() const;
   const CompositorFrameMetadata& GetActiveFrameMetadata() const;
+  const FrameIntervalInputs& GetFrameIntervalInputs() const;
 
-  void ResetInterpolatedFrame();
-  void SetInterpolatedFrame(CompositorFrame frame);
-  const CompositorFrame& GetActiveOrInterpolatedFrame() const;
-  bool HasInterpolatedFrame() const;
-  // Returns true if the active or interpolated frame has damage due to a
-  // surface animation. This means that the damage should be respected even if
-  // the active frame index has not changed.
+  // ViewTransition needs to interpolate a new CompositorFrame from the active
+  // one of this Surface. The interpolated new frame replaces the currently
+  // active one via this API.
+  void SetActiveFrameForViewTransition(CompositorFrame frame);
+
+  // Returns true if the active frame has damage due to a surface animation.
+  // This means that the damage should be respected even if the active frame
+  // index has not changed.
   bool HasSurfaceAnimationDamage() const;
 
   // Returns the currently pending frame. You must check where HasPendingFrame()
@@ -239,7 +247,7 @@ class VIZ_SERVICE_EXPORT Surface final {
   // capture. We don't want to constantly switch between overlay and non-overlay
   // during video playback.
   bool IsVideoCaptureOnFromClient();
-  base::flat_set<base::PlatformThreadId> GetThreadIds();
+  std::vector<Thread> GetThreads();
 
   const base::flat_set<SurfaceId>& active_referenced_surfaces() const {
     return active_referenced_surfaces_;
@@ -311,15 +319,21 @@ class VIZ_SERVICE_EXPORT Surface final {
       std::unique_ptr<CopyOutputRequest> copy_request,
       CompositorRenderPassId render_pass_id);
 
-  void DidAggregate();
-
   // Returns frame id of the oldest uncommitted frame if any,
-  absl::optional<BeginFrameId> GetFirstUncommitedFrameId();
+  std::optional<uint64_t> GetFirstUncommitedFrameIndex();
 
-  // Returns frame id of the oldest uncommitted frame that is newer than
-  // provided `frame_id`.
-  absl::optional<BeginFrameId> GetUncommitedFrameIdNewerThan(
-      const BeginFrameId& frame_id);
+  // Returns frame index of the oldest uncommitted frame that is newer than
+  // provided `frame_index`.
+  std::optional<uint64_t> GetUncommitedFrameIndexNewerThan(
+      uint64_t frame_index);
+
+  // Called when `pending_copy_surface_id_` no longer needs to be referenced
+  // from `this`. `activation_dependencies_` will also recomputed.
+  void ResetPendingCopySurfaceId();
+
+  const SurfaceId& pending_copy_surface_id_for_testing() const {
+    return pending_copy_surface_id_;
+  }
 
  private:
   struct FrameData {
@@ -346,12 +360,6 @@ class VIZ_SERVICE_EXPORT Surface final {
     // for a callback that will supply presentation feedback to the client.
     bool will_be_notified_of_presentation = false;
   };
-
-  // Places the copy-of-output request on the render pass defined by
-  // |PendingCopyOutputRequest::subtree_capture_id| if such a render pass
-  // exists, otherwise the request will be ignored.
-  void RequestCopyOfOutput(
-      PendingCopyOutputRequest pending_copy_output_request);
 
   // Updates surface references of the surface using the referenced
   // surfaces from the most recent CompositorFrame.
@@ -387,7 +395,7 @@ class VIZ_SERVICE_EXPORT Surface final {
   // dependencies will be added even if they're not yet available.
   void UpdateActivationDependencies(const CompositorFrame& current_frame);
 
-  void UnrefFrameResourcesAndRunCallbacks(absl::optional<FrameData> frame_data);
+  void UnrefFrameResourcesAndRunCallbacks(std::optional<FrameData> frame_data);
   void ClearCopyRequests();
 
   void TakePendingLatencyInfo(std::vector<ui::LatencyInfo>* latency_info);
@@ -401,13 +409,12 @@ class VIZ_SERVICE_EXPORT Surface final {
   base::WeakPtr<SurfaceClient> surface_client_;
   std::unique_ptr<SurfaceDependencyDeadline> deadline_;
 
-  absl::optional<FrameData> pending_frame_data_;
-  absl::optional<FrameData> active_frame_data_;
+  std::optional<FrameData> pending_frame_data_;
+  std::optional<FrameData> active_frame_data_;
 
   // Queue of uncommitted frames, oldest first.
   base::circular_deque<FrameData> uncommitted_frames_;
 
-  absl::optional<CompositorFrame> interpolated_frame_;
   bool seen_first_frame_activation_ = false;
   bool seen_first_surface_embedding_ = false;
 
@@ -415,14 +422,9 @@ class VIZ_SERVICE_EXPORT Surface final {
   // avoid recompution.
   base::flat_set<SurfaceId> active_referenced_surfaces_;
 
-  // Keeps track of the referenced surface for each SurfaceRange. i.e the i-th
-  // element is the referenced SurfaceId in the i-th SurfaceRange. If a
-  // SurfaceRange doesn't contain any active surfaces then the corresponding
-  // entry in this vector is an unvalid SurfaceId.
-  std::vector<SurfaceId> last_surface_id_for_range_;
-
   // Allocation groups that this surface references by its active frame.
-  base::flat_set<SurfaceAllocationGroup*> referenced_allocation_groups_;
+  base::flat_set<raw_ptr<SurfaceAllocationGroup, CtnExperimental>>
+      referenced_allocation_groups_;
 
   // The set of the SurfaceIds that are blocking the pending frame from being
   // activated.
@@ -432,15 +434,20 @@ class VIZ_SERVICE_EXPORT Surface final {
   // |activation_dependencies_|. When an activation dependency is
   // resolved, the corresponding SurfaceAllocationGroup will call back into this
   // surface to let us know.
-  base::flat_set<SurfaceAllocationGroup*> blocking_allocation_groups_;
+  base::flat_set<raw_ptr<SurfaceAllocationGroup, CtnExperimental>>
+      blocking_allocation_groups_;
 
   bool is_fallback_ = false;
 
   bool is_latency_info_taken_ = false;
 
-  const raw_ptr<SurfaceAllocationGroup> allocation_group_;
+  // Indicates there is a pending `CopyOutputRequest` against
+  // `pending_copy_surface_id_`. When valid, it keeps `pending_copy_surface_id_`
+  // reachable from `this`, and keeps `pending_copy_surface_id_` alive during
+  // the aggregation.
+  SurfaceId pending_copy_surface_id_;
 
-  bool has_damage_from_interpolated_frame_ = false;
+  const raw_ptr<SurfaceAllocationGroup> allocation_group_;
 
   const size_t max_uncommitted_frames_;
 

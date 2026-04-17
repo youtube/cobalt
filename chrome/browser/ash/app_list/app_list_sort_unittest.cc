@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "ash/app_list/model/app_list_model.h"
-#include "base/containers/cxx20_erase_vector.h"
+#include "base/strings/stringprintf.h"
 #include "chrome/browser/ash/app_list/app_list_model_updater.h"
 #include "chrome/browser/ash/app_list/app_list_test_util.h"
 #include "chrome/browser/ash/app_list/chrome_app_list_model_updater.h"
@@ -14,6 +14,7 @@
 #include "chrome/test/base/testing_profile.h"
 #include "components/crx_file/id_util.h"
 #include "components/sync/test/fake_sync_change_processor.h"
+#include "ui/display/test/test_screen.h"
 
 namespace app_list {
 
@@ -42,8 +43,7 @@ class TemporaryAppListSortTest : public test::AppListSyncableServiceTestBase {
   // Returns the app list order stored as preference.
   ash::AppListSortOrder GetSortOrderFromPrefs() {
     return static_cast<ash::AppListSortOrder>(
-        app_list_syncable_service()->profile()->GetPrefs()->GetInteger(
-            prefs::kAppListPreferredOrder));
+        profile()->GetPrefs()->GetInteger(prefs::kAppListPreferredOrder));
   }
 
   syncer::StringOrdinal GetPositionFromModelUpdater(const std::string& id) {
@@ -62,6 +62,8 @@ class TemporaryAppListSortTest : public test::AppListSyncableServiceTestBase {
   }
 
  private:
+  display::test::TestScreen test_screen_{/*create_dispay=*/true,
+                                         /*register_screen=*/true};
   std::unique_ptr<test::TestAppListController> app_list_controller_;
 };
 

@@ -9,7 +9,9 @@
 #include <fuchsia/web/cpp/fidl.h>
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -21,7 +23,6 @@
 #include "fuchsia_web/runners/cast/application_controller_impl.h"
 #include "fuchsia_web/runners/cast/named_message_port_connector_fuchsia.h"
 #include "fuchsia_web/runners/common/web_component.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 FORWARD_DECLARE_TEST(HeadlessCastRunnerIntegrationTest, Headless);
 
@@ -53,9 +54,13 @@ class CastComponent final
     std::unique_ptr<ApiBindingsClient> api_bindings_client;
     chromium::cast::ApplicationConfig application_config;
     fidl::ClientEnd<chromium_cast::ApplicationContext> application_context;
-    absl::optional<std::vector<fuchsia::web::UrlRequestRewriteRule>>
+    std::optional<std::vector<fuchsia::web::UrlRequestRewriteRule>>
         initial_url_rewrite_rules;
-    absl::optional<fuchsia::web::FrameMediaSettings> media_settings;
+    std::optional<fuchsia::web::FrameMediaSettings> media_settings;
+
+    // ID of flow used in the with the Fuchsia Trace API to trace the
+    // application lifetime.
+    uint64_t trace_flow_id;
   };
 
   // See WebComponent documentation for details of `debug_name` and `runner`.
@@ -66,7 +71,7 @@ class CastComponent final
   // `is_headless` must match the headless setting of the specified `runner`, to
   //   have CreateView() operations trigger enabling & disabling of off-screen
   //   rendering.
-  CastComponent(base::StringPiece debug_name,
+  CastComponent(std::string_view debug_name,
                 WebContentRunner* runner,
                 Params params,
                 bool is_headless);
@@ -99,6 +104,8 @@ class CastComponent final
   // fuchsia::component::runner::ComponentController implementation.
   void Kill() override;
   void Stop() override;
+  void handle_unknown_method(uint64_t ordinal,
+                             bool method_has_response) override;
 
   // base::MessagePumpFuchsia::ZxHandleWatcher implementation.
   // Called when the headless "view" token is disconnected.
@@ -123,6 +130,8 @@ class CastComponent final
       component_controller_{this};
 
   base::MessagePumpForIO::ZxHandleWatchController headless_disconnect_watch_;
+
+  uint64_t trace_flow_id_;
 };
 
 #endif  // FUCHSIA_WEB_RUNNERS_CAST_CAST_COMPONENT_H_

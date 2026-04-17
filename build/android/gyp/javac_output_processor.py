@@ -5,69 +5,39 @@
 # found in the LICENSE file.
 """Contains helper class for processing javac output."""
 
-import dataclasses
+import functools
 import os
 import pathlib
 import re
+import shlex
 import sys
 import traceback
-from typing import List
 
 from util import build_utils
+from util import dep_utils
 
 sys.path.insert(
     0,
     os.path.join(build_utils.DIR_SOURCE_ROOT, 'third_party', 'colorama', 'src'))
 import colorama
-sys.path.insert(
-    0,
-    os.path.join(build_utils.DIR_SOURCE_ROOT, 'tools', 'android',
-                 'modularization', 'convenience'))
-import lookup_dep
 
 
-def ReplaceGmsPackageIfNeeded(target_name: str) -> str:
-  if target_name.startswith(
-      ('//third_party/android_deps:google_play_services_',
-       '//clank/third_party/google3:google_play_services_')):
-    return f'$google_play_services_package:{target_name.split(":")[1]}'
-  return target_name
+@functools.lru_cache(maxsize=1)
+def _running_locally():
+  return os.path.exists('build.ninja')
 
 
-def _DisambiguateDeps(class_entries: List[lookup_dep.ClassEntry]):
-  def filter_if_not_empty(entries, filter_func):
-    filtered_entries = [e for e in entries if filter_func(e)]
-    return filtered_entries or entries
-
-  # When some deps are preferred, ignore all other potential deps.
-  class_entries = filter_if_not_empty(class_entries, lambda e: e.preferred_dep)
-
-  # E.g. javax_annotation_jsr250_api_java.
-  class_entries = filter_if_not_empty(class_entries,
-                                      lambda e: 'jsr' in e.target)
-
-  # Avoid suggesting subtargets when regular targets exist.
-  class_entries = filter_if_not_empty(class_entries,
-                                      lambda e: '__' not in e.target)
-
-  # Swap out GMS package names if needed.
-  class_entries = [
-      dataclasses.replace(e, target=ReplaceGmsPackageIfNeeded(e.target))
-      for e in class_entries
-  ]
-
-  # Convert to dict and then use list to get the keys back to remove dups and
-  # keep order the same as before.
-  class_entries = list({e: True for e in class_entries})
-
-  return class_entries
+def yellow(text):
+  return colorama.Fore.YELLOW + text + colorama.Fore.RESET
 
 
 class JavacOutputProcessor:
   def __init__(self, target_name):
     self._target_name = self._RemoveSuffixesIfPresent(
         ["__compile_java", "__errorprone", "__header"], target_name)
-    self._suggested_deps = set()
+    self._missing_classes = set()
+    self._suggested_targets = set()
+    self._unresolvable_classes = set()
 
     # Example: ../../ui/android/java/src/org/chromium/ui/base/Clipboard.java:45:
     fileline_prefix = (
@@ -92,6 +62,9 @@ class JavacOutputProcessor:
 
     # Example: import org.chromium.url.GURL;
     self._import_re = re.compile(r'\s*import (?P<imported_class>[\w\.]+);$')
+    # Example: import static org.chromium.url.GURL.method;
+    self._import_static_re = re.compile(
+        r'\s*import static (?P<imported_class>[\w\.]+)\.\s+;$')
 
     self._warning_color = [
         'full_message', colorama.Fore.YELLOW + colorama.Style.DIM
@@ -114,17 +87,35 @@ class JavacOutputProcessor:
     lines = self._ElaborateLinesForUnknownSymbol(iter(lines))
     for line in lines:
       yield self._ApplyColors(line)
-    if self._suggested_deps:
+    if not self._missing_classes:
+      return
 
-      def yellow(text):
-        return colorama.Fore.YELLOW + text + colorama.Fore.RESET
-
-      # Show them in quotes so they can be copy/pasted into BUILD.gn files.
-      yield yellow('Hint:') + ' One or more errors due to missing GN deps.'
+    yield yellow('Hint:') + ' One or more errors due to missing GN deps.'
+    if self._unresolvable_classes:
+      yield 'Failed to find targets for the following classes:'
+      for class_name in sorted(self._unresolvable_classes):
+        yield f'* {class_name}'
+    if self._suggested_targets:
       yield (yellow('Hint:') + ' Try adding the following to ' +
              yellow(self._target_name))
-      for dep in sorted(self._suggested_deps):
-        yield '    "{}",'.format(dep)
+
+      for targets in sorted(self._suggested_targets):
+        if len(targets) > 1:
+          suggested_targets_str = 'one of: ' + ', '.join(targets)
+        else:
+          suggested_targets_str = targets[0]
+        # Show them in quotes so they can be copy/pasted into BUILD.gn files.
+        yield '    "{}",'.format(suggested_targets_str)
+
+      yield ''
+      yield yellow('Hint:') + (' Run the following command to add the missing '
+                               'deps:')
+      missing_targets = {targets[0] for targets in self._suggested_targets}
+      cmd = dep_utils.CreateAddDepsCommand(self._target_name,
+                                           sorted(missing_targets))
+      yield f'    {shlex.join(cmd)}\n '  # Extra space necessary for new line.
+    elif not self._unresolvable_classes:
+      yield yellow('Hint:') + ' Rebuild with --offline to show missing deps.'
 
   def _ElaborateLinesForUnknownSymbol(self, lines):
     """ Elaborates passed-in javac output for unresolved symbols.
@@ -172,7 +163,9 @@ class JavacOutputProcessor:
 
     import_re_match = self._import_re.match(next_line)
     if not import_re_match:
-      return
+      import_re_match = self._import_static_re.match(next_line)
+      if not import_re_match:
+        return
 
     for regex in self._symbol_not_found_re_list:
       if regex.match(line):
@@ -180,25 +173,27 @@ class JavacOutputProcessor:
     else:
       return
 
+    class_name = import_re_match.group('imported_class')
+    if class_name not in self._missing_classes:
+      self._missing_classes.add(class_name)
+      if _running_locally():
+        self._AnalyzeMissingClass(class_name)
+
+  def _AnalyzeMissingClass(self, class_name):
     if self._class_lookup_index is None:
-      self._class_lookup_index = lookup_dep.ClassLookupIndex(
+      self._class_lookup_index = dep_utils.ClassLookupIndex(
           pathlib.Path(os.getcwd()),
           should_build=False,
       )
 
-    class_to_lookup = import_re_match.group('imported_class')
-    suggested_deps = self._class_lookup_index.match(class_to_lookup)
+    suggested_deps = self._class_lookup_index.match(class_name)
 
     if not suggested_deps:
+      self._unresolvable_classes.add(class_name)
       return
 
-    suggested_deps = _DisambiguateDeps(suggested_deps)
-    suggested_deps_str = ', '.join(s.target for s in suggested_deps)
-
-    if len(suggested_deps) > 1:
-      suggested_deps_str = 'one of: ' + suggested_deps_str
-
-    self._suggested_deps.add(suggested_deps_str)
+    suggested_deps = dep_utils.DisambiguateDeps(suggested_deps)
+    self._suggested_targets.add(tuple(d.target for d in suggested_deps))
 
   @staticmethod
   def _RemoveSuffixesIfPresent(suffixes, text):

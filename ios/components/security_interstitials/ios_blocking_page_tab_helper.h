@@ -5,6 +5,7 @@
 #ifndef IOS_COMPONENTS_SECURITY_INTERSTITIALS_IOS_BLOCKING_PAGE_TAB_HELPER_H_
 #define IOS_COMPONENTS_SECURITY_INTERSTITIALS_IOS_BLOCKING_PAGE_TAB_HELPER_H_
 
+#import "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "ios/components/security_interstitials/ios_security_interstitial_page.h"
 #include "ios/web/public/web_state_observer.h"
@@ -46,8 +47,11 @@ class IOSBlockingPageTabHelper
   //  void OnBlockingPageMessageReceived(const base::Value& message);
   void OnBlockingPageCommandReceived(SecurityInterstitialCommand command);
 
+  // Sends updates to `blocking_page_for_currently_committed_navigation_` when
+  // dismissed.
+  void UpdateForBlockingPageDismissed();
+
  private:
-  WEB_STATE_USER_DATA_KEY_DECL();
   explicit IOSBlockingPageTabHelper(web::WebState* web_state);
   friend class web::WebStateUserData<IOSBlockingPageTabHelper>;
 
@@ -68,12 +72,15 @@ class IOSBlockingPageTabHelper
 
    private:
     // web::WebStateObserver:
+    void DidStartNavigation(
+        web::WebState* web_state,
+        web::NavigationContext* navigation_context) override;
     void DidFinishNavigation(
         web::WebState* web_state,
         web::NavigationContext* navigation_context) override;
     void WebStateDestroyed(web::WebState* web_state) override;
 
-    IOSBlockingPageTabHelper* tab_helper_ = nullptr;
+    raw_ptr<IOSBlockingPageTabHelper> tab_helper_ = nullptr;
     base::ScopedObservation<web::WebState, web::WebStateObserver>
         scoped_observation_{this};
   };

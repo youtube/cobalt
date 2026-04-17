@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "starboard/extension/loader_app_metrics.h"
+
 #include "starboard/nplb/nplb_evergreen_compat_tests/checks.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"

@@ -23,6 +23,7 @@ AwGLSurface::AwGLSurface(gl::GLDisplayEGL* display,
       wrapped_surface_(std::move(surface)) {}
 
 AwGLSurface::~AwGLSurface() {
+  InvalidateWeakPtrs();
   Destroy();
 }
 
@@ -49,7 +50,7 @@ void AwGLSurface::Destroy() {
 }
 
 bool AwGLSurface::IsOffscreen() {
-  return false;
+  return true;
 }
 
 unsigned int AwGLSurface::GetBackingFramebufferObject() {

@@ -11,7 +11,6 @@
 #include "chrome/browser/ash/login/test/session_manager_state_waiter.h"
 #include "chrome/browser/ash/policy/login/login_policy_test_base.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list.h"
@@ -20,7 +19,6 @@
 #include "components/policy/proto/cloud_policy.pb.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_utils.h"
 #include "ui/display/manager/display_manager.h"
@@ -28,7 +26,7 @@
 
 namespace policy {
 
-// TODO(crbug.com/1110548): Enable and modify for lacros.
+// TODO(crbug.com/40142202): Enable and modify for lacros.
 class ForceMaximizeOnFirstRunTest : public LoginPolicyTestBase {
  public:
   ForceMaximizeOnFirstRunTest(const ForceMaximizeOnFirstRunTest&) = delete;
@@ -36,7 +34,7 @@ class ForceMaximizeOnFirstRunTest : public LoginPolicyTestBase {
       delete;
 
  protected:
-  ForceMaximizeOnFirstRunTest() {}
+  ForceMaximizeOnFirstRunTest() = default;
 
   void GetPolicySettings(
       enterprise_management::CloudPolicySettings* policy) const override {

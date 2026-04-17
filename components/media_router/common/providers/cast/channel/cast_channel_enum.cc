@@ -24,7 +24,6 @@ std::string ReadyStateToString(ReadyState ready_state) {
     CAST_CHANNEL_TYPE_TO_STRING(ReadyState::CLOSED);
   }
   NOTREACHED() << "Unknown ready_state " << ReadyStateToString(ready_state);
-  return "Unknown ready_state";
 }
 
 // TODO(crbug.com/1291730): Replace with EnumTable.
@@ -44,7 +43,6 @@ std::string ChannelErrorToString(ChannelError channel_error) {
   }
   NOTREACHED() << "Unknown channel_error "
                << ChannelErrorToString(channel_error);
-  return "Unknown channel_error";
 }
 
 }  // namespace cast_channel

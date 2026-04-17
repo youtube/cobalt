@@ -6,11 +6,12 @@
 
 #include <lib/fpromise/result.h>
 
+#include <string_view>
+
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/fuchsia/mem_buffer_util.h"
 #include "base/memory/weak_ptr.h"
 #include "base/notreached.h"
-#include "base/strings/string_piece.h"
 
 namespace cast_api_bindings {
 namespace {
@@ -36,7 +37,6 @@ class MessagePortFuchsiaClient : public MessagePortFuchsia {
   fidl::InterfaceRequest<::fuchsia::web::MessagePort> TakeServiceRequest()
       final {
     NOTREACHED();
-    return {};
   }
 
   // MessagePort implementation.
@@ -130,7 +130,6 @@ class MessagePortFuchsiaServer : public MessagePortFuchsia,
   // MessagePortFuchsia implementation.
   fidl::InterfaceHandle<::fuchsia::web::MessagePort> TakeClientHandle() final {
     NOTREACHED();
-    return {};
   }
 
   fidl::InterfaceRequest<::fuchsia::web::MessagePort> TakeServiceRequest()
@@ -241,7 +240,7 @@ MessagePortFuchsia* MessagePortFuchsia::FromMessagePort(MessagePort* port) {
 
 // static
 fuchsia::web::WebMessage MessagePortFuchsia::CreateWebMessage(
-    base::StringPiece message,
+    std::string_view message,
     std::vector<std::unique_ptr<MessagePort>> ports) {
   fuchsia::web::WebMessage message_fidl;
   message_fidl.set_data(base::MemBufferFromString(message, message));
@@ -291,7 +290,7 @@ MessagePortFuchsia::MessagePortFuchsia(PortType port_type)
     : receiver_(nullptr), port_type_(port_type) {}
 MessagePortFuchsia::~MessagePortFuchsia() = default;
 
-absl::optional<fuchsia::web::FrameError>
+std::optional<fuchsia::web::FrameError>
 MessagePortFuchsia::ExtractAndHandleMessageFromFidl(
     fuchsia::web::WebMessage message) {
   CHECK(receiver_);
@@ -299,7 +298,7 @@ MessagePortFuchsia::ExtractAndHandleMessageFromFidl(
     return fuchsia::web::FrameError::NO_DATA_IN_MESSAGE;
   }
 
-  absl::optional<std::string> data = base::StringFromMemBuffer(message.data());
+  std::optional<std::string> data = base::StringFromMemBuffer(message.data());
   if (!data) {
     return fuchsia::web::FrameError::BUFFER_NOT_UTF8;
   }
@@ -323,7 +322,7 @@ MessagePortFuchsia::ExtractAndHandleMessageFromFidl(
     return fuchsia::web::FrameError::INTERNAL_ERROR;
   }
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 void MessagePortFuchsia::OnZxError(zx_status_t status) {
@@ -339,12 +338,12 @@ void MessagePortFuchsia::ReportPipeError() {
 }
 
 // cast_api_bindings::MessagePortFuchsia implementation
-bool MessagePortFuchsia::PostMessage(base::StringPiece message) {
+bool MessagePortFuchsia::PostMessage(std::string_view message) {
   return PostMessageWithTransferables(message, {});
 }
 
 bool MessagePortFuchsia::PostMessageWithTransferables(
-    base::StringPiece message,
+    std::string_view message,
     std::vector<std::unique_ptr<MessagePort>> ports) {
   CHECK(receiver_);
   message_queue_.emplace_back(CreateWebMessage(message, std::move(ports)));

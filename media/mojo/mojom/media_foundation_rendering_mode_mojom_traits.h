@@ -23,7 +23,6 @@ struct mojo::EnumTraits<media::mojom::MediaFoundationRenderingMode,
         return true;
     }
     NOTREACHED();
-    return false;
   }
 
   static media::mojom::MediaFoundationRenderingMode ToMojom(
@@ -36,7 +35,6 @@ struct mojo::EnumTraits<media::mojom::MediaFoundationRenderingMode,
         break;
     }
     NOTREACHED();
-    return media::mojom::MediaFoundationRenderingMode::DirectComposition;
   }
 };
 

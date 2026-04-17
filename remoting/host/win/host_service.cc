@@ -8,12 +8,14 @@
 #include "remoting/host/win/host_service.h"
 
 #include <windows.h>
+
 #include <sddl.h>
 #include <wtsapi32.h>
 
 #include "base/base_paths.h"
 #include "base/base_switches.h"
 #include "base/command_line.h"
+#include "base/compiler_specific.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/message_loop/message_pump_type.h"
@@ -210,7 +212,6 @@ void HostService::CreateLauncher(
                                  base::MessagePumpType::IO);
   if (!io_task_runner.get()) {
     LOG(FATAL) << "Failed to start the I/O thread";
-    return;
   }
 
   daemon_process_ = DaemonProcess::Create(
@@ -252,7 +253,7 @@ void HostService::RunAsServiceImpl() {
 
   // Report running status of the service.
   SERVICE_STATUS service_status;
-  ZeroMemory(&service_status, sizeof(service_status));
+  UNSAFE_TODO(ZeroMemory(&service_status, sizeof(service_status)));
   service_status.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
   service_status.dwCurrentState = SERVICE_RUNNING;
   service_status.dwControlsAccepted = SERVICE_ACCEPT_SHUTDOWN |

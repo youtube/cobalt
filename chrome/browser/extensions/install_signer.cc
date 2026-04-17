@@ -12,6 +12,7 @@
 
 #include "base/base64.h"
 #include "base/command_line.h"
+#include "base/containers/to_value_list.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/json/values_util.h"
@@ -22,9 +23,8 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/common/chrome_switches.h"
+#include "crypto/hash.h"
 #include "crypto/random.h"
-#include "crypto/secure_hash.h"
-#include "crypto/sha2.h"
 #include "crypto/signature_verifier.h"
 #include "extensions/common/extension.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
@@ -57,7 +57,7 @@ const char kContentTypeJSON[] = "application/json";
 
 // This allows us to version the format of what we write into the prefs,
 // allowing for forward migration, as well as detecting forwards/backwards
-// incompatabilities, etc.
+// incompatibilities, etc.
 const int kSignatureFormatVersion = 2;
 
 const size_t kSaltBytes = 32;
@@ -82,26 +82,23 @@ GURL GetBackendUrl() {
 
 // Hashes |salt| with the machine id, base64-encodes it and returns it in
 // |result|.
-bool HashWithMachineId(const std::string& salt, std::string* result) {
+std::optional<std::string> HashWithMachineId(const std::string& salt) {
   std::string machine_id;
 #if BUILDFLAG(ENABLE_RLZ)
   if (!rlz_lib::GetMachineId(&machine_id))
-    return false;
+    return std::nullopt;
 #else
   machine_id = "unknown";
 #endif
 
-  std::unique_ptr<crypto::SecureHash> hash(
-      crypto::SecureHash::Create(crypto::SecureHash::SHA256));
+  crypto::hash::Hasher hash(crypto::hash::HashKind::kSha256);
 
-  hash->Update(machine_id.data(), machine_id.size());
-  hash->Update(salt.data(), salt.size());
+  hash.Update(base::as_byte_span(machine_id));
+  hash.Update(base::as_byte_span(salt));
 
-  std::string result_bytes(crypto::kSHA256Length, 0);
-  hash->Finish(std::data(result_bytes), result_bytes.size());
-
-  base::Base64Encode(result_bytes, result);
-  return true;
+  std::array<uint8_t, crypto::hash::kSha256Size> result;
+  hash.Finish(result);
+  return base::Base64Encode(result);
 }
 
 // Validates that |input| is a string of the form "YYYY-MM-DD".
@@ -119,21 +116,12 @@ bool ValidateExpireDateFormat(const std::string& input) {
   return true;
 }
 
-// Helper for serialization of ExtensionIdSets to/from a base::Value::List.
-[[nodiscard]] base::Value::List ExtensionIdSetToList(
-    const ExtensionIdSet& ids) {
-  base::Value::List id_list;
-  base::ranges::for_each(ids,
-                         [&id_list](const auto& id) { id_list.Append(id); });
-  return id_list;
-}
-
-[[nodiscard]] absl::optional<ExtensionIdSet> ExtensionIdSetFromList(
+[[nodiscard]] std::optional<ExtensionIdSet> ExtensionIdSetFromList(
     const base::Value::List& list) {
   ExtensionIdSet ids;
   for (const base::Value& value : list) {
     if (!value.is_string())
-      return absl::nullopt;
+      return std::nullopt;
     ids.insert(value.GetString());
   }
   return ids;
@@ -150,15 +138,11 @@ InstallSignature::~InstallSignature() = default;
 base::Value::Dict InstallSignature::ToDict() const {
   base::Value::Dict dict;
   dict.Set(kSignatureFormatVersionKey, kSignatureFormatVersion);
-  dict.Set(kIdsKey, ExtensionIdSetToList(ids));
-  dict.Set(kInvalidIdsKey, ExtensionIdSetToList(invalid_ids));
+  dict.Set(kIdsKey, base::ToValueList(ids));
+  dict.Set(kInvalidIdsKey, base::ToValueList(invalid_ids));
   dict.Set(kExpireDateKey, expire_date);
-  std::string salt_base64;
-  std::string signature_base64;
-  base::Base64Encode(salt, &salt_base64);
-  base::Base64Encode(signature, &signature_base64);
-  dict.Set(kSaltKey, salt_base64);
-  dict.Set(kSignatureKey, signature_base64);
+  dict.Set(kSaltKey, base::Base64Encode(salt));
+  dict.Set(kSignatureKey, base::Base64Encode(signature));
   dict.Set(kTimestampKey, base::TimeToValue(timestamp));
   return dict;
 }
@@ -169,16 +153,14 @@ std::unique_ptr<InstallSignature> InstallSignature::FromDict(
   std::unique_ptr<InstallSignature> result =
       std::make_unique<InstallSignature>();
 
-  // For now we don't want to support any backwards compability, but in the
+  // For now we don't want to support any backwards compatibility, but in the
   // future if we do, we would want to put the migration code here.
   if (dict.FindInt(kSignatureFormatVersionKey) != kSignatureFormatVersion)
     return nullptr;
 
-  base::raw_ptr<const std::string> expire_date =
-      dict.FindString(kExpireDateKey);
-  base::raw_ptr<const std::string> salt_base64 = dict.FindString(kSaltKey);
-  base::raw_ptr<const std::string> signature_base64 =
-      dict.FindString(kSignatureKey);
+  raw_ptr<const std::string> expire_date = dict.FindString(kExpireDateKey);
+  raw_ptr<const std::string> salt_base64 = dict.FindString(kSaltKey);
+  raw_ptr<const std::string> signature_base64 = dict.FindString(kSignatureKey);
   if (!expire_date || !salt_base64 || !signature_base64 ||
       !base::Base64Decode(*salt_base64, &result->salt) ||
       !base::Base64Decode(*signature_base64, &result->signature))
@@ -191,14 +173,14 @@ std::unique_ptr<InstallSignature> InstallSignature::FromDict(
   result->timestamp =
       base::ValueToTime(dict.Find(kTimestampKey)).value_or(base::Time());
 
-  base::raw_ptr<const base::Value::List> ids_list = dict.FindList(kIdsKey);
-  base::raw_ptr<const base::Value::List> invalid_ids_list =
+  raw_ptr<const base::Value::List> ids_list = dict.FindList(kIdsKey);
+  raw_ptr<const base::Value::List> invalid_ids_list =
       dict.FindList(kInvalidIdsKey);
   if (!ids_list || !invalid_ids_list)
     return nullptr;
 
-  absl::optional<ExtensionIdSet> ids = ExtensionIdSetFromList(*ids_list);
-  absl::optional<ExtensionIdSet> invalid_ids =
+  std::optional<ExtensionIdSet> ids = ExtensionIdSetFromList(*ids_list);
+  std::optional<ExtensionIdSet> invalid_ids =
       ExtensionIdSetFromList(*invalid_ids_list);
   if (!ids || !invalid_ids)
     return nullptr;
@@ -225,10 +207,11 @@ bool InstallSigner::VerifySignature(const InstallSignature& signature) {
   for (auto i = signature.ids.begin(); i != signature.ids.end(); ++i)
     signed_data.append(*i);
 
-  std::string hash_base64;
-  if (!HashWithMachineId(signature.salt, &hash_base64))
+  auto hash = HashWithMachineId(signature.salt);
+  if (!hash.has_value()) {
     return false;
-  signed_data.append(hash_base64);
+  }
+  signed_data.append(*hash);
 
   signed_data.append(signature.expire_date);
 
@@ -238,11 +221,12 @@ bool InstallSigner::VerifySignature(const InstallSignature& signature) {
 
   crypto::SignatureVerifier verifier;
   if (!verifier.VerifyInit(crypto::SignatureVerifier::RSA_PKCS1_SHA1,
-                           base::as_bytes(base::make_span(signature.signature)),
-                           base::as_bytes(base::make_span(public_key))))
+                           base::as_byte_span(signature.signature),
+                           base::as_byte_span(public_key))) {
     return false;
+  }
 
-  verifier.VerifyUpdate(base::as_bytes(base::make_span(signed_data)));
+  verifier.VerifyUpdate(base::as_byte_span(signed_data));
   return verifier.VerifyFinal();
 }
 
@@ -274,10 +258,10 @@ void InstallSigner::GetSignature(SignatureCallback callback) {
   }
 
   salt_ = std::string(kSaltBytes, 0);
-  crypto::RandBytes(std::data(salt_), salt_.size());
+  crypto::RandBytes(base::as_writable_byte_span(salt_));
 
-  std::string hash_base64;
-  if (!HashWithMachineId(salt_, &hash_base64)) {
+  auto hash = HashWithMachineId(salt_);
+  if (!hash.has_value()) {
     ReportErrorViaCallback();
     return;
   }
@@ -326,7 +310,7 @@ void InstallSigner::GetSignature(SignatureCallback callback) {
   // }
   base::Value::Dict dictionary;
   dictionary.Set(kProtocolVersionKey, 1);
-  dictionary.Set(kHashKey, hash_base64);
+  dictionary.Set(kHashKey, *hash);
   base::Value::List id_list;
   for (const ExtensionId& extension_id : ids_) {
     id_list.Append(extension_id);
@@ -381,7 +365,7 @@ void InstallSigner::ParseFetchResponse(
   // where |invalid_ids| is a list of ids from the original request that
   // could not be verified to be in the webstore.
 
-  absl::optional<base::Value> parsed = base::JSONReader::Read(*response_body);
+  std::optional<base::Value> parsed = base::JSONReader::Read(*response_body);
   bool json_success = parsed && parsed->is_dict();
   if (!json_success) {
     ReportErrorViaCallback();

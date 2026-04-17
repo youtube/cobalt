@@ -7,12 +7,20 @@
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/devtools/devtools_contents_resizing_strategy.h"
-#include "ui/views/layout/layout_manager.h"
+#include "ui/views/layout/layout_manager_base.h"
+#include "ui/views/layout/proposed_layout.h"
 
 // ContentsLayoutManager positions the WebContents and devtools WebContents.
-class ContentsLayoutManager : public views::LayoutManager {
+class ContentsLayoutManager : public views::LayoutManagerBase {
  public:
-  ContentsLayoutManager(views::View* devtools_view, views::View* contents_view);
+  ContentsLayoutManager(views::View* devtools_view,
+                        views::View* devtools_scrim_view,
+                        views::View* contents_view,
+                        views::View* lens_overlay_view,
+                        views::View* scrim_view,
+                        views::View* border_view = nullptr,
+                        views::View* watermark_view = nullptr,
+                        views::View* new_tab_footer_view = nullptr);
 
   ContentsLayoutManager(const ContentsLayoutManager&) = delete;
   ContentsLayoutManager& operator=(const ContentsLayoutManager&) = delete;
@@ -23,16 +31,20 @@ class ContentsLayoutManager : public views::LayoutManager {
   void SetContentsResizingStrategy(
       const DevToolsContentsResizingStrategy& strategy);
 
-  // views::LayoutManager overrides:
-  void Layout(views::View* host) override;
-  gfx::Size GetPreferredSize(const views::View* host) const override;
-  void Installed(views::View* host) override;
+ protected:
+  // views::LayoutManagerBase overrides:
+  views::ProposedLayout CalculateProposedLayout(
+      const views::SizeBounds& size_bounds) const override;
 
  private:
-  raw_ptr<views::View> devtools_view_;
-  raw_ptr<views::View> contents_view_;
-
-  raw_ptr<views::View> host_;
+  const raw_ptr<views::View> devtools_view_;
+  const raw_ptr<views::View> devtools_scrim_view_;
+  const raw_ptr<views::View> contents_view_;
+  const raw_ptr<views::View> lens_overlay_view_;
+  const raw_ptr<views::View> scrim_view_;
+  const raw_ptr<views::View> border_view_;
+  const raw_ptr<views::View> watermark_view_;
+  const raw_ptr<views::View> new_tab_footer_view_;
 
   DevToolsContentsResizingStrategy strategy_;
 };

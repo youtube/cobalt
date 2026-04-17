@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/ui.gni")
 
 source_set("text_input_types") {
@@ -28,11 +27,13 @@ component("ime_types") {
     "ime_text_span.h",
     "infolist_entry.cc",
     "infolist_entry.h",
+    "text_edit_commands.h",
   ]
 
   defines = [ "IS_UI_BASE_IME_TYPES_IMPL" ]
 
   deps = [
+    ":text_edit_commands",
     "//base",
     "//ui/gfx/geometry",
     "//ui/gfx/range",
@@ -43,7 +44,7 @@ component("ime_types") {
     "//skia",
   ]
 
-  if (is_chromeos_ash || use_ozone) {
+  if (use_ozone) {
     sources += [
       "character_composer.cc",
       "character_composer.h",
@@ -61,6 +62,8 @@ component("ime") {
   sources = [
     "constants.cc",
     "constants.h",
+    "events.cc",
+    "events.h",
     "ime_key_event_dispatcher.h",
     "input_method.h",
     "input_method_base.cc",
@@ -72,7 +75,6 @@ component("ime") {
     "mock_input_method.h",
     "surrounding_text_tracker.cc",
     "surrounding_text_tracker.h",
-    "text_edit_commands.h",
     "text_input_client.cc",
     "text_input_client.h",
     "virtual_keyboard_controller.h",
@@ -98,6 +100,8 @@ component("ime") {
     "//ui/gfx/geometry",
     "//ui/gfx/range",
   ]
+}
 
-  deps = [ "//build:chromeos_buildflags" ]
+source_set("text_edit_commands") {
+  sources = [ "text_edit_commands.inc" ]
 }

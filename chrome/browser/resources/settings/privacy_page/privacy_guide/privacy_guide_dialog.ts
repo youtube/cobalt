@@ -9,7 +9,7 @@
  */
 import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import 'chrome://resources/cr_elements/cr_shared_style.css.js';
-import 'chrome://resources/cr_components/settings_prefs/prefs.js';
+import '/shared/settings/prefs/prefs.js';
 import '../../settings_shared.css.js';
 import './privacy_guide_page.js';
 
@@ -44,6 +44,8 @@ export class SettingsPrivacyGuideDialogElement extends PolymerElement {
     };
   }
 
+  declare prefs: {[key: string]: any};
+
   override connectedCallback() {
     super.connectedCallback();
 
@@ -51,7 +53,7 @@ export class SettingsPrivacyGuideDialogElement extends PolymerElement {
 
     const elementToFocus =
         this.shadowRoot!.querySelector<HTMLElement>('#backToSettingsButton')!;
-    afterNextRender(this, () => elementToFocus!.focus());
+    afterNextRender(this, () => elementToFocus.focus());
   }
 
   private onDialogCancel_(e: Event) {

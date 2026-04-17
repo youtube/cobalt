@@ -120,7 +120,8 @@ function startTest() {
     function removePluginAtDocumentEnd() {
       if (maybeSkipPluginTest())
         return;
-      testRemoveSelf('plugin_frame.html?end', /<embed/);
+      testRemoveSelf(
+          'plugin_frame.html?end', /background-color: rgb\(40, 40, 40\)/);
     },
 
     // Plain text

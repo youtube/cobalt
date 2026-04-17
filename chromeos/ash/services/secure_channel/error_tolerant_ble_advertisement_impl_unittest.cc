@@ -6,11 +6,12 @@
 
 #include <memory>
 
+#include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
-#include "chromeos/ash/services/secure_channel/ble_constants.h"
 #include "chromeos/ash/services/secure_channel/fake_ble_synchronizer.h"
+#include "chromeos/ash/services/secure_channel/public/cpp/shared/ble_constants.h"
 #include "device/bluetooth/bluetooth_advertisement.h"
 #include "device/bluetooth/test/mock_bluetooth_advertisement.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -60,14 +61,14 @@ class SecureChannelErrorTolerantBleAdvertisementImplTest
         fake_synchronizer_->GetAdvertisementData(command_index);
 
     // First, verify that the service UUID list is correct.
-    absl::optional<device::BluetoothAdvertisement::UUIDList> service_uuids =
+    std::optional<device::BluetoothAdvertisement::UUIDList> service_uuids =
         data.service_uuids();
     ASSERT_TRUE(service_uuids);
     EXPECT_EQ(1u, service_uuids->size());
     EXPECT_EQ(kAdvertisingServiceUuid, service_uuids->at(0));
 
     // Then, verify that the service data is correct.
-    absl::optional<device::BluetoothAdvertisement::ServiceData> service_data =
+    std::optional<device::BluetoothAdvertisement::ServiceData> service_data =
         data.service_data();
     ASSERT_TRUE(service_data);
     EXPECT_EQ(1u, service_data->size());
@@ -78,8 +79,9 @@ class SecureChannelErrorTolerantBleAdvertisementImplTest
         service_data->at(kAdvertisingServiceUuid);
     EXPECT_EQ(service_data_from_args.size(),
               derived_type->advertisement_data().data.size() + 1);
-    EXPECT_FALSE(memcmp(derived_type->advertisement_data().data.data(),
-                        service_data_from_args.data(), service_data->size()));
+    EXPECT_FALSE(UNSAFE_TODO(
+        memcmp(derived_type->advertisement_data().data.data(),
+               service_data_from_args.data(), service_data->size())));
     EXPECT_EQ(kInvertedConnectionFlag, service_data_from_args.back());
   }
 
@@ -125,7 +127,7 @@ class SecureChannelErrorTolerantBleAdvertisementImplTest
 
   std::unique_ptr<FakeBleSynchronizer> fake_synchronizer_;
 
-  raw_ptr<device::MockBluetoothAdvertisement, ExperimentalAsh>
+  raw_ptr<device::MockBluetoothAdvertisement, DanglingUntriaged>
       fake_advertisement_;
 
   bool stopped_callback_called_;

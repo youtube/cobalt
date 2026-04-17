@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "services/proxy_resolver_win/windows_system_proxy_resolver_impl.h"
 
 #include <cwchar>
@@ -25,12 +30,12 @@ namespace proxy_resolver_win {
 
 namespace {
 
-bool GetProxyServerFromWinHttpResultEntry(
+bool GetProxyChainFromWinHttpResultEntry(
     const WINHTTP_PROXY_RESULT_ENTRY& result_entry,
-    net::ProxyServer* out_proxy_server) {
-  // TODO(https://crbug.com/1032820): Include net logs for proxy bypass
+    net::ProxyChain* out_proxy_chain) {
+  // TODO(crbug.com/40111093): Include net logs for proxy bypass
   if (!result_entry.fProxy) {
-    *out_proxy_server = net::ProxyServer::Direct();
+    *out_proxy_chain = net::ProxyChain::Direct();
     return true;
   }
 
@@ -74,13 +79,11 @@ bool GetProxyServerFromWinHttpResultEntry(
   if (!base::IsStringASCII(host_wide)) {
     const int kInitialBufferSize = 256;
     url::RawCanonOutputT<char16_t, kInitialBufferSize> punycode_output;
-    if (!url::IDNToASCII(base::as_u16cstr(host_wide), host_wide.length(),
-                         &punycode_output)) {
+    if (!url::IDNToASCII(base::AsStringPiece16(host_wide), &punycode_output)) {
       return false;
     }
 
-    host_wide.assign(base::as_wcstr(punycode_output.data()),
-                     punycode_output.length());
+    host_wide = base::AsWString(punycode_output.view());
   }
 
   // At this point the string in `host_wide` is ASCII.
@@ -89,7 +92,7 @@ bool GetProxyServerFromWinHttpResultEntry(
     return false;
 
   net::HostPortPair host_and_port(host, result_entry.ProxyPort);
-  *out_proxy_server = net::ProxyServer(scheme, host_and_port);
+  *out_proxy_chain = net::ProxyChain(scheme, host_and_port);
   return true;
 }
 
@@ -166,7 +169,7 @@ WindowsSystemProxyResolverImpl::Request::~Request() {
 bool WindowsSystemProxyResolverImpl::Request::Start(const GURL& url) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  // TODO(https://crbug.com/1032820): Use better/distinct net errors.
+  // TODO(crbug.com/40111093): Use better/distinct net errors.
   net::WinHttpStatus winhttp_status = parent_->EnsureInitialized();
   if (winhttp_status != net::WinHttpStatus::kOk) {
     const int error = GetLastError();
@@ -262,7 +265,7 @@ void WindowsSystemProxyResolverImpl::Request::DoWinHttpStatusCallback(
         GetProxyResultForCallback();
         break;
       case WINHTTP_CALLBACK_STATUS_REQUEST_ERROR:
-        // TODO(https://crbug.com/1032820): Use a better/distinct net error.
+        // TODO(crbug.com/40111093): Use a better/distinct net error.
         ReportResult(net::ProxyList(),
                      net::WinHttpStatus::kStatusCallbackFailed, windows_error);
         break;
@@ -287,7 +290,7 @@ void WindowsSystemProxyResolverImpl::Request::DoWinHttpStatusCallback(
 
   // Now, it's finally safe to delete this object.
   auto it = parent_->requests_.find(this);
-  DCHECK(it != parent_->requests_.end());
+  CHECK(it != parent_->requests_.end());
   parent_->requests_.erase(it);
 
   // DO NOT ADD ANYTHING BELOW THIS LINE, THE OBJECT HAS NOW BEEN DESTROYED.
@@ -295,7 +298,7 @@ void WindowsSystemProxyResolverImpl::Request::DoWinHttpStatusCallback(
 
 void WindowsSystemProxyResolverImpl::Request::GetProxyResultForCallback() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // TODO(https://crbug.com/1032820): Use better/distinct net errors.
+  // TODO(crbug.com/40111093): Use better/distinct net errors.
   WINHTTP_PROXY_RESULT proxy_result = {0};
   if (!winhttp_api_wrapper()->CallWinHttpGetProxyResult(resolver_handle_,
                                                         &proxy_result)) {
@@ -308,10 +311,10 @@ void WindowsSystemProxyResolverImpl::Request::GetProxyResultForCallback() {
   // Translate the results for ProxyInfo.
   net::ProxyList proxy_list;
   for (DWORD i = 0u; i < proxy_result.cEntries; ++i) {
-    net::ProxyServer proxy_server;
-    if (GetProxyServerFromWinHttpResultEntry(proxy_result.pEntries[i],
-                                             &proxy_server)) {
-      proxy_list.AddProxyServer(proxy_server);
+    net::ProxyChain proxy_chain;
+    if (GetProxyChainFromWinHttpResultEntry(proxy_result.pEntries[i],
+                                            &proxy_chain)) {
+      proxy_list.AddProxyChain(proxy_chain);
     }
   }
 
@@ -376,7 +379,7 @@ net::WinHttpStatus WindowsSystemProxyResolverImpl::EnsureInitialized() {
   if (initialized_)
     return net::WinHttpStatus::kOk;
 
-  // TODO(https://crbug.com/1032820): Limit the number of times this can
+  // TODO(crbug.com/40111093): Limit the number of times this can
   // fail to initialize.
 
   // The `winhttp_api_wrapper_` is intended to only get set when initialization

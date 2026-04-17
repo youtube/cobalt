@@ -44,6 +44,7 @@ The intended usage is:
 import hashlib
 import os
 import platform
+import random
 import subprocess
 import sys
 
@@ -70,9 +71,10 @@ def download_or_get_cached(file_name, url, sha256):
       if digest == sha256:
         needs_download = False
 
-  if needs_download:
-    # Either the filed doesn't exist or the SHA256 doesn't match.
-    tmp_path = bin_path + '.tmp'
+  if needs_download:  # The file doesn't exist or the SHA256 doesn't match.
+    # Use a unique random file to guard against concurrent executions.
+    # See https://github.com/google/perfetto/issues/786 .
+    tmp_path = '%s.%d.tmp' % (bin_path, random.randint(0, 100000))
     print('Downloading ' + url)
     subprocess.check_call(['curl', '-f', '-L', '-#', '-o', tmp_path, url])
     with open(tmp_path, 'rb') as fd:
@@ -82,8 +84,9 @@ def download_or_get_cached(file_name, url, sha256):
                       (url, actual_sha256, sha256))
     os.chmod(tmp_path, 0o755)
     os.replace(tmp_path, bin_path)
-    with open(sha256_path, 'w') as f:
+    with open(tmp_path, 'w') as f:
       f.write(sha256)
+    os.replace(tmp_path, sha256_path)
   return bin_path
 
 

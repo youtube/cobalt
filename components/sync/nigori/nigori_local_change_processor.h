@@ -6,17 +6,17 @@
 #define COMPONENTS_SYNC_NIGORI_NIGORI_LOCAL_CHANGE_PROCESSOR_H_
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/memory/weak_ptr.h"
 #include "components/sync/model/model_error.h"
+#include "components/sync/protocol/data_type_state.pb.h"
 #include "components/sync/protocol/entity_metadata.pb.h"
-#include "components/sync/protocol/model_type_state.pb.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace syncer {
 
-class ModelTypeControllerDelegate;
+class DataTypeControllerDelegate;
 class NigoriSyncBridge;
 struct EntityData;
 
@@ -30,12 +30,12 @@ struct NigoriMetadataBatch {
 
   ~NigoriMetadataBatch();
 
-  sync_pb::ModelTypeState model_type_state;
-  absl::optional<sync_pb::EntityMetadata> entity_metadata;
+  sync_pb::DataTypeState data_type_state;
+  std::optional<sync_pb::EntityMetadata> entity_metadata;
 };
 
-// Interface analogous to ModelTypeChangeProcessor for Nigori, used to propagate
-// local changes from the bridge to the processor.
+// Interface analogous to DataTypeLocalChangeProcessor for Nigori, used to
+// propagate local changes from the bridge to the processor.
 class NigoriLocalChangeProcessor {
  public:
   NigoriLocalChangeProcessor() = default;
@@ -47,7 +47,7 @@ class NigoriLocalChangeProcessor {
   virtual ~NigoriLocalChangeProcessor() = default;
 
   // The Nigori model is expected to call this method as soon as possible during
-  // initialization, and must be called before invoking Put(). |bridge| must not
+  // initialization, and must be called before invoking Put(). `bridge` must not
   // be null and most outlive the NigoriLocalChangeProcessor.
   virtual void ModelReadyToSync(NigoriSyncBridge* bridge,
                                 NigoriMetadataBatch nigori_metadata) = 0;
@@ -59,7 +59,7 @@ class NigoriLocalChangeProcessor {
   // changes. A commit may or may not be in progress at this time.
   virtual bool IsEntityUnsynced() = 0;
 
-  // Returns both the entity metadata and model type state such that the Nigori
+  // Returns both the entity metadata and data type state such that the Nigori
   // model takes care of persisting them.
   virtual NigoriMetadataBatch GetMetadata() = 0;
 
@@ -71,11 +71,10 @@ class NigoriLocalChangeProcessor {
   virtual void ReportError(const ModelError& error) = 0;
 
   // Returns the delegate for the controller.
-  virtual base::WeakPtr<ModelTypeControllerDelegate>
-  GetControllerDelegate() = 0;
+  virtual base::WeakPtr<DataTypeControllerDelegate> GetControllerDelegate() = 0;
 
   // Returns a boolean representing whether the processor's metadata is
-  // currently up to date and accurately tracking the model type's data. If
+  // currently up to date and accurately tracking the data type's data. If
   // false, and ModelReadyToSync() has already been called, then Put and Delete
   // will no-op and can be omitted by bridge.
   virtual bool IsTrackingMetadata() = 0;

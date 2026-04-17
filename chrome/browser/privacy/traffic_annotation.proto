@@ -109,6 +109,8 @@ message NetworkTrafficAnnotation {
       GOOGLE_OWNED_SERVICE = 2;
       // Does not go to the network and just fetches a resource locally.
       LOCAL = 3;
+      // A proxy that will forward the traffic to a google owned service.
+      PROXIED_GOOGLE_OWNED_SERVICE = 4;
       // Other endpoints, e.g. a service hosting a PAC script. In case of doubt,
       // use this category. We will audit it in the future to see whether we
       // need more categories.
@@ -129,6 +131,8 @@ message NetworkTrafficAnnotation {
         oneof contact_type {
           // Email of a team or individual owner
           string email = 1;
+          // OWNERS file within the chromium codebase
+          string owners = 2;
         }
       }
       repeated Contact contacts = 1;
@@ -166,9 +170,9 @@ message NetworkTrafficAnnotation {
         GENDER = 13;
         GOVERNMENT_ID = 14;
         IMAGE = 15;
-        IP_ADDRESS = 16;
-        LOCATION_COARSE = 17;
-        LOCATION_PRECISE = 18;
+        // Request contains information about the user's location, separate
+        // from what can be inferred from the IP address.
+        LOCATION = 17;
         NAME = 19;
         PHONE = 20;
 
@@ -181,12 +185,8 @@ message NetworkTrafficAnnotation {
         // website they're visiting/have visited before.
         SENSITIVE_URL = 22;
 
-        SESSION_ID = 23;
-        TIMESTAMP = 24;
-        USER_AGENT = 25;
-
-        // Any data entered by a user and collected
-        // incidentally, such as a search query.
+        // Any data originating from user input, regardless of the specific form
+        // (e.g. text fields, search queries, etc.).
         USER_CONTENT = 26;
 
         USERNAME = 27;
@@ -194,9 +194,27 @@ message NetworkTrafficAnnotation {
         // Data originating from the content of the current webpage.
         WEB_CONTENT = 28;
 
-        // If none of the below apply, use this and provide
-        // more info in the data field.
+        // Hardware or OS information like Manufacturer, Model, etc.
+        HW_OS_INFO = 29;
+
+        // Any data related to usage and performance metrics like UMA, UKM, DWA,
+        // and Structured Metrics.
+        USAGE_AND_PERFORMANCE_METRICS = 30;
+
+        // If a request sends sensitive data/PII that doesn't fall in the
+        // categories above, use `OTHER` and provide more details in the `data`
+        // field.
+        //
+        // Can be combined with other data types. e.g. the following is valid:
+        //   user_data {
+        //     type: ACCESS_TOKEN
+        //     type: OTHER
+        //   }
         OTHER = 999;
+
+        // `user_data::type` is mandatory in annotations. Use `NONE` if the
+        // request doesn't send user data. For instance: fetching a static
+        // resource from the public web, using a hard-coded URL.
         NONE = 1000;
       }
       repeated UserDataType type = 1;

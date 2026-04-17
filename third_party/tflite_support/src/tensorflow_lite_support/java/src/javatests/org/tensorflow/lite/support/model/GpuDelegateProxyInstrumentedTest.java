@@ -17,9 +17,9 @@ package org.tensorflow.lite.support.model;
 import static com.google.common.truth.Truth.assertThat;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.tensorflow.lite.InterpreterApi.Options.TfLiteRuntime;
 
 /**
  * Instrumented unit test for {@link GpuDelegateProxy}.
@@ -28,12 +28,30 @@ import org.junit.runner.RunWith;
  */
 @RunWith(AndroidJUnit4.class)
 public final class GpuDelegateProxyInstrumentedTest {
-    @Test
-    public void createGpuDelegateProxyShouldSuccess() {
-        GpuDelegateProxy proxy = GpuDelegateProxy.maybeNewInstance();
 
-        assertThat(proxy).isNotNull();
-        proxy.getNativeHandle();
-        proxy.close();
+  @Test
+  public void createGpuDelegateProxyShouldSucceed() {
+    try (GpuDelegateProxy proxy =
+        GpuDelegateProxy.maybeNewInstance(TfLiteRuntime.PREFER_SYSTEM_OVER_APPLICATION)) {
+      assertThat(proxy).isNotNull();
+      proxy.getNativeHandle();
     }
+  }
+
+  @Test
+  public void createApplicationGpuDelegateProxyShouldSucceed() {
+    try (GpuDelegateProxy proxy =
+        GpuDelegateProxy.maybeNewInstance(TfLiteRuntime.FROM_APPLICATION_ONLY)) {
+      assertThat(proxy).isNotNull();
+      proxy.getNativeHandle();
+    }
+  }
+
+  @Test
+  public void createSystemGpuDelegateProxyShouldReturnNull() {
+    try (GpuDelegateProxy proxy =
+        GpuDelegateProxy.maybeNewInstance(TfLiteRuntime.FROM_SYSTEM_ONLY)) {
+      assertThat(proxy).isNull();
+    }
+  }
 }

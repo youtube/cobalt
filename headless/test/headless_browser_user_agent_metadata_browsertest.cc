@@ -6,6 +6,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_util.h"
 #include "base/test/bind.h"
 #include "base/values.h"
 #include "components/devtools/simple_devtools_protocol_client/simple_devtools_protocol_client.h"
@@ -66,6 +67,7 @@ namespace headless {
 
 class HeadlessBrowserNavigatorUADataTest : public HeadlessBrowserTest {
  public:
+
   void SetUpOnMainThread() override {
     HeadlessBrowserTest::SetUpOnMainThread();
 
@@ -112,7 +114,7 @@ class HeadlessBrowserNavigatorUADataTest : public HeadlessBrowserTest {
   }
 
  protected:
-  raw_ptr<HeadlessWebContents, DanglingUntriaged> web_contents_;
+  raw_ptr<HeadlessWebContents, AcrossTasksDanglingUntriaged> web_contents_;
   SimpleDevToolsProtocolClient devtools_client_;
 
   // Get the version of the HeadlessChrome brand from the brand list.
@@ -147,6 +149,9 @@ class HeadlessBrowserNavigatorUADataTest : public HeadlessBrowserTest {
   static constexpr char kWow64Script[] = R"(
           navigator.userAgentData.getHighEntropyValues(['wow64'])
               .then(r => r.wow64))";
+  static constexpr char kFormFactorScript[] = R"(
+          navigator.userAgentData.getHighEntropyValues(['formFactors'])
+              .then(r => r.formFactors.join(', ')))";
 };
 
 // UA Metadata is available via `navigator.userAgentData`.
@@ -174,6 +179,9 @@ IN_PROC_BROWSER_TEST_F(HeadlessBrowserNavigatorUADataTest, DefaultValues) {
               DictHasValue("result.result.value", expected.full_version));
   EXPECT_THAT(GetUAMetadataValue(kWow64Script),
               DictHasValue("result.result.value", expected.wow64));
+  EXPECT_THAT(GetUAMetadataValue(kFormFactorScript),
+              DictHasValue("result.result.value",
+                           base::JoinString(expected.form_factors, ", ")));
 }
 
 // UA Metadata is available via `navigator.userAgentData` when overridden via
@@ -201,6 +209,9 @@ IN_PROC_BROWSER_TEST_F(HeadlessBrowserNavigatorUADataTest, CDPOverride) {
               DictHasValue("result.result.value", "1.2.3"));
   EXPECT_THAT(GetUAMetadataValue(kWow64Script),
               DictHasValue("result.result.value", true));
+  // TODO(crbug.com/40910451): Allow overriding formFactors.
+  EXPECT_THAT(GetUAMetadataValue(kFormFactorScript),
+              DictHasValue("result.result.value", ""));
 }
 
 class HeadlessBrowserUAHeaderTest : public HeadlessBrowserTest {
@@ -271,7 +282,7 @@ class HeadlessBrowserUAHeaderTest : public HeadlessBrowserTest {
 
   bool IsRequestHeaderSet(
       const std::string header,
-      const absl::optional<std::string> value = absl::nullopt) {
+      const std::optional<std::string> value = std::nullopt) {
     if (!got_headers_.contains(header)) {
       return false;
     }
@@ -393,7 +404,7 @@ class HeadlessBrowserUAHeaderTest : public HeadlessBrowserTest {
   }
 
  protected:
-  raw_ptr<HeadlessWebContents, DanglingUntriaged> web_contents_;
+  raw_ptr<HeadlessWebContents, AcrossTasksDanglingUntriaged> web_contents_;
   SimpleDevToolsProtocolClient devtools_client_;
   // HandleRequest will capture headers with this path in `got_headers_`.
   std::string capture_headers_for_path_;

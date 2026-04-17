@@ -6,7 +6,9 @@
 #include "base/test/values_test_util.h"
 #include "components/crx_file/id_util.h"
 #include "extensions/common/extension_builder.h"
+#include "extensions/common/extension_id.h"
 #include "extensions/common/features/simple_feature.h"
+#include "extensions/common/mojom/context_type.mojom.h"
 #include "extensions/common/mojom/frame.mojom.h"
 #include "extensions/common/switches.h"
 #include "extensions/renderer/bindings/api_binding_test_util.h"
@@ -42,7 +44,7 @@ class CustomTypesTest : public NativeExtensionBindingsSystemUnittest {
                                   const char* api_script,
                                   const char* use_api_script) {
     scoped_refptr<const Extension> extension = ExtensionBuilder("foo")
-                                                   .AddPermission(permission)
+                                                   .AddAPIPermission(permission)
                                                    .SetID(extension_id_)
                                                    .Build();
     RegisterExtension(extension);
@@ -51,7 +53,7 @@ class CustomTypesTest : public NativeExtensionBindingsSystemUnittest {
     v8::Local<v8::Context> context = MainContext();
 
     ScriptContext* script_context = CreateScriptContext(
-        context, extension.get(), Feature::BLESSED_EXTENSION_CONTEXT);
+        context, extension.get(), mojom::ContextType::kPrivilegedExtension);
     script_context->set_url(extension->url());
 
     bindings_system()->UpdateBindingsForContext(script_context);
@@ -73,7 +75,7 @@ class CustomTypesTest : public NativeExtensionBindingsSystemUnittest {
   }
 
  private:
-  std::string extension_id_;
+  extensions::ExtensionId extension_id_;
   SimpleFeature::ScopedThreadUnsafeAllowlistForTest allowlisted_extension_id_;
 };
 
@@ -105,7 +107,7 @@ TEST_F(CustomTypesTest, ContentSettingsPromisesForManifestV3) {
   scoped_refptr<const Extension> extension =
       ExtensionBuilder("foo")
           .SetManifestVersion(3)
-          .AddPermission("contentSettings")
+          .AddAPIPermission("contentSettings")
           .Build();
   RegisterExtension(extension);
 
@@ -113,7 +115,7 @@ TEST_F(CustomTypesTest, ContentSettingsPromisesForManifestV3) {
   v8::Local<v8::Context> context = MainContext();
 
   ScriptContext* script_context = CreateScriptContext(
-      context, extension.get(), Feature::BLESSED_EXTENSION_CONTEXT);
+      context, extension.get(), mojom::ContextType::kPrivilegedExtension);
   script_context->set_url(extension->url());
 
   bindings_system()->UpdateBindingsForContext(script_context);
@@ -178,14 +180,17 @@ TEST_F(CustomTypesTest, ContentSettingsPromisesForManifestV3) {
 
 TEST_F(CustomTypesTest, ContentSettingsInvalidInvocationForManifestV2) {
   scoped_refptr<const Extension> extension =
-      ExtensionBuilder("foo").AddPermission("contentSettings").Build();
+      ExtensionBuilder("foo")
+          .SetManifestVersion(2)
+          .AddAPIPermission("contentSettings")
+          .Build();
   RegisterExtension(extension);
 
   v8::HandleScope handle_scope(isolate());
   v8::Local<v8::Context> context = MainContext();
 
   ScriptContext* script_context = CreateScriptContext(
-      context, extension.get(), Feature::BLESSED_EXTENSION_CONTEXT);
+      context, extension.get(), mojom::ContextType::kPrivilegedExtension);
   script_context->set_url(extension->url());
 
   bindings_system()->UpdateBindingsForContext(script_context);
@@ -233,7 +238,7 @@ TEST_F(CustomTypesTest, ContentSettingsInvalidInvocationForManifestV2) {
 TEST_F(CustomTypesTest, ChromeSettingPromisesForManifestV3) {
   scoped_refptr<const Extension> extension = ExtensionBuilder("foo")
                                                  .SetManifestVersion(3)
-                                                 .AddPermission("privacy")
+                                                 .AddAPIPermission("privacy")
                                                  .Build();
   RegisterExtension(extension);
 
@@ -241,7 +246,7 @@ TEST_F(CustomTypesTest, ChromeSettingPromisesForManifestV3) {
   v8::Local<v8::Context> context = MainContext();
 
   ScriptContext* script_context = CreateScriptContext(
-      context, extension.get(), Feature::BLESSED_EXTENSION_CONTEXT);
+      context, extension.get(), mojom::ContextType::kPrivilegedExtension);
   script_context->set_url(extension->url());
 
   bindings_system()->UpdateBindingsForContext(script_context);
@@ -304,15 +309,17 @@ TEST_F(CustomTypesTest, ChromeSettingPromisesForManifestV3) {
 }
 
 TEST_F(CustomTypesTest, ChromeSettingInvalidInvocationForManifestV2) {
-  scoped_refptr<const Extension> extension =
-      ExtensionBuilder("foo").AddPermission("privacy").Build();
+  scoped_refptr<const Extension> extension = ExtensionBuilder("foo")
+                                                 .SetManifestVersion(2)
+                                                 .AddAPIPermission("privacy")
+                                                 .Build();
   RegisterExtension(extension);
 
   v8::HandleScope handle_scope(isolate());
   v8::Local<v8::Context> context = MainContext();
 
   ScriptContext* script_context = CreateScriptContext(
-      context, extension.get(), Feature::BLESSED_EXTENSION_CONTEXT);
+      context, extension.get(), mojom::ContextType::kPrivilegedExtension);
   script_context->set_url(extension->url());
 
   bindings_system()->UpdateBindingsForContext(script_context);

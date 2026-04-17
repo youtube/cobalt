@@ -2,9 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/formats/mp2t/mp2t_stream_parser.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -14,8 +20,8 @@
 #include "media/base/media_tracks.h"
 #include "media/base/stream_parser.h"
 #include "media/base/stream_parser_buffer.h"
-#include "media/base/text_track_config.h"
 #include "media/base/timestamp_constants.h"
+#include "media/base/video_codec_string_parsers.h"
 #include "media/formats/mp2t/descriptors.h"
 #include "media/formats/mp2t/es_parser.h"
 #include "media/formats/mp2t/es_parser_adts.h"
@@ -30,20 +36,11 @@
 #include "media/formats/mp2t/ts_section_pat.h"
 #include "media/formats/mp2t/ts_section_pes.h"
 #include "media/formats/mp2t/ts_section_pmt.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
 namespace mp2t {
 
 namespace {
-
-constexpr int64_t kSampleAESPrivateDataIndicatorAVC = 0x7a617663;
-constexpr int64_t kSampleAESPrivateDataIndicatorAAC = 0x61616364;
-// TODO(dougsteed). Consider adding support for the following:
-// const int64_t kSampleAESPrivateDataIndicatorAC3 = 0x61633364;
-// const int64_t kSampleAESPrivateDataIndicatorEAC3 = 0x65633364;
-
-}  // namespace
 
 enum StreamType {
   // ISO-13818.1 / ITU H.222 Table 2.34 "Stream type assignments"
@@ -58,6 +55,57 @@ enum StreamType {
   //  kStreamTypeAC3WithSampleAES = 0xc1,
   //  kStreamTypeEAC3WithSampleAES = 0xc2,
 };
+
+constexpr int64_t kSampleAESPrivateDataIndicatorAVC = 0x7a617663;
+constexpr int64_t kSampleAESPrivateDataIndicatorAAC = 0x61616364;
+// TODO(dougsteed). Consider adding support for the following:
+// const int64_t kSampleAESPrivateDataIndicatorAC3 = 0x61633364;
+// const int64_t kSampleAESPrivateDataIndicatorEAC3 = 0x65633364;
+
+std::optional<base::flat_set<int>> MapAllowedStreamTypes(
+    std::optional<base::span<const std::string>> allowed_codecs) {
+  if (!allowed_codecs.has_value()) {
+    return std::nullopt;
+  }
+  base::flat_set<int> allowed_stream_types;
+  for (const std::string& codec_name : *allowed_codecs) {
+    switch (StringToVideoCodec(codec_name)) {
+      case VideoCodec::kH264:
+        allowed_stream_types.insert(kStreamTypeAVC);
+        allowed_stream_types.insert(kStreamTypeAVCWithSampleAES);
+        continue;
+      case VideoCodec::kUnknown:
+        // Probably audio.
+        break;
+      default:
+        DLOG(WARNING) << "Unsupported video codec " << codec_name;
+        continue;
+    }
+
+    switch (StringToAudioCodec(codec_name)) {
+      case AudioCodec::kAAC:
+        allowed_stream_types.insert(kStreamTypeAAC);
+        allowed_stream_types.insert(kStreamTypeAACWithSampleAES);
+        continue;
+      case AudioCodec::kMP3:
+        allowed_stream_types.insert(kStreamTypeMpeg1Audio);
+        allowed_stream_types.insert(kStreamTypeMpeg2Audio);
+        continue;
+      case AudioCodec::kUnknown:
+        // Neither audio, nor video.
+        break;
+      default:
+        DLOG(WARNING) << "Unsupported audio codec " << codec_name;
+        continue;
+    }
+
+    // Failed to parse as an audio or a video codec.
+    DLOG(WARNING) << "Unknown codec " << codec_name;
+  }
+  return allowed_stream_types;
+}
+
+}  // namespace
 
 class PidState {
  public:
@@ -130,10 +178,8 @@ bool PidState::PushTsPacket(const TsPacket& ts_packet) {
     return false;
   }
 
-  bool status = section_parser_->Parse(
-      ts_packet.payload_unit_start_indicator(),
-      ts_packet.payload(),
-      ts_packet.payload_size());
+  bool status = section_parser_->Parse(ts_packet.payload_unit_start_indicator(),
+                                       ts_packet.payload());
 
   // At the minimum, when parsing failed, auto reset the section parser.
   // Components that use the StreamParser can take further action if needed.
@@ -186,48 +232,15 @@ Mp2tStreamParser::BufferQueueWithConfig::BufferQueueWithConfig(
 Mp2tStreamParser::BufferQueueWithConfig::~BufferQueueWithConfig() {
 }
 
-Mp2tStreamParser::Mp2tStreamParser(base::span<const std::string> allowed_codecs,
-                                   bool sbr_in_mimetype)
-    : sbr_in_mimetype_(sbr_in_mimetype),
+Mp2tStreamParser::Mp2tStreamParser(
+    std::optional<base::span<const std::string>> allowed_codecs,
+    bool sbr_in_mimetype)
+    : allowed_stream_types_(MapAllowedStreamTypes(allowed_codecs)),
+      sbr_in_mimetype_(sbr_in_mimetype),
       selected_audio_pid_(-1),
       selected_video_pid_(-1),
       is_initialized_(false),
-      segment_started_(false) {
-  for (const std::string& codec_name : allowed_codecs) {
-    switch (StringToVideoCodec(codec_name)) {
-      case VideoCodec::kH264:
-        allowed_stream_types_.insert(kStreamTypeAVC);
-        allowed_stream_types_.insert(kStreamTypeAVCWithSampleAES);
-        continue;
-      case VideoCodec::kUnknown:
-        // Probably audio.
-        break;
-      default:
-        DLOG(WARNING) << "Unsupported video codec " << codec_name;
-        continue;
-    }
-
-    switch (StringToAudioCodec(codec_name)) {
-      case AudioCodec::kAAC:
-        allowed_stream_types_.insert(kStreamTypeAAC);
-        allowed_stream_types_.insert(kStreamTypeAACWithSampleAES);
-        continue;
-      case AudioCodec::kMP3:
-        allowed_stream_types_.insert(kStreamTypeMpeg1Audio);
-        allowed_stream_types_.insert(kStreamTypeMpeg2Audio);
-        continue;
-      case AudioCodec::kUnknown:
-        // Neither audio, nor video.
-        break;
-      default:
-        DLOG(WARNING) << "Unsupported audio codec " << codec_name;
-        continue;
-    }
-
-    // Failed to parse as an audio or a video codec.
-    DLOG(WARNING) << "Unknown codec " << codec_name;
-  }
-}
+      segment_started_(false) {}
 
 Mp2tStreamParser::~Mp2tStreamParser() = default;
 
@@ -235,7 +248,6 @@ void Mp2tStreamParser::Init(
     InitCB init_cb,
     NewConfigCB config_cb,
     NewBuffersCB new_buffers_cb,
-    bool /* ignore_text_tracks */,
     EncryptedMediaInitDataCB encrypted_media_init_data_cb,
     NewMediaSegmentCB new_segment_cb,
     EndMediaSegmentCB end_of_segment_cb,
@@ -311,22 +323,22 @@ bool Mp2tStreamParser::GetGenerateTimestampsFlag() const {
   return false;
 }
 
-bool Mp2tStreamParser::AppendToParseBuffer(const uint8_t* buf, size_t size) {
-  DVLOG(1) << __func__ << " size=" << size;
+bool Mp2tStreamParser::AppendToParseBuffer(base::span<const uint8_t> buf) {
+  DVLOG(1) << __func__ << " size=" << buf.size();
 
   // Ensure that we are not still in the middle of iterating Parse calls for
   // previously appended data. May consider changing this to a DCHECK once
   // stabilized, though since impact of proceeding when this condition fails
   // could lead to memory corruption, preferring CHECK.
-  CHECK_EQ(uninspected_pending_bytes_, 0);
+  CHECK_EQ(uninspected_pending_bytes_, 0u);
 
   // Add the data to the parser state.
-  uninspected_pending_bytes_ = base::checked_cast<int>(size);
-  if (!ts_byte_queue_.Push(buf, uninspected_pending_bytes_)) {
-    DVLOG(2) << "AppendToParseBuffer(): Failed to push buf of size " << size;
+  if (!ts_byte_queue_.Push(buf)) {
+    DVLOG(2) << "AppendToParseBuffer(): Failed to push buf of size "
+             << buf.size();
     return false;
   }
-
+  uninspected_pending_bytes_ = base::checked_cast<int>(buf.size());
   return true;
 }
 
@@ -335,26 +347,27 @@ StreamParser::ParseStatus Mp2tStreamParser::Parse(
   DVLOG(1) << __func__;
   DCHECK_GE(max_pending_bytes_to_inspect, 0);
 
-  const uint8_t* ts_buffer = nullptr;
-  int queue_size = 0;
-  ts_byte_queue_.Peek(&ts_buffer, &queue_size);
+  auto queue_data = ts_byte_queue_.Data();
+  const uint8_t* ts_buffer = queue_data.data();
+  size_t queue_size = queue_data.size();
+  CHECK_GE(queue_size, uninspected_pending_bytes_);
 
   // First, determine the amount of bytes not yet popped, though already
   // inspected by previous call(s) to Parse().
-  int ts_buffer_size = queue_size - uninspected_pending_bytes_;
-  DCHECK_GE(ts_buffer_size, 0);
+  size_t ts_buffer_size = queue_size - uninspected_pending_bytes_;
 
   // Next, allow up to `max_pending_bytes_to_inspect` more of `queue_` contents
   // beyond those previously inspected to be involved in this Parse() call.
   int inspection_increment =
-      std::min(max_pending_bytes_to_inspect, uninspected_pending_bytes_);
+      std::min(base::checked_cast<size_t>(max_pending_bytes_to_inspect),
+               uninspected_pending_bytes_);
   ts_buffer_size += inspection_increment;
 
   // If successfully parsed, remember that we will have inspected this
   // incremental part of `ts_byte_queue_` contents. Note that parse failures are
   // fatal.
   uninspected_pending_bytes_ -= inspection_increment;
-  DCHECK_GE(uninspected_pending_bytes_, 0);
+  DCHECK_GE(uninspected_pending_bytes_, 0u);
 
   int bytes_to_pop = 0;
 
@@ -364,7 +377,7 @@ StreamParser::ParseStatus Mp2tStreamParser::Parse(
     }
 
     // Synchronization.
-    int skipped_bytes = TsPacket::Sync(ts_buffer, ts_buffer_size);
+    size_t skipped_bytes = TsPacket::Sync(ts_buffer, ts_buffer_size);
     if (skipped_bytes > 0) {
       DVLOG(1) << "Packet not aligned on a TS syncword:"
                << " skipped_bytes=" << skipped_bytes;
@@ -380,7 +393,7 @@ StreamParser::ParseStatus Mp2tStreamParser::Parse(
         TsPacket::Parse(ts_buffer, ts_buffer_size));
     if (!ts_packet) {
       DVLOG(1) << "Error: invalid TS packet";
-      CHECK_GE(ts_buffer_size, 1);
+      CHECK_GE(ts_buffer_size, 1u);
       ts_buffer_size--;
       ts_buffer++;
       bytes_to_pop++;
@@ -567,9 +580,10 @@ void Mp2tStreamParser::RegisterPes(int pes_pid,
 
   // Ignore stream types not specified in the creation of the SourceBuffer.
   // See https://crbug.com/1169393.
-  // TODO(https://crbug.com/535738): Remove this hack when MSE stream/mime type
+  // TODO(crbug.com/41204005): Remove this hack when MSE stream/mime type
   // checks have been relaxed.
-  if (allowed_stream_types_.find(stream_type) == allowed_stream_types_.end()) {
+  if (allowed_stream_types_.has_value() &&
+      !allowed_stream_types_->contains(stream_type)) {
     DVLOG(1) << "Stream type not allowed for this parser: " << stream_type;
     return;
   }
@@ -761,12 +775,12 @@ std::unique_ptr<MediaTracks> GenerateMediaTrackInfo(
   // TODO(servolk): Implement proper sourcing of media track info as described
   // in crbug.com/590085
   if (audio_config.IsValidConfig()) {
-    media_tracks->AddAudioTrack(audio_config, kMp2tAudioTrackId,
+    media_tracks->AddAudioTrack(audio_config, true, kMp2tAudioTrackId,
                                 MediaTrack::Kind("main"), MediaTrack::Label(""),
                                 MediaTrack::Language(""));
   }
   if (video_config.IsValidConfig()) {
-    media_tracks->AddVideoTrack(video_config, kMp2tVideoTrackId,
+    media_tracks->AddVideoTrack(video_config, true, kMp2tVideoTrackId,
                                 MediaTrack::Kind("main"), MediaTrack::Label(""),
                                 MediaTrack::Language(""));
   }
@@ -794,15 +808,14 @@ bool Mp2tStreamParser::FinishInitializationIfNeeded() {
   // Pass the config before invoking the initialization callback.
   std::unique_ptr<MediaTracks> media_tracks = GenerateMediaTrackInfo(
       queue_with_config.audio_config, queue_with_config.video_config);
-  RCHECK(config_cb_.Run(std::move(media_tracks), TextTrackConfigMap()));
+  RCHECK(config_cb_.Run(std::move(media_tracks)));
   queue_with_config.is_config_sent = true;
 
   // For Mpeg2 TS, the duration is not known.
   DVLOG(1) << "Mpeg2TS stream parser initialization done";
 
   // TODO(wolenetz): If possible, detect and report track counts by type more
-  // accurately here. Currently, capped at max 1 each for audio and video, with
-  // assumption of 0 text tracks.
+  // accurately here. Currently, capped at max 1 each for audio and video.
   InitParameters params(kInfiniteDuration);
   params.detected_audio_track_count =
       queue_with_config.audio_config.IsValidConfig() ? 1 : 0;
@@ -820,15 +833,10 @@ void Mp2tStreamParser::OnEmitAudioBuffer(
   DCHECK_EQ(pes_pid, selected_audio_pid_);
 
   DVLOG(LOG_LEVEL_ES)
-      << "OnEmitAudioBuffer: "
-      << " size="
-      << stream_parser_buffer->data_size()
-      << " dts="
-      << stream_parser_buffer->GetDecodeTimestamp().InMilliseconds()
-      << " pts="
-      << stream_parser_buffer->timestamp().InMilliseconds()
-      << " dur="
-      << stream_parser_buffer->duration().InMilliseconds();
+      << "OnEmitAudioBuffer: " << " size=" << stream_parser_buffer->size()
+      << " dts=" << stream_parser_buffer->GetDecodeTimestamp().InMilliseconds()
+      << " pts=" << stream_parser_buffer->timestamp().InMilliseconds()
+      << " dur=" << stream_parser_buffer->duration().InMilliseconds();
 
   // Ignore the incoming buffer if it is not associated with any config.
   if (buffer_queue_chain_.empty()) {
@@ -845,22 +853,15 @@ void Mp2tStreamParser::OnEmitVideoBuffer(
   DCHECK_EQ(pes_pid, selected_video_pid_);
 
   DVLOG(LOG_LEVEL_ES)
-      << "OnEmitVideoBuffer"
-      << " size="
-      << stream_parser_buffer->data_size()
-      << " dts="
-      << stream_parser_buffer->GetDecodeTimestamp().InMilliseconds()
-      << " pts="
-      << stream_parser_buffer->timestamp().InMilliseconds()
-      << " dur="
-      << stream_parser_buffer->duration().InMilliseconds()
-      << " is_key_frame="
-      << stream_parser_buffer->is_key_frame();
+      << "OnEmitVideoBuffer" << " size=" << stream_parser_buffer->size()
+      << " dts=" << stream_parser_buffer->GetDecodeTimestamp().InMilliseconds()
+      << " pts=" << stream_parser_buffer->timestamp().InMilliseconds()
+      << " dur=" << stream_parser_buffer->duration().InMilliseconds()
+      << " is_key_frame=" << stream_parser_buffer->is_key_frame();
 
   // Ignore the incoming buffer if it is not associated with any config.
   if (buffer_queue_chain_.empty()) {
     NOTREACHED() << "Cannot provide buffers before configs";
-    return;
   }
 
   buffer_queue_chain_.back().video_queue.push_back(stream_parser_buffer);
@@ -902,8 +903,9 @@ bool Mp2tStreamParser::EmitRemainingBuffers() {
     if (!queue_with_config.is_config_sent) {
       std::unique_ptr<MediaTracks> media_tracks = GenerateMediaTrackInfo(
           queue_with_config.audio_config, queue_with_config.video_config);
-      if (!config_cb_.Run(std::move(media_tracks), TextTrackConfigMap()))
+      if (!config_cb_.Run(std::move(media_tracks))) {
         return false;
+      }
       queue_with_config.is_config_sent = true;
     }
 
@@ -1006,7 +1008,7 @@ void Mp2tStreamParser::RegisterNewKeyIdAndIv(const std::string& key_id,
         break;
       case EncryptionScheme::kCbcs:
         decrypt_config_ =
-            DecryptConfig::CreateCbcsConfig(key_id, iv, {}, absl::nullopt);
+            DecryptConfig::CreateCbcsConfig(key_id, iv, {}, std::nullopt);
         break;
     }
   }

@@ -5,16 +5,19 @@
 #include "base/memory/values_equivalent.h"
 #include "third_party/blink/renderer/core/animation/timeline_offset.h"
 #include "third_party/blink/renderer/core/css/css_content_distribution_value.h"
+#include "third_party/blink/renderer/core/css/css_gap_decoration_property_utils.h"
 #include "third_party/blink/renderer/core/css/css_identifier_value.h"
+#include "third_party/blink/renderer/core/css/css_identifier_value_mappings.h"
 #include "third_party/blink/renderer/core/css/css_initial_value.h"
 #include "third_party/blink/renderer/core/css/css_numeric_literal_value.h"
 #include "third_party/blink/renderer/core/css/css_pending_system_font_value.h"
-#include "third_party/blink/renderer/core/css/css_primitive_value_mappings.h"
 #include "third_party/blink/renderer/core/css/css_property_value.h"
 #include "third_party/blink/renderer/core/css/css_value_pair.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_context.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_fast_paths.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_local_context.h"
+#include "third_party/blink/renderer/core/css/parser/css_parser_save_point.h"
+#include "third_party/blink/renderer/core/css/parser/css_parser_token_stream.h"
 #include "third_party/blink/renderer/core/css/parser/font_variant_alternates_parser.h"
 #include "third_party/blink/renderer/core/css/parser/font_variant_east_asian_parser.h"
 #include "third_party/blink/renderer/core/css/parser/font_variant_ligatures_parser.h"
@@ -24,13 +27,14 @@
 #include "third_party/blink/renderer/core/css/properties/longhand.h"
 #include "third_party/blink/renderer/core/css/properties/longhands.h"
 #include "third_party/blink/renderer/core/css/properties/shorthands.h"
-#include "third_party/blink/renderer/core/css/style_property_serializer.h"
 #include "third_party/blink/renderer/core/css/zoom_adjusted_pixel_value.h"
 #include "third_party/blink/renderer/core/css_value_keywords.h"
+#include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/core/style_property_shorthand.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+#include "third_party/blink/renderer/platform/wtf/casting.h"
 
 // Implementations of methods in Shorthand subclasses that aren't generated.
 
@@ -39,62 +43,62 @@ namespace css_shorthand {
 
 namespace {
 
+// New animation-* properties are  "reset only":
+// https://github.com/w3c/csswg-drafts/issues/6946#issuecomment-1233190360
+bool IsResetOnlyAnimationProperty(CSSPropertyID property) {
+  switch (property) {
+    case CSSPropertyID::kAnimationTimeline:
+    case CSSPropertyID::kAnimationRangeStart:
+    case CSSPropertyID::kAnimationRangeEnd:
+      return true;
+    default:
+      return false;
+  }
+}
+
 // Legacy parsing allows <string>s for animation-name.
 CSSValue* ConsumeAnimationValue(CSSPropertyID property,
-                                CSSParserTokenRange& range,
+                                CSSParserTokenStream& stream,
                                 const CSSParserContext& context,
                                 bool use_legacy_parsing) {
   switch (property) {
     case CSSPropertyID::kAnimationDelay:
-      DCHECK(!RuntimeEnabledFeatures::CSSAnimationDelayStartEndEnabled());
       return css_parsing_utils::ConsumeTime(
-          range, context, CSSPrimitiveValue::ValueRange::kAll);
-    case CSSPropertyID::kAnimationDelayStart:
-      DCHECK(RuntimeEnabledFeatures::CSSAnimationDelayStartEndEnabled());
-      return css_parsing_utils::ConsumeAnimationDelay(range, context);
-    case CSSPropertyID::kAnimationDelayEnd:
-      // New animation-* properties are  "reset only":
-      // https://github.com/w3c/csswg-drafts/issues/6946#issuecomment-1233190360
-      //
-      // Returning nullptr here means that AnimationDelayEnd::InitialValue will
-      // be used.
-      DCHECK(RuntimeEnabledFeatures::CSSAnimationDelayStartEndEnabled());
-      return nullptr;
+          stream, context, CSSPrimitiveValue::ValueRange::kAll);
     case CSSPropertyID::kAnimationDirection:
       return css_parsing_utils::ConsumeIdent<
           CSSValueID::kNormal, CSSValueID::kAlternate, CSSValueID::kReverse,
-          CSSValueID::kAlternateReverse>(range);
+          CSSValueID::kAlternateReverse>(stream);
     case CSSPropertyID::kAnimationDuration:
-      return css_parsing_utils::ConsumeAnimationDuration(range, context);
+      return css_parsing_utils::ConsumeAnimationDuration(stream, context);
     case CSSPropertyID::kAnimationFillMode:
       return css_parsing_utils::ConsumeIdent<
           CSSValueID::kNone, CSSValueID::kForwards, CSSValueID::kBackwards,
-          CSSValueID::kBoth>(range);
+          CSSValueID::kBoth>(stream);
     case CSSPropertyID::kAnimationIterationCount:
-      return css_parsing_utils::ConsumeAnimationIterationCount(range, context);
+      return css_parsing_utils::ConsumeAnimationIterationCount(stream, context);
     case CSSPropertyID::kAnimationName:
-      return css_parsing_utils::ConsumeAnimationName(range, context,
+      return css_parsing_utils::ConsumeAnimationName(stream, context,
                                                      use_legacy_parsing);
     case CSSPropertyID::kAnimationPlayState:
       return css_parsing_utils::ConsumeIdent<CSSValueID::kRunning,
-                                             CSSValueID::kPaused>(range);
+                                             CSSValueID::kPaused>(stream);
     case CSSPropertyID::kAnimationTimingFunction:
-      return css_parsing_utils::ConsumeAnimationTimingFunction(range, context);
+      return css_parsing_utils::ConsumeAnimationTimingFunction(stream, context);
     case CSSPropertyID::kAnimationTimeline:
     case CSSPropertyID::kAnimationRangeStart:
     case CSSPropertyID::kAnimationRangeEnd:
-      // New animation-* properties are  "reset only", see kAnimationDelayEnd.
-      DCHECK(RuntimeEnabledFeatures::ScrollTimelineEnabled());
+      // New animation-* properties are  "reset only", see
+      // IsResetOnlyAnimationProperty.
       return nullptr;
     default:
       NOTREACHED();
-      return nullptr;
   }
 }
 
 bool ParseAnimationShorthand(const StylePropertyShorthand& shorthand,
                              bool important,
-                             CSSParserTokenRange& range,
+                             CSSParserTokenStream& stream,
                              const CSSParserContext& context,
                              const CSSParserLocalContext& local_context,
                              HeapVector<CSSPropertyValue, 64>& properties) {
@@ -103,7 +107,8 @@ bool ParseAnimationShorthand(const StylePropertyShorthand& shorthand,
   HeapVector<Member<CSSValueList>, css_parsing_utils::kMaxNumAnimationLonghands>
       longhands(longhand_count);
   if (!css_parsing_utils::ConsumeAnimationShorthand(
-          shorthand, longhands, ConsumeAnimationValue, range, context,
+          shorthand, longhands, ConsumeAnimationValue,
+          IsResetOnlyAnimationProperty, stream, context,
           local_context.UseAliasParsing())) {
     return false;
   }
@@ -114,21 +119,32 @@ bool ParseAnimationShorthand(const StylePropertyShorthand& shorthand,
         important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
         properties);
   }
-  return range.AtEnd();
+  return true;
 }
 
 const CSSValue* CSSValueFromComputedAnimation(
     const StylePropertyShorthand& shorthand,
     const CSSAnimationData* animation_data) {
   if (animation_data) {
+    // The shorthand can not represent the following properties if they have
+    // non-initial values. This is because they are always reset to their
+    // initial value by the shorthand.
+    if (!animation_data->HasSingleInitialTimeline() ||
+        !animation_data->HasSingleInitialDelayEnd() ||
+        !animation_data->HasSingleInitialRangeStart() ||
+        !animation_data->HasSingleInitialRangeEnd()) {
+      return nullptr;
+    }
+
     CSSValueList* animations_list = CSSValueList::CreateCommaSeparated();
     for (wtf_size_t i = 0; i < animation_data->NameList().size(); ++i) {
       CSSValueList* list = CSSValueList::CreateSpaceSeparated();
       list->Append(*ComputedStyleUtils::ValueForAnimationDuration(
-          CSSTimingData::GetRepeated(animation_data->DurationList(), i)));
+          CSSTimingData::GetRepeated(animation_data->DurationList(), i),
+          /* resolve_auto_to_zero */ true));
       list->Append(*ComputedStyleUtils::ValueForAnimationTimingFunction(
           CSSTimingData::GetRepeated(animation_data->TimingFunctionList(), i)));
-      list->Append(*ComputedStyleUtils::ValueForAnimationDelayStart(
+      list->Append(*ComputedStyleUtils::ValueForAnimationDelay(
           CSSTimingData::GetRepeated(animation_data->DelayStartList(), i)));
       list->Append(*ComputedStyleUtils::ValueForAnimationIterationCount(
           CSSTimingData::GetRepeated(animation_data->IterationCountList(), i)));
@@ -140,25 +156,6 @@ const CSSValue* CSSValueFromComputedAnimation(
           CSSTimingData::GetRepeated(animation_data->PlayStateList(), i)));
       list->Append(*MakeGarbageCollected<CSSCustomIdentValue>(
           animation_data->NameList()[i]));
-      // The shorthand can not represent the following properties if they have
-      // non-initial values. This is because they are always reset to their
-      // initial value by the shorthand.
-      if (CSSAnimationData::InitialTimeline() !=
-          animation_data->GetTimeline(i)) {
-        return nullptr;
-      }
-      if (CSSAnimationData::InitialDelayEnd() !=
-          CSSTimingData::GetRepeated(animation_data->DelayEndList(), i)) {
-        return nullptr;
-      }
-      if (CSSAnimationData::InitialRangeStart() !=
-          CSSTimingData::GetRepeated(animation_data->RangeStartList(), i)) {
-        return nullptr;
-      }
-      if (CSSAnimationData::InitialRangeEnd() !=
-          CSSTimingData::GetRepeated(animation_data->RangeEndList(), i)) {
-        return nullptr;
-      }
       animations_list->Append(*list);
     }
     return animations_list;
@@ -168,10 +165,11 @@ const CSSValue* CSSValueFromComputedAnimation(
   // animation-name default value.
   list->Append(*CSSIdentifierValue::Create(CSSValueID::kNone));
   list->Append(*ComputedStyleUtils::ValueForAnimationDuration(
-      CSSAnimationData::InitialDuration()));
+      CSSAnimationData::InitialDuration(),
+      /* resolve_auto_to_zero */ true));
   list->Append(*ComputedStyleUtils::ValueForAnimationTimingFunction(
       CSSAnimationData::InitialTimingFunction()));
-  list->Append(*ComputedStyleUtils::ValueForAnimationDelayStart(
+  list->Append(*ComputedStyleUtils::ValueForAnimationDelay(
       CSSAnimationData::InitialDelayStart()));
   list->Append(*ComputedStyleUtils::ValueForAnimationIterationCount(
       CSSAnimationData::InitialIterationCount()));
@@ -184,133 +182,85 @@ const CSSValue* CSSValueFromComputedAnimation(
   return list;
 }
 
+bool ParseBackgroundOrMaskPosition(
+    const StylePropertyShorthand& shorthand,
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    std::optional<WebFeature> three_value_position,
+    HeapVector<CSSPropertyValue, 64>& properties) {
+  const CSSValue* result_x = nullptr;
+  const CSSValue* result_y = nullptr;
+  if (!css_parsing_utils::ConsumeBackgroundPosition(
+          stream, context, css_parsing_utils::UnitlessQuirk::kAllow,
+          three_value_position, result_x, result_y)) {
+    return false;
+  }
+  const StylePropertyShorthand::Properties& longhands = shorthand.properties();
+  DCHECK_EQ(2u, longhands.size());
+  css_parsing_utils::AddProperty(
+      longhands[0]->PropertyID(), shorthand.id(), *result_x, important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  css_parsing_utils::AddProperty(
+      longhands[1]->PropertyID(), shorthand.id(), *result_y, important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  return true;
+}
+
 }  // namespace
 
 bool Animation::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
-  return ParseAnimationShorthand(animationShorthand(), important, range,
+  return ParseAnimationShorthand(animationShorthand(), important, stream,
                                  context, local_context, properties);
 }
 
 const CSSValue* Animation::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return CSSValueFromComputedAnimation(animationShorthand(),
                                        style.Animations());
 }
 
-bool AlternativeAnimationWithTimeline::ParseShorthand(
-    bool important,
-    CSSParserTokenRange& range,
-    const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
-    HeapVector<CSSPropertyValue, 64>& properties) const {
-  return ParseAnimationShorthand(alternativeAnimationWithTimelineShorthand(),
-                                 important, range, context, local_context,
-                                 properties);
-}
-
-const CSSValue*
-AlternativeAnimationWithTimeline::CSSValueFromComputedStyleInternal(
-    const ComputedStyle& style,
-    const LayoutObject*,
-    bool allow_visited_style) const {
-  return CSSValueFromComputedAnimation(
-      alternativeAnimationWithTimelineShorthand(), style.Animations());
-}
-
-bool AlternativeAnimationWithDelayStartEnd::ParseShorthand(
-    bool important,
-    CSSParserTokenRange& range,
-    const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
-    HeapVector<CSSPropertyValue, 64>& properties) const {
-  return ParseAnimationShorthand(
-      alternativeAnimationWithDelayStartEndShorthand(), important, range,
-      context, local_context, properties);
-}
-
-const CSSValue*
-AlternativeAnimationWithDelayStartEnd::CSSValueFromComputedStyleInternal(
-    const ComputedStyle& style,
-    const LayoutObject*,
-    bool allow_visited_style) const {
-  return CSSValueFromComputedAnimation(
-      alternativeAnimationWithDelayStartEndShorthand(), style.Animations());
-}
-
 namespace {
 
-// Consume a single <animation-delay-start> and a single
-// <animation-delay-end>, and append the result to `start_list` and
-// `end_list` respectively.
-bool ConsumeAnimationDelayItemInto(CSSParserTokenRange& range,
+// Consume a single <animation-{trigger-{exit-}}range-start> and a single
+// <animation-{trigger-{exit-}}range-end>, and append the result to `start_list`
+// and `end_list` respectively.
+//
+// They keyword `auto` is allowed when parsing animation-trigger-exit-range.
+// https://drafts.csswg.org/css-animations-2/#animation-trigger-exit-range
+bool ConsumeAnimationRangeItemInto(CSSParserTokenStream& stream,
                                    const CSSParserContext& context,
                                    CSSValueList* start_list,
-                                   CSSValueList* end_list) {
-  using css_parsing_utils::ConsumeAnimationDelay;
-
-  const CSSValue* start_delay = ConsumeAnimationDelay(range, context);
-  const CSSValue* end_delay = ConsumeAnimationDelay(range, context);
-
-  if (!start_delay) {
-    return false;
-  }
-
-  // If the <animation-delay-end> value is omitted, it is set to zero.
-  //
-  // https://drafts.csswg.org/scroll-animations-1/#propdef-animation-delay
-  if (!end_delay) {
-    end_delay = CSSNumericLiteralValue::Create(
-        0, CSSPrimitiveValue::UnitType::kSeconds);
-  }
-
-  DCHECK(start_delay);
-  DCHECK(end_delay);
-
-  start_list->Append(*start_delay);
-  end_list->Append(*end_delay);
-
-  return true;
-}
-
-// Consume a single <animation-range-start> and a single
-// <animation-range-end>, and append the result to `start_list` and
-// `end_list` respectively.
-bool ConsumeAnimationRangeItemInto(CSSParserTokenRange& range,
-                                   const CSSParserContext& context,
-                                   CSSValueList* start_list,
-                                   CSSValueList* end_list) {
+                                   CSSValueList* end_list,
+                                   bool allow_auto) {
   using css_parsing_utils::ConsumeAnimationRange;
   using css_parsing_utils::ConsumeTimelineRangeName;
 
-  const CSSValue* start_range =
-      ConsumeAnimationRange(range, context, /* default_offset_percent */ 0.0);
-  const CSSValue* end_range =
-      ConsumeAnimationRange(range, context, /* default_offset_percent */ 100.0);
+  const CSSValue* start_range = ConsumeAnimationRange(
+      stream, context, /* default_offset_percent */ 0.0, allow_auto);
+  const CSSValue* end_range = ConsumeAnimationRange(
+      stream, context, /* default_offset_percent */ 100.0, allow_auto);
 
-  // The form 'name X' must expand to 'name X name 100%'.
-  //
-  // https://github.com/w3c/csswg-drafts/issues/8438
-  if (start_range && start_range->IsValueList() && !end_range) {
-    CSSValueList* implied_end = CSSValueList::CreateSpaceSeparated();
-    const CSSValue& name = To<CSSValueList>(start_range)->First();
-    if (name.IsIdentifierValue()) {
-      implied_end->Append(name);
-      end_range = implied_end;
-    }
+  if (!end_range) {
+    end_range = css_parsing_utils::GetImpliedRangeEnd(start_range);
   }
 
   if (!start_range) {
     return false;
   }
   if (!end_range) {
-    end_range = CSSIdentifierValue::Create(CSSValueID::kNormal);
+    // Whenever `auto` is allowed, is it also assumed to be
+    // the default value for an omitted "end".
+    end_range = allow_auto ? CSSIdentifierValue::Create(CSSValueID::kAuto)
+                           : CSSIdentifierValue::Create(CSSValueID::kNormal);
   }
 
   DCHECK(start_range);
@@ -322,136 +272,10 @@ bool ConsumeAnimationRangeItemInto(CSSParserTokenRange& range,
   return true;
 }
 
-}  // namespace
-
-bool AlternativeAnimationDelay::ParseShorthand(
-    bool important,
-    CSSParserTokenRange& range,
-    const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
-    HeapVector<CSSPropertyValue, 64>& properties) const {
-  DCHECK(RuntimeEnabledFeatures::CSSAnimationDelayStartEndEnabled());
-
-  using css_parsing_utils::AddProperty;
-  using css_parsing_utils::ConsumeCommaIncludingWhitespace;
-  using css_parsing_utils::IsImplicitProperty;
-
-  const StylePropertyShorthand shorthand = alternativeAnimationDelayShorthand();
-  DCHECK_EQ(2u, shorthand.length());
-  DCHECK_EQ(&GetCSSPropertyAnimationDelayStart(), shorthand.properties()[0]);
-  DCHECK_EQ(&GetCSSPropertyAnimationDelayEnd(), shorthand.properties()[1]);
-
-  CSSValueList* start_list = CSSValueList::CreateCommaSeparated();
-  CSSValueList* end_list = CSSValueList::CreateCommaSeparated();
-
-  do {
-    if (!ConsumeAnimationDelayItemInto(range, context, start_list, end_list)) {
-      return false;
-    }
-  } while (ConsumeCommaIncludingWhitespace(range));
-
-  DCHECK(start_list->length());
-  DCHECK(end_list->length());
-  DCHECK_EQ(start_list->length(), end_list->length());
-
-  AddProperty(CSSPropertyID::kAnimationDelayStart,
-              CSSPropertyID::kAlternativeAnimationDelay, *start_list, important,
-              IsImplicitProperty::kNotImplicit, properties);
-  AddProperty(CSSPropertyID::kAnimationDelayEnd,
-              CSSPropertyID::kAlternativeAnimationDelay, *end_list, important,
-              IsImplicitProperty::kNotImplicit, properties);
-
-  return range.AtEnd();
-}
-
-const CSSValue* AlternativeAnimationDelay::CSSValueFromComputedStyleInternal(
+const CSSValue* AnimationRangeCSSValueFromComputedStyle(
     const ComputedStyle& style,
-    const LayoutObject*,
-    bool allow_visited_style) const {
-  const Vector<Timing::Delay>& delay_start_list =
-      style.Animations()
-          ? style.Animations()->DelayStartList()
-          : Vector<Timing::Delay>{CSSAnimationData::InitialDelayStart()};
-  const Vector<Timing::Delay>& delay_end_list =
-      style.Animations()
-          ? style.Animations()->DelayEndList()
-          : Vector<Timing::Delay>{CSSAnimationData::InitialDelayEnd()};
-
-  if (delay_start_list.size() != delay_end_list.size()) {
-    return nullptr;
-  }
-
-  auto* outer_list = CSSValueList::CreateCommaSeparated();
-
-  for (wtf_size_t i = 0; i < delay_start_list.size(); ++i) {
-    const Timing::Delay& end = delay_end_list[i];
-
-    auto* inner_list = CSSValueList::CreateSpaceSeparated();
-    inner_list->Append(
-        *ComputedStyleUtils::ValueForAnimationDelayStart(delay_start_list[i]));
-    if (end != CSSTimingData::InitialDelayEnd()) {
-      inner_list->Append(
-          *ComputedStyleUtils::ValueForAnimationDelayEnd(delay_end_list[i]));
-    }
-    outer_list->Append(*inner_list);
-  }
-
-  return outer_list;
-}
-
-bool AnimationRange::ParseShorthand(
-    bool important,
-    CSSParserTokenRange& range,
-    const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
-    HeapVector<CSSPropertyValue, 64>& properties) const {
-  DCHECK(RuntimeEnabledFeatures::ScrollTimelineEnabled());
-
-  using css_parsing_utils::AddProperty;
-  using css_parsing_utils::ConsumeCommaIncludingWhitespace;
-  using css_parsing_utils::IsImplicitProperty;
-
-  const StylePropertyShorthand shorthand = animationRangeShorthand();
-  DCHECK_EQ(2u, shorthand.length());
-  DCHECK_EQ(&GetCSSPropertyAnimationRangeStart(), shorthand.properties()[0]);
-  DCHECK_EQ(&GetCSSPropertyAnimationRangeEnd(), shorthand.properties()[1]);
-
-  CSSValueList* start_list = CSSValueList::CreateCommaSeparated();
-  CSSValueList* end_list = CSSValueList::CreateCommaSeparated();
-
-  do {
-    if (!ConsumeAnimationRangeItemInto(range, context, start_list, end_list)) {
-      return false;
-    }
-  } while (ConsumeCommaIncludingWhitespace(range));
-
-  DCHECK(start_list->length());
-  DCHECK(end_list->length());
-  DCHECK_EQ(start_list->length(), end_list->length());
-
-  AddProperty(CSSPropertyID::kAnimationRangeStart,
-              CSSPropertyID::kAnimationRange, *start_list, important,
-              IsImplicitProperty::kNotImplicit, properties);
-  AddProperty(CSSPropertyID::kAnimationRangeEnd, CSSPropertyID::kAnimationRange,
-              *end_list, important, IsImplicitProperty::kNotImplicit,
-              properties);
-
-  return range.AtEnd();
-}
-
-const CSSValue* AnimationRange::CSSValueFromComputedStyleInternal(
-    const ComputedStyle& style,
-    const LayoutObject*,
-    bool allow_visited_style) const {
-  const Vector<absl::optional<TimelineOffset>>& range_start_list =
-      style.Animations() ? style.Animations()->RangeStartList()
-                         : Vector<absl::optional<TimelineOffset>>{
-                               CSSAnimationData::InitialRangeStart()};
-  const Vector<absl::optional<TimelineOffset>>& range_end_list =
-      style.Animations() ? style.Animations()->RangeEndList()
-                         : Vector<absl::optional<TimelineOffset>>{
-                               CSSAnimationData::InitialRangeEnd()};
-
+    const Vector<std::optional<TimelineOffset>>& range_start_list,
+    const Vector<std::optional<TimelineOffset>>& range_end_list) {
   if (range_start_list.size() != range_end_list.size()) {
     return nullptr;
   }
@@ -460,16 +284,15 @@ const CSSValue* AnimationRange::CSSValueFromComputedStyleInternal(
                                Length::Percent(0));
   TimelineOffset default_end(TimelineOffset::NamedRange::kNone,
                              Length::Percent(100));
-
   auto* outer_list = CSSValueList::CreateCommaSeparated();
 
   for (wtf_size_t i = 0; i < range_start_list.size(); ++i) {
-    const absl::optional<TimelineOffset>& start = range_start_list[i];
-    const absl::optional<TimelineOffset>& end = range_end_list[i];
+    const std::optional<TimelineOffset>& start = range_start_list[i];
+    const std::optional<TimelineOffset>& end = range_end_list[i];
 
     auto* inner_list = CSSValueList::CreateSpaceSeparated();
-    inner_list->Append(
-        *ComputedStyleUtils::ValueForAnimationRangeStart(start, style));
+    inner_list->Append(*ComputedStyleUtils::ValueForAnimationRange(
+        start, style, Length::Percent(0.0)));
 
     // The form "name X name 100%" must contract to "name X".
     //
@@ -477,8 +300,8 @@ const CSSValue* AnimationRange::CSSValueFromComputedStyleInternal(
     TimelineOffset omittable_end(start.value_or(default_start).name,
                                  Length::Percent(100));
     if (end.value_or(default_end) != omittable_end) {
-      inner_list->Append(
-          *ComputedStyleUtils::ValueForAnimationRangeEnd(end, style));
+      inner_list->Append(*ComputedStyleUtils::ValueForAnimationRange(
+          end, style, Length::Percent(100.0)));
     }
     outer_list->Append(*inner_list);
   }
@@ -486,129 +309,335 @@ const CSSValue* AnimationRange::CSSValueFromComputedStyleInternal(
   return outer_list;
 }
 
-bool Background::ParseShorthand(
+const CSSValue* AnimationTriggerExitRangeCSSValueFromComputedStyle(
+    const ComputedStyle& style,
+    const Vector<TimelineOffsetOrAuto>& range_start_list,
+    const Vector<TimelineOffsetOrAuto>& range_end_list) {
+  if (range_start_list.size() != range_end_list.size()) {
+    return nullptr;
+  }
+
+  TimelineOffset default_start(TimelineOffset::NamedRange::kNone,
+                               Length::Percent(0));
+  TimelineOffset default_end(TimelineOffset::NamedRange::kNone,
+                             Length::Percent(100));
+  auto* outer_list = CSSValueList::CreateCommaSeparated();
+
+  for (wtf_size_t i = 0; i < range_start_list.size(); ++i) {
+    const TimelineOffsetOrAuto& start = range_start_list[i];
+    const TimelineOffsetOrAuto& end = range_end_list[i];
+
+    auto* inner_list = CSSValueList::CreateSpaceSeparated();
+    inner_list->Append(*ComputedStyleUtils::ValueForAnimationRangeOrAuto(
+        start, style, Length::Percent(0.0)));
+
+    // The form "name X name 100%" must contract to "name X".
+    //
+    // https://github.com/w3c/csswg-drafts/issues/8438
+    TimelineOffset omittable_end(
+        start.GetTimelineOffset().value_or(default_start).name,
+        Length::Percent(100));
+    if (end.GetTimelineOffset().value_or(default_end) != omittable_end) {
+      inner_list->Append(*ComputedStyleUtils::ValueForAnimationRangeOrAuto(
+          end, style, Length::Percent(100.0)));
+    }
+    outer_list->Append(*inner_list);
+  }
+
+  return outer_list;
+}
+
+bool ParseAnimationRangeShorthand(const StylePropertyShorthand& shorthand,
+                                  CSSPropertyID start_longhand_id,
+                                  CSSPropertyID end_longhand_id,
+                                  bool important,
+                                  CSSParserTokenStream& stream,
+                                  const CSSParserContext& context,
+                                  HeapVector<CSSPropertyValue, 64>& properties,
+                                  bool allow_auto) {
+  using css_parsing_utils::AddProperty;
+  using css_parsing_utils::ConsumeCommaIncludingWhitespace;
+  using css_parsing_utils::IsImplicitProperty;
+
+  CSSValueList* start_list = CSSValueList::CreateCommaSeparated();
+  CSSValueList* end_list = CSSValueList::CreateCommaSeparated();
+
+  do {
+    if (!ConsumeAnimationRangeItemInto(stream, context, start_list, end_list,
+                                       allow_auto)) {
+      return false;
+    }
+  } while (ConsumeCommaIncludingWhitespace(stream));
+
+  DCHECK(start_list->length());
+  DCHECK(end_list->length());
+  DCHECK_EQ(start_list->length(), end_list->length());
+
+  AddProperty(start_longhand_id, shorthand.id(), *start_list, important,
+              IsImplicitProperty::kNotImplicit, properties);
+  AddProperty(end_longhand_id, shorthand.id(), *end_list, important,
+              IsImplicitProperty::kNotImplicit, properties);
+
+  return true;
+}
+
+}  // namespace
+
+bool AnimationRange::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
-  return css_parsing_utils::ParseBackgroundOrMask(important, range, context,
+  const StylePropertyShorthand shorthand = animationRangeShorthand();
+  DCHECK_EQ(2u, shorthand.length());
+  DCHECK_EQ(&GetCSSPropertyAnimationRangeStart(), shorthand.properties()[0]);
+  DCHECK_EQ(&GetCSSPropertyAnimationRangeEnd(), shorthand.properties()[1]);
+  return ParseAnimationRangeShorthand(
+      shorthand, CSSPropertyID::kAnimationRangeStart,
+      CSSPropertyID::kAnimationRangeEnd, important, stream, context, properties,
+      /*allow_auto=*/false);
+}
+
+const CSSValue* AnimationRange::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject*,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  const Vector<std::optional<TimelineOffset>>& range_start_list =
+      style.Animations() ? style.Animations()->RangeStartList()
+                         : Vector<std::optional<TimelineOffset>>{
+                               CSSAnimationData::InitialRangeStart()};
+  const Vector<std::optional<TimelineOffset>>& range_end_list =
+      style.Animations() ? style.Animations()->RangeEndList()
+                         : Vector<std::optional<TimelineOffset>>{
+                               CSSAnimationData::InitialRangeEnd()};
+
+  return AnimationRangeCSSValueFromComputedStyle(style, range_start_list,
+                                                 range_end_list);
+}
+
+const CSSValue* AnimationTrigger::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject*,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  if (const CSSAnimationData* animation_data = style.Animations()) {
+    CSSValueList* animations_list = CSSValueList::CreateCommaSeparated();
+    for (wtf_size_t i = 0; i < animation_data->NameList().size(); ++i) {
+      CSSValueList* list = CSSValueList::CreateSpaceSeparated();
+      list->Append(*ComputedStyleUtils::ValueForAnimationTimeline(
+          animation_data->TriggerTimelineList().at(i)));
+      list->Append(*ComputedStyleUtils::ValueForAnimationTriggerType(
+          animation_data->TriggerTypeList().at(i)));
+      list->Append(*ComputedStyleUtils::ValueForAnimationRange(
+          animation_data->TriggerRangeStartList().at(i), style,
+          Length::Percent(0.0)));
+      list->Append(*ComputedStyleUtils::ValueForAnimationRange(
+          animation_data->TriggerRangeEndList().at(i), style,
+          Length::Percent(100)));
+      list->Append(*ComputedStyleUtils::ValueForAnimationRangeOrAuto(
+          animation_data->TriggerExitRangeStartList().at(i), style,
+          Length::Percent(0.0)));
+      list->Append(*ComputedStyleUtils::ValueForAnimationRangeOrAuto(
+          animation_data->TriggerExitRangeEndList().at(i), style,
+          Length::Percent(100)));
+      animations_list->Append(*list);
+    }
+    return animations_list;
+  }
+
+  CSSValueList* list = CSSValueList::CreateSpaceSeparated();
+  list->Append(*ComputedStyleUtils::ValueForAnimationTimeline(
+      CSSAnimationData::InitialTriggerTimeline()));
+  list->Append(*ComputedStyleUtils::ValueForAnimationTriggerType(
+      CSSAnimationData::InitialTriggerType()));
+  list->Append(*ComputedStyleUtils::ValueForAnimationRange(
+      CSSAnimationData::InitialTriggerRangeStart(), style,
+      Length::Percent(0.0)));
+  list->Append(*ComputedStyleUtils::ValueForAnimationRange(
+      CSSAnimationData::InitialTriggerRangeEnd(), style, Length::Percent(100)));
+  list->Append(*ComputedStyleUtils::ValueForAnimationRangeOrAuto(
+      CSSAnimationData::InitialTriggerExitRangeStart(), style,
+      Length::Percent(0.0)));
+  list->Append(*ComputedStyleUtils::ValueForAnimationRangeOrAuto(
+      CSSAnimationData::InitialTriggerExitRangeEnd(), style,
+      Length::Percent(100)));
+
+  return list;
+}
+
+bool AnimationTrigger::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext& local_context,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  const StylePropertyShorthand& shorthand = animationTriggerShorthand();
+  const unsigned longhand_count = shorthand.length();
+  HeapVector<Member<CSSValueList>,
+             css_parsing_utils::kMaxNumAnimationTriggerLonghands>
+      longhands(longhand_count);
+
+  if (!css_parsing_utils::ConsumeAnimationTriggerShorthand(shorthand, longhands,
+                                                           stream, context)) {
+    return false;
+  }
+
+  for (unsigned i = 0; i < longhand_count; ++i) {
+    css_parsing_utils::AddProperty(
+        shorthand.properties()[i]->PropertyID(), shorthand.id(), *longhands[i],
+        important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
+        properties);
+  }
+
+  return true;
+}
+
+bool AnimationTriggerRange::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext& local_context,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  const StylePropertyShorthand shorthand = animationTriggerRangeShorthand();
+  DCHECK_EQ(2u, shorthand.length());
+  DCHECK_EQ(&GetCSSPropertyAnimationTriggerRangeStart(),
+            shorthand.properties()[0]);
+  DCHECK_EQ(&GetCSSPropertyAnimationTriggerRangeEnd(),
+            shorthand.properties()[1]);
+  return ParseAnimationRangeShorthand(
+      shorthand, CSSPropertyID::kAnimationTriggerRangeStart,
+      CSSPropertyID::kAnimationTriggerRangeEnd, important, stream, context,
+      properties, /*allow_auto=*/false);
+}
+
+const CSSValue* AnimationTriggerRange::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject*,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  const Vector<std::optional<TimelineOffset>>& range_start_list =
+      style.Animations() ? style.Animations()->TriggerRangeStartList()
+                         : Vector<std::optional<TimelineOffset>>{
+                               CSSAnimationData::InitialTriggerRangeStart()};
+  const Vector<std::optional<TimelineOffset>>& range_end_list =
+      style.Animations() ? style.Animations()->TriggerRangeEndList()
+                         : Vector<std::optional<TimelineOffset>>{
+                               CSSAnimationData::InitialTriggerRangeEnd()};
+
+  return AnimationRangeCSSValueFromComputedStyle(style, range_start_list,
+                                                 range_end_list);
+}
+
+bool AnimationTriggerExitRange::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext& local_context,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  const StylePropertyShorthand shorthand = animationTriggerExitRangeShorthand();
+  DCHECK_EQ(2u, shorthand.length());
+  DCHECK_EQ(&GetCSSPropertyAnimationTriggerExitRangeStart(),
+            shorthand.properties()[0]);
+  DCHECK_EQ(&GetCSSPropertyAnimationTriggerExitRangeEnd(),
+            shorthand.properties()[1]);
+  return ParseAnimationRangeShorthand(
+      shorthand, CSSPropertyID::kAnimationTriggerExitRangeStart,
+      CSSPropertyID::kAnimationTriggerExitRangeEnd, important, stream, context,
+      properties, /*allow_auto=*/true);
+}
+
+const CSSValue* AnimationTriggerExitRange::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject*,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  const Vector<TimelineOffsetOrAuto>& range_start_list =
+      style.Animations()
+          ? style.Animations()->TriggerExitRangeStartList()
+          : Vector<TimelineOffsetOrAuto>{
+                CSSAnimationData::InitialTriggerExitRangeStart()};
+  const Vector<TimelineOffsetOrAuto>& range_end_list =
+      style.Animations() ? style.Animations()->TriggerExitRangeEndList()
+                         : Vector<TimelineOffsetOrAuto>{
+                               CSSAnimationData::InitialTriggerExitRangeEnd()};
+
+  return AnimationTriggerExitRangeCSSValueFromComputedStyle(
+      style, range_start_list, range_end_list);
+}
+
+bool Background::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext& local_context,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  return css_parsing_utils::ParseBackgroundOrMask(important, stream, context,
                                                   local_context, properties);
 }
 
 const CSSValue* Background::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
-  return ComputedStyleUtils::ValuesForBackgroundShorthand(style, layout_object,
-                                                          allow_visited_style);
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::ValuesForBackgroundShorthand(
+      style, layout_object, allow_visited_style, value_phase);
 }
 
 bool BackgroundPosition::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
-  CSSValue* result_x = nullptr;
-  CSSValue* result_y = nullptr;
-
-  if (!css_parsing_utils::ConsumeBackgroundPosition(
-          range, context, css_parsing_utils::UnitlessQuirk::kAllow, result_x,
-          result_y) ||
-      !range.AtEnd()) {
-    return false;
-  }
-
-  css_parsing_utils::AddProperty(
-      CSSPropertyID::kBackgroundPositionX, CSSPropertyID::kBackgroundPosition,
-      *result_x, important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
-      properties);
-
-  css_parsing_utils::AddProperty(
-      CSSPropertyID::kBackgroundPositionY, CSSPropertyID::kBackgroundPosition,
-      *result_y, important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
-      properties);
-  return true;
+  return ParseBackgroundOrMaskPosition(
+      backgroundPositionShorthand(), important, stream, context,
+      WebFeature::kThreeValuedPositionBackground, properties);
 }
 
 const CSSValue* BackgroundPosition::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
-    bool allow_visited_style) const {
-  return ComputedStyleUtils::BackgroundPositionOrWebkitMaskPosition(
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::BackgroundPositionOrMaskPosition(
       *this, style, &style.BackgroundLayers());
-}
-
-bool BackgroundRepeat::ParseShorthand(
-    bool important,
-    CSSParserTokenRange& range,
-    const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
-    HeapVector<CSSPropertyValue, 64>& properties) const {
-  CSSValue* result_x = nullptr;
-  CSSValue* result_y = nullptr;
-  bool implicit = false;
-  if (!css_parsing_utils::ConsumeRepeatStyle(range, result_x, result_y,
-                                             implicit) ||
-      !range.AtEnd()) {
-    return false;
-  }
-
-  css_parsing_utils::AddProperty(
-      CSSPropertyID::kBackgroundRepeatX, CSSPropertyID::kBackgroundRepeat,
-      *result_x, important,
-      implicit ? css_parsing_utils::IsImplicitProperty::kImplicit
-               : css_parsing_utils::IsImplicitProperty::kNotImplicit,
-      properties);
-  css_parsing_utils::AddProperty(
-      CSSPropertyID::kBackgroundRepeatY, CSSPropertyID::kBackgroundRepeat,
-      *result_y, important,
-      implicit ? css_parsing_utils::IsImplicitProperty::kImplicit
-               : css_parsing_utils::IsImplicitProperty::kNotImplicit,
-      properties);
-
-  return true;
-}
-
-const CSSValue* BackgroundRepeat::CSSValueFromComputedStyleInternal(
-    const ComputedStyle& style,
-    const LayoutObject*,
-    bool allow_visited_style) const {
-  return ComputedStyleUtils::BackgroundRepeatOrWebkitMaskRepeat(
-      &style.BackgroundLayers());
 }
 
 bool BorderBlockColor::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
-      borderBlockColorShorthand(), important, context, range, properties);
+      borderBlockColorShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* BorderBlockColor::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForInlineBlockShorthand(
-      borderBlockColorShorthand(), style, layout_object, allow_visited_style);
+      borderBlockColorShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool BorderBlock::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    const CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   const CSSValue* width = nullptr;
   const CSSValue* style = nullptr;
   const CSSValue* color = nullptr;
 
-  if (!css_parsing_utils::ConsumeBorderShorthand(range, context, width, style,
-                                                 color)) {
+  if (!css_parsing_utils::ConsumeBorderShorthand(stream, context, local_context,
+                                                 width, style, color)) {
     return false;
   };
 
@@ -619,19 +648,20 @@ bool BorderBlock::ParseShorthand(
   css_parsing_utils::AddExpandedPropertyForValue(
       CSSPropertyID::kBorderBlockColor, *color, important, properties);
 
-  return range.AtEnd();
+  return true;
 }
 
 const CSSValue* BorderBlock::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   const CSSValue* value_start =
       GetCSSPropertyBorderBlockStart().CSSValueFromComputedStyle(
-          style, layout_object, allow_visited_style);
+          style, layout_object, allow_visited_style, value_phase);
   const CSSValue* value_end =
       GetCSSPropertyBorderBlockEnd().CSSValueFromComputedStyle(
-          style, layout_object, allow_visited_style);
+          style, layout_object, allow_visited_style, value_phase);
   if (!base::ValuesEquivalent(value_start, value_end)) {
     return nullptr;
   }
@@ -640,108 +670,116 @@ const CSSValue* BorderBlock::CSSValueFromComputedStyleInternal(
 
 bool BorderBlockEnd::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
-      borderBlockEndShorthand(), important, context, range, properties);
+      borderBlockEndShorthand(), important, context, stream, properties);
 }
 
 bool BorderBlockStart::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
-      borderBlockStartShorthand(), important, context, range, properties);
+      borderBlockStartShorthand(), important, context, stream, properties);
 }
 
 bool BorderBlockStyle::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
-      borderBlockStyleShorthand(), important, context, range, properties);
+      borderBlockStyleShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* BorderBlockStyle::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForInlineBlockShorthand(
-      borderBlockStyleShorthand(), style, layout_object, allow_visited_style);
+      borderBlockStyleShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool BorderBlockWidth::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
-      borderBlockWidthShorthand(), important, context, range, properties);
+      borderBlockWidthShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* BorderBlockWidth::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForInlineBlockShorthand(
-      borderBlockWidthShorthand(), style, layout_object, allow_visited_style);
+      borderBlockWidthShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool BorderBottom::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
-      borderBottomShorthand(), important, context, range, properties);
+      borderBottomShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* BorderBottom::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForShorthandProperty(
-      borderBottomShorthand(), style, layout_object, allow_visited_style);
+      borderBottomShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool BorderColor::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia4Longhands(
-      borderColorShorthand(), important, context, range, properties);
+      borderColorShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* BorderColor::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForSidesShorthand(
-      borderColorShorthand(), style, layout_object, allow_visited_style);
+      borderColorShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool Border::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    const CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   const CSSValue* width = nullptr;
   const CSSValue* style = nullptr;
   const CSSValue* color = nullptr;
 
-  if (!css_parsing_utils::ConsumeBorderShorthand(range, context, width, style,
-                                                 color)) {
+  if (!css_parsing_utils::ConsumeBorderShorthand(stream, context, local_context,
+                                                 width, style, color)) {
     return false;
   };
 
@@ -755,21 +793,22 @@ bool Border::ParseShorthand(
                                                  *CSSInitialValue::Create(),
                                                  important, properties);
 
-  return range.AtEnd();
+  return true;
 }
 
 const CSSValue* Border::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   const CSSValue* value = GetCSSPropertyBorderTop().CSSValueFromComputedStyle(
-      style, layout_object, allow_visited_style);
-  static const CSSProperty* kProperties[3] = {&GetCSSPropertyBorderRight(),
-                                              &GetCSSPropertyBorderBottom(),
-                                              &GetCSSPropertyBorderLeft()};
+      style, layout_object, allow_visited_style, value_phase);
+  static const std::array<const CSSProperty*, 3> kProperties = {
+      &GetCSSPropertyBorderRight(), &GetCSSPropertyBorderBottom(),
+      &GetCSSPropertyBorderLeft()};
   for (size_t i = 0; i < std::size(kProperties); ++i) {
     const CSSValue* value_for_side = kProperties[i]->CSSValueFromComputedStyle(
-        style, layout_object, allow_visited_style);
+        style, layout_object, allow_visited_style, value_phase);
     if (!base::ValuesEquivalent(value, value_for_side)) {
       return nullptr;
     }
@@ -779,7 +818,7 @@ const CSSValue* Border::CSSValueFromComputedStyleInternal(
 
 bool BorderImage::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
@@ -790,42 +829,34 @@ bool BorderImage::ParseShorthand(
   CSSValue* repeat = nullptr;
 
   if (!css_parsing_utils::ConsumeBorderImageComponents(
-          range, context, source, slice, width, outset, repeat,
+          stream, context, source, slice, width, outset, repeat,
           css_parsing_utils::DefaultFill::kNoFill)) {
     return false;
   }
 
   css_parsing_utils::AddProperty(
       CSSPropertyID::kBorderImageSource, CSSPropertyID::kBorderImage,
-      source
-          ? *source
-          : *To<Longhand>(&GetCSSPropertyBorderImageSource())->InitialValue(),
+      source ? *source : *GetCSSPropertyBorderImageSource().InitialValue(),
       important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
       properties);
   css_parsing_utils::AddProperty(
       CSSPropertyID::kBorderImageSlice, CSSPropertyID::kBorderImage,
-      slice ? *slice
-            : *To<Longhand>(&GetCSSPropertyBorderImageSlice())->InitialValue(),
+      slice ? *slice : *GetCSSPropertyBorderImageSlice().InitialValue(),
       important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
       properties);
   css_parsing_utils::AddProperty(
       CSSPropertyID::kBorderImageWidth, CSSPropertyID::kBorderImage,
-      width ? *width
-            : *To<Longhand>(&GetCSSPropertyBorderImageWidth())->InitialValue(),
+      width ? *width : *GetCSSPropertyBorderImageWidth().InitialValue(),
       important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
       properties);
   css_parsing_utils::AddProperty(
       CSSPropertyID::kBorderImageOutset, CSSPropertyID::kBorderImage,
-      outset
-          ? *outset
-          : *To<Longhand>(&GetCSSPropertyBorderImageOutset())->InitialValue(),
+      outset ? *outset : *GetCSSPropertyBorderImageOutset().InitialValue(),
       important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
       properties);
   css_parsing_utils::AddProperty(
       CSSPropertyID::kBorderImageRepeat, CSSPropertyID::kBorderImage,
-      repeat
-          ? *repeat
-          : *To<Longhand>(&GetCSSPropertyBorderImageRepeat())->InitialValue(),
+      repeat ? *repeat : *GetCSSPropertyBorderImageRepeat().InitialValue(),
       important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
       properties);
 
@@ -835,41 +866,44 @@ bool BorderImage::ParseShorthand(
 const CSSValue* BorderImage::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
-    bool allow_visited_style) const {
-  return ComputedStyleUtils::ValueForNinePieceImage(style.BorderImage(), style,
-                                                    allow_visited_style);
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::ValueForNinePieceImage(
+      style.BorderImage(), style, allow_visited_style, value_phase);
 }
 
 bool BorderInlineColor::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
-      borderInlineColorShorthand(), important, context, range, properties);
+      borderInlineColorShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* BorderInlineColor::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForInlineBlockShorthand(
-      borderInlineColorShorthand(), style, layout_object, allow_visited_style);
+      borderInlineColorShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool BorderInline::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
-    const CSSParserLocalContext&,
+    const CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   const CSSValue* width = nullptr;
   const CSSValue* style = nullptr;
   const CSSValue* color = nullptr;
 
-  if (!css_parsing_utils::ConsumeBorderShorthand(range, context, width, style,
-                                                 color)) {
+  if (!css_parsing_utils::ConsumeBorderShorthand(stream, context, local_context,
+                                                 width, style, color)) {
     return false;
   };
 
@@ -880,19 +914,20 @@ bool BorderInline::ParseShorthand(
   css_parsing_utils::AddExpandedPropertyForValue(
       CSSPropertyID::kBorderInlineColor, *color, important, properties);
 
-  return range.AtEnd();
+  return true;
 }
 
 const CSSValue* BorderInline::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   const CSSValue* value_start =
       GetCSSPropertyBorderInlineStart().CSSValueFromComputedStyle(
-          style, layout_object, allow_visited_style);
+          style, layout_object, allow_visited_style, value_phase);
   const CSSValue* value_end =
       GetCSSPropertyBorderInlineEnd().CSSValueFromComputedStyle(
-          style, layout_object, allow_visited_style);
+          style, layout_object, allow_visited_style, value_phase);
   if (!base::ValuesEquivalent(value_start, value_end)) {
     return nullptr;
   }
@@ -901,88 +936,94 @@ const CSSValue* BorderInline::CSSValueFromComputedStyleInternal(
 
 bool BorderInlineEnd::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
-      borderInlineEndShorthand(), important, context, range, properties);
+      borderInlineEndShorthand(), important, context, stream, properties);
 }
 
 bool BorderInlineStart::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
-      borderInlineStartShorthand(), important, context, range, properties);
+      borderInlineStartShorthand(), important, context, stream, properties);
 }
 
 bool BorderInlineStyle::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
-      borderInlineStyleShorthand(), important, context, range, properties);
+      borderInlineStyleShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* BorderInlineStyle::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForInlineBlockShorthand(
-      borderInlineStyleShorthand(), style, layout_object, allow_visited_style);
+      borderInlineStyleShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool BorderInlineWidth::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
-      borderInlineWidthShorthand(), important, context, range, properties);
+      borderInlineWidthShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* BorderInlineWidth::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForInlineBlockShorthand(
-      borderInlineWidthShorthand(), style, layout_object, allow_visited_style);
+      borderInlineWidthShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool BorderLeft::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
-      borderLeftShorthand(), important, context, range, properties);
+      borderLeftShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* BorderLeft::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForShorthandProperty(
-      borderLeftShorthand(), style, layout_object, allow_visited_style);
+      borderLeftShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool BorderRadius::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
-  CSSValue* horizontal_radii[4] = {nullptr};
-  CSSValue* vertical_radii[4] = {nullptr};
+  std::array<CSSValue*, 4> horizontal_radii = {nullptr};
+  std::array<CSSValue*, 4> vertical_radii = {nullptr};
 
-  if (!css_parsing_utils::ConsumeRadii(horizontal_radii, vertical_radii, range,
+  if (!css_parsing_utils::ConsumeRadii(horizontal_radii, vertical_radii, stream,
                                        context,
                                        local_context.UseAliasParsing())) {
     return false;
@@ -1022,48 +1063,48 @@ bool BorderRadius::ParseShorthand(
 const CSSValue* BorderRadius::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValueForBorderRadiusShorthand(style);
 }
 
 bool BorderRight::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
-      borderRightShorthand(), important, context, range, properties);
+      borderRightShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* BorderRight::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForShorthandProperty(
-      borderRightShorthand(), style, layout_object, allow_visited_style);
+      borderRightShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool BorderSpacing::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
-  CSSValue* horizontal_spacing =
-      ConsumeLength(range, context, CSSPrimitiveValue::ValueRange::kNonNegative,
-                    css_parsing_utils::UnitlessQuirk::kAllow);
+  CSSValue* horizontal_spacing = ConsumeLength(
+      stream, context, CSSPrimitiveValue::ValueRange::kNonNegative,
+      css_parsing_utils::UnitlessQuirk::kAllow);
   if (!horizontal_spacing) {
     return false;
   }
-  CSSValue* vertical_spacing = horizontal_spacing;
-  if (!range.AtEnd()) {
-    vertical_spacing = ConsumeLength(
-        range, context, CSSPrimitiveValue::ValueRange::kNonNegative,
-        css_parsing_utils::UnitlessQuirk::kAllow);
-  }
-  if (!vertical_spacing || !range.AtEnd()) {
-    return false;
+  CSSValue* vertical_spacing = ConsumeLength(
+      stream, context, CSSPrimitiveValue::ValueRange::kNonNegative,
+      css_parsing_utils::UnitlessQuirk::kAllow);
+  if (!vertical_spacing) {
+    vertical_spacing = horizontal_spacing;
   }
   css_parsing_utils::AddProperty(
       CSSPropertyID::kWebkitBorderHorizontalSpacing,
@@ -1079,102 +1120,171 @@ bool BorderSpacing::ParseShorthand(
 const CSSValue* BorderSpacing::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   CSSValueList* list = CSSValueList::CreateSpaceSeparated();
   list->Append(*ZoomAdjustedPixelValue(style.HorizontalBorderSpacing(), style));
-  list->Append(*ZoomAdjustedPixelValue(style.VerticalBorderSpacing(), style));
+  if (style.HorizontalBorderSpacing() != style.VerticalBorderSpacing()) {
+    list->Append(*ZoomAdjustedPixelValue(style.VerticalBorderSpacing(), style));
+  }
   return list;
 }
 
 bool BorderStyle::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia4Longhands(
-      borderStyleShorthand(), important, context, range, properties);
+      borderStyleShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* BorderStyle::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForSidesShorthand(
-      borderStyleShorthand(), style, layout_object, allow_visited_style);
+      borderStyleShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool BorderTop::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
-      borderTopShorthand(), important, context, range, properties);
+      borderTopShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* BorderTop::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForShorthandProperty(
-      borderTopShorthand(), style, layout_object, allow_visited_style);
+      borderTopShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool BorderWidth::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia4Longhands(
-      borderWidthShorthand(), important, context, range, properties);
+      borderWidthShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* BorderWidth::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForSidesShorthand(
-      borderWidthShorthand(), style, layout_object, allow_visited_style);
+      borderWidthShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool ColumnRule::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
-  return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
-      columnRuleShorthand(), important, context, range, properties);
+  DCHECK_EQ(columnRuleShorthand().length(), 3u);
+  // If the CSSGapDecorations feature is not enabled, consume greedily since
+  // only single values are supported by 'column-rule' today.
+  if (!RuntimeEnabledFeatures::CSSGapDecorationEnabled()) {
+    return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
+        columnRuleShorthand(), important, context, stream, properties);
+  }
+
+  CSSValueList* rule_widths = nullptr;
+  CSSValueList* rule_styles = nullptr;
+  CSSValueList* rule_colors = nullptr;
+
+  if (!css_parsing_utils::ConsumeGapDecorationsRuleShorthand(
+          important, context, stream, rule_widths, rule_styles, rule_colors)) {
+    return false;
+  }
+
+  CHECK(rule_widths);
+  CHECK(rule_styles);
+  CHECK(rule_colors);
+
+  CSSGapDecorationUtils::AddProperties(
+      CSSGapDecorationPropertyDirection::kColumn, *rule_widths, *rule_styles,
+      *rule_colors, important, properties);
+
+  return true;
 }
 
 const CSSValue* ColumnRule::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
-  return ComputedStyleUtils::ValuesForShorthandProperty(
-      columnRuleShorthand(), style, layout_object, allow_visited_style);
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::ValueForGapDecorationRuleShorthand(
+      columnRuleShorthand(), style, layout_object, allow_visited_style,
+      value_phase, CSSGapDecorationPropertyDirection::kColumn);
+}
+
+bool RowRule::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext&,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  DCHECK_EQ(rowRuleShorthand().length(), 3u);
+  CSSValueList* rule_widths = nullptr;
+  CSSValueList* rule_styles = nullptr;
+  CSSValueList* rule_colors = nullptr;
+
+  if (!css_parsing_utils::ConsumeGapDecorationsRuleShorthand(
+          important, context, stream, rule_widths, rule_styles, rule_colors)) {
+    return false;
+  }
+
+  CHECK(rule_widths);
+  CHECK(rule_styles);
+  CHECK(rule_colors);
+
+  CSSGapDecorationUtils::AddProperties(CSSGapDecorationPropertyDirection::kRow,
+                                       *rule_widths, *rule_styles, *rule_colors,
+                                       important, properties);
+
+  return true;
+}
+
+const CSSValue* RowRule::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::ValueForGapDecorationRuleShorthand(
+      rowRuleShorthand(), style, layout_object, allow_visited_style,
+      value_phase, CSSGapDecorationPropertyDirection::kRow);
 }
 
 bool Columns::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   CSSValue* column_width = nullptr;
   CSSValue* column_count = nullptr;
   if (!css_parsing_utils::ConsumeColumnWidthOrCount(
-          range, context, column_width, column_count)) {
+          stream, context, column_width, column_count)) {
     return false;
   }
-  css_parsing_utils::ConsumeColumnWidthOrCount(range, context, column_width,
+  css_parsing_utils::ConsumeColumnWidthOrCount(stream, context, column_width,
                                                column_count);
-  if (!range.AtEnd()) {
-    return false;
-  }
   if (!column_width) {
     column_width = CSSIdentifierValue::Create(CSSValueID::kAuto);
   }
@@ -1195,57 +1305,56 @@ bool Columns::ParseShorthand(
 const CSSValue* Columns::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForShorthandProperty(
-      columnsShorthand(), style, layout_object, allow_visited_style);
+      columnsShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool ContainIntrinsicSize::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
-      containIntrinsicSizeShorthand(), important, context, range, properties);
+      containIntrinsicSizeShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* ContainIntrinsicSize::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   const StylePropertyShorthand& shorthand = containIntrinsicSizeShorthand();
   const auto& width = style.ContainIntrinsicWidth();
   const auto& height = style.ContainIntrinsicHeight();
   if (width != height) {
     return ComputedStyleUtils::ValuesForShorthandProperty(
-        shorthand, style, layout_object, allow_visited_style);
+        shorthand, style, layout_object, allow_visited_style, value_phase);
   }
   return shorthand.properties()[0]->CSSValueFromComputedStyle(
-      style, layout_object, allow_visited_style);
+      style, layout_object, allow_visited_style, value_phase);
 }
 
 bool Container::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   const CSSValue* name =
-      css_parsing_utils::ConsumeContainerName(range, context);
+      css_parsing_utils::ConsumeContainerName(stream, context);
   if (!name) {
     return false;
   }
 
   const CSSValue* type = CSSIdentifierValue::Create(CSSValueID::kNormal);
-  if (css_parsing_utils::ConsumeSlashIncludingWhitespace(range)) {
-    if (!(type = css_parsing_utils::ConsumeContainerType(range))) {
+  if (css_parsing_utils::ConsumeSlashIncludingWhitespace(stream)) {
+    if (!(type = css_parsing_utils::ConsumeContainerType(stream, context))) {
       return false;
     }
-  }
-
-  if (!range.AtEnd()) {
-    return false;
   }
 
   css_parsing_utils::AddProperty(
@@ -1264,71 +1373,130 @@ bool Container::ParseShorthand(
 const CSSValue* Container::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
-  return ComputedStyleUtils::ValuesForContainerShorthand(style, layout_object,
-                                                         allow_visited_style);
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::ValuesForContainerShorthand(
+      style, layout_object, allow_visited_style, value_phase);
+}
+
+bool CornerShape::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext& local_context,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  std::array<CSSValue*, 4> shapes = {nullptr};
+
+  if (!css_parsing_utils::ConsumeCornerShapes(shapes, stream, context)) {
+    return false;
+  }
+
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kCornerTopLeftShape, CSSPropertyID::kCornerShape,
+      *shapes[0], important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kCornerTopRightShape, CSSPropertyID::kCornerShape,
+      *shapes[1], important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kCornerBottomRightShape, CSSPropertyID::kCornerShape,
+      *shapes[2], important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kCornerBottomLeftShape, CSSPropertyID::kCornerShape,
+      *shapes[3], important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  return true;
+}
+
+const CSSValue* CornerShape::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject*,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::ValueForCornerShapeShorthand(style);
 }
 
 bool Flex::ParseShorthand(bool important,
-                          CSSParserTokenRange& range,
+                          CSSParserTokenStream& stream,
                           const CSSParserContext& context,
                           const CSSParserLocalContext&,
                           HeapVector<CSSPropertyValue, 64>& properties) const {
-  static const double kUnsetValue = -1;
-  double flex_grow = kUnsetValue;
-  double flex_shrink = kUnsetValue;
-  CSSValue* flex_basis = nullptr;
+  const CSSValue* flex_grow = nullptr;
+  const CSSValue* flex_shrink = nullptr;
+  const CSSValue* flex_basis = nullptr;
 
-  if (range.Peek().Id() == CSSValueID::kNone) {
-    flex_grow = 0;
-    flex_shrink = 0;
+  if (stream.Peek().Id() == CSSValueID::kNone) {
+    flex_grow =
+        CSSNumericLiteralValue::Create(0, CSSPrimitiveValue::UnitType::kNumber);
+    flex_shrink = flex_grow;
     flex_basis = CSSIdentifierValue::Create(CSSValueID::kAuto);
-    range.ConsumeIncludingWhitespace();
+    stream.ConsumeIncludingWhitespace();
   } else {
-    unsigned index = 0;
-    while (!range.AtEnd() && index++ < 3) {
-      double num;
-      if (css_parsing_utils::ConsumeNumberRaw(range, context, num)) {
-        if (num < 0) {
-          return false;
-        }
-        if (flex_grow == kUnsetValue) {
+    for (;;) {
+      CSSParserSavePoint savepoint(stream);
+      if (const CSSPrimitiveValue* num = css_parsing_utils::ConsumeNumber(
+              stream, context, CSSPrimitiveValue::ValueRange::kNonNegative)) {
+        if (!flex_grow) {
           flex_grow = num;
-        } else if (flex_shrink == kUnsetValue) {
+          savepoint.Release();
+        } else if (!flex_shrink) {
           flex_shrink = num;
-        } else if (!num) {
-          // flex only allows a basis of 0 (sans units) if
-          // flex-grow and flex-shrink values have already been
-          // set.
+          savepoint.Release();
+        } else if (!flex_basis && num->IsNumericLiteralValue() &&
+                   To<CSSNumericLiteralValue>(num)->ClampedDoubleValue() == 0) {
+          // Unitless zero is a valid <'flex-basis'>. All other <length>s
+          // must have some unit, and are handled by the other branch.
           flex_basis = CSSNumericLiteralValue::Create(
               0, CSSPrimitiveValue::UnitType::kPixels);
+          savepoint.Release();
         } else {
-          return false;
+          break;
         }
       } else if (!flex_basis) {
         if (css_parsing_utils::IdentMatches<
                 CSSValueID::kAuto, CSSValueID::kContent,
                 CSSValueID::kMinContent, CSSValueID::kMaxContent,
-                CSSValueID::kFitContent>(range.Peek().Id())) {
-          flex_basis = css_parsing_utils::ConsumeIdent(range);
+                CSSValueID::kFitContent>(stream.Peek().Id())) {
+          flex_basis = css_parsing_utils::ConsumeIdent(stream);
         }
+        if (RuntimeEnabledFeatures::LayoutStretchEnabled() &&
+            CSSValueID::kStretch == stream.Peek().Id()) {
+          flex_basis = css_parsing_utils::ConsumeIdent(stream);
+        }
+
         if (!flex_basis) {
           flex_basis = css_parsing_utils::ConsumeLengthOrPercent(
-              range, context, CSSPrimitiveValue::ValueRange::kNonNegative);
+              stream, context, CSSPrimitiveValue::ValueRange::kNonNegative);
         }
-        if (index == 2 && !range.AtEnd()) {
-          return false;
+        if (flex_basis) {
+          // <'flex-basis'> may not appear between <'flex-grow'> and
+          // <'flex-shrink'>. We therefore ensure that grow and shrink are
+          // either both set, or both unset, once <'flex-basis'> is seen.
+          if (flex_grow && !flex_shrink) {
+            flex_shrink = CSSNumericLiteralValue::Create(
+                1, CSSPrimitiveValue::UnitType::kNumber);
+          }
+          DCHECK_EQ(!flex_grow, !flex_shrink);
+          savepoint.Release();
+        } else {
+          break;
         }
+      } else {
+        break;
       }
     }
-    if (index == 0) {
+    if (!flex_grow && !flex_shrink && !flex_basis) {
       return false;
     }
-    if (flex_grow == kUnsetValue) {
-      flex_grow = 1;
+    if (!flex_grow) {
+      flex_grow = CSSNumericLiteralValue::Create(
+          1, CSSPrimitiveValue::UnitType::kNumber);
     }
-    if (flex_shrink == kUnsetValue) {
-      flex_shrink = 1;
+    if (!flex_shrink) {
+      flex_shrink = CSSNumericLiteralValue::Create(
+          1, CSSPrimitiveValue::UnitType::kNumber);
     }
     if (!flex_basis) {
       flex_basis = CSSNumericLiteralValue::Create(
@@ -1336,21 +1504,12 @@ bool Flex::ParseShorthand(bool important,
     }
   }
 
-  if (!range.AtEnd()) {
-    return false;
-  }
   css_parsing_utils::AddProperty(
-      CSSPropertyID::kFlexGrow, CSSPropertyID::kFlex,
-      *CSSNumericLiteralValue::Create(ClampTo<float>(flex_grow),
-                                      CSSPrimitiveValue::UnitType::kNumber),
-      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
-      properties);
+      CSSPropertyID::kFlexGrow, CSSPropertyID::kFlex, *flex_grow, important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
   css_parsing_utils::AddProperty(
-      CSSPropertyID::kFlexShrink, CSSPropertyID::kFlex,
-      *CSSNumericLiteralValue::Create(ClampTo<float>(flex_shrink),
-                                      CSSPrimitiveValue::UnitType::kNumber),
-      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
-      properties);
+      CSSPropertyID::kFlexShrink, CSSPropertyID::kFlex, *flex_shrink, important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
 
   css_parsing_utils::AddProperty(
       CSSPropertyID::kFlexBasis, CSSPropertyID::kFlex, *flex_basis, important,
@@ -1362,38 +1521,39 @@ bool Flex::ParseShorthand(bool important,
 const CSSValue* Flex::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForShorthandProperty(
-      flexShorthand(), style, layout_object, allow_visited_style);
+      flexShorthand(), style, layout_object, allow_visited_style, value_phase);
 }
 
 bool FlexFlow::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
-      flexFlowShorthand(), important, context, range, properties);
+      flexFlowShorthand(), important, context, stream, properties,
+      /* use_initial_value_function */ true);
 }
 
 const CSSValue* FlexFlow::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForShorthandProperty(
-      flexFlowShorthand(), style, layout_object, allow_visited_style);
+      flexFlowShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 namespace {
 
 bool ConsumeSystemFont(bool important,
-                       CSSParserTokenRange& range,
+                       CSSParserTokenStream& stream,
                        HeapVector<CSSPropertyValue, 64>& properties) {
-  CSSValueID system_font_id = range.ConsumeIncludingWhitespace().Id();
+  CSSValueID system_font_id = stream.ConsumeIncludingWhitespace().Id();
   DCHECK(CSSParserFastPaths::IsValidSystemFont(system_font_id));
-  if (!range.AtEnd()) {
-    return false;
-  }
 
   css_parsing_utils::AddExpandedPropertyForValue(
       CSSPropertyID::kFont,
@@ -1403,7 +1563,7 @@ bool ConsumeSystemFont(bool important,
 }
 
 bool ConsumeFont(bool important,
-                 CSSParserTokenRange& range,
+                 CSSParserTokenStream& stream,
                  const CSSParserContext& context,
                  HeapVector<CSSPropertyValue, 64>& properties) {
   // Optional font-style, font-variant, font-stretch and font-weight.
@@ -1413,31 +1573,33 @@ bool ConsumeFont(bool important,
   CSSValue* font_weight = nullptr;
   CSSValue* font_stretch = nullptr;
   const int kNumReorderableFontProperties = 4;
-  for (int i = 0; i < kNumReorderableFontProperties && !range.AtEnd(); ++i) {
-    CSSValueID id = range.Peek().Id();
+  for (int i = 0; i < kNumReorderableFontProperties && !stream.AtEnd(); ++i) {
+    CSSValueID id = stream.Peek().Id();
     if (id == CSSValueID::kNormal) {
-      css_parsing_utils::ConsumeIdent(range);
+      css_parsing_utils::ConsumeIdent(stream);
       continue;
     }
     if (!font_style &&
         (id == CSSValueID::kItalic || id == CSSValueID::kOblique)) {
-      font_style = css_parsing_utils::ConsumeFontStyle(range, context);
+      font_style = css_parsing_utils::ConsumeFontStyle(stream, context);
       if (!font_style) {
+        // NOTE: Strictly speaking, perhaps we should rewind the stream here
+        // and return true instead, but given that this rule exists solely
+        // for accepting !important, we can just as well give a parse error.
         return false;
       }
       continue;
     }
     if (!font_variant_caps && id == CSSValueID::kSmallCaps) {
-      // Font variant in the shorthand is particular, it only accepts normal or
-      // small-caps.
-      // See https://drafts.csswg.org/css-fonts/#propdef-font
-      font_variant_caps = css_parsing_utils::ConsumeFontVariantCSS21(range);
+      // Font variant in the shorthand is particular, it only accepts normal
+      // or small-caps. See https://drafts.csswg.org/css-fonts/#propdef-font
+      font_variant_caps = css_parsing_utils::ConsumeFontVariantCSS21(stream);
       if (font_variant_caps) {
         continue;
       }
     }
     if (!font_weight) {
-      font_weight = css_parsing_utils::ConsumeFontWeight(range, context);
+      font_weight = css_parsing_utils::ConsumeFontWeight(stream, context);
       if (font_weight) {
         continue;
       }
@@ -1445,18 +1607,18 @@ bool ConsumeFont(bool important,
     // Stretch in the font shorthand can only take the CSS Fonts Level 3
     // keywords, not arbitrary values, compare
     // https://drafts.csswg.org/css-fonts-4/#font-prop
-    // Bail out if the last possible property of the set in this loop could not
-    // be parsed, this closes the first block of optional values of the font
-    // shorthand, compare: [ [ <‘font-style’> || <font-variant-css21> ||
+    // Bail out if the last possible property of the set in this loop could
+    // not be parsed, this closes the first block of optional values of the
+    // font shorthand, compare: [ [ <‘font-style’> || <font-variant-css21> ||
     // <‘font-weight’> || <font-stretch-css3> ]?
     if (font_stretch ||
         !(font_stretch = css_parsing_utils::ConsumeFontStretchKeywordOnly(
-              range, context))) {
+              stream, context))) {
       break;
     }
   }
 
-  if (range.AtEnd()) {
+  if (stream.AtEnd()) {
     return false;
   }
 
@@ -1490,12 +1652,10 @@ bool ConsumeFont(bool important,
       CSSPropertyID::kFontVariantEastAsian, CSSPropertyID::kFont,
       *CSSIdentifierValue::Create(CSSValueID::kNormal), important,
       css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-  if (RuntimeEnabledFeatures::FontVariantAlternatesEnabled()) {
-    css_parsing_utils::AddProperty(
-        CSSPropertyID::kFontVariantAlternates, CSSPropertyID::kFont,
-        *CSSIdentifierValue::Create(CSSValueID::kNormal), important,
-        css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-  }
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kFontVariantAlternates, CSSPropertyID::kFont,
+      *CSSIdentifierValue::Create(CSSValueID::kNormal), important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
   if (RuntimeEnabledFeatures::CSSFontSizeAdjustEnabled()) {
     css_parsing_utils::AddProperty(
         CSSPropertyID::kFontSizeAdjust, CSSPropertyID::kFont,
@@ -1518,12 +1678,15 @@ bool ConsumeFont(bool important,
       CSSPropertyID::kFontVariationSettings, CSSPropertyID::kFont,
       *CSSIdentifierValue::Create(CSSValueID::kNormal), important,
       css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-  if (RuntimeEnabledFeatures::FontVariantPositionEnabled()) {
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kFontVariantPosition, CSSPropertyID::kFont,
+      *CSSIdentifierValue::Create(CSSValueID::kNormal), important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+
     css_parsing_utils::AddProperty(
-        CSSPropertyID::kFontVariantPosition, CSSPropertyID::kFont,
+        CSSPropertyID::kFontVariantEmoji, CSSPropertyID::kFont,
         *CSSIdentifierValue::Create(CSSValueID::kNormal), important,
         css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-  }
 
   css_parsing_utils::AddProperty(
       CSSPropertyID::kFontWeight, CSSPropertyID::kFont,
@@ -1539,8 +1702,8 @@ bool ConsumeFont(bool important,
       properties);
 
   // Now a font size _must_ come.
-  CSSValue* font_size = css_parsing_utils::ConsumeFontSize(range, context);
-  if (!font_size || range.AtEnd()) {
+  CSSValue* font_size = css_parsing_utils::ConsumeFontSize(stream, context);
+  if (!font_size || stream.AtEnd()) {
     return false;
   }
 
@@ -1548,9 +1711,9 @@ bool ConsumeFont(bool important,
       CSSPropertyID::kFontSize, CSSPropertyID::kFont, *font_size, important,
       css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
 
-  if (css_parsing_utils::ConsumeSlashIncludingWhitespace(range)) {
+  if (css_parsing_utils::ConsumeSlashIncludingWhitespace(stream)) {
     CSSValue* line_height =
-        css_parsing_utils::ConsumeLineHeight(range, context);
+        css_parsing_utils::ConsumeLineHeight(stream, context);
     if (!line_height) {
       return false;
     }
@@ -1566,7 +1729,7 @@ bool ConsumeFont(bool important,
   }
 
   // Font family must come now.
-  CSSValue* parsed_family_value = css_parsing_utils::ConsumeFontFamily(range);
+  CSSValue* parsed_family_value = css_parsing_utils::ConsumeFontFamily(stream);
   if (!parsed_family_value) {
     return false;
   }
@@ -1576,41 +1739,42 @@ bool ConsumeFont(bool important,
       important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
       properties);
 
-  return range.AtEnd();
+  return true;
 }
 
 }  // namespace
 
 bool Font::ParseShorthand(bool important,
-                          CSSParserTokenRange& range,
+                          CSSParserTokenStream& stream,
                           const CSSParserContext& context,
                           const CSSParserLocalContext&,
                           HeapVector<CSSPropertyValue, 64>& properties) const {
-  const CSSParserToken& token = range.Peek();
+  const CSSParserToken& token = stream.Peek();
   if (CSSParserFastPaths::IsValidSystemFont(token.Id())) {
-    return ConsumeSystemFont(important, range, properties);
+    return ConsumeSystemFont(important, stream, properties);
   }
-  return ConsumeFont(important, range, context, properties);
+  return ConsumeFont(important, stream, context, properties);
 }
 
 const CSSValue* Font::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValueForFont(style);
 }
 
 bool FontVariant::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   if (css_parsing_utils::IdentMatches<CSSValueID::kNormal, CSSValueID::kNone>(
-          range.Peek().Id())) {
+          stream.Peek().Id())) {
     css_parsing_utils::AddProperty(
         CSSPropertyID::kFontVariantLigatures, CSSPropertyID::kFontVariant,
-        *css_parsing_utils::ConsumeIdent(range), important,
+        *css_parsing_utils::ConsumeIdent(stream), important,
         css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
     css_parsing_utils::AddProperty(
         CSSPropertyID::kFontVariantCaps, CSSPropertyID::kFontVariant,
@@ -1624,19 +1788,19 @@ bool FontVariant::ParseShorthand(
         CSSPropertyID::kFontVariantEastAsian, CSSPropertyID::kFontVariant,
         *CSSIdentifierValue::Create(CSSValueID::kNormal), important,
         css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-    if (RuntimeEnabledFeatures::FontVariantAlternatesEnabled()) {
+    css_parsing_utils::AddProperty(
+        CSSPropertyID::kFontVariantAlternates, CSSPropertyID::kFontVariant,
+        *CSSIdentifierValue::Create(CSSValueID::kNormal), important,
+        css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+    css_parsing_utils::AddProperty(
+        CSSPropertyID::kFontVariantPosition, CSSPropertyID::kFontVariant,
+        *CSSIdentifierValue::Create(CSSValueID::kNormal), important,
+        css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
       css_parsing_utils::AddProperty(
-          CSSPropertyID::kFontVariantAlternates, CSSPropertyID::kFontVariant,
+          CSSPropertyID::kFontVariantEmoji, CSSPropertyID::kFontVariant,
           *CSSIdentifierValue::Create(CSSValueID::kNormal), important,
           css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-    }
-    if (RuntimeEnabledFeatures::FontVariantPositionEnabled()) {
-      css_parsing_utils::AddProperty(
-          CSSPropertyID::kFontVariantPosition, CSSPropertyID::kFontVariant,
-          *CSSIdentifierValue::Create(CSSValueID::kNormal), important,
-          css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-    }
-    return range.AtEnd();
+    return true;
   }
 
   CSSIdentifierValue* caps_value = nullptr;
@@ -1645,17 +1809,17 @@ bool FontVariant::ParseShorthand(
   FontVariantEastAsianParser east_asian_parser;
   FontVariantAlternatesParser alternates_parser;
   CSSIdentifierValue* position_value = nullptr;
+  CSSIdentifierValue* emoji_value = nullptr;
+  bool first_value = true;
   do {
     FontVariantLigaturesParser::ParseResult ligatures_parse_result =
-        ligatures_parser.ConsumeLigature(range);
+        ligatures_parser.ConsumeLigature(stream);
     FontVariantNumericParser::ParseResult numeric_parse_result =
-        numeric_parser.ConsumeNumeric(range);
+        numeric_parser.ConsumeNumeric(stream);
     FontVariantEastAsianParser::ParseResult east_asian_parse_result =
-        east_asian_parser.ConsumeEastAsian(range);
+        east_asian_parser.ConsumeEastAsian(stream);
     FontVariantAlternatesParser::ParseResult alternates_parse_result =
-        RuntimeEnabledFeatures::FontVariantAlternatesEnabled()
-            ? alternates_parser.ConsumeAlternates(range, context)
-            : FontVariantAlternatesParser::ParseResult::kUnknownValue;
+        alternates_parser.ConsumeAlternates(stream, context);
     if (ligatures_parse_result ==
             FontVariantLigaturesParser::ParseResult::kConsumedValue ||
         numeric_parse_result ==
@@ -1664,6 +1828,7 @@ bool FontVariant::ParseShorthand(
             FontVariantEastAsianParser::ParseResult::kConsumedValue ||
         alternates_parse_result ==
             FontVariantAlternatesParser::ParseResult::kConsumedValue) {
+      first_value = false;
       continue;
     }
 
@@ -1678,7 +1843,8 @@ bool FontVariant::ParseShorthand(
       return false;
     }
 
-    CSSValueID id = range.Peek().Id();
+    CSSValueID id = stream.Peek().Id();
+    bool fail = false;
     switch (id) {
       case CSSValueID::kSmallCaps:
       case CSSValueID::kAllSmallCaps:
@@ -1690,7 +1856,7 @@ bool FontVariant::ParseShorthand(
         if (caps_value) {
           return false;
         }
-        caps_value = css_parsing_utils::ConsumeIdent(range);
+        caps_value = css_parsing_utils::ConsumeIdent(stream);
         break;
       case CSSValueID::kSub:
       case CSSValueID::kSuper:
@@ -1698,12 +1864,32 @@ bool FontVariant::ParseShorthand(
         if (position_value) {
           return false;
         }
-        position_value = css_parsing_utils::ConsumeIdent(range);
+        position_value = css_parsing_utils::ConsumeIdent(stream);
+        break;
+      case CSSValueID::kText:
+      case CSSValueID::kEmoji:
+      case CSSValueID::kUnicode:
+        // Only one emoji value permitted in font-variant grammar.
+        if (emoji_value) {
+          return false;
+        }
+        emoji_value = css_parsing_utils::ConsumeIdent(stream);
         break;
       default:
-        return false;
+        // Random junk at the end is allowed (could be “!important”,
+        // and if it's not, the caller will reject the value for us).
+        fail = true;
+        break;
     }
-  } while (!range.AtEnd());
+    if (fail) {
+      if (first_value) {
+        // Need at least one good value.
+        return false;
+      }
+      break;
+    }
+    first_value = false;
+  } while (!stream.AtEnd());
 
   css_parsing_utils::AddProperty(
       CSSPropertyID::kFontVariantLigatures, CSSPropertyID::kFontVariant,
@@ -1723,39 +1909,42 @@ bool FontVariant::ParseShorthand(
                  : *CSSIdentifierValue::Create(CSSValueID::kNormal),
       important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
       properties);
-  if (RuntimeEnabledFeatures::FontVariantAlternatesEnabled()) {
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kFontVariantAlternates, CSSPropertyID::kFontVariant,
+      *alternates_parser.FinalizeValue(), important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kFontVariantPosition, CSSPropertyID::kFontVariant,
+      position_value ? *position_value
+                     : *CSSIdentifierValue::Create(CSSValueID::kNormal),
+      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
+      properties);
     css_parsing_utils::AddProperty(
-        CSSPropertyID::kFontVariantAlternates, CSSPropertyID::kFontVariant,
-        *alternates_parser.FinalizeValue(), important,
-        css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-  }
-  if (RuntimeEnabledFeatures::FontVariantPositionEnabled()) {
-    css_parsing_utils::AddProperty(
-        CSSPropertyID::kFontVariantPosition, CSSPropertyID::kFontVariant,
-        position_value ? *position_value
-                       : *CSSIdentifierValue::Create(CSSValueID::kNormal),
+        CSSPropertyID::kFontVariantEmoji, CSSPropertyID::kFontVariant,
+        emoji_value ? *emoji_value
+                    : *CSSIdentifierValue::Create(CSSValueID::kNormal),
         important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
         properties);
-  }
   return true;
 }
 
 const CSSValue* FontVariant::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
-  return ComputedStyleUtils::ValuesForFontVariantProperty(style, layout_object,
-                                                          allow_visited_style);
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::ValuesForFontVariantProperty(
+      style, layout_object, allow_visited_style, value_phase);
 }
 
 bool FontSynthesis::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext&,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
-  if (range.Peek().Id() == CSSValueID::kNone) {
-    range.ConsumeIncludingWhitespace();
+  if (stream.Peek().Id() == CSSValueID::kNone) {
+    stream.ConsumeIncludingWhitespace();
     css_parsing_utils::AddProperty(
         CSSPropertyID::kFontSynthesisWeight, CSSPropertyID::kFontSynthesis,
         *CSSIdentifierValue::Create(CSSValueID::kNone), important,
@@ -1768,26 +1957,33 @@ bool FontSynthesis::ParseShorthand(
         CSSPropertyID::kFontSynthesisSmallCaps, CSSPropertyID::kFontSynthesis,
         *CSSIdentifierValue::Create(CSSValueID::kNone), important,
         css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-    return range.AtEnd();
+    return true;
   }
 
   CSSValue* font_synthesis_weight = nullptr;
   CSSValue* font_synthesis_style = nullptr;
   CSSValue* font_synthesis_small_caps = nullptr;
   do {
-    CSSValueID id = range.ConsumeIncludingWhitespace().Id();
+    if (stream.Peek().GetType() != kIdentToken) {
+      break;
+    }
+    CSSParserSavePoint savepoint(stream);
+    bool fail = false;
+    CSSValueID id = stream.ConsumeIncludingWhitespace().Id();
     switch (id) {
       case CSSValueID::kWeight:
         if (font_synthesis_weight) {
           return false;
         }
         font_synthesis_weight = CSSIdentifierValue::Create(CSSValueID::kAuto);
+        savepoint.Release();
         break;
       case CSSValueID::kStyle:
         if (font_synthesis_style) {
           return false;
         }
         font_synthesis_style = CSSIdentifierValue::Create(CSSValueID::kAuto);
+        savepoint.Release();
         break;
       case CSSValueID::kSmallCaps:
         if (font_synthesis_small_caps) {
@@ -1795,11 +1991,23 @@ bool FontSynthesis::ParseShorthand(
         }
         font_synthesis_small_caps =
             CSSIdentifierValue::Create(CSSValueID::kAuto);
+        savepoint.Release();
         break;
       default:
-        return false;
+        // Random junk at the end is allowed (could be “!important”,
+        // and if it's not, the caller will reject the value for us).
+        fail = true;
+        break;
     }
-  } while (!range.AtEnd());
+    if (fail) {
+      break;
+    }
+  } while (!stream.AtEnd());
+
+  if (!font_synthesis_weight && !font_synthesis_style &&
+      !font_synthesis_small_caps) {
+    return false;
+  }
 
   css_parsing_utils::AddProperty(
       CSSPropertyID::kFontSynthesisWeight, CSSPropertyID::kFontSynthesis,
@@ -1826,20 +2034,21 @@ bool FontSynthesis::ParseShorthand(
 const CSSValue* FontSynthesis::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForFontSynthesisProperty(
-      style, layout_object, allow_visited_style);
+      style, layout_object, allow_visited_style, value_phase);
 }
 
 bool Gap::ParseShorthand(bool important,
-                         CSSParserTokenRange& range,
+                         CSSParserTokenStream& stream,
                          const CSSParserContext& context,
                          const CSSParserLocalContext&,
                          HeapVector<CSSPropertyValue, 64>& properties) const {
   DCHECK_EQ(shorthandForProperty(CSSPropertyID::kGap).length(), 2u);
-  CSSValue* row_gap = css_parsing_utils::ConsumeGapLength(range, context);
-  CSSValue* column_gap = css_parsing_utils::ConsumeGapLength(range, context);
-  if (!row_gap || !range.AtEnd()) {
+  CSSValue* row_gap = css_parsing_utils::ConsumeGapLength(stream, context);
+  CSSValue* column_gap = css_parsing_utils::ConsumeGapLength(stream, context);
+  if (!row_gap) {
     return false;
   }
   if (!column_gap) {
@@ -1857,47 +2066,45 @@ bool Gap::ParseShorthand(bool important,
 const CSSValue* Gap::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForGapShorthand(
-      gapShorthand(), style, layout_object, allow_visited_style);
+      gapShorthand(), style, layout_object, allow_visited_style, value_phase);
 }
 
 bool GridArea::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   DCHECK_EQ(gridAreaShorthand().length(), 4u);
 
   CSSValue* row_start_value =
-      css_parsing_utils::ConsumeGridLine(range, context);
+      css_parsing_utils::ConsumeGridLine(stream, context);
   if (!row_start_value) {
     return false;
   }
   CSSValue* column_start_value = nullptr;
   CSSValue* row_end_value = nullptr;
   CSSValue* column_end_value = nullptr;
-  if (css_parsing_utils::ConsumeSlashIncludingWhitespace(range)) {
-    column_start_value = css_parsing_utils::ConsumeGridLine(range, context);
+  if (css_parsing_utils::ConsumeSlashIncludingWhitespace(stream)) {
+    column_start_value = css_parsing_utils::ConsumeGridLine(stream, context);
     if (!column_start_value) {
       return false;
     }
-    if (css_parsing_utils::ConsumeSlashIncludingWhitespace(range)) {
-      row_end_value = css_parsing_utils::ConsumeGridLine(range, context);
+    if (css_parsing_utils::ConsumeSlashIncludingWhitespace(stream)) {
+      row_end_value = css_parsing_utils::ConsumeGridLine(stream, context);
       if (!row_end_value) {
         return false;
       }
-      if (css_parsing_utils::ConsumeSlashIncludingWhitespace(range)) {
-        column_end_value = css_parsing_utils::ConsumeGridLine(range, context);
+      if (css_parsing_utils::ConsumeSlashIncludingWhitespace(stream)) {
+        column_end_value = css_parsing_utils::ConsumeGridLine(stream, context);
         if (!column_end_value) {
           return false;
         }
       }
     }
-  }
-  if (!range.AtEnd()) {
-    return false;
   }
   if (!column_start_value) {
     column_start_value = row_start_value->IsCustomIdentValue()
@@ -1937,14 +2144,16 @@ bool GridArea::ParseShorthand(
 const CSSValue* GridArea::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
-  return ComputedStyleUtils::ValuesForGridShorthand(
-      gridAreaShorthand(), style, layout_object, allow_visited_style);
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::ValuesForGridAreaShorthand(
+      gridAreaShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool GridColumn::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
@@ -1955,7 +2164,7 @@ bool GridColumn::ParseShorthand(
   CSSValue* start_value = nullptr;
   CSSValue* end_value = nullptr;
   if (!css_parsing_utils::ConsumeGridItemPositionShorthand(
-          important, range, context, start_value, end_value)) {
+          important, stream, context, start_value, end_value)) {
     return false;
   }
 
@@ -1974,54 +2183,30 @@ bool GridColumn::ParseShorthand(
 const CSSValue* GridColumn::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
-  return ComputedStyleUtils::ValuesForGridShorthand(
-      gridColumnShorthand(), style, layout_object, allow_visited_style);
-}
-
-bool GridColumnGap::ParseShorthand(
-    bool important,
-    CSSParserTokenRange& range,
-    const CSSParserContext& context,
-    const CSSParserLocalContext&,
-    HeapVector<CSSPropertyValue, 64>& properties) const {
-  CSSValue* gap_length = css_parsing_utils::ConsumeGapLength(range, context);
-  if (!gap_length || !range.AtEnd()) {
-    return false;
-  }
-
-  css_parsing_utils::AddProperty(
-      CSSPropertyID::kColumnGap, CSSPropertyID::kGridColumnGap, *gap_length,
-      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
-      properties);
-  return true;
-}
-
-const CSSValue* GridColumnGap::CSSValueFromComputedStyleInternal(
-    const ComputedStyle& style,
-    const LayoutObject* layout_object,
-    bool allow_visited_style) const {
-  return ComputedStyleUtils::ValuesForShorthandProperty(
-      gridColumnGapShorthand(), style, layout_object, allow_visited_style);
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::ValuesForGridLineShorthand(
+      gridColumnShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 namespace {
 
 CSSValueList* ConsumeImplicitAutoFlow(
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSIdentifierValue& flow_direction) {
   // [ auto-flow && dense? ]
   CSSValue* dense_algorithm = nullptr;
-  if (css_parsing_utils::ConsumeIdent<CSSValueID::kAutoFlow>(range)) {
+  if (css_parsing_utils::ConsumeIdent<CSSValueID::kAutoFlow>(stream)) {
     dense_algorithm =
-        css_parsing_utils::ConsumeIdent<CSSValueID::kDense>(range);
+        css_parsing_utils::ConsumeIdent<CSSValueID::kDense>(stream);
   } else {
     dense_algorithm =
-        css_parsing_utils::ConsumeIdent<CSSValueID::kDense>(range);
+        css_parsing_utils::ConsumeIdent<CSSValueID::kDense>(stream);
     if (!dense_algorithm) {
       return nullptr;
     }
-    if (!css_parsing_utils::ConsumeIdent<CSSValueID::kAutoFlow>(range)) {
+    if (!css_parsing_utils::ConsumeIdent<CSSValueID::kAutoFlow>(stream)) {
       return nullptr;
     }
   }
@@ -2038,21 +2223,30 @@ CSSValueList* ConsumeImplicitAutoFlow(
 }  // namespace
 
 bool Grid::ParseShorthand(bool important,
-                          CSSParserTokenRange& range,
+                          CSSParserTokenStream& stream,
                           const CSSParserContext& context,
                           const CSSParserLocalContext&,
                           HeapVector<CSSPropertyValue, 64>& properties) const {
   DCHECK_EQ(shorthandForProperty(CSSPropertyID::kGrid).length(), 6u);
 
-  CSSParserTokenRange range_copy = range;
+  CSSParserTokenStream::State savepoint = stream.Save();
 
   const CSSValue* template_rows = nullptr;
   const CSSValue* template_columns = nullptr;
   const CSSValue* template_areas = nullptr;
 
-  if (css_parsing_utils::ConsumeGridTemplateShorthand(
-          important, range, context, template_rows, template_columns,
-          template_areas)) {
+  // NOTE: The test for stream.AtEnd() here is a practical concession;
+  // we should accept any arbitrary junk afterwards, but for cases like
+  // “none / auto-flow 100px”, ConsumeGridTemplateShorthand() will consume
+  // the “none” alone and return success, which is not what we want
+  // (we want to fall back to the part below). So we make a quick fix
+  // to check for either end _or_ !important.
+  const bool ok = css_parsing_utils::ConsumeGridTemplateShorthand(
+      important, stream, context, template_rows, template_columns,
+      template_areas);
+  stream.ConsumeWhitespace();
+  if (ok && (stream.AtEnd() || (stream.Peek().GetType() == kDelimiterToken &&
+                                stream.Peek().Delimiter() == '!'))) {
     DCHECK(template_rows);
     DCHECK(template_columns);
     DCHECK(template_areas);
@@ -2070,26 +2264,25 @@ bool Grid::ParseShorthand(bool important,
         *template_areas, important,
         css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
 
-    // It can only be specified the explicit or the implicit grid properties in
-    // a single grid declaration. The sub-properties not specified are set to
-    // their initial value, as normal for shorthands.
+    // It can only be specified the explicit or the implicit grid properties
+    // in a single grid declaration. The sub-properties not specified are set
+    // to their initial value, as normal for shorthands.
     css_parsing_utils::AddProperty(
         CSSPropertyID::kGridAutoFlow, CSSPropertyID::kGrid,
-        *(To<Longhand>(GetCSSPropertyGridAutoFlow()).InitialValue()), important,
+        *GetCSSPropertyGridAutoFlow().InitialValue(), important,
         css_parsing_utils::IsImplicitProperty::kImplicit, properties);
     css_parsing_utils::AddProperty(
         CSSPropertyID::kGridAutoColumns, CSSPropertyID::kGrid,
-        *(To<Longhand>(GetCSSPropertyGridAutoColumns()).InitialValue()),
-        important, css_parsing_utils::IsImplicitProperty::kImplicit,
-        properties);
+        *GetCSSPropertyGridAutoColumns().InitialValue(), important,
+        css_parsing_utils::IsImplicitProperty::kImplicit, properties);
     css_parsing_utils::AddProperty(
         CSSPropertyID::kGridAutoRows, CSSPropertyID::kGrid,
-        *(To<Longhand>(GetCSSPropertyGridAutoRows()).InitialValue()), important,
+        *GetCSSPropertyGridAutoRows().InitialValue(), important,
         css_parsing_utils::IsImplicitProperty::kImplicit, properties);
     return true;
   }
 
-  range = range_copy;
+  stream.Restore(savepoint);
 
   const CSSValue* auto_columns_value = nullptr;
   const CSSValue* auto_rows_value = nullptr;
@@ -2099,72 +2292,61 @@ bool Grid::ParseShorthand(bool important,
 
   if (css_parsing_utils::IdentMatches<CSSValueID::kDense,
                                       CSSValueID::kAutoFlow>(
-          range.Peek().Id())) {
+          stream.Peek().Id())) {
     // 2- [ auto-flow && dense? ] <grid-auto-rows>? / <grid-template-columns>
     grid_auto_flow = ConsumeImplicitAutoFlow(
-        range, *CSSIdentifierValue::Create(CSSValueID::kRow));
+        stream, *CSSIdentifierValue::Create(CSSValueID::kRow));
     if (!grid_auto_flow) {
       return false;
     }
-    if (css_parsing_utils::ConsumeSlashIncludingWhitespace(range)) {
-      auto_rows_value =
-          To<Longhand>(GetCSSPropertyGridAutoRows()).InitialValue();
+    if (css_parsing_utils::ConsumeSlashIncludingWhitespace(stream)) {
+      auto_rows_value = GetCSSPropertyGridAutoRows().InitialValue();
     } else {
       auto_rows_value = css_parsing_utils::ConsumeGridTrackList(
-          range, context, css_parsing_utils::TrackListType::kGridAuto);
+          stream, context, css_parsing_utils::TrackListType::kGridAuto);
       if (!auto_rows_value) {
         return false;
       }
-      if (!css_parsing_utils::ConsumeSlashIncludingWhitespace(range)) {
+      if (!css_parsing_utils::ConsumeSlashIncludingWhitespace(stream)) {
         return false;
       }
     }
     if (!(template_columns =
-              css_parsing_utils::ConsumeGridTemplatesRowsOrColumns(range,
+              css_parsing_utils::ConsumeGridTemplatesRowsOrColumns(stream,
                                                                    context))) {
       return false;
     }
-    template_rows =
-        To<Longhand>(GetCSSPropertyGridTemplateRows()).InitialValue();
-    auto_columns_value =
-        To<Longhand>(GetCSSPropertyGridAutoColumns()).InitialValue();
+    template_rows = GetCSSPropertyGridTemplateRows().InitialValue();
+    auto_columns_value = GetCSSPropertyGridAutoColumns().InitialValue();
   } else {
     // 3- <grid-template-rows> / [ auto-flow && dense? ] <grid-auto-columns>?
     template_rows =
-        css_parsing_utils::ConsumeGridTemplatesRowsOrColumns(range, context);
+        css_parsing_utils::ConsumeGridTemplatesRowsOrColumns(stream, context);
     if (!template_rows) {
       return false;
     }
-    if (!css_parsing_utils::ConsumeSlashIncludingWhitespace(range)) {
+    if (!css_parsing_utils::ConsumeSlashIncludingWhitespace(stream)) {
       return false;
     }
     grid_auto_flow = ConsumeImplicitAutoFlow(
-        range, *CSSIdentifierValue::Create(CSSValueID::kColumn));
+        stream, *CSSIdentifierValue::Create(CSSValueID::kColumn));
     if (!grid_auto_flow) {
       return false;
     }
-    if (range.AtEnd()) {
-      auto_columns_value =
-          To<Longhand>(GetCSSPropertyGridAutoColumns()).InitialValue();
-    } else {
-      auto_columns_value = css_parsing_utils::ConsumeGridTrackList(
-          range, context, css_parsing_utils::TrackListType::kGridAuto);
-      if (!auto_columns_value) {
-        return false;
-      }
+    auto_columns_value = css_parsing_utils::ConsumeGridTrackList(
+        stream, context, css_parsing_utils::TrackListType::kGridAuto);
+    if (!auto_columns_value) {
+      // End of stream or parse error; in the latter case,
+      // the caller will clean up since we're not at the end.
+      auto_columns_value = GetCSSPropertyGridAutoColumns().InitialValue();
     }
-    template_columns =
-        To<Longhand>(GetCSSPropertyGridTemplateColumns()).InitialValue();
-    auto_rows_value = To<Longhand>(GetCSSPropertyGridAutoRows()).InitialValue();
+    template_columns = GetCSSPropertyGridTemplateColumns().InitialValue();
+    auto_rows_value = GetCSSPropertyGridAutoRows().InitialValue();
   }
 
-  if (!range.AtEnd()) {
-    return false;
-  }
-
-  // It can only be specified the explicit or the implicit grid properties in a
-  // single grid declaration. The sub-properties not specified are set to their
-  // initial value, as normal for shorthands.
+  // It can only be specified the explicit or the implicit grid properties in
+  // a single grid declaration. The sub-properties not specified are set to
+  // their initial value, as normal for shorthands.
   css_parsing_utils::AddProperty(
       CSSPropertyID::kGridTemplateColumns, CSSPropertyID::kGrid,
       *template_columns, important,
@@ -2175,9 +2357,8 @@ bool Grid::ParseShorthand(bool important,
       properties);
   css_parsing_utils::AddProperty(
       CSSPropertyID::kGridTemplateAreas, CSSPropertyID::kGrid,
-      *(To<Longhand>(GetCSSPropertyGridTemplateAreas()).InitialValue()),
-      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
-      properties);
+      *GetCSSPropertyGridTemplateAreas().InitialValue(), important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
   css_parsing_utils::AddProperty(
       CSSPropertyID::kGridAutoFlow, CSSPropertyID::kGrid, *grid_auto_flow,
       important, css_parsing_utils::IsImplicitProperty::kImplicit, properties);
@@ -2193,52 +2374,21 @@ bool Grid::ParseShorthand(bool important,
 
 bool Grid::IsLayoutDependent(const ComputedStyle* style,
                              LayoutObject* layout_object) const {
-  return layout_object && layout_object->IsLayoutNGGrid();
+  return layout_object && layout_object->IsLayoutGrid();
 }
 
 const CSSValue* Grid::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForGridShorthand(
-      gridShorthand(), style, layout_object, allow_visited_style);
-}
-
-bool GridGap::ParseShorthand(
-    bool important,
-    CSSParserTokenRange& range,
-    const CSSParserContext& context,
-    const CSSParserLocalContext&,
-    HeapVector<CSSPropertyValue, 64>& properties) const {
-  DCHECK_EQ(shorthandForProperty(CSSPropertyID::kGridGap).length(), 2u);
-  CSSValue* row_gap = css_parsing_utils::ConsumeGapLength(range, context);
-  CSSValue* column_gap = css_parsing_utils::ConsumeGapLength(range, context);
-  if (!row_gap || !range.AtEnd()) {
-    return false;
-  }
-  if (!column_gap) {
-    column_gap = row_gap;
-  }
-  css_parsing_utils::AddProperty(
-      CSSPropertyID::kRowGap, CSSPropertyID::kGap, *row_gap, important,
-      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-  css_parsing_utils::AddProperty(
-      CSSPropertyID::kColumnGap, CSSPropertyID::kGap, *column_gap, important,
-      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-  return true;
-}
-
-const CSSValue* GridGap::CSSValueFromComputedStyleInternal(
-    const ComputedStyle& style,
-    const LayoutObject* layout_object,
-    bool allow_visited_style) const {
-  return ComputedStyleUtils::ValuesForShorthandProperty(
-      gridGapShorthand(), style, layout_object, allow_visited_style);
+      gridShorthand(), style, layout_object, allow_visited_style, value_phase);
 }
 
 bool GridRow::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
@@ -2249,7 +2399,7 @@ bool GridRow::ParseShorthand(
   CSSValue* start_value = nullptr;
   CSSValue* end_value = nullptr;
   if (!css_parsing_utils::ConsumeGridItemPositionShorthand(
-          important, range, context, start_value, end_value)) {
+          important, stream, context, start_value, end_value)) {
     return false;
   }
 
@@ -2268,40 +2418,16 @@ bool GridRow::ParseShorthand(
 const CSSValue* GridRow::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
-  return ComputedStyleUtils::ValuesForGridShorthand(
-      gridRowShorthand(), style, layout_object, allow_visited_style);
-}
-
-bool GridRowGap::ParseShorthand(
-    bool important,
-    CSSParserTokenRange& range,
-    const CSSParserContext& context,
-    const CSSParserLocalContext&,
-    HeapVector<CSSPropertyValue, 64>& properties) const {
-  CSSValue* gap_length = css_parsing_utils::ConsumeGapLength(range, context);
-  if (!gap_length || !range.AtEnd()) {
-    return false;
-  }
-
-  css_parsing_utils::AddProperty(
-      CSSPropertyID::kRowGap, CSSPropertyID::kGridRowGap, *gap_length,
-      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
-      properties);
-  return true;
-}
-
-const CSSValue* GridRowGap::CSSValueFromComputedStyleInternal(
-    const ComputedStyle& style,
-    const LayoutObject* layout_object,
-    bool allow_visited_style) const {
-  return ComputedStyleUtils::ValuesForShorthandProperty(
-      gridRowGapShorthand(), style, layout_object, allow_visited_style);
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::ValuesForGridLineShorthand(
+      gridRowShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool GridTemplate::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
@@ -2309,7 +2435,7 @@ bool GridTemplate::ParseShorthand(
   const CSSValue* template_columns = nullptr;
   const CSSValue* template_areas = nullptr;
   if (!css_parsing_utils::ConsumeGridTemplateShorthand(
-          important, range, context, template_rows, template_columns,
+          important, stream, context, template_rows, template_columns,
           template_areas)) {
     return false;
   }
@@ -2336,73 +2462,114 @@ bool GridTemplate::ParseShorthand(
 
 bool GridTemplate::IsLayoutDependent(const ComputedStyle* style,
                                      LayoutObject* layout_object) const {
-  return layout_object && layout_object->IsLayoutNGGrid();
+  return layout_object && layout_object->IsLayoutGrid();
 }
 
 const CSSValue* GridTemplate::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
-  return ComputedStyleUtils::ValuesForGridShorthand(
-      gridTemplateShorthand(), style, layout_object, allow_visited_style);
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::ValuesForGridTemplateShorthand(
+      gridTemplateShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool InsetBlock::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
-      insetBlockShorthand(), important, context, range, properties);
+      insetBlockShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* InsetBlock::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForInlineBlockShorthand(
-      insetBlockShorthand(), style, layout_object, allow_visited_style);
+      insetBlockShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
+}
+
+bool InsetBlock::IsLayoutDependent(const ComputedStyle* style,
+                                   LayoutObject* layout_object) const {
+  return layout_object && layout_object->IsBox();
 }
 
 bool Inset::ParseShorthand(bool important,
-                           CSSParserTokenRange& range,
+                           CSSParserTokenStream& stream,
                            const CSSParserContext& context,
                            const CSSParserLocalContext&,
                            HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia4Longhands(
-      insetShorthand(), important, context, range, properties);
+      insetShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* Inset::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForSidesShorthand(
-      insetShorthand(), style, layout_object, allow_visited_style);
+      insetShorthand(), style, layout_object, allow_visited_style, value_phase);
+}
+
+bool Inset::IsLayoutDependent(const ComputedStyle* style,
+                              LayoutObject* layout_object) const {
+  return layout_object && layout_object->IsBox();
 }
 
 bool InsetInline::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
-      insetInlineShorthand(), important, context, range, properties);
+      insetInlineShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* InsetInline::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForInlineBlockShorthand(
-      insetInlineShorthand(), style, layout_object, allow_visited_style);
+      insetInlineShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
+}
+
+bool InsetInline::IsLayoutDependent(const ComputedStyle* style,
+                                    LayoutObject* layout_object) const {
+  return layout_object && layout_object->IsBox();
+}
+
+bool InterestTargetDelay::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext&,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  return css_parsing_utils::ConsumeShorthandVia2Longhands(
+      interestTargetDelayShorthand(), important, context, stream, properties);
+}
+
+const CSSValue* InterestTargetDelay::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::ValuesForInterestTargetDelayShorthand(
+      style, layout_object, allow_visited_style, value_phase);
 }
 
 bool ListStyle::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
@@ -2412,7 +2579,7 @@ bool ListStyle::ParseShorthand(
   const CSSValue* list_style_type = nullptr;
   do {
     if (!none) {
-      none = css_parsing_utils::ConsumeIdent<CSSValueID::kNone>(range);
+      none = css_parsing_utils::ConsumeIdent<CSSValueID::kNone>(stream);
       if (none) {
         continue;
       }
@@ -2420,7 +2587,7 @@ bool ListStyle::ParseShorthand(
     if (!list_style_position) {
       list_style_position = css_parsing_utils::ParseLonghand(
           CSSPropertyID::kListStylePosition, CSSPropertyID::kListStyle, context,
-          range);
+          stream);
       if (list_style_position) {
         continue;
       }
@@ -2428,7 +2595,7 @@ bool ListStyle::ParseShorthand(
     if (!list_style_image) {
       list_style_image = css_parsing_utils::ParseLonghand(
           CSSPropertyID::kListStyleImage, CSSPropertyID::kListStyle, context,
-          range);
+          stream);
       if (list_style_image) {
         continue;
       }
@@ -2436,13 +2603,16 @@ bool ListStyle::ParseShorthand(
     if (!list_style_type) {
       list_style_type = css_parsing_utils::ParseLonghand(
           CSSPropertyID::kListStyleType, CSSPropertyID::kListStyle, context,
-          range);
+          stream);
       if (list_style_type) {
         continue;
       }
     }
+    break;
+  } while (!stream.AtEnd());
+  if (!none && !list_style_position && !list_style_image && !list_style_type) {
     return false;
-  } while (!range.AtEnd());
+  }
   if (none) {
     if (!list_style_type) {
       list_style_type = none;
@@ -2495,37 +2665,46 @@ bool ListStyle::ParseShorthand(
 const CSSValue* ListStyle::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForShorthandProperty(
-      listStyleShorthand(), style, layout_object, allow_visited_style);
+      listStyleShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool MarginBlock::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
-      marginBlockShorthand(), important, context, range, properties);
+      marginBlockShorthand(), important, context, stream, properties);
+}
+
+bool MarginBlock::IsLayoutDependent(const ComputedStyle* style,
+                                    LayoutObject* layout_object) const {
+  return layout_object && layout_object->IsBox();
 }
 
 const CSSValue* MarginBlock::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForInlineBlockShorthand(
-      marginBlockShorthand(), style, layout_object, allow_visited_style);
+      marginBlockShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool Margin::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia4Longhands(
-      marginShorthand(), important, context, range, properties);
+      marginShorthand(), important, context, stream, properties);
 }
 
 bool Margin::IsLayoutDependent(const ComputedStyle* style,
@@ -2539,38 +2718,47 @@ bool Margin::IsLayoutDependent(const ComputedStyle* style,
 const CSSValue* Margin::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForSidesShorthand(
-      marginShorthand(), style, layout_object, allow_visited_style);
+      marginShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool MarginInline::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
-      marginInlineShorthand(), important, context, range, properties);
+      marginInlineShorthand(), important, context, stream, properties);
+}
+
+bool MarginInline::IsLayoutDependent(const ComputedStyle* style,
+                                     LayoutObject* layout_object) const {
+  return layout_object && layout_object->IsBox();
 }
 
 const CSSValue* MarginInline::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForInlineBlockShorthand(
-      marginInlineShorthand(), style, layout_object, allow_visited_style);
+      marginInlineShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool Marker::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   const CSSValue* marker = css_parsing_utils::ParseLonghand(
-      CSSPropertyID::kMarkerStart, CSSPropertyID::kMarker, context, range);
-  if (!marker || !range.AtEnd()) {
+      CSSPropertyID::kMarkerStart, CSSPropertyID::kMarker, context, stream);
+  if (!marker) {
     return false;
   }
 
@@ -2589,7 +2777,8 @@ bool Marker::ParseShorthand(
 const CSSValue* Marker::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   const CSSValue* marker_start =
       ComputedStyleUtils::ValueForSVGResource(style.MarkerStartResource());
   if (*marker_start ==
@@ -2601,9 +2790,95 @@ const CSSValue* Marker::CSSValueFromComputedStyleInternal(
   return nullptr;
 }
 
+bool MasonryFlow::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext&,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  const StylePropertyShorthand::Properties& longhands =
+      masonryFlowShorthand().properties();
+  DCHECK_EQ(longhands.size(), 2u);
+
+  if (longhands[0]->PropertyID() != CSSPropertyID::kMasonryDirection ||
+      longhands[1]->PropertyID() != CSSPropertyID::kMasonryFill) {
+    return false;
+  }
+
+  const CSSValue* masonry_direction = css_parsing_utils::ParseLonghand(
+      longhands[0]->PropertyID(), masonryFlowShorthand().id(), context, stream);
+
+  if (!masonry_direction) {
+    return false;
+  }
+
+  const CSSValue* masonry_fill = css_parsing_utils::ParseLonghand(
+      longhands[1]->PropertyID(), masonryFlowShorthand().id(), context, stream);
+
+  if (!masonry_fill) {
+    return false;
+  }
+
+  AddProperty(longhands[0]->PropertyID(), masonryFlowShorthand().id(),
+              *masonry_direction, important,
+              css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  AddProperty(longhands[1]->PropertyID(), masonryFlowShorthand().id(),
+              *masonry_fill, important,
+              css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+
+  return true;
+}
+
+const CSSValue* MasonryFlow::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::ValuesForShorthandProperty(
+      masonryFlowShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
+}
+
+bool MasonryTrack::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext&,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  const auto& shorthand = shorthandForProperty(CSSPropertyID::kMasonryTrack);
+  DCHECK_EQ(shorthand.length(), 2u);
+
+  CSSValue *start_value = nullptr, *end_value = nullptr;
+  if (!css_parsing_utils::ConsumeGridItemPositionShorthand(
+          important, stream, context, start_value, end_value)) {
+    return false;
+  }
+
+  css_parsing_utils::AddProperty(
+      shorthand.properties()[0]->PropertyID(), CSSPropertyID::kMasonryTrack,
+      *start_value, important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  css_parsing_utils::AddProperty(
+      shorthand.properties()[1]->PropertyID(), CSSPropertyID::kMasonryTrack,
+      *end_value, important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+
+  return true;
+}
+
+const CSSValue* MasonryTrack::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::ValuesForGridLineShorthand(
+      masonryTrackShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
+}
+
 bool Offset::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
@@ -2611,99 +2886,75 @@ bool Offset::ParseShorthand(
   // once all of the ParseSingleValue implementations have been moved to the
   // CSSPropertys, and the base CSSProperty::ParseSingleValue contains
   // no functionality.
+
   const CSSValue* offset_position =
-      To<Longhand>(GetCSSPropertyOffsetPosition())
-          .ParseSingleValue(range, context, CSSParserLocalContext());
+      GetCSSPropertyOffsetPosition().ParseSingleValue(stream, context,
+                                                      CSSParserLocalContext());
   const CSSValue* offset_path =
-      css_parsing_utils::ConsumeOffsetPath(range, context);
+      css_parsing_utils::ConsumeOffsetPath(stream, context);
   const CSSValue* offset_distance = nullptr;
   const CSSValue* offset_rotate = nullptr;
   if (offset_path) {
     offset_distance = css_parsing_utils::ConsumeLengthOrPercent(
-        range, context, CSSPrimitiveValue::ValueRange::kAll);
-    offset_rotate = css_parsing_utils::ConsumeOffsetRotate(range, context);
+        stream, context, CSSPrimitiveValue::ValueRange::kAll);
+    offset_rotate = css_parsing_utils::ConsumeOffsetRotate(stream, context);
     if (offset_rotate && !offset_distance) {
       offset_distance = css_parsing_utils::ConsumeLengthOrPercent(
-          range, context, CSSPrimitiveValue::ValueRange::kAll);
+          stream, context, CSSPrimitiveValue::ValueRange::kAll);
     }
   }
   const CSSValue* offset_anchor = nullptr;
-  if (css_parsing_utils::ConsumeSlashIncludingWhitespace(range)) {
-    offset_anchor =
-        To<Longhand>(GetCSSPropertyOffsetAnchor())
-            .ParseSingleValue(range, context, CSSParserLocalContext());
+  if (css_parsing_utils::ConsumeSlashIncludingWhitespace(stream)) {
+    offset_anchor = GetCSSPropertyOffsetAnchor().ParseSingleValue(
+        stream, context, CSSParserLocalContext());
     if (!offset_anchor) {
       return false;
     }
   }
-  if ((!offset_position && !offset_path) || !range.AtEnd()) {
+  if (!offset_position && !offset_path) {
     return false;
   }
 
-  if ((offset_position || offset_anchor) &&
-      !RuntimeEnabledFeatures::CSSOffsetPositionAnchorEnabled()) {
-    return false;
+  if (!offset_position) {
+    offset_position = CSSIdentifierValue::Create(CSSValueID::kNormal);
   }
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kOffsetPosition, CSSPropertyID::kOffset, *offset_position,
+      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
+      properties);
 
-  if (offset_position) {
-    css_parsing_utils::AddProperty(
-        CSSPropertyID::kOffsetPosition, CSSPropertyID::kOffset,
-        *offset_position, important,
-        css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-  } else if (RuntimeEnabledFeatures::CSSOffsetPositionAnchorEnabled()) {
-    css_parsing_utils::AddProperty(
-        CSSPropertyID::kOffsetPosition, CSSPropertyID::kOffset,
-        *CSSInitialValue::Create(), important,
-        css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  if (!offset_path) {
+    offset_path = CSSIdentifierValue::Create(CSSValueID::kNone);
   }
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kOffsetPath, CSSPropertyID::kOffset, *offset_path,
+      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
+      properties);
 
-  if (offset_path) {
-    css_parsing_utils::AddProperty(
-        CSSPropertyID::kOffsetPath, CSSPropertyID::kOffset, *offset_path,
-        important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
-        properties);
-  } else {
-    css_parsing_utils::AddProperty(
-        CSSPropertyID::kOffsetPath, CSSPropertyID::kOffset,
-        *CSSInitialValue::Create(), important,
-        css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  if (!offset_distance) {
+    offset_distance =
+        CSSNumericLiteralValue::Create(0, CSSPrimitiveValue::UnitType::kPixels);
   }
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kOffsetDistance, CSSPropertyID::kOffset, *offset_distance,
+      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
+      properties);
 
-  if (offset_distance) {
-    css_parsing_utils::AddProperty(
-        CSSPropertyID::kOffsetDistance, CSSPropertyID::kOffset,
-        *offset_distance, important,
-        css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-  } else {
-    css_parsing_utils::AddProperty(
-        CSSPropertyID::kOffsetDistance, CSSPropertyID::kOffset,
-        *CSSInitialValue::Create(), important,
-        css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  if (!offset_rotate) {
+    offset_rotate = CSSIdentifierValue::Create(CSSValueID::kAuto);
   }
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kOffsetRotate, CSSPropertyID::kOffset, *offset_rotate,
+      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
+      properties);
 
-  if (offset_rotate) {
-    css_parsing_utils::AddProperty(
-        CSSPropertyID::kOffsetRotate, CSSPropertyID::kOffset, *offset_rotate,
-        important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
-        properties);
-  } else {
-    css_parsing_utils::AddProperty(
-        CSSPropertyID::kOffsetRotate, CSSPropertyID::kOffset,
-        *CSSInitialValue::Create(), important,
-        css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  if (!offset_anchor) {
+    offset_anchor = CSSIdentifierValue::Create(CSSValueID::kAuto);
   }
-
-  if (offset_anchor) {
-    css_parsing_utils::AddProperty(
-        CSSPropertyID::kOffsetAnchor, CSSPropertyID::kOffset, *offset_anchor,
-        important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
-        properties);
-  } else if (RuntimeEnabledFeatures::CSSOffsetPositionAnchorEnabled()) {
-    css_parsing_utils::AddProperty(
-        CSSPropertyID::kOffsetAnchor, CSSPropertyID::kOffset,
-        *CSSInitialValue::Create(), important,
-        css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-  }
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kOffsetAnchor, CSSPropertyID::kOffset, *offset_anchor,
+      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
+      properties);
 
   return true;
 }
@@ -2711,43 +2962,47 @@ bool Offset::ParseShorthand(
 const CSSValue* Offset::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValueForOffset(style, layout_object,
-                                            allow_visited_style);
+                                            allow_visited_style, value_phase);
 }
 
 bool Outline::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
-      outlineShorthand(), important, context, range, properties);
+      outlineShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* Outline::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForShorthandProperty(
-      outlineShorthand(), style, layout_object, allow_visited_style);
+      outlineShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool Overflow::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
-      overflowShorthand(), important, context, range, properties);
+      overflowShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* Overflow::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   CSSValueList* list = CSSValueList::CreateSpaceSeparated();
   list->Append(*CSSIdentifierValue::Create(style.OverflowX()));
   if (style.OverflowX() != style.OverflowY()) {
@@ -2759,18 +3014,19 @@ const CSSValue* Overflow::CSSValueFromComputedStyleInternal(
 
 bool OverscrollBehavior::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
-      overscrollBehaviorShorthand(), important, context, range, properties);
+      overscrollBehaviorShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* OverscrollBehavior::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   CSSValueList* list = CSSValueList::CreateSpaceSeparated();
   list->Append(*CSSIdentifierValue::Create(style.OverscrollBehaviorX()));
   if (style.OverscrollBehaviorX() != style.OverscrollBehaviorY()) {
@@ -2782,30 +3038,32 @@ const CSSValue* OverscrollBehavior::CSSValueFromComputedStyleInternal(
 
 bool PaddingBlock::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
-      paddingBlockShorthand(), important, context, range, properties);
+      paddingBlockShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* PaddingBlock::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForInlineBlockShorthand(
-      paddingBlockShorthand(), style, layout_object, allow_visited_style);
+      paddingBlockShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool Padding::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia4Longhands(
-      paddingShorthand(), important, context, range, properties);
+      paddingShorthand(), important, context, stream, properties);
 }
 
 bool Padding::IsLayoutDependent(const ComputedStyle* style,
@@ -2819,37 +3077,41 @@ bool Padding::IsLayoutDependent(const ComputedStyle* style,
 const CSSValue* Padding::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForSidesShorthand(
-      paddingShorthand(), style, layout_object, allow_visited_style);
+      paddingShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool PaddingInline::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
-      paddingInlineShorthand(), important, context, range, properties);
+      paddingInlineShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* PaddingInline::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForInlineBlockShorthand(
-      paddingInlineShorthand(), style, layout_object, allow_visited_style);
+      paddingInlineShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool PageBreakAfter::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext&,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   CSSValueID value;
-  if (!css_parsing_utils::ConsumeFromPageBreakBetween(range, value)) {
+  if (!css_parsing_utils::ConsumeFromPageBreakBetween(stream, value)) {
     return false;
   }
 
@@ -2864,18 +3126,19 @@ bool PageBreakAfter::ParseShorthand(
 const CSSValue* PageBreakAfter::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValueForPageBreakBetween(style.BreakAfter());
 }
 
 bool PageBreakBefore::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext&,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   CSSValueID value;
-  if (!css_parsing_utils::ConsumeFromPageBreakBetween(range, value)) {
+  if (!css_parsing_utils::ConsumeFromPageBreakBetween(stream, value)) {
     return false;
   }
 
@@ -2890,18 +3153,19 @@ bool PageBreakBefore::ParseShorthand(
 const CSSValue* PageBreakBefore::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValueForPageBreakBetween(style.BreakBefore());
 }
 
 bool PageBreakInside::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext&,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   CSSValueID value;
-  if (!css_parsing_utils::ConsumeFromColumnOrPageBreakInside(range, value)) {
+  if (!css_parsing_utils::ConsumeFromColumnOrPageBreakInside(stream, value)) {
     return false;
   }
 
@@ -2915,44 +3179,47 @@ bool PageBreakInside::ParseShorthand(
 const CSSValue* PageBreakInside::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValueForPageBreakInside(style.BreakInside());
 }
 
 bool PlaceContent::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   DCHECK_EQ(shorthandForProperty(CSSPropertyID::kPlaceContent).length(), 2u);
 
-  CSSParserTokenRange range_copy = range;
-  bool is_baseline = css_parsing_utils::IsBaselineKeyword(range.Peek().Id());
+  stream.EnsureLookAhead();
+
+  CSSParserTokenStream::State savepoint = stream.Save();
+  bool is_baseline = css_parsing_utils::IsBaselineKeyword(stream.Peek().Id());
   const CSSValue* align_content_value =
-      To<Longhand>(GetCSSPropertyAlignContent())
-          .ParseSingleValue(range, context, local_context);
+      GetCSSPropertyAlignContent().ParseSingleValue(stream, context,
+                                                    local_context);
   if (!align_content_value) {
     return false;
   }
 
-  const CSSValue* justify_content_value = nullptr;
-  if (range.AtEnd()) {
+  const CSSValue* justify_content_value =
+      GetCSSPropertyJustifyContent().ParseSingleValue(stream, context,
+                                                      local_context);
+  if (!justify_content_value) {
     if (is_baseline) {
       justify_content_value =
           MakeGarbageCollected<cssvalue::CSSContentDistributionValue>(
               CSSValueID::kInvalid, CSSValueID::kStart, CSSValueID::kInvalid);
     } else {
-      range = range_copy;
+      // Rewind the parser and use the value we just parsed as align-content,
+      // as justify-content, too.
+      stream.Restore(savepoint);
+      justify_content_value = GetCSSPropertyJustifyContent().ParseSingleValue(
+          stream, context, local_context);
     }
   }
   if (!justify_content_value) {
-    justify_content_value =
-        To<Longhand>(GetCSSPropertyJustifyContent())
-            .ParseSingleValue(range, context, local_context);
-  }
-
-  if (!justify_content_value || !range.AtEnd()) {
     return false;
   }
 
@@ -2974,36 +3241,45 @@ bool PlaceContent::ParseShorthand(
 const CSSValue* PlaceContent::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForPlaceShorthand(
-      placeContentShorthand(), style, layout_object, allow_visited_style);
+      placeContentShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool PlaceItems::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   DCHECK_EQ(shorthandForProperty(CSSPropertyID::kPlaceItems).length(), 2u);
 
-  CSSParserTokenRange range_copy = range;
+  stream.EnsureLookAhead();
+  CSSParserTokenStream::State savepoint = stream.Save();
   const CSSValue* align_items_value =
-      To<Longhand>(GetCSSPropertyAlignItems())
-          .ParseSingleValue(range, context, local_context);
+      GetCSSPropertyAlignItems().ParseSingleValue(stream, context,
+                                                  local_context);
   if (!align_items_value) {
     return false;
   }
 
-  if (range.AtEnd()) {
-    range = range_copy;
-  }
-
   const CSSValue* justify_items_value =
-      To<Longhand>(GetCSSPropertyJustifyItems())
-          .ParseSingleValue(range, context, local_context);
-  if (!justify_items_value || !range.AtEnd()) {
-    return false;
+      GetCSSPropertyJustifyItems().ParseSingleValue(stream, context,
+                                                    local_context);
+  if (!justify_items_value) {
+    // End-of-stream or parse error. If it's the former,
+    // we try to to parse what we already parsed as align-items again,
+    // just as justify-items. If it's the latter, the caller will
+    // clean up for us (as we won't end on end-of-stream).
+    wtf_size_t align_items_end = stream.Offset();
+    stream.Restore(savepoint);
+    justify_items_value = GetCSSPropertyJustifyItems().ParseSingleValue(
+        stream, context, local_context);
+    if (!justify_items_value || stream.Offset() != align_items_end) {
+      return false;
+    }
   }
 
   DCHECK(align_items_value);
@@ -3024,36 +3300,45 @@ bool PlaceItems::ParseShorthand(
 const CSSValue* PlaceItems::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForPlaceShorthand(
-      placeItemsShorthand(), style, layout_object, allow_visited_style);
+      placeItemsShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool PlaceSelf::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   DCHECK_EQ(shorthandForProperty(CSSPropertyID::kPlaceSelf).length(), 2u);
 
-  CSSParserTokenRange range_copy = range;
-  const CSSValue* align_self_value =
-      To<Longhand>(GetCSSPropertyAlignSelf())
-          .ParseSingleValue(range, context, local_context);
+  stream.EnsureLookAhead();
+  CSSParserTokenStream::State savepoint = stream.Save();
+
+  const CSSValue* align_self_value = GetCSSPropertyAlignSelf().ParseSingleValue(
+      stream, context, local_context);
   if (!align_self_value) {
     return false;
   }
 
-  if (range.AtEnd()) {
-    range = range_copy;
-  }
-
   const CSSValue* justify_self_value =
-      To<Longhand>(GetCSSPropertyJustifySelf())
-          .ParseSingleValue(range, context, local_context);
-  if (!justify_self_value || !range.AtEnd()) {
-    return false;
+      GetCSSPropertyJustifySelf().ParseSingleValue(stream, context,
+                                                   local_context);
+  if (!justify_self_value) {
+    // End-of-stream or parse error. If it's the former,
+    // we try to to parse what we already parsed as align-items again,
+    // just as justify-items. If it's the latter, the caller will
+    // clean up for us (as we won't end on end-of-stream).
+    wtf_size_t align_items_end = stream.Offset();
+    stream.Restore(savepoint);
+    justify_self_value = GetCSSPropertyJustifySelf().ParseSingleValue(
+        stream, context, local_context);
+    if (!justify_self_value || stream.Offset() != align_items_end) {
+      return false;
+    }
   }
 
   DCHECK(align_self_value);
@@ -3074,155 +3359,252 @@ bool PlaceSelf::ParseShorthand(
 const CSSValue* PlaceSelf::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForPlaceShorthand(
-      placeSelfShorthand(), style, layout_object, allow_visited_style);
+      placeSelfShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
+}
+
+namespace {
+
+bool ParsePositionTryShorthand(const StylePropertyShorthand& shorthand,
+                               bool important,
+                               CSSParserTokenStream& stream,
+                               const CSSParserContext& context,
+                               const CSSParserLocalContext& local_context,
+                               HeapVector<CSSPropertyValue, 64>& properties) {
+  CHECK_EQ(shorthand.length(), 2u);
+  CHECK_EQ(shorthand.properties()[0], &GetCSSPropertyPositionTryOrder());
+  const CSSValue* order = css_parsing_utils::ParseLonghand(
+      CSSPropertyID::kPositionTryOrder, CSSPropertyID::kPositionTry, context,
+      stream);
+  if (!order) {
+    order = GetCSSPropertyPositionTryOrder().InitialValue();
+  }
+  AddProperty(CSSPropertyID::kPositionTryOrder, CSSPropertyID::kPositionTry,
+              *order, important,
+              css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+
+  CSSPropertyID fallbacks_id = shorthand.properties()[1]->PropertyID();
+  if (const CSSValue* fallbacks = css_parsing_utils::ParseLonghand(
+          fallbacks_id, CSSPropertyID::kPositionTry, context, stream)) {
+    css_parsing_utils::AddProperty(
+        fallbacks_id, CSSPropertyID::kPositionTry, *fallbacks, important,
+        css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+    return true;
+  }
+  return false;
+}
+
+}  // namespace
+
+bool PositionTry::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext& local_context,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  return ParsePositionTryShorthand(positionTryShorthand(), important, stream,
+                                   context, local_context, properties);
+}
+
+const CSSValue* PositionTry::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  CSSValueList* list = CSSValueList::CreateSpaceSeparated();
+  if (EPositionTryOrder order = style.PositionTryOrder();
+      order != ComputedStyleInitialValues::InitialPositionTryOrder()) {
+    list->Append(*CSSIdentifierValue::Create(order));
+  }
+  if (const PositionTryFallbacks* fallbacks = style.GetPositionTryFallbacks()) {
+    list->Append(*ComputedStyleUtils::ValueForPositionTryFallbacks(*fallbacks));
+  } else {
+    list->Append(*CSSIdentifierValue::Create(CSSValueID::kNone));
+  }
+  return list;
 }
 
 bool ScrollMarginBlock::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
-      scrollMarginBlockShorthand(), important, context, range, properties);
+      scrollMarginBlockShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* ScrollMarginBlock::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForInlineBlockShorthand(
-      scrollMarginBlockShorthand(), style, layout_object, allow_visited_style);
+      scrollMarginBlockShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool ScrollMargin::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia4Longhands(
-      scrollMarginShorthand(), important, context, range, properties);
+      scrollMarginShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* ScrollMargin::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForSidesShorthand(
-      scrollMarginShorthand(), style, layout_object, allow_visited_style);
+      scrollMarginShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool ScrollMarginInline::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
-      scrollMarginInlineShorthand(), important, context, range, properties);
+      scrollMarginInlineShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* ScrollMarginInline::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForInlineBlockShorthand(
-      scrollMarginInlineShorthand(), style, layout_object, allow_visited_style);
+      scrollMarginInlineShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool ScrollPaddingBlock::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
-      scrollPaddingBlockShorthand(), important, context, range, properties);
+      scrollPaddingBlockShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* ScrollPaddingBlock::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForInlineBlockShorthand(
-      scrollPaddingBlockShorthand(), style, layout_object, allow_visited_style);
+      scrollPaddingBlockShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool ScrollPadding::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia4Longhands(
-      scrollPaddingShorthand(), important, context, range, properties);
+      scrollPaddingShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* ScrollPadding::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForSidesShorthand(
-      scrollPaddingShorthand(), style, layout_object, allow_visited_style);
+      scrollPaddingShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 bool ScrollPaddingInline::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandVia2Longhands(
-      scrollPaddingInlineShorthand(), important, context, range, properties);
+      scrollPaddingInlineShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* ScrollPaddingInline::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForInlineBlockShorthand(
-      scrollPaddingInlineShorthand(), style, layout_object,
-      allow_visited_style);
+      scrollPaddingInlineShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
 namespace {
 
-// Consume a single name and a single axis, and append the result to
-// `name_list` and `axis_list` respectively.
-bool ConsumeTimelineItemInto(CSSParserTokenRange& range,
+// Consume a single name, axis, and optionally inset, then append the result
+// to `name_list`, `axis_list`, and `inset_list` respectively.
+//
+// Insets are only relevant for the view-timeline shorthand, and not for
+// the scroll-timeline shorthand, hence `inset_list` may be nullptr.
+//
+// https://drafts.csswg.org/scroll-animations-1/#view-timeline-shorthand
+// https://drafts.csswg.org/scroll-animations-1/#scroll-timeline-shorthand
+bool ConsumeTimelineItemInto(CSSParserTokenStream& stream,
                              const CSSParserContext& context,
                              CSSValueList* name_list,
                              CSSValueList* axis_list,
-                             CSSValueList* attachment_list) {
-  using css_parsing_utils::ConsumeSingleTimelineAttachment;
+                             CSSValueList* inset_list) {
   using css_parsing_utils::ConsumeSingleTimelineAxis;
+  using css_parsing_utils::ConsumeSingleTimelineInset;
   using css_parsing_utils::ConsumeSingleTimelineName;
 
-  // Note that while the spec theoretically allows the name and axis in
-  // any order, the name will always come first in practice, since any
-  // value accepted as an axis is also accepted as a name.
-  CSSValue* name = ConsumeSingleTimelineName(range, context);
+  CSSValue* name = ConsumeSingleTimelineName(stream, context);
 
   if (!name) {
     return false;
   }
 
-  CSSValue* axis = ConsumeSingleTimelineAxis(range);
+  CSSValue* axis = nullptr;
+  CSSValue* inset = nullptr;
+
+  // [ <'view-timeline-axis'> || <'view-timeline-inset'> ]
+  while (true) {
+    if (!axis && (axis = ConsumeSingleTimelineAxis(stream))) {
+      continue;
+    }
+    if (inset_list && !inset &&
+        (inset = ConsumeSingleTimelineInset(stream, context))) {
+      continue;
+    }
+    break;
+  }
+
   if (!axis) {
     axis = CSSIdentifierValue::Create(CSSValueID::kBlock);
   }
-
-  CSSValue* attachment = ConsumeSingleTimelineAttachment(range);
-  if (!attachment) {
-    attachment = CSSIdentifierValue::Create(CSSValueID::kLocal);
+  if (inset_list && !inset) {
+    inset = MakeGarbageCollected<CSSValuePair>(
+        CSSIdentifierValue::Create(CSSValueID::kAuto),
+        CSSIdentifierValue::Create(CSSValueID::kAuto),
+        CSSValuePair::kDropIdenticalValues);
   }
 
+  DCHECK(name_list);
+  DCHECK(axis_list);
   name_list->Append(*name);
   axis_list->Append(*axis);
-  attachment_list->Append(*attachment);
+  if (inset) {
+    DCHECK(inset_list);
+    inset_list->Append(*inset);
+  }
 
   return true;
 }
@@ -3230,7 +3612,7 @@ bool ConsumeTimelineItemInto(CSSParserTokenRange& range,
 bool ParseTimelineShorthand(CSSPropertyID shorthand_id,
                             const StylePropertyShorthand& shorthand,
                             bool important,
-                            CSSParserTokenRange& range,
+                            CSSParserTokenStream& stream,
                             const CSSParserContext& context,
                             const CSSParserLocalContext&,
                             HeapVector<CSSPropertyValue, 64>& properties) {
@@ -3238,54 +3620,66 @@ bool ParseTimelineShorthand(CSSPropertyID shorthand_id,
   using css_parsing_utils::ConsumeCommaIncludingWhitespace;
   using css_parsing_utils::IsImplicitProperty;
 
-  DCHECK_EQ(3u, shorthand.length());
-
   CSSValueList* name_list = CSSValueList::CreateCommaSeparated();
   CSSValueList* axis_list = CSSValueList::CreateCommaSeparated();
-  CSSValueList* attachment_list = CSSValueList::CreateCommaSeparated();
+  CSSValueList* inset_list =
+      shorthand.length() == 3u ? CSSValueList::CreateCommaSeparated() : nullptr;
 
   do {
-    if (!ConsumeTimelineItemInto(range, context, name_list, axis_list,
-                                 attachment_list)) {
+    if (!ConsumeTimelineItemInto(stream, context, name_list, axis_list,
+                                 inset_list)) {
       return false;
     }
-  } while (ConsumeCommaIncludingWhitespace(range));
+  } while (ConsumeCommaIncludingWhitespace(stream));
 
   DCHECK(name_list->length());
   DCHECK(axis_list->length());
-  DCHECK(attachment_list->length());
+  DCHECK(!inset_list || inset_list->length());
   DCHECK_EQ(name_list->length(), axis_list->length());
-  DCHECK_EQ(name_list->length(), attachment_list->length());
+  DCHECK_EQ(inset_list ? name_list->length() : 0,
+            inset_list ? inset_list->length() : 0);
 
+  DCHECK_GE(shorthand.length(), 2u);
+  DCHECK_LE(shorthand.length(), 3u);
   AddProperty(shorthand.properties()[0]->PropertyID(), shorthand_id, *name_list,
               important, IsImplicitProperty::kNotImplicit, properties);
   AddProperty(shorthand.properties()[1]->PropertyID(), shorthand_id, *axis_list,
               important, IsImplicitProperty::kNotImplicit, properties);
-  AddProperty(shorthand.properties()[2]->PropertyID(), shorthand_id,
-              *attachment_list, important, IsImplicitProperty::kNotImplicit,
-              properties);
+  if (inset_list) {
+    DCHECK_EQ(shorthand.length(), 3u);
+    AddProperty(shorthand.properties()[2]->PropertyID(), shorthand_id,
+                *inset_list, important, IsImplicitProperty::kNotImplicit,
+                properties);
+  }
 
-  return range.AtEnd();
+  return true;
 }
 
 static CSSValue* CSSValueForTimelineShorthand(
     const HeapVector<Member<const ScopedCSSName>>& name_vector,
     const Vector<TimelineAxis>& axis_vector,
-    const Vector<TimelineAttachment>& attachment_vector) {
+    const Vector<TimelineInset>* inset_vector,
+    const ComputedStyle& style) {
   CSSValueList* list = CSSValueList::CreateCommaSeparated();
 
-  if (name_vector.size() != axis_vector.size() ||
-      name_vector.size() != attachment_vector.size()) {
+  if (name_vector.size() != axis_vector.size()) {
+    return list;
+  }
+  if (inset_vector && name_vector.size() != inset_vector->size()) {
     return list;
   }
   if (name_vector.empty()) {
     list->Append(*ComputedStyleUtils::SingleValueForTimelineShorthand(
-        /* name */ nullptr, TimelineAxis::kBlock, TimelineAttachment::kLocal));
+        /* name */ nullptr, TimelineAxis::kBlock, /* inset */ std::nullopt,
+        style));
     return list;
   }
   for (wtf_size_t i = 0; i < name_vector.size(); ++i) {
     list->Append(*ComputedStyleUtils::SingleValueForTimelineShorthand(
-        name_vector[i].Get(), axis_vector[i], attachment_vector[i]));
+        name_vector[i].Get(), axis_vector[i],
+        inset_vector ? std::optional<TimelineInset>((*inset_vector)[i])
+                     : std::optional<TimelineInset>(),
+        style));
   }
 
   return list;
@@ -3293,34 +3687,77 @@ static CSSValue* CSSValueForTimelineShorthand(
 
 }  // namespace
 
+bool ScrollStart::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext& local_context,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  CSSValue* block_value =
+      css_parsing_utils::ConsumeScrollStart(stream, context);
+  if (!block_value) {
+    return false;
+  }
+  CSSValue* inline_value =
+      css_parsing_utils::ConsumeScrollStart(stream, context);
+  if (!inline_value) {
+    inline_value = CSSIdentifierValue::Create(CSSValueID::kStart);
+  }
+  AddProperty(scrollStartShorthand().properties()[0]->PropertyID(),
+              scrollStartShorthand().id(), *block_value, important,
+              css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  AddProperty(scrollStartShorthand().properties()[1]->PropertyID(),
+              scrollStartShorthand().id(), *inline_value, important,
+              css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  return true;
+}
+
+const CSSValue* ScrollStart::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  const CSSValue* block_value =
+      scrollStartShorthand().properties()[0]->CSSValueFromComputedStyle(
+          style, layout_object, allow_visited_style, value_phase);
+  const CSSValue* inline_value =
+      scrollStartShorthand().properties()[1]->CSSValueFromComputedStyle(
+          style, layout_object, allow_visited_style, value_phase);
+  if (const auto* ident_value = DynamicTo<CSSIdentifierValue>(inline_value);
+      !ident_value || ident_value->GetValueID() != CSSValueID::kStart) {
+    return MakeGarbageCollected<CSSValuePair>(
+        block_value, inline_value, CSSValuePair::kDropIdenticalValues);
+  }
+  return block_value;
+}
+
 bool ScrollTimeline::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return ParseTimelineShorthand(CSSPropertyID::kScrollTimeline,
-                                scrollTimelineShorthand(), important, range,
+                                scrollTimelineShorthand(), important, stream,
                                 context, local_context, properties);
 }
 
 const CSSValue* ScrollTimeline::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   const HeapVector<Member<const ScopedCSSName>>& name_vector =
       style.ScrollTimelineName() ? style.ScrollTimelineName()->GetNames()
                                  : HeapVector<Member<const ScopedCSSName>>{};
   const Vector<TimelineAxis>& axis_vector = style.ScrollTimelineAxis();
-  const Vector<TimelineAttachment>& attachment_vector =
-      style.ScrollTimelineAttachment();
   return CSSValueForTimelineShorthand(name_vector, axis_vector,
-                                      attachment_vector);
+                                      /* inset_vector */ nullptr, style);
 }
 
 bool TextDecoration::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
@@ -3328,28 +3765,27 @@ bool TextDecoration::ParseShorthand(
   // text-decoration-thickness ships, see style_property_shorthand.cc.tmpl.
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
       shorthandForProperty(CSSPropertyID::kTextDecoration), important, context,
-      range, properties);
+      stream, properties);
 }
 
 const CSSValue* TextDecoration::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   // Use RuntimeEnabledFeature-aware shorthandForProperty() method until
   // text-decoration-thickness ships, see style_property_shorthand.cc.tmpl.
   const StylePropertyShorthand& shorthand =
       shorthandForProperty(CSSPropertyID::kTextDecoration);
 
   CSSValueList* list = CSSValueList::CreateSpaceSeparated();
-  for (unsigned i = 0; i < shorthand.length(); ++i) {
-    const CSSValue* value =
-        shorthand.properties()[i]->CSSValueFromComputedStyle(
-            style, layout_object, allow_visited_style);
+  for (const CSSProperty* const longhand : shorthand.properties()) {
+    const CSSValue* value = longhand->CSSValueFromComputedStyle(
+        style, layout_object, allow_visited_style, value_phase);
     // Do not include initial value 'auto' for thickness.
     // TODO(https://crbug.com/1093826): general shorthand serialization issues
     // remain, in particular for text-decoration.
-    if (shorthand.properties()[i]->PropertyID() ==
-        CSSPropertyID::kTextDecorationThickness) {
+    if (longhand->PropertyID() == CSSPropertyID::kTextDecorationThickness) {
       if (auto* identifier_value = DynamicTo<CSSIdentifierValue>(value)) {
         CSSValueID value_id = identifier_value->GetValueID();
         if (value_id == CSSValueID::kAuto) {
@@ -3363,26 +3799,61 @@ const CSSValue* TextDecoration::CSSValueFromComputedStyleInternal(
   return list;
 }
 
+bool TextWrap::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext&,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
+      textWrapShorthand(), important, context, stream, properties);
+}
+
+const CSSValue* TextWrap::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  const TextWrapMode mode = style.GetTextWrapMode();
+  const TextWrapStyle wrap_style = style.GetTextWrapStyle();
+  if (wrap_style == ComputedStyleInitialValues::InitialTextWrapStyle()) {
+    return CSSIdentifierValue::Create(mode);
+  }
+  if (mode == ComputedStyleInitialValues::InitialTextWrapMode()) {
+    return CSSIdentifierValue::Create(wrap_style);
+  }
+
+  CSSValueList* list = CSSValueList::CreateSpaceSeparated();
+  list->Append(*CSSIdentifierValue::Create(mode));
+  list->Append(*CSSIdentifierValue::Create(wrap_style));
+  return list;
+}
+
 namespace {
 
 CSSValue* ConsumeTransitionValue(CSSPropertyID property,
-                                 CSSParserTokenRange& range,
+                                 CSSParserTokenStream& stream,
                                  const CSSParserContext& context,
                                  bool use_legacy_parsing) {
   switch (property) {
     case CSSPropertyID::kTransitionDelay:
       return css_parsing_utils::ConsumeTime(
-          range, context, CSSPrimitiveValue::ValueRange::kAll);
+          stream, context, CSSPrimitiveValue::ValueRange::kAll);
     case CSSPropertyID::kTransitionDuration:
       return css_parsing_utils::ConsumeTime(
-          range, context, CSSPrimitiveValue::ValueRange::kNonNegative);
+          stream, context, CSSPrimitiveValue::ValueRange::kNonNegative);
     case CSSPropertyID::kTransitionProperty:
-      return css_parsing_utils::ConsumeTransitionProperty(range, context);
+      return css_parsing_utils::ConsumeTransitionProperty(stream, context);
     case CSSPropertyID::kTransitionTimingFunction:
-      return css_parsing_utils::ConsumeAnimationTimingFunction(range, context);
+      return css_parsing_utils::ConsumeAnimationTimingFunction(stream, context);
+    case CSSPropertyID::kTransitionBehavior:
+      if (css_parsing_utils::IsValidTransitionBehavior(stream.Peek().Id())) {
+        return CSSIdentifierValue::Create(
+            stream.ConsumeIncludingWhitespace().Id());
+      }
+      return nullptr;
     default:
       NOTREACHED();
-      return nullptr;
   }
 }
 
@@ -3390,18 +3861,21 @@ CSSValue* ConsumeTransitionValue(CSSPropertyID property,
 
 bool Transition::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   const StylePropertyShorthand shorthand = transitionShorthandForParsing();
   const unsigned longhand_count = shorthand.length();
 
+  // Only relevant for 'animation'.
+  auto is_reset_only_function = [](CSSPropertyID) { return false; };
+
   HeapVector<Member<CSSValueList>, css_parsing_utils::kMaxNumAnimationLonghands>
       longhands(longhand_count);
   if (!css_parsing_utils::ConsumeAnimationShorthand(
-          shorthand, longhands, ConsumeTransitionValue, range, context,
-          local_context.UseAliasParsing())) {
+          shorthand, longhands, ConsumeTransitionValue, is_reset_only_function,
+          stream, context, local_context.UseAliasParsing())) {
     return false;
   }
 
@@ -3420,29 +3894,71 @@ bool Transition::ParseShorthand(
         properties);
   }
 
-  return range.AtEnd();
+  return true;
 }
 
 const CSSValue* Transition::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   const CSSTransitionData* transition_data = style.Transitions();
   if (transition_data) {
     CSSValueList* transitions_list = CSSValueList::CreateCommaSeparated();
     for (wtf_size_t i = 0; i < transition_data->PropertyList().size(); ++i) {
       CSSValueList* list = CSSValueList::CreateSpaceSeparated();
-      list->Append(*ComputedStyleUtils::CreateTransitionPropertyValue(
-          transition_data->PropertyList()[i]));
-      list->Append(*CSSNumericLiteralValue::Create(
+
+      CSSTransitionData::TransitionProperty property =
+          transition_data->PropertyList()[i];
+      if (property != CSSTransitionData::InitialProperty()) {
+        list->Append(
+            *ComputedStyleUtils::CreateTransitionPropertyValue(property));
+      }
+
+      // If we have a transition-delay but no transition-duration set, we must
+      // serialize the transition-duration because they're both <time> values
+      // and transition-duration comes first.
+      Timing::Delay delay =
+          CSSTimingData::GetRepeated(transition_data->DelayStartList(), i);
+      const double duration =
           CSSTimingData::GetRepeated(transition_data->DurationList(), i)
-              .value(),
-          CSSPrimitiveValue::UnitType::kSeconds));
-      list->Append(*ComputedStyleUtils::ValueForAnimationTimingFunction(
-          CSSTimingData::GetRepeated(transition_data->TimingFunctionList(),
-                                     i)));
-      list->Append(*ComputedStyleUtils::ValueForAnimationDelayStart(
-          CSSTimingData::GetRepeated(transition_data->DelayStartList(), i)));
+              .value();
+      bool shows_delay = delay != CSSTimingData::InitialDelayStart();
+      bool shows_duration =
+          shows_delay || duration != CSSTransitionData::InitialDuration();
+
+      if (shows_duration) {
+        list->Append(*CSSNumericLiteralValue::Create(
+            duration, CSSPrimitiveValue::UnitType::kSeconds));
+      }
+
+      CSSValue* timing_function =
+          ComputedStyleUtils::ValueForAnimationTimingFunction(
+              CSSTimingData::GetRepeated(transition_data->TimingFunctionList(),
+                                         i));
+      CSSIdentifierValue* timing_function_value_id =
+          DynamicTo<CSSIdentifierValue>(timing_function);
+      if (!timing_function_value_id ||
+          timing_function_value_id->GetValueID() != CSSValueID::kEase) {
+        list->Append(*timing_function);
+      }
+
+      if (shows_delay) {
+        list->Append(*ComputedStyleUtils::ValueForAnimationDelay(delay));
+      }
+
+      const CSSTransitionData::TransitionBehavior behavior =
+          CSSTimingData::GetRepeated(transition_data->BehaviorList(), i);
+      if (behavior != CSSTransitionData::InitialBehavior()) {
+        list->Append(
+            *ComputedStyleUtils::CreateTransitionBehaviorValue(behavior));
+      }
+
+      if (!list->length()) {
+        list->Append(*ComputedStyleUtils::CreateTransitionPropertyValue(
+            CSSTransitionData::InitialProperty()));
+      }
+
       transitions_list->Append(*list);
     }
     return transitions_list;
@@ -3451,49 +3967,42 @@ const CSSValue* Transition::CSSValueFromComputedStyleInternal(
   CSSValueList* list = CSSValueList::CreateSpaceSeparated();
   // transition-property default value.
   list->Append(*CSSIdentifierValue::Create(CSSValueID::kAll));
-  list->Append(*CSSNumericLiteralValue::Create(
-      CSSTransitionData::InitialDuration().value(),
-      CSSPrimitiveValue::UnitType::kSeconds));
-  list->Append(*ComputedStyleUtils::ValueForAnimationTimingFunction(
-      CSSTransitionData::InitialTimingFunction()));
-  list->Append(*ComputedStyleUtils::ValueForAnimationDelayStart(
-      CSSTransitionData::InitialDelayStart()));
   return list;
 }
 
 bool ViewTimeline::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return ParseTimelineShorthand(CSSPropertyID::kViewTimeline,
-                                viewTimelineShorthand(), important, range,
+                                viewTimelineShorthand(), important, stream,
                                 context, local_context, properties);
 }
 
 const CSSValue* ViewTimeline::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   const HeapVector<Member<const ScopedCSSName>>& name_vector =
       style.ViewTimelineName() ? style.ViewTimelineName()->GetNames()
                                : HeapVector<Member<const ScopedCSSName>>{};
   const Vector<TimelineAxis>& axis_vector = style.ViewTimelineAxis();
-  const Vector<TimelineAttachment>& attachment_vector =
-      style.ViewTimelineAttachment();
-  return CSSValueForTimelineShorthand(name_vector, axis_vector,
-                                      attachment_vector);
+  const Vector<TimelineInset>& inset_vector = style.ViewTimelineInset();
+  return CSSValueForTimelineShorthand(name_vector, axis_vector, &inset_vector,
+                                      style);
 }
 
 bool WebkitColumnBreakAfter::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext&,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   CSSValueID value;
-  if (!css_parsing_utils::ConsumeFromColumnBreakBetween(range, value)) {
+  if (!css_parsing_utils::ConsumeFromColumnBreakBetween(stream, value)) {
     return false;
   }
 
@@ -3507,19 +4016,20 @@ bool WebkitColumnBreakAfter::ParseShorthand(
 const CSSValue* WebkitColumnBreakAfter::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValueForWebkitColumnBreakBetween(
       style.BreakAfter());
 }
 
 bool WebkitColumnBreakBefore::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext&,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   CSSValueID value;
-  if (!css_parsing_utils::ConsumeFromColumnBreakBetween(range, value)) {
+  if (!css_parsing_utils::ConsumeFromColumnBreakBetween(stream, value)) {
     return false;
   }
 
@@ -3533,19 +4043,20 @@ bool WebkitColumnBreakBefore::ParseShorthand(
 const CSSValue* WebkitColumnBreakBefore::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValueForWebkitColumnBreakBetween(
       style.BreakBefore());
 }
 
 bool WebkitColumnBreakInside::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext&,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   CSSValueID value;
-  if (!css_parsing_utils::ConsumeFromColumnOrPageBreakInside(range, value)) {
+  if (!css_parsing_utils::ConsumeFromColumnOrPageBreakInside(stream, value)) {
     return false;
   }
 
@@ -3559,14 +4070,15 @@ bool WebkitColumnBreakInside::ParseShorthand(
 const CSSValue* WebkitColumnBreakInside::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValueForWebkitColumnBreakInside(
       style.BreakInside());
 }
 
 bool WebkitMaskBoxImage::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
@@ -3577,7 +4089,7 @@ bool WebkitMaskBoxImage::ParseShorthand(
   CSSValue* repeat = nullptr;
 
   if (!css_parsing_utils::ConsumeBorderImageComponents(
-          range, context, source, slice, width, outset, repeat,
+          stream, context, source, slice, width, outset, repeat,
           css_parsing_utils::DefaultFill::kFill)) {
     return false;
   }
@@ -3614,188 +4126,442 @@ bool WebkitMaskBoxImage::ParseShorthand(
 const CSSValue* WebkitMaskBoxImage::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
-    bool allow_visited_style) const {
-  return ComputedStyleUtils::ValueForNinePieceImage(style.MaskBoxImage(), style,
-                                                    allow_visited_style);
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::ValueForNinePieceImage(
+      style.MaskBoxImage(), style, allow_visited_style, value_phase);
 }
 
-bool WebkitMask::ParseShorthand(
-    bool important,
-    CSSParserTokenRange& range,
-    const CSSParserContext& context,
-    const CSSParserLocalContext& local_context,
-    HeapVector<CSSPropertyValue, 64>& properties) const {
-  return css_parsing_utils::ParseBackgroundOrMask(important, range, context,
+bool Mask::ParseShorthand(bool important,
+                          CSSParserTokenStream& stream,
+                          const CSSParserContext& context,
+                          const CSSParserLocalContext& local_context,
+                          HeapVector<CSSPropertyValue, 64>& properties) const {
+  return css_parsing_utils::ParseBackgroundOrMask(important, stream, context,
                                                   local_context, properties);
 }
 
-bool WebkitMaskPosition::ParseShorthand(
-    bool important,
-    CSSParserTokenRange& range,
-    const CSSParserContext& context,
-    const CSSParserLocalContext&,
-    HeapVector<CSSPropertyValue, 64>& properties) const {
-  CSSValue* result_x = nullptr;
-  CSSValue* result_y = nullptr;
-
-  if (!css_parsing_utils::ConsumeBackgroundPosition(
-          range, context, css_parsing_utils::UnitlessQuirk::kAllow, result_x,
-          result_y) ||
-      !range.AtEnd()) {
-    return false;
-  }
-
-  css_parsing_utils::AddProperty(
-      CSSPropertyID::kWebkitMaskPositionX, CSSPropertyID::kWebkitMaskPosition,
-      *result_x, important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
-      properties);
-
-  css_parsing_utils::AddProperty(
-      CSSPropertyID::kWebkitMaskPositionY, CSSPropertyID::kWebkitMaskPosition,
-      *result_y, important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
-      properties);
-  return true;
-}
-
-const CSSValue* WebkitMaskPosition::CSSValueFromComputedStyleInternal(
+const CSSValue* Mask::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
-    const LayoutObject*,
-    bool allow_visited_style) const {
-  return ComputedStyleUtils::BackgroundPositionOrWebkitMaskPosition(
-      *this, style, &style.MaskLayers());
+    const LayoutObject* layout_object,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::ValuesForMaskShorthand(
+      maskShorthand(), style, layout_object, allow_visited_style, value_phase);
 }
 
-bool WebkitMaskRepeat::ParseShorthand(
+bool MaskPosition::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
-  CSSValue* result_x = nullptr;
-  CSSValue* result_y = nullptr;
-  bool implicit = false;
-  if (!css_parsing_utils::ConsumeRepeatStyle(range, result_x, result_y,
-                                             implicit) ||
-      !range.AtEnd()) {
+  return ParseBackgroundOrMaskPosition(
+      maskPositionShorthand(), important, stream, context,
+      local_context.UseAliasParsing()
+          ? WebFeature::kThreeValuedPositionBackground
+          : std::optional<WebFeature>(),
+      properties);
+}
+
+const CSSValue* MaskPosition::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject*,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::BackgroundPositionOrMaskPosition(
+      *this, style, &style.MaskLayers());
+}
+
+bool Rule::ParseShorthand(bool important,
+                          CSSParserTokenStream& stream,
+                          const CSSParserContext& context,
+                          const CSSParserLocalContext& local_context,
+                          HeapVector<CSSPropertyValue, 64>& properties) const {
+  DCHECK_EQ(ruleShorthand().length(), 6u);
+  CSSValueList* rule_widths = nullptr;
+  CSSValueList* rule_styles = nullptr;
+  CSSValueList* rule_colors = nullptr;
+
+  if (!css_parsing_utils::ConsumeGapDecorationsRuleShorthand(
+          important, context, stream, rule_widths, rule_styles, rule_colors)) {
+    return false;
+  }
+
+  CHECK(rule_widths);
+  CHECK(rule_styles);
+  CHECK(rule_colors);
+
+  CSSGapDecorationUtils::AddProperties(
+      CSSGapDecorationPropertyDirection::kColumn, *rule_widths, *rule_styles,
+      *rule_colors, important, properties);
+  CSSGapDecorationUtils::AddProperties(CSSGapDecorationPropertyDirection::kRow,
+                                       *rule_widths, *rule_styles, *rule_colors,
+                                       important, properties);
+
+  return true;
+}
+
+const CSSValue* Rule::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  const CSSValue* column_value =
+      GetCSSPropertyColumnRule().CSSValueFromComputedStyle(
+          style, layout_object, allow_visited_style, value_phase);
+  const CSSValue* row_value = GetCSSPropertyRowRule().CSSValueFromComputedStyle(
+      style, layout_object, allow_visited_style, value_phase);
+
+  if (!base::ValuesEquivalent(column_value, row_value)) {
+    return nullptr;
+  }
+
+  return column_value;
+}
+
+bool RuleColor::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext& local_context,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  DCHECK_EQ(shorthandForProperty(CSSPropertyID::kRuleColor).length(), 2u);
+  CSSValue* rule_color = css_parsing_utils::ConsumeGapDecorationPropertyList(
+      stream, context, CSSGapDecorationPropertyType::kColor);
+
+  if (!rule_color) {
     return false;
   }
 
   css_parsing_utils::AddProperty(
-      CSSPropertyID::kWebkitMaskRepeatX, CSSPropertyID::kWebkitMaskRepeat,
-      *result_x, important,
-      implicit ? css_parsing_utils::IsImplicitProperty::kImplicit
-               : css_parsing_utils::IsImplicitProperty::kNotImplicit,
+      CSSPropertyID::kColumnRuleColor, CSSPropertyID::kRuleColor, *rule_color,
+      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
       properties);
   css_parsing_utils::AddProperty(
-      CSSPropertyID::kWebkitMaskRepeatY, CSSPropertyID::kWebkitMaskRepeat,
-      *result_y, important,
-      implicit ? css_parsing_utils::IsImplicitProperty::kImplicit
-               : css_parsing_utils::IsImplicitProperty::kNotImplicit,
+      CSSPropertyID::kRowRuleColor, CSSPropertyID::kRuleColor, *rule_color,
+      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
       properties);
 
   return true;
 }
 
-const CSSValue* WebkitMaskRepeat::CSSValueFromComputedStyleInternal(
+const CSSValue* RuleColor::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
-    const LayoutObject*,
-    bool allow_visited_style) const {
-  return ComputedStyleUtils::BackgroundRepeatOrWebkitMaskRepeat(
-      &style.MaskLayers());
+    const LayoutObject* layout_object,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::ValuesForBidirectionalGapRuleShorthand(
+      ruleColorShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
+}
+
+bool RuleWidth::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext& local_context,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  DCHECK_EQ(shorthandForProperty(CSSPropertyID::kRuleWidth).length(), 2u);
+  CSSValue* rule_width = css_parsing_utils::ConsumeGapDecorationPropertyList(
+      stream, context, CSSGapDecorationPropertyType::kWidth);
+
+  if (!rule_width) {
+    return false;
+  }
+
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kColumnRuleWidth, CSSPropertyID::kRuleWidth, *rule_width,
+      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
+      properties);
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kRowRuleWidth, CSSPropertyID::kRuleWidth, *rule_width,
+      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
+      properties);
+
+  return true;
+}
+
+const CSSValue* RuleWidth::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::ValuesForBidirectionalGapRuleShorthand(
+      ruleWidthShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
+}
+
+bool RuleStyle::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext& local_context,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  DCHECK_EQ(shorthandForProperty(CSSPropertyID::kRuleStyle).length(), 2u);
+  CSSValue* rule_style = css_parsing_utils::ConsumeGapDecorationPropertyList(
+      stream, context, CSSGapDecorationPropertyType::kStyle);
+
+  if (!rule_style) {
+    return false;
+  }
+
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kColumnRuleStyle, CSSPropertyID::kRuleStyle, *rule_style,
+      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
+      properties);
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kRowRuleStyle, CSSPropertyID::kRuleStyle, *rule_style,
+      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
+      properties);
+
+  return true;
+}
+
+const CSSValue* RuleStyle::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::ValuesForBidirectionalGapRuleShorthand(
+      ruleStyleShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
+}
+
+bool TextBox::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext&,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  CSSValue* trim = nullptr;
+  CSSValue* edge = nullptr;
+
+  // Try `normal` first.
+  if (css_parsing_utils::ConsumeIdent<CSSValueID::kNormal>(stream)) {
+    trim = CSSIdentifierValue::Create(CSSValueID::kNone);
+    edge = CSSIdentifierValue::Create(CSSValueID::kAuto);
+  } else {
+    // Try <`text-box-trim> || <'text-box-edge>`.
+    while (!stream.AtEnd() && (!trim || !edge)) {
+      if (!trim && (trim = css_parsing_utils::ConsumeTextBoxTrim(stream))) {
+        continue;
+      }
+      if (!edge && (edge = css_parsing_utils::ConsumeTextBoxEdge(stream))) {
+        continue;
+      }
+
+      // Parse error, but we must accept whatever junk might be after our own
+      // tokens. Fail only if we didn't parse any useful values.
+      break;
+    }
+
+    if (!trim && !edge) {
+      return false;
+    }
+    if (!trim) {
+      trim = CSSIdentifierValue::Create(CSSValueID::kTrimBoth);
+    }
+    if (!edge) {
+      edge = CSSIdentifierValue::Create(CSSValueID::kAuto);
+    }
+  }
+
+  CHECK(trim);
+  AddProperty(CSSPropertyID::kTextBoxTrim, CSSPropertyID::kTextBox, *trim,
+              important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
+              properties);
+  CHECK(edge);
+  AddProperty(CSSPropertyID::kTextBoxEdge, CSSPropertyID::kTextBox, *edge,
+              important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
+              properties);
+  return true;
+}
+
+const CSSValue* TextBox::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  const ETextBoxTrim trim = style.TextBoxTrim();
+  const TextBoxEdge edge = style.GetTextBoxEdge();
+
+  // If `text-box-edge: auto`, produce `normal` or `<text-box-trim>`.
+  if (edge.IsAuto()) {
+    if (trim == ETextBoxTrim::kNone) {
+      return CSSIdentifierValue::Create(CSSValueID::kNormal);
+    }
+    return CSSIdentifierValue::Create(trim);
+  }
+
+  const CSSValue* edge_value;
+  if (edge.IsUnderDefault()) {
+    edge_value = CSSIdentifierValue::Create(edge.Over());
+  } else {
+    CSSValueList* edge_list = CSSValueList::CreateSpaceSeparated();
+    edge_list->Append(*CSSIdentifierValue::Create(edge.Over()));
+    edge_list->Append(*CSSIdentifierValue::Create(edge.Under()));
+    edge_value = edge_list;
+  }
+
+  // Omit `text-box-trim` if `trim-both`, not when it's initial.
+  if (trim == ETextBoxTrim::kTrimBoth) {
+    return edge_value;
+  }
+
+  CSSValueList* list = CSSValueList::CreateSpaceSeparated();
+  list->Append(*CSSIdentifierValue::Create(trim));
+  list->Append(*edge_value);
+  return list;
 }
 
 bool TextEmphasis::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
-      textEmphasisShorthand(), important, context, range, properties);
+      textEmphasisShorthand(), important, context, stream, properties);
 }
 
 const CSSValue* TextEmphasis::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForShorthandProperty(
-      textEmphasisShorthand(), style, layout_object, allow_visited_style);
+      textEmphasisShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
 }
 
-bool WebkitTextStroke::ParseShorthand(
+bool TextSpacing::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
-  return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
-      webkitTextStrokeShorthand(), important, context, range, properties);
-}
+  CSSValue* autospace = nullptr;
+  CSSValue* spacing_trim = nullptr;
 
-bool Toggle::ParseShorthand(
-    bool important,
-    CSSParserTokenRange& range,
-    const CSSParserContext& context,
-    const CSSParserLocalContext&,
-    HeapVector<CSSPropertyValue, 64>& properties) const {
-  const CSSValue* toggle_root = css_parsing_utils::ParseLonghand(
-      CSSPropertyID::kToggleRoot, CSSPropertyID::kToggle, context, range);
-  if (!toggle_root || !range.AtEnd()) {
-    return false;
-  }
-
-  const CSSValue* toggle_trigger;
-  if (const auto* ident = DynamicTo<CSSIdentifierValue>(toggle_root)) {
-    DCHECK_EQ(ident->GetValueID(), CSSValueID::kNone);
-    toggle_trigger = CSSIdentifierValue::Create(CSSValueID::kNone);
+  // The `text-spacing` shorthand doesn't lean directly on the longhand's
+  // grammar, instead uses the `autospace` and `spacing-trim` productions.
+  // https://drafts.csswg.org/css-text-4/#text-spacing-property
+  //
+  // Try `none` first.
+  if (css_parsing_utils::ConsumeIdent<CSSValueID::kNone>(stream)) {
+    autospace = CSSIdentifierValue::Create(CSSValueID::kNoAutospace);
+    spacing_trim = CSSIdentifierValue::Create(CSSValueID::kSpaceAll);
   } else {
-    const auto* toggle_root_list = To<CSSValueList>(toggle_root);
-    CSSValueList* toggle_trigger_list = CSSValueList::CreateCommaSeparated();
-    for (const auto& item : *toggle_root_list) {
-      CSSValueList* item_list = CSSValueList::CreateSpaceSeparated();
-      item_list->Append(*MakeGarbageCollected<CSSCustomIdentValue>(
-          To<CSSCustomIdentValue>(To<CSSValueList>(item.Get())->Item(0))
-              .Value()));
-      toggle_trigger_list->Append(*item_list);
+    // Try `<autospace> || <spacing-trim>`.
+    wtf_size_t num_values = 0;
+    while (!stream.AtEnd() && ++num_values <= 2) {
+      if (css_parsing_utils::ConsumeIdent<CSSValueID::kNormal>(stream)) {
+        // `normal` can be either `text-autospace`, `text-spacing-trim`, or
+        // both. Keep parsing without setting the value.
+        continue;
+      }
+      if (!autospace &&
+          (autospace = css_parsing_utils::ConsumeAutospace(stream))) {
+        continue;
+      }
+      if (!spacing_trim &&
+          (spacing_trim = css_parsing_utils::ConsumeSpacingTrim(stream))) {
+        continue;
+      }
+
+      // Parse error, but we must accept whatever junk might be after our own
+      // tokens. Fail only if we didn't parse any useful values.
+      break;
     }
-    toggle_trigger = toggle_trigger_list;
+
+    if (!num_values) {
+      return false;
+    }
+    if (!autospace) {
+      autospace = CSSIdentifierValue::Create(CSSValueID::kNormal);
+    }
+    if (!spacing_trim) {
+      spacing_trim = CSSIdentifierValue::Create(CSSValueID::kNormal);
+    }
   }
 
-  AddProperty(CSSPropertyID::kToggleRoot, CSSPropertyID::kToggle, *toggle_root,
-              important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
-              properties);
-  AddProperty(CSSPropertyID::kToggleTrigger, CSSPropertyID::kToggle,
-              *toggle_trigger, important,
+  CHECK(autospace);
+  AddProperty(CSSPropertyID::kTextAutospace, CSSPropertyID::kTextSpacing,
+              *autospace, important,
+              css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  CHECK(spacing_trim);
+  AddProperty(CSSPropertyID::kTextSpacingTrim, CSSPropertyID::kTextSpacing,
+              *spacing_trim, important,
               css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
   return true;
 }
 
-const CSSValue* Toggle::CSSValueFromComputedStyleInternal(
+const CSSValue* TextSpacing::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
-  const CSSValue* toggle_root =
-      GetCSSPropertyToggleRoot().CSSValueFromComputedStyle(style, layout_object,
-                                                           allow_visited_style);
-  const CSSValue* toggle_trigger =
-      GetCSSPropertyToggleTrigger().CSSValueFromComputedStyle(
-          style, layout_object, allow_visited_style);
-
-  if (!StylePropertySerializer::IsValidToggleShorthand(toggle_root,
-                                                       toggle_trigger)) {
-    return nullptr;
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  const ETextAutospace autospace = style.TextAutospace();
+  const TextSpacingTrim spacing_trim =
+      style.GetFontDescription().GetTextSpacingTrim();
+  if (autospace == ComputedStyleInitialValues::InitialTextAutospace() &&
+      spacing_trim == FontBuilder::InitialTextSpacingTrim()) {
+    return CSSIdentifierValue::Create(CSSValueID::kNormal);
+  }
+  if (autospace == ETextAutospace::kNoAutospace &&
+      spacing_trim == TextSpacingTrim::kSpaceAll) {
+    return CSSIdentifierValue::Create(CSSValueID::kNone);
   }
 
-  return toggle_root;
+  const CSSValue* autospace_value =
+      autospace == ComputedStyleInitialValues::InitialTextAutospace()
+          ? nullptr
+          : CSSIdentifierValue::Create(autospace);
+  const CSSValue* spacing_trim_value =
+      spacing_trim == FontBuilder::InitialTextSpacingTrim()
+          ? nullptr
+          : CSSIdentifierValue::Create(spacing_trim);
+  if (!autospace_value) {
+    CHECK(spacing_trim_value);
+    return spacing_trim_value;
+  }
+  if (!spacing_trim_value) {
+    return autospace_value;
+  }
+  CSSValueList* list = CSSValueList::CreateSpaceSeparated();
+  list->Append(*spacing_trim_value);
+  list->Append(*autospace_value);
+  return list;
 }
 
-bool AlternativeWhiteSpace::ParseShorthand(
+bool WebkitTextStroke::ParseShorthand(
     bool important,
-    CSSParserTokenRange& range,
+    CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
-  const CSSParserTokenRange original_range = range;
+  return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
+      webkitTextStrokeShorthand(), important, context, stream, properties);
+}
+
+const CSSValue* WebkitTextStroke::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::ValuesForShorthandProperty(
+      webkitTextStrokeShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
+}
+
+bool WhiteSpace::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext&,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  CSSParserTokenStream::State savepoint = stream.Save();
 
   // Try to parse as a pre-defined keyword. The `white-space` has pre-defined
   // keywords in addition to the multi-values shorthand, for the backward
@@ -3803,10 +4569,22 @@ bool AlternativeWhiteSpace::ParseShorthand(
   if (const CSSIdentifierValue* value = css_parsing_utils::ConsumeIdent<
           CSSValueID::kBreakSpaces, CSSValueID::kNormal, CSSValueID::kNowrap,
           CSSValueID::kPre, CSSValueID::kPreLine, CSSValueID::kPreWrap>(
-          range)) {
+          stream)) {
     // Parse as a pre-defined keyword only if it is at the end. Some keywords
     // can be both a pre-defined keyword or a longhand value.
-    if (range.AtEnd()) {
+    //
+    // TODO(sesse): Figure out some less hacky way of figuring out
+    // whether we are at the end or not. In theory, we are supposed to
+    // accept arbitrary junk after our input, but we are being saved
+    // by the fact that shorthands only need to worry about !important
+    // (and none of our longhands accept anything involving the ! delimiter).
+    bool at_end = stream.AtEnd();
+    if (!at_end) {
+      stream.ConsumeWhitespace();
+      at_end = stream.Peek().GetType() == kDelimiterToken &&
+               stream.Peek().Delimiter() == '!';
+    }
+    if (at_end) {
       const EWhiteSpace whitespace =
           CssValueIDToPlatformEnum<EWhiteSpace>(value->GetValueID());
       DCHECK(IsValidWhiteSpace(whitespace));
@@ -3816,25 +4594,27 @@ bool AlternativeWhiteSpace::ParseShorthand(
           important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
           properties);
       AddProperty(
-          CSSPropertyID::kTextWrap, CSSPropertyID::kWhiteSpace,
-          *CSSIdentifierValue::Create(ToTextWrap(whitespace)), important,
+          CSSPropertyID::kTextWrapMode, CSSPropertyID::kWhiteSpace,
+          *CSSIdentifierValue::Create(ToTextWrapMode(whitespace)), important,
           css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
       return true;
     }
 
-    // If `range` is not at end, the keyword is for longhands. Restore `range`.
-    range = original_range;
+    // If `stream` is not at end, the keyword is for longhands. Restore
+    // `stream`.
+    stream.Restore(savepoint);
   }
 
   // Consume multi-value syntax if the first identifier is not pre-defined.
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
-      alternativeWhiteSpaceShorthand(), important, context, range, properties);
+      whiteSpaceShorthand(), important, context, stream, properties);
 }
 
-const CSSValue* AlternativeWhiteSpace::CSSValueFromComputedStyleInternal(
+const CSSValue* WhiteSpace::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   const EWhiteSpace whitespace = style.WhiteSpace();
   if (IsValidWhiteSpace(whitespace)) {
     const CSSValueID value = PlatformEnumToCSSValueID(whitespace);
@@ -3847,8 +4627,8 @@ const CSSValue* AlternativeWhiteSpace::CSSValueFromComputedStyleInternal(
   if (collapse != ComputedStyleInitialValues::InitialWhiteSpaceCollapse()) {
     list->Append(*CSSIdentifierValue::Create(collapse));
   }
-  const TextWrap wrap = style.GetTextWrap();
-  if (wrap != ComputedStyleInitialValues::InitialTextWrap()) {
+  const TextWrapMode wrap = style.GetTextWrapMode();
+  if (wrap != ComputedStyleInitialValues::InitialTextWrapMode()) {
     list->Append(*CSSIdentifierValue::Create(wrap));
   }
   // When all longhands are initial values, it should be `normal`, covered by

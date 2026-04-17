@@ -5,17 +5,18 @@
 // A library to manage RLZ information for access-points shared
 // across different client applications.
 
-#include "rlz/lib/machine_deal_win.h"
-
 #include <windows.h>
+
 #include <aclapi.h>
 #include <stddef.h>
 #include <winerror.h>
 
 #include <memory>
 
+#include "base/compiler_specific.h"
 #include "base/win/registry.h"
 #include "rlz/lib/assert.h"
+#include "rlz/lib/machine_deal_win.h"
 #include "rlz/lib/rlz_value_store.h"
 #include "rlz/win/lib/machine_deal.h"
 #include "rlz/win/lib/rlz_value_store_registry.h"
@@ -150,7 +151,7 @@ bool CreateMachineState() {
 
   // Add ALL-USERS ALL-ACCESS ACL.
   EXPLICIT_ACCESS ea;
-  ZeroMemory(&ea, sizeof(EXPLICIT_ACCESS));
+  UNSAFE_TODO(ZeroMemory(&ea, sizeof(EXPLICIT_ACCESS)));
   ea.grfAccessPermissions = GENERIC_ALL | KEY_ALL_ACCESS;
   ea.grfAccessMode = GRANT_ACCESS;
   ea.grfInheritance= SUB_CONTAINERS_AND_OBJECTS_INHERIT;

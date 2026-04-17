@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/containers/span.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback_helpers.h"
@@ -21,6 +22,7 @@
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
+#include "services/network/public/mojom/fetch_api.mojom-shared.h"
 #include "url/gurl.h"
 
 namespace {
@@ -82,8 +84,7 @@ void ChromeJsErrorReportProcessor::UpdateReportDatabase(
   std::string line = base::StrCat({base::NumberToString(report_time.ToTimeT()),
                                    ",", remote_report_id, "\n"});
   // WriteAtCurrentPos because O_APPEND.
-  if (upload_log.WriteAtCurrentPos(line.c_str(), line.length()) !=
-      static_cast<int>(line.length())) {
+  if (!upload_log.WriteAtCurrentPosAndCheck(base::as_byte_span(line))) {
     DVLOG(1) << "Could not write to upload.log";
     return;
   }
@@ -100,7 +101,7 @@ std::string ChromeJsErrorReportProcessor::GetCrashEndpointStaging() {
 // On non-Chrome OS platforms, send the report directly.
 void ChromeJsErrorReportProcessor::SendReport(
     ParameterMap params,
-    absl::optional<std::string> stack_trace,
+    std::optional<std::string> stack_trace,
     bool send_to_production_servers,
     base::ScopedClosureRunner callback_runner,
     base::Time report_time,
@@ -114,6 +115,7 @@ void ChromeJsErrorReportProcessor::SendReport(
   auto resource_request = std::make_unique<network::ResourceRequest>();
   resource_request->method = "POST";
   resource_request->url = url;
+  resource_request->credentials_mode = network::mojom::CredentialsMode::kOmit;
 
   const auto traffic_annotation =
       net::DefineNetworkTrafficAnnotation("javascript_report_error", R"(
@@ -121,13 +123,14 @@ void ChromeJsErrorReportProcessor::SendReport(
         sender: "JavaScript error reporter"
         description:
           "Chrome can send JavaScript errors that occur within built-in "
-          "component extensions and chrome:// webpages. If enabled, the error "
-          "message, along with information about Chrome and the operating "
-          "system, is sent to Google for debugging."
+          "component extensions, chrome:// webpages and DevTools. If enabled, "
+          "the error message, along with information about Chrome and the "
+          "operating system, is sent to Google for debugging."
         trigger:
           "A JavaScript error occurs in a Chrome component extension (an "
           "extension bundled with the Chrome browser, not downloaded "
-          "separately) or in certain chrome:// webpages."
+          "separately) or in certain chrome:// webpages or "
+          "in Chrome DevTools (devtools:// pages)."
         data:
           "The JavaScript error message, the version and channel of Chrome, "
           "the URL of the extension or webpage, the line and column number of "

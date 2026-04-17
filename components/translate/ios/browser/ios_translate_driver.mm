@@ -10,16 +10,15 @@
 #include "base/strings/sys_string_conversions.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
+#include "components/language_detection/core/browser/language_detection_model_service.h"
+#include "components/language_detection/core/constants.h"
+#include "components/language_detection/ios/browser/language_detection_model_loader_service_ios.h"
 #include "components/translate/core/browser/translate_client.h"
 #include "components/translate/core/browser/translate_manager.h"
-#include "components/translate/core/browser/translate_model_service.h"
 #include "components/translate/core/common/language_detection_details.h"
-#include "components/translate/core/common/translate_constants.h"
 #include "components/translate/core/common/translate_metrics.h"
 #include "components/translate/core/common/translate_util.h"
 #include "components/translate/core/language_detection/language_detection_model.h"
-#import "components/translate/ios/browser/js_translate_web_frame_manager_factory.h"
-#include "components/translate/ios/browser/language_detection_model_service.h"
 #import "components/translate/ios/browser/translate_controller.h"
 #include "components/ukm/ios/ukm_url_recorder.h"
 #import "ios/web/public/annotations/annotations_text_manager.h"
@@ -34,10 +33,6 @@
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
 #include "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace translate {
 
@@ -55,7 +50,8 @@ const base::TimeDelta kTimeoutDelay = base::Seconds(8);
 
 IOSTranslateDriver::IOSTranslateDriver(
     web::WebState* web_state,
-    LanguageDetectionModelService* language_detection_model_service)
+    language_detection::LanguageDetectionModelLoaderServiceIOS*
+        language_detection_model_service)
     : web_state_(web_state),
       language_detection_model_service_(language_detection_model_service),
       page_seq_no_(0),
@@ -67,7 +63,7 @@ void IOSTranslateDriver::Initialize(
   DCHECK(translate_manager);
   DCHECK(web_state_);
   translate_manager_ = translate_manager->GetWeakPtr();
-  web_state_->AddObserver(this);
+  web_state_observation_.Observe(web_state_);
 
   LanguageDetectionModel* language_detection_model = nullptr;
   if (language_detection_model_service_ && IsTFLiteLanguageDetectionEnabled()) {
@@ -78,19 +74,14 @@ void IOSTranslateDriver::Initialize(
   language::IOSLanguageDetectionTabHelper::CreateForWebState(
       web_state_, url_language_histogram, language_detection_model,
       translate_manager_->translate_client()->GetPrefs());
-  language::IOSLanguageDetectionTabHelper::FromWebState(web_state_)
-      ->AddObserver(this);
+  language_detection_observation_.Observe(
+      language::IOSLanguageDetectionTabHelper::FromWebState(web_state_));
 
-  TranslateController::CreateForWebState(
-      web_state_, JSTranslateWebFrameManagerFactory::GetInstance());
+  TranslateController::CreateForWebState(web_state_);
   TranslateController::FromWebState(web_state_)->set_observer(this);
 }
 
 IOSTranslateDriver::~IOSTranslateDriver() {
-  if (web_state_) {
-    StopObservingIOSLanguageDetectionTabHelper();
-    StopObservingWebState();
-  }
 }
 
 void IOSTranslateDriver::OnLanguageDetermined(
@@ -110,8 +101,7 @@ void IOSTranslateDriver::OnLanguageDetermined(
 
 void IOSTranslateDriver::IOSLanguageDetectionTabHelperWasDestroyed(
     language::IOSLanguageDetectionTabHelper* tab_helper) {
-  // No-op. We stop observing the IOSLanguageDetectionTabHelper in
-  // IOSTranslateDriver::WebStateDestroyed.
+  StopAllObservations();
 }
 
 // web::WebStateObserver methods
@@ -139,7 +129,7 @@ void IOSTranslateDriver::DidFinishNavigation(
     translate_manager_->set_current_seq_no(page_seq_no_);
   }
 
-  // TODO(crbug.com/925320): support navigation types, like content/ does.
+  // TODO(crbug.com/41437388): support navigation types, like content/ does.
   const bool reload = ui::PageTransitionCoreTypeIs(
       navigation_context->GetPageTransition(), ui::PAGE_TRANSITION_RELOAD);
   translate_manager_->GetLanguageState()->DidNavigate(
@@ -147,10 +137,7 @@ void IOSTranslateDriver::DidFinishNavigation(
 }
 
 void IOSTranslateDriver::WebStateDestroyed(web::WebState* web_state) {
-  DCHECK_EQ(web_state_, web_state);
-  timeout_timer_.Stop();
-  StopObservingIOSLanguageDetectionTabHelper();
-  StopObservingWebState();
+  StopAllObservations();
 }
 
 // TranslateDriver methods
@@ -219,7 +206,7 @@ void IOSTranslateDriver::RevertTranslation(int page_seq_no) {
   TranslateController::FromWebState(web_state_)->RevertTranslation();
 }
 
-bool IOSTranslateDriver::IsIncognito() {
+bool IOSTranslateDriver::IsIncognito() const {
   return web_state_->GetBrowserState()->IsOffTheRecord();
 }
 
@@ -227,7 +214,7 @@ const std::string& IOSTranslateDriver::GetContentsMimeType() {
   return web_state_->GetContentsMimeType();
 }
 
-const GURL& IOSTranslateDriver::GetLastCommittedURL() {
+const GURL& IOSTranslateDriver::GetLastCommittedURL() const {
   return web_state_->GetLastCommittedURL();
 }
 
@@ -239,16 +226,9 @@ ukm::SourceId IOSTranslateDriver::GetUkmSourceId() {
   return ukm::GetSourceIdForWebStateDocument(web_state_);
 }
 
-bool IOSTranslateDriver::HasCurrentPage() {
+bool IOSTranslateDriver::HasCurrentPage() const {
   DCHECK(web_state_->IsRealized());
   return (web_state_->GetNavigationManager()->GetVisibleItem() != nullptr);
-}
-
-void IOSTranslateDriver::OpenUrlInNewTab(const GURL& url) {
-  web::WebState::OpenURLParams params(url, web::Referrer(),
-                                      WindowOpenDisposition::NEW_FOREGROUND_TAB,
-                                      ui::PAGE_TRANSITION_LINK, false);
-  web_state_->OpenURL(params);
 }
 
 void IOSTranslateDriver::TranslationDidSucceed(
@@ -301,9 +281,10 @@ void IOSTranslateDriver::OnTranslateScriptReady(TranslateErrors error_type,
 
   ReportTimeToLoad(load_time);
   ReportTimeToBeReady(ready_time);
-  std::string source = (source_language_ != kUnknownLanguageCode)
-                           ? source_language_
-                           : kAutoDetectionLanguage;
+  std::string source =
+      (source_language_ != language_detection::kUnknownLanguageCode)
+          ? source_language_
+          : kAutoDetectionLanguage;
   TranslateController::FromWebState(web_state_)
       ->StartTranslation(source, target_language_);
 }
@@ -327,17 +308,11 @@ void IOSTranslateDriver::OnTranslateComplete(TranslateErrors error_type,
   timeout_timer_.Stop();
 }
 
-void IOSTranslateDriver::StopObservingWebState() {
-  web_state_->RemoveObserver(this);
-  web_state_ = nullptr;
+void IOSTranslateDriver::StopAllObservations() {
   timeout_timer_.Stop();
-}
-
-void IOSTranslateDriver::StopObservingIOSLanguageDetectionTabHelper() {
-  DCHECK(web_state_);
-  language::IOSLanguageDetectionTabHelper* language_detection_tab_helper =
-      language::IOSLanguageDetectionTabHelper::FromWebState(web_state_);
-  language_detection_tab_helper->RemoveObserver(this);
+  language_detection_observation_.Reset();
+  web_state_observation_.Reset();
+  web_state_ = nullptr;
 }
 
 }  // namespace translate

@@ -107,7 +107,6 @@ std::string FcmConnectionEstablisher::GetMessageStringForType(
       return kStopFcmMessage;
   }
   NOTREACHED();
-  return "";
 }
 
 void FcmConnectionEstablisher::SendMessageToServiceWorkerWithRetries(

@@ -16,6 +16,7 @@
 #include "ui/aura/env.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_targeter.h"
+#include "ui/compositor/scoped_animation_duration_scale_mode.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
 #include "ui/events/base_event_utils.h"
@@ -26,11 +27,6 @@
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/view.h"
 #include "ui/views/widget/widget.h"
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "ui/platform_window/extensions/wayland_extension.h"
-#include "ui/views/widget/desktop_aura/desktop_window_tree_host_lacros.h"
-#endif
 
 DEFINE_UI_CLASS_PROPERTY_TYPE(chromeos::ImmersiveFullscreenController*)
 
@@ -110,6 +106,8 @@ void ImmersiveFullscreenController::Init(
   // This function may be called more than once (e.g. by
   // ClientControlledShellSurface).
   EnableWindowObservers(false);
+  widget_observation_.Reset();
+  widget_observation_.Observe(widget);
 
   delegate_ = delegate;
   top_container_ = top_container;
@@ -179,24 +177,24 @@ void ImmersiveFullscreenController::OnGestureEvent(ui::GestureEvent* event) {
     return;
 
   switch (event->type()) {
-    case ui::ET_GESTURE_SCROLL_BEGIN:
+    case ui::EventType::kGestureScrollBegin:
       if (ShouldHandleGestureEvent(
               event->target()->GetScreenLocation(*event))) {
         gesture_begun_ = true;
         // Do not consume the event. Otherwise, we end up consuming all
-        // ui::ET_GESTURE_SCROLL_BEGIN events in the top-of-window views
+        // ui::EventType::kGestureScrollBegin events in the top-of-window views
         // when the top-of-window views are revealed.
       }
       break;
-    case ui::ET_GESTURE_SCROLL_UPDATE:
+    case ui::EventType::kGestureScrollUpdate:
       if (gesture_begun_) {
         if (UpdateRevealedLocksForSwipe(GetSwipeType(*event)))
           event->SetHandled();
         gesture_begun_ = false;
       }
       break;
-    case ui::ET_GESTURE_SCROLL_END:
-    case ui::ET_SCROLL_FLING_START:
+    case ui::EventType::kGestureScrollEnd:
+    case ui::EventType::kScrollFlingStart:
       gesture_begun_ = false;
       break;
     default:
@@ -216,13 +214,7 @@ void ImmersiveFullscreenController::OnWindowPropertyChanged(
 }
 
 void ImmersiveFullscreenController::OnWindowDestroying(aura::Window* window) {
-  EnableEventObservers(false);
-  EnableWindowObservers(false);
-
-  // Set |enabled_| to false such that any calls to MaybeStartReveal() and
-  // MaybeEndReveal() have no effect.
-  enabled_ = false;
-  widget_ = nullptr;
+  CleanupOnWindowDestroy();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -240,6 +232,13 @@ void ImmersiveFullscreenController::OnViewIsDeleting(
     views::View* observed_view) {
   DCHECK_EQ(observed_view, top_container_);
   top_container_ = nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// views::WidgetObserver: overrides:
+
+void ImmersiveFullscreenController::OnWidgetDestroyed(views::Widget* widget) {
+  CleanupOnWindowDestroy();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -285,14 +284,7 @@ void ImmersiveFullscreenController::UnlockRevealedState() {
 // static
 void ImmersiveFullscreenController::EnableForWidget(views::Widget* widget,
                                                     bool enabled) {
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  auto* wayland_extension = views::DesktopWindowTreeHostLacros::From(
-                                widget->GetNativeWindow()->GetHost())
-                                ->GetWaylandExtension();
-  wayland_extension->SetImmersiveFullscreenStatus(enabled);
-#else
   widget->GetNativeWindow()->SetProperty(kImmersiveIsActive, enabled);
-#endif
 }
 
 // static
@@ -334,8 +326,9 @@ void ImmersiveFullscreenController::EnableEventObservers(bool enable) {
   if (enable) {
     immersive_focus_watcher_ = std::make_unique<ImmersiveFocusWatcher>(this);
     std::set<ui::EventType> types = {
-        ui::ET_MOUSE_MOVED, ui::ET_MOUSE_PRESSED,         ui::ET_MOUSE_RELEASED,
-        ui::ET_MOUSEWHEEL,  ui::ET_MOUSE_CAPTURE_CHANGED, ui::ET_TOUCH_PRESSED};
+        ui::EventType::kMouseMoved,          ui::EventType::kMousePressed,
+        ui::EventType::kMouseReleased,       ui::EventType::kMousewheel,
+        ui::EventType::kMouseCaptureChanged, ui::EventType::kTouchPressed};
     env->AddEventObserver(this, env, types);
     window->AddPreTargetHandler(this);
   } else {
@@ -354,10 +347,10 @@ void ImmersiveFullscreenController::HandleMouseEvent(
   if (!enabled_)
     return;
 
-  if (event.type() != ui::ET_MOUSE_MOVED &&
-      event.type() != ui::ET_MOUSE_PRESSED &&
-      event.type() != ui::ET_MOUSE_RELEASED &&
-      event.type() != ui::ET_MOUSE_CAPTURE_CHANGED) {
+  if (event.type() != ui::EventType::kMouseMoved &&
+      event.type() != ui::EventType::kMousePressed &&
+      event.type() != ui::EventType::kMouseReleased &&
+      event.type() != ui::EventType::kMouseCaptureChanged) {
     return;
   }
 
@@ -366,7 +359,7 @@ void ImmersiveFullscreenController::HandleMouseEvent(
   if (reveal_state_ == SLIDING_OPEN || reveal_state_ == REVEALED) {
     top_edge_hover_timer_.Stop();
     UpdateLocatedEventRevealedLock(&event, location_in_screen);
-  } else if (event.type() != ui::ET_MOUSE_CAPTURE_CHANGED) {
+  } else if (event.type() != ui::EventType::kMouseCaptureChanged) {
     // Trigger reveal if the cursor pauses at the top of the screen for a while.
     UpdateTopEdgeHoverTimer(event, location_in_screen, target);
   }
@@ -375,8 +368,9 @@ void ImmersiveFullscreenController::HandleMouseEvent(
 void ImmersiveFullscreenController::HandleTouchEvent(
     const ui::TouchEvent& event,
     const gfx::Point& location_in_screen) {
-  if (!enabled_ || event.type() != ui::ET_TOUCH_PRESSED)
+  if (!enabled_ || event.type() != ui::EventType::kTouchPressed) {
     return;
+  }
 
   // Touch should not initiate revealing the top-of-window views while |widget_|
   // is inactive.
@@ -477,7 +471,7 @@ void ImmersiveFullscreenController::UpdateLocatedEventRevealedLock(
     // sliding closed. In the case of ImmersiveModeControllerAsh, this helps
     // when the user is attempting to click on the bookmark bar and
     // overshoots slightly.
-    if (event && event->type() == ui::ET_MOUSE_MOVED) {
+    if (event && event->type() == ui::EventType::kMouseMoved) {
       const int kBoundsOffsetY = 8;
       hit_bounds_in_screen[i].Inset(
           gfx::Insets::TLBR(0, 0, -kBoundsOffsetY, 0));
@@ -554,16 +548,20 @@ bool ImmersiveFullscreenController::UpdateRevealedLocksForSwipe(
 
 base::TimeDelta ImmersiveFullscreenController::GetAnimationDuration(
     Animate animate) const {
+  base::TimeDelta duration;
   switch (animate) {
     case ANIMATE_NO:
-      return base::TimeDelta();
+      // Use default which is `base::TimeDelta()`.
+      break;
     case ANIMATE_SLOW:
-      return base::Milliseconds(400);
+      duration = base::Milliseconds(400);
+      break;
     case ANIMATE_FAST:
-      return base::Milliseconds(200);
+      duration = base::Milliseconds(200);
+      break;
   }
-  NOTREACHED();
-  return base::TimeDelta();
+
+  return ui::ScopedAnimationDurationScaleMode::duration_multiplier() * duration;
 }
 
 void ImmersiveFullscreenController::MaybeStartReveal(Animate animate) {
@@ -648,8 +646,9 @@ void ImmersiveFullscreenController::OnSlideClosedAnimationCompleted() {
 ImmersiveFullscreenController::SwipeType
 ImmersiveFullscreenController::GetSwipeType(
     const ui::GestureEvent& event) const {
-  if (event.type() != ui::ET_GESTURE_SCROLL_UPDATE)
+  if (event.type() != ui::EventType::kGestureScrollUpdate) {
     return SWIPE_NONE;
+  }
   // Make sure that it is a clear vertical gesture.
   if (std::abs(event.details().scroll_y()) <=
       kSwipeVerticalThresholdMultiplier * std::abs(event.details().scroll_x()))
@@ -788,6 +787,17 @@ void ImmersiveFullscreenController::EnableTouchInsets(bool enable) {
   widget_->GetNativeWindow()->targeter()->SetInsets(
       {}, gfx::Insets::TLBR(enable ? kImmersiveFullscreenTopEdgeInset : 0, 0, 0,
                             0));
+}
+
+void ImmersiveFullscreenController::CleanupOnWindowDestroy() {
+  EnableEventObservers(false);
+  EnableWindowObservers(false);
+  widget_observation_.Reset();
+
+  // Set `enabled_` to false such that any calls to MaybeStartReveal() and
+  // MaybeEndReveal() have no effect.
+  enabled_ = false;
+  widget_ = nullptr;
 }
 
 }  // namespace chromeos

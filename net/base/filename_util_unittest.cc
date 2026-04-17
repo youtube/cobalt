@@ -10,7 +10,6 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/test_file_util.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "net/base/mime_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -36,7 +35,7 @@ struct GenerateFilenameCase {
 };
 
 // The expected filenames are coded as wchar_t for convenience.
-// TODO(https://crbug.com/911896): Make these char16_t once std::u16string is
+// TODO(crbug.com/40605133): Make these char16_t once std::u16string is
 // std::u16string.
 std::wstring FilePathAsWString(const base::FilePath& path) {
 #if BUILDFLAG(IS_WIN)
@@ -766,7 +765,7 @@ TEST(FilenameUtilTest, GenerateFileName) {
     {__LINE__, "http://www.example.com/goat.tgz?wearing_hat=true", "", "", "",
      "application/x-gzip", L"", L"goat.tgz"},
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     {// http://crosbug.com/26028
      __LINE__, "http://www.example.com/fooa%cc%88.txt", "", "", "",
      "image/jpeg", L"foo\xe4", L"foo\xe4.txt"},

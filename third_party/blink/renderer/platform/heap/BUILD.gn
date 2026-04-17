@@ -10,11 +10,24 @@ import("//third_party/blink/public/public_features.gni")
 import("//third_party/blink/renderer/platform/platform.gni")
 import("//v8/gni/v8.gni")
 
+declare_args() {
+  # Whether the blink heap code is compiled into a shared library.
+  # Embedders like CEF use this flag to include blink in a shared library under
+  # non-component build.
+  blink_heap_inside_shared_library = is_component_build
+}
+
+assert(blink_heap_inside_shared_library || !is_component_build,
+       "blink_heap_inside_shared_library can not be false in component build.")
+
 buildflag_header("blink_heap_buildflags") {
   header = "heap_buildflags.h"
   header_dir = "third_party/blink/renderer/platform/heap"
 
-  flags = [ "VERBOSE_PERSISTENT=$cppgc_enable_object_names" ]
+  flags = [
+    "VERBOSE_PERSISTENT=$cppgc_enable_object_names",
+    "BLINK_HEAP_INSIDE_SHARED_LIBRARY=$blink_heap_inside_shared_library",
+  ]
 }
 
 blink_platform_sources("heap") {
@@ -31,6 +44,7 @@ blink_platform_sources("heap") {
     "collection_support/heap_linked_stack.h",
     "collection_support/heap_vector.h",
     "collection_support/heap_vector_backing.h",
+    "collection_support/utils.h",
     "cross_thread_handle.h",
     "cross_thread_handle_internal.h",
     "cross_thread_persistent.h",
@@ -39,8 +53,9 @@ blink_platform_sources("heap") {
     "disallow_new_wrapper.h",
     "forward.h",
     "garbage_collected.h",
-    "gc_task_runner.h",
     "heap_allocator_impl.h",
+    "heap_barrier_callback.h",
+    "heap_bind.h",
     "heap_traits.h",
     "member.h",
     "persistent.h",
@@ -56,6 +71,7 @@ blink_platform_sources("heap") {
     "thread_state_storage.h",
     "trace_traits.h",
     "visitor.h",
+    "weak_cell.h",
     "write_barrier.h",
   ]
 
@@ -127,12 +143,11 @@ test("blink_heap_unittests") {
   if (is_fuchsia) {
     additional_manifest_fragments = [
       "//build/config/fuchsia/test/test_fonts.shard.test-cml",
+
+      # Oilpan reuses V8's v8::PageAllocator which generally requires JIT
+      # permissions.
       "//build/config/fuchsia/test/mark_vmo_executable.shard.test-cml",
     ]
-
-    # Oilpan reuses V8's v8::PageAllocator which generally requires JIT
-    # permissions.
-    test_runner_shard = "//build/config/fuchsia/test/elf_test_ambient_exec_runner.shard.test-cml"
   }
 }
 
@@ -144,12 +159,14 @@ source_set("blink_heap_unittests_sources") {
     "test/blink_gc_memory_dump_provider_test.cc",
     "test/concurrent_marking_test.cc",
     "test/cross_thread_handle_test.cc",
+    "test/heap_bind_test.cc",
     "test/heap_compact_test.cc",
     "test/heap_linked_stack_test.cc",
     "test/heap_test.cc",
     "test/heap_traits_test.cc",
     "test/incremental_marking_test.cc",
     "test/persistent_test.cc",
+    "test/weak_cell_test.cc",
     "test/weakness_marking_test.cc",
   ]
 
@@ -164,7 +181,6 @@ source_set("blink_heap_unittests_sources") {
   ]
 
   deps = [
-    ":test_support",
     "//base",
     "//base/test:test_support",
     "//gin:gin",
@@ -195,7 +211,6 @@ test("blink_heap_perftests") {
     # permissions.
     additional_manifest_fragments =
         [ "//build/config/fuchsia/test/mark_vmo_executable.shard.test-cml" ]
-    test_runner_shard = "//build/config/fuchsia/test/elf_test_ambient_exec_runner.shard.test-cml"
   }
 }
 

@@ -6,9 +6,9 @@
 
 #include <stddef.h>
 
+#include <algorithm>
 #include <vector>
 
-#include "base/cxx17_backports.h"
 #include "base/functional/bind.h"
 #include "base/path_service.h"
 #include "base/strings/string_split.h"
@@ -46,8 +46,7 @@ NaClBrowserDelegateImpl::NaClBrowserDelegateImpl(
   DCHECK(profile_manager_);
 }
 
-NaClBrowserDelegateImpl::~NaClBrowserDelegateImpl() {
-}
+NaClBrowserDelegateImpl::~NaClBrowserDelegateImpl() = default;
 
 void NaClBrowserDelegateImpl::ShowMissingArchInfobar(int render_process_id,
                                                      int render_frame_id) {

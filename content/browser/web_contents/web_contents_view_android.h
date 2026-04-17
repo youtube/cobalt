@@ -8,8 +8,10 @@
 #include <memory>
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "content/browser/renderer_host/render_view_host_delegate_view.h"
 #include "content/browser/web_contents/web_contents_view.h"
+#include "content/browser/web_contents/web_contents_view_drag_security_info.h"
 #include "content/public/browser/web_contents_view_delegate.h"
 #include "content/public/common/drop_data.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -21,6 +23,8 @@
 #include "ui/gfx/geometry/rect_f.h"
 
 namespace content {
+
+class BackForwardTransitionAnimationManagerAndroid;
 class ContentUiEventHandler;
 class RenderWidgetHostViewAndroid;
 class SelectPopup;
@@ -45,10 +49,6 @@ class WebContentsViewAndroid : public WebContentsView,
 
   void set_synchronous_compositor_client(SynchronousCompositorClient* client) {
     synchronous_compositor_client_ = client;
-  }
-
-  void set_selection_popup_controller(SelectionPopupController* controller) {
-    selection_popup_controller_ = controller;
   }
 
   SynchronousCompositorClient* synchronous_compositor_client() const {
@@ -85,6 +85,9 @@ class WebContentsViewAndroid : public WebContentsView,
   void OnCapturerCountChanged() override;
   void FullscreenStateChanged(bool is_fullscreen) override;
   void UpdateWindowControlsOverlay(const gfx::Rect& bounding_rect) override;
+  BackForwardTransitionAnimationManager*
+  GetBackForwardTransitionAnimationManager() override;
+  void DestroyBackForwardTransitionAnimationManager() override;
 
   // Backend implementation of RenderViewHostDelegateView.
   void ShowContextMenu(RenderFrameHost& render_frame_host,
@@ -93,7 +96,6 @@ class WebContentsViewAndroid : public WebContentsView,
       RenderFrameHost* render_frame_host,
       mojo::PendingRemote<blink::mojom::PopupMenuClient> popup_client,
       const gfx::Rect& bounds,
-      int item_height,
       double item_font_size,
       int selected_item,
       std::vector<blink::mojom::MenuItemPtr> menu_items,
@@ -101,13 +103,15 @@ class WebContentsViewAndroid : public WebContentsView,
       bool allow_multiple_selection) override;
   ui::OverscrollRefreshHandler* GetOverscrollRefreshHandler() const override;
   void StartDragging(const DropData& drop_data,
+                     const url::Origin& source_origin,
                      blink::DragOperationsMask allowed_ops,
                      const gfx::ImageSkia& image,
                      const gfx::Vector2d& cursor_offset,
                      const gfx::Rect& drag_obj_rect,
                      const blink::mojom::DragEventSourceInfo& event_info,
                      RenderWidgetHostImpl* source_rwh) override;
-  void UpdateDragCursor(ui::mojom::DragOperation operation) override;
+  void UpdateDragOperation(ui::mojom::DragOperation operation,
+                           bool document_is_handling_drag) override;
   void GotFocus(RenderWidgetHostImpl* render_widget_host) override;
   void LostFocus(RenderWidgetHostImpl* render_widget_host) override;
   void TakeFocus(bool reverse) override;
@@ -130,31 +134,55 @@ class WebContentsViewAndroid : public WebContentsView,
   bool ScrollTo(float x, float y) override;
   void OnSizeChanged() override;
   void OnPhysicalBackingSizeChanged(
-      absl::optional<base::TimeDelta> deadline_override) override;
+      std::optional<base::TimeDelta> deadline_override) override;
   void OnBrowserControlsHeightChanged() override;
   void OnControlsResizeViewChanged() override;
   void NotifyVirtualKeyboardOverlayRect(
       const gfx::Rect& keyboard_rect) override;
+  void NotifyContextMenuInsetsObservers(const gfx::Rect&) override;
+  void ShowInterestInElement(int nodeID) override;
 
   void SetFocus(bool focused);
   void set_device_orientation(int orientation) {
     device_orientation_ = orientation;
   }
 
+  // See the block comments above `parent_for_web_page_widgets_` for the
+  // hierarchies of layers and native views. The callers can operate upon all
+  // the web widgets and the web page via this getter.
+  cc::slim::Layer* parent_for_web_page_widgets() const {
+    return parent_for_web_page_widgets_.get();
+  }
+
+  WebContentsImpl* web_contents() { return web_contents_; }
+
  private:
-  void OnDragEntered(const std::vector<DropData::Metadata>& metadata,
-                     const gfx::PointF& location,
+  void OnDragEntered(const gfx::PointF& location,
                      const gfx::PointF& screen_location);
+  void DragEnteredCallback(const gfx::PointF& location,
+                           const gfx::PointF& screen_location,
+                           base::WeakPtr<RenderWidgetHostViewBase> target);
   void OnDragUpdated(const gfx::PointF& location,
                      const gfx::PointF& screen_location);
+  void DragUpdatedCallback(const gfx::PointF& location,
+                           const gfx::PointF& screen_location,
+                           base::WeakPtr<RenderWidgetHostViewBase> target,
+                           std::optional<gfx::PointF> transformed_pt);
   void OnDragExited();
-  void OnPerformDrop(DropData* drop_data,
-                     const gfx::PointF& location,
+  void OnPerformDrop(const gfx::PointF& location,
                      const gfx::PointF& screen_location);
+  void PerformDropCallback(const gfx::PointF& location,
+                           const gfx::PointF& screen_location,
+                           base::WeakPtr<RenderWidgetHostViewBase> target,
+                           std::optional<gfx::PointF> transformed_pt);
   void OnDragEnded();
-  void OnSystemDragEnded();
+  void OnSystemDragEnded(RenderWidgetHost* source_rwh);
 
   SelectPopup* GetSelectPopup();
+
+  // Returns the current `SelectionPopupController` from the current
+  // `RenderWidgetHostViewAndroid`.
+  SelectionPopupController* GetSelectionPopupController();
 
   // The WebContents whose contents we display.
   raw_ptr<WebContentsImpl> web_contents_;
@@ -171,17 +199,47 @@ class WebContentsViewAndroid : public WebContentsView,
   // The native view associated with the contents of the web.
   ui::ViewAndroid view_;
 
+  // A common parent to all the native widgets as part of a web page.
+  //
+  // Layer hierarchy:
+  // `view_`
+  //   |
+  //   |- `parent_for_web_page_widgets_`
+  //   |                |
+  //   |                |- RenderWidgetHostViewAndroid
+  //   |                |- Overscroll
+  //   |                |- SelectionHandle
+  //   |
+  //   |- `NavigationEntryScreenshot`
+  //
+  // ViewAndroid hierarchy:
+  // `view_`
+  //   |
+  //   |- `RenderWidgetHostViewAndroid`
+  scoped_refptr<cc::slim::Layer> parent_for_web_page_widgets_;
+
   // Interface used to get notified of events from the synchronous compositor.
   raw_ptr<SynchronousCompositorClient> synchronous_compositor_client_;
-
-  raw_ptr<SelectionPopupController, DanglingUntriaged>
-      selection_popup_controller_ = nullptr;
 
   int device_orientation_ = 0;
 
   // Show/hide popup UI for <select> tag.
   std::unique_ptr<SelectPopup> select_popup_;
 
+  // Source RenderWidgetHost when dragging out of this WebContents.
+  base::WeakPtr<RenderWidgetHostImpl> current_source_rwh_for_drag_;
+  // base::FeatureList::IsEnabled(features::kAndroidDragDropOopif).
+  bool drag_drop_oopif_enabled_ = false;
+  // Current drop data set on drop event.
+  std::unique_ptr<DropData> drop_data_;
+  // Metadata for the current drag.
+  std::vector<DropData::Metadata> drag_metadata_;
+  // We keep track of the target RenderWidgetHost we are currently over when
+  // dragging into this WebContents. If it changes during a drag, we need to
+  // re-send the DragEnter message.
+  base::WeakPtr<RenderWidgetHostImpl> current_target_rwh_for_drag_;
+  // Holds the security info for the current drag.
+  WebContentsViewDragSecurityInfo drag_security_info_;
   // Whether drag went beyond the movement threshold to be considered as an
   // intentional drag. If true, ::ShowContextMenu will be ignored.
   bool drag_exceeded_movement_threshold_ = false;
@@ -192,6 +250,17 @@ class WebContentsViewAndroid : public WebContentsView,
 
   gfx::PointF drag_location_;
   gfx::PointF drag_screen_location_;
+
+  // Set to true when the document is handling the drag.  This means that
+  // the document has registeted interest in the dropped data and the
+  // renderer process should pass the data to the document on drop.
+  bool document_is_handling_drag_ = false;
+
+  // Manages the animation during a session history navigation.
+  std::unique_ptr<BackForwardTransitionAnimationManagerAndroid>
+      back_forward_animation_manager_;
+
+  base::WeakPtrFactory<WebContentsViewAndroid> weak_ptr_factory_{this};
 };
 
 } // namespace content

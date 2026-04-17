@@ -11,6 +11,12 @@
 
 #include "rtc_tools/rtc_event_log_visualizer/analyzer_common.h"
 
+#include <cstdint>
+#include <string>
+
+#include "logging/rtc_event_log/rtc_event_log_parser.h"
+#include "rtc_base/strings/string_builder.h"
+
 namespace webrtc {
 
 bool IsRtxSsrc(const ParsedRtcEventLog& parsed_log,
@@ -53,7 +59,7 @@ std::string GetStreamName(const ParsedRtcEventLog& parsed_log,
                           PacketDirection direction,
                           uint32_t ssrc) {
   char buffer[200];
-  rtc::SimpleStringBuilder name(buffer);
+  SimpleStringBuilder name(buffer);
   if (IsAudioSsrc(parsed_log, direction, ssrc)) {
     name << "Audio ";
   } else if (IsVideoSsrc(parsed_log, direction, ssrc)) {
@@ -74,7 +80,7 @@ std::string GetStreamName(const ParsedRtcEventLog& parsed_log,
 
 std::string GetLayerName(LayerDescription layer) {
   char buffer[100];
-  rtc::SimpleStringBuilder name(buffer);
+  SimpleStringBuilder name(buffer);
   name << "SSRC " << layer.ssrc << " sl " << layer.spatial_layer << ", tl "
        << layer.temporal_layer;
   return name.str();

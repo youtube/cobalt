@@ -39,12 +39,12 @@ static constexpr int kFrameTreeNodeId = 1;
 class MockCallback {
  public:
   MOCK_METHOD4(CreateRoute,
-               void(const absl::optional<MediaRoute>& route,
+               void(const std::optional<MediaRoute>& route,
                     mojom::RoutePresentationConnectionPtr connection,
-                    const absl::optional<std::string>& error,
+                    const std::optional<std::string>& error,
                     mojom::RouteRequestResultCode result));
   MOCK_METHOD2(TerminateRoute,
-               void(const absl::optional<std::string>& error,
+               void(const std::optional<std::string>& error,
                     mojom::RouteRequestResultCode result));
 };
 
@@ -110,7 +110,7 @@ class MockReceiverCreator {
 
   // Retains a reference to |unique_receiver_| even after |this| loses its
   // ownership.
-  const raw_ptr<MockPresentationReceiver> receiver_;
+  const raw_ptr<MockPresentationReceiver, DanglingUntriaged> receiver_;
 };
 
 const char kPresentationSource[] = "https://www.example.com/presentation";
@@ -172,7 +172,7 @@ class WiredDisplayMediaRouteProviderTest : public testing::Test {
         secondary_display1_(10000001, secondary_display1_bounds_),
         secondary_display2_(10000002, secondary_display2_bounds_),
         mirror_display_(10000004, primary_display_bounds_) {}
-  ~WiredDisplayMediaRouteProviderTest() override {}
+  ~WiredDisplayMediaRouteProviderTest() override = default;
 
   void SetUp() override {
     display::Screen::SetScreenInstance(&test_screen_);
@@ -270,7 +270,7 @@ TEST_F(WiredDisplayMediaRouteProviderTest, NotifyOnDisplayChange) {
   EXPECT_CALL(router_,
               OnSinksReceived(mojom::MediaRouteProviderId::WIRED_DISPLAY, _,
                               IsEmpty(), _));
-  provider_->OnDisplayRemoved(secondary_display1_);
+  provider_->OnDisplaysRemoved({secondary_display1_});
   base::RunLoop().RunUntilIdle();
 
   // Add a display that mirrors the primary display. The sink list should still
@@ -293,7 +293,7 @@ TEST_F(WiredDisplayMediaRouteProviderTest, NoDisplay) {
   // primary display, as it would be invalid.
   EXPECT_CALL(*provider_, GetPrimaryDisplayInternal()).Times(0);
   provider_->set_all_displays({});
-  provider_->OnDisplayRemoved(primary_display_);
+  provider_->OnDisplaysRemoved({primary_display_});
   base::RunLoop().RunUntilIdle();
 }
 
@@ -314,10 +314,10 @@ TEST_F(WiredDisplayMediaRouteProviderTest, CreateAndTerminateRoute) {
   base::RunLoop().RunUntilIdle();
 
   // Create a route for |presentation_id|.
-  EXPECT_CALL(callback, CreateRoute(_, _, absl::optional<std::string>(),
+  EXPECT_CALL(callback, CreateRoute(_, _, std::optional<std::string>(),
                                     mojom::RouteRequestResultCode::OK))
       .WillOnce(WithArg<0>(
-          Invoke([&presentation_id](const absl::optional<MediaRoute>& route) {
+          Invoke([&presentation_id](const std::optional<MediaRoute>& route) {
             EXPECT_TRUE(route.has_value());
             EXPECT_EQ(route->media_route_id(), presentation_id);
             EXPECT_EQ(route->description(), "Presenting (www.example.com)");
@@ -334,12 +334,12 @@ TEST_F(WiredDisplayMediaRouteProviderTest, CreateAndTerminateRoute) {
   provider_remote_->CreateRoute(
       kPresentationSource, GetSinkId(secondary_display1_), presentation_id,
       url::Origin::Create(GURL(kPresentationSource)), kFrameTreeNodeId,
-      base::Seconds(100), false,
+      base::Seconds(100),
       base::BindOnce(&MockCallback::CreateRoute, base::Unretained(&callback)));
   base::RunLoop().RunUntilIdle();
 
   // Terminate the route.
-  EXPECT_CALL(callback, TerminateRoute(absl::optional<std::string>(),
+  EXPECT_CALL(callback, TerminateRoute(std::optional<std::string>(),
                                        mojom::RouteRequestResultCode::OK));
   EXPECT_CALL(*receiver_creator_.receiver(), Terminate());
   EXPECT_CALL(router_,
@@ -370,7 +370,7 @@ TEST_F(WiredDisplayMediaRouteProviderTest, SendMediaStatusUpdate) {
   provider_remote_->CreateRoute(
       kPresentationSource, GetSinkId(secondary_display1_), presentation_id,
       url::Origin::Create(GURL(kPresentationSource)), kFrameTreeNodeId,
-      base::Seconds(100), false,
+      base::Seconds(100),
       base::BindOnce(&MockCallback::CreateRoute, base::Unretained(&callback)));
   base::RunLoop().RunUntilIdle();
 
@@ -378,7 +378,7 @@ TEST_F(WiredDisplayMediaRouteProviderTest, SendMediaStatusUpdate) {
   mojo::PendingRemote<mojom::MediaStatusObserver> status_observer_remote;
   MockMediaStatusObserver status_observer(
       status_observer_remote.InitWithNewPipeAndPassReceiver());
-  provider_remote_->CreateMediaRouteController(
+  provider_remote_->BindMediaController(
       presentation_id, media_controller_remote.BindNewPipeAndPassReceiver(),
       std::move(status_observer_remote), base::BindOnce([](bool success) {}));
 
@@ -399,12 +399,12 @@ TEST_F(WiredDisplayMediaRouteProviderTest, ExitFullscreenOnDisplayRemoved) {
   provider_remote_->CreateRoute(
       kPresentationSource, GetSinkId(secondary_display1_), "presentationId",
       url::Origin::Create(GURL(kPresentationSource)), kFrameTreeNodeId,
-      base::Seconds(100), false,
+      base::Seconds(100),
       base::BindOnce(&MockCallback::CreateRoute, base::Unretained(&callback)));
   base::RunLoop().RunUntilIdle();
 
   EXPECT_CALL(*receiver_creator_.receiver(), ExitFullscreen());
-  provider_->OnDisplayRemoved(secondary_display1_);
+  provider_->OnDisplaysRemoved({secondary_display1_});
 }
 
 }  // namespace media_router

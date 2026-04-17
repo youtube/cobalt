@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include <cstring>
 
 #include "components/viz/common/hit_test/aggregated_hit_test_region.h"
@@ -40,7 +45,7 @@ TEST(StructTraitsTest, AggregatedHitTestRegion) {
 }
 
 TEST(StructTraitsTest, HitTestRegionList) {
-  absl::optional<HitTestRegionList> input(absl::in_place);
+  std::optional<HitTestRegionList> input(std::in_place);
   input->flags = HitTestRegionFlags::kHitTestAsk;
   input->async_hit_test_reasons = AsyncHitTestReasons::kOverlappedRegion;
   input->bounds = gfx::Rect(1, 2, 3, 4);
@@ -54,7 +59,7 @@ TEST(StructTraitsTest, HitTestRegionList) {
   input_region1.transform.Scale(1.2f, 1.3f);
   input->regions.push_back(input_region1);
 
-  absl::optional<HitTestRegionList> output;
+  std::optional<HitTestRegionList> output;
   mojo::test::SerializeAndDeserialize<mojom::HitTestRegionList>(input, output);
   EXPECT_TRUE(output);
   EXPECT_EQ(input->flags, output->flags);

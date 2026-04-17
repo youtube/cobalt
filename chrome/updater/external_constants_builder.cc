@@ -5,6 +5,7 @@
 #include "chrome/updater/external_constants_builder.h"
 
 #include <iterator>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -21,7 +22,6 @@
 #include "chrome/updater/updater_scope.h"
 #include "chrome/updater/util/util.h"
 #include "components/crx_file/crx_verifier.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace updater {
@@ -33,7 +33,7 @@ std::vector<std::string> StringVectorFromGURLVector(
   std::vector<std::string> ret;
   ret.reserve(gurls.size());
 
-  base::ranges::transform(gurls, std::back_inserter(ret), [](const GURL& gurl) {
+  std::ranges::transform(gurls, std::back_inserter(ret), [](const GURL& gurl) {
     return gurl.possibly_invalid_spec();
   });
 
@@ -43,9 +43,9 @@ std::vector<std::string> StringVectorFromGURLVector(
 }  // namespace
 
 ExternalConstantsBuilder::~ExternalConstantsBuilder() {
-  LOG_IF(WARNING, !written_) << "An ExternalConstantsBuilder with "
-                             << overrides_.size() << " entries is being "
-                             << "discarded without being written to a file.";
+  LOG_IF(WARNING, !written_)
+      << "An ExternalConstantsBuilder with " << overrides_.size()
+      << " entries is being " << "discarded without being written to a file.";
 }
 
 ExternalConstantsBuilder& ExternalConstantsBuilder::SetUpdateURL(
@@ -83,6 +83,17 @@ ExternalConstantsBuilder& ExternalConstantsBuilder::SetDeviceManagementURL(
 
 ExternalConstantsBuilder& ExternalConstantsBuilder::ClearDeviceManagementURL() {
   overrides_.Remove(kDevOverrideKeyDeviceManagementUrl);
+  return *this;
+}
+
+ExternalConstantsBuilder& ExternalConstantsBuilder::SetAppLogoURL(
+    const std::string& url) {
+  overrides_.Set(kDevOverrideKeyAppLogoUrl, url);
+  return *this;
+}
+
+ExternalConstantsBuilder& ExternalConstantsBuilder::ClearAppLogoURL() {
+  overrides_.Remove(kDevOverrideKeyAppLogoUrl);
   return *this;
 }
 
@@ -132,26 +143,72 @@ ExternalConstantsBuilder& ExternalConstantsBuilder::ClearCrxVerifierFormat() {
   return *this;
 }
 
-ExternalConstantsBuilder& ExternalConstantsBuilder::SetGroupPolicies(
-    const base::Value::Dict& group_policies) {
-  overrides_.Set(kDevOverrideKeyGroupPolicies, group_policies.Clone());
+ExternalConstantsBuilder& ExternalConstantsBuilder::SetDictPolicies(
+    const base::Value::Dict& dict_policies) {
+  overrides_.Set(kDevOverrideKeyDictPolicies, dict_policies.Clone());
+  overrides_.Set(kDevOverrideKeyGroupPolicies, dict_policies.Clone());
   return *this;
 }
 
-ExternalConstantsBuilder& ExternalConstantsBuilder::ClearGroupPolicies() {
+ExternalConstantsBuilder& ExternalConstantsBuilder::ClearDictPolicies() {
+  overrides_.Remove(kDevOverrideKeyDictPolicies);
   overrides_.Remove(kDevOverrideKeyGroupPolicies);
   return *this;
 }
 
 ExternalConstantsBuilder& ExternalConstantsBuilder::SetOverinstallTimeout(
-    const base::TimeDelta& overinstall_timeout) {
+    base::TimeDelta overinstall_timeout) {
   overrides_.Set(kDevOverrideKeyOverinstallTimeout,
                  static_cast<int>(overinstall_timeout.InSeconds()));
   return *this;
 }
 
+ExternalConstantsBuilder& ExternalConstantsBuilder::ClearOverinstallTimeout() {
+  overrides_.Remove(kDevOverrideKeyOverinstallTimeout);
+  return *this;
+}
+
+ExternalConstantsBuilder& ExternalConstantsBuilder::SetIdleCheckPeriod(
+    base::TimeDelta idle_check_period) {
+  overrides_.Set(kDevOverrideKeyIdleCheckPeriodSeconds,
+                 static_cast<int>(idle_check_period.InSeconds()));
+  return *this;
+}
+
+ExternalConstantsBuilder& ExternalConstantsBuilder::ClearIdleCheckPeriod() {
+  overrides_.Remove(kDevOverrideKeyIdleCheckPeriodSeconds);
+  return *this;
+}
+
+ExternalConstantsBuilder& ExternalConstantsBuilder::SetMachineManaged(
+    std::optional<bool> is_managed_device) {
+  if (is_managed_device.has_value()) {
+    overrides_.Set(kDevOverrideKeyManagedDevice, is_managed_device.value());
+  }
+
+  return *this;
+}
+
+ExternalConstantsBuilder& ExternalConstantsBuilder::ClearMachineManaged() {
+  overrides_.Remove(kDevOverrideKeyManagedDevice);
+  return *this;
+}
+
+ExternalConstantsBuilder& ExternalConstantsBuilder::SetCecaConnectionTimeout(
+    base::TimeDelta ceca_connection_timeout) {
+  overrides_.Set(kDevOverrideKeyCecaConnectionTimeout,
+                 static_cast<int>(ceca_connection_timeout.InSeconds()));
+  return *this;
+}
+
+ExternalConstantsBuilder&
+ExternalConstantsBuilder::ClearCecaConnectionTimeout() {
+  overrides_.Remove(kDevOverrideKeyCecaConnectionTimeout);
+  return *this;
+}
+
 bool ExternalConstantsBuilder::Overwrite() {
-  const absl::optional<base::FilePath> override_path =
+  const std::optional<base::FilePath> override_path =
       GetOverrideFilePath(GetUpdaterScope());
   if (!override_path) {
     LOG(ERROR) << "Can't find base directory; can't save constant overrides.";
@@ -171,11 +228,13 @@ bool ExternalConstantsBuilder::Modify() {
   scoped_refptr<ExternalConstantsOverrider> verifier =
       ExternalConstantsOverrider::FromDefaultJSONFile(
           CreateDefaultExternalConstants());
-  if (!verifier)
+  if (!verifier) {
     return Overwrite();
+  }
 
-  if (!overrides_.contains(kDevOverrideKeyUrl))
+  if (!overrides_.contains(kDevOverrideKeyUrl)) {
     SetUpdateURL(StringVectorFromGURLVector(verifier->UpdateURL()));
+  }
   if (!overrides_.contains(kDevOverrideKeyCrashUploadUrl)) {
     SetCrashUploadURL(verifier->CrashUploadURL().possibly_invalid_spec());
   }
@@ -183,18 +242,36 @@ bool ExternalConstantsBuilder::Modify() {
     SetDeviceManagementURL(
         verifier->DeviceManagementURL().possibly_invalid_spec());
   }
-  if (!overrides_.contains(kDevOverrideKeyUseCUP))
+  if (!overrides_.contains(kDevOverrideKeyAppLogoUrl)) {
+    SetAppLogoURL(verifier->AppLogoURL().possibly_invalid_spec());
+  }
+  if (!overrides_.contains(kDevOverrideKeyUseCUP)) {
     SetUseCUP(verifier->UseCUP());
-  if (!overrides_.contains(kDevOverrideKeyInitialDelay))
+  }
+  if (!overrides_.contains(kDevOverrideKeyInitialDelay)) {
     SetInitialDelay(verifier->InitialDelay());
-  if (!overrides_.contains(kDevOverrideKeyServerKeepAliveSeconds))
+  }
+  if (!overrides_.contains(kDevOverrideKeyServerKeepAliveSeconds)) {
     SetServerKeepAliveTime(verifier->ServerKeepAliveTime());
-  if (!overrides_.contains(kDevOverrideKeyCrxVerifierFormat))
+  }
+  if (!overrides_.contains(kDevOverrideKeyCrxVerifierFormat)) {
     SetCrxVerifierFormat(verifier->CrxVerifierFormat());
-  if (!overrides_.contains(kDevOverrideKeyGroupPolicies))
-    SetGroupPolicies(verifier->GroupPolicies());
-  if (!overrides_.contains(kDevOverrideKeyOverinstallTimeout))
+  }
+  if (!overrides_.contains(kDevOverrideKeyDictPolicies)) {
+    SetDictPolicies(verifier->DictPolicies());
+  }
+  if (!overrides_.contains(kDevOverrideKeyOverinstallTimeout)) {
     SetOverinstallTimeout(verifier->OverinstallTimeout());
+  }
+  if (!overrides_.contains(kDevOverrideKeyIdleCheckPeriodSeconds)) {
+    SetIdleCheckPeriod(verifier->IdleCheckPeriod());
+  }
+  if (!overrides_.contains(kDevOverrideKeyManagedDevice)) {
+    SetMachineManaged(verifier->IsMachineManaged());
+  }
+  if (!overrides_.contains(kDevOverrideKeyCecaConnectionTimeout)) {
+    SetCecaConnectionTimeout(verifier->CecaConnectionTimeout());
+  }
 
   return Overwrite();
 }

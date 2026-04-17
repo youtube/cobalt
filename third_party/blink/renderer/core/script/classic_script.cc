@@ -6,9 +6,11 @@
 
 #include "third_party/blink/public/web/web_script_source.h"
 #include "third_party/blink/renderer/bindings/core/v8/referrer_script_info.h"
+#include "third_party/blink/renderer/bindings/core/v8/sanitize_script_errors.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_evaluation_result.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
+#include "third_party/blink/renderer/core/probe/core_probes.h"
 #include "third_party/blink/renderer/platform/bindings/v8_binding.h"
 #include "third_party/blink/renderer/platform/loader/fetch/url_loader/cached_metadata_handler.h"
 
@@ -94,10 +96,10 @@ ClassicScript* ClassicScript::CreateFromResource(
     ScriptResource* resource,
     const ScriptFetchOptions& fetch_options) {
   // Check if we can use the script streamer.
-  ResourceScriptStreamer* streamer;
+  ScriptStreamer* streamer;
   ScriptStreamer::NotStreamingReason not_streamed_reason;
-  std::tie(streamer, not_streamed_reason) = ResourceScriptStreamer::TakeFrom(
-      resource, mojom::blink::ScriptType::kClassic);
+  std::tie(streamer, not_streamed_reason) =
+      ScriptStreamer::TakeFrom(resource, mojom::blink::ScriptType::kClassic);
   DCHECK_EQ(!streamer, not_streamed_reason !=
                            ScriptStreamer::NotStreamingReason::kInvalid);
 
@@ -121,7 +123,7 @@ ClassicScript* ClassicScript::CreateFromResource(
           : SanitizeScriptErrors::kSanitize,
       resource->CacheHandler(), TextPosition::MinimumPosition(), streamer,
       not_streamed_reason, cache_consumer,
-      SourceMapUrlFromResponse(resource->GetResponse()), resource);
+      SourceMapUrlFromResponse(resource->GetResponse()));
 }
 
 ClassicScript* ClassicScript::CreateUnspecifiedScript(
@@ -155,8 +157,7 @@ ClassicScript::ClassicScript(
     ScriptStreamer* streamer,
     ScriptStreamer::NotStreamingReason not_streaming_reason,
     ScriptCacheConsumer* cache_consumer,
-    const String& source_map_url,
-    ScriptResource* resource_keep_alive)
+    const String& source_map_url)
     : Script(fetch_options,
              SanitizeBaseUrl(base_url, sanitize_script_errors),
              source_url,
@@ -168,15 +169,13 @@ ClassicScript::ClassicScript(
       streamer_(streamer),
       not_streaming_reason_(not_streaming_reason),
       cache_consumer_(cache_consumer),
-      source_map_url_(source_map_url),
-      resource_keep_alive_(resource_keep_alive) {}
+      source_map_url_(source_map_url) {}
 
 void ClassicScript::Trace(Visitor* visitor) const {
   Script::Trace(visitor);
   visitor->Trace(cache_handler_);
   visitor->Trace(streamer_);
   visitor->Trace(cache_consumer_);
-  visitor->Trace(resource_keep_alive_);
 }
 
 v8::Local<v8::Data> ClassicScript::CreateHostDefinedOptions(
@@ -201,8 +200,7 @@ v8::ScriptOrigin ClassicScript::CreateScriptOrigin(v8::Isolate* isolate) const {
   // start at 1 only for historic reasons now. I guess we could change it, but
   // there's not much benefit doing so.
   return v8::ScriptOrigin(
-      isolate, V8String(isolate, SourceUrl()),
-      StartPosition().line_.ZeroBasedInt(),
+      V8String(isolate, SourceUrl()), StartPosition().line_.ZeroBasedInt(),
       StartPosition().column_.ZeroBasedInt(),
       GetSanitizeScriptErrors() == SanitizeScriptErrors::kDoNotSanitize, -1,
       source_map_url_or_null,
@@ -216,6 +214,14 @@ ScriptEvaluationResult ClassicScript::RunScriptOnScriptStateAndReturnValue(
     ScriptState* script_state,
     ExecuteScriptPolicy policy,
     V8ScriptRunner::RethrowErrorsOption rethrow_errors) {
+  if (!script_state) {
+    return ScriptEvaluationResult::FromClassicNotRun();
+  }
+  bool sanitize = GetSanitizeScriptErrors() == SanitizeScriptErrors::kSanitize;
+  probe::EvaluateScriptBlock probe_scope(*script_state,
+                                         sanitize ? SourceUrl() : BaseUrl(),
+                                         /*module=*/false, sanitize);
+
   return V8ScriptRunner::CompileAndRunScript(script_state, this, policy,
                                              std::move(rethrow_errors));
 }

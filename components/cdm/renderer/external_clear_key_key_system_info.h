@@ -11,7 +11,6 @@
 #include "build/build_config.h"
 #include "media/base/key_system_info.h"
 #include "media/media_buildflags.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cdm {
 

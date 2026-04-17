@@ -5,54 +5,55 @@
 #include "chrome/browser/extensions/api/passwords_private/password_check_delegate.h"
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
+#include "base/location.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_move_support.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "chrome/browser/extensions/api/passwords_private/passwords_private_event_router.h"
 #include "chrome/browser/extensions/api/passwords_private/passwords_private_event_router_factory.h"
+#include "chrome/browser/password_manager/account_password_store_factory.h"
 #include "chrome/browser/password_manager/bulk_leak_check_service_factory.h"
 #include "chrome/browser/password_manager/password_manager_test_util.h"
+#include "chrome/browser/password_manager/profile_password_store_factory.h"
+#include "chrome/browser/signin/identity_manager_factory.h"
+#include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/common/extensions/api/passwords_private.h"
 #include "chrome/test/base/testing_profile.h"
+#include "components/affiliations/core/browser/fake_affiliation_service.h"
 #include "components/keyed_service/core/keyed_service.h"
-#include "components/password_manager/content/browser/password_change_success_tracker_factory.h"
-#include "components/password_manager/core/browser/affiliation/mock_affiliation_service.h"
-#include "components/password_manager/core/browser/bulk_leak_check_service.h"
 #include "components/password_manager/core/browser/leak_detection/bulk_leak_check.h"
+#include "components/password_manager/core/browser/leak_detection/bulk_leak_check_service.h"
 #include "components/password_manager/core/browser/leak_detection/leak_detection_delegate_interface.h"
-#include "components/password_manager/core/browser/mock_password_change_success_tracker.h"
-#include "components/password_manager/core/browser/password_change_success_tracker.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_manager_metrics_util.h"
 #include "components/password_manager/core/browser/password_manager_test_utils.h"
-#include "components/password_manager/core/browser/test_password_store.h"
+#include "components/password_manager/core/browser/password_store/test_password_store.h"
 #include "components/password_manager/core/browser/ui/credential_ui_entry.h"
 #include "components/password_manager/core/browser/ui/saved_passwords_presenter.h"
-#include "components/password_manager/core/browser/well_known_change_password_util.h"
-#include "components/password_manager/core/common/password_manager_features.h"
+#include "components/password_manager/core/browser/well_known_change_password/well_known_change_password_util.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
-#include "components/sync/driver/sync_service.h"
+#include "components/sync/service/sync_service.h"
 #include "components/sync/test/test_sync_service.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "content/public/browser/browser_context.h"
@@ -64,7 +65,6 @@
 #include "services/network/test/test_shared_url_loader_factory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/origin.h"
 
 namespace extensions {
@@ -89,9 +89,9 @@ constexpr char16_t kWeakPassword2[] = u"111111";
 constexpr char kGoogleAccounts[] = "https://accounts.google.com";
 
 using api::passwords_private::CompromisedInfo;
+using api::passwords_private::DomainInfo;
 using api::passwords_private::PasswordCheckStatus;
 using api::passwords_private::PasswordUiEntry;
-using api::passwords_private::UrlCollection;
 using password_manager::BulkLeakCheckDelegateInterface;
 using password_manager::BulkLeakCheckService;
 using password_manager::InsecureType;
@@ -99,9 +99,6 @@ using password_manager::InsecurityMetadata;
 using password_manager::IsLeaked;
 using password_manager::IsMuted;
 using password_manager::LeakCheckCredential;
-using password_manager::MockPasswordChangeSuccessTracker;
-using password_manager::PasswordChangeSuccessTracker;
-using password_manager::PasswordChangeSuccessTrackerFactory;
 using password_manager::PasswordForm;
 using password_manager::SavedPasswordsPresenter;
 using password_manager::TestPasswordStore;
@@ -125,66 +122,11 @@ using ::testing::UnorderedElementsAre;
 using MockStartPasswordCheckCallback =
     base::MockCallback<PasswordCheckDelegate::StartPasswordCheckCallback>;
 
-PasswordsPrivateEventRouter* CreateAndUsePasswordsPrivateEventRouter(
-    Profile* profile) {
-  return static_cast<PasswordsPrivateEventRouter*>(
-      PasswordsPrivateEventRouterFactory::GetInstance()
-          ->SetTestingFactoryAndUse(
-              profile,
-              base::BindRepeating([](content::BrowserContext* context) {
-                return std::unique_ptr<KeyedService>(
-                    PasswordsPrivateEventRouter::Create(context));
-              })));
-}
-
-EventRouter* CreateAndUseEventRouter(Profile* profile) {
-  // The factory function only requires that T be a KeyedService. Ensure it is
-  // actually derived from EventRouter to avoid undefined behavior.
-  return static_cast<EventRouter*>(
-      extensions::EventRouterFactory::GetInstance()->SetTestingFactoryAndUse(
-          profile, base::BindRepeating([](content::BrowserContext* context) {
-            return std::unique_ptr<KeyedService>(
-                std::make_unique<EventRouter>(context, nullptr));
-          })));
-}
-
-MockPasswordChangeSuccessTracker* CreateAndUsePasswordChangeSuccessTracker(
-    Profile* profile) {
-  return static_cast<MockPasswordChangeSuccessTracker*>(
-      PasswordChangeSuccessTrackerFactory::GetInstance()
-          ->SetTestingSubclassFactoryAndUse(
-              profile, base::BindRepeating([](content::BrowserContext*) {
-                return std::make_unique<
-                    testing::StrictMock<MockPasswordChangeSuccessTracker>>();
-              })));
-}
-
-BulkLeakCheckService* CreateAndUseBulkLeakCheckService(
-    signin::IdentityManager* identity_manager,
-    Profile* profile) {
-  return static_cast<BulkLeakCheckService*>(
-      BulkLeakCheckServiceFactory::GetInstance()->SetTestingFactoryAndUse(
-          profile, base::BindLambdaForTesting([identity_manager](
-                                                  content::BrowserContext*) {
-            return std::unique_ptr<
-                KeyedService>(std::make_unique<BulkLeakCheckService>(
-                identity_manager,
-                base::MakeRefCounted<network::TestSharedURLLoaderFactory>()));
-          })));
-}
-
-syncer::TestSyncService* CreateAndUseSyncService(Profile* profile) {
-  return SyncServiceFactory::GetInstance()->SetTestingSubclassFactoryAndUse(
-      profile, base::BindLambdaForTesting([](content::BrowserContext*) {
-        return std::make_unique<syncer::TestSyncService>();
-      }));
-}
-
 PasswordForm MakeSavedPassword(
-    base::StringPiece signon_realm,
-    base::StringPiece16 username,
-    base::StringPiece16 password = kPassword1,
-    base::StringPiece16 username_element = u"",
+    std::string_view signon_realm,
+    std::u16string_view username,
+    std::u16string_view password = kPassword1,
+    std::u16string_view username_element = u"",
     PasswordForm::Store store = PasswordForm::Store::kProfileStore) {
   PasswordForm form;
   form.signon_realm = std::string(signon_realm);
@@ -197,16 +139,16 @@ PasswordForm MakeSavedPassword(
 }
 
 PasswordForm MakeSavedFederatedCredential(
-    base::StringPiece signon_realm,
-    base::StringPiece16 username,
-    base::StringPiece provider = kGoogleAccounts,
+    std::string_view signon_realm,
+    std::u16string_view username,
+    std::string_view provider = kGoogleAccounts,
     PasswordForm::Store store = PasswordForm::Store::kProfileStore) {
   PasswordForm form;
   form.signon_realm = std::string(signon_realm);
   form.url = GURL(signon_realm);
   form.username_value = std::u16string(username);
-  form.federation_origin = url::Origin::Create(GURL(provider));
-  CHECK(!form.federation_origin.opaque());
+  form.federation_origin = url::SchemeHostPort(GURL(provider));
+  CHECK(form.federation_origin.IsValid());
   form.in_store = store;
   return form;
 }
@@ -221,16 +163,16 @@ void AddIssueToForm(PasswordForm* form,
                          IsMuted(is_muted), TriggerBackendNotification(false)));
 }
 
-std::string MakeAndroidRealm(base::StringPiece package_name) {
+std::string MakeAndroidRealm(std::string_view package_name) {
   return base::StrCat({"android://hash@", package_name});
 }
 
 PasswordForm MakeSavedAndroidPassword(
-    base::StringPiece package_name,
-    base::StringPiece16 username,
-    base::StringPiece app_display_name = "",
-    base::StringPiece affiliated_web_realm = "",
-    base::StringPiece16 password = kPassword1) {
+    std::string_view package_name,
+    std::u16string_view username,
+    std::string_view app_display_name = "",
+    std::string_view affiliated_web_realm = "",
+    std::u16string_view password = kPassword1) {
   PasswordForm form;
   form.signon_realm = MakeAndroidRealm(package_name);
   form.username_value = std::u16string(username);
@@ -241,12 +183,6 @@ PasswordForm MakeSavedAndroidPassword(
   return form;
 }
 
-auto ExpectUrls(const std::string& formatted_origin,
-                const std::string& detailed_origin) {
-  return AllOf(Field(&UrlCollection::shown, formatted_origin),
-               Field(&UrlCollection::link, detailed_origin));
-}
-
 // Creates matcher for a given compromised info.
 auto ExpectCompromisedInfo(
     base::TimeDelta elapsed_time_since_compromise,
@@ -254,7 +190,7 @@ auto ExpectCompromisedInfo(
     std::vector<api::passwords_private::CompromiseType> compromise_types) {
   return AllOf(Field(&CompromisedInfo::compromise_time,
                      (base::Time::Now() - elapsed_time_since_compromise)
-                         .ToJsTimeIgnoringNull()),
+                         .InMillisecondsFSinceUnixEpochIgnoringNull()),
                Field(&CompromisedInfo::elapsed_time_since_compromise,
                      elapsed_time_since_compromise_str),
                Field(&CompromisedInfo::compromise_types,
@@ -262,22 +198,16 @@ auto ExpectCompromisedInfo(
 }
 
 // Creates matcher for a given compromised credential
-auto ExpectCredential(const std::string& formatted_origin,
-                      const std::string& detailed_origin,
-                      const absl::optional<std::string>& change_password_url,
+auto ExpectCredential(const std::optional<std::string>& change_password_url,
                       const std::u16string& username) {
   return AllOf(
       Field(&PasswordUiEntry::username, base::UTF16ToASCII(username)),
-      Field(&PasswordUiEntry::urls,
-            ExpectUrls(formatted_origin, detailed_origin)),
       Field(&PasswordUiEntry::change_password_url, change_password_url));
 }
 
 // Creates matcher for a given compromised credential
 auto ExpectCompromisedCredential(
-    const std::string& formatted_origin,
-    const std::string& detailed_origin,
-    const absl::optional<std::string>& change_password_url,
+    const std::optional<std::string>& change_password_url,
     const std::u16string& username,
     base::TimeDelta elapsed_time_since_compromise,
     const std::string& elapsed_time_since_compromise_str,
@@ -287,16 +217,62 @@ auto ExpectCompromisedCredential(
           ? Field(&PasswordUiEntry::change_password_url,
                   change_password_url.value())
           : Field(&PasswordUiEntry::change_password_url,
-                  testing::Eq(absl::nullopt));
+                  testing::Eq(std::nullopt));
   return AllOf(
       Field(&PasswordUiEntry::username, base::UTF16ToASCII(username)),
       change_password_url_field_matcher,
-      Field(&PasswordUiEntry::urls,
-            ExpectUrls(formatted_origin, detailed_origin)),
       Field(&PasswordUiEntry::compromised_info,
             Optional(ExpectCompromisedInfo(elapsed_time_since_compromise,
-                                          elapsed_time_since_compromise_str,
-                                          compromise_types))));
+                                           elapsed_time_since_compromise_str,
+                                           compromise_types))));
+}
+
+std::unique_ptr<TestingProfile> CreateTestingProfile() {
+  TestingProfile::Builder builder;
+  builder.AddTestingFactory(
+      extensions::EventRouterFactory::GetInstance(),
+      base::BindRepeating([](content::BrowserContext* context)
+                              -> std::unique_ptr<KeyedService> {
+        return std::make_unique<EventRouter>(context, nullptr);
+      }));
+  builder.AddTestingFactory(
+      PasswordsPrivateEventRouterFactory::GetInstance(),
+      base::BindRepeating([](content::BrowserContext* context)
+                              -> std::unique_ptr<KeyedService> {
+        return std::make_unique<PasswordsPrivateEventRouter>(context);
+      }));
+  builder.AddTestingFactory(
+      BulkLeakCheckServiceFactory::GetInstance(),
+      base::BindRepeating([](content::BrowserContext* context)
+                              -> std::unique_ptr<KeyedService> {
+        return std::make_unique<BulkLeakCheckService>(
+            IdentityManagerFactory::GetForProfile(
+                Profile::FromBrowserContext(context)),
+            base::MakeRefCounted<network::TestSharedURLLoaderFactory>());
+      }));
+  builder.AddTestingFactory(
+      ProfilePasswordStoreFactory::GetInstance(),
+      base::BindRepeating(
+          &password_manager::BuildPasswordStore<content::BrowserContext,
+                                                TestPasswordStore>));
+  // SetTestingFactory() can be called always, GetForProfile() will still return
+  // null if account storage is disabled.
+  builder.AddTestingFactory(
+      AccountPasswordStoreFactory::GetInstance(),
+      base::BindRepeating(
+          &password_manager::BuildPasswordStoreWithArgs<
+              content::BrowserContext, password_manager::TestPasswordStore,
+              password_manager::IsAccountStore>,
+          password_manager::IsAccountStore(true)));
+  builder.AddTestingFactory(
+      SyncServiceFactory::GetInstance(),
+      base::BindRepeating(
+          [](content::BrowserContext*) -> std::unique_ptr<KeyedService> {
+            return std::make_unique<syncer::TestSyncService>();
+          }));
+  builder.AddTestingFactories(IdentityTestEnvironmentProfileAdaptor::
+                                  GetIdentityTestEnvironmentFactories());
+  return builder.Build();
 }
 
 class PasswordCheckDelegateTest : public ::testing::Test {
@@ -304,56 +280,71 @@ class PasswordCheckDelegateTest : public ::testing::Test {
   PasswordCheckDelegateTest() {
     prefs_.registry()->RegisterDoublePref(kLastTimePasswordCheckCompleted, 0.0);
     presenter_.Init();
+    delegate_ = std::make_unique<PasswordCheckDelegate>(
+        profile_.get(), &presenter_, &credential_id_generator_,
+        PasswordsPrivateEventRouterFactory::GetForProfile(profile_.get()));
   }
 
   void RunUntilIdle() { task_env_.RunUntilIdle(); }
   TestEventRouterObserver& event_router_observer() {
     return event_router_observer_;
   }
-  IdentityTestEnvironment& identity_test_env() { return identity_test_env_; }
-  TestingPrefServiceSimple prefs_;
-  TestingProfile& profile() { return profile_; }
-  TestPasswordStore& store() { return *store_; }
-  TestPasswordStore& account_store() { return *account_store_; }
-  BulkLeakCheckService* service() { return bulk_leak_check_service_; }
-  MockPasswordChangeSuccessTracker& password_change_success_tracker() {
-    return *password_change_success_tracker_;
+  IdentityTestEnvironment& identity_test_env() {
+    return *identity_test_env_profile_adaptor_.identity_test_env();
   }
-  syncer::TestSyncService& sync_service() { return *sync_service_; }
+  TestingPrefServiceSimple prefs_;
+  TestingProfile& profile() { return *profile_; }
+  TestPasswordStore& store() {
+    return *static_cast<TestPasswordStore*>(
+        ProfilePasswordStoreFactory::GetForProfile(
+            profile_.get(), ServiceAccessType::EXPLICIT_ACCESS)
+            .get());
+  }
+  TestPasswordStore& account_store() {
+    return *static_cast<TestPasswordStore*>(
+        AccountPasswordStoreFactory::GetForProfile(
+            profile_.get(), ServiceAccessType::EXPLICIT_ACCESS)
+            .get());
+  }
+  BulkLeakCheckService* service() {
+    return static_cast<BulkLeakCheckService*>(
+        BulkLeakCheckServiceFactory::GetForProfile(profile_.get()));
+  }
+  syncer::TestSyncService& sync_service() {
+    return *static_cast<syncer::TestSyncService*>(
+        SyncServiceFactory::GetForProfile(profile_.get()));
+  }
   SavedPasswordsPresenter& presenter() { return presenter_; }
-  PasswordCheckDelegate& delegate() { return delegate_; }
+  PasswordCheckDelegate& delegate() { return *delegate_; }
 
   PasswordCheckDelegate CreateDelegate(SavedPasswordsPresenter* presenter) {
-    return PasswordCheckDelegate(&profile_, presenter,
+    return PasswordCheckDelegate(profile_.get(), presenter,
                                  &credential_id_generator_);
+  }
+
+  void ResetWithoutEventRouter() {
+    delegate_ = std::make_unique<PasswordCheckDelegate>(
+        profile_.get(), &presenter_, &credential_id_generator_, nullptr);
   }
 
  private:
   content::BrowserTaskEnvironment task_env_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
-  signin::IdentityTestEnvironment identity_test_env_;
-  TestingProfile profile_;
-  raw_ptr<EventRouter> event_router_ = CreateAndUseEventRouter(&profile_);
-  raw_ptr<PasswordsPrivateEventRouter> password_router_ =
-      CreateAndUsePasswordsPrivateEventRouter(&profile_);
-  TestEventRouterObserver event_router_observer_{event_router_};
-  raw_ptr<BulkLeakCheckService> bulk_leak_check_service_ =
-      CreateAndUseBulkLeakCheckService(identity_test_env_.identity_manager(),
-                                       &profile_);
-  scoped_refptr<TestPasswordStore> store_ =
-      CreateAndUseTestPasswordStore(&profile_);
-  scoped_refptr<TestPasswordStore> account_store_ =
-      CreateAndUseTestAccountPasswordStore(&profile_);
-  raw_ptr<MockPasswordChangeSuccessTracker> password_change_success_tracker_ =
-      CreateAndUsePasswordChangeSuccessTracker(&profile_);
-  raw_ptr<syncer::TestSyncService> sync_service_ =
-      CreateAndUseSyncService(&profile_);
+  const std::unique_ptr<TestingProfile> profile_ = CreateTestingProfile();
+  IdentityTestEnvironmentProfileAdaptor identity_test_env_profile_adaptor_{
+      profile_.get()};
+  TestEventRouterObserver event_router_observer_{
+      extensions::EventRouterFactory::GetForBrowserContext(profile_.get())};
   IdGenerator credential_id_generator_;
-  password_manager::MockAffiliationService affiliation_service_;
-  SavedPasswordsPresenter presenter_{&affiliation_service_, store_,
-                                     account_store_};
-  PasswordCheckDelegate delegate_{&profile_, &presenter_,
-                                  &credential_id_generator_};
+  affiliations::FakeAffiliationService affiliation_service_;
+  SavedPasswordsPresenter presenter_{&affiliation_service_,
+                                     ProfilePasswordStoreFactory::GetForProfile(
+                                         profile_.get(),
+                                         ServiceAccessType::EXPLICIT_ACCESS),
+                                     AccountPasswordStoreFactory::GetForProfile(
+                                         profile_.get(),
+                                         ServiceAccessType::EXPLICIT_ACCESS)};
+  std::unique_ptr<PasswordCheckDelegate> delegate_;
 };
 
 }  // namespace
@@ -364,19 +355,17 @@ TEST_F(PasswordCheckDelegateTest, GetInsecureCredentialsFillsFieldsCorrectly) {
   store().AddLogin(MakeSavedAndroidPassword(
       kExampleApp, kUsername2, "Example App", kExampleCom, kWeakPassword2));
   RunUntilIdle();
-  delegate().StartPasswordCheck();
+  delegate().StartPasswordCheck(
+      password_manager::LeakDetectionInitiator::kBulkSyncedPasswordsCheck);
   RunUntilIdle();
 
   EXPECT_THAT(
       delegate().GetInsecureCredentials(),
       UnorderedElementsAre(
-          ExpectCredential("example.com", "https://example.com/",
-                           "https://example.com/.well-known/change-password",
+          ExpectCredential("https://example.com/.well-known/change-password",
                            kUsername1),
-          ExpectCredential(
-              "Example App",
-              "https://play.google.com/store/apps/details?id=com.example.app",
-              "https://example.com/.well-known/change-password", kUsername2)));
+          ExpectCredential("https://example.com/.well-known/change-password",
+                           kUsername2)));
 }
 
 // Verify that computation of weak credentials notifies observers.
@@ -388,7 +377,8 @@ TEST_F(PasswordCheckDelegateTest, WeakCheckNotifiesObservers) {
   EXPECT_FALSE(base::Contains(event_router_observer().events(), kEventName));
 
   // Verify that the event gets fired after weak check is complete.
-  delegate().StartPasswordCheck();
+  delegate().StartPasswordCheck(
+      password_manager::LeakDetectionInitiator::kBulkSyncedPasswordsCheck);
   RunUntilIdle();
   EXPECT_EQ(events::PASSWORDS_PRIVATE_ON_INSECURE_CREDENTIALS_CHANGED,
             event_router_observer().events().at(kEventName)->histogram_value);
@@ -398,15 +388,15 @@ TEST_F(PasswordCheckDelegateTest, WeakCheckNotifiesObservers) {
 TEST_F(PasswordCheckDelegateTest, WeakCheckWhenUserSignedOut) {
   store().AddLogin(MakeSavedPassword(kExampleCom, kUsername1, kWeakPassword1));
   RunUntilIdle();
-  delegate().StartPasswordCheck();
+  delegate().StartPasswordCheck(
+      password_manager::LeakDetectionInitiator::kBulkSyncedPasswordsCheck);
   RunUntilIdle();
 
   EXPECT_THAT(
       delegate().GetInsecureCredentials(),
       ElementsAre(ExpectCredential(
-          "example.com", "https://example.com/",
           "https://example.com/.well-known/change-password", kUsername1)));
-  EXPECT_EQ(api::passwords_private::PASSWORD_CHECK_STATE_SIGNED_OUT,
+  EXPECT_EQ(api::passwords_private::PasswordCheckState::kSignedOut,
             delegate().GetPasswordCheckStatus().state);
 }
 
@@ -414,6 +404,7 @@ TEST_F(PasswordCheckDelegateTest, WeakCheckWhenUserSignedOut) {
 // credential covers the "Just now" cases (less than a minute ago), as well as
 // months and years.
 TEST_F(PasswordCheckDelegateTest, GetInsecureCredentialsHandlesTimes) {
+  RunUntilIdle();
   PasswordForm form_com_username1 = MakeSavedPassword(kExampleCom, kUsername1);
   AddIssueToForm(&form_com_username1, InsecureType::kLeaked, base::Seconds(59));
   store().AddLogin(form_com_username1);
@@ -435,25 +426,25 @@ TEST_F(PasswordCheckDelegateTest, GetInsecureCredentialsHandlesTimes) {
   EXPECT_THAT(
       delegate().GetInsecureCredentials(),
       ElementsAre(ExpectCompromisedCredential(
-                      "example.com", "https://example.com/",
                       "https://example.com/.well-known/change-password",
                       kUsername1, base::Seconds(59), "Just now",
-                      {api::passwords_private::COMPROMISE_TYPE_LEAKED}),
+                      {api::passwords_private::CompromiseType::kLeaked,
+                       api::passwords_private::CompromiseType::kReused}),
                   ExpectCompromisedCredential(
-                      "example.com", "https://example.com/",
                       "https://example.com/.well-known/change-password",
                       kUsername2, base::Seconds(60), "1 minute ago",
-                      {api::passwords_private::COMPROMISE_TYPE_LEAKED}),
+                      {api::passwords_private::CompromiseType::kLeaked,
+                       api::passwords_private::CompromiseType::kReused}),
                   ExpectCompromisedCredential(
-                      "example.org", "http://www.example.org/",
                       "http://www.example.org/.well-known/change-password",
                       kUsername1, base::Days(100), "3 months ago",
-                      {api::passwords_private::COMPROMISE_TYPE_LEAKED}),
+                      {api::passwords_private::CompromiseType::kLeaked,
+                       api::passwords_private::CompromiseType::kReused}),
                   ExpectCompromisedCredential(
-                      "example.org", "http://www.example.org/",
                       "http://www.example.org/.well-known/change-password",
                       kUsername2, base::Days(800), "2 years ago",
-                      {api::passwords_private::COMPROMISE_TYPE_LEAKED})));
+                      {api::passwords_private::CompromiseType::kLeaked,
+                       api::passwords_private::CompromiseType::kReused})));
 }
 
 // Verifies that both leaked and phished credentials are ordered correctly
@@ -462,6 +453,7 @@ TEST_F(PasswordCheckDelegateTest, GetInsecureCredentialsHandlesTimes) {
 // most recent compromise.
 TEST_F(PasswordCheckDelegateTest,
        GetInsecureCredentialsDedupesLeakedAndCompromised) {
+  RunUntilIdle();
   PasswordForm form_com_username1 = MakeSavedPassword(kExampleCom, kUsername1);
   AddIssueToForm(&form_com_username1, InsecureType::kLeaked, base::Minutes(1));
   AddIssueToForm(&form_com_username1, InsecureType::kPhished, base::Minutes(5));
@@ -485,30 +477,31 @@ TEST_F(PasswordCheckDelegateTest,
   EXPECT_THAT(delegate().GetInsecureCredentials(),
               UnorderedElementsAre(
                   ExpectCompromisedCredential(
-                      "example.com", "https://example.com/",
                       "https://example.com/.well-known/change-password",
                       kUsername1, base::Minutes(1), "1 minute ago",
-                      {api::passwords_private::COMPROMISE_TYPE_LEAKED,
-                       api::passwords_private::COMPROMISE_TYPE_PHISHED}),
+                      {api::passwords_private::CompromiseType::kLeaked,
+                       api::passwords_private::CompromiseType::kPhished,
+                       api::passwords_private::CompromiseType::kReused}),
                   ExpectCompromisedCredential(
-                      "example.org", "http://www.example.org/",
                       "http://www.example.org/.well-known/change-password",
                       kUsername1, base::Minutes(3), "3 minutes ago",
-                      {api::passwords_private::COMPROMISE_TYPE_PHISHED}),
+                      {api::passwords_private::CompromiseType::kPhished,
+                       api::passwords_private::CompromiseType::kReused}),
                   ExpectCompromisedCredential(
-                      "example.org", "http://www.example.org/",
                       "http://www.example.org/.well-known/change-password",
                       kUsername2, base::Minutes(4), "4 minutes ago",
-                      {api::passwords_private::COMPROMISE_TYPE_LEAKED,
-                       api::passwords_private::COMPROMISE_TYPE_PHISHED}),
+                      {api::passwords_private::CompromiseType::kLeaked,
+                       api::passwords_private::CompromiseType::kPhished,
+                       api::passwords_private::CompromiseType::kReused}),
                   ExpectCompromisedCredential(
-                      "example.com", "https://example.com/",
                       "https://example.com/.well-known/change-password",
                       kUsername2, base::Minutes(2), "2 minutes ago",
-                      {api::passwords_private::COMPROMISE_TYPE_LEAKED})));
+                      {api::passwords_private::CompromiseType::kLeaked,
+                       api::passwords_private::CompromiseType::kReused})));
 }
 
 TEST_F(PasswordCheckDelegateTest, GetInsecureCredentialsInjectsAndroid) {
+  RunUntilIdle();
   PasswordForm form = MakeSavedPassword(kExampleCom, kUsername1);
   AddIssueToForm(&form, InsecureType::kLeaked, base::Minutes(5));
   store().AddLogin(form);
@@ -527,25 +520,22 @@ TEST_F(PasswordCheckDelegateTest, GetInsecureCredentialsInjectsAndroid) {
 
   // Verify that the compromised credentials match what is stored in the
   // password store.
-  EXPECT_THAT(
-      delegate().GetInsecureCredentials(),
-      UnorderedElementsAre(
-          ExpectCompromisedCredential(
-              "Example App",
-              "https://play.google.com/store/apps/details?id=com.example.app",
-              "https://example.com/.well-known/change-password", kUsername2,
-              base::Days(3), "3 days ago",
-              {api::passwords_private::COMPROMISE_TYPE_PHISHED}),
-          ExpectCompromisedCredential(
-              "app.example.com",
-              "https://play.google.com/store/apps/details?id=com.example.app",
-              absl::nullopt, kUsername1, base::Days(4), "4 days ago",
-              {api::passwords_private::COMPROMISE_TYPE_PHISHED}),
-          ExpectCompromisedCredential(
-              "example.com", "https://example.com/",
-              "https://example.com/.well-known/change-password", kUsername1,
-              base::Minutes(5), "5 minutes ago",
-              {api::passwords_private::COMPROMISE_TYPE_LEAKED})));
+  EXPECT_THAT(delegate().GetInsecureCredentials(),
+              UnorderedElementsAre(
+                  ExpectCompromisedCredential(
+                      "https://example.com/.well-known/change-password",
+                      kUsername2, base::Days(3), "3 days ago",
+                      {api::passwords_private::CompromiseType::kPhished,
+                       api::passwords_private::CompromiseType::kReused}),
+                  ExpectCompromisedCredential(
+                      std::nullopt, kUsername1, base::Days(4), "4 days ago",
+                      {api::passwords_private::CompromiseType::kPhished,
+                       api::passwords_private::CompromiseType::kReused}),
+                  ExpectCompromisedCredential(
+                      "https://example.com/.well-known/change-password",
+                      kUsername1, base::Minutes(5), "5 minutes ago",
+                      {api::passwords_private::CompromiseType::kLeaked,
+                       api::passwords_private::CompromiseType::kReused})));
 }
 
 // Test that a change to compromised credential notifies observers.
@@ -607,7 +597,7 @@ TEST_F(PasswordCheckDelegateTest, MuteInsecureCredentialStaleData) {
 
   PasswordUiEntry credential =
       std::move(delegate().GetInsecureCredentials().at(0));
-  store().RemoveLogin(form);
+  store().RemoveLogin(FROM_HERE, form);
   RunUntilIdle();
 
   EXPECT_FALSE(delegate().MuteInsecureCredential(credential));
@@ -660,7 +650,7 @@ TEST_F(PasswordCheckDelegateTest, UnmuteInsecureCredentialStaleData) {
 
   PasswordUiEntry credential =
       std::move(delegate().GetInsecureCredentials().at(0));
-  store().RemoveLogin(form);
+  store().RemoveLogin(FROM_HERE, form);
   RunUntilIdle();
 
   EXPECT_FALSE(delegate().UnmuteInsecureCredential(credential));
@@ -681,92 +671,36 @@ TEST_F(PasswordCheckDelegateTest, UnmuteInsecureCredentialIdMismatch) {
   EXPECT_FALSE(delegate().UnmuteInsecureCredential(credential));
 }
 
-TEST_F(PasswordCheckDelegateTest, RecordChangePasswordFlowStarted) {
-  // Create an insecure credential.
-  PasswordForm form = MakeSavedPassword(kExampleCom, kUsername1);
-  AddIssueToForm(&form, InsecureType::kLeaked);
-  store().AddLogin(form);
-  RunUntilIdle();
-
-  PasswordUiEntry credential =
-      std::move(delegate().GetInsecureCredentials().at(0));
-  ASSERT_EQ(base::UTF16ToASCII(kUsername1), credential.username);
-
-  EXPECT_CALL(
-      password_change_success_tracker(),
-      OnManualChangePasswordFlowStarted(
-          GURL(*credential.change_password_url), credential.username,
-          PasswordChangeSuccessTracker::EntryPoint::kLeakCheckInSettings));
-
-  delegate().RecordChangePasswordFlowStarted(credential);
-}
-
-TEST_F(PasswordCheckDelegateTest,
-       RecordChangePasswordFlowStartedForAppWithWebRealm) {
-  // Create an insecure credential.
-  PasswordForm form = MakeSavedAndroidPassword(kExampleApp, kUsername2,
-                                               "Example App", kExampleCom);
-  AddIssueToForm(&form, InsecureType::kLeaked);
-  store().AddLogin(form);
-  RunUntilIdle();
-
-  PasswordUiEntry credential =
-      std::move(delegate().GetInsecureCredentials().at(0));
-  ASSERT_EQ(base::UTF16ToASCII(kUsername2), credential.username);
-
-  EXPECT_CALL(
-      password_change_success_tracker(),
-      OnManualChangePasswordFlowStarted(
-          GURL(*credential.change_password_url), credential.username,
-          PasswordChangeSuccessTracker::EntryPoint::kLeakCheckInSettings));
-
-  delegate().RecordChangePasswordFlowStarted(credential);
-}
-
-TEST_F(PasswordCheckDelegateTest,
-       RecordChangePasswordFlowStartedForAppWithoutWebRealm) {
-  // Create an insecure credential.
-  PasswordForm form = MakeSavedAndroidPassword(kExampleApp, kUsername1, "", "");
-  AddIssueToForm(&form, InsecureType::kLeaked);
-  store().AddLogin(form);
-  RunUntilIdle();
-
-  PasswordUiEntry credential =
-      std::move(delegate().GetInsecureCredentials().at(0));
-  ASSERT_EQ(base::UTF16ToASCII(kUsername1), credential.username);
-
-  // Since no password change link exists, we expect no call to the tracker.
-  EXPECT_CALL(password_change_success_tracker(),
-              OnManualChangePasswordFlowStarted)
-      .Times(0);
-
-  delegate().RecordChangePasswordFlowStarted(credential);
-}
-
 // Tests that we don't create an entry in the database if there is no matching
 // saved password.
 TEST_F(PasswordCheckDelegateTest, OnLeakFoundDoesNotCreateCredential) {
-  identity_test_env().MakeAccountAvailable(kTestEmail);
+  identity_test_env().MakePrimaryAccountAvailable(
+      kTestEmail, signin::ConsentLevel::kSignin);
   PasswordForm form = MakeSavedPassword(kExampleCom, kUsername1, kPassword1);
   store().AddLogin(form);
   RunUntilIdle();
-  delegate().StartPasswordCheck();
-  store().RemoveLogin(form);
+  delegate().StartPasswordCheck(
+      password_manager::LeakDetectionInitiator::kBulkSyncedPasswordsCheck);
+  store().RemoveLogin(FROM_HERE, form);
   RunUntilIdle();
   static_cast<BulkLeakCheckDelegateInterface*>(service())->OnFinishedCredential(
       LeakCheckCredential(kUsername1, kPassword1), IsLeaked(true));
   RunUntilIdle();
 
-  EXPECT_TRUE(store().stored_passwords().at(kExampleCom).empty());
+  EXPECT_THAT(store().stored_passwords(), IsEmpty());
 }
 
 // Test that we don't create an entry in the password store if IsLeaked is
 // false.
 TEST_F(PasswordCheckDelegateTest, NoLeakedFound) {
+  identity_test_env().MakePrimaryAccountAvailable(
+      kTestEmail, signin::ConsentLevel::kSignin);
   PasswordForm form = MakeSavedPassword(kExampleCom, kUsername1, kPassword1);
   store().AddLogin(form);
   RunUntilIdle();
 
+  delegate().StartPasswordCheck(
+      password_manager::LeakDetectionInitiator::kBulkSyncedPasswordsCheck);
   static_cast<BulkLeakCheckDelegateInterface*>(service())->OnFinishedCredential(
       LeakCheckCredential(kUsername1, kPassword1), IsLeaked(false));
   RunUntilIdle();
@@ -778,12 +712,14 @@ TEST_F(PasswordCheckDelegateTest, NoLeakedFound) {
 // Test that a found leak creates a compromised credential in the password
 // store.
 TEST_F(PasswordCheckDelegateTest, OnLeakFoundCreatesCredential) {
-  identity_test_env().MakeAccountAvailable(kTestEmail);
+  identity_test_env().MakePrimaryAccountAvailable(
+      kTestEmail, signin::ConsentLevel::kSignin);
   PasswordForm form = MakeSavedPassword(kExampleCom, kUsername1, kPassword1);
   store().AddLogin(form);
   RunUntilIdle();
 
-  delegate().StartPasswordCheck();
+  delegate().StartPasswordCheck(
+      password_manager::LeakDetectionInitiator::kBulkSyncedPasswordsCheck);
   static_cast<BulkLeakCheckDelegateInterface*>(service())->OnFinishedCredential(
       LeakCheckCredential(kUsername1, kPassword1), IsLeaked(true));
   RunUntilIdle();
@@ -820,8 +756,10 @@ TEST_F(PasswordCheckDelegateTest, OnLeakFoundCreatesMultipleCredential) {
 
   RunUntilIdle();
 
-  identity_test_env().MakeAccountAvailable(kTestEmail);
-  delegate().StartPasswordCheck();
+  identity_test_env().MakePrimaryAccountAvailable(
+      kTestEmail, signin::ConsentLevel::kSignin);
+  delegate().StartPasswordCheck(
+      password_manager::LeakDetectionInitiator::kBulkSyncedPasswordsCheck);
   static_cast<BulkLeakCheckDelegateInterface*>(service())->OnFinishedCredential(
       LeakCheckCredential(kUsername1, kPassword1), IsLeaked(true));
   static_cast<BulkLeakCheckDelegateInterface*>(service())->OnFinishedCredential(
@@ -855,7 +793,7 @@ TEST_F(PasswordCheckDelegateTest, OnLeakFoundCreatesMultipleCredential) {
 // Verifies that the case where the user has no saved passwords is reported
 // correctly.
 TEST_F(PasswordCheckDelegateTest, GetPasswordCheckStatusNoPasswords) {
-  EXPECT_EQ(api::passwords_private::PASSWORD_CHECK_STATE_NO_PASSWORDS,
+  EXPECT_EQ(api::passwords_private::PasswordCheckState::kNoPasswords,
             delegate().GetPasswordCheckStatus().state);
 }
 
@@ -864,7 +802,7 @@ TEST_F(PasswordCheckDelegateTest, GetPasswordCheckStatusIdle) {
   store().AddLogin(MakeSavedPassword(kExampleCom, kUsername1));
   RunUntilIdle();
 
-  EXPECT_EQ(api::passwords_private::PASSWORD_CHECK_STATE_IDLE,
+  EXPECT_EQ(api::passwords_private::PasswordCheckState::kIdle,
             delegate().GetPasswordCheckStatus().state);
 }
 
@@ -873,31 +811,34 @@ TEST_F(PasswordCheckDelegateTest, GetPasswordCheckStatusSignedOut) {
   store().AddLogin(MakeSavedPassword(kExampleCom, kUsername1));
   RunUntilIdle();
 
-  delegate().StartPasswordCheck();
-  EXPECT_EQ(api::passwords_private::PASSWORD_CHECK_STATE_SIGNED_OUT,
+  delegate().StartPasswordCheck(
+      password_manager::LeakDetectionInitiator::kBulkSyncedPasswordsCheck);
+  EXPECT_EQ(api::passwords_private::PasswordCheckState::kSignedOut,
             delegate().GetPasswordCheckStatus().state);
 }
 
 // Verifies that the case where the check is running is reported correctly and
 // the progress indicator matches expectations.
 TEST_F(PasswordCheckDelegateTest, GetPasswordCheckStatusRunning) {
-  identity_test_env().MakeAccountAvailable(kTestEmail);
+  identity_test_env().MakePrimaryAccountAvailable(
+      kTestEmail, signin::ConsentLevel::kSignin);
   store().AddLogin(MakeSavedPassword(kExampleCom, kUsername1));
   RunUntilIdle();
 
-  delegate().StartPasswordCheck();
+  delegate().StartPasswordCheck(
+      password_manager::LeakDetectionInitiator::kBulkSyncedPasswordsCheck);
   PasswordCheckStatus status = delegate().GetPasswordCheckStatus();
-  EXPECT_EQ(api::passwords_private::PASSWORD_CHECK_STATE_RUNNING, status.state);
+  EXPECT_EQ(api::passwords_private::PasswordCheckState::kRunning, status.state);
   EXPECT_EQ(0, *status.already_processed);
   EXPECT_EQ(1, *status.remaining_in_queue);
 
   // Make sure that even though the store is emptied after starting a check we
   // don't report a negative number for already processed.
-  store().RemoveLogin(MakeSavedPassword(kExampleCom, kUsername1));
+  store().RemoveLogin(FROM_HERE, MakeSavedPassword(kExampleCom, kUsername1));
   RunUntilIdle();
 
   status = delegate().GetPasswordCheckStatus();
-  EXPECT_EQ(api::passwords_private::PASSWORD_CHECK_STATE_RUNNING, status.state);
+  EXPECT_EQ(api::passwords_private::PasswordCheckState::kRunning, status.state);
   EXPECT_EQ(0, *status.already_processed);
   EXPECT_EQ(1, *status.remaining_in_queue);
 }
@@ -905,60 +846,51 @@ TEST_F(PasswordCheckDelegateTest, GetPasswordCheckStatusRunning) {
 // Verifies that the total password count is reported accurately.
 // Regression test for crbug.com/1432734.
 TEST_F(PasswordCheckDelegateTest, GetPasswordCheckStatusCount) {
-  identity_test_env().MakeAccountAvailable(kTestEmail);
+  identity_test_env().MakePrimaryAccountAvailable(
+      kTestEmail, signin::ConsentLevel::kSignin);
   store().AddLogin(MakeSavedPassword(kExampleCom, kUsername1, kPassword1));
   store().AddLogin(MakeSavedPassword(kExampleCom, kUsername2, kPassword2));
   store().AddLogin(MakeSavedFederatedCredential(kExampleCom, kUsername3));
   RunUntilIdle();
 
-  delegate().StartPasswordCheck();
+  delegate().StartPasswordCheck(
+      password_manager::LeakDetectionInitiator::kBulkSyncedPasswordsCheck);
   PasswordCheckStatus status = delegate().GetPasswordCheckStatus();
   EXPECT_EQ(*status.total_number_of_passwords, 2);
 }
 
-// Verifies that the case where the check is canceled is reported correctly.
-TEST_F(PasswordCheckDelegateTest, GetPasswordCheckStatusCanceled) {
-  identity_test_env().MakeAccountAvailable(kTestEmail);
-  store().AddLogin(MakeSavedPassword(kExampleCom, kUsername1));
-  RunUntilIdle();
-
-  delegate().StartPasswordCheck();
-  EXPECT_EQ(api::passwords_private::PASSWORD_CHECK_STATE_RUNNING,
-            delegate().GetPasswordCheckStatus().state);
-
-  delegate().StopPasswordCheck();
-  EXPECT_EQ(api::passwords_private::PASSWORD_CHECK_STATE_CANCELED,
-            delegate().GetPasswordCheckStatus().state);
-}
-
 // Verifies that the case where the user is offline is reported correctly.
 TEST_F(PasswordCheckDelegateTest, GetPasswordCheckStatusOffline) {
-  identity_test_env().MakeAccountAvailable(kTestEmail);
+  identity_test_env().MakePrimaryAccountAvailable(
+      kTestEmail, signin::ConsentLevel::kSignin);
   store().AddLogin(MakeSavedPassword(kExampleCom, kUsername1));
   RunUntilIdle();
 
-  delegate().StartPasswordCheck();
+  delegate().StartPasswordCheck(
+      password_manager::LeakDetectionInitiator::kBulkSyncedPasswordsCheck);
   identity_test_env().WaitForAccessTokenRequestIfNecessaryAndRespondWithError(
       GoogleServiceAuthError::FromConnectionError(net::ERR_TIMED_OUT));
 
-  EXPECT_EQ(api::passwords_private::PASSWORD_CHECK_STATE_OFFLINE,
+  EXPECT_EQ(api::passwords_private::PasswordCheckState::kOffline,
             delegate().GetPasswordCheckStatus().state);
 }
 
 // Verifies that the case where the user hits another error (e.g. invalid
 // credentials) is reported correctly.
 TEST_F(PasswordCheckDelegateTest, GetPasswordCheckStatusOther) {
-  identity_test_env().MakeAccountAvailable(kTestEmail);
+  identity_test_env().MakePrimaryAccountAvailable(
+      kTestEmail, signin::ConsentLevel::kSignin);
   store().AddLogin(MakeSavedPassword(kExampleCom, kUsername1));
   RunUntilIdle();
 
-  delegate().StartPasswordCheck();
+  delegate().StartPasswordCheck(
+      password_manager::LeakDetectionInitiator::kBulkSyncedPasswordsCheck);
   identity_test_env().WaitForAccessTokenRequestIfNecessaryAndRespondWithError(
       GoogleServiceAuthError::FromInvalidGaiaCredentialsReason(
           GoogleServiceAuthError::InvalidGaiaCredentialsReason::
               CREDENTIALS_REJECTED_BY_SERVER));
 
-  EXPECT_EQ(api::passwords_private::PASSWORD_CHECK_STATE_SIGNED_OUT,
+  EXPECT_EQ(api::passwords_private::PasswordCheckState::kSignedOut,
             delegate().GetPasswordCheckStatus().state);
 }
 
@@ -1004,7 +936,8 @@ TEST_F(PasswordCheckDelegateTest,
 
   // Verify that a subsequent call to StartPasswordCheck() results in the
   // expected event.
-  delegate().StartPasswordCheck();
+  delegate().StartPasswordCheck(
+      password_manager::LeakDetectionInitiator::kBulkSyncedPasswordsCheck);
   EXPECT_EQ(events::PASSWORDS_PRIVATE_ON_PASSWORD_CHECK_STATUS_CHANGED,
             event_router_observer().events().at(kEventName)->histogram_value);
 }
@@ -1021,7 +954,7 @@ TEST_F(PasswordCheckDelegateTest, LastTimePasswordCheckCompletedNotSet) {
 TEST_F(PasswordCheckDelegateTest, LastTimePasswordCheckCompletedIsSet) {
   profile().GetPrefs()->SetDouble(
       kLastTimePasswordCheckCompleted,
-      (base::Time::Now() - base::Minutes(5)).ToDoubleT());
+      (base::Time::Now() - base::Minutes(5)).InSecondsFSinceUnixEpoch());
 
   PasswordCheckStatus status = delegate().GetPasswordCheckStatus();
   EXPECT_THAT(status.elapsed_time_since_last_check,
@@ -1031,7 +964,8 @@ TEST_F(PasswordCheckDelegateTest, LastTimePasswordCheckCompletedIsSet) {
 // Checks that a transition into the idle state after starting a check results
 // in resetting the kLastTimePasswordCheckCompleted pref to the current time.
 TEST_F(PasswordCheckDelegateTest, LastTimePasswordCheckCompletedReset) {
-  delegate().StartPasswordCheck();
+  delegate().StartPasswordCheck(
+      password_manager::LeakDetectionInitiator::kBulkSyncedPasswordsCheck);
   RunUntilIdle();
 
   service()->set_state_and_notify(BulkLeakCheckService::State::kIdle);
@@ -1046,7 +980,8 @@ TEST_F(PasswordCheckDelegateTest, OnCredentialDoneUpdatesProgress) {
   const char* const kEventName =
       api::passwords_private::OnPasswordCheckStatusChanged::kEventName;
 
-  identity_test_env().MakeAccountAvailable(kTestEmail);
+  identity_test_env().MakePrimaryAccountAvailable(
+      kTestEmail, signin::ConsentLevel::kSignin);
   store().AddLogin(MakeSavedPassword(kExampleCom, kUsername1, kPassword1));
   store().AddLogin(MakeSavedPassword(kExampleCom, kUsername2, kPassword2));
   store().AddLogin(MakeSavedPassword(kExampleOrg, kUsername1, kPassword1));
@@ -1054,12 +989,13 @@ TEST_F(PasswordCheckDelegateTest, OnCredentialDoneUpdatesProgress) {
   RunUntilIdle();
 
   const auto event_iter = event_router_observer().events().find(kEventName);
-  delegate().StartPasswordCheck();
+  delegate().StartPasswordCheck(
+      password_manager::LeakDetectionInitiator::kBulkSyncedPasswordsCheck);
   EXPECT_EQ(events::PASSWORDS_PRIVATE_ON_PASSWORD_CHECK_STATUS_CHANGED,
             event_iter->second->histogram_value);
-  auto status = PasswordCheckStatus::FromValueDeprecated(
-      event_iter->second->event_args.front());
-  EXPECT_EQ(api::passwords_private::PASSWORD_CHECK_STATE_RUNNING,
+  auto status =
+      PasswordCheckStatus::FromValue(event_iter->second->event_args.front());
+  EXPECT_EQ(api::passwords_private::PasswordCheckState::kRunning,
             status->state);
   EXPECT_EQ(0, *status->already_processed);
   EXPECT_EQ(4, *status->remaining_in_queue);
@@ -1067,9 +1003,9 @@ TEST_F(PasswordCheckDelegateTest, OnCredentialDoneUpdatesProgress) {
   static_cast<BulkLeakCheckDelegateInterface*>(service())->OnFinishedCredential(
       LeakCheckCredential(kUsername1, kPassword1), IsLeaked(false));
 
-  status = PasswordCheckStatus::FromValueDeprecated(
-      event_iter->second->event_args.front());
-  EXPECT_EQ(api::passwords_private::PASSWORD_CHECK_STATE_RUNNING,
+  status =
+      PasswordCheckStatus::FromValue(event_iter->second->event_args.front());
+  EXPECT_EQ(api::passwords_private::PasswordCheckState::kRunning,
             status->state);
   EXPECT_EQ(2, *status->already_processed);
   EXPECT_EQ(2, *status->remaining_in_queue);
@@ -1077,36 +1013,19 @@ TEST_F(PasswordCheckDelegateTest, OnCredentialDoneUpdatesProgress) {
   static_cast<BulkLeakCheckDelegateInterface*>(service())->OnFinishedCredential(
       LeakCheckCredential(kUsername2, kPassword2), IsLeaked(false));
 
-  status = PasswordCheckStatus::FromValueDeprecated(
-      event_iter->second->event_args.front());
-  EXPECT_EQ(api::passwords_private::PASSWORD_CHECK_STATE_RUNNING,
+  status =
+      PasswordCheckStatus::FromValue(event_iter->second->event_args.front());
+  EXPECT_EQ(api::passwords_private::PasswordCheckState::kRunning,
             status->state);
   EXPECT_EQ(4, *status->already_processed);
   EXPECT_EQ(0, *status->remaining_in_queue);
 }
 
-// Tests that StopPasswordCheck() invokes pending callbacks before
-// initialization finishes.
-TEST_F(PasswordCheckDelegateTest,
-       StopPasswordCheckRespondsCancelsBeforeInitialization) {
-  MockStartPasswordCheckCallback callback1;
-  MockStartPasswordCheckCallback callback2;
-  delegate().StartPasswordCheck(callback1.Get());
-  delegate().StartPasswordCheck(callback2.Get());
-
-  EXPECT_CALL(callback1, Run(BulkLeakCheckService::State::kIdle));
-  EXPECT_CALL(callback2, Run(BulkLeakCheckService::State::kIdle));
-  delegate().StopPasswordCheck();
-
-  Mock::VerifyAndClearExpectations(&callback1);
-  Mock::VerifyAndClearExpectations(&callback2);
-  RunUntilIdle();
-}
-
 // Tests that pending callbacks get invoked once initialization finishes.
 TEST_F(PasswordCheckDelegateTest,
        StartPasswordCheckRunsCallbacksAfterInitialization) {
-  identity_test_env().MakeAccountAvailable(kTestEmail);
+  identity_test_env().MakePrimaryAccountAvailable(
+      kTestEmail, signin::ConsentLevel::kSignin);
   store().AddLogin(MakeSavedPassword(kExampleCom, kUsername1));
   RunUntilIdle();
 
@@ -1117,13 +1036,17 @@ TEST_F(PasswordCheckDelegateTest,
 
   // Use a local delegate instead of |delegate()| so that the Password Store can
   // be set-up prior to constructing the object.
-  password_manager::MockAffiliationService affiliation_service;
+  affiliations::FakeAffiliationService affiliation_service;
   SavedPasswordsPresenter new_presenter(&affiliation_service, &store(),
                                         /*account_store=*/nullptr);
   PasswordCheckDelegate delegate = CreateDelegate(&new_presenter);
   new_presenter.Init();
-  delegate.StartPasswordCheck(callback1.Get());
-  delegate.StartPasswordCheck(callback2.Get());
+  delegate.StartPasswordCheck(
+      password_manager::LeakDetectionInitiator::kBulkSyncedPasswordsCheck,
+      callback1.Get());
+  delegate.StartPasswordCheck(
+      password_manager::LeakDetectionInitiator::kBulkSyncedPasswordsCheck,
+      callback2.Get());
   RunUntilIdle();
 }
 
@@ -1162,10 +1085,6 @@ TEST_F(PasswordCheckDelegateTest, WellKnownChangePasswordUrl_androidrealm) {
 // credentials.
 TEST_F(PasswordCheckDelegateTest,
        GetCredentialsWithReusedPasswordFillsFieldsCorrectly) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      password_manager::features::kPasswordManagerRedesign);
-
   store().AddLogin(MakeSavedPassword(kExampleCom, kUsername1, kWeakPassword1));
   store().AddLogin(MakeSavedPassword(kExampleCom, kUsername2, kWeakPassword2));
   store().AddLogin(MakeSavedAndroidPassword(
@@ -1173,7 +1092,8 @@ TEST_F(PasswordCheckDelegateTest,
   store().AddLogin(MakeSavedAndroidPassword(
       kExampleApp, kUsername1, "Example App", kExampleCom, kWeakPassword2));
   RunUntilIdle();
-  delegate().StartPasswordCheck();
+  delegate().StartPasswordCheck(
+      password_manager::LeakDetectionInitiator::kBulkSyncedPasswordsCheck);
   RunUntilIdle();
 
   auto credential_with_the_same_password =
@@ -1186,47 +1106,53 @@ TEST_F(PasswordCheckDelegateTest,
           Field(&api::passwords_private::PasswordUiEntryList::entries,
                 UnorderedElementsAre(
                     ExpectCredential(
-                        "example.com", "https://example.com/",
                         "https://example.com/.well-known/change-password",
                         kUsername2),
                     ExpectCredential(
-                        "Example App",
-                        "https://play.google.com/store/apps/"
-                        "details?id=com.example.app",
                         "https://example.com/.well-known/change-password",
                         kUsername1))),
           Field(&api::passwords_private::PasswordUiEntryList::entries,
                 UnorderedElementsAre(
                     ExpectCredential(
-                        "example.com", "https://example.com/",
                         "https://example.com/.well-known/change-password",
                         kUsername1),
                     ExpectCredential(
-                        "Example App",
-                        "https://play.google.com/store/apps/"
-                        "details?id=com.example.app",
                         "https://example.com/.well-known/change-password",
                         kUsername2)))));
 }
 
 TEST_F(PasswordCheckDelegateTest,
        GetCredentialsWithReusedPasswordAvoidsSingleReuse) {
-  base::test::ScopedFeatureList scoped_feature_list(
-      password_manager::features::kPasswordManagerRedesign);
-
   store().AddLogin(MakeSavedPassword(kExampleCom, kUsername1, kWeakPassword1));
   store().AddLogin(MakeSavedPassword(kExampleApp, kUsername2, kWeakPassword1));
   RunUntilIdle();
-  delegate().StartPasswordCheck();
+  delegate().StartPasswordCheck(
+      password_manager::LeakDetectionInitiator::kBulkSyncedPasswordsCheck);
   RunUntilIdle();
 
   EXPECT_EQ(1u, delegate().GetCredentialsWithReusedPassword().size());
 
   store().RemoveLogin(
-      MakeSavedPassword(kExampleCom, kUsername1, kWeakPassword1));
+      FROM_HERE, MakeSavedPassword(kExampleCom, kUsername1, kWeakPassword1));
   RunUntilIdle();
 
   EXPECT_THAT(delegate().GetCredentialsWithReusedPassword(), IsEmpty());
+}
+
+// Verify that computation of weak credentials notifies observers.
+TEST_F(PasswordCheckDelegateTest, NoNotificationsWithoutRouter) {
+  ResetWithoutEventRouter();
+  const char* const kEventName =
+      api::passwords_private::OnInsecureCredentialsChanged::kEventName;
+
+  // Verify that the event was not fired during construction.
+  EXPECT_FALSE(base::Contains(event_router_observer().events(), kEventName));
+
+  // Verify that the event gets fired after weak check is complete.
+  delegate().StartPasswordCheck(
+      password_manager::LeakDetectionInitiator::kBulkSyncedPasswordsCheck);
+  RunUntilIdle();
+  EXPECT_FALSE(base::Contains(event_router_observer().events(), kEventName));
 }
 
 }  // namespace extensions

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ash/webui/color_internals/color_internals_ui.h"
 
 #include "ash/webui/color_internals/url_constants.h"
@@ -30,8 +35,7 @@ ColorInternalsUI::ColorInternalsUI(content::WebUI* web_ui)
   data_source->AddResourcePath(
       "color_internals_tokens.json",
       IDR_WEBUI_UI_CHROMEOS_STYLES_COLOR_INTERNALS_TOKENS_JSON);
-  data_source->AddResourcePaths(base::make_span(
-      kAshColorInternalsResources, kAshColorInternalsResourcesSize));
+  data_source->AddResourcePaths(kAshColorInternalsResources);
 }
 
 void ColorInternalsUI::BindInterface(

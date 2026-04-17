@@ -35,12 +35,13 @@
 #include "third_party/blink/renderer/core/editing/position.h"
 #include "third_party/blink/renderer/core/editing/visible_units.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_control_element.h"
+#include "third_party/blink/renderer/core/layout/inline/offset_mapping.h"
 #include "third_party/blink/renderer/core/layout/layout_text_fragment.h"
 
 namespace blink {
 
 static int CollapsedSpaceLength(LayoutText* layout_text, int text_end) {
-  const String& text = layout_text->GetText();
+  const String& text = layout_text->TransformedText();
   int length = text.length();
   for (int i = text_end; i < length; ++i) {
     if (!layout_text->Style()->IsCollapsibleWhiteSpace(text[i]))
@@ -55,6 +56,37 @@ static int MaxOffsetIncludingCollapsedSpaces(const Node* node) {
   if (auto* text = DynamicTo<LayoutText>(node->GetLayoutObject()))
     offset += CollapsedSpaceLength(text, offset) + text->TextStartOffset();
   return offset;
+}
+
+// For a given DOM offset in a text node, returns the corresponding offset in
+// the layout relative to the same node when `-webkit-text-security` property is
+// applied. Example:
+// In a text node with -webkit-text-security applied
+// DOM representation: "A&#x305;&#x332;B&#x305;&#x332;"
+// Layout representation: "••"
+// AdjustedOffsetForSecureText(node, 3) returns 1.
+// AdjustedOffsetForSecureText(node, 4) returns 2.
+static int AdjustedOffsetForSecureText(const Node* node, int offset) {
+  if (!node || !node->IsCharacterDataNode()) {
+    return offset;
+  }
+
+  LayoutText* layout_text = DynamicTo<LayoutText>(node->GetLayoutObject());
+  // Position in DOM for which the offset needs to be calculated in layout.
+  Position current = Position(node, offset);
+  const OffsetMapping* mapping = OffsetMapping::GetFor(current);
+  if (!layout_text || !layout_text->IsSecure() || !mapping) {
+    return offset;
+  }
+
+  // First DOM Position inside the node.
+  Position node_start = Position::FirstPositionInNode(*node);
+
+  // OffsetMapping gives offsets relative to the whole text in the layout, so
+  // subtract the node's start offset to get the offset relative to this node
+  // only.
+  return *mapping->GetTextContentOffset(current) -
+         *mapping->GetTextContentOffset(node_start);
 }
 
 template <typename Strategy>
@@ -100,6 +132,7 @@ void SimplifiedBackwardsTextIteratorAlgorithm<Strategy>::Init(
       start_offset = 0;
     }
   }
+
   if (!end_node->IsCharacterDataNode() && end_offset > 0) {
     // |Strategy::childAt()| will return 0 if the offset is out of range. We
     // rely on this behavior instead of calling |countChildren()| to avoid
@@ -108,6 +141,11 @@ void SimplifiedBackwardsTextIteratorAlgorithm<Strategy>::Init(
       end_node = child_at_offset;
       end_offset = Position::LastOffsetInNode(*end_node);
     }
+  }
+  if (RuntimeEnabledFeatures::
+          AdjustDOMOffsetToLayoutOffsetForSecureTextEnabled()) {
+    start_offset = AdjustedOffsetForSecureText(start_node, start_offset);
+    end_offset = AdjustedOffsetForSecureText(end_node, end_offset);
   }
 
   node_ = end_node;
@@ -147,13 +185,15 @@ void SimplifiedBackwardsTextIteratorAlgorithm<Strategy>::Advance() {
           node_->getNodeType() == Node::kTextNode) {
         // FIXME: What about kCdataSectionNode?
         if (layout_object->Style()->Visibility() == EVisibility::kVisible &&
-            offset_ > 0)
+            offset_ > 0) {
           handled_node_ = HandleTextNode();
+        }
       } else if (layout_object && (layout_object->IsLayoutEmbeddedContent() ||
                                    TextIterator::SupportsAltText(*node_))) {
         if (layout_object->Style()->Visibility() == EVisibility::kVisible &&
-            offset_ > 0)
+            offset_ > 0) {
           handled_node_ = HandleReplacedElement();
+        }
       } else {
         handled_node_ = HandleNonTextNode();
       }
@@ -219,7 +259,7 @@ bool SimplifiedBackwardsTextIteratorAlgorithm<Strategy>::HandleTextNode() {
   if (!layout_object)
     return true;
 
-  String text = layout_object->GetText();
+  String text = layout_object->TransformedText();
 
   if (behavior_.EmitsSpaceForNbsp())
     text.Replace(kNoBreakSpaceCharacter, kSpaceCharacter);

@@ -25,7 +25,7 @@ int64_t NanoToMicro(uint64_t nano_seconds) {
 
 int32_t QueryTimestampBits() {
   GLint timestamp_bits = 0;
-  glGetQueryiv(GL_TIMESTAMP, GL_QUERY_COUNTER_BITS, &timestamp_bits);
+  glGetQueryiv(GL_TIMESTAMP_EXT, GL_QUERY_COUNTER_BITS_EXT, &timestamp_bits);
   return static_cast<int32_t>(timestamp_bits);
 }
 
@@ -175,11 +175,11 @@ class TimeElapsedTimerQuery : public TimerQuery {
       first_top_level_query_ = true;
     } else {
       // Stop the current timer query.
-      glEndQuery(GL_TIME_ELAPSED);
+      glEndQuery(GL_TIME_ELAPSED_EXT);
     }
 
     // begin a new one time elapsed query.
-    glBeginQuery(GL_TIME_ELAPSED, gl_query_id_);
+    glBeginQuery(GL_TIME_ELAPSED_EXT, gl_query_id_);
     query_result_start_ = new QueryResult();
 
     // Update GPUTiming state.
@@ -203,12 +203,12 @@ class TimeElapsedTimerQuery : public TimerQuery {
 
     if (gpu_timing->GetElapsedQueryCount() != 0) {
       // Continue timer if there are still ongoing queries.
-      glEndQuery(GL_TIME_ELAPSED);
-      glBeginQuery(GL_TIME_ELAPSED, gl_query_id_);
+      glEndQuery(GL_TIME_ELAPSED_EXT);
+      glBeginQuery(GL_TIME_ELAPSED_EXT, gl_query_id_);
       gpu_timing->SetLastElapsedQuery(this);
     } else {
       // Simply end the query and reset the current offset
-      glEndQuery(GL_TIME_ELAPSED);
+      glEndQuery(GL_TIME_ELAPSED_EXT);
       gpu_timing->SetLastElapsedQuery(nullptr);
     }
   }
@@ -287,7 +287,7 @@ class TimeStampTimerQuery : public TimerQuery {
   }
 
   scoped_refptr<QueryResult> DoQuery() {
-    glQueryCounter(gl_query_id_, GL_TIMESTAMP);
+    glQueryCounter(gl_query_id_, GL_TIMESTAMP_EXT);
     query_result_ = new QueryResult();
     return query_result_;
   }
@@ -327,17 +327,11 @@ GPUTimingImpl::GPUTimingImpl(GLContextReal* context) {
   DCHECK(version_info);
   if (context->HasExtension("GL_EXT_disjoint_timer_query")) {
     timer_type_ = GPUTiming::kTimerTypeDisjoint;
-  } else if (context->HasExtension("GL_ARB_timer_query")) {
-    timer_type_ = GPUTiming::kTimerTypeARB;
-  } else if (context->HasExtension("GL_EXT_timer_query")) {
-    timer_type_ = GPUTiming::kTimerTypeEXT;
-    force_time_elapsed_query_ = true;
-    timestamp_bit_count_gl_ = 0;
   }
   // The command glGetInteger64v is only supported under ES3 and GL3.2. Since it
   // is only used for timestamps, we workaround this by emulating timestamps
   // so WebGL 1.0 will still have access to the extension.
-  if (!version_info->IsAtLeastGLES(3, 0) && !version_info->IsAtLeastGL(3, 2)) {
+  if (!version_info->IsAtLeastGLES(3, 0)) {
     force_time_elapsed_query_ = true;
     timestamp_bit_count_gl_ = 0;
   }
@@ -360,10 +354,9 @@ uint32_t GPUTimingImpl::GetDisjointCount() {
 
 int64_t GPUTimingImpl::CalculateTimerOffset() {
   if (!offset_valid_) {
-    if (timer_type_ == GPUTiming::kTimerTypeDisjoint ||
-        timer_type_ == GPUTiming::kTimerTypeARB) {
+    if (timer_type_ == GPUTiming::kTimerTypeDisjoint) {
       GLint64 gl_now = 0;
-      glGetInteger64v(GL_TIMESTAMP, &gl_now);
+      glGetInteger64v(GL_TIMESTAMP_EXT, &gl_now);
       const int64_t cpu_time = GetCurrentCPUTime();
       const int64_t micro_offset = cpu_time - NanoToMicro(gl_now);
 
@@ -374,7 +367,7 @@ int64_t GPUTimingImpl::CalculateTimerOffset() {
 
       if (delta.magnitude().InMilliseconds() >= 1) {
         offset_ = micro_offset;
-        offset_valid_ = (timer_type_ == GPUTiming::kTimerTypeARB);
+        offset_valid_ = false;
       }
     } else {
       offset_ = 0;
@@ -417,7 +410,6 @@ scoped_refptr<QueryResult> GPUTimingImpl::DoTimeStampQuery() {
   // aren't supported. Emulate them with time elapsed queries if that is the
   // case.
   if (timestamp_bit_count_gl_ == -1) {
-    DCHECK(timer_type_ != GPUTiming::kTimerTypeEXT);
     timestamp_bit_count_gl_ = QueryTimestampBits();
     force_time_elapsed_query_ |= (timestamp_bit_count_gl_ == 0);
   }
@@ -613,7 +605,6 @@ GPUTimingClient::GPUTimingClient(GPUTimingImpl* gpu_timing)
 
 std::unique_ptr<GPUTimer> GPUTimingClient::CreateGPUTimer(
     bool prefer_elapsed_time) {
-  prefer_elapsed_time |= (timer_type_ == GPUTiming::kTimerTypeEXT);
   if (gpu_timing_)
     prefer_elapsed_time |= gpu_timing_->IsForceTimeElapsedQuery();
 
@@ -628,10 +619,6 @@ const char* GPUTimingClient::GetTimerTypeName() const {
   switch (timer_type_) {
     case GPUTiming::kTimerTypeDisjoint:
       return "GL_EXT_disjoint_timer_query";
-    case GPUTiming::kTimerTypeARB:
-      return "GL_ARB_timer_query";
-    case GPUTiming::kTimerTypeEXT:
-      return "GL_EXT_timer_query";
     default:
       return "Unknown";
   }

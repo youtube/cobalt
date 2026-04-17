@@ -20,11 +20,25 @@ struct GpuPreferences;
 
 namespace webgpu {
 
+enum class SafetyLevel {
+  // Enables stable features that are safe to use from unprivileged processes.
+  kSafe,
+  // Enables experimental features that are safe to use from unprivileged
+  // processes.
+  kSafeExperimental,
+  // Enables all the features, including ones that might not be secure yet and
+  // could allow
+  // compromising the GPU process.
+  kUnsafe,
+};
+
 class DawnInstance : public dawn::native::Instance {
  public:
   static std::unique_ptr<DawnInstance> Create(
       dawn::platform::Platform* platform,
-      const GpuPreferences& gpu_preferences);
+      const GpuPreferences& gpu_preferences,
+      SafetyLevel safety,
+      dawn::native::DawnInstanceDescriptor* dawn_instance_descriptor = nullptr);
 
  private:
   using dawn::native::Instance::Instance;

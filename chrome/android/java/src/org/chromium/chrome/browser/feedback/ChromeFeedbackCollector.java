@@ -21,8 +21,8 @@ import java.util.List;
  * Used for gathering a variety of feedback from various components in Chrome and bundling it into
  * a set of Key - Value pairs used to submit feedback requests.
  */
-public class ChromeFeedbackCollector
-        extends FeedbackCollector<ChromeFeedbackCollector.InitParams> implements Runnable {
+public class ChromeFeedbackCollector extends FeedbackCollector<ChromeFeedbackCollector.InitParams>
+        implements Runnable {
     /** Initialization Parameters of the Chrome overload of FeedbackCollector<T>. */
     public static class InitParams {
         public Profile profile;
@@ -36,9 +36,14 @@ public class ChromeFeedbackCollector
         }
     }
 
-    public ChromeFeedbackCollector(Activity activity, @Nullable String categoryTag,
-            @Nullable String description, @Nullable ScreenshotSource screenshotSource,
-            InitParams initParams, Callback<FeedbackCollector> callback, Profile profile) {
+    public ChromeFeedbackCollector(
+            Activity activity,
+            @Nullable String categoryTag,
+            @Nullable String description,
+            @Nullable ScreenshotSource screenshotSource,
+            InitParams initParams,
+            Callback<FeedbackCollector> callback,
+            Profile profile) {
         super(categoryTag, description, callback);
         init(activity, screenshotSource, initParams, profile);
     }
@@ -51,12 +56,17 @@ public class ChromeFeedbackCollector
 
         // This is the list of all synchronous sources of feedback.  Please add new synchronous
         // entries here.
+        // ATTENTION: Before making any changes or adding new FeedbackSources to feedback
+        // collection, please ensure the teams that operationalize feedback are aware and
+        // supportive. Contact: chrome-gtech@.
         sources.add(new DeviceInfoFeedbackSource());
         sources.add(new UrlFeedbackSource(initParams.url));
         sources.add(new VariationsFeedbackSource(initParams.profile));
+        sources.add(new VariationsStateFeedbackSource(initParams.profile));
         sources.add(new HistogramFeedbackSource(initParams.profile));
         sources.add(new LowEndDeviceFeedbackSource());
         sources.add(new IMEFeedbackSource());
+        sources.add(new OmniboxFeedbackSource());
         sources.add(new PermissionFeedbackSource());
         sources.add(new FeedbackContextFeedbackSource(initParams.feedbackContext));
         sources.add(
@@ -72,6 +82,9 @@ public class ChromeFeedbackCollector
 
         // This is the list of all asynchronous sources of feedback.  Please add new asynchronous
         // entries here.
+        // ATTENTION: Before making any changes or adding new FeedbackSources to feedback
+        // collection, please ensure the teams that operationalize feedback are aware and
+        // supportive. Contact: chrome-gtech@.
         sources.add(new ConnectivityFeedbackSource(initParams.profile));
         sources.add(new SystemInfoFeedbackSource());
         sources.add(new ProcessIdFeedbackSource());
@@ -85,7 +98,6 @@ public class ChromeFeedbackCollector
         return sources;
     }
 
-    @VisibleForTesting
     List<AsyncFeedbackSource> getAsyncFeedbackSourcesForTesting() {
         return mAsynchronousSources;
     }

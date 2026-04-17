@@ -19,6 +19,23 @@ group("starboard_platform") {
   public_deps = [ ":starboard_platform_sources" ]
 }
 
+config("pedantic_warnings") {
+  cflags = [
+    "-Wall",
+    "-Wextra",
+    "-Wunreachable-code",
+
+    # Raspi toolchain is based off an old version of gcc, which
+    # falsely flags some code.  That same code does not warn with gcc 6.3.
+    # This decision should be revisited after raspi toolchain is upgraded.
+    "-Wno-maybe-uninitialized",
+
+    "-Werror",
+    "-Wno-expansion-to-defined",
+    "-Wno-implicit-fallthrough",
+  ]
+}
+
 static_library("starboard_platform_sources") {
   check_includes = false
 
@@ -69,7 +86,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/alsa/alsa_util.cc",
     "//starboard/shared/alsa/alsa_util.h",
     "//starboard/shared/egl/system_egl.cc",
-    "//starboard/shared/linux/cpu_features_get.cc",
     "//starboard/shared/linux/dev_input/dev_input.cc",
     "//starboard/shared/linux/get_home_directory.cc",
     "//starboard/shared/linux/system_get_random_data.cc",
@@ -128,8 +144,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/audio_sink/audio_sink_is_valid.cc",
     "//starboard/shared/starboard/audio_sink/stub_audio_sink_type.cc",
     "//starboard/shared/starboard/audio_sink/stub_audio_sink_type.h",
-    "//starboard/shared/starboard/crash_handler.cc",
-    "//starboard/shared/starboard/crash_handler.h",
     "//starboard/shared/starboard/event_cancel.cc",
     "//starboard/shared/starboard/event_schedule.cc",
     "//starboard/shared/starboard/file_atomic_replace_write_file.cc",
@@ -154,13 +168,11 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/media/media_get_buffer_garbage_collection_duration_threshold.cc",
     "//starboard/shared/starboard/media/media_get_buffer_padding.cc",
     "//starboard/shared/starboard/media/media_get_initial_buffer_capacity.cc",
-    "//starboard/shared/starboard/media/media_get_max_buffer_capacity.cc",
     "//starboard/shared/starboard/media/media_get_progressive_buffer_budget.cc",
     "//starboard/shared/starboard/media/media_get_video_buffer_budget.cc",
     "//starboard/shared/starboard/media/media_is_audio_supported_aac_and_opus.cc",
     "//starboard/shared/starboard/media/media_is_buffer_pool_allocate_on_demand.cc",
     "//starboard/shared/starboard/media/media_is_buffer_using_memory_pool.cc",
-    "//starboard/shared/starboard/new.cc",
     "//starboard/shared/starboard/queue_application.cc",
     "//starboard/shared/starboard/system_get_random_uint64.cc",
     "//starboard/shared/starboard/system_request_blur.cc",
@@ -177,7 +189,7 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/stub/drm_is_server_certificate_updatable.cc",
     "//starboard/shared/stub/drm_update_server_certificate.cc",
     "//starboard/shared/stub/drm_update_session.cc",
-    "//starboard/shared/stub/media_is_supported.cc",
+    "//starboard/shared/stub/media_is_key_system_supported.cc",
     "//starboard/shared/stub/microphone_close.cc",
     "//starboard/shared/stub/microphone_create.cc",
     "//starboard/shared/stub/microphone_destroy.cc",
@@ -200,23 +212,26 @@ static_library("starboard_platform_sources") {
 
   sources += common_player_sources
 
+  if (use_evergreen) {
+    sources += [
+      "//starboard/shared/starboard/crash_handler.cc",
+      "//starboard/shared/starboard/crash_handler.h",
+    ]
+  }
+
   configs += [
     "//starboard/build/config:starboard_implementation",
-    "//starboard/build/config:pedantic_warnings",
+    ":pedantic_warnings",
   ]
 
   public_deps = [
     "//starboard:starboard_headers_only",
     "//starboard/common",
-    "//starboard/crashpad_wrapper:wrapper_stub",
     "//starboard/linux/shared:starboard_base_symbolize",
     "//starboard/shared/ffmpeg:ffmpeg_dynamic_load",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
 
-  deps = [
-    "//third_party/libevent",
-    "//third_party/opus",
-  ]
+  deps = [ "//third_party/opus" ]
 }

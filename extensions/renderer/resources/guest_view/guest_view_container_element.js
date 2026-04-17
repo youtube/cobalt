@@ -10,6 +10,7 @@ var $CustomElementRegistry =
 var $Element = require('safeMethods').SafeMethods.$Element;
 var $EventTarget = require('safeMethods').SafeMethods.$EventTarget;
 var $HTMLElement = require('safeMethods').SafeMethods.$HTMLElement;
+var GuestViewConstants = require('guestViewConstants').GuestViewConstants;
 var GuestViewContainer = require('guestViewContainer').GuestViewContainer;
 var GuestViewInternalNatives = requireNative('guest_view_internal');
 var IdGenerator = requireNative('id_generator');
@@ -81,41 +82,125 @@ function registerElement(elementName, containerElementType) {
   });
 }
 
-// Forward public API methods from |containerElementType|'s prototype to their
-// internal implementations. If the method is defined on |containerType|, we
-// forward to that. Otherwise, we forward to the method on |internalApi|.
-function forwardApiMethods(
-    containerElementType, containerType, internalApi, methodNames) {
-  var createContainerImplHandler = function(m) {
-    return function(var_args) {
-      var internal = privates(this).internal;
-      return $Function.apply(internal[m], internal, arguments);
-    };
-  };
+function getMethodType(containerElementType, containerType, internalApi, name) {
+  if (containerElementType.prototype[name]) {
+    return 'CONTAINER_ELEMENT';
+  } else if (containerType.prototype[name]) {
+    return 'CONTAINER';
+  } else if (internalApi && internalApi[name]) {
+    return 'INTERNAL';
+  }
+  return 'UNKNOWN';
+};
 
-  var createInternalApiHandler = function(m) {
-    return function(var_args) {
-      var internal = privates(this).internal;
-      var instanceId = internal.guest.getId();
-      if (!instanceId) {
+function createMethodHandler(
+    containerElementType, containerType, internalApi, methodName) {
+  switch (getMethodType(containerElementType, containerType, internalApi,
+                        methodName)) {
+    case 'CONTAINER_ELEMENT':
+      return containerElementType.prototype[methodName];
+
+    case 'CONTAINER':
+      return function(var_args) {
+        const internal = privates(this).internal;
+        return $Function.apply(internal[methodName], internal, arguments);
+      };
+
+    case 'INTERNAL':
+      return function(var_args) {
+        const internal = privates(this).internal;
+        const instanceId = internal.guest.getId();
+        if (!instanceId) {
+          return false;
+        }
+        const args = $Array.concat([instanceId], $Array.slice(arguments));
+        $Function.apply(internalApi[methodName], null, args);
+        return true;
+      };
+
+    default:
+      logging.DCHECK(false, `${methodName} has no implementation.`);
+  }
+};
+
+function promiseWrap(
+    handler, handlerArguments, callbackIndex, verifyEnvironment) {
+  const args = $Array.slice(handlerArguments);
+  if (args[callbackIndex] !== undefined) {
+    throw new Error(GuestViewConstants.ERROR_MSG_CALLBACK_NOT_ALLOWED);
+  }
+  return new $Promise.self((resolve, reject) => {
+    if (!verifyEnvironment(reject)) {
+      return;
+    }
+    const callback = function(result) {
+      if (bindingUtil.hasLastError()) {
+        reject(bindingUtil.getLastErrorMessage());
+        bindingUtil.clearLastError();
+        return;
+      }
+      resolve(result);
+    };
+    args[callbackIndex] = callback;
+    $Function.apply(handler, this, args);
+  });
+}
+
+function promisifyMethodHandler(
+    containerElementType, containerType, internalApi, methodDetails, handler) {
+  const methodType = getMethodType(containerElementType, containerType,
+                                   internalApi, methodDetails.name);
+  function verifyEnvironment(reject) {
+    if (methodType === 'INTERNAL') {
+      if (!privates(this).internal.guest.getId()) {
+        reject('The embedded page has been destroyed.');
         return false;
       }
-      var args = $Array.concat([instanceId], $Array.slice(arguments));
-      $Function.apply(internalApi[m], null, args);
-      return true;
-    };
+    }
+    return true;
+  };
+  return function(var_args) {
+    return $Function.apply(promiseWrap, this,
+        [handler, arguments, methodDetails.callbackIndex, verifyEnvironment]);
   };
 
-  for (var m of methodNames) {
-    if (!containerElementType.prototype[m]) {
-      if (containerType.prototype[m]) {
-        containerElementType.prototype[m] = createContainerImplHandler(m);
-      } else if (internalApi && internalApi[m]) {
-        containerElementType.prototype[m] = createInternalApiHandler(m);
-      } else {
-        logging.DCHECK(false, m + ' has no implementation.');
-      }
-    }
+};
+
+// Forward public API methods from |containerElementType|'s prototype to their
+// internal implementations. If the method is defined on |containerType|, we
+// forward to that. Otherwise, we forward to the method on |internalApi|. For
+// APIs in |promiseMethodDetails|, the forwarded API will have a handler
+// created based on the original function reference on the original object. This
+// is to support any callers that want to get a reference to that handle before
+// it's promise-wrapped in a later stage when |promiseWrap| is called.
+function forwardApiMethods(
+    containerElementType, containerType, internalApi, methodNames,
+    promiseMethodDetails) {
+  for (const methodName of methodNames) {
+    containerElementType.prototype[methodName] =
+        createMethodHandler(containerElementType, containerType, internalApi,
+                            methodName);
+  }
+
+  // If `promiseMethodDetails` is defined, create handlers for each of those
+  // functions. They'll later be promisified by a subsequent call.
+  for (const methodDetails of promiseMethodDetails) {
+    const handler = createMethodHandler(containerElementType, containerType,
+                                        internalApi, methodDetails.name);
+    containerElementType.prototype[methodDetails.name] = handler;
+  }
+}
+
+// For APIs in |promiseMethodDetails|, the forwarded API will return a Promise
+// that resolves with the result of the API or rejects with the error that is
+// produced if the callback parameter is not defined.
+function upgradeMethodsToPromises(
+    containerElementType, containerType, internalApi, promiseMethodDetails) {
+  for (const methodDetails of promiseMethodDetails) {
+    const handler = containerElementType.prototype[methodDetails.name];
+    containerElementType.prototype[methodDetails.name] =
+        promisifyMethodHandler(containerElementType, containerType,
+                               internalApi, methodDetails, handler);
   }
 }
 
@@ -134,3 +219,5 @@ GuestViewContainerElement.prototype.focus = function() {
 exports.$set('GuestViewContainerElement', GuestViewContainerElement);
 exports.$set('registerElement', registerElement);
 exports.$set('forwardApiMethods', forwardApiMethods);
+exports.$set('promiseWrap', promiseWrap);
+exports.$set('upgradeMethodsToPromises', upgradeMethodsToPromises);

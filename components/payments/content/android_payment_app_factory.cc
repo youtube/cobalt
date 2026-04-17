@@ -18,6 +18,7 @@
 #include "base/supports_user_data.h"
 #include "components/payments/content/android_app_communication.h"
 #include "components/payments/content/android_payment_app.h"
+#include "components/payments/content/content_payment_request_delegate.h"
 #include "components/payments/content/payment_request_spec.h"
 #include "components/payments/core/android_app_description.h"
 #include "components/payments/core/android_app_description_tools.h"
@@ -100,7 +101,7 @@ class AppFinder : public base::SupportsUserData::Data {
   }
 
   void OnGetAppDescriptions(
-      const absl::optional<std::string>& error_message,
+      const std::optional<std::string>& error_message,
       std::vector<std::unique_ptr<AndroidAppDescription>> app_descriptions) {
     DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
     // The browser could be shutting down.
@@ -155,7 +156,7 @@ class AppFinder : public base::SupportsUserData::Data {
               delegate_->GetSpec()->stringified_method_data(),
               supported_payment_methods);
 
-      // TODO(crbug.com/1022512): Download the web app manifest for
+      // TODO(crbug.com/40106647): Download the web app manifest for
       // |default_payment_method_name| to verify Android app signature.
 
       // Skip querying IS_READY_TO_PAY service when Chrome is off-the-record or
@@ -164,7 +165,7 @@ class AppFinder : public base::SupportsUserData::Data {
           single_activity_app->service_names.empty()) {
         OnIsReadyToPay(std::move(single_activity_app), payment_method_names,
                        std::move(stringified_method_data),
-                       /*error_message=*/absl::nullopt,
+                       /*error_message=*/std::nullopt,
                        /*is_ready_to_pay=*/true);
         continue;
       }
@@ -190,7 +191,7 @@ class AppFinder : public base::SupportsUserData::Data {
       const std::set<std::string>& payment_method_names,
       std::unique_ptr<std::map<std::string, std::set<std::string>>>
           stringified_method_data,
-      const absl::optional<std::string>& error_message,
+      const std::optional<std::string>& error_message,
       bool is_ready_to_pay) {
     DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
     DCHECK_LT(0U, number_of_pending_is_ready_to_pay_queries_);
@@ -209,7 +210,8 @@ class AppFinder : public base::SupportsUserData::Data {
           delegate_->GetTopOrigin(), delegate_->GetFrameOrigin(),
           delegate_->GetSpec()->details().id.value(),
           std::move(app_description), communication_,
-          delegate_->GetInitiatorRenderFrameHost()->GetGlobalId()));
+          delegate_->GetInitiatorRenderFrameHost()->GetGlobalId(),
+          delegate_->GetChromeOSTWAInstanceId()));
     }
 
     if (--number_of_pending_is_ready_to_pay_queries_ == 0)

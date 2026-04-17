@@ -2,12 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <wrl.h>
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
 
 #include "base/containers/contains.h"
+#include "base/strings/string_util.h"
 #include "device/vr/openxr/openxr_util.h"
 #include "device/vr/openxr/test/openxr_negotiate.h"
 #include "device/vr/openxr/test/openxr_test_helper.h"
+
+#if BUILDFLAG(IS_WIN)
+#include <wrl.h>
+#endif
 
 namespace {
 // Global test helper that communicates with the test and contains the mock
@@ -145,20 +153,40 @@ XrResult xrCreateActionSpace(XrSession session,
   return XR_SUCCESS;
 }
 
+XrResult xrCreateHandTrackerEXT(XrSession session,
+                                const XrHandTrackerCreateInfoEXT* create_info,
+                                XrHandTrackerEXT* hand_tracker) {
+  DVLOG(2) << __func__;
+  RETURN_IF_XR_FAILED(g_test_helper.ValidateSession(session));
+  RETURN_IF(create_info == nullptr, XR_ERROR_VALIDATION_FAILURE,
+            "XrHandTrackerCreateInfoEXT is nullptr");
+  RETURN_IF(create_info->hand == XR_HAND_MAX_ENUM_EXT,
+            XR_ERROR_VALIDATION_FAILURE, "XrHand is unsupported");
+  RETURN_IF(hand_tracker == nullptr, XR_ERROR_VALIDATION_FAILURE,
+            "XrHandTrackerEXT is null");
+  *hand_tracker = g_test_helper.CreateHandTracker(create_info->hand);
+  return XR_SUCCESS;
+}
+
 XrResult xrCreateInstance(const XrInstanceCreateInfo* create_info,
                           XrInstance* instance) {
   DVLOG(2) << __FUNCTION__;
 
   RETURN_IF(create_info == nullptr, XR_ERROR_VALIDATION_FAILURE,
             "XrInstanceCreateInfo is nullptr");
-  RETURN_IF(create_info->applicationInfo.apiVersion != XR_CURRENT_API_VERSION,
+  RETURN_IF(create_info->applicationInfo.apiVersion != XR_API_VERSION_1_0,
             XR_ERROR_API_VERSION_UNSUPPORTED, "apiVersion unsupported");
 
   RETURN_IF(create_info->type != XR_TYPE_INSTANCE_CREATE_INFO,
             XR_ERROR_VALIDATION_FAILURE, "XrInstanceCreateInfo type invalid");
 
+#if BUILDFLAG(IS_WIN)
   RETURN_IF(create_info->next != nullptr, XR_ERROR_VALIDATION_FAILURE,
             "XrInstanceCreateInfo next is not nullptr");
+#else
+  RETURN_IF(create_info->next == nullptr, XR_ERROR_VALIDATION_FAILURE,
+            "XrInstanceCreateInfo next is nullptr");
+#endif
 
   RETURN_IF(create_info->createFlags != 0, XR_ERROR_VALIDATION_FAILURE,
             "XrInstanceCreateInfo createFlags is not 0");
@@ -231,7 +259,7 @@ XrResult xrCreateSession(XrInstance instance,
   RETURN_IF(create_info->createFlags != 0, XR_ERROR_VALIDATION_FAILURE,
             "XrSessionCreateInfo createFlags is not 0");
   RETURN_IF_XR_FAILED(g_test_helper.ValidateSystemId(create_info->systemId));
-
+#if BUILDFLAG(IS_WIN)
   const XrGraphicsBindingD3D11KHR* binding =
       static_cast<const XrGraphicsBindingD3D11KHR*>(create_info->next);
   RETURN_IF(binding->type != XR_TYPE_GRAPHICS_BINDING_D3D11_KHR,
@@ -243,6 +271,7 @@ XrResult xrCreateSession(XrInstance instance,
             "D3D11Device is nullptr");
 
   g_test_helper.SetD3DDevice(binding->device);
+#endif
   RETURN_IF(session == nullptr, XR_ERROR_VALIDATION_FAILURE,
             "XrSession is nullptr");
   RETURN_IF_XR_FAILED(g_test_helper.CreateSession(session));
@@ -267,9 +296,11 @@ XrResult xrCreateSwapchain(XrSession session,
             XR_ERROR_VALIDATION_FAILURE,
             "XrSwapchainCreateInfo usageFlags is not "
             "XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT");
+#if BUILDFLAG(IS_WIN)
   RETURN_IF(create_info->format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
             XR_ERROR_SWAPCHAIN_FORMAT_UNSUPPORTED,
             "XrSwapchainCreateInfo format unsupported");
+#endif
   RETURN_IF(create_info->sampleCount != OpenXrTestHelper::kSwapCount,
             XR_ERROR_VALIDATION_FAILURE,
             "XrSwapchainCreateInfo sampleCount invalid");
@@ -294,6 +325,12 @@ XrResult xrCreateSwapchain(XrSession session,
 XrResult xrDestroyActionSet(XrActionSet action_set) {
   DVLOG(2) << __FUNCTION__;
   RETURN_IF_XR_FAILED(g_test_helper.DestroyActionSet(action_set));
+  return XR_SUCCESS;
+}
+
+XrResult xrDestroyHandTrackerEXT(XrHandTrackerEXT hand_tracker) {
+  DVLOG(2) << __func__;
+  RETURN_IF_XR_FAILED(g_test_helper.DestroyHandTracker(hand_tracker));
   return XR_SUCCESS;
 }
 
@@ -475,11 +512,13 @@ XrResult xrEnumerateInstanceExtensionProperties(
   RETURN_IF(properties == nullptr, XR_ERROR_VALIDATION_FAILURE,
             "XrExtensionProperties is nullptr");
   for (uint32_t i = 0; i < OpenXrTestHelper::kNumExtensionsSupported; i++) {
+    size_t dest_size = std::size(properties[i].extensionName);
+    DCHECK(dest_size > 0);
     properties[i].type = XR_TYPE_EXTENSION_PROPERTIES;
-    errno_t error = strcpy_s(properties[i].extensionName,
-                             std::size(properties[i].extensionName),
-                             OpenXrTestHelper::kExtensions[i]);
-    DCHECK(error == 0);
+    size_t copy_length =
+        base::strlcpy(properties[i].extensionName,
+                      OpenXrTestHelper::kExtensions[i], dest_size);
+    DCHECK(copy_length < dest_size);
     properties[i].extensionVersion = 1;
   }
 
@@ -534,7 +573,7 @@ XrResult xrEnumerateViewConfigurationViews(
   RETURN_IF(view_count_output == nullptr, XR_ERROR_VALIDATION_FAILURE,
             "view_count_output is nullptr");
 
-  const std::vector<XrViewConfigurationView>& view_properties =
+  const std::vector<device::OpenXrViewProperties>& view_properties =
       g_test_helper.GetViewConfigInfo(view_configuration_type).Properties();
   *view_count_output = view_properties.size();
   if (view_capacity_input == 0) {
@@ -546,8 +585,38 @@ XrResult xrEnumerateViewConfigurationViews(
   RETURN_IF(views == nullptr, XR_ERROR_VALIDATION_FAILURE,
             "XrViewConfigurationView is nullptr");
   for (uint32_t i = 0; i < view_properties.size(); i++) {
-    views[i] = view_properties[i];
+    views[i] = view_properties[i].GetPropertiesForTest();
   }
+
+  return XR_SUCCESS;
+}
+
+XrResult xrEnumerateSwapchainFormats(XrSession session,
+                                     uint32_t format_capacity_input,
+                                     uint32_t* format_count_output,
+                                     int64_t* formats) {
+  DVLOG(2) << __FUNCTION__;
+  RETURN_IF_XR_FAILED(g_test_helper.ValidateSession(session));
+  RETURN_IF(format_capacity_input != 1 && format_capacity_input != 0,
+            XR_ERROR_SIZE_INSUFFICIENT,
+            "xrEnumerateSwapchainFormats does not equal length returned by "
+            "previous call");
+  RETURN_IF(format_count_output == nullptr, XR_ERROR_VALIDATION_FAILURE,
+            "format_count_output is nullptr");
+  *format_count_output = 1;
+  if (format_capacity_input == 0) {
+    return XR_SUCCESS;
+  }
+
+  RETURN_IF(format_capacity_input < *format_count_output,
+            XR_ERROR_SIZE_INSUFFICIENT,
+            "format_capacity_input is less than required size");
+  RETURN_IF(formats == nullptr, XR_ERROR_VALIDATION_FAILURE,
+            "Formats Array is nullptr");
+#if BUILDFLAG(IS_WIN)
+  // This is what is hardcoded in `OpenXrGraphicsBindingD3D11`.
+  formats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+#endif
 
   return XR_SUCCESS;
 }
@@ -576,6 +645,7 @@ XrResult xrEnumerateSwapchainImages(XrSwapchain swapchain,
             "image_capacity_input is neither 0 or kMinSwapchainBuffering");
   RETURN_IF(images == nullptr, XR_ERROR_VALIDATION_FAILURE,
             "XrSwapchainImageBaseHeader is nullptr");
+#if BUILDFLAG(IS_WIN)
   const std::vector<Microsoft::WRL::ComPtr<ID3D11Texture2D>>& textures =
       g_test_helper.GetSwapchainTextures();
   DCHECK_EQ(textures.size(), image_capacity_input);
@@ -592,10 +662,12 @@ XrResult xrEnumerateSwapchainImages(XrSwapchain swapchain,
 
     image.texture = textures[i].Get();
   }
+#endif
 
   return XR_SUCCESS;
 }
 
+#if BUILDFLAG(IS_WIN)
 __stdcall XrResult xrGetD3D11GraphicsRequirementsKHR(
     XrInstance instance,
     XrSystemId system_id,
@@ -630,6 +702,7 @@ __stdcall XrResult xrGetD3D11GraphicsRequirementsKHR(
   RETURN_IF_FALSE(false, XR_ERROR_VALIDATION_FAILURE,
                   "Unable to create query DXGI Adapter");
 }
+#endif
 
 XrResult xrGetActionStateFloat(XrSession session,
                                const XrActionStateGetInfo* get_info,
@@ -748,6 +821,20 @@ XrResult xrGetCurrentInteractionProfile(
   return XR_SUCCESS;
 }
 
+#if BUILDFLAG(IS_ANDROID)
+XrResult xrGetOpenGLESGraphicsRequirementsKHR(
+    XrInstance instance,
+    XrSystemId system_id,
+    XrGraphicsRequirementsOpenGLESKHR* graphics_requirements) {
+  DVLOG(2) << __FUNCTION__;
+  RETURN_IF_XR_FAILED(g_test_helper.ValidateInstance(instance));
+  RETURN_IF_XR_FAILED(g_test_helper.ValidateSystemId(system_id));
+  RETURN_IF(graphics_requirements == nullptr, XR_ERROR_VALIDATION_FAILURE,
+            "graphicsRequirements object must not be nullptr");
+  return XR_SUCCESS;
+}
+#endif
+
 XrResult xrGetReferenceSpaceBoundsRect(
     XrSession session,
     XrReferenceSpaceType refernece_space_type,
@@ -820,12 +907,26 @@ XrResult xrGetSystemProperties(XrInstance instance,
             "XrSystemProperties is nullptr");
   RETURN_IF(system_properties->type != XR_TYPE_SYSTEM_PROPERTIES,
             XR_ERROR_VALIDATION_FAILURE, "XrSystemProperties type invalid");
-  RETURN_IF(system_properties->next != nullptr, XR_ERROR_VALIDATION_FAILURE,
-            "XrSystemProperties next is not nullptr");
 
   *system_properties = g_test_helper.GetSystemProperties();
   system_properties->systemId = system_id;
 
+  return XR_SUCCESS;
+}
+
+XrResult xrLocateHandJointsEXT(XrHandTrackerEXT hand_tracker,
+                               const XrHandJointsLocateInfoEXT* locate_info,
+                               XrHandJointLocationsEXT* locations) {
+  DVLOG(2) << __func__;
+  RETURN_IF_XR_FAILED(g_test_helper.ValidateHandTracker(hand_tracker));
+  RETURN_IF(locate_info == nullptr, XR_ERROR_VALIDATION_FAILURE,
+            "XrHandJointsLocateInfoEXT is nullptr");
+  RETURN_IF(locations == nullptr, XR_ERROR_VALIDATION_FAILURE,
+            "XrHandJointLocationsEXT is nullptr");
+  RETURN_IF_XR_FAILED(g_test_helper.ValidateSpace(locate_info->baseSpace));
+  g_test_helper.LocateJoints(hand_tracker, locate_info, locations);
+  // No tests actually use hand joint data, so we leave them unpopulated at this
+  // time.
   return XR_SUCCESS;
 }
 
@@ -842,10 +943,7 @@ XrResult xrLocateSpace(XrSpace space,
             "XrSpaceLocation is nullptr");
   g_test_helper.LocateSpace(space, &(location->pose));
 
-  location->locationFlags = XR_SPACE_LOCATION_ORIENTATION_VALID_BIT |
-                            XR_SPACE_LOCATION_POSITION_VALID_BIT |
-                            XR_SPACE_LOCATION_ORIENTATION_TRACKED_BIT |
-                            XR_SPACE_LOCATION_POSITION_TRACKED_BIT;
+  location->locationFlags = OpenXrTestHelper::kValidTrackedPoseFlags;
 
   return XR_SUCCESS;
 }
@@ -988,8 +1086,9 @@ XrResult xrPathToString(XrInstance instance,
   RETURN_IF(
       buffer_capacity_input <= path_string.size(), XR_ERROR_SIZE_INSUFFICIENT,
       "xrPathToString inputsize is not large enough to hold the output string");
-  errno_t error = strcpy_s(buffer, *buffer_count_output, path_string.data());
-  DCHECK_EQ(error, 0);
+  size_t copied_size =
+      base::strlcpy(buffer, path_string.data(), *buffer_count_output);
+  DCHECK_LT(copied_size, *buffer_count_output);
 
   return XR_SUCCESS;
 }
@@ -1082,108 +1181,71 @@ XrResult xrWaitSwapchainImage(XrSwapchain swapchain,
 // Getter for extension methods. Casts the correct function dynamically based on
 // the method name provided.
 // Please add new OpenXR APIs below in alphabetical order.
+#define TRY_LOAD_METHOD(method_name)                                 \
+  do {                                                               \
+    if (strcmp(name, #method_name) == 0) {                           \
+      *function = reinterpret_cast<PFN_xrVoidFunction>(method_name); \
+      return XR_SUCCESS;                                             \
+    }                                                                \
+  } while (false)
+
 XrResult XRAPI_PTR xrGetInstanceProcAddr(XrInstance instance,
                                          const char* name,
                                          PFN_xrVoidFunction* function) {
-  if (strcmp(name, "xrAcquireSwapchainImage") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrAcquireSwapchainImage);
-  } else if (strcmp(name, "xrAttachSessionActionSets") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrAttachSessionActionSets);
-  } else if (strcmp(name, "xrBeginFrame") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrBeginFrame);
-  } else if (strcmp(name, "xrBeginSession") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrBeginSession);
-  } else if (strcmp(name, "xrCreateAction") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrCreateAction);
-  } else if (strcmp(name, "xrCreateActionSet") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrCreateActionSet);
-  } else if (strcmp(name, "xrCreateActionSpace") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrCreateActionSpace);
-  } else if (strcmp(name, "xrCreateInstance") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrCreateInstance);
-  } else if (strcmp(name, "xrCreateReferenceSpace") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrCreateReferenceSpace);
-  } else if (strcmp(name, "xrCreateSession") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrCreateSession);
-  } else if (strcmp(name, "xrCreateSwapchain") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrCreateSwapchain);
-  } else if (strcmp(name, "xrDestroyActionSet") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrDestroyActionSet);
-  } else if (strcmp(name, "xrDestroyInstance") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrDestroyInstance);
-  } else if (strcmp(name, "xrDestroySession") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrDestroySession);
-  } else if (strcmp(name, "xrDestroySpace") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrDestroySpace);
-  } else if (strcmp(name, "xrDestroySwapchain") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrDestroySwapchain);
-  } else if (strcmp(name, "xrEndFrame") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrEndFrame);
-  } else if (strcmp(name, "xrEndSession") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrEndSession);
-  } else if (strcmp(name, "xrEnumerateEnvironmentBlendModes") == 0) {
-    *function =
-        reinterpret_cast<PFN_xrVoidFunction>(xrEnumerateEnvironmentBlendModes);
-  } else if (strcmp(name, "xrEnumerateInstanceExtensionProperties") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(
-        xrEnumerateInstanceExtensionProperties);
-  } else if (strcmp(name, "xrEnumerateSwapchainImages") == 0) {
-    *function =
-        reinterpret_cast<PFN_xrVoidFunction>(xrEnumerateSwapchainImages);
-  } else if (strcmp(name, "xrEnumerateViewConfigurations") == 0) {
-    *function =
-        reinterpret_cast<PFN_xrVoidFunction>(xrEnumerateViewConfigurations);
-  } else if (strcmp(name, "xrEnumerateViewConfigurationViews") == 0) {
-    *function =
-        reinterpret_cast<PFN_xrVoidFunction>(xrEnumerateViewConfigurationViews);
-  } else if (strcmp(name, "xrGetD3D11GraphicsRequirementsKHR") == 0) {
-    *function =
-        reinterpret_cast<PFN_xrVoidFunction>(xrGetD3D11GraphicsRequirementsKHR);
-  } else if (strcmp(name, "xrGetActionStateFloat") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrGetActionStateFloat);
-  } else if (strcmp(name, "xrGetActionStateBoolean") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrGetActionStateBoolean);
-  } else if (strcmp(name, "xrGetActionStateVector2f") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrGetActionStateVector2f);
-  } else if (strcmp(name, "xrGetActionStatePose") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrGetActionStatePose);
-  } else if (strcmp(name, "xrGetCurrentInteractionProfile") == 0) {
-    *function =
-        reinterpret_cast<PFN_xrVoidFunction>(xrGetCurrentInteractionProfile);
-  } else if (strcmp(name, "xrGetReferenceSpaceBoundsRect") == 0) {
-    *function =
-        reinterpret_cast<PFN_xrVoidFunction>(xrGetReferenceSpaceBoundsRect);
-  } else if (strcmp(name, "xrGetViewConfigurationProperties") == 0) {
-    *function =
-        reinterpret_cast<PFN_xrVoidFunction>(xrGetViewConfigurationProperties);
-  } else if (strcmp(name, "xrGetSystem") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrGetSystem);
-  } else if (strcmp(name, "xrGetSystemProperties") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrGetSystemProperties);
-  } else if (strcmp(name, "xrLocateSpace") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrLocateSpace);
-  } else if (strcmp(name, "xrLocateViews") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrLocateViews);
-  } else if (strcmp(name, "xrPollEvent") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrPollEvent);
-  } else if (strcmp(name, "xrReleaseSwapchainImage") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrReleaseSwapchainImage);
-  } else if (strcmp(name, "xrSuggestInteractionProfileBindings") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(
-        xrSuggestInteractionProfileBindings);
-  } else if (strcmp(name, "xrStringToPath") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrStringToPath);
-  } else if (strcmp(name, "xrPathToString") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrPathToString);
-  } else if (strcmp(name, "xrSyncActions") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrSyncActions);
-  } else if (strcmp(name, "xrWaitFrame") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrWaitFrame);
-  } else if (strcmp(name, "xrWaitSwapchainImage") == 0) {
-    *function = reinterpret_cast<PFN_xrVoidFunction>(xrWaitSwapchainImage);
-  } else {
-    return XR_ERROR_FUNCTION_UNSUPPORTED;
-  }
+  TRY_LOAD_METHOD(xrAcquireSwapchainImage);
+  TRY_LOAD_METHOD(xrAttachSessionActionSets);
+  TRY_LOAD_METHOD(xrBeginFrame);
+  TRY_LOAD_METHOD(xrBeginSession);
+  TRY_LOAD_METHOD(xrCreateAction);
+  TRY_LOAD_METHOD(xrCreateActionSet);
+  TRY_LOAD_METHOD(xrCreateActionSpace);
+  TRY_LOAD_METHOD(xrCreateHandTrackerEXT);
+  TRY_LOAD_METHOD(xrCreateInstance);
+  TRY_LOAD_METHOD(xrCreateReferenceSpace);
+  TRY_LOAD_METHOD(xrCreateSession);
+  TRY_LOAD_METHOD(xrCreateSwapchain);
+  TRY_LOAD_METHOD(xrDestroyActionSet);
+  TRY_LOAD_METHOD(xrDestroyHandTrackerEXT);
+  TRY_LOAD_METHOD(xrDestroyInstance);
+  TRY_LOAD_METHOD(xrDestroySession);
+  TRY_LOAD_METHOD(xrDestroySpace);
+  TRY_LOAD_METHOD(xrDestroySwapchain);
+  TRY_LOAD_METHOD(xrEndFrame);
+  TRY_LOAD_METHOD(xrEndSession);
+  TRY_LOAD_METHOD(xrEnumerateEnvironmentBlendModes);
+  TRY_LOAD_METHOD(xrEnumerateInstanceExtensionProperties);
+  TRY_LOAD_METHOD(xrEnumerateSwapchainFormats);
+  TRY_LOAD_METHOD(xrEnumerateSwapchainImages);
+  TRY_LOAD_METHOD(xrEnumerateViewConfigurations);
+  TRY_LOAD_METHOD(xrEnumerateViewConfigurationViews);
+#if BUILDFLAG(IS_WIN)
+  TRY_LOAD_METHOD(xrGetD3D11GraphicsRequirementsKHR);
+#endif
+  TRY_LOAD_METHOD(xrGetActionStateFloat);
+  TRY_LOAD_METHOD(xrGetActionStateBoolean);
+  TRY_LOAD_METHOD(xrGetActionStateVector2f);
+  TRY_LOAD_METHOD(xrGetActionStatePose);
+  TRY_LOAD_METHOD(xrGetCurrentInteractionProfile);
+#if BUILDFLAG(IS_ANDROID)
+  TRY_LOAD_METHOD(xrGetOpenGLESGraphicsRequirementsKHR);
+#endif
+  TRY_LOAD_METHOD(xrGetReferenceSpaceBoundsRect);
+  TRY_LOAD_METHOD(xrGetViewConfigurationProperties);
+  TRY_LOAD_METHOD(xrGetSystem);
+  TRY_LOAD_METHOD(xrGetSystemProperties);
+  TRY_LOAD_METHOD(xrLocateHandJointsEXT);
+  TRY_LOAD_METHOD(xrLocateSpace);
+  TRY_LOAD_METHOD(xrLocateViews);
+  TRY_LOAD_METHOD(xrPollEvent);
+  TRY_LOAD_METHOD(xrReleaseSwapchainImage);
+  TRY_LOAD_METHOD(xrSuggestInteractionProfileBindings);
+  TRY_LOAD_METHOD(xrStringToPath);
+  TRY_LOAD_METHOD(xrPathToString);
+  TRY_LOAD_METHOD(xrSyncActions);
+  TRY_LOAD_METHOD(xrWaitFrame);
+  TRY_LOAD_METHOD(xrWaitSwapchainImage);
 
-  return XR_SUCCESS;
+  return XR_ERROR_FUNCTION_UNSUPPORTED;
 }
+
+#undef TRY_LOAD_METHOD

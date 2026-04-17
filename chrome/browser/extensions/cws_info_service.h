@@ -5,14 +5,18 @@
 #ifndef CHROME_BROWSER_EXTENSIONS_CWS_INFO_SERVICE_H_
 #define CHROME_BROWSER_EXTENSIONS_CWS_INFO_SERVICE_H_
 
+#include <optional>
+
 #include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/timer/timer.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension_id.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 class PrefService;
 class Profile;
@@ -29,7 +33,7 @@ class ExtensionPrefs;
 class ExtensionRegistry;
 class BatchGetStoreMetadatasResponse;
 
-BASE_DECLARE_FEATURE(kCWSInfoService);
+BASE_DECLARE_FEATURE(kCWSInfoFastCheck);
 
 // This is an interface class to allow for easy mocking.
 class CWSInfoServiceInterface {
@@ -39,8 +43,7 @@ class CWSInfoServiceInterface {
   // Synchronously checks if the extension is currently live in CWS.
   // If the information is not available immediately (i.e., not stored in local
   // cache), does not return a value.
-  virtual absl::optional<bool> IsLiveInCWS(
-      const Extension& extension) const = 0;
+  virtual std::optional<bool> IsLiveInCWS(const Extension& extension) const = 0;
 
   enum class CWSViolationType {
     kNone = 0,
@@ -55,10 +58,10 @@ class CWSInfoServiceInterface {
     bool is_present = false;
     // This extension is currently published and downloadable from CWS.
     bool is_live = false;
-    // The last time the extension was updated in CWS. Only valid if |is_live|
+    // The last time the extension was updated in CWS. Only valid if `is_live`
     // is true.
     base::Time last_update_time;
-    // The following fields are only valid if |is_present| is true.
+    // The following fields are only valid if `is_present` is true.
     // If the extension has been taken down, i.e., no longer live, this
     // represents the violation type that caused the take-down.
     CWSViolationType violation_type = CWSViolationType::kNone;
@@ -68,8 +71,25 @@ class CWSInfoServiceInterface {
     // CWS.
     bool no_privacy_practice = false;
   };
-  virtual absl::optional<CWSInfo> GetCWSInfo(
+  virtual std::optional<CWSInfo> GetCWSInfo(
       const Extension& extension) const = 0;
+
+  // Initiates a fetch from CWS if:
+  // - at least one installed extension is missing CWS metadata information
+  // - Enough time (default: 24 hours) has elapsed since the last time the
+  //   metadata was fetched.
+  virtual void CheckAndMaybeFetchInfo() = 0;
+
+  class Observer : public base::CheckedObserver {
+   public:
+    // This callback is invoked when there is a change in store metadata
+    // saved by the service.
+    virtual void OnCWSInfoChanged() {}
+  };
+  // Use these methods to (de)register for changes in the CWS metadata retrieved
+  // by the service.
+  virtual void AddObserver(Observer* observer) = 0;
+  virtual void RemoveObserver(Observer* observer) = 0;
 };
 
 // This service retrieves information about installed extensions from CWS
@@ -80,6 +100,9 @@ class CWSInfoServiceInterface {
 // changes). Only extensions that update from CWS are queried.
 class CWSInfoService : public CWSInfoServiceInterface, public KeyedService {
  public:
+  // Convenience method to get the service for a profile.
+  static CWSInfoService* Get(Profile* profile);
+
   explicit CWSInfoService(Profile* profile);
 
   CWSInfoService(const CWSInfoService&) = delete;
@@ -87,25 +110,11 @@ class CWSInfoService : public CWSInfoServiceInterface, public KeyedService {
   ~CWSInfoService() override;
 
   // CWSInfoServiceInterface:
-  absl::optional<bool> IsLiveInCWS(const Extension& extension) const override;
-  absl::optional<CWSInfo> GetCWSInfo(const Extension& extension) const override;
-
-  // Initiates a fetch from CWS if:
-  // - at least one installed extension is missing CWS metadata information
-  // - Enough time (default: 24 hours) has elapsed since the last time the
-  //   metadata was fetched.
-  void CheckAndMaybeFetchInfo();
-
-  class Observer : public base::CheckedObserver {
-   public:
-    // This callback is invoked when there is a change in store metadata
-    // saved by the service.
-    virtual void OnInfoChanged() {}
-  };
-  // Use these methods to (de)register for changes in the CWS metadata retrieved
-  // by the service.
-  void AddObserver(Observer* observer);
-  void RemoveObserver(Observer* observer);
+  std::optional<bool> IsLiveInCWS(const Extension& extension) const override;
+  std::optional<CWSInfo> GetCWSInfo(const Extension& extension) const override;
+  void CheckAndMaybeFetchInfo() override;
+  void AddObserver(Observer* observer) override;
+  void RemoveObserver(Observer* observer) override;
 
   // KeyedService:
   void Shutdown() override;
@@ -120,21 +129,23 @@ class CWSInfoService : public CWSInfoServiceInterface, public KeyedService {
   int GetCheckIntervalForTesting() const;
   int GetFetchIntervalForTesting() const;
   base::Time GetCWSInfoTimestampForTesting() const;
+  base::Time GetCWSInfoFetchErrorTimestampForTesting() const;
   void SetMaxExtensionIdsPerRequestForTesting(int max);
+  static void SetSkipApiCheckForTesting(bool skip_api_key_check);
 
- private:
-  // Returns true if the service can perform fetch operations, false otherwise.
-  bool CanFetchInfo() const;
+ protected:
+  // Only used for testing to create a fake derived class.
+  CWSInfoService();
 
-  // This method schedules an info check after specified |seconds|.
+  // This method schedules an info check after specified `seconds`.
   void ScheduleCheck(int seconds);
 
   // This method prepares request protos to fetch CWS metadata. A CWS fetch
   // operation can consist of multiple request protos when the number of
   // installed extensions exceeds the max ids supported per request (100). The
   // request protos, extension ids and other data associated with the fetch are
-  // returned in a |FetchContext|. The method also outputs a
-  // |new_info_requested| that indicates if at least one of the installed
+  // returned in a `FetchContext`. The method also outputs a
+  // `new_info_requested` that indicates if at least one of the installed
   // extensions is missing CWS metadata information.
   struct FetchContext;
   std::unique_ptr<FetchContext> CreateRequests(
@@ -173,9 +184,13 @@ class CWSInfoService : public CWSInfoServiceInterface, public KeyedService {
   // Counts the number of times the downloaded metadata was different from that
   // currently saved.
   uint32_t info_changes_ = 0;
-
   // A timer used to periodically check if CWS information needs to be fetched.
   base::OneShotTimer info_check_timer_;
+  // Time from startup to first check of CWS information.
+  int startup_delay_secs_ = 0;
+  // Time interval between fetches from CWS info server. The interval value
+  // varies +/-25% from default of 24 hours for every fetch.
+  int current_fetch_interval_secs_ = 0;
 
   // List of observers that are notified whenever new CWS information is saved.
   base::ObserverList<Observer> observers_;

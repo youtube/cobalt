@@ -1,6 +1,7 @@
 // Copyright 2022 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
 #ifndef V8_CODEGEN_RISCV_CONSTANT_RISCV_V_H_
 #define V8_CODEGEN_RISCV_CONSTANT_RISCV_V_H_
 
@@ -444,11 +445,11 @@ constexpr Opcode RO_V_VFWSUB_W_VF =
 
 // Vector Widening Floating-Point Reduction Instructions
 constexpr Opcode VFWREDUSUM_FUNCT6 = 0b110001;
-constexpr Opcode RO_V_VFWREDUSUM_VV =
+constexpr Opcode RO_V_VFWREDUSUM_VS =
     OP_FVV | (VFWREDUSUM_FUNCT6 << kRvvFunct6Shift);
 
 constexpr Opcode VFWREDOSUM_FUNCT6 = 0b110011;
-constexpr Opcode RO_V_VFWREDOSUM_VV =
+constexpr Opcode RO_V_VFWREDOSUM_VS =
     OP_FVV | (VFWREDOSUM_FUNCT6 << kRvvFunct6Shift);
 
 // Vector Widening Floating-Point Multiply

@@ -15,8 +15,6 @@
 #ifndef STARBOARD_SHARED_STARBOARD_MEDIA_MIME_UTIL_H_
 #define STARBOARD_SHARED_STARBOARD_MEDIA_MIME_UTIL_H_
 
-#include <string>
-
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 

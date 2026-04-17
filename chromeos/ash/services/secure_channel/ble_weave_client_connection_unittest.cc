@@ -9,6 +9,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/containers/to_vector.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/ptr_util.h"
@@ -46,6 +47,7 @@ using ::testing::DoAll;
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::SaveArg;
+using ::testing::WithArg;
 using ::testing::WithArgs;
 
 typedef BluetoothLowEnergyWeaveClientConnection::SubStatus SubStatus;
@@ -133,7 +135,6 @@ class MockBluetoothLowEnergyWeavePacketGenerator
       return kLargePackets;
     } else {
       NOTREACHED();
-      return std::vector<Packet>();
     }
   }
 
@@ -323,7 +324,7 @@ class MockConnectionObserver : public ConnectionObserver {
   }
 
  private:
-  raw_ptr<Connection, ExperimentalAsh> connection_;
+  raw_ptr<Connection, DanglingUntriaged> connection_;
   std::string last_deserialized_message_;
   bool last_send_success_;
   int num_send_completed_;
@@ -377,7 +378,8 @@ class SecureChannelBluetoothLowEnergyWeaveClientConnectionTest
             kCharacteristicProperties,
             device::BluetoothRemoteGattCharacteristic::PERMISSION_NONE);
 
-    std::vector<const device::BluetoothDevice*> devices;
+    std::vector<raw_ptr<const device::BluetoothDevice, VectorExperimental>>
+        devices;
     devices.push_back(mock_bluetooth_device_.get());
     ON_CALL(*adapter_, GetDevices()).WillByDefault(Return(devices));
     ON_CALL(*adapter_, GetDevice(kTestRemoteDeviceBluetoothAddress))
@@ -476,7 +478,7 @@ class SecureChannelBluetoothLowEnergyWeaveClientConnectionTest
     std::move(create_gatt_connection_callback_)
         .Run(std::make_unique<NiceMock<device::MockBluetoothGattConnection>>(
                  adapter_, kTestRemoteDeviceBluetoothAddress),
-             /*error_code=*/absl::nullopt);
+             /*error_code=*/std::nullopt);
 
     EXPECT_EQ(connection->sub_status(), SubStatus::WAITING_CHARACTERISTICS);
     EXPECT_EQ(connection->status(), Connection::Status::IN_PROGRESS);
@@ -506,10 +508,12 @@ class SecureChannelBluetoothLowEnergyWeaveClientConnectionTest
   void NotifySessionStarted(
       TestBluetoothLowEnergyWeaveClientConnection* connection) {
     EXPECT_CALL(*tx_characteristic_, WriteRemoteCharacteristic_(_, _, _, _))
-        .WillOnce(
-            DoAll(SaveArg<0>(&last_value_written_on_tx_characteristic_),
-                  MoveArg<2>(&write_remote_characteristic_success_callback_),
-                  MoveArg<3>(&write_remote_characteristic_error_callback_)));
+        .WillOnce(DoAll(
+            WithArg<0>([this](base::span<const uint8_t> value) {
+              last_value_written_on_tx_characteristic_ = base::ToVector(value);
+            }),
+            MoveArg<2>(&write_remote_characteristic_success_callback_),
+            MoveArg<3>(&write_remote_characteristic_error_callback_)));
     EXPECT_FALSE(notify_session_error_callback_.is_null());
     ASSERT_FALSE(notify_session_success_callback_.is_null());
 
@@ -567,7 +571,10 @@ class SecureChannelBluetoothLowEnergyWeaveClientConnectionTest
     if (connection->IsConnected()) {
       EXPECT_CALL(*tx_characteristic_, WriteRemoteCharacteristic_(_, _, _, _))
           .WillOnce(
-              DoAll(SaveArg<0>(&last_value_written_on_tx_characteristic_),
+              DoAll(WithArg<0>([this](base::span<const uint8_t> value) {
+                      last_value_written_on_tx_characteristic_ =
+                          base::ToVector(value);
+                    }),
                     MoveArg<2>(&write_remote_characteristic_success_callback_),
                     MoveArg<3>(&write_remote_characteristic_error_callback_)));
     }
@@ -591,7 +598,10 @@ class SecureChannelBluetoothLowEnergyWeaveClientConnectionTest
     if (was_connected) {
       EXPECT_CALL(*tx_characteristic_, WriteRemoteCharacteristic_(_, _, _, _))
           .WillOnce(
-              DoAll(SaveArg<0>(&last_value_written_on_tx_characteristic_),
+              DoAll(WithArg<0>([this](base::span<const uint8_t> value) {
+                      last_value_written_on_tx_characteristic_ =
+                          base::ToVector(value);
+                    }),
                     MoveArg<2>(&write_remote_characteristic_success_callback_),
                     MoveArg<3>(&write_remote_characteristic_error_callback_)));
     }
@@ -653,14 +663,14 @@ class SecureChannelBluetoothLowEnergyWeaveClientConnectionTest
                              GATT_SERVICE_OPERATION_RESULT_GATT_ERROR_UNKNOWN;
   }
 
-  absl::optional<int32_t> GetRssi(
+  std::optional<int32_t> GetRssi(
       TestBluetoothLowEnergyWeaveClientConnection* connection) {
     connection->GetConnectionRssi(base::BindOnce(
         &SecureChannelBluetoothLowEnergyWeaveClientConnectionTest::
             OnConnectionRssi,
         base::Unretained(this)));
 
-    absl::optional<int32_t> rssi = rssi_;
+    std::optional<int32_t> rssi = rssi_;
     rssi_.reset();
 
     return rssi;
@@ -674,7 +684,7 @@ class SecureChannelBluetoothLowEnergyWeaveClientConnectionTest
   const multidevice::ScopedDisableLoggingForTesting disable_logging_;
 
   scoped_refptr<device::MockBluetoothAdapter> adapter_;
-  raw_ptr<base::MockOneShotTimer, ExperimentalAsh> test_timer_;
+  raw_ptr<base::MockOneShotTimer, DanglingUntriaged> test_timer_;
   scoped_refptr<base::TestSimpleTaskRunner> task_runner_;
 
   std::unique_ptr<device::MockBluetoothDevice> mock_bluetooth_device_;
@@ -686,9 +696,11 @@ class SecureChannelBluetoothLowEnergyWeaveClientConnectionTest
   int32_t rssi_for_channel_ = device::BluetoothDevice::kUnknownPower;
   bool last_wire_message_success_;
   bool has_verified_connection_result_;
-  raw_ptr<NiceMock<MockBluetoothLowEnergyWeavePacketGenerator>, ExperimentalAsh>
+  raw_ptr<NiceMock<MockBluetoothLowEnergyWeavePacketGenerator>,
+          DanglingUntriaged>
       generator_;
-  raw_ptr<NiceMock<MockBluetoothLowEnergyWeavePacketReceiver>, ExperimentalAsh>
+  raw_ptr<NiceMock<MockBluetoothLowEnergyWeavePacketReceiver>,
+          DanglingUntriaged>
       receiver_;
   std::unique_ptr<MockConnectionObserver> connection_observer_;
 
@@ -720,9 +732,9 @@ class SecureChannelBluetoothLowEnergyWeaveClientConnectionTest
         rssi_for_channel_, 0 /* transmit_power */, 0 /* max_transmit_power */));
   }
 
-  void OnConnectionRssi(absl::optional<int32_t> rssi) { rssi_ = rssi; }
+  void OnConnectionRssi(std::optional<int32_t> rssi) { rssi_ = rssi; }
 
-  absl::optional<int32_t> rssi_;
+  std::optional<int32_t> rssi_;
 };
 
 TEST_F(SecureChannelBluetoothLowEnergyWeaveClientConnectionTest,
@@ -803,10 +815,12 @@ TEST_F(SecureChannelBluetoothLowEnergyWeaveClientConnectionTest,
   EXPECT_EQ(connection->sub_status(), SubStatus::CONNECTED_AND_IDLE);
 
   EXPECT_CALL(*tx_characteristic_, WriteRemoteCharacteristic_(_, _, _, _))
-      .WillOnce(
-          DoAll(SaveArg<0>(&last_value_written_on_tx_characteristic_),
-                MoveArg<2>(&write_remote_characteristic_success_callback_),
-                MoveArg<3>(&write_remote_characteristic_error_callback_)));
+      .WillOnce(DoAll(
+          WithArg<0>([this](base::span<const uint8_t> value) {
+            last_value_written_on_tx_characteristic_ = base::ToVector(value);
+          }),
+          MoveArg<2>(&write_remote_characteristic_success_callback_),
+          MoveArg<3>(&write_remote_characteristic_error_callback_)));
 
   // Call Disconnect() twice; this should only result in one "close connection"
   // message (verified via WillOnce() above).
@@ -962,10 +976,12 @@ TEST_F(SecureChannelBluetoothLowEnergyWeaveClientConnectionTest,
   EXPECT_EQ(0, connection_observer_->num_send_completed());
   EXPECT_CALL(*tx_characteristic_, WriteRemoteCharacteristic_(_, _, _, _))
       .Times(kMaxNumberOfTries - 1)
-      .WillRepeatedly(
-          DoAll(SaveArg<0>(&last_value_written_on_tx_characteristic_),
-                MoveArg<2>(&write_remote_characteristic_success_callback_),
-                MoveArg<3>(&write_remote_characteristic_error_callback_)));
+      .WillRepeatedly(DoAll(
+          WithArg<0>([this](base::span<const uint8_t> value) {
+            last_value_written_on_tx_characteristic_ = base::ToVector(value);
+          }),
+          MoveArg<2>(&write_remote_characteristic_success_callback_),
+          MoveArg<3>(&write_remote_characteristic_error_callback_)));
 
   for (int i = 0; i < kMaxNumberOfTries; i++) {
     EXPECT_EQ(last_value_written_on_tx_characteristic_, kConnectionRequest);
@@ -1041,10 +1057,12 @@ TEST_F(SecureChannelBluetoothLowEnergyWeaveClientConnectionTest,
   // Expecting a first call of WriteRemoteCharacteristic, after SendMessage is
   // called.
   EXPECT_CALL(*tx_characteristic_, WriteRemoteCharacteristic_(_, _, _, _))
-      .WillOnce(
-          DoAll(SaveArg<0>(&last_value_written_on_tx_characteristic_),
-                MoveArg<2>(&write_remote_characteristic_success_callback_),
-                MoveArg<3>(&write_remote_characteristic_error_callback_)));
+      .WillOnce(DoAll(
+          WithArg<0>([this](base::span<const uint8_t> value) {
+            last_value_written_on_tx_characteristic_ = base::ToVector(value);
+          }),
+          MoveArg<2>(&write_remote_characteristic_success_callback_),
+          MoveArg<3>(&write_remote_characteristic_error_callback_)));
 
   connection->SendMessage(
       std::make_unique<FakeWireMessage>(kSmallMessage, kTestFeature));
@@ -1074,10 +1092,12 @@ TEST_F(SecureChannelBluetoothLowEnergyWeaveClientConnectionTest,
   // Expecting a first call of WriteRemoteCharacteristic, after SendMessage is
   // called.
   EXPECT_CALL(*tx_characteristic_, WriteRemoteCharacteristic_(_, _, _, _))
-      .WillOnce(
-          DoAll(SaveArg<0>(&last_value_written_on_tx_characteristic_),
-                MoveArg<2>(&write_remote_characteristic_success_callback_),
-                MoveArg<3>(&write_remote_characteristic_error_callback_)));
+      .WillOnce(DoAll(
+          WithArg<0>([this](base::span<const uint8_t> value) {
+            last_value_written_on_tx_characteristic_ = base::ToVector(value);
+          }),
+          MoveArg<2>(&write_remote_characteristic_success_callback_),
+          MoveArg<3>(&write_remote_characteristic_error_callback_)));
 
   connection->SendMessage(
       std::make_unique<FakeWireMessage>(kLargeMessage, kTestFeature));
@@ -1088,10 +1108,12 @@ TEST_F(SecureChannelBluetoothLowEnergyWeaveClientConnectionTest,
       last_value_written_on_tx_characteristic_.end());
 
   EXPECT_CALL(*tx_characteristic_, WriteRemoteCharacteristic_(_, _, _, _))
-      .WillOnce(
-          DoAll(SaveArg<0>(&last_value_written_on_tx_characteristic_),
-                MoveArg<2>(&write_remote_characteristic_success_callback_),
-                MoveArg<3>(&write_remote_characteristic_error_callback_)));
+      .WillOnce(DoAll(
+          WithArg<0>([this](base::span<const uint8_t> value) {
+            last_value_written_on_tx_characteristic_ = base::ToVector(value);
+          }),
+          MoveArg<2>(&write_remote_characteristic_success_callback_),
+          MoveArg<3>(&write_remote_characteristic_error_callback_)));
 
   RunWriteCharacteristicSuccessCallback();
   VerifyGattWriteCharacteristicResult(true /* success */, 2 /* num_writes */);
@@ -1125,10 +1147,12 @@ TEST_F(SecureChannelBluetoothLowEnergyWeaveClientConnectionTest,
 
   EXPECT_CALL(*tx_characteristic_, WriteRemoteCharacteristic_(_, _, _, _))
       .Times(kMaxNumberOfTries)
-      .WillRepeatedly(
-          DoAll(SaveArg<0>(&last_value_written_on_tx_characteristic_),
-                MoveArg<2>(&write_remote_characteristic_success_callback_),
-                MoveArg<3>(&write_remote_characteristic_error_callback_)));
+      .WillRepeatedly(DoAll(
+          WithArg<0>([this](base::span<const uint8_t> value) {
+            last_value_written_on_tx_characteristic_ = base::ToVector(value);
+          }),
+          MoveArg<2>(&write_remote_characteristic_success_callback_),
+          MoveArg<3>(&write_remote_characteristic_error_callback_)));
 
   connection->SendMessage(
       std::make_unique<FakeWireMessage>(kSmallMessage, kTestFeature));
@@ -1186,10 +1210,12 @@ TEST_F(SecureChannelBluetoothLowEnergyWeaveClientConnectionTest,
   InitializeConnection(connection.get(), kDefaultMaxPacketSize);
 
   EXPECT_CALL(*tx_characteristic_, WriteRemoteCharacteristic_(_, _, _, _))
-      .WillOnce(
-          DoAll(SaveArg<0>(&last_value_written_on_tx_characteristic_),
-                MoveArg<2>(&write_remote_characteristic_success_callback_),
-                MoveArg<3>(&write_remote_characteristic_error_callback_)));
+      .WillOnce(DoAll(
+          WithArg<0>([this](base::span<const uint8_t> value) {
+            last_value_written_on_tx_characteristic_ = base::ToVector(value);
+          }),
+          MoveArg<2>(&write_remote_characteristic_success_callback_),
+          MoveArg<3>(&write_remote_characteristic_error_callback_)));
 
   connection->GattCharacteristicValueChanged(
       adapter_.get(), rx_characteristic_.get(), kErroneousPacket);
@@ -1216,10 +1242,12 @@ TEST_F(SecureChannelBluetoothLowEnergyWeaveClientConnectionTest,
   InitializeConnection(connection.get(), kLargeMaxPacketSize);
 
   EXPECT_CALL(*tx_characteristic_, WriteRemoteCharacteristic_(_, _, _, _))
-      .WillOnce(
-          DoAll(SaveArg<0>(&last_value_written_on_tx_characteristic_),
-                MoveArg<2>(&write_remote_characteristic_success_callback_),
-                MoveArg<3>(&write_remote_characteristic_error_callback_)));
+      .WillOnce(DoAll(
+          WithArg<0>([this](base::span<const uint8_t> value) {
+            last_value_written_on_tx_characteristic_ = base::ToVector(value);
+          }),
+          MoveArg<2>(&write_remote_characteristic_success_callback_),
+          MoveArg<3>(&write_remote_characteristic_error_callback_)));
 
   connection->SendMessage(
       std::make_unique<FakeWireMessage>(kLargeMessage, kTestFeature));
@@ -1230,10 +1258,12 @@ TEST_F(SecureChannelBluetoothLowEnergyWeaveClientConnectionTest,
   EXPECT_EQ(last_value_written_on_tx_characteristic_, kLargePackets0);
 
   EXPECT_CALL(*tx_characteristic_, WriteRemoteCharacteristic_(_, _, _, _))
-      .WillOnce(
-          DoAll(SaveArg<0>(&last_value_written_on_tx_characteristic_),
-                MoveArg<2>(&write_remote_characteristic_success_callback_),
-                MoveArg<3>(&write_remote_characteristic_error_callback_)));
+      .WillOnce(DoAll(
+          WithArg<0>([this](base::span<const uint8_t> value) {
+            last_value_written_on_tx_characteristic_ = base::ToVector(value);
+          }),
+          MoveArg<2>(&write_remote_characteristic_success_callback_),
+          MoveArg<3>(&write_remote_characteristic_error_callback_)));
 
   RunWriteCharacteristicSuccessCallback();
   VerifyGattWriteCharacteristicResult(true /* success */, 2 /* num_writes */);
@@ -1262,10 +1292,12 @@ TEST_F(SecureChannelBluetoothLowEnergyWeaveClientConnectionTest,
   InitializeConnection(connection, kDefaultMaxPacketSize);
 
   EXPECT_CALL(*tx_characteristic_, WriteRemoteCharacteristic_(_, _, _, _))
-      .WillOnce(
-          DoAll(SaveArg<0>(&last_value_written_on_tx_characteristic_),
-                MoveArg<2>(&write_remote_characteristic_success_callback_),
-                MoveArg<3>(&write_remote_characteristic_error_callback_)));
+      .WillOnce(DoAll(
+          WithArg<0>([this](base::span<const uint8_t> value) {
+            last_value_written_on_tx_characteristic_ = base::ToVector(value);
+          }),
+          MoveArg<2>(&write_remote_characteristic_success_callback_),
+          MoveArg<3>(&write_remote_characteristic_error_callback_)));
 
   connection->GattCharacteristicValueChanged(
       adapter_.get(), rx_characteristic_.get(), kErroneousPacket);
@@ -1296,10 +1328,12 @@ TEST_F(SecureChannelBluetoothLowEnergyWeaveClientConnectionTest,
 
   EXPECT_CALL(*tx_characteristic_, WriteRemoteCharacteristic_(_, _, _, _))
       .Times(2)
-      .WillRepeatedly(
-          DoAll(SaveArg<0>(&last_value_written_on_tx_characteristic_),
-                MoveArg<2>(&write_remote_characteristic_success_callback_),
-                MoveArg<3>(&write_remote_characteristic_error_callback_)));
+      .WillRepeatedly(DoAll(
+          WithArg<0>([this](base::span<const uint8_t> value) {
+            last_value_written_on_tx_characteristic_ = base::ToVector(value);
+          }),
+          MoveArg<2>(&write_remote_characteristic_success_callback_),
+          MoveArg<3>(&write_remote_characteristic_error_callback_)));
 
   connection->SendMessage(
       std::make_unique<FakeWireMessage>(kSmallMessage, kTestFeature));
@@ -1332,10 +1366,12 @@ TEST_F(SecureChannelBluetoothLowEnergyWeaveClientConnectionTest,
   EXPECT_EQ(connection->sub_status(), SubStatus::CONNECTED_AND_IDLE);
 
   EXPECT_CALL(*tx_characteristic_, WriteRemoteCharacteristic_(_, _, _, _))
-      .WillOnce(
-          DoAll(SaveArg<0>(&last_value_written_on_tx_characteristic_),
-                MoveArg<2>(&write_remote_characteristic_success_callback_),
-                MoveArg<3>(&write_remote_characteristic_error_callback_)));
+      .WillOnce(DoAll(
+          WithArg<0>([this](base::span<const uint8_t> value) {
+            last_value_written_on_tx_characteristic_ = base::ToVector(value);
+          }),
+          MoveArg<2>(&write_remote_characteristic_success_callback_),
+          MoveArg<3>(&write_remote_characteristic_error_callback_)));
   connection->Disconnect();
   EXPECT_EQ(connection->sub_status(), SubStatus::CONNECTED_AND_SENDING_MESSAGE);
 
@@ -1348,7 +1384,10 @@ TEST_F(SecureChannelBluetoothLowEnergyWeaveClientConnectionTest,
     if (i != kMaxNumberOfTries - 1) {
       EXPECT_CALL(*tx_characteristic_, WriteRemoteCharacteristic_(_, _, _, _))
           .WillOnce(
-              DoAll(SaveArg<0>(&last_value_written_on_tx_characteristic_),
+              DoAll(WithArg<0>([this](base::span<const uint8_t> value) {
+                      last_value_written_on_tx_characteristic_ =
+                          base::ToVector(value);
+                    }),
                     MoveArg<2>(&write_remote_characteristic_success_callback_),
                     MoveArg<3>(&write_remote_characteristic_error_callback_)));
     }
@@ -1410,7 +1449,7 @@ TEST_F(SecureChannelBluetoothLowEnergyWeaveClientConnectionTest,
   std::move(create_gatt_connection_callback_)
       .Run(std::make_unique<NiceMock<device::MockBluetoothGattConnection>>(
                adapter_, kTestRemoteDeviceBluetoothAddress),
-           /*error_code=*/absl::nullopt);
+           /*error_code=*/std::nullopt);
 
   CharacteristicsFound(connection.get());
   NotifySessionStarted(connection.get());
@@ -1459,7 +1498,7 @@ TEST_F(SecureChannelBluetoothLowEnergyWeaveClientConnectionTest,
   std::move(create_gatt_connection_callback_)
       .Run(std::make_unique<NiceMock<device::MockBluetoothGattConnection>>(
                adapter_, kTestRemoteDeviceBluetoothAddress),
-           /*error_code=*/absl::nullopt);
+           /*error_code=*/std::nullopt);
 
   CharacteristicsFound(connection.get());
   NotifySessionStarted(connection.get());
@@ -1519,7 +1558,7 @@ TEST_F(SecureChannelBluetoothLowEnergyWeaveClientConnectionTest,
   std::move(create_gatt_connection_callback_)
       .Run(std::make_unique<NiceMock<device::MockBluetoothGattConnection>>(
                adapter_, kTestRemoteDeviceBluetoothAddress),
-           /*error_code=*/absl::nullopt);
+           /*error_code=*/std::nullopt);
 
   CharacteristicsFound(connection.get());
   NotifySessionStarted(connection.get());

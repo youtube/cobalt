@@ -7,16 +7,15 @@
 
 #include <string>
 
-#include "third_party/blink/public/common/indexeddb/web_idb_types.h"
 #include "third_party/blink/public/mojom/indexeddb/indexeddb.mojom.h"
 
-namespace content {
+namespace content::indexed_db {
 
 struct IndexedDBDataLossInfo {
   blink::mojom::IDBDataLoss status = blink::mojom::IDBDataLoss::None;
   std::string message;
 };
 
-}  // namespace content
+}  // namespace content::indexed_db
 
 #endif  // CONTENT_BROWSER_INDEXED_DB_INDEXED_DB_DATA_LOSS_INFO_H_

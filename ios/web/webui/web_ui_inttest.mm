@@ -23,10 +23,6 @@
 #import "url/gurl.h"
 #import "url/scheme_host_port.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 using base::test::ios::kWaitForPageLoadTimeout;
 using base::test::ios::WaitUntilConditionOrTimeout;
 using web::test::TapWebViewElementWithId;
@@ -74,8 +70,9 @@ class TestWebUIControllerFactory : public WebUIIOSControllerFactory {
   std::unique_ptr<WebUIIOSController> CreateWebUIIOSControllerForURL(
       WebUIIOS* web_ui,
       const GURL& url) const override {
-    if (!url.SchemeIs(kTestWebUIScheme))
+    if (!url.SchemeIs(kTestWebUIScheme)) {
       return nullptr;
+    }
     if (url.host() == kTestWebUIURLHost) {
       return std::make_unique<TestUI>(web_ui, url.host(), IDR_WEBUI_TEST_HTML);
     }
@@ -84,8 +81,9 @@ class TestWebUIControllerFactory : public WebUIIOSControllerFactory {
   }
 
   NSInteger GetErrorCodeForWebUIURL(const GURL& url) const override {
-    if (url.SchemeIs(kTestWebUIScheme))
+    if (url.SchemeIs(kTestWebUIScheme)) {
       return 0;
+    }
     return NSURLErrorUnsupportedURL;
   }
 };
@@ -106,7 +104,7 @@ class WebUITest : public WebTestWithWebState {
     test::LoadUrl(web_state(), url);
 
     // LoadIfNecessary is needed because the view is not created (but needed)
-    // when loading the page. TODO(crbug.com/705819): Remove this call.
+    // when loading the page. TODO(crbug.com/41309809): Remove this call.
     web_state()->GetNavigationManager()->LoadIfNecessary();
 
     ASSERT_TRUE(WaitUntilConditionOrTimeout(kWaitForPageLoadTimeout, ^{

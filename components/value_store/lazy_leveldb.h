@@ -6,6 +6,7 @@
 #define COMPONENTS_VALUE_STORE_LAZY_LEVELDB_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/files/file_path.h"
@@ -13,7 +14,6 @@
 #include "base/metrics/histogram_base.h"
 #include "base/values.h"
 #include "components/value_store/value_store.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/leveldatabase/env_chromium.h"
 #include "third_party/leveldatabase/src/include/leveldb/db.h"
 
@@ -62,14 +62,14 @@ class LazyLevelDb {
   // be returned and value will be unchanged. Caller must ensure the database is
   // open before calling this method.
   ValueStore::Status Read(const std::string& key,
-                          absl::optional<base::Value>* value);
+                          std::optional<base::Value>* value);
 
   // Opens the underlying database if not yet open. If the open fails due to
   // corruption will attempt to repair the database. Failing that, will attempt
   // to delete the database. Will only attempt a single recovery.
   ValueStore::Status EnsureDbIsOpen();
 
-  const char* open_histogram_name() const {
+  std::string_view open_histogram_name() const {
     return open_histogram_->histogram_name();
   }
 
@@ -80,9 +80,6 @@ class LazyLevelDb {
   const leveldb::WriteOptions& write_options() const { return write_options_; }
 
  private:
-  ValueStore::BackingStoreRestoreStatus LogRestoreStatus(
-      ValueStore::BackingStoreRestoreStatus restore_status) const;
-
   // The leveldb to which this class reads/writes.
   std::unique_ptr<leveldb::DB> db_;
   // The path to the underlying leveldb.
@@ -98,8 +95,6 @@ class LazyLevelDb {
   bool db_unrecoverable_ = false;
   // Used for UMA logging.
   raw_ptr<base::HistogramBase> open_histogram_ = nullptr;
-  raw_ptr<base::HistogramBase> db_restore_histogram_ = nullptr;
-  raw_ptr<base::HistogramBase> value_restore_histogram_ = nullptr;
 };
 
 }  // namespace value_store

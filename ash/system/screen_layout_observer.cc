@@ -26,6 +26,7 @@
 #include "ui/chromeos/devicetype_utils.h"
 #include "ui/display/display.h"
 #include "ui/display/manager/display_manager.h"
+#include "ui/display/tablet_state.h"
 #include "ui/display/types/display_constants.h"
 #include "ui/display/util/display_util.h"
 #include "ui/message_center/message_center.h"
@@ -70,7 +71,7 @@ std::u16string GetDisplaySize(int64_t display_id) {
 }
 
 // Callback to handle a user selecting the notification view.
-void OnNotificationClicked(absl::optional<int> button_index) {
+void OnNotificationClicked(std::optional<int> button_index) {
   DCHECK(!button_index);
 
   // Settings may be blocked, e.g. at the lock screen.
@@ -184,12 +185,12 @@ const char ScreenLayoutObserver::kNotificationId[] =
     "chrome://settings/display";
 
 ScreenLayoutObserver::ScreenLayoutObserver() {
-  Shell::Get()->window_tree_host_manager()->AddObserver(this);
+  Shell::Get()->display_manager()->AddDisplayManagerObserver(this);
   UpdateDisplayInfo(nullptr);
 }
 
 ScreenLayoutObserver::~ScreenLayoutObserver() {
-  Shell::Get()->window_tree_host_manager()->RemoveObserver(this);
+  Shell::Get()->display_manager()->RemoveDisplayManagerObserver(this);
 }
 
 void ScreenLayoutObserver::SetDisplayChangedFromSettingsUI(int64_t display_id) {
@@ -326,7 +327,7 @@ void ScreenLayoutObserver::CreateOrUpdateNotification(
       std::move(notification));
 }
 
-void ScreenLayoutObserver::OnDisplayConfigurationChanged() {
+void ScreenLayoutObserver::OnDidApplyDisplayChanges() {
   DisplayInfoMap old_info;
   UpdateDisplayInfo(&old_info);
 

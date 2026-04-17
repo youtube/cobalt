@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "sandbox/win/src/sandbox_nt_util.h"
 
 #include <ntstatus.h>
@@ -10,7 +15,9 @@
 
 #include <string>
 
+#include <optional>
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/win/pe_image.h"
 #include "sandbox/win/src/internal_types.h"
 #include "sandbox/win/src/nt_internals.h"
@@ -25,6 +32,10 @@ SANDBOX_INTERCEPT NtExports g_nt;
 }  // namespace sandbox
 
 namespace {
+
+// Uses value of FILE_INFORMATION_CLASS defined in Wdm.h but not in user-mode.
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ne-wdm-_file_information_class
+constexpr uint32_t FileRenameInformation = 10;
 
 #if defined(_WIN64)
 // Align a pointer to the next allocation granularity boundary.
@@ -134,10 +145,7 @@ void InitGlobalNt() {
   INIT_NT(DuplicateObject);
   INIT_NT(FreeVirtualMemory);
   INIT_NT(MapViewOfSection);
-  INIT_NT(OpenFile);
   INIT_NT(OpenThread);
-  INIT_NT(OpenProcess);
-  INIT_NT(OpenProcessToken);
   INIT_NT(OpenProcessTokenEx);
   INIT_NT(ProtectVirtualMemory);
   INIT_NT(QueryAttributesFile);
@@ -147,16 +155,13 @@ void InitGlobalNt() {
   INIT_NT(QuerySection);
   INIT_NT(QueryVirtualMemory);
   INIT_NT(SetInformationFile);
-  INIT_NT(SetInformationProcess);
   INIT_NT(SignalAndWaitForSingleObject);
   INIT_NT(UnmapViewOfSection);
   INIT_NT(WaitForSingleObject);
-
   INIT_RTL(RtlAllocateHeap);
   INIT_RTL(RtlAnsiStringToUnicodeString);
   INIT_RTL(RtlCompareUnicodeString);
   INIT_RTL(RtlCreateHeap);
-  INIT_RTL(RtlCreateUserThread);
   INIT_RTL(RtlDestroyHeap);
   INIT_RTL(RtlFreeHeap);
   INIT_RTL(RtlNtStatusToDosError);
@@ -166,6 +171,21 @@ void InitGlobalNt() {
   INIT_RTL(memcpy);
   sandbox::g_nt.Initialized = true;
 }
+
+// The TEB structure defined in winternl.h doesn't have the ClientId member.
+// Provide a partial definition here.
+struct PARTIAL_TEB {
+  PVOID NtTib[7];
+  PVOID EnvironmentPointer;
+  CLIENT_ID ClientId;
+  PVOID ActiveRpcHandle;
+  PVOID ThreadLocalStoragePointer;
+  PPEB ProcessEnvironmentBlock;
+};
+
+// Check PEB offset between the partial definition and the public one.
+static_assert(offsetof(PARTIAL_TEB, ProcessEnvironmentBlock) ==
+              offsetof(TEB, ProcessEnvironmentBlock));
 
 }  // namespace.
 
@@ -177,12 +197,14 @@ void* g_heap = nullptr;
 SANDBOX_INTERCEPT HANDLE g_shared_section;
 SANDBOX_INTERCEPT size_t g_shared_IPC_size = 0;
 SANDBOX_INTERCEPT size_t g_shared_policy_size = 0;
+SANDBOX_INTERCEPT size_t g_delegate_data_size = 0;
 
 void* volatile g_shared_policy_memory = nullptr;
 void* volatile g_shared_IPC_memory = nullptr;
+void* volatile g_shared_delegate_data = nullptr;
 
-// Both the IPC and the policy share a single region of memory in which the IPC
-// memory is first and the policy memory is last.
+// The IPC, policy and delegate data share a single region of memory with blocks
+// in that order.
 bool MapGlobalMemory() {
   if (!g_shared_IPC_memory) {
     void* memory = nullptr;
@@ -204,9 +226,16 @@ bool MapGlobalMemory() {
           GetNtExports()->UnmapViewOfSection(NtCurrentProcess, memory));
     }
     DCHECK_NT(g_shared_IPC_size > 0);
+
     if (g_shared_policy_size > 0) {
       g_shared_policy_memory =
           reinterpret_cast<char*>(g_shared_IPC_memory) + g_shared_IPC_size;
+    }
+    // TODO(crbug.com/40265190) make this a read-only mapping in the child,
+    // distinct from the IPC & policy memory as it should be const.
+    if (g_delegate_data_size > 0) {
+      g_shared_delegate_data = reinterpret_cast<char*>(g_shared_IPC_memory) +
+                               g_shared_IPC_size + g_shared_policy_size;
     }
   }
 
@@ -223,6 +252,17 @@ void* GetGlobalPolicyMemoryForTesting() {
   if (!MapGlobalMemory())
     return nullptr;
   return g_shared_policy_memory;
+}
+
+std::optional<base::span<const uint8_t>> GetGlobalDelegateData() {
+  if (!g_delegate_data_size) {
+    return std::nullopt;
+  }
+  if (!MapGlobalMemory()) {
+    return std::nullopt;
+  }
+  return base::span(reinterpret_cast<const uint8_t*>(g_shared_delegate_data),
+                    g_delegate_data_size);
 }
 
 const NtExports* GetNtExports() {
@@ -660,39 +700,8 @@ bool IsSupportedRenameCall(FILE_RENAME_INFORMATION* file_info,
   return true;
 }
 
-bool NtGetPathFromHandle(HANDLE handle,
-                         std::unique_ptr<wchar_t, NtAllocDeleter>* path) {
-  OBJECT_NAME_INFORMATION initial_buffer;
-  OBJECT_NAME_INFORMATION* name;
-  ULONG size = 0;
-  // Query the name information a first time to get the size of the name.
-  NTSTATUS status = GetNtExports()->QueryObject(handle, ObjectNameInformation,
-                                                &initial_buffer, size, &size);
-
-  if (!NT_SUCCESS(status) && status != STATUS_INFO_LENGTH_MISMATCH)
-    return false;
-
-  std::unique_ptr<BYTE[], NtAllocDeleter> name_ptr;
-  if (!size)
-    return false;
-  name_ptr.reset(new (NT_ALLOC) BYTE[size]);
-  name = reinterpret_cast<OBJECT_NAME_INFORMATION*>(name_ptr.get());
-
-  // Query the name information a second time to get the name of the
-  // object referenced by the handle.
-  status = GetNtExports()->QueryObject(handle, ObjectNameInformation, name,
-                                       size, &size);
-
-  if (STATUS_SUCCESS != status)
-    return false;
-  size_t num_path_wchars = (name->ObjectName.Length / sizeof(wchar_t)) + 1;
-  path->reset(new (NT_ALLOC) wchar_t[num_path_wchars]);
-  status =
-      CopyData(path->get(), name->ObjectName.Buffer, name->ObjectName.Length);
-  path->get()[num_path_wchars - 1] = L'\0';
-  if (STATUS_SUCCESS != status)
-    return false;
-  return true;
+CLIENT_ID GetCurrentClientId() {
+  return reinterpret_cast<PARTIAL_TEB*>(NtCurrentTeb())->ClientId;
 }
 
 }  // namespace sandbox

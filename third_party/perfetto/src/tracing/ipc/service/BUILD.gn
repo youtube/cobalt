@@ -29,15 +29,19 @@ source_set("service") {
     "consumer_ipc_service.h",
     "producer_ipc_service.cc",
     "producer_ipc_service.h",
+    "relay_ipc_service.cc",
+    "relay_ipc_service.h",
     "service_ipc_host_impl.cc",
     "service_ipc_host_impl.h",
   ]
   deps = [
     "..:common",
     "../../../../gn:default_deps",
+    "../../../../include/perfetto/tracing",
     "../../../../protos/perfetto/ipc",
     "../../../base",
-    "../../core:service",
+    "../../core:core",
+    "../../service",
   ]
   if (perfetto_component_type == "static_library") {
     deps += [ "../../../ipc:perfetto_ipc" ]

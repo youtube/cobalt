@@ -2,9 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include <stdint.h>
 
 #include <algorithm>
+#include <array>
 #include <memory>
 #include <set>
 #include <sstream>
@@ -38,10 +44,8 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/uuid.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/download/chrome_download_manager_delegate.h"
 #include "chrome/browser/download/download_browsertest_utils.h"
 #include "chrome/browser/download/download_commands.h"
@@ -50,6 +54,7 @@
 #include "chrome/browser/download/download_crx_util.h"
 #include "chrome/browser/download/download_history.h"
 #include "chrome/browser/download/download_item_model.h"
+#include "chrome/browser/download/download_item_web_app_data.h"
 #include "chrome/browser/download/download_manager_utils.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/download/download_request_limiter.h"
@@ -58,6 +63,7 @@
 #include "chrome/browser/download/download_test_file_activity_observer.h"
 #include "chrome/browser/download/simple_download_manager_coordinator_factory.h"
 #include "chrome/browser/extensions/install_verifier.h"
+#include "chrome/browser/extensions/scoped_test_mv2_enabler.h"
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_key.h"
@@ -72,6 +78,8 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
+#include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/chrome_switches.h"
@@ -100,7 +108,6 @@
 #include "components/safe_browsing/content/browser/safe_browsing_service_interface.h"
 #include "components/safe_browsing/content/common/file_type_policies_test_util.h"
 #include "components/safe_browsing/content/common/proto/download_file_types.pb.h"
-#include "components/safe_browsing/core/common/features.h"
 #include "components/safe_browsing/core/common/proto/csd.pb.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #include "components/security_state/core/security_state.h"
@@ -111,7 +118,6 @@
 #include "content/public/browser/device_service.h"
 #include "content/public/browser/download_manager.h"
 #include "content/public/browser/download_request_utils.h"
-#include "content/public/browser/notification_source.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host.h"
@@ -121,6 +127,7 @@
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
+#include "content/public/common/isolated_world_ids.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/download_test_observer.h"
@@ -138,37 +145,48 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/features.h"
 #include "net/base/filename_util.h"
+#include "net/base/mime_util.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
 #include "net/test/embedded_test_server/request_handler_util.h"
+#include "net/test/scoped_mutually_exclusive_feature_list.h"
 #include "net/test/url_request/url_request_mock_http_job.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "pdf/buildflags.h"
 #include "services/device/public/mojom/wake_lock.mojom.h"
 #include "services/device/public/mojom/wake_lock_provider.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/loader/network_utils.h"
 #include "third_party/blink/public/common/loader/referrer_utils.h"
 #include "third_party/blink/public/common/switches.h"
+#include "third_party/blink/public/mojom/context_menu/context_menu.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/page_transition_types.h"
+#include "ui/base/ui_base_features.h"
+#include "ui/gfx/geometry/point_conversions.h"
 
 #if !BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/download/bubble/download_bubble_ui_controller.h"
-#include "chrome/browser/download/bubble/download_display.h"
 #include "chrome/browser/download/bubble/download_display_controller.h"
+#include "chrome/browser/ui/download/download_display.h"
 #endif
 
-#if BUILDFLAG(FULL_SAFE_BROWSING)
+#if BUILDFLAG(SAFE_BROWSING_DOWNLOAD_PROTECTION)
 #include "chrome/browser/safe_browsing/download_protection/download_feedback_service.h"
 #include "chrome/browser/safe_browsing/download_protection/download_protection_service.h"
 #include "chrome/browser/safe_browsing/test_safe_browsing_service.h"
 #endif
 
 #if BUILDFLAG(ENABLE_PDF)
-#include "components/pdf/browser/pdf_web_contents_helper.h"
+#include "base/test/with_feature_override.h"
+#include "chrome/browser/pdf/pdf_extension_test_util.h"
+#include "chrome/browser/pdf/test_pdf_viewer_stream_manager.h"
+#include "chrome/browser/ui/pdf/chrome_pdf_document_helper_client.h"
+#include "components/pdf/browser/pdf_document_helper.h"
+#include "pdf/pdf_features.h"
 #endif
 
 using content::BrowserContext;
@@ -182,10 +200,6 @@ using extensions::Extension;
 using net::URLRequestMockHTTPJob;
 using net::test_server::EmbeddedTestServer;
 
-// TODO(crbug.com/971199): tests should be fixed to use base::RunLoop::Run()
-// and base::RunLoop::Quit() instead of content::RunMessageLoop() and the
-// deprecated base::RunLoop::QuitCurrentWhenIdleDeprecated().
-
 namespace {
 
 class InnerWebContentsAttachedWaiter : public content::WebContentsObserver {
@@ -194,9 +208,9 @@ class InnerWebContentsAttachedWaiter : public content::WebContentsObserver {
   explicit InnerWebContentsAttachedWaiter(WebContents* web_contents)
       : content::WebContentsObserver(web_contents) {}
 
-  void InnerWebContentsAttached(WebContents* inner_web_contents,
-                                content::RenderFrameHost* render_frame_host,
-                                bool is_full_page) override {
+  void InnerWebContentsAttached(
+      WebContents* inner_web_contents,
+      content::RenderFrameHost* render_frame_host) override {
     run_loop_.Quit();
   }
 
@@ -215,7 +229,8 @@ class DownloadTestContentBrowserClient : public content::ContentBrowserClient {
   explicit DownloadTestContentBrowserClient(bool must_download)
       : must_download_(must_download) {}
 
-  bool ShouldForceDownloadResource(const GURL& url,
+  bool ShouldForceDownloadResource(content::BrowserContext* browser_context,
+                                   const GURL& url,
                                    const std::string& mime_type) override {
     return must_download_;
   }
@@ -227,8 +242,7 @@ class DownloadTestContentBrowserClient : public content::ContentBrowserClient {
 class CreatedObserver : public content::DownloadManager::Observer {
  public:
   explicit CreatedObserver(content::DownloadManager* manager)
-      : manager_(manager),
-        waiting_(false) {
+      : manager_(manager) {
     manager->AddObserver(this);
   }
 
@@ -241,12 +255,12 @@ class CreatedObserver : public content::DownloadManager::Observer {
   }
 
   void Wait() {
-    std::vector<DownloadItem*> downloads;
+    std::vector<raw_ptr<DownloadItem, VectorExperimental>> downloads;
     manager_->GetAllDownloads(&downloads);
     if (!downloads.empty())
       return;
     waiting_ = true;
-    content::RunMessageLoop();
+    run_loop_.Run();
     waiting_ = false;
   }
 
@@ -255,11 +269,12 @@ class CreatedObserver : public content::DownloadManager::Observer {
                          download::DownloadItem* item) override {
     DCHECK_EQ(manager_, manager);
     if (waiting_)
-      base::RunLoop::QuitCurrentWhenIdleDeprecated();
+      run_loop_.QuitWhenIdle();
   }
 
   raw_ptr<content::DownloadManager> manager_;
-  bool waiting_;
+  bool waiting_ = false;
+  base::RunLoop run_loop_{base::RunLoop::Type::kNestableTasksAllowed};
 };
 
 class OnCanDownloadDecidedObserver {
@@ -321,7 +336,7 @@ class PercentWaiter : public download::DownloadItem::Observer {
       return item_->PercentComplete() == 100;
     }
     waiting_ = true;
-    content::RunMessageLoop();
+    run_loop_.Run();
     waiting_ = false;
     return !error_;
   }
@@ -335,10 +350,10 @@ class PercentWaiter : public download::DownloadItem::Observer {
           (item_->PercentComplete() != 100)))) {
       error_ = true;
       if (waiting_)
-        base::RunLoop::QuitCurrentWhenIdleDeprecated();
+        run_loop_.QuitWhenIdle();
     }
     if (item_->GetState() == DownloadItem::COMPLETE && waiting_)
-      base::RunLoop::QuitCurrentWhenIdleDeprecated();
+      run_loop_.QuitWhenIdle();
   }
 
   void OnDownloadDestroyed(download::DownloadItem* item) override {
@@ -351,6 +366,7 @@ class PercentWaiter : public download::DownloadItem::Observer {
   bool waiting_ = false;
   bool error_ = false;
   int prev_percent_ = -1;
+  base::RunLoop run_loop_{base::RunLoop::Type::kNestableTasksAllowed};
 };
 
 // IDs and paths of CRX files used in tests.
@@ -380,15 +396,16 @@ class DownloadsHistoryDataCollector {
         ->QueryDownloads(base::BindLambdaForTesting(
             [&](std::vector<history::DownloadRow> rows) {
               results = std::move(rows);
-              base::RunLoop::QuitCurrentWhenIdleDeprecated();
+              run_loop_.QuitWhenIdle();
             }));
 
-    content::RunMessageLoop();
+    run_loop_.Run();
     return results;
   }
 
  private:
   raw_ptr<Profile> profile_;
+  base::RunLoop run_loop_{base::RunLoop::Type::kNestableTasksAllowed};
 };
 
 bool WasAutoOpened(DownloadItem* item) {
@@ -493,13 +510,22 @@ void CreateCompletedDownload(content::DownloadManager* download_manager,
 }
 
 #if !BUILDFLAG(IS_CHROMEOS)
-bool IsDownloadSurfaceVisible(BrowserWindow* window) {
-  return base::FeatureList::IsEnabled(safe_browsing::kDownloadBubble)
-             ? window->GetDownloadBubbleUIController()
-                   ->GetDownloadDisplayController()
-                   ->download_display_for_testing()
-                   ->IsShowingDetails()
-             : window->IsDownloadShelfVisible();
+// Whether download UI is visible at all (download toolbar button for download
+// bubble, or download shelf).
+bool IsDownloadUiVisible(BrowserWindow* window) {
+  return window->GetDownloadBubbleUIController()
+      ->GetDownloadDisplayController()
+      ->download_display_for_testing()
+      ->IsShowing();
+}
+
+// Whether download details are visible in the UI (partial view for download
+// bubble, or download shelf).
+bool IsDownloadDetailedUiVisible(BrowserWindow* window) {
+  return window->GetDownloadBubbleUIController()
+      ->GetDownloadDisplayController()
+      ->download_display_for_testing()
+      ->IsShowingDetails();
 }
 #endif
 
@@ -527,7 +553,7 @@ class HistoryObserver : public DownloadHistory::Observer {
                         const history::DownloadRow& info) override {
     seen_stored_ = true;
     if (waiting_)
-      base::RunLoop::QuitCurrentWhenIdleDeprecated();
+      run_loop_.QuitWhenIdle();
   }
 
   void OnDownloadHistoryDestroyed() override {
@@ -540,7 +566,7 @@ class HistoryObserver : public DownloadHistory::Observer {
     if (seen_stored_)
       return;
     waiting_ = true;
-    content::RunMessageLoop();
+    run_loop_.Run();
     waiting_ = false;
   }
 
@@ -548,12 +574,18 @@ class HistoryObserver : public DownloadHistory::Observer {
   raw_ptr<Profile> profile_;
   bool waiting_ = false;
   bool seen_stored_ = false;
+  base::RunLoop run_loop_{base::RunLoop::Type::kNestableTasksAllowed};
 };
 
 class DownloadReferrerPolicyTest
     : public DownloadTestBase,
       public ::testing::WithParamInterface<network::mojom::ReferrerPolicy> {
  public:
+  DownloadReferrerPolicyTest() {
+    // Link Preview hides alt+click. Disables it not to do so.
+    feature_list_.InitAndDisableFeature(blink::features::kLinkPreview);
+  }
+
   void SetUpOnMainThread() override {
     referrer_policy_ = GetParam();
     DownloadTestBase::SetUpOnMainThread();
@@ -566,6 +598,7 @@ class DownloadReferrerPolicyTest
 
  private:
   network::mojom::ReferrerPolicy referrer_policy_;
+  base::test::ScopedFeatureList feature_list_;
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -606,7 +639,7 @@ class PrerenderDownloadTest : public MPArchDownloadTest {
   ~PrerenderDownloadTest() override = default;
 
   void SetUp() override {
-    prerender_helper_.SetUp(embedded_test_server());
+    prerender_helper_.RegisterServerRequestMonitor(embedded_test_server());
     MPArchDownloadTest::SetUp();
   }
 
@@ -616,22 +649,6 @@ class PrerenderDownloadTest : public MPArchDownloadTest {
 
  private:
   content::test::PrerenderTestHelper prerender_helper_;
-};
-
-class FencedFrameDownloadTest : public MPArchDownloadTest {
- public:
-  FencedFrameDownloadTest() = default;
-  ~FencedFrameDownloadTest() override = default;
-  FencedFrameDownloadTest(const FencedFrameDownloadTest&) = delete;
-
-  FencedFrameDownloadTest& operator=(const FencedFrameDownloadTest&) = delete;
-
-  content::test::FencedFrameTestHelper& fenced_frame_test_helper() {
-    return fenced_frame_helper_;
-  }
-
- private:
-  content::test::FencedFrameTestHelper fenced_frame_helper_;
 };
 
 namespace {
@@ -644,12 +661,28 @@ class FakeDownloadProtectionService
 
   void CheckClientDownload(
       DownloadItem* download_item,
-      safe_browsing::CheckDownloadRepeatingCallback callback) override {
+      safe_browsing::CheckDownloadRepeatingCallback callback,
+      base::optional_ref<const std::string> password) override {
+    safe_browsing::ClientDownloadResponse::Verdict verdict =
+        fake_verdict_.value_or(safe_browsing::ClientDownloadResponse::UNCOMMON);
     DownloadProtectionService::SetDownloadProtectionData(
-        download_item, "token", safe_browsing::ClientDownloadResponse::UNCOMMON,
+        download_item, "token", verdict,
         safe_browsing::ClientDownloadResponse::TailoredVerdict());
-    std::move(callback).Run(safe_browsing::DownloadCheckResult::UNCOMMON);
+
+    safe_browsing::DownloadCheckResult result =
+        fake_result_.value_or(safe_browsing::DownloadCheckResult::UNCOMMON);
+    std::move(callback).Run(result);
   }
+
+  void SetFakeResponse(safe_browsing::DownloadCheckResult result,
+                       safe_browsing::ClientDownloadResponse::Verdict verdict) {
+    fake_result_ = result;
+    fake_verdict_ = verdict;
+  }
+
+ private:
+  std::optional<safe_browsing::DownloadCheckResult> fake_result_;
+  std::optional<safe_browsing::ClientDownloadResponse::Verdict> fake_verdict_;
 };
 
 class FakeSafeBrowsingService : public safe_browsing::TestSafeBrowsingService {
@@ -660,7 +693,7 @@ class FakeSafeBrowsingService : public safe_browsing::TestSafeBrowsingService {
   FakeSafeBrowsingService& operator=(const FakeSafeBrowsingService&) = delete;
 
  protected:
-  ~FakeSafeBrowsingService() override {}
+  ~FakeSafeBrowsingService() override = default;
 
   // ServicesDelegate::ServicesCreator:
   bool CanCreateDownloadProtectionService() override { return true; }
@@ -674,8 +707,8 @@ class FakeSafeBrowsingService : public safe_browsing::TestSafeBrowsingService {
 class TestSafeBrowsingServiceFactory
     : public safe_browsing::SafeBrowsingServiceFactory {
  public:
-  TestSafeBrowsingServiceFactory() : fake_safe_browsing_service_(nullptr) {}
-  ~TestSafeBrowsingServiceFactory() override {}
+  TestSafeBrowsingServiceFactory() = default;
+  ~TestSafeBrowsingServiceFactory() override = default;
 
   safe_browsing::SafeBrowsingServiceInterface* CreateSafeBrowsingService()
       override {
@@ -695,10 +728,7 @@ class TestSafeBrowsingServiceFactory
 class DownloadTestWithFakeSafeBrowsing : public DownloadTestBase {
  public:
   DownloadTestWithFakeSafeBrowsing()
-      : test_safe_browsing_factory_(new TestSafeBrowsingServiceFactory()) {
-    feature_list_.InitAndDisableFeature(
-        safe_browsing::kSafeBrowsingCsbrrNewDownloadTrigger);
-  }
+      : test_safe_browsing_factory_(new TestSafeBrowsingServiceFactory()) {}
 
   void SetUp() override {
     safe_browsing::SafeBrowsingServiceInterface::RegisterFactory(
@@ -713,21 +743,6 @@ class DownloadTestWithFakeSafeBrowsing : public DownloadTestBase {
 
  protected:
   std::unique_ptr<TestSafeBrowsingServiceFactory> test_safe_browsing_factory_;
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
-
-class DownloadTestWithFakeSafeBrowsingNewCsbrrTrigger
-    : public DownloadTestWithFakeSafeBrowsing {
- public:
-  DownloadTestWithFakeSafeBrowsingNewCsbrrTrigger() {
-    feature_list_.InitAndEnableFeature(
-        safe_browsing::kSafeBrowsingCsbrrNewDownloadTrigger);
-  }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
 };
 
 class DownloadWakeLockTest : public DownloadTestBase {
@@ -853,8 +868,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, CheckLocalFileZone_DependsOnLocalConfig) {
 // downloads preferences settings.
 IN_PROC_BROWSER_TEST_F(DownloadTest, DownloadMimeTypeSelect) {
   // Re-enable prompting.
-  browser()->profile()->GetPrefs()->SetBoolean(
-      prefs::kPromptForDownload, true);
+  SetPromptForDownload(browser(), true);
 
   embedded_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
   ASSERT_TRUE(embedded_test_server()->Start());
@@ -926,27 +940,27 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, MimeTypesToShowNotDownload) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   // These files should all be displayed in the browser.
-  const char* mime_types[] = {
-    // It is unclear whether to display text/css or download it.
-    //   Firefox 3: Display
-    //   Internet Explorer 7: Download
-    //   Safari 3.2: Download
-    // We choose to match Firefox due to the lot of complains
-    // from the users if css files are downloaded:
-    // http://code.google.com/p/chromium/issues/detail?id=7192
-    "text/css",
-    "text/javascript",
-    "text/plain",
-    "application/x-javascript",
-    "text/html",
-    "text/xml",
-    "text/xsl",
-    "application/xhtml+xml",
-    "image/png",
-    "image/gif",
-    "image/jpeg",
-    "image/bmp",
-  };
+  auto mime_types = std::to_array<const char*>({
+      // It is unclear whether to display text/css or download it.
+      //   Firefox 3: Display
+      //   Internet Explorer 7: Download
+      //   Safari 3.2: Download
+      // We choose to match Firefox due to the lot of complains
+      // from the users if css files are downloaded:
+      // http://code.google.com/p/chromium/issues/detail?id=7192
+      "text/css",
+      "text/javascript",
+      "text/plain",
+      "application/x-javascript",
+      "text/html",
+      "text/xml",
+      "text/xsl",
+      "application/xhtml+xml",
+      "image/png",
+      "image/gif",
+      "image/jpeg",
+      "image/bmp",
+  });
   for (size_t i = 0; i < std::size(mime_types); ++i) {
     const char* mime_type = mime_types[i];
     GURL url(
@@ -988,12 +1002,9 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, DownloadResourceThrottleCancels) {
   // Try to start the download via Javascript and wait for the corresponding
   // load stop event.
   content::TestNavigationObserver observer(web_contents);
-  bool download_attempted;
-  ASSERT_TRUE(content::ExecuteScriptAndExtractBool(
-      browser()->tab_strip_model()->GetActiveWebContents(),
-      "window.domAutomationController.send(startDownload());",
-      &download_attempted));
-  ASSERT_TRUE(download_attempted);
+  ASSERT_EQ(true, content::EvalJs(
+                      browser()->tab_strip_model()->GetActiveWebContents(),
+                      "startDownload();"));
   observer.Wait();
 
   // Check that we did not download the file.
@@ -1038,12 +1049,9 @@ IN_PROC_BROWSER_TEST_F(DownloadTest,
   tab_download_state->set_download_seen();
   tab_download_state->SetDownloadStatusAndNotify(
       url::Origin::Create(url), DownloadRequestLimiter::DOWNLOADS_NOT_ALLOWED);
-  bool download_attempted;
-  ASSERT_TRUE(content::ExecuteScriptAndExtractBool(
-      browser()->tab_strip_model()->GetActiveWebContents(),
-      "window.domAutomationController.send(startDownload1());",
-      &download_attempted));
-  ASSERT_TRUE(download_attempted);
+  ASSERT_EQ(true, content::EvalJs(
+                      browser()->tab_strip_model()->GetActiveWebContents(),
+                      "startDownload1();"));
   can_download_observer.WaitForNumberOfDecisions(1);
   EXPECT_FALSE(can_download_observer.GetDecisions().front());
   can_download_observer.Reset();
@@ -1053,11 +1061,9 @@ IN_PROC_BROWSER_TEST_F(DownloadTest,
       CreateWaiter(browser(), 1));
   tab_download_state->SetDownloadStatusAndNotify(
       url::Origin::Create(url), DownloadRequestLimiter::ALLOW_ALL_DOWNLOADS);
-  ASSERT_TRUE(content::ExecuteScriptAndExtractBool(
-      browser()->tab_strip_model()->GetActiveWebContents(),
-      "window.domAutomationController.send(startDownload2());",
-      &download_attempted));
-  ASSERT_TRUE(download_attempted);
+  ASSERT_EQ(true, content::EvalJs(
+                      browser()->tab_strip_model()->GetActiveWebContents(),
+                      "startDownload2();"));
   can_download_observer.WaitForNumberOfDecisions(1);
   EXPECT_TRUE(can_download_observer.GetDecisions().front());
 
@@ -1102,8 +1108,9 @@ IN_PROC_BROWSER_TEST_F(PrerenderDownloadTest,
           permissions::PermissionRequestManager::DENY_ALL);
 
   // Launch a prerendering page.
-  const int host_id = prerender_helper()->AddPrerender(kPrerenderingUrl);
-  ASSERT_NE(host_id, content::RenderFrameHost::kNoFrameTreeNodeId);
+  const content::FrameTreeNodeId host_id =
+      prerender_helper()->AddPrerender(kPrerenderingUrl);
+  ASSERT_TRUE(host_id);
   content::test::PrerenderHostObserver host_observer(*web_contents, host_id);
 
   // Check that the tab download state wasn't reset by the initial prerender
@@ -1133,6 +1140,27 @@ IN_PROC_BROWSER_TEST_F(PrerenderDownloadTest,
 
   EXPECT_TRUE(VerifyNoDownloads());
 }
+
+class FencedFrameDownloadTest : public MPArchDownloadTest {
+ public:
+  FencedFrameDownloadTest() = default;
+  ~FencedFrameDownloadTest() override = default;
+  FencedFrameDownloadTest(const FencedFrameDownloadTest&) = delete;
+
+  FencedFrameDownloadTest& operator=(const FencedFrameDownloadTest&) = delete;
+
+  void SetUpOnMainThread() override {
+    MPArchDownloadTest::SetUpOnMainThread();
+    https_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
+  }
+
+  content::test::FencedFrameTestHelper& fenced_frame_test_helper() {
+    return fenced_frame_helper_;
+  }
+
+ private:
+  content::test::FencedFrameTestHelper fenced_frame_helper_;
+};
 
 // Verify that fenced frame downloads don't affect the DownloadRequestLimiter
 // state of the WebContents.
@@ -1192,6 +1220,44 @@ IN_PROC_BROWSER_TEST_F(FencedFrameDownloadTest,
   base::ScopedAllowBlockingForTesting allow_blocking;
   EXPECT_FALSE(base::PathExists(file_path));
 
+  EXPECT_TRUE(VerifyNoDownloads());
+}
+
+// Fenced frame forces download sandbox flag, which should prevent downloads
+// from fenced frames.
+IN_PROC_BROWSER_TEST_F(FencedFrameDownloadTest,
+                       FencedFrameSandboxFlagBlockDownload) {
+  ASSERT_TRUE(https_test_server()->Start());
+  const GURL main_url = https_test_server()->GetURL("a.test", "/title1.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), main_url));
+
+  const GURL fenced_frame_url =
+      https_test_server()->GetURL("a.test", "/fenced_frames/title1.html");
+  content::RenderFrameHost* fenced_frame_rfh =
+      fenced_frame_test_helper().CreateFencedFrame(
+          GetWebContents()->GetPrimaryMainFrame(), fenced_frame_url);
+
+  content::WebContentsConsoleObserver console_observer(GetWebContents());
+  console_observer.SetPattern("*Download is disallowed*");
+
+  // Attempt a download by clicking the anchor element with download attribute
+  // within the fenced frame.
+  constexpr char kADownloadScript[] = R"(
+      var a = document.createElement('a');
+      a.setAttribute('href', 'foo.zip');
+      a.download = '';
+      document.body.appendChild(a);
+      a.click();
+    )";
+
+  EXPECT_TRUE(ExecJs(fenced_frame_rfh, kADownloadScript));
+  EXPECT_TRUE(console_observer.Wait());
+  ASSERT_FALSE(console_observer.messages().empty());
+  EXPECT_EQ(console_observer.GetMessageAt(0),
+            "Download is disallowed. The frame initiating or instantiating the "
+            "download is sandboxed, but the flag ‘allow-downloads’ is not set. "
+            "See https://www.chromestatus.com/feature/5706745674465280 for "
+            "more details.");
   EXPECT_TRUE(VerifyNoDownloads());
 }
 
@@ -1280,13 +1346,12 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, DownloadTest_IncognitoRegular) {
   base::FilePath origin(OriginFile(base::FilePath(FILE_PATH_LITERAL(
       "downloads/a_zip_file.zip"))));
   base::ScopedAllowBlockingForTesting allow_blocking;
-  ASSERT_TRUE(base::PathExists(origin));
-  int64_t origin_file_size = 0;
-  EXPECT_TRUE(base::GetFileSize(origin, &origin_file_size));
+  std::optional<int64_t> origin_file_size = base::GetFileSize(origin);
+  ASSERT_TRUE(origin_file_size.has_value());
   std::string original_contents;
   EXPECT_TRUE(base::ReadFileToString(origin, &original_contents));
 
-  std::vector<DownloadItem*> download_items;
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> download_items;
   GetDownloads(browser(), &download_items);
   ASSERT_TRUE(download_items.empty());
 
@@ -1294,14 +1359,14 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, DownloadTest_IncognitoRegular) {
   // correctly.
   DownloadAndWaitWithDisposition(browser(), url,
                                  WindowOpenDisposition::CURRENT_TAB,
-                                 ui_test_utils::BROWSER_TEST_NONE);
+                                 ui_test_utils::BROWSER_TEST_NO_WAIT);
   GetDownloads(browser(), &download_items);
   ASSERT_EQ(1UL, download_items.size());
   ASSERT_EQ(base::FilePath(FILE_PATH_LITERAL("a_zip_file.zip")),
             download_items[0]->GetTargetFilePath().BaseName());
   ASSERT_TRUE(base::PathExists(download_items[0]->GetTargetFilePath()));
   EXPECT_TRUE(VerifyFile(download_items[0]->GetTargetFilePath(),
-                         original_contents, origin_file_size));
+                         original_contents, origin_file_size.value()));
   uint32_t download_id = download_items[0]->GetId();
   // Verify that manager will increment the download ID when a new download is
   // requested.
@@ -1322,14 +1387,14 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, DownloadTest_IncognitoRegular) {
   // correctly.
   DownloadAndWaitWithDisposition(incognito, url,
                                  WindowOpenDisposition::CURRENT_TAB,
-                                 ui_test_utils::BROWSER_TEST_NONE);
+                                 ui_test_utils::BROWSER_TEST_NO_WAIT);
   GetDownloads(incognito, &download_items);
   ASSERT_EQ(1UL, download_items.size());
   ASSERT_EQ(base::FilePath(FILE_PATH_LITERAL("a_zip_file (1).zip")),
             download_items[0]->GetTargetFilePath().BaseName());
   ASSERT_TRUE(base::PathExists(download_items[0]->GetTargetFilePath()));
   EXPECT_TRUE(VerifyFile(download_items[0]->GetTargetFilePath(),
-                         original_contents, origin_file_size));
+                         original_contents, origin_file_size.value()));
   // The incognito download should increment the download ID again.
   ASSERT_EQ(download_id + 2, download_items[0]->GetId());
 }
@@ -1430,7 +1495,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, DontCloseNewTab3) {
 
   DownloadAndWaitWithDisposition(browser(), url,
                                  WindowOpenDisposition::CURRENT_TAB,
-                                 ui_test_utils::BROWSER_TEST_NONE);
+                                 ui_test_utils::BROWSER_TEST_NO_WAIT);
 
   // When the download finishes, we should have two tabs.
   EXPECT_EQ(2, browser()->tab_strip_model()->count());
@@ -1701,7 +1766,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, DownloadHistoryDangerCheck) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), download_url));
 
   // Validate the download and wait for it to finish.
-  std::vector<DownloadItem*> downloads;
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> downloads;
   dangerous_observer->WaitForFinished();
   DownloadManagerForBrowser(browser())->GetAllDownloads(&downloads);
   ASSERT_EQ(1u, downloads.size());
@@ -1745,14 +1810,14 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, ChromeURLAfterDownload) {
   WebContents* contents =
       browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_TRUE(contents);
-  bool webui_responded = false;
-  EXPECT_TRUE(content::ExecuteScriptAndExtractBool(
-      contents,
-      R"(chrome.developerPrivate.getExtensionsInfo(function(info) {
-           domAutomationController.send(!!info && !chrome.runtime.lastError);
-         });)",
-      &webui_responded));
-  EXPECT_TRUE(webui_responded);
+  EXPECT_EQ(true, content::EvalJs(contents,
+                                  R"(
+        new Promise(resolve => {
+          chrome.developerPrivate.getExtensionsInfo(function(info) {
+            resolve(!!info && !chrome.runtime.lastError);
+          });
+        });
+        )"));
 }
 
 // Test for crbug.com/12745. This tests that if a download is initiated from
@@ -1768,13 +1833,10 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, BrowserCloseAfterDownload) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), downloads_url));
   WebContents* contents = browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_TRUE(contents);
-  bool result = false;
-  EXPECT_TRUE(content::ExecuteScriptAndExtractBool(
-      contents,
-      "window.onunload = function() { var do_nothing = 0; }; "
-      "window.domAutomationController.send(true);",
-      &result));
-  EXPECT_TRUE(result);
+  EXPECT_EQ(true, content::EvalJs(
+                      contents,
+                      "window.onunload = function() { var do_nothing = 0; }; "
+                      "true;"));
 
   DownloadAndWait(browser(), download_url);
 
@@ -1804,7 +1866,14 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, AnchorDownloadTag) {
 }
 
 // Test that navigating to a user script URL will result in a download.
-IN_PROC_BROWSER_TEST_F(DownloadTest, UserScriptDownload) {
+// TODO(crbug.com/380333248): Re-enable this test
+#if BUILDFLAG(IS_LINUX) || \
+    (BUILDFLAG(IS_CHROMEOS) && defined(ADDRESS_SANITIZER))
+#define MAYBE_UserScriptDownload DISABLED_UserScriptDownload
+#else
+#define MAYBE_UserScriptDownload UserScriptDownload
+#endif
+IN_PROC_BROWSER_TEST_F(DownloadTest, MAYBE_UserScriptDownload) {
   DownloadTestContentBrowserClient new_client(true);
   content::ContentBrowserClient* old_client =
       SetBrowserClientForTesting(&new_client);
@@ -1838,7 +1907,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, DISABLED_AutoOpenByUser) {
   DownloadAndWait(browser(), url);
 
   // Find the download and confirm it was opened.
-  std::vector<DownloadItem*> downloads;
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> downloads;
   DownloadManagerForBrowser(browser())->GetAllDownloads(&downloads);
   ASSERT_EQ(1u, downloads.size());
   EXPECT_EQ(DownloadItem::COMPLETE, downloads[0]->GetState());
@@ -1883,8 +1952,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, CrxDenyInstall) {
   // Check that the CRX is not installed.
   extensions::ExtensionRegistry* extension_registry =
       extensions::ExtensionRegistry::Get(browser()->profile());
-  ASSERT_FALSE(extension_registry->GetExtensionById(
-      kGoodCrxId, extensions::ExtensionRegistry::ENABLED));
+  ASSERT_FALSE(extension_registry->enabled_extensions().Contains(kGoodCrxId));
 }
 
 // Download an extension.  Expect a dangerous download warning.
@@ -1923,13 +1991,15 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, CrxInstallDenysPermissions) {
   // Check that the extension was not installed.
   extensions::ExtensionRegistry* extension_registry =
       extensions::ExtensionRegistry::Get(browser()->profile());
-  ASSERT_FALSE(extension_registry->GetExtensionById(
-      kGoodCrxId, extensions::ExtensionRegistry::ENABLED));
+  ASSERT_FALSE(extension_registry->enabled_extensions().Contains(kGoodCrxId));
 }
 
 // Download an extension.  Expect a dangerous download warning.
 // Allow the download, and the install.
 IN_PROC_BROWSER_TEST_F(DownloadTest, CrxInstallAcceptPermissions) {
+  // TODO(https://crbug.com/40804030): Remove this when updated to use MV3.
+  extensions::ScopedTestMV2Enabler mv2_enabler;
+
   std::unique_ptr<base::AutoReset<bool>> allow_offstore_install =
       download_crx_util::OverrideOffstoreInstallAllowedForTesting(true);
 
@@ -1966,8 +2036,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, CrxInstallAcceptPermissions) {
   // Check that the extension was installed.
   extensions::ExtensionRegistry* extension_registry =
       extensions::ExtensionRegistry::Get(browser()->profile());
-  ASSERT_TRUE(extension_registry->GetExtensionById(
-      kGoodCrxId, extensions::ExtensionRegistry::ENABLED));
+  ASSERT_TRUE(extension_registry->enabled_extensions().Contains(kGoodCrxId));
 }
 
 // Test installing a CRX that fails integrity checks.
@@ -1994,8 +2063,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, CrxInvalid) {
   // Check that the extension was not installed.
   extensions::ExtensionRegistry* extension_registry =
       extensions::ExtensionRegistry::Get(browser()->profile());
-  ASSERT_FALSE(extension_registry->GetExtensionById(
-      kGoodCrxId, extensions::ExtensionRegistry::ENABLED));
+  ASSERT_FALSE(extension_registry->enabled_extensions().Contains(kGoodCrxId));
 }
 
 // Install a large (100kb) theme.
@@ -2036,8 +2104,8 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, CrxLargeTheme) {
   // Check that the extension was installed.
   extensions::ExtensionRegistry* extension_registry =
       extensions::ExtensionRegistry::Get(browser()->profile());
-  ASSERT_TRUE(extension_registry->GetExtensionById(
-      kLargeThemeCrxId, extensions::ExtensionRegistry::ENABLED));
+  ASSERT_TRUE(
+      extension_registry->enabled_extensions().Contains(kLargeThemeCrxId));
 }
 
 // Tests for download initiation functions.
@@ -2107,7 +2175,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, DownloadUrlToPath) {
 
   // Temporary are treated as auto-opened, and after that open won't be
   // visible; wait for auto-open and confirm not visible.
-  std::vector<DownloadItem*> downloads;
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> downloads;
   DownloadManagerForBrowser(browser())->GetAllDownloads(&downloads);
   ASSERT_EQ(1u, downloads.size());
   content::DownloadUpdatedObserver(downloads[0],
@@ -2146,7 +2214,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, TransientDownload) {
   ASSERT_TRUE(CheckDownloadFullPaths(browser(), target_file_full_path,
                                      OriginFile(file)));
 
-  std::vector<DownloadItem*> downloads;
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> downloads;
   DownloadManagerForBrowser(browser())->GetAllDownloads(&downloads);
   ASSERT_EQ(1u, downloads.size());
   ASSERT_TRUE(downloads[0]->IsTransient());
@@ -2178,149 +2246,374 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, NullInitiator) {
   EXPECT_EQ(0u, observer->NumDownloadsSeenInState(DownloadItem::COMPLETE));
 }
 
-class DownloadTestSplitCacheEnabled : public DownloadTest {
+class DownloadTestSplitCacheEnabledBase : public DownloadTest {
  public:
-  DownloadTestSplitCacheEnabled() {
-    feature_list_.InitWithFeatures(
-        {net::features::kSplitCacheByNetworkIsolationKey}, {});
+  DownloadTestSplitCacheEnabledBase() {
+    feature_list_.InitAndEnableFeature(
+        net::features::kSplitCacheByNetworkIsolationKey);
   }
 
  private:
   base::test::ScopedFeatureList feature_list_;
 };
 
+enum class SplitCacheTestCase {
+  kEnabledTripleKeyed,
+  kEnabledTriplePlusCrossSiteMainFrameNavBool,
+};
+
+const struct {
+  const SplitCacheTestCase test_case;
+  base::test::FeatureRef feature;
+} kTestCaseToFeatureMapping[] = {
+    {SplitCacheTestCase::kEnabledTriplePlusCrossSiteMainFrameNavBool,
+     net::features::kSplitCacheByCrossSiteMainFrameNavigationBoolean},
+};
+
+std::string GetSplitCacheTestName(SplitCacheTestCase test_case) {
+  switch (test_case) {
+    case (SplitCacheTestCase::kEnabledTripleKeyed):
+      return "TripleKeyed";
+    case (SplitCacheTestCase::kEnabledTriplePlusCrossSiteMainFrameNavBool):
+      return "TriplePlusCrossSiteMainFrameNavigationBool";
+  }
+}
+
+class DownloadTestSplitCacheEnabled
+    : public DownloadTestSplitCacheEnabledBase,
+      public testing::WithParamInterface<SplitCacheTestCase> {
+ public:
+  DownloadTestSplitCacheEnabled()
+      : split_cache_experiment_feature_list_(GetParam(),
+                                             kTestCaseToFeatureMapping) {}
+
+ private:
+  net::test::ScopedMutuallyExclusiveFeatureList
+      split_cache_experiment_feature_list_;
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    DownloadTestSplitCacheEnabled,
+    testing::ValuesIn(
+        {SplitCacheTestCase::kEnabledTripleKeyed,
+         SplitCacheTestCase::kEnabledTriplePlusCrossSiteMainFrameNavBool}),
+    [](const testing::TestParamInfo<SplitCacheTestCase>& info) {
+      return GetSplitCacheTestName(info.param);
+    });
+
 #if BUILDFLAG(ENABLE_PDF)
-IN_PROC_BROWSER_TEST_F(DownloadTestSplitCacheEnabled,
-                       SaveMainFramePdfFromContextMenu_IsolationInfo) {
-  embedded_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
-  ASSERT_TRUE(embedded_test_server()->Start());
+class PdfDownloadTestSplitCacheEnabled
+    : public DownloadTestSplitCacheEnabledBase,
+      public testing::WithParamInterface<std::tuple<bool, SplitCacheTestCase>> {
+ public:
+  PdfDownloadTestSplitCacheEnabled()
+      : split_cache_experiment_feature_list_(GetSplitCacheTestCase(),
+                                             kTestCaseToFeatureMapping) {
+    if (UseOopif()) {
+      oopif_feature_list_.InitAndEnableFeature(chrome_pdf::features::kPdfOopif);
+    } else {
+      oopif_feature_list_.InitAndDisableFeature(
+          chrome_pdf::features::kPdfOopif);
+    }
+  }
+
+  bool UseOopif() const { return std::get<0>(GetParam()); }
+
+  SplitCacheTestCase GetSplitCacheTestCase() const {
+    return std::get<1>(GetParam());
+  }
+
+  pdf::TestPdfViewerStreamManager* GetTestPdfViewerStreamManager() {
+    return factory_.GetTestPdfViewerStreamManager(
+        browser()->tab_strip_model()->GetActiveWebContents());
+  }
+
+  void TestSaveMainFramePdfFromTargetFrameContextMenu(
+      content::RenderFrameHost* target_host,
+      const GURL& url,
+      std::optional<url::Origin> expected_initiator = std::nullopt) {
+    auto origin =
+        url::Origin::Create(https_test_server()->GetURL("a.test", "/"));
+    net::SiteForCookies expected_site_for_cookies =
+        net::SiteForCookies::FromOrigin(origin);
+
+    net::IsolationInfo expected_isolation_info =
+        net::IsolationInfo::Create(net::IsolationInfo::RequestType::kMainFrame,
+                                   origin, origin, expected_site_for_cookies);
+
+    // Stop the server. This makes sure we really are pulling from the cache for
+    // the download request.
+    ASSERT_TRUE(https_test_server()->ShutdownAndWaitUntilComplete());
+
+    std::optional<network::ResourceRequest::TrustedParams> trusted_params;
+    net::SiteForCookies site_for_cookies;
+    std::optional<url::Origin> request_initiator;
+
+    base::RunLoop request_waiter;
+    URLLoaderInterceptor request_listener(base::BindLambdaForTesting(
+        [&](URLLoaderInterceptor::RequestParams* params) {
+          if (params->url_request.url == url) {
+            trusted_params = params->url_request.trusted_params;
+            site_for_cookies = params->url_request.site_for_cookies;
+            request_initiator = params->url_request.request_initiator;
+            request_waiter.Quit();
+          }
+          return false;
+        }));
+
+    std::unique_ptr<content::DownloadTestObserver> download_waiter(
+        CreateWaiter(browser(), 1));
+
+    content::WebContents* web_contents =
+        browser()->tab_strip_model()->GetActiveWebContents();
+
+    // Simulate saving the PDF from the context menu "Save As...".
+    content::ContextMenuParams context_menu_params;
+    context_menu_params.media_type =
+        blink::mojom::ContextMenuDataMediaType::kPlugin;
+    context_menu_params.src_url = url;
+    context_menu_params.page_url = web_contents->GetLastCommittedURL();
+    TestRenderViewContextMenu menu(*target_host, context_menu_params);
+    menu.Init();
+    menu.ExecuteCommand(IDC_SAVE_PAGE, 0);
+
+    request_waiter.Run();
+
+    ASSERT_TRUE(trusted_params.has_value());
+    EXPECT_TRUE(trusted_params->isolation_info.IsEqualForTesting(
+        expected_isolation_info));
+    EXPECT_TRUE(site_for_cookies.IsEquivalent(expected_site_for_cookies));
+    EXPECT_EQ(request_initiator, expected_initiator);
+
+    download_waiter->WaitForFinished();
+
+    EXPECT_EQ(1u,
+              download_waiter->NumDownloadsSeenInState(DownloadItem::COMPLETE));
+    CheckDownloadStates(1, DownloadItem::COMPLETE);
+  }
+
+ private:
+  net::test::ScopedMutuallyExclusiveFeatureList
+      split_cache_experiment_feature_list_;
+  base::test::ScopedFeatureList oopif_feature_list_;
+  pdf::TestPdfViewerStreamManagerFactory factory_;
+};
+
+// Test that the PDF can be saved from the primary frame's context menu.
+IN_PROC_BROWSER_TEST_P(
+    PdfDownloadTestSplitCacheEnabled,
+    SaveMainFramePdfFromPrimaryFrameContextMenuBrowserInitiatedNavigation) {
+  https_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
+  ASSERT_TRUE(https_test_server()->Start());
   EnableFileChooser(true);
-
-  net::SiteForCookies expected_site_for_cookies =
-      net::SiteForCookies::FromOrigin(
-          url::Origin::Create(embedded_test_server()->GetURL("foo.com", "/")));
-
-  net::IsolationInfo expected_isolation_info = net::IsolationInfo::Create(
-      net::IsolationInfo::RequestType::kMainFrame,
-      url::Origin::Create(embedded_test_server()->GetURL("foo.com", "/")),
-      url::Origin::Create(embedded_test_server()->GetURL("foo.com", "/")),
-      expected_site_for_cookies, std::set<net::SchemefulSite>());
 
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
 
   // Set up a PDF page.
-  InnerWebContentsAttachedWaiter waiter(web_contents);
-  GURL url = embedded_test_server()->GetURL("foo.com", "/pdf/test.pdf");
+  GURL url = https_test_server()->GetURL("a.test", "/pdf/test.pdf");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
-  waiter.Wait();
+  ASSERT_TRUE(pdf_extension_test_util::EnsurePDFHasLoaded(web_contents));
 
-  std::vector<content::WebContents*> inner_web_contents_vector =
-      web_contents->GetInnerWebContents();
-  ASSERT_EQ(1u, inner_web_contents_vector.size());
-  content::WebContents* inner_web_contents = inner_web_contents_vector.front();
-
-  // Wait for the page to finish loading.
-  if (inner_web_contents->IsLoading()) {
-    content::TestNavigationObserver inner_navigation_waiter(inner_web_contents);
-    inner_navigation_waiter.Wait();
-    ASSERT_TRUE(!inner_web_contents->IsLoading());
-  }
-
-  // Stop the server. This makes sure we really are pulling from the cache for
-  // the download request.
-  ASSERT_TRUE(embedded_test_server()->ShutdownAndWaitUntilComplete());
-
-  absl::optional<network::ResourceRequest::TrustedParams> trusted_params;
-  net::SiteForCookies site_for_cookies;
-
-  base::RunLoop request_waiter;
-  URLLoaderInterceptor request_listener(base::BindLambdaForTesting(
-      [&](URLLoaderInterceptor::RequestParams* params) {
-        if (params->url_request.url == url) {
-          trusted_params = params->url_request.trusted_params;
-          site_for_cookies = params->url_request.site_for_cookies;
-          request_waiter.Quit();
-        }
-        return false;
-      }));
-
-  std::unique_ptr<content::DownloadTestObserver> download_waiter(
-      CreateWaiter(browser(), 1));
-
-  // Simulate saving the PDF from the context menu "Save As...".
-  content::ContextMenuParams context_menu_params;
-  context_menu_params.media_type =
-      blink::mojom::ContextMenuDataMediaType::kPlugin;
-  context_menu_params.src_url = url;
-  context_menu_params.page_url = inner_web_contents->GetLastCommittedURL();
-  TestRenderViewContextMenu menu(*inner_web_contents->GetPrimaryMainFrame(),
-                                 context_menu_params);
-  menu.Init();
-  menu.ExecuteCommand(IDC_SAVE_PAGE, 0);
-
-  request_waiter.Run();
-
-  EXPECT_TRUE(trusted_params.has_value());
-  EXPECT_TRUE(trusted_params->isolation_info.IsEqualForTesting(
-      expected_isolation_info));
-  EXPECT_TRUE(site_for_cookies.IsEquivalent(expected_site_for_cookies));
-
-  download_waiter->WaitForFinished();
-
-  EXPECT_EQ(1u,
-            download_waiter->NumDownloadsSeenInState(DownloadItem::COMPLETE));
-  CheckDownloadStates(1, DownloadItem::COMPLETE);
+  TestSaveMainFramePdfFromTargetFrameContextMenu(
+      web_contents->GetPrimaryMainFrame(), url);
 }
 
-IN_PROC_BROWSER_TEST_F(DownloadTestSplitCacheEnabled,
-                       SaveSubframePdfFromPdfUI_IsolationInfo) {
-  embedded_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
-  ASSERT_TRUE(embedded_test_server()->Start());
+// Same as above but using a renderer-initiated navigation from a cross-origin
+// document.
+IN_PROC_BROWSER_TEST_P(
+    PdfDownloadTestSplitCacheEnabled,
+    SaveMainFramePdfFromPrimaryFrameContextMenuRendererInitiatedNavigation) {
+  https_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
+  ASSERT_TRUE(https_test_server()->Start());
   EnableFileChooser(true);
 
+  GURL initial_url = https_test_server()->GetURL("b.test", "/empty.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), initial_url));
+
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  // Set up a PDF page.
+  GURL url = https_test_server()->GetURL("a.test", "/pdf/test.pdf");
+  ASSERT_TRUE(content::NavigateToURLFromRenderer(web_contents, url));
+  ASSERT_TRUE(pdf_extension_test_util::EnsurePDFHasLoaded(web_contents));
+
+  TestSaveMainFramePdfFromTargetFrameContextMenu(
+      web_contents->GetPrimaryMainFrame(), url,
+      url::Origin::Create(initial_url));
+}
+
+// Test that the PDF can be saved from the PDf extension frame's context menu.
+IN_PROC_BROWSER_TEST_P(
+    PdfDownloadTestSplitCacheEnabled,
+    SaveMainFramePdfFromExtensionFrameContextMenuBrowserInitiatedNavigation) {
+  https_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
+  ASSERT_TRUE(https_test_server()->Start());
+  EnableFileChooser(true);
+
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  // Set up a PDF page.
+  GURL url = https_test_server()->GetURL("a.test", "/pdf/test.pdf");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  ASSERT_TRUE(pdf_extension_test_util::EnsurePDFHasLoaded(web_contents));
+
+  content::RenderFrameHost* extension_host =
+      pdf_extension_test_util::GetOnlyPdfExtensionHost(web_contents);
+  ASSERT_TRUE(extension_host);
+
+  TestSaveMainFramePdfFromTargetFrameContextMenu(extension_host, url);
+}
+// Same as above but using a renderer-initiated navigation from a cross-origin
+// document.
+IN_PROC_BROWSER_TEST_P(
+    PdfDownloadTestSplitCacheEnabled,
+    SaveMainFramePdfFromExtensionFrameContextMenuRendererInitiatedNavigation) {
+  https_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
+  ASSERT_TRUE(https_test_server()->Start());
+  EnableFileChooser(true);
+
+  GURL initial_url = https_test_server()->GetURL("b.test", "/empty.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), initial_url));
+
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  // Set up a PDF page.
+  GURL url = https_test_server()->GetURL("a.test", "/pdf/test.pdf");
+  ASSERT_TRUE(content::NavigateToURLFromRenderer(web_contents, url));
+  ASSERT_TRUE(pdf_extension_test_util::EnsurePDFHasLoaded(web_contents));
+
+  content::RenderFrameHost* extension_host =
+      pdf_extension_test_util::GetOnlyPdfExtensionHost(web_contents);
+  ASSERT_TRUE(extension_host);
+
+  TestSaveMainFramePdfFromTargetFrameContextMenu(
+      extension_host, url, url::Origin::Create(initial_url));
+}
+
+// Test that the PDF can be saved from the PDF content frame's context menu.
+IN_PROC_BROWSER_TEST_P(
+    PdfDownloadTestSplitCacheEnabled,
+    SaveMainFramePdfFromContentFrameContextMenuBrowserInitiatedNavigation) {
+  https_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
+  ASSERT_TRUE(https_test_server()->Start());
+  EnableFileChooser(true);
+
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  // Set up a PDF page.
+  GURL url = https_test_server()->GetURL("a.test", "/pdf/test.pdf");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  ASSERT_TRUE(pdf_extension_test_util::EnsurePDFHasLoaded(web_contents));
+
+  content::RenderFrameHost* content_host =
+      pdf_extension_test_util::GetOnlyPdfPluginFrame(web_contents);
+  ASSERT_TRUE(content_host);
+
+  TestSaveMainFramePdfFromTargetFrameContextMenu(content_host, url);
+}
+
+// Same as above but using a renderer-initiated navigation from a cross-origin
+// document.
+IN_PROC_BROWSER_TEST_P(
+    PdfDownloadTestSplitCacheEnabled,
+    SaveMainFramePdfFromContentFrameContextMenuRendererInitiatedNavigation) {
+  https_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
+  ASSERT_TRUE(https_test_server()->Start());
+  EnableFileChooser(true);
+
+  GURL initial_url = https_test_server()->GetURL("b.test", "/empty.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), initial_url));
+
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  // Set up a PDF page.
+  GURL url = https_test_server()->GetURL("a.test", "/pdf/test.pdf");
+  ASSERT_TRUE(content::NavigateToURLFromRenderer(web_contents, url));
+  ASSERT_TRUE(pdf_extension_test_util::EnsurePDFHasLoaded(web_contents));
+
+  content::RenderFrameHost* content_host =
+      pdf_extension_test_util::GetOnlyPdfPluginFrame(web_contents);
+  ASSERT_TRUE(content_host);
+
+  TestSaveMainFramePdfFromTargetFrameContextMenu(
+      content_host, url, url::Origin::Create(initial_url));
+}
+
+IN_PROC_BROWSER_TEST_P(PdfDownloadTestSplitCacheEnabled,
+                       SaveSubframePdfFromPdfUIIsolationInfo) {
+  https_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
+  ASSERT_TRUE(https_test_server()->Start());
+  EnableFileChooser(true);
+
+  auto top_frame_origin =
+      url::Origin::Create(https_test_server()->GetURL("a.test", "/"));
   net::SiteForCookies expected_site_for_cookies =
-      net::SiteForCookies::FromOrigin(
-          url::Origin::Create(embedded_test_server()->GetURL("foo.com", "/")));
+      net::SiteForCookies::FromOrigin(top_frame_origin);
 
   net::IsolationInfo expected_isolation_info = net::IsolationInfo::Create(
-      net::IsolationInfo::RequestType::kSubFrame,
-      url::Origin::Create(embedded_test_server()->GetURL("foo.com", "/")),
-      url::Origin::Create(embedded_test_server()->GetURL("bar.com", "/")),
-      expected_site_for_cookies, std::set<net::SchemefulSite>());
+      net::IsolationInfo::RequestType::kSubFrame, top_frame_origin,
+      url::Origin::Create(https_test_server()->GetURL("b.test", "/")),
+      expected_site_for_cookies);
 
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
 
   // Set up a page with a cross-origin iframe hosting a PDF.
-  GURL url = embedded_test_server()->GetURL("foo.com", "/iframe.html");
+  GURL url = https_test_server()->GetURL("a.test", "/iframe.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
 
-  GURL subframe_url(embedded_test_server()->GetURL("bar.com", "/pdf/test.pdf"));
+  GURL subframe_url(https_test_server()->GetURL("b.test", "/pdf/test.pdf"));
 
-  InnerWebContentsAttachedWaiter waiter(web_contents);
-  content::BeginNavigateIframeToURL(web_contents,
-                                    /*iframe_id=*/"test", subframe_url);
-  waiter.Wait();
+  // Navigate the subframe and get the `RenderFrameHost` needed for
+  // `pdf::PDFDocumentHelper`.
+  content::RenderFrameHost* document_frame;
+  if (UseOopif()) {
+    content::NavigateIframeToURL(web_contents,
+                                 /*iframe_id=*/"test", subframe_url);
+    ASSERT_TRUE(
+        GetTestPdfViewerStreamManager()->WaitUntilPdfLoadedInFirstChild());
 
-  std::vector<content::WebContents*> inner_web_contents_vector =
-      web_contents->GetInnerWebContents();
-  ASSERT_EQ(1u, inner_web_contents_vector.size());
-  content::WebContents* inner_web_contents = inner_web_contents_vector.front();
+    document_frame =
+        pdf_extension_test_util::GetOnlyPdfPluginFrame(web_contents);
+    ASSERT_TRUE(document_frame);
+  } else {
+    InnerWebContentsAttachedWaiter waiter(web_contents);
 
-  // Wait for the page to finish loading.
-  if (inner_web_contents->IsLoading()) {
-    content::TestNavigationObserver inner_navigation_waiter(inner_web_contents);
-    inner_navigation_waiter.Wait();
-    ASSERT_TRUE(!inner_web_contents->IsLoading());
+    content::BeginNavigateIframeToURL(web_contents,
+                                      /*iframe_id=*/"test", subframe_url);
+    waiter.Wait();
+
+    std::vector<content::WebContents*> inner_web_contents_vector =
+        web_contents->GetInnerWebContents();
+    ASSERT_EQ(1u, inner_web_contents_vector.size());
+    content::WebContents* inner_web_contents =
+        inner_web_contents_vector.front();
+
+    // Wait for the page to finish loading.
+    if (inner_web_contents->IsLoading()) {
+      content::TestNavigationObserver inner_navigation_waiter(
+          inner_web_contents);
+      inner_navigation_waiter.Wait();
+      ASSERT_TRUE(!inner_web_contents->IsLoading());
+    }
+
+    document_frame = inner_web_contents->GetPrimaryMainFrame();
   }
 
   // Stop the server. This makes sure we really are pulling from the cache for
   // the download request.
-  ASSERT_TRUE(embedded_test_server()->ShutdownAndWaitUntilComplete());
+  ASSERT_TRUE(https_test_server()->ShutdownAndWaitUntilComplete());
 
-  absl::optional<network::ResourceRequest::TrustedParams> trusted_params;
+  std::optional<network::ResourceRequest::TrustedParams> trusted_params;
   net::SiteForCookies site_for_cookies;
+  std::optional<url::Origin> request_initiator;
 
   base::RunLoop request_waiter;
   URLLoaderInterceptor request_listener(base::BindLambdaForTesting(
@@ -2328,6 +2621,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTestSplitCacheEnabled,
         if (params->url_request.url == subframe_url) {
           trusted_params = params->url_request.trusted_params;
           site_for_cookies = params->url_request.site_for_cookies;
+          request_initiator = params->url_request.request_initiator;
           request_waiter.Quit();
         }
         return false;
@@ -2337,18 +2631,22 @@ IN_PROC_BROWSER_TEST_F(DownloadTestSplitCacheEnabled,
       CreateWaiter(browser(), 1));
 
   // Simulate saving the PDF from the UI.
-  pdf::PDFWebContentsHelper* pdf_helper =
-      pdf::PDFWebContentsHelper::FromWebContents(inner_web_contents);
-  static_cast<pdf::mojom::PdfService*>(pdf_helper)
-      ->SaveUrlAs(subframe_url,
-                  network::mojom::ReferrerPolicy::kStrictOriginWhenCrossOrigin);
+  pdf::PDFDocumentHelper::CreateForCurrentDocument(
+      document_frame, std::make_unique<ChromePDFDocumentHelperClient>());
+  pdf::PDFDocumentHelper* pdf_helper =
+      pdf::PDFDocumentHelper::GetForCurrentDocument(document_frame);
+  pdf_helper->SaveUrlAs(
+      subframe_url,
+      network::mojom::ReferrerPolicy::kStrictOriginWhenCrossOrigin);
 
   request_waiter.Run();
 
-  EXPECT_TRUE(trusted_params.has_value());
+  ASSERT_TRUE(trusted_params.has_value());
   EXPECT_TRUE(trusted_params->isolation_info.IsEqualForTesting(
       expected_isolation_info));
   EXPECT_TRUE(site_for_cookies.IsEquivalent(expected_site_for_cookies));
+  ASSERT_TRUE(request_initiator.has_value());
+  EXPECT_EQ(*request_initiator, top_frame_origin);
 
   download_waiter->WaitForFinished();
   EXPECT_EQ(1u,
@@ -2357,40 +2655,41 @@ IN_PROC_BROWSER_TEST_F(DownloadTestSplitCacheEnabled,
 }
 #endif  // BUILDFLAG(ENABLE_PDF)
 
-IN_PROC_BROWSER_TEST_F(DownloadTestSplitCacheEnabled,
-                       SaveSubframeImageFromContextMenu_IsolationInfo) {
-  embedded_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
-  ASSERT_TRUE(embedded_test_server()->Start());
+IN_PROC_BROWSER_TEST_P(DownloadTestSplitCacheEnabled,
+                       SaveSubframeImageFromContextMenuIsolationInfo) {
+  https_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
+  ASSERT_TRUE(https_test_server()->Start());
   EnableFileChooser(true);
 
+  auto top_frame_origin =
+      url::Origin::Create(https_test_server()->GetURL("a.test", "/"));
   net::SiteForCookies expected_site_for_cookies =
-      net::SiteForCookies::FromOrigin(
-          url::Origin::Create(embedded_test_server()->GetURL("foo.com", "/")));
+      net::SiteForCookies::FromOrigin(top_frame_origin);
 
   net::IsolationInfo expected_isolation_info = net::IsolationInfo::Create(
-      net::IsolationInfo::RequestType::kSubFrame,
-      url::Origin::Create(embedded_test_server()->GetURL("foo.com", "/")),
-      url::Origin::Create(embedded_test_server()->GetURL("bar.com", "/")),
-      expected_site_for_cookies, std::set<net::SchemefulSite>());
+      net::IsolationInfo::RequestType::kSubFrame, top_frame_origin,
+      url::Origin::Create(https_test_server()->GetURL("b.test", "/")),
+      expected_site_for_cookies);
 
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
 
   // Set up a page with a cross-origin iframe hosting a PDF.
-  GURL url = embedded_test_server()->GetURL("foo.com", "/iframe.html");
+  GURL url = https_test_server()->GetURL("a.test", "/iframe.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
 
   GURL subframe_url(
-      embedded_test_server()->GetURL("bar.com", "/downloads/image.jpg"));
+      https_test_server()->GetURL("b.test", "/downloads/image.jpg"));
   content::NavigateIframeToURL(web_contents,
                                /*iframe_id=*/"test", subframe_url);
 
   // Stop the server. This makes sure we really are pulling from the cache for
   // the download request.
-  ASSERT_TRUE(embedded_test_server()->ShutdownAndWaitUntilComplete());
+  ASSERT_TRUE(https_test_server()->ShutdownAndWaitUntilComplete());
 
-  absl::optional<network::ResourceRequest::TrustedParams> trusted_params;
+  std::optional<network::ResourceRequest::TrustedParams> trusted_params;
   net::SiteForCookies site_for_cookies;
+  std::optional<url::Origin> request_initiator;
 
   base::RunLoop request_waiter;
   URLLoaderInterceptor request_listener(base::BindLambdaForTesting(
@@ -2398,6 +2697,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTestSplitCacheEnabled,
         if (params->url_request.url == subframe_url) {
           trusted_params = params->url_request.trusted_params;
           site_for_cookies = params->url_request.site_for_cookies;
+          request_initiator = params->url_request.request_initiator;
           request_waiter.Quit();
         }
         return false;
@@ -2423,10 +2723,12 @@ IN_PROC_BROWSER_TEST_F(DownloadTestSplitCacheEnabled,
 
   request_waiter.Run();
 
-  EXPECT_TRUE(trusted_params.has_value());
+  ASSERT_TRUE(trusted_params.has_value());
   EXPECT_TRUE(trusted_params->isolation_info.IsEqualForTesting(
       expected_isolation_info));
   EXPECT_TRUE(site_for_cookies.IsEquivalent(expected_site_for_cookies));
+  ASSERT_TRUE(request_initiator.has_value());
+  EXPECT_EQ(*request_initiator, top_frame_origin);
 
   download_waiter->WaitForFinished();
 
@@ -2434,54 +2736,75 @@ IN_PROC_BROWSER_TEST_F(DownloadTestSplitCacheEnabled,
             download_waiter->NumDownloadsSeenInState(DownloadItem::COMPLETE));
 }
 
-IN_PROC_BROWSER_TEST_F(DownloadTestSplitCacheEnabled,
-                       SaveSubframePdfFromContextMenu_IsolationInfo) {
-  embedded_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
-  ASSERT_TRUE(embedded_test_server()->Start());
+#if BUILDFLAG(ENABLE_PDF)
+IN_PROC_BROWSER_TEST_P(PdfDownloadTestSplitCacheEnabled,
+                       SaveSubframePdfFromContextMenuIsolationInfo) {
+  https_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
+  ASSERT_TRUE(https_test_server()->Start());
   EnableFileChooser(true);
 
+  auto top_frame_origin =
+      url::Origin::Create(https_test_server()->GetURL("a.test", "/"));
   net::SiteForCookies expected_site_for_cookies =
-      net::SiteForCookies::FromOrigin(
-          url::Origin::Create(embedded_test_server()->GetURL("foo.com", "/")));
+      net::SiteForCookies::FromOrigin(top_frame_origin);
 
   net::IsolationInfo expected_isolation_info = net::IsolationInfo::Create(
-      net::IsolationInfo::RequestType::kSubFrame,
-      url::Origin::Create(embedded_test_server()->GetURL("foo.com", "/")),
-      url::Origin::Create(embedded_test_server()->GetURL("bar.com", "/")),
-      expected_site_for_cookies, std::set<net::SchemefulSite>());
+      net::IsolationInfo::RequestType::kSubFrame, top_frame_origin,
+      url::Origin::Create(https_test_server()->GetURL("b.test", "/")),
+      expected_site_for_cookies);
 
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
 
   // Set up a page with a cross-origin iframe hosting a PDF.
-  GURL url = embedded_test_server()->GetURL("foo.com", "/iframe.html");
+  GURL url = https_test_server()->GetURL("a.test", "/iframe.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
 
-  GURL subframe_url(embedded_test_server()->GetURL("bar.com", "/pdf/test.pdf"));
+  GURL subframe_url(https_test_server()->GetURL("b.test", "/pdf/test.pdf"));
 
-  InnerWebContentsAttachedWaiter waiter(web_contents);
-  content::BeginNavigateIframeToURL(web_contents,
-                                    /*iframe_id=*/"test", subframe_url);
-  waiter.Wait();
+  // Get the `RenderFrameHost` intended to handle the save. For OOPIF PDF
+  // viewer, this will be the PDF content `RenderFrameHost`. For GuestView PDF
+  // viewer, this will be the PDF extension `RenderFrameHost`.
+  content::RenderFrameHost* target_frame;
+  if (UseOopif()) {
+    content::NavigateIframeToURL(web_contents,
+                                 /*iframe_id=*/"test", subframe_url);
+    ASSERT_TRUE(
+        GetTestPdfViewerStreamManager()->WaitUntilPdfLoadedInFirstChild());
 
-  std::vector<content::WebContents*> inner_web_contents_vector =
-      web_contents->GetInnerWebContents();
-  ASSERT_EQ(1u, inner_web_contents_vector.size());
-  content::WebContents* inner_web_contents = inner_web_contents_vector.front();
+    target_frame = pdf_extension_test_util::GetOnlyPdfPluginFrame(web_contents);
+    ASSERT_TRUE(target_frame);
+  } else {
+    InnerWebContentsAttachedWaiter waiter(web_contents);
 
-  // Wait for the page to finish loading.
-  if (inner_web_contents->IsLoading()) {
-    content::TestNavigationObserver inner_navigation_waiter(inner_web_contents);
-    inner_navigation_waiter.Wait();
-    ASSERT_TRUE(!inner_web_contents->IsLoading());
+    content::BeginNavigateIframeToURL(web_contents,
+                                      /*iframe_id=*/"test", subframe_url);
+    waiter.Wait();
+
+    std::vector<content::WebContents*> inner_web_contents_vector =
+        web_contents->GetInnerWebContents();
+    ASSERT_EQ(1u, inner_web_contents_vector.size());
+    content::WebContents* inner_web_contents =
+        inner_web_contents_vector.front();
+
+    // Wait for the page to finish loading.
+    if (inner_web_contents->IsLoading()) {
+      content::TestNavigationObserver inner_navigation_waiter(
+          inner_web_contents);
+      inner_navigation_waiter.Wait();
+      ASSERT_TRUE(!inner_web_contents->IsLoading());
+    }
+
+    target_frame = inner_web_contents->GetPrimaryMainFrame();
   }
 
   // Stop the server. This makes sure we really are pulling from the cache for
   // the download request.
-  ASSERT_TRUE(embedded_test_server()->ShutdownAndWaitUntilComplete());
+  ASSERT_TRUE(https_test_server()->ShutdownAndWaitUntilComplete());
 
-  absl::optional<network::ResourceRequest::TrustedParams> trusted_params;
+  std::optional<network::ResourceRequest::TrustedParams> trusted_params;
   net::SiteForCookies site_for_cookies;
+  std::optional<url::Origin> request_initiator;
 
   base::RunLoop request_waiter;
   URLLoaderInterceptor request_listener(base::BindLambdaForTesting(
@@ -2489,6 +2812,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTestSplitCacheEnabled,
         if (params->url_request.url == subframe_url) {
           trusted_params = params->url_request.trusted_params;
           site_for_cookies = params->url_request.site_for_cookies;
+          request_initiator = params->url_request.request_initiator;
           request_waiter.Quit();
         }
         return false;
@@ -2501,25 +2825,102 @@ IN_PROC_BROWSER_TEST_F(DownloadTestSplitCacheEnabled,
   content::ContextMenuParams context_menu_params;
   context_menu_params.media_type =
       blink::mojom::ContextMenuDataMediaType::kPlugin;
-  context_menu_params.src_url = subframe_url;
-  context_menu_params.page_url = inner_web_contents->GetLastCommittedURL();
-  TestRenderViewContextMenu menu(*inner_web_contents->GetPrimaryMainFrame(),
-                                 context_menu_params);
+  const GURL kExtensionUrl(
+      "chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/index.html");
+  context_menu_params.src_url = kExtensionUrl;
+  context_menu_params.page_url = web_contents->GetLastCommittedURL();
+  TestRenderViewContextMenu menu(*target_frame, context_menu_params);
   menu.Init();
-  menu.ExecuteCommand(IDC_CONTENT_CONTEXT_SAVEAVAS, 0);
+  menu.ExecuteCommand(IDC_CONTENT_CONTEXT_SAVEPLUGINAS, 0);
 
   request_waiter.Run();
 
-  EXPECT_TRUE(trusted_params.has_value());
+  ASSERT_TRUE(trusted_params.has_value());
   EXPECT_TRUE(trusted_params->isolation_info.IsEqualForTesting(
       expected_isolation_info));
   EXPECT_TRUE(site_for_cookies.IsEquivalent(expected_site_for_cookies));
+  ASSERT_TRUE(request_initiator.has_value());
+  EXPECT_EQ(*request_initiator, top_frame_origin);
 
   download_waiter->WaitForFinished();
 
   EXPECT_EQ(1u,
             download_waiter->NumDownloadsSeenInState(DownloadItem::COMPLETE));
 }
+
+// Tests that opening a download in the browser always opens it in the most
+// recent browser window for that profile. This test is in the PDF download test
+// suite because this behavior requires that the file type is both downloadable
+// and openable by the browser, and PDFs fit the bill.
+#if (BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)) && \
+    BUILDFLAG(ENABLE_PDF)
+IN_PROC_BROWSER_TEST_P(PdfDownloadTestSplitCacheEnabled,
+                       OpenDownloadInMostRecentBrowser) {
+  https_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
+  ASSERT_TRUE(https_test_server()->Start());
+  EnableFileChooser(true);
+  SetAllowOpenDownload(true);
+
+  Browser* download_browser = browser();
+  content::WebContents* web_contents =
+      download_browser->tab_strip_model()->GetActiveWebContents();
+
+  // Navigate to a PDF.
+  GURL url = https_test_server()->GetURL("a.test", "/pdf/test.pdf");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(download_browser, url));
+  ASSERT_TRUE(pdf_extension_test_util::EnsurePDFHasLoaded(web_contents));
+  // Force the downloaded PDF to open in the browser.
+  GetDownloadPrefs(browser())->SetShouldOpenPdfInSystemReader(false);
+  // Download the PDF.
+  TestSaveMainFramePdfFromTargetFrameContextMenu(
+      web_contents->GetPrimaryMainFrame(), url);
+
+  // Open a newer browser window that the download should be opened in.
+  Browser* latest_tabbed_browser =
+      ui_test_utils::OpenNewEmptyWindowAndWaitUntilActivated(
+          browser()->profile());
+  ASSERT_EQ(2u, chrome::GetTotalBrowserCount());
+
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> download_items;
+  DownloadManagerForBrowser(download_browser)->GetAllDownloads(&download_items);
+  ASSERT_EQ(download_items.size(), 1u);
+  download::DownloadItem* item = download_items[0];
+  ASSERT_TRUE(item->CanOpenDownload());
+
+  // Open the download.
+  ui_test_utils::AllBrowserTabAddedWaiter waiter;
+  item->OpenDownload();
+  content::WebContents* new_tab = waiter.Wait();
+  EXPECT_TRUE(new_tab->GetVisibleURL().SchemeIsFile());
+
+  // The download was opened in the most recently active browser, not the
+  // original browser it was downloaded in.
+  EXPECT_EQ(download_browser->tab_strip_model()->GetIndexOfWebContents(new_tab),
+            TabStripModel::kNoTab);
+  EXPECT_NE(
+      latest_tabbed_browser->tab_strip_model()->GetIndexOfWebContents(new_tab),
+      TabStripModel::kNoTab);
+}
+#endif
+
+// TODO(crbug.com/40268279): Stop testing both modes after OOPIF PDF viewer
+// launches.
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    PdfDownloadTestSplitCacheEnabled,
+    testing::Combine(
+        testing::Bool(),
+        testing::ValuesIn(
+            {SplitCacheTestCase::kEnabledTripleKeyed,
+             SplitCacheTestCase::kEnabledTriplePlusCrossSiteMainFrameNavBool})),
+    [](const testing::TestParamInfo<std::tuple<bool, SplitCacheTestCase>>&
+           info) {
+      std::string test_prefix =
+          std::get<0>(info.param) ? "PdfOopifEnabled" : "PdfOopifDisabled";
+      return base::StrCat(
+          {test_prefix, "_", GetSplitCacheTestName(std::get<1>(info.param))});
+    });
+#endif  // BUILDFLAG(ENABLE_PDF)
 
 class DownloadTestWithHistogramTester : public DownloadTest {
  public:
@@ -2550,7 +2951,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTestWithHistogramTester,
   embedded_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
   ASSERT_TRUE(embedded_test_server()->Start());
   EnableFileChooser(true);
-  std::vector<DownloadItem*> download_items;
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> download_items;
   GetDownloads(browser(), &download_items);
   ASSERT_TRUE(download_items.empty());
 
@@ -2615,8 +3016,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTestWithHistogramTester,
 }
 
 // Times out often on debug ChromeOS because test is slow.
-#if BUILDFLAG(IS_CHROMEOS_ASH) && \
-    (!defined(NDEBUG) || defined(MEMORY_SANITIZER))
+#if BUILDFLAG(IS_CHROMEOS) && (!defined(NDEBUG) || defined(MEMORY_SANITIZER))
 #define MAYBE_SaveLargeImage DISABLED_SaveLargeImage
 #elif BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)
@@ -2637,13 +3037,13 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, MAYBE_SaveLargeImage) {
   base::FilePath data_file = ui_test_utils::GetTestFilePath(
       base::FilePath().AppendASCII("downloads"),
       base::FilePath().AppendASCII("large_image.png"));
-  std::string png_data, data_url;
+  std::string png_data;
   {
     base::ScopedAllowBlockingForTesting allow_blocking;
     CHECK(base::ReadFileToString(data_file, &png_data));
   }
 
-  base::Base64Encode(png_data, &data_url);
+  std::string data_url = base::Base64Encode(png_data);
   data_url.insert(0, "data:image/png;base64,");
 
   ASSERT_GE(data_url.size(), url::kMaxURLChars);
@@ -2671,7 +3071,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, MAYBE_SaveLargeImage) {
   CheckDownloadStates(1, DownloadItem::COMPLETE);
 
   // Validate that the correct file was downloaded via the context menu.
-  std::vector<DownloadItem*> download_items;
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> download_items;
   GetDownloads(browser(), &download_items);
   EXPECT_TRUE(DidShowFileChooser());
   ASSERT_EQ(1u, download_items.size());
@@ -2687,12 +3087,14 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, MAYBE_SaveLargeImage) {
 
 // A EmbeddedTestServer::HandleRequestCallback function that checks for requests
 // with query string ?allow-post-only, and returns a 404 response if the method
-// is not POST.
+// is not POST. Similar for ?allow-get-only.
 static std::unique_ptr<net::test_server::HttpResponse>
-FilterPostOnlyURLsHandler(const net::test_server::HttpRequest& request) {
+FilterMethodSpecificURLsHandler(const net::test_server::HttpRequest& request) {
   std::unique_ptr<net::test_server::BasicHttpResponse> response;
-  if (request.relative_url.find("?allow-post-only") != std::string::npos &&
-      request.method != net::test_server::METHOD_POST) {
+  if ((request.relative_url.find("?allow-post-only") != std::string::npos &&
+       request.method != net::test_server::METHOD_POST) ||
+      (request.relative_url.find("?allow-get-only") != std::string::npos &&
+       request.method != net::test_server::METHOD_GET)) {
     response = std::make_unique<net::test_server::BasicHttpResponse>();
     response->set_code(net::HTTP_NOT_FOUND);
   }
@@ -2701,11 +3103,11 @@ FilterPostOnlyURLsHandler(const net::test_server::HttpRequest& request) {
 
 IN_PROC_BROWSER_TEST_F(DownloadTest, SavePageNonHTMLViaPost) {
   embedded_test_server()->RegisterRequestHandler(
-      base::BindRepeating(&FilterPostOnlyURLsHandler));
+      base::BindRepeating(&FilterMethodSpecificURLsHandler));
   embedded_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
   ASSERT_TRUE(embedded_test_server()->Start());
   EnableFileChooser(true);
-  std::vector<DownloadItem*> download_items;
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> download_items;
   GetDownloads(browser(), &download_items);
   ASSERT_TRUE(download_items.empty());
 
@@ -2762,6 +3164,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, SavePageNonHTMLViaPost) {
       blink::mojom::ContextMenuDataMediaType::kImage;
   context_menu_params.src_url = jpeg_url;
   context_menu_params.page_url = jpeg_url;
+  context_menu_params.is_image_media_plugin_document = true;
   TestRenderViewContextMenu menu(*web_contents->GetPrimaryMainFrame(),
                                  context_menu_params);
   menu.Init();
@@ -2780,13 +3183,57 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, SavePageNonHTMLViaPost) {
   ASSERT_EQ(jpeg_url, download_items[1]->GetOriginalUrl());
 }
 
-// TODO(crbug.com/1326326): Flaky on lacros.
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#define MAYBE_DownloadErrorsServer DISABLED_DownloadErrorsServer
-#else
-#define MAYBE_DownloadErrorsServer DownloadErrorsServer
-#endif
-IN_PROC_BROWSER_TEST_F(DownloadTest, MAYBE_DownloadErrorsServer) {
+IN_PROC_BROWSER_TEST_F(DownloadTest, SaveImageInPostPage) {
+  embedded_test_server()->RegisterRequestHandler(
+      base::BindRepeating(&FilterMethodSpecificURLsHandler));
+  embedded_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
+  ASSERT_TRUE(embedded_test_server()->Start());
+  EnableFileChooser(true);
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> download_items;
+  GetDownloads(browser(), &download_items);
+  ASSERT_TRUE(download_items.empty());
+
+  // Navigate to a form page.
+  GURL form_url =
+      embedded_test_server()->GetURL("/downloads/page_with_image.html");
+  GURL jpeg_url =
+      embedded_test_server()->GetURL("/downloads/image.jpg?allow-get-only");
+  ASSERT_TRUE(form_url.is_valid());
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), form_url));
+
+  // Submit the form.
+  WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  content::TestNavigationObserver navigation_observer(web_contents, 1);
+  EXPECT_TRUE(content::ExecJs(web_contents, "document.forms[0].submit()"));
+  navigation_observer.Wait();
+  EXPECT_EQ(form_url, web_contents->GetURL());
+
+  // Try to download the image via a context menu.
+  // The context menu is actually opened to check that it computes the right
+  // params, since the renderer is responsible for part of this check.
+  content::DownloadTestObserverTerminal waiter(
+      DownloadManagerForBrowser(browser()), 1,
+      content::DownloadTestObserver::ON_DANGEROUS_DOWNLOAD_FAIL);
+  ContextMenuWaiter context_menu_waiter(IDC_CONTENT_CONTEXT_SAVEIMAGEAS);
+  gfx::Point right_click_point = gfx::ToFlooredPoint(
+      content::GetCenterCoordinatesOfElementWithId(web_contents, "image"));
+  content::SimulateMouseClickAt(
+      web_contents, 0, blink::WebMouseEvent::Button::kRight, right_click_point);
+  context_menu_waiter.WaitForMenuOpenAndClose();
+  waiter.WaitForFinished();
+  EXPECT_EQ(1u, waiter.NumDownloadsSeenInState(DownloadItem::COMPLETE));
+  CheckDownloadStates(1, DownloadItem::COMPLETE);
+
+  // Validate that the correct file was downloaded via the context menu.
+  download_items.clear();
+  GetDownloads(browser(), &download_items);
+  EXPECT_TRUE(DidShowFileChooser());
+  ASSERT_EQ(1u, download_items.size());
+  ASSERT_EQ(jpeg_url, download_items[0]->GetOriginalUrl());
+}
+
+IN_PROC_BROWSER_TEST_F(DownloadTest, DownloadErrorsServer) {
   DownloadInfo download_info[] = {
       {// Normal navigated download.
        "a_zip_file.zip", "a_zip_file.zip", DOWNLOAD_NAVIGATE,
@@ -2825,7 +3272,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, MAYBE_DownloadErrorsServer) {
   DownloadFilesCheckErrors(std::size(download_info), download_info);
 }
 
-// TODO(crbug.com/1249757): Flaky on multiple platforms.
+// TODO(crbug.com/40197726): Flaky on multiple platforms.
 IN_PROC_BROWSER_TEST_F(DownloadTest, DISABLED_DownloadErrorsServerNavigate404) {
   DownloadInfo download_info[] = {
       {// Simulates clicking on <a href="http://..." download=""> where the URL
@@ -2998,6 +3445,31 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, DownloadDangerousBlobData) {
   EXPECT_EQ(1u, observer->NumDangerousDownloadsSeen());
 }
 
+IN_PROC_BROWSER_TEST_F(DownloadTest, OverrideLocalFileUrlAsNotDangerous) {
+  // We must override the mime type logic to a consistent, platform-independent
+  // value, so that the file can be downloaded instead of recognized as a
+  // supported mime type that is opened instead.
+  net::ScopedOverrideGetMimeTypeForTesting override_mime_type(
+      "application/x-some-type");
+
+  // Hack to strip the leading separator.
+  std::string file_path(DownloadTestBase::kDangerousMockFilePath);
+  file_path = file_path.substr(1);
+
+  // The dangerous file, when downloaded from a local file:// URL, should show
+  // up as "not dangerous" due to an override to file type policies.
+  base::FilePath source_file = GetTestDataDirectory().AppendASCII(file_path);
+  GURL url = net::FilePathToFileURL(source_file);
+
+  content::DownloadTestObserver* observer(DangerousDownloadWaiter(
+      browser(), 1, content::DownloadTestObserver::ON_DANGEROUS_DOWNLOAD_FAIL));
+  DownloadAndWait(browser(), url);
+  observer->WaitForFinished();
+
+  EXPECT_EQ(1u, observer->NumDownloadsSeenInState(DownloadItem::COMPLETE));
+  EXPECT_EQ(0u, observer->NumDangerousDownloadsSeen());
+}
+
 // A EmbeddedTestServer::HandleRequestCallback function that echoes the Referrer
 // header as its contents. Only responds to the relative URL /echoreferrer
 // E.g.:
@@ -3034,7 +3506,7 @@ IN_PROC_BROWSER_TEST_P(DownloadReferrerPolicyTest,
   embedded_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
   ASSERT_TRUE(embedded_test_server()->Start());
   EnableFileChooser(true);
-  std::vector<DownloadItem*> download_items;
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> download_items;
   GetDownloads(browser(), &download_items);
   ASSERT_TRUE(download_items.empty());
 
@@ -3113,7 +3585,7 @@ IN_PROC_BROWSER_TEST_P(DownloadReferrerPolicyTest, SaveLinkAsReferrerPolicy) {
       base::BindRepeating(&EchoReferrerRequestHandler));
   ASSERT_TRUE(embedded_test_server()->Start());
   EnableFileChooser(true);
-  std::vector<DownloadItem*> download_items;
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> download_items;
   GetDownloads(browser(), &download_items);
   ASSERT_TRUE(download_items.empty());
 
@@ -3187,25 +3659,16 @@ IN_PROC_BROWSER_TEST_P(DownloadReferrerPolicyTest, SaveLinkAsReferrerPolicy) {
   }
 }
 
-// TODO(crbug.com/1269422): Flaky on Lacros
-#if BUILDFLAG(IS_CHROMEOS)
-#define MAYBE_SaveLinkAsVsCrossOriginResourcePolicy \
-  DISABLED_SaveLinkAsVsCrossOriginResourcePolicy
-#else
-#define MAYBE_SaveLinkAsVsCrossOriginResourcePolicy \
-  SaveLinkAsVsCrossOriginResourcePolicy
-#endif
 // This test ensures that Cross-Origin-Resource-Policy response header doesn't
 // apply to download requests initiated via Save Link As context menu (such
 // requests are considered browser-initiated).  See also
 // https://crbug.com/952834.
-IN_PROC_BROWSER_TEST_F(DownloadTest,
-                       MAYBE_SaveLinkAsVsCrossOriginResourcePolicy) {
+IN_PROC_BROWSER_TEST_F(DownloadTest, SaveLinkAsVsCrossOriginResourcePolicy) {
   ASSERT_TRUE(embedded_test_server()->Start());
   EnableFileChooser(true);
 
   // Test's sanity check that initially there are no download items.
-  std::vector<DownloadItem*> download_items;
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> download_items;
   GetDownloads(browser(), &download_items);
   ASSERT_TRUE(download_items.empty());
 
@@ -3213,18 +3676,19 @@ IN_PROC_BROWSER_TEST_F(DownloadTest,
   // later.
   base::FilePath origin(OriginFile(base::FilePath(FILE_PATH_LITERAL(
       "downloads/cross-origin-resource-policy-resource.txt"))));
-  int64_t origin_file_size = 0;
+
+  std::optional<int64_t> origin_file_size;
   std::string original_contents;
   {
     base::ScopedAllowBlockingForTesting allow_blocking;
-    ASSERT_TRUE(base::PathExists(origin));
-    EXPECT_TRUE(base::GetFileSize(origin, &origin_file_size));
+    origin_file_size = base::GetFileSize(origin);
+    ASSERT_TRUE(origin_file_size.has_value());
     EXPECT_TRUE(base::ReadFileToString(origin, &original_contents));
   }
 
   // Navigate to the test page.
   GURL url = embedded_test_server()->GetURL(
-      "foo.com", "/downloads/cross-origin-resource-policy-test.html");
+      "a.test", "/downloads/cross-origin-resource-policy-test.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
 
   // Right-click on the link and choose Save Link As. This will download the
@@ -3262,12 +3726,12 @@ IN_PROC_BROWSER_TEST_F(DownloadTest,
   GetDownloads(browser(), &download_items);
   ASSERT_EQ(1u, download_items.size());
   GURL expected_original_url = embedded_test_server()->GetURL(
-      "foo.com",
-      "/cross-site/bar.com/downloads/"
+      "a.test",
+      "/cross-site/b.test/downloads/"
       "cross-origin-resource-policy-resource.txt");
   EXPECT_EQ(expected_original_url, download_items[0]->GetOriginalUrl());
   EXPECT_TRUE(VerifyFile(download_items[0]->GetTargetFilePath(),
-                         original_contents, origin_file_size));
+                         original_contents, origin_file_size.value()));
 }
 
 // This test ensures that the Referer header is properly sanitized when
@@ -3278,7 +3742,7 @@ IN_PROC_BROWSER_TEST_P(DownloadReferrerPolicyTest,
       base::BindRepeating(&EchoReferrerRequestHandler));
   ASSERT_TRUE(embedded_test_server()->Start());
   EnableFileChooser(true);
-  std::vector<DownloadItem*> download_items;
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> download_items;
   GetDownloads(browser(), &download_items);
   ASSERT_TRUE(download_items.empty());
 
@@ -3356,22 +3820,24 @@ IN_PROC_BROWSER_TEST_P(DownloadReferrerPolicyTest,
 // according to the referrer policy.
 IN_PROC_BROWSER_TEST_P(DownloadReferrerPolicyTest,
                        DownloadCrossDomainReferrerPolicy) {
-  embedded_test_server()->RegisterRequestHandler(
+  https_test_server()->RegisterRequestHandler(
       base::BindRepeating(&ServerRedirectRequestHandler));
-  embedded_test_server()->RegisterRequestHandler(
+  https_test_server()->RegisterRequestHandler(
       base::BindRepeating(&EchoReferrerRequestHandler));
-  embedded_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
-  ASSERT_TRUE(embedded_test_server()->Start());
+  https_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
+  ASSERT_TRUE(https_test_server()->Start());
   EnableFileChooser(true);
-  std::vector<DownloadItem*> download_items;
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> download_items;
   GetDownloads(browser(), &download_items);
   ASSERT_TRUE(download_items.empty());
 
   // Navigate to a page with a referrer policy and a link on it. The link points
   // to /echoreferrer.
-  GURL url = embedded_test_server()->GetURL(base::StringPrintf(
-      "/downloads/download_cross_referrer_policy.html?policy=%s",
-      content::ReferrerPolicyToString(referrer_policy()).c_str()));
+  GURL url = https_test_server()->GetURL(
+      "www.b.test",
+      base::StringPrintf(
+          "/downloads/download_cross_referrer_policy.html?policy=%s",
+          content::ReferrerPolicyToString(referrer_policy()).c_str()));
   ASSERT_TRUE(url.is_valid());
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
 
@@ -3406,7 +3872,7 @@ IN_PROC_BROWSER_TEST_P(DownloadReferrerPolicyTest,
   // Validate that the correct file was downloaded.
   GetDownloads(browser(), &download_items);
   ASSERT_EQ(1u, download_items.size());
-  ASSERT_EQ(embedded_test_server()->GetURL("www.a.com", "/echoreferrer"),
+  ASSERT_EQ(https_test_server()->GetURL("www.a.test", "/echoreferrer"),
             download_items[0]->GetURL());
 
   // Check that the file contains the expected referrer. The referrer is
@@ -3444,7 +3910,8 @@ IN_PROC_BROWSER_TEST_P(DownloadReferrerPolicyTest,
   }
 }
 
-IN_PROC_BROWSER_TEST_F(DownloadTest, TestMultipleDownloadsRequests) {
+// TODO(crbug.com/395491549): The test is flaky.
+IN_PROC_BROWSER_TEST_F(DownloadTest, DISABLED_TestMultipleDownloadsRequests) {
   // Create a downloads observer.
   std::unique_ptr<content::DownloadTestObserver> downloads_observer(
       CreateWaiter(browser(), 2));
@@ -3513,14 +3980,15 @@ IN_PROC_BROWSER_TEST_F(DownloadTest,
           &OnCanDownloadDecidedObserver::OnCanDownloadDecided,
           base::Unretained(&can_download_observer)));
 
-  embedded_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
-  ASSERT_TRUE(embedded_test_server()->Start());
-  GURL url = embedded_test_server()->GetURL(
+  https_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
+  ASSERT_TRUE(https_test_server()->Start());
+  GURL url = https_test_server()->GetURL(
+      "www.b.test",
       "/downloads/multiple_a_download_x_origin_redirect_to_download.html");
 
   base::StringPairs port_replacement;
-  port_replacement.push_back(std::make_pair(
-      "{{PORT}}", base::NumberToString(embedded_test_server()->port())));
+  port_replacement.emplace_back(
+      "{{PORT}}", base::NumberToString(https_test_server()->port()));
   std::string download_url = net::test_server::GetFilePathWithReplacements(
       "redirect_x_origin_download.html", port_replacement);
 
@@ -3555,14 +4023,15 @@ IN_PROC_BROWSER_TEST_F(DownloadTest,
           &OnCanDownloadDecidedObserver::OnCanDownloadDecided,
           base::Unretained(&can_download_observer)));
 
-  embedded_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
-  ASSERT_TRUE(embedded_test_server()->Start());
-  GURL url = embedded_test_server()->GetURL(
+  https_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
+  ASSERT_TRUE(https_test_server()->Start());
+  GURL url = https_test_server()->GetURL(
+      "www.b.test",
       "/downloads/multiple_a_download_x_origin_redirect_to_download.html");
 
   base::StringPairs port_replacement;
-  port_replacement.push_back(std::make_pair(
-      "{{PORT}}", base::NumberToString(embedded_test_server()->port())));
+  port_replacement.emplace_back(
+      "{{PORT}}", base::NumberToString(https_test_server()->port()));
   std::string download_url = net::test_server::GetFilePathWithReplacements(
       "redirect_x_origin_download.html", port_replacement);
 
@@ -3628,7 +4097,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, DownloadTest_Renaming) {
 #define MAYBE_DownloadTest_CrazyFilenames DownloadTest_CrazyFilenames
 #endif
 IN_PROC_BROWSER_TEST_F(DownloadTest, MAYBE_DownloadTest_CrazyFilenames) {
-  static constexpr const wchar_t* kCrazyFilenames[] = {
+  constexpr static const auto kCrazyFilenames = std::to_array<const wchar_t*>({
       L"a_file_name.zip",
       L"\u89c6\u9891\u76f4\u64ad\u56fe\u7247.zip",  // chinese chars
       (L"\u0412\u043e "
@@ -3650,9 +4119,9 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, MAYBE_DownloadTest_CrazyFilenames) {
       L"Wohoo-to hoo+I.zip",
       L"Picture 1.zip",
       L"This is a very very long english sentence with spaces and , and +.zip",
-  };
+  });
 
-  std::vector<DownloadItem*> download_items;
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> download_items;
   base::ScopedAllowBlockingForTesting allow_blocking;
   base::FilePath origin_directory =
       GetDownloadDirectory(browser()).Append(FILE_PATH_LITERAL("origin"));
@@ -3666,7 +4135,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, MAYBE_DownloadTest_CrazyFilenames) {
     base::FilePath file_path(origin_directory.Append(
 #if BUILDFLAG(IS_WIN)
         crazy_w
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX)
         crazy8
 #endif
         ));
@@ -3694,14 +4163,14 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, DownloadTest_Remove) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url = embedded_test_server()->GetURL("/downloads/a_zip_file.zip");
 
-  std::vector<DownloadItem*> download_items;
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> download_items;
   GetDownloads(browser(), &download_items);
   ASSERT_TRUE(download_items.empty());
 
   // Download a file.
   DownloadAndWaitWithDisposition(browser(), url,
                                  WindowOpenDisposition::CURRENT_TAB,
-                                 ui_test_utils::BROWSER_TEST_NONE);
+                                 ui_test_utils::BROWSER_TEST_NO_WAIT);
   GetDownloads(browser(), &download_items);
   ASSERT_EQ(1UL, download_items.size());
   base::FilePath downloaded(download_items[0]->GetTargetFilePath());
@@ -3737,9 +4206,11 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, DownloadTest_PauseResumeCancel) {
 // quarantining files on Mac because it is not a cocoa app.
 // TODO(benjhayden) test the equivalents on other platforms.
 
-#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)) && \
-    defined(ARCH_CPU_ARM_FAMILY)
+#if BUILDFLAG(IS_LINUX) && defined(ARCH_CPU_ARM_FAMILY)
 // Timing out on ARM linux: http://crbug.com/238459
+#define MAYBE_DownloadTest_PercentComplete DISABLED_DownloadTest_PercentComplete
+#elif BUILDFLAG(IS_WIN) && defined(ADDRESS_SANITIZER)
+// Stack overflow on Win/ASan: http://crbug.com/367746304
 #define MAYBE_DownloadTest_PercentComplete DISABLED_DownloadTest_PercentComplete
 #else
 #define MAYBE_DownloadTest_PercentComplete DownloadTest_PercentComplete
@@ -3771,11 +4242,11 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, MAYBE_DownloadTest_PercentComplete) {
   // Start downloading a file, wait for it to be created.
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), url, WindowOpenDisposition::CURRENT_TAB,
-      ui_test_utils::BROWSER_TEST_NONE);
+      ui_test_utils::BROWSER_TEST_NO_WAIT);
   progress_waiter->WaitForFinished();
   EXPECT_EQ(1u, progress_waiter->NumDownloadsSeenInState(
       DownloadItem::IN_PROGRESS));
-  std::vector<DownloadItem*> download_items;
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> download_items;
   GetDownloads(browser(), &download_items);
   ASSERT_EQ(1u, download_items.size());
 
@@ -4002,7 +4473,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, FileExistenceCheckOpeningDownloadsPage) {
   // Download the file and wait.  We do not expect the Select File dialog.
   DownloadAndWait(browser(), url);
 
-  std::vector<DownloadItem*> downloads;
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> downloads;
   DownloadManagerForBrowser(browser())->GetAllDownloads(&downloads);
   ASSERT_EQ(1u, downloads.size());
   DownloadItem* item = downloads[0];
@@ -4065,12 +4536,12 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, CrossOriginDownloadNavigatesIframe) {
   std::u16string failed_title(u"Loaded as main frame");
   content::TitleWatcher title_watcher(web_contents, expected_title);
   title_watcher.AlsoWaitForTitle(failed_title);
-  render_frame_host->ExecuteJavaScriptForTests(u"runTest();",
-                                               base::NullCallback());
+  render_frame_host->ExecuteJavaScriptForTests(
+      u"runTest();", base::NullCallback(), content::ISOLATED_WORLD_ID_GLOBAL);
   ASSERT_EQ(expected_title, title_watcher.WaitAndGetTitle());
 
   // Also verify that there's no download.
-  std::vector<DownloadItem*> downloads;
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> downloads;
   DownloadManagerForBrowser(browser())->GetAllDownloads(&downloads);
   ASSERT_EQ(0u, downloads.size());
 
@@ -4126,7 +4597,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, DISABLED_DownloadLargeDataURL) {
       1u, completion_observer->NumDownloadsSeenInState(DownloadItem::COMPLETE));
 
   // Validate that the correct file was downloaded via the context menu.
-  std::vector<DownloadItem*> download_items;
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> download_items;
   GetDownloads(browser(), &download_items);
   ASSERT_EQ(base::FilePath(FILE_PATH_LITERAL("large.png")),
             download_items[0]->GetFileNameToReportUser());
@@ -4209,8 +4680,8 @@ IN_PROC_BROWSER_TEST_F(InProgressDownloadTest,
   base::ScopedAllowBlockingForTesting allow_blocking;
   ASSERT_TRUE(base::PathExists(origin));
   // Gets the file size.
-  int64_t origin_file_size = 0;
-  EXPECT_TRUE(base::GetFileSize(origin, &origin_file_size));
+  std::optional<int64_t> origin_file_size = base::GetFileSize(origin);
+  ASSERT_TRUE(origin_file_size.has_value());
   std::string guid = base::Uuid::GenerateRandomV4().AsLowercaseString();
 
   // Wait for in-progress download manager to initialize.
@@ -4237,8 +4708,9 @@ IN_PROC_BROWSER_TEST_F(InProgressDownloadTest,
           GURL() /* tab_referrer_url */, url::Origin() /* request_initiator */,
           "" /* mime_type */, "" /* original_mime_type */, current_time,
           current_time, "" /* etag */, "" /* last_modified */,
-          0 /* received_bytes */, origin_file_size, 0 /* auto_resume_count */,
-          "" /* hash */, download::DownloadItem::INTERRUPTED,
+          0 /* received_bytes */, origin_file_size.value(),
+          0 /* auto_resume_count */, "" /* hash */,
+          download::DownloadItem::INTERRUPTED,
           download::DOWNLOAD_DANGER_TYPE_USER_VALIDATED,
           download::DOWNLOAD_INTERRUPT_REASON_CRASH, false /* paused */,
           false /* allow_metered */, false /* opened */, current_time,
@@ -4258,9 +4730,9 @@ IN_PROC_BROWSER_TEST_F(InProgressDownloadTest,
   // Resume the download first, before download history loads.
   download->Resume(true);
   // Now simulate that history DB is loaded.
-  manager->OnHistoryQueryComplete(
-      base::BindOnce(CreateCompletedDownload, base::Unretained(manager), guid,
-                     target_path, std::move(url_chain), origin_file_size));
+  manager->OnHistoryQueryComplete(base::BindOnce(
+      CreateCompletedDownload, base::Unretained(manager), guid, target_path,
+      std::move(url_chain), origin_file_size.value()));
   // Download should continue and complete.
   ASSERT_TRUE(waiter.WaitForFinished());
   download::DownloadItem* history_download = manager->GetDownloadByGuid(guid);
@@ -4416,14 +4888,14 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, ContextMenuSaveImageWithAcceptHeader) {
       ->GetWidget()
       ->ForwardMouseEvent(mouse_event);
   waiter->WaitForFinished();
-  std::string accept_header;
-  headers.GetHeader(net::HttpRequestHeaders::kAccept, &accept_header);
-  EXPECT_EQ(accept_header, blink::network_utils::ImageAcceptHeader());
+  EXPECT_EQ(headers.GetHeader(net::HttpRequestHeaders::kAccept)
+                .value_or(std::string()),
+            blink::network_utils::ImageAcceptHeader());
   EXPECT_EQ(1u, waiter->NumDownloadsSeenInState(DownloadItem::COMPLETE));
   CheckDownloadStates(1, DownloadItem::COMPLETE);
 }
 
-#if BUILDFLAG(FULL_SAFE_BROWSING)
+#if BUILDFLAG(SAFE_BROWSING_DOWNLOAD_PROTECTION)
 
 namespace {
 
@@ -4443,7 +4915,7 @@ class DisableSafeBrowsingOnInProgressDownload
         final_state_seen_(false) {
     Init();
   }
-  ~DisableSafeBrowsingOnInProgressDownload() override {}
+  ~DisableSafeBrowsingOnInProgressDownload() override = default;
 
   bool IsDownloadInFinalState(DownloadItem* download) override {
     if (download->GetState() != DownloadItem::IN_PROGRESS ||
@@ -4469,13 +4941,6 @@ class DisableSafeBrowsingOnInProgressDownload
   bool final_state_seen_;
 };
 
-#if BUILDFLAG(IS_WIN)
-const char kDangerousMockFilePath[] = "/downloads/dangerous/dangerous.exe";
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
-// TODO(crbug.com/1264058): Find an actually "dangerous" extension for Fuchsia.
-const char kDangerousMockFilePath[] = "/downloads/dangerous/dangerous.sh";
-#endif
-
 }  // namespace
 
 IN_PROC_BROWSER_TEST_F(DownloadTest,
@@ -4484,7 +4949,8 @@ IN_PROC_BROWSER_TEST_F(DownloadTest,
                                                true);
   embedded_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
   ASSERT_TRUE(embedded_test_server()->Start());
-  GURL download_url = embedded_test_server()->GetURL(kDangerousMockFilePath);
+  GURL download_url =
+      embedded_test_server()->GetURL(DownloadTestBase::kDangerousMockFilePath);
 
   std::unique_ptr<content::DownloadTestObserver> dangerous_observer(
       DangerousDownloadWaiter(
@@ -4494,14 +4960,14 @@ IN_PROC_BROWSER_TEST_F(DownloadTest,
       new DisableSafeBrowsingOnInProgressDownload(browser()));
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), download_url, WindowOpenDisposition::NEW_BACKGROUND_TAB,
-      ui_test_utils::BROWSER_TEST_NONE);
+      ui_test_utils::BROWSER_TEST_NO_WAIT);
   in_progress_observer->WaitForFinished();
 
   // SafeBrowsing should have been disabled by our observer.
   ASSERT_FALSE(browser()->profile()->GetPrefs()->GetBoolean(
       prefs::kSafeBrowsingEnabled));
 
-  std::vector<DownloadItem*> downloads;
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> downloads;
   DownloadManagerForBrowser(browser())->GetAllDownloads(&downloads);
   ASSERT_EQ(1u, downloads.size());
   DownloadItem* download = downloads[0];
@@ -4520,7 +4986,8 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, DangerousFileWithSBDisabledBeforeStart) {
                                                false);
   embedded_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
   ASSERT_TRUE(embedded_test_server()->Start());
-  GURL download_url = embedded_test_server()->GetURL(kDangerousMockFilePath);
+  GURL download_url =
+      embedded_test_server()->GetURL(DownloadTestBase::kDangerousMockFilePath);
 
   std::unique_ptr<content::DownloadTestObserver> dangerous_observer(
       DangerousDownloadWaiter(
@@ -4528,10 +4995,10 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, DangerousFileWithSBDisabledBeforeStart) {
           content::DownloadTestObserver::ON_DANGEROUS_DOWNLOAD_QUIT));
   ui_test_utils::NavigateToURLWithDisposition(
       browser(), download_url, WindowOpenDisposition::NEW_BACKGROUND_TAB,
-      ui_test_utils::BROWSER_TEST_NONE);
+      ui_test_utils::BROWSER_TEST_NO_WAIT);
   dangerous_observer->WaitForFinished();
 
-  std::vector<DownloadItem*> downloads;
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> downloads;
   DownloadManagerForBrowser(browser())->GetAllDownloads(&downloads);
   ASSERT_EQ(1u, downloads.size());
 
@@ -4551,7 +5018,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, SafeSupportedFile) {
 
   DownloadAndWait(browser(), download_url);
 
-  std::vector<DownloadItem*> downloads;
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> downloads;
   DownloadManagerForBrowser(browser())->GetAllDownloads(&downloads);
   ASSERT_EQ(1u, downloads.size());
 
@@ -4563,131 +5030,6 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, SafeSupportedFile) {
   download->Cancel(true);
 }
 
-IN_PROC_BROWSER_TEST_F(DownloadTest, FeedbackServiceDiscardDownload) {
-  safe_browsing::FileTypePoliciesTestOverlay scoped_dangerous =
-      safe_browsing::ScopedMarkAllFilesDangerousForTesting();
-
-  PrefService* prefs = browser()->profile()->GetPrefs();
-  prefs->SetBoolean(prefs::kSafeBrowsingEnabled, true);
-  safe_browsing::SetExtendedReportingPrefForTests(prefs, true);
-
-  // Make a dangerous file.
-  embedded_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
-  ASSERT_TRUE(embedded_test_server()->Start());
-  GURL download_url =
-      embedded_test_server()->GetURL("/downloads/dangerous/dangerous.swf");
-  std::unique_ptr<content::DownloadTestObserverInterrupted> observer(
-      new content::DownloadTestObserverInterrupted(
-          DownloadManagerForBrowser(browser()), 1,
-          content::DownloadTestObserver::ON_DANGEROUS_DOWNLOAD_QUIT));
-  ui_test_utils::NavigateToURLWithDisposition(
-      browser(), download_url, WindowOpenDisposition::NEW_BACKGROUND_TAB,
-      ui_test_utils::BROWSER_TEST_NONE);
-  observer->WaitForFinished();
-
-  // Get the download from the DownloadManager.
-  std::vector<DownloadItem*> downloads;
-  DownloadManagerForBrowser(browser())->GetAllDownloads(&downloads);
-  ASSERT_EQ(1u, downloads.size());
-  EXPECT_TRUE(downloads[0]->IsDangerous());
-
-  // Save fake pings for the download.
-  safe_browsing::ClientDownloadReport fake_metadata;
-  fake_metadata.mutable_download_request()->set_url("http://test");
-  fake_metadata.mutable_download_request()->set_length(1);
-  fake_metadata.mutable_download_request()->mutable_digests()->set_sha1("hi");
-  fake_metadata.mutable_download_response()->set_verdict(
-      safe_browsing::ClientDownloadResponse::UNCOMMON);
-  std::string ping_request(
-      fake_metadata.download_request().SerializeAsString());
-  std::string ping_response(
-      fake_metadata.download_response().SerializeAsString());
-  safe_browsing::DownloadFeedbackService::MaybeStorePingsForDownload(
-      safe_browsing::DownloadCheckResult::UNCOMMON, true /* upload_requested */,
-      downloads[0], ping_request, ping_response);
-  ASSERT_TRUE(safe_browsing::DownloadFeedbackService::IsEnabledForDownload(
-      *(downloads[0])));
-
-  // Begin feedback and check that the file is "stolen".
-  DownloadItemModel model(downloads[0]);
-  DownloadCommands(model.GetWeakPtr())
-      .ExecuteCommand(DownloadCommands::DISCARD);
-  std::vector<DownloadItem*> updated_downloads;
-  GetDownloads(browser(), &updated_downloads);
-  ASSERT_TRUE(updated_downloads.empty());
-}
-
-// TODO the test is flaky on Mac. See https://crbug.com/1345657.
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_FeedbackServiceKeepDownload DISABLED_FeedbackServiceKeepDownload
-#else
-#define MAYBE_FeedbackServiceKeepDownload FeedbackServiceKeepDownload
-#endif
-IN_PROC_BROWSER_TEST_F(DownloadTest, MAYBE_FeedbackServiceKeepDownload) {
-  // Make all file types DANGEROUS for testing.
-  safe_browsing::FileTypePoliciesTestOverlay scoped_dangerous =
-      safe_browsing::ScopedMarkAllFilesDangerousForTesting();
-
-  PrefService* prefs = browser()->profile()->GetPrefs();
-  prefs->SetBoolean(prefs::kSafeBrowsingEnabled, true);
-  safe_browsing::SetExtendedReportingPrefForTests(prefs, true);
-
-  // Make a dangerous file.
-  embedded_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
-  ASSERT_TRUE(embedded_test_server()->Start());
-  GURL download_url =
-      embedded_test_server()->GetURL("/downloads/dangerous/dangerous.swf");
-
-  std::unique_ptr<content::DownloadTestObserverInterrupted>
-      interruption_observer(new content::DownloadTestObserverInterrupted(
-          DownloadManagerForBrowser(browser()), 1,
-          content::DownloadTestObserver::ON_DANGEROUS_DOWNLOAD_QUIT));
-  std::unique_ptr<content::DownloadTestObserver> completion_observer(
-      new content::DownloadTestObserverTerminal(
-          DownloadManagerForBrowser(browser()), 1,
-          content::DownloadTestObserver::ON_DANGEROUS_DOWNLOAD_IGNORE));
-  ui_test_utils::NavigateToURLWithDisposition(
-      browser(), download_url, WindowOpenDisposition::NEW_BACKGROUND_TAB,
-      ui_test_utils::BROWSER_TEST_NONE);
-  interruption_observer->WaitForFinished();
-
-  // Get the download from the DownloadManager.
-  std::vector<DownloadItem*> downloads;
-  DownloadManagerForBrowser(browser())->GetAllDownloads(&downloads);
-  ASSERT_EQ(1u, downloads.size());
-  EXPECT_TRUE(downloads[0]->IsDangerous());
-
-  // Save fake pings for the download.
-  safe_browsing::ClientDownloadReport fake_metadata;
-  fake_metadata.mutable_download_request()->set_url("http://test");
-  fake_metadata.mutable_download_request()->set_length(1);
-  fake_metadata.mutable_download_request()->mutable_digests()->set_sha1("hi");
-  fake_metadata.mutable_download_response()->set_verdict(
-      safe_browsing::ClientDownloadResponse::UNCOMMON);
-  std::string ping_request(
-      fake_metadata.download_request().SerializeAsString());
-  std::string ping_response(
-      fake_metadata.download_response().SerializeAsString());
-  safe_browsing::DownloadFeedbackService::MaybeStorePingsForDownload(
-      safe_browsing::DownloadCheckResult::UNCOMMON, true /* upload_requested */,
-      downloads[0], ping_request, ping_response);
-  ASSERT_TRUE(safe_browsing::DownloadFeedbackService::IsEnabledForDownload(
-      *(downloads[0])));
-
-  // Begin feedback and check that file is still there.
-  DownloadItemModel model(downloads[0]);
-  DownloadCommands(model.GetWeakPtr()).ExecuteCommand(DownloadCommands::KEEP);
-  completion_observer->WaitForFinished();
-
-  std::vector<DownloadItem*> updated_downloads;
-  GetDownloads(browser(), &updated_downloads);
-  ASSERT_EQ(std::size_t(1), updated_downloads.size());
-  ASSERT_FALSE(updated_downloads[0]->IsDangerous());
-  base::ScopedAllowBlockingForTesting allow_blocking;
-  ASSERT_TRUE(PathExists(updated_downloads[0]->GetTargetFilePath()));
-  updated_downloads[0]->Cancel(true);
-}
-
 IN_PROC_BROWSER_TEST_F(DownloadTestWithFakeSafeBrowsing,
                        SendUncommonDownloadReportIfUserProceed) {
   browser()->profile()->GetPrefs()->SetBoolean(prefs::kSafeBrowsingEnabled,
@@ -4695,7 +5037,8 @@ IN_PROC_BROWSER_TEST_F(DownloadTestWithFakeSafeBrowsing,
   // Make a dangerous file.
   embedded_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
   ASSERT_TRUE(embedded_test_server()->Start());
-  GURL download_url = embedded_test_server()->GetURL(kDangerousMockFilePath);
+  GURL download_url =
+      embedded_test_server()->GetURL(DownloadTestBase::kDangerousMockFilePath);
 
   std::unique_ptr<content::DownloadTestObserver> dangerous_observer(
       DangerousDownloadWaiter(
@@ -4704,7 +5047,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTestWithFakeSafeBrowsing,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), download_url));
   dangerous_observer->WaitForFinished();
 
-  std::vector<DownloadItem*> downloads;
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> downloads;
   DownloadManagerForBrowser(browser())->GetAllDownloads(&downloads);
   ASSERT_EQ(1u, downloads.size());
   DownloadItem* download = downloads[0];
@@ -4714,7 +5057,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTestWithFakeSafeBrowsing,
   safe_browsing::ClientSafeBrowsingReportRequest actual_report;
   actual_report.ParseFromString(
       test_safe_browsing_factory_->fake_safe_browsing_service()
-          ->serilized_download_report());
+          ->serialized_download_report());
   EXPECT_EQ(safe_browsing::ClientSafeBrowsingReportRequest::
                 DANGEROUS_DOWNLOAD_WARNING,
             actual_report.type());
@@ -4726,15 +5069,22 @@ IN_PROC_BROWSER_TEST_F(DownloadTestWithFakeSafeBrowsing,
   download->Cancel(true);
 }
 
-IN_PROC_BROWSER_TEST_F(
-     DownloadTestWithFakeSafeBrowsing,
-     NoUncommonDownloadReportWithoutUserProceed) {
+IN_PROC_BROWSER_TEST_F(DownloadTestWithFakeSafeBrowsing,
+                       SendDownloadReportIfUserProceedsDeepScanning) {
   browser()->profile()->GetPrefs()->SetBoolean(prefs::kSafeBrowsingEnabled,
                                                true);
   // Make a dangerous file.
   embedded_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
   ASSERT_TRUE(embedded_test_server()->Start());
-  GURL download_url = embedded_test_server()->GetURL(kDangerousMockFilePath);
+  GURL download_url =
+      embedded_test_server()->GetURL(DownloadTestBase::kDangerousMockFilePath);
+  auto* download_protection_service =
+      static_cast<FakeDownloadProtectionService*>(
+          g_browser_process->safe_browsing_service()
+              ->download_protection_service());
+  download_protection_service->SetFakeResponse(
+      safe_browsing::DownloadCheckResult::PROMPT_FOR_SCANNING,
+      safe_browsing::ClientDownloadResponse::UNCOMMON);
   std::unique_ptr<content::DownloadTestObserver> dangerous_observer(
       DangerousDownloadWaiter(
           browser(), 1,
@@ -4742,58 +5092,43 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), download_url));
   dangerous_observer->WaitForFinished();
 
-  std::vector<DownloadItem*> downloads;
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> downloads;
   DownloadManagerForBrowser(browser())->GetAllDownloads(&downloads);
   ASSERT_EQ(1u, downloads.size());
   DownloadItem* download = downloads[0];
   DownloadItemModel model(download);
   DownloadCommands(model.GetWeakPtr())
-      .ExecuteCommand(DownloadCommands::DISCARD);
+      .ExecuteCommand(DownloadCommands::BYPASS_DEEP_SCANNING);
 
-  EXPECT_TRUE(test_safe_browsing_factory_->fake_safe_browsing_service()
-                  ->serilized_download_report()
-                  .empty());
+  safe_browsing::ClientSafeBrowsingReportRequest actual_report;
+  actual_report.ParseFromString(
+      test_safe_browsing_factory_->fake_safe_browsing_service()
+          ->serialized_download_report());
+  EXPECT_EQ(safe_browsing::ClientSafeBrowsingReportRequest::
+                DANGEROUS_DOWNLOAD_WARNING,
+            actual_report.type());
+  EXPECT_EQ(safe_browsing::ClientDownloadResponse::UNCOMMON,
+            actual_report.download_verdict());
+  EXPECT_EQ(download_url.spec(), actual_report.url());
+  EXPECT_TRUE(actual_report.did_proceed());
+
+  // Trying to quit when the download hasn't completed will show a "Continue
+  // downloading?" prompt, and the test will timeout trying to quit. Instead
+  // wait for the download to complete before quitting.
+  std::unique_ptr<content::DownloadTestObserver> completed_observer(
+      CreateWaiter(browser(), 1));
+  completed_observer->WaitForFinished();
 }
 
 IN_PROC_BROWSER_TEST_F(DownloadTestWithFakeSafeBrowsing,
-                       NoUncommonDownloadReportIfIncognito) {
-  Browser* incognito_browser = CreateIncognitoBrowser();
-  incognito_browser->profile()->GetPrefs()->SetBoolean(
-      prefs::kSafeBrowsingEnabled, true);
-  // Make a dangerous file.
-  embedded_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
-  ASSERT_TRUE(embedded_test_server()->Start());
-  GURL download_url = embedded_test_server()->GetURL(kDangerousMockFilePath);
-
-  std::unique_ptr<content::DownloadTestObserver> dangerous_observer(
-      DangerousDownloadWaiter(
-          incognito_browser, 1,
-          content::DownloadTestObserver::ON_DANGEROUS_DOWNLOAD_QUIT));
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(incognito_browser, download_url));
-  dangerous_observer->WaitForFinished();
-
-  std::vector<DownloadItem*> downloads;
-  DownloadManagerForBrowser(incognito_browser)->GetAllDownloads(&downloads);
-  ASSERT_EQ(1u, downloads.size());
-  DownloadItem* download = downloads[0];
-  DownloadItemModel model(download);
-  DownloadCommands(model.GetWeakPtr()).ExecuteCommand(DownloadCommands::KEEP);
-
-  EXPECT_TRUE(test_safe_browsing_factory_->fake_safe_browsing_service()
-                  ->serilized_download_report()
-                  .empty());
-
-  download->Cancel(true);
-}
-
-IN_PROC_BROWSER_TEST_F(DownloadTestWithFakeSafeBrowsingNewCsbrrTrigger,
                        SendUncommonDownloadReportIfUserDiscard) {
   browser()->profile()->GetPrefs()->SetBoolean(prefs::kSafeBrowsingEnabled,
                                                true);
   // Make a dangerous file.
   embedded_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
   ASSERT_TRUE(embedded_test_server()->Start());
-  GURL download_url = embedded_test_server()->GetURL(kDangerousMockFilePath);
+  GURL download_url =
+      embedded_test_server()->GetURL(DownloadTestBase::kDangerousMockFilePath);
   std::unique_ptr<content::DownloadTestObserver> dangerous_observer(
       DangerousDownloadWaiter(
           browser(), 1,
@@ -4801,7 +5136,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTestWithFakeSafeBrowsingNewCsbrrTrigger,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), download_url));
   dangerous_observer->WaitForFinished();
 
-  std::vector<DownloadItem*> downloads;
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> downloads;
   DownloadManagerForBrowser(browser())->GetAllDownloads(&downloads);
   ASSERT_EQ(1u, downloads.size());
   DownloadItem* download = downloads[0];
@@ -4812,7 +5147,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTestWithFakeSafeBrowsingNewCsbrrTrigger,
   safe_browsing::ClientSafeBrowsingReportRequest actual_report;
   actual_report.ParseFromString(
       test_safe_browsing_factory_->fake_safe_browsing_service()
-          ->serilized_download_report());
+          ->serialized_download_report());
   EXPECT_EQ(safe_browsing::ClientSafeBrowsingReportRequest::
                 DANGEROUS_DOWNLOAD_WARNING,
             actual_report.type());
@@ -4822,13 +5157,17 @@ IN_PROC_BROWSER_TEST_F(DownloadTestWithFakeSafeBrowsingNewCsbrrTrigger,
   EXPECT_FALSE(actual_report.did_proceed());
 }
 
-#endif  // FULL_SAFE_BROWSING
+#endif  // SAFE_BROWSING_DOWNLOAD_PROTECTION
 
 // The rest of these tests rely on the download surface, which ChromeOS doesn't
 // use (crbug.com/1323505 is tracking Download Bubble on ChromeOS).
 #if !BUILDFLAG(IS_CHROMEOS)
 // Test that the download surface is shown by starting a download.
-IN_PROC_BROWSER_TEST_F(DownloadTest, DownloadAndWait) {
+//
+// TODO(crbug.com/40266279): This test is flaky. Perhaps because it depends on
+// focus, in which case it should be an interactive ui test instead of a
+// browser test?
+IN_PROC_BROWSER_TEST_F(DownloadTest, DISABLED_DownloadAndWait) {
   embedded_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url = embedded_test_server()->GetURL("/downloads/a_zip_file.zip");
@@ -4836,23 +5175,15 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, DownloadAndWait) {
   DownloadAndWait(browser(), url);
 
   // The download surface should be visible.
-  EXPECT_TRUE(IsDownloadSurfaceVisible(browser()->window()));
+  EXPECT_TRUE(IsDownloadDetailedUiVisible(browser()->window()));
 }
 
-class DownloadShelfTest : public DownloadTest {
- public:
-  DownloadShelfTest() {
-    feature_list_.InitAndDisableFeature(safe_browsing::kDownloadBubble);
-  }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
-
+// Tests for the download shelf.
+#if BUILDFLAG(IS_CHROMEOS)
 // Test that the download shelf is per-window by starting a download in one
 // tab, opening a second tab, closing the shelf, going back to the first tab,
 // and checking that the shelf is closed.
-IN_PROC_BROWSER_TEST_F(DownloadShelfTest, PerWindowShelf) {
+IN_PROC_BROWSER_TEST_F(DownloadTest, PerWindowShelf) {
   embedded_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url = embedded_test_server()->GetURL("/download-test3.gif");
@@ -4891,7 +5222,7 @@ IN_PROC_BROWSER_TEST_F(DownloadShelfTest, PerWindowShelf) {
 
 // Check whether the downloads shelf is closed when the downloads tab is
 // invoked.
-IN_PROC_BROWSER_TEST_F(DownloadShelfTest, CloseShelfOnDownloadsTab) {
+IN_PROC_BROWSER_TEST_F(DownloadTest, CloseShelfOnDownloadsTab) {
   embedded_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url =
@@ -4909,6 +5240,7 @@ IN_PROC_BROWSER_TEST_F(DownloadShelfTest, CloseShelfOnDownloadsTab) {
   // The download shelf should now be closed.
   EXPECT_FALSE(browser()->window()->IsDownloadShelfVisible());
 }
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 // Flaky. crbug.com/1383009
 // Test that when downloading an item in Incognito mode, the download surface is
@@ -4930,10 +5262,10 @@ IN_PROC_BROWSER_TEST_F(DownloadTest,
   DownloadAndWait(incognito, url);
 
   // Verify that the download surface is showing for the Incognito window.
-  EXPECT_TRUE(IsDownloadSurfaceVisible(incognito->window()));
+  EXPECT_TRUE(IsDownloadDetailedUiVisible(incognito->window()));
 
   // Verify that the regular window does not have a download surface.
-  EXPECT_FALSE(IsDownloadSurfaceVisible(browser()->window()));
+  EXPECT_FALSE(IsDownloadDetailedUiVisible(browser()->window()));
 }
 
 // Download a file in a new window.
@@ -4943,7 +5275,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTest,
 // Verify that we have 1 window, and the download surface is not visible.
 //
 // Regression test for http://crbug.com/44454
-// TODO(crbug.com/1427917): Flaky on Linux.
+// TODO(crbug.com/40262026): Flaky on Linux.
 #if BUILDFLAG(IS_LINUX)
 #define MAYBE_NewWindow DISABLED_NewWindow
 #else
@@ -4960,14 +5292,14 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, MAYBE_NewWindow) {
   // Download a file in a new window and wait.
   DownloadAndWaitWithDisposition(browser(), url,
                                  WindowOpenDisposition::NEW_WINDOW,
-                                 ui_test_utils::BROWSER_TEST_NONE);
+                                 ui_test_utils::BROWSER_TEST_NO_WAIT);
 
   // When the download finishes, the download surface SHOULD NOT be visible in
   // the first window.
   ExpectWindowCountAfterDownload(2);
   EXPECT_EQ(1, browser()->tab_strip_model()->count());
   // Download surface should close.
-  EXPECT_FALSE(IsDownloadSurfaceVisible(browser()->window()));
+  EXPECT_FALSE(IsDownloadDetailedUiVisible(browser()->window()));
 
   // The download surface SHOULD be visible in the second window.
   std::set<Browser*> original_browsers;
@@ -4977,7 +5309,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, MAYBE_NewWindow) {
   ASSERT_TRUE(download_browser);
   EXPECT_NE(download_browser, browser());
   EXPECT_EQ(1, download_browser->tab_strip_model()->count());
-  EXPECT_TRUE(IsDownloadSurfaceVisible(download_browser->window()));
+  EXPECT_TRUE(IsDownloadDetailedUiVisible(download_browser->window()));
 
   // Close the new window.
   chrome::CloseWindow(download_browser);
@@ -4988,7 +5320,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, MAYBE_NewWindow) {
 
   EXPECT_EQ(1, browser()->tab_strip_model()->count());
   // Download surface should close.
-  EXPECT_FALSE(IsDownloadSurfaceVisible(browser()->window()));
+  EXPECT_FALSE(IsDownloadDetailedUiVisible(browser()->window()));
 
   base::FilePath file(FILE_PATH_LITERAL("download-test1.lib"));
   CheckDownload(browser(), file, file);
@@ -5004,11 +5336,11 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, PRE_DownloadTest_History) {
   HistoryObserver observer(browser()->profile());
   DownloadAndWait(browser(), download_url);
   observer.WaitForStored();
+  base::RunLoop run_loop;
   HistoryServiceFactory::GetForProfile(browser()->profile(),
                                        ServiceAccessType::IMPLICIT_ACCESS)
-      ->FlushForTest(
-          base::BindOnce(&base::RunLoop::QuitCurrentWhenIdleDeprecated));
-  content::RunMessageLoop();
+      ->FlushForTest(run_loop.QuitWhenIdleClosure());
+  run_loop.Run();
 }
 
 IN_PROC_BROWSER_TEST_F(DownloadTest, DownloadTest_History) {
@@ -5019,7 +5351,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, DownloadTest_History) {
   GURL download_url =
       embedded_test_server()->GetURL("/" + std::string(kDownloadTest1Path));
 
-  std::vector<DownloadItem*> downloads;
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> downloads;
   content::DownloadManager* manager = DownloadManagerForBrowser(browser());
 
   // Wait for the history to be loaded with a single DownloadItem. Check that
@@ -5046,7 +5378,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, DownloadTest_History) {
 
   // Downloads that were restored from history shouldn't cause the download
   // surface to be displayed.
-  EXPECT_FALSE(IsDownloadSurfaceVisible(browser()->window()));
+  EXPECT_FALSE(IsDownloadDetailedUiVisible(browser()->window()));
 }
 
 IN_PROC_BROWSER_TEST_F(DownloadTest, HiddenDownload) {
@@ -5072,7 +5404,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, HiddenDownload) {
   observer->WaitForFinished();
 
   // Verify that download surface is not shown.
-  EXPECT_FALSE(IsDownloadSurfaceVisible(browser()->window()));
+  EXPECT_FALSE(IsDownloadDetailedUiVisible(browser()->window()));
 }
 
 // High flake rate; https://crbug.com/1247392.
@@ -5088,7 +5420,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, DISABLED_AutoOpenClosesSurface) {
   DownloadAndWait(browser(), url);
 
   // Download surface should close.
-  EXPECT_FALSE(IsDownloadSurfaceVisible(browser()->window()));
+  EXPECT_FALSE(IsDownloadDetailedUiVisible(browser()->window()));
 }
 
 IN_PROC_BROWSER_TEST_F(DownloadTest, CrxDenyInstallClosesSurface) {
@@ -5111,6 +5443,68 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, CrxDenyInstallClosesSurface) {
   observer->WaitForFinished();
 
   // Download surface should close.
-  EXPECT_FALSE(IsDownloadSurfaceVisible(browser()->window()));
+  EXPECT_FALSE(IsDownloadDetailedUiVisible(browser()->window()));
 }
-#endif  // BUILDFLAG(IS_CHROMEOS)
+
+// Test that the download UI surface only shows on the appropriate window for a
+// web app.
+IN_PROC_BROWSER_TEST_F(DownloadTest, WebAppDownloadOnlyShowsUiInWebAppWindow) {
+  embedded_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url = embedded_test_server()->GetURL("/downloads/a_zip_file.zip");
+
+  // Load an app.
+  webapps::AppId app_id = web_app::test::InstallDummyWebApp(
+      browser()->profile(), "testapp", embedded_test_server()->GetURL("/"));
+  Browser* app_browser =
+      web_app::LaunchWebAppBrowserAndWait(browser()->profile(), app_id);
+
+  DownloadAndWait(app_browser, url);
+
+  EXPECT_FALSE(IsDownloadUiVisible(browser()->window()));
+  EXPECT_TRUE(IsDownloadUiVisible(app_browser->window()));
+}
+
+// Test that the download UI surface only does not show in a web app window
+// for a regular Chrome window's downloads, even if it is the same domain.
+IN_PROC_BROWSER_TEST_F(DownloadTest,
+                       RegularBrowserDownloadDoesNotShowInWebAppWindow) {
+  embedded_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url = embedded_test_server()->GetURL("/downloads/a_zip_file.zip");
+
+  // Load an app.
+  webapps::AppId app_id = web_app::test::InstallDummyWebApp(
+      browser()->profile(), "testapp", embedded_test_server()->GetURL("/"));
+  Browser* app_browser =
+      web_app::LaunchWebAppBrowserAndWait(browser()->profile(), app_id);
+
+  DownloadAndWait(browser(), url);
+
+  EXPECT_TRUE(IsDownloadUiVisible(browser()->window()));
+  EXPECT_FALSE(IsDownloadUiVisible(app_browser->window()));
+}
+#endif  // !BUILDFLAG(IS_CHROMEOS)
+
+// Test that web app info is properly attached to the download.
+IN_PROC_BROWSER_TEST_F(DownloadTest, DownloadFromWebApp) {
+  embedded_test_server()->ServeFilesFromDirectory(GetTestDataDirectory());
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url = embedded_test_server()->GetURL("/downloads/a_zip_file.zip");
+
+  // Load an app.
+  webapps::AppId app_id = web_app::test::InstallDummyWebApp(
+      browser()->profile(), "testapp", embedded_test_server()->GetURL("/"));
+  Browser* app_browser =
+      web_app::LaunchWebAppBrowserAndWait(browser()->profile(), app_id);
+
+  DownloadAndWait(app_browser, url);
+
+  DownloadManager* manager = DownloadManagerForBrowser(app_browser);
+  std::vector<raw_ptr<DownloadItem, VectorExperimental>> all_downloads;
+  manager->GetAllDownloads(&all_downloads);
+  ASSERT_EQ(all_downloads.size(), 1u);
+  auto* web_app_data = DownloadItemWebAppData::Get(all_downloads[0]);
+  EXPECT_NE(web_app_data, nullptr);
+  EXPECT_EQ(web_app_data->id(), app_id);
+}

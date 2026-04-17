@@ -4,7 +4,8 @@
 
 package org.chromium.chrome.browser.autofill.settings;
 
-import android.os.Build;
+import static org.chromium.build.NullUtil.assertNonNull;
+
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
@@ -14,61 +15,70 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 
+import org.chromium.base.supplier.Supplier;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.autofill.AutofillEditorBase;
 import org.chromium.chrome.browser.autofill.PersonalDataManager;
-import org.chromium.chrome.browser.autofill.PersonalDataManager.AutofillProfile;
 import org.chromium.chrome.browser.autofill.PersonalDataManager.CreditCard;
-import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncherImpl;
+import org.chromium.chrome.browser.autofill.PersonalDataManagerFactory;
+import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncherFactory;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.settings.ProfileDependentSetting;
+import org.chromium.components.autofill.AutofillProfile;
+import org.chromium.components.autofill.FieldType;
+import org.chromium.ui.modaldialog.DialogDismissalCause;
+import org.chromium.ui.modaldialog.ModalDialogManager;
 
 import java.util.List;
 
-/**
- * The base class for credit card settings.
- */
-abstract class AutofillCreditCardEditor extends AutofillEditorBase {
+/** The base class for credit card settings. */
+@NullMarked
+public abstract class AutofillCreditCardEditor extends AutofillEditorBase
+        implements ProfileDependentSetting {
+    private @Nullable Profile mProfile;
+    private @Nullable Supplier<ModalDialogManager> mModalDialogManagerSupplier;
+
     protected CreditCard mCard;
     protected Spinner mBillingAddress;
     protected int mInitialBillingAddressPos;
 
     @Override
     public View onCreateView(
-            LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+            LayoutInflater inflater,
+            @Nullable ViewGroup container,
+            @Nullable Bundle savedInstanceState) {
         View v = super.onCreateView(inflater, container, savedInstanceState);
 
-        // Do not use autofill for the fields.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            getActivity().getWindow().getDecorView().setImportantForAutofill(
-                    View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS);
-        }
-
         // Populate the billing address dropdown.
-        ArrayAdapter<AutofillProfile> profilesAdapter = new ArrayAdapter<AutofillProfile>(
-                getActivity(), android.R.layout.simple_spinner_item);
+        ArrayAdapter<AutofillProfile> profilesAdapter =
+                new ArrayAdapter<AutofillProfile>(
+                        getActivity(), android.R.layout.simple_spinner_item);
         profilesAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
 
-        AutofillProfile noSelection = new AutofillProfile();
+        AutofillProfile noSelection = AutofillProfile.builder().build();
         noSelection.setLabel(getActivity().getString(R.string.select));
         profilesAdapter.add(noSelection);
 
-        List<AutofillProfile> profiles = PersonalDataManager.getInstance().getProfilesForSettings();
+        PersonalDataManager personalDataManager =
+                PersonalDataManagerFactory.getForProfile(getProfile());
+        List<AutofillProfile> profiles = personalDataManager.getProfilesForSettings();
         for (int i = 0; i < profiles.size(); i++) {
             AutofillProfile profile = profiles.get(i);
-            if (profile.getIsLocal() && !TextUtils.isEmpty(profile.getStreetAddress())) {
+            if (!TextUtils.isEmpty(profile.getInfo(FieldType.ADDRESS_HOME_STREET_ADDRESS))) {
                 profilesAdapter.add(profile);
             }
         }
 
-        mBillingAddress =
-                (Spinner) v.findViewById(R.id.autofill_credit_card_editor_billing_address_spinner);
+        mBillingAddress = v.findViewById(R.id.autofill_credit_card_editor_billing_address_spinner);
         mBillingAddress.setAdapter(profilesAdapter);
 
         // TODO(rouslan): Use an [+ ADD ADDRESS] button instead of disabling the dropdown.
         // http://crbug.com/623629
         if (profilesAdapter.getCount() == 1) mBillingAddress.setEnabled(false);
 
-        mCard = PersonalDataManager.getInstance().getCreditCard(mGUID);
+        mCard = personalDataManager.getCreditCard(mGUID);
         if (mCard != null) {
             if (!TextUtils.isEmpty(mCard.getBillingAddressId())) {
                 for (int i = 0; i < mBillingAddress.getAdapter().getCount(); i++) {
@@ -100,17 +110,57 @@ abstract class AutofillCreditCardEditor extends AutofillEditorBase {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == R.id.delete_menu_id) {
-            deleteEntry();
-            getActivity().finish();
+            showDeletePaymentMethodConfirmationDialog();
             return true;
         }
         if (item.getItemId() == R.id.help_menu_id) {
-            HelpAndFeedbackLauncherImpl.getForProfile(Profile.getLastUsedRegularProfile())
-                    .show(getActivity(), getActivity().getString(R.string.help_context_autofill),
+            HelpAndFeedbackLauncherFactory.getForProfile(getProfile())
+                    .show(
+                            getActivity(),
+                            getActivity().getString(R.string.help_context_autofill),
                             null);
             return true;
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public void setProfile(Profile profile) {
+        mProfile = profile;
+    }
+
+    /** Return the {@link Profile} associated with the card being edited. */
+    public Profile getProfile() {
+        return assertNonNull(mProfile);
+    }
+
+    /**
+     * Sets Supplier for {@lnk ModalDialogManager} used to display {@link
+     * AutofillDeletePaymentMethodConfirmationDialog}.
+     */
+    public void setModalDialogManagerSupplier(
+            Supplier<ModalDialogManager> modalDialogManagerSupplier) {
+        mModalDialogManagerSupplier = modalDialogManagerSupplier;
+    }
+
+    private void showDeletePaymentMethodConfirmationDialog() {
+        assert mModalDialogManagerSupplier != null;
+
+        ModalDialogManager modalDialogManager = mModalDialogManagerSupplier.get();
+        assert modalDialogManager != null;
+
+        AutofillDeletePaymentMethodConfirmationDialog dialog =
+                new AutofillDeletePaymentMethodConfirmationDialog(
+                        modalDialogManager,
+                        getContext(),
+                        dismissalCause -> {
+                            if (dismissalCause == DialogDismissalCause.POSITIVE_BUTTON_CLICKED) {
+                                deleteEntry();
+                                finishPage();
+                            }
+                        },
+                        /* titleResId= */ R.string.autofill_credit_card_delete_confirmation_title);
+        dialog.show();
     }
 }

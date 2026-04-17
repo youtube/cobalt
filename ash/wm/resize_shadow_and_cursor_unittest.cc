@@ -2,60 +2,48 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ash/frame/non_client_frame_view_ash.h"
+#include <algorithm>
+
 #include "ash/public/cpp/test/shell_test_api.h"
 #include "ash/public/cpp/window_properties.h"
+#include "ash/root_window_controller.h"
 #include "ash/shell.h"
 #include "ash/test/ash_test_base.h"
+#include "ash/test/ash_test_util.h"
 #include "ash/test/test_window_builder.h"
+#include "ash/wm/desks/desks_util.h"
 #include "ash/wm/resize_shadow.h"
 #include "ash/wm/resize_shadow_controller.h"
+#include "ash/wm/test/test_non_client_frame_view_ash.h"
+#include "ash/wm/window_properties.h"
 #include "ash/wm/window_state.h"
+#include "ash/wm/wm_event.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
-#include "base/ranges/algorithm.h"
+#include "base/test/scoped_feature_list.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "chromeos/ui/base/chromeos_ui_constants.h"
+#include "chromeos/ui/frame/multitask_menu/multitask_button.h"
+#include "chromeos/ui/frame/multitask_menu/multitask_menu.h"
+#include "chromeos/ui/frame/multitask_menu/multitask_menu_view_test_api.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "ui/aura/window_event_dispatcher.h"
 #include "ui/base/cursor/cursor.h"
 #include "ui/base/cursor/mojom/cursor_type.mojom-shared.h"
 #include "ui/base/hit_test.h"
 #include "ui/compositor/layer.h"
+#include "ui/compositor/scoped_animation_duration_scale_mode.h"
+#include "ui/display/manager/display_manager.h"
 #include "ui/events/test/event_generator.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
+#include "ui/views/widget/any_widget_observer.h"
 #include "ui/views/widget/widget.h"
-#include "ui/views/widget/widget_delegate.h"
 #include "ui/wm/core/cursor_manager.h"
 
 using chromeos::kResizeInsideBoundsSize;
 using chromeos::kResizeOutsideBoundsSize;
 
 namespace ash {
-
-namespace {
-
-// views::WidgetDelegate which uses ash::NonClientFrameViewAsh.
-class TestWidgetDelegate : public views::WidgetDelegateView {
- public:
-  TestWidgetDelegate() {
-    SetCanMaximize(true);
-    SetCanMinimize(true);
-    SetCanResize(true);
-  }
-
-  TestWidgetDelegate(const TestWidgetDelegate&) = delete;
-  TestWidgetDelegate& operator=(const TestWidgetDelegate&) = delete;
-
-  ~TestWidgetDelegate() override = default;
-
-  // views::WidgetDelegateView overrides:
-  std::unique_ptr<views::NonClientFrameView> CreateNonClientFrameView(
-      views::Widget* widget) override {
-    return std::make_unique<NonClientFrameViewAsh>(widget);
-  }
-};
-
-}  // namespace
 
 // The test tests that the mouse cursor is changed and that the resize shadows
 // are shown when the mouse is hovered over the window edge.
@@ -74,7 +62,7 @@ class ResizeShadowAndCursorTest : public AshTestBase {
     AshTestBase::SetUp();
 
     views::Widget* widget = views::Widget::CreateWindowWithContext(
-        new TestWidgetDelegate(), GetContext(), gfx::Rect(0, 0, 200, 100));
+        new TestWidgetDelegateAsh(), GetContext(), gfx::Rect(0, 0, 200, 100));
     widget->Show();
     window_ = widget->GetNativeView();
 
@@ -116,7 +104,7 @@ class ResizeShadowAndCursorTest : public AshTestBase {
       if (visible) {
         // Make sure the shadow layer is stacked directly beneath the window
         // layer.
-        EXPECT_EQ(*(base::ranges::find(layers, shadow_layer) + 1),
+        EXPECT_EQ(*(std::ranges::find(layers, shadow_layer) + 1),
                   window_->layer());
       }
     }
@@ -131,7 +119,7 @@ class ResizeShadowAndCursorTest : public AshTestBase {
   // corner of |window_|. Tests whether the resize shadow is shown.
   void ProcessBottomRightResizeGesture(ui::EventType type,
                                        const gfx::Vector2dF& delta) {
-    if (type == ui::ET_GESTURE_SCROLL_END) {
+    if (type == ui::EventType::kGestureScrollEnd) {
       // After gesture scroll ends, there should be no resize shadow.
       VerifyResizeShadow(false);
     } else {
@@ -143,7 +131,7 @@ class ResizeShadowAndCursorTest : public AshTestBase {
   aura::Window* window() { return window_; }
 
  private:
-  raw_ptr<aura::Window, ExperimentalAsh> window_;
+  raw_ptr<aura::Window, DanglingUntriaged> window_;
 };
 
 // Test whether the resize shadows are visible and the cursor type based on the
@@ -251,12 +239,13 @@ TEST_F(ResizeShadowAndCursorTest, DefaultCursorOnBubbleWidgetCorners) {
   child_view->SetBounds(200, 200, 10, 10);
   views::Widget::GetWidgetForNativeWindow(window())
       ->GetRootView()
-      ->AddChildView(child_view);
+      ->AddChildViewRaw(child_view);
 
   // Create the bubble widget.
   views::Widget* bubble(views::BubbleDialogDelegateView::CreateBubble(
-      new views::BubbleDialogDelegateView(child_view,
-                                          views::BubbleBorder::NONE)));
+      new views::BubbleDialogDelegateView(
+          views::BubbleDialogDelegateView::CreatePassKey(), child_view,
+          views::BubbleBorder::NONE)));
   bubble->Show();
 
   // Get the screen rectangle for the bubble frame
@@ -289,7 +278,7 @@ TEST_F(ResizeShadowAndCursorTest, NoResizeShadowOnNonToplevelWindow) {
   ASSERT_TRUE(WindowState::Get(window())->IsNormalStateType());
 
   auto* embedded = views::Widget::CreateWindowWithContext(
-      new TestWidgetDelegate(), GetContext(), gfx::Rect(0, 0, 100, 100));
+      new TestWidgetDelegateAsh(), GetContext(), gfx::Rect(0, 0, 100, 100));
   embedded->Show();
   window()->AddChild(embedded->GetNativeWindow());
 
@@ -403,6 +392,26 @@ TEST_F(ResizeShadowAndCursorTest, Minimize) {
   VerifyResizeShadow(false);
 }
 
+// Verifies that the shadow hides when it is disabled.
+TEST_F(ResizeShadowAndCursorTest, ResizeShadowDisabled) {
+  ui::test::EventGenerator generator(Shell::GetPrimaryRootWindow());
+  ASSERT_TRUE(WindowState::Get(window())->IsNormalStateType());
+
+  generator.MoveMouseTo(200, 50);
+  VerifyResizeShadow(true);
+
+  // Move the cursor off of the shadow.
+  generator.MoveMouseTo(50, 50);
+  VerifyResizeShadow(false);
+
+  // Disable the shadow.
+  window()->SetProperty(kDisableResizeShadow, true);
+
+  // Move the cursor back on and confirm it's disabled.
+  generator.MoveMouseTo(200, 50);
+  VerifyResizeShadow(false);
+}
+
 // Verifies that the lock style shadow gets updated when the window's bounds
 // changed.
 TEST_F(ResizeShadowAndCursorTest, LockShadowBounds) {
@@ -491,6 +500,67 @@ TEST_F(ResizeShadowAndCursorTest, ResizeShadowTypeChange) {
   Shell::Get()->resize_shadow_controller()->HideShadow(window());
 }
 
+class ResizeShadowWithRoundedWindowsTest : public ResizeShadowAndCursorTest {
+ public:
+  ResizeShadowWithRoundedWindowsTest() = default;
+
+  ResizeShadowWithRoundedWindowsTest(
+      const ResizeShadowWithRoundedWindowsTest&) = delete;
+  ResizeShadowWithRoundedWindowsTest& operator=(
+      const ResizeShadowWithRoundedWindowsTest&) = delete;
+
+  ~ResizeShadowWithRoundedWindowsTest() override = default;
+
+  void SetUp() override {
+    scoped_feature_list_.InitWithFeatures(
+        {chromeos::features::kRoundedWindows,
+         chromeos::features::kFeatureManagementRoundedWindows},
+        /*disabled_features=*/{});
+    ResizeShadowAndCursorTest::SetUp();
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+// Tests that resize shadow matches window rounded corners.
+TEST_F(ResizeShadowWithRoundedWindowsTest, ResizeShadowMatchesWindowRoundness) {
+  ASSERT_FALSE(GetShadow());
+  WindowState* window_state = WindowState::Get(window());
+  ASSERT_TRUE(window_state->IsNormalStateType());
+
+  window()->SetProperty(kResizeShadowTypeKey, ResizeShadowType::kLock);
+  Shell::Get()->resize_shadow_controller()->ShowShadow(window());
+
+  // For normal window state, top-level windows have rounded window.
+  EXPECT_TRUE(GetShadow()->is_for_large_rounded_corners());
+  VerifyResizeShadow(true);
+
+  // Window in snapped state does not have rounded corners, therefore the resize
+  // shadow should adjust accordingly.
+  const WindowSnapWMEvent snap_event(WM_EVENT_SNAP_PRIMARY);
+  window_state->OnWMEvent(&snap_event);
+
+  ASSERT_TRUE(window_state->IsSnapped());
+  EXPECT_FALSE(GetShadow()->is_for_large_rounded_corners());
+  VerifyResizeShadow(true);
+
+  window_state->Restore();
+
+  ASSERT_TRUE(window_state->IsNormalStateType());
+  EXPECT_TRUE(GetShadow()->is_for_large_rounded_corners());
+  VerifyResizeShadow(true);
+
+  // Ensure that shadow variant is correct after restoring from a state that has
+  // invisible resize shadow.
+  window_state->Maximize();
+  VerifyResizeShadow(false);
+
+  window_state->Restore();
+  ASSERT_TRUE(window_state->IsNormalStateType());
+  EXPECT_TRUE(GetShadow()->is_for_large_rounded_corners());
+}
+
 // Tests that shadow gets updated when the window's state changed.
 TEST_F(ResizeShadowAndCursorTest, WindowStateChange) {
   ASSERT_FALSE(GetShadow());
@@ -553,6 +623,89 @@ TEST_F(ResizeShadowAndCursorTest, ShadowCanExistInUnparentedWindow) {
   // parent layer to reparent the shadow.
   ASSERT_TRUE(parent);
   parent->AddChild(window());
+}
+
+// Tests that the resize shadow will observe a new color provider source when
+// the window is reparented to other root windows.
+TEST_F(ResizeShadowAndCursorTest, NoCrashOnRootWindowChange) {
+  // Create a resize shadow on primary root window.
+  Shell::Get()->resize_shadow_controller()->ShowShadow(window());
+  // The color provider source of primary root window should be observed by
+  // resize shadow.
+  EXPECT_TRUE(Shell::GetPrimaryRootWindowController()
+                  ->color_provider_source()
+                  ->observers_for_testing()
+                  .HasObserver(GetShadow()));
+
+  // Add an secondary display.
+  display_manager()->AddRemoveDisplay();
+  aura::Window* secondary_root = nullptr;
+  for (aura::Window* root : Shell::GetAllRootWindows()) {
+    if (root != Shell::GetPrimaryRootWindow()) {
+      secondary_root = root;
+      break;
+    }
+  }
+  EXPECT_TRUE(!!secondary_root);
+
+  // Move the window to secondary display and the resize shadow should observe
+  // the color provider source of secondary root window.
+  Shell::GetContainer(secondary_root, desks_util::GetActiveDeskContainerId())
+      ->AddChild(window());
+  EXPECT_TRUE(RootWindowController::ForWindow(secondary_root)
+                  ->color_provider_source()
+                  ->observers_for_testing()
+                  .HasObserver(GetShadow()));
+
+  // Remove secondary root window. The window will be reparent to primary
+  // display, the resize shadow will observe the color provider source of
+  // primary root window, and there should be no crash.
+  display_manager()->AddRemoveDisplay();
+  EXPECT_TRUE(Shell::GetPrimaryRootWindowController()
+                  ->color_provider_source()
+                  ->observers_for_testing()
+                  .HasObserver(GetShadow()));
+}
+
+// Tests if the resize shadow is beneath window when float the window by
+// multi-task menu.
+TEST_F(ResizeShadowAndCursorTest, KeepShadowBeneathFloatWindow) {
+  // Create a resizable test window whose size should be larger than the normal
+  // floating window size.
+  auto test_window =
+      CreateAppWindow(/*bounds_in_screen=*/gfx::Rect(10, 10, 800, 600));
+
+  // Create a resize shadow for the native window.
+  auto* resize_shadow_controller = Shell::Get()->resize_shadow_controller();
+  resize_shadow_controller->ShowShadow(test_window.get());
+  auto* resize_shadow =
+      resize_shadow_controller->GetShadowForWindowForTest(test_window.get());
+  EXPECT_TRUE(resize_shadow);
+
+  // Open multi-task menu by hovering on the resize button.
+  chromeos::MultitaskMenu* multitask_menu =
+      ShowAndWaitMultitaskMenuForWindow(test_window.get());
+  ASSERT_TRUE(multitask_menu);
+
+  // Click on the floating window option.
+  ui::ScopedAnimationDurationScaleMode zero_duration_mode(
+      ui::ScopedAnimationDurationScaleMode::ZERO_DURATION);
+  chromeos::MultitaskMenuView* menu_view =
+      multitask_menu->multitask_menu_view();
+  LeftClickOn(chromeos::MultitaskMenuViewTestApi(menu_view).GetFloatButton());
+  EXPECT_TRUE(WindowState::Get(test_window.get())->IsFloated());
+
+  // Check if the resize shadow layer is beneath the window layer. We check
+  // their positions in their parent layer's children container. The highest
+  // index is the topmost.
+  auto* shadow_layer = resize_shadow->GetLayerForTest();
+  auto parent_children = shadow_layer->parent()->children();
+  auto* window_layer = test_window->layer();
+
+  auto shadow_iter = std::ranges::find(parent_children, shadow_layer);
+  auto window_iter = std::ranges::find(parent_children, window_layer);
+  EXPECT_LT(std::distance(parent_children.begin(), shadow_iter),
+            std::distance(parent_children.begin(), window_iter));
 }
 
 }  // namespace ash

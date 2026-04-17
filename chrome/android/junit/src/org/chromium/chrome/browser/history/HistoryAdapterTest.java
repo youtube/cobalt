@@ -4,51 +4,63 @@
 
 package org.chromium.chrome.browser.history;
 
+import static org.mockito.Mockito.doReturn;
+
 import static org.chromium.chrome.browser.history.HistoryTestUtils.checkAdapterContents;
+
+import android.widget.TextView;
 
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.ContextUtils;
-import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.history.AppFilterCoordinator.AppInfo;
+import org.chromium.chrome.browser.ui.signin.signin_promo.SigninPromoCoordinator;
 import org.chromium.components.browser_ui.widget.MoreProgressButton;
+import org.chromium.components.browser_ui.widget.chips.ChipView;
 
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Tests for the {@link HistoryAdapter}.
- */
+/** Tests for the {@link HistoryAdapter}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class HistoryAdapterTest {
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
     private StubbedHistoryProvider mHistoryProvider;
     private HistoryAdapter mAdapter;
 
-    @Mock
-    private MoreProgressButton mMockButton;
-    @Mock
-    private HistoryContentManager mContentManager;
+    @Mock private MoreProgressButton mMockButton;
+    @Mock private HistoryContentManager mContentManager;
+    @Mock private ChipView mAppFilterChip;
+    @Mock private TextView mTextView;
+    @Mock private SigninPromoCoordinator mHistorySyncPromoCoordinator;
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
         mHistoryProvider = new StubbedHistoryProvider();
-        mAdapter = new HistoryAdapter(
-                mContentManager, mHistoryProvider, new ObservableSupplierImpl<>(), (vg) -> null);
+        mAdapter =
+                new HistoryAdapter(mContentManager, mHistoryProvider, mHistorySyncPromoCoordinator);
         mAdapter.generateHeaderItemsForTest();
         mAdapter.generateFooterItemsForTest(mMockButton);
+        doReturn(mTextView).when(mAppFilterChip).getPrimaryTextView();
     }
 
-    private void initializeAdapter() {
-        mAdapter.startLoadingItems();
+    private boolean showSourceApp() {
+        return mAdapter.showSourceAppForTest();
+    }
+
+    private String getAppId() {
+        return mAdapter.getAppIdForTest();
     }
 
     @Test
@@ -68,6 +80,58 @@ public class HistoryAdapterTest {
 
         // There should be three items - the header, a date and the history item.
         checkAdapterContents(mAdapter, true, false, null, null, item1);
+    }
+
+    @Test
+    public void testHideSourceAppInAppSpecficHistory() {
+        // For the entire lifecycle, source app should remain hidden for app-specific history.
+        final String appId = "org.nicecompany.niceapp";
+        Assert.assertFalse("Source app should be hidden", showSourceApp());
+
+        mAdapter.setAppId(appId);
+
+        mAdapter.onSearchStart();
+        Assert.assertFalse("Source app should remain hidden on entering search", showSourceApp());
+        Assert.assertEquals("App id should remain unchanged on entering search", appId, getAppId());
+
+        mAdapter.onEndSearch();
+        Assert.assertFalse("Source app should remain hidden on exiting search", showSourceApp());
+        Assert.assertEquals("App id should remain unchanged on exiting search", appId, getAppId());
+    }
+
+    @Test
+    public void testShowSourceAppInBrAppHistory() {
+        // Reinstantiate HistoryAdapter with |showAppFilter| flag on. Now we're in BrApp.
+        doReturn(true).when(mContentManager).showAppFilter();
+        mAdapter =
+                new HistoryAdapter(mContentManager, mHistoryProvider, mHistorySyncPromoCoordinator);
+
+        mAdapter.generateHeaderItemsForTest();
+        mAdapter.generateFooterItemsForTest(mMockButton);
+        mAdapter.setAppFilterButtonForTest(mAppFilterChip);
+        Assert.assertTrue("Source app should be on", showSourceApp());
+        Assert.assertEquals("App id should be null", null, getAppId());
+
+        // |onSearchStart| is called when search mode is entered. This should
+        // not affect the show-source-app flag.
+        mAdapter.onSearchStart();
+        Assert.assertTrue("Source app should remain on when entering search", showSourceApp());
+
+        mAdapter.updateHistory(new AppInfo("org.great.app", null, "Great App"));
+        Assert.assertFalse("No source app when app filter is on", showSourceApp());
+        Assert.assertEquals("App id should switch to greatapp", "org.great.app", getAppId());
+
+        mAdapter.updateHistory(null);
+        Assert.assertTrue("Source app when app filter is reset", showSourceApp());
+        Assert.assertEquals("App id should switch to null", null, getAppId());
+
+        mAdapter.updateHistory(new AppInfo("org.awesome.app", null, "Awesome App"));
+        Assert.assertFalse("No source app when app filter is on again", showSourceApp());
+        Assert.assertEquals("App id should switch to awesomeapp", "org.awesome.app", getAppId());
+
+        mAdapter.onEndSearch();
+        Assert.assertTrue("Should show source app when search is exited", showSourceApp());
+        Assert.assertEquals("App id should reverted to null", null, getAppId());
     }
 
     @Test
@@ -139,6 +203,77 @@ public class HistoryAdapterTest {
     }
 
     @Test
+    public void testRemove_WithPersistentHeader() {
+        // Add one history item.
+        Date today = new Date();
+        long timestamp = today.getTime();
+        HistoryItem item = StubbedHistoryProvider.createHistoryItem(0, timestamp);
+        mHistoryProvider.addItem(item);
+        // Show the history sync promo header.
+        doReturn(true).when(mHistorySyncPromoCoordinator).canShowPromo();
+        mAdapter.updateHistorySyncPromoVisibility();
+
+        mAdapter.startLoadingItems();
+
+        // There should be three items - the standard and persistent headers, a date header and
+        // a history item.
+        checkAdapterContents(
+                mAdapter,
+                /* hasStandardHeader= */ true,
+                /* hasPersistentHeader= */ true,
+                /* hasFooter= */ false,
+                null,
+                null,
+                null,
+                item);
+
+        mAdapter.markItemForRemoval(item);
+
+        // The standard and persistent headers should be the only visible items.
+        checkAdapterContents(
+                mAdapter,
+                /* hasStandardHeader= */ true,
+                /* hasPersistentHeader= */ true,
+                /* hasFooter= */ false,
+                null,
+                null);
+        Assert.assertEquals(1, mHistoryProvider.markItemForRemovalCallback.getCallCount());
+        Assert.assertEquals(0, mHistoryProvider.removeItemsCallback.getCallCount());
+
+        mAdapter.removeItems();
+        Assert.assertEquals(1, mHistoryProvider.removeItemsCallback.getCallCount());
+    }
+
+    @Test
+    public void testRemovePersistentHeader() {
+        // Show the history sync promo header.
+        doReturn(true).when(mHistorySyncPromoCoordinator).canShowPromo();
+        mAdapter.updateHistorySyncPromoVisibility();
+
+        mAdapter.startLoadingItems();
+
+        // The standard and persistent headers should be the only visible items.
+        checkAdapterContents(
+                mAdapter,
+                /* hasStandardHeader= */ true,
+                /* hasPersistentHeader= */ true,
+                /* hasFooter= */ false,
+                null,
+                null);
+
+        // Hide the history sync promo header.
+        doReturn(false).when(mHistorySyncPromoCoordinator).canShowPromo();
+        mAdapter.updateHistorySyncPromoVisibility();
+
+        // No item should be shown.
+        checkAdapterContents(
+                mAdapter,
+                /* hasStandardHeader= */ false,
+                /* hasPersistentHeader= */ false,
+                /* hasFooter= */ false);
+    }
+
+    @Test
     public void testSearch() {
         Date today = new Date();
         long timestamp = today.getTime();
@@ -200,8 +335,9 @@ public class HistoryAdapterTest {
         mAdapter.loadMoreItems();
 
         // All items should now be loaded.
-        checkAdapterContents(mAdapter, true, false, null, null, item1, item2, item3, item4, null,
-                item5, item6, null, item7);
+        checkAdapterContents(
+                mAdapter, true, false, null, null, item1, item2, item3, item4, null, item5, item6,
+                null, item7);
         Assert.assertFalse(mAdapter.canLoadMoreItems());
     }
 
@@ -236,8 +372,9 @@ public class HistoryAdapterTest {
         mAdapter.startLoadingItems();
 
         checkAdapterContents(mAdapter, true, false, null, null, item1, item2);
-        Assert.assertEquals(ContextUtils.getApplicationContext().getString(
-                                    R.string.android_history_blocked_site),
+        Assert.assertEquals(
+                ContextUtils.getApplicationContext()
+                        .getString(R.string.android_history_blocked_site),
                 item2.getTitle());
         Assert.assertTrue(item2.wasBlockedVisit());
     }

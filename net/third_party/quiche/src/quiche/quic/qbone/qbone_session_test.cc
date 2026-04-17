@@ -2,8 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <functional>
 #include <memory>
+#include <queue>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/io/quic_default_event_loop.h"
@@ -26,6 +30,7 @@
 #include "quiche/quic/test_tools/quic_connection_peer.h"
 #include "quiche/quic/test_tools/quic_session_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace quic {
 namespace test {
@@ -49,18 +54,7 @@ std::string TestPacketOut(const std::string& body) {
 
 ParsedQuicVersionVector GetTestParams() {
   SetQuicReloadableFlag(quic_disable_version_q046, false);
-  ParsedQuicVersionVector test_versions;
-
-  // TODO(b/113130636): Make QBONE work with TLS.
-  for (const auto& version : CurrentSupportedVersionsWithQuicCrypto()) {
-    // QBONE requires MESSAGE frames
-    if (!version.SupportsMessageFrames()) {
-      continue;
-    }
-    test_versions.push_back(version);
-  }
-
-  return test_versions;
+  return CurrentSupportedVersionsWithQuicCrypto();
 }
 
 // Used by QuicCryptoServerConfig to provide server credentials, passes
@@ -119,7 +113,7 @@ class IndirectionProofSource : public ProofSource {
                                        std::move(callback));
   }
 
-  absl::InlinedVector<uint16_t, 8> SupportedTlsSignatureAlgorithms()
+  QuicSignatureAlgorithmVector SupportedTlsSignatureAlgorithms()
       const override {
     if (!proof_source_) {
       return {};
@@ -249,7 +243,7 @@ class FakeTaskRunner {
 
     void Run() {
       if (!cancelled_) {
-        task_();
+        std::move(task_)();
       }
     }
 
@@ -257,7 +251,7 @@ class FakeTaskRunner {
 
    private:
     bool cancelled_ = false;
-    std::function<void()> task_;
+    quiche::SingleUseCallback<void()> task_;
     QuicTime time_;
   };
 
@@ -271,8 +265,9 @@ class FakeTaskRunner {
 
  private:
   using TaskType = std::shared_ptr<InnerTask>;
-  std::priority_queue<TaskType, std::vector<TaskType>,
-                      std::function<bool(const TaskType&, const TaskType&)>>
+  std::priority_queue<
+      TaskType, std::vector<TaskType>,
+      quiche::UnretainedCallback<bool(const TaskType&, const TaskType&)>>
       tasks_;
   MockQuicConnectionHelper* helper_;
 };
@@ -332,7 +327,7 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
       client_peer_ = std::make_unique<QboneClientSession>(
           client_connection_, client_crypto_config_.get(),
           /*owner=*/nullptr, config, supported_versions_,
-          QuicServerId("test.example.com", 1234, false), client_writer_.get(),
+          QuicServerId("test.example.com", 1234), client_writer_.get(),
           client_handler_.get());
     }
 
@@ -366,11 +361,12 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     // Hook everything up!
     MockPacketWriter* client_writer = static_cast<MockPacketWriter*>(
         QuicConnectionPeer::GetWriter(client_peer_->connection()));
-    ON_CALL(*client_writer, WritePacket(_, _, _, _, _))
+    ON_CALL(*client_writer, WritePacket(_, _, _, _, _, _))
         .WillByDefault(Invoke([this](const char* buffer, size_t buf_len,
                                      const QuicIpAddress& self_address,
                                      const QuicSocketAddress& peer_address,
-                                     PerPacketOptions* options) {
+                                     PerPacketOptions* option,
+                                     const QuicPacketWriterParams& params) {
           char* copy = new char[1024 * 1024];
           memcpy(copy, buffer, buf_len);
           runner_.Schedule([this, copy, buf_len] {
@@ -384,11 +380,12 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
         }));
     MockPacketWriter* server_writer = static_cast<MockPacketWriter*>(
         QuicConnectionPeer::GetWriter(server_peer_->connection()));
-    ON_CALL(*server_writer, WritePacket(_, _, _, _, _))
+    ON_CALL(*server_writer, WritePacket(_, _, _, _, _, _))
         .WillByDefault(Invoke([this](const char* buffer, size_t buf_len,
                                      const QuicIpAddress& self_address,
                                      const QuicSocketAddress& peer_address,
-                                     PerPacketOptions* options) {
+                                     PerPacketOptions* options,
+                                     const QuicPacketWriterParams& params) {
           char* copy = new char[1024 * 1024];
           memcpy(copy, buffer, buf_len);
           runner_.Schedule([this, copy, buf_len] {

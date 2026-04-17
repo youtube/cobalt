@@ -18,7 +18,7 @@ UserBypassWebContentsObserver::UserBypassWebContentsObserver(
           *web_contents) {
   Profile* profile = Profile::FromBrowserContext(
       content::WebContentsObserver::web_contents()->GetBrowserContext());
-  cookie_settings_ = CookieSettingsFactory::GetForProfile(profile).get();
+  cookie_settings_ = CookieSettingsFactory::GetForProfile(profile);
 }
 
 UserBypassWebContentsObserver::~UserBypassWebContentsObserver() = default;
@@ -34,7 +34,7 @@ void UserBypassWebContentsObserver::LoadUserBypass(
       navigation_handle->GetMutableRuntimeFeatureStateContext();
 
   // Enable blink runtime feature when User bypass is enabled.
-  context.SetDisableThirdPartyStoragePartitioningEnabled(
+  context.SetDisableThirdPartyStoragePartitioning3Enabled(
       cookie_settings_->IsStoragePartitioningBypassEnabled(
           navigation_handle->GetURL()));
 }

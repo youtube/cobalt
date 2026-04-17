@@ -64,13 +64,17 @@ void AppServiceAppWindowShelfItemController::ItemSelected(
     return;
   }
 
-  if (task_ids_.empty()) {
-    NOTREACHED();
-    std::move(callback).Run(ash::SHELF_ACTION_NONE, {});
+  if (!task_ids_.empty()) {
+    arc::SetTaskActive(*task_ids_.begin());
+    std::move(callback).Run(ash::SHELF_ACTION_NEW_WINDOW_CREATED, {});
     return;
   }
-  arc::SetTaskActive(*task_ids_.begin());
-  std::move(callback).Run(ash::SHELF_ACTION_NEW_WINDOW_CREATED, {});
+
+  if (session_ids_.empty()) {
+    NOTREACHED();
+  }
+
+  std::move(callback).Run(ash::SHELF_ACTION_NONE, {});
 }
 
 ash::ShelfItemDelegate::AppMenuItems
@@ -84,7 +88,7 @@ AppServiceAppWindowShelfItemController::GetAppMenuItems(
 
   // The window could be teleported from the inactive user's profile to the
   // current active user, so search all profiles.
-  for (auto* profile : controller_->GetProfileList()) {
+  for (Profile* profile : controller_->GetProfileList()) {
     extensions::AppWindowRegistry* const app_window_registry =
         extensions::AppWindowRegistry::Get(profile);
     DCHECK(app_window_registry);
@@ -95,8 +99,9 @@ AppServiceAppWindowShelfItemController::GetAppMenuItems(
     for (const ui::BaseWindow* window : windows()) {
       ++command_id;
       auto* native_window = window->GetNativeWindow();
-      if (!filter_predicate.is_null() && !filter_predicate.Run(native_window))
+      if (!filter_predicate.is_null() && !filter_predicate.Run(native_window)) {
         continue;
+      }
 
       extensions::AppWindow* const app_window =
           app_window_registry->GetAppWindowForNativeWindow(native_window);
@@ -117,22 +122,25 @@ AppServiceAppWindowShelfItemController::GetAppMenuItems(
           app_icon = app_window->GetNativeWindow()->GetProperty(
               aura::client::kAppIconKey);
         }
-        if (app_icon && !app_icon->isNull())
+        if (app_icon && !app_icon->isNull()) {
           image = *app_icon;
+        }
       }
 
       items.push_back({command_id, app_window->GetTitle(), image});
     }
-    if (!switch_profile)
+    if (!switch_profile) {
       return items;
+    }
   }
   return AppMenuItems();
 }
 
 void AppServiceAppWindowShelfItemController::OnWindowTitleChanged(
     aura::Window* window) {
-  if (!IsChromeApp())
+  if (!IsChromeApp()) {
     return;
+  }
 
   ui::BaseWindow* const base_window =
       GetAppWindow(window, true /*include_hidden*/);
@@ -143,7 +151,7 @@ void AppServiceAppWindowShelfItemController::OnWindowTitleChanged(
   //
   // The window could be teleported from the inactive user's profile to the
   // current active user, so search all profiles.
-  for (auto* profile : controller_->GetProfileList()) {
+  for (Profile* profile : controller_->GetProfileList()) {
     extensions::AppWindowRegistry* const app_window_registry =
         extensions::AppWindowRegistry::Get(profile);
     DCHECK(app_window_registry);
@@ -151,13 +159,15 @@ void AppServiceAppWindowShelfItemController::OnWindowTitleChanged(
     extensions::AppWindow* const app_window =
         app_window_registry->GetAppWindowForNativeWindow(
             base_window->GetNativeWindow());
-    if (!app_window)
+    if (!app_window) {
       continue;
+    }
 
     if (app_window->show_in_shelf()) {
       const std::u16string title = window->GetTitle();
-      if (!title.empty())
+      if (!title.empty()) {
         ChromeShelfController::instance()->SetItemTitle(shelf_id(), title);
+      }
     }
     return;
   }

@@ -2,12 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "ui/gfx/image/image_util.h"
+
 #import <UIKit/UIKit.h>
 
+#include <optional>
+
+#include "base/apple/foundation_util.h"
+#include "base/containers/to_vector.h"
+#include "build/blink_buildflags.h"
 #include "ui/gfx/image/image.h"
-#include "ui/gfx/image/image_util.h"
 #include "ui/gfx/image/resize_image_dimensions.h"
 
+#if BUILDFLAG(USE_BLINK)
+#include "third_party/skia/include/core/SkBitmap.h"
+#include "ui/gfx/codec/jpeg_codec.h"
+#endif  // BUILDFLAG(USE_BLINK)
 
 namespace {
 // Copied from GTMUIImage+Resize in //third_party/google_toolbox_for_mac to
@@ -16,7 +26,7 @@ UIImage* ResizeUIImage(UIImage* image,
                        CGSize target_size,
                        BOOL preserve_aspect_ratio,
                        BOOL trim_to_fit) {
-  CGSize imageSize = [image size];
+  CGSize imageSize = image.size;
   if (imageSize.height < 1 || imageSize.width < 1) {
     return nil;
   }
@@ -80,17 +90,16 @@ UIImage* ResizeUIImage(UIImage* image,
 
 namespace gfx {
 
-bool JPEG1xEncodedDataFromImage(const Image& image,
-                                int quality,
-                                std::vector<unsigned char>* dst) {
+std::optional<std::vector<uint8_t>> JPEG1xEncodedDataFromImage(
+    const Image& image,
+    int quality) {
   NSData* data = UIImageJPEGRepresentation(image.ToUIImage(), quality / 100.0);
 
-  if ([data length] == 0)
-    return false;
+  if (data.length == 0) {
+    return std::nullopt;
+  }
 
-  dst->resize([data length]);
-  [data getBytes:&dst->at(0) length:[data length]];
-  return true;
+  return base::ToVector(base::apple::NSDataToSpan(data));
 }
 
 Image ResizedImageForSearchByImage(const Image& image) {
@@ -111,4 +120,16 @@ Image ResizedImageForSearchByImage(const Image& image) {
   return Image(ui_image);
 }
 
+#if BUILDFLAG(USE_BLINK)
+Image ImageFrom1xJPEGEncodedData(base::span<const uint8_t> input) {
+  return Image::CreateFrom1xBitmap(gfx::JPEGCodec::Decode(input));
+}
+#endif  // BUILDFLAG(USE_BLINK)
+
+Image ResizedImage(const Image& image, const gfx::Size& size) {
+  UIImage* ui_image =
+      ResizeUIImage(image.ToUIImage(), size.ToCGSize(),
+       /*preserve_aspect_ratio=*/NO, /*trim_to_fit=*/NO);
+  return Image(ui_image);
+}
 }  // end namespace gfx

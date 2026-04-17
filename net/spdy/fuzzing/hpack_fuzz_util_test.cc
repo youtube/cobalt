@@ -11,11 +11,13 @@
 #include "base/files/file_util.h"
 #include "base/path_service.h"
 #include "net/base/hex_utils.h"
+#include "net/third_party/quiche/src/quiche/common/http/http_header_block.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace spdy::test {
 
+using quiche::HttpHeaderBlock;
 using std::map;
 
 TEST(HpackFuzzUtilTest, GeneratorContextInitialization) {
@@ -30,7 +32,7 @@ TEST(HpackFuzzUtilTest, GeneratorContextInitialization) {
 TEST(HpackFuzzUtil, GeneratorContextExpansion) {
   HpackFuzzUtil::GeneratorContext context;
 
-  Http2HeaderBlock headers = HpackFuzzUtil::NextGeneratedHeaderSet(&context);
+  HttpHeaderBlock headers = HpackFuzzUtil::NextGeneratedHeaderSet(&context);
 
   // Headers were generated, and the generator context was expanded.
   EXPECT_LT(0u, headers.size());
@@ -69,7 +71,7 @@ TEST(HpackFuzzUtilTest, ParsesSequenceOfHeaderBlocks) {
   HpackFuzzUtil::Input input;
   input.input.assign(fixture, std::size(fixture) - 1);
 
-  absl::string_view block;
+  std::string_view block;
 
   EXPECT_TRUE(HpackFuzzUtil::NextHeaderBlock(&input, &block));
   EXPECT_EQ("aaaaa", block);
@@ -106,17 +108,18 @@ TEST(HpackFuzzUtilTest, PassValidInputThroughAllStages) {
   EXPECT_TRUE(
       HpackFuzzUtil::RunHeaderBlockThroughFuzzerStages(&context, input));
 
-  Http2HeaderBlock expect;
+  HttpHeaderBlock expect;
   expect[":method"] = "GET";
   expect[":scheme"] = "http";
   expect[":path"] = "/";
   expect[":authority"] = "www.example.com";
-  EXPECT_EQ(expect, context.third_stage->decoded_block());
+  EXPECT_EQ(expect, context.third_stage_handler->decoded_block());
 }
 
 TEST(HpackFuzzUtilTest, ValidFuzzExamplesRegressionTest) {
   base::FilePath source_root;
-  ASSERT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &source_root));
+  ASSERT_TRUE(
+      base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &source_root));
 
   // Load the example fixtures versioned with the source tree.
   HpackFuzzUtil::Input input;
@@ -130,7 +133,7 @@ TEST(HpackFuzzUtilTest, ValidFuzzExamplesRegressionTest) {
   HpackFuzzUtil::FuzzerContext context;
   HpackFuzzUtil::InitializeFuzzerContext(&context);
 
-  absl::string_view block;
+  std::string_view block;
   while (HpackFuzzUtil::NextHeaderBlock(&input, &block)) {
     // As these are valid examples, all fuzz stages should succeed.
     EXPECT_TRUE(

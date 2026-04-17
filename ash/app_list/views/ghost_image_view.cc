@@ -44,8 +44,9 @@ void GhostImageView::Init(const gfx::Rect& drop_target_bounds,
 }
 
 void GhostImageView::FadeOut() {
-  if (is_hiding_)
+  if (is_hiding_) {
     return;
+  }
   is_hiding_ = true;
   DoAnimation(true /* fade out */);
 }
@@ -77,13 +78,8 @@ void GhostImageView::DoAnimation(bool hide) {
 void GhostImageView::OnPaint(gfx::Canvas* canvas) {
   cc::PaintFlags flags;
   flags.setAntiAlias(true);
-  if (chromeos::features::IsJellyEnabled()) {
-    GetColorProvider()->GetColor(cros_tokens::kCrosSysOutline);
-  } else {
-    flags.setColor(DarkLightModeControllerImpl::Get()->IsDarkModeEnabled()
-                       ? gfx::kGoogleGrey200
-                       : gfx::kGoogleGrey900);
-  }
+  flags.setColor(GetColorProvider()->GetColor(cros_tokens::kCrosSysOutline));
+
   flags.setAlphaf(kGhostColorOpacity / 255.0f);
   flags.setStyle(cc::PaintFlags::kStroke_Style);
   flags.setStrokeWidth(kGhostCircleStrokeWidth);
@@ -97,7 +93,7 @@ void GhostImageView::OnImplicitAnimationsCompleted() {
   delete this;
 }
 
-BEGIN_METADATA(GhostImageView, views::View)
+BEGIN_METADATA(GhostImageView)
 END_METADATA
 
 }  // namespace ash

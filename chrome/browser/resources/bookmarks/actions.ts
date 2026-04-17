@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
-import {Action} from 'chrome://resources/js/store_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
+import type {Action} from 'chrome://resources/js/store.js';
 
 import {IncognitoAvailability, ROOT_NODE_ID} from './constants.js';
-import {BookmarkNode, BookmarksPageState, NodeMap} from './types.js';
+import type {BookmarkNode, BookmarksPageState, NodeMap} from './types.js';
 import {getDescendants, getDisplayedList, normalizeNode} from './util.js';
 
 /**
@@ -119,7 +119,7 @@ export type SelectFolderAction = Action&{
 
 export function selectFolder(id: string, nodes?: NodeMap): SelectFolderAction|
     null {
-  if (nodes && (id === ROOT_NODE_ID || !nodes[id] || nodes[id]!.url)) {
+  if (nodes && (id === ROOT_NODE_ID || !nodes[id] || nodes[id].url)) {
     console.warn('Tried to select invalid folder: ' + id);
     return null;
   }
@@ -209,7 +209,7 @@ export function selectItem(
 export function selectAll(
     ids: string[], state: BookmarksPageState,
     anchor?: string): SelectItemsAction {
-  const finalAnchor: string = anchor ? anchor! : state.selection!.anchor!;
+  const finalAnchor: string = anchor ? anchor : state.selection.anchor!;
   return {
     name: 'select-items',
     clear: true,

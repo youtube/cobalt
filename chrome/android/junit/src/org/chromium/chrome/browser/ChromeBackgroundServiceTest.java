@@ -32,20 +32,17 @@ import org.chromium.components.background_task_scheduler.BackgroundTaskScheduler
 import org.chromium.components.background_task_scheduler.TaskIds;
 import org.chromium.components.background_task_scheduler.TaskInfo;
 
-/**
- * Tests {@link ChromeBackgroundService}.
- */
+/** Tests {@link ChromeBackgroundService}. */
 @RunWith(BaseRobolectricTestRunner.class)
 public class ChromeBackgroundServiceTest {
     private MockTaskService mTaskService;
 
-    class MockTaskService extends ChromeBackgroundServiceImpl {
+    static class MockTaskService extends ChromeBackgroundServiceImpl {
         private boolean mDidLaunchBrowser;
         private boolean mDidCallOnPersistentSchedulerWakeUp;
         private boolean mDidCallOnBrowserUpgraded;
 
-        @Mock
-        private BackgroundTaskScheduler mTaskScheduler;
+        @Mock private BackgroundTaskScheduler mTaskScheduler;
 
         @Override
         protected void launchBrowser(Context context, String tag) {
@@ -58,17 +55,24 @@ public class ChromeBackgroundServiceTest {
         // Posts an assertion task to the UI thread. Since this is only called after the call
         // to onRunTask, it will be enqueued after any possible call to launchBrowser, and we
         // can reliably check whether launchBrowser was called.
-        protected void checkExpectations(final boolean expectedLaunchBrowser,
+        protected void checkExpectations(
+                final boolean expectedLaunchBrowser,
                 final boolean expectedDidCallOnPersistentSchedulerWakeUp,
                 final boolean expectedDidCallOnBrowserUpgraded) {
-            PostTask.runOrPostTask(TaskTraits.UI_DEFAULT, () -> {
-                Assert.assertEquals("StartedService", expectedLaunchBrowser, mDidLaunchBrowser);
-                Assert.assertEquals("OnPersistentSchedulerWakeUp",
-                        expectedDidCallOnPersistentSchedulerWakeUp,
-                        mDidCallOnPersistentSchedulerWakeUp);
-                Assert.assertEquals("OnBrowserUpgraded", expectedDidCallOnBrowserUpgraded,
-                        mDidCallOnBrowserUpgraded);
-            });
+            PostTask.runOrPostTask(
+                    TaskTraits.UI_DEFAULT,
+                    () -> {
+                        Assert.assertEquals(
+                                "StartedService", expectedLaunchBrowser, mDidLaunchBrowser);
+                        Assert.assertEquals(
+                                "OnPersistentSchedulerWakeUp",
+                                expectedDidCallOnPersistentSchedulerWakeUp,
+                                mDidCallOnPersistentSchedulerWakeUp);
+                        Assert.assertEquals(
+                                "OnBrowserUpgraded",
+                                expectedDidCallOnBrowserUpgraded,
+                                mDidCallOnBrowserUpgraded);
+                    });
         }
 
         protected void setUpMocks() {
@@ -78,11 +82,14 @@ public class ChromeBackgroundServiceTest {
         }
 
         protected void checkBackgroundTaskSchedulerInvocation(int taskId) {
-            PostTask.runOrPostTask(TaskTraits.UI_DEFAULT, () -> {
-                verify(mTaskScheduler)
-                        .schedule(any(Context.class),
-                                argThat(taskInfo -> taskInfo.getTaskId() == taskId));
-            });
+            PostTask.runOrPostTask(
+                    TaskTraits.UI_DEFAULT,
+                    () -> {
+                        verify(mTaskScheduler)
+                                .schedule(
+                                        any(Context.class),
+                                        argThat(taskInfo -> taskInfo.getTaskId() == taskId));
+                    });
         }
     }
 
@@ -92,12 +99,6 @@ public class ChromeBackgroundServiceTest {
         mTaskService.setUpMocks();
     }
 
-    private void startOnRunTaskAndVerify(
-            String taskTag, boolean shouldStart, boolean shouldCallOnPersistentSchedulerWakeUp) {
-        mTaskService.onRunTask(new TaskParams(taskTag));
-        mTaskService.checkExpectations(shouldStart, shouldCallOnPersistentSchedulerWakeUp, false);
-    }
-
     @Test
     @SmallTest
     @Feature({"BackgroundSync"})
@@ -105,11 +106,5 @@ public class ChromeBackgroundServiceTest {
         mTaskService.onRunTask(new TaskParams(BackgroundSyncBackgroundTaskScheduler.TASK_TAG));
         mTaskService.checkBackgroundTaskSchedulerInvocation(
                 TaskIds.BACKGROUND_SYNC_ONE_SHOT_JOB_ID);
-    }
-
-    private void startOnInitializeTasksAndVerify(
-            boolean shouldStart, boolean shouldCallOnBrowserUpgraded) {
-        mTaskService.onInitializeTasks();
-        mTaskService.checkExpectations(shouldStart, false, shouldCallOnBrowserUpgraded);
     }
 }

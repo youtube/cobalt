@@ -5,13 +5,13 @@
 #ifndef CONTENT_PUBLIC_TEST_TEST_NAVIGATION_THROTTLE_H_
 #define CONTENT_PUBLIC_TEST_TEST_NAVIGATION_THROTTLE_H_
 
+#include <array>
+
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "content/public/browser/navigation_throttle.h"
 
 namespace content {
-
-class NavigationHandle;
 
 // This class can be used to cancel navigations synchronously or asynchronously
 // at specific times in the NavigationThrottle lifecycle.
@@ -34,7 +34,7 @@ class TestNavigationThrottle : public NavigationThrottle {
     ASYNCHRONOUS,
   };
 
-  TestNavigationThrottle(NavigationHandle* handle);
+  explicit TestNavigationThrottle(NavigationThrottleRegistry& registry);
 
   TestNavigationThrottle(const TestNavigationThrottle&) = delete;
   TestNavigationThrottle& operator=(const TestNavigationThrottle&) = delete;
@@ -80,11 +80,11 @@ class TestNavigationThrottle : public NavigationThrottle {
   // throttle responds, either by returning synchronously, or by calling
   // CancelDeferredNavigation() asynchronously.
   //
-  // TODO(crbug.com/770292): Support setting a callback instead, and use that to
-  // get rid of the following classes:
+  // TODO(crbug.com/40542516): Support setting a callback instead, and use that
+  // to get rid of the following classes:
   // - ResourceLoadingCancellingThrottle in
   //   ads_page_load_metrics_observer_unittest.cc
-  // - DeletingNavigationThrottle in navigation_request_unittest.cc
+  // - DeletingNavigationThrottle in navigation_throttle_runner_unittest.cc
   void OnWillRespond();
 
  private:
@@ -102,7 +102,7 @@ class TestNavigationThrottle : public NavigationThrottle {
     base::RepeatingClosure callback;
     int call_count = 0;
   };
-  MethodProperties method_properties_[NUM_THROTTLE_METHODS];
+  std::array<MethodProperties, NUM_THROTTLE_METHODS> method_properties_;
 
   base::WeakPtrFactory<TestNavigationThrottle> weak_ptr_factory_{this};
 };

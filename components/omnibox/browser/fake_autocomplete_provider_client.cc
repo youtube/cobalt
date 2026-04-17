@@ -15,20 +15,36 @@
 #include "components/history/core/test/history_service_test_util.h"
 #include "components/omnibox/browser/in_memory_url_index.h"
 #include "components/omnibox/browser/shortcuts_backend.h"
-#include "components/prefs/testing_pref_service.h"
-#include "components/query_tiles/test/fake_tile_service.h"
-#include "components/search_engines/search_terms_data.h"
-#include "components/search_engines/template_url_service.h"
 
 FakeAutocompleteProviderClient::FakeAutocompleteProviderClient() {
-  set_template_url_service(std::make_unique<TemplateURLService>(nullptr, 0));
+  set_template_url_service(
+      search_engines_test_enviroment_.template_url_service());
+  document_suggestions_service_ =
+      std::make_unique<DocumentSuggestionsService>(
+          /*identity_manager=*/nullptr,
+          /*url_loader_factory=*/nullptr);
 
-  pref_service_ = std::make_unique<TestingPrefServiceSimple>();
-  local_state_ = std::make_unique<TestingPrefServiceSimple>();
-  tile_service_ = std::make_unique<query_tiles::FakeTileService>();
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
+  on_device_tail_model_service_ =
+      std::make_unique<FakeOnDeviceTailModelService>();
+  scoring_model_service_ =
+      std::make_unique<FakeAutocompleteScoringModelService>();
+#endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
+
+  fake_tab_group_sync_service_ =
+      std::make_unique<tab_groups::FakeTabGroupSyncService>();
 }
 
 FakeAutocompleteProviderClient::~FakeAutocompleteProviderClient() {
+  // `ShortcutsBackend` depends on `TemplateURLService` so it should be
+  // destroyed before it.
+  shortcuts_backend_.reset();
+
+  // We explicitly set `TemplateURLService` to `nullptr` because the parent
+  // `MockAutocompleteProviderClient` class  has a pointer to
+  // `TemplateURLService` which lives in the `SearchEnginesTestEnvironment`
+  // object in this class.
+  set_template_url_service(nullptr);
   // The InMemoryURLIndex must be explicitly shut down or it will DCHECK() in
   // its destructor.
   if (in_memory_url_index_)
@@ -38,11 +54,11 @@ FakeAutocompleteProviderClient::~FakeAutocompleteProviderClient() {
 }
 
 PrefService* FakeAutocompleteProviderClient::GetPrefs() const {
-  return pref_service_.get();
+  return &search_engines_test_enviroment_.pref_service();
 }
 
 PrefService* FakeAutocompleteProviderClient::GetLocalState() {
-  return local_state_.get();
+  return &search_engines_test_enviroment_.local_state();
 }
 
 const AutocompleteSchemeClassifier&
@@ -59,13 +75,22 @@ FakeAutocompleteProviderClient::GetHistoryClustersService() {
   return history_clusters_service_;
 }
 
-bookmarks::BookmarkModel*
-FakeAutocompleteProviderClient::GetLocalOrSyncableBookmarkModel() {
+history_embeddings::HistoryEmbeddingsService*
+FakeAutocompleteProviderClient::GetHistoryEmbeddingsService() {
+  return history_embeddings_service_.get();
+}
+
+bookmarks::BookmarkModel* FakeAutocompleteProviderClient::GetBookmarkModel() {
   return bookmark_model_.get();
 }
 
 InMemoryURLIndex* FakeAutocompleteProviderClient::GetInMemoryURLIndex() {
   return in_memory_url_index_.get();
+}
+
+DocumentSuggestionsService*
+FakeAutocompleteProviderClient::GetDocumentSuggestionsService() const {
+  return document_suggestions_service_.get();
 }
 
 scoped_refptr<ShortcutsBackend>
@@ -78,9 +103,9 @@ FakeAutocompleteProviderClient::GetShortcutsBackendIfExists() {
   return shortcuts_backend_;
 }
 
-query_tiles::TileService* FakeAutocompleteProviderClient::GetQueryTileService()
-    const {
-  return tile_service_.get();
+tab_groups::TabGroupSyncService*
+FakeAutocompleteProviderClient::GetTabGroupSyncService() const {
+  return fake_tab_group_sync_service_.get();
 }
 
 const TabMatcher& FakeAutocompleteProviderClient::GetTabMatcher() const {
@@ -90,3 +115,20 @@ const TabMatcher& FakeAutocompleteProviderClient::GetTabMatcher() const {
 scoped_refptr<history::TopSites> FakeAutocompleteProviderClient::GetTopSites() {
   return top_sites_;
 }
+
+std::string FakeAutocompleteProviderClient::ProfileUserName() const {
+  return "goodEmail@gmail.com";
+}
+
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
+OnDeviceTailModelService*
+FakeAutocompleteProviderClient::GetOnDeviceTailModelService() const {
+  return on_device_tail_model_service_.get();
+}
+
+FakeAutocompleteScoringModelService*
+FakeAutocompleteProviderClient::GetAutocompleteScoringModelService() const {
+  return scoring_model_service_.get();
+}
+
+#endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)

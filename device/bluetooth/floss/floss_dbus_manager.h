@@ -15,7 +15,9 @@
 #include "base/memory/weak_ptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
+#include "dbus/object_manager.h"
 #include "device/bluetooth/bluetooth_export.h"
+#include "device/bluetooth/floss/floss_version.h"
 
 namespace base {
 class Thread;
@@ -38,6 +40,7 @@ class FlossGattManagerClient;
 class FlossLEScanClient;
 class FlossLoggingClient;
 class FlossManagerClient;
+class FlossBluetoothTelephonyClient;
 class FlossSocketManager;
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -51,7 +54,8 @@ class FlossAdminClient;
 // While similar to the BluezDBusManager, it requires totally different client
 // implementations since the Floss dbus apis are drastically different. Thus, it
 // doesn't make sense to share a common implementation between the two.
-class DEVICE_BLUETOOTH_EXPORT FlossDBusManager {
+class DEVICE_BLUETOOTH_EXPORT FlossDBusManager
+    : public dbus::ObjectManager::Interface {
  public:
   class ClientInitializer {
    public:
@@ -101,6 +105,8 @@ class DEVICE_BLUETOOTH_EXPORT FlossDBusManager {
       }
     }
 
+    bool Finished() { return on_ready_.is_null(); }
+
    private:
     void ScheduleTimeout(base::TimeDelta timeout) {
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
@@ -146,6 +152,11 @@ class DEVICE_BLUETOOTH_EXPORT FlossDBusManager {
   // value to represent invalid adapter.
   static const int kInvalidAdapter;
 
+  // Timeout to wait for clients to become ready.
+  static const int kClientReadyTimeoutMs;
+  // Timeout to wait for bluetooth service to become ready.
+  static const int kWaitServiceTimeoutMs;
+
   FlossDBusManager(const FlossDBusManager&) = delete;
   FlossDBusManager& operator=(const FlossDBusManager&) = delete;
 
@@ -161,7 +172,9 @@ class DEVICE_BLUETOOTH_EXPORT FlossDBusManager {
   }
 
   // Returns true if Object Manager is supported.
-  bool IsObjectManagerSupported() const { return object_manager_supported_; }
+  bool IsObjectManagerSupported() const {
+    return object_manager_supported_ && mgmt_client_present_;
+  }
 
   // Shuts down the existing adapter clients and initializes a new set for the
   // given adapter. When the new adapter clients are ready, calls the |on_ready|
@@ -174,8 +187,15 @@ class DEVICE_BLUETOOTH_EXPORT FlossDBusManager {
   // Get the active adapter.
   int GetActiveAdapter() const;
 
+  // Checks whether the necessary clients are ready. This will happen
+  // asynchronously and may take multiple seconds during tests.
+  bool AreClientsReady() const;
+
   // Returns system bus pointer (owned by FlossDBusThreadManager).
   dbus::Bus* GetSystemBus() const { return bus_; }
+
+  // Gets Floss API version.
+  base::Version GetFlossApiVersion() const { return version_; }
 
   // All returned objects are owned by FlossDBusManager. Do not use these
   // pointers after FlossDBusManager has been shut down.
@@ -186,11 +206,29 @@ class DEVICE_BLUETOOTH_EXPORT FlossDBusManager {
   FlossLEScanClient* GetLEScanClient();
   FlossLoggingClient* GetLoggingClient();
   FlossManagerClient* GetManagerClient();
+  FlossBluetoothTelephonyClient* GetBluetoothTelephonyClient();
   FlossSocketManager* GetSocketManager();
 
 #if BUILDFLAG(IS_CHROMEOS)
   FlossAdminClient* GetAdminClient();
 #endif  // BUILDFLAG(IS_CHROMEOS)
+
+ protected:
+  friend class FlossDBusManagerTest;
+  // dbus::ObjectManager::Interface overrides
+  dbus::PropertySet* CreateProperties(
+      dbus::ObjectProxy* object_proxy,
+      const dbus::ObjectPath& object_path,
+      const std::string& interface_name) override;
+
+  void ObjectAdded(const dbus::ObjectPath& object_path,
+                   const std::string& interface_name) override;
+  void ObjectRemoved(const dbus::ObjectPath& object_path,
+                     const std::string& interface_name) override;
+
+  // Keep track of the object manager so we can keep track of when the manager
+  // disappears. Managed by the bus object (do not delete).
+  raw_ptr<dbus::ObjectManager> object_manager_ = nullptr;
 
  private:
   friend class FlossDBusManagerSetter;
@@ -200,10 +238,13 @@ class DEVICE_BLUETOOTH_EXPORT FlossDBusManager {
   static void CreateGlobalInstance(dbus::Bus* bus, bool use_stubs);
 
   FlossDBusManager(dbus::Bus* bus, bool use_stubs);
-  ~FlossDBusManager();
+  ~FlossDBusManager() override;
 
   void OnObjectManagerSupported(dbus::Response* response);
   void OnObjectManagerNotSupported(dbus::ErrorResponse* response);
+  void OnManagerClientInitComplete();
+  void OnManagerServiceAvailable(bool is_available);
+  void OnWaitServiceAvailableTimeout();
 
   // Initializes the manager client
   void InitializeManagerClient();
@@ -212,6 +253,18 @@ class DEVICE_BLUETOOTH_EXPORT FlossDBusManager {
   // performs additional setup for a specific adapter. Once all clients are
   // ready, calls the |on_ready| callback.
   void InitializeAdapterClients(int adapter, base::OnceClosure on_ready);
+
+  void InitAdapterClientsIfReady();
+  void InitAdapterLoggingClientsIfReady();
+#if BUILDFLAG(IS_CHROMEOS)
+  void InitAdminClientsIfReady();
+#endif  // BUILDFLAG(IS_CHROMEOS)
+  void InitBatteryClientsIfReady();
+  void InitTelephonyClientsIfReady();
+  void InitGattClientsIfReady();
+  void InitSocketManagerClientsIfReady();
+
+  void SetAllClientsPresentForTesting();
 
   // System bus instance (owned by FlossDBusThreadManager).
   raw_ptr<dbus::Bus> bus_;
@@ -228,8 +281,26 @@ class DEVICE_BLUETOOTH_EXPORT FlossDBusManager {
   bool object_manager_support_known_ = false;
   bool object_manager_supported_ = false;
 
+  // Whether the manager client has been initialized successfully.
+  bool mgmt_client_present_ = false;
+
+  bool adapter_interface_present_ = false;
+  bool adapter_logging_interface_present_ = false;
+#if BUILDFLAG(IS_CHROMEOS)
+  bool admin_interface_present_ = false;
+#endif  // BUILDFLAG(IS_CHROMEOS)
+  bool battery_interface_present_ = false;
+  bool telephony_interface_present_ = false;
+  bool gatt_interface_present_ = false;
+  bool socket_manager_interface_present_ = false;
+  base::Time instance_created_time_;
+
   // Currently active Bluetooth adapter
   int active_adapter_ = kInvalidAdapter;
+
+  // Floss API version exported by Floss daemon or
+  // specified by a test stub for unit tests.
+  base::Version version_;
 
   // Callback for when adapter clients are ready after init.
   std::unique_ptr<ClientInitializer> client_on_ready_;
@@ -248,6 +319,8 @@ class DEVICE_BLUETOOTH_EXPORT FlossDBusManagerSetter {
   void SetFlossLEScanClient(std::unique_ptr<FlossLEScanClient> client);
   void SetFlossLoggingClient(std::unique_ptr<FlossLoggingClient> client);
   void SetFlossManagerClient(std::unique_ptr<FlossManagerClient> client);
+  void SetFlossBluetoothTelephonyClient(
+      std::unique_ptr<FlossBluetoothTelephonyClient> client);
   void SetFlossSocketManager(std::unique_ptr<FlossSocketManager> manager);
 #if BUILDFLAG(IS_CHROMEOS)
   void SetFlossAdminClient(std::unique_ptr<FlossAdminClient> client);
@@ -319,6 +392,10 @@ class DEVICE_BLUETOOTH_EXPORT FlossClientBundle {
     return battery_manager_client_.get();
   }
 
+  FlossBluetoothTelephonyClient* bluetooth_telephony_client() {
+    return bluetooth_telephony_client_.get();
+  }
+
  private:
   friend FlossDBusManagerSetter;
   friend FlossDBusManager;
@@ -334,6 +411,7 @@ class DEVICE_BLUETOOTH_EXPORT FlossClientBundle {
   std::unique_ptr<FlossLoggingClient> logging_client_;
   std::unique_ptr<FlossAdvertiserClient> advertiser_client_;
   std::unique_ptr<FlossBatteryManagerClient> battery_manager_client_;
+  std::unique_ptr<FlossBluetoothTelephonyClient> bluetooth_telephony_client_;
 #if BUILDFLAG(IS_CHROMEOS)
   std::unique_ptr<FlossAdminClient> admin_client_;
 #endif  // BUILDFLAG(IS_CHROMEOS)

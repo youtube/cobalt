@@ -2,22 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "net/nqe/network_quality_estimator_params.h"
 
 #include <stdint.h>
 
+#include <array>
+
+#include "base/containers/span.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/time/time.h"
+#include "net/base/features.h"
 
 namespace net {
 
 const char kForceEffectiveConnectionType[] = "force_effective_connection_type";
 const char kEffectiveConnectionTypeSlow2GOnCellular[] = "Slow-2G-On-Cellular";
-const base::TimeDelta
-    kHttpRttEffectiveConnectionTypeThresholds[EFFECTIVE_CONNECTION_TYPE_LAST] =
-        {base::Milliseconds(0),    base::Milliseconds(0),
-         base::Milliseconds(2010), base::Milliseconds(1420),
-         base::Milliseconds(272),  base::Milliseconds(0)};
 
 namespace {
 
@@ -138,7 +138,7 @@ const char* GetNameForConnectionTypeInternal(
 // other information.
 void ObtainDefaultObservations(
     const std::map<std::string, std::string>& params,
-    nqe::internal::NetworkQuality default_observations[]) {
+    base::span<nqe::internal::NetworkQuality> default_observations) {
   for (size_t i = 0; i < NetworkChangeNotifier::CONNECTION_LAST; ++i) {
     DCHECK_EQ(nqe::internal::InvalidRTT(), default_observations[i].http_rtt());
     DCHECK_EQ(nqe::internal::InvalidRTT(),
@@ -233,23 +233,24 @@ void ObtainDefaultObservations(
 // Typical HTTP RTT value corresponding to a given WebEffectiveConnectionType
 // value. Taken from
 // https://cs.chromium.org/chromium/src/net/nqe/network_quality_estimator_params.cc.
-const base::TimeDelta kTypicalHttpRttEffectiveConnectionType
-    [net::EFFECTIVE_CONNECTION_TYPE_LAST] = {
+const std::array<base::TimeDelta, net::EFFECTIVE_CONNECTION_TYPE_LAST>
+    kTypicalHttpRttEffectiveConnectionType = {
         base::Milliseconds(0),    base::Milliseconds(0),
         base::Milliseconds(3600), base::Milliseconds(1800),
-        base::Milliseconds(450),  base::Milliseconds(175)};
+        base::Milliseconds(450),  base::Milliseconds(175),
+};
 
 // Typical downlink throughput (in Mbps) value corresponding to a given
 // WebEffectiveConnectionType value. Taken from
 // https://cs.chromium.org/chromium/src/net/nqe/network_quality_estimator_params.cc.
-const int32_t kTypicalDownlinkKbpsEffectiveConnectionType
-    [net::EFFECTIVE_CONNECTION_TYPE_LAST] = {0, 0, 40, 75, 400, 1600};
+const std::array<int32_t, net::EFFECTIVE_CONNECTION_TYPE_LAST>
+    kTypicalDownlinkKbpsEffectiveConnectionType = {0, 0, 40, 75, 400, 1600};
 
 // Sets |typical_network_quality| to typical network quality for different
 // effective connection types.
 void ObtainTypicalNetworkQualities(
     const std::map<std::string, std::string>& params,
-    nqe::internal::NetworkQuality typical_network_quality[]) {
+    base::span<nqe::internal::NetworkQuality> typical_network_quality) {
   for (size_t i = 0; i < EFFECTIVE_CONNECTION_TYPE_LAST; ++i) {
     DCHECK_EQ(nqe::internal::InvalidRTT(),
               typical_network_quality[i].http_rtt());
@@ -307,10 +308,11 @@ void ObtainTypicalNetworkQualities(
 // |connection_thresholds|.
 void ObtainConnectionThresholds(
     const std::map<std::string, std::string>& params,
-    nqe::internal::NetworkQuality connection_thresholds[]) {
+    base::span<nqe::internal::NetworkQuality> connection_thresholds) {
   // First set the default thresholds.
-  nqe::internal::NetworkQuality default_effective_connection_type_thresholds
-      [EffectiveConnectionType::EFFECTIVE_CONNECTION_TYPE_LAST];
+  std::array<nqe::internal::NetworkQuality,
+             EffectiveConnectionType::EFFECTIVE_CONNECTION_TYPE_LAST>
+      default_effective_connection_type_thresholds;
 
   DCHECK_LT(base::TimeDelta(), kHttpRttEffectiveConnectionTypeThresholds
                                    [EFFECTIVE_CONNECTION_TYPE_SLOW_2G]);
@@ -392,13 +394,13 @@ bool GetForcedEffectiveConnectionTypeOnCellularOnly(
          kEffectiveConnectionTypeSlow2GOnCellular;
 }
 
-absl::optional<EffectiveConnectionType> GetInitForcedEffectiveConnectionType(
+std::optional<EffectiveConnectionType> GetInitForcedEffectiveConnectionType(
     const std::map<std::string, std::string>& params) {
   if (GetForcedEffectiveConnectionTypeOnCellularOnly(params)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   std::string forced_value = GetForcedEffectiveConnectionTypeString(params);
-  absl::optional<EffectiveConnectionType> ect =
+  std::optional<EffectiveConnectionType> ect =
       GetEffectiveConnectionTypeForName(forced_value);
   DCHECK(forced_value.empty() || ect);
   return ect;
@@ -474,6 +476,9 @@ NetworkQualityEstimatorParams::NetworkQualityEstimatorParams(
               params_,
               "add_default_platform_observations",
               "true") == "true"),
+      count_new_observations_received_compute_ect_(
+          features::kCountNewObservationsReceivedComputeEct.Get()),
+      observation_buffer_size_(features::kObservationBufferSize.Get()),
       socket_watchers_min_notification_interval_(
           base::Milliseconds(GetValueForVariationParam(
               params_,
@@ -539,7 +544,7 @@ void NetworkQualityEstimatorParams::SetForcedEffectiveConnectionTypeForTesting(
   forced_effective_connection_type_ = type;
 }
 
-absl::optional<EffectiveConnectionType>
+std::optional<EffectiveConnectionType>
 NetworkQualityEstimatorParams::GetForcedEffectiveConnectionType(
     NetworkChangeNotifier::ConnectionType connection_type) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -551,7 +556,7 @@ NetworkQualityEstimatorParams::GetForcedEffectiveConnectionType(
       net::NetworkChangeNotifier::IsConnectionCellular(connection_type)) {
     return EFFECTIVE_CONNECTION_TYPE_SLOW_2G;
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 size_t NetworkQualityEstimatorParams::throughput_min_requests_in_flight()

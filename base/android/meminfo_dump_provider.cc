@@ -3,14 +3,16 @@
 // found in the LICENSE file.
 
 #include "base/android/meminfo_dump_provider.h"
+
 #include <jni.h>
+
 #include "base/android/jni_android.h"
 #include "base/logging.h"
 #include "base/time/time.h"
 #include "base/trace_event/base_tracing.h"
 
 #if BUILDFLAG(ENABLE_BASE_TRACING)
-#include "base/base_jni_headers/MemoryInfoBridge_jni.h"
+#include "base/memory_jni/MemoryInfoBridge_jni.h"
 #endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 
 namespace base::android {
@@ -53,7 +55,7 @@ bool MeminfoDumpProvider::OnMemoryDump(
   // would confuse data in UMA. In particular, the background/foreground session
   // filter would no longer be accurate.
   if (stale_data && args.level_of_detail !=
-                        base::trace_event::MemoryDumpLevelOfDetail::DETAILED) {
+                        base::trace_event::MemoryDumpLevelOfDetail::kDetailed) {
     return true;
   }
 

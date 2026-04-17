@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 package org.chromium.content.browser.androidoverlay;
+
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Rect;
-import android.os.Build;
 import android.view.Surface;
 
 import androidx.test.InstrumentationRegistry;
@@ -18,21 +18,19 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.BaseJUnit4ClassRunner;
+import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
-import org.chromium.base.test.util.MinAndroidSdkLevel;
 import org.chromium.base.test.util.UrlUtils;
 import org.chromium.content.browser.RenderCoordinatesImpl;
 import org.chromium.content.browser.androidoverlay.DialogOverlayImplTestRule.Client;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 
 import java.util.concurrent.Callable;
 
-/**
- * Pixel tests for DialogOverlayImpl.  These use UiAutomation, so they only run in JB or above.
- */
+/** Pixel tests for DialogOverlayImpl. These use UiAutomation, so they only run in JB or above. */
 @RunWith(BaseJUnit4ClassRunner.class)
-@MinAndroidSdkLevel(Build.VERSION_CODES.JELLY_BEAN_MR2)
+@DisabledTest(message = "https://crbug.com/1462304")
 public class DialogOverlayImplPixelTest {
     // Color that we'll fill the overlay with.
 
@@ -49,18 +47,28 @@ public class DialogOverlayImplPixelTest {
     private static final int DIV_HEIGHT_CSS = 200;
 
     // Provide a solid-color div that's positioned / sized by DIV_*_CSS.
-    private static final String TEST_PAGE_STYLE = "<style>"
-            + "div {"
-            + "left: " + DIV_X_CSS + "px;"
-            + "top: " + DIV_Y_CSS + "px;"
-            + "width: " + DIV_WIDTH_CSS + "px;"
-            + "height: " + DIV_HEIGHT_CSS + "px;"
-            + "position: absolute;"
-            + "background: red;"
-            + "}"
-            + "</style>";
-    private static final String TEST_PAGE_DATA_URL = UrlUtils.encodeHtmlDataUri(
-            "<html>" + TEST_PAGE_STYLE + "<body><div></div></body></html>");
+    private static final String TEST_PAGE_STYLE =
+            "<style>"
+                    + "div {"
+                    + "left: "
+                    + DIV_X_CSS
+                    + "px;"
+                    + "top: "
+                    + DIV_Y_CSS
+                    + "px;"
+                    + "width: "
+                    + DIV_WIDTH_CSS
+                    + "px;"
+                    + "height: "
+                    + DIV_HEIGHT_CSS
+                    + "px;"
+                    + "position: absolute;"
+                    + "background: red;"
+                    + "}"
+                    + "</style>";
+    private static final String TEST_PAGE_DATA_URL =
+            UrlUtils.encodeHtmlDataUri(
+                    "<html>" + TEST_PAGE_STYLE + "<body><div></div></body></html>");
 
     // Number of retries for various race-prone operations.
     private static final int NUM_RETRIES = 10;
@@ -86,7 +94,7 @@ public class DialogOverlayImplPixelTest {
 
     // Maximum status bar height that we'll work with.  This just lets us restrict the area of the
     // screenshot that we inspect, since it's slow.  This should also include the URL bar.
-    private static final int mStatusBarMaxHeightPx = 300;
+    private static final int STATUS_BAR_MAX_HEIGHT_PX = 300;
 
     // Area of interest that contains the div, since the whole image is big.
     Rect mAreaOfInterestPx;
@@ -119,8 +127,8 @@ public class DialogOverlayImplPixelTest {
     }
 
     int convertCSSToScreenPixels(int css) {
-        return (int) (css * mCoordinates.getPageScaleFactor()
-                * mCoordinates.getDeviceScaleFactor());
+        return (int)
+                (css * mCoordinates.getPageScaleFactor() * mCoordinates.getDeviceScaleFactor());
     }
 
     // Since ContentShell makes our solid color div have some textured background, we have to be
@@ -152,7 +160,7 @@ public class DialogOverlayImplPixelTest {
             mAreaOfInterestPx.left = mDivXPx - FUZZY_PIXELS;
             mAreaOfInterestPx.top = mDivYPx - FUZZY_PIXELS;
             mAreaOfInterestPx.right = mDivXPx + mDivWidthPx - 1 + FUZZY_PIXELS;
-            mAreaOfInterestPx.bottom = mDivYPx + mDivHeightPx + mStatusBarMaxHeightPx;
+            mAreaOfInterestPx.bottom = mDivYPx + mDivHeightPx + STATUS_BAR_MAX_HEIGHT_PX;
 
             mInitialScreenshot = takeScreenshot();
 
@@ -229,12 +237,14 @@ public class DialogOverlayImplPixelTest {
         Assert.assertNotNull(overlay);
         final Client.Event event = mActivityTestRule.getClient().nextEvent();
         Assert.assertTrue(event.surfaceKey > 0);
-        return TestThreadUtils.runOnUiThreadBlocking(new Callable<Surface>() {
-            @Override
-            public Surface call() {
-                return DialogOverlayImplJni.get().lookupSurfaceForTesting((int) event.surfaceKey);
-            }
-        });
+        return ThreadUtils.runOnUiThreadBlocking(
+                new Callable<Surface>() {
+                    @Override
+                    public Surface call() {
+                        return DialogOverlayImplJni.get()
+                                .lookupSurfaceForTesting((int) event.surfaceKey);
+                    }
+                });
     }
 
     @Test
@@ -263,7 +273,10 @@ public class DialogOverlayImplPixelTest {
         rect.width = mDivWidthPx;
         rect.height = mDivHeightPx;
 
-        TestThreadUtils.runOnUiThreadBlocking(() -> { overlay.scheduleLayout(rect); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    overlay.scheduleLayout(rect);
+                });
 
         assertDivIsExactlyCovered(surface);
     }

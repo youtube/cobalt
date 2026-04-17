@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <string_view>
+
 #include "base/files/file_util.h"
 #include "base/path_service.h"
 #include "base/test/bind.h"
@@ -16,8 +18,8 @@
 namespace shape_detection {
 
 constexpr struct TestParams {
-  base::FilePath::StringPieceType filename;
-  base::StringPiece expected_value;
+  base::FilePath::StringViewType filename;
+  std::string_view expected_value;
   float x;
   float y;
   float width;
@@ -60,27 +62,25 @@ class BarcodeDetectionImplBarhopperTest
     return barcode_service;
   }
 
-  std::unique_ptr<SkBitmap> LoadTestImage(
-      base::FilePath::StringPieceType filename) {
+  SkBitmap LoadTestImage(base::FilePath::StringViewType filename) {
     // Load image data from test directory.
     base::FilePath image_path;
-    EXPECT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &image_path));
+    EXPECT_TRUE(
+        base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &image_path));
     image_path = image_path.Append(FILE_PATH_LITERAL("services"))
                      .Append(FILE_PATH_LITERAL("test"))
                      .Append(FILE_PATH_LITERAL("data"))
                      .Append(filename);
     EXPECT_TRUE(base::PathExists(image_path));
-    std::string image_data;
-    EXPECT_TRUE(base::ReadFileToString(image_path, &image_data));
+    std::optional<std::vector<uint8_t>> image_data =
+        base::ReadFileToBytes(image_path);
 
-    std::unique_ptr<SkBitmap> image(new SkBitmap());
-    EXPECT_TRUE(gfx::PNGCodec::Decode(
-        reinterpret_cast<const uint8_t*>(image_data.data()), image_data.size(),
-        image.get()));
+    SkBitmap image = gfx::PNGCodec::Decode(image_data.value());
+    EXPECT_FALSE(image.isNull());
 
-    const gfx::Size size(image->width(), image->height());
+    const gfx::Size size(image.width(), image.height());
     const uint32_t num_bytes = size.GetArea() * 4 /* bytes per pixel */;
-    EXPECT_EQ(num_bytes, image->computeByteSize());
+    EXPECT_EQ(num_bytes, image.computeByteSize());
 
     return image;
   }
@@ -93,17 +93,16 @@ TEST_P(BarcodeDetectionImplBarhopperTest, Scan) {
   mojo::Remote<mojom::BarcodeDetection> barcode_detector =
       ConnectToBarcodeDetector();
 
-  std::unique_ptr<SkBitmap> image = LoadTestImage(GetParam().filename);
-  ASSERT_TRUE(image);
+  SkBitmap image = LoadTestImage(GetParam().filename);
 
   std::vector<mojom::BarcodeDetectionResultPtr> results;
   base::RunLoop run_loop;
   barcode_detector->Detect(
-      *image, base::BindLambdaForTesting(
-                  [&](std::vector<mojom::BarcodeDetectionResultPtr> barcodes) {
-                    results = std::move(barcodes);
-                    run_loop.Quit();
-                  }));
+      image, base::BindLambdaForTesting(
+                 [&](std::vector<mojom::BarcodeDetectionResultPtr> barcodes) {
+                   results = std::move(barcodes);
+                   run_loop.Quit();
+                 }));
   run_loop.Run();
   EXPECT_EQ(1u, results.size());
   EXPECT_EQ(GetParam().expected_value, results.front()->raw_value);

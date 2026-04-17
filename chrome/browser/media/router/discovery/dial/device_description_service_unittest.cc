@@ -4,8 +4,12 @@
 
 #include "chrome/browser/media/router/discovery/dial/device_description_service.h"
 
+#include <memory>
+#include <utility>
+
 #include "base/containers/contains.h"
 #include "base/memory/raw_ref.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
@@ -13,8 +17,10 @@
 #include "chrome/browser/media/router/discovery/dial/dial_device_data.h"
 #include "chrome/browser/media/router/discovery/dial/parsed_dial_device_description.h"
 #include "chrome/browser/media/router/discovery/dial/safe_dial_device_description_parser.h"
+#include "chrome/browser/media/router/test/provider_test_helpers.h"
 #include "content/public/test/browser_task_environment.h"
 #include "net/base/ip_address.h"
+#include "services/network/test/test_url_loader_factory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -65,6 +71,18 @@ class TestDeviceDescriptionService : public DeviceDescriptionService {
 
   MOCK_METHOD2(ParseDeviceDescription,
                void(const DialDeviceData&, const DialDeviceDescriptionData&));
+
+  std::unique_ptr<DeviceDescriptionFetcher> CreateFetcher(
+      const DialDeviceData& device_data,
+      base::OnceCallback<void(const DialDeviceDescriptionData&)> success_cb,
+      base::OnceCallback<void(const std::string&)> error_cb) override {
+    return std::make_unique<TestDeviceDescriptionFetcher>(
+        device_data, std::move(success_cb), std::move(error_cb),
+        &loader_factory_);
+  }
+
+ private:
+  network::TestURLLoaderFactory loader_factory_;
 };
 
 class DeviceDescriptionServiceTest : public ::testing::Test {
@@ -90,8 +108,7 @@ class DeviceDescriptionServiceTest : public ::testing::Test {
     (*description_cache_)[device_label] = cache_entry;
   }
 
-  void OnDeviceDescriptionFetchComplete(int num) {
-  }
+  void OnDeviceDescriptionFetchComplete(int num) {}
 
   void TestOnParsedDeviceDescription(
       ParsedDialDeviceDescription device_description,
@@ -249,9 +266,10 @@ TEST_F(DeviceDescriptionServiceTest, TestOnParsedDeviceDescription) {
       SafeDialDeviceDescriptionParser::ParsingResult::kFailedToReadFriendlyName,
       SafeDialDeviceDescriptionParser::ParsingResult::kFailedToReadModelName,
       SafeDialDeviceDescriptionParser::ParsingResult::kFailedToReadDeviceType};
-  for (auto error : errors)
+  for (auto error : errors) {
     TestOnParsedDeviceDescription(ParsedDialDeviceDescription(), error,
                                   error_message);
+  }
 
   // Empty field
   error_message = "Failed to process fetch result";
@@ -269,7 +287,7 @@ TEST_F(DeviceDescriptionServiceTest, TestOnParsedDeviceDescription) {
   // Valid device description ptr and skip cache.
   size_t cache_num = 256;
   for (size_t i = 0; i < cache_num; i++) {
-    AddToCache(std::to_string(i), ParsedDialDeviceDescription(),
+    AddToCache(base::NumberToString(i), ParsedDialDeviceDescription(),
                false /* expired */);
   }
 

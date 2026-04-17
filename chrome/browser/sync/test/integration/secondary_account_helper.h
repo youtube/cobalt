@@ -9,7 +9,6 @@
 #include <string>
 
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "components/signin/public/identity_manager/account_info.h"
 
@@ -29,16 +28,16 @@ namespace secondary_account_helper {
 base::CallbackListSubscription SetUpSigninClient(
     network::TestURLLoaderFactory* test_url_loader_factory);
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 // Sets up necessary fakes for fake network responses to work. Meant to be
 // called from SetUpOnMainThread.
-// TODO(crbug.com/882770): On ChromeOS, we need to set up a fake
+// TODO(crbug.com/40593103): On ChromeOS, we need to set up a fake
 // `NetworkPortalDetector`, otherwise `ash::DelayNetworkCall` will think it's
 // behind a captive portal and delay all network requests forever, which means
 // the ListAccounts requests (i.e. getting cookie accounts) will never make it
 // far enough to even request our fake response.
 void InitNetwork();
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 // Sets an account as primary with `signin::ConsentLevel::kSignin`. There is no
 // consent for Sync. The account is available with both a refresh token and
@@ -48,16 +47,25 @@ AccountInfo SignInUnconsentedAccount(
     network::TestURLLoaderFactory* test_url_loader_factory,
     const std::string& email);
 
-// Clears signin cookies and removes the refresh token for the given account.
-void SignOutAccount(Profile* profile,
-                    network::TestURLLoaderFactory* test_url_loader_factory,
-                    const CoreAccountId& account_id);
+// Sets an account as primary with `signin::ConsentLevel::kSignin`. There is no
+// consent for Sync. The account is available with both a refresh token and
+// cookie. The signin is not considered explicit (it happened through Dice
+// automatic signin), and account storage for passwords and addresses is not
+// opted-in.
+AccountInfo ImplicitSignInUnconsentedAccount(
+    Profile* profile,
+    network::TestURLLoaderFactory* test_url_loader_factory,
+    const std::string& email);
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+// Clears signin cookies and signs out of the primary account.
+void SignOut(Profile* profile,
+             network::TestURLLoaderFactory* test_url_loader_factory);
+
+#if !BUILDFLAG(IS_CHROMEOS)
 // Grants sync consent to an account (`signin::ConsentLevel::kSync`). The
 // account must already be signed in (per SignInUnconsentedAccount).
 void GrantSyncConsent(Profile* profile, const std::string& email);
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace secondary_account_helper
 

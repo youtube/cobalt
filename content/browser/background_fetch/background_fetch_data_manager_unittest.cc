@@ -258,7 +258,7 @@ class BackgroundFetchDataManagerTest
   blink::mojom::BackgroundFetchRegistrationDataPtr GetRegistration(
       int64_t service_worker_registration_id,
       const blink::StorageKey& storage_key,
-      const std::string developer_id,
+      const std::string& developer_id,
       blink::mojom::BackgroundFetchError* out_error) {
     DCHECK(out_error);
 
@@ -693,7 +693,7 @@ class BackgroundFetchDataManagerTest
                     int num_requests,
                     std::vector<scoped_refptr<BackgroundFetchRequestInfo>>
                         active_fetch_requests,
-                    absl::optional<net::IsolationInfo> isolation_info));
+                    std::optional<net::IsolationInfo> isolation_info));
   MOCK_METHOD2(
       OnRegistrationQueried,
       void(const BackgroundFetchRegistrationId& registration_id,

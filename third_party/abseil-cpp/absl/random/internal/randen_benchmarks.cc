@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-#include "absl/random/internal/randen.h"
-
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -21,6 +19,8 @@
 #include "absl/base/internal/raw_logging.h"
 #include "absl/random/internal/nanobenchmark.h"
 #include "absl/random/internal/platform.h"
+#include "absl/random/internal/randen.h"
+#include "absl/random/internal/randen_detect.h"
 #include "absl/random/internal/randen_engine.h"
 #include "absl/random/internal/randen_hwaes.h"
 #include "absl/random/internal/randen_slow.h"
@@ -28,6 +28,7 @@
 
 namespace {
 
+using absl::random_internal::CPUSupportsRandenHwAes;
 using absl::random_internal::Randen;
 using absl::random_internal::RandenHwAes;
 using absl::random_internal::RandenSlow;
@@ -47,8 +48,10 @@ static constexpr size_t kSeedSizeT = Randen::kSeedBytes / sizeof(uint32_t);
 // Randen implementation benchmarks.
 template <typename T>
 struct AbsorbFn : public T {
-  mutable uint64_t state[kStateSizeT] = {};
-  mutable uint32_t seed[kSeedSizeT] = {};
+  // These are both cast to uint128* in the RandenHwAes implementation, so
+  // ensure they are 16 byte aligned.
+  alignas(16) mutable uint64_t state[kStateSizeT] = {};
+  alignas(16) mutable uint32_t seed[kSeedSizeT] = {};
 
   static constexpr size_t bytes() { return sizeof(seed); }
 
@@ -149,14 +152,14 @@ void RunAll(const int argc, char* argv[]) {
   const FuncInput unpredictable = (argc != 999);
   static const FuncInput inputs[] = {unpredictable * 100, unpredictable * 1000};
 
-#if !defined(ABSL_INTERNAL_DISABLE_AES) && ABSL_HAVE_ACCELERATED_AES
-  Measure<AbsorbFn<RandenHwAes>>("Absorb (HwAes)", inputs);
-#endif
+  if (CPUSupportsRandenHwAes()) {
+    Measure<AbsorbFn<RandenHwAes>>("Absorb (HwAes)", inputs);
+  }
   Measure<AbsorbFn<RandenSlow>>("Absorb (Slow)", inputs);
 
-#if !defined(ABSL_INTERNAL_DISABLE_AES) && ABSL_HAVE_ACCELERATED_AES
-  Measure<GenerateFn<RandenHwAes>>("Generate (HwAes)", inputs);
-#endif
+  if (CPUSupportsRandenHwAes()) {
+    Measure<GenerateFn<RandenHwAes>>("Generate (HwAes)", inputs);
+  }
   Measure<GenerateFn<RandenSlow>>("Generate (Slow)", inputs);
 
   // Measure the production engine.

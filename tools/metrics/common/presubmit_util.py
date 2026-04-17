@@ -1,4 +1,4 @@
-# Copyright 2015 The Chromium Authors
+# Copyright 2024 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -81,7 +81,7 @@ def DoPresubmit(argv,
 
   if presubmit:
     if interactive:
-      logging.error('%s is not formatted correctly; run %s to fix.',
+      logging.error('%s is not formatted correctly; run `%s` to fix.',
                     original_filename, script_name)
     return 1
 
@@ -110,3 +110,44 @@ def DoPresubmit(argv,
 
 def DoPresubmitMain(*args, **kwargs):
   sys.exit(DoPresubmit(*args, **kwargs))
+
+
+def CheckChange(xml_file, input_api, output_api):
+  """Checks that xml is pretty-printed and well-formatted."""
+  absolute_paths_of_affected_files = [
+      f.AbsoluteLocalPath() for f in input_api.AffectedFiles()
+  ]
+  xml_file_changed = any([
+      input_api.basename(p) == xml_file
+      and input_api.os_path.dirname(p) == input_api.PresubmitLocalPath()
+      for p in absolute_paths_of_affected_files
+  ])
+
+  if not xml_file_changed:
+    return []
+
+  cwd = input_api.PresubmitLocalPath()
+  pretty_print_args = [
+      input_api.python3_executable, 'pretty_print.py', '--presubmit'
+  ]
+
+  exit_code = input_api.subprocess.call(pretty_print_args, cwd=cwd)
+  if exit_code != 0:
+    return [
+        output_api.PresubmitError(
+            '%s is not prettified; run `git cl format` to fix.' % xml_file),
+    ]
+
+  validate_format_args = [
+      input_api.python3_executable, 'validate_format.py', '--presubmit'
+  ]
+  exit_code = input_api.subprocess.call(validate_format_args, cwd=cwd)
+  if exit_code != 0:
+    return [
+        output_api.PresubmitError(
+            '%s does not pass format validation; run %s/validate_format.py '
+            'and fix the reported error(s) or warning(s).' %
+            (xml_file, input_api.PresubmitLocalPath())),
+    ]
+
+  return []

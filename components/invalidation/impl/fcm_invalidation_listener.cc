@@ -4,15 +4,41 @@
 
 #include "components/invalidation/impl/fcm_invalidation_listener.h"
 
+#include <optional>
+
 #include "base/functional/bind.h"
-#include "base/functional/callback.h"
 #include "base/logging.h"
 #include "base/task/single_thread_task_runner.h"
+#include "components/invalidation/public/invalidation.h"
 #include "components/invalidation/public/invalidation_util.h"
-#include "components/invalidation/public/topic_invalidation_map.h"
-#include "components/prefs/pref_service.h"
+#include "components/invalidation/public/invalidator_state.h"
 
 namespace invalidation {
+
+namespace {
+
+// Insert or update the invalidation in the map at `invalidation.topic()`.
+// If `map` does not have an invalidation for that topic, a copy of `inv` will
+// be inserted.
+// Otherwise, the existing invalidation for the topic will be replaced by `inv`
+// if and only if `inv` has a higher version than `map.at(inv.topic())`.
+void Upsert(std::map<Topic, Invalidation>& map,
+            const std::optional<Invalidation>& invalidation) {
+  if (!invalidation) {
+    return;
+  }
+  auto it = map.find(invalidation->topic());
+  if (it == map.end()) {
+    map.emplace(invalidation->topic(), *invalidation);
+    return;
+  }
+  if (it->second.version() < invalidation->version()) {
+    it->second = *invalidation;
+    return;
+  }
+}
+
+}  // namespace
 
 FCMInvalidationListener::FCMInvalidationListener(
     std::unique_ptr<FCMSyncNetworkChannel> network_channel)
@@ -24,6 +50,12 @@ FCMInvalidationListener::~FCMInvalidationListener() {
   network_channel_->RemoveObserver(this);
   Stop();
   DCHECK(!delegate_);
+}
+
+// static
+std::unique_ptr<FCMInvalidationListener> FCMInvalidationListener::Create(
+    std::unique_ptr<FCMSyncNetworkChannel> network_channel) {
+  return std::make_unique<FCMInvalidationListener>(std::move(network_channel));
 }
 
 void FCMInvalidationListener::Start(
@@ -49,7 +81,7 @@ void FCMInvalidationListener::Start(
   DoSubscriptionUpdate();
 }
 
-void FCMInvalidationListener::UpdateInterestedTopics(const Topics& topics) {
+void FCMInvalidationListener::UpdateInterestedTopics(const TopicMap& topics) {
   topics_update_requested_ = true;
   interested_topics_ = topics;
   DoSubscriptionUpdate();
@@ -66,7 +98,7 @@ void FCMInvalidationListener::InvalidationReceived(
     int64_t version) {
   // Note: |public_topic| is empty for some invalidations (e.g. Drive). Prefer
   // using |*expected_public_topic| over |public_topic|.
-  absl::optional<std::string> expected_public_topic =
+  std::optional<std::string> expected_public_topic =
       per_user_topic_subscription_manager_
           ->LookupSubscribedPublicTopicByPrivateTopic(private_topic);
   if (!expected_public_topic ||
@@ -76,44 +108,25 @@ void FCMInvalidationListener::InvalidationReceived(
              << expected_public_topic.value_or("<None>");
     return;
   }
-  TopicInvalidationMap invalidations;
-  Invalidation inv =
-      Invalidation::Init(*expected_public_topic, version, payload);
-  inv.SetAckHandler(weak_factory_.GetWeakPtr(),
-                    base::SingleThreadTaskRunner::GetCurrentDefault());
+  Invalidation inv = Invalidation(*expected_public_topic, version, payload);
   DVLOG(1) << "Received invalidation with version " << inv.version() << " for "
            << *expected_public_topic;
 
-  invalidations.Insert(inv);
-  DispatchInvalidations(invalidations);
+  DispatchInvalidation(inv);
 }
 
-void FCMInvalidationListener::DispatchInvalidations(
-    const TopicInvalidationMap& invalidations) {
-  TopicInvalidationMap to_save = invalidations;
-  TopicInvalidationMap to_emit =
-      invalidations.GetSubsetWithTopics(interested_topics_);
-
-  SaveInvalidations(to_save);
-  EmitSavedInvalidations(to_emit);
+void FCMInvalidationListener::DispatchInvalidation(
+    const Invalidation& invalidation) {
+  const auto uninteresting_invalidation = EmitInvalidation(invalidation);
+  Upsert(undispatched_invalidations_, uninteresting_invalidation);
 }
 
-void FCMInvalidationListener::SaveInvalidations(
-    const TopicInvalidationMap& to_save) {
-  for (const Topic& topic : to_save.GetTopics()) {
-    auto lookup = unacked_invalidations_map_.find(topic);
-    if (lookup == unacked_invalidations_map_.end()) {
-      lookup = unacked_invalidations_map_
-                   .emplace(topic, UnackedInvalidationSet(topic))
-                   .first;
-    }
-    lookup->second.AddSet(to_save.ForTopic(topic));
+std::optional<Invalidation> FCMInvalidationListener::EmitInvalidation(
+    const Invalidation& invalidation) {
+  if (!interested_topics_.contains(invalidation.topic())) {
+    return invalidation;
   }
-}
-
-void FCMInvalidationListener::EmitSavedInvalidations(
-    const TopicInvalidationMap& to_emit) {
-  delegate_->OnInvalidate(to_emit);
+  return delegate_->OnInvalidate(invalidation);
 }
 
 void FCMInvalidationListener::TokenReceived(
@@ -128,26 +141,6 @@ void FCMInvalidationListener::TokenReceived(
   }
 }
 
-void FCMInvalidationListener::Acknowledge(const Topic& topic,
-                                          const AckHandle& handle) {
-  auto lookup = unacked_invalidations_map_.find(topic);
-  if (lookup == unacked_invalidations_map_.end()) {
-    DLOG(WARNING) << "Received acknowledgement for untracked topic";
-    return;
-  }
-  lookup->second.Acknowledge(handle);
-}
-
-void FCMInvalidationListener::Drop(const Topic& topic,
-                                   const AckHandle& handle) {
-  auto lookup = unacked_invalidations_map_.find(topic);
-  if (lookup == unacked_invalidations_map_.end()) {
-    DLOG(WARNING) << "Received drop for untracked topic";
-    return;
-  }
-  lookup->second.Drop(handle);
-}
-
 void FCMInvalidationListener::DoSubscriptionUpdate() {
   if (!per_user_topic_subscription_manager_ || instance_id_token_.empty() ||
       !topics_update_requested_) {
@@ -156,46 +149,14 @@ void FCMInvalidationListener::DoSubscriptionUpdate() {
   per_user_topic_subscription_manager_->UpdateSubscribedTopics(
       interested_topics_, instance_id_token_);
 
-  // Go over all stored unacked invalidations and dispatch them if their topics
-  // have become interesting.
-  // Note: We might dispatch invalidations for a second time here, if they were
-  // already dispatched but not acked yet.
-  // TODO(melandory): remove unacked invalidations for unregistered topics.
-  TopicInvalidationMap topic_invalidation_map;
-  for (const auto& unacked : unacked_invalidations_map_) {
-    if (interested_topics_.find(unacked.first) == interested_topics_.end()) {
-      continue;
-    }
-
-    unacked.second.ExportInvalidations(
-        weak_factory_.GetWeakPtr(),
-        base::SingleThreadTaskRunner::GetCurrentDefault(),
-        &topic_invalidation_map);
+  // Emit all cached invalidations, as some might be interesting now.
+  // The non-dispatched invalidations form the new cache.
+  std::map<Topic, Invalidation> new_cache;
+  for (const auto& [topic, invalidation] : undispatched_invalidations_) {
+    const auto uninteresting_invalidation = EmitInvalidation(invalidation);
+    Upsert(new_cache, uninteresting_invalidation);
   }
-
-  // There's no need to run these through DispatchInvalidations(); they've
-  // already been saved to storage (that's where we found them) so all we need
-  // to do now is emit them.
-  EmitSavedInvalidations(topic_invalidation_map);
-}
-
-void FCMInvalidationListener::RequestDetailedStatus(
-    const base::RepeatingCallback<void(base::Value::Dict)>& callback) const {
-  network_channel_->RequestDetailedStatus(callback);
-  callback.Run(CollectDebugData());
-}
-
-void FCMInvalidationListener::StartForTest(Delegate* delegate) {
-  delegate_ = delegate;
-}
-
-void FCMInvalidationListener::EmitStateChangeForTest(InvalidatorState state) {
-  delegate_->OnInvalidatorStateChange(state);
-}
-
-void FCMInvalidationListener::EmitSavedInvalidationsForTest(
-    const TopicInvalidationMap& to_emit) {
-  EmitSavedInvalidations(to_emit);
+  swap(new_cache, undispatched_invalidations_);
 }
 
 void FCMInvalidationListener::Stop() {
@@ -212,19 +173,13 @@ void FCMInvalidationListener::Stop() {
 }
 
 InvalidatorState FCMInvalidationListener::GetState() const {
-  if (subscription_channel_state_ ==
-      SubscriptionChannelState::ACCESS_TOKEN_FAILURE) {
-    return INVALIDATION_CREDENTIALS_REJECTED;
-  }
   if (subscription_channel_state_ == SubscriptionChannelState::ENABLED &&
       fcm_network_state_ == FcmChannelState::ENABLED) {
-    // If the ticl is ready and the push client notifications are
-    // enabled, return INVALIDATIONS_ENABLED.
-    return INVALIDATIONS_ENABLED;
+    return InvalidatorState::kEnabled;
   }
 
-  // Otherwise, we have a transient error.
-  return TRANSIENT_INVALIDATION_ERROR;
+  // Otherwise, we have a (possibly transient) error.
+  return InvalidatorState::kDisabled;
 }
 
 void FCMInvalidationListener::EmitStateChange() {
@@ -242,20 +197,15 @@ void FCMInvalidationListener::OnSubscriptionChannelStateChanged(
   EmitStateChange();
 }
 
-base::Value::Dict FCMInvalidationListener::CollectDebugData() const {
-  base::Value::Dict status =
-      per_user_topic_subscription_manager_->CollectDebugData();
-  status.SetByDottedPath("InvalidationListener.FCM-channel-state",
-                         FcmChannelStateToString(fcm_network_state_));
-  status.SetByDottedPath(
-      "InvalidationListener.Subscription-channel-state",
-      SubscriptionChannelStateToString(subscription_channel_state_));
-  for (const auto& topic : interested_topics_) {
-    if (!status.Find(topic.first)) {
-      status.Set(topic.first, "Unsubscribed");
-    }
+void FCMInvalidationListener::OnSubscriptionRequestFinished(
+    Topic topic,
+    PerUserTopicSubscriptionManager::RequestType request_type,
+    Status code) {
+  if (request_type ==
+          PerUserTopicSubscriptionManager::RequestType::kSubscribe &&
+      code.IsSuccess()) {
+    delegate_->OnSuccessfullySubscribed(topic);
   }
-  return status;
 }
 
 }  // namespace invalidation

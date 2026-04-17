@@ -9,7 +9,6 @@
 #include "build/build_config.h"
 #include "content/browser/scheduler/responsiveness/message_loop_observer.h"
 #include "content/browser/scheduler/responsiveness/native_event_observer.h"
-#include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 
 namespace content {
@@ -103,7 +102,7 @@ void MetricSource::TearDownOnIOThread(
 
   message_loop_observer_io_.reset();
 
-  content::GetUIThreadTaskRunner({})->PostTask(
+  GetUIThreadTaskRunner({})->PostTask(
       FROM_HERE,
       base::BindOnce(&MetricSource::TearDownOnUIThread, base::Unretained(this),
                      std::move(on_finish_destroy)));

@@ -4,76 +4,104 @@
 
 #include "third_party/blink/renderer/platform/loader/fetch/cached_metadata.h"
 
+#include <utility>
+#include <variant>
+
+#include "base/memory/scoped_refptr.h"
+#include "base/numerics/safe_conversions.h"
 #include "third_party/blink/renderer/platform/loader/fetch/url_loader/cached_metadata_handler.h"
 
 namespace blink {
 
-scoped_refptr<CachedMetadata> CachedMetadata::CreateFromSerializedData(
-    const uint8_t* data,
-    size_t size) {
-  if (size > std::numeric_limits<wtf_size_t>::max())
-    return nullptr;
-  Vector<uint8_t> copied_data;
-  copied_data.Append(data, static_cast<wtf_size_t>(size));
-  return CreateFromSerializedData(std::move(copied_data));
+namespace {
+
+template <typename DataType>
+bool CheckSizeAndMarker(const DataType& data) {
+  // Ensure the data is big enough.
+  if (data.size() <= sizeof(CachedMetadataHeader)) {
+    return false;
+  }
+  // Ensure the marker matches.
+  if (reinterpret_cast<const CachedMetadataHeader*>(data.data())->marker !=
+      CachedMetadataHandler::kSingleEntryWithTag) {
+    return false;
+  }
+  return true;
+}
+
+Vector<uint8_t> GetSerializedData(uint32_t data_type_id,
+                                  base::span<const uint8_t> data,
+                                  uint64_t tag) {
+  // Don't allow an ID of 0, it is used internally to indicate errors.
+  DCHECK(data_type_id);
+  DCHECK(data.data());
+
+  Vector<uint8_t> vector =
+      CachedMetadata::GetSerializedDataHeader(data_type_id, data.size(), tag);
+  vector.AppendSpan(data);
+  return vector;
+}
+
+}  // namespace
+
+scoped_refptr<CachedMetadata> CachedMetadata::Create(
+    uint32_t data_type_id,
+    base::span<const uint8_t> data,
+    uint64_t tag) {
+  return base::MakeRefCounted<CachedMetadata>(data_type_id, data, tag,
+                                              base::PassKey<CachedMetadata>());
 }
 
 scoped_refptr<CachedMetadata> CachedMetadata::CreateFromSerializedData(
     Vector<uint8_t> data) {
-  // Ensure the data is big enough, otherwise discard the data.
-  if (data.size() < kCachedMetaDataStart)
-    return nullptr;
-  // Ensure the marker matches, otherwise discard the data.
-  if (*reinterpret_cast<const uint32_t*>(data.data()) !=
-      CachedMetadataHandler::kSingleEntry) {
+  if (!CheckSizeAndMarker(data)) {
     return nullptr;
   }
-  return base::AdoptRef(new CachedMetadata(std::move(data)));
+  return base::MakeRefCounted<CachedMetadata>(std::move(data),
+                                              base::PassKey<CachedMetadata>());
 }
 
 scoped_refptr<CachedMetadata> CachedMetadata::CreateFromSerializedData(
-    mojo_base::BigBuffer data) {
-  // Ensure the data is big enough, otherwise discard the data.
-  if (data.size() < kCachedMetaDataStart)
-    return nullptr;
-  // Ensure the marker matches, otherwise discard the data.
-  if (*reinterpret_cast<const uint32_t*>(data.data()) !=
-      CachedMetadataHandler::kSingleEntry) {
+    mojo_base::BigBuffer& data,
+    uint32_t offset) {
+  if (data.size() < offset ||
+      !CheckSizeAndMarker(base::as_byte_span(data).subspan(offset))) {
     return nullptr;
   }
-  return base::AdoptRef(new CachedMetadata(std::move(data)));
+  return base::MakeRefCounted<CachedMetadata>(std::move(data), offset,
+                                              base::PassKey<CachedMetadata>());
 }
 
-CachedMetadata::CachedMetadata(Vector<uint8_t> data) {
-  // Serialized metadata should have non-empty data.
-  DCHECK_GT(data.size(), kCachedMetaDataStart);
-  DCHECK(!data.empty());
-  // Make sure that the first int in the data is the single entry marker.
-  CHECK_EQ(*reinterpret_cast<const uint32_t*>(data.data()),
-           CachedMetadataHandler::kSingleEntry);
-
-  vector_ = std::move(data);
-}
+CachedMetadata::CachedMetadata(Vector<uint8_t> data,
+                               base::PassKey<CachedMetadata>)
+    : buffer_(std::move(data)) {}
 
 CachedMetadata::CachedMetadata(uint32_t data_type_id,
-                               const uint8_t* data,
-                               wtf_size_t size) {
-  // Don't allow an ID of 0, it is used internally to indicate errors.
-  DCHECK(data_type_id);
-  DCHECK(data);
+                               base::span<const uint8_t> data,
+                               uint64_t tag,
+                               base::PassKey<CachedMetadata>)
+    : buffer_(GetSerializedData(data_type_id, data, tag)) {}
 
-  vector_ = CachedMetadata::GetSerializedDataHeader(data_type_id, size);
-  vector_.Append(data, size);
+CachedMetadata::CachedMetadata(mojo_base::BigBuffer data,
+                               uint32_t offset,
+                               base::PassKey<CachedMetadata>)
+    : buffer_(std::move(data)), offset_(offset) {}
+
+base::span<const uint8_t> CachedMetadata::SerializedData() const {
+  base::span<const uint8_t> span_including_offset;
+  if (std::holds_alternative<Vector<uint8_t>>(buffer_)) {
+    span_including_offset = std::get<Vector<uint8_t>>(buffer_);
+  } else {
+    CHECK(std::holds_alternative<mojo_base::BigBuffer>(buffer_));
+    span_including_offset = std::get<mojo_base::BigBuffer>(buffer_);
+  }
+  CHECK_GE(span_including_offset.size(), offset_);
+  return span_including_offset.subspan(offset_);
 }
 
-CachedMetadata::CachedMetadata(mojo_base::BigBuffer data) {
-  // Serialized metadata should have non-empty data.
-  DCHECK_GT(data.size(), kCachedMetaDataStart);
-  // Make sure that the first int in the data is the single entry marker.
-  CHECK_EQ(*reinterpret_cast<const uint32_t*>(data.data()),
-           CachedMetadataHandler::kSingleEntry);
-
-  buffer_ = std::move(data);
+std::variant<Vector<uint8_t>, mojo_base::BigBuffer>
+CachedMetadata::DrainSerializedData() && {
+  return std::move(buffer_);
 }
 
 }  // namespace blink

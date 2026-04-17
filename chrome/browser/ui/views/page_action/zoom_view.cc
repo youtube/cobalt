@@ -10,13 +10,13 @@
 #include "chrome/browser/ui/views/location_bar/zoom_bubble_view.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/omnibox/browser/location_bar_model.h"
-#include "components/omnibox/browser/omnibox_field_trial.h"
 #include "components/zoom/zoom_controller.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/events/event.h"
 #include "ui/gfx/geometry/size.h"
+#include "ui/views/accessibility/view_accessibility.h"
 
 ZoomView::ZoomView(IconLabelBubbleView::Delegate* icon_label_bubble_delegate,
                    PageActionIconView::Delegate* page_action_icon_delegate)
@@ -27,27 +27,28 @@ ZoomView::ZoomView(IconLabelBubbleView::Delegate* icon_label_bubble_delegate,
                          "Zoom"),
       icon_(&kZoomMinusIcon) {
   SetVisible(false);
-  SetAccessibilityProperties(
-      /*role*/ absl::nullopt,
-      l10n_util::GetStringFUTF16(IDS_TOOLTIP_ZOOM,
-                                 base::FormatPercent(current_zoom_percent_)));
+  GetViewAccessibility().SetName(l10n_util::GetStringFUTF16(
+      IDS_TOOLTIP_ZOOM, base::FormatPercent(current_zoom_percent_)));
 }
 
-ZoomView::~ZoomView() {}
+ZoomView::~ZoomView() = default;
 
 void ZoomView::UpdateImpl() {
   ZoomChangedForActiveTab(false);
 }
 
 bool ZoomView::ShouldBeVisible(bool can_show_bubble) const {
-  if (delegate()->ShouldHidePageActionIcons())
+  if (delegate()->ShouldHidePageActionIcons()) {
     return false;
+  }
 
-  if (can_show_bubble)
+  if (can_show_bubble) {
     return true;
+  }
 
-  if (HasAssociatedBubble())
+  if (HasAssociatedBubble()) {
     return true;
+  }
 
   DCHECK(GetWebContents());
   zoom::ZoomController* zoom_controller =
@@ -56,45 +57,38 @@ bool ZoomView::ShouldBeVisible(bool can_show_bubble) const {
 }
 
 bool ZoomView::HasAssociatedBubble() const {
-  if (!GetBubble())
+  if (!GetBubble()) {
     return false;
+  }
 
   // Bubbles may be hosted in their own widget so use their anchor view as a
   // more reliable way of determining whether this icon belongs to the same
   // browser window.
-  if (!GetBubble()->GetAnchorView())
+  if (!GetBubble()->GetAnchorView()) {
     return false;
+  }
   return GetBubble()->GetAnchorView()->GetWidget() == GetWidget();
 }
 
 void ZoomView::ZoomChangedForActiveTab(bool can_show_bubble) {
   content::WebContents* web_contents = GetWebContents();
-  if (!web_contents)
+  if (!web_contents) {
     return;
+  }
 
   if (ShouldBeVisible(can_show_bubble)) {
     zoom::ZoomController* zoom_controller =
         zoom::ZoomController::FromWebContents(web_contents);
     current_zoom_percent_ = zoom_controller->GetZoomPercent();
 
-    SetAccessibleName(l10n_util::GetStringFUTF16(
+    GetViewAccessibility().SetName(l10n_util::GetStringFUTF16(
         IDS_TOOLTIP_ZOOM, base::FormatPercent(current_zoom_percent_)));
 
     // The icon is hidden when the zoom level is default.
-
-    if (OmniboxFieldTrial::IsChromeRefreshIconsEnabled()) {
-      icon_ =
-          zoom_controller && zoom_controller->GetZoomRelativeToDefault() ==
-                                 zoom::ZoomController::ZOOM_BELOW_DEFAULT_ZOOM
-              ? &kZoomMinusChromeRefreshIcon
-              : &kZoomPlusChromeRefreshIcon;
-    } else {
-      icon_ =
-          zoom_controller && zoom_controller->GetZoomRelativeToDefault() ==
-                                 zoom::ZoomController::ZOOM_BELOW_DEFAULT_ZOOM
-              ? &kZoomMinusIcon
-              : &kZoomPlusIcon;
-    }
+    icon_ = zoom_controller && zoom_controller->GetZoomRelativeToDefault() ==
+                                   zoom::ZoomController::ZOOM_BELOW_DEFAULT_ZOOM
+                ? &kZoomMinusChromeRefreshIcon
+                : &kZoomPlusChromeRefreshIcon;
     UpdateIconImage();
 
     // Visibility must be enabled before the bubble is shown to ensure the
@@ -109,8 +103,9 @@ void ZoomView::ZoomChangedForActiveTab(bool can_show_bubble) {
   } else {
     // Close the bubble first to ensure focus is not lost when SetVisible(false)
     // is called. See crbug.com/913829.
-    if (HasAssociatedBubble())
+    if (HasAssociatedBubble()) {
       ZoomBubbleView::CloseCurrentBubble();
+    }
     SetVisible(false);
   }
 }
@@ -127,5 +122,5 @@ const gfx::VectorIcon& ZoomView::GetVectorIcon() const {
   return *icon_;
 }
 
-BEGIN_METADATA(ZoomView, PageActionIconView)
+BEGIN_METADATA(ZoomView)
 END_METADATA

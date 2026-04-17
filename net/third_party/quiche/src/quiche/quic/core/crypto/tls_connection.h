@@ -22,11 +22,11 @@ namespace quic {
 // The owner of the TlsConnection is responsible for driving the TLS handshake
 // (and other interactions with the SSL*). This class only handles mapping
 // callbacks to the correct instance.
-class QUIC_EXPORT_PRIVATE TlsConnection {
+class QUICHE_EXPORT TlsConnection {
  public:
   // A TlsConnection::Delegate implements the methods that are set as callbacks
   // of TlsConnection.
-  class QUIC_EXPORT_PRIVATE Delegate {
+  class QUICHE_EXPORT Delegate {
    public:
     virtual ~Delegate() {}
 
@@ -78,6 +78,12 @@ class QUIC_EXPORT_PRIVATE TlsConnection {
     //
     // See |SSL_CTX_set_info_callback| for the meaning of |type| and |value|.
     virtual void InfoCallback(int type, int value) = 0;
+
+    // Message callback from BoringSSL, for debugging purposes. See
+    // |SSL_CTX_set_msg_callback| for how to interpret |version|,
+    // |content_type|, and |data|.
+    virtual void MessageCallback(bool is_write, int version, int content_type,
+                                 absl::string_view data) = 0;
 
     friend class TlsConnection;
   };
@@ -142,6 +148,8 @@ class QUIC_EXPORT_PRIVATE TlsConnection {
   static int FlushFlightCallback(SSL* ssl);
   static int SendAlertCallback(SSL* ssl, enum ssl_encryption_level_t level,
                                uint8_t desc);
+  static void MessageCallback(int is_write, int version, int content_type,
+                              const void* buf, size_t len, SSL* ssl, void* arg);
 
   Delegate* delegate_;
   bssl::UniquePtr<SSL> ssl_;

@@ -24,16 +24,12 @@ namespace aura {
 namespace client {
 class FocusClient;
 class DefaultCaptureClient;
-#if defined(RUN_BROWSER_TESTS)
-class CursorShapeClient;
-class WindowParentingClient;
-#endif  // defined(RUN_BROWSER_TESTS)
 }  // namespace client
 }  // namespace aura
 
 #if BUILDFLAG(IS_OZONE)
-namespace display {
-class ScopedNativeScreen;
+namespace aura {
+class ScreenOzone;
 }
 #endif
 
@@ -45,12 +41,13 @@ namespace content {
 
 class ShellPlatformDataAura {
  public:
-  explicit ShellPlatformDataAura(const gfx::Size& initial_size);
+  explicit ShellPlatformDataAura(const gfx::Size& initial_size,
+                                 bool create_focus_client = true);
 
   ShellPlatformDataAura(const ShellPlatformDataAura&) = delete;
   ShellPlatformDataAura& operator=(const ShellPlatformDataAura&) = delete;
 
-  ~ShellPlatformDataAura();
+  virtual ~ShellPlatformDataAura();
 
   void ShowWindow();
   void ResizeWindow(const gfx::Size& size);
@@ -59,17 +56,14 @@ class ShellPlatformDataAura {
 
  private:
 #if BUILDFLAG(IS_OZONE)
-  std::unique_ptr<display::ScopedNativeScreen> screen_;
+  std::unique_ptr<aura::ScreenOzone> screen_;
 #endif
 
   std::unique_ptr<aura::WindowTreeHost> host_;
-  std::unique_ptr<aura::client::FocusClient> focus_client_;
   std::unique_ptr<aura::client::DefaultCaptureClient> capture_client_;
 
-#if defined(RUN_BROWSER_TESTS)
-  std::unique_ptr<aura::client::WindowParentingClient> window_parenting_client_;
-  std::unique_ptr<aura::client::CursorShapeClient> cursor_shape_client_;
-#endif  // defined(RUN_BROWSER_TESTS)
+ protected:
+  std::unique_ptr<aura::client::FocusClient> focus_client_;
 };
 
 }  // namespace content

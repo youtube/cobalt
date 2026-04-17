@@ -70,6 +70,8 @@ class MockFrameSinkVideoCapturer : public viz::mojom::FrameSinkVideoCapturer {
     min_period_ = min_period;
     MockSetMinSizeChangePeriod(min_period_);
   }
+  MOCK_METHOD2(SetAnimationFpsLockIn,
+               void(bool enabled, float majority_damaged_pixel_min_ratio));
   MOCK_METHOD1(MockSetMinSizeChangePeriod, void(base::TimeDelta min_period));
   void SetResolutionConstraints(const gfx::Size& min_frame_size,
                                 const gfx::Size& max_frame_size,
@@ -84,14 +86,14 @@ class MockFrameSinkVideoCapturer : public viz::mojom::FrameSinkVideoCapturer {
                     bool use_fixed_aspect_ratio));
   // This is never called.
   MOCK_METHOD1(SetAutoThrottlingEnabled, void(bool));
-  void ChangeTarget(const absl::optional<viz::VideoCaptureTarget>& target,
-                    uint32_t crop_version) final {
+  void ChangeTarget(const std::optional<viz::VideoCaptureTarget>& target,
+                    uint32_t sub_capture_target_version) final {
     frame_sink_id_ = target ? target->frame_sink_id : viz::FrameSinkId();
-    MockChangeTarget(frame_sink_id_, crop_version);
+    MockChangeTarget(frame_sink_id_, sub_capture_target_version);
   }
   MOCK_METHOD2(MockChangeTarget,
                void(const viz::FrameSinkId& frame_sink_id,
-                    uint32_t crop_version));
+                    uint32_t sub_capture_target_version));
   void Start(
       mojo::PendingRemote<viz::mojom::FrameSinkVideoConsumer> consumer,
       viz::mojom::BufferFormatPreference buffer_format_preference) final {

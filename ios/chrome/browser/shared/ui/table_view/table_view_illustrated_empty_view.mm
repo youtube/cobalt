@@ -7,10 +7,6 @@
 #import "ios/chrome/browser/shared/ui/table_view/table_view_constants.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 // The StackView vertical spacing between the image, the title and the subtitle.
 const CGFloat kStackViewVerticalSpacingPt = 12.0;
@@ -63,7 +59,7 @@ NSAttributedString* GetAttributedMessage(NSString* message) {
                         image:(UIImage*)image
                         title:(NSString*)title
            attributedSubtitle:(NSAttributedString*)attributedSubtitle {
-  if (self = [super initWithFrame:frame]) {
+  if ((self = [super initWithFrame:frame])) {
     _title = title;
     _subtitle = attributedSubtitle;
     _image = image;
@@ -121,6 +117,7 @@ NSAttributedString* GetAttributedMessage(NSString* message) {
 
 #pragma mark - UITextViewDelegate
 
+#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
 - (BOOL)textView:(UITextView*)textView
     shouldInteractWithURL:(NSURL*)URL
                   inRange:(NSRange)characterRange
@@ -128,6 +125,18 @@ NSAttributedString* GetAttributedMessage(NSString* message) {
   [self.delegate tableViewIllustratedEmptyView:self didTapSubtitleLink:URL];
 
   return NO;
+}
+#endif
+
+- (UIAction*)textView:(UITextView*)textView
+    primaryActionForTextItem:(UITextItem*)textItem
+               defaultAction:(UIAction*)defaultAction API_AVAILABLE(ios(17.0)) {
+  __weak __typeof(self) weakSelf = self;
+  NSURL* URL = textItem.link;
+  return [UIAction actionWithHandler:^(UIAction* action) {
+    [weakSelf.delegate tableViewIllustratedEmptyView:weakSelf
+                                  didTapSubtitleLink:URL];
+  }];
 }
 
 - (void)textViewDidChangeSelection:(UITextView*)textView {

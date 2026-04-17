@@ -5,6 +5,7 @@
 #include "base/path_service.h"
 
 #include <unordered_map>
+#include <utility>
 
 #include "base/check_op.h"
 #include "base/files/file_path.h"
@@ -22,7 +23,14 @@
 #include <shlobj.h>
 #endif
 
+#define ENABLE_BEHAVIOUR_OVERRIDE_PROVIDER                                    \
+  ((BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_ANDROID)) || \
+   BUILDFLAG(IS_WIN))
+
 namespace base {
+
+// Custom behaviour providers.
+bool EnvOverridePathProvider(int key, FilePath* result);
 
 bool PathProvider(int key, FilePath* result);
 
@@ -30,8 +38,10 @@ bool PathProvider(int key, FilePath* result);
 bool PathProviderStarboard(int key, FilePath* result);
 #elif BUILDFLAG(IS_WIN)
 bool PathProviderWin(int key, FilePath* result);
-#elif BUILDFLAG(IS_APPLE)
+#elif BUILDFLAG(IS_MAC)
 bool PathProviderMac(int key, FilePath* result);
+#elif BUILDFLAG(IS_IOS)
+bool PathProviderIOS(int key, FilePath* result);
 #elif BUILDFLAG(IS_ANDROID)
 bool PathProviderAndroid(int key, FilePath* result);
 #elif BUILDFLAG(IS_FUCHSIA)
@@ -50,8 +60,11 @@ typedef std::unordered_map<int, FilePath> PathMap;
 // providers claim overlapping keys.
 struct Provider {
   PathService::ProviderFunc func;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #reinterpret-cast-trivial-type, #global-scope
+  // This field is not a raw_ptr<> because would cause the class to have a
+  // nontrivial destructor, causing several cascading compile errors. The
+  // pointer cannot dangle because all Providers are either in statically-
+  // allocated memory (globals), or allocated in RegisterProvider and
+  // never freed.
   RAW_PTR_EXCLUSION struct Provider* next;
 #ifndef NDEBUG
   int key_start;
@@ -75,39 +88,40 @@ Provider base_provider_starboard = {base::PathProviderStarboard, &base_provider,
                                     true};
 #else  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #if BUILDFLAG(IS_WIN)
-Provider base_provider_win = {
-  PathProviderWin,
-  &base_provider,
+Provider win_provider = {PathProviderWin, &base_provider,
 #ifndef NDEBUG
-  PATH_WIN_START,
-  PATH_WIN_END,
+                         PATH_WIN_START, PATH_WIN_END,
 #endif
-  true
-};
+                         true};
+Provider base_provider_win = {EnvOverridePathProvider, &win_provider,
+#ifndef NDEBUG
+                              PATH_START, PATH_END,
+#endif
+                              true};
 #endif
 
-#if BUILDFLAG(IS_APPLE)
-Provider base_provider_mac = {
-  PathProviderMac,
-  &base_provider,
+#if BUILDFLAG(IS_MAC)
+Provider base_provider_mac = {PathProviderMac, &base_provider,
 #ifndef NDEBUG
-  PATH_MAC_START,
-  PATH_MAC_END,
+                              PATH_MAC_START, PATH_MAC_END,
 #endif
-  true
-};
+                              true};
+#endif
+
+#if BUILDFLAG(IS_IOS)
+Provider base_provider_ios = {PathProviderIOS, &base_provider,
+#ifndef NDEBUG
+                              PATH_IOS_START, PATH_IOS_END,
+#endif
+                              true};
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
-Provider base_provider_android = {
-  PathProviderAndroid,
-  &base_provider,
+Provider base_provider_android = {PathProviderAndroid, &base_provider,
 #ifndef NDEBUG
-  PATH_ANDROID_START,
-  PATH_ANDROID_END,
+                                  PATH_ANDROID_START, PATH_ANDROID_END,
 #endif
-  true
-};
+                                  true};
 #endif
 
 #if BUILDFLAG(IS_FUCHSIA)
@@ -119,32 +133,35 @@ Provider base_provider_fuchsia = {PathProviderFuchsia, &base_provider,
 #endif
 
 #if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_ANDROID)
-Provider base_provider_posix = {
-  PathProviderPosix,
-  &base_provider,
+Provider posix_provider = {PathProviderPosix, &base_provider,
 #ifndef NDEBUG
-  PATH_POSIX_START,
-  PATH_POSIX_END,
+                           PATH_POSIX_START, PATH_POSIX_END,
 #endif
-  true
-};
+                           true};
+Provider base_provider_posix = {EnvOverridePathProvider, &posix_provider,
+#ifndef NDEBUG
+                                PATH_START, PATH_END,
+#endif
+                                true};
 #endif
 #endif  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 struct PathData {
   Lock lock;
-  PathMap cache;        // Cache mappings from path key to path value.
-  PathMap overrides;    // Track path overrides.
+  PathMap cache;                // Cache mappings from path key to path value.
+  PathMap overrides;            // Track path overrides.
   raw_ptr<Provider> providers;  // Linked list of path service providers.
-  bool cache_disabled;  // Don't use cache if true;
+  bool cache_disabled = false;  // Don't use cache if true;
 
-  PathData() : cache_disabled(false) {
+  PathData() {
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
     providers = &base_provider_starboard;
 #elif BUILDFLAG(IS_WIN)
     providers = &base_provider_win;
-#elif BUILDFLAG(IS_APPLE)
+#elif BUILDFLAG(IS_MAC)
     providers = &base_provider_mac;
+#elif BUILDFLAG(IS_IOS)
+    providers = &base_provider_ios;
 #elif BUILDFLAG(IS_ANDROID)
     providers = &base_provider_android;
 #elif BUILDFLAG(IS_FUCHSIA)
@@ -163,8 +180,9 @@ static PathData* GetPathData() {
 // Tries to find |key| in the cache.
 bool LockedGetFromCache(int key, const PathData* path_data, FilePath* result)
     EXCLUSIVE_LOCKS_REQUIRED(path_data->lock) {
-  if (path_data->cache_disabled)
+  if (path_data->cache_disabled) {
     return false;
+  }
   // check for a cached version
   auto it = path_data->cache.find(key);
   if (it != path_data->cache.end()) {
@@ -180,8 +198,9 @@ bool LockedGetFromOverrides(int key, PathData* path_data, FilePath* result)
   // check for an overridden version.
   PathMap::const_iterator it = path_data->overrides.find(key);
   if (it != path_data->overrides.end()) {
-    if (!path_data->cache_disabled)
+    if (!path_data->cache_disabled) {
       path_data->cache[key] = it->second;
+    }
     *result = it->second;
     return true;
   }
@@ -201,17 +220,20 @@ bool PathService::Get(int key, FilePath* result) {
   DCHECK_GT(key, PATH_START);
 
   // Special case the current directory because it can never be cached.
-  if (key == DIR_CURRENT)
+  if (key == DIR_CURRENT) {
     return GetCurrentDirectory(result);
+  }
 
   Provider* provider = nullptr;
   {
     AutoLock scoped_lock(path_data->lock);
-    if (LockedGetFromCache(key, path_data, result))
+    if (LockedGetFromCache(key, path_data, result)) {
       return true;
+    }
 
-    if (LockedGetFromOverrides(key, path_data, result))
+    if (LockedGetFromOverrides(key, path_data, result)) {
       return true;
+    }
 
     // Get the beginning of the list while it is still locked.
     provider = path_data->providers;
@@ -222,26 +244,30 @@ bool PathService::Get(int key, FilePath* result) {
   // Iterating does not need the lock because only the list head might be
   // modified on another thread.
   while (provider) {
-    if (provider->func(key, &path))
+    if (provider->func(key, &path)) {
       break;
+    }
     DCHECK(path.empty()) << "provider should not have modified path";
     provider = provider->next;
   }
 
-  if (path.empty())
+  if (path.empty()) {
     return false;
+  }
 
   if (path.ReferencesParent()) {
     // Make sure path service never returns a path with ".." in it.
     path = MakeAbsoluteFilePath(path);
-    if (path.empty())
+    if (path.empty()) {
       return false;
+    }
   }
   *result = path;
 
   AutoLock scoped_lock(path_data->lock);
-  if (!path_data->cache_disabled)
+  if (!path_data->cache_disabled) {
     path_data->cache[key] = path;
+  }
 
   return true;
 }
@@ -270,21 +296,19 @@ bool PathService::OverrideAndCreateIfNeeded(int key,
 
   FilePath file_path = path;
 
-  // For some locations this will fail if called from inside the sandbox there-
-  // fore we protect this call with a flag.
-  if (create) {
-    // Make sure the directory exists. We need to do this before we translate
-    // this to the absolute path because on POSIX, MakeAbsoluteFilePath fails
-    // if called on a non-existent path.
-    if (!PathExists(file_path) && !CreateDirectory(file_path))
-      return false;
+  // Create the directory if requested by the caller. Do this before resolving
+  // `file_path` to an absolute path because on POSIX, MakeAbsoluteFilePath
+  // requires that the path exists.
+  if (create && !CreateDirectory(file_path)) {
+    return false;
   }
 
   // We need to have an absolute path.
   if (!is_absolute) {
     file_path = MakeAbsoluteFilePath(file_path);
-    if (file_path.empty())
+    if (file_path.empty()) {
       return false;
+    }
   }
   DCHECK(file_path.IsAbsolute());
 
@@ -294,7 +318,7 @@ bool PathService::OverrideAndCreateIfNeeded(int key,
   // on the value we are overriding, and are now out of sync with reality.
   path_data->cache.clear();
 
-  path_data->overrides[key] = file_path;
+  path_data->overrides[key] = std::move(file_path);
 
   return true;
 }
@@ -306,8 +330,9 @@ bool PathService::RemoveOverrideForTests(int key) {
 
   AutoLock scoped_lock(path_data->lock);
 
-  if (path_data->overrides.find(key) == path_data->overrides.end())
+  if (path_data->overrides.find(key) == path_data->overrides.end()) {
     return false;
+  }
 
   // Clear the cache now. Some of its entries could have depended on the value
   // we are going to remove, and are now out of sync.
@@ -319,7 +344,7 @@ bool PathService::RemoveOverrideForTests(int key) {
 }
 
 // static
-bool PathService::IsOverriddenForTests(int key) {
+bool PathService::IsOverriddenForTesting(int key) {
   PathData* path_data = GetPathData();
   DCHECK(path_data);
 
@@ -329,7 +354,8 @@ bool PathService::IsOverriddenForTests(int key) {
 }
 
 // static
-void PathService::RegisterProvider(ProviderFunc func, int key_start,
+void PathService::RegisterProvider(ProviderFunc func,
+                                   int key_start,
                                    int key_end) {
   PathData* path_data = GetPathData();
   DCHECK(path_data);
@@ -348,10 +374,10 @@ void PathService::RegisterProvider(ProviderFunc func, int key_start,
   AutoLock scoped_lock(path_data->lock);
 
 #ifndef NDEBUG
-  Provider *iter = path_data->providers;
+  Provider* iter = path_data->providers;
   while (iter) {
-    DCHECK(key_start >= iter->key_end || key_end <= iter->key_start) <<
-      "path provider collision";
+    DCHECK(key_start >= iter->key_end || key_end <= iter->key_start)
+        << "path provider collision";
     iter = iter->next;
   }
 #endif

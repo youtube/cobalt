@@ -17,8 +17,11 @@
 #include "chrome/browser/speech/speech_recognizer_delegate.h"
 #include "chromeos/ash/components/audio/cras_audio_handler.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/live_caption/live_translate_controller.h"
+#include "components/live_caption/translation_util.h"
 #include "components/soda/constants.h"
 #include "components/soda/soda_installer.h"
+#include "media/mojo/mojom/speech_recognition.mojom-shared.h"
 #include "media/mojo/mojom/speech_recognition.mojom.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 
@@ -54,7 +57,14 @@ class SystemLiveCaptionService
       public media::mojom::SpeechRecognitionBrowserObserver,
       public CrasAudioHandler::AudioObserver {
  public:
-  explicit SystemLiveCaptionService(Profile* profile);
+  enum class AudioSource {
+    kLoopback,
+    kUserMicrophone,
+  };
+
+  explicit SystemLiveCaptionService(
+      Profile* profile,
+      AudioSource source = AudioSource::kLoopback);
   ~SystemLiveCaptionService() override;
 
   SystemLiveCaptionService(const SystemLiveCaptionService&) = delete;
@@ -66,17 +76,21 @@ class SystemLiveCaptionService
   // SpeechRecognizerDelegate overrides:
   void OnSpeechResult(const std::u16string& text,
                       bool is_final,
-                      const absl::optional<media::SpeechRecognitionResult>&
+                      const std::optional<media::SpeechRecognitionResult>&
                           full_result) override;
   void OnSpeechSoundLevelChanged(int16_t level) override;
   void OnSpeechRecognitionStateChanged(
       SpeechRecognizerStatus new_state) override;
   void OnSpeechRecognitionStopped() override;
+  void OnLanguageIdentificationEvent(
+      media::mojom::LanguageIdentificationEventPtr event) override;
 
   // media::mojom::SpeechRecognitionBrowserObserver overrides:
   void SpeechRecognitionAvailabilityChanged(
       bool is_speech_recognition_available) override;
   void SpeechRecognitionLanguageChanged(const std::string& language) override;
+  void SpeechRecognitionMaskOffensiveWordsChanged(
+      bool mask_offensive_words) override;
 
   void set_audio_system_factory_for_testing(
       base::RepeatingCallback<std::unique_ptr<media::AudioSystem>()>
@@ -85,12 +99,36 @@ class SystemLiveCaptionService
         std::move(create_audio_system_for_testing);
   }
 
+  void set_num_non_chrome_output_streams_for_testing(
+      uint32_t num_output_streams) {
+    num_output_streams_for_testing_ = num_output_streams;
+  }
+
   // CrasAudioHandler::AudioObserver overrides
   void OnNonChromeOutputStarted() override;
 
   void OnNonChromeOutputStopped() override;
 
+ protected:
+  virtual media::mojom::RecognizerClientType GetRecognizerClientType();
+
  private:
+  void OnTranslationCallback(const std::string& cached_translation,
+                             const std::string& original_transcription,
+                             const std::string& source_language,
+                             const std::string& target_language,
+                             bool is_final,
+                             const ::captions::TranslateEvent& result);
+
+  void AttemptDispatch(const std::string& text, bool is_final);
+
+  // Binds to the correct observer list based on `source_`
+  void BindToBrowserInterface();
+  // Gets language code based on the preference this keyed_service
+  // is listening to.
+  virtual std::string GetPrimaryLanguageCode() const;
+  // The source language code of the audio stream.
+  std::string source_language_;
   SpeechRecognizerStatus current_recognizer_status_ =
       SpeechRecognizerStatus::SPEECH_RECOGNIZER_OFF;
   bool output_running_ = false;
@@ -103,12 +141,30 @@ class SystemLiveCaptionService
   void CreateClient();
   void StopTimeoutFinished();
 
-  const base::raw_ptr<Profile> profile_;
-  base::raw_ptr<::captions::LiveCaptionController> controller_;
+  void OpenCaptionSettings();
 
+  // wrapper around CrasAudioHandler's NumberOfNonChromeOutputStreams.  If
+  // we inject a value for the number of non chrome output streams this method
+  // will instead return that value.
+  uint32_t GetNumberOfNonChromeOutputStreams();
+
+  ::captions::TranslationCache translation_cache_;
+
+  const raw_ptr<Profile> profile_;
+  raw_ptr<::captions::LiveCaptionController> controller_;
   ash::captions::CaptionBubbleContextAsh context_;
 
   std::unique_ptr<SpeechRecognitionRecognizerClientImpl> client_;
+
+  // Which audio source this service is listening to.
+  const AudioSource source_;
+
+  // The number of characters sent to the translation service.
+  int characters_translated_ = 0;
+
+  // If set during a test this number will be used to determine the
+  // number of non chrome output streams.
+  std::optional<uint32_t> num_output_streams_for_testing_;
 
   mojo::Receiver<media::mojom::SpeechRecognitionBrowserObserver>
       browser_observer_receiver_{this};

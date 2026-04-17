@@ -2,13 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/sessions/core/command_storage_backend.h"
 
 #include <stdint.h>
+
 #include <algorithm>
 #include <limits>
+#include <string_view>
 #include <utility>
 
+#include "base/containers/span.h"
+#include "base/feature_list.h"
+#include "base/features.h"
 #include "base/files/file.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
@@ -45,6 +55,13 @@ constexpr int32_t kFileSignature = 0x53534E53;
 
 // Length (in bytes) of the nonce (used when encrypting).
 constexpr int kNonceLength = 12;
+
+// Kill switch for the change to stop calling `File::Flush()` when appending
+// commands to a file. This can be removed if the change rolls out without
+// causing issues.
+BASE_FEATURE(kFlushAfterAppending,
+             "SessionStorageFlushAfterAppendingCommands",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // The file header is the first bytes written to the file,
 // and is used to identify the file as one written by us.
@@ -119,7 +136,7 @@ class SessionFileReader {
         crypto_key_(crypto_key) {
     if (!crypto_key.empty()) {
       aead_ = std::make_unique<crypto::Aead>(crypto::Aead::AES_256_GCM);
-      aead_->Init(base::make_span(crypto_key_));
+      aead_->Init(base::span(crypto_key_));
     }
     file_ = std::make_unique<base::File>(
         path, base::File::FLAG_OPEN | base::File::FLAG_READ);
@@ -174,6 +191,9 @@ class SessionFileReader {
   // The file.
   std::unique_ptr<base::File> file_;
 
+  // The number of bytes successfully read from `file_`.
+  int bytes_read_ = 0;
+
   // Position in buffer_ of the data.
   size_t buffer_position_ = 0;
 
@@ -205,7 +225,8 @@ CommandStorageBackend::ReadCommandsResult SessionFileReader::Read() {
 
   LOG_IF(ERROR, result.error_reading)
       << "Commands successfully read before error: "
-      << commands_result.commands.size();
+      << commands_result.commands.size()
+      << ", bytes successfully read from file before error: " << bytes_read_;
 
   // `error_reading` is only set if `command` is null.
   commands_result.error_reading = result.error_reading;
@@ -220,10 +241,23 @@ bool SessionFileReader::ReadHeader() {
   if (!file_->IsValid())
     return false;
   FileHeader header;
-  const int read_count =
+  CHECK_EQ(0, bytes_read_);
+  bytes_read_ =
       file_->ReadAtCurrentPos(reinterpret_cast<char*>(&header), sizeof(header));
-  if (read_count != sizeof(header) || header.signature != kFileSignature)
+  if (bytes_read_ < 0) {
+    VLOG(1) << "SessionFileReader::ReadHeader, failed to read header. "
+               "Attempted to read "
+            << sizeof(header)
+            << " bytes into buffer but encountered file read error: "
+            << base::File::ErrorToString(base::File::GetLastFileError());
+  }
+  if (bytes_read_ != sizeof(header) || header.signature != kFileSignature) {
+    VLOG(1) << "SessionFileReader::ReadHeader, failed to read header. "
+               "Attempted to read "
+            << sizeof(header) << " bytes into buffer but got " << bytes_read_
+            << " bytes instead.";
     return false;
+  }
   version_ = header.version;
   const bool encrypt = aead_.get() != nullptr;
   return (encrypt && (version_ == kEncryptedFileVersion ||
@@ -307,8 +341,8 @@ SessionFileReader::CreateCommandFromEncrypted(const char* data,
   memset(nonce, 0, kNonceLength);
   memcpy(nonce, &command_counter_, sizeof(command_counter_));
   std::string plain_text;
-  if (!aead_->Open(base::StringPiece(data, length),
-                   base::StringPiece(nonce, kNonceLength), base::StringPiece(),
+  if (!aead_->Open(std::string_view(data, length),
+                   std::string_view(nonce, kNonceLength), std::string_view(),
                    &plain_text)) {
     DVLOG(1) << "SessionFileReader::ReadCommand, decryption failed";
     return nullptr;
@@ -345,15 +379,21 @@ bool SessionFileReader::FillBuffer() {
   }
   buffer_position_ = 0;
   DCHECK(buffer_position_ + available_count_ < buffer_.size());
-  int to_read = static_cast<int>(buffer_.size() - available_count_);
-  int read_count =
+  const int to_read = static_cast<int>(buffer_.size() - available_count_);
+  const int read_count =
       file_->ReadAtCurrentPos(&(buffer_[available_count_]), to_read);
   if (read_count < 0) {
-    // TODO(sky): communicate/log an error here.
+    VLOG(1) << "SessionFileReader::FillBuffer, failed to read header. "
+               "Attempted to read "
+            << to_read << " bytes into buffer but encountered file read error: "
+            << base::File::ErrorToString(base::File::GetLastFileError())
+            << "\nRead " << bytes_read_
+            << " bytes successfully from file before error.";
     return false;
   }
   if (read_count == 0)
     return false;
+  bytes_read_ += read_count;
   available_count_ += read_count;
   return true;
 }
@@ -486,7 +526,7 @@ void CommandStorageBackend::AppendCommands(
     if (encrypt) {
       aead_ = std::make_unique<crypto::Aead>(crypto::Aead::AES_256_GCM);
       crypto_key_ = crypto_key;
-      aead_->Init(base::make_span(crypto_key_));
+      aead_->Init(base::span(crypto_key_));
     } else {
       aead_.reset();
     }
@@ -564,15 +604,22 @@ CommandStorageBackend::ReadCommandsResult
 CommandStorageBackend::ReadLastSessionCommands() {
   InitIfNecessary();
 
-  if (last_session_info_)
+  if (last_session_info_) {
+    VLOG(1) << "CommandStorageBackend::ReadLastSessionCommands, reading "
+               "commands from: "
+            << last_session_info_->path;
     return ReadCommandsFromFile(last_session_info_->path,
                                 initial_decryption_key_);
+  }
   return {};
 }
 
 void CommandStorageBackend::DeleteLastSession() {
   InitIfNecessary();
   if (last_session_info_) {
+    VLOG(1)
+        << "CommandStorageBackend::DeleteLastSession, deleting session file: "
+        << last_session_info_->path;
     base::DeleteFile(last_session_info_->path);
     last_session_info_.reset();
   }
@@ -587,13 +634,16 @@ void CommandStorageBackend::MoveCurrentSessionToLastSession() {
   DeleteLastSession();
 
   // Move current session to last.
-  absl::optional<SessionInfo> new_last_session_info;
+  std::optional<SessionInfo> new_last_session_info;
   if (last_or_current_path_with_valid_marker_) {
     new_last_session_info =
         SessionInfo{*last_or_current_path_with_valid_marker_, timestamp_};
     last_or_current_path_with_valid_marker_.reset();
   }
   last_session_info_ = new_last_session_info;
+  VLOG(1) << "CommandStorageBackend::MoveCurrentSessionToLastSession, moved "
+             "current session to: "
+          << (last_session_info_ ? last_session_info_->path : base::FilePath());
 
   TruncateOrOpenFile();
 }
@@ -620,7 +670,9 @@ bool CommandStorageBackend::AppendCommandsToFile(
     }
     commands_written_++;
   }
-  file->Flush();
+  if (base::FeatureList::IsEnabled(kFlushAfterAppending)) {
+    file->Flush();
+  }
   return true;
 }
 
@@ -632,9 +684,6 @@ void CommandStorageBackend::InitIfNecessary() {
 
   inited_ = true;
   base::CreateDirectory(GetSessionDirName(type_, supplied_path_));
-
-  // Log the initial state of all session files in the directory.
-  LogSessionFiles();
 
   // TODO(sky): this is expensive. See if it can be delayed.
   last_session_info_ = FindLastSessionFile();
@@ -718,8 +767,7 @@ std::unique_ptr<base::File> CommandStorageBackend::OpenAndWriteHeader(
   header.signature = kFileSignature;
   header.version =
       IsEncrypted() ? kEncryptedFileVersionWithMarker : kFileVersionWithMarker;
-  if (file->WriteAtCurrentPos(reinterpret_cast<char*>(&header),
-                              sizeof(header)) != sizeof(header)) {
+  if (!file->WriteAtCurrentPosAndCheck(base::byte_span_from_ref(header))) {
     return nullptr;
   }
   return file;
@@ -729,24 +777,22 @@ bool CommandStorageBackend::AppendCommandToFile(
     base::File* file,
     const sessions::SessionCommand& command) {
   const size_type total_size = command.GetSerializedSize();
-  if (file->WriteAtCurrentPos(reinterpret_cast<const char*>(&total_size),
-                              sizeof(total_size)) != sizeof(total_size)) {
+  if (!file->WriteAtCurrentPosAndCheck(base::byte_span_from_ref(total_size))) {
     DVLOG(1) << "error writing";
     return false;
   }
   id_type command_id = command.id();
-  if (file->WriteAtCurrentPos(reinterpret_cast<char*>(&command_id),
-                              sizeof(command_id)) != sizeof(command_id)) {
+  if (!file->WriteAtCurrentPosAndCheck(base::byte_span_from_ref(command_id))) {
     DVLOG(1) << "error writing";
     return false;
   }
-
   const size_type content_size = total_size - sizeof(id_type);
-  if (content_size == 0)
+  if (content_size == 0) {
     return true;
-
-  if (file->WriteAtCurrentPos(reinterpret_cast<const char*>(command.contents()),
-                              content_size) != content_size) {
+  }
+  if (!file->WriteAtCurrentPos(
+          base::as_byte_span(command.contents_as_string_piece())
+              .first(content_size))) {
     DVLOG(1) << "error writing";
     return false;
   }
@@ -780,29 +826,26 @@ bool CommandStorageBackend::AppendEncryptedCommandToFile(
          command_size);
 
   std::string cipher_text;
-  aead_->Seal(base::StringPiece(&command_and_id.front(), command_and_id.size()),
-              base::StringPiece(nonce, kNonceLength), base::StringPiece(),
+  aead_->Seal(std::string_view(&command_and_id.front(), command_and_id.size()),
+              std::string_view(nonce, kNonceLength), std::string_view(),
               &cipher_text);
   DCHECK_LE(cipher_text.size(), std::numeric_limits<size_type>::max());
   const size_type command_and_id_size =
       static_cast<size_type>(cipher_text.size());
 
-  int wrote = file->WriteAtCurrentPos(
-      reinterpret_cast<const char*>(&command_and_id_size),
-      sizeof(command_and_id_size));
-  if (wrote != sizeof(command_and_id_size)) {
+  if (!file->WriteAtCurrentPosAndCheck(
+          base::byte_span_from_ref(command_and_id_size))) {
     DVLOG(1) << "error writing";
     return false;
   }
-  wrote = file->WriteAtCurrentPos(cipher_text.c_str(), cipher_text.size());
-  if (wrote != static_cast<int>(cipher_text.size())) {
+  if (!file->WriteAtCurrentPosAndCheck(base::as_byte_span(cipher_text))) {
     DVLOG(1) << "error writing";
     return false;
   }
   return true;
 }
 
-absl::optional<CommandStorageBackend::SessionInfo>
+std::optional<CommandStorageBackend::SessionInfo>
 CommandStorageBackend::FindLastSessionFile() const {
   // Determine the session with the most recent timestamp. This is called
   // at startup, before a file has been opened for writing.
@@ -819,7 +862,7 @@ CommandStorageBackend::FindLastSessionFile() const {
       GetLegacySessionPath(type_, supplied_path_, true);
   if (base::PathExists(legacy_session))
     return SessionInfo{legacy_session, base::Time()};
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 void CommandStorageBackend::DeleteLastSessionFiles() const {
@@ -873,27 +916,6 @@ bool CommandStorageBackend::CanUseFileForLastSession(
   const SessionFileReader::MarkerStatus status =
       SessionFileReader::GetMarkerStatus(path, initial_decryption_key_);
   return !status.supports_marker || status.has_marker;
-}
-
-void CommandStorageBackend::LogSessionFiles() {
-  if (VLOG_IS_ON(1)) {
-    VLOG(1) << "Current session files:";
-    for (const SessionInfo& session :
-         GetSessionFilesSortedByReverseTimestamp()) {
-      int64_t file_size;
-      if (!base::GetFileSize(session.path, &file_size)) {
-        VLOG(1) << "Unable to compute file size for: " << session.path;
-        continue;
-      }
-      const SessionFileReader::MarkerStatus status =
-          SessionFileReader::GetMarkerStatus(session.path,
-                                             initial_decryption_key_);
-      VLOG(1) << "\nfile = " << session.path
-              << "\nsupports_marker = " << status.supports_marker
-              << "\nhas_marker = " << status.has_marker
-              << "\nsize_bytes = " << file_size;
-    }
-  }
 }
 
 }  // namespace sessions

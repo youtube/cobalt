@@ -15,10 +15,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Feature;
@@ -26,40 +28,38 @@ import org.chromium.chrome.browser.contextualsearch.ContextualSearchTranslationI
 
 import java.util.ArrayList;
 
-/**
- * Tests the {@link ContextualSearchTranslationImpl} class.
- */
+/** Tests the {@link ContextualSearchTranslationImpl} class. */
 @RunWith(BaseRobolectricTestRunner.class)
 public class ContextualSearchTranslationImplTest {
     private static final String ENGLISH = "en";
     private static final String SPANISH = "es";
     private static final String GERMAN = "de";
     private static final ArrayList<String> ENGLISH_AND_SPANISH;
+
     static {
         ArrayList<String> langs = new ArrayList<String>();
         langs.add(ENGLISH);
         langs.add(SPANISH);
         ENGLISH_AND_SPANISH = langs;
     }
+
     private static final ArrayList<String> ENGLISH_LIST;
+
     static {
         ArrayList<String> langs = new ArrayList<String>();
         langs.add(ENGLISH);
         ENGLISH_LIST = langs;
     }
 
-    @Mock
-    private TranslateBridgeWrapper mTranslateBridgeWrapperMock;
-    @Mock
-    private ContextualSearchRequest mRequest;
-    @Mock
-    private ContextualSearchPolicy mPolicy;
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Mock private TranslateBridgeWrapper mTranslateBridgeWrapperMock;
+    @Mock private ContextualSearchRequest mRequest;
+    @Mock private ContextualSearchPolicy mPolicy;
 
     private ContextualSearchTranslationImpl mImpl;
 
     @Before
     public void setup() {
-        MockitoAnnotations.initMocks(this);
         mImpl = new ContextualSearchTranslationImpl(mTranslateBridgeWrapperMock);
     }
 

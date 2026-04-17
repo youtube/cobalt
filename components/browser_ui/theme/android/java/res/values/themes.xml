@@ -8,33 +8,38 @@ found in the LICENSE file.
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Colors should be mirrored by Theme.BrowserUI.DialogWhenLarge and
          Theme.BrowserUI.AlertDialog.NoActionBar. -->
-    <style name="Base.V21.Theme.BrowserUI" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <style name="Base.V21.Theme.BrowserUI" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="dynamicColorThemeOverlay">@style/ThemeOverlay.BrowserUI.DynamicColors</item>
 
         <!-- Color palettes -->
-        <item name="colorPrimary">@color/baseline_primary_600</item>
+        <item name="colorPrimary">@color/baseline_primary_40</item>
         <item name="colorPrimaryDark">@android:color/black</item>
-        <item name="colorPrimaryInverse">@color/baseline_primary_200</item>
-        <item name="colorOnPrimary">@color/baseline_primary_0</item>
-        <item name="colorPrimaryContainer">@color/baseline_primary_100</item>
-        <item name="colorOnPrimaryContainer">@color/baseline_primary_900</item>
-        <item name="colorSecondaryContainer">@color/baseline_secondary_100</item>
-        <item name="colorOnSecondaryContainer">@color/baseline_secondary_900</item>
+        <item name="colorPrimaryInverse">@color/baseline_primary_80</item>
+        <item name="colorOnPrimary">@color/baseline_primary_100</item>
+        <item name="colorPrimaryContainer">@color/baseline_primary_90</item>
+        <item name="colorOnPrimaryContainer">@color/baseline_primary_10</item>
+        <item name="colorSecondaryContainer">@color/baseline_secondary_90</item>
+        <item name="colorOnSecondaryContainer">@color/baseline_secondary_10</item>
         <item name="colorAccent">@macro/default_control_color_active</item>
-        <item name="android:colorBackground">@color/baseline_neutral_0</item>
-        <item name="colorOnBackground">@color/baseline_neutral_900</item>
-        <item name="colorSurface">@color/baseline_neutral_0</item>
-        <item name="colorOnSurface">@color/baseline_neutral_900</item>
-        <item name="colorSurfaceVariant">@color/baseline_neutral_variant_100</item>
-        <item name="colorOnSurfaceVariant">@color/baseline_neutral_variant_700</item>
-        <item name="colorOnSurfaceInverse">@color/baseline_neutral_50</item>
-        <item name="colorOutline">@color/baseline_neutral_variant_500</item>
-        <item name="colorError">@color/baseline_error_600</item>
+        <item name="android:colorBackground">@color/baseline_neutral_100</item>
+        <item name="colorOnBackground">@color/baseline_neutral_10</item>
+        <item name="colorSurface">@color/gm3_baseline_surface_light</item>
+        <item name="colorOnSurface">@color/baseline_neutral_10</item>
+        <item name="colorSurfaceVariant">@color/baseline_neutral_variant_90</item>
+        <item name="colorSurfaceContainerLow">@color/gm3_baseline_surface_container_low_light</item>
+        <item name="colorSurfaceContainer">@color/gm3_baseline_surface_container_light</item>
+        <item name="colorSurfaceContainerHigh">@color/gm3_baseline_surface_container_high_light</item>
+        <item name="colorSurfaceContainerHighest">@color/gm3_baseline_surface_container_highest_light</item>
+        <item name="colorSurfaceBright">@color/gm3_baseline_surface_bright_light</item>
+        <item name="colorSurfaceDim">@color/gm3_baseline_surface_dim_light</item>
+        <item name="colorOnSurfaceVariant">@color/baseline_neutral_variant_30</item>
+        <item name="colorOnSurfaceInverse">@color/baseline_neutral_95</item>
+        <item name="colorOutline">@color/baseline_neutral_variant_50</item>
+        <item name="colorError">@color/baseline_error_40</item>
 
         <!-- Text colors-->
         <item name="android:textColorPrimary">@color/default_text_color_list</item>
         <item name="android:textColorSecondary">@color/default_text_color_secondary_list</item>
-        <item name="android:textColorLink">@macro/default_text_color_link</item>
         <item name="android:textColorHighlight">@color/text_highlight_color</item>
         <item name="android:textColorHint">@color/default_text_color_hint_list</item>
 
@@ -45,44 +50,42 @@ found in the LICENSE file.
 
         <!-- Elevation overlays -->
         <item name="elevationOverlayEnabled">true</item>
-        <item name="elevationOverlayColor">@color/baseline_neutral_600</item>
-        <item name="elevationOverlayAccentColor">?attr/colorPrimary</item>
-
-        <!-- Current Clank Baseline Surface-N Colors. See https://crbug.com/1410537. -->
-        <item name="tileViewIconBackgroundModern">@drawable/oval_surface_1</item>
-        <item name="cardElevation">@dimen/card_elevation</item>
-        <item name="defaultBgColorDarkElev1Baseline">@color/default_bg_color_dark_elev_1_baseline</item>
-        <item name="defaultBgColorElev1Baseline">@color/default_bg_color_elev_1_baseline</item>
-        <item name="defaultBgColorElev2Baseline">@color/default_bg_color_elev_2_baseline</item>
-        <item name="defaultBgColorElev3Baseline">@color/default_bg_color_elev_3_baseline</item>
-        <item name="defaultBgColorElev4Baseline">@color/default_bg_color_elev_4_baseline</item>
-        <item name="defaultBgColorElev5Baseline">@color/default_bg_color_elev_5_baseline</item>
-        <item name="defaultChipRippleColor">?attr/defaultBgColorElev2Baseline</item>
+        <item name="elevationOverlayColor">@color/gm3_baseline_surface_tint</item>
+        <item name="elevationOverlayAccentColor">@android:color/transparent</item>
 
         <!-- Dynamic colors that are applied to the buttons and links. -->
         <item name="globalFilledButtonBgColor">@color/filled_button_bg_dynamic_list</item>
         <item name="globalFilledButtonTextColor">@color/default_text_color_on_accent1_list</item>
+        <item name="globalFilledTonalButtonBgColor">?attr/colorPrimaryContainer</item>
+        <item name="globalFilledTonalButtonTextColor">@color/default_text_color_on_accent1_container_list</item>
         <item name="globalTextButtonTextColor">@color/default_text_color_accent1_tint_list</item>
         <item name="globalTextButtonRippleColor">@color/text_button_ripple_color_list</item>
         <item name="globalOutlinedButtonBorderColor">@macro/divider_line_bg_color</item>
         <item name="globalLinkTextColor">?attr/colorPrimary</item>
         <item name="globalClickableSpanColor">?attr/colorPrimary</item>
-    </style>
-    <style name="Base.V31.Theme.BrowserUI" parent="Base.V21.Theme.BrowserUI" />
-    <style name="Base.Theme.BrowserUI" parent="Base.V31.Theme.BrowserUI" />
-    <style name="Theme.BrowserUI" parent="Base.Theme.BrowserUI">
+
+        <!-- Switches style workaround for UI that might use SwitchPreferenceCompat while not
+         using the theme for SettingsActivity (e.g. PageInfoView) -->
+        <item name="switchPreferenceCompatStyle">@style/SwitchPreference</item>
+
+        <item name="android:elegantTextHeight">false</item>
+        <item name="defaultFontFamily">sans-serif</item>
+        <item name="defaultMediumFontFamily">sans-serif-medium</item>
+
+        <item name="actionBarSize">@dimen/default_action_bar_height</item>
+
         <!-- Control styles -->
         <item name="checkboxStyle">@style/Widget.BrowserUI.CheckBox</item>
         <item name="radioButtonStyle">@style/Widget.BrowserUI.RadioButton</item>
-        <item name="switchStyle">@style/Widget.BrowserUI.Switch</item>
+        <item name="materialSwitchStyle">@style/Widget.BrowserUI.Switch</item>
 
         <!-- Window Properties -->
         <item name="android:windowBackground">@macro/default_bg_color</item>
         <item name="android:windowSplashScreenBackground" tools:targetApi="31">@color/splash_screen_bg</item>
 
         <!-- Status bar color -->
-        <item name="android:statusBarColor" tools:targetApi="21">@android:color/black</item>
-        <item name="android:windowLightStatusBar" tools:targetApi="23">false</item>
+        <item name="android:statusBarColor">@android:color/black</item>
+        <item name="android:windowLightStatusBar">false</item>
 
         <!-- Spinner styles -->
         <item name="spinnerStyle">@style/SpinnerStyle</item>
@@ -92,49 +95,71 @@ found in the LICENSE file.
         <!-- Set android popup menu attributes for context menu styles because the context menus are
              OS-dependent. -->
         <item name="android:popupMenuStyle">@style/PopupMenuStyle</item>
+        <item name="android:contextPopupMenuStyle">@style/PopupMenuStyle</item>
+
+        <!-- Text styles -->
         <item name="android:textAppearanceLargePopupMenu">
+            @style/TextAppearance.TextLarge.Primary
+        </item>
+        <item name="textAppearanceLabelLarge">
             @style/TextAppearance.TextLarge.Primary
         </item>
         <item name="android:textAppearanceSmallPopupMenu">
             @style/TextAppearance.TextLarge.Primary
         </item>
-        <item name="android:contextPopupMenuStyle" tools:targetApi="24">@style/PopupMenuStyle</item>
+        <item name="android:textAppearanceListItem">@style/TextAppearance.TextLarge.Primary</item>
+        <item name="android:textAppearanceListItemSmall">@style/TextAppearance.TextSmall.Primary</item>
+        <item name="android:textAppearanceListItemSecondary">@style/TextAppearance.TextMedium.Secondary</item>
+        <item name="android:itemTextAppearance">@style/TextAppearance.TextLarge.Primary</item>
 
+        <item name="android:spinnerItemStyle">@style/Widget.BrowserUI.SpinnerItem</item>
+        <item name="android:spinnerDropDownItemStyle">@style/Widget.BrowserUI.SpinnerDropDownItemStyle</item>
         <!-- This is for keeping the current TextInputLayout style.
-             TODO(crbug.com/1206024): Remove or update once the design for the app is updated. -->
+             TODO(crbug.com/40764906): Remove or update once the design for the app is updated. -->
         <item name="textInputStyle">@style/Widget.BrowserUI.TextInputLayout</item>
+
+        <item name="android:windowOptOutEdgeToEdgeEnforcement" tools:targetApi="35">true</item>
     </style>
+
+    <style name="Base.V31.Theme.BrowserUI" parent="Base.V21.Theme.BrowserUI" />
+    <style name="Base.Theme.BrowserUI" parent="Base.V31.Theme.BrowserUI" />
+    <style name="Theme.BrowserUI" parent="Base.Theme.BrowserUI" />
     <!-- Overridden by night mode. -->
     <style name="Theme.BrowserUI.DayNight" parent="Theme.BrowserUI" />
 
     <!-- Colors should be mirrored by Base.V21.Theme.BrowserUI. -->
-    <style name="Theme.BrowserUI.DialogWhenLarge" parent="Theme.MaterialComponents.DayNight.DialogWhenLarge">
+    <style name="Theme.BrowserUI.DialogWhenLarge" parent="Theme.Material3.DayNight.DialogWhenLarge">
         <item name="dynamicColorThemeOverlay">@style/ThemeOverlay.BrowserUI.DynamicColors</item>
 
          <!-- Color palettes -->
-        <item name="colorPrimary">@color/baseline_primary_600</item>
+        <item name="colorPrimary">@color/baseline_primary_40</item>
         <item name="colorPrimaryDark">@android:color/black</item>
-        <item name="colorPrimaryInverse">@color/baseline_primary_200</item>
-        <item name="colorOnPrimary">@color/baseline_primary_0</item>
-        <item name="colorPrimaryContainer">@color/baseline_primary_100</item>
-        <item name="colorOnPrimaryContainer">@color/baseline_primary_900</item>
-        <item name="colorSecondaryContainer">@color/baseline_secondary_100</item>
-        <item name="colorOnSecondaryContainer">@color/baseline_secondary_900</item>
+        <item name="colorPrimaryInverse">@color/baseline_primary_80</item>
+        <item name="colorOnPrimary">@color/baseline_primary_100</item>
+        <item name="colorPrimaryContainer">@color/baseline_primary_90</item>
+        <item name="colorOnPrimaryContainer">@color/baseline_primary_10</item>
+        <item name="colorSecondaryContainer">@color/baseline_secondary_90</item>
+        <item name="colorOnSecondaryContainer">@color/baseline_secondary_10</item>
         <item name="colorAccent">@macro/default_control_color_active</item>
-        <item name="android:colorBackground">@color/baseline_neutral_0</item>
-        <item name="colorOnBackground">@color/baseline_neutral_900</item>
-        <item name="colorSurface">@color/baseline_neutral_0</item>
-        <item name="colorOnSurface">@color/baseline_neutral_900</item>
-        <item name="colorSurfaceVariant">@color/baseline_neutral_variant_100</item>
-        <item name="colorOnSurfaceVariant">@color/baseline_neutral_variant_700</item>
-        <item name="colorOnSurfaceInverse">@color/baseline_neutral_50</item>
-        <item name="colorOutline">@color/baseline_neutral_variant_500</item>
-        <item name="colorError">@color/baseline_error_600</item>
+        <item name="android:colorBackground">@color/baseline_neutral_100</item>
+        <item name="colorOnBackground">@color/baseline_neutral_10</item>
+        <item name="colorSurface">@color/gm3_baseline_surface_light</item>
+        <item name="colorOnSurface">@color/baseline_neutral_10</item>
+        <item name="colorSurfaceVariant">@color/baseline_neutral_variant_90</item>
+        <item name="colorOnSurfaceVariant">@color/baseline_neutral_variant_30</item>
+        <item name="colorOnSurfaceInverse">@color/baseline_neutral_95</item>
+        <item name="colorSurfaceContainerLow">@color/gm3_baseline_surface_container_low_light</item>
+        <item name="colorSurfaceContainer">@color/gm3_baseline_surface_container_light</item>
+        <item name="colorSurfaceContainerHigh">@color/gm3_baseline_surface_container_high_light</item>
+        <item name="colorSurfaceContainerHighest">@color/gm3_baseline_surface_container_highest_light</item>
+        <item name="colorSurfaceBright">@color/gm3_baseline_surface_bright_light</item>
+        <item name="colorSurfaceDim">@color/gm3_baseline_surface_dim_light</item>
+        <item name="colorOutline">@color/baseline_neutral_variant_50</item>
+        <item name="colorError">@color/baseline_error_40</item>
 
         <!-- Text colors-->
         <item name="android:textColorPrimary">@color/default_text_color_list</item>
         <item name="android:textColorSecondary">@color/default_text_color_secondary_list</item>
-        <item name="android:textColorLink">@macro/default_text_color_link</item>
         <item name="android:textColorHighlight">@color/text_highlight_color</item>
         <item name="android:textColorHint">@color/default_text_color_hint_list</item>
 
@@ -145,28 +170,35 @@ found in the LICENSE file.
 
         <!-- Elevation overlays -->
         <item name="elevationOverlayEnabled">true</item>
-        <item name="elevationOverlayColor">@color/baseline_neutral_600</item>
-        <item name="elevationOverlayAccentColor">?attr/colorPrimary</item>
-
-        <!-- Current Clank Baseline Surface-N Colors. See https://crbug.com/1410537. -->
-        <item name="tileViewIconBackgroundModern">@drawable/oval_surface_1</item>
-        <item name="cardElevation">@dimen/card_elevation</item>
-        <item name="defaultBgColorDarkElev1Baseline">@color/default_bg_color_dark_elev_1_baseline</item>
-        <item name="defaultBgColorElev1Baseline">@color/default_bg_color_elev_1_baseline</item>
-        <item name="defaultBgColorElev2Baseline">@color/default_bg_color_elev_2_baseline</item>
-        <item name="defaultBgColorElev3Baseline">@color/default_bg_color_elev_3_baseline</item>
-        <item name="defaultBgColorElev4Baseline">@color/default_bg_color_elev_4_baseline</item>
-        <item name="defaultBgColorElev5Baseline">@color/default_bg_color_elev_5_baseline</item>
-        <item name="defaultChipRippleColor">?attr/defaultBgColorElev2Baseline</item>
+        <item name="elevationOverlayColor">@color/gm3_baseline_surface_tint</item>
+        <item name="elevationOverlayAccentColor">@android:color/transparent</item>
 
         <!-- Dynamic colors that are applied to the buttons and links. -->
         <item name="globalFilledButtonBgColor">@color/filled_button_bg_dynamic_list</item>
         <item name="globalFilledButtonTextColor">@color/default_text_color_on_accent1_list</item>
+        <item name="globalFilledTonalButtonBgColor">?attr/colorPrimaryContainer</item>
+        <item name="globalFilledTonalButtonTextColor">@color/default_text_color_on_accent1_container_list</item>
         <item name="globalTextButtonTextColor">@color/default_text_color_accent1_tint_list</item>
         <item name="globalTextButtonRippleColor">@color/text_button_ripple_color_list</item>
         <item name="globalOutlinedButtonBorderColor">@macro/divider_line_bg_color</item>
         <item name="globalLinkTextColor">?attr/colorPrimary</item>
         <item name="globalClickableSpanColor">?attr/colorPrimary</item>
+
+        <!-- Widgets style override-->
+        <item name="materialSwitchStyle">@style/Widget.BrowserUI.Switch</item>
+        <!-- Switches style workaround for UI that might use SwitchPreferenceCompat while not
+         using the theme for SettingsActivity (e.g. PageInfoView) -->
+        <item name="switchPreferenceCompatStyle">@style/SwitchPreference</item>
+
+        <item name="android:elegantTextHeight">false</item>
+        <item name="defaultFontFamily">sans-serif</item>
+        <item name="defaultMediumFontFamily">sans-serif-medium</item>
+
+        <item name="android:itemTextAppearance">@style/TextAppearance.TextLarge.Primary</item>
+        <item name="android:spinnerItemStyle">@style/Widget.BrowserUI.SpinnerItem</item>
+        <item name="android:spinnerDropDownItemStyle">@style/Widget.BrowserUI.SpinnerDropDownItemStyle</item>
+
+        <item name="android:windowOptOutEdgeToEdgeEnforcement" tools:targetApi="35">true</item>
     </style>
     <!-- Overridden by night mode. -->
     <style name="Theme.BrowserUI.DialogWhenLarge.DayNight" parent="Theme.BrowserUI.DialogWhenLarge"/>
@@ -175,33 +207,38 @@ found in the LICENSE file.
          an activity theme on its own. In addition to mirroring |Base.V21.Theme.BrowserUI|, this
          should include all the attributes that |ThemeOverlay.BrowserUI.AlertDialog| has.
          -->
-    <style name="Theme.BrowserUI.AlertDialog.NoActionBar" parent="Theme.MaterialComponents.DayNight.Dialog.Alert">
+    <style name="Theme.BrowserUI.AlertDialog.NoActionBar" parent="Theme.Material3.DayNight.Dialog.Alert">
         <item name="dynamicColorThemeOverlay">@style/ThemeOverlay.BrowserUI.DynamicColors</item>
 
         <!-- Color palettes -->
-        <item name="colorPrimary">@color/baseline_primary_600</item>
+        <item name="colorPrimary">@color/baseline_primary_40</item>
         <item name="colorPrimaryDark">@android:color/black</item>
-        <item name="colorPrimaryInverse">@color/baseline_primary_200</item>
-        <item name="colorOnPrimary">@color/baseline_primary_0</item>
-        <item name="colorPrimaryContainer">@color/baseline_primary_100</item>
-        <item name="colorOnPrimaryContainer">@color/baseline_primary_900</item>
-        <item name="colorSecondaryContainer">@color/baseline_secondary_100</item>
-        <item name="colorOnSecondaryContainer">@color/baseline_secondary_900</item>
+        <item name="colorPrimaryInverse">@color/baseline_primary_80</item>
+        <item name="colorOnPrimary">@color/baseline_primary_100</item>
+        <item name="colorPrimaryContainer">@color/baseline_primary_90</item>
+        <item name="colorOnPrimaryContainer">@color/baseline_primary_10</item>
+        <item name="colorSecondaryContainer">@color/baseline_secondary_90</item>
+        <item name="colorOnSecondaryContainer">@color/baseline_secondary_10</item>
         <item name="colorAccent">@macro/default_control_color_active</item>
-        <item name="android:colorBackground">@color/baseline_neutral_0</item>
-        <item name="colorOnBackground">@color/baseline_neutral_900</item>
-        <item name="colorSurface">@color/baseline_neutral_0</item>
-        <item name="colorOnSurface">@color/baseline_neutral_900</item>
-        <item name="colorSurfaceVariant">@color/baseline_neutral_variant_100</item>
-        <item name="colorOnSurfaceVariant">@color/baseline_neutral_variant_700</item>
-        <item name="colorOnSurfaceInverse">@color/baseline_neutral_50</item>
-        <item name="colorOutline">@color/baseline_neutral_variant_500</item>
-        <item name="colorError">@color/baseline_error_600</item>
+        <item name="android:colorBackground">@color/baseline_neutral_100</item>
+        <item name="colorOnBackground">@color/baseline_neutral_10</item>
+        <item name="colorSurface">@color/gm3_baseline_surface_light</item>
+        <item name="colorOnSurface">@color/baseline_neutral_10</item>
+        <item name="colorSurfaceVariant">@color/baseline_neutral_variant_90</item>
+        <item name="colorSurfaceContainerLow">@color/gm3_baseline_surface_container_low_light</item>
+        <item name="colorSurfaceContainer">@color/gm3_baseline_surface_container_light</item>
+        <item name="colorSurfaceContainerHigh">@color/gm3_baseline_surface_container_high_light</item>
+        <item name="colorSurfaceContainerHighest">@color/gm3_baseline_surface_container_highest_light</item>
+        <item name="colorSurfaceBright">@color/gm3_baseline_surface_bright_light</item>
+        <item name="colorSurfaceDim">@color/gm3_baseline_surface_dim_light</item>
+        <item name="colorOnSurfaceVariant">@color/baseline_neutral_variant_30</item>
+        <item name="colorOnSurfaceInverse">@color/baseline_neutral_95</item>
+        <item name="colorOutline">@color/baseline_neutral_variant_50</item>
+        <item name="colorError">@color/baseline_error_40</item>
 
         <!-- Text colors-->
         <item name="android:textColorPrimary">@color/default_text_color_list</item>
         <item name="android:textColorSecondary">@color/default_text_color_secondary_list</item>
-        <item name="android:textColorLink">@macro/default_text_color_link</item>
         <item name="android:textColorHighlight">@color/text_highlight_color</item>
         <item name="android:textColorHint">@color/default_text_color_hint_list</item>
 
@@ -212,23 +249,14 @@ found in the LICENSE file.
 
         <!-- Elevation overlays -->
         <item name="elevationOverlayEnabled">true</item>
-        <item name="elevationOverlayColor">@color/baseline_neutral_600</item>
-        <item name="elevationOverlayAccentColor">?attr/colorPrimary</item>
-
-        <!-- Current Clank Baseline Surface-N Colors. See https://crbug.com/1410537. -->
-        <item name="tileViewIconBackgroundModern">@drawable/oval_surface_1</item>
-        <item name="cardElevation">@dimen/card_elevation</item>
-        <item name="defaultBgColorDarkElev1Baseline">@color/default_bg_color_dark_elev_1_baseline</item>
-        <item name="defaultBgColorElev1Baseline">@color/default_bg_color_elev_1_baseline</item>
-        <item name="defaultBgColorElev2Baseline">@color/default_bg_color_elev_2_baseline</item>
-        <item name="defaultBgColorElev3Baseline">@color/default_bg_color_elev_3_baseline</item>
-        <item name="defaultBgColorElev4Baseline">@color/default_bg_color_elev_4_baseline</item>
-        <item name="defaultBgColorElev5Baseline">@color/default_bg_color_elev_5_baseline</item>
-        <item name="defaultChipRippleColor">?attr/defaultBgColorElev2Baseline</item>
+        <item name="elevationOverlayColor">@color/gm3_baseline_surface_tint</item>
+        <item name="elevationOverlayAccentColor">@android:color/transparent</item>
 
         <!-- Dynamic colors that are applied to the buttons and links. -->
         <item name="globalFilledButtonBgColor">@color/filled_button_bg_dynamic_list</item>
         <item name="globalFilledButtonTextColor">@color/default_text_color_on_accent1_list</item>
+        <item name="globalFilledTonalButtonBgColor">?attr/colorPrimaryContainer</item>
+        <item name="globalFilledTonalButtonTextColor">@color/default_text_color_on_accent1_container_list</item>
         <item name="globalTextButtonTextColor">@color/default_text_color_accent1_tint_list</item>
         <item name="globalTextButtonRippleColor">@color/text_button_ripple_color_list</item>
         <item name="globalOutlinedButtonBorderColor">@macro/divider_line_bg_color</item>
@@ -240,6 +268,10 @@ found in the LICENSE file.
 
         <!--  Overriding AppCompat values -->
         <item name="spinnerStyle">@style/SpinnerStyle</item>
+        <item name="materialSwitchStyle">@style/Widget.BrowserUI.Switch</item>
+        <!-- Switches style workaround for UI that might use SwitchPreferenceCompat while not
+         using the theme for SettingsActivity (e.g. PageInfoView) -->
+        <item name="switchPreferenceCompatStyle">@style/SwitchPreference</item>
 
         <!-- Depending on if the support library or framework is inflating the
              dialog, a different layout is used, that names this style slightly
@@ -252,6 +284,16 @@ found in the LICENSE file.
         <!-- NoActionBar -->
         <item name="windowNoTitle">true</item>
         <item name="windowActionBar">false</item>
+
+        <item name="android:elegantTextHeight">false</item>
+        <item name="defaultFontFamily">sans-serif</item>
+        <item name="defaultMediumFontFamily">sans-serif-medium</item>
+
+        <item name="android:itemTextAppearance">@style/TextAppearance.TextLarge.Primary</item>
+        <item name="android:spinnerItemStyle">@style/Widget.BrowserUI.SpinnerItem</item>
+        <item name="android:spinnerDropDownItemStyle">@style/Widget.BrowserUI.SpinnerDropDownItemStyle</item>
+
+        <item name="android:windowOptOutEdgeToEdgeEnforcement" tools:targetApi="35">true</item>
     </style>
     <!-- Overridden by night mode. -->
     <style name="Theme.BrowserUI.AlertDialog.NoActionBar.DayNight" parent="Theme.BrowserUI.AlertDialog.NoActionBar"/>
@@ -278,5 +320,21 @@ found in the LICENSE file.
     <style name="Theme.BrowserUI.Translucent.NoTitleBar">
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowOptOutEdgeToEdgeEnforcement" tools:targetApi="35">false</item>
+    </style>
+
+    <style name="ThemeOverlay.BrowserUI.ElegantTextHeight" parent="">
+        <item name="android:elegantTextHeight">true</item>
+    </style>
+
+    <!-- TODO(https://crbug.com/346850440): Simplify once flag guarding is removed. -->
+    <!-- Overridden downstream to reference Google Sans Text and Google Sans Text Medium. -->
+    <style name="ThemeOverlay.BrowserUI.DefaultFontFamilyThemeOverlay" parent="">
+        <item name="defaultFontFamily">sans-serif</item>
+        <item name="defaultMediumFontFamily">sans-serif-medium</item>
+    </style>
+
+    <style name="ThemeOverlay.BrowserUI.OptOutEdgeToEdge" parent="">
+        <item name="android:windowOptOutEdgeToEdgeEnforcement" tools:targetApi="35">false</item>
     </style>
 </resources>

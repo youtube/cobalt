@@ -9,7 +9,9 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
+#include <variant>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
@@ -21,20 +23,18 @@
 #include "components/password_manager/core/browser/password_manager_metrics_util.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/metrics/public/cpp/ukm_recorder.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "url/gurl.h"
 
 class PrefService;
 
 namespace autofill {
-struct FormData;
+class FormData;
 }
 
 namespace password_manager {
 
 struct InteractionsStats;
 
-// The pupose of this class is to record various types of metrics about the
+// The purpose of this class is to record various types of metrics about the
 // behavior of the PasswordFormManager and its interaction with the user and
 // the page. The recorder tracks events tied to the logical life of a password
 // form, from parsing to having been saved. These events happen on different
@@ -95,27 +95,6 @@ class PasswordFormMetricsRecorder
     kManagerFillEventBlockedOnInteraction,
     // A credential was autofilled into a form.
     kManagerFillEventAutofilled
-  };
-
-  // What the form is used for. SubmittedFormType::kUnspecified is only set
-  // before the SetSubmittedFormType() is called, and should never be actually
-  // uploaded.
-  //
-  // These values are persisted to logs. Entries should not be renumbered and
-  // numeric values should never be reused.
-  //
-  // Needs to stay in sync with PasswordFormType in enums.xml.
-  enum class SubmittedFormType {
-    kLogin = 0,
-    kLoginNoUsername = 1,
-    kChangePasswordEnabled = 2,
-    kChangePasswordDisabled = 3,
-    kChangePasswordNoUsername = 4,
-    kSignup = 5,
-    kSignupNoUsername = 6,
-    kLoginAndSignup = 7,
-    kUnspecified = 8,
-    kCount = 9,
   };
 
   // The reason why a password bubble was shown on the screen.
@@ -241,7 +220,12 @@ class PasswordFormMetricsRecorder
     // Form is in an iframe with an origin that differs from the main frame
     // origin.
     kCrossOriginIframe = 12,
-    kMaxValue = kCrossOriginIframe,
+    // A credential with a different domain was grouped with the current domain
+    // by the `AffiliationService`.
+    kGroupedMatch = 13,
+    // A form on a page is a single username form.
+    kSingleUsernameForm = 14,
+    kMaxValue = kSingleUsernameForm,
   };
 
   // Used in UMA histogram, please do NOT reorder.
@@ -260,12 +244,24 @@ class PasswordFormMetricsRecorder
     // security origin.
     kPublicSuffixMatch = 1,
     // A credential exists for an affiliated matched android app but not for the
-    // current security origin.
+    // current security origin. This is provided as a credential sharing
+    // affiliation by AffiliationService.
     kAffiliatedApp = 2,
     // A credential exists for an affiliated matched site but not for the
-    // current security origin.
+    // current security origin. This is provided as a credential sharing
+    // affiliation by AffiliationService.
     kAffiliatedWebsites = 3,
-    kMaxValue = kAffiliatedWebsites,
+    // A credential exists for another entity, which is grouped with the current
+    // domain by the AffiliationService through a grouping affiliation.
+    kGrouped_Obsolete = 4,
+    // A credential exists for an Android application, which is grouped with the
+    // current domain by the AffiliationService through the grouping
+    // affiliations.
+    kGroupedApp = 5,
+    // A credential exists for a website, which is grouped with the current
+    // domain by the AffiliationService through the grouping affiliations.
+    kGroupedWebsites = 6,
+    kMaxValue = kGroupedWebsites,
   };
 
   // This metric records the user experience with the passwords filling. The
@@ -296,7 +292,39 @@ class PasswordFormMetricsRecorder
     // No credentials exist and the user has ignored the save bubble too often,
     // meaning that they won't be asked to save credentials anymore.
     kNoSavedCredentialsAndBlocklistedBySmartBubble = 8,
-    kMaxValue = kNoSavedCredentialsAndBlocklistedBySmartBubble,
+    // Whether the user used manual fallback to fill a form.
+    kManualFallbackUsed = 9,
+    kMaxValue = kManualFallbackUsed,
+  };
+
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  //
+  // Metric that records the user experience with filling the username in a
+  // single username form.
+  enum class SingleUsernameFillingAssistance {
+    // Username was filled automatically.
+    kAutomatic = 0,
+    // Username was filled manually by using the fill UI without typing.
+    kManual = 1,
+    // Known username was typed - didn't fill while the username was available.
+    // This may reflect an issue with filling saved credentials in the web
+    // content.
+    kKnownUsernameTyped = 2,
+    // Unknown username was typed while some credentials were stored.
+    kNewUsernameTypedWhileCredentialsExisted = 3,
+    // No saved credentials.
+    kNoSavedCredentials = 4,
+    // Domain is blocklisted and no other credentials exist.
+    kNoSavedCredentialsAndBlocklisted = 5,
+    // No credentials exist and the user has ignored the save bubble too often,
+    // meaning that they won't be asked to save credentials anymore.
+    kNoSavedCredentialsAndBlocklistedBySmartBubble = 6,
+    // Neither user input nor filling.
+    kNoUserInputNoFillingOfUsername = 7,
+    // Whether the user used manual fallback to fill a form.
+    kManualFallbackUsed = 8,
+    kMaxValue = kManualFallbackUsed,
   };
 
   // Records which store(s) a filled password came from.
@@ -335,6 +363,44 @@ class PasswordFormMetricsRecorder
     kMaxValue = kAutofillOrUserInput,
   };
 
+  // Used in UKM for difference on form parsing during filling and saving.
+  // Do not reorder and keep in sync with PasswordFormParsingDifference
+  // in enums.xml.
+  enum class ParsingDifference {
+    // The same username and password elements are identified.
+    kNone = 0,
+    // Different fields are picked as usernames, but password parsing is
+    // consistent.
+    kUsernameDiff = 1,
+    // Different fields are picked as passwords, but username parsing is
+    // consistent.
+    kPasswordDiff = 2,
+    // Both username and password parsing is inconsistent.
+    kUsernameAndPasswordDiff = 3,
+    kMaxValue = kUsernameAndPasswordDiff,
+  };
+
+  // Type of a field ina  password form.
+  enum class PasswordFieldType {
+    kUsername = 0,
+    kCurrentPassword = 1,
+    kNewPassword = 2,
+    kConfirmationPassword = 3,
+    kMaxvalue = kConfirmationPassword,
+  };
+
+  // Whether user actions confirm that password manager classification is
+  // correct.
+  //
+  // Do not reorder and keep in sync with
+  // PasswordManagerClassificationCorrectness in enums.xml.
+  enum class ClassificationCorrectness {
+    kUnknown = 0,
+    kCorrect = 1,
+    kWrong = 2,
+    kMaxValue = kWrong,
+  };
+
   // Called if the user could generate a password for this form.
   void MarkGenerationAvailable();
 
@@ -355,7 +421,7 @@ class PasswordFormMetricsRecorder
                                        bool is_manual_generation);
 
   // Call this once the submitted form type has been determined.
-  void SetSubmittedFormType(SubmittedFormType form_type);
+  void SetSubmittedFormType(metrics_util::SubmittedFormType form_type);
 
   // Call this when a password is saved to indicate which path led to
   // submission.
@@ -405,25 +471,53 @@ class PasswordFormMetricsRecorder
 
   void RecordFirstFillingResult(int32_t result);
   void RecordFirstWaitForUsernameReason(WaitForUsernameReason reason);
-  void RecordMatchedFormType(MatchedFormType type);
+  void RecordMatchedFormType(const PasswordForm& form);
+  void RecordPotentialPreferredMatch(std::optional<MatchedFormType> form_type);
 
-  // Calculates FillingAssistance metric for |submitted_form|. The result is
-  // stored in |filling_assistance_| and recorded in the destructor in case when
-  // the successful submission is detected.
+  // Records whether there was at least one grouped match in fill suggestions.
+  void RecordFillSuggestionHasGroupedMatch(
+      base::span<const PasswordForm> best_matches);
+
+  // Calculates FillingAssistance metrics for |submitted_form|.
   void CalculateFillingAssistanceMetric(
-      const autofill::FormData& submitted_form,
+      const PasswordForm& submitted_form,
       const std::set<std::pair<std::u16string, PasswordForm::Store>>&
           saved_usernames,
       const std::set<std::pair<std::u16string, PasswordForm::Store>>&
           saved_passwords,
       bool is_blocklisted,
       const std::vector<InteractionsStats>& interactions_stats,
-      metrics_util::PasswordAccountStorageUsageLevel
+      features_util::PasswordAccountStorageUsageLevel
           account_storage_usage_level);
+
+  // Calculates whether user actions confirm or disprove the password form
+  // classification.
+  void CalculateClassificationCorrectnessMetric(
+      const autofill::FormData& submitted_form,
+      const std::vector<std::u16string>& saved_usernames,
+      const std::vector<std::u16string>& saved_passwords);
 
   // Calculates whether all field values in |submitted_form| came from
   // JavaScript. The result is stored in |js_only_input_|.
   void CalculateJsOnlyInput(const autofill::FormData& submitted_form);
+
+  // Calculates the share of input text field characters in the submitted form
+  // that are filled by Chrome. The result is stored in `automation_rate_`.
+  void CalculateAutomationRate(const autofill::FormData& submitted_form);
+
+  // Caches how the form was parsed for filling. Needed to measure the
+  // difference in form parsing on filling and saving.
+  void CacheParsingResultInFillingMode(const PasswordForm& form);
+
+  // Calculates whether the password form was parsed in the same way
+  // during parsing and saving.
+  void CalculateParsingDifferenceOnSavingAndFilling(const PasswordForm& form);
+
+  // Returns a string representation of the calculated `FillingAssistance` to be
+  // used as part of hats survey answers information.
+  // If the assistance holds a different variant type (i.e
+  // `SingleUsernameFillingAssistance`), returns an empty string.
+  std::string FillingAssinstanceToHatsInProductDataString();
 
   void set_possible_username_used(bool value) {
     possible_username_used_ = value;
@@ -439,9 +533,46 @@ class PasswordFormMetricsRecorder
       metrics_util::SubmittedFormFrame submitted_form_frame) {
     submitted_form_frame_ = submitted_form_frame;
   }
+#if BUILDFLAG(IS_ANDROID)
+  void set_form_submission_reached(bool value) {
+    form_submission_reached_ = value;
+  }
+#endif
 
  private:
   friend class base::RefCounted<PasswordFormMetricsRecorder>;
+
+  // Calculates FillingAssistance metric for |submitted_form|. The result is
+  // stored in |filling_assistance_| and recorded in the destructor in case when
+  // the successful submission is detected.
+  void CalculatePasswordFillingAssistanceMetric(
+      const autofill::FormData& submitted_form,
+      const std::set<std::pair<std::u16string, PasswordForm::Store>>&
+          saved_usernames,
+      const std::set<std::pair<std::u16string, PasswordForm::Store>>&
+          saved_passwords,
+      bool is_blocklisted,
+      const std::vector<InteractionsStats>& interactions_stats,
+      features_util::PasswordAccountStorageUsageLevel
+          account_storage_usage_level);
+
+  // Calculates the SingleUsernameFillingAssistance assistance metrics for the
+  // |submitted_form| when it is a single username form.
+  void CalculateSingleUsernameFillingAssistanceMetric(
+      const autofill::FormData& submitted_form,
+      const std::set<std::pair<std::u16string, PasswordForm::Store>>&
+          saved_usernames,
+      bool is_blocklisted,
+      const std::vector<InteractionsStats>& interactions_stats);
+
+  // Caches whether user actions confirm or disprove the classification
+  // for fields used to login (username and current password) based on
+  // previously saved values.
+  void SetClassificationCorrectnessForLoginField(
+      const autofill::FormData& submitted_form,
+      PasswordFieldType field_type,
+      const std::vector<std::u16string>& saved_values,
+      autofill::FieldRendererId field_id);
 
   // Enum to track which password bubble is currently being displayed.
   enum class CurrentBubbleOfInterest {
@@ -471,7 +602,7 @@ class PasswordFormMetricsRecorder
 
   // Contains the generated password's status, which resulted from a user
   // action.
-  absl::optional<GeneratedPasswordStatus> generated_password_status_;
+  std::optional<GeneratedPasswordStatus> generated_password_status_;
 
   // Tracks which bubble is currently being displayed to the user.
   CurrentBubbleOfInterest current_bubble_ = CurrentBubbleOfInterest::kNone;
@@ -493,10 +624,10 @@ class PasswordFormMetricsRecorder
   ManagerAction manager_action_ = kManagerActionNone;
   SubmitResult submit_result_ = SubmitResult::kNotSubmitted;
 
-  // Form type of the form that the PasswordFormManager is managing. Set after
-  // submission as the classification of the form can change depending on what
-  // data the user has entered.
-  SubmittedFormType submitted_form_type_ = SubmittedFormType::kUnspecified;
+  // Presumed form type of the form that the PasswordFormManager is managing.
+  // Set after submission, as the form type can change depending on the
+  // user-entered data.
+  std::optional<metrics_util::SubmittedFormType> submitted_form_type_;
 
   // The UKM SourceId of the document the form belongs to.
   ukm::SourceId source_id_;
@@ -514,30 +645,63 @@ class PasswordFormMetricsRecorder
   // 1 = the fallback was shown.
   // 2 = the password was generated.
   // 4 = this was an update prompt.
-  absl::optional<uint32_t> showed_manual_fallback_for_saving_;
+  std::optional<uint32_t> showed_manual_fallback_for_saving_;
 
-  absl::optional<uint32_t> form_changes_bitmask_;
+  std::optional<uint32_t> form_changes_bitmask_;
 
   bool recorded_first_filling_result_ = false;
 
   bool recorded_wait_for_username_reason_ = false;
 
-  bool recorded_preferred_matched_password_type = false;
+  bool recorded_preferred_matched_password_type_ = false;
 
-  absl::optional<FillingAssistance> filling_assistance_;
-  absl::optional<FillingSource> filling_source_;
-  absl::optional<metrics_util::PasswordAccountStorageUsageLevel>
+  bool recorded_potential_preferred_matched_password_type_ = false;
+
+  bool recorded_fill_suggestion_has_grouped_match_ = false;
+
+  std::variant<std::monostate,
+               FillingAssistance,
+               SingleUsernameFillingAssistance>
+      filling_assistance_;
+  std::optional<FillingSource> filling_source_;
+  std::optional<features_util::PasswordAccountStorageUsageLevel>
       account_storage_usage_level_;
-  absl::optional<metrics_util::SubmittedFormFrame> submitted_form_frame_;
+  std::optional<metrics_util::SubmittedFormFrame> submitted_form_frame_;
 
   // Whether a single username candidate was populated in prompt.
   bool possible_username_used_ = false;
 
   bool username_updated_in_bubble_ = false;
 
-  absl::optional<JsOnlyInput> js_only_input_;
+  std::optional<JsOnlyInput> js_only_input_;
 
   bool is_mixed_content_form_ = false;
+
+  // Renderer ids of key password form elements, saved on form filling.
+  // Needed to measure the difference in form parsing on filling and saving.
+  autofill::FieldRendererId username_renderer_id_;
+  autofill::FieldRendererId password_renderer_id_;
+  autofill::FieldRendererId new_password_renderer_id_;
+  autofill::FieldRendererId confirmation_password_renderer_id_;
+
+  std::optional<ParsingDifference> parsing_diff_on_filling_and_saving_;
+
+  // Records the share of input text field characters in the submitted
+  // form that are filled by Chrome. This value includes all fields in the
+  // form (not only username and passwords).
+  std::optional<float> automation_rate_;
+
+#if BUILDFLAG(IS_ANDROID)
+  // Set to true when the form submission step is reached. Used to record
+  // form submission and avoid duplicate samples.
+  bool form_submission_reached_ = false;
+#endif
+
+  // Record if the form parsing result can be confirmed or disproven by user
+  // actions.
+  base::small_map<
+      std::unordered_map<PasswordFieldType, ClassificationCorrectness>>
+      classification_correctness_;
 };
 
 }  // namespace password_manager

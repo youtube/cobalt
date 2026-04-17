@@ -4,6 +4,8 @@
 
 #include "services/service_manager/tests/util.h"
 
+#include <optional>
+
 #include "base/base_paths.h"
 #include "base/base_switches.h"
 #include "base/command_line.h"
@@ -23,10 +25,9 @@
 #include "services/service_manager/public/cpp/service_executable/switches.h"
 #include "services/service_manager/public/mojom/connector.mojom.h"
 #include "services/service_manager/public/mojom/service.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_MAC)
-#include "base/mac/mach_port_rendezvous.h"
+#include "base/apple/mach_port_rendezvous.h"
 #endif
 
 namespace service_manager {
@@ -50,7 +51,7 @@ mojom::ConnectResult LaunchAndConnectToProcess(
     base::Process* process) {
   // The test executable is a data_deps and thus generated test data.
   base::FilePath target_path;
-  CHECK(base::PathService::Get(base::DIR_GEN_TEST_DATA_ROOT, &target_path));
+  CHECK(base::PathService::Get(base::DIR_OUT_TEST_DATA_ROOT, &target_path));
   target_path = target_path.AppendASCII(target_exe_name);
 
   base::CommandLine child_command_line(target_path);

@@ -5,14 +5,18 @@
 #include "ui/linux/linux_ui_factory.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/command_line.h"
 #include "base/environment.h"
+#include "base/memory/raw_ptr.h"
 #include "base/nix/xdg_util.h"
+#include "base/no_destructor.h"
 #include "base/strings/string_util.h"
 #include "build/chromecast_buildflags.h"
 #include "ui/base/buildflags.h"
+#include "ui/base/ui_base_switches.h"
 #include "ui/color/system_theme.h"
 #include "ui/linux/fallback_linux_ui.h"
 #include "ui/linux/linux_ui.h"
@@ -33,47 +37,65 @@ namespace ui {
 
 namespace {
 
-const char kUiToolkitFlag[] = "ui-toolkit";
+std::vector<raw_ptr<LinuxUiTheme, VectorExperimental>>& GetLinuxUiThemesImpl() {
+  static base::NoDestructor<
+      std::vector<raw_ptr<LinuxUiTheme, VectorExperimental>>>
+      themes;
+  return *themes;
+}
 
-std::unique_ptr<LinuxUiAndTheme> CreateGtkUi() {
-#if BUILDFLAG(USE_GTK)
-  auto gtk_ui = BuildGtkUi();
-  if (gtk_ui->Initialize()) {
-    return gtk_ui;
+template <typename CreateLinuxUiFunc>
+LinuxUiAndTheme* GetLinuxUi(CreateLinuxUiFunc&& create_linux_ui) {
+  // LinuxUi creation will fail without a delegate.
+  if (!ui::LinuxUiDelegate::GetInstance()) {
+    return nullptr;
   }
-#endif
-  return nullptr;
+
+  static base::NoDestructor<std::optional<std::unique_ptr<LinuxUiAndTheme>>>
+      linux_ui;
+
+  if (linux_ui->has_value()) {
+    return linux_ui->value().get();
+  }
+
+  linux_ui->emplace(create_linux_ui());
+  LinuxUiAndTheme* ui_and_theme = linux_ui->value().get();
+  if (!ui_and_theme) {
+    return nullptr;
+  }
+
+  // This function is reentrant: it may be called while Initialize() is running.
+  // In that case, return `linux_ui`. However, if Initialize() fails,
+  // `linux_ui` is reset and future calls will not try to initialize again.
+  if (!ui_and_theme->Initialize()) {
+    linux_ui->value().reset();
+    return nullptr;
+  }
+
+  GetLinuxUiThemesImpl().push_back(ui_and_theme);
+  return ui_and_theme;
 }
 
 LinuxUiAndTheme* GetGtkUi() {
-  // LinuxUi creation will fail without a delegate.
-  if (!ui::LinuxUiDelegate::GetInstance()) {
+  auto create_gtk_ui = []() {
+#if BUILDFLAG(USE_GTK)
+    return BuildGtkUi();
+#else
     return nullptr;
-  }
-  static LinuxUiAndTheme* gtk_ui = CreateGtkUi().release();
-  return gtk_ui;
-}
-
-std::unique_ptr<LinuxUiAndTheme> CreateQtUi() {
-  if (!base::FeatureList::IsEnabled(kAllowQt)) {
-    return nullptr;
-  }
-#if BUILDFLAG(USE_QT)
-  auto qt_ui = qt::CreateQtUi(GetGtkUi());
-  if (qt_ui->Initialize()) {
-    return qt_ui;
-  }
 #endif
-  return nullptr;
+  };
+  return GetLinuxUi(create_gtk_ui);
 }
 
 LinuxUiAndTheme* GetQtUi() {
-  // LinuxUi creation will fail without a delegate.
-  if (!ui::LinuxUiDelegate::GetInstance()) {
+  auto create_qt_ui = []() {
+#if BUILDFLAG(USE_QT)
+    return qt::CreateQtUi(GetGtkUi());
+#else
     return nullptr;
-  }
-  static LinuxUiAndTheme* qt_ui = CreateQtUi().release();
-  return qt_ui;
+#endif
+  };
+  return GetLinuxUi(create_qt_ui);
 }
 
 std::unique_ptr<LinuxUiAndTheme> CreateFallbackUi() {
@@ -87,8 +109,8 @@ LinuxUiAndTheme* GetFallbackUi() {
 
 LinuxUiAndTheme* GetDefaultLinuxUiAndTheme() {
   auto* cmd_line = base::CommandLine::ForCurrentProcess();
-  std::string ui_toolkit =
-      base::ToLowerASCII(cmd_line->GetSwitchValueASCII(kUiToolkitFlag));
+  std::string ui_toolkit = base::ToLowerASCII(
+      cmd_line->GetSwitchValueASCII(switches::kUiToolkitFlag));
   if (ui_toolkit == "gtk") {
     if (auto* gtk_ui = GetGtkUi()) {
       return gtk_ui;
@@ -127,8 +149,6 @@ LinuxUiAndTheme* GetDefaultLinuxUiAndTheme() {
 
 }  // namespace
 
-BASE_FEATURE(kAllowQt, "AllowQt", base::FEATURE_DISABLED_BY_DEFAULT);
-
 LinuxUi* GetDefaultLinuxUi() {
   auto* linux_ui = GetDefaultLinuxUiAndTheme();
 #if !BUILDFLAG(IS_CASTOS)
@@ -154,6 +174,11 @@ LinuxUiTheme* GetLinuxUiTheme(SystemTheme system_theme) {
     case SystemTheme::kDefault:
       return nullptr;
   }
+}
+
+const std::vector<raw_ptr<LinuxUiTheme, VectorExperimental>>&
+GetLinuxUiThemes() {
+  return GetLinuxUiThemesImpl();
 }
 
 SystemTheme GetDefaultSystemTheme() {

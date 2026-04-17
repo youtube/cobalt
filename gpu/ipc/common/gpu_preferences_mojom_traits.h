@@ -9,11 +9,9 @@
 
 #include "base/notreached.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "gpu/config/gpu_preferences.h"
 #include "gpu/gpu_export.h"
 #include "gpu/ipc/common/gpu_preferences.mojom-shared.h"
-#include "ui/gfx/mojom/buffer_types_mojom_traits.h"
 
 #if BUILDFLAG(IS_OZONE)
 #include "base/message_loop/message_pump_type.h"
@@ -26,6 +24,8 @@ template <>
 struct GPU_EXPORT EnumTraits<gpu::mojom::GrContextType, gpu::GrContextType> {
   static gpu::mojom::GrContextType ToMojom(gpu::GrContextType input) {
     switch (input) {
+      case gpu::GrContextType::kNone:
+        return gpu::mojom::GrContextType::kNone;
       case gpu::GrContextType::kGL:
         return gpu::mojom::GrContextType::kGL;
       case gpu::GrContextType::kVulkan:
@@ -36,11 +36,13 @@ struct GPU_EXPORT EnumTraits<gpu::mojom::GrContextType, gpu::GrContextType> {
         return gpu::mojom::GrContextType::kGraphiteMetal;
     }
     NOTREACHED();
-    return gpu::mojom::GrContextType::kGL;
   }
   static bool FromMojom(gpu::mojom::GrContextType input,
                         gpu::GrContextType* out) {
     switch (input) {
+      case gpu::mojom::GrContextType::kNone:
+        *out = gpu::GrContextType::kNone;
+        return true;
       case gpu::mojom::GrContextType::kGL:
         *out = gpu::GrContextType::kGL;
         return true;
@@ -74,7 +76,6 @@ struct GPU_EXPORT EnumTraits<gpu::mojom::VulkanImplementationName,
         return gpu::mojom::VulkanImplementationName::kSwiftshader;
     }
     NOTREACHED();
-    return gpu::mojom::VulkanImplementationName::kNone;
   }
   static bool FromMojom(gpu::mojom::VulkanImplementationName input,
                         gpu::VulkanImplementationName* out) {
@@ -103,13 +104,14 @@ struct GPU_EXPORT
     switch (input) {
       case gpu::WebGPUAdapterName::kDefault:
         return gpu::mojom::WebGPUAdapterName::kDefault;
-      case gpu::WebGPUAdapterName::kCompat:
-        return gpu::mojom::WebGPUAdapterName::kCompat;
+      case gpu::WebGPUAdapterName::kD3D11:
+        return gpu::mojom::WebGPUAdapterName::kD3D11;
+      case gpu::WebGPUAdapterName::kOpenGLES:
+        return gpu::mojom::WebGPUAdapterName::kOpenGLES;
       case gpu::WebGPUAdapterName::kSwiftShader:
         return gpu::mojom::WebGPUAdapterName::kSwiftShader;
     }
     NOTREACHED();
-    return gpu::mojom::WebGPUAdapterName::kDefault;
   }
   static bool FromMojom(gpu::mojom::WebGPUAdapterName input,
                         gpu::WebGPUAdapterName* out) {
@@ -117,8 +119,11 @@ struct GPU_EXPORT
       case gpu::mojom::WebGPUAdapterName::kDefault:
         *out = gpu::WebGPUAdapterName::kDefault;
         return true;
-      case gpu::mojom::WebGPUAdapterName::kCompat:
-        *out = gpu::WebGPUAdapterName::kCompat;
+      case gpu::mojom::WebGPUAdapterName::kD3D11:
+        *out = gpu::WebGPUAdapterName::kD3D11;
+        return true;
+      case gpu::mojom::WebGPUAdapterName::kOpenGLES:
+        *out = gpu::WebGPUAdapterName::kOpenGLES;
         return true;
       case gpu::mojom::WebGPUAdapterName::kSwiftShader:
         *out = gpu::WebGPUAdapterName::kSwiftShader;
@@ -134,6 +139,8 @@ struct GPU_EXPORT
   static gpu::mojom::WebGPUPowerPreference ToMojom(
       gpu::WebGPUPowerPreference input) {
     switch (input) {
+      case gpu::WebGPUPowerPreference::kNone:
+        return gpu::mojom::WebGPUPowerPreference::kNone;
       case gpu::WebGPUPowerPreference::kDefaultLowPower:
         return gpu::mojom::WebGPUPowerPreference::kDefaultLowPower;
       case gpu::WebGPUPowerPreference::kDefaultHighPerformance:
@@ -144,12 +151,14 @@ struct GPU_EXPORT
         return gpu::mojom::WebGPUPowerPreference::kForceHighPerformance;
     }
     NOTREACHED();
-    return gpu::mojom::WebGPUPowerPreference::kDefaultHighPerformance;
   }
 
   static bool FromMojom(gpu::mojom::WebGPUPowerPreference input,
                         gpu::WebGPUPowerPreference* out) {
     switch (input) {
+      case gpu::mojom::WebGPUPowerPreference::kNone:
+        *out = gpu::WebGPUPowerPreference::kNone;
+        return true;
       case gpu::mojom::WebGPUPowerPreference::kDefaultLowPower:
         *out = gpu::WebGPUPowerPreference::kDefaultLowPower;
         return true;
@@ -181,7 +190,6 @@ struct GPU_EXPORT EnumTraits<gpu::mojom::DawnBackendValidationLevel,
         return gpu::mojom::DawnBackendValidationLevel::kFull;
     }
     NOTREACHED();
-    return gpu::mojom::DawnBackendValidationLevel::kDisabled;
   }
   static bool FromMojom(gpu::mojom::DawnBackendValidationLevel input,
                         gpu::DawnBackendValidationLevel* out) {
@@ -245,18 +253,6 @@ struct GPU_EXPORT
     out->enable_gpu_service_logging = prefs.enable_gpu_service_logging();
     out->enable_gpu_service_tracing = prefs.enable_gpu_service_tracing();
     out->use_passthrough_cmd_decoder = prefs.use_passthrough_cmd_decoder();
-    out->disable_biplanar_gpu_memory_buffers_for_video_frames =
-        prefs.disable_biplanar_gpu_memory_buffers_for_video_frames();
-
-    mojo::ArrayDataView<gfx::mojom::BufferUsageAndFormatDataView>
-        usage_and_format_list;
-    prefs.GetTextureTargetExceptionListDataView(&usage_and_format_list);
-    for (size_t i = 0; i < usage_and_format_list.size(); ++i) {
-      gfx::BufferUsageAndFormat usage_format;
-      if (!usage_and_format_list.Read(i, &usage_format))
-        return false;
-      out->texture_target_exception_list.push_back(usage_format);
-    }
 
     out->ignore_gpu_blocklist = prefs.ignore_gpu_blocklist();
     out->watchdog_starts_backgrounded = prefs.watchdog_starts_backgrounded();
@@ -277,12 +273,17 @@ struct GPU_EXPORT
         prefs.enable_gpu_benchmarking_extension();
     out->enable_webgpu = prefs.enable_webgpu();
     out->enable_unsafe_webgpu = prefs.enable_unsafe_webgpu();
+    out->enable_webgpu_developer_features =
+        prefs.enable_webgpu_developer_features();
+    out->enable_webgpu_experimental_features =
+        prefs.enable_webgpu_experimental_features();
     if (!prefs.ReadUseWebgpuAdapter(&out->use_webgpu_adapter))
       return false;
     if (!prefs.ReadUseWebgpuPowerPreference(
             &out->use_webgpu_power_preference)) {
       return false;
     }
+    out->force_webgpu_compat = prefs.force_webgpu_compat();
     if (!prefs.ReadEnableDawnBackendValidation(
             &out->enable_dawn_backend_validation))
       return false;
@@ -291,8 +292,6 @@ struct GPU_EXPORT
     if (!prefs.ReadDisabledDawnFeaturesList(&out->disabled_dawn_features_list))
       return false;
 
-    out->enable_gpu_blocked_time_metric =
-        prefs.enable_gpu_blocked_time_metric();
     out->enable_perf_data_collection = prefs.enable_perf_data_collection();
 
 #if BUILDFLAG(IS_OZONE)
@@ -302,11 +301,6 @@ struct GPU_EXPORT
 
     out->enable_native_gpu_memory_buffers =
         prefs.enable_native_gpu_memory_buffers();
-
-#if BUILDFLAG(IS_CHROMEOS)
-    out->enable_chromeos_direct_video_decoder =
-        prefs.enable_chromeos_direct_video_decoder();
-#endif
 
     out->force_separate_egl_display_for_webgl_testing =
         prefs.force_separate_egl_display_for_webgl_testing();
@@ -413,14 +407,6 @@ struct GPU_EXPORT
   static bool use_passthrough_cmd_decoder(const gpu::GpuPreferences& prefs) {
     return prefs.use_passthrough_cmd_decoder;
   }
-  static bool disable_biplanar_gpu_memory_buffers_for_video_frames(
-      const gpu::GpuPreferences& prefs) {
-    return prefs.disable_biplanar_gpu_memory_buffers_for_video_frames;
-  }
-  static const std::vector<gfx::BufferUsageAndFormat>&
-  texture_target_exception_list(const gpu::GpuPreferences& prefs) {
-    return prefs.texture_target_exception_list;
-  }
   static bool ignore_gpu_blocklist(const gpu::GpuPreferences& prefs) {
     return prefs.ignore_gpu_blocklist;
   }
@@ -461,6 +447,14 @@ struct GPU_EXPORT
   static bool enable_unsafe_webgpu(const gpu::GpuPreferences& prefs) {
     return prefs.enable_unsafe_webgpu;
   }
+  static bool enable_webgpu_developer_features(
+      const gpu::GpuPreferences& prefs) {
+    return prefs.enable_webgpu_developer_features;
+  }
+  static bool enable_webgpu_experimental_features(
+      const gpu::GpuPreferences& prefs) {
+    return prefs.enable_webgpu_experimental_features;
+  }
   static gpu::WebGPUAdapterName use_webgpu_adapter(
       const gpu::GpuPreferences& prefs) {
     return prefs.use_webgpu_adapter;
@@ -468,6 +462,9 @@ struct GPU_EXPORT
   static gpu::WebGPUPowerPreference use_webgpu_power_preference(
       const gpu::GpuPreferences& prefs) {
     return prefs.use_webgpu_power_preference;
+  }
+  static bool force_webgpu_compat(const gpu::GpuPreferences& prefs) {
+    return prefs.force_webgpu_compat;
   }
   static gpu::DawnBackendValidationLevel enable_dawn_backend_validation(
       const gpu::GpuPreferences& prefs) {
@@ -480,9 +477,6 @@ struct GPU_EXPORT
   static const std::vector<std::string>& disabled_dawn_features_list(
       const gpu::GpuPreferences& prefs) {
     return prefs.disabled_dawn_features_list;
-  }
-  static bool enable_gpu_blocked_time_metric(const gpu::GpuPreferences& prefs) {
-    return prefs.enable_gpu_blocked_time_metric;
   }
   static bool enable_perf_data_collection(const gpu::GpuPreferences& prefs) {
     return prefs.enable_perf_data_collection;
@@ -497,12 +491,6 @@ struct GPU_EXPORT
       const gpu::GpuPreferences& prefs) {
     return prefs.enable_native_gpu_memory_buffers;
   }
-#if BUILDFLAG(IS_CHROMEOS)
-  static bool enable_chromeos_direct_video_decoder(
-      const gpu::GpuPreferences& prefs) {
-    return prefs.enable_chromeos_direct_video_decoder;
-  }
-#endif
   static bool force_separate_egl_display_for_webgl_testing(
       const gpu::GpuPreferences& prefs) {
     return prefs.force_separate_egl_display_for_webgl_testing;

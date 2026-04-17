@@ -40,6 +40,8 @@
 #include "chrome/credential_provider/gaiacp/win_http_url_fetcher.h"
 #include "chrome/credential_provider/setup/gcpw_files.h"
 
+class GaiaId;
+
 namespace base {
 class WaitableEvent;
 }
@@ -122,9 +124,11 @@ class FakeOSUserManager : public OSUserManager {
                            const wchar_t* password,
                            bool interactive,
                            base::win::ScopedHandle* token) override;
+
   HRESULT GetUserSID(const wchar_t* domain,
                      const wchar_t* username,
                      PSID* sid) override;
+
   HRESULT FindUserBySID(const wchar_t* sid,
                         wchar_t* username,
                         DWORD username_size,
@@ -183,7 +187,7 @@ class FakeOSUserManager : public OSUserManager {
                            const std::wstring& password,
                            const std::wstring& fullname,
                            const std::wstring& comment,
-                           const std::wstring& gaia_id,
+                           const GaiaId& gaia_id,
                            const std::wstring& email,
                            BSTR* sid);
 
@@ -196,7 +200,7 @@ class FakeOSUserManager : public OSUserManager {
                            const std::wstring& password,
                            const std::wstring& fullname,
                            const std::wstring& comment,
-                           const std::wstring& gaia_id,
+                           const GaiaId& gaia_id,
                            const std::wstring& email,
                            const std::wstring& domain,
                            BSTR* sid);
@@ -296,7 +300,7 @@ class FakeScopedUserProfileFactory {
 
 class FakeScopedUserProfile : public ScopedUserProfile {
  public:
-  HRESULT SaveAccountInfo(const base::Value& properties) override;
+  HRESULT SaveAccountInfo(const base::Value::Dict& properties) override;
 
  private:
   friend class FakeScopedUserProfileFactory;

@@ -1,7 +1,6 @@
 // Copyright 2021 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
 // This features file defines extension APIs implemented under
 // src/chrome/browser/chromeos/extensions/telemetry/.
 //
@@ -9,37 +8,54 @@
 // well as feature.h, simple_feature.h, and feature_provider.h.
 {
   "os.diagnostics": {
-    "dependencies": [ "permission:os.diagnostics" ],
+    "dependencies": [
+      "permission:os.diagnostics"
+    ],
     "contexts": [
-      "blessed_extension"
+      "privileged_extension"
     ],
-    "platforms": [
-      "chromeos",
-      "lacros"
-    ],
+    "platforms": ["chromeos"],
     "channel": "stable"
   },
   "os.events": {
-    "dependencies": [ "permission:os.events" ],
+    "dependencies": [
+      "permission:os.events"
+    ],
     "contexts": [
-      "blessed_extension"
+      "privileged_extension"
     ],
-    "platforms": [
-      "chromeos",
-      "lacros"
+    "platforms": ["chromeos"],
+    "channel": "stable"
+  },
+  "os.management": {
+    // Right now Management API is limited to audio control.
+    "dependencies": [
+      "permission:os.management.audio"
     ],
-    "channel": "stable",
-    "feature_flag": "TelemetryExtensionPendingApprovalApi"
+    "contexts": [
+      "privileged_extension"
+    ],
+    "platforms": ["chromeos"],
+    "channel": "stable"
+  },
+  "os.management.setAudioGain": {
+    "dependencies": [
+      "permission:os.management.audio"
+    ]
+  },
+  "os.management.setAudioVolume": {
+    "dependencies": [
+      "permission:os.management.audio"
+    ]
   },
   "os.telemetry": {
-    "dependencies": [ "permission:os.telemetry" ],
+    "dependencies": [
+      "permission:os.telemetry"
+    ],
     "contexts": [
-      "blessed_extension"
+      "privileged_extension"
     ],
-    "platforms": [
-      "chromeos",
-      "lacros"
-    ],
+    "platforms": ["chromeos"],
     "channel": "stable"
   }
 }

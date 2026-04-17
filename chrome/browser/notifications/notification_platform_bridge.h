@@ -46,7 +46,7 @@ class NotificationPlatformBridge {
   NotificationPlatformBridge(const NotificationPlatformBridge&) = delete;
   NotificationPlatformBridge& operator=(const NotificationPlatformBridge&) =
       delete;
-  virtual ~NotificationPlatformBridge() {}
+  virtual ~NotificationPlatformBridge() = default;
 
   // Shows a toast on screen using the data passed in |notification|.
   virtual void Display(
@@ -60,9 +60,16 @@ class NotificationPlatformBridge {
   virtual void Close(Profile* profile, const std::string& notification_id) = 0;
 
   // Writes the ids of all currently displaying notifications and posts
-  // |callback| with the result.
+  // `callback` with the result.
   virtual void GetDisplayed(
       Profile* profile,
+      GetDisplayedNotificationsCallback callback) const = 0;
+
+  // Writes the ids of all currently displaying notifications for `origin` and
+  // posts `callback` with the result.
+  virtual void GetDisplayedForOrigin(
+      Profile* profile,
+      const GURL& origin,
       GetDisplayedNotificationsCallback callback) const = 0;
 
   // Calls |callback| once |this| is initialized. The argument is

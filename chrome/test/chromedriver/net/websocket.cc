@@ -9,10 +9,12 @@
 #include <string.h>
 
 #include <memory>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/base64.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/hash/sha1.h"
@@ -43,8 +45,7 @@ namespace {
 bool ResolveHost(const std::string& host,
                  uint16_t port,
                  net::AddressList* address_list) {
-  struct addrinfo hints;
-  memset(&hints, 0, sizeof(hints));
+  struct addrinfo hints = {};
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
 
@@ -67,7 +68,7 @@ WebSocket::WebSocket(const GURL& url,
       listener_(listener),
       state_(INITIALIZED),
       write_buffer_(base::MakeRefCounted<net::DrainableIOBuffer>(
-          base::MakeRefCounted<net::IOBuffer>(0),
+          base::MakeRefCounted<net::IOBufferWithSize>(),
           0)),
       read_buffer_(
           base::MakeRefCounted<net::IOBufferWithSize>(read_buffer_size)) {}
@@ -133,16 +134,17 @@ bool WebSocket::Send(const std::string& message) {
   header.final = true;
   header.masked = true;
   header.payload_length = message.length();
-  int header_size = net::GetWebSocketFrameHeaderSize(header);
+  size_t header_size = net::GetWebSocketFrameHeaderSize(header);
   net::WebSocketMaskingKey masking_key = net::GenerateWebSocketMaskingKey();
   std::string header_str;
   header_str.resize(header_size);
-  CHECK_EQ(header_size, net::WriteWebSocketFrameHeader(
-      header, &masking_key, &header_str[0], header_str.length()));
+  CHECK_EQ(header_size,
+           base::checked_cast<size_t>(net::WriteWebSocketFrameHeader(
+               header, &masking_key, base::as_writable_byte_span(header_str))));
 
   std::string masked_message = message;
-  net::MaskWebSocketFramePayload(
-      masking_key, 0, &masked_message[0], masked_message.length());
+  net::MaskWebSocketFramePayload(masking_key, 0,
+                                 base::as_writable_byte_span(masked_message));
   Write(header_str + masked_message);
   return true;
 }
@@ -158,7 +160,7 @@ void WebSocket::OnSocketConnect(int code) {
     return;
   }
 
-  base::Base64Encode(base::RandBytesAsString(16), &sec_key_);
+  sec_key_ = base::Base64Encode(base::RandBytesAsVector(16));
   std::string handshake = base::StringPrintf(
       "GET %s HTTP/1.1\r\n"
       "Host: %s\r\n"
@@ -208,9 +210,10 @@ void WebSocket::ContinueWritingIfNecessary() {
   if (!write_buffer_->BytesRemaining()) {
     if (pending_write_.empty())
       return;
+    const size_t pending_write_length = pending_write_.length();
     write_buffer_ = base::MakeRefCounted<net::DrainableIOBuffer>(
-        base::MakeRefCounted<net::StringIOBuffer>(pending_write_),
-        pending_write_.length());
+        base::MakeRefCounted<net::StringIOBuffer>(std::move(pending_write_)),
+        pending_write_length);
     pending_write_.clear();
   }
   int code = socket_->Write(
@@ -256,10 +259,13 @@ void WebSocket::OnRead(bool read_again, int code) {
     return;
   }
 
-  if (state_ == CONNECTING)
-    OnReadDuringHandshake(read_buffer_->data(), code);
-  else if (state_ == OPEN)
-    OnReadDuringOpen(read_buffer_->data(), code);
+  if (state_ == CONNECTING) {
+    OnReadDuringHandshake(
+        read_buffer_->span().first(base::checked_cast<size_t>(code)));
+  } else if (state_ == OPEN) {
+    OnReadDuringOpen(
+        read_buffer_->span().first(base::checked_cast<size_t>(code)));
+  }
 
   // If we were called by the event loop due to arrival of data, call Read()
   // again to read more data. If we were called by Read(), however, simply
@@ -271,21 +277,21 @@ void WebSocket::OnRead(bool read_again, int code) {
     Read();
 }
 
-void WebSocket::OnReadDuringHandshake(const char* data, int len) {
-  VLOG(4) << "WebSocket::OnReadDuringHandshake\n" << std::string(data, len);
-  handshake_response_ += std::string(data, len);
+void WebSocket::OnReadDuringHandshake(base::span<const uint8_t> data_span) {
+  VLOG(4) << "WebSocket::OnReadDuringHandshake\n"
+          << base::as_string_view(data_span);
+  handshake_response_ += base::as_string_view(data_span);
   size_t headers_end = net::HttpUtil::LocateEndOfHeaders(
-      handshake_response_.data(), handshake_response_.size(), 0);
+      base::as_byte_span(handshake_response_), 0);
   if (headers_end == std::string::npos)
     return;
 
   const char kMagicKey[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-  std::string websocket_accept;
-  base::Base64Encode(base::SHA1HashString(sec_key_ + kMagicKey),
-                     &websocket_accept);
+  std::string websocket_accept =
+      base::Base64Encode(base::SHA1HashString(sec_key_ + kMagicKey));
   auto headers = base::MakeRefCounted<net::HttpResponseHeaders>(
       net::HttpUtil::AssembleRawHeaders(
-          base::StringPiece(handshake_response_.data(), headers_end)));
+          std::string_view(handshake_response_.data(), headers_end)));
   if (headers->response_code() != 101 ||
       !headers->HasHeaderValue("Upgrade", "WebSocket") ||
       !headers->HasHeaderValue("Connection", "Upgrade") ||
@@ -298,13 +304,17 @@ void WebSocket::OnReadDuringHandshake(const char* data, int len) {
   sec_key_.clear();
   state_ = OPEN;
   InvokeConnectCallback(net::OK);
-  if (!leftover_message.empty())
-    OnReadDuringOpen(leftover_message.c_str(), leftover_message.length());
+  if (!leftover_message.empty()) {
+    OnReadDuringOpen(base::as_writable_byte_span(leftover_message));
+  }
 }
 
-void WebSocket::OnReadDuringOpen(const char* data, int len) {
+void WebSocket::OnReadDuringOpen(base::span<uint8_t> data_span) {
   std::vector<std::unique_ptr<net::WebSocketFrameChunk>> frame_chunks;
-  CHECK(parser_.Decode(data, len, &frame_chunks));
+
+  // Call the parser's Decode method
+  CHECK(parser_.Decode(data_span, &frame_chunks));
+
   for (size_t i = 0; i < frame_chunks.size(); ++i) {
     const auto& header = frame_chunks[i]->header;
     if (header) {
@@ -332,7 +342,7 @@ void WebSocket::OnReadDuringOpen(const char* data, int len) {
     std::vector<char> payload(buffer.begin(), buffer.end());
     if (is_current_frame_masked_) {
       MaskWebSocketFramePayload(current_masking_key_, current_frame_offset_,
-                                payload.data(), payload.size());
+                                base::as_writable_byte_span(payload));
     }
     next_message_ += std::string(payload.data(), payload.size());
     current_frame_offset_ += payload.size();

@@ -5,12 +5,14 @@
 #ifndef CHROME_UPDATER_WIN_INSTALLER_API_H_
 #define CHROME_UPDATER_WIN_INSTALLER_API_H_
 
+#include <optional>
 #include <string>
+#include <utility>
 
 #include "base/win/registry.h"
 #include "chrome/updater/enum_traits.h"
 #include "chrome/updater/installer.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "chrome/updater/win/win_constants.h"
 
 namespace updater {
 
@@ -22,7 +24,7 @@ enum class UpdaterScope;
 //
 // `InstallerProgress` (DWORD) - a percentage value [0-100].
 //
-// `InstallerResult` (DWORD) - specifies the result type and how to determine
+// `InstallerApiResult` (DWORD) - specifies the result type and how to determine
 // success or failure. Allowable values are:
 //
 //   0 - Reports success regardless of the exit code or `InstallerError`.
@@ -48,8 +50,8 @@ enum class UpdaterScope;
 //   it is available.
 //
 // `InstallerError` (DWORD) - specifies the error (or success) value. Overrides
-// the exit code unless `InstallerResult` indicates that the exit code must be
-// used (case 4).
+// the exit code unless `InstallerApiResult` indicates that the exit code must
+// be used (case 4).
 //
 // `InstallerExtraCode1` (DWORD) - additional information set by the installer.
 //
@@ -67,29 +69,9 @@ enum class UpdaterScope;
 // "0" (if the updater does not send usage stats); %COMPANY% is the uppercase
 // short company name specified in branding.gni (e.g. "GOOGLE").
 
-// These values are defined by the Installer API.
-enum class InstallerResult {
-  // The installer succeeded, unconditionally.
-  kSuccess = 0,
-
-  // The installer returned a specific error using the Installer API mechanism.
-  kCustomError = 1,
-
-  // TODO(crbug.com/1139013): support MSI payloads.
-  // The MSI installer failed, with a system error.
-  kMsiError = 2,
-
-  // The installer failed with a a system error.
-  kSystemError = 3,
-
-  // The installer failed. The exit code of the installer process contains
-  // the error.
-  kExitCode = 4,
-};
-
 template <>
-struct EnumTraits<InstallerResult> {
-  using R = InstallerResult;
+struct EnumTraits<InstallerApiResult> {
+  using R = InstallerApiResult;
   static constexpr R first_elem = R::kSuccess;
   static constexpr R last_elem = R::kExitCode;
 };
@@ -100,17 +82,18 @@ struct EnumTraits<InstallerResult> {
 struct InstallerOutcome {
   InstallerOutcome();
   InstallerOutcome(const InstallerOutcome&);
+  InstallerOutcome& operator=(const InstallerOutcome&);
   ~InstallerOutcome();
 
-  absl::optional<InstallerResult> installer_result;
-  absl::optional<int> installer_error;
-  absl::optional<int> installer_extracode1;
-  absl::optional<std::string> installer_text;
-  absl::optional<std::string> installer_cmd_line;
+  std::optional<InstallerApiResult> installer_result;
+  std::optional<int> installer_error;
+  std::optional<int> installer_extracode1;
+  std::optional<std::string> installer_text;
+  std::optional<std::string> installer_cmd_line;
 };
 
 // Opens the registry ClientState subkey for the `app_id`.
-absl::optional<base::win::RegKey> ClientStateAppKeyOpen(
+std::optional<base::win::RegKey> ClientStateAppKeyOpen(
     UpdaterScope updater_scope,
     const std::string& app_id,
     REGSAM regsam);
@@ -134,24 +117,33 @@ bool DeleteInstallerOutput(UpdaterScope updater_scope,
 // Returns the Installer API outcome, best-effort, and renames the InstallerXXX
 // values to LastInstallerXXX values. The LastInstallerXXX values remain around
 // until the next update or install.
-absl::optional<InstallerOutcome> GetInstallerOutcome(UpdaterScope updater_scope,
-                                                     const std::string& app_id);
+std::optional<InstallerOutcome> GetInstallerOutcome(UpdaterScope updater_scope,
+                                                    const std::string& app_id);
+
+// Returns the Last Installer API outcome, i.e., the LastInstallerXXX values.
+std::optional<InstallerOutcome> GetClientStateKeyLastInstallerOutcome(
+    UpdaterScope updater_scope,
+    const std::string& app_id);
+std::optional<InstallerOutcome> GetUpdaterKeyLastInstallerOutcome(
+    UpdaterScope updater_scope);
+
 bool SetInstallerOutcomeForTesting(UpdaterScope updater_scope,
                                    const std::string& app_id,
                                    const InstallerOutcome& installer_outcome);
 
 // Translates the Installer API outcome into an `Installer::Result` value.
-// `exit_code` is the exit code of the installer process, which may be used
-// in some cases, depending on the installer outcome.
+// * Handles installer exit codes correctly.
+// * Handles non-zero success codes `ERROR_SUCCESS_RE{xxx}` correctly.
+// * Uniformly sets `CrxInstaller::Result::error` to `0` for success, and
+//   `kErrorApplicationInstallerFailed` for failure. The installer API code (or
+//   exit code in the case of no installer API) is stored within
+//   `CrxInstaller::Result::original_error` to avoid overlaps with
+//   `update_client` error codes. Otherwise for instance error code `2` could
+//   mean `FINGERPRINT_WRITE_FAILED = 2` or the windows error
+//   `ERROR_FILE_NOT_FOUND`.
 Installer::Result MakeInstallerResult(
-    absl::optional<InstallerOutcome> installer_outcome,
+    std::optional<InstallerOutcome> installer_outcome,
     int exit_code);
-
-// Returns the textual description of a system `error` as provided
-// by the operating system. The function assumes that the locale value for
-// the calling thread is set, otherwise, the function uses the user/system
-// default LANGID, or it defaults to US English.
-std::string GetTextForSystemError(int error);
 
 }  // namespace updater
 

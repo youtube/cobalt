@@ -26,6 +26,7 @@ chromium-metrics-reviews@google.com.
   <variant name="ChallengeCredential"/>
   <variant name="CryptohomeRecovery"/>
   <variant name="DoubleWrappedCompat"/>
+  <variant name="Fingerprint"/>
   <variant name="LibScryptCompat"/>
   <variant name="PinWeaver"/>
   <variant name="Scrypt"/>
@@ -34,30 +35,31 @@ chromium-metrics-reviews@google.com.
   <variant name="TpmNotBoundToPcr"/>
 </variants>
 
-<histogram name="Cryptohome.AsyncDBusRequest" units="ms"
-    expires_after="2022-01-02">
-  <owner>zuan@chromium.org</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
-  <summary>
-    Records the total running time of every async dbus calls of Cryptohome at
-    server side.
-  </summary>
-</histogram>
+<variants name="CryptohomeAuthFactorTypes">
+  <variant name="" summary="Aggregated."/>
+  <variant name=".CryptohomeRecovery"/>
+  <variant name=".Fingerprint"/>
+  <variant name=".Kiosk"/>
+  <variant name=".LegacyFingerprint"/>
+  <variant name=".Password"/>
+  <variant name=".Pin"/>
+  <variant name=".SmardCard"/>
+</variants>
 
-<histogram name="Cryptohome.AsyncDBusRequest.Inqueue" units="ms"
-    expires_after="2020-08-17">
-  <owner>zuan@chromium.org</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
-  <summary>
-    Records the total inqueue time of every async dbus calls of Cryptohome at
-    server side. Recorded when the first stage of this requests is served.
-  </summary>
-</histogram>
+<variants name="CryptohomeErrorOperations">
+  <variant name="AddAuthFactorError"/>
+  <variant name="AuthenticateAuthFactorError"/>
+  <variant name="Error"/>
+  <variant name="PrepareAuthFactorError"/>
+  <variant name="RecreateAuthFactorError"/>
+  <variant name="RemoveAuthFactorError"/>
+  <variant name="UssMigrationError"/>
+</variants>
 
 <histogram name="Cryptohome.AuthFactorBackingStoreConfig"
-    enum="CryptohomeAuthFactorBackingStoreConfig" expires_after="2023-12-07">
+    enum="CryptohomeAuthFactorBackingStoreConfig" expires_after="2025-11-16">
   <owner>jadmanski@chromium.org</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
+  <owner>cros-security-cryptohome+uma@google.com</owner>
   <summary>
     Records the current type of backing stores in use for storing Cryptohome
     authentication factors. Recorded whenever a new auth session is started
@@ -67,18 +69,25 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Cryptohome.ChecksumStatus" enum="CryptohomeChecksumStatus"
-    expires_after="2021-08-09">
-  <owner>apronin@chromium.org</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
+<histogram name="Cryptohome.BackupKeysetCleanupResult"
+    enum="CryptohomeBackupKeysetCleanupResult" expires_after="2025-12-08">
+  <owner>jadmanski@google.com</owner>
+  <owner>cros-security-cryptohome+uma@google.com</owner>
   <summary>
-    Checksum status of critical persistent data used by Cryptohome. This status
-    is recorded every time the cryptohomed daemon reads a file.
+    Records the result of the backup VaultKeyset cleanup for users with mixed
+    USS-VaultKeyset configurations. Backup VaultKeysets are keysets marked as
+    backup during the migration to USS and kept as a rollback protection. Since
+    M114 backup keysets are removed on AuthSession start if the USS migration of
+    the particular user is completed. Starting with M115 backup keyset for the
+    migrated credential is removed after the successful authentication with the
+    given credential with USS, even if the USS migration is not completed. This
+    metric tracks the result of the removal of backup keysets after successful
+    authetnication for users whose USS migration isn't completed yet.
   </summary>
 </histogram>
 
 <histogram name="Cryptohome.DeletedUserProfiles" units="profiles"
-    expires_after="2023-10-15">
+    expires_after="2025-09-20">
   <owner>simmonsjosh@google.com</owner>
   <owner>src/ui/file_manager/OWNERS</owner>
   <summary>
@@ -88,139 +97,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Cryptohome.DeprecatedApiCalled"
-    enum="CryptohomeDeprecatedApiCalled" expires_after="2022-04-03">
-  <owner>apronin@chromium.org</owner>
-  <owner>louiscollard@chromium.org</owner>
-  <owner>zuan@chromium.org</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
-  <summary>
-    Records when a deprecated API function in cryptohome is called, so we know
-    which exposed DBus API can be removed without side effect.
-  </summary>
-</histogram>
-
-<histogram name="Cryptohome.DircryptoMigrationEndStatus"
-    enum="CrOSFileSystemMigrationEndStatus" expires_after="2020-03-01">
-  <owner>dspaid@chromium.org</owner>
-  <summary>
-    The status of the user home directory migration from ecryptfs to
-    ext4-crypto. This is logged once at the end of each migration.
-  </summary>
-</histogram>
-
-<histogram name="Cryptohome.DircryptoMigrationFailedErrorCode"
-    enum="PlatformFileError" expires_after="M81">
-  <owner>kinaba@chromium.org</owner>
-  <summary>
-    The error code of file operation by which the user home directory migration
-    from ecryptfs to ext4-crypto has failed. This is logged once the migration
-    encounters a file I/O error.
-  </summary>
-</histogram>
-
-<histogram name="Cryptohome.DircryptoMigrationFailedOperationType"
-    enum="CrOSFileSystemMigrationFailedOperationType" expires_after="M78">
-  <owner>kinaba@chromium.org</owner>
-  <summary>
-    The type of file operation at which the user home directory migration from
-    ecryptfs to ext4-crypto has failed. This is logged once the migration
-    encounters a file I/O error.
-  </summary>
-</histogram>
-
-<histogram name="Cryptohome.DircryptoMigrationFailedPathType"
-    enum="DircryptoMigrationFailedPathType" expires_after="M78">
-  <owner>kinaba@chromium.org</owner>
-  <summary>
-    The category of the path where the user home directory migration from
-    ecryptfs to ext4-crypto has failed. This is logged once the migration
-    encounters a file I/O error.
-  </summary>
-</histogram>
-
-<histogram name="Cryptohome.DircryptoMigrationInitialFreeSpaceInMb" units="MB"
-    expires_after="M85">
-  <owner>dspaid@chromium.org</owner>
-  <summary>
-    The total amount of free disk space on the system when the user started the
-    migration from ecryptfs to ext4-crypto. This is only logged when the user
-    encounters an insufficient space error.
-  </summary>
-</histogram>
-
-<histogram name="Cryptohome.DircryptoMigrationNoSpaceFailureFreeSpaceInMb"
-    units="MB" expires_after="M85">
-  <owner>dspaid@chromium.org</owner>
-  <summary>
-    The total amount of free disk space on the system when the user received an
-    insufficient space error during the migration from ecryptfs to ext4-crypto.
-    This is only logged when the user encounters an insufficient space error.
-  </summary>
-</histogram>
-
-<histogram name="Cryptohome.DircryptoMigrationNoSpaceXattrSizeInBytes"
-    units="bytes" expires_after="M85">
-  <owner>dspaid@chromium.org</owner>
-  <summary>
-    The total number of bytes of xattr data that we are trying to store on a
-    file when we receive an insufficient space error. This includes both xattr
-    data already present on the file as well as the new xattr we are trying to
-    set. This is only logged during ecryptfs to ext4-crypto migration if we
-    receive an insufficient space error when setting a new extended attribute.
-  </summary>
-</histogram>
-
-<histogram name="Cryptohome.DircryptoMigrationStartStatus"
-    enum="CrOSFileSystemMigrationStartStatus" expires_after="M81">
-  <owner>dspaid@chromium.org</owner>
-  <summary>
-    The status of the user home directory migration from ecryptfs to
-    ext4-crypto. This is logged once at the start of each migration.
-  </summary>
-</histogram>
-
-<histogram name="Cryptohome.DircryptoMigrationTotalByteCountInMb" units="MB"
-    expires_after="M81">
-  <owner>hashimoto@chromium.org</owner>
-  <summary>
-    The total byte count (MB) of the data in a user's home directory which is
-    being migrated from ecryptfs to ext4-crypto. This is logged once when a new
-    migration starts.
-  </summary>
-</histogram>
-
-<histogram name="Cryptohome.DircryptoMigrationTotalFileCount" units="units"
-    expires_after="M81">
-  <owner>hashimoto@chromium.org</owner>
-  <summary>
-    The total file count in a user's home directory which is being migrated from
-    ecryptfs to ext4-crypto. This is logged once when a new migration starts.
-  </summary>
-</histogram>
-
-<histogram name="Cryptohome.DircryptoMinimalMigrationEndStatus"
-    enum="CrOSFileSystemMigrationEndStatus" expires_after="M77">
-  <owner>dspaid@chromium.org</owner>
-  <owner>pmarko@chromium.org</owner>
-  <summary>
-    The status of the user home directory minimal migration from ecryptfs to
-    ext4-crypto. This is logged once at the end of each minimal migration.
-  </summary>
-</histogram>
-
-<histogram name="Cryptohome.DircryptoMinimalMigrationStartStatus"
-    enum="CrOSFileSystemMigrationStartStatus" expires_after="M77">
-  <owner>dspaid@chromium.org</owner>
-  <owner>pmarko@chromium.org</owner>
-  <summary>
-    The status of the user home directory minimal migration from ecryptfs to
-    ext4-crypto. This is logged once at the start of each minimal migration.
-  </summary>
-</histogram>
-
 <histogram name="Cryptohome.DiskCleanupProgress"
-    enum="CryptohomeDiskCleanupProgress" expires_after="2023-12-01">
+    enum="CryptohomeDiskCleanupProgress" expires_after="2025-10-01">
   <owner>vsavu@google.com</owner>
   <owner>chromeos-disk-cleanup@google.com</owner>
   <summary>
@@ -232,21 +110,82 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.DiskCleanupResult"
-    enum="CryptohomeDiskCleanupResult" expires_after="2023-12-01">
+    enum="CryptohomeDiskCleanupResult" expires_after="2025-10-01">
   <owner>vsavu@google.com</owner>
   <owner>chromeos-disk-cleanup@google.com</owner>
   <summary>Records the result of triggering disk cleanup.</summary>
 </histogram>
 
+<histogram name="Cryptohome.DownloadsBindMountMigration.{Operation}"
+    enum="PopularOSErrno" expires_after="2025-11-09">
+  <owner>wenbojie@chromium.org</owner>
+  <owner>src/ui/file_manager/OWNERS</owner>
+  <summary>
+    Error or success of the {Operation} operation that happened when migrating
+    the 'Downloads' folder from ~/Downloads to ~/MyFiles/Downloads.
+  </summary>
+  <token key="Operation">
+    <variant name="BackUp"/>
+    <variant name="CleanUp"/>
+    <variant name="Exchange"/>
+    <variant name="FixXattr"/>
+    <variant name="Move"/>
+    <variant name="RemoveReappearedDownloads"/>
+    <variant name="Restore"/>
+    <variant name="SetXattrForNewCryptoHome"/>
+    <variant name="SetXattrToMigrated"/>
+    <variant name="SetXattrToMigrating"/>
+    <variant name="UnmaskItem"/>
+  </token>
+</histogram>
+
+<histogram name="Cryptohome.DownloadsBindMountMigrationStatus"
+    enum="CryptohomeDownloadsMigrationStatus" expires_after="2025-11-09">
+  <owner>wenbojie@chromium.org</owner>
+  <owner>src/ui/file_manager/OWNERS</owner>
+  <summary>
+    This metric records events that happen during the migration of the
+    'Downloads' folder from ~/Downloads to ~/MyFiles/Downloads.
+  </summary>
+</histogram>
+
 <histogram name="Cryptohome.Errors" enum="CryptohomeError"
-    expires_after="2023-10-08">
+    expires_after="2025-11-16">
   <owner>apronin@chromium.org</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
+  <owner>cros-hwsec+uma@google.com</owner>
   <summary>Cryptohome errors.</summary>
 </histogram>
 
+<histogram name="Cryptohome.Fingerprint.AuthSignal"
+    enum="CryptohomeFingerprintScanResult" expires_after="2025-05-18">
+  <owner>hcyang@google.com</owner>
+  <owner>cros-hwsec+uma@google.com</owner>
+  <summary>
+    Fingerprint scan result signals during fingerprint authentication. Reporting
+    happens during the auth session started when the user presses their finger
+    for system auth (login, unlock etc.). Each finger touch detected by the
+    fingerprint sensor results in 1 signal, and internal failures of the
+    fingerprint sensor also results in 1 special signal indicating the end of
+    session although fingerprint authentication isn't completed.
+  </summary>
+</histogram>
+
+<histogram name="Cryptohome.Fingerprint.EnrollSignal"
+    enum="CryptohomeFingerprintScanResult" expires_after="2025-05-18">
+  <owner>hcyang@google.com</owner>
+  <owner>cros-hwsec+uma@google.com</owner>
+  <summary>
+    Fingerprint scan result signals during fingerprint enrollment. Reporting
+    happens during the enroll session started when the user adds a new
+    fingerprint from OS settings. Each finger touch detected by the fingerprint
+    sensor results in 1 signal, and internal failures of the fingerprint sensor
+    also results in 1 special signal indicating the end of session although
+    fingerprint enrollment isn't completed.
+  </summary>
+</histogram>
+
 <histogram name="Cryptohome.FreedCacheVaultDiskSpaceInMb" units="MB"
-    expires_after="2023-12-01">
+    expires_after="2025-10-01">
   <owner>vsavu@google.com</owner>
   <owner>chromeos-disk-cleanup@google.com</owner>
   <summary>
@@ -257,7 +196,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.FreeDiskSpaceDuringLoginTotalFreedInMb" units="MiB"
-    expires_after="2023-12-01">
+    expires_after="2025-10-01">
   <owner>vsavu@google.com</owner>
   <owner>chromeos-disk-cleanup@google.com</owner>
   <summary>
@@ -272,7 +211,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.FreeDiskSpaceTotalFreedInMb" units="MiB"
-    expires_after="2023-12-01">
+    expires_after="2025-10-01">
   <owner>vsavu@google.com</owner>
   <owner>chromeos-disk-cleanup@google.com</owner>
   <summary>
@@ -286,7 +225,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.FreeDiskSpaceTotalTime2" units="ms"
-    expires_after="2023-12-01">
+    expires_after="2025-10-01">
   <owner>vsavu@google.com</owner>
   <owner>chromeos-disk-cleanup@google.com</owner>
   <summary>
@@ -298,7 +237,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.GCache.FreedDiskSpaceInMb" units="MB"
-    expires_after="2023-12-01">
+    expires_after="2025-10-01">
   <owner>vsavu@google.com</owner>
   <owner>chromeos-disk-cleanup@google.com</owner>
   <summary>
@@ -309,7 +248,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.HomedirEncryptionType" enum="HomedirEncryptionType"
-    expires_after="2023-08-27">
+    expires_after="2025-10-26">
   <owner>dspaid@chromium.org</owner>
   <summary>
     The encryption type used for a user's cryptohome directory. This is logged
@@ -317,106 +256,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Cryptohome.InvalidateDirCryptoKeyResult" enum="BooleanSuccess"
-    expires_after="2021-09-26">
-  <owner>yich@google.com</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
-  <summary>
-    The errors resulting from interacting with the InvalidateDirCryptoKey
-    operation.
-  </summary>
-</histogram>
-
-<histogram name="Cryptohome.LECredential.LogReplayEntryCount" units="count"
-    expires_after="2023-10-22">
-  <owner>hcyang@google.com</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
-  <summary>
-    How many log entries are used to reconstruct a stale hash tree, for Low
-    Entropy (LE) credential management. This reflects whether the log entries
-    stored at LE credential server side are sufficient for recovering situations
-    where the LE credential client and server are not synced. This is logged
-    every time the client loses sync with the server (might happen during
-    authentication and credential management operations), and attempts to use
-    the LogReplay command to sync server state again.
-  </summary>
-</histogram>
-
-<histogram name="Cryptohome.LECredential.Replay.{ReplayType}"
-    enum="CryptohomeLEReplayError" expires_after="2023-08-25">
-  <owner>hcyang@google.com</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
-  <summary>
-    Results of LogReplay events, which happen every time the client loses sync
-    with the server (might happen during authentication and credential
-    management operations). Categorized into 2 replay types, depends on whether
-    all of the log entries were used for replay, as this will result in
-    different error distributions. These are logged every time the client loses
-    sync with the server (might happen during authentication and credential
-    management operations), and attempts to use the LogReplay command to sync
-    server state again.
-  </summary>
-  <token key="ReplayType">
-    <variant name="Full"/>
-    <variant name="Normal"/>
-  </token>
-</histogram>
-
-<histogram name="Cryptohome.LECredential.{Operation}{Action}"
-    enum="CryptohomeLECredError" expires_after="2023-07-22">
-  <owner>pmalani@chromium.org</owner>
-  <owner>apronin@chromium.org</owner>
-  <owner>allenwebb@chromium.org</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
-  <summary>
-    Events related to Low Entropy (LE) credential management. Specifically, the
-    result of the {Action} action when doing the {Operation} LE operation. These
-    are logged every time an operation involving a LE credential (during
-    authentication and credential managerment actions) is performed.
-  </summary>
-  <token key="Operation">
-    <variant name="Check"/>
-    <variant name="GetDelayInSeconds"/>
-    <variant name="Insert"/>
-    <variant name="Remove"/>
-    <variant name="ReplayCheck"/>
-    <variant name="ReplayInsert"/>
-    <variant name="ReplayRemove"/>
-    <variant name="ReplayReset"/>
-    <variant name="Reset"/>
-    <variant name="ResetTree"/>
-    <variant name="Sync"/>
-    <variant name="SyncOutcome"/>
-  </token>
-  <token key="Action">
-    <variant name=""/>
-    <variant name=".Backend"/>
-    <variant name=".BackendGetLog"/>
-    <variant name=".BackendRecoverInsert"/>
-    <variant name=".BackendReplayLog"/>
-    <variant name=".BackendReplayLogForFullReplay"/>
-    <variant name=".LoadFromDisk"/>
-    <variant name=".SaveToDisk"/>
-  </token>
-</histogram>
-
-<histogram name="Cryptohome.LegacyCodePathUsage.{Location}"
-    enum="BooleanCodePathUsage" expires_after="2023-07-09">
-  <owner>hardikgoyal@chromium.org</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
-  <summary>
-    This will report usage of {Location} paths to see if it is actually being
-    used or not to enable us to decide if we want to continue supporting
-    {Location} or not.
-  </summary>
-  <token key="Location">
-    <variant name="AddKeyResetSeedGeneration"
-        summary="Reset seed generated during Add Key operation"/>
-  </token>
-</histogram>
-
 <histogram name="Cryptohome.LoginDiskCleanupAvailableSpace" units="MiB"
-    expires_after="2023-12-01">
+    expires_after="2025-10-01">
   <owner>vsavu@google.com</owner>
   <owner>chromeos-disk-cleanup@google.com</owner>
   <summary>
@@ -426,7 +267,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.LoginDiskCleanupProgress"
-    enum="CryptohomeLoginDiskCleanupProgress" expires_after="2023-12-01">
+    enum="CryptohomeLoginDiskCleanupProgress" expires_after="2025-10-01">
   <owner>vsavu@google.com</owner>
   <owner>chromeos-disk-cleanup@google.com</owner>
   <summary>
@@ -441,7 +282,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.LoginDiskCleanupResult"
-    enum="CryptohomeDiskCleanupResult" expires_after="2023-12-01">
+    enum="CryptohomeDiskCleanupResult" expires_after="2025-10-01">
   <owner>vsavu@google.com</owner>
   <owner>chromeos-disk-cleanup@google.com</owner>
   <summary>
@@ -452,7 +293,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.LoginDiskCleanupTotalTime" units="ms"
-    expires_after="2023-12-01">
+    expires_after="2025-10-01">
   <owner>vsavu@google.com</owner>
   <owner>chromeos-disk-cleanup@google.com</owner>
   <summary>
@@ -463,7 +304,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.MaskedDownloadsItems" units="items"
-    expires_after="2023-06-18">
+    expires_after="2025-11-02">
   <owner>benreich@chromium.org</owner>
   <owner>src/ui/file_manager/OWNERS</owner>
   <summary>
@@ -476,8 +317,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.MigrationUI.ConsumedBatteryPercent" units="%"
-    expires_after="2020-07-01">
-  <owner>fukino@chromium.org</owner>
+    expires_after="2024-10-01">
+  <owner>dlunev@chromium.org</owner>
   <summary>
     The amount of consumed battery level during cryptohome encryption migration.
     This is logged when the battery level decreases during migration, and the
@@ -487,8 +328,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.MigrationUI.FirstScreen"
-    enum="MigrationUIFirstScreen" expires_after="2020-07-01">
-  <owner>fukino@chromium.org</owner>
+    enum="MigrationUIFirstScreen" expires_after="2024-10-01">
+  <owner>dlunev@chromium.org</owner>
   <summary>
     The first screen in the encryption migration UI, which is shown when a user
     attempts to log in to the system and old encryption (eCryptfs) is detected.
@@ -496,8 +337,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.MigrationUI.MigrationResult"
-    enum="MigrationUIMigrationResult" expires_after="2021-01-17">
-  <owner>fukino@chromium.org</owner>
+    enum="MigrationUIMigrationResult" expires_after="2024-10-01">
+  <owner>dlunev@chromium.org</owner>
   <summary>
     The result of encryption migration from eCryptfs to Ext4 dircrypto. The
     recorded result is what the migration UI in Chrome side is notified from
@@ -506,8 +347,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.MigrationUI.RemoveCryptohomeResult"
-    enum="MigrationUIRemoveCryptohomeResult" expires_after="2020-07-01">
-  <owner>fukino@chromium.org</owner>
+    enum="MigrationUIRemoveCryptohomeResult" expires_after="2024-10-01">
+  <owner>dlunev@chromium.org</owner>
   <summary>
     The result of the removal of user's cryptohome. When the migration UI is
     notified that the migration failed, the UI tries to remove the user's
@@ -517,8 +358,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.MigrationUI.UserChoice"
-    enum="MigrationUIUserChoice" expires_after="2020-07-01">
-  <owner>fukino@chromium.org</owner>
+    enum="MigrationUIUserChoice" expires_after="2024-10-01">
+  <owner>dlunev@chromium.org</owner>
   <summary>
     User's choice when the system is ready to migrate encryption. The user can
     start migration or skip it. It is used to know how many users have skipped
@@ -527,8 +368,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.MigrationUI.VisibleScreen" enum="MigrationUIScreen"
-    expires_after="2020-10-25">
-  <owner>fukino@chromium.org</owner>
+    expires_after="2024-10-01">
+  <owner>dlunev@chromium.org</owner>
   <summary>
     How many times each screen in migration UI is shown to the user. A screen is
     recorded as a visible screen when the screen is kept displayed at least for
@@ -537,9 +378,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.OOPMountCleanupResult"
-    enum="CryptohomeOOPMountCleanupResult" expires_after="2023-04-01">
-  <owner>betuls@chromium.org</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
+    enum="CryptohomeOOPMountCleanupResult" expires_after="2026-02-01">
+  <owner>sarthakkukreti@google.com</owner>
+  <owner>cros-security-cryptohome+uma@google.com</owner>
   <summary>
     The result of a cryptohome out-of-process mount cleanup. Recorded once per
     logout.
@@ -547,28 +388,41 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.OOPMountOperationResult"
-    enum="CryptohomeOOPMountOperationResult" expires_after="2023-10-15">
-  <owner>betuls@chromium.org</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
+    enum="CryptohomeOOPMountOperationResult" expires_after="2026-02-01">
+  <owner>sarthakkukreti@google.com</owner>
+  <owner>cros-security-cryptohome+uma@google.com</owner>
   <summary>
     The result of a cryptohome out-of-process mount operation. Recorded once per
     login attempt.
   </summary>
 </histogram>
 
-<histogram name="Cryptohome.ParallelTasks" units="count"
-    expires_after="2021-11-14">
-  <owner>zuan@chromium.org</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
+<histogram name="Cryptohome.RecoverableKeyStore.ProviderUpdateCertResult"
+    enum="BackendCertProviderUpdateCertResult" expires_after="2025-05-04">
+  <owner>hcyang@google.com</owner>
+  <owner>cros-hwsec+uma@google.com</owner>
   <summary>
-    How many tasks runs in parallel typically in the mount thread of cryptohome.
-    Recorded when a requests comes in. Counts of 1 will not reported.
+    Records the result of updating the certificate in the recoverable key store
+    backend cert provider. This is recorded whenever a certificate file is
+    successfully fetched.
+  </summary>
+</histogram>
+
+<histogram name="Cryptohome.RecoverableKeyStore.VerifyAndParseCertResult"
+    enum="VerifyAndParseBackendCertResult" expires_after="2025-05-04">
+  <owner>hcyang@google.com</owner>
+  <owner>cros-hwsec+uma@google.com</owner>
+  <summary>
+    Records the result of verifying and parsing the a recoverable key store
+    backend certificate file instance. This is recorded when the cert provider
+    loads the persisted cert files from disk on each boot, and when a
+    certificate file is successfully fetched.
   </summary>
 </histogram>
 
 <histogram name="Cryptohome.RestoreSELinuxContextResultForHome"
-    enum="BooleanSuccess" expires_after="2023-04-01">
-  <owner>betuls@chromium.org</owner>
+    enum="BooleanSuccess" expires_after="2025-10-01">
+  <owner>hardikgoyal@chromium.org</owner>
   <owner>jorgelo@chromium.org</owner>
   <summary>
     The result of a cryptohome restore SELinux context operation of user home
@@ -578,8 +432,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.RestoreSELinuxContextResultForShadow"
-    enum="BooleanSuccess" expires_after="2023-04-01">
-  <owner>betuls@chromium.org</owner>
+    enum="BooleanSuccess" expires_after="2025-10-01">
+  <owner>hardikgoyal@chromium.org</owner>
   <owner>jorgelo@chromium.org</owner>
   <summary>
     The result of a cryptohome restore SELinux context operation of shadow
@@ -591,7 +445,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.TimeBetweenFreeDiskSpace" units="s"
-    expires_after="2023-12-01">
+    expires_after="2025-10-01">
   <owner>vsavu@google.com</owner>
   <owner>chromeos-disk-cleanup@google.com</owner>
   <summary>
@@ -601,66 +455,22 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Cryptohome.TimeSessionUnlock" units="ms"
-    expires_after="2023-06-04">
-  <owner>hardikgoyal@google.com</owner>
-  <owner>betuls@google.com</owner>
-  <summary>
-    The amount of time (ms) for Chrome OS cryptohome daemon to verify the user's
-    password during an unlock operation.
-  </summary>
-</histogram>
-
 <histogram name="Cryptohome.TimeToAuthSessionRemoveAuthFactorUSS" units="ms"
-    expires_after="2023-11-01">
+    expires_after="2026-02-01">
   <owner>thomascedeno@google.com</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
+  <owner>cros-security-cryptohome+uma@google.com</owner>
   <summary>
     AuthSession is a DBus API for various operations dealing with credential
     storage, processing, and authentication. This metrics record the time an
     RemoveAuthFactor takes to complete for USS. The metric is emitted when the
-    respective RemoveAuthFactor is requested through the DBus API.
-  </summary>
-</histogram>
-
-<histogram name="Cryptohome.TimeToAuthSessionRemoveAuthFactorVK" units="ms"
-    expires_after="2023-11-01">
-  <owner>thomascedeno@google.com</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
-  <summary>
-    AuthSession is a DBus API for various operations dealing with credential
-    storage, processing, and authentication. This metrics record the time an
-    RemoveAuthFactor takes to complete for VK. The metric is emitted when the
-    respective RemoveAuthFactor is requested through the DBus API.
-  </summary>
-</histogram>
-
-<histogram name="Cryptohome.TimeToCompleteDircryptoMigration" units="ms"
-    expires_after="M81">
-  <owner>dspaid@chromium.org</owner>
-  <summary>
-    The amount of time (ms) for the user's home directory to be migrated from
-    ecryptfs to ext4-crypto. If the migration is interrupted and subsequently
-    resumed (such as due to power loss) then no value is recorded for either
-    attempt.
-  </summary>
-</histogram>
-
-<histogram name="Cryptohome.TimeToCompleteDircryptoMinimalMigration" units="ms"
-    expires_after="M85">
-  <owner>dspaid@chromium.org</owner>
-  <summary>
-    The amount of time (ms) for the user's home directory to be migrated from
-    ecryptfs to ext4-crypto if the minimal migration method was used. If the
-    minimal migration is interrupted and subsequently resumed (such as due to
-    power loss) then no value is recorded for either attempt.
+    respective RemoveAuthFactor operation is requested through the DBus API.
   </summary>
 </histogram>
 
 <histogram name="Cryptohome.TimeToCreatePersistentUser" units="ms"
-    expires_after="2023-11-01">
+    expires_after="2026-02-01">
   <owner>thomascedeno@google.com</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
+  <owner>cros-security-cryptohome+uma@google.com</owner>
   <summary>
     AuthSession is a DBus API for various operations dealing with credential
     storage, processing, and authentication. This metric records the amount of
@@ -671,9 +481,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.TimeToGenerateEccAuthValue" units="ms"
-    expires_after="2023-10-15">
+    expires_after="2025-11-16">
   <owner>yich@google.com</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
+  <owner>cros-hwsec+uma@google.com</owner>
   <summary>
     The amount of time (ms) for the ECC auth value generating process. It should
     perform within a certain window: faster than the RSA implementation, but not
@@ -684,9 +494,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.TimeToInitPkcs11" units="ms"
-    expires_after="2023-09-10">
+    expires_after="2025-10-05">
   <owner>apronin@chromium.org</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
+  <owner>cros-hwsec+uma@google.com</owner>
   <summary>
     The amount of time (ms) for Chrome OS cryptohome daemon to initialize the
     PKCS#11. Initializations under 1 second represent checks on a previously
@@ -695,29 +505,19 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.TimeToMountEx" units="ms"
-    expires_after="2023-10-08">
-  <owner>betuls@chromium.org</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
+    expires_after="2026-02-01">
+  <owner>sarthakkukreti@google.com</owner>
+  <owner>cros-security-cryptohome+uma@google.com</owner>
   <summary>
     The amount of time for Chrome OS cryptohome to mount the encrypted home
     directory.
   </summary>
 </histogram>
 
-<histogram name="Cryptohome.TimeToMountGuestAsync" units="ms"
-    expires_after="2021-01-01">
-  <owner>apronin@chromium.org</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
-  <summary>
-    The amount of time (ms) for Chrome OS cryptohome to mount the encrypted
-    guest home directory asynchronously.
-  </summary>
-</histogram>
-
 <histogram name="Cryptohome.TimeToMountGuestEx" units="ms"
-    expires_after="2023-06-11">
-  <owner>betuls@chromium.org</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
+    expires_after="2026-02-01">
+  <owner>sarthakkukreti@google.com</owner>
+  <owner>cros-security-cryptohome+uma@google.com</owner>
   <summary>
     The amount of time for Chrome OS cryptohome to mount the encrypted guest
     home directory.
@@ -725,9 +525,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.TimeToPerformEphemeralMount" units="ms"
-    expires_after="2023-04-01">
-  <owner>betuls@chromium.org</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
+    expires_after="2026-02-01">
+  <owner>sarthakkukreti@google.com</owner>
+  <owner>cros-security-cryptohome+uma@google.com</owner>
   <summary>
     The amount of time cryptohome spends actively performing mounts when
     creating an ephemeral user data directory. Does not include any process or
@@ -736,9 +536,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.TimeToPerformMount" units="ms"
-    expires_after="2023-10-08">
-  <owner>betuls@chromium.org</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
+    expires_after="2026-02-01">
+  <owner>sarthakkukreti@google.com</owner>
+  <owner>cros-security-cryptohome+uma@google.com</owner>
   <summary>
     The amount of time cryptohome spends performing the mounts for the user's
     encrypted home directory. Does not include any process or async dispatch
@@ -746,10 +546,30 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Cryptohome.TimeToRelabelSELinuxContexts" units="ms"
+    expires_after="2026-02-01">
+  <owner>sarthakkukreti@google.com</owner>
+  <owner>cros-security-cryptohome+uma@google.com</owner>
+  <summary>
+    The amount of time for ChromeOS cryptohome to relabel SELinux contexts for
+    all files in the user cryptohome.
+  </summary>
+</histogram>
+
+<histogram name="Cryptohome.TimeToSetupVault" units="ms"
+    expires_after="2026-02-01">
+  <owner>sarthakkukreti@google.com</owner>
+  <owner>cros-hwsec+uma@google.com</owner>
+  <summary>
+    The amount of time for ChromeOS cryptohome to set up the encrypted user
+    vault for mount.
+  </summary>
+</histogram>
+
 <histogram name="Cryptohome.TimeToUSSLoadPersisted" units="ms"
-    expires_after="2023-10-22">
+    expires_after="2026-02-01">
   <owner>thomascedeno@google.com</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
+  <owner>cros-security-cryptohome+uma@google.com</owner>
   <summary>
     The amount of time cryptohome spends reading persistent storage to populate
     an encrypted USS container flatbuffer, or the time
@@ -760,9 +580,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.TimeToUSSPersist" units="ms"
-    expires_after="2023-10-15">
+    expires_after="2026-02-01">
   <owner>thomascedeno@google.com</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
+  <owner>cros-security-cryptohome+uma@google.com</owner>
   <summary>
     The amount of time cryptohome spends writing the USS container flatbuffer to
     persistent storage. This metric records the time UserSecretStash::Persist()
@@ -781,49 +601,10 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Cryptohome.UssExperiment.FetchUssExperimentConfigRetries"
-    units="retries" expires_after="2023-09-03">
-  <owner>hcyang@google.com</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
-  <summary>
-    The number of retries before successfully fetching the USS experiment config
-    file. This is not reported if the fetching failed (including reaching retry
-    limit) at last, and reports 0 when the fetching succeeds on the first
-    attempt. This is so that we can monitor how many retries before a success
-    are needed in average on a normal working device.
-  </summary>
-</histogram>
-
-<histogram name="Cryptohome.UssExperiment.FetchUssExperimentConfigStatus"
-    enum="CryptohomeFetchUssExperimentConfigStatus" expires_after="2023-09-03">
-  <owner>hcyang@google.com</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
-  <summary>
-    cryptohomed fetchs the USS experiment config from gstatic when it starts.
-    This metric tracks the fetch and parse result. If fetch and parse is
-    successful, and it determines that the experiment should be
-    enabled/disabled, it reports Enabled/Disabled respectively. Otherwise it
-    reports the kind of error it encountered.
-  </summary>
-</histogram>
-
-<histogram name="Cryptohome.UssExperiment.UssExperimentFlag"
-    enum="CryptohomeUssExperimentFlag" expires_after="2023-09-03">
-  <owner>hcyang@google.com</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
-  <summary>
-    cryptohomed checks the USS experiment flag when a new user is created to
-    decide whether a USS-structured cryptohome should be created. This metrics
-    reports the value of the experiment flag when it checks it. Not found means
-    that the experiment config fetching failed or haven't complete when the flag
-    is checked.
-  </summary>
-</histogram>
-
 <histogram name="Cryptohome.VaultKeysetMetric.{VaultKeysetMetric}"
-    units="count" expires_after="2023-09-01">
+    units="count" expires_after="2025-09-14">
   <owner>thomascedeno@google.com</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
+  <owner>cros-security-cryptohome+uma@google.com</owner>
   <summary>
     Any given ChromeOS user has some number of vault keysets to store file name
     encryption keys, depending on registered authentication factors at the time.
@@ -847,9 +628,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.VkToUssMigrationStatus"
-    enum="VkToUssMigrationStatus" expires_after="2023-12-07">
+    enum="VkToUssMigrationStatus" expires_after="2025-09-14">
   <owner>jadmanski@chromium.org</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
+  <owner>cros-security-cryptohome+uma@google.com</owner>
   <summary>
     Records a status value on every attempt to migrate a vault keyset backed
     authentication factor to the User Secret Stash. The status will either
@@ -865,7 +646,6 @@ chromium-metrics-reviews@google.com.
     enum="WrappingKeyDerivation" expires_after="2023-05-01">
   <owner>tnagel@chromium.org</owner>
   <owner>zauri@chromium.org</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
   <owner>pwg-cros@google.com</owner>
   <summary>
     Derivation types of the Cryptohome's wrapping key. Reporting happens when
@@ -877,10 +657,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.WrappingKeyDerivation.Mount"
-    enum="WrappingKeyDerivation" expires_after="2023-09-03">
+    enum="WrappingKeyDerivation" expires_after="2024-01-14">
   <owner>tnagel@chromium.org</owner>
   <owner>zauri@chromium.org</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
   <owner>pwg-cros@google.com</owner>
   <summary>
     Derivation types of the Cryptohome's wrapping key. Reporting happens mostly
@@ -892,9 +671,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.{Action}AuthBlockType"
-    enum="CryptohomeAuthBlockType" expires_after="2023-10-11">
+    enum="CryptohomeAuthBlockType" expires_after="2025-11-16">
   <owner>yich@google.com</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
+  <owner>cros-hwsec+uma@google.com</owner>
   <summary>
     The type of auth block that we {Action} in cryptohome. Recorded when
     cryptohome accesses the auth block.
@@ -905,11 +684,21 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
-<histogram name="Cryptohome.{AuthBlockType}.CredentialRevocationResult"
-    enum="CryptohomeLECredError" expires_after="2023-07-01">
-  <owner>anastasiian@chromium.org</owner>
-  <owner>cros-lurs@google.com</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
+<histogram name="Cryptohome.{AuthBlockType}.PrepareForRemovalResult"
+    enum="CryptohomeCryptoError" expires_after="2025-09-15">
+  <owner>hardikgoyal@chromium.org</owner>
+  <owner>cros-security-cryptohome+uma@google.com</owner>
+  <summary>
+    Records the result of PrepareForRemoval() call of an auth factor. Reported
+    when an auth factor is deleted.
+  </summary>
+  <token key="AuthBlockType" variants="CryptohomeAuthBlockTypes"/>
+</histogram>
+
+<histogram name="Cryptohome.{AuthBlockType}.RevokeCredentialResult"
+    enum="HwsecRetryActionEnum" expires_after="2025-09-24">
+  <owner>hardikgoyal@chromium.org</owner>
+  <owner>cros-security-cryptohome+uma@google.com</owner>
   <summary>
     Records the result of credentials revocation Revoke() method, which removes
     the credential label from PinWeaver. Reported when an auth factor which uses
@@ -918,22 +707,10 @@ chromium-metrics-reviews@google.com.
   <token key="AuthBlockType" variants="CryptohomeAuthBlockTypes"/>
 </histogram>
 
-<histogram name="Cryptohome.{AuthBlockType}.PrepareForRemovalResult"
-    enum="CryptohomeCryptoError" expires_after="2023-07-01">
-  <owner>anastasiian@chromium.org</owner>
-  <owner>cros-lurs@google.com</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
-  <summary>
-    Records the result of PrepareForRemoval() call of an auth factor. Reported
-    when an auth factor is deleted.
-  </summary>
-  <token key="AuthBlockType" variants="CryptohomeAuthBlockTypes"/>
-</histogram>
-
 <histogram name="Cryptohome.{AuthSessionFunction}.{AuthBlockType}" units="ms"
-    expires_after="2023-11-01">
+    expires_after="2025-11-16">
   <owner>thomascedeno@google.com</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
+  <owner>cros-security-cryptohome+uma@google.com</owner>
   <summary>
     AuthSession is a DBus API for various operations dealing with credential
     storage, processing, and authentication. These metrics record the time an
@@ -945,18 +722,16 @@ chromium-metrics-reviews@google.com.
   <token key="AuthSessionFunction">
     <variant name="TimeToAuthSessionAddAuthFactorUSS"/>
     <variant name="TimeToAuthSessionAddAuthFactorVK"/>
-    <variant name="TimetoAuthSessionAddCredentials"/>
-    <variant name="TimeToAuthSessionAuthenticate"/>
     <variant name="TimeToAuthSessionAuthenticateAuthFactorUSS"/>
     <variant name="TimeToAuthSessionAuthenticateAuthFactorVK"/>
     <variant name="TimeToAuthSessionUpdateAuthFactorUSS"/>
     <variant name="TimeToAuthSessionUpdateAuthFactorVK"/>
-    <variant name="TimeToAuthSessionUpdateCredentials"/>
   </token>
   <token key="AuthBlockType">
     <variant name="ChallengeCredential"/>
     <variant name="CryptohomeRecovery"/>
     <variant name="DoubleWrappedCompat"/>
+    <variant name="Fingerprint"/>
     <variant name="LibScryptCompat"/>
     <variant name="PinWeaver"/>
     <variant name="Scrypt"/>
@@ -967,9 +742,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.{AuthSessionLifetime}.{Type}" units="ms"
-    expires_after="2023-11-01">
+    expires_after="2026-01-13">
   <owner>thomascedeno@google.com</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
+  <owner>cros-security-cryptohome+uma@google.com</owner>
   <summary>
     The amount of time an AuthSession lives for after authentication and
     overall. This is 5 minutes by default, but can be extended through the
@@ -987,10 +762,10 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
-<histogram name="Cryptohome.{ErrorBucket}.AllLocations"
-    enum="CryptohomeErrorLocation" expires_after="2023-05-01">
+<histogram name="Cryptohome.{ErrorOperation}{AuthFactorType}.AllLocations"
+    enum="CryptohomeErrorLocation" expires_after="2025-05-04">
   <owner>zuan@chromium.org</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
+  <owner>cros-hwsec+uma@google.com</owner>
   <summary>
     Background context on this histogram: A CryptohomeError in this context
     refers to an error that occurred in response to a dbus request to selected
@@ -1008,7 +783,7 @@ chromium-metrics-reviews@google.com.
     report each individual ErrorLocation's corresponding enum value when an
     error ocurred.
 
-    This histogram is also separated into several {ErrorBucket}s. The most
+    This histogram is also separated into several error buckets. The most
     standard error bucket is 'Error', which collects the errors populated in
     dbus responses. Other buckets are errors we collect in some subrountines,
     like migration. Migration errors are not surfaced to dbus responses, but
@@ -1018,17 +793,15 @@ chromium-metrics-reviews@google.com.
     know which lines that handle error in cryptohomed has been triggered due to
     an error.
   </summary>
-  <token key="ErrorBucket">
-    <variant name="Error"/>
-    <variant name="RecreateAuthFactorError.Pin"/>
-    <variant name="UssMigrationError"/>
-  </token>
+  <token key="ErrorOperation" variants="CryptohomeErrorOperations"/>
+  <token key="AuthFactorType" variants="CryptohomeAuthFactorTypes"/>
 </histogram>
 
-<histogram name="Cryptohome.{ErrorBucket}.DevUnexpectedState"
-    enum="CryptohomeErrorLocation" expires_after="2023-09-03">
+<histogram
+    name="Cryptohome.{ErrorOperation}{AuthFactorType}.DevUnexpectedState"
+    enum="CryptohomeErrorLocation" expires_after="2025-11-09">
   <owner>zuan@chromium.org</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
+  <owner>cros-hwsec+uma@google.com</owner>
   <summary>
     Background context on this histogram: A CryptohomeError in this context
     refers to an error that occurred in response to a dbus request to selected
@@ -1049,7 +822,7 @@ chromium-metrics-reviews@google.com.
     notification standpoint, it functions similar to a DCHECK(), except it never
     crashes cryptohome and handles the error in a graceful manner.
 
-    This histogram is also separated into several {ErrorBucket}s. The most
+    This histogram is also separated into several error buckets. The most
     standard error bucket is 'Error', which collects the errors populated in
     dbus responses. Other buckets are errors we collect in some subrountines,
     like migration. Migration errors are not surfaced to dbus responses, but
@@ -1058,17 +831,14 @@ chromium-metrics-reviews@google.com.
     This is useful to cryptohome developers because they'll be alerted when any
     of the situations that the developers doesn't expect to occur occurs.
   </summary>
-  <token key="ErrorBucket">
-    <variant name="Error"/>
-    <variant name="RecreateAuthFactorError.Pin"/>
-    <variant name="UssMigrationError"/>
-  </token>
+  <token key="ErrorOperation" variants="CryptohomeErrorOperations"/>
+  <token key="AuthFactorType" variants="CryptohomeAuthFactorTypes"/>
 </histogram>
 
-<histogram name="Cryptohome.{ErrorBucket}.HashedStack"
-    enum="CryptohomeErrorHashed" expires_after="2023-09-03">
+<histogram name="Cryptohome.{ErrorOperation}{AuthFactorType}.HashedStack"
+    enum="CryptohomeErrorHashed" expires_after="2025-09-07">
   <owner>zuan@chromium.org</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
+  <owner>cros-hwsec+uma@google.com</owner>
   <summary>
     Background context on this histogram: A CryptohomeError in this context
     refers to an error that occurred in response to a dbus request to selected
@@ -1086,7 +856,7 @@ chromium-metrics-reviews@google.com.
     ErrorLocation, and hash the entire stack, then we report the hash. The
     original stack of ErrorLocation is logged.
 
-    This histogram is also separated into several {ErrorBucket}s. The most
+    This histogram is also separated into several error buckets. The most
     standard error bucket is 'Error', which collects the errors populated in
     dbus responses. Other buckets are errors we collect in some subrountines,
     like migration. Migration errors are not surfaced to dbus responses, but
@@ -1096,17 +866,14 @@ chromium-metrics-reviews@google.com.
     CryptohomeError by the content of the stack, and identify new ways the error
     can occur if they do occur.
   </summary>
-  <token key="ErrorBucket">
-    <variant name="Error"/>
-    <variant name="RecreateAuthFactorError.Pin"/>
-    <variant name="UssMigrationError"/>
-  </token>
+  <token key="ErrorOperation" variants="CryptohomeErrorOperations"/>
+  <token key="AuthFactorType" variants="CryptohomeAuthFactorTypes"/>
 </histogram>
 
-<histogram name="Cryptohome.{ErrorBucket}.LeafErrorWithoutTPM"
-    enum="CryptohomeErrorLocation" expires_after="2023-09-03">
+<histogram name="Cryptohome.{ErrorOperation}{AuthFactorType}.LeafErrorWithTPM"
+    enum="CryptohomeErrorLocationWithTPMError" expires_after="2025-11-09">
   <owner>zuan@chromium.org</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
+  <owner>cros-hwsec+uma@google.com</owner>
   <summary>
     Background context on this histogram: A CryptohomeError in this context
     refers to an error that occurred in response to a dbus request to selected
@@ -1121,51 +888,17 @@ chromium-metrics-reviews@google.com.
     of error is TPM related.
 
     For this histogram, for every CryptohomeError that occurred, we report the
-    last ErrorLocation in the stack of ErrorLocation in the CryptohomeError, if
-    the last ErrorLocation does not have a TPM Error Code associated with it.
+    last ErrorLocation that does not have a TPM Error Code associated, and
+    optionally the last ErrorLoctaion that have a TPM Error Code associated if
+    one exist. The upper and lower 16-bit value of the reported value contains
+    the last ErrorLocation that does not have a TPM Error Code associated and
+    the TPM Error Code, correspondingly. If the CryptohomeError doesn't have a
+    TPM Error Code associated, we report only the last ErrorLocation in the
+    upper 16-bit value of the reported value, with zero for the other 16-bit. In
+    addition, we might also report success values in this histogram. Success
+    values map to zero.
 
-    This histogram is also separated into several {ErrorBucket}s. The most
-    standard error bucket is 'Error', which collects the errors populated in
-    dbus responses. Other buckets are errors we collect in some subrountines,
-    like migration. Migration errors are not surfaced to dbus responses, but
-    silently fail instead. We collect those errors in separate buckets.
-
-    This is useful to cryptohome developers because frequently, the last
-    ErrorLocation in the stack would be able to uniquely identify the error, and
-    this histogram doesn't involve hashing, so it would be more convenient for
-    the developers.
-  </summary>
-  <token key="ErrorBucket">
-    <variant name="Error"/>
-    <variant name="RecreateAuthFactorError.Pin"/>
-    <variant name="UssMigrationError"/>
-  </token>
-</histogram>
-
-<histogram name="Cryptohome.{ErrorBucket}.LeafErrorWithTPM"
-    enum="CryptohomeErrorLocationWithTPMError" expires_after="2023-09-03">
-  <owner>zuan@chromium.org</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
-  <summary>
-    Background context on this histogram: A CryptohomeError in this context
-    refers to an error that occurred in response to a dbus request to selected
-    cryptohomed APIs. The set of APIs with this CryptohomeError is generally
-    those related to authentication, and contains CryptohomeErrorInfo field in
-    the dbus Reply protobuf. Currently that includes methods that are called
-    during login. A CryptohomeError consists of a linear stack of
-    ErrorLocations, each one of them is an actual line in the cryptohomed
-    codebase which the error passed through, and could have certain attributes,
-    known as ErrorAction attached to them. The ErrorLocation in the bottom of
-    the stack could optionally have a TPM Error Code associated, if the source
-    of error is TPM related.
-
-    For this histogram, for every CryptohomeError that occurred, we report the
-    last ErrorLocation and the second last ErrorLocation in the CryptohomeError,
-    if the last ErrorLocation have a TPM Error Code associated with it. The
-    upper and lower 16-bit value of the reported value contains the second last
-    ErrorLocation and the TPM Error Code, correspondingly.
-
-    This histogram is also separated into several {ErrorBucket}s. The most
+    This histogram is also separated into several error buckets. The most
     standard error bucket is 'Error', which collects the errors populated in
     dbus responses. Other buckets are errors we collect in some subrountines,
     like migration. Migration errors are not surfaced to dbus responses, but
@@ -1173,23 +906,113 @@ chromium-metrics-reviews@google.com.
 
     This is useful to cryptohome developers because frequently, the last and
     second last ErrorLocation in the stack would be able to uniquely identify
-    the error, and this histogram doesn't involve hashing, so it woul dbe more
+    the error, and this histogram doesn't involve hashing, so it would be more
     convenient for the developers.
   </summary>
-  <token key="ErrorBucket">
-    <variant name="Error"/>
-    <variant name="RecreateAuthFactorError.Pin"/>
-    <variant name="UssMigrationError"/>
-  </token>
+  <token key="ErrorOperation" variants="CryptohomeErrorOperations"/>
+  <token key="AuthFactorType" variants="CryptohomeAuthFactorTypes"/>
 </histogram>
 
-<histogram name="CryptohomeClient" units="ms" expires_after="2023-07-24">
+<histogram name="CryptohomeClient{CryptohomeClientDBusMethod}" units="ms"
+    expires_after="2025-03-24">
   <owner>zuan@chromium.org</owner>
-  <owner>cros-hwsec+uma@chromium.org</owner>
+  <owner>cros-hwsec+uma@google.com</owner>
   <summary>
     Records the time duration of every dbus outgoing calls issued from the
     client of Crypthome in Chrome side.
+
+    Some data maybe missing between 2024-07 and 2024-09.
+    {CryptohomeClientDBusMethod}
   </summary>
+  <token key="CryptohomeClientDBusMethod">
+    <variant name=""/>
+    <variant name=".AddKeyEx" summary=""/>
+    <variant name=".AsyncDoesUsersExist" summary=""/>
+    <variant name=".AsyncMigrateKey" summary=""/>
+    <variant name=".AsyncMount" summary=""/>
+    <variant name=".AsyncMountGuest" summary=""/>
+    <variant name=".AsyncRemove" summary=""/>
+    <variant name=".AsyncRemoveTrackedSubdirectories" summary=""/>
+    <variant name=".AsyncTpmAttestationCreateCertRequest" summary=""/>
+    <variant name=".AsyncTpmAttestationCreateCertRequestByProfile" summary=""/>
+    <variant name=".AsyncTpmAttestationCreateEnrollRequest" summary=""/>
+    <variant name=".AsyncTpmAttestationCreateEnrollRequestNew" summary=""/>
+    <variant name=".AsyncTpmAttestationEnroll" summary=""/>
+    <variant name=".AsyncTpmAttestationEnrollNew" summary=""/>
+    <variant name=".AsyncTpmAttestationFinishCertRequest" summary=""/>
+    <variant name=".CheckKeyEx" summary=""/>
+    <variant name=".FinalizeBootLockbox" summary=""/>
+    <variant name=".FlushAndSignBootAttributes" summary=""/>
+    <variant name=".GetAccountDiskUsage" summary=""/>
+    <variant name=".GetBootAttribute" summary=""/>
+    <variant name=".GetCurrentSpaceForGid" summary=""/>
+    <variant name=".GetCurrentSpaceForUid" summary=""/>
+    <variant name=".GetEndorsementInfo" summary=""/>
+    <variant name=".GetFirmwareManagementParameters" summary=""/>
+    <variant name=".GetKeyDataEx" summary=""/>
+    <variant name=".GetLoginStatus" summary=""/>
+    <variant name=".GetSanitizedUsername" summary=""/>
+    <variant name=".GetStatusString" summary=""/>
+    <variant name=".GetSupportedKeyPolicies" summary=""/>
+    <variant name=".GetSystemSalt" summary=""/>
+    <variant name=".GetTpmStatus" summary=""/>
+    <variant name=".InstallAttributesCount" summary=""/>
+    <variant name=".InstallAttributesFinalize" summary=""/>
+    <variant name=".InstallAttributesGet" summary=""/>
+    <variant name=".InstallAttributesIsFirstInstall" summary=""/>
+    <variant name=".InstallAttributesIsInvalid" summary=""/>
+    <variant name=".InstallAttributesIsReady" summary=""/>
+    <variant name=".InstallAttributesIsSecure" summary=""/>
+    <variant name=".InstallAttributesSet" summary=""/>
+    <variant name=".IsMounted" summary=""/>
+    <variant name=".IsQuotaSupported" summary=""/>
+    <variant name=".MigrateKey" summary=""/>
+    <variant name=".MigrateKeyEx" summary=""/>
+    <variant name=".MigrateToDircrypto" summary=""/>
+    <variant name=".Mount" summary=""/>
+    <variant name=".MountEx" summary=""/>
+    <variant name=".MountGuest" summary=""/>
+    <variant name=".MountGuestEx" summary=""/>
+    <variant name=".NeedsDircryptoMigration" summary=""/>
+    <variant name=".Pkcs11GetTpmTokenInfo" summary=""/>
+    <variant name=".Pkcs11GetTpmTokenInfoForUser" summary=""/>
+    <variant name=".Pkcs11IsTpmTokenReady" summary=""/>
+    <variant name=".RemoveEx" summary=""/>
+    <variant name=".RemoveFirmwareManagementParameters" summary=""/>
+    <variant name=".RemoveKeyEx" summary=""/>
+    <variant name=".RemoveTrackedSubdirectories" summary=""/>
+    <variant name=".RenameCryptohome" summary=""/>
+    <variant name=".SetBootAttribute" summary=""/>
+    <variant name=".SetFirmwareManagementParameters" summary=""/>
+    <variant name=".SignBootLockbox" summary=""/>
+    <variant name=".TpmAttestationCreateCertRequest" summary=""/>
+    <variant name=".TpmAttestationCreateEnrollRequest" summary=""/>
+    <variant name=".TpmAttestationDeleteKeys" summary=""/>
+    <variant name=".TpmAttestationDoesKeyExist" summary=""/>
+    <variant name=".TpmAttestationEnroll" summary=""/>
+    <variant name=".TpmAttestationFinishCertRequest" summary=""/>
+    <variant name=".TpmAttestationGetCertificate" summary=""/>
+    <variant name=".TpmAttestationGetEnrollmentId" summary=""/>
+    <variant name=".TpmAttestationGetKeyPayload" summary=""/>
+    <variant name=".TpmAttestationGetPublicKey" summary=""/>
+    <variant name=".TpmAttestationRegisterKey" summary=""/>
+    <variant name=".TpmAttestationSetKeyPayload" summary=""/>
+    <variant name=".TpmAttestationSignEnterpriseChallenge" summary=""/>
+    <variant name=".TpmAttestationSignEnterpriseVaChallenge" summary=""/>
+    <variant name=".TpmAttestationSignSimpleChallenge" summary=""/>
+    <variant name=".TpmCanAttemptOwnership" summary=""/>
+    <variant name=".TpmClearStoredPassword" summary=""/>
+    <variant name=".TpmGetPassword" summary=""/>
+    <variant name=".TpmGetVersionStructured" summary=""/>
+    <variant name=".TpmIsAttestationEnrolled" summary=""/>
+    <variant name=".TpmIsAttestationPrepared" summary=""/>
+    <variant name=".TpmIsBeingOwned" summary=""/>
+    <variant name=".TpmIsEnabled" summary=""/>
+    <variant name=".TpmIsOwned" summary=""/>
+    <variant name=".TpmIsReady" summary=""/>
+    <variant name=".Unmount" summary=""/>
+    <variant name=".VerifyBootLockbox" summary=""/>
+  </token>
 </histogram>
 
 </histograms>

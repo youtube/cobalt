@@ -21,8 +21,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <fstream>
-#include <sstream>
 #include <string>
 
 #include "perfetto/base/logging.h"
@@ -50,10 +48,14 @@ constexpr char kRssStatThrottledTrigger[] =
     "hist:keys=mm_id,member:bucket=size/0x80000"
     ":onchange($bucket).rss_stat_throttled(mm_id,curr,member,size)";
 
+// Kernel tracepoints |syscore_resume| and |timekeeping_freeze| are mutually
+// exclusive: for any given suspend, one event (but not both) will be emitted
+// depending on whether it is |S2RAM| vs |S2idle| codepath respectively.
 constexpr char kSuspendResumeMinimalTrigger[] =
     "hist:keys=start:size=128:onmatch(power.suspend_resume)"
-    ".trace(suspend_resume_minimal, start) if action == 'syscore_resume'";
-}
+    ".trace(suspend_resume_minimal, start) if (action == 'syscore_resume')"
+    "||(action == 'timekeeping_freeze')";
+}  // namespace
 
 void KernelLogWrite(const char* s) {
   PERFETTO_DCHECK(*s && s[strlen(s) - 1] == '\n');
@@ -146,6 +148,46 @@ bool FtraceProcfs::EnableEvent(const std::string& group,
   return AppendToFile(path, group + ":" + name);
 }
 
+bool FtraceProcfs::CreateKprobeEvent(const std::string& group,
+                                     const std::string& name,
+                                     bool is_retprobe) {
+  std::string path = root_ + "kprobe_events";
+  std::string probe =
+      (is_retprobe ? std::string("r") + std::string(kKretprobeDefaultMaxactives)
+                   : "p") +
+      std::string(":") + group + "/" + name + " " + name;
+
+  PERFETTO_DLOG("Writing \"%s >> %s\"", probe.c_str(), path.c_str());
+
+  bool ret = AppendToFile(path, probe);
+  if (!ret) {
+    if (errno == EEXIST) {
+      // The kprobe event defined by group/name already exists.
+      // TODO maybe because the /sys/kernel/tracing/kprobe_events file has not
+      // been properly cleaned up after tracing
+      PERFETTO_DLOG("Kprobe event %s::%s already exists", group.c_str(),
+                    name.c_str());
+      return true;
+    }
+    PERFETTO_PLOG("Failed writing '%s' to '%s'", probe.c_str(), path.c_str());
+  }
+
+  return ret;
+}
+
+// Utility function to remove kprobe event from the system
+bool FtraceProcfs::RemoveKprobeEvent(const std::string& group,
+                                     const std::string& name) {
+  PERFETTO_DLOG("RemoveKprobeEvent %s::%s", group.c_str(), name.c_str());
+  std::string path = root_ + "kprobe_events";
+  return AppendToFile(path, "-:" + group + "/" + name);
+}
+
+std::string FtraceProcfs::ReadKprobeStats() const {
+  std::string path = root_ + "/kprobe_profile";
+  return ReadFileIntoString(path);
+}
+
 bool FtraceProcfs::DisableEvent(const std::string& group,
                                 const std::string& name) {
   std::string path = root_ + "events/" + group + "/" + name + "/enable";
@@ -219,6 +261,16 @@ bool FtraceProcfs::ClearFunctionFilters() {
   return ClearFile(path);
 }
 
+bool FtraceProcfs::SetMaxGraphDepth(uint32_t depth) {
+  std::string path = root_ + "max_graph_depth";
+  return WriteNumberToFile(path, depth);
+}
+
+bool FtraceProcfs::ClearMaxGraphDepth() {
+  std::string path = root_ + "max_graph_depth";
+  return WriteNumberToFile(path, 0);
+}
+
 bool FtraceProcfs::AppendFunctionGraphFilters(
     const std::vector<std::string>& filters) {
   std::string path = root_ + "set_graph_function";
@@ -287,7 +339,8 @@ bool FtraceProcfs::MaybeSetUpEventTriggers(const std::string& group,
             CreateEventTrigger("kmem", "rss_stat", kRssStatThrottledTrigger);
     } else if (name == "suspend_resume_minimal") {
       ret = RemoveAllEventTriggers("power", "suspend_resume") &&
-            CreateEventTrigger("power", "suspend_resume", kSuspendResumeMinimalTrigger);
+            CreateEventTrigger("power", "suspend_resume",
+                               kSuspendResumeMinimalTrigger);
     }
   }
 
@@ -307,7 +360,8 @@ bool FtraceProcfs::MaybeTearDownEventTriggers(const std::string& group,
     if (name == "rss_stat_throttled") {
       ret = RemoveAllEventTriggers("kmem", "rss_stat");
     } else if (name == "suspend_resume_minimal") {
-      ret = RemoveEventTrigger("power", "suspend_resume", kSuspendResumeMinimalTrigger);
+      ret = RemoveEventTrigger("power", "suspend_resume",
+                               kSuspendResumeMinimalTrigger);
     }
   }
 
@@ -399,14 +453,14 @@ void FtraceProcfs::ClearTrace() {
   // We cannot use PERFETTO_CHECK as we might get a permission denied error
   // on Android. The permissions to these files are configured in
   // platform/framework/native/cmds/atrace/atrace.rc.
-  for (size_t cpu = 0; cpu < NumberOfCpus(); cpu++) {
+  for (size_t cpu = 0, num_cpus = NumberOfCpus(); cpu < num_cpus; cpu++) {
     ClearPerCpuTrace(cpu);
   }
 }
 
 void FtraceProcfs::ClearPerCpuTrace(size_t cpu) {
   if (!ClearFile(root_ + "per_cpu/cpu" + std::to_string(cpu) + "/trace"))
-    PERFETTO_ELOG("Failed to clear buffer for CPU %zd", cpu);
+    PERFETTO_ELOG("Failed to clear buffer for CPU %zu", cpu);
 }
 
 bool FtraceProcfs::WriteTraceMarker(const std::string& str) {
@@ -415,12 +469,32 @@ bool FtraceProcfs::WriteTraceMarker(const std::string& str) {
 }
 
 bool FtraceProcfs::SetCpuBufferSizeInPages(size_t pages) {
-  if (pages * base::kPageSize > 1 * 1024 * 1024 * 1024) {
-    PERFETTO_ELOG("Tried to set the per CPU buffer size to more than 1gb.");
-    return false;
-  }
   std::string path = root_ + "buffer_size_kb";
-  return WriteNumberToFile(path, pages * (base::kPageSize / 1024ul));
+  return WriteNumberToFile(path, pages * (base::GetSysPageSize() / 1024ul));
+}
+
+// This returns the rounded up pages of the cpu buffer size.
+// In case of any error, this returns 1.
+size_t FtraceProcfs::GetCpuBufferSizeInPages() {
+  std::string path = root_ + "buffer_size_kb";
+  auto str = ReadFileIntoString(path);
+
+  if (str.size() == 0) {
+    PERFETTO_ELOG("Failed to read per-cpu buffer size.");
+    return 1;
+  }
+
+  // For the root instance, before starting tracing, the buffer_size_kb
+  // returns something like "7 (expanded: 1408)". We also cut off the
+  // last newline('\n').
+  std::size_t found = str.find_first_not_of("0123456789");
+  if (found != std::string::npos) {
+    str.resize(found);
+  }
+
+  uint32_t page_in_kb = base::GetSysPageSize() / 1024ul;
+  std::optional<uint32_t> size_kb = base::StringToUInt32(str);
+  return (size_kb.value_or(1) + page_in_kb - 1) / page_in_kb;
 }
 
 bool FtraceProcfs::GetTracingOn() {
@@ -513,6 +587,19 @@ std::set<std::string> FtraceProcfs::AvailableClocks() {
   }
 
   return names;
+}
+
+uint32_t FtraceProcfs::ReadBufferPercent() {
+  std::string path = root_ + "buffer_percent";
+  std::string raw = ReadFileIntoString(path);
+  std::optional<uint32_t> percent =
+      base::StringToUInt32(base::StripSuffix(raw, "\n"));
+  return percent.has_value() ? *percent : 0;
+}
+
+bool FtraceProcfs::SetBufferPercent(uint32_t percent) {
+  std::string path = root_ + "buffer_percent";
+  return WriteNumberToFile(path, percent);
 }
 
 bool FtraceProcfs::WriteNumberToFile(const std::string& path, size_t value) {

@@ -72,10 +72,9 @@ class SequenceManagerThreadDelegate : public base::Thread::Delegate {
     return default_task_runner_;
   }
 
-  void BindToCurrentThread(base::TimerSlack timer_slack) override {
+  void BindToCurrentThread() override {
     ui_sequence_manager_->BindToMessagePump(
         base::MessagePump::Create(base::MessagePumpType::DEFAULT));
-    ui_sequence_manager_->SetTimerSlack(timer_slack);
   }
 
  private:
@@ -199,14 +198,6 @@ TEST_F(BrowserThreadTest, PostTask) {
   EXPECT_TRUE(GetIOThreadTaskRunner({})->PostTask(
       FROM_HERE, base::BindOnce(&BasicFunction, run_loop.QuitWhenIdleClosure(),
                                 BrowserThread::IO)));
-  run_loop.Run();
-}
-
-TEST_F(BrowserThreadTest, Release) {
-  base::RunLoop run_loop;
-  ExpectRelease(run_loop.QuitWhenIdleClosure());
-  BrowserThread::ReleaseSoon(BrowserThread::IO, FROM_HERE,
-                             base::WrapRefCounted(this));
   run_loop.Run();
 }
 

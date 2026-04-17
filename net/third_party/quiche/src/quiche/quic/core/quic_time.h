@@ -23,7 +23,7 @@ class QuicTime;
 // a number of microseconds. QUIC does not use absl::Duration, since the Abseil
 // type is 128-bit, which would adversely affect certain performance-sensitive
 // QUIC data structures.
-class QUIC_EXPORT_PRIVATE QuicTimeDelta {
+class QUICHE_EXPORT QuicTimeDelta {
  public:
   // Creates a QuicTimeDelta from an absl::Duration. Note that this inherently
   // loses precision, since absl::Duration is nanoseconds, and QuicTimeDelta is
@@ -66,7 +66,7 @@ class QUIC_EXPORT_PRIVATE QuicTimeDelta {
   constexpr int64_t ToMicroseconds() const { return time_offset_; }
 
   // Converts the time offset to an Abseil duration.
-  constexpr absl::Duration ToAbsl() {
+  constexpr absl::Duration ToAbsl() const {
     if (ABSL_PREDICT_FALSE(IsInfinite())) {
       return absl::InfiniteDuration();
     }
@@ -78,6 +78,11 @@ class QUIC_EXPORT_PRIVATE QuicTimeDelta {
   constexpr bool IsInfinite() const { return time_offset_ == kInfiniteTimeUs; }
 
   std::string ToDebuggingValue() const;
+
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, QuicTimeDelta delta) {
+    sink.Append(delta.ToDebuggingValue());
+  }
 
  private:
   friend inline bool operator==(QuicTimeDelta lhs, QuicTimeDelta rhs);
@@ -111,7 +116,7 @@ class QUIC_EXPORT_PRIVATE QuicTimeDelta {
 // usually either a Unix timestamp or a timestamp returned by the
 // platform-specific monotonic clock. QuicClock has a method to convert QuicTime
 // to the wall time.
-class QUIC_EXPORT_PRIVATE QuicTime {
+class QUICHE_EXPORT QuicTime {
  public:
   using Delta = QuicTimeDelta;
 
@@ -156,7 +161,7 @@ class QUIC_EXPORT_PRIVATE QuicTime {
 // A UNIX timestamp.
 //
 // TODO(vasilvv): evaluate whether this can be replaced with absl::Time.
-class QUIC_EXPORT_PRIVATE QuicWallTime {
+class QUICHE_EXPORT QuicWallTime {
  public:
   // FromUNIXSeconds constructs a QuicWallTime from a count of the seconds
   // since the UNIX epoch.

@@ -5,10 +5,12 @@
 #ifndef COMPONENTS_HEAP_PROFILING_MULTI_PROCESS_SUPERVISOR_H_
 #define COMPONENTS_HEAP_PROFILING_MULTI_PROCESS_SUPERVISOR_H_
 
+#include "base/functional/callback_forward.h"
 #include "base/memory/weak_ptr.h"
 #include "base/no_destructor.h"
 #include "base/process/process.h"
 #include "components/services/heap_profiling/public/mojom/heap_profiling_client.mojom.h"
+#include "components/services/heap_profiling/public/mojom/heap_profiling_service.mojom.h"
 #include "services/resource_coordinator/public/mojom/memory_instrumentation/memory_instrumentation.mojom.h"
 
 namespace heap_profiling {
@@ -71,8 +73,11 @@ class Supervisor {
 
   Mode GetMode();
 
-  // Starts profiling the process with the given id.
-  void StartManualProfiling(base::ProcessId pid);
+  // Starts profiling the process with the given `pid`. Invokes
+  // `started_profiling_closure` if and when profiling starts successfully.
+  void StartManualProfiling(base::ProcessId pid,
+                            mojom::ProfilingService::AddProfilingClientCallback
+                                started_profiling_closure);
 
   // Returns the pids of all profiled processes. The callback is posted on the
   // UI thread.

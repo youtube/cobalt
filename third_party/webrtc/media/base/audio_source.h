@@ -12,10 +12,10 @@
 #define MEDIA_BASE_AUDIO_SOURCE_H_
 
 #include <cstddef>
+#include <cstdint>
+#include <optional>
 
-#include "absl/types/optional.h"
-
-namespace cricket {
+namespace webrtc {
 
 // Abstract interface for providing the audio data.
 // TODO(deadbeef): Rename this to AudioSourceInterface, and rename
@@ -31,7 +31,7 @@ class AudioSource {
         int sample_rate,
         size_t number_of_channels,
         size_t number_of_frames,
-        absl::optional<int64_t> absolute_capture_timestamp_ms) = 0;
+        std::optional<int64_t> absolute_capture_timestamp_ms) = 0;
 
     // Called when the AudioSource is going away.
     virtual void OnClose() = 0;
@@ -53,6 +53,14 @@ class AudioSource {
   virtual ~AudioSource() {}
 };
 
+}  //  namespace webrtc
+
+// Re-export symbols from the webrtc namespace for backwards compatibility.
+// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
+#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
+namespace cricket {
+using ::webrtc::AudioSource;
 }  // namespace cricket
+#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // MEDIA_BASE_AUDIO_SOURCE_H_

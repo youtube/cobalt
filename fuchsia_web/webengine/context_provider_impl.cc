@@ -12,7 +12,8 @@
 
 ContextProviderImpl::ContextProviderImpl(
     sys::OutgoingDirectory& outgoing_directory)
-    : web_instance_host_(outgoing_directory) {}
+    : web_instance_host_(outgoing_directory,
+                         /*is_web_instance_component_in_same_package=*/true) {}
 
 ContextProviderImpl::~ContextProviderImpl() = default;
 
@@ -21,6 +22,13 @@ void ContextProviderImpl::Create(
     fidl::InterfaceRequest<fuchsia::web::Context> context_request) {
   if (!context_request.is_valid()) {
     DLOG(ERROR) << "Invalid |context_request|.";
+    return;
+  }
+
+  // The CreateInstanceForContextWithCopiedArgs() call below requires that
+  // `params` has a service directory.
+  if (!params.has_service_directory()) {
+    context_request.Close(ZX_ERR_INVALID_ARGS);
     return;
   }
 

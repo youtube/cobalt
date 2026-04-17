@@ -4,36 +4,40 @@
 
 #include "content/browser/webid/fake_identity_request_dialog_controller.h"
 
+#include "base/functional/callback.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/task_runner.h"
+#include "content/public/browser/page_navigator.h"
+#include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_contents_delegate.h"
 #include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
 
 namespace content {
 
 FakeIdentityRequestDialogController::FakeIdentityRequestDialogController(
-    absl::optional<std::string> selected_account)
-    : selected_account_(selected_account) {}
+    std::optional<std::string> selected_account,
+    WebContents* web_contents)
+    : selected_account_(selected_account), web_contents_(web_contents) {}
 
 FakeIdentityRequestDialogController::~FakeIdentityRequestDialogController() =
     default;
 
-void FakeIdentityRequestDialogController::ShowAccountsDialog(
-    content::WebContents* rp_web_contents,
-    const std::string& top_frame_for_display,
-    const absl::optional<std::string>& iframe_for_display,
-    const std::vector<content::IdentityProviderData>& identity_provider_data,
-    IdentityRequestAccount::SignInMode sign_in_mode,
-    bool show_auto_reauthn_checkbox,
+bool FakeIdentityRequestDialogController::ShowAccountsDialog(
+    content::RelyingPartyData rp_data,
+    const std::vector<IdentityProviderDataPtr>& idp_list,
+    const std::vector<IdentityRequestAccountPtr>& accounts,
+    blink::mojom::RpMode rp_mode,
+    const std::vector<IdentityRequestAccountPtr>& new_accounts,
     AccountSelectionCallback on_selected,
-    DismissCallback dismiss_callback) {
-  // TODO(crbug.com/1348262): Temporarily support only the first IDP, extend to
-  // support multiple IDPs.
-  std::vector<IdentityRequestAccount> accounts =
-      identity_provider_data[0].accounts;
+    LoginToIdPCallback on_add_account,
+    DismissCallback dismiss_callback,
+    AccountsDisplayedCallback accounts_displayed_callback) {
   CHECK_GT(accounts.size(), 0ul);
-  CHECK_GT(identity_provider_data.size(), 0ul);
+  CHECK_GT(idp_list.size(), 0ul);
 
   // We're faking this so that browser automation and tests can verify that
   // the RP context was read properly.
-  switch (identity_provider_data[0].rp_context) {
+  switch (idp_list[0]->rp_context) {
     case blink::mojom::RpContext::kSignIn:
       title_ = "Sign in";
       break;
@@ -48,28 +52,141 @@ void FakeIdentityRequestDialogController::ShowAccountsDialog(
       break;
   };
 
-  if (is_interception_enabled_) {
-    // Browser automation will handle selecting an account/canceling.
-    return;
+  // Use the provided account, if any. Otherwise do not run the callback right
+  // away.
+  if (selected_account_ && !is_interception_enabled_) {
+    // TODO(crbug.com/364578201): This needs to be augmented to provide the
+    // selected IDP. For now use the first one.
+    PostTask(FROM_HERE, base::BindOnce(std::move(on_selected),
+                                       idp_list[0]->idp_metadata.config_url,
+                                       *selected_account_,
+                                       /* is_sign_in= */ true));
   }
-  // Use the provided account, if any. Otherwise use the first one.
-  std::move(on_selected)
-      .Run(identity_provider_data[0].idp_metadata.config_url,
-           selected_account_ ? *selected_account_ : accounts[0].id,
-           /* is_sign_in= */ true);
+  return true;
+}
+
+bool FakeIdentityRequestDialogController::ShowFailureDialog(
+    const RelyingPartyData& rp_data,
+    const std::string& idp_for_display,
+    blink::mojom::RpContext rp_context,
+    blink::mojom::RpMode rp_mode,
+    const IdentityProviderMetadata& idp_metadata,
+    DismissCallback dismiss_callback,
+    LoginToIdPCallback login_callback) {
+  title_ = "Confirm IDP Login";
+  return true;
+}
+
+bool FakeIdentityRequestDialogController::ShowErrorDialog(
+    const RelyingPartyData& rp_data,
+    const std::string& idp_for_display,
+    blink::mojom::RpContext rp_context,
+    blink::mojom::RpMode rp_mode,
+    const IdentityProviderMetadata& idp_metadata,
+    const std::optional<TokenError>& error,
+    DismissCallback dismiss_callback,
+    MoreDetailsCallback more_details_callback) {
+  if (!is_interception_enabled_) {
+    DCHECK(dismiss_callback);
+    // We don't need to call PostTask here because we're returning false.
+    std::move(dismiss_callback).Run(DismissReason::kOther);
+    return false;
+  }
+  return true;
+}
+
+bool FakeIdentityRequestDialogController::ShowLoadingDialog(
+    const RelyingPartyData& rp_data,
+    const std::string& idp_for_display,
+    blink::mojom::RpContext rp_context,
+    blink::mojom::RpMode rp_mode,
+    DismissCallback dismiss_callback) {
+  title_ = "Loading";
+  return true;
+}
+
+bool FakeIdentityRequestDialogController::ShowVerifyingDialog(
+    const content::RelyingPartyData& rp_data,
+    const IdentityProviderDataPtr& idp_data,
+    const IdentityRequestAccountPtr& account,
+    content::IdentityRequestAccount::SignInMode sign_in_mode,
+    blink::mojom::RpMode rp_mode,
+    AccountsDisplayedCallback accounts_displayed_callback) {
+  title_ = sign_in_mode == content::IdentityRequestAccount::SignInMode::kAuto
+               ? "Signing you in"
+               : "Verifying";
+  return true;
 }
 
 std::string FakeIdentityRequestDialogController::GetTitle() const {
   return title_;
 }
 
-void FakeIdentityRequestDialogController::ShowPopUpWindow(
+void FakeIdentityRequestDialogController::ShowUrl(LinkType link_type,
+                                                  const GURL& url) {
+  if (!web_contents_) {
+    return;
+  }
+
+  content::OpenURLParams params(
+      url, content::Referrer(), WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui::PAGE_TRANSITION_AUTO_TOPLEVEL, /*is_renderer_initiated=*/false);
+  web_contents_->GetDelegate()->OpenURLFromTab(
+      web_contents_, params, /*navigation_handle_callback=*/{});
+}
+
+content::WebContents* FakeIdentityRequestDialogController::ShowModalDialog(
     const GURL& url,
-    TokenCallback on_resolve,
+    blink::mojom::RpMode rp_mode,
     DismissCallback dismiss_callback) {
-  // Pretends that the url is loaded and calls the
-  // IdentityProvider.resolve() method with the fake token below.
-  std::move(on_resolve).Run("--fake-token-from-pop-up-window--");
+  if (!web_contents_) {
+    return nullptr;
+  }
+
+  popup_dismiss_callback_ = std::move(dismiss_callback);
+  // This follows the code in FedCmModalDialogView::ShowPopupWindow.
+  content::OpenURLParams params(
+      url, content::Referrer(), WindowOpenDisposition::NEW_POPUP,
+      ui::PAGE_TRANSITION_AUTO_TOPLEVEL, /*is_renderer_initiated=*/false);
+  popup_window_ = web_contents_->GetDelegate()->OpenURLFromTab(
+      web_contents_, params, /*navigation_handle_callback=*/{});
+  Observe(popup_window_);
+  return popup_window_;
+}
+
+void FakeIdentityRequestDialogController::CloseModalDialog() {
+  // We do not want to trigger the dismiss callback when we close the popup
+  // here, because that would abort the signin flow.
+  popup_dismiss_callback_.Reset();
+  if (popup_window_) {
+    // Store this in a local variable to avoid triggering the dangling pointer
+    // detector.
+    WebContents* web_contents = popup_window_;
+    popup_window_ = nullptr;
+    web_contents->Close();
+  }
+}
+
+void FakeIdentityRequestDialogController::WebContentsDestroyed() {
+  if (popup_dismiss_callback_) {
+    std::move(popup_dismiss_callback_).Run(DismissReason::kOther);
+  }
+  popup_window_ = nullptr;
+}
+
+void FakeIdentityRequestDialogController::RequestIdPRegistrationPermision(
+    const url::Origin& origin,
+    base::OnceCallback<void(bool accepted)> callback) {
+  if (!is_interception_enabled_) {
+    PostTask(FROM_HERE, base::BindOnce(std::move(callback), false));
+  }
+}
+
+void FakeIdentityRequestDialogController::PostTask(
+    const base::Location& from_here,
+    base::OnceClosure task) {
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(from_here,
+                                                           std::move(task));
 }
 
 }  // namespace content

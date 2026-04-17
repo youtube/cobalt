@@ -97,17 +97,11 @@ void MediaStreamDeviceObserver::OnDeviceStopped(
     return;
   }
 
-  Vector<Stream>& streams = it->value;
-  auto* stream_it = streams.begin();
-  while (stream_it != it->value.end()) {
-    Stream& stream = *stream_it;
-    if (stream.audio_devices.empty() && stream.video_devices.empty()) {
-      stream_it = it->value.erase(stream_it);
-    } else {
-      ++stream_it;
-    }
-  }
+  auto to_remove = std::ranges::remove_if(it->value, [](const auto& t) {
+    return t.audio_devices.empty() && t.video_devices.empty();
+  });
 
+  it->value.erase(to_remove.begin(), to_remove.end());
   if (it->value.empty())
     label_stream_map_.erase(it);
 }
@@ -126,7 +120,7 @@ void MediaStreamDeviceObserver::OnDeviceChanged(
     // time as the underlying media device is unplugged from the system.
     return;
   }
-  // OnDeviceChanged cannot only happen in combination with getDisplayMediaSet,
+  // OnDeviceChanged cannot only happen in combination with getAllScreensMedia,
   // which is the only API that handles multiple streams at once.
   DCHECK_EQ(1u, it->value.size());
 
@@ -214,7 +208,7 @@ void MediaStreamDeviceObserver::OnDeviceCaptureHandleChange(
     return;
   }
   // OnDeviceCaptureHandleChange cannot only happen in combination with
-  // getDisplayMediaSet, which is the only API that handles multiple streams
+  // getAllScreensMedia, which is the only API that handles multiple streams
   // at once.
   DCHECK_EQ(1u, it->value.size());
 
@@ -222,6 +216,36 @@ void MediaStreamDeviceObserver::OnDeviceCaptureHandleChange(
   if (stream->on_device_capture_handle_change_cb) {
     stream->on_device_capture_handle_change_cb.Run(device);
   }
+}
+
+void MediaStreamDeviceObserver::OnZoomLevelChange(
+    const String& label,
+    const MediaStreamDevice& device,
+    int zoom_level) {
+  DVLOG(1) << __func__ << " label=" << label << " device_id=" << device.id;
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK_GT(zoom_level, 0);
+
+  auto it = label_stream_map_.find(label);
+  if (it == label_stream_map_.end()) {
+    return;
+  }
+
+  Vector<Stream>& streams = it->value;
+  if (streams.size() != 1u) {
+    return;
+  }
+
+  Stream* stream = &streams[0];
+  if (!stream) {
+    return;
+  }
+
+  if (stream->on_zoom_level_change_cb) {
+    stream->on_zoom_level_change_cb.Run(device, zoom_level);
+  }
+#endif
 }
 
 void MediaStreamDeviceObserver::BindMediaStreamDeviceObserverReceiver(
@@ -233,14 +257,7 @@ void MediaStreamDeviceObserver::BindMediaStreamDeviceObserverReceiver(
 void MediaStreamDeviceObserver::AddStreams(
     const String& label,
     const mojom::blink::StreamDevicesSet& stream_devices_set,
-    WebMediaStreamDeviceObserver::OnDeviceStoppedCb on_device_stopped_cb,
-    WebMediaStreamDeviceObserver::OnDeviceChangedCb on_device_changed_cb,
-    WebMediaStreamDeviceObserver::OnDeviceRequestStateChangeCb
-        on_device_request_state_change_cb,
-    WebMediaStreamDeviceObserver::OnDeviceCaptureConfigurationChangeCb
-        on_device_capture_configuration_change_cb,
-    WebMediaStreamDeviceObserver::OnDeviceCaptureHandleChangeCb
-        on_device_capture_handle_change_cb) {
+    const WebMediaStreamDeviceObserver::StreamCallbacks& stream_callbacks) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   Vector<Stream> streams;
@@ -248,14 +265,17 @@ void MediaStreamDeviceObserver::AddStreams(
        stream_devices_set.stream_devices) {
     const mojom::blink::StreamDevices& stream_devices = *stream_devices_ptr;
     Stream stream;
-    stream.on_device_stopped_cb = on_device_stopped_cb;
-    stream.on_device_changed_cb = on_device_changed_cb;
+    stream.on_device_stopped_cb = stream_callbacks.on_device_stopped_cb;
+    stream.on_device_changed_cb = stream_callbacks.on_device_changed_cb;
     stream.on_device_request_state_change_cb =
-        on_device_request_state_change_cb;
+        stream_callbacks.on_device_request_state_change_cb;
     stream.on_device_capture_configuration_change_cb =
-        on_device_capture_configuration_change_cb;
+        stream_callbacks.on_device_capture_configuration_change_cb;
     stream.on_device_capture_handle_change_cb =
-        on_device_capture_handle_change_cb;
+        stream_callbacks.on_device_capture_handle_change_cb;
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+    stream.on_zoom_level_change_cb = stream_callbacks.on_zoom_level_change_cb;
+#endif
     if (stream_devices.audio_device.has_value()) {
       stream.audio_devices.push_back(stream_devices.audio_device.value());
     }
@@ -272,12 +292,13 @@ void MediaStreamDeviceObserver::AddStream(const String& label,
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   Stream stream;
-  if (IsAudioInputMediaType(device.type))
+  if (IsAudioInputMediaType(device.type)) {
     stream.audio_devices.push_back(device);
-  else if (IsVideoInputMediaType(device.type))
+  } else if (IsVideoInputMediaType(device.type)) {
     stream.video_devices.push_back(device);
-  else
+  } else {
     NOTREACHED();
+  }
 
   label_stream_map_.Set(label, Vector<Stream>{std::move(stream)});
 }
@@ -301,21 +322,17 @@ void MediaStreamDeviceObserver::RemoveStreamDevice(
   bool device_found = false;
   Vector<String> streams_to_remove;
   for (auto& entry : label_stream_map_) {
-    for (auto* stream_it = entry.value.begin();
-         stream_it != entry.value.end();) {
-      Stream& stream = *stream_it;
-      MediaStreamDevices& audio_devices = stream.audio_devices;
-      MediaStreamDevices& video_devices = stream.video_devices;
-      if (RemoveStreamDeviceFromArray(device, &audio_devices) ||
-          RemoveStreamDeviceFromArray(device, &video_devices)) {
+    for (auto& stream : entry.value) {
+      if (RemoveStreamDeviceFromArray(device, &stream.audio_devices) ||
+          RemoveStreamDeviceFromArray(device, &stream.video_devices)) {
         device_found = true;
       }
-      if (audio_devices.empty() && video_devices.empty()) {
-        stream_it = entry.value.erase(stream_it);
-      } else {
-        ++stream_it;
-      }
     }
+
+    auto to_remove = std::ranges::remove_if(entry.value, [](const auto& t) {
+      return t.audio_devices.empty() && t.video_devices.empty();
+    });
+    entry.value.erase(to_remove.begin(), to_remove.end());
 
     if (device_found && entry.value.size() == 0) {
       streams_to_remove.push_back(entry.key);

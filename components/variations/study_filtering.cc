@@ -8,12 +8,14 @@
 #include <stdint.h>
 
 #include <cstdint>
+#include <functional>
 #include <set>
+#include <string_view>
 
 #include "base/containers/contains.h"
 #include "base/logging.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_util.h"
+#include "components/variations/variations_layers.h"
 #include "components/variations/variations_seed_processor.h"
 
 namespace variations {
@@ -29,7 +31,7 @@ base::Time ConvertStudyDateToBaseTime(int64_t date_time) {
 template <typename Collection>
 bool ContainsStringIgnoreCaseASCII(const Collection& collection,
                                    const std::string& value) {
-  return base::ranges::any_of(collection, [&value](const std::string& s) {
+  return std::ranges::any_of(collection, [&value](const std::string& s) {
     return base::EqualsCaseInsensitiveASCII(s, value);
   });
 }
@@ -240,28 +242,26 @@ bool CheckStudyGoogleGroup(const Study::Filter& filter,
   // Fetch the groups this client is a member of.
   base::flat_set<uint64_t> client_groups = client_state.GoogleGroups();
 
-  if (filter.google_group_size() > 0 &&
-      filter.exclude_google_group_size() > 0) {
-    // This is an invalid configuration; reject the study.
-    return false;
-  }
-
   if (filter.google_group_size() > 0) {
-    for (int64_t filter_group : filter.google_group()) {
-      if (base::Contains(client_groups, filter_group)) {
-        return true;
-      }
+    if (std::ranges::none_of(filter.google_group(),
+                             [&client_groups](int64_t group) {
+                               return base::Contains(client_groups, group);
+                             })) {
+      // A google_group filter was specified, and the client is not a member of
+      // any of the groups.
+      return false;
     }
-    return false;
   }
 
   if (filter.exclude_google_group_size() > 0) {
-    for (int64_t filter_exclude_group : filter.exclude_google_group()) {
-      if (base::Contains(client_groups, filter_exclude_group)) {
-        return false;
-      }
+    if (std::ranges::any_of(filter.exclude_google_group(),
+                            [&client_groups](int64_t group) {
+                              return base::Contains(client_groups, group);
+                            })) {
+      // An exclude_google_group filter was specified, and the client is a
+      // member of at least one of the groups.
+      return false;
     }
-    return true;
   }
 
   return true;
@@ -299,19 +299,19 @@ bool ShouldAddStudy(const ProcessedStudy& processed_study,
   }
 
   if (study.has_layer()) {
-    if (!layers.IsLayerMemberActive(study.layer().layer_id(),
-                                    study.layer().layer_member_id())) {
+    if (!layers.IsLayerMemberActive(study.layer())) {
       DVLOG(1) << "Filtered out study " << study.name()
                << " due to layer member not being active.";
       return false;
     }
 
-    if (processed_study.ShouldStudyUseLowEntropy() &&
+    if (!VariationsLayers::AllowsHighEntropy(study) &&
         layers.ActiveLayerMemberDependsOnHighEntropy(
             study.layer().layer_id())) {
-      DVLOG(1) << "Filtered out study " << study.name()
-               << " due to requiring a low entropy source yet being a member "
-                  "of a layer using the default entropy source.";
+      DVLOG(1)
+          << "Filtered out study " << study.name()
+          << " due to not allowing a high entropy source yet being a member "
+             "of a layer using the default (high) entropy source.";
       return false;
     }
   }
@@ -423,10 +423,11 @@ std::vector<ProcessedStudy> FilterAndValidateStudies(
   std::vector<ProcessedStudy> filtered_studies;
 
   // Don't create two studies with the same name.
-  std::set<std::string> created_studies;
+  // These `string_view`s contain pointers which point to memory owned by
+  // `seed`.
+  std::set<std::string_view, std::less<>> created_studies;
 
-  for (int i = 0; i < seed.study_size(); ++i) {
-    const Study& study = seed.study(i);
+  for (const Study& study : seed.study()) {
     ProcessedStudy processed_study;
     if (!processed_study.Init(&study))
       continue;
@@ -434,10 +435,15 @@ std::vector<ProcessedStudy> FilterAndValidateStudies(
     if (!internal::ShouldAddStudy(processed_study, client_state, layers))
       continue;
 
-    if (!base::Contains(created_studies, processed_study.study()->name())) {
-      filtered_studies.push_back(processed_study);
-      created_studies.insert(processed_study.study()->name());
+    auto [it, inserted] =
+        created_studies.insert(processed_study.study()->name());
+    if (!inserted) {
+      // The study's name is already in `created_studies`, which means that a
+      // study with the same name was already added to `filtered_studies`.
+      continue;
     }
+
+    filtered_studies.push_back(processed_study);
   }
   return filtered_studies;
 }

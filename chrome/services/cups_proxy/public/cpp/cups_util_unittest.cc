@@ -8,11 +8,11 @@
 
 #include <algorithm>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "chromeos/printing/printer_configuration.h"
 #include "printing/backend/cups_jobs.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -51,7 +51,7 @@ ipp_t* GetPrinterAttributesRequest(
 
 // Generates |num_printers| printers with unique display_names starting with
 // |prefix|.
-std::vector<Printer> GenPrinters(int num_printers, base::StringPiece prefix) {
+std::vector<Printer> GenPrinters(int num_printers, std::string_view prefix) {
   std::vector<Printer> ret;
   for (int i = 0; i < num_printers; i++) {
     Printer printer;
@@ -99,7 +99,7 @@ TEST(GetPrinterIdTest, MissingPathDelimiter) {
 }
 
 TEST(ParseEndpointForPrinterIdTest, SimpleSanityTest) {
-  absl::optional<std::string> printer_id = ParseEndpointForPrinterId(
+  std::optional<std::string> printer_id = ParseEndpointForPrinterId(
       std::string(kEndpointPrefix) + kDefaultPrinterId);
 
   EXPECT_TRUE(printer_id.has_value());

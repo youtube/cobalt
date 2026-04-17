@@ -15,11 +15,10 @@ namespace policy {
 MockDlpWarnNotifier::MockDlpWarnNotifier() : should_proceed_(true) {
   // Propagate to the real object.
   ON_CALL(*this, ShowDlpWarningDialog)
-      .WillByDefault([this](OnDlpRestrictionCheckedCallback callback,
-                            DlpWarnDialog::DlpWarnDialogOptions options,
-                            gfx::NativeWindow modal_parent) {
-        return this->DlpWarnNotifier::ShowDlpWarningDialog(
-            std::move(callback), options, modal_parent);
+      .WillByDefault([this](WarningCallback callback,
+                            DlpWarnDialog::DlpWarnDialogOptions options) {
+        return this->DlpWarnNotifier::ShowDlpWarningDialog(std::move(callback),
+                                                           options);
       });
 }
 
@@ -27,9 +26,8 @@ MockDlpWarnNotifier::MockDlpWarnNotifier(bool should_proceed)
     : should_proceed_(should_proceed) {
   // Simulate proceed or cancel.
   ON_CALL(*this, ShowDlpWarningDialog)
-      .WillByDefault([this](OnDlpRestrictionCheckedCallback callback,
-                            DlpWarnDialog::DlpWarnDialogOptions options,
-                            gfx::NativeWindow modal_parent) {
+      .WillByDefault([this](WarningCallback callback,
+                            DlpWarnDialog::DlpWarnDialogOptions options) {
         std::move(callback).Run(should_proceed_);
         return nullptr;
       });

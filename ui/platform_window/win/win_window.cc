@@ -110,7 +110,6 @@ void WinWindow::SetBoundsInDIP(const gfx::Rect& bounds) {
 gfx::Rect WinWindow::GetBoundsInDIP() const {
   // GetBounds should not be used on Windows tests.
   NOTREACHED();
-  return GetBoundsInPixels();
 }
 
 void WinWindow::SetTitle(const std::u16string& title) {
@@ -239,11 +238,6 @@ bool WinWindow::IsAnimatingClosed() const {
   return false;
 }
 
-bool WinWindow::IsTranslucentWindowOpacitySupported() const {
-  NOTIMPLEMENTED_LOG_ONCE();
-  return false;
-}
-
 bool WinWindow::IsFullscreen() const {
   return GetPlatformWindowState() == PlatformWindowState::kFullScreen;
 }
@@ -257,7 +251,7 @@ LRESULT WinWindow::OnMouseRange(UINT message, WPARAM w_param, LPARAM l_param) {
                     {CR_GET_X_LPARAM(l_param), CR_GET_Y_LPARAM(l_param)}};
   std::unique_ptr<Event> event = EventFromNative(msg);
   if (IsMouseEventFromTouch(message))
-    event->set_flags(event->flags() | EF_FROM_TOUCH);
+    event->SetFlags(event->flags() | EF_FROM_TOUCH);
   if (!(event->flags() & ui::EF_IS_NON_CLIENT))
     delegate_->DispatchEvent(event.get());
   SetMsgHandled(event->handled());

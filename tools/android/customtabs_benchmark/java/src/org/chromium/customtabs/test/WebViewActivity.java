@@ -4,6 +4,8 @@
 
 package org.chromium.customtabs.test;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.app.Activity;
 import android.graphics.Bitmap;
 import android.os.Bundle;
@@ -16,25 +18,30 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.ProgressBar;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
 /** Very basic WebView based activity for benchmarking. */
+@NullMarked
 public class WebViewActivity extends Activity {
     private final Handler mHandler = new Handler(Looper.getMainLooper());
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_web_view);
 
-        mHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                go();
-            }
-        });
+        mHandler.post(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        go();
+                    }
+                });
     }
 
     private void go() {
-        String url = getIntent().getData().toString();
+        String url = assumeNonNull(getIntent().getData()).toString();
         final long intentSentMs = getIntent().getLongExtra(MainActivity.INTENT_SENT_EXTRA, -1);
 
         WebView webView = (WebView) findViewById(R.id.webview);
@@ -44,38 +51,42 @@ public class WebViewActivity extends Activity {
 
         webView.setVisibility(View.VISIBLE);
         webView.getSettings().setJavaScriptEnabled(true);
-        webView.setWebViewClient(new WebViewClient() {
-            private long mPageStartedOffsetMs = -1;
+        webView.setWebViewClient(
+                new WebViewClient() {
+                    private long mPageStartedOffsetMs = -1;
 
-            @Override
-            public boolean shouldOverrideUrlLoading(WebView view, String url) {
-                return false;
-            }
+                    @Override
+                    public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                        return false;
+                    }
 
-            @Override
-            public void onPageStarted(WebView view, String url, Bitmap favicon) {
-                long offsetMs = MainActivity.now() - intentSentMs;
-                Log.w(MainActivity.TAG, "navigationStarted = " + offsetMs + " url = " + url);
-                // Can be called several times (redirects).
-                if (mPageStartedOffsetMs == -1) mPageStartedOffsetMs = offsetMs;
-            }
+                    @Override
+                    public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                        long offsetMs = MainActivity.now() - intentSentMs;
+                        Log.w(
+                                MainActivity.TAG,
+                                "navigationStarted = " + offsetMs + " url = " + url);
+                        // Can be called several times (redirects).
+                        if (mPageStartedOffsetMs == -1) mPageStartedOffsetMs = offsetMs;
+                    }
 
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                long offsetMs = MainActivity.now() - intentSentMs;
-                Log.w(MainActivity.TAG, "navigationFinished = " + offsetMs);
-                Log.w(MainActivity.TAG, "WEBVIEW," + mPageStartedOffsetMs + "," + offsetMs);
-            }
-        });
-        webView.setWebChromeClient(new WebChromeClient() {
-            @Override
-            public void onProgressChanged(WebView view, int newProgress) {
-                if (progressBar.getVisibility() == View.GONE) {
-                    progressBar.setVisibility(View.VISIBLE);
-                }
-                progressBar.setProgress(newProgress);
-            }
-        });
+                    @Override
+                    public void onPageFinished(WebView view, String url) {
+                        long offsetMs = MainActivity.now() - intentSentMs;
+                        Log.w(MainActivity.TAG, "navigationFinished = " + offsetMs);
+                        Log.w(MainActivity.TAG, "WEBVIEW," + mPageStartedOffsetMs + "," + offsetMs);
+                    }
+                });
+        webView.setWebChromeClient(
+                new WebChromeClient() {
+                    @Override
+                    public void onProgressChanged(WebView view, int newProgress) {
+                        if (progressBar.getVisibility() == View.GONE) {
+                            progressBar.setVisibility(View.VISIBLE);
+                        }
+                        progressBar.setProgress(newProgress);
+                    }
+                });
 
         webView.loadUrl(url);
     }

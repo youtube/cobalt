@@ -14,10 +14,9 @@
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/apps/app_service/browser_app_launcher.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser_dialogs.h"
+#include "chrome/browser/ui/web_applications/web_app_dialogs.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_manager.h"
 #include "chrome/browser/web_applications/os_integration/web_app_file_handler_manager.h"
-#include "chrome/browser/web_applications/os_integration/web_app_shortcut_mac.h"
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_command_scheduler.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
@@ -84,7 +83,7 @@ void LaunchAppWithParams(
 
 // Cancels the launch of the app for the given `app_id`, potentially resulting
 // in the app shim exiting.
-void CancelAppLaunch(Profile* profile, const web_app::AppId& app_id) {
+void CancelAppLaunch(Profile* profile, const webapps::AppId& app_id) {
   apps::AppShimManager::Get()->OnAppLaunchCancelled(profile, app_id);
 }
 
@@ -114,9 +113,9 @@ void UserChoiceDialogCompleted(
     base::OnceClosure launch_finished_callback,
     bool allowed,
     bool remember_user_choice) {
-  absl::optional<GURL> protocol_url = params.protocol_handler_launch_url;
+  std::optional<GURL> protocol_url = params.protocol_handler_launch_url;
   const bool is_file_launch = !file_launches.empty();
-  web_app::AppId app_id = params.app_id;
+  webapps::AppId app_id = params.app_id;
 
   auto persist_done = base::BindOnce(
       &OnPersistUserChoiceCompleted, std::move(params), file_launches, profile,
@@ -154,7 +153,7 @@ WebAppShimManagerDelegate::WebAppShimManagerDelegate(
 WebAppShimManagerDelegate::~WebAppShimManagerDelegate() = default;
 
 bool WebAppShimManagerDelegate::ShowAppWindows(Profile* profile,
-                                               const AppId& app_id) {
+                                               const webapps::AppId& app_id) {
   if (UseFallback(profile, app_id))
     return fallback_delegate_->ShowAppWindows(profile, app_id);
   // Non-legacy app windows are handled in AppShimManager.
@@ -162,52 +161,68 @@ bool WebAppShimManagerDelegate::ShowAppWindows(Profile* profile,
 }
 
 void WebAppShimManagerDelegate::CloseAppWindows(Profile* profile,
-                                                const AppId& app_id) {
+                                                const webapps::AppId& app_id) {
   if (UseFallback(profile, app_id)) {
     fallback_delegate_->CloseAppWindows(profile, app_id);
     return;
   }
   // This is only used by legacy apps.
-  // TODO(https://crbug.com/1431891): This seems to happen in the wild although
+  // TODO(crbug.com/40902596): This seems to happen in the wild although
   // though shouldn't be possible. Once legacy apps are no longer supported all
   // this legacy app specific code should get deleted entirely.
   // NOTREACHED();
 }
 
 bool WebAppShimManagerDelegate::AppIsInstalled(Profile* profile,
-                                               const AppId& app_id) {
+                                               const webapps::AppId& app_id) {
   if (UseFallback(profile, app_id)) {
     return fallback_delegate_->AppIsInstalled(profile, app_id);
   }
+  if (!profile || !AreWebAppsEnabled(profile)) {
+    return false;
+  }
+  WebAppProvider* provider = WebAppProvider::GetForWebApps(profile);
+  CHECK(provider);
   return profile &&
-         WebAppProvider::GetForWebApps(profile)->registrar_unsafe().IsInstalled(
-             app_id);
+         provider->registrar_unsafe().IsInstallState(
+             app_id, {proto::InstallState::SUGGESTED_FROM_ANOTHER_DEVICE,
+                      proto::InstallState::INSTALLED_WITHOUT_OS_INTEGRATION,
+                      proto::InstallState::INSTALLED_WITH_OS_INTEGRATION});
 }
 
 bool WebAppShimManagerDelegate::AppCanCreateHost(Profile* profile,
-                                                 const AppId& app_id) {
+                                                 const webapps::AppId& app_id) {
   if (UseFallback(profile, app_id))
     return fallback_delegate_->AppCanCreateHost(profile, app_id);
   // A host is only created for use with RemoteCocoa.
   return AppUsesRemoteCocoa(profile, app_id);
 }
 
-bool WebAppShimManagerDelegate::AppUsesRemoteCocoa(Profile* profile,
-                                                   const AppId& app_id) {
-  if (UseFallback(profile, app_id))
+bool WebAppShimManagerDelegate::AppUsesRemoteCocoa(
+    Profile* profile,
+    const webapps::AppId& app_id) {
+  if (UseFallback(profile, app_id)) {
     return fallback_delegate_->AppUsesRemoteCocoa(profile, app_id);
+  }
   // All PWAs, and bookmark apps that open in their own window (not in a browser
   // window) can attach to a host.
-  if (!profile)
+  if (!profile || !AreWebAppsEnabled(profile)) {
     return false;
-  auto& registrar = WebAppProvider::GetForWebApps(profile)->registrar_unsafe();
-  return registrar.IsInstalled(app_id) &&
+  }
+  WebAppProvider* provider = WebAppProvider::GetForWebApps(profile);
+  CHECK(provider);
+  auto& registrar = provider->registrar_unsafe();
+  return registrar.IsInstallState(
+             app_id, {proto::InstallState::SUGGESTED_FROM_ANOTHER_DEVICE,
+                      proto::InstallState::INSTALLED_WITHOUT_OS_INTEGRATION,
+                      proto::InstallState::INSTALLED_WITH_OS_INTEGRATION}) &&
          registrar.GetAppEffectiveDisplayMode(app_id) !=
              web_app::DisplayMode::kBrowser;
 }
 
-bool WebAppShimManagerDelegate::AppIsMultiProfile(Profile* profile,
-                                                  const AppId& app_id) {
+bool WebAppShimManagerDelegate::AppIsMultiProfile(
+    Profile* profile,
+    const webapps::AppId& app_id) {
   if (UseFallback(profile, app_id))
     return fallback_delegate_->AppIsMultiProfile(profile, app_id);
   // All PWAs and bookmark apps are multi-profile.
@@ -228,7 +243,7 @@ void WebAppShimManagerDelegate::EnableExtension(
 
 void WebAppShimManagerDelegate::LaunchApp(
     Profile* profile,
-    const AppId& app_id,
+    const webapps::AppId& app_id,
     const std::vector<base::FilePath>& files,
     const std::vector<GURL>& urls,
     const GURL& override_url,
@@ -241,6 +256,9 @@ void WebAppShimManagerDelegate::LaunchApp(
                                   std::move(launch_finished_callback));
     return;
   }
+  CHECK(profile);
+  CHECK(AreWebAppsEnabled(profile));
+
   base::ScopedClosureRunner run_launch_finished(
       std::move(launch_finished_callback));
 
@@ -301,6 +319,7 @@ void WebAppShimManagerDelegate::LaunchApp(
   }
 
   WebAppProvider* const provider = WebAppProvider::GetForWebApps(profile);
+  CHECK(provider);
   WebAppFileHandlerManager::LaunchInfos file_launches;
   if (!params.protocol_handler_launch_url) {
     file_launches = provider->os_integration_manager()
@@ -319,15 +338,14 @@ void WebAppShimManagerDelegate::LaunchApp(
     // Protocol handlers should prompt the user before launching the app,
     // unless the user has granted or denied permission to this protocol scheme
     // previously.
-    web_app::WebAppRegistrar& registrar =
-        WebAppProvider::GetForWebApps(profile)->registrar_unsafe();
+    web_app::WebAppRegistrar& registrar = provider->registrar_unsafe();
     if (registrar.IsDisallowedLaunchProtocol(app_id, protocol_url.scheme())) {
       CancelAppLaunch(profile, app_id);
       return;
     }
 
     if (!registrar.IsAllowedLaunchProtocol(app_id, protocol_url.scheme())) {
-      chrome::ShowWebAppProtocolLaunchDialog(
+      ShowWebAppProtocolLaunchDialog(
           std::move(protocol_url), profile, app_id,
           base::BindOnce(&UserChoiceDialogCompleted, std::move(params),
                          WebAppFileHandlerManager::LaunchInfos(), profile,
@@ -344,7 +362,7 @@ void WebAppShimManagerDelegate::LaunchApp(
 
     if (web_app->file_handler_approval_state() ==
         ApiApprovalState::kRequiresPrompt) {
-      chrome::ShowWebAppFileLaunchDialog(
+      ShowWebAppFileLaunchDialog(
           launch_files, profile, app_id,
           base::BindOnce(&UserChoiceDialogCompleted, std::move(params),
                          file_launches, profile,
@@ -362,27 +380,26 @@ void WebAppShimManagerDelegate::LaunchApp(
 
 void WebAppShimManagerDelegate::LaunchShim(
     Profile* profile,
-    const AppId& app_id,
-    bool recreate_shims,
+    const webapps::AppId& app_id,
+    web_app::LaunchShimUpdateBehavior update_behavior,
+    web_app::ShimLaunchMode launch_mode,
     apps::ShimLaunchedCallback launched_callback,
     apps::ShimTerminatedCallback terminated_callback) {
   DCHECK(AppIsInstalled(profile, app_id));
   if (UseFallback(profile, app_id)) {
-    fallback_delegate_->LaunchShim(profile, app_id, recreate_shims,
-                                   std::move(launched_callback),
+    fallback_delegate_->LaunchShim(profile, app_id, update_behavior,
+                                   launch_mode, std::move(launched_callback),
                                    std::move(terminated_callback));
     return;
   }
+  CHECK(profile);
+  CHECK(AreWebAppsEnabled(profile));
   WebAppProvider::GetForWebApps(profile)
       ->os_integration_manager()
-      .GetShortcutInfoForApp(
-          app_id,
-          base::BindOnce(
-              &web_app::LaunchShim,
-              recreate_shims
-                  ? LaunchShimUpdateBehavior::RECREATE_UNCONDITIONALLY
-                  : LaunchShimUpdateBehavior::DO_NOT_RECREATE,
-              std::move(launched_callback), std::move(terminated_callback)));
+      .GetShortcutInfoForAppFromRegistrar(
+          app_id, base::BindOnce(&web_app::LaunchShim, update_behavior,
+                                 launch_mode, std::move(launched_callback),
+                                 std::move(terminated_callback)));
 }
 
 bool WebAppShimManagerDelegate::HasNonBookmarkAppWindowsOpen() {
@@ -392,16 +409,22 @@ bool WebAppShimManagerDelegate::HasNonBookmarkAppWindowsOpen() {
   return false;
 }
 
-bool WebAppShimManagerDelegate::UseFallback(Profile* profile,
-                                            const AppId& app_id) const {
+bool WebAppShimManagerDelegate::UseFallback(
+    Profile* profile,
+    const webapps::AppId& app_id) const {
   if (!profile)
     return false;
 
   // If |app_id| is installed via WebAppProvider, then use |this| as the
   // delegate.
   auto* provider = WebAppProvider::GetForWebApps(profile);
-  if (provider->registrar_unsafe().IsInstalled(app_id))
+  if (provider &&
+      provider->registrar_unsafe().IsInstallState(
+          app_id, {proto::InstallState::SUGGESTED_FROM_ANOTHER_DEVICE,
+                   proto::InstallState::INSTALLED_WITHOUT_OS_INTEGRATION,
+                   proto::InstallState::INSTALLED_WITH_OS_INTEGRATION})) {
     return false;
+  }
 
   // Use |fallback_delegate_| only if |app_id| is installed for |profile|
   // as an extension.
@@ -409,8 +432,9 @@ bool WebAppShimManagerDelegate::UseFallback(Profile* profile,
 }
 
 std::vector<chrome::mojom::ApplicationDockMenuItemPtr>
-WebAppShimManagerDelegate::GetAppShortcutsMenuItemInfos(Profile* profile,
-                                                        const AppId& app_id) {
+WebAppShimManagerDelegate::GetAppShortcutsMenuItemInfos(
+    Profile* profile,
+    const webapps::AppId& app_id) {
   if (UseFallback(profile, app_id))
     return fallback_delegate_->GetAppShortcutsMenuItemInfos(profile, app_id);
 

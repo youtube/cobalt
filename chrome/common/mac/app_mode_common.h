@@ -9,12 +9,12 @@
 #include <string>
 
 #include "base/files/file_path.h"
+#include "base/macros/concat.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/strings/stringize_macros.h"
 
 #ifdef __OBJC__
 @class NSString;
-#else
-class NSString;
 #endif
 
 // This file contains constants, interfaces, etc. which are common to the
@@ -22,20 +22,19 @@ class NSString;
 
 // The version of the ChromeAppModeInfo struct below. If the format of the
 // struct ever changes, be sure to update the APP_SHIM_VERSION_NUMBER here and
-// the corresponding line in //chrome/app/framework.order .
+// the corresponding lines in //chrome/app/framework.order and
+// //chrome/app/framework.exports .
 #define APP_SHIM_VERSION_NUMBER 7
 
 // All the other macro magic to make APP_SHIM_VERSION_NUMBER usable.
-#define APP_MODE_CONCAT(a, b) a##b
-#define APP_MODE_CONCAT2(a, b) APP_MODE_CONCAT(a, b)
 #define APP_SHIM_ENTRY_POINT_NAME \
-  APP_MODE_CONCAT2(ChromeAppModeStart_v, APP_SHIM_VERSION_NUMBER)
+  BASE_CONCAT(ChromeAppModeStart_v, APP_SHIM_VERSION_NUMBER)
 #define APP_SHIM_ENTRY_POINT_NAME_STRING STRINGIZE(APP_SHIM_ENTRY_POINT_NAME)
 
 namespace app_mode {
 
 // Mach message ID used by the shim to connect to Chrome.
-constexpr mach_msg_id_t kBootstrapMsgId = 'apps';
+inline constexpr mach_msg_id_t kBootstrapMsgId = 'apps';
 
 // Name fragment of the Mach server endpoint published in the bootstrap
 // namespace. The full name is "<bundle-id>.apps.<profile_path_hash>".
@@ -47,6 +46,12 @@ extern const char kAppShimBootstrapNameFragment[];
 // along with any other necessary configuration. The shim will read this to
 // determine which version of the framework to load.
 extern const char kRunningChromeVersionSymlinkName[];
+
+// A file used to store feature and field trial state of the currently or most
+// recently running Chrome. The shim will read this to determine what features
+// to enable if it wasn't launched by Chrome, until it can get the current state
+// from Chrome.
+extern const char kFeatureStateFileName[];
 
 // The process ID of the Chrome process that launched the app shim.
 // The presence of this switch instructs the app shim to send LaunchApp with
@@ -76,6 +81,13 @@ extern const char kLaunchedAfterRebuild[];
 // launched it, while still making sure it connects to the correct chrome
 // process.
 extern const char kIsNormalLaunch[];
+
+// Normally when running tests app shims are not supposed to try to launch
+// Chrome. Pass this flag to specify the executable to launch when the app shim
+// would normally launch Chrome.
+extern const char kLaunchChromeForTest[];
+
+#ifdef __OBJC__
 
 // Keys for specifying the file types handled by an app.
 extern NSString* const kCFBundleDocumentTypesKey;
@@ -145,12 +157,18 @@ extern NSString* const kLastRunAppBundlePathPrefsKey;
 extern NSString* const kCrAppModeMajorVersionKey;
 extern NSString* const kCrAppModeMinorVersionKey;
 
+// Info.plist key that indicates whether a PWA is ad-hoc signed.
+// Intended for use by `app_mode_loader` prior to checking in with the browser.
+extern NSString* const kCrAppModeIsAdHocSignedKey;
+
 // Placeholders used in the app mode loader bundle' Info.plist:
 extern NSString* const kShortcutIdPlaceholder; // Extension shortcut ID.
 extern NSString* const kShortcutNamePlaceholder; // Extension name.
 extern NSString* const kShortcutURLPlaceholder;
 // Bundle ID of the Chrome browser bundle.
 extern NSString* const kShortcutBrowserBundleIDPlaceholder;
+
+#endif  // __OBJC__
 
 // Indicates the MojoIpcz feature configuration for a launched shim process.
 enum class MojoIpczConfig {
@@ -179,7 +197,9 @@ enum class MojoIpczConfig {
 struct ChromeAppModeInfo {
   // Original |argc| and |argv| of the App Mode shortcut.
   int argc;
-  char** argv;
+  // This field is not a raw_ptr<> because this struct is part of separate
+  // binary and must be a POD.
+  RAW_PTR_EXCLUSION char** argv;
 
   // Path of the Chromium Framework, as UTF-8. This will be the input to
   // SetOverrideFrameworkBundlePath().

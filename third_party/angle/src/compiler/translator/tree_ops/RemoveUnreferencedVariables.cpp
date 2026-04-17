@@ -10,6 +10,7 @@
 
 #include "compiler/translator/tree_ops/RemoveUnreferencedVariables.h"
 
+#include "common/hash_containers.h"
 #include "compiler/translator/SymbolTable.h"
 #include "compiler/translator/tree_util/IntermTraverse.h"
 
@@ -345,8 +346,7 @@ void RemoveUnreferencedVariablesTraverser::traverseLoop(TIntermLoop *node)
         ASSERT(node->getCondition() == nullptr ||
                node->getCondition()->getAsDeclarationNode() == nullptr);
 
-        if (node->getBody())
-            node->getBody()->traverse(this);
+        node->getBody()->traverse(this);
 
         if (node->getInit())
             node->getInit()->traverse(this);

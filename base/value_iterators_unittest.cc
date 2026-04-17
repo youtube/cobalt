@@ -11,27 +11,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace base {
-
-namespace detail {
-
-namespace {
-
-// Implementation of std::equal variant that is missing in C++11.
-template <class BinaryPredicate, class InputIterator1, class InputIterator2>
-bool are_equal(InputIterator1 first1,
-               InputIterator1 last1,
-               InputIterator2 first2,
-               InputIterator2 last2,
-               BinaryPredicate pred) {
-  for (; first1 != last1 && first2 != last2; ++first1, ++first2) {
-    if (!pred(*first1, *first2))
-      return false;
-  }
-  return first1 == last1 && first2 == last2;
-}
-
-}  // namespace
+namespace base::detail {
 
 TEST(ValueIteratorsTest, IsAssignable) {
   static_assert(
@@ -259,6 +239,4 @@ TEST(ValueIteratorsTest, ConstDictIteratorOperatorNE) {
   EXPECT_NE(iterator(storage.begin()), iterator(storage.end()));
 }
 
-}  // namespace detail
-
-}  // namespace base
+}  // namespace base::detail

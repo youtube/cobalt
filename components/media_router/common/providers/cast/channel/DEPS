@@ -12,16 +12,10 @@ include_rules = [
   "+services/service_manager/public",
   "+third_party/openscreen/src/cast/common/certificate/proto",
   "+third_party/openscreen/src/cast/common/channel/proto",
-  "+third_party/openscreen/src/cast/common/public",
-  "+third_party/openscreen/src/cast/sender/public",
-  "+third_party/openscreen/src/platform/api",
+  "+third_party/openscreen/src/platform/base",
 ]
 
 specific_include_rules = {
-  "cast_message_fuzzer.cc": [
-    # For google::protobuf::LogSilencer
-    "+third_party/protobuf",
-  ],
   ".*_(unittest|fuzzer).cc": [
     "+third_party/openscreen/src/cast/common/channel/testing",
     "+components/test/data/media_router/common/providers/cast/certificate",
@@ -29,7 +23,5 @@ specific_include_rules = {
   "openscreen.*_fuzzer\.cc": [
     "+third_party/openscreen/src/cast/common/channel",
     "+third_party/openscreen/src/cast/sender/channel",
-    # For google::protobuf::LogSilencer
-    "+third_party/protobuf",
   ]
 }

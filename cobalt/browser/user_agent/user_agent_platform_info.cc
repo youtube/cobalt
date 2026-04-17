@@ -14,8 +14,10 @@
 
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 
+#include <algorithm>
 #include <map>
 #include <memory>
+
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -26,11 +28,10 @@
 #include "base/system/sys_info.h"
 #include "base/system/sys_info_starboard.h"
 #include "build/build_config.h"
-#include "starboard/common/system_property.h"
-#include "starboard/extension/platform_info.h"
-
 #include "cobalt/cobalt_build_id.h"  // Generated
 #include "cobalt/version.h"
+#include "starboard/common/system_property.h"
+#include "starboard/extension/platform_info.h"
 #include "v8/include/v8-version-string.h"
 
 namespace cobalt {
@@ -179,15 +180,25 @@ void UserAgentPlatformInfo::InitializePlatformDependentFieldsAndroid() {
   set_os_name_and_version(base::StringPrintf("Linux " STRINGIZE(ANDROID_ABI) "; %s %s", os_name.c_str(), os_version.c_str()));
 
   set_firmware_version(base::SysInfo::GetAndroidBuildID());
+
+  // Rasterizer type is gles for both Linux and Android.
+  set_rasterizer_type("gles");
 }
 #elif BUILDFLAG(IS_STARBOARD)
 void UserAgentPlatformInfo::InitializePlatformDependentFieldsStarboard() {
-  const std::string os_name = base::SysInfo::OperatingSystemName();
+  std::string os_name = base::SysInfo::OperatingSystemName();
+  const std::string os_friendly_name =
+      base::starboard::SbSysInfo::OSFriendlyName();
+  if (!os_friendly_name.empty()) {
+    os_name = os_friendly_name + "; " + os_name;
+  }
   const std::string os_version = base::SysInfo::OperatingSystemVersion();
   set_os_name_and_version(
       base::StringPrintf("%s %s", os_name.c_str(), os_version.c_str()));
   set_firmware_version(
       starboard::GetSystemPropertyString(kSbSystemPropertyFirmwareVersion));
+  // Rasterizer type is gles for both Linux and Android.
+  set_rasterizer_type("gles");
 
   // TODO(cobalt, b/374213479): Retrieve Evergreen
   // #if BUILDFLAG(IS_EVERGREEN)
@@ -198,15 +209,52 @@ void UserAgentPlatformInfo::InitializePlatformDependentFieldsStarboard() {
   //   set_evergreen_type("Lite");
   // #endif
 }
+
+#elif BUILDFLAG(IS_IOS_TVOS)
+void UserAgentPlatformInfo::InitializePlatformDependentFieldsTvOS() {
+  const std::string os_name = base::SysInfo::OperatingSystemName();
+  const std::string os_version = base::SysInfo::OperatingSystemVersion();
+  set_os_name_and_version(
+      base::StringPrintf("%s %s", os_name.c_str(), os_version.c_str()));
+
+  set_firmware_version(os_version);
+
+  set_rasterizer_type("metal");
+
+  std::string formatted_model = base::SysInfo::HardwareModelName();
+#if TARGET_OS_SIMULATOR
+  // On simulator builds, base::SysInfo::HardwareModelName() returns a string in
+  // the format "iOS Simulator (MODEL)" rather than just "MODEL".
+  // Strip the prefix here, set_model() will remove the parentheses.
+  constexpr std::string_view kIOSSimulatorPrefix = "iOS Simulator ";
+  base::ReplaceFirstSubstringAfterOffset(&formatted_model, 0,
+                                         kIOSSimulatorPrefix, "");
+#endif
+  // The model name as returned by the platform looks like "14,1", which needs
+  // to be turned into "14-1" for it to be accepted.
+  std::ranges::replace(formatted_model, ',', '-');
+  set_model(formatted_model);
+}
+
 #endif  // BUILDFLAG(IS_ANDROID)
 
 void UserAgentPlatformInfo::InitializeUserAgentPlatformInfoFields() {
-// TODO(b/443337017): Fix InitializePlatformDependentFields...() for AOSP
+  set_model(base::SysInfo::HardwareModelName());
+
+  set_original_design_manufacturer(
+      base::starboard::SbSysInfo::OriginalDesignManufacturer());
+  set_chipset_model_number(base::starboard::SbSysInfo::ChipsetModelNumber());
+  set_model_year(base::starboard::SbSysInfo::ModelYear());
+  set_brand(base::starboard::SbSysInfo::Brand());
+
+  // TODO(b/443337017): Fix InitializePlatformDependentFields...() for AOSP
 // platforms, which are IS_ANDROID but also IS_STARBOARD.
 #if BUILDFLAG(IS_ANDROID)
   InitializePlatformDependentFieldsAndroid();
 #elif BUILDFLAG(IS_STARBOARD)
   InitializePlatformDependentFieldsStarboard();
+#elif BUILDFLAG(IS_IOS_TVOS)
+  InitializePlatformDependentFieldsTvOS();
 #endif
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
@@ -223,35 +271,18 @@ void UserAgentPlatformInfo::InitializeUserAgentPlatformInfoFields() {
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
-  if (!avoid_access_to_starboard_for_testing_) {
-    set_device_type(
-        starboard::GetSystemPropertyString(kSbSystemPropertyDeviceType));
-  }
-
-  set_model(base::SysInfo::HardwareModelName());
-
-  set_original_design_manufacturer(
-      base::starboard::SbSysInfo::OriginalDesignManufacturer());
-  set_chipset_model_number(base::starboard::SbSysInfo::ChipsetModelNumber());
-  set_model_year(base::starboard::SbSysInfo::ModelYear());
-  set_brand(base::starboard::SbSysInfo::Brand());
-
   // Below UA info fields can NOT be retrieved directly from platform's native
   // system properties.
-
-  if (!avoid_access_to_starboard_for_testing_) {
-    set_aux_field(
-        starboard::GetSystemPropertyString(kSbSystemPropertyUserAgentAuxField));
-  }
 
   // We only support JIT for both Linux and Android.
   set_javascript_engine_version(
       base::StringPrintf("v8/%s-jit", V8_VERSION_STRING));
 
-  // Rasterizer type is gles for both Linux and Android.
-  set_rasterizer_type("gles");
-
   if (!avoid_access_to_starboard_for_testing_) {
+    set_device_type(
+        starboard::GetSystemPropertyString(kSbSystemPropertyDeviceType));
+    set_aux_field(
+        starboard::GetSystemPropertyString(kSbSystemPropertyUserAgentAuxField));
     // Retrieve additional platform
     auto platform_info_extension =
         static_cast<const CobaltExtensionPlatformInfoApi*>(

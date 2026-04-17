@@ -8,13 +8,15 @@
 #include "chromeos/crosapi/mojom/multi_capture_service.mojom.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 
+class GURL;
+
 namespace ash {
-class MultiCaptureServiceClient;
+class MultiCaptureService;
 }  // namespace ash
 
 namespace crosapi {
 
-// Forwards multi capture events to multi_capture_client_.
+// Forwards multi capture events to the multi capture service in ash.
 class MultiCaptureServiceAsh : public mojom::MultiCaptureService {
  public:
   // Relies on ash::Shell::Get()->multi_capture_service_client() returning
@@ -28,13 +30,18 @@ class MultiCaptureServiceAsh : public mojom::MultiCaptureService {
   // mojom::MultiCaptureService:
   void MultiCaptureStarted(const std::string& label,
                            const std::string& host) override;
+  void MultiCaptureStartedFromApp(const std::string& label,
+                                  const std::string& app_id,
+                                  const std::string& app_name) override;
   void MultiCaptureStopped(const std::string& label) override;
+  void IsMultiCaptureAllowed(const GURL& origin,
+                             IsMultiCaptureAllowedCallback callback) override;
+  void IsMultiCaptureAllowedForAnyOriginOnMainProfile(
+      IsMultiCaptureAllowedForAnyOriginOnMainProfileCallback callback) override;
 
  private:
   mojo::ReceiverSet<mojom::MultiCaptureService>
       multi_capture_service_receiver_set_;
-  base::raw_ptr<ash::MultiCaptureServiceClient, DanglingUntriaged>
-      multi_capture_client_ = nullptr;
 };
 
 }  // namespace crosapi

@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/cpu.h"
-#include "base/strings/string_piece.h"
+#include <string_view>
+
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
-#if BUILDFLAG(IS_WIN)
-#include "base/win/windows_version.h"
+
+#if defined(ARCH_CPU_X86_FAMILY)
+#include "base/cpu.h"
 #endif
 
 namespace nacl {
@@ -19,19 +20,11 @@ const char* GetSandboxArch() {
   return "mips32";
 #elif defined(ARCH_CPU_X86_FAMILY)
 
-#if BUILDFLAG(IS_WIN)
-  // We have to check the host architecture on Windows.
-  // See sandbox_isa.h for an explanation why.
-  if (base::win::OSInfo::GetArchitecture() ==
-      base::win::OSInfo::X64_ARCHITECTURE) {
-    return "x86-64";
-  }
-  return "x86-32";
-#elif ARCH_CPU_64_BITS
+#if ARCH_CPU_64_BITS
   return "x86-64";
 #else
   return "x86-32";
-#endif  // BUILDFLAG(IS_WIN)
+#endif  // ARCH_CPU_64_BITS
 
 #else
 #error Architecture not supported.
@@ -59,7 +52,8 @@ std::string GetCpuFeatures() {
   //           doesn't handle other architectures very well, and we
   //           should at least detect the presence of ARM's integer
   //           divide.
-  std::vector<base::StringPiece> features;
+  std::vector<std::string_view> features;
+#if defined(ARCH_CPU_X86_FAMILY)
   base::CPU cpu;
 
   // On x86, SSE features are ordered: the most recent one implies the
@@ -78,6 +72,8 @@ std::string GetCpuFeatures() {
   if (cpu.has_popcnt()) features.push_back("+popcnt");
 
   // TODO: AES, LZCNT, ...
+#endif
+
   return base::JoinString(features, ",");
 }
 

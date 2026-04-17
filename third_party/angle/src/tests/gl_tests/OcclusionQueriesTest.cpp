@@ -115,7 +115,7 @@ TEST_P(OcclusionQueriesTest, ClearNotCounted)
     ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3 &&
                        !IsGLExtensionEnabled("GL_EXT_occlusion_query_boolean"));
 
-    // http://anglebug.com/4925
+    // http://anglebug.com/42263499
     ANGLE_SKIP_TEST_IF(IsD3D11());
 
     glDepthMask(GL_TRUE);
@@ -184,7 +184,7 @@ TEST_P(OcclusionQueriesTest, MaskedClearNotCounted)
     ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3 &&
                        !IsGLExtensionEnabled("GL_EXT_occlusion_query_boolean"));
 
-    // http://anglebug.com/4925
+    // http://anglebug.com/42263499
     ANGLE_SKIP_TEST_IF(IsD3D());
 
     GLQueryEXT query;
@@ -212,7 +212,7 @@ TEST_P(OcclusionQueriesTest, CopyNotCounted)
     ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3 &&
                        !IsGLExtensionEnabled("GL_EXT_occlusion_query_boolean"));
 
-    // http://anglebug.com/4925
+    // http://anglebug.com/42263499
     ANGLE_SKIP_TEST_IF(IsD3D());
 
     GLQueryEXT query;
@@ -241,10 +241,10 @@ TEST_P(OcclusionQueriesTest, CopyNotCounted)
 // Test that blit should not be counted by occlusion query.
 TEST_P(OcclusionQueriesTestES3, BlitNotCounted)
 {
-    // http://anglebug.com/4925
+    // http://anglebug.com/42263499
     ANGLE_SKIP_TEST_IF(IsD3D11());
 
-    // http://anglebug.com/5101
+    // http://anglebug.com/42263669
     ANGLE_SKIP_TEST_IF(IsWindows() && IsAMD() && IsVulkan());
 
     constexpr GLuint kSize = 64;
@@ -291,9 +291,6 @@ TEST_P(OcclusionQueriesTestES3, UnresolveNotCounted)
 {
     ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_EXT_multisampled_render_to_texture"));
 
-    // http://anglebug.com/5086
-    ANGLE_SKIP_TEST_IF(IsLinux() && IsIntel() && IsVulkan());
-
     constexpr GLuint kSize = 64;
 
     GLFramebuffer fboMS;
@@ -308,7 +305,7 @@ TEST_P(OcclusionQueriesTestES3, UnresolveNotCounted)
 
     GLRenderbuffer depthMS;
     glBindRenderbuffer(GL_RENDERBUFFER, depthMS);
-    glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_DEPTH_COMPONENT16, kSize, kSize);
+    glRenderbufferStorageMultisampleEXT(GL_RENDERBUFFER, 4, GL_DEPTH_COMPONENT16, kSize, kSize);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthMS);
 
     EXPECT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
@@ -338,6 +335,49 @@ TEST_P(OcclusionQueriesTestES3, UnresolveNotCounted)
     GLuint result = GL_TRUE;
     glGetQueryObjectuivEXT(query, GL_QUERY_RESULT_EXT,
                            &result);  // will block waiting for result
+    EXPECT_GL_NO_ERROR();
+
+    EXPECT_GL_FALSE(result);
+}
+
+// Test that reusing a query should reset its value to zero if no draw calls are emitted in the
+// second pass.
+TEST_P(OcclusionQueriesTest, RewriteDrawNoDrawToZero)
+{
+    ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3 &&
+                       !IsGLExtensionEnabled("GL_EXT_occlusion_query_boolean"));
+
+    GLQueryEXT query;
+    glDepthMask(GL_TRUE);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+    // draw a quad at depth 0.3
+    glEnable(GL_DEPTH_TEST);
+    glUseProgram(mProgram);
+    glBeginQueryEXT(GL_ANY_SAMPLES_PASSED_EXT, query);
+    drawQuad(mProgram, essl1_shaders::PositionAttrib(), 0.3f);
+    glEndQueryEXT(GL_ANY_SAMPLES_PASSED_EXT);
+    glUseProgram(0);
+
+    EXPECT_GL_NO_ERROR();
+
+    glBeginQueryEXT(GL_ANY_SAMPLES_PASSED_EXT, query);
+    glEndQueryEXT(GL_ANY_SAMPLES_PASSED_EXT);
+
+    EXPECT_GL_NO_ERROR();
+
+    swapBuffers();
+
+    GLuint ready = GL_FALSE;
+    while (ready == GL_FALSE)
+    {
+        angle::Sleep(0);
+        glGetQueryObjectuivEXT(query, GL_QUERY_RESULT_AVAILABLE_EXT, &ready);
+    }
+
+    GLuint result = GL_TRUE;
+    glGetQueryObjectuivEXT(query, GL_QUERY_RESULT_EXT, &result);
+
     EXPECT_GL_NO_ERROR();
 
     EXPECT_GL_FALSE(result);
@@ -456,17 +496,82 @@ TEST_P(OcclusionQueriesTestES3, SwitchFramebuffersThenMaskedClear)
     ASSERT_GL_NO_ERROR();
 }
 
+// Test that an empty query after a positive query returns false
+TEST_P(OcclusionQueriesTest, EmptyQueryAfterCompletedQuery)
+{
+    ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3 &&
+                       !IsGLExtensionEnabled("GL_EXT_occlusion_query_boolean"));
+
+    GLQueryEXT query;
+
+    glBeginQueryEXT(GL_ANY_SAMPLES_PASSED_EXT, query);
+    drawQuad(mProgram, essl1_shaders::PositionAttrib(), 0.5f);
+    glEndQueryEXT(GL_ANY_SAMPLES_PASSED_EXT);
+    ASSERT_GL_NO_ERROR();
+
+    GLuint result = GL_FALSE;
+    glGetQueryObjectuivEXT(query, GL_QUERY_RESULT_EXT, &result);
+    ASSERT_GL_NO_ERROR();
+    EXPECT_TRUE(result);
+
+    glBeginQueryEXT(GL_ANY_SAMPLES_PASSED_EXT, query);
+    glEndQueryEXT(GL_ANY_SAMPLES_PASSED_EXT);
+    ASSERT_GL_NO_ERROR();
+
+    result = GL_FALSE;
+    glGetQueryObjectuivEXT(query, GL_QUERY_RESULT_EXT, &result);
+    ASSERT_GL_NO_ERROR();
+    EXPECT_FALSE(result);
+}
+
+// Some Metal drivers do not automatically clear visibility buffer
+// at the beginning of a render pass. This test makes two queries
+// that would use the same internal visibility buffer at the same
+// offset and checks the query results.
+TEST_P(OcclusionQueriesTest, EmptyQueryAfterCompletedQueryInterleaved)
+{
+    ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3 &&
+                       !IsGLExtensionEnabled("GL_EXT_occlusion_query_boolean"));
+
+    GLQueryEXT query;
+
+    // Make a draw call to start a new render pass
+    drawQuad(mProgram, essl1_shaders::PositionAttrib(), 0.0f);
+
+    // Begin a query and make another draw call
+    glBeginQueryEXT(GL_ANY_SAMPLES_PASSED_EXT, query);
+    drawQuad(mProgram, essl1_shaders::PositionAttrib(), 0.0f);
+    glEndQueryEXT(GL_ANY_SAMPLES_PASSED_EXT);
+
+    // Check the query result to end command encoding
+    GLuint result = GL_FALSE;
+    glGetQueryObjectuivEXT(query, GL_QUERY_RESULT_EXT, &result);
+    EXPECT_TRUE(result);
+    ASSERT_GL_NO_ERROR();
+
+    // Make a draw call to start a new render pass
+    drawQuad(mProgram, essl1_shaders::PositionAttrib(), 0.0f);
+
+    // Begin and immediately resolve a new query; it must return false
+    result = GL_FALSE;
+    glBeginQueryEXT(GL_ANY_SAMPLES_PASSED_EXT, query);
+    glEndQueryEXT(GL_ANY_SAMPLES_PASSED_EXT);
+    glGetQueryObjectuivEXT(query, GL_QUERY_RESULT_EXT, &result);
+    EXPECT_FALSE(result);
+    ASSERT_GL_NO_ERROR();
+}
+
 // Test multiple occlusion queries.
 TEST_P(OcclusionQueriesTest, MultiQueries)
 {
     ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3 &&
                        !IsGLExtensionEnabled("GL_EXT_occlusion_query_boolean"));
 
-    // http://anglebug.com/4925
+    // http://anglebug.com/42263499
     ANGLE_SKIP_TEST_IF(IsOpenGL() || IsD3D11());
 
-    // TODO(anglebug.com/5360): Failing on ARM-based Apple DTKs.
-    ANGLE_SKIP_TEST_IF(IsOSX() && IsARM64() && IsDesktopOpenGL());
+    // TODO(anglebug.com/40096747): Failing on ARM-based Apple DTKs.
+    ANGLE_SKIP_TEST_IF(IsMac() && IsARM64() && IsDesktopOpenGL());
 
     GLQueryEXT query[5];
 
@@ -639,7 +744,7 @@ TEST_P(OcclusionQueriesTest, MultiContext)
     ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3 &&
                        !IsGLExtensionEnabled("GL_EXT_occlusion_query_boolean"));
 
-    // TODO(cwallez@chromium.org): Suppression for http://anglebug.com/3080
+    // TODO(cwallez@chromium.org): Suppression for http://anglebug.com/42261759
     ANGLE_SKIP_TEST_IF(IsWindows() && IsNVIDIA() && IsVulkan());
 
     // Test skipped because the D3D backends cannot support simultaneous queries on multiple
@@ -791,6 +896,107 @@ TEST_P(OcclusionQueriesTest, MultiContext)
         eglDestroyContext(display, context.context);
         context.context = EGL_NO_CONTEXT;
     }
+}
+
+// Test multiple occlusion queries in flight. This test provoked a bug in the Metal backend that
+// resulted in an infinite loop when trying to flush the command buffer when the maximum number of
+// inflight render passes was reached.
+TEST_P(OcclusionQueriesTest, ManyQueriesInFlight)
+{
+    constexpr int kManyQueryCount = 100;
+
+    ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3 &&
+                       !IsGLExtensionEnabled("GL_EXT_occlusion_query_boolean"));
+
+    // http://anglebug.com/42263499
+    ANGLE_SKIP_TEST_IF(IsOpenGL() || IsD3D11());
+
+    GLQueryEXT query;
+
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+    GLRenderbuffer rbo[2];
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo[0]);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, 32, 32);
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo[1]);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, 32, 32);
+
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rbo[0]);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo[1]);
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    EXPECT_GL_NO_ERROR();
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    for (int i = 0; i < kManyQueryCount; i++)
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        glBeginQueryEXT(GL_ANY_SAMPLES_PASSED_EXT, query);
+        drawQuad(mProgram, essl1_shaders::PositionAttrib(), 1.0f - 2.0f * i / kManyQueryCount);
+        glEndQueryEXT(GL_ANY_SAMPLES_PASSED_EXT);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        drawQuad(mProgram, essl1_shaders::PositionAttrib(), 0.8f);
+    }
+
+    glFinish();
+
+    EXPECT_GL_NO_ERROR();
+}
+
+// Test two occlusion queries in sequence and there are some glBindFramebuffer in between.
+// This test provoked a bug that the second query been skipped.
+TEST_P(OcclusionQueriesTest, WrongSkippedQuery)
+{
+    ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3 &&
+                       !IsGLExtensionEnabled("GL_EXT_occlusion_query_boolean"));
+
+    GLRenderbuffer rbo;
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, 32, 32);
+
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rbo);
+    EXPECT_GL_NO_ERROR();
+
+    GLQueryEXT query1;
+    // Draw square in 1st FBO, clear main framebuffer - main framebuffer is active after
+    glBeginQueryEXT(GL_ANY_SAMPLES_PASSED_EXT, query1);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    drawQuad(mProgram, essl1_shaders::PositionAttrib(), 0.5f);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    glEndQueryEXT(GL_ANY_SAMPLES_PASSED_EXT);
+    EXPECT_GL_NO_ERROR();
+
+    GLQueryEXT query2;
+    // Draw square in FBO, clear main framebuffer - FBO is active after
+    glBeginQueryEXT(GL_ANY_SAMPLES_PASSED_EXT, query2);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    drawQuad(mProgram, essl1_shaders::PositionAttrib(), 0.5f);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glEndQueryEXT(GL_ANY_SAMPLES_PASSED_EXT);
+    EXPECT_GL_NO_ERROR();
+
+    GLuint results[2]  = {0};
+    GLuint expectation = GL_TRUE;
+    glGetQueryObjectuivEXT(query1, GL_QUERY_RESULT_EXT, &results[0]);
+    EXPECT_GL_NO_ERROR();
+    EXPECT_EQ(expectation, results[0]);
+
+    glGetQueryObjectuivEXT(query2, GL_QUERY_RESULT_EXT, &results[1]);
+    EXPECT_GL_NO_ERROR();
+    EXPECT_EQ(expectation, results[1]);
 }
 
 class OcclusionQueriesNoSurfaceTestES3 : public ANGLETestBase,

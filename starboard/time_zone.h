@@ -20,7 +20,6 @@
 #define STARBOARD_TIME_ZONE_H_
 
 #include "starboard/export.h"
-#include "starboard/types.h"
 
 #ifdef __cplusplus
 extern "C" {

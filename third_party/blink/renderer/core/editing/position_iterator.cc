@@ -430,7 +430,6 @@ void FastPositionIteratorAlgorithm<Strategy>::Initialize(
   switch (container_type_) {
     case kNullNode:
       NOTREACHED();
-      return;
     case kNoChildren:
       switch (position.AnchorType()) {
         case PositionAnchorType::kAfterChildren:
@@ -446,7 +445,6 @@ void FastPositionIteratorAlgorithm<Strategy>::Initialize(
           return;
       }
       NOTREACHED() << "Invalid PositionAnchorType";
-      return;
     case kCharacterData:
     case kTextNode:
       // Note: `Position::ComputeOffsetInContainer()` for `kAfterAnchor`
@@ -454,7 +452,6 @@ void FastPositionIteratorAlgorithm<Strategy>::Initialize(
       switch (position.AnchorType()) {
         case PositionAnchorType::kAfterChildren:
           NOTREACHED();
-          break;
         case PositionAnchorType::kAfterAnchor:
           offset_in_container_ = To<CharacterData>(container_node_)->length();
           return;
@@ -466,7 +463,6 @@ void FastPositionIteratorAlgorithm<Strategy>::Initialize(
           return;
       }
       NOTREACHED() << "Invalid PositionAnchorType";
-      return;
     case kContainerNode:
     case kUserSelectContainNode:
       container_type_ = kContainerNode;
@@ -536,10 +532,11 @@ void FastPositionIteratorAlgorithm<Strategy>::AssertOffsetInContainerIsValid()
 template <typename Strategy>
 void FastPositionIteratorAlgorithm<Strategy>::AssertOffsetStackIsValid() const {
 #if DCHECK_IS_ON()
-  const auto* it = offset_stack_.begin();
+  auto it = offset_stack_.CheckedBegin();
   for (const Node& ancestor : Strategy::AncestorsOf(*container_node_)) {
-    if (it == offset_stack_.end())
+    if (it == offset_stack_.CheckedEnd()) {
       break;
+    }
     DCHECK_EQ(*it, Strategy::Index(ancestor)) << " " << ancestor;
     ++it;
   }
@@ -645,10 +642,8 @@ void FastPositionIteratorAlgorithm<Strategy>::DecrementInternal() {
           return;
         case kNullNode:
           NOTREACHED() << " Unexpected container_type_=" << container_type_;
-          return;
       }
       NOTREACHED() << " Invalid container_type_=" << container_type_;
-      return;
 
     case kTextNode:
       if (!offset_in_container_)
@@ -782,7 +777,6 @@ bool FastPositionIteratorAlgorithm<Strategy>::IsBeforePosition() const {
     case kNullNode:
     case kTextNode:
       NOTREACHED() << " Unexpected container_type_=" << container_type_;
-      return false;
     case kNoChildren:
     case kCharacterData:
     case kUserSelectContainNode:
@@ -791,7 +785,6 @@ bool FastPositionIteratorAlgorithm<Strategy>::IsBeforePosition() const {
       return !child_before_position_;
   }
   NOTREACHED() << " Invalid container_type_=" << container_type_;
-  return false;
 }
 
 template <typename Strategy>
@@ -840,7 +833,7 @@ FastPositionIteratorAlgorithm<Strategy>::ComputePosition() const {
         return PositionType(*container_node_, offset_in_container_);
       return BeforeOrAfterPosition();
     case kContainerNode:
-      if (Node* child_after_position = ChildAfterPosition()) {
+      if (ChildAfterPosition()) {
         EnsureOffsetInContainer();
         return PositionType(*container_node_, offset_in_container_);
       }

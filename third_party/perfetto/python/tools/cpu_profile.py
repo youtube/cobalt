@@ -106,10 +106,12 @@ def parse_and_validate_args():
       metavar="EVENT",
       action="append",
       # See: '//perfetto/protos/perfetto/trace/perfetto_trace.proto'.
-      choices=['HW_CPU_CYCLES', 'HW_INSTRUCTIONS', 'HW_CACHE_REFERENCES',
-               'HW_CACHE_MISSES', 'HW_BRANCH_INSTRUCTIONS', 'HW_BRANCH_MISSES',
-               'HW_BUS_CYCLES', 'HW_STALLED_CYCLES_FRONTEND',
-               'HW_STALLED_CYCLES_BACKEND'],
+      choices=[
+          'HW_CPU_CYCLES', 'HW_INSTRUCTIONS', 'HW_CACHE_REFERENCES',
+          'HW_CACHE_MISSES', 'HW_BRANCH_INSTRUCTIONS', 'HW_BRANCH_MISSES',
+          'HW_BUS_CYCLES', 'HW_STALLED_CYCLES_FRONTEND',
+          'HW_STALLED_CYCLES_BACKEND'
+      ],
       default=[])
   parser.add_argument(
       "-k",
@@ -247,7 +249,8 @@ def get_perfetto_config(args):
 
   events = args.event or ['SW_CPU_CLOCK']
   for event in events:
-    CONFIG += (textwrap.dedent('''
+    CONFIG += (
+        textwrap.dedent('''
     data_sources {{
       config {{
         name: "linux.perf"
@@ -291,7 +294,7 @@ def get_perfetto_config(args):
 
 def release_or_newer(release):
   """Returns whether a new enough Android release is being used."""
-  SDK = {'R': 30}
+  SDK = {'T': 33}
   sdk = int(
       adb_check_output(
           ['adb', 'shell', 'getprop', 'ro.system.build.version.sdk']).strip())
@@ -335,8 +338,8 @@ def record_trace(config, profile_target):
       'stdout': NULL,
       'stderr': NULL,
   }
-  if not release_or_newer('R'):
-    sys.exit("This tool requires Android R+ to run.")
+  if not release_or_newer('T'):
+    sys.exit("This tool requires Android T+ to run.")
 
   # Push configuration to the device.
   tf = tempfile.NamedTemporaryFile()
@@ -345,7 +348,6 @@ def record_trace(config, profile_target):
   profile_config_path = '/data/misc/perfetto-configs/config-' + UUID
   adb_check_output(['adb', 'push', tf.name, profile_config_path])
   tf.close()
-
 
   profile_device_path = '/data/misc/perfetto-traces/profile-' + UUID
   perfetto_command = ('perfetto --txt -c {} -o {} -d')

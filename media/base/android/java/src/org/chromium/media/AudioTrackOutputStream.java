@@ -4,21 +4,26 @@
 
 package org.chromium.media;
 
-import android.annotation.SuppressLint;
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Log;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.nio.ByteBuffer;
 
 @JNINamespace("media")
+@NullMarked
 class AudioTrackOutputStream {
     static class AudioBufferInfo {
         private final int mNumFrames;
@@ -41,10 +46,19 @@ class AudioTrackOutputStream {
     // Provide dependency injection points for unit tests.
     interface Callback {
         int getMinBufferSize(int sampleRateInHz, int channelConfig, int audioFormat);
-        AudioTrack createAudioTrack(int streamType, int sampleRateInHz, int channelConfig,
-                int audioFormat, int bufferSizeInBytes, int mode);
+
+        AudioTrack createAudioTrack(
+                int streamType,
+                int sampleRateInHz,
+                int channelConfig,
+                int audioFormat,
+                int bufferSizeInBytes,
+                int mode);
+
         AudioBufferInfo onMoreData(ByteBuffer audioData, long delayInFrames);
+
         long getAddress(ByteBuffer byteBuffer);
+
         void onError();
     }
 
@@ -53,10 +67,10 @@ class AudioTrackOutputStream {
     private static final int CHANNEL_ALIGNMENT = 16;
 
     private long mNativeAudioTrackOutputStream;
-    private Callback mCallback;
-    private AudioTrack mAudioTrack;
+    private final Callback mCallback;
+    private @Nullable AudioTrack mAudioTrack;
     private int mBufferSizeInBytes;
-    private WorkerThread mWorkerThread;
+    private @Nullable WorkerThread mWorkerThread;
 
     // See
     // https://developer.android.com/reference/android/media/AudioTrack.html#getPlaybackHeadPosition().
@@ -67,8 +81,8 @@ class AudioTrackOutputStream {
     private long mTotalPlayedFrames;
     private long mTotalReadFrames;
 
-    private ByteBuffer mReadBuffer;
-    private ByteBuffer mWriteBuffer;
+    @Nullable private ByteBuffer mReadBuffer;
+    @Nullable private ByteBuffer mWriteBuffer;
     private int mLeftSize;
 
     class WorkerThread extends Thread {
@@ -104,41 +118,64 @@ class AudioTrackOutputStream {
         return new AudioTrackOutputStream(callback);
     }
 
-    private AudioTrackOutputStream(Callback callback) {
-        mCallback = callback;
-        if (mCallback != null) return;
+    private AudioTrackOutputStream(@Nullable Callback callback) {
+        if (callback != null) {
+            mCallback = callback;
+            return;
+        }
 
-        mCallback = new Callback() {
-            @Override
-            public int getMinBufferSize(int sampleRateInHz, int channelConfig, int audioFormat) {
-                return AudioTrack.getMinBufferSize(sampleRateInHz, channelConfig, audioFormat);
-            }
+        mCallback =
+                new Callback() {
+                    @Override
+                    public int getMinBufferSize(
+                            int sampleRateInHz, int channelConfig, int audioFormat) {
+                        return AudioTrack.getMinBufferSize(
+                                sampleRateInHz, channelConfig, audioFormat);
+                    }
 
-            @Override
-            public AudioTrack createAudioTrack(int streamType, int sampleRateInHz,
-                    int channelConfig, int audioFormat, int bufferSizeInBytes, int mode) {
-                return new AudioTrack(streamType, sampleRateInHz, channelConfig, audioFormat,
-                        bufferSizeInBytes, mode);
-            }
+                    @Override
+                    public AudioTrack createAudioTrack(
+                            int streamType,
+                            int sampleRateInHz,
+                            int channelConfig,
+                            int audioFormat,
+                            int bufferSizeInBytes,
+                            int mode) {
+                        return new AudioTrack(
+                                streamType,
+                                sampleRateInHz,
+                                channelConfig,
+                                audioFormat,
+                                bufferSizeInBytes,
+                                mode);
+                    }
 
-            @Override
-            public AudioBufferInfo onMoreData(ByteBuffer audioData, long delayInFrames) {
-                return AudioTrackOutputStreamJni.get().onMoreData(mNativeAudioTrackOutputStream,
-                        AudioTrackOutputStream.this, audioData, delayInFrames);
-            }
+                    @Override
+                    public AudioBufferInfo onMoreData(ByteBuffer audioData, long delayInFrames) {
+                        return AudioTrackOutputStreamJni.get()
+                                .onMoreData(
+                                        mNativeAudioTrackOutputStream,
+                                        AudioTrackOutputStream.this,
+                                        audioData,
+                                        delayInFrames);
+                    }
 
-            @Override
-            public long getAddress(ByteBuffer byteBuffer) {
-                return AudioTrackOutputStreamJni.get().getAddress(
-                        mNativeAudioTrackOutputStream, AudioTrackOutputStream.this, byteBuffer);
-            }
+                    @Override
+                    public long getAddress(ByteBuffer byteBuffer) {
+                        return AudioTrackOutputStreamJni.get()
+                                .getAddress(
+                                        mNativeAudioTrackOutputStream,
+                                        AudioTrackOutputStream.this,
+                                        byteBuffer);
+                    }
 
-            @Override
-            public void onError() {
-                AudioTrackOutputStreamJni.get().onError(
-                        mNativeAudioTrackOutputStream, AudioTrackOutputStream.this);
-            }
-        };
+                    @Override
+                    public void onError() {
+                        AudioTrackOutputStreamJni.get()
+                                .onError(
+                                        mNativeAudioTrackOutputStream, AudioTrackOutputStream.this);
+                    }
+                };
     }
 
     @SuppressWarnings("deprecation")
@@ -169,11 +206,21 @@ class AudioTrackOutputStream {
                 3 * mCallback.getMinBufferSize(sampleRate, channelConfig, sampleFormat);
 
         try {
-            Log.d(TAG, "Crate AudioTrack with sample rate:%d, channel:%d, format:%d ", sampleRate,
-                    channelConfig, sampleFormat);
+            Log.d(
+                    TAG,
+                    "Create AudioTrack with sample rate:%d, channel:%d, format:%d ",
+                    sampleRate,
+                    channelConfig,
+                    sampleFormat);
 
-            mAudioTrack = mCallback.createAudioTrack(AudioManager.STREAM_MUSIC, sampleRate,
-                    channelConfig, sampleFormat, mBufferSizeInBytes, AudioTrack.MODE_STREAM);
+            mAudioTrack =
+                    mCallback.createAudioTrack(
+                            AudioManager.STREAM_MUSIC,
+                            sampleRate,
+                            channelConfig,
+                            sampleFormat,
+                            mBufferSizeInBytes,
+                            AudioTrack.MODE_STREAM);
             assert mAudioTrack != null;
         } catch (IllegalArgumentException ile) {
             Log.e(TAG, "Exception creating AudioTrack for playback: ", ile);
@@ -215,7 +262,7 @@ class AudioTrackOutputStream {
         mTotalReadFrames = 0;
         mReadBuffer = allocateAlignedByteBuffer(mBufferSizeInBytes, CHANNEL_ALIGNMENT);
 
-        mAudioTrack.play();
+        assumeNonNull(mAudioTrack).play();
 
         mWorkerThread = new WorkerThread();
         mWorkerThread.start();
@@ -237,8 +284,9 @@ class AudioTrackOutputStream {
             mWorkerThread = null;
         }
 
-        mAudioTrack.pause();
-        mAudioTrack.flush();
+        AudioTrack audioTrack = assumeNonNull(mAudioTrack);
+        audioTrack.pause();
+        audioTrack.flush();
         mLastPlaybackHeadPosition = 0;
         mTotalPlayedFrames = 0;
         mNativeAudioTrackOutputStream = 0;
@@ -250,7 +298,7 @@ class AudioTrackOutputStream {
         // Chrome sends the volume in the range [0, 1.0], whereas Android
         // expects the volume to be within [0, getMaxVolume()].
         float scaledVolume = (float) (volume * AudioTrack.getMaxVolume());
-        mAudioTrack.setStereoVolume(scaledVolume, scaledVolume);
+        assumeNonNull(mAudioTrack).setStereoVolume(scaledVolume, scaledVolume);
     }
 
     @CalledByNative
@@ -274,26 +322,29 @@ class AudioTrackOutputStream {
         // 32-bit integer and would overflow, it is correct to calculate the difference between
         // two continuous callings of AudioTrack.getPlaybackHeadPosition() as long as the
         // real difference is less than 0x7FFFFFFF.
-        int position = mAudioTrack.getPlaybackHeadPosition();
+        int position = assumeNonNull(mAudioTrack).getPlaybackHeadPosition();
         mTotalPlayedFrames += position - mLastPlaybackHeadPosition;
         mLastPlaybackHeadPosition = position;
 
         long delayInFrames = mTotalReadFrames - mTotalPlayedFrames;
         if (delayInFrames < 0) delayInFrames = 0;
 
-        AudioBufferInfo info = mCallback.onMoreData(mReadBuffer.duplicate(), delayInFrames);
+        ByteBuffer readBuffer = assumeNonNull(mReadBuffer);
+        AudioBufferInfo info = mCallback.onMoreData(readBuffer.duplicate(), delayInFrames);
         if (info == null || info.getNumBytes() <= 0) return;
 
         mTotalReadFrames += info.getNumFrames();
 
-        mWriteBuffer = mReadBuffer.asReadOnlyBuffer();
+        mWriteBuffer = readBuffer.asReadOnlyBuffer();
         mLeftSize = info.getNumBytes();
     }
 
     private int writeData() {
         if (mLeftSize == 0) return 0;
 
-        int written = writeAudioTrack();
+        int written =
+                assumeNonNull(mAudioTrack)
+                        .write(assumeNonNull(mWriteBuffer), mLeftSize, AudioTrack.WRITE_BLOCKING);
         if (written < 0) {
             Log.e(TAG, "AudioTrack.write() failed. Error:" + written);
             mCallback.onError();
@@ -306,19 +357,19 @@ class AudioTrackOutputStream {
         return mLeftSize;
     }
 
-    @SuppressLint("NewApi")
-    private int writeAudioTrack() {
-        // This class is used for compressed audio bitstream playback, which is supported since
-        // Android L, so it should be fine to use level 21 APIs directly.
-        return mAudioTrack.write(mWriteBuffer, mLeftSize, AudioTrack.WRITE_BLOCKING);
-    }
-
     @NativeMethods
     interface Natives {
-        AudioBufferInfo onMoreData(long nativeAudioTrackOutputStream, AudioTrackOutputStream caller,
-                ByteBuffer audioData, long delayInFrames);
+        AudioBufferInfo onMoreData(
+                long nativeAudioTrackOutputStream,
+                AudioTrackOutputStream caller,
+                ByteBuffer audioData,
+                long delayInFrames);
+
         void onError(long nativeAudioTrackOutputStream, AudioTrackOutputStream caller);
-        long getAddress(long nativeAudioTrackOutputStream, AudioTrackOutputStream caller,
+
+        long getAddress(
+                long nativeAudioTrackOutputStream,
+                AudioTrackOutputStream caller,
                 ByteBuffer byteBuffer);
     }
 }

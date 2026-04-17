@@ -21,7 +21,7 @@ import androidx.browser.customtabs.CustomTabsIntent;
 import androidx.browser.customtabs.CustomTabsService;
 import androidx.browser.customtabs.CustomTabsSession;
 import androidx.browser.customtabs.CustomTabsSessionToken;
-import androidx.test.InstrumentationRegistry;
+import androidx.test.core.app.ApplicationProvider;
 import androidx.test.filters.SmallTest;
 
 import org.hamcrest.Matchers;
@@ -32,6 +32,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.TerminationStatus;
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
@@ -41,6 +43,7 @@ import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Restriction;
+import org.chromium.chrome.browser.browserservices.intents.SessionHolder;
 import org.chromium.chrome.browser.document.ChromeLauncherActivity;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.tab.Tab;
@@ -48,13 +51,10 @@ import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.util.ChromeTabUtils;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.WebContentsObserver;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 import org.chromium.content_public.browser.test.util.WebContentsUtils;
 import org.chromium.net.test.util.TestWebServer;
 
-/**
- * Integration tests for the Custom Tab post message support.
- */
+/** Integration tests for the Custom Tab post message support. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 public class CustomTabPostMessageTest {
@@ -66,34 +66,37 @@ public class CustomTabPostMessageTest {
     private static final String TEST_PAGE = "/chrome/test/data/android/google.html";
     private static final String TEST_PAGE_2 = "/chrome/test/data/android/test.html";
 
-    private static final String TITLE_FROM_POSTMESSAGE_TO_CHANNEL = "<!DOCTYPE html><html><body>"
-            + "    <script>"
-            + "        var received = '';"
-            + "        onmessage = function (e) {"
-            + "            var myport = e.ports[0];"
-            + "            myport.onmessage = function (f) {"
-            + "                received += f.data;"
-            + "                document.title = received;"
-            + "            }"
-            + "        }"
-            + "   </script>"
-            + "</body></html>";
-    private static final String MESSAGE_FROM_PAGE_TO_CHANNEL = "<!DOCTYPE html><html><body>"
-            + "    <script>"
-            + "        onmessage = function (e) {"
-            + "            if (e.ports != null && e.ports.length > 0) {"
-            + "               e.ports[0].postMessage(\"" + JS_MESSAGE + "\");"
-            + "            }"
-            + "        }"
-            + "   </script>"
-            + "</body></html>";
+    private static final String TITLE_FROM_POSTMESSAGE_TO_CHANNEL =
+            "<!DOCTYPE html><html><body>"
+                    + "    <script>"
+                    + "        var received = '';"
+                    + "        onmessage = function (e) {"
+                    + "            var myport = e.ports[0];"
+                    + "            myport.onmessage = function (f) {"
+                    + "                received += f.data;"
+                    + "                document.title = received;"
+                    + "            }"
+                    + "        }"
+                    + "   </script>"
+                    + "</body></html>";
+    private static final String MESSAGE_FROM_PAGE_TO_CHANNEL =
+            "<!DOCTYPE html><html><body>"
+                    + "    <script>"
+                    + "        onmessage = function (e) {"
+                    + "            if (e.ports != null && e.ports.length > 0) {"
+                    + "               e.ports[0].postMessage(\""
+                    + JS_MESSAGE
+                    + "\");"
+                    + "            }"
+                    + "        }"
+                    + "   </script>"
+                    + "</body></html>";
 
     @Rule
     public CustomTabActivityTestRule mCustomTabActivityTestRule = new CustomTabActivityTestRule();
 
     private String mTestPage;
     private String mTestPage2;
-    private CustomTabsConnection mConnectionToCleanup;
     private TestWebServer mWebServer;
 
     @Before
@@ -106,7 +109,7 @@ public class CustomTabPostMessageTest {
 
     @After
     public void tearDown() {
-        if (mConnectionToCleanup != null) CustomTabsTestUtils.cleanupSessions(mConnectionToCleanup);
+        CustomTabsTestUtils.cleanupSessions();
         if (mWebServer != null) mWebServer.shutdown();
     }
 
@@ -116,21 +119,24 @@ public class CustomTabPostMessageTest {
     }
 
     private void setCanUseHiddenTabForSession(
-            CustomTabsConnection connection, CustomTabsSessionToken token, boolean useHiddenTab) {
-        assert mConnectionToCleanup == null || mConnectionToCleanup == connection;
-        // Save the connection. In case the hidden tab is not consumed by the test, ensure that it
-        // is properly cleaned up after the test.
-        mConnectionToCleanup = connection;
-        connection.setCanUseHiddenTabForSession(token, useHiddenTab);
+            SessionHolder<?> sessionHolder, boolean useHiddenTab) {
+        CustomTabsConnection.getInstance()
+                .setCanUseHiddenTabForSession(sessionHolder, useHiddenTab);
     }
 
-    private static void ensureCompletedSpeculationForUrl(
-            final CustomTabsConnection connection, final String url) {
-        CriteriaHelper.pollUiThread(() -> {
-            Criteria.checkThat("Tab was not created", connection.getSpeculationParamsForTesting(),
-                    Matchers.notNullValue());
-        }, LONG_TIMEOUT_MS, CriteriaHelper.DEFAULT_POLLING_INTERVAL);
-        ChromeTabUtils.waitForTabPageLoaded(connection.getSpeculationParamsForTesting().tab, url);
+    private static void ensureCompletedSpeculationForUrl(final String url) {
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    Criteria.checkThat(
+                            "Tab was not created",
+                            CustomTabsConnection.getInstance().getSpeculationParamsForTesting(),
+                            Matchers.notNullValue());
+                },
+                LONG_TIMEOUT_MS,
+                CriteriaHelper.DEFAULT_POLLING_INTERVAL);
+        ChromeTabUtils.waitForTabPageLoaded(
+                CustomTabsConnection.getInstance().getSpeculationParamsForTesting().hiddenTab.tab,
+                url);
     }
 
     /**
@@ -141,29 +147,38 @@ public class CustomTabPostMessageTest {
     @SmallTest
     public void testPostMessageBasic() throws Exception {
         final CustomTabsConnection connection = CustomTabsTestUtils.warmUpAndWait();
-        Context context = InstrumentationRegistry.getTargetContext();
+        Context context = ApplicationProvider.getApplicationContext();
         Intent intent = CustomTabsIntentTestUtils.createMinimalCustomTabIntent(context, mTestPage);
         final CustomTabsSessionToken token =
                 CustomTabsSessionToken.getSessionTokenFromIntent(intent);
         Assert.assertTrue(connection.newSession(token));
-        Assert.assertTrue(connection.requestPostMessageChannel(token, null));
+        Assert.assertTrue(connection.requestPostMessageChannel(token, null, null));
         mCustomTabActivityTestRule.startCustomTabActivityWithIntent(intent);
-        CriteriaHelper.pollInstrumentationThread(() -> {
-            final Tab currentTab = mCustomTabActivityTestRule.getActivity().getActivityTab();
-            Criteria.checkThat(ChromeTabUtils.getUrlStringOnUiThread(currentTab), is(mTestPage));
-        });
+        CriteriaHelper.pollInstrumentationThread(
+                () -> {
+                    final Tab currentTab =
+                            mCustomTabActivityTestRule.getActivity().getActivityTab();
+                    Criteria.checkThat(
+                            ChromeTabUtils.getUrlStringOnUiThread(currentTab), is(mTestPage));
+                });
         Assert.assertTrue(
                 connection.postMessage(token, "Message", null) == CustomTabsService.RESULT_SUCCESS);
-        TestThreadUtils.runOnUiThreadBlocking(
-                (Runnable) ()
-                        -> mCustomTabActivityTestRule.getActivity().getActivityTab().loadUrl(
-                                new LoadUrlParams(mTestPage2)));
-        CriteriaHelper.pollUiThread(() -> {
-            final Tab currentTab = mCustomTabActivityTestRule.getActivity().getActivityTab();
-            return ChromeTabUtils.isLoadingAndRenderingDone(currentTab);
-        });
-        Assert.assertTrue(connection.postMessage(token, "Message", null)
-                == CustomTabsService.RESULT_FAILURE_MESSAGING_ERROR);
+        ThreadUtils.runOnUiThreadBlocking(
+                (Runnable)
+                        () ->
+                                mCustomTabActivityTestRule
+                                        .getActivity()
+                                        .getActivityTab()
+                                        .loadUrl(new LoadUrlParams(mTestPage2)));
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    final Tab currentTab =
+                            mCustomTabActivityTestRule.getActivity().getActivityTab();
+                    return ChromeTabUtils.isLoadingAndRenderingDone(currentTab);
+                });
+        Assert.assertTrue(
+                connection.postMessage(token, "Message", null)
+                        == CustomTabsService.RESULT_FAILURE_MESSAGING_ERROR);
     }
 
     /**
@@ -174,36 +189,47 @@ public class CustomTabPostMessageTest {
     @SmallTest
     public void testPostMessageWebContentsDestroyed() throws Exception {
         final CustomTabsConnection connection = CustomTabsTestUtils.warmUpAndWait();
-        Context context = InstrumentationRegistry.getTargetContext();
+        Context context = ApplicationProvider.getApplicationContext();
         Intent intent = CustomTabsIntentTestUtils.createMinimalCustomTabIntent(context, mTestPage);
         final CustomTabsSessionToken token =
                 CustomTabsSessionToken.getSessionTokenFromIntent(intent);
         Assert.assertTrue(connection.newSession(token));
-        Assert.assertTrue(connection.requestPostMessageChannel(token, null));
+        Assert.assertTrue(connection.requestPostMessageChannel(token, null, null));
         mCustomTabActivityTestRule.startCustomTabActivityWithIntent(intent);
-        CriteriaHelper.pollInstrumentationThread(() -> {
-            final Tab currentTab = mCustomTabActivityTestRule.getActivity().getActivityTab();
-            Criteria.checkThat(ChromeTabUtils.getUrlStringOnUiThread(currentTab), is(mTestPage));
-        });
+        CriteriaHelper.pollInstrumentationThread(
+                () -> {
+                    final Tab currentTab =
+                            mCustomTabActivityTestRule.getActivity().getActivityTab();
+                    Criteria.checkThat(
+                            ChromeTabUtils.getUrlStringOnUiThread(currentTab), is(mTestPage));
+                });
         Assert.assertTrue(
                 connection.postMessage(token, "Message", null) == CustomTabsService.RESULT_SUCCESS);
 
         final CallbackHelper renderProcessCallback = new CallbackHelper();
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            new WebContentsObserver(mCustomTabActivityTestRule.getWebContents()) {
-                @Override
-                public void renderProcessGone() {
-                    renderProcessCallback.notifyCalled();
-                }
-            };
-        });
-        PostTask.postTask(TaskTraits.UI_DEFAULT, () -> {
-            WebContentsUtils.simulateRendererKilled(
-                    mCustomTabActivityTestRule.getActivity().getActivityTab().getWebContents());
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    new WebContentsObserver(mCustomTabActivityTestRule.getWebContents()) {
+                        @Override
+                        public void primaryMainFrameRenderProcessGone(
+                                @TerminationStatus int terminationStatus) {
+                            renderProcessCallback.notifyCalled();
+                        }
+                    };
+                });
+        PostTask.postTask(
+                TaskTraits.UI_DEFAULT,
+                () -> {
+                    WebContentsUtils.simulateRendererKilled(
+                            mCustomTabActivityTestRule
+                                    .getActivity()
+                                    .getActivityTab()
+                                    .getWebContents());
+                });
         renderProcessCallback.waitForCallback(0);
-        Assert.assertTrue(connection.postMessage(token, "Message", null)
-                == CustomTabsService.RESULT_FAILURE_MESSAGING_ERROR);
+        Assert.assertTrue(
+                connection.postMessage(token, "Message", null)
+                        == CustomTabsService.RESULT_FAILURE_MESSAGING_ERROR);
     }
 
     /**
@@ -214,18 +240,22 @@ public class CustomTabPostMessageTest {
     @SmallTest
     public void testPostMessageRequiresValidation() throws Exception {
         final CustomTabsConnection connection = CustomTabsTestUtils.warmUpAndWait();
-        Context context = InstrumentationRegistry.getTargetContext();
+        Context context = ApplicationProvider.getApplicationContext();
         Intent intent = CustomTabsIntentTestUtils.createMinimalCustomTabIntent(context, mTestPage);
         final CustomTabsSessionToken token =
                 CustomTabsSessionToken.getSessionTokenFromIntent(intent);
         Assert.assertTrue(connection.newSession(token));
         mCustomTabActivityTestRule.startCustomTabActivityWithIntent(intent);
-        CriteriaHelper.pollInstrumentationThread(() -> {
-            final Tab currentTab = mCustomTabActivityTestRule.getActivity().getActivityTab();
-            Criteria.checkThat(ChromeTabUtils.getUrlStringOnUiThread(currentTab), is(mTestPage));
-        });
-        Assert.assertTrue(connection.postMessage(token, "Message", null)
-                == CustomTabsService.RESULT_FAILURE_MESSAGING_ERROR);
+        CriteriaHelper.pollInstrumentationThread(
+                () -> {
+                    final Tab currentTab =
+                            mCustomTabActivityTestRule.getActivity().getActivityTab();
+                    Criteria.checkThat(
+                            ChromeTabUtils.getUrlStringOnUiThread(currentTab), is(mTestPage));
+                });
+        Assert.assertTrue(
+                connection.postMessage(token, "Message", null)
+                        == CustomTabsService.RESULT_FAILURE_MESSAGING_ERROR);
     }
 
     /**
@@ -237,25 +267,26 @@ public class CustomTabPostMessageTest {
         final String url =
                 mWebServer.setResponse("/test.html", TITLE_FROM_POSTMESSAGE_TO_CHANNEL, null);
         final CustomTabsConnection connection = CustomTabsTestUtils.warmUpAndWait();
-        Context context = InstrumentationRegistry.getTargetContext();
+        Context context = ApplicationProvider.getApplicationContext();
         Intent intent = CustomTabsIntentTestUtils.createMinimalCustomTabIntent(context, url);
         final CustomTabsSessionToken token =
                 CustomTabsSessionToken.getSessionTokenFromIntent(intent);
         Assert.assertTrue(connection.newSession(token));
-        Assert.assertTrue(connection.requestPostMessageChannel(token, null));
+        Assert.assertTrue(connection.requestPostMessageChannel(token, null, null));
         mCustomTabActivityTestRule.startCustomTabActivityWithIntent(intent);
-        CriteriaHelper.pollInstrumentationThread(() -> {
-            final Tab currentTab = mCustomTabActivityTestRule.getActivity().getActivityTab();
-            Criteria.checkThat(ChromeTabUtils.getUrlStringOnUiThread(currentTab), is(url));
-        });
-        Assert.assertTrue(connection.postMessage(token, "New title", null)
-                == CustomTabsService.RESULT_SUCCESS);
+        CriteriaHelper.pollInstrumentationThread(
+                () -> {
+                    final Tab currentTab =
+                            mCustomTabActivityTestRule.getActivity().getActivityTab();
+                    Criteria.checkThat(ChromeTabUtils.getUrlStringOnUiThread(currentTab), is(url));
+                });
+        Assert.assertTrue(
+                connection.postMessage(token, "New title", null)
+                        == CustomTabsService.RESULT_SUCCESS);
         waitForTitle("New title");
     }
 
-    /**
-     * Tests the postMessage requests sent from the page is received on the client side.
-     */
+    /** Tests the postMessage requests sent from the page is received on the client side. */
     @Test
     @SmallTest
     public void testPostMessageReceivedFromPage() throws Exception {
@@ -264,28 +295,30 @@ public class CustomTabPostMessageTest {
         final String url = mWebServer.setResponse("/test.html", MESSAGE_FROM_PAGE_TO_CHANNEL, null);
         CustomTabsTestUtils.warmUpAndWait();
         final CustomTabsSession session =
-                CustomTabsTestUtils
-                        .bindWithCallback(new CustomTabsCallback() {
-                            @Override
-                            public void onMessageChannelReady(Bundle extras) {
-                                messageChannelHelper.notifyCalled();
-                            }
+                CustomTabsTestUtils.bindWithCallback(
+                                new CustomTabsCallback() {
+                                    @Override
+                                    public void onMessageChannelReady(Bundle extras) {
+                                        messageChannelHelper.notifyCalled();
+                                    }
 
-                            @Override
-                            public void onPostMessage(String message, Bundle extras) {
-                                onPostMessageHelper.notifyCalled();
-                            }
-                        })
+                                    @Override
+                                    public void onPostMessage(String message, Bundle extras) {
+                                        onPostMessageHelper.notifyCalled();
+                                    }
+                                })
                         .session;
         session.requestPostMessageChannel(Uri.parse("https://www.example.com/"));
         Intent intent = new CustomTabsIntent.Builder(session).build().intent;
         intent.setData(Uri.parse(url));
-        intent.setComponent(new ComponentName(
-                InstrumentationRegistry.getTargetContext(), ChromeLauncherActivity.class));
+        intent.setComponent(
+                new ComponentName(
+                        ApplicationProvider.getApplicationContext(), ChromeLauncherActivity.class));
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 
-        Assert.assertTrue(session.postMessage("Message", null)
-                == CustomTabsService.RESULT_FAILURE_MESSAGING_ERROR);
+        Assert.assertTrue(
+                session.postMessage("Message", null)
+                        == CustomTabsService.RESULT_FAILURE_MESSAGING_ERROR);
 
         mCustomTabActivityTestRule.startCustomTabActivityWithIntent(intent);
         messageChannelHelper.waitForCallback(0);
@@ -305,31 +338,34 @@ public class CustomTabPostMessageTest {
         final String url = mWebServer.setResponse("/test.html", MESSAGE_FROM_PAGE_TO_CHANNEL, null);
         CustomTabsTestUtils.warmUpAndWait();
         final CustomTabsSession session =
-                CustomTabsTestUtils
-                        .bindWithCallback(new CustomTabsCallback() {
-                            @Override
-                            public void onMessageChannelReady(Bundle extras) {
-                                messageChannelHelper.notifyCalled();
-                            }
+                CustomTabsTestUtils.bindWithCallback(
+                                new CustomTabsCallback() {
+                                    @Override
+                                    public void onMessageChannelReady(Bundle extras) {
+                                        messageChannelHelper.notifyCalled();
+                                    }
 
-                            @Override
-                            public void onPostMessage(String message, Bundle extras) {
-                                onPostMessageHelper.notifyCalled();
-                            }
-                        })
+                                    @Override
+                                    public void onPostMessage(String message, Bundle extras) {
+                                        onPostMessageHelper.notifyCalled();
+                                    }
+                                })
                         .session;
 
         Intent intent = new CustomTabsIntent.Builder(session).build().intent;
         intent.setData(Uri.parse(url));
-        intent.setComponent(new ComponentName(
-                InstrumentationRegistry.getTargetContext(), ChromeLauncherActivity.class));
+        intent.setComponent(
+                new ComponentName(
+                        ApplicationProvider.getApplicationContext(), ChromeLauncherActivity.class));
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 
         mCustomTabActivityTestRule.startCustomTabActivityWithIntent(intent);
-        CriteriaHelper.pollInstrumentationThread(() -> {
-            final Tab currentTab = mCustomTabActivityTestRule.getActivity().getActivityTab();
-            Criteria.checkThat(ChromeTabUtils.getUrlStringOnUiThread(currentTab), is(url));
-        });
+        CriteriaHelper.pollInstrumentationThread(
+                () -> {
+                    final Tab currentTab =
+                            mCustomTabActivityTestRule.getActivity().getActivityTab();
+                    Criteria.checkThat(ChromeTabUtils.getUrlStringOnUiThread(currentTab), is(url));
+                });
 
         session.requestPostMessageChannel(Uri.parse("https://www.example.com/"));
 
@@ -376,24 +412,25 @@ public class CustomTabPostMessageTest {
         final CallbackHelper messageChannelHelper = new CallbackHelper();
         final String url =
                 mWebServer.setResponse("/test.html", TITLE_FROM_POSTMESSAGE_TO_CHANNEL, null);
-        final CustomTabsConnection connection = CustomTabsTestUtils.warmUpAndWait();
+        CustomTabsTestUtils.warmUpAndWait();
 
         final CustomTabsSession session =
-                CustomTabsTestUtils
-                        .bindWithCallback(new CustomTabsCallback() {
-                            @Override
-                            public void onMessageChannelReady(Bundle extras) {
-                                messageChannelHelper.notifyCalled();
-                            }
-                        })
+                CustomTabsTestUtils.bindWithCallback(
+                                new CustomTabsCallback() {
+                                    @Override
+                                    public void onMessageChannelReady(Bundle extras) {
+                                        messageChannelHelper.notifyCalled();
+                                    }
+                                })
                         .session;
 
         Intent intent = new CustomTabsIntent.Builder(session).build().intent;
         intent.setData(Uri.parse(url));
-        intent.setComponent(new ComponentName(
-                InstrumentationRegistry.getTargetContext(), ChromeLauncherActivity.class));
+        intent.setComponent(
+                new ComponentName(
+                        ApplicationProvider.getApplicationContext(), ChromeLauncherActivity.class));
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        CustomTabsSessionToken token = CustomTabsSessionToken.getSessionTokenFromIntent(intent);
+        var sessionHolder = SessionHolder.getSessionHolderFromIntent(intent);
 
         boolean channelRequested = false;
         String titleString = "";
@@ -404,9 +441,9 @@ public class CustomTabPostMessageTest {
             Assert.assertTrue(channelRequested);
         }
 
-        setCanUseHiddenTabForSession(connection, token, true);
+        setCanUseHiddenTabForSession(sessionHolder, true);
         session.mayLaunchUrl(Uri.parse(url), null, null);
-        ensureCompletedSpeculationForUrl(connection, url);
+        ensureCompletedSpeculationForUrl(url);
 
         if (requestTime == BEFORE_INTENT) {
             channelRequested =
@@ -425,10 +462,12 @@ public class CustomTabPostMessageTest {
 
         mCustomTabActivityTestRule.startCustomTabActivityWithIntent(intent);
 
-        CriteriaHelper.pollInstrumentationThread(() -> {
-            final Tab currentTab = mCustomTabActivityTestRule.getActivity().getActivityTab();
-            Criteria.checkThat(ChromeTabUtils.getUrlStringOnUiThread(currentTab), is(url));
-        });
+        CriteriaHelper.pollInstrumentationThread(
+                () -> {
+                    final Tab currentTab =
+                            mCustomTabActivityTestRule.getActivity().getActivityTab();
+                    Criteria.checkThat(ChromeTabUtils.getUrlStringOnUiThread(currentTab), is(url));
+                });
 
         if (requestTime == AFTER_INTENT) {
             channelRequested =

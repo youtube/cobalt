@@ -5,6 +5,8 @@
 #include "quiche/quic/tools/connect_udp_tunnel.h"
 
 #include <cstdint>
+#include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -16,9 +18,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "absl/types/span.h"
-#include "url/url_canon.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_server_id.h"
 #include "quiche/quic/core/socket_factory.h"
@@ -26,12 +26,13 @@
 #include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/quic/tools/quic_name_lookup.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/masque/connect_udp_datagram_payload.h"
+#include "quiche/common/platform/api/quiche_googleurl.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/common/platform/api/quiche_mem_slice.h"
 #include "quiche/common/platform/api/quiche_url_utils.h"
+#include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/structured_headers.h"
-#include "quiche/spdy/core/http2_header_block.h"
 
 namespace quic {
 
@@ -44,7 +45,7 @@ constexpr size_t kReadSize = 4 * 1024;
 
 // Only support the default path
 // ("/.well-known/masque/udp/{target_host}/{target_port}/")
-absl::optional<QuicServerId> ValidateAndParseTargetFromPath(
+std::optional<QuicServerId> ValidateAndParseTargetFromPath(
     absl::string_view path) {
   std::string canonicalized_path_str;
   url::StdStringCanonOutput canon_output(&canonicalized_path_str);
@@ -54,7 +55,7 @@ absl::optional<QuicServerId> ValidateAndParseTargetFromPath(
   if (!path_component.is_nonempty()) {
     QUICHE_DVLOG(1) << "CONNECT-UDP request with non-canonicalizable path: "
                     << path;
-    return absl::nullopt;
+    return std::nullopt;
   }
   canon_output.Complete();
   absl::string_view canonicalized_path =
@@ -69,53 +70,50 @@ absl::optional<QuicServerId> ValidateAndParseTargetFromPath(
       path_split[5].empty() || !path_split[6].empty()) {
     QUICHE_DVLOG(1) << "CONNECT-UDP request with bad path: "
                     << canonicalized_path;
-    return absl::nullopt;
+    return std::nullopt;
   }
 
-  absl::optional<std::string> decoded_host =
+  std::optional<std::string> decoded_host =
       quiche::AsciiUrlDecode(path_split[4]);
   if (!decoded_host.has_value()) {
     QUICHE_DVLOG(1) << "CONNECT-UDP request with undecodable host: "
                     << path_split[4];
-    return absl::nullopt;
+    return std::nullopt;
   }
   // Empty host checked above after path split. Expect decoding to never result
   // in an empty decoded host from non-empty encoded host.
-  QUICHE_DCHECK(!decoded_host.value().empty());
+  QUICHE_DCHECK(!decoded_host->empty());
 
-  absl::optional<std::string> decoded_port =
+  std::optional<std::string> decoded_port =
       quiche::AsciiUrlDecode(path_split[5]);
   if (!decoded_port.has_value()) {
     QUICHE_DVLOG(1) << "CONNECT-UDP request with undecodable port: "
                     << path_split[5];
-    return absl::nullopt;
+    return std::nullopt;
   }
   // Empty port checked above after path split. Expect decoding to never result
   // in an empty decoded port from non-empty encoded port.
-  QUICHE_DCHECK(!decoded_port.value().empty());
+  QUICHE_DCHECK(!decoded_port->empty());
 
-  int parsed_port_number =
-      url::ParsePort(decoded_port.value().data(),
-                     url::Component(0, decoded_port.value().size()));
+  int parsed_port_number = url::ParsePort(
+      decoded_port->data(), url::Component(0, decoded_port->size()));
   // Negative result is either invalid or unspecified, either of which is
   // disallowed for this parse. Port 0 is technically valid but reserved and not
   // really usable in practice, so easiest to just disallow it here.
   if (parsed_port_number <= 0) {
-    QUICHE_DVLOG(1) << "CONNECT-UDP request with bad port: "
-                    << decoded_port.value();
-    return absl::nullopt;
+    QUICHE_DVLOG(1) << "CONNECT-UDP request with bad port: " << *decoded_port;
+    return std::nullopt;
   }
   // Expect url::ParsePort() to validate port is uint16_t and otherwise return
   // negative number checked for above.
   QUICHE_DCHECK_LE(parsed_port_number, std::numeric_limits<uint16_t>::max());
 
-  return QuicServerId(decoded_host.value(),
-                      static_cast<uint16_t>(parsed_port_number));
+  return QuicServerId(*decoded_host, static_cast<uint16_t>(parsed_port_number));
 }
 
 // Validate header expectations from RFC 9298, section 3.4.
-absl::optional<QuicServerId> ValidateHeadersAndGetTarget(
-    const spdy::Http2HeaderBlock& request_headers) {
+std::optional<QuicServerId> ValidateHeadersAndGetTarget(
+    const quiche::HttpHeaderBlock& request_headers) {
   QUICHE_DCHECK(request_headers.contains(":method"));
   QUICHE_DCHECK(request_headers.find(":method")->second == "CONNECT");
   QUICHE_DCHECK(request_headers.contains(":protocol"));
@@ -124,7 +122,7 @@ absl::optional<QuicServerId> ValidateHeadersAndGetTarget(
   auto authority_it = request_headers.find(":authority");
   if (authority_it == request_headers.end() || authority_it->second.empty()) {
     QUICHE_DVLOG(1) << "CONNECT-UDP request missing authority";
-    return absl::nullopt;
+    return std::nullopt;
   }
   // For toy server simplicity, skip validating that the authority matches the
   // current server.
@@ -132,19 +130,19 @@ absl::optional<QuicServerId> ValidateHeadersAndGetTarget(
   auto scheme_it = request_headers.find(":scheme");
   if (scheme_it == request_headers.end() || scheme_it->second.empty()) {
     QUICHE_DVLOG(1) << "CONNECT-UDP request missing scheme";
-    return absl::nullopt;
+    return std::nullopt;
   } else if (scheme_it->second != "https") {
     QUICHE_DVLOG(1) << "CONNECT-UDP request contains unexpected scheme: "
                     << scheme_it->second;
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   auto path_it = request_headers.find(":path");
   if (path_it == request_headers.end() || path_it->second.empty()) {
     QUICHE_DVLOG(1) << "CONNECT-UDP request missing path";
-    return absl::nullopt;
+    return std::nullopt;
   }
-  absl::optional<QuicServerId> target_server_id =
+  std::optional<QuicServerId> target_server_id =
       ValidateAndParseTargetFromPath(path_it->second);
 
   return target_server_id;
@@ -187,10 +185,10 @@ ConnectUdpTunnel::~ConnectUdpTunnel() {
 }
 
 void ConnectUdpTunnel::OpenTunnel(
-    const spdy::Http2HeaderBlock& request_headers) {
+    const quiche::HttpHeaderBlock& request_headers) {
   QUICHE_DCHECK(!IsTunnelOpenToTarget());
 
-  absl::optional<QuicServerId> target =
+  std::optional<QuicServerId> target =
       ValidateHeadersAndGetTarget(request_headers);
   if (!target.has_value()) {
     // Malformed request.
@@ -200,7 +198,7 @@ void ConnectUdpTunnel::OpenTunnel(
     return;
   }
 
-  if (!ValidateTarget(target.value(), acceptable_targets_)) {
+  if (!ValidateTarget(*target, acceptable_targets_)) {
     SendErrorResponse("403", "destination_ip_prohibited",
                       "disallowed proxy target");
     return;
@@ -208,7 +206,7 @@ void ConnectUdpTunnel::OpenTunnel(
 
   // TODO(ericorth): Validate that the IP address doesn't fall into diallowed
   // ranges per RFC 9298, Section 7.
-  QuicSocketAddress address = tools::LookupAddress(AF_UNSPEC, target.value());
+  QuicSocketAddress address = tools::LookupAddress(AF_UNSPEC, *target);
   if (!address.IsInitialized()) {
     SendErrorResponse("500", "dns_error", "host resolution error");
     return;
@@ -231,7 +229,7 @@ void ConnectUdpTunnel::OpenTunnel(
 
   QUICHE_DVLOG(1) << "CONNECT-UDP tunnel opened from stream "
                   << client_stream_request_handler_->stream_id() << " to "
-                  << target.value().ToHostPortString();
+                  << target->ToHostPortString();
 
   client_stream_request_handler_->GetStream()->RegisterHttp3DatagramVisitor(
       this);
@@ -290,8 +288,7 @@ void ConnectUdpTunnel::ReceiveComplete(
   }
 
   QUICHE_DCHECK(client_stream_request_handler_);
-  quiche::ConnectUdpDatagramUdpPacketPayload payload(
-      data.value().AsStringView());
+  quiche::ConnectUdpDatagramUdpPacketPayload payload(data->AsStringView());
   client_stream_request_handler_->GetStream()->SendHttp3Datagram(
       payload.Serialize());
 
@@ -348,13 +345,13 @@ void ConnectUdpTunnel::SendConnectResponse() {
   QUICHE_DCHECK(IsTunnelOpenToTarget());
   QUICHE_DCHECK(client_stream_request_handler_);
 
-  spdy::Http2HeaderBlock response_headers;
+  quiche::HttpHeaderBlock response_headers;
   response_headers[":status"] = "200";
 
-  absl::optional<std::string> capsule_protocol_value =
+  std::optional<std::string> capsule_protocol_value =
       structured_headers::SerializeItem(structured_headers::Item(true));
   QUICHE_CHECK(capsule_protocol_value.has_value());
-  response_headers["Capsule-Protocol"] = capsule_protocol_value.value();
+  response_headers["Capsule-Protocol"] = *capsule_protocol_value;
 
   QuicBackendResponse response;
   response.set_headers(std::move(response_headers));
@@ -383,7 +380,7 @@ void ConnectUdpTunnel::SendErrorResponse(absl::string_view status,
   QUICHE_DCHECK(status_num < 200 || status_num >= 300);
 #endif  // !NDEBUG
 
-  spdy::Http2HeaderBlock headers;
+  quiche::HttpHeaderBlock headers;
   headers[":status"] = status;
 
   structured_headers::Item proxy_status_item(server_label_);
@@ -395,10 +392,10 @@ void ConnectUdpTunnel::SendErrorResponse(absl::string_view status,
       std::move(proxy_status_item),
       {{"error", std::move(proxy_status_error_item)},
        {"details", std::move(proxy_status_details_item)}});
-  absl::optional<std::string> proxy_status_value =
+  std::optional<std::string> proxy_status_value =
       structured_headers::SerializeList({proxy_status_member});
   QUICHE_CHECK(proxy_status_value.has_value());
-  headers["Proxy-Status"] = proxy_status_value.value();
+  headers["Proxy-Status"] = *proxy_status_value;
 
   QuicBackendResponse response;
   response.set_headers(std::move(headers));

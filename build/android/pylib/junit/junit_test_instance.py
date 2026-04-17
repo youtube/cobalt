@@ -20,10 +20,13 @@ class JunitTestInstance(test_instance.TestInstance):
     self._resource_apk = args.resource_apk
     self._robolectric_runtime_deps_dir = args.robolectric_runtime_deps_dir
     self._runner_filter = args.runner_filter
+    self._json_config = args.json_config
+    self._shadows_allowlist = args.shadows_allowlist
     self._shards = args.shards
+    self._shard_filter = None
+    if args.shard_filter:
+      self._shard_filter = {int(x) for x in args.shard_filter.split(',')}
     self._test_filters = test_filter.InitializeFiltersFromArgs(args)
-    self._has_literal_filters = (args.isolated_script_test_filters
-                                 or args.test_filters)
     self._test_suite = args.test_suite
 
   #override
@@ -71,16 +74,24 @@ class JunitTestInstance(test_instance.TestInstance):
     return self._runner_filter
 
   @property
+  def shadows_allowlist(self):
+    return self._shadows_allowlist
+
+  @property
   def test_filters(self):
     return self._test_filters
 
   @property
-  def has_literal_filters(self):
-    return self._has_literal_filters
+  def json_config(self):
+    return self._json_config
 
   @property
   def shards(self):
     return self._shards
+
+  @property
+  def shard_filter(self):
+    return self._shard_filter
 
   @property
   def suite(self):

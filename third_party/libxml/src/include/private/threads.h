@@ -4,16 +4,17 @@
 #include <libxml/threads.h>
 
 #ifdef LIBXML_THREAD_ENABLED
-  #ifdef HAVE_PTHREAD_H
+  #ifdef _WIN32
+    #define WIN32_LEAN_AND_MEAN
+    #ifdef _WIN32_WINNT
+      #undef _WIN32_WINNT
+    #endif
+    #define _WIN32_WINNT 0x0600
+    #include <windows.h>
+    #define HAVE_WIN32_THREADS
+  #else
     #include <pthread.h>
     #define HAVE_POSIX_THREADS
-  #elif defined(_WIN32)
-    #define WIN32_LEAN_AND_MEAN
-    #include <windows.h>
-    #ifndef HAVE_COMPILER_TLS
-      #include <process.h>
-    #endif
-    #define HAVE_WIN32_THREADS
   #endif
 #endif
 
@@ -30,21 +31,31 @@ struct _xmlMutex {
 #endif
 };
 
-XML_HIDDEN void
-__xmlGlobalInitMutexLock(void);
-XML_HIDDEN void
-__xmlGlobalInitMutexUnlock(void);
-XML_HIDDEN void
-__xmlGlobalInitMutexDestroy(void);
-
-XML_HIDDEN void
-xmlInitThreadsInternal(void);
-XML_HIDDEN void
-xmlCleanupThreadsInternal(void);
+/*
+ * xmlRMutex are reentrant mutual exception locks
+ */
+struct _xmlRMutex {
+#ifdef HAVE_POSIX_THREADS
+    pthread_mutex_t lock;
+    unsigned int held;
+    unsigned int waiters;
+    pthread_t tid;
+    pthread_cond_t cv;
+#elif defined HAVE_WIN32_THREADS
+    CRITICAL_SECTION cs;
+#else
+    int empty;
+#endif
+};
 
 XML_HIDDEN void
 xmlInitMutex(xmlMutexPtr mutex);
 XML_HIDDEN void
 xmlCleanupMutex(xmlMutexPtr mutex);
+
+XML_HIDDEN void
+xmlInitRMutex(xmlRMutexPtr mutex);
+XML_HIDDEN void
+xmlCleanupRMutex(xmlRMutexPtr mutex);
 
 #endif /* XML_THREADS_H_PRIVATE__ */

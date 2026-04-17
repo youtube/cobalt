@@ -4,7 +4,9 @@
 
 #include "chrome/browser/download/notification/multi_profile_download_notifier.h"
 
-#include "base/ranges/algorithm.h"
+#include <algorithm>
+
+#include "base/memory/raw_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/profiles/profile_selections.h"
 #include "components/download/public/common/simple_download_manager.h"
@@ -51,7 +53,7 @@ void MultiProfileDownloadNotifier::AddProfile(Profile* profile) {
   }
 }
 
-std::vector<download::DownloadItem*>
+std::vector<raw_ptr<download::DownloadItem, VectorExperimental>>
 MultiProfileDownloadNotifier::GetAllDownloads() {
   download::SimpleDownloadManager::DownloadVector downloads;
   for (const auto& download_notifier : download_notifiers_) {
@@ -97,9 +99,9 @@ void MultiProfileDownloadNotifier::OnManagerGoingDown(
     content::DownloadManager* manager) {
   client_->OnManagerGoingDown(manager);
 
-  auto it = base::ranges::find(download_notifiers_, manager,
-                               &download::AllDownloadItemNotifier::GetManager);
-  DCHECK(it != download_notifiers_.end());
+  auto it = std::ranges::find(download_notifiers_, manager,
+                              &download::AllDownloadItemNotifier::GetManager);
+  CHECK(it != download_notifiers_.end());
   download_notifiers_.erase(it);
 }
 

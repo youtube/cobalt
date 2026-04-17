@@ -5,6 +5,7 @@
 #include "chrome/browser/profiles/profile_window.h"
 
 #include <stddef.h>
+
 #include <utility>
 
 #include "base/command_line.h"
@@ -32,12 +33,12 @@
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/find_bar/find_bar_state.h"
 #include "chrome/browser/ui/find_bar/find_bar_state_factory.h"
-#include "chrome/browser/ui/profile_picker.h"
+#include "chrome/browser/ui/profiles/profile_picker.h"
+#include "chrome/browser/ui/startup/startup_types.h"
 #include "chrome/browser/ui/toolbar/app_menu_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/search_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
-#include "chrome/test/base/web_ui_browser_test.h"
 #include "components/account_id/account_id.h"
 #include "components/history/core/browser/history_db_task.h"
 #include "components/history/core/browser/history_service.h"
@@ -48,7 +49,7 @@
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "url/gurl.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #error "This test verifies the Desktop implementation of Guest only."
 #endif
 
@@ -67,7 +68,8 @@ namespace {
 // Notifies the main thread after all history backend thread tasks have run.
 class WaitForHistoryTask : public history::HistoryDBTask {
  public:
-  WaitForHistoryTask() = default;
+  explicit WaitForHistoryTask(base::OnceClosure quit_closure)
+      : quit_closure_(std::move(quit_closure)) {}
   WaitForHistoryTask(const WaitForHistoryTask&) = delete;
   WaitForHistoryTask& operator=(const WaitForHistoryTask&) = delete;
 
@@ -76,21 +78,22 @@ class WaitForHistoryTask : public history::HistoryDBTask {
     return true;
   }
 
-  void DoneRunOnMainThread() override {
-    base::RunLoop::QuitCurrentWhenIdleDeprecated();
-  }
+  void DoneRunOnMainThread() override { std::move(quit_closure_).Run(); }
 
  private:
   ~WaitForHistoryTask() override = default;
+  base::OnceClosure quit_closure_;
 };
 
 void WaitForHistoryBackendToRun(Profile* profile) {
   base::CancelableTaskTracker task_tracker;
-  std::unique_ptr<history::HistoryDBTask> task(new WaitForHistoryTask());
+  base::RunLoop loop;
+  std::unique_ptr<history::HistoryDBTask> task(
+      new WaitForHistoryTask(loop.QuitWhenIdleClosure()));
   history::HistoryService* history = HistoryServiceFactory::GetForProfile(
       profile, ServiceAccessType::EXPLICIT_ACCESS);
   history->ScheduleDBTask(FROM_HERE, std::move(task), &task_tracker);
-  content::RunMessageLoop();
+  loop.Run();
 }
 
 class EmptyAcceleratorHandler : public ui::AcceleratorProvider {
@@ -100,23 +103,6 @@ class EmptyAcceleratorHandler : public ui::AcceleratorProvider {
                                   ui::Accelerator* accelerator) const override {
     return false;
   }
-};
-
-class BrowserAddedObserver : public BrowserListObserver {
- public:
-  explicit BrowserAddedObserver(base::OnceCallback<void(Browser*)> callback)
-      : callback_(std::move(callback)) {
-    CHECK(callback_);
-    BrowserList::AddObserver(this);
-  }
-
-  void OnBrowserAdded(Browser* browser) override {
-    BrowserList::RemoveObserver(this);
-    std::move(callback_).Run(browser);
-  }
-
- private:
-  base::OnceCallback<void(Browser*)> callback_;
 };
 
 }  // namespace
@@ -165,7 +151,7 @@ class ProfileWindowCountBrowserTest : public ProfileWindowBrowserTest,
   }
 
  private:
-  raw_ptr<Profile, DanglingUntriaged> profile_ = nullptr;
+  raw_ptr<Profile, AcrossTasksDanglingUntriaged> profile_ = nullptr;
 };
 
 IN_PROC_BROWSER_TEST_P(ProfileWindowCountBrowserTest, CountProfileWindows) {
@@ -352,23 +338,7 @@ IN_PROC_BROWSER_TEST_F(ProfileWindowBrowserTest,
   EXPECT_FALSE(ProfilePicker::IsOpen());
 }
 
-IN_PROC_BROWSER_TEST_F(ProfileWindowBrowserTest,
-                       OpenBrowserWindowForProfileBrowserDestroyed) {
-  Profile* profile = browser()->profile();
-  size_t num_browsers = BrowserList::GetInstance()->size();
-
-  BrowserAddedObserver browser_added_observer(base::BindLambdaForTesting(
-      [this](Browser* browser) { this->CloseBrowserAsynchronously(browser); }));
-
-  base::test::TestFuture<Browser*> future;
-  profiles::OpenBrowserWindowForProfile(future.GetCallback(), true, false,
-                                        false, profile);
-  EXPECT_EQ(nullptr, future.Get());
-  EXPECT_EQ(num_browsers, BrowserList::GetInstance()->size());
-  EXPECT_FALSE(ProfilePicker::IsOpen());
-}
-
-// TODO(crbug.com/935746): Test is flaky on Win and Linux.
+// TODO(crbug.com/41443527): Test is flaky on Win and Linux.
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
 #define MAYBE_OpenBrowserWindowForProfileWithSigninRequired \
   DISABLED_OpenBrowserWindowForProfileWithSigninRequired
@@ -396,21 +366,3 @@ IN_PROC_BROWSER_TEST_F(ProfileWindowBrowserTest,
   EXPECT_EQ(num_browsers, BrowserList::GetInstance()->size());
   EXPECT_TRUE(ProfilePicker::IsOpen());
 }
-
-class ProfileWindowWebUIBrowserTest : public WebUIBrowserTest {
- public:
-  void OnSystemProfileCreated(std::string* url_to_test,
-                              base::OnceClosure quit_loop,
-                              Profile* profile,
-                              const std::string& url) {
-    *url_to_test = url;
-    std::move(quit_loop).Run();
-  }
-
- private:
-  void SetUpOnMainThread() override {
-    WebUIBrowserTest::SetUpOnMainThread();
-    AddLibrary(
-        base::FilePath(FILE_PATH_LITERAL("profile_window_browsertest.js")));
-  }
-};

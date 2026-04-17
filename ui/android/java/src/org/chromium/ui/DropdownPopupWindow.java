@@ -11,17 +11,16 @@ import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.PopupWindow;
 
-import androidx.annotation.Nullable;
-
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.ui.widget.AnchoredPopupWindow;
 import org.chromium.ui.widget.RectProvider;
 
-// TODO(https://crbug.com/1400723): This class is a noop now, so we should remove it.
-/**
- * The dropdown popup window that decides what widget should be used for the popup.
- */
+// TODO(crbug.com/40250394): This class is a noop now, so we should remove it.
+/** The dropdown popup window that decides what widget should be used for the popup. */
+@NullMarked
 public class DropdownPopupWindow {
-    private DropdownPopupWindowInterface mPopup;
+    private final DropdownPopupWindowInterface mPopup;
 
     public DropdownPopupWindow(Context context, View anchorView) {
         this(context, anchorView, null);
@@ -29,12 +28,15 @@ public class DropdownPopupWindow {
 
     /**
      * Creates an DropdownPopupWindow with specified parameters.
+     *
      * @param context Application context.
      * @param anchorView Popup view to be anchored.
      * @param visibleWebContentsRectProvider The {@link RectProvider} which will be used for {@link
-     *         AnchoredPopupWindow}.
+     *     AnchoredPopupWindow}.
      */
-    public DropdownPopupWindow(Context context, View anchorView,
+    public DropdownPopupWindow(
+            Context context,
+            View anchorView,
             @Nullable RectProvider visibleWebContentsRectProvider) {
         mPopup = new DropdownPopupWindowImpl(context, anchorView, visibleWebContentsRectProvider);
     }
@@ -53,9 +55,7 @@ public class DropdownPopupWindow {
         mPopup.setInitialSelection(initialSelection);
     }
 
-    /**
-     * Shows the popup. The adapter should be set before calling this method.
-     */
+    /** Shows the popup. The adapter should be set before calling this method. */
     public void show() {
         mPopup.show();
     }
@@ -111,9 +111,7 @@ public class DropdownPopupWindow {
         mPopup.postShow();
     }
 
-    /**
-     * Disposes of the popup window.
-     */
+    /** Disposes of the popup window. */
     public void dismiss() {
         mPopup.dismiss();
     }

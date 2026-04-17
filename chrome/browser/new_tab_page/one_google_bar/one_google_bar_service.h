@@ -5,14 +5,15 @@
 #ifndef CHROME_BROWSER_NEW_TAB_PAGE_ONE_GOOGLE_BAR_ONE_GOOGLE_BAR_SERVICE_H_
 #define CHROME_BROWSER_NEW_TAB_PAGE_ONE_GOOGLE_BAR_ONE_GOOGLE_BAR_SERVICE_H_
 
+#include <map>
 #include <memory>
+#include <optional>
 
 #include "base/observer_list.h"
 #include "chrome/browser/new_tab_page/one_google_bar/one_google_bar_data.h"
 #include "chrome/browser/new_tab_page/one_google_bar/one_google_bar_loader.h"
 #include "chrome/browser/new_tab_page/one_google_bar/one_google_bar_service_observer.h"
 #include "components/keyed_service/core/keyed_service.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace signin {
 class IdentityManager;
@@ -31,13 +32,13 @@ class OneGoogleBarService : public KeyedService {
   void Shutdown() override;
 
   // Returns the currently cached OneGoogleBarData, if any.
-  const absl::optional<OneGoogleBarData>& one_google_bar_data() const {
+  const std::optional<OneGoogleBarData>& one_google_bar_data() const {
     return one_google_bar_data_;
   }
 
   // Requests an asynchronous refresh from the network. After the update
   // completes, OnOneGoogleBarDataUpdated will be called on the observers.
-  void Refresh();
+  virtual void Refresh();
 
   // Add/remove observers. All observers must unregister themselves before the
   // OneGoogleBarService is destroyed.
@@ -52,7 +53,11 @@ class OneGoogleBarService : public KeyedService {
   void SetLanguageCodeForTesting(const std::string& language_code);
 
   // Sets ogdeb query parameter in loader.
-  bool SetAdditionalQueryParams(const std::string& value);
+  virtual void SetAdditionalQueryParams(
+      const std::map<std::string, std::string>& params);
+
+ protected:
+  void NotifyObservers();
 
  private:
   class SigninObserver;
@@ -60,9 +65,7 @@ class OneGoogleBarService : public KeyedService {
   void SigninStatusChanged();
 
   void OneGoogleBarDataLoaded(OneGoogleBarLoader::Status status,
-                              const absl::optional<OneGoogleBarData>& data);
-
-  void NotifyObservers();
+                              const std::optional<OneGoogleBarData>& data);
 
   std::unique_ptr<OneGoogleBarLoader> loader_;
 
@@ -70,7 +73,7 @@ class OneGoogleBarService : public KeyedService {
 
   base::ObserverList<OneGoogleBarServiceObserver, true>::Unchecked observers_;
 
-  absl::optional<OneGoogleBarData> one_google_bar_data_;
+  std::optional<OneGoogleBarData> one_google_bar_data_;
 
   std::string language_code_;
 };

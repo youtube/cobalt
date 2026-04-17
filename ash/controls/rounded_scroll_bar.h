@@ -24,10 +24,10 @@ namespace ash {
 // - Draws the thumb with rounded ends
 // - Becomes brighter when the cursor is over the thumb
 class ASH_EXPORT RoundedScrollBar : public views::ScrollBar {
- public:
-  METADATA_HEADER(RoundedScrollBar);
+  METADATA_HEADER(RoundedScrollBar, views::ScrollBar)
 
-  explicit RoundedScrollBar(bool horizontal);
+ public:
+  explicit RoundedScrollBar(Orientation orientation);
   RoundedScrollBar(const RoundedScrollBar&) = delete;
   RoundedScrollBar& operator=(const RoundedScrollBar&) = delete;
   ~RoundedScrollBar() override;
@@ -54,6 +54,12 @@ class ASH_EXPORT RoundedScrollBar : public views::ScrollBar {
   void ScrollToPosition(int position) override;
   void ObserveScrollEvent(const ui::ScrollEvent& event) override;
 
+  // Controls the visibility of the scroll thumb.
+  // By default, the thumb is hidden when there's no interaction with the scroll
+  // bar (`always_show_thumb_` is false by default). Set `always_show_thumb_` to
+  // `true` to keep the thumb visible at all times.
+  void SetAlwaysShowThumb(bool always_show_thumb);
+
   views::BaseScrollBarThumb* GetThumbForTest() const;
 
  private:
@@ -66,13 +72,13 @@ class ASH_EXPORT RoundedScrollBar : public views::ScrollBar {
   void HideScrollBar();
 
   // Called when the thumb hover/pressed state changed.
-  void OnThumbStateChanged();
+  void OnThumbStateChanged(views::Button::ButtonState old_state);
 
   // Called when the thumb bounds (position or size) changed.
   void OnThumbBoundsChanged();
 
   // Equivalent to GetThumb() but typed as the inner class `Thumb`.
-  const raw_ptr<Thumb, ExperimentalAsh> thumb_;
+  const raw_ptr<Thumb> thumb_;
 
   // Insets for the scroll track.
   gfx::Insets insets_;
@@ -82,6 +88,9 @@ class ASH_EXPORT RoundedScrollBar : public views::ScrollBar {
 
   // Whether to temporarily show the scroll bar when the thumb bounds change.
   bool show_on_thumb_bounds_changed_ = false;
+
+  // Whether to always show the scroll thumb.
+  bool always_show_thumb_ = false;
 };
 
 }  // namespace ash

@@ -11,8 +11,14 @@
 
 #include "base/memory/raw_ptr.h"
 #include "components/sessions/core/live_tab_context.h"
+#include "components/sessions/core/tab_restore_types.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tab_groups/tab_group_visual_data.h"
+#include "ui/base/mojom/window_show_state.mojom-forward.h"
+
+namespace base {
+class Uuid;
+}
 
 namespace content {
 class WebContents;
@@ -28,7 +34,7 @@ class AndroidLiveTabContext : public sessions::LiveTabContext {
   AndroidLiveTabContext(const AndroidLiveTabContext&) = delete;
   AndroidLiveTabContext& operator=(const AndroidLiveTabContext&) = delete;
 
-  ~AndroidLiveTabContext() override {}
+  ~AndroidLiveTabContext() override = default;
 
   // Overridden from LiveTabContext:
   void ShowBrowserWindow() override;
@@ -43,38 +49,27 @@ class AndroidLiveTabContext : public sessions::LiveTabContext {
   std::map<std::string, std::string> GetExtraDataForTab(
       int index) const override;
   std::map<std::string, std::string> GetExtraDataForWindow() const override;
-  absl::optional<tab_groups::TabGroupId> GetTabGroupForTab(
+  std::optional<tab_groups::TabGroupId> GetTabGroupForTab(
       int index) const override;
   const tab_groups::TabGroupVisualData* GetVisualDataForGroup(
+      const tab_groups::TabGroupId& group) const override;
+  const std::optional<base::Uuid> GetSavedTabGroupIdForGroup(
       const tab_groups::TabGroupId& group) const override;
   bool IsTabPinned(int index) const override;
   void SetVisualDataForGroup(
       const tab_groups::TabGroupId& group,
       const tab_groups::TabGroupVisualData& visual_data) override;
   const gfx::Rect GetRestoredBounds() const override;
-  ui::WindowShowState GetRestoredState() const override;
+  ui::mojom::WindowShowState GetRestoredState() const override;
   std::string GetWorkspace() const override;
   sessions::LiveTab* AddRestoredTab(
-      const std::vector<sessions::SerializedNavigationEntry>& navigations,
+      const sessions::tab_restore::Tab& tab,
       int tab_index,
-      int selected_navigation,
-      const std::string& extension_app_id,
-      absl::optional<tab_groups::TabGroupId> group,
-      const tab_groups::TabGroupVisualData& group_visual_data,
       bool select,
-      bool pin,
-      const sessions::PlatformSpecificTabData* storage_namespace,
-      const sessions::SerializedUserAgentOverride& user_agent_override,
-      const std::map<std::string, std::string>& extra_data,
-      const SessionID* tab_id) override;
+      bool is_restoring_group_or_window,
+      sessions::tab_restore::Type original_session_type) override;
   sessions::LiveTab* ReplaceRestoredTab(
-      const std::vector<sessions::SerializedNavigationEntry>& navigations,
-      absl::optional<tab_groups::TabGroupId> group,
-      int selected_navigation,
-      const std::string& extension_app_id,
-      const sessions::PlatformSpecificTabData* tab_platform_data,
-      const sessions::SerializedUserAgentOverride& user_agent_override,
-      const std::map<std::string, std::string>& extra_data) override;
+      const sessions::tab_restore::Tab&) override;
   void CloseTab() override;
 
   static LiveTabContext* FindContextForWebContents(

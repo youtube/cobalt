@@ -11,29 +11,28 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.BaseJUnit4ClassRunner;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.UrlUtils;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.test.util.DOMUtils;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 import org.chromium.content_shell_apk.ContentShellActivityTestRule;
 
-/**
- * Integration tests for JavaScript execution.
- */
+/** Integration tests for JavaScript execution. */
 @RunWith(BaseJUnit4ClassRunner.class)
 public class TestsJavaScriptEvalTest {
     @Rule
     public ContentShellActivityTestRule mActivityTestRule = new ContentShellActivityTestRule();
 
-    private static final String JSTEST_URL = UrlUtils.encodeHtmlDataUri("<html><head><script>"
-            + "  function foobar() { return 'foobar'; }"
-            + "</script></head>"
-            + "<body><button id=\"test\">Test button</button></body></html>");
+    private static final String JSTEST_URL =
+            UrlUtils.encodeHtmlDataUri(
+                    "<html><head><script>"
+                            + "  function foobar() { return 'foobar'; }"
+                            + "</script></head>"
+                            + "<body><button id=\"test\">Test button</button></body></html>");
 
-    public TestsJavaScriptEvalTest() {
-    }
+    public TestsJavaScriptEvalTest() {}
 
     /**
      * Tests that evaluation of JavaScript for test purposes (using JavaScriptUtils, DOMUtils etc)
@@ -50,7 +49,7 @@ public class TestsJavaScriptEvalTest {
         for (int i = 0; i < 30; ++i) {
             for (int j = 0; j < 10; ++j) {
                 // Start evaluation of a JavaScript script -- we don't need a result.
-                TestThreadUtils.runOnUiThreadBlocking(
+                ThreadUtils.runOnUiThreadBlocking(
                         () -> webContents.evaluateJavaScriptForTests("foobar();", null));
             }
             // DOMUtils does need to evaluate a JavaScript and get its result to get DOM bounds.

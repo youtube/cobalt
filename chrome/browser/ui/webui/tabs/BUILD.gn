@@ -8,20 +8,26 @@ mojom("mojo_bindings") {
   sources = [ "tabs.mojom" ]
   public_deps = [ "//mojo/public/mojom/base" ]
   webui_module_path = "/"
-  use_typescript_sources = true
 
   cpp_typemaps = [
     {
       types = [
         {
           mojom = "tabs.mojom.TabAlertState"
-          cpp = "::TabAlertState"
+          cpp = "::tabs::TabAlert"
+        },
+        {
+          mojom = "tabs.mojom.TabNetworkState"
+          cpp = "::TabNetworkState"
         },
       ]
       traits_headers = [ "tabs_mojom_traits.h" ]
+      traits_sources = [ "tabs_mojom_traits.cc" ]
       traits_public_deps = [
         "//base",
         "//chrome/browser/ui/tabs:tab_enums",
+        "//chrome/browser/ui/tabs:tabs_public",
+        "//chrome/browser/ui/tabs/alert:tab_alert",
       ]
     },
   ]

@@ -2,21 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {String16} from 'chrome://resources/mojo/mojo/public/mojom/base/string16.mojom-webui.js';
+import type {String16} from 'chrome://resources/mojo/mojo/public/mojom/base/string16.mojom-webui.js';
 import * as AcceleratorTypes from 'chrome://resources/mojo/ui/base/accelerators/mojom/accelerator.mojom-webui.js';
 
-import * as AcceleratorConfigurationTypes from '../mojom-webui/ash/public/mojom/accelerator_configuration.mojom-webui.js';
-import * as AcceleratorInfoTypes from '../mojom-webui/ash/public/mojom/accelerator_info.mojom-webui.js';
-import {SearchHandler, SearchHandlerInterface, SearchResult, SearchResultsAvailabilityObserverRemote} from '../mojom-webui/ash/webui/shortcut_customization_ui/backend/search/search.mojom-webui.js';
-import {AcceleratorConfigurationProviderInterface, AcceleratorResultData, AcceleratorsUpdatedObserverRemote} from '../mojom-webui/ash/webui/shortcut_customization_ui/mojom/shortcut_customization.mojom-webui.js';
+import * as AcceleratorConfigurationTypes from '../mojom-webui/accelerator_configuration.mojom-webui.js';
+import * as AcceleratorInfoTypes from '../mojom-webui/accelerator_info.mojom-webui.js';
+import * as MetaKeyTypes from '../mojom-webui/meta_key.mojom-webui.js';
+import type {SearchHandlerInterface, SearchResult, SearchResultsAvailabilityObserverRemote} from '../mojom-webui/search.mojom-webui.js';
+import {SearchHandler} from '../mojom-webui/search.mojom-webui.js';
+import type {AcceleratorConfigurationProviderInterface, AcceleratorResultData, AcceleratorsUpdatedObserverRemote, UserAction} from '../mojom-webui/shortcut_customization.mojom-webui.js';
 
 
 /**
  * @fileoverview
  * Type aliases for the mojo API.
- *
- * TODO(zentaro): When the fake API is replaced by mojo these can be
- * re-aliased to the corresponding mojo types, or replaced by them.
  */
 
 /**
@@ -29,6 +28,20 @@ export enum Modifier {
   CONTROL = 1 << 2,
   ALT = 1 << 3,
   COMMAND = 1 << 4,
+  FN_KEY = 1 << 5,
+}
+
+/**
+ * The actions that can be done in the accelerator edit dialog. These should
+ * be consistent with the representation in
+ * `ash/webui/shortcut_customization_ui/mojom/shortcut_customization.mojom`.
+ */
+export enum EditAction {
+  NONE = 0,
+  ADD = 1 << 0,
+  EDIT = 1 << 1,
+  REMOVE = 1 << 2,
+  RESET = 1 << 3,
 }
 
 export type TextAcceleratorPart = AcceleratorInfoTypes.TextAcceleratorPart;
@@ -59,6 +72,9 @@ export const AcceleratorType = AcceleratorInfoTypes.AcceleratorType;
 export type AcceleratorState = AcceleratorInfoTypes.AcceleratorState;
 export const AcceleratorState = AcceleratorInfoTypes.AcceleratorState;
 
+export type AcceleratorKeyState = AcceleratorTypes.AcceleratorKeyState;
+export const AcceleratorKeyState = AcceleratorTypes.AcceleratorKeyState;
+
 /**
  * Enumeration of accelerator config results from adding/replacing/removing an
  * accelerator.
@@ -69,13 +85,21 @@ export const AcceleratorConfigResult =
     AcceleratorConfigurationTypes.AcceleratorConfigResult;
 
 /**
+ * Enumeration of meta key denoting all the possible options deducable from
+ * the users keyboard. Used to show the correct key to the user in the settings
+ * UI.
+ */
+export type MetaKey = MetaKeyTypes.MetaKey;
+export const MetaKey = MetaKeyTypes.MetaKey;
+
+/**
  * Type alias for Accelerator.
  *
- * The Pick utility type is used here because only `keyCode` and `modifiers`
- * are necessary for this app.
+ * The Pick utility type is used here because only `keyCode`, `modifiers`, and
+ * `keyState` are necessary for this app.
  */
 export type Accelerator =
-    Pick<AcceleratorTypes.Accelerator, 'keyCode'|'modifiers'>;
+    Pick<AcceleratorTypes.Accelerator, 'keyCode'|'modifiers'|'keyState'>;
 
 export type MojoAccelerator = AcceleratorTypes.Accelerator;
 
@@ -86,21 +110,24 @@ export type MojoAccelerator = AcceleratorTypes.Accelerator;
  * to replace the types of `accelerator` and `keyDisplay` with more accurate
  * types.
  */
-
-
-
 export type StandardAcceleratorInfo =
     Omit<AcceleratorInfoTypes.AcceleratorInfo, 'layoutProperties'>&{
-      layoutProperties:
-          {standardAccelerator: {accelerator: Accelerator, keyDisplay: string}},
-    };
-
-export type TextAcceleratorInfo =
-    Omit<AcceleratorInfoTypes.AcceleratorInfo, 'layoutProperties'>&{
       layoutProperties: {
-        textAccelerator: {parts: AcceleratorInfoTypes.TextAcceleratorPart[]},
+        standardAccelerator: {
+          accelerator: Accelerator,
+          keyDisplay: string,
+          originalAccelerator?: Accelerator,
+        },
       },
     };
+
+export type TextAcceleratorInfo = Omit<
+    AcceleratorInfoTypes.AcceleratorInfo,
+    'layoutProperties'|'acceleratorLocked'>&{
+  layoutProperties: {
+    textAccelerator: {parts: AcceleratorInfoTypes.TextAcceleratorPart[]},
+  },
+};
 
 export type AcceleratorInfo = TextAcceleratorInfo|StandardAcceleratorInfo;
 
@@ -192,14 +219,15 @@ export interface ShortcutSearchHandlerInterface extends SearchHandlerInterface {
 
 /**
  * Type alias for the ShortcutProviderInterface.
- * TODO(zentaro): Replace with a real mojo type when implemented.
  */
 export interface ShortcutProviderInterface extends
     AcceleratorConfigurationProviderInterface {
   getAccelerators(): Promise<{config: MojoAcceleratorConfig}>;
   getAcceleratorLayoutInfos(): Promise<{layoutInfos: MojoLayoutInfo[]}>;
+  getDefaultAcceleratorsForId(action: number):
+      Promise<{accelerators: Accelerator[]}>;
   isMutable(source: AcceleratorSource): Promise<{isMutable: boolean}>;
-  hasLauncherButton(): Promise<{hasLauncherButton: boolean}>;
+  getMetaKeyToDisplay(): Promise<{metaKey: MetaKey}>;
   addAccelerator(
       source: AcceleratorSource, action: number,
       accelerator: Accelerator): Promise<{result: AcceleratorResultData}>;
@@ -215,4 +243,5 @@ export interface ShortcutProviderInterface extends
   restoreAllDefaults(): Promise<{result: AcceleratorResultData}>;
   preventProcessingAccelerators(preventProcessingAccelerators: boolean):
       Promise<void>;
+  recordUserAction(userAction: UserAction): void;
 }

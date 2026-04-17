@@ -128,6 +128,7 @@ function wasmLoadSizeFile(isBefore, sizeBuffer) {
   Module._free(heapBuffer.byteOffset);
 }
 
+/** @return {SizeProperties} */
 function wasmLoadSizeProperties() {
   const cwrapQueryProperty =
       Module.cwrap('QueryProperty', 'number', ['string']);
@@ -139,6 +140,18 @@ function wasmLoadSizeProperties() {
   return {
     isMultiContainer: (getProperty('isMultiContainer') === 'true')
   };
+}
+
+/**
+ * @param {number} id
+ * @return {QueryAncestryResults}
+ */
+function wasmQueryAncestryById(id) {
+  const cwrapQueryAncestryById =
+      Module.cwrap('QueryAncestryById', 'number', ['number']);
+  const stringPtr = cwrapQueryAncestryById(id);
+  const r = Module.UTF8ToString(stringPtr, 2 ** 16);
+  return /** @type {!QueryAncestryResults} */ (JSON.parse(r));
 }
 
 /**
@@ -301,8 +314,8 @@ const actions = {
     g_buildTreePromise = null;
     sendProgressMessage(0.9);
     const root = await wasmOpen('');
-    // TODO(crbug.com/1290946): Move diffMode to loadResults and do not store it
-    //     the viewer's query parameters.
+    // TODO(crbug.com/40818460): Move diffMode to loadResults and do not store
+    // it the viewer's query parameters.
     return {
       root,
       diffMode,
@@ -316,6 +329,14 @@ const actions = {
    */
   async open(path) {
     return wasmOpen(path);
+  },
+
+  /**
+   * @param {number} id
+   * @return {Promise<QueryAncestryResults>}
+   */
+  async queryAncestryById(id) {
+    return wasmQueryAncestryById(id);
   },
 };
 

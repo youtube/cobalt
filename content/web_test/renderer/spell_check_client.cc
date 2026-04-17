@@ -10,7 +10,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/task/single_thread_task_runner.h"
 #include "content/web_test/renderer/web_test_grammar_checker.h"
-#include "third_party/blink/public/web/blink.h"
+#include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "third_party/blink/public/web/web_text_checking_completion.h"
 #include "third_party/blink/public/web/web_text_checking_result.h"
@@ -44,7 +44,7 @@ void SpellCheckClient::CheckSpelling(
     const blink::WebString& text,
     size_t& misspelled_offset,
     size_t& misspelled_length,
-    blink::WebVector<blink::WebString>* optional_suggestions) {
+    std::vector<blink::WebString>* optional_suggestions) {
   if (!enabled_) {
     misspelled_offset = 0;
     misspelled_length = 0;
@@ -99,7 +99,7 @@ void SpellCheckClient::FinishLastTextCheck() {
                                     &misspelled_position, &misspelled_length);
       if (!misspelled_length)
         break;
-      blink::WebVector<blink::WebString> suggestions;
+      std::vector<blink::WebString> suggestions;
       spell_checker_.FillSuggestionList(
           blink::WebString::FromUTF16(
               text.substr(misspelled_position, misspelled_length)),
@@ -120,7 +120,8 @@ void SpellCheckClient::FinishLastTextCheck() {
 
 void SpellCheckClient::SetSpellCheckResolvedCallback(
     v8::Local<v8::Function> callback) {
-  resolved_callback_.Reset(blink::MainThreadIsolate(), callback);
+  resolved_callback_.Reset(frame_->GetAgentGroupScheduler()->Isolate(),
+                           callback);
 }
 
 void SpellCheckClient::RemoveSpellCheckResolvedCallback() {
@@ -131,7 +132,7 @@ void SpellCheckClient::RequestResolved() {
   if (resolved_callback_.IsEmpty())
     return;
 
-  v8::Isolate* isolate = blink::MainThreadIsolate();
+  v8::Isolate* isolate = frame_->GetAgentGroupScheduler()->Isolate();
   v8::HandleScope handle_scope(isolate);
 
   v8::Local<v8::Context> context = frame_->MainWorldScriptContext();

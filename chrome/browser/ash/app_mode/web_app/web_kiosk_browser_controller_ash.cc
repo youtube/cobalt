@@ -9,7 +9,7 @@ namespace ash {
 WebKioskBrowserControllerAsh::WebKioskBrowserControllerAsh(
     web_app::WebAppProvider& provider,
     Browser* browser,
-    web_app::AppId app_id)
+    webapps::AppId app_id)
     : WebKioskBrowserControllerBase(provider, browser, app_id) {}
 
 WebKioskBrowserControllerAsh::~WebKioskBrowserControllerAsh() = default;

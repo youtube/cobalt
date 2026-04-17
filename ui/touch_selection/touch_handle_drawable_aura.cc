@@ -6,49 +6,54 @@
 
 #include "ui/aura/window.h"
 #include "ui/aura/window_targeter.h"
-#include "ui/aura_extra/image_window_delegate.h"
 #include "ui/base/cursor/cursor.h"
 #include "ui/base/hit_test.h"
-#include "ui/base/resource/resource_bundle.h"
+#include "ui/base/models/image_model.h"
+#include "ui/color/color_id.h"
+#include "ui/color/color_provider.h"
+#include "ui/color/color_provider_manager.h"
 #include "ui/compositor/layer.h"
+#include "ui/compositor/paint_recorder.h"
 #include "ui/events/event.h"
 #include "ui/gfx/canvas.h"
-#include "ui/gfx/geometry/rect_conversions.h"
-#include "ui/resources/grit/ui_resources.h"
+#include "ui/gfx/geometry/outsets_f.h"
+#include "ui/gfx/geometry/point_conversions.h"
+#include "ui/gfx/image/image.h"
+#include "ui/native_theme/native_theme.h"
+#include "ui/native_theme/native_theme_observer.h"
+#include "ui/touch_selection//vector_icons/vector_icons.h"
 
 namespace ui {
 namespace {
 
-// The distance by which a handle image is offset from the focal point (i.e.
-// text baseline) downwards.
-const int kSelectionHandleVerticalVisualOffset = 2;
+// Padding to apply horizontally around and vertically below the handle image,
+// so that touch events near the handle image are targeted to the handle.
+constexpr int kSelectionHandlePadding = 6;
 
-// The padding around the selection handle image can be used to extend the
-// handle window so that touch events near the selection handle image are
-// targeted to the selection handle window.
-const int kSelectionHandlePadding = 0;
+// Max opacity of the selection handle image.
+constexpr float kSelectionHandleMaxOpacity = 0.8f;
 
 // Epsilon value used to compare float values to zero.
-const float kEpsilon = 1e-8f;
+constexpr float kEpsilon = 1e-8f;
 
-// Returns the appropriate handle image based on the handle orientation.
-gfx::Image* GetHandleImage(TouchHandleOrientation orientation) {
-  int resource_id = 0;
+// Returns the appropriate handle vector icon based on the handle orientation.
+ImageModel GetHandleVectorIcon(TouchHandleOrientation orientation) {
+  const gfx::VectorIcon* icon = nullptr;
   switch (orientation) {
     case TouchHandleOrientation::LEFT:
-      resource_id = IDR_TEXT_SELECTION_HANDLE_LEFT;
+      icon = &kTextSelectionHandleLeftIcon;
       break;
     case TouchHandleOrientation::CENTER:
-      resource_id = IDR_TEXT_SELECTION_HANDLE_CENTER;
+      icon = &kTextSelectionHandleCenterIcon;
       break;
     case TouchHandleOrientation::RIGHT:
-      resource_id = IDR_TEXT_SELECTION_HANDLE_RIGHT;
+      icon = &kTextSelectionHandleRightIcon;
       break;
     case TouchHandleOrientation::UNDEFINED:
       NOTREACHED() << "Invalid touch handle bound type.";
-      return nullptr;
-  };
-  return &ResourceBundle::GetSharedInstance().GetImageNamed(resource_id);
+  }
+  return ImageModel::FromVectorIcon(*icon,
+                                    /*color_id=*/kColorSysPrimary);
 }
 
 bool IsNearlyZero(float value) {
@@ -58,29 +63,29 @@ bool IsNearlyZero(float value) {
 }  // namespace
 
 TouchHandleDrawableAura::TouchHandleDrawableAura(aura::Window* parent)
-    : window_(
-          std::make_unique<aura::Window>(new aura_extra::ImageWindowDelegate)),
-      window_delegate_(
-          static_cast<aura_extra::ImageWindowDelegate*>(window_->delegate())),
+    : window_(std::make_unique<aura::Window>(/*delegate=*/nullptr)),
       enabled_(false),
       alpha_(0),
       orientation_(TouchHandleOrientation::UNDEFINED) {
-  window_delegate_->set_image_offset(gfx::Vector2d(kSelectionHandlePadding,
-                                                   kSelectionHandlePadding));
-  window_->SetTransparent(true);
   window_->Init(LAYER_TEXTURED);
+  window_->SetTransparent(true);
   window_->set_owned_by_parent(false);
   window_->SetEventTargetingPolicy(aura::EventTargetingPolicy::kNone);
+  window_->layer()->set_delegate(this);
   parent->AddChild(window_.get());
+
+  theme_observation_.Observe(NativeTheme::GetInstanceForNativeUi());
 }
 
-TouchHandleDrawableAura::~TouchHandleDrawableAura() {
-}
+TouchHandleDrawableAura::~TouchHandleDrawableAura() = default;
 
-void TouchHandleDrawableAura::UpdateBounds() {
-  gfx::RectF new_bounds = relative_bounds_;
-  new_bounds.Offset(origin_position_.x(), origin_position_.y());
-  window_->SetBounds(gfx::ToEnclosingRect(new_bounds));
+void TouchHandleDrawableAura::UpdateWindowBounds() {
+  gfx::Rect window_bounds(gfx::ToRoundedPoint(targetable_origin_),
+                          handle_image_.Size());
+  // Offset the window bounds to account for space between the origin of the
+  // targetable area and the handle image.
+  window_bounds.Offset(kSelectionHandlePadding, 0);
+  window_->SetBounds(window_bounds);
 }
 
 bool TouchHandleDrawableAura::IsVisible() const {
@@ -102,33 +107,21 @@ void TouchHandleDrawableAura::SetOrientation(TouchHandleOrientation orientation,
                                              bool mirror_vertical,
                                              bool mirror_horizontal) {
   // TODO(AviD): Implement adaptive handle orientation logic for Aura
-  DCHECK(window_delegate_);
   DCHECK(!mirror_vertical);
   DCHECK(!mirror_horizontal);
 
   if (orientation_ == orientation)
     return;
   orientation_ = orientation;
-  gfx::Image* image = GetHandleImage(orientation);
-  window_delegate_->SetImage(*image);
 
-  // Calculate the relative bounds.
-  gfx::Size image_size = image->Size();
-  int window_width = image_size.width() + 2 * kSelectionHandlePadding;
-  int window_height = image_size.height() + 2 * kSelectionHandlePadding;
-  relative_bounds_ =
-      gfx::RectF(-kSelectionHandlePadding,
-                 kSelectionHandleVerticalVisualOffset - kSelectionHandlePadding,
-                 window_width, window_height);
-  gfx::Rect paint_bounds(relative_bounds_.x(), relative_bounds_.y(),
-                         relative_bounds_.width(), relative_bounds_.height());
-  window_->SchedulePaintInRect(paint_bounds);
-  UpdateBounds();
+  handle_image_ = GetHandleVectorIcon(orientation);
+  UpdateWindowBounds();
+  window_->SchedulePaintInRect(gfx::Rect(window_->bounds().size()));
 }
 
 void TouchHandleDrawableAura::SetOrigin(const gfx::PointF& position) {
-  origin_position_ = position;
-  UpdateBounds();
+  targetable_origin_ = position;
+  UpdateWindowBounds();
 }
 
 void TouchHandleDrawableAura::SetAlpha(float alpha) {
@@ -136,7 +129,8 @@ void TouchHandleDrawableAura::SetAlpha(float alpha) {
     return;
 
   alpha_ = alpha;
-  window_->layer()->SetOpacity(alpha_);
+  window_->layer()->SetOpacity(alpha_ * kSelectionHandleMaxOpacity);
+
   if (IsVisible())
     window_->Show();
   else
@@ -144,17 +138,39 @@ void TouchHandleDrawableAura::SetAlpha(float alpha) {
 }
 
 gfx::RectF TouchHandleDrawableAura::GetVisibleBounds() const {
-  gfx::RectF bounds(window_->bounds());
-  bounds.Inset(gfx::InsetsF::TLBR(
-      kSelectionHandlePadding + kSelectionHandleVerticalVisualOffset,
-      kSelectionHandlePadding, kSelectionHandlePadding,
-      kSelectionHandlePadding));
-  return bounds;
+  // These bounds are used to determine the area that can be used for targeting
+  // the handle, so we include the transparent padding added around the handle
+  // image even though it technically isn't visible.
+  gfx::RectF targetable_bounds(window_->bounds());
+  targetable_bounds.Outset(gfx::OutsetsF::TLBR(0, kSelectionHandlePadding,
+                                               kSelectionHandlePadding,
+                                               kSelectionHandlePadding));
+  return targetable_bounds;
 }
 
 float TouchHandleDrawableAura::GetDrawableHorizontalPaddingRatio() const {
-  // Aura does not have any transparent padding for its handle drawable.
-  return 0.0f;
+  // The ratio returned by this function is used to position the touch handle
+  // targetable area relative to the focal point (e.g. bottom of text caret).
+  // So, even though padding is applied on both the left and right of the handle
+  // image, we compute the ratio based on the padding on only one side.
+  return kSelectionHandlePadding /
+         (window_->bounds().width() + 2.0f * kSelectionHandlePadding);
+}
+
+void TouchHandleDrawableAura::OnPaintLayer(const PaintContext& context) {
+  PaintRecorder recorder(context, window_->bounds().size());
+  if (!handle_image_.IsEmpty()) {
+    recorder.canvas()->DrawImageInt(
+        handle_image_.Rasterize(ColorProviderManager::Get().GetColorProviderFor(
+            NativeTheme::GetInstanceForNativeUi()->GetColorProviderKey(
+                nullptr))),
+        0, 0);
+  }
+}
+
+void TouchHandleDrawableAura::OnNativeThemeUpdated(
+    NativeTheme* observed_theme) {
+  window_->SchedulePaintInRect(gfx::Rect(window_->bounds().size()));
 }
 
 }  // namespace ui

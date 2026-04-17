@@ -9,8 +9,8 @@ namespace autofill {
 CardUnmaskPromptOptions::CardUnmaskPromptOptions() = default;
 
 CardUnmaskPromptOptions::CardUnmaskPromptOptions(
-    const absl::optional<CardUnmaskChallengeOption>& challenge_option,
-    AutofillClient::UnmaskCardReason reason)
+    const std::optional<CardUnmaskChallengeOption>& challenge_option,
+    payments::PaymentsAutofillClient::UnmaskCardReason reason)
     : challenge_option(challenge_option), reason(reason) {}
 
 CardUnmaskPromptOptions::CardUnmaskPromptOptions(

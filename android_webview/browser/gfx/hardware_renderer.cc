@@ -8,6 +8,7 @@
 #include <iterator>
 #include <memory>
 #include <utility>
+#include <variant>
 
 #include "android_webview/browser/gfx/aw_gl_surface.h"
 #include "android_webview/browser/gfx/display_scheduler_webview.h"
@@ -23,12 +24,15 @@
 #include "android_webview/common/aw_features.h"
 #include "android_webview/common/aw_switches.h"
 #include "base/command_line.h"
+#include "base/compiler_specific.h"
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
+#include "base/functional/overloaded.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
+#include "base/system/sys_info.h"
 #include "base/trace_event/trace_event.h"
 #include "components/viz/common/display/renderer_settings.h"
 #include "components/viz/common/features.h"
@@ -42,6 +46,7 @@
 #include "components/viz/common/surfaces/parent_local_surface_id_allocator.h"
 #include "components/viz/service/display/display_client.h"
 #include "components/viz/service/display/display_scheduler.h"
+#include "components/viz/service/display/frame_interval_decider.h"
 #include "components/viz/service/display/overlay_processor_stub.h"
 #include "components/viz/service/display_embedder/skia_output_surface_dependency.h"
 #include "components/viz/service/display_embedder/skia_output_surface_impl.h"
@@ -58,18 +63,45 @@
 namespace android_webview {
 namespace {
 
-class ScopedCurrentContext {
+BASE_FEATURE(kDrawAndSwapInjectLatency,
+             "DrawAndSwapInjectLatency",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+class ScopedAcquireExternalContext {
  public:
-  explicit ScopedCurrentContext(gpu::SharedContextState* state,
-                                gl::GLSurface* surface)
-      : state_(state), surface_(surface) {
-    state_->MakeCurrent(surface_);
+  ScopedAcquireExternalContext(gpu::SharedContextState* state,
+                               gl::GLSurface* surface,
+                               bool is_angle)
+      : state_(state), surface_(surface), is_angle_(is_angle) {
+    if (is_angle_) {
+      // When using ANGLE, need to make sure ANGLE's internals are in sync
+      // with the external context.
+
+      // If the context has changed, make sure it gets current now.
+      if (!state_->context()->IsCurrent(surface_)) {
+        state_->MakeCurrent(surface_);
+      }
+
+      eglAcquireExternalContextANGLE(state_->display()->GetDisplay(),
+                                     surface_->GetHandle());
+    } else {
+      // When not using ANGLE, fake context and surface are used, so the
+      // MakeCurrent calls are cheap.
+      state_->MakeCurrent(surface_);
+    }
   }
-  ~ScopedCurrentContext() { state_->ReleaseCurrent(surface_); }
+  ~ScopedAcquireExternalContext() {
+    if (is_angle_) {
+      eglReleaseExternalContextANGLE(state_->display()->GetDisplay());
+    } else {
+      state_->ReleaseCurrent(surface_);
+    }
+  }
 
  private:
   const raw_ptr<gpu::SharedContextState> state_;
   raw_ptr<gl::GLSurface> surface_;
+  const bool is_angle_;
 };
 
 void MoveCopyRequests(CopyOutputRequestQueue* from,
@@ -139,9 +171,11 @@ class HardwareRenderer::OnViz : public viz::DisplayClient {
                         const gfx::ColorSpace& color_space,
                         bool overlays_enabled_by_hwui,
                         ChildFrame* child_frame);
-  void PostDrawOnViz(viz::FrameTimingDetailsMap* timing_details);
+  void PostDrawOnViz(viz::FrameTimingDetailsMap* timing_details,
+                     std::vector<pid_t>* rendering_thread_ids,
+                     base::TimeDelta* preferred_frame_interval);
   void RemoveOverlaysOnViz();
-  void MarkExpectContextLossOnViz();
+  void MarkAllowContextLossOnViz();
 
   OverlayProcessorWebView* overlay_processor() {
     return overlay_processor_webview_;
@@ -184,6 +218,10 @@ class HardwareRenderer::OnViz : public viz::DisplayClient {
   // threads. Can be null, if overlays are disabled.
   raw_ptr<OverlayProcessorWebView> overlay_processor_webview_ = nullptr;
 
+  base::PlatformThreadId browser_io_thread_id_ = base::kInvalidThreadId;
+
+  base::TimeDelta preferred_frame_interval_;
+
   THREAD_CHECKER(viz_thread_checker_);
 };
 
@@ -193,8 +231,8 @@ HardwareRenderer::OnViz::OnViz(
     : without_gpu_(root_frame_sink),
       frame_sink_id_(without_gpu_->root_frame_sink_id()),
       viz_frame_submission_(::features::IsUsingVizFrameSubmissionForWebView()),
-      use_new_invalidate_heuristic_(base::FeatureList::IsEnabled(
-          ::features::kWebViewNewInvalidateHeuristic)) {
+      use_new_invalidate_heuristic_(
+          ::features::UseWebViewNewInvalidateHeuristic()) {
   DCHECK_CALLED_ON_VALID_THREAD(viz_thread_checker_);
 
   std::unique_ptr<viz::DisplayCompositorMemoryAndTaskController>
@@ -209,11 +247,43 @@ HardwareRenderer::OnViz::OnViz(
       output_surface_provider->debug_settings(), frame_sink_id_,
       std::move(display_controller), std::move(output_surface),
       GetFrameSinkManager(), without_gpu_.get());
-  display_->Initialize(this, GetFrameSinkManager()->surface_manager(), true);
+  display_->Initialize(this, GetFrameSinkManager()->surface_manager());
   overlay_processor_webview_ = display_->overlay_processor();
 
   display_->SetVisible(true);
   display_->DisableGPUAccessByDefault();
+
+  if (viz::FrameIntervalDecider* decider = display_->frame_interval_decider()) {
+    viz::FrameIntervalDecider::Settings settings;
+    std::vector<std::unique_ptr<viz::FrameIntervalMatcher>> matchers;
+    matchers.push_back(std::make_unique<viz::InputBoostMatcher>());
+    matchers.push_back(std::make_unique<viz::OnlyVideoMatcher>());
+    matchers.push_back(std::make_unique<viz::OnlyAnimatingImageMatcher>());
+
+    // Raw `self` pointer is safe because this owns viz::Display which owns
+    // viz::FrameIntervalDecider. So this pointer is guaranteed to be valid for
+    // the lifetime of viz::FrameIntervalDecider.
+    settings.result_callback = base::BindRepeating(
+        [](HardwareRenderer::OnViz* self,
+           viz::FrameIntervalDecider::Result result,
+           viz::FrameIntervalMatcherType matcher_type) {
+          self->preferred_frame_interval_ = std::visit(
+              base::Overloaded(
+                  [](viz::FrameIntervalDecider::FrameIntervalClass
+                         frame_interval_class) {
+                    // Zero currently is interpreted by WebView as no
+                    // opinion, which allows system to use its
+                    // default heuristics.
+                    return base::Milliseconds(0);
+                  },
+                  [](viz::FrameIntervalDecider::ResultInterval interval) {
+                    return interval.interval;
+                  }),
+              result);
+        },
+        this);
+    decider->UpdateSettings(std::move(settings), std::move(matchers));
+  }
 }
 
 HardwareRenderer::OnViz::~OnViz() {
@@ -246,6 +316,11 @@ void HardwareRenderer::OnViz::DrawAndSwapOnViz(
 
   if (child_frame->frame) {
     DCHECK(!viz_frame_submission_);
+    DCHECK(!child_frame->rendered);
+    // Browser thread is trusted, and can be saved straight away.
+    // Renderer threads are not trusted, and need to go through verification
+    // in SubmitChildCompositorFrame before being reported to the ADPF session.
+    browser_io_thread_id_ = child_frame->browser_io_thread_id;
     without_gpu_->SubmitChildCompositorFrame(child_frame);
   }
 
@@ -256,7 +331,8 @@ void HardwareRenderer::OnViz::DrawAndSwapOnViz(
     CopyOutputRequestQueue requests;
     requests.swap(child_frame->copy_requests);
     for (auto& copy_request : requests) {
-      manager->RequestCopyOfOutput(child_id, std::move(copy_request));
+      manager->RequestCopyOfOutput(child_id, std::move(copy_request),
+                                   /*capture_exact_surface_id=*/false);
     }
   }
 
@@ -281,14 +357,13 @@ void HardwareRenderer::OnViz::DrawAndSwapOnViz(
   quad_state->quad_to_target_transform = transform;
   quad_state->quad_layer_rect = gfx::Rect(frame_size);
   quad_state->visible_quad_layer_rect = gfx::Rect(frame_size);
-  quad_state->clip_rect = clip;
   quad_state->opacity = 1.f;
 
   viz::SurfaceDrawQuad* surface_quad =
       render_pass->CreateAndAppendDrawQuad<viz::SurfaceDrawQuad>();
   surface_quad->SetNew(quad_state, gfx::Rect(quad_state->quad_layer_rect),
                        gfx::Rect(quad_state->quad_layer_rect),
-                       viz::SurfaceRange(absl::nullopt, child_id),
+                       viz::SurfaceRange(std::nullopt, child_id),
                        SkColors::kWhite,
                        /*stretch_content_to_fill_bounds=*/false);
 
@@ -322,42 +397,64 @@ void HardwareRenderer::OnViz::DrawAndSwapOnViz(
     auto root_surface_id =
         viz::SurfaceId(without_gpu_->root_frame_sink_id(), local_surface_id);
 
-    auto commit_predicate = base::BindRepeating(
-        [](const viz::BeginFrameId& current_frame_id,
-           const viz::FrameSinkId& root_frame_sink_id,
-           const viz::FrameSinkId& child_frame_sink_id,
-           const viz::SurfaceId& surface_id,
-           const viz::BeginFrameId& frame_id) {
-          // Always commit frame from different begin frame sources, because we
-          // can't order with them.
-          if (frame_id.source_id != current_frame_id.source_id) {
-            // We always should have single source_id except for the manual
-            // acks.
-            DCHECK_EQ(frame_id.source_id, viz::BeginFrameArgs::kManualSourceId);
-            return true;
-          }
+    const auto& current_frame_id = child_frame->begin_frame_args.frame_id;
+    const auto& root_frame_sink_id = root_surface_id.frame_sink_id();
+    const auto& child_frame_sink_id = child_surface_id_.frame_sink_id();
 
-          // Commit all frames that are older than current one.
-          if (frame_id.sequence_number < current_frame_id.sequence_number) {
-            return true;
-          }
+    // Each OnDraw on UI we get new ChildFrame. Without OnDraw we can't modify
+    // contents of the webview or it will break HWUI damage tracking, so only
+    // commit if the frame is new.
+    const bool commit_child_frames = !child_frame->rendered;
 
-          // All clients except root renderer and root surface are frame behind.
-          const bool is_frame_behind =
-              surface_id.frame_sink_id() != root_frame_sink_id &&
-              surface_id.frame_sink_id() != child_frame_sink_id;
+    base::flat_set<viz::SurfaceId> manual_surfaces;
+    auto commit_predicate = [&](const viz::SurfaceId& surface_id,
+                                const viz::BeginFrameId& frame_id) {
+      const bool is_root_surface =
+          surface_id.frame_sink_id() == root_frame_sink_id;
+      const bool is_main_renderer_surface =
+          surface_id.frame_sink_id() == child_frame_sink_id;
 
-          // If this surface is not frame behind, commit it for current frame
-          // too.
-          if (!is_frame_behind &&
-              frame_id.sequence_number == current_frame_id.sequence_number) {
-            return true;
-          }
+      // If we have uncommitted main renderer frame, `commit_child_frames`
+      // must be true.
+      CHECK(!is_main_renderer_surface || commit_child_frames);
 
-          return false;
-        },
-        child_frame->begin_frame_args.frame_id, root_surface_id.frame_sink_id(),
-        child_surface_id_.frame_sink_id());
+      if (!commit_child_frames) {
+        // Commit only root frame, all child surfaces can be committed only
+        // if we did have Draw on UI thread.
+        return is_root_surface;
+      }
+
+      // Always commit frame from different begin frame sources, because we
+      // can't order with them.
+      if (frame_id.source_id != current_frame_id.source_id) {
+        // We always should have single source_id except for the manual
+        // acks.
+        DCHECK_EQ(frame_id.source_id, viz::BeginFrameArgs::kManualSourceId);
+
+        // For manual acks commit only one frame at time to avoid excessive
+        // frame drops.
+        auto [_, inserted] = manual_surfaces.insert(surface_id);
+        return inserted;
+      }
+
+      // Commit all frames that are older than current one.
+      if (frame_id.sequence_number < current_frame_id.sequence_number) {
+        return true;
+      }
+
+      // All clients except main renderer and root surface are frame behind.
+      const bool is_frame_behind =
+          !is_main_renderer_surface && !is_root_surface;
+
+      // If this surface is not frame behind, commit it for current frame
+      // too.
+      if (!is_frame_behind &&
+          frame_id.sequence_number == current_frame_id.sequence_number) {
+        return true;
+      }
+
+      return false;
+    };
 
     GetFrameSinkManager()->surface_manager()->CommitFramesInRangeRecursively(
         viz::SurfaceRange(root_surface_id), commit_predicate);
@@ -369,15 +466,39 @@ void HardwareRenderer::OnViz::DrawAndSwapOnViz(
   }
 
   display_->Resize(viewport);
+  display_->SetOutputSurfaceClipRect(clip);
+
   auto now = base::TimeTicks::Now();
   display_->DrawAndSwap({now, now});
 
+  child_frame->rendered = true;
   without_gpu_->SetContainedSurfaces(display_->GetContainedSurfaceIds());
 }
 
 void HardwareRenderer::OnViz::PostDrawOnViz(
-    viz::FrameTimingDetailsMap* timing_details) {
+    viz::FrameTimingDetailsMap* timing_details,
+    std::vector<pid_t>* rendering_thread_ids,
+    base::TimeDelta* preferred_frame_interval) {
   *timing_details = without_gpu_->TakeChildFrameTimingDetailsMap();
+
+  auto renderer_thread_ids = without_gpu_->GetChildFrameRendererThreadIds();
+  *rendering_thread_ids = std::vector<pid_t>();
+  rendering_thread_ids->reserve(renderer_thread_ids.size());
+  std::transform(renderer_thread_ids.begin(), renderer_thread_ids.end(),
+                 std::back_inserter(*rendering_thread_ids),
+                 [](const base::PlatformThreadId& tid) { return tid.raw(); });
+
+  auto gpu_thread_ids =
+      VizCompositorThreadRunnerWebView::GetInstance()->GetThreadIds();
+  std::transform(gpu_thread_ids.begin(), gpu_thread_ids.end(),
+                 std::back_inserter(*rendering_thread_ids),
+                 [](const base::PlatformThreadId& tid) { return tid.raw(); });
+
+  if (browser_io_thread_id_ != base::kInvalidThreadId) {
+    rendering_thread_ids->push_back(browser_io_thread_id_.raw());
+  }
+
+  *preferred_frame_interval = preferred_frame_interval_;
 }
 
 void HardwareRenderer::OnViz::RemoveOverlaysOnViz() {
@@ -386,7 +507,7 @@ void HardwareRenderer::OnViz::RemoveOverlaysOnViz() {
   }
 }
 
-void HardwareRenderer::OnViz::MarkExpectContextLossOnViz() {
+void HardwareRenderer::OnViz::MarkAllowContextLossOnViz() {
   DCHECK_CALLED_ON_VALID_THREAD(viz_thread_checker_);
   expect_context_loss_ = true;
 }
@@ -454,7 +575,9 @@ ChildFrameQueue HardwareRenderer::WaitAndPruneFrameQueue(
     child_frames[remaining_frame_index]->begin_frame_args = NewerBeginFrameArgs(
         child_frames[remaining_frame_index]->begin_frame_args,
         frame->begin_frame_args);
+    // We shouldn't get rendered frames here.
     DCHECK(!frame->frame);
+    DCHECK(!frame->rendered);
   }
   DCHECK_EQ(static_cast<size_t>(remaining_frame_index),
             child_frames.size() - 1);
@@ -468,6 +591,8 @@ ChildFrameQueue HardwareRenderer::WaitAndPruneFrameQueue(
     // We shouldn't drop newer frames.
     DCHECK(!frame->begin_frame_args.frame_id.IsNextInSequenceTo(
         child_frames.back()->begin_frame_args.frame_id));
+    // We shouldn't get rendered frames here.
+    DCHECK(!frame->rendered);
     if (frame->frame) {
       pruned_frames.emplace_back(std::move(frame));
     }
@@ -481,7 +606,7 @@ bool HardwareRendererDrawParams::operator==(
          clip_right == other.clip_right && clip_bottom == other.clip_bottom &&
          width == other.width && height == other.height &&
          color_space == other.color_space &&
-         !memcmp(transform, other.transform, sizeof(transform));
+         UNSAFE_TODO(!memcmp(transform, other.transform, sizeof(transform)));
 }
 
 bool HardwareRendererDrawParams::operator!=(
@@ -496,6 +621,16 @@ HardwareRenderer::HardwareRenderer(RenderThreadManager* state,
       last_egl_context_(eglGetCurrentContext()),
       output_surface_provider_(context_provider) {
   DCHECK_CALLED_ON_VALID_THREAD(render_thread_checker_);
+
+  if (base::FeatureList::IsEnabled(::features::kWebViewEnableADPF)) {
+    std::string soc_allowlist =
+        ::features::kWebViewADPFSocManufacturerAllowlist.Get();
+    std::string soc_blocklist =
+        ::features::kWebViewADPFSocManufacturerBlocklist.Get();
+    std::string soc = base::SysInfo::SocManufacturer();
+    report_rendering_threads_ =
+        ::features::ShouldUseAdpfForSoc(soc_allowlist, soc_blocklist, soc);
+  }
 
   VizCompositorThreadRunnerWebView::GetInstance()->ScheduleOnVizAndBlock(
       base::BindOnce(&HardwareRenderer::InitializeOnViz, base::Unretained(this),
@@ -514,6 +649,9 @@ void HardwareRenderer::InitializeOnViz(
 
 HardwareRenderer::~HardwareRenderer() {
   DCHECK_CALLED_ON_VALID_THREAD(render_thread_checker_);
+  // Do not crash for context loss during destruction. It's possible functor is
+  // being destroyed due to an already-detected lost context.
+  MarkAllowContextLoss();
   output_surface_provider_.shared_context_state()->MakeCurrent(nullptr);
   VizCompositorThreadRunnerWebView::GetInstance()->ScheduleOnVizAndBlock(
       base::DoNothingWithBoundArgs(std::move(on_viz_)));
@@ -522,7 +660,7 @@ HardwareRenderer::~HardwareRenderer() {
   if (child_frame_) {
     render_thread_manager_->PostParentDrawDataToChildCompositorOnRT(
         ParentCompositorDrawConstraints(), child_frame_->frame_sink_id,
-        viz::FrameTimingDetailsMap(), 0u);
+        viz::FrameTimingDetailsMap(), 0u, preferred_frame_interval_);
   }
   for (auto& child_frame : child_frame_queue_) {
     child_frame->WaitOnFutureIfNeeded();
@@ -536,27 +674,30 @@ bool HardwareRenderer::IsUsingVulkan() const {
   return output_surface_provider_.shared_context_state()->GrContextIsVulkan();
 }
 
-void HardwareRenderer::DrawAndSwap(const HardwareRendererDrawParams& params,
-                                   const OverlaysParams& overlays_params) {
+bool HardwareRenderer::IsUsingANGLEOverGL() const {
+  return !IsUsingVulkan() && gl::GLSurfaceEGL::GetGLDisplayEGL()
+                                 ->IsANGLEExternalContextAndSurfaceSupported();
+}
+
+void HardwareRenderer::DrawAndSwap(
+    const HardwareRendererDrawParams& params,
+    const OverlaysParams& overlays_params,
+    ReportRenderingThreadsCallback report_rendering_threads_callback) {
   TRACE_EVENT1("android_webview", "HardwareRenderer::Draw", "vulkan",
                IsUsingVulkan());
 
-  if (!IsUsingVulkan()) {
-    UMA_HISTOGRAM_BOOLEAN(
-        "Android.WebView.Gfx.GLDrawWasToFBO",
-        output_surface_provider_.gl_surface()->IsDrawingToFBO());
-  }
-
   DCHECK_CALLED_ON_VALID_THREAD(render_thread_checker_);
 
-  // Ensure that the context is current and that it is released before
-  // returning. When using ANGLE, the former is not guaranteed to be true and
-  // the latter is required for the external ANGLE context. For non-ANGLE case,
-  // fake context and surface are used, so releasing current context should be
-  // very cheap.
-  ScopedCurrentContext scoped_context(
+  if (base::FeatureList::IsEnabled(kDrawAndSwapInjectLatency)) {
+    usleep(1000);
+  }
+
+  // Ensure that the context is synced from external and synced back before
+  // returning. This is only necessary when using ANGLE to keep its internals
+  // synced with the external context
+  ScopedAcquireExternalContext scoped_acquire(
       output_surface_provider_.shared_context_state().get(),
-      output_surface_provider_.gl_surface().get());
+      output_surface_provider_.gl_surface().get(), IsUsingANGLEOverGL());
 
   viz::FrameTimingDetailsMap timing_details;
 
@@ -587,8 +728,8 @@ void HardwareRenderer::DrawAndSwap(const HardwareRendererDrawParams& params,
       // TODO(vasilyt): Move frame timing details delivery over to
       // RootFrameSink.
       render_thread_manager_->PostParentDrawDataToChildCompositorOnRT(
-          draw_constraints, viz::FrameSinkId(), viz::FrameTimingDetailsMap(),
-          0);
+          draw_constraints, viz::FrameSinkId(), viz::FrameTimingDetailsMap(), 0,
+          preferred_frame_interval_);
     }
     return;
   }
@@ -615,7 +756,7 @@ void HardwareRenderer::DrawAndSwap(const HardwareRendererDrawParams& params,
         ->PessimisticallyResetGrContext();
   }
 
-  absl::optional<OverlayProcessorWebView::ScopedSurfaceControlAvailable>
+  std::optional<OverlayProcessorWebView::ScopedSurfaceControlAvailable>
       allow_surface_control;
 
   auto* overlay_processor = on_viz_->overlay_processor();
@@ -642,16 +783,28 @@ void HardwareRenderer::DrawAndSwap(const HardwareRendererDrawParams& params,
 
   // Implement proper damage tracking, then deliver FrameTimingDetails
   // through the common begin frame path.
+  std::vector<pid_t> rendering_thread_ids;
+  base::TimeDelta preferred_frame_interval;
   VizCompositorThreadRunnerWebView::GetInstance()->ScheduleOnVizAndBlock(
       base::BindOnce(&HardwareRenderer::OnViz::PostDrawOnViz,
-                     base::Unretained(on_viz_.get()), &timing_details));
+                     base::Unretained(on_viz_.get()), &timing_details,
+                     &rendering_thread_ids, &preferred_frame_interval));
+  if (report_rendering_threads_ && report_rendering_threads_callback) {
+    std::move(report_rendering_threads_callback)
+        .Run(rendering_thread_ids.data(), rendering_thread_ids.size());
+  }
 
-  if (need_to_update_draw_constraints || !timing_details.empty()) {
+  bool frame_interval_changed =
+      preferred_frame_interval_ != preferred_frame_interval;
+  preferred_frame_interval_ = preferred_frame_interval;
+
+  if (need_to_update_draw_constraints || !timing_details.empty() ||
+      frame_interval_changed) {
     // |frame_token| will be reported through the FrameSinkManager so we pass 0
     // here.
     render_thread_manager_->PostParentDrawDataToChildCompositorOnRT(
         draw_constraints, child_frame_->frame_sink_id,
-        std::move(timing_details), 0);
+        std::move(timing_details), 0, preferred_frame_interval_);
   }
 
   // If using ANGLE we have not reset Skia's state at the beginning of the draw,
@@ -693,13 +846,19 @@ void HardwareRenderer::MergeTransactionIfNeeded(
 }
 
 void HardwareRenderer::AbandonContext() {
-  VizCompositorThreadRunnerWebView::GetInstance()->task_runner()->PostTask(
-      FROM_HERE,
-      base::BindOnce(&HardwareRenderer::OnViz::MarkExpectContextLossOnViz,
-                     base::Unretained(on_viz_.get())));
-  output_surface_provider_.MarkExpectContextLoss();
+  MarkAllowContextLoss();
   output_surface_provider_.shared_context_state()->MarkContextLost(
       gpu::error::ContextLostReason::kUnknown);
+}
+
+void HardwareRenderer::MarkAllowContextLoss() {
+  if (on_viz_) {
+    VizCompositorThreadRunnerWebView::GetInstance()->task_runner()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&HardwareRenderer::OnViz::MarkAllowContextLossOnViz,
+                       base::Unretained(on_viz_.get())));
+  }
+  output_surface_provider_.MarkAllowContextLoss();
 }
 
 void HardwareRenderer::CommitFrame() {
@@ -737,8 +896,10 @@ void HardwareRenderer::ReportDrawMetric(
   did_submit_compositor_frame_ = false;
 }
 
-void HardwareRenderer::Draw(const HardwareRendererDrawParams& params,
-                            const OverlaysParams& overlays_params) {
+void HardwareRenderer::Draw(
+    const HardwareRendererDrawParams& params,
+    const OverlaysParams& overlays_params,
+    ReportRenderingThreadsCallback report_rendering_threads_callback) {
   TRACE_EVENT0("android_webview", "HardwareRenderer::Draw");
 
   for (auto& pruned_frame : WaitAndPruneFrameQueue(&child_frame_queue_)) {
@@ -761,9 +922,10 @@ void HardwareRenderer::Draw(const HardwareRendererDrawParams& params,
 
   ReportDrawMetric(params);
 
-  if (last_egl_context_) {
+  if (last_egl_context_ && !IsUsingVulkan() && !IsUsingANGLEOverGL()) {
     // We need to watch if the current Android context has changed and enforce a
-    // clean-up in the compositor.
+    // clean-up in the compositor.  This is only necessary for the validating
+    // command decoder.
     EGLContext current_context = eglGetCurrentContext();
     DCHECK(current_context) << "Draw called without EGLContext";
 
@@ -773,7 +935,8 @@ void HardwareRenderer::Draw(const HardwareRendererDrawParams& params,
     }
   }
 
-  DrawAndSwap(params, overlays_params);
+  DrawAndSwap(params, overlays_params,
+              std::move(report_rendering_threads_callback));
 }
 
 void HardwareRenderer::ReturnChildFrame(
@@ -797,10 +960,6 @@ void HardwareRenderer::ReturnResourcesToCompositor(
     std::vector<viz::ReturnedResource> resources,
     const viz::FrameSinkId& frame_sink_id,
     uint32_t layer_tree_frame_sink_id) {
-  if (!base::FeatureList::IsEnabled(features::kWebViewCheckReturnResources) &&
-      layer_tree_frame_sink_id != last_committed_layer_tree_frame_sink_id_) {
-    return;
-  }
   render_thread_manager_->InsertReturnedResourcesOnRT(
       std::move(resources), frame_sink_id, layer_tree_frame_sink_id);
 }

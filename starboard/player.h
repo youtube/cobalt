@@ -19,13 +19,14 @@
 #ifndef STARBOARD_PLAYER_H_
 #define STARBOARD_PLAYER_H_
 
-#include "starboard/configuration.h"
+#include <stddef.h>
+#include <stdint.h>
 
+#include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
 #include "starboard/export.h"
 #include "starboard/media.h"
-#include "starboard/types.h"
 #include "starboard/window.h"
 
 #ifdef __cplusplus

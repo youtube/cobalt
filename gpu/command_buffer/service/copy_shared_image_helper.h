@@ -14,6 +14,7 @@
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
 #include "gpu/gpu_gles2_export.h"
 #include "third_party/skia/include/core/SkImageInfo.h"
+#include "third_party/skia/include/core/SkYUVAInfo.h"
 
 namespace gpu {
 
@@ -37,16 +38,6 @@ class GPU_GLES2_EXPORT CopySharedImageHelper {
       SharedContextState* shared_context_state);
   ~CopySharedImageHelper();
 
-  base::expected<void, GLError> ConvertRGBAToYUVAMailboxes(
-      GLenum yuv_color_space,
-      GLenum plane_config,
-      GLenum subsampling,
-      const volatile GLbyte* mailboxes_in);
-  base::expected<void, GLError> ConvertYUVAMailboxesToRGB(
-      GLenum yuv_color_space,
-      GLenum plane_config,
-      GLenum subsampling,
-      const volatile GLbyte* mailboxes_in);
   base::expected<void, GLError> CopySharedImage(
       GLint xoffset,
       GLint yoffset,
@@ -54,9 +45,9 @@ class GPU_GLES2_EXPORT CopySharedImageHelper {
       GLint y,
       GLsizei width,
       GLsizei height,
-      GLboolean unpack_flip_y,
       const volatile GLbyte* mailboxes);
   // Only used by passthrough decoder.
+  // TODO(crbug.com/40064510): Handle this use-case for graphite.
   base::expected<void, GLError> CopySharedImageToGLTexture(
       GLuint texture_service_id,
       GLenum target,
@@ -66,7 +57,7 @@ class GPU_GLES2_EXPORT CopySharedImageHelper {
       GLint src_y,
       GLsizei width,
       GLsizei height,
-      GLboolean flip_y,
+      GrSurfaceOrigin dst_origin,
       const volatile GLbyte* src_mailbox);
   base::expected<void, GLError> ReadPixels(
       GLint src_x,
@@ -76,11 +67,18 @@ class GPU_GLES2_EXPORT CopySharedImageHelper {
       SkImageInfo dst_info,
       void* pixel_address,
       std::unique_ptr<SkiaImageRepresentation> source_shared_image);
+  base::expected<void, GLError> WritePixelsYUV(
+      GLuint src_width,
+      GLuint src_height,
+      std::array<SkPixmap, SkYUVAInfo::kMaxPlanes> pixmaps,
+      std::vector<GrBackendSemaphore> end_semaphores,
+      std::unique_ptr<SkiaImageRepresentation> dest_shared_image,
+      std::unique_ptr<SkiaImageRepresentation::ScopedWriteAccess>
+          dest_scoped_access);
 
  private:
   raw_ptr<SharedImageRepresentationFactory> representation_factory_ = nullptr;
   raw_ptr<SharedContextState> shared_context_state_ = nullptr;
-  bool is_drdc_enabled_ = false;
 };
 
 }  // namespace gpu

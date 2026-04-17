@@ -4,15 +4,11 @@
 
 #import "ios/chrome/browser/shared/ui/elements/chrome_activity_overlay_coordinator.h"
 
+#import "ios/chrome/browser/scoped_ui_blocker/ui_bundled/scoped_ui_blocker.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
-#import "ios/chrome/browser/shared/coordinator/scene/scene_state_browser_agent.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/ui/elements/chrome_activity_overlay_view_controller.h"
-#import "ios/chrome/browser/ui/scoped_ui_blocker/scoped_ui_blocker.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 @interface ChromeActivityOverlayCoordinator ()
 // View controller that displays a native active indicator.
@@ -48,9 +44,12 @@
       didMoveToParentViewController:self.baseViewController];
 
   if (self.blockAllWindows) {
-    SceneState* sceneState =
-        SceneStateBrowserAgent::FromBrowser(self.browser)->GetSceneState();
-    _windowUIBlocker = std::make_unique<ScopedUIBlocker>(sceneState);
+    SceneState* sceneState = self.browser->GetSceneState();
+    // This could DCHECK if the user tap on buttons creating ui blocker in
+    // two scenes. This class will soon be deleted, so it’s not worth fixing
+    // here.
+    _windowUIBlocker = std::make_unique<ScopedUIBlocker>(
+        sceneState, UIBlockerExtent::kApplication);
   }
 
   self.started = YES;

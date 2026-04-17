@@ -9,12 +9,13 @@
 
 #include "ash/ash_export.h"
 #include "ash/wm/window_resizer.h"
+#include "ui/compositor/presentation_time_recorder.h"
 
 namespace ash {
 
-// WindowResizer is used by ToplevelWindowEventFilter to handle dragging, moving
-// or resizing a window. All coordinates passed to this are in the parent
-// windows coordiantes.
+// WindowResizer is used by ToplevelWindowEventHandler to handle dragging,
+// moving or resizing a window. All coordinates passed to this are in the parent
+// windows coordinates.
 class ASH_EXPORT DefaultWindowResizer : public WindowResizer {
  public:
   ~DefaultWindowResizer() override;
@@ -36,6 +37,10 @@ class ASH_EXPORT DefaultWindowResizer : public WindowResizer {
 
   // Set to true once Drag() is invoked and the bounds of the window change.
   bool did_move_or_resize_ = false;
+
+  // Presentation time recorder for resizing a specific window.
+  // The name of the histogram is set via a property on the window.
+  std::unique_ptr<ui::PresentationTimeRecorder> window_resize_recorder_;
 };
 
 }  // namespace ash

@@ -2,14 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {TestRunner} from 'test_runner';
+import {ConsoleTestRunner} from 'console_test_runner';
+
+import * as Platform from 'devtools/core/platform/platform.js';
+import * as Console from 'devtools/panels/console/console.js';
+
 (async function() {
   TestRunner.addResult(`Tests that console links are keyboard navigable.\n`);
-  await TestRunner.loadLegacyModule('console'); await TestRunner.loadTestModule('console_test_runner');
   await TestRunner.showPanel('console');
   ConsoleTestRunner.fixConsoleViewportDimensions(600, 200);
   await ConsoleTestRunner.waitUntilConsoleEditorLoaded();
 
-  const consoleView = Console.ConsoleView.instance();
+  const consoleView = Console.ConsoleView.ConsoleView.instance();
   const viewport = consoleView.viewport;
   const prompt = consoleView.prompt;
 
@@ -139,8 +144,8 @@
 
   function dumpFocus(activeElement, messageIndex = 0, skipObjectCheck) {
     const firstMessage = consoleView.visibleViewMessages[messageIndex];
-    const hasTrace = !!firstMessage.element().querySelector('.console-message-stack-trace-toggle');
-    const hasHiddenStackTrace = firstMessage.element().querySelector('.console-message-stack-trace-wrapper > div.hidden');
+    const hasTrace = !!firstMessage.element().querySelector('.console-message-stack-trace-toggle .console-message-expand-icon');
+    const hasHiddenStackTrace = firstMessage.element().querySelector('.console-message-stack-trace-wrapper > div.hidden-stack-trace');
     const hasCollapsedObject = firstMessage.element().querySelector('.console-view-object-properties-section:not(.expanded)');
     const hasExpandedObject = firstMessage.element().querySelector('.console-view-object-properties-section.expanded');
 
@@ -157,7 +162,7 @@
     if (hasTrace) {
       TestRunner.addResult(`Is trace expanded: ${!hasHiddenStackTrace ? 'YES' : 'NO'}`);
     }
-    if (firstMessage instanceof Console.ConsoleGroupViewMessage) {
+    if (firstMessage instanceof Console.ConsoleViewMessage.ConsoleGroupViewMessage) {
       const expanded = !firstMessage.collapsed();
       TestRunner.addResult(`Is group expanded: ${expanded ? 'YES' : 'NO'}`);
     }

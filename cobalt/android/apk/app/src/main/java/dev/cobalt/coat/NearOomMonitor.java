@@ -18,8 +18,8 @@ import android.content.ComponentCallbacks2;
 import android.content.res.Configuration;
 
 import org.chromium.base.ContextUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
 
 /**
  * Android part of NearOomMonitor. This collects Java memory pressure signals

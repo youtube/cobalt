@@ -2,11 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/audio/fuchsia/audio_input_stream_fuchsia.h"
 
 #include <lib/sys/cpp/component_context.h>
 #include <lib/zx/vmo.h>
 
+#include "base/bits.h"
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/fuchsia/process_context.h"
 #include "base/logging.h"
@@ -84,7 +90,7 @@ AudioInputStream::OpenOutcome AudioInputStreamFuchsia::Open() {
   bool mapped =
       capture_buffer_.Initialize(std::move(buffer_vmo), /*writable=*/false,
                                  /*offset=*/0, /*size=*/capture_buffer_size,
-                                 fuchsia::sysmem::CoherencyDomain::CPU);
+                                 fuchsia::sysmem2::CoherencyDomain::CPU);
 
   if (!mapped)
     return OpenOutcome::kFailed;

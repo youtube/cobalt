@@ -1,20 +1,26 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 package org.chromium.components.browser_ui.site_settings;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.content_public.browser.BrowserContextHandle;
 import org.chromium.url.GURL;
 
 import java.io.Serializable;
 
-/**
- * Used by {@link WebsiteRowPreference} to display various information about one or multiple sites.
- */
+/** Used by {@link WebsiteRowPreference} to display various information about one or multiple sites. */
+@NullMarked
 public interface WebsiteEntry extends Serializable {
     /** @return the title to display in a {@link WebsiteRowPreference}. */
     String getTitleForPreferenceRow();
+
+    /**
+     * @return the domain and registry associated with the entry.
+     */
+    String getDomainAndRegistry();
 
     /** @return the URL for fetching a favicon. */
     GURL getFaviconUrl();
@@ -27,15 +33,31 @@ public interface WebsiteEntry extends Serializable {
 
     /**
      * @return whether either the eTLD+1 or one of the origins associated with it matches the given
-     * search query.
+     *     search query.
      */
     boolean matches(String search);
 
     /**
-     * Some Google-affiliated domains are not allowed to delete cookies for supervised accounts.
-     * If the entry represents a single {@link Website}, just that origin is checked.
-     * If the entry is a {@link WebsiteGroup}, checked if this holds for EVERY {@link Website} in
-     * the group.
+     * @return whether the {@link WebsiteEntry} is a part of RWS (related website sets).
+     */
+    boolean isPartOfRws();
+
+    /**
+     * @return the owner of the RWS and null if the {@link WebsiteEntry} is not part of the RWS
+     *     (related website sets).
+     */
+    @Nullable String getRwsOwner();
+
+    /**
+     * @return the size of the RWS and 0 if the {@link WebsiteEntry} is not part of the RWS (related
+     *     website sets).
+     */
+    int getRwsSize();
+
+    /**
+     * Some Google-affiliated domains are not allowed to delete cookies for supervised accounts. If
+     * the entry represents a single {@link Website}, just that origin is checked. If the entry is a
+     * {@link WebsiteGroup}, checked if this holds for EVERY {@link Website} in the group.
      */
     boolean isCookieDeletionDisabled(BrowserContextHandle browserContextHandle);
 }

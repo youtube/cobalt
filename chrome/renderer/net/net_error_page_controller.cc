@@ -4,11 +4,10 @@
 
 #include "chrome/renderer/net/net_error_page_controller.h"
 
-#include "base/strings/string_piece.h"
 #include "content/public/renderer/render_frame.h"
 #include "gin/handle.h"
 #include "gin/object_template_builder.h"
-#include "third_party/blink/public/web/blink.h"
+#include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "v8/include/v8-context.h"
 #include "v8/include/v8-microtask-queue.h"
@@ -16,16 +15,16 @@
 gin::WrapperInfo NetErrorPageController::kWrapperInfo = {
     gin::kEmbedderNativeGin};
 
-NetErrorPageController::Delegate::Delegate() {}
-NetErrorPageController::Delegate::~Delegate() {}
+NetErrorPageController::Delegate::Delegate() = default;
+NetErrorPageController::Delegate::~Delegate() = default;
 
 // static
 void NetErrorPageController::Install(content::RenderFrame* render_frame,
                                      base::WeakPtr<Delegate> delegate) {
-  v8::Isolate* isolate = blink::MainThreadIsolate();
+  blink::WebLocalFrame* web_frame = render_frame->GetWebFrame();
+  v8::Isolate* isolate = web_frame->GetAgentGroupScheduler()->Isolate();
   v8::HandleScope handle_scope(isolate);
-  v8::Local<v8::Context> context =
-      render_frame->GetWebFrame()->MainWorldScriptContext();
+  v8::Local<v8::Context> context = web_frame->MainWorldScriptContext();
   if (context.IsEmpty())
     return;
 
@@ -89,20 +88,6 @@ bool NetErrorPageController::ButtonClick(NetErrorHelperCore::Button button) {
   return true;
 }
 
-void NetErrorPageController::LaunchOfflineItem(gin::Arguments* args) {
-  if (!delegate_)
-    return;
-  std::string id;
-  std::string name_space;
-  if (args->GetNext(&id) && args->GetNext(&name_space))
-    delegate_->LaunchOfflineItem(id, name_space);
-}
-
-void NetErrorPageController::LaunchDownloadsPage() {
-  if (delegate_)
-    delegate_->LaunchDownloadsPage();
-}
-
 void NetErrorPageController::SavePageForLater() {
   if (delegate_)
     delegate_->SavePageForLater();
@@ -113,16 +98,11 @@ void NetErrorPageController::CancelSavePage() {
     delegate_->CancelSavePage();
 }
 
-void NetErrorPageController::ListVisibilityChanged(bool is_visible) {
-  if (delegate_)
-    delegate_->ListVisibilityChanged(is_visible);
-}
-
 NetErrorPageController::NetErrorPageController(base::WeakPtr<Delegate> delegate)
     : delegate_(delegate) {
 }
 
-NetErrorPageController::~NetErrorPageController() {}
+NetErrorPageController::~NetErrorPageController() = default;
 
 gin::ObjectTemplateBuilder NetErrorPageController::GetObjectTemplateBuilder(
     v8::Isolate* isolate) {
@@ -143,12 +123,6 @@ gin::ObjectTemplateBuilder NetErrorPageController::GetObjectTemplateBuilder(
                  &NetErrorPageController::UpdateEasterEggHighScore)
       .SetMethod("resetEasterEggHighScore",
                  &NetErrorPageController::ResetEasterEggHighScore)
-      .SetMethod("launchOfflineItem",
-                 &NetErrorPageController::LaunchOfflineItem)
-      .SetMethod("launchDownloadsPage",
-                 &NetErrorPageController::LaunchDownloadsPage)
       .SetMethod("savePageForLater", &NetErrorPageController::SavePageForLater)
-      .SetMethod("cancelSavePage", &NetErrorPageController::CancelSavePage)
-      .SetMethod("listVisibilityChanged",
-                 &NetErrorPageController::ListVisibilityChanged);
+      .SetMethod("cancelSavePage", &NetErrorPageController::CancelSavePage);
 }

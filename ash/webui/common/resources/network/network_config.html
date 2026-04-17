@@ -30,6 +30,7 @@
   <template is="dom-if" if="[[isWiFi_(mojoType_)]]" restamp>
     <network-config-input id="ssid" label="[[i18n('OncWiFi-SSID')]]"
         value="{{configProperties_.typeConfig.wifi.ssid}}"
+        prefilled-value="{{prefilledProperties.typeConfig.wifi.ssid}}"
         readonly="[[hasGuid_(guid)]]">
     </network-config-input>
   </template>
@@ -40,6 +41,7 @@
         label="[[i18n('OncWiFi-Security')]]"
         value="{{securityType_}}" key="security"
         disabled="[[!securityIsEnabled_(guid, mojoType_)]]"
+        prefilled-value="{{prefilledProperties.typeConfig.wifi.security}}"
         items="[[getSecurityItems_(mojoType_)]]"
         onc-prefix="WiFi.Security"
         property="[[getManagedSecurity_(managedProperties_)]]">
@@ -52,22 +54,25 @@
         on-keypress="onWifiPasswordInputKeypress_"
         label="[[i18n('OncWiFi-Passphrase')]]"
         value="{{configProperties_.typeConfig.wifi.passphrase}}"
+        managed-properties="[[managedProperties_]]"
+        prefilled-value="{{prefilledProperties.typeConfig.wifi.passphrase}}"
         property="[[managedProperties_.typeProperties.wifi.passphrase]]">
     </network-password-input>
   </template>
 
   <!-- VPN -->
   <template is="dom-if" if="[[showVpn_]]" restamp>
-    <network-config-input label="[[i18n('OncName')]]"
+    <network-config-input id="vpn-name-input" label="[[i18n('OncName')]]"
         value="{{configProperties_.name}}"
         readonly="[[hasGuid_(guid)]]">
     </network-config-input>
-    <network-config-select id="outer" label="[[i18n('OncVPN-Type')]]"
+    <network-config-select id="vpn-type-select" label="[[i18n('OncVPN-Type')]]"
         value="{{vpnType_}}" items="[[vpnTypeItems_]]"
         onc-prefix="VPN.Type" disabled="[[hasGuid_(guid)]]">
     </network-config-select>
     <template is="dom-if" if="[[!showVpn_.WireGuard]]">
-      <network-config-input label="[[i18n('OncVPN-Host')]]"
+      <network-config-input id="vpn-host-input"
+          label="[[i18n('OncVPN-Host')]]"
           value="{{configProperties_.typeConfig.vpn.host}}"
           property="[[managedProperties_.typeProperties.vpn.host]]">
       </network-config-input>
@@ -87,6 +92,7 @@
         <network-password-input label="[[i18n('OncVPN-IPsec-Password')]]"
             id="ipsec-eap-password-input"
             value="{{eapProperties_.password}}"
+            managed-properties="[[managedProperties_]]"
             property="[[managedEapProperties_.password]]">
         </network-password-input>
       </template>
@@ -94,10 +100,12 @@
         <network-config-input label="[[i18n('OncVPN-L2TP-Username')]]"
             id="l2tp-username-input"
             value="{{configProperties_.typeConfig.vpn.l2tp.username}}"
+            managed-properties="[[managedProperties_]]"
             property="[[managedProperties_.typeProperties.vpn.l2tp.username]]">
         </network-config-input>
         <network-password-input label="[[i18n('OncVPN-L2TP-Password')]]"
             value="{{configProperties_.typeConfig.vpn.l2tp.password}}"
+            managed-properties="[[managedProperties_]]"
             property="[[managedProperties_.typeProperties.vpn.l2tp.password]]">
         </network-password-input>
         <network-config-input label="[[i18n('OncVPN-IPsec-Group')]]"
@@ -109,6 +117,7 @@
         <network-password-input label="[[i18n('OncVPN-IPsec-PSK')]]"
             id="ipsec-psk-input"
             value="{{configProperties_.typeConfig.vpn.ipSec.psk}}"
+            managed-properties="[[managedProperties_]]"
             property="[[managedProperties_.typeProperties.vpn.ipSec.psk]]">
         </network-password-input>
       </template>
@@ -132,10 +141,13 @@
           property="[[managedProperties_.typeProperties.vpn.openVpn.username]]">
       </network-config-input>
       <network-password-input label="[[i18n('OncVPN-OpenVPN-Password')]]"
+          id="openvpn-password-input"
           value="{{configProperties_.typeConfig.vpn.openVpn.password}}"
+          managed-properties="[[managedProperties_]]"
           property="[[managedProperties_.typeProperties.vpn.openVpn.password]]">
       </network-password-input>
       <network-config-input label="[[i18n('OncVPN-OpenVPN-OTP')]]"
+          id="openvpn-otp-input"
           value="{{configProperties_.typeConfig.vpn.openVpn.otp}}"
           property="[[managedProperties_.typeProperties.vpn.openVpn.otp]]">
       </network-config-input>
@@ -166,7 +178,8 @@
           value="{{nameServersInput_}}"
           property="[[managedProperties_.staticIpConfig.nameServers]]">
       </network-config-input>
-      <network-config-select label="[[i18n('OncVPN-WireGuard-Key')]]"
+      <network-config-select id="wireguard-key-type"
+          label="[[i18n('OncVPN-WireGuard-Key')]]"
           value="{{wireguardKeyType_}}" items="[[wireguardKeyTypeItems_]]"
           onc-prefix="VPN.WireGuard.Key">
       </network-config-select>
@@ -174,6 +187,7 @@
         <network-password-input label="[[i18n('OncVPN-WireGuard-PrivateKey')]]"
             id="wireguardPrivateKeyInput"
             value="{{configProperties_.typeConfig.vpn.wireguard.privateKey}}"
+            managed-properties="[[managedProperties_]]"
             property="[[managedProperties_.typeProperties.vpn.wireguard.privateKey]]">
         </network-password-input>
       </template>
@@ -183,6 +197,7 @@
             value="{{configProperties_.typeConfig.vpn.wireguard.peers.0.publicKey}}">
         </network-config-input>
         <network-password-input label="[[i18n('OncVPN-WireGuard-Peer-PresharedKey')]]"
+            managed-properties="[[managedProperties_]]"
             value="{{configProperties_.typeConfig.vpn.wireguard.peers.0.presharedKey}}">
         </network-password-input>
         <network-config-input label="[[i18n('OncVPN-WireGuard-Peer-Endpoint')]]"
@@ -198,6 +213,7 @@
     </template>
     <template is="dom-if" if="[[!showVpn_.WireGuard]]">
       <network-config-toggle label="[[i18n('networkConfigSaveCredentials')]]"
+          id="vpn-save-credentials-toggle"
           checked="{{vpnSaveCredentials_}}"
           property="[[getManagedVpnSaveCredentials_(managedProperties_)]]">
       </network-config-toggle>
@@ -208,11 +224,13 @@
   <template is="dom-if" if="[[showEap_]]" restamp>
     <network-config-select id="outer" label="[[i18n('OncEAP-Outer')]]"
         value="{{eapProperties_.outer}}" items="[[eapOuterItems_]]"
+        prefilled-value="{{prefilledProperties.typeConfig.wifi.eap.outer}}"
         onc-prefix="EAP.Outer" hidden="[[!showEap_.Outer]]"
         property="[[managedEapProperties_.outer]]">
     </network-config-select>
     <network-config-select id="inner" label="[[i18n('OncEAP-Inner')]]"
         value="{{eapProperties_.inner}}"
+        prefilled-value="{{prefilledProperties.typeConfig.wifi.eap.inner}}"
         items="[[getEapInnerItems_(eapProperties_.outer)]]"
         onc-prefix="EAP.Inner" hidden="[[!showEap_.Inner]]"
         property="[[managedEapProperties_.inner]]">
@@ -245,14 +263,17 @@
         device-certs-only="[[deviceCertsOnly_]]">
     </network-config-select>
     <network-config-input id="oncEAPIdentity" label="[[i18n('OncEAP-Identity')]]"
+        prefilled-value="{{prefilledProperties.typeConfig.wifi.eap.identity}}"
         value="{{eapProperties_.identity}}" hidden="[[!showEap_.Identity]]"
         property="[[managedEapProperties_.identity]]">
     </network-config-input>
-    <network-password-input label="[[i18n('OncEAP-Password')]]"
+    <network-password-input id="eapPassword" label="[[i18n('OncEAP-Password')]]"
+        prefilled-value="{{prefilledProperties.typeConfig.wifi.eap.password}}"
         value="{{eapProperties_.password}}" hidden="[[!showEap_.Password]]"
         property="[[managedEapProperties_.password]]">
     </network-password-input>
-    <network-config-input label="[[i18n('OncEAP-AnonymousIdentity')]]"
+    <network-config-input id="oncEAPAnonymousIdentity" label="[[i18n('OncEAP-AnonymousIdentity')]]"
+        prefilled-value="{{prefilledProperties.typeConfig.wifi.eap.anonymousIdentity}}"
         value="{{eapProperties_.anonymousIdentity}}"
         hidden="[[!showEap_.AnonymousIdentity]]"
         property="[[managedEapProperties_.anonymousIdentity]]">
@@ -264,13 +285,20 @@
   </template>
 
   <!-- Share (WiFi) -->
-  <template is="dom-if" if="[[shareIsVisible_(managedProperties_)]]"
-      restamp>
-    <network-config-toggle id="share" label="[[i18n('networkConfigShare')]]"
-        checked="{{shareNetwork_}}" on-change="onShareChanged_"
-        disabled="[[!shareIsEnabled_(configProperties_.*,
-                  eapProperties_.*, shareAllowEnable)]]">
-    </network-config-toggle>
+  <template is="dom-if" if="[[shareIsVisible_(managedProperties_, globalPolicy_)]]" restamp>
+    <!-- TODO: b/302726243 - Reuse just one network-config-toggle -->
+    <template is="dom-if" if="[[!networkIsEphemeral_(managedProperties_, globalPolicy_)]]" restamp>
+      <network-config-toggle id="share" label="[[i18n('networkConfigShare')]]"
+          checked="{{shareNetwork_}}" on-change="onShareChanged_"
+          disabled="[[!shareIsEnabled_(configProperties_.*,
+                    eapProperties_.*, shareAllowEnable)]]">
+      </network-config-toggle>
+    </template>
+    <template is="dom-if" if="[[networkIsEphemeral_(managedProperties_, globalPolicy_)]]" restamp>
+      <network-config-toggle id="shareEphemeralDisabled" label="[[i18n('networkConfigShare')]]"
+          property="{{shareNetworkEphemeralDisabled_}}">
+      </network-config-toggle>
+    </template>
   </template>
 
   <!-- AutoConnect (WiFi) -->
@@ -286,7 +314,7 @@
       </template>
       <cr-toggle id="autoConnect" checked="{{autoConnect_}}"
           disabled="[[autoConnectDisabled_(globalPolicy_)]]"
-          aria-labeledby="autoConnectLabel">
+          aria-labelledby="autoConnectLabel">
       </cr-toggle>
     </div>
   </template>

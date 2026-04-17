@@ -124,7 +124,8 @@ class StarboardRendererTest : public testing::Test {
     renderer_->SetSbPlayerInterfaceForTesting(&mock_sbplayer_interface_);
     renderer_->SetStarboardRendererCallbacks(
         /*paint_video_hole_frame_cb=*/base::DoNothing(),
-        /*update_starboard_rendering_mode_cb=*/base::DoNothing()
+        /*update_starboard_rendering_mode_cb=*/base::DoNothing(),
+        /*get_sb_window_handle_cb=*/base::NullCallback()
 #if BUILDFLAG(IS_ANDROID)
             ,
         /*request_overlay_info_cb=*/base::DoNothing()
@@ -133,8 +134,6 @@ class StarboardRendererTest : public testing::Test {
 
     EXPECT_CALL(media_resource_, GetAllStreams())
         .WillRepeatedly(Invoke(this, &StarboardRendererTest::GetAllStreams));
-    EXPECT_CALL(media_resource_, GetType())
-        .WillRepeatedly(Return(MediaResource::STREAM));
   }
 
   ~StarboardRendererTest() override {}
@@ -174,20 +173,6 @@ class StarboardRendererTest : public testing::Test {
   }
 
   base::test::TaskEnvironment task_environment_;
-  const std::unique_ptr<StarboardRenderer> renderer_ =
-      std::make_unique<StarboardRenderer>(
-          task_environment_.GetMainThreadTaskRunner(),
-          std::make_unique<NullMediaLog>(),
-          /*overlay_plane_id=*/base::UnguessableToken::Create(),
-          /*audio_write_duration_local=*/base::Seconds(1),
-          /*audio_write_duration_remote=*/base::Seconds(1),
-          /*max_video_capabilities=*/"",
-          /*viewport_size=*/gfx::Size()
-#if BUILDFLAG(IS_ANDROID)
-              ,
-          /*android_overlay_factory_cb=*/AndroidOverlayMojoFactoryCB()
-#endif  // BUILDFLAG(IS_ANDROID)
-      );
   base::MockOnceCallback<void(bool)> set_cdm_cb_;
   base::MockOnceCallback<void(PipelineStatus)> renderer_init_cb_;
   NiceMock<MockCdmContext> cdm_context_;
@@ -199,10 +184,28 @@ class StarboardRendererTest : public testing::Test {
   SbPlayerStatusFunc player_status_cb_ = nullptr;
   SbPlayerErrorFunc player_error_cb_ = nullptr;
   void* context_ = nullptr;
+  const std::unique_ptr<StarboardRenderer> renderer_ =
+      std::make_unique<StarboardRenderer>(
+          task_environment_.GetMainThreadTaskRunner(),
+          std::make_unique<NullMediaLog>(),
+          /*overlay_plane_id=*/base::UnguessableToken::Create(),
+          /*audio_write_duration_local=*/base::Seconds(1),
+          /*audio_write_duration_remote=*/base::Seconds(1),
+          /*max_video_capabilities=*/"",
+          StarboardRendererConfig::ExperimentalFeatures{},
+          /*viewport_size=*/gfx::Size()
+#if BUILDFLAG(IS_ANDROID)
+              ,
+          /*android_overlay_factory_cb=*/AndroidOverlayMojoFactoryCB()
+#endif  // BUILDFLAG(IS_ANDROID)
+      );
 };
 
 TEST_F(StarboardRendererTest, InitializeWithClearContent) {
-  InitializeWithAudioAndVideo();
+  SbPlayer player = InitializeWithAudioAndVideo();
+  ASSERT_TRUE(player_status_cb_);
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    /*ticket=*/SB_PLAYER_INITIAL_TICKET);
   task_environment_.RunUntilIdle();
 }
 
@@ -219,7 +222,10 @@ TEST_F(StarboardRendererTest, InitializeWaitsForCdm) {
 }
 
 TEST_F(StarboardRendererTest, SetCdmThenInitialize) {
-  InitializeWithAudioAndVideo(/*encrypted=*/true);
+  SbPlayer player = InitializeWithAudioAndVideo(/*encrypted=*/true);
+  ASSERT_TRUE(player_status_cb_);
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    /*ticket=*/SB_PLAYER_INITIAL_TICKET);
   task_environment_.RunUntilIdle();
 }
 
@@ -229,17 +235,23 @@ TEST_F(StarboardRendererTest, InitializeThenSetCdm) {
 
   SbPlayer player = new SbPlayerPrivate();
   EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
-      .WillOnce(Return(player));
+      .WillOnce(DoAll(SaveArg<3>(&decoder_status_cb_),
+                      SaveArg<4>(&player_status_cb_),
+                      SaveArg<5>(&player_error_cb_), SaveArg<6>(&context_),
+                      Return(player)));
   EXPECT_CALL(renderer_client_, OnWaiting(WaitingReason::kNoCdm));
   renderer_->Initialize(&media_resource_, &renderer_client_,
                         renderer_init_cb_.Get());
   task_environment_.RunUntilIdle();
 
   EXPECT_CALL(set_cdm_cb_, Run(true));
-  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
-
   renderer_->SetCdm(&cdm_context_, set_cdm_cb_.Get());
+  task_environment_.RunUntilIdle();
 
+  ASSERT_TRUE(player_status_cb_);
+  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    /*ticket=*/SB_PLAYER_INITIAL_TICKET);
   task_environment_.RunUntilIdle();
 }
 
@@ -297,6 +309,11 @@ TEST_F(StarboardRendererTest, OnPlayerStatusCallbacksEnded) {
 
 TEST_F(StarboardRendererTest, OnPlayerErrorCallback) {
   SbPlayer player = InitializeWithAudioAndVideo();
+  ASSERT_TRUE(player_status_cb_);
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    /*ticket=*/SB_PLAYER_INITIAL_TICKET);
+  task_environment_.RunUntilIdle();
+
   ASSERT_TRUE(player_error_cb_);
 
   EXPECT_CALL(renderer_client_, OnError(HasStatusCode(PIPELINE_ERROR_DECODE)));

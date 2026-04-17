@@ -28,7 +28,7 @@ from perfetto.trace_uri_resolver.path import PathUriResolver
 from perfetto.trace_uri_resolver.registry import ResolverRegistry
 
 # URL to download script to run trace_processor
-SHELL_URL = 'http://get.perfetto.dev/trace_processor'
+SHELL_URL = 'https://get.perfetto.dev/trace_processor'
 
 
 class PlatformDelegate:
@@ -42,7 +42,7 @@ class PlatformDelegate:
   def get_shell_path(self, bin_path: str) -> str:
     if bin_path is not None:
       if not os.path.isfile(bin_path):
-        raise Exception('Path to binary is not valid')
+        raise Exception(f'Path to binary is not valid ({bin_path}).')
       return bin_path
 
     tp_path = os.path.join(tempfile.gettempdir(), 'trace_processor_python_api')

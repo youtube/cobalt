@@ -6,6 +6,7 @@
 
 #include "base/no_destructor.h"
 #include "net/cookies/site_for_cookies.h"
+#include "net/storage_access_api/status.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -15,30 +16,13 @@ MediaResource::MediaResource() = default;
 
 MediaResource::~MediaResource() = default;
 
-const MediaUrlParams& MediaResource::GetMediaUrlParams() const {
-  NOTREACHED();
-  static base::NoDestructor<MediaUrlParams> instance{
-      GURL(), net::SiteForCookies(), url::Origin(), false, false, false};
-  return *instance;
-}
-
-MediaResource::Type MediaResource::GetType() const {
-  return STREAM;
-}
-
 DemuxerStream* MediaResource::GetFirstStream(DemuxerStream::Type type) {
   const auto& streams = GetAllStreams();
-  for (auto* stream : streams) {
+  for (media::DemuxerStream* stream : streams) {
     if (stream->type() == type)
       return stream;
   }
   return nullptr;
-}
-
-void MediaResource::ForwardDurationChangeToDemuxerHost(
-    base::TimeDelta duration) {
-  // Only implemented by MediaUrlDemuxer, for the MediaPlayerRendererClient.
-  NOTREACHED();
 }
 
 }  // namespace media

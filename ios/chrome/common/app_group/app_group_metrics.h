@@ -43,6 +43,14 @@ extern NSString* const kCredentialExtensionCopyURLCount;
 extern NSString* const kCredentialExtensionCopyUsernameCount;
 
 // An app_group key to the number of times Credential Extension user
+// copied a User Display Name since last Chrome launch.
+extern NSString* const kCredentialExtensionCopyUserDisplayNameCount;
+
+// An app_group key to the number of times Credential Extension user
+// copied a Creation Date since last Chrome launch.
+extern NSString* const kCredentialExtensionCopyCreationDateCount;
+
+// An app_group key to the number of times Credential Extension user
 // copied a Password since last Chrome launch.
 extern NSString* const kCredentialExtensionCopyPasswordCount;
 
@@ -58,9 +66,17 @@ extern NSString* const kCredentialExtensionSearchCount;
 // selected a Password from the list since last Chrome launch.
 extern NSString* const kCredentialExtensionPasswordUseCount;
 
+// An app_group key to the number of times Credential Extension user
+// selected a Passkey from the list since last Chrome launch.
+extern NSString* const kCredentialExtensionPasskeyUseCount;
+
 // An app_group key to the number of times Credential Extension returned
 // a Password to the context without direct user intervention.
 extern NSString* const kCredentialExtensionQuickPasswordUseCount;
+
+// An app_group key to the number of times Credential Extension returned
+// a Passkey to the context without direct user intervention.
+extern NSString* const kCredentialExtensionQuickPasskeyUseCount;
 
 // An app_group key to the number of times Credential Extension couldn't
 // find a password in the keychain.
@@ -76,9 +92,6 @@ extern NSString* const kCredentialExtensionKeychainSavePasswordFailureCount;
 
 // An app_group key for the number of times saving a new credential failed.
 extern NSString* const kCredentialExtensionSaveCredentialFailureCount;
-
-// An app_group key for the number of times the consent verified view shows.
-extern NSString* const kCredentialExtensionConsentVerifiedCount;
 
 // Returns the app_group key containing the number of times the given histogram
 // bucket was fired.

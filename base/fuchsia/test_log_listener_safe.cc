@@ -8,15 +8,16 @@
 #include <lib/fidl/cpp/box.h>
 #include <lib/zx/clock.h>
 
+#include <optional>
+#include <string_view>
+
 #include "base/fuchsia/fuchsia_component_connect.h"
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/functional/callback_helpers.h"
 #include "base/process/process.h"
 #include "base/run_loop.h"
-#include "base/strings/string_piece.h"
 #include "base/test/bind.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 
@@ -32,8 +33,9 @@ void TestLogListenerSafe::set_on_log_message(
 void TestLogListenerSafe::Log(
     TestLogListenerSafe::LogRequest& request,
     TestLogListenerSafe::LogCompleter::Sync& completer) {
-  if (on_log_message_)
+  if (on_log_message_) {
     on_log_message_.Run(request.log());
+  }
   completer.Reply();
 }
 
@@ -65,7 +67,7 @@ void SimpleTestLogListener::ListenToLog(
         ZX_LOG(ERROR, info.status()) << "LogListenerSafe disconnected";
       });
 
-  ignore_before_ = zx::clock::get_monotonic();
+  ignore_before_ = zx::clock::get_boot();
   listener_.set_on_log_message(base::BindRepeating(
       &SimpleTestLogListener::PushLoggedMessage, base::Unretained(this)));
   auto listen_safe_result =
@@ -77,26 +79,26 @@ void SimpleTestLogListener::ListenToLog(
   }
 }
 
-absl::optional<fuchsia_logger::LogMessage>
+std::optional<fuchsia_logger::LogMessage>
 SimpleTestLogListener::RunUntilMessageReceived(
-    base::StringPiece expected_string) {
+    std::string_view expected_string) {
   while (!logged_messages_.empty()) {
     fuchsia_logger::LogMessage message = logged_messages_.front();
     logged_messages_.pop_front();
-    if (base::StringPiece(message.msg()).find(expected_string) !=
+    if (std::string_view(message.msg()).find(expected_string) !=
         std::string::npos) {
       return message;
     }
   }
 
-  absl::optional<fuchsia_logger::LogMessage> logged_message;
+  std::optional<fuchsia_logger::LogMessage> logged_message;
   base::RunLoop loop;
   on_log_message_ = base::BindLambdaForTesting(
       [ignore_before = ignore_before_, &logged_message,
        expected_string = std::string(expected_string),
        quit_loop =
            loop.QuitClosure()](const fuchsia_logger::LogMessage& message) {
-        if (zx::time(message.time()) < ignore_before) {
+        if (message.time() < ignore_before) {
           return;
         }
         if (message.msg().find(expected_string) == std::string::npos) {
@@ -116,7 +118,7 @@ SimpleTestLogListener::RunUntilMessageReceived(
 void SimpleTestLogListener::PushLoggedMessage(
     const fuchsia_logger::LogMessage& message) {
   DVLOG(1) << "TestLogListener received: " << message.msg();
-  if (zx::time(message.time()) < ignore_before_) {
+  if (message.time() < ignore_before_) {
     return;
   }
   if (on_log_message_) {

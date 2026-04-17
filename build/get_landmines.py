@@ -80,6 +80,9 @@ def print_landmines():
   print('Clobber to flush stale generated files. See crbug.com/1406628')
   print('Clobber to flush old .ninja_log files for updating ninja. '
         'See crbug.com/1406628#c14')
+  if host_os() == 'mac':
+    print('Clobber to clear old nocompile targets. See crbug.com/1497005.')
+  print('Clobber to flush old TFLite files. See crbug.com/365705857')
 
 
 def main():

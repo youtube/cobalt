@@ -30,16 +30,19 @@ import contextlib
 import json
 import logging
 import optparse
+import posixpath
 import re
 import traceback
+from typing import List, Optional
 
 from blinkpy.common import exit_codes
 from blinkpy.common.host import Host
+from blinkpy.common.path_finder import PathFinder
 from blinkpy.common.system.log_utils import configure_logging
 from blinkpy.web_tests.models.test_expectations import (TestExpectations,
                                                         ParseError)
 from blinkpy.web_tests.models.typ_types import ResultType
-from blinkpy.web_tests.port.android import ANDROID_DISABLED_TESTS
+from blinkpy.web_tests.port.base import Port
 from blinkpy.web_tests.port.factory import platform_options
 
 _log = logging.getLogger(__name__)
@@ -58,24 +61,8 @@ def _capture_parse_error(failures):
                         if not exclude_pattern.fullmatch(message))
 
 
-def lint(host, options):
-    # The checks and list of expectation files are generally not
-    # platform-dependent. Still, we need a port to identify test types and
-    # manipulate virtual test paths.
-    #
-    # Force a manifest update to ensure it's always up-to-date.
-    # TODO(crbug.com/1411505): See if the manifest refresh can be made faster.
-    options.manifest_update = True
-    port = host.port_factory.get(options=options)
-
-    # Add all extra expectation files to be linted.
-    options.additional_expectations.extend(
-        [ANDROID_DISABLED_TESTS] + [
-            host.filesystem.join(port.web_tests_dir(),
-                                 'WPTOverrideExpectations'),
-            host.filesystem.join(port.web_tests_dir(), 'WebGPUExpectations'),
-        ])
-
+def lint(port):
+    host = port.host
     failures = []
     warnings = []
     all_system_specifiers = set()
@@ -100,7 +87,7 @@ def lint(host, options):
                 port, expectations_dict={path: content})
             # Check each expectation for issues
             f, w = _check_expectations(host, port, path, test_expectations,
-                                       options, all_test_expectations)
+                                       all_test_expectations)
             failures += f
             warnings += w
 
@@ -130,7 +117,7 @@ def _check_directory_glob(host, port, path, expectations):
         if not exp.test or exp.is_glob:
             continue
 
-        test_name, _ = port.split_webdriver_test_name(exp.test)
+        test_name = exp.test
         index = test_name.find('?')
         if index != -1:
             test_name = test_name[:index]
@@ -283,7 +270,7 @@ def _check_skip_in_test_expectations(host, path, expectations):
     return failures
 
 
-def _check_expectations(host, port, path, test_expectations, options,
+def _check_expectations(host, port, path, test_expectations,
                         all_test_expectations):
     # Check for original expectation lines (from get_updated_lines) instead of
     # expectations filtered for the current port (test_expectations).
@@ -322,17 +309,25 @@ def _check_stable_webexposed_not_disabled(host, path, expectations):
     return failures
 
 
-def check_virtual_test_suites(host, options):
-    port = host.port_factory.get(options=options)
+def check_virtual_test_suites(port):
+    host = port.host
     fs = host.filesystem
     web_tests_dir = port.web_tests_dir()
     virtual_suites = port.virtual_test_suites()
     virtual_suites.sort(key=lambda s: s.full_prefix)
+    max_suite_length = 48
+
+    wpt_tests = set()
+    for wpt_dir in port.wpt_dirs():
+        wpt_tests.update(
+            posixpath.join(wpt_dir, url)
+            for url in port.wpt_manifest(wpt_dir).all_urls())
 
     failures = []
     for suite in virtual_suites:
         suite_comps = suite.full_prefix.split(port.TEST_PATH_SEPARATOR)
         prefix = suite_comps[1]
+        owners = suite.owners
         normalized_bases = [port.normalize_test_name(b) for b in suite.bases]
         normalized_bases.sort()
         for i in range(1, len(normalized_bases)):
@@ -356,7 +351,9 @@ def check_virtual_test_suites(host, options):
                 continue
             base_comps = base.split(port.TEST_PATH_SEPARATOR)
             absolute_base = port.abspath_for_test(base)
-            if fs.isfile(absolute_base):
+            # Also, allow any WPT URLs that are valid generated tests but
+            # aren't test files (e.g., `.any.js` and variants).
+            if fs.isfile(absolute_base) or base in wpt_tests:
                 del base_comps[-1]
             elif not fs.isdir(absolute_base):
                 failure = 'Base "{}" in virtual suite "{}" must refer to a real file or directory'.format(
@@ -383,7 +380,8 @@ def check_virtual_test_suites(host, options):
                 failures.append(failure)
 
         for exclusive_test in suite.exclusive_tests:
-            if not fs.exists(port.abspath_for_test(exclusive_test)):
+            if not fs.exists(port.abspath_for_test(
+                    exclusive_test)) and exclusive_test not in wpt_tests:
                 failure = 'Exclusive_tests entry "{}" in virtual suite "{}" must refer to a real file or directory'.format(
                     exclusive_test, prefix)
                 failures.append(failure)
@@ -394,46 +392,71 @@ def check_virtual_test_suites(host, options):
                     exclusive_test, prefix)
                 failures.append(failure)
 
+        if not owners:
+            failure = 'Virtual suite name "{}" has no owner.'.format(prefix)
+            failures.append(failure)
+
+        if len(prefix) > max_suite_length:
+            failure = 'Virtual suite name "{}" is over the "{}" filename length limit'.format(
+                prefix, max_suite_length)
+            failures.append(failure)
+
     return failures
 
 
-def check_smoke_tests(host, options):
-    port = host.port_factory.get(options=options)
-    path = host.filesystem.join(port.web_tests_dir(), 'SmokeTests')
-    smoke_tests_files = host.filesystem.listdir(path)
+def check_test_lists(port):
+    host = port.host
+    path = host.filesystem.join(port.web_tests_dir(), 'TestLists')
+    test_lists_files = host.filesystem.listdir(path)
     failures = []
-    for smoke_tests_file in smoke_tests_files:
-        smoke_tests = host.filesystem.read_text_file(
-            host.filesystem.join(port.web_tests_dir(), 'SmokeTests',
-                                 smoke_tests_file))
+    for test_lists_file in test_lists_files:
+        if test_lists_file == 'OWNERS':
+            continue
+        test_lists = host.filesystem.read_text_file(
+            host.filesystem.join(port.web_tests_dir(), 'TestLists',
+                                 test_lists_file))
         line_number = 0
         parsed_lines = {}
-        for line in smoke_tests.split('\n'):
+        for line in test_lists.split('\n'):
             line_number += 1
             line = line.split('#')[0].strip()
+            if line and line[-1] == '*':
+                line = line[:-1]
             if not line:
                 continue
+            # A sign denoting inclusion or exclusion may prefix terms in filter
+            # files.
+            if line.startswith('+') or line.startswith('-'):
+                line = line[1:]
             if line in parsed_lines:
                 failures.append(
                     '%s:%d duplicate with line %d: %s' %
-                    (smoke_tests_file, line_number, parsed_lines[line], line))
+                    (test_lists_file, line_number, parsed_lines[line], line))
             elif not port.test_exists(line):
                 failures.append('%s:%d Test does not exist: %s' %
-                                (smoke_tests_file, line_number, line))
+                                (test_lists_file, line_number, line))
             parsed_lines[line] = line_number
 
     return failures
 
 
 def run_checks(host, options):
-    failures = []
-    warnings = []
-
-    f, w = lint(host, options)
-    failures += f
-    warnings += w
-    failures.extend(check_virtual_test_suites(host, options))
-    failures.extend(check_smoke_tests(host, options))
+    if host.filesystem.getcwd().startswith('/google/cog/cloud'):
+        _log.warning('Skipping run_checks for cog workspace')
+        # Return 2 to indicate a warning and make it explicit this test is getting skipped.
+        return 2
+    finder = PathFinder(host.filesystem)
+    # Add all extra expectation files to be linted.
+    options.additional_expectations.extend([
+        finder.path_from_web_tests('WebGPUExpectations'),
+    ])
+    # The checks and list of expectation files are generally not
+    # platform-dependent. Still, we need a port to identify test types and
+    # manipulate virtual test paths.
+    port = host.port_factory.get(options=options)
+    failures, warnings = lint(port)
+    failures.extend(check_virtual_test_suites(port))
+    failures.extend(check_test_lists(port))
 
     if options.json:
         with open(options.json, 'w') as f:
@@ -491,8 +514,9 @@ def main(argv, stderr, host=None):
         host.executive.error_output_limit = None
     else:
         # PRESUBMIT.py relies on our output, so don't include timestamps.
-        configure_logging(
-            logging_level=logging.INFO, stream=stderr, include_time=False)
+        configure_logging(logging_level=logging.WARNING,
+                          stream=stderr,
+                          include_time=False)
 
     try:
         exit_status = run_checks(host, options)

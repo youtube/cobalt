@@ -4,40 +4,38 @@
 
 package org.chromium.chrome.browser;
 
+
 import android.app.Activity;
 import android.content.Context;
 import android.view.View;
 import android.view.ViewGroup;
 
-import androidx.annotation.NonNull;
 import androidx.annotation.Px;
-import androidx.core.view.WindowInsetsCompat;
 
-import org.chromium.base.TraceEvent;
 import org.chromium.base.supplier.Supplier;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
-import org.chromium.chrome.browser.flags.MutableFlagWithSafeDefault;
-import org.chromium.chrome.browser.init.SingleWindowKeyboardVisibilityDelegate;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.keyboard_accessory.ManualFillingComponent;
+import org.chromium.ui.KeyboardUtils;
+import org.chromium.ui.base.ActivityKeyboardVisibilityDelegate;
 
 import java.lang.ref.WeakReference;
 
 /**
- * A {@link SingleWindowKeyboardVisibilityDelegate} that considers UI elements of an
- * {@link Activity} which amend or replace the keyboard.
+ * A {@link ActivityKeyboardVisibilityDelegate} that considers UI elements of an {@link Activity}
+ * which amend or replace the keyboard.
  */
-public class ChromeKeyboardVisibilityDelegate extends SingleWindowKeyboardVisibilityDelegate
+@NullMarked
+public class ChromeKeyboardVisibilityDelegate extends ActivityKeyboardVisibilityDelegate
         implements ManualFillingComponent.SoftKeyboardDelegate {
-    private static final MutableFlagWithSafeDefault sScrollOptimizationsFlag =
-            new MutableFlagWithSafeDefault(ChromeFeatureList.ANDROID_SCROLL_OPTIMIZATIONS, false);
     private final Supplier<ManualFillingComponent> mManualFillingComponentSupplier;
 
     /**
      * Creates a new visibility delegate.
      * @param activity A {@link WeakReference} to an {@link Activity}.
      */
-    public ChromeKeyboardVisibilityDelegate(WeakReference<Activity> activity,
-            @NonNull Supplier<ManualFillingComponent> manualFillingComponentSupplier) {
+    public ChromeKeyboardVisibilityDelegate(
+            WeakReference<Activity> activity,
+            Supplier<ManualFillingComponent> manualFillingComponentSupplier) {
         super(activity);
         mManualFillingComponentSupplier = manualFillingComponentSupplier;
     }
@@ -50,59 +48,50 @@ public class ChromeKeyboardVisibilityDelegate extends SingleWindowKeyboardVisibi
                     mManualFillingComponentSupplier.get().isFillingViewShown(view);
             mManualFillingComponentSupplier.get().hide();
         }
-        return super.hideKeyboard(view) || wasManualFillingViewShowing;
+        return hideSoftKeyboardOnly(view) || wasManualFillingViewShowing;
     }
 
     @Override
     public boolean isKeyboardShowing(Context context, View view) {
-        return super.isKeyboardShowing(context, view)
+        return isSoftKeyboardShowing(context, view)
                 || (mManualFillingComponentSupplier.hasValue()
                         && mManualFillingComponentSupplier.get().isFillingViewShown(view));
     }
 
     @Override
-    public int calculateKeyboardHeight(View rootView) {
-        try (TraceEvent te = TraceEvent.scoped(
-                     "ChromeKeyboardVisibilityDelegate.calculateKeyboardHeight")) {
-            // TODO(https://crbug.com/1385562: remove the flag guard once this change is known to be
-            // safe).
-            if (sScrollOptimizationsFlag.isEnabled()) {
-                if (rootView == null || rootView.getRootWindowInsets() == null) return 0;
-                WindowInsetsCompat windowInsetsCompat = WindowInsetsCompat.toWindowInsetsCompat(
-                        rootView.getRootWindowInsets(), rootView);
-                int imeHeightIncludingNavigationBar =
-                        windowInsetsCompat.getInsets(WindowInsetsCompat.Type.ime()).bottom;
-                if (imeHeightIncludingNavigationBar == 0) return 0;
-                int navigationBarHeight =
-                        windowInsetsCompat.getInsets(WindowInsetsCompat.Type.navigationBars())
-                                .bottom;
-                return imeHeightIncludingNavigationBar - navigationBarHeight;
-            }
-
-            return super.calculateKeyboardHeight(rootView);
+    public int calculateTotalKeyboardHeight(View rootView) {
+        int accessoryHeight = 0;
+        if (mManualFillingComponentSupplier.hasValue()) {
+            accessoryHeight = mManualFillingComponentSupplier.get().getKeyboardExtensionHeight();
         }
+        return calculateSoftKeyboardHeight(rootView) + accessoryHeight;
     }
+
+    // Implements ManualFillingComponent.SoftKeyboardDelegate
 
     /**
      * Implementation ignoring the Chrome-specific keyboard logic on top of the system keyboard.
+     *
      * @see ManualFillingComponent.SoftKeyboardDelegate#hideSoftKeyboardOnly(View)
      */
     @Override
     public boolean hideSoftKeyboardOnly(View view) {
-        return hideAndroidSoftKeyboard(view);
+        return KeyboardUtils.hideAndroidSoftKeyboard(view);
     }
 
     /**
      * Implementation ignoring the Chrome-specific keyboard logic on top of the system keyboard.
+     *
      * @see ManualFillingComponent.SoftKeyboardDelegate#isSoftKeyboardShowing(Context, View)
      */
     @Override
     public boolean isSoftKeyboardShowing(Context context, View view) {
-        return isAndroidSoftKeyboardShowing(context, view);
+        return KeyboardUtils.isAndroidSoftKeyboardShowing(view);
     }
 
     /**
      * Implementation ignoring the Chrome-specific keyboard logic on top of the system keyboard.
+     *
      * @see ManualFillingComponent.SoftKeyboardDelegate#showSoftKeyboard(ViewGroup)
      */
     @Override
@@ -112,19 +101,11 @@ public class ChromeKeyboardVisibilityDelegate extends SingleWindowKeyboardVisibi
 
     /**
      * Implementation ignoring the Chrome-specific keyboard logic on top of the system keyboard.
+     *
      * @see ManualFillingComponent.SoftKeyboardDelegate#calculateSoftKeyboardHeight(View)
      */
     @Override
     public @Px int calculateSoftKeyboardHeight(View rootView) {
-        return calculateKeyboardHeight(rootView);
-    }
-
-    @Override
-    public int calculateTotalKeyboardHeight(View rootView) {
-        int accessoryHeight = 0;
-        if (mManualFillingComponentSupplier.hasValue()) {
-            accessoryHeight = mManualFillingComponentSupplier.get().getKeyboardExtensionHeight();
-        }
-        return calculateKeyboardHeight(rootView) + accessoryHeight;
+        return KeyboardUtils.calculateKeyboardHeightFromWindowInsets(rootView);
     }
 }

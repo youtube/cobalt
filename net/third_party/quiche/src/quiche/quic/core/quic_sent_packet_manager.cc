@@ -6,17 +6,21 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <memory>
+#include <optional>
 #include <string>
+#include <utility>
+#include <vector>
 
-#include "quiche/quic/core/congestion_control/general_loss_algorithm.h"
 #include "quiche/quic/core/congestion_control/pacing_sender.h"
 #include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
-#include "quiche/quic/core/proto/cached_network_parameters_proto.h"
 #include "quiche/quic/core/quic_connection_stats.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_packet_number.h"
+#include "quiche/quic/core/quic_tag.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_transmission_info.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
@@ -82,7 +86,7 @@ QuicSentPacketManager::QuicSentPacketManager(
       largest_mtu_acked_(0),
       handshake_finished_(false),
       peer_max_ack_delay_(
-          QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs)),
+          QuicTime::Delta::FromMilliseconds(kDefaultPeerDelayedAckTimeMs)),
       rtt_updated_(false),
       acked_packets_iter_(last_ack_frame_.packets.rbegin()),
       consecutive_pto_count_(0),
@@ -119,9 +123,9 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   }
   if (GetQuicReloadableFlag(quic_can_send_ack_frequency) &&
       perspective == Perspective::IS_SERVER) {
-    if (config.HasReceivedMinAckDelayMs()) {
-      peer_min_ack_delay_ =
-          QuicTime::Delta::FromMilliseconds(config.ReceivedMinAckDelayMs());
+    if (config.HasReceivedMinAckDelayDraft10Ms()) {
+      peer_min_ack_delay_ = QuicTime::Delta::FromMilliseconds(
+          config.ReceivedMinAckDelayDraft10Ms());
     }
     if (config.HasClientSentConnectionOption(kAFF1, perspective)) {
       use_smoothed_rtt_in_ack_delay_ = true;
@@ -147,6 +151,13 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
              (GetQuicReloadableFlag(quic_default_to_bbr) &&
               config.HasClientRequestedIndependentOption(kQBIC, perspective))) {
     SetSendAlgorithm(kCubicBytes);
+  }
+  if (perspective == Perspective::IS_CLIENT) {
+    if (config.HasClientRequestedIndependentOption(kPRGC, perspective)) {
+      SetSendAlgorithm(kPragueCubic);
+    } else if (config.HasClientRequestedIndependentOption(kCQBC, perspective)) {
+      SetSendAlgorithm(kCubicBytes);
+    }
   }
 
   // Initial window.
@@ -204,6 +215,9 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   if (config.HasClientSentConnectionOption(kCONH, perspective)) {
     conservative_handshake_retransmits_ = true;
   }
+  if (config.HasClientSentConnectionOption(kRNIB, perspective)) {
+    pacing_sender_.set_remove_non_initial_burst();
+  }
   send_algorithm_->SetFromConfig(config, perspective);
   loss_algorithm_->SetFromConfig(config, perspective);
 
@@ -223,7 +237,7 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
 
 void QuicSentPacketManager::ApplyConnectionOptions(
     const QuicTagVector& connection_options) {
-  absl::optional<CongestionControlType> cc_type;
+  std::optional<CongestionControlType> cc_type;
   if (ContainsQuicTag(connection_options, kB2ON)) {
     cc_type = kBBRv2;
   } else if (ContainsQuicTag(connection_options, kTBBR)) {
@@ -233,7 +247,9 @@ void QuicSentPacketManager::ApplyConnectionOptions(
   } else if (ContainsQuicTag(connection_options, kQBIC)) {
     cc_type = kCubicBytes;
   }
-
+  // This function is only used in server experiments, so do not apply the
+  // client-only PRGC tag.
+  QUICHE_DCHECK(unacked_packets_.perspective() == Perspective::IS_SERVER);
   if (cc_type.has_value()) {
     SetSendAlgorithm(*cc_type);
   }
@@ -315,12 +331,15 @@ void QuicSentPacketManager::SetHandshakeConfirmed() {
 void QuicSentPacketManager::PostProcessNewlyAckedPackets(
     QuicPacketNumber ack_packet_number, EncryptionLevel ack_decrypted_level,
     const QuicAckFrame& ack_frame, QuicTime ack_receive_time, bool rtt_updated,
-    QuicByteCount prior_bytes_in_flight) {
+    QuicByteCount prior_bytes_in_flight,
+    std::optional<QuicEcnCounts> ecn_counts) {
   unacked_packets_.NotifyAggregatedStreamFrameAcked(
       last_ack_frame_.ack_delay_time);
   InvokeLossDetection(ack_receive_time);
-  MaybeInvokeCongestionEvent(rtt_updated, prior_bytes_in_flight,
-                             ack_receive_time);
+  MaybeInvokeCongestionEvent(
+      rtt_updated, prior_bytes_in_flight, ack_receive_time, ecn_counts,
+      peer_ack_ecn_counts_[QuicUtils::GetPacketNumberSpace(
+          ack_decrypted_level)]);
   unacked_packets_.RemoveObsoletePackets();
 
   sustained_bandwidth_recorder_.RecordEstimate(
@@ -354,18 +373,36 @@ void QuicSentPacketManager::PostProcessNewlyAckedPackets(
 }
 
 void QuicSentPacketManager::MaybeInvokeCongestionEvent(
-    bool rtt_updated, QuicByteCount prior_in_flight, QuicTime event_time) {
+    bool rtt_updated, QuicByteCount prior_in_flight, QuicTime event_time,
+    std::optional<QuicEcnCounts> ecn_counts,
+    const QuicEcnCounts& previous_counts) {
   if (!rtt_updated && packets_acked_.empty() && packets_lost_.empty()) {
     return;
   }
   const bool overshooting_detected =
       stats_->overshooting_detected_with_network_parameters_adjusted;
+  // A connection should send at most one flavor of ECT, so only one variable
+  // is necessary.
+  QuicPacketCount newly_acked_ect = 0, newly_acked_ce = 0;
+  if (ecn_counts.has_value()) {
+    newly_acked_ect = ecn_counts->ect1 - previous_counts.ect1;
+    if (newly_acked_ect == 0) {
+      newly_acked_ect = ecn_counts->ect0 - previous_counts.ect0;
+    } else {
+      QUIC_BUG_IF(quic_bug_518619343_04,
+                  ecn_counts->ect0 - previous_counts.ect0)
+          << "Sent ECT(0) and ECT(1) newly acked in the same ACK.";
+    }
+    newly_acked_ce = ecn_counts->ce - previous_counts.ce;
+  }
   if (using_pacing_) {
     pacing_sender_.OnCongestionEvent(rtt_updated, prior_in_flight, event_time,
-                                     packets_acked_, packets_lost_, 0, 0);
+                                     packets_acked_, packets_lost_,
+                                     newly_acked_ect, newly_acked_ce);
   } else {
     send_algorithm_->OnCongestionEvent(rtt_updated, prior_in_flight, event_time,
-                                       packets_acked_, packets_lost_, 0, 0);
+                                       packets_acked_, packets_lost_,
+                                       newly_acked_ect, newly_acked_ce);
   }
   if (debug_delegate_ != nullptr && !overshooting_detected &&
       stats_->overshooting_detected_with_network_parameters_adjusted) {
@@ -537,10 +574,10 @@ void QuicSentPacketManager::RecordOneSpuriousRetransmission(
 }
 
 void QuicSentPacketManager::MarkPacketHandled(QuicPacketNumber packet_number,
-                                              QuicTransmissionInfo* info,
                                               QuicTime ack_receive_time,
                                               QuicTime::Delta ack_delay_time,
-                                              QuicTime receive_timestamp) {
+                                              QuicTime receive_timestamp,
+                                              QuicTransmissionInfo*& info) {
   if (info->has_ack_frequency) {
     for (const auto& frame : info->retransmittable_frames) {
       if (frame.type == ACK_FREQUENCY_FRAME) {
@@ -551,12 +588,13 @@ void QuicSentPacketManager::MarkPacketHandled(QuicPacketNumber packet_number,
   // Try to aggregate acked stream frames if acked packet is not a
   // retransmission.
   if (info->transmission_type == NOT_RETRANSMISSION) {
-    unacked_packets_.MaybeAggregateAckedStreamFrame(*info, ack_delay_time,
-                                                    receive_timestamp);
+    unacked_packets_.MaybeAggregateAckedStreamFrame(
+        packet_number, ack_delay_time, receive_timestamp, info);
   } else {
     unacked_packets_.NotifyAggregatedStreamFrameAcked(ack_delay_time);
+    info = unacked_packets_.GetMutableTransmissionInfo(packet_number);
     const bool new_data_acked = unacked_packets_.NotifyFramesAcked(
-        *info, ack_delay_time, receive_timestamp);
+        packet_number, ack_delay_time, receive_timestamp, info);
     if (!new_data_acked && info->transmission_type != NOT_RETRANSMISSION) {
       // Record as a spurious retransmission if this packet is a
       // retransmission and no new data gets acked.
@@ -612,7 +650,7 @@ QuicAckFrequencyFrame QuicSentPacketManager::GetUpdatedAckFrequencyFrame()
   frame.packet_tolerance = kMaxRetransmittablePacketsBeforeAck;
   auto rtt = use_smoothed_rtt_in_ack_delay_ ? rtt_stats_.SmoothedOrInitialRtt()
                                             : rtt_stats_.MinOrInitialRtt();
-  frame.max_ack_delay = rtt * kAckDecimationDelay;
+  frame.max_ack_delay = rtt * kPeerAckDecimationDelay;
   frame.max_ack_delay = std::max(frame.max_ack_delay, peer_min_ack_delay_);
   // TODO(haoyuewang) Remove this once kDefaultMinAckDelayTimeMs is updated to
   // 5 ms on the client side.
@@ -620,6 +658,28 @@ QuicAckFrequencyFrame QuicSentPacketManager::GetUpdatedAckFrequencyFrame()
       std::max(frame.max_ack_delay,
                QuicTime::Delta::FromMilliseconds(kDefaultMinAckDelayTimeMs));
   return frame;
+}
+
+void QuicSentPacketManager::RecordEcnMarkingSent(QuicEcnCodepoint ecn_codepoint,
+                                                 EncryptionLevel level) {
+  PacketNumberSpace space = QuicUtils::GetPacketNumberSpace(level);
+  switch (ecn_codepoint) {
+    case ECN_NOT_ECT:
+      break;
+    case ECN_ECT0:
+      ++ect0_packets_sent_[space];
+      break;
+    case ECN_ECT1:
+      ++ect1_packets_sent_[space];
+      break;
+    case ECN_CE:
+      // Test only: endpoints MUST NOT send CE. As CE reports will have to
+      // correspond to either an ECT(0) or an ECT(1) packet to be valid, just
+      // increment both to avoid validation failure.
+      ++ect0_packets_sent_[space];
+      ++ect1_packets_sent_[space];
+      break;
+  }
 }
 
 bool QuicSentPacketManager::OnPacketSent(
@@ -672,10 +732,29 @@ bool QuicSentPacketManager::OnPacketSent(
       }
     }
   }
+  RecordEcnMarkingSent(ecn_codepoint, packet.encryption_level);
   unacked_packets_.AddSentPacket(mutable_packet, transmission_type, sent_time,
                                  in_flight, measure_rtt, ecn_codepoint);
   // Reset the retransmission timer anytime a pending packet is sent.
   return in_flight;
+}
+
+const QuicTransmissionInfo& QuicSentPacketManager::AddDispatcherSentPacket(
+    const DispatcherSentPacket& packet) {
+  QUIC_DVLOG(1) << "QuicSPM: Adding dispatcher sent packet "
+                << packet.packet_number << ", size: " << packet.bytes_sent
+                << ", sent_time: " << packet.sent_time
+                << ", largest_acked: " << packet.largest_acked;
+  if (using_pacing_) {
+    pacing_sender_.OnPacketSent(
+        packet.sent_time, unacked_packets_.bytes_in_flight(),
+        packet.packet_number, packet.bytes_sent, NO_RETRANSMITTABLE_DATA);
+  } else {
+    send_algorithm_->OnPacketSent(
+        packet.sent_time, unacked_packets_.bytes_in_flight(),
+        packet.packet_number, packet.bytes_sent, NO_RETRANSMITTABLE_DATA);
+  }
+  return unacked_packets_.AddDispatcherSentPacket(packet);
 }
 
 QuicSentPacketManager::RetransmissionTimeoutMode
@@ -699,7 +778,9 @@ QuicSentPacketManager::OnRetransmissionTimeout() {
       QuicByteCount prior_in_flight = unacked_packets_.bytes_in_flight();
       const QuicTime now = clock_->Now();
       InvokeLossDetection(now);
-      MaybeInvokeCongestionEvent(false, prior_in_flight, now);
+      MaybeInvokeCongestionEvent(false, prior_in_flight, now,
+                                 std::optional<QuicEcnCounts>(),
+                                 peer_ack_ecn_counts_[APPLICATION_DATA]);
       return LOSS_MODE;
     }
     case PTO_MODE:
@@ -1119,6 +1200,10 @@ void QuicSentPacketManager::SetSendAlgorithm(
 
 void QuicSentPacketManager::SetSendAlgorithm(
     SendAlgorithmInterface* send_algorithm) {
+  if (debug_delegate_ != nullptr && send_algorithm != nullptr) {
+    debug_delegate_->OnSendAlgorithmChanged(
+        send_algorithm->GetCongestionControlType());
+  }
   send_algorithm_.reset(send_algorithm);
   pacing_sender_.set_sender(send_algorithm);
 }
@@ -1226,11 +1311,63 @@ void QuicSentPacketManager::OnAckTimestamp(QuicPacketNumber packet_number,
   }
 }
 
+bool QuicSentPacketManager::IsEcnFeedbackValid(
+    PacketNumberSpace space, const std::optional<QuicEcnCounts>& ecn_counts,
+    QuicPacketCount newly_acked_ect0, QuicPacketCount newly_acked_ect1) {
+  if (!ecn_counts.has_value()) {
+    if (newly_acked_ect0 > 0 || newly_acked_ect1 > 0) {
+      QUIC_DVLOG(1) << ENDPOINT
+                    << "ECN packets acknowledged, no counts reported.";
+      return false;
+    }
+    return true;
+  }
+  if (ecn_counts->ect0 < peer_ack_ecn_counts_[space].ect0 ||
+      ecn_counts->ect1 < peer_ack_ecn_counts_[space].ect1 ||
+      ecn_counts->ce < peer_ack_ecn_counts_[space].ce) {
+    QUIC_DVLOG(1) << ENDPOINT << "Reported ECN count declined.";
+    return false;
+  }
+  if (ecn_counts->ect0 > ect0_packets_sent_[space] ||
+      ecn_counts->ect1 > ect1_packets_sent_[space] ||
+      (ecn_counts->ect0 + ecn_counts->ect1 + ecn_counts->ce >
+       ect0_packets_sent_[space] + ect1_packets_sent_[space])) {
+    QUIC_DVLOG(1) << ENDPOINT << "Reported ECT + CE exceeds packets sent:"
+                  << " reported " << ecn_counts->ToString() << " , ECT(0) sent "
+                  << ect0_packets_sent_[space] << " , ECT(1) sent "
+                  << ect1_packets_sent_[space];
+    return false;
+  }
+  if ((newly_acked_ect0 >
+       (ecn_counts->ect0 + ecn_counts->ce - peer_ack_ecn_counts_[space].ect0 +
+        peer_ack_ecn_counts_[space].ce)) ||
+      (newly_acked_ect1 >
+       (ecn_counts->ect1 + ecn_counts->ce - peer_ack_ecn_counts_[space].ect1 +
+        peer_ack_ecn_counts_[space].ce))) {
+    QUIC_DVLOG(1) << ENDPOINT
+                  << "Peer acked packet but did not report the ECN mark: "
+                  << " New ECN counts: " << ecn_counts->ToString()
+                  << " Old ECN counts: "
+                  << peer_ack_ecn_counts_[space].ToString()
+                  << " Newly acked ECT(0) : " << newly_acked_ect0
+                  << " Newly acked ECT(1) : " << newly_acked_ect1;
+    return false;
+  }
+  return true;
+}
+
 AckResult QuicSentPacketManager::OnAckFrameEnd(
     QuicTime ack_receive_time, QuicPacketNumber ack_packet_number,
     EncryptionLevel ack_decrypted_level,
-    const absl::optional<QuicEcnCounts>& ecn_counts) {
+    const std::optional<QuicEcnCounts>& ecn_counts) {
   QuicByteCount prior_bytes_in_flight = unacked_packets_.bytes_in_flight();
+  QuicPacketCount newly_acked_ect0 = 0;
+  QuicPacketCount newly_acked_ect1 = 0;
+  PacketNumberSpace acked_packet_number_space =
+      QuicUtils::GetPacketNumberSpace(ack_decrypted_level);
+  QuicPacketNumber old_largest_acked =
+      unacked_packets_.GetLargestAckedOfPacketNumberSpace(
+          acked_packet_number_space);
   // Reverse packets_acked_ so that it is in ascending order.
   std::reverse(packets_acked_.begin(), packets_acked_.end());
   for (AckedPacket& acked_packet : packets_acked_) {
@@ -1288,25 +1425,65 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
     if (info->in_flight) {
       acked_packet.bytes_acked = info->bytes_sent;
     } else {
+      acked_packet.spurious_loss = (info->state == LOST);
       // Unackable packets are skipped earlier.
       largest_newly_acked_ = acked_packet.packet_number;
     }
+    switch (info->ecn_codepoint) {
+      case ECN_NOT_ECT:
+        break;
+      case ECN_CE:
+        // ECN_CE should only happen in tests. Feedback validation doesn't track
+        // newly acked CEs, and if newly_acked_ect0 and newly_acked_ect1 are
+        // lower than expected that won't fail validation. So when it's CE don't
+        // increment anything.
+        break;
+      case ECN_ECT0:
+        ++newly_acked_ect0;
+        if (info->in_flight) {
+          network_change_visitor_->OnInFlightEcnPacketAcked();
+        }
+        break;
+      case ECN_ECT1:
+        ++newly_acked_ect1;
+        if (info->in_flight) {
+          network_change_visitor_->OnInFlightEcnPacketAcked();
+        }
+        break;
+    }
     unacked_packets_.MaybeUpdateLargestAckedOfPacketNumberSpace(
         packet_number_space, acked_packet.packet_number);
-    MarkPacketHandled(acked_packet.packet_number, info, ack_receive_time,
+    MarkPacketHandled(acked_packet.packet_number, ack_receive_time,
                       last_ack_frame_.ack_delay_time,
-                      acked_packet.receive_timestamp);
+                      acked_packet.receive_timestamp, info);
   }
-  PacketNumberSpace packet_number_space =
-      QuicUtils::GetPacketNumberSpace(ack_decrypted_level);
+  // Copy raw ECN counts to last_ack_frame_ so it is logged properly. Validated
+  // ECN counts are stored in valid_ecn_counts, and the congestion controller
+  // uses that for processing.
+  last_ack_frame_.ecn_counters = ecn_counts;
+  // Validate ECN feedback.
+  std::optional<QuicEcnCounts> valid_ecn_counts;
+  if (ecn_queried_) {
+    if (IsEcnFeedbackValid(acked_packet_number_space, ecn_counts,
+                           newly_acked_ect0, newly_acked_ect1)) {
+      valid_ecn_counts = ecn_counts;
+    } else if (!old_largest_acked.IsInitialized() ||
+               old_largest_acked <
+                   unacked_packets_.GetLargestAckedOfPacketNumberSpace(
+                       acked_packet_number_space)) {
+      // RFC 9000 S13.4.2.1: "An endpoint MUST NOT fail ECN validation as a
+      // result of processing an ACK frame that does not increase the largest
+      // acknowledged packet number."
+      network_change_visitor_->OnInvalidEcnFeedback();
+    }
+  }
   const bool acked_new_packet = !packets_acked_.empty();
   PostProcessNewlyAckedPackets(ack_packet_number, ack_decrypted_level,
                                last_ack_frame_, ack_receive_time, rtt_updated_,
-                               prior_bytes_in_flight);
-  if (ecn_counts.has_value()) {
-    peer_ack_ecn_counts_[packet_number_space] = ecn_counts.value();
+                               prior_bytes_in_flight, valid_ecn_counts);
+  if (valid_ecn_counts.has_value()) {
+    peer_ack_ecn_counts_[acked_packet_number_space] = *valid_ecn_counts;
   }
-
   return acked_new_packet ? PACKETS_NEWLY_ACKED : NO_PACKETS_NEWLY_ACKED;
 }
 

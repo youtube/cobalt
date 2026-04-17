@@ -4,8 +4,11 @@
 
 #include "third_party/blink/renderer/core/input/touch_event_manager.h"
 
+#include <algorithm>
+#include <array>
 #include <memory>
 
+#include "base/compiler_specific.h"
 #include "third_party/blink/public/common/input/web_coalesced_input_event.h"
 #include "third_party/blink/public/common/input/web_touch_event.h"
 #include "third_party/blink/renderer/core/dom/document.h"
@@ -75,7 +78,6 @@ const AtomicString& TouchEventNameForPointerEventType(
       return event_type_names::kTouchmove;
     default:
       NOTREACHED();
-      return g_empty_atom;
   }
 }
 
@@ -95,7 +97,6 @@ WebTouchPoint::State TouchPointStateFromPointerEventType(
       return WebTouchPoint::State::kStateMoved;
     default:
       NOTREACHED();
-      return WebTouchPoint::State::kStateUndefined;
   }
 }
 
@@ -204,7 +205,7 @@ Touch* TouchEventManager::CreateDomTouch(
 
   WebPointerEvent transformed_event =
       point_attr->event_.WebPointerEventInRootFrame();
-  float scale_factor = 1.0f / target_frame->PageZoomFactor();
+  float scale_factor = 1.0f / target_frame->LayoutZoomFactor();
 
   gfx::PointF document_point =
       gfx::ScalePoint(target_frame->View()->RootFrameToDocument(
@@ -234,8 +235,7 @@ WebCoalescedInputEvent TouchEventManager::GenerateWebCoalescedInputEvent() {
                                                 first_touch_pointer_event);
   WebInputEvent::Type touch_event_type = WebInputEvent::Type::kTouchMove;
   Vector<WebPointerEvent> all_coalesced_events;
-  Vector<int> available_ids;
-  WTF::CopyKeysToVector(touch_attribute_map_, available_ids);
+  Vector<int> available_ids(touch_attribute_map_.Keys());
   std::sort(available_ids.begin(), available_ids.end());
   for (const int& touch_point_id : available_ids) {
     auto* const touch_point_attribute = touch_attribute_map_.at(touch_point_id);
@@ -310,10 +310,9 @@ WebCoalescedInputEvent TouchEventManager::GenerateWebCoalescedInputEvent() {
           return a.id < b.id;
         }
       } id_based_event_comparison;
-      std::sort(last_coalesced_touch_event_.touches,
-                last_coalesced_touch_event_.touches +
-                    last_coalesced_touch_event_.touches_length,
-                id_based_event_comparison);
+      std::ranges::sort(base::span(last_coalesced_touch_event_.touches)
+                            .first(last_coalesced_touch_event_.touches_length),
+                        id_based_event_comparison);
       result.AddCoalescedEvent(last_coalesced_touch_event_);
     } else {
       for (unsigned i = 0; i < last_coalesced_touch_event_.touches_length;
@@ -392,14 +391,15 @@ TouchEventManager::DispatchTouchEventFromAccumulatdTouchPoints() {
 
   // A different view on the 'touches' list above, filtered and grouped by
   // event target. Used for the |targetTouches| list in the JS event.
-  using TargetTouchesHeapMap = HeapHashMap<EventTarget*, Member<TouchList>>;
+  using TargetTouchesHeapMap =
+      HeapHashMap<Member<EventTarget>, Member<TouchList>>;
   TargetTouchesHeapMap touches_by_target;
 
   // Array of touches per state, used to assemble the |changedTouches| list.
-  ChangedTouches
-      changed_touches[static_cast<int>(WebInputEvent::Type::kPointerTypeLast) -
-                      static_cast<int>(WebInputEvent::Type::kPointerTypeFirst) +
-                      1];
+  std::array<ChangedTouches,
+             static_cast<int>(WebInputEvent::Type::kPointerTypeLast) -
+                 static_cast<int>(WebInputEvent::Type::kPointerTypeFirst) + 1>
+      changed_touches;
 
   Vector<int> available_ids;
   for (const auto& id : touch_attribute_map_.Keys())
@@ -441,10 +441,13 @@ TouchEventManager::DispatchTouchEventFromAccumulatdTouchPoints() {
       size_t event_type_idx =
           static_cast<int>(event_type) -
           static_cast<int>(WebInputEvent::Type::kPointerTypeFirst);
-      if (!changed_touches[event_type_idx].touches_)
-        changed_touches[event_type_idx].touches_ = TouchList::Create();
-      changed_touches[event_type_idx].touches_->Append(touch);
-      changed_touches[event_type_idx].targets_.insert(touch_target);
+      UNSAFE_TODO({
+        if (!changed_touches[event_type_idx].touches_) {
+          changed_touches[event_type_idx].touches_ = TouchList::Create();
+        }
+        changed_touches[event_type_idx].touches_->Append(touch);
+        changed_touches[event_type_idx].targets_.insert(touch_target);
+      });
     }
   }
 
@@ -462,17 +465,19 @@ TouchEventManager::DispatchTouchEventFromAccumulatdTouchPoints() {
        ++action) {
     size_t action_idx =
         action - static_cast<int>(WebInputEvent::Type::kPointerTypeFirst);
-    if (!changed_touches[action_idx].touches_)
+    if (!UNSAFE_TODO(changed_touches[action_idx].touches_)) {
       continue;
+    }
 
     const AtomicString& event_name(TouchEventNameForPointerEventType(
         static_cast<WebInputEvent::Type>(action)));
 
-    for (const auto& event_target : changed_touches[action_idx].targets_) {
+    for (const auto& event_target :
+         UNSAFE_TODO(changed_touches[action_idx].targets_)) {
       EventTarget* touch_event_target = event_target;
       TouchEvent* touch_event = TouchEvent::Create(
           coalesced_event, touches, touches_by_target.at(touch_event_target),
-          changed_touches[action_idx].touches_, event_name,
+          UNSAFE_TODO(changed_touches[action_idx].touches_), event_name,
           touch_event_target->ToNode()->GetDocument().domWindow(),
           current_touch_action_);
 
@@ -668,7 +673,7 @@ void TouchEventManager::AllTouchesReleasedCleanup() {
   // we still get here and if |touch_sequence_document| was of the type which
   // cannot block scroll, then the flag is certainly set
   // (https://crbug.com/345372).
-  delayed_effective_touch_action_ = absl::nullopt;
+  delayed_effective_touch_action_ = std::nullopt;
   should_enforce_vertical_scroll_ = false;
 }
 
@@ -701,7 +706,7 @@ WebInputEventResult TouchEventManager::EnsureVerticalScrollIsPossible(
     // (https://crbug.com/844493).
     frame_->GetPage()->GetChromeClient().SetTouchAction(
         frame_, delayed_effective_touch_action_.value());
-    delayed_effective_touch_action_ = absl::nullopt;
+    delayed_effective_touch_action_ = std::nullopt;
   }
 
   // If the event was canceled the result is ignored to make sure vertical

@@ -16,36 +16,59 @@
 
 #include "src/trace_processor/util/sql_argument.h"
 
-#include "perfetto/ext/base/string_utils.h"
+#include <algorithm>
+#include <cctype>
+#include <optional>
+#include <string>
+#include <vector>
 
-namespace perfetto {
-namespace trace_processor {
-namespace sql_argument {
+#include "perfetto/base/logging.h"
+#include "perfetto/base/status.h"
+#include "perfetto/ext/base/string_utils.h"
+#include "perfetto/ext/base/string_view.h"
+#include "perfetto/trace_processor/basic_types.h"
+
+namespace perfetto::trace_processor::sql_argument {
 
 bool IsValidName(base::StringView str) {
+  if (str.empty()) {
+    return false;
+  }
   auto pred = [](char c) { return !(isalnum(c) || c == '_'); };
   return std::find_if(str.begin(), str.end(), pred) == str.end();
 }
 
 std::optional<Type> ParseType(base::StringView str) {
-  if (str == "BOOL") {
+  if (str.CaseInsensitiveEq("bool")) {
     return Type::kBool;
-  } else if (str == "INT") {
-    return Type::kInt;
-  } else if (str == "UINT") {
-    return Type::kUint;
-  } else if (str == "LONG") {
+  }
+  if (str.CaseInsensitiveOneOf(
+          {"long", "timestamp", "duration", "id", "joinid", "argsetid"})) {
     return Type::kLong;
-  } else if (str == "FLOAT") {
-    return Type::kFloat;
-  } else if (str == "DOUBLE") {
+  }
+  if (str.CaseInsensitiveEq("double")) {
     return Type::kDouble;
-  } else if (str == "STRING") {
+  }
+  if (str.CaseInsensitiveEq("string")) {
     return Type::kString;
-  } else if (str == "PROTO") {
-    return Type::kProto;
-  } else if (str == "BYTES") {
+  }
+  if (str.CaseInsensitiveEq("bytes")) {
     return Type::kBytes;
+  }
+
+  // Deprecated types.
+  // TODO(b/380259828): Remove.
+  if (str.CaseInsensitiveEq("int")) {
+    return Type::kInt;
+  }
+  if (str.CaseInsensitiveEq("uint")) {
+    return Type::kUint;
+  }
+  if (str.CaseInsensitiveEq("float")) {
+    return Type::kFloat;
+  }
+  if (str.CaseInsensitiveEq("proto")) {
+    return Type::kProto;
   }
   return std::nullopt;
 }
@@ -123,6 +146,19 @@ base::Status ParseArgumentDefinitions(const std::string& args,
   return base::OkStatus();
 }
 
-}  // namespace sql_argument
-}  // namespace trace_processor
-}  // namespace perfetto
+std::string SerializeArguments(const std::vector<ArgumentDefinition>& args) {
+  bool comma = false;
+  std::string serialized;
+  for (const auto& arg : args) {
+    if (comma) {
+      serialized.append(", ");
+    }
+    comma = true;
+    serialized.append(arg.name().c_str());
+    serialized.push_back(' ');
+    serialized.append(TypeToHumanFriendlyString(arg.type()));
+  }
+  return serialized;
+}
+
+}  // namespace perfetto::trace_processor::sql_argument

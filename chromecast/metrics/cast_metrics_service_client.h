@@ -9,7 +9,9 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/scoped_observation.h"
 #include "build/build_config.h"
@@ -101,7 +103,7 @@ class CastMetricsServiceClient : public ::metrics::MetricsServiceClient,
   std::unique_ptr<::metrics::MetricsLogUploader> CreateUploader(
       const GURL& server_url,
       const GURL& insecure_server_url,
-      base::StringPiece mime_type,
+      std::string_view mime_type,
       ::metrics::MetricsLogUploader::MetricServiceType service_type,
       const ::metrics::MetricsLogUploader::UploadCallback& on_upload_complete)
       override;
@@ -110,9 +112,11 @@ class CastMetricsServiceClient : public ::metrics::MetricsServiceClient,
 
   // ::metrics::EnabledStateProvider:
   bool IsConsentGiven() const override;
+  bool IsReportingEnabled() const override;
 
   // Starts/stops the metrics service.
-  void EnableMetricsService(bool enabled);
+  void UpdateMetricsServiceState();
+  void DisableMetricsService();
 
   std::string client_id() const { return client_id_; }
 
@@ -125,8 +129,8 @@ class CastMetricsServiceClient : public ::metrics::MetricsServiceClient,
   std::unique_ptr<::metrics::ClientInfo> LoadClientInfo();
   void StoreClientInfo(const ::metrics::ClientInfo& client_info);
 
-  CastMetricsServiceDelegate* const delegate_;
-  PrefService* const pref_service_;
+  const raw_ptr<CastMetricsServiceDelegate> delegate_;
+  const raw_ptr<PrefService> pref_service_;
   std::string client_id_;
   std::string force_client_id_;
   bool client_info_loaded_;

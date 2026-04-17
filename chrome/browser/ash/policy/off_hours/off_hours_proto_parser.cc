@@ -19,15 +19,18 @@ std::vector<WeeklyTimeInterval> ExtractWeeklyTimeIntervalsFromProto(
     const std::string& timezone,
     base::Clock* clock) {
   int offset;
-  if (!weekly_time_utils::GetOffsetFromTimezoneToGmt(timezone, clock, &offset))
+  if (!weekly_time_utils::GetOffsetFromTimezoneToGmt(timezone, clock,
+                                                     &offset)) {
     return {};
+  }
   std::vector<WeeklyTimeInterval> intervals;
   for (const auto& entry : container.intervals()) {
     // The offset is to convert from |timezone| to GMT. Negate it to get the
     // offset from GMT to |timezone|.
     auto interval = WeeklyTimeInterval::ExtractFromProto(entry, -offset);
-    if (interval)
+    if (interval) {
       intervals.push_back(*interval);
+    }
   }
   return intervals;
 }
@@ -38,33 +41,35 @@ std::vector<int> ExtractIgnoredPolicyProtoTagsFromProto(
                           container.ignored_policy_proto_tags().end());
 }
 
-absl::optional<std::string> ExtractTimezoneFromProto(
+std::optional<std::string> ExtractTimezoneFromProto(
     const em::DeviceOffHoursProto& container) {
   if (!container.has_timezone()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
-  return absl::make_optional(container.timezone());
+  return std::make_optional(container.timezone());
 }
 
-absl::optional<base::Value::Dict> ConvertOffHoursProtoToValue(
+std::optional<base::Value::Dict> ConvertOffHoursProtoToValue(
     const em::DeviceOffHoursProto& container) {
-  absl::optional<std::string> timezone = ExtractTimezoneFromProto(container);
-  if (!timezone)
-    return absl::nullopt;
-  base::Value::Dict off_hours;
-  off_hours.Set("timezone", *timezone);
+  std::optional<std::string> timezone = ExtractTimezoneFromProto(container);
+  if (!timezone) {
+    return std::nullopt;
+  }
+  auto off_hours = base::Value::Dict().Set("timezone", *timezone);
   std::vector<WeeklyTimeInterval> intervals =
       ExtractWeeklyTimeIntervalsFromProto(container, *timezone,
                                           base::DefaultClock::GetInstance());
   base::Value::List intervals_value;
-  for (const auto& interval : intervals)
+  for (const auto& interval : intervals) {
     intervals_value.Append(interval.ToValue());
+  }
   off_hours.Set("intervals", std::move(intervals_value));
   std::vector<int> ignored_policy_proto_tags =
       ExtractIgnoredPolicyProtoTagsFromProto(container);
   base::Value::List ignored_policies_value;
-  for (const auto& policy : ignored_policy_proto_tags)
+  for (const auto& policy : ignored_policy_proto_tags) {
     ignored_policies_value.Append(policy);
+  }
   off_hours.Set("ignored_policy_proto_tags", std::move(ignored_policies_value));
   return off_hours;
 }

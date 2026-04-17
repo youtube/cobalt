@@ -15,20 +15,20 @@
 #ifndef STARBOARD_RASPI_SHARED_VIDEO_RENDERER_SINK_IMPL_H_
 #define STARBOARD_RASPI_SHARED_VIDEO_RENDERER_SINK_IMPL_H_
 
+#include <cstdint>
 #include <mutex>
 
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 #include "starboard/shared/starboard/player/job_queue.h"
-#include "starboard/types.h"
 
 namespace starboard {
 
 class VideoRendererSinkImpl : public VideoRendererSink,
                               private JobQueue::JobOwner {
  public:
-  explicit VideoRendererSinkImpl(SbPlayer player);
+  explicit VideoRendererSinkImpl(JobQueue* job_queue, SbPlayer player);
   ~VideoRendererSinkImpl() override;
 
  private:
@@ -43,11 +43,11 @@ class VideoRendererSinkImpl : public VideoRendererSink,
   RenderCB render_cb_;
 
   std::mutex mutex_;
-  int z_index_;
-  int x_;
-  int y_;
-  int width_;
-  int height_;
+  int z_index_ = 0;
+  int x_ = 0;
+  int y_ = 0;
+  int width_ = 0;
+  int height_ = 0;
 };
 
 }  // namespace starboard

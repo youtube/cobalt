@@ -97,9 +97,14 @@ void BluetoothAdvertisementMonitorServiceProviderImpl::Release(
     dbus::ExportedObject::ResponseSender response_sender) {
   if (!delegate_) {
     DVLOG(2) << "Could not forward D-Bus callback: Invalid delegate";
+    std::move(response_sender)
+        .Run(dbus::ErrorResponse::FromMethodCall(method_call, DBUS_ERROR_FAILED,
+                                                 "Invalid delegate."));
     return;
   }
+
   delegate_->OnRelease();
+  std::move(response_sender).Run(dbus::Response::FromMethodCall(method_call));
 }
 
 void BluetoothAdvertisementMonitorServiceProviderImpl::Activate(
@@ -107,9 +112,14 @@ void BluetoothAdvertisementMonitorServiceProviderImpl::Activate(
     dbus::ExportedObject::ResponseSender response_sender) {
   if (!delegate_) {
     DVLOG(2) << "Could not forward D-Bus callback: Invalid delegate";
+    std::move(response_sender)
+        .Run(dbus::ErrorResponse::FromMethodCall(method_call, DBUS_ERROR_FAILED,
+                                                 "Invalid delegate."));
     return;
   }
+
   delegate_->OnActivate();
+  std::move(response_sender).Run(dbus::Response::FromMethodCall(method_call));
 }
 
 void BluetoothAdvertisementMonitorServiceProviderImpl::DeviceFound(
@@ -117,6 +127,9 @@ void BluetoothAdvertisementMonitorServiceProviderImpl::DeviceFound(
     dbus::ExportedObject::ResponseSender response_sender) {
   if (!delegate_) {
     DVLOG(2) << "Could not forward D-Bus callback: Invalid delegate";
+    std::move(response_sender)
+        .Run(dbus::ErrorResponse::FromMethodCall(method_call, DBUS_ERROR_FAILED,
+                                                 "Invalid delegate."));
     return;
   }
 
@@ -125,9 +138,14 @@ void BluetoothAdvertisementMonitorServiceProviderImpl::DeviceFound(
   if (!reader.PopObjectPath(&device_path)) {
     LOG(WARNING) << "DeviceFound called with incorrect parameters: "
                  << method_call->ToString();
+    std::move(response_sender)
+        .Run(dbus::ErrorResponse::FromMethodCall(
+            method_call, DBUS_ERROR_INVALID_ARGS, "Incorrect parameters."));
     return;
   }
+
   delegate_->OnDeviceFound(device_path);
+  std::move(response_sender).Run(dbus::Response::FromMethodCall(method_call));
 }
 
 void BluetoothAdvertisementMonitorServiceProviderImpl::DeviceLost(
@@ -135,16 +153,25 @@ void BluetoothAdvertisementMonitorServiceProviderImpl::DeviceLost(
     dbus::ExportedObject::ResponseSender response_sender) {
   if (!delegate_) {
     DVLOG(2) << "Could not forward D-Bus callback: Invalid delegate";
+    std::move(response_sender)
+        .Run(dbus::ErrorResponse::FromMethodCall(method_call, DBUS_ERROR_FAILED,
+                                                 "Invalid delegate."));
     return;
   }
+
   dbus::MessageReader reader(method_call);
   dbus::ObjectPath device_path;
   if (!reader.PopObjectPath(&device_path)) {
     LOG(WARNING) << "DeviceLost called with incorrect paramters: "
                  << method_call->ToString();
+    std::move(response_sender)
+        .Run(dbus::ErrorResponse::FromMethodCall(
+            method_call, DBUS_ERROR_INVALID_ARGS, "Incorrect parameters."));
     return;
   }
+
   delegate_->OnDeviceLost(device_path);
+  std::move(response_sender).Run(dbus::Response::FromMethodCall(method_call));
 }
 
 void BluetoothAdvertisementMonitorServiceProviderImpl::WriteProperties(
@@ -207,8 +234,7 @@ void BluetoothAdvertisementMonitorServiceProviderImpl::WriteProperties(
   variant_writer.OpenArray("(yyay)", &pattern_array_writer);
   for (auto& pattern : filter_->patterns()) {
     WritePattern(&pattern_array_writer, pattern.start_position(),
-                 static_cast<uint8_t>(pattern.data_type()), &pattern.value()[0],
-                 pattern.value().size());
+                 static_cast<uint8_t>(pattern.data_type()), pattern.value());
   }
   variant_writer.CloseContainer(&pattern_array_writer);
 
@@ -230,14 +256,13 @@ void BluetoothAdvertisementMonitorServiceProviderImpl::WritePattern(
     dbus::MessageWriter* pattern_array_writer,
     uint8_t start_pos,
     uint8_t ad_data_type,
-    const uint8_t* content_of_pattern,
-    size_t pattern_length) {
+    base::span<const uint8_t> pattern) {
   dbus::MessageWriter struct_writer(nullptr);
   pattern_array_writer->OpenStruct(&struct_writer);
 
   struct_writer.AppendByte(start_pos);
   struct_writer.AppendByte(ad_data_type);
-  struct_writer.AppendArrayOfBytes(content_of_pattern, pattern_length);
+  struct_writer.AppendArrayOfBytes(pattern);
   pattern_array_writer->CloseContainer(&struct_writer);
 }
 

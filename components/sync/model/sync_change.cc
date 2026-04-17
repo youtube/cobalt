@@ -22,7 +22,6 @@ std::string SyncChange::ChangeTypeToString(SyncChangeType change_type) {
       return "ACTION_DELETE";
   }
   NOTREACHED();
-  return std::string();
 }
 
 SyncChange::SyncChange(const base::Location& from_here,

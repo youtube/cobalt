@@ -28,7 +28,7 @@ egl::Error DisplayVkGbm::initialize(egl::Display *display)
     if (!mGbmDevice)
     {
         ERR() << "Failed to retrieve GBM device";
-        return egl::EglNotInitialized();
+        return egl::Error(EGL_NOT_INITIALIZED);
     }
 
     return DisplayVk::initialize(display);
@@ -78,14 +78,9 @@ const char *DisplayVkGbm::getWSIExtension() const
     return nullptr;
 }
 
-bool DisplayVkGbm::isUsingSwapchain() const
+angle::NativeWindowSystem DisplayVkGbm::getWindowSystem() const
 {
-    return true;
-}
-
-bool DisplayVkGbm::isGBM() const
-{
-    return true;
+    return angle::NativeWindowSystem::Gbm;
 }
 
 bool IsVulkanGbmDisplayAvailable()

@@ -8,7 +8,7 @@
 #ifndef LIBANGLE_RENDERER_CLMEMORYIMPL_H_
 #define LIBANGLE_RENDERER_CLMEMORYIMPL_H_
 
-#include "libANGLE/renderer/CLtypes.h"
+#include "libANGLE/renderer/cl_types.h"
 
 namespace rx
 {
@@ -21,12 +21,10 @@ class CLMemoryImpl : angle::NonCopyable
     CLMemoryImpl(const cl::Memory &memory);
     virtual ~CLMemoryImpl();
 
-    virtual size_t getSize(cl_int &errorCode) const = 0;
-
-    virtual CLMemoryImpl::Ptr createSubBuffer(const cl::Buffer &buffer,
-                                              cl::MemFlags flags,
-                                              size_t size,
-                                              cl_int &errorCode) = 0;
+    virtual angle::Result createSubBuffer(const cl::Buffer &buffer,
+                                          cl::MemFlags flags,
+                                          size_t size,
+                                          CLMemoryImpl::Ptr *subBufferOut) = 0;
 
   protected:
     const cl::Memory &mMemory;

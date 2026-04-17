@@ -4,8 +4,13 @@
 
 #include "quiche/quic/test_tools/quic_connection_peer.h"
 
+#include <memory>
+#include <string>
+
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
+#include "quiche/quic/core/quic_connection.h"
+#include "quiche/quic/core/quic_connection_alarms.h"
 #include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/core/quic_received_packet_manager.h"
 #include "quiche/quic/platform/api/quic_flags.h"
@@ -13,9 +18,15 @@
 #include "quiche/quic/test_tools/quic_connection_id_manager_peer.h"
 #include "quiche/quic/test_tools/quic_framer_peer.h"
 #include "quiche/quic/test_tools/quic_sent_packet_manager_peer.h"
+#include "quiche/quic/test_tools/quic_test_utils.h"
 
 namespace quic {
 namespace test {
+
+// static
+void QuicConnectionAlarmsPeer::Fire(QuicAlarmProxy alarm) {
+  alarm.multiplexer_->Fire(alarm.slot_);
+}
 
 // static
 void QuicConnectionPeer::SetSendAlgorithm(
@@ -27,12 +38,6 @@ void QuicConnectionPeer::SetSendAlgorithm(
 void QuicConnectionPeer::SetLossAlgorithm(
     QuicConnection* connection, LossDetectionInterface* loss_algorithm) {
   GetSentPacketManager(connection)->loss_algorithm_ = loss_algorithm;
-}
-
-// static
-void QuicConnectionPeer::PopulateStopWaitingFrame(
-    QuicConnection* connection, QuicStopWaitingFrame* stop_waiting) {
-  connection->PopulateStopWaitingFrame(stop_waiting);
 }
 
 // static
@@ -57,23 +62,6 @@ QuicTime::Delta QuicConnectionPeer::GetNetworkTimeout(
 QuicTime::Delta QuicConnectionPeer::GetHandshakeTimeout(
     QuicConnection* connection) {
   return connection->idle_network_detector_.handshake_timeout_;
-}
-
-// static
-QuicTime::Delta QuicConnectionPeer::GetBandwidthUpdateTimeout(
-    QuicConnection* connection) {
-  return connection->idle_network_detector_.bandwidth_update_timeout_;
-}
-
-// static
-void QuicConnectionPeer::DisableBandwidthUpdate(QuicConnection* connection) {
-  if (connection->idle_network_detector_.bandwidth_update_timeout_
-          .IsInfinite()) {
-    return;
-  }
-  connection->idle_network_detector_.bandwidth_update_timeout_ =
-      QuicTime::Delta::Infinite();
-  connection->idle_network_detector_.SetAlarm();
 }
 
 // static
@@ -140,48 +128,51 @@ QuicFramer* QuicConnectionPeer::GetFramer(QuicConnection* connection) {
 }
 
 // static
-QuicAlarm* QuicConnectionPeer::GetAckAlarm(QuicConnection* connection) {
-  return connection->ack_alarm_.get();
+QuicAlarmProxy QuicConnectionPeer::GetAckAlarm(QuicConnection* connection) {
+  return QuicAlarmProxy(&connection->alarms_, QuicAlarmSlot::kAck);
 }
 
 // static
-QuicAlarm* QuicConnectionPeer::GetPingAlarm(QuicConnection* connection) {
-  return connection->ping_manager_.alarm_.get();
+QuicAlarmProxy QuicConnectionPeer::GetPingAlarm(QuicConnection* connection) {
+  return QuicAlarmProxy(&connection->alarms_, QuicAlarmSlot::kPing);
 }
 
 // static
-QuicAlarm* QuicConnectionPeer::GetRetransmissionAlarm(
+QuicAlarmProxy QuicConnectionPeer::GetRetransmissionAlarm(
     QuicConnection* connection) {
-  return connection->retransmission_alarm_.get();
+  return QuicAlarmProxy(&connection->alarms_, QuicAlarmSlot::kRetransmission);
 }
 
 // static
-QuicAlarm* QuicConnectionPeer::GetSendAlarm(QuicConnection* connection) {
-  return connection->send_alarm_.get();
+QuicAlarmProxy QuicConnectionPeer::GetSendAlarm(QuicConnection* connection) {
+  return QuicAlarmProxy(&connection->alarms_, QuicAlarmSlot::kSend);
 }
 
 // static
-QuicAlarm* QuicConnectionPeer::GetMtuDiscoveryAlarm(
+QuicAlarmProxy QuicConnectionPeer::GetMtuDiscoveryAlarm(
     QuicConnection* connection) {
-  return connection->mtu_discovery_alarm_.get();
+  return QuicAlarmProxy(&connection->alarms_, QuicAlarmSlot::kMtuDiscovery);
 }
 
 // static
-QuicAlarm* QuicConnectionPeer::GetProcessUndecryptablePacketsAlarm(
+QuicAlarmProxy QuicConnectionPeer::GetProcessUndecryptablePacketsAlarm(
     QuicConnection* connection) {
-  return connection->process_undecryptable_packets_alarm_.get();
+  return QuicAlarmProxy(&connection->alarms_,
+                        QuicAlarmSlot::kProcessUndecryptablePackets);
 }
 
 // static
-QuicAlarm* QuicConnectionPeer::GetDiscardPreviousOneRttKeysAlarm(
+QuicAlarmProxy QuicConnectionPeer::GetDiscardPreviousOneRttKeysAlarm(
     QuicConnection* connection) {
-  return connection->discard_previous_one_rtt_keys_alarm_.get();
+  return QuicAlarmProxy(&connection->alarms_,
+                        QuicAlarmSlot::kDiscardPreviousOneRttKeys);
 }
 
 // static
-QuicAlarm* QuicConnectionPeer::GetDiscardZeroRttDecryptionKeysAlarm(
+QuicAlarmProxy QuicConnectionPeer::GetDiscardZeroRttDecryptionKeysAlarm(
     QuicConnection* connection) {
-  return connection->discard_zero_rtt_decryption_keys_alarm_.get();
+  return QuicAlarmProxy(&connection->alarms_,
+                        QuicAlarmSlot::kDiscardZeroRttDecryptionKeys);
 }
 
 // static
@@ -225,13 +216,12 @@ void QuicConnectionPeer::TearDownLocalConnectionState(
 }
 
 // static
-QuicEncryptedPacket* QuicConnectionPeer::GetConnectionClosePacket(
-    QuicConnection* connection) {
-  if (connection->termination_packets_ == nullptr ||
-      connection->termination_packets_->empty()) {
+const QuicEncryptedPacket* QuicConnectionPeer::GetConnectionClosePacket(
+    const QuicConnection* connection) {
+  if (!connection->HasTerminationPackets()) {
     return nullptr;
   }
-  return (*connection->termination_packets_)[0].get();
+  return connection->termination_info()->termination_packets[0].get();
 }
 
 // static
@@ -276,17 +266,6 @@ bool QuicConnectionPeer::HasRetransmittableFrames(QuicConnection* connection,
 }
 
 // static
-bool QuicConnectionPeer::GetNoStopWaitingFrames(QuicConnection* connection) {
-  return connection->no_stop_waiting_frames_;
-}
-
-// static
-void QuicConnectionPeer::SetNoStopWaitingFrames(QuicConnection* connection,
-                                                bool no_stop_waiting_frames) {
-  connection->no_stop_waiting_frames_ = no_stop_waiting_frames;
-}
-
-// static
 void QuicConnectionPeer::SetMaxTrackedPackets(
     QuicConnection* connection, QuicPacketCount max_tracked_packets) {
   connection->max_tracked_packets_ = max_tracked_packets;
@@ -295,11 +274,6 @@ void QuicConnectionPeer::SetMaxTrackedPackets(
 // static
 void QuicConnectionPeer::SetNegotiatedVersion(QuicConnection* connection) {
   connection->version_negotiated_ = true;
-  if (connection->perspective() == Perspective::IS_SERVER &&
-      !QuicFramerPeer::infer_packet_header_type_from_version(
-          &connection->framer_)) {
-    connection->framer_.InferPacketHeaderTypeFromVersion();
-  }
 }
 
 // static
@@ -361,9 +335,10 @@ QuicNetworkBlackholeDetector& QuicConnectionPeer::GetBlackholeDetector(
 }
 
 // static
-QuicAlarm* QuicConnectionPeer::GetBlackholeDetectorAlarm(
+QuicAlarmProxy QuicConnectionPeer::GetBlackholeDetectorAlarm(
     QuicConnection* connection) {
-  return connection->blackhole_detector_.alarm_.get();
+  return QuicAlarmProxy(&connection->alarms_,
+                        QuicAlarmSlot::kNetworkBlackholeDetector);
 }
 
 // static
@@ -391,9 +366,10 @@ QuicTime QuicConnectionPeer::GetIdleNetworkDeadline(
 }
 
 // static
-QuicAlarm* QuicConnectionPeer::GetIdleNetworkDetectorAlarm(
+QuicAlarmProxy QuicConnectionPeer::GetIdleNetworkDetectorAlarm(
     QuicConnection* connection) {
-  return connection->idle_network_detector_.alarm_.get();
+  return QuicAlarmProxy(&connection->alarms_,
+                        QuicAlarmSlot::kIdleNetworkDetector);
 }
 
 // static
@@ -403,9 +379,9 @@ QuicIdleNetworkDetector& QuicConnectionPeer::GetIdleNetworkDetector(
 }
 
 // static
-QuicAlarm* QuicConnectionPeer::GetMultiPortProbingAlarm(
+QuicAlarmProxy QuicConnectionPeer::GetMultiPortProbingAlarm(
     QuicConnection* connection) {
-  return connection->multi_port_probing_alarm_.get();
+  return QuicAlarmProxy(&connection->alarms_, QuicAlarmSlot::kMultiPortProbing);
 }
 
 // static
@@ -577,12 +553,6 @@ QuicSocketAddress QuicConnectionPeer::GetReceivedServerPreferredAddress(
 }
 
 // static
-QuicSocketAddress QuicConnectionPeer::GetSentServerPreferredAddress(
-    QuicConnection* connection) {
-  return connection->sent_server_preferred_address_;
-}
-
-// static
 bool QuicConnectionPeer::TestLastReceivedPacketInfoDefaults() {
   QuicConnection::ReceivedPacketInfo info{QuicTime::Zero()};
   QUIC_DVLOG(2)
@@ -601,7 +571,7 @@ bool QuicConnectionPeer::TestLastReceivedPacketInfoDefaults() {
       << " ecn_codepoint passed: " << (info.ecn_codepoint == ECN_NOT_ECT)
       << " sizeof(ReceivedPacketInfo) passed: "
       << (sizeof(size_t) != 8 ||
-          sizeof(QuicConnection::ReceivedPacketInfo) == 280);
+          sizeof(QuicConnection::ReceivedPacketInfo) == 304);
   return info.destination_address == QuicSocketAddress() &&
          info.source_address == QuicSocketAddress() &&
          info.receipt_time == QuicTime::Zero() &&
@@ -615,13 +585,26 @@ bool QuicConnectionPeer::TestLastReceivedPacketInfoDefaults() {
          // have changed. Please add the relevant conditions and update the
          // length below.
          (sizeof(size_t) != 8 ||
-          sizeof(QuicConnection::ReceivedPacketInfo) == 280);
+          sizeof(QuicConnection::ReceivedPacketInfo) == 304);
 }
 
 // static
 void QuicConnectionPeer::DisableEcnCodepointValidation(
     QuicConnection* connection) {
   connection->disable_ecn_codepoint_validation_ = true;
+  QuicSentPacketManagerPeer::SetEcnQueried(GetSentPacketManager(connection),
+                                           true);
+}
+
+// static
+void QuicConnectionPeer::OnForwardProgressMade(QuicConnection* connection) {
+  connection->OnForwardProgressMade();
+}
+
+// static
+bool QuicConnectionPeer::CanReceiveAckFrequencyFrames(
+    QuicConnection* connection) {
+  return connection->can_receive_ack_frequency_immediate_ack_;
 }
 
 }  // namespace test

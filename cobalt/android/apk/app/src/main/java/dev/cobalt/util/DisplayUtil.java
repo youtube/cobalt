@@ -20,16 +20,45 @@ import android.hardware.display.DisplayManager;
 import android.hardware.display.DisplayManager.DisplayListener;
 import android.util.DisplayMetrics;
 import android.util.Size;
-import android.util.SizeF;
 import android.view.Display;
 import android.view.WindowManager;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 /** Utility functions for querying display attributes. */
 public class DisplayUtil {
 
+  /** A simple wrapper for display DPI to allow JNI generation for its methods. */
+  public static class DisplayDpi {
+    private final float mX;
+    private final float mY;
+
+    public DisplayDpi(float xdpi, float ydpi) {
+      this.mX = xdpi;
+      this.mY = ydpi;
+    }
+
+    @CalledByNative("DisplayDpi")
+    public float getX() {
+      return mX;
+    }
+
+    @CalledByNative("DisplayDpi")
+    public float getY() {
+      return mY;
+    }
+  }
+
   private DisplayUtil() {}
+
+  @JNINamespace("starboard")
+  @NativeMethods
+  interface Natives {
+    void onDisplayChanged();
+  }
 
   private static Display sDefaultDisplay;
   private static DisplayMetrics sCachedDisplayMetrics = null;
@@ -37,9 +66,10 @@ public class DisplayUtil {
   public static final double DISPLAY_REFRESH_RATE_UNKNOWN = -1;
 
   /** Returns the physical pixels per inch of the screen in the X and Y dimensions. */
-  public static SizeF getDisplayDpi() {
+  @CalledByNative
+  public static DisplayDpi getDisplayDpi() {
     DisplayMetrics metrics = getDisplayMetrics();
-    return new SizeF(metrics.xdpi, metrics.ydpi);
+    return new DisplayDpi(metrics.xdpi, metrics.ydpi);
   }
 
   /** Returns the default display associated with a context. */
@@ -154,17 +184,17 @@ public class DisplayUtil {
       new DisplayListener() {
         @Override
         public void onDisplayAdded(int displayId) {
-          nativeOnDisplayChanged();
+          DisplayUtilJni.get().onDisplayChanged();
         }
 
         @Override
         public void onDisplayChanged(int displayId) {
-          nativeOnDisplayChanged();
+          DisplayUtilJni.get().onDisplayChanged();
         }
 
         @Override
         public void onDisplayRemoved(int displayId) {
-          nativeOnDisplayChanged();
+          DisplayUtilJni.get().onDisplayChanged();
         }
       };
 
@@ -181,8 +211,6 @@ public class DisplayUtil {
 
     // Call nativeOnDisplayChanged() to reload supported hdr types here after a default
     // Display created.
-    nativeOnDisplayChanged();
+    DisplayUtilJni.get().onDisplayChanged();
   }
-
-  private static native void nativeOnDisplayChanged();
 }

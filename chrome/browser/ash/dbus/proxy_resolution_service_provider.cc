@@ -12,8 +12,6 @@
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/ash/net/system_proxy_manager.h"
-#include "chrome/browser/browser_process.h"
-#include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
@@ -58,9 +56,9 @@ class ProxyLookupRequest : public network::mojom::ProxyLookupClient {
         system_proxy_override_(system_proxy_override) {
     mojo::PendingRemote<network::mojom::ProxyLookupClient> proxy_lookup_client =
         receiver_.BindNewPipeAndPassRemote();
-    receiver_.set_disconnect_handler(base::BindOnce(
-        &ProxyLookupRequest::OnProxyLookupComplete, base::Unretained(this),
-        net::ERR_ABORTED, absl::nullopt));
+    receiver_.set_disconnect_handler(
+        base::BindOnce(&ProxyLookupRequest::OnProxyLookupComplete,
+                       base::Unretained(this), net::ERR_ABORTED, std::nullopt));
 
     network_context->LookUpProxyForURL(source_url, network_anonymization_key,
                                        std::move(proxy_lookup_client));
@@ -73,7 +71,7 @@ class ProxyLookupRequest : public network::mojom::ProxyLookupClient {
 
   void OnProxyLookupComplete(
       int32_t net_error,
-      const absl::optional<net::ProxyInfo>& proxy_info) override {
+      const std::optional<net::ProxyInfo>& proxy_info) override {
     DCHECK_EQ(net_error == net::OK, proxy_info.has_value());
 
     std::string error;
@@ -82,9 +80,16 @@ class ProxyLookupRequest : public network::mojom::ProxyLookupClient {
     if (!proxy_info) {
       error = net::ErrorToString(net_error);
       result = kProxyInfoOnFailure;
+    } else if (proxy_info->ContainsMultiProxyChain()) {
+      // Multi-proxy chains cannot be represented as a PAC string.
+      error = net::ErrorToString(net::ERR_MANDATORY_PROXY_CONFIGURATION_FAILED);
+      result = kProxyInfoOnFailure;
     } else {
       result = proxy_info->ToPacString();
-      if (proxy_info->is_http()) {
+      if (!proxy_info->is_empty() && !proxy_info->is_direct() &&
+          proxy_info->proxy_chain()
+              .GetProxyServer(/*chain_index=*/0)
+              .is_http()) {
         AppendSystemProxyIfActive(&result);
       }
     }

@@ -6,6 +6,7 @@
 
 #include <stddef.h>
 
+#include <array>
 #include <memory>
 #include <utility>
 
@@ -14,6 +15,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
+#include "build/android_buildflags.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -131,7 +133,7 @@ TEST(CommandTest, ExtensionCommandParsing) {
   const ui::Accelerator stop =
       ui::Accelerator(ui::VKEY_MEDIA_STOP, ui::EF_NONE);
 
-  ConstCommandsTestData kTests[] = {
+  static const auto kTests = std::to_array<ConstCommandsTestData>({
       // Negative test (one or more missing required fields). We don't need to
       // test |command_name| being blank as it is used as a key in the manifest,
       // so it can't be blank (and we CHECK() when it is). A blank shortcut is
@@ -189,19 +191,27 @@ TEST(CommandTest, ExtensionCommandParsing) {
       {false, none, "_execute_browser_action", "MediaNextTrack", ""},
       {false, none, "_execute_page_action", "MediaPrevTrack", ""},
       {false, none, "command", "Ctrl+Shift+MediaPrevTrack", "description"},
-  };
+  });
   std::vector<std::string> all_platforms;
   all_platforms.push_back("default");
   all_platforms.push_back("chromeos");
   all_platforms.push_back("linux");
   all_platforms.push_back("mac");
   all_platforms.push_back("windows");
-
-  for (size_t i = 0; i < std::size(kTests); ++i)
+  for (size_t i = 0; i < std::size(kTests); ++i) {
     CheckParse(kTests[i], i, false, all_platforms);
+  }
 }
 
-TEST(CommandTest, ExtensionCommandParsingFallback) {
+// TODO(https://crbug.com/356905053): Add/adjust command key support on
+// desktop-android platform.
+#if BUILDFLAG(IS_DESKTOP_ANDROID)
+#define MAYBE_ExtensionCommandParsingFallback \
+  DISABLED_ExtensionCommandParsingFallback
+#else
+#define MAYBE_ExtensionCommandParsingFallback ExtensionCommandParsingFallback
+#endif
+TEST(CommandTest, MAYBE_ExtensionCommandParsingFallback) {
   std::string description = "desc";
   std::string command_name = "foo";
 
@@ -238,7 +248,7 @@ TEST(CommandTest, ExtensionCommandParsingFallback) {
   ui::Accelerator accelerator(ui::VKEY_L,
                               ui::EF_SHIFT_DOWN | ui::EF_CONTROL_DOWN);
 #elif BUILDFLAG(IS_FUCHSIA)
-  // TODO(crbug.com/1312215): Change this once we decide on a unique platform
+  // TODO(crbug.com/40220501): Change this once we decide on a unique platform
   // key for Fuchsia.
   ui::Accelerator accelerator(ui::VKEY_L,
                               ui::EF_SHIFT_DOWN | ui::EF_CONTROL_DOWN);
@@ -298,29 +308,31 @@ TEST(CommandTest, ExtensionCommandParsingPlatformSpecific) {
   ui::Accelerator search_shift_z(ui::VKEY_Z,
                                  ui::EF_COMMAND_DOWN | ui::EF_SHIFT_DOWN);
 
-  ConstCommandsTestData kChromeOsTests[] = {
+  const auto kChromeOsTests = std::to_array<ConstCommandsTestData>({
       {true, search_shift_z, "command", "Search+Shift+Z", "description"},
       {true, search_a, "command", "Search+A", "description"},
       // Command is not valid on Chrome OS.
       {false, search_shift_z, "command", "Command+Shift+Z", "description"},
-  };
+  });
 
   std::vector<std::string> chromeos;
   chromeos.push_back("chromeos");
-  for (size_t i = 0; i < std::size(kChromeOsTests); ++i)
+  for (size_t i = 0; i < std::size(kChromeOsTests); ++i) {
     CheckParse(kChromeOsTests[i], i, true, chromeos);
+  }
 
-  ConstCommandsTestData kNonChromeOsSearchTests[] = {
+  const auto kNonChromeOsSearchTests = std::to_array<ConstCommandsTestData>({
       {false, search_shift_z, "command", "Search+Shift+Z", "description"},
-  };
+  });
   std::vector<std::string> non_chromeos;
   non_chromeos.push_back("default");
   non_chromeos.push_back("windows");
   non_chromeos.push_back("mac");
   non_chromeos.push_back("linux");
 
-  for (size_t i = 0; i < std::size(kNonChromeOsSearchTests); ++i)
+  for (size_t i = 0; i < kNonChromeOsSearchTests.size(); ++i) {
     CheckParse(kNonChromeOsSearchTests[i], i, true, non_chromeos);
+  }
 }
 
 }  // namespace extensions

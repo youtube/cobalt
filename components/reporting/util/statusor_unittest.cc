@@ -1,286 +1,104 @@
-// Copyright 2020 The Chromium Authors
+// Copyright 2023 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/reporting/util/statusor.h"
 
-#include <errno.h>
-
-#include <algorithm>
 #include <memory>
-#include <tuple>
+#include <utility>
 
 #include "base/functional/bind.h"
-#include "base/functional/callback.h"
-#include "base/memory/ref_counted.h"
-#include "base/memory/scoped_refptr.h"
-
-#include "testing/gtest/include/gtest/gtest-death-test.h"
+#include "base/functional/callback_forward.h"
+#include "base/memory/weak_ptr.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/thread_pool.h"
+#include "base/test/task_environment.h"
+#include "base/types/expected.h"
+#include "components/reporting/util/status.h"
+#include "components/reporting/util/status_macros.h"
+#include "components/reporting/util/test_support_callbacks.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+using ::testing::AllOf;
+using ::testing::Eq;
+using ::testing::Property;
+using ::testing::StrEq;
 
 namespace reporting {
 namespace {
 
-class Base1 {
- public:
-  virtual ~Base1() = default;
-  int pad;
-};
-
-class Base2 {
- public:
-  virtual ~Base2() = default;
-  int yetotherpad;
-};
-
-class Derived : public Base1, public Base2 {
- public:
-  ~Derived() override = default;
-  int evenmorepad;
-};
-
-class CopyNoAssign {
- public:
-  explicit CopyNoAssign(int value) : foo(value) {}
-  CopyNoAssign(const CopyNoAssign& other) : foo(other.foo) {}
-  int foo;
-
- private:
-  const CopyNoAssign& operator=(const CopyNoAssign&);
-};
-
-TEST(StatusOr, TestDefaultCtor) {
-  StatusOr<int> thing;
-  EXPECT_FALSE(thing.ok());
-  EXPECT_EQ(error::UNKNOWN, thing.status().code());
+TEST(StatusOr, MoveConstructFromAndExtractToStatusImplicitly) {
+  Status status(error::INTERNAL, "internal error");
+  base::unexpected<Status> unexpected_status(status);
+  StatusOr<int> status_or(std::move(unexpected_status));
+  Status extracted_status{std::move(status_or).error()};
+  EXPECT_EQ(status, extracted_status);
 }
 
-TEST(StatusOr, TestStatusCtor) {
-  StatusOr<int> thing(Status(error::CANCELLED, ""));
-  EXPECT_FALSE(thing.ok());
-  EXPECT_EQ(Status(error::CANCELLED, ""), thing.status());
+TEST(StatusOr, CopyConstructFromAndExtractToStatusImplicitly) {
+  Status status(error::INTERNAL, "internal error");
+  base::unexpected<Status> unexpected_status(status);
+  StatusOr<int> status_or(unexpected_status);
+  Status extracted_status{status_or.error()};
+  EXPECT_EQ(status, extracted_status);
 }
 
-TEST(StatusOr, TestValueCtor) {
-  const int kI = 4;
-  StatusOr<int> thing(kI);
-  EXPECT_TRUE(thing.ok());
-  EXPECT_EQ(kI, thing.ValueOrDie());
-}
-
-TEST(StatusOr, TestCopyCtorStatusOk) {
-  const int kI = 4;
-  StatusOr<int> original(kI);
-  StatusOr<int> copy(original);
-  EXPECT_EQ(original.status(), copy.status());
-  EXPECT_EQ(original.ValueOrDie(), copy.ValueOrDie());
-}
-
-TEST(StatusOr, TestCopyCtorStatusNotOk) {
-  StatusOr<int> original(Status(error::CANCELLED, ""));
-  StatusOr<int> copy(original);
-  EXPECT_EQ(original.status(), copy.status());
-}
-
-TEST(StatusOr, TestCopyCtorStatusOKConverting) {
-  const int kI = 4;
-  StatusOr<int> original(kI);
-  StatusOr<double> copy(original);
-  EXPECT_EQ(original.status(), copy.status());
-  EXPECT_EQ(original.ValueOrDie(), copy.ValueOrDie());
-}
-
-TEST(StatusOr, TestCopyCtorStatusNotOkConverting) {
-  StatusOr<int> original(Status(error::CANCELLED, ""));
-  StatusOr<double> copy(original);
-  EXPECT_EQ(original.status(), copy.status());
-}
-
-TEST(StatusOr, TestAssignmentStatusOk) {
-  const int kI = 4;
-  StatusOr<int> source(kI);
-  StatusOr<int> target;
-  target = source;
-  EXPECT_EQ(source.status(), target.status());
-  EXPECT_EQ(source.ValueOrDie(), target.ValueOrDie());
-}
-
-TEST(StatusOr, TestAssignmentStatusNotOk) {
-  StatusOr<int> source(Status(error::CANCELLED, ""));
-  StatusOr<int> target;
-  target = source;
-  EXPECT_EQ(source.status(), target.status());
-}
-
-TEST(StatusOr, TestAssignmentStatusOKConverting) {
-  const int kI = 4;
-  StatusOr<int> source(kI);
-  StatusOr<double> target;
-  target = source;
-  EXPECT_EQ(source.status(), target.status());
-  EXPECT_DOUBLE_EQ(source.ValueOrDie(), target.ValueOrDie());
-}
-
-TEST(StatusOr, TestAssignmentStatusNotOkConverting) {
-  StatusOr<int> source(Status(error::CANCELLED, ""));
-  StatusOr<double> target;
-  target = source;
-  EXPECT_EQ(source.status(), target.status());
-}
-
-TEST(StatusOr, TestStatus) {
-  StatusOr<int> good(4);
-  EXPECT_TRUE(good.ok());
-  StatusOr<int> bad(Status(error::CANCELLED, ""));
-  EXPECT_FALSE(bad.ok());
-  EXPECT_EQ(Status(error::CANCELLED, ""), bad.status());
-}
-
-TEST(StatusOr, TestValueConst) {
-  const int kI = 4;
-  const StatusOr<int> thing(kI);
-  EXPECT_EQ(kI, thing.ValueOrDie());
-}
-
-TEST(StatusOr, TestPointerDefaultCtor) {
-  StatusOr<int*> thing;
-  EXPECT_FALSE(thing.ok());
-  EXPECT_EQ(error::UNKNOWN, thing.status().code());
-}
-
-TEST(StatusOr, TestPointerStatusCtor) {
-  StatusOr<int*> thing(Status(error::CANCELLED, ""));
-  EXPECT_FALSE(thing.ok());
-  EXPECT_EQ(Status(error::CANCELLED, ""), thing.status());
-}
-
-TEST(StatusOr, TestPointerValueCtor) {
-  const int kI = 4;
-  StatusOr<const int*> thing(&kI);
-  EXPECT_TRUE(thing.ok());
-  EXPECT_EQ(&kI, thing.ValueOrDie());
-}
-
-TEST(StatusOr, TestPointerCopyCtorStatusOk) {
-  const int kI = 0;
-  StatusOr<const int*> original(&kI);
-  StatusOr<const int*> copy(original);
-  EXPECT_EQ(original.status(), copy.status());
-  EXPECT_EQ(original.ValueOrDie(), copy.ValueOrDie());
-}
-
-TEST(StatusOr, TestPointerCopyCtorStatusNotOk) {
-  StatusOr<int*> original(Status(error::CANCELLED, ""));
-  StatusOr<int*> copy(original);
-  EXPECT_EQ(original.status(), copy.status());
-}
-
-TEST(StatusOr, TestPointerCopyCtorStatusOKConverting) {
-  Derived derived;
-  StatusOr<Derived*> original(&derived);
-  StatusOr<Base2*> copy(original);
-  EXPECT_EQ(original.status(), copy.status());
-  EXPECT_EQ(static_cast<const Base2*>(original.ValueOrDie()),
-            copy.ValueOrDie());
-}
-
-TEST(StatusOr, TestPointerCopyCtorStatusNotOkConverting) {
-  StatusOr<Derived*> original(Status(error::CANCELLED, ""));
-  StatusOr<Base2*> copy(original);
-  EXPECT_EQ(original.status(), copy.status());
-}
-
-TEST(StatusOr, TestPointerAssignmentStatusOk) {
-  const int kI = 0;
-  StatusOr<const int*> source(&kI);
-  StatusOr<const int*> target;
-  target = source;
-  EXPECT_EQ(source.status(), target.status());
-  EXPECT_EQ(source.ValueOrDie(), target.ValueOrDie());
-}
-
-TEST(StatusOr, TestPointerAssignmentStatusNotOk) {
-  StatusOr<int*> source(Status(error::CANCELLED, ""));
-  StatusOr<int*> target;
-  target = source;
-  EXPECT_EQ(source.status(), target.status());
-}
-
-TEST(StatusOr, TestPointerAssignmentStatusOKConverting) {
-  Derived derived;
-  StatusOr<Derived*> source(&derived);
-  StatusOr<Base2*> target;
-  target = source;
-  EXPECT_EQ(source.status(), target.status());
-  EXPECT_EQ(static_cast<const Base2*>(source.ValueOrDie()),
-            target.ValueOrDie());
-}
-
-TEST(StatusOr, TestPointerAssignmentStatusNotOkConverting) {
-  StatusOr<Derived*> source(Status(error::CANCELLED, ""));
-  StatusOr<Base2*> target;
-  target = source;
-  EXPECT_EQ(source.status(), target.status());
-}
-
-TEST(StatusOr, TestPointerStatus) {
-  const int kI = 0;
-  StatusOr<const int*> good(&kI);
-  EXPECT_TRUE(good.ok());
-  StatusOr<const int*> bad(Status(error::CANCELLED, ""));
-  EXPECT_EQ(Status(error::CANCELLED, ""), bad.status());
-}
-
-TEST(StatusOr, TestPointerValue) {
-  const int kI = 0;
-  StatusOr<const int*> thing(&kI);
-  EXPECT_EQ(&kI, thing.ValueOrDie());
-}
-
-TEST(StatusOr, TestPointerValueConst) {
-  const int kI = 0;
-  const StatusOr<const int*> thing(&kI);
-  EXPECT_EQ(&kI, thing.ValueOrDie());
-}
-
-TEST(StatusOr, TestMoveStatusOr) {
-  const int kI = 0;
-  StatusOr<std::unique_ptr<int>> thing(std::make_unique<int>(kI));
-  EXPECT_OK(thing.status());
-  StatusOr<std::unique_ptr<int>> moved = std::move(thing);
-  EXPECT_EQ(error::UNKNOWN, thing.status().code());
-  EXPECT_TRUE(moved.ok());
-  EXPECT_EQ(kI, *moved.ValueOrDie());
-}
-
-TEST(StatusOr, TestBinding) {
-  class RefCountedValue : public base::RefCounted<RefCountedValue> {
+TEST(StatusOr, CallbackAfterDeletion) {
+  base::test::TaskEnvironment test_env{};
+  class Handler {
    public:
-    explicit RefCountedValue(StatusOr<int> value) : value_(value) {}
-    Status status() const { return value_.status(); }
-    int value() const { return value_.ValueOrDie(); }
+    using Result = StatusOr<int64_t>;
+
+    Handler() = default;
+    Handler(const Handler&) = delete;
+    Handler& operator=(const Handler&) = delete;
+
+    void Handle(base::OnceCallback<void(Result)> done_cb) {
+      std::move(done_cb).Run(12345L);
+    }
+
+    base::WeakPtr<Handler> GetWeakPtr() {
+      return weak_ptr_factory_.GetWeakPtr();
+    }
 
    private:
-    friend class base::RefCounted<RefCountedValue>;
-    ~RefCountedValue() = default;
-    const StatusOr<int> value_;
+    base::WeakPtrFactory<Handler> weak_ptr_factory_{this};
   };
-  const int kI = 0;
-  base::OnceCallback<int(StatusOr<scoped_refptr<RefCountedValue>>)> callback =
-      base::BindOnce([](StatusOr<scoped_refptr<RefCountedValue>> val) {
-        return val.ValueOrDie()->value();
-      });
-  const int result =
-      std::move(callback).Run(base::MakeRefCounted<RefCountedValue>(kI));
-  EXPECT_EQ(kI, result);
-}
 
-TEST(StatusOr, TestAbort) {
-  StatusOr<int> thing1(Status(error::UNKNOWN, "Unknown"));
-  EXPECT_DEATH_IF_SUPPORTED(std::ignore = thing1.ValueOrDie(), "");
+  // Create seq task runner as required by weak pointers.
+  auto task_runner = base::ThreadPool::CreateSequencedTaskRunner({});
 
-  StatusOr<std::unique_ptr<int>> thing2(Status(error::UNKNOWN, "Unknown"));
-  EXPECT_DEATH_IF_SUPPORTED(std::ignore = std::move(thing2.ValueOrDie()), "");
+  test::TestEvent<Handler::Result> cb_dead;
+  base::OnceClosure async_cb_dead;
+
+  {
+    std::unique_ptr<Handler, base::OnTaskRunnerDeleter> handler{
+        new Handler, base::OnTaskRunnerDeleter(task_runner)};
+    test::TestEvent<Handler::Result> cb_alive;
+    task_runner->PostTask(
+        FROM_HERE,
+        base::BindOnce(&Handler::Handle, handler->GetWeakPtr(), cb_alive.cb()));
+    const auto result = cb_alive.result();
+    ASSERT_TRUE(result.has_value()) << result.error();
+    EXPECT_THAT(result.value(), Eq(12345L));
+    async_cb_dead = base::BindOnce(
+        &Handler::Handle, handler->GetWeakPtr(),
+        Scoped<Handler::Result>(
+            cb_dead.cb(), base::unexpected(Status(error::UNAVAILABLE,
+                                                  "Handler destructed"))));
+  }
+
+  // Out of scope: run after Handler has been deleted (on sequence!).
+  task_runner->PostTask(FROM_HERE, std::move(async_cb_dead));
+
+  // Make sure callback is still invoked, but with error.
+  const auto result = cb_dead.result();
+  EXPECT_FALSE(result.has_value());
+  EXPECT_THAT(
+      result.error(),
+      AllOf(Property(&Status::error_code, Eq(error::UNAVAILABLE)),
+            Property(&Status::error_message, StrEq("Handler destructed"))));
 }
 }  // namespace
 }  // namespace reporting

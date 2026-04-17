@@ -47,18 +47,18 @@ TEST_F(ScopedServicePublisherTest, OutgoingDirectory) {
   // Existing channels remain valid after the publisher goes out of scope.
   EXPECT_EQ(VerifyTestInterface(client_a), ZX_OK);
 
-  // New connections attempts will be dropped.
+  // Verify that the service is no longer published.
   auto client_b =
       test_context_.published_services()->Connect<testfidl::TestInterface>();
-  EXPECT_EQ(VerifyTestInterface(client_b), ZX_ERR_PEER_CLOSED);
+  EXPECT_EQ(VerifyTestInterface(client_b), ZX_ERR_NOT_FOUND);
 }
 
 TEST_F(ScopedServicePublisherTest, PseudoDir) {
   vfs::PseudoDir directory;
   fidl::InterfaceHandle<fuchsia::io::Directory> directory_handle;
-  directory.Serve(fuchsia::io::OpenFlags::RIGHT_READABLE |
-                      fuchsia::io::OpenFlags::RIGHT_WRITABLE,
-                  directory_handle.NewRequest().TakeChannel());
+  directory.Serve(fuchsia_io::wire::kPermReadable,
+                  fidl::ServerEnd<fuchsia_io::Directory>(
+                      directory_handle.NewRequest().TakeChannel()));
   sys::ServiceDirectory services(std::move(directory_handle));
 
   fidl::InterfacePtr<testfidl::TestInterface> client_a;
@@ -73,9 +73,9 @@ TEST_F(ScopedServicePublisherTest, PseudoDir) {
   // Existing channels remain valid after the publisher goes out of scope.
   EXPECT_EQ(VerifyTestInterface(client_a), ZX_OK);
 
-  // New connection attempts will be dropped.
+  // Verify that the service is no longer published.
   auto client_b = services.Connect<testfidl::TestInterface>();
-  EXPECT_EQ(VerifyTestInterface(client_b), ZX_ERR_PEER_CLOSED);
+  EXPECT_EQ(VerifyTestInterface(client_b), ZX_ERR_NOT_FOUND);
 }
 
 }  // namespace base

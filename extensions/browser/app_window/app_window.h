@@ -21,8 +21,10 @@
 #include "extensions/browser/app_window/native_app_window.h"
 #include "extensions/browser/extension_function_dispatcher.h"
 #include "extensions/browser/extension_registry_observer.h"
-#include "ui/base/ui_base_types.h"  // WindowShowState
-#include "ui/gfx/geometry/rect.h"
+#include "extensions/common/extension_id.h"
+#include "extensions/common/mojom/frame.mojom-forward.h"
+#include "third_party/blink/public/mojom/page/draggable_region.mojom-forward.h"
+#include "ui/base/mojom/window_show_state.mojom-forward.h"
 #include "ui/gfx/image/image.h"
 
 class GURL;
@@ -30,7 +32,12 @@ class SkRegion;
 
 namespace base {
 class Value;
-}
+}  // namespace base
+
+namespace gfx {
+class Rect;
+class RoundedCornersF;
+}  // namespace gfx
 
 namespace content {
 class BrowserContext;
@@ -44,8 +51,6 @@ class AppDelegate;
 class AppWebContentsHelper;
 class Extension;
 class PlatformAppBrowserTest;
-
-struct DraggableRegion;
 
 // Manages the web contents for app windows. The implementation for this
 // class should create and maintain the WebContents for the window, and handle
@@ -71,7 +76,7 @@ class AppWindowContents {
   // Called when the native window changes.
   virtual void NativeWindowChanged(NativeAppWindow* native_app_window) = 0;
 
-  // Called when the native window closes. |send_onclosed| is flag to indicate
+  // Called when the native window closes. `send_onclosed` is flag to indicate
   // whether the OnClosed event should be sent. It is true except when the
   // native window is closed before AppWindowCreateFunction responds.
   virtual void NativeWindowClosed(bool send_onclosed) = 0;
@@ -170,7 +175,7 @@ class AppWindow : public content::WebContentsDelegate,
     int32_t creator_process_id;
 
     // Initial state of the window.
-    ui::WindowShowState state;
+    ui::mojom::WindowShowState state;
 
     // If true, don't show the window after creation.
     bool hidden;
@@ -188,10 +193,6 @@ class AppWindow : public content::WebContentsDelegate,
     // If true, the window will be visible on all workspaces. Defaults to false.
     bool visible_on_all_workspaces;
 
-    // Whether the app window should be shown on the lock screen.
-    // Chrome OS only.
-    bool show_on_lock_screen;
-
     // If true, the window will have its own shelf icon. Otherwise the window
     // will be grouped in the shelf with other windows that are associated with
     // the app. Defaults to false.
@@ -202,21 +203,27 @@ class AppWindow : public content::WebContentsDelegate,
 
     // The API enables developers to specify content or window bounds. This
     // function combines them into a single, constrained window size.
-    gfx::Rect GetInitialWindowBounds(const gfx::Insets& frame_insets) const;
+    gfx::Rect GetInitialWindowBounds(
+        const gfx::Insets& frame_insets,
+        const gfx::RoundedCornersF& window_radii) const;
 
     // The API enables developers to specify content or window size constraints.
     // These functions combine them so that we can work with one set of
     // constraints.
     gfx::Size GetContentMinimumSize(const gfx::Insets& frame_insets) const;
     gfx::Size GetContentMaximumSize(const gfx::Insets& frame_insets) const;
-    gfx::Size GetWindowMinimumSize(const gfx::Insets& frame_insets) const;
-    gfx::Size GetWindowMaximumSize(const gfx::Insets& frame_insets) const;
+    gfx::Size GetWindowMinimumSize(
+        const gfx::Insets& frame_insets,
+        const gfx::RoundedCornersF& window_radii) const;
+    gfx::Size GetWindowMaximumSize(
+        const gfx::Insets& frame_insets,
+        const gfx::RoundedCornersF& window_radii) const;
   };
 
   // Convert draggable regions in raw format to SkRegion format. Caller is
   // responsible for deleting the returned SkRegion instance.
   static SkRegion* RawDraggableRegionsToSkRegion(
-      const std::vector<DraggableRegion>& regions);
+      const std::vector<blink::mojom::DraggableRegionPtr>& regions);
 
   // The constructor and Init methods are public for constructing a AppWindow
   // with a non-standard render interface (e.g.
@@ -237,7 +244,7 @@ class AppWindow : public content::WebContentsDelegate,
 
   const std::string& window_key() const { return window_key_; }
   SessionID session_id() const { return session_id_; }
-  const std::string& extension_id() const { return extension_id_; }
+  const ExtensionId& extension_id() const { return extension_id_; }
   content::WebContents* web_contents() const;
   WindowType window_type() const { return window_type_; }
   content::BrowserContext* browser_context() const { return browser_context_; }
@@ -260,8 +267,8 @@ class AppWindow : public content::WebContentsDelegate,
   // is on startup and from within UpdateWindowTitle().
   std::u16string GetTitle() const;
 
-  // |callback| will be called when the first navigation was completed or window
-  // is closed before that. |did_finish| argument of the |callback| is set to
+  // `callback` will be called when the first navigation was completed or window
+  // is closed before that. `did_finish` argument of the `callback` is set to
   // true for the former case and false for the latter.
   using DidFinishFirstNavigationCallback =
       base::OnceCallback<void(bool did_finish)>;
@@ -285,20 +292,20 @@ class AppWindow : public content::WebContentsDelegate,
   // Specifies a url for the launcher icon.
   void SetAppIconUrl(const GURL& icon_url);
 
-  // Sets the window shape. Passing a nullptr |rects| sets the default shape.
+  // Sets the window shape. Passing a nullptr `rects` sets the default shape.
   void UpdateShape(std::unique_ptr<ShapeRects> rects);
 
-  // Called from the render interface to modify the draggable regions.
-  void UpdateDraggableRegions(const std::vector<DraggableRegion>& regions);
+  // Notify hat an app window is ready and can resume resource requests.
+  void AppWindowReady();
 
-  // Updates the app image to |image|. Called internally from the image loader
+  // Updates the app image to `image`. Called internally from the image loader
   // callback.
   void UpdateAppIcon(const gfx::Image& image);
 
-  // Enable or disable fullscreen mode. |type| specifies which type of
+  // Enable or disable fullscreen mode. `type` specifies which type of
   // fullscreen mode to change (note that disabling one type of fullscreen may
   // not exit fullscreen mode because a window may have a different type of
-  // fullscreen enabled). If |type| is not FORCED, checks that the extension has
+  // fullscreen enabled). If `type` is not FORCED, checks that the extension has
   // the required permission.
   void SetFullscreen(FullscreenType type, bool enable);
 
@@ -358,7 +365,7 @@ class AppWindow : public content::WebContentsDelegate,
   // may be false if the bit is silently switched off for security reasons.
   bool IsAlwaysOnTop() const;
 
-  // Restores the always-on-top property according to |cached_always_on_top_|.
+  // Restores the always-on-top property according to `cached_always_on_top_`.
   void RestoreAlwaysOnTop();
 
   // Retrieve the current state of the app window as a dictionary, to pass to
@@ -374,8 +381,6 @@ class AppWindow : public content::WebContentsDelegate,
   // remove this TODO.
   bool is_ime_window() const { return is_ime_window_; }
 
-  bool show_on_lock_screen() const { return show_on_lock_screen_; }
-
   bool show_in_shelf() const { return show_in_shelf_; }
 
   AppDelegate* app_delegate() { return app_delegate_.get(); }
@@ -388,6 +393,10 @@ class AppWindow : public content::WebContentsDelegate,
   void SetNativeAppWindowForTesting(
       std::unique_ptr<NativeAppWindow> native_app_window) {
     native_app_window_ = std::move(native_app_window);
+  }
+
+  void SetOnDraggableRegionsChangedForTesting(base::OnceClosure callback) {
+    on_update_draggable_regions_callback_for_testing_ = std::move(callback);
   }
 
   bool DidFinishFirstNavigation() { return did_finish_first_navigation_; }
@@ -422,38 +431,40 @@ class AppWindow : public content::WebContentsDelegate,
       const content::MediaStreamRequest& request,
       content::MediaResponseCallback callback) override;
   bool CheckMediaAccessPermission(content::RenderFrameHost* render_frame_host,
-                                  const GURL& security_origin,
+                                  const url::Origin& security_origin,
                                   blink::mojom::MediaStreamType type) override;
   content::WebContents* OpenURLFromTab(
       content::WebContents* source,
-      const content::OpenURLParams& params) override;
-  void AddNewContents(content::WebContents* source,
-                      std::unique_ptr<content::WebContents> new_contents,
-                      const GURL& target_url,
-                      WindowOpenDisposition disposition,
-                      const blink::mojom::WindowFeatures& window_features,
-                      bool user_gesture,
-                      bool* was_blocked) override;
+      const content::OpenURLParams& params,
+      base::OnceCallback<void(content::NavigationHandle&)>
+          navigation_handle_callback) override;
+  content::WebContents* AddNewContents(
+      content::WebContents* source,
+      std::unique_ptr<content::WebContents> new_contents,
+      const GURL& target_url,
+      WindowOpenDisposition disposition,
+      const blink::mojom::WindowFeatures& window_features,
+      bool user_gesture,
+      bool* was_blocked) override;
   content::KeyboardEventProcessingResult PreHandleKeyboardEvent(
       content::WebContents* source,
-      const content::NativeWebKeyboardEvent& event) override;
-  bool HandleKeyboardEvent(
-      content::WebContents* source,
-      const content::NativeWebKeyboardEvent& event) override;
-  void RequestToLockMouse(content::WebContents* web_contents,
+      const input::NativeWebKeyboardEvent& event) override;
+  bool HandleKeyboardEvent(content::WebContents* source,
+                           const input::NativeWebKeyboardEvent& event) override;
+  void RequestPointerLock(content::WebContents* web_contents,
                           bool user_gesture,
                           bool last_unlocked_by_target) override;
   bool PreHandleGestureEvent(content::WebContents* source,
                              const blink::WebGestureEvent& event) override;
-  bool TakeFocus(content::WebContents* source, bool reverse) override;
   content::PictureInPictureResult EnterPictureInPicture(
       content::WebContents* web_contents) override;
   void ExitPictureInPicture() override;
   bool ShouldShowStaleContentOnEviction(content::WebContents* source) override;
+  void DraggableRegionsChanged(
+      const std::vector<blink::mojom::DraggableRegionPtr>& draggable_regions,
+      content::WebContents* contents) override;
 
   // content::WebContentsObserver implementation.
-  bool OnMessageReceived(const IPC::Message& message,
-                         content::RenderFrameHost* render_frame_host) override;
   void RenderFrameCreated(content::RenderFrameHost* frame_host) override;
 
   // ExtensionFunctionDispatcher::Delegate implementation.
@@ -469,9 +480,6 @@ class AppWindow : public content::WebContentsDelegate,
   void SetWebContentsBlocked(content::WebContents* web_contents,
                              bool blocked) override;
   bool IsWebContentsVisible(content::WebContents* web_contents) override;
-
-  // IPC handler for ExtensionHostMsg_AppWindowReady.
-  void OnAppWindowReady();
 
   void ToggleFullscreenModeForTab(content::WebContents* source,
                                   bool enter_fullscreen);
@@ -510,7 +518,7 @@ class AppWindow : public content::WebContentsDelegate,
       override;
 
   // Starts custom app icon download. To avoid race condition with loading app
-  // itself it is started in case |app_icon_url_| is set and app window is
+  // itself it is started in case `app_icon_url_` is set and app window is
   // ready.
   void StartAppIconDownload();
 
@@ -525,7 +533,7 @@ class AppWindow : public content::WebContentsDelegate,
   // not own this object.
   raw_ptr<content::BrowserContext> browser_context_;
 
-  const std::string extension_id_;
+  const ExtensionId extension_id_;
 
   // Identifier that is used when saving and restoring geometry for this
   // window.
@@ -540,6 +548,15 @@ class AppWindow : public content::WebContentsDelegate,
   // Icon URL to be used for setting the app icon. If not empty, app_icon_ will
   // be fetched and set using this URL.
   GURL app_icon_url_;
+
+  // These callbacks are called when the navigation is finished on both browser
+  // and renderer sides.
+  std::vector<DidFinishFirstNavigationCallback>
+      on_did_finish_first_navigation_callbacks_;
+
+  // Whether the first navigation was completed in both browser and renderer
+  // processes.
+  bool did_finish_first_navigation_ = false;
 
   std::unique_ptr<NativeAppWindow> native_app_window_;
   std::unique_ptr<AppWindowContents> app_window_contents_;
@@ -559,7 +576,7 @@ class AppWindow : public content::WebContentsDelegate,
   // by the chrome.app.window API, not in an operating system context. For
   // example windows which are minimized are not hidden, and windows which are
   // part of a hidden app on OS X are not hidden. Windows which were created
-  // with the |hidden| flag set to true, or which have been programmatically
+  // with the `hidden` flag set to true, or which have been programmatically
   // hidden, are considered hidden.
   bool is_hidden_ = false;
 
@@ -570,29 +587,21 @@ class AppWindow : public content::WebContentsDelegate,
   // taskbar.
   bool cached_always_on_top_ = false;
 
-  // Whether |alpha_enabled| was set in the CreateParams.
+  // Whether `alpha_enabled` was set in the CreateParams.
   bool requested_alpha_enabled_ = false;
 
-  // Whether |is_ime_window| was set in the CreateParams.
+  // Whether `is_ime_window` was set in the CreateParams.
   bool is_ime_window_ = false;
 
-  // Whether |show_on_lock_screen| was set in the CreateParams.
-  bool show_on_lock_screen_ = false;
-
-  // Whether |show_in_shelf| was set in the CreateParams.
+  // Whether `show_in_shelf` was set in the CreateParams.
   bool show_in_shelf_ = false;
 
   // Whether the app window is loaded and ready. It is used to resolve the
   // race condition of loading custom app icon and app content simultaneously.
   bool window_ready_ = false;
 
-  // These callbacks are called when the navigation is finished on both browser
-  // and renderer sides.
-  std::vector<DidFinishFirstNavigationCallback>
-      on_did_finish_first_navigation_callbacks_;
-  // Whether the first navigation was completed in both browser and renderer
-  // processes.
-  bool did_finish_first_navigation_ = false;
+  // Allows tests to wait for draggable regions to be sent from the renderer.
+  base::OnceClosure on_update_draggable_regions_callback_for_testing_;
 
   base::WeakPtrFactory<AppWindow> image_loader_ptr_factory_{this};
 };

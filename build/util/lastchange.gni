@@ -6,11 +6,15 @@
 # reproducible binaries.
 
 declare_args() {
-  use_dummy_lastchange = false
+  use_dummy_lastchange = !is_official_build
 }
 
 if (use_dummy_lastchange) {
   lastchange_file = "//build/util/LASTCHANGE.dummy"
 } else {
+  if (is_cobalt) {
+    lastchange_file = "//cobalt/LASTCHANGE.chromium"
+  } else {
   lastchange_file = "//build/util/LASTCHANGE"
+  }
 }

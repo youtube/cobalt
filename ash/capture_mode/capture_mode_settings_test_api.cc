@@ -16,7 +16,9 @@ namespace {
 CaptureModeSession* GetCaptureModeSession() {
   auto* controller = CaptureModeController::Get();
   DCHECK(controller->IsActive());
-  CaptureModeSession* session = controller->capture_mode_session();
+  CaptureModeSession* session =
+      static_cast<CaptureModeSession*>(controller->capture_mode_session());
+  CHECK_EQ(session->session_type(), SessionType::kReal);
   DCHECK(session->capture_mode_settings_widget());
   return session;
 }
@@ -42,6 +44,15 @@ views::View* CaptureModeSettingsTestApi::GetAudioOffOption() {
   return GetAudioInputMenuGroup()->GetOptionForTesting(kAudioOff);
 }
 
+views::View* CaptureModeSettingsTestApi::GetSystemAudioOption() {
+  return GetAudioInputMenuGroup()->GetOptionForTesting(kAudioSystem);
+}
+
+views::View* CaptureModeSettingsTestApi::GetSystemAndMicrophoneAudioOption() {
+  return GetAudioInputMenuGroup()->GetOptionForTesting(
+      kAudioSystemAndMicrophone);
+}
+
 CaptureModeMenuGroup* CaptureModeSettingsTestApi::GetSaveToMenuGroup() {
   return settings_view_->save_to_menu_group_;
 }
@@ -60,6 +71,10 @@ views::View* CaptureModeSettingsTestApi::GetSelectFolderMenuItem() {
 
 CaptureModeMenuGroup* CaptureModeSettingsTestApi::GetCameraMenuGroup() {
   return settings_view_->camera_menu_group_;
+}
+
+views::View* CaptureModeSettingsTestApi::GetCameraMenuHeader() {
+  return GetCameraMenuGroup()->menu_header();
 }
 
 views::View* CaptureModeSettingsTestApi::GetCameraOption(int option_id) {

@@ -4,7 +4,9 @@
 
 #include "remoting/signaling/message_tracker.h"
 
-#include "base/containers/cxx20_erase.h"
+#include <map>
+
+#include "base/containers/contains.h"
 
 namespace remoting {
 
@@ -24,12 +26,12 @@ void MessageTracker::TrackId(const std::string& id) {
 }
 
 bool MessageTracker::IsIdTracked(const std::string& id) const {
-  return tracked_ids_.find(id) != tracked_ids_.end();
+  return base::Contains(tracked_ids_, id);
 }
 
 void MessageTracker::RemoveExpiredIds() {
   base::Time expire_time = base::Time::Now() - kCleanupInterval;
-  base::EraseIf(tracked_ids_,
+  std::erase_if(tracked_ids_,
                 [expire_time](const std::pair<std::string, base::Time>& pair) {
                   return pair.second <= expire_time;
                 });

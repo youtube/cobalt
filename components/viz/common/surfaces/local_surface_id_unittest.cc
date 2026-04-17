@@ -38,20 +38,23 @@ TEST(LocalSurfaceIdTest, VerifyToString) {
 
   int previous_log_lvl = logging::GetMinLogLevel();
 
-#if BUILDFLAG(USE_RUNTIME_VLOG)
-  // When |g_min_log_level| is set to LOG_VERBOSE we expect verbose versions
-  // of local_surface_id::ToString().
-  logging::SetMinLogLevel(logging::LOG_VERBOSE);
-  EXPECT_TRUE(VLOG_IS_ON(1));
-  EXPECT_EQ(verbose_expected, local_surface_id.ToString());
-  EXPECT_EQ(big_verbose_expected, big_local_surface_id.ToString());
-  EXPECT_EQ(small_verbose_expected, small_local_surface_id.ToString());
-#endif  // BUILDFLAG(USE_RUNTIME_VLOG)
+  // TODO(crbug.com/405151792): Switching the logging level to verbose in the
+  // test isn't working correctly on Chrome OS or Fuchsia. Fix logging and
+  // enable again.
+  if constexpr (!BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_FUCHSIA)) {
+    // When |g_min_log_level| is set to LOGGING_VERBOSE we expect verbose
+    // versions of local_surface_id::ToString().
+    logging::SetMinLogLevel(logging::LOGGING_VERBOSE);
+    ASSERT_TRUE(VLOG_IS_ON(1));
+    EXPECT_EQ(verbose_expected, local_surface_id.ToString());
+    EXPECT_EQ(big_verbose_expected, big_local_surface_id.ToString());
+    EXPECT_EQ(small_verbose_expected, small_local_surface_id.ToString());
+  }
 
-  // When |g_min_log_level| is set to LOG_INFO we expect less verbose versions
-  // of local_surface_id::ToString().
-  logging::SetMinLogLevel(logging::LOG_INFO);
-  EXPECT_FALSE(VLOG_IS_ON(1));
+  // When |g_min_log_level| is set to LOGGING_INFO we expect less verbose
+  // versions of local_surface_id::ToString().
+  logging::SetMinLogLevel(logging::LOGGING_INFO);
+  ASSERT_FALSE(VLOG_IS_ON(1));
   EXPECT_EQ(brief_expected, local_surface_id.ToString());
   EXPECT_EQ(big_brief_expected, big_local_surface_id.ToString());
   EXPECT_EQ(small_brief_expected, small_local_surface_id.ToString());

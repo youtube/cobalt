@@ -282,7 +282,7 @@ class RuleCharacterIterator;
  * @author Alan Liu
  * @stable ICU 2.0
  */
-class U_COMMON_API UnicodeSet U_FINAL : public UnicodeFilter {
+class U_COMMON_API UnicodeSet final : public UnicodeFilter {
 private:
     /**
      * Enough for sets with few ranges.
@@ -297,8 +297,8 @@ private:
     int32_t len = 1; // length of list used; 1 <= len <= capacity
     uint8_t fFlags = 0;         // Bit flag (see constants above)
 
-    BMPSet *bmpSet = nullptr; // The set is frozen iff either bmpSet or stringSpan is not NULL.
-    UChar32* buffer = nullptr; // internal buffer, may be NULL
+    BMPSet *bmpSet = nullptr; // The set is frozen iff either bmpSet or stringSpan is not nullptr.
+    UChar32* buffer = nullptr; // internal buffer, may be nullptr
     int32_t bufferCapacity = 0; // capacity of buffer
 
     /**
@@ -430,9 +430,11 @@ public:
      * description for the syntax of the pattern language.
      * @param pattern a string specifying what characters are in the set
      * @param options bitmask for options to apply to the pattern.
-     * Valid options are USET_IGNORE_SPACE and USET_CASE_INSENSITIVE.
+     * Valid options are USET_IGNORE_SPACE and
+     * at most one of USET_CASE_INSENSITIVE, USET_ADD_CASE_MAPPINGS, USET_SIMPLE_CASE_INSENSITIVE.
+     * These case options are mutually exclusive.
      * @param symbols a symbol table mapping variable names to values
-     * and stand-in characters to UnicodeSets; may be NULL
+     * and stand-in characters to UnicodeSets; may be nullptr
      * @param status returns <code>U_ILLEGAL_ARGUMENT_ERROR</code> if the pattern
      * contains a syntax error.
      * @internal
@@ -450,9 +452,11 @@ public:
      * @param pos on input, the position in pattern at which to start parsing.
      * On output, the position after the last character parsed.
      * @param options bitmask for options to apply to the pattern.
-     * Valid options are USET_IGNORE_SPACE and USET_CASE_INSENSITIVE.
+     * Valid options are USET_IGNORE_SPACE and
+     * at most one of USET_CASE_INSENSITIVE, USET_ADD_CASE_MAPPINGS, USET_SIMPLE_CASE_INSENSITIVE.
+     * These case options are mutually exclusive.
      * @param symbols a symbol table mapping variable names to values
-     * and stand-in characters to UnicodeSets; may be NULL
+     * and stand-in characters to UnicodeSets; may be nullptr
      * @param status input-output error code
      * @stable ICU 2.8
      */
@@ -491,7 +495,7 @@ public:
      * @return <tt>true</tt> if the specified set is equal to this set.
      * @stable ICU 2.0
      */
-    virtual bool operator==(const UnicodeSet& o) const;
+    bool operator==(const UnicodeSet& o) const;
 
     /**
      * Compares the specified object with this set for equality.  Returns
@@ -518,7 +522,7 @@ public:
      * @see Object#hashCode()
      * @stable ICU 2.0
      */
-    virtual int32_t hashCode(void) const;
+    int32_t hashCode(void) const;
 
     /**
      * Get a UnicodeSet pointer from a USet
@@ -645,9 +649,11 @@ public:
      * A frozen set will not be modified.
      * @param pattern a string specifying what characters are in the set
      * @param options bitmask for options to apply to the pattern.
-     * Valid options are USET_IGNORE_SPACE and USET_CASE_INSENSITIVE.
+     * Valid options are USET_IGNORE_SPACE and
+     * at most one of USET_CASE_INSENSITIVE, USET_ADD_CASE_MAPPINGS, USET_SIMPLE_CASE_INSENSITIVE.
+     * These case options are mutually exclusive.
      * @param symbols a symbol table mapping variable names to
-     * values and stand-ins to UnicodeSets; may be NULL
+     * values and stand-ins to UnicodeSets; may be nullptr
      * @param status returns <code>U_ILLEGAL_ARGUMENT_ERROR</code> if the pattern
      * contains a syntax error.
      *<em> Empties the set passed before applying the pattern.</em>
@@ -683,9 +689,11 @@ public:
      * pattern.length() if the closing ']' is the last character of
      * the pattern string.
      * @param options bitmask for options to apply to the pattern.
-     * Valid options are USET_IGNORE_SPACE and USET_CASE_INSENSITIVE.
+     * Valid options are USET_IGNORE_SPACE and
+     * at most one of USET_CASE_INSENSITIVE, USET_ADD_CASE_MAPPINGS, USET_SIMPLE_CASE_INSENSITIVE.
+     * These case options are mutually exclusive.
      * @param symbols a symbol table mapping variable names to
-     * values and stand-ins to UnicodeSets; may be NULL
+     * values and stand-ins to UnicodeSets; may be nullptr
      * @param status returns <code>U_ILLEGAL_ARGUMENT_ERROR</code> if the pattern
      * contains a syntax error.
      * @return a reference to this
@@ -784,7 +792,7 @@ public:
      * @stable ICU 2.0
      * @see getRangeCount
      */
-    virtual int32_t size(void) const;
+    int32_t size(void) const;
 
     /**
      * Returns <tt>true</tt> if this set contains no elements.
@@ -792,7 +800,7 @@ public:
      * @return <tt>true</tt> if this set contains no elements.
      * @stable ICU 2.0
      */
-    virtual UBool isEmpty(void) const;
+    UBool isEmpty(void) const;
 
     /**
      * @return true if this set contains multi-character strings or the empty string.
@@ -817,7 +825,7 @@ public:
      * @return true if the test condition is met
      * @stable ICU 2.0
      */
-    virtual UBool contains(UChar32 start, UChar32 end) const;
+    UBool contains(UChar32 start, UChar32 end) const;
 
     /**
      * Returns <tt>true</tt> if this set contains the given
@@ -835,7 +843,7 @@ public:
      * @return true if the test condition is met
      * @stable ICU 2.4
      */
-    virtual UBool containsAll(const UnicodeSet& c) const;
+    UBool containsAll(const UnicodeSet& c) const;
 
     /**
      * Returns true if this set contains all the characters
@@ -1013,7 +1021,7 @@ public:
      * Implement UnicodeMatcher::matches()
      * @stable ICU 2.4
      */
-    virtual UMatchDegree matches(const Replaceable& text,
+    UMatchDegree matches(const Replaceable& text,
                          int32_t& offset,
                          int32_t limit,
                          UBool incremental) override;
@@ -1108,7 +1116,7 @@ public:
      * to this set.
      * @stable ICU 2.0
      */
-    virtual UnicodeSet& add(UChar32 start, UChar32 end);
+    UnicodeSet& add(UChar32 start, UChar32 end);
 
     /**
      * Adds the specified character to this set if it is not already
@@ -1214,7 +1222,7 @@ public:
      * @param end last character, inclusive, of range
      * @stable ICU 2.0
      */
-    virtual UnicodeSet& retain(UChar32 start, UChar32 end);
+    UnicodeSet& retain(UChar32 start, UChar32 end);
 
 
     /**
@@ -1252,7 +1260,7 @@ public:
      * from this set.
      * @stable ICU 2.0
      */
-    virtual UnicodeSet& remove(UChar32 start, UChar32 end);
+    UnicodeSet& remove(UChar32 start, UChar32 end);
 
     /**
      * Removes the specified character from this set if it is present.
@@ -1289,7 +1297,7 @@ public:
      * A frozen set will not be modified.
      * @stable ICU 2.0
      */
-    virtual UnicodeSet& complement();
+    UnicodeSet& complement();
 
     /**
      * Complements the specified range in this set.  Any character in
@@ -1303,7 +1311,7 @@ public:
      * @param end last character, inclusive, of range
      * @stable ICU 2.0
      */
-    virtual UnicodeSet& complement(UChar32 start, UChar32 end);
+    UnicodeSet& complement(UChar32 start, UChar32 end);
 
     /**
      * Complements the specified character in this set.  The character
@@ -1340,7 +1348,7 @@ public:
      * @see #add(UChar32, UChar32)
      * @stable ICU 2.0
      */
-    virtual UnicodeSet& addAll(const UnicodeSet& c);
+    UnicodeSet& addAll(const UnicodeSet& c);
 
     /**
      * Retains only the elements in this set that are contained in the
@@ -1353,7 +1361,7 @@ public:
      * @param c set that defines which elements this set will retain.
      * @stable ICU 2.0
      */
-    virtual UnicodeSet& retainAll(const UnicodeSet& c);
+    UnicodeSet& retainAll(const UnicodeSet& c);
 
     /**
      * Removes from this set all of its elements that are contained in the
@@ -1366,7 +1374,7 @@ public:
      *          this set.
      * @stable ICU 2.0
      */
-    virtual UnicodeSet& removeAll(const UnicodeSet& c);
+    UnicodeSet& removeAll(const UnicodeSet& c);
 
     /**
      * Complements in this set all elements contained in the specified
@@ -1378,7 +1386,7 @@ public:
      *          this set.
      * @stable ICU 2.4
      */
-    virtual UnicodeSet& complementAll(const UnicodeSet& c);
+    UnicodeSet& complementAll(const UnicodeSet& c);
 
     /**
      * Removes all of the elements from this set.  This set will be
@@ -1386,11 +1394,11 @@ public:
      * A frozen set will not be modified.
      * @stable ICU 2.0
      */
-    virtual UnicodeSet& clear(void);
+    UnicodeSet& clear(void);
 
     /**
      * Close this set over the given attribute.  For the attribute
-     * USET_CASE, the result is to modify this set so that:
+     * USET_CASE_INSENSITIVE, the result is to modify this set so that:
      *
      * 1. For each character or string 'a' in this set, all strings or
      * characters 'b' such that foldCase(a) == foldCase(b) are added
@@ -1408,8 +1416,10 @@ public:
      * A frozen set will not be modified.
      *
      * @param attribute bitmask for attributes to close over.
-     * Currently only the USET_CASE bit is supported.  Any undefined bits
-     * are ignored.
+     * Valid options:
+     * At most one of USET_CASE_INSENSITIVE, USET_ADD_CASE_MAPPINGS, USET_SIMPLE_CASE_INSENSITIVE.
+     * These case options are mutually exclusive.
+     * Unrelated options bits are ignored.
      * @return a reference to this set.
      * @stable ICU 4.2
      */
@@ -1421,7 +1431,7 @@ public:
      * @return a reference to this set.
      * @stable ICU 4.2
      */
-    virtual UnicodeSet &removeAllStrings();
+    UnicodeSet &removeAllStrings();
 
     /**
      * Iteration method that returns the number of ranges contained in
@@ -1430,7 +1440,7 @@ public:
      * @see #getRangeEnd
      * @stable ICU 2.4
      */
-    virtual int32_t getRangeCount(void) const;
+    int32_t getRangeCount(void) const;
 
     /**
      * Iteration method that returns the first character in the
@@ -1439,7 +1449,7 @@ public:
      * @see #getRangeEnd
      * @stable ICU 2.4
      */
-    virtual UChar32 getRangeStart(int32_t index) const;
+    UChar32 getRangeStart(int32_t index) const;
 
     /**
      * Iteration method that returns the last character in the
@@ -1448,7 +1458,7 @@ public:
      * @see #getRangeEnd
      * @stable ICU 2.4
      */
-    virtual UChar32 getRangeEnd(int32_t index) const;
+    UChar32 getRangeEnd(int32_t index) const;
 
     /**
      * Serializes this set into an array of 16-bit integers.  Serialization
@@ -1488,7 +1498,7 @@ public:
      * bits followed by least significant 16 bits.
      *
      * @param dest pointer to buffer of destCapacity 16-bit integers.
-     * May be NULL only if destCapacity is zero.
+     * May be nullptr only if destCapacity is zero.
      * @param destCapacity size of dest, or zero.  Must not be negative.
      * @param ec error code.  Will be set to U_INDEX_OUTOFBOUNDS_ERROR
      * if n+2*m > 0x7FFF.  Will be set to U_BUFFER_OVERFLOW_ERROR if
@@ -1506,7 +1516,7 @@ public:
      * A frozen set will not be modified.
      * @stable ICU 2.4
      */
-    virtual UnicodeSet& compact();
+    UnicodeSet& compact();
 
     /**
      * Return the class ID for this class.  This is useful only for
@@ -1578,6 +1588,9 @@ private:
                       UnicodeSet& (UnicodeSet::*caseClosure)(int32_t attribute),
                       int32_t depth,
                       UErrorCode& ec);
+
+    void closeOverCaseInsensitive(bool simple);
+    void closeOverAddCaseMappings();
 
     //----------------------------------------------------------------
     // Implementation: Utility methods
@@ -1718,7 +1731,7 @@ inline bool UnicodeSet::operator!=(const UnicodeSet& o) const {
 }
 
 inline UBool UnicodeSet::isFrozen() const {
-    return (UBool)(bmpSet!=NULL || stringSpan!=NULL);
+    return (UBool)(bmpSet!=nullptr || stringSpan!=nullptr);
 }
 
 inline UBool UnicodeSet::containsSome(UChar32 start, UChar32 end) const {

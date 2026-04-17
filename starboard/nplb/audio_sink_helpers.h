@@ -15,10 +15,9 @@
 #ifndef STARBOARD_NPLB_AUDIO_SINK_HELPERS_H_
 #define STARBOARD_NPLB_AUDIO_SINK_HELPERS_H_
 
-#include <vector>
-
 #include <condition_variable>
 #include <mutex>
+#include <vector>
 
 #include "starboard/audio_sink.h"
 #include "starboard/media.h"

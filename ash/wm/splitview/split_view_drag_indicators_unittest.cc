@@ -16,12 +16,15 @@
 #include "ash/wm/splitview/split_view_constants.h"
 #include "ash/wm/splitview/split_view_controller.h"
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
+#include "ash/wm/work_area_insets.h"
 #include "base/command_line.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "chromeos/ui/wm/features.h"
+#include "base/test/scoped_feature_list.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/aura/env.h"
+#include "ui/aura/test/test_window_delegate.h"
 #include "ui/aura/window.h"
 #include "ui/compositor/presentation_time_recorder.h"
 #include "ui/display/display_switches.h"
@@ -32,11 +35,9 @@ namespace ash {
 class SplitViewDragIndicatorsTest : public AshTestBase {
  public:
   SplitViewDragIndicatorsTest() = default;
-
   SplitViewDragIndicatorsTest(const SplitViewDragIndicatorsTest&) = delete;
   SplitViewDragIndicatorsTest& operator=(const SplitViewDragIndicatorsTest&) =
       delete;
-
   ~SplitViewDragIndicatorsTest() override = default;
 
   void SetUp() override {
@@ -66,28 +67,25 @@ class SplitViewDragIndicatorsTest : public AshTestBase {
 
     if (!overview_controller->InOverviewSession()) {
       overview_session_ = nullptr;
-      split_view_drag_indicators_ = nullptr;
       return;
     }
 
     overview_session_ = Shell::Get()->overview_controller()->overview_session();
     ASSERT_TRUE(overview_session_);
-    split_view_drag_indicators_ =
-        overview_session_->grid_list()[0]->split_view_drag_indicators();
   }
 
-  SplitViewController* split_view_controller() {
-    return SplitViewController::Get(Shell::GetPrimaryRootWindow());
+  const SplitViewDragIndicators* split_view_drag_indicators() const {
+    return overview_session_->grid_list()[0]->split_view_drag_indicators();
   }
 
-  SplitViewDragIndicators::WindowDraggingState window_dragging_state() {
-    DCHECK(split_view_drag_indicators_);
-    return split_view_drag_indicators_->current_window_dragging_state();
+  SplitViewDragIndicators::WindowDraggingState window_dragging_state() const {
+    CHECK(split_view_drag_indicators());
+    return split_view_drag_indicators()->current_window_dragging_state();
   }
 
   bool IsPreviewAreaShowing() {
     return SplitViewDragIndicators::GetSnapPosition(window_dragging_state()) !=
-           SplitViewController::SnapPosition::kNone;
+           SnapPosition::kNone;
   }
 
   float GetEdgeInset(int screen_width) const {
@@ -104,118 +102,113 @@ class SplitViewDragIndicatorsTest : public AshTestBase {
   }
 
  protected:
-  raw_ptr<SplitViewDragIndicators, ExperimentalAsh>
-      split_view_drag_indicators_ = nullptr;
-  raw_ptr<OverviewSession, ExperimentalAsh> overview_session_ = nullptr;
+  raw_ptr<OverviewSession, DanglingUntriaged> overview_session_ = nullptr;
 };
 
-TEST_F(SplitViewDragIndicatorsTest, Dragging) {
+TEST_F(SplitViewDragIndicatorsTest, DraggingBasic) {
+  UpdateDisplay("800x600");
+
   base::HistogramTester histogram_tester;
   aura::Env::GetInstance()->set_throttle_input_on_resize_for_testing(false);
-  UpdateDisplay("800x600");
-  const int screen_width = 800;
-  const float edge_inset = GetEdgeInset(screen_width);
-  std::unique_ptr<aura::Window> right_window(CreateTestWindow());
-  std::unique_ptr<aura::Window> left_window(CreateTestWindow());
+
+  std::unique_ptr<aura::Window> window = CreateAppWindow();
   ui::test::EventGenerator* generator = GetEventGenerator();
 
   ToggleOverview();
-  OverviewItem* left_item = GetOverviewItemForWindow(left_window.get());
-  OverviewItem* right_item = GetOverviewItemForWindow(right_window.get());
+  auto* overview_item = GetOverviewItemForWindow(window.get());
 
-  // The inset on each side of the screen which is a snap region. Items dragged
-  // to and released under this region will get snapped.
+  // This is the amount the event needs to move before a drag starts.
   const int drag_offset = 5;
-  const int drag_offset_snap_region = 48;
-  const int minimum_drag_offset = 96;
-  // The selector item has a margin which does not accept events. Inset any
-  // event aimed at the selector items edge so events will reach it.
-  const int item_inset = 20;
-
-  // Check the two windows set up have a region which is under no snap region, a
-  // region that is under the left snap region and a region that is under the
-  // right snap region.
-  ASSERT_GT(left_item->target_bounds().CenterPoint().x(), edge_inset);
-  ASSERT_LT(left_item->target_bounds().origin().x() + item_inset, edge_inset);
-  ASSERT_GT(right_item->target_bounds().right() - item_inset,
-            screen_width - edge_inset);
 
   // Verify if the drag is not started in either snap region, the drag still
-  // must move by |drag_offset| before split view acknowledges the drag (ie.
-  // starts moving the selector item).
+  // must move by `drag_offset` before split view acknowledges the drag (ie.
+  // starts moving the overview item).
   generator->set_current_screen_location(
-      gfx::ToRoundedPoint(left_item->target_bounds().CenterPoint()));
+      gfx::ToRoundedPoint(overview_item->target_bounds().CenterPoint()));
   generator->PressLeftButton();
-  const gfx::RectF left_original_bounds = left_item->target_bounds();
+  const gfx::RectF original_bounds = overview_item->target_bounds();
   generator->MoveMouseBy(drag_offset - 1, 0);
-  EXPECT_EQ(left_original_bounds, left_item->target_bounds());
+  EXPECT_EQ(original_bounds, overview_item->target_bounds());
   histogram_tester.ExpectTotalCount(
       "Ash.Overview.WindowDrag.PresentationTime.TabletMode", 0);
+  histogram_tester.ExpectTotalCount(
+      "Ash.Overview.WindowDrag.PresentationTime.MaxLatency.TabletMode", 0);
+
   generator->MoveMouseBy(1, 0);
-  EXPECT_NE(left_original_bounds, left_item->target_bounds());
+  EXPECT_NE(original_bounds, overview_item->target_bounds());
+  EXPECT_FALSE(IsPreviewAreaShowing());
   histogram_tester.ExpectTotalCount(
       "Ash.Overview.WindowDrag.PresentationTime.TabletMode", 1);
   histogram_tester.ExpectTotalCount(
-      "ash.overview.windowdrag.presentationtime.maxlatency.tabletmode", 0);
+      "Ash.Overview.WindowDrag.PresentationTime.MaxLatency.TabletMode", 0);
+
+  const int left_drag_area_x =
+      800 * kHighlightScreenPrimaryAxisRatio + kHighlightScreenEdgePaddingDp;
+  generator->MoveMouseTo(left_drag_area_x, 300);
+  EXPECT_TRUE(IsPreviewAreaShowing());
+  histogram_tester.ExpectTotalCount(
+      "Ash.Overview.WindowDrag.PresentationTime.TabletMode", 2);
+  histogram_tester.ExpectTotalCount(
+      "Ash.Overview.WindowDrag.PresentationTime.MaxLatency.TabletMode", 0);
 
   generator->ReleaseLeftButton();
   histogram_tester.ExpectTotalCount(
-      "Ash.Overview.WindowDrag.PresentationTime.TabletMode", 1);
+      "Ash.Overview.WindowDrag.PresentationTime.TabletMode", 2);
   histogram_tester.ExpectTotalCount(
       "Ash.Overview.WindowDrag.PresentationTime.MaxLatency.TabletMode", 1);
+}
 
-  // Verify if the drag is started in the left snap region, the drag needs to
-  // move by |drag_offset_snap_region| towards the right side of the screen
-  // before split view acknowledges the drag (shows the preview area).
-  ASSERT_TRUE(Shell::Get()->overview_controller()->InOverviewSession());
-  generator->set_current_screen_location(
-      gfx::Point(left_item->target_bounds().origin().x() + item_inset,
-                 left_item->target_bounds().CenterPoint().y()));
+TEST_F(SplitViewDragIndicatorsTest, DraggingStartingInPreviewArea) {
+  UpdateDisplay("800x600");
 
+  std::unique_ptr<aura::Window> window1 = CreateAppWindow();
+  std::unique_ptr<aura::Window> window2 = CreateAppWindow();
+  ui::test::EventGenerator* generator = GetEventGenerator();
+
+  ToggleOverview();
+  auto* left_item = GetOverviewItemForWindow(window2.get());
+  auto* right_item = GetOverviewItemForWindow(window1.get());
+
+  // This is the amount the event needs to move before a drag starts.
+  const int drag_offset = 5;
+
+  // The indicator drag areas.
+  const int left_drag_area_x = GetEdgeInset(800);
+  const int right_drag_area_x = 800 - left_drag_area_x;
+
+  ASSERT_LT(left_item->target_bounds().x(), left_drag_area_x);
+  ASSERT_GT(right_item->target_bounds().right(), right_drag_area_x);
+
+  // Start dragging the left item. Even though we are in the left drag region,
+  // the preview won't be shown since we started the drag there.
+  generator->set_current_screen_location(gfx::ToRoundedPoint(
+      left_item->target_bounds().left_center() + gfx::Vector2d(1, 0)));
   generator->PressLeftButton();
-  generator->MoveMouseBy(-drag_offset, 0);
+  generator->MoveMouseBy(-drag_offset - 2, 0);
   EXPECT_FALSE(IsPreviewAreaShowing());
-  generator->MoveMouseBy(drag_offset_snap_region, 0);
-  EXPECT_FALSE(IsPreviewAreaShowing());
-  generator->MoveMouseBy(-minimum_drag_offset, 0);
+
+  // The preview will still show up if we are super close to the left edge.
+  generator->MoveMouseTo(2, 300);
   EXPECT_TRUE(IsPreviewAreaShowing());
 
-  // Drag back to the middle before releasing so that we stay in overview mode
-  // on release.
+  // Move back to the center point so we do not trigger splitview on mouse
+  // release.
   generator->MoveMouseTo(
-      gfx::ToRoundedPoint(left_original_bounds.CenterPoint()));
-  histogram_tester.ExpectTotalCount(
-      "Ash.Overview.WindowDrag.PresentationTime.TabletMode", 5);
-  histogram_tester.ExpectTotalCount(
-      "Ash.Overview.WindowDrag.PresentationTime.MaxLatency.TabletMode", 1);
-
+      gfx::ToRoundedPoint(left_item->target_bounds().CenterPoint()));
   generator->ReleaseLeftButton();
-  histogram_tester.ExpectTotalCount(
-      "Ash.Overview.WindowDrag.PresentationTime.MaxLatency.TabletMode", 2);
+  ASSERT_TRUE(overview_session_);
 
-  // Verify if the drag is started in the right snap region, the drag needs to
-  // move by |drag_offset_snap_region| towards the left side of the screen
-  // before split view acknowledges the drag.
-  ASSERT_TRUE(Shell::Get()->overview_controller()->InOverviewSession());
-  generator->set_current_screen_location(
-      gfx::Point(right_item->target_bounds().right() - item_inset,
-                 right_item->target_bounds().CenterPoint().y()));
+  // Start dragging the right item. Even though we are in the right drag region,
+  // the preview won't be shown since we started the drag there.
+  generator->set_current_screen_location(gfx::ToRoundedPoint(
+      right_item->target_bounds().right_center() - gfx::Vector2d(1, 0)));
   generator->PressLeftButton();
-  generator->MoveMouseBy(drag_offset, 0);
+  generator->MoveMouseBy(drag_offset + 2, 0);
   EXPECT_FALSE(IsPreviewAreaShowing());
-  generator->MoveMouseBy(-drag_offset_snap_region, 0);
-  generator->MoveMouseBy(minimum_drag_offset, 0);
-  EXPECT_TRUE(IsPreviewAreaShowing());
-  histogram_tester.ExpectTotalCount(
-      "Ash.Overview.WindowDrag.PresentationTime.TabletMode", 8);
-  histogram_tester.ExpectTotalCount(
-      "Ash.Overview.WindowDrag.PresentationTime.MaxLatency.TabletMode", 2);
 
-  generator->ReleaseLeftButton();
-  histogram_tester.ExpectTotalCount(
-      "Ash.Overview.WindowDrag.PresentationTime.TabletMode", 8);
-  histogram_tester.ExpectTotalCount(
-      "Ash.Overview.WindowDrag.PresentationTime.MaxLatency.TabletMode", 3);
+  // The preview will still show up if we are super close to the right edge.
+  generator->MoveMouseTo(798, 300);
+  EXPECT_TRUE(IsPreviewAreaShowing());
 }
 
 // Verify the split view preview area becomes visible when expected.
@@ -228,13 +221,14 @@ TEST_F(SplitViewDragIndicatorsTest, PreviewAreaVisibility) {
 
   // Verify the preview area is visible when |item|'s x is in the
   // range [0, edge_inset] or [screen_width - edge_inset - 1, screen_width].
-  OverviewItem* item = GetOverviewItemForWindow(window.get());
+  auto* item = GetOverviewItemForWindow(window.get());
   ASSERT_TRUE(item);
   const gfx::PointF start_location(item->target_bounds().CenterPoint());
   // Drag horizontally to avoid activating drag to close.
   const float y = start_location.y();
   overview_session_->InitiateDrag(item, start_location,
-                                  /*is_touch_dragging=*/false);
+                                  /*is_touch_dragging=*/false,
+                                  /*event_source_item=*/item);
   EXPECT_FALSE(IsPreviewAreaShowing());
   overview_session_->Drag(item, gfx::PointF(edge_inset + 1, y));
   EXPECT_FALSE(IsPreviewAreaShowing());
@@ -262,10 +256,11 @@ TEST_F(SplitViewDragIndicatorsTest, PreviewAreaVisibilityUnsnappableWindow) {
   std::unique_ptr<aura::Window> window(CreateUnsnappableWindow());
   ToggleOverview();
 
-  OverviewItem* item = GetOverviewItemForWindow(window.get());
+  auto* item = GetOverviewItemForWindow(window.get());
   const gfx::PointF start_location(item->target_bounds().CenterPoint());
   overview_session_->InitiateDrag(item, start_location,
-                                  /*is_touch_dragging=*/false);
+                                  /*is_touch_dragging=*/false,
+                                  /*event_source_item=*/item);
   EXPECT_FALSE(IsPreviewAreaShowing());
   overview_session_->Drag(item, gfx::PointF(0.f, 1.f));
   EXPECT_FALSE(IsPreviewAreaShowing());
@@ -289,10 +284,11 @@ TEST_F(SplitViewDragIndicatorsTest,
   ToggleOverview();
 
   // Start dragging from overview.
-  OverviewItem* item = GetOverviewItemForWindow(window1.get());
+  auto* item = GetOverviewItemForWindow(window1.get());
   gfx::PointF start_location(item->target_bounds().CenterPoint());
   overview_session_->InitiateDrag(item, start_location,
-                                  /*is_touch_dragging=*/false);
+                                  /*is_touch_dragging=*/false,
+                                  /*event_source_item=*/item);
   EXPECT_EQ(SplitViewDragIndicators::WindowDraggingState::kNoDrag,
             window_dragging_state());
   overview_session_->StartNormalDragMode(start_location);
@@ -305,7 +301,8 @@ TEST_F(SplitViewDragIndicatorsTest,
   // Verify the width of a snap area.
   const float y_position = start_location.y();
   overview_session_->InitiateDrag(item, start_location,
-                                  /*is_touch_dragging=*/false);
+                                  /*is_touch_dragging=*/false,
+                                  /*event_source_item=*/item);
   EXPECT_EQ(SplitViewDragIndicators::WindowDraggingState::kNoDrag,
             window_dragging_state());
   overview_session_->Drag(item, gfx::PointF(edge_inset + 1, y_position));
@@ -317,15 +314,18 @@ TEST_F(SplitViewDragIndicatorsTest,
 
   // Snap window to the left.
   overview_session_->CompleteDrag(item, gfx::PointF(edge_inset, y_position));
-  ASSERT_TRUE(split_view_controller()->InSplitViewMode());
+  auto* split_view_controller =
+      SplitViewController::Get(Shell::GetPrimaryRootWindow());
+  ASSERT_TRUE(split_view_controller->InSplitViewMode());
   ASSERT_EQ(SplitViewController::State::kPrimarySnapped,
-            split_view_controller()->state());
+            split_view_controller->state());
 
   // Drag from overview and snap to the right.
   item = GetOverviewItemForWindow(window2.get());
   start_location = item->target_bounds().CenterPoint();
   overview_session_->InitiateDrag(item, start_location,
-                                  /*is_touch_dragging=*/false);
+                                  /*is_touch_dragging=*/false,
+                                  /*event_source_item=*/item);
   EXPECT_EQ(SplitViewDragIndicators::WindowDraggingState::kNoDrag,
             window_dragging_state());
   overview_session_->Drag(item, gfx::PointF(screen_width - 1, y_position));
@@ -340,10 +340,11 @@ TEST_F(SplitViewDragIndicatorsTest,
   std::unique_ptr<aura::Window> unsnappable_window(CreateUnsnappableWindow());
   ToggleOverview();
 
-  OverviewItem* item = GetOverviewItemForWindow(unsnappable_window.get());
+  auto* item = GetOverviewItemForWindow(unsnappable_window.get());
   gfx::PointF start_location(item->target_bounds().CenterPoint());
   overview_session_->InitiateDrag(item, start_location,
-                                  /*is_touch_dragging=*/false);
+                                  /*is_touch_dragging=*/false,
+                                  /*event_source_item=*/item);
   overview_session_->StartNormalDragMode(start_location);
   EXPECT_EQ(SplitViewDragIndicators::WindowDraggingState::kFromOverview,
             window_dragging_state());
@@ -461,6 +462,46 @@ TEST_F(SplitViewDragIndicatorsTest, SplitViewDragIndicatorsVisibility) {
   check_helper(indicator.get(), 0);
 }
 
+// Verify that the preview area visibility is determined with default snap
+// ratio.
+TEST_F(SplitViewDragIndicatorsTest, PreviewAreaVisibilityDefaultSnapRatio) {
+  UpdateDisplay("900x600");
+  constexpr int screen_width = 900;
+  aura::test::TestWindowDelegate delegate;
+  std::unique_ptr<aura::Window> window(CreateTestWindowInShellWithDelegate(
+      &delegate, -1, gfx::Rect(100, 100, 500, 500)));
+
+  // Snap `window` to 1/3 to set its snap ratio to 1/3.
+  const WindowSnapWMEvent snap_left(WM_EVENT_SNAP_PRIMARY,
+                                    chromeos::kOneThirdSnapRatio);
+  WindowState::Get(window.get())->OnWMEvent(&snap_left);
+  const WMEvent restore(WM_EVENT_RESTORE);
+  WindowState::Get(window.get())->OnWMEvent(&restore);
+
+  // Set minimum size to make `window` snappable in 1/2 ratio but not in 1/3
+  // ratio.
+  delegate.set_minimum_size(gfx::Size(400, 0));
+
+  ToggleOverview();
+
+  // The preview area should be visible as `window` is still snappable in 1/2
+  // ratio.
+  auto* const item = GetOverviewItemForWindow(window.get());
+  ASSERT_TRUE(item);
+
+  const gfx::PointF start_location(item->target_bounds().CenterPoint());
+  overview_session_->InitiateDrag(item, start_location,
+                                  /*is_touch_dragging=*/false,
+                                  /*event_source_item=*/item);
+  EXPECT_FALSE(IsPreviewAreaShowing());
+  overview_session_->Drag(item, gfx::PointF(0.f, 1.f));
+  EXPECT_TRUE(IsPreviewAreaShowing());
+  overview_session_->Drag(item, gfx::PointF(screen_width, 1.f));
+  EXPECT_TRUE(IsPreviewAreaShowing());
+  overview_session_->CompleteDrag(item, start_location);
+  EXPECT_FALSE(IsPreviewAreaShowing());
+}
+
 // Defines a test fixture to test behavior of SplitViewDragIndicators on
 // multi-display in clamshell mode.
 class ClamshellMultiDisplaySplitViewDragIndicatorsTest
@@ -502,15 +543,18 @@ TEST_F(ClamshellMultiDisplaySplitViewDragIndicatorsTest,
       IndicatorType::kRightText));
 
   // Start dragging from overview in the landscape display.
-  OverviewItem* item = GetOverviewItemForWindow(window1.get());
-  gfx::PointF start_location(item->target_bounds().CenterPoint());
-  overview_session_->InitiateDrag(item, start_location,
-                                  /*is_touch_dragging=*/false);
+  auto* item = GetOverviewItemForWindow(window1.get());
+  auto* event_generator = GetEventGenerator();
+  event_generator->MoveMouseTo(
+      gfx::ToRoundedPoint(item->target_bounds().CenterPoint()));
+  event_generator->PressLeftButton();
   EXPECT_EQ(SplitViewDragIndicators::WindowDraggingState::kNoDrag,
             window_dragging_state());
-  overview_session_->Drag(item, gfx::PointF(400, 300));
+
+  event_generator->MoveMouseTo(gfx::Point(400, 300));
   EXPECT_EQ(SplitViewDragIndicators::WindowDraggingState::kFromOverview,
             window_dragging_state());
+
   // The split view indicator should show up with left indicator on the left
   // and its height span over height of the display work area.
   EXPECT_TRUE(indicators->GetIndicatorTypeVisibilityForTesting(
@@ -522,14 +566,15 @@ TEST_F(ClamshellMultiDisplaySplitViewDragIndicatorsTest,
             landscape_display.work_area().height() -
                 2 * kHighlightScreenEdgePaddingDp);
 
-  // Reset the gesture so we stay in overview mode.
-  overview_session_->ResetDraggedWindowGesture();
+  // Stop dragging and verify we are still in overview.
+  event_generator->ReleaseLeftButton();
+  ASSERT_TRUE(OverviewController::Get()->InOverviewSession());
 
   // Drag a window to the portrait display.
-  overview_session_->InitiateDrag(item, start_location,
-                                  /*is_touch_dragging=*/false);
-  Shell::Get()->cursor_manager()->SetDisplay(portrait_display);
-  overview_session_->Drag(item, gfx::PointF(1100, 400));
+  event_generator->MoveMouseTo(
+      gfx::ToRoundedPoint(item->target_bounds().CenterPoint()));
+  event_generator->PressLeftButton();
+  event_generator->MoveMouseTo(gfx::Point(1100, 400));
   EXPECT_EQ(SplitViewDragIndicators::WindowDraggingState::kOtherDisplay,
             window_dragging_state());
   indicators = overview_session_->GetGridWithRootWindow(root_windows[1])
@@ -539,14 +584,50 @@ TEST_F(ClamshellMultiDisplaySplitViewDragIndicatorsTest,
   EXPECT_TRUE(indicators->GetIndicatorTypeVisibilityForTesting(
       IndicatorType::kRightText));
 
-  // If |chromeos::wm::features::kVerticalSnap| is enabled, the left indicator
-  // should be on the top of the display and its width span the work area width.
-  // Otherwise, the left indicator should be on the left and its height span
-  // the work area height.
+  // The left indicator should be on the top of the display and its width span
+  // the work area width. Otherwise, the left indicator should be on the left
+  // and its height span the work area height.
   left_indicator_bounds = indicators->GetLeftHighlightViewBounds();
   EXPECT_EQ(
       left_indicator_bounds.width(),
       portrait_display.work_area().width() - 2 * kHighlightScreenEdgePaddingDp);
+}
+
+// Test that when we drag in overview clamshell to another display, the
+// splitview indicators are the expected size. Regression test for
+// http://b/316043785.
+TEST_F(ClamshellMultiDisplaySplitViewDragIndicatorsTest, IndicatorSize) {
+  // The displays need to be different widths for the bug to repro.
+  UpdateDisplay("800x600,800+0-1000x600");
+
+  std::unique_ptr<aura::Window> window = CreateAppWindow(gfx::Rect(300, 300));
+
+  ToggleOverview();
+  auto* item = GetOverviewItemForWindow(window.get());
+
+  // Start dragging the overview item on the primary display. Drag the overview
+  // item to the secondary display right edge, so the right side preview
+  // indicator shows up.
+  auto* event_generator = GetEventGenerator();
+  event_generator->MoveMouseTo(
+      gfx::ToRoundedPoint(item->target_bounds().CenterPoint()));
+  event_generator->PressLeftButton();
+  event_generator->MoveMouseTo(gfx::Point(1780, 500));
+
+  // Verify the size of the right side indicator. It should be roughly half of
+  // the secondary display.
+  aura::Window* secondary_root = Shell::GetAllRootWindows()[1];
+  auto* secondary_display_indicators =
+      overview_session_->GetGridWithRootWindow(secondary_root)
+          ->split_view_drag_indicators();
+  gfx::Rect expected_bounds_in_parent(500, 0, 500,
+                                      WorkAreaInsets::ForWindow(secondary_root)
+                                          ->user_work_area_bounds()
+                                          .height());
+  expected_bounds_in_parent.Inset(kHighlightScreenEdgePaddingDp);
+  EXPECT_EQ(
+      expected_bounds_in_parent,
+      secondary_display_indicators->GetRightHighlightViewBoundsForTesting());
 }
 
 }  // namespace ash

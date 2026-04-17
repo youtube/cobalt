@@ -15,10 +15,11 @@ import android.util.SparseIntArray;
 
 import androidx.annotation.IntDef;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Log;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.chromecast.media.AudioContentType;
 
 import java.lang.annotation.Retention;
@@ -55,26 +56,26 @@ class AudioSinkAudioTrackImpl {
     private static final int DEBUG_LEVEL = 0;
 
     // Mapping from Android's stream_type to Cast's AudioContentType (used for callback).
-    private static final SparseIntArray CAST_TYPE_TO_ANDROID_USAGE_TYPE_MAP = new SparseIntArray(
-            4) {
-        {
-            append(AudioContentType.MEDIA, AudioAttributes.USAGE_MEDIA);
-            append(AudioContentType.ALARM, AudioAttributes.USAGE_ALARM);
-            append(AudioContentType.COMMUNICATION, AudioAttributes.USAGE_ASSISTANCE_SONIFICATION);
-            append(AudioContentType.OTHER, AudioAttributes.USAGE_VOICE_COMMUNICATION);
-        }
-    };
+    private static final SparseIntArray CAST_TYPE_TO_ANDROID_USAGE_TYPE_MAP;
+    static {
+        var array = new SparseIntArray(4);
+        array.append(AudioContentType.MEDIA, AudioAttributes.USAGE_MEDIA);
+        array.append(AudioContentType.ALARM, AudioAttributes.USAGE_ALARM);
+        array.append(AudioContentType.COMMUNICATION, AudioAttributes.USAGE_ASSISTANCE_SONIFICATION);
+        array.append(AudioContentType.OTHER, AudioAttributes.USAGE_VOICE_COMMUNICATION);
+        CAST_TYPE_TO_ANDROID_USAGE_TYPE_MAP = array;
+    }
 
-    private static final SparseIntArray CAST_TYPE_TO_ANDROID_CONTENT_TYPE_MAP = new SparseIntArray(
-            4) {
-        {
-            append(AudioContentType.MEDIA, AudioAttributes.CONTENT_TYPE_MUSIC);
-            // Note: ALARM uses the same as COMMUNICATON.
-            append(AudioContentType.ALARM, AudioAttributes.CONTENT_TYPE_SONIFICATION);
-            append(AudioContentType.COMMUNICATION, AudioAttributes.CONTENT_TYPE_SONIFICATION);
-            append(AudioContentType.OTHER, AudioAttributes.CONTENT_TYPE_SPEECH);
-        }
-    };
+    private static final SparseIntArray CAST_TYPE_TO_ANDROID_CONTENT_TYPE_MAP;
+    static {
+        var array = new SparseIntArray(4);
+        array.append(AudioContentType.MEDIA, AudioAttributes.CONTENT_TYPE_MUSIC);
+        // Note: ALARM uses the same as COMMUNICATON.
+        array.append(AudioContentType.ALARM, AudioAttributes.CONTENT_TYPE_SONIFICATION);
+        array.append(AudioContentType.COMMUNICATION, AudioAttributes.CONTENT_TYPE_SONIFICATION);
+        array.append(AudioContentType.OTHER, AudioAttributes.CONTENT_TYPE_SPEECH);
+        CAST_TYPE_TO_ANDROID_CONTENT_TYPE_MAP = array;
+    }
 
     // Hardcoded AudioTrack config parameters.
     private static final int AUDIO_FORMAT = AudioFormat.ENCODING_PCM_FLOAT;
@@ -98,7 +99,6 @@ class AudioSinkAudioTrackImpl {
     private static final long USEC_IN_NSEC = 1000L;
 
     private static final long TIMESTAMP_UPDATE_PERIOD = 250 * MSEC_IN_NSEC;
-    private static final long UNDERRUN_LOG_THROTTLE_PERIOD = SEC_IN_NSEC;
 
     private static long sInstanceCounter;
 
@@ -127,7 +127,6 @@ class AudioSinkAudioTrackImpl {
 
     private String mTag;
 
-    private ThrottledLog mBufferLevelWarningLog;
     private ThrottledLog mUnderrunWarningLog;
     private ThrottledLog mTStampJitterWarningLog;
 
@@ -240,8 +239,12 @@ class AudioSinkAudioTrackImpl {
     public static long getMinimumBufferedTime(int channelCount, int sampleRateInHz) {
         int sizeBytes = AudioTrack.getMinBufferSize(
                 sampleRateInHz, getChannelConfig(channelCount), AUDIO_FORMAT);
-        long sizeUs = SEC_IN_USEC * (long) sizeBytes
-                / (getSampleSize(AUDIO_FORMAT) * channelCount * (long) sampleRateInHz);
+        long sizeUs =
+                SEC_IN_USEC
+                        * (long) sizeBytes
+                        / (getSampleSize(AUDIO_FORMAT)
+                                * (long) channelCount
+                                * (long) sampleRateInHz);
         return sizeUs + MIN_BUFFERED_TIME_PADDING_US;
     }
 
@@ -250,8 +253,14 @@ class AudioSinkAudioTrackImpl {
     private static AudioSinkAudioTrackImpl create(long nativeAudioSinkAudioTrackImpl,
             @AudioContentType int castContentType, int channelCount, int sampleRateInHz,
             int bytesPerBuffer, int sessionId, boolean isApkAudio, boolean useHwAvSync) {
-        return new AudioSinkAudioTrackImpl(nativeAudioSinkAudioTrackImpl, castContentType,
-                channelCount, sampleRateInHz, bytesPerBuffer, sessionId, isApkAudio, useHwAvSync);
+        try {
+            return new AudioSinkAudioTrackImpl(nativeAudioSinkAudioTrackImpl, castContentType,
+                    channelCount, sampleRateInHz, bytesPerBuffer, sessionId, isApkAudio,
+                    useHwAvSync);
+        } catch (UnsupportedOperationException e) {
+            Log.e(TAG, "Failed to create audio sink track");
+            return null;
+        }
     }
 
     private AudioSinkAudioTrackImpl(long nativeAudioSinkAudioTrackImpl,
@@ -293,10 +302,9 @@ class AudioSinkAudioTrackImpl {
      */
     private void init(@AudioContentType int castContentType, int channelCount, int sampleRateInHz,
             int bytesPerBuffer, int sessionId, boolean useHwAvSync) {
-        mTag = TAG + "(" + castContentType + ":" + (sInstanceCounter++) + ")";
+        mTag = TAG + "(" + castContentType + ":" + sInstanceCounter++ + ")";
 
         // Setup throttled logs: pass the first 5, then every 1sec, reset after 5.
-        mBufferLevelWarningLog = new ThrottledLog(Log::w, 5, 1000, 5000);
         mUnderrunWarningLog = new ThrottledLog(Log::w, 5, 1000, 5000);
         mTStampJitterWarningLog = new ThrottledLog(Log::w, 5, 1000, 5000);
 
@@ -408,10 +416,6 @@ class AudioSinkAudioTrackImpl {
         return mAudioTrack.getPlayState() == AudioTrack.PLAYSTATE_STOPPED;
     }
 
-    private boolean isPlaying() {
-        return mAudioTrack.getPlayState() == AudioTrack.PLAYSTATE_PLAYING;
-    }
-
     private boolean isPaused() {
         return mAudioTrack.getPlayState() == AudioTrack.PLAYSTATE_PAUSED;
     }
@@ -443,11 +447,8 @@ class AudioSinkAudioTrackImpl {
         return (playtimeLeftNsecs < 0) ? 0 : playtimeLeftNsecs / 1000; // return usecs
     }
 
+    /** Closes the instance by stopping playback and releasing the AudioTrack object. */
     @CalledByNative
-    /**
-     * Closes the instance by stopping playback and releasing the AudioTrack
-     * object.
-     */
     private void close() {
         Log.i(mTag, "Close AudioSinkAudioTrackImpl!");
         if (!isStopped()) mAudioTrack.stop();
@@ -753,16 +754,21 @@ class AudioSinkAudioTrackImpl {
                     return;
                 }
                 // First stable timestamp.
-                mRefNanoTimeAtFramePos0 = prevRefNanoTimeAtFramePos0 = newNanoTimeAtFramePos0;
+                mRefNanoTimeAtFramePos0 = newNanoTimeAtFramePos0;
+                prevRefNanoTimeAtFramePos0 = newNanoTimeAtFramePos0;
                 mReferenceTimestampState = ReferenceTimestampState.STABLE;
-                Log.i(mTag,
-                        "First stable timestamp [" + mTimestampStabilityCounter + "/"
-                                + elapsedNsec(mTimestampStabilityStartTimeNsec) / 1000000 + "ms]");
+                Log.i(
+                        mTag,
+                        "First stable timestamp ["
+                                + mTimestampStabilityCounter
+                                + "/"
+                                + elapsedNsec(mTimestampStabilityStartTimeNsec) / 1000000
+                                + "ms]");
                 break;
             case ReferenceTimestampState.RESYNCING_AFTER_PAUSE:
-            // fall-through
+                // fall-through
             case ReferenceTimestampState.RESYNCING_AFTER_EXCESSIVE_TIMESTAMP_DRIFT:
-            // fall-through
+                // fall-through
             case ReferenceTimestampState.RESYNCING_AFTER_UNDERRUN:
                 // Resyncing happens after we hit a pause, underrun or excessive drift in the
                 // AudioTrack. This causes the Android Audio stack to insert additional samples,

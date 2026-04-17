@@ -51,17 +51,48 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO)
                                  const AudioDevice* base) override;
   int GetUserPriority(const AudioDevice& device) override;
 
+  const std::optional<uint64_t> GetPreferredDeviceFromPreferenceSet(
+      bool is_input,
+      const AudioDeviceList& devices) override;
+
+  void UpdateDevicePreferenceSet(const AudioDeviceList& devices,
+                                 const AudioDevice& preferred_device) override;
+
+  const base::Value::List& GetMostRecentActivatedDeviceIdList(
+      bool is_input) override;
+
+  void UpdateMostRecentActivatedDeviceIdList(
+      const AudioDevice& device) override;
+
   void DropLeastRecentlySeenDevices(
       const std::vector<AudioDevice>& connected_devices,
       size_t keep_devices) override;
 
+  bool GetVoiceIsolationState() const override;
+  void SetVoiceIsolationState(bool voice_isolation_state) override;
+
+  uint32_t GetVoiceIsolationPreferredEffect() const override;
+  void SetVoiceIsolationPreferredEffect(uint32_t effect) override;
+
   bool GetNoiseCancellationState() override;
   void SetNoiseCancellationState(bool noise_cancellation_state) override;
+
+  bool GetStyleTransferState() const override;
+  void SetStyleTransferState(bool style_transfer_state) override;
 
   bool GetAudioOutputAllowedValue() const override;
 
   void AddAudioPrefObserver(AudioPrefObserver* observer) override;
   void RemoveAudioPrefObserver(AudioPrefObserver* observer) override;
+
+  bool GetForceRespectUiGainsState() override;
+  void SetForceRespectUiGainsState(bool force_respect_ui_gains) override;
+
+  bool GetHfpMicSrState() override;
+  void SetHfpMicSrState(bool hfp_mic_sr_state) override;
+
+  bool GetSpatialAudioState() override;
+  void SetSpatialAudioState(bool spatial_audio) override;
 
   // Registers volume and mute preferences.
   static void RegisterPrefs(PrefRegistrySimple* registry);
@@ -97,6 +128,23 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO)
   void LoadOutputDevicesUserPriorityPref();
   void SaveOutputDevicesUserPriorityPref();
 
+  // Load and save methods for the preference set for all input devices.
+  void LoadInputDevicePreferenceSetPref();
+  void SaveInputDevicePreferenceSetPref();
+
+  // Load and save methods for the preference set for all output devices.
+  void LoadOutputDevicePreferenceSetPref();
+  void SaveOutputDevicePreferenceSetPref();
+
+  // Load and save methods for the most recently activated input device id list.
+  void LoadMostRecentActivatedInputDeviceIdsPref();
+  void SaveMostRecentActivatedInputDeviceIdsPref();
+
+  // Load and save methods for the most recently activated output device id
+  // list.
+  void LoadMostRecentActivatedOutputDeviceIdsPref();
+  void SaveMostRecentActivatedOutputDeviceIdsPref();
+
   double GetOutputVolumePrefValue(const AudioDevice& device);
   double GetInputGainPrefValue(const AudioDevice& device);
   double GetDeviceDefaultOutputVolume(const AudioDevice& device);
@@ -130,6 +178,7 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO)
 
   // Notifies the AudioPrefObserver for audio policy pref changes.
   void NotifyAudioPolicyChange();
+  void NotifyVoiceIsolationChange();
 
   base::Value::Dict device_mute_settings_;
   base::Value::Dict device_volume_settings_;
@@ -137,8 +186,12 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO)
   base::Value::Dict device_state_settings_;
   base::Value::Dict input_device_user_priority_settings_;
   base::Value::Dict output_device_user_priority_settings_;
+  base::Value::Dict input_device_preference_set_settings_;
+  base::Value::Dict output_device_preference_set_settings_;
+  base::Value::List most_recent_activated_input_device_ids_;
+  base::Value::List most_recent_activated_output_device_ids_;
 
-  raw_ptr<PrefService, ExperimentalAsh> local_state_;  // not owned
+  raw_ptr<PrefService> local_state_;  // not owned
 
   PrefChangeRegistrar pref_change_registrar_;
   base::ObserverList<AudioPrefObserver>::Unchecked observers_;

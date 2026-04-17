@@ -4,7 +4,14 @@
 
 #include "quiche/quic/core/crypto/client_proof_source.h"
 
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "absl/strings/match.h"
+#include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 
 namespace quic {
 
@@ -24,10 +31,10 @@ bool DefaultClientProofSource::AddCertAndKey(
   return true;
 }
 
-const ClientProofSource::CertAndKey* DefaultClientProofSource::GetCertAndKey(
-    absl::string_view hostname) const {
-  const CertAndKey* result = LookupExact(hostname);
-  if (result != nullptr || hostname == "*") {
+std::shared_ptr<const ClientProofSource::CertAndKey>
+DefaultClientProofSource::GetCertAndKey(absl::string_view hostname) const {
+  if (std::shared_ptr<const CertAndKey> result = LookupExact(hostname);
+      result || hostname == "*") {
     return result;
   }
 
@@ -37,7 +44,7 @@ const ClientProofSource::CertAndKey* DefaultClientProofSource::GetCertAndKey(
     auto dot_pos = hostname.find('.');
     if (dot_pos != std::string::npos) {
       std::string wildcard = absl::StrCat("*", hostname.substr(dot_pos));
-      const CertAndKey* result = LookupExact(wildcard);
+      std::shared_ptr<const CertAndKey> result = LookupExact(wildcard);
       if (result != nullptr) {
         return result;
       }
@@ -48,13 +55,13 @@ const ClientProofSource::CertAndKey* DefaultClientProofSource::GetCertAndKey(
   return LookupExact("*");
 }
 
-const ClientProofSource::CertAndKey* DefaultClientProofSource::LookupExact(
-    absl::string_view map_key) const {
+std::shared_ptr<const ClientProofSource::CertAndKey>
+DefaultClientProofSource::LookupExact(absl::string_view map_key) const {
   const auto it = cert_and_keys_.find(map_key);
   QUIC_DVLOG(1) << "LookupExact(" << map_key
                 << ") found:" << (it != cert_and_keys_.end());
   if (it != cert_and_keys_.end()) {
-    return it->second.get();
+    return it->second;
   }
   return nullptr;
 }

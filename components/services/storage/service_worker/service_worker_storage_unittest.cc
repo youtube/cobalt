@@ -31,7 +31,7 @@ namespace service_worker_storage_unittest {
 struct ReadResponseHeadResult {
   int result;
   network::mojom::URLResponseHeadPtr response_head;
-  absl::optional<mojo_base::BigBuffer> metadata;
+  std::optional<mojo_base::BigBuffer> metadata;
 };
 
 using ResourceRecord = mojom::ServiceWorkerResourceRecordPtr;
@@ -72,7 +72,7 @@ mojom::ServiceWorkerRegistrationDataPtr CreateRegistrationData(
 
 void DatabaseStatusCallback(
     base::OnceClosure quit_closure,
-    absl::optional<ServiceWorkerDatabase::Status>* result,
+    std::optional<ServiceWorkerDatabase::Status>* result,
     ServiceWorkerDatabase::Status status) {
   *result = status;
   std::move(quit_closure).Run();
@@ -84,14 +84,16 @@ class ServiceWorkerStorageTest : public testing::Test {
   ~ServiceWorkerStorageTest() override = default;
 
   void SetUp() override {
-    storage_ = ServiceWorkerStorage::Create(
-        user_data_directory_path_,
-        /*database_task_runner=*/base::SingleThreadTaskRunner::
-            GetCurrentDefault());
+    storage_shared_buffer_ =
+        base::MakeRefCounted<ServiceWorkerStorage::StorageSharedBuffer>(
+            /*enable_registered_storage_keys=*/true);
+    storage_ = ServiceWorkerStorage::Create(user_data_directory_path_,
+                                            storage_shared_buffer_);
   }
 
   void TearDown() override {
     storage_.reset();
+    storage_shared_buffer_ = nullptr;
     disk_cache::FlushCacheThreadForTesting();
     base::RunLoop().RunUntilIdle();
   }
@@ -354,7 +356,7 @@ class ServiceWorkerStorageTest : public testing::Test {
         base::BindLambdaForTesting(
             [&](mojom::ServiceWorkerRegistrationDataPtr,
                 std::unique_ptr<ResourceList>,
-                const absl::optional<std::vector<GURL>>& scopes,
+                const std::optional<std::vector<GURL>>& scopes,
                 ServiceWorkerDatabase::Status status) {
               result = status;
               loop.Quit();
@@ -459,7 +461,7 @@ class ServiceWorkerStorageTest : public testing::Test {
 
     reader->ReadResponseHead(base::BindLambdaForTesting(
         [&](int result, network::mojom::URLResponseHeadPtr response_head,
-            absl::optional<mojo_base::BigBuffer> metadata) {
+            std::optional<mojo_base::BigBuffer> metadata) {
           out.result = result;
           out.response_head = std::move(response_head);
           out.metadata = std::move(metadata);
@@ -475,8 +477,7 @@ class ServiceWorkerStorageTest : public testing::Test {
     const std::string kHttpBody = "Hello";
 
     std::string headers(kHttpHeaders, std::size(kHttpHeaders));
-    mojo_base::BigBuffer body(
-        base::as_bytes(base::make_span(kHttpBody.data(), kHttpBody.length())));
+    mojo_base::BigBuffer body(base::as_byte_span(kHttpBody));
 
     mojo::Remote<mojom::ServiceWorkerResourceWriter> writer;
     storage()->CreateResourceWriter(id, writer.BindNewPipeAndPassReceiver());
@@ -518,8 +519,7 @@ class ServiceWorkerStorageTest : public testing::Test {
   }
 
   int WriteResponseMetadata(int64_t id, const std::string& metadata) {
-    mojo_base::BigBuffer buffer(
-        base::as_bytes(base::make_span(metadata.data(), metadata.length())));
+    mojo_base::BigBuffer buffer(base::as_byte_span(metadata));
 
     mojo::Remote<mojom::ServiceWorkerResourceMetadataWriter> metadata_writer;
     storage()->CreateResourceMetadataWriter(
@@ -563,6 +563,8 @@ class ServiceWorkerStorageTest : public testing::Test {
   base::ScopedTempDir user_data_directory_;
   base::FilePath user_data_directory_path_;
   std::unique_ptr<ServiceWorkerStorage> storage_;
+  scoped_refptr<ServiceWorkerStorage::StorageSharedBuffer>
+      storage_shared_buffer_;
   base::test::TaskEnvironment task_environment_;
 };
 
@@ -912,7 +914,7 @@ TEST_F(ServiceWorkerStorageDiskTest, DeleteAndStartOver) {
   ASSERT_TRUE(base::DirectoryExists(storage()->GetDatabasePath()));
 
   base::RunLoop run_loop;
-  absl::optional<ServiceWorkerDatabase::Status> status;
+  std::optional<ServiceWorkerDatabase::Status> status;
   storage()->DeleteAndStartOver(
       base::BindOnce(&DatabaseStatusCallback, run_loop.QuitClosure(), &status));
   run_loop.Run();
@@ -936,7 +938,7 @@ TEST_F(ServiceWorkerStorageDiskTest, DeleteAndStartOver_UnrelatedFileExists) {
   ASSERT_TRUE(base::PathExists(file_path));
 
   base::RunLoop run_loop;
-  absl::optional<ServiceWorkerDatabase::Status> status;
+  std::optional<ServiceWorkerDatabase::Status> status;
   storage()->DeleteAndStartOver(
       base::BindOnce(&DatabaseStatusCallback, run_loop.QuitClosure(), &status));
   run_loop.Run();
@@ -961,7 +963,7 @@ TEST_F(ServiceWorkerStorageDiskTest, DeleteAndStartOver_OpenedFileExists) {
   ASSERT_TRUE(base::PathExists(file_path));
 
   base::RunLoop run_loop;
-  absl::optional<ServiceWorkerDatabase::Status> status;
+  std::optional<ServiceWorkerDatabase::Status> status;
   storage()->DeleteAndStartOver(
       base::BindOnce(&DatabaseStatusCallback, run_loop.QuitClosure(), &status));
   run_loop.Run();

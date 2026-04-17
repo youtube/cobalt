@@ -8,10 +8,9 @@
 #include <map>
 
 #include "base/memory/raw_ptr.h"
-#include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "ui/base/models/image_model.h"
-#include "ui/base/models/simple_menu_model.h"
+#include "ui/menus/simple_menu_model.h"
 
 namespace gfx {
 class Image;
@@ -22,10 +21,8 @@ class Image;
 // model state has changed and can tell the status icon to update the menu. This
 // is necessary some platforms which do not notify us before showing the menu
 // (like Ubuntu Unity).
-class StatusIconMenuModel
-    : public ui::SimpleMenuModel,
-      public ui::SimpleMenuModel::Delegate,
-      public base::SupportsWeakPtr<StatusIconMenuModel> {
+class StatusIconMenuModel : public ui::SimpleMenuModel,
+                            public ui::SimpleMenuModel::Delegate {
  public:
   class Delegate {
    public:
@@ -35,7 +32,7 @@ class StatusIconMenuModel
     virtual void ExecuteCommand(int command_id, int event_flags) = 0;
 
    protected:
-    virtual ~Delegate() {}
+    virtual ~Delegate() = default;
   };
 
   class Observer {
@@ -44,7 +41,7 @@ class StatusIconMenuModel
     virtual void OnMenuStateChanged() {}
 
    protected:
-    virtual ~Observer() {}
+    virtual ~Observer() = default;
   };
 
   // The Delegate can be NULL.
@@ -83,6 +80,7 @@ class StatusIconMenuModel
   bool IsItemForCommandIdDynamic(int command_id) const override;
   std::u16string GetLabelForCommandId(int command_id) const override;
   ui::ImageModel GetIconForCommandId(int command_id) const override;
+  void ExecuteCommand(int command_id, int event_flags) override;
 
  protected:
   // Overriden from ui::SimpleMenuModel:
@@ -94,9 +92,6 @@ class StatusIconMenuModel
   Delegate* delegate() { return delegate_; }
 
  private:
-  // Overridden from ui::SimpleMenuModel::Delegate:
-  void ExecuteCommand(int command_id, int event_flags) override;
-
   struct ItemState;
 
   // Map the properties to the command id (used as key).
@@ -106,7 +101,7 @@ class StatusIconMenuModel
 
   base::ObserverList<Observer>::Unchecked observer_list_;
 
-  raw_ptr<Delegate> delegate_;
+  raw_ptr<Delegate, DanglingUntriaged> delegate_;
 };
 
 #endif  // CHROME_BROWSER_STATUS_ICONS_STATUS_ICON_MENU_MODEL_H_

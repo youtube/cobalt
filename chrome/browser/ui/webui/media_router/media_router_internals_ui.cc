@@ -6,17 +6,26 @@
 
 #include <memory>
 
+#include "chrome/browser/media/router/media_router_feature.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/media_router/media_router_internals_webui_message_handler.h"
 #include "chrome/common/webui_url_constants.h"
-#include "chrome/grit/browser_resources.h"
+#include "chrome/grit/media_router_internals_resources.h"
+#include "chrome/grit/media_router_internals_resources_map.h"
 #include "components/media_router/browser/media_router.h"
 #include "components/media_router/browser/media_router_factory.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
+#include "ui/webui/webui_util.h"
 
 namespace media_router {
+
+bool MediaRouterInternalsUIConfig::IsWebUIEnabled(
+    content::BrowserContext* browser_context) {
+  Profile* profile = Profile::FromBrowserContext(browser_context);
+  return MediaRouterEnabled(profile);
+}
 
 MediaRouterInternalsUI::MediaRouterInternalsUI(content::WebUI* web_ui)
     : content::WebUIController(web_ui) {
@@ -26,11 +35,10 @@ MediaRouterInternalsUI::MediaRouterInternalsUI(content::WebUI* web_ui)
       content::WebUIDataSource::CreateAndAdd(
           Profile::FromWebUI(web_ui),
           chrome::kChromeUIMediaRouterInternalsHost);
-  html_source->AddResourcePath("media_router_internals.js",
-                               IDR_MEDIA_ROUTER_INTERNALS_JS);
-  html_source->AddResourcePath("media_router_internals.css",
-                               IDR_MEDIA_ROUTER_INTERNALS_CSS);
-  html_source->SetDefaultResource(IDR_MEDIA_ROUTER_INTERNALS_HTML);
+
+  webui::SetupWebUIDataSource(
+      html_source, kMediaRouterInternalsResources,
+      IDR_MEDIA_ROUTER_INTERNALS_MEDIA_ROUTER_INTERNALS_HTML);
 
   content::WebContents* wc = web_ui->GetWebContents();
   DCHECK(wc);

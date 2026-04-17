@@ -7,18 +7,18 @@
 #include <algorithm>
 #include <iterator>
 
+#include "base/containers/adapters.h"
+#include "base/containers/span.h"
+
 std::string StackTraceGetter::CurrentStackTrace(int max_depth, int skip_count) {
   base::debug::StackTrace stack_trace;
 
-  size_t departure_frame_count = 0;
-  const void* const* departure_addresses =
-      stack_trace_upon_leaving_gtest_.has_value()
-          ? stack_trace_upon_leaving_gtest_->Addresses(&departure_frame_count)
-          : nullptr;
+  base::span<const void* const> departure;
+  if (stack_trace_upon_leaving_gtest_.has_value()) {
+    departure = stack_trace_upon_leaving_gtest_->addresses();
+  }
 
-  size_t current_frame_count = 0;
-  const void* const* current_addresses =
-      stack_trace.Addresses(&current_frame_count);
+  base::span<const void* const> current = stack_trace.addresses();
 
   // Ignore the frames at the root of the current trace that match those of the
   // point of departure from GTest. These frames all relate to thread start and
@@ -27,16 +27,13 @@ std::string StackTraceGetter::CurrentStackTrace(int max_depth, int skip_count) {
   // within the GTest function that called UponLeavingGTest, and is irrelevant
   // as well.
   {
-    auto departure_rbegin =
-        std::make_reverse_iterator(departure_addresses + departure_frame_count);
-    auto departure_rend = std::make_reverse_iterator(departure_addresses);
-    auto current_rbegin =
-        std::make_reverse_iterator(current_addresses + current_frame_count);
-    auto current_rend = std::make_reverse_iterator(current_addresses);
-    auto mismatch_pair = std::mismatch(departure_rbegin, departure_rend,
-                                       current_rbegin, current_rend);
-    if (mismatch_pair.second != current_rend)
-      current_frame_count -= (mismatch_pair.second - current_rbegin) + 1;
+    const auto r_current = base::Reversed(current);
+    const size_t remaining =
+        r_current.end() -
+        std::ranges::mismatch(base::Reversed(departure), r_current).in2;
+    if (remaining) {
+      current = current.first(remaining - 1);
+    }
   }
 
   // Ignore the frames at the leaf of the current trace that match those of the
@@ -44,29 +41,24 @@ std::string StackTraceGetter::CurrentStackTrace(int max_depth, int skip_count) {
   // StackTrace's constructor, which are irrelevant. Also ignore the very first
   // mismatch, as it identifies two instructions within current function.
   {
-    auto mismatch_pair = std::mismatch(
-        departure_addresses, departure_addresses + departure_frame_count,
-        current_addresses, current_addresses + current_frame_count);
-    if (mismatch_pair.second != current_addresses + current_frame_count) {
-      auto match_size = (mismatch_pair.second - current_addresses) + 1;
-      current_frame_count -= match_size;
-      current_addresses += match_size;
+    const size_t remaining =
+        current.end() - std::ranges::mismatch(departure, current).in2;
+    if (remaining) {
+      current = current.last(remaining - 1);
     }
   }
 
   // Ignore frames that the caller wishes to skip.
-  if (skip_count >= 0 &&
-      static_cast<size_t>(skip_count) < current_frame_count) {
-    current_frame_count -= skip_count;
-    current_addresses += skip_count;
+  if (skip_count >= 0 && static_cast<size_t>(skip_count) < current.size()) {
+    current = current.subspan(static_cast<size_t>(skip_count));
   }
 
   // Only return as many as requested.
-  if (max_depth >= 0 && static_cast<size_t>(max_depth) < current_frame_count)
-    current_frame_count = static_cast<size_t>(max_depth);
+  if (max_depth >= 0 && static_cast<size_t>(max_depth) < current.size()) {
+    current = current.first(static_cast<size_t>(max_depth));
+  }
 
-  return base::debug::StackTrace(current_addresses, current_frame_count)
-      .ToString();
+  return base::debug::StackTrace(current).ToString();
 }
 
 void StackTraceGetter::UponLeavingGTest() {

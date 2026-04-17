@@ -8,14 +8,14 @@
 #import <Foundation/Foundation.h>
 #include <Security/Security.h>
 
-#include "base/mac/scoped_cftyperef.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/memory/ref_counted.h"
 #include "ios/web/public/security/security_style.h"
 
 namespace net {
 class SSLInfo;
 class X509Certificate;
-}
+}  // namespace net
 
 namespace web {
 
@@ -34,10 +34,11 @@ scoped_refptr<net::X509Certificate> CreateCertFromTrust(SecTrustRef trust);
 
 // Creates server trust object from an array of SecCertificateRef objects.
 // Returns null if `certs` is null or empty.
-// TODO(crbug.com/827554): This method is only used from tests and should be
+// TODO(crbug.com/41379946): This method is only used from tests and should be
 // removed from here.
-base::ScopedCFTypeRef<SecTrustRef> CreateServerTrustFromChain(NSArray* certs,
-                                                              NSString* host);
+base::apple::ScopedCFTypeRef<SecTrustRef> CreateServerTrustFromChain(
+    NSArray* certs,
+    NSString* host);
 
 // Makes SecTrustEvaluate call to return kSecTrustResultProceed.
 // Should be called only if the user expilitely agreed to proceed with `trust`

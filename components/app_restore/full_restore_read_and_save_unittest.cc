@@ -7,17 +7,16 @@
 #include <utility>
 #include <vector>
 
-#include "ash/constants/app_types.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/timer/timer.h"
+#include "chromeos/ui/base/app_types.h"
+#include "chromeos/ui/base/window_properties.h"
 #include "components/app_constants/constants.h"
 #include "components/app_restore/app_launch_info.h"
 #include "components/app_restore/app_restore_data.h"
-#include "components/app_restore/features.h"
 #include "components/app_restore/full_restore_read_handler.h"
 #include "components/app_restore/full_restore_save_handler.h"
 #include "components/app_restore/full_restore_utils.h"
@@ -70,10 +69,6 @@ constexpr char kHandlerId[] = "audio";
 constexpr char kExampleUrl1[] = "https://www.example1.com";
 constexpr char kExampleUrl2[] = "https://www.example2.com";
 
-constexpr char kLacrosWindowId[] = "123";
-
-constexpr uint32_t kBrowserSessionId = 56;
-
 // Randomly generated desk GUID to test saving removing desk GUID.
 const base::Uuid kRemovingDeskGuid = base::Uuid::GenerateRandomV4();
 const base::Uuid kNonRemovingDeskGuid = base::Uuid::GenerateRandomV4();
@@ -118,7 +113,7 @@ class FullRestoreReadHandlerTestApi {
   }
 
  private:
-  raw_ptr<FullRestoreReadHandler, ExperimentalAsh> read_handler_;
+  raw_ptr<FullRestoreReadHandler> read_handler_;
 };
 
 class FullRestoreSaveHandlerTestApi {
@@ -168,31 +163,6 @@ class FullRestoreSaveHandlerTestApi {
 
   void CheckArcTasks() { arc_save_handler()->CheckTasksForAppLaunching(); }
 
-  const LacrosSaveHandler* GetLacrosSaveHander() const {
-    DCHECK(save_handler_);
-    return save_handler_->lacros_save_handler_.get();
-  }
-
-  const std::map<std::string, LacrosSaveHandler::WindowData>&
-  GetLacrosWindowCandidates() const {
-    const auto* lacros_save_handler = GetLacrosSaveHander();
-    DCHECK(lacros_save_handler);
-    return lacros_save_handler->window_candidates_;
-  }
-
-  const std::map<std::string, std::string>& GetLacrosWindowIdToAppIdMap()
-      const {
-    const auto* lacros_save_handler = GetLacrosSaveHander();
-    DCHECK(lacros_save_handler);
-    return lacros_save_handler->lacros_window_id_to_app_id_;
-  }
-
-  int32_t GetLacrosWindowId(std::string lacros_window_id) const {
-    const auto& window_candidates = GetLacrosWindowCandidates();
-    auto it = window_candidates.find(lacros_window_id);
-    return it != window_candidates.end() ? it->second.window_id : -1;
-  }
-
   void ClearRestoreData() {
     save_handler_->profile_path_to_restore_data_.clear();
   }
@@ -204,7 +174,7 @@ class FullRestoreSaveHandlerTestApi {
     return save_handler_->arc_save_handler_.get();
   }
 
-  raw_ptr<FullRestoreSaveHandler, ExperimentalAsh> save_handler_;
+  raw_ptr<FullRestoreSaveHandler> save_handler_;
 };
 
 // Unit tests for restore data.
@@ -218,7 +188,6 @@ class FullRestoreReadAndSaveTest : public testing::Test {
       delete;
 
   void SetUp() override {
-    scoped_feature_list_.InitAndEnableFeature(features::kFullRestoreForLacros);
     ASSERT_TRUE(tmp_dir_.CreateUniqueTempDir());
 
     aura_test_helper_.SetUp();
@@ -273,12 +242,12 @@ class FullRestoreReadAndSaveTest : public testing::Test {
 
   void AddBrowserLaunchInfo(const base::FilePath& file_path,
                             int32_t id,
-                            std::vector<GURL> urls,
+                            const std::vector<GURL>& urls,
                             int32_t active_tab_index = 0) {
     auto launch_info = std::make_unique<app_restore::AppLaunchInfo>(
         app_constants::kChromeAppId, id);
-    launch_info->urls = urls;
-    launch_info->active_tab_index = active_tab_index;
+    launch_info->browser_extra_info.urls = urls;
+    launch_info->browser_extra_info.active_tab_index = active_tab_index;
     SaveAppLaunchInfo(file_path, std::move(launch_info));
   }
 
@@ -291,48 +260,6 @@ class FullRestoreReadAndSaveTest : public testing::Test {
     SaveAppLaunchInfo(file_path, std::move(app_launch_info));
   }
 
-  std::unique_ptr<views::Widget> CreateLacrosWidget(
-      const std::string& lacros_window_id,
-      int32_t restore_session_id,
-      int32_t restore_window_id) {
-    views::Widget::InitParams params(views::Widget::InitParams::TYPE_WINDOW);
-
-    params.bounds = gfx::Rect(5, 5, 20, 20);
-    params.context = aura_test_helper_.GetContext();
-    params.ownership = views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET;
-
-    params.init_properties_container.SetProperty(
-        aura::client::kAppType, static_cast<int>(ash::AppType::LACROS));
-    params.init_properties_container.SetProperty(app_restore::kLacrosWindowId,
-                                                 lacros_window_id);
-
-    params.init_properties_container.SetProperty(app_restore::kWindowIdKey,
-                                                 restore_session_id);
-    params.init_properties_container.SetProperty(
-        app_restore::kRestoreWindowIdKey, restore_window_id);
-
-    auto widget = std::make_unique<views::Widget>();
-    widget->Init(std::move(params));
-
-    widget->Show();
-    return widget;
-  }
-
-  std::unique_ptr<aura::Window> CreateLacrosWindow(
-      const std::string& lacros_window_id,
-      int32_t restore_session_id,
-      int32_t restore_window_id) {
-    auto window = std::make_unique<aura::Window>(
-        nullptr, aura::client::WINDOW_TYPE_NORMAL);
-    window->SetProperty(aura::client::kAppType,
-                        static_cast<int>(ash::AppType::LACROS));
-    window->SetProperty(app_restore::kLacrosWindowId,
-                        std::string(lacros_window_id));
-    window->SetProperty(app_restore::kWindowIdKey, restore_session_id);
-    window->SetProperty(app_restore::kRestoreWindowIdKey, restore_window_id);
-    return window;
-  }
-
   void SaveWindowInfo(aura::Window* window, int32_t activation_index) {
     app_restore::WindowInfo window_info;
     window_info.window = window;
@@ -343,14 +270,14 @@ class FullRestoreReadAndSaveTest : public testing::Test {
   std::unique_ptr<aura::Window> CreateWindowInfo(
       int32_t id,
       int32_t index,
-      ash::AppType app_type = ash::AppType::BROWSER,
+      chromeos::AppType app_type = chromeos::AppType::BROWSER,
       base::Uuid desk_guid = base::Uuid()) {
     std::unique_ptr<aura::Window> window(
         aura::test::CreateTestWindowWithId(id, nullptr));
+    window->SetProperty(chromeos::kAppTypeKey, app_type);
+    window->SetProperty(app_restore::kWindowIdKey, id);
     app_restore::WindowInfo window_info;
     window_info.window = window.get();
-    window->SetProperty(aura::client::kAppType, static_cast<int>(app_type));
-    window->SetProperty(app_restore::kWindowIdKey, id);
     window_info.activation_index = index;
     window_info.desk_guid = desk_guid;
     full_restore::SaveWindowInfo(window_info);
@@ -361,8 +288,7 @@ class FullRestoreReadAndSaveTest : public testing::Test {
       int32_t restore_window_id) {
     std::unique_ptr<aura::Window> window(
         aura::test::CreateTestWindowWithId(restore_window_id, nullptr));
-    window->SetProperty(aura::client::kAppType,
-                        static_cast<int>(ash::AppType::ARC_APP));
+    window->SetProperty(chromeos::kAppTypeKey, chromeos::AppType::ARC_APP);
     window->SetProperty(app_restore::kRestoreWindowIdKey, restore_window_id);
     return FullRestoreReadHandler::GetInstance()->GetWindowInfo(window.get());
   }
@@ -388,8 +314,7 @@ class FullRestoreReadAndSaveTest : public testing::Test {
     EXPECT_TRUE(app_restore_data_it != launch_list_it->second.end());
 
     const auto& data = app_restore_data_it->second;
-    EXPECT_TRUE(data->activation_index.has_value());
-    EXPECT_EQ(index, data->activation_index.value());
+    EXPECT_THAT(data->window_info.activation_index, testing::Optional(index));
   }
 
   content::BrowserTaskEnvironment& task_environment() {
@@ -398,13 +323,13 @@ class FullRestoreReadAndSaveTest : public testing::Test {
 
  private:
   content::BrowserTaskEnvironment task_environment_;
-  base::ScopedTempDir tmp_dir_;
 
-  base::test::ScopedFeatureList scoped_feature_list_;
+  base::ScopedTempDir tmp_dir_;
 
   std::unique_ptr<app_restore::RestoreData> restore_data_;
 
   views::TestViewsDelegate test_views_delegate_;
+
   aura::test::AuraTestHelper aura_test_helper_;
 };
 
@@ -454,19 +379,10 @@ TEST_F(FullRestoreReadAndSaveTest, StopSavingWhenShutdown) {
   ASSERT_TRUE(restore_data);
 
   const auto& launch_list = restore_data->app_id_to_launch_list();
-  EXPECT_EQ(1u, launch_list.size());
-
-  // Verify for |kAppId|.
-  const auto launch_list_it = launch_list.find(kAppId);
-  EXPECT_TRUE(launch_list_it != launch_list.end());
-  EXPECT_EQ(1u, launch_list_it->second.size());
-
-  // Verify the restore data for `kId1` exists.
-  EXPECT_TRUE(base::Contains(launch_list_it->second, kId1));
-
-  // Verify the restore data for `kId2` and `kId3` doesn't exist.
-  EXPECT_FALSE(base::Contains(launch_list_it->second, kId2));
-  EXPECT_FALSE(base::Contains(launch_list_it->second, kId3));
+  // Verify the restore data for `kAppId` exists, and that it contains data for
+  // `kId1` but none for `kId2` and `kId3`.
+  EXPECT_THAT(launch_list,
+              ElementsAre(Pair(kAppId, ElementsAre(Pair(kId1, testing::_)))));
 }
 
 TEST_F(FullRestoreReadAndSaveTest, StartSaveTimer) {
@@ -499,19 +415,11 @@ TEST_F(FullRestoreReadAndSaveTest, StartSaveTimer) {
   auto* restore_data = GetRestoreData(GetPath());
   ASSERT_TRUE(restore_data);
 
+  // Verify the restore data for `kAppId` exists, and that it contains data for
+  // `kId1` but none for `kId2`.
   auto& launch_list1 = restore_data->app_id_to_launch_list();
-  EXPECT_EQ(1u, launch_list1.size());
-
-  // Verify for |kAppId|.
-  auto launch_list_it = launch_list1.find(kAppId);
-  EXPECT_TRUE(launch_list_it != launch_list1.end());
-  EXPECT_EQ(1u, launch_list_it->second.size());
-
-  // Verify the restore data for `kId1` exists.
-  EXPECT_TRUE(base::Contains(launch_list_it->second, kId1));
-
-  // Verify the restore data for `kId2` doesn't exist.
-  EXPECT_FALSE(base::Contains(launch_list_it->second, kId2));
+  EXPECT_THAT(launch_list1,
+              ElementsAre(Pair(kAppId, ElementsAre(Pair(kId1, testing::_)))));
 
   // Simulate the system reboots.
   FullRestoreReadHandlerTestApi(read_handler).ClearRestoreData();
@@ -523,19 +431,11 @@ TEST_F(FullRestoreReadAndSaveTest, StartSaveTimer) {
   restore_data = GetRestoreData(GetPath());
   ASSERT_TRUE(restore_data);
 
+  // Verify the restore data for `kAppId` exists, and that it contains data for
+  // `kId1` but none for `kId2`.
   auto& launch_list2 = restore_data->app_id_to_launch_list();
-  EXPECT_EQ(1u, launch_list2.size());
-
-  // Verify for |kAppId|.
-  launch_list_it = launch_list2.find(kAppId);
-  EXPECT_TRUE(launch_list_it != launch_list2.end());
-  EXPECT_EQ(1u, launch_list_it->second.size());
-
-  // Verify the restore data for `kId1` exists.
-  EXPECT_TRUE(base::Contains(launch_list_it->second, kId1));
-
-  // Verify the restore data for `kId2` doesn't exist.
-  EXPECT_FALSE(base::Contains(launch_list_it->second, kId2));
+  EXPECT_THAT(launch_list2,
+              ElementsAre(Pair(kAppId, ElementsAre(Pair(kId1, testing::_)))));
 }
 
 TEST_F(FullRestoreReadAndSaveTest, SaveAndReadRestoreData) {
@@ -597,19 +497,19 @@ TEST_F(FullRestoreReadAndSaveTest, SaveAndReadRestoreData) {
   EXPECT_TRUE(app_restore_data_it1 != launch_list_it->second.end());
 
   const auto& data1 = app_restore_data_it1->second;
-  EXPECT_TRUE(data1->activation_index.has_value());
-  EXPECT_EQ(kActivationIndex1, data1->activation_index.value());
+  EXPECT_THAT(data1->window_info.activation_index,
+              testing::Optional(kActivationIndex1));
 
   // Verify the restore data for |kId2| doesn't exist.
-  EXPECT_TRUE(!base::Contains(launch_list_it->second, kId2));
+  EXPECT_FALSE(base::Contains(launch_list_it->second, kId2));
 
   // Verify the restore data for |kId2| is moved to |kId3|.
   const auto app_restore_data_it3 = launch_list_it->second.find(kId3);
   ASSERT_NE(app_restore_data_it3, launch_list_it->second.end());
 
   const auto& data3 = app_restore_data_it3->second;
-  EXPECT_TRUE(data3->activation_index.has_value());
-  EXPECT_EQ(kActivationIndex2, data3->activation_index.value());
+  EXPECT_THAT(data3->window_info.activation_index,
+              testing::Optional(kActivationIndex2));
 }
 
 TEST_F(FullRestoreReadAndSaveTest, MultipleFilePaths) {
@@ -678,17 +578,11 @@ TEST_F(FullRestoreReadAndSaveTest, ClearRestoreData) {
   const auto* restore_data = GetRestoreData(GetPath());
   ASSERT_TRUE(restore_data);
 
-  const auto& launch_list = restore_data->app_id_to_launch_list();
-  EXPECT_EQ(1u, launch_list.size());
-
-  // Verify for `kAppId`.
-  const auto launch_list_it = launch_list.find(kAppId);
-  EXPECT_TRUE(launch_list_it != launch_list.end());
-  EXPECT_EQ(1u, launch_list_it->second.size());
-
-  // Verify for `kId1`.
-  const auto app_restore_data_it1 = launch_list_it->second.find(kId1);
-  EXPECT_TRUE(app_restore_data_it1 != launch_list_it->second.end());
+  // Verify the restore data for `kAppId` exists, and that it contains data for
+  // `kId1`.
+  auto& launch_list = restore_data->app_id_to_launch_list();
+  EXPECT_THAT(launch_list,
+              ElementsAre(Pair(kAppId, ElementsAre(Pair(kId1, testing::_)))));
 
   // Simulate timeout to clear restore data.
   timer->FireNow();
@@ -728,8 +622,8 @@ TEST_F(FullRestoreReadAndSaveTest, ArcWindowSaving) {
   EXPECT_TRUE(task_id != task_id_map.end());
 
   // Create a window to associate with the task id.
-  std::unique_ptr<aura::Window> window =
-      CreateWindowInfo(kArcTaskId1, kActivationIndex1, ash::AppType::ARC_APP);
+  std::unique_ptr<aura::Window> window = CreateWindowInfo(
+      kArcTaskId1, kActivationIndex1, chromeos::AppType::ARC_APP);
   // Test that using ARC task id we can get the correct app id for the window.
   EXPECT_EQ(save_handler->GetAppId(window.get()), kAppId);
 
@@ -758,11 +652,10 @@ TEST_F(FullRestoreReadAndSaveTest, ArcLaunchWithoutTask) {
   // Add an ARC app launch info.
   AddArcAppLaunchInfo(GetPath());
 
-  // Verify the ARC app launch info is saved to |arc_session_id_map|.
+  // Verify the ARC app launch info is saved to `arc_session_id_map`.
   const auto& arc_session_id_map = test_api.GetArcSessionIdMap();
-  EXPECT_EQ(1u, arc_session_id_map.size());
-  auto session_it = arc_session_id_map.find(kArcSessionId1);
-  EXPECT_TRUE(session_it != arc_session_id_map.end());
+  EXPECT_THAT(arc_session_id_map,
+              ElementsAre(Pair(kArcSessionId1, testing::_)));
 
   // Verify the ARC check timer starts running.
   base::RepeatingTimer* arc_check_timer = test_api.GetArcCheckTimer();
@@ -814,7 +707,7 @@ TEST_F(FullRestoreReadAndSaveTest, ArcWindowRestore) {
   EXPECT_FALSE(arc_check_timer->IsRunning());
 
   // Modify the window info.
-  CreateWindowInfo(kArcTaskId1, kActivationIndex1, ash::AppType::ARC_APP);
+  CreateWindowInfo(kArcTaskId1, kActivationIndex1, chromeos::AppType::ARC_APP);
   timer->FireNow();
   task_environment().RunUntilIdle();
 
@@ -834,13 +727,13 @@ TEST_F(FullRestoreReadAndSaveTest, ArcWindowRestore) {
   ASSERT_TRUE(read_test_api.GetArcReadHander());
   EXPECT_EQ(1u, read_test_api.GetArcWindowIdMap().size());
 
-  // Verify the map from app ids to launch list:
-  // std::map<app_id, std::map<window_id, std::unique_ptr<AppRestoreData>>>
-  const auto& launch_list = restore_data->app_id_to_launch_list();
+  // Verify the map from app ids to launch list.
+  const std::map<std::string,
+                 std::map<int, std::unique_ptr<app_restore::AppRestoreData>>>&
+      launch_list = restore_data->app_id_to_launch_list();
   EXPECT_EQ(1u, launch_list.size());
 
   // Verify the launch list for |kAppId|:
-  // std::map<window_id, std::unique_ptr<AppRestoreData>>
   const auto launch_list_it = launch_list.find(kAppId);
   EXPECT_TRUE(launch_list_it != launch_list.end());
   EXPECT_EQ(1u, launch_list_it->second.size());
@@ -852,8 +745,8 @@ TEST_F(FullRestoreReadAndSaveTest, ArcWindowRestore) {
   // Verify the AppRestoreData.
   const std::unique_ptr<app_restore::AppRestoreData>& data =
       app_restore_data_it->second;
-  EXPECT_TRUE(data->activation_index.has_value());
-  EXPECT_EQ(kActivationIndex1, data->activation_index.value());
+  EXPECT_THAT(data->window_info.activation_index,
+              testing::Optional(kActivationIndex1));
 
   // Simulate the ARC app launching, and set the arc session id kArcSessionId2
   // for the restore window id |kArcTaskId1|.
@@ -923,14 +816,12 @@ TEST_F(FullRestoreReadAndSaveTest, ReadBrowserRestoreData) {
   const auto app_restore_data_it = launch_list_it->second.find(kId1);
   EXPECT_TRUE(app_restore_data_it != launch_list_it->second.end());
 
-  const auto& data = app_restore_data_it->second;
-  EXPECT_FALSE(data->urls.empty());
-  EXPECT_EQ(data->urls.size(), 2u);
-  EXPECT_EQ(data->urls[0], GURL(kExampleUrl1));
-  EXPECT_EQ(data->urls[1], GURL(kExampleUrl2));
-
-  EXPECT_TRUE(data->active_tab_index.has_value());
-  EXPECT_EQ(data->active_tab_index.value(), active_tab_index);
+  const app_restore::BrowserExtraInfo browser_info =
+      app_restore_data_it->second->browser_extra_info;
+  EXPECT_THAT(browser_info.urls,
+              ElementsAre(GURL(kExampleUrl1), GURL(kExampleUrl2)));
+  EXPECT_THAT(browser_info.active_tab_index,
+              testing::Optional(active_tab_index));
 }
 
 TEST_F(FullRestoreReadAndSaveTest, ReadChromeAppRestoreData) {
@@ -957,229 +848,12 @@ TEST_F(FullRestoreReadAndSaveTest, ReadChromeAppRestoreData) {
   EXPECT_TRUE(app_restore_data_it != launch_list_it->second.end());
 
   const auto& data = app_restore_data_it->second;
+  EXPECT_THAT(data->file_paths, ElementsAre(base::FilePath(kFilePath1),
+                                            base::FilePath(kFilePath2)));
   EXPECT_TRUE(data->handler_id.has_value());
   EXPECT_EQ(kHandlerId, data->handler_id.value());
-  EXPECT_FALSE(data->file_paths.empty());
-  EXPECT_EQ(2u, data->file_paths.size());
-  EXPECT_EQ(base::FilePath(kFilePath1), data->file_paths[0]);
-  EXPECT_EQ(base::FilePath(kFilePath2), data->file_paths[1]);
 }
 
-// Verify the Lacros browser window is saved correctly when the window is
-// created first, then OnLacrosWindowAdded is called.
-TEST_F(FullRestoreReadAndSaveTest, LacrosBrowserWindowSavingCreateWindowFirst) {
-  FullRestoreSaveHandler* save_handler = GetSaveHandler();
-  FullRestoreSaveHandlerTestApi test_api(save_handler);
-
-  save_handler->SetPrimaryProfilePath(GetPath());
-  base::OneShotTimer* timer = save_handler->GetTimerForTesting();
-
-  const LacrosSaveHandler* lacros_save_handler = test_api.GetLacrosSaveHander();
-  ASSERT_TRUE(lacros_save_handler);
-
-  // Create a browser window first, then OnLacrosWindowAdded is called later.
-  auto widget = CreateLacrosWidget(kLacrosWindowId, kBrowserSessionId,
-                                   /*restored_browser_session_id=*/0);
-  auto* window = widget->GetNativeWindow();
-  SaveWindowInfo(window, kActivationIndex1);
-
-  // Verify the browser window is saved.
-  EXPECT_EQ(app_constants::kLacrosAppId,
-            save_handler->GetAppId(widget->GetNativeWindow()));
-  auto window_info = save_handler->GetWindowInfo(
-      GetPath(), app_constants::kLacrosAppId, kBrowserSessionId);
-  EXPECT_EQ(kActivationIndex1, window_info->activation_index.value());
-
-  // Modify the window info.
-  SaveWindowInfo(window, kActivationIndex2);
-  window_info = save_handler->GetWindowInfo(
-      GetPath(), app_constants::kLacrosAppId, kBrowserSessionId);
-  EXPECT_EQ(kActivationIndex2, window_info->activation_index.value());
-
-  widget.reset();
-  ASSERT_FALSE(save_handler->GetWindowInfo(
-      GetPath(), app_constants::kLacrosAppId, kBrowserSessionId));
-
-  timer->FireNow();
-  // Wait for the restore data to be written to the full restore file.
-  task_environment().RunUntilIdle();
-
-  ReadFromFile(GetPath());
-
-  // Verify there is not restore data.
-  const auto* restore_data = GetRestoreData(GetPath());
-  ASSERT_TRUE(restore_data);
-  EXPECT_TRUE(restore_data->app_id_to_launch_list().empty());
-}
-
-// Verify the Lacros browser window is saved correctly when
-// OnLacrosWindowAdded is called first, then the window is init later.
-TEST_F(FullRestoreReadAndSaveTest,
-       LacrosBrowserWindowSavingOnLacrosWindowAddedCalledFirst) {
-  FullRestoreSaveHandler* save_handler = GetSaveHandler();
-  FullRestoreSaveHandlerTestApi test_api(save_handler);
-
-  save_handler->SetPrimaryProfilePath(GetPath());
-  base::OneShotTimer* timer = save_handler->GetTimerForTesting();
-  const LacrosSaveHandler* lacros_save_handler = test_api.GetLacrosSaveHander();
-  ASSERT_TRUE(lacros_save_handler);
-
-  // OnLacrosWindowAdded is called first, then init the browser window later.
-  auto window = CreateLacrosWindow(kLacrosWindowId, kBrowserSessionId,
-                                   /*restored_browser_session_id=*/0);
-  window->Init(ui::LAYER_NOT_DRAWN);
-
-  SaveWindowInfo(window.get(), kActivationIndex1);
-
-  // Verify the browser window is saved.
-  EXPECT_EQ(app_constants::kLacrosAppId, save_handler->GetAppId(window.get()));
-  auto window_info = save_handler->GetWindowInfo(
-      GetPath(), app_constants::kLacrosAppId, kBrowserSessionId);
-  EXPECT_EQ(kActivationIndex1, window_info->activation_index.value());
-
-  // Modify the window info.
-  SaveWindowInfo(window.get(), kActivationIndex2);
-  window_info = save_handler->GetWindowInfo(
-      GetPath(), app_constants::kLacrosAppId, kBrowserSessionId);
-  EXPECT_EQ(kActivationIndex2, window_info->activation_index.value());
-
-  window.reset();
-
-  // Wait for `save_handler` to fresh the full restore file.
-  timer->FireNow();
-  task_environment().RunUntilIdle();
-
-  ReadFromFile(GetPath());
-
-  // Verify there is not restore data.
-  const auto* restore_data = GetRestoreData(GetPath());
-  ASSERT_TRUE(restore_data);
-  EXPECT_TRUE(restore_data->app_id_to_launch_list().empty());
-}
-
-// Verify the Lacros Chrome app window is saved correctly when the window is
-// created first, then OnAppWindowAdded is called.
-TEST_F(FullRestoreReadAndSaveTest,
-       LacrosChromeAppWindowSavingCreateWindowFirst) {
-  FullRestoreSaveHandler* save_handler = GetSaveHandler();
-  FullRestoreSaveHandlerTestApi test_api(save_handler);
-
-  save_handler->SetPrimaryProfilePath(GetPath());
-  base::OneShotTimer* timer = save_handler->GetTimerForTesting();
-
-  // Add a Chrome app launch info.
-  SaveAppLaunchInfo(
-      GetPath(), std::make_unique<app_restore::AppLaunchInfo>(
-                     kAppId, apps::LaunchContainer::kLaunchContainerNone,
-                     WindowOpenDisposition::UNKNOWN, display::kInvalidDisplayId,
-                     std::vector<base::FilePath>{}, nullptr));
-  const LacrosSaveHandler* lacros_save_handler = test_api.GetLacrosSaveHander();
-  ASSERT_TRUE(lacros_save_handler);
-
-  // Create a Chrome app window first, then the crosapi OnAppWindowAdded is
-  // called later.
-  auto widget = CreateLacrosWidget(kLacrosWindowId, kBrowserSessionId,
-                                   /*restored_browser_session_id=*/0);
-  auto* window = widget->GetNativeWindow();
-  EXPECT_FALSE(test_api.GetLacrosWindowCandidates().empty());
-  SaveWindowInfo(window, kActivationIndex1);
-  OnLacrosChromeAppWindowAdded(kAppId, kLacrosWindowId);
-
-  // Verify the Chrome app window is saved.
-  EXPECT_TRUE(test_api.GetLacrosWindowIdToAppIdMap().empty());
-  EXPECT_EQ(save_handler->GetAppId(widget->GetNativeWindow()), kAppId);
-  auto window_info = save_handler->GetWindowInfo(
-      GetPath(), kAppId, test_api.GetLacrosWindowId(kLacrosWindowId));
-  EXPECT_EQ(kActivationIndex1, window_info->activation_index.value());
-
-  // Modify the window info.
-  SaveWindowInfo(window, kActivationIndex2);
-  window_info = save_handler->GetWindowInfo(
-      GetPath(), kAppId, test_api.GetLacrosWindowId(kLacrosWindowId));
-  EXPECT_EQ(kActivationIndex2, window_info->activation_index.value());
-
-  // Destroy the window first, then call the crosapi OnAppWindowRemoved.
-  widget.reset();
-  OnLacrosChromeAppWindowRemoved(kAppId, kLacrosWindowId);
-  EXPECT_TRUE(test_api.GetLacrosWindowCandidates().empty());
-  EXPECT_TRUE(test_api.GetLacrosWindowIdToAppIdMap().empty());
-
-  // Wait for `save_handler` to fresh the full restore file.
-  timer->FireNow();
-  task_environment().RunUntilIdle();
-
-  ReadFromFile(GetPath());
-
-  // Verify there is not restore data.
-  const auto* restore_data = GetRestoreData(GetPath());
-  ASSERT_TRUE(restore_data);
-  EXPECT_TRUE(restore_data->app_id_to_launch_list().empty());
-}
-
-// Verify the Lacros Chrome app window is saved correctly when OnAppWindowAdded
-// is called first, then the window is created later.
-TEST_F(FullRestoreReadAndSaveTest,
-       LacrosChromeAppWindowSavingOnAppWindowCalledFirst) {
-  FullRestoreSaveHandler* save_handler = GetSaveHandler();
-  FullRestoreSaveHandlerTestApi test_api(save_handler);
-
-  save_handler->SetPrimaryProfilePath(GetPath());
-  base::OneShotTimer* timer = save_handler->GetTimerForTesting();
-
-  // Add a Chrome app launch info.
-  auto intent = std::make_unique<apps::Intent>(apps_util::kIntentActionSend);
-  intent->activity_name = "activity_name";
-  SaveAppLaunchInfo(
-      GetPath(),
-      std::make_unique<app_restore::AppLaunchInfo>(
-          kAppId, apps::LaunchContainer::kLaunchContainerNone,
-          WindowOpenDisposition::CURRENT_TAB, display::kInvalidDisplayId,
-          std::vector<base::FilePath>{base::FilePath(kFilePath1),
-                                      base::FilePath(kFilePath2)},
-          std::move(intent)));
-  const LacrosSaveHandler* lacros_save_handler = test_api.GetLacrosSaveHander();
-  ASSERT_TRUE(lacros_save_handler);
-
-  // The crosapi OnAppWindowAdded is called first, then create a Chrome app
-  // window later.
-  OnLacrosChromeAppWindowAdded(kAppId, kLacrosWindowId);
-  EXPECT_FALSE(test_api.GetLacrosWindowIdToAppIdMap().empty());
-  auto widget = CreateLacrosWidget(kLacrosWindowId, kBrowserSessionId,
-                                   /*restored_browser_session_id=*/0);
-  auto* window = widget->GetNativeWindow();
-  EXPECT_FALSE(test_api.GetLacrosWindowCandidates().empty());
-  SaveWindowInfo(window, kActivationIndex1);
-
-  // Verify the Chrome app window is saved.
-  EXPECT_EQ(save_handler->GetAppId(widget->GetNativeWindow()), kAppId);
-  auto window_info = save_handler->GetWindowInfo(
-      GetPath(), kAppId, test_api.GetLacrosWindowId(kLacrosWindowId));
-  EXPECT_EQ(kActivationIndex1, window_info->activation_index.value());
-
-  // Modify the window info.
-  SaveWindowInfo(window, kActivationIndex2);
-  window_info = save_handler->GetWindowInfo(
-      GetPath(), kAppId, test_api.GetLacrosWindowId(kLacrosWindowId));
-  EXPECT_EQ(kActivationIndex2, window_info->activation_index.value());
-
-  // Call the crosapi OnAppWindowRemoved first, then destroy the window.
-  OnLacrosChromeAppWindowRemoved(kAppId, kLacrosWindowId);
-  widget.reset();
-  EXPECT_TRUE(test_api.GetLacrosWindowCandidates().empty());
-  EXPECT_TRUE(test_api.GetLacrosWindowIdToAppIdMap().empty());
-
-  timer->FireNow();
-  task_environment().RunUntilIdle();
-
-  ReadFromFile(GetPath());
-
-  // Verify there is not restore data.
-  const auto* restore_data = GetRestoreData(GetPath());
-  ASSERT_TRUE(restore_data);
-  EXPECT_TRUE(restore_data->app_id_to_launch_list().empty());
-}
-
-// Verifies that saving a removing desk's GUID in `RestoreData` allows for us to
 // prevent the windows in that desk from being restored.
 TEST_F(FullRestoreReadAndSaveTest, PreventWindowsOnRemovingDeskFromRestoring) {
   FullRestoreSaveHandler* save_handler = GetSaveHandler();
@@ -1196,9 +870,10 @@ TEST_F(FullRestoreReadAndSaveTest, PreventWindowsOnRemovingDeskFromRestoring) {
   // Create two windows. Establish that `window1` will be on the removing desk
   // and `window2` will be on the non-removing desk.
   std::unique_ptr<aura::Window> window1 = CreateWindowInfo(
-      kId1, kActivationIndex1, ash::AppType::BROWSER, kRemovingDeskGuid);
-  std::unique_ptr<aura::Window> window2 = CreateWindowInfo(
-      kId2, kActivationIndex2, ash::AppType::BROWSER, kNonRemovingDeskGuid);
+      kId1, kActivationIndex1, chromeos::AppType::BROWSER, kRemovingDeskGuid);
+  std::unique_ptr<aura::Window> window2 =
+      CreateWindowInfo(kId2, kActivationIndex2, chromeos::AppType::BROWSER,
+                       kNonRemovingDeskGuid);
 
   // Establish that the desk with `kRemovingDeskGuid` as its GUID is being
   // removed.

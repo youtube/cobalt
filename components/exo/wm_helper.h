@@ -9,15 +9,13 @@
 #include <string>
 #include <vector>
 
-#include "ash/display/window_tree_host_manager.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "chromeos/dbus/power/power_manager_client.h"
 #include "components/exo/vsync_timing_manager.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
-#include "ui/aura/client/drag_drop_delegate.h"
 #include "ui/base/cursor/cursor.h"
-#include "ui/base/dragdrop/mojom/drag_drop_types.mojom-forward.h"
+#include "ui/display/manager/display_manager_observer.h"
 
 namespace aura {
 class Window;
@@ -45,7 +43,6 @@ class ManagedDisplayMode;
 
 namespace ui {
 class EventHandler;
-class DropTargetEvent;
 class PropertyHandler;
 }  // namespace ui
 
@@ -58,25 +55,8 @@ class VSyncTimingManager;
 
 // Helper interface for accessing WindowManager related features.
 class WMHelper : public chromeos::PowerManagerClient::Observer,
-                 public aura::client::DragDropDelegate,
                  public VSyncTimingManager::Delegate {
  public:
-
-  class DragDropObserver {
-   public:
-    using DropCallback =
-        base::OnceCallback<void(ui::mojom::DragOperation& output_drag_op)>;
-
-    virtual void OnDragEntered(const ui::DropTargetEvent& event) = 0;
-    virtual aura::client::DragUpdateInfo OnDragUpdated(
-        const ui::DropTargetEvent& event) = 0;
-    virtual void OnDragExited() = 0;
-    virtual DropCallback GetDropCallback() = 0;
-
-   protected:
-    virtual ~DragDropObserver() {}
-  };
-
   // Used to notify objects when WMHelper is being destroyed. This allows
   // objects that wait for various external depenencies to cleanup as part of
   // the shutdown process.
@@ -175,10 +155,6 @@ class WMHelper : public chromeos::PowerManagerClient::Observer,
   void RemoveTooltipObserver(wm::TooltipObserver* observer);
   void AddFocusObserver(aura::client::FocusChangeObserver* observer);
   void RemoveFocusObserver(aura::client::FocusChangeObserver* observer);
-  void AddDragDropObserver(DragDropObserver* observer);
-  void RemoveDragDropObserver(DragDropObserver* observer);
-  void SetDragDropDelegate(aura::Window*);
-  void ResetDragDropDelegate(aura::Window*);
   void AddPowerObserver(WMHelper::PowerObserver* observer);
   void RemovePowerObserver(WMHelper::PowerObserver* observer);
   VSyncTimingManager& GetVSyncTimingManager();
@@ -196,28 +172,22 @@ class WMHelper : public chromeos::PowerManagerClient::Observer,
   void RemovePreTargetHandler(ui::EventHandler* handler);
   void AddPostTargetHandler(ui::EventHandler* handler);
   void RemovePostTargetHandler(ui::EventHandler* handler);
-  bool InTabletMode() const;
   double GetDeviceScaleFactorForWindow(aura::Window* window) const;
   void SetDefaultScaleCancellation(bool default_scale_cancellation);
+  bool use_default_scale_cancellation() const {
+    return default_scale_cancellation_;
+  }
   void AddTabletModeObserver(ash::TabletModeObserver* observer);
   void RemoveTabletModeObserver(ash::TabletModeObserver* observer);
   void AddDisplayConfigurationObserver(
-      ash::WindowTreeHostManager::Observer* observer);
+      display::DisplayManagerObserver* observer);
   void RemoveDisplayConfigurationObserver(
-      ash::WindowTreeHostManager::Observer* observer);
+      display::DisplayManagerObserver* observer);
   void AddFrameThrottlingObserver();
   void RemoveFrameThrottlingObserver();
 
   LifetimeManager* GetLifetimeManager();
   aura::client::CaptureClient* GetCaptureClient();
-
-  // Overridden from aura::client::DragDropDelegate:
-  void OnDragEntered(const ui::DropTargetEvent& event) override;
-  aura::client::DragUpdateInfo OnDragUpdated(
-      const ui::DropTargetEvent& event) override;
-  void OnDragExited() override;
-  aura::client::DragDropDelegate::DropCallback GetDropCallback(
-      const ui::DropTargetEvent& event) override;
 
   // Overridden from chromeos::PowerManagerClient::Observer:
   void SuspendDone(base::TimeDelta sleep_duration) override;
@@ -232,17 +202,10 @@ class WMHelper : public chromeos::PowerManagerClient::Observer,
       override;
 
  private:
-  void PerformDrop(
-      std::vector<WMHelper::DragDropObserver::DropCallback> drop_callbacks,
-      std::unique_ptr<ui::OSExchangeData> data,
-      ui::mojom::DragOperation& output_drag_op,
-      std::unique_ptr<ui::LayerTreeOwner> drag_image_layer_owner);
-
   base::ObserverList<ExoWindowObserver> exo_window_observers_;
 
   std::vector<std::unique_ptr<AppPropertyResolver>> resolver_list_;
 
-  base::ObserverList<DragDropObserver>::Unchecked drag_drop_observers_;
   base::ObserverList<PowerObserver> power_observers_;
   LifetimeManager lifetime_manager_;
   VSyncTimingManager vsync_timing_manager_;

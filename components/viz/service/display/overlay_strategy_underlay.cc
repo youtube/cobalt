@@ -21,14 +21,14 @@ OverlayStrategyUnderlay::OverlayStrategyUnderlay(
   DCHECK(capability_checker);
 }
 
-OverlayStrategyUnderlay::~OverlayStrategyUnderlay() {}
+OverlayStrategyUnderlay::~OverlayStrategyUnderlay() = default;
 
 void OverlayStrategyUnderlay::Propose(
     const SkM44& output_color_matrix,
     const OverlayProcessorInterface::FilterOperationsMap& render_pass_filters,
     const OverlayProcessorInterface::FilterOperationsMap&
         render_pass_backdrop_filters,
-    DisplayResourceProvider* resource_provider,
+    const DisplayResourceProvider* resource_provider,
     AggregatedRenderPassList* render_pass_list,
     SurfaceDamageRectList* surface_damage_rect_list,
     const PrimaryPlane* primary_plane,
@@ -36,13 +36,20 @@ void OverlayStrategyUnderlay::Propose(
     std::vector<gfx::Rect>* content_bounds) {
   auto* render_pass = render_pass_list->back().get();
   QuadList& quad_list = render_pass->quad_list;
+
+  OverlayCandidateFactory::OverlayContext context;
+  context.supports_mask_filter = true;
+  context.supports_flip_rotate_transform =
+      capability_checker_->SupportsFlipRotateTransform();
+
   OverlayCandidateFactory candidate_factory = OverlayCandidateFactory(
       render_pass, resource_provider, surface_damage_rect_list,
       &output_color_matrix, GetPrimaryPlaneDisplayRect(primary_plane),
-      &render_pass_filters);
+      &render_pass_filters, context);
 
   for (auto it = quad_list.begin(); it != quad_list.end(); ++it) {
     OverlayCandidate candidate;
+    candidate.overlay_type = gfx::OverlayType::kUnderlay;
     if (candidate_factory.FromDrawQuad(*it, candidate) !=
             OverlayCandidate::CandidateStatus::kSuccess ||
         (opaque_mode_ == OpaqueMode::RequireOpaqueCandidates &&
@@ -56,15 +63,15 @@ void OverlayStrategyUnderlay::Propose(
     // If we are requiring an overlay, then we should not block it due to this
     // condition.
     if (!candidate.requires_overlay &&
-        candidate_factory.IsOccludedByFilteredQuad(
-            candidate, quad_list.begin(), it, render_pass_backdrop_filters)) {
+        OverlayCandidateFactory::IsOccludedByFilteredQuad(
+            **it, quad_list.begin(), it, render_pass_backdrop_filters)) {
       continue;
     }
 
     candidate.damage_area_estimate = candidate_factory.EstimateVisibleDamage(
         *it, candidate, quad_list.begin(), it);
 
-    candidates->push_back({it, candidate, this});
+    candidates->emplace_back(it, candidate, this);
   }
 }
 
@@ -73,7 +80,7 @@ bool OverlayStrategyUnderlay::Attempt(
     const OverlayProcessorInterface::FilterOperationsMap& render_pass_filters,
     const OverlayProcessorInterface::FilterOperationsMap&
         render_pass_backdrop_filters,
-    DisplayResourceProvider* resource_provider,
+    const DisplayResourceProvider* resource_provider,
     AggregatedRenderPassList* render_pass_list,
     SurfaceDamageRectList* surface_damage_rect_list,
     const PrimaryPlane* primary_plane,

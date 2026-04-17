@@ -4,10 +4,8 @@
 
 #include "chrome/browser/ash/app_list/search/files/file_search_provider.h"
 
-#include <cctype>
-
-#include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
+#include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
@@ -27,9 +25,11 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace app_list::test {
+
 namespace {
 
 using ::testing::ElementsAre;
+using ::testing::IsEmpty;
 using ::testing::UnorderedElementsAre;
 
 MATCHER_P(Title, title, "") {
@@ -39,13 +39,18 @@ MATCHER_P(Title, title, "") {
 }  // namespace
 
 class FileSearchProviderTest : public testing::Test {
+ public:
+  FileSearchProviderTest() = default;
+
  protected:
   void SetUp() override {
     profile_ = std::make_unique<TestingProfile>();
     search_controller_ = std::make_unique<TestSearchController>();
-    provider_ = std::make_unique<FileSearchProvider>(profile_.get());
-
-    provider_->set_controller(search_controller_.get());
+    auto provider = std::make_unique<FileSearchProvider>(
+        profile_.get(), base::FileEnumerator::FileType::FILES |
+                            base::FileEnumerator::FileType::DIRECTORIES);
+    provider_ = provider.get();
+    search_controller_->AddProvider(std::move(provider));
 
     ASSERT_TRUE(scoped_temp_dir_.CreateUniqueTempDir());
     provider_->SetRootPathForTesting(scoped_temp_dir_.GetPath());
@@ -69,6 +74,10 @@ class FileSearchProviderTest : public testing::Test {
     Wait();
   }
 
+  void StartSearch(const std::u16string& query) {
+    search_controller_->StartSearch(query);
+  }
+
   const SearchProvider::Results& LastResults() {
     return search_controller_->last_results();
   }
@@ -79,7 +88,7 @@ class FileSearchProviderTest : public testing::Test {
 
   std::unique_ptr<Profile> profile_;
   std::unique_ptr<TestSearchController> search_controller_;
-  std::unique_ptr<FileSearchProvider> provider_;
+  raw_ptr<FileSearchProvider> provider_;
   base::ScopedTempDir scoped_temp_dir_;
 };
 
@@ -88,7 +97,7 @@ TEST_F(FileSearchProviderTest, SearchResultsMatchQuery) {
   WriteFile("no_match.png");
   WriteFile("my_file_2.png");
 
-  provider_->Start(u"file");
+  StartSearch(u"file");
   Wait();
 
   EXPECT_THAT(LastResults(), UnorderedElementsAre(Title("file_1.txt"),
@@ -99,7 +108,7 @@ TEST_F(FileSearchProviderTest, SearchIsCaseInsensitive) {
   WriteFile("FILE_1.png");
   WriteFile("FiLe_2.Png");
 
-  provider_->Start(u"fIle");
+  StartSearch(u"fIle");
   Wait();
 
   EXPECT_THAT(LastResults(),
@@ -110,7 +119,7 @@ TEST_F(FileSearchProviderTest, SearchIsAccentAndCaseInsensitive) {
   WriteFile("FĪLE_1.png");
   WriteFile("FīLe_2.Png");
 
-  provider_->Start(u"fīle");
+  StartSearch(u"fīle");
   Wait();
 
   EXPECT_THAT(LastResults(),
@@ -125,7 +134,7 @@ TEST_F(FileSearchProviderTest, SearchIsAccentInsensitive) {
   WriteFile("FiLË_5.png");
   WriteFile("FILê_6.Png");
 
-  provider_->Start(u"file");
+  StartSearch(u"file");
   Wait();
 
   EXPECT_THAT(LastResults(),
@@ -139,7 +148,7 @@ TEST_F(FileSearchProviderTest, SearchIsAccentHonored) {
   WriteFile("FīLe_2.Png");
   WriteFile("file_3.png");
 
-  provider_->Start(u"fīle");
+  StartSearch(u"fīle");
   Wait();
 
   EXPECT_THAT(LastResults(),
@@ -149,16 +158,52 @@ TEST_F(FileSearchProviderTest, SearchIsAccentHonored) {
 TEST_F(FileSearchProviderTest, SearchDirectories) {
   CreateDirectory("my_folder");
 
-  provider_->Start(u"my_folder");
+  StartSearch(u"my_folder");
   Wait();
 
   EXPECT_THAT(LastResults(), UnorderedElementsAre(Title("my_folder")));
 }
 
+TEST_F(FileSearchProviderTest, DoesNotSearchDirectoriesIfTurnedOff) {
+  provider_->SetFileTypeForTesting(base::FileEnumerator::FileType::FILES);
+  CreateDirectory("my_folder");
+
+  StartSearch(u"my_folder");
+  Wait();
+
+  EXPECT_THAT(LastResults(), IsEmpty());
+}
+
+TEST_F(FileSearchProviderTest, ReturnsFilesWithAnyExtension) {
+  WriteFile("file.txt");
+  WriteFile("file.png");
+  WriteFile("file.jpg");
+
+  StartSearch(u"file");
+  Wait();
+
+  EXPECT_THAT(LastResults(),
+              UnorderedElementsAre(Title("file.txt"), Title("file.png"),
+                                   Title("file.jpg")));
+}
+
+TEST_F(FileSearchProviderTest, ReturnsOnlyFilesWithAllowedExtensions) {
+  provider_->SetAllowedExtensionsForTesting({".png", ".jpg"});
+  WriteFile("file.txt");
+  WriteFile("file.png");
+  WriteFile("file.jpg");
+
+  StartSearch(u"file");
+  Wait();
+
+  EXPECT_THAT(LastResults(),
+              UnorderedElementsAre(Title("file.png"), Title("file.jpg")));
+}
+
 TEST_F(FileSearchProviderTest, ResultMetadataTest) {
   WriteFile("file.txt");
 
-  provider_->Start(u"file");
+  StartSearch(u"file");
   Wait();
 
   ASSERT_TRUE(LastResults().size() == 1u);
@@ -180,7 +225,7 @@ TEST_F(FileSearchProviderTest, RecentlyAccessedFilesHaveHigherRelevance) {
   TouchFile(Path("file.png"), earliest_time, time);
   TouchFile(Path("file.pdf"), earlier_time, time);
 
-  provider_->Start(u"file");
+  StartSearch(u"file");
   Wait();
 
   ASSERT_TRUE(LastResults().size() == 3u);
@@ -213,7 +258,7 @@ TEST_F(FileSearchProviderTest, HighScoringFilesHaveScoreInRightRange) {
   TouchFile(Path("file"), earlier_time, time);
 
   // Match them perfectly, so both score 1.0.
-  provider_->Start(u"file");
+  StartSearch(u"file");
   Wait();
 
   ASSERT_EQ(LastResults().size(), 2u);
@@ -242,7 +287,7 @@ TEST_F(FileSearchProviderTest, ResultsNotReturnedAfterClearingSearch) {
 
   // Start search, and cancel it before the provider has had a chance to return
   // results.
-  provider_->Start(u"file");
+  StartSearch(u"file");
 
   provider_->StopQuery();
   Wait();
@@ -252,11 +297,7 @@ TEST_F(FileSearchProviderTest, ResultsNotReturnedAfterClearingSearch) {
 
 class FileSearchProviderTrashTest : public FileSearchProviderTest {
  public:
-  FileSearchProviderTrashTest() {
-    std::vector<base::test::FeatureRef> enabled_features;
-    enabled_features.push_back(ash::features::kFilesTrash);
-    scoped_feature_list_.InitWithFeatures(enabled_features, {});
-  }
+  FileSearchProviderTrashTest() = default;
 
   FileSearchProviderTrashTest(const FileSearchProviderTrashTest&) = delete;
   FileSearchProviderTrashTest& operator=(const FileSearchProviderTrashTest&) =
@@ -265,7 +306,7 @@ class FileSearchProviderTrashTest : public FileSearchProviderTest {
   void SetUp() override {
     FileSearchProviderTest::SetUp();
 
-    // Ensure the My files and Downloads mount points are appropriately mocked
+    // Ensure the MyFiles and Downloads mount points are appropriately mocked
     // to allow the trash locations to be parented at the test directory.
     storage::ExternalMountPoints::GetSystemInstance()->RegisterFileSystem(
         file_manager::util::GetDownloadsMountPointName(profile_.get()),
@@ -279,19 +320,15 @@ class FileSearchProviderTrashTest : public FileSearchProviderTest {
     profile_->GetPrefs()->SetBoolean(ash::prefs::kFilesAppTrashEnabled,
                                      enabled);
   }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 TEST_F(FileSearchProviderTrashTest, FilesInTrashAreIgnored) {
   using file_manager::trash::kTrashFolderName;
-
   CreateDirectory(kTrashFolderName);
   WriteFile("file");
   WriteFile(base::FilePath(kTrashFolderName).Append("trashed_file").value());
 
-  provider_->Start(u"file");
+  StartSearch(u"file");
   Wait();
 
   EXPECT_THAT(LastResults(), UnorderedElementsAre(Title("file")));
@@ -306,7 +343,7 @@ TEST_F(FileSearchProviderTrashTest, FilesInTrashArentIgnoredIfTrashDisabled) {
   WriteFile("file");
   WriteFile(base::FilePath(kTrashFolderName).Append("trashed_file").value());
 
-  provider_->Start(u"file");
+  StartSearch(u"file");
   Wait();
 
   EXPECT_THAT(LastResults(),

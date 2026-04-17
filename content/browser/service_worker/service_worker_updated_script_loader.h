@@ -91,18 +91,16 @@ class CONTENT_EXPORT ServiceWorkerUpdatedScriptLoader final
       const std::vector<std::string>& removed_headers,
       const net::HttpRequestHeaders& modified_headers,
       const net::HttpRequestHeaders& modified_cors_exempt_headers,
-      const absl::optional<GURL>& new_url) override;
+      const std::optional<GURL>& new_url) override;
   void SetPriority(net::RequestPriority priority,
                    int32_t intra_priority_value) override;
-  void PauseReadingBodyFromNet() override;
-  void ResumeReadingBodyFromNet() override;
 
   // network::mojom::URLLoaderClient for the network load:
   void OnReceiveEarlyHints(network::mojom::EarlyHintsPtr early_hints) override;
   void OnReceiveResponse(
       network::mojom::URLResponseHeadPtr response_head,
       mojo::ScopedDataPipeConsumerHandle body,
-      absl::optional<mojo_base::BigBuffer> cached_metadata) override;
+      std::optional<mojo_base::BigBuffer> cached_metadata) override;
   void OnReceiveRedirect(
       const net::RedirectInfo& redirect_info,
       network::mojom::URLResponseHeadPtr response_head) override;
@@ -120,7 +118,7 @@ class CONTENT_EXPORT ServiceWorkerUpdatedScriptLoader final
                     base::OnceCallback<void(net::Error)> callback) override;
 
   // Buffer size for reading script data from network.
-  const static uint32_t kReadBufferSize;
+  const static size_t kReadBufferSize;
 
  private:
   class WrappedIOBuffer;
@@ -140,7 +138,7 @@ class CONTENT_EXPORT ServiceWorkerUpdatedScriptLoader final
                  uint32_t bytes_available);
   void OnWriteDataComplete(
       scoped_refptr<network::MojoToNetPendingBuffer> pending_buffer,
-      uint32_t bytes_written,
+      size_t bytes_written,
       net::Error error);
 
   // This is the last method that is called on this class. Notifies the final
@@ -218,7 +216,7 @@ class CONTENT_EXPORT ServiceWorkerUpdatedScriptLoader final
   WriterState body_writer_state_ = WriterState::kNotStarted;
 
   mojo::SimpleWatcher client_producer_watcher_;
-  const base::TimeTicks request_start_;
+  const base::TimeTicks request_start_time_;
   mojo::PendingReceiver<network::mojom::URLLoaderClient>
       pending_network_client_receiver_;
 
@@ -227,10 +225,10 @@ class CONTENT_EXPORT ServiceWorkerUpdatedScriptLoader final
   scoped_refptr<net::IOBuffer> data_to_send_;
 
   // Length of |data_to_send_| in bytes.
-  int data_length_ = 0;
+  size_t data_length_ = 0;
 
   // Length of data in |data_to_send_| already sent to |client_|.
-  int bytes_sent_to_client_ = 0;
+  size_t bytes_sent_to_client_ = 0;
 
   // Run this to notify ServiceWorkerCacheWriter that the observer completed
   // its work. net::OK means all |data_to_send_| has been sent to |client_|.

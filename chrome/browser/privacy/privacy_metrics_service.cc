@@ -5,12 +5,13 @@
 #include "chrome/browser/privacy/privacy_metrics_service.h"
 
 #include "base/metrics/histogram_functions.h"
-#include "chrome/browser/prefetch/prefetch_prefs.h"
+#include "chrome/browser/preloading/preloading_prefs.h"
 #include "chrome/common/pref_names.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/prefs/pref_service.h"
+#include "components/privacy_sandbox/tracking_protection_prefs.h"
 #include "components/spellcheck/browser/pref_names.h"
-#include "components/sync/driver/sync_service.h"
+#include "components/sync/service/sync_service.h"
 
 PrivacyMetricsService::PrivacyMetricsService(
     PrefService* pref_service,
@@ -168,8 +169,7 @@ void PrivacyMetricsService::UnregisterObservers() {
 
 bool PrivacyMetricsService::IsClearOnExitEnabled() {
   return host_content_settings_map_->GetDefaultContentSetting(
-             ContentSettingsType::COOKIES,
-             /*provider_id=*/nullptr) ==
+             ContentSettingsType::COOKIES) ==
          ContentSetting::CONTENT_SETTING_SESSION_ONLY;
 }
 

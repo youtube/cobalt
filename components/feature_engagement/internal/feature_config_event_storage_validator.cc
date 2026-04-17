@@ -8,8 +8,11 @@
 #include <unordered_set>
 
 #include "base/feature_list.h"
+#include "base/strings/string_util.h"
+#include "build/build_config.h"
 #include "components/feature_engagement/public/configuration.h"
 #include "components/feature_engagement/public/feature_list.h"
+#include "components/feature_engagement/public/group_constants.h"
 
 namespace feature_engagement {
 
@@ -21,6 +24,14 @@ FeatureConfigEventStorageValidator::~FeatureConfigEventStorageValidator() =
 
 bool FeatureConfigEventStorageValidator::ShouldStore(
     const std::string& event_name) const {
+  for (const auto& prefix : should_store_event_name_prefixes_) {
+    CHECK(!prefix.empty());
+
+    if (base::StartsWith(event_name, prefix)) {
+      return true;
+    }
+  }
+
   return should_store_event_names_.find(event_name) !=
          should_store_event_names_.end();
 }
@@ -29,6 +40,14 @@ bool FeatureConfigEventStorageValidator::ShouldKeep(
     const std::string& event_name,
     uint32_t event_day,
     uint32_t current_day) const {
+  for (const auto& prefix : should_store_event_name_prefixes_) {
+    CHECK(!prefix.empty());
+
+    if (base::StartsWith(event_name, prefix)) {
+      return true;
+    }
+  }
+
   // Should not keep events that will happen in the future.
   if (event_day > current_day)
     return false;
@@ -51,7 +70,8 @@ bool FeatureConfigEventStorageValidator::ShouldKeep(
 }
 
 void FeatureConfigEventStorageValidator::InitializeFeatures(
-    FeatureVector features,
+    const FeatureVector& features,
+    const GroupVector& groups,
     const Configuration& configuration) {
   for (const auto* feature : features) {
     if (!base::FeatureList::IsEnabled(*feature))
@@ -59,11 +79,24 @@ void FeatureConfigEventStorageValidator::InitializeFeatures(
 
     InitializeFeatureConfig(configuration.GetFeatureConfig(*feature));
   }
+
+  for (const auto* group : groups) {
+    if (!base::FeatureList::IsEnabled(*group)) {
+      continue;
+    }
+
+    InitializeGroupConfig(configuration.GetGroupConfig(*group));
+  }
+
+#if BUILDFLAG(IS_CHROMEOS)
+  InitializeEventPrefixes(configuration);
+#endif
 }
 
 void FeatureConfigEventStorageValidator::ClearForTesting() {
   should_store_event_names_.clear();
   longest_storage_times_.clear();
+  should_store_event_name_prefixes_.clear();
 }
 
 void FeatureConfigEventStorageValidator::InitializeFeatureConfig(
@@ -73,6 +106,15 @@ void FeatureConfigEventStorageValidator::InitializeFeatureConfig(
 
   for (const auto& event_config : feature_config.event_configs)
     InitializeEventConfig(event_config);
+}
+
+void FeatureConfigEventStorageValidator::InitializeGroupConfig(
+    const GroupConfig& group_config) {
+  InitializeEventConfig(group_config.trigger);
+
+  for (const auto& event_config : group_config.event_configs) {
+    InitializeEventConfig(event_config);
+  }
 }
 
 void FeatureConfigEventStorageValidator::InitializeEventConfig(
@@ -89,5 +131,13 @@ void FeatureConfigEventStorageValidator::InitializeEventConfig(
   if (event_config.storage > current_longest_time)
     longest_storage_times_[event_config.name] = event_config.storage;
 }
+
+#if BUILDFLAG(IS_CHROMEOS)
+void FeatureConfigEventStorageValidator::InitializeEventPrefixes(
+    const Configuration& configuration) {
+  const auto& prefixes = configuration.GetRegisteredAllowedEventPrefixes();
+  should_store_event_name_prefixes_.insert(prefixes.begin(), prefixes.end());
+}
+#endif
 
 }  // namespace feature_engagement

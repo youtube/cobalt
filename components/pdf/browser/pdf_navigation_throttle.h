@@ -10,7 +10,7 @@
 #include "content/public/browser/navigation_throttle.h"
 
 namespace content {
-class NavigationHandle;
+class NavigationThrottleRegistry;
 }  // namespace content
 
 namespace pdf {
@@ -19,11 +19,7 @@ class PdfStreamDelegate;
 
 class PdfNavigationThrottle final : public content::NavigationThrottle {
  public:
-  static std::unique_ptr<content::NavigationThrottle> MaybeCreateThrottleFor(
-      content::NavigationHandle* navigation_handle,
-      std::unique_ptr<PdfStreamDelegate> stream_delegate);
-
-  PdfNavigationThrottle(content::NavigationHandle* navigation_handle,
+  PdfNavigationThrottle(content::NavigationThrottleRegistry& registry,
                         std::unique_ptr<PdfStreamDelegate> stream_delegate);
   PdfNavigationThrottle(const PdfNavigationThrottle&) = delete;
   PdfNavigationThrottle& operator=(const PdfNavigationThrottle&) = delete;
@@ -31,6 +27,7 @@ class PdfNavigationThrottle final : public content::NavigationThrottle {
 
   // `content::NavigationThrottle`:
   const char* GetNameForLogging() override;
+  ThrottleCheckResult WillProcessResponse() override;
   ThrottleCheckResult WillStartRequest() override;
 
  private:

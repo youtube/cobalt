@@ -4,6 +4,8 @@
 
 #include "components/upload_list/combining_upload_list.h"
 
+#include <array>
+
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
@@ -77,18 +79,20 @@ TEST_F(CombiningUploadListTest, ThreeWayCombine) {
   run_loop.Run();
 
   // Expect the reports to be returned newest first.
-  const base::Time kExpectedUploadTimes[] = {
-      base::Time::FromDoubleT(1614014000),  // 14: Largest time value
-      base::Time::FromDoubleT(1614012000),  // 12
-      base::Time::FromDoubleT(1614010000),  // 10
-      base::Time::FromDoubleT(1614008000),  //  8
-      base::Time::FromDoubleT(1614006000),  //  6
-      base::Time::FromDoubleT(1614004000),  //  4
-      base::Time::FromDoubleT(1614002000),  //  2
-      base::Time::FromDoubleT(1614000000),  //  0: Smallest time value
-  };
+  const auto kExpectedUploadTimes = std::to_array<base::Time>({
+      base::Time::FromSecondsSinceUnixEpoch(
+          1614014000),  // 14: Largest time value
+      base::Time::FromSecondsSinceUnixEpoch(1614012000),  // 12
+      base::Time::FromSecondsSinceUnixEpoch(1614010000),  // 10
+      base::Time::FromSecondsSinceUnixEpoch(1614008000),  //  8
+      base::Time::FromSecondsSinceUnixEpoch(1614006000),  //  6
+      base::Time::FromSecondsSinceUnixEpoch(1614004000),  //  4
+      base::Time::FromSecondsSinceUnixEpoch(1614002000),  //  2
+      base::Time::FromSecondsSinceUnixEpoch(
+          1614000000),  //  0: Smallest time value
+  });
   // clang-format off
-  const std::string kExpectedUploadIds[] = {
+  const auto kExpectedUploadIds = std::to_array<std::string>({
       "ddee0014",  // Note that the last two digits correspond to the fourth
       "ddee0012",  // and fifth digits of the time, for easy correspondence.
       "ddee0010",
@@ -97,7 +101,7 @@ TEST_F(CombiningUploadListTest, ThreeWayCombine) {
       "ddee0004",
       "ddee0002",
       "ddee0000",
-  };
+  });
   // clang-format on
 
   std::vector<const UploadList::UploadInfo*> actual =
@@ -160,30 +164,33 @@ TEST_F(CombiningUploadListTest, SortCaptureTimeOrUploadTime) {
   combined_upload_list->Load(run_loop.QuitClosure());
   run_loop.Run();
 
-  const base::Time kExpectedUploadTimes[] = {
-      base::Time::FromDoubleT(1614009000),
-      base::Time(),                         // Sorted by capture time 1614008000
-      base::Time::FromDoubleT(1600000000),  // Sorted by capture time 1614007000
-      base::Time::FromDoubleT(1614006000),
-      base::Time(),                         // Sorted by capture time 1614005000
-      base::Time::FromDoubleT(1614999999),  // Sorted by capture time 1614004000
-      base::Time::FromDoubleT(1614003000),
-      base::Time(),                         // Sorted by capture time 1614002000
-      base::Time::FromDoubleT(1614999959),  // Sorted by capture time 1614001000
-  };
+  const auto kExpectedUploadTimes = std::to_array<base::Time>({
+      base::Time::FromSecondsSinceUnixEpoch(1614009000),
+      base::Time(),  // Sorted by capture time 1614008000
+      base::Time::FromSecondsSinceUnixEpoch(
+          1600000000),  // Sorted by capture time 1614007000
+      base::Time::FromSecondsSinceUnixEpoch(1614006000),
+      base::Time(),  // Sorted by capture time 1614005000
+      base::Time::FromSecondsSinceUnixEpoch(
+          1614999999),  // Sorted by capture time 1614004000
+      base::Time::FromSecondsSinceUnixEpoch(1614003000),
+      base::Time(),  // Sorted by capture time 1614002000
+      base::Time::FromSecondsSinceUnixEpoch(
+          1614999959),  // Sorted by capture time 1614001000
+  });
   // clang-format off
-  const base::Time kExpectedCaptureTimes[] = {
+  const auto kExpectedCaptureTimes = std::to_array<base::Time>({
       base::Time(),                         // Sorted by upload_time 1614009000
-      base::Time::FromDoubleT(1614008000),
-      base::Time::FromDoubleT(1614007000),
+      base::Time::FromSecondsSinceUnixEpoch(1614008000),
+      base::Time::FromSecondsSinceUnixEpoch(1614007000),
       base::Time(),                         // Sorted by upload_time 1614006000
-      base::Time::FromDoubleT(1614005000),
-      base::Time::FromDoubleT(1614004000),
+      base::Time::FromSecondsSinceUnixEpoch(1614005000),
+      base::Time::FromSecondsSinceUnixEpoch(1614004000),
       base::Time(),                         // Sorted by upload_time 1614003000
-      base::Time::FromDoubleT(1614002000),
-      base::Time::FromDoubleT(1614001000),
-  };
-  const std::string kExpectedUploadIds[] = {
+      base::Time::FromSecondsSinceUnixEpoch(1614002000),
+      base::Time::FromSecondsSinceUnixEpoch(1614001000),
+  });
+  const auto kExpectedUploadIds = std::to_array<std::string>({
       "ddee0009",  // Here, the last digit matches the fourth digit of the time
       "ddee0008",  // we expect to be used as the sort key.
       "ddee0007",
@@ -193,7 +200,7 @@ TEST_F(CombiningUploadListTest, SortCaptureTimeOrUploadTime) {
       "ddee0003",
       "ddee0002",
       "ddee0001",
-  };
+  });
   // clang-format on
 
   const std::vector<const UploadList::UploadInfo*> actual =
@@ -236,8 +243,8 @@ TEST_F(CombiningUploadListTest, Clear) {
       base::MakeRefCounted<CombiningUploadList>(sublists));
 
   base::RunLoop run_loop;
-  combined_upload_list->Clear(base::Time::FromDoubleT(1614004000),
-                              base::Time::FromDoubleT(1614006001),
+  combined_upload_list->Clear(base::Time::FromSecondsSinceUnixEpoch(1614004000),
+                              base::Time::FromSecondsSinceUnixEpoch(1614006001),
                               run_loop.QuitClosure());
   run_loop.Run();
 

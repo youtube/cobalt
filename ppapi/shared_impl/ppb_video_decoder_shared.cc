@@ -89,7 +89,7 @@ void PPB_VideoDecoder_Shared::RunBitstreamBufferCallback(
     int32_t result) {
   CallbackById::iterator it =
       bitstream_buffer_callbacks_.find(bitstream_buffer_id);
-  DCHECK(it != bitstream_buffer_callbacks_.end());
+  CHECK(it != bitstream_buffer_callbacks_.end());
   scoped_refptr<TrackedCallback> cc = it->second;
   bitstream_buffer_callbacks_.erase(it);
   cc->Run(PP_OK);

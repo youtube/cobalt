@@ -8,7 +8,7 @@
 #include <array>
 #include <tuple>
 
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -209,12 +209,13 @@ struct PersistentMap<Key, Value, Hasher>::FocusedTree {
   const FocusedTree*& path(int i) {
     DCHECK(i < length);
     return reinterpret_cast<const FocusedTree**>(
-        reinterpret_cast<byte*>(this) + offsetof(FocusedTree, path_array))[i];
+        reinterpret_cast<uint8_t*>(this) +
+        offsetof(FocusedTree, path_array))[i];
   }
   const FocusedTree* path(int i) const {
     DCHECK(i < length);
     return reinterpret_cast<const FocusedTree* const*>(
-        reinterpret_cast<const byte*>(this) +
+        reinterpret_cast<const uint8_t*>(this) +
         offsetof(FocusedTree, path_array))[i];
   }
 };

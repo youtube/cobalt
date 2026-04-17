@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_NEARBY_SHARING_NEARBY_PER_SESSION_DISCOVERY_MANAGER_H_
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/containers/flat_map.h"
@@ -19,7 +20,7 @@
 #include "chrome/browser/nearby_sharing/transfer_update_callback.h"
 #include "chrome/browser/ui/webui/nearby_share/nearby_share.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "mojo/public/cpp/bindings/remote_set.h"
 
 // Handles a single nearby device discovery session. Holds all discovered share
 // targets for the user to choose from and provides callbacks for when they are
@@ -66,6 +67,10 @@ class NearbyPerSessionDiscoveryManager
   // Used for metrics. These values are persisted to logs, and the entries are
   // ordered based on how far along they are in the discovery flow. Entries
   // should not be renumbered and numeric values should never be reused.
+  // Keep in sync with the NearbyShareDiscoveryProgress UMA enum defined in
+  // //tools/metrics/histograms/metadata/nearby/enums.xml.
+  //
+  // LINT.IfChange(NearbyShareDiscoveryProgress)
   enum class DiscoveryProgress {
     kDiscoveryNotAttempted = 0,
     kFailedToStartDiscovery = 1,
@@ -76,13 +81,14 @@ class NearbyPerSessionDiscoveryManager
     kStartedSend = 6,
     kMaxValue = kStartedSend
   };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/nearby/enums.xml:NearbyShareDiscoveryProgress)
 
   // Used for metrics. Changes |furthest_progress_| to |progress| if |progress|
   // is further along in the discovery flow than |furthest_progress_|.
   void UpdateFurthestDiscoveryProgressIfNecessary(DiscoveryProgress progress);
 
   bool registered_as_send_surface_ = false;
-  raw_ptr<NearbySharingService, ExperimentalAsh> nearby_sharing_service_;
+  raw_ptr<NearbySharingService> nearby_sharing_service_;
   std::vector<std::unique_ptr<Attachment>> attachments_;
   mojo::Remote<nearby_share::mojom::ShareTargetListener> share_target_listener_;
   mojo::Remote<nearby_share::mojom::TransferUpdateListener>
@@ -97,8 +103,8 @@ class NearbyPerSessionDiscoveryManager
       DiscoveryProgress::kDiscoveryNotAttempted;
 
   // Used for metrics. Tracks the time when StartDiscovery() is called, or
-  // absl::nullopt if never called.
-  absl::optional<base::TimeTicks> discovery_start_time_;
+  // std::nullopt if never called.
+  std::optional<base::TimeTicks> discovery_start_time_;
 
   // Used for metrics. Tracks the total number devices discovered and lost in a
   // given discovery session.

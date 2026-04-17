@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.download.dialogs;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.download.settings.DownloadDirectoryAdapter.NO_SELECTED_ITEM_ID;
 
 import android.content.Context;
@@ -18,29 +19,29 @@ import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
 
-import androidx.annotation.Nullable;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.drawable.DrawableCompat;
 
+import org.chromium.base.Callback;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.download.DirectoryOption;
-import org.chromium.chrome.browser.download.DownloadDialogBridge;
 import org.chromium.chrome.browser.download.DownloadLocationDialogMetrics;
 import org.chromium.chrome.browser.download.DownloadLocationDialogMetrics.DownloadLocationSuggestionEvent;
 import org.chromium.chrome.browser.download.DownloadLocationDialogType;
-import org.chromium.chrome.browser.download.DownloadPromptStatus;
 import org.chromium.chrome.browser.download.R;
 import org.chromium.chrome.browser.download.StringUtils;
 import org.chromium.chrome.browser.download.settings.DownloadDirectoryAdapter;
+import org.chromium.chrome.browser.download.settings.DownloadDirectoryAdapter.DownloadLocationHelper;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.components.browser_ui.widget.text.AlertDialogEditText;
 
-/**
- * Dialog that is displayed to ask user where they want to download the file.
- */
-public class DownloadLocationCustomView
-        extends ScrollView implements OnCheckedChangeListener, DownloadDirectoryAdapter.Delegate {
-    private DownloadDirectoryAdapter mDirectoryAdapter;
+/** Dialog that is displayed to ask user where they want to download the file. */
+@NullMarked
+public class DownloadLocationCustomView extends ScrollView
+        implements OnCheckedChangeListener, DownloadDirectoryAdapter.Delegate {
+    private final DownloadDirectoryAdapter mDirectoryAdapter;
 
     private TextView mTitle;
     private TextView mSubtitleView;
@@ -52,6 +53,8 @@ public class DownloadLocationCustomView
     private CheckBox mDontShowAgain;
     private @DownloadLocationDialogType int mDialogType;
     private long mTotalBytes;
+    private @Nullable Callback<Boolean> mOnClickedCallback;
+    private @Nullable DownloadLocationHelper mDownloadLocationHelper;
 
     public DownloadLocationCustomView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -72,10 +75,16 @@ public class DownloadLocationCustomView
         mDontShowAgain = findViewById(R.id.show_again_checkbox);
     }
 
-    void initialize(@DownloadLocationDialogType int dialogType, long totalBytes) {
+    void initialize(
+            @DownloadLocationDialogType int dialogType,
+            long totalBytes,
+            Callback<Boolean> onClickedCallback,
+            DownloadLocationHelper downloadLocationHelper) {
         // TODO(xingliu): Remove this function, currently used by smart suggestion.
         mDialogType = dialogType;
         mTotalBytes = totalBytes;
+        mOnClickedCallback = onClickedCallback;
+        mDownloadLocationHelper = downloadLocationHelper;
         mDirectoryAdapter.update();
     }
 
@@ -116,47 +125,46 @@ public class DownloadLocationCustomView
     // CompoundButton.OnCheckedChangeListener implementation.
     @Override
     public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-        DownloadDialogBridge.setPromptForDownloadAndroid(
-                isChecked ? DownloadPromptStatus.DONT_SHOW : DownloadPromptStatus.SHOW_PREFERENCE);
+        assumeNonNull(mOnClickedCallback);
+        mOnClickedCallback.onResult(isChecked);
     }
 
     // Helper methods available to DownloadDialogBridge.
     /**
-     * @return  The text that the user inputted as the name of the file.
+     * @return The text that the user inputted as the name of the file.
      */
-    @Nullable
-    String getFileName() {
+    @Nullable String getFileName() {
         if (mFileName == null || mFileName.getText() == null) return null;
         return mFileName.getText().toString();
     }
 
     /**
-     * @return  The file path based on what the user selected as the location of the file.
+     * @return The file path based on what the user selected as the location of the file.
      */
-    @Nullable
-    DirectoryOption getDirectoryOption() {
+    @Nullable DirectoryOption getDirectoryOption() {
         if (mFileLocation == null) return null;
         DirectoryOption selected = (DirectoryOption) mFileLocation.getSelectedItem();
         return selected;
     }
 
     /**
-     * @return  Whether the "don't show again" checkbox is checked.
+     * @return Whether the "don't show again" checkbox is checked.
      */
     boolean getDontShowAgain() {
         return mDontShowAgain != null && mDontShowAgain.isChecked();
     }
 
-    /**
-     * Hide the subtitle and adjust the bottom margin.
-     */
+    /** Hide the subtitle and adjust the bottom margin. */
     void showSubtitle(boolean show) {
         mSubtitleView.setVisibility(show ? View.VISIBLE : View.GONE);
 
         MarginLayoutParams titleMargin = (MarginLayoutParams) mTitle.getLayoutParams();
-        titleMargin.bottomMargin = getResources().getDimensionPixelSize(show
-                        ? R.dimen.download_dialog_title_margin_bottom
-                        : R.dimen.download_dialog_subtitle_margin_bottom);
+        titleMargin.bottomMargin =
+                getResources()
+                        .getDimensionPixelSize(
+                                show
+                                        ? R.dimen.download_dialog_title_margin_bottom
+                                        : R.dimen.download_dialog_subtitle_margin_bottom);
         mTitle.setLayoutParams(titleMargin);
     }
 
@@ -174,11 +182,17 @@ public class DownloadLocationCustomView
 
         // Show not enough space and change color to error.
         if (availableSpace < mTotalBytes) {
-            locationAvailableSpaceText = getContext().getResources().getString(
-                    R.string.download_manager_list_item_description, locationAvailableSpaceText,
-                    getContext().getText(R.string.download_location_not_enough_space));
-            textColor = ColorStateList.valueOf(
-                    ContextCompat.getColor(getContext(), R.color.input_underline_error_color));
+            locationAvailableSpaceText =
+                    getContext()
+                            .getString(
+                                    R.string.download_manager_list_item_description,
+                                    locationAvailableSpaceText,
+                                    getContext()
+                                            .getText(R.string.download_location_not_enough_space));
+            textColor =
+                    ColorStateList.valueOf(
+                            ContextCompat.getColor(
+                                    getContext(), R.color.input_underline_error_color));
             barColor = ContextCompat.getColor(getContext(), R.color.input_underline_error_color);
 
             DownloadLocationDialogMetrics.recordDownloadLocationSuggestionEvent(
@@ -209,22 +223,31 @@ public class DownloadLocationCustomView
 
         // Show "not enough space" error text the new chosen storage doesn't have enough space.
         if (ChromeFeatureList.isEnabled(ChromeFeatureList.SMART_SUGGESTION_FOR_LARGE_DOWNLOADS)) {
-            mFileLocation.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(
-                        AdapterView<?> parent, View view, int position, long id) {
-                    DirectoryOption option = (DirectoryOption) mDirectoryAdapter.getItem(position);
-                    setLocationAvailableSpace(option.availableSpace);
-                }
+            mFileLocation.setOnItemSelectedListener(
+                    new AdapterView.OnItemSelectedListener() {
+                        @Override
+                        public void onItemSelected(
+                                AdapterView<?> parent, View view, int position, long id) {
+                            DirectoryOption option =
+                                    (DirectoryOption) mDirectoryAdapter.getItem(position);
+                            assumeNonNull(option);
+                            setLocationAvailableSpace(option.availableSpace);
+                        }
 
-                @Override
-                public void onNothingSelected(AdapterView<?> parent) {
-                    // No callback. Only update listeners when an actual option is selected.
-                }
-            });
+                        @Override
+                        public void onNothingSelected(AdapterView<?> parent) {
+                            // No callback. Only update listeners when an actual option is selected.
+                        }
+                    });
         }
     }
 
     @Override
     public void onDirectorySelectionChanged() {}
+
+    @Override
+    public DownloadLocationHelper getDownloadLocationHelper() {
+        assumeNonNull(mDownloadLocationHelper);
+        return mDownloadLocationHelper;
+    }
 }

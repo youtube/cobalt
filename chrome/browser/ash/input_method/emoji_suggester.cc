@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ash/input_method/emoji_suggester.h"
 
+#include <optional>
+
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
 #include "base/files/file_util.h"
@@ -24,7 +26,6 @@
 #include "chromeos/ash/services/ime/public/cpp/assistive_suggestions.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/strings/grit/components_strings.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/events/keycodes/dom/dom_code.h"
 
@@ -36,6 +37,7 @@ namespace {
 using AssistiveSuggestion = ime::AssistiveSuggestion;
 using AssistiveSuggestionMode = ime::AssistiveSuggestionMode;
 using AssistiveSuggestionType = ime::AssistiveSuggestionType;
+using SuggestionsTextContext = ime::SuggestionsTextContext;
 
 constexpr char kEmojiSuggesterShowSettingCount[] =
     "emoji_suggester.show_setting_count";
@@ -48,14 +50,17 @@ const int kMaxSuggestionSize = kMaxSuggestionIndex + 1;
 const int kNoneHighlighted = -1;
 
 std::string ReadEmojiDataFromFile() {
-  if (!base::DirectoryExists(base::FilePath(ime::kBundledInputMethodsDirPath)))
-    return base::EmptyString();
+  if (!base::DirectoryExists(
+          base::FilePath(ime::kBundledInputMethodsDirPath))) {
+    return std::string();
+  }
 
   std::string emoji_data;
   base::FilePath::StringType path(ime::kBundledInputMethodsDirPath);
   path.append(FILE_PATH_LITERAL(kEmojiMapFilePathName));
-  if (!base::ReadFileToString(base::FilePath(path), &emoji_data))
+  if (!base::ReadFileToString(base::FilePath(path), &emoji_data)) {
     LOG(WARNING) << "Emoji map file missing.";
+  }
   return emoji_data;
 }
 
@@ -138,8 +143,9 @@ void EmojiSuggester::OnEmojiDataLoaded(const std::string& emoji_data) {
                                          base::SPLIT_WANT_NONEMPTY);
     // TODO(crbug/1093179): Implement arrow to indicate more emojis available.
     // Only loads 5 emojis for now until arrow is implemented.
-    if (emoji_map_[word].size() > kMaxCandidateSize)
+    if (emoji_map_[word].size() > kMaxCandidateSize) {
       emoji_map_[word].resize(kMaxCandidateSize);
+    }
     DCHECK_LE(static_cast<int>(emoji_map_[word].size()), kMaxSuggestionSize);
   }
 }
@@ -159,18 +165,20 @@ void EmojiSuggester::OnFocus(int context_id) {
 }
 
 void EmojiSuggester::OnBlur() {
-  focused_context_id_ = absl::nullopt;
+  focused_context_id_ = std::nullopt;
 }
 
 void EmojiSuggester::OnExternalSuggestionsUpdated(
-    const std::vector<AssistiveSuggestion>& suggestions) {
+    const std::vector<AssistiveSuggestion>& suggestions,
+    const std::optional<SuggestionsTextContext>& context) {
   // EmojiSuggester doesn't utilize any suggestions produced externally, so
   // ignore this call.
 }
 
 SuggestionStatus EmojiSuggester::HandleKeyEvent(const ui::KeyEvent& event) {
-  if (!suggestion_shown_)
+  if (!suggestion_shown_) {
     return SuggestionStatus::kNotHandled;
+  }
 
   if (event.code() == ui::DomCode::ESCAPE) {
     DismissSuggestion();
@@ -214,8 +222,9 @@ SuggestionStatus EmojiSuggester::HandleKeyEvent(const ui::KeyEvent& event) {
 }
 
 bool EmojiSuggester::ShouldShowSuggestion(const std::u16string& text) {
-  if (text[text.length() - 1] != kSpaceChar)
+  if (text[text.length() - 1] != kSpaceChar) {
     return false;
+  }
 
   std::string last_word =
       base::ToLowerASCII(GetLastWord(base::UTF16ToUTF8(text)));
@@ -228,8 +237,9 @@ bool EmojiSuggester::ShouldShowSuggestion(const std::u16string& text) {
 bool EmojiSuggester::TrySuggestWithSurroundingText(
     const std::u16string& text,
     const gfx::Range selection_range) {
-  if (emoji_map_.empty() || !focused_context_id_.has_value())
+  if (emoji_map_.empty() || !focused_context_id_.has_value()) {
     return false;
+  }
 
   // All these below conditions are required for a emoji suggestion to be
   // triggered.
@@ -254,14 +264,15 @@ bool EmojiSuggester::TrySuggestWithSurroundingText(
 }
 
 void EmojiSuggester::ShowSuggestion(const std::string& text) {
-  if (ChromeKeyboardControllerClient::Get()->is_keyboard_visible())
+  if (ChromeKeyboardControllerClient::Get()->is_keyboard_visible()) {
     return;
+  }
 
   highlighted_index_ = kNoneHighlighted;
 
   std::string error;
-  // TODO(crbug/1099495): Move suggestion_show_ after checking for error and fix
-  // tests.
+  // TODO(crbug.com/40137521): Move suggestion_show_ after checking for error
+  // and fix tests.
   suggestion_shown_ = true;
   candidates_ = emoji_map_.at(text);
   properties_.visible = true;
@@ -277,7 +288,7 @@ void EmojiSuggester::ShowSuggestion(const std::string& text) {
 
   buttons_.clear();
   for (size_t i = 0; i < candidates_.size(); i++) {
-    suggestion_button_.index = i;
+    suggestion_button_.suggestion_index = i;
     suggestion_button_.announce_string = l10n_util::GetStringFUTF16(
         IDS_SUGGESTION_EMOJI_CHOSEN, candidates_[i], base::FormatNumber(i + 1),
         base::FormatNumber(candidates_.size()));
@@ -307,8 +318,9 @@ bool EmojiSuggester::AcceptSuggestion(size_t index) {
     return false;
   }
 
-  if (index < 0 || index >= candidates_.size())
+  if (index < 0 || index >= candidates_.size()) {
     return false;
+  }
 
   std::string error;
   suggestion_handler_->AcceptSuggestionCandidate(

@@ -19,7 +19,7 @@
 namespace webrtc {
 namespace jni {
 
-class VideoSinkWrapper : public rtc::VideoSinkInterface<VideoFrame> {
+class VideoSinkWrapper : public VideoSinkInterface<VideoFrame> {
  public:
   VideoSinkWrapper(JNIEnv* jni, const JavaRef<jobject>& j_sink);
   ~VideoSinkWrapper() override;

@@ -13,12 +13,10 @@
 
 #if V8_OS_DARWIN
 #include <dispatch/dispatch.h>
+#elif V8_OS_ZOS
+#include "zos-semaphore.h"
 #elif V8_OS_POSIX
 #include <semaphore.h>
-#endif
-
-#if V8_OS_STARBOARD
-#include "starboard/common/semaphore.h"
 #endif
 
 namespace v8 {
@@ -61,8 +59,6 @@ class V8_BASE_EXPORT Semaphore {
   using NativeHandle = sem_t;
 #elif V8_OS_WIN
   using NativeHandle = HANDLE;
-#elif V8_OS_STARBOARD
-  using NativeHandle = starboard::Semaphore;
 #endif
 
   NativeHandle& native_handle() {

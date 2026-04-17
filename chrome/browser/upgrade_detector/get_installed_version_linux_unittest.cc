@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "chrome/browser/upgrade_detector/get_installed_version.h"
 
 #include <stdio.h>
@@ -61,7 +66,7 @@ MULTIPROCESS_TEST_MAIN(GetProductVersionInChildProc) {
 
     case ChildMode::kWithVersion:
       // Print the current version and report success.
-      printf("%s\n", version_info::GetVersionNumber().c_str());
+      printf("%s\n", version_info::GetVersionNumber().data());
       return 0;
   }
   return 1;
@@ -149,7 +154,13 @@ TEST_F(GetInstalledVersionLinuxTest, WithMonkey) {
 
 // Tests that the expected instance is returned when the child process reports a
 // valid version.
-TEST_F(GetInstalledVersionLinuxTest, WithVersion) {
+// b/344455232: Disable as the test is failing on dbg build.
+#if defined(NDEBUG)
+#define MAYBE_WithVersion WithVersion
+#else
+#define MAYBE_WithVersion DISABLED_WithVersion
+#endif
+TEST_F(GetInstalledVersionLinuxTest, MAYBE_WithVersion) {
   AddChildCommandLineSwitches(ChildMode::kWithVersion);
 
   base::RunLoop run_loop;

@@ -6,6 +6,7 @@
 #define V8_PROFILER_CPU_PROFILER_INL_H_
 
 #include "src/profiler/cpu-profiler.h"
+// Include the non-inl header before the rest of the headers.
 
 #include <new>
 #include "src/profiler/circular-queue-inl.h"
@@ -52,11 +53,18 @@ void ReportBuiltinEventRecord::UpdateCodeMap(
     return;
   }
 #if V8_ENABLE_WEBASSEMBLY
-  if (builtin == Builtin::kGenericJSToWasmWrapper) {
+  if (builtin == Builtin::kJSToWasmWrapper) {
     // Make sure to add the generic js-to-wasm wrapper builtin, because that
     // one is supposed to show up in profiles.
     entry = instruction_stream_map->code_entries().Create(
-        LogEventListener::CodeTag::kBuiltin, Builtins::name(builtin));
+        LogEventListener::CodeTag::kBuiltin, "js-to-wasm");
+    instruction_stream_map->AddCode(instruction_start, entry, instruction_size);
+  }
+  if (builtin == Builtin::kWasmToJsWrapperCSA) {
+    // Make sure to add the generic wasm-to-js wrapper builtin, because that
+    // one is supposed to show up in profiles.
+    entry = instruction_stream_map->code_entries().Create(
+        LogEventListener::CodeTag::kBuiltin, "wasm-to-js");
     instruction_stream_map->AddCode(instruction_start, entry, instruction_size);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY

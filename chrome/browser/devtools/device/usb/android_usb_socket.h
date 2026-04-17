@@ -9,7 +9,7 @@
 
 #include <string>
 
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "chrome/browser/devtools/device/usb/android_usb_device.h"
@@ -53,7 +53,6 @@ class AndroidUsbSocket : public net::StreamSocket {
   int GetLocalAddress(net::IPEndPoint* address) const override;
   const net::NetLogWithSource& NetLog() const override;
   bool WasEverUsed() const override;
-  bool WasAlpnNegotiated() const override;
   net::NextProto GetNegotiatedProtocol() const override;
   bool GetSSLInfo(net::SSLInfo* ssl_info) override;
   int64_t GetTotalReceivedBytes() const override;

@@ -10,12 +10,14 @@
 
 #include "base/command_line.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "components/component_updater/component_updater_command_line_config_policy.h"
 #include "components/component_updater/component_updater_switches.h"
 #include "components/component_updater/component_updater_url_constants.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/update_client/configurator.h"
+#include "components/update_client/update_client.h"
 #include "components/update_client/update_query_params.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -42,12 +44,14 @@ class AwComponentUpdaterConfiguratorTest : public testing::Test {
   base::CommandLine* GetCommandLine() { return cmdline_.get(); }
 
  private:
+  base::test::TaskEnvironment environment_;
   std::unique_ptr<TestingPrefServiceSimple> pref_service_;
   std::unique_ptr<base::CommandLine> cmdline_;
 };
 
 void AwComponentUpdaterConfiguratorTest::SetUp() {
   pref_service_ = std::make_unique<TestingPrefServiceSimple>();
+  update_client::RegisterPrefs(pref_service_->registry());
   cmdline_ = std::make_unique<base::CommandLine>(
       *base::CommandLine::ForCurrentProcess());
 }
@@ -93,7 +97,6 @@ TEST_F(AwComponentUpdaterConfiguratorTest, TestDefaultImpl) {
   EXPECT_TRUE(config->GetDownloadPreference().empty());
 
   EXPECT_TRUE(config->EnabledCupSigning());
-  EXPECT_TRUE(config->EnabledDeltas());
   EXPECT_FALSE(config->EnabledBackgroundDownloader());
 }
 

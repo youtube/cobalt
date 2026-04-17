@@ -9,42 +9,50 @@
 #include <set>
 #include <string>
 
+#include "base/check_is_test.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/weak_ptr.h"
+#include "base/sequence_checker.h"
 #include "chrome/browser/support_tool/data_collection_module.pb.h"
 #include "chrome/browser/support_tool/support_tool_handler.h"
-#include "chromeos/ash/components/login/login_state/login_state.h"
 #include "components/feedback/redaction_tool/pii_types.h"
 #include "components/policy/core/common/remote_commands/remote_command_job.h"
 #include "components/policy/proto/device_management_backend.pb.h"
 #include "components/reporting/client/report_queue.h"
 #include "components/reporting/util/status.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace policy {
 
-// The error message that's send as command result payload when the command is
-// not enabled for user's type.
-extern const char kCommandNotEnabledForUserMessage[];
+// DeviceCommandFetchSupportPacketJob will emit
+// EnterpriseFetchSupportPacketFailure enums to this UMA histogram.
+extern const char kFetchSupportPacketFailureHistogramName[];
 
 // SupportPacketDetails will contain the details of the data collection that's
 // requested by the remote command's payload. Command payload contains the
 // JSON-encoded version of SupportPacketDetails proto message in
-// chrome/browser/support_tool/data_collection_module.proto and this struct is
-// based on the contents of the proto.
-// TODO(iremuguz): We may remove SupportPacketDetails proto message altogether
-// and reference to the proto in server-side here since we're not using it
-// anymore.
+// http://google3/chrome/cros/dpanel/data/devices/proto/requests.proto.
 struct SupportPacketDetails {
   std::string issue_case_id;
   std::string issue_description;
   std::set<support_tool::DataCollectorType> requested_data_collectors;
   std::set<redaction::PIIType> requested_pii_types;
-  std::string requester_metadata;
 
   SupportPacketDetails();
   ~SupportPacketDetails();
+};
+
+// This enum is emitted to UMA
+// `Enterprise.DeviceRemoteCommand.FetchSupportPacket.Failure` and can't be
+// renumerated. Please update `EnterpriseFetchSupportPacketFailureType` values
+// in tools/metrics/histograms/enums.xml when you add a new value to here.
+enum class EnterpriseFetchSupportPacketFailureType {
+  kNoFailure = 0,
+  kFailedOnWrongCommandPayload = 1,
+  kFailedOnCommandEnabledForUserCheck = 2,
+  kFailedOnExportingSupportPacket = 3,
+  kFailedOnEnqueueingEvent = 4,
+  kMaxValue = kFailedOnEnqueueingEvent,
 };
 
 class DeviceCommandFetchSupportPacketJob : public RemoteCommandJob {
@@ -61,14 +69,12 @@ class DeviceCommandFetchSupportPacketJob : public RemoteCommandJob {
   // RemoteCommandJob:
   enterprise_management::RemoteCommand_Type GetType() const override;
 
-  // Convenience functions for testing. `/var/spool/support` path shouldn't be
-  // used in unit tests so it should be replaced.
-  base::FilePath GetExportedFilepathForTesting() { return exported_path_; }
-  void SetTargetDirForTesting(base::FilePath target_dir) {
-    target_dir_ = target_dir;
-  }
-  void SetReportQueueForTesting(
-      std::unique_ptr<reporting::ReportQueue> report_queue);
+  // Convenience function for testing. `/var/spool/support` path can't be
+  // used in unit/browser tests so it should be replaced by a temporary
+  // directory. The caller test is responsible for cleaning this path up after
+  // testing is done and calling `SetTargetDirForTesting(nullptr)` to reset the
+  // target dir.
+  static void SetTargetDirForTesting(const base::FilePath* target_dir);
 
  protected:
   // RemoteCommandJob:
@@ -76,37 +82,23 @@ class DeviceCommandFetchSupportPacketJob : public RemoteCommandJob {
   bool ParseCommandPayload(const std::string& command_payload) override;
 
  private:
-  // LoginWaiter observes the LoginState and run the callback once the user is
-  // logged in or if a user is already logged in. It's expected to be called
-  // once with `WaitForLogin()` function and should be cleaned-up once it
-  // triggers the callback upon user login.
-  class LoginWaiter : public ash::LoginState::Observer {
-   public:
-    LoginWaiter();
-    LoginWaiter(const LoginWaiter&) = delete;
-    LoginWaiter& operator=(const LoginWaiter&) = delete;
-    ~LoginWaiter() override;
+  // Returns /var/spool/support. A temporary directory that's set by
+  // `SetTargetDirForTesting()` will be used for testing.
+  const base::FilePath GetTargetDir();
 
-    void WaitForLogin(base::OnceClosure on_user_logged_in_callback);
+  // Checks if the command should be enabled. Returns true if the
+  // SystemLogEnabled policy is enabled.
+  bool IsCommandEnabled() const;
 
-   private:
-    // ash::LoginState::Observer
-    void LoggedInStateChanged() override;
-
-    base::OnceClosure on_user_logged_in_callback_;
-  };
-
-  // Checks if the command should be enabled for the user type. Currently it's
-  // only enabled for logged-in users that are on kiosk session.
-  static bool CommandEnabledForUser();
+  // Checks if the requested PII can be kept in the collected logs. PII is only
+  // allowed on kiosk sessions and affiliated user sessions. For all other
+  // sessions types (e.g. unaffiliated user session, MGS, guest session and
+  // sign-in screen), PII is not allowed to be included.
+  bool IsPiiAllowed() const;
 
   // Parses the `command_payload` into `support_packet_details_`. Returns false
   // if the `command_payload` is not in the format that we expect.
   bool ParseCommandPayloadImpl(const std::string& command_payload);
-
-  // Is called when we wait for a user to login to start command execution.
-  // Cleans up `login_waiter_` and starts command execution.
-  void OnUserLoggedIn();
 
   // Verifies that the command is enabled for the user and starts the data
   // collection.
@@ -125,20 +117,24 @@ class DeviceCommandFetchSupportPacketJob : public RemoteCommandJob {
 
   void OnEventEnqueued(reporting::Status status);
 
-  // The directory to export the generated support packet.
-  base::FilePath target_dir_;
+  SEQUENCE_CHECKER(sequence_checker_);
   // The filepath of the exported support packet. It will be a file within
-  // `target_dir_`.
+  // GetTargetDir().
   base::FilePath exported_path_;
   // The details of requested support packet. Contains details like data
   // collectors, PII types, case ID etc.
   SupportPacketDetails support_packet_details_;
+  // These are the notes that will be included in the result payload when the
+  // execution is completed.
+  std::set<enterprise_management::FetchSupportPacketResultNote> notes_;
   // The callback to run when the execution of RemoteCommandJob has finished.
   CallbackWithResult result_callback_;
+  // Session type when job execution starts in `StartJobExecution()`.
+  // `current_session_type_` won't be updated later even if a user logs in and
+  // PII handling will be done according to this session type since the logs are
+  // collected from this current session when job execution first starts.
+  enterprise_management::UserSessionType current_session_type_;
   std::unique_ptr<SupportToolHandler> support_tool_handler_;
-  // `login_waiter_` will wait for a user to login if the command was called on
-  // login screen.
-  absl::optional<LoginWaiter> login_waiter_;
   std::unique_ptr<reporting::ReportQueue> report_queue_;
   base::WeakPtrFactory<DeviceCommandFetchSupportPacketJob> weak_ptr_factory_{
       this};

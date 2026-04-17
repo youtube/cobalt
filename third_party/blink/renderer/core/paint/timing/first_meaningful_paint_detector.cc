@@ -159,13 +159,15 @@ void FirstMeaningfulPaintDetector::RegisterNotifyPresentationTime(
     PaintEvent event) {
   ++outstanding_presentation_promise_count_;
   paint_timing_->RegisterNotifyPresentationTime(
-      CrossThreadBindOnce(&FirstMeaningfulPaintDetector::ReportPresentationTime,
-                          WrapCrossThreadWeakPersistent(this), event));
+      WTF::BindOnce(&FirstMeaningfulPaintDetector::ReportPresentationTime,
+                    WrapCrossThreadWeakPersistent(this), event));
 }
 
 void FirstMeaningfulPaintDetector::ReportPresentationTime(
     PaintEvent event,
-    base::TimeTicks timestamp) {
+    const viz::FrameTimingDetails& presentation_details) {
+  base::TimeTicks timestamp =
+      presentation_details.presentation_feedback.timestamp;
   DCHECK(event == PaintEvent::kProvisionalFirstMeaningfulPaint);
   DCHECK_GT(outstanding_presentation_promise_count_, 0U);
   --outstanding_presentation_promise_count_;

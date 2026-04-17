@@ -17,6 +17,7 @@
 
 #include <bcm_host.h>
 
+#include <cstdint>
 #include <functional>
 #include <memory>
 
@@ -25,7 +26,6 @@
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
-#include "starboard/types.h"
 
 namespace starboard {
 
@@ -66,7 +66,7 @@ class DispmanxResource {
   virtual ~DispmanxResource() {
     if (handle_ != DISPMANX_NO_HANDLE) {
       int32_t result = vc_dispmanx_resource_delete(handle_);
-      SB_DCHECK(result == 0) << " result=" << result;
+      SB_DCHECK_EQ(result, 0);
     }
   }
 

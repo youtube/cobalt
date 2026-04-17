@@ -45,7 +45,6 @@ if (use_system_harfbuzz) {
       "src/src/hb-deprecated.h",
       "src/src/hb-face.h",
       "src/src/hb-font.h",
-      "src/src/hb-ft.h",
       "src/src/hb-icu.h",
       "src/src/hb-map.h",
       "src/src/hb-ot-font.h",
@@ -70,9 +69,9 @@ if (use_system_harfbuzz) {
       "src/src/OT/Color/sbix/sbix.hh",
       "src/src/OT/Color/svg/svg.hh",
       "src/src/OT/Layout/GDEF/GDEF.hh",
-      "src/src/OT/glyf/VarCompositeGlyph.hh",
+      "src/src/OT/Var/VARC/VARC.cc",
+      "src/src/OT/Var/VARC/VARC.hh",
       "src/src/OT/glyf/composite-iter.hh",
-      "src/src/OT/glyf/coord-setter.hh",
       "src/src/OT/name/name.hh",
       "src/src/graph/classdef-graph.hh",
       "src/src/graph/coverage-graph.hh",
@@ -133,7 +132,7 @@ if (use_system_harfbuzz) {
       "src/src/hb-face.hh",
       "src/src/hb-font.cc",
       "src/src/hb-font.hh",
-      "src/src/hb-ft.cc",
+      "src/src/hb-geometry.hh",
       "src/src/hb-icu.cc",
       "src/src/hb-iter.hh",
       "src/src/hb-kern.hh",
@@ -246,6 +245,7 @@ if (use_system_harfbuzz) {
       "src/src/hb-ot-var-gvar-table.hh",
       "src/src/hb-ot-var-hvar-table.hh",
       "src/src/hb-ot-var-mvar-table.hh",
+      "src/src/hb-ot-var-varc-table.hh",
       "src/src/hb-ot-var.cc",
       "src/src/hb-ot-vorg-table.hh",
       "src/src/hb-paint-extents.cc",
@@ -271,15 +271,16 @@ if (use_system_harfbuzz) {
       "src/src/hb-subset-cff-common.cc",
       "src/src/hb-subset-cff-common.hh",
       "src/src/hb-subset-cff1.cc",
-      "src/src/hb-subset-cff1.hh",
       "src/src/hb-subset-cff2.cc",
-      "src/src/hb-subset-cff2.hh",
       "src/src/hb-subset-input.cc",
       "src/src/hb-subset-input.hh",
+      "src/src/hb-subset-instancer-iup.cc",
+      "src/src/hb-subset-instancer-iup.hh",
+      "src/src/hb-subset-instancer-solver.cc",
+      "src/src/hb-subset-instancer-solver.hh",
+      "src/src/hb-subset-plan-member-list.hh",
       "src/src/hb-subset-plan.cc",
       "src/src/hb-subset-plan.hh",
-      "src/src/hb-subset-repacker.cc",
-      "src/src/hb-subset-repacker.h",
       "src/src/hb-subset.cc",
       "src/src/hb-subset.hh",
       "src/src/hb-ucd-table.hh",
@@ -295,11 +296,18 @@ if (use_system_harfbuzz) {
     # The following sources are explictly not used.
     # They are referenced to aid in detecting previously uncategorized files.
     unused_sources = [
+      "src/src/hb-cairo-utils.cc",
+      "src/src/hb-cairo-utils.hh",
+      "src/src/hb-cairo.cc",
+      "src/src/hb-cairo.h",
       "src/src/hb-coretext.cc",
       "src/src/hb-coretext.h",
       "src/src/hb-directwrite.cc",
       "src/src/hb-directwrite.h",
       "src/src/hb-fallback-shape.cc",
+      "src/src/hb-ft-colr.hh",
+      "src/src/hb-ft.cc",
+      "src/src/hb-ft.h",
       "src/src/hb-gdi.cc",
       "src/src/hb-gdi.h",
       "src/src/hb-gobject-structs.cc",
@@ -307,21 +315,38 @@ if (use_system_harfbuzz) {
       "src/src/hb-gobject.h",
       "src/src/hb-graphite2.cc",
       "src/src/hb-graphite2.h",
+      "src/src/hb-outline.cc",
+      "src/src/hb-outline.hh",
+      "src/src/hb-paint.cc",
+      "src/src/hb-paint.h",
+      "src/src/hb-paint.hh",
       "src/src/hb-style.cc",
       "src/src/hb-style.h",
       "src/src/hb-uniscribe.cc",
       "src/src/hb-uniscribe.h",
+      "src/src/hb-wasm-api-blob.hh",
+      "src/src/hb-wasm-api-buffer.hh",
+      "src/src/hb-wasm-api-common.hh",
+      "src/src/hb-wasm-api-face.hh",
+      "src/src/hb-wasm-api-font.hh",
+      "src/src/hb-wasm-api-list.hh",
+      "src/src/hb-wasm-api-shape.hh",
+      "src/src/hb-wasm-api.cc",
+      "src/src/hb-wasm-api.h",
+      "src/src/hb-wasm-api.hh",
+      "src/src/hb-wasm-shape.cc",
     ]
     assert(unused_sources != [])
 
     defines = [
       "HAVE_OT",
-      "HAVE_FREETYPE",
       "HAVE_ICU",
       "HAVE_ICU_BUILTIN",
       "HB_NO_MMAP",
-      "HB_NO_PAINT",
       "HB_NO_RESOURCE_FORK",
+
+      # Use assignment to empty value to work around a build failure.
+      "HB_NO_PAINT=",
 
       # Size reductions by disabling parts that we do not currently require:
 
@@ -351,6 +376,9 @@ if (use_system_harfbuzz) {
 
       # Don't ship experimental extensions.
       "HB_NO_BORING_EXPANSION",
+
+      # Don't ship AVAR2 yet.
+      "HB_NO_AVAR2",
 
       # Letting HarfBuzz enable warnings through pragmas can block compiler
       # upgrades in situations where say a ToT compiler build adds a new

@@ -2,12 +2,13 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import asyncio
 import os.path
 import unittest
 from unittest import mock
 from xml.etree import ElementTree
 
-from . import model, pipeline, test_config
+from signing import model, pipeline, test_config
 
 
 def _get_work_dir(*args, **kwargs):
@@ -337,7 +338,8 @@ class TestPipelineHelpers(unittest.TestCase):
             branding_code='MOO',
             packaging_name_fragment='ForCows',
             package_as_dmg=False,
-            package_as_pkg=True)
+            package_as_pkg=True,
+            package_as_zip=False)
         dist_config = dist.to_config(test_config.TestConfig())
         paths = self.paths.replace_work('/$W')
 
@@ -418,7 +420,8 @@ framework dir is 'App Product.app/Contents/Frameworks/Product Framework.framewor
             manager.attach_mock(kwargs[attr], attr)
 
         config = test_config.TestConfig()
-        dist = model.Distribution(package_as_dmg=True, package_as_pkg=False)
+        dist = model.Distribution(
+            package_as_dmg=True, package_as_pkg=False, package_as_zip=False)
         dist_config = dist.to_config(config)
 
         paths = self.paths.replace_work('/$W')
@@ -444,6 +447,106 @@ framework dir is 'App Product.app/Contents/Frameworks/Product Framework.framewor
         self.assertEqual('AppProduct-99.0.9999.99',
                          kwargs['sign_part'].mock_calls[0][1][2].identifier)
 
+    def test_package_zip_chrome_branded(self, **kwargs):
+        manager = mock.Mock()
+        for attr in kwargs:
+            manager.attach_mock(kwargs[attr], attr)
+
+        config = test_config.TestConfig()
+        dist = model.Distribution(
+            package_as_dmg=False, package_as_pkg=False, package_as_zip=True)
+        dist_config = dist.to_config(config)
+
+        paths = self.paths.replace_work('/$W')
+        self.assertEqual('/$O/AppProduct-99.0.9999.99.zip',
+                         pipeline._package_zip(paths, dist_config))
+
+        manager.assert_has_calls([
+            mock.call.copy_files('/$I/Product Packaging/keystone_install.sh',
+                                 '/$W/.keystone_install'),
+            mock.call.run_command([
+                'zip', '-9', '--recurse-paths', '--symlinks', '--quiet',
+                '/$O/AppProduct-99.0.9999.99.zip', 'App Product.app',
+                '.keystone_install'
+            ],
+                                  cwd='/$W'),
+        ])
+
+    def test_package_zip_non_chrome_branded(self, **kwargs):
+        manager = mock.Mock()
+        for attr in kwargs:
+            manager.attach_mock(kwargs[attr], attr)
+
+        config = test_config.TestConfigNonChromeBranded()
+        dist = model.Distribution(
+            package_as_dmg=False, package_as_pkg=False, package_as_zip=True)
+        dist_config = dist.to_config(config)
+
+        paths = self.paths.replace_work('/$W')
+        self.assertEqual('/$O/AppProduct-99.0.9999.99.zip',
+                         pipeline._package_zip(paths, dist_config))
+
+        manager.assert_has_calls([
+            mock.call.run_command([
+                'zip', '-9', '--recurse-paths', '--symlinks', '--quiet',
+                '/$O/AppProduct-99.0.9999.99.zip', 'App Product.app'
+            ],
+                                  cwd='/$W'),
+        ])
+
+    def test_package_zip_chrome_branded_with_fragment(self, **kwargs):
+        manager = mock.Mock()
+        for attr in kwargs:
+            manager.attach_mock(kwargs[attr], attr)
+
+        config = test_config.TestConfig()
+        dist = model.Distribution(
+            packaging_name_fragment='imagination',
+            package_as_dmg=False,
+            package_as_pkg=False,
+            package_as_zip=True)
+        dist_config = dist.to_config(config)
+
+        paths = self.paths.replace_work('/$W')
+        self.assertEqual('/$O/AppProduct-99.0.9999.99-imagination.zip',
+                         pipeline._package_zip(paths, dist_config))
+
+        manager.assert_has_calls([
+            mock.call.copy_files('/$I/Product Packaging/keystone_install.sh',
+                                 '/$W/.keystone_install'),
+            mock.call.run_command([
+                'zip', '-9', '--recurse-paths', '--symlinks', '--quiet',
+                '/$O/AppProduct-99.0.9999.99-imagination.zip',
+                'App Product.app', '.keystone_install'
+            ],
+                                  cwd='/$W'),
+        ])
+
+    def test_package_zip_non_chrome_branded_with_fragment(self, **kwargs):
+        manager = mock.Mock()
+        for attr in kwargs:
+            manager.attach_mock(kwargs[attr], attr)
+
+        config = test_config.TestConfigNonChromeBranded()
+        dist = model.Distribution(
+            packaging_name_fragment='imagination',
+            package_as_dmg=False,
+            package_as_pkg=False,
+            package_as_zip=True)
+        dist_config = dist.to_config(config)
+
+        paths = self.paths.replace_work('/$W')
+        self.assertEqual('/$O/AppProduct-99.0.9999.99-imagination.zip',
+                         pipeline._package_zip(paths, dist_config))
+
+        manager.assert_has_calls([
+            mock.call.run_command([
+                'zip', '-9', '--recurse-paths', '--symlinks', '--quiet',
+                '/$O/AppProduct-99.0.9999.99-imagination.zip', 'App Product.app'
+            ],
+                                  cwd='/$W')
+        ])
+
     @mock.patch('signing.pipeline._component_property_path',
                 _component_property_path)
     @mock.patch('signing.pipeline._productbuild_distribution_path',
@@ -457,7 +560,8 @@ framework dir is 'App Product.app/Contents/Frameworks/Product Framework.framewor
             manager.attach_mock(kwargs[attr], attr)
 
         config = test_config.TestConfig()
-        dist = model.Distribution(package_as_dmg=False, package_as_pkg=True)
+        dist = model.Distribution(
+            package_as_dmg=False, package_as_pkg=True, package_as_zip=False)
         dist_config = dist.to_config(config)
 
         paths = self.paths.replace_work('/$W')
@@ -514,7 +618,8 @@ framework dir is 'App Product.app/Contents/Frameworks/Product Framework.framewor
             manager.attach_mock(kwargs[attr], attr)
 
         config = test_config.TestConfig()
-        dist = model.Distribution(package_as_dmg=False, package_as_pkg=True)
+        dist = model.Distribution(
+            package_as_dmg=False, package_as_pkg=True, package_as_zip=False)
         dist_config = dist.to_config(config)
 
         paths = self.paths.replace_work('/$W')
@@ -569,7 +674,8 @@ framework dir is 'App Product.app/Contents/Frameworks/Product Framework.framewor
             branding_code='MOO',
             packaging_name_fragment='ForCows',
             package_as_dmg=True,
-            package_as_pkg=False)
+            package_as_pkg=False,
+            package_as_zip=False)
         dist_config = dist.to_config(config)
 
         paths = self.paths.replace_work('/$W')
@@ -612,7 +718,8 @@ framework dir is 'App Product.app/Contents/Frameworks/Product Framework.framewor
             branding_code='MOO',
             packaging_name_fragment='ForCows',
             package_as_dmg=False,
-            package_as_pkg=True)
+            package_as_pkg=True,
+            package_as_zip=False)
         dist_config = dist.to_config(config)
 
         paths = self.paths.replace_work('/$W')
@@ -673,7 +780,8 @@ framework dir is 'App Product.app/Contents/Frameworks/Product Framework.framewor
             branding_code='MOO',
             packaging_name_fragment='ForCows',
             package_as_dmg=False,
-            package_as_pkg=True)
+            package_as_pkg=True,
+            package_as_zip=False)
         dist_config = dist.to_config(config)
 
         paths = self.paths.replace_work('/$W')
@@ -998,17 +1106,16 @@ framework dir is 'App Product.app/Contents/Frameworks/Product Framework.framewor
 @mock.patch.multiple(
     'signing.commands', **{
         m: mock.DEFAULT for m in ('move_file', 'copy_files', 'run_command',
-                                  'make_dir', 'shutil')
+                                  'make_dir', 'shutil', 'os')
     })
-@mock.patch.multiple('signing.notarize', **{
-    m: mock.DEFAULT for m in ('submit', 'wait_for_results', 'staple')
-})
+@mock.patch.multiple('signing.notarize',
+                     **{m: mock.DEFAULT for m in ('submit', 'staple')})
 @mock.patch.multiple(
     'signing.pipeline', **{
         m: mock.DEFAULT
         for m in ('_customize_and_sign_chrome', '_staple_chrome',
                   '_package_and_sign_dmg', '_package_and_sign_pkg',
-                  '_package_installer_tools')
+                  '_package_zip', '_package_installer_tools')
     })
 @mock.patch('signing.commands.tempfile.mkdtemp', _get_work_dir)
 class TestSignAll(unittest.TestCase):
@@ -1022,12 +1129,6 @@ class TestSignAll(unittest.TestCase):
         for attr in kwargs:
             manager.attach_mock(kwargs[attr], attr)
 
-        app_uuid = 'f38ee49c-c55b-4a10-a4f5-aaaa17636b76'
-        dmg_uuid = '9f49067e-a13d-436a-8016-3a22a4f6ef92'
-        kwargs['submit'].side_effect = [app_uuid, dmg_uuid]
-        kwargs['wait_for_results'].side_effect = [
-            iter([app_uuid]), iter([dmg_uuid])
-        ]
         kwargs[
             '_package_and_sign_dmg'].return_value = '/$O/AppProduct-99.0.9999.99.dmg'
 
@@ -1037,11 +1138,13 @@ class TestSignAll(unittest.TestCase):
             def distributions(self):
                 return [
                     model.Distribution(
-                        package_as_dmg=True, package_as_pkg=False),
+                        package_as_dmg=True,
+                        package_as_pkg=False,
+                        package_as_zip=False),
                 ]
 
         config = Config()
-        pipeline.sign_all(self.paths, config)
+        asyncio.run(pipeline.sign_all(self.paths, config))
 
         self.assertEqual(1, kwargs['_package_installer_tools'].call_count)
 
@@ -1058,7 +1161,6 @@ class TestSignAll(unittest.TestCase):
                                   cwd='/$W_1/stable'),
             mock.call.submit('/$W_1/AppProduct-99.0.9999.99.zip', mock.ANY),
             mock.call.shutil.rmtree('/$W_2'),
-            mock.call.wait_for_results({app_uuid: None}.keys(), mock.ANY),
             mock.call._staple_chrome(
                 self.paths.replace_work('/$W_1/stable'), mock.ANY),
 
@@ -1067,8 +1169,56 @@ class TestSignAll(unittest.TestCase):
 
             # Notarize the DMG.
             mock.call.submit('/$O/AppProduct-99.0.9999.99.dmg', mock.ANY),
-            mock.call.wait_for_results({dmg_uuid: None}.keys(), mock.ANY),
             mock.call.staple('/$O/AppProduct-99.0.9999.99.dmg'),
+            mock.call.shutil.rmtree('/$W_1'),
+
+            # Package the installer tools.
+            mock.call._package_installer_tools(mock.ANY, mock.ANY),
+        ])
+
+    def test_sign_basic_distribution_zip(self, **kwargs):
+        manager = mock.Mock()
+        for attr in kwargs:
+            manager.attach_mock(kwargs[attr], attr)
+
+        kwargs['_package_zip'].return_value = '/$O/AppProduct-99.0.9999.99.zip'
+
+        class Config(test_config.TestConfig):
+
+            @property
+            def distributions(self):
+                return [
+                    model.Distribution(
+                        package_as_dmg=False,
+                        package_as_pkg=False,
+                        package_as_zip=True),
+                ]
+
+        config = Config()
+        asyncio.run(pipeline.sign_all(self.paths, config))
+
+        self.assertEqual(1, kwargs['_package_installer_tools'].call_count)
+
+        manager.assert_has_calls([
+            # First customize the distribution and sign it.
+            mock.call._customize_and_sign_chrome(mock.ANY, mock.ANY,
+                                                 '/$W_1/stable', mock.ANY),
+
+            # Prepare the app for notarization.
+            mock.call.run_command([
+                'zip', '--recurse-paths', '--symlinks', '--quiet',
+                '/$W_1/AppProduct-99.0.9999.99.zip', 'App Product.app'
+            ],
+                                  cwd='/$W_1/stable'),
+            mock.call.submit('/$W_1/AppProduct-99.0.9999.99.zip', mock.ANY),
+            mock.call.shutil.rmtree('/$W_2'),
+            mock.call._staple_chrome(
+                self.paths.replace_work('/$W_1/stable'), mock.ANY),
+
+            # Make the ZIP.
+            mock.call._package_zip(mock.ANY, mock.ANY),
+
+            # Notarize the DMG.
             mock.call.shutil.rmtree('/$W_1'),
 
             # Package the installer tools.
@@ -1080,12 +1230,6 @@ class TestSignAll(unittest.TestCase):
         for attr in kwargs:
             manager.attach_mock(kwargs[attr], attr)
 
-        app_uuid = 'f38ee49c-c55b-4a10-a4f5-aaaa17636b76'
-        dmg_uuid = '9f49067e-a13d-436a-8016-3a22a4f6ef92'
-        kwargs['submit'].side_effect = [app_uuid, dmg_uuid]
-        kwargs['wait_for_results'].side_effect = [
-            iter([app_uuid]), iter([dmg_uuid])
-        ]
         kwargs[
             '_package_and_sign_dmg'].return_value = '/$O/AppProduct-99.0.9999.99.dmg'
 
@@ -1097,12 +1241,13 @@ class TestSignAll(unittest.TestCase):
                     model.Distribution(
                         inflation_kilobytes=5000,
                         package_as_dmg=True,
-                        package_as_pkg=False),
+                        package_as_pkg=False,
+                        package_as_zip=False),
                 ]
 
         config = Config()
 
-        pipeline.sign_all(self.paths, config)
+        asyncio.run(pipeline.sign_all(self.paths, config))
 
         self.assertEqual(1, kwargs['_package_installer_tools'].call_count)
 
@@ -1119,7 +1264,6 @@ class TestSignAll(unittest.TestCase):
                                   cwd='/$W_1/stable-5000'),
             mock.call.submit('/$W_1/AppProduct-99.0.9999.99.zip', mock.ANY),
             mock.call.shutil.rmtree('/$W_2'),
-            mock.call.wait_for_results({app_uuid: None}.keys(), mock.ANY),
             mock.call._staple_chrome(
                 self.paths.replace_work('/$W_1/stable-5000'), mock.ANY),
             mock.call.run_command([
@@ -1133,7 +1277,6 @@ class TestSignAll(unittest.TestCase):
 
             # Notarize the DMG.
             mock.call.submit('/$O/AppProduct-99.0.9999.99.dmg', mock.ANY),
-            mock.call.wait_for_results({dmg_uuid: None}.keys(), mock.ANY),
             mock.call.staple('/$O/AppProduct-99.0.9999.99.dmg'),
             mock.call.shutil.rmtree('/$W_1'),
 
@@ -1146,12 +1289,6 @@ class TestSignAll(unittest.TestCase):
         for attr in kwargs:
             manager.attach_mock(kwargs[attr], attr)
 
-        app_uuid = 'b2ce64e5-4fae-4043-9c20-d9ff53065b2a'
-        pkg_uuid = 'cb811baf-5d35-4caa-adf4-1f61b4991eed'
-        kwargs['submit'].side_effect = [app_uuid, pkg_uuid]
-        kwargs['wait_for_results'].side_effect = [
-            iter([app_uuid]), iter([pkg_uuid])
-        ]
         kwargs[
             '_package_and_sign_pkg'].return_value = '/$O/AppProduct-99.0.9999.99.pkg'
 
@@ -1161,11 +1298,13 @@ class TestSignAll(unittest.TestCase):
             def distributions(self):
                 return [
                     model.Distribution(
-                        package_as_dmg=False, package_as_pkg=True),
+                        package_as_dmg=False,
+                        package_as_pkg=True,
+                        package_as_zip=False),
                 ]
 
         config = Config()
-        pipeline.sign_all(self.paths, config)
+        asyncio.run(pipeline.sign_all(self.paths, config))
 
         self.assertEqual(1, kwargs['_package_installer_tools'].call_count)
 
@@ -1182,7 +1321,6 @@ class TestSignAll(unittest.TestCase):
                                   cwd='/$W_1/stable'),
             mock.call.submit('/$W_1/AppProduct-99.0.9999.99.zip', mock.ANY),
             mock.call.shutil.rmtree('/$W_2'),
-            mock.call.wait_for_results({app_uuid: None}.keys(), mock.ANY),
             mock.call._staple_chrome(
                 self.paths.replace_work('/$W_1/stable'), mock.ANY),
 
@@ -1191,8 +1329,63 @@ class TestSignAll(unittest.TestCase):
 
             # Notarize the DMG.
             mock.call.submit('/$O/AppProduct-99.0.9999.99.pkg', mock.ANY),
-            mock.call.wait_for_results({pkg_uuid: None}.keys(), mock.ANY),
             mock.call.staple('/$O/AppProduct-99.0.9999.99.pkg'),
+            mock.call.shutil.rmtree('/$W_1'),
+
+            # Package the installer tools.
+            mock.call._package_installer_tools(mock.ANY, mock.ANY),
+        ])
+
+    def test_sign_basic_distribution_dmg_zip(self, **kwargs):
+        manager = mock.Mock()
+        for attr in kwargs:
+            manager.attach_mock(kwargs[attr], attr)
+
+        kwargs[
+            '_package_and_sign_dmg'].return_value = '/$O/AppProduct-99.0.9999.99.dmg'
+        kwargs['_package_zip'].return_value = '/$O/AppProduct-99.0.9999.99.zip'
+
+        class Config(test_config.TestConfig):
+
+            @property
+            def distributions(self):
+                return [
+                    model.Distribution(
+                        package_as_dmg=True,
+                        package_as_pkg=False,
+                        package_as_zip=True),
+                ]
+
+        config = Config()
+        asyncio.run(pipeline.sign_all(self.paths, config))
+
+        self.assertEqual(1, kwargs['_package_installer_tools'].call_count)
+
+        manager.assert_has_calls([
+            # First customize the distribution and sign it.
+            mock.call._customize_and_sign_chrome(mock.ANY, mock.ANY,
+                                                 '/$W_1/stable', mock.ANY),
+
+            # Prepare the app for notarization.
+            mock.call.run_command([
+                'zip', '--recurse-paths', '--symlinks', '--quiet',
+                '/$W_1/AppProduct-99.0.9999.99.zip', 'App Product.app'
+            ],
+                                  cwd='/$W_1/stable'),
+            mock.call.submit('/$W_1/AppProduct-99.0.9999.99.zip', mock.ANY),
+            mock.call.shutil.rmtree('/$W_2'),
+            mock.call._staple_chrome(
+                self.paths.replace_work('/$W_1/stable'), mock.ANY),
+
+            # Make the DMG.
+            mock.call._package_and_sign_dmg(mock.ANY, mock.ANY),
+            mock.call.submit('/$O/AppProduct-99.0.9999.99.dmg', mock.ANY),
+
+            # Make the ZIP.
+            mock.call._package_zip(mock.ANY, mock.ANY),
+
+            # Notarize the DMG.
+            mock.call.staple('/$O/AppProduct-99.0.9999.99.dmg'),
             mock.call.shutil.rmtree('/$W_1'),
 
             # Package the installer tools.
@@ -1204,13 +1397,6 @@ class TestSignAll(unittest.TestCase):
         for attr in kwargs:
             manager.attach_mock(kwargs[attr], attr)
 
-        app_uuid = '6de7df90-cf07-4213-9ce6-45f83588a386'
-        dmg_uuid = '7f77eefd-6c9d-4271-9367-760dc78a49dd'
-        pkg_uuid = '364d9b29-a0a0-4661-b366-e35449197671'
-        kwargs['submit'].side_effect = [app_uuid, dmg_uuid, pkg_uuid]
-        kwargs['wait_for_results'].side_effect = [
-            iter([app_uuid]), iter([dmg_uuid, pkg_uuid])
-        ]
         kwargs[
             '_package_and_sign_dmg'].return_value = '/$O/AppProduct-99.0.9999.99.dmg'
         kwargs[
@@ -1222,11 +1408,13 @@ class TestSignAll(unittest.TestCase):
             def distributions(self):
                 return [
                     model.Distribution(
-                        package_as_dmg=True, package_as_pkg=True),
+                        package_as_dmg=True,
+                        package_as_pkg=True,
+                        package_as_zip=False),
                 ]
 
         config = Config()
-        pipeline.sign_all(self.paths, config)
+        asyncio.run(pipeline.sign_all(self.paths, config))
 
         self.assertEqual(1, kwargs['_package_installer_tools'].call_count)
 
@@ -1243,7 +1431,6 @@ class TestSignAll(unittest.TestCase):
                                   cwd='/$W_1/stable'),
             mock.call.submit('/$W_1/AppProduct-99.0.9999.99.zip', mock.ANY),
             mock.call.shutil.rmtree('/$W_2'),
-            mock.call.wait_for_results({app_uuid: None}.keys(), mock.ANY),
             mock.call._staple_chrome(
                 self.paths.replace_work('/$W_1/stable'), mock.ANY),
 
@@ -1256,10 +1443,125 @@ class TestSignAll(unittest.TestCase):
             mock.call.submit('/$O/AppProduct-99.0.9999.99.pkg', mock.ANY),
 
             # Wait for notarization results.
-            mock.call.wait_for_results({
-                dmg_uuid: None,
-                pkg_uuid: None
-            }.keys(), mock.ANY),
+            mock.call.staple('/$O/AppProduct-99.0.9999.99.dmg'),
+            mock.call.staple('/$O/AppProduct-99.0.9999.99.pkg'),
+            mock.call.shutil.rmtree('/$W_1'),
+
+            # Package the installer tools.
+            mock.call._package_installer_tools(mock.ANY, mock.ANY),
+        ])
+
+    def test_sign_basic_distribution_pkg_zip(self, **kwargs):
+        manager = mock.Mock()
+        for attr in kwargs:
+            manager.attach_mock(kwargs[attr], attr)
+
+        kwargs[
+            '_package_and_sign_pkg'].return_value = '/$O/AppProduct-99.0.9999.99.pkg'
+        kwargs['_package_zip'].return_value = '/$O/AppProduct-99.0.9999.99.zip'
+
+        class Config(test_config.TestConfig):
+
+            @property
+            def distributions(self):
+                return [
+                    model.Distribution(
+                        package_as_dmg=False,
+                        package_as_pkg=True,
+                        package_as_zip=True),
+                ]
+
+        config = Config()
+        asyncio.run(pipeline.sign_all(self.paths, config))
+
+        self.assertEqual(1, kwargs['_package_installer_tools'].call_count)
+
+        manager.assert_has_calls([
+            # First customize the distribution and sign it.
+            mock.call._customize_and_sign_chrome(mock.ANY, mock.ANY,
+                                                 '/$W_1/stable', mock.ANY),
+
+            # Prepare the app for notarization.
+            mock.call.run_command([
+                'zip', '--recurse-paths', '--symlinks', '--quiet',
+                '/$W_1/AppProduct-99.0.9999.99.zip', 'App Product.app'
+            ],
+                                  cwd='/$W_1/stable'),
+            mock.call.submit('/$W_1/AppProduct-99.0.9999.99.zip', mock.ANY),
+            mock.call.shutil.rmtree('/$W_2'),
+            mock.call._staple_chrome(
+                self.paths.replace_work('/$W_1/stable'), mock.ANY),
+
+            # Make the PKG, and submit for notarization.
+            mock.call._package_and_sign_pkg(mock.ANY, mock.ANY),
+            mock.call.submit('/$O/AppProduct-99.0.9999.99.pkg', mock.ANY),
+
+            # Make the ZIP.
+            mock.call._package_zip(mock.ANY, mock.ANY),
+
+            # Notarize the PKG.
+            mock.call.staple('/$O/AppProduct-99.0.9999.99.pkg'),
+            mock.call.shutil.rmtree('/$W_1'),
+
+            # Package the installer tools.
+            mock.call._package_installer_tools(mock.ANY, mock.ANY),
+        ])
+
+    def test_sign_basic_distribution_dmg_pkg_zip(self, **kwargs):
+        manager = mock.Mock()
+        for attr in kwargs:
+            manager.attach_mock(kwargs[attr], attr)
+
+        kwargs[
+            '_package_and_sign_dmg'].return_value = '/$O/AppProduct-99.0.9999.99.dmg'
+        kwargs[
+            '_package_and_sign_pkg'].return_value = '/$O/AppProduct-99.0.9999.99.pkg'
+        kwargs['_package_zip'].return_value = '/$O/AppProduct-99.0.9999.99.zip'
+
+        class Config(test_config.TestConfig):
+
+            @property
+            def distributions(self):
+                return [
+                    model.Distribution(
+                        package_as_dmg=True,
+                        package_as_pkg=True,
+                        package_as_zip=True),
+                ]
+
+        config = Config()
+        asyncio.run(pipeline.sign_all(self.paths, config))
+
+        self.assertEqual(1, kwargs['_package_installer_tools'].call_count)
+
+        manager.assert_has_calls([
+            # First customize the distribution and sign it.
+            mock.call._customize_and_sign_chrome(mock.ANY, mock.ANY,
+                                                 '/$W_1/stable', mock.ANY),
+
+            # Prepare the app for notarization.
+            mock.call.run_command([
+                'zip', '--recurse-paths', '--symlinks', '--quiet',
+                '/$W_1/AppProduct-99.0.9999.99.zip', 'App Product.app'
+            ],
+                                  cwd='/$W_1/stable'),
+            mock.call.submit('/$W_1/AppProduct-99.0.9999.99.zip', mock.ANY),
+            mock.call.shutil.rmtree('/$W_2'),
+            mock.call._staple_chrome(
+                self.paths.replace_work('/$W_1/stable'), mock.ANY),
+
+            # Make the DMG.
+            mock.call._package_and_sign_dmg(mock.ANY, mock.ANY),
+            mock.call.submit('/$O/AppProduct-99.0.9999.99.dmg', mock.ANY),
+
+            # Make the PKG, and submit for notarization.
+            mock.call._package_and_sign_pkg(mock.ANY, mock.ANY),
+            mock.call.submit('/$O/AppProduct-99.0.9999.99.pkg', mock.ANY),
+
+            # Make the ZIP.
+            mock.call._package_zip(mock.ANY, mock.ANY),
+
+            # Notarize the DMG.
             mock.call.staple('/$O/AppProduct-99.0.9999.99.dmg'),
             mock.call.staple('/$O/AppProduct-99.0.9999.99.pkg'),
             mock.call.shutil.rmtree('/$W_1'),
@@ -1273,12 +1575,9 @@ class TestSignAll(unittest.TestCase):
         for attr in kwargs:
             manager.attach_mock(kwargs[attr], attr)
 
-        app_uuid = '2d7bf857-c2b2-4ebc-8b51-b2f43ecfc13e'
-        kwargs['submit'].return_value = app_uuid
-        kwargs['wait_for_results'].return_value = iter([app_uuid])
-
         config = test_config.TestConfig()
-        pipeline.sign_all(self.paths, config, disable_packaging=True)
+        asyncio.run(
+            pipeline.sign_all(self.paths, config, disable_packaging=True))
 
         manager.assert_has_calls([
             # First customize the distribution and sign it.
@@ -1293,7 +1592,6 @@ class TestSignAll(unittest.TestCase):
                                   cwd='/$W_1/stable'),
             mock.call.submit('/$W_1/AppProduct-99.0.9999.99.zip', mock.ANY),
             mock.call.shutil.rmtree('/$W_2'),
-            mock.call.wait_for_results({app_uuid: None}.keys(), mock.ANY),
             mock.call._staple_chrome(
                 self.paths.replace_work('/$W_1/stable'), mock.ANY),
             mock.call.shutil.rmtree('/$W_1'),
@@ -1305,72 +1603,17 @@ class TestSignAll(unittest.TestCase):
         self.assertEqual(1, kwargs['_package_installer_tools'].call_count)
         self.assertEqual(1, kwargs['run_command'].call_count)
 
-    def test_sign_notarize_no_wait(self, **kwargs):
-        manager = mock.Mock()
-        for attr in kwargs:
-            manager.attach_mock(kwargs[attr], attr)
-
-        app_uuid = 'f38ee49c-c55b-4a10-a4f5-aaaa17636b76'
-        dmg_uuid = '9f49067e-a13d-436a-8016-3a22a4f6ef92'
-        kwargs['submit'].side_effect = [app_uuid, dmg_uuid]
-        kwargs['wait_for_results'].side_effect = [
-            iter([app_uuid]), iter([dmg_uuid])
-        ]
-        kwargs[
-            '_package_and_sign_dmg'].return_value = '/$O/AppProduct-99.0.9999.99.dmg'
-
-        config = test_config.TestConfig()
-        pipeline.sign_all(
-            self.paths,
-            config,
-            notarization=model.NotarizeAndStapleLevel.NOWAIT)
-
-        self.assertEqual(1, kwargs['_package_installer_tools'].call_count)
-
-        manager.assert_has_calls([
-            # First customize the distribution and sign it.
-            mock.call._customize_and_sign_chrome(mock.ANY, mock.ANY,
-                                                 '/$W_1/stable', mock.ANY),
-
-            # Prepare the app for notarization.
-            mock.call.run_command([
-                'zip', '--recurse-paths', '--symlinks', '--quiet',
-                '/$W_1/AppProduct-99.0.9999.99.zip', 'App Product.app'
-            ],
-                                  cwd='/$W_1/stable'),
-            mock.call.submit('/$W_1/AppProduct-99.0.9999.99.zip', mock.ANY),
-            mock.call.shutil.rmtree('/$W_2'),
-
-            # Make the DMG.
-            mock.call._package_and_sign_dmg(mock.ANY, mock.ANY),
-
-            # Notarize the DMG.
-            mock.call.submit('/$O/AppProduct-99.0.9999.99.dmg', mock.ANY),
-            mock.call.shutil.rmtree('/$W_1'),
-
-            # Package the installer tools.
-            mock.call._package_installer_tools(mock.ANY, mock.ANY),
-        ])
-
     def test_sign_notarize_wait_no_staple(self, **kwargs):
         manager = mock.Mock()
         for attr in kwargs:
             manager.attach_mock(kwargs[attr], attr)
 
-        app_uuid = 'f38ee49c-c55b-4a10-a4f5-aaaa17636b76'
-        dmg_uuid = '9f49067e-a13d-436a-8016-3a22a4f6ef92'
-        kwargs['submit'].side_effect = [app_uuid, dmg_uuid]
-        kwargs['wait_for_results'].side_effect = [
-            iter([app_uuid]), iter([dmg_uuid])
-        ]
         kwargs[
             '_package_and_sign_dmg'].return_value = '/$O/AppProduct-99.0.9999.99.dmg'
 
-        config = test_config.TestConfig()
-        pipeline.sign_all(
-            self.paths,
-            config,
-            notarization=model.NotarizeAndStapleLevel.WAIT_NOSTAPLE)
+        config = test_config.TestConfig(
+            notarize=model.NotarizeAndStapleLevel.WAIT_NOSTAPLE)
+        asyncio.run(pipeline.sign_all(self.paths, config))
 
         self.assertEqual(1, kwargs['_package_installer_tools'].call_count)
 
@@ -1387,14 +1630,14 @@ class TestSignAll(unittest.TestCase):
                                   cwd='/$W_1/stable'),
             mock.call.submit('/$W_1/AppProduct-99.0.9999.99.zip', mock.ANY),
             mock.call.shutil.rmtree('/$W_2'),
-            mock.call.wait_for_results({app_uuid: None}.keys(), mock.ANY),
 
             # Make the DMG.
             mock.call._package_and_sign_dmg(mock.ANY, mock.ANY),
 
             # Notarize the DMG.
             mock.call.submit('/$O/AppProduct-99.0.9999.99.dmg', mock.ANY),
-            mock.call.wait_for_results({dmg_uuid: None}.keys(), mock.ANY),
+
+            # Cleanup.
             mock.call.shutil.rmtree('/$W_1'),
 
             # Package the installer tools.
@@ -1406,9 +1649,9 @@ class TestSignAll(unittest.TestCase):
         for attr in kwargs:
             manager.attach_mock(kwargs[attr], attr)
 
-        config = test_config.TestConfig()
-        pipeline.sign_all(
-            self.paths, config, notarization=model.NotarizeAndStapleLevel.NONE)
+        config = test_config.TestConfig(
+            notarize=model.NotarizeAndStapleLevel.NONE)
+        asyncio.run(pipeline.sign_all(self.paths, config))
 
         self.assertEqual(1, kwargs['_package_installer_tools'].call_count)
 
@@ -1420,6 +1663,8 @@ class TestSignAll(unittest.TestCase):
 
             # Make the DMG.
             mock.call._package_and_sign_dmg(mock.ANY, mock.ANY),
+
+            # Cleanup.
             mock.call.shutil.rmtree('/$W_1'),
 
             # Package the installer tools.
@@ -1431,12 +1676,10 @@ class TestSignAll(unittest.TestCase):
         for attr in kwargs:
             manager.attach_mock(kwargs[attr], attr)
 
-        config = test_config.TestConfig()
-        pipeline.sign_all(
-            self.paths,
-            config,
-            disable_packaging=True,
-            notarization=model.NotarizeAndStapleLevel.NONE)
+        config = test_config.TestConfig(
+            notarize=model.NotarizeAndStapleLevel.NONE)
+        asyncio.run(
+            pipeline.sign_all(self.paths, config, disable_packaging=True))
 
         manager.assert_has_calls([
             # First customize the distribution and sign it.
@@ -1467,25 +1710,51 @@ class TestSignAll(unittest.TestCase):
                         branding_code='MOO',
                         packaging_name_fragment='ForCows',
                         package_as_dmg=True,
-                        package_as_pkg=False),
+                        package_as_pkg=False,
+                        package_as_zip=False),
                     model.Distribution(
                         branding_code='ARF',
                         packaging_name_fragment='ForDogs',
                         package_as_dmg=False,
-                        package_as_pkg=True),
+                        package_as_pkg=True,
+                        package_as_zip=False),
+                    model.Distribution(
+                        branding_code='MEOW',
+                        packaging_name_fragment='ForCats',
+                        package_as_dmg=False,
+                        package_as_pkg=False,
+                        package_as_zip=True),
                     model.Distribution(
                         branding_code='MOOF',
                         packaging_name_fragment='ForDogcows',
                         package_as_dmg=True,
-                        package_as_pkg=True),
+                        package_as_pkg=True,
+                        package_as_zip=False),
+                    model.Distribution(
+                        branding_code='MEOARF',
+                        packaging_name_fragment='ForCatdogs',
+                        package_as_dmg=False,
+                        package_as_pkg=True,
+                        package_as_zip=True),
+                    model.Distribution(
+                        branding_code='MOOEOW',
+                        packaging_name_fragment='ForCowcats',
+                        package_as_dmg=True,
+                        package_as_pkg=False,
+                        package_as_zip=True),
+                    model.Distribution(
+                        branding_code='AHHHH',
+                        packaging_name_fragment='ForCowdogcats',
+                        package_as_dmg=True,
+                        package_as_pkg=True,
+                        package_as_zip=True),
                 ]
 
-        config = Config()
-        pipeline.sign_all(
-            self.paths, config, notarization=model.NotarizeAndStapleLevel.NONE)
+        config = Config(notarize=model.NotarizeAndStapleLevel.NONE)
+        asyncio.run(pipeline.sign_all(self.paths, config))
 
         self.assertEqual(1, kwargs['_package_installer_tools'].call_count)
-        self.assertEqual(3, kwargs['_customize_and_sign_chrome'].call_count)
+        self.assertEqual(6, kwargs['_customize_and_sign_chrome'].call_count)
 
         manager.assert_has_calls([
             # Customizations.
@@ -1497,8 +1766,20 @@ class TestSignAll(unittest.TestCase):
             mock.call.shutil.rmtree('/$W_3'),
             mock.call.shutil.rmtree('/$W_4'),
             mock.call._customize_and_sign_chrome(mock.ANY, mock.ANY,
-                                                 '/$W_1/stable-MOOF', mock.ANY),
+                                                 '/$W_1/stable-MEOW', mock.ANY),
             mock.call.shutil.rmtree('/$W_5'),
+            mock.call._customize_and_sign_chrome(mock.ANY, mock.ANY,
+                                                 '/$W_1/stable-MOOF', mock.ANY),
+            mock.call.shutil.rmtree('/$W_6'),
+            mock.call.shutil.rmtree('/$W_7'),
+            mock.call._customize_and_sign_chrome(mock.ANY, mock.ANY,
+                                                 '/$W_1/stable-MOOEOW',
+                                                 mock.ANY),
+            mock.call.shutil.rmtree('/$W_8'),
+            mock.call._customize_and_sign_chrome(mock.ANY, mock.ANY,
+                                                 '/$W_1/stable-AHHHH',
+                                                 mock.ANY),
+            mock.call.shutil.rmtree('/$W_9'),
 
             # Packaging and signing.
             mock.call._package_and_sign_dmg(
@@ -1507,10 +1788,26 @@ class TestSignAll(unittest.TestCase):
                 self.paths.replace_work('/$W_1/stable-MOO'), mock.ANY),
             mock.call._package_and_sign_pkg(
                 self.paths.replace_work('/$W_1/stable'), mock.ANY),
+            mock.call._package_zip(
+                self.paths.replace_work('/$W_1/stable-MEOW'), mock.ANY),
             mock.call._package_and_sign_dmg(
                 self.paths.replace_work('/$W_1/stable-MOOF'), mock.ANY),
             mock.call._package_and_sign_pkg(
                 self.paths.replace_work('/$W_1/stable-MOOF'), mock.ANY),
+            mock.call._package_and_sign_pkg(
+                self.paths.replace_work('/$W_1/stable'), mock.ANY),
+            mock.call._package_zip(
+                self.paths.replace_work('/$W_1/stable'), mock.ANY),
+            mock.call._package_and_sign_dmg(
+                self.paths.replace_work('/$W_1/stable-MOOEOW'), mock.ANY),
+            mock.call._package_zip(
+                self.paths.replace_work('/$W_1/stable-MOOEOW'), mock.ANY),
+            mock.call._package_and_sign_dmg(
+                self.paths.replace_work('/$W_1/stable-AHHHH'), mock.ANY),
+            mock.call._package_and_sign_pkg(
+                self.paths.replace_work('/$W_1/stable-AHHHH'), mock.ANY),
+            mock.call._package_zip(
+                self.paths.replace_work('/$W_1/stable-AHHHH'), mock.ANY),
             mock.call.shutil.rmtree('/$W_1'),
 
             # Finally the installer tools.
@@ -1534,13 +1831,13 @@ class TestSignAll(unittest.TestCase):
                     model.Distribution(),
                 ]
 
-        config = Config()
-        pipeline.sign_all(
-            self.paths,
-            config,
-            notarization=model.NotarizeAndStapleLevel.NONE,
-            skip_brands=skip_brands,
-            channels=include_channels)
+        config = Config(notarize=model.NotarizeAndStapleLevel.NONE)
+        asyncio.run(
+            pipeline.sign_all(
+                self.paths,
+                config,
+                skip_brands=skip_brands,
+                channels=include_channels))
 
         self.assertEqual(_last_brand_filter(), skip_brands)
         self.assertEqual(_last_channel_filter(), include_channels)

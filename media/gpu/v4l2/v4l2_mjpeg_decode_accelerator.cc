@@ -9,15 +9,19 @@
 #include <string.h>
 #include <sys/mman.h>
 
+#include <algorithm>
 #include <array>
 #include <memory>
 #include <utility>
 
-#include "base/big_endian.h"
+#include "base/containers/span.h"
+#include "base/containers/span_reader.h"
+#include "base/containers/span_writer.h"
 #include "base/files/scoped_file.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/page_size.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/memory/shared_memory_mapping.h"
 #include "base/memory/unsafe_shared_memory_region.h"
 #include "base/numerics/safe_conversions.h"
@@ -63,23 +67,23 @@
 #define READ_U8_OR_RETURN_FALSE(reader, out)                               \
   do {                                                                     \
     uint8_t _out;                                                          \
-    if (!reader.ReadU8(&_out)) {                                           \
+    if (!reader.ReadU8BigEndian(_out)) {                                   \
       DVLOGF(1)                                                            \
           << "Error in stream: unexpected EOS while trying to read " #out; \
       return false;                                                        \
     }                                                                      \
-    *(out) = _out;                                                         \
+    out = _out;                                                            \
   } while (0)
 
 #define READ_U16_OR_RETURN_FALSE(reader, out)                              \
   do {                                                                     \
     uint16_t _out;                                                         \
-    if (!reader.ReadU16(&_out)) {                                          \
+    if (!reader.ReadU16BigEndian(_out)) {                                  \
       DVLOGF(1)                                                            \
           << "Error in stream: unexpected EOS while trying to read " #out; \
       return false;                                                        \
     }                                                                      \
-    *(out) = _out;                                                         \
+    out = _out;                                                            \
   } while (0)
 
 namespace {
@@ -91,6 +95,35 @@ const size_t kMaxInputPlanes = 1;
 // can only be 1.
 static_assert(kMaxInputPlanes == 1,
               "kMaxInputPlanes must be 1 as input must be V4L2_PIX_FMT_JPEG");
+
+// V4L2 structs often contain unions, and thus should not be initialized by
+// `= {}` lest there still be uninitialized bytes in union members larger than
+// the first. And on most platforms, many V4L2 structs contain padding, and thus
+// do not meet `std::has_unique_object_representations_v`, so they need to be
+// explicitly allowed for byte spanification. These helpers encapsulate both
+// complexities.
+//
+// Single objects.
+template <typename T>
+void ZeroFillVl42Struct(T& t) {
+  if constexpr (std::has_unique_object_representations_v<T>) {
+    std::ranges::fill(base::byte_span_from_ref(t), 0);
+  } else {
+    std::ranges::fill(base::byte_span_from_ref(base::allow_nonunique_obj, t),
+                      0);
+  }
+}
+// Arrays.
+template <typename T, size_t N>
+void ZeroFillVl42Struct(T (&t)[N]) {
+  if constexpr (std::has_unique_object_representations_v<T>) {
+    std::ranges::fill(base::as_writable_byte_span(t), 0);
+  } else {
+    std::ranges::fill(base::as_writable_byte_span(base::allow_nonunique_obj, t),
+                      0);
+  }
+}
+
 }  // namespace
 
 namespace media {
@@ -99,7 +132,7 @@ namespace media {
 // chrominance. The default huffman segment is constructed with the tables from
 // JPEG standard section K.3. Actually there are no default tables. They are
 // typical tables. These tables are useful for many applications. Lots of
-// softwares use them as standard tables such as ffmpeg.
+// software use them as standard tables such as ffmpeg.
 const uint8_t kDefaultDhtSeg[] = {
     0xFF, 0xC4, 0x01, 0xA2, 0x00, 0x00, 0x01, 0x05, 0x01, 0x01, 0x01, 0x01,
     0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x02,
@@ -206,7 +239,6 @@ class JobRecordDmaBuf : public V4L2MjpegDecodeAccelerator::JobRecord {
         dmabuf_fd_(std::move(src_dmabuf_fd)),
         size_(src_size),
         offset_(src_offset),
-        mapped_addr_(nullptr),
         out_frame_(std::move(dst_frame)) {}
 
   JobRecordDmaBuf(const JobRecordDmaBuf&) = delete;
@@ -224,16 +256,18 @@ class JobRecordDmaBuf : public V4L2MjpegDecodeAccelerator::JobRecord {
   uint64_t offset() const override { return offset_; }
 
   bool map() override {
-    if (mapped_addr_)
+    if (mapped_addr_) {
       return true;
+    }
     // The DMA-buf FD should be mapped as read-only since it may only have read
     // permission, e.g. when it comes from camera driver.
     DCHECK(dmabuf_fd_.is_valid());
     DCHECK_GT(size(), 0u);
     void* addr = mmap(nullptr, size(), PROT_READ, MAP_SHARED, dmabuf_fd_.get(),
                       base::checked_cast<off_t>(offset()));
-    if (addr == MAP_FAILED)
+    if (addr == MAP_FAILED) {
       return false;
+    }
     mapped_addr_ = addr;
     return true;
   }
@@ -250,16 +284,13 @@ class JobRecordDmaBuf : public V4L2MjpegDecodeAccelerator::JobRecord {
   base::ScopedFD dmabuf_fd_;
   size_t size_;
   uint64_t offset_;
-  void* mapped_addr_;
+
+  // This field is not a raw_ptr<> because it always points to a mmap'd
+  // region of memory outside of the PA heap. Thus, there would be overhead
+  // involved with using a raw_ptr<> but no safety gains.
+  RAW_PTR_EXCLUSION void* mapped_addr_ = nullptr;
   scoped_refptr<VideoFrame> out_frame_;
 };
-
-V4L2MjpegDecodeAccelerator::BufferRecord::BufferRecord() : at_device(false) {
-  memset(address, 0, sizeof(address));
-  memset(length, 0, sizeof(length));
-}
-
-V4L2MjpegDecodeAccelerator::BufferRecord::~BufferRecord() {}
 
 V4L2MjpegDecodeAccelerator::V4L2MjpegDecodeAccelerator(
     const scoped_refptr<V4L2Device>& device,
@@ -298,10 +329,12 @@ V4L2MjpegDecodeAccelerator::~V4L2MjpegDecodeAccelerator() {
 void V4L2MjpegDecodeAccelerator::DestroyTask(base::WaitableEvent* waiter) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(decoder_sequence_);
 
-  while (!input_jobs_.empty())
+  while (!input_jobs_.empty()) {
     input_jobs_.pop();
-  while (!running_jobs_.empty())
+  }
+  while (!running_jobs_.empty()) {
     running_jobs_.pop();
+  }
 
   // Stop streaming and the device_poll_thread_.
   StopDevicePoll();
@@ -343,7 +376,7 @@ void V4L2MjpegDecodeAccelerator::InitializeOnDecoderTaskRunner(
   // Capabilities check.
   struct v4l2_capability caps;
   const __u32 kCapsRequired = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_M2M_MPLANE;
-  memset(&caps, 0, sizeof(caps));
+  ZeroFillVl42Struct(caps);
   if (device_->Ioctl(VIDIOC_QUERYCAP, &caps) != 0) {
     VPLOGF(1) << "ioctl() failed: VIDIOC_QUERYCAP";
     std::move(init_cb).Run(false);
@@ -358,7 +391,7 @@ void V4L2MjpegDecodeAccelerator::InitializeOnDecoderTaskRunner(
 
   // Subscribe to the source change event.
   struct v4l2_event_subscription sub;
-  memset(&sub, 0, sizeof(sub));
+  ZeroFillVl42Struct(sub);
   sub.type = V4L2_EVENT_SOURCE_CHANGE;
   if (device_->Ioctl(VIDIOC_SUBSCRIBE_EVENT, &sub) != 0) {
     VPLOGF(1) << "ioctl() failed: VIDIOC_SUBSCRIBE_EVENT";
@@ -489,10 +522,7 @@ void V4L2MjpegDecodeAccelerator::Decode(
 
 // static
 bool V4L2MjpegDecodeAccelerator::IsSupported() {
-  scoped_refptr<V4L2Device> device = V4L2Device::Create();
-  if (!device)
-    return false;
-
+  auto device = base::MakeRefCounted<V4L2Device>();
   return device->IsJpegDecodingSupported();
 }
 
@@ -521,8 +551,9 @@ size_t V4L2MjpegDecodeAccelerator::OutputBufferQueuedCount() {
 
 bool V4L2MjpegDecodeAccelerator::ShouldRecreateInputBuffers() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(decoder_sequence_);
-  if (input_jobs_.empty())
+  if (input_jobs_.empty()) {
     return false;
+  }
 
   JobRecord* job_record = input_jobs_.front().get();
   // Check input buffer size is enough
@@ -537,8 +568,9 @@ bool V4L2MjpegDecodeAccelerator::RecreateInputBuffers() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(decoder_sequence_);
 
   // If running queue is not empty, we should wait until pending frames finish.
-  if (!running_jobs_.empty())
+  if (!running_jobs_.empty()) {
     return true;
+  }
 
   DestroyInputBuffers();
 
@@ -576,7 +608,7 @@ bool V4L2MjpegDecodeAccelerator::CreateInputBuffers() {
   // TODO(kamesan): use safe arithmetic to handle overflows.
   size_t reserve_size = (job_record->size() + sizeof(kDefaultDhtSeg)) * 2;
   struct v4l2_format format;
-  memset(&format, 0, sizeof(format));
+  ZeroFillVl42Struct(format);
   format.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
   format.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_JPEG;
   format.fmt.pix_mp.plane_fmt[0].sizeimage = reserve_size;
@@ -586,7 +618,7 @@ bool V4L2MjpegDecodeAccelerator::CreateInputBuffers() {
   DCHECK_EQ(format.fmt.pix_mp.pixelformat, V4L2_PIX_FMT_JPEG);
 
   struct v4l2_requestbuffers reqbufs;
-  memset(&reqbufs, 0, sizeof(reqbufs));
+  ZeroFillVl42Struct(reqbufs);
   reqbufs.count = kBufferCount;
   reqbufs.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
   reqbufs.memory = V4L2_MEMORY_MMAP;
@@ -600,8 +632,8 @@ bool V4L2MjpegDecodeAccelerator::CreateInputBuffers() {
 
     struct v4l2_buffer buffer;
     struct v4l2_plane planes[VIDEO_MAX_PLANES];
-    memset(&buffer, 0, sizeof(buffer));
-    memset(planes, 0, sizeof(planes));
+    ZeroFillVl42Struct(buffer);
+    ZeroFillVl42Struct(planes);
     buffer.index = i;
     buffer.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
     buffer.m.planes = planes;
@@ -613,7 +645,7 @@ bool V4L2MjpegDecodeAccelerator::CreateInputBuffers() {
     }
     for (size_t j = 0; j < buffer.length; ++j) {
       void* address =
-          device_->Mmap(NULL, planes[j].length, PROT_READ | PROT_WRITE,
+          device_->Mmap(nullptr, planes[j].length, PROT_READ | PROT_WRITE,
                         MAP_SHARED, planes[j].m.mem_offset);
       if (address == MAP_FAILED) {
         VPLOGF(1) << "mmap() failed";
@@ -638,7 +670,7 @@ bool V4L2MjpegDecodeAccelerator::CreateOutputBuffers() {
   size_t frame_size = VideoFrame::AllocationSize(
       PIXEL_FORMAT_I420, job_record->out_frame()->coded_size());
   struct v4l2_format format;
-  memset(&format, 0, sizeof(format));
+  ZeroFillVl42Struct(format);
   format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
   format.fmt.pix_mp.width = job_record->out_frame()->coded_size().width();
   format.fmt.pix_mp.height = job_record->out_frame()->coded_size().height();
@@ -651,8 +683,9 @@ bool V4L2MjpegDecodeAccelerator::CreateOutputBuffers() {
   output_buffer_coded_size_.SetSize(format.fmt.pix_mp.width,
                                     format.fmt.pix_mp.height);
   output_buffer_num_planes_ = format.fmt.pix_mp.num_planes;
-  for (size_t i = 0; i < output_buffer_num_planes_; ++i)
+  for (size_t i = 0; i < output_buffer_num_planes_; ++i) {
     output_strides_[i] = format.fmt.pix_mp.plane_fmt[i].bytesperline;
+  }
 
   auto output_format = Fourcc::FromV4L2PixFmt(output_buffer_pixelformat_);
   if (!output_format) {
@@ -663,7 +696,7 @@ bool V4L2MjpegDecodeAccelerator::CreateOutputBuffers() {
   }
 
   struct v4l2_requestbuffers reqbufs;
-  memset(&reqbufs, 0, sizeof(reqbufs));
+  ZeroFillVl42Struct(reqbufs);
   reqbufs.count = kBufferCount;
   reqbufs.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
   reqbufs.memory = V4L2_MEMORY_MMAP;
@@ -677,8 +710,8 @@ bool V4L2MjpegDecodeAccelerator::CreateOutputBuffers() {
 
     struct v4l2_buffer buffer;
     struct v4l2_plane planes[VIDEO_MAX_PLANES];
-    memset(&buffer, 0, sizeof(buffer));
-    memset(planes, 0, sizeof(planes));
+    ZeroFillVl42Struct(buffer);
+    ZeroFillVl42Struct(planes);
     buffer.index = i;
     buffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
     buffer.memory = V4L2_MEMORY_MMAP;
@@ -698,7 +731,7 @@ bool V4L2MjpegDecodeAccelerator::CreateOutputBuffers() {
         return false;
       }
       void* address =
-          device_->Mmap(NULL, planes[j].length, PROT_READ | PROT_WRITE,
+          device_->Mmap(nullptr, planes[j].length, PROT_READ | PROT_WRITE,
                         MAP_SHARED, planes[j].m.mem_offset);
       if (address == MAP_FAILED) {
         VPLOGF(1) << "mmap() failed";
@@ -718,8 +751,9 @@ void V4L2MjpegDecodeAccelerator::DestroyInputBuffers() {
 
   free_input_buffers_.clear();
 
-  if (input_buffer_map_.empty())
+  if (input_buffer_map_.empty()) {
     return;
+  }
 
   if (input_streamon_) {
     __u32 type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
@@ -734,7 +768,7 @@ void V4L2MjpegDecodeAccelerator::DestroyInputBuffers() {
   }
 
   struct v4l2_requestbuffers reqbufs;
-  memset(&reqbufs, 0, sizeof(reqbufs));
+  ZeroFillVl42Struct(reqbufs);
   reqbufs.count = 0;
   reqbufs.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
   reqbufs.memory = V4L2_MEMORY_MMAP;
@@ -748,8 +782,9 @@ void V4L2MjpegDecodeAccelerator::DestroyOutputBuffers() {
 
   free_output_buffers_.clear();
 
-  if (output_buffer_map_.empty())
+  if (output_buffer_map_.empty()) {
     return;
+  }
 
   if (output_streamon_) {
     __u32 type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
@@ -764,7 +799,7 @@ void V4L2MjpegDecodeAccelerator::DestroyOutputBuffers() {
   }
 
   struct v4l2_requestbuffers reqbufs;
-  memset(&reqbufs, 0, sizeof(reqbufs));
+  ZeroFillVl42Struct(reqbufs);
   reqbufs.count = 0;
   reqbufs.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
   reqbufs.memory = V4L2_MEMORY_MMAP;
@@ -794,7 +829,7 @@ void V4L2MjpegDecodeAccelerator::DevicePollTask() {
 bool V4L2MjpegDecodeAccelerator::DequeueSourceChangeEvent() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(decoder_sequence_);
 
-  if (absl::optional<struct v4l2_event> event = device_->DequeueEvent()) {
+  if (std::optional<struct v4l2_event> event = device_->DequeueEvent()) {
     if (event->type == V4L2_EVENT_SOURCE_CHANGE) {
       VLOGF(2) << ": got source change event: " << event->u.src_change.changes;
       if (event->u.src_change.changes & V4L2_EVENT_SRC_CH_RESOLUTION) {
@@ -815,20 +850,25 @@ bool V4L2MjpegDecodeAccelerator::DequeueSourceChangeEvent() {
 void V4L2MjpegDecodeAccelerator::ServiceDeviceTask(bool event_pending) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(decoder_sequence_);
   // If DestroyTask() shuts |device_poll_thread_| down, we should early-out.
-  if (!device_poll_thread_.IsRunning())
+  if (!device_poll_thread_.IsRunning()) {
     return;
+  }
 
-  if (!running_jobs_.empty())
+  if (!running_jobs_.empty()) {
     Dequeue();
+  }
 
-  if (ShouldRecreateInputBuffers() && !RecreateInputBuffers())
+  if (ShouldRecreateInputBuffers() && !RecreateInputBuffers()) {
     return;
+  }
 
   if (event_pending) {
-    if (!DequeueSourceChangeEvent())
+    if (!DequeueSourceChangeEvent()) {
       return;
-    if (!RecreateOutputBuffers())
+    }
+    if (!RecreateOutputBuffers()) {
       return;
+    }
   }
 
   EnqueueInput();
@@ -851,10 +891,12 @@ void V4L2MjpegDecodeAccelerator::EnqueueInput() {
   while (!input_jobs_.empty() && !free_input_buffers_.empty()) {
     // If input buffers are required to re-create, do not enqueue input record
     // until all pending frames are handled by device.
-    if (ShouldRecreateInputBuffers())
+    if (ShouldRecreateInputBuffers()) {
       break;
-    if (!EnqueueInputRecord())
+    }
+    if (!EnqueueInputRecord()) {
       return;
+    }
   }
   // Check here because we cannot STREAMON before QBUF in earlier kernel.
   // (kernel version < 3.14)
@@ -871,8 +913,9 @@ void V4L2MjpegDecodeAccelerator::EnqueueOutput() {
   // currently in the pipeline are all the same.
   while (running_jobs_.size() > OutputBufferQueuedCount() &&
          !free_output_buffers_.empty()) {
-    if (!EnqueueOutputRecord())
+    if (!EnqueueOutputRecord()) {
       return;
+    }
   }
   // Check here because we cannot STREAMON before QBUF in earlier kernel.
   // (kernel version < 3.14)
@@ -1048,8 +1091,8 @@ void V4L2MjpegDecodeAccelerator::Dequeue() {
   struct v4l2_plane planes[VIDEO_MAX_PLANES];
   while (InputBufferQueuedCount() > 0) {
     DCHECK(input_streamon_);
-    memset(&dqbuf, 0, sizeof(dqbuf));
-    memset(planes, 0, sizeof(planes));
+    ZeroFillVl42Struct(dqbuf);
+    ZeroFillVl42Struct(planes);
     dqbuf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
     dqbuf.memory = V4L2_MEMORY_MMAP;
     dqbuf.length = std::size(planes);
@@ -1082,8 +1125,8 @@ void V4L2MjpegDecodeAccelerator::Dequeue() {
   // have pending frames in |running_jobs_| and also enqueued output buffers.
   while (!running_jobs_.empty() && OutputBufferQueuedCount() > 0) {
     DCHECK(output_streamon_);
-    memset(&dqbuf, 0, sizeof(dqbuf));
-    memset(planes, 0, sizeof(planes));
+    ZeroFillVl42Struct(dqbuf);
+    ZeroFillVl42Struct(planes);
     dqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
     // From experiments, using MMAP and memory copy is still faster than
     // USERPTR. Also, client doesn't need to consider the buffer alignment and
@@ -1135,43 +1178,42 @@ void V4L2MjpegDecodeAccelerator::Dequeue() {
   }
 }
 
-static bool AddHuffmanTable(const void* input_ptr,
-                            size_t input_size,
-                            void* output_ptr,
-                            size_t output_size) {
-  DCHECK(input_ptr);
-  DCHECK(output_ptr);
-  DCHECK_LE((input_size + sizeof(kDefaultDhtSeg)), output_size);
+static bool AddHuffmanTable(base::span<const uint8_t> input,
+                            base::span<uint8_t> output) {
+  DCHECK_LE((input.size() + sizeof(kDefaultDhtSeg)), output.size());
 
-  base::BigEndianReader reader(static_cast<const uint8_t*>(input_ptr),
-                               input_size);
-  bool has_marker_dht = false;
-  bool has_marker_sos = false;
-  uint8_t marker1, marker2;
-  READ_U8_OR_RETURN_FALSE(reader, &marker1);
-  READ_U8_OR_RETURN_FALSE(reader, &marker2);
+  auto reader = base::SpanReader(input);
+  auto writer = base::SpanWriter(output);
+
+  // Read and copy SOI marker (0xFF, 0xD8).
+  uint8_t marker1;
+  uint8_t marker2;
+  READ_U8_OR_RETURN_FALSE(reader, marker1);
+  READ_U8_OR_RETURN_FALSE(reader, marker2);
   if (marker1 != JPEG_MARKER_PREFIX || marker2 != JPEG_SOI) {
     DVLOGF(1) << "The input is not a Jpeg";
     return false;
   }
+  CHECK(writer.WriteU8BigEndian(marker1));
+  CHECK(writer.WriteU8BigEndian(marker2));
 
-  // copy SOI marker (0xFF, 0xD8)
-  memcpy(output_ptr, input_ptr, 2);
-  size_t current_offset = 2;
-
+  bool has_marker_dht = false;
+  bool has_marker_sos = false;
   while (!has_marker_sos && !has_marker_dht) {
-    const uint8_t* start_addr = reader.ptr();
-    READ_U8_OR_RETURN_FALSE(reader, &marker1);
+    size_t start_offset = reader.num_read();
+    base::span<const uint8_t> segment_span = reader.remaining_span();
+
+    READ_U8_OR_RETURN_FALSE(reader, marker1);
     if (marker1 != JPEG_MARKER_PREFIX) {
       DVLOGF(1) << "marker1 != 0xFF";
       return false;
     }
     do {
-      READ_U8_OR_RETURN_FALSE(reader, &marker2);
+      READ_U8_OR_RETURN_FALSE(reader, marker2);
     } while (marker2 == JPEG_MARKER_PREFIX);  // skip fill bytes
 
     uint16_t size;
-    READ_U16_OR_RETURN_FALSE(reader, &size);
+    READ_U16_OR_RETURN_FALSE(reader, size);
     // The size includes the size field itself.
     if (size < sizeof(size)) {
       DVLOGF(1) << ": Ill-formed JPEG. Segment size (" << size
@@ -1187,9 +1229,7 @@ static bool AddHuffmanTable(const void* input_ptr,
       }
       case JPEG_SOS: {
         if (!has_marker_dht) {
-          memcpy(static_cast<uint8_t*>(output_ptr) + current_offset,
-                 kDefaultDhtSeg, sizeof(kDefaultDhtSeg));
-          current_offset += sizeof(kDefaultDhtSeg);
+          writer.Write(kDefaultDhtSeg);
         }
         has_marker_sos = true;
         break;
@@ -1204,14 +1244,12 @@ static bool AddHuffmanTable(const void* input_ptr,
       return false;
     }
 
-    size_t segment_size = static_cast<size_t>(reader.ptr() - start_addr);
-    memcpy(static_cast<uint8_t*>(output_ptr) + current_offset, start_addr,
-           segment_size);
-    current_offset += segment_size;
+    // Trim the end to the length of the segment.
+    segment_span = segment_span.first(reader.num_read() - start_offset);
+    CHECK(writer.Write(segment_span));
   }
   if (reader.remaining()) {
-    memcpy(static_cast<uint8_t*>(output_ptr) + current_offset, reader.ptr(),
-           reader.remaining());
+    CHECK(writer.Write(reader.remaining_span()));
   }
   return true;
 }
@@ -1229,16 +1267,28 @@ bool V4L2MjpegDecodeAccelerator::EnqueueInputRecord() {
   DCHECK(!input_record.at_device);
 
   // It will add default huffman segment if it's missing.
-  if (!AddHuffmanTable(job_record->memory(), job_record->size(),
-                       input_record.address[0], input_record.length[0])) {
+  if (!AddHuffmanTable(
+          // SAFETY: JobRecord's memory() points to at least size() many
+          // elements if map() was previously called.
+          //
+          // TODO(crbug.com/40284755): JobRecord should give a span, rather than
+          // a pointer.
+          UNSAFE_TODO(
+              base::span(static_cast<const uint8_t*>(job_record->memory()),
+                         job_record->size())),
+          // SAFETY: BufferRecord has an array of pointer + length pairs. The
+          // length is the number of elements at the matching pointer.
+          UNSAFE_BUFFERS(
+              base::span(static_cast<uint8_t*>(input_record.address[0]),
+                         input_record.length[0])))) {
     PostNotifyError(job_record->task_id(), PARSE_JPEG_FAILED);
     return false;
   }
 
   struct v4l2_buffer qbuf;
   struct v4l2_plane planes[VIDEO_MAX_PLANES];
-  memset(&qbuf, 0, sizeof(qbuf));
-  memset(planes, 0, sizeof(planes));
+  ZeroFillVl42Struct(qbuf);
+  ZeroFillVl42Struct(planes);
   qbuf.index = index;
   qbuf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
   qbuf.memory = V4L2_MEMORY_MMAP;
@@ -1266,8 +1316,8 @@ bool V4L2MjpegDecodeAccelerator::EnqueueOutputRecord() {
   DCHECK(!output_record.at_device);
   struct v4l2_buffer qbuf;
   struct v4l2_plane planes[VIDEO_MAX_PLANES];
-  memset(&qbuf, 0, sizeof(qbuf));
-  memset(planes, 0, sizeof(planes));
+  ZeroFillVl42Struct(qbuf);
+  ZeroFillVl42Struct(planes);
   qbuf.index = index;
   qbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
   qbuf.memory = V4L2_MEMORY_MMAP;
@@ -1305,8 +1355,9 @@ bool V4L2MjpegDecodeAccelerator::StopDevicePoll() {
   device_poll_thread_.Stop();
 
   // Clear the interrupt now, to be sure.
-  if (!device_->ClearDevicePollInterrupt())
+  if (!device_->ClearDevicePollInterrupt()) {
     return false;
+  }
 
   return true;
 }

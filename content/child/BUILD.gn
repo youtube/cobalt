@@ -41,10 +41,12 @@ target(link_target_type, "child") {
     "blink_platform_impl.h",
     "browser_exposed_child_interfaces.cc",
     "browser_exposed_child_interfaces.h",
-    "child_histogram_fetcher_impl.cc",
-    "child_histogram_fetcher_impl.h",
+    "child_performance_coordinator.cc",
+    "child_performance_coordinator.h",
     "child_process.cc",
     "child_process.h",
+    "child_process_synthetic_trial_syncer.cc",
+    "child_process_synthetic_trial_syncer.h",
     "child_thread_impl.cc",
     "child_thread_impl.h",
     "field_trial.cc",
@@ -62,17 +64,20 @@ target(link_target_type, "child") {
     "//gpu/ipc/client:client",
     "//ipc",
     "//services/service_manager/public/mojom:mojom_blink",
+    "//ui/base/mojom:ui_base_types",
   ]
 
   deps = [
     "//base",
     "//build/config/compiler:compiler_buildflags",
     "//cc/paint",
-    "//components/autofill/core/common:features",
     "//components/discardable_memory/client",
     "//components/discardable_memory/public/mojom",
-    "//components/power_scheduler",
-    "//components/tracing:startup_tracing",
+    "//components/metrics",
+    "//components/performance_manager/public/mojom",
+    "//components/performance_manager/scenario_api",
+    "//components/permissions:permissions_common",
+    "//components/tracing:tracing_config",
     "//components/variations",
     "//components/webcrypto",
     "//content/common",
@@ -94,6 +99,7 @@ target(link_target_type, "child") {
     "//services/tracing/public/cpp",
     "//services/tracing/public/cpp:traced_process",
     "//services/tracing/public/cpp/background_tracing:background_tracing",
+    "//services/webnn/public/mojom",
     "//skia",
     "//storage/common",
     "//third_party/blink/public:blink_headers",
@@ -101,6 +107,7 @@ target(link_target_type, "child") {
     "//third_party/blink/public:resources",
     "//third_party/blink/public:scaled_resources",
     "//third_party/blink/public/common",
+    "//third_party/blink/public/common:buildflags",
     "//third_party/blink/public/strings",
     "//third_party/ced",
     "//third_party/zlib/google:compression_utils",
@@ -119,6 +126,8 @@ target(link_target_type, "child") {
     sources += [
       "child_process_sandbox_support_impl_linux.cc",
       "child_process_sandbox_support_impl_linux.h",
+      "sandboxed_process_thread_type_handler.cc",
+      "sandboxed_process_thread_type_handler.h",
     ]
     deps += [
       "//components/services/font/public/cpp",
@@ -128,6 +137,8 @@ target(link_target_type, "child") {
 
   if (is_win) {
     sources += [
+      "child_process_sandbox_support_impl_win.cc",
+      "child_process_sandbox_support_impl_win.h",
       "dwrite_font_proxy/dwrite_font_proxy_init_impl_win.cc",
       "dwrite_font_proxy/dwrite_font_proxy_init_impl_win.h",
       "dwrite_font_proxy/dwrite_font_proxy_win.cc",

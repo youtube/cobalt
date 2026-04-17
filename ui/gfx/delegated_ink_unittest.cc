@@ -29,7 +29,8 @@ TEST(DelegatedInkTest, PointAndMetadataMatch) {
 
   DelegatedInkMetadata metadata_with_frame_time(
       point, /*diameter=*/7.777f, SK_ColorCYAN, timestamp,
-      gfx::RectF(6, 14, 240, 307), base::TimeTicks::Now(), /*hovering=*/true);
+      gfx::RectF(6, 14, 240, 307), base::TimeTicks::Now(), /*hovering=*/true,
+      /*render_pass_id=*/0);
 
   EXPECT_TRUE(ink_point.MatchesDelegatedInkMetadata(&metadata_with_frame_time));
   EXPECT_TRUE(point_no_pointer_id.MatchesDelegatedInkMetadata(
@@ -56,15 +57,21 @@ TEST(DelegatedInkTest, PointAndMetadataAreClose) {
 TEST(DelegatedInkTest, PointAndMetadataDoNotMatch) {
   const base::TimeTicks timestamp = base::TimeTicks::Now();
   const gfx::PointF point_location(34, 95.002f);
-  const gfx::PointF metadata_location_close(33.994f, 94.9523f);
 
   DelegatedInkPoint ink_point(point_location, timestamp);
   EXPECT_FALSE(ink_point.MatchesDelegatedInkMetadata(nullptr));
 
+  const gfx::PointF metadata_location_within_tolerance(33.0f, 94.002f);
   DelegatedInkMetadata close_metadata(
-      metadata_location_close, /*diameter=*/5, SK_ColorWHITE, timestamp,
-      gfx::RectF(40, 30.6f, 43, 7.2f), /*hovering=*/true);
-  EXPECT_FALSE(ink_point.MatchesDelegatedInkMetadata(&close_metadata));
+      metadata_location_within_tolerance, /*diameter=*/5, SK_ColorWHITE,
+      timestamp, gfx::RectF(40, 30.6f, 43, 7.2f), /*hovering=*/true);
+  EXPECT_TRUE(ink_point.MatchesDelegatedInkMetadata(&close_metadata));
+
+  const gfx::PointF metadata_location_outside_tolerance(32.999f, 94.0f);
+  DelegatedInkMetadata just_outside_metadata(
+      metadata_location_outside_tolerance, /*diameter=*/5, SK_ColorWHITE,
+      timestamp, gfx::RectF(40, 30.6f, 43, 7.2f), /*hovering=*/true);
+  EXPECT_FALSE(ink_point.MatchesDelegatedInkMetadata(&just_outside_metadata));
 
   const gfx::PointF metadata_location_far(23.789f, 20);
   DelegatedInkMetadata far_metadata(

@@ -1,18 +1,16 @@
-// Copyright (c) 2018, Google Inc.
+// Copyright 2018 The BoringSSL Authors
 //
-// Permission to use, copy, modify, and/or distribute this software for any
-// purpose with or without fee is hereby granted, provided that the above
-// copyright notice and this permission notice appear in all copies.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-// WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-// MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
-// SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-// WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
-// OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
-// CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-
-//go:build ignore
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // convert_wycheproof converts Wycheproof test vectors into a format more easily
 // consumed by BoringSSL.
@@ -28,17 +26,16 @@ import (
 )
 
 type wycheproofTest struct {
-	Algorithm        string            `json:"algorithm"`
-	GeneratorVersion string            `json:"generatorVersion"`
-	NumberOfTests    int               `json:"numberOfTests"`
-	Notes            map[string]string `json:"notes"`
-	Header           []string          `json:"header"`
+	Algorithm        string   `json:"algorithm"`
+	GeneratorVersion string   `json:"generatorVersion"`
+	NumberOfTests    int      `json:"numberOfTests"`
+	Header           []string `json:"header"`
 	// encoding/json does not support collecting unused keys, so we leave
 	// everything past this point as generic.
-	TestGroups []map[string]interface{} `json:"testGroups"`
+	TestGroups []map[string]any `json:"testGroups"`
 }
 
-func sortedKeys(m map[string]interface{}) []string {
+func sortedKeys(m map[string]any) []string {
 	keys := make([]string, 0, len(m))
 	for k, _ := range m {
 		keys = append(keys, k)
@@ -47,8 +44,8 @@ func sortedKeys(m map[string]interface{}) []string {
 	return keys
 }
 
-func printAttribute(w io.Writer, key string, valueI interface{}, isInstruction bool) error {
-	switch value := valueI.(type) {
+func printAttribute(w io.Writer, key string, valueAny any, isInstruction bool) error {
+	switch value := valueAny.(type) {
 	case float64:
 		if float64(int(value)) != value {
 			panic(key + "was not an integer.")
@@ -75,14 +72,14 @@ func printAttribute(w io.Writer, key string, valueI interface{}, isInstruction b
 				return err
 			}
 		}
-	case map[string]interface{}:
+	case map[string]any:
 		for _, k := range sortedKeys(value) {
 			if err := printAttribute(w, key+"."+k, value[k], isInstruction); err != nil {
 				return err
 			}
 		}
 	default:
-		panic(fmt.Sprintf("Unknown type for %q: %T", key, valueI))
+		panic(fmt.Sprintf("Unknown type for %q: %T", key, valueAny))
 	}
 	return nil
 }
@@ -156,9 +153,9 @@ func convertWycheproof(f io.Writer, jsonPath string) error {
 			}
 		}
 		fmt.Fprintf(f, "\n")
-		tests := group["tests"].([]interface{})
-		for _, testI := range tests {
-			test := testI.(map[string]interface{})
+		tests := group["tests"].([]any)
+		for _, testAny := range tests {
+			test := testAny.(map[string]any)
 			if _, err := fmt.Fprintf(f, "# tcId = %d\n", int(test["tcId"].(float64))); err != nil {
 				return err
 			}
@@ -175,10 +172,10 @@ func convertWycheproof(f io.Writer, jsonPath string) error {
 					return err
 				}
 			}
-			if flagsI, ok := test["flags"]; ok {
+			if flagsAny, ok := test["flags"]; ok {
 				var flags []string
-				for _, flagI := range flagsI.([]interface{}) {
-					flag := flagI.(string)
+				for _, flagAny := range flagsAny.([]any) {
+					flag := flagAny.(string)
 					flags = append(flags, flag)
 				}
 				if len(flags) != 0 {
@@ -198,6 +195,7 @@ func convertWycheproof(f io.Writer, jsonPath string) error {
 var defaultInputs = []string{
 	"aes_cbc_pkcs5_test.json",
 	"aes_cmac_test.json",
+	"aes_eax_test.json",
 	"aes_gcm_siv_test.json",
 	"aes_gcm_test.json",
 	"chacha20_poly1305_test.json",
@@ -206,13 +204,21 @@ var defaultInputs = []string{
 	"ecdh_secp256r1_test.json",
 	"ecdh_secp384r1_test.json",
 	"ecdh_secp521r1_test.json",
+	"ecdsa_secp224r1_sha224_p1363_test.json",
 	"ecdsa_secp224r1_sha224_test.json",
+	"ecdsa_secp224r1_sha256_p1363_test.json",
 	"ecdsa_secp224r1_sha256_test.json",
+	"ecdsa_secp224r1_sha512_p1363_test.json",
 	"ecdsa_secp224r1_sha512_test.json",
+	"ecdsa_secp256r1_sha256_p1363_test.json",
 	"ecdsa_secp256r1_sha256_test.json",
+	"ecdsa_secp256r1_sha512_p1363_test.json",
 	"ecdsa_secp256r1_sha512_test.json",
+	"ecdsa_secp384r1_sha384_p1363_test.json",
 	"ecdsa_secp384r1_sha384_test.json",
+	"ecdsa_secp384r1_sha512_p1363_test.json",
 	"ecdsa_secp384r1_sha512_test.json",
+	"ecdsa_secp521r1_sha512_p1363_test.json",
 	"ecdsa_secp521r1_sha512_test.json",
 	"eddsa_test.json",
 	"hkdf_sha1_test.json",

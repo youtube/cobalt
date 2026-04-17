@@ -64,7 +64,7 @@ void ModelImpl::Remove(const std::string& guid) {
   DCHECK(store_->IsInitialized());
 
   const auto& it = entries_.find(guid);
-  DCHECK(it != entries_.end());
+  CHECK(it != entries_.end());
 
   // Pull out a separate guid and a DownloadClient so that when we destroy the
   // entry we don't destroy the std::string that is backing the guid.

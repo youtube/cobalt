@@ -14,30 +14,30 @@ import android.os.Process;
 import org.chromium.android_webview.AwBrowserProcess;
 import org.chromium.android_webview.common.AwResource;
 import org.chromium.android_webview.shell.R;
+import org.chromium.base.ThreadUtils;
 
-/**
- * This is a service for imitating a second browser process in the application.
- */
+/** This is a service for imitating a second browser process in the application. */
 public class SecondBrowserProcess extends Service {
     public static final int CODE_START = IBinder.FIRST_CALL_TRANSACTION;
 
-    private IBinder mBinder = new Binder() {
-        @Override
-        protected boolean onTransact(int code, Parcel data, Parcel reply, int flags) {
-            switch (code) {
-                case CODE_START:
-                    reply.writeNoException();
-                    try {
-                        startBrowserProcess();
-                        reply.writeInt(Process.myPid());
-                    } catch (Exception e) {
-                        reply.writeInt(0);
+    private final IBinder mBinder =
+            new Binder() {
+                @Override
+                protected boolean onTransact(int code, Parcel data, Parcel reply, int flags) {
+                    switch (code) {
+                        case CODE_START:
+                            reply.writeNoException();
+                            try {
+                                startBrowserProcess();
+                                reply.writeInt(Process.myPid());
+                            } catch (Exception e) {
+                                reply.writeInt(0);
+                            }
+                            return true;
                     }
-                    return true;
-            }
-            return false;
-        }
-    };
+                    return false;
+                }
+            };
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -52,8 +52,8 @@ public class SecondBrowserProcess extends Service {
     private void startBrowserProcess() {
         AwResource.setResources(this.getResources());
         AwResource.setConfigKeySystemUuidMapping(R.array.config_key_system_uuid_mapping);
-        AwTestContainerView.installDrawFnFunctionTable(/*useVulkan=*/false);
+        AwTestContainerView.installDrawFnFunctionTable(/* useVulkan= */ false);
         AwBrowserProcess.loadLibrary(null);
-        AwBrowserProcess.start();
+        ThreadUtils.runOnUiThreadBlocking(AwBrowserProcess::start);
     }
 }

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_SOURCE_H_
-#define UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_SOURCE_H_
+#ifndef UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_SOURCE_STARBOARD_H_
+#define UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_SOURCE_STARBOARD_H_
 
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
@@ -57,4 +57,4 @@ class PlatformEventSourceStarboard : public PlatformEventSource {
 
 }  // namespace ui
 
-#endif  // UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_SOURCE_H_
+#endif  // UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_SOURCE_STARBOARD_H_

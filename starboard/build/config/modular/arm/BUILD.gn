@@ -23,8 +23,6 @@ config("arm") {
   ]
 
   cflags = [
-    "-isystem" + rebase_path("//third_party/musl/arch/arm", root_build_dir),
-
     # Force char to be signed.
     "-fsigned-char",
   ]

@@ -4,7 +4,7 @@
 
 // Use the <code>chrome.vpnProvider</code> API to implement a VPN
 // client.
-[platforms=("chromeos", "lacros"),
+[platforms=("chromeos"),
  implemented_in="chrome/browser/chromeos/extensions/vpn_provider/vpn_provider_api.h"]
 namespace vpnProvider {
   // A parameters class for the VPN interface.
@@ -60,25 +60,25 @@ namespace vpnProvider {
   // The enum is used by the platform to notify the client of the VPN session
   // status.
   enum PlatformMessage {
-    // VPN configuration connected.
+    // Indicates that the VPN configuration connected.
     connected,
-    // VPN configuration disconnected.
+    // Indicates that the VPN configuration disconnected.
     disconnected,
-    // An error occurred in VPN connection, for example a timeout. A description
+    // Indicates that an error occurred in VPN connection, for example a timeout. A description
     // of the error is given as the <a href="#property-onPlatformMessage-error">
     // error argument to onPlatformMessage</a>.
     error,
-    // The default physical network connection is down.
+    // Indicates that the default physical network connection is down.
     linkDown,
-    // The default physical network connection is back up.
+    // Indicates that the default physical network connection is back up.
     linkUp,
-    // The default physical network connection changed, e.g. wifi-&gt;mobile.
+    // Indicates that the default physical network connection changed, e.g. wifi-&gt;mobile.
     linkChanged,
-    // The OS is preparing to suspend, so the VPN should drop its connection.
+    // Indicates that the OS is preparing to suspend, so the VPN should drop its connection.
     // The extension is not guaranteed to receive this event prior to
     // suspending.
     suspend,
-    // The OS has resumed and the user has logged back in, so the VPN should
+    // Indicates that the OS has resumed and the user has logged back in, so the VPN should
     // try to reconnect.
     resume
   };
@@ -87,18 +87,20 @@ namespace vpnProvider {
   // of its current state. This helps provide meaningful messages
   // to the user.
   enum VpnConnectionState {
-    // VPN connection was successful.
+    // Specifies that VPN connection was successful.
     connected,
-    // VPN connection failed.
+    // Specifies that VPN connection has failed.
     failure
   };
 
   // The enum is used by the platform to indicate the event that triggered
   // <code>onUIEvent</code>.
   enum UIEvent {
-    // Request the VPN client to show add configuration dialog to the user.
+    // Requests that the VPN client show the add configuration dialog box to
+    // the user.
     showAddDialog,
-    // Request the VPN client to show configuration settings dialog to the user.
+    // Requests that the VPN client show the configuration settings dialog box
+    // to the user.
     showConfigureDialog
   };
 
@@ -106,14 +108,14 @@ namespace vpnProvider {
   // to signal completion. The callback is called with
   // <code>chrome.runtime.lastError</code> set to error code if
   // there is an error.
-  [inline_doc] callback CallCompleteCallback = void ();
+  callback CallCompleteCallback = void ();
 
   // The callback is used by <code>createConfig</code> to signal completion.
   // The callback is called with <code>chrome.runtime.lastError</code> set to
   // an error code if there is an error.
   // |id|: A unique ID for the created configuration, or <code>undefined</code>
   // on failure.
-  [inline_doc] callback CreateConfigCompleteCallback = void (DOMString id);
+  callback CreateConfigCompleteCallback = void (DOMString id);
 
   interface Functions {
     // Creates a new VPN configuration that persists across multiple login
@@ -121,7 +123,7 @@ namespace vpnProvider {
     // |name|: The name of the VPN configuration.
     // |callback|: Called when the configuration is created or if there is an
     // error.
-    [supportsPromises] static void createConfig(
+    static void createConfig(
         DOMString name,
         CreateConfigCompleteCallback callback);
 
@@ -129,7 +131,7 @@ namespace vpnProvider {
     // |id|: ID of the VPN configuration to destroy.
     // |callback|: Called when the configuration is destroyed or if there is an
     // error.
-    [supportsPromises] static void destroyConfig(
+    static void destroyConfig(
         DOMString id,
         optional CallCompleteCallback callback);
 
@@ -138,14 +140,15 @@ namespace vpnProvider {
     // This will succeed only when the VPN session is owned by the extension.
     // |parameters|: The parameters for the VPN session.
     // |callback|: Called when the parameters are set or if there is an error.
-    [supportsPromises] static void setParameters(Parameters parameters,
-                                                 CallCompleteCallback callback);
+    static void setParameters(
+        Parameters parameters,
+        CallCompleteCallback callback);
 
     // Sends an IP packet through the tunnel created for the VPN session.
     // This will succeed only when the VPN session is owned by the extension.
     // |data|: The IP packet to be sent to the platform.
     // |callback|: Called when the packet is sent or if there is an error.
-    [supportsPromises] static void sendPacket(
+    static void sendPacket(
         ArrayBuffer data,
         optional CallCompleteCallback callback);
 
@@ -154,7 +157,7 @@ namespace vpnProvider {
     // |state|: The VPN session state of the VPN client.
     // |callback|: Called when the notification is complete or if there is an
     // error.
-    [supportsPromises] static void notifyConnectionStateChanged(
+    static void notifyConnectionStateChanged(
         VpnConnectionState state,
         optional CallCompleteCallback callback);
   };

@@ -4,7 +4,7 @@
 
 #include "third_party/blink/renderer/core/permissions_policy/permissions_policy_devtools_support.h"
 
-#include "third_party/blink/public/common/permissions_policy/permissions_policy.h"
+#include "services/network/public/cpp/permissions_policy/permissions_policy.h"
 #include "third_party/blink/renderer/core/execution_context/security_context.h"
 #include "third_party/blink/renderer/core/frame/frame.h"
 #include "third_party/blink/renderer/core/inspector/identifiers_factory.h"
@@ -12,17 +12,17 @@
 
 namespace blink {
 
-absl::optional<PermissionsPolicyBlockLocator> TracePermissionsPolicyBlockSource(
+std::optional<PermissionsPolicyBlockLocator> TracePermissionsPolicyBlockSource(
     Frame* frame,
-    mojom::PermissionsPolicyFeature feature) {
-  const PermissionsPolicy* current_policy =
+    network::mojom::PermissionsPolicyFeature feature) {
+  const network::PermissionsPolicy* current_policy =
       frame->GetSecurityContext()->GetPermissionsPolicy();
   DCHECK(current_policy);
   if (current_policy->IsFeatureEnabled(feature))
-    return absl::nullopt;
+    return std::nullopt;
 
   // All permissions are disabled by default for fenced frames, irrespective of
-  // headers (see PermissionsPolicy::CreateForFencedFrame).
+  // headers (see PermissionsPolicy::CreateFixedForFencedFrame).
   if (frame->IsInFencedFrameTree()) {
     return PermissionsPolicyBlockLocator{
         IdentifiersFactory::FrameId(frame),
@@ -64,16 +64,15 @@ absl::optional<PermissionsPolicyBlockLocator> TracePermissionsPolicyBlockSource(
     current_frame = current_frame->Tree().Parent();
   }
 
-  const PermissionsPolicy::Allowlist allowlist =
+  const network::PermissionsPolicy::Allowlist allowlist =
       current_policy->GetAllowlistForDevTools(feature);
 
   bool allowed_by_current_frame = allowlist.Contains(
       current_frame->GetSecurityContext()->GetSecurityOrigin()->ToUrlOrigin());
   bool allowed_by_child_frame =
-      child_frame ? allowlist.Contains(child_frame->GetSecurityContext()
-                                           ->GetSecurityOrigin()
-                                           ->ToUrlOrigin())
-                  : true;
+      !child_frame || allowlist.Contains(child_frame->GetSecurityContext()
+                                             ->GetSecurityOrigin()
+                                             ->ToUrlOrigin());
 
   if (!allowed_by_current_frame || !allowed_by_child_frame) {
     // Feature disabled by allowlist, i.e. value in HTTP header.

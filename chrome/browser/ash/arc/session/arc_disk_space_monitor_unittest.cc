@@ -4,11 +4,6 @@
 
 #include "chrome/browser/ash/arc/session/arc_disk_space_monitor.h"
 
-#include "ash/components/arc/arc_features.h"
-#include "ash/components/arc/arc_prefs.h"
-#include "ash/components/arc/arc_util.h"
-#include "ash/components/arc/test/arc_util_test_support.h"
-#include "ash/components/arc/test/fake_arc_session.h"
 #include "base/logging.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/ash/arc/session/arc_session_manager.h"
@@ -19,6 +14,14 @@
 #include "chromeos/ash/components/dbus/concierge/concierge_client.h"
 #include "chromeos/ash/components/dbus/spaced/fake_spaced_client.h"
 #include "chromeos/ash/components/dbus/spaced/spaced_client.h"
+#include "chromeos/ash/components/install_attributes/stub_install_attributes.h"
+#include "chromeos/ash/experiences/arc/arc_features.h"
+#include "chromeos/ash/experiences/arc/arc_prefs.h"
+#include "chromeos/ash/experiences/arc/arc_util.h"
+#include "chromeos/ash/experiences/arc/test/arc_util_test_support.h"
+#include "chromeos/ash/experiences/arc/test/fake_arc_session.h"
+#include "components/session_manager/core/session_manager.h"
+#include "components/user_manager/scoped_user_manager.h"
 #include "components/user_manager/user_manager.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -54,12 +57,10 @@ class ArcDiskSpaceMonitorTest : public testing::Test {
     // Initialize a testing profile and a fake user manager.
     // (Required for testing ARC.)
     testing_profile_ = std::make_unique<TestingProfile>();
-    const AccountId account_id(AccountId::FromUserEmailGaiaId(
-        testing_profile_->GetProfileUserName(), ""));
-    auto* user_manager = static_cast<ash::FakeChromeUserManager*>(
-        user_manager::UserManager::Get());
-    user_manager->AddUser(account_id);
-    user_manager->LoginUser(account_id);
+    const AccountId account_id(
+        AccountId::FromUserEmail(testing_profile_->GetProfileUserName()));
+    fake_user_manager_->AddUser(account_id);
+    fake_user_manager_->LoginUser(account_id);
 
     notification_tester_ = std::make_unique<NotificationDisplayServiceTester>(
         testing_profile_.get());
@@ -85,6 +86,7 @@ class ArcDiskSpaceMonitorTest : public testing::Test {
     scoped_feature_list_.reset();
     ash::SpacedClient::Shutdown();
     ash::ConciergeClient::Shutdown();
+    fake_user_manager_.Reset();
   }
 
   void FastForwardBy(base::TimeDelta delta) {
@@ -109,6 +111,9 @@ class ArcDiskSpaceMonitorTest : public testing::Test {
   content::BrowserTaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   std::unique_ptr<base::test::ScopedFeatureList> scoped_feature_list_;
+  user_manager::TypedScopedUserManager<ash::FakeChromeUserManager>
+      fake_user_manager_{std::make_unique<ash::FakeChromeUserManager>()};
+  session_manager::SessionManager session_manager_;
   std::unique_ptr<TestingProfile> testing_profile_;
   std::unique_ptr<NotificationDisplayServiceTester> notification_tester_;
   std::unique_ptr<ArcSessionManager> arc_session_manager_;
@@ -117,7 +122,7 @@ class ArcDiskSpaceMonitorTest : public testing::Test {
 
 TEST_F(ArcDiskSpaceMonitorTest, GetFreeDiskSpaceFailed) {
   // spaced::GetFreeDiskSpace fails.
-  ash::FakeSpacedClient::Get()->set_free_disk_space(absl::nullopt);
+  ash::FakeSpacedClient::Get()->set_free_disk_space(std::nullopt);
 
   arc_session_manager()->StartArcForTesting();
   EXPECT_EQ(ArcSessionManager::State::ACTIVE, arc_session_manager()->state());
@@ -139,7 +144,7 @@ TEST_F(ArcDiskSpaceMonitorTest, GetFreeDiskSpaceFailed) {
 TEST_F(ArcDiskSpaceMonitorTest, FreeSpaceIsHigherThanPreStopNotification) {
   // ThresholdForStoppingArc < ThresholdForPreStopNotification < free_disk_space
   ash::FakeSpacedClient::Get()->set_free_disk_space(
-      absl::make_optional(kDiskSpaceThresholdForPreStopNotification + 1));
+      std::make_optional(kDiskSpaceThresholdForPreStopNotification + 1));
 
   arc_session_manager()->EmulateRequirementCheckCompletionForTesting();
   EXPECT_EQ(ArcSessionManager::State::ACTIVE, arc_session_manager()->state());
@@ -166,7 +171,7 @@ TEST_F(ArcDiskSpaceMonitorTest,
        FreeSpaceIsLowerThanThresholdForPreStopNotification) {
   // ThresholdForStoppingArc < free_disk_space < ThresholdForPreStopNotification
   ash::FakeSpacedClient::Get()->set_free_disk_space(
-      absl::make_optional(kDiskSpaceThresholdForPreStopNotification - 1));
+      std::make_optional(kDiskSpaceThresholdForPreStopNotification - 1));
 
   arc_session_manager()->EmulateRequirementCheckCompletionForTesting();
   EXPECT_EQ(ArcSessionManager::State::ACTIVE, arc_session_manager()->state());
@@ -202,10 +207,43 @@ TEST_F(ArcDiskSpaceMonitorTest,
       kLowDiskSpacePreStopNotificationId));
 }
 
+TEST_F(ArcDiskSpaceMonitorTest, DemoModeSkipNotification) {
+  testing_profile()
+      ->ScopedCrosSettingsTestHelper()
+      ->InstallAttributes()
+      ->SetDemoMode();
+  // ThresholdForStoppingArc < free_disk_space < ThresholdForPreStopNotification
+  ash::FakeSpacedClient::Get()->set_free_disk_space(
+      std::make_optional(kDiskSpaceThresholdForPreStopNotification - 1));
+
+  arc_session_manager()->EmulateRequirementCheckCompletionForTesting();
+  EXPECT_EQ(ArcSessionManager::State::ACTIVE, arc_session_manager()->state());
+
+  // Wait until ArcDiskSpaceMonitor::OnGetFreeDiskSpace() runs.
+  base::RunLoop loop;
+  arc_disk_space_monitor()->SetOnGetFreeDiskSpaceCallbackForTesting(
+      loop.QuitClosure());
+  loop.Run();
+
+  // ARC should still be active.
+  EXPECT_EQ(ArcSessionManager::State::ACTIVE, arc_session_manager()->state());
+  EXPECT_TRUE(arc_disk_space_monitor()->IsTimerRunningForTesting());
+
+  // The timer should be running with the short check interval.
+  EXPECT_EQ(kDiskSpaceCheckIntervalShort,
+            arc_disk_space_monitor()->GetTimerCurrentDelayForTesting());
+
+  // A pre-stop warning notification should not be shown.
+  EXPECT_FALSE(notification_tester()->GetNotification(
+      kLowDiskSpacePreStopNotificationId));
+  EXPECT_FALSE(notification_tester()->GetNotification(
+      kLowDiskSpacePostStopNotificationId));
+}
+
 TEST_F(ArcDiskSpaceMonitorTest, FreeSpaceIsLowerThanThresholdForStoppingArc) {
   // free_disk_space < ThresholdForStoppingArc < ThresholdForPreStopNotification
   ash::FakeSpacedClient::Get()->set_free_disk_space(
-      absl::make_optional(kDiskSpaceThresholdForStoppingArc - 1));
+      std::make_optional(kDiskSpaceThresholdForStoppingArc - 1));
 
   arc_session_manager()->EmulateRequirementCheckCompletionForTesting();
   EXPECT_EQ(ArcSessionManager::State::ACTIVE, arc_session_manager()->state());
@@ -227,7 +265,7 @@ TEST_F(ArcDiskSpaceMonitorTest, FreeSpaceIsLowerThanThresholdForStoppingArc) {
 TEST_F(ArcDiskSpaceMonitorTest, VirtioBlkNotEnabled) {
   // ThresholdForStoppingArc < ThresholdForPreStopNotification < free_disk_space
   ash::FakeSpacedClient::Get()->set_free_disk_space(
-      absl::make_optional(kDiskSpaceThresholdForPreStopNotification + 1));
+      std::make_optional(kDiskSpaceThresholdForPreStopNotification + 1));
 
   base::test::ScopedFeatureList override_scoped_feature_list;
   override_scoped_feature_list.InitAndDisableFeature(kEnableVirtioBlkForData);
@@ -251,7 +289,7 @@ TEST_F(ArcDiskSpaceMonitorTest, VirtioBlkNotEnabled) {
 TEST_F(ArcDiskSpaceMonitorTest, ArcVmDataMigrationNotFinished) {
   // ThresholdForStoppingArc < ThresholdForPreStopNotification < free_disk_space
   ash::FakeSpacedClient::Get()->set_free_disk_space(
-      absl::make_optional(kDiskSpaceThresholdForPreStopNotification + 1));
+      std::make_optional(kDiskSpaceThresholdForPreStopNotification + 1));
 
   base::test::ScopedFeatureList override_scoped_feature_list;
   override_scoped_feature_list.InitWithFeatures({kEnableArcVmDataMigration},
@@ -276,7 +314,7 @@ TEST_F(ArcDiskSpaceMonitorTest, ArcVmDataMigrationNotFinished) {
 TEST_F(ArcDiskSpaceMonitorTest, ArcVmDataMigrationFinished) {
   // ThresholdForStoppingArc < ThresholdForPreStopNotification < free_disk_space
   ash::FakeSpacedClient::Get()->set_free_disk_space(
-      absl::make_optional(kDiskSpaceThresholdForPreStopNotification + 1));
+      std::make_optional(kDiskSpaceThresholdForPreStopNotification + 1));
 
   base::test::ScopedFeatureList override_scoped_feature_list;
   override_scoped_feature_list.InitWithFeatures({kEnableArcVmDataMigration},

@@ -65,11 +65,11 @@ std::map<int, TabInfo> AndroidTabFinder::FindAndroidTabs(
   return result;
 }
 
-absl::optional<TabInfo> AndroidTabFinder::FindNavigationTab(
+std::optional<TabInfo> AndroidTabFinder::FindNavigationTab(
     content::WebContents* web_contents) {
   TabAndroid* tab = TabAndroid::FromWebContents(web_contents);
   if (!tab)
-    return absl::nullopt;
+    return std::nullopt;
   return AnroidTabInfo(*tab);
 }
 
@@ -127,11 +127,11 @@ void AutoFetchPageLoadWatcher::CreateForWebContents(
 
 namespace auto_fetch_internal {
 
-absl::optional<RequestInfo> MakeRequestInfo(const SavePageRequest& request) {
-  absl::optional<auto_fetch::ClientIdMetadata> metadata =
+std::optional<RequestInfo> MakeRequestInfo(const SavePageRequest& request) {
+  std::optional<auto_fetch::ClientIdMetadata> metadata =
       auto_fetch::ExtractMetadata(request.client_id());
   if (!metadata)
-    return absl::nullopt;
+    return std::nullopt;
 
   RequestInfo info;
   info.request_id = request.request_id();
@@ -148,7 +148,7 @@ InternalImpl::InternalImpl(AutoFetchNotifier* notifier,
       delegate_(delegate),
       tab_finder_(std::move(tab_finder)) {}
 
-InternalImpl::~InternalImpl() {}
+InternalImpl::~InternalImpl() = default;
 
 void InternalImpl::RequestListInitialized(std::vector<RequestInfo> request) {
   DCHECK(!requests_initialized_);
@@ -290,8 +290,7 @@ void InternalImpl::NavigationFrom(const GURL& previous_url,
             SavePageRequest::AutoFetchNotificationState::kUnknown) {
       // Check that the navigation is happening on the tab from which the
       // request came.
-      absl::optional<TabInfo> tab =
-          tab_finder_->FindNavigationTab(web_contents);
+      std::optional<TabInfo> tab = tab_finder_->FindNavigationTab(web_contents);
       if (tab && tab->android_tab_id == request.metadata.android_tab_id)
         SetNotificationStateToShown(request.request_id);
     }
@@ -355,7 +354,7 @@ class AutoFetchPageLoadWatcher::TabWatcher : public TabModelListObserver,
 
   void RegisterTabObserver() {
     if (!TabModelList::models().empty()) {
-      OnTabModelAdded();
+      ObserveNonOffTheRecordTabModel();
     } else {
       TabModelList::AddObserver(this);
     }
@@ -367,22 +366,11 @@ class AutoFetchPageLoadWatcher::TabWatcher : public TabModelListObserver,
   }
 
   // TabModelListObserver.
-  void OnTabModelAdded() override {
-    if (observed_tab_model_)
-      return;
-    // The assumption is that there can be at most one non-off-the-record tab
-    // model. Observe it if it exists.
-    for (TabModel* model : TabModelList::models()) {
-      if (!model->IsOffTheRecord()) {
-        observed_tab_model_ = model;
-        observed_tab_model_->AddObserver(this);
-        impl_->TabModelReady();
-        break;
-      }
-    }
+  void OnTabModelAdded(TabModel* tab_model) override {
+    ObserveNonOffTheRecordTabModel();
   }
 
-  void OnTabModelRemoved() override {
+  void OnTabModelRemoved(TabModel* tab_model) override {
     if (!observed_tab_model_)
       return;
 
@@ -396,6 +384,22 @@ class AutoFetchPageLoadWatcher::TabWatcher : public TabModelListObserver,
  private:
   base::WeakPtr<TabWatcher> GetWeakPtr() {
     return weak_ptr_factory_.GetWeakPtr();
+  }
+
+  void ObserveNonOffTheRecordTabModel() {
+    if (observed_tab_model_) {
+      return;
+    }
+    // The assumption is that there can be at most one non-off-the-record tab
+    // model. Observe it if it exists.
+    for (TabModel* model : TabModelList::models()) {
+      if (!model->IsOffTheRecord()) {
+        observed_tab_model_ = model;
+        observed_tab_model_->AddObserver(this);
+        impl_->TabModelReady();
+        break;
+      }
+    }
   }
 
   raw_ptr<InternalImpl> impl_;
@@ -454,7 +458,7 @@ void AutoFetchPageLoadWatcher::SetNotificationStateToShown(int64_t request_id) {
 }
 
 void AutoFetchPageLoadWatcher::OnAdded(const SavePageRequest& request) {
-  absl::optional<RequestInfo> info = MakeRequestInfo(request);
+  std::optional<RequestInfo> info = MakeRequestInfo(request);
   if (!info)
     return;
 
@@ -464,7 +468,7 @@ void AutoFetchPageLoadWatcher::OnAdded(const SavePageRequest& request) {
 void AutoFetchPageLoadWatcher::OnCompleted(
     const SavePageRequest& request,
     RequestNotifier::BackgroundSavePageResult status) {
-  absl::optional<RequestInfo> info = MakeRequestInfo(request);
+  std::optional<RequestInfo> info = MakeRequestInfo(request);
   if (!info)
     return;
 
@@ -475,7 +479,7 @@ void AutoFetchPageLoadWatcher::InitializeRequestList(
     std::vector<std::unique_ptr<SavePageRequest>> requests) {
   std::vector<RequestInfo> request_infos;
   for (const auto& request : requests) {
-    absl::optional<RequestInfo> info = MakeRequestInfo(*request);
+    std::optional<RequestInfo> info = MakeRequestInfo(*request);
     if (!info)
       continue;
     request_infos.push_back(info.value());

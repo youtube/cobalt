@@ -6,9 +6,9 @@ import 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
 
 import {LifetimeBrowserProxyImpl} from '/shared/settings/lifetime_browser_proxy.js';
-import {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
-import {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
-import {assertNotReached} from 'chrome://resources/js/assert_ts.js';
+import type {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
+import type {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
+import {assertNotReached} from 'chrome://resources/js/assert.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './relaunch_confirmation_dialog.html.js';
@@ -55,17 +55,25 @@ export class RelaunchConfirmationDialogElement extends PolymerElement {
       relaunchConfirmationDialogDesc: String,
 
       restartType: Object,
+
+      //  Boolean that defines if the confirmation dialog is opened for browser
+      //  version update.
+      isVersionUpdate: {
+        type: Boolean,
+        value: false,
+      },
     };
   }
 
-  relaunchConfirmationDialogDesc: string|null;
-  restartType: RestartType;
+  declare relaunchConfirmationDialogDesc: string|null;
+  declare restartType: RestartType;
+  declare isVersionUpdate: boolean;
 
   override async connectedCallback() {
     super.connectedCallback();
     this.relaunchConfirmationDialogDesc =
         await LifetimeBrowserProxyImpl.getInstance()
-            .getRelaunchConfirmationDialogDescription();
+            .getRelaunchConfirmationDialogDescription(this.isVersionUpdate);
   }
 
   private onDialogCancel_() {

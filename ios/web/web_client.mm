@@ -6,13 +6,11 @@
 
 #import <Foundation/Foundation.h>
 
+#import <string_view>
+
 #import "ios/web/common/features.h"
 #import "ios/web/public/init/web_main_parts.h"
 #import "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace web {
 
@@ -45,11 +43,11 @@ bool WebClient::IsAppSpecificURL(const GURL& url) const {
   return false;
 }
 
-std::u16string WebClient::GetPluginNotSupportedText() const {
-  return std::u16string();
+std::string WebClient::GetUserAgent(UserAgentType type) const {
+  return std::string();
 }
 
-std::string WebClient::GetUserAgent(UserAgentType type) const {
+std::string WebClient::GetMainThreadName() const {
   return std::string();
 }
 
@@ -57,10 +55,10 @@ std::u16string WebClient::GetLocalizedString(int message_id) const {
   return std::u16string();
 }
 
-base::StringPiece WebClient::GetDataResource(
+std::string_view WebClient::GetDataResource(
     int resource_id,
     ui::ResourceScaleFactor scale_factor) const {
-  return base::StringPiece();
+  return std::string_view();
 }
 
 base::RefCountedMemory* WebClient::GetDataResourceBytes(int resource_id) const {
@@ -72,22 +70,12 @@ std::vector<JavaScriptFeature*> WebClient::GetJavaScriptFeatures(
   return std::vector<JavaScriptFeature*>();
 }
 
-NSString* WebClient::GetDocumentStartScriptForAllFrames(
-    BrowserState* browser_state) const {
-  return @"";
-}
-
-NSString* WebClient::GetDocumentStartScriptForMainFrame(
-    BrowserState* browser_state) const {
-  return @"";
-}
-
 void WebClient::PrepareErrorPage(WebState* web_state,
                                  const GURL& url,
                                  NSError* error,
                                  bool is_post,
                                  bool is_off_the_record,
-                                 const absl::optional<net::SSLInfo>& info,
+                                 const std::optional<net::SSLInfo>& info,
                                  int64_t navigation_id,
                                  base::OnceCallback<void(NSString*)> callback) {
   DCHECK(error);
@@ -98,15 +86,15 @@ UIView* WebClient::GetWindowedContainer() {
   return nullptr;
 }
 
+bool WebClient::EnableFullscreenAPI() const {
+  return false;
+}
+
 bool WebClient::EnableLongPressUIContextMenu() const {
   return false;
 }
 
-bool WebClient::EnableWebInspector() const {
-  return false;
-}
-
-bool WebClient::RestoreSessionFromCache(web::WebState* web_state) const {
+bool WebClient::EnableWebInspector(BrowserState* browser_state) const {
   return false;
 }
 
@@ -128,30 +116,18 @@ bool WebClient::IsPointingToSameDocument(const GURL& url1,
   return url1 == url2;
 }
 
-id<CRWFindSession> WebClient::CreateFindSessionForWebState(
-    web::WebState* web_state) const API_AVAILABLE(ios(16)) {
-  // Subclasses need to provide their own implementation to use this method.
-  NOTREACHED();
-  return nil;
+bool WebClient::IsBrowserLockdownModeEnabled() {
+  return false;
 }
 
-void WebClient::StartTextSearchInWebState(web::WebState* web_state) {
-  // Subclasses need to provide their own implementation to use this method.
-  NOTREACHED();
-}
+void WebClient::SetOSLockdownModeEnabled(bool enabled) {}
 
-void WebClient::StopTextSearchInWebState(web::WebState* web_state) {
-  // Subclasses need to provide their own implementation to use this method.
-  NOTREACHED();
-}
-
-bool WebClient::IsMixedContentAutoupgradeEnabled(
+bool WebClient::IsInsecureFormWarningEnabled(
     web::BrowserState* browser_state) const {
   return true;
 }
 
-bool WebClient::IsBrowserLockdownModeEnabled(web::BrowserState* browser_state) {
-  return false;
-}
+void WebClient::BuildEditMenu(web::WebState* web_state,
+                              id<UIMenuBuilder>) const {}
 
 }  // namespace web

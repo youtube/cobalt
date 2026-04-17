@@ -16,15 +16,17 @@
 #include "chrome/browser/ash/smb_client/smb_url.h"
 #include "chromeos/ash/components/dbus/smbprovider/smb_provider_client.h"
 
-namespace ash {
-namespace smb_client {
+namespace ash::smb_client {
+
+// Constants for stopping `smbproviderd` upstart job.
+inline constexpr char kSmbProviderdUpstartJobName[] = "smbproviderd";
 
 // The callback run to indicate the scan for hosts on the network is complete.
 using HostDiscoveryResponse = base::OnceClosure;
 
 // This class is responsible for finding hosts in a network and getting the
 // available shares for each host found.
-class SmbShareFinder : public base::SupportsWeakPtr<SmbShareFinder> {
+class SmbShareFinder final {
  public:
   // The callback that will be passed to GatherSharesInNetwork.
   using GatherSharesInNetworkResponse =
@@ -97,7 +99,7 @@ class SmbShareFinder : public base::SupportsWeakPtr<SmbShareFinder> {
 
   NetworkScanner scanner_;
 
-  raw_ptr<SmbProviderClient, ExperimentalAsh> client_;  // Not owned.
+  raw_ptr<SmbProviderClient, DanglingUntriaged> client_;  // Not owned.
 
   uint32_t host_counter_ = 0u;
 
@@ -105,9 +107,9 @@ class SmbShareFinder : public base::SupportsWeakPtr<SmbShareFinder> {
   std::vector<GatherSharesInNetworkResponse> share_callbacks_;
 
   std::vector<SmbUrl> shares_;
+  base::WeakPtrFactory<SmbShareFinder> weak_ptr_factory_{this};
 };
 
-}  // namespace smb_client
-}  // namespace ash
+}  // namespace ash::smb_client
 
 #endif  // CHROME_BROWSER_ASH_SMB_CLIENT_SMB_SHARE_FINDER_H_

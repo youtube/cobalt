@@ -5,12 +5,12 @@
 #include "device/vr/android/arcore/arcore_device.h"
 
 #include <algorithm>
+#include <optional>
 
 #include "base/android/android_hardware_buffer_compat.h"
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/no_destructor.h"
-#include "base/numerics/math_constants.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
@@ -21,8 +21,8 @@
 #include "device/vr/android/compositor_delegate_provider.h"
 #include "device/vr/android/mailbox_to_surface_bridge.h"
 #include "device/vr/android/xr_java_coordinator.h"
+#include "device/vr/public/cpp/features.h"
 #include "device/vr/public/cpp/xr_frame_sink_client.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/android/window_android.h"
 #include "ui/display/display.h"
 
@@ -84,6 +84,12 @@ ArCoreDevice::ArCoreDevice(
   // Only support camera access if the device supports shared buffers.
   if (base::AndroidHardwareBufferCompat::IsSupportAvailable())
     device_features.emplace_back(mojom::XRSessionFeature::CAMERA_ACCESS);
+
+  // Only support WebGPU sessions if the appropriate feature flag is enabled
+  // and shared buffers will be used.
+  if (base::FeatureList::IsEnabled(features::kWebXrWebGpuBinding)) {
+    device_features.emplace_back(mojom::XRSessionFeature::WEBGPU);
+  }
 
   SetSupportedFeatures(device_features);
 }
@@ -279,7 +285,7 @@ void ArCoreDevice::OnSessionEnded() {
   // case the GL thread hadn't completed, or had initialized partially, to
   // ensure consistent state.
 
-  // TODO(https://crbug.com/849568): Instead of splitting the initialization
+  // TODO(crbug.com/41392761): Instead of splitting the initialization
   // of this class between construction and RequestSession, perform all the
   // initialization at once on the first successful RequestSession call.
 
@@ -390,6 +396,10 @@ void ArCoreDevice::OnCreateSessionCallback(
       device::mojom::XREnvironmentBlendMode::kAlphaBlend;
   session->interaction_mode = device::mojom::XRInteractionMode::kScreenSpace;
 
+  // Regardless of if DOMOverlay was requested or not, ARCore would always like
+  // the page to enter fullscreen.
+  session->wants_fullscreen = true;
+
   std::move(deferred_callback).Run(std::move(session_result));
 }
 
@@ -428,10 +438,10 @@ void ArCoreDevice::RequestArCoreGlInitialization(
     PostTaskToGlThread(base::BindOnce(
         &ArCoreGl::Initialize,
         session_state_->arcore_gl_thread_->GetArCoreGl()->GetWeakPtr(),
-        xr_java_coordinator_.get(), arcore_factory_.get(),
-        frame_sink_client_.get(), drawing_widget, surface_handle, root_window,
-        frame_size, rotation, session_state_->required_features_,
-        session_state_->optional_features_,
+        main_thread_task_runner_, xr_java_coordinator_.get(),
+        arcore_factory_.get(), frame_sink_client_.get(), drawing_widget,
+        surface_handle, root_window, frame_size, rotation,
+        session_state_->required_features_, session_state_->optional_features_,
         std::move(session_state_->tracked_images_),
         std::move(session_state_->depth_options_),
         base::BindPostTask(
@@ -481,7 +491,7 @@ void ArCoreDevice::OnArCoreGlInitializationComplete(
     return;
   } else {
     session_state_->enabled_features_ = {};
-    session_state_->depth_configuration_ = absl::nullopt;
+    session_state_->depth_configuration_ = std::nullopt;
   }
 
   // We only start GL initialization after the user has granted consent, so we

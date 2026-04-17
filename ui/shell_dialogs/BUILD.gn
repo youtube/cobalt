@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/features.gni")
 import("//build/config/ui.gni")
 import("//testing/test.gni")
@@ -12,6 +11,9 @@ if (is_android) {
 }
 if (is_mac) {
   import("//build/config/mac/rules.gni")
+}
+if (is_ios) {
+  import("//build/config/apple/mobile_config.gni")  # For `target_platform`
 }
 
 component("shell_dialogs") {
@@ -29,19 +31,24 @@ component("shell_dialogs") {
     "shell_dialogs_export.h",
   ]
 
+  configs += [
+    "//build/config/compiler:wexit_time_destructors",
+    "//build/config/compiler:wglobal_constructors",
+  ]
+
   defines = [ "SHELL_DIALOGS_IMPLEMENTATION" ]
 
   deps = [
     "//base",
     "//base:i18n",
-    "//build:chromeos_buildflags",
+    "//build/config/linux/dbus:buildflags",
     "//skia",
     "//ui/base",
     "//ui/strings",
     "//url",
   ]
 
-  if (is_chromeos || is_castos || is_cast_android) {
+  if (is_chromeos || is_castos) {
     sources += [ "shell_dialog_stub.cc" ]
   }
 
@@ -49,22 +56,20 @@ component("shell_dialogs") {
     sources += [
       "select_file_dialog_linux.cc",
       "select_file_dialog_linux.h",
-      "select_file_dialog_linux_kde.cc",
-      "select_file_dialog_linux_kde.h",
       "shell_dialog_linux.cc",
       "shell_dialog_linux.h",
     ]
-    deps += [
-      "//components/dbus/thread_linux",
-      "//ui/linux:linux_ui",
-    ]
+    deps += [ "//ui/linux:linux_ui" ]
     if (use_dbus) {
-      defines += [ "USE_DBUS" ]
       sources += [
         "select_file_dialog_linux_portal.cc",
         "select_file_dialog_linux_portal.h",
       ]
-      deps += [ "//dbus" ]
+      deps += [
+        "//components/dbus",
+        "//dbus",
+        "//ui/views",
+      ]
     }
   }
 
@@ -76,14 +81,20 @@ component("shell_dialogs") {
   }
 
   if (is_ios) {
-    sources += [
-      "select_file_dialog_ios.h",
-      "select_file_dialog_ios.mm",
-    ]
+    if (target_platform == "tvos") {
+      sources += [ "select_file_dialog_tvos.mm" ]
+    } else {
+      sources += [
+        "select_file_dialog_ios.h",
+        "select_file_dialog_ios.mm",
+      ]
+    }
   }
 
   if (is_win) {
     sources += [
+      "auto_close_dialog_event_handler_win.cc",
+      "auto_close_dialog_event_handler_win.h",
       "base_shell_dialog_win.cc",
       "base_shell_dialog_win.h",
       "execute_select_file_win.cc",
@@ -109,7 +120,7 @@ component("shell_dialogs") {
     ]
     deps += [
       "//ui/android",
-      "//ui/base:ui_base_jni_headers",
+      "//ui/base:select_file_dialog_jni_headers",
     ]
     include_dirs = [ "$root_gen_dir/ui" ]
     libs = [ "jnigraphics" ]
@@ -131,20 +142,6 @@ component("shell_dialogs") {
   if (is_fuchsia) {
     sources += [ "select_file_dialog_fuchsia.cc" ]
   }
-
-  # TODO(crbug.com/1052397): Rename is_chromeos_lacros.
-  if (is_chromeos_lacros) {
-    sources += [
-      "select_file_dialog_lacros.cc",
-      "select_file_dialog_lacros.h",
-    ]
-    deps += [
-      "//chromeos/crosapi/mojom",
-      "//chromeos/lacros",
-      "//mojo/public/cpp/bindings",
-      "//ui/platform_window",
-    ]
-  }
 }
 
 test("shell_dialogs_unittests") {
@@ -156,9 +153,7 @@ test("shell_dialogs_unittests") {
 
   if (is_mac) {
     sources += [ "select_file_dialog_mac_unittest.mm" ]
-    weak_frameworks = [
-      "UniformTypeIdentifiers.framework",  # macOS 11
-    ]
+    frameworks = [ "UniformTypeIdentifiers.framework" ]
   }
 
   if (is_win) {

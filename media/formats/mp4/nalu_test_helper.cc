@@ -5,12 +5,13 @@
 #include "media/formats/mp4/nalu_test_helper.h"
 
 #include "base/check_op.h"
+#include "base/notreached.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
-#include "media/video/h264_parser.h"
+#include "media/parsers/h264_parser.h"
 
 #if BUILDFLAG(ENABLE_PLATFORM_HEVC)
-#include "media/video/h265_nalu_parser.h"
+#include "media/parsers/h265_nalu_parser.h"
 #endif  // BUILDFLAG(ENABLE_PLATFORM_HEVC)
 
 namespace media {
@@ -70,8 +71,7 @@ H264NALU::Type H264StringToNALUType(const std::string& name) {
   if (name == "DPS")
     return H264NALU::kDPS;
 
-  CHECK(false) << "Unexpected name: " << name;
-  return H264NALU::kUnspecified;
+  NOTREACHED() << "Unexpected name: " << name;
 }
 
 template <>
@@ -108,15 +108,14 @@ H265NALU::Type H265StringToNALUType(const std::string& name) {
   if (name == "I")
     return H265NALU::IDR_W_RADL;
 
-  CHECK(false) << "Unexpected name: " << name;
-  return H265NALU::EOB_NUT;
+  NOTREACHED() << "Unexpected name: " << name;
 }
 
 template <>
 void WriteNALUType<H265NALU>(std::vector<uint8_t>* buffer,
                              const std::string& nal_unit_type) {
   uint8_t header1 = 0;
-  uint8_t header2 = 0;
+  uint8_t header2 = 1;  // nuh_temporal_id_plus1 = 1
 
   uint8_t type = static_cast<uint8_t>(H265StringToNALUType(nal_unit_type));
   DCHECK_LT(type, 64);

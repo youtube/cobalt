@@ -14,6 +14,7 @@
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "build/branding_buildflags.h"
+#include "chrome/browser/win/conflicts/installed_applications.h"
 #include "chrome/browser/win/conflicts/module_info.h"
 #include "chrome/browser/win/conflicts/module_inspector.h"
 #include "chrome/browser/win/conflicts/third_party_metrics_recorder.h"
@@ -28,7 +29,6 @@ class SequencedTaskRunner;
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
 class ModuleLoadAttemptLogListener;
-class PrefChangeRegistrar;
 class PrefRegistrySimple;
 class ThirdPartyConflictsManager;
 
@@ -58,7 +58,7 @@ class ModuleDatabase : public ModuleDatabaseEventSource {
 
   // Creates the ModuleDatabase. Must be created and set on the sequence
   // returned by GetTaskRunner().
-  explicit ModuleDatabase(bool third_party_blocking_policy_enabled);
+  ModuleDatabase();
 
   ModuleDatabase(const ModuleDatabase&) = delete;
   ModuleDatabase& operator=(const ModuleDatabase&) = delete;
@@ -145,15 +145,13 @@ class ModuleDatabase : public ModuleDatabaseEventSource {
   void AddObserver(ModuleDatabaseObserver* observer) override;
   void RemoveObserver(ModuleDatabaseObserver* observer) override;
 
-  // Skips waiting for startup to be finished to start inspecting modules.
-  void ForceStartInspection();
+  void StartInspection();
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  static void RegisterLocalStatePrefs(PrefRegistrySimple* registry);
-
-  // Returns false if third-party modules blocking is disabled via
-  // administrative policy.
-  static bool IsThirdPartyBlockingPolicyEnabled();
+  // Similar with the GetInstance() but overwriting third party conflicts
+  // manager's installed_applications_ for testing.
+  static ModuleDatabase* GetInstanceForTesting(
+      std::unique_ptr<InstalledApplications>);
 
   // Disables the blocking of third-party modules in the browser process. It is
   // safe to invoke this function from any thread.
@@ -164,18 +162,9 @@ class ModuleDatabase : public ModuleDatabaseEventSource {
   //                 process. See https://crbug.com/892294.
   static void DisableThirdPartyBlocking();
 
-  // Destroys the |third_party_conflicts_manager_| instance. Invoked by
-  // the |pref_change_registrar_| when it detects that the policy was disabled.
-  // Note: This is distinct from OnThirdPartyBlockingDisabled(). When the policy
-  //       is disabled, the |third_party_conflicts_manager_| is destroyed as if
-  //       it was never initialized.
-  void OnThirdPartyBlockingPolicyDisabled();
-
   // Accessor for the third party conflicts manager.
   // Returns null if both the tracking of incompatible applications and the
   // blocking of third-party modules are disabled.
-  // Do not hold a pointer to the manager because it can be destroyed if the
-  // ThirdPartyBlocking policy is later disabled.
   ThirdPartyConflictsManager* third_party_conflicts_manager() {
     return third_party_conflicts_manager_.get();
   }
@@ -228,9 +217,6 @@ class ModuleDatabase : public ModuleDatabaseEventSource {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   // Called by DisableThirdPartyBlocking() to disable the analysis of loaded
   // modules.
-  // Note: This is distinct from OnThirdPartyBlockingPolicyDisabled() because
-  //       they have a different effect. OnThirdPartyBlockingDisabled() keeps
-  //       the |third_party_conflicts_manager_| instance alive.
   // TODO(pmonette): Remove this workaround when printing is moved to a utility
   //                 process. See https://crbug.com/892294.
   void OnThirdPartyBlockingDisabled();
@@ -240,8 +226,7 @@ class ModuleDatabase : public ModuleDatabaseEventSource {
   // third-party modules. The manager is only initialized if either or both of
   // the ThirdPartyModulesBlocking and IncompatibleApplicationsWarning features
   // are enabled.
-  void MaybeInitializeThirdPartyConflictsManager(
-      bool third_party_blocking_policy_enabled);
+  void MaybeInitializeThirdPartyConflictsManager();
 #endif
 
   // A map of all known modules.
@@ -261,10 +246,6 @@ class ModuleDatabase : public ModuleDatabaseEventSource {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   std::unique_ptr<ModuleLoadAttemptLogListener>
       module_load_attempt_log_listener_;
-
-  // Observes the ThirdPartyBlockingEnabled group policy on the UI thread.
-  std::unique_ptr<PrefChangeRegistrar, base::OnTaskRunnerDeleter>
-      pref_change_registrar_;
 #endif
 
   // Inspects new modules on a blocking task runner.

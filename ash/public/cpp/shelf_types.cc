@@ -4,6 +4,8 @@
 
 #include "ash/public/cpp/shelf_types.h"
 
+#include "base/check_op.h"
+#include "base/containers/contains.h"
 #include "base/logging.h"
 #include "base/notreached.h"
 #include "base/strings/string_split.h"
@@ -16,6 +18,19 @@ namespace {
 constexpr char kDelimiter[] = "|";
 
 }  // namespace
+
+std::ostream& operator<<(std::ostream& out, ShelfAlignment alignment) {
+  switch (alignment) {
+    case ShelfAlignment::kBottom:
+      return out << "Bottom";
+    case ShelfAlignment::kLeft:
+      return out << "Left";
+    case ShelfAlignment::kRight:
+      return out << "Right";
+    case ShelfAlignment::kBottomLocked:
+      return out << "BottomLocked";
+  }
+}
 
 std::ostream& operator<<(std::ostream& out, ShelfAutoHideState state) {
   switch (state) {
@@ -72,7 +87,6 @@ bool IsPinnedShelfItemType(ShelfItemType type) {
       return false;
   }
   NOTREACHED();
-  return false;
 }
 
 bool SamePinState(ShelfItemType a, ShelfItemType b) {
@@ -116,8 +130,8 @@ bool ShelfID::IsNull() const {
 }
 
 std::string ShelfID::Serialize() const {
-  DCHECK_EQ(std::string::npos, app_id.find(kDelimiter)) << "Invalid ShelfID";
-  DCHECK_EQ(std::string::npos, launch_id.find(kDelimiter)) << "Invalid ShelfID";
+  DCHECK(!base::Contains(app_id, kDelimiter)) << "Invalid ShelfID";
+  DCHECK(!base::Contains(launch_id, kDelimiter)) << "Invalid ShelfID";
   return app_id + kDelimiter + launch_id;
 }
 

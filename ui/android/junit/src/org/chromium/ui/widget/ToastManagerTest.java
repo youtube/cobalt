@@ -28,35 +28,34 @@ import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 
+import java.util.concurrent.TimeUnit;
+
 /** Tests for {@link ToastManager}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 @LooperMode(Mode.PAUSED)
 public class ToastManagerTest {
-    @Mock
-    Toast mToast;
-    @Mock
-    Toast mToastNext;
-    @Mock
-    android.widget.Toast mAndroidToastObject;
-    @Mock
-    android.widget.Toast mAndroidToastObjectNext;
+    @Mock Toast mToast;
+    @Mock Toast mToastNext;
+    @Mock android.widget.Toast mAndroidToastObject;
+    @Mock android.widget.Toast mAndroidToastObjectNext;
 
     private static final String TOAST_MSG = "now";
     private static final String TOAST_MSG_NEXT = "next";
+    private static final long DURATION_BETWEEN_TOASTS_MS = 500;
+
     @Before
     public void setUp() {
         MockitoAnnotations.initMocks(this);
-        ToastManager.setEnabledForTesting(true);
     }
 
     @After
     public void tearDown() {
         waitForIdleUi();
         ToastManager.resetForTesting();
+        mToast = null;
         clearInvocations(mAndroidToastObject);
         clearInvocations(mAndroidToastObjectNext);
-        ToastManager.setEnabledForTesting(false);
     }
 
     private static void waitForIdleUi() {
@@ -68,9 +67,7 @@ public class ToastManagerTest {
     public void showToast() {
         doReturn(mAndroidToastObject).when(mToast).getAndroidToast();
 
-        ToastManager toastManager = ToastManager.getInstance();
-
-        toastManager.requestShow(mToast);
+        ToastManager.getInstance().requestShow(mToast);
         verify(mAndroidToastObject).show();
     }
 
@@ -92,7 +89,9 @@ public class ToastManagerTest {
         toastManager.cancel(mToast);
         assertFalse("The current toast should have canceled", toastManager.isShowingForTesting());
         toastManager.requestShow(mToastNext);
-        assertEquals("The next toast should show right away", mToastNext,
+        assertEquals(
+                "The next toast should show right away",
+                mToastNext,
                 toastManager.getCurrentToast());
         verify(mAndroidToastObjectNext).show();
     }
@@ -137,6 +136,7 @@ public class ToastManagerTest {
 
         // The next toast shows only after the delay.
         waitForIdleUi();
+        ShadowLooper.idleMainLooper(DURATION_BETWEEN_TOASTS_MS, TimeUnit.MILLISECONDS);
         verify(mAndroidToastObjectNext).show();
     }
 
@@ -157,6 +157,7 @@ public class ToastManagerTest {
 
         // The next toast shows only after the delay.
         waitForIdleUi();
+        ShadowLooper.idleMainLooper(DURATION_BETWEEN_TOASTS_MS, TimeUnit.MILLISECONDS);
         verify(mAndroidToastObjectNext).show();
     }
 
@@ -190,8 +191,10 @@ public class ToastManagerTest {
 
         verify(androidToast1).show();
         waitForIdleUi();
+        ShadowLooper.idleMainLooper(DURATION_BETWEEN_TOASTS_MS, TimeUnit.MILLISECONDS);
         verify(androidToast3).show(); // One with high priority comes before the next normal one.
         waitForIdleUi();
+        ShadowLooper.idleMainLooper(DURATION_BETWEEN_TOASTS_MS, TimeUnit.MILLISECONDS);
         verify(androidToast2).show();
     }
 
@@ -216,5 +219,83 @@ public class ToastManagerTest {
 
         waitForIdleUi();
         verify(mAndroidToastObjectNext, never()).show(); // Duplicated text content
+    }
+
+    @Test
+    public void test500msGapBetweenTwoToasts() {
+        doReturn(mAndroidToastObject).when(mToast).getAndroidToast();
+        doReturn(mAndroidToastObjectNext).when(mToastNext).getAndroidToast();
+
+        doReturn(TOAST_MSG).when(mToast).getText();
+        doReturn(TOAST_MSG_NEXT).when(mToastNext).getText();
+
+        ToastManager toastManager = ToastManager.getInstance();
+
+        toastManager.requestShow(mToast);
+        toastManager.requestShow(mToastNext);
+
+        // The first toast should show without the 500ms delay.
+        verify(mAndroidToastObject).show();
+
+        // When the current toast is showing and the next toast is added to the queue,
+        // the next toast should not show.
+        assertEquals("mToast should be the current toast", mToast, toastManager.getCurrentToast());
+        verify(mAndroidToastObjectNext, never()).show();
+
+        waitForIdleUi();
+        // When current toast is done showing but hasn't hit the 500ms gap in between shows,
+        // the next toast should not show.
+        assertEquals("mToast should be the current toast", mToast, toastManager.getCurrentToast());
+        verify(mAndroidToastObjectNext, never()).show();
+
+        // The next toast shows only after the current toast is done showing and the 500ms delay.
+        ShadowLooper.idleMainLooper(DURATION_BETWEEN_TOASTS_MS, TimeUnit.MILLISECONDS);
+        verify(mAndroidToastObjectNext).show();
+    }
+
+    @Test
+    public void testNoUnnecessaryDelaysBetweenToasts() {
+        doReturn(mAndroidToastObject).when(mToast).getAndroidToast();
+        doReturn(mAndroidToastObjectNext).when(mToastNext).getAndroidToast();
+
+        doReturn(TOAST_MSG).when(mToast).getText();
+        doReturn(TOAST_MSG_NEXT).when(mToastNext).getText();
+
+        ToastManager toastManager = ToastManager.getInstance();
+
+        // The first toast should show without the 500ms delay.
+        toastManager.requestShow(mToast);
+        verify(mAndroidToastObject).show();
+        waitForIdleUi();
+        ShadowLooper.idleMainLooper(DURATION_BETWEEN_TOASTS_MS, TimeUnit.MILLISECONDS);
+        // The second toast should also show without the 500ms delay.
+        toastManager.requestShow(mToastNext);
+        verify(mAndroidToastObjectNext).show();
+    }
+
+    @Test
+    public void testCancelAndShowNextToast() {
+        doReturn(mAndroidToastObject).when(mToast).getAndroidToast();
+        doReturn(mAndroidToastObjectNext).when(mToastNext).getAndroidToast();
+
+        doReturn(TOAST_MSG).when(mToast).getText();
+        doReturn(TOAST_MSG_NEXT).when(mToastNext).getText();
+
+        ToastManager toastManager = ToastManager.getInstance();
+
+        toastManager.requestShow(mToast);
+        toastManager.requestShow(mToastNext);
+
+        verify(mAndroidToastObject).show();
+
+        toastManager.cancel(mToast);
+        assertFalse(
+                "The current toast should have been canceled", toastManager.isShowingForTesting());
+        // The next toast should not show immediately.
+        verify(mAndroidToastObjectNext, never()).show();
+
+        ShadowLooper.idleMainLooper(DURATION_BETWEEN_TOASTS_MS, TimeUnit.MILLISECONDS);
+        // The next toast should show after the 500ms delay.
+        verify(mAndroidToastObjectNext).show();
     }
 }

@@ -16,9 +16,8 @@
 #include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/process/process.h"
-#include "ui/gfx/native_widget_types.h"
 
 #if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
 #include "base/files/scoped_temp_dir.h"
@@ -99,7 +98,7 @@ class ProcessSingleton {
   // handled within the current browser instance or false if the remote process
   // should handle it (i.e., because the current process is shutting down).
   using NotificationCallback =
-      base::RepeatingCallback<bool(const base::CommandLine& command_line,
+      base::RepeatingCallback<bool(base::CommandLine command_line,
                                    const base::FilePath& current_directory)>;
 
   ProcessSingleton(const base::FilePath& user_data_dir,

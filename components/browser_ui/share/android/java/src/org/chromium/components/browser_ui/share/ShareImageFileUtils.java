@@ -4,6 +4,8 @@
 
 package org.chromium.components.browser_ui.share;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.app.DownloadManager;
 import android.content.ContentResolver;
 import android.content.ContentValues;
@@ -15,7 +17,6 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.MediaStore;
-import android.text.TextUtils;
 
 import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
@@ -24,8 +25,8 @@ import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.ApplicationState;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.Callback;
-import org.chromium.base.ContentUriUtils;
 import org.chromium.base.ContextUtils;
+import org.chromium.base.FileProviderUtils;
 import org.chromium.base.FileUtils;
 import org.chromium.base.Log;
 import org.chromium.base.StreamUtil;
@@ -33,11 +34,15 @@ import org.chromium.base.task.AsyncTask;
 import org.chromium.base.task.BackgroundOnlyAsyncTask;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
+import org.chromium.build.annotations.Contract;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.util.DownloadUtils;
 import org.chromium.content_public.browser.RenderWidgetHostView;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.UiUtils;
 import org.chromium.ui.base.Clipboard;
+import org.chromium.url.GURL;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -47,20 +52,18 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Locale;
 
-/**
- * Utility class for file operations for image data.
- */
+/** Utility class for file operations for image data. */
+@NullMarked
 public class ShareImageFileUtils {
     private static final String TAG = "share";
 
     /**
      * Directory name for shared images.
      *
-     * Named "screenshot" for historical reasons as we only initially shared screenshot images.
-     * TODO(crbug.com/1055886): consider changing the directory name.
+     * <p>Named "screenshot" for historical reasons as we only initially shared screenshot images.
+     * TODO(crbug.com/40676541): consider changing the directory name.
      */
     private static final String SHARE_IMAGES_DIRECTORY_NAME = "screenshot";
-    private static final String FILE_NUMBER_FORMAT = " (%d)";
 
     private static final String JPEG_EXTENSION = ".jpg";
     private static final String PNG_EXTENSION = ".png";
@@ -75,10 +78,11 @@ public class ShareImageFileUtils {
      * @param folder The folder that may contain the |fileUrl|.
      * @return Whether the |fileUri| is in the |folder|.
      */
-    private static boolean isUriInDirectory(Uri fileUri, File folder) {
+    @Contract("null, _ -> false")
+    private static boolean isUriInDirectory(@Nullable Uri fileUri, File folder) {
         if (fileUri == null) return false;
 
-        Uri chromeUriPrefix = ContentUriUtils.getContentUriFromFile(folder);
+        Uri chromeUriPrefix = FileProviderUtils.getContentUriFromFile(folder);
         if (chromeUriPrefix == null) return false;
 
         return fileUri.toString().startsWith(chromeUriPrefix.toString());
@@ -90,7 +94,7 @@ public class ShareImageFileUtils {
      *
      * @return The file name if system clipboard contains a Uri from Chrome, otherwise return null.
      */
-    private static String getClipboardCurrentFilepath() throws IOException {
+    private static @Nullable String getClipboardCurrentFilepath() throws IOException {
         Uri clipboardUri = Clipboard.getInstance().getImageUriIfSharedByThisApp();
         if (isUriInDirectory(clipboardUri, getSharedFilesDirectory())) {
             return clipboardUri.getPath();
@@ -110,21 +114,23 @@ public class ShareImageFileUtils {
         return new File(imagePath, SHARE_IMAGES_DIRECTORY_NAME);
     }
 
-    /**
-     * Clears all shared image files.
-     */
+    /** Clears all shared image files. */
     public static void clearSharedImages() {
-        AsyncTask.SERIAL_EXECUTOR.execute(() -> {
-            try {
-                String clipboardFilepath = getClipboardCurrentFilepath();
-                FileUtils.recursivelyDeleteFile(getSharedFilesDirectory(), (filepath) -> {
-                    return filepath == null || clipboardFilepath == null
-                            || !filepath.endsWith(clipboardFilepath);
+        AsyncTask.SERIAL_EXECUTOR.execute(
+                () -> {
+                    try {
+                        String clipboardFilepath = getClipboardCurrentFilepath();
+                        FileUtils.recursivelyDeleteFile(
+                                getSharedFilesDirectory(),
+                                (filepath) -> {
+                                    return filepath == null
+                                            || clipboardFilepath == null
+                                            || !filepath.endsWith(clipboardFilepath);
+                                });
+                    } catch (IOException ie) {
+                        // Ignore exception.
+                    }
                 });
-            } catch (IOException ie) {
-                // Ignore exception.
-            }
-        });
     }
 
     /**
@@ -141,22 +147,30 @@ public class ShareImageFileUtils {
             Log.w(TAG, "Share failed -- Received image contains no data.");
             return;
         }
-        OnImageSaveListener listener = new OnImageSaveListener() {
-            @Override
-            public void onImageSaved(Uri uri, String displayName) {
-                callback.onResult(uri);
-            }
-            @Override
-            public void onImageSaveError(String displayName) {}
-        };
+        OnImageSaveListener listener =
+                new OnImageSaveListener() {
+                    @Override
+                    public void onImageSaved(Uri uri, String displayName) {
+                        callback.onResult(uri);
+                    }
+
+                    @Override
+                    public void onImageSaveError(String displayName) {}
+                };
 
         String fileName = String.valueOf(System.currentTimeMillis());
-        FileOutputStreamWriter fileWriter = (fos, cb) -> {
-            writeImageData(fos, imageData);
-            cb.onResult(/*success=*/true);
-        };
+        FileOutputStreamWriter fileWriter =
+                (fos, cb) -> {
+                    writeImageData(fos, imageData);
+                    cb.onResult(/* result= */ true);
+                };
 
-        saveImage(fileName, /*filePathProvider=*/null, listener, fileWriter, /*isTemporary=*/true,
+        saveImage(
+                fileName,
+                /* filePathProvider= */ null,
+                listener,
+                fileWriter,
+                /* isTemporary= */ true,
                 fileExtension);
     }
 
@@ -169,97 +183,60 @@ public class ShareImageFileUtils {
      */
     public static void generateTemporaryUriFromBitmap(
             String fileName, Bitmap bitmap, Callback<Uri> callback) {
-        OnImageSaveListener listener = new OnImageSaveListener() {
-            @Override
-            public void onImageSaved(Uri uri, String displayName) {
-                callback.onResult(uri);
-            }
-            @Override
-            public void onImageSaveError(String displayName) {}
-        };
+        OnImageSaveListener listener =
+                new OnImageSaveListener() {
+                    @Override
+                    public void onImageSaved(Uri uri, String displayName) {
+                        callback.onResult(uri);
+                    }
 
-        FileOutputStreamWriter fileWriter = (fos, cb) -> {
-            writeBitmap(fos, bitmap);
-            cb.onResult(/*success=*/true);
-        };
+                    @Override
+                    public void onImageSaveError(String displayName) {}
+                };
 
-        saveImage(fileName, /*filePathProvider=*/null, listener, fileWriter, /*isTemporary=*/true,
+        FileOutputStreamWriter fileWriter =
+                (fos, cb) -> {
+                    writeBitmap(fos, bitmap);
+                    cb.onResult(/* result= */ true);
+                };
+
+        saveImage(
+                fileName,
+                /* filePathProvider= */ null,
+                listener,
+                fileWriter,
+                /* isTemporary= */ true,
                 bitmap.hasAlpha() ? PNG_EXTENSION : JPEG_EXTENSION);
     }
 
-    /**
-     * Temporarily saves the streamed data to a file, and provides the URI of that file to the
-     * given callback.
-     *
-     * @param filename The file name without extension.
-     * @param fileWriter The {@link FileOutputStreamWriter} implementation to write to the stream.
-     * @param fileExtension The extension for the file name.
-     * @param callback A provided callback function which will act on the generated URI.
-     */
-    public static void generateTemporaryUriFromStream(String fileName,
-            FileOutputStreamWriter fileWriter, String fileExtension, Callback<Uri> callback) {
-        OnImageSaveListener listener = new OnImageSaveListener() {
-            @Override
-            public void onImageSaved(Uri uri, String displayName) {
-                callback.onResult(uri);
-            }
-            @Override
-            public void onImageSaveError(String displayName) {
-                callback.onResult(null);
-            }
-        };
-
-        saveImage(fileName, /*filePathProvider=*/null, listener, fileWriter, /*isTemporary=*/true,
-                fileExtension);
-    }
-
-    /**
-     * Saves bitmap to external storage directory.
-     *
-     * @param context The Context to use for determining download location.
-     * @param filename The filename without extension.
-     * @param bitmap The Bitmap to download.
-     * @param listener The OnImageSaveListener to notify the download results.
-     */
-    public static void saveBitmapToExternalStorage(
-            final Context context, String fileName, Bitmap bitmap, OnImageSaveListener listener) {
-        FileOutputStreamWriter fileWriter = (fos, cb) -> {
-            writeBitmap(fos, bitmap);
-            cb.onResult(/*success=*/true);
-        };
-
-        // Passing the path as a function so that it can be called on a background thread in
-        // |saveImage|.
-        saveImage(fileName, () -> {
-            return context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS).getPath();
-        }, listener, fileWriter, false, bitmap.hasAlpha() ? PNG_EXTENSION : JPEG_EXTENSION);
-    }
-
     public static void getBitmapFromUriAsync(
-            Context context, Uri imageUri, Callback<Bitmap> callback) {
+            Context context, Uri imageUri, Callback<@Nullable Bitmap> callback) {
         new BackgroundOnlyAsyncTask<Void>() {
             @Override
             protected Void doInBackground() {
                 Bitmap bitmap = null;
                 try {
-                    bitmap = ApiCompatibilityUtils.getBitmapByUri(
-                            context.getContentResolver(), imageUri);
+                    bitmap =
+                            ApiCompatibilityUtils.getBitmapByUri(
+                                    context.getContentResolver(), imageUri);
                     // We don't want to use hardware bitmaps in case of software rendering. See
                     // https://crbug.com/1172883.
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
                             && isHardwareBitmap(bitmap)) {
-                        bitmap = bitmap.copy(Bitmap.Config.ARGB_8888, /*mutable=*/false);
+                        bitmap = bitmap.copy(Bitmap.Config.ARGB_8888, /* mutable= */ false);
                     }
                 } catch (IOException e) {
                 }
                 final Bitmap result = bitmap;
                 // Run the callback on main thread.
-                new Handler(Looper.getMainLooper()).post(new Runnable() {
-                    @Override
-                    public void run() {
-                        callback.onResult(result);
-                    }
-                });
+                new Handler(Looper.getMainLooper())
+                        .post(
+                                new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        callback.onResult(result);
+                                    }
+                                });
                 return null;
             }
         }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
@@ -271,17 +248,14 @@ public class ShareImageFileUtils {
         return bitmap.getConfig() == Bitmap.Config.HARDWARE;
     }
 
-    /**
-     * Interface for notifying image download result.
-     */
+    /** Interface for notifying image download result. */
     public interface OnImageSaveListener {
         void onImageSaved(Uri uri, String displayName);
+
         void onImageSaveError(String displayName);
     }
 
-    /**
-     * Interface for writing image information to a output stream.
-     */
+    /** Interface for writing image information to a output stream. */
     public interface FileOutputStreamWriter {
         /**
          * Invoked when the file is ready to be written to. The implementer must invoke the given
@@ -311,75 +285,92 @@ public class ShareImageFileUtils {
      * @param isTemporary Indicates whether image should be save to a temporary file.
      * @param fileExtension The file's extension.
      */
-    private static void saveImage(String fileName, FilePathProvider filePathProvider,
-            OnImageSaveListener listener, FileOutputStreamWriter writer, boolean isTemporary,
+    private static void saveImage(
+            String fileName,
+            @Nullable FilePathProvider filePathProvider,
+            OnImageSaveListener listener,
+            FileOutputStreamWriter writer,
+            boolean isTemporary,
             String fileExtension) {
-        Callback<Uri> saveImageCallback = (Uri uri) -> {
-            PostTask.postTask(TaskTraits.UI_DEFAULT, () -> {
-                if (uri == null) {
-                    listener.onImageSaveError(fileName);
-                    return;
-                }
+        Callback<@Nullable Uri> saveImageCallback =
+                (@Nullable Uri uri) -> {
+                    PostTask.postTask(
+                            TaskTraits.UI_DEFAULT,
+                            () -> {
+                                if (uri == null) {
+                                    listener.onImageSaveError(fileName);
+                                    return;
+                                }
 
-                if (ApplicationStatus.getStateForApplication()
-                        == ApplicationState.HAS_DESTROYED_ACTIVITIES) {
-                    return;
-                }
+                                if (ApplicationStatus.getStateForApplication()
+                                        == ApplicationState.HAS_DESTROYED_ACTIVITIES) {
+                                    return;
+                                }
 
-                listener.onImageSaved(uri, fileName);
-            });
-        };
+                                listener.onImageSaved(uri, fileName);
+                            });
+                };
 
-        Callback<File> outputStreamWriteCallback = (File destFile) -> {
-            Uri uri = null;
-            if (!isTemporary) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    uri = addToMediaStore(destFile);
-                } else {
-                    long downloadId = addCompletedDownload(destFile);
-                    DownloadManager manager =
-                            (DownloadManager) ContextUtils.getApplicationContext().getSystemService(
-                                    Context.DOWNLOAD_SERVICE);
-                    uri = manager.getUriForDownloadedFile(downloadId);
-                }
-            } else {
-                uri = FileUtils.getUriForFile(destFile);
-            }
-            saveImageCallback.onResult(uri);
-        };
+        Callback<File> outputStreamWriteCallback =
+                (File destFile) -> {
+                    Uri uri = null;
+                    if (!isTemporary) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            uri = addToMediaStore(destFile);
+                        } else {
+                            long downloadId = addCompletedDownload(destFile);
+                            DownloadManager manager =
+                                    (DownloadManager)
+                                            ContextUtils.getApplicationContext()
+                                                    .getSystemService(Context.DOWNLOAD_SERVICE);
+                            uri = manager.getUriForDownloadedFile(downloadId);
+                        }
+                    } else {
+                        uri = FileUtils.getUriForFile(destFile);
+                    }
+                    saveImageCallback.onResult(uri);
+                };
 
-        PostTask.postTask(TaskTraits.BEST_EFFORT_MAY_BLOCK, new Runnable() {
-            FileOutputStream mFileOut;
-            File mDestFile;
+        PostTask.postTask(
+                TaskTraits.BEST_EFFORT_MAY_BLOCK,
+                new Runnable() {
+                    @Nullable FileOutputStream mFileOut;
+                    @Nullable File mDestFile;
 
-            @Override
-            public void run() {
-                try {
-                    String filePath = filePathProvider == null ? "" : filePathProvider.getPath();
-                    mDestFile = createFile(fileName, filePath, isTemporary, fileExtension);
-                    if (mDestFile != null && mDestFile.exists()) {
-                        mFileOut = new FileOutputStream(mDestFile);
+                    @Override
+                    public void run() {
+                        try {
+                            String filePath =
+                                    filePathProvider == null ? "" : filePathProvider.getPath();
+                            mDestFile = createFile(fileName, filePath, isTemporary, fileExtension);
+                            if (mDestFile != null && mDestFile.exists()) {
+                                mFileOut = new FileOutputStream(mDestFile);
 
-                        writer.write(mFileOut, (success) -> {
-                            StreamUtil.closeQuietly(mFileOut);
-                            if (success) {
-                                outputStreamWriteCallback.onResult(mDestFile);
+                                writer.write(
+                                        mFileOut,
+                                        (success) -> {
+                                            StreamUtil.closeQuietly(mFileOut);
+                                            if (success) {
+                                                outputStreamWriteCallback.onResult(
+                                                        assumeNonNull(mDestFile));
+                                            } else {
+                                                saveImageCallback.onResult(null);
+                                            }
+                                        });
                             } else {
+                                Log.w(
+                                        TAG,
+                                        "Share failed -- Unable to create or write to destination"
+                                                + " file.");
+                                StreamUtil.closeQuietly(mFileOut);
                                 saveImageCallback.onResult(null);
                             }
-                        });
-                    } else {
-                        Log.w(TAG,
-                                "Share failed -- Unable to create or write to destination file.");
-                        StreamUtil.closeQuietly(mFileOut);
-                        saveImageCallback.onResult(null);
+                        } catch (IOException ie) {
+                            StreamUtil.closeQuietly(mFileOut);
+                            saveImageCallback.onResult(null);
+                        }
                     }
-                } catch (IOException ie) {
-                    StreamUtil.closeQuietly(mFileOut);
-                    saveImageCallback.onResult(null);
-                }
-            }
-        });
+                });
     }
 
     /**
@@ -392,8 +383,9 @@ public class ShareImageFileUtils {
      *
      * @return The new File object.
      */
-    private static File createFile(String fileName, String filePath, boolean isTemporary,
-            String fileExtension) throws IOException {
+    private static @Nullable File createFile(
+            String fileName, String filePath, boolean isTemporary, String fileExtension)
+            throws IOException {
         File path;
         if (filePath.isEmpty()) {
             path = getSharedFilesDirectory();
@@ -428,9 +420,12 @@ public class ShareImageFileUtils {
         File destFile = new File(filePath, fileName + extension);
         int num = 0;
         while (destFile.exists()) {
-            destFile = new File(filePath,
-                    fileName + String.format(Locale.getDefault(), FILE_NUMBER_FORMAT, ++num)
-                            + extension);
+            destFile =
+                    new File(
+                            filePath,
+                            fileName
+                                    + String.format(Locale.getDefault(), " (%d)", ++num)
+                                    + extension);
         }
         destFile.createNewFile();
 
@@ -470,11 +465,17 @@ public class ShareImageFileUtils {
         long length = file.length();
 
         return DownloadUtils.addCompletedDownload(
-                title, title, getImageMimeType(file), path, length, null, null);
+                title,
+                title,
+                getImageMimeType(file),
+                path,
+                length,
+                GURL.emptyGURL(),
+                GURL.emptyGURL());
     }
 
     @RequiresApi(29)
-    public static Uri addToMediaStore(File file) {
+    public static @Nullable Uri addToMediaStore(File file) {
         assert Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q;
 
         final ContentValues contentValues = new ContentValues();
@@ -520,15 +521,17 @@ public class ShareImageFileUtils {
      * @param callback The callback that will be called once the screenshot is saved.
      */
     public static void captureScreenshotForContents(
-            WebContents contents, int width, int height, Callback<Uri> callback) {
+            WebContents contents, int width, int height, Callback<@Nullable Uri> callback) {
         RenderWidgetHostView rwhv = contents.getRenderWidgetHostView();
         if (rwhv == null) {
             callback.onResult(null);
             return;
         }
         try {
-            String path = UiUtils.getDirectoryForImageCapture(ContextUtils.getApplicationContext())
-                    + File.separator + SHARE_IMAGES_DIRECTORY_NAME;
+            String path =
+                    UiUtils.getDirectoryForImageCapture(ContextUtils.getApplicationContext())
+                            + File.separator
+                            + SHARE_IMAGES_DIRECTORY_NAME;
             rwhv.writeContentBitmapToDiskAsync(
                     width, height, path, new ExternallyVisibleUriCallback(callback));
         } catch (IOException e) {
@@ -572,26 +575,31 @@ public class ShareImageFileUtils {
     }
 
     private static class ExternallyVisibleUriCallback implements Callback<String> {
-        private Callback<Uri> mComposedCallback;
-        ExternallyVisibleUriCallback(Callback<Uri> cb) {
+        private final Callback<@Nullable Uri> mComposedCallback;
+
+        ExternallyVisibleUriCallback(Callback<@Nullable Uri> cb) {
             mComposedCallback = cb;
         }
 
         @Override
         public void onResult(final String path) {
-            if (TextUtils.isEmpty(path)) {
+            if (path.isEmpty()) {
                 mComposedCallback.onResult(null);
                 return;
             }
 
-            new AsyncTask<Uri>() {
+            new AsyncTask<@Nullable Uri>() {
                 @Override
-                protected Uri doInBackground() {
-                    return ContentUriUtils.getContentUriFromFile(new File(path));
+                protected @Nullable Uri doInBackground() {
+                    try {
+                        return FileProviderUtils.getContentUriFromFile(new File(path));
+                    } catch (IllegalArgumentException e) {
+                        return null;
+                    }
                 }
 
                 @Override
-                protected void onPostExecute(Uri uri) {
+                protected void onPostExecute(@Nullable Uri uri) {
                     mComposedCallback.onResult(uri);
                 }
             }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);

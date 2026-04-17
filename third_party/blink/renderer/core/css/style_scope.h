@@ -5,17 +5,18 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_CSS_STYLE_SCOPE_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_STYLE_SCOPE_H_
 
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include <optional>
+
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/css_selector_list.h"
 #include "third_party/blink/renderer/core/css/parser/css_nesting_type.h"
-#include "third_party/blink/renderer/core/css/parser/css_parser_token_range.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
 #include "third_party/blink/renderer/platform/heap/visitor.h"
 
 namespace blink {
-class Element;
+
+class CSSParserTokenStream;
 class StyleRule;
 class StyleSheetContents;
 
@@ -31,11 +32,18 @@ class CORE_EXPORT StyleScope final : public GarbageCollected<StyleScope> {
   // https://drafts.csswg.org/css-nesting-1/#nesting-at-scope
   StyleScope(StyleRule* from, CSSSelectorList* to);
   // Construct a StyleScope with implicit roots at the parent nodes of the
-  // stylesheet's owner nodes.
-  explicit StyleScope(StyleSheetContents* contents);
+  // stylesheet's owner nodes. Note that StyleScopes with implicit roots
+  // can still have limits.
+  explicit StyleScope(StyleSheetContents* contents, CSSSelectorList* to);
   StyleScope(const StyleScope&);
-  static StyleScope* Parse(CSSParserTokenRange prelude,
+  // Note that the `nesting_type` and `parent_rule_for_nesting` provided here
+  // are only used for parsing the <scope-start> selector. The <scope-end>
+  // selector and style rules within the scope's body will use
+  // CSSNestingType::kScope and `RuleForNesting()` instead.
+  static StyleScope* Parse(CSSParserTokenStream& stream,
                            const CSSParserContext* context,
+                           CSSNestingType nesting_type,
+                           StyleRule* parent_rule_for_nesting,
                            StyleSheetContents* style_sheet);
 
   void Trace(blink::Visitor*) const;
@@ -46,31 +54,29 @@ class CORE_EXPORT StyleScope final : public GarbageCollected<StyleScope> {
   // if there is no list.
   const CSSSelector* From() const;
   const CSSSelector* To() const;
-  const StyleScope* Parent() const { return parent_; }
+  const StyleScope* Parent() const { return parent_.Get(); }
 
   // The rule to use for resolving the nesting selector (&) for this scope's
   // inner rules.
-  StyleRule* RuleForNesting() const { return from_; }
+  StyleRule* RuleForNesting() const { return from_.Get(); }
+
+  // Returns a copy of StyleScope, with any '&' selectors in the prelude updated
+  // to `new_parent`. If no '&' selectors required an update, returns 'this'.
+  //
+  // See also CSSSelector::Renest.
+  const StyleScope* Renest(StyleRule* new_parent) const;
 
   // https://drafts.csswg.org/css-cascade-6/#implicit-scope
-  bool IsImplicit() const { return contents_; }
-
-  // True if this StyleScope has an implicit root at the specified element.
-  // This is used to find the roots for prelude-less @scope rules.
-  bool HasImplicitRoot(Element*) const;
-
-  // Specificity of the <scope-start> selector (::From()), plus the
-  // specificity of the parent scope (if any).
-  unsigned Specificity() const;
+  bool IsImplicit() const { return contents_.Get() != nullptr; }
 
  private:
   // If `contents_` is not nullptr, then this is a prelude-less @scope rule
   // which is implicitly scoped to the owner node's parent.
   Member<StyleSheetContents> contents_;
-  Member<StyleRule> from_;        // May be nullptr.
-  Member<CSSSelectorList> to_;    // May be nullptr.
+  Member<StyleRule> from_;      // May be nullptr.
+  Member<CSSSelectorList> to_;  // May be nullptr.
   Member<const StyleScope> parent_;
-  mutable absl::optional<unsigned> specificity_;
+  mutable std::optional<unsigned> specificity_;
 };
 
 }  // namespace blink

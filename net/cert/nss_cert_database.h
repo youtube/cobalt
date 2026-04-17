@@ -14,19 +14,14 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/observer_list_threadsafe.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "crypto/scoped_nss_types.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_export.h"
 #include "net/cert/cert_type.h"
 #include "net/cert/scoped_nss_types.h"
 #include "net/cert/x509_certificate.h"
-
-namespace base {
-template <class ObserverType>
-class ObserverListThreadSafe;
-}
 
 namespace net {
 
@@ -44,7 +39,8 @@ class NET_EXPORT NSSCertDatabase {
 
     // Will be called when a certificate is added, removed, or trust settings
     // are changed.
-    virtual void OnCertDBChanged() {}
+    virtual void OnTrustStoreChanged() {}
+    virtual void OnClientCertStoreChanged() {}
 
    protected:
     Observer() = default;
@@ -156,6 +152,9 @@ class NET_EXPORT NSSCertDatabase {
 
   enum class NSSRootsHandling {
     kInclude,
+    // TODO(crbug.com/390333881): kExclude is only used by the old cert
+    // manager. Remove this and any other no-longer needed NSSCertDatabase
+    // features once the new cert manager is fully launched.
     kExclude,
   };
   // Asynchronously get a list of certificates along with additional
@@ -163,7 +162,7 @@ class NET_EXPORT NSSCertDatabase {
   // deleted.
   // The `nss_roots_handling` parameter controls whether to include or exclude
   // NSS built-in roots from the returned list.
-  // TODO(https://crbug.com/1412591): remove the `nss_roots_handling` parameter.
+  // TODO(crbug.com/40890963): remove the `nss_roots_handling` parameter.
   virtual void ListCertsInfo(ListCertsInfoCallback callback,
                              NSSRootsHandling nss_roots_handling);
 
@@ -208,10 +207,11 @@ class NET_EXPORT NSSCertDatabase {
 
   // Export the given certificates and private keys into a PKCS #12 blob,
   // storing into |output|.
-  // Returns the number of certificates successfully exported.
-  int ExportToPKCS12(const ScopedCERTCertificateList& certs,
-                     const std::u16string& password,
-                     std::string* output) const;
+  // Returns the number of certificates successfully exported. NSS has to be
+  // initialized before the method is called.
+  static int ExportToPKCS12(const ScopedCERTCertificateList& certs,
+                            const std::u16string& password,
+                            std::string* output);
 
   // Uses similar logic to nsNSSCertificateDB::handleCACertDownload to find the
   // root.  Assumes the list is an ordered hierarchy with the root being either
@@ -323,20 +323,28 @@ class NET_EXPORT NSSCertDatabase {
                                         NSSRootsHandling nss_roots_handling);
 
   // Broadcasts notifications to all registered observers.
-  void NotifyObserversCertDBChanged();
+  void NotifyObserversTrustStoreChanged();
+  void NotifyObserversClientCertStoreChanged();
 
  private:
+  enum class DeleteCertAndKeyResult {
+    ERROR,
+    OK_FOUND_KEY,
+    OK_NO_KEY,
+  };
   // Notifies observers of the removal of a cert and calls |callback| with
   // |success| as argument.
-  void NotifyCertRemovalAndCallBack(DeleteCertCallback callback, bool success);
+  void NotifyCertRemovalAndCallBack(DeleteCertCallback callback,
+                                    DeleteCertAndKeyResult result);
 
   // Certificate removal implementation used by |DeleteCertAndKey*|. Static so
   // it may safely be used on the worker thread.
-  static bool DeleteCertAndKeyImpl(CERTCertificate* cert);
+  static DeleteCertAndKeyResult DeleteCertAndKeyImpl(CERTCertificate* cert);
   // Like above, but taking a ScopedCERTCertificate. This is a workaround for
   // base::Bind not having a way to own a unique_ptr but pass it to the
   // function as a raw pointer.
-  static bool DeleteCertAndKeyImplScoped(ScopedCERTCertificate cert);
+  static DeleteCertAndKeyResult DeleteCertAndKeyImplScoped(
+      ScopedCERTCertificate cert);
 
   crypto::ScopedPK11Slot public_slot_;
   crypto::ScopedPK11Slot private_slot_;

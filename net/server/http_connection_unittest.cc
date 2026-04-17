@@ -4,10 +4,13 @@
 
 #include "net/server/http_connection.h"
 
+#include <algorithm>
 #include <string>
+#include <string_view>
 
+#include "base/containers/span.h"
 #include "base/memory/ref_counted.h"
-#include "base/strings/string_piece.h"
+#include "base/numerics/safe_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -28,13 +31,13 @@ TEST(HttpConnectionTest, ReadIOBuffer_SetCapacity) {
             buffer->GetCapacity());
   EXPECT_EQ(HttpConnection::ReadIOBuffer::kInitialBufSize + 0,
             buffer->RemainingCapacity());
-  EXPECT_EQ(0, buffer->GetSize());
+  EXPECT_TRUE(buffer->readable_bytes().empty());
 
   const int kNewCapacity = HttpConnection::ReadIOBuffer::kInitialBufSize + 128;
   buffer->SetCapacity(kNewCapacity);
   EXPECT_EQ(kNewCapacity, buffer->GetCapacity());
   EXPECT_EQ(kNewCapacity, buffer->RemainingCapacity());
-  EXPECT_EQ(0, buffer->GetSize());
+  EXPECT_TRUE(buffer->readable_bytes().empty());
 }
 
 TEST(HttpConnectionTest, ReadIOBuffer_SetCapacity_WithData) {
@@ -48,16 +51,14 @@ TEST(HttpConnectionTest, ReadIOBuffer_SetCapacity_WithData) {
   // Write arbitrary data up to kInitialBufSize.
   const std::string kReadData(
       GetTestString(HttpConnection::ReadIOBuffer::kInitialBufSize));
-  memcpy(buffer->data(), kReadData.data(), kReadData.size());
+  std::copy(kReadData.begin(), kReadData.end(), buffer->span().begin());
   buffer->DidRead(kReadData.size());
   EXPECT_EQ(HttpConnection::ReadIOBuffer::kInitialBufSize + 0,
             buffer->GetCapacity());
   EXPECT_EQ(HttpConnection::ReadIOBuffer::kInitialBufSize -
                 static_cast<int>(kReadData.size()),
             buffer->RemainingCapacity());
-  EXPECT_EQ(static_cast<int>(kReadData.size()), buffer->GetSize());
-  EXPECT_EQ(kReadData,
-            base::StringPiece(buffer->StartOfBuffer(), buffer->GetSize()));
+  EXPECT_EQ(kReadData, base::as_string_view(buffer->readable_bytes()));
 
   // Check if read data in the buffer is same after SetCapacity().
   const int kNewCapacity = HttpConnection::ReadIOBuffer::kInitialBufSize + 128;
@@ -65,9 +66,7 @@ TEST(HttpConnectionTest, ReadIOBuffer_SetCapacity_WithData) {
   EXPECT_EQ(kNewCapacity, buffer->GetCapacity());
   EXPECT_EQ(kNewCapacity - static_cast<int>(kReadData.size()),
             buffer->RemainingCapacity());
-  EXPECT_EQ(static_cast<int>(kReadData.size()), buffer->GetSize());
-  EXPECT_EQ(kReadData,
-            base::StringPiece(buffer->StartOfBuffer(), buffer->GetSize()));
+  EXPECT_EQ(kReadData, base::as_string_view(buffer->readable_bytes()));
 }
 
 TEST(HttpConnectionTest, ReadIOBuffer_IncreaseCapacity) {
@@ -79,7 +78,7 @@ TEST(HttpConnectionTest, ReadIOBuffer_IncreaseCapacity) {
       HttpConnection::ReadIOBuffer::kCapacityIncreaseFactor;
   EXPECT_EQ(kExpectedInitialBufSize, buffer->GetCapacity());
   EXPECT_EQ(kExpectedInitialBufSize, buffer->RemainingCapacity());
-  EXPECT_EQ(0, buffer->GetSize());
+  EXPECT_TRUE(buffer->readable_bytes().empty());
 
   // Increase capacity until it fails.
   while (buffer->IncreaseCapacity());
@@ -114,18 +113,16 @@ TEST(HttpConnectionTest, ReadIOBuffer_IncreaseCapacity_WithData) {
       HttpConnection::ReadIOBuffer::kCapacityIncreaseFactor;
   EXPECT_EQ(kExpectedInitialBufSize, buffer->GetCapacity());
   EXPECT_EQ(kExpectedInitialBufSize, buffer->RemainingCapacity());
-  EXPECT_EQ(0, buffer->GetSize());
+  EXPECT_TRUE(buffer->readable_bytes().empty());
 
   // Write arbitrary data up to kExpectedInitialBufSize.
   std::string kReadData(GetTestString(kExpectedInitialBufSize));
-  memcpy(buffer->data(), kReadData.data(), kReadData.size());
+  std::copy(kReadData.begin(), kReadData.end(), buffer->span().begin());
   buffer->DidRead(kReadData.size());
   EXPECT_EQ(kExpectedInitialBufSize, buffer->GetCapacity());
   EXPECT_EQ(kExpectedInitialBufSize - static_cast<int>(kReadData.size()),
             buffer->RemainingCapacity());
-  EXPECT_EQ(static_cast<int>(kReadData.size()), buffer->GetSize());
-  EXPECT_EQ(kReadData,
-            base::StringPiece(buffer->StartOfBuffer(), buffer->GetSize()));
+  EXPECT_EQ(kReadData, base::as_string_view(buffer->readable_bytes()));
 
   // Increase capacity until it fails and check if read data in the buffer is
   // same.
@@ -138,21 +135,19 @@ TEST(HttpConnectionTest, ReadIOBuffer_IncreaseCapacity_WithData) {
   EXPECT_EQ(HttpConnection::ReadIOBuffer::kDefaultMaxBufferSize -
                 static_cast<int>(kReadData.size()),
             buffer->RemainingCapacity());
-  EXPECT_EQ(static_cast<int>(kReadData.size()), buffer->GetSize());
-  EXPECT_EQ(kReadData,
-            base::StringPiece(buffer->StartOfBuffer(), buffer->GetSize()));
+  EXPECT_EQ(kReadData, base::as_string_view(buffer->readable_bytes()));
 }
 
 TEST(HttpConnectionTest, ReadIOBuffer_DidRead_DidConsume) {
   scoped_refptr<HttpConnection::ReadIOBuffer> buffer =
       base::MakeRefCounted<HttpConnection::ReadIOBuffer>();
-  const char* start_of_buffer = buffer->StartOfBuffer();
-  EXPECT_EQ(start_of_buffer, buffer->data());
+  const uint8_t* start_of_buffer = buffer->readable_bytes().data();
 
   // Read data.
   const int kReadLength = 128;
   const std::string kReadData(GetTestString(kReadLength));
-  memcpy(buffer->data(), kReadData.data(), kReadLength);
+  std::copy(kReadData.begin(), kReadData.begin() + kReadLength,
+            buffer->span().begin());
   buffer->DidRead(kReadLength);
   // No change in total capacity.
   EXPECT_EQ(HttpConnection::ReadIOBuffer::kInitialBufSize + 0,
@@ -160,13 +155,16 @@ TEST(HttpConnectionTest, ReadIOBuffer_DidRead_DidConsume) {
   // Change in unused capacity because of read data.
   EXPECT_EQ(HttpConnection::ReadIOBuffer::kInitialBufSize - kReadLength,
             buffer->RemainingCapacity());
-  EXPECT_EQ(kReadLength, buffer->GetSize());
   // No change in start pointers of read data.
-  EXPECT_EQ(start_of_buffer, buffer->StartOfBuffer());
+  EXPECT_EQ(start_of_buffer, buffer->readable_bytes().data());
   // Change in start pointer of unused buffer.
-  EXPECT_EQ(start_of_buffer + kReadLength, buffer->data());
+  // SAFETY: This is comparing pointers, to make sure the underlying contiguous
+  // data is correctly split into two disjoint spans. The raw pointers are never
+  // dereferenced.
+  EXPECT_EQ(UNSAFE_BUFFERS(buffer->readable_bytes().data() + kReadLength),
+            buffer->bytes());
   // Test read data.
-  EXPECT_EQ(kReadData, std::string(buffer->StartOfBuffer(), buffer->GetSize()));
+  EXPECT_EQ(kReadData, base::as_string_view(buffer->readable_bytes()));
 
   // Consume data partially.
   const int kConsumedLength = 32;
@@ -181,15 +179,18 @@ TEST(HttpConnectionTest, ReadIOBuffer_DidRead_DidConsume) {
                 HttpConnection::ReadIOBuffer::kCapacityIncreaseFactor -
                 kReadLength + kConsumedLength,
             buffer->RemainingCapacity());
-  // Change in read size.
-  EXPECT_EQ(kReadLength - kConsumedLength, buffer->GetSize());
   // Start data could be changed even when capacity is reduced.
-  start_of_buffer = buffer->StartOfBuffer();
+  start_of_buffer = buffer->readable_bytes().data();
   // Change in start pointer of unused buffer.
-  EXPECT_EQ(start_of_buffer + kReadLength - kConsumedLength, buffer->data());
+  // SAFETY: This is comparing pointers, to make sure the underlying contiguous
+  // data is correctly split into two disjoint spans. The raw pointers are never
+  // dereferenced.
+  EXPECT_EQ(UNSAFE_BUFFERS(buffer->readable_bytes().data() + kReadLength -
+                           kConsumedLength),
+            buffer->bytes());
   // Change in read data.
   EXPECT_EQ(kReadData.substr(kConsumedLength),
-            std::string(buffer->StartOfBuffer(), buffer->GetSize()));
+            base::as_string_view(buffer->readable_bytes()));
 
   // Read more data.
   const int kReadLength2 = 64;
@@ -204,12 +205,17 @@ TEST(HttpConnectionTest, ReadIOBuffer_DidRead_DidConsume) {
                 kReadLength + kConsumedLength - kReadLength2,
             buffer->RemainingCapacity());
   // Change in read size
-  EXPECT_EQ(kReadLength - kConsumedLength + kReadLength2, buffer->GetSize());
+  EXPECT_EQ(kReadLength - kConsumedLength + kReadLength2,
+            base::checked_cast<int>(buffer->readable_bytes().size()));
   // No change in start pointer of read part.
-  EXPECT_EQ(start_of_buffer, buffer->StartOfBuffer());
+  EXPECT_EQ(start_of_buffer, buffer->readable_bytes().data());
   // Change in start pointer of unused buffer.
-  EXPECT_EQ(start_of_buffer + kReadLength - kConsumedLength + kReadLength2,
-            buffer->data());
+  // SAFETY: This is comparing pointers, to make sure the underlying contiguous
+  // data is correctly split into two disjoint spans. The raw pointers are never
+  // dereferenced.
+  EXPECT_EQ(UNSAFE_BUFFERS(buffer->readable_bytes().data() + kReadLength -
+                           kConsumedLength + kReadLength2),
+            buffer->bytes());
 
   // Consume data fully.
   buffer->DidConsume(kReadLength - kConsumedLength + kReadLength2);
@@ -223,10 +229,10 @@ TEST(HttpConnectionTest, ReadIOBuffer_DidRead_DidConsume) {
                 HttpConnection::ReadIOBuffer::kCapacityIncreaseFactor,
             buffer->RemainingCapacity());
   // All reverts to initial because no data is left.
-  EXPECT_EQ(0, buffer->GetSize());
+  EXPECT_TRUE(buffer->readable_bytes().empty());
   // Start data could be changed even when capacity is reduced.
-  start_of_buffer = buffer->StartOfBuffer();
-  EXPECT_EQ(start_of_buffer, buffer->data());
+  start_of_buffer = buffer->readable_bytes().data();
+  EXPECT_EQ(start_of_buffer, buffer->bytes());
 }
 
 TEST(HttpConnectionTest, QueuedWriteIOBuffer_Append_DidConsume) {
@@ -242,7 +248,7 @@ TEST(HttpConnectionTest, QueuedWriteIOBuffer_Append_DidConsume) {
   EXPECT_EQ(static_cast<int>(kData.size()), buffer->GetSizeToWrite());
   EXPECT_EQ(static_cast<int>(kData.size()), buffer->total_size());
   // First data to write is same to kData.
-  EXPECT_EQ(kData, base::StringPiece(buffer->data(), buffer->GetSizeToWrite()));
+  EXPECT_EQ(kData, std::string_view(buffer->data(), buffer->GetSizeToWrite()));
 
   const std::string kData2("more data to write");
   EXPECT_TRUE(buffer->Append(kData2));
@@ -253,7 +259,7 @@ TEST(HttpConnectionTest, QueuedWriteIOBuffer_Append_DidConsume) {
   EXPECT_EQ(static_cast<int>(kData.size() + kData2.size()),
             buffer->total_size());
   // First data to write has not been changed. Same to kData.
-  EXPECT_EQ(kData, base::StringPiece(buffer->data(), buffer->GetSizeToWrite()));
+  EXPECT_EQ(kData, std::string_view(buffer->data(), buffer->GetSizeToWrite()));
 
   // Consume data partially.
   const int kConsumedLength = kData.length() - 1;
@@ -267,7 +273,7 @@ TEST(HttpConnectionTest, QueuedWriteIOBuffer_Append_DidConsume) {
             buffer->total_size());
   // First data to write has shrinked.
   EXPECT_EQ(kData.substr(kConsumedLength),
-            base::StringPiece(buffer->data(), buffer->GetSizeToWrite()));
+            std::string_view(buffer->data(), buffer->GetSizeToWrite()));
 
   // Consume first data fully.
   buffer->DidConsume(kData.size() - kConsumedLength);
@@ -277,8 +283,7 @@ TEST(HttpConnectionTest, QueuedWriteIOBuffer_Append_DidConsume) {
   // Change in total size.
   EXPECT_EQ(static_cast<int>(kData2.size()), buffer->total_size());
   // First data to write has changed to kData2.
-  EXPECT_EQ(kData2,
-            base::StringPiece(buffer->data(), buffer->GetSizeToWrite()));
+  EXPECT_EQ(kData2, std::string_view(buffer->data(), buffer->GetSizeToWrite()));
 
   // Consume second data fully.
   buffer->DidConsume(kData2.size());
@@ -343,7 +348,7 @@ TEST(HttpConnectionTest, QueuedWriteIOBuffer_DataPointerStability) {
   // to something other than start of string right.
   buffer->DidConsume(3);
   const char* old_data = buffer->data();
-  EXPECT_EQ("defgh", base::StringPiece(buffer->data(), 5));
+  EXPECT_EQ("defgh", std::string_view(buffer->data(), 5));
 
   // Now append a whole bunch of other things to make the underlying queue
   // grow, and likely need to move stuff around in memory.
@@ -351,7 +356,7 @@ TEST(HttpConnectionTest, QueuedWriteIOBuffer_DataPointerStability) {
     buffer->Append("some other string data");
 
   // data() should still be right.
-  EXPECT_EQ("defgh", base::StringPiece(buffer->data(), 5));
+  EXPECT_EQ("defgh", std::string_view(buffer->data(), 5));
 
   // ... it should also be bitwise the same, since the IOBuffer can get passed
   // to async calls and then have Append's come in.

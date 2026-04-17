@@ -24,9 +24,9 @@ namespace ash {
 // A small bubble that shows the short name of the current IME (e.g. "DV" for
 // Dvorak) after switching IMEs with an accelerator (e.g. Ctrl-Space).
 class ASH_EXPORT ImeModeIndicatorView : public views::BubbleDialogDelegateView {
- public:
-  METADATA_HEADER(ImeModeIndicatorView);
+  METADATA_HEADER(ImeModeIndicatorView, views::BubbleDialogDelegateView)
 
+ public:
   // The cursor bounds is in the universal screen coordinates in DIP.
   ImeModeIndicatorView(const gfx::Rect& cursor_bounds,
                        const std::u16string& label);
@@ -40,7 +40,8 @@ class ASH_EXPORT ImeModeIndicatorView : public views::BubbleDialogDelegateView {
   // views::BubbleDialogDelegateView override:
   void OnBeforeBubbleWidgetInit(views::Widget::InitParams* params,
                                 views::Widget* widget) const override;
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
   void Init() override;
 
  protected:
@@ -50,7 +51,7 @@ class ASH_EXPORT ImeModeIndicatorView : public views::BubbleDialogDelegateView {
 
  private:
   gfx::Rect cursor_bounds_;
-  raw_ptr<views::Label, ExperimentalAsh> label_view_;
+  raw_ptr<views::Label> label_view_;
   base::OneShotTimer timer_;
 };
 

@@ -4,11 +4,14 @@
 
 package org.chromium.support_lib_boundary;
 
-/**
- * Boundary interface for SafeBrowsingResponseCompat.
- */
+import org.jspecify.annotations.NullMarked;
+
+/** Boundary interface for SafeBrowsingResponseCompat. */
+@NullMarked
 public interface SafeBrowsingResponseBoundaryInterface {
     void showInterstitial(boolean allowReporting);
+
     void proceed(boolean report);
+
     void backToSafety(boolean report);
 }

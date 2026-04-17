@@ -15,7 +15,6 @@
 import("perfetto.gni")
 
 perfetto_integrationtests_targets = [
-  "gn:default_deps",
   "src/tracing/test:client_api_integrationtests",
   "src/shared_lib/test:integrationtests",
 ]
@@ -31,7 +30,7 @@ if (enable_perfetto_traced_probes) {
   # enable_perfetto_traced_probes implies enable_perfetto_platform_services.
   perfetto_integrationtests_targets += [
     "src/traced/probes/ftrace:integrationtests",
-    "test:integrationtests",
+    "test:perfetto_end_to_end_integrationtests",
   ]
 }
 
@@ -48,4 +47,15 @@ if (enable_perfetto_trace_processor && perfetto_build_standalone &&
     !is_android) {
   perfetto_integrationtests_targets +=
       [ "src/trace_processor:integrationtests" ]
+  perfetto_integrationtests_targets += [ "src/traceconv:integrationtests" ]
+}
+
+# This test requires traces that are not available on Android builds.
+if (perfetto_build_standalone && !is_android) {
+  perfetto_integrationtests_targets +=
+      [ "src/trace_redaction:integrationtests" ]
+}
+
+if (enable_perfetto_traced_relay) {
+  perfetto_integrationtests_targets += [ "src/traced_relay:integrationtests" ]
 }

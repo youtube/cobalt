@@ -14,6 +14,7 @@
 #include "base/run_loop.h"
 #include "base/strings/string_util.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/unguessable_token.h"
 #include "build/build_config.h"
 #include "content/browser/webui/web_ui_controller_factory_registry.h"
 #include "content/browser/webui/web_ui_impl.h"
@@ -36,12 +37,11 @@
 #include "content/public/test/content_browser_test.h"
 #include "content/public/test/content_browser_test_content_browser_client.h"
 #include "content/public/test/content_browser_test_utils.h"
+#include "content/public/test/no_renderer_crashes_assertion.h"
 #include "content/public/test/scoped_web_ui_controller_factory_registration.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "content/public/test/test_utils.h"
 #include "content/shell/browser/shell.h"
-#include "content/test/data/web_ui_test.test-mojom.h"
-#include "content/test/data/web_ui_test_types.test-mojom.h"
 #include "content/test/data/web_ui_ts_test.test-mojom.h"
 #include "content/test/data/web_ui_ts_test_types.test-mojom.h"
 #include "content/test/grit/web_ui_mojo_test_resources.h"
@@ -49,42 +49,16 @@
 #include "mojo/public/cpp/bindings/binder_map.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
+#include "mojo/public/cpp/bindings/self_owned_receiver.h"
+#include "mojo/public/mojom/base/time.mojom.h"
 #include "third_party/blink/public/common/chrome_debug_urls.h"
 
 namespace content {
 namespace {
 
-const char kMojoWebUiHost[] = "mojo-web-ui";
 const char kMojoWebUiTsHost[] = "mojo-web-ui-ts";
 const char kDummyWebUiHost[] = "dummy-web-ui";
 
-class WebUIMojoTestCacheImpl : public mojom::WebUIMojoTestCache {
- public:
-  explicit WebUIMojoTestCacheImpl(
-      mojo::PendingReceiver<mojom::WebUIMojoTestCache> receiver)
-      : receiver_(this, std::move(receiver)) {}
-
-  ~WebUIMojoTestCacheImpl() override = default;
-
-  // mojom::WebUIMojoTestCache overrides:
-  void Put(const GURL& url, const std::string& contents) override {
-    cache_[url] = contents;
-  }
-
-  void GetAll(GetAllCallback callback) override {
-    std::vector<mojom::CacheItemPtr> items;
-    for (const auto& entry : cache_)
-      items.push_back(mojom::CacheItem::New(entry.first, entry.second));
-    std::move(callback).Run(std::move(items));
-  }
-
- private:
-  mojo::Receiver<mojom::WebUIMojoTestCache> receiver_;
-  std::map<GURL, std::string> cache_;
-};
-
-// Duplicate for the TypeScript version of the test. We can't re-use because
-// the TS interface has to be named differently to avoid conflicting symbols.
 class WebUITsMojoTestCacheImpl : public mojom::WebUITsMojoTestCache {
  public:
   explicit WebUITsMojoTestCacheImpl(
@@ -105,31 +79,86 @@ class WebUITsMojoTestCacheImpl : public mojom::WebUITsMojoTestCache {
     std::move(callback).Run(std::move(items));
   }
 
+  void Echo(
+      std::optional<bool> optional_bool,
+      std::optional<uint8_t> optional_uint8,
+      std::optional<mojom::TestEnum> optional_enum,
+      mojom::OptionalNumericsStructPtr optional_numerics,
+      const std::vector<std::optional<bool>>& optional_bools,
+      const std::vector<std::optional<uint32_t>>& optional_ints,
+      const std::vector<std::optional<mojom::TestEnum>>& optional_enums,
+      const base::flat_map<int32_t, std::optional<bool>>& bool_map,
+      const base::flat_map<int32_t, std::optional<int32_t>>& int_map,
+      const base::flat_map<int32_t, std::optional<mojom::TestEnum>>& enum_map,
+      mojom::SimpleMappedTypePtr simple_mapped,
+      mojom::NestedMappedTypePtr nested_mapped,
+      mojom::StringDictPtr dict_ptr,
+      EchoCallback callback) override {
+    std::move(callback).Run(
+        optional_bool.has_value() ? std::make_optional(!optional_bool.value())
+                                  : std::nullopt,
+        optional_uint8.has_value() ? std::make_optional(~optional_uint8.value())
+                                   : std::nullopt,
+        optional_enum.has_value() ? std::make_optional(mojom::TestEnum::kTwo)
+                                  : std::nullopt,
+        mojom::OptionalNumericsStruct::New(
+            optional_numerics->optional_bool.has_value()
+                ? std::make_optional(!optional_numerics->optional_bool.value())
+                : std::nullopt,
+            optional_numerics->optional_uint8.has_value()
+                ? std::make_optional(~optional_numerics->optional_uint8.value())
+                : std::nullopt,
+            optional_numerics->optional_enum.has_value()
+                ? std::make_optional(mojom::TestEnum::kTwo)
+                : std::nullopt),
+        optional_bools, optional_ints, optional_enums, bool_map, int_map,
+        enum_map, simple_mapped->Clone(), nested_mapped->Clone(),
+        dict_ptr ? dict_ptr->Clone() : nullptr);
+  }
+
+  void EchoTypemaps(base::Time time,
+                    const base::UnguessableToken& token,
+                    EchoTypemapsCallback cb) override {
+    std::move(cb).Run(time, token);
+  }
+
+  void EchoOptionalTypemaps(mojom::OptionalTypemapPtr container,
+                            EchoOptionalTypemapsCallback cb) override {
+    std::move(cb).Run(container->Clone());
+  }
+
+  void AddStringWrapper(
+      mojo::PendingRemote<mojom::StringWrapper> string_wrapper) override {
+    string_wrapper_list_.push_back(
+        mojo::Remote<mojom::StringWrapper>(std::move(string_wrapper)));
+  }
+
+  void GetStringWrapperList(GetStringWrapperListCallback cb) override {
+    std::vector<mojo::PendingRemote<mojom::StringWrapper>> string_wrapper_list;
+    for (auto& string_wrapper : string_wrapper_list_) {
+      mojo::PendingRemote<mojom::StringWrapper> cloned_string_wrapper;
+      string_wrapper->Clone(
+          cloned_string_wrapper.InitWithNewPipeAndPassReceiver());
+      string_wrapper_list.emplace_back(std::move(cloned_string_wrapper));
+    }
+
+    std::move(cb).Run(std::move(string_wrapper_list));
+  }
+
  private:
   mojo::Receiver<mojom::WebUITsMojoTestCache> receiver_;
   std::map<GURL, std::string> cache_;
+  std::vector<mojo::Remote<mojom::StringWrapper>> string_wrapper_list_;
 };
 
 // WebUIController that sets up mojo bindings.
 class TestWebUIController : public WebUIController {
  public:
   explicit TestWebUIController(WebUI* web_ui,
-                               int bindings = BINDINGS_POLICY_MOJO_WEB_UI)
+                               BindingsPolicySet bindings = BindingsPolicySet(
+                                   {BindingsPolicyValue::kMojoWebUi}))
       : WebUIController(web_ui) {
-    const base::span<const webui::ResourcePath> kMojoWebUiResources =
-        base::make_span(kWebUiMojoTestResources, kWebUiMojoTestResourcesSize);
-
     web_ui->SetBindings(bindings);
-    {
-      WebUIDataSource* data_source = WebUIDataSource::CreateAndAdd(
-          web_ui->GetWebContents()->GetBrowserContext(), kMojoWebUiHost);
-      data_source->OverrideContentSecurityPolicy(
-          network::mojom::CSPDirectiveName::ScriptSrc,
-          "script-src chrome://resources 'self' 'unsafe-eval';");
-      data_source->DisableTrustedTypesCSP();
-      data_source->AddResourcePaths(kMojoWebUiResources);
-      data_source->AddResourcePath("", IDR_WEB_UI_MOJO_HTML);
-    }
     {
       WebUIDataSource* data_source = WebUIDataSource::CreateAndAdd(
           web_ui->GetWebContents()->GetBrowserContext(), kMojoWebUiTsHost);
@@ -137,7 +166,7 @@ class TestWebUIController : public WebUIController {
           network::mojom::CSPDirectiveName::ScriptSrc,
           "script-src chrome://resources 'self' 'unsafe-eval';");
       data_source->DisableTrustedTypesCSP();
-      data_source->AddResourcePaths(kMojoWebUiResources);
+      data_source->AddResourcePaths(kWebUiMojoTestResources);
       data_source->AddResourcePath("", IDR_WEB_UI_MOJO_TS_HTML);
     }
     {
@@ -156,13 +185,11 @@ class TestWebUIController : public WebUIController {
   TestWebUIController& operator=(const TestWebUIController&) = delete;
 
  protected:
-  std::unique_ptr<WebUIMojoTestCacheImpl> cache_;
   std::unique_ptr<WebUITsMojoTestCacheImpl> ts_cache_;
 };
 
-// TestWebUIController that can bind a WebUIMojoTestCache or
-// WebUITsMojoTestCache interface when requested by the page. Uses asserts to
-// ensure only one of the two is created for each test.
+// TestWebUIController that can bind a WebUITsMojoTestCache interface when
+// requested by the page.
 class CacheTestWebUIController : public TestWebUIController {
  public:
   explicit CacheTestWebUIController(WebUI* web_ui)
@@ -170,15 +197,8 @@ class CacheTestWebUIController : public TestWebUIController {
   ~CacheTestWebUIController() override = default;
 
   void BindInterface(
-      mojo::PendingReceiver<mojom::WebUIMojoTestCache> receiver) {
-    cache_ = std::make_unique<WebUIMojoTestCacheImpl>(std::move(receiver));
-    ASSERT_FALSE(ts_cache_);
-  }
-
-  void BindInterface(
       mojo::PendingReceiver<mojom::WebUITsMojoTestCache> receiver) {
     ts_cache_ = std::make_unique<WebUITsMojoTestCacheImpl>(std::move(receiver));
-    ASSERT_FALSE(cache_);
   }
 
   WEB_UI_CONTROLLER_TYPE_DECL();
@@ -240,13 +260,13 @@ class TestWebUIControllerFactory : public WebUIControllerFactory {
   }
 
   std::unique_ptr<WebUIController> CreateHybridController(WebUI* web_ui) {
-    return std::make_unique<TestWebUIController>(
-        web_ui, BINDINGS_POLICY_WEB_UI | BINDINGS_POLICY_MOJO_WEB_UI);
+    return std::make_unique<TestWebUIController>(web_ui,
+                                                 kWebUIBindingsPolicySet);
   }
 
   std::unique_ptr<WebUIController> CreateWebUIController(WebUI* web_ui) {
-    return std::make_unique<TestWebUIController>(web_ui,
-                                                 BINDINGS_POLICY_WEB_UI);
+    return std::make_unique<TestWebUIController>(
+        web_ui, BindingsPolicySet({BindingsPolicyValue::kWebUi}));
   }
 
   bool web_ui_enabled_ = true;
@@ -254,6 +274,30 @@ class TestWebUIControllerFactory : public WebUIControllerFactory {
       std::string,
       base::RepeatingCallback<std::unique_ptr<WebUIController>(WebUI*)>>
       registered_controllers_;
+};
+
+class StringWrapperImpl : public mojom::StringWrapper {
+ public:
+  StringWrapperImpl() = default;
+
+  // mojom::StringWrapper
+  void PutString(const std::string& item) override { item_ = item; }
+
+  void GetString(GetStringCallback cb) override { std::move(cb).Run(item_); }
+
+  void Clone(
+      mojo::PendingReceiver<mojom::StringWrapper> clone_receiver) override {
+    receivers_.Add(this, std::move(clone_receiver));
+  }
+
+  static void Create(mojo::PendingReceiver<mojom::StringWrapper> receiver) {
+    mojo::MakeSelfOwnedReceiver(std::make_unique<StringWrapperImpl>(),
+                                std::move(receiver));
+  }
+
+ private:
+  std::string item_;
+  mojo::ReceiverSet<mojom::StringWrapper> receivers_;
 };
 
 class TestWebUIContentBrowserClient
@@ -268,15 +312,21 @@ class TestWebUIContentBrowserClient
   void RegisterBrowserInterfaceBindersForFrame(
       RenderFrameHost* render_frame_host,
       mojo::BinderMapWithContext<content::RenderFrameHost*>* map) override {
-    RegisterWebUIControllerInterfaceBinder<mojom::WebUIMojoTestCache,
-                                           CacheTestWebUIController>(map);
     RegisterWebUIControllerInterfaceBinder<mojom::WebUITsMojoTestCache,
                                            CacheTestWebUIController>(map);
+
+    map->Add<content::mojom::StringWrapper>(
+        base::BindRepeating(&TestWebUIContentBrowserClient::BindStringWrapper));
+  }
+
+  static void BindStringWrapper(
+      RenderFrameHost* render_frame_host,
+      mojo::PendingReceiver<mojom::StringWrapper> receiver) {
+    StringWrapperImpl::Create(std::move(receiver));
   }
 };
 
-class WebUIMojoTest : public ContentBrowserTest,
-                      public testing::WithParamInterface<bool> {
+class WebUIMojoTest : public ContentBrowserTest {
  public:
   WebUIMojoTest() = default;
 
@@ -299,9 +349,7 @@ class WebUIMojoTest : public ContentBrowserTest,
   }
 
  protected:
-  std::string GetMojoWebUiHost() {
-    return std::string(GetParam() ? kMojoWebUiTsHost : kMojoWebUiHost);
-  }
+  std::string GetMojoWebUiHost() { return kMojoWebUiTsHost; }
 
   void SetUpOnMainThread() override {
     client_ = std::make_unique<TestWebUIContentBrowserClient>();
@@ -316,11 +364,20 @@ class WebUIMojoTest : public ContentBrowserTest,
   std::unique_ptr<TestWebUIContentBrowserClient> client_;
 };
 
-INSTANTIATE_TEST_SUITE_P(All, WebUIMojoTest, testing::Bool());
-
 // Loads a WebUI page that contains Mojo JS bindings and verifies a message
 // round-trip between the page and the browser.
-IN_PROC_BROWSER_TEST_P(WebUIMojoTest, EndToEndCommunication) {
+IN_PROC_BROWSER_TEST_F(WebUIMojoTest, EndToEndCommunication) {
+  // Load a dummy page in the initial RenderFrameHost.  The initial
+  // RenderFrameHost is created by the test harness prior to installing
+  // TestWebUIContentBrowserClient in WebUIMojoTest::SetUpOnMainThread().  If we
+  // were to navigate that initial RFH to WebUI directly, it would get reused,
+  // but it wouldn't have the test's browser interface binders (registered via
+  // TestWebUIContentBrowserClient::RegisterBrowserInterfaceBindersForFrame() at
+  // RFH creation time).  Navigating the initial RFH to some other page forces
+  // the subsequent WebUI navigation to create a new RenderFrameHost, and by
+  // this time, TestWebUIContentBrowserClient will take effect on that new RFH.
+  EXPECT_TRUE(NavigateToURL(shell(), GURL("data:,foo")));
+
   GURL kTestUrl(GetWebUIURL(GetMojoWebUiHost() + "/?cache"));
   const std::string kTestScript = "runTest();";
   EXPECT_TRUE(NavigateToURL(shell(), kTestUrl));
@@ -328,27 +385,29 @@ IN_PROC_BROWSER_TEST_P(WebUIMojoTest, EndToEndCommunication) {
 
   // Check that a second shell works correctly.
   Shell* other_shell = CreateBrowser();
+  EXPECT_TRUE(WaitForLoadStop(other_shell->web_contents()));
   EXPECT_TRUE(NavigateToURL(other_shell, kTestUrl));
   EXPECT_EQ(true, EvalJs(other_shell->web_contents(), kTestScript));
 
-  // We expect two independent chrome://foo tabs/shells to use a separate
-  // process.
-  EXPECT_NE(shell()->web_contents()->GetPrimaryMainFrame()->GetProcess(),
-            other_shell->web_contents()->GetPrimaryMainFrame()->GetProcess());
-
-  // Close the second shell and wait until its process exits.
-  RenderProcessHostWatcher process_watcher(
-      other_shell->web_contents()->GetPrimaryMainFrame()->GetProcess(),
-      RenderProcessHostWatcher::WATCH_FOR_PROCESS_EXIT);
+  // Close the second shell and wait until the second shell exits.
+  RenderFrameHostWrapper wrapper(
+      other_shell->web_contents()->GetPrimaryMainFrame());
   other_shell->Close();
-  process_watcher.Wait();
+  EXPECT_TRUE(wrapper.WaitUntilRenderFrameDeleted());
 
   // Check that a third shell works correctly, even if we force it to share a
   // process with the first shell, by forcing an artificially low process
   // limit.
   RenderProcessHost::SetMaxRendererProcessCount(1);
 
-  other_shell = CreateBrowser();
+  // Subtle: provide an explicit initial SiteInstance, since otherwise the WebUI
+  // will stay in the initial RFH's process and avoid process reuse needed for
+  // this test.
+  other_shell = Shell::CreateNewWindow(
+      shell()->web_contents()->GetBrowserContext(), GURL(),
+      SiteInstance::CreateForURL(shell()->web_contents()->GetBrowserContext(),
+                                 kTestUrl),
+      gfx::Size());
   EXPECT_TRUE(NavigateToURL(other_shell, kTestUrl));
   EXPECT_EQ(shell()->web_contents()->GetPrimaryMainFrame()->GetProcess(),
             other_shell->web_contents()->GetPrimaryMainFrame()->GetProcess());
@@ -361,7 +420,7 @@ IN_PROC_BROWSER_TEST_P(WebUIMojoTest, EndToEndCommunication) {
 #else
 #define MAYBE_NativeMojoAvailable NativeMojoAvailable
 #endif
-IN_PROC_BROWSER_TEST_P(WebUIMojoTest, MAYBE_NativeMojoAvailable) {
+IN_PROC_BROWSER_TEST_F(WebUIMojoTest, MAYBE_NativeMojoAvailable) {
   // Mojo bindings should be enabled.
   NavigateWithNewWebUI("web_ui_mojo_native.html");
   EXPECT_TRUE(RunBoolFunction("isNativeMojoAvailable()"));
@@ -389,7 +448,7 @@ IN_PROC_BROWSER_TEST_P(WebUIMojoTest, MAYBE_NativeMojoAvailable) {
 #else
 #define MAYBE_ChromeSendAvailable ChromeSendAvailable
 #endif
-IN_PROC_BROWSER_TEST_P(WebUIMojoTest, MAYBE_ChromeSendAvailable) {
+IN_PROC_BROWSER_TEST_F(WebUIMojoTest, MAYBE_ChromeSendAvailable) {
   // chrome.send is not available on mojo-only WebUIs.
   NavigateWithNewWebUI("web_ui_mojo_native.html");
   EXPECT_FALSE(RunBoolFunction("isChromeSendAvailable()"));
@@ -411,7 +470,7 @@ IN_PROC_BROWSER_TEST_P(WebUIMojoTest, MAYBE_ChromeSendAvailable) {
   EXPECT_FALSE(RunBoolFunction("isChromeSendAvailable()"));
 }
 
-IN_PROC_BROWSER_TEST_P(WebUIMojoTest, ChromeSendAvailable_AfterCrash) {
+IN_PROC_BROWSER_TEST_F(WebUIMojoTest, ChromeSendAvailable_AfterCrash) {
   GURL test_url(GetWebUIURL(GetMojoWebUiHost() +
                             "/web_ui_mojo_native.html?webui_bindings"));
 

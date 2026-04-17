@@ -30,6 +30,10 @@ struct musl_iovec {
 extern "C" {
 #endif
 
+SB_EXPORT ssize_t __abi_wrap_readv(int fildes,
+                                   const struct musl_iovec* iov,
+                                   int iovcnt);
+
 SB_EXPORT ssize_t __abi_wrap_writev(int fildes,
                                     const struct musl_iovec* iov,
                                     int iovcnt);

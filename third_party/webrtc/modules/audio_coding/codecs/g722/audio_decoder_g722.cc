@@ -12,10 +12,14 @@
 
 #include <string.h>
 
+#include <cstdint>
 #include <utility>
+#include <vector>
 
+#include "api/audio_codecs/audio_decoder.h"
 #include "modules/audio_coding/codecs/g722/g722_interface.h"
 #include "modules/audio_coding/codecs/legacy_encoded_audio_frame.h"
+#include "rtc_base/buffer.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {
@@ -51,16 +55,21 @@ void AudioDecoderG722Impl::Reset() {
 }
 
 std::vector<AudioDecoder::ParseResult> AudioDecoderG722Impl::ParsePayload(
-    rtc::Buffer&& payload,
+    Buffer&& payload,
     uint32_t timestamp) {
   return LegacyEncodedAudioFrame::SplitBySamples(this, std::move(payload),
                                                  timestamp, 8, 16);
 }
 
-int AudioDecoderG722Impl::PacketDuration(const uint8_t* encoded,
+int AudioDecoderG722Impl::PacketDuration(const uint8_t* /* encoded */,
                                          size_t encoded_len) const {
   // 1/2 encoded byte per sample per channel.
   return static_cast<int>(2 * encoded_len / Channels());
+}
+
+int AudioDecoderG722Impl::PacketDurationRedundant(const uint8_t* encoded,
+                                                  size_t encoded_len) const {
+  return PacketDuration(encoded, encoded_len);
 }
 
 int AudioDecoderG722Impl::SampleRateHz() const {
@@ -120,7 +129,7 @@ int AudioDecoderG722StereoImpl::DecodeInternal(const uint8_t* encoded,
   return static_cast<int>(ret);
 }
 
-int AudioDecoderG722StereoImpl::PacketDuration(const uint8_t* encoded,
+int AudioDecoderG722StereoImpl::PacketDuration(const uint8_t* /* encoded */,
                                                size_t encoded_len) const {
   // 1/2 encoded byte per sample per channel. Make sure the length represents
   // an equal number of bytes per channel. Otherwise, we cannot de-interleave
@@ -142,7 +151,7 @@ void AudioDecoderG722StereoImpl::Reset() {
 }
 
 std::vector<AudioDecoder::ParseResult> AudioDecoderG722StereoImpl::ParsePayload(
-    rtc::Buffer&& payload,
+    Buffer&& payload,
     uint32_t timestamp) {
   return LegacyEncodedAudioFrame::SplitBySamples(this, std::move(payload),
                                                  timestamp, 2 * 8, 16);

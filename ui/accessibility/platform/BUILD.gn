@@ -31,45 +31,37 @@ component("platform") {
 
   defines = [ "IS_AX_PLATFORM_IMPL" ]
 
-  visibility = [ "//ui/accessibility" ]
+  visibility = [
+    "//chrome/browser/ui/webui/accessibility",
+    "//ui/accessibility",
+    "//ui/views:views",
+  ]
 
   sources = [
-    # Used by web_ax_platform_tree_manager_delegate.cc.
-    "ax_platform_tree_manager_delegate.h",
-
-    # Used by browser_accessibility_state_impl.cc.
+    "assistive_tech.cc",
+    "assistive_tech.h",
+    "ax_mode_observer.cc",
+    "ax_mode_observer.h",
+    "ax_node_id_delegate.h",
+    "ax_platform.cc",
+    "ax_platform.h",
     "ax_platform_node.cc",
     "ax_platform_node.h",
+    "ax_platform_node_base.cc",
+    "ax_platform_node_base.h",
     "ax_platform_node_delegate.cc",
     "ax_platform_node_delegate.h",
+    "ax_platform_node_id.h",
+    "ax_platform_tree_manager.cc",
+    "ax_platform_tree_manager.h",
+    "ax_platform_tree_manager_delegate.h",
+    "ax_unique_id.cc",
+    "ax_unique_id.h",
     "child_iterator.h",
     "child_iterator_base.cc",
     "child_iterator_base.h",
-
-    # Used by browser_accessibility_manager.cc.
-    "ax_platform_tree_manager.h",
-
-    # Used by browser_accessibility.cc.
-    "ax_unique_id.cc",
-    "ax_unique_id.h",
-
-    # Used by accessibility_tree_formatter_blink.cc.
     "compute_attributes.cc",
     "compute_attributes.h",
-
-    # Used by //ui/accessibility:ax_assistant.
-    "ax_android_constants.cc",
-    "ax_android_constants.h",
-
-    # Used by //ui/views/views/ax_virtual_view.h.
-    "ax_platform_node_base.cc",
-    "ax_platform_node_base.h",
-
-    # Used by //chrome/test/browser_tests/browser_view_browsertest.cc
-    "ax_platform_node_test_helper.cc",
-    "ax_platform_node_test_helper.h",
-
-    # Used by DumpAccTree testsuite and a11y tools
     "inspect/ax_api_type.cc",
     "inspect/ax_api_type.h",
     "inspect/ax_event_recorder.cc",
@@ -78,8 +70,6 @@ component("platform") {
     "inspect/ax_inspect.h",
     "inspect/ax_inspect_scenario.cc",
     "inspect/ax_inspect_scenario.h",
-    "inspect/ax_inspect_test_helper.cc",
-    "inspect/ax_inspect_test_helper.h",
     "inspect/ax_inspect_utils.cc",
     "inspect/ax_inspect_utils.h",
     "inspect/ax_optional.h",
@@ -94,6 +84,16 @@ component("platform") {
     "inspect/ax_tree_indexer.h",
   ]
 
+  configs += [
+    "//build/config/compiler:wexit_time_destructors",
+    "//build/config/compiler:wglobal_constructors",
+  ]
+
+  deps = [
+    "//ui/strings:auto_image_annotation_strings",
+    "//ui/strings:ax_strings",
+  ]
+
   public_deps = [
     "//ui/accessibility:accessibility_internal",
     "//ui/accessibility:ax_base",
@@ -101,9 +101,9 @@ component("platform") {
     "//ui/display",
   ]
 
-  if (enable_extensions) {
+  if (enable_extensions || is_fuchsia) {
     sources += [
-      # Use by the Automation API.
+      # Use by the Automation API and the Accessibility service.
       # TODO(crbug.com/1357889): Rename to atp/ or javascript/?
       "automation/automation_api_util.cc",
       "automation/automation_api_util.h",
@@ -115,15 +115,41 @@ component("platform") {
       "automation/automation_tree_manager_owner.h",
       "automation/automation_v8_bindings.cc",
       "automation/automation_v8_bindings.h",
+      "automation/automation_v8_router.cc",
       "automation/automation_v8_router.h",
       "automation/v8_handler_function_wrapper.cc",
       "automation/v8_handler_function_wrapper.h",
     ]
 
-    deps = [
+    deps += [
       "//base:i18n",
       "//components/crash/core/common:crash_key",
       "//gin",
+      "//services/accessibility/public/mojom:automation",
+    ]
+  }
+
+  if (is_android || is_chromeos) {
+    sources += [
+      "ax_android_constants.cc",
+      "ax_android_constants.h",
+    ]
+  }
+
+  # BrowserAccessibility was historically used only by AXNodes
+  # coming from blink and has a dependency on `cc/base/rtree.h`.
+  # If we want to support using BrowserAccessibility on platforms
+  # that cannot take this dependency (such as non-blink ios) we
+  # will need to refactor to use a different data structure.
+  # So don't build on non-blink ios for now.
+  if (!(is_ios && !use_blink)) {
+    sources += [
+      "browser_accessibility.cc",
+      "browser_accessibility.h",
+      "browser_accessibility_manager.cc",
+      "browser_accessibility_manager.h",
+      "one_shot_accessibility_tree_search.cc",
+      "one_shot_accessibility_tree_search.h",
     ]
   }
 
@@ -136,6 +162,10 @@ component("platform") {
       "fuchsia/accessibility_bridge_fuchsia_registry.h",
       "fuchsia/ax_platform_node_fuchsia.cc",
       "fuchsia/ax_platform_node_fuchsia.h",
+      "fuchsia/browser_accessibility_fuchsia.cc",
+      "fuchsia/browser_accessibility_fuchsia.h",
+      "fuchsia/browser_accessibility_manager_fuchsia.cc",
+      "fuchsia/browser_accessibility_manager_fuchsia.h",
       "fuchsia/semantic_provider.h",
       "fuchsia/semantic_provider_impl.cc",
       "fuchsia/semantic_provider_impl.h",
@@ -143,11 +173,14 @@ component("platform") {
       "inspect/ax_event_recorder_fuchsia.h",
     ]
 
+    deps += [ "//third_party/fuchsia-sdk/sdk/pkg/inspect_component_cpp" ]
+
     public_deps += [
       "//base",
-      "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.accessibility.semantics:fuchsia.accessibility.semantics_hlcpp",
-      "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.accessibility.semantics:fuchsia.accessibility.semantics_hlcpp",
+      "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.accessibility.semantics:fuchsia.accessibility.semantics_cpp",
       "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.math:fuchsia.math_hlcpp",
+      "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.ui.gfx:fuchsia.ui.gfx_cpp_hlcpp_conversion",
+      "//third_party/fuchsia-sdk/sdk/pkg/component_incoming_cpp",
       "//third_party/fuchsia-sdk/sdk/pkg/inspect",
       "//third_party/fuchsia-sdk/sdk/pkg/scenic_cpp",
       "//third_party/fuchsia-sdk/sdk/pkg/sys_cpp",
@@ -181,6 +214,13 @@ component("platform") {
         "ax_platform_relation_win.h",
         "ax_system_caret_win.cc",
         "ax_system_caret_win.h",
+        "browser_accessibility_com_win.cc",
+        "browser_accessibility_com_win.h",
+        "browser_accessibility_manager_win.cc",
+        "browser_accessibility_manager_win.h",
+        "browser_accessibility_win.cc",
+        "browser_accessibility_win.h",
+        "iaccessible2/scoped_co_mem_array.cc",
         "iaccessible2/scoped_co_mem_array.h",
         "inspect/ax_call_statement_invoker_win.cc",
         "inspect/ax_call_statement_invoker_win.h",
@@ -197,6 +237,7 @@ component("platform") {
         "inspect/ax_tree_formatter_win.cc",
         "inspect/ax_tree_formatter_win.h",
         "inspect/ax_tree_indexer_win.h",
+        "sequence_affine_com_object_root_win.h",
         "uia_registrar_win.cc",
         "uia_registrar_win.h",
       ]
@@ -227,6 +268,12 @@ component("platform") {
         "ax_private_webkit_constants_mac.mm",
         "ax_utils_mac.h",
         "ax_utils_mac.mm",
+        "browser_accessibility_cocoa.h",
+        "browser_accessibility_cocoa.mm",
+        "browser_accessibility_mac.h",
+        "browser_accessibility_mac.mm",
+        "browser_accessibility_manager_mac.h",
+        "browser_accessibility_manager_mac.mm",
         "inspect/ax_call_statement_invoker_mac.h",
         "inspect/ax_call_statement_invoker_mac.mm",
         "inspect/ax_element_wrapper_mac.h",
@@ -240,14 +287,34 @@ component("platform") {
         "inspect/ax_tree_formatter_mac.h",
         "inspect/ax_tree_formatter_mac.mm",
         "inspect/ax_tree_indexer_mac.h",
+        "inspect/ax_tree_indexer_mac.mm",
       ]
 
+      deps += [ "//ui/accelerated_widget_mac" ]
+
       frameworks = [
+        "Accessibility.framework",
         "AppKit.framework",
         "Foundation.framework",
       ]
-      weak_frameworks = [
-        "Accessibility.framework",  # macOS 11
+    }
+
+    if (is_ios) {
+      sources += [
+        "ax_platform_node_ios.h",
+        "ax_platform_node_ios.mm",
+        "ax_platform_node_ui_kit_element.h",
+        "ax_platform_node_ui_kit_element.mm",
+        "browser_accessibility_ios.h",
+        "browser_accessibility_ios.mm",
+        "browser_accessibility_manager_ios.h",
+        "browser_accessibility_manager_ios.mm",
+      ]
+
+      frameworks = [
+        "Accessibility.framework",
+        "UIKit.framework",
+        "Foundation.framework",
       ]
     }
 
@@ -260,6 +327,10 @@ component("platform") {
         "ax_platform_atk_hyperlink.h",
         "ax_platform_node_auralinux.cc",
         "ax_platform_node_auralinux.h",
+        "browser_accessibility_auralinux.cc",
+        "browser_accessibility_auralinux.h",
+        "browser_accessibility_manager_auralinux.cc",
+        "browser_accessibility_manager_auralinux.h",
         "inspect/ax_call_statement_invoker_auralinux.cc",
         "inspect/ax_call_statement_invoker_auralinux.h",
         "inspect/ax_event_recorder_auralinux.cc",
@@ -281,6 +352,7 @@ component("platform") {
 
       if (use_glib) {
         configs += [ "//build/config/linux:glib" ]
+        deps += [ "//ui/base/glib" ]
       }
       if (use_gio) {
         configs += [ "//build/linux:gio_config" ]

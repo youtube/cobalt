@@ -18,8 +18,8 @@
 #include "base/metrics/histogram_base.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "components/flags_ui/feature_entry.h"
-#include "components/flags_ui/flags_state.h"
+#include "components/webui/flags/feature_entry.h"
+#include "components/webui/flags/flags_state.h"
 
 class Profile;
 
@@ -102,17 +102,17 @@ void SetOriginListFlag(const std::string& internal_name,
                        const std::string& value,
                        flags_ui::FlagsStorage* flags_storage);
 
+// Sets a flag value with a string given by |value|.
+void SetStringFlag(const std::string& internal_name,
+                   const std::string& value,
+                   flags_ui::FlagsStorage* flags_storage);
+
 // Removes all switches that were added to a command line by a previous call to
 // |ConvertFlagsToSwitches()|.
 void RemoveFlagsSwitches(base::CommandLine::SwitchMap* switch_list);
 
 // Reset all flags to the default state by clearing all flags.
 void ResetAllFlags(flags_ui::FlagsStorage* flags_storage);
-
-#if BUILDFLAG(IS_CHROMEOS)
-// Show flags of the other browser (Lacros/Ash).
-void CrosUrlFlagsRedirect();
-#endif
 
 // Sends UMA stats about experimental flag usage. This should be called once per
 // startup.

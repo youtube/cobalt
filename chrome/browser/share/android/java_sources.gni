@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# TODO(crbug/1022172): This should be a separate build target when circular
+# TODO(crbug.com/40106499): This should be a separate build target when circular
 # dependencies are removed.
 share_java_sources = [
   "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/BaseScreenshotCoordinator.java",
@@ -10,12 +10,14 @@ share_java_sources = [
   "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/ChromeProvidedSharingOptionsProviderBase.java",
   "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/SaveBitmapDelegate.java",
   "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/ShareContentTypeHelper.java",
+  "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/ShareMetricsUtils.java",
   "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/android_share_sheet/AndroidCustomActionProvider.java",
   "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/android_share_sheet/AndroidShareSheetController.java",
+  "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/android_share_sheet/TabGroupSharingController.java",
   "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/link_to_text/LinkToTextBridge.java",
   "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/link_to_text/LinkToTextCoordinator.java",
   "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/link_to_text/LinkToTextHelper.java",
-  "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/link_to_text/LinkToTextIPHController.java",
+  "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/link_to_text/LinkToTextIphController.java",
   "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/link_to_text/LinkToTextMetricsHelper.java",
   "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/long_screenshots/LongScreenshotsAreaSelectionDialogProperties.java",
   "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/long_screenshots/LongScreenshotsAreaSelectionDialogViewBinder.java",
@@ -28,19 +30,12 @@ share_java_sources = [
   "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/long_screenshots/bitmap_generation/LongScreenshotsTabService.java",
   "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/long_screenshots/bitmap_generation/LongScreenshotsTabServiceFactory.java",
   "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/long_screenshots/bitmap_generation/ScreenshotBoundsManager.java",
-  "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/qrcode/QRCodeGenerationRequest.java",
+  "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/qrcode/QRCodeGenerator.java",
   "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/qrcode/QrCodeCoordinator.java",
   "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/qrcode/QrCodeDialog.java",
   "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/qrcode/QrCodeDialogTab.java",
   "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/qrcode/QrCodePageAdapter.java",
   "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/qrcode/TabLayoutPageListener.java",
-  "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/qrcode/scan_tab/CameraPreview.java",
-  "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/qrcode/scan_tab/CameraPreviewOverlay.java",
-  "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/qrcode/scan_tab/QrCodeScanCoordinator.java",
-  "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/qrcode/scan_tab/QrCodeScanMediator.java",
-  "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/qrcode/scan_tab/QrCodeScanView.java",
-  "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/qrcode/scan_tab/QrCodeScanViewBinder.java",
-  "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/qrcode/scan_tab/QrCodeScanViewProperties.java",
   "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/qrcode/share_tab/QrCodeShareCoordinator.java",
   "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/qrcode/share_tab/QrCodeShareMediator.java",
   "//chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/qrcode/share_tab/QrCodeShareView.java",
@@ -84,8 +79,6 @@ share_java_sources = [
 ]
 
 share_java_deps = [
-  "//chrome/browser/content_creation/notes/android:factory_java",
-  "//chrome/browser/content_creation/notes/android:public_java",
   "//components/feature_engagement/public:public_java",
   "//components/shared_highlighting/core/common:shared_highlighting_android_enums_java",
   "//components/sync_device_info:sync_device_info_java",

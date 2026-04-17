@@ -2,13 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/gpu/test/video_encoder/bitstream_file_writer.h"
+
+#include <algorithm>
 
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
-#include "base/ranges/algorithm.h"
 #include "media/gpu/test/video_test_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -41,8 +47,8 @@ class BitstreamFileWriter::FrameFileWriter {
 
 BitstreamFileWriter::BitstreamFileWriter(
     std::unique_ptr<FrameFileWriter> frame_file_writer,
-    absl::optional<size_t> spatial_layer_index_to_write,
-    absl::optional<size_t> temporal_layer_index_to_write,
+    std::optional<size_t> spatial_layer_index_to_write,
+    std::optional<size_t> temporal_layer_index_to_write,
     const std::vector<gfx::Size>& spatial_layer_resolutions)
     : frame_file_writer_(std::move(frame_file_writer)),
       spatial_layer_index_to_write_(spatial_layer_index_to_write),
@@ -69,8 +75,8 @@ std::unique_ptr<BitstreamFileWriter> BitstreamFileWriter::Create(
     const gfx::Size& resolution,
     uint32_t frame_rate,
     uint32_t num_frames,
-    absl::optional<size_t> spatial_layer_index_to_write,
-    absl::optional<size_t> temporal_layer_index_to_write,
+    std::optional<size_t> spatial_layer_index_to_write,
+    std::optional<size_t> temporal_layer_index_to_write,
     const std::vector<gfx::Size>& spatial_layer_resolutions) {
   std::unique_ptr<FrameFileWriter> frame_file_writer;
   if (!base::DirectoryExists(output_filepath.DirName()))
@@ -105,34 +111,23 @@ std::unique_ptr<BitstreamFileWriter> BitstreamFileWriter::Create(
   return bitstream_file_writer;
 }
 
-void BitstreamFileWriter::ConstructSpatialIndices(
-    const std::vector<gfx::Size>& spatial_layer_resolutions) {
-  SEQUENCE_CHECKER(validator_thread_sequence_checker_);
-  CHECK(!spatial_layer_resolutions.empty());
-  CHECK_LE(spatial_layer_resolutions.size(), spatial_layer_resolutions_.size());
-
-  original_spatial_indices_.resize(spatial_layer_resolutions.size());
-  auto begin = base::ranges::find(spatial_layer_resolutions_,
-                                  spatial_layer_resolutions.front());
-  CHECK(begin != spatial_layer_resolutions_.end());
-  uint8_t sid_offset = begin - spatial_layer_resolutions_.begin();
-  for (size_t i = 0; i < spatial_layer_resolutions.size(); ++i) {
-    CHECK_LT(sid_offset + i, spatial_layer_resolutions_.size());
-    CHECK_EQ(spatial_layer_resolutions[i],
-             spatial_layer_resolutions_[sid_offset + i]);
-    original_spatial_indices_[i] = sid_offset + i;
-  }
-}
-
 void BitstreamFileWriter::ProcessBitstream(
     scoped_refptr<BitstreamRef> bitstream,
     size_t frame_index) {
+  if (bitstream->metadata.dropped_frame()) {
+    // Drop frame. Do nothing for this.
+    return;
+  }
+
   if (spatial_layer_index_to_write_ && bitstream->metadata.vp9) {
     const Vp9Metadata& metadata = *bitstream->metadata.vp9;
-    if (bitstream->metadata.key_frame)
-      ConstructSpatialIndices(metadata.spatial_layer_resolutions);
+    if (bitstream->metadata.key_frame) {
+      begin_active_spatial_layer_index_ =
+          metadata.begin_active_spatial_layer_index;
+    }
 
-    const uint8_t spatial_idx = original_spatial_indices_[metadata.spatial_idx];
+    const uint8_t spatial_idx =
+        begin_active_spatial_layer_index_ + metadata.spatial_idx;
     if (spatial_idx > *spatial_layer_index_to_write_ ||
         (spatial_idx < *spatial_layer_index_to_write_ &&
          !metadata.referenced_by_upper_spatial_layers)) {
@@ -150,6 +145,9 @@ void BitstreamFileWriter::ProcessBitstream(
       temporal_idx = bitstream->metadata.vp8->temporal_idx;
     else if (bitstream->metadata.vp9)
       temporal_idx = bitstream->metadata.vp9->temporal_idx;
+    else if (bitstream->metadata.svc_generic) {
+      temporal_idx = bitstream->metadata.svc_generic->temporal_idx;
+    }
 
     CHECK_NE(temporal_idx, 255) << "No metadata about temporal idx";
 
@@ -173,9 +171,10 @@ void BitstreamFileWriter::WriteBitstreamTask(
     size_t frame_index) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(writer_thread_sequence_checker_);
   const DecoderBuffer& buffer = *bitstream->buffer.get();
+  auto buffer_span = base::span(buffer);
   bool success = frame_file_writer_->WriteFrame(
-      static_cast<uint32_t>(buffer.data_size()),
-      static_cast<uint64_t>(frame_index), buffer.data());
+      static_cast<uint32_t>(buffer_span.size()),
+      static_cast<uint64_t>(frame_index), buffer_span.data());
 
   base::AutoLock auto_lock(writer_lock_);
   num_errors_ += !success;

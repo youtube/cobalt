@@ -5,13 +5,15 @@
 #ifndef COMPONENTS_VIZ_SERVICE_DISPLAY_DISPLAY_SCHEDULER_BASE_H_
 #define COMPONENTS_VIZ_SERVICE_DISPLAY_DISPLAY_SCHEDULER_BASE_H_
 
+#include <optional>
+
 #include "base/containers/flat_set.h"
 #include "base/memory/raw_ptr.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
 #include "components/viz/service/display/display_damage_tracker.h"
+#include "components/viz/service/performance_hint/hint_session.h"
 #include "components/viz/service/viz_service_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace viz {
 
@@ -25,7 +27,7 @@ struct DrawAndSwapParams {
   base::TimeTicks frame_time;
   base::TimeTicks expected_display_time;
   int max_pending_swaps = -1;
-  absl::optional<int64_t> choreographer_vsync_id;
+  std::optional<int64_t> choreographer_vsync_id;
 };
 
 class VIZ_SERVICE_EXPORT DisplaySchedulerClient {
@@ -34,32 +36,31 @@ class VIZ_SERVICE_EXPORT DisplaySchedulerClient {
 
   virtual bool DrawAndSwap(const DrawAndSwapParams& params) = 0;
   virtual void DidFinishFrame(const BeginFrameAck& ack) = 0;
-  // Returns the estimated time required from Draw Start to Swap End based on
-  // a historical `percentile`, or a default value if there is insufficient
-  // data, or the system is currently missing deadlines.
-  virtual base::TimeDelta GetEstimatedDisplayDrawTime(
-      const base::TimeDelta interval,
-      double percentile) const = 0;
 };
 
 class VIZ_SERVICE_EXPORT DisplaySchedulerBase
-    : public DisplayDamageTracker::Observer {
+    : public DisplayDamageTracker::Delegate {
  public:
   DisplaySchedulerBase();
   ~DisplaySchedulerBase() override;
 
   void SetClient(DisplaySchedulerClient* client);
-  void SetDamageTracker(DisplayDamageTracker* damage_tracker);
 
+  virtual void SetDamageTracker(DisplayDamageTracker* damage_tracker);
   virtual void SetVisible(bool visible) = 0;
   virtual void ForceImmediateSwapIfPossible() = 0;
   virtual void SetNeedsOneBeginFrame(bool needs_draw) = 0;
   virtual void DidSwapBuffers() = 0;
   virtual void DidReceiveSwapBuffersAck() = 0;
   virtual void OutputSurfaceLost() = 0;
+  // ReportFrameTime can use ADPF hints. If ADPF hints are used they will be run
+  // with the |boost_type| boost type.
   virtual void ReportFrameTime(
       base::TimeDelta frame_time,
-      base::flat_set<base::PlatformThreadId> thread_ids) = 0;
+      base::flat_set<base::PlatformThreadId> animation_thread_ids,
+      base::flat_set<base::PlatformThreadId> renderer_main_thread_ids,
+      base::TimeTicks draw_start,
+      HintSession::BoostType boost_type) = 0;
 
  protected:
   raw_ptr<DisplaySchedulerClient> client_ = nullptr;

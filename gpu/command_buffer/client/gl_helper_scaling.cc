@@ -2,16 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "gpu/command_buffer/client/gl_helper_scaling.h"
 
 #include <stddef.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "base/containers/circular_deque.h"
+#include "base/containers/heap_array.h"
 #include "base/functional/bind.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
@@ -21,7 +28,6 @@
 #include "base/trace_event/trace_event.h"
 #include "gpu/GLES2/gl2extchromium.h"
 #include "gpu/command_buffer/client/gles2_interface.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/rect_f.h"
@@ -180,7 +186,7 @@ class ScalerImpl : public GLHelper::ScalerInterface {
                               GLuint dest_texture_0,
                               GLuint dest_texture_1,
                               const gfx::Rect& output_rect) override {
-    // TODO(crbug.com/775740): Do not accept non-whole-numbered offsets
+    // TODO(crbug.com/41350322): Do not accept non-whole-numbered offsets
     // until the shader programs produce the correct output for them.
     DCHECK_EQ(src_offset.x(), std::floor(src_offset.x()));
     DCHECK_EQ(src_offset.y(), std::floor(src_offset.y()));
@@ -581,7 +587,7 @@ class ScalerImpl : public GLHelper::ScalerInterface {
     gfx::Vector2d scale_to;
     GLenum readback_format;
   };
-  absl::optional<ChainProperties> chain_properties_;
+  std::optional<ChainProperties> chain_properties_;
 };
 
 // The important inputs for this function is |x_ops| and |y_ops|. They represent
@@ -671,7 +677,6 @@ void GLHelperScaling::ConvertScalerOpsToScalerStages(
           switch (x_ops->size()) {
             case 0:
               NOTREACHED();
-              break;
             case 1:
               if (x_ops->front().scale_factor == 3) {
                 current_shader = SHADER_BILINEAR3;
@@ -1197,10 +1202,11 @@ GLuint CompileShaderFromSource(GLES2Interface* gl,
     GLint log_length = 0;
     gl->GetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_length);
     if (log_length) {
-      std::unique_ptr<GLchar[]> log(new GLchar[log_length]);
+      auto log = base::HeapArray<GLchar>::Uninit(log_length);
       GLsizei returned_log_length = 0;
-      gl->GetShaderInfoLog(shader, log_length, &returned_log_length, log.get());
-      LOG(ERROR) << std::string(log.get(), returned_log_length);
+      gl->GetShaderInfoLog(shader, log_length, &returned_log_length,
+                           log.data());
+      LOG(ERROR) << std::string(log.begin(), log.begin() + returned_log_length);
     }
     gl->DeleteShader(shader);
     return 0;

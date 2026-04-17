@@ -11,8 +11,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
 #include "chrome/browser/ui/web_applications/test/web_app_navigation_browsertest.h"
-#include "chrome/browser/ui/web_applications/web_app_controller_browsertest.h"
-#include "chrome/browser/web_applications/os_integration/os_integration_manager.h"
+#include "chrome/browser/ui/web_applications/web_app_browsertest_base.h"
 #include "chrome/browser/web_applications/os_integration/web_app_protocol_handler_manager.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "components/page_load_metrics/browser/page_load_metrics_test_waiter.h"
@@ -42,16 +41,19 @@ class WebAppProtocolHandlingBrowserTest : public WebAppNavigationBrowserTest {
     ASSERT_TRUE(embedded_test_server()->Start());
   }
 
-  AppId InstallTestApp(const char* path, bool await_metric) {
+  webapps::AppId InstallTestApp(const char* path, bool await_metric) {
     GURL start_url = embedded_test_server()->GetURL(path);
     page_load_metrics::PageLoadMetricsTestWaiter metrics_waiter(
         browser()->tab_strip_model()->GetActiveWebContents());
-    if (await_metric)
+    if (await_metric) {
       metrics_waiter.AddWebFeatureExpectation(protocol_handling_feature);
+    }
 
-    AppId app_id = web_app::InstallWebAppFromPage(browser(), start_url);
-    if (await_metric)
+    webapps::AppId app_id =
+        web_app::InstallWebAppFromPage(browser(), start_url);
+    if (await_metric) {
       metrics_waiter.Wait();
+    }
 
     return app_id;
   }
@@ -68,14 +70,11 @@ class WebAppProtocolHandlingBrowserTest : public WebAppNavigationBrowserTest {
 
  protected:
   base::HistogramTester histogram_tester_;
-
- private:
-  OsIntegrationManager::ScopedSuppressForTesting os_hooks_supress_;
 };
 
 IN_PROC_BROWSER_TEST_F(WebAppProtocolHandlingBrowserTest,
                        BasicProtocolHandlers) {
-  AppId app_id = InstallTestApp(
+  webapps::AppId app_id = InstallTestApp(
       "/banners/"
       "manifest_test_page.html?manifest=manifest_protocol_handlers.json",
       /*await_metric=*/true);
@@ -102,7 +101,7 @@ IN_PROC_BROWSER_TEST_F(WebAppProtocolHandlingBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(WebAppProtocolHandlingBrowserTest, NoProtocolHandlers) {
-  AppId app_id =
+  webapps::AppId app_id =
       InstallTestApp("/banners/manifest_test_page.html?manifest=manifest.json",
                      /*await_metric=*/false);
   std::vector<apps::ProtocolHandlerInfo> protocol_handlers =

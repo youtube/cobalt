@@ -10,7 +10,13 @@
 #include "base/callback_list.h"
 #include "base/component_export.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
+#include "build/blink_buildflags.h"
 #include "build/build_config.h"
+
+#if BUILDFLAG(USE_BLINK)
+#include "ui/base/pointer/pointer_device.h"
+#endif  // BUILDFLAG(USE_BLINK)
 
 #if BUILDFLAG(IS_WIN)
 namespace gfx {
@@ -54,8 +60,10 @@ class COMPONENT_EXPORT(UI_BASE) TouchUiController {
   explicit TouchUiController(TouchUiState touch_ui_state = TouchUiState::kAuto);
   TouchUiController(const TouchUiController&) = delete;
   TouchUiController& operator=(const TouchUiController&) = delete;
-  ~TouchUiController();
+  virtual ~TouchUiController();
 
+  // The value is indeterminate at startup, ensure that all consumers of
+  // touch_ui state register a callback to get the correct initial value.
   bool touch_ui() const {
     return (touch_ui_state_ == TouchUiState::kEnabled) ||
            ((touch_ui_state_ == TouchUiState::kAuto) && tablet_mode_);
@@ -65,20 +73,49 @@ class COMPONENT_EXPORT(UI_BASE) TouchUiController {
       const base::RepeatingClosure& closure);
 
   void OnTabletModeToggled(bool enabled);
+#if BUILDFLAG(IS_WIN)
+  // Check whether a device is in tablet or desktop mode in a threadpool thread,
+  // and notify listeners.
+  void RefreshTabletMode();
+#endif  // BUILDFLAG(IS_WIN)
 
- private:
+#if BUILDFLAG(USE_BLINK)
+  void OnPointerDeviceConnected(PointerDevice::Key key);
+  void OnPointerDeviceDisconnected(PointerDevice::Key key);
+#endif  // BUILDFLAG(USE_BLINK)
+
+ protected:
   TouchUiState SetTouchUiState(TouchUiState touch_ui_state);
 
+#if BUILDFLAG(USE_BLINK)
+  virtual int MaxTouchPoints() const;
+  virtual std::optional<PointerDevice> GetPointerDevice(
+      PointerDevice::Key key) const;
+  virtual std::vector<PointerDevice> GetPointerDevices() const;
+  const std::vector<PointerDevice>& GetLastKnownPointerDevicesForTesting()
+      const;
+#endif  // BUILDFLAG(USE_BLINK)
+
+ private:
   void TouchUiChanged();
+  // Records whether the user has entered touch mode and runs callbacks
+  // if touch mode has initially been detected.
+  void SetInitialTabletMode(bool enabled);
 
   bool tablet_mode_ = false;
   TouchUiState touch_ui_state_;
+
+#if BUILDFLAG(USE_BLINK)
+  void OnInitializePointerDevices();
+  std::vector<PointerDevice> last_known_pointer_devices_;
+#endif  // BUILDFLAG(USE_BLINK)
 
 #if BUILDFLAG(IS_WIN)
   std::unique_ptr<gfx::SingletonHwndObserver> singleton_hwnd_observer_;
 #endif
 
   CallbackList callback_list_;
+  base::WeakPtrFactory<TouchUiController> weak_factory_{this};
 };
 
 }  // namespace ui

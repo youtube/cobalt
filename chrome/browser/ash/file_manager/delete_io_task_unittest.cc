@@ -5,6 +5,7 @@
 #include "chrome/browser/ash/file_manager/delete_io_task.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -22,7 +23,6 @@
 #include "storage/browser/test/test_file_system_context.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 
 using ::base::test::RunClosure;
@@ -49,7 +49,7 @@ MATCHER_P(EntryStatusUrls, matcher, "") {
 }
 
 MATCHER_P(EntryStatusErrors, matcher, "") {
-  std::vector<absl::optional<base::File::Error>> errors;
+  std::vector<std::optional<base::File::Error>> errors;
   for (const auto& status : arg) {
     errors.push_back(status.error);
   }
@@ -112,7 +112,7 @@ TEST_F(DeleteIOTaskTest, Basic) {
                         Field(&ProgressStatus::bytes_transferred, 1),
                         Field(&ProgressStatus::sources,
                               EntryStatusErrors(ElementsAre(base::File::FILE_OK,
-                                                            absl::nullopt))),
+                                                            std::nullopt))),
                         base_matcher)))
       .Times(1);
   // We should get one complete callback when the both files are deleted.
@@ -142,16 +142,17 @@ TEST_F(DeleteIOTaskTest, NoSuchFile) {
   base::MockRepeatingCallback<void(const ProgressStatus&)> progress_callback;
   base::MockOnceCallback<void(ProgressStatus)> complete_callback;
   EXPECT_CALL(progress_callback, Run(_)).Times(0);
-  // Note that deleting a file that does not exist is expected to succeed.
-  // Whether the file is deleted or never created has the same end result.
+  // Deleting a file that does not exist is expected to fail with a
+  // FILE_ERROR_NOT_FOUND.
   EXPECT_CALL(
       complete_callback,
       Run(AllOf(Field(&ProgressStatus::type, OperationType::kDelete),
-                Field(&ProgressStatus::state, State::kSuccess),
+                Field(&ProgressStatus::state, State::kError),
                 Field(&ProgressStatus::bytes_transferred, 1),
                 Field(&ProgressStatus::sources, EntryStatusUrls(file_urls)),
                 Field(&ProgressStatus::sources,
-                      EntryStatusErrors(ElementsAre(base::File::FILE_OK))))))
+                      EntryStatusErrors(
+                          ElementsAre(base::File::FILE_ERROR_NOT_FOUND))))))
       .WillOnce(RunClosure(run_loop.QuitClosure()));
 
   DeleteIOTask task(file_urls, file_system_context_);

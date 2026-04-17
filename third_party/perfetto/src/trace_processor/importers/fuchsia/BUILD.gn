@@ -22,6 +22,7 @@ source_set("minimal") {
     "../../../../include/perfetto/trace_processor:storage",
     "../../../base",
     "../../storage",
+    "../../types",
   ]
 }
 
@@ -39,7 +40,9 @@ source_set("full") {
     "../../../../gn:default_deps",
     "../../sorter",
     "../../storage",
+    "../../tables",
     "../../types",
+    "../../util:trace_type",
     "../common",
     "../proto:minimal",
   ]
@@ -82,6 +85,8 @@ perfetto_unittest_source_set("unittests") {
     "../../../protozero",
     "../../sorter",
     "../../storage",
+    "../../tables",
+    "../../types",
     "../../util:descriptors",
     "../common",
     "../ftrace:full",

@@ -8,20 +8,18 @@
 #include <string>
 #include <vector>
 
-class Profile;
-
 namespace send_tab_to_self {
 
 class SendTabToSelfEntry;
 
 // Interface implemented by platforms to handle changes to the SendTabToSelf
-// model. sImplementors of this interface should override all functions and
+// model. Implementors of this interface should override all functions and
 // update the UI accordingly. They should also register themselves with the
 // ReceivingUIRegistry.
 class ReceivingUiHandler {
  public:
-  ReceivingUiHandler() {}
-  virtual ~ReceivingUiHandler() {}
+  ReceivingUiHandler() = default;
+  virtual ~ReceivingUiHandler() = default;
 
   // Display the new entries passed in as an argument. The entries are owned by
   // the model and should not be modified.
@@ -31,10 +29,6 @@ class ReceivingUiHandler {
   // Entry object is owned by the the model and should not be
   // modified by any implementors of this class.
   virtual void DismissEntries(const std::vector<std::string>& guids) = 0;
-
-  // Return the Profile associated with this handler. When this Profile shuts
-  // down, the handler will be destroyed too.
-  virtual const Profile* profile() const = 0;
 };
 
 }  // namespace send_tab_to_self

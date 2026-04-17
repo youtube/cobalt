@@ -24,10 +24,11 @@
  *
  */
 
+#include <limits.h>
 #include <stdlib.h>
 
-#include "rtc_base/checks.h"
 #include "common_audio/signal_processing/include/signal_processing_library.h"
+#include "rtc_base/checks.h"
 
 // TODO(bjorn/kma): Consolidate function pairs (e.g. combine
 //   WebRtcSpl_MaxAbsValueW16C and WebRtcSpl_MaxAbsIndexW16 into a single one.)
@@ -67,7 +68,8 @@ int32_t WebRtcSpl_MaxAbsValueW32C(const int32_t* vector, size_t length) {
   RTC_DCHECK_GT(length, 0);
 
   for (i = 0; i < length; i++) {
-    absolute = abs((int)vector[i]);
+    absolute =
+        (vector[i] != INT_MIN) ? abs((int)vector[i]) : INT_MAX + (uint32_t)1;
     if (absolute > maximum) {
       maximum = absolute;
     }
@@ -233,8 +235,10 @@ size_t WebRtcSpl_MinIndexW32(const int32_t* vector, size_t length) {
 }
 
 // Finds both the minimum and maximum elements in an array of 16-bit integers.
-void WebRtcSpl_MinMaxW16(const int16_t* vector, size_t length,
-                         int16_t* min_val, int16_t* max_val) {
+void WebRtcSpl_MinMaxW16(const int16_t* vector,
+                         size_t length,
+                         int16_t* min_val,
+                         int16_t* max_val) {
 #if defined(WEBRTC_HAS_NEON)
   return WebRtcSpl_MinMaxW16Neon(vector, length, min_val, max_val);
 #else

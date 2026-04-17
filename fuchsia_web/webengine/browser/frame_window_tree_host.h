@@ -5,10 +5,13 @@
 #ifndef FUCHSIA_WEB_WEBENGINE_BROWSER_FRAME_WINDOW_TREE_HOST_H_
 #define FUCHSIA_WEB_WEBENGINE_BROWSER_FRAME_WINDOW_TREE_HOST_H_
 
-#include <lib/ui/scenic/cpp/view_ref_pair.h>
+#include <fuchsia/ui/views/cpp/fidl.h>
 
+#include "base/memory/raw_ptr.h"
+#include "fuchsia_web/webengine/web_engine_export.h"
 #include "ui/aura/window_tree_host_platform.h"
 #include "ui/platform_window/fuchsia/scenic_window_delegate.h"
+#include "ui/platform_window/fuchsia/view_ref_pair.h"
 
 namespace content {
 class WebContents;
@@ -16,17 +19,18 @@ class WebContents;
 
 // aura::WindowTreeHost implementation used to present web content inside
 // web.Frame.
-class FrameWindowTreeHost final : public aura::WindowTreeHostPlatform,
-                                  public ui::ScenicWindowDelegate {
+class WEB_ENGINE_EXPORT FrameWindowTreeHost final
+    : public aura::WindowTreeHostPlatform,
+      public ui::ScenicWindowDelegate {
  public:
   using OnPixelScaleUpdateCallback = base::RepeatingCallback<void(float)>;
 
   FrameWindowTreeHost(fuchsia::ui::views::ViewToken view_token,
-                      scenic::ViewRefPair view_ref_pair,
+                      ui::ViewRefPair view_ref_pair,
                       content::WebContents* web_contents,
                       OnPixelScaleUpdateCallback on_pixel_scale_update);
   FrameWindowTreeHost(fuchsia::ui::views::ViewCreationToken view_creation_token,
-                      scenic::ViewRefPair view_ref_pair,
+                      ui::ViewRefPair view_ref_pair,
                       content::WebContents* web_contents,
                       OnPixelScaleUpdateCallback on_pixel_scale_update);
   ~FrameWindowTreeHost() override;
@@ -53,7 +57,7 @@ class FrameWindowTreeHost final : public aura::WindowTreeHostPlatform,
 
   const fuchsia::ui::views::ViewRef view_ref_;
   std::unique_ptr<WindowParentingClientImpl> window_parenting_client_;
-  content::WebContents* const web_contents_;
+  const raw_ptr<content::WebContents> web_contents_;
   float scenic_pixel_scale_ = 1.0;
   OnPixelScaleUpdateCallback on_pixel_scale_update_;
 };

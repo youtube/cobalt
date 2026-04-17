@@ -30,7 +30,22 @@
 #include "device/bluetooth/strings/grit/bluetooth_strings.h"
 #include "ui/base/l10n/l10n_util.h"
 
+#if BUILDFLAG(IS_CHROMEOS)
+#include "base/no_destructor.h"
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
 namespace device {
+
+#if BUILDFLAG(IS_CHROMEOS)
+// See Bluetooth Assigned Numbers - 3.3 SDP Service Class and Profile
+// Identifiers
+const base::NoDestructor<std::vector<BluetoothUUID>> kAudioUUIDs([] {
+  return std::vector<BluetoothUUID>({
+      BluetoothUUID("0x110B"),  // Audio sink
+      BluetoothUUID("0x111E"),  // Hands free
+  });
+}());
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 using BatteryInfo = BluetoothDevice::BatteryInfo;
 using BatteryType = BluetoothDevice::BatteryType;
@@ -114,14 +129,13 @@ BluetoothDevice::ConnectionInfo::ConnectionInfo(int rssi,
 
 BluetoothDevice::ConnectionInfo::~ConnectionInfo() = default;
 
-BatteryInfo::BatteryInfo()
-    : BatteryInfo(BatteryType::kDefault, absl::nullopt) {}
+BatteryInfo::BatteryInfo() : BatteryInfo(BatteryType::kDefault, std::nullopt) {}
 
-BatteryInfo::BatteryInfo(BatteryType type, absl::optional<uint8_t> percentage)
+BatteryInfo::BatteryInfo(BatteryType type, std::optional<uint8_t> percentage)
     : BatteryInfo(type, percentage, BatteryInfo::ChargeState::kUnknown) {}
 
 BatteryInfo::BatteryInfo(BatteryType type,
-                         absl::optional<uint8_t> percentage,
+                         std::optional<uint8_t> percentage,
                          ChargeState charge_state)
     : type(type),
       percentage(std::move(percentage)),
@@ -143,7 +157,7 @@ bool BatteryInfo::operator==(const BatteryInfo& other) {
 BatteryInfo::~BatteryInfo() = default;
 
 std::u16string BluetoothDevice::GetNameForDisplay() const {
-  absl::optional<std::string> name = GetName();
+  std::optional<std::string> name = GetName();
   if (name && HasGraphicCharacter(name.value())) {
     return base::UTF8ToUTF16(name.value());
   } else {
@@ -303,6 +317,18 @@ BluetoothDeviceType BluetoothDevice::GetDeviceType() const {
       }
   }
 
+#if BUILDFLAG(IS_CHROMEOS)
+  // Some bluetooth devices paired via Fast Pair, e.g., JBL TUNE230NC,
+  // do not expose its bluetooth class or its appearance. Use UUIDs as
+  // last workaround.
+  UUIDSet uuids = GetUUIDs();
+  for (const auto& audio_uuid : *kAudioUUIDs) {
+    if (uuids.contains(audio_uuid)) {
+      return BluetoothDeviceType::AUDIO;
+    }
+  }
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
   return BluetoothDeviceType::UNKNOWN;
 }
 
@@ -387,21 +413,21 @@ const std::vector<uint8_t>* BluetoothDevice::GetManufacturerDataForID(
   return nullptr;
 }
 
-absl::optional<int8_t> BluetoothDevice::GetInquiryRSSI() const {
+std::optional<int8_t> BluetoothDevice::GetInquiryRSSI() const {
   return inquiry_rssi_;
 }
 
-absl::optional<uint8_t> BluetoothDevice::GetAdvertisingDataFlags() const {
+std::optional<uint8_t> BluetoothDevice::GetAdvertisingDataFlags() const {
   return advertising_data_flags_;
 }
 
-absl::optional<int8_t> BluetoothDevice::GetInquiryTxPower() const {
+std::optional<int8_t> BluetoothDevice::GetInquiryTxPower() const {
   return inquiry_tx_power_;
 }
 
 void BluetoothDevice::CreateGattConnection(
     GattConnectionCallback callback,
-    absl::optional<BluetoothUUID> service_uuid) {
+    std::optional<BluetoothUUID> service_uuid) {
   if (!supports_service_specific_discovery_)
     service_uuid.reset();
 
@@ -421,7 +447,7 @@ void BluetoothDevice::CreateGattConnection(
 
   if (IsGattConnected()) {
     DCHECK(!connection_already_pending);
-    return DidConnectGatt(/*error_code=*/absl::nullopt);
+    return DidConnectGatt(/*error_code=*/std::nullopt);
   }
 
   if (connection_already_pending) {
@@ -469,9 +495,9 @@ std::string BluetoothDevice::GetOuiPortionOfBluetoothAddress() const {
 
 void BluetoothDevice::UpdateAdvertisementData(
     int8_t rssi,
-    absl::optional<uint8_t> flags,
+    std::optional<uint8_t> flags,
     UUIDList advertised_uuids,
-    absl::optional<int8_t> tx_power,
+    std::optional<int8_t> tx_power,
     ServiceDataMap service_data,
     ManufacturerDataMap manufacturer_data) {
   UpdateTimestamp();
@@ -554,12 +580,12 @@ bool BluetoothDevice::RemoveBatteryInfo(const BatteryType& type) {
   return false;
 }
 
-absl::optional<BatteryInfo> BluetoothDevice::GetBatteryInfo(
+std::optional<BatteryInfo> BluetoothDevice::GetBatteryInfo(
     const BatteryType& type) const {
   auto it = battery_info_map_.find(type);
 
   if (it == battery_info_map_.end())
-    return absl::nullopt;
+    return std::nullopt;
 
   return it->second;
 }
@@ -590,7 +616,7 @@ BluetoothDevice::CreateBluetoothGattConnectionObject() {
   return std::make_unique<BluetoothGattConnection>(adapter_, GetAddress());
 }
 
-void BluetoothDevice::DidConnectGatt(absl::optional<ConnectErrorCode> error) {
+void BluetoothDevice::DidConnectGatt(std::optional<ConnectErrorCode> error) {
   if (error.has_value()) {
     // Connection request should only be made if there are no active
     // connections.
@@ -611,7 +637,7 @@ void BluetoothDevice::DidConnectGatt(absl::optional<ConnectErrorCode> error) {
   auto callbacks = std::move(create_gatt_connection_callbacks_);
   for (auto& callback : callbacks) {
     std::move(callback).Run(CreateBluetoothGattConnectionObject(),
-                            /*error_code=*/absl::nullopt);
+                            /*error_code=*/std::nullopt);
   }
 
   GetAdapter()->NotifyDeviceChanged(this);

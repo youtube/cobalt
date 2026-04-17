@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "components/viz/host/client_frame_sink_video_capturer.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -53,7 +54,8 @@ class DevToolsEyeDropper : public content::WebContentsObserver,
       const gfx::Rect& content_rect,
       mojo::PendingRemote<viz::mojom::FrameSinkVideoConsumerFrameCallbacks>
           callbacks) override;
-  void OnNewCropVersion(uint32_t crop_version) override;
+  void OnNewSubCaptureTargetVersion(
+      uint32_t sub_capture_target_version) override;
   void OnFrameWithEmptyRegionCapture() override;
   void OnStopped() override;
   void OnLog(const std::string& /*message*/) override {}
@@ -63,7 +65,7 @@ class DevToolsEyeDropper : public content::WebContentsObserver,
   int last_cursor_x_ = -1;
   int last_cursor_y_ = -1;
   content::RenderWidgetHost::MouseEventCallback mouse_event_callback_;
-  content::RenderWidgetHost* host_ = nullptr;
+  raw_ptr<content::RenderWidgetHost> host_ = nullptr;
   std::unique_ptr<viz::ClientFrameSinkVideoCapturer> video_capturer_;
   base::WeakPtrFactory<DevToolsEyeDropper> weak_factory_{this};
 };

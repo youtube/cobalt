@@ -22,7 +22,7 @@ class ExtensionUninstaller
   // window will be used as the anchor.
   ExtensionUninstaller(Profile* profile,
                        const std::string& extension_id,
-                       gfx::NativeWindow parent_window = nullptr);
+                       gfx::NativeWindow parent_window = gfx::NativeWindow());
 
   ExtensionUninstaller(const ExtensionUninstaller&) = delete;
   ExtensionUninstaller& operator=(const ExtensionUninstaller&) = delete;
@@ -38,9 +38,9 @@ class ExtensionUninstaller
 
   void CleanUp();
 
-  raw_ptr<Profile, ExperimentalAsh> profile_;
+  raw_ptr<Profile> profile_;
   std::string app_id_;
-  gfx::NativeWindow parent_window_;  // Can be null.
+  gfx::NativeWindow parent_window_ = gfx::NativeWindow();
   std::unique_ptr<extensions::ExtensionUninstallDialog> dialog_;
 };
 

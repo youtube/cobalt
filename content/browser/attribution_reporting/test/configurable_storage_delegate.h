@@ -5,71 +5,76 @@
 #ifndef CONTENT_BROWSER_ATTRIBUTION_REPORTING_TEST_CONFIGURABLE_STORAGE_DELEGATE_H_
 #define CONTENT_BROWSER_ATTRIBUTION_REPORTING_TEST_CONFIGURABLE_STORAGE_DELEGATE_H_
 
-#include <stdint.h>
-
+#include <optional>
 #include <vector>
 
+#include "base/containers/flat_set.h"
 #include "base/thread_annotations.h"
 #include "base/time/time.h"
+#include "components/attribution_reporting/privacy_math.h"
 #include "content/browser/attribution_reporting/attribution_config.h"
 #include "content/browser/attribution_reporting/attribution_report.h"
-#include "content/browser/attribution_reporting/attribution_storage_delegate.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "content/browser/attribution_reporting/attribution_resolver_delegate.h"
+
+namespace attribution_reporting {
+class AttributionScopesData;
+}
 
 namespace content {
 
-class ConfigurableStorageDelegate : public AttributionStorageDelegate {
+class ConfigurableStorageDelegate : public AttributionResolverDelegate {
  public:
   ConfigurableStorageDelegate();
   ~ConfigurableStorageDelegate() override;
 
-  // AttributionStorageDelegate:
-  base::Time GetEventLevelReportTime(const StoredSource&,
-                                     base::Time trigger_time) const override;
+  // AttributionResolverDelegate:
+  base::Time GetEventLevelReportTime(
+      const attribution_reporting::EventReportWindows& event_report_windows,
+      base::Time source_time,
+      base::Time trigger_time) const override;
   base::Time GetAggregatableReportTime(base::Time trigger_time) const override;
   base::TimeDelta GetDeleteExpiredSourcesFrequency() const override;
   base::TimeDelta GetDeleteExpiredRateLimitsFrequency() const override;
+  base::TimeDelta GetDeleteExpiredOsRegistrationsFrequency() const override;
   base::Uuid NewReportID() const override;
-  absl::optional<OfflineReportDelayConfig> GetOfflineReportDelayConfig()
+  std::optional<OfflineReportDelayConfig> GetOfflineReportDelayConfig()
       const override;
   void ShuffleReports(std::vector<AttributionReport>&) override;
-  double GetRandomizedResponseRate(
+  GetRandomizedResponseResult GetRandomizedResponse(
       attribution_reporting::mojom::SourceType,
-      base::TimeDelta expiry_deadline) const override;
-  RandomizedResponse GetRandomizedResponse(
-      const CommonSourceInfo&,
-      base::Time event_report_window_time) override;
-  base::Time GetExpiryTime(absl::optional<base::TimeDelta> declared_expiry,
-                           base::Time source_time,
-                           attribution_reporting::mojom::SourceType) override;
-  absl::optional<base::Time> GetReportWindowTime(
-      absl::optional<base::TimeDelta> declared_window,
-      base::Time source_time) override;
-  std::vector<NullAggregatableReport> GetNullAggregatableReports(
-      const AttributionTrigger&,
-      base::Time trigger_time,
-      absl::optional<base::Time> attributed_source_time) const override;
-
-  void set_max_attributions_per_source(int max);
+      const attribution_reporting::TriggerDataSet&,
+      const attribution_reporting::EventReportWindows&,
+      attribution_reporting::MaxEventLevelReports,
+      attribution_reporting::EventLevelEpsilon,
+      const std::optional<attribution_reporting::AttributionScopesData>&)
+      override;
+  bool GenerateNullAggregatableReportForLookbackDay(
+      int lookback_day,
+      attribution_reporting::mojom::SourceRegistrationTimeConfig)
+      const override;
 
   void set_max_sources_per_origin(int max);
 
   void set_max_reports_per_destination(AttributionReport::Type, int max);
 
-  void set_max_destinations_per_source_site_reporting_origin(int max);
-
-  void set_aggregatable_budget_per_source(int64_t max);
+  void set_max_destinations_per_source_site_reporting_site(int max);
 
   void set_rate_limits(AttributionConfig::RateLimitConfig);
+
+  void set_destination_rate_limit(AttributionConfig::DestinationRateLimit);
+
+  void set_aggregatable_debug_rate_limit(
+      AttributionConfig::AggregatableDebugRateLimit);
 
   void set_delete_expired_sources_frequency(base::TimeDelta frequency);
 
   void set_delete_expired_rate_limits_frequency(base::TimeDelta frequency);
 
+  void set_delete_expired_os_registrations_frequency(base::TimeDelta frequency);
+
   void set_report_delay(base::TimeDelta report_delay);
 
-  void set_offline_report_delay_config(
-      absl::optional<OfflineReportDelayConfig>);
+  void set_offline_report_delay_config(std::optional<OfflineReportDelayConfig>);
 
   void set_reverse_reports_on_shuffle(bool reverse);
 
@@ -77,11 +82,13 @@ class ConfigurableStorageDelegate : public AttributionStorageDelegate {
   // is controlled deterministically by `set_randomized_response()`.
   void set_randomized_response_rate(double rate);
 
-  void set_randomized_response(RandomizedResponse);
+  void set_randomized_response(attribution_reporting::RandomizedResponse);
+  void set_exceeds_channel_capacity_limit(bool);
 
-  void set_trigger_data_cardinality(uint64_t navigation, uint64_t event);
+  void set_null_aggregatable_reports_lookback_days(
+      base::flat_set<int> null_aggregatable_reports_lookback_days);
 
-  void set_null_aggregatable_reports(std::vector<NullAggregatableReport>);
+  void use_realistic_report_times();
 
   // Detaches the delegate from its current sequence in preparation for being
   // moved to storage, which runs on its own sequence.
@@ -92,10 +99,15 @@ class ConfigurableStorageDelegate : public AttributionStorageDelegate {
       GUARDED_BY_CONTEXT(sequence_checker_);
   base::TimeDelta delete_expired_rate_limits_frequency_
       GUARDED_BY_CONTEXT(sequence_checker_);
+  base::TimeDelta delete_expired_os_registrations_frequency_
+      GUARDED_BY_CONTEXT(sequence_checker_);
 
   base::TimeDelta report_delay_ GUARDED_BY_CONTEXT(sequence_checker_);
 
-  absl::optional<OfflineReportDelayConfig> offline_report_delay_config_
+  bool use_realistic_report_times_ GUARDED_BY_CONTEXT(sequence_checker_) =
+      false;
+
+  std::optional<OfflineReportDelayConfig> offline_report_delay_config_
       GUARDED_BY_CONTEXT(sequence_checker_);
 
   // If true, `ShuffleReports()` reverses the reports to allow testing the
@@ -103,12 +115,15 @@ class ConfigurableStorageDelegate : public AttributionStorageDelegate {
   bool reverse_reports_on_shuffle_ GUARDED_BY_CONTEXT(sequence_checker_) =
       false;
 
-  double randomized_response_rate_ = 0.0;
+  double randomized_response_rate_ GUARDED_BY_CONTEXT(sequence_checker_) = 0.0;
 
-  RandomizedResponse randomized_response_
-      GUARDED_BY_CONTEXT(sequence_checker_) = absl::nullopt;
+  attribution_reporting::RandomizedResponse randomized_response_
+      GUARDED_BY_CONTEXT(sequence_checker_);
 
-  std::vector<NullAggregatableReport> null_aggregatable_reports_
+  bool exceeds_channel_capacity_limit_ GUARDED_BY_CONTEXT(sequence_checker_) =
+      false;
+
+  base::flat_set<int> null_aggregatable_reports_lookback_days_
       GUARDED_BY_CONTEXT(sequence_checker_);
 };
 

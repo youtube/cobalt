@@ -6,13 +6,16 @@
 
 #include <stddef.h>
 
+#include <array>
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 TEST(ShellDialogs, ShortenFileNameIfNeeded) {
   struct ShortenFileNameTestCase {
     base::FilePath::StringType input;
     base::FilePath::StringType expected;
-  } test_cases[] = {
+  };
+  auto test_cases = std::to_array<ShortenFileNameTestCase>({
       // Paths with short paths/file names don't get shortened.
       {FILE_PATH_LITERAL("folder1111/folder2222/file1.html"),
        FILE_PATH_LITERAL("folder1111/folder2222/file1.html")},
@@ -99,7 +102,8 @@ TEST(ShellDialogs, ShortenFileNameIfNeeded) {
                          "xyz1234abcdefghijklmnopqrstuvwxyz1234abcdefghijklmnop"
                          "qrstuvwxyz1234abcdefghijklmnopqrstuvwxyz1234abcdefghi"
                          "jklmnopqrstuvwxyz1234abcdefghijklmnopqrstuvwxyz1234ab"
-                         "cdefghijklmnopqrstuvwxyz1234ab.abcdefghijkl")}};
+                         "cdefghijklmnopqrstuvwxyz1234ab.abcdefghijkl")},
+  });
 
   for (size_t i = 0; i < std::size(test_cases); ++i) {
     base::FilePath input =

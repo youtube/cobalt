@@ -30,6 +30,7 @@
 
 #include "third_party/blink/renderer/core/svg/properties/svg_list_property.h"
 
+#include "base/compiler_specific.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 
 namespace blink {
@@ -74,11 +75,11 @@ String SVGListPropertyBase::ValueAsString() const {
 
   StringBuilder builder;
 
-  auto* it = values_.begin();
-  auto* it_end = values_.end();
+  auto it = values_.begin();
+  auto it_end = values_.end();
   while (it != it_end) {
     builder.Append((*it)->ValueAsString());
-    ++it;
+    UNSAFE_TODO(++it);
     if (it != it_end)
       builder.Append(' ');
   }

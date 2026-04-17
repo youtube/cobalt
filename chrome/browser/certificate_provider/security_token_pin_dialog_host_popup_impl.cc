@@ -9,7 +9,7 @@
 
 #include "base/check_op.h"
 #include "base/functional/bind.h"
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
@@ -20,8 +20,8 @@
 #include "ui/views/widget/widget.h"
 #include "ui/views/window/dialog_delegate.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/login/ui/login_display_host.h"
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/ui/ash/login/login_display_host.h"
 #endif
 
 namespace chromeos {
@@ -29,7 +29,7 @@ namespace chromeos {
 namespace {
 
 gfx::NativeWindow GetBrowserParentWindow() {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   if (ash::LoginDisplayHost::default_host())
     return ash::LoginDisplayHost::default_host()->GetNativeWindow();
 #endif
@@ -55,7 +55,7 @@ void SecurityTokenPinDialogHostPopupImpl::ShowSecurityTokenPinDialog(
     bool enable_user_input,
     security_token_pin::ErrorLabel error_label,
     int attempts_left,
-    const absl::optional<AccountId>& /*authenticating_user_account_id*/,
+    const std::optional<AccountId>& /*authenticating_user_account_id*/,
     SecurityTokenPinEnteredCallback pin_entered_callback,
     SecurityTokenPinDialogClosedCallback pin_dialog_closed_callback) {
   DCHECK(!caller_extension_name.empty());

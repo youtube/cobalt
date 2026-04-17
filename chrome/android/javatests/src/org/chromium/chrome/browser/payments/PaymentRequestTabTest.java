@@ -12,21 +12,23 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.browser.autofill.AutofillTestHelper;
-import org.chromium.chrome.browser.autofill.PersonalDataManager.AutofillProfile;
 import org.chromium.chrome.browser.autofill.PersonalDataManager.CreditCard;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.payments.PaymentRequestTestRule.AppPresence;
 import org.chromium.chrome.browser.payments.PaymentRequestTestRule.FactorySpeed;
+import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
+import org.chromium.chrome.browser.tabmodel.TabClosureParams;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.R;
+import org.chromium.components.autofill.AutofillProfile;
 import org.chromium.content_public.browser.LoadUrlParams;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 
 import java.util.concurrent.TimeoutException;
 
@@ -44,13 +46,34 @@ public class PaymentRequestTabTest {
     @Before
     public void setUp() throws TimeoutException {
         AutofillTestHelper helper = new AutofillTestHelper();
-        String billingAddressId = helper.setProfile(
-                new AutofillProfile("", "https://example.test", true, "" /* honorific prefix */,
-                        "Jon Doe", "Google", "340 Main St", "CA", "Los Angeles", "", "90291", "",
-                        "US", "555-555-5555", "jon.doe@google.com", "en-US"));
-        helper.setCreditCard(new CreditCard("", "https://example.test", true, true, "Jon Doe",
-                "4111111111111111", "1111", "12", "2050", "visa", R.drawable.visa_card,
-                billingAddressId, "" /* serverId */));
+        String billingAddressId =
+                helper.setProfile(
+                        AutofillProfile.builder()
+                                .setFullName("Jon Doe")
+                                .setCompanyName("Google")
+                                .setStreetAddress("340 Main St")
+                                .setRegion("CA")
+                                .setLocality("Los Angeles")
+                                .setPostalCode("90291")
+                                .setCountryCode("US")
+                                .setPhoneNumber("555-555-5555")
+                                .setEmailAddress("jon.doe@google.com")
+                                .setLanguageCode("en-US")
+                                .build());
+        helper.setCreditCard(
+                new CreditCard(
+                        "",
+                        "https://example.test",
+                        true,
+                        "Jon Doe",
+                        "4111111111111111",
+                        "1111",
+                        "12",
+                        "2050",
+                        "visa",
+                        R.drawable.visa_card,
+                        billingAddressId,
+                        /* serverId= */ ""));
     }
 
     /** If the user switches tabs somehow, the dialog is dismissed. */
@@ -64,13 +87,19 @@ public class PaymentRequestTabTest {
         mPaymentRequestTestRule.addPaymentAppFactory(
                 "https://kylepay.test/webpay", AppPresence.HAVE_APPS, FactorySpeed.FAST_FACTORY);
 
-        mPaymentRequestTestRule.triggerUIAndWait(
+        mPaymentRequestTestRule.triggerUiAndWait(
                 "buyWithUrlMethods", mPaymentRequestTestRule.getReadyToPay());
         Assert.assertEquals(0, mPaymentRequestTestRule.getDismissed().getCallCount());
-        TestThreadUtils.runOnUiThreadBlocking(
-                (Runnable) () -> mPaymentRequestTestRule.getActivity().getTabCreator(false).createNewTab(
-                                new LoadUrlParams("about:blank"), TabLaunchType.FROM_CHROME_UI,
-                                null));
+        ThreadUtils.runOnUiThreadBlocking(
+                (Runnable)
+                        () ->
+                                mPaymentRequestTestRule
+                                        .getActivity()
+                                        .getTabCreator(false)
+                                        .createNewTab(
+                                                new LoadUrlParams("about:blank"),
+                                                TabLaunchType.FROM_CHROME_UI,
+                                                null));
         mPaymentRequestTestRule.getDismissed().waitForCallback(0);
     }
 
@@ -85,13 +114,21 @@ public class PaymentRequestTabTest {
         mPaymentRequestTestRule.addPaymentAppFactory(
                 "https://kylepay.test/webpay", AppPresence.HAVE_APPS, FactorySpeed.FAST_FACTORY);
 
-        mPaymentRequestTestRule.triggerUIAndWait(
+        mPaymentRequestTestRule.triggerUiAndWait(
                 "buyWithUrlMethods", mPaymentRequestTestRule.getReadyToPay());
         Assert.assertEquals(0, mPaymentRequestTestRule.getDismissed().getCallCount());
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            TabModel currentModel = mPaymentRequestTestRule.getActivity().getCurrentTabModel();
-            TabModelUtils.closeCurrentTab(currentModel);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    TabModel currentModel =
+                            mPaymentRequestTestRule.getActivity().getCurrentTabModel();
+                    Tab tab = TabModelUtils.getCurrentTab(currentModel);
+                    Assert.assertNotNull(tab);
+                    currentModel
+                            .getTabRemover()
+                            .closeTabs(
+                                    TabClosureParams.closeTab(tab).allowUndo(false).build(),
+                                    /* allowDialog= */ false);
+                });
         mPaymentRequestTestRule.getDismissed().waitForCallback(0);
     }
 
@@ -106,13 +143,16 @@ public class PaymentRequestTabTest {
         mPaymentRequestTestRule.addPaymentAppFactory(
                 "https://kylepay.test/webpay", AppPresence.HAVE_APPS, FactorySpeed.FAST_FACTORY);
 
-        mPaymentRequestTestRule.triggerUIAndWait(
+        mPaymentRequestTestRule.triggerUiAndWait(
                 "buyWithUrlMethods", mPaymentRequestTestRule.getReadyToPay());
         Assert.assertEquals(0, mPaymentRequestTestRule.getDismissed().getCallCount());
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            TabModel currentModel = mPaymentRequestTestRule.getActivity().getCurrentTabModel();
-            TabModelUtils.getCurrentTab(currentModel).loadUrl(new LoadUrlParams("about:blank"));
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    TabModel currentModel =
+                            mPaymentRequestTestRule.getActivity().getCurrentTabModel();
+                    TabModelUtils.getCurrentTab(currentModel)
+                            .loadUrl(new LoadUrlParams("about:blank"));
+                });
         mPaymentRequestTestRule.getDismissed().waitForCallback(0);
     }
 }

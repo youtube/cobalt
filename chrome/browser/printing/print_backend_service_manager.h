@@ -6,24 +6,26 @@
 #define CHROME_BROWSER_PRINTING_PRINT_BACKEND_SERVICE_MANAGER_H_
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <type_traits>
+#include <variant>
 
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "base/no_destructor.h"
 #include "base/types/strong_alias.h"
 #include "base/unguessable_token.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/services/printing/public/mojom/print_backend_service.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/remote_set.h"
 #include "printing/buildflags/buildflags.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 
 #if BUILDFLAG(ENABLE_OOP_BASIC_PRINT_DIALOG)
 #include "ui/gfx/native_widget_types.h"
@@ -98,6 +100,10 @@ class PrintBackendServiceManager {
   PrintBackendServiceManager& operator=(const PrintBackendServiceManager&) =
       delete;
 
+  // Launch a service that is intended to persist indefinitely and can be used
+  // by all further clients.
+  static void LaunchPersistentService();
+
   // Client registration routines.  These act as a signal of impending activity
   // enabling possible optimizations within the manager.  They return an ID
   // which the callers are to use with `UnregisterClient()` once they have
@@ -108,9 +114,9 @@ class PrintBackendServiceManager {
 
   // Register as a client of PrintBackendServiceManager for print queries which
   // require a system print dialog UI.  If a platform cannot support concurrent
-  // queries of this type then this will return `absl::nullopt` if another
+  // queries of this type then this will return `std::nullopt` if another
   // client is already registered.
-  absl::optional<ClientId> RegisterQueryWithUiClient();
+  std::optional<ClientId> RegisterQueryWithUiClient();
 
   // Register as a client of PrintBackendServiceManager for printing a document
   // to a specific printer.
@@ -120,7 +126,10 @@ class PrintBackendServiceManager {
   // to a specific printer.  Use the same `RemoteId` for this new printing
   // client as has been used by the indicated query with UI client.  This method
   // will DCHECK if the client ID provided is not for a query with UI client.
-  ClientId RegisterPrintDocumentClientReusingClientRemote(ClientId id);
+  // Call can return nullopt if the service has terminated by the time this call
+  // is made and the remote used by client `id` no longer exists.
+  std::optional<ClientId> RegisterPrintDocumentClientReusingClientRemote(
+      ClientId id);
 
   // Notify the manager that this client is no longer needing print backend
   // services.  This signal might alter the manager's internal optimizations.
@@ -134,7 +143,7 @@ class PrintBackendServiceManager {
       mojom::PrintBackendService::FetchCapabilitiesCallback callback);
   void GetDefaultPrinterName(
       mojom::PrintBackendService::GetDefaultPrinterNameCallback callback);
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   void GetPrinterSemanticCapsAndDefaults(
       const std::string& printer_name,
       mojom::PrintBackendService::GetPrinterSemanticCapsAndDefaultsCallback
@@ -192,7 +201,7 @@ class PrintBackendServiceManager {
       int document_cookie,
       const std::u16string& document_name,
 #if !BUILDFLAG(ENABLE_OOP_BASIC_PRINT_DIALOG)
-      absl::optional<PrintSettings> settings,
+      std::optional<PrintSettings> settings,
 #endif
       mojom::PrintBackendService::StartPrintingCallback callback);
 #if BUILDFLAG(IS_WIN)
@@ -233,12 +242,12 @@ class PrintBackendServiceManager {
       const std::string& printer_name);
 
   // Overrides the print backend service for testing.  Caller retains ownership
-  // of `remote`.
+  // of `remote`.  Can be reset by passing in nullptr.
   void SetServiceForTesting(mojo::Remote<mojom::PrintBackendService>* remote);
 
   // Overrides the print backend service for testing when an alternate service
   // is required for fallback processing after an access denied error.  Caller
-  // retains ownership of `remote`.
+  // retains ownership of `remote`.  Can be reset by passing in nullptr.
   void SetServiceForFallbackTesting(
       mojo::Remote<mojom::PrintBackendService>* remote);
 
@@ -313,7 +322,7 @@ class PrintBackendServiceManager {
   using RemoteSavedUpdatePrintSettingsCallbacks =
       RemoteSavedStructCallbacks<mojom::PrintSettingsResult>;
   using RemoteSavedStartPrintingCallbacks =
-      RemoteSavedCallbacks<mojom::ResultCode>;
+      RemoteSavedCallbacks<mojom::ResultCode, int /*job_id*/>;
 #if BUILDFLAG(IS_WIN)
   using RemoteSavedRenderPrintedPageCallbacks =
       RemoteSavedCallbacks<mojom::ResultCode>;
@@ -351,14 +360,24 @@ class PrintBackendServiceManager {
     base::UnguessableToken saved_callback_id;
   };
 
+  struct ServiceAndCallbackContext {
+    ServiceAndCallbackContext(
+        CallbackContext callback_context,
+        const mojo::Remote<mojom::PrintBackendService>& backend_service);
+    ServiceAndCallbackContext(ServiceAndCallbackContext&& other) = delete;
+    ~ServiceAndCallbackContext();
+    CallbackContext context;
+    const raw_ref<const mojo::Remote<mojom::PrintBackendService>> service;
+  };
+
   PrintBackendServiceManager();
   ~PrintBackendServiceManager();
 
   static std::string ClientTypeToString(ClientType client_type);
 
-  static void LogCallToRemote(base::StringPiece name,
+  static void LogCallToRemote(std::string_view name,
                               const CallbackContext& context);
-  static void LogCallbackFromRemote(base::StringPiece name,
+  static void LogCallbackFromRemote(std::string_view name,
                                     const CallbackContext& context);
 
   void SetCrashKeys(const std::string& printer_name);
@@ -381,9 +400,9 @@ class PrintBackendServiceManager {
   // generated from a prior registration.  This method will DCHECK if the
   // `destination` is a `RemoteId` and the registration requires launching
   // another service instance.
-  absl::optional<ClientId> RegisterClient(
+  std::optional<ClientId> RegisterClient(
       ClientType client_type,
-      absl::variant<std::string, RemoteId> destination);
+      std::variant<std::string, RemoteId> destination);
 
   // Get the total number of clients registered.
   size_t GetClientsRegisteredCount() const;
@@ -416,8 +435,8 @@ class PrintBackendServiceManager {
       RemotesBundleMap<T>& bundle_map);
 
   // Get the idle timeout value to user for a particular client type.
-  static constexpr base::TimeDelta GetClientTypeIdleTimeout(
-      ClientType client_type);
+  constexpr base::TimeDelta GetClientTypeIdleTimeout(
+      ClientType client_type) const;
 
   // Whether any clients are queries with UI to `remote_id`.
   bool HasQueryWithUiClientForRemoteId(const RemoteId& remote_id) const;
@@ -431,14 +450,13 @@ class PrintBackendServiceManager {
 
   // Determine if idle timeout should be modified based upon there having been
   // a new client registered for `registered_client_type`.
-  absl::optional<base::TimeDelta> DetermineIdleTimeoutUpdateOnRegisteredClient(
+  std::optional<base::TimeDelta> DetermineIdleTimeoutUpdateOnRegisteredClient(
       ClientType registered_client_type,
       const RemoteId& remote_id) const;
 
   // Determine if idle timeout should be modified after a client of type
   // `unregistered_client_type` has been unregistered.
-  absl::optional<base::TimeDelta>
-  DetermineIdleTimeoutUpdateOnUnregisteredClient(
+  std::optional<base::TimeDelta> DetermineIdleTimeoutUpdateOnUnregisteredClient(
       ClientType unregistered_client_type,
       const RemoteId& remote_id) const;
 
@@ -497,35 +515,24 @@ class PrintBackendServiceManager {
   // Helper function to get the service and initialize a `context` for a given
   // `printer_name`.  This is used for calls supporting Print Preview, where
   // the client type is `kQuery`.
-  // TODO(crbug.com/1418830):  Replace out parameter `context` with a
-  // structured return.
-  const mojo::Remote<mojom::PrintBackendService>&
-  GetServiceAndCallbackContextForQuery(const std::string& printer_name,
-                                       CallbackContext& context);
+  ServiceAndCallbackContext GetServiceAndCallbackContextForQuery(
+      const std::string& printer_name);
 
   // Helper function to get the service and initialize a `context` for a given
   // query with UI `client_id`.  Use `printer_name` for extra sandbox behavior
   // handling.  This is used for calls supporting system print dialogs and
   // printing of a document.
-  // TODO(crbug.com/1418830):  Replace out parameter `context` with a
-  // structured return.
-  const mojo::Remote<mojom::PrintBackendService>&
-  GetServiceAndCallbackContextForQueryWithUiClient(
+  ServiceAndCallbackContext GetServiceAndCallbackContextForQueryWithUiClient(
       ClientId client_id,
-      const std::string& printer_name,
-      CallbackContext& context);
+      const std::string& printer_name);
 
   // Helper function to get the service and initialize a `context` for a given
   // print document `client_id`.  Use `printer_name` for extra sandbox behavior
   // handling.  This is used for calls supporting system print dialogs and
   // printing of a document.
-  // TODO(crbug.com/1418830):  Replace out parameter `context` with a
-  // structured return.
-  const mojo::Remote<mojom::PrintBackendService>&
-  GetServiceAndCallbackContextForPrintDocumentClient(
+  ServiceAndCallbackContext GetServiceAndCallbackContextForPrintDocumentClient(
       ClientId client_id,
-      const std::string& printer_name,
-      CallbackContext& context);
+      const std::string& printer_name);
 
   // Helper functions to save outstanding callbacks.
   template <class... T, class... X>
@@ -566,7 +573,8 @@ class PrintBackendServiceManager {
   void OnDidUpdatePrintSettings(const CallbackContext& context,
                                 mojom::PrintSettingsResultPtr printer_caps);
   void OnDidStartPrinting(const CallbackContext& context,
-                          mojom::ResultCode result);
+                          mojom::ResultCode result,
+                          int job_id);
 #if BUILDFLAG(IS_WIN)
   void OnDidRenderPrintedPage(const CallbackContext& context,
                               mojom::ResultCode result);
@@ -587,7 +595,7 @@ class PrintBackendServiceManager {
   template <class... T>
   void RunSavedCallbacks(RemoteSavedCallbacks<T...>& saved_callbacks,
                          const RemoteId& remote_id,
-                         std::remove_reference<T>::type... result);
+                         typename std::remove_reference<T>::type... result);
 
   // Test support for client ID management.
   static void SetClientsForTesting(
@@ -688,6 +696,10 @@ class PrintBackendServiceManager {
   RemoteSavedCancelCallbacks sandboxed_saved_cancel_callbacks_;
   RemoteSavedCancelCallbacks unsandboxed_saved_cancel_callbacks_;
 
+  // Gets set to false once there has been at least one attempt to print using
+  // a sandboxed PrintBackend service.  Used for metrics reporting.
+  bool first_sandboxed_print_ = true;
+
   // Set of printer drivers which require elevated permissions to operate.
   // It is expected that most print drivers will succeed with the preconfigured
   // sandbox permissions.  Should any drivers be discovered to require more than
@@ -701,6 +713,15 @@ class PrintBackendServiceManager {
   // thread safe.  Map key is a printer name.
   base::flat_map<std::string, RemoteId> remote_id_map_;
 #endif
+
+  // Used as base for generating `RemoteId` values.  Only used internally
+  // within browser process management code, so a simple incrementating
+  // sequence is sufficient.
+  uint32_t remote_id_sequence_ = 0;
+
+  // Set when launched services are intended to persist indefinitely, rather
+  // than being disconnected after a finite idle timeout expires.
+  bool persistent_service_ = false;
 
   // Crash key is kept at class level so that we can obtain printer driver
   // information for a prior call should the process be terminated due to Mojo

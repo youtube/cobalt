@@ -5,7 +5,6 @@
 #include "ui/wm/core/compound_event_filter.h"
 
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "ui/aura/client/cursor_client.h"
 #include "ui/aura/env.h"
 #include "ui/aura/test/aura_test_base.h"
@@ -21,11 +20,11 @@
 
 namespace {
 
-#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
 base::TimeTicks GetTime() {
   return ui::EventTimeForNow();
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_WIN)
+#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
 }
 
 namespace wm {
@@ -52,7 +51,7 @@ class ConsumeGestureEventFilter : public ui::EventHandler {
 
 typedef aura::test::AuraTestBase CompoundEventFilterTest;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 // A keypress only hides the cursor on ChromeOS (crbug.com/304296).
 TEST_F(CompoundEventFilterTest, CursorVisibilityChange) {
   std::unique_ptr<CompoundEventFilter> compound_filter(new CompoundEventFilter);
@@ -66,53 +65,56 @@ TEST_F(CompoundEventFilterTest, CursorVisibilityChange) {
   aura::test::TestCursorClient cursor_client(root_window());
 
   // Send key event to hide the cursor.
-  ui::KeyEvent key('a', ui::VKEY_A, ui::DomCode::NONE, ui::EF_NONE);
+  ui::KeyEvent key = ui::KeyEvent::FromCharacter(
+      'a', ui::VKEY_A, ui::DomCode::NONE, ui::EF_NONE);
   DispatchEventUsingWindowDispatcher(&key);
   EXPECT_FALSE(cursor_client.IsCursorVisible());
 
   // Synthesized mouse event should not show the cursor.
-  ui::MouseEvent enter(ui::ET_MOUSE_ENTERED, gfx::Point(10, 10),
+  ui::MouseEvent enter(ui::EventType::kMouseEntered, gfx::Point(10, 10),
                        gfx::Point(10, 10), ui::EventTimeForNow(), 0, 0);
-  enter.set_flags(enter.flags() | ui::EF_IS_SYNTHESIZED);
+  enter.SetFlags(enter.flags() | ui::EF_IS_SYNTHESIZED);
   DispatchEventUsingWindowDispatcher(&enter);
   EXPECT_FALSE(cursor_client.IsCursorVisible());
 
-  ui::MouseEvent move(ui::ET_MOUSE_MOVED, gfx::Point(10, 10),
+  ui::MouseEvent move(ui::EventType::kMouseMoved, gfx::Point(10, 10),
                       gfx::Point(10, 10), ui::EventTimeForNow(), 0, 0);
-  move.set_flags(enter.flags() | ui::EF_IS_SYNTHESIZED);
+  move.SetFlags(enter.flags() | ui::EF_IS_SYNTHESIZED);
   DispatchEventUsingWindowDispatcher(&move);
   EXPECT_FALSE(cursor_client.IsCursorVisible());
 
   // A real mouse event should show the cursor.
-  ui::MouseEvent real_move(ui::ET_MOUSE_MOVED, gfx::Point(10, 10),
+  ui::MouseEvent real_move(ui::EventType::kMouseMoved, gfx::Point(10, 10),
                            gfx::Point(10, 10), ui::EventTimeForNow(), 0, 0);
   DispatchEventUsingWindowDispatcher(&real_move);
   EXPECT_TRUE(cursor_client.IsCursorVisible());
 
   // Disallow hiding the cursor on keypress.
   cursor_client.set_should_hide_cursor_on_key_event(false);
-  key = ui::KeyEvent('a', ui::VKEY_A, ui::DomCode::NONE, ui::EF_NONE);
+  key = ui::KeyEvent::FromCharacter('a', ui::VKEY_A, ui::DomCode::NONE,
+                                    ui::EF_NONE);
   DispatchEventUsingWindowDispatcher(&key);
   EXPECT_TRUE(cursor_client.IsCursorVisible());
 
   // Allow hiding the cursor on keypress.
   cursor_client.set_should_hide_cursor_on_key_event(true);
-  key = ui::KeyEvent('a', ui::VKEY_A, ui::DomCode::NONE, ui::EF_NONE);
+  key = ui::KeyEvent::FromCharacter('a', ui::VKEY_A, ui::DomCode::NONE,
+                                    ui::EF_NONE);
   DispatchEventUsingWindowDispatcher(&key);
   EXPECT_FALSE(cursor_client.IsCursorVisible());
 
   // Mouse synthesized exit event should not show the cursor.
-  ui::MouseEvent exit(ui::ET_MOUSE_EXITED, gfx::Point(10, 10),
+  ui::MouseEvent exit(ui::EventType::kMouseExited, gfx::Point(10, 10),
                       gfx::Point(10, 10), ui::EventTimeForNow(), 0, 0);
-  exit.set_flags(enter.flags() | ui::EF_IS_SYNTHESIZED);
+  exit.SetFlags(enter.flags() | ui::EF_IS_SYNTHESIZED);
   DispatchEventUsingWindowDispatcher(&exit);
   EXPECT_FALSE(cursor_client.IsCursorVisible());
 
   aura::Env::GetInstance()->RemovePreTargetHandler(compound_filter.get());
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
-#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
 // Touch visually hides the cursor on ChromeOS and Windows.
 TEST_F(CompoundEventFilterTest, TouchHidesCursor) {
   std::unique_ptr<CompoundEventFilter> compound_filter(new CompoundEventFilter);
@@ -125,7 +127,7 @@ TEST_F(CompoundEventFilterTest, TouchHidesCursor) {
 
   aura::test::TestCursorClient cursor_client(root_window());
 
-  ui::MouseEvent mouse0(ui::ET_MOUSE_MOVED, gfx::Point(10, 10),
+  ui::MouseEvent mouse0(ui::EventType::kMouseMoved, gfx::Point(10, 10),
                         gfx::Point(10, 10), ui::EventTimeForNow(), 0, 0);
   DispatchEventUsingWindowDispatcher(&mouse0);
   EXPECT_TRUE(cursor_client.IsMouseEventsEnabled());
@@ -133,25 +135,27 @@ TEST_F(CompoundEventFilterTest, TouchHidesCursor) {
 
   // This press is required for the GestureRecognizer to associate a target
   // with kTouchId
-  ui::TouchEvent press0(ui::ET_TOUCH_PRESSED, gfx::Point(90, 90), GetTime(),
+  ui::TouchEvent press0(ui::EventType::kTouchPressed, gfx::Point(90, 90),
+                        GetTime(),
                         ui::PointerDetails(ui::EventPointerType::kTouch, 1));
   DispatchEventUsingWindowDispatcher(&press0);
   EXPECT_FALSE(cursor_client.IsMouseEventsEnabled());
   EXPECT_FALSE(cursor_client.IsCursorVisible());
 
-  ui::TouchEvent move(ui::ET_TOUCH_MOVED, gfx::Point(10, 10), GetTime(),
+  ui::TouchEvent move(ui::EventType::kTouchMoved, gfx::Point(10, 10), GetTime(),
                       ui::PointerDetails(ui::EventPointerType::kTouch, 1));
   DispatchEventUsingWindowDispatcher(&move);
   EXPECT_FALSE(cursor_client.IsMouseEventsEnabled());
   EXPECT_FALSE(cursor_client.IsCursorVisible());
 
-  ui::TouchEvent release(ui::ET_TOUCH_RELEASED, gfx::Point(10, 10), GetTime(),
+  ui::TouchEvent release(ui::EventType::kTouchReleased, gfx::Point(10, 10),
+                         GetTime(),
                          ui::PointerDetails(ui::EventPointerType::kTouch, 1));
   DispatchEventUsingWindowDispatcher(&release);
   EXPECT_FALSE(cursor_client.IsMouseEventsEnabled());
   EXPECT_FALSE(cursor_client.IsCursorVisible());
 
-  ui::MouseEvent mouse1(ui::ET_MOUSE_MOVED, gfx::Point(10, 10),
+  ui::MouseEvent mouse1(ui::EventType::kMouseMoved, gfx::Point(10, 10),
                         gfx::Point(10, 10), ui::EventTimeForNow(), 0, 0);
   // Move the cursor again. The cursor should be visible.
   DispatchEventUsingWindowDispatcher(&mouse1);
@@ -159,7 +163,8 @@ TEST_F(CompoundEventFilterTest, TouchHidesCursor) {
   EXPECT_TRUE(cursor_client.IsCursorVisible());
 
   // Now activate the window and press on it again.
-  ui::TouchEvent press1(ui::ET_TOUCH_PRESSED, gfx::Point(90, 90), GetTime(),
+  ui::TouchEvent press1(ui::EventType::kTouchPressed, gfx::Point(90, 90),
+                        GetTime(),
                         ui::PointerDetails(ui::EventPointerType::kTouch, 1));
   GetActivationClient(root_window())->ActivateWindow(window.get());
   DispatchEventUsingWindowDispatcher(&press1);
@@ -167,7 +172,7 @@ TEST_F(CompoundEventFilterTest, TouchHidesCursor) {
   EXPECT_FALSE(cursor_client.IsCursorVisible());
   aura::Env::GetInstance()->RemovePreTargetHandler(compound_filter.get());
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_WIN)
+#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
 
 // Tests that if an event filter consumes a gesture, then it doesn't focus the
 // window.
@@ -240,14 +245,14 @@ TEST_F(CompoundEventFilterTest, DontShowCursorOnMouseMovesFromTouch) {
   cursor_client.DisableMouseEvents();
   EXPECT_FALSE(cursor_client.IsMouseEventsEnabled());
 
-  ui::MouseEvent mouse0(ui::ET_MOUSE_MOVED, gfx::Point(10, 10),
+  ui::MouseEvent mouse0(ui::EventType::kMouseMoved, gfx::Point(10, 10),
                         gfx::Point(10, 10), ui::EventTimeForNow(), 0, 0);
-  mouse0.set_flags(mouse0.flags() | ui::EF_FROM_TOUCH);
+  mouse0.SetFlags(mouse0.flags() | ui::EF_FROM_TOUCH);
 
   DispatchEventUsingWindowDispatcher(&mouse0);
   EXPECT_FALSE(cursor_client.IsMouseEventsEnabled());
 
-  mouse0.set_flags(mouse0.flags() & ~ui::EF_FROM_TOUCH);
+  mouse0.SetFlags(mouse0.flags() & ~ui::EF_FROM_TOUCH);
   DispatchEventUsingWindowDispatcher(&mouse0);
   EXPECT_TRUE(cursor_client.IsMouseEventsEnabled());
 

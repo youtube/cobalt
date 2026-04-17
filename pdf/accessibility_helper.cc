@@ -6,11 +6,11 @@
 
 #include <stdint.h>
 
-#include <vector>
+#include <optional>
 
+#include "base/containers/span.h"
 #include "base/numerics/safe_math.h"
 #include "pdf/accessibility_structs.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace chrome_pdf {
 
@@ -24,7 +24,7 @@ bool IsCharWithinTextRun(const AccessibilityTextRunInfo& text_run,
 // If a valid text run range is not found for the char range then return the
 // fallback value.
 AccessibilityTextRunRangeInfo GetEnclosingTextRunRangeForCharRange(
-    const std::vector<AccessibilityTextRunInfo>& text_runs,
+    base::span<const AccessibilityTextRunInfo> text_runs,
     int start_char_index,
     int char_count) {
   // Initialize with fallback value.
@@ -38,7 +38,7 @@ AccessibilityTextRunRangeInfo GetEnclosingTextRunRangeForCharRange(
     return text_range;
   uint32_t end_char_index = checked_end_char_index.ValueOrDie();
   uint32_t current_char_index = 0;
-  absl::optional<size_t> start_text_run;
+  std::optional<size_t> start_text_run;
   for (size_t i = 0; i < text_runs.size(); ++i) {
     if (!start_text_run.has_value() &&
         IsCharWithinTextRun(text_runs[i], current_char_index,

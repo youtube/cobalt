@@ -20,7 +20,6 @@ EnumTraits<ash::secure_channel::mojom::ConnectionMedium,
   }
 
   NOTREACHED();
-  return ash::secure_channel::mojom::ConnectionMedium::kBluetoothLowEnergy;
 }
 
 bool EnumTraits<ash::secure_channel::mojom::ConnectionMedium,
@@ -37,7 +36,6 @@ bool EnumTraits<ash::secure_channel::mojom::ConnectionMedium,
   }
 
   NOTREACHED();
-  return false;
 }
 
 ash::secure_channel::mojom::ConnectionPriority
@@ -54,7 +52,6 @@ EnumTraits<ash::secure_channel::mojom::ConnectionPriority,
   }
 
   NOTREACHED();
-  return ash::secure_channel::mojom::ConnectionPriority::LOW;
 }
 
 bool EnumTraits<ash::secure_channel::mojom::ConnectionPriority,
@@ -74,7 +71,6 @@ bool EnumTraits<ash::secure_channel::mojom::ConnectionPriority,
   }
 
   NOTREACHED();
-  return false;
 }
 
 }  // namespace mojo

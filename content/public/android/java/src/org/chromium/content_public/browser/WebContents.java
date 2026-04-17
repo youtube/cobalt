@@ -4,15 +4,18 @@
 
 package org.chromium.content_public.browser;
 
+import android.graphics.Bitmap;
 import android.graphics.Rect;
 import android.os.Handler;
 import android.os.Parcelable;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.annotation.VisibleForTesting;
-
+import org.chromium.base.Callback;
+import org.chromium.base.UserData;
 import org.chromium.blink_public.input.SelectionGranularity;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.content_public.browser.back_forward_transition.AnimationStage;
+import org.chromium.ui.BrowserControlsOffsetTagDefinitions;
 import org.chromium.ui.OverscrollRefreshHandler;
 import org.chromium.ui.base.EventForwarder;
 import org.chromium.ui.base.ViewAndroidDelegate;
@@ -20,32 +23,28 @@ import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.mojom.VirtualKeyboardMode;
 import org.chromium.url.GURL;
 
-import java.util.List;
-
 /**
  * The WebContents Java wrapper to allow communicating with the native WebContents object.
  *
- * Note about serialization and {@link Parcelable}:
- *   This object is serializable and deserializable as long as it is done in the same process.  That
- * means it can be passed between Activities inside this process, but not preserved beyond the
- * process lifetime.  This class will automatically deserialize into {@code null} if a deserialize
- * attempt happens in another process.
+ * <p>Note about serialization and {@link Parcelable}: This object is serializable and
+ * deserializable as long as it is done in the same process. That means it can be passed between
+ * Activities inside this process, but not preserved beyond the process lifetime. This class will
+ * automatically deserialize into {@code null} if a deserialize attempt happens in another process.
  *
- * To properly deserialize a custom Parcelable the right class loader must be used.  See below for
+ * <p>To properly deserialize a custom Parcelable the right class loader must be used. See below for
  * some examples.
  *
- * Intent Serialization/Deserialization Example:
- * intent.putExtra("WEBCONTENTSKEY", webContents);
+ * <p>Intent Serialization/Deserialization Example: intent.putExtra("WEBCONTENTSKEY", webContents);
  * // ... send to other location ...
- * intent.setExtrasClassLoader(WebContents.class.getClassLoader());
- * webContents = intent.getParcelableExtra("WEBCONTENTSKEY");
+ * intent.setExtrasClassLoader(WebContents.class.getClassLoader()); webContents =
+ * intent.getParcelableExtra("WEBCONTENTSKEY");
  *
- * Bundle Serialization/Deserialization Example:
- * bundle.putParcelable("WEBCONTENTSKEY", webContents);
- * // ... send to other location ...
- * bundle.setClassLoader(WebContents.class.getClassLoader());
- * webContents = bundle.get("WEBCONTENTSKEY");
+ * <p>Bundle Serialization/Deserialization Example: bundle.putParcelable("WEBCONTENTSKEY",
+ * webContents); // ... send to other location ...
+ * bundle.setClassLoader(WebContents.class.getClassLoader()); webContents =
+ * bundle.get("WEBCONTENTSKEY");
  */
+@NullMarked
 public interface WebContents extends Parcelable {
     /**
      * Interface used to transfer the internal objects (but callers should own) from WebContents.
@@ -56,12 +55,10 @@ public interface WebContents extends Parcelable {
          *
          * @param internals a {@link WebContentsInternals} object.
          */
-        void set(WebContentsInternals internals);
+        void set(@Nullable WebContentsInternals internals);
 
-        /**
-         * Returns {@link WebContentsInternals} object. Can be {@code null}.
-         */
-        WebContentsInternals get();
+        /** Returns {@link WebContentsInternals} object. Can be {@code null}. */
+        @Nullable WebContentsInternals get();
     }
 
     /**
@@ -70,22 +67,21 @@ public interface WebContents extends Parcelable {
      */
     public static InternalsHolder createDefaultInternalsHolder() {
         return new InternalsHolder() {
-            private WebContentsInternals mInternals;
+            private @Nullable WebContentsInternals mInternals;
 
             @Override
-            public void set(WebContentsInternals internals) {
+            public void set(@Nullable WebContentsInternals internals) {
                 mInternals = internals;
             }
 
             @Override
-            public WebContentsInternals get() {
+            public @Nullable WebContentsInternals get() {
                 return mInternals;
             }
         };
     }
 
     /**
-     * TODO(ctzsm): Rename this method to setDelegates()
      *
      * Initialize various content objects of {@link WebContents} lifetime.
      *
@@ -99,9 +95,12 @@ public interface WebContents extends Parcelable {
      * @param windowAndroid An instance of the WindowAndroid.
      * @param internalsHolder A holder of objects used internally by WebContents.
      */
-    void initialize(String productVersion, ViewAndroidDelegate viewDelegate,
-            ViewEventSink.InternalAccessDelegate accessDelegate, WindowAndroid windowAndroid,
-            @NonNull InternalsHolder internalsHolder);
+    void setDelegates(
+            String productVersion,
+            ViewAndroidDelegate viewDelegate,
+            ViewEventSink.InternalAccessDelegate accessDelegate,
+            @Nullable WindowAndroid windowAndroid,
+            InternalsHolder internalsHolder);
 
     /**
      * Clear Java WebContentsObservers so we can put this WebContents to the background. Use this
@@ -114,10 +113,9 @@ public interface WebContents extends Parcelable {
     void clearJavaWebContentsObservers();
 
     /**
-     * @return The top level WindowAndroid associated with this WebContents.  This can be null.
+     * @return The top level WindowAndroid associated with this WebContents. This can be null.
      */
-    @Nullable
-    WindowAndroid getTopLevelNativeWindow();
+    @Nullable WindowAndroid getTopLevelNativeWindow();
 
     /*
      * Updates the native {@link WebContents} with a new window. This moves the NativeView and
@@ -125,18 +123,19 @@ public interface WebContents extends Parcelable {
      * TODO(jinsukkim): This should happen through view android tree instead.
      * @param windowAndroid The new {@link WindowAndroid} for this {@link WebContents}.
      */
-    void setTopLevelNativeWindow(WindowAndroid windowAndroid);
+    void setTopLevelNativeWindow(@Nullable WindowAndroid windowAndroid);
 
     /**
-     * @return The {@link ViewAndroidDelegate} from which to get the container view.
-     *         This can be null.
+     * If called too early, the {@link ViewAndroidDelegate} might not be yet available. One can
+     * subscribe to `ViewAndroidObserver::OnDelegateSet` to be notified when the {@link
+     * ViewAndroidDelegate} becomes available/changes.
+     *
+     * @return The {@link ViewAndroidDelegate} from which to get the container view. This can be
+     *     null.
      */
-    @Nullable
-    ViewAndroidDelegate getViewAndroidDelegate();
+    @Nullable ViewAndroidDelegate getViewAndroidDelegate();
 
-    /**
-     * Deletes the Web Contents object.
-     */
+    /** Deletes the Web Contents object. */
     void destroy();
 
     /**
@@ -165,8 +164,7 @@ public interface WebContents extends Parcelable {
      * @return The focused frame associated with this WebContents. Will be null if the WebContents
      * does not have focus.
      */
-    @Nullable
-    RenderFrameHost getFocusedFrame();
+    @Nullable RenderFrameHost getFocusedFrame();
 
     /**
      * @return Whether the focused frame element in this WebContents is editable. Will be false if
@@ -178,20 +176,13 @@ public interface WebContents extends Parcelable {
      * @return The frame associated with the id. Will be null if the ID does not correspond to a
      *         live RenderFrameHost.
      */
-    @Nullable
-    RenderFrameHost getRenderFrameHostFromId(GlobalRenderFrameHostId id);
+    @Nullable RenderFrameHost getRenderFrameHostFromId(GlobalRenderFrameHostId id);
 
     /**
      * @return The root level view from the renderer, or {@code null} in some cases where there is
-     *         none.
+     *     none.
      */
-    @Nullable
-    RenderWidgetHostView getRenderWidgetHostView();
-
-    /**
-     * @return The WebContents that are nested within this one.
-     */
-    List<? extends WebContents> getInnerWebContents();
+    @Nullable RenderWidgetHostView getRenderWidgetHostView();
 
     /**
      * @return The WebContents Visibility. See native WebContents::GetVisibility.
@@ -232,10 +223,15 @@ public interface WebContents extends Parcelable {
     boolean isLoading();
 
     /**
-     * @return Whether this WebContents is loading and expects any loading UI to
-     * be displayed.
+     * @return Whether this WebContents is loading and expects any loading UI to be displayed.
      */
     boolean shouldShowLoadingUI();
+
+    /**
+     * Returns whether this WebContents's primary frame tree node is navigating, i.e. it has an
+     * associated NavigationRequest.
+     */
+    boolean hasUncommittedNavigationInPrimaryMainFrame();
 
     /**
      * Runs the beforeunload handler, if any. The tab will be closed if there's no beforeunload
@@ -245,20 +241,8 @@ public interface WebContents extends Parcelable {
      */
     void dispatchBeforeUnload(boolean autoCancel);
 
-    /**
-     * Stop any pending navigation.
-     */
+    /** Stop any pending navigation. */
     void stop();
-
-    /**
-     * To be called when the ContentView is hidden.
-     */
-    void onHide();
-
-    /**
-     * To be called when the ContentView is shown.
-     */
-    void onShow();
 
     /**
      * To be called when freeze event is exepcted.
@@ -272,16 +256,17 @@ public interface WebContents extends Parcelable {
 
     /**
      * ChildProcessImportance on Android allows controls of the renderer process bindings
-     * independent of visibility. Note this does not affect importance of subframe processes
-     * or main frames processeses for non-primary pages.
-     * @param primaryMainFrameImportance importance of the primary page's main frame process.
+     * independent of visibility. Note this does not affect importance of subframe processes or main
+     * frames processeses for non-primary pages.
+     *
+     * @param importance importance of the primary page's main frame process.
      */
-    void setImportance(@ChildProcessImportance int primaryMainFrameImportance);
+    void setPrimaryMainFrameImportance(@ChildProcessImportance int importance);
 
     /**
-     * Suspends all media players for this WebContents.  Note: There may still
-     * be activities generating audio, so setAudioMuted() should also be called
-     * to ensure all audible activity is silenced.
+     * Suspends all media players for this WebContents. Note: There may still be activities
+     * generating audio, so setAudioMuted() should also be called to ensure all audible activity is
+     * silenced.
      */
     void suspendAllMediaPlayers();
 
@@ -291,6 +276,11 @@ public interface WebContents extends Parcelable {
      * @param mute Set to true to mute the WebContents, false to unmute.
      */
     void setAudioMuted(boolean mute);
+
+    /**
+     * @return Whether all audio output from this WebContents is muted.
+     */
+    boolean isAudioMuted();
 
     /**
      * @return Whether the location bar should be focused by default for this page.
@@ -308,26 +298,32 @@ public interface WebContents extends Parcelable {
      */
     boolean isFullscreenForCurrentTab();
 
-    /**
-     * Inform WebKit that Fullscreen mode has been exited by the user.
-     */
+    /** Inform WebKit that Fullscreen mode has been exited by the user. */
     void exitFullscreen();
 
-    /**
-     * Brings the Editable to the visible area while IME is up to make easier for inputing text.
-     */
+    /** Brings the Editable to the visible area while IME is up to make easier for inputing text. */
     void scrollFocusedEditableNodeIntoView();
 
     /**
      * Selects at the specified granularity around the caret and potentially shows the selection
      * handles and context menu. The caller can check if selection actually occurred by listening to
      * OnSelectionChanged.
+     *
      * @param granularity The granularity at which the selection should happen.
      * @param shouldShowHandle Whether the selection handles should be shown after selection.
      * @param shouldShowContextMenu Whether the context menu should be shown after selection.
+     * @param startOffset The start offset of the selection.
+     * @param endOffset The end offset of the selection.
+     * @param surroundingTextLength The length of the text surrounding the selection (including the
+     *     selection).
      */
-    void selectAroundCaret(@SelectionGranularity int granularity, boolean shouldShowHandle,
-            boolean shouldShowContextMenu);
+    void selectAroundCaret(
+            @SelectionGranularity int granularity,
+            boolean shouldShowHandle,
+            boolean shouldShowContextMenu,
+            int startOffset,
+            int endOffset,
+            int surroundingTextLength);
 
     /**
      * Adjusts the selection starting and ending points by the given amount.
@@ -355,9 +351,7 @@ public interface WebContents extends Parcelable {
      */
     boolean isIncognito();
 
-    /**
-     * Resumes the requests for a newly created window.
-     */
+    /** Resumes the requests for a newly created window. */
     void resumeLoadingCreatedWebContents();
 
     /**
@@ -385,7 +379,6 @@ public interface WebContents extends Parcelable {
      *                 will be made on the main thread.
      *                 If no result is required, pass null.
      */
-    @VisibleForTesting
     void evaluateJavaScriptForTests(String script, @Nullable JavaScriptCallback callback);
 
     /**
@@ -403,8 +396,11 @@ public interface WebContents extends Parcelable {
      * @param ports The sent message ports, if any. Pass null if there is no
      *                  message ports to pass.
      */
-    void postMessageToMainFrame(MessagePayload messagePayload, String sourceOrigin,
-            String targetOrigin, @Nullable MessagePort[] ports);
+    void postMessageToMainFrame(
+            MessagePayload messagePayload,
+            @Nullable String sourceOrigin,
+            String targetOrigin,
+            MessagePort @Nullable [] ports);
 
     /**
      * Creates a message channel for sending postMessage requests and returns the ports for
@@ -414,22 +410,32 @@ public interface WebContents extends Parcelable {
     MessagePort[] createMessageChannel();
 
     /**
-     * Returns whether the initial empty page has been accessed by a script from another
-     * page. Always false after the first commit.
+     * Returns whether the initial empty page has been accessed by a script from another page.
+     * Always false after the first commit.
      *
      * @return Whether the initial empty page has been accessed by a script.
      */
     boolean hasAccessedInitialDocument();
 
     /**
+     * Returns whether the current page has opted into same-origin view transitions.
+     *
+     * @return Whether the current page has the same-origin view transition opt-in.
+     */
+    boolean hasViewTransitionOptIn();
+
+    /**
      * This returns the theme color as set by the theme-color meta tag.
-     * <p>
-     * The color returned may retain non-fully opaque alpha components.  A value of
-     * {@link android.graphics.Color#TRANSPARENT} means there was no theme color specified.
+     *
+     * <p>The color returned may retain non-fully opaque alpha components. A value of {@link
+     * android.graphics.Color#TRANSPARENT} means there was no theme color specified.
      *
      * @return The theme color for the content as set by the theme-color meta tag.
      */
     int getThemeColor();
+
+    /** This returns the background color for the web contents. */
+    int getBackgroundColor();
 
     /**
      * @return Current page load progress on a scale of 0 to 1.
@@ -442,9 +448,7 @@ public interface WebContents extends Parcelable {
      */
     void requestSmartClipExtract(int x, int y, int width, int height);
 
-    /**
-     * Register a handler to handle smart clip data once extraction is done.
-     */
+    /** Register a handler to handle smart clip data once extraction is done. */
     void setSmartClipResultHandler(final Handler smartClipHandler);
 
     /**
@@ -452,27 +456,19 @@ public interface WebContents extends Parcelable {
      *
      * @param stylusWritingHandler the object that implements StylusWritingHandler interface.
      */
-    void setStylusWritingHandler(StylusWritingHandler stylusWritingHandler);
+    void setStylusWritingHandler(@Nullable StylusWritingHandler stylusWritingHandler);
 
     /**
-     * Returns {@link EventForwarder} which is used to forward input/view events
-     * to native content layer.
+     * @return {@link StylusWritingImeCallback} which is used to implement the IME functionality for
+     *     the Stylus handwriting feature.
+     */
+    @Nullable StylusWritingImeCallback getStylusWritingImeCallback();
+
+    /**
+     * Returns {@link EventForwarder} which is used to forward input/view events to native content
+     * layer.
      */
     EventForwarder getEventForwarder();
-
-    /**
-     * Add an observer to the WebContents
-     *
-     * @param observer The observer to add.
-     */
-    void addObserver(WebContentsObserver observer);
-
-    /**
-     * Remove an observer from the WebContents
-     *
-     * @param observer The observer to remove.
-     */
-    void removeObserver(WebContentsObserver observer);
 
     /**
      * Sets a handler to handle swipe to refresh events.
@@ -504,7 +500,11 @@ public interface WebContents extends Parcelable {
      *                 renderer.
      * @return The unique id of the download request
      */
-    int downloadImage(GURL url, boolean isFavicon, int maxBitmapSize, boolean bypassCache,
+    int downloadImage(
+            GURL url,
+            boolean isFavicon,
+            int maxBitmapSize,
+            boolean bypassCache,
             ImageDownloadCallback callback);
 
     /**
@@ -525,8 +525,7 @@ public interface WebContents extends Parcelable {
      * the rectangle is meaningless. Will return null if there is no such video. Fullscreen videos
      * may take a moment to register.
      */
-    @Nullable
-    Rect getFullscreenVideoSize();
+    @Nullable Rect getFullscreenVideoSize();
 
     /**
      * Notifies the WebContents about the new persistent video status. It should be called whenever
@@ -559,16 +558,30 @@ public interface WebContents extends Parcelable {
     int getHeight();
 
     /**
-     * Sets the Display Cutout safe area of the WebContents. These are insets from each edge
-     * in physical pixels
+     * Sets the Display Cutout safe area of the WebContents. These are insets from each edge in
+     * physical pixels
      *
      * @param insets The insets stored in a Rect.
      */
     void setDisplayCutoutSafeArea(Rect insets);
 
     /**
-     * Notify that web preferences needs update for various properties.
+     * Sets the context menu "safe area" of the WebContents. These are insets from each edge in
+     * physical pixels.
+     *
+     * @param insets The insets stored in a Rect.
      */
+    void setContextMenuInsets(Rect insets);
+
+    /**
+     * Instructs the web contents to "show interest" in the Element corresponding to the provided
+     * nodeID.
+     *
+     * @param nodeID The DOMNodeID of the element that should receive interest.
+     */
+    void showInterestInElement(int nodeID);
+
+    /** Notify that web preferences needs update for various properties. */
     void notifyRendererPreferenceUpdate();
 
     /**
@@ -586,9 +599,109 @@ public interface WebContents extends Parcelable {
     void tearDownDialogOverlays();
 
     /**
-     * This function checks all frames in this WebContents (not just the main
-     * frame) and returns true if at least one frame has either a beforeunload or
-     * an unload/pagehide/visibilitychange handler.
+     * This function checks all frames in this WebContents (not just the main frame) and returns
+     * true if at least one frame has either a beforeunload or an unload/pagehide/visibilitychange
+     * handler.
      */
     boolean needToFireBeforeUnloadOrUnloadEvents();
+
+    /**
+     * For cases where the content for a navigation entry is being drawn by the embedder (instead of
+     * the web page), this notifies when the embedder has rendered the UI at its final state. This
+     * is only called if the WebContents is showing an invoke animation for back forward
+     * transitions, see {@link
+     * org.chromium.components.embedder_support.delegate.WebContentsDelegateAndroid#didBackForwardTransitionAnimationChange},
+     * when the navigation entry showing embedder provided UI commits.
+     */
+    void onContentForNavigationEntryShown();
+
+    /**
+     * @return {@link AnimationStage} the current stage of back forward transition.
+     */
+    @AnimationStage
+    int getCurrentBackForwardTransitionStage();
+
+    /**
+     * Let long press on links select the link text instead of triggering context menu. Disabled by
+     * default i.e. the context menu gets triggered.
+     *
+     * @param enabled {@code true} to enabled the behavior.
+     */
+    void setLongPressLinkSelectText(boolean enabled);
+
+    /**
+     * Update the OffsetTagDefinitions. This could be because the controls' visibility constraints
+     * have changed, which requires adding/removing the OffsetTags, or because the
+     * OffsetTagConstraints have changed due to a change in the controls' scrollable height.
+     */
+    void updateOffsetTagDefinitions(BrowserControlsOffsetTagDefinitions offsetTagDefinitions);
+
+    void captureContentAsBitmapForTesting(Callback<Bitmap> callback);
+
+    void setSupportsForwardTransitionAnimation(boolean supports);
+
+    /**
+     * @return whether this WebContents has an opener (corresponding to window.opener in JavaScript)
+     *     associated with it.
+     */
+    boolean hasOpener();
+
+    /**
+     * Returns the window open disposition that was originally requested when this WebContents was
+     * created or navigated to. This method provides the disposition specified by the opener of this
+     * WebContents, indicating how the content was initially intended to be displayed (e.g., as a
+     * new foreground tab, a background tab, a new window, a popup, etc.). This value is determined
+     * at the point of creation, such as during a navigation that results in a new WebContents
+     * (e.g., from a link click with `target="_blank"`, `window.open()`, or a browser-initiated
+     * action).
+     *
+     * @return an integer constant representing the original window open disposition.
+     */
+    int getOriginalWindowOpenDisposition();
+
+    /**
+     * Factory interface passed to {@link #getOrSetUserData()} for instantiation of class as user
+     * data.
+     *
+     * <p>Constructor method reference comes handy for class Foo to provide the factory. Use lazy
+     * initialization to avoid having to generate too many anonymous references. <code>
+     * public class Foo {
+     *     static final class FoofactoryLazyHolder {
+     *         private static final UserDataFactory<Foo> INSTANCE = Foo::new;
+     *     }
+     *     ....
+     *
+     *     webContents.getOrsetUserData(Foo.class, FooFactoryLazyHolder.INSTANCE);
+     *
+     *     ....
+     * }
+     * </code>
+     *
+     * @param <T> Class to instantiate.
+     */
+    public interface UserDataFactory<T> {
+        T create(WebContents webContents);
+    }
+
+    /**
+     * Retrieves or stores a user data object for this WebContents.
+     *
+     * @param key Class instance of the object used as the key.
+     * @param userDataFactory Factory that creates an object of the generic class. A new object is
+     *     created if it hasn't been created and non-null factory is given.
+     * @return The created or retrieved user data object. Can be null if the object was not created
+     *     yet, or {@code userDataFactory} is null, or the internal data storage is already
+     *     garbage-collected.
+     */
+    public <T extends UserData> @Nullable T getOrSetUserData(
+            Class<T> key, @Nullable UserDataFactory<T> userDataFactory);
+
+    /**
+     * Removes the UserData object associated with the given key for this WebContents.
+     *
+     * @param <T> The type of the user data object to remove.
+     * @param key The class object representing the type of user data to remove. If no user data
+     *     object of this type exists, this method has no effect.
+     */
+    public <T extends UserData> void removeUserData(Class<T> key);
 }

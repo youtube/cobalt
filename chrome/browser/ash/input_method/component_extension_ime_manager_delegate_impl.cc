@@ -7,6 +7,8 @@
 #include <stddef.h>
 
 #include <algorithm>
+#include <optional>
+#include <string_view>
 
 #include "ash/constants/ash_features.h"
 #include "base/feature_list.h"
@@ -15,30 +17,28 @@
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "base/strings/strcat.h"
-#include "base/strings/string_piece.h"
-#include "base/strings/string_piece_forward.h"
 #include "base/strings/string_util.h"
+#include "base/strings/to_string.h"
 #include "base/system/sys_info.h"
 #include "base/task/thread_pool.h"
 #include "base/trace_event/trace_event.h"
 #include "build/branding_buildflags.h"
-#include "chrome/browser/browser_process.h"
 #include "chrome/browser/extensions/component_loader.h"
-#include "chrome/browser/extensions/extension_service.h"
-#include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/extensions/extension_constants.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/grit/browser_resources.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
+#include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "chromeos/ime/input_methods.h"
 #include "extensions/browser/extension_pref_value_map.h"
 #include "extensions/browser/extension_pref_value_map_factory.h"
+#include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_registry.h"
-#include "extensions/browser/extension_system.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/manifest_constants.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "net/base/url_util.h"
+#include "ui/accessibility/accessibility_features.h"
 #include "ui/base/ime/ash/extension_ime_util.h"
 #include "ui/base/resource/resource_bundle.h"
 
@@ -53,18 +53,18 @@ struct AllowlistedComponentExtensionIME {
 } allowlisted_component_extensions[] = {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
     {
-        // Official Google XKB Input.
+        // Official Google ChromeOS 1P Input.
         extension_ime_util::kXkbExtensionId,
         IDR_GOOGLE_XKB_MANIFEST,
     },
 #else
     {
-        // Open-sourced ChromeOS xkb extension.
+        // Open-sourced ChromiumOS xkb extension.
         extension_ime_util::kXkbExtensionId,
         IDR_XKB_MANIFEST,
     },
     {
-        // Open-sourced ChromeOS Keyboards extension.
+        // Open-sourced ChromiumOS Keyboards extension.
         extension_ime_util::kM17nExtensionId,
         IDR_M17N_MANIFEST,
     },
@@ -103,30 +103,21 @@ struct AllowlistedComponentExtensionIME {
 
 const char kImePathKeyName[] = "ime_path";
 
-extensions::ComponentLoader* GetComponentLoader(Profile* profile) {
-  extensions::ExtensionSystem* extension_system =
-      extensions::ExtensionSystem::Get(profile);
-  extensions::ExtensionService* extension_service =
-      extension_system->extension_service();
-  return extension_service->component_loader();
-}
-
-void DoLoadExtension(Profile* profile,
+void DoLoadExtension(content::BrowserContext* context,
                      const std::string& extension_id,
                      const std::string& manifest,
                      const base::FilePath& file_path) {
   TRACE_EVENT1("ime", "DoLoadExtension", "ext_id", extension_id);
   extensions::ExtensionRegistry* extension_registry =
-      extensions::ExtensionRegistry::Get(profile);
+      extensions::ExtensionRegistry::Get(context);
   DCHECK(extension_registry);
-  if (extension_registry->GetExtensionById(
-          extension_id, extensions::ExtensionRegistry::ENABLED)) {
+  if (extension_registry->enabled_extensions().GetByID(extension_id)) {
     VLOG(1) << "the IME extension(id=\"" << extension_id
             << "\") is already enabled";
     return;
   }
   const std::string loaded_extension_id =
-      GetComponentLoader(profile)->Add(manifest, file_path);
+      extensions::ComponentLoader::Get(context)->Add(manifest, file_path);
   if (loaded_extension_id.empty()) {
     LOG(ERROR) << "Failed to add an IME extension(id=\"" << extension_id
                << ", path=\"" << file_path.LossyDisplayName()
@@ -134,18 +125,15 @@ void DoLoadExtension(Profile* profile,
     return;
   }
   // Register IME extension with ExtensionPrefValueMap.
-  ExtensionPrefValueMapFactory::GetForBrowserContext(profile)
+  ExtensionPrefValueMapFactory::GetForBrowserContext(context)
       ->RegisterExtension(extension_id,
                           base::Time(),  // install_time.
                           true,          // is_enabled.
                           true);         // is_incognito_enabled.
   DCHECK_EQ(loaded_extension_id, extension_id);
-  extensions::ExtensionSystem* extension_system =
-      extensions::ExtensionSystem::Get(profile);
-  extensions::ExtensionService* extension_service =
-      extension_system->extension_service();
-  DCHECK(extension_service);
-  if (!extension_service->IsExtensionEnabled(loaded_extension_id)) {
+  auto* registrar = extensions::ExtensionRegistrar::Get(context);
+  DCHECK(registrar);
+  if (!registrar->IsExtensionEnabled(loaded_extension_id)) {
     LOG(ERROR) << "An IME extension(id=\"" << loaded_extension_id
                << "\") is not enabled after loading";
   }
@@ -155,13 +143,13 @@ bool CheckFilePath(const base::FilePath* file_path) {
   return base::PathExists(*file_path);
 }
 
-void OnFilePathChecked(Profile* profile,
+void OnFilePathChecked(content::BrowserContext* context,
                        const std::string* extension_id,
                        const std::string* manifest,
                        const base::FilePath* file_path,
                        bool result) {
   if (result) {
-    DoLoadExtension(profile, *extension_id, *manifest, *file_path);
+    DoLoadExtension(context, *extension_id, *manifest, *file_path);
   } else {
     LOG_IF(ERROR, base::SysInfo::IsRunningOnChromeOS())
         << "IME extension file path does not exist: " << file_path->value();
@@ -187,7 +175,7 @@ ComponentExtensionIMEManagerDelegateImpl::ListIME() {
 }
 
 void ComponentExtensionIMEManagerDelegateImpl::Load(
-    Profile* profile,
+    content::BrowserContext* context,
     const std::string& extension_id,
     const std::string& manifest,
     const base::FilePath& file_path) {
@@ -199,7 +187,7 @@ void ComponentExtensionIMEManagerDelegateImpl::Load(
   // will improve the IME extension load latency a lot.
   // See http://b/192032670 for more details.
   if (extension_id == extension_ime_util::kXkbExtensionId) {
-    DoLoadExtension(profile, extension_id, *manifest_cp, file_path);
+    DoLoadExtension(context, extension_id, *manifest_cp, file_path);
     return;
   }
 #endif
@@ -212,7 +200,7 @@ void ComponentExtensionIMEManagerDelegateImpl::Load(
       // virtual keyboard. See https://crbug.com/976542
       FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_BLOCKING},
       base::BindOnce(&CheckFilePath, base::Unretained(copied_file_path)),
-      base::BindOnce(&OnFilePathChecked, base::Unretained(profile),
+      base::BindOnce(&OnFilePathChecked, base::Unretained(context),
                      base::Owned(new std::string(extension_id)),
                      base::Owned(manifest_cp), base::Owned(copied_file_path)));
 }
@@ -222,30 +210,31 @@ bool ComponentExtensionIMEManagerDelegateImpl::IsInLoginLayoutAllowlist(
   return login_layout_set_.find(layout) != login_layout_set_.end();
 }
 
-absl::optional<base::Value::Dict>
+std::optional<base::Value::Dict>
 ComponentExtensionIMEManagerDelegateImpl::ParseManifest(
-    const base::StringPiece& manifest_string) {
+    std::string_view manifest_string) {
   base::JSONReader::Result result =
       base::JSONReader::ReadAndReturnValueWithError(manifest_string);
   if (!result.has_value()) {
     LOG(ERROR) << "Failed to parse manifest: " << result.error().message
                << " at line " << result.error().line << " column "
                << result.error().column;
-    return absl::nullopt;
+    return std::nullopt;
   }
   if (!result.value().is_dict()) {
     LOG(ERROR) << "Failed to parse manifest: parsed value is not a dictionary";
-    return absl::nullopt;
+    return std::nullopt;
   }
-  return absl::make_optional(std::move(result.value()).TakeDict());
+  return std::make_optional(std::move(result.value()).TakeDict());
 }
 
 // static
 bool ComponentExtensionIMEManagerDelegateImpl::IsIMEExtensionID(
     const std::string& id) {
   for (auto& extension : allowlisted_component_extensions) {
-    if (base::EqualsCaseInsensitiveASCII(id, extension.id))
+    if (base::EqualsCaseInsensitiveASCII(id, extension.id)) {
       return true;
+    }
   }
   return false;
 }
@@ -258,14 +247,16 @@ bool ComponentExtensionIMEManagerDelegateImpl::ReadEngineComponent(
   DCHECK(out);
   const std::string* engine_id =
       dict.FindString(extensions::manifest_keys::kId);
-  if (!engine_id)
+  if (!engine_id) {
     return false;
+  }
   out->engine_id = *engine_id;
 
   const std::string* display_name =
       dict.FindString(extensions::manifest_keys::kName);
-  if (!display_name)
+  if (!display_name) {
     return false;
+  }
   out->display_name = *display_name;
 
   const std::string* indicator =
@@ -280,8 +271,9 @@ bool ComponentExtensionIMEManagerDelegateImpl::ReadEngineComponent(
       languages.insert(language_value->GetString());
     } else if (language_value->is_list()) {
       for (const base::Value& elem : language_value->GetList()) {
-        if (elem.is_string())
+        if (elem.is_string()) {
           languages.insert(elem.GetString());
+        }
       }
     }
   }
@@ -295,25 +287,37 @@ bool ComponentExtensionIMEManagerDelegateImpl::ReadEngineComponent(
   // specify one and only one layout per input method to avoid confusion.
   const base::Value::List* layouts =
       dict.FindList(extensions::manifest_keys::kLayouts);
-  if (!layouts)
+  if (!layouts) {
     return false;
+  }
 
-  if (!layouts->empty() && layouts->front().is_string())
+  if (*engine_id == "ko-t-i0-und" &&
+      base::FeatureList::IsEnabled(
+          features::kImeKoreanOnlyModeSwitchOnRightAlt)) {
+    out->layout = "kr(cros)";
+  } else if (!layouts->empty() && layouts->front().is_string()) {
     out->layout = layouts->front().GetString();
-  else
+  } else {
     out->layout = "us";
+  }
 
   std::string url_string;
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  // Information is managed on VK extension side so just use a default value
-  // here.
-  std::string query_part = base::StrCat(
-      {"?", "jelly=", chromeos::features::IsJellyEnabled() ? "true" : "false"});
+  bool is_global_emoji_preferences_enabled = base::FeatureList::IsEnabled(
+      features::kVirtualKeyboardGlobalEmojiPreferences);
   GURL url = extensions::Extension::GetResourceURL(
       extensions::Extension::GetBaseURLFromExtensionId(component_extension.id),
-      "inputview.html" + query_part + "#id=default");
-  if (!url.is_valid())
+      "inputview.html");
+  url = net::AppendOrReplaceQueryParameter(url, "jelly", "true");
+  url = net::AppendOrReplaceQueryParameter(
+      url, "globalemojipreferences",
+      base::ToString(is_global_emoji_preferences_enabled));
+  // Information is managed on VK extension side so just use a default value
+  // here.
+  url = net::AppendOrReplaceRef(url, "id=default");
+  if (!url.is_valid()) {
     return false;
+  }
   out->input_view_url = url;
 #else
   const std::string* input_view =
@@ -324,26 +328,42 @@ bool ComponentExtensionIMEManagerDelegateImpl::ReadEngineComponent(
         extensions::Extension::GetBaseURLFromExtensionId(
             component_extension.id),
         url_string);
-    if (!url.is_valid())
+    if (!url.is_valid()) {
       return false;
+    }
     out->input_view_url = url;
   }
 #endif
 
   const std::string* option_page =
       dict.FindString(extensions::manifest_keys::kOptionsPage);
-  if (option_page) {
+
+  bool flag_allows_settings_page =
+      (*engine_id != "vkd_vi_vni" && *engine_id != "vkd_vi_telex") ||
+      base::FeatureList::IsEnabled(features::kFirstPartyVietnameseInput);
+
+  if (option_page && flag_allows_settings_page) {
     url_string = *option_page;
     GURL options_page_url = extensions::Extension::GetResourceURL(
         extensions::Extension::GetBaseURLFromExtensionId(
             component_extension.id),
         url_string);
-    if (!options_page_url.is_valid())
+    if (!options_page_url.is_valid()) {
       return false;
+    }
     out->options_page_url = options_page_url;
   } else {
     // Fallback to extension level options page.
     out->options_page_url = component_extension.options_page_url;
+  }
+
+  const std::string* handwriting_language =
+      dict.FindString(extensions::manifest_keys::kHandwritingLanguage);
+
+  if (handwriting_language != nullptr) {
+    out->handwriting_language = *handwriting_language;
+  } else {
+    out->handwriting_language = std::nullopt;
   }
 
   return true;
@@ -356,21 +376,24 @@ bool ComponentExtensionIMEManagerDelegateImpl::ReadExtensionInfo(
     ComponentExtensionIME* out) {
   const std::string* description =
       manifest.FindString(extensions::manifest_keys::kDescription);
-  if (!description)
+  if (!description) {
     return false;
+  }
   out->description = *description;
 
   const std::string* path = manifest.FindString(kImePathKeyName);
-  if (path)
+  if (path) {
     out->path = base::FilePath(*path);
+  }
   const std::string* url_string =
       manifest.FindString(extensions::manifest_keys::kOptionsPage);
   if (url_string) {
     GURL url = extensions::Extension::GetResourceURL(
         extensions::Extension::GetBaseURLFromExtensionId(extension_id),
         *url_string);
-    if (!url.is_valid())
+    if (!url.is_valid()) {
       return false;
+    }
     out->options_page_url = url;
   }
   // It's okay to return true on no option page and/or input view page case.
@@ -382,20 +405,32 @@ void ComponentExtensionIMEManagerDelegateImpl::ReadComponentExtensionsInfo(
     std::vector<ComponentExtensionIME>* out_imes) {
   DCHECK(out_imes);
   for (auto& extension : allowlisted_component_extensions) {
-    ComponentExtensionIME component_ime;
-    ui::ResourceBundle& rb = ui::ResourceBundle::GetSharedInstance();
-    const base::StringPiece& manifest_string =
-        rb.GetRawDataResource(extension.manifest_resource_id);
-    component_ime.manifest = std::string(manifest_string);
+    // TODO(crbug.com/384675323): Remove this check and update
+    // `allowlisted_component_extensions` when flag is removed.
+    if (extension.manifest_resource_id == IDR_BRAILLE_MANIFEST &&
+        ::features::IsAccessibilityManifestV3EnabledForBrailleIme()) {
+      extension.manifest_resource_id = IDR_BRAILLE_MANIFEST_MV3;
+    }
 
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+    if (extension.manifest_resource_id == IDR_GOOGLE_XKB_MANIFEST &&
+        base::FeatureList::IsEnabled(features::kImeManifestV3)) {
+      extension.manifest_resource_id = IDR_GOOGLE_XKB_MANIFEST_V3;
+    }
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
+
+    ComponentExtensionIME component_ime;
+    component_ime.manifest =
+        ui::ResourceBundle::GetSharedInstance().LoadDataResourceString(
+            extension.manifest_resource_id);
     if (component_ime.manifest.empty()) {
       LOG(ERROR) << "Couldn't get manifest from resource_id("
                  << extension.manifest_resource_id << ")";
       continue;
     }
 
-    absl::optional<base::Value::Dict> maybe_manifest =
-        ParseManifest(manifest_string);
+    std::optional<base::Value::Dict> maybe_manifest =
+        ParseManifest(component_ime.manifest);
     if (!maybe_manifest.has_value()) {
       LOG(ERROR) << "Failed to load invalid manifest: "
                  << component_ime.manifest;
@@ -412,8 +447,9 @@ void ComponentExtensionIMEManagerDelegateImpl::ReadComponentExtensionsInfo(
 
     if (!component_ime.path.IsAbsolute()) {
       base::FilePath resources_path;
-      if (!base::PathService::Get(chrome::DIR_RESOURCES, &resources_path))
+      if (!base::PathService::Get(chrome::DIR_RESOURCES, &resources_path)) {
         NOTREACHED();
+      }
       component_ime.path = resources_path.Append(component_ime.path);
     }
 
@@ -425,27 +461,23 @@ void ComponentExtensionIMEManagerDelegateImpl::ReadComponentExtensionsInfo(
     }
 
     for (const base::Value& value : *component_list) {
-      if (!value.is_dict())
+      if (!value.is_dict()) {
         continue;
+      }
 
       const base::Value::Dict& dictionary = value.GetDict();
       ComponentExtensionEngine engine;
       ReadEngineComponent(component_ime, dictionary, &engine);
 
-      if (base::StartsWith(engine.engine_id, "experimental_",
-                           base::CompareCase::SENSITIVE) &&
-          !base::FeatureList::IsEnabled(features::kMultilingualTyping)) {
-        continue;
-      }
-
       const char* kHindiInscriptEngineId = "vkd_hi_inscript";
-      DCHECK(g_browser_process);
-      DCHECK(g_browser_process->local_state());
       if (engine.engine_id == kHindiInscriptEngineId &&
-          !base::FeatureList::IsEnabled(features::kHindiInscriptLayout) &&
-          !g_browser_process->local_state()->GetBoolean(
-              prefs::kDeviceHindiInscriptLayoutEnabled)) {
-        continue;
+          !base::FeatureList::IsEnabled(features::kHindiInscriptLayout)) {
+        bool policy_value = false;
+        CrosSettings::Get()->GetBoolean(kDeviceHindiInscriptLayoutEnabled,
+                                        &policy_value);
+        if (!policy_value) {
+          continue;
+        }
       }
 
       component_ime.engines.push_back(engine);

@@ -18,12 +18,12 @@ namespace favicon {
 // e.g. Chrome.
 class FaviconClient {
  public:
-  FaviconClient() {}
+  FaviconClient() = default;
 
   FaviconClient(const FaviconClient&) = delete;
   FaviconClient& operator=(const FaviconClient&) = delete;
 
-  virtual ~FaviconClient() {}
+  virtual ~FaviconClient() = default;
 
   // Returns true if the specified URL is a native application page URL.
   // If this returns true the favicon for the page must be fetched using
@@ -39,9 +39,9 @@ class FaviconClient {
   virtual const GURL GetOriginalUrlFromReaderModeUrl(const GURL& url) = 0;
 
   // Requests the favicon for a native application page URL for the sizes
-  // specified by |desired_sizes_in_pixel|. Returns a TaskId to use to cancel
-  // the request using |tracker| or kBadTaskId if the request cannot be
-  // scheduled. |callback| will be called with the favicon results.
+  // specified by `desired_sizes_in_pixel`. Returns a TaskId to use to cancel
+  // the request using `tracker` or kBadTaskId if the request cannot be
+  // scheduled. `callback` will be called with the favicon results.
   virtual base::CancelableTaskTracker::TaskId GetFaviconForNativeApplicationURL(
       const GURL& url,
       const std::vector<int>& desired_sizes_in_pixel,

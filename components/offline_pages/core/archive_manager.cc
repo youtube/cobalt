@@ -70,9 +70,10 @@ void GetStorageStatsImpl(const base::FilePath& temporary_archives_dir,
       std::string extension =
           file_enumerator.GetInfo().GetName().FinalExtension();
 #endif
-      if (extension == "mhtml" || extension == "mht")
+      if (extension == "mhtml" || extension == "mht") {
         storage_stats.public_archives_size +=
             file_enumerator.GetInfo().GetSize();
+      }
     }
   }
   task_runner->PostTask(FROM_HERE,
@@ -82,7 +83,7 @@ void GetStorageStatsImpl(const base::FilePath& temporary_archives_dir,
 }  // namespace
 
 // protected and used for testing.
-ArchiveManager::ArchiveManager() {}
+ArchiveManager::ArchiveManager() = default;
 
 ArchiveManager::ArchiveManager(
     const base::FilePath& temporary_archives_dir,
@@ -94,7 +95,7 @@ ArchiveManager::ArchiveManager(
       public_archives_dir_(public_archives_dir),
       task_runner_(task_runner) {}
 
-ArchiveManager::~ArchiveManager() {}
+ArchiveManager::~ArchiveManager() = default;
 
 void ArchiveManager::EnsureArchivesDirCreated(
     base::OnceCallback<void()> callback) {

@@ -5,10 +5,10 @@
 #ifndef PDF_UI_DOCUMENT_PROPERTIES_H_
 #define PDF_UI_DOCUMENT_PROPERTIES_H_
 
+#include <optional>
 #include <string>
 
 #include "pdf/document_metadata.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace gfx {
 class Size;
@@ -23,8 +23,8 @@ namespace chrome_pdf {
 // ->  210 x 297 mm (portrait)
 // ->  11.00 x 8.50 in (landscape)
 //
-// Returns the string "Varies" if `size_points` is `absl::nullopt`.
-std::u16string FormatPageSize(const absl::optional<gfx::Size>& size_points);
+// Returns the string "Varies" if `size_points` is `std::nullopt`.
+std::u16string FormatPageSize(const std::optional<gfx::Size>& size_points);
 
 // Formats `version` to a string suitable for display to a user. Version numbers
 // do not require localization.

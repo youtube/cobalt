@@ -5,6 +5,8 @@
 #ifndef CONTENT_PUBLIC_BROWSER_CHILD_PROCESS_TERMINATION_INFO_H_
 #define CONTENT_PUBLIC_BROWSER_CHILD_PROCESS_TERMINATION_INFO_H_
 
+#include <optional>
+
 #include "base/process/kill.h"
 #include "build/build_config.h"
 #include "content/common/content_export.h"
@@ -55,6 +57,13 @@ struct CONTENT_EXPORT ChildProcessTerminationInfo {
 
   // True if the child shut itself down cleanly by quitting the main runloop.
   bool clean_exit = false;
+
+  // True if the process is a spare renderer when killed.
+  bool is_spare_renderer = false;
+
+  // True if there is any spare renderer process when the process is killed.
+  // Always true if the killed process itself is the spare renderer.
+  bool has_spare_renderer = false;
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -63,8 +72,8 @@ struct CONTENT_EXPORT ChildProcessTerminationInfo {
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
-  // The cumulative CPU usage of this process.
-  base::TimeDelta cpu_usage;
+  // The cumulative CPU usage of this process, if available.
+  std::optional<base::TimeDelta> cpu_usage;
 #endif
 };
 

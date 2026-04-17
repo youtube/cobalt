@@ -43,15 +43,15 @@ class HeartbeatAckChunk : public Chunk,
   HeartbeatAckChunk(HeartbeatAckChunk&& other) = default;
   HeartbeatAckChunk& operator=(HeartbeatAckChunk&& other) = default;
 
-  static absl::optional<HeartbeatAckChunk> Parse(
-      rtc::ArrayView<const uint8_t> data);
+  static std::optional<HeartbeatAckChunk> Parse(
+      webrtc::ArrayView<const uint8_t> data);
 
   void SerializeTo(std::vector<uint8_t>& out) const override;
   std::string ToString() const override;
 
   const Parameters& parameters() const { return parameters_; }
 
-  absl::optional<HeartbeatInfoParameter> info() const {
+  std::optional<HeartbeatInfoParameter> info() const {
     return parameters_.get<HeartbeatInfoParameter>();
   }
 

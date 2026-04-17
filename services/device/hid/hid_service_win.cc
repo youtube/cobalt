@@ -4,6 +4,8 @@
 
 #include "services/device/hid/hid_service_win.h"
 
+#include <string_view>
+
 #define INITGUID
 
 #include <dbt.h>
@@ -70,9 +72,9 @@ void UnpackBitField(uint16_t bit_field, mojom::HidReportItem* item) {
 
 // Looks up the value of a string device property specified by |property_key|
 // for the device described by |device_info_data|. On success, returns the
-// property value as a wstring. Returns absl::nullopt if the property is not
+// property value as a wstring. Returns std::nullopt if the property is not
 // present or has a different type.
-absl::optional<std::wstring> GetDeviceStringProperty(
+std::optional<std::wstring> GetDeviceStringProperty(
     HDEVINFO device_info_set,
     SP_DEVINFO_DATA& device_info_data,
     const DEVPROPKEY& property_key) {
@@ -84,20 +86,20 @@ absl::optional<std::wstring> GetDeviceStringProperty(
                                /*PropertyBufferSize=*/0, &required_size,
                                /*Flags=*/0)) {
     HID_LOG(DEBUG) << "SetupDiGetDeviceProperty unexpectedly succeeded.";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   DWORD last_error = GetLastError();
   if (last_error == ERROR_NOT_FOUND)
-    return absl::nullopt;
+    return std::nullopt;
 
   if (last_error != ERROR_INSUFFICIENT_BUFFER) {
     HID_PLOG(DEBUG) << "SetupDiGetDeviceProperty failed";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   if (property_type != DEVPROP_TYPE_STRING)
-    return absl::nullopt;
+    return std::nullopt;
 
   std::wstring property_buffer;
   if (!SetupDiGetDeviceProperty(
@@ -106,7 +108,7 @@ absl::optional<std::wstring> GetDeviceStringProperty(
               base::WriteInto(&property_buffer, required_size)),
           required_size, /*RequiredSize=*/nullptr, /*Flags=*/0)) {
     HID_PLOG(DEBUG) << "SetupDiGetDeviceProperty failed";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return property_buffer;
@@ -114,9 +116,9 @@ absl::optional<std::wstring> GetDeviceStringProperty(
 
 // Looks up the value of a GUID-type device property specified by |property| for
 // the device described by |device_info_data|. On success, returns the property
-// value as a string. Returns absl::nullopt if the property is not present or
+// value as a string. Returns std::nullopt if the property is not present or
 // has a different type.
-absl::optional<std::string> GetDeviceGuidProperty(
+std::optional<std::string> GetDeviceGuidProperty(
     HDEVINFO device_info_set,
     SP_DEVINFO_DATA& device_info_data,
     const DEVPROPKEY& property_key) {
@@ -127,11 +129,11 @@ absl::optional<std::string> GetDeviceGuidProperty(
           reinterpret_cast<PBYTE>(&property_buffer), sizeof(property_buffer),
           /*RequiredSize=*/nullptr, /*Flags=*/0)) {
     HID_PLOG(DEBUG) << "SetupDiGetDeviceProperty failed";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   if (property_type != DEVPROP_TYPE_GUID)
-    return absl::nullopt;
+    return std::nullopt;
 
   return base::SysWideToUTF8(base::win::WStringFromGUID(property_buffer));
 }
@@ -219,7 +221,7 @@ base::win::ScopedDevInfo GetDeviceInfoSetFromDevicePath(
 // Returns the instance ID of the parent of the device described by
 // |device_interface_data| in |device_info_set|. Returns nullopt if the parent
 // instance ID could not be retrieved.
-absl::optional<std::wstring> GetParentInstanceId(
+std::optional<std::wstring> GetParentInstanceId(
     HDEVINFO device_info_set,
     SP_DEVICE_INTERFACE_DATA& device_interface_data) {
   // Get device info for |device_interface_data|.
@@ -227,21 +229,21 @@ absl::optional<std::wstring> GetParentInstanceId(
   std::wstring device_path;
   if (!GetDeviceInfoAndPathFromInterface(device_info_set, device_interface_data,
                                          &device_info_data, &device_path)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // Get the parent instance ID.
   auto instance_id = GetDeviceStringProperty(device_info_set, device_info_data,
                                              DEVPKEY_Device_Parent);
   if (!instance_id)
-    return absl::nullopt;
+    return std::nullopt;
 
   // Canonicalize the instance ID.
   DCHECK(base::IsStringASCII(*instance_id));
   instance_id = base::ToLowerASCII(*instance_id);
   // Remove trailing NUL bytes.
   return std::wstring(base::TrimString(
-      *instance_id, base::WStringPiece(L"\0", 1), base::TRIM_TRAILING));
+      *instance_id, std::wstring_view(L"\0", 1), base::TRIM_TRAILING));
 }
 
 mojom::HidReportItemPtr CreateHidReportItem(
@@ -298,7 +300,7 @@ std::vector<mojom::HidReportDescriptionPtr> CreateReportDescriptions(
   auto report_items = preparsed_data.GetReportItems(report_type);
 
   // Sort items by |report_id| and |bit_index|.
-  base::ranges::sort(report_items, [](const auto& a, const auto& b) {
+  std::ranges::sort(report_items, [](const auto& a, const auto& b) {
     if (a.report_id < b.report_id)
       return true;
     if (a.report_id == b.report_id)
@@ -380,7 +382,7 @@ std::string GetHidProductString(HANDLE device_handle) {
   // HidD_GetProductString is guaranteed to write a NUL-terminated string into
   // |buffer|. The characters following the string were value-initialized by
   // base::WriteInto and are also NUL. Trim the trailing NUL characters.
-  buffer = std::wstring(base::TrimString(buffer, base::WStringPiece(L"\0", 1),
+  buffer = std::wstring(base::TrimString(buffer, std::wstring_view(L"\0", 1),
                                          base::TRIM_TRAILING));
   return base::SysWideToUTF8(buffer);
 }
@@ -398,7 +400,7 @@ std::string GetHidSerialNumberString(HANDLE device_handle) {
   // HidD_GetSerialNumberString is guaranteed to write a NUL-terminated string
   // into |buffer|. The characters following the string were value-initialized
   // by base::WriteInto and are also NUL. Trim the trailing NUL characters.
-  buffer = std::wstring(base::TrimString(buffer, base::WStringPiece(L"\0", 1),
+  buffer = std::wstring(base::TrimString(buffer, std::wstring_view(L"\0", 1),
                                          base::TRIM_TRAILING));
   return base::SysWideToUTF8(buffer);
 }
@@ -452,7 +454,6 @@ uint16_t HidServiceWin::PreparsedData::GetReportByteLength(
       break;
     default:
       NOTREACHED();
-      break;
   }
   // Whether or not the device includes report IDs in its reports the size
   // of the report ID is included in the value provided by Windows. This
@@ -610,7 +611,7 @@ void HidServiceWin::AddDeviceBlocking(
   auto device_info = base::MakeRefCounted<HidDeviceInfo>(
       device_path, physical_device_id, base::SysWideToUTF8(interface_id),
       vendor_id, product_id, product_string, serial_number,
-      // TODO(crbug.com/443335): Detect Bluetooth.
+      // TODO(crbug.com/40398791): Detect Bluetooth.
       mojom::HidBusType::kHIDBusTypeUSB, std::move(collection),
       max_input_report_size, max_output_report_size, max_feature_report_size);
 
@@ -669,13 +670,23 @@ void HidServiceWin::OnDeviceRemoved(const GUID& class_guid,
 // static
 base::win::ScopedHandle HidServiceWin::OpenDevice(
     const std::wstring& device_path) {
-  base::win::ScopedHandle file(
-      CreateFile(device_path.c_str(), GENERIC_WRITE | GENERIC_READ,
-                 FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING,
-                 FILE_FLAG_OVERLAPPED, nullptr));
-  if (!file.IsValid() && GetLastError() == ERROR_ACCESS_DENIED) {
-    file.Set(CreateFile(device_path.c_str(), GENERIC_READ, FILE_SHARE_READ,
-                        nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, nullptr));
+  constexpr DWORD kDesiredAccessModes[] = {
+      // Request read and write access.
+      GENERIC_WRITE | GENERIC_READ,
+      // Request read-only access.
+      GENERIC_READ,
+      // Don't request read or write access.
+      0,
+  };
+  base::win::ScopedHandle file;
+  for (const auto& desired_access : kDesiredAccessModes) {
+    file.Set(CreateFile(device_path.c_str(), desired_access,
+                        FILE_SHARE_READ | FILE_SHARE_WRITE,
+                        /*lpSecurityAttributes=*/nullptr, OPEN_EXISTING,
+                        FILE_FLAG_OVERLAPPED, /*hTemplateFile=*/nullptr));
+    if (file.IsValid() || GetLastError() != ERROR_ACCESS_DENIED) {
+      break;
+    }
   }
   return file;
 }

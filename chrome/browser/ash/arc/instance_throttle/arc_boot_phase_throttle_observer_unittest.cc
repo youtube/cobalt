@@ -6,15 +6,6 @@
 
 #include <memory>
 
-#include "ash/components/arc/arc_prefs.h"
-#include "ash/components/arc/session/arc_bridge_service.h"
-#include "ash/components/arc/session/arc_service_manager.h"
-#include "ash/components/arc/session/arc_session_runner.h"
-#include "ash/components/arc/test/arc_util_test_support.h"
-#include "ash/components/arc/test/connection_holder_util.h"
-#include "ash/components/arc/test/fake_app_host.h"
-#include "ash/components/arc/test/fake_app_instance.h"
-#include "ash/components/arc/test/fake_arc_session.h"
 #include "base/command_line.h"
 #include "base/run_loop.h"
 #include "base/time/time.h"
@@ -24,11 +15,21 @@
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/ash/components/dbus/concierge/concierge_client.h"
-#include "components/arc/test/fake_intent_helper_host.h"
-#include "components/arc/test/fake_intent_helper_instance.h"
+#include "chromeos/ash/experiences/arc/arc_prefs.h"
+#include "chromeos/ash/experiences/arc/session/arc_bridge_service.h"
+#include "chromeos/ash/experiences/arc/session/arc_service_manager.h"
+#include "chromeos/ash/experiences/arc/session/arc_session_runner.h"
+#include "chromeos/ash/experiences/arc/test/arc_util_test_support.h"
+#include "chromeos/ash/experiences/arc/test/connection_holder_util.h"
+#include "chromeos/ash/experiences/arc/test/fake_app_host.h"
+#include "chromeos/ash/experiences/arc/test/fake_app_instance.h"
+#include "chromeos/ash/experiences/arc/test/fake_arc_session.h"
+#include "chromeos/ash/experiences/arc/test/fake_intent_helper_host.h"
+#include "chromeos/ash/experiences/arc/test/fake_intent_helper_instance.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "components/user_manager/scoped_user_manager.h"
 #include "content/public/test/browser_task_environment.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace arc {
@@ -37,7 +38,7 @@ namespace {
 class ArcBootPhaseThrottleObserverTest : public testing::Test {
  public:
   ArcBootPhaseThrottleObserverTest()
-      : scoped_user_manager_(std::make_unique<ash::FakeChromeUserManager>()) {
+      : fake_user_manager_(std::make_unique<ash::FakeChromeUserManager>()) {
     ash::ConciergeClient::InitializeFake(/*fake_cicerone_client=*/nullptr);
     arc_session_manager_ =
         CreateTestArcSessionManager(std::make_unique<ArcSessionRunner>(
@@ -48,11 +49,9 @@ class ArcBootPhaseThrottleObserverTest : public testing::Test {
     SetArcAvailableCommandLineForTesting(
         base::CommandLine::ForCurrentProcess());
     const AccountId account_id(AccountId::FromUserEmailGaiaId(
-        testing_profile_->GetProfileUserName(), ""));
-    auto* user_manager = static_cast<ash::FakeChromeUserManager*>(
-        user_manager::UserManager::Get());
-    user_manager->AddUser(account_id);
-    user_manager->LoginUser(account_id);
+        testing_profile_->GetProfileUserName(), GaiaId()));
+    fake_user_manager_->AddUser(account_id);
+    fake_user_manager_->LoginUser(account_id);
 
     // By default, ARC is not started for opt-in.
     arc_session_manager()->set_skipped_terms_of_service_negotiation_for_testing(
@@ -123,7 +122,8 @@ class ArcBootPhaseThrottleObserverTest : public testing::Test {
  private:
   content::BrowserTaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
-  user_manager::ScopedUserManager scoped_user_manager_;
+  user_manager::TypedScopedUserManager<ash::FakeChromeUserManager>
+      fake_user_manager_;
   ArcServiceManager arc_service_manager_;
   std::unique_ptr<ArcSessionManager> arc_session_manager_;
   ArcBootPhaseThrottleObserver observer_;

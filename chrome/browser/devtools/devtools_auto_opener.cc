@@ -12,8 +12,7 @@ DevToolsAutoOpener::DevToolsAutoOpener()
   browser_tab_strip_tracker_.Init();
 }
 
-DevToolsAutoOpener::~DevToolsAutoOpener() {
-}
+DevToolsAutoOpener::~DevToolsAutoOpener() = default;
 
 void DevToolsAutoOpener::OnTabStripModelChanged(
     TabStripModel* tab_strip_model,
@@ -22,7 +21,10 @@ void DevToolsAutoOpener::OnTabStripModelChanged(
   if (change.type() != TabStripModelChange::kInserted)
     return;
 
-  for (const auto& contents : change.GetInsert()->contents)
-    if (!DevToolsWindow::IsDevToolsWindow(contents.contents))
-      DevToolsWindow::OpenDevToolsWindow(contents.contents);
+  for (const auto& contents : change.GetInsert()->contents) {
+    if (!DevToolsWindow::IsDevToolsWindow(contents.contents)) {
+      DevToolsWindow::OpenDevToolsWindow(
+          contents.contents, DevToolsOpenedByAction::kAutomaticForNewTarget);
+    }
+  }
 }

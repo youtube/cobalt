@@ -19,14 +19,15 @@ namespace net {
 
 TCPServerSocket::TCPServerSocket(NetLog* net_log, const NetLogSource& source)
     : TCPServerSocket(
-          std::make_unique<TCPSocket>(nullptr /* socket_performance_watcher */,
-                                      net_log,
-                                      source)) {}
+          TCPSocket::Create(nullptr /* socket_performance_watcher */,
+                            net_log,
+                            source)) {}
 
 TCPServerSocket::TCPServerSocket(std::unique_ptr<TCPSocket> socket)
     : socket_(std::move(socket)) {}
 
 int TCPServerSocket::AdoptSocket(SocketDescriptor socket) {
+  adopted_opened_socket_ = true;
   return socket_->AdoptUnconnectedSocket(socket);
 }
 
@@ -34,10 +35,14 @@ TCPServerSocket::~TCPServerSocket() = default;
 
 int TCPServerSocket::Listen(const IPEndPoint& address,
                             int backlog,
-                            absl::optional<bool> ipv6_only) {
-  int result = socket_->Open(address.GetFamily());
-  if (result != OK)
-    return result;
+                            std::optional<bool> ipv6_only) {
+  int result = OK;
+  if (!adopted_opened_socket_) {
+    result = socket_->Open(address.GetFamily());
+    if (result != OK) {
+      return result;
+    }
+  }
 
   if (ipv6_only.has_value()) {
     CHECK_EQ(address.address(), net::IPAddress::IPv6AllZeros());
@@ -86,7 +91,6 @@ int TCPServerSocket::Accept(std::unique_ptr<StreamSocket>* socket,
 
   if (pending_accept_) {
     NOTREACHED();
-    return ERR_UNEXPECTED;
   }
 
   // It is safe to use base::Unretained(this). |socket_| is owned by this class,

@@ -1,7 +1,6 @@
 load("@org_tensorflow//tensorflow:tensorflow.bzl", "pybind_extension")
 
 package(
-    default_applicable_licenses = ["//tensorflow_lite_support:license"],
     default_visibility = [
         "//visibility:public",
     ],
@@ -11,6 +10,10 @@ package(
 pybind_extension(
     name = "index_builder",
     srcs = ["index_builder_py_wrapper.cc"],
+    data = [
+        "index_builder.pyi",
+    ],
+    enable_stub_generation = True,
     module_name = "index_builder",
     deps = [
         "//tensorflow_lite_support/scann_ondevice/cc:index_builder",

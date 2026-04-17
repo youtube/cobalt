@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/memory/raw_ptr.h"
-#include "chrome/browser/ui/extensions/extension_action_test_helper.h"
-
 #include "base/check.h"
+#include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "chrome/browser/ui/extensions/extension_action_test_helper.h"
+#include "testing/gtest/include/gtest/gtest.h"
 #include "ui/aura/client/window_types.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_observer.h"
@@ -16,8 +16,9 @@ namespace {
 
 aura::Window* GetPopupAuraWindow(aura::Window* current) {
   DCHECK(current);
-  while (current && (current->GetType() != aura::client::WINDOW_TYPE_POPUP))
+  while (current && (current->GetType() != aura::client::WINDOW_TYPE_POPUP)) {
     current = current->parent();
+  }
   return current;
 }
 
@@ -30,8 +31,9 @@ class AuraWindowObserver : public aura::WindowObserver {
 
   // aura::WindowObserver:
   void OnWindowVisibilityChanged(aura::Window* window, bool visible) override {
-    if (popup_window_ == window && visible)
+    if (popup_window_ == window && visible) {
       run_loop_->QuitWhenIdle();
+    }
   }
 
  private:
@@ -41,26 +43,24 @@ class AuraWindowObserver : public aura::WindowObserver {
 
 }  // namespace
 
-bool ExtensionActionTestHelper::WaitForPopup() {
+void ExtensionActionTestHelper::WaitForPopup() {
   // The popup starts out active but invisible, so all we need to really do is
   // look for visibility.
   aura::Window* native_view = GetPopupNativeView();
-  if (!native_view)
-    return false;
+  ASSERT_TRUE(native_view);
 
   aura::Window* popup = GetPopupAuraWindow(native_view);
-  if (!popup)
-    return false;
+  ASSERT_TRUE(popup);
 
-  if (popup->IsVisible())
-    return true;
+  if (!popup->IsVisible()) {
+    base::RunLoop run_loop;
+    AuraWindowObserver observer(popup, &run_loop);
+    popup->AddObserver(&observer);
+    run_loop.Run();
+    DCHECK(wm::IsActiveWindow(popup));
+    popup->RemoveObserver(&observer);
+  }
 
-  base::RunLoop run_loop;
-  AuraWindowObserver observer(popup, &run_loop);
-  popup->AddObserver(&observer);
-  run_loop.Run();
-  DCHECK(wm::IsActiveWindow(popup));
-  popup->RemoveObserver(&observer);
-
-  return HasPopup();
+  ASSERT_TRUE(popup->IsVisible());
+  ASSERT_TRUE(HasPopup());
 }

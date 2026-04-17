@@ -1,36 +1,145 @@
 name: Set Up Depot Tools
-description: Sets up Depot Tools and initializes gclient. Requires source code to be cloned to src/ directory.
+description: Sets up Depot Tools and initializes gclient. Optionally performs checkout and uses git cache.
+
 inputs:
   run_sync:
-    description: "Whether or not to run gclient sync."
-    default: "true"
+    description: Whether or not to run gclient sync.
+    default: 'true'
+  rbe_instance:
+    description: The RBE instance to use.
+    default: projects/cobalt-actions-prod/instances/default_instance
+  use_cache:
+    description: Whether or not to use runner cache.
+    default: 'true'
+
 runs:
   using: "composite"
   steps:
-      - name: Get depot tools
-        run: git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
-        shell: bash
-      - name: Bootstrap bundled python3
-        run: |
-          # Must be run manually as $DEPOT_TOOLS_UPDATE is 0 in CI, skipping the bootstrap.
-          source depot_tools/bootstrap_python3 && bootstrap_python3
-        shell: bash
-      - name: Add depot tools to PATH
-        run: echo "$GITHUB_WORKSPACE/depot_tools" >> $GITHUB_PATH
-        shell: bash
-      - name: Generate gclient file
-        run: gclient config --name=src --custom-var=download_remoteexec_cfg=True --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' https://github.com/${{ github.repository }}
-        shell: bash
-      - name: Set target OS for Android
-        if: ${{ contains(matrix.platform, 'android') }}
-        run: |
+    - name: Set Cache Path
+      id: cache-path
+      shell: bash
+      env:
+        USE_CACHE: ${{ inputs.use_cache }}
+      run: |
+        if [[ "${USE_CACHE}" == "true" ]] && [[ -w "/runner-cache" ]]; then
+          echo "path=/runner-cache" >> ${GITHUB_OUTPUT}
+        else
+          echo "path=" >> ${GITHUB_OUTPUT}
+        fi
+
+    - name: Clone Depot Tools
+      uses: ./.github/actions/checkout
+      with:
+        repository: https://chromium.googlesource.com/chromium/tools/depot_tools.git
+        ref: main
+        fetch_depth: 0
+        path: depot_tools
+        use_cache: ${{ inputs.use_cache }}
+
+    - name: Add Depot Tools to PATH
+      run: echo "${GITHUB_WORKSPACE}/depot_tools" >> ${GITHUB_PATH}
+      shell: bash
+
+    - name: Set CIPD Cache Directory
+      if: steps.cache-path.outputs.path != ''
+      run: echo "CIPD_CACHE_DIR=${{ steps.cache-path.outputs.path }}/cipd-cache" >> ${GITHUB_ENV}
+      shell: bash
+
+    - name: Bootstrap Bundled python3
+      run: |
+        # Must be run manually as $DEPOT_TOOLS_UPDATE is 0 in CI, skipping the bootstrap.
+        source ${GITHUB_WORKSPACE}/depot_tools/bootstrap_python3 && bootstrap_python3
+      shell: bash
+
+    - name: Disable Chromium client side build telemetry
+      run: build_telemetry opt-out
+      shell: bash
+
+    - name: Run gclient config
+      env:
+        RBE_INSTANCE: ${{ inputs.rbe_instance }}
+        REPOSITORY: ${{ github.server_url }}/${{ github.repository }}
+        CACHE_PATH: ${{ steps.cache-path.outputs.path }}
+      run: |
+        set -x
+        cd cobalt
+
+        gclient config \
+          --name=src \
+          --custom-var="rbe_instance=\"${RBE_INSTANCE}\"" \
+          "${REPOSITORY}"
+      shell: bash
+
+    - name: Set target OS
+      shell: bash
+      run: |
+        cd cobalt
+        if [[ "${{ matrix.platform }}" == *"android"* ]]; then
           echo "target_os=['android']" >> .gclient
-          gclient validate
-        shell: bash
-      - name: gclient sync
-        if: inputs.run_sync == 'true'
-        run: gclient sync -v --shallow --no-history -r ${{ github.sha }}
-        shell: bash
-      - name: Disable Chromium client side build telemetry
-        run: build_telemetry opt-out
-        shell: bash
+        elif [[ "${{ matrix.platform }}" == *"tvos"* ]]; then
+          echo "target_os=['ios']" >> .gclient
+        fi
+        gclient validate
+
+    - name: Set target CPU
+      shell: bash
+      run: |
+        cd cobalt
+
+        if [[ "${{ matrix.platform }}" == *"evergreen-arm64"* ]]; then
+          echo "target_cpu=['x64', 'arm64']" >> .gclient
+        elif [[ "${{ matrix.platform }}" == *"raspi-2"* || "${{ matrix.platform }}" == *"evergreen-arm"* ]]; then
+          echo "target_cpu=['x64', 'arm']" >> .gclient
+        fi
+        gclient validate
+
+    - name: Add GoB Authentication
+      shell: bash
+      env:
+        METADATA_BASE_URL: 'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default'
+        METADATA_HEADER: 'Metadata-Flavor: Google'
+      run: |
+        if ! curl -s -m 2 -H "${METADATA_HEADER}" "${METADATA_BASE_URL}/email" > /dev/null; then
+          echo "Metadata server not reachable. Skipping GoB authentication setup."
+          exit 0
+        fi
+
+        SERVICE_ACCOUNT=$(curl -s -f -H "${METADATA_HEADER}" "${METADATA_BASE_URL}/email")
+        ACCESS_TOKEN=$(curl -s -f -H "${METADATA_HEADER}" "${METADATA_BASE_URL}/token" | jq -r .access_token)
+
+        if [[ -z "${SERVICE_ACCOUNT}" || -z "${ACCESS_TOKEN}" ]]; then
+          echo "::error::Failed to retrieve service account or access token from metadata server."
+          exit 1
+        fi
+
+        echo "::add-mask::${ACCESS_TOKEN}"
+        echo "Authenticating with ${SERVICE_ACCOUNT}"
+
+        GITCOOKIES_PATH="/tmp/gitcookies"
+        (umask 077 && printf ".googlesource.com\tTRUE\t/\tTRUE\t2147483647\to\tgit-%s=%s\ngooglesource.com\tTRUE\t/\tTRUE\t2147483647\to\tgit-%s=%s\n" \
+          "${SERVICE_ACCOUNT}" "${ACCESS_TOKEN}" "${SERVICE_ACCOUNT}" "${ACCESS_TOKEN}" > "${GITCOOKIES_PATH}")
+
+        git config --global http.cookiefile "${GITCOOKIES_PATH}"
+
+    - name: Run gclient sync
+      if: inputs.run_sync == 'true'
+      env:
+        REF: ${{ github.sha }}
+      run: |
+        cd cobalt
+        gclient sync \
+          --verbose \
+          --shallow \
+          --no-history \
+          --nohooks \
+          --force \
+          --delete_unversioned_trees \
+          --revision "${REF}"
+      shell: bash
+
+    - name: Run gclient runhooks
+      if: inputs.run_sync == 'true'
+      run: |
+        cd cobalt
+        gclient runhooks --verbose
+      shell: bash

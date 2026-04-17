@@ -5,10 +5,13 @@ FROM marketplace.gcr.io/google/debian12@${BASE_IMAGE_SHA}
 # Install any necessary dependencies
 RUN apt-get update && apt-get install -y \
     ffmpeg \
+    git \
     jq \
     libasound2 \
+    libatomic1 \
     libdbus-1-3 \
     libegl1 \
+    libegl1-mesa \
     libegl-mesa0 \
     libgbm-dev \
     libglapi-mesa \
@@ -17,7 +20,9 @@ RUN apt-get update && apt-get install -y \
     libnss3 \
     libxcomposite-dev \
     xvfb \
+    xz-utils \
+    zstd \
     && rm -rf /var/lib/apt/lists/*
 
 # This locale satisfies SbSystemGetLocaleIdTest.
-ENV LANG en_US.UTF-8
+ENV LANG=en_US.UTF-8

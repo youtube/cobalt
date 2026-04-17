@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/ozone/platform/drm/common/drm_wrapper.h"
 
 #include <fcntl.h>
@@ -17,7 +22,7 @@
 #include "base/trace_event/trace_event.h"
 #include "third_party/perfetto/include/perfetto/tracing/traced_value.h"
 #include "third_party/skia/include/core/SkImageInfo.h"
-#include "ui/display/types/gamma_ramp_rgb_entry.h"
+#include "ui/display/types/display_color_management.h"
 #include "ui/ozone/platform/drm/common/drm_util.h"
 
 namespace ui {
@@ -63,6 +68,18 @@ bool CanQueryForResources(int fd) {
   // If there is no error getting DRM resources then assume this is a
   // modesetting device.
   return !drmIoctl(fd, DRM_IOCTL_MODE_GETRESOURCES, &resources);
+}
+
+bool IsModeset(uint32_t flags) {
+  return flags & DRM_MODE_ATOMIC_ALLOW_MODESET;
+}
+
+bool IsBlocking(uint32_t flags) {
+  return !(flags & DRM_MODE_ATOMIC_NONBLOCK);
+}
+
+bool IsTestOnly(uint32_t flags) {
+  return flags & DRM_MODE_ATOMIC_TEST_ONLY;
 }
 
 }  // namespace
@@ -188,13 +205,21 @@ bool DrmWrapper::SetCursor(uint32_t crtc_id,
 bool DrmWrapper::SetMaster() {
   TRACE_EVENT1("drm", "DrmWrapper::SetMaster", "path", device_path_.value());
   DCHECK(drm_fd_.is_valid());
-  return (drmSetMaster(drm_fd_.get()) == 0);
+  has_master_ = (drmSetMaster(drm_fd_.get()) == 0);
+  return has_master_;
 }
 
 bool DrmWrapper::DropMaster() {
   TRACE_EVENT1("drm", "DrmWrapper::DropMaster", "path", device_path_.value());
   DCHECK(drm_fd_.is_valid());
-  return (drmDropMaster(drm_fd_.get()) == 0);
+  const bool drop_master_result = (drmDropMaster(drm_fd_.get()) == 0);
+  // Chrome no longer has DRM master if drop master call succeeded.
+  has_master_ = !drop_master_result;
+  return drop_master_result;
+}
+
+bool DrmWrapper::has_master() const {
+  return has_master_;
 }
 
 /**************
@@ -293,13 +318,12 @@ bool DrmWrapper::AddFramebuffer2(uint32_t width,
  * Gamma
  *******/
 
-bool DrmWrapper::SetGammaRamp(
-    uint32_t crtc_id,
-    const std::vector<display::GammaRampRGBEntry>& lut) {
+bool DrmWrapper::SetGammaRamp(uint32_t crtc_id,
+                              const display::GammaCurve& curve) {
   ScopedDrmCrtcPtr crtc = GetCrtc(crtc_id);
   size_t gamma_size = static_cast<size_t>(crtc->gamma_size);
 
-  if (gamma_size == 0 && lut.empty()) {
+  if (gamma_size == 0 && curve.IsDefaultIdentity()) {
     return true;
   }
 
@@ -308,33 +332,12 @@ bool DrmWrapper::SetGammaRamp(
     return false;
   }
 
-  // TODO(robert.bradford) resample the incoming ramp to match what the kernel
-  // expects.
-  if (!lut.empty() && gamma_size != lut.size()) {
-    LOG(ERROR) << "Gamma table size mismatch: supplied " << lut.size()
-               << " expected " << gamma_size;
-    return false;
-  }
-
   std::vector<uint16_t> r, g, b;
-  r.reserve(gamma_size);
-  g.reserve(gamma_size);
-  b.reserve(gamma_size);
-
-  if (lut.empty()) {
-    // Create a linear gamma ramp table to deactivate the feature.
-    for (size_t i = 0; i < gamma_size; ++i) {
-      uint16_t value = (i * ((1 << 16) - 1)) / (gamma_size - 1);
-      r.push_back(value);
-      g.push_back(value);
-      b.push_back(value);
-    }
-  } else {
-    for (size_t i = 0; i < gamma_size; ++i) {
-      r.push_back(lut[i].r);
-      g.push_back(lut[i].g);
-      b.push_back(lut[i].b);
-    }
+  r.resize(gamma_size);
+  g.resize(gamma_size);
+  b.resize(gamma_size);
+  for (size_t i = 0; i < gamma_size; ++i) {
+    curve.Evaluate(i / (gamma_size - 1.f), r[i], g[i], b[i]);
   }
 
   DCHECK(drm_fd_.is_valid());
@@ -496,12 +499,12 @@ void DrmWrapper::WriteIntoTrace(perfetto::TracedDictionary dict) const {
   dict.Add("device_path", device_path_.value());
 }
 
-absl::optional<std::string> DrmWrapper::GetDriverName() const {
+std::optional<std::string> DrmWrapper::GetDriverName() const {
   DCHECK(drm_fd_.is_valid());
   ScopedDrmVersionPtr version(drmGetVersion(drm_fd_.get()));
   if (!version) {
     LOG(ERROR) << "Failed to query DRM version";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return std::string(version->name, version->name_len);
@@ -522,6 +525,9 @@ bool DrmWrapper::CommitProperties(drmModeAtomicReq* properties,
                                   uint32_t flags,
                                   uint64_t page_flip_id) {
   DCHECK(drm_fd_.is_valid());
+  TRACE_EVENT("drm", "DrmWrapper::CommitProperties", "test", IsTestOnly(flags),
+              "modeset", IsModeset(flags), "blocking", IsBlocking(flags),
+              "flags", flags, "page_flip_id", page_flip_id);
   int result = drmModeAtomicCommit(drm_fd_.get(), properties, flags,
                                    reinterpret_cast<void*>(page_flip_id));
 
@@ -539,6 +545,10 @@ bool DrmWrapper::CommitProperties(drmModeAtomicReq* properties,
     // crashing. We still do want the underlying driver bugs fixed, but this
     // provide a better user experience.
     flags &= ~DRM_MODE_ATOMIC_NONBLOCK;
+    TRACE_EVENT("drm", "DrmWrapper::CommitProperties(retry)", "test",
+                IsTestOnly(flags), "modeset", IsModeset(flags), "blocking",
+                IsBlocking(flags), "flags", flags, "page_flip_id",
+                page_flip_id);
     result = drmModeAtomicCommit(drm_fd_.get(), properties, flags,
                                  reinterpret_cast<void*>(page_flip_id));
   }

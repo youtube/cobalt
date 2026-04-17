@@ -43,7 +43,7 @@ void QueryFramebufferAttachmentParameteriv(const Context *context,
 void QueryBufferParameteriv(const Buffer *buffer, GLenum pname, GLint *params);
 void QueryBufferParameteri64v(const Buffer *buffer, GLenum pname, GLint64 *params);
 void QueryBufferPointerv(const Buffer *buffer, GLenum pname, void **params);
-void QueryProgramiv(Context *context, const Program *program, GLenum pname, GLint *params);
+void QueryProgramiv(Context *context, Program *program, GLenum pname, GLint *params);
 void QueryRenderbufferiv(const Context *context,
                          const Renderbuffer *renderbuffer,
                          GLenum pname,
@@ -117,9 +117,26 @@ void QueryActiveUniformBlockiv(const Program *program,
                                GLenum pname,
                                GLint *params);
 
-void QueryInternalFormativ(const TextureCaps &format, GLenum pname, GLsizei bufSize, GLint *params);
+void QueryInternalFormativ(const Context *context,
+                           const Texture *texture,
+                           GLenum internalformat,
+                           const TextureCaps &format,
+                           GLenum pname,
+                           GLsizei bufSize,
+                           GLint *params);
 
 void QueryFramebufferParameteriv(const Framebuffer *framebuffer, GLenum pname, GLint *params);
+
+void QueryFramebufferPixelLocalStorageParameterfv(Context *context,
+                                                  GLint plane,
+                                                  GLenum pname,
+                                                  GLsizei *length,
+                                                  GLfloat *params);
+void QueryFramebufferPixelLocalStorageParameteriv(Context *context,
+                                                  GLint plane,
+                                                  GLenum pname,
+                                                  GLsizei *length,
+                                                  GLint *params);
 
 angle::Result QuerySynciv(const Context *context,
                           const Sync *sync,
@@ -152,7 +169,7 @@ void SetFramebufferParameteri(const Context *context,
                               GLenum pname,
                               GLint param);
 
-void SetProgramParameteri(Program *program, GLenum pname, GLint value);
+void SetProgramParameteri(const Context *context, Program *program, GLenum pname, GLint value);
 
 GLint GetUniformResourceProperty(const Program *program, GLuint index, const GLenum prop);
 
@@ -258,6 +275,11 @@ bool GetQueryParameterInfo(const State &glState,
                            GLenum *type,
                            unsigned int *numParams);
 
+bool GetIndexedQueryParameterInfo(const State &glState,
+                                  GLenum target,
+                                  GLenum *type,
+                                  unsigned int *numParams);
+
 void QueryProgramPipelineiv(const Context *context,
                             ProgramPipeline *programPipeline,
                             GLenum pname,
@@ -284,7 +306,7 @@ egl::Error SetSurfaceAttrib(Surface *surface, EGLint attribute, EGLint value);
 Error GetSyncAttrib(Display *display, SyncID sync, EGLint attribute, EGLint *value);
 egl::Error QuerySurfaceAttrib64KHR(const Display *display,
                                    const gl::Context *context,
-                                   const Surface *surface,
+                                   Surface *surface,
                                    EGLint attribute,
                                    EGLAttribKHR *value);
 

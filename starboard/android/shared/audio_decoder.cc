@@ -16,8 +16,6 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
@@ -71,18 +69,40 @@ void* IncrementPointerByBytes(void* pointer, int offset) {
 
 }  // namespace
 
+// static
+NonNullResult<std::unique_ptr<MediaCodecAudioDecoder>>
+MediaCodecAudioDecoder::Create(JobQueue* job_queue,
+                               const AudioStreamInfo& audio_stream_info,
+                               SbDrmSystem drm_system,
+                               bool enable_flush_during_seek) {
+  std::string error_message;
+  auto audio_decoder = std::make_unique<MediaCodecAudioDecoder>(
+      PassKey<MediaCodecAudioDecoder>(), job_queue, audio_stream_info,
+      drm_system, enable_flush_during_seek, &error_message);
+  if (audio_decoder->media_decoder_) {
+    return audio_decoder;
+  }
+  return Failure(error_message);
+}
+
 MediaCodecAudioDecoder::MediaCodecAudioDecoder(
+    PassKey<MediaCodecAudioDecoder>,
+    JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info,
     SbDrmSystem drm_system,
-    bool enable_flush_during_seek)
-    : audio_stream_info_(audio_stream_info),
+    bool enable_flush_during_seek,
+    std::string* error_message)
+    : JobOwner(job_queue),
+      audio_stream_info_(audio_stream_info),
       sample_type_(GetSupportedSampleType()),
       enable_flush_during_seek_(enable_flush_during_seek),
       output_sample_rate_(audio_stream_info.samples_per_second),
       output_channel_count_(audio_stream_info.number_of_channels),
       drm_system_(static_cast<DrmSystem*>(drm_system)) {
-  if (!InitializeCodec()) {
-    SB_LOG(ERROR) << "Failed to initialize audio decoder.";
+  SB_CHECK(error_message);
+  auto result = InitializeCodec();
+  if (!result) {
+    *error_message = result.error();
   }
 }
 
@@ -90,7 +110,7 @@ MediaCodecAudioDecoder::~MediaCodecAudioDecoder() {}
 
 void MediaCodecAudioDecoder::Initialize(const OutputCB& output_cb,
                                         const ErrorCB& error_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb);
   SB_DCHECK(!output_cb_);
   SB_DCHECK(error_cb);
@@ -107,7 +127,7 @@ void MediaCodecAudioDecoder::Initialize(const OutputCB& output_cb,
 
 void MediaCodecAudioDecoder::Decode(const InputBuffers& input_buffers,
                                     const ConsumedCB& consumed_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK(output_cb_);
   SB_DCHECK(media_decoder_);
@@ -135,7 +155,7 @@ void MediaCodecAudioDecoder::Decode(const InputBuffers& input_buffers,
 }
 
 void MediaCodecAudioDecoder::WriteEndOfStream() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
   SB_DCHECK(media_decoder_);
 
@@ -146,7 +166,7 @@ void MediaCodecAudioDecoder::WriteEndOfStream() {
 
 scoped_refptr<DecodedAudio> MediaCodecAudioDecoder::Read(
     int* samples_per_second) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
   scoped_refptr<DecodedAudio> result;
@@ -169,7 +189,7 @@ scoped_refptr<DecodedAudio> MediaCodecAudioDecoder::Read(
 }
 
 void MediaCodecAudioDecoder::Reset() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
   // If fail to flush |media_decoder_| or |media_decoder_| is null, then
@@ -178,9 +198,11 @@ void MediaCodecAudioDecoder::Reset() {
       !media_decoder_->Flush()) {
     media_decoder_.reset();
 
-    if (!InitializeCodec()) {
-      // TODO: Communicate this failure to our clients somehow.
-      SB_LOG(ERROR) << "Failed to initialize codec after reset.";
+    auto result = InitializeCodec();
+    if (!result) {
+      ReportError(
+          kSbPlayerErrorDecode,
+          "Failed to initialize audio decoder after reset: " + result.error());
     }
   }
   audio_frame_discarder_.Reset();
@@ -194,19 +216,20 @@ void MediaCodecAudioDecoder::Reset() {
   CancelPendingJobs();
 }
 
-bool MediaCodecAudioDecoder::InitializeCodec() {
+Result<void> MediaCodecAudioDecoder::InitializeCodec() {
   SB_DCHECK(!media_decoder_);
-  media_decoder_ = std::make_unique<MediaCodecDecoder>(this, audio_stream_info_,
-                                                       drm_system_);
-  if (media_decoder_->is_valid()) {
+  auto result = MediaCodecDecoder::CreateForAudio(
+      job_queue(), this, audio_stream_info_, drm_system_);
+  if (result) {
+    media_decoder_ = std::move(result.value());
     if (error_cb_) {
       media_decoder_->Initialize(
           std::bind(&MediaCodecAudioDecoder::ReportError, this, _1, _2));
     }
-    return true;
+    return Success();
   }
-  media_decoder_.reset();
-  return false;
+  SB_LOG(ERROR) << "Failed to initialize audio decoder: " << result.error();
+  return Failure(result.error());
 }
 
 void MediaCodecAudioDecoder::ProcessOutputBuffer(
@@ -276,14 +299,14 @@ void MediaCodecAudioDecoder::ProcessOutputBuffer(
 
 void MediaCodecAudioDecoder::RefreshOutputFormat(
     MediaCodecBridge* media_codec_bridge) {
-  AudioOutputFormatResult output_format =
+  std::optional<AudioOutputFormatResult> output_format =
       media_codec_bridge->GetAudioOutputFormat();
-  if (output_format.status == MEDIA_CODEC_ERROR) {
+  if (!output_format) {
     SB_LOG(ERROR) << "|getOutputFormat| failed";
     return;
   }
-  output_sample_rate_ = output_format.sample_rate;
-  output_channel_count_ = output_format.channel_count;
+  output_sample_rate_ = output_format->sample_rate;
+  output_channel_count_ = output_format->channel_count;
 }
 
 void MediaCodecAudioDecoder::ReportError(SbPlayerError error,

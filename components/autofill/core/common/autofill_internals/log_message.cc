@@ -28,7 +28,6 @@ const char* LogMessageToString(LogMessage message) {
 #undef AUTOFILL_TEMPLATE
 
   NOTREACHED();
-  return "";
 }
 
 const char* LogMessageValue(LogMessage message) {
@@ -49,7 +48,6 @@ const char* LogMessageValue(LogMessage message) {
 #undef AUTOFILL_TEMPLATE
 
   NOTREACHED();
-  return "";
 }
 
 LogBuffer& operator<<(LogBuffer& buf, LogMessage message) {

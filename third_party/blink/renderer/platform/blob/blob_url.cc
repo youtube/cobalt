@@ -32,6 +32,7 @@
 
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/uuid.h"
 
@@ -49,13 +50,14 @@ String BlobURL::GetOrigin(const KURL& url) {
 
   unsigned start_index = url.PathStart();
   unsigned end_index = url.PathAfterLastSlash();
-  return url.GetString().Substring(start_index, end_index - start_index - 1);
+  return url.GetString().GetString().Substring(start_index,
+                                               end_index - start_index - 1);
 }
 
 KURL BlobURL::CreateBlobURL(const String& origin_string) {
   DCHECK(!origin_string.empty());
-  String url_string =
-      "blob:" + origin_string + '/' + WTF::CreateCanonicalUUIDString();
+  String url_string = WTF::StrCat(
+      {"blob:", origin_string, "/", WTF::CreateCanonicalUUIDString()});
   return KURL(url_string);
 }
 

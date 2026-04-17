@@ -6,11 +6,10 @@
 
 #include "base/functional/bind.h"
 #include "build/build_config.h"
-#include "chrome/browser/enterprise/connectors/device_trust/device_trust_features.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/connectors_internals/connectors_internals.mojom.h"
 #include "chrome/browser/ui/webui/connectors_internals/connectors_internals_page_handler.h"
-#include "chrome/browser/ui/webui/webui_util.h"
+#include "chrome/browser/ui/webui/connectors_internals/device_trust_utils.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/grit/browser_resources.h"
 #include "chrome/grit/connectors_internals_resources.h"
@@ -18,6 +17,7 @@
 #include "content/public/browser/web_ui_data_source.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
+#include "ui/webui/webui_util.h"
 
 namespace enterprise_connectors {
 
@@ -28,14 +28,11 @@ ConnectorsInternalsUI::ConnectorsInternalsUI(content::WebUI* web_ui)
       profile, chrome::kChromeUIConnectorsInternalsHost);
 
   source->AddBoolean("isOtr", profile->IsOffTheRecord());
-  source->AddBoolean("deviceTrustConnectorEnabled",
-                     IsDeviceTrustConnectorFeatureEnabled());
+  source->AddBoolean("canDeleteDeviceTrustKey",
+                     utils::CanDeleteDeviceTrustKey());
 
-  webui::SetupWebUIDataSource(
-      source,
-      base::make_span(kConnectorsInternalsResources,
-                      kConnectorsInternalsResourcesSize),
-      IDR_CONNECTORS_INTERNALS_INDEX_HTML);
+  webui::SetupWebUIDataSource(source, kConnectorsInternalsResources,
+                              IDR_CONNECTORS_INTERNALS_INDEX_HTML);
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::RequireTrustedTypesFor,
       "require-trusted-types-for 'script';");

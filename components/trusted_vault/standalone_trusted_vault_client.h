@@ -17,8 +17,8 @@
 #include "base/sequence_checker.h"
 #include "base/task/sequenced_task_runner.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
-#include "components/sync/driver/trusted_vault_client.h"
 #include "components/trusted_vault/trusted_vault_access_token_fetcher_frontend.h"
+#include "components/trusted_vault/trusted_vault_client.h"
 
 struct CoreAccountInfo;
 
@@ -28,6 +28,7 @@ class SharedURLLoaderFactory;
 
 namespace trusted_vault {
 
+enum class SecurityDomainId;
 class StandaloneTrustedVaultBackend;
 
 // Standalone, file-based implementation of TrustedVaultClient that stores the
@@ -35,13 +36,17 @@ class StandaloneTrustedVaultBackend;
 // platform-dependent crypto mechanisms (OSCrypt).
 //
 // Reading of the file is done lazily.
-class StandaloneTrustedVaultClient : public syncer::TrustedVaultClient {
+class StandaloneTrustedVaultClient : public TrustedVaultClient {
  public:
-  // |identity_manager| must not be null and must outlive this object.
+  // |base_dir| is the directory in which to create snapshot
+  // files. |identity_manager| must not be null and must outlive this object.
   // |url_loader_factory| must not be null.
   StandaloneTrustedVaultClient(
-      const base::FilePath& file_path,
-      const base::FilePath& deprecated_file_path,
+#if BUILDFLAG(IS_MAC)
+      const std::string& icloud_keychain_access_group_prefix,
+#endif
+      SecurityDomainId security_domain,
+      const base::FilePath& base_dir,
       signin::IdentityManager* identity_manager,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory);
 
@@ -58,14 +63,14 @@ class StandaloneTrustedVaultClient : public syncer::TrustedVaultClient {
       const CoreAccountInfo& account_info,
       base::OnceCallback<void(const std::vector<std::vector<uint8_t>>&)> cb)
       override;
-  void StoreKeys(const std::string& gaia_id,
+  void StoreKeys(const GaiaId& gaia_id,
                  const std::vector<std::vector<uint8_t>>& keys,
                  int last_key_version) override;
   void MarkLocalKeysAsStale(const CoreAccountInfo& account_info,
                             base::OnceCallback<void(bool)> cb) override;
   void GetIsRecoverabilityDegraded(const CoreAccountInfo& account_info,
                                    base::OnceCallback<void(bool)> cb) override;
-  void AddTrustedRecoveryMethod(const std::string& gaia_id,
+  void AddTrustedRecoveryMethod(const GaiaId& gaia_id,
                                 const std::vector<uint8_t>& public_key,
                                 int method_type_hint,
                                 base::OnceClosure cb) override;
@@ -74,12 +79,18 @@ class StandaloneTrustedVaultClient : public syncer::TrustedVaultClient {
   // Runs |cb| when all requests have completed.
   void WaitForFlushForTesting(base::OnceClosure cb) const;
   void FetchBackendPrimaryAccountForTesting(
-      base::OnceCallback<void(const absl::optional<CoreAccountInfo>&)> callback)
+      base::OnceCallback<void(const std::optional<CoreAccountInfo>&)> callback)
       const;
-  // TODO(crbug.com/1201659): This this API and rely exclusively on
+  void FetchIsDeviceRegisteredForTesting(
+      const GaiaId& gaia_id,
+      base::OnceCallback<void(bool)> callback);
+  // TODO(crbug.com/40178774): This this API and rely exclusively on
   // FakeSecurityDomainsServer.
   void GetLastAddedRecoveryMethodPublicKeyForTesting(
       base::OnceCallback<void(const std::vector<uint8_t>&)> callback);
+  void GetLastKeyVersionForTesting(
+      const GaiaId& gaia_id,
+      base::OnceCallback<void(int last_key_version)> callback);
 
  private:
   void NotifyTrustedVaultKeysChanged();

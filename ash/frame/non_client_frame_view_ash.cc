@@ -4,24 +4,21 @@
 
 #include "ash/frame/non_client_frame_view_ash.h"
 
-#include <algorithm>
 #include <memory>
-#include <vector>
 
 #include "ash/public/cpp/tablet_mode_observer.h"
 #include "ash/public/cpp/window_properties.h"
 #include "ash/shell.h"
-#include "ash/wm/overview/overview_controller.h"
-#include "ash/wm/splitview/split_view_controller.h"
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
 #include "ash/wm/window_state.h"
 #include "ash/wm/window_state_observer.h"
 #include "ash/wm/window_util.h"
+#include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "chromeos/ui/base/window_properties.h"
 #include "chromeos/ui/frame/caption_buttons/frame_caption_button_container_view.h"
-#include "chromeos/ui/frame/default_frame_header.h"
 #include "chromeos/ui/frame/frame_utils.h"
 #include "chromeos/ui/frame/header_view.h"
 #include "chromeos/ui/frame/immersive/immersive_fullscreen_controller.h"
@@ -30,9 +27,10 @@
 #include "ui/aura/window.h"
 #include "ui/aura/window_observer.h"
 #include "ui/base/hit_test.h"
-#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/chromeos/styles/cros_tokens_color_mappings.h"
+#include "ui/display/display_observer.h"
+#include "ui/display/tablet_state.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/size.h"
@@ -63,7 +61,7 @@ DEFINE_UI_CLASS_PROPERTY_KEY(NonClientFrameViewAsh*,
 // instantiated for windows that have no WindowStateDelegate provided.
 class NonClientFrameViewAshImmersiveHelper : public WindowStateObserver,
                                              public aura::WindowObserver,
-                                             public TabletModeObserver {
+                                             public display::DisplayObserver {
  public:
   NonClientFrameViewAshImmersiveHelper(views::Widget* widget,
                                        NonClientFrameViewAsh* custom_frame_view)
@@ -71,8 +69,6 @@ class NonClientFrameViewAshImmersiveHelper : public WindowStateObserver,
         window_state_(WindowState::Get(widget->GetNativeWindow())) {
     window_state_->window()->AddObserver(this);
     window_state_->AddObserver(this);
-
-    Shell::Get()->tablet_mode_controller()->AddObserver(this);
 
     immersive_fullscreen_controller_ =
         std::make_unique<ImmersiveFullscreenController>();
@@ -85,31 +81,33 @@ class NonClientFrameViewAshImmersiveHelper : public WindowStateObserver,
       const NonClientFrameViewAshImmersiveHelper&) = delete;
 
   ~NonClientFrameViewAshImmersiveHelper() override {
-    if (Shell::Get()->tablet_mode_controller())
-      Shell::Get()->tablet_mode_controller()->RemoveObserver(this);
-
     if (window_state_) {
       window_state_->RemoveObserver(this);
       window_state_->window()->RemoveObserver(this);
     }
   }
 
-  // TabletModeObserver:
-  void OnTabletModeStarted() override {
-    if (window_state_->IsFullscreen())
+  // display::DisplayObserver:
+  void OnDisplayTabletStateChanged(display::TabletState state) override {
+    if (!window_state_ || window_state_->IsFullscreen()) {
       return;
-    if (Shell::Get()->tablet_mode_controller()->ShouldAutoHideTitlebars(
-            widget_) &&
-        !window_state_->IsFloated()) {
-      ImmersiveFullscreenController::EnableForWidget(widget_, true);
     }
-  }
 
-  void OnTabletModeEnded() override {
-    if (window_state_->IsFullscreen())
-      return;
-
-    ImmersiveFullscreenController::EnableForWidget(widget_, false);
+    switch (state) {
+      case display::TabletState::kEnteringTabletMode:
+      case display::TabletState::kExitingTabletMode:
+        break;
+      case display::TabletState::kInTabletMode:
+        if (Shell::Get()->tablet_mode_controller()->ShouldAutoHideTitlebars(
+                widget_) &&
+            !window_state_->IsFloated()) {
+          ImmersiveFullscreenController::EnableForWidget(widget_, true);
+        }
+        break;
+      case display::TabletState::kInClamshellMode:
+        ImmersiveFullscreenController::EnableForWidget(widget_, false);
+        break;
+    }
   }
 
  private:
@@ -145,10 +143,11 @@ class NonClientFrameViewAshImmersiveHelper : public WindowStateObserver,
     }
   }
 
-  raw_ptr<views::Widget, ExperimentalAsh> widget_;
-  raw_ptr<WindowState, ExperimentalAsh> window_state_;
+  raw_ptr<views::Widget> widget_;
+  raw_ptr<WindowState> window_state_;
   std::unique_ptr<ImmersiveFullscreenController>
       immersive_fullscreen_controller_;
+  display::ScopedDisplayObserver display_observer_{this};
 };
 
 NonClientFrameViewAsh::NonClientFrameViewAsh(views::Widget* frame)
@@ -174,12 +173,15 @@ NonClientFrameViewAsh::NonClientFrameViewAsh(views::Widget* frame)
   }
 
   frame_window->SetProperty(kNonClientFrameViewAshKey, this);
+  window_observation_.Observe(frame_window);
 
   header_view_->set_context_menu_controller(
       frame_context_menu_controller_.get());
 }
 
-NonClientFrameViewAsh::~NonClientFrameViewAsh() = default;
+NonClientFrameViewAsh::~NonClientFrameViewAsh() {
+  header_view_->set_context_menu_controller(nullptr);
+}
 
 // static
 NonClientFrameViewAsh* NonClientFrameViewAsh::Get(aura::Window* window) {
@@ -188,7 +190,8 @@ NonClientFrameViewAsh* NonClientFrameViewAsh::Get(aura::Window* window) {
 
 void NonClientFrameViewAsh::InitImmersiveFullscreenControllerForView(
     ImmersiveFullscreenController* immersive_fullscreen_controller) {
-  immersive_fullscreen_controller->Init(header_view_, frame_, header_view_);
+  immersive_fullscreen_controller->Init(GetHeaderView(), frame_,
+                                        GetHeaderView());
 }
 
 void NonClientFrameViewAsh::SetFrameColors(SkColor active_frame_color,
@@ -220,7 +223,7 @@ bool NonClientFrameViewAsh::ShouldShowContextMenu(
     // will return HTCLIENT so manually check whether `point` lies inside
     // `header_view_`.
     gfx::Point point_in_header_coords(screen_coords_point);
-    views::View::ConvertPointToTarget(this, header_view_,
+    views::View::ConvertPointToTarget(this, GetHeaderView(),
                                       &point_in_header_coords);
     return header_view_->HitTestRect(
         gfx::Rect(point_in_header_coords, gfx::Size(1, 1)));
@@ -258,6 +261,39 @@ void NonClientFrameViewAsh::SetFrameEnabled(bool enabled) {
 
   frame_enabled_ = enabled;
   overlay_view_->SetVisible(frame_enabled_);
+  UpdateWindowRoundedCorners();
+  InvalidateLayout();
+}
+
+void NonClientFrameViewAsh::SetFrameOverlapped(bool overlapped) {
+  if (overlapped == frame_overlapped_) {
+    return;
+  }
+
+  bool fills_bounds_opaquely = true;
+  if (overlapped) {
+    // When frame is overlapped with the window area, we need to draw header
+    // view in front of client content.
+    // TODO(b/282627319): remove the layer at the right condition.
+    header_view_->SetPaintToLayer();
+    header_view_->layer()->parent()->StackAtTop(header_view_->layer());
+
+    // Overlapped frames are now painted onto a dedicated header view layer
+    // instead of the non-opaque layer that hosts the widget.
+    // For windows that have rounded corners, the upper corners of the header
+    // are rounded while the compositor still thinks that the layer fills the
+    // whole rect, including the two upper corners.
+    // Therefore, the header view layer also needs to be non-opaque to prevent
+    // visual artifacts from appearing around the upper corners.
+    if (chromeos::ShouldWindowHaveRoundedCorners(frame_->GetNativeWindow())) {
+      fills_bounds_opaquely = false;
+    }
+  }
+  if (header_view_->layer()) {
+    header_view_->layer()->SetFillsBoundsOpaquely(fills_bounds_opaquely);
+  }
+
+  frame_overlapped_ = overlapped;
   InvalidateLayout();
 }
 
@@ -268,6 +304,51 @@ void NonClientFrameViewAsh::SetToggleResizeLockMenuCallback(
 
 void NonClientFrameViewAsh::ClearToggleResizeLockMenuCallback() {
   toggle_resize_lock_menu_callback_.Reset();
+}
+
+void NonClientFrameViewAsh::OnWindowPropertyChanged(aura::Window* window,
+                                                    const void* key,
+                                                    intptr_t old) {
+  // ChromeOS has rounded windows for certain window states. If these states
+  // changes, we need to update the rounded corners of the frame associate with
+  // the `window`accordingly.
+  if (chromeos::CanPropertyEffectWindowRadius(key)) {
+    UpdateWindowRoundedCorners();
+
+    bool fills_bounds_opaquely = true;
+    // For overlapped frames header_view_ layer needs to non-opaque to avoid
+    // visual artifacts at the upper corners.
+    // See comment in NonClientFrameViewAsh::SetFrameOverlapped.
+    if (frame_overlapped_ &&
+        chromeos::ShouldWindowHaveRoundedCorners(frame_->GetNativeWindow())) {
+      fills_bounds_opaquely = false;
+    }
+    if (header_view_->layer()) {
+      header_view_->layer()->SetFillsBoundsOpaquely(fills_bounds_opaquely);
+    }
+  }
+}
+
+void NonClientFrameViewAsh::OnWindowDestroying(aura::Window* window) {
+  window_observation_.Reset();
+}
+
+void NonClientFrameViewAsh::UpdateWindowRoundedCorners() {
+  if (!GetWidget()) {
+    return;
+  }
+
+  aura::Window* frame_window = GetWidget()->GetNativeWindow();
+  const gfx::RoundedCornersF window_radii =
+      chromeos::GetWindowRadii(frame_window);
+  frame_window->SetProperty(aura::client::kWindowCornerRadiusKey,
+                            window_radii.upper_left());
+
+  if (frame_enabled_) {
+    header_view_->SetHeaderCornerRadius(window_radii.upper_left());
+  }
+
+  GetWidget()->client_view()->UpdateWindowRoundedCorners(window_radii);
 }
 
 base::RepeatingCallback<void()>
@@ -281,7 +362,7 @@ void NonClientFrameViewAsh::OnDidSchedulePaint(const gfx::Rect& r) {
     // The HeaderView is not a child of NonClientFrameViewAsh. Redirect the
     // paint to HeaderView instead.
     gfx::RectF to_paint(r);
-    views::View::ConvertRectToTarget(this, header_view_, &to_paint);
+    views::View::ConvertRectToTarget(this, GetHeaderView(), &to_paint);
     header_view_->SchedulePaintInRect(gfx::ToEnclosingRect(to_paint));
   }
 }
@@ -315,7 +396,7 @@ void NonClientFrameViewAsh::UpdateDefaultFrameColors() {
   frame_window->SetProperty(kFrameInactiveColorKey, dialog_title_bar_color);
 }
 
-BEGIN_METADATA(NonClientFrameViewAsh, views::NonClientFrameView)
+BEGIN_METADATA(NonClientFrameViewAsh)
 END_METADATA
 
 }  // namespace ash

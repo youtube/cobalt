@@ -12,6 +12,7 @@
 #include "base/cancelable_callback.h"
 #include "base/compiler_specific.h"
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/read_only_shared_memory_region.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/single_thread_task_runner.h"
@@ -19,15 +20,14 @@
 #include "base/time/time.h"
 #include "cc/trees/layer_tree_frame_sink.h"
 #include "cc/trees/managed_memory_policy.h"
-#include "components/power_scheduler/power_mode_voter.h"
 #include "components/viz/common/display/renderer_settings.h"
 #include "components/viz/common/frame_sinks/begin_frame_source.h"
 #include "components/viz/common/frame_timing_details_map.h"
 #include "components/viz/common/quads/compositor_frame.h"
+#include "components/viz/common/quads/compositor_frame_metadata.h"
 #include "components/viz/common/surfaces/local_surface_id.h"
 #include "components/viz/common/surfaces/parent_local_surface_id_allocator.h"
 #include "components/viz/service/display/display_client.h"
-#include "components/viz/service/display_embedder/server_shared_bitmap_manager.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -42,10 +42,10 @@ class SkCanvas;
 namespace viz {
 class BeginFrameSource;
 class CompositorFrameSinkSupport;
-class ContextProvider;
 class Display;
 class FrameSinkManagerImpl;
 class ParentLocalSurfaceIdAllocator;
+class RasterContextProvider;
 }  // namespace viz
 
 namespace blink {
@@ -59,8 +59,8 @@ class SynchronousLayerTreeFrameSinkClient {
   virtual void SubmitCompositorFrame(
       uint32_t layer_tree_frame_sink_id,
       const viz::LocalSurfaceId& local_surface_id,
-      absl::optional<viz::CompositorFrame> frame,
-      absl::optional<viz::HitTestRegionList> hit_test_region_list) = 0;
+      std::optional<viz::CompositorFrame> frame,
+      std::optional<viz::HitTestRegionList> hit_test_region_list) = 0;
   virtual void SetNeedsBeginFrames(bool needs_begin_frames) = 0;
   virtual void SinkDestroyed() = 0;
 
@@ -82,11 +82,9 @@ class SynchronousLayerTreeFrameSink
       public viz::ExternalBeginFrameSourceClient {
  public:
   SynchronousLayerTreeFrameSink(
-      scoped_refptr<viz::ContextProvider> context_provider,
-      scoped_refptr<cc::RasterContextProviderWrapper>
-          worker_context_provider_wrapper,
+      scoped_refptr<viz::RasterContextProvider> context_provider,
+      scoped_refptr<viz::RasterContextProvider> worker_context_provider,
       scoped_refptr<base::SingleThreadTaskRunner> compositor_task_runner,
-      gpu::GpuMemoryBufferManager* gpu_memory_buffer_manager,
       uint32_t layer_tree_frame_sink_id,
       std::unique_ptr<viz::BeginFrameSource> begin_frame_source,
       SynchronousCompositorRegistry* registry,
@@ -107,9 +105,6 @@ class SynchronousLayerTreeFrameSink
                              bool hit_test_data_changed) override;
   void DidNotProduceFrame(const viz::BeginFrameAck& ack,
                           cc::FrameSkippedReason reason) override;
-  void DidAllocateSharedBitmap(base::ReadOnlySharedMemoryRegion region,
-                               const viz::SharedBitmapId& id) override;
-  void DidDeleteSharedBitmap(const viz::SharedBitmapId& id) override;
   void Invalidate(bool needs_draw) override;
 
   // viz::mojom::CompositorFrameSinkClient implementation.
@@ -118,12 +113,12 @@ class SynchronousLayerTreeFrameSink
   void OnBeginFrame(
       const viz::BeginFrameArgs& args,
       const HashMap<uint32_t, viz::FrameTimingDetails>& timing_details,
-      bool frame_ack,
       Vector<viz::ReturnedResource> resources) override;
   void ReclaimResources(Vector<viz::ReturnedResource> resources) override;
   void OnBeginFramePausedChanged(bool paused) override;
   void OnCompositorFrameTransitionDirectiveProcessed(
       uint32_t sequence_id) override {}
+  void OnSurfaceEvicted(const viz::LocalSurfaceId& local_surface_id) override {}
 
   // viz::ExternalBeginFrameSourceClient overrides.
   void OnNeedsBeginFrames(bool needs_begin_frames) override;
@@ -157,18 +152,13 @@ class SynchronousLayerTreeFrameSink
   void DeliverMessages();
 
   const uint32_t layer_tree_frame_sink_id_;
-  SynchronousCompositorRegistry* const registry_;  // Not owned.
+  const raw_ptr<SynchronousCompositorRegistry> registry_;  // Not owned.
 
   // Not owned.
-  SynchronousLayerTreeFrameSinkClient* sync_client_ = nullptr;
-
-  // Used to allocate bitmaps in the software Display.
-  // TODO(crbug.com/692814): The Display never sends its resources out of
-  // process so there is no reason for it to use a SharedBitmapManager.
-  viz::ServerSharedBitmapManager shared_bitmap_manager_;
+  raw_ptr<SynchronousLayerTreeFrameSinkClient> sync_client_ = nullptr;
 
   // Only valid (non-null) during a DemandDrawSw() call.
-  SkCanvas* current_sw_canvas_ = nullptr;
+  raw_ptr<SkCanvas> current_sw_canvas_ = nullptr;
 
   cc::ManagedMemoryPolicy memory_policy_;
   bool in_software_draw_ = false;
@@ -213,6 +203,8 @@ class SynchronousLayerTreeFrameSink
   gfx::Size child_size_;
   gfx::Size display_size_;
   float device_scale_factor_ = 0;
+  float root_device_scale_factor_ = 0;
+  viz::FrameTokenGenerator root_next_frame_token_;
   std::unique_ptr<viz::mojom::CompositorFrameSinkClient>
       software_frame_sink_client_;
   // Uses frame_sink_manager_.
@@ -223,7 +215,7 @@ class SynchronousLayerTreeFrameSink
   // Uses frame_sink_manager_.
   std::unique_ptr<viz::Display> display_;
   // Owned by |display_|.
-  SoftwareOutputSurface* software_output_surface_ = nullptr;
+  raw_ptr<SoftwareOutputSurface> software_output_surface_ = nullptr;
   std::unique_ptr<viz::BeginFrameSource> synthetic_begin_frame_source_;
   std::unique_ptr<viz::ExternalBeginFrameSource> external_begin_frame_source_;
 
@@ -236,13 +228,6 @@ class SynchronousLayerTreeFrameSink
   bool begin_frames_paused_ = false;
   bool needs_begin_frames_ = false;
   const bool use_zero_copy_sw_draw_;
-
-  // Marks the beginning of the period between BeginFrame() and
-  // SubmitCompositorFrame(). Used for detecting no-op animations when this time
-  // period exceeds a given timeout.
-  base::TimeTicks nop_animation_timeout_start_;
-
-  power_scheduler::FrameProductionPowerModeVoter power_mode_voter_;
 };
 
 }  // namespace blink

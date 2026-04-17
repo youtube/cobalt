@@ -14,6 +14,10 @@ std::string GetStateSuffix(StateSuffix suffix) {
   switch (suffix) {
     case StateSuffix::kAll:
       return "_All";
+    case StateSuffix::kAllManagedDevice:
+      return "_AllManagedDevice";
+    case StateSuffix::kAllUnmanagedDevice:
+      return "_AllUnmanagedDevice";
     case StateSuffix::kActiveMultiProfile:
       return "_ActiveMultiProfile";
     case StateSuffix::kLatentMultiProfile:
@@ -41,16 +45,6 @@ enum class DeleteProfileContext {
 };
 
 }  // namespace
-
-void LogProfileAvatar(AvatarState avatar_state, StateSuffix suffix) {
-  base::UmaHistogramEnumeration("Profile.State.Avatar" + GetStateSuffix(suffix),
-                                avatar_state);
-}
-
-void LogProfileName(NameState name_state, StateSuffix suffix) {
-  base::UmaHistogramEnumeration("Profile.State.Name" + GetStateSuffix(suffix),
-                                name_state);
-}
 
 void LogProfileAccountType(UnconsentedPrimaryAccountType account_type,
                            StateSuffix suffix) {

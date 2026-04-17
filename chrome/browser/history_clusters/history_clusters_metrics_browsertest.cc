@@ -113,7 +113,7 @@ class HistoryClustersMetricsBrowserTest : public InProcessBrowserTest {
   // Navigates to the history clusters UI with `PAGE_TRANSITION_RELOAD`. Assumes
   // the current URL is also the history clusters UI.
   void RefreshHistoryClusters() {
-    NavigateParams params(browser(), GURL(kChromeUIHistoryClustersURL),
+    NavigateParams params(browser(), GURL(GetChromeUIHistoryClustersURL()),
                           ui::PAGE_TRANSITION_RELOAD);
     ui_test_utils::NavigateToURL(&params);
   }
@@ -150,13 +150,13 @@ IN_PROC_BROWSER_TEST_F(HistoryClustersMetricsBrowserTest,
                        MAYBE_DirectNavigationNoInteraction) {
   base::HistogramTester histogram_tester;
   ukm::TestAutoSetUkmRecorder ukm_recorder;
-  EXPECT_TRUE(ui_test_utils::NavigateToURL(browser(),
-                                           GURL(kChromeUIHistoryClustersURL)));
+  EXPECT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL(GetChromeUIHistoryClustersURL())));
   EXPECT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("https://foo.com")));
   auto entries =
       ukm_recorder.GetEntriesByName(ukm::builders::HistoryClusters::kEntryName);
   EXPECT_EQ(1u, entries.size());
-  auto* entry = entries[0];
+  auto* entry = entries[0].get();
   ValidateHistoryClustersUKMEntry(
       entry, HistoryClustersInitialState::kDirectNavigation, 0, 0);
   histogram_tester.ExpectUniqueSample(
@@ -167,7 +167,7 @@ IN_PROC_BROWSER_TEST_F(HistoryClustersMetricsBrowserTest,
   histogram_tester.ExpectTotalCount("History.Clusters.Actions.NumQueries", 0);
 }
 
-// TODO(crbug.com/1282087): Flaky on Linux, Windows and Mac.
+// TODO(crbug.com/40812616): Flaky on Linux, Windows and Mac.
 #if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) || \
     BUILDFLAG(IS_MAC)
 #define MAYBE_DirectNavigationWithQuery DISABLED_DirectNavigationWithQuery
@@ -179,8 +179,8 @@ IN_PROC_BROWSER_TEST_F(HistoryClustersMetricsBrowserTest,
   base::HistogramTester histogram_tester;
   ukm::TestAutoSetUkmRecorder ukm_recorder;
 
-  EXPECT_TRUE(ui_test_utils::NavigateToURL(browser(),
-                                           GURL(kChromeUIHistoryClustersURL)));
+  EXPECT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL(GetChromeUIHistoryClustersURL())));
   EXPECT_TRUE(content::WaitForLoadStop(
       browser()->tab_strip_model()->GetActiveWebContents()));
   history_clusters::HistoryClustersHandler* page_handler =
@@ -192,14 +192,14 @@ IN_PROC_BROWSER_TEST_F(HistoryClustersMetricsBrowserTest,
           ->template GetAs<HistoryUI>()
           ->GetHistoryClustersHandlerForTesting();
 
-  page_handler->StartQueryClusters("cat", false);
-  page_handler->StartQueryClusters("dog", false);
+  page_handler->StartQueryClusters("cat", std::nullopt, false);
+  page_handler->StartQueryClusters("dog", std::nullopt, false);
 
   EXPECT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("https://foo.com")));
   auto entries =
       ukm_recorder.GetEntriesByName(ukm::builders::HistoryClusters::kEntryName);
   EXPECT_EQ(1u, entries.size());
-  auto* entry = entries[0];
+  auto* entry = entries[0].get();
   ValidateHistoryClustersUKMEntry(
       entry, HistoryClustersInitialState::kDirectNavigation, 2, 0);
   histogram_tester.ExpectUniqueSample(
@@ -226,15 +226,15 @@ IN_PROC_BROWSER_TEST_F(HistoryClustersMetricsBrowserTest,
   base::HistogramTester histogram_tester;
   ukm::TestAutoSetUkmRecorder ukm_recorder;
 
-  EXPECT_TRUE(ui_test_utils::NavigateToURL(browser(),
-                                           GURL(kChromeUIHistoryClustersURL)));
+  EXPECT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL(GetChromeUIHistoryClustersURL())));
   ToggleToUi(UiTab::kBasicHistory);
 
   EXPECT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("https://foo.com")));
   auto entries =
       ukm_recorder.GetEntriesByName(ukm::builders::HistoryClusters::kEntryName);
   EXPECT_EQ(1u, entries.size());
-  auto* ukm_entry = entries[0];
+  auto* ukm_entry = entries[0].get();
   ValidateHistoryClustersUKMEntry(
       ukm_entry, HistoryClustersInitialState::kDirectNavigation, 0, 1);
   histogram_tester.ExpectUniqueSample(
@@ -251,8 +251,8 @@ IN_PROC_BROWSER_TEST_F(
   base::HistogramTester histogram_tester;
   ukm::TestAutoSetUkmRecorder ukm_recorder;
 
-  EXPECT_TRUE(ui_test_utils::NavigateToURL(browser(),
-                                           GURL(kChromeUIHistoryClustersURL)));
+  EXPECT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL(GetChromeUIHistoryClustersURL())));
   ToggleToUi(UiTab::kBasicHistory);
   ToggleToUi(UiTab::kClustersUi);
 
@@ -260,7 +260,7 @@ IN_PROC_BROWSER_TEST_F(
   auto entries =
       ukm_recorder.GetEntriesByName(ukm::builders::HistoryClusters::kEntryName);
   EXPECT_EQ(1u, entries.size());
-  auto* ukm_entry = entries[0];
+  auto* ukm_entry = entries[0].get();
   ValidateHistoryClustersUKMEntry(
       ukm_entry, HistoryClustersInitialState::kIndirectNavigation, 0, 1);
   histogram_tester.ExpectUniqueSample(
@@ -291,7 +291,7 @@ IN_PROC_BROWSER_TEST_F(HistoryClustersMetricsBrowserTest,
   auto entries =
       ukm_recorder.GetEntriesByName(ukm::builders::HistoryClusters::kEntryName);
   EXPECT_EQ(1u, entries.size());
-  auto* ukm_entry = entries[0];
+  auto* ukm_entry = entries[0].get();
   ValidateHistoryClustersUKMEntry(
       ukm_entry, HistoryClustersInitialState::kIndirectNavigation, 0, 0);
   histogram_tester.ExpectUniqueSample(

@@ -36,13 +36,10 @@ class DesktopMediaListView
   void OnSelectionChanged();
 
   // views::View:
-  gfx::Size CalculatePreferredSize() const override;
-  void Layout() override;
   bool OnKeyPressed(const ui::KeyEvent& event) override;
-  void GetAccessibleNodeData(ui::AXNodeData* node_data) override;
 
   // DesktopMediaListController::ListView:
-  absl::optional<content::DesktopMediaID> GetSelection() override;
+  std::optional<content::DesktopMediaID> GetSelection() override;
   DesktopMediaListController::SourceListListener* GetSourceListListener()
       override;
   void ClearSelection() override;
@@ -58,7 +55,7 @@ class DesktopMediaListView
 
  private:
   // Change the source style of this list on the fly.
-  void SetStyle(DesktopMediaSourceViewStyle* style);
+  void SetStyle(const DesktopMediaSourceViewStyle& style);
 
   DesktopMediaSourceView* GetSelectedView();
 
@@ -66,9 +63,7 @@ class DesktopMediaListView
 
   DesktopMediaSourceViewStyle single_style_;
   DesktopMediaSourceViewStyle generic_style_;
-  raw_ptr<DesktopMediaSourceViewStyle, DanglingUntriaged> active_style_;
-
-  const std::u16string accessible_name_;
+  DesktopMediaSourceViewStyle active_style_;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_DESKTOP_CAPTURE_DESKTOP_MEDIA_LIST_VIEW_H_

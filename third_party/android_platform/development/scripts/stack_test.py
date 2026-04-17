@@ -3,6 +3,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import mock
 import os
 import re
 import shutil
@@ -80,6 +81,10 @@ class FakeSymbolizer:
     method_name = '{}::Func_{:X}'.format(namespace, address)
     return [(method_name, '{}.cc:1:1'.format(namespace))]
 
+  @staticmethod
+  def IsValidTarget(path):
+    # pylint: disable=unused-argument
+    return True
 
 class StackDecodeTest(unittest.TestCase):
   def setUp(self):
@@ -91,7 +96,7 @@ class StackDecodeTest(unittest.TestCase):
 
   def _MakeElf(self, library):
     # Make the unstripped lib directory in case stack.py looks for it.
-    lib_dir = os.path.join(os.path.dirname(library), 'lib.unstripped')
+    lib_dir = os.path.dirname(library)
     if not os.path.exists(lib_dir):
       os.makedirs(lib_dir)
 
@@ -111,7 +116,8 @@ class StackDecodeTest(unittest.TestCase):
       for lib in libs:
         # Make an ELF-format .so file. The fake symbolizer will fudge functions
         # for libraries that exist.
-        library_file = os.path.join(out_dir, lib)
+        path, name = os.path.split(lib)
+        library_file = os.path.join(out_dir, path, 'lib.unstripped', name)
         self._MakeElf(library_file)
 
         # Add the library to the APK.
@@ -149,7 +155,7 @@ class StackDecodeTest(unittest.TestCase):
     for name, libs in apks.items():
       self._MakeApk(name, libs, apk_dir, out_dir, crazy)
 
-    symbolizer = FakeSymbolizer(out_dir)
+    symbolizer = FakeSymbolizer(os.path.join(out_dir, 'lib.unstripped'))
 
     # Put the input into a temp file.
     with open(input_file, 'w') as f:
@@ -196,7 +202,9 @@ class StackDecodeTest(unittest.TestCase):
     for i in range(len(expected_tokens)):
       self.assertEqual(expected_tokens[i], actual_tokens[i])
 
-  def test_BasicDecoding(self):
+  @mock.patch('stack_core._BuildIdFromElf')
+  def test_BasicDecoding(self, patch_build_id):
+    patch_build_id.side_effect = ['1', '1', '2', '2']
     apks = {
         'chrome.apk': ['libchrome.so', 'libfoo.so'],
     }
@@ -212,7 +220,9 @@ class StackDecodeTest(unittest.TestCase):
       ''')
     self._RunCase(input_trace, expected_decode, apks)
 
-  def test_OutOfRangeAddresses(self):
+  @mock.patch('stack_core._BuildIdFromElf')
+  def test_OutOfRangeAddresses(self, patch_build_id):
+    patch_build_id.side_effect = ['1', '1']
     apks = {
         'chrome.apk': ['libchrome.so'],
     }
@@ -244,7 +254,12 @@ class StackDecodeTest(unittest.TestCase):
       ''')
     self._RunCase(input_trace, expected_decode, apks)
 
-  def test_MultiArchPrimaryAbi(self):
+  @mock.patch('stack_core._BuildIdFromElf')
+  def test_MultiArchPrimaryAbi(self, patch_build_id):
+    # '_BuildIdFromElf' is invoked twice to find:
+    #   1. Build ID of lib in apk at the offset
+    #   2. Build ID of out/lib.unstripped/libmonochrome.so
+    patch_build_id.side_effect = ['1', '1']
     apks = {
         'monochrome.apk': [
             'libmonochrome.so', 'android_clang_arm/libmonochrome.so'
@@ -260,7 +275,13 @@ class StackDecodeTest(unittest.TestCase):
       ''')
     self._RunCase(input_trace, expected_decode, apks)
 
-  def test_MultiArchSecondary(self):
+  @mock.patch('stack_core._BuildIdFromElf')
+  def test_MultiArchSecondary(self, patch_build_id):
+    # '_BuildIdFromElf' is invoked 3 times to find:
+    #   1. Build ID of lib in apk at the offset
+    #   2. Build ID of out/lib.unstripped/libmonochrome.so
+    #   3. Build ID of out/android_clang_arm/lib.unstripped/libmonochrome.so
+    patch_build_id.side_effect = ['1', '2', '1']
     apks = {
         'monochrome.apk': [
             'libmonochrome.so', 'android_clang_arm/libmonochrome.so'
@@ -279,7 +300,9 @@ class StackDecodeTest(unittest.TestCase):
       ''')
     self._RunCase(input_trace, expected_decode, apks)
 
-  def test_CrazyUncompressedLibraries(self):
+  @mock.patch('stack_core._BuildIdFromElf')
+  def test_CrazyUncompressedLibraries(self, patch_build_id):
+    patch_build_id.side_effect = ['1', '1']
     # Here, the library in the APK is prefixed with "crazy.", as in
     # ChromeModern.
     apks = {

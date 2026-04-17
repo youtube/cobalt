@@ -5,10 +5,12 @@
 #ifndef CHROMEOS_UI_FRAME_CAPTION_BUTTONS_FRAME_CENTER_BUTTON_H_
 #define CHROMEOS_UI_FRAME_CAPTION_BUTTONS_FRAME_CENTER_BUTTON_H_
 
+#include <optional>
+
 #include "base/component_export.h"
 #include "base/memory/raw_ptr.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/base/metadata/metadata_types.h"
 #include "ui/gfx/render_text.h"
 #include "ui/views/window/frame_caption_button.h"
 
@@ -19,9 +21,9 @@ namespace chromeos {
 // image, and optionally setting a text and sub image.
 class COMPONENT_EXPORT(CHROMEOS_UI_FRAME) FrameCenterButton
     : public views::FrameCaptionButton {
- public:
-  METADATA_HEADER(FrameCenterButton);
+  METADATA_HEADER(FrameCenterButton, views::FrameCaptionButton)
 
+ public:
   FrameCenterButton(PressedCallback callback);
   FrameCenterButton(const FrameCenterButton&) = delete;
   FrameCenterButton& operator=(const FrameCenterButton&) = delete;
@@ -33,7 +35,7 @@ class COMPONENT_EXPORT(CHROMEOS_UI_FRAME) FrameCenterButton
   // Set the text to be painted next to the main icon. The text must be short
   // enough to fit the caption. Otherwise, the button wouldn't be drawn
   // properly.
-  void SetText(absl::optional<std::u16string> text);
+  void SetText(std::optional<std::u16string> text);
   // Set the sub image to be painted next to the main icon and text.
   void SetSubImage(const gfx::VectorIcon& icon_image);
 
@@ -41,7 +43,8 @@ class COMPONENT_EXPORT(CHROMEOS_UI_FRAME) FrameCenterButton
   // views::View override:
   // Unlike other caption buttons, the size should be calculated dynamically as
   // this class may have an optional text and sub image.
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
 
   // views::FrameCaptionButton override:
   void DrawHighlight(gfx::Canvas* canvas, cc::PaintFlags flags) override;
@@ -62,7 +65,7 @@ class COMPONENT_EXPORT(CHROMEOS_UI_FRAME) FrameCenterButton
   std::unique_ptr<gfx::RenderText> text_;
 
   // The image id and image used to paint the sub icon if set.
-  absl::optional<gfx::ImageSkia> sub_icon_image_;
+  std::optional<gfx::ImageSkia> sub_icon_image_;
   raw_ptr<const gfx::VectorIcon> sub_icon_definition_ = nullptr;
 
   // Used to update the color of the optional contents when the background

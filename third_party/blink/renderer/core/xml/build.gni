@@ -11,8 +11,6 @@ blink_core_sources_xml = [
   "document_xslt.h",
   "dom_parser.cc",
   "dom_parser.h",
-  "native_xpath_ns_resolver.cc",
-  "native_xpath_ns_resolver.h",
   "parser/shared_buffer_reader.cc",
   "parser/shared_buffer_reader.h",
   "parser/xml_document_parser.cc",
@@ -61,6 +59,7 @@ blink_core_sources_xml = [
 ]
 
 blink_core_tests_xml = [
+  "dom_parser_test.cc",
   "parser/shared_buffer_reader_test.cc",
   "parser/xml_document_parser_test.cc",
   "xpath_functions_test.cc",

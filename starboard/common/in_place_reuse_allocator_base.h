@@ -16,6 +16,8 @@
 #define STARBOARD_COMMON_IN_PLACE_REUSE_ALLOCATOR_BASE_H_
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <map>
 #include <set>
 #include <vector>
@@ -24,7 +26,6 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
-#include "starboard/types.h"
 
 namespace starboard {
 
@@ -135,7 +136,8 @@ class InPlaceReuseAllocatorBase : public Allocator {
   InPlaceReuseAllocatorBase(Allocator* fallback_allocator,
                             size_t initial_capacity,
                             size_t allocation_increment,
-                            size_t max_capacity = 0);
+                            size_t max_capacity,
+                            bool enable_decommit_on_idle);
   ~InPlaceReuseAllocatorBase() override;
 
   // The inherited class should implement this function to inform the base
@@ -182,6 +184,9 @@ class InPlaceReuseAllocatorBase : public Allocator {
   // If non-zero, this is an upper bound on how large we will let the capacity
   // expand.
   const size_t max_capacity_in_bytes_;
+
+  // Whether to decommit memory when the pool becomes idle.
+  const bool enable_decommit_on_idle_ = false;
 
   // A list of allocations made from the fallback allocator.  We keep track of
   // this so that we can free them all upon our destruction.

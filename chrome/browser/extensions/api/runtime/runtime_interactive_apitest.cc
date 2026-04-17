@@ -2,19 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/test/scoped_feature_list.h"
+#include <string_view>
+
+#include "base/strings/stringprintf.h"
 #include "base/test/values_test_util.h"
 #include "chrome/browser/extensions/extension_apitest.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/extensions/extension_action_test_helper.h"
 #include "components/version_info/channel.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/test/browser_test.h"
 #include "extensions/browser/background_script_executor.h"
 #include "extensions/browser/extension_api_frame_id_map.h"
+#include "extensions/browser/extension_host.h"
 #include "extensions/browser/extension_host_test_helper.h"
-#include "extensions/common/extension_features.h"
-#include "extensions/common/features/feature_channel.h"
+#include "extensions/browser/script_executor.h"
 #include "extensions/test/test_extension_dir.h"
 
 namespace extensions {
@@ -23,10 +26,7 @@ namespace extensions {
 // interactive UI tests (e.g. due to requiring focus).
 class RuntimeGetContextsInteractiveApiTest : public ExtensionApiTest {
  public:
-  RuntimeGetContextsInteractiveApiTest() {
-    feature_list_.InitAndEnableFeature(
-        extensions_features::kApiRuntimeGetContexts);
-  }
+  RuntimeGetContextsInteractiveApiTest() = default;
   RuntimeGetContextsInteractiveApiTest(
       const RuntimeGetContextsInteractiveApiTest&) = delete;
   RuntimeGetContextsInteractiveApiTest& operator=(
@@ -35,8 +35,7 @@ class RuntimeGetContextsInteractiveApiTest : public ExtensionApiTest {
 
   // Runs `chrome.runtime.getContexts()` and returns the result as a
   // base::Value.
-  base::Value GetContexts(const Extension& extension,
-                          base::StringPiece filter) {
+  base::Value GetContexts(const Extension& extension, std::string_view filter) {
     static constexpr char kScriptTemplate[] =
         R"((async () => {
              chrome.test.sendScriptResult(
@@ -47,10 +46,6 @@ class RuntimeGetContextsInteractiveApiTest : public ExtensionApiTest {
         profile(), extension.id(), script,
         BackgroundScriptExecutor::ResultCapture::kSendScriptResult);
   }
-
- private:
-  ScopedCurrentChannel channel_override_{version_info::Channel::UNKNOWN};
-  base::test::ScopedFeatureList feature_list_;
 };
 
 // Tests retrieving popup contexts using `chrome.runtime.getContexts()`.

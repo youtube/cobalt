@@ -18,12 +18,17 @@
 
 #include <pthread.h>
 #include <unistd.h>
+
 #include <atomic>
 #include <optional>
+#include <string>
+#include <string_view>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/semaphore.h"
+#include "starboard/common/thread_platform.h"
+#include "starboard/system.h"
 
 namespace starboard {
 
@@ -35,21 +40,28 @@ struct Thread::Data {
   Semaphore join_sema_;
 };
 
-Thread::Thread(const std::string& name) {
-  d_.reset(new Thread::Data);
-  d_->name_ = name;
+Thread::Thread(std::string_view name) : d_(std::make_unique<Data>()) {
+  d_->name_.assign(name);
 }
 
 Thread::~Thread() {
-  SB_DCHECK(d_->join_called_.load()) << "Join not called on thread.";
+  // A started thread must be joined before destruction.
+  if (d_->started_.load()) {
+    SB_DCHECK(d_->join_called_.load())
+        << "Thread '" << d_->name_ << "' was not joined before destruction.";
+  }
 }
 
 void Thread::Start() {
   SB_DCHECK(!d_->started_.load());
   d_->started_.store(true);
 
+  pthread_attr_t attributes;
+  pthread_attr_init(&attributes);
+
   const int result =
-      pthread_create(&d_->thread_, nullptr, ThreadEntryPoint, this);
+      pthread_create(&d_->thread_, &attributes, ThreadEntryPoint, this);
+  pthread_attr_destroy(&attributes);
   SB_CHECK_EQ(result, 0);
 }
 
@@ -85,6 +97,8 @@ void* Thread::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), this_ptr->d_->name_.c_str());
 #endif
   this_ptr->Run();
+
+  TerminateOnThread();
   return NULL;
 }
 
@@ -94,8 +108,18 @@ void Thread::Join() {
   d_->join_called_.store(true);
   d_->join_sema_.Put();
 
-  if (pthread_join(d_->thread_, NULL) != 0) {
-    SB_DCHECK(false) << "Could not join thread.";
+  if (!d_->started_.load()) {
+    SB_LOG(WARNING) << "Join() called on thread '" << d_->name_
+                    << "' which was not started. Ignoring.";
+    return;
+  }
+
+  int result = pthread_join(d_->thread_, /*retval=*/nullptr);
+  if (result != 0) {
+    char error_msg[256];
+    SbSystemGetErrorString(static_cast<SbSystemError>(result), error_msg,
+                           sizeof(error_msg));
+    SB_CHECK_EQ(result, 0) << "Could not join thread: " << error_msg;
   }
 }
 

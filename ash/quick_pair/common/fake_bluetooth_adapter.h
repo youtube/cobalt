@@ -15,7 +15,6 @@ namespace quick_pair {
 class FakeBluetoothAdapter
     : public testing::NiceMock<device::MockBluetoothAdapter> {
  public:
-  void NotifyPoweredChanged(bool powered);
 
   void SetBluetoothIsPowered(bool powered);
 
@@ -44,6 +43,7 @@ class FakeBluetoothAdapter
       device::BluetoothRemoteGattCharacteristic* characteristic);
 
   void NotifyConfirmPasskey(uint32_t passkey, device::BluetoothDevice* device);
+  void NotifyDisplayPasskey(device::BluetoothDevice* device, uint32_t passkey);
 
   void NotifyDevicePairedChanged(device::BluetoothDevice* device,
                                  bool new_paired_status);
@@ -69,7 +69,7 @@ class FakeBluetoothAdapter
 
   void ConnectDevice(
       const std::string& address,
-      const absl::optional<device::BluetoothDevice::AddressType>& address_type,
+      const std::optional<device::BluetoothDevice::AddressType>& address_type,
       base::OnceCallback<void(device::BluetoothDevice*)> callback,
       base::OnceCallback<void(const std::string&)> error_callback) override;
 
@@ -81,7 +81,7 @@ class FakeBluetoothAdapter
   bool connect_device_failure_ = false;
   bool get_device_returns_nullptr_ = false;
   bool connect_device_timeout_ = false;
-  raw_ptr<device::BluetoothDevice::PairingDelegate, ExperimentalAsh>
+  raw_ptr<device::BluetoothDevice::PairingDelegate, DanglingUntriaged>
       pairing_delegate_ = nullptr;
   device::BluetoothAdapter::LowEnergyScanSessionHardwareOffloadingStatus
       hardware_offloading_status_ = device::BluetoothAdapter::

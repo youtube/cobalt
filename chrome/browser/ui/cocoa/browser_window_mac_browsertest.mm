@@ -4,13 +4,11 @@
 
 #include "chrome/browser/ui/browser_window.h"
 
-#include <memory>
-
 #import <Cocoa/Cocoa.h>
 
-#import "base/mac/scoped_nsobject.h"
+#include <memory>
+
 #include "chrome/app/chrome_command_ids.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/lifetime/application_lifetime_desktop.h"
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -18,13 +16,15 @@
 #include "components/remote_cocoa/app_shim/native_widget_mac_nswindow.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
+#include "testing/gtest_mac.h"
+#include "ui/accessibility/accessibility_switches.h"
 #import "ui/base/cocoa/window_size_constants.h"
 #include "ui/base/test/ns_ax_tree_validator.h"
 
 // Test harness for Mac-specific behaviors of BrowserWindow.
 class BrowserWindowMacTest : public InProcessBrowserTest {
  public:
-  BrowserWindowMacTest() {}
+  BrowserWindowMacTest() = default;
 
   BrowserWindowMacTest(const BrowserWindowMacTest&) = delete;
   BrowserWindowMacTest& operator=(const BrowserWindowMacTest&) = delete;
@@ -34,16 +34,13 @@ class BrowserWindowMacTest : public InProcessBrowserTest {
 // that is destroyed.
 IN_PROC_BROWSER_TEST_F(BrowserWindowMacTest, MenuCommandsAfterDestroy) {
   // Simulate AppKit (e.g. NSMenu) retaining an NSWindow.
-  base::scoped_nsobject<NSWindow> window(
-      browser()->window()->GetNativeWindow().GetNativeNSWindow(),
-      base::scoped_policy::RETAIN);
-  base::scoped_nsobject<NSMenuItem> bookmark_menu_item(
+  NSWindow* window = browser()->window()->GetNativeWindow().GetNativeNSWindow();
+  NSMenuItem* bookmark_menu_item =
       [[[[NSApp mainMenu] itemWithTag:IDC_BOOKMARKS_MENU] submenu]
-          itemWithTag:IDC_BOOKMARK_THIS_TAB],
-      base::scoped_policy::RETAIN);
+          itemWithTag:IDC_BOOKMARK_THIS_TAB];
 
-  EXPECT_TRUE(window.get());
-  EXPECT_TRUE(bookmark_menu_item.get());
+  EXPECT_TRUE(window);
+  EXPECT_TRUE(bookmark_menu_item);
 
   chrome::CloseAllBrowsersAndQuit();
   ui_test_utils::WaitForBrowserToClose();
@@ -59,20 +56,20 @@ IN_PROC_BROWSER_TEST_F(BrowserWindowMacTest, MenuCommandsAfterDestroy) {
 
 // Test that mainMenu commands from child windows are validated by the window
 // chain.
-// TODO(crbug.com/1425317): Disabled because this test is flaky.
+// TODO(crbug.com/40898643): Disabled because this test is flaky.
 IN_PROC_BROWSER_TEST_F(BrowserWindowMacTest,
                        DISABLED_MenuCommandsFromChildWindow) {
   NativeWidgetMacNSWindow* window =
-      base::mac::ObjCCastStrict<NativeWidgetMacNSWindow>(
+      base::apple::ObjCCastStrict<NativeWidgetMacNSWindow>(
           browser()->window()->GetNativeWindow().GetNativeNSWindow());
 
   // Create a child window.
-  base::scoped_nsobject<NativeWidgetMacNSWindow> child_window(
-      [[NativeWidgetMacNSWindow alloc]
-          initWithContentRect:ui::kWindowSizeDeterminedLater
-                    styleMask:NSWindowStyleMaskBorderless
-                      backing:NSBackingStoreBuffered
-                        defer:NO]);
+  NativeWidgetMacNSWindow* child_window = [[NativeWidgetMacNSWindow alloc]
+      initWithContentRect:ui::kWindowSizeDeterminedLater
+                styleMask:NSWindowStyleMaskBorderless
+                  backing:NSBackingStoreBuffered
+                    defer:NO];
+  child_window.releasedWhenClosed = NO;
   [window addChildWindow:child_window ordered:NSWindowAbove];
 
   NSMenuItem* show_bookmark_bar_menu_item =
@@ -114,7 +111,7 @@ class BrowserWindowMacA11yTest : public BrowserWindowMacTest {
 IN_PROC_BROWSER_TEST_F(BrowserWindowMacA11yTest, A11yTreeIsWellFormed) {
   NSWindow* window = browser()->window()->GetNativeWindow().GetNativeNSWindow();
   size_t nodes_visited = 0;
-  absl::optional<ui::NSAXTreeProblemDetails> details =
+  std::optional<ui::NSAXTreeProblemDetails> details =
       ui::ValidateNSAXTree(window, &nodes_visited);
   EXPECT_FALSE(details.has_value()) << details->ToString();
 
@@ -123,6 +120,23 @@ IN_PROC_BROWSER_TEST_F(BrowserWindowMacA11yTest, A11yTreeIsWellFormed) {
   // be a well-formed AX tree.
   EXPECT_GE(nodes_visited, 10U);
 
-  if (HasFailure())
+  if (HasFailure()) {
     ui::PrintNSAXTree(window);
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(BrowserWindowMacA11yTest,
+                       AccessibilityDocumentExposedOnWindow) {
+  GURL url_before(R"HTML(data:text/html,before)HTML");
+  EXPECT_TRUE(AddTabAtIndex(0, url_before, ui::PAGE_TRANSITION_TYPED));
+
+  NSWindow* window = browser()->window()->GetNativeWindow().GetNativeNSWindow();
+  ASSERT_NE(nullptr, window);
+  EXPECT_NSEQ([NSString stringWithUTF8String:url_before.spec().c_str()],
+              [window accessibilityDocument]);
+
+  GURL url_after(R"HTML(data:text/html,after)HTML");
+  EXPECT_TRUE(AddTabAtIndex(1, url_after, ui::PAGE_TRANSITION_TYPED));
+  EXPECT_NSEQ([NSString stringWithUTF8String:url_after.spec().c_str()],
+              [window accessibilityDocument]);
 }

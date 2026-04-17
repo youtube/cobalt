@@ -5,39 +5,26 @@
 #ifndef CHROME_BROWSER_PREFS_CHROME_PREF_MODEL_ASSOCIATOR_CLIENT_H_
 #define CHROME_BROWSER_PREFS_CHROME_PREF_MODEL_ASSOCIATOR_CLIENT_H_
 
-#include <string>
+#include <string_view>
 
 #include "chrome/browser/sync/prefs/chrome_syncable_prefs_database.h"
 #include "components/sync_preferences/pref_model_associator_client.h"
 
-namespace base {
-template <typename T>
-struct DefaultSingletonTraits;
-}
-
 class ChromePrefModelAssociatorClient
     : public sync_preferences::PrefModelAssociatorClient {
  public:
-  // Returns the global instance.
-  static ChromePrefModelAssociatorClient* GetInstance();
-
+  ChromePrefModelAssociatorClient();
   ChromePrefModelAssociatorClient(const ChromePrefModelAssociatorClient&) =
       delete;
   ChromePrefModelAssociatorClient& operator=(
       const ChromePrefModelAssociatorClient&) = delete;
 
  private:
-  friend struct base::DefaultSingletonTraits<ChromePrefModelAssociatorClient>;
-
-  ChromePrefModelAssociatorClient();
   ~ChromePrefModelAssociatorClient() override;
 
   // sync_preferences::PrefModelAssociatorClient implementation.
-  bool IsMergeableListPreference(const std::string& pref_name) const override;
-  bool IsMergeableDictionaryPreference(
-      const std::string& pref_name) const override;
   base::Value MaybeMergePreferenceValues(
-      const std::string& pref_name,
+      std::string_view pref_name,
       const base::Value& local_value,
       const base::Value& server_value) const override;
   const sync_preferences::SyncablePrefsDatabase& GetSyncablePrefsDatabase()

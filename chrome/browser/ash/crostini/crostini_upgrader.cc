@@ -4,78 +4,38 @@
 
 #include "chrome/browser/ash/crostini/crostini_upgrader.h"
 
+#include <optional>
+
 #include "base/files/file_util.h"
 #include "base/location.h"
-#include "base/no_destructor.h"
 #include "base/task/thread_pool.h"
 #include "chrome/browser/ash/crostini/crostini_export_import.h"
+#include "chrome/browser/ash/crostini/crostini_export_import_factory.h"
 #include "chrome/browser/ash/crostini/crostini_export_import_status_tracker.h"
 #include "chrome/browser/ash/crostini/crostini_manager.h"
-#include "chrome/browser/ash/crostini/crostini_manager_factory.h"
 #include "chrome/browser/ash/file_manager/path_util.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/profiles/profile_keyed_service_factory.h"
 #include "chrome/browser/ui/webui/ash/crostini_upgrader/crostini_upgrader.mojom.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/network_service_instance.h"
 #include "services/network/public/cpp/network_connection_tracker.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace crostini {
 
 namespace {
 
-class CrostiniUpgraderFactory : public ProfileKeyedServiceFactory {
- public:
-  static CrostiniUpgrader* GetForProfile(Profile* profile) {
-    return static_cast<CrostiniUpgrader*>(
-        GetInstance()->GetServiceForBrowserContext(profile, true));
-  }
-
-  static CrostiniUpgraderFactory* GetInstance() {
-    static base::NoDestructor<CrostiniUpgraderFactory> factory;
-    return factory.get();
-  }
-
- private:
-  friend class base::NoDestructor<CrostiniUpgraderFactory>;
-
-  CrostiniUpgraderFactory()
-      : ProfileKeyedServiceFactory(
-            "CrostiniUpgraderService",
-            ProfileSelections::Builder()
-                .WithRegular(ProfileSelection::kOriginalOnly)
-                // TODO(crbug.com/1418376): Check if this service is needed in
-                // Guest mode.
-                .WithGuest(ProfileSelection::kOriginalOnly)
-                .Build()) {
-    DependsOn(CrostiniManagerFactory::GetInstance());
-  }
-
-  // BrowserContextKeyedServiceFactory:
-  KeyedService* BuildServiceInstanceFor(
-      content::BrowserContext* context) const override {
-    Profile* profile = Profile::FromBrowserContext(context);
-    return new CrostiniUpgrader(profile);
-  }
-};
-
 const char kLogFileBasename[] = "container_upgrade.log";
 
 }  // namespace
-
-CrostiniUpgrader* CrostiniUpgrader::GetForProfile(Profile* profile) {
-  return CrostiniUpgraderFactory::GetForProfile(profile);
-}
 
 CrostiniUpgrader::CrostiniUpgrader(Profile* profile)
     : profile_(profile),
       container_id_(kCrostiniDefaultVmType, "", ""),
       log_sequence_(
           base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()})),
-      current_log_file_(absl::nullopt),
-      backup_path_(absl::nullopt) {
+      current_log_file_(std::nullopt),
+      backup_path_(std::nullopt) {
   CrostiniManager::GetForProfile(profile_)->AddUpgradeContainerProgressObserver(
       this);
 }
@@ -98,7 +58,7 @@ void CrostiniUpgrader::RemoveObserver(CrostiniUpgraderUIObserver* observer) {
 
 void CrostiniUpgrader::PageOpened() {
   // Clear log path so any log messages get buffered.
-  current_log_file_ = absl::nullopt;
+  current_log_file_ = std::nullopt;
   // Clear the buffer, which may have been previously moved from.
   log_buffer_ = std::vector<std::string>();
 }
@@ -111,13 +71,13 @@ void CrostiniUpgrader::CreateNewLogFile() {
   log_sequence_->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(
-          [](base::FilePath path) -> absl::optional<base::FilePath> {
+          [](base::FilePath path) -> std::optional<base::FilePath> {
             path = base::GetUniquePath(path);
             base::File file(path,
                             base::File::FLAG_READ | base::File::FLAG_CREATE);
             if (!file.IsValid()) {
               PLOG(ERROR) << "Failed to create log file!";
-              return absl::nullopt;
+              return std::nullopt;
             }
             return path;
           },
@@ -125,9 +85,10 @@ void CrostiniUpgrader::CreateNewLogFile() {
       // Once the file is created, write out the buffered log messages.
       base::BindOnce(
           [](base::WeakPtr<CrostiniUpgrader> weak_this,
-             absl::optional<base::FilePath> path) {
-            if (!weak_this)
+             std::optional<base::FilePath> path) {
+            if (!weak_this) {
               return;
+            }
 
             weak_this->current_log_file_ = path;
             if (path) {
@@ -155,8 +116,9 @@ void CrostiniUpgrader::StatusTracker::SetStatusRunningUI(int progress_percent) {
   } else {
     upgrader_->OnRestoreProgress(progress_percent);
   }
-  if (has_notified_start_)
+  if (has_notified_start_) {
     return;
+  }
   for (auto& observer : upgrader_->upgrader_observers_) {
     observer.OnBackupMaybeStarted(/*did_start=*/true);
   }
@@ -191,7 +153,7 @@ void CrostiniUpgrader::StatusTracker::SetStatusFailedWithMessageUI(
     result = CrostiniResult::CONTAINER_EXPORT_IMPORT_FAILED_SPACE;
   }
   if (type() == ExportImportType::EXPORT) {
-    upgrader_->OnBackup(result, absl::nullopt);
+    upgrader_->OnBackup(result, std::nullopt);
   } else {
     upgrader_->OnRestore(result);
   }
@@ -202,12 +164,13 @@ void CrostiniUpgrader::Backup(
     bool show_file_chooser,
     base::WeakPtr<content::WebContents> web_contents) {
   if (show_file_chooser) {
-    CrostiniExportImport::GetForProfile(profile_)->ExportContainer(
+    CrostiniExportImportFactory::GetForProfile(profile_)->ExportContainer(
         container_id, web_contents.get(), MakeFactory());
     return;
   }
   base::FilePath default_path =
-      CrostiniExportImport::GetForProfile(profile_)->GetDefaultBackupPath();
+      CrostiniExportImportFactory::GetForProfile(profile_)
+          ->GetDefaultBackupPath();
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock()},
       base::BindOnce(&base::PathExists, default_path),
@@ -227,16 +190,16 @@ void CrostiniUpgrader::OnBackupPathChecked(
   }
 
   if (path_exists) {
-    CrostiniExportImport::GetForProfile(profile_)->ExportContainer(
+    CrostiniExportImportFactory::GetForProfile(profile_)->ExportContainer(
         container_id, web_contents.get(), MakeFactory());
   } else {
-    CrostiniExportImport::GetForProfile(profile_)->ExportContainer(
+    CrostiniExportImportFactory::GetForProfile(profile_)->ExportContainer(
         container_id, path, MakeFactory());
   }
 }
 
 void CrostiniUpgrader::OnBackup(CrostiniResult result,
-                                absl::optional<base::FilePath> backup_path) {
+                                std::optional<base::FilePath> backup_path) {
   if (result != CrostiniResult::SUCCESS) {
     for (auto& observer : upgrader_observers_) {
       observer.OnBackupFailed();
@@ -332,7 +295,7 @@ void CrostiniUpgrader::Upgrade(const guest_os::GuestId& container_id) {
               return;
             }
 
-            auto target_version = ContainerVersion::BULLSEYE;
+            auto target_version = ContainerVersion::BOOKWORM;
 
             CrostiniManager::GetForProfile(weak_this->profile_)
                 ->UpgradeContainer(
@@ -356,7 +319,7 @@ void CrostiniUpgrader::Restore(
     const guest_os::GuestId& container_id,
     base::WeakPtr<content::WebContents> web_contents) {
   if (!backup_path_.has_value()) {
-    CrostiniExportImport::GetForProfile(profile_)->ImportContainer(
+    CrostiniExportImportFactory::GetForProfile(profile_)->ImportContainer(
         container_id, web_contents.get(), MakeFactory());
     return;
   }
@@ -379,10 +342,10 @@ void CrostiniUpgrader::OnRestorePathChecked(
   }
 
   if (!path_exists) {
-    CrostiniExportImport::GetForProfile(profile_)->ImportContainer(
+    CrostiniExportImportFactory::GetForProfile(profile_)->ImportContainer(
         container_id, web_contents.get(), MakeFactory());
   } else {
-    CrostiniExportImport::GetForProfile(profile_)->ImportContainer(
+    CrostiniExportImportFactory::GetForProfile(profile_)->ImportContainer(
         container_id, path, MakeFactory());
   }
 }
@@ -488,11 +451,6 @@ CrostiniExportImport::OnceTrackerFactory CrostiniUpgrader::MakeFactory() {
                                                std::move(path));
       },
       weak_ptr_factory_.GetWeakPtr());
-}
-
-// static
-void CrostiniUpgrader::EnsureFactoryBuilt() {
-  CrostiniUpgraderFactory::GetInstance();
 }
 
 }  // namespace crostini

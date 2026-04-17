@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_ASH_INPUT_METHOD_ASSISTIVE_SUGGESTER_SWITCH_H_
 
 #include "base/functional/callback.h"
+#include "ui/base/ime/ash/text_input_method.h"
 
 namespace ash {
 namespace input_method {
@@ -17,13 +18,11 @@ class AssistiveSuggesterSwitch {
   struct EnabledSuggestions {
     bool emoji_suggestions = false;
     bool multi_word_suggestions = false;
-    bool personal_info_suggestions = false;
     bool diacritic_suggestions = false;
 
     bool operator==(const EnabledSuggestions& rhs) const {
       return emoji_suggestions == rhs.emoji_suggestions &&
              multi_word_suggestions == rhs.multi_word_suggestions &&
-             personal_info_suggestions == rhs.personal_info_suggestions &&
              diacritic_suggestions == rhs.diacritic_suggestions;
     }
   };
@@ -36,7 +35,8 @@ class AssistiveSuggesterSwitch {
 
   // Gets the currently enabled suggestions given the current user context.
   virtual void FetchEnabledSuggestionsThen(
-      FetchEnabledSuggestionsCallback callback) = 0;
+      FetchEnabledSuggestionsCallback callback,
+      const TextInputMethod::InputContext& context) = 0;
 };
 
 }  // namespace input_method

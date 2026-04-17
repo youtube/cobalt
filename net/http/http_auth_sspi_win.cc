@@ -8,8 +8,9 @@
 #include "net/http/http_auth_sspi_win.h"
 
 #include "base/base64.h"
+#include "base/compiler_specific.h"
 #include "base/logging.h"
-#include "base/strings/string_piece.h"
+#include "base/notreached.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -211,10 +212,10 @@ Error MapInitializeSecurityContextStatusToError(SECURITY_STATUS status) {
     case SEC_E_INSUFFICIENT_MEMORY:
       return ERR_OUT_OF_MEMORY;
     case SEC_E_UNSUPPORTED_FUNCTION:
-      NOTREACHED();
+      DUMP_WILL_BE_NOTREACHED();
       return ERR_UNEXPECTED;
     case SEC_E_INVALID_HANDLE:
-      NOTREACHED();
+      DUMP_WILL_BE_NOTREACHED();
       return ERR_INVALID_HANDLE;
     case SEC_E_INVALID_TOKEN:
       return ERR_INVALID_RESPONSE;
@@ -326,7 +327,7 @@ SECURITY_STATUS SSPILibraryDefault::QueryContextAttributesEx(
     ULONG ulAttribute,
     PVOID pBuffer,
     ULONG cbBuffer) {
-  // TODO(https://crbug.com/992779): QueryContextAttributesExW is not included
+  // TODO(crbug.com/41475489): QueryContextAttributesExW is not included
   // in Secur32.Lib in 10.0.18362.0 SDK. This symbol requires switching to using
   // Windows SDK API sets in mincore.lib or OneCore.Lib. Switch to using
   // QueryContextAttributesEx when the switch is made.
@@ -398,11 +399,11 @@ void HttpAuthSSPI::ResetSecurityContext() {
 HttpAuth::AuthorizationResult HttpAuthSSPI::ParseChallenge(
     HttpAuthChallengeTokenizer* tok) {
   if (!SecIsValidHandle(&ctxt_)) {
-    return net::ParseFirstRoundChallenge(scheme_, tok);
+    return ParseFirstRoundChallenge(scheme_, tok);
   }
   std::string encoded_auth_token;
-  return net::ParseLaterRoundChallenge(scheme_, tok, &encoded_auth_token,
-                                       &decoded_server_auth_token_);
+  return ParseLaterRoundChallenge(scheme_, tok, &encoded_auth_token,
+                                  &decoded_server_auth_token_);
 }
 
 int HttpAuthSSPI::GenerateAuthToken(const AuthCredentials* credentials,
@@ -433,8 +434,7 @@ int HttpAuthSSPI::GenerateAuthToken(const AuthCredentials* credentials,
 
   // Base64 encode data in output buffer and prepend the scheme.
   std::string encode_input(static_cast<char*>(out_buf), out_buf_len);
-  std::string encode_output;
-  base::Base64Encode(encode_input, &encode_output);
+  std::string encode_output = base::Base64Encode(encode_input);
   // OK, we are done with |out_buf|
   free(out_buf);
   if (scheme_ == HttpAuth::AUTH_SCHEME_NEGOTIATE) {
@@ -482,11 +482,12 @@ int HttpAuthSSPI::GetNextSecurityToken(const std::string& spn,
   CtxtHandle* ctxt_ptr = nullptr;
   SecBufferDesc in_buffer_desc, out_buffer_desc;
   SecBufferDesc* in_buffer_desc_ptr = nullptr;
-  SecBuffer in_buffers[2], out_buffer;
+  std::array<SecBuffer, 2> in_buffers;
+  SecBuffer out_buffer;
 
   in_buffer_desc.ulVersion = SECBUFFER_VERSION;
   in_buffer_desc.cBuffers = 0;
-  in_buffer_desc.pBuffers = in_buffers;
+  in_buffer_desc.pBuffers = in_buffers.data();
   if (in_token_len > 0) {
     // Prepare input buffer.
     SecBuffer& sec_buffer = in_buffers[in_buffer_desc.cBuffers++];
@@ -499,7 +500,6 @@ int HttpAuthSSPI::GetNextSecurityToken(const std::string& spn,
     // sequence.  If we have already initialized our security context, then
     // we're incorrectly reusing the auth handler for a new sequence.
     if (SecIsValidHandle(&ctxt_)) {
-      NOTREACHED();
       return ERR_UNEXPECTED;
     }
   }
@@ -509,9 +509,11 @@ int HttpAuthSSPI::GetNextSecurityToken(const std::string& spn,
     sec_channel_bindings_buffer.reserve(sizeof(SEC_CHANNEL_BINDINGS) +
                                         channel_bindings.size());
     sec_channel_bindings_buffer.resize(sizeof(SEC_CHANNEL_BINDINGS));
+    // SAFETY: `sec_channel_bindings_buffer` was allocated to be long enough to
+    // hold a SEC_CHANNEL_BINDINGS object above.
     SEC_CHANNEL_BINDINGS* bindings_desc =
-        reinterpret_cast<SEC_CHANNEL_BINDINGS*>(
-            sec_channel_bindings_buffer.data());
+        UNSAFE_BUFFERS(reinterpret_cast<SEC_CHANNEL_BINDINGS*>(
+            sec_channel_bindings_buffer.data()));
     bindings_desc->cbApplicationDataLength = channel_bindings.size();
     bindings_desc->dwApplicationDataOffset = sizeof(SEC_CHANNEL_BINDINGS);
     sec_channel_bindings_buffer.insert(sec_channel_bindings_buffer.end(),

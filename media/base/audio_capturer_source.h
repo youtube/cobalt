@@ -16,6 +16,7 @@
 namespace media {
 
 class AudioProcessorControls;
+struct AudioGlitchInfo;
 
 // AudioCapturerSource is an interface representing the source for
 // captured audio. An implementation will periodically call
@@ -27,10 +28,13 @@ class AudioProcessorControls;
 class AudioCapturerSource
     : public base::RefCountedThreadSafe<media::AudioCapturerSource> {
  public:
+  REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE();
+
   enum class ErrorCode {
     kUnknown = 0,
     kSystemPermissions = 1,
     kDeviceInUse = 2,
+    kSocketError = 3,
   };
 
   class CaptureCallback {
@@ -47,8 +51,8 @@ class AudioCapturerSource
     // thread that's different from the thread used for all other methods.
     virtual void Capture(const AudioBus* audio_source,
                          base::TimeTicks audio_capture_time,
-                         double volume,
-                         bool key_pressed) = 0;
+                         const AudioGlitchInfo& glitch_info,
+                         double volume) = 0;
 
     // Signals an error has occurred.
     virtual void OnCaptureError(ErrorCode code, const std::string& message) = 0;
@@ -90,7 +94,7 @@ class AudioCapturerSource
 
  protected:
   friend class base::RefCountedThreadSafe<AudioCapturerSource>;
-  virtual ~AudioCapturerSource() {}
+  virtual ~AudioCapturerSource() = default;
 };
 
 }  // namespace media

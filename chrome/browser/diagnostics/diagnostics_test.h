@@ -7,8 +7,10 @@
 
 #include <stddef.h>
 
+#include <string>
+#include <string_view>
+
 #include "base/time/time.h"
-#include "chrome/browser/diagnostics/diagnostics_metrics.h"
 #include "chrome/browser/diagnostics/diagnostics_model.h"
 
 namespace base {
@@ -16,6 +18,42 @@ class FilePath;
 }
 
 namespace diagnostics {
+
+// Test IDs used to look up string identifiers for tests. If you add an ID here,
+// you will also need to add corresponding strings to several things in the .cc
+// file.
+enum DiagnosticsTestId {
+  DIAGNOSTICS_CONFLICTING_DLLS_TEST,
+  DIAGNOSTICS_DISK_SPACE_TEST,
+  DIAGNOSTICS_INSTALL_TYPE_TEST,
+  DIAGNOSTICS_JSON_BOOKMARKS_TEST,
+  DIAGNOSTICS_JSON_LOCAL_STATE_TEST,
+  DIAGNOSTICS_JSON_PREFERENCES_TEST,
+  DIAGNOSTICS_OPERATING_SYSTEM_TEST,
+  DIAGNOSTICS_PATH_DICTIONARIES_TEST,
+  DIAGNOSTICS_PATH_LOCAL_STATE_TEST,
+  DIAGNOSTICS_PATH_RESOURCES_TEST,
+  DIAGNOSTICS_PATH_USER_DATA_TEST,
+  DIAGNOSTICS_VERSION_TEST,
+  DIAGNOSTICS_SQLITE_INTEGRITY_APP_CACHE_TEST,
+  DIAGNOSTICS_SQLITE_INTEGRITY_ARCHIVED_HISTORY_TEST_OBSOLETE,
+  DIAGNOSTICS_SQLITE_INTEGRITY_COOKIE_TEST,
+  DIAGNOSTICS_SQLITE_INTEGRITY_DATABASE_TRACKER_TEST,
+  DIAGNOSTICS_SQLITE_INTEGRITY_HISTORY_TEST,
+  DIAGNOSTICS_SQLITE_INTEGRITY_NSS_CERT_TEST,
+  DIAGNOSTICS_SQLITE_INTEGRITY_NSS_KEY_TEST,
+  DIAGNOSTICS_SQLITE_INTEGRITY_THUMBNAILS_TEST_OBSOLETE,
+  DIAGNOSTICS_SQLITE_INTEGRITY_WEB_DATA_TEST,
+  DIAGNOSTICS_SQLITE_INTEGRITY_FAVICONS_TEST,
+  DIAGNOSTICS_SQLITE_INTEGRITY_TOPSITES_TEST,
+  // Add new entries immediately above this comment. Do not reorder or renumber
+  // the entries, as they are tied to historical enum values in the UMA stats.
+  // If you add an entry, you will need to also add an entry to kTestNameInfo,
+  // and to the TEST_CASES macro in the .cc.
+
+  // This must always be last in the list.
+  DIAGNOSTICS_TEST_ID_COUNT
+};
 
 // Represents a single diagnostic test and encapsulates the common
 // functionality across platforms as well.
@@ -65,8 +103,8 @@ class DiagnosticsTest : public DiagnosticsModel::TestInfo {
 
   // DiagnosticsModel::TestInfo overrides
   int GetId() const override;
-  std::string GetName() const override;
-  std::string GetTitle() const override;
+  std::string_view GetName() const override;
+  std::string_view GetTitle() const override;
   DiagnosticsModel::TestResult GetResult() const override;
   std::string GetAdditionalInfo() const override;
   int GetOutcomeCode() const override;

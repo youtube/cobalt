@@ -7,11 +7,11 @@
 namespace power {
   callback VoidCallback = void ();
 
-  [noinline_doc] enum Level {
-    // Prevent the system from sleeping in response to user inactivity.
+  enum Level {
+    // Prevents the system from sleeping in response to user inactivity.
     system,
 
-    // Prevent the display from being turned off or dimmed or the system
+    // Prevents the display from being turned off or dimmed, or the system
     // from sleeping in response to user inactivity.
     display
   };
@@ -29,7 +29,7 @@ namespace power {
     // Reports a user activity in order to awake the screen from a dimmed or
     // turned off state or from a screensaver. Exits the screensaver if it is
     // currently active.
-    [platforms=("chromeos", "lacros"), supportsPromises]
-    static void reportActivity(optional VoidCallback callback);
+    [platforms=("chromeos")] static void reportActivity(
+        optional VoidCallback callback);
   };
 };

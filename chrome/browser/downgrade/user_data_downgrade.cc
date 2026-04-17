@@ -27,7 +27,7 @@ base::Version GetVersionFromFileName(const base::FilePath& path) {
   // On Windows, for Unicode-aware applications, native pathnames are wchar_t
   // arrays encoded in UTF-16.
   return base::Version(base::WideToUTF8(path.BaseName().value()));
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX)
   // On most platforms, native pathnames are char arrays, and the encoding
   // may or may not be specified.  On Mac OS X, native pathnames are encoded
   // in UTF-8.
@@ -43,12 +43,12 @@ bool IsValidSnapshotDirectory(const base::FilePath& path) {
 
 }  // namespace
 
-const base::FilePath::StringPieceType kDowngradeLastVersionFile(
+const base::FilePath::StringViewType kDowngradeLastVersionFile(
     FILE_PATH_LITERAL("Last Version"));
-const base::FilePath::StringPieceType kDowngradeDeleteSuffix(
+const base::FilePath::StringViewType kDowngradeDeleteSuffix(
     FILE_PATH_LITERAL(".CHROME_DELETE"));
 
-const base::FilePath::StringPieceType kSnapshotsDir(
+const base::FilePath::StringViewType kSnapshotsDir(
     FILE_PATH_LITERAL("Snapshots"));
 
 base::FilePath GetLastVersionFile(const base::FilePath& user_data_dir) {
@@ -56,7 +56,7 @@ base::FilePath GetLastVersionFile(const base::FilePath& user_data_dir) {
   return user_data_dir.Append(kDowngradeLastVersionFile);
 }
 
-absl::optional<base::Version> GetLastVersion(
+std::optional<base::Version> GetLastVersion(
     const base::FilePath& user_data_dir) {
   DCHECK(!user_data_dir.empty());
   std::string last_version_str;
@@ -67,7 +67,7 @@ absl::optional<base::Version> GetLastVersion(
     if (version.IsValid())
       return version;
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 base::FilePath GetDiskCacheDir() {
@@ -108,7 +108,7 @@ std::vector<base::FilePath> GetInvalidSnapshots(
   return result;
 }
 
-absl::optional<base::Version> GetSnapshotToRestore(
+std::optional<base::Version> GetSnapshotToRestore(
     const base::Version& version,
     const base::FilePath& user_data_dir) {
   DCHECK(version.IsValid());
@@ -118,7 +118,7 @@ absl::optional<base::Version> GetSnapshotToRestore(
   auto upper_bound = available_snapshots.upper_bound(version);
   if (upper_bound != available_snapshots.begin())
     return *--upper_bound;
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 void RemoveDataForProfile(base::Time delete_begin,

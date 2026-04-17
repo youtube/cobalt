@@ -77,6 +77,8 @@ jobs:
       code_ownership: ${{ steps.set-code-ownership.outputs.code_ownership }}
   calculate_diffs:
     needs: initialize
+    # Check if there's any diff to perform
+    if: ${{ needs.initialize.outputs.upstream_branches != '' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

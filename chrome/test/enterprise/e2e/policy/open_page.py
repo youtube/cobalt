@@ -4,13 +4,16 @@
 
 import time
 from absl import app, flags
-
+from selenium.webdriver.common.by import By
 from test_util import create_chrome_webdriver
 
 FLAGS = flags.FLAGS
 
 flags.DEFINE_string('url', None, 'The url to open in Chrome.')
 flags.mark_flag_as_required('url')
+
+flags.DEFINE_integer('wait_before_page_load', 0,
+                     'How many seconds to wait before loading the page.')
 
 flags.DEFINE_integer(
     'wait', 0,
@@ -27,15 +30,19 @@ flags.DEFINE_bool(
 
 def main(argv):
   driver = create_chrome_webdriver(incognito=FLAGS.incognito)
+
+  if FLAGS.wait_before_page_load > 0:
+    time.sleep(FLAGS.wait_before_page_load)
+
   driver.get(FLAGS.url)
 
   if FLAGS.wait > 0:
     time.sleep(FLAGS.wait)
 
   if FLAGS.text_only:
-    print(driver.find_element_by_css_selector('html').text.encode('utf-8'))
+    print(driver.find_element(By.CSS_SELECTOR, 'html').text)
   else:
-    print(driver.page_source.encode('utf-8'))
+    print(driver.page_source)
 
   driver.quit()
 

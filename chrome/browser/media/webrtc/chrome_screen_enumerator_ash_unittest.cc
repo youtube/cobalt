@@ -18,7 +18,7 @@
 
 class ChromeScreenEnumeratorTest : public ChromeAshTestBase {
  public:
-  ChromeScreenEnumeratorTest() {}
+  ChromeScreenEnumeratorTest() = default;
 
   explicit ChromeScreenEnumeratorTest(const ChromeScreenEnumerator&) = delete;
   ChromeScreenEnumeratorTest& operator=(const ChromeScreenEnumerator&) = delete;
@@ -30,14 +30,15 @@ class ChromeScreenEnumeratorTest : public ChromeAshTestBase {
     enumerator_ = std::make_unique<ChromeScreenEnumerator>();
     scoped_feature_list_.InitFromCommandLine(
         /*enable_features=*/
-        "GetDisplayMediaSet,GetDisplayMediaSetAutoSelectAllScreens",
+        "GetAllScreensMedia",
         /*disable_features=*/"");
   }
 
-  std::vector<aura::Window*> GenerateScreensList(size_t number_of_screens) {
+  std::vector<raw_ptr<aura::Window, VectorExperimental>> GenerateScreensList(
+      size_t number_of_screens) {
     screens_.clear();
     window_delegates_.clear();
-    std::vector<aura::Window*> screens;
+    std::vector<raw_ptr<aura::Window, VectorExperimental>> screens;
     for (size_t i = 0; i < number_of_screens; ++i) {
       auto window_delegate = std::make_unique<aura::test::TestWindowDelegate>();
       auto screen = std::make_unique<aura::Window>(window_delegate.get());
@@ -77,7 +78,6 @@ TEST_F(ChromeScreenEnumeratorTest, NoScreen) {
   EXPECT_EQ(blink::mojom::MediaStreamRequestResult::NO_HARDWARE, actual_result);
 }
 
-// TODO(crbug.com/1392777): Fix these tests for lacros.
 TEST_F(ChromeScreenEnumeratorTest, SingleScreen) {
   ChromeScreenEnumerator::SetRootWindowsForTesting(
       GenerateScreensList(/*number_of_screens=*/1u));

@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {ColorScheme, ThemeObserverInterface, ThemeObserverRemote, ThemeProviderInterface} from 'chrome://personalization/js/personalization_app.js';
+import type {ThemeObserverInterface, ThemeObserverRemote, ThemeProviderInterface} from 'chrome://personalization/js/personalization_app.js';
+import {ColorScheme} from 'chrome://personalization/js/personalization_app.js';
 import {hexColorToSkColor} from 'chrome://resources/js/color_utils.js';
-import {SkColor} from 'chrome://resources/mojo/skia/public/mojom/skcolor.mojom-webui.js';
+import type {SkColor} from 'chrome://resources/mojo/skia/public/mojom/skcolor.mojom-webui.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 
 export class TestThemeProvider extends TestBrowserProxy implements
@@ -14,6 +15,7 @@ export class TestThemeProvider extends TestBrowserProxy implements
       'setThemeObserver',
       'setColorModePref',
       'setColorModeAutoScheduleEnabled',
+      'enableGeolocationForSystemServices',
       'setColorScheme',
       'setStaticColor',
       'generateSampleColorSchemes',
@@ -21,12 +23,19 @@ export class TestThemeProvider extends TestBrowserProxy implements
       'getStaticColor',
       'isDarkModeEnabled',
       'isColorModeAutoScheduleEnabled',
+      'isGeolocationEnabledForSystemServices',
+      'isGeolocationUserModifiable',
+      'getSunriseTime',
+      'getSunsetTime',
     ]);
     this.staticColor = null;
   }
 
   isDarkModeEnabledResponse = true;
   isColorModeAutoScheduleEnabledResponse = true;
+  isGeolocationPermissionEnabledResponse = true;
+  isGeolocationUserModifiableResponse = true;
+
   staticColor: SkColor|null;
   colorScheme = ColorScheme.kTonalSpot;
 
@@ -46,6 +55,10 @@ export class TestThemeProvider extends TestBrowserProxy implements
 
   setColorModeAutoScheduleEnabled(enabled: boolean) {
     this.methodCalled('setColorModeAutoScheduleEnabled', enabled);
+  }
+
+  enableGeolocationForSystemServices() {
+    this.methodCalled('enableGeolocationForSystemServices');
   }
 
   setColorScheme(colorScheme: ColorScheme) {
@@ -97,5 +110,18 @@ export class TestThemeProvider extends TestBrowserProxy implements
     this.methodCalled('isColorModeAutoScheduleEnabled');
     return Promise.resolve(
         {enabled: this.isColorModeAutoScheduleEnabledResponse});
+  }
+
+  isGeolocationEnabledForSystemServices() {
+    this.methodCalled('isGeolocationEnabledForSystemServices');
+    return Promise.resolve(
+        {geolocationEnabled: this.isGeolocationPermissionEnabledResponse});
+  }
+
+  isGeolocationUserModifiable() {
+    this.methodCalled('isGeolocationUserModifiable');
+    return Promise.resolve({
+      geolocationIsUserModifiable: this.isGeolocationUserModifiableResponse,
+    });
   }
 }

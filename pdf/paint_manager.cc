@@ -13,13 +13,15 @@
 
 #include "base/auto_reset.h"
 #include "base/check.h"
+#include "base/check_op.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/location.h"
-#include "base/notreached.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "pdf/paint_ready_rect.h"
+#include "pdf/pdf_features.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkImage.h"
 #include "third_party/skia/include/core/SkRect.h"
@@ -99,17 +101,14 @@ void PaintManager::SetTransform(float scale,
   if (!surface_)
     return;
 
-  if (scale <= 0.0f) {
-    NOTREACHED();
-  } else {
-    // translate_with_origin = origin - scale * origin - translate
-    gfx::Vector2dF translate_with_origin = origin.OffsetFromOrigin();
-    translate_with_origin.Scale(1.0f - scale);
-    translate_with_origin.Subtract(translate);
+  CHECK_GT(scale, 0.0f);
+  // translate_with_origin = origin - scale * origin - translate
+  gfx::Vector2dF translate_with_origin = origin.OffsetFromOrigin();
+  translate_with_origin.Scale(1.0f - scale);
+  translate_with_origin.Subtract(translate);
 
-    // TODO(crbug.com/1263614): Should update be deferred until `Flush()`?
-    client_->UpdateLayerTransform(scale, translate_with_origin);
-  }
+  // TODO(crbug.com/40203030): Should update be deferred until `Flush()`?
+  client_->UpdateLayerTransform(scale, translate_with_origin);
 
   if (!schedule_flush)
     return;
@@ -213,11 +212,11 @@ void PaintManager::DoPaint() {
                              : gfx::Size();
     gfx::Size new_size = GetNewContextSize(old_size, pending_size_);
     if (old_size != new_size || !surface_) {
-      surface_ =
-          SkSurface::MakeRasterN32Premul(new_size.width(), new_size.height());
+      surface_ = SkSurfaces::Raster(
+          SkImageInfo::MakeN32Premul(new_size.width(), new_size.height()));
       DCHECK(surface_);
 
-      // TODO(crbug.com/1317832): Can we guarantee repainting some other way?
+      // TODO(crbug.com/40222665): Can we guarantee repainting some other way?
       client_->InvalidatePluginContainer();
 
       device_scale_ = 1.0f;
@@ -246,15 +245,16 @@ void PaintManager::DoPaint() {
 
   std::vector<PaintReadyRect> ready_now;
   if (pending_rects.empty()) {
-    aggregator_.SetIntermediateResults(ready_rects, pending_rects);
-    ready_now = aggregator_.GetReadyRects();
+    aggregator_.SetIntermediateResults(std::move(ready_rects),
+                                       std::move(pending_rects));
+    ready_now = aggregator_.TakeReadyRects();
     aggregator_.ClearPendingUpdate();
 
     // First, apply any scroll amount less than the surface's size.
     if (update.has_scroll &&
         std::abs(update.scroll_delta.x()) < surface_->width() &&
         std::abs(update.scroll_delta.y()) < surface_->height()) {
-      // TODO(crbug.com/1263614): Use `SkSurface::notifyContentWillChange()`.
+      // TODO(crbug.com/40203030): Use `SkSurface::notifyContentWillChange()`.
       gfx::ScrollCanvas(surface_->getCanvas(), update.scroll_rect,
                         update.scroll_delta);
     }
@@ -262,7 +262,7 @@ void PaintManager::DoPaint() {
     view_size_changed_waiting_for_paint_ = false;
   } else {
     std::vector<PaintReadyRect> ready_later;
-    for (const auto& ready_rect : ready_rects) {
+    for (auto& ready_rect : ready_rects) {
       // Don't flush any part (i.e. scrollbars) if we're resizing the browser,
       // as that'll lead to flashes.  Until we flush, the browser will use the
       // previous image, but if we flush, it'll revert to using the blank image.
@@ -270,14 +270,15 @@ void PaintManager::DoPaint() {
       // default background color instead of the pepper default of black.
       if (ready_rect.flush_now() &&
           (!view_size_changed_waiting_for_paint_ || first_paint_)) {
-        ready_now.push_back(ready_rect);
+        ready_now.push_back(std::move(ready_rect));
       } else {
-        ready_later.push_back(ready_rect);
+        ready_later.push_back(std::move(ready_rect));
       }
     }
     // Take the rectangles, except the ones that need to be flushed right away,
     // and save them so that everything is flushed at once.
-    aggregator_.SetIntermediateResults(ready_later, pending_rects);
+    aggregator_.SetIntermediateResults(std::move(ready_later),
+                                       std::move(pending_rects));
 
     if (ready_now.empty()) {
       EnsureCallbackPending();
@@ -286,9 +287,17 @@ void PaintManager::DoPaint() {
   }
 
   for (const auto& ready_rect : ready_now) {
-    SkRect skia_rect = gfx::RectToSkRect(ready_rect.rect());
+    const SkRect skia_rect = gfx::RectToSkRect(ready_rect.rect());
+
+    // Paint the page's white background, and then paint the page's contents.
+    // If `ready_rect.image()` has transparencies, this is necessary to paint
+    // over the stale data in `skia_rect` in `surface_`.
+    SkPaint paint;
+    paint.setColor(SK_ColorWHITE);
+    surface_->getCanvas()->drawRect(skia_rect, paint);
+
     surface_->getCanvas()->drawImageRect(
-        &ready_rect.image(), skia_rect, skia_rect, SkSamplingOptions(), nullptr,
+        ready_rect.image(), skia_rect, skia_rect, SkSamplingOptions(), nullptr,
         SkCanvas::kStrict_SrcRectConstraint);
   }
 
@@ -305,7 +314,7 @@ void PaintManager::Flush() {
                                    SkSamplingOptions(), /*paint=*/nullptr);
   client_->UpdateSnapshot(std::move(snapshot));
 
-  // TODO(crbug.com/1403311): Complete flush synchronously.
+  // TODO(crbug.com/40251507): Complete flush synchronously.
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&PaintManager::OnFlushComplete,
                                 weak_factory_.GetWeakPtr()));

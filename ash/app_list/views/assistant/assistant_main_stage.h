@@ -37,9 +37,9 @@ class ASH_EXPORT AppListAssistantMainStage
       public AssistantControllerObserver,
       public AssistantInteractionModelObserver,
       public AssistantUiModelObserver {
- public:
-  METADATA_HEADER(AppListAssistantMainStage);
+  METADATA_HEADER(AppListAssistantMainStage, views::View)
 
+ public:
   explicit AppListAssistantMainStage(AssistantViewDelegate* delegate);
   AppListAssistantMainStage(const AppListAssistantMainStage&) = delete;
   AppListAssistantMainStage& operator=(const AppListAssistantMainStage&) =
@@ -67,13 +67,14 @@ class ASH_EXPORT AppListAssistantMainStage
   void OnUiVisibilityChanged(
       AssistantVisibility new_visibility,
       AssistantVisibility old_visibility,
-      absl::optional<AssistantEntryPoint> entry_point,
-      absl::optional<AssistantExitPoint> exit_point) override;
+      std::optional<AssistantEntryPoint> entry_point,
+      std::optional<AssistantExitPoint> exit_point) override;
 
   void InitializeUIForBubbleView();
 
  private:
   void InitLayout();
+  void InitLayoutWithIph();
   std::unique_ptr<views::View> CreateContentLayoutContainer();
   std::unique_ptr<views::View> CreateMainContentLayoutContainer();
   std::unique_ptr<views::View> CreateDividerLayoutContainer();
@@ -82,19 +83,43 @@ class ASH_EXPORT AppListAssistantMainStage
   void AnimateInZeroState();
   void AnimateInFooter();
 
-  void MaybeHideZeroState();
+  void MaybeHideZeroStateAndShowFooter();
   void InitializeUIForStartingSession(bool from_search);
 
-  const raw_ptr<AssistantViewDelegate, ExperimentalAsh>
-      delegate_;  // Owned by Shell.
+  AssistantQueryView* query_view() {
+    return query_view_observation_.GetSource();
+  }
+  const AssistantQueryView* query_view() const {
+    return query_view_observation_.GetSource();
+  }
+
+  UiElementContainerView* ui_element_container() {
+    return ui_element_container_observation_.GetSource();
+  }
+  const UiElementContainerView* ui_element_container() const {
+    return ui_element_container_observation_.GetSource();
+  }
+
+  AssistantFooterView* footer() { return footer_observation_.GetSource(); }
+  const AssistantFooterView* footer() const {
+    return footer_observation_.GetSource();
+  }
+
+  const raw_ptr<AssistantViewDelegate> delegate_;  // Owned by Shell.
 
   // Owned by view hierarchy.
-  raw_ptr<AssistantProgressIndicator, ExperimentalAsh> progress_indicator_;
-  raw_ptr<views::Separator, ExperimentalAsh> horizontal_separator_;
-  raw_ptr<AssistantQueryView, ExperimentalAsh> query_view_;
-  raw_ptr<UiElementContainerView, ExperimentalAsh> ui_element_container_;
-  raw_ptr<AssistantZeroStateView, ExperimentalAsh> zero_state_view_;
-  raw_ptr<AssistantFooterView, ExperimentalAsh> footer_;
+  raw_ptr<AssistantProgressIndicator> progress_indicator_;
+  raw_ptr<views::Separator> horizontal_separator_;
+  // The observed views are owned by the view hierarchy. These could be a
+  // raw_ptr to the view + ScopedObservation, but accessing the view through
+  // the ScopedObservation saves a pointer.
+  base::ScopedObservation<AssistantQueryView, ViewObserver>
+      query_view_observation_{this};
+  base::ScopedObservation<UiElementContainerView, ViewObserver>
+      ui_element_container_observation_{this};
+  raw_ptr<AssistantZeroStateView> zero_state_view_;
+  base::ScopedObservation<AssistantFooterView, ViewObserver>
+      footer_observation_{this};
 
   base::ScopedObservation<AssistantController, AssistantControllerObserver>
       assistant_controller_observation_{this};

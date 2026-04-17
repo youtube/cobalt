@@ -8,6 +8,11 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <utility>
+
 #include "api/array_view.h"
 #include "api/video/encoded_frame.h"
 #include "api/video/frame_buffer.h"
@@ -35,7 +40,7 @@ void FuzzOneInput(const uint8_t* data, size_t size) {
   test::ScopedKeyValueConfig field_trials;
   FrameBuffer buffer(/*max_frame_slots=*/100, /*max_decode_history=*/1000,
                      field_trials);
-  test::FuzzDataHelper helper(rtc::MakeArrayView(data, size));
+  test::FuzzDataHelper helper(webrtc::MakeArrayView(data, size));
   SeqNumUnwrapper<uint16_t, kFrameIdLength> unwrapper;
 
   while (helper.BytesLeft() > 0) {
@@ -64,7 +69,7 @@ void FuzzOneInput(const uint8_t* data, size_t size) {
       }
       case 5: {
         auto frame = std::make_unique<FuzzyFrameObject>();
-        frame->SetTimestamp(helper.ReadOrDefaultValue<uint32_t>(0));
+        frame->SetRtpTimestamp(helper.ReadOrDefaultValue<uint32_t>(0));
         int64_t wire_id =
             helper.ReadOrDefaultValue<uint16_t>(0) & (kFrameIdLength - 1);
         frame->SetId(unwrapper.Unwrap(wire_id));

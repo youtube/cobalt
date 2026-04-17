@@ -20,7 +20,7 @@ void AppNotifications::AddNotification(const std::string& app_id,
 
 void AppNotifications::RemoveNotification(const std::string& notification_id) {
   auto it = notification_id_to_app_ids_.find(notification_id);
-  DCHECK(it != notification_id_to_app_ids_.end());
+  CHECK(it != notification_id_to_app_ids_.end());
 
   for (const auto& app_id : it->second) {
     auto app_id_it = app_id_to_notification_ids_.find(app_id);

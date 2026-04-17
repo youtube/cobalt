@@ -63,9 +63,9 @@ bool FillsViewport(const Element& element) {
 
   gfx::Size icb_size = top_document.GetLayoutView()->GetLayoutSize();
 
-  float zoom = top_document.GetFrame()->PageZoomFactor();
+  float zoom = top_document.GetFrame()->LayoutZoomFactor();
   gfx::Size controls_hidden_size = gfx::ToCeiledSize(gfx::ScaleSize(
-      top_document.View()->ViewportSizeForViewportUnits(), zoom));
+      top_document.View()->LargeViewportSizeForViewportUnits(), zoom));
 
   if (bounding_box.size() != icb_size &&
       bounding_box.size() != controls_hidden_size)
@@ -224,9 +224,10 @@ bool RootScrollerController::IsValidRootScroller(const Element& element) const {
   if (!element.GetLayoutObject()->IsBox())
     return false;
 
-  // Ignore anything inside a FlowThread (multi-col, paginated, etc.).
-  if (element.GetLayoutObject()->IsInsideFlowThread())
+  // Ignore anything inside that might be inside multicol layout.
+  if (element.GetLayoutObject()->IsInsideMulticol()) {
     return false;
+  }
 
   if (!element.GetLayoutObject()->IsScrollContainer() &&
       !element.IsFrameOwnerElement())
@@ -265,9 +266,10 @@ bool RootScrollerController::IsValidImplicitCandidate(
   if (!element.GetLayoutObject()->IsBox())
     return false;
 
-  // Ignore anything inside a FlowThread (multi-col, paginated, etc.).
-  if (element.GetLayoutObject()->IsInsideFlowThread())
+  // Ignore anything inside that might be inside multicol layout.
+  if (element.GetLayoutObject()->IsInsideMulticol()) {
     return false;
+  }
 
   PaintLayerScrollableArea* scrollable_area = GetScrollableArea(element);
   if (!scrollable_area || !scrollable_area->ScrollsOverflow())

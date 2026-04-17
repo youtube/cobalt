@@ -38,7 +38,7 @@ std::u16string GetTitleOrAppNameFromWebContents(
   DCHECK(web_contents);
   std::u16string title = web_contents->GetTitle();
   // Empty title falls back to navigation URL.
-  if (base::StartsWith(title, base::UTF8ToUTF16(chrome::kIsolatedAppScheme),
+  if (base::StartsWith(title, chrome::kIsolatedAppSchemeUtf16,
                        base::CompareCase::SENSITIVE)) {
     const GURL& url = web_contents->GetLastCommittedURL();
     Profile* profile =
@@ -70,9 +70,7 @@ void IsolatedWebAppTask::UpdateTitle() {
 }
 
 void IsolatedWebAppTask::UpdateFavicon() {
-  const gfx::ImageSkia* icon =
-      RendererTask::GetFaviconFromWebContents(web_contents());
-  set_icon(icon ? *icon : gfx::ImageSkia());
+  DefaultUpdateFaviconImpl();
 }
 
 }  // namespace task_manager

@@ -11,6 +11,7 @@
 #include "ash/ash_export.h"
 #include "ash/system/diagnostics/async_log.h"
 #include "ash/webui/diagnostics_ui/mojom/network_health_provider.mojom.h"
+#include "base/gtest_prod_util.h"
 
 namespace ash {
 namespace diagnostics {
@@ -84,4 +85,4 @@ class ASH_EXPORT NetworkingLog {
 }  // namespace diagnostics
 }  // namespace ash
 
-#endif  // ASH_WEBUI_DIAGNOSTICS_UI_BACKEND_NETWORKING_LOG_H_
+#endif  // ASH_SYSTEM_DIAGNOSTICS_NETWORKING_LOG_H_

@@ -13,9 +13,9 @@
 #include "chrome/browser/ash/guest_os/guest_os_registry_service_factory.h"
 #include "chrome/browser/ash/guest_os/guest_os_terminal.h"
 #include "chrome/browser/notifications/notification_display_service.h"
+#include "chrome/browser/notifications/notification_display_service_factory.h"
 #include "chrome/browser/ui/views/crostini/crostini_package_install_failure_view.h"
 #include "chrome/grit/generated_resources.h"
-#include "chromeos/constants/chromeos_features.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/chromeos/styles/cros_tokens_color_mappings.h"
 #include "ui/display/display.h"
@@ -41,10 +41,12 @@ const std::string& CrostiniPackageNotification::GetErrorMessageForTesting()
   return error_message_;
 }
 
-CrostiniPackageNotification::NotificationSettings::NotificationSettings() {}
+CrostiniPackageNotification::NotificationSettings::NotificationSettings() =
+    default;
 CrostiniPackageNotification::NotificationSettings::NotificationSettings(
     const NotificationSettings& rhs) = default;
-CrostiniPackageNotification::NotificationSettings::~NotificationSettings() {}
+CrostiniPackageNotification::NotificationSettings::~NotificationSettings() =
+    default;
 
 CrostiniPackageNotification::CrostiniPackageNotification(
     Profile* profile,
@@ -71,11 +73,7 @@ CrostiniPackageNotification::CrostiniPackageNotification(
   message_center::RichNotificationData rich_notification_data;
   rich_notification_data.vector_small_image = &ash::kNotificationLinuxIcon;
   rich_notification_data.never_timeout = true;
-  if (chromeos::features::IsJellyEnabled()) {
-    rich_notification_data.accent_color_id = cros_tokens::kCrosSysOnPrimary;
-  } else {
-    rich_notification_data.accent_color = ash::kSystemNotificationColorNormal;
-  }
+  rich_notification_data.accent_color_id = cros_tokens::kCrosSysPrimary;
 
   notification_ = std::make_unique<message_center::Notification>(
       message_center::NOTIFICATION_TYPE_PROGRESS, notification_id,
@@ -228,12 +226,7 @@ void CrostiniPackageNotification::UpdateProgress(
       title = notification_settings_.failure_title;
       body = notification_settings_.failure_body;
       error_message_ = error_message;
-      if (chromeos::features::IsJellyEnabled()) {
-        notification_->set_accent_color_id(cros_tokens::kCrosSysError);
-      } else {
-        notification_->set_accent_color(
-            ash::kSystemNotificationColorCriticalWarning);
-      }
+      notification_->set_accent_color_id(cros_tokens::kCrosSysError);
       break;
     }
 
@@ -294,14 +287,15 @@ void CrostiniPackageNotification::Close(bool by_user) {
 }
 
 void CrostiniPackageNotification::Click(
-    const absl::optional<int>& button_index,
-    const absl::optional<std::u16string>& reply) {
+    const std::optional<int>& button_index,
+    const std::optional<std::u16string>& reply) {
   if (current_status_ == PackageOperationStatus::FAILED) {
     crostini::ShowCrostiniPackageInstallFailureView(error_message_);
   }
 
-  if (current_status_ != PackageOperationStatus::SUCCEEDED)
+  if (current_status_ != PackageOperationStatus::SUCCEEDED) {
     return;
+  }
 
   if (app_count_ == 0) {
     LaunchTerminal(profile_,
@@ -334,7 +328,7 @@ void CrostiniPackageNotification::UpdateDisplayedNotification() {
   }
 
   NotificationDisplayService* display_service =
-      NotificationDisplayService::GetForProfile(profile_);
+      NotificationDisplayServiceFactory::GetForProfile(profile_);
   display_service->Display(NotificationHandler::Type::TRANSIENT, *notification_,
                            /*metadata=*/nullptr);
 }

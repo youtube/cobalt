@@ -5,7 +5,9 @@
 #include <stddef.h>
 
 #include <algorithm>
+#include <array>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -26,7 +28,6 @@
 #include "dbus/object_proxy.h"
 #include "dbus/test_service.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace dbus {
 
@@ -252,14 +253,14 @@ class EndToEndAsyncTest : public testing::Test {
   }
 
   base::test::SingleThreadTaskEnvironment task_environment_;
-  absl::optional<base::ScopedDisallowBlocking> disallow_blocking_;
+  std::optional<base::ScopedDisallowBlocking> disallow_blocking_;
   std::unique_ptr<base::RunLoop> run_loop_;
   std::vector<std::string> response_strings_;
   std::vector<std::string> error_names_;
   std::unique_ptr<base::Thread> dbus_thread_;
   scoped_refptr<Bus> bus_;
-  raw_ptr<ObjectProxy> object_proxy_;
-  raw_ptr<ObjectProxy> root_object_proxy_;
+  raw_ptr<ObjectProxy, AcrossTasksDanglingUntriaged> object_proxy_;
+  raw_ptr<ObjectProxy, AcrossTasksDanglingUntriaged> root_object_proxy_;
   std::unique_ptr<TestService> test_service_;
   // Text message from "Test" signal.
   std::string test_signal_string_;
@@ -304,7 +305,7 @@ TEST_F(EndToEndAsyncTest, EchoWithErrorCallback) {
 
 // Call Echo method three times.
 TEST_F(EndToEndAsyncTest, EchoThreeTimes) {
-  const char* kMessages[] = { "foo", "bar", "baz" };
+  auto kMessages = std::to_array<const char*>({"foo", "bar", "baz"});
 
   for (size_t i = 0; i < std::size(kMessages); ++i) {
     // Create the method call.

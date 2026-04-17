@@ -14,13 +14,13 @@ import compile_db
 
 # Input compile DB.
 _TEST_COMPILE_DB = [
-    # Verifies that gomacc.exe is removed.
+    # Verifies that rewrapper.exe is removed.
     {
-        'command': r'C:\gomacc.exe C:\clang-cl.exe /blah',
+        'command': r'C:\rewrapper.exe C:\clang-cl.exe /blah',
     },
-    # Verifies a goma path containing a space.
+    # Verifies a rewrapper path containing a space.
     {
-        'command': r'"C:\Program Files\gomacc.exe" C:\clang-cl.exe /blah',
+        'command': r'"C:\Program Files\rewrapper.exe" C:\clang-cl.exe /blah',
     },
     # Includes a string define.
     {
@@ -98,17 +98,6 @@ class CompileDbTest(unittest.TestCase):
                           'command': r'clang -g -funroll-loops test.cc'
                       }])
 
-  def testGomaccPathFiltered(self):
-    sys.platform = 'linux2'
-    input_db = [{
-        'command':
-        r'clang -g --gomacc-path /path/to/gomacc -funroll-loops test.cc'
-    }]
-    self.assertEquals(compile_db.ProcessCompileDatabase(input_db, []),
-                      [{
-                          'command': r'clang -g -funroll-loops test.cc'
-                      }])
-
   def testProfileSampleUseFiltered(self):
     sys.platform = 'linux2'
     input_db = [{
@@ -130,6 +119,31 @@ class CompileDbTest(unittest.TestCase):
         [{
             'command': r'clang -g -O3 test.cc'
         }])
+
+  def testRewrapperRemoved(self):
+    sys.platform = 'linux2'
+    input_db = [{
+        'command':
+        r'./buildtools/reclient/rewrapper ./bin/clang++ -O3 test.cc',
+    }]
+    self.assertEquals(compile_db.ProcessCompileDatabase(input_db, []),
+                      [{
+                          'command': r'./bin/clang++ -O3 test.cc'
+                      }])
+
+  def testRewrapperArgsRemoved(self):
+    sys.platform = 'linux2'
+    input_db = [{
+        'command':
+        r'./buildtools/reclient/rewrapper'
+        r' -cfg=./buildtools/reclient_cfgs/.../rewrapper_linux.cfg'
+        r' -exec_root=/chromium/src/'
+        r' ./bin/clang++ -O3 test.cc',
+    }]
+    self.assertEquals(compile_db.ProcessCompileDatabase(input_db, []),
+                      [{
+                          'command': r'./bin/clang++ -O3 test.cc'
+                      }])
 
 
 if __name__ == '__main__':

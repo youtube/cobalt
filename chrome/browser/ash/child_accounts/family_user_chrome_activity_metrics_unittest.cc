@@ -15,8 +15,9 @@
 #include "base/time/time.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
+#include "chrome/browser/apps/app_service/app_service_test.h"
+#include "chrome/browser/ash/child_accounts/apps/app_test_utils.h"
 #include "chrome/browser/ash/child_accounts/time_limits/app_time_limit_utils.h"
-#include "chrome/browser/ash/child_accounts/time_limits/app_time_test_utils.h"
 #include "chrome/browser/ash/child_accounts/time_limits/app_types.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/test_extension_system.h"
@@ -30,6 +31,7 @@
 #include "components/services/app_service/public/cpp/app_registry_cache.h"
 #include "components/session_manager/core/session_manager.h"
 #include "components/session_manager/session_manager_types.h"
+#include "extensions/browser/extension_registrar.h"
 
 namespace ash {
 
@@ -69,6 +71,8 @@ class FamilyUserChromeActivityMetricsTest
     chromeos::PowerManagerClient::InitializeFake();
     ChromeRenderViewHostTestHarness::SetUp();
     InitiateFamilyUserChromeActivityMetrics();
+    WaitForAppServiceProxyReady(
+        apps::AppServiceProxyFactory::GetForProfile(profile()));
 
     extensions::TestExtensionSystem* extension_system(
         static_cast<extensions::TestExtensionSystem*>(
@@ -79,9 +83,10 @@ class FamilyUserChromeActivityMetricsTest
     extension_service_->Init();
 
     // Install Chrome.
-    scoped_refptr<extensions::Extension> chrome = app_time::CreateExtension(
+    scoped_refptr<extensions::Extension> chrome = CreateExtension(
         app_constants::kChromeAppId, kExtensionNameChrome, kExtensionAppUrl);
-    extension_service_->AddComponentExtension(chrome.get());
+    extensions::ExtensionRegistrar::Get(profile())->AddComponentExtension(
+        chrome.get());
 
     BrowserList* active_browser_list = BrowserList::GetInstance();
     // Expect BrowserList is empty at the beginning.
@@ -153,7 +158,7 @@ class FamilyUserChromeActivityMetricsTest
       family_user_chrome_activity_metrics_;
   std::unique_ptr<TestBrowserWindowAura> browser_window_;
   session_manager::SessionManager session_manager_;
-  raw_ptr<extensions::ExtensionService, ExperimentalAsh> extension_service_ =
+  raw_ptr<extensions::ExtensionService, DanglingUntriaged> extension_service_ =
       nullptr;
 };
 

@@ -1,16 +1,16 @@
-/* Copyright (c) 2016, Google Inc.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
+// Copyright 2016 The BoringSSL Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <functional>
 #include <string>
@@ -231,14 +231,16 @@ static bool GetString(std::string *out, CBS *cbs) {
     return false;
   }
 
-  out->assign(reinterpret_cast<const char *>(CBS_data(&str)), CBS_len(&str));
+  *out = bssl::BytesAsStringView(str);
   return true;
 }
 
 template <typename T>
 static bool GetVector(std::vector<T> *out, CBS *cbs) {
-  static_assert(std::is_pod<T>::value,
-                "GetVector may only be called on POD types");
+  static_assert(
+      std::is_standard_layout<T>::value && std::is_trivially_copyable<T>::value,
+      "GetVector may only be called on standard layout, trivially copyable "
+      "types");
 
   CBS child;
   if (!CBS_get_u8_length_prefixed(cbs, &child)) {
@@ -410,18 +412,25 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len) {
         SSL_CTX_set_tlsext_ticket_keys(ctx, keys.data(), keys.size());
       },
       [](SSL_CTX *ctx, CBS *cbs) {
-        std::vector<int> curves;
-        if (!GetVector(&curves, cbs)) {
+        std::vector<int> groups;
+        if (!GetVector(&groups, cbs)) {
           return;
         }
-        SSL_CTX_set1_curves(ctx, curves.data(), curves.size());
+        SSL_CTX_set1_groups(ctx, groups.data(), groups.size());
       },
       [](SSL_CTX *ctx, CBS *cbs) {
-        std::string curves;
-        if (!GetString(&curves, cbs)) {
+        std::vector<uint16_t> groups;
+        if (!GetVector(&groups, cbs)) {
           return;
         }
-        SSL_CTX_set1_curves_list(ctx, curves.c_str());
+        SSL_CTX_set1_group_ids(ctx, groups.data(), groups.size());
+      },
+      [](SSL_CTX *ctx, CBS *cbs) {
+        std::string groups;
+        if (!GetString(&groups, cbs)) {
+          return;
+        }
+        SSL_CTX_set1_groups_list(ctx, groups.c_str());
       },
       [](SSL_CTX *ctx, CBS *cbs) {
         SSL_CTX_enable_signed_cert_timestamps(ctx);

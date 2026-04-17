@@ -12,15 +12,19 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <memory>
+#include <optional>
 
-#include "api/array_view.h"
+#include "api/audio/audio_processing.h"
+#include "modules/audio_processing/agc2/clipping_predictor.h"
 #include "modules/audio_processing/agc2/gain_map_internal.h"
 #include "modules/audio_processing/agc2/input_volume_stats_reporter.h"
+#include "modules/audio_processing/audio_buffer.h"
 #include "modules/audio_processing/include/audio_frame_view.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_minmax.h"
-#include "system_wrappers/include/field_trial.h"
 #include "system_wrappers/include/metrics.h"
 
 namespace webrtc {
@@ -116,8 +120,8 @@ int GetSpeechLevelRmsErrorDb(float speech_level_dbfs,
   constexpr float kMaxSpeechLevelDbfs = 30.0f;
   RTC_DCHECK_GE(speech_level_dbfs, kMinSpeechLevelDbfs);
   RTC_DCHECK_LE(speech_level_dbfs, kMaxSpeechLevelDbfs);
-  speech_level_dbfs = rtc::SafeClamp<float>(
-      speech_level_dbfs, kMinSpeechLevelDbfs, kMaxSpeechLevelDbfs);
+  speech_level_dbfs = SafeClamp<float>(speech_level_dbfs, kMinSpeechLevelDbfs,
+                                       kMaxSpeechLevelDbfs);
 
   int rms_error_db = 0;
   if (speech_level_dbfs > target_range_max_dbfs) {
@@ -173,7 +177,7 @@ void MonoInputVolumeController::Initialize() {
 // previous update and the ratio of non-silence frames (i.e., frames with a
 // `speech_probability` higher than `speech_probability_threshold_`) is at least
 // `speech_ratio_threshold_`.
-void MonoInputVolumeController::Process(absl::optional<int> rms_error_db,
+void MonoInputVolumeController::Process(std::optional<int> rms_error_db,
                                         float speech_probability) {
   if (check_volume_on_next_process_) {
     check_volume_on_next_process_ = false;
@@ -343,7 +347,7 @@ void MonoInputVolumeController::UpdateInputVolume(int rms_error_db) {
   // Prevent too large microphone input volume changes by clamping the RMS
   // error.
   rms_error_db =
-      rtc::SafeClamp(rms_error_db, -KMaxAbsRmsErrorDbfs, KMaxAbsRmsErrorDbfs);
+      SafeClamp(rms_error_db, -KMaxAbsRmsErrorDbfs, KMaxAbsRmsErrorDbfs);
   if (rms_error_db == 0) {
     return;
   }
@@ -404,7 +408,7 @@ void InputVolumeController::Initialize() {
   clipping_rate_log_ = 0.0f;
   clipping_rate_log_counter_ = 0;
 
-  applied_input_volume_ = absl::nullopt;
+  applied_input_volume_ = std::nullopt;
 }
 
 void InputVolumeController::AnalyzeInputAudio(int applied_input_volume,
@@ -498,13 +502,13 @@ void InputVolumeController::AnalyzeInputAudio(int applied_input_volume,
   AggregateChannelLevels();
 }
 
-absl::optional<int> InputVolumeController::RecommendInputVolume(
+std::optional<int> InputVolumeController::RecommendInputVolume(
     float speech_probability,
-    absl::optional<float> speech_level_dbfs) {
+    std::optional<float> speech_level_dbfs) {
   // Only process if applied input volume is set.
   if (!applied_input_volume_.has_value()) {
     RTC_LOG(LS_ERROR) << "[AGC2] Applied input volume not set.";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   AggregateChannelLevels();
@@ -514,7 +518,7 @@ absl::optional<int> InputVolumeController::RecommendInputVolume(
     return applied_input_volume_;
   }
 
-  absl::optional<int> rms_error_db;
+  std::optional<int> rms_error_db;
   if (speech_level_dbfs.has_value()) {
     // Compute the error for all frames (both speech and non-speech frames).
     rms_error_db = GetSpeechLevelRmsErrorDb(
@@ -533,7 +537,7 @@ absl::optional<int> InputVolumeController::RecommendInputVolume(
         recommended_input_volume_);
   }
 
-  applied_input_volume_ = absl::nullopt;
+  applied_input_volume_ = std::nullopt;
   return recommended_input_volume();
 }
 

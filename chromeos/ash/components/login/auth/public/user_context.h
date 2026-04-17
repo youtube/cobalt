@@ -5,13 +5,16 @@
 #ifndef CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH_PUBLIC_USER_CONTEXT_H_
 #define CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH_PUBLIC_USER_CONTEXT_H_
 
+#include <optional>
 #include <string>
 
 #include "base/component_export.h"
 #include "base/containers/enum_set.h"
-
+#include "base/time/time.h"
+#include "chromeos/ash/components/cryptohome/auth_factor.h"
 #include "chromeos/ash/components/login/auth/public/auth_factors_configuration.h"
 #include "chromeos/ash/components/login/auth/public/auth_session_intent.h"
+#include "chromeos/ash/components/login/auth/public/auth_types.h"
 #include "chromeos/ash/components/login/auth/public/challenge_response_key.h"
 #include "chromeos/ash/components/login/auth/public/key.h"
 #include "chromeos/ash/components/login/auth/public/saml_password_attributes.h"
@@ -20,9 +23,9 @@
 #include "components/account_id/account_id.h"
 #include "components/password_manager/core/browser/password_hash_data.h"
 #include "components/user_manager/user_type.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class AccountId;
+class GaiaId;
 
 namespace user_manager {
 class User;
@@ -49,6 +52,74 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH_PUBLIC) UserContext {
     AUTH_FLOW_ACTIVE_DIRECTORY,
   };
 
+  // Defines details related to user home directory mount.
+  enum class MountState {
+    // User home directory is persistent, and it was freshly
+    // created during login.
+    kNewPersistent,
+    // User home directory is persistent, and it existed before
+    // current login.
+    kExistingPersistent,
+    // User home directory is mounted as ephemeral.
+    kEphemeral,
+  };
+
+  // Data that is relevant only for interaction with cryptohomed.
+  class CryptohomeContext {
+   public:
+    CryptohomeContext();
+    CryptohomeContext(const CryptohomeContext& other);
+    ~CryptohomeContext();
+
+    bool operator==(const CryptohomeContext& context) const;
+    bool operator!=(const CryptohomeContext& context) const;
+
+    bool IsForcingDircrypto() const;
+    void SetIsForcingDircrypto(bool is_forcing_dircrypto);
+
+    // TODO(b/241259026): rename this method.
+    const SessionAuthFactors& GetAuthFactorsData() const;
+    void SetSessionAuthFactors(SessionAuthFactors keys);
+
+    // May only be called if AuthFactorsConfiguration has been set.
+    const AuthFactorsConfiguration& GetAuthFactorsConfiguration() const;
+    bool HasAuthFactorsConfiguration() const;
+    void SetAuthFactorsConfiguration(AuthFactorsConfiguration auth_factors);
+    void ClearAuthFactorsConfiguration();
+
+    const std::string& GetUserIDHash() const;
+    void SetUserIDHash(const std::string& user_id_hash);
+
+    void SetAuthSessionIds(const std::string& authsession_id,
+                           const std::string& broadcast_id);
+    void ResetAuthSessionIds();
+    const std::string& GetAuthSessionId() const;
+    const std::string& GetBroadcastId() const;
+
+    base::Time GetSessionLifetime() const;
+    void SetSessionLifetime(const base::Time& valid_until);
+
+    std::optional<MountState> GetMountState() const;
+    void SetMountState(MountState mount_state);
+
+    void ClearAuthorizedIntents();
+    void AddAuthorizedIntent(AuthSessionIntent auth_intent);
+    AuthSessionIntents GetAuthorizedIntents() const;
+
+    void ClearSecrets();
+
+   private:
+    bool is_forcing_dircrypto_ = false;
+    SessionAuthFactors session_auth_factors_;
+    mutable std::optional<AuthFactorsConfiguration> auth_factors_configuration_;
+    std::string authsession_id_;
+    std::string broadcast_id_;
+    AuthSessionIntents authorized_for_;
+    std::string user_id_hash_;
+    base::Time valid_until_;
+    std::optional<MountState> mount_state_;
+  };
+
   UserContext();
   UserContext(const UserContext& other);
   explicit UserContext(const user_manager::User& user);
@@ -59,7 +130,7 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH_PUBLIC) UserContext {
   bool operator!=(const UserContext& context) const;
 
   const AccountId& GetAccountId() const;
-  const std::string& GetGaiaID() const;
+  GaiaId GetGaiaID() const;
   // Information about the user password - either a plain-text password or a
   // its hashed/transformed representation.
   const Key* GetKey() const;
@@ -82,7 +153,8 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH_PUBLIC) UserContext {
   // TODO(b/241259026): rename this method.
   const SessionAuthFactors& GetAuthFactorsData() const;
   // May only be called if AuthFactorsConfiguration has been set.
-  const AuthFactorsConfiguration& GetAuthFactorsConfiguration();
+  const AuthFactorsConfiguration& GetAuthFactorsConfiguration() const;
+  bool HasAuthFactorsConfiguration() const;
 
   const std::string& GetAuthCode() const;
   const std::string& GetRefreshToken() const;
@@ -99,12 +171,20 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH_PUBLIC) UserContext {
   const std::string& GetDeviceId() const;
   const std::string& GetGAPSCookie() const;
   const std::string& GetReauthProofToken() const;
-  const absl::optional<password_manager::PasswordHashData>&
-  GetSyncPasswordData() const;
-  const absl::optional<SamlPasswordAttributes>& GetSamlPasswordAttributes()
+  const std::optional<password_manager::PasswordHashData>& GetSyncPasswordData()
       const;
-  const absl::optional<SyncTrustedVaultKeys>& GetSyncTrustedVaultKeys() const;
+  const std::optional<SamlPasswordAttributes>& GetSamlPasswordAttributes()
+      const;
+  const std::optional<SyncTrustedVaultKeys>& GetSyncTrustedVaultKeys() const;
   bool CanLockManagedGuestSession() const;
+  AuthSessionIntents GetAuthorizedIntents() const;
+
+  void SetGaiaPassword(const GaiaPassword& password);
+  void SetSamlPassword(const SamlPassword& password);
+  void SetLocalPasswordInput(const LocalPasswordInput& password);
+
+  std::optional<OnlinePassword> GetOnlinePassword() const;
+  std::optional<PasswordInput> GetPassword() const;
 
   bool HasCredentials() const;
   bool HasReplacementKey() const;
@@ -114,6 +194,7 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH_PUBLIC) UserContext {
 
   void SetAccountId(const AccountId& account_id);
   void SetKey(const Key& key);
+  void SetReplacementKey(const Key& replacement_key);
 
   // This method is used in key replacement scenario, when user's online
   // password was changed externally. Upon next online sign-in the new verified
@@ -177,10 +258,19 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH_PUBLIC) UserContext {
   // when session starts.
   void SetLoginInputMethodIdUsed(const std::string& input_method_id);
   const std::string& GetLoginInputMethodIdUsed() const;
-  void SetAuthSessionId(const std::string& authsession_id);
-  void ResetAuthSessionId();
+  void SetAuthSessionIds(const std::string& authsession_id,
+                         const std::string& broadcast_id);
+  void ResetAuthSessionIds();
   const std::string& GetAuthSessionId() const;
+  const std::string& GetBroadcastId() const;
 
+  base::Time GetSessionLifetime() const;
+  void SetSessionLifetime(const base::Time& valid_until);
+
+  std::optional<MountState> GetMountState() const;
+  void SetMountState(MountState mount_state);
+
+  void ClearAuthorizedIntents();
   void AddAuthorizedIntent(AuthSessionIntent auth_intent);
 
   void ClearSecrets();
@@ -189,20 +279,19 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH_PUBLIC) UserContext {
   AccountId account_id_;
   Key key_;
   Key password_key_;
-  absl::optional<Key> replacement_key_ = absl::nullopt;
-  SessionAuthFactors session_auth_factors_;
-  absl::optional<AuthFactorsConfiguration> auth_factors_configuration_;
+  std::optional<GaiaPassword> gaia_password_;
+  std::optional<SamlPassword> saml_password_;
+  std::optional<LocalPasswordInput> local_input_;
+  std::optional<Key> replacement_key_ = std::nullopt;
   std::vector<ChallengeResponseKey> challenge_response_keys_;
   std::string auth_code_;
   std::string refresh_token_;
   std::string access_token_;  // OAuthLogin scoped access token.
-  std::string user_id_hash_;
   bool is_using_oauth_ = true;
   bool is_using_pin_ = false;
-  bool is_forcing_dircrypto_ = false;
   AuthFlow auth_flow_ = AUTH_FLOW_OFFLINE;
   bool is_using_saml_principals_api_ = false;
-  user_manager::UserType user_type_ = user_manager::USER_TYPE_REGULAR;
+  user_manager::UserType user_type_ = user_manager::UserType::kRegular;
   std::string public_session_locale_;
   std::string public_session_input_method_;
   std::string device_id_;
@@ -213,17 +302,17 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_LOGIN_AUTH_PUBLIC) UserContext {
   // |login_input_method_id_used_| is non-empty if login password/code was used,
   // i.e. user used some input method to log in.
   std::string login_input_method_id_used_;
-  std::string authsession_id_;
-  AuthSessionIntents authorized_for_;
+
+  CryptohomeContext cryptohome_;
 
   // For password reuse detection use.
-  absl::optional<password_manager::PasswordHashData> sync_password_data_;
+  std::optional<password_manager::PasswordHashData> sync_password_data_;
 
   // Info about the user's SAML password, such as when it will expire.
-  absl::optional<SamlPasswordAttributes> saml_password_attributes_;
+  std::optional<SamlPasswordAttributes> saml_password_attributes_;
 
   // Info about the user's sync encryption keys.
-  absl::optional<SyncTrustedVaultKeys> sync_trusted_vault_keys_;
+  std::optional<SyncTrustedVaultKeys> sync_trusted_vault_keys_;
 };
 
 }  // namespace ash

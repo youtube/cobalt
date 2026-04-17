@@ -9,12 +9,13 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "base/containers/span.h"
 #include "base/functional/callback_forward.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/sequence_checker.h"
@@ -28,7 +29,6 @@
 #include "net/cert/x509_certificate.h"
 #include "net/ssl/client_cert_identity.h"
 #include "net/ssl/ssl_private_key.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace chromeos {
 
@@ -70,12 +70,12 @@ class CertificateProviderService : public KeyedService {
 
   class Delegate {
    public:
-    Delegate() {}
+    Delegate() = default;
 
     Delegate(const Delegate&) = delete;
     Delegate& operator=(const Delegate&) = delete;
 
-    virtual ~Delegate() {}
+    virtual ~Delegate() = default;
 
     // Returns the ids of the extensions that want to provide certificates and
     // therefore want to be notified about certificate requests. This is called
@@ -193,7 +193,7 @@ class CertificateProviderService : public KeyedService {
       const std::string& subject_public_key_info,
       uint16_t algorithm,
       base::span<const uint8_t> input,
-      const absl::optional<AccountId>& authenticating_user_account_id,
+      const std::optional<AccountId>& authenticating_user_account_id,
       net::SSLPrivateKey::SignCallback callback);
 
   // Looks up the certificate identified by |subject_public_key_info|. If any
@@ -244,7 +244,7 @@ class CertificateProviderService : public KeyedService {
       const scoped_refptr<net::X509Certificate>& certificate,
       uint16_t algorithm,
       base::span<const uint8_t> input,
-      const absl::optional<AccountId>& authenticating_user_account_id,
+      const std::optional<AccountId>& authenticating_user_account_id,
       net::SSLPrivateKey::SignCallback callback);
 
   std::unique_ptr<Delegate> delegate_;

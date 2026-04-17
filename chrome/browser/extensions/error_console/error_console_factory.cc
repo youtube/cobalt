@@ -22,22 +22,31 @@ ErrorConsole* ErrorConsoleFactory::GetForBrowserContext(
 
 // static
 ErrorConsoleFactory* ErrorConsoleFactory::GetInstance() {
-  return base::Singleton<ErrorConsoleFactory>::get();
+  static base::NoDestructor<ErrorConsoleFactory> instance;
+  return instance.get();
 }
 
 ErrorConsoleFactory::ErrorConsoleFactory()
     : ProfileKeyedServiceFactory(
           "ErrorConsole",
-          ProfileSelections::BuildRedirectedInIncognito()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kRedirectedToOriginal)
+              // TODO(crbug.com/40257657): Audit whether these should be
+              // redirected or should have their own instance.
+              .WithGuest(ProfileSelection::kRedirectedToOriginal)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kRedirectedToOriginal)
+              .Build()) {
   DependsOn(ExtensionRegistryFactory::GetInstance());
 }
 
-ErrorConsoleFactory::~ErrorConsoleFactory() {
-}
+ErrorConsoleFactory::~ErrorConsoleFactory() = default;
 
-KeyedService* ErrorConsoleFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+ErrorConsoleFactory::BuildServiceInstanceForBrowserContext(
     BrowserContext* context) const {
-  return new ErrorConsole(Profile::FromBrowserContext(context));
+  return std::make_unique<ErrorConsole>(Profile::FromBrowserContext(context));
 }
 
 }  // namespace extensions

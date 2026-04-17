@@ -11,16 +11,18 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/run_loop.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/to_string.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/ash/login/test/device_state_mixin.h"
-#include "chrome/browser/ash/login/ui/login_display_host.h"
 #include "chrome/browser/ash/policy/core/device_policy_builder.h"
 #include "chrome/browser/ash/policy/display/device_display_cros_browser_test.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
+#include "chrome/browser/ui/ash/login/login_display_host.h"
 #include "chrome/test/base/mixin_based_in_process_browser_test.h"
 #include "chromeos/ash/components/dbus/session_manager/fake_session_manager_client.h"
 #include "chromeos/ash/components/dbus/session_manager/session_manager_client.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "components/policy/proto/chrome_device_policy.pb.h"
 #include "content/public/test/browser_test.h"
@@ -31,6 +33,7 @@
 #include "ui/display/display_layout.h"
 #include "ui/display/display_switches.h"
 #include "ui/display/manager/display_manager.h"
+#include "ui/display/test/display_manager_test_api.h"
 
 namespace policy {
 
@@ -39,11 +42,11 @@ namespace {
 namespace em = ::enterprise_management;
 
 struct PolicyValue {
-  absl::optional<int> external_width;
-  absl::optional<int> external_height;
-  absl::optional<int> external_scale_percentage;
+  std::optional<int> external_width;
+  std::optional<int> external_height;
+  std::optional<int> external_scale_percentage;
   bool use_native = false;
-  absl::optional<int> internal_scale_percentage;
+  std::optional<int> internal_scale_percentage;
 
   bool operator==(const PolicyValue& rhs) const {
     return external_width == rhs.external_width &&
@@ -76,7 +79,7 @@ PolicyValue GetPolicySetting() {
       resolution_pref->FindInt(ash::kDeviceDisplayResolutionKeyExternalScale);
   result.internal_scale_percentage =
       resolution_pref->FindInt(ash::kDeviceDisplayResolutionKeyInternalScale);
-  const absl::optional<bool> use_native = resolution_pref->FindBool(
+  const std::optional<bool> use_native = resolution_pref->FindBool(
       ash::kDeviceDisplayResolutionKeyExternalUseNative);
   if (use_native && *use_native)
     result.use_native = true;
@@ -84,12 +87,13 @@ PolicyValue GetPolicySetting() {
 }
 
 void AddExternalDisplay(display::DisplayManager* display_manager) {
-  display_manager->AddRemoveDisplay(
-      {display::ManagedDisplayMode(gfx::Size(800, 600), 30.0, false, false),
-       display::ManagedDisplayMode(gfx::Size(800, 600), 60.0, false, false),
-       display::ManagedDisplayMode(gfx::Size(1280, 800), 60.0, false, false),
-       display::ManagedDisplayMode(gfx::Size(1920, 1080), 30.0, false, false),
-       display::ManagedDisplayMode(gfx::Size(1920, 1080), 60.0, false, true)});
+  display::test::DisplayManagerTestApi test_api(display_manager);
+  test_api.UpdateDisplay(
+      "1280x800,1920x1080#1920x1080%60|800x600%30|800x600%60|1280x800%60|"
+      "1920x1080%30",
+      /*from_native_platform=*/true);
+
+  // Policy change is applied in the posted task.
   base::RunLoop().RunUntilIdle();
 }
 
@@ -100,23 +104,25 @@ void SetPolicyValue(em::ChromeDeviceSettingsProto* proto,
   std::string json;
   if (policy.external_width) {
     json_entries.push_back("\"external_width\": " +
-                           std::to_string(*policy.external_width));
+                           base::NumberToString(*policy.external_width));
   }
   if (policy.external_height) {
     json_entries.push_back("\"external_height\": " +
-                           std::to_string(*policy.external_height));
+                           base::NumberToString(*policy.external_height));
   }
   if (policy.external_scale_percentage) {
-    json_entries.push_back("\"external_scale_percentage\": " +
-                           std::to_string(*policy.external_scale_percentage));
+    json_entries.push_back(
+        "\"external_scale_percentage\": " +
+        base::NumberToString(*policy.external_scale_percentage));
   }
   if (policy.internal_scale_percentage) {
-    json_entries.push_back("\"internal_scale_percentage\": " +
-                           std::to_string(*policy.internal_scale_percentage));
+    json_entries.push_back(
+        "\"internal_scale_percentage\": " +
+        base::NumberToString(*policy.internal_scale_percentage));
   }
 
   json_entries.push_back(std::string("\"recommended\": ") +
-                         (recommended ? "true" : "false"));
+                         base::ToString(recommended));
   proto->mutable_device_display_resolution()->set_device_display_resolution(
       "{" + base::JoinString(json_entries, ",") + "}");
 }
@@ -164,7 +170,7 @@ class DeviceDisplayResolutionTestBase
   }
 
  protected:
-  DeviceDisplayResolutionTestBase() {}
+  DeviceDisplayResolutionTestBase() = default;
 
   void SetPolicy(PolicyValue policy, bool recommended) {
     em::ChromeDeviceSettingsProto& proto(device_policy()->payload());
@@ -176,7 +182,7 @@ class DeviceDisplayResolutionTestBase
 
 class DeviceDisplayResolutionTest : public DeviceDisplayResolutionTestBase {
  public:
-  DeviceDisplayResolutionTest() {}
+  DeviceDisplayResolutionTest() = default;
 
   DeviceDisplayResolutionTest(const DeviceDisplayResolutionTest&) = delete;
   DeviceDisplayResolutionTest& operator=(const DeviceDisplayResolutionTest&) =
@@ -324,8 +330,7 @@ class DisplayResolutionBootTest
   DeviceDisplayCrosTestHelper helper_;
 };
 
-// b/276667320 Disable flaky test
-IN_PROC_BROWSER_TEST_P(DisplayResolutionBootTest, DISABLED_PRE_Reboot) {
+IN_PROC_BROWSER_TEST_P(DisplayResolutionBootTest, PRE_Reboot) {
   const PolicyValue policy_value = GetParam();
 
   // Set policy.
@@ -357,8 +362,7 @@ IN_PROC_BROWSER_TEST_P(DisplayResolutionBootTest, DISABLED_PRE_Reboot) {
       << "Initial primary display scale after policy set";
 }
 
-// b/276667320 Disable flaky test
-IN_PROC_BROWSER_TEST_P(DisplayResolutionBootTest, DISABLED_Reboot) {
+IN_PROC_BROWSER_TEST_P(DisplayResolutionBootTest, Reboot) {
   const PolicyValue policy_value = GetParam();
 
   AddExternalDisplay(display_helper()->GetDisplayManager());
@@ -384,7 +388,7 @@ INSTANTIATE_TEST_SUITE_P(PolicyDeviceDisplayResolution,
 class DeviceDisplayResolutionRecommendedTest
     : public DeviceDisplayResolutionTestBase {
  public:
-  DeviceDisplayResolutionRecommendedTest() {}
+  DeviceDisplayResolutionRecommendedTest() = default;
 
   DeviceDisplayResolutionRecommendedTest(
       const DeviceDisplayResolutionRecommendedTest&) = delete;
@@ -401,14 +405,14 @@ class DeviceDisplayResolutionRecommendedTest
       extensions::api::system_display::DisplayProperties props) {
     base::RunLoop run_loop;
     base::OnceClosure quit_closure(run_loop.QuitClosure());
-    absl::optional<std::string> operation_error;
+    std::optional<std::string> operation_error;
     extensions::DisplayInfoProvider* provider =
         extensions::DisplayInfoProvider::Get();
     ASSERT_TRUE(provider);
     provider->SetDisplayProperties(
-        std::to_string(display_id), std::move(props),
+        base::NumberToString(display_id), std::move(props),
         base::BindOnce(
-            [](base::OnceClosure quit_closure, absl::optional<std::string>) {
+            [](base::OnceClosure quit_closure, std::optional<std::string>) {
               std::move(quit_closure).Run();
             },
             std::move(quit_closure)));

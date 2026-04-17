@@ -5,39 +5,54 @@
 #include "chrome/browser/guest_view/chrome_guest_view_manager_delegate.h"
 
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/task_manager/web_contents_tags.h"
+#include "chrome/common/buildflags.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/app_mode/app_session_ash.h"
-#include "chrome/browser/ash/app_mode/kiosk_app_manager.h"
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/ash/app_mode/kiosk_chrome_app_manager.h"
+#include "chrome/browser/ash/app_mode/kiosk_controller.h"
+#include "chrome/browser/ash/app_mode/kiosk_system_session.h"
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(ENABLE_GLIC)
+#include "chrome/browser/glic/host/guest_util.h"
 #endif
 
 namespace extensions {
 
-ChromeGuestViewManagerDelegate::ChromeGuestViewManagerDelegate(
-    content::BrowserContext* context)
-    : ExtensionsGuestViewManagerDelegate(context) {
-}
+ChromeGuestViewManagerDelegate::ChromeGuestViewManagerDelegate() = default;
 
-ChromeGuestViewManagerDelegate::~ChromeGuestViewManagerDelegate() {
-}
+ChromeGuestViewManagerDelegate::~ChromeGuestViewManagerDelegate() = default;
 
 void ChromeGuestViewManagerDelegate::OnGuestAdded(
     content::WebContents* guest_web_contents) const {
   ExtensionsGuestViewManagerDelegate::OnGuestAdded(guest_web_contents);
 
   // Attaches the task-manager-specific tag for the GuestViews to its
-  // |guest_web_contents| so that their corresponding tasks show up in the task
+  // `guest_web_contents` so that their corresponding tasks show up in the task
   // manager.
   task_manager::WebContentsTags::CreateForGuestContents(guest_web_contents);
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  // Notifies kiosk session about the added guest.
-  ash::AppSessionAsh* app_session = ash::KioskAppManager::Get()->app_session();
-  if (app_session)
-    app_session->OnGuestAdded(guest_web_contents);
+#if BUILDFLAG(IS_CHROMEOS)
+  // Notifies Kiosk controller about the added guest.
+  ash::KioskController::Get().OnGuestAdded(guest_web_contents);
 #endif
+
+#if BUILDFLAG(ENABLE_GLIC)
+  // Check if guest belongs to glic and apply transparent background if so.
+  glic::OnGuestAdded(guest_web_contents);
+#endif
+}
+
+// ExtensionsGuestViewManagerDelegate::IsGuestAvailableToContextWithFeature()
+// will check for the availability of the feature provided by |guest|. If the
+// API feature provided is "controlledFrameInternal", the controlled_frame.cc's
+// AvailabilityCheck will be run to verify the associated RenderFrameHost is
+// isolated and that it's only exposed in the expected schemes / feature modes.
+bool ChromeGuestViewManagerDelegate::IsOwnedByControlledFrameEmbedder(
+    const guest_view::GuestViewBase* guest) {
+  return ExtensionsGuestViewManagerDelegate::
+      IsGuestAvailableToContextWithFeature(guest, "controlledFrameInternal");
 }
 
 }  // namespace extensions

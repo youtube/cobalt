@@ -4,19 +4,19 @@
 
 #include "extensions/renderer/api/messaging/one_time_message_handler.h"
 
+#include <algorithm>
 #include <map>
+#include <vector>
 
 #include "base/containers/contains.h"
-#include "base/containers/cxx20_erase.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/ranges/algorithm.h"
 #include "base/supports_user_data.h"
 #include "content/public/renderer/render_frame.h"
-#include "extensions/common/api/messaging/channel_type.h"
 #include "extensions/common/api/messaging/message.h"
 #include "extensions/common/api/messaging/port_id.h"
 #include "extensions/common/mojom/event_dispatcher.mojom.h"
+#include "extensions/common/mojom/message_port.mojom-shared.h"
 #include "extensions/renderer/api/messaging/message_target.h"
 #include "extensions/renderer/api/messaging/messaging_util.h"
 #include "extensions/renderer/bindings/api_binding_types.h"
@@ -25,7 +25,9 @@
 #include "extensions/renderer/bindings/api_event_handler.h"
 #include "extensions/renderer/bindings/api_request_handler.h"
 #include "extensions/renderer/bindings/get_per_context_data.h"
+#include "extensions/renderer/console.h"
 #include "extensions/renderer/gc_callback.h"
+#include "extensions/renderer/get_script_context.h"
 #include "extensions/renderer/ipc_message_sender.h"
 #include "extensions/renderer/native_extension_bindings_system.h"
 #include "extensions/renderer/script_context.h"
@@ -51,13 +53,12 @@ namespace {
 // An opener port in the context; i.e., the caller of runtime.sendMessage.
 struct OneTimeOpener {
   int request_id = -1;
-  int routing_id = MSG_ROUTING_NONE;
   binding::AsyncResponseType async_type = binding::AsyncResponseType::kNone;
+  mojom::ChannelType channel_type;
 };
 
 // A receiver port in the context; i.e., a listener to runtime.onMessage.
 struct OneTimeReceiver {
-  int routing_id = MSG_ROUTING_NONE;
   std::string event_name;
   v8::Global<v8::Object> sender;
 };
@@ -74,11 +75,6 @@ struct OneTimeMessageContextData : public base::SupportsUserData::Data {
 };
 
 constexpr char OneTimeMessageContextData::kPerContextDataKey[];
-
-int RoutingIdForScriptContext(ScriptContext* script_context) {
-  content::RenderFrame* render_frame = script_context->GetRenderFrame();
-  return render_frame ? render_frame->GetRoutingID() : MSG_ROUTING_NONE;
-}
 
 void OneTimeMessageResponseHelper(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -97,8 +93,8 @@ void OneTimeMessageResponseHelper(
 
   v8::Local<v8::External> external = info.Data().As<v8::External>();
   auto* raw_callback = static_cast<OneTimeMessageCallback*>(external->Value());
-  auto iter = base::ranges::find(data->pending_callbacks, raw_callback,
-                                 &std::unique_ptr<OneTimeMessageCallback>::get);
+  auto iter = std::ranges::find(data->pending_callbacks, raw_callback,
+                                &std::unique_ptr<OneTimeMessageCallback>::get);
   if (iter == data->pending_callbacks.end())
     return;
 
@@ -110,7 +106,7 @@ void OneTimeMessageResponseHelper(
 // Called with the results of dispatching an onMessage event to listeners.
 // Returns true if any of the listeners responded with `true`, indicating they
 // will respond to the call asynchronously.
-bool WillListenerReplyAsync(absl::optional<base::Value> result) {
+bool WillListenerReplyAsync(std::optional<base::Value> result) {
   // `result` can be `nullopt` if the context was destroyed before the
   // listeners were ran (or while they were running).
   if (!result)
@@ -156,10 +152,14 @@ v8::Local<v8::Promise> OneTimeMessageHandler::SendMessage(
     ScriptContext* script_context,
     const PortId& new_port_id,
     const MessageTarget& target,
-    ChannelType channel_type,
+    mojom::ChannelType channel_type,
     const Message& message,
     binding::AsyncResponseType async_type,
-    v8::Local<v8::Function> response_callback) {
+    v8::Local<v8::Function> response_callback,
+    mojom::MessagePortHost* message_port_host,
+    mojo::PendingAssociatedRemote<mojom::MessagePort> message_port,
+    mojo::PendingAssociatedReceiver<mojom::MessagePortHost>
+        message_port_host_receiver) {
   v8::Isolate* isolate = script_context->isolate();
   v8::EscapableHandleScope handle_scope(isolate);
 
@@ -173,7 +173,6 @@ v8::Local<v8::Promise> OneTimeMessageHandler::SendMessage(
 
   v8::Local<v8::Promise> promise;
   bool wants_response = async_type != binding::AsyncResponseType::kNone;
-  int routing_id = RoutingIdForScriptContext(script_context);
   if (wants_response) {
     // If this is a promise based request no callback should have been passed
     // in.
@@ -186,8 +185,8 @@ v8::Local<v8::Promise> OneTimeMessageHandler::SendMessage(
             binding::ResultModifierFunction());
     OneTimeOpener& port = data->openers[new_port_id];
     port.request_id = details.request_id;
-    port.routing_id = routing_id;
     port.async_type = async_type;
+    port.channel_type = channel_type;
     promise = details.promise;
     DCHECK_EQ(async_type == binding::AsyncResponseType::kPromise,
               !promise.IsEmpty());
@@ -196,23 +195,24 @@ v8::Local<v8::Promise> OneTimeMessageHandler::SendMessage(
   IPCMessageSender* ipc_sender = bindings_system_->GetIPCMessageSender();
   std::string channel_name;
   switch (channel_type) {
-    case ChannelType::kSendRequest:
+    case mojom::ChannelType::kSendRequest:
       channel_name = messaging_util::kSendRequestChannel;
       break;
-    case ChannelType::kSendMessage:
+    case mojom::ChannelType::kSendMessage:
       channel_name = messaging_util::kSendMessageChannel;
       break;
-    case ChannelType::kNative:
+    case mojom::ChannelType::kNative:
       // Native messaging doesn't use channel names.
       break;
-    case ChannelType::kConnect:
+    case mojom::ChannelType::kConnect:
       // connect() calls aren't handled by the OneTimeMessageHandler.
-      NOTREACHED_NORETURN();
+      NOTREACHED();
   }
 
-  ipc_sender->SendOpenMessageChannel(script_context, new_port_id, target,
-                                     channel_type, channel_name);
-  ipc_sender->SendPostMessageToPort(new_port_id, message);
+  ipc_sender->SendOpenMessageChannel(
+      script_context, new_port_id, target, channel_type, channel_name,
+      std::move(message_port), std::move(message_port_host_receiver));
+  message_port_host->PostMessage(message);
 
   // If the sender doesn't provide a response callback, we can immediately
   // close the channel. Note: we only do this for extension messages, not
@@ -221,8 +221,7 @@ v8::Local<v8::Promise> OneTimeMessageHandler::SendMessage(
   // where closing the channel after sending the message causes things to be
   // destroyed in the wrong order. That would be nice to fix.
   if (!wants_response && target.type != MessageTarget::NATIVE_APP) {
-    bool close_channel = true;
-    ipc_sender->SendCloseMessagePort(routing_id, new_port_id, close_channel);
+    message_port_host->ClosePort(/*close_channel=*/true);
   }
 
   return handle_scope.Escape(promise);
@@ -245,8 +244,21 @@ void OneTimeMessageHandler::AddReceiver(ScriptContext* script_context,
   DCHECK(!base::Contains(data->receivers, target_port_id));
   OneTimeReceiver& receiver = data->receivers[target_port_id];
   receiver.sender.Reset(isolate, sender);
-  receiver.routing_id = RoutingIdForScriptContext(script_context);
   receiver.event_name = event_name;
+}
+
+void OneTimeMessageHandler::AddReceiverForTesting(
+    ScriptContext* script_context,
+    const PortId& target_port_id,
+    v8::Local<v8::Object> sender,
+    const std::string& event_name,
+    mojo::PendingAssociatedRemote<mojom::MessagePort>& message_port_remote,
+    mojo::PendingAssociatedReceiver<mojom::MessagePortHost>&
+        message_port_host_receiver) {
+  AddReceiver(script_context, target_port_id, sender, event_name);
+  bindings_system_->messaging_service()->BindPortForTesting(  // IN-TEST
+      script_context, target_port_id, message_port_remote,
+      message_port_host_receiver);
 }
 
 bool OneTimeMessageHandler::DeliverMessage(ScriptContext* script_context,
@@ -323,7 +335,6 @@ bool OneTimeMessageHandler::DeliverMessageToReceiver(
   if (!v8::Function::New(context, &OneTimeMessageResponseHelper, external)
            .ToLocal(&response_function)) {
     NOTREACHED();
-    return handled;
   }
 
   new GCCallback(
@@ -334,24 +345,37 @@ bool OneTimeMessageHandler::DeliverMessageToReceiver(
       base::OnceClosure());
 
   v8::HandleScope handle_scope(isolate);
-  v8::Local<v8::Value> v8_message =
-      messaging_util::MessageToV8(context, message);
-  v8::Local<v8::Object> v8_sender = port.sender.Get(isolate);
-  std::vector<v8::Local<v8::Value>> args = {v8_message, v8_sender,
-                                            response_function};
 
-  JSRunner::ResultCallback dispatch_callback;
-  // For runtime.onMessage, we require that the listener return `true` if they
-  // intend to respond asynchronously. Check the results of the listeners.
-  if (port.event_name == messaging_util::kOnMessageEvent) {
-    dispatch_callback =
-        base::BindOnce(&OneTimeMessageHandler::OnEventFired,
-                       weak_factory_.GetWeakPtr(), target_port_id);
+  // The current port is a receiver. The parsing should be fail-safe if this is
+  // a receiver for a native messaging host (i.e. the event name is
+  // kOnConnectNativeEvent). This is because a native messaging host can send
+  // malformed messages.
+  std::string error;
+  v8::Local<v8::Value> v8_message = messaging_util::MessageToV8(
+      context, message,
+      port.event_name == messaging_util::kOnConnectNativeEvent, &error);
+
+  if (error.empty()) {
+    v8::Local<v8::Object> v8_sender = port.sender.Get(isolate);
+    v8::LocalVector<v8::Value> args(isolate,
+                                    {v8_message, v8_sender, response_function});
+
+    JSRunner::ResultCallback dispatch_callback;
+    // For runtime.onMessage, we require that the listener return `true` if they
+    // intend to respond asynchronously. Check the results of the listeners.
+    if (port.event_name == messaging_util::kOnMessageEvent) {
+      dispatch_callback =
+          base::BindOnce(&OneTimeMessageHandler::OnEventFired,
+                         weak_factory_.GetWeakPtr(), target_port_id);
+    }
+
+    data->pending_callbacks.push_back(std::move(callback));
+    bindings_system_->api_system()->event_handler()->FireEventInContext(
+        port.event_name, context, &args, nullptr, std::move(dispatch_callback));
+  } else {
+    console::AddMessage(script_context,
+                        blink::mojom::ConsoleMessageLevel::kError, error);
   }
-
-  data->pending_callbacks.push_back(std::move(callback));
-  bindings_system_->api_system()->event_handler()->FireEventInContext(
-      port.event_name, context, &args, nullptr, std::move(dispatch_callback));
 
   // Note: The context could be invalidated at this point!
 
@@ -389,15 +413,26 @@ bool OneTimeMessageHandler::DeliverReplyToOpener(ScriptContext* script_context,
 
   // This port was the opener, so the message is the response from the
   // receiver. Invoke the callback and close the message port.
-  v8::Local<v8::Value> v8_message =
-      messaging_util::MessageToV8(v8_context, message);
-  std::vector<v8::Local<v8::Value>> args = {v8_message};
-  bindings_system_->api_system()->request_handler()->CompleteRequest(
-      port.request_id, args, std::string());
+  v8::Isolate* isolate = script_context->isolate();
 
-  bool close_channel = true;
-  bindings_system_->GetIPCMessageSender()->SendCloseMessagePort(
-      port.routing_id, target_port_id, close_channel);
+  // Parsing should be fail-safe for kNative channel type as native messaging
+  // hosts can send malformed messages.
+  std::string error;
+  v8::Local<v8::Value> v8_message = messaging_util::MessageToV8(
+      v8_context, message, port.channel_type == mojom::ChannelType::kNative,
+      &error);
+
+  if (v8_message.IsEmpty()) {
+    // If the parsing fails, send back a v8::Undefined() message.
+    v8_message = v8::Undefined(isolate);
+  }
+
+  v8::LocalVector<v8::Value> args(isolate, {v8_message});
+  bindings_system_->api_system()->request_handler()->CompleteRequest(
+      port.request_id, args, error);
+
+  bindings_system_->messaging_service()->CloseMessagePort(
+      script_context, target_port_id, /*close_channel=*/true);
 
   // Note: The context could be invalidated at this point!
 
@@ -470,7 +505,8 @@ bool OneTimeMessageHandler::DisconnectOpener(ScriptContext* script_context,
   }
 
   bindings_system_->api_system()->request_handler()->CompleteRequest(
-      opener.request_id, std::vector<v8::Local<v8::Value>>(), error);
+      opener.request_id, v8::LocalVector<v8::Value>(v8_context->GetIsolate()),
+      error);
 
   // Note: The context could be invalidated at this point!
 
@@ -498,7 +534,6 @@ void OneTimeMessageHandler::OnOneTimeMessageResponse(
   if (iter == data->receivers.end())
     return;
 
-  int routing_id = iter->second.routing_id;
   data->receivers.erase(iter);
 
   v8::Local<v8::Value> value;
@@ -516,10 +551,16 @@ void OneTimeMessageHandler::OnOneTimeMessageResponse(
     arguments->ThrowTypeError(error);
     return;
   }
-  IPCMessageSender* ipc_sender = bindings_system_->GetIPCMessageSender();
-  ipc_sender->SendPostMessageToPort(port_id, *message);
-  bool close_channel = true;
-  ipc_sender->SendCloseMessagePort(routing_id, port_id, close_channel);
+  // If the MessagePortHost is still alive return the response. But the listener
+  // might be replying after the channel has been closed.
+  ScriptContext* script_context = GetScriptContextFromV8Context(context);
+  if (auto* message_port_host =
+          bindings_system_->messaging_service()->GetMessagePortHostIfExists(
+              script_context, port_id)) {
+    message_port_host->PostMessage(*message);
+    bindings_system_->messaging_service()->CloseMessagePort(
+        script_context, port_id, /*close_channel=*/true);
+  }
 }
 
 void OneTimeMessageHandler::OnResponseCallbackCollected(
@@ -544,12 +585,11 @@ void OneTimeMessageHandler::OnResponseCallbackCollected(
   if (iter == data->receivers.end())
     return;
 
-  int routing_id = iter->second.routing_id;
   data->receivers.erase(iter);
 
   // Since there is no way to call the callback anymore, we can remove it from
   // the pending callbacks.
-  base::EraseIf(
+  std::erase_if(
       data->pending_callbacks,
       [raw_callback](const std::unique_ptr<OneTimeMessageCallback>& callback) {
         return reinterpret_cast<CallbackID>(callback.get()) == raw_callback;
@@ -557,14 +597,15 @@ void OneTimeMessageHandler::OnResponseCallbackCollected(
 
   // Close the message port. There's no way to send a reply anymore. Don't
   // close the channel because another listener may reply.
-  IPCMessageSender* ipc_sender = bindings_system_->GetIPCMessageSender();
-  bool close_channel = false;
-  ipc_sender->SendCloseMessagePort(routing_id, port_id, close_channel);
+  NativeRendererMessagingService* messaging_service =
+      bindings_system_->messaging_service();
+  messaging_service->CloseMessagePort(script_context, port_id,
+                                      /*close_channel=*/false);
 }
 
 void OneTimeMessageHandler::OnEventFired(const PortId& port_id,
                                          v8::Local<v8::Context> context,
-                                         absl::optional<base::Value> result) {
+                                         std::optional<base::Value> result) {
   // The context could be tearing down by the time the event is fully
   // dispatched.
   OneTimeMessageContextData* data =
@@ -572,19 +613,22 @@ void OneTimeMessageHandler::OnEventFired(const PortId& port_id,
                                                    kDontCreateIfMissing);
   if (!data)
     return;
-
   auto iter = data->receivers.find(port_id);
   // The channel may already be closed (if the listener replied).
   if (iter == data->receivers.end())
     return;
 
-  int routing_id = iter->second.routing_id;
-  IPCMessageSender* ipc_sender = bindings_system_->GetIPCMessageSender();
+  NativeRendererMessagingService* messaging_service =
+      bindings_system_->messaging_service();
 
   if (WillListenerReplyAsync(std::move(result))) {
     // Inform the browser that one of the listeners said they would be replying
     // later and leave the channel open.
-    ipc_sender->SendMessageResponsePending(routing_id, port_id);
+    ScriptContext* script_context = GetScriptContextFromV8Context(context);
+    if (auto* message_port_host = messaging_service->GetMessagePortHostIfExists(
+            script_context, port_id)) {
+      message_port_host->ResponsePending();
+    }
     return;
   }
 
@@ -593,8 +637,9 @@ void OneTimeMessageHandler::OnEventFired(const PortId& port_id,
   // The listener did not reply and did not return `true` from any of its
   // listeners. Close the message port. Don't close the channel because another
   // listener (in a separate context) may reply.
-  bool close_channel = false;
-  ipc_sender->SendCloseMessagePort(routing_id, port_id, close_channel);
+  ScriptContext* script_context = GetScriptContextFromV8Context(context);
+  messaging_service->CloseMessagePort(script_context, port_id,
+                                      /*close_channel=*/false);
 }
 
 }  // namespace extensions

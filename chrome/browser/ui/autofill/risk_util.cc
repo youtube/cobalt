@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/autofill/risk_util.h"
 
 #include <memory>
+#include <string>
 
 #include "base/base64.h"
 #include "base/functional/bind.h"
@@ -13,8 +14,10 @@
 #include "build/build_config.h"
 #include "chrome/browser/apps/platform_apps/app_window_registry_util.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/global_features.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/pref_names.h"
+#include "components/application_locale_storage/application_locale_storage.h"
 #include "components/autofill/content/browser/risk/fingerprint.h"
 #include "components/autofill/content/browser/risk/proto/fingerprint.pb.h"
 #include "components/embedder_support/user_agent_utils.h"
@@ -35,18 +38,15 @@
 #include "ui/base/base_window.h"
 #endif
 
-namespace autofill {
-
-namespace risk_util {
+namespace autofill::risk_util {
 
 namespace {
 
 void PassRiskData(base::OnceCallback<void(const std::string&)> callback,
                   std::unique_ptr<risk::Fingerprint> fingerprint) {
-  std::string proto_data, risk_data;
+  std::string proto_data;
   fingerprint->SerializeToString(&proto_data);
-  base::Base64Encode(proto_data, &risk_data);
-  std::move(callback).Run(risk_data);
+  std::move(callback).Run(base::Base64Encode(proto_data));
 }
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -55,15 +55,16 @@ void PassRiskData(base::OnceCallback<void(const std::string&)> callback,
 // window for a platform app.
 ui::BaseWindow* GetBaseWindowForWebContents(
     content::WebContents* web_contents) {
-  Browser* browser = chrome::FindBrowserWithWebContents(web_contents);
-  if (browser)
+  Browser* browser = chrome::FindBrowserWithTab(web_contents);
+  if (browser) {
     return browser->window();
+  }
 
   gfx::NativeWindow native_window = web_contents->GetTopLevelNativeWindow();
   extensions::AppWindow* app_window =
       AppWindowRegistryUtil::GetAppWindowForNativeWindowAnyProfile(
           native_window);
-  return app_window->GetBaseWindow();
+  return app_window ? app_window->GetBaseWindow() : nullptr;
 }
 #endif
 
@@ -77,7 +78,9 @@ void LoadRiskData(uint64_t obfuscated_gaia_id,
   // contents).
   gfx::Rect window_bounds;
 #if !BUILDFLAG(IS_ANDROID)
-  window_bounds = GetBaseWindowForWebContents(web_contents)->GetBounds();
+  if (ui::BaseWindow* base_window = GetBaseWindowForWebContents(web_contents)) {
+    window_bounds = base_window->GetBounds();
+  }
 #endif
 
   PrefService* user_prefs =
@@ -100,14 +103,13 @@ void LoadRiskDataHelper(uint64_t obfuscated_gaia_id,
       g_browser_process->local_state()->GetInt64(metrics::prefs::kInstallDate));
 
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  risk::GetFingerprint(obfuscated_gaia_id, window_bounds, web_contents,
-                       version_info::GetVersionNumber(), charset,
-                       accept_languages, install_time,
-                       g_browser_process->GetApplicationLocale(),
-                       embedder_support::GetUserAgent(),
-                       base::BindOnce(PassRiskData, std::move(callback)));
+  risk::GetFingerprint(
+      obfuscated_gaia_id, window_bounds, web_contents,
+      std::string(version_info::GetVersionNumber()), charset, accept_languages,
+      install_time,
+      g_browser_process->GetFeatures()->application_locale_storage()->Get(),
+      embedder_support::GetUserAgent(),
+      base::BindOnce(PassRiskData, std::move(callback)));
 }
 
-}  // namespace risk_util
-
-}  // namespace autofill
+}  // namespace autofill::risk_util

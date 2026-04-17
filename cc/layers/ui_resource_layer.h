@@ -24,15 +24,12 @@ class CC_EXPORT UIResourceLayer : public Layer {
   UIResourceLayer(const UIResourceLayer&) = delete;
   UIResourceLayer& operator=(const UIResourceLayer&) = delete;
 
-  void PushPropertiesTo(LayerImpl* layer,
-                        const CommitState& commit_state,
-                        const ThreadUnsafeCommitState& unsafe_state) override;
-
   void SetLayerTreeHost(LayerTreeHost* host) override;
 
   // Sets the resource. If they don't exist already, the shared UI resource and
   // ID are generated and cached in a map in the associated UIResourceManager.
-  // Currently, this resource will never be released by the UIResourceManager.
+  // This resource will be released when all references of SkPixelRefs outside
+  // the associated UIResourceManager's map are dropped
   void SetBitmap(const SkBitmap& skbitmap);
 
   // An alternative way of setting the resource where an ID is used directly. If
@@ -43,16 +40,16 @@ class CC_EXPORT UIResourceLayer : public Layer {
   // Sets a UV transform to be used at draw time. Defaults to (0, 0) and (1, 1).
   void SetUV(const gfx::PointF& top_left, const gfx::PointF& bottom_right);
 
-  // Sets an opacity value per vertex. It will be multiplied by the layer
-  // opacity value.
-  void SetVertexOpacity(float bottom_left,
-                        float top_left,
-                        float top_right,
-                        float bottom_right);
 
  protected:
   UIResourceLayer();
   ~UIResourceLayer() override;
+
+  void PushDirtyPropertiesTo(
+      LayerImpl* layer,
+      uint8_t dirty_flag,
+      const CommitState& commit_state,
+      const ThreadUnsafeCommitState& unsafe_state) override;
 
   bool HasDrawableContent() const override;
 
@@ -71,7 +68,6 @@ class CC_EXPORT UIResourceLayer : public Layer {
 
   ProtectedSequenceReadable<gfx::PointF> uv_top_left_;
   ProtectedSequenceReadable<gfx::PointF> uv_bottom_right_;
-  ProtectedSequenceReadable<float[4]> vertex_opacity_;
 };
 
 }  // namespace cc

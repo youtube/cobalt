@@ -35,18 +35,18 @@ def perfetto_deps():
     _add_repo_if_not_existing(
         http_archive,
         name = "perfetto_dep_sqlite",
-        url = "https://storage.googleapis.com/perfetto/sqlite-amalgamation-3390200.zip",
-        sha256 = "87775784f8b22d0d0f1d7811870d39feaa7896319c7c20b849a4181c5a50609b",
-        strip_prefix = "sqlite-amalgamation-3390200",
+        url = "https://storage.googleapis.com/perfetto/sqlite-amalgamation-3440200.zip",
+        sha256 = "833be89b53b3be8b40a2e3d5fedb635080e3edb204957244f3d6987c2bb2345f",
+        strip_prefix = "sqlite-amalgamation-3440200",
         build_file = "//bazel:sqlite.BUILD",
     )
 
     _add_repo_if_not_existing(
         http_archive,
         name = "perfetto_dep_sqlite_src",
-        url = "https://storage.googleapis.com/perfetto/sqlite-src-3390200.zip",
-        sha256 = "e933d77000f45f3fbc8605f0050586a3013505a8de9b44032bd00ed72f1586f0",
-        strip_prefix = "sqlite-src-3390200",
+        url = "https://storage.googleapis.com/perfetto/sqlite-src-3440200.zip",
+        sha256 = "73187473feb74509357e8fa6cb9fd67153b2d010d00aeb2fddb6ceeb18abaf27",
+        strip_prefix = "sqlite-src-3440200",
         build_file = "//bazel:sqlite.BUILD",
     )
 
@@ -67,10 +67,18 @@ def perfetto_deps():
     )
 
     _add_repo_if_not_existing(
-        http_archive,
+        new_git_repository,
+        name = "perfetto_dep_expat",
+        remote = "https://github.com/libexpat/libexpat",
+        commit = "fa75b96546c069d17b8f80d91e0f4ef0cde3790d",  # R_2_6_2
+        build_file = "//bazel:expat.BUILD",
+    )
+
+    _add_repo_if_not_existing(
+        new_git_repository,
         name = "perfetto_dep_zlib",
-        url = "https://storage.googleapis.com/perfetto/zlib-6d3f6aa0f87c9791ca7724c279ef61384f331dfd.tar.gz",
-        sha256 = "e9a1d6e8c936de68628ffb83a13d28a40cd6b2def2ad9378e8b951d4b8f4df18",
+        remote = "https://chromium.googlesource.com/chromium/src/third_party/zlib.git",
+        commit = "6f9b4e61924021237d474569027cfb8ac7933ee6",
         build_file = "//bazel:zlib.BUILD",
     )
 
@@ -87,11 +95,22 @@ def perfetto_deps():
     _add_repo_if_not_existing(
         http_archive,
         name = "bazel_skylib",
-        sha256 = "bbccf674aa441c266df9894182d80de104cabd19be98be002f6d478aaa31574d",
-        strip_prefix = "bazel-skylib-2169ae1c374aab4a09aa90e65efe1a3aad4e279b",
-        url = "https://github.com/bazelbuild/bazel-skylib/archive/2169ae1c374aab4a09aa90e65efe1a3aad4e279b.tar.gz",
+        sha256 = "bc283cdfcd526a52c3201279cda4bc298652efa898b10b4db0837dc51652756f",
+        urls = [
+            "https://mirror.bazel.build/github.com/bazelbuild/bazel-skylib/releases/download/1.7.1/bazel-skylib-1.7.1.tar.gz",
+            "https://github.com/bazelbuild/bazel-skylib/releases/download/1.7.1/bazel-skylib-1.7.1.tar.gz",
+        ]
+    )
+
+    _add_repo_if_not_existing(
+        new_git_repository,
+        name = "perfetto_dep_open_csd",
+        remote = "https://android.googlesource.com/platform/external/OpenCSD.git",
+        commit = "0ce01e934f95efb6a216a6efa35af1245151c779",
+        build_file = "//bazel:open_csd.BUILD",
     )
 
 def _add_repo_if_not_existing(repo_rule, name, **kwargs):
     if name not in native.existing_rules():
         repo_rule(name = name, **kwargs)
+

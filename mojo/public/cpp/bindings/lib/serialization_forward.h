@@ -5,6 +5,7 @@
 #ifndef MOJO_PUBLIC_CPP_BINDINGS_LIB_SERIALIZATION_FORWARD_H_
 #define MOJO_PUBLIC_CPP_BINDINGS_LIB_SERIALIZATION_FORWARD_H_
 
+#include <optional>
 #include <type_traits>
 
 #include "mojo/public/cpp/bindings/array_traits.h"
@@ -14,11 +15,9 @@
 #include "mojo/public/cpp/bindings/lib/message_fragment.h"
 #include "mojo/public/cpp/bindings/lib/template_util.h"
 #include "mojo/public/cpp/bindings/map_traits.h"
-#include "mojo/public/cpp/bindings/optional_as_pointer.h"
 #include "mojo/public/cpp/bindings/string_traits.h"
 #include "mojo/public/cpp/bindings/struct_traits.h"
 #include "mojo/public/cpp/bindings/union_traits.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 // This file is included by serialization implementation files to avoid circular
 // includes.
@@ -31,13 +30,6 @@ namespace internal {
 template <typename MojomType, typename MaybeConstUserType>
 struct Serializer;
 
-template <typename T>
-using IsAbslOptional = IsSpecializationOf<absl::optional, std::decay_t<T>>;
-
-template <typename T>
-using IsOptionalAsPointer =
-    IsSpecializationOf<mojo::OptionalAsPointer, std::decay_t<T>>;
-
 template <typename MojomType, typename InputUserType, typename... Args>
 void Serialize(InputUserType&& input, Args&&... args) {
   if constexpr (IsAbslOptional<InputUserType>::value) {
@@ -47,7 +39,7 @@ void Serialize(InputUserType&& input, Args&&... args) {
   } else if constexpr (IsOptionalAsPointer<InputUserType>::value) {
     if (!input.has_value())
       return;
-    Serialize<MojomType>(*input.value(), std::forward<Args>(args)...);
+    Serialize<MojomType>(input.value(), std::forward<Args>(args)...);
   } else {
     Serializer<MojomType, std::remove_reference_t<InputUserType>>::Serialize(
         std::forward<InputUserType>(input), std::forward<Args>(args)...);
@@ -61,7 +53,7 @@ template <typename MojomType,
 bool Deserialize(DataType&& input, InputUserType* output, Args&&... args) {
   if constexpr (IsAbslOptional<InputUserType>::value) {
     if (!input) {
-      *output = absl::nullopt;
+      *output = std::nullopt;
       return true;
     }
     if (!*output) {
@@ -69,7 +61,7 @@ bool Deserialize(DataType&& input, InputUserType* output, Args&&... args) {
                                             ::mojo::DefaultConstruct::Tag>) {
         output->emplace(mojo::internal::DefaultConstructTag());
       } else {
-        output->emplace();
+        output->emplace(typename InputUserType::value_type());
       }
     }
     return Deserialize<MojomType>(std::forward<DataType>(input),

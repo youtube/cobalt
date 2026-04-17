@@ -9,10 +9,6 @@
 #import "base/check.h"
 #import "base/strings/sys_string_conversions.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 typedef BOOL (^ArrayFilterProcedure)(id object, NSUInteger index, BOOL* stop);
 typedef NSString* (^SubstringExtractionProcedure)(NSUInteger);
@@ -20,7 +16,7 @@ NSString* const kBeginLinkTag = @"BEGIN_LINK[ \t]*";
 NSString* const kEndLinkTag = @"[ \t]*END_LINK";
 NSString* const kBeginBoldTag = @"BEGIN_BOLD[ \t]*";
 NSString* const kEndBoldTag = @"[ \t]*END_BOLD";
-}
+}  // namespace
 
 StringWithTags::StringWithTags() = default;
 
@@ -87,8 +83,9 @@ StringWithTags ParseStringWithTags(NSString* text,
                                               range:text_range];
 
     // If no `begin_tag` is found, then there is no substitutions remainining.
-    if (begin_range.length == 0)
+    if (begin_range.length == 0) {
       break;
+    }
 
     // Find the next `end_tag` after the recently found `begin_tag`.
     const NSUInteger after_begin_pos = NSMaxRange(begin_range);
@@ -100,11 +97,13 @@ StringWithTags ParseStringWithTags(NSString* text,
                                             range:after_begin_range];
 
     // If no `end_tag` is found, then there is no substitutions remaining.
-    if (end_range.length == 0)
+    if (end_range.length == 0) {
       break;
+    }
 
-    if (!out_text)
+    if (!out_text) {
       out_text = [[NSMutableString alloc] initWithCapacity:text.length];
+    }
 
     const NSUInteger after_end_pos = NSMaxRange(end_range);
     [out_text
@@ -131,8 +130,9 @@ StringWithTags ParseStringWithTags(NSString* text,
   }
 
   // Append any remaining text without tags.
-  if (text_range.length != 0)
+  if (text_range.length != 0) {
     [out_text appendString:[text substringWithRange:text_range]];
+  }
 
   return StringWithTags(out_text, tag_ranges);
 }

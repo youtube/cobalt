@@ -22,7 +22,10 @@ infrastructure.
     trigger builds on other builders. When the parent build only compiles and
     the child build only runs tests, we call this model a "builder/tester
     split". The child is referred to as the tester, and the parent (confusingly)
-    referred to as the builder.
+    referred to as the builder. The child might also be referred to as a "thin
+    tester" if it only runs tests remotely. Read more about builder-tester
+    splits
+    [here](builder_types.md#parent_child-split-a_k_a_builder_tester-split).
   * __CI Builder__ or __Post-submit Builder__: A builder that compiles/tests a
     branch of Chromium. Often triggered when changes to the branch are
     submitted, these post-submit builders run on a continuous basis.
@@ -51,7 +54,9 @@ infrastructure.
     [linux-rel-compilator](https://ci.chromium.org/p/chromium/builders/try/linux-rel-compilator)
     is its compilator. This partitioning confines the busy-waiting phases of a
     build (ie: waiting for Swarming tests to finish) to the orchestrator,
-    allowing the compilator to quickly move on and pick up new requests.
+    allowing the compilator to quickly move on and pick up new requests. Read
+    more about orchestrators and compilators
+    [here](builder_types.md#orchestrator_compilator).
   * __Optional Trybot__: A trybot that's not a default CQ builder. These can
     be triggered manually by a developer. Or they can be required by the CQ
     if the CL includes changes to a specific file path. See
@@ -59,6 +64,18 @@ infrastructure.
     list of the optional trybots and the filepaths that require them. Trybots
     that fall into that latter category can also be referred to as
     __path-based trybots__.
+  * __Mega CQ__: An alternative mode of Chromium's CQ that greatly increases the
+    amount of trybots triggered. This increases the confidence that a CL won't
+    be reverted after landing, but at the cost of much longer CQ cycle times.
+    Triggered via the `Mega CQ` buttons in Gerrit. See [CQ docs](cq.md#modes)
+    for more info.
+
+* __Builderless__: A Swarming dimension (see below for definition of a
+    dimension) that simply indicates the Swarming bot doesn't exclusively run
+    builds for a dedicated set of builders. Instead, it belongs to a generic
+    pool of bots (colloquially known as the "builderless pool") that's shared
+    across a large group of builders. Any builder that runs builds in said
+    pool is also referred to as being "builderless."
 
 * __Builder Group__: A logical grouping of builders. For example, the
   "chromium.linux" builder group is a set of builders that test basic
@@ -108,6 +125,11 @@ These services largely make-up the backbone of Chromium's CI.
   * __Swarming bot__: A single worker that communicates with the Swarming server
     and executes Swarming tasks. The worker often, but not necessarily, runs on
     a Linux, Mac, or Win VM. A bot belongs to one or more Swarming pools.
+  * __Swarming dimension__: A key:value pair that a Swarming bot tags to itself
+    to describe its hardware or software attributes. (e.g. A machine running
+    macOS Ventura would tag itself with `os:Mac-13`.) A task can then include
+    certain dimensions in its request, and only bots that match all requested
+    dimensions will execute the task.
   * __Swarming pool__: A collection of Swarming bots. A pool acts as a security
     boundary, enforcing who can view and trigger tasks on its bots.
   * __Swarming task__: A single workload request. A task defines a command to

@@ -7,6 +7,8 @@
 #include <vector>
 
 #include "Config.h"
+#include "Edge.h"
+#include "RecordInfo.h"
 
 using namespace clang;
 
@@ -21,7 +23,7 @@ bool CheckTraceVisitor::VisitMemberExpr(MemberExpr* member) {
   // processed weak fields.
   if (IsWeakCallback()) {
     if (FieldDecl* field = dyn_cast<FieldDecl>(member->getMemberDecl()))
-      FoundField(field);
+      FoundField(field, false);
   }
   return true;
 }
@@ -37,9 +39,9 @@ bool CheckTraceVisitor::VisitCallExpr(CallExpr* call) {
   // DependentScopeMemberExpr because the concrete trace call depends on the
   // instantiation of any shared template parameters. In this case the call is
   // "unresolved" and we resort to comparing the syntactic type names.
-  if (CXXDependentScopeMemberExpr* expr =
-      dyn_cast<CXXDependentScopeMemberExpr>(callee)) {
-    CheckCXXDependentScopeMemberExpr(call, expr);
+  if (DependentScopeDeclRefExpr* expr =
+          dyn_cast<DependentScopeDeclRefExpr>(callee)) {
+    CheckDependentScopeDeclRefExpr(call, expr);
     return true;
   }
 
@@ -48,10 +50,13 @@ bool CheckTraceVisitor::VisitCallExpr(CallExpr* call) {
       return true;
   }
 
-  // A tracing call will have either a |visitor| or a |m_field| argument.
-  // A registerWeakMembers call will have a |this| argument.
-  if (call->getNumArgs() != 1)
+  // A Trace call will have either a |visitor| or a |m_field| argument.
+  // A RegisterWeakMembers call will have a |this| argument.
+  // A TraceMultiple will have a |m_field| and a |len| arguments.
+  // A TraceEphemeron will have a |key| and a |value| arguments.
+  if ((call->getNumArgs() != 1) && (call->getNumArgs() != 2)) {
     return true;
+  }
   Expr* arg = call->getArg(0);
 
   if (UnresolvedMemberExpr* expr = dyn_cast<UnresolvedMemberExpr>(callee)) {
@@ -68,7 +73,8 @@ bool CheckTraceVisitor::VisitCallExpr(CallExpr* call) {
       return true;
     CXXRecordDecl* decl = base->getPointeeType()->getAsCXXRecordDecl();
     if (decl)
-      CheckTraceFieldCall(expr->getMemberName().getAsString(), decl, arg);
+      CheckTraceFieldCall(expr->getMemberName().getAsString(), decl, arg,
+                          call->getNumArgs() > 1 ? call->getArg(1) : nullptr);
     return true;
   }
 
@@ -90,7 +96,7 @@ bool CheckTraceVisitor::IsTraceCallName(const std::string& name) {
 }
 
 CXXRecordDecl* CheckTraceVisitor::GetDependentTemplatedDecl(
-    CXXDependentScopeMemberExpr* expr) {
+    DependentScopeDeclRefExpr* expr) {
   NestedNameSpecifier* qual = expr->getQualifier();
   if (!qual)
     return 0;
@@ -130,30 +136,10 @@ bool FindFieldVisitor::TraverseMemberExpr(MemberExpr* member) {
 
 }  // namespace
 
-void CheckTraceVisitor::CheckCXXDependentScopeMemberExpr(
+void CheckTraceVisitor::CheckDependentScopeDeclRefExpr(
     CallExpr* call,
-    CXXDependentScopeMemberExpr* expr) {
-  std::string fn_name = expr->getMember().getAsString();
-
-  // Check for VisitorDispatcher::trace(field) and
-  // VisitorDispatcher::registerWeakMembers.
-  if (!expr->isImplicitAccess()) {
-    if (DeclRefExpr* base_decl = dyn_cast<DeclRefExpr>(expr->getBase())) {
-      if (Config::IsVisitorDispatcherType(base_decl->getType())) {
-        if (call->getNumArgs() == 1 && fn_name == kTraceName) {
-          FindFieldVisitor finder;
-          finder.TraverseStmt(call->getArg(0));
-          if (finder.field())
-            FoundField(finder.field());
-
-          return;
-        } else if (call->getNumArgs() == 1 &&
-                   fn_name == kRegisterWeakMembersName) {
-          MarkAllWeakMembersTraced();
-        }
-      }
-    }
-  }
+    DependentScopeDeclRefExpr* expr) {
+  std::string fn_name = expr->getDeclName().getAsString();
 
   // Check for T::Trace(visitor).
   if (NestedNameSpecifier* qual = expr->getQualifier()) {
@@ -188,7 +174,7 @@ void CheckTraceVisitor::CheckCXXDependentScopeMemberExpr(
     FindFieldVisitor finder;
     finder.TraverseStmt(call->getArg(1));
     if (finder.field())
-      FoundField(finder.field());
+      FoundField(finder.field(), true);
   }
 }
 
@@ -302,24 +288,44 @@ bool CheckTraceVisitor::CheckTraceBaseCall(CallExpr* call) {
 }
 
 bool CheckTraceVisitor::CheckTraceFieldMemberCall(CXXMemberCallExpr* call) {
-  return CheckTraceFieldCall(call->getMethodDecl()->getNameAsString(),
-                             call->getRecordDecl(),
-                             call->getArg(0));
+  return CheckTraceFieldCall(
+      call->getMethodDecl()->getNameAsString(), call->getRecordDecl(),
+      call->getArg(0), call->getNumArgs() > 1 ? call->getArg(1) : nullptr);
 }
 
-bool CheckTraceVisitor::CheckTraceFieldCall(
-    const std::string& name,
-    CXXRecordDecl* callee,
-    Expr* arg) {
-  if (name != kTraceName || !Config::IsVisitor(callee->getName()))
+bool CheckTraceVisitor::CheckTraceFieldCall(const std::string& name,
+                                            CXXRecordDecl* callee,
+                                            Expr* arg1,
+                                            Expr* arg2) {
+  if (!Config::IsVisitor(callee->getName())) {
     return false;
+  }
 
-  FindFieldVisitor finder;
-  finder.TraverseStmt(arg);
-  if (finder.field())
-    FoundField(finder.field());
+  if (name == kTraceName || name == kTraceMultipleName) {
+    FindFieldVisitor finder;
+    finder.TraverseStmt(arg1);
+    if (finder.field()) {
+      FoundField(finder.field(), false);
+    }
+    return true;
+  }
 
-  return true;
+  if (name == kTraceEphemeronName) {
+    FindFieldVisitor finder1;
+    finder1.TraverseStmt(arg1);
+    if (finder1.field()) {
+      FoundField(finder1.field(), false);
+    }
+    assert(arg2);
+    FindFieldVisitor finder2;
+    finder2.TraverseStmt(arg2);
+    if (finder2.field()) {
+      FoundField(finder2.field(), false);
+    }
+    return true;
+  }
+
+  return false;
 }
 
 bool CheckTraceVisitor::CheckRegisterWeakMembers(CXXMemberCallExpr* call) {
@@ -358,24 +364,42 @@ void CheckTraceVisitor::MarkTraced(RecordInfo::Fields::iterator it) {
   it->second.MarkTraced();
 }
 
-void CheckTraceVisitor::FoundField(FieldDecl* field) {
-  if (Config::IsTemplateInstantiation(info_->record())) {
+void CheckTraceVisitor::MarkTracedIfNeeded(RecordInfo::Fields::iterator it) {
+  // In a weak callback we can't mark strong fields as traced.
+  if (IsWeakCallback() && !it->second.edge()->IsWeakMember()) {
+    return;
+  }
+  it->second.MarkTracedIfNeeded();
+}
+
+namespace {
+RecordInfo::Fields::iterator FindField(RecordInfo* info, FieldDecl* field) {
+  if (Config::IsTemplateInstantiation(info->record())) {
     // Pointer equality on fields does not work for template instantiations.
     // The trace method refers to fields of the template definition which
     // are different from the instantiated fields that need to be traced.
     const std::string& name = field->getNameAsString();
-    for (RecordInfo::Fields::iterator it = info_->GetFields().begin();
-         it != info_->GetFields().end();
-         ++it) {
+    for (RecordInfo::Fields::iterator it = info->GetFields().begin();
+         it != info->GetFields().end(); ++it) {
       if (it->first->getNameAsString() == name) {
-        MarkTraced(it);
-        break;
+        return it;
       }
     }
+    return info->GetFields().end();
   } else {
-    RecordInfo::Fields::iterator it = info_->GetFields().find(field);
-    if (it != info_->GetFields().end())
+    return info->GetFields().find(field);
+  }
+}
+}  // namespace
+
+void CheckTraceVisitor::FoundField(FieldDecl* field, bool is_trace_if_needed) {
+  RecordInfo::Fields::iterator it = FindField(info_, field);
+  if (it != info_->GetFields().end()) {
+    if (is_trace_if_needed) {
+      MarkTracedIfNeeded(it);
+    } else {
       MarkTraced(it);
+    }
   }
 }
 
@@ -408,8 +432,64 @@ bool CheckTraceVisitor::CheckImplicitCastExpr(CallExpr* call,
     FindFieldVisitor finder;
     finder.TraverseStmt(call->getArg(1));
     if (finder.field())
-      FoundField(finder.field());
+      FoundField(finder.field(), true);
     return true;
   }
   return false;
+}
+
+namespace {
+FieldDecl* GetRangeField(CXXForRangeStmt* for_range_stmt) {
+  DeclStmt* decl_stmt = for_range_stmt->getRangeStmt();
+  if (!decl_stmt->isSingleDecl()) {
+    return nullptr;
+  }
+  VarDecl* var_decl = dyn_cast<VarDecl>(decl_stmt->getSingleDecl());
+  if (!var_decl) {
+    return nullptr;
+  }
+  MemberExpr* member_expr = dyn_cast<MemberExpr>(var_decl->getInit());
+  if (!member_expr) {
+    return nullptr;
+  }
+  FieldDecl* field_decl = dyn_cast<FieldDecl>(member_expr->getMemberDecl());
+  if (!field_decl) {
+    return nullptr;
+  }
+  return field_decl;
+}
+}  // namespace
+
+bool CheckTraceVisitor::VisitStmt(Stmt* stmt) {
+  CXXForRangeStmt* for_range = dyn_cast<CXXForRangeStmt>(stmt);
+  if (!for_range) {
+    return true;
+  }
+
+  // Array tracing could be phrased as a for-range statement over the array.
+  FieldDecl* field_decl = GetRangeField(for_range);
+  if (!field_decl) {
+    return true;
+  }
+
+  // The range of the for-range statement references a field. If that field
+  // is an array, assume the array is being traced.
+  RecordInfo::Fields::iterator it = FindField(info_, field_decl);
+  if (it == info_->GetFields().end()) {
+    return true;
+  }
+
+  Edge* field_edge = it->second.edge();
+  if (field_edge->IsArray()) {
+    MarkTraced(it);
+  }
+  if (field_edge->IsCollection()) {
+    Collection* collection = static_cast<Collection*>(field_edge);
+    if (collection->IsSTDCollection() &&
+        (collection->GetCollectionName() == "array")) {
+      MarkTraced(it);
+    }
+  }
+
+  return true;
 }

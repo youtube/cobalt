@@ -4,8 +4,6 @@
 
 package org.chromium.chrome.browser.safety_check;
 
-import android.content.Context;
-
 import org.chromium.base.Callback;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
@@ -23,12 +21,10 @@ import java.lang.ref.WeakReference;
  * modularized as well, this class will not be needed anymore.
  */
 public class SafetyCheckUpdatesDelegateImpl implements SafetyCheckUpdatesDelegate {
-    private OmahaService mOmaha;
+    private final OmahaService mOmaha;
 
     /**
-     * Creates a new instance of the glue class to be passed to
-     * {@link SafetyCheckSettingsFragment}.
-     * @param context A {@link Context} object, used by Omaha.
+     * Creates a new instance of the glue class to be passed to {@link SafetyCheckSettingsFragment}.
      */
     public SafetyCheckUpdatesDelegateImpl() {
         mOmaha = OmahaService.getInstance();
@@ -62,16 +58,19 @@ public class SafetyCheckUpdatesDelegateImpl implements SafetyCheckUpdatesDelegat
      */
     @Override
     public void checkForUpdates(WeakReference<Callback<Integer>> statusCallback) {
-        PostTask.postTask(TaskTraits.USER_VISIBLE, () -> {
-            @UpdateStatus
-            int status = mOmaha.checkForUpdates();
-            // Post the results back to the UI thread.
-            PostTask.postTask(TaskTraits.UI_DEFAULT, () -> {
-                Callback<Integer> strongRef = statusCallback.get();
-                if (strongRef != null) {
-                    strongRef.onResult(convertOmahaUpdateStatus(status));
-                }
-            });
-        });
+        PostTask.postTask(
+                TaskTraits.USER_VISIBLE,
+                () -> {
+                    @UpdateStatus int status = mOmaha.checkForUpdates();
+                    // Post the results back to the UI thread.
+                    PostTask.postTask(
+                            TaskTraits.UI_DEFAULT,
+                            () -> {
+                                Callback<Integer> strongRef = statusCallback.get();
+                                if (strongRef != null) {
+                                    strongRef.onResult(convertOmahaUpdateStatus(status));
+                                }
+                            });
+                });
     }
 }

@@ -6,13 +6,12 @@
 #define CHROMEOS_ASH_COMPONENTS_PHONEHUB_PHONE_STATUS_MODEL_H_
 
 #include <stdint.h>
+
+#include <optional>
 #include <ostream>
 #include <string>
 
-#include "third_party/abseil-cpp/absl/types/optional.h"
-
-namespace ash {
-namespace phonehub {
+namespace ash::phonehub {
 
 // Contains properties representing a phone's status, including mobile
 // connection state and battery/power state.
@@ -68,12 +67,12 @@ class PhoneStatusModel {
 
   // Note: If |mobile_status| is not kSimWithReception,
   // |mobile_connection_metadata| should be null.
-  PhoneStatusModel(MobileStatus mobile_status,
-                   const absl::optional<MobileConnectionMetadata>&
-                       mobile_connection_metadata,
-                   ChargingState charging_state,
-                   BatterySaverState battery_saver_state,
-                   uint32_t battery_percentage);
+  PhoneStatusModel(
+      MobileStatus mobile_status,
+      const std::optional<MobileConnectionMetadata>& mobile_connection_metadata,
+      ChargingState charging_state,
+      BatterySaverState battery_saver_state,
+      uint32_t battery_percentage);
   PhoneStatusModel(const PhoneStatusModel& other);
   ~PhoneStatusModel();
 
@@ -83,7 +82,7 @@ class PhoneStatusModel {
   MobileStatus mobile_status() const { return mobile_status_; }
 
   // Note: Null when mobile_status() is not kSimWithReception.
-  const absl::optional<MobileConnectionMetadata>& mobile_connection_metadata()
+  const std::optional<MobileConnectionMetadata>& mobile_connection_metadata()
       const {
     return mobile_connection_metadata_;
   }
@@ -96,7 +95,7 @@ class PhoneStatusModel {
 
  private:
   MobileStatus mobile_status_;
-  absl::optional<MobileConnectionMetadata> mobile_connection_metadata_;
+  std::optional<MobileConnectionMetadata> mobile_connection_metadata_;
   ChargingState charging_state_;
   BatterySaverState battery_saver_state_;
   uint32_t battery_percentage_;
@@ -115,7 +114,6 @@ std::ostream& operator<<(
     std::ostream& stream,
     PhoneStatusModel::BatterySaverState battery_saver_state);
 
-}  // namespace phonehub
-}  // namespace ash
+}  // namespace ash::phonehub
 
 #endif  // CHROMEOS_ASH_COMPONENTS_PHONEHUB_PHONE_STATUS_MODEL_H_

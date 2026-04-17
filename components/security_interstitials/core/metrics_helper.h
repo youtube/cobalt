@@ -5,15 +5,17 @@
 #ifndef COMPONENTS_SECURITY_INTERSTITIALS_CORE_METRICS_HELPER_H_
 #define COMPONENTS_SECURITY_INTERSTITIALS_CORE_METRICS_HELPER_H_
 
+#include <optional>
 #include <string>
 
 #include "base/task/cancelable_task_tracker.h"
+#include "base/time/time.h"
 #include "url/gurl.h"
 
 namespace history {
 class HistoryService;
 struct VisibleVisitCountToHostResult;
-}
+}  // namespace history
 
 namespace security_interstitials {
 
@@ -26,6 +28,9 @@ namespace security_interstitials {
 //
 // If |extra_suffix| is not empty, MetricsHelper will append ".<extra_suffix>"
 // to generate an additional 2 or 4 more metrics.
+// If |extra_extra_Suffix| is ALSO not empty, MetricsHelper will append
+// ".<extra_extra_suffix>" to generate an additional metrics beyond what
+// |extra_suffix| will produce.
 class MetricsHelper {
  public:
   // These enums are used for histograms.  Don't reorder, delete, or insert
@@ -52,6 +57,8 @@ class MetricsHelper {
     SHOW_WHITEPAPER,
     SHOW_ENHANCED_PROTECTION,
     OPEN_ENHANCED_PROTECTION,
+    CLOSE_INTERSTITIAL_WITHOUT_UI,
+    OPEN_ADVANCED_PROTECTION_SETTINGS,
     MAX_INTERACTION
   };
 
@@ -60,12 +67,18 @@ class MetricsHelper {
   // extra_suffix: If not-empty, will generate second set of metrics by
   //               placing at the end of the metric name.  Examples:
   //               "from_datasaver", "from_device"
+  // blocked_page_shown_timestamp: If not null, will generate a suffix
+  //               indicating whether the interstitial is triggered after the
+  //               blocked page is shown. Examples: "after_page_shown",
+  //               "before_page_shown".
   struct ReportDetails {
     ReportDetails();
     ReportDetails(const ReportDetails& other);
     ~ReportDetails();
     std::string metric_prefix;
     std::string extra_suffix;
+    std::string extra_extra_suffix;
+    std::optional<base::TimeTicks> blocked_page_shown_timestamp;
   };
 
   // Args:
@@ -89,6 +102,7 @@ class MetricsHelper {
   void RecordUserDecision(Decision decision);
   void RecordUserInteraction(Interaction interaction);
   void RecordShutdownMetrics();
+  void RecordInterstitialShowDelay();
 
   // Number of times user visited this origin before. -1 means not-yet-set.
   int NumVisits();

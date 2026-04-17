@@ -2,17 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "ash/login/ui/login_remove_account_dialog.h"
+
 #include <memory>
 
 #include "ash/login/ui/login_button.h"
-#include "ash/login/ui/login_remove_account_dialog.h"
 #include "ash/login/ui/login_test_base.h"
+#include "ash/strings/grit/ash_strings.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/utf_string_conversions.h"
+#include "chromeos/strings/grit/chromeos_strings.h"
 #include "components/user_manager/user_type.h"
+#include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/events/test/event_generator.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/animation/ink_drop.h"
 #include "ui/views/animation/test/ink_drop_host_test_api.h"
 #include "ui/views/layout/box_layout.h"
@@ -23,8 +30,19 @@ namespace {
 
 constexpr int kBubbleAnchorViewSizeDp = 100;
 
-class AnchorView : public views::View,
-                   public base::SupportsWeakPtr<AnchorView> {};
+class AnchorView final : public views::View {
+ public:
+  base::WeakPtr<AnchorView> AsWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
+ private:
+  METADATA_HEADER(AnchorView, views::View)
+  base::WeakPtrFactory<AnchorView> weak_ptr_factory_{this};
+};
+
+BEGIN_METADATA(AnchorView)
+END_METADATA
 
 }  // namespace
 
@@ -47,7 +65,7 @@ TEST_F(LoginRemoveAccountDialogTest, RemoveUserRequiresTwoActivations) {
                           &remove_warning_called),
       base::BindRepeating([](bool* remove_called) { *remove_called = true; },
                           &remove_called));
-  anchor->AddChildView(bubble);
+  anchor->AddChildViewRaw(bubble);
 
   bubble->Show();
 
@@ -70,6 +88,80 @@ TEST_F(LoginRemoveAccountDialogTest, RemoveUserRequiresTwoActivations) {
   EXPECT_TRUE(remove_called);
 }
 
+TEST_F(LoginRemoveAccountDialogTest, AccessibleProperties) {
+  auto* anchor = new AnchorView();
+  anchor->SetLayoutManager(std::make_unique<views::BoxLayout>(
+      views::BoxLayout::Orientation::kVertical));
+  SetWidget(CreateWidgetWithContent(anchor));
+
+  bool remove_warning_called = false;
+  bool remove_called = false;
+
+  LoginUserInfo login_user_info;
+  login_user_info.basic_user_info.display_name =
+      "NedHasAReallyLongName StarkHasAReallyLongName";
+  login_user_info.basic_user_info.display_email =
+      "reallyreallyextralonggaianame@gmail.com";
+  login_user_info.can_remove = true;
+
+  std::unique_ptr<LoginRemoveAccountDialog> remove_view =
+      std::make_unique<LoginRemoveAccountDialog>(
+          login_user_info, anchor->AsWeakPtr(), nullptr /*bubble_opener*/,
+          base::BindRepeating(
+              [](bool* warning_called) { *warning_called = true; },
+              &remove_warning_called),
+          base::BindRepeating(
+              [](bool* remove_called) { *remove_called = true; },
+              &remove_called));
+
+  ui::AXNodeData data;
+  remove_view->GetViewAccessibility().GetAccessibleNodeData(&data);
+  EXPECT_EQ(data.role, ax::mojom::Role::kDialog);
+  EXPECT_EQ(data.GetString16Attribute(ax::mojom::StringAttribute::kName),
+            l10n_util ::GetStringUTF16(
+                IDS_ASH_LOGIN_POD_REMOVE_ACCOUNT_ACCESSIBLE_NAME));
+
+  EXPECT_EQ(
+      remove_view->GetViewAccessibility().GetCachedDescription(),
+      l10n_util::GetStringUTF16(
+          IDS_ASH_LOGIN_POD_REMOVE_ACCOUNT_DIALOG_ACCESSIBLE_DESCRIPTION));
+
+  login_user_info.can_remove = false;
+  std::unique_ptr<LoginRemoveAccountDialog> non_remove_view =
+      std::make_unique<LoginRemoveAccountDialog>(
+          login_user_info, anchor->AsWeakPtr(), nullptr /*bubble_opener*/,
+          base::BindRepeating(
+              [](bool* warning_called) { *warning_called = true; },
+              &remove_warning_called),
+          base::BindRepeating(
+              [](bool* remove_called) { *remove_called = true; },
+              &remove_called));
+
+  data = ui::AXNodeData();
+  non_remove_view->GetViewAccessibility().GetAccessibleNodeData(&data);
+  EXPECT_EQ(data.GetString16Attribute(ax::mojom::StringAttribute::kName),
+            u"NedHasAReallyLongName StarkHasAReallyLongName");
+  EXPECT_EQ(non_remove_view->GetViewAccessibility().GetCachedDescription(),
+            u"reallyreallyextralonggaianame@gmail.com");
+
+  login_user_info.user_account_manager = "manager";
+  std::unique_ptr<LoginRemoveAccountDialog> manager_view =
+      std::make_unique<LoginRemoveAccountDialog>(
+          login_user_info, anchor->AsWeakPtr(), nullptr /*bubble_opener*/,
+          base::BindRepeating(
+              [](bool* warning_called) { *warning_called = true; },
+              &remove_warning_called),
+          base::BindRepeating(
+              [](bool* remove_called) { *remove_called = true; },
+              &remove_called));
+
+  EXPECT_EQ(manager_view->GetViewAccessibility().GetCachedDescription(),
+            u"reallyreallyextralonggaianame@gmail.com " +
+                l10n_util::GetStringFUTF16(
+                    IDS_ASH_LOGIN_MANAGED_SESSION_MONITORING_USER_WARNING,
+                    u"manager"));
+}
+
 TEST_F(LoginRemoveAccountDialogTest, LongUserNameAndEmailLaidOutCorrectly) {
   auto* anchor = new AnchorView();
   anchor->SetLayoutManager(std::make_unique<views::BoxLayout>(
@@ -81,14 +173,14 @@ TEST_F(LoginRemoveAccountDialogTest, LongUserNameAndEmailLaidOutCorrectly) {
       "NedHasAReallyLongName StarkHasAReallyLongName";
   login_user_info.basic_user_info.display_email =
       "reallyreallyextralonggaianame@gmail.com";
-  login_user_info.basic_user_info.type = user_manager::USER_TYPE_REGULAR;
+  login_user_info.basic_user_info.type = user_manager::UserType::kRegular;
   login_user_info.is_device_owner = false;
   login_user_info.can_remove = true;
   auto* bubble = new LoginRemoveAccountDialog(
       login_user_info, anchor->AsWeakPtr(), nullptr /*bubble_opener*/,
       base::DoNothing(), base::DoNothing());
 
-  anchor->AddChildView(bubble);
+  anchor->AddChildViewRaw(bubble);
   bubble->Show();
 
   EXPECT_TRUE(bubble->GetVisible());
@@ -127,7 +219,7 @@ TEST_F(LoginRemoveAccountDialogTest, LoginButtonRipple) {
   bubble_opener->SetPreferredSize(
       gfx::Size(kBubbleAnchorViewSizeDp, kBubbleAnchorViewSizeDp));
 
-  container->AddChildView(bubble_opener);
+  container->AddChildViewRaw(bubble_opener);
   SetWidget(CreateWidgetWithContent(container));
 
   views::test::InkDropHostTestApi ink_drop_api(
@@ -139,7 +231,7 @@ TEST_F(LoginRemoveAccountDialogTest, LoginButtonRipple) {
       LoginUserInfo(), container->AsWeakPtr() /*anchor*/, bubble_opener,
       base::DoNothing(), base::DoNothing());
 
-  container->AddChildView(bubble);
+  container->AddChildViewRaw(bubble);
 
   bubble->Show();
   EXPECT_TRUE(bubble->GetVisible());
@@ -166,7 +258,7 @@ TEST_F(LoginRemoveAccountDialogTest, ResetStateHidesConfirmData) {
   auto* bubble = new LoginRemoveAccountDialog(
       login_user_info, nullptr /*anchor*/, nullptr /*bubble_opener*/,
       base::DoNothing(), base::DoNothing());
-  container->AddChildView(bubble);
+  container->AddChildViewRaw(bubble);
 
   bubble->Show();
 
@@ -176,9 +268,24 @@ TEST_F(LoginRemoveAccountDialogTest, ResetStateHidesConfirmData) {
   test_api.remove_user_button()->RequestFocus();
   GetEventGenerator()->PressKey(ui::KeyboardCode::VKEY_RETURN, 0);
   EXPECT_TRUE(test_api.remove_user_confirm_data()->GetVisible());
+}
 
-  bubble->ResetState();
-  EXPECT_FALSE(test_api.remove_user_confirm_data()->GetVisible());
+TEST_F(LoginRemoveAccountDialogTest, AccessibleRole) {
+  auto* container = new views::View;
+  container->SetLayoutManager(std::make_unique<views::BoxLayout>(
+      views::BoxLayout::Orientation::kVertical));
+  SetWidget(CreateWidgetWithContent(container));
+
+  LoginUserInfo login_user_info;
+  login_user_info.can_remove = true;
+  auto* dialog = new LoginRemoveAccountDialog(
+      login_user_info, nullptr /*anchor*/, nullptr /*bubble_opener*/,
+      base::DoNothing(), base::DoNothing());
+  container->AddChildViewRaw(dialog);
+  ui::AXNodeData data;
+
+  dialog->GetViewAccessibility().GetAccessibleNodeData(&data);
+  EXPECT_EQ(data.role, ax::mojom::Role::kDialog);
 }
 
 }  // namespace ash

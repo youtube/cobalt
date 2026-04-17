@@ -6,6 +6,7 @@
 #define ASH_SHELF_HOTSEAT_WIDGET_H_
 
 #include <memory>
+#include <optional>
 
 #include "ash/ash_export.h"
 #include "ash/public/cpp/metrics_util.h"
@@ -14,7 +15,6 @@
 #include "ash/shelf/hotseat_transition_animator.h"
 #include "ash/shelf/shelf_component.h"
 #include "base/memory/raw_ptr.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/views/widget/widget.h"
 
 namespace aura {
@@ -22,11 +22,11 @@ class ScopedWindowTargeter;
 }
 
 namespace ash {
-class FocusCycler;
 class ScrollableShelfView;
 class Shelf;
 class ShelfView;
 class HotseatTransitionAnimator;
+class HotseatWidgetDelegateView;
 
 // The hotseat widget is part of the shelf and hosts app shortcuts.
 class ASH_EXPORT HotseatWidget : public ShelfComponent,
@@ -63,7 +63,7 @@ class ASH_EXPORT HotseatWidget : public ShelfComponent,
         delete;
 
    private:
-    raw_ptr<HotseatWidget, ExperimentalAsh> hotseat_widget_ = nullptr;
+    raw_ptr<HotseatWidget> hotseat_widget_ = nullptr;
   };
 
   HotseatWidget();
@@ -108,6 +108,8 @@ class ASH_EXPORT HotseatWidget : public ShelfComponent,
   // hotseat background.
   void UpdateTranslucentBackground();
 
+  void InitializeAccessibilityProperties();
+
   // Calculates the hotseat y position for |hotseat_target_state| in screen
   // coordinates.
   int CalculateHotseatYInScreen(HotseatState hotseat_target_state) const;
@@ -117,6 +119,9 @@ class ASH_EXPORT HotseatWidget : public ShelfComponent,
 
   // Calculates space available for app bar if shown inline with shelf.
   gfx::Size CalculateInlineAppBarSize() const;
+
+  // Takes insets to reserve when calculating bounds.
+  void ReserveSpaceForAdjacentWidgets(const gfx::Insets& space);
 
   // ShelfComponent:
   void CalculateTargetBounds() override;
@@ -131,9 +136,6 @@ class ASH_EXPORT HotseatWidget : public ShelfComponent,
   }
 
   gfx::Size GetTranslucentBackgroundSize() const;
-
-  // Sets the focus cycler and adds the hotseat to the cycle.
-  void SetFocusCycler(FocusCycler* focus_cycler);
 
   bool IsShowingShelfMenu() const;
 
@@ -189,18 +191,21 @@ class ASH_EXPORT HotseatWidget : public ShelfComponent,
   // home to overview contextual nudge.
   ui::Layer* GetLayerForNudgeAnimation();
 
- private:
-  class DelegateView;
+  // Returns if the shelf is going to be overflown.
+  bool CalculateShelfOverflow(bool use_target_bounds) const;
 
+ private:
   struct LayoutInputs {
     gfx::Rect bounds;
     float shelf_view_opacity = 0.0f;
     bool is_active_session_state = false;
+    gfx::Insets reserved_space_;
 
     bool operator==(const LayoutInputs& other) const {
       return bounds == other.bounds &&
              shelf_view_opacity == other.shelf_view_opacity &&
-             is_active_session_state == other.is_active_session_state;
+             is_active_session_state == other.is_active_session_state &&
+             reserved_space_ == other.reserved_space_;
     }
   };
 
@@ -229,7 +234,7 @@ class ASH_EXPORT HotseatWidget : public ShelfComponent,
   // The set of inputs that impact this widget's layout. The assumption is that
   // this widget needs a relayout if, and only if, one or more of these has
   // changed.
-  absl::optional<LayoutInputs> layout_inputs_;
+  std::optional<LayoutInputs> layout_inputs_;
 
   gfx::Rect target_bounds_;
 
@@ -240,18 +245,18 @@ class ASH_EXPORT HotseatWidget : public ShelfComponent,
   HotseatState state_ = HotseatState::kNone;
 
   // Indicates the type of the hotseat state transition in progress.
-  absl::optional<StateTransition> state_transition_in_progress_;
+  std::optional<StateTransition> state_transition_in_progress_;
 
-  raw_ptr<Shelf, ExperimentalAsh> shelf_ = nullptr;
+  raw_ptr<Shelf> shelf_ = nullptr;
 
   // View containing the shelf items within an active user session. Owned by
   // the views hierarchy.
-  raw_ptr<ScrollableShelfView, DanglingUntriaged | ExperimentalAsh>
-      scrollable_shelf_view_ = nullptr;
+  raw_ptr<ScrollableShelfView, DanglingUntriaged> scrollable_shelf_view_ =
+      nullptr;
 
   // The contents view of this widget. Contains |shelf_view_| and the background
   // of the hotseat.
-  raw_ptr<DelegateView, ExperimentalAsh> delegate_view_ = nullptr;
+  raw_ptr<HotseatWidgetDelegateView> delegate_view_ = nullptr;
 
   // Whether the widget is currently extended because the user has manually
   // dragged it. This will be reset with any visible shelf configuration change.
@@ -266,6 +271,10 @@ class ASH_EXPORT HotseatWidget : public ShelfComponent,
   // on the non visible portion of the hotseat, or events that reach the hotseat
   // during an animation.
   std::unique_ptr<aura::ScopedWindowTargeter> hotseat_window_targeter_;
+
+  // Space reserved by other widgets to exclude when calculating bounds and hit
+  // area.
+  gfx::Insets reserved_space_;
 };
 
 }  // namespace ash

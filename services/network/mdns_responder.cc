@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "services/network/mdns_responder.h"
+
 #include <algorithm>
 #include <cmath>
 #include <numeric>
+#include <optional>
 #include <queue>
 #include <string>
 #include <utility>
 
-#include "services/network/mdns_responder.h"
-
-#include "base/big_endian.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
@@ -19,7 +19,6 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/rand_util.h"
 #include "base/strings/stringprintf.h"
-#include "base/sys_byteorder.h"
 #include "base/time/default_tick_clock.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
@@ -39,7 +38,7 @@
 #include "net/socket/datagram_server_socket.h"
 #include "net/socket/udp_server_socket.h"
 #include "services/network/public/cpp/features.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/abseil-cpp/absl/strings/str_format.h"
 
 // TODO(qingsi): Several features to implement:
 //
@@ -98,14 +97,15 @@ const int kMaxKeySizeInTxtRecord = 9;
 // The prefix of the key used in the TXT record to list mDNS names.
 const char kKeyPrefixInTxtRecord[] = "name";
 // Version tag in the TXT record.
-const char kTxtversLine[] = "\x9txtvers=1";
+const uint8_t kTxtversLine[] = {0x09, 't', 'x', 't', 'v',
+                                'e',  'r', 's', '=', '1'};
 
 // RFC 6762, Section 6, a response that may contain an answer as a member of a
 // shared resource record set, should be delayed uniformly and randomly in the
 // range of 20-120 ms. This delay is applied in addition to the scheduled delay
 // by rate limiting.
-const base::TimeDelta kMinRandDelayForSharedResult = base::Milliseconds(20);
-const base::TimeDelta kMaxRandDelayForSharedResult = base::Milliseconds(120);
+constexpr auto kMinRandDelayForSharedResult = base::Milliseconds(20);
+constexpr auto kMaxRandDelayForSharedResult = base::Milliseconds(120);
 
 class RandomUuidNameGenerator
     : public network::MdnsResponderManager::NameGenerator {
@@ -151,7 +151,7 @@ std::vector<net::DnsResourceRecord> CreateAddressResourceRecords(
         net::dns_protocol::kClassIN | net::dns_protocol::kFlagCacheFlush;
     // TTL in a resource record is 32-bit.
     record.ttl = base::checked_cast<uint32_t>(ttl.InSeconds());
-    record.SetOwnedRdata(net::IPAddressToPackedString(ip));
+    record.SetOwnedRdata(ip.bytes());
     address_records.push_back(std::move(record));
   }
   return address_records;
@@ -165,8 +165,8 @@ std::vector<net::DnsResourceRecord> CreateAddressResourceRecords(
 // record. |containing_nsec_rr_offset| defines the offset in the message of the
 // NSEC resource record that would contain the returned RDATA, and its value is
 // used to generate the correct pointer for Next Domain Name.
-std::string CreateNsecRdata(const net::IPAddress& addr,
-                            uint16_t containing_nsec_rr_offset) {
+std::vector<uint8_t> CreateNsecRdata(const net::IPAddress& addr,
+                                     uint16_t containing_nsec_rr_offset) {
   DCHECK(addr.IsIPv4() || addr.IsIPv6());
   // Each NSEC rdata in our negative response is given by 5 octets and 8
   // octets for type A and type AAAA records, respectively:
@@ -177,13 +177,19 @@ std::string CreateNsecRdata(const net::IPAddress& addr,
   // 1 octet for Bitmap Length with value X, where X=1 for type A and X=4 for
   // type AAAA;
   // X octet(s) for Bitmap, 0x40 for type A and 0x00000008 for type AAAA.
-  std::string next_domain_name =
-      net::CreateNamePointer(containing_nsec_rr_offset);
+  std::vector<uint8_t> rdata;
+  auto next_domain_name = net::CreateNamePointer(containing_nsec_rr_offset);
   DCHECK_EQ(2u, next_domain_name.size());
-  if (addr.IsIPv4())
-    return next_domain_name + std::string("\x00\x01\x40", 3);
+  rdata.insert(rdata.end(), next_domain_name.begin(), next_domain_name.end());
+  if (addr.IsIPv4()) {
+    // IPv4: Add 3 bytes for Window Block, Bitmap Length, and Bitmap.
+    rdata.insert(rdata.end(), {0x00, 0x01, 0x40});
+  } else {
+    // IPv6: Add 6 bytes for Window Block, Bitmap Length, and Bitmap.
+    rdata.insert(rdata.end(), {0x00, 0x04, 0x00, 0x00, 0x00, 0x08});
+  }
 
-  return next_domain_name + std::string("\x00\x04\x00\x00\x00\x08", 6);
+  return rdata;
 }
 
 // Creates a vector of NSEC records, where the name field of each record is
@@ -207,7 +213,9 @@ std::vector<net::DnsResourceRecord> CreateNsecResourceRecords(
     // RFC 6762, Section 6.1. TTL should be the same as that of what the record
     // would have.
     record.ttl = kDefaultTtlForRecordWithHostname.InSeconds();
-    record.SetOwnedRdata(CreateNsecRdata(name_addr_pair.second, cur_rr_offset));
+    std::vector<uint8_t> test_data =
+        CreateNsecRdata(name_addr_pair.second, cur_rr_offset);
+    record.SetOwnedRdata(base::as_byte_span(test_data));
     cur_rr_offset += record.CalculateRecordSize();
     nsec_records.push_back(std::move(record));
   }
@@ -216,13 +224,13 @@ std::vector<net::DnsResourceRecord> CreateNsecResourceRecords(
 
 // Creates TXT RDATA as a list of key-value pairs subject to a size limit. The
 // key is in the format "name0", "name1" and so on, and the value is the name.
-std::string CreateTxtRdataWithNames(const std::set<std::string>& names,
-                                    uint16_t txt_rdata_size_limit) {
+std::vector<uint8_t> CreateTxtRdataWithNames(const std::set<std::string>& names,
+                                             uint16_t txt_rdata_size_limit) {
   DCHECK(!names.empty());
   DCHECK_GT(txt_rdata_size_limit, sizeof(kTxtversLine));
   int remaining_budget =
       txt_rdata_size_limit - sizeof(kTxtversLine) + 1 /* null terminator */;
-  std::string txt_rdata;
+  std::vector<uint8_t> txt_rdata;
   size_t prev_txt_rdata_size = 0;
   uint16_t idx = 0;
   for (const std::string& name : names) {
@@ -249,8 +257,11 @@ std::string CreateTxtRdataWithNames(const std::set<std::string>& names,
     // Note that c_str() is null terminated.
     //
     // E.g. \x13name0=example.local
-    base::StringAppendF(&txt_rdata, "%c%s%d=%s", line_size - 1,
-                        kKeyPrefixInTxtRecord, idx, name.c_str());
+    constexpr char kFormatString[] = "%c%s%d=%s";
+    std::string formatted = absl::StrFormat(
+        kFormatString, line_size - 1, kKeyPrefixInTxtRecord, idx, name.c_str());
+    txt_rdata.insert(txt_rdata.end(), formatted.begin(), formatted.end());
+
     DCHECK_EQ(txt_rdata.size(), prev_txt_rdata_size + line_size);
     prev_txt_rdata_size = txt_rdata.size();
     ++idx;
@@ -259,7 +270,8 @@ std::string CreateTxtRdataWithNames(const std::set<std::string>& names,
   DCHECK(!txt_rdata.empty());
   // Note that the size of the version tag line has been deducted from the
   // budget before we add lines of names.
-  txt_rdata += kTxtversLine;
+  txt_rdata.insert(txt_rdata.end(), std::begin(kTxtversLine),
+                   std::end(kTxtversLine));
 
   return txt_rdata;
 }
@@ -280,7 +292,9 @@ net::DnsResourceRecord CreateTxtRecordWithNames(
   uint16_t txt_rdata_size_limit =
       kMaxTxtRecordSizeInBytes - service_instance_name.size() -
       net::dns_protocol::kResourceRecordSizeInBytesWithoutNameAndRData;
-  txt.SetOwnedRdata(CreateTxtRdataWithNames(names, txt_rdata_size_limit));
+  std::vector<uint8_t> test_data =
+      CreateTxtRdataWithNames(names, txt_rdata_size_limit);
+  txt.SetOwnedRdata(base::as_byte_span(test_data));
   return txt;
 }
 
@@ -294,10 +308,6 @@ bool IsProbeQuery(const net::DnsQuery& query) {
   //
   // Currently DnsQuery does not support the Authority section. Fix it.
   return query.qtype() == net::dns_protocol::kTypeANY;
-}
-
-void ReportServiceError(MdnsResponderServiceError error) {
-  UMA_HISTOGRAM_ENUMERATION("NetworkService.MdnsResponder.ServiceError", error);
 }
 
 struct PendingPacket {
@@ -316,15 +326,6 @@ struct PendingPacket {
   scoped_refptr<MdnsResponseSendOption> option;
   base::TimeTicks send_ready_time;
 };
-
-// Returns a random TimeDelta between |min| and |max| following the uniform
-// distribution.
-base::TimeDelta GetRandTimeDelta(const base::TimeDelta& min,
-                                 const base::TimeDelta& max) {
-  DCHECK_LE(min, max);
-  return base::Microseconds(
-      base::RandInt(min.InMicroseconds(), max.InMicroseconds()));
-}
 
 }  // namespace
 
@@ -353,11 +354,11 @@ scoped_refptr<net::IOBufferWithSize> CreateResolutionResponse(
   // Section 18.1. In mDNS responses, ID MUST be set to zero.
   net::DnsResponse response(0 /* id */, true /* is_authoritative */, answers,
                             {} /* authority_records */, additional_records,
-                            absl::nullopt /* query */);
+                            std::nullopt /* query */);
   DCHECK(response.io_buffer() != nullptr);
   auto buf =
       base::MakeRefCounted<net::IOBufferWithSize>(response.io_buffer_size());
-  memcpy(buf->data(), response.io_buffer()->data(), response.io_buffer_size());
+  buf->span().copy_from(response.io_buffer()->first(response.io_buffer_size()));
   return buf;
 }
 
@@ -371,11 +372,11 @@ scoped_refptr<net::IOBufferWithSize> CreateNegativeResponse(
                                    kDefaultTtlForRecordWithHostname);
   net::DnsResponse response(0 /* id */, true /* is_authoritative */,
                             nsec_records, {} /* authority_records */,
-                            additional_records, absl::nullopt /* query */);
+                            additional_records, std::nullopt /* query */);
   DCHECK(response.io_buffer() != nullptr);
   auto buf =
       base::MakeRefCounted<net::IOBufferWithSize>(response.io_buffer_size());
-  memcpy(buf->data(), response.io_buffer()->data(), response.io_buffer_size());
+  buf->span().copy_from(response.io_buffer()->first(response.io_buffer_size()));
   return buf;
 }
 
@@ -390,14 +391,14 @@ CreateResponseToMdnsNameGeneratorServiceQuery(
   net::DnsResponse response(/*id=*/0, /*is_authoritative=*/true, answers,
                             /*authority_records=*/{},
                             /*additional_records=*/{},
-                            /*query=*/absl::nullopt,
+                            /*query=*/std::nullopt,
                             /*rcode=*/net::dns_protocol::kRcodeNOERROR,
                             /*validate_records=*/true,
                             /*validate_names_as_internet_hostnames=*/false);
   DCHECK(response.io_buffer() != nullptr);
   auto buf =
       base::MakeRefCounted<net::IOBufferWithSize>(response.io_buffer_size());
-  memcpy(buf->data(), response.io_buffer()->data(), response.io_buffer_size());
+  buf->span().copy_from(response.io_buffer()->first(response.io_buffer_size()));
   return buf;
 }
 
@@ -607,13 +608,11 @@ class MdnsResponderManager::SocketHandler::ResponseScheduler {
         return RateLimitScheme::NO_LIMIT;
       case MdnsResponseSendOption::ResponseClass::UNSPECIFIED:
         NOTREACHED();
-        return RateLimitScheme::PER_RESPONSE;
     }
   }
   // Returns null if the computed delay exceeds kMaxScheduledDelay and the next
   // available time is not updated.
-  absl::optional<base::TimeDelta>
-  ComputeResponseDelayAndUpdateNextAvailableTime(
+  std::optional<base::TimeDelta> ComputeResponseDelayAndUpdateNextAvailableTime(
       RateLimitScheme rate_limit_scheme,
       const MdnsResponseSendOption& option);
 
@@ -679,7 +678,7 @@ bool MdnsResponderManager::SocketHandler::ResponseScheduler::ScheduleNextSend(
   }
 
   auto rate_limit_scheme = GetRateLimitSchemeForClass(option->klass);
-  absl::optional<base::TimeDelta> delay;
+  std::optional<base::TimeDelta> delay;
   if (rate_limit_scheme == RateLimitScheme::NO_LIMIT) {
     // Skip the scheduling for this response. Currently the zero delay is only
     // used for negative responses generated by the responder itself. Responses
@@ -704,14 +703,14 @@ bool MdnsResponderManager::SocketHandler::ResponseScheduler::ScheduleNextSend(
   return true;
 }
 
-absl::optional<base::TimeDelta> MdnsResponderManager::SocketHandler::
+std::optional<base::TimeDelta> MdnsResponderManager::SocketHandler::
     ResponseScheduler::ComputeResponseDelayAndUpdateNextAvailableTime(
         RateLimitScheme rate_limit_scheme,
         const MdnsResponseSendOption& option) {
   auto now = tick_clock_->NowTicks();
   const auto extra_delay_for_shared_result =
-      option.shared_result ? GetRandTimeDelta(kMinRandDelayForSharedResult,
-                                              kMaxRandDelayForSharedResult)
+      option.shared_result ? base::RandTimeDelta(kMinRandDelayForSharedResult,
+                                                 kMaxRandDelayForSharedResult)
                            : base::TimeDelta();
 
   // RFC 6762 requires the rate limiting applied on a per-record basis. When a
@@ -728,7 +727,7 @@ absl::optional<base::TimeDelta> MdnsResponderManager::SocketHandler::
         extra_delay_for_shared_result;
 
     if (delay > kMaxScheduledDelay)
-      return absl::nullopt;
+      return std::nullopt;
 
     next_available_time_per_resp_sched_ =
         now + delay + kMinIntervalBetweenMdnsResponses;
@@ -767,7 +766,7 @@ absl::optional<base::TimeDelta> MdnsResponderManager::SocketHandler::
       extra_delay_for_shared_result;
 
   if (delay > kMaxScheduledDelay)
-    return absl::nullopt;
+    return std::nullopt;
 
   for (const auto& name : option.names_for_rate_limit) {
     next_available_time_for_name_[name] =
@@ -892,7 +891,6 @@ void MdnsResponderManager::StartIfNeeded() {
     start_result_ = SocketHandlerStartResult::ALL_FAILURE;
     throttled_start_end_ = tick_clock_->NowTicks() + kManagerStartThrottleDelay;
     LOG(ERROR) << "mDNS responder manager failed to start.";
-    ReportServiceError(MdnsResponderServiceError::kFailToStartManager);
     return;
   }
 
@@ -910,7 +908,6 @@ void MdnsResponderManager::CreateMdnsResponder(
   if (start_result_ == SocketHandlerStartResult::UNSPECIFIED ||
       start_result_ == SocketHandlerStartResult::ALL_FAILURE) {
     LOG(ERROR) << "The mDNS responder manager is not started yet.";
-    ReportServiceError(MdnsResponderServiceError::kFailToCreateResponder);
     receiver = mojo::NullReceiver();
     return;
   }
@@ -937,7 +934,7 @@ bool MdnsResponderManager::Send(scoped_refptr<net::IOBufferWithSize> buf,
 
 void MdnsResponderManager::OnMojoConnectionError(MdnsResponder* responder) {
   auto it = responders_.find(responder);
-  DCHECK(it != responders_.end());
+  CHECK(it != responders_.end());
   responders_.erase(it);
 }
 
@@ -994,7 +991,7 @@ void MdnsResponderManager::OnMdnsQueryReceived(
   // responder only provides APIs to create address records, and hence limited
   // to handle only such records. Once we have expanded the API surface to
   // include the service publishing, the handling logic should be unified.
-  const absl::optional<std::string> qname =
+  const std::optional<std::string> qname =
       net::dns_names_util::NetworkToDottedName(query.qname());
   if (base::FeatureList::IsEnabled(
           features::kMdnsResponderGeneratedNameListing)) {
@@ -1017,14 +1014,13 @@ void MdnsResponderManager::OnSocketHandlerReadError(uint16_t socket_handler_id,
   // We should not remove the socket handler for a non-fatal error.
   DCHECK(IsFatalError(result));
   auto it = socket_handler_by_id_.find(socket_handler_id);
-  DCHECK(it != socket_handler_by_id_.end());
+  CHECK(it != socket_handler_by_id_.end());
   // It is safe to remove the handler in error since the handler has exited the
   // read loop and is done with |OnRead|.
   socket_handler_by_id_.erase(it);
   if (socket_handler_by_id_.empty()) {
     LOG(ERROR)
         << "All socket handlers failed. Restarting the mDNS responder manager.";
-    ReportServiceError(MdnsResponderServiceError::kFatalSocketHandlerError);
     start_result_ = MdnsResponderManager::SocketHandlerStartResult::UNSPECIFIED;
     DCHECK(throttled_start_end_.is_null());
     StartIfNeeded();
@@ -1193,7 +1189,6 @@ void MdnsResponder::CreateNameForAddress(
   DCHECK(address.IsValid() || address.empty());
   if (!address.IsValid()) {
     LOG(ERROR) << "Invalid IP address to create a name for";
-    ReportServiceError(MdnsResponderServiceError::kInvalidIpToRegisterName);
     receiver_.reset();
     manager_->OnMojoConnectionError(this);
     return;
@@ -1263,7 +1258,7 @@ void MdnsResponder::RemoveNameForAddress(
 void MdnsResponder::OnMdnsQueryReceived(const net::DnsQuery& query,
                                         uint16_t recv_socket_handler_id) {
   // Currently we only support a single question in DnsQuery.
-  absl::optional<std::string> dotted_name_to_resolve =
+  std::optional<std::string> dotted_name_to_resolve =
       net::dns_names_util::NetworkToDottedName(query.qname());
   if (!dotted_name_to_resolve)
     return;
@@ -1317,7 +1312,6 @@ bool MdnsResponder::HasConflictWithExternalResolution(
   }
 
   LOG(ERROR) << "Received conflicting resolution for name: " << name;
-  ReportServiceError(MdnsResponderServiceError::kConflictingNameResolution);
   return true;
 }
 

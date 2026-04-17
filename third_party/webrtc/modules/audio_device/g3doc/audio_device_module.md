@@ -1,12 +1,12 @@
 <!-- go/cmark -->
-<!--* freshness: {owner: 'henrika' reviewed: '2021-04-12'} *-->
+<!--* freshness: {owner: 'henrika' reviewed: '2024-09-02'} *-->
 
 # Audio Device Module (ADM)
 
 ## Overview
 
-The ADM is responsible for driving input (microphone) and output (speaker) audio
-in WebRTC and the API is defined in [audio_device.h][19].
+The ADM(AudioDeviceModule) is responsible for driving input (microphone) and
+output (speaker) audio in WebRTC and the API is defined in [audio_device.h][19].
 
 Main functions of the ADM are:
 
@@ -32,7 +32,7 @@ as possible.
 
 By default, the ADM in WebRTC is created in [`WebRtcVoiceEngine::Init`][1] but
 an external implementation can also be injected using
-[`rtc::CreatePeerConnectionFactory`][25]. An example of where an external ADM is
+[`webrtc::CreatePeerConnectionFactory`][25]. An example of where an external ADM is
 injected can be found in [PeerConnectionInterfaceTest][26] where a so-called
 [fake ADM][29] is utilized to avoid hardware dependency in a gtest. Clients can
 also inject their own ADMs in situations where functionality is needed that is

@@ -77,7 +77,6 @@ base::ReadOnlySharedMemoryRegion RenderPdfPagesToPwgRaster(
     switch (bitmap_settings.duplex_mode) {
       case mojom::DuplexMode::kUnknownDuplexMode:
         NOTREACHED();
-        break;
       case mojom::DuplexMode::kSimplex:
         // Already defaults to false/false.
         break;
@@ -126,7 +125,7 @@ base::ReadOnlySharedMemoryRegion RenderPdfPagesToPwgRaster(
     return invalid_pwg_region;
 
   *page_count = total_page_count;
-  memcpy(region_mapping.mapping.memory(), pwg_data.data(), pwg_data.size());
+  region_mapping.mapping.GetMemoryAsSpan<char>().copy_prefix_from(pwg_data);
   return std::move(region_mapping.region);
 }
 
@@ -134,7 +133,7 @@ base::ReadOnlySharedMemoryRegion RenderPdfPagesToPwgRaster(
 
 PdfToPwgRasterConverter::PdfToPwgRasterConverter() = default;
 
-PdfToPwgRasterConverter::~PdfToPwgRasterConverter() {}
+PdfToPwgRasterConverter::~PdfToPwgRasterConverter() = default;
 
 void PdfToPwgRasterConverter::Convert(
     base::ReadOnlySharedMemoryRegion pdf_region,
@@ -145,6 +144,10 @@ void PdfToPwgRasterConverter::Convert(
   base::ReadOnlySharedMemoryRegion region = RenderPdfPagesToPwgRaster(
       std::move(pdf_region), pdf_settings, pwg_raster_settings, &page_count);
   std::move(callback).Run(std::move(region), page_count);
+}
+
+void PdfToPwgRasterConverter::SetUseSkiaRendererPolicy(bool use_skia) {
+  chrome_pdf::SetUseSkiaRendererPolicy(use_skia);
 }
 
 }  // namespace printing

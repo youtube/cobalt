@@ -4,9 +4,10 @@
 
 #include "net/ssl/ssl_platform_key_util.h"
 
+#include <string_view>
+
 #include "base/lazy_instance.h"
 #include "base/logging.h"
-#include "base/strings/string_piece.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread.h"
 #include "crypto/openssl_util.h"
@@ -56,7 +57,7 @@ bssl::UniquePtr<EVP_PKEY> GetClientCertPublicKey(
     const X509Certificate* certificate) {
   crypto::OpenSSLErrStackTracer tracker(FROM_HERE);
 
-  base::StringPiece spki;
+  std::string_view spki;
   if (!asn1::ExtractSPKIFromDERCert(
           x509_util::CryptoBufferAsStringPiece(certificate->cert_buffer()),
           &spki)) {
@@ -64,15 +65,7 @@ bssl::UniquePtr<EVP_PKEY> GetClientCertPublicKey(
     return nullptr;
   }
 
-  CBS cbs;
-  CBS_init(&cbs, reinterpret_cast<const uint8_t*>(spki.data()), spki.size());
-  bssl::UniquePtr<EVP_PKEY> key(EVP_parse_public_key(&cbs));
-  if (!key || CBS_len(&cbs) != 0) {
-    LOG(ERROR) << "Could not parse public key.";
-    return nullptr;
-  }
-
-  return key;
+  return ParseSpki(base::as_byte_span(spki));
 }
 
 bool GetClientCertInfo(const X509Certificate* certificate,
@@ -88,19 +81,43 @@ bool GetClientCertInfo(const X509Certificate* certificate,
   return true;
 }
 
-absl::optional<std::vector<uint8_t>> AddPSSPadding(
+bssl::UniquePtr<EVP_PKEY> ParseSpki(base::span<const uint8_t> spki) {
+  CBS cbs;
+  CBS_init(&cbs, spki.data(), spki.size());
+  bssl::UniquePtr<EVP_PKEY> key(EVP_parse_public_key(&cbs));
+  if (!key || CBS_len(&cbs) != 0) {
+    LOG(ERROR) << "Could not parse public key.";
+    return nullptr;
+  }
+  return key;
+}
+
+bool GetPublicKeyInfo(base::span<const uint8_t> spki,
+                      int* out_type,
+                      size_t* out_max_length) {
+  auto key = ParseSpki(spki);
+  if (!key) {
+    return false;
+  }
+
+  *out_type = EVP_PKEY_id(key.get());
+  *out_max_length = EVP_PKEY_size(key.get());
+  return true;
+}
+
+std::optional<std::vector<uint8_t>> AddPSSPadding(
     EVP_PKEY* pubkey,
     const EVP_MD* md,
     base::span<const uint8_t> digest) {
   RSA* rsa = EVP_PKEY_get0_RSA(pubkey);
   if (!rsa) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   std::vector<uint8_t> ret(RSA_size(rsa));
   if (digest.size() != EVP_MD_size(md) ||
       !RSA_padding_add_PKCS1_PSS_mgf1(rsa, ret.data(), digest.data(), md, md,
                                       -1 /* salt length is digest length */)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return ret;
 }

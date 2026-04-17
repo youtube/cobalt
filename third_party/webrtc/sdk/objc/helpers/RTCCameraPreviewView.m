@@ -31,7 +31,7 @@
   return self;
 }
 
-- (instancetype)initWithCoder:(NSCoder*)aDecoder {
+- (instancetype)initWithCoder:(NSCoder *)aDecoder {
   self = [super initWithCoder:aDecoder];
   if (self) {
     [self addOrientationObserver];
@@ -51,15 +51,18 @@
   [RTC_OBJC_TYPE(RTCDispatcher)
       dispatchAsyncOnType:RTCDispatcherTypeMain
                     block:^{
-                      AVCaptureVideoPreviewLayer *previewLayer = [self previewLayer];
+                      AVCaptureVideoPreviewLayer *previewLayer =
+                          [self previewLayer];
                       [RTC_OBJC_TYPE(RTCDispatcher)
                           dispatchAsyncOnType:RTCDispatcherTypeCaptureSession
                                         block:^{
                                           previewLayer.session = captureSession;
                                           [RTC_OBJC_TYPE(RTCDispatcher)
-                                              dispatchAsyncOnType:RTCDispatcherTypeMain
+                                              dispatchAsyncOnType:
+                                                  RTCDispatcherTypeMain
                                                             block:^{
-                                                              [self setCorrectVideoOrientation];
+                                                              [self
+                                                                  setCorrectVideoOrientation];
                                                             }];
                                         }];
                     }];
@@ -72,11 +75,61 @@
   [self setCorrectVideoOrientation];
 }
 
--(void)orientationChanged:(NSNotification *)notification {
+- (void)orientationChanged:(NSNotification *)notification {
   [self setCorrectVideoOrientation];
 }
 
 - (void)setCorrectVideoOrientation {
+  if (@available(iOS 17, *)) {
+    [self modifyVideoAngle];
+  }
+#if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
+  else {
+    [self modifyVideoOrientation];
+  }
+#endif
+}
+
+#pragma mark - Private
+
+- (void)addOrientationObserver {
+  [[NSNotificationCenter defaultCenter]
+      addObserver:self
+         selector:@selector(orientationChanged:)
+             name:UIDeviceOrientationDidChangeNotification
+           object:nil];
+}
+
+- (void)removeOrientationObserver {
+  [[NSNotificationCenter defaultCenter]
+      removeObserver:self
+                name:UIDeviceOrientationDidChangeNotification
+              object:nil];
+}
+
+- (AVCaptureVideoPreviewLayer *)previewLayer {
+  return (AVCaptureVideoPreviewLayer *)self.layer;
+}
+
+- (void)modifyVideoAngle API_AVAILABLE(ios(17.0)) {
+  AVCaptureDeviceInput* captureSessionInput =
+      _captureSession.inputs.firstObject;
+  AVCaptureDevice* camera = captureSessionInput.device;
+  AVCaptureVideoPreviewLayer* previewLayer = [self previewLayer];
+  AVCaptureConnection* videoConnection = previewLayer.connection;
+  AVCaptureDeviceRotationCoordinator* rotationCoordiantor =
+      [[AVCaptureDeviceRotationCoordinator alloc]
+          initWithDevice:camera
+            previewLayer:previewLayer];
+  CGFloat angle =
+      rotationCoordiantor.videoRotationAngleForHorizonLevelCapture;
+  if ([videoConnection isVideoRotationAngleSupported:angle]) {
+    [videoConnection setVideoRotationAngle:angle];
+  }
+}
+
+#if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
+- (void)modifyVideoOrientation {
   // Get current device orientation.
   UIDeviceOrientation deviceOrientation = [UIDevice currentDevice].orientation;
   AVCaptureVideoPreviewLayer *previewLayer = [self previewLayer];
@@ -84,40 +137,23 @@
   // First check if we are allowed to set the video orientation.
   if (previewLayer.connection.isVideoOrientationSupported) {
     // Set the video orientation based on device orientation.
-    if (deviceOrientation == UIInterfaceOrientationPortraitUpsideDown) {
+    if (deviceOrientation == UIDeviceOrientationPortraitUpsideDown) {
       previewLayer.connection.videoOrientation =
           AVCaptureVideoOrientationPortraitUpsideDown;
-    } else if (deviceOrientation == UIInterfaceOrientationLandscapeRight) {
+    } else if (deviceOrientation == UIDeviceOrientationLandscapeRight) {
       previewLayer.connection.videoOrientation =
           AVCaptureVideoOrientationLandscapeRight;
-    } else if (deviceOrientation == UIInterfaceOrientationLandscapeLeft) {
+    } else if (deviceOrientation == UIDeviceOrientationLandscapeLeft) {
       previewLayer.connection.videoOrientation =
           AVCaptureVideoOrientationLandscapeLeft;
-    } else if (deviceOrientation == UIInterfaceOrientationPortrait) {
+    } else if (deviceOrientation == UIDeviceOrientationPortrait) {
       previewLayer.connection.videoOrientation =
           AVCaptureVideoOrientationPortrait;
     }
-    // If device orientation switches to FaceUp or FaceDown, don't change video orientation.
+    // If device orientation switches to FaceUp or FaceDown, don't change video
+    // orientation.
   }
 }
-
-#pragma mark - Private
-
-- (void)addOrientationObserver {
-  [[NSNotificationCenter defaultCenter] addObserver:self
-                                            selector:@selector(orientationChanged:)
-                                                name:UIDeviceOrientationDidChangeNotification
-                                              object:nil];
-}
-
-- (void)removeOrientationObserver {
-  [[NSNotificationCenter defaultCenter] removeObserver:self
-                                                  name:UIDeviceOrientationDidChangeNotification
-                                                object:nil];
-}
-
-- (AVCaptureVideoPreviewLayer *)previewLayer {
-  return (AVCaptureVideoPreviewLayer *)self.layer;
-}
+#endif
 
 @end

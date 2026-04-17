@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/files/file.h"
 #include "base/files/file_util.h"
@@ -60,7 +61,7 @@ void CompressChunks(const std::string& contents,
 
   for (size_t i = 0; i < chunk_count; ++i) {
     std::string compressed;
-    base::StringPiece input(contents.c_str() + i * chunk_size, chunk_size);
+    std::string_view input(contents.c_str() + i * chunk_size, chunk_size);
 
     switch (compression_type) {
       case CompressionType::kSnappy:
@@ -141,7 +142,6 @@ int main(int argc, char** argv) {
   if (argc != 2) {
     LOG(FATAL) << "Usage: " << argv[0] << " <filename>\n\n"
                << "Where the file contains data to compress";
-    return 1;
   }
 
   LOG(INFO) << "Reading the input file";

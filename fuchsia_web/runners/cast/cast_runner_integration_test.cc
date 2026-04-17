@@ -6,13 +6,14 @@
 #include <fuchsia/camera3/cpp/fidl.h>
 #include <fuchsia/legacymetrics/cpp/fidl.h>
 #include <fuchsia/media/cpp/fidl.h>
+#include <fuchsia/ui/views/cpp/fidl.h>
 #include <fuchsia/web/cpp/fidl.h>
 #include <lib/fdio/directory.h>
 #include <lib/fidl/cpp/binding.h>
 #include <lib/sys/cpp/component_context.h>
-#include <lib/ui/scenic/cpp/view_ref_pair.h>
-#include <lib/ui/scenic/cpp/view_token_pair.h>
+#include <lib/zx/eventpair.h>
 
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -24,15 +25,15 @@
 #include "base/fuchsia/mem_buffer_util.h"
 #include "base/fuchsia/scoped_service_binding.h"
 #include "base/functional/callback_helpers.h"
-#include "base/guid.h"
+#include "base/memory/raw_ref.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
-#include "base/strings/string_piece.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "base/test/test_timeouts.h"
+#include "base/uuid.h"
 #include "build/build_config.h"
 #include "build/chromecast_buildflags.h"
 #include "components/fuchsia_component_support/dynamic_component_host.h"
@@ -62,7 +63,7 @@ constexpr char kBlankAppUrl[] = "/defaultresponse";
 constexpr char kEchoHeaderPath[] = "/echoheader?Test";
 
 chromium::cast::ApplicationConfig CreateAppConfigWithTestData(
-    base::StringPiece app_id,
+    std::string_view app_id,
     GURL url) {
   fuchsia::web::ContentDirectoryProvider provider;
   provider.set_name("testdata");
@@ -96,8 +97,9 @@ class FakeUrlRequestRewriteRulesProvider final
   void GetUrlRequestRewriteRules(
       GetUrlRequestRewriteRulesCallback callback) override {
     // Only send the rules once. They do not expire
-    if (rules_sent_)
+    if (rules_sent_) {
       return;
+    }
     rules_sent_ = true;
 
     std::vector<fuchsia::web::UrlRequestRewrite> rewrites;
@@ -137,7 +139,7 @@ class FakeApplicationContext final : public chromium::cast::ApplicationContext {
     loop.Run();
   }
 
-  absl::optional<int64_t> WaitForApplicationTerminated() {
+  std::optional<int64_t> WaitForApplicationTerminated() {
     if (application_exit_code_.has_value()) {
       return application_exit_code_;
     }
@@ -170,7 +172,7 @@ class FakeApplicationContext final : public chromium::cast::ApplicationContext {
   chromium::cast::ApplicationControllerPtr application_controller_;
   base::OnceClosure on_set_application_controller_;
 
-  absl::optional<int64_t> application_exit_code_;
+  std::optional<int64_t> application_exit_code_;
   base::OnceClosure on_application_terminated_;
 };
 
@@ -199,7 +201,7 @@ class TestCastComponent {
   // the `ExecuteJavaScript()` API (see below).
   // Note that this function will not return until the activity has actually
   // launched.
-  void StartCastComponentWithQueryApi(base::StringPiece app_id = kTestAppId) {
+  void StartCastComponentWithQueryApi(std::string_view app_id = kTestAppId) {
     auto component_url = base::StrCat({"cast:", app_id});
     InjectQueryApi();
     StartCastComponent(component_url);
@@ -211,7 +213,7 @@ class TestCastComponent {
   // the activity has actually started (e.g. to interact with its
   // `ApplicationController`, etc), should normally use the
   // `StartCastComponentWithQueryApi()` call instead.
-  void StartCastComponent(base::StringPiece component_url) {
+  void StartCastComponent(std::string_view component_url) {
     ASSERT_FALSE(component_) << "Component may only be started once";
 
     fidl::InterfaceHandle<fuchsia::io::Directory> services;
@@ -223,11 +225,10 @@ class TestCastComponent {
       } else {
         // Create a `fuchsia.io.Directory` connected to the directory of fake
         // services.
-        zx_status_t status = services_->services.Serve(
-            fuchsia::io::OpenFlags::RIGHT_READABLE |
-                fuchsia::io::OpenFlags::RIGHT_WRITABLE |
-                fuchsia::io::OpenFlags::DIRECTORY,
-            services.NewRequest().TakeChannel());
+        zx_status_t status =
+            services_->services.Serve(fuchsia_io::wire::kPermReadable,
+                                      fidl::ServerEnd<fuchsia_io::Directory>(
+                                          services.NewRequest().TakeChannel()));
         ZX_CHECK(status == ZX_OK, status) << "Serve()";
       }
     }
@@ -237,9 +238,9 @@ class TestCastComponent {
     // at random to uniquely identify it, and supplied with `services` as
     // configured above.
     component_.emplace(
-        test_realm_services_.Connect<fuchsia::component::Realm>(),
+        test_realm_services_->Connect<fuchsia::component::Realm>(),
         test::CastRunnerLauncher::kTestCollectionName,
-        base::GUID::GenerateRandomV4().AsLowercaseString(), component_url,
+        base::Uuid::GenerateRandomV4().AsLowercaseString(), component_url,
         base::BindOnce(&TestCastComponent::OnComponentTeardown,
                        base::Unretained(this)),
         std::move(services));
@@ -264,7 +265,7 @@ class TestCastComponent {
     test_port_->ReceiveMessage(CallbackToFitFunction(response.GetCallback()));
     EXPECT_TRUE(response.Wait());
 
-    absl::optional<std::string> response_string =
+    std::optional<std::string> response_string =
         base::StringFromMemBuffer(response.Get().data());
     EXPECT_TRUE(response_string.has_value());
 
@@ -388,7 +389,7 @@ class TestCastComponent {
     }
   }
 
-  const sys::ServiceDirectory& test_realm_services_;
+  const raw_ref<const sys::ServiceDirectory> test_realm_services_;
 
   // True if the Cast component should be offered a service directory channel
   // that has already been closed, to simulate the providing agent having
@@ -399,9 +400,9 @@ class TestCastComponent {
   bool offer_services_ = true;
 
   // Holds the service directory and fake services offered to `component_`.
-  absl::optional<FakeComponentServices> services_;
+  std::optional<FakeComponentServices> services_;
 
-  absl::optional<fuchsia_component_support::DynamicComponentHost> component_;
+  std::optional<fuchsia_component_support::DynamicComponentHost> component_;
 
   fuchsia::web::MessagePortPtr test_port_;
 
@@ -425,7 +426,7 @@ class CastRunnerIntegrationTest : public testing::Test {
 
   // testing::Test overrides.
   void SetUp() override {
-    static constexpr base::StringPiece kTestServerRoot(
+    static constexpr std::string_view kTestServerRoot(
         "fuchsia_web/runners/cast/testdata");
     test_server_.ServeFilesFromSourceDirectory(kTestServerRoot);
     net::test_server::RegisterDefaultHandlers(&test_server_);
@@ -452,7 +453,7 @@ class CastRunnerIntegrationTest : public testing::Test {
   base::test::SingleThreadTaskEnvironment task_environment_{
       base::test::SingleThreadTaskEnvironment::MainThreadType::IO};
 
-  // TODO(https://crbug.com/1168538): Override the RunLoop timeout set by
+  // TODO(crbug.com/42050227): Override the RunLoop timeout set by
   // |task_environment_| to allow for the very high variability in web.Context
   // launch times.
   const base::test::ScopedRunLoopTimeout scoped_timeout_{
@@ -479,7 +480,7 @@ TEST_F(CastRunnerIntegrationTest, BasicRequest) {
 
 // Verify that the Runner can continue to be used even after its Context has
 // crashed. Regression test for https://crbug.com/1066826.
-// TODO(crbug.com/1066833): Replace this with a WebRunner test, ideally a
+// TODO(crbug.com/40682680): Replace this with a WebRunner test, ideally a
 //   unit-test, which can simulate Context disconnection more simply.
 TEST_F(CastRunnerIntegrationTest, CanRecreateContext) {
   TestCastComponent component(test_realm_services());
@@ -595,9 +596,9 @@ TEST_F(CastRunnerIntegrationTest, RemoteDebugging) {
       GetDevToolsListFromPort(CastRunner::kRemoteDebuggingPort);
   EXPECT_EQ(devtools_list.size(), 1u);
 
-  base::Value* devtools_url = devtools_list[0].FindPath("url");
-  ASSERT_TRUE(devtools_url->is_string());
-  EXPECT_EQ(devtools_url->GetString(), app_url.spec());
+  const auto* devtools_url = devtools_list[0].GetDict().FindString("url");
+  ASSERT_TRUE(devtools_url);
+  EXPECT_EQ(*devtools_url, app_url.spec());
 }
 
 TEST_F(CastRunnerIntegrationTest, IsolatedContext) {
@@ -787,20 +788,34 @@ TEST_F(HeadlessCastRunnerIntegrationTest, Headless) {
   app_config_manager().AddApp(kTestAppId, animation_url);
 
   component.StartCastComponentWithQueryApi();
-  auto tokens = scenic::ViewTokenPair::New();
-  auto view_ref_pair = scenic::ViewRefPair::New();
+
+  fuchsia::ui::views::ViewToken view_token;
+  fuchsia::ui::views::ViewHolderToken view_holder_token;
+  auto status =
+      zx::eventpair::create(0u, &view_token.value, &view_holder_token.value);
+  CHECK_EQ(ZX_OK, status);
+
+  fuchsia::ui::views::ViewRefControl view_ref_control;
+  fuchsia::ui::views::ViewRef view_ref;
+  status = zx::eventpair::create(
+      /*options*/ 0u, &view_ref_control.reference, &view_ref.reference);
+  CHECK_EQ(ZX_OK, status);
+  view_ref_control.reference.replace(
+      ZX_DEFAULT_EVENTPAIR_RIGHTS & (~ZX_RIGHT_DUPLICATE),
+      &view_ref_control.reference);
+  view_ref.reference.replace(ZX_RIGHTS_BASIC, &view_ref.reference);
 
   // Create a view.
   auto view_provider = component.exposed_by_component()
                            .Connect<fuchsia::ui::app::ViewProvider>();
-  view_provider->CreateViewWithViewRef(
-      std::move(tokens.view_holder_token.value),
-      std::move(view_ref_pair.control_ref), std::move(view_ref_pair.view_ref));
+  view_provider->CreateViewWithViewRef(std::move(view_holder_token.value),
+                                       std::move(view_ref_control),
+                                       std::move(view_ref));
 
   component.api_bindings().RunAndReturnConnectedPort("animation_finished");
 
   // Verify that dropped "view" EventPair is handled properly.
-  tokens.view_token.value.reset();
+  view_token.value.reset();
   component.api_bindings().RunAndReturnConnectedPort("view_hidden");
 }
 
@@ -859,7 +874,7 @@ TEST_F(CastRunnerIntegrationTest, OnApplicationTerminated_WindowClose) {
 
   // Have the web content close itself, and wait for OnApplicationTerminated().
   EXPECT_EQ(component.ExecuteJavaScript("window.close()"), "undefined");
-  absl::optional<zx_status_t> exit_code =
+  std::optional<zx_status_t> exit_code =
       component.application_context().WaitForApplicationTerminated();
   ASSERT_TRUE(exit_code);
   EXPECT_EQ(exit_code.value(), ZX_OK);
@@ -881,7 +896,7 @@ TEST_F(CastRunnerIntegrationTest, OnApplicationTerminated_ComponentStop) {
   // Request that the component be destroyed, and wait for
   // OnApplicationTerminated().
   component.ShutdownComponent();
-  absl::optional<zx_status_t> exit_code =
+  std::optional<zx_status_t> exit_code =
       component.application_context().WaitForApplicationTerminated();
   ASSERT_TRUE(exit_code);
   EXPECT_EQ(exit_code.value(), ZX_OK);
@@ -959,8 +974,8 @@ TEST_F(CastRunnerIntegrationTest, MissingCorsExemptHeaderProvider) {
 // Verifies that CastRunner offers a chromium.cast.DataReset service.
 // Verifies that after the DeletePersistentData() API is invoked, no further
 // component-start requests are honoured.
-// TODO(crbug.com/1146474): Expand the test to verify that the persisted data is
-// correctly cleared (e.g. using a custom test HTML app that uses persisted
+// TODO(crbug.com/40730094): Expand the test to verify that the persisted data
+// is correctly cleared (e.g. using a custom test HTML app that uses persisted
 // data).
 TEST_F(CastRunnerIntegrationTest, DataReset_Service) {
   base::RunLoop loop;
@@ -1044,9 +1059,11 @@ TEST_F(CastRunnerIntegrationTest, FrameHostDebugging) {
   base::Value::List devtools_list =
       GetDevToolsListFromPort(remote_debugging_port);
   EXPECT_EQ(devtools_list.size(), 1u);
-  base::Value* devtools_url = devtools_list[0].FindPath("url");
-  ASSERT_TRUE(devtools_url->is_string());
-  EXPECT_EQ(devtools_url->GetString(), url);
+  {
+    const auto* devtools_url = devtools_list[0].GetDict().FindString("url");
+    ASSERT_TRUE(devtools_url);
+    EXPECT_EQ(*devtools_url, url);
+  }
 
   // Create a new `FrameHost` client, and immediately close it. The DevTools
   // port should remain open regardless.
@@ -1063,13 +1080,15 @@ TEST_F(CastRunnerIntegrationTest, FrameHostDebugging) {
 
   devtools_list = GetDevToolsListFromPort(remote_debugging_port);
   EXPECT_EQ(devtools_list.size(), 1u);
-  devtools_url = devtools_list[0].FindPath("url");
-  ASSERT_TRUE(devtools_url->is_string());
-  EXPECT_EQ(devtools_url->GetString(), url2);
+  {
+    const auto* devtools_url = devtools_list[0].GetDict().FindString("url");
+    ASSERT_TRUE(devtools_url);
+    EXPECT_EQ(*devtools_url, url2);
+  }
 }
 
 #if defined(ARCH_CPU_ARM_FAMILY)
-// TODO(crbug.com/1377994): Enable on ARM64 when bots support Vulkan.
+// TODO(crbug.com/42050537): Enable on ARM64 when bots support Vulkan.
 #define MAYBE_VulkanCastRunnerIntegrationTest \
   DISABLED_VulkanCastRunnerIntegrationTest
 #else

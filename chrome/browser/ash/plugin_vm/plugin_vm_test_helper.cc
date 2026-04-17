@@ -17,14 +17,16 @@
 #include "chrome/browser/ash/plugin_vm/plugin_vm_features.h"
 #include "chrome/browser/ash/plugin_vm/plugin_vm_pref_names.h"
 #include "chrome/browser/ash/plugin_vm/plugin_vm_util.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
 #include "chrome/browser/ui/ash/shelf/chrome_shelf_controller.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/base/testing_profile.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 #include "components/account_id/account_id.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/user_manager/scoped_user_manager.h"
+#include "components/user_manager/test_helper.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace plugin_vm {
@@ -127,7 +129,7 @@ void SetupConciergeForFailedDiskImageImport(
 void SetupConciergeForCancelDiskImageOperation(
     ash::FakeConciergeClient* fake_concierge_client_,
     bool success) {
-  vm_tools::concierge::CancelDiskImageResponse cancel_disk_image_response;
+  vm_tools::concierge::SuccessFailureResponse cancel_disk_image_response;
   cancel_disk_image_response.set_success(success);
   fake_concierge_client_->set_cancel_disk_image_response(
       cancel_disk_image_response);
@@ -157,13 +159,13 @@ void PluginVmTestHelper::SetPolicyRequirementsToAllowPluginVm() {
 void PluginVmTestHelper::SetUserRequirementsToAllowPluginVm() {
   // User for the profile should be affiliated with the device.
   const AccountId account_id(AccountId::FromUserEmailGaiaId(
-      testing_profile_->GetProfileUserName(), "id"));
+      testing_profile_->GetProfileUserName(), GaiaId("id")));
   auto user_manager = std::make_unique<ash::FakeChromeUserManager>();
   auto* user = user_manager->AddUserWithAffiliationAndTypeAndProfile(
-      account_id, true, user_manager::USER_TYPE_REGULAR, testing_profile_);
-  user_manager->UserLoggedIn(user->GetAccountId(), user->username_hash(),
-                             /*browser_restart=*/false,
-                             /*is_child=*/false);
+      account_id, true, user_manager::UserType::kRegular, testing_profile_);
+  user_manager->UserLoggedIn(
+      user->GetAccountId(),
+      user_manager::TestHelper::GetFakeUsernameHash(user->GetAccountId()));
   scoped_user_manager_ = std::make_unique<user_manager::ScopedUserManager>(
       std::move(user_manager));
   running_on_chromeos_ =
@@ -206,7 +208,8 @@ void PluginVmTestHelper::OpenShelfItem() {
         shelf_id, std::move(delegate));
     shelf_controller->SetItemStatus(shelf_id, ash::STATUS_RUNNING);
   } else {
-    shelf_controller->CreateAppItem(std::move(delegate), ash::STATUS_RUNNING);
+    shelf_controller->CreateAppItem(std::move(delegate), ash::STATUS_RUNNING,
+                                    /*pinned=*/false);
   }
 }
 

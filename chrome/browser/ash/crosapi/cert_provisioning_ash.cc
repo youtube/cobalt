@@ -152,11 +152,12 @@ void CertProvisioningAsh::AppendWorkerStatuses(
 
   result.reserve(result.size() + worker_map.size() + failed_workers_map.size());
 
-  for (const auto& [id, worker] : worker_map) {
+  for (const auto& [profile_id, worker] : worker_map) {
     result.push_back(mojom::CertProvisioningProcessStatus::New());
     mojom::CertProvisioningProcessStatusPtr& status = result.back();
 
-    status->cert_profile_id = id;
+    status->process_id = worker->GetProcessId();
+    status->cert_profile_id = profile_id;
     status->cert_profile_name = worker->GetCertProfile().name;
     status->public_key = worker->GetPublicKey();
     status->last_update_time = worker->GetLastUpdateTime();
@@ -172,11 +173,12 @@ void CertProvisioningAsh::AppendWorkerStatuses(
     }
   }
 
-  for (const auto& [id, worker] : failed_workers_map) {
+  for (const auto& [profile_id, worker] : failed_workers_map) {
     result.push_back(mojom::CertProvisioningProcessStatus::New());
     mojom::CertProvisioningProcessStatusPtr& status = result.back();
 
-    status->cert_profile_id = id;
+    status->process_id = worker.process_id;
+    status->cert_profile_id = profile_id;
     status->cert_profile_name = worker.cert_profile_name;
     status->public_key = worker.public_key;
     status->last_update_time = worker.last_update_time;
@@ -198,6 +200,27 @@ void CertProvisioningAsh::UpdateOneProcess(const std::string& cert_profile_id) {
   CertProvisioningScheduler* device_scheduler = GetDeviceScheduler();
   if (device_scheduler) {
     device_scheduler->UpdateOneWorker(cert_profile_id);
+  }
+}
+
+void CertProvisioningAsh::ResetOneProcess(const std::string& cert_profile_id) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+
+  CertProvisioningScheduler* user_scheduler = GetUserScheduler();
+  if (user_scheduler && user_scheduler->ResetOneWorker(cert_profile_id)) {
+    return;
+  }
+
+  CertProvisioningScheduler* device_scheduler = GetDeviceScheduler();
+  if (device_scheduler && device_scheduler->ResetOneWorker(cert_profile_id)) {
+    return;
+  }
+
+  if (user_scheduler || device_scheduler) {
+    LOG(ERROR) << "resetting cert_profile_id was not found. id:"
+               << cert_profile_id << " user_scheduler:" << bool(user_scheduler)
+               << " device_scheduler:" << bool(device_scheduler);
+    return;
   }
 }
 

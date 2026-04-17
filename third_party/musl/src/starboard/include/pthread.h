@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_MUSL_SRC_STARBOARD_PTHREAD_H_
-#define THIRD_PARTY_MUSL_SRC_STARBOARD_PTHREAD_H_
+#ifndef THIRD_PARTY_MUSL_SRC_STARBOARD_INCLUDE_PTHREAD_H_
+#define THIRD_PARTY_MUSL_SRC_STARBOARD_INCLUDE_PTHREAD_H_
 
 #include <stdint.h>
 #include <time.h>
@@ -45,6 +45,16 @@ extern "C" {
 #define PTHREAD_MUTEX_INITIALIZER \
   { 0 }
 #endif
+
+// We use a non-zero value in recursive_flag to indicate that the
+// mutex should be initialized as recursive on first use. This relies on the
+// fact that PosixMutexPrivate has initialized_state as its last member.
+// The recursive_flag overlaps with the beginning of mutex_buffer.
+// This is safe because the flag is only read during the first-use
+// initialization. Once initialized, the platform mutex handles the
+// memory at this offset, and the flag is no longer needed.
+#define PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP \
+  { {1} }
 
 // Max size of the native mutex type.
 #define MUSL_PTHREAD_MUTEX_MAX_SIZE 80
@@ -270,4 +280,4 @@ int pthread_kill(pthread_t, int);
 }  // extern "C"
 #endif
 
-#endif  // THIRD_PARTY_MUSL_SRC_STARBOARD_PTHREAD_H_
+#endif  // THIRD_PARTY_MUSL_SRC_STARBOARD_INCLUDE_PTHREAD_H_

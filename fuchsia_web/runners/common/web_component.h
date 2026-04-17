@@ -8,13 +8,16 @@
 #include <fuchsia/ui/app/cpp/fidl.h>
 #include <fuchsia/web/cpp/fidl.h>
 #include <lib/fidl/cpp/binding.h>
+
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/fuchsia/scoped_service_binding.h"
 #include "base/fuchsia/startup_context.h"
+#include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "url/gurl.h"
 
@@ -35,7 +38,7 @@ class WebComponent : public fuchsia::ui::app::ViewProvider,
   // [context| will be retained to provide component-specific services.
   //   If |context| includes an outgoing-directory request then the component
   //   will publish a ViewProvider implementation.
-  WebComponent(base::StringPiece debug_name,
+  WebComponent(std::string_view debug_name,
                WebContentRunner* runner,
                std::unique_ptr<base::StartupContext> context);
 
@@ -89,12 +92,13 @@ class WebComponent : public fuchsia::ui::app::ViewProvider,
   // Invokes `Close()` on `frame_` with the specified `timeout`.
   void CloseFrameWithTimeout(base::TimeDelta timeout);
 
- private:
+ protected:
   // Optional name with which to tag console log output from the Frame.
   const std::string debug_name_;
 
+ private:
   // Refers to the owner of the web.Context hosting this component instance.
-  WebContentRunner* const runner_ = nullptr;
+  const raw_ptr<WebContentRunner> runner_ = nullptr;
 
   // Component context for this instance, including incoming services.
   const std::unique_ptr<base::StartupContext> startup_context_;

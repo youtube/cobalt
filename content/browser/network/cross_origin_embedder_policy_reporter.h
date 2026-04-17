@@ -6,17 +6,17 @@
 #define CONTENT_BROWSER_NETWORK_CROSS_ORIGIN_EMBEDDER_POLICY_REPORTER_H_
 
 #include <initializer_list>
+#include <optional>
 #include <string>
+#include <string_view>
 
 #include "base/memory/weak_ptr.h"
-#include "base/strings/string_piece.h"
 #include "content/common/content_export.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "net/base/network_anonymization_key.h"
 #include "services/network/public/mojom/cross_origin_embedder_policy.mojom.h"
 #include "services/network/public/mojom/fetch_api.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/mojom/frame/reporting_observer.mojom.h"
 #include "url/gurl.h"
 
@@ -37,8 +37,8 @@ class CONTENT_EXPORT CrossOriginEmbedderPolicyReporter final
   CrossOriginEmbedderPolicyReporter(
       base::WeakPtr<StoragePartition> storage_partition,
       const GURL& context_url,
-      const absl::optional<std::string>& endpoint,
-      const absl::optional<std::string>& report_only_endpoint,
+      const std::optional<std::string>& endpoint,
+      const std::optional<std::string>& report_only_endpoint,
       const base::UnguessableToken& reporting_source,
       const net::NetworkAnonymizationKey& network_anonymization_key);
   ~CrossOriginEmbedderPolicyReporter() override;
@@ -75,15 +75,15 @@ class CONTENT_EXPORT CrossOriginEmbedderPolicyReporter final
   }
 
  private:
-  void QueueAndNotify(std::initializer_list<
-                          std::pair<base::StringPiece, base::StringPiece>> body,
-                      bool report_only);
+  void QueueAndNotify(
+      std::initializer_list<std::pair<std::string_view, std::string_view>> body,
+      bool report_only);
 
   base::WeakPtr<StoragePartition> storage_partition_;
 
   const GURL context_url_;
-  const absl::optional<std::string> endpoint_;
-  const absl::optional<std::string> report_only_endpoint_;
+  const std::optional<std::string> endpoint_;
+  const std::optional<std::string> report_only_endpoint_;
   // This reporting source is not owned by COEPReporter in any way. The
   // COEPReporter is not responsible for cleaning up the reporting source, the
   // actual owner of this token needs to manage the lifecycle (including

@@ -9,7 +9,7 @@
 #include <memory>
 #include <string>
 
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/devtools/device/android_device_manager.h"
 #include "chrome/browser/devtools/device/tcp_device_provider.h"
@@ -43,9 +43,11 @@ class CastDeviceProvider
   void OnDeviceRemoved(const std::string& service_type,
                        const std::string& service_name) override;
   void OnDeviceCacheFlushed(const std::string& service_type) override;
+  void OnPermissionRejected() override;
 
  private:
   class DeviceListerDelegate;
+  friend class CastDeviceProviderTest;
 
   ~CastDeviceProvider() override;
 

@@ -5,7 +5,6 @@
 #include "chromeos/ash/services/secure_channel/authenticated_channel.h"
 
 #include "base/functional/callback.h"
-#include "base/guid.h"
 #include "chromeos/ash/services/secure_channel/file_transfer_update_callback.h"
 #include "chromeos/ash/services/secure_channel/public/mojom/secure_channel_types.mojom.h"
 
@@ -73,6 +72,14 @@ void AuthenticatedChannel::NotifyMessageReceived(const std::string& feature,
 
   for (auto& observer : observer_list_)
     observer.OnMessageReceived(feature_copy, payload_copy);
+}
+
+void AuthenticatedChannel::NotifyNearbyConnectionStateChanged(
+    mojom::NearbyConnectionStep step,
+    mojom::NearbyConnectionStepResult result) {
+  for (auto& observer : observer_list_) {
+    observer.OnNearbyConnectionStateChanged(step, result);
+  }
 }
 
 }  // namespace ash::secure_channel

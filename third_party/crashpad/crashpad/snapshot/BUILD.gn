@@ -19,6 +19,10 @@ if (crashpad_is_in_chromium) {
   import("//build/config/compiler/compiler.gni")
 }
 
+if (is_cobalt) {
+  import("//starboard/build/config/toolchain_variables.gni")
+}
+
 crashpad_static_library("snapshot") {
   sources = [
     "annotation_snapshot.cc",
@@ -64,6 +68,13 @@ crashpad_static_library("snapshot") {
     "unloaded_module_snapshot.cc",
     "unloaded_module_snapshot.h",
   ]
+
+  if (is_cobalt && is_native_target) {
+    sources += [
+      "module_snapshot_evergreen.cc",
+      "module_snapshot_evergreen.h",
+    ]
+  }
 
   if (crashpad_is_posix || crashpad_is_fuchsia) {
     sources += [
@@ -252,6 +263,10 @@ crashpad_static_library("snapshot") {
     "../minidump:format",
     "../util",
   ]
+
+  if (is_starboard) {
+    deps += [ "//starboard/elf_loader:evergreen_info" ]
+  }
 
   if (crashpad_is_win) {
     cflags = [ "/wd4201" ]  # nonstandard extension used : nameless struct/union
@@ -507,7 +522,8 @@ crashpad_loadable_module("crashpad_snapshot_test_module") {
     "../client",
   ]
   if (crashpad_is_in_fuchsia) {
-    # TODO(fxbug.dev/108368): Remove this once the underlying issue is addressed.
+    # TODO(fxbug.dev/42059784): Remove this once the underlying issue is
+    # addressed.
     exclude_toolchain_tags = [ "hwasan" ]
   }
 }
@@ -526,7 +542,8 @@ crashpad_loadable_module("crashpad_snapshot_test_module_large") {
   deps += [ "$mini_chromium_source_parent:base" ]
 
   if (crashpad_is_in_fuchsia) {
-    # TODO(fxbug.dev/108368): Remove this once the underlying issue is addressed.
+    # TODO(fxbug.dev/42059784): Remove this once the underlying issue is
+    # addressed.
     exclude_toolchain_tags = [ "hwasan" ]
   }
 }
@@ -545,7 +562,8 @@ crashpad_loadable_module("crashpad_snapshot_test_module_small") {
   deps += [ "$mini_chromium_source_parent:base" ]
 
   if (crashpad_is_in_fuchsia) {
-    # TODO(fxbug.dev/108368): Remove this once the underlying issue is addressed.
+    # TODO(fxbug.dev/42059784): Remove this once the underlying issue is
+    # addressed.
     exclude_toolchain_tags = [ "hwasan" ]
   }
 }
@@ -560,13 +578,14 @@ if ((crashpad_is_linux || crashpad_is_android || crashpad_is_fuchsia) &&
     ldflags = [ "-Wl,--hash-style=both" ]
 
     if (crashpad_is_in_fuchsia) {
-      # TODO(fxbug.dev/108368): Remove this once the underlying issue is addressed.
+      # TODO(fxbug.dev/42059784): Remove this once the underlying issue is
+      # addressed.
       exclude_toolchain_tags = [ "hwasan" ]
     }
   }
 }
 
-if (crashpad_is_mac || crashpad_is_ios) {
+if (crashpad_is_apple) {
   crashpad_loadable_module("crashpad_snapshot_test_module_crashy_initializer") {
     testonly = true
     sources = [

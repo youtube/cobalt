@@ -65,12 +65,14 @@ SbMediaAudioSampleType GetSinkAudioSampleType(
 }  // namespace
 
 AudioRendererPcm::AudioRendererPcm(
+    JobQueue* job_queue,
     std::unique_ptr<AudioDecoder> decoder,
     std::unique_ptr<AudioRendererSink> audio_renderer_sink,
     const AudioStreamInfo& audio_stream_info,
     int max_cached_frames,
     int min_frames_per_append)
-    : max_cached_frames_(max_cached_frames),
+    : JobOwner(job_queue),
+      max_cached_frames_(max_cached_frames),
       min_frames_per_append_(min_frames_per_append),
       decoder_(std::move(decoder)),
       frames_consumed_set_at_(CurrentMonotonicTime()),
@@ -88,6 +90,7 @@ AudioRendererPcm::AudioRendererPcm(
   SB_DCHECK(decoder_);
   SB_DCHECK_GT(min_frames_per_append_, 0);
   SB_DCHECK_GE(max_cached_frames_, min_frames_per_append_ * 2);
+  SB_CHECK(audio_renderer_sink_);
 
   frame_buffers_[0] = &frame_buffer_[0];
 
@@ -103,6 +106,10 @@ AudioRendererPcm::~AudioRendererPcm() {
                 << max_cached_frames_ << " max cached frames, and "
                 << min_frames_per_append_ << " min frames per append.";
   SB_CHECK(BelongsToCurrentThread());
+
+  // Stop audio renderer sink before destroying members, in order to
+  // prevent the callback called during destruction.
+  audio_renderer_sink_->Stop();
 }
 
 void AudioRendererPcm::Initialize(const ErrorCB& error_cb,
@@ -207,10 +214,13 @@ void AudioRendererPcm::SetPlaybackRate(double playback_rate) {
 
   playback_rate_ = playback_rate;
 
-  audio_renderer_sink_->SetPlaybackRate(playback_rate_ > 0.0 ? 1.0 : 0.0);
+  double adjusted_playback_rate = playback_rate_ > 0.0 ? 1.0 : 0.0;
+  if (audio_renderer_sink_->AllowDirectPlaybackRateSetting()) {
+    adjusted_playback_rate = playback_rate_;
+  }
+
+  audio_renderer_sink_->SetPlaybackRate(adjusted_playback_rate);
   if (audio_renderer_sink_->HasStarted()) {
-    // TODO: Remove SetPlaybackRate() support from audio sink as it only need to
-    // support play/pause.
     if (playback_rate_ > 0.0) {
       if (process_audio_data_job_token_.is_valid()) {
         RemoveJobByToken(process_audio_data_job_token_);
@@ -302,6 +312,8 @@ int64_t AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
       return seeking_to_time_;
     }
 
+    // |frames_consumed_by_sink_since_last_get_current_time_| could include
+    // silence frames if overflow audio samples are allowed.
     if (frames_consumed_by_sink_since_last_get_current_time_ > 0) {
       audio_frame_tracker_.RecordPlayedFrames(
           frames_consumed_by_sink_since_last_get_current_time_);
@@ -325,6 +337,12 @@ int64_t AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
     frames_played =
         audio_frame_tracker_.GetFutureFramesPlayedAdjustedToPlaybackRate(
             elapsed_frames, playback_rate);
+    if (audio_renderer_sink_->AllowOverflowAudioSamples()) {
+      // A simple workaround to handle silence frames for tunnel mode player.
+      // |playback_rate| is ignored as tunnel mode doesn't support
+      // vsp.
+      frames_played += audio_frame_tracker_.GetOverflowedFrames();
+    }
     media_time =
         seeking_to_time_ + frames_played * 1'000'000LL / samples_per_second;
     if (media_time < last_media_time_) {
@@ -472,6 +490,15 @@ void AudioRendererPcm::UpdateVariablesOnSinkThread_Locked(
     if (non_silence_frames_consumed != 0) {
       frames_consumed_set_at_ = system_time_on_consume_frames;
     }
+
+    if (audio_renderer_sink_->AllowOverflowAudioSamples()) {
+      auto silence_frames_consumed =
+          frames_consumed_on_sink_thread_ - non_silence_frames_consumed;
+      frames_consumed_by_sink_since_last_get_current_time_ +=
+          silence_frames_consumed;
+      frames_consumed_set_at_ = system_time_on_consume_frames;
+    }
+
     consume_frames_called_ = true;
     frames_consumed_on_sink_thread_ = 0;
   }
@@ -695,8 +722,13 @@ bool AudioRendererPcm::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
 
   int offset_to_append = total_frames_sent_to_sink_ % max_cached_frames_;
 
+  double adjusted_playback_rate = playback_rate_;
+  if (audio_renderer_sink_->AllowDirectPlaybackRateSetting()) {
+    adjusted_playback_rate = 1.0;
+  }
+
   scoped_refptr<DecodedAudio> decoded_audio = time_stretcher_.Read(
-      max_cached_frames_ - frames_in_buffer, playback_rate_);
+      max_cached_frames_ - frames_in_buffer, adjusted_playback_rate);
   SB_DCHECK(decoded_audio);
 
   {
@@ -704,7 +736,8 @@ bool AudioRendererPcm::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
     if (decoded_audio->frames() == 0 && eos_state_ == kEOSDecoded) {
       eos_state_ = kEOSSentToSink;
     }
-    audio_frame_tracker_.AddFrames(decoded_audio->frames(), playback_rate_);
+    audio_frame_tracker_.AddFrames(decoded_audio->frames(),
+                                   adjusted_playback_rate);
   }
 
   // |time_stretcher_| only support kSbMediaAudioSampleTypeFloat32 and

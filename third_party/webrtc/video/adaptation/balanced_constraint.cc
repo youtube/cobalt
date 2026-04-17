@@ -10,17 +10,24 @@
 
 #include "video/adaptation/balanced_constraint.h"
 
-#include <string>
+#include <cstdint>
+#include <optional>
 #include <utility>
 
+#include "api/field_trials_view.h"
+#include "api/rtp_parameters.h"
 #include "api/sequence_checker.h"
+#include "call/adaptation/degradation_preference_provider.h"
+#include "call/adaptation/video_source_restrictions.h"
+#include "call/adaptation/video_stream_input_state.h"
+#include "rtc_base/checks.h"
 
 namespace webrtc {
 
 BalancedConstraint::BalancedConstraint(
     DegradationPreferenceProvider* degradation_preference_provider,
     const FieldTrialsView& field_trials)
-    : encoder_target_bitrate_bps_(absl::nullopt),
+    : encoder_target_bitrate_bps_(std::nullopt),
       balanced_settings_(field_trials),
       degradation_preference_provider_(degradation_preference_provider) {
   RTC_DCHECK(degradation_preference_provider_);
@@ -28,7 +35,7 @@ BalancedConstraint::BalancedConstraint(
 }
 
 void BalancedConstraint::OnEncoderTargetBitrateUpdated(
-    absl::optional<uint32_t> encoder_target_bitrate_bps) {
+    std::optional<uint32_t> encoder_target_bitrate_bps) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
   encoder_target_bitrate_bps_ = std::move(encoder_target_bitrate_bps);
 }

@@ -7,14 +7,20 @@
 
 #include <glib-object.h>
 
+#include <cstddef>
+
 #include "base/check.h"
 #include "base/memory/raw_ptr.h"
 
-// Similar to a std::shared_ptr for GObject types.
+// Similar to a scoped_refptr for GObject types.
 template <typename T>
 class ScopedGObject {
  public:
   ScopedGObject() = default;
+
+  // Deliberately implicit to allow returning nullptrs.
+  // NOLINTNEXTLINE(google-explicit-constructor)
+  ScopedGObject(std::nullptr_t ptr) {}
 
   ScopedGObject(const ScopedGObject<T>& other) : obj_(other.obj_) { Ref(); }
 
@@ -22,25 +28,39 @@ class ScopedGObject {
     other.obj_ = nullptr;
   }
 
-  ~ScopedGObject() { Unref(); }
+  ~ScopedGObject() { Reset(); }
 
   ScopedGObject<T>& operator=(const ScopedGObject<T>& other) {
-    Unref();
+    Reset();
     obj_ = other.obj_;
     Ref();
     return *this;
   }
 
   ScopedGObject<T>& operator=(ScopedGObject<T>&& other) {
-    Unref();
+    Reset();
     obj_ = other.obj_;
     other.obj_ = nullptr;
     return *this;
   }
 
-  T* get() { return obj_; }
+  void Reset() {
+    if (obj_) {
+      g_object_unref(obj_.ExtractAsDangling());
+    }
+  }
 
-  operator T*() { return obj_; }
+  T* release() {
+    T* obj = obj_;
+    obj_ = nullptr;
+    return obj;
+  }
+
+  T* get() const { return obj_; }
+
+  // Deliberately implicit to allow easier interaction with C APIs.
+  // NOLINTNEXTLINE(google-explicit-constructor)
+  operator T*() const { return obj_; }
 
  private:
   template <typename U>
@@ -52,8 +72,9 @@ class ScopedGObject {
 
   void RefSink() {
     // Remove the floating reference from |obj_| if it has one.
-    if (obj_ && g_object_is_floating(obj_))
+    if (obj_ && g_object_is_floating(obj_)) {
       g_object_ref_sink(obj_);
+    }
   }
 
   void Ref() {
@@ -61,13 +82,6 @@ class ScopedGObject {
       DCHECK(!g_object_is_floating(obj_));
       g_object_ref(obj_);
     }
-  }
-
-  // This function is necessary so that gtk can overload it in
-  // the case of T = GtkStyleContext.
-  void Unref() {
-    if (obj_)
-      g_object_unref(obj_);
   }
 
   raw_ptr<T> obj_ = nullptr;

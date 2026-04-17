@@ -13,7 +13,6 @@
 #include "base/time/time.h"
 #include "chrome/browser/ash/login/saml/password_sync_token_fetcher.h"
 #include "chrome/browser/profiles/profile.h"
-#include "components/account_id/account_id.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "net/base/backoff_entry.h"
 
@@ -66,8 +65,8 @@ class PasswordSyncTokenVerifier : public KeyedService,
   // Init sync token.
   void CreateTokenAsync();
 
-  const raw_ptr<Profile, ExperimentalAsh> primary_profile_;
-  const raw_ptr<const user_manager::User, ExperimentalAsh> primary_user_;
+  const raw_ptr<Profile> primary_profile_;
+  const raw_ptr<const user_manager::User> primary_user_;
   std::unique_ptr<PasswordSyncTokenFetcher> password_sync_token_fetcher_;
   net::BackoffEntry retry_backoff_;
 

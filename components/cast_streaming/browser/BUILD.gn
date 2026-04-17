@@ -11,16 +11,22 @@ source_set("network_context") {
   deps = [ "//components/openscreen_platform" ]
 }
 
-source_set("browser") {
-  public = [
-    "public/receiver_config.h",
-    "public/receiver_session.h",
+source_set("receiver_config") {
+  public = [ "public/receiver_config.h" ]
+  sources = [ "receiver_config.cc" ]
+  deps = [
+    "//base",
+    "//media",
   ]
+}
+
+source_set("browser") {
+  public = [ "public/receiver_session.h" ]
   sources = [
     "cast_message_port_converter.h",
     "cast_streaming_session.cc",
     "cast_streaming_session.h",
-    "receiver_config.cc",
+    "cast_streaming_switches.h",
     "receiver_config_conversions.cc",
     "receiver_config_conversions.h",
     "receiver_session_impl.cc",
@@ -28,6 +34,7 @@ source_set("browser") {
   ]
   public_deps = [
     ":network_context",
+    ":receiver_config",
     "//base",
     "//components/cast_streaming/common:mojom",
     "//mojo/public/cpp/bindings",
@@ -55,7 +62,7 @@ source_set("browser") {
   # use it and all that depend on it behind a platform check.
   # TODO(crbug.com/1357085): Resolve this and remove this exception.
   if (!is_win) {
-    # TODO(crbug.com/1207718): Remove cast_message_port_impl code from this
+    # TODO(crbug.com/40181416): Remove cast_message_port_impl code from this
     # component and replace with a more general interface.
     sources += [
       "cast_message_port_impl.cc",
@@ -76,7 +83,7 @@ source_set("browser") {
   friend = [ ":unit_tests" ]
 }
 
-# TODO(crbug.com/1207721): Add more unit tests for code in this directory.
+# TODO(crbug.com/40765693): Add more unit tests for code in this directory.
 source_set("unit_tests") {
   testonly = true
   public = []

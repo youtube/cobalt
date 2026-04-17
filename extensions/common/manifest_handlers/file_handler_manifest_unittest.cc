@@ -6,11 +6,7 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "base/strings/stringprintf.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/test/values_test_util.h"
-#include "components/version_info/channel.h"
-#include "extensions/common/extension_features.h"
-#include "extensions/common/features/feature_channel.h"
 #include "extensions/common/manifest_constants.h"
 #include "extensions/common/manifest_handlers/file_handler_info.h"
 #include "extensions/common/manifest_handlers/web_file_handlers_info.h"
@@ -21,10 +17,10 @@ namespace extensions {
 
 namespace errors = manifest_errors;
 
-typedef ManifestTest FileHandlersManifestTest;
+using FileHandlersManifestTest = ManifestTest;
 
 TEST_F(FileHandlersManifestTest, InvalidFileHandlers) {
-  Testcase testcases[] = {
+  const Testcase testcases[] = {
       Testcase("file_handlers_invalid_handlers.json",
                errors::kInvalidFileHandlers),
       Testcase("file_handlers_invalid_type.json",
@@ -44,7 +40,7 @@ TEST_F(FileHandlersManifestTest, InvalidFileHandlers) {
       Testcase("file_handlers_invalid_verb.json",
                errors::kInvalidFileHandlerVerb),
   };
-  RunTestcases(testcases, std::size(testcases), EXPECT_TYPE_ERROR);
+  RunTestcases(testcases, EXPECT_TYPE_ERROR);
 }
 
 TEST_F(FileHandlersManifestTest, ValidFileHandlers) {
@@ -92,12 +88,6 @@ TEST_F(FileHandlersManifestTest, NotPlatformApp) {
 }
 
 class WebFileHandlersTest : public ManifestTest {
- public:
-  WebFileHandlersTest() : channel_(version_info::Channel::DEV) {
-    feature_list_.InitAndEnableFeature(
-        extensions_features::kExtensionWebFileHandlers);
-  }
-
  protected:
   ManifestData GetManifestData(const char* manifest_part) {
     static constexpr char kManifestStub[] =
@@ -112,10 +102,6 @@ class WebFileHandlersTest : public ManifestTest {
     EXPECT_EQ(base::Value::Type::DICT, manifest_value.type());
     return ManifestData(std::move(manifest_value).TakeDict());
   }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-  extensions::ScopedCurrentChannel channel_;
 };
 
 // `file_handlers` examples.
@@ -213,7 +199,7 @@ TEST_F(WebFileHandlersTest, GeneralSuccess) {
 
     // Exercise the web `file_handlers` key with a subkey introduced in MV3.
     for (const auto& file_handler : *file_handlers) {
-      EXPECT_TRUE(file_handler.action.size() > 0);
+      EXPECT_TRUE(file_handler.file_handler.action.size() > 0);
     }
   }
 }
@@ -303,6 +289,17 @@ TEST_F(WebFileHandlersTest, GeneralErrors) {
           }])",
           "Invalid value for 'file_handlers[0]'. `action` must "
           "start with a forward slash.",
+      },
+      {
+          "Error if `launch_type` multiple-clients is singular.",
+          R"([{
+            "name":"test",
+            "action":"/path",
+            "accept": {"text/csv": ".csv"},
+            "launch_type": "multiple-client"
+          }])",
+          "Invalid value for 'file_handlers[0]'. `launch_type` must have a "
+          "valid value.",
       }};
 
   for (const auto& test_case : test_cases) {
@@ -468,7 +465,7 @@ TEST_F(WebFileHandlersTest, IconErrors) {
   }
 }
 
-// TODO(crbug/1179530): Add tests for MV2, MV3, and missing the flag.
+// TODO(crbug.com/40169582): Add tests for MV2, MV3, and missing the flag.
 // crrev.com/c/4215992/comment/5c5148e7_2b24c9d3
 
 }  // namespace extensions

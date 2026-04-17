@@ -32,9 +32,10 @@
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_LOADER_FETCH_FETCH_CONTEXT_H_
 
 #include <memory>
+#include <optional>
 
 #include "base/task/single_thread_task_runner.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "base/types/optional_ref.h"
 #include "third_party/blink/public/common/subresource_load_metrics.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/loader/request_context_frame_type.mojom-blink-forward.h"
@@ -51,12 +52,17 @@
 #include "third_party/blink/renderer/platform/weborigin/reporting_disposition.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 
+namespace network {
+class PermissionsPolicy;
+}  // namespace network
+
 namespace blink {
 
 enum class ResourceType : uint8_t;
-class PermissionsPolicy;
 class KURL;
+class Resource;
 struct ResourceLoaderOptions;
+class SecurityOrigin;
 class WebScopedVirtualTimePauser;
 
 // The FetchContext is an interface for performing context specific processing
@@ -104,33 +110,34 @@ class PLATFORM_EXPORT FetchContext : public GarbageCollected<FetchContext> {
 
   virtual void AddResourceTiming(mojom::blink::ResourceTimingInfoPtr,
                                  const AtomicString& initiator_type);
-  virtual bool AllowImage(bool, const KURL&) const { return false; }
-  virtual absl::optional<ResourceRequestBlockedReason> CanRequest(
+  virtual bool AllowImage() const { return false; }
+  virtual std::optional<ResourceRequestBlockedReason> CanRequest(
       ResourceType,
       const ResourceRequest&,
       const KURL&,
       const ResourceLoaderOptions&,
       ReportingDisposition,
-      const absl::optional<ResourceRequest::RedirectInfo>& redirect_info)
+      base::optional_ref<const ResourceRequest::RedirectInfo> redirect_info)
       const {
     return ResourceRequestBlockedReason::kOther;
   }
   // In derived classes, performs *only* a SubresourceFilter check for whether
   // the request can go through or should be blocked.
-  virtual absl::optional<ResourceRequestBlockedReason>
+  virtual std::optional<ResourceRequestBlockedReason>
   CanRequestBasedOnSubresourceFilterOnly(
       ResourceType,
       const ResourceRequest&,
       const KURL&,
       const ResourceLoaderOptions&,
       ReportingDisposition,
-      const absl::optional<ResourceRequest::RedirectInfo>& redirect_info)
+      base::optional_ref<const ResourceRequest::RedirectInfo> redirect_info)
       const {
     return ResourceRequestBlockedReason::kOther;
   }
-  virtual absl::optional<ResourceRequestBlockedReason> CheckCSPForRequest(
+  virtual std::optional<ResourceRequestBlockedReason> CheckCSPForRequest(
       mojom::blink::RequestContextType,
       network::mojom::RequestDestination request_destination,
+      network::mojom::RequestMode request_mode,
       const KURL&,
       const ResourceLoaderOptions&,
       ReportingDisposition,
@@ -139,14 +146,50 @@ class PLATFORM_EXPORT FetchContext : public GarbageCollected<FetchContext> {
     return ResourceRequestBlockedReason::kOther;
   }
 
-  // Populates the ResourceRequest using the given values and information
-  // stored in the FetchContext implementation. Used by ResourceFetcher to
-  // prepare a ResourceRequest instance at the start of resource loading.
-  virtual void PopulateResourceRequest(
+  virtual std::optional<ResourceRequestBlockedReason>
+  CheckAndEnforceCSPForRequest(
+      mojom::blink::RequestContextType,
+      network::mojom::RequestDestination request_destination,
+      network::mojom::RequestMode request_mode,
+      const KURL&,
+      const ResourceLoaderOptions&,
+      ReportingDisposition,
+      const KURL& url_before_redirects,
+      ResourceRequest::RedirectStatus) const {
+    return ResourceRequestBlockedReason::kOther;
+  }
+
+  // Called from RequestResource() to upgrade insecure ResourceRequests if
+  // necessary and prepare them for checking CSP. A mutable ResourceRequest is
+  // passed as the URL may be modified. After this call returns, it is not
+  // permitted to modify the URL of the ResourceRequest.
+  virtual void ModifyRequestForMixedContentUpgrade(ResourceRequest&) {}
+
+  // Populates the ResourceRequest with enough information for a cache lookup.
+  // If the resource requires a load, then UpgradeResourceRequestForLoader() is
+  // called.
+  virtual void PopulateResourceRequestBeforeCacheAccess(
+      const ResourceLoaderOptions& options,
+      ResourceRequest& request) {}
+
+  // Called after csp checks to potentially override the URL of the request.
+  virtual void WillSendRequest(ResourceRequest& request) {}
+
+  // Called if a resource request needs to be loaded (vs served from the cache).
+  // This adds additional information to the ResourceRequest needed for
+  // loading. This is called after PopulateResourceRequestBeforeCacheAccess().
+  // This function may be called in some circumstances when still served from
+  // the cache. For example, if the right probes are present, then this is
+  // always called.
+  virtual void UpgradeResourceRequestForLoader(
       ResourceType,
-      const absl::optional<float> resource_width,
+      const std::optional<float> resource_width,
       ResourceRequest&,
       const ResourceLoaderOptions&);
+
+  virtual bool StartSpeculativeImageDecode(Resource* resource,
+                                           base::OnceClosure callback);
+  virtual bool SpeculativeDecodeRequestInFlight() const;
 
   // Called when the underlying context is detached. Note that some
   // FetchContexts continue working after detached (e.g., for fetch() operations
@@ -156,16 +199,18 @@ class PLATFORM_EXPORT FetchContext : public GarbageCollected<FetchContext> {
     return MakeGarbageCollected<FetchContext>();
   }
 
-  virtual const PermissionsPolicy* GetPermissionsPolicy() const {
+  virtual const network::PermissionsPolicy* GetPermissionsPolicy() const {
     return nullptr;
   }
+
+  virtual const FeatureContext* GetFeatureContext() const { return nullptr; }
 
   // Determine if the request is on behalf of an advertisement. If so, return
   // true. Checks `resource_request.Url()` unless `alias_url` is non-null, in
   // which case it checks the latter.
   virtual bool CalculateIfAdSubresource(
       const ResourceRequestHead& resource_request,
-      const absl::optional<KURL>& alias_url,
+      base::optional_ref<const KURL> alias_url,
       ResourceType type,
       const FetchInitiatorInfo& initiator_info) {
     return false;
@@ -183,6 +228,40 @@ class PLATFORM_EXPORT FetchContext : public GarbageCollected<FetchContext> {
   // Update SubresourceLoad metrics.
   virtual void UpdateSubresourceLoadMetrics(
       const SubresourceLoadMetrics& subresource_load_metrics) {}
+
+  // Returns true iff we have LCPP hint data for the fetch context.
+  virtual bool DoesLCPPHaveAnyHintData() { return false; }
+
+  // Returns true iff we have LCP element locator hint data for the fetch
+  // context.
+  virtual bool DoesLCPPHaveLcpElementLocatorHintData() { return false; }
+
+  // Returns the origin of the top frame in the document or the dedicated
+  // worker. This returns nullptr for Shared Workers and Service Workers.
+  virtual scoped_refptr<const SecurityOrigin> GetTopFrameOrigin() const {
+    return nullptr;
+  }
+
+  // Returns the list of potentially unused preload URLs flagged by the LCP
+  // predcitor, which is attached to the frame. This returns an empty Vector for
+  // Shared Workers and Service Workers.
+  virtual const Vector<KURL>& GetPotentiallyUnusedPreloads() const {
+    return empty_unused_preloads_;
+  }
+
+  virtual void AddLcpPredictedCallback(base::OnceClosure callback) {
+    NOTIMPLEMENTED();
+  }
+
+  virtual HashSet<HashAlgorithm> CSPHashesToReport() const {
+    return HashSet<HashAlgorithm>();
+  }
+  virtual void AddCSPHashReport(
+      const String& url,
+      const HashMap<HashAlgorithm, String>& integrity_hashes) {}
+
+ protected:
+  const Vector<KURL> empty_unused_preloads_;
 };
 
 }  // namespace blink

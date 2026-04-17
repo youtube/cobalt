@@ -30,23 +30,23 @@ class TrackableMockInvalidation : public MockInvalidation {
   ~TrackableMockInvalidation() override;
 
   // Forwards notice of the acknowledgement of this invalidation to the
-  // |tracker_|.
+  // `tracker_`.
   void Acknowledge() override;
 
-  // Forwards notice of the drop of this invalidation to the |tracker_|.
+  // Forwards notice of the drop of this invalidation to the `tracker_`.
   void Drop() override;
 
-  // Returns the integer used to identify this object with the |tracker_|.
+  // Returns the integer used to identify this object with the `tracker_`.
   int GetTrackingId();
 
  private:
   // The MockInvalidationTracker that initialized this object, and which keeps
   // track of its acknowledgement status.  It is expected to outlive the
   // invalidations.  The data required for unit test assertions lives there.
-  raw_ptr<MockInvalidationTracker> tracker_;
+  const raw_ptr<MockInvalidationTracker> tracker_;
 
   // An identifier that uniquely identifies this invalidation to its
-  // |tracker_|.
+  // `tracker_`.
   //
   // This is necessary in part because invalidations may be short lived; the
   // invalidation may be deleted by the time we want to make assertions about

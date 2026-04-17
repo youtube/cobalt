@@ -16,17 +16,20 @@
 
 #include <optional>
 
+#include "perfetto/base/flat_set.h"
 #include "perfetto/ext/base/utils.h"
 #include "perfetto/protozero/root_message.h"
 #include "perfetto/protozero/scattered_stream_null_delegate.h"
 #include "perfetto/protozero/scattered_stream_writer.h"
-#include "protos/perfetto/trace/ftrace/ftrace_event_bundle.pbzero.h"
 #include "src/traced/probes/ftrace/cpu_reader.h"
 #include "src/traced/probes/ftrace/ftrace_config_muxer.h"
 #include "src/traced/probes/ftrace/ftrace_print_filter.h"
 #include "src/traced/probes/ftrace/proto_translation_table.h"
 #include "src/traced/probes/ftrace/test/cpu_reader_support.h"
 #include "src/tracing/core/null_trace_writer.h"
+
+#include "protos/perfetto/trace/ftrace/ftrace_event_bundle.pbzero.h"
+#include "protos/perfetto/trace/ftrace/ftrace_stats.pbzero.h"
 
 namespace perfetto {
 namespace {
@@ -824,6 +827,23 @@ ExamplePage g_full_page_atrace_print{
     )",
 };
 
+FtraceDataSourceConfig ConfigForTesting(CompactSchedConfig compact_cfg) {
+  return FtraceDataSourceConfig{
+      /*event_filter=*/EventFilter{},
+      /*syscall_filter=*/EventFilter{}, compact_cfg,
+      /*print_filter=*/std::nullopt,
+      /*atrace_apps=*/{},
+      /*atrace_categories=*/{},
+      /*atrace_categories_sdk_optout=*/{},
+      /*symbolize_ksyms=*/false,
+      /*buffer_percent=*/0u,
+      /*syscalls_returning_fd=*/{},
+      /*kprobes=*/
+      base::FlatHashMap<uint32_t, protos::pbzero::KprobeEvent::KprobeType>{0},
+      /*debug_ftrace_abi=*/false,
+      /*write_generic_evt_descriptors=*/false};
+}
+
 // Low level benchmark for the CpuReader::ParsePageHeader and
 // CpuReader::ParsePagePayload functions.
 void DoParse(const ExamplePage& test_case,
@@ -832,24 +852,20 @@ void DoParse(const ExamplePage& test_case,
              benchmark::State& state) {
   NullTraceWriter writer;
   FtraceMetadata metadata{};
+  auto compact_sched_buf = std::make_unique<CompactSchedBuffer>();
+  base::FlatHashMap<uint32_t, std::vector<uint8_t>> generic_pb_descriptors;
   CpuReader::Bundler bundler(
       &writer, &metadata, /*symbolizer=*/nullptr, /*cpu=*/0,
       /*ftrace_clock_snapshot=*/nullptr,
-      /*ftrace_clock=*/protos::pbzero::FTRACE_CLOCK_UNSPECIFIED,
-      /*compact_sched_enabled=*/false);
+      protos::pbzero::FTRACE_CLOCK_UNSPECIFIED, compact_sched_buf.get(),
+      /*compact_sched_enabled=*/false, /*last_read_event_ts=*/0,
+      &generic_pb_descriptors);
 
   ProtoTranslationTable* table = GetTable(test_case.name);
   auto page = PageFromXxd(test_case.data);
 
-  FtraceDataSourceConfig ds_config{EventFilter{},
-                                   EventFilter{},
-                                   DisabledCompactSchedConfigForTesting(),
-                                   std::nullopt,
-                                   {},
-                                   {},
-                                   false /*symbolize_ksyms*/,
-                                   false /*preserve_ftrace_buffer*/,
-                                   {}};
+  FtraceDataSourceConfig ds_config =
+      ConfigForTesting(DisabledCompactSchedConfigForTesting());
   if (print_filter.has_value()) {
     ds_config.print_filter =
         FtracePrintFilterConfig::Create(print_filter.value(), table);
@@ -870,8 +886,10 @@ void DoParse(const ExamplePage& test_case,
     if (!page_header.has_value())
       return;
 
+    uint64_t last_read_event_ts = 0;
     CpuReader::ParsePagePayload(parse_pos, &page_header.value(), table,
-                                &ds_config, &bundler, &metadata);
+                                &ds_config, &bundler, &metadata,
+                                &last_read_event_ts);
 
     metadata.Clear();
     bundler.FinalizeAndRunSymbolizer();
@@ -933,23 +951,17 @@ void DoProcessPages(const ExamplePage& test_case,
   ProtoTranslationTable* table = GetTable(test_case.name);
 
   auto repeated_pages =
-      std::make_unique<uint8_t[]>(base::kPageSize * page_repetition);
+      std::make_unique<uint8_t[]>(base::GetSysPageSize() * page_repetition);
   {
     auto page = PageFromXxd(test_case.data);
     for (size_t i = 0; i < page_repetition; i++) {
-      memcpy(&repeated_pages[i * base::kPageSize], &page[0], base::kPageSize);
+      memcpy(&repeated_pages[i * base::GetSysPageSize()], &page[0],
+             base::GetSysPageSize());
     }
   }
 
-  FtraceDataSourceConfig ds_config{EventFilter{},
-                                   EventFilter{},
-                                   DisabledCompactSchedConfigForTesting(),
-                                   std::nullopt,
-                                   {},
-                                   {},
-                                   false /*symbolize_ksyms*/,
-                                   false /*preserve_ftrace_buffer*/,
-                                   {}};
+  FtraceDataSourceConfig ds_config =
+      ConfigForTesting(DisabledCompactSchedConfigForTesting());
   if (print_filter.has_value()) {
     ds_config.print_filter =
         FtracePrintFilterConfig::Create(print_filter.value(), table);
@@ -961,12 +973,16 @@ void DoProcessPages(const ExamplePage& test_case,
   }
 
   FtraceMetadata metadata{};
+  auto compact_sched_buf = std::make_unique<CompactSchedBuffer>();
+  uint64_t last_read_event_ts = 0;
+  base::FlatSet<protos::pbzero::FtraceParseStatus> parse_errors;
   while (state.KeepRunning()) {
     CpuReader::ProcessPagesForDataSource(
-        &writer, &metadata, /*cpu=*/0, &ds_config, repeated_pages.get(),
-        page_repetition, table,
+        &writer, &metadata, /*cpu=*/0, &ds_config, &parse_errors,
+        &last_read_event_ts, repeated_pages.get(), page_repetition,
+        compact_sched_buf.get(), table,
         /*symbolizer=*/nullptr, /*ftrace_clock_snapshot=*/nullptr,
-        /*ftrace_clock=*/protos::pbzero::FTRACE_CLOCK_UNSPECIFIED);
+        protos::pbzero::FTRACE_CLOCK_UNSPECIFIED);
 
     metadata.Clear();
   }

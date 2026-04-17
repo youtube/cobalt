@@ -6,8 +6,29 @@ Automated testing is a crucial part of ensuring the quality of Chromium.
 
 ## Unit testing
 
-Unit testing is done via gtests. To run a unit test, simply run the test
-target (ending in _unittest).
+Unit testing is done via gtests. The easiest way to run a unit test is to use
+the wrapper scripts generated at build time:
+
+```sh
+<output directory>/bin/run_<target_name> [options]
+```
+
+The wrapper scripts take care of invoking `//ios/build/bots/scripts/run.py`
+with options like `--iossim` set appropriately. In general, you need to pass
+at least `--out-dir` (a directory where test results will be stored),
+`--platform` (a device available to the simulator), `--xcode-build` (obtained
+via e.g. About XCode) and `--version` (iOS version to run). The
+`--gtest_filter` option is also supported.
+
+A more complete example looks like this:
+
+```sh
+out/Debug-iphonesimulator/run_base_unittests \
+    --gtest_filter=Base64Test.Basic \
+    --platform "iPhone 16" \
+    --version 18.2 \
+    --xcode-build 16c5032a
+```
 
 ## Integration testing
 
@@ -89,10 +110,6 @@ tests that use the app interface.
 
 #import "ios/testing/earl_grey/earl_grey_test.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 GREY_STUB_CLASS_IN_APP_MAIN_QUEUE(MyTestAppInterface)
 
 ```
@@ -110,7 +127,6 @@ correctly build the test module. The skeleton of the target:
 ```
 source_set("eg2_tests") {
   configs += [
-    "//build/config/compiler:enable_arc",
     "//build/config/ios:xctest_config",
   ]
   testonly = true
@@ -144,11 +160,14 @@ EarlGrey tests are based on Apple's [XCUITest].
 
 1. If you added a new test file / suite, run `gclient runhooks` to sync for the
 list of tests in Xcode.
-2. Change the scheme to "ios_chrome_eg2test". Create and select the simulator
-you wish to use.
-3. You may run a test suite(module), TestCase or testMethod in test navigator.
+2. Run a test suite(module), TestCase or testMethod in test navigator.
 Xcode will build the targets and run the test(s) you choose. Alternatively, 
 use ⌘+U to run all the tests. See Apple's [Running Tests and Viewing Results].
+3. You can pass extra arguments to the app process with `--extra-app-args`, e.g.
+`--extra-app-args='--enable-features=Foo'`.
+    * This might not work consistently as tests can re-launch the app with
+    arbitrary command-line arguments.
+
 
 #### Running from the command-line
 
@@ -207,7 +226,7 @@ beginning of stdout from an infra test shard if the above doesn't work.
 [EarlGrey]: https://github.com/google/EarlGrey/tree/earlgrey2
 [EarlGrey APIs]: https://github.com/google/EarlGrey/blob/master/docs/api.md
 [eDO]: https://github.com/google/eDistantObject
-[Example of App Interface]: https://cs.chromium.org/chromium/src/ios/chrome/browser/metrics/metrics_app_interface.h
+[Example of App Interface]: https://cs.chromium.org/chromium/src/ios/chrome/browser/metrics/model/metrics_app_interface.h
 [Example CL adding App Interface]: https://chromium-review.googlesource.com/c/chromium/src/+/1919147
 [instructions]: ./build_instructions.md
 [Running Tests and Viewing Results]: https://developer.apple.com/library/archive/documentation/DeveloperTools/Conceptual/testing_with_xcode/chapters/05-running_tests.html

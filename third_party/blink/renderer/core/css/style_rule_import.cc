@@ -22,10 +22,13 @@
 
 #include "third_party/blink/renderer/core/css/style_rule_import.h"
 
+#include "third_party/blink/renderer/core/core_probes_inl.h"
+#include "third_party/blink/renderer/core/css/style_scope.h"
 #include "third_party/blink/renderer/core/css/style_sheet_contents.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/execution_context/security_context.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
+#include "third_party/blink/renderer/core/inspector/inspector_audits_issue.h"
 #include "third_party/blink/renderer/core/loader/resource/css_style_sheet_resource.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/loader/fetch/fetch_initiator_type_names.h"
@@ -37,6 +40,9 @@ namespace blink {
 
 StyleRuleImport::StyleRuleImport(const String& href,
                                  LayerName&& layer,
+                                 const StyleScope* scope,
+                                 bool supported,
+                                 String supports_string,
                                  const MediaQuerySet* media,
                                  OriginClean origin_clean)
     : StyleRuleBase(kImport),
@@ -44,8 +50,11 @@ StyleRuleImport::StyleRuleImport(const String& href,
       style_sheet_client_(MakeGarbageCollected<ImportedStyleSheetClient>(this)),
       str_href_(href),
       layer_(std::move(layer)),
+      scope_(scope),
+      supports_string_(std::move(supports_string)),
       media_queries_(media),
       loading_(false),
+      supported_(supported),
       origin_clean_(origin_clean) {
   if (!media_queries_) {
     media_queries_ = MediaQuerySet::Create(String(), nullptr);
@@ -61,6 +70,7 @@ void StyleRuleImport::Dispose() {
 void StyleRuleImport::TraceAfterDispatch(blink::Visitor* visitor) const {
   visitor->Trace(style_sheet_client_);
   visitor->Trace(parent_style_sheet_);
+  visitor->Trace(scope_);
   visitor->Trace(media_queries_);
   visitor->Trace(style_sheet_);
   StyleRuleBase::TraceAfterDispatch(visitor);
@@ -82,6 +92,15 @@ void StyleRuleImport::NotifyFinished(Resource* resource) {
   if (parent_style_sheet_) {
     document = parent_style_sheet_->SingleOwnerDocument();
     parent_context = parent_style_sheet_->ParserContext();
+    if (resource->LoadFailedOrCanceled() && document) {
+      AuditsIssue::ReportStylesheetLoadingRequestFailedIssue(
+          document, resource->Url(),
+          resource->LastResourceRequest().GetDevToolsId(),
+          parent_style_sheet_->BaseURL(),
+          resource->Options().initiator_info.position.line_,
+          resource->Options().initiator_info.position.column_,
+          resource->GetResourceError().LocalizedDescription());
+    }
   }
 
   // If either parent or resource is marked as ad, the new CSS will be tagged
@@ -151,6 +170,9 @@ void StyleRuleImport::RequestStyleSheet() {
   Referrer referrer = parser_context->GetReferrer();
   ResourceLoaderOptions options(parser_context->JavascriptWorld());
   options.initiator_info.name = fetch_initiator_type_names::kCSS;
+  if (position_hint_) {
+    options.initiator_info.position = *position_hint_;
+  }
   options.initiator_info.referrer = referrer.referrer;
   ResourceRequest resource_request(abs_url);
   resource_request.SetReferrerString(referrer.referrer);

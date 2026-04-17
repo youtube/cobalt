@@ -8,6 +8,7 @@
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/views/frame/browser_frame_view_layout_linux.h"
 #include "chrome/browser/ui/views/frame/opaque_browser_frame_view.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/linux/window_button_order_observer.h"
 
 namespace ui {
@@ -18,6 +19,8 @@ class LinuxUi;
 // render client side decorations (shadow, border, and rounded corners).
 class BrowserFrameViewLinux : public OpaqueBrowserFrameView,
                               public ui::WindowButtonOrderObserver {
+  METADATA_HEADER(BrowserFrameViewLinux, OpaqueBrowserFrameView)
+
  public:
   BrowserFrameViewLinux(BrowserFrame* frame,
                         BrowserView* browser_view,
@@ -31,27 +34,27 @@ class BrowserFrameViewLinux : public OpaqueBrowserFrameView,
   BrowserFrameViewLayoutLinux* layout() { return layout_; }
 
   // BrowserNonClientFrameView:
-  gfx::Insets MirroredFrameBorderInsets() const override;
+  gfx::Insets RestoredMirroredFrameBorderInsets() const override;
   gfx::Insets GetInputInsets() const override;
   SkRRect GetRestoredClipRegion() const override;
   int GetTranslucentTopAreaHeight() const override;
 
   // Gets the shadow metrics (radius, offset, and number of shadows).  This will
   // always return shadow values, even if shadows are not actually drawn.
-  static gfx::ShadowValues GetShadowValues();
+  // `active` indicates if the shadow will be drawn on a focused browser window.
+  static gfx::ShadowValues GetShadowValues(bool active);
 
  protected:
+  // OpaqueBrowserFrameView:
+  void PaintRestoredFrameBorder(gfx::Canvas* canvas) const override;
+  void GetWindowMask(const gfx::Size& size, SkPath* window_mask) override;
+  bool ShouldDrawRestoredFrameShadow() const override;
+
   // ui::WindowButtonOrderObserver:
   void OnWindowButtonOrderingChange() override;
 
-  // views::View:
-  void PaintRestoredFrameBorder(gfx::Canvas* canvas) const override;
-
   // views::NonClientFrameView:
-  void GetWindowMask(const gfx::Size& size, SkPath* window_mask) override;
-
-  // OpaqueBrowserFrameViewLayoutDelegate:
-  bool ShouldDrawRestoredFrameShadow() const override;
+  int NonClientHitTest(const gfx::Point& point) override;
 
   // Gets the radius of the top corners when the window is restored.  The
   // returned value is in DIPs.  The result will be 0 if rounded corners are

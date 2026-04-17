@@ -29,7 +29,7 @@ class SelectionRequestor;
 // Helper class that provides core X11 clipboard integration code. Shared by
 // both legacy and Ozone X11 backends.
 //
-// TODO(crbug.com/789065): Merge into X11ClipboardOzone class once ozone
+// TODO(crbug.com/40551833): Merge into X11ClipboardOzone class once ozone
 // migration is complete and legacy backend gets removed.
 class COMPONENT_EXPORT(UI_BASE_X) XClipboardHelper : public x11::EventObserver {
  public:
@@ -117,14 +117,14 @@ class COMPONENT_EXPORT(UI_BASE_X) XClipboardHelper : public x11::EventObserver {
   const SelectionFormatMap& LookupStorageForAtom(x11::Atom atom);
 
   // Our X11 state.
-  const raw_ptr<x11::Connection> connection_;
+  raw_ref<x11::Connection> connection_;
   const x11::Window x_root_window_;
 
   // Input-only window used as a selection owner.
   x11::Window x_window_;
 
   // Events selected on |x_window_|.
-  std::unique_ptr<x11::XScopedEventSelector> x_window_events_;
+  x11::ScopedEventSelector x_window_events_;
 
   // Object which requests and receives selection data.
   const std::unique_ptr<SelectionRequestor> selection_requestor_;

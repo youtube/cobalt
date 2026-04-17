@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/shared/starboard/media/media_support_internal.h"
+// clang-format on
 
 #include "starboard/android/shared/max_media_codec_output_buffers_lookup_table.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
@@ -21,11 +23,7 @@
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard::shared::starboard::media {
-
-using ::starboard::MaxMediaCodecOutputBuffersLookupTable;
-using ::starboard::MediaCapabilitiesCache;
-using ::starboard::SupportedVideoCodecToMimeType;
+namespace starboard {
 
 bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
                            const MimeType* mime_type,
@@ -47,12 +45,16 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
            ->IsHDRTransferCharacteristicsSupported(transfer_id)) {
     return false;
   }
-  // While not necessarily true, for now we assume that all Android devices
-  // can play decode-to-texture video just as well as normal video.
 
   bool must_support_tunnel_mode = false;
   if (mime_type) {
     if (!mime_type->is_valid()) {
+      return false;
+    }
+
+    // TODO(b/491832955): Remove once decode-to-texture is supported.
+    if (mime_type->ValidateBoolParameter("decode-to-texture") &&
+        mime_type->GetParamBoolValue("decode-to-texture", false)) {
       return false;
     }
 
@@ -116,4 +118,4 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
       frame_width, frame_height, bitrate, fps);
 }
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard

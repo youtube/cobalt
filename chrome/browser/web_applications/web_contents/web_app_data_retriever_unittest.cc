@@ -5,6 +5,7 @@
 #include "chrome/browser/web_applications/web_contents/web_app_data_retriever.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -13,7 +14,9 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "chrome/browser/web_applications/web_app.h"
+#include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
+#include "chrome/browser/web_applications/web_app_install_utils.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/webapps/browser/installable/fake_installable_manager.h"
@@ -21,6 +24,7 @@
 #include "components/webapps/browser/installable/installable_logging.h"
 #include "components/webapps/browser/installable/installable_manager.h"
 #include "components/webapps/browser/installable/installable_metrics.h"
+#include "components/webapps/common/web_app_id.h"
 #include "components/webapps/common/web_page_metadata.mojom.h"
 #include "components/webapps/common/web_page_metadata_agent.mojom-test-utils.h"
 #include "content/public/browser/navigation_entry.h"
@@ -31,7 +35,6 @@
 #include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom.h"
 
@@ -49,38 +52,28 @@ class FakeWebPageMetadataAgent
   FakeWebPageMetadataAgent() = default;
   ~FakeWebPageMetadataAgent() override = default;
 
-  WebPageMetadataAgent* GetForwardingInterface() override {
-    NOTREACHED();
-    return nullptr;
-  }
+  WebPageMetadataAgent* GetForwardingInterface() override { NOTREACHED(); }
 
   void Bind(mojo::ScopedInterfaceEndpointHandle handle) {
     receiver_.Bind(mojo::PendingAssociatedReceiver<WebPageMetadataAgent>(
         std::move(handle)));
   }
 
-  // Set |web_app_info| to respond on |GetWebAppInstallInfo|.
-  void SetWebAppInstallInfo(const WebAppInstallInfo& web_app_info) {
-    web_app_info_ = web_app_info.Clone();
+  void SetWebPageMetadata(const GURL& application_url,
+                          const std::u16string& title,
+                          const std::u16string& description) {
+    web_page_metadata_->application_name = title;
+    web_page_metadata_->description = description;
+    web_page_metadata_->application_url = application_url;
   }
 
   void GetWebPageMetadata(GetWebPageMetadataCallback callback) override {
-    webapps::mojom::WebPageMetadataPtr web_page_metadata(
-        webapps::mojom::WebPageMetadata::New());
-    web_page_metadata->application_name = web_app_info_.title;
-    web_page_metadata->description = web_app_info_.description;
-    web_page_metadata->application_url = web_app_info_.start_url;
-
-    // Convert more fields as needed.
-    DCHECK(web_app_info_.manifest_icons.empty());
-    DCHECK(web_app_info_.mobile_capable ==
-           WebAppInstallInfo::MOBILE_CAPABLE_UNSPECIFIED);
-
-    std::move(callback).Run(std::move(web_page_metadata));
+    std::move(callback).Run(web_page_metadata_.Clone());
   }
 
  private:
-  WebAppInstallInfo web_app_info_;
+  webapps::mojom::WebPageMetadataPtr web_page_metadata_ =
+      webapps::mojom::WebPageMetadata::New();
 
   mojo::AssociatedReceiver<webapps::mojom::WebPageMetadataAgent> receiver_{
       this};
@@ -109,14 +102,17 @@ class WebAppDataRetrieverTest : public ChromeRenderViewHostTestHarness {
     // tracks the old RenderFrame where the navigation started in). So we
     // should disable same-site proactive BrowsingInstance for the main frame.
     // Note: this will not disable RenderDocument.
-    // TODO(crbug.com/936696): Make WebAppDataRetriever support a change of
+    // TODO(crbug.com/40615943): Make WebAppDataRetriever support a change of
     // RenderFrames.
     content::DisableProactiveBrowsingInstanceSwapFor(
         web_contents()->GetPrimaryMainFrame());
   }
 
-  void SetRendererWebAppInstallInfo(const WebAppInstallInfo& web_app_info) {
-    fake_chrome_render_frame_.SetWebAppInstallInfo(web_app_info);
+  void SetRendererWebPageMetadata(const GURL& application_url,
+                                  const std::u16string& title,
+                                  const std::u16string& description) {
+    fake_chrome_render_frame_.SetWebPageMetadata(application_url, title,
+                                                 description);
   }
 
   void GetWebAppInstallInfoCallback(
@@ -145,7 +141,7 @@ class WebAppDataRetrieverTest : public ChromeRenderViewHostTestHarness {
 
  private:
   FakeWebPageMetadataAgent fake_chrome_render_frame_;
-  absl::optional<std::unique_ptr<WebAppInstallInfo>> web_app_info_;
+  std::optional<std::unique_ptr<WebAppInstallInfo>> web_app_info_;
   std::vector<apps::IconInfo> icons_;
 };
 
@@ -169,10 +165,9 @@ TEST_F(WebAppDataRetrieverTest, GetWebAppInstallInfo_AppUrlAbsent) {
   const GURL kFooUrl("https://foo.example");
   web_contents_tester()->NavigateAndCommit(kFooUrl);
 
-  WebAppInstallInfo original_web_app_info;
-  original_web_app_info.start_url = GURL();
-
-  SetRendererWebAppInstallInfo(original_web_app_info);
+  // No install info present.
+  SetRendererWebPageMetadata(/*application_url=*/GURL(), /*title=*/u"",
+                             /*description=*/u"");
 
   base::RunLoop run_loop;
   WebAppDataRetriever retriever;
@@ -184,7 +179,7 @@ TEST_F(WebAppDataRetrieverTest, GetWebAppInstallInfo_AppUrlAbsent) {
 
   // If the WebAppInstallInfo has no URL, we fallback to the last committed
   // URL.
-  EXPECT_EQ(kFooUrl, web_app_info()->start_url);
+  EXPECT_EQ(kFooUrl, web_app_info()->start_url());
 }
 
 TEST_F(WebAppDataRetrieverTest, GetWebAppInstallInfo_AppUrlPresent) {
@@ -192,10 +187,10 @@ TEST_F(WebAppDataRetrieverTest, GetWebAppInstallInfo_AppUrlPresent) {
 
   web_contents_tester()->NavigateAndCommit(GURL("https://foo.example"));
 
-  WebAppInstallInfo original_web_app_info;
-  original_web_app_info.start_url = GURL("https://bar.example");
-
-  SetRendererWebAppInstallInfo(original_web_app_info);
+  GURL other_app_url = GURL("https://bar.example");
+  std::u16string other_app_title = u"Other App Title";
+  SetRendererWebPageMetadata(other_app_url, other_app_title,
+                             /*description=*/u"");
 
   base::RunLoop run_loop;
   WebAppDataRetriever retriever;
@@ -205,7 +200,8 @@ TEST_F(WebAppDataRetrieverTest, GetWebAppInstallInfo_AppUrlPresent) {
                      base::Unretained(this), run_loop.QuitClosure()));
   run_loop.Run();
 
-  EXPECT_EQ(original_web_app_info.start_url, web_app_info()->start_url);
+  EXPECT_EQ(other_app_url, web_app_info()->start_url());
+  EXPECT_EQ(other_app_title, web_app_info()->title);
 }
 
 TEST_F(WebAppDataRetrieverTest, GetWebAppInstallInfo_TitleAbsentFromRenderer) {
@@ -215,11 +211,8 @@ TEST_F(WebAppDataRetrieverTest, GetWebAppInstallInfo_TitleAbsentFromRenderer) {
 
   web_contents_tester()->SetTitle(kFooTitle);
 
-  WebAppInstallInfo original_web_app_info;
-  original_web_app_info.title = u"";
-
-  SetRendererWebAppInstallInfo(original_web_app_info);
-
+  SetRendererWebPageMetadata(GURL("https://foo.example"), /*title=*/u"",
+                             /*description=*/u"");
   base::RunLoop run_loop;
   WebAppDataRetriever retriever;
   retriever.GetWebAppInstallInfo(
@@ -228,8 +221,7 @@ TEST_F(WebAppDataRetrieverTest, GetWebAppInstallInfo_TitleAbsentFromRenderer) {
                      base::Unretained(this), run_loop.QuitClosure()));
   run_loop.Run();
 
-  // If the WebAppInstallInfo has no title, we fallback to the WebContents
-  // title.
+  // If the metadata has no title, we fallback to the WebContents title.
   EXPECT_EQ(kFooTitle, web_app_info()->title);
 }
 
@@ -241,10 +233,8 @@ TEST_F(WebAppDataRetrieverTest,
 
   web_contents_tester()->SetTitle(u"");
 
-  WebAppInstallInfo original_web_app_info;
-  original_web_app_info.title = u"";
-
-  SetRendererWebAppInstallInfo(original_web_app_info);
+  SetRendererWebPageMetadata(GURL("https://foo.example"), /*title=*/u"",
+                             /*description=*/u"");
 
   base::RunLoop run_loop;
   WebAppDataRetriever retriever;
@@ -256,7 +246,7 @@ TEST_F(WebAppDataRetrieverTest,
 
   // If the WebAppInstallInfo has no title and the WebContents has no title, we
   // fallback to start_url.
-  EXPECT_EQ(base::UTF8ToUTF16(web_app_info()->start_url.spec()),
+  EXPECT_EQ(base::UTF8ToUTF16(web_app_info()->start_url().spec()),
             web_app_info()->title);
 }
 
@@ -301,20 +291,19 @@ TEST_F(WebAppDataRetrieverTest,
 
   {
     webapps::FakeInstallableManager::CreateForWebContentsWithManifest(
-        web_contents(), webapps::NO_MANIFEST, GURL(),
+        web_contents(), webapps::InstallableStatusCode::NO_MANIFEST, GURL(),
         blink::mojom::Manifest::New());
   }
 
   base::RunLoop run_loop;
   WebAppDataRetriever retriever;
   retriever.CheckInstallabilityAndRetrieveManifest(
-      web_contents(), /*bypass_service_worker_check=*/false,
+      web_contents(),
       base::BindLambdaForTesting(
-          [&](blink::mojom::ManifestPtr opt_manifest, const GURL& manifest_url,
+          [&](blink::mojom::ManifestPtr opt_manifest,
               bool valid_manifest_for_web_app,
               webapps::InstallableStatusCode error_code) {
             EXPECT_FALSE(opt_manifest);
-            EXPECT_EQ(manifest_url, GURL());
             EXPECT_FALSE(valid_manifest_for_web_app);
             EXPECT_EQ(error_code,
                       webapps::InstallableStatusCode::RENDERER_CANCELLED);
@@ -330,11 +319,13 @@ TEST_F(WebAppDataRetrieverTest, GetIcons_WebContentsDestroyed) {
   web_contents_tester()->NavigateAndCommit(GURL("https://foo.example"));
 
   bool skip_page_favicons = true;
+  bool fail_all_if_any_fail = false;
 
   base::RunLoop run_loop;
   WebAppDataRetriever retriever;
-  retriever.GetIcons(web_contents(), /*icon_urls=*/base::flat_set<GURL>(),
-                     skip_page_favicons,
+  retriever.GetIcons(web_contents(),
+                     /*extra_favicon_urls=*/IconUrlSizeSet(),
+                     skip_page_favicons, fail_all_if_any_fail,
                      base::BindLambdaForTesting(
                          [&](IconsDownloadedResult result, IconsMap icons_map,
                              DownloadedIconsHttpResults icons_http_results) {
@@ -362,8 +353,19 @@ TEST_F(WebAppDataRetrieverTest, GetWebAppInstallInfo_FrameNavigated) {
   web_contents_tester()->NavigateAndCommit(kFooUrl);
   run_loop.Run();
 
-  EXPECT_EQ(kFooUrl.DeprecatedGetOriginAsURL(), web_app_info()->start_url);
-  EXPECT_EQ(kFooTitle, web_app_info()->title);
+  if (web_contents()
+          ->GetPrimaryMainFrame()
+          ->ShouldChangeRenderFrameHostOnSameSiteNavigation()) {
+    // If the RenderFrameHost changes, the FakeWebPageMetadataAgent mojo
+    // connection will be disconnected, causing the callback to be called with
+    // a null info.
+    EXPECT_EQ(nullptr, web_app_info());
+  } else {
+    // Otherwise, the mojo connection will persist and the callback will get
+    // the info from the previous document.
+    EXPECT_EQ(kFooUrl.DeprecatedGetOriginAsURL(), web_app_info()->start_url());
+    EXPECT_EQ(kFooTitle, web_app_info()->title);
+  }
 }
 
 TEST_F(WebAppDataRetrieverTest, CheckInstallabilityAndRetrieveManifest) {
@@ -377,15 +379,17 @@ TEST_F(WebAppDataRetrieverTest, CheckInstallabilityAndRetrieveManifest) {
 
   {
     auto manifest = blink::mojom::Manifest::New();
+    manifest->manifest_url = GURL("https://example.com/manifest");
     manifest->short_name = manifest_short_name;
     manifest->name = manifest_name;
     manifest->start_url = manifest_start_url;
+    manifest->id = GenerateManifestIdFromStartUrlOnly(manifest_start_url);
     manifest->scope = manifest_scope;
     manifest->has_theme_color = true;
     manifest->theme_color = manifest_theme_color;
 
     webapps::FakeInstallableManager::CreateForWebContentsWithManifest(
-        web_contents(), webapps::NO_ERROR_DETECTED,
+        web_contents(), webapps::InstallableStatusCode::NO_ERROR_DETECTED,
         GURL("https://example.com/manifest"), std::move(manifest));
   }
 
@@ -395,9 +399,9 @@ TEST_F(WebAppDataRetrieverTest, CheckInstallabilityAndRetrieveManifest) {
   WebAppDataRetriever retriever;
 
   retriever.CheckInstallabilityAndRetrieveManifest(
-      web_contents(), /*bypass_service_worker_check=*/false,
+      web_contents(),
       base::BindLambdaForTesting(
-          [&](blink::mojom::ManifestPtr opt_manifest, const GURL& manifest_url,
+          [&](blink::mojom::ManifestPtr opt_manifest,
               bool valid_manifest_for_web_app,
               webapps::InstallableStatusCode error_code) {
             EXPECT_EQ(error_code,
@@ -408,8 +412,8 @@ TEST_F(WebAppDataRetrieverTest, CheckInstallabilityAndRetrieveManifest) {
             EXPECT_EQ(manifest_start_url, opt_manifest->start_url);
             EXPECT_EQ(manifest_scope, opt_manifest->scope);
             EXPECT_EQ(manifest_theme_color, opt_manifest->theme_color);
-
-            EXPECT_EQ(manifest_url, GURL("https://example.com/manifest"));
+            EXPECT_EQ(GURL("https://example.com/manifest"),
+                      opt_manifest->manifest_url);
 
             callback_called = true;
             run_loop.Quit();
@@ -424,7 +428,7 @@ TEST_F(WebAppDataRetrieverTest, CheckInstallabilityFails) {
 
   {
     webapps::FakeInstallableManager::CreateForWebContentsWithManifest(
-        web_contents(), webapps::NO_MANIFEST, GURL(),
+        web_contents(), webapps::InstallableStatusCode::NO_MANIFEST, GURL(),
         blink::mojom::Manifest::New());
   }
 
@@ -434,14 +438,13 @@ TEST_F(WebAppDataRetrieverTest, CheckInstallabilityFails) {
   WebAppDataRetriever retriever;
 
   retriever.CheckInstallabilityAndRetrieveManifest(
-      web_contents(), /*bypass_service_worker_check=*/false,
+      web_contents(),
       base::BindLambdaForTesting(
-          [&](blink::mojom::ManifestPtr opt_manifest, const GURL& manifest_url,
+          [&](blink::mojom::ManifestPtr opt_manifest,
               bool valid_manifest_for_web_app,
               webapps::InstallableStatusCode error_code) {
             EXPECT_EQ(error_code, webapps::InstallableStatusCode::NO_MANIFEST);
             EXPECT_FALSE(valid_manifest_for_web_app);
-            EXPECT_EQ(manifest_url, GURL());
             callback_called = true;
             run_loop.Quit();
           }));

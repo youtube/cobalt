@@ -60,8 +60,7 @@ VideoCodec ToCastVideoCodec(const ::media::VideoCodec video_codec,
       if (codec_profile == ::media::DOLBYVISION_PROFILE0 ||
           codec_profile == ::media::DOLBYVISION_PROFILE9) {
         return kCodecDolbyVisionH264;
-      } else if (codec_profile == ::media::DOLBYVISION_PROFILE4 ||
-                 codec_profile == ::media::DOLBYVISION_PROFILE5 ||
+      } else if (codec_profile == ::media::DOLBYVISION_PROFILE5 ||
                  codec_profile == ::media::DOLBYVISION_PROFILE7 ||
                  codec_profile == ::media::DOLBYVISION_PROFILE8) {
         return kCodecDolbyVisionHEVC;
@@ -135,8 +134,6 @@ VideoProfile ToCastVideoProfile(
       return kVP9Profile3;
     case ::media::DOLBYVISION_PROFILE0:
       return kDolbyVisionProfile0;
-    case ::media::DOLBYVISION_PROFILE4:
-      return kDolbyVisionProfile4;
     case ::media::DOLBYVISION_PROFILE5:
       return kDolbyVisionProfile5;
     case ::media::DOLBYVISION_PROFILE7:
@@ -151,6 +148,36 @@ VideoProfile ToCastVideoProfile(
       return kAV1ProfileHigh;
     case ::media::AV1PROFILE_PROFILE_PRO:
       return kAV1ProfilePro;
+    case ::media::VVCPROFILE_MAIN10:
+      return kVVCProfileMain10;
+    case ::media::VVCPROFILE_MAIN12:
+      return kVVCProfileMain12;
+    case ::media::VVCPROFILE_MAIN12_INTRA:
+      return kVVCProfileMain12Intra;
+    case ::media::VVCPROIFLE_MULTILAYER_MAIN10:
+      return kVVCProfileMultilayerMain10;
+    case ::media::VVCPROFILE_MAIN10_444:
+      return kVVCProfileMain10444;
+    case ::media::VVCPROFILE_MAIN12_444:
+      return kVVCProfileMain12444;
+    case ::media::VVCPROFILE_MAIN16_444:
+      return kVVCProfileMain16444;
+    case ::media::VVCPROFILE_MAIN12_444_INTRA:
+      return kVVCProfileMain12444Intra;
+    case ::media::VVCPROFILE_MAIN16_444_INTRA:
+      return kVVCProfileMain16444Intra;
+    case ::media::VVCPROFILE_MULTILAYER_MAIN10_444:
+      return kVVCProfileMain10444;
+    case ::media::VVCPROFILE_MAIN10_STILL_PICTURE:
+      return kVVCProfileMain10Still;
+    case ::media::VVCPROFILE_MAIN12_STILL_PICTURE:
+      return kVVCProfileMain12Still;
+    case ::media::VVCPROFILE_MAIN10_444_STILL_PICTURE:
+      return kVVCProfileMain10444Still;
+    case ::media::VVCPROFILE_MAIN12_444_STILL_PICTURE:
+      return kVVCProfileMain12444Still;
+    case ::media::VVCPROFILE_MAIN16_444_STILL_PICTURE:
+      return kVVCProfileMain16444Still;
     default:
       LOG(INFO) << "Unsupported video codec profile " << codec_profile;
   }

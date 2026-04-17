@@ -26,7 +26,10 @@
 #include "third_party/blink/renderer/platform/loader/fetch/raw_resource.h"
 
 #include <memory>
+#include <variant>
 
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/task/single_thread_task_runner.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/mojom/loader/request_context_frame_type.mojom-blink.h"
@@ -97,11 +100,12 @@ RawResource::RawResource(const ResourceRequest& resource_request,
                          const ResourceLoaderOptions& options)
     : Resource(resource_request, type, options) {}
 
-void RawResource::AppendData(const char* data, size_t length) {
+void RawResource::AppendData(
+    std::variant<SegmentedBuffer, base::span<const char>> data) {
   if (GetResourceRequest().UseStreamOnResponse())
     return;
 
-  Resource::AppendData(data, length);
+  Resource::AppendData(std::move(data));
 }
 
 class RawResource::PreloadBytesConsumerClient final
@@ -120,14 +124,13 @@ class RawResource::PreloadBytesConsumerClient final
       return;
     }
     while (resource_->HasClient(client)) {
-      const char* buffer = nullptr;
-      size_t available = 0;
-      auto result = bytes_consumer_->BeginRead(&buffer, &available);
+      base::span<const char> buffer;
+      auto result = bytes_consumer_->BeginRead(buffer);
       if (result == BytesConsumer::Result::kShouldWait)
         return;
       if (result == BytesConsumer::Result::kOk) {
-        client->DataReceived(resource_, buffer, available);
-        result = bytes_consumer_->EndRead(available);
+        client->DataReceived(resource_, buffer);
+        result = bytes_consumer_->EndRead(buffer.size());
       }
       if (result != BytesConsumer::Result::kOk) {
         return;

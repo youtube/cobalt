@@ -21,6 +21,9 @@ constexpr int kQuotaBytesPerExtension = 1000;
 constexpr char kTestExtensionId1[] = "extension id1";
 constexpr char kTestExtensionId2[] = "extension id2";
 
+constexpr char kQuotaBytesExceededError[] =
+    "Session storage quota bytes exceeded. Values were not stored.";
+
 using ValueChangeList =
     std::vector<extensions::SessionStorageManager::ValueChange>;
 using testing::AllOf;
@@ -52,6 +55,7 @@ class SessionStorageManagerUnittest : public ExtensionsTest {
  protected:
   // ExtensionsTest:
   void SetUp() override;
+  void TearDown() override;
 
   // Values with different types.
   base::Value value_int_;
@@ -71,23 +75,32 @@ void SessionStorageManagerUnittest::SetUp() {
           base::BindRepeating(&SetTestingSessionStorageManager)));
 }
 
+void SessionStorageManagerUnittest::TearDown() {
+  manager_ = nullptr;
+  ExtensionsTest::TearDown();
+}
+
 TEST_F(SessionStorageManagerUnittest, SetGetAndRemoveOneExtensionSuccessful) {
   {
     // Store individual value.
     ValueChangeList changes;
+    std::string error;
     std::map<std::string, base::Value> values;
     values.emplace("key1", value_int_.Clone());
-    EXPECT_TRUE(manager_->Set(kTestExtensionId1, std::move(values), changes));
+    EXPECT_TRUE(
+        manager_->Set(kTestExtensionId1, std::move(values), changes, &error));
   }
 
   {
     // Store multiple values.
     ValueChangeList changes;
+    std::string error;
     std::map<std::string, base::Value> values;
     values.emplace("key2", value_string_.Clone());
     values.emplace("key3", value_list_.Clone());
     values.emplace("key4", value_dict_.Clone());
-    EXPECT_TRUE(manager_->Set(kTestExtensionId1, std::move(values), changes));
+    EXPECT_TRUE(
+        manager_->Set(kTestExtensionId1, std::move(values), changes, &error));
   }
 
   // Retrieve individual values from storage.
@@ -134,10 +147,12 @@ TEST_F(SessionStorageManagerUnittest, SetGetAndRemoveOneExtensionSuccessful) {
   {
     // Check that a value can be added after removing previous values.
     ValueChangeList changes;
+    std::string error;
     std::map<std::string, base::Value> values;
     values.emplace("key1", value_string_.Clone());
     values.emplace("key5", value_list_.Clone());
-    EXPECT_TRUE(manager_->Set(kTestExtensionId1, std::move(values), changes));
+    EXPECT_TRUE(
+        manager_->Set(kTestExtensionId1, std::move(values), changes, &error));
     EXPECT_EQ(*manager_->Get(kTestExtensionId1, "key1"), value_string_);
     EXPECT_EQ(*manager_->Get(kTestExtensionId1, "key5"), value_list_);
   }
@@ -146,18 +161,20 @@ TEST_F(SessionStorageManagerUnittest, SetGetAndRemoveOneExtensionSuccessful) {
 TEST_F(SessionStorageManagerUnittest, ClearOneExtensionSuccessful) {
   {
     ValueChangeList changes;
+    std::string error;
     std::map<std::string, base::Value> values;
     values.emplace("key1", value_int_.Clone());
     values.emplace("key2", value_string_.Clone());
-    manager_->Set(kTestExtensionId1, std::move(values), changes);
+    manager_->Set(kTestExtensionId1, std::move(values), changes, &error);
   }
 
   {
     ValueChangeList changes;
+    std::string error;
     std::map<std::string, base::Value> values;
     values.emplace("key1", value_int_.Clone());
     values.emplace("key2", value_string_.Clone());
-    manager_->Set(kTestExtensionId2, std::move(values), changes);
+    manager_->Set(kTestExtensionId2, std::move(values), changes, &error);
   }
 
   ValueChangeList remove_changes;
@@ -186,16 +203,20 @@ TEST_F(SessionStorageManagerUnittest,
        SetGetAndRemovetMultipleExtensionsSuccessful) {
   {
     ValueChangeList changes;
+    std::string error;
     std::map<std::string, base::Value> values;
     values.emplace("key1", value_int_.Clone());
-    EXPECT_TRUE(manager_->Set(kTestExtensionId1, std::move(values), changes));
+    EXPECT_TRUE(
+        manager_->Set(kTestExtensionId1, std::move(values), changes, &error));
   }
 
   {
     ValueChangeList changes;
+    std::string error;
     std::map<std::string, base::Value> values;
     values.emplace("key1", value_string_.Clone());
-    EXPECT_TRUE(manager_->Set(kTestExtensionId2, std::move(values), changes));
+    EXPECT_TRUE(
+        manager_->Set(kTestExtensionId2, std::move(values), changes, &error));
   }
 
   // Different extensions can have an equal key with different associated
@@ -213,9 +234,11 @@ TEST_F(SessionStorageManagerUnittest, ChangeValueOfExistentKeys) {
     // New key and value are stored, and change is added to
     // changes list.
     ValueChangeList changes;
+    std::string error;
     std::map<std::string, base::Value> values;
     values.emplace("key1", value_int_.Clone());
-    EXPECT_TRUE(manager_->Set(kTestExtensionId1, std::move(values), changes));
+    EXPECT_TRUE(
+        manager_->Set(kTestExtensionId1, std::move(values), changes, &error));
     EXPECT_EQ(*manager_->Get(kTestExtensionId1, "key1"), value_int_);
     ASSERT_EQ(changes.size(), 1u);
     EXPECT_EQ(changes[0].key, "key1");
@@ -228,9 +251,11 @@ TEST_F(SessionStorageManagerUnittest, ChangeValueOfExistentKeys) {
     // Value pointed by an existing key is changed, and change is added to
     // changes list with old value.
     ValueChangeList changes;
+    std::string error;
     std::map<std::string, base::Value> values;
     values.emplace("key1", value_string_.Clone());
-    EXPECT_TRUE(manager_->Set(kTestExtensionId1, std::move(values), changes));
+    EXPECT_TRUE(
+        manager_->Set(kTestExtensionId1, std::move(values), changes, &error));
     EXPECT_EQ(*manager_->Get(kTestExtensionId1, "key1"), value_string_);
     ASSERT_EQ(changes.size(), 1u);
     EXPECT_EQ(changes[0].key, "key1");
@@ -244,9 +269,11 @@ TEST_F(SessionStorageManagerUnittest, ChangeValueOfExistentKeys) {
     // Value pointed by an existing key is changed to an equal value, and no
     // change is added to changes list.
     ValueChangeList changes;
+    std::string error;
     std::map<std::string, base::Value> values;
     values.emplace("key1", value_string_.Clone());
-    EXPECT_TRUE(manager_->Set(kTestExtensionId1, std::move(values), changes));
+    EXPECT_TRUE(
+        manager_->Set(kTestExtensionId1, std::move(values), changes, &error));
     EXPECT_EQ(*manager_->Get(kTestExtensionId1, "key1"), value_string_);
     EXPECT_TRUE(changes.empty());
   }
@@ -267,10 +294,11 @@ TEST_F(SessionStorageManagerUnittest, ChangeValueOfExistentKeys) {
     // Values pointed by existing keys are removed, and changes are added to
     // changes list.
     ValueChangeList set_changes;
+    std::string error;
     std::map<std::string, base::Value> values;
     values.emplace("key2", value_string_.Clone());
     values.emplace("key3", value_list_.Clone());
-    manager_->Set(kTestExtensionId1, std::move(values), set_changes);
+    manager_->Set(kTestExtensionId1, std::move(values), set_changes, &error);
 
     ValueChangeList remove_changes;
     std::vector<std::string> keys{"key2", "key3"};
@@ -295,10 +323,12 @@ TEST_F(SessionStorageManagerUnittest, SetFailsWhenQuotaIsExceeded) {
   // Set fails when a value exceeds the quota limit.
   {
     ValueChangeList changes;
+    std::string error;
     std::map<std::string, base::Value> values_over_quota;
     values_over_quota.emplace("key1", std::move(value_over_quota));
     EXPECT_FALSE(manager_->Set(kTestExtensionId1, std::move(values_over_quota),
-                               changes));
+                               changes, &error));
+    EXPECT_EQ(error, kQuotaBytesExceededError);
   }
 
   // `large_value` is greater than 50% of the allocated space.
@@ -308,18 +338,23 @@ TEST_F(SessionStorageManagerUnittest, SetFailsWhenQuotaIsExceeded) {
   {
     // Setting `large_value` once should succeed (it's below quota)
     ValueChangeList changes;
+    std::string error;
     std::map<std::string, base::Value> values;
     values.emplace("key1", large_value.Clone());
-    EXPECT_TRUE(manager_->Set(kTestExtensionId1, std::move(values), changes));
+    EXPECT_TRUE(
+        manager_->Set(kTestExtensionId1, std::move(values), changes, &error));
   }
 
   {
     // Attempting to set `large_value` a second time under a new key should fail
     // (it would exceed quota).
     ValueChangeList changes;
+    std::string error;
     std::map<std::string, base::Value> values;
     values.emplace("key2", large_value.Clone());
-    EXPECT_FALSE(manager_->Set(kTestExtensionId1, std::move(values), changes));
+    EXPECT_FALSE(
+        manager_->Set(kTestExtensionId1, std::move(values), changes, &error));
+    EXPECT_EQ(error, kQuotaBytesExceededError);
     EXPECT_EQ(nullptr, manager_->Get(kTestExtensionId1, "key2"));
   }
 
@@ -327,9 +362,11 @@ TEST_F(SessionStorageManagerUnittest, SetFailsWhenQuotaIsExceeded) {
     // Setting `large_value` a second time with the same key should succeed,
     // since it's overwriting an existing value (and thus below quota).
     ValueChangeList changes;
+    std::string error;
     std::map<std::string, base::Value> values;
     values.emplace("key1", large_value.Clone());
-    EXPECT_TRUE(manager_->Set(kTestExtensionId1, std::move(values), changes));
+    EXPECT_TRUE(
+        manager_->Set(kTestExtensionId1, std::move(values), changes, &error));
   }
 }
 
@@ -341,9 +378,11 @@ TEST_F(SessionStorageManagerUnittest, GetEmptyWhenInvalidKey) {
   EXPECT_TRUE(manager_->GetAll("invalid extension id").empty());
 
   ValueChangeList changes;
+  std::string error;
   std::map<std::string, base::Value> values;
   values.emplace("key1", value_int_.Clone());
-  ASSERT_TRUE(manager_->Set(kTestExtensionId1, std::move(values), changes));
+  ASSERT_TRUE(
+      manager_->Set(kTestExtensionId1, std::move(values), changes, &error));
 
   EXPECT_EQ(manager_->Get(kTestExtensionId1, "invalid key"), nullptr);
   EXPECT_TRUE(
@@ -374,9 +413,11 @@ TEST_F(SessionStorageManagerUnittest, GetBytesInUse) {
 
   {
     ValueChangeList changes;
+    std::string error;
     std::map<std::string, base::Value> values;
     values.emplace("key1", value.Clone());
-    EXPECT_TRUE(manager_->Set(kTestExtensionId1, std::move(values), changes));
+    EXPECT_TRUE(
+        manager_->Set(kTestExtensionId1, std::move(values), changes, &error));
   }
 
   EXPECT_THAT(manager_->GetBytesInUse(kTestExtensionId1, "key1"),
@@ -391,9 +432,11 @@ TEST_F(SessionStorageManagerUnittest, GetBytesInUse) {
 
   {
     ValueChangeList changes;
+    std::string error;
     std::map<std::string, base::Value> values;
     values.emplace("key2", value.Clone());
-    EXPECT_TRUE(manager_->Set(kTestExtensionId1, std::move(values), changes));
+    EXPECT_TRUE(
+        manager_->Set(kTestExtensionId1, std::move(values), changes, &error));
   }
 
   EXPECT_THAT(manager_->GetBytesInUse(kTestExtensionId1, "key1"),
@@ -441,9 +484,11 @@ TEST_F(SessionStorageManagerUnittest, GetBytesInUse) {
   const std::string massive_key(500, 'a');
   {
     ValueChangeList changes;
+    std::string error;
     std::map<std::string, base::Value> values;
     values.emplace(massive_key, base::Value());
-    EXPECT_TRUE(manager_->Set(kTestExtensionId1, std::move(values), changes));
+    EXPECT_TRUE(
+        manager_->Set(kTestExtensionId1, std::move(values), changes, &error));
   }
 
   EXPECT_THAT(manager_->GetBytesInUse(kTestExtensionId1, massive_key),

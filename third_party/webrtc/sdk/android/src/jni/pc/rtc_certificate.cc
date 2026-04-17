@@ -17,39 +17,41 @@
 #include "sdk/android/native_api/jni/java_types.h"
 #include "sdk/android/src/jni/jni_helpers.h"
 #include "sdk/android/src/jni/pc/ice_candidate.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace webrtc {
 namespace jni {
 
-rtc::RTCCertificatePEM JavaToNativeRTCCertificatePEM(
+RTCCertificatePEM JavaToNativeRTCCertificatePEM(
     JNIEnv* jni,
-    const JavaRef<jobject>& j_rtc_certificate) {
-  ScopedJavaLocalRef<jstring> privatekey_field =
+    const jni_zero::JavaRef<jobject>& j_rtc_certificate) {
+  jni_zero::ScopedJavaLocalRef<jstring> privatekey_field =
       Java_RtcCertificatePem_getPrivateKey(jni, j_rtc_certificate);
-  ScopedJavaLocalRef<jstring> certificate_field =
+  jni_zero::ScopedJavaLocalRef<jstring> certificate_field =
       Java_RtcCertificatePem_getCertificate(jni, j_rtc_certificate);
-  return rtc::RTCCertificatePEM(JavaToNativeString(jni, privatekey_field),
-                                JavaToNativeString(jni, certificate_field));
+  return RTCCertificatePEM(JavaToNativeString(jni, privatekey_field),
+                           JavaToNativeString(jni, certificate_field));
 }
 
 ScopedJavaLocalRef<jobject> NativeToJavaRTCCertificatePEM(
     JNIEnv* jni,
-    const rtc::RTCCertificatePEM& certificate) {
+    const RTCCertificatePEM& certificate) {
   return Java_RtcCertificatePem_Constructor(
       jni, NativeToJavaString(jni, certificate.private_key()),
       NativeToJavaString(jni, certificate.certificate()));
 }
 
-static ScopedJavaLocalRef<jobject> JNI_RtcCertificatePem_GenerateCertificate(
+static jni_zero::ScopedJavaLocalRef<jobject>
+JNI_RtcCertificatePem_GenerateCertificate(
     JNIEnv* jni,
-    const JavaParamRef<jobject>& j_key_type,
+    const jni_zero::JavaParamRef<jobject>& j_key_type,
     jlong j_expires) {
-  rtc::KeyType key_type = JavaToNativeKeyType(jni, j_key_type);
+  KeyType key_type = JavaToNativeKeyType(jni, j_key_type);
   uint64_t expires = (uint64_t)j_expires;
-  rtc::scoped_refptr<rtc::RTCCertificate> certificate =
-      rtc::RTCCertificateGenerator::GenerateCertificate(
-          rtc::KeyParams(key_type), expires);
-  rtc::RTCCertificatePEM pem = certificate->ToPEM();
+  scoped_refptr<RTCCertificate> certificate =
+      RTCCertificateGenerator::GenerateCertificate(KeyParams(key_type),
+                                                   expires);
+  RTCCertificatePEM pem = certificate->ToPEM();
   return Java_RtcCertificatePem_Constructor(
       jni, NativeToJavaString(jni, pem.private_key()),
       NativeToJavaString(jni, pem.certificate()));

@@ -7,12 +7,15 @@
 
 #include <stdint.h>
 
+#include <optional>
+
 #include "base/functional/callback.h"
 #include "base/process/kill.h"
 #include "content/browser/dom_storage/session_storage_namespace_impl.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "net/base/load_states.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "services/network/public/mojom/attribution.mojom-forward.h"
+#include "third_party/blink/public/common/page/color_provider_color_maps.h"
 #include "third_party/skia/include/core/SkColor.h"
 
 namespace blink {
@@ -26,6 +29,7 @@ namespace content {
 
 class RenderViewHost;
 class RenderViewHostDelegateView;
+class RenderViewHostImpl;
 
 //
 // RenderViewHostDelegate
@@ -63,9 +67,10 @@ class RenderViewHostDelegate {
   // `blink::WebView` is going to be destroyed
   virtual void RenderViewDeleted(RenderViewHost* render_view_host) {}
 
-  // Return a dummy RendererPreferences object that will be used by the renderer
-  // associated with the owning RenderViewHost.
-  virtual const blink::RendererPreferences& GetRendererPrefs() const = 0;
+  // Returns a RendererPreferences object that will be used by the renderer
+  // associated with the given `render_view_host`.
+  virtual const blink::RendererPreferences& GetRendererPrefs(
+      RenderViewHostImpl* render_view_host) = 0;
 
   // Notification from the renderer host that blocked UI event occurred.
   // This happens when there are tab-modal dialogs. In this case, the
@@ -89,8 +94,8 @@ class RenderViewHostDelegate {
   // WebPreferences. If we want to guarantee that the value reflects the current
   // state of the WebContents, NotifyPreferencesChanged() should be called
   // before calling this.
-  virtual const blink::web_pref::WebPreferences&
-  GetOrCreateWebPreferences() = 0;
+  virtual const blink::web_pref::WebPreferences& GetOrCreateWebPreferences(
+      RenderViewHostImpl* render_view_host) = 0;
 
   // Sets the WebPreferences for the WebContents associated with this
   // RenderViewHost to |prefs| and send the new value to all renderers in the
@@ -98,13 +103,9 @@ class RenderViewHostDelegate {
   virtual void SetWebPreferences(const blink::web_pref::WebPreferences& prefs) {
   }
 
-  // Triggers a total recomputation of WebPreferences by resetting the current
-  // cached WebPreferences to null and triggering the recomputation path for
-  // both the "slow" attributes (hardware configurations/things that require
-  // slow platform/device polling) which normally won't get recomputed after
-  // the first time we set it and "fast" attributes (which always gets
-  // recomputed).
-  virtual void RecomputeWebPreferencesSlow() {}
+  // Returns the light, dark and forced color maps for the ColorProvider
+  // associated with this RenderViewHost.
+  virtual blink::ColorProviderColorMaps GetColorProviderColorMaps() const = 0;
 
   // Returns true if the render view is rendering a guest.
   virtual bool IsGuest();
@@ -112,9 +113,15 @@ class RenderViewHostDelegate {
   // Called on `blink::WebView` creation to get the initial base background
   // color for this `blink::WebView`. Nullopt means a color is not set, and the
   // blink default color should be used.
-  virtual absl::optional<SkColor> GetBaseBackgroundColor();
+  virtual std::optional<SkColor> GetBaseBackgroundColor();
 
   virtual const base::Location& GetCreatorLocation() = 0;
+
+  // Returns whether attribution reporting is supported
+  // for the WebContents associated with this RenderViewHost.
+  // This method takes into account global support as well as
+  // WebContents specific support.
+  virtual network::mojom::AttributionSupport GetAttributionSupport() = 0;
 
  protected:
   virtual ~RenderViewHostDelegate() {}

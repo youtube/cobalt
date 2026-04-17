@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/mac/authorization_util.h"
 
 #import <Foundation/Foundation.h>
@@ -10,14 +15,15 @@
 
 #include <string>
 
+#include "base/apple/bundle_locations.h"
+#include "base/apple/foundation_util.h"
+#include "base/apple/osstatus_logging.h"
 #include "base/logging.h"
-#include "base/mac/bundle_locations.h"
-#include "base/mac/foundation_util.h"
-#include "base/mac/mac_logging.h"
 #include "base/mac/scoped_authorizationref.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
+#include "base/strings/sys_string_conversions.h"
 #include "base/threading/hang_watcher.h"
 
 namespace base::mac {
@@ -60,21 +66,25 @@ ScopedAuthorizationRef GetAuthorizationRightsWithPrompt(
   // product_logo_32.png is used instead of app.icns because Authorization
   // Services can't deal with .icns files.
   NSString* icon_path =
-      [base::mac::FrameworkBundle() pathForResource:@"product_logo_32"
-                                             ofType:@"png"];
+      [base::apple::FrameworkBundle() pathForResource:@"product_logo_32"
+                                               ofType:@"png"];
   const char* icon_path_c = [icon_path fileSystemRepresentation];
   size_t icon_path_length = icon_path_c ? strlen(icon_path_c) : 0;
 
-  // The OS will dispay |prompt| along with a sentence asking the user to type
+  // The OS will display |prompt| along with a sentence asking the user to type
   // the "password to allow this."
-  NSString* prompt_ns = base::mac::CFToNSCast(prompt);
-  const char* prompt_c = [prompt_ns UTF8String];
-  size_t prompt_length = prompt_c ? strlen(prompt_c) : 0;
+  std::string prompt_string;
+  const char* prompt_c = nullptr;
+  size_t prompt_length = 0;
+  if (prompt) {
+    prompt_string = SysCFStringRefToUTF8(prompt);
+    prompt_c = prompt_string.c_str();
+    prompt_length = prompt_string.length();
+  }
 
   AuthorizationItem environment_items[] = {
-    {kAuthorizationEnvironmentIcon, icon_path_length, (void*)icon_path_c, 0},
-    {kAuthorizationEnvironmentPrompt, prompt_length, (void*)prompt_c, 0}
-  };
+      {kAuthorizationEnvironmentIcon, icon_path_length, (void*)icon_path_c, 0},
+      {kAuthorizationEnvironmentPrompt, prompt_length, (void*)prompt_c, 0}};
 
   AuthorizationEnvironment environment = {std::size(environment_items),
                                           environment_items};
@@ -126,11 +136,8 @@ OSStatus ExecuteWithPrivilegesAndGetPID(AuthorizationRef authorization,
   // but it doesn't actually modify the arguments, and that type is kind of
   // silly and callers probably aren't dealing with that.  Put the cast here
   // to make things a little easier on callers.
-  OSStatus status = AuthorizationExecuteWithPrivileges(authorization,
-                                                       tool_path,
-                                                       options,
-                                                       (char* const*)arguments,
-                                                       pipe_pointer);
+  OSStatus status = AuthorizationExecuteWithPrivileges(
+      authorization, tool_path, options, (char* const*)arguments, pipe_pointer);
 #pragma clang diagnostic pop
   if (status != errAuthorizationSuccess) {
     return status;
@@ -174,12 +181,8 @@ OSStatus ExecuteWithPrivilegesAndWait(AuthorizationRef authorization,
                                       FILE** pipe,
                                       int* exit_status) {
   pid_t pid;
-  OSStatus status = ExecuteWithPrivilegesAndGetPID(authorization,
-                                                   tool_path,
-                                                   options,
-                                                   arguments,
-                                                   pipe,
-                                                   &pid);
+  OSStatus status = ExecuteWithPrivilegesAndGetPID(
+      authorization, tool_path, options, arguments, pipe, &pid);
   if (status != errAuthorizationSuccess) {
     return status;
   }

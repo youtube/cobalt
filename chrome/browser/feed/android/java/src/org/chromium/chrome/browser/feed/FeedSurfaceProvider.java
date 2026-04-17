@@ -7,18 +7,36 @@ package org.chromium.chrome.browser.feed;
 import android.graphics.Canvas;
 import android.view.View;
 
-import androidx.annotation.Nullable;
+import androidx.annotation.IntDef;
 
+import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ui.native_page.TouchEnabledDelegate;
 import org.chromium.components.browser_ui.widget.displaystyle.UiConfig;
 
-/**
- * Provides a surface that displays a list of interest feeds.
- */
+/** Provides a surface that displays a list of interest feeds. */
+@NullMarked
 public interface FeedSurfaceProvider {
+
     /**
-     * Destroys the provider.
+     * The state of restoring process. Will started from {@link #WAITING_TO_RESTORE} to {@link
+     * #RESTORED} if the {@link FeedSurfaceProvider} receives a state to restore otherwise {@link
+     * #NO_STATE_TO_RESTORE} if {@link FeedSurfaceProvider} figures out there is no saved state to
+     * restore.
      */
+    @IntDef({
+        RestoringState.WAITING_TO_RESTORE,
+        RestoringState.RESTORED,
+        RestoringState.NO_STATE_TO_RESTORE
+    })
+    @interface RestoringState {
+        int WAITING_TO_RESTORE = 0;
+        int RESTORED = 1;
+        int NO_STATE_TO_RESTORE = 2;
+    }
+
+    /** Destroys the provider. */
     void destroy();
 
     /**
@@ -46,19 +64,17 @@ public interface FeedSurfaceProvider {
      */
     boolean shouldCaptureThumbnail();
 
-    /**
-     * Captures the contents of this provider into the specified output.
-     */
+    /** Captures the contents of this provider into the specified output. */
     void captureThumbnail(Canvas canvas);
 
     /**
      * @return The surface's FeedReliabilityLogger which may be null.
      */
-    @Nullable
-    FeedReliabilityLogger getReliabilityLogger();
+    @Nullable FeedReliabilityLogger getReliabilityLogger();
 
-    /**
-     * Reloads the contents.
-     */
+    /** Reloads the contents. */
     void reload();
+
+    /** Supplier of the state of the feed stream being restored. See {@link RestoringState}. */
+    ObservableSupplier<Integer> getRestoringStateSupplier();
 }

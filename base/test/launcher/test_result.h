@@ -6,12 +6,12 @@
 #define BASE_TEST_LAUNCHER_TEST_RESULT_H_
 
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 
@@ -46,6 +46,36 @@ struct TestResultPart {
 
   // Complete message.
   std::string message;
+};
+
+// Manually reported additional test result.
+// A TestResult may have any number of SubTestResults.
+struct SubTestResult {
+  SubTestResult();
+
+  SubTestResult(const SubTestResult& other);
+  SubTestResult& operator=(const SubTestResult& other);
+  SubTestResult(SubTestResult&& other) noexcept;
+  SubTestResult& operator=(SubTestResult&& other) noexcept;
+
+  ~SubTestResult();
+
+  // Fully qualified name containing `classname`, `name`, and `subname`.
+  // Constructed to match the regular expression for GTest names.
+  std::string FullName() const;
+
+  // GTest test suite name.
+  std::string classname;
+
+  // GTest test name.
+  std::string name;
+
+  // Custom third name field defined by test author.
+  std::string subname;
+
+  // Failure message that is passed along to CI. If nullopt, this SubTestResult
+  // is interpreted as successful.
+  std::optional<std::string> failure_message;
 };
 
 // Structure containing result of a single test.
@@ -87,6 +117,9 @@ struct TestResult {
   // See more in gtest_tags.h.
   void AddTag(const std::string& name, const std::string& value);
 
+  // Add an additional test result.
+  void AddSubTestResult(SubTestResult sub_test_result);
+
   // Add property in the xml output.
   void AddProperty(const std::string& name, const std::string& value);
 
@@ -94,10 +127,8 @@ struct TestResult {
   // normally, possibly with an exit code indicating failure, but didn't crash
   // or time out in the middle of the test).
   bool completed() const {
-    return status == TEST_SUCCESS ||
-        status == TEST_FAILURE ||
-        status == TEST_FAILURE_ON_EXIT ||
-        status == TEST_EXCESSIVE_OUTPUT;
+    return status == TEST_SUCCESS || status == TEST_FAILURE ||
+           status == TEST_FAILURE_ON_EXIT || status == TEST_EXCESSIVE_OUTPUT;
   }
 
   // Full name of the test (e.g. "A.B").
@@ -107,17 +138,17 @@ struct TestResult {
 
   // Start time of child test process, the field is optional the test could be
   // NOT_RUN.
-  absl::optional<base::Time> timestamp;
+  std::optional<base::Time> timestamp;
 
   // Thread id of the runner that launching the child process, which is also
   // recorded in TestLauncherTracer.
-  absl::optional<base::PlatformThreadId> thread_id;
+  std::optional<base::PlatformThreadId> thread_id;
 
   // The process num of child process launched it's recorded as event name in
   // TestLauncherTracer.
   // It's used instead of process id to distinguish processes that process id
   // might be reused by OS.
-  absl::optional<int> process_num;
+  std::optional<int> process_num;
 
   // Time it took to run the test.
   base::TimeDelta elapsed_time;
@@ -136,6 +167,9 @@ struct TestResult {
 
   // The key is tag name.
   std::map<std::string, std::vector<std::string>> tags;
+
+  // Collection of SubTestResults reported within this test.
+  std::vector<SubTestResult> sub_test_results;
 };
 
 }  // namespace base

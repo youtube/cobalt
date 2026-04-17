@@ -11,6 +11,7 @@
 #include <lib/sys/cpp/service_directory.h>
 
 #include <iostream>
+#include <optional>
 #include <utility>
 
 #include "base/base_paths.h"
@@ -36,7 +37,6 @@
 #include "fuchsia_web/shell/shell_relauncher.h"
 #include "fuchsia_web/webinstance_host/web_instance_host.h"
 #include "fuchsia_web/webinstance_host/web_instance_host_constants.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/widevine/cdm/buildflags.h"
 #include "url/gurl.h"
 
@@ -45,7 +45,7 @@ namespace {
 constexpr char kHeadlessSwitch[] = "headless";
 constexpr char kEnableProtectedMediaIdentifier[] =
     "enable-protected-media-identifier";
-// TODO(crbug.com/1421342): This flag will be removed. Keep for now to prevent
+// TODO(crbug.com/40896202): This flag will be removed. Keep for now to prevent
 // users from failing.
 constexpr char kUseWebInstance[] = "use-web-instance";
 constexpr char kUseContextProvider[] = "use-context-provider";
@@ -112,12 +112,8 @@ int main(int argc, char** argv) {
     }
   }
 
-  absl::optional<uint16_t> remote_debugging_port =
+  std::optional<uint16_t> remote_debugging_port =
       GetRemoteDebuggingPort(*command_line);
-  if (!remote_debugging_port) {
-    PrintUsage();
-    return 1;
-  }
 
   const bool is_headless = command_line->HasSwitch(kHeadlessSwitch);
   const bool enable_protected_media_identifier_access =
@@ -183,7 +179,9 @@ int main(int argc, char** argv) {
   }
 
   create_context_params.set_features(features);
-  create_context_params.set_remote_debugging_port(*remote_debugging_port);
+  if (remote_debugging_port) {
+    create_context_params.set_remote_debugging_port(*remote_debugging_port);
+  }
 
   // DRM services require cdm_data_directory to be populated, so create a
   // directory under /data and use that as the cdm_data_directory.
@@ -218,16 +216,18 @@ int main(int argc, char** argv) {
   } else {
     // Route services dynamically from web_engine_shell's parent down into
     // created web_instances.
-    web_instance_host = std::make_unique<WebInstanceHost>(
-        *base::ComponentContextForProcess()->outgoing());
+    web_instance_host =
+        std::make_unique<WebInstanceHostWithServicesFromThisComponent>(
+            *base::ComponentContextForProcess()->outgoing(),
+            /*is_web_instance_component_in_same_package=*/false);
     if (enable_web_instance_tmp) {
-      const zx_status_t status = fdio_open(
+      const zx_status_t status = fdio_open3(
           "/tmp",
-          static_cast<uint32_t>(fuchsia::io::OpenFlags::RIGHT_READABLE |
-                                fuchsia::io::OpenFlags::RIGHT_WRITABLE |
-                                fuchsia::io::OpenFlags::DIRECTORY),
+          static_cast<uint64_t>(fuchsia::io::PERM_READABLE |
+                                fuchsia::io::PERM_WRITABLE |
+                                fuchsia::io::Flags::PROTOCOL_DIRECTORY),
           tmp_directory.NewRequest().TakeChannel().release());
-      ZX_CHECK(status == ZX_OK, status) << "fdio_open(/tmp)";
+      ZX_CHECK(status == ZX_OK, status) << "fdio_open3(/tmp)";
       web_instance_host->set_tmp_dir(std::move(tmp_directory));
     }
     fidl::InterfaceRequest<fuchsia::io::Directory> services_request;
@@ -251,7 +251,9 @@ int main(int argc, char** argv) {
 
   // Create the browser |frame| which will contain the webpage.
   fuchsia::web::CreateFrameParams frame_params;
-  frame_params.set_enable_remote_debugging(true);
+  if (remote_debugging_port) {
+    frame_params.set_enable_remote_debugging(true);
+  }
 
   fuchsia::web::FramePtr frame;
   context->CreateFrameWithParams(std::move(frame_params), frame.NewRequest());
@@ -264,18 +266,6 @@ int main(int argc, char** argv) {
   fuchsia::web::ContentAreaSettings settings;
   settings.set_autoplay_policy(fuchsia::web::AutoplayPolicy::ALLOW);
   frame->SetContentAreaSettings(std::move(settings));
-
-  // Log the debugging port.
-  context->GetRemoteDebuggingPort(
-      [](fuchsia::web::Context_GetRemoteDebuggingPort_Result result) {
-        if (result.is_err()) {
-          LOG(ERROR) << "Remote debugging service was not opened.";
-          return;
-        }
-        // Telemetry expects this exact format of log line output to retrieve
-        // the remote debugging port.
-        LOG(INFO) << "Remote debugging port: " << result.response().port;
-      });
 
   // Navigate |frame| to |url|.
   fuchsia::web::LoadUrlParams load_params;
@@ -315,12 +305,11 @@ int main(int argc, char** argv) {
   fuchsia::element::AnnotationControllerPtr annotation_controller;
   annotations_manager->Connect(annotation_controller.NewRequest());
 
-  absl::optional<fuchsia::element::GraphicalPresenterPtr> maybe_presenter;
+  fuchsia::element::GraphicalPresenterPtr presenter;
   if (is_headless) {
     frame->EnableHeadlessRendering();
   } else {
-    auto result = PresentFrame(frame.get(), std::move(annotation_controller));
-    maybe_presenter.swap(result);
+    presenter = PresentFrame(frame.get(), std::move(annotation_controller));
   }
 
   LOG(INFO) << "Launched browser at URL " << url.spec();

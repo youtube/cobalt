@@ -24,22 +24,22 @@ namespace sharing {
 
 namespace {
 
-const char kDeviceName[] = "deviceName";
+constexpr char kDeviceName[] = "deviceName";
 // Salt for advertisement.
-const std::vector<uint8_t> kSalt(Advertisement::kSaltSize, 0);
+constexpr std::array<uint8_t, Advertisement::kSaltSize> kSalt = {};
 // Key for encrypting personal info metadata.
-static const std::vector<uint8_t> kEncryptedMetadataKey(
-    Advertisement::kMetadataEncryptionKeyHashByteSize,
-    0);
-const nearby_share::mojom::ShareTargetType kDeviceType =
+constexpr std::array<uint8_t, Advertisement::kMetadataEncryptionKeyHashByteSize>
+    kEncryptedMetadataKey = {};
+constexpr nearby_share::mojom::ShareTargetType kDeviceType =
     nearby_share::mojom::ShareTargetType::kPhone;
 
 void ExpectEquals(const Advertisement& self,
                   const mojom::AdvertisementPtr& other) {
   EXPECT_EQ(self.device_type(), other->device_type);
   EXPECT_EQ(self.device_name(), other->device_name);
-  EXPECT_EQ(self.salt(), other->salt);
-  EXPECT_EQ(self.encrypted_metadata_key(), other->encrypted_metadata_key);
+  EXPECT_EQ(self.salt(), base::span(other->salt));
+  EXPECT_EQ(self.encrypted_metadata_key(),
+            base::span(other->encrypted_metadata_key));
 }
 
 void ExpectFrameContainsIntroduction(
@@ -199,14 +199,15 @@ class NearbySharingDecoderTest : public testing::Test {
  public:
   NearbySharingDecoderTest() {
     decoder_ = std::make_unique<NearbySharingDecoder>(
-        remote_.BindNewPipeAndPassReceiver());
+        remote_.BindNewPipeAndPassReceiver(),
+        /*on_disconnect=*/base::DoNothing());
   }
 
   NearbySharingDecoder* decoder() const { return decoder_.get(); }
 
   void ExpectNullFrame(const sharing::nearby::Frame& frame) {
     std::vector<uint8_t> data;
-    int size = frame.ByteSize();
+    size_t size = frame.ByteSizeLong();
     if (size > 0) {
       data.resize(size);
       ASSERT_TRUE(frame.SerializeToArray(&data[0], size));
@@ -345,8 +346,8 @@ TEST_F(NearbySharingDecoderTest, IntroductionFrameDecoding) {
   }
 
   std::vector<uint8_t> data;
-  data.resize(frame.ByteSize());
-  ASSERT_TRUE(frame.SerializeToArray(&data[0], frame.ByteSize()));
+  data.resize(frame.ByteSizeLong());
+  ASSERT_TRUE(frame.SerializeToArray(&data[0], frame.ByteSizeLong()));
   base::RunLoop run_loop;
   auto callback = base::BindLambdaForTesting([&](const mojom::FramePtr answer) {
     ExpectFrameContainsIntroduction(answer, files, texts, required_package,
@@ -370,8 +371,8 @@ TEST_F(NearbySharingDecoderTest, ResponseFrameAcceptDecoding) {
   std::unique_ptr<sharing::nearby::Frame> frame = BuildResponseFrame(
       sharing::nearby::ConnectionResponseFrame_Status_ACCEPT);
   std::vector<uint8_t> data;
-  data.resize(frame->ByteSize());
-  ASSERT_TRUE(frame->SerializeToArray(&data[0], frame->ByteSize()));
+  data.resize(frame->ByteSizeLong());
+  ASSERT_TRUE(frame->SerializeToArray(&data[0], frame->ByteSizeLong()));
   base::RunLoop run_loop;
   auto callback = base::BindLambdaForTesting([&](const mojom::FramePtr answer) {
     ExpectFrameContainsResponse(
@@ -386,8 +387,8 @@ TEST_F(NearbySharingDecoderTest, ResponseFrameRejectDecoding) {
   std::unique_ptr<sharing::nearby::Frame> frame = BuildResponseFrame(
       sharing::nearby::ConnectionResponseFrame_Status_REJECT);
   std::vector<uint8_t> data;
-  data.resize(frame->ByteSize());
-  ASSERT_TRUE(frame->SerializeToArray(&data[0], frame->ByteSize()));
+  data.resize(frame->ByteSizeLong());
+  ASSERT_TRUE(frame->SerializeToArray(&data[0], frame->ByteSizeLong()));
   base::RunLoop run_loop;
   auto callback = base::BindLambdaForTesting([&](const mojom::FramePtr answer) {
     ExpectFrameContainsResponse(
@@ -402,8 +403,8 @@ TEST_F(NearbySharingDecoderTest, ResponseFrameNotEnoughSpaceDecoding) {
   std::unique_ptr<sharing::nearby::Frame> frame = BuildResponseFrame(
       sharing::nearby::ConnectionResponseFrame_Status_NOT_ENOUGH_SPACE);
   std::vector<uint8_t> data;
-  data.resize(frame->ByteSize());
-  ASSERT_TRUE(frame->SerializeToArray(&data[0], frame->ByteSize()));
+  data.resize(frame->ByteSizeLong());
+  ASSERT_TRUE(frame->SerializeToArray(&data[0], frame->ByteSizeLong()));
   base::RunLoop run_loop;
   auto callback = base::BindLambdaForTesting([&](const mojom::FramePtr answer) {
     ExpectFrameContainsResponse(
@@ -419,8 +420,8 @@ TEST_F(NearbySharingDecoderTest, ResponseFrameUnsupportedDecoding) {
       sharing::nearby::
           ConnectionResponseFrame_Status_UNSUPPORTED_ATTACHMENT_TYPE);
   std::vector<uint8_t> data;
-  data.resize(frame->ByteSize());
-  ASSERT_TRUE(frame->SerializeToArray(&data[0], frame->ByteSize()));
+  data.resize(frame->ByteSizeLong());
+  ASSERT_TRUE(frame->SerializeToArray(&data[0], frame->ByteSizeLong()));
   base::RunLoop run_loop;
   auto callback = base::BindLambdaForTesting([&](const mojom::FramePtr answer) {
     ExpectFrameContainsResponse(
@@ -436,8 +437,8 @@ TEST_F(NearbySharingDecoderTest, ResponseFrameTimedOutDecoding) {
   std::unique_ptr<sharing::nearby::Frame> frame = BuildResponseFrame(
       sharing::nearby::ConnectionResponseFrame_Status_TIMED_OUT);
   std::vector<uint8_t> data;
-  data.resize(frame->ByteSize());
-  ASSERT_TRUE(frame->SerializeToArray(&data[0], frame->ByteSize()));
+  data.resize(frame->ByteSizeLong());
+  ASSERT_TRUE(frame->SerializeToArray(&data[0], frame->ByteSizeLong()));
   base::RunLoop run_loop;
   auto callback = base::BindLambdaForTesting([&](const mojom::FramePtr answer) {
     ExpectFrameContainsResponse(
@@ -452,8 +453,8 @@ TEST_F(NearbySharingDecoderTest, ResponseFrameUnknownDecoding) {
   std::unique_ptr<sharing::nearby::Frame> frame = BuildResponseFrame(
       sharing::nearby::ConnectionResponseFrame_Status_UNKNOWN);
   std::vector<uint8_t> data;
-  data.resize(frame->ByteSize());
-  ASSERT_TRUE(frame->SerializeToArray(&data[0], frame->ByteSize()));
+  data.resize(frame->ByteSizeLong());
+  ASSERT_TRUE(frame->SerializeToArray(&data[0], frame->ByteSizeLong()));
   base::RunLoop run_loop;
   auto callback = base::BindLambdaForTesting([&](const mojom::FramePtr answer) {
     ExpectFrameContainsResponse(
@@ -487,8 +488,8 @@ TEST_F(NearbySharingDecoderTest, PairedKeyEncryptionFrameDecoding) {
   paired_key->set_secret_id_hash(secret_id_hash);
 
   std::vector<uint8_t> data;
-  data.resize(frame.ByteSize());
-  ASSERT_TRUE(frame.SerializeToArray(&data[0], frame.ByteSize()));
+  data.resize(frame.ByteSizeLong());
+  ASSERT_TRUE(frame.SerializeToArray(&data[0], frame.ByteSizeLong()));
   base::RunLoop run_loop;
   auto callback = base::BindLambdaForTesting([&](const mojom::FramePtr answer) {
     ExpectFrameContainsPairedKeyEncryption(answer, signed_data, secret_id_hash);
@@ -514,8 +515,8 @@ TEST_F(NearbySharingDecoderTest, CancelFrameSuccessDecoding) {
   v1frame->set_type(sharing::nearby::V1Frame_FrameType_CANCEL);
 
   std::vector<uint8_t> data;
-  data.resize(frame.ByteSize());
-  ASSERT_TRUE(frame.SerializeToArray(&data[0], frame.ByteSize()));
+  data.resize(frame.ByteSizeLong());
+  ASSERT_TRUE(frame.SerializeToArray(&data[0], frame.ByteSizeLong()));
 
   base::RunLoop run_loop;
   auto callback = base::BindLambdaForTesting([&](const mojom::FramePtr answer) {
@@ -530,8 +531,8 @@ TEST_F(NearbySharingDecoderTest, PairedKeyResultFrameSuccessDecoding) {
   std::unique_ptr<sharing::nearby::Frame> frame = BuildPairedKeyResultFrame(
       sharing::nearby::PairedKeyResultFrame_Status_SUCCESS);
   std::vector<uint8_t> data;
-  data.resize(frame->ByteSize());
-  ASSERT_TRUE(frame->SerializeToArray(&data[0], frame->ByteSize()));
+  data.resize(frame->ByteSizeLong());
+  ASSERT_TRUE(frame->SerializeToArray(&data[0], frame->ByteSizeLong()));
   base::RunLoop run_loop;
   auto callback = base::BindLambdaForTesting([&](const mojom::FramePtr answer) {
     ExpectFrameContainsPairedKeyResult(
@@ -546,8 +547,8 @@ TEST_F(NearbySharingDecoderTest, PairedKeyResultFrameFailDecoding) {
   std::unique_ptr<sharing::nearby::Frame> frame = BuildPairedKeyResultFrame(
       sharing::nearby::PairedKeyResultFrame_Status_FAIL);
   std::vector<uint8_t> data;
-  data.resize(frame->ByteSize());
-  ASSERT_TRUE(frame->SerializeToArray(&data[0], frame->ByteSize()));
+  data.resize(frame->ByteSizeLong());
+  ASSERT_TRUE(frame->SerializeToArray(&data[0], frame->ByteSizeLong()));
   base::RunLoop run_loop;
   auto callback = base::BindLambdaForTesting([&](const mojom::FramePtr answer) {
     ExpectFrameContainsPairedKeyResult(
@@ -562,8 +563,8 @@ TEST_F(NearbySharingDecoderTest, PairedKeyResultFrameUnableDecoding) {
   std::unique_ptr<sharing::nearby::Frame> frame = BuildPairedKeyResultFrame(
       sharing::nearby::PairedKeyResultFrame_Status_UNABLE);
   std::vector<uint8_t> data;
-  data.resize(frame->ByteSize());
-  ASSERT_TRUE(frame->SerializeToArray(&data[0], frame->ByteSize()));
+  data.resize(frame->ByteSizeLong());
+  ASSERT_TRUE(frame->SerializeToArray(&data[0], frame->ByteSizeLong()));
   base::RunLoop run_loop;
   auto callback = base::BindLambdaForTesting([&](const mojom::FramePtr answer) {
     ExpectFrameContainsPairedKeyResult(
@@ -578,8 +579,8 @@ TEST_F(NearbySharingDecoderTest, PairedKeyResultFrameUnknownDecoding) {
   std::unique_ptr<sharing::nearby::Frame> frame = BuildPairedKeyResultFrame(
       sharing::nearby::PairedKeyResultFrame_Status_UNKNOWN);
   std::vector<uint8_t> data;
-  data.resize(frame->ByteSize());
-  ASSERT_TRUE(frame->SerializeToArray(&data[0], frame->ByteSize()));
+  data.resize(frame->ByteSizeLong());
+  ASSERT_TRUE(frame->SerializeToArray(&data[0], frame->ByteSizeLong()));
   base::RunLoop run_loop;
   auto callback = base::BindLambdaForTesting([&](const mojom::FramePtr answer) {
     ExpectFrameContainsPairedKeyResult(
@@ -626,8 +627,8 @@ TEST_F(NearbySharingDecoderTest, CertificateFrameDecoding) {
   }
 
   std::vector<uint8_t> data;
-  data.resize(frame.ByteSize());
-  ASSERT_TRUE(frame.SerializeToArray(&data[0], frame.ByteSize()));
+  data.resize(frame.ByteSizeLong());
+  ASSERT_TRUE(frame.SerializeToArray(&data[0], frame.ByteSizeLong()));
   base::RunLoop run_loop;
   auto callback = base::BindLambdaForTesting([&](const mojom::FramePtr answer) {
     ExpectFrameContainsCertificateInfo(answer, certs);

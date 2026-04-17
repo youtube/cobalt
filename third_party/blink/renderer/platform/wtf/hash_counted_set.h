@@ -24,6 +24,7 @@
 #include "base/check_op.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/partition_allocator.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
+#include "third_party/blink/renderer/platform/wtf/type_traits.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace WTF {
@@ -48,16 +49,10 @@ class HashCountedSet {
   typedef typename ImplType::const_iterator const_iterator;
   typedef typename ImplType::AddResult AddResult;
 
-  HashCountedSet() {
-    static_assert(Allocator::kIsGarbageCollected ||
-                      !IsPointerToGarbageCollectedType<Value>::value,
-                  "Cannot put raw pointers to garbage-collected classes into "
-                  "an off-heap HashCountedSet. Use "
-                  "HeapHashCountedSet<Member<T>> instead.");
-  }
+  HashCountedSet() = default;
 
-  HashCountedSet(const HashCountedSet&) = delete;
-  HashCountedSet& operator=(const HashCountedSet&) = delete;
+  HashCountedSet(const HashCountedSet&) = default;
+  HashCountedSet& operator=(const HashCountedSet&) = default;
 
   void swap(HashCountedSet& other) { impl_.swap(other.impl_); }
 
@@ -99,11 +94,14 @@ class HashCountedSet {
   // Clears the whole set.
   void clear() { impl_.clear(); }
 
-  Vector<Value> AsVector() const;
+  const auto& Values() const {
+    // The values (vs counts) are the keys of ImplType.
+    return impl_.Keys();
+  }
 
-  template <typename VisitorDispatcher, typename A = Allocator>
-  std::enable_if_t<A::kIsGarbageCollected> Trace(
-      VisitorDispatcher visitor) const {
+  void Trace(auto visitor) const
+    requires Allocator::kIsGarbageCollected
+  {
     impl_.Trace(visitor);
   }
 
@@ -114,6 +112,18 @@ class HashCountedSet {
 
  private:
   ImplType impl_;
+
+  struct TypeConstraints {
+    constexpr TypeConstraints() {
+      static_assert(!IsStackAllocatedTypeV<Value>);
+      static_assert(Allocator::kIsGarbageCollected ||
+                        !IsPointerToGarbageCollectedType<Value>,
+                    "Cannot put raw pointers to garbage-collected classes into "
+                    "an off-heap HashCountedSet. Use "
+                    "HeapHashCountedSet<Member<T>> instead.");
+    }
+  };
+  NO_UNIQUE_ADDRESS TypeConstraints type_constraints_;
 };
 
 template <typename T, typename U, typename V>
@@ -154,32 +164,6 @@ inline void HashCountedSet<T, U, V>::RemoveAll(iterator it) {
     return;
 
   impl_.erase(it);
-}
-
-template <typename Value,
-          typename Traits,
-          typename Allocator,
-          typename VectorType>
-inline void CopyToVector(
-    const HashCountedSet<Value, Traits, Allocator>& collection,
-    VectorType& vector) {
-  {
-    // Disallow GC across resize allocation, see crbug.com/568173
-    typename VectorType::GCForbiddenScope scope;
-    vector.resize(collection.size());
-  }
-
-  auto it = collection.begin();
-  auto end = collection.end();
-  for (unsigned i = 0; it != end; ++it, ++i)
-    vector[i] = (*it).key;
-}
-
-template <typename T, typename U, typename V>
-inline Vector<T> HashCountedSet<T, U, V>::AsVector() const {
-  Vector<T> vector;
-  CopyToVector(*this, vector);
-  return vector;
 }
 
 }  // namespace WTF

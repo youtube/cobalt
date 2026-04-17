@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/qpack/qpack_decoded_headers_accumulator.h"
 
+#include <utility>
+
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/qpack/qpack_decoder.h"
 #include "quiche/quic/core/qpack/qpack_header_table.h"
@@ -23,9 +25,7 @@ QpackDecodedHeadersAccumulator::QpackDecodedHeadersAccumulator(
       compressed_header_bytes_(0),
       header_list_size_limit_exceeded_(false),
       headers_decoded_(false),
-      error_detected_(false) {
-  quic_header_list_.OnHeaderBlockStart();
-}
+      error_detected_(false) {}
 
 void QpackDecodedHeadersAccumulator::OnHeaderDecoded(absl::string_view name,
                                                      absl::string_view value) {
@@ -46,10 +46,8 @@ void QpackDecodedHeadersAccumulator::OnHeaderDecoded(absl::string_view name,
           : uncompressed_header_bytes_without_overhead_;
   if (uncompressed_header_bytes > max_header_list_size_) {
     header_list_size_limit_exceeded_ = true;
-    quic_header_list_.Clear();
-  } else {
-    quic_header_list_.OnHeader(name, value);
   }
+  quic_header_list_.OnHeader(name, value);
 }
 
 void QpackDecodedHeadersAccumulator::OnDecodingCompleted() {

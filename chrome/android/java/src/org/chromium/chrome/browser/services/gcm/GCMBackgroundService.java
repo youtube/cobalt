@@ -5,14 +5,16 @@
 package org.chromium.chrome.browser.services.gcm;
 
 import org.chromium.build.annotations.IdentifierNameString;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.base.SplitCompatIntentService;
 
 /** See {@link GCMBackgroundServiceImpl}. */
+@NullMarked
 public class GCMBackgroundService extends SplitCompatIntentService {
     private static final String TAG = "GCMBackgroundService";
 
-    @IdentifierNameString
-    private static String sImplClassName =
+    @SuppressWarnings("FieldCanBeFinal") // @IdentifierNameString requires non-final
+    private static @IdentifierNameString String sImplClassName =
             "org.chromium.chrome.browser.services.gcm.GCMBackgroundServiceImpl";
 
     public GCMBackgroundService() {

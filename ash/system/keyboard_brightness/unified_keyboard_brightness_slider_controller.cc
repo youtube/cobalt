@@ -19,6 +19,7 @@
 #include "ash/strings/grit/ash_strings.h"
 #include "ash/style/ash_color_provider.h"
 #include "ash/system/keyboard_brightness/keyboard_backlight_color_controller.h"
+#include "ash/system/keyboard_brightness_control_delegate.h"
 #include "ash/system/unified/unified_system_tray_model.h"
 #include "ash/webui/personalization_app/mojom/personalization_app.mojom-forward.h"
 #include "base/functional/bind.h"
@@ -46,10 +47,10 @@ class UnifiedKeyboardBrightnessView : public UnifiedSliderView,
       : UnifiedSliderView(views::Button::PressedCallback(),
                           controller,
                           kUnifiedMenuKeyboardBrightnessIcon,
-                          IDS_ASH_STATUS_TRAY_BRIGHTNESS),
+                          IDS_ASH_STATUS_TRAY_BRIGHTNESS,
+                          /*is_togglable=*/false),
         model_(model) {
-    if (features::IsRgbKeyboardEnabled() &&
-        Shell::Get()->rgb_keyboard_manager()->IsRgbKeyboardSupported()) {
+    if (Shell::Get()->rgb_keyboard_manager()->IsRgbKeyboardSupported()) {
       if (button()) {
         button()->SetBackgroundColor(keyboardBrightnessIconBackgroundColor);
       }
@@ -118,7 +119,7 @@ class UnifiedKeyboardBrightnessView : public UnifiedSliderView,
     return;
   }
 
-  const raw_ptr<UnifiedSystemTrayModel, ExperimentalAsh> model_;
+  const raw_ptr<UnifiedSystemTrayModel> model_;
 
   base::WeakPtrFactory<UnifiedKeyboardBrightnessView> weak_factory_{this};
 };
@@ -134,10 +135,11 @@ UnifiedKeyboardBrightnessSliderController::
 
 std::unique_ptr<UnifiedSliderView>
 UnifiedKeyboardBrightnessSliderController::CreateView() {
-  DCHECK(!slider_);
-  auto slider = std::make_unique<UnifiedKeyboardBrightnessView>(this, model_);
-  slider_ = slider.get();
-  return slider;
+#if DCHECK_IS_ON()
+  DCHECK(!created_view_);
+  created_view_ = true;
+#endif
+  return std::make_unique<UnifiedKeyboardBrightnessView>(this, model_);
 }
 
 QsSliderCatalogName
@@ -151,6 +153,19 @@ void UnifiedKeyboardBrightnessSliderController::SliderValueChanged(
     float old_value,
     views::SliderChangeReason reason) {
   if (reason != views::SliderChangeReason::kByUser) {
+    return;
+  }
+
+  if (features::IsKeyboardBacklightControlInSettingsEnabled()) {
+    KeyboardBrightnessControlDelegate* keyboard_brightness_control_delegate =
+        Shell::Get()->keyboard_brightness_control_delegate();
+    if (!keyboard_brightness_control_delegate) {
+      return;
+    }
+    const double percent = value * 100;
+    keyboard_brightness_control_delegate->HandleSetKeyboardBrightness(
+        percent, /*gradual=*/true,
+        /*source=*/KeyboardBrightnessChangeSource::kQuickSettings);
     return;
   }
 

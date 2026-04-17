@@ -30,9 +30,9 @@
 #include "media/base/pipeline_status.h"
 #include "media/base/renderer.h"
 #include "media/base/renderer_client.h"
+#include "media/base/starboard/starboard_renderer_config.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
 #include "media/starboard/sbplayer_bridge.h"
-#include "media/starboard/sbplayer_set_bounds_helper.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -56,6 +56,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                     TimeDelta audio_write_duration_local,
                     TimeDelta audio_write_duration_remote,
                     const std::string& max_video_capabilities,
+                    const StarboardRendererConfig::ExperimentalFeatures&
+                        experimental_features,
                     const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
                     ,
@@ -82,10 +84,10 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
     LOG_IF(INFO, !preserves_pitch)
         << "SetPreservesPitch() with preserves_pitch=false is not supported.";
   }
-  void SetWasPlayedWithUserActivation(
-      bool was_played_with_user_activation) override {
-    LOG_IF(INFO, was_played_with_user_activation)
-        << "SetWasPlayedWithUserActivation() with "
+  void SetWasPlayedWithUserActivationAndHighMediaEngagement(
+      bool was_played_with_user_activation_and_high_media_engagement) override {
+    LOG_IF(INFO, was_played_with_user_activation_and_high_media_engagement)
+        << "SetWasPlayedWithUserActivationAndHighMediaEngagement() with "
            "was_played_with_user_activation=true is not supported.";
   }
   void Flush(base::OnceClosure flush_cb) override;
@@ -93,31 +95,24 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   void SetPlaybackRate(double playback_rate) override;
   void SetVolume(float volume) override;
   TimeDelta GetMediaTime() override;
-  void OnSelectedVideoTracksChanged(
-      const std::vector<DemuxerStream*>& enabled_tracks,
-      base::OnceClosure change_completed_cb) override {
-    LOG(INFO) << "Track changes are not supported.";
-    std::move(change_completed_cb).Run();
-  }
-  void OnEnabledAudioTracksChanged(
-      const std::vector<DemuxerStream*>& enabled_tracks,
-      base::OnceClosure change_completed_cb) override {
-    LOG(INFO) << "Track changes are not supported.";
-    std::move(change_completed_cb).Run();
-  }
+  void OnTracksChanged(DemuxerStream::Type track_type,
+                       std::vector<DemuxerStream*> enabled_tracks,
+                       base::OnceClosure change_completed_cb) override;
   RendererType GetRendererType() override { return RendererType::kStarboard; }
 
   using PaintVideoHoleFrameCallback =
       base::RepeatingCallback<void(const gfx::Size&)>;
   using UpdateStarboardRenderingModeCallback =
       base::RepeatingCallback<void(const StarboardRenderingMode mode)>;
+  using GetSbWindowHandleCallback = base::RepeatingCallback<void()>;
 #if BUILDFLAG(IS_ANDROID)
   using RequestOverlayInfoCallBack =
       base::RepeatingCallback<void(bool restart_for_transitions)>;
 #endif  // BUILDFLAG(IS_ANDROID)
   void SetStarboardRendererCallbacks(
       PaintVideoHoleFrameCallback paint_video_hole_frame_cb,
-      UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb
+      UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb,
+      GetSbWindowHandleCallback get_sb_window_handle_cb
 #if BUILDFLAG(IS_ANDROID)
       ,
       RequestOverlayInfoCallBack request_overlay_info_cb
@@ -125,6 +120,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   );
 
   void OnVideoGeometryChange(const gfx::Rect& output_rect);
+  void OnSbWindowHandleReady(const uint64_t sb_window_handle);
 #if BUILDFLAG(IS_ANDROID)
   void OnOverlayInfoChanged(const OverlayInfo& overlay_info);
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -146,8 +142,10 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   };
 
   void CreatePlayerBridge();
+  void ApplyPendingBounds();
   void UpdateDecoderConfig(DemuxerStream* stream);
   void OnDemuxerStreamRead(DemuxerStream* stream,
+                           int max_buffers,
                            DemuxerStream::Status status,
                            DemuxerStream::DecoderBufferVector buffers);
   void OnStatisticsUpdate(const PipelineStatistics& stats);
@@ -186,18 +184,21 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   State state_;
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;
   const std::unique_ptr<MediaLog> media_log_;
-  const scoped_refptr<SbPlayerSetBoundsHelper> set_bounds_helper_;
   raw_ptr<CdmContext> cdm_context_;
   BufferingState buffering_state_;
   const TimeDelta audio_write_duration_local_;
   const TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
+  const StarboardRendererConfig::ExperimentalFeatures experimental_features_;
+  // TODO: b/375674101 - Connect this to h5vcc setting.
+  const int max_samples_per_write_;
   const gfx::Size viewport_size_;
 #if BUILDFLAG(IS_ANDROID)
   const AndroidOverlayMojoFactoryCB android_overlay_factory_cb_;
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_ANDROID)
+  jobject surface_view_ = nullptr;
   std::unique_ptr<AndroidOverlay> overlay_;
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -209,12 +210,15 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   raw_ptr<RendererClient> client_ = nullptr;
   PaintVideoHoleFrameCallback paint_video_hole_frame_cb_;
   UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb_;
+  GetSbWindowHandleCallback get_sb_window_handle_cb_;
 #if BUILDFLAG(IS_ANDROID)
   RequestOverlayInfoCallBack request_overlay_info_cb_;
 #endif  // BUILDFLAG(IS_ANDROID)
 
   // The current overlay info, which possibly specifies an overlay to render to.
   OverlayInfo overlay_info_;
+
+  std::optional<gfx::Rect> output_rect_;
 
   // Temporary callback used for Initialize().
   PipelineStatusCallback init_cb_;
@@ -244,15 +248,10 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   Time last_time_media_time_retrieved_;
 
   bool audio_read_delayed_ = false;
-  // TODO(b/375674101): Support batched samples write.
-  const int max_audio_samples_per_write_ = 1;
 
   SbDrmSystem drm_system_{kSbDrmSystemInvalid};
 
   std::unique_ptr<SbPlayerBridge> player_bridge_;
-
-  bool player_bridge_initialized_ = false;
-  std::optional<TimeDelta> playing_start_from_time_;
 
   base::OnceClosure pending_flush_cb_;
 
@@ -265,6 +264,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   uint32_t last_video_frames_decoded_ = 0;
   uint32_t last_video_frames_dropped_ = 0;
 
+  SbWindow sb_window_ = kSbWindowInvalid;
+
   raw_ptr<SbPlayerInterface> test_sbplayer_interface_;
 
   // Message to signal a capability changed error.
@@ -273,7 +274,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   static inline constexpr const char* kSbPlayerCapabilityChangedErrorMessage =
       "MEDIA_ERR_CAPABILITY_CHANGED";
 
-  // WeakPtrFactory should be defined last (after all member variables).
+  // NOTE: Do not add member variables after weak_factory_
+  // It should be the first one destroyed among all members.
+  // See base/memory/weak_ptr.h.
   base::WeakPtrFactory<StarboardRenderer> weak_factory_{this};
 };
 

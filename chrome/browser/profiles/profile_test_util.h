@@ -8,11 +8,8 @@
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
+#include "build/chromeos_buildflags.h"
 #include "chrome/browser/profiles/profile_selections.h"
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chromeos/crosapi/mojom/crosapi.mojom.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
 class Profile;
 class ProfileKeyedServiceFactory;
@@ -37,7 +34,7 @@ class ScopedNonEnterpriseDomainSetterForTesting {
   // pretty basic level in tests (`user_manager::kStubUserEmail`)
   // This is needed to prevent `TurnSyncOnHelper` for trying to make network
   // calls to fetch policy for the current account.
-  // TODO(https://crbug.com/1311650): Try to get saner defaults for stub user
+  // TODO(crbug.com/40831172): Try to get saner defaults for stub user
   // info or allowlisted domains.
   explicit ScopedNonEnterpriseDomainSetterForTesting(
       const char* domain = "example.com");
@@ -60,7 +57,7 @@ class ScopedProfileSelectionsForFactoryTesting {
 };
 
 // A testing wrapper to simulate a logged-in managed guest session.
-// These sessions are only available for ChromeOS in Ash and Lacros modes.
+// These sessions are only available for ChromeOS.
 class ScopedTestManagedGuestSession {
  public:
   ScopedTestManagedGuestSession();
@@ -69,11 +66,6 @@ class ScopedTestManagedGuestSession {
   ScopedTestManagedGuestSession(const ScopedTestManagedGuestSession&) = delete;
   ScopedTestManagedGuestSession& operator=(
       const ScopedTestManagedGuestSession&) = delete;
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
- private:
-  crosapi::mojom::BrowserInitParamsPtr init_params_;
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 };
 
 }  // namespace profiles::testing

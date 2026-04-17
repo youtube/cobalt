@@ -7,6 +7,7 @@ package org.chromium.chrome.test.util.browser;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.base.test.util.CallbackHelper;
@@ -17,18 +18,17 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.test.util.ChromeTabUtils;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.test.util.Coordinates;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 import org.chromium.ui.base.PageTransition;
 import org.chromium.url.GURL;
 
-/**
- * Monitors that a Tab starts loading and stops loading a URL.
- */
+/** Monitors that a Tab starts loading and stops loading a URL. */
 public class TabLoadObserver extends EmptyTabObserver {
     private static final float FLOAT_EPSILON = 0.001f;
 
     private final CallbackHelper mTabLoadStartedCallback = new CallbackHelper();
     private final CallbackHelper mTabLoadFinishedCallback = new CallbackHelper();
+    private int mCurrentTabLoadStartedCallCount;
+    private int mCurrentTabLoadFinishedCallCount;
 
     private final Tab mTab;
     private final String mExpectedTitle;
@@ -40,7 +40,7 @@ public class TabLoadObserver extends EmptyTabObserver {
 
     public TabLoadObserver(Tab tab, String expectedTitle, Float expectedScale) {
         mTab = tab;
-        TestThreadUtils.runOnUiThreadBlocking(() -> mTab.addObserver(this));
+        ThreadUtils.runOnUiThreadBlocking(() -> mTab.addObserver(this));
         mExpectedTitle = expectedTitle;
         mExpectedScale = expectedScale;
     }
@@ -76,35 +76,49 @@ public class TabLoadObserver extends EmptyTabObserver {
      * @param transitionType the transition type to use.
      */
     public void fullyLoadUrl(final String url, final int transitionType) throws Exception {
-        PostTask.runOrPostTask(TaskTraits.UI_DEFAULT,
-                () -> { mTab.loadUrl(new LoadUrlParams(url, transitionType)); });
+        PostTask.runOrPostTask(
+                TaskTraits.UI_DEFAULT,
+                () -> {
+                    mTab.loadUrl(new LoadUrlParams(url, transitionType));
+                });
         assertLoaded();
     }
 
-    /**
-     * Asserts the page has loaded.
-     */
+    /** Asserts the page has loaded. */
     public void assertLoaded() throws Exception {
-        mTabLoadStartedCallback.waitForCallback(0, 1);
-        mTabLoadFinishedCallback.waitForCallback(0, 1);
+        mTabLoadStartedCallback.waitForCallback(
+                mCurrentTabLoadStartedCallCount, /* numberOfCallsToWaitFor= */ 1);
+        mCurrentTabLoadStartedCallCount = mTabLoadStartedCallback.getCallCount();
+        mTabLoadFinishedCallback.waitForCallback(
+                mCurrentTabLoadFinishedCallCount, /* numberOfCallsToWaitFor= */ 1);
+        mCurrentTabLoadFinishedCallCount = mTabLoadFinishedCallback.getCallCount();
+
         final Coordinates coord = Coordinates.createFor(mTab.getWebContents());
 
-        CriteriaHelper.pollUiThread(() -> {
-            Criteria.checkThat("load and rendering never completed",
-                    ChromeTabUtils.isLoadingAndRenderingDone(mTab), Matchers.is(true));
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    Criteria.checkThat(
+                            "load and rendering never completed",
+                            ChromeTabUtils.isLoadingAndRenderingDone(mTab),
+                            Matchers.is(true));
 
-            if (mExpectedTitle != null) {
-                Criteria.checkThat(
-                        "title did not match", mTab.getTitle(), Matchers.is(mExpectedTitle));
-            }
+                    if (mExpectedTitle != null) {
+                        Criteria.checkThat(
+                                "title did not match",
+                                mTab.getTitle(),
+                                Matchers.is(mExpectedTitle));
+                    }
 
-            if (mExpectedScale != null) {
-                Criteria.checkThat(
-                        "tab has no web contents", mTab.getWebContents(), Matchers.notNullValue());
-                float scale = coord.getPageScaleFactor();
-                Criteria.checkThat((double) mExpectedScale,
-                        Matchers.is(Matchers.closeTo(scale, FLOAT_EPSILON)));
-            }
-        });
+                    if (mExpectedScale != null) {
+                        Criteria.checkThat(
+                                "tab has no web contents",
+                                mTab.getWebContents(),
+                                Matchers.notNullValue());
+                        float scale = coord.getPageScaleFactor();
+                        Criteria.checkThat(
+                                (double) mExpectedScale,
+                                Matchers.is(Matchers.closeTo(scale, FLOAT_EPSILON)));
+                    }
+                });
     }
 }

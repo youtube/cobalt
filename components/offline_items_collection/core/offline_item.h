@@ -5,15 +5,16 @@
 #ifndef COMPONENTS_OFFLINE_ITEMS_COLLECTION_CORE_OFFLINE_ITEM_H_
 #define COMPONENTS_OFFLINE_ITEMS_COLLECTION_CORE_OFFLINE_ITEM_H_
 
+#include <optional>
 #include <string>
 
 #include "base/files/file_path.h"
 #include "base/time/time.h"
+#include "components/download/public/common/download_danger_type.h"
 #include "components/offline_items_collection/core/fail_state.h"
 #include "components/offline_items_collection/core/offline_item_filter.h"
 #include "components/offline_items_collection/core/offline_item_state.h"
 #include "components/offline_items_collection/core/pending_state.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/image/image.h"
 #include "url/gurl.h"
 
@@ -37,9 +38,8 @@ struct ContentId {
 
   ~ContentId();
 
-  bool operator==(const ContentId& content_id) const;
-
-  bool operator<(const ContentId& content_id) const;
+  friend bool operator==(const ContentId&, const ContentId&) = default;
+  friend auto operator<=>(const ContentId&, const ContentId&) = default;
 };
 
 // A Java counterpart will be generated for this enum.
@@ -72,7 +72,7 @@ struct OfflineItem {
 
     // The maximum value of the download progress. Absence of the value implies
     // indeterminate progress.
-    absl::optional<int64_t> max;
+    std::optional<int64_t> max;
 
     // The unit of progress to be displayed in the UI.
     OfflineItemProgressUnit unit;
@@ -181,6 +181,12 @@ struct OfflineItem {
   // Identifies the item's publisher.
   std::string attribution;
 
+  // The URL of document that is considered the referrer for the original URL.
+  GURL referrer_url;
+
+  // Whether this item is triggered by user gesture.
+  bool has_user_gesture;
+
   // In Progress Metadata.
   // ---------------------------------------------------------------------------
   // The current state of the OfflineItem.
@@ -212,6 +218,10 @@ struct OfflineItem {
   // represents an unknown time remaining.  This field is not used if |state| is
   // COMPLETE.
   int64_t time_remaining_ms;
+
+  // The danger type of this offline item. This should be consistent with the
+  // `is_dangerous` field below.
+  download::DownloadDangerType danger_type;
 
   // Whether the download might be dangerous and will require additional
   // validation from user.

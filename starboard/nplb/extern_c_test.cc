@@ -17,7 +17,6 @@
 extern "C" {
 #include "starboard/audio_sink.h"
 #include "starboard/configuration.h"
-#include "starboard/cpu_features.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
 #include "starboard/egl.h"
@@ -35,6 +34,5 @@ extern "C" {
 #include "starboard/system.h"
 #include "starboard/thread.h"
 #include "starboard/time_zone.h"
-#include "starboard/types.h"
 #include "starboard/window.h"
 }

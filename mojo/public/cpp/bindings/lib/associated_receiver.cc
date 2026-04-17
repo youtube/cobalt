@@ -4,8 +4,15 @@
 
 #include "mojo/public/cpp/bindings/associated_receiver.h"
 
-#include <memory>
+#include <stdint.h>
 
+#include <memory>
+#include <string_view>
+#include <utility>
+
+#include "base/check.h"
+#include "base/containers/span.h"
+#include "base/functional/bind.h"
 #include "base/task/sequenced_task_runner.h"
 #include "mojo/public/cpp/bindings/lib/multiplex_router.h"
 #include "mojo/public/cpp/bindings/lib/task_runner_helper.h"
@@ -27,7 +34,7 @@ void AssociatedReceiverBase::reset() {
 }
 
 void AssociatedReceiverBase::ResetWithReason(uint32_t custom_reason,
-                                             base::StringPiece description) {
+                                             std::string_view description) {
   // TODO(dcheng): This should unconditionally assert that there is an endpoint
   // client.
   if (endpoint_client_)

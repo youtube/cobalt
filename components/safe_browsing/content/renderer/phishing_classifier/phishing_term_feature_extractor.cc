@@ -7,6 +7,7 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <string_view>
 #include <unordered_set>
 #include <utility>
 
@@ -147,7 +148,7 @@ void PhishingTermFeatureExtractor::ExtractFeaturesWithTimeout() {
     if (state_->iterator->IsWord()) {
       const size_t start = state_->iterator->prev();
       const size_t length = state_->iterator->pos() - start;
-      HandleWord(base::StringPiece16(page_text_->data() + start, length));
+      HandleWord(std::u16string_view(*page_text_).substr(start, length));
       ++num_words;
     }
 
@@ -155,8 +156,6 @@ void PhishingTermFeatureExtractor::ExtractFeaturesWithTimeout() {
       num_words = 0;
       base::TimeTicks now = clock_->NowTicks();
       if (now - state_->start_time >= base::Milliseconds(kMaxTotalTimeMs)) {
-        // We expect this to happen infrequently, so record when it does.
-        UMA_HISTOGRAM_COUNTS_1M("SBClientPhishing.TermFeatureTimeout", 1);
         RunCallback(false);
         return;
       }
@@ -164,12 +163,6 @@ void PhishingTermFeatureExtractor::ExtractFeaturesWithTimeout() {
       if (chunk_elapsed >= base::Milliseconds(kMaxTimePerChunkMs)) {
         // The time limit for the current chunk is up, so post a task to
         // continue extraction.
-        //
-        // Record how much time we actually spent on the chunk.  If this is
-        // much higher than kMaxTimePerChunkMs, we may need to adjust the
-        // clock granularity.
-        UMA_HISTOGRAM_TIMES("SBClientPhishing.TermFeatureChunkTime",
-                            chunk_elapsed);
         base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
             FROM_HERE,
             base::BindOnce(
@@ -183,7 +176,7 @@ void PhishingTermFeatureExtractor::ExtractFeaturesWithTimeout() {
   RunCallback(true);
 }
 
-void PhishingTermFeatureExtractor::HandleWord(const base::StringPiece16& word) {
+void PhishingTermFeatureExtractor::HandleWord(std::u16string_view word) {
   // First, extract shingle hashes.
   const std::string& word_lower = base::UTF16ToUTF8(base::i18n::ToLower(word));
   state_->current_shingle.append(word_lower + " ");
@@ -254,10 +247,6 @@ void PhishingTermFeatureExtractor::RunCallback(bool success) {
   // Record some timing stats that we can use to evaluate feature extraction
   // performance.  These include both successful and failed extractions.
   DCHECK(state_.get());
-  UMA_HISTOGRAM_COUNTS_1M("SBClientPhishing.TermFeatureIterations",
-                          state_->num_iterations);
-  UMA_HISTOGRAM_TIMES("SBClientPhishing.TermFeatureTotalTime",
-                      clock_->NowTicks() - state_->start_time);
 
   DCHECK(!done_callback_.is_null());
   TRACE_EVENT_NESTABLE_ASYNC_END0("safe_browsing", "ExtractTermFeatures", this);

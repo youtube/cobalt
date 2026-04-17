@@ -53,17 +53,21 @@ class EuiccStatusUploader : public ash::NetworkPolicyObserver,
                       PrefService* local_state,
                       IsDeviceActiveCallback is_device_managed_callback);
 
-  // A local state preference that stores the last uploaded Euicc status in such
-  // format:
+  // A local state preference that stores the last uploaded Euicc status in the
+  // following format:
   // {
   //    euicc_count: integer
   //    esim_profiles: [
   //      iccid : string,
-  //      smdp_address : string
+  //      network_name : string,
+  //      smdp_activation_code : string,
+  //      smds_activation_code : string,
   //    ]
   // }
-  //
+  // Please note that the |smdp_activation_code| and |smds_activation_code|
+  // fields are mutually exclusive.
   static const char kLastUploadedEuiccStatusPref[];
+
   // A local state boolean preference which determines whether we should set
   // UploadEuiccInfoRequest.clear_profile_list to true. This is set to true when
   // clear EUICC remote command was run on the client.
@@ -81,9 +85,6 @@ class EuiccStatusUploader : public ash::NetworkPolicyObserver,
   // CloudPolicyClient::Observer:
   void OnRegistrationStateChanged(CloudPolicyClient* client) override;
   void OnPolicyFetched(CloudPolicyClient* client) override;
-  void OnClientError(CloudPolicyClient* client) override {}
-  void OnServiceAccountSet(CloudPolicyClient* client,
-                           const std::string& account_email) override {}
 
   // ash::HermesManagerClient:
   void OnAvailableEuiccListChanged() override;
@@ -96,16 +97,15 @@ class EuiccStatusUploader : public ash::NetworkPolicyObserver,
 
   base::Value::Dict GetCurrentEuiccStatus() const;
   void MaybeUploadStatus();
-  void MaybeUploadStatusWithDelay();
   void UploadStatus(base::Value::Dict status);
-  void OnStatusUploaded(bool success);
+  void OnStatusUploaded(bool should_send_clear_profiles_request, bool success);
   void RetryUpload();
 
   // Used in tests. Fires |retry_timer_| to avoid flakiness.
   void FireRetryTimerIfExistsForTesting();
 
-  raw_ptr<CloudPolicyClient, ExperimentalAsh> client_;
-  raw_ptr<PrefService, ExperimentalAsh> local_state_;
+  raw_ptr<CloudPolicyClient> client_;
+  raw_ptr<PrefService> local_state_;
 
   bool currently_uploading_ = false;
   // The status that is being uploaded right now.
@@ -126,7 +126,7 @@ class EuiccStatusUploader : public ash::NetworkPolicyObserver,
   base::ScopedObservation<CloudPolicyClient, CloudPolicyClient::Observer>
       cloud_policy_client_observation_{this};
 
-  raw_ptr<ash::ManagedNetworkConfigurationHandler, ExperimentalAsh>
+  raw_ptr<ash::ManagedNetworkConfigurationHandler>
       managed_network_configuration_handler_ = nullptr;
 
   base::WeakPtrFactory<EuiccStatusUploader> weak_ptr_factory_{this};

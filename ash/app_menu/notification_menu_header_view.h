@@ -6,6 +6,7 @@
 #define ASH_APP_MENU_NOTIFICATION_MENU_HEADER_VIEW_H_
 
 #include "base/memory/raw_ptr.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/view.h"
 
 namespace views {
@@ -17,6 +18,8 @@ namespace ash {
 // The header view which shows the "Notifications" text and a counter to show
 // the number of notifications for this app.
 class NotificationMenuHeaderView : public views::View {
+  METADATA_HEADER(NotificationMenuHeaderView, views::View)
+
  public:
   NotificationMenuHeaderView();
 
@@ -28,9 +31,10 @@ class NotificationMenuHeaderView : public views::View {
 
   void UpdateCounter(int number_of_notifications);
 
-  // Overidden from views::View:
-  gfx::Size CalculatePreferredSize() const override;
-  void Layout() override;
+  // Overridden from views::View:
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
+  void Layout(PassKey) override;
 
  private:
   friend class NotificationMenuViewTestAPI;
@@ -39,11 +43,11 @@ class NotificationMenuHeaderView : public views::View {
   int number_of_notifications_ = 0;
 
   // Holds the "Notifications" label. Owned by the views hierarchy.
-  raw_ptr<views::Label, ExperimentalAsh> notification_title_ = nullptr;
+  raw_ptr<views::Label> notification_title_ = nullptr;
 
   // Holds a numeric string that indicates how many notifications are active.
   // Owned by the views hierarchy.
-  raw_ptr<views::Label, ExperimentalAsh> counter_ = nullptr;
+  raw_ptr<views::Label> counter_ = nullptr;
 };
 
 }  // namespace ash

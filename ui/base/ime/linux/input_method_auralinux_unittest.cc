@@ -7,16 +7,17 @@
 #include <stddef.h>
 
 #include <memory>
+#include <optional>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/singleton.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/ime/dummy_text_input_client.h"
 #include "ui/base/ime/ime_key_event_dispatcher.h"
 #include "ui/base/ime/init/input_method_initializer.h"
@@ -94,11 +95,11 @@ class LinuxInputMethodContextForTesting : public LinuxInputMethodContext {
     return &virtual_keyboard_controller_;
   }
 
-  TextInputType input_type() const { return input_type_; }
-  TextInputMode input_mode() const { return input_mode_; }
-  uint32_t input_flags() const { return input_flags_; }
-  bool should_do_learning() const { return should_do_learning_; }
-  bool can_compose_inline() const { return can_compose_inline_; }
+  TextInputType input_type() const { return attributes_.input_type; }
+  TextInputMode input_mode() const { return attributes_.input_mode; }
+  uint32_t input_flags() const { return attributes_.flags; }
+  bool should_do_learning() const { return attributes_.should_do_learning; }
+  bool can_compose_inline() const { return attributes_.can_compose_inline; }
   TextInputClient* old_client() { return old_client_; }
   TextInputClient* new_client() { return new_client_; }
   void DropClients() {
@@ -152,41 +153,35 @@ class LinuxInputMethodContextForTesting : public LinuxInputMethodContext {
 
   void UpdateFocus(bool has_client,
                    TextInputType old_type,
-                   TextInputType new_type,
-                   ui::TextInputClient::FocusReason reason) override {}
+                   const TextInputClientAttributes& new_client_attributes,
+                   ui::TextInputClient::FocusReason reason) override {
+    attributes_ = new_client_attributes;
+  }
 
   void SetCursorLocation(const gfx::Rect& rect) override {
     cursor_position_ = rect;
   }
 
-  void SetSurroundingText(
-      const std::u16string& text,
-      const gfx::Range& text_range,
-      const gfx::Range& selection_range,
-      const absl::optional<GrammarFragment>& fragment,
-      const absl::optional<AutocorrectInfo>& autocorrect) override {
+  void SetSurroundingText(const std::u16string& text,
+                          const gfx::Range& text_range,
+                          const gfx::Range& composition_range,
+                          const gfx::Range& selection_range) override {
     TestResult::GetInstance()->RecordAction(u"surroundingtext:" + text);
     TestResult::GetInstance()->RecordAction(base::ASCIIToUTF16(
         base::StringPrintf("textrangestart:%zu", text_range.start())));
     TestResult::GetInstance()->RecordAction(base::ASCIIToUTF16(
         base::StringPrintf("textrangeend:%zu", text_range.end())));
     TestResult::GetInstance()->RecordAction(
+        base::ASCIIToUTF16(base::StringPrintf("compositionrangestart:%zu",
+                                              composition_range.start())));
+    TestResult::GetInstance()->RecordAction(
+        base::ASCIIToUTF16(base::StringPrintf("compositionrangeend:%zu",
+                                              composition_range.end())));
+    TestResult::GetInstance()->RecordAction(
         base::ASCIIToUTF16(base::StringPrintf("selectionrangestart:%zu",
                                               selection_range.start())));
     TestResult::GetInstance()->RecordAction(base::ASCIIToUTF16(
         base::StringPrintf("selectionrangeend:%zu", selection_range.end())));
-  }
-
-  void SetContentType(TextInputType type,
-                      TextInputMode mode,
-                      uint32_t flags,
-                      bool should_do_learning,
-                      bool can_compose_inline) override {
-    input_type_ = type;
-    input_mode_ = mode;
-    input_flags_ = flags;
-    should_do_learning_ = should_do_learning;
-    can_compose_inline_ = can_compose_inline;
   }
 
  private:
@@ -196,13 +191,9 @@ class LinuxInputMethodContextForTesting : public LinuxInputMethodContext {
   bool is_sync_mode_;
   bool eat_key_;
   gfx::Rect cursor_position_;
-  TextInputType input_type_;
-  TextInputMode input_mode_;
-  uint32_t input_flags_;
-  bool should_do_learning_;
-  bool can_compose_inline_;
-  raw_ptr<TextInputClient> old_client_ = nullptr;
-  raw_ptr<TextInputClient> new_client_ = nullptr;
+  TextInputClientAttributes attributes_;
+  raw_ptr<TextInputClient, DanglingUntriaged> old_client_ = nullptr;
+  raw_ptr<TextInputClient, DanglingUntriaged> new_client_ = nullptr;
 };
 
 class InputMethodDelegateForTesting : public ImeKeyEventDispatcher {
@@ -219,18 +210,16 @@ class InputMethodDelegateForTesting : public ImeKeyEventDispatcher {
       ui::KeyEvent* key_event) override {
     std::string action;
     switch (key_event->type()) {
-      case ET_KEY_PRESSED:
+      case EventType::kKeyPressed:
         action = "keydown:";
         break;
-      case ET_KEY_RELEASED:
+      case EventType::kKeyReleased:
         action = "keyup:";
         break;
       default:
         break;
     }
-    std::stringstream ss;
-    ss << key_event->key_code();
-    action += std::string(ss.str());
+    action += base::NumberToString(key_event->key_code());
     TestResult::GetInstance()->RecordAction(base::ASCIIToUTF16(action));
     return ui::EventDispatchDetails();
   }
@@ -243,10 +232,11 @@ class TextInputClientForTesting : public DummyTextInputClient {
 
   std::u16string composition_text;
   gfx::Range text_range;
+  gfx::Range composition_range;
   gfx::Range selection_range;
   std::u16string surrounding_text;
 
-  absl::optional<gfx::Rect> caret_not_in_rect;
+  std::optional<gfx::Rect> caret_not_in_rect;
 
   bool can_compose_inline = false;
 
@@ -254,6 +244,9 @@ class TextInputClientForTesting : public DummyTextInputClient {
   bool CanComposeInline() const override { return can_compose_inline; }
 
   void SetCompositionText(const CompositionText& composition) override {
+    // TODO(crbug.com/40276085) According to the documentation for
+    // SetCompositionText, if there is no composition, any existing text
+    // selection should be deleted.
     composition_text = composition.text;
     TestResult::GetInstance()->RecordAction(u"compositionstart");
     TestResult::GetInstance()->RecordAction(u"compositionupdate:" +
@@ -291,14 +284,17 @@ class TextInputClientForTesting : public DummyTextInputClient {
   }
 
   void InsertChar(const ui::KeyEvent& event) override {
-    std::stringstream ss;
-    ss << static_cast<uint16_t>(event.GetCharacter());
-    TestResult::GetInstance()->RecordAction(u"keypress:" +
-                                            base::ASCIIToUTF16(ss.str()));
+    TestResult::GetInstance()->RecordAction(
+        u"keypress:" + base::ASCIIToUTF16(base::NumberToString(
+                           static_cast<uint16_t>(event.GetCharacter()))));
   }
 
   bool GetTextRange(gfx::Range* range) const override {
     *range = text_range;
+    return true;
+  }
+  bool GetCompositionTextRange(gfx::Range* range) const override {
+    *range = composition_range;
     return true;
   }
   bool GetEditableSelectionRange(gfx::Range* range) const override {
@@ -315,6 +311,10 @@ class TextInputClientForTesting : public DummyTextInputClient {
 
   void EnsureCaretNotInRect(const gfx::Rect& rect) override {
     caret_not_in_rect = rect;
+  }
+
+  void InsertImage(const GURL& url) override {
+    TestResult::GetInstance()->RecordAction(u"insertimage");
   }
 };
 
@@ -350,8 +350,8 @@ class InputMethodAuraLinuxTest : public testing::Test {
 
   void SetUp() override {
     delegate_ = std::make_unique<InputMethodDelegateForTesting>();
-    input_method_auralinux_ =
-        std::make_unique<InputMethodAuraLinux>(delegate_.get());
+    input_method_auralinux_ = std::make_unique<InputMethodAuraLinux>(
+        delegate_.get(), gfx::kNullAcceleratedWidget);
     input_method_auralinux_->OnFocus();
     context_ = static_cast<LinuxInputMethodContextForTesting*>(
         input_method_auralinux_->GetContextForTesting());
@@ -380,7 +380,7 @@ TEST_F(InputMethodAuraLinuxTest, BasicSyncModeTest) {
       std::make_unique<TextInputClientForTesting>(TEXT_INPUT_TYPE_TEXT);
   InstallFirstClient(client1.get());
 
-  KeyEvent key_new(ET_KEY_PRESSED, VKEY_A, 0);
+  KeyEvent key_new(EventType::kKeyPressed, VKEY_A, 0);
   key_new.set_character(L'a');
 
   KeyEvent key = key_new;
@@ -415,7 +415,7 @@ TEST_F(InputMethodAuraLinuxTest, BasicAsyncModeTest) {
   auto client1 =
       std::make_unique<TextInputClientForTesting>(TEXT_INPUT_TYPE_TEXT);
   InstallFirstClient(client1.get());
-  KeyEvent key_new(ET_KEY_PRESSED, VKEY_A, 0);
+  KeyEvent key_new(EventType::kKeyPressed, VKEY_A, 0);
   key_new.set_character(L'a');
   KeyEvent key = key_new;
   input_method_auralinux_->DispatchKeyEvent(&key);
@@ -457,7 +457,7 @@ TEST_F(InputMethodAuraLinuxTest, IBusUSTest) {
   auto client =
       std::make_unique<TextInputClientForTesting>(TEXT_INPUT_TYPE_TEXT);
   InstallFirstClient(client.get());
-  KeyEvent key_new(ET_KEY_PRESSED, VKEY_A, 0);
+  KeyEvent key_new(EventType::kKeyPressed, VKEY_A, 0);
   key_new.set_character(L'a');
   KeyEvent key = key_new;
   input_method_auralinux_->DispatchKeyEvent(&key);
@@ -477,7 +477,7 @@ TEST_F(InputMethodAuraLinuxTest, IBusUSTest) {
 
   // IBus does NOT handle the key up.
   context_->SetEatKey(false);
-  KeyEvent key_up(ET_KEY_RELEASED, VKEY_A, 0);
+  KeyEvent key_up(EventType::kKeyReleased, VKEY_A, 0);
   input_method_auralinux_->DispatchKeyEvent(&key_up);
 
   test_result_->ExpectAction("keyup:65");
@@ -493,7 +493,7 @@ TEST_F(InputMethodAuraLinuxTest, IBusPinyinTest) {
   auto client =
       std::make_unique<TextInputClientForTesting>(TEXT_INPUT_TYPE_TEXT);
   InstallFirstClient(client.get());
-  KeyEvent key(ET_KEY_PRESSED, VKEY_A, 0);
+  KeyEvent key(EventType::kKeyPressed, VKEY_A, 0);
   key.set_character(L'a');
   input_method_auralinux_->DispatchKeyEvent(&key);
 
@@ -509,7 +509,7 @@ TEST_F(InputMethodAuraLinuxTest, IBusPinyinTest) {
   test_result_->Verify();
 
   // IBus issues a commit text with composition after muting the space key down.
-  KeyEvent key_up(ET_KEY_RELEASED, VKEY_SPACE, 0);
+  KeyEvent key_up(EventType::kKeyReleased, VKEY_SPACE, 0);
   input_method_auralinux_->DispatchKeyEvent(&key_up);
 
   input_method_auralinux_->OnPreeditEnd();
@@ -530,7 +530,7 @@ TEST_F(InputMethodAuraLinuxTest, FcitxPinyinTest) {
   auto client =
       std::make_unique<TextInputClientForTesting>(TEXT_INPUT_TYPE_TEXT);
   InstallFirstClient(client.get());
-  KeyEvent key(ET_KEY_PRESSED, VKEY_A, 0);
+  KeyEvent key(EventType::kKeyPressed, VKEY_A, 0);
   key.set_character(L'a');
   input_method_auralinux_->DispatchKeyEvent(&key);
   input_method_auralinux_->OnPreeditStart();
@@ -539,7 +539,7 @@ TEST_F(InputMethodAuraLinuxTest, FcitxPinyinTest) {
   // When input characters with fcitx+chinese, there has no
   // composing text and no composition updated.
   // So do nothing here is to emulate the fcitx+chinese input.
-  KeyEvent key_up(ET_KEY_RELEASED, VKEY_RETURN, 0);
+  KeyEvent key_up(EventType::kKeyReleased, VKEY_RETURN, 0);
   input_method_auralinux_->DispatchKeyEvent(&key_up);
 
   input_method_auralinux_->OnCommit(u"a");
@@ -561,7 +561,7 @@ TEST_F(InputMethodAuraLinuxTest, Fcitx5PinyinTest) {
   auto client =
       std::make_unique<TextInputClientForTesting>(TEXT_INPUT_TYPE_TEXT);
   InstallFirstClient(client.get());
-  KeyEvent key(ET_KEY_PRESSED, VKEY_A, 0);
+  KeyEvent key(EventType::kKeyPressed, VKEY_A, 0);
   key.set_character(L'a');
   input_method_auralinux_->DispatchKeyEvent(&key);
   input_method_auralinux_->OnPreeditStart();
@@ -577,7 +577,7 @@ TEST_F(InputMethodAuraLinuxTest, Fcitx5PinyinTest) {
 
   // Typing return issues a commit, followed by preedit change (to make
   // composition empty), then preedit end.
-  KeyEvent key_up(ET_KEY_RELEASED, VKEY_RETURN, 0);
+  KeyEvent key_up(EventType::kKeyReleased, VKEY_RETURN, 0);
   input_method_auralinux_->DispatchKeyEvent(&key_up);
 
   input_method_auralinux_->OnCommit(u"a");
@@ -600,7 +600,7 @@ TEST_F(InputMethodAuraLinuxTest, JapaneseCommit) {
   auto client =
       std::make_unique<TextInputClientForTesting>(TEXT_INPUT_TYPE_TEXT);
   InstallFirstClient(client.get());
-  KeyEvent key(ET_KEY_PRESSED, VKEY_A, 0);
+  KeyEvent key(EventType::kKeyPressed, VKEY_A, 0);
   key.set_character(L'a');
   input_method_auralinux_->DispatchKeyEvent(&key);
 
@@ -618,7 +618,7 @@ TEST_F(InputMethodAuraLinuxTest, JapaneseCommit) {
   // IBus issues a commit text with composition after muting the space key down.
   // Typing return issues a commit, followed by preedit change (to make
   // composition empty), then preedit end.
-  KeyEvent key_up(ET_KEY_PRESSED, VKEY_RETURN, 0);
+  KeyEvent key_up(EventType::kKeyPressed, VKEY_RETURN, 0);
   input_method_auralinux_->DispatchKeyEvent(&key_up);
 
   input_method_auralinux_->OnCommit(u"a");
@@ -642,7 +642,7 @@ TEST_F(InputMethodAuraLinuxTest, EmptyCommit) {
       std::make_unique<TextInputClientForTesting>(TEXT_INPUT_TYPE_TEXT);
   InstallFirstClient(client.get());
 
-  KeyEvent key(ET_KEY_PRESSED, VKEY_A, 0);
+  KeyEvent key(EventType::kKeyPressed, VKEY_A, 0);
   key.set_character(L'a');
   input_method_auralinux_->DispatchKeyEvent(&key);
   input_method_auralinux_->OnPreeditStart();
@@ -682,7 +682,7 @@ void DeadKeyTest(TextInputType text_input_type,
   constexpr int32_t kCombiningGraveAccent = 0x0300;
   {
     KeyEvent dead_key(
-        ET_KEY_PRESSED, VKEY_OEM_4, ui::DomCode::BRACKET_LEFT,
+        EventType::kKeyPressed, VKEY_OEM_4, ui::DomCode::BRACKET_LEFT,
         /* flags= */ 0,
         DomKey::DeadKeyFromCombiningCharacter(kCombiningGraveAccent),
         base::TimeTicks());
@@ -693,7 +693,7 @@ void DeadKeyTest(TextInputType text_input_type,
   context->SetEatKey(false);
   {
     KeyEvent dead_key(
-        ET_KEY_RELEASED, VKEY_OEM_4, ui::DomCode::BRACKET_LEFT,
+        EventType::kKeyReleased, VKEY_OEM_4, ui::DomCode::BRACKET_LEFT,
         /* flags= */ 0,
         DomKey::DeadKeyFromCombiningCharacter(kCombiningGraveAccent),
         base::TimeTicks());
@@ -709,7 +709,7 @@ void DeadKeyTest(TextInputType text_input_type,
   context->SetEatKey(true);
 
   context->AddCommitAction("X");
-  KeyEvent key(ET_KEY_PRESSED, VKEY_A, 0);
+  KeyEvent key(EventType::kKeyPressed, VKEY_A, 0);
   key.set_character(L'a');
   input_method_auralinux->DispatchKeyEvent(&key);
 
@@ -736,12 +736,12 @@ TEST_F(InputMethodAuraLinuxTest, DeadKeyTestTypeNone) {
 // Wayland may send both a peek key event and a key event for key events not
 // consumed by IME. In that case, the peek key should not be dispatched.
 TEST_F(InputMethodAuraLinuxTest, MockWaylandEventsTest) {
-  KeyEvent peek_key(ET_KEY_PRESSED, VKEY_TAB, 0);
+  KeyEvent peek_key(EventType::kKeyPressed, VKEY_TAB, 0);
   input_method_auralinux_->DispatchKeyEvent(&peek_key);
   // No expected action for peek key events.
   test_result_->Verify();
 
-  KeyEvent key(ET_KEY_PRESSED, VKEY_TAB, 0);
+  KeyEvent key(EventType::kKeyPressed, VKEY_TAB, 0);
   SetKeyboardImeFlags(&key, kPropertyKeyboardImeIgnoredFlag);
   input_method_auralinux_->DispatchKeyEvent(&key);
   test_result_->ExpectAction("keydown:9");
@@ -759,7 +759,7 @@ TEST_F(InputMethodAuraLinuxTest, MultiCommitsTest) {
       std::make_unique<TextInputClientForTesting>(TEXT_INPUT_TYPE_TEXT);
   InstallFirstClient(client.get());
 
-  KeyEvent key(ET_KEY_PRESSED, VKEY_A, 0);
+  KeyEvent key(EventType::kKeyPressed, VKEY_A, 0);
   key.set_character(L'a');
   input_method_auralinux_->DispatchKeyEvent(&key);
 
@@ -783,7 +783,7 @@ TEST_F(InputMethodAuraLinuxTest, MixedCompositionAndCommitTest) {
       std::make_unique<TextInputClientForTesting>(TEXT_INPUT_TYPE_TEXT);
   InstallFirstClient(client.get());
 
-  KeyEvent key_new(ET_KEY_PRESSED, VKEY_A, 0);
+  KeyEvent key_new(EventType::kKeyPressed, VKEY_A, 0);
   key_new.set_character(L'a');
   KeyEvent key = key_new;
   input_method_auralinux_->DispatchKeyEvent(&key);
@@ -816,7 +816,7 @@ TEST_F(InputMethodAuraLinuxTest, CompositionEndWithoutCommitTest) {
       std::make_unique<TextInputClientForTesting>(TEXT_INPUT_TYPE_TEXT);
   InstallFirstClient(client.get());
 
-  KeyEvent key_new(ET_KEY_PRESSED, VKEY_A, 0);
+  KeyEvent key_new(EventType::kKeyPressed, VKEY_A, 0);
   key_new.set_character(L'a');
   KeyEvent key = key_new;
   input_method_auralinux_->DispatchKeyEvent(&key);
@@ -847,7 +847,7 @@ TEST_F(InputMethodAuraLinuxTest, CompositionEndWithEmptyCommitTest) {
       std::make_unique<TextInputClientForTesting>(TEXT_INPUT_TYPE_TEXT);
   InstallFirstClient(client.get());
 
-  KeyEvent key_new(ET_KEY_PRESSED, VKEY_A, 0);
+  KeyEvent key_new(EventType::kKeyPressed, VKEY_A, 0);
   key_new.set_character(L'a');
   KeyEvent key = key_new;
   input_method_auralinux_->DispatchKeyEvent(&key);
@@ -880,7 +880,7 @@ TEST_F(InputMethodAuraLinuxTest, CompositionEndWithCommitTest) {
       std::make_unique<TextInputClientForTesting>(TEXT_INPUT_TYPE_TEXT);
   InstallFirstClient(client.get());
 
-  KeyEvent key_new(ET_KEY_PRESSED, VKEY_A, 0);
+  KeyEvent key_new(EventType::kKeyPressed, VKEY_A, 0);
   key_new.set_character(L'a');
   KeyEvent key = key_new;
   input_method_auralinux_->DispatchKeyEvent(&key);
@@ -916,7 +916,7 @@ TEST_F(InputMethodAuraLinuxTest, CompositionUpdateWithCommitTest) {
       std::make_unique<TextInputClientForTesting>(TEXT_INPUT_TYPE_TEXT);
   InstallFirstClient(client.get());
 
-  KeyEvent key_new(ET_KEY_PRESSED, VKEY_A, 0);
+  KeyEvent key_new(EventType::kKeyPressed, VKEY_A, 0);
   key_new.set_character(L'a');
   KeyEvent key = key_new;
   input_method_auralinux_->DispatchKeyEvent(&key);
@@ -951,7 +951,7 @@ TEST_F(InputMethodAuraLinuxTest, MixedAsyncAndSyncTest) {
       std::make_unique<TextInputClientForTesting>(TEXT_INPUT_TYPE_TEXT);
   InstallFirstClient(client.get());
 
-  KeyEvent key_new(ET_KEY_PRESSED, VKEY_A, 0);
+  KeyEvent key_new(EventType::kKeyPressed, VKEY_A, 0);
   key_new.set_character(L'a');
   KeyEvent key = key_new;
   input_method_auralinux_->DispatchKeyEvent(&key);
@@ -989,7 +989,7 @@ TEST_F(InputMethodAuraLinuxTest, MixedSyncAndAsyncTest) {
       std::make_unique<TextInputClientForTesting>(TEXT_INPUT_TYPE_TEXT);
   InstallFirstClient(client.get());
 
-  KeyEvent key_new(ET_KEY_PRESSED, VKEY_A, 0);
+  KeyEvent key_new(EventType::kKeyPressed, VKEY_A, 0);
   key_new.set_character(L'a');
   KeyEvent key = key_new;
   input_method_auralinux_->DispatchKeyEvent(&key);
@@ -1031,7 +1031,7 @@ TEST_F(InputMethodAuraLinuxTest, ReleaseKeyTest) {
       std::make_unique<TextInputClientForTesting>(TEXT_INPUT_TYPE_TEXT);
   InstallFirstClient(client.get());
 
-  KeyEvent key_new(ET_KEY_PRESSED, VKEY_A, 0);
+  KeyEvent key_new(EventType::kKeyPressed, VKEY_A, 0);
   key_new.set_character(L'A');
   KeyEvent key = key_new;
   input_method_auralinux_->DispatchKeyEvent(&key);
@@ -1068,7 +1068,7 @@ TEST_F(InputMethodAuraLinuxTest, ReleaseKeyTest_PeekKey) {
   context_->SetSyncMode(true);
   context_->SetEatKey(true);
 
-  KeyEvent key(ET_KEY_RELEASED, VKEY_A, 0);
+  KeyEvent key(EventType::kKeyReleased, VKEY_A, 0);
   key.set_character(L'A');
   input_method_auralinux_->DispatchKeyEvent(&key);
 
@@ -1090,6 +1090,8 @@ TEST_F(InputMethodAuraLinuxTest, SurroundingText_NoSelectionTest) {
   test_result_->ExpectAction("surroundingtext:abcdef");
   test_result_->ExpectAction("textrangestart:0");
   test_result_->ExpectAction("textrangeend:6");
+  test_result_->ExpectAction("compositionrangestart:0");
+  test_result_->ExpectAction("compositionrangeend:0");
   test_result_->ExpectAction("selectionrangestart:3");
   test_result_->ExpectAction("selectionrangeend:3");
   test_result_->Verify();
@@ -1112,7 +1114,58 @@ TEST_F(InputMethodAuraLinuxTest, SurroundingText_SelectionTest) {
   test_result_->ExpectAction("surroundingtext:abcdef");
   test_result_->ExpectAction("textrangestart:0");
   test_result_->ExpectAction("textrangeend:6");
+  test_result_->ExpectAction("compositionrangestart:0");
+  test_result_->ExpectAction("compositionrangeend:0");
   test_result_->ExpectAction("selectionrangestart:2");
+  test_result_->ExpectAction("selectionrangeend:5");
+  test_result_->Verify();
+
+  RemoveLastClient(client.get());
+}
+
+TEST_F(InputMethodAuraLinuxTest, SurroundingText_NoCompositionTest) {
+  auto client =
+      std::make_unique<TextInputClientForTesting>(TEXT_INPUT_TYPE_TEXT);
+  InstallFirstClient(client.get());
+
+  client->surrounding_text = u"abcdef";
+  client->text_range = gfx::Range(0, 6);
+  client->composition_range = gfx::Range(3, 3);
+  client->selection_range = gfx::Range(2, 5);
+
+  input_method_auralinux_->OnCaretBoundsChanged(client.get());
+
+  test_result_->ExpectAction("surroundingtext:abcdef");
+  test_result_->ExpectAction("textrangestart:0");
+  test_result_->ExpectAction("textrangeend:6");
+  test_result_->ExpectAction("compositionrangestart:3");
+  test_result_->ExpectAction("compositionrangeend:3");
+  test_result_->ExpectAction("selectionrangestart:2");
+  test_result_->ExpectAction("selectionrangeend:5");
+  test_result_->Verify();
+
+  input_method_auralinux_->DetachTextInputClient(client.get());
+  context_->DropClients();
+}
+
+TEST_F(InputMethodAuraLinuxTest, SurroundingText_CompositionTest) {
+  auto client =
+      std::make_unique<TextInputClientForTesting>(TEXT_INPUT_TYPE_TEXT);
+  InstallFirstClient(client.get());
+
+  client->surrounding_text = u"abcdef";
+  client->text_range = gfx::Range(0, 6);
+  client->composition_range = gfx::Range(2, 5);
+  client->selection_range = gfx::Range(3, 5);
+
+  input_method_auralinux_->OnCaretBoundsChanged(client.get());
+
+  test_result_->ExpectAction("surroundingtext:abcdef");
+  test_result_->ExpectAction("textrangestart:0");
+  test_result_->ExpectAction("textrangeend:6");
+  test_result_->ExpectAction("compositionrangestart:2");
+  test_result_->ExpectAction("compositionrangeend:5");
+  test_result_->ExpectAction("selectionrangestart:3");
   test_result_->ExpectAction("selectionrangeend:5");
   test_result_->Verify();
 
@@ -1133,6 +1186,8 @@ TEST_F(InputMethodAuraLinuxTest, SurroundingText_PartialText) {
   test_result_->ExpectAction("surroundingtext:fghij");
   test_result_->ExpectAction("textrangestart:5");
   test_result_->ExpectAction("textrangeend:10");
+  test_result_->ExpectAction("compositionrangestart:0");
+  test_result_->ExpectAction("compositionrangeend:0");
   test_result_->ExpectAction("selectionrangestart:7");
   test_result_->ExpectAction("selectionrangeend:9");
   test_result_->Verify();
@@ -1156,6 +1211,8 @@ TEST_F(InputMethodAuraLinuxTest, SetPreeditRegionSingleCharTest) {
   test_result_->ExpectAction("surroundingtext:a");
   test_result_->ExpectAction("textrangestart:0");
   test_result_->ExpectAction("textrangeend:1");
+  test_result_->ExpectAction("compositionrangestart:0");
+  test_result_->ExpectAction("compositionrangeend:0");
   test_result_->ExpectAction("selectionrangestart:1");
   test_result_->ExpectAction("selectionrangeend:1");
 
@@ -1189,6 +1246,8 @@ TEST_F(InputMethodAuraLinuxTest, SetPreeditRegionCompositionEndTest) {
   test_result_->ExpectAction("surroundingtext:a");
   test_result_->ExpectAction("textrangestart:0");
   test_result_->ExpectAction("textrangeend:1");
+  test_result_->ExpectAction("compositionrangestart:0");
+  test_result_->ExpectAction("compositionrangeend:0");
   test_result_->ExpectAction("selectionrangestart:1");
   test_result_->ExpectAction("selectionrangeend:1");
 
@@ -1211,6 +1270,42 @@ TEST_F(InputMethodAuraLinuxTest, OnSetVirtualKeyboardOccludedBounds) {
   input_method_auralinux_->OnSetVirtualKeyboardOccludedBounds(kBounds);
 
   EXPECT_EQ(client->caret_not_in_rect, kBounds);
+  RemoveLastClient(client.get());
+}
+
+TEST_F(InputMethodAuraLinuxTest, OnConfirmCompositionText) {
+  auto client =
+      std::make_unique<TextInputClientForTesting>(TEXT_INPUT_TYPE_TEXT);
+  InstallFirstClient(client.get());
+
+  input_method_auralinux_->OnPreeditStart();
+  CompositionText comp;
+  comp.text = u"a";
+  input_method_auralinux_->OnPreeditChanged(comp);
+
+  test_result_->ExpectAction("compositionstart");
+  test_result_->ExpectAction("compositionupdate:a");
+  test_result_->Verify();
+
+  input_method_auralinux_->OnConfirmCompositionText(/*keep_selection=*/true);
+
+  test_result_->ExpectAction("compositionend");
+  test_result_->ExpectAction("textinput:a");
+
+  RemoveLastClient(client.get());
+}
+
+TEST_F(InputMethodAuraLinuxTest, OnInsertImage) {
+  const GURL some_image_url = GURL("");
+  auto client = std::make_unique<TextInputClientForTesting>(
+      TEXT_INPUT_TYPE_CONTENT_EDITABLE);
+  InstallFirstClient(client.get());
+
+  input_method_auralinux_->OnInsertImage(some_image_url);
+
+  test_result_->ExpectAction("insertimage");
+  test_result_->Verify();
+
   RemoveLastClient(client.get());
 }
 
@@ -1269,6 +1364,51 @@ TEST_F(InputMethodAuraLinuxTest, CanComposeInline) {
 
   input_method_auralinux_->SetFocusedTextInputClient(client2.get());
   EXPECT_EQ(context_->can_compose_inline(), true);
+}
+
+TEST_F(InputMethodAuraLinuxTest, UpdateCompositionIfTextSelected) {
+  auto client =
+      std::make_unique<TextInputClientForTesting>(TEXT_INPUT_TYPE_TEXT);
+  InstallFirstClient(client.get());
+
+  // SetCompositionText("") should not be called when nothing is selected.
+  client->surrounding_text = u"abcdef";
+  client->text_range = gfx::Range(0, 6);
+  client->selection_range = gfx::Range(3, 3);
+  input_method_auralinux_->OnCaretBoundsChanged(client.get());
+  test_result_->ExpectAction("surroundingtext:abcdef");
+  test_result_->ExpectAction("textrangestart:0");
+  test_result_->ExpectAction("textrangeend:6");
+  test_result_->ExpectAction("compositionrangestart:0");
+  test_result_->ExpectAction("compositionrangeend:0");
+  test_result_->ExpectAction("selectionrangestart:3");
+  test_result_->ExpectAction("selectionrangeend:3");
+  test_result_->Verify();
+  input_method_auralinux_->OnPreeditChanged(CompositionText());
+  test_result_->Verify();
+
+  // SetCompositionText("") should be called when there is a text selection.
+  client->selection_range = gfx::Range(2, 5);
+  input_method_auralinux_->OnCaretBoundsChanged(client.get());
+  test_result_->ExpectAction("surroundingtext:abcdef");
+  test_result_->ExpectAction("textrangestart:0");
+  test_result_->ExpectAction("textrangeend:6");
+  test_result_->ExpectAction("compositionrangestart:0");
+  test_result_->ExpectAction("compositionrangeend:0");
+  test_result_->ExpectAction("selectionrangestart:2");
+  test_result_->ExpectAction("selectionrangeend:5");
+  test_result_->Verify();
+  input_method_auralinux_->OnPreeditChanged(CompositionText());
+  test_result_->ExpectAction("compositionstart");
+  test_result_->ExpectAction("compositionupdate:");
+  test_result_->Verify();
+
+  // TODO(crbug.com/40276085) This test verifies that SetCompositionText is
+  // called when there is a selection, but it doesn't verify that it deletes
+  // the existing text selection. This is because the mock TextInputClient
+  // doesn't do anything with the selection.
+
+  RemoveLastClient(client.get());
 }
 
 }  // namespace

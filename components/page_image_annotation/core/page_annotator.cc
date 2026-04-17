@@ -11,12 +11,12 @@ namespace page_image_annotation {
 
 namespace ia_mojom = image_annotation::mojom;
 
-PageAnnotator::Observer::~Observer() {}
+PageAnnotator::Observer::~Observer() = default;
 
 PageAnnotator::PageAnnotator(mojo::PendingRemote<ia_mojom::Annotator> annotator)
     : annotator_(std::move(annotator)) {}
 
-PageAnnotator::~PageAnnotator() {}
+PageAnnotator::~PageAnnotator() = default;
 
 void PageAnnotator::ImageAddedOrPossiblyModified(
     const ImageMetadata& metadata,
@@ -59,7 +59,7 @@ void PageAnnotator::AnnotateImage(Observer* const observer,
   if (lookup == images_.end())
     return;
 
-  // TODO(crbug.com/916363): get a user's preferred language and pass it here.
+  // TODO(crbug.com/41432474): get a user's preferred language and pass it here.
   annotator_->AnnotateImage(
       lookup->second.first.source_id,
       std::string() /* description_language_tag */,

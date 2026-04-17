@@ -12,10 +12,10 @@
 #include "chrome/browser/ash/crostini/crostini_util.h"
 #include "chrome/browser/ash/guest_os/guest_os_terminal.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/grit/generated_resources.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/chromeos/devicetype_utils.h"
 #include "ui/strings/grit/ui_strings.h"
@@ -37,7 +37,7 @@ void crostini::ShowCrostiniRecoveryView(
     crostini::CrostiniUISurface ui_surface,
     const std::string& app_id,
     int64_t display_id,
-    const std::vector<crostini::LaunchArg>& args,
+    const std::vector<guest_os::LaunchArg>& args,
     crostini::CrostiniSuccessCallback callback) {
   CrostiniRecoveryView::Show(profile, app_id, display_id, args,
                              std::move(callback));
@@ -48,7 +48,7 @@ void crostini::ShowCrostiniRecoveryView(
 void CrostiniRecoveryView::Show(Profile* profile,
                                 const std::string& app_id,
                                 int64_t display_id,
-                                const std::vector<crostini::LaunchArg>& args,
+                                const std::vector<guest_os::LaunchArg>& args,
                                 crostini::CrostiniSuccessCallback callback) {
   if (!crostini::CrostiniFeatures::Get()->IsAllowedNow(profile)) {
     std::move(callback).Run(false, "crostini is not allowed");
@@ -68,8 +68,8 @@ void CrostiniRecoveryView::Show(Profile* profile,
 }
 
 bool CrostiniRecoveryView::Accept() {
-  SetButtonEnabled(ui::DIALOG_BUTTON_OK, false);
-  SetButtonEnabled(ui::DIALOG_BUTTON_CANCEL, false);
+  SetButtonEnabled(ui::mojom::DialogButton::kOk, false);
+  SetButtonEnabled(ui::mojom::DialogButton::kCancel, false);
   crostini::CrostiniManager::GetForProfile(profile_)->StopVm(
       crostini::kCrostiniDefaultVmName,
       base::BindOnce(&CrostiniRecoveryView::OnStopVm,
@@ -108,7 +108,7 @@ CrostiniRecoveryView::CrostiniRecoveryView(
     Profile* profile,
     const std::string& app_id,
     int64_t display_id,
-    const std::vector<crostini::LaunchArg>& args,
+    const std::vector<guest_os::LaunchArg>& args,
     crostini::CrostiniSuccessCallback callback)
     : profile_(profile),
       app_id_(app_id),
@@ -116,17 +116,18 @@ CrostiniRecoveryView::CrostiniRecoveryView(
       args_(args),
       callback_(std::move(callback)),
       weak_ptr_factory_(this) {
-  SetButtons(ui::DIALOG_BUTTON_OK | ui::DIALOG_BUTTON_CANCEL);
+  SetButtons(static_cast<int>(ui::mojom::DialogButton::kOk) |
+             static_cast<int>(ui::mojom::DialogButton::kCancel));
   SetButtonLabel(
-      ui::DIALOG_BUTTON_OK,
+      ui::mojom::DialogButton::kOk,
       l10n_util::GetStringUTF16(IDS_CROSTINI_RECOVERY_RESTART_BUTTON));
   SetButtonLabel(
-      ui::DIALOG_BUTTON_CANCEL,
+      ui::mojom::DialogButton::kCancel,
       l10n_util::GetStringUTF16(IDS_CROSTINI_RECOVERY_TERMINAL_BUTTON));
   SetShowCloseButton(false);
   SetTitle(IDS_CROSTINI_RECOVERY_TITLE);
-  set_fixed_width(ChromeLayoutProvider::Get()->GetDistanceMetric(
-      DISTANCE_STANDALONE_BUBBLE_PREFERRED_WIDTH));
+  set_fixed_width(views::LayoutProvider::Get()->GetDistanceMetric(
+      views::DISTANCE_MODAL_DIALOG_PREFERRED_WIDTH));
 
   views::LayoutProvider* provider = views::LayoutProvider::Get();
   SetLayoutManager(std::make_unique<views::BoxLayout>(
@@ -139,12 +140,12 @@ CrostiniRecoveryView::CrostiniRecoveryView(
   views::Label* message_label = new views::Label(message);
   message_label->SetMultiLine(true);
   message_label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
-  AddChildView(message_label);
+  AddChildViewRaw(message_label);
 }
 
 CrostiniRecoveryView::~CrostiniRecoveryView() {
   g_crostini_recovery_view = nullptr;
 }
 
-BEGIN_METADATA(CrostiniRecoveryView, views::BubbleDialogDelegateView)
+BEGIN_METADATA(CrostiniRecoveryView)
 END_METADATA

@@ -4,11 +4,13 @@
 
 #include "services/network/trust_tokens/trust_token_store.h"
 
+#include <algorithm>
+#include <map>
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/containers/contains.h"
-#include "base/ranges/algorithm.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "services/network/public/cpp/is_potentially_trustworthy.h"
 #include "services/network/public/cpp/trust_token_parameterization.h"
@@ -21,7 +23,6 @@
 #include "services/network/trust_tokens/trust_token_key_commitment_getter.h"
 #include "services/network/trust_tokens/trust_token_parameterization.h"
 #include "services/network/trust_tokens/types.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/protobuf/src/google/protobuf/repeated_field.h"
 #include "url/origin.h"
 
@@ -62,7 +63,6 @@ std::unique_ptr<TrustTokenStore> TrustTokenStore::CreateForTesting(
 }
 
 void TrustTokenStore::RecordIssuance(const SuitableTrustTokenOrigin& issuer) {
-  SuitableTrustTokenOrigin issuer_origin = issuer;
   std::unique_ptr<TrustTokenIssuerConfig> config =
       persister_->GetIssuerConfig(issuer);
   if (!config)
@@ -72,19 +72,19 @@ void TrustTokenStore::RecordIssuance(const SuitableTrustTokenOrigin& issuer) {
   persister_->SetIssuerConfig(issuer, std::move(config));
 }
 
-absl::optional<base::TimeDelta> TrustTokenStore::TimeSinceLastIssuance(
+std::optional<base::TimeDelta> TrustTokenStore::TimeSinceLastIssuance(
     const SuitableTrustTokenOrigin& issuer) {
   std::unique_ptr<TrustTokenIssuerConfig> config =
       persister_->GetIssuerConfig(issuer);
   if (!config)
-    return absl::nullopt;
+    return std::nullopt;
   if (!config->has_last_issuance())
-    return absl::nullopt;
+    return std::nullopt;
 
   base::Time last_issuance = internal::TimestampToTime(config->last_issuance());
   base::TimeDelta ret = base::Time::Now() - last_issuance;
   if (ret.is_negative())
-    return absl::nullopt;
+    return std::nullopt;
 
   return ret;
 }
@@ -111,20 +111,20 @@ bool TrustTokenStore::IsRedemptionLimitHit(
   return true;
 }
 
-absl::optional<base::TimeDelta> TrustTokenStore::TimeSinceLastRedemption(
+std::optional<base::TimeDelta> TrustTokenStore::TimeSinceLastRedemption(
     const SuitableTrustTokenOrigin& issuer,
     const SuitableTrustTokenOrigin& top_level) {
   auto config = persister_->GetIssuerToplevelPairConfig(issuer, top_level);
   if (!config)
-    return absl::nullopt;
+    return std::nullopt;
   if (!config->has_last_redemption())
-    return absl::nullopt;
+    return std::nullopt;
 
   base::Time last_redemption =
       internal::TimestampToTime(config->last_redemption());
   base::TimeDelta ret = base::Time::Now() - last_redemption;
   if (ret.is_negative())
-    return absl::nullopt;
+    return std::nullopt;
   return ret;
 }
 
@@ -164,9 +164,9 @@ void TrustTokenStore::PruneStaleIssuerState(
     const SuitableTrustTokenOrigin& issuer,
     const std::vector<mojom::TrustTokenVerificationKeyPtr>& keys) {
   DCHECK([&keys]() {
-    std::set<base::StringPiece> unique_keys;
+    std::set<std::string_view> unique_keys;
     for (const auto& key : keys)
-      unique_keys.insert(base::StringPiece(key->body));
+      unique_keys.insert(std::string_view(key->body));
     return unique_keys.size() == keys.size();
   }());
 
@@ -190,7 +190,7 @@ void TrustTokenStore::PruneStaleIssuerState(
 
 void TrustTokenStore::AddTokens(const SuitableTrustTokenOrigin& issuer,
                                 base::span<const std::string> token_bodies,
-                                base::StringPiece issuing_key) {
+                                std::string_view issuing_key) {
   auto config = persister_->GetIssuerConfig(issuer);
   if (!config)
     config = std::make_unique<TrustTokenIssuerConfig>();
@@ -224,11 +224,11 @@ std::vector<TrustToken> TrustTokenStore::RetrieveMatchingTokens(
   if (!config)
     return matching_tokens;
 
-  base::ranges::copy_if(config->tokens(), std::back_inserter(matching_tokens),
-                        [&key_matcher](const TrustToken& token) {
-                          return token.has_signing_key() &&
-                                 key_matcher.Run(token.signing_key());
-                        });
+  std::ranges::copy_if(config->tokens(), std::back_inserter(matching_tokens),
+                       [&key_matcher](const TrustToken& token) {
+                         return token.has_signing_key() &&
+                                key_matcher.Run(token.signing_key());
+                       });
 
   return matching_tokens;
 }
@@ -267,18 +267,18 @@ void TrustTokenStore::SetRedemptionRecord(
   persister_->SetIssuerToplevelPairConfig(issuer, top_level, std::move(config));
 }
 
-absl::optional<TrustTokenRedemptionRecord>
+std::optional<TrustTokenRedemptionRecord>
 TrustTokenStore::RetrieveNonstaleRedemptionRecord(
     const SuitableTrustTokenOrigin& issuer,
     const SuitableTrustTokenOrigin& top_level) {
   auto config = persister_->GetIssuerToplevelPairConfig(issuer, top_level);
   if (!config)
-    return absl::nullopt;
+    return std::nullopt;
 
   if (!config->has_redemption_record())
-    return absl::nullopt;
+    return std::nullopt;
 
-  absl::optional<base::TimeDelta> maybe_time_since_last_redemption =
+  std::optional<base::TimeDelta> maybe_time_since_last_redemption =
       TimeSinceLastRedemption(issuer, top_level);
   base::TimeDelta time_since_last_redemption = base::Seconds(0);
   if (maybe_time_since_last_redemption)
@@ -286,7 +286,7 @@ TrustTokenStore::RetrieveNonstaleRedemptionRecord(
 
   if (record_expiry_delegate_->IsRecordExpired(
           config->redemption_record(), time_since_last_redemption, issuer))
-    return absl::nullopt;
+    return std::nullopt;
 
   return config->redemption_record();
 }
@@ -396,6 +396,10 @@ bool TrustTokenStore::DeleteStoredTrustTokens(
 base::flat_map<SuitableTrustTokenOrigin, int>
 TrustTokenStore::GetStoredTrustTokenCounts() {
   return persister_->GetStoredTrustTokenCounts();
+}
+
+IssuerRedemptionRecordMap TrustTokenStore::GetRedemptionRecords() {
+  return persister_->GetRedemptionRecords();
 }
 
 }  // namespace network

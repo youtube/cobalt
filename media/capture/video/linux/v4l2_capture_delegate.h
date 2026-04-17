@@ -34,6 +34,10 @@ class Location;
 
 namespace media {
 
+#if BUILDFLAG(IS_LINUX)
+class V4L2CaptureDelegateGpuHelper;
+#endif  // BUILDFLAG(IS_LINUX)
+
 // Class doing the actual Linux capture using V4L2 API. V4L2 SPLANE/MPLANE
 // capture specifics are implemented in derived classes. Created on the owner's
 // thread, otherwise living, operating and destroyed on |v4l2_task_runner_|.
@@ -78,6 +82,11 @@ class CAPTURE_EXPORT V4L2CaptureDelegate final {
 
   base::WeakPtr<V4L2CaptureDelegate> GetWeakPtr();
 
+  static bool IsBlockedControl(int control_id);
+  static bool IsControllableControl(
+      int control_id,
+      const base::RepeatingCallback<int(int, void*)>& do_ioctl);
+
  private:
   friend class V4L2CaptureDelegateTest;
 
@@ -120,6 +129,16 @@ class CAPTURE_EXPORT V4L2CaptureDelegate final {
                      const base::Location& from_here,
                      const std::string& reason);
 
+#if BUILDFLAG(IS_LINUX)
+  // Systems which describe a "color space" usually map that to one or more of
+  // {primary, matrix, transfer, range}. BuildColorSpaceFromv4l2() will use the
+  // matched value as first priority. Otherwise, if there is no best matching
+  // value, it will be a value with a different name but no essential
+  // difference and add a corresponding comments like: "SRGB and BT709 use the
+  // same transform".
+  gfx::ColorSpace BuildColorSpaceFromv4l2();
+#endif
+
   const raw_ptr<V4L2CaptureDevice> v4l2_;
   const scoped_refptr<base::SingleThreadTaskRunner> v4l2_task_runner_;
   const VideoCaptureDeviceDescriptor device_descriptor_;
@@ -143,6 +162,12 @@ class CAPTURE_EXPORT V4L2CaptureDelegate final {
 
   // Clockwise rotation in degrees. This value should be 0, 90, 180, or 270.
   int rotation_;
+
+#if BUILDFLAG(IS_LINUX)
+  // Support GPU memory buffer.
+  bool use_gpu_buffer_;
+  std::unique_ptr<V4L2CaptureDelegateGpuHelper> v4l2_gpu_helper_;
+#endif  // BUILDFLAG(IS_LINUX)
 
   base::WeakPtrFactory<V4L2CaptureDelegate> weak_factory_{this};
 };

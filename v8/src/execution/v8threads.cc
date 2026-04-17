@@ -124,6 +124,10 @@ bool ThreadManager::RestoreThread() {
     InitThread(access);
     return false;
   }
+  // In case multi-cage pointer compression mode is enabled ensure that
+  // current thread's cage base values are properly initialized.
+  PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate_);
+
   ThreadState* state = per_thread->thread_state();
   char* from = state->data();
   from = isolate_->handle_scope_implementer()->RestoreThread(from);
@@ -274,8 +278,12 @@ void ThreadManager::EagerlyArchiveThread() {
 }
 
 void ThreadManager::FreeThreadResources() {
-  DCHECK(!isolate_->has_pending_exception());
-  DCHECK(!isolate_->external_caught_exception());
+  // This method might be called on a thread that's not bound to any Isolate
+  // and thus pointer compression schemes might have cage base value unset.
+  // So, allow heap access here to let the checks work.
+  PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate_);
+
+  DCHECK(!isolate_->has_exception());
   DCHECK_NULL(isolate_->try_catch_handler());
   isolate_->handle_scope_implementer()->FreeThreadResources();
   isolate_->FreeThreadResources();

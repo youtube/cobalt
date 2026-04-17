@@ -4,11 +4,13 @@
 
 package org.chromium.components.messages;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.Log;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.messages.MessageScopeChange.ChangeType;
 import org.chromium.ui.util.TokenHolder;
 
@@ -23,6 +25,7 @@ import java.util.Objects;
  * A class managing the queue of messages. Its primary role is to decide when to show/hide current
  * message and which message to show next.
  */
+@NullMarked
 class MessageQueueManager implements ScopeChangeController.Delegate {
     static final String TAG = "MessageQueueManager";
 
@@ -33,40 +36,48 @@ class MessageQueueManager implements ScopeChangeController.Delegate {
 
     /**
      * A {@link Map} collection which contains {@code MessageKey} as the key and the corresponding
-     * {@link MessageState} as the value.
-     * When the message is dismissed, it is immediately removed from this collection even though the
-     * message could still be visible with hide animation running.
+     * {@link MessageState} as the value. When the message is dismissed, it is immediately removed
+     * from this collection even though the message could still be visible with hide animation
+     * running.
      */
     private final Map<Object, MessageState> mMessages = new HashMap<>();
+
     /**
-     * A {@link Map} collection which contains {@code scopeKey} as the key and and a list of
-     * {@link MessageState} containing all of the messages associated with this scope instance as
-     * the value.
-     * When the message is dismissed, it is immediately removed from this collection even though the
-     * message could still be visible with hide animation running.
+     * A {@link Map} collection which contains {@code scopeKey} as the key and and a list of {@link
+     * MessageState} containing all of the messages associated with this scope instance as the
+     * value. When the message is dismissed, it is immediately removed from this collection even
+     * though the message could still be visible with hide animation running.
      */
     private final Map<Object, List<MessageState>> mMessageQueues = new HashMap<>();
+
     /**
-     * A {@link Map} collection which contains {@code scopeKey} as the key and a boolean
-     * value standing for whether this scope instance is active or not as the value.
+     * A {@link Map} collection which contains {@code scopeKey} as the key and a boolean value
+     * standing for whether this scope instance is active or not as the value.
      */
     private final Map<ScopeKey, Boolean> mScopeStates = new HashMap<>();
 
     private ScopeChangeController mScopeChangeController = new ScopeChangeController(this);
 
+    private final boolean mAreExtraHistogramsEnabled;
+
     public MessageQueueManager(MessageAnimationCoordinator animationCoordinator) {
         mAnimationCoordinator = animationCoordinator;
+        mAreExtraHistogramsEnabled = MessageFeatureList.areExtraHistogramsEnabled();
     }
 
     /**
      * Enqueues a message. Associates the message with its key; the key is used later to dismiss the
      * message. Displays the message if there is no other message shown.
+     *
      * @param message The message to enqueue
      * @param messageKey The key to associate with this message.
      * @param scopeKey The key of a scope instance.
      * @param highPriority True if the message should be displayed ASAP.
      */
-    public void enqueueMessage(MessageStateHandler message, Object messageKey, ScopeKey scopeKey,
+    public void enqueueMessage(
+            MessageStateHandler message,
+            Object messageKey,
+            ScopeKey scopeKey,
             boolean highPriority) {
         if (mMessages.containsKey(messageKey)) {
             throw new IllegalStateException("Message with the given key has already been enqueued");
@@ -78,29 +89,33 @@ class MessageQueueManager implements ScopeChangeController.Delegate {
             mScopeChangeController.firstMessageEnqueued(scopeKey);
         }
 
+        if (mAreExtraHistogramsEnabled) {
+            MessagesMetrics.recordMessageEnqueuedScopeActive(
+                    message.getMessageIdentifier(), mScopeChangeController.isActive(scopeKey));
+
+            MessagesMetrics.recordMessageEnqueuedQueueSuspended(
+                    message.getMessageIdentifier(), isQueueSuspended());
+        }
+
         MessageState messageState = new MessageState(scopeKey, messageKey, message, highPriority);
         messageQueue.add(messageState);
         mMessages.put(messageKey, messageState);
 
         MessagesMetrics.recordMessageEnqueued(message.getMessageIdentifier());
-        if (MessageFeatureList.isStackAnimationEnabled()) {
-            updateCurrentDisplayedWithStacking();
-        } else {
-            MessageState candidate = updateCurrentDisplayedWithoutStacking();
-            if (candidate != null) {
-                Log.w(TAG, "Currently displaying message with ID %s and key %s.",
-                        candidate.handler.getMessageIdentifier(), candidate.messageKey);
-            }
+        // The candidate which will be fully visible. Null if no message will be displayed.
+        List<MessageState> candidates = updateCurrentDisplayed();
+        assert candidates.size() == 2 : "There must be 2 candidates when stacking is enabled.";
+        MessageState primaryCandidate = candidates.get(0);
 
-            if (candidate == messageState) {
-                MessagesMetrics.recordMessageEnqueuedVisible(message.getMessageIdentifier());
-            } else {
-                @MessageIdentifier
-                int visibleMessageId = MessageIdentifier.INVALID_MESSAGE;
-                if (candidate != null) visibleMessageId = candidate.handler.getMessageIdentifier();
-                MessagesMetrics.recordMessageEnqueuedHidden(
-                        message.getMessageIdentifier(), visibleMessageId);
+        if (primaryCandidate == messageState) {
+            MessagesMetrics.recordMessageEnqueuedVisible(message.getMessageIdentifier());
+        } else if (mAreExtraHistogramsEnabled) {
+            @MessageIdentifier int visibleMessageId = MessageIdentifier.INVALID_MESSAGE;
+            if (primaryCandidate != null) {
+                visibleMessageId = primaryCandidate.handler.getMessageIdentifier();
             }
+            MessagesMetrics.recordMessageEnqueuedHidden(
+                    message.getMessageIdentifier(), visibleMessageId);
         }
     }
 
@@ -119,19 +134,24 @@ class MessageQueueManager implements ScopeChangeController.Delegate {
     }
 
     /**
-     * This method updates related structure and dismiss the queue, but does not remove the
-     * message state from the queue.
+     * This method updates related structure and dismiss the queue, but does not remove the message
+     * state from the queue.
      */
     private void dismissMessageInternal(
-            @NonNull MessageState messageState, @DismissReason int dismissReason) {
+            MessageState messageState, @DismissReason int dismissReason) {
         MessageStateHandler message = messageState.handler;
         ScopeKey scopeKey = messageState.scopeKey;
 
         // Remove the scope from the map if the messageQueue is empty.
         List<MessageState> messageQueue = mMessageQueues.get(scopeKey);
+        assumeNonNull(messageQueue);
         messageQueue.remove(messageState);
-        Log.w(TAG, "Removed message with ID %s and key %s from queue because of reason %s.",
-                message.getMessageIdentifier(), messageState.messageKey, dismissReason);
+        Log.w(
+                TAG,
+                "Removed message with ID %s and key %s from queue because of reason %s.",
+                message.getMessageIdentifier(),
+                messageState.messageKey,
+                dismissReason);
         if (messageQueue.isEmpty()) {
             mMessageQueues.remove(scopeKey);
             mScopeChangeController.lastMessageDismissed(scopeKey);
@@ -154,7 +174,7 @@ class MessageQueueManager implements ScopeChangeController.Delegate {
         mAnimationCoordinator.setMessageQueueDelegate(delegate);
     }
 
-    // TODO(crbug.com/1163290): Handle the case in which the scope becomes inactive when the
+    // TODO(crbug.com/40740060): Handle the case in which the scope becomes inactive when the
     //         message is already running the animation.
     @Override
     public void onScopeChange(MessageScopeChange change) {
@@ -185,42 +205,21 @@ class MessageQueueManager implements ScopeChangeController.Delegate {
         return mSuppressionTokenHolder.hasTokens();
     }
 
-    /**
-     * Update current displayed message(s). Stacking animation is triggered if it's enabled.
-     */
+    /** Update current displayed message(s). */
     private void updateCurrentDisplayedMessages() {
-        if (MessageFeatureList.isStackAnimationEnabled()) {
-            updateCurrentDisplayedWithStacking();
-        } else {
-            updateCurrentDisplayedWithoutStacking();
-        }
+        updateCurrentDisplayed();
     }
 
     /**
-     * Update current displayed messages with stacking.
+     * Update current displayed messages.
+     *
      * @return The candidates supposed to be displayed.
      */
-    private List<MessageState> updateCurrentDisplayedWithStacking() {
+    private List<MessageState> updateCurrentDisplayed() {
         var candidates = getNextMessages();
         mAnimationCoordinator.updateWithStacking(
-                candidates, isQueueSuspended(), this::updateCurrentDisplayedWithStacking);
+                candidates, isQueueSuspended(), this::updateCurrentDisplayed);
         return candidates;
-    }
-
-    // TODO(crbug.com/1163290): Rethink the case where a message show or dismiss animation is
-    //      running when we get another scope change signal that should potentially either reverse
-    //      the animation (i.e. going from inactive -> active quickly) or jump to the end (i.e.
-    //      going from animate transition -> don't animate transition.
-
-    /**
-     * Update current displayed message without stacking.
-     * @return The candidate supposed to be displayed.
-     */
-    private MessageState updateCurrentDisplayedWithoutStacking() {
-        var candidate = getNextMessage();
-        mAnimationCoordinator.updateWithoutStacking(
-                candidate, isQueueSuspended(), this::updateCurrentDisplayedWithoutStacking);
-        return candidate;
     }
 
     void dismissAllMessages(@DismissReason int dismissReason) {
@@ -271,12 +270,6 @@ class MessageQueueManager implements ScopeChangeController.Delegate {
             Boolean isActive = mScopeStates.get(queue.get(0).scopeKey);
             if (!Objects.equals(isActive, true)) continue;
             for (var candidate : queue) {
-                boolean shouldShow = candidate.handler.shouldShow();
-                Log.w(TAG,
-                        "MessageStateHandler#shouldShow for message with ID %s and key %s in "
-                                + "MessageQueueManager#getNextMessage returned %s.",
-                        candidate.handler.getMessageIdentifier(), candidate.messageKey, shouldShow);
-                if (!shouldShow) continue;
                 if (isLowerPriority(a, candidate)) {
                     b = a;
                     a = candidate;
@@ -295,7 +288,7 @@ class MessageQueueManager implements ScopeChangeController.Delegate {
     //   (a is not lower priority than b);
     // * If a is not highPriority and b is high priority, return true (a is lower priority than b);
     @VisibleForTesting
-    boolean isLowerPriority(@Nullable MessageState a, @NonNull MessageState b) {
+    boolean isLowerPriority(@Nullable MessageState a, MessageState b) {
         if (a == null) return true;
         if (a.highPriority != b.highPriority) return b.highPriority;
         return a.id > b.id;
@@ -310,14 +303,21 @@ class MessageQueueManager implements ScopeChangeController.Delegate {
         public final MessageStateHandler handler;
         public final boolean highPriority;
 
-        MessageState(ScopeKey scopeKey, Object messageKey, MessageStateHandler handler,
+        MessageState(
+                ScopeKey scopeKey,
+                Object messageKey,
+                MessageStateHandler handler,
                 boolean highPriority) {
             this(scopeKey, messageKey, handler, highPriority, sIdNext++);
         }
 
         @VisibleForTesting
-        MessageState(ScopeKey scopeKey, Object messageKey, MessageStateHandler handler,
-                boolean highPriority, int id) {
+        MessageState(
+                ScopeKey scopeKey,
+                Object messageKey,
+                MessageStateHandler handler,
+                boolean highPriority,
+                int id) {
             this.scopeKey = scopeKey;
             this.messageKey = messageKey;
             this.handler = handler;

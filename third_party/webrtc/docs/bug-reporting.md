@@ -22,9 +22,10 @@ Anyone with a [Google account][1] can file bugs in the Chrome and WebRTC tracker
 * Identify which bug tracker to use:
 
   * If you're hitting a problem in Chrome, file the bug using the
-    [the Chromium issue wizard](https://chromiumbugs.appspot.com/?token=0)
+    [the Chromium issue wizard](https://crbug.com/new)
     Choose "Web Developer" and "API", then fill out the form. For the component choose
     * Blink>GetUserMedia for camera/microphone issues
+    * Blink>GetDisplayMedia for screen capture issues
     * Blink>MediaRecording for issues with the MediaRecorder API
     * Blink>WebRTC for issues with the RTCPeerConnection API
     This ensures the right people will look at your bug.
@@ -51,10 +52,10 @@ Anyone with a [Google account][1] can file bugs in the Chrome and WebRTC tracker
 
   * Camera and microphone model and version (if applicable)
 
-    * For Chrome audio and video device issues, please run the tests at
-      <https://test.webrtc.org>. After the tests finish running, click the bug
-      icon at the top, download the report, and attach the report to the issue
-      tracker.
+    * Try reproducing with the minimal samples at
+      https://webrtc.github.io/samples/src/content/getusermedia/audio/
+      and
+      https://webrtc.github.io/samples/src/content/getusermedia/gum/
 
   * Web site URL
 
@@ -76,17 +77,19 @@ Anyone with a [Google account][1] can file bugs in the Chrome and WebRTC tracker
   * For **connectivity** issues on Chrome, ensure **chrome://webrtc-internals**
     is open in another tab before starting the call and while the call is in progress,
 
-    * expand the **Create Dump** section,
+    * expand the **Create a WebRTC-Internals dump** section,
 
-    * click the **Download the PeerConnection updates and stats data** button.
+    * click the **Download the webrtc-internals dump** button.
       You will be prompted to save the dump to your local machine. Please
-      attach that dump to the bug report.
+      attach that dump to the bug report. You can inspect the dump and
+      remove any information you consider personally identifiable such as
+      IP addresses.
 
   * For **audio quality** issues on Chrome, while the call is in progress,
 
     * please open **chrome://webrtc-internals** in another tab,
 
-    * expand the **Create Dump** section,
+    * expand the **Create a WebRTC-Internals dump** section,
 
     * fill in the **Enable diagnostic audio recordings** checkbox. You will be
       prompted to save the recording to your local machine. After ending the
@@ -112,7 +115,7 @@ Anyone with a [Google account][1] can file bugs in the Chrome and WebRTC tracker
 ### Filing a Security Bug
 
 The WebRTC team takes security very seriously. If you find a vulnerability in
-WebRTC, please file a [Chromium security bug][ChromeSecurity], even if the bug
+WebRTC, please file a [Chromium security bug][ChromeSecurityBug], even if the bug
 only affects native WebRTC code and not Chromium.
 
 A history of fixed Chromium security bugs is best found via [security notes in
@@ -158,13 +161,14 @@ page.
 [1]: https://accounts.google.com/
 [2]: http://www.chromium.org/for-testers/bug-reporting-guidelines/reporting-crash-bug
 [3]: https://code.google.com/p/chromium/issues/entry?template=Audio/Video%20Issue
-[4]: https://bugs.chromium.org/p/webrtc/issues/entry
+[4]: https://issues.webrtc.org/issues/new?component=1363538&template=1986396
 [5]: native-code/logging.md
 [ChromeSecurity]: https://www.chromium.org/Home/chromium-security/reporting-security-bugs
 [DiscussWebRTC]: https://groups.google.com/group/discuss-webrtc
 [ChromeSecurityBlog]: https://chromereleases.googleblog.com/search/label/Stable%20updates
-[ChromeBugList]: https://bugs.chromium.org/p/chromium/issues/list?can=1&q=Type%3DBug-Security+component%3ABlink%3EWebRTC+-status%3ADuplicate%2CWontfix&sort=-closed&colspec=ID+Pri+M+Component+Status+Owner+Summary+OS+Closed&x=m&y=releaseblock&cells=ids
-[WebRtcBugList]: https://bugs.chromium.org/p/webrtc/issues/list?q=Type%3DBug-Security&can=1
+[ChromeSecurityBug]: https://issues.chromium.org/issues/new?component=1363614&template=1922342
+[ChromeBugList]: https://issues.chromium.org/issues?q=type:vulnerability
+[WebRtcBugList]: https://issues.chromium.org/issues?q=type:vulnerability%20componentid:1456096
 [ChromeSecurity]: https://www.chromium.org/Home/chromium-security
 [SeverityGuidelines]: https://chromium.googlesource.com/chromium/src/+/main/docs/security/severity-guidelines.md
 [SecurityFaq]: https://chromium.googlesource.com/chromium/src/+/main/docs/security/faq.md

@@ -8,6 +8,7 @@
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
+#include "base/test/gmock_expected_support.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
@@ -28,7 +29,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/mojom/buckets/bucket_manager_host.mojom.h"
-#include "third_party/blink/public/mojom/quota/quota_types.mojom.h"
 #include "url/origin.h"
 
 namespace content {
@@ -103,12 +103,13 @@ class BucketManagerHostTest : public testing::Test {
     void BindCacheStorageForBucket(
         const storage::BucketInfo& bucket,
         mojo::PendingReceiver<blink::mojom::CacheStorage> receiver) override {}
-    GlobalRenderFrameHostId GetAssociatedRenderFrameHostId() const override {
-      return GlobalRenderFrameHostId();
+    storage::BucketClientInfo GetBucketClientInfo() const override {
+      return storage::BucketClientInfo{};
     }
 
     void GetSandboxedFileSystemForBucket(
         const storage::BucketInfo& bucket,
+        const std::vector<std::string>& directory_path_components,
         blink::mojom::FileSystemAccessManager::GetSandboxedFileSystemCallback
             callback) override {
       std::move(callback).Run(file_system_access_error::Ok(), {});
@@ -162,14 +163,15 @@ TEST_F(BucketManagerHostTest, OpenBucket) {
       bucket_future;
   quota_manager_->GetBucketByNameUnsafe(
       blink::StorageKey::CreateFromStringForTesting(kTestUrl), "inbox_bucket",
-      blink::mojom::StorageType::kTemporary, bucket_future.GetCallback());
-  auto result = bucket_future.Take();
-  EXPECT_TRUE(result.has_value());
-  EXPECT_GT(result->id.value(), 0u);
+      bucket_future.GetCallback());
+  ASSERT_OK_AND_ASSIGN(auto result, bucket_future.Take());
+  EXPECT_GT(result.id.value(), 0u);
 }
 
 TEST_F(BucketManagerHostTest, OpenBucketValidateName) {
   const std::vector<std::pair</*is_valid=*/bool, std::string>> names = {
+      // The default name should not be a valid user-provided bucket name.
+      {false, storage::kDefaultBucketName},
       {false, ""},
       {false, " "},
       {false, "2021/01/01"},
@@ -237,10 +239,9 @@ TEST_F(BucketManagerHostTest, DeleteBucket) {
       bucket_future;
   quota_manager_->GetBucketByNameUnsafe(
       blink::StorageKey::CreateFromStringForTesting(kTestUrl), "inbox_bucket",
-      blink::mojom::StorageType::kTemporary, bucket_future.GetCallback());
+      bucket_future.GetCallback());
   auto result = bucket_future.Take();
-  EXPECT_FALSE(result.has_value());
-  EXPECT_EQ(result.error(), storage::QuotaError::kNotFound);
+  EXPECT_THAT(result, base::test::ErrorIs(storage::QuotaError::kNotFound));
 }
 
 TEST_F(BucketManagerHostTest, DeleteInvalidBucketName) {

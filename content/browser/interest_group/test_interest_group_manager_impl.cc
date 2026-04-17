@@ -4,6 +4,7 @@
 
 #include "content/browser/interest_group/test_interest_group_manager_impl.h"
 
+#include <optional>
 #include <vector>
 
 #include "base/files/file_path.h"
@@ -23,7 +24,6 @@
 #include "services/network/public/mojom/client_security_state.mojom.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/interest_group/interest_group.h"
 #include "url/gurl.h"
 #include "url/origin.h"
@@ -39,7 +39,9 @@ TestInterestGroupManagerImpl::TestInterestGroupManagerImpl(
           /*in_memory=*/true,
           InterestGroupManagerImpl::ProcessMode::kDedicated,
           /*url_loader_factory=*/nullptr,
-          /*k_anonymity_service=*/nullptr),
+          /*k_anonymity_service_callback=*/
+          base::BindLambdaForTesting(
+              []() -> KAnonymityServiceDelegate* { return nullptr; })),
       expected_frame_origin_(expected_frame_origin),
       expected_client_security_state_(
           std::move(expected_client_security_state)),
@@ -48,7 +50,10 @@ TestInterestGroupManagerImpl::TestInterestGroupManagerImpl(
   set_k_anonymity_manager_for_testing(
       std::make_unique<InterestGroupKAnonymityManager>(
           /*interest_group_manager=*/this,
-          /*k_anonymity_service=*/this));
+          /*caching_storage=*/GetCachingStorageForTesting(),
+          /*k_anonymity_service_callback=*/
+          base::BindLambdaForTesting(
+              [&]() -> KAnonymityServiceDelegate* { return this; })));
 }
 
 TestInterestGroupManagerImpl::~TestInterestGroupManagerImpl() {
@@ -58,29 +63,64 @@ TestInterestGroupManagerImpl::~TestInterestGroupManagerImpl() {
   set_k_anonymity_manager_for_testing(
       std::make_unique<InterestGroupKAnonymityManager>(
           /*interest_group_manager=*/this,
-          /*k_anonymity_service=*/nullptr));
+          /*caching_storage=*/nullptr,
+          /*k_anonymity_service_callback=*/
+          base::BindLambdaForTesting(
+              []() -> KAnonymityServiceDelegate* { return nullptr; })));
   RemoveInterestGroupObserver(this);
 }
 
 void TestInterestGroupManagerImpl::EnqueueReports(
     ReportType report_type,
     std::vector<GURL> report_urls,
+    FrameTreeNodeId frame_tree_node_id,
     const url::Origin& frame_origin,
     const network::mojom::ClientSecurityState& client_security_state,
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory) {
   EXPECT_EQ(expected_frame_origin_, frame_origin);
   EXPECT_EQ(*expected_client_security_state_, client_security_state);
   EXPECT_EQ(expected_url_loader_factory_.get(), url_loader_factory.get());
-  for (const auto& report_url : report_urls) {
-    reports_.emplace_back(Report{report_type, std::move(report_url)});
+
+  if (use_real_enqueue_reports_) {
+    InterestGroupManagerImpl::EnqueueReports(
+        report_type, std::move(report_urls), frame_tree_node_id, frame_origin,
+        client_security_state, url_loader_factory);
+  } else {
+    for (auto& report_url : report_urls) {
+      reports_.push_back(Report{report_type, std::move(report_url)});
+    }
+  }
+}
+
+void TestInterestGroupManagerImpl::EnqueueRealTimeReports(
+    std::map<url::Origin, RealTimeReportingContributions> contributions,
+    AdAuctionPageDataCallback ad_auction_page_data_callback,
+    FrameTreeNodeId frame_tree_node_id,
+    const url::Origin& frame_origin,
+    const network::mojom::ClientSecurityState& client_security_state,
+    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory) {
+  EXPECT_EQ(expected_frame_origin_, frame_origin);
+  EXPECT_EQ(*expected_client_security_state_, client_security_state);
+  EXPECT_EQ(expected_url_loader_factory_.get(), url_loader_factory.get());
+  if (use_real_enqueue_reports_) {
+    InterestGroupManagerImpl::EnqueueRealTimeReports(
+        std::move(contributions), std::move(ad_auction_page_data_callback),
+        frame_tree_node_id, frame_origin, client_security_state,
+        url_loader_factory);
+  } else {
+    real_time_contributions_ = std::move(contributions);
   }
 }
 
 void TestInterestGroupManagerImpl::OnInterestGroupAccessed(
-    const base::Time& access_time,
+    base::optional_ref<const std::string> devtools_auction_id,
+    base::Time access_time,
     AccessType type,
     const url::Origin& owner_origin,
-    const std::string& name) {
+    const std::string& name,
+    base::optional_ref<const url::Origin> component_seller_origin,
+    std::optional<double> bid,
+    base::optional_ref<const std::string> bid_currency) {
   if (type == AccessType::kBid) {
     interest_groups_that_bid_.emplace_back(owner_origin, name);
   }
@@ -122,6 +162,11 @@ void TestInterestGroupManagerImpl::ExpectReports(
   reports_.clear();
 }
 
+void TestInterestGroupManagerImpl::set_use_real_enqueue_reports(
+    bool use_real_enqueue_reports) {
+  use_real_enqueue_reports_ = use_real_enqueue_reports;
+}
+
 std::vector<GURL> TestInterestGroupManagerImpl::TakeReportUrlsOfType(
     ReportType report_type) {
   std::vector<GURL> out;
@@ -137,6 +182,12 @@ std::vector<GURL> TestInterestGroupManagerImpl::TakeReportUrlsOfType(
   return out;
 }
 
+std::map<url::Origin,
+         TestInterestGroupManagerImpl::RealTimeReportingContributions>
+TestInterestGroupManagerImpl::TakeRealTimeContributions() {
+  return std::move(real_time_contributions_);
+}
+
 std::vector<blink::InterestGroupKey>
 TestInterestGroupManagerImpl::TakeInterestGroupsThatBid() {
   return std::exchange(interest_groups_that_bid_, {});
@@ -146,16 +197,16 @@ std::vector<std::string> TestInterestGroupManagerImpl::TakeJoinedKAnonSets() {
   return std::exchange(joined_k_anon_sets_, {});
 }
 
-absl::optional<StorageInterestGroup>
+std::optional<SingleStorageInterestGroup>
 TestInterestGroupManagerImpl::BlockingGetInterestGroup(
     const url::Origin& owner,
     const std::string& name) {
   base::RunLoop run_loop;
-  absl::optional<StorageInterestGroup> out;
+  std::optional<SingleStorageInterestGroup> out;
   GetInterestGroup(
       {owner, name},
       base::BindLambdaForTesting(
-          [&](absl::optional<StorageInterestGroup> interest_group) {
+          [&](std::optional<SingleStorageInterestGroup> interest_group) {
             out = std::move(interest_group);
             run_loop.Quit();
           }));

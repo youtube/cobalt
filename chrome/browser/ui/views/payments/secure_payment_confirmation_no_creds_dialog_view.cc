@@ -4,11 +4,15 @@
 
 #include "chrome/browser/ui/views/payments/secure_payment_confirmation_no_creds_dialog_view.h"
 
+#include "base/task/single_thread_task_runner.h"
+#include "chrome/browser/ui/views/extensions/security_dialog_tracker.h"
 #include "chrome/browser/ui/views/payments/secure_payment_confirmation_views_util.h"
 #include "components/constrained_window/constrained_window_views.h"
 #include "components/payments/content/payment_ui_observer.h"
 #include "components/payments/content/secure_payment_confirmation_no_creds_model.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/link.h"
@@ -51,8 +55,8 @@ void SecurePaymentConfirmationNoCredsDialogView::ShowDialog(
   response_callback_ = std::move(response_callback);
   opt_out_callback_ = std::move(opt_out_callback);
 
-  SetButtons(ui::DIALOG_BUTTON_OK);
-  SetDefaultButton(ui::DIALOG_BUTTON_OK);
+  SetButtons(static_cast<int>(ui::mojom::DialogButton::kOk));
+  SetDefaultButton(static_cast<int>(ui::mojom::DialogButton::kOk));
 
   InitChildViews();
 
@@ -68,19 +72,24 @@ void SecurePaymentConfirmationNoCredsDialogView::ShowDialog(
       &SecurePaymentConfirmationNoCredsDialogView::OnDialogClosed,
       weak_ptr_factory_.GetWeakPtr()));
 
-  SetModalType(ui::MODAL_TYPE_CHILD);
+  SetModalType(ui::mojom::ModalType::kChild);
 
-  constrained_window::ShowWebModalDialogViews(this, web_contents);
+  views::Widget* widget =
+      constrained_window::ShowWebModalDialogViews(this, web_contents);
+  extensions::SecurityDialogTracker::GetInstance()->AddSecurityDialog(widget);
+  occlusion_observation_.Observe(widget);
 }
 
 void SecurePaymentConfirmationNoCredsDialogView::HideDialog() {
-  if (GetWidget())
+  if (GetWidget()) {
     GetWidget()->Close();
+  }
 }
 
 bool SecurePaymentConfirmationNoCredsDialogView::ClickOptOutForTesting() {
-  if (!model_->opt_out_visible())
+  if (!model_->opt_out_visible()) {
     return false;
+  }
   OnOptOutClicked();
   return true;
 }
@@ -96,14 +105,16 @@ SecurePaymentConfirmationNoCredsDialogView::GetWeakPtr() {
 
 void SecurePaymentConfirmationNoCredsDialogView::OnDialogClosed() {
   auto callback = std::move(response_callback_);
-  if (!callback)
+  if (!callback) {
     return;
+  }
 
   std::move(callback).Run();
   HideDialog();
 
-  if (observer_for_test_)
+  if (observer_for_test_) {
     observer_for_test_->OnDialogClosed();
+  }
 }
 
 void SecurePaymentConfirmationNoCredsDialogView::OnOptOutClicked() {
@@ -122,9 +133,8 @@ void SecurePaymentConfirmationNoCredsDialogView::InitChildViews() {
   SetLayoutManager(std::make_unique<views::BoxLayout>(
       views::BoxLayout::Orientation::kVertical, gfx::Insets(), 0));
 
-  AddChildView(CreateSecurePaymentConfirmationHeaderView(
-      static_cast<int>(DialogViewID::PROGRESS_BAR),
-      static_cast<int>(DialogViewID::HEADER_IMAGE), /*use_cart_image=*/true));
+  AddChildView(CreateSecurePaymentConfirmationHeaderIcon(
+      static_cast<int>(DialogViewID::HEADER_ICON), /*use_cart_image=*/true));
 
   AddChildView(CreateBodyView());
 
@@ -164,8 +174,18 @@ SecurePaymentConfirmationNoCredsDialogView::CreateBodyView() {
   return no_matching_creds_view;
 }
 
-BEGIN_METADATA(SecurePaymentConfirmationNoCredsDialogView,
-               views::DialogDelegateView)
+void SecurePaymentConfirmationNoCredsDialogView::OnOcclusionStateChanged(
+    bool occluded) {
+  if (occluded) {
+    SetEnabled(false);
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&SecurePaymentConfirmationNoCredsDialogView::HideDialog,
+                       weak_ptr_factory_.GetWeakPtr()));
+  }
+}
+
+BEGIN_METADATA(SecurePaymentConfirmationNoCredsDialogView)
 END_METADATA
 
 }  // namespace payments

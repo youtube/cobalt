@@ -6,6 +6,7 @@
 #define CHROMEOS_DBUS_POWER_POWER_POLICY_CONTROLLER_H_
 
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -14,7 +15,6 @@
 #include "base/values.h"
 #include "chromeos/dbus/power/power_manager_client.h"
 #include "chromeos/dbus/power_manager/policy.pb.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace chromeos {
 
@@ -116,11 +116,19 @@ class COMPONENT_EXPORT(DBUS_POWER) PowerPolicyController
     int custom_charge_start = -1;
     int custom_charge_stop = -1;
     // Only set send_feedback_if_undimmed in policy proto if this field is set.
-    absl::optional<bool> send_feedback_if_undimmed;
+    std::optional<bool> send_feedback_if_undimmed;
     // Only set adaptive_charging_enabled in policy proto if this field is set.
-    absl::optional<bool> adaptive_charging_enabled;
+    std::optional<bool> adaptive_charging_enabled;
+    // Only set charge_limit_enabled in policy proto if this field is set.
+    std::optional<bool> charge_limit_enabled;
+
+    // Adaptive charging configs, only set when adaptive_charging_enabled.
+    // Configurable via base::FeatureParam.
     double adaptive_charging_min_probability = -1.0;
     int adaptive_charging_hold_percent = -1;
+    double adaptive_charging_max_delay_percentile = -1.0;
+    int adaptive_charging_min_days_history = -1;
+    double adaptive_charging_min_full_on_ac_ratio = -1.0;
   };
 
   // Converts |base::Value::Dict| to |std::vector<PeakShiftDayConfig>| and
@@ -192,6 +200,11 @@ class COMPONENT_EXPORT(DBUS_POWER) PowerPolicyController
   // down.
   void NotifyChromeIsExiting();
 
+  // Adjusts idle action policy when set by demo mode. There are 2 states in
+  // demo mode: use power idle policy or use `DemoModeIdleHandler` which
+  // implements UI actions for idle.
+  void SetShouldDoNothingWhenIdleInDemoMode();
+
   // Adjusts policy when the display is forced off in response to the
   // user tapping the power button, or when it's no longer forced off.
   void HandleBacklightsForcedOffForPowerButton(bool forced_off);
@@ -252,7 +265,7 @@ class COMPONENT_EXPORT(DBUS_POWER) PowerPolicyController
   // Sends a policy based on |prefs_policy_| to the power manager.
   void SendCurrentPolicy();
 
-  raw_ptr<PowerManagerClient, ExperimentalAsh> client_;  // weak
+  raw_ptr<PowerManagerClient> client_;  // weak
 
   // Policy derived from values passed to ApplyPrefs().
   power_manager::PowerManagementPolicy prefs_policy_;
@@ -296,6 +309,8 @@ class COMPONENT_EXPORT(DBUS_POWER) PowerPolicyController
 
   // Indicates if screen autolock is enabled or not by policy.
   bool auto_screen_lock_enabled_ = false;
+
+  bool should_do_nothing_when_idle_in_demo_mode_ = false;
 };
 
 }  // namespace chromeos

@@ -4,6 +4,9 @@
 
 #include "media/base/media_client.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/decoder_buffer.h"
+#endif
 
 namespace media {
 
@@ -17,7 +20,11 @@ MediaClient* GetMediaClient() {
   return g_media_client;
 }
 
-MediaClient::MediaClient() = default;
+MediaClient::MediaClient() {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  DecoderBuffer::Allocator::Set(&decoder_buffer_allocator_);
+#endif
+}
 
 MediaClient::~MediaClient() = default;
 

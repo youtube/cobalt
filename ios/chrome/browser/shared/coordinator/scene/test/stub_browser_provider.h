@@ -7,12 +7,9 @@
 
 #import <Foundation/Foundation.h>
 
-#import "ios/chrome/browser/main/browser_provider.h"
+#import "ios/chrome/browser/shared/model/browser/browser_provider.h"
 
 class Browser;
-@class BrowserViewController;
-class ChromeBrowserState;
-@protocol SyncPresenter;
 
 // Test double for BrowserProvider implementors. All properties are writable,
 // and have nil, nullptr, or NO as default values.

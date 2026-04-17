@@ -11,6 +11,8 @@ import android.view.VelocityTracker;
 
 import org.chromium.base.MathUtils;
 import org.chromium.base.ThreadUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 /**
  * A class that determines whether a sequence of motion events is a valid swipe in the context of a
@@ -21,6 +23,7 @@ import org.chromium.base.ThreadUtils;
  * swipe or fling is converted into a sequence of calls to
  * {@link SwipeableBottomSheet#setSheetOffset(float, boolean)}.
  */
+@NullMarked
 class BottomSheetSwipeDetector extends GestureDetector.SimpleOnGestureListener {
     /** The minimum y/x ratio that a scroll must have to be considered vertical. */
     private static final float MIN_VERTICAL_SCROLL_SLOPE = 2.0f;
@@ -38,7 +41,7 @@ class BottomSheetSwipeDetector extends GestureDetector.SimpleOnGestureListener {
     private final SwipeableBottomSheet mSheetDelegate;
 
     /** Track the velocity of the user's scrolls to determine up or down direction. */
-    private VelocityTracker mVelocityTracker;
+    private final VelocityTracker mVelocityTracker;
 
     /** Whether or not the user is scrolling the bottom sheet. */
     private boolean mIsScrolling;
@@ -48,9 +51,7 @@ class BottomSheetSwipeDetector extends GestureDetector.SimpleOnGestureListener {
      * assumes that any part of the bottom sheet visible at the peeking state is the toolbar.
      */
     public interface SwipeableBottomSheet {
-        /**
-         * @return Whether the content being shown in the sheet is scrolled to the top.
-         */
+        /** @return Whether the content being shown in the sheet is scrolled to the top. */
         boolean isContentScrolledToTop();
 
         /**
@@ -106,13 +107,16 @@ class BottomSheetSwipeDetector extends GestureDetector.SimpleOnGestureListener {
         }
 
         @Override
-        public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
+        public boolean onScroll(
+                @Nullable MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
             if (e1 == null || !mSheetDelegate.shouldGestureMoveSheet(e1, e2)) return false;
 
             // Only start scrolling if the scroll is up or down. If the user is already scrolling,
             // continue moving the sheet.
-            float slope = Math.abs(distanceX) > 0f ? Math.abs(distanceY) / Math.abs(distanceX)
-                                                   : MIN_VERTICAL_SCROLL_SLOPE;
+            float slope =
+                    Math.abs(distanceX) > 0f
+                            ? Math.abs(distanceY) / Math.abs(distanceX)
+                            : MIN_VERTICAL_SCROLL_SLOPE;
             if (!mIsScrolling && slope < MIN_VERTICAL_SCROLL_SLOPE) {
                 mVelocityTracker.clear();
                 return false;
@@ -120,11 +124,13 @@ class BottomSheetSwipeDetector extends GestureDetector.SimpleOnGestureListener {
 
             mVelocityTracker.addMovement(e2);
 
-            boolean isSheetInMaxPosition = MathUtils.areFloatsEqual(
-                    mSheetDelegate.getCurrentOffsetPx(), mSheetDelegate.getMaxOffsetPx());
+            boolean isSheetInMaxPosition =
+                    MathUtils.areFloatsEqual(
+                            mSheetDelegate.getCurrentOffsetPx(), mSheetDelegate.getMaxOffsetPx());
 
             // Allow the bottom sheet's content to be scrolled up without dragging the sheet down.
-            if (!mSheetDelegate.isTouchEventInToolbar(e2) && isSheetInMaxPosition
+            if (!mSheetDelegate.isTouchEventInToolbar(e2)
+                    && isSheetInMaxPosition
                     && !mSheetDelegate.isContentScrolledToTop()) {
                 return false;
             }
@@ -133,8 +139,9 @@ class BottomSheetSwipeDetector extends GestureDetector.SimpleOnGestureListener {
             // Instead, allow the sheet's content to handle it if it needs to.
             if (isSheetInMaxPosition && distanceY > 0) return false;
 
-            boolean isSheetInMinPosition = MathUtils.areFloatsEqual(
-                    mSheetDelegate.getCurrentOffsetPx(), mSheetDelegate.getMinOffsetPx());
+            boolean isSheetInMinPosition =
+                    MathUtils.areFloatsEqual(
+                            mSheetDelegate.getCurrentOffsetPx(), mSheetDelegate.getMinOffsetPx());
 
             // Similarly, if the sheet is in the min position, don't move if the scroll is downward.
             if (isSheetInMinPosition && distanceY < 0) return false;
@@ -144,7 +151,9 @@ class BottomSheetSwipeDetector extends GestureDetector.SimpleOnGestureListener {
             mIsScrolling = true;
 
             mSheetDelegate.setSheetOffset(
-                    MathUtils.clamp(newOffset, mSheetDelegate.getMinOffsetPx(),
+                    MathUtils.clamp(
+                            newOffset,
+                            mSheetDelegate.getMinOffsetPx(),
                             mSheetDelegate.getMaxOffsetPx()),
                     false);
 
@@ -157,7 +166,8 @@ class BottomSheetSwipeDetector extends GestureDetector.SimpleOnGestureListener {
         }
 
         @Override
-        public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+        public boolean onFling(
+                @Nullable MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
             if (e1 == null || !mSheetDelegate.shouldGestureMoveSheet(e1, e2) || !mIsScrolling) {
                 return false;
             }
@@ -167,7 +177,9 @@ class BottomSheetSwipeDetector extends GestureDetector.SimpleOnGestureListener {
             float newOffset = mSheetDelegate.getCurrentOffsetPx() + getFlingDistance(-velocityY);
 
             mSheetDelegate.setSheetOffset(
-                    MathUtils.clamp(newOffset, mSheetDelegate.getMinOffsetPx(),
+                    MathUtils.clamp(
+                            newOffset,
+                            mSheetDelegate.getMinOffsetPx(),
                             mSheetDelegate.getMaxOffsetPx()),
                     true);
 
@@ -181,8 +193,9 @@ class BottomSheetSwipeDetector extends GestureDetector.SimpleOnGestureListener {
      * @param delegate A SwipeableBottomSheet that processes swipes.
      */
     public BottomSheetSwipeDetector(Context context, SwipeableBottomSheet delegate) {
-        mGestureDetector = new GestureDetector(
-                context, new SwipeGestureListener(), ThreadUtils.getUiThreadHandler());
+        mGestureDetector =
+                new GestureDetector(
+                        context, new SwipeGestureListener(), ThreadUtils.getUiThreadHandler());
         mGestureDetector.setIsLongpressEnabled(true);
 
         mSheetDelegate = delegate;
@@ -225,11 +238,14 @@ class BottomSheetSwipeDetector extends GestureDetector.SimpleOnGestureListener {
 
             mVelocityTracker.computeCurrentVelocity(1000);
 
-            float newOffset = mSheetDelegate.getCurrentOffsetPx()
-                    + getFlingDistance(-mVelocityTracker.getYVelocity());
+            float newOffset =
+                    mSheetDelegate.getCurrentOffsetPx()
+                            + getFlingDistance(-mVelocityTracker.getYVelocity());
 
             mSheetDelegate.setSheetOffset(
-                    MathUtils.clamp(newOffset, mSheetDelegate.getMinOffsetPx(),
+                    MathUtils.clamp(
+                            newOffset,
+                            mSheetDelegate.getMinOffsetPx(),
                             mSheetDelegate.getMaxOffsetPx()),
                     true);
         }
@@ -237,15 +253,18 @@ class BottomSheetSwipeDetector extends GestureDetector.SimpleOnGestureListener {
         return true;
     }
 
-    /**
-     * @return Whether or not a gesture is currently being detected as a scroll.
-     */
+    /** @return Whether or not a gesture is currently being detected as a scroll. */
     public boolean isScrolling() {
         return mIsScrolling;
     }
 
+    void setShouldLongPressMoveSheet(boolean shouldMoveSheet) {
+        mGestureDetector.setIsLongpressEnabled(!shouldMoveSheet);
+    }
+
     /**
      * Creates an unadjusted version of a MotionEvent.
+     *
      * @param e The original event.
      * @return The unadjusted version of the event.
      */

@@ -91,8 +91,9 @@ class HistoryClustersTabHelperTest : public ChromeRenderViewHostTestHarness {
   }
 
   TestingProfile::TestingFactories GetTestingFactories() const override {
-    return {{HistoryServiceFactory::GetInstance(),
-             HistoryServiceFactory::GetDefaultFactory()}};
+    return {TestingProfile::TestingFactory{
+        HistoryServiceFactory::GetInstance(),
+        HistoryServiceFactory::GetDefaultFactory()}};
   }
 
   std::vector<history::AnnotatedVisit> GetVisits() const {
@@ -118,15 +119,15 @@ class HistoryClustersTabHelperTest : public ChromeRenderViewHostTestHarness {
 
   base::test::ScopedFeatureList feature_list_;
 
-  raw_ptr<HistoryClustersTabHelper> helper_;
+  raw_ptr<HistoryClustersTabHelper, DanglingUntriaged> helper_;
 
   std::unique_ptr<history_clusters::HistoryClustersServiceTestApi>
       history_clusters_service_test_api_;
 
   base::CancelableTaskTracker tracker_;
-  raw_ptr<history::HistoryService> history_service_;
+  raw_ptr<history::HistoryService, DanglingUntriaged> history_service_;
 
-  raw_ptr<bookmarks::BookmarkModel> bookmark_model_;
+  raw_ptr<bookmarks::BookmarkModel, DanglingUntriaged> bookmark_model_;
 
   // Used to verify the async callback is invoked.
   base::RunLoop run_loop_;

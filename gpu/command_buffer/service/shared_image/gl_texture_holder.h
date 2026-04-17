@@ -6,8 +6,10 @@
 #define GPU_COMMAND_BUFFER_SERVICE_SHARED_IMAGE_GL_TEXTURE_HOLDER_H_
 
 #include "gpu/command_buffer/service/shared_image/gl_common_image_backing_factory.h"
-#include "gpu/command_buffer/service/shared_image/shared_image_format_utils.h"
+#include "gpu/command_buffer/service/shared_image/shared_image_format_service_utils.h"
 #include "ui/gl/progress_reporter.h"
+
+class GrPromiseImageTexture;
 
 namespace gpu {
 
@@ -17,11 +19,13 @@ class SharedContextState;
 // validating or passthrough command decoder.
 class GLTextureHolder {
  public:
-  // Returns the equivalent ResourceFormat for plane specified by `plane_index`.
-  static viz::ResourceFormat GetPlaneFormat(viz::SharedImageFormat format,
-                                            int plane_index);
+  // Returns the equivalent SharedImageFormat for plane specified by
+  // `plane_index`.
+  static viz::SharedImageFormat GetPlaneFormat(viz::SharedImageFormat format,
+                                               int plane_index);
 
-  GLTextureHolder(viz::ResourceFormat format,
+  // `format` must be single-planar format.
+  GLTextureHolder(viz::SharedImageFormat format,
                   const gfx::Size& size,
                   bool is_passthrough,
                   gl::ProgressReporter* progress_reporter);
@@ -30,8 +34,8 @@ class GLTextureHolder {
   ~GLTextureHolder();
 
   gles2::Texture* texture() { return texture_; }
-  gles2::TexturePassthrough* passthrough_texture() {
-    return passthrough_texture_.get();
+  const scoped_refptr<gles2::TexturePassthrough>& passthrough_texture() {
+    return passthrough_texture_;
   }
 
   // Returns the service GL texture id.
@@ -59,7 +63,7 @@ class GLTextureHolder {
   bool ReadbackToMemory(const SkPixmap& pixmap);
 
   // Returns a promise image for the GL texture.
-  sk_sp<SkPromiseImageTexture> GetPromiseImage(
+  sk_sp<GrPromiseImageTexture> GetPromiseImage(
       SharedContextState* context_state);
 
   // Gets/sets cleared rect from gles2::Texture. Only valid to call with
@@ -70,11 +74,7 @@ class GLTextureHolder {
   void SetContextLost();
 
  private:
-  // TODO(kylechar): ResourceFormat isn't the ideal type to represent the format
-  // here since it's really a single plane of SharedImageFormat. This could
-  // potentially be SharedImageFormat + plane_index or some other type entirely.
-  // Figure out the right type to use instead and replace it.
-  viz::ResourceFormat format_;
+  viz::SharedImageFormat format_;
   gfx::Size size_;
   bool is_passthrough_;
   bool context_lost_ = false;

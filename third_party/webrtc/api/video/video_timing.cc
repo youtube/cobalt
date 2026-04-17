@@ -10,6 +10,10 @@
 
 #include "api/video/video_timing.h"
 
+#include <algorithm>
+#include <cstdint>
+#include <string>
+
 #include "api/array_view.h"
 #include "api/units/time_delta.h"
 #include "rtc_base/logging.h"
@@ -23,7 +27,7 @@ uint16_t VideoSendTiming::GetDeltaCappedMs(int64_t base_ms, int64_t time_ms) {
     RTC_DLOG(LS_ERROR) << "Delta " << (time_ms - base_ms)
                        << "ms expected to be positive";
   }
-  return rtc::saturated_cast<uint16_t>(time_ms - base_ms);
+  return saturated_cast<uint16_t>(time_ms - base_ms);
 }
 
 uint16_t VideoSendTiming::GetDeltaCappedMs(TimeDelta delta) {
@@ -31,7 +35,7 @@ uint16_t VideoSendTiming::GetDeltaCappedMs(TimeDelta delta) {
     RTC_DLOG(LS_ERROR) << "Delta " << delta.ms()
                        << "ms expected to be positive";
   }
-  return rtc::saturated_cast<uint16_t>(delta.ms());
+  return saturated_cast<uint16_t>(delta.ms());
 }
 
 TimingFrameInfo::TimingFrameInfo()
@@ -85,7 +89,7 @@ std::string TimingFrameInfo::ToString() const {
   }
 
   char buf[1024];
-  rtc::SimpleStringBuilder sb(buf);
+  SimpleStringBuilder sb(buf);
 
   sb << rtp_timestamp << ',' << capture_time_ms << ',' << encode_start_ms << ','
      << encode_finish_ms << ',' << packetization_finish_ms << ','
@@ -96,6 +100,25 @@ std::string TimingFrameInfo::ToString() const {
      << IsTimerTriggered();
 
   return sb.str();
+}
+
+VideoPlayoutDelay::VideoPlayoutDelay(TimeDelta min, TimeDelta max)
+    : min_(std::clamp(min, TimeDelta::Zero(), kMax)),
+      max_(std::clamp(max, min_, kMax)) {
+  if (!(TimeDelta::Zero() <= min && min <= max && max <= kMax)) {
+    RTC_LOG(LS_ERROR) << "Invalid video playout delay: [" << min << "," << max
+                      << "]. Clamped to [" << this->min() << "," << this->max()
+                      << "]";
+  }
+}
+
+bool VideoPlayoutDelay::Set(TimeDelta min, TimeDelta max) {
+  if (TimeDelta::Zero() <= min && min <= max && max <= kMax) {
+    min_ = min;
+    max_ = max;
+    return true;
+  }
+  return false;
 }
 
 }  // namespace webrtc

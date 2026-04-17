@@ -18,10 +18,9 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
-#include "starboard/shared/gles/gl_call.h"
-
 #include "starboard/common/check_op.h"
 #include "starboard/decode_target.h"
+#include "starboard/shared/gles/gl_call.h"
 
 SbDecodeTargetPrivate::Data::~Data() {
   glDeleteTextures(1, &info.planes[0].texture);

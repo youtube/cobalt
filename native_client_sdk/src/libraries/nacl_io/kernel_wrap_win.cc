@@ -7,16 +7,18 @@
 #if defined(WIN32)
 
 #include "nacl_io/kernel_wrap.h"
+
+#include <windows.h>
+
 #include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>  // This must be included before <sys/stat.h>.
 #include <sys/stat.h>
-#include "nacl_io/kernel_intercept.h"
+#include <sys/types.h>
 
-#include <windows.h>
+#include "nacl_io/kernel_intercept.h"
 
 namespace {
 
@@ -43,7 +45,7 @@ EXTERN_C_BEGIN
 // This needs to be included because it is defined in read.c, which we wish to
 // override. Define with dummy values for now... though this seems like it will
 // break ftelli64/fgetpos/fstream.
-char _lookuptrailbytes[256] = {0};
+char _lookuptrailbytes[256] = {};
 
 int _access(const char* path, int amode) {
   return ki_access(path, amode);

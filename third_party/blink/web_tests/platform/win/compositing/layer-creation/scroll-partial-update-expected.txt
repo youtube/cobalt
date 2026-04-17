@@ -2,22 +2,28 @@ scroll me
 {
   "layers": [
     {
-      "name": "Scrolling background of LayoutNGView #document",
+      "name": "Scrolling background of LayoutView #document",
       "bounds": [800, 600],
       "contentsOpaque": true,
       "backgroundColor": "#FFFFFF"
     },
     {
-      "name": "LayoutNGBlockFlow DIV id='composited'",
+      "name": "LayoutBlockFlow DIV id='composited'",
       "bounds": [20, 20],
       "drawsContent": false,
       "transform": 1
     },
     {
-      "name": "LayoutNGBlockFlow (positioned) DIV id='overlay'",
+      "name": "LayoutBlockFlow (positioned) DIV id='overlay'",
       "position": [10, 8],
       "bounds": [400, 204],
       "backgroundColor": "#FFFF0080"
+    },
+    {
+      "name": "VerticalScrollbar",
+      "position": [387, 10],
+      "bounds": [15, 200],
+      "contentsOpaque": true
     }
   ],
   "transforms": [

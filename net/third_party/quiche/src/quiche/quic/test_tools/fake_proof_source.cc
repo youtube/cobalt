@@ -4,6 +4,8 @@
 
 #include "quiche/quic/test_tools/fake_proof_source.h"
 
+#include <memory>
+#include <string>
 #include <utility>
 
 #include "absl/strings/string_view.h"
@@ -114,8 +116,8 @@ void FakeProofSource::ComputeTlsSignature(
       std::move(callback), delegate_.get()));
 }
 
-absl::InlinedVector<uint16_t, 8>
-FakeProofSource::SupportedTlsSignatureAlgorithms() const {
+QuicSignatureAlgorithmVector FakeProofSource::SupportedTlsSignatureAlgorithms()
+    const {
   return delegate_->SupportedTlsSignatureAlgorithms();
 }
 

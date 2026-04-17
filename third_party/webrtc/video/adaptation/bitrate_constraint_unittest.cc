@@ -10,16 +10,21 @@
 
 #include "video/adaptation/bitrate_constraint.h"
 
+#include <cstddef>
+#include <optional>
 #include <utility>
 #include <vector>
 
+#include "api/video/video_codec_type.h"
 #include "api/video_codecs/scalability_mode.h"
+#include "api/video_codecs/video_codec.h"
 #include "api/video_codecs/video_encoder.h"
 #include "call/adaptation/encoder_settings.h"
 #include "call/adaptation/test/fake_frame_rate_provider.h"
 #include "call/adaptation/video_source_restrictions.h"
 #include "call/adaptation/video_stream_input_state_provider.h"
 #include "test/gtest.h"
+#include "video/config/video_encoder_config.h"
 
 namespace webrtc {
 
@@ -36,7 +41,7 @@ const VideoSourceRestrictions k720p{/*max_pixels_per_frame=*/1280 * 720,
 
 struct TestParams {
   bool active;
-  absl::optional<ScalabilityMode> scalability_mode;
+  std::optional<ScalabilityMode> scalability_mode;
 };
 
 void FillCodecConfig(VideoCodec* video_codec,
@@ -47,7 +52,7 @@ void FillCodecConfig(VideoCodec* video_codec,
                      bool svc) {
   size_t num_layers = params.size();
   video_codec->codecType = kVideoCodecVP8;
-  video_codec->numberOfSimulcastStreams = num_layers;
+  video_codec->numberOfSimulcastStreams = svc ? 1 : num_layers;
 
   encoder_config->number_of_streams = svc ? 1 : num_layers;
   encoder_config->simulcast_layers.resize(num_layers);

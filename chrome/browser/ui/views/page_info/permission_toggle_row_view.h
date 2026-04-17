@@ -5,19 +5,24 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_PAGE_INFO_PERMISSION_TOGGLE_ROW_VIEW_H_
 #define CHROME_BROWSER_UI_VIEWS_PAGE_INFO_PERMISSION_TOGGLE_ROW_VIEW_H_
 
+#include <string>
+#include <string_view>
+
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
-#include "chrome/browser/ui/views/page_info/page_info_row_view.h"
+#include "chrome/browser/ui/views/controls/rich_controls_container_view.h"
 #include "chrome/browser/ui/views/page_info/permission_toggle_row_view_observer.h"
 #include "components/page_info/page_info_ui.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/views/controls/label.h"
 #include "ui/views/view.h"
 
 class ChromePageInfoUiDelegate;
 class PageInfoNavigationHandler;
 
 namespace views {
-class Label;
 class ToggleButton;
+class StyledLabel;
 }  // namespace views
 
 namespace test {
@@ -28,7 +33,13 @@ class PageInfoBubbleViewTestApi;
 // allows the user to control via toggle whether that access is granted. Has a
 // button that opens a subpage with more controls.
 class PermissionToggleRowView : public views::View {
+  METADATA_HEADER(PermissionToggleRowView, views::View)
+
  public:
+  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kRowSubTitleCameraElementId);
+  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kRowSubTitleMicrophoneElementId);
+  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(
+      kPermissionDisabledAtSystemLevelElementId);
   PermissionToggleRowView(ChromePageInfoUiDelegate* delegate,
                           PageInfoNavigationHandler* navigation_handler,
                           const PageInfo::PermissionInfo& permission,
@@ -40,24 +51,39 @@ class PermissionToggleRowView : public views::View {
 
   void AddObserver(PermissionToggleRowViewObserver* observer);
   void PermissionChanged();
+  void UpdatePermission(const PageInfo::PermissionInfo& permission);
   void ResetPermission();
 
-  const std::u16string& GetRowTitleForTesting() const {
+  std::u16string_view GetRowTitleForTesting() const {
     return row_view_->GetTitleForTesting();
   }
+
+  std::u16string_view GetRowSubTitleForTesting() const {
+    return state_label_ ? state_label_->GetText() : std::u16string_view();
+  }
+
+  views::ToggleButton* toggle_button_for_testing() { return toggle_button_; }
+
+  bool GetToggleButtonStateForTesting() const;
 
  private:
   friend class test::PageInfoBubbleViewTestApi;
 
   void OnToggleButtonPressed();
-  void InitForUserSource(bool should_show_spacer_view);
+  void AddToggleButton(const std::u16string& toggle_accessible_name,
+                       int icon_label_spacing);
+  void InitForUserSource(bool should_show_spacer_view,
+                         const std::u16string& toggle_accessible_name);
   void InitForManagedSource(ChromePageInfoUiDelegate* delegate);
   void UpdateUiOnPermissionChanged();
 
   PageInfo::PermissionInfo permission_;
+  bool permission_blocked_on_system_level_ = false;
 
-  raw_ptr<PageInfoRowView, DanglingUntriaged> row_view_ = nullptr;
+  raw_ptr<RichControlsContainerView, DanglingUntriaged> row_view_ = nullptr;
   raw_ptr<views::Label, DanglingUntriaged> state_label_ = nullptr;
+  raw_ptr<views::StyledLabel, DanglingUntriaged>
+      blocked_on_system_level_label_ = nullptr;
   raw_ptr<views::ToggleButton, DanglingUntriaged> toggle_button_ = nullptr;
   raw_ptr<views::View, DanglingUntriaged> spacer_view_ = nullptr;
 

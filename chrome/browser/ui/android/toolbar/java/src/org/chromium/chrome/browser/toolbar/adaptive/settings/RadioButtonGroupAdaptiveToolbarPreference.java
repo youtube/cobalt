@@ -4,43 +4,52 @@
 
 package org.chromium.chrome.browser.toolbar.adaptive.settings;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 import android.util.AttributeSet;
 import android.view.View;
 import android.widget.RadioGroup;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 import androidx.annotation.VisibleForTesting;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceViewHolder;
 
 import org.chromium.base.metrics.RecordUserAction;
+import org.chromium.build.annotations.EnsuresNonNullIf;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.toolbar.R;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarStatePredictor;
+import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarStatePredictor.UiState;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarStats;
 import org.chromium.components.browser_ui.widget.RadioButtonWithDescription;
 import org.chromium.components.browser_ui.widget.RadioButtonWithDescriptionLayout;
 
-/**
- * Fragment that allows the user to configure toolbar shortcut preferences.
- */
-public class RadioButtonGroupAdaptiveToolbarPreference
-        extends Preference implements RadioGroup.OnCheckedChangeListener {
-    private @NonNull RadioButtonWithDescriptionLayout mGroup;
-    private @NonNull RadioButtonWithDescription mAutoButton;
-    private @NonNull RadioButtonWithDescription mNewTabButton;
-    private @NonNull RadioButtonWithDescription mShareButton;
-    private @NonNull RadioButtonWithDescription mVoiceSearchButton;
-    private @NonNull RadioButtonWithDescription mTranslateButton;
-    private @NonNull RadioButtonWithDescription mAddToBookmarksButton;
+/** Fragment that allows the user to configure toolbar shortcut preferences. */
+@NullMarked
+public class RadioButtonGroupAdaptiveToolbarPreference extends Preference
+        implements RadioGroup.OnCheckedChangeListener {
+    private @Nullable RadioButtonWithDescriptionLayout mGroup;
+    private @Nullable RadioButtonWithDescription mAutoButton;
+    private @Nullable RadioButtonWithDescription mNewTabButton;
+    private @Nullable RadioButtonWithDescription mShareButton;
+    private @Nullable RadioButtonWithDescription mVoiceSearchButton;
+    private @Nullable RadioButtonWithDescription mTranslateButton;
+    private @Nullable RadioButtonWithDescription mAddToBookmarksButton;
+    private @Nullable RadioButtonWithDescription mReadAloudButton;
+    private @Nullable RadioButtonWithDescription mPageSummaryButton;
     private @AdaptiveToolbarButtonVariant int mSelected;
+    private @AdaptiveToolbarButtonVariant int mAutoButtonCaption;
     private @Nullable AdaptiveToolbarStatePredictor mStatePredictor;
     private boolean mCanUseVoiceSearch = true;
-    private boolean mCanUseTranslate;
-    private boolean mCanUseAddToBookmarks;
+    private boolean mCanUseReadAloud;
+    private boolean mCanUsePageSummary;
+    private boolean mButtonsInitialized;
+    private Runnable mInitRadioButtonRunnable = this::initializeRadioButtonSelection;
+    private boolean mIsBound;
 
     public RadioButtonGroupAdaptiveToolbarPreference(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -54,8 +63,9 @@ public class RadioButtonGroupAdaptiveToolbarPreference
         mGroup = (RadioButtonWithDescriptionLayout) holder.findViewById(R.id.adaptive_radio_group);
         mGroup.setOnCheckedChangeListener(this);
 
-        mAutoButton = (RadioButtonWithDescription) holder.findViewById(
-                R.id.adaptive_option_based_on_usage);
+        mAutoButton =
+                (RadioButtonWithDescription)
+                        holder.findViewById(R.id.adaptive_option_based_on_usage);
         mNewTabButton =
                 (RadioButtonWithDescription) holder.findViewById(R.id.adaptive_option_new_tab);
         mShareButton = (RadioButtonWithDescription) holder.findViewById(R.id.adaptive_option_share);
@@ -63,11 +73,34 @@ public class RadioButtonGroupAdaptiveToolbarPreference
                 (RadioButtonWithDescription) holder.findViewById(R.id.adaptive_option_voice_search);
         mTranslateButton =
                 (RadioButtonWithDescription) holder.findViewById(R.id.adaptive_option_translate);
-        mAddToBookmarksButton = (RadioButtonWithDescription) holder.findViewById(
-                R.id.adaptive_option_add_to_bookmarks);
+        mAddToBookmarksButton =
+                (RadioButtonWithDescription)
+                        holder.findViewById(R.id.adaptive_option_add_to_bookmarks);
+        mReadAloudButton =
+                (RadioButtonWithDescription) holder.findViewById(R.id.adaptive_option_read_aloud);
+        mPageSummaryButton =
+                (RadioButtonWithDescription) holder.findViewById(R.id.adaptive_option_page_summary);
 
-        initializeRadioButtonSelection();
+        mIsBound = true;
+
+        mInitRadioButtonRunnable.run();
         RecordUserAction.record("Mobile.AdaptiveToolbarButton.SettingsPage.Opened");
+    }
+
+    @EnsuresNonNullIf({
+        "mGroup",
+        "mAutoButton",
+        "mNewTabButton",
+        "mShareButton",
+        "mVoiceSearchButton",
+        "mTranslateButton",
+        "mAddToBookmarksButton",
+        "mReadAloudButton",
+        "mPageSummaryButton"
+    })
+    @SuppressWarnings("NullAway")
+    private boolean isBound() {
+        return mIsBound;
     }
 
     /**
@@ -78,31 +111,72 @@ public class RadioButtonGroupAdaptiveToolbarPreference
     public void setStatePredictor(AdaptiveToolbarStatePredictor statePredictor) {
         assert mStatePredictor == null;
         mStatePredictor = statePredictor;
-        initializeRadioButtonSelection();
+        mInitRadioButtonRunnable.run();
     }
 
     private void initializeRadioButtonSelection() {
-        if (mStatePredictor == null || mGroup == null) return;
-        mStatePredictor.recomputeUiState(uiState -> {
-            mSelected = uiState.preferenceSelection;
-            assert mSelected != AdaptiveToolbarButtonVariant.VOICE
-                    || mCanUseVoiceSearch : "voice search selected when not available";
-            RadioButtonWithDescription selectedButton = getButton(mSelected);
-            if (selectedButton != null) selectedButton.setChecked(true);
-            mAutoButton.setDescriptionText(getContext().getString(
-                    R.string.adaptive_toolbar_button_preference_based_on_your_usage_description,
-                    getButtonString(uiState.autoButtonCaption)));
-            updateVoiceButtonVisibility();
-            updateTranslateButtonVisibility();
-            updateAddToBookmarksButtonVisibility();
-        });
-        AdaptiveToolbarStats.recordRadioButtonStateAsync(mStatePredictor, /*onStartup=*/true);
+        if (mStatePredictor == null || !isBound() || mButtonsInitialized) return;
+
+        mStatePredictor.recomputeUiState(
+                uiState -> {
+                    initButtonsFromUiState(uiState);
+                    AdaptiveToolbarStats.recordRadioButtonStateAsync(
+                            buildUiStateForStats(), /* onStartup= */ true);
+                });
+    }
+
+    private UiState buildUiStateForStats() {
+        // Only the last 2 fields |preferenceSelection| |autoButtonCaption| are used.
+        return new UiState(
+                /* canShowUi= */ true,
+                AdaptiveToolbarButtonVariant.UNKNOWN,
+                mSelected,
+                mAutoButtonCaption);
+    }
+
+    /**
+     * Initialize toolbar buttons from a given {@link UiState} object. This method may be called by
+     * {@link AdaptiveToolbarSettingsFragment} if the settings UI is invoked via a long press on a
+     * toolbar button(for BrApp/CCT), by {@code mStatePredictor#recomputeUiState()} running inside
+     * this class if invoked from main settings UI (for BrApp only).
+     *
+     * @param uiState {@link UiState} to initialize buttons with.
+     */
+    public void initButtonsFromUiState(UiState uiState) {
+        if (!isBound()) {
+            // View bindings are not ready yet. Try this again after the completion.
+            mInitRadioButtonRunnable = () -> initButtonsFromUiState(uiState);
+            return;
+        }
+        mAutoButtonCaption = uiState.autoButtonCaption;
+        mSelected = uiState.preferenceSelection;
+        assert mSelected != AdaptiveToolbarButtonVariant.VOICE || mCanUseVoiceSearch
+                : "voice search selected when not available";
+        RadioButtonWithDescription selectedButton = getButton(mSelected);
+        if (selectedButton != null) selectedButton.setChecked(true);
+
+        int resId = R.string.adaptive_toolbar_button_preference_based_on_your_usage_description;
+        mAutoButton.setDescriptionText(
+                getContext().getString(resId, getButtonString(uiState.autoButtonCaption)));
+
+        // Description to indicate these buttons only appear on small windows,
+        // as large windows (tablets) show them elsewhere on UI (strip, omnibox).
+        resId = R.string.adaptive_toolbar_button_preference_based_on_window_width_description;
+        String basedOnWindowDesc = getContext().getString(resId);
+        mNewTabButton.setDescriptionText(basedOnWindowDesc);
+        mAddToBookmarksButton.setDescriptionText(basedOnWindowDesc);
+
+        updateVoiceButtonVisibility();
+        updateReadAloudButtonVisibility();
+        updatePageSummaryButtonVisibility();
+        mButtonsInitialized = true;
     }
 
     @Override
-    public void onCheckedChanged(RadioGroup group, int checkedId) {
-        @AdaptiveToolbarButtonVariant
-        int previousSelection = mSelected;
+    public void onCheckedChanged(@Nullable RadioGroup group, int checkedId) {
+        if (!isBound()) return;
+
+        @AdaptiveToolbarButtonVariant int previousSelection = mSelected;
         if (mAutoButton.isChecked()) {
             mSelected = AdaptiveToolbarButtonVariant.AUTO;
         } else if (mNewTabButton.isChecked()) {
@@ -115,12 +189,17 @@ public class RadioButtonGroupAdaptiveToolbarPreference
             mSelected = AdaptiveToolbarButtonVariant.TRANSLATE;
         } else if (mAddToBookmarksButton.isChecked()) {
             mSelected = AdaptiveToolbarButtonVariant.ADD_TO_BOOKMARKS;
+        } else if (mReadAloudButton.isChecked()) {
+            mSelected = AdaptiveToolbarButtonVariant.READ_ALOUD;
+        } else if (mPageSummaryButton.isChecked()) {
+            mSelected = AdaptiveToolbarButtonVariant.PAGE_SUMMARY;
         } else {
             assert false : "No matching setting found.";
         }
         callChangeListener(mSelected);
         if (previousSelection != mSelected && mStatePredictor != null) {
-            AdaptiveToolbarStats.recordRadioButtonStateAsync(mStatePredictor, /*onStartup=*/false);
+            AdaptiveToolbarStats.recordRadioButtonStateAsync(
+                    buildUiStateForStats(), /* onStartup= */ false);
         }
     }
 
@@ -135,8 +214,7 @@ public class RadioButtonGroupAdaptiveToolbarPreference
     }
 
     @VisibleForTesting
-    @Nullable
-    RadioButtonWithDescription getButton(@AdaptiveToolbarButtonVariant int variant) {
+    @Nullable RadioButtonWithDescription getButton(@AdaptiveToolbarButtonVariant int variant) {
         switch (variant) {
             case AdaptiveToolbarButtonVariant.AUTO:
                 return mAutoButton;
@@ -150,13 +228,16 @@ public class RadioButtonGroupAdaptiveToolbarPreference
                 return mTranslateButton;
             case AdaptiveToolbarButtonVariant.ADD_TO_BOOKMARKS:
                 return mAddToBookmarksButton;
+            case AdaptiveToolbarButtonVariant.READ_ALOUD:
+                return mReadAloudButton;
+            case AdaptiveToolbarButtonVariant.PAGE_SUMMARY:
+                return mPageSummaryButton;
         }
         return null;
     }
 
     private String getButtonString(@AdaptiveToolbarButtonVariant int variant) {
-        @StringRes
-        int stringRes = -1;
+        @StringRes int stringRes = -1;
         switch (variant) {
             case AdaptiveToolbarButtonVariant.NEW_TAB:
                 stringRes = R.string.adaptive_toolbar_button_preference_new_tab;
@@ -173,6 +254,15 @@ public class RadioButtonGroupAdaptiveToolbarPreference
             case AdaptiveToolbarButtonVariant.ADD_TO_BOOKMARKS:
                 stringRes = R.string.adaptive_toolbar_button_preference_add_to_bookmarks;
                 break;
+            case AdaptiveToolbarButtonVariant.READ_ALOUD:
+                stringRes = R.string.adaptive_toolbar_button_preference_read_aloud;
+                break;
+            case AdaptiveToolbarButtonVariant.PAGE_SUMMARY:
+                stringRes = R.string.adaptive_toolbar_button_preference_page_summary;
+                break;
+            case AdaptiveToolbarButtonVariant.OPEN_IN_BROWSER:
+                stringRes = R.string.menu_open_in_product_default;
+                break;
             default:
                 assert false : "Unknown variant " + variant;
         }
@@ -184,40 +274,42 @@ public class RadioButtonGroupAdaptiveToolbarPreference
         updateVoiceButtonVisibility();
     }
 
-    void setCanUseTranslate(boolean canUseTranslate) {
-        mCanUseTranslate = canUseTranslate;
-        updateTranslateButtonVisibility();
+    void setCanUseReadAloud(boolean canUseReadAloud) {
+        mCanUseReadAloud = canUseReadAloud;
+        updateReadAloudButtonVisibility();
     }
 
-    void setCanUseAddToBookmarks(boolean canUseAddToBookmarks) {
-        mCanUseAddToBookmarks = canUseAddToBookmarks;
-        updateAddToBookmarksButtonVisibility();
+    void setCanUsePageSummary(boolean canUsePageSummary) {
+        mCanUsePageSummary = canUsePageSummary;
+        updatePageSummaryButtonVisibility();
     }
 
     private void updateVoiceButtonVisibility() {
         updateButtonVisibility(mVoiceSearchButton, mCanUseVoiceSearch);
     }
 
-    private void updateTranslateButtonVisibility() {
-        updateButtonVisibility(mTranslateButton, mCanUseTranslate);
+    private void updateReadAloudButtonVisibility() {
+        updateButtonVisibility(mReadAloudButton, mCanUseReadAloud);
     }
 
-    private void updateAddToBookmarksButtonVisibility() {
-        updateButtonVisibility(mAddToBookmarksButton, mCanUseAddToBookmarks);
+    private void updatePageSummaryButtonVisibility() {
+        updateButtonVisibility(mPageSummaryButton, mCanUsePageSummary);
     }
 
     /**
      * Updates a button's visibility based on a boolean value. If the button is currently checked
      * and it needs to be hidden then we check the default "Auto" button.
+     *
      * @param button A radio button to show or hide.
      * @param shouldBeVisible Whether the button should be hidden or not.
      */
     private void updateButtonVisibility(
-            RadioButtonWithDescription button, boolean shouldBeVisible) {
+            @Nullable RadioButtonWithDescription button, boolean shouldBeVisible) {
         if (button == null) return;
 
         button.setVisibility(shouldBeVisible ? View.VISIBLE : View.GONE);
         if (button.isChecked() && !shouldBeVisible) {
+            assumeNonNull(mAutoButton);
             mAutoButton.setChecked(true);
             onCheckedChanged(mGroup, mAutoButton.getId());
         }

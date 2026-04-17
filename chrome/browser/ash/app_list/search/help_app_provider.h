@@ -11,12 +11,15 @@
 #include "ash/webui/help_app_ui/search/search.mojom.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "base/time/time.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_forward.h"
 #include "chrome/browser/ash/app_list/search/chrome_search_result.h"
 #include "chrome/browser/ash/app_list/search/search_provider.h"
 #include "components/services/app_service/public/cpp/app_registry_cache.h"
 #include "components/services/app_service/public/cpp/icon_types.h"
+#include "components/session_manager/core/session_manager.h"
+#include "components/session_manager/core/session_manager_observer.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 
 class Profile;
@@ -25,9 +28,9 @@ namespace ash::help_app {
 class SearchHandler;
 }  // namespace ash::help_app
 
-namespace gfx {
-class ImageSkia;
-}  // namespace gfx
+namespace ui {
+class ImageModel;
+}  // namespace ui
 
 namespace app_list {
 
@@ -37,7 +40,7 @@ class HelpAppResult : public ChromeSearchResult {
   HelpAppResult(const float& relevance,
                 Profile* profile,
                 const ash::help_app::mojom::SearchResultPtr& result,
-                const gfx::ImageSkia& icon,
+                const ui::ImageModel& icon,
                 const std::u16string& query);
 
   ~HelpAppResult() override;
@@ -49,7 +52,7 @@ class HelpAppResult : public ChromeSearchResult {
   void Open(int event_flags) override;
 
  private:
-  const raw_ptr<Profile, ExperimentalAsh> profile_;
+  const raw_ptr<Profile> profile_;
   const std::string url_path_;
   const std::string help_app_content_id_;
 };
@@ -57,14 +60,22 @@ class HelpAppResult : public ChromeSearchResult {
 // Provides results from the Help App based on the search query.
 class HelpAppProvider : public SearchProvider,
                         public apps::AppRegistryCache::Observer,
-                        public ash::help_app::mojom::SearchResultsObserver {
+                        public ash::help_app::mojom::SearchResultsObserver,
+                        public session_manager::SessionManagerObserver {
  public:
-  HelpAppProvider(Profile* profile,
-                  ash::help_app::SearchHandler* search_handler);
+  explicit HelpAppProvider(Profile* profile);
   ~HelpAppProvider() override;
 
   HelpAppProvider(const HelpAppProvider&) = delete;
   HelpAppProvider& operator=(const HelpAppProvider&) = delete;
+
+  // Initialize the provider. It should be called when:
+  //    1. User session start up tasks has completed.
+  //    2. User session start up tasks has not completed, but user has start to
+  //    search in launcher.
+  //    3. In tests with fake search handler provided.
+  void MaybeInitialize(
+      ash::help_app::SearchHandler* fake_search_handler = nullptr);
 
   // SearchProvider:
   void Start(const std::u16string& query) override;
@@ -79,6 +90,9 @@ class HelpAppProvider : public SearchProvider,
   // mojom::SearchResultsObserver:
   void OnSearchResultAvailabilityChanged() override;
 
+  // session_manager::SessionManagerObserver:
+  void OnUserSessionStartUpTaskCompleted() override;
+
  private:
   void OnSearchReturned(
       const std::u16string& query,
@@ -87,16 +101,24 @@ class HelpAppProvider : public SearchProvider,
   void OnLoadIcon(apps::IconValuePtr icon_value);
   void LoadIcon();
 
-  const raw_ptr<Profile, ExperimentalAsh> profile_;
+  const raw_ptr<Profile> profile_;
+  bool has_initialized = false;
 
-  raw_ptr<ash::help_app::SearchHandler, ExperimentalAsh> search_handler_;
-  raw_ptr<apps::AppServiceProxy, ExperimentalAsh> app_service_proxy_;
-  gfx::ImageSkia icon_;
+  raw_ptr<ash::help_app::SearchHandler> search_handler_ = nullptr;
+  ui::ImageModel icon_;
 
   // Last search query. It is reset when the view is closed.
   std::u16string last_query_;
   mojo::Receiver<ash::help_app::mojom::SearchResultsObserver>
       search_results_observer_receiver_{this};
+
+  base::ScopedObservation<apps::AppRegistryCache,
+                          apps::AppRegistryCache::Observer>
+      app_registry_cache_observer_{this};
+
+  base::ScopedObservation<session_manager::SessionManager,
+                          session_manager::SessionManagerObserver>
+      session_manager_observation_{this};
 
   base::WeakPtrFactory<HelpAppProvider> weak_factory_{this};
 };

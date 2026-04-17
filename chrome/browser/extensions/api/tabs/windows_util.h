@@ -8,29 +8,27 @@
 #include <string>
 #include <vector>
 
-#include "chrome/browser/extensions/window_controller_list.h"
+#include "chrome/browser/extensions/window_controller.h"
 
 class ExtensionFunction;
 class Profile;
 class GURL;
 
-namespace extensions {
-class WindowController;
-}
-
 namespace windows_util {
 
-// Populates |browser| for given |window_id|. If the window is not found,
-// returns false and sets |error|.
-bool GetBrowserFromWindowID(ExtensionFunction* function,
-                            int window_id,
-                            extensions::WindowController::TypeFilter filter,
-                            Browser** browser,
-                            std::string* error);
+#if !BUILDFLAG(IS_ANDROID)
+// Populates `*controller` for given `window_id`. If the window is not found,
+// returns false and sets `error`.
+bool GetControllerFromWindowID(ExtensionFunction* function,
+                               int window_id,
+                               extensions::WindowController::TypeFilter filter,
+                               extensions::WindowController** controller,
+                               std::string* error);
+#endif  // !BUILDFLAG(IS_ANDROID)
 
-// Returns true if |function| (and the profile and extension that it was
-// invoked from) can operate on the window wrapped by |window_controller|.
-// If |all_window_types| is set this function will return true for any
+// Returns true if `function` (and the profile and extension that it was
+// invoked from) can operate on the window wrapped by `window_controller`.
+// If `all_window_types` is set this function will return true for any
 // kind of window (including app and devtools), otherwise it will
 // return true only for normal browser windows as well as windows
 // created by the extension.
@@ -38,6 +36,12 @@ bool CanOperateOnWindow(const ExtensionFunction* function,
                         const extensions::WindowController* controller,
                         extensions::WindowController::TypeFilter filter);
 
+// Returns true if `function` was called from a logical child window of the
+// window wrapped by `controller`.
+bool CalledFromChildWindow(ExtensionFunction* function,
+                           const extensions::WindowController* controller);
+
+#if !BUILDFLAG(IS_ANDROID)
 // Enum return value for `ShouldOpenIncognitoWindow`, indicating whether to use
 // incognito or the presence of an error.
 enum IncognitoResult { kRegular, kIncognito, kError };
@@ -48,9 +52,10 @@ enum IncognitoResult { kRegular, kIncognito, kError };
 // which may not be opened in incognito mode.  If window creation leads the
 // browser into an erroneous state, `error` is populated.
 IncognitoResult ShouldOpenIncognitoWindow(Profile* profile,
-                                          absl::optional<bool> incognito,
+                                          std::optional<bool> incognito,
                                           std::vector<GURL>* urls,
                                           std::string* error);
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace windows_util
 

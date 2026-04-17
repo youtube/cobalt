@@ -5,6 +5,11 @@
 #ifndef MEDIA_GPU_V4L2_TEST_V4L2_IOCTL_SHIM_H_
 #define MEDIA_GPU_V4L2_TEST_V4L2_IOCTL_SHIM_H_
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <linux/videodev2.h>
 #include <string.h>
 
@@ -12,6 +17,7 @@
 
 #include "base/files/memory_mapped_file.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -23,22 +29,40 @@ namespace v4l2_test {
 // |buffer_id_|. |buffer_id_| is an index used for VIDIOC_REQBUFS ioctl call.
 class MmappedBuffer : public base::RefCounted<MmappedBuffer> {
  public:
+  REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE();
+
   MmappedBuffer(const base::PlatformFile decode_fd,
                 const struct v4l2_buffer& v4l2_buffer);
 
   class MmappedPlane {
    public:
-    void* start_addr;
+    raw_ptr<void> start_addr;
     const size_t length;
-    size_t bytes_used;
+    size_t bytes_used = 0;
 
     MmappedPlane(void* start, size_t len) : start_addr(start), length(len) {}
 
-    void CopyIn(const uint8_t* frame_data, size_t frame_size) {
-      LOG_ASSERT(frame_size < length)
+    // Appends the current slice data to the mmapped buffer. Resets |bytes_used|
+    // to 0 for the first slice. This function is used for HEVC because multiple
+    // slices per frame are supported.
+    void CopyInSlice(const uint8_t* frame_data,
+                     size_t frame_size,
+                     bool is_first_slice) {
+      if (is_first_slice) {
+        bytes_used = 0;
+      }
+
+      LOG_ASSERT((bytes_used + frame_size) < length)
           << "Not enough memory allocated to copy into.";
-      bytes_used = frame_size;
-      memcpy(static_cast<uint8_t*>(start_addr), frame_data, frame_size);
+
+      memcpy(static_cast<uint8_t*>(start_addr) + bytes_used, frame_data,
+             frame_size);
+      bytes_used += frame_size;
+    }
+
+    // Overwrites the mmapped buffer with the current frame data.
+    void CopyIn(const uint8_t* frame_data, size_t frame_size) {
+      CopyInSlice(frame_data, frame_size, true);
     }
   };
 
@@ -54,8 +78,8 @@ class MmappedBuffer : public base::RefCounted<MmappedBuffer> {
 
  private:
   friend class base::RefCounted<MmappedBuffer>;
-
   ~MmappedBuffer();
+
   MmappedBuffer(const MmappedBuffer&) = delete;
   MmappedBuffer& operator=(const MmappedBuffer&) = delete;
 
@@ -74,8 +98,7 @@ class V4L2Queue {
  public:
   V4L2Queue(enum v4l2_buf_type type,
             const gfx::Size& resolution,
-            enum v4l2_memory memory,
-            uint32_t num_buffers);
+            enum v4l2_memory memory);
 
   V4L2Queue(const V4L2Queue&) = delete;
   V4L2Queue& operator=(const V4L2Queue&) = delete;
@@ -174,12 +197,8 @@ class V4L2IoctlShim {
   // https://www.kernel.org/doc/html/v5.10/userspace-api/media/v4l/vidioc-g-fmt.html?highlight=vidioc_try_fmt#description
   void TryFmt(struct v4l2_format* fmt) const;
 
-  // Allocates buffers via VIDIOC_REQBUFS for |queue|.
-  void ReqBufs(std::unique_ptr<V4L2Queue>& queue) const;
-
   // Allocates buffers via VIDIOC_REQBUFS for |queue| with a buffer count.
-  void ReqBufsWithCount(std::unique_ptr<V4L2Queue>& queue,
-                        uint32_t count) const;
+  void ReqBufs(std::unique_ptr<V4L2Queue>& queue, uint32_t count) const;
 
   // Enqueues an empty (capturing) or filled (output) buffer
   // in the driver's incoming |queue|.
@@ -215,14 +234,15 @@ class V4L2IoctlShim {
   // Re-initializes the previously allocated request for reuse.
   void MediaRequestIocReinit(const std::unique_ptr<V4L2Queue>& queue) const;
 
+  // Completion of the request implies that the OUTPUT and CAPTURE buffers
+  // are available for dequeueing
+  void WaitForRequestCompletion(const std::unique_ptr<V4L2Queue>& queue) const;
+
   // Finds available media device for video decoder. This function also checks
   // to make sure either |bus_info| or |driver| field from |media_device_info|
   // struct (obtained from MEDIA_IOC_DEVICE_INFO call) is matched from the same
-  // field in |v4l2_capability| struct (obtained from VIDIOC_QUERYCAP call).
-  [[nodiscard]] bool FindMediaDevice();
-
-  // Verifies |v4l_fd| supports |compressed_format| for OUTPUT queues.
-  [[nodiscard]] bool VerifyCapabilities(uint32_t compressed_format) const;
+  // field in |v4l2_capability| struct.
+  [[nodiscard]] bool FindMediaDevice(struct v4l2_capability* cap);
 
   // Allocates buffers for the given |queue|.
   void QueryAndMmapQueueBuffers(std::unique_ptr<V4L2Queue>& queue) const;
@@ -249,6 +269,9 @@ class V4L2IoctlShim {
   base::File decode_fd_;
   // Media device file descriptor used for ioctl requests.
   base::File media_fd_;
+
+  // Whether V4L2_CTRL_WHICH_CUR_VAL is implemented correctly
+  bool cur_val_is_supported_ = true;
 };
 
 }  // namespace v4l2_test

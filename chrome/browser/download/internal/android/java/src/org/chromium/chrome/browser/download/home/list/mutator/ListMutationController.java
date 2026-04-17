@@ -4,6 +4,10 @@
 
 package org.chromium.chrome.browser.download.home.list.mutator;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.download.home.DownloadManagerUiConfig;
 import org.chromium.chrome.browser.download.home.JustNowProvider;
 import org.chromium.chrome.browser.download.home.filter.Filters;
@@ -17,6 +21,7 @@ import java.util.List;
  * Controls the list mutation pipeline which includes the sorter, label adder, paginator, and
  * property setter.
  */
+@NullMarked
 public class ListMutationController {
     private final DownloadManagerUiConfig mUiConfig;
     private final ListItemModel mModel;
@@ -35,22 +40,29 @@ public class ListMutationController {
 
     private int mFilterType = Filters.FilterType.NONE;
 
-    private final ListConsumer mModelConsumer = new ListConsumer() {
-        @Override
-        public ListConsumer setListConsumer(ListConsumer nextConsumer) {
-            return null;
-        }
+    private final ListConsumer mModelConsumer =
+            new ListConsumer() {
+                @Override
+                public ListConsumer setListConsumer(ListConsumer nextConsumer) {
+                    assert false
+                            : "Setting a downstream consumer for the current consumer is unexpected"
+                                    + " because this is the last in the chain of consumers.";
+                    return assumeNonNull(null);
+                }
 
-        @Override
-        public void onListUpdated(List<ListItem> inputList) {
-            mModel.set(inputList);
-            mModel.dispatchLastEvent();
-        }
-    };
+                @Override
+                public void onListUpdated(List<ListItem> inputList) {
+                    mModel.set(inputList);
+                    mModel.dispatchLastEvent();
+                }
+            };
 
     /** Constructor. */
-    public ListMutationController(DownloadManagerUiConfig config, JustNowProvider justNowProvider,
-            DateOrderedListMutator mutator, ListItemModel model) {
+    public ListMutationController(
+            DownloadManagerUiConfig config,
+            JustNowProvider justNowProvider,
+            DateOrderedListMutator mutator,
+            ListItemModel model) {
         mUiConfig = config;
         mMutator = mutator;
         mModel = model;
@@ -64,38 +76,38 @@ public class ListMutationController {
         mDefaultDateSorter = new DateSorter(justNowProvider);
         mDefaultDateLabelAdder = new DateLabelAdder(config, justNowProvider);
         mPrefetchSorter = new DateSorterForCards();
-        mPrefetchLabelAdder = mUiConfig.supportsGrouping ? new GroupCardLabelAdder(mCardPaginator)
-                                                         : mNoopListConsumer;
+        mPrefetchLabelAdder =
+                mUiConfig.supportsGrouping
+                        ? new GroupCardLabelAdder(mCardPaginator)
+                        : mNoopListConsumer;
         mListItemPropertySetter = new ListItemPropertySetter(mUiConfig);
 
         resetPipeline();
         mMutator.reload();
     }
 
-    /**
-     * To be called when this mediator should filter its content based on {@code filter}.
-     */
+    /** To be called when this mediator should filter its content based on {@code filter}. */
     public void onFilterTypeSelected(@Filters.FilterType int filter) {
         if (mDefaultListPaginator != null) mDefaultListPaginator.reset();
         if (mPrefetchListPaginator != null) mPrefetchListPaginator.reset();
         mCardPaginator.reset();
 
-        boolean filterTypeSame = mFilterType == filter
-                || (mFilterType != Filters.FilterType.PREFETCHED
-                        && filter != Filters.FilterType.PREFETCHED);
+        boolean filterTypeSame =
+                mFilterType == filter
+                        || (mFilterType != Filters.FilterType.PREFETCHED
+                                && filter != Filters.FilterType.PREFETCHED);
         if (mFilterType != -1 && filterTypeSame) return;
 
         mFilterType = filter;
         resetPipeline();
     }
 
-    /**
-     * Called to add more pages to show in the list.
-     */
+    /** Called to add more pages to show in the list. */
     public void loadMorePages() {
         DateOrderedListMutator.ListPaginator paginator =
-                mFilterType == Filters.FilterType.PREFETCHED ? mPrefetchListPaginator
-                                                             : mDefaultListPaginator;
+                mFilterType == Filters.FilterType.PREFETCHED
+                        ? mPrefetchListPaginator
+                        : mDefaultListPaginator;
         paginator.loadMorePages();
         mMutator.reload();
     }
@@ -124,7 +136,7 @@ public class ListMutationController {
     /** An empty implementation for {@link ListConsumer} and {@link ListPaginator}. */
     private static class NoopListConsumer
             implements ListConsumer, DateOrderedListMutator.ListPaginator {
-        private ListConsumer mListConsumer;
+        private @Nullable ListConsumer mListConsumer;
 
         @Override
         public void onListUpdated(List<ListItem> inputList) {

@@ -31,7 +31,6 @@ std::string GetLogName(SupportedSource source_type) {
       return "uptime";
   }
   NOTREACHED();
-  return "";
 }
 
 }  // namespace
@@ -40,7 +39,7 @@ SingleDebugDaemonLogSource::SingleDebugDaemonLogSource(
     SupportedSource source_type)
     : SystemLogsSource(GetLogName(source_type)) {}
 
-SingleDebugDaemonLogSource::~SingleDebugDaemonLogSource() {}
+SingleDebugDaemonLogSource::~SingleDebugDaemonLogSource() = default;
 
 void SingleDebugDaemonLogSource::Fetch(SysLogsSourceCallback callback) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
@@ -56,7 +55,7 @@ void SingleDebugDaemonLogSource::Fetch(SysLogsSourceCallback callback) {
 void SingleDebugDaemonLogSource::OnFetchComplete(
     const std::string& log_name,
     SysLogsSourceCallback callback,
-    absl::optional<std::string> result) const {
+    std::optional<std::string> result) const {
   // |result| and |response| are the same type, but |result| is passed in from
   // DebugDaemonClient, which does not use the SystemLogsResponse alias.
   auto response = std::make_unique<SystemLogsResponse>();

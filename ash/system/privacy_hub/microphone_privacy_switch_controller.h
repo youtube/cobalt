@@ -27,6 +27,8 @@ class ASH_EXPORT MicrophonePrivacySwitchController
       const MicrophonePrivacySwitchController&) = delete;
   ~MicrophonePrivacySwitchController() override;
 
+  static MicrophonePrivacySwitchController* Get();
+
   // CrasAudioHandler::AudioObserver
   void OnInputMuteChanged(
       bool mute_on,
@@ -36,6 +38,9 @@ class ASH_EXPORT MicrophonePrivacySwitchController
 
   // SessionObserver:
   void OnActiveUserPrefServiceChanged(PrefService* pref_service) override;
+
+  // Returns false if the microphone is globally blocked by the OS level switch.
+  bool IsMicrophoneUsageAllowed() const;
 
  private:
   // A callback that is invoked when the user changes `kUserMicrophoneAllowed`

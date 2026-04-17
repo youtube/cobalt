@@ -15,6 +15,7 @@
 #include "extensions/common/error_utils.h"
 #include "extensions/common/manifest_constants.h"
 #include "extensions/common/manifest_handlers/permissions_parser.h"
+#include "ui/base/accelerators/command.h"
 
 namespace extensions {
 
@@ -52,7 +53,8 @@ const Command* CommandsInfo::GetActionCommand(const Extension* extension) {
 }
 
 // static
-const CommandMap* CommandsInfo::GetNamedCommands(const Extension* extension) {
+const ui::CommandMap* CommandsInfo::GetNamedCommands(
+    const Extension* extension) {
   auto* info =
       static_cast<CommandsInfo*>(extension->GetManifestData(keys::kCommands));
   return info ? &info->named_commands : nullptr;
@@ -64,7 +66,7 @@ CommandsHandler::~CommandsHandler() = default;
 bool CommandsHandler::Parse(Extension* extension, std::u16string* error) {
   if (!extension->manifest()->FindKey(keys::kCommands)) {
     std::unique_ptr<CommandsInfo> commands_info(new CommandsInfo);
-    MaybeSetBrowserActionDefault(extension, commands_info.get());
+    MaybeSetActionDefault(extension, commands_info.get());
     extension->SetManifestData(keys::kCommands, std::move(commands_info));
     return true;
   }
@@ -100,8 +102,9 @@ bool CommandsHandler::Parse(Extension* extension, std::u16string* error) {
       // Only media keys are allowed to work without modifiers, and because
       // media keys aren't registered exclusively they should not count towards
       // the max of four shortcuts per extension.
-      if (!Command::IsMediaKey(binding->accelerator()))
+      if (!binding->accelerator().IsMediaKey()) {
         ++keybindings_found;
+      }
 
       if (keybindings_found > kMaxCommandsWithKeybindingPerExtension &&
           !PermissionsParser::HasAPIPermission(
@@ -142,7 +145,7 @@ bool CommandsHandler::Parse(Extension* extension, std::u16string* error) {
         manifest_keys::kCommands));
   }
 
-  MaybeSetBrowserActionDefault(extension, commands_info.get());
+  MaybeSetActionDefault(extension, commands_info.get());
   extension->SetManifestData(keys::kCommands, std::move(commands_info));
   return true;
 }
@@ -153,8 +156,8 @@ bool CommandsHandler::AlwaysParseForType(Manifest::Type type) const {
          type == Manifest::TYPE_PLATFORM_APP;
 }
 
-void CommandsHandler::MaybeSetBrowserActionDefault(const Extension* extension,
-                                                   CommandsInfo* info) {
+void CommandsHandler::MaybeSetActionDefault(const Extension* extension,
+                                            CommandsInfo* info) {
   if (extension->manifest()->FindKey(keys::kAction) &&
       !info->action_command.get()) {
     info->action_command =

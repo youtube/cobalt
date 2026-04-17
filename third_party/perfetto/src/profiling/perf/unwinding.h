@@ -75,6 +75,8 @@ class Unwinder {
  public:
   friend class UnwinderHandle;
 
+  enum class UnwindMode { kUnwindStack, kFramePointer };
+
   // Callbacks from the unwinder to the primary producer thread.
   class Delegate {
    public:
@@ -89,7 +91,9 @@ class Unwinder {
 
   ~Unwinder() { PERFETTO_DCHECK_THREAD(thread_checker_); }
 
-  void PostStartDataSource(DataSourceInstanceID ds_id, bool kernel_frames);
+  void PostStartDataSource(DataSourceInstanceID ds_id,
+                           bool kernel_frames,
+                           UnwindMode unwind_mode);
   void PostAdoptProcDescriptors(DataSourceInstanceID ds_id,
                                 pid_t pid,
                                 base::ScopedFile maps_fd,
@@ -144,8 +148,11 @@ class Unwinder {
 
   struct DataSourceState {
     enum class Status { kActive, kShuttingDown };
+    explicit DataSourceState(UnwindMode _unwind_mode)
+        : unwind_mode(_unwind_mode) {}
 
     Status status = Status::kActive;
+    const UnwindMode unwind_mode;
     std::map<pid_t, ProcessState> process_states;
   };
 
@@ -163,7 +170,9 @@ class Unwinder {
 
   // Marks the data source as valid and active at the unwinding stage.
   // Initializes kernel address symbolization if needed.
-  void StartDataSource(DataSourceInstanceID ds_id, bool kernel_frames);
+  void StartDataSource(DataSourceInstanceID ds_id,
+                       bool kernel_frames,
+                       UnwindMode unwind_mode);
 
   void AdoptProcDescriptors(DataSourceInstanceID ds_id,
                             pid_t pid,
@@ -184,7 +193,8 @@ class Unwinder {
 
   CompletedSample UnwindSample(const ParsedSample& sample,
                                UnwindingMetadata* opt_user_state,
-                               bool pid_unwound_before);
+                               bool pid_unwound_before,
+                               UnwindMode unwind_mode);
 
   // Returns a list of symbolized kernel frames in the sample (if any).
   std::vector<unwindstack::FrameData> SymbolizeKernelCallchain(
@@ -214,7 +224,7 @@ class Unwinder {
   // objects within libunwindstack, which take up non-trivial amounts of memory.
   //
   // There are two reasons for having this operation:
-  // * over a longer trace, it's desireable to drop heavy state for processes
+  // * over a longer trace, it's desirable to drop heavy state for processes
   //   that haven't been sampled recently.
   // * since libunwindstack's cache is not bounded, it'll tend towards having
   //   state for all processes that are targeted by the profiling config.

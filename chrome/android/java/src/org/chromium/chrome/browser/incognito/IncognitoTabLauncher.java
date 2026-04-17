@@ -14,26 +14,25 @@ import android.text.TextUtils;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
-import androidx.browser.customtabs.CustomTabsSessionToken;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.IntentUtils;
-import org.chromium.base.StrictModeContext;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
-import org.chromium.chrome.browser.ChromeApplicationImpl;
+import org.chromium.base.version_info.VersionInfo;
 import org.chromium.chrome.browser.IntentHandler;
+import org.chromium.chrome.browser.browserservices.intents.SessionHolder;
 import org.chromium.chrome.browser.customtabs.CustomTabsConnection;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
-import org.chromium.components.version_info.VersionInfo;
+import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.components.externalauth.ExternalAuthUtils;
 
 /**
  * An exposed Activity that allows launching an Incognito Tab.
  *
- * No URL or search term can be entered in, the Incognito tab is started with a blank (but focused)
- * omnibox. This component will be disabled if incognito mode is disabled.
+ * <p>No URL or search term can be entered in, the Incognito tab is started with a blank (but
+ * focused) omnibox. This component will be disabled if incognito mode is disabled.
  */
 public class IncognitoTabLauncher extends Activity {
     /** The Intent action used to launch the IncognitoTabLauncher. */
@@ -68,14 +67,13 @@ public class IncognitoTabLauncher extends Activity {
 
         Intent chromeLauncherIntent = IntentHandler.createTrustedOpenNewTabIntent(this, true);
 
-        /**
+        /*
          * The method IntentHandler.createTrustedOpenNewTabIntent creates a new intent and the
          * SESSION_TOKEN information about the original intent via getIntent() is lost in that
          * process. We extract the package name from the SESSION_TOKEN and store the value in new
          * intent.
          */
-        CustomTabsSessionToken sessionToken =
-                CustomTabsSessionToken.getSessionTokenFromIntent(getIntent());
+        var sessionToken = SessionHolder.getSessionHolderFromIntent(getIntent());
         String sendersPackageName =
                 CustomTabsConnection.getInstance().getClientPackageNameForSession(sessionToken);
 
@@ -87,9 +85,7 @@ public class IncognitoTabLauncher extends Activity {
         chromeLauncherIntent.putExtra(
                 IntentHandler.EXTRA_INVOKED_FROM_LAUNCH_NEW_INCOGNITO_TAB, true);
 
-        try (StrictModeContext ignored = StrictModeContext.allowDiskWrites()) {
-            startActivity(chromeLauncherIntent);
-        }
+        startActivity(chromeLauncherIntent);
 
         finish();
     }
@@ -99,34 +95,26 @@ public class IncognitoTabLauncher extends Activity {
      * Tab flow.
      */
     public static boolean didCreateIntent(Intent intent) {
-        return IntentHandler.wasIntentSenderChrome(intent) && IntentUtils.safeGetBooleanExtra(
-                intent, IntentHandler.EXTRA_INVOKED_FROM_LAUNCH_NEW_INCOGNITO_TAB, false);
+        return IntentHandler.wasIntentSenderChrome(intent)
+                && IntentUtils.safeGetBooleanExtra(
+                        intent, IntentHandler.EXTRA_INVOKED_FROM_LAUNCH_NEW_INCOGNITO_TAB, false);
     }
 
-    /**
-     * Returns whether the omnibox should be focused after launching the incognito tab.
-     */
+    /** Returns whether the omnibox should be focused after launching the incognito tab. */
     public static boolean shouldFocusOmnibox(Intent intent) {
         assert didCreateIntent(intent);
-        return isVerifiedFirstPartyIntent(intent)
-                && ChromeFeatureList.isEnabled(
-                        ChromeFeatureList.FOCUS_OMNIBOX_IN_INCOGNITO_TAB_INTENTS);
+        return isVerifiedFirstPartyIntent(intent);
     }
 
-    /**
-     * Returns if the intent is from a verified first party app.
-     */
+    /** Returns if the intent is from a verified first party app. */
     private static boolean isVerifiedFirstPartyIntent(Intent intent) {
         String sendersPackageName =
                 intent.getStringExtra(IncognitoTabLauncher.EXTRA_SENDERS_PACKAGE_NAME);
         return !TextUtils.isEmpty(sendersPackageName)
-                && ChromeApplicationImpl.getComponent().resolveExternalAuthUtils().isGoogleSigned(
-                        sendersPackageName);
+                && ExternalAuthUtils.getInstance().isGoogleSigned(sendersPackageName);
     }
 
-    /**
-     * Records UMA that a new incognito tab has been launched as a result of this Activity.
-     */
+    /** Records UMA that a new incognito tab has been launched as a result of this Activity. */
     public static void recordUse() {
         RecordUserAction.record("Android.LaunchNewIncognitoTab");
     }
@@ -135,11 +123,9 @@ public class IncognitoTabLauncher extends Activity {
      * Checks whether Incognito mode is enabled for the user and enables/disables the
      * IncognitoLauncherActivity appropriately. This call requires native to be loaded.
      */
-    public static void updateComponentEnabledState() {
+    public static void updateComponentEnabledState(Profile profile) {
         // TODO(peconn): Update state in a few more places (eg CustomTabsConnection#warmup).
-        boolean enable =
-                ChromeFeatureList.isEnabled(ChromeFeatureList.ALLOW_NEW_INCOGNITO_TAB_INTENTS)
-                && IncognitoUtils.isIncognitoModeEnabled();
+        boolean enable = IncognitoUtils.isIncognitoModeEnabled(profile);
 
         PostTask.postTask(TaskTraits.USER_VISIBLE, () -> setComponentEnabled(enable));
     }
@@ -155,9 +141,10 @@ public class IncognitoTabLauncher extends Activity {
         PackageManager packageManager = context.getPackageManager();
         ComponentName componentName = new ComponentName(context, IncognitoTabLauncher.class);
 
-        int newState = enabled
-                ? PackageManager.COMPONENT_ENABLED_STATE_ENABLED
-                : PackageManager.COMPONENT_ENABLED_STATE_DISABLED;
+        int newState =
+                enabled
+                        ? PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+                        : PackageManager.COMPONENT_ENABLED_STATE_DISABLED;
 
         // This indicates that we don't want to kill Chrome when changing component enabled state.
         int flags = PackageManager.DONT_KILL_APP;

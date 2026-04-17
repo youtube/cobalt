@@ -40,6 +40,11 @@ def parse_arguments(arguments):
         help='The typescript gn build target which builds the source code '
              'files',
         required=True)
+    parser.add_argument(
+        '--custom_def_files',
+        help='Comma separate file list which will be added to "files" section '
+             'in tsconfig as additional type definitions',
+        required=False)
     return parser.parse_args(arguments)
 
 
@@ -74,6 +79,9 @@ def main(args):
         out_json = json.load(f)
 
     out_json_dir = os.path.dirname(out_json_path)
+    definitions = ['.d.ts']
+    if arguments.custom_def_files:
+        definitions.extend(arguments.custom_def_files.split(','))
     local_json = {
         'extends': normalize_path(out_json_dir, out_json['extends']),
         'compilerOptions': {
@@ -93,7 +101,7 @@ def main(args):
         'files': [
             # Add the .d.ts files.
             normalize_path(out_json_dir, path)
-            for path in out_json['files'] if path.endswith('.d.ts')
+            for path in out_json['files'] if path.endswith(tuple(definitions))
         ],
         'include': [
             # Include every source file underneath the generated tsconfig.json.
@@ -103,17 +111,6 @@ def main(args):
             'path': normalize_path(out_json_dir, path['path'])
         } for path in out_json['references']],
     }
-
-    #TODO(xiaohuic): remove special case for ChromeOS Settings below.
-    if '/settings/chromeos' in arguments.gn_target:
-        # ChromeOS Settings app setup is special, the ts input dir root is not
-        # matching the source code root. It uses the browser Settings app
-        # source code root instead because of sharing some browser Settings
-        # files directly.  We should remove direct file sharing between the two
-        # Settings apps.
-        local_json['compilerOptions']['rootDirs'].append(
-                normalize_path(out_json_dir,
-                    out_json['compilerOptions']['rootDir'] + '/chromeos'))
 
     output_path = os.path.join(gn_target_src_dir, 'tsconfig.json')
     with open(output_path, 'w') as f:

@@ -28,11 +28,12 @@ class UnifiedHeapMarkingState final {
 
   V8_INLINE void MarkAndPush(const TracedReferenceBase&);
 
+  Heap* heap() const { return heap_; }
+
  private:
   Heap* const heap_;
   MarkingState* const marking_state_;
   MarkingWorklists::Local* local_marking_worklist_ = nullptr;
-  const bool track_retaining_path_;
   const TracedHandles::MarkMode mark_mode_;
 };
 

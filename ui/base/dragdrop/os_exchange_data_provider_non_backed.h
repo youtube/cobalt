@@ -7,16 +7,17 @@
 
 #include <map>
 #include <memory>
+#include <optional>
+#include <string_view>
 
 #include "base/component_export.h"
 #include "base/pickle.h"
-#include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "ui/base/clipboard/file_info.h"
 #include "ui/base/dragdrop/os_exchange_data_provider.h"
 #include "ui/gfx/geometry/vector2d.h"
 #include "ui/gfx/image/image_skia.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 namespace base {
 class FilePath;
@@ -41,36 +42,36 @@ class COMPONENT_EXPORT(UI_BASE) OSExchangeDataProviderNonBacked
 
   // Overridden from OSExchangeDataProvider:
   std::unique_ptr<OSExchangeDataProvider> Clone() const override;
-  void MarkOriginatedFromRenderer() override;
-  bool DidOriginateFromRenderer() const override;
+  void MarkRendererTaintedFromOrigin(const url::Origin& origin) override;
+  bool IsRendererTainted() const override;
+  std::optional<url::Origin> GetRendererTaintedOrigin() const override;
   void MarkAsFromPrivileged() override;
   bool IsFromPrivileged() const override;
-  void SetString(const std::u16string& data) override;
-  void SetURL(const GURL& url, const std::u16string& title) override;
+  void SetString(std::u16string_view data) override;
+  void SetURL(const GURL& url, std::u16string_view title) override;
   void SetFilename(const base::FilePath& path) override;
   void SetFilenames(const std::vector<FileInfo>& filenames) override;
   void SetPickledData(const ClipboardFormatType& format,
                       const base::Pickle& data) override;
-  bool GetString(std::u16string* data) const override;
-  bool GetURLAndTitle(FilenameToURLPolicy policy,
-                      GURL* url,
-                      std::u16string* title) const override;
-  bool GetFilename(base::FilePath* path) const override;
-  bool GetFilenames(std::vector<FileInfo>* filenames) const override;
-  bool GetPickledData(const ClipboardFormatType& format,
-                      base::Pickle* data) const override;
+  std::optional<std::u16string> GetString() const override;
+  std::optional<UrlInfo> GetURLAndTitle(
+      FilenameToURLPolicy policy) const override;
+  std::optional<std::vector<GURL>> GetURLs(
+      FilenameToURLPolicy policy) const override;
+  std::optional<std::vector<FileInfo>> GetFilenames() const override;
+  std::optional<base::Pickle> GetPickledData(
+      const ClipboardFormatType& format) const override;
   bool HasString() const override;
   bool HasURL(FilenameToURLPolicy policy) const override;
   bool HasFile() const override;
   bool HasCustomFormat(const ClipboardFormatType& format) const override;
   void SetFileContents(const base::FilePath& filename,
                        const std::string& file_contents) override;
-  bool GetFileContents(base::FilePath* filename,
-                       std::string* file_contents) const override;
+  std::optional<FileContentsInfo> GetFileContents() const override;
   bool HasFileContents() const override;
 
   void SetHtml(const std::u16string& html, const GURL& base_url) override;
-  bool GetHtml(std::u16string* html, GURL* base_url) const override;
+  std::optional<HtmlInfo> GetHtml() const override;
   bool HasHtml() const override;
   void SetDragImage(const gfx::ImageSkia& image,
                     const gfx::Vector2d& cursor_offset) override;
@@ -93,9 +94,10 @@ class COMPONENT_EXPORT(UI_BASE) OSExchangeDataProviderNonBacked
   // parsed as a URL.
   bool GetFileURL(GURL* url) const;
 
-  // Returns true if |formats_| contains a string format and the string can be
-  // parsed as a URL.
-  bool GetPlainTextURL(GURL* url) const;
+  // Returns a GURL if `formats_` contains a string format and the string is a
+  // valid GURL, and if `IsRendererTainted()` is true, that the scheme of the
+  // url is http or https. Otherwise, returns `std::nullopt`.
+  std::optional<GURL> GetPlainTextURL() const;
 
   // Actual formats that have been set.
   // for details.
@@ -126,10 +128,8 @@ class COMPONENT_EXPORT(UI_BASE) OSExchangeDataProviderNonBacked
   std::u16string html_;
   GURL base_url_;
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
   // For marking data originating from the renderer.
-  bool originated_from_renderer_ = false;
-#endif
+  std::optional<url::Origin> tainted_by_renderer_origin_;
 
   // For marking data originating by privileged WebContents.
   bool is_from_privileged_ = false;

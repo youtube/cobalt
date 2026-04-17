@@ -10,24 +10,29 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_set>
 #include <vector>
 
-#include "base/functional/callback_forward.h"
+#include "base/functional/function_ref.h"
+#include "base/memory/safety_checks.h"
 #include "base/memory/weak_ptr.h"
 #include "base/supports_user_data.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/k_anonymity_service_delegate.h"
+#include "content/public/browser/prefetch_handle.h"
+#include "content/public/browser/prefetch_request_status_listener.h"
 #include "content/public/browser/zoom_level_delegate.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
-#include "services/network/public/mojom/network_context.mojom-forward.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "net/http/http_no_vary_search_data.h"
+#include "net/http/http_request_headers.h"
 #include "third_party/blink/public/mojom/blob/blob.mojom-forward.h"
 #include "third_party/blink/public/mojom/push_messaging/push_messaging.mojom-forward.h"
 #include "third_party/blink/public/mojom/push_messaging/push_messaging_status.mojom-forward.h"
 #include "third_party/perfetto/include/perfetto/tracing/traced_value_forward.h"
+#include "url/origin.h"
 
 class GURL;
 
@@ -64,11 +69,10 @@ namespace perfetto {
 template <typename>
 class TracedProto;
 
-namespace protos {
-namespace pbzero {
+namespace protos::pbzero {
 class ChromeBrowserContext;
-}
-}  // namespace protos
+}  // namespace protos::pbzero
+
 }  // namespace perfetto
 
 namespace content {
@@ -106,6 +110,10 @@ class StoragePartitionConfig;
 // It lives on the UI thread. All these methods must only be called on the UI
 // thread.
 class CONTENT_EXPORT BrowserContext : public base::SupportsUserData {
+  // Do not remove this macro!
+  // The macro is maintained by the memory safety team.
+  ADVANCED_MEMORY_SAFETY_CHECKS();
+
  public:
   //////////////////////////////////////////////////////////////////////////////
   // The BrowserContext methods below are provided/implemented by the //content
@@ -115,7 +123,7 @@ class CONTENT_EXPORT BrowserContext : public base::SupportsUserData {
   // The currently recommended practice is to make the methods in this section
   // non-virtual instance methods.
   //
-  // TODO(https://crbug.com/1179776): Consider moving these methods to
+  // TODO(crbug.com/40169693): Consider moving these methods to
   // BrowserContextImpl.
 
   BrowserContext();
@@ -157,14 +165,13 @@ class CONTENT_EXPORT BrowserContext : public base::SupportsUserData {
   StoragePartition* GetStoragePartitionForUrl(const GURL& url,
                                               bool can_create = true);
 
-  // Synchronously invokes |callback| for each loaded StoragePartition.
+  // Synchronously invokes `fn` for each loaded StoragePartition.
   // Persisted StoragePartitions (not in-memory) are loaded lazily on first
   // use, at which point a StoragePartition object will be created that's
   // backed by the on-disk storage. StoragePartitions will not be unloaded for
   // the remainder of the BrowserContext's lifetime.
-  using StoragePartitionCallback =
-      base::RepeatingCallback<void(StoragePartition*)>;
-  void ForEachLoadedStoragePartition(StoragePartitionCallback callback);
+  void ForEachLoadedStoragePartition(
+      base::FunctionRef<void(StoragePartition*)> fn);
 
   // Returns the number of loaded StoragePartitions that exist for `this`
   // BrowserContext.
@@ -192,6 +199,38 @@ class CONTENT_EXPORT BrowserContext : public base::SupportsUserData {
       base::OnceClosure done);
 
   StoragePartition* GetDefaultStoragePartition();
+
+  // Starts a prefetch network request for the given `url`.
+  // `embedder_histogram_suffix` is used for generating internal histogram names
+  // recorded per trigger. `ttl` (Time-To-Live) specifies how long
+  // prefetched data remains valid in the cache. After this period, the data is
+  // reset. Returns `PrefetchHandle` to control prefetch resources. This can be
+  // null when it can't add `PrefetchContainer` to `PrefetchService`.
+  std::unique_ptr<content::PrefetchHandle> StartBrowserPrefetchRequest(
+      const GURL& url,
+      const std::string& embedder_histogram_suffix,
+      bool javascript_enabled,
+      std::optional<net::HttpNoVarySearchData> no_vary_search_hint,
+      const net::HttpRequestHeaders& additional_headers,
+      std::unique_ptr<PrefetchRequestStatusListener> request_status_listener,
+      base::TimeDelta ttl_in_sec,
+      bool should_append_variations_header);
+
+  // Updates the "Accept Language" header that the prefetch service delegate
+  // will use.
+  void UpdatePrefetchServiceDelegateAcceptLanguageHeader(
+      std::string accept_language_header);
+
+  // Returns `true` if a new prefetch request with `url` and
+  // `no_vary_search_hint` has a duplicate in the prefetch cache and thus the
+  // caller can choose not to start the prefetch request.
+  //
+  // Note: This is currently used for WebView initiated prefetches
+  // so consideration should be taken if updating the
+  // underlying implementation (or its dependencies).
+  bool IsPrefetchDuplicate(
+      GURL& url,
+      std::optional<net::HttpNoVarySearchData> no_vary_search_hint);
 
   using BlobCallback = base::OnceCallback<void(std::unique_ptr<BlobHandle>)>;
   using BlobContextGetter =
@@ -223,7 +262,7 @@ class CONTENT_EXPORT BrowserContext : public base::SupportsUserData {
       const GURL& origin,
       int64_t service_worker_registration_id,
       const std::string& message_id,
-      absl::optional<std::string> payload,
+      std::optional<std::string> payload,
       base::OnceCallback<void(blink::mojom::PushEventStatus)> callback);
 
   // Fires a push subscription change event to the Service Worker identified by
@@ -302,16 +341,22 @@ class CONTENT_EXPORT BrowserContext : public base::SupportsUserData {
   virtual std::unique_ptr<download::InProgressDownloadManager>
   RetrieveInProgressDownloadManager();
 
-  // Utility function useful for embedders. Only needs to be called if
-  // 1) The embedder needs to use a new salt, and
-  // 2) The embedder saves its salt across restarts.
-  static std::string CreateRandomMediaDeviceIDSalt();
-
   using TraceProto = perfetto::protos::pbzero::ChromeBrowserContext;
   // Write a representation of this object into tracing proto.
   // rvalue ensure that the this method can be called without having access
   // to the declaration of ChromeBrowserContext proto.
   void WriteIntoTrace(perfetto::TracedProto<TraceProto> context) const;
+
+  // Deprecated. Do not add new callers.
+  // TODO(crbug.com/40604019): Get rid of ResourceContext.
+  ResourceContext* GetResourceContext() const;
+
+  // Grant third-party cookie access to certain sites that the user visited in
+  // the past, according to the popup heuristics described at
+  // https://github.com/amaliev/3pcd-exemption-heuristics/blob/main/explainer.md
+  void BackfillPopupHeuristicGrants(base::OnceCallback<void(bool)> callback);
+
+  base::WeakPtr<BrowserContext> GetWeakPtr();
 
   //////////////////////////////////////////////////////////////////////////////
   // The //content embedder can override the methods below to change or extend
@@ -321,7 +366,7 @@ class CONTENT_EXPORT BrowserContext : public base::SupportsUserData {
   // pure (i.e. `= 0`) although it may make sense to provide a default
   // implementation for some of the methods.
   //
-  // TODO(https://crbug.com/1179776): Migrate method declarations from this
+  // TODO(crbug.com/40169693): Migrate method declarations from this
   // section into a separate BrowserContextDelegate class.
 
   // Creates a delegate to initialize a HostZoomMap and persist its information.
@@ -336,9 +381,6 @@ class CONTENT_EXPORT BrowserContext : public base::SupportsUserData {
   // Note that for Chrome this does not imply Incognito as Guest sessions are
   // also off the record.
   virtual bool IsOffTheRecord() = 0;
-
-  // Returns the resource context.
-  virtual ResourceContext* GetResourceContext() = 0;
 
   // Returns the DownloadManagerDelegate for this context. This will be called
   // once per context. The embedder owns the delegate and is responsible for
@@ -402,10 +444,6 @@ class CONTENT_EXPORT BrowserContext : public base::SupportsUserData {
   // called once per context. It's valid to return nullptr.
   virtual BrowsingDataRemoverDelegate* GetBrowsingDataRemoverDelegate() = 0;
 
-  // Returns a random salt string that is used for creating media device IDs.
-  // Default implementation uses the BrowserContext's UniqueId.
-  virtual std::string GetMediaDeviceIDSalt();
-
   // Returns the FileSystemAccessPermissionContext associated with this context
   // if any, nullptr otherwise.
   virtual FileSystemAccessPermissionContext*
@@ -457,6 +495,12 @@ class CONTENT_EXPORT BrowserContext : public base::SupportsUserData {
   // any, nullptr otherwise.
   virtual OriginTrialsControllerDelegate* GetOriginTrialsControllerDelegate();
 
+#if BUILDFLAG(IS_ANDROID)
+  // Returns extra request headers to be set when navigation happens for `url`.
+  // This function is designed for the headers provided by WebView.loadUrl().
+  virtual std::string GetExtraHeadersForUrl(const GURL& url);
+#endif  // BUILDFLAG(IS_ANDROID)
+
  private:
   // Please don't add more fields to BrowserContext.
   //
@@ -464,7 +508,7 @@ class CONTENT_EXPORT BrowserContext : public base::SupportsUserData {
   // methods and no fields), but currently BrowserContext and BrowserContextImpl
   // and BrowserContextDelegate are kind of mixed together in a single class.
   //
-  // TODO(https://crbug.com/1179776): Make BrowserContextImpl to implement
+  // TODO(crbug.com/40169693): Make BrowserContextImpl to implement
   // BrowserContext instead (Removing afterwards the BrowserContextImpl,
   // fwd-declaration, `impl_` field, `friend` declaration and `impl` accessor
   // below).
@@ -472,6 +516,7 @@ class CONTENT_EXPORT BrowserContext : public base::SupportsUserData {
   std::unique_ptr<BrowserContextImpl> impl_;
   BrowserContextImpl* impl() { return impl_.get(); }
   const BrowserContextImpl* impl() const { return impl_.get(); }
+  base::WeakPtrFactory<BrowserContext> weak_factory_{this};
 };
 
 }  // namespace content

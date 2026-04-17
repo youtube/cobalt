@@ -19,8 +19,6 @@
 #include "base/one_shot_event.h"
 #include "base/time/time.h"
 #include "content/public/browser/browser_thread.h"
-#include "content/public/browser/notification_observer.h"
-#include "content/public/browser/notification_registrar.h"
 #include "extensions/common/api/events.h"
 #include "extensions/common/extension_id.h"
 
@@ -46,12 +44,11 @@ class RulesRegistry : public base::RefCountedThreadSafe<RulesRegistry> {
   enum Defaults { DEFAULT_PRIORITY = 100 };
   // After the RulesCacheDelegate object (the part of the registry which runs on
   // the UI thread) is created, a pointer to it is passed to |*ui_part|.
-  // In tests, |browser_context| and |ui_part| can be NULL (at the same time).
+  // In tests, `browser_context` and `ui_part` can be NULL (at the same time).
   // In that case the storage functionality disabled (no RulesCacheDelegate
   // object created).
   RulesRegistry(content::BrowserContext* browser_context,
                 const std::string& event_name,
-                content::BrowserThread::ID owner_thread,
                 RulesCacheDelegate* cache_delegate,
                 int id);
 
@@ -62,28 +59,28 @@ class RulesRegistry : public base::RefCountedThreadSafe<RulesRegistry> {
 
   // RulesRegistry implementation:
 
-  // Registers |rules| in this RulesRegistry. If a concrete RuleRegistry does
+  // Registers `rules` in this RulesRegistry. If a concrete RuleRegistry does
   // not support some of the rules, it may ignore them.
   //
-  // |rules| is a list of Rule instances following the definition of the
-  // declarative extension APIs. It is guaranteed that each rule in |rules| has
-  // a unique name within the scope of |extension_id| that has not been
+  // `rules` is a list of Rule instances following the definition of the
+  // declarative extension APIs. It is guaranteed that each rule in `rules` has
+  // a unique name within the scope of `extension_id` that has not been
   // registered before, unless it has been removed again.
   //
   // Returns an empty string if the function is successful or an error message
-  // otherwise. If the function is successful, and if the |rules_out| parameter
+  // otherwise. If the function is successful, and if the `rules_out` parameter
   // is non-null, pointers to the added rules are returned.
   //
   // IMPORTANT: This function is atomic. Either all rules that are deemed
   // relevant are added or none.
   std::string AddRules(
-      const std::string& extension_id,
+      const ExtensionId& extension_id,
       std::vector<api::events::Rule> rules_in,
       std::vector<const api::events::Rule*>* rules_out = nullptr);
 
-  // Unregisters all rules listed in |rule_identifiers| and owned by
-  // |extension_id| from this RulesRegistry.
-  // Some or all IDs in |rule_identifiers| may not be stored in this
+  // Unregisters all rules listed in `rule_identifiers` and owned by
+  // `extension_id` from this RulesRegistry.
+  // Some or all IDs in `rule_identifiers` may not be stored in this
   // RulesRegistry and are ignored.
   //
   // Returns an empty string if the function is successful or an error
@@ -91,25 +88,28 @@ class RulesRegistry : public base::RefCountedThreadSafe<RulesRegistry> {
   //
   // IMPORTANT: This function is atomic. Either all rules that are deemed
   // relevant are removed or none.
-  std::string RemoveRules(
-      const std::string& extension_id,
-      const std::vector<std::string>& rule_identifiers);
+  std::string RemoveRules(const ExtensionId& extension_id,
+                          const std::vector<std::string>& rule_identifiers);
 
-  // Same as RemoveAllRules but acts on all rules owned by |extension_id|.
-  std::string RemoveAllRules(const std::string& extension_id);
+  // Same as RemoveAllRules but acts on all rules owned by `extension_id`.
+  std::string RemoveAllRules(const ExtensionId& extension_id);
 
-  // Returns all rules listed in |rule_identifiers| and owned by |extension_id|
-  // registered in this RuleRegistry. Entries in |rule_identifiers| that
+  // Returns all rules listed in `rule_identifiers` and owned by `extension_id`
+  // registered in this RuleRegistry. Entries in `rule_identifiers` that
   // are unknown are ignored.
   //
-  // The returned rules are stored in |out|.
-  void GetRules(const std::string& extension_id,
+  // The returned rules are stored in `out`.
+  void GetRules(const ExtensionId& extension_id,
                 const std::vector<std::string>& rule_identifiers,
                 std::vector<const api::events::Rule*>* out);
 
-  // Same as GetRules but returns all rules owned by |extension_id|.
-  void GetAllRules(const std::string& extension_id,
+  // Same as GetRules but returns all rules owned by `extension_id`.
+  void GetAllRules(const ExtensionId& extension_id,
                    std::vector<const api::events::Rule*>* out);
+
+  // Called to notify the RulesRegistry that the registry service is being
+  // shut down.
+  void OnShutdown();
 
   // Called to notify the RulesRegistry that the extension availability has
   // changed, so that the registry can update which rules are active.
@@ -129,10 +129,6 @@ class RulesRegistry : public base::RefCountedThreadSafe<RulesRegistry> {
   // Returns the context where the rules registry lives.
   content::BrowserContext* browser_context() const { return browser_context_; }
 
-  // Returns the ID of the thread on which the rules registry lives.
-  // It is safe to call this function from any thread.
-  content::BrowserThread::ID owner_thread() const { return owner_thread_; }
-
   // The name of the event with which rules are registered.
   const std::string& event_name() const { return event_name_; }
 
@@ -146,13 +142,12 @@ class RulesRegistry : public base::RefCountedThreadSafe<RulesRegistry> {
   // class will handle defaulting empty fields before calling *Impl, and will
   // automatically cache the rules and re-call *Impl on browser startup.
   virtual std::string AddRulesImpl(
-      const std::string& extension_id,
+      const ExtensionId& extension_id,
       const std::vector<const api::events::Rule*>& rules) = 0;
   virtual std::string RemoveRulesImpl(
-      const std::string& extension_id,
+      const ExtensionId& extension_id,
       const std::vector<std::string>& rule_identifiers) = 0;
-  virtual std::string RemoveAllRulesImpl(
-      const std::string& extension_id) = 0;
+  virtual std::string RemoveAllRulesImpl(const ExtensionId& extension_id) = 0;
 
  private:
   friend class base::RefCountedThreadSafe<RulesRegistry>;
@@ -167,7 +162,7 @@ class RulesRegistry : public base::RefCountedThreadSafe<RulesRegistry> {
   // of this class.
   using RulesDictionary = std::map<RulesDictionaryKey, api::events::Rule>;
   enum ProcessChangedRulesState {
-    // ProcessChangedRules can never be called, |cache_delegate_| is NULL.
+    // ProcessChangedRules can never be called, `cache_delegate_` is NULL.
     NEVER_PROCESS,
     // A task to call ProcessChangedRules is scheduled for future execution.
     SCHEDULED_FOR_PROCESSING,
@@ -183,11 +178,11 @@ class RulesRegistry : public base::RefCountedThreadSafe<RulesRegistry> {
   }
 
   // Internal implementation of the AddRules interface which adds the rules to
-  // the |destination| RulesDictionary. If the function is successful, and if
-  // the |rules_out| parameter is non-null, pointers to the added rules are
+  // the `destination` RulesDictionary. If the function is successful, and if
+  // the `rules_out` parameter is non-null, pointers to the added rules are
   // returned.
   std::string AddRulesInternal(
-      const std::string& extension_id,
+      const ExtensionId& extension_id,
       std::vector<api::events::Rule> rules_in,
       RulesDictionary* destination,
       std::vector<const api::events::Rule*>* rules_out);
@@ -199,53 +194,50 @@ class RulesRegistry : public base::RefCountedThreadSafe<RulesRegistry> {
   //
   // Returns an empty string if the function is successful or an error
   // message otherwise. If the function is successful, and if the
-  // |rules_out| parameter is non-null, pointers to the added rules are
+  // `rules_out` parameter is non-null, pointers to the added rules are
   // returned.
-  std::string AddRulesNoFill(const std::string& extension_id,
+  std::string AddRulesNoFill(const ExtensionId& extension_id,
                              std::vector<api::events::Rule> rules_in,
                              RulesDictionary* destination,
                              std::vector<const api::events::Rule*>* rules_out);
 
-  // Same as GetRules but returns all rules owned by |extension_id| for a given
-  // |rules| dictionary.
-  void GetRules(const std::string& extension_id,
+  // Same as GetRules but returns all rules owned by `extension_id` for a given
+  // `rules` dictionary.
+  void GetRules(const ExtensionId& extension_id,
                 RulesDictionary* rules,
                 std::vector<const api::events::Rule*>* out);
 
   // Common processing after extension's rules have changed.
-  void ProcessChangedRules(const std::string& extension_id);
+  void ProcessChangedRules(const ExtensionId& extension_id);
 
   // Calls ProcessChangedRules if
   // |process_changed_rules_requested_(extension_id)| ==
   // NOT_SCHEDULED_FOR_PROCESSING.
-  void MaybeProcessChangedRules(const std::string& extension_id);
+  void MaybeProcessChangedRules(const ExtensionId& extension_id);
 
   // This method implements the functionality of RemoveAllRules, except for not
   // calling MaybeProcessChangedRules. That way updating the rules store and
   // extension prefs is avoided. This method is called when an extension is
   // uninstalled, that way there is no clash with the preferences being wiped.
-  // Set |remove_manifest_rules| to true if |manifest_rules_| should be cleared
-  // along with |rules_|.
-  std::string RemoveAllRulesNoStoreUpdate(const std::string& extension_id,
+  // Set `remove_manifest_rules` to true if `manifest_rules_` should be cleared
+  // along with `rules_`.
+  std::string RemoveAllRulesNoStoreUpdate(const ExtensionId& extension_id,
                                           bool remove_manifest_rules);
 
-  void MarkReady(base::Time storage_init_time);
+  void MarkReady();
 
   // Deserialize the rules from the given Value object and add them to the
   // RulesRegistry.
-  void DeserializeAndAddRules(const std::string& extension_id,
-                              absl::optional<base::Value> rules);
+  void DeserializeAndAddRules(const ExtensionId& extension_id,
+                              std::optional<base::Value> rules);
 
   // Reports an internal error with the specified params to the extensions
   // client.
-  void ReportInternalError(const std::string& extension_id,
+  void ReportInternalError(const ExtensionId& extension_id,
                            const std::string& error);
 
   // The context to which this rules registry belongs.
   raw_ptr<content::BrowserContext> browser_context_;
-
-  // The ID of the thread on which the rules registry lives.
-  const content::BrowserThread::ID owner_thread_;
 
   // The name of the event with which rules are registered.
   const std::string event_name_;
@@ -263,41 +255,41 @@ class RulesRegistry : public base::RefCountedThreadSafe<RulesRegistry> {
 
   ProcessStateMap process_changed_rules_requested_;
 
-  // Returns whether any existing rule is registered with identifier |rule_id|
-  // for extension |extension_id|.
-  bool IsUniqueId(const std::string& extension_id,
+  // Returns whether any existing rule is registered with identifier `rule_id`
+  // for extension `extension_id`.
+  bool IsUniqueId(const ExtensionId& extension_id,
                   const std::string& rule_id) const;
 
-  // Creates an ID that is unique within the scope of|extension_id|.
-  std::string GenerateUniqueId(const std::string& extension_id);
+  // Creates an ID that is unique within the scope of`extension_id`.
+  std::string GenerateUniqueId(const ExtensionId& extension_id);
 
-  // Verifies that all |rules| have unique IDs or initializes them with
+  // Verifies that all `rules` have unique IDs or initializes them with
   // unique IDs if they don't have one. In case of duplicate IDs, this function
   // returns a non-empty error message.
   std::string CheckAndFillInOptionalRules(
-      const std::string& extension_id,
+      const ExtensionId& extension_id,
       std::vector<api::events::Rule>* rules);
 
   // Initializes the priority fields in case they have not been set.
   void FillInOptionalPriorities(std::vector<api::events::Rule>* rules);
 
-  // Removes all |identifiers| of |extension_id| from |used_rule_identifiers_|.
-  void RemoveUsedRuleIdentifiers(const std::string& extension_id,
+  // Removes all `identifiers` of `extension_id` from `used_rule_identifiers_`.
+  void RemoveUsedRuleIdentifiers(const ExtensionId& extension_id,
                                  const std::vector<std::string>& identifiers);
 
   // Same as RemoveUsedRuleIdentifiers but operates on all rules of
-  // |extension_id|.
-  void RemoveAllUsedRuleIdentifiers(const std::string& extension_id);
+  // `extension_id`.
+  void RemoveAllUsedRuleIdentifiers(const ExtensionId& extension_id);
 
   using RuleIdentifier = std::string;
   std::map<ExtensionId, std::set<RuleIdentifier>> used_rule_identifiers_;
   int last_generated_rule_identifier_id_;
 
-  // |cache_delegate_| is owned by the registry service. If |cache_delegate_| is
+  // `cache_delegate_` is owned by the registry service. If `cache_delegate_` is
   // NULL, then the storage functionality is disabled (this is used in tests).
-  // This registry cannot own |cache_delegate_| because during the time after
+  // This registry cannot own `cache_delegate_` because during the time after
   // rules registry service shuts down on UI thread, and the registry is
-  // destroyed on its thread, the use of the |cache_delegate_| would not be
+  // destroyed on its thread, the use of the `cache_delegate_` would not be
   // safe. The registry only ever associates with one RulesCacheDelegate
   // instance.
   base::WeakPtr<RulesCacheDelegate> cache_delegate_;

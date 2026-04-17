@@ -9,12 +9,12 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
 #include "base/observer_list.h"
-#include "build/chromeos_buildflags.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "components/prefs/pref_service.h"
 #include "components/sync_preferences/pref_model_associator.h"
@@ -23,6 +23,7 @@ class PrefValueStore;
 
 namespace syncer {
 class SyncableService;
+class SyncService;
 }
 
 namespace sync_preferences {
@@ -44,24 +45,25 @@ class PrefServiceSyncable : public PrefService,
       std::unique_ptr<PrefNotifierImpl> pref_notifier,
       std::unique_ptr<PrefValueStore> pref_value_store,
       scoped_refptr<PersistentPrefStore> user_prefs,
-      scoped_refptr<PersistentPrefStore> standalone_browser_prefs,
       scoped_refptr<user_prefs::PrefRegistrySyncable> pref_registry,
-      const PrefModelAssociatorClient* pref_model_associator_client,
+      scoped_refptr<PrefModelAssociatorClient> pref_model_associator_client,
       base::RepeatingCallback<void(PersistentPrefStore::PrefReadError)>
           read_error_callback,
       bool async);
 
-  // Note: This must be called iff EnablePreferencesAccountStorage feature is
-  // enabled.
+  // Note: This must be called only if EnablePreferencesAccountStorage feature
+  // is enabled. However, it is possible that the other overload gets called
+  // even if EnablePreferencesAccountStorage is enabled during test when using
+  // TestingPrefServiceSyncable.
+  // TODO(crbug.com/40283048): Fix TestingPrefServiceSyncable or remove usages.
   // Note: Can be done using templates instead of overload but chosen not to for
   // more clarity.
   PrefServiceSyncable(
       std::unique_ptr<PrefNotifierImpl> pref_notifier,
       std::unique_ptr<PrefValueStore> pref_value_store,
       scoped_refptr<DualLayerUserPrefStore> dual_layer_user_prefs,
-      scoped_refptr<PersistentPrefStore> standalone_browser_prefs,
       scoped_refptr<user_prefs::PrefRegistrySyncable> pref_registry,
-      const PrefModelAssociatorClient* pref_model_associator_client,
+      scoped_refptr<PrefModelAssociatorClient> pref_model_associator_client,
       base::RepeatingCallback<void(PersistentPrefStore::PrefReadError)>
           read_error_callback,
       bool async);
@@ -84,17 +86,13 @@ class PrefServiceSyncable : public PrefService,
   // preferences. If true is returned it can be assumed the local preferences
   // has applied changes from the remote preferences. The two may not be
   // identical if a change is in flight (from either side).
-  //
-  // TODO(albertb): Given that we now support priority preferences, callers of
-  // this method are likely better off making the preferences they care about
-  // into priority preferences and calling IsPrioritySyncing().
   bool IsSyncing();
 
   // Returns true if priority preferences state has synchronized with the remote
   // priority preferences.
   bool IsPrioritySyncing();
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // As above, but for OS preferences.
   bool AreOsPrefsSyncing();
 
@@ -105,7 +103,7 @@ class PrefServiceSyncable : public PrefService,
   void AddObserver(PrefServiceSyncableObserver* observer);
   void RemoveObserver(PrefServiceSyncableObserver* observer);
 
-  syncer::SyncableService* GetSyncableService(const syncer::ModelType& type);
+  syncer::SyncableService* GetSyncableService(const syncer::DataType& type);
 
   // Do not call this after having derived an incognito or per tab pref service.
   void UpdateCommandLinePrefStore(PrefStore* cmd_line_store) override;
@@ -115,16 +113,20 @@ class PrefServiceSyncable : public PrefService,
   void RemoveSyncedPrefObserver(const std::string& name,
                                 SyncedPrefObserver* observer);
 
+  void OnSyncServiceInitialized(syncer::SyncService* sync_service);
+
  private:
+  class DemographicsPrefsClearer;
+
   void ConnectAssociatorsAndRegisterPreferences();
 
-  void AddRegisteredSyncablePreference(const std::string& path, uint32_t flags);
+  void AddRegisteredSyncablePreference(std::string_view path, uint32_t flags);
 
   // PrefServiceForAssociator:
   base::Value::Type GetRegisteredPrefType(
-      const std::string& pref_name) const override;
+      std::string_view pref_name) const override;
   void OnIsSyncingChanged() override;
-  uint32_t GetWriteFlags(const std::string& pref_name) const override;
+  uint32_t GetWriteFlags(std::string_view pref_name) const override;
 
   // Whether CreateIncognitoPrefService() has been called to create a
   // "forked" PrefService.
@@ -133,7 +135,7 @@ class PrefServiceSyncable : public PrefService,
   PrefModelAssociator pref_sync_associator_;
   PrefModelAssociator priority_pref_sync_associator_;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // Associators for Chrome OS system preferences.
   PrefModelAssociator os_pref_sync_associator_;
   PrefModelAssociator os_priority_pref_sync_associator_;
@@ -142,6 +144,12 @@ class PrefServiceSyncable : public PrefService,
   const scoped_refptr<user_prefs::PrefRegistrySyncable> pref_registry_;
 
   base::ObserverList<PrefServiceSyncableObserver>::Unchecked observer_list_;
+
+  // DualLayerUserPrefStore instance passed to the associators. This is non-null
+  // iff EnablePreferencesAccountStorage feature is enabled.
+  scoped_refptr<DualLayerUserPrefStore> dual_layer_user_prefs_;
+
+  std::unique_ptr<DemographicsPrefsClearer> demographics_prefs_clearer_;
 };
 
 }  // namespace sync_preferences

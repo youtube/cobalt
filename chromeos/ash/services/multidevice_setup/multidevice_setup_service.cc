@@ -35,7 +35,6 @@ void MultiDeviceSetupService::RegisterProfilePrefs(
   WifiSyncNotificationController::RegisterPrefs(registry);
   HostVerifierImpl::RegisterPrefs(registry);
   GrandfatheredEasyUnlockHostDisabler::RegisterPrefs(registry);
-  AndroidSmsAppInstallingStatusObserver::RegisterPrefs(registry);
   RegisterFeaturePrefs(registry);
 }
 
@@ -46,7 +45,6 @@ MultiDeviceSetupService::MultiDeviceSetupService(
     OobeCompletionTracker* oobe_completion_tracker,
     AndroidSmsAppHelperDelegate* android_sms_app_helper_delegate,
     AndroidSmsPairingStateTracker* android_sms_pairing_state_tracker,
-    const device_sync::GcmDeviceInfoProvider* gcm_device_info_provider,
     bool is_secondary_user)
     : multidevice_setup_(MultiDeviceSetupInitializer::Factory::Create(
           pref_service,
@@ -55,7 +53,6 @@ MultiDeviceSetupService::MultiDeviceSetupService(
           oobe_completion_tracker,
           android_sms_app_helper_delegate,
           android_sms_pairing_state_tracker,
-          gcm_device_info_provider,
           is_secondary_user)),
       privileged_host_device_setter_(
           PrivilegedHostDeviceSetterImpl::Factory::Create(

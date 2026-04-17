@@ -3,13 +3,16 @@
     "MaximumPlayerConfigurationExplorerTests*",
     "MultiplePlayerTest.*",
     "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/16",
+    "PosixTimeClockTests.ClockIncreasesOverTime",
     "SbAudioSinkTest.*",
-    "SbMediaSetAudioWriteDurationTests*",
-    "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
+    "SbLogFlushTest.DontCrashMeBro",
     "SbMediaCanPlayMimeAndKeySystem.KeySystemWithAttributes",
-    "SbPlayerTest.*",
+    "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
+    "SbMediaSetAudioWriteDurationTests*",
     "SbPlayerGetAudioConfigurationTests*",
     "SbPlayerGetMediaTimeTests*",
-    "SbPlayerWriteSampleTests*"
+    "SbPlayerTest.*",
+    "SbPlayerWriteSampleTests*",
+    "VerticalVideoTests/VerticalVideoTest*"
   ]
 }

@@ -4,7 +4,9 @@
 
 #include "quiche/quic/core/batch_writer/quic_batch_writer_buffer.h"
 
+#include <algorithm>
 #include <sstream>
+#include <string>
 
 namespace quic {
 
@@ -54,7 +56,7 @@ char* QuicBatchWriterBuffer::GetNextWriteLocation() const {
 QuicBatchWriterBuffer::PushResult QuicBatchWriterBuffer::PushBufferedWrite(
     const char* buffer, size_t buf_len, const QuicIpAddress& self_address,
     const QuicSocketAddress& peer_address, const PerPacketOptions* options,
-    uint64_t release_time) {
+    const QuicPacketWriterParams& params, uint64_t release_time) {
   QUICHE_DCHECK(Invariants());
   QUICHE_DCHECK_LE(buf_len, kMaxOutgoingPacketSize);
 
@@ -82,14 +84,26 @@ QuicBatchWriterBuffer::PushResult QuicBatchWriterBuffer::PushBufferedWrite(
   } else {
     // In place push, do nothing.
   }
+  if (buffered_writes_.empty()) {
+    // Starting a new batch.
+    ++batch_id_;
+
+    // |batch_id| is a 32-bit unsigned int that is possibly shared by a lot of
+    // QUIC connections(because writer can be shared), so wrap around happens,
+    // when it happens we skip id=0, which indicates "not batched".
+    if (batch_id_ == 0) {
+      ++batch_id_;
+    }
+  }
   buffered_writes_.emplace_back(
       next_write_location, buf_len, self_address, peer_address,
-      options ? options->Clone() : std::unique_ptr<PerPacketOptions>(),
+      options ? options->Clone() : std::unique_ptr<PerPacketOptions>(), params,
       release_time);
 
   QUICHE_DCHECK(Invariants());
 
   result.succeeded = true;
+  result.batch_id = batch_id_;
   return result;
 }
 

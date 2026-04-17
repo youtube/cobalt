@@ -7,14 +7,18 @@ found in the LICENSE file.
 
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <org.chromium.components.browser_ui.accessibility.TextScalePreference
-        android:key="text_scale"
-        android:title="@string/font_size"
-        android:selectable="false" />
-
     <org.chromium.components.browser_ui.accessibility.PageZoomPreference
         android:key="page_zoom_default_zoom"
         android:selectable="false" />
+
+    <Preference
+        android:key="zoom_info"
+        android:title="@string/zoom_info_preference_title"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeSwitchPreference
+        android:key="page_zoom_include_os_adjustment"
+        android:summary="@string/page_zoom_include_os_adjustment_summary"
+        android:title="@string/page_zoom_include_os_adjustment_title" />
 
     <org.chromium.components.browser_ui.settings.ChromeSwitchPreference
         android:key="page_zoom_always_show"
@@ -32,12 +36,17 @@ found in the LICENSE file.
         android:title="@string/reader_for_accessibility_title" />
 
     <org.chromium.components.browser_ui.settings.ChromeSwitchPreference
-        android:key="accessibility_tab_switcher"
-        android:summary="@string/accessibility_tab_switcher_summary"
-        android:title="@string/accessibility_tab_switcher_title" />
+        android:key="jump_start_omnibox"
+        android:summary="@string/jump_start_omnibox_summary"
+        android:title="@string/jump_start_omnibox_title" />
 
     <Preference
         android:key="captions"
         android:title="@string/accessibility_captions_title"/>
+
+    <Preference
+        android:fragment="org.chromium.chrome.browser.image_descriptions.ImageDescriptionsSettings"
+        android:key="image_descriptions"
+        android:title="@string/image_descriptions_settings_title" />
 
 </PreferenceScreen>

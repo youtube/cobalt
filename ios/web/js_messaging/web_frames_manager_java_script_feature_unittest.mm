@@ -16,10 +16,6 @@
 #import "testing/gtest/include/gtest/gtest.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 // Message command sent when a frame becomes available.
@@ -54,7 +50,7 @@ class WebFramesManagerJavaScriptFeatureTest : public WebTestWithWebState {
         .andReturn(
             base::SysUTF8ToNSString(web_frame->GetSecurityOrigin().host()));
     OCMStub([security_origin port])
-        .andReturn(web_frame->GetSecurityOrigin().EffectiveIntPort());
+        .andReturn(web_frame->GetSecurityOrigin().port());
     OCMStub([security_origin protocol])
         .andReturn(
             base::SysUTF8ToNSString(web_frame->GetSecurityOrigin().scheme()));
@@ -89,7 +85,7 @@ class WebFramesManagerJavaScriptFeatureTest : public WebTestWithWebState {
         .andReturn(
             base::SysUTF8ToNSString(web_frame->GetSecurityOrigin().host()));
     OCMStub([security_origin port])
-        .andReturn(web_frame->GetSecurityOrigin().EffectiveIntPort());
+        .andReturn(web_frame->GetSecurityOrigin().port());
     OCMStub([security_origin protocol])
         .andReturn(
             base::SysUTF8ToNSString(web_frame->GetSecurityOrigin().scheme()));

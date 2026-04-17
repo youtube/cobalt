@@ -22,10 +22,11 @@ const char kEnterpriseMDMManagementWindows[] =
 // Integer pref that stores the Mac enterprise MDM management authority.
 const char kEnterpriseMDMManagementMac[] =
     "management.platform.enterprise_mdm_mac";
-// Boolean pref that indicates whether integration with macOS Screen Time should
-// be enabled.
-const char kScreenTimeEnabled[] = "policy.screen_time";
 #endif
+
+// Enterprise policy controlled value representing whether the user may be shown
+// HaTS surveys.
+const char kFeedbackSurveysEnabled[] = "policy.feedback_surveys_enabled";
 
 // 64-bit serialization of the time last policy usage statistics were collected
 // by UMA_HISTOGRAM_ENUMERATION.
@@ -83,16 +84,10 @@ const char kIntensiveWakeUpThrottlingEnabled[] =
 #if BUILDFLAG(IS_ANDROID)
 // Boolean policy preference to disable the BackForwardCache feature.
 const char kBackForwardCacheEnabled[] = "policy.back_forward_cache_enabled";
+
+// Boolean policy preference to disable the Read Aloud feature.
+const char kReadAloudEnabled[] = "policy.read_aloud_enabled";
 #endif  // BUILDFLAG(IS_ANDROID)
-
-// Boolean policy preference to disable the User-Agent Client Hints
-// updated GREASE algorithm feature.
-const char kUserAgentClientHintsGREASEUpdateEnabled[] =
-    "policy.user_agent_client_hints_grease_update_enabled";
-
-// Boolean policy to allow isolated apps developer mode.
-const char kIsolatedAppsDeveloperModeAllowed[] =
-    "policy.isolated_apps_developer_mode_allowed";
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
 // Last time that a check for cloud policy management was done. This time is
@@ -105,37 +100,11 @@ const char kLastPolicyCheckTime[] = "policy.last_policy_check_time";
 #if BUILDFLAG(IS_IOS)
 const char kUserPolicyNotificationWasShown[] =
     "policy.user_policy_notification_was_shown";
+
+// A bool for storing whether the user has seen the sync disabled alert since
+// sync was disabled.
+const char kSyncDisabledAlertShown[] = "sync.disabled_alert_shown";
 #endif
-
-// A boolean indicating whether the deprecated API Event.path is enabled. It
-// should eventually be disabled and removed.
-// https://chromestatus.com/feature/5726124632965120
-const char kEventPathEnabled[] = "policy.event_path_enabled";
-
-// A boolean indicating whether the newly specified behavior for
-// Element.offsetParent is in effect.
-const char kOffsetParentNewSpecBehaviorEnabled[] =
-    "policy.offset_parent_new_spec_behavior_enabled";
-
-// A boolean indicating whether the new behavior for event dispatching on
-// disabled form controls is in effect.
-const char kSendMouseEventsDisabledFormControlsEnabled[] =
-    "policy.send_mouse_events_disabled_form_controls_enabled";
-
-// If true the feature UseMojoVideoDecoderForPepper will be allowed, otherwise
-// feature will be forced off.
-const char kUseMojoVideoDecoderForPepperAllowed[] =
-    "policy.use_mojo_video_decoder_for_pepper_allowed";
-
-// If true the feature PPAPISharedImagesSwapChain will be allowed, otherwise
-// feature will be forced off.
-const char kPPAPISharedImagesSwapChainAllowed[] =
-    "policy.ppapi_shared_images_swap_chain_allowed";
-
-// If true then support for the PPB_VideoDecoder(Dev) API will be enabled;
-// otherwise the browser will decide whether the API is supported.
-const char kForceEnablePepperVideoDecoderDevAPI[] =
-    "policy.force_enable_pepper_video_decoder_dev_api";
 
 // Boolean controlling whether SafeSearch is mandatory for Google Web Searches.
 const char kForceGoogleSafeSearch[] = "settings.force_google_safesearch";
@@ -154,5 +123,78 @@ const char kHideWebStoreIcon[] = "hide_web_store_icon";
 // 2 - Forced. All pages/sessions are forced into Incognito.
 const char kIncognitoModeAvailability[] = "incognito.mode_availability";
 
+// A boolean indicating whether scrollers should be focusable. If true, then
+// scrollers without focusable children are keyboard-focusable by default.
+const char kKeyboardFocusableScrollersEnabled[] =
+    "policy.keyboard_focusable_scrollers_enabled";
+
+// Enables the newly-specified behavior of the CSS "zoom" property.
+const char kStandardizedBrowserZoomEnabled[] =
+    "policy.standardized_browser_zoom_enabled";
+
+// Boolean indicating whether Policy Test Page is Enabled.
+// The value is controlled by the PolicyTestPageEnabled policy.
+// If this is set to True, the page will be accessible.
+const char kPolicyTestPageEnabled[] = "policy_test_page_enabled";
+
+// Boolean indicating if the user has permanently dismissed the promotion
+// banner on the chrome://policy page. If it's true, it means the user
+// has clicked the "dismiss" button and has the banner turned off, if the
+// value is false, the user has taken no action to turn off the banner.
+const char kHasDismissedPolicyPagePromotionBanner[] =
+    "has_dismissed_policy_page_promotion_banner";
+
+// A boolean pref indicating whether the new the page with "Cache-Control:
+// no-store" header is allowed to be stored in back/forward cache.
+const char kAllowBackForwardCacheForCacheControlNoStorePageEnabled[] =
+    "policy.allow_back_forward_cache_for_cache_control_no_store_page_enabled";
+
+const char kLocalTestPoliciesForNextStartup[] =
+    "local_test_policies_for_next_startup";
+
+// Enables the deprecated :--foo syntax of CSS custom state. The :--foo syntax
+// was deprecated and replaced by :state(foo).
+const char kCSSCustomStateDeprecatedSyntaxEnabled[] =
+    "policy.css_custom_state_deprecated_syntax_enabled";
+
+// A boolean pref indicating whether the new HTML parser for the <select>
+// element is enabled. When enabled, the HTML parser allows more tags to be used
+// inside <select> instead of removing them.
+const char kSelectParserRelaxationEnabled[] =
+    "policy.select_parser_relaxation_enabled";
+
+// A boolean pref indicating whether to allow deprecation of the "unload"
+// event.
+// If false, the deprecation rollout will be ignored.
+const char kForcePermissionPolicyUnloadDefaultEnabled[] =
+    "policy.force_permission_policy_unload_default_enabled";
+
+// Prevents certain types of downloads based on integer value, which corresponds
+// to policy::DownloadRestriction.
+// 0 - No special restrictions (default)
+// 1 - Block dangerous downloads
+// 2 - Block potentially dangerous downloads
+// 3 - Block all downloads
+// 4 - Block malicious downloads
+const char kDownloadRestrictions[] = "download_restrictions";
+
+#if BUILDFLAG(IS_CHROMEOS)
+// Allows user browser navigation access to the listed host patterns. Only
+// applied when a AlwaysOn VPN is active but not connected.
+const char kAlwaysOnVpnPreConnectUrlAllowlist[] =
+    "policy.alwayson_vpn_pre_connect_url_allowlist";
+
+// Boolean value for the FloatingWorkspaceEnabled policy
+const char kFloatingWorkspaceEnabled[] = "ash.floating_workspace_enabled";
+#endif
+
+// A boolean value indicating whether the built-in AI APIs are enabled.
+const char kBuiltInAIAPIsEnabled[] = "policy.built_in_ai_apis_enabled";
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) || \
+    BUILDFLAG(IS_MAC)
+// List of urls for which password manager is disabled/blocked.
+const char kPasswordManagerBlocklist[] = "policy.password_manager_blocklist";
+#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) ||
+        // BUILDFLAG(IS_MAC)
 }  // namespace policy_prefs
 }  // namespace policy

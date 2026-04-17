@@ -8,10 +8,12 @@
 
 #include <algorithm>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
-#include "base/big_endian.h"
+#include "base/containers/span.h"
+#include "base/numerics/byte_conversions.h"
 #include "zucchini/patch_reader.h"
 #include "zucchini/zucchini.h"
 
@@ -59,29 +61,31 @@ Status DecodePatch(const uint8_t* patch,
                    uint64_t* src_puff_size,
                    uint64_t* dst_puff_size,
                    metadata::PatchHeader_PatchType* patch_type) {
-  size_t offset = 0;
   uint32_t header_size = 0;
   TEST_AND_RETURN_VALUE(patch_length >= (kMagicLength + sizeof(header_size)),
                         Status::P_BAD_PUFFIN_CORRUPT);
+  // SAFETY: Caller is required to provide at least `patch_length` valid bytes
+  // at `patch`.
+  UNSAFE_BUFFERS(const base::span patch_span(patch, patch_length));
 
-  string patch_magic(reinterpret_cast<const char*>(patch), kMagicLength);
+  const auto patch_magic =
+      base::as_string_view(patch_span.first<kMagicLength>());
   if (patch_magic != kMagic) {
-    LOG(ERROR) << "Magic number for Puffin patch is incorrect: " << patch_magic;
     return Status::P_BAD_PUFFIN_MAGIC;
   }
-  offset += kMagicLength;
+  auto header_span = patch_span.subspan<kMagicLength>();
 
   // Read the header size from big-endian mode.
-  memcpy(&header_size, patch + offset, sizeof(header_size));
-  base::WriteBigEndian(reinterpret_cast<char*>(&header_size), header_size);
-  offset += sizeof(header_size);
-  TEST_AND_RETURN_VALUE(header_size <= (patch_length - offset),
+  const auto header_size_span = header_span.first<sizeof header_size>();
+  header_size = base::U32FromBigEndian(header_size_span);
+  header_span = header_span.subspan<sizeof header_size>();
+  TEST_AND_RETURN_VALUE(header_size <= header_span.size(),
                         Status::P_BAD_PUFFIN_HEADER);
 
   metadata::PatchHeader header;
-  TEST_AND_RETURN_VALUE(header.ParseFromArray(patch + offset, header_size),
+  TEST_AND_RETURN_VALUE(header.ParseFromArray(header_span.data(), header_size),
                         Status::P_BAD_PUFFIN_HEADER);
-  offset += header_size;
+  header_span = header_span.subspan(header_size);
 
   CopyRpfToVector(header.src().deflates(), src_deflates, 1);
   CopyRpfToVector(header.dst().deflates(), dst_deflates, 1);
@@ -91,8 +95,8 @@ Status DecodePatch(const uint8_t* patch,
   *src_puff_size = header.src().puff_length();
   *dst_puff_size = header.dst().puff_length();
 
-  *bsdiff_patch_offset = offset;
-  *bsdiff_patch_size = patch_length - offset;
+  *bsdiff_patch_offset = patch_span.size() - header_span.size();
+  *bsdiff_patch_size = header_span.size();
 
   *patch_type = header.type();
   return Status::P_OK;
@@ -127,7 +131,6 @@ Status ApplyZucchiniPatch(UniqueStreamPtr src_stream,
   auto patch_reader = zucchini::EnsemblePatchReader::Create(
       {zucchini_patch.data(), zucchini_patch.size()});
   if (!patch_reader.has_value()) {
-    LOG(ERROR) << "Failed to parse the zucchini patch.";
     dst_stream->Close();
     return Status::P_BAD_ZUCC_CORRUPT;
   }
@@ -149,12 +152,12 @@ Status ApplyZucchiniPatch(UniqueStreamPtr src_stream,
       result = Status::P_INPUT_NOT_RECOGNIZED;
       break;
     case zucchini::status::kStatusFileReadError:
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case zucchini::status::kStatusPatchReadError:
       result = Status::P_READ_ERROR;
       break;
     case zucchini::status::kStatusFileWriteError:
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case zucchini::status::kStatusPatchWriteError:
       result = Status::P_WRITE_ERROR;
       break;
@@ -165,7 +168,7 @@ Status ApplyZucchiniPatch(UniqueStreamPtr src_stream,
       result = Status::P_BAD_ZUCC_NEW_IMAGE;
       break;
     case zucchini::status::kStatusFatal:
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     default:
       result = Status::P_UNKNOWN_ERROR;
   }
@@ -222,7 +225,6 @@ Status PuffPatch(UniqueStreamPtr src,
       return zucc_status;
     }
   } else {
-    LOG(ERROR) << "Unsupported patch type " << patch_type;
     return Status::P_BAD_PUFFIN_PATCH_TYPE;
   }
   return Status::P_OK;
@@ -234,14 +236,12 @@ Status ApplyPuffPatch(const base::FilePath& input_path,
   puffin::UniqueStreamPtr input_stream =
       puffin::FileStream::Open(input_path.AsUTF8Unsafe(), true, false);
   if (!input_stream) {
-    LOG(ERROR) << "input_path must be a valid filepath";
     return Status::P_READ_OPEN_ERROR;
   }
   puffin::UniqueStreamPtr output_stream =
       puffin::FileStream::Open(output_path.AsUTF8Unsafe(), false, true);
   if (!output_stream) {
     input_stream->Close();
-    LOG(ERROR) << "Unable to open destination filepath for stream";
     return Status::P_WRITE_OPEN_ERROR;
   }
   puffin::UniqueStreamPtr patch_stream =
@@ -249,7 +249,6 @@ Status ApplyPuffPatch(const base::FilePath& input_path,
   if (!patch_stream) {
     input_stream->Close();
     output_stream->Close();
-    LOG(ERROR) << "Input patch_path must be a vaild filepath";
     return Status::P_READ_OPEN_ERROR;
   }
   uint64_t patch_size = 0;
@@ -257,7 +256,6 @@ Status ApplyPuffPatch(const base::FilePath& input_path,
     input_stream->Close();
     output_stream->Close();
     patch_stream->Close();
-    LOG(ERROR) << "Unable obtain patch stream size";
     return Status::P_STREAM_ERROR;
   }
   puffin::Buffer puffdiff_delta(patch_size);
@@ -265,7 +263,6 @@ Status ApplyPuffPatch(const base::FilePath& input_path,
     input_stream->Close();
     output_stream->Close();
     patch_stream->Close();
-    LOG(ERROR) << "Unable to read patch stream";
     return Status::P_READ_ERROR;
   }
   patch_stream->Close();
@@ -280,14 +277,12 @@ Status ApplyPuffPatch(base::File input_file,
   puffin::UniqueStreamPtr input_stream =
       puffin::FileStream::CreateStreamFromFile(std::move(input_file));
   if (!input_stream) {
-    LOG(ERROR) << "input_path must be a valid filepath";
     return Status::P_READ_OPEN_ERROR;
   }
   puffin::UniqueStreamPtr output_stream =
       puffin::FileStream::CreateStreamFromFile(std::move(output_file));
   if (!output_stream) {
     input_stream->Close();
-    LOG(ERROR) << "Unable to open destination filepath for stream";
     return Status::P_WRITE_OPEN_ERROR;
   }
   puffin::UniqueStreamPtr patch_stream =
@@ -295,7 +290,6 @@ Status ApplyPuffPatch(base::File input_file,
   if (!patch_stream) {
     input_stream->Close();
     output_stream->Close();
-    LOG(ERROR) << "Input patch_path must be a vaild filepath";
     return Status::P_READ_OPEN_ERROR;
   }
   uint64_t patch_size = 0;
@@ -303,7 +297,6 @@ Status ApplyPuffPatch(base::File input_file,
     input_stream->Close();
     output_stream->Close();
     patch_stream->Close();
-    LOG(ERROR) << "Unable obtain patch stream size";
     return Status::P_STREAM_ERROR;
   }
   puffin::Buffer puffdiff_delta(patch_size);

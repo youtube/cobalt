@@ -6,7 +6,6 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/shell.h"
-#include "ash/wm/desks/desk.h"
 #include "ash/wm/desks/desks_controller.h"
 #include "ash/wm/desks/desks_util.h"
 #include "ash/wm/overview/overview_controller.h"
@@ -20,10 +19,7 @@ DeskAnimationBase::DeskAnimationBase(DesksController* controller,
                                      bool is_continuous_gesture_animation)
     : controller_(controller),
       ending_desk_index_(ending_desk_index),
-      is_continuous_gesture_animation_(is_continuous_gesture_animation),
-      throughput_tracker_(
-          desks_util::GetSelectedCompositorForPerformanceMetrics()
-              ->RequestNewThroughputTracker()) {
+      is_continuous_gesture_animation_(is_continuous_gesture_animation) {
   DCHECK(controller_);
   DCHECK_LE(ending_desk_index_, static_cast<int>(controller_->desks().size()));
   DCHECK_GE(ending_desk_index_, 0);
@@ -32,9 +28,6 @@ DeskAnimationBase::DeskAnimationBase(DesksController* controller,
 DeskAnimationBase::~DeskAnimationBase() {
   for (auto& observer : controller_->observers_)
     observer.OnDeskSwitchAnimationFinished();
-
-  if (finished_callback_)
-    std::move(finished_callback_).Run();
 }
 
 void DeskAnimationBase::Launch() {
@@ -45,8 +38,21 @@ void DeskAnimationBase::Launch() {
 
   // The throughput tracker measures the animation when the user lifts their
   // fingers off the trackpad, which is done in EndSwipeAnimation.
-  if (!is_continuous_gesture_animation_)
-    throughput_tracker_.Start(GetSmoothnessReportCallback());
+  if (!is_continuous_gesture_animation_) {
+    // Request a new sequence tracker so the tracking number can't be reused.
+    throughput_tracker_ =
+        desks_util::GetSelectedCompositorForPerformanceMetrics()
+            ->RequestNewCompositorMetricsTracker();
+    throughput_tracker_->Start(GetSmoothnessReportCallback());
+  }
+
+  // Pause occlusion tracking while taking starting desk screenshot.
+  //
+  // Occlusion tracking should be paused prior to PrepareForActivationAnimation
+  // since it can update the occlusion state of the starting desk windows.
+  // See crbug.com/417088506 for the context.
+  pauser_for_screenshot_ =
+      std::make_unique<aura::WindowOcclusionTracker::ScopedPause>();
 
   // This step makes sure that the containers of the target desk are shown at
   // the beginning of the animation (but not actually visible to the user yet,
@@ -86,6 +92,14 @@ bool DeskAnimationBase::CanEndOverview() const {
 void DeskAnimationBase::OnStartingDeskScreenshotTaken(int ending_desk_index) {
   DCHECK(!desk_switch_animators_.empty());
 
+  // If an animator fails, for any reason, we abort the whole project and
+  // activate the target desk without any animation.
+  if (AnimatorFailed()) {
+    // This will effectively delete `this`.
+    ActivateTargetDeskWithoutAnimation();
+    return;
+  }
+
   // Once all starting desk screenshots on all roots are taken and placed on
   // the screens, do the actual desk activation logic.
   for (const auto& animator : desk_switch_animators_) {
@@ -93,16 +107,29 @@ void DeskAnimationBase::OnStartingDeskScreenshotTaken(int ending_desk_index) {
       return;
   }
 
+  // If ending desk index goes out of sync with the one provided due to screenshot delay
+  // and user action, end animation. Speculative fix for http://b/307304567.
+  if (ending_desk_index != ending_desk_index_) {
+    // This will effectively delete `this`.
+    ActivateTargetDeskWithoutAnimation();
+    return;
+  }
+
+  // Now each display is covered by starting desk screenshot.
+  pauser_for_screenshot_.reset();
+
   // Extend the compositors' timeouts in order to prevents any repaints until
   // the desks are switched and overview mode exits.
   const auto roots = Shell::GetAllRootWindows();
-  for (auto* root : roots)
+  for (aura::Window* root : roots) {
     root->GetHost()->compositor()->SetAllowLocksToExtendTimeout(true);
+  }
 
   OnStartingDeskScreenshotTakenInternal(ending_desk_index);
 
-  for (auto* root : roots)
+  for (aura::Window* root : roots) {
     root->GetHost()->compositor()->SetAllowLocksToExtendTimeout(false);
+  }
 
   // Continue the second phase of the animation by taking the ending desk
   // screenshot and actually animating the layers.
@@ -112,6 +139,14 @@ void DeskAnimationBase::OnStartingDeskScreenshotTaken(int ending_desk_index) {
 
 void DeskAnimationBase::OnEndingDeskScreenshotTaken() {
   DCHECK(!desk_switch_animators_.empty());
+
+  // If an animator fails, for any reason, we abort the whole project and
+  // activate the target desk without any animation.
+  if (AnimatorFailed()) {
+    // This will effectively delete `this`.
+    ActivateTargetDeskWithoutAnimation();
+    return;
+  }
 
   // Once all ending desk screenshots on all roots are taken, start the
   // animation on all roots at the same time, so that they look synchrnoized.
@@ -153,9 +188,9 @@ void DeskAnimationBase::OnDeskSwitchAnimationFinished() {
   OnDeskSwitchAnimationFinishedInternal();
 
   desk_switch_animators_.clear();
-
-  throughput_tracker_.Stop();
-
+  if (throughput_tracker_.has_value()) {
+    throughput_tracker_->Stop();
+  }
   if (skip_notify_controller_on_animation_finished_for_testing_)
     return;
 
@@ -185,10 +220,40 @@ void DeskAnimationBase::ActivateDeskDuringAnimation(
   // `is_overview_toggle_allowed_` to false to prevent any subsequent overview
   // toggling (i.e. user input).
   is_overview_toggle_allowed_ =
-      features::IsOverviewDeskNavigationEnabled() &&
       Shell::Get()->overview_controller()->InOverviewSession();
   controller_->ActivateDeskInternal(desk, update_window_activation);
   is_overview_toggle_allowed_ = false;
+}
+
+void DeskAnimationBase::ActivateTargetDeskWithoutAnimation() {
+  auto* overview_controller = Shell::Get()->overview_controller();
+  if (overview_controller->InOverviewSession()) {
+    // Setting this is required. The overview controller will ask the desk
+    // controller if exiting overview is allowed, and since we are technically
+    // still in an animation, the desk controller will ask the animation (which
+    // is us) if overview can be toggled.
+    is_overview_toggle_allowed_ = true;
+    overview_controller->EndOverview(OverviewEndAction::kDeskActivation,
+                                     OverviewEnterExitType::kImmediateExit);
+  }
+
+  const auto& desks = controller_->desks();
+  if (ending_desk_index_ < static_cast<int>(desks.size())) {
+    controller_->ActivateDeskInternal(desks[ending_desk_index_].get(), true);
+  }
+
+  controller_->OnAnimationFinished(this);
+  // `this` is now deleted.
+}
+
+bool DeskAnimationBase::AnimatorFailed() const {
+  for (const auto& animator : desk_switch_animators_) {
+    if (animator->animator_failed()) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 }  // namespace ash

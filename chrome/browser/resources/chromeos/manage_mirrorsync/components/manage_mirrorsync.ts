@@ -6,7 +6,8 @@ import './folder_selector.js';
 
 import {BrowserProxy} from '../browser_proxy.js';
 
-import {FOLDER_EXPANDED, FolderExpandedEvent, FolderSelector} from './folder_selector.js';
+import type {FolderExpandedEvent, FolderSelector} from './folder_selector.js';
+import {FOLDER_EXPANDED} from './folder_selector.js';
 import {getTemplate} from './manage_mirrorsync.html.js';
 
 /**
@@ -18,7 +19,7 @@ class ManageMirrorSync extends HTMLElement {
    * The <folder-selector> component on the page. Gets set when the
    * <manage-mirrorsync> components connects to the DOM.
    */
-  private folderSelector?: FolderSelector;
+  private folderSelector: FolderSelector|null = null;
 
   /**
    * Bind the onSpecifyFolderSelection event listener to enable removal of it
@@ -41,8 +42,7 @@ class ManageMirrorSync extends HTMLElement {
   connectedCallback() {
     this.shadowRoot!.getElementById('selected')!.addEventListener(
         'click', this.onSpecifyFolderSelectionBound);
-    this.folderSelector =
-        this.shadowRoot!.querySelector('folder-selector') as FolderSelector;
+    this.folderSelector = this.shadowRoot!.querySelector('folder-selector');
   }
 
   /**

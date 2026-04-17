@@ -5,13 +5,13 @@
 #include "ios/chrome/tools/strings/grit_header_parsing.h"
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/containers/contains.h"
 #include "base/files/file.h"
 #include "base/files/file_util.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 
@@ -27,14 +27,15 @@ bool FillResourcesFromGritHeader(const base::FilePath& header,
     return false;
   }
 
-  std::vector<base::StringPiece> lines = base::SplitStringPiece(
+  std::vector<std::string_view> lines = base::SplitStringPiece(
       content, "\n", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
 
-  for (base::StringPiece line : lines) {
-    if (!base::StartsWith(line, "#define "))
+  for (std::string_view line : lines) {
+    if (!base::StartsWith(line, "#define ")) {
       continue;
+    }
 
-    std::vector<base::StringPiece> items = base::SplitStringPiece(
+    std::vector<std::string_view> items = base::SplitStringPiece(
         line, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
     if (items.size() != 3) {
       fprintf(stderr, "ERROR: header %s contains invalid entry: %s\n",
@@ -42,7 +43,7 @@ bool FillResourcesFromGritHeader(const base::FilePath& header,
       return false;
     }
 
-    const base::StringPiece key = items[1];
+    const std::string_view key = items[1];
     if (base::Contains(resource_map, key)) {
       fprintf(stderr, "ERROR: entry duplicated in parsed headers: %s\n",
               std::string(key).c_str());
@@ -50,7 +51,7 @@ bool FillResourcesFromGritHeader(const base::FilePath& header,
     }
 
     int value = 0;
-    const base::StringPiece val = items[2];
+    const std::string_view val = items[2];
     if (!base::StringToInt(val, &value)) {
       fprintf(stderr, "ERROR: header %s contains invalid entry: %s\n",
               header.value().c_str(), std::string(line).c_str());
@@ -65,12 +66,12 @@ bool FillResourcesFromGritHeader(const base::FilePath& header,
 
 }  // namespace
 
-absl::optional<ResourceMap> LoadResourcesFromGritHeaders(
+std::optional<ResourceMap> LoadResourcesFromGritHeaders(
     const std::vector<base::FilePath>& headers) {
   ResourceMap resource_map;
   for (const base::FilePath& header : headers) {
     if (!FillResourcesFromGritHeader(header, resource_map)) {
-      return absl::nullopt;
+      return std::nullopt;
     }
   }
   return resource_map;

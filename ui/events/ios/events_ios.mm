@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ui/events/event_utils.h"
-
 #import <UIKit/UIKit.h>
 
 #include "base/notreached.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "ui/events/base_event_utils.h"
+#include "ui/events/event_utils.h"
 #include "ui/events/keycodes/dom/dom_code.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/vector2d.h"
@@ -18,7 +17,7 @@ namespace ui {
 
 EventType EventTypeFromNative(const PlatformEvent& native_event) {
   NOTIMPLEMENTED();
-  return ET_UNKNOWN;
+  return EventType::kUnknown;
 }
 
 int EventFlagsFromNative(const PlatformEvent& native_event) {
@@ -28,7 +27,7 @@ int EventFlagsFromNative(const PlatformEvent& native_event) {
 
 base::TimeTicks EventTimeFromNative(const PlatformEvent& native_event) {
   base::TimeTicks timestamp =
-      ui::EventTimeStampFromSeconds([native_event timestamp]);
+      ui::EventTimeStampFromSeconds(native_event.Get().timestamp);
   ValidateEventTimeClock(&timestamp);
   return timestamp;
 }
@@ -73,23 +72,26 @@ gfx::Vector2d GetMouseWheelTick120ths(const PlatformEvent& native_event) {
   return gfx::Vector2d();
 }
 
-PlatformEvent CopyNativeEvent(const PlatformEvent& event) {
-  NOTIMPLEMENTED() << "Don't know how to copy PlatformEvent for this platform";
-  return NULL;
+bool ShouldCopyPlatformEvents() {
+  return true;
 }
 
-void ReleaseCopiedNativeEvent(const PlatformEvent& event) {}
+PlatformEvent CreateInvalidPlatformEvent() {
+  return PlatformEvent();
+}
+
+bool IsPlatformEventValid(const PlatformEvent& event) {
+  return !!event;
+}
 
 PointerDetails GetTouchPointerDetailsFromNative(
     const PlatformEvent& native_event) {
   NOTIMPLEMENTED();
   return PointerDetails(EventPointerType::kUnknown,
-                        /* radius_x */ 1.0,
-                        /* radius_y */ 1.0,
-                        /* force */ 0.f,
-                        /* twist */ 0.f,
-                        /* tilt_x */ 0.f,
-                        /* tilt_y */ 0.f);
+                        /*pointer_id=*/0,
+                        /*radius_x=*/1.0,
+                        /*radius_y=*/1.0,
+                        /*force=*/0.f);
 }
 
 bool GetScrollOffsets(const PlatformEvent& native_event,

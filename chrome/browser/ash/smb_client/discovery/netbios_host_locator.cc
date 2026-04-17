@@ -11,11 +11,11 @@
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "chrome/browser/ash/smb_client/smb_constants.h"
+#include "net/base/ip_address.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/network_change_notifier.h"
 
-namespace ash {
-namespace smb_client {
+namespace ash::smb_client {
 namespace {
 
 bool IsMLan(const net::NetworkInterface& interface) {
@@ -46,6 +46,7 @@ net::IPAddress CalculateBroadcastAddress(
 // type rather than CONNECTION_WIFI. https://crbug.com/872665
 bool ShouldUseInterface(const net::NetworkInterface& interface) {
   return interface.address.IsIPv4() &&
+         interface.prefix_length < (net::IPAddress::kIPv4AddressSize * 8) &&
          (interface.type == net::NetworkChangeNotifier::CONNECTION_ETHERNET ||
           interface.type == net::NetworkChangeNotifier::CONNECTION_WIFI ||
           IsMLan(interface));
@@ -134,8 +135,8 @@ void NetBiosHostLocator::PacketReceived(const std::vector<uint8_t>& packet,
   ++outstanding_parse_requests_;
   smb_provider_client_->ParseNetBiosPacket(
       packet, transaction_id,
-      base::BindOnce(&NetBiosHostLocator::OnPacketParsed, AsWeakPtr(),
-                     sender_ip));
+      base::BindOnce(&NetBiosHostLocator::OnPacketParsed,
+                     weak_ptr_factory_.GetWeakPtr(), sender_ip));
 }
 
 void NetBiosHostLocator::OnPacketParsed(
@@ -195,5 +196,4 @@ bool NetBiosHostLocator::WouldOverwriteResult(
          results_.at(hostname) != sender_ip.address();
 }
 
-}  // namespace smb_client
-}  // namespace ash
+}  // namespace ash::smb_client

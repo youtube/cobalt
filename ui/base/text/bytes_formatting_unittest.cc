@@ -7,16 +7,19 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
+
 #include "base/strings/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace ui {
 
 TEST(BytesFormattingTest, GetByteDisplayUnits) {
-  static const struct {
+  struct Cases {
     int64_t bytes;
     DataUnits expected;
-  } cases[] = {
+  };
+  static const auto cases = std::to_array<Cases>({
       {0, DATA_UNITS_BYTE},
       {512, DATA_UNITS_BYTE},
       {10 * 1024, DATA_UNITS_KIBIBYTE},
@@ -24,19 +27,20 @@ TEST(BytesFormattingTest, GetByteDisplayUnits) {
       {10LL * 1024 * 1024 * 1024, DATA_UNITS_GIBIBYTE},
       {10LL * 1024 * 1024 * 1024 * 1024, DATA_UNITS_TEBIBYTE},
       {~(1LL << 63), DATA_UNITS_PEBIBYTE},
-  };
+  });
 
   for (size_t i = 0; i < std::size(cases); ++i)
     EXPECT_EQ(cases[i].expected, GetByteDisplayUnits(cases[i].bytes));
 }
 
 TEST(BytesFormattingTest, FormatBytes) {
-  static const struct {
+  struct Cases {
     int64_t bytes;
     DataUnits units;
     const char* expected;
     const char* expected_with_units;
-  } cases[] = {
+  };
+  static const auto cases = std::to_array<Cases>({
       // Expected behavior: we show one post-decimal digit when we have
       // under two pre-decimal digits, except in cases where it makes no
       // sense (zero or bytes).
@@ -64,7 +68,7 @@ TEST(BytesFormattingTest, FormatBytes) {
        "1.9 GB"},
       {10LL * 1024 * 1024 * 1024, DATA_UNITS_GIBIBYTE, "10.0", "10.0 GB"},
       {100LL * 1024 * 1024 * 1024, DATA_UNITS_GIBIBYTE, "100", "100 GB"},
-  };
+  });
 
   for (size_t i = 0; i < std::size(cases); ++i) {
     EXPECT_EQ(base::ASCIIToUTF16(cases[i].expected),

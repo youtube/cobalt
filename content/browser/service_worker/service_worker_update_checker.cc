@@ -32,7 +32,7 @@ ServiceWorkerUpdateChecker::ServiceWorkerUpdateChecker(
         scripts_to_compare,
     const GURL& main_script_url,
     int64_t main_script_resource_id,
-    const absl::optional<std::string>& main_script_sha256_checksum,
+    const std::optional<std::string>& main_script_sha256_checksum,
     scoped_refptr<ServiceWorkerVersion> version_to_update,
     scoped_refptr<network::SharedURLLoaderFactory> loader_factory,
     bool force_bypass_cache,
@@ -85,7 +85,7 @@ void ServiceWorkerUpdateChecker::OnOneUpdateCheckFinished(
         failure_info,
     std::unique_ptr<ServiceWorkerSingleScriptUpdateChecker::PausedState>
         paused_state,
-    const absl::optional<std::string>& sha256_checksum) {
+    const std::optional<std::string>& sha256_checksum) {
   TRACE_EVENT_WITH_FLOW2(
       "ServiceWorker", "ServiceWorkerUpdateChecker::OnOneUpdateCheckFinished",
       this, TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT, "script_url",
@@ -246,7 +246,7 @@ void ServiceWorkerUpdateChecker::OnResourceIdAssignedForOneScriptCheck(
       url, is_main_script, main_script_url_, version_to_update_->scope(),
       force_bypass_cache_, worker_script_type_, update_via_cache_,
       fetch_client_settings_object_, time_since_last_check_,
-      context_->process_manager()->browser_context(), loader_factory_,
+      context_->wrapper()->browser_context(), loader_factory_,
       std::move(compare_reader), std::move(copy_reader), std::move(writer),
       new_resource_id,
       // If the main script checksum is empty, then calculate each script
@@ -256,6 +256,7 @@ void ServiceWorkerUpdateChecker::OnResourceIdAssignedForOneScriptCheck(
                 kDefault
           : ServiceWorkerSingleScriptUpdateChecker::ScriptChecksumUpdateOption::
                 kForceUpdate,
+      version_to_update_->key(),
       base::BindOnce(&ServiceWorkerUpdateChecker::OnOneUpdateCheckFinished,
                      weak_factory_.GetWeakPtr(), resource_id));
 }

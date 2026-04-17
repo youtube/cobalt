@@ -129,7 +129,9 @@ enum InstallStatus {
                                          // key due to missing permissions.
   ROTATE_DTKEY_FAILED_CONFLICT = 77,  // Failed to rotate the device trust key
                                       // due to a conflict during upload.
-  MAX_INSTALL_STATUS = 78,  // When adding a new result, bump this and update
+  CONFIGURE_APP_CONTAINER_SANDBOX_SUCCESS = 78,
+  CONFIGURE_APP_CONTAINER_SANDBOX_FAILED = 79,
+  MAX_INSTALL_STATUS = 80,  // When adding a new result, bump this and update
                             // the SetupInstallResult enum in enums.xml.
 };
 
@@ -174,14 +176,15 @@ extern const char kDeleteDMToken[];
 extern const char kDeleteOldVersions[];
 extern const char kDeleteProfile[];
 extern const char kDisableLogging[];
+inline constexpr char kDisableSystemTracing[] = "disable-system-tracing";
 extern const char kDmServerUrl[];
 extern const char kDoNotLaunchChrome[];
 extern const char kDoNotRegisterForUpdateLaunch[];
 extern const char kDoNotRemoveSharedItems[];
 extern const char kEnableLogging[];
+inline constexpr char kEnableSystemTracing[] = "enable-system-tracing";
 extern const char kForceConfigureUserSettings[];
 extern const char kForceUninstall[];
-extern const char kInputFile[];
 extern const char kInstallArchive[];
 extern const char kInstallerData[];
 extern const char kInstallLevel[];
@@ -191,9 +194,6 @@ extern const char kMsi[];
 extern const char kNewSetupExe[];
 extern const char kNonce[];
 extern const char kOnOsUpgrade[];
-extern const char kOutputFile[];
-extern const char kPatch[];
-extern const char kPatchFile[];
 extern const char kPreviousVersion[];
 extern const char kReenableAutoupdates[];
 extern const char kRegisterChromeBrowser[];
@@ -209,6 +209,7 @@ extern const char kShowEula[];
 extern const char kStoreDMToken[];
 extern const char kSystemLevel[];
 extern const char kTriggerActiveSetup[];
+extern const char kUncompressedArchive[];
 extern const char kUninstall[];
 extern const char kUpdateSetupExe[];
 extern const char kVerboseLogging[];
@@ -217,7 +218,10 @@ extern const char kVerboseLogging[];
 
 namespace env_vars {
 
-extern const char kGoogleUpdateIsMachineEnvVar[];
+// The presence of this environment variable with a value of 1 implies that
+// setup.exe should run as a system installation regardless of what is on the
+// command line.
+inline constexpr char kGoogleUpdateIsMachineEnvVar[] = "GoogleUpdateIsMachine";
 
 }  // namespace env_vars
 
@@ -240,7 +244,6 @@ extern const wchar_t kInstallBinaryDir[];
 extern const wchar_t kInstallerDir[];
 extern const wchar_t kInstallTempDir[];
 extern const wchar_t kLnkExt[];
-extern const wchar_t kNaClExe[];
 extern const wchar_t kNotificationHelperExe[];
 extern const wchar_t kRegDowngradeVersion[];
 extern const wchar_t kSetupExe[];

@@ -24,8 +24,6 @@ DOMException* PushError::CreateException(mojom::PushErrorType error,
                                                 message);
     case mojom::PushErrorType::NONE:
       NOTREACHED();
-      return MakeGarbageCollected<DOMException>(DOMExceptionCode::kUnknownError,
-                                                message);
     case mojom::PushErrorType::NOT_ALLOWED:
       return MakeGarbageCollected<DOMException>(
           DOMExceptionCode::kNotAllowedError, message);
@@ -37,7 +35,6 @@ DOMException* PushError::CreateException(mojom::PushErrorType error,
           DOMExceptionCode::kNotSupportedError, message);
   }
   NOTREACHED();
-  return MakeGarbageCollected<DOMException>(DOMExceptionCode::kUnknownError);
 }
 
 }  // namespace blink

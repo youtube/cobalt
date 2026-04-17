@@ -13,21 +13,24 @@
 
 #include <stddef.h>
 
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <vector>
 
+#include "absl/base/macros.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "api/array_view.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/string_to_number.h"
+#include "rtc_base/strings/string_format.h"
 
-namespace rtc {
+namespace webrtc {
 
-//////////////////////////////////////////////////////////////////////
-// String Encoding Utilities
-//////////////////////////////////////////////////////////////////////
+inline std::string BoolToString(bool b) {
+  return b ? "true" : "false";
+}
 
 std::string hex_encode(absl::string_view str);
 std::string hex_encode_with_delimiter(absl::string_view source, char delimiter);
@@ -62,28 +65,9 @@ bool tokenize_first(absl::string_view source,
                     std::string* token,
                     std::string* rest);
 
-// Convert arbitrary values to/from a string.
-// TODO(jonasolsson): Remove these when absl::StrCat becomes available.
-std::string ToString(bool b);
+// Versions that behave differently from StrCat
 
-std::string ToString(absl::string_view s);
-// The const char* overload is needed for correct overload resolution because of
-// the const void* version of ToString() below.
-std::string ToString(const char* s);
-
-std::string ToString(short s);
-std::string ToString(unsigned short s);
-std::string ToString(int s);
-std::string ToString(unsigned int s);
-std::string ToString(long int s);
-std::string ToString(unsigned long int s);
-std::string ToString(long long int s);
-std::string ToString(unsigned long long int s);
-
-std::string ToString(double t);
-std::string ToString(long double t);
-
-std::string ToString(const void* p);
+// Versions not supported by StrCat:
 
 template <typename T,
           typename std::enable_if<std::is_arithmetic<T>::value &&
@@ -91,7 +75,7 @@ template <typename T,
                                   int>::type = 0>
 static bool FromString(absl::string_view s, T* t) {
   RTC_DCHECK(t);
-  absl::optional<T> result = StringToNumber<T>(s);
+  std::optional<T> result = webrtc::StringToNumber<T>(s);
 
   if (result)
     *t = *result;
@@ -110,6 +94,58 @@ static inline T FromString(absl::string_view str) {
 
 //////////////////////////////////////////////////////////////////////
 
+}  //  namespace webrtc
+
+// Re-export symbols from the webrtc namespace for backwards compatibility.
+// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
+#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
+namespace rtc {
+using ::webrtc::FromString;
+using ::webrtc::hex_decode;
+using ::webrtc::hex_decode_with_delimiter;
+using ::webrtc::hex_encode;
+using ::webrtc::hex_encode_with_delimiter;
+using ::webrtc::split;
+using ::webrtc::tokenize;
+using ::webrtc::tokenize_first;
+
+namespace internal {
+template <typename T, typename = void>
+struct is_absl_strcat_callable : std::false_type {};
+
+template <typename T>
+struct is_absl_strcat_callable<
+    T,
+    std::void_t<decltype(absl::StrCat(std::declval<T>()))>> : std::true_type {};
+}  // namespace internal
+
+template <typename T>
+ABSL_DEPRECATE_AND_INLINE()
+inline auto ToString(T value) ->
+    typename std::enable_if<!std::is_same_v<T, bool> &&
+                                internal::is_absl_strcat_callable<T>::value,
+                            std::string>::type {
+  return absl::StrCat(value);
+}
+
+template <typename T>
+ABSL_DEPRECATE_AND_INLINE()
+inline auto ToString(T p) ->
+    typename std::enable_if<!internal::is_absl_strcat_callable<T>::value &&
+                                std::is_pointer<T>::value,
+                            std::string>::type {
+  return webrtc::StringFormat("%p", p);
+}
+
+template <typename T>
+ABSL_DEPRECATE_AND_INLINE()
+inline auto ToString(T value) ->
+    typename std::enable_if<!std::is_pointer_v<T> && std::is_same_v<T, bool>,
+                            std::string>::type {
+  return webrtc::BoolToString(value);
+}
+
 }  // namespace rtc
+#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_STRING_ENCODE_H__

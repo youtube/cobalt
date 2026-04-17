@@ -4,6 +4,7 @@
 
 #include "net/dns/resolve_context.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <limits>
 #include <utility>
@@ -19,8 +20,9 @@
 #include "base/no_destructor.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/observer_list.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/stringprintf.h"
+#include "base/time/clock.h"
+#include "base/time/tick_clock.h"
 #include "net/base/features.h"
 #include "net/base/ip_address.h"
 #include "net/base/network_change_notifier.h"
@@ -28,8 +30,10 @@
 #include "net/dns/dns_session.h"
 #include "net/dns/dns_util.h"
 #include "net/dns/host_cache.h"
+#include "net/dns/host_resolver_cache.h"
 #include "net/dns/public/dns_over_https_config.h"
 #include "net/dns/public/doh_provider_entry.h"
+#include "net/dns/public/secure_dns_mode.h"
 #include "net/url_request/url_request_context.h"
 
 namespace net {
@@ -51,7 +55,7 @@ const size_t kRttBucketCount = 350;
 // Target percentile in the RTT histogram used for fallback period.
 const int kRttPercentile = 99;
 // Number of samples to seed the histogram with.
-const base::HistogramBase::Count kNumSeeds = 2;
+const base::HistogramBase::Count32 kNumSeeds = 2;
 
 DohProviderEntry::List FindDohProvidersMatchingServerConfig(
     DnsOverHttpsServerConfig server_config) {
@@ -94,7 +98,7 @@ class RttBuckets : public base::BucketRanges {
   RttBuckets() : base::BucketRanges(kRttBucketCount + 1) {
     base::Histogram::InitializeBucketRanges(
         1,
-        base::checked_cast<base::HistogramBase::Sample>(
+        base::checked_cast<base::HistogramBase::Sample32>(
             kRttMax.InMilliseconds()),
         this);
   }
@@ -110,10 +114,36 @@ static std::unique_ptr<base::SampleVector> GetRttHistogram(
   std::unique_ptr<base::SampleVector> histogram =
       std::make_unique<base::SampleVector>(GetRttBuckets());
   // Seed histogram with 2 samples at |rtt_estimate|.
-  histogram->Accumulate(base::checked_cast<base::HistogramBase::Sample>(
+  histogram->Accumulate(base::checked_cast<base::HistogramBase::Sample32>(
                             rtt_estimate.InMilliseconds()),
                         kNumSeeds);
   return histogram;
+}
+
+#if defined(ENABLE_BUILT_IN_DNS)
+constexpr size_t kDefaultCacheSize = 1000;
+#else
+constexpr size_t kDefaultCacheSize = 100;
+#endif
+
+std::unique_ptr<HostCache> CreateHostCache(bool enable_caching) {
+  if (enable_caching) {
+    return std::make_unique<HostCache>(kDefaultCacheSize);
+  } else {
+    return nullptr;
+  }
+}
+
+std::unique_ptr<HostResolverCache> CreateHostResolverCache(
+    bool enable_caching,
+    const base::Clock& clock,
+    const base::TickClock& tick_clock) {
+  if (enable_caching) {
+    return std::make_unique<HostResolverCache>(kDefaultCacheSize, clock,
+                                               tick_clock);
+  } else {
+    return nullptr;
+  }
 }
 
 }  // namespace
@@ -127,10 +157,14 @@ ResolveContext::ServerStats::ServerStats(ServerStats&&) = default;
 ResolveContext::ServerStats::~ServerStats() = default;
 
 ResolveContext::ResolveContext(URLRequestContext* url_request_context,
-                               bool enable_caching)
+                               bool enable_caching,
+                               const base::Clock& clock,
+                               const base::TickClock& tick_clock)
     : url_request_context_(url_request_context),
-      host_cache_(enable_caching ? HostCache::CreateDefaultCache() : nullptr),
-      isolation_info_(IsolationInfo::CreateTransient()) {
+      host_cache_(CreateHostCache(enable_caching)),
+      host_resolver_cache_(
+          CreateHostResolverCache(enable_caching, clock, tick_clock)),
+      isolation_info_(IsolationInfo::CreateTransient(/*nonce=*/std::nullopt)) {
   max_fallback_period_ = GetMaxFallbackPeriod();
 }
 
@@ -172,8 +206,8 @@ size_t ResolveContext::NumAvailableDohServers(const DnsSession* session) const {
   if (!IsCurrentSession(session))
     return 0;
 
-  return base::ranges::count_if(doh_server_stats_,
-                                &ServerStatsToDohAvailability);
+  return std::ranges::count_if(doh_server_stats_,
+                               &ServerStatsToDohAvailability);
 }
 
 void ResolveContext::RecordServerFailure(size_t server_index,
@@ -194,8 +228,9 @@ void ResolveContext::RecordServerFailure(size_t server_index,
         GetDohProviderIdForUma(server_index, true /* is_doh_server */, session);
 
     base::UmaHistogramSparse(
-        base::StringPrintf("Net.DNS.DnsTransaction.%s.%s.FailureError",
-                           query_type.c_str(), provider_id.c_str()),
+        base::JoinString(
+            {"Net.DNS.DnsTransaction", query_type, provider_id, "FailureError"},
+            "."),
         std::abs(rv));
   }
 
@@ -204,12 +239,13 @@ void ResolveContext::RecordServerFailure(size_t server_index,
   ServerStats* stats = GetServerStats(server_index, is_doh_server);
   ++(stats->last_failure_count);
   stats->last_failure = base::TimeTicks::Now();
+  stats->has_failed_previously = true;
 
   size_t num_available_doh_servers_now = NumAvailableDohServers(session);
   if (num_available_doh_servers_now < num_available_doh_servers_before) {
     NotifyDohStatusObserversOfUnavailable(false /* network_change */);
 
-    // TODO(crbug.com/1022059): Consider figuring out some way to only for the
+    // TODO(crbug.com/40106440): Consider figuring out some way to only for the
     // first context enabling DoH or the last context disabling DoH.
     if (num_available_doh_servers_now == 0)
       NetworkChangeNotifier::TriggerNonSystemDnsChange();
@@ -230,7 +266,7 @@ void ResolveContext::RecordServerSuccess(size_t server_index,
   stats->last_failure = base::TimeTicks();
   stats->last_success = base::TimeTicks::Now();
 
-  // TODO(crbug.com/1022059): Consider figuring out some way to only for the
+  // TODO(crbug.com/40106440): Consider figuring out some way to only for the
   // first context enabling DoH or the last context disabling DoH.
   bool doh_available_now = NumAvailableDohServers(session) > 0;
   if (doh_available_before != doh_available_now)
@@ -259,7 +295,7 @@ void ResolveContext::RecordRtt(size_t server_index,
 
   // Histogram-based method.
   stats->rtt_histogram->Accumulate(
-      base::saturated_cast<base::HistogramBase::Sample>(rtt.InMilliseconds()),
+      base::saturated_cast<base::HistogramBase::Sample32>(rtt.InMilliseconds()),
       1);
 }
 
@@ -336,8 +372,12 @@ void ResolveContext::InvalidateCachesAndPerSessionData(
   // to a network change.
   DCHECK(GetTargetNetwork() == handles::kInvalidNetworkHandle ||
          !network_change);
-  if (host_cache_)
+  if (host_cache_) {
     host_cache_->Invalidate();
+  }
+  if (host_resolver_cache_) {
+    host_resolver_cache_->MakeAllResultsStale();
+  }
 
   // DNS config is constant for any given session, so if the current session is
   // unchanged, any per-session data is safe to keep, even if it's dependent on
@@ -346,6 +386,7 @@ void ResolveContext::InvalidateCachesAndPerSessionData(
     return;
 
   current_session_.reset();
+  doh_autoupgrade_success_metric_timer_.Stop();
   classic_server_stats_.clear();
   doh_server_stats_.clear();
   initial_fallback_period_ = base::TimeDelta();
@@ -379,6 +420,23 @@ void ResolveContext::InvalidateCachesAndPerSessionData(
 
   if (!doh_server_stats_.empty())
     NotifyDohStatusObserversOfUnavailable(network_change);
+}
+
+void ResolveContext::StartDohAutoupgradeSuccessTimer(
+    const DnsSession* session) {
+  if (!IsCurrentSession(session)) {
+    return;
+  }
+  if (doh_autoupgrade_success_metric_timer_.IsRunning()) {
+    return;
+  }
+  // We won't pass `session` to `EmitDohAutoupgradeSuccessMetrics()` but will
+  // instead reset the timer in `InvalidateCachesAndPerSessionData()` so that
+  // the former never gets called after the session changes.
+  doh_autoupgrade_success_metric_timer_.Start(
+      FROM_HERE, ResolveContext::kDohAutoupgradeSuccessMetricTimeout,
+      base::BindOnce(&ResolveContext::EmitDohAutoupgradeSuccessMetrics,
+                     base::Unretained(this)));
 }
 
 handles::NetworkHandle ResolveContext::GetTargetNetwork() const {
@@ -438,14 +496,14 @@ base::TimeDelta ResolveContext::NextFallbackPeriodHelper(
   if (initial_fallback_period_ > max_fallback_period_)
     return initial_fallback_period_;
 
-  static_assert(std::numeric_limits<base::HistogramBase::Count>::is_signed,
+  static_assert(std::numeric_limits<base::HistogramBase::Count32>::is_signed,
                 "histogram base count assumed to be signed");
 
   // Use fixed percentile of observed samples.
   const base::SampleVector& samples = *server_stats->rtt_histogram;
 
-  base::HistogramBase::Count total = samples.TotalCount();
-  base::HistogramBase::Count remaining_count = kRttPercentile * total / 100;
+  base::HistogramBase::Count32 total = samples.TotalCount();
+  base::HistogramBase::Count32 remaining_count = kRttPercentile * total / 100;
   size_t index = 0;
   while (remaining_count > 0 && index < GetRttBuckets()->size()) {
     remaining_count -= samples.GetCountAtIndex(index);
@@ -509,13 +567,15 @@ void ResolveContext::RecordRttForUma(size_t server_index,
 
   if (rv == OK || rv == ERR_NAME_NOT_RESOLVED) {
     base::UmaHistogramMediumTimes(
-        base::StringPrintf("Net.DNS.DnsTransaction.%s.%s.SuccessTime",
-                           query_type.c_str(), provider_id.c_str()),
+        base::JoinString(
+            {"Net.DNS.DnsTransaction", query_type, provider_id, "SuccessTime"},
+            "."),
         rtt);
   } else {
     base::UmaHistogramMediumTimes(
-        base::StringPrintf("Net.DNS.DnsTransaction.%s.%s.FailureTime",
-                           query_type.c_str(), provider_id.c_str()),
+        base::JoinString(
+            {"Net.DNS.DnsTransaction", query_type, provider_id, "FailureTime"},
+            "."),
         rtt);
   }
 }
@@ -581,6 +641,58 @@ void ResolveContext::NotifyDohStatusObserversOfUnavailable(
     bool network_change) {
   for (auto& observer : doh_status_observers_)
     observer.OnDohServerUnavailable(network_change);
+}
+
+void ResolveContext::EmitDohAutoupgradeSuccessMetrics() {
+  // This method should not be called if `current_session_` is not populated.
+  CHECK(current_session_);
+
+  // If DoH auto-upgrade is not enabled, then don't emit histograms.
+  if (current_session_->config().secure_dns_mode != SecureDnsMode::kAutomatic) {
+    return;
+  }
+
+  DohServerAutoupgradeStatus status;
+  for (size_t i = 0; i < doh_server_stats_.size(); i++) {
+    auto& entry = doh_server_stats_[i];
+
+    if (ServerStatsToDohAvailability(entry)) {
+      if (!entry.has_failed_previously) {
+        // Auto-upgrade successful and no prior failures.
+        status = DohServerAutoupgradeStatus::kSuccessWithNoPriorFailures;
+      } else {
+        // Auto-upgrade successful but some prior failures.
+        status = DohServerAutoupgradeStatus::kSuccessWithSomePriorFailures;
+      }
+    } else {
+      if (entry.last_success.is_null()) {
+        if (entry.last_failure.is_null()) {
+          // Skip entries that we've never attempted to use.
+          continue;
+        }
+
+        // Auto-upgrade failed and DoH requests have never worked. It's possible
+        // that an invalid DoH resolver config was provided by the user via
+        // enterprise policy (in which case this state will always be associated
+        // with the 'Other' provider_id), but it's also possible that there's an
+        // issue with the user's network configuration or the provider's
+        // infrastructure.
+        status = DohServerAutoupgradeStatus::kFailureWithNoPriorSuccesses;
+      } else {
+        // Auto-upgrade is failing currently but has worked in the past.
+        status = DohServerAutoupgradeStatus::kFailureWithSomePriorSuccesses;
+      }
+    }
+
+    std::string provider_id = GetDohProviderIdForUma(i, /*is_doh_server=*/true,
+                                                     current_session_.get());
+
+    base::UmaHistogramEnumeration(
+        base::JoinString(
+            {"Net.DNS.ResolveContext.DohAutoupgrade", provider_id, "Status"},
+            "."),
+        status);
+  }
 }
 
 // static

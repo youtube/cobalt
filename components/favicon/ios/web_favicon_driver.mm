@@ -19,10 +19,6 @@
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/gfx/image/image.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace favicon {
 
 gfx::Image WebFaviconDriver::GetFavicon() const {
@@ -155,7 +151,5 @@ void WebFaviconDriver::SetFaviconStatus(
   NotifyFaviconUpdatedObservers(notification_icon_type, favicon_status.url,
                                 icon_url_changed, favicon_status.image);
 }
-
-WEB_STATE_USER_DATA_KEY_IMPL(WebFaviconDriver)
 
 }  // namespace favicon

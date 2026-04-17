@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 
+#include "net/http/http_request_headers.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 
 namespace google {
@@ -32,6 +33,8 @@ struct ProtobufHttpRequestConfig {
   std::unique_ptr<google::protobuf::MessageLite> request_message;
   std::string path;
   bool authenticated = true;
+  bool provide_certificate = false;
+  std::string method = net::HttpRequestHeaders::kPostMethod;
 
   // Optional. Only needed when the request requires an API key.
   std::string api_key;

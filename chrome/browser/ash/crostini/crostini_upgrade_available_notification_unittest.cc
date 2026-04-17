@@ -40,7 +40,7 @@ class CrostiniUpgradeAvailableNotificationTest
   CrostiniUpgradeAvailableNotificationTest& operator=(
       const CrostiniUpgradeAvailableNotificationTest&) = delete;
 
-  ~CrostiniUpgradeAvailableNotificationTest() override {}
+  ~CrostiniUpgradeAvailableNotificationTest() override = default;
 
   void SetUp() override {
     BrowserWithTestWindowTest::SetUp();
@@ -115,7 +115,7 @@ class CrostiniUpgradeAvailableNotificationTest
 
   void RunUntilIdle() { task_environment()->RunUntilIdle(); }
 
-  absl::optional<message_center::Notification> GetNotification(std::string id) {
+  std::optional<message_center::Notification> GetNotification(std::string id) {
     return display_service_->GetNotification(id);
   }
 
@@ -136,7 +136,7 @@ TEST_F(CrostiniUpgradeAvailableNotificationTest, ShowsWhenNotified) {
 
   // Wait for notification, press Upgrade
   ASSERT_TRUE(notification);
-  notification->Get()->delegate()->Click(0, absl::nullopt);
+  notification->Get()->delegate()->Click(0, std::nullopt);
   ASSERT_TRUE(result_future.Wait());
 
   // Dialog should show because we clicked button 0 (Upgrade).
@@ -151,13 +151,13 @@ TEST_F(CrostiniUpgradeAvailableNotificationTest, ShowsWhenNotified) {
 
   histogram_tester.ExpectUniqueSample(
       "Crostini.UpgradeDialogEvent",
-      static_cast<base::HistogramBase::Sample>(
+      static_cast<base::HistogramBase::Sample32>(
           crostini::UpgradeDialogEvent::kDialogShown),
       1);
 
   histogram_tester.ExpectUniqueSample(
       "Crostini.UpgradeAvailable",
-      static_cast<base::HistogramBase::Sample>(
+      static_cast<base::HistogramBase::Sample32>(
           crostini::CrostiniUpgradeAvailableNotificationClosed::kUpgradeButton),
       1);
 }

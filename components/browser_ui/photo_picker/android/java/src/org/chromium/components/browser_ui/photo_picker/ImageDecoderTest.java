@@ -9,6 +9,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.graphics.Bitmap;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
@@ -23,15 +24,14 @@ import org.junit.runner.RunWith;
 
 import org.chromium.base.test.BaseJUnit4ClassRunner;
 import org.chromium.base.test.util.CriteriaHelper;
+import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.UrlUtils;
 
 import java.io.File;
 import java.io.FileDescriptor;
 import java.io.FileInputStream;
 
-/**
- * Tests for ImageDecoder and the aidl interfaces used for out-of-process decoding..
- */
+/** Tests for ImageDecoder and the aidl interfaces used for out-of-process decoding.. */
 @RunWith(BaseJUnit4ClassRunner.class)
 public class ImageDecoderTest {
     // By default, the test will wait for 3 seconds to create the decoder process, which (at least
@@ -44,7 +44,7 @@ public class ImageDecoderTest {
     // Flag indicating whether we are bound to the service.
     private boolean mBound;
 
-    private class DecoderServiceCallback extends IDecoderServiceCallback.Stub {
+    private static class DecoderServiceCallback extends IDecoderServiceCallback.Stub {
         // The returned bundle from the decoder.
         private Bundle mDecodedBundle;
 
@@ -63,19 +63,20 @@ public class ImageDecoderTest {
     }
 
     IDecoderService mIRemoteService;
-    private ServiceConnection mConnection = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName className, IBinder service) {
-            mIRemoteService = IDecoderService.Stub.asInterface(service);
-            mBound = true;
-        }
+    private final ServiceConnection mConnection =
+            new ServiceConnection() {
+                @Override
+                public void onServiceConnected(ComponentName className, IBinder service) {
+                    mIRemoteService = IDecoderService.Stub.asInterface(service);
+                    mBound = true;
+                }
 
-        @Override
-        public void onServiceDisconnected(ComponentName className) {
-            mIRemoteService = null;
-            mBound = false;
-        }
-    };
+                @Override
+                public void onServiceDisconnected(ComponentName className) {
+                    mIRemoteService = null;
+                    mBound = false;
+                }
+            };
 
     @Before
     public void setUp() throws Exception {
@@ -87,13 +88,15 @@ public class ImageDecoderTest {
         intent.setAction(IDecoderService.class.getName());
         mContext.bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
 
-        CriteriaHelper.pollUiThread(()
-                                            -> mBound,
-                DECODER_STARTUP_TIMEOUT_IN_MS, CriteriaHelper.DEFAULT_POLLING_INTERVAL);
+        CriteriaHelper.pollUiThread(
+                () -> mBound,
+                DECODER_STARTUP_TIMEOUT_IN_MS,
+                CriteriaHelper.DEFAULT_POLLING_INTERVAL);
     }
 
-    private void decode(String filePath, FileDescriptor fd, int width,
-            final DecoderServiceCallback callback) throws Exception {
+    private void decode(
+            String filePath, FileDescriptor fd, int width, final DecoderServiceCallback callback)
+            throws Exception {
         Bundle bundle = new Bundle();
         bundle.putString(ImageDecoder.KEY_FILE_PATH, filePath);
         ParcelFileDescriptor pfd = null;
@@ -126,11 +129,14 @@ public class ImageDecoderTest {
 
     @Test
     @LargeTest
+    @DisableIf.Build(sdk_is_less_than = Build.VERSION_CODES.R, message = "crbug.com/40276082")
     public void testServiceDecodeSimple() throws Exception {
         startDecoderService();
 
-        File file = new File(UrlUtils.getIsolatedTestFilePath(
-                "chrome/test/data/android/photo_picker/blue100x100.jpg"));
+        File file =
+                new File(
+                        UrlUtils.getIsolatedTestFilePath(
+                                "chrome/test/data/android/photo_picker/blue100x100.jpg"));
         FileInputStream inStream = new FileInputStream(file);
 
         // Attempt to decode a valid 100x100 image file to a 50x50 thumbnail.
@@ -141,7 +147,8 @@ public class ImageDecoderTest {
         Assert.assertTrue(
                 "Expecting success being returned", bundle.getBoolean(ImageDecoder.KEY_SUCCESS));
         Assert.assertEquals(file.getPath(), bundle.getString(ImageDecoder.KEY_FILE_PATH));
-        Assert.assertFalse("Decoding should take a non-zero amount of time",
+        Assert.assertFalse(
+                "Decoding should take a non-zero amount of time",
                 0 == bundle.getLong(ImageDecoder.KEY_DECODE_TIME));
 
         Bitmap decodedBitmap = bundle.getParcelable(ImageDecoder.KEY_IMAGE_BITMAP);

@@ -2,18 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "headless/lib/browser/command_line_handler.h"
 
 #include <cstdio>
+#include <string_view>
 
+#include "base/files/file_util.h"
 #include "base/logging.h"
+#include "base/strings/string_number_conversions.h"
 #include "build/build_config.h"
 #include "cc/base/switches.h"
+#include "components/headless/screen_info/headless_screen_info.h"
 #include "components/viz/common/switches.h"
 #include "content/public/common/content_switches.h"
 #include "headless/public/switches.h"
-#include "net/base/host_port_pair.h"
-#include "net/base/ip_address.h"
 #include "net/http/http_util.h"
 #include "net/proxy_resolution/proxy_config.h"
 #include "third_party/blink/public/common/switches.h"
@@ -24,41 +31,37 @@ namespace headless {
 
 namespace {
 
-// By default listen to incoming DevTools connections on localhost.
-const char kLocalHost[] = "localhost";
+void AppendSwitchMaybe(base::CommandLine& command_line,
+                       std::string_view switch_constant) {
+  if (!command_line.HasSwitch(switch_constant)) {
+    command_line.AppendSwitch(switch_constant);
+  }
+}
 
 void HandleDeterministicModeSwitch(base::CommandLine& command_line) {
   DCHECK(command_line.HasSwitch(switches::kDeterministicMode));
 
-  command_line.AppendSwitch(switches::kEnableBeginFrameControl);
+  AppendSwitchMaybe(command_line, switches::kEnableBeginFrameControl);
 
   // Compositor flags
-  command_line.AppendSwitch(::switches::kRunAllCompositorStagesBeforeDraw);
-  command_line.AppendSwitch(::switches::kDisableNewContentRenderingTimeout);
+  AppendSwitchMaybe(command_line,
+                    ::switches::kRunAllCompositorStagesBeforeDraw);
+  AppendSwitchMaybe(command_line,
+                    ::switches::kDisableNewContentRenderingTimeout);
   // Ensure that image animations don't resync their animation timestamps when
   // looping back around.
-  command_line.AppendSwitch(blink::switches::kDisableImageAnimationResync);
+  AppendSwitchMaybe(command_line,
+                    blink::switches::kDisableImageAnimationResync);
 
   // Renderer flags
-  command_line.AppendSwitch(cc::switches::kDisableThreadedAnimation);
-  command_line.AppendSwitch(blink::switches::kDisableThreadedScrolling);
-  command_line.AppendSwitch(cc::switches::kDisableCheckerImaging);
+  AppendSwitchMaybe(command_line, ::switches::kDisableThreadedAnimation);
+  AppendSwitchMaybe(command_line, ::switches::kDisableCheckerImaging);
 }
 
 bool HandleRemoteDebuggingPort(base::CommandLine& command_line,
-                               HeadlessBrowser::Options::Builder& builder) {
+                               HeadlessBrowser::Options& options) {
   DCHECK(command_line.HasSwitch(::switches::kRemoteDebuggingPort));
 
-  net::IPAddress address;
-  std::string address_str = kLocalHost;
-  if (command_line.HasSwitch(switches::kRemoteDebuggingAddress)) {
-    address_str =
-        command_line.GetSwitchValueASCII(switches::kRemoteDebuggingAddress);
-    if (!address.AssignFromIPLiteral(address_str)) {
-      LOG(ERROR) << "Invalid devtools server address: " << address_str;
-      return false;
-    }
-  }
   int port;
   std::string port_str =
       command_line.GetSwitchValueASCII(::switches::kRemoteDebuggingPort);
@@ -67,14 +70,13 @@ bool HandleRemoteDebuggingPort(base::CommandLine& command_line,
     LOG(ERROR) << "Invalid devtools server port: " << port_str;
     return false;
   }
-  const net::HostPortPair endpoint(address_str,
-                                   base::checked_cast<uint16_t>(port));
-  builder.EnableDevToolsServer(endpoint);
+
+  options.devtools_port = base::checked_cast<uint16_t>(port);
   return true;
 }
 
 void HandleProxyServer(base::CommandLine& command_line,
-                       HeadlessBrowser::Options::Builder& builder) {
+                       HeadlessBrowser::Options& options) {
   DCHECK(command_line.HasSwitch(switches::kProxyServer));
 
   std::string proxy_server =
@@ -86,11 +88,12 @@ void HandleProxyServer(base::CommandLine& command_line,
         command_line.GetSwitchValueASCII(switches::kProxyBypassList);
     proxy_config->proxy_rules().bypass_rules.ParseFromString(bypass_list);
   }
-  builder.SetProxyConfig(std::move(proxy_config));
+
+  options.proxy_config = std::move(proxy_config);
 }
 
 bool HandleWindowSize(base::CommandLine& command_line,
-                      HeadlessBrowser::Options::Builder& builder) {
+                      HeadlessBrowser::Options& options) {
   DCHECK(command_line.HasSwitch(switches::kWindowSize));
 
   const std::string switch_value =
@@ -104,12 +107,29 @@ bool HandleWindowSize(base::CommandLine& command_line,
     return false;
   }
 
-  builder.SetWindowSize(gfx::Size(width, height));
+  options.window_size = gfx::Size(width, height);
+  return true;
+}
+
+bool HandleScreenInfo(base::CommandLine& command_line,
+                      HeadlessBrowser::Options& options) {
+  DCHECK(command_line.HasSwitch(switches::kScreenInfo));
+
+  const std::string switch_value =
+      command_line.GetSwitchValueASCII(switches::kScreenInfo);
+
+  auto screen_info = HeadlessScreenInfo::FromString(switch_value);
+  if (!screen_info.has_value()) {
+    LOG(ERROR) << screen_info.error();
+    return false;
+  }
+
+  options.screen_info_spec = switch_value;
   return true;
 }
 
 bool HandleFontRenderHinting(base::CommandLine& command_line,
-                             HeadlessBrowser::Options::Builder& builder) {
+                             HeadlessBrowser::Options& options) {
   std::string switch_value =
       command_line.GetSwitchValueASCII(switches::kFontRenderHinting);
 
@@ -128,45 +148,95 @@ bool HandleFontRenderHinting(base::CommandLine& command_line,
     return false;
   }
 
-  builder.SetFontRenderHinting(font_render_hinting);
+  options.font_render_hinting = font_render_hinting;
   return true;
+}
+
+base::FilePath EnsureDirectoryExists(const base::FilePath& file_path) {
+  if (!base::DirectoryExists(file_path) && !base::CreateDirectory(file_path)) {
+    PLOG(ERROR) << "Could not create directory " << file_path;
+    return base::FilePath();
+  }
+
+  if (file_path.IsAbsolute()) {
+    return file_path;
+  }
+
+  const base::FilePath absolute_file_path =
+      base::MakeAbsoluteFilePath(file_path);
+  if (absolute_file_path.empty()) {
+    PLOG(ERROR) << "Invalid directory path " << file_path;
+    return base::FilePath();
+  }
+
+  return absolute_file_path;
 }
 
 }  // namespace
 
 bool HandleCommandLineSwitches(base::CommandLine& command_line,
-                               HeadlessBrowser::Options::Builder& builder) {
+                               HeadlessBrowser::Options& options) {
   if (command_line.HasSwitch(switches::kDeterministicMode)) {
+    if (command_line.HasSwitch(::switches::kSitePerProcess)) {
+      LOG(ERROR) << "Deterministic mode is not compatible with --"
+                 << ::switches::kSitePerProcess << " switch.";
+      return false;
+    }
     HandleDeterministicModeSwitch(command_line);
   }
 
   if (command_line.HasSwitch(switches::kEnableBeginFrameControl)) {
-    builder.SetEnableBeginFrameControl(true);
+    if (command_line.HasSwitch(::switches::kSitePerProcess)) {
+      LOG(ERROR) << "Frame control is not compatible with --"
+                 << ::switches::kSitePerProcess << " switch.";
+      return false;
+    }
+    options.enable_begin_frame_control = true;
   }
 
   if (command_line.HasSwitch(::switches::kRemoteDebuggingPort)) {
-    if (!HandleRemoteDebuggingPort(command_line, builder)) {
+    if (!HandleRemoteDebuggingPort(command_line, options)) {
       return false;
     }
   }
   if (command_line.HasSwitch(::switches::kRemoteDebuggingPipe)) {
-    builder.EnableDevToolsPipe();
+    options.devtools_pipe_enabled = true;
   }
 
   if (command_line.HasSwitch(switches::kProxyServer)) {
-    HandleProxyServer(command_line, builder);
+    HandleProxyServer(command_line, options);
   }
 
   if (command_line.HasSwitch(switches::kUserDataDir)) {
-    builder.SetUserDataDir(
+    const base::FilePath dir = EnsureDirectoryExists(
         command_line.GetSwitchValuePath(switches::kUserDataDir));
+    if (dir.empty()) {
+      return false;
+    }
+    options.user_data_dir = dir;
+
     if (!command_line.HasSwitch(switches::kIncognito)) {
-      builder.SetIncognitoMode(false);
+      options.incognito_mode = false;
     }
   }
 
+  if (command_line.HasSwitch(switches::kDiskCacheDir)) {
+    const base::FilePath dir = EnsureDirectoryExists(
+        command_line.GetSwitchValuePath(switches::kDiskCacheDir));
+    if (dir.empty()) {
+      return false;
+    }
+    options.disk_cache_dir = dir;
+  }
+
   if (command_line.HasSwitch(switches::kWindowSize)) {
-    if (!HandleWindowSize(command_line, builder)) {
+    if (!HandleWindowSize(command_line, options)) {
+      return false;
+    }
+  }
+
+  if (command_line.HasSwitch(switches::kScreenInfo)) {
+    if (!HandleScreenInfo(command_line, options)) {
       return false;
     }
   }
@@ -175,27 +245,31 @@ bool HandleCommandLineSwitches(base::CommandLine& command_line,
     std::string user_agent =
         command_line.GetSwitchValueASCII(switches::kUserAgent);
     if (net::HttpUtil::IsValidHeaderValue(user_agent)) {
-      builder.SetUserAgent(user_agent);
+      options.user_agent = user_agent;
     }
   }
 
   if (command_line.HasSwitch(switches::kAcceptLang)) {
-    builder.SetAcceptLanguage(
-        command_line.GetSwitchValueASCII(switches::kAcceptLang));
+    options.accept_language =
+        command_line.GetSwitchValueASCII(switches::kAcceptLang);
   }
 
   if (command_line.HasSwitch(switches::kFontRenderHinting)) {
-    if (!HandleFontRenderHinting(command_line, builder)) {
+    if (!HandleFontRenderHinting(command_line, options)) {
       return false;
     }
   }
 
   if (command_line.HasSwitch(switches::kBlockNewWebContents)) {
-    builder.SetBlockNewWebContents(true);
+    options.block_new_web_contents = true;
   }
 
   if (command_line.HasSwitch(switches::kDisableLazyLoading)) {
-    builder.SetEnableLazyLoading(false);
+    options.lazy_load_enabled = false;
+  }
+
+  if (command_line.HasSwitch(switches::kForceNewBrowsingInstance)) {
+    options.force_new_browsing_instance = true;
   }
 
   return true;

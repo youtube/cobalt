@@ -12,13 +12,15 @@ import androidx.annotation.VisibleForTesting;
 import org.chromium.base.CollectionUtil;
 import org.chromium.base.Log;
 import org.chromium.base.Promise;
+import org.chromium.base.ServiceLoaderUtil;
 import org.chromium.base.ThreadUtils;
+import org.chromium.base.lifetime.Destroyable;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.browser.ActivityTabProvider;
-import org.chromium.chrome.browser.AppHooks;
-import org.chromium.chrome.browser.compositor.layouts.content.TabContentManager;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.profiles.ProfileKeyedMap;
+import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.components.user_prefs.UserPrefs;
 
 import java.lang.ref.WeakReference;
@@ -29,21 +31,22 @@ import java.util.List;
  * Public interface for all usage stats related functionality. All calls to instances of
  * UsageStatsService must be made on the UI thread.
  */
-public class UsageStatsService {
+public class UsageStatsService implements Destroyable {
     private static final String TAG = "UsageStatsService";
 
-    private static UsageStatsService sInstance;
+    private static final ProfileKeyedMap<UsageStatsService> sProfileMap =
+            ProfileKeyedMap.createMapOfDestroyables(
+                    ProfileKeyedMap.ProfileSelection.REDIRECTED_TO_ORIGINAL);
 
-    private Profile mProfile;
-    private EventTracker mEventTracker;
-    private NotificationSuspender mNotificationSuspender;
-    private SuspensionTracker mSuspensionTracker;
-    private TokenTracker mTokenTracker;
-    private UsageStatsBridge mBridge;
+    private final Profile mProfile;
+    private final EventTracker mEventTracker;
+    private final SuspensionTracker mSuspensionTracker;
+    private final TokenTracker mTokenTracker;
+    private final UsageStatsBridge mBridge;
     // PageViewObservers are scoped to a given ChromeTabbedActivity, but UsageStatsService isn't. To
     // allow for GC of the observer to happen when the activity goes away, we only hold weak
     // references here.
-    private List<WeakReference<PageViewObserver>> mPageViewObservers;
+    private final List<WeakReference<PageViewObserver>> mPageViewObservers;
 
     private DigitalWellbeingClient mClient;
     private boolean mOptInState;
@@ -53,50 +56,64 @@ public class UsageStatsService {
         return Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q;
     }
 
-    /** Get the global instance of UsageStatsService */
-    public static UsageStatsService getInstance() {
+    /** Return the {@link UsageStatsService} for the given {@link Profile}. */
+    public static UsageStatsService getForProfile(Profile profile) {
         assert isEnabled();
-        if (sInstance == null) {
-            sInstance = new UsageStatsService();
-        }
-
-        return sInstance;
+        return sProfileMap.getForProfile(profile, UsageStatsService::new);
     }
 
     /**
      * Creates a UsageStatsService for the given Activity if the feature is enabled.
+     *
      * @param activity The activity in which page view events are occurring.
+     * @param profile The {@link Profile} associated with the activity.
      * @param activityTabProvider The provider of the active tab for the activity.
      * @param tabContentManagerSupplier Supplier of the current {@link TabContentManager}.
      */
-    public static void createPageViewObserverIfEnabled(Activity activity,
+    public static void createPageViewObserverIfEnabled(
+            Activity activity,
+            Profile profile,
             ActivityTabProvider activityTabProvider,
             Supplier<TabContentManager> tabContentManagerSupplier) {
         if (!isEnabled()) return;
 
-        getInstance().createPageViewObserver(
-                activity, activityTabProvider, tabContentManagerSupplier);
+        getForProfile(profile)
+                .createPageViewObserver(activity, activityTabProvider, tabContentManagerSupplier);
     }
 
     @VisibleForTesting
-    UsageStatsService() {
-        mProfile = Profile.getLastUsedRegularProfile();
+    UsageStatsService(Profile profile) {
+        mProfile = profile;
         mBridge = new UsageStatsBridge(mProfile, this);
         mEventTracker = new EventTracker(mBridge);
-        mNotificationSuspender = new NotificationSuspender(mProfile);
-        mSuspensionTracker = new SuspensionTracker(mBridge, mNotificationSuspender);
+        mSuspensionTracker = new SuspensionTracker(mBridge, mProfile);
         mTokenTracker = new TokenTracker(mBridge);
         mPageViewObservers = new ArrayList<>();
-        mClient = AppHooks.get().createDigitalWellbeingClient();
 
-        mSuspensionTracker.getAllSuspendedWebsites().then(
-                (suspendedSites) -> { notifyObserversOfSuspensions(suspendedSites, true); });
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            mClient = ServiceLoaderUtil.maybeCreate(DigitalWellbeingClient.class);
+        }
+        if (mClient == null) {
+            mClient = new DigitalWellbeingClient();
+        }
+
+        mSuspensionTracker
+                .getAllSuspendedWebsites()
+                .then(
+                        (suspendedSites) -> {
+                            notifyObserversOfSuspensions(suspendedSites, true);
+                        });
 
         mOptInState = getOptInState();
     }
 
-    /* package */ NotificationSuspender getNotificationSuspender() {
-        return mNotificationSuspender;
+    @Override
+    public void destroy() {
+        mBridge.destroy();
+    }
+
+    public SuspensionTracker getSuspensionTracker() {
+        return mSuspensionTracker;
     }
 
     /**
@@ -105,12 +122,19 @@ public class UsageStatsService {
      * @param activityTabProvider The provider of the active tab for the activity.
      * @param tabContentManagerSupplier Supplier of the current {@link TabContentManager}.
      */
-    private PageViewObserver createPageViewObserver(Activity activity,
+    private PageViewObserver createPageViewObserver(
+            Activity activity,
             ActivityTabProvider activityTabProvider,
             Supplier<TabContentManager> tabContentManagerSupplier) {
         ThreadUtils.assertOnUiThread();
-        PageViewObserver observer = new PageViewObserver(activity, activityTabProvider,
-                mEventTracker, mTokenTracker, mSuspensionTracker, tabContentManagerSupplier);
+        PageViewObserver observer =
+                new PageViewObserver(
+                        activity,
+                        activityTabProvider,
+                        mEventTracker,
+                        mTokenTracker,
+                        mSuspensionTracker,
+                        tabContentManagerSupplier);
         mPageViewObservers.add(new WeakReference<>(observer));
         return observer;
     }
@@ -131,11 +155,16 @@ public class UsageStatsService {
         mClient.notifyOptInStateChange(mOptInState);
 
         if (!state) {
-            getAllSuspendedWebsitesAsync().then(
-                    (suspendedSites) -> { setWebsitesSuspendedAsync(suspendedSites, false); });
-            getAllTrackedTokensAsync().then((tokens) -> {
-                for (String token : tokens) stopTrackingTokenAsync(token);
-            });
+            getAllSuspendedWebsitesAsync()
+                    .then(
+                            (suspendedSites) -> {
+                                setWebsitesSuspendedAsync(suspendedSites, false);
+                            });
+            getAllTrackedTokensAsync()
+                    .then(
+                            (tokens) -> {
+                                for (String token : tokens) stopTrackingTokenAsync(token);
+                            });
         }
 
         @UsageStatsMetricsEvent
@@ -173,9 +202,7 @@ public class UsageStatsService {
         return mTokenTracker.stopTrackingToken(token);
     }
 
-    /**
-     * Suspend or unsuspend every site in FQDNs, depending on the value of {@code suspended}.
-     */
+    /** Suspend or unsuspend every site in FQDNs, depending on the value of {@code suspended}. */
     public Promise<Void> setWebsitesSuspendedAsync(List<String> fqdns, boolean suspended) {
         ThreadUtils.assertOnUiThread();
         notifyObserversOfSuspensions(fqdns, suspended);
@@ -193,12 +220,22 @@ public class UsageStatsService {
         ThreadUtils.assertOnUiThread();
         UsageStatsMetricsReporter.reportMetricsEvent(UsageStatsMetricsEvent.CLEAR_ALL_HISTORY);
         mClient.notifyAllHistoryCleared();
-        mEventTracker.clearAll().except((exception) -> {
-            // Retry once; if the subsequent attempt fails, log the failure and move on.
-            mEventTracker.clearAll().except((exceptionInner) -> {
-                Log.e(TAG, "Failed to clear all events for history deletion");
-            });
-        });
+        mEventTracker
+                .clearAll()
+                .except(
+                        (exception) -> {
+                            // Retry once; if the subsequent attempt fails, log the failure and move
+                            // on.
+                            mEventTracker
+                                    .clearAll()
+                                    .except(
+                                            (exceptionInner) -> {
+                                                Log.e(
+                                                        TAG,
+                                                        "Failed to clear all events for history"
+                                                                + " deletion");
+                                            });
+                        });
     }
 
     public void onHistoryDeletedInRange(long startTimeMs, long endTimeMs) {
@@ -209,24 +246,44 @@ public class UsageStatsService {
         // reasonably cap endTimeMs at now.
         long effectiveEndTimeMs = Math.min(endTimeMs, System.currentTimeMillis());
         mClient.notifyHistoryDeletion(startTimeMs, effectiveEndTimeMs);
-        mEventTracker.clearRange(startTimeMs, effectiveEndTimeMs).except((exception) -> {
-            // Retry once; if the subsequent attempt fails, log the failure and move on.
-            mEventTracker.clearRange(startTimeMs, endTimeMs).except((exceptionInner) -> {
-                Log.e(TAG, "Failed to clear range of events for history deletion");
-            });
-        });
+        mEventTracker
+                .clearRange(startTimeMs, effectiveEndTimeMs)
+                .except(
+                        (exception) -> {
+                            // Retry once; if the subsequent attempt fails, log the failure and move
+                            // on.
+                            mEventTracker
+                                    .clearRange(startTimeMs, endTimeMs)
+                                    .except(
+                                            (exceptionInner) -> {
+                                                Log.e(
+                                                        TAG,
+                                                        "Failed to clear range of events for"
+                                                                + " history deletion");
+                                            });
+                        });
     }
 
     public void onHistoryDeletedForDomains(List<String> fqdns) {
         ThreadUtils.assertOnUiThread();
         UsageStatsMetricsReporter.reportMetricsEvent(UsageStatsMetricsEvent.CLEAR_HISTORY_DOMAIN);
         mClient.notifyHistoryDeletion(fqdns);
-        mEventTracker.clearDomains(fqdns).except((exception) -> {
-            // Retry once; if the subsequent attempt fails, log the failure and move on.
-            mEventTracker.clearDomains(fqdns).except((exceptionInner) -> {
-                Log.e(TAG, "Failed to clear domain events for history deletion");
-            });
-        });
+        mEventTracker
+                .clearDomains(fqdns)
+                .except(
+                        (exception) -> {
+                            // Retry once; if the subsequent attempt fails, log the failure and move
+                            // on.
+                            mEventTracker
+                                    .clearDomains(fqdns)
+                                    .except(
+                                            (exceptionInner) -> {
+                                                Log.e(
+                                                        TAG,
+                                                        "Failed to clear domain events for history"
+                                                                + " deletion");
+                                            });
+                        });
     }
 
     // The below methods are dummies that are only being retained to avoid breaking the downstream
@@ -244,13 +301,9 @@ public class UsageStatsService {
         return "1";
     }
 
-    public void stopTrackingToken(String token) {
-        return;
-    }
+    public void stopTrackingToken(String token) {}
 
-    public void setWebsitesSuspended(List<String> fqdns, boolean suspended) {
-        return;
-    }
+    public void setWebsitesSuspended(List<String> fqdns, boolean suspended) {}
 
     public List<String> getAllSuspendedWebsites() {
         return new ArrayList<>();

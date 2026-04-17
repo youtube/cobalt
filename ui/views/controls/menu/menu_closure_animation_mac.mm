@@ -38,7 +38,7 @@ void MenuClosureAnimationMac::Start() {
     step_ = AnimationStep::kFading;
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(&MenuClosureAnimationMac::AdvanceAnimation,
-                                  AsWeakPtr()));
+                                  weak_ptr_factory_.GetWeakPtr()));
     return;
   }
   AdvanceAnimation();
@@ -90,9 +90,19 @@ void MenuClosureAnimationMac::AnimationProgressed(
   // menus in lockstep.
   SubmenuView* submenu = menu_;
   while (submenu) {
-    NSWindow* window =
-        submenu->GetWidget()->GetNativeWindow().GetNativeNSWindow();
-    [window setAlphaValue:animation->CurrentValueBetween(1.0, 0.0)];
+    // When our menu hierarchy consists of the top-level menu and one or more
+    // submenus, the MenuController creates a single animation that targets the
+    // deepest submenu. As noted above, we walk up the menu hierarchy from the
+    // deepest submenu, telling each SubmenuView in the path to step its
+    // fadeout. It's possible for the deepest submenu to exist but not be
+    // onscreen. When this happens, the submenu has no Widget, and we'll crash
+    // if we try to ask for its native window. So, check that the SubmenuView's
+    // widget exists before proceeding. https://crbug.com/40105629 .
+    Widget* widget = submenu->GetWidget();
+    if (widget) {
+      NSWindow* window = widget->GetNativeWindow().GetNativeNSWindow();
+      window.alphaValue = animation->CurrentValueBetween(1.0, 0.0);
+    }
 
     MenuItemView* parent = submenu->GetMenuItem()->GetParentMenuItem();
     submenu = parent ? parent->GetSubmenu() : nullptr;
@@ -105,7 +115,7 @@ void MenuClosureAnimationMac::AnimationEnded(const gfx::Animation* animation) {
 
 void MenuClosureAnimationMac::AnimationCanceled(
     const gfx::Animation* animation) {
-  NOTREACHED_NORETURN();
+  NOTREACHED();
 }
 
 }  // namespace views

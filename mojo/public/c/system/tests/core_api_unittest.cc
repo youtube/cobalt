@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 // This file tests the C API.
 
 #include "mojo/public/c/system/core.h"
@@ -35,7 +40,7 @@ TEST(CoreAPITest, GetTimeTicksNow) {
 // Tests that everything that takes a handle properly recognizes it.
 TEST(CoreAPITest, InvalidHandle) {
   MojoHandle h0, h1;
-  char buffer[10] = {0};
+  char buffer[10] = {};
   uint32_t buffer_size;
   void* write_pointer;
   const void* read_pointer;
@@ -150,7 +155,7 @@ TEST(CoreAPITest, BasicMessagePipe) {
 TEST(CoreAPITest, BasicDataPipe) {
   MojoHandle hp, hc;
   MojoHandleSignals sig;
-  char buffer[20] = {0};
+  char buffer[20] = {};
   uint32_t buffer_size;
   void* write_pointer;
   const void* read_pointer;

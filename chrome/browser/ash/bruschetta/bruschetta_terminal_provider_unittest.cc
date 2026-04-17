@@ -24,16 +24,15 @@ namespace bruschetta {
 class BruschettaTerminalProviderTest : public testing::Test {
  public:
   BruschettaTerminalProviderTest() {
-    BruschettaServiceFactory::EnableForTesting(&profile_);
     std::unique_ptr<FakeBruschettaLauncher> launcher =
         std::make_unique<FakeBruschettaLauncher>();
     launcher_ = launcher.get();
-    BruschettaService::GetForProfile(&profile_)->SetLauncherForTesting(
+    BruschettaServiceFactory::GetForProfile(&profile_)->SetLauncherForTesting(
         "vm_name", std::move(launcher));
   }
   content::BrowserTaskEnvironment task_environment_;
   TestingProfile profile_;
-  raw_ptr<FakeBruschettaLauncher, ExperimentalAsh> launcher_;
+  raw_ptr<FakeBruschettaLauncher> launcher_;
   base::RunLoop run_loop_;
 };
 

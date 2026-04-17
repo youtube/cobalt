@@ -11,7 +11,7 @@
 
 #include <memory>
 
-#include "base/mac/scoped_cftyperef.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "gpu/gpu_export.h"
 #include "gpu/ipc/common/gpu_memory_buffer_impl.h"
 #include "ui/gfx/color_space.h"
@@ -53,14 +53,15 @@ class GPU_EXPORT GpuMemoryBufferImplIOSurface : public GpuMemoryBufferImpl {
   gfx::GpuMemoryBufferHandle CloneHandle() const override;
 
  private:
-  GpuMemoryBufferImplIOSurface(gfx::GpuMemoryBufferId id,
-                               const gfx::Size& size,
-                               gfx::BufferFormat format,
-                               DestructionCallback callback,
-                               IOSurfaceRef io_surface,
-                               uint32_t lock_flags);
+  GpuMemoryBufferImplIOSurface(
+      gfx::GpuMemoryBufferId id,
+      const gfx::Size& size,
+      gfx::BufferFormat format,
+      DestructionCallback callback,
+      base::apple::ScopedCFTypeRef<IOSurfaceRef> io_surface,
+      uint32_t lock_flags);
 
-  base::ScopedCFTypeRef<IOSurfaceRef> io_surface_;
+  base::apple::ScopedCFTypeRef<IOSurfaceRef> io_surface_;
   uint32_t lock_flags_;
   // Cache the color space, because re-assigning the same value can be
   // expensive.

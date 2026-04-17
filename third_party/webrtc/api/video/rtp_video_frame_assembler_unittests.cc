@@ -8,15 +8,29 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <cstdint>
+#include <iterator>
+#include <memory>
+#include <optional>
 #include <vector>
 
 #include "api/array_view.h"
+#include "api/transport/rtp/dependency_descriptor.h"
+#include "api/video/encoded_frame.h"
 #include "api/video/rtp_video_frame_assembler.h"
+#include "api/video/video_codec_type.h"
+#include "api/video/video_frame_type.h"
 #include "modules/rtp_rtcp/source/rtp_dependency_descriptor_extension.h"
 #include "modules/rtp_rtcp/source/rtp_format.h"
+#include "modules/rtp_rtcp/source/rtp_generic_frame_descriptor.h"
 #include "modules/rtp_rtcp/source/rtp_generic_frame_descriptor_extension.h"
+#include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "modules/rtp_rtcp/source/rtp_packet_to_send.h"
 #include "modules/rtp_rtcp/source/rtp_packetizer_av1_test_helper.h"
+#include "modules/rtp_rtcp/source/rtp_video_header.h"
+#include "modules/video_coding/codecs/vp8/include/vp8_globals.h"
+#include "modules/video_coding/codecs/vp9/include/vp9_globals.h"
+#include "rtc_base/checks.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -42,7 +56,7 @@ class PacketBuilder {
     return *this;
   }
 
-  PacketBuilder& WithPayload(rtc::ArrayView<const uint8_t> payload) {
+  PacketBuilder& WithPayload(ArrayView<const uint8_t> payload) {
     payload_.assign(payload.begin(), payload.end());
     return *this;
   }
@@ -72,10 +86,10 @@ class PacketBuilder {
   }
 
  private:
-  absl::optional<VideoCodecType> GetVideoCodecType() {
+  std::optional<VideoCodecType> GetVideoCodecType() {
     switch (format_) {
       case PayloadFormat::kRaw: {
-        return absl::nullopt;
+        return std::nullopt;
       }
       case PayloadFormat::kH264: {
         return kVideoCodecH264;
@@ -89,12 +103,15 @@ class PacketBuilder {
       case PayloadFormat::kAv1: {
         return kVideoCodecAV1;
       }
+      case PayloadFormat::kH265: {
+        return kVideoCodecH265;
+      }
       case PayloadFormat::kGeneric: {
         return kVideoCodecGeneric;
       }
     }
     RTC_DCHECK_NOTREACHED();
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   const RtpVideoFrameAssembler::PayloadFormat format_;
@@ -118,12 +135,12 @@ void AppendFrames(RtpVideoFrameAssembler::FrameVector from,
             std::make_move_iterator(from.end()));
 }
 
-rtc::ArrayView<int64_t> References(const std::unique_ptr<EncodedFrame>& frame) {
-  return rtc::MakeArrayView(frame->references, frame->num_references);
+ArrayView<int64_t> References(const std::unique_ptr<EncodedFrame>& frame) {
+  return MakeArrayView(frame->references, frame->num_references);
 }
 
-rtc::ArrayView<uint8_t> Payload(const std::unique_ptr<EncodedFrame>& frame) {
-  return rtc::ArrayView<uint8_t>(*frame->GetEncodedData());
+ArrayView<uint8_t> Payload(const std::unique_ptr<EncodedFrame>& frame) {
+  return ArrayView<uint8_t>(*frame->GetEncodedData());
 }
 
 TEST(RtpVideoFrameAssembler, Vp8Packetization) {

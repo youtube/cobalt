@@ -6,14 +6,14 @@
 #define CHROME_BROWSER_EXTENSIONS_API_SETTINGS_PRIVATE_GENERATED_PREFS_H_
 
 #include <memory>
+#include <optional>
 #include <string>
-#include <unordered_map>
 
+#include "base/containers/flat_map.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/extensions/api/settings_private/generated_pref.h"
 #include "chrome/browser/extensions/api/settings_private/prefs_util_enums.h"
 #include "components/keyed_service/core/keyed_service.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class Profile;
 
@@ -22,11 +22,10 @@ class Value;
 }
 
 namespace extensions {
-namespace api {
-namespace settings_private {
+
+namespace api::settings_private {
 struct PrefObject;
-}  // namespace settings_private
-}  // namespace api
+}  // namespace api::settings_private
 
 namespace settings_private {
 
@@ -36,8 +35,7 @@ namespace settings_private {
 class GeneratedPrefs : public KeyedService {
  public:
   // Preference name to implementation map.
-  using PrefsMap =
-      std::unordered_map<std::string, std::unique_ptr<GeneratedPref>>;
+  using PrefsMap = base::flat_map<std::string, std::unique_ptr<GeneratedPref>>;
 
   explicit GeneratedPrefs(Profile* profile);
 
@@ -50,7 +48,7 @@ class GeneratedPrefs : public KeyedService {
   bool HasPref(const std::string& pref_name);
 
   // Returns fully populated PrefObject or nullopt if not supported.
-  absl::optional<api::settings_private::PrefObject> GetPref(
+  std::optional<api::settings_private::PrefObject> GetPref(
       const std::string& pref_name);
 
   // Updates preference value.

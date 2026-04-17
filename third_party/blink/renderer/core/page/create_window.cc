@@ -32,12 +32,14 @@
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "third_party/blink/public/common/dom_storage/session_storage_namespace_id.h"
 #include "third_party/blink/public/common/features.h"
+#include "third_party/blink/public/common/widget/constants.h"
 #include "third_party/blink/public/mojom/loader/request_context_frame_type.mojom-blink.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/web/web_view_client.h"
 #include "third_party/blink/public/web/web_window_features.h"
 #include "third_party/blink/renderer/core/core_initializer.h"
 #include "third_party/blink/renderer/core/dom/document.h"
+#include "third_party/blink/renderer/core/exported/web_dev_tools_agent_impl.h"
 #include "third_party/blink/renderer/core/exported/web_view_impl.h"
 #include "third_party/blink/renderer/core/frame/ad_tracker.h"
 #include "third_party/blink/renderer/core/frame/csp/content_security_policy.h"
@@ -45,6 +47,7 @@
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/local_frame_client.h"
+#include "third_party/blink/renderer/core/frame/web_local_frame_impl.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
 #include "third_party/blink/renderer/core/loader/frame_load_request.h"
 #include "third_party/blink/renderer/core/page/chrome_client.h"
@@ -53,6 +56,7 @@
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_request.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
+#include "third_party/blink/renderer/platform/widget/frame_widget.h"
 #include "third_party/blink/renderer/platform/wtf/text/number_parsing_options.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_to_number.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_view.h"
@@ -60,8 +64,8 @@
 
 namespace blink {
 
-// Though isspace() considers \t and \v to be whitespace, Win IE doesn't when
-// parsing window features.
+// Though absl::ascii_isspace() considers \t and \v to be whitespace, Win IE
+// doesn't when parsing window features.
 static bool IsWindowFeaturesSeparator(UChar c) {
   return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '=' ||
          c == ',' || c == '\f';
@@ -71,11 +75,11 @@ WebWindowFeatures GetWindowFeaturesFromString(const String& feature_string,
                                               LocalDOMWindow* dom_window) {
   WebWindowFeatures window_features;
 
-  bool attribution_reporting_enabled =
+  const bool attribution_reporting_enabled =
       dom_window &&
-      (RuntimeEnabledFeatures::AttributionReportingEnabled(dom_window) ||
-       RuntimeEnabledFeatures::AttributionReportingCrossAppWebEnabled(
-           dom_window));
+      RuntimeEnabledFeatures::AttributionReportingEnabled(dom_window);
+  const bool explicit_opener_enabled =
+      RuntimeEnabledFeatures::RelOpenerBcgDependencyHintEnabled(dom_window);
 
   // This code follows the HTML spec, specifically
   // https://html.spec.whatwg.org/C/#concept-window-open-features-tokenize
@@ -153,20 +157,17 @@ WebWindowFeatures GetWindowFeaturesFromString(const String& feature_string,
 
     // Listing a key with no value is shorthand for key=yes
     int value;
-    constexpr auto kLoose = WTF::NumberParsingOptions::Loose();
     if (value_string.empty() || value_string == "yes" ||
         value_string == "true") {
       value = 1;
-    } else if (value_string.Is8Bit()) {
-      value = CharactersToInt(value_string.Characters8(), value_string.length(),
-                              kLoose, nullptr);
     } else {
-      value = CharactersToInt(value_string.Characters16(),
-                              value_string.length(), kLoose, nullptr);
+      value = CharactersToInt(value_string, WTF::NumberParsingOptions::Loose(),
+                              /*ok=*/nullptr);
     }
 
     if (!ui_features_were_disabled && key_string != "noopener" &&
-        key_string != "noreferrer" && key_string != "fullscreen" &&
+        (!explicit_opener_enabled || key_string != "opener") &&
+        key_string != "noreferrer" &&
         (!attribution_reporting_enabled || key_string != "attributionsrc")) {
       ui_features_were_disabled = true;
       menu_bar = false;
@@ -202,19 +203,17 @@ WebWindowFeatures GetWindowFeaturesFromString(const String& feature_string,
       window_features.resizable = value;
     } else if (key_string == "noopener") {
       window_features.noopener = value;
+    } else if (explicit_opener_enabled && key_string == "opener") {
+      window_features.explicit_opener = value;
     } else if (key_string == "noreferrer") {
       window_features.noreferrer = value;
     } else if (key_string == "background") {
       window_features.background = true;
     } else if (key_string == "persistent") {
       window_features.persistent = true;
-    } else if (key_string == "fullscreen" &&
-               RuntimeEnabledFeatures::FullscreenPopupWindowsEnabled()) {
-      // TODO(crbug.com/1142516): Add permission check to give earlier
-      // feedback / console warning if permission isn't granted, and/or just
-      // silently drop the flag. Currently the browser will block the popup
-      // entirely if this flag is set and permission is not granted.
-      window_features.is_fullscreen = value;
+    } else if (RuntimeEnabledFeatures::PartitionedPopinsEnabled(dom_window) &&
+               key_string == "popin") {
+      window_features.is_partitioned_popin = true;
     } else if (attribution_reporting_enabled &&
                key_string == "attributionsrc") {
       if (!window_features.attribution_srcs.has_value()) {
@@ -240,7 +239,8 @@ WebWindowFeatures GetWindowFeaturesFromString(const String& feature_string,
     }
   }
 
-  window_features.is_popup = popup_state == PopupState::kPopup;
+  window_features.is_popup =
+      popup_state == PopupState::kPopup || window_features.is_partitioned_popin;
   if (popup_state == PopupState::kUnknown) {
     window_features.is_popup = !tool_bar || !menu_bar || !scrollbars ||
                                !status_bar || !window_features.resizable;
@@ -249,9 +249,8 @@ WebWindowFeatures GetWindowFeaturesFromString(const String& feature_string,
   if (window_features.noreferrer)
     window_features.noopener = true;
 
-  if (window_features.is_fullscreen) {
-    UseCounter::Count(dom_window->document(),
-                      WebFeature::kWindowOpenFullscreenRequested);
+  if (window_features.noopener) {
+    window_features.explicit_opener = false;
   }
 
   return window_features;
@@ -295,7 +294,7 @@ Frame* CreateNewWindow(LocalFrame& opener_frame,
   const KURL& url = request.GetResourceRequest().Url();
   if (url.ProtocolIsJavaScript()) {
     if (opener_window
-            .CheckAndGetJavascriptUrl(request.JavascriptWorld().get(), url,
+            .CheckAndGetJavascriptUrl(request.JavascriptWorld(), url,
                                       nullptr /* element */)
             .empty()) {
       return nullptr;
@@ -310,7 +309,14 @@ Frame* CreateNewWindow(LocalFrame& opener_frame,
     return nullptr;
   }
 
-  const WebWindowFeatures& features = request.GetWindowFeatures();
+  request.SetInitiatorFrameToken(opener_frame.GetLocalFrameToken());
+  request.SetInitiatorNavigationStateKeepAliveHandle(
+      opener_frame.IssueKeepAliveHandle());
+
+  // Make a copy in order to adjust the requested size. We don't constrain the
+  // geometry to the screen (via ChromeClientImpl::AdjustWindowRectForDisplay)
+  // because the browser may honor cross-screen bounds.
+  WebWindowFeatures features(request.GetWindowFeatures());
   const auto& picture_in_picture_window_options =
       request.GetPictureInPictureWindowOptions();
   if (picture_in_picture_window_options.has_value()) {
@@ -319,6 +325,27 @@ Frame* CreateNewWindow(LocalFrame& opener_frame,
     request.SetNavigationPolicy(NavigationPolicyForCreateWindow(features));
     probe::WindowOpen(&opener_window, url, frame_name, features,
                       LocalFrame::HasTransientUserActivation(&opener_frame));
+  }
+
+  int min_size = kMinimumWindowSize;
+  // The minimum size from popups opened from borderless apps differs from
+  // normal apps. When window.open is called, display-mode for the new frame is
+  // still undefined as the app hasn't loaded yet, thus opener frame is used.
+  bool new_popup = request.GetNavigationPolicy() ==
+                   NavigationPolicy::kNavigationPolicyNewPopup;
+  bool borderless = false;
+  if (auto* widget = opener_frame.GetWidgetForLocalRoot()) {
+    borderless =
+        widget->DisplayMode() == mojom::blink::DisplayMode::kBorderless;
+  }
+  if (new_popup && borderless) {
+    min_size = kMinimumBorderlessWindowSize;
+  }
+  if (features.width) {
+    features.width = std::max(features.width, min_size);
+  }
+  if (features.height) {
+    features.height = std::max(features.height, min_size);
   }
 
   // Sandboxed frames cannot open new auxiliary browsing contexts.
@@ -373,9 +400,20 @@ Frame* CreateNewWindow(LocalFrame& opener_frame,
 
   frame.View()->SetCanHaveScrollbars(!features.is_popup);
 
-  page->GetChromeClient().Show(frame, opener_frame,
-                               request.GetNavigationPolicy(),
-                               consumed_user_gesture);
+  if (!base::FeatureList::IsEnabled(features::kCombineNewWindowIPCs)) {
+    page->GetChromeClient().Show(frame, opener_frame,
+                                 request.GetNavigationPolicy(),
+                                 consumed_user_gesture);
+  }
+
+  // GetWebView() may return nullptr in tests
+  if (auto* web_view = page->GetChromeClient().GetWebView()) {
+    if (auto* dev_tools_agent = web_view->MainFrameImpl()->DevToolsAgentImpl(
+            /*create_if_necessary=*/false)) {
+      dev_tools_agent->DidShowNewWindow();
+    }
+  }
+
   MaybeLogWindowOpen(opener_frame);
   return &frame;
 }

@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/extensions/api/language_settings_private/language_settings_private_api.h"
+
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -14,7 +17,6 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
-#include "chrome/browser/extensions/api/language_settings_private/language_settings_private_api.h"
 #include "chrome/browser/extensions/api/language_settings_private/language_settings_private_delegate.h"
 #include "chrome/browser/extensions/api/language_settings_private/language_settings_private_delegate_factory.h"
 #include "chrome/browser/extensions/extension_service_test_base.h"
@@ -32,7 +34,7 @@
 #include "extensions/browser/event_router_factory.h"
 #include "extensions/browser/extension_prefs.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/ash_features.h"
 #include "ui/base/ime/ash/component_extension_ime_manager.h"
 #include "ui/base/ime/ash/extension_ime_util.h"
@@ -53,7 +55,7 @@ class MockLanguageSettingsPrivateDelegate
  public:
   explicit MockLanguageSettingsPrivateDelegate(content::BrowserContext* context)
       : LanguageSettingsPrivateDelegate(context) {}
-  ~MockLanguageSettingsPrivateDelegate() override {}
+  ~MockLanguageSettingsPrivateDelegate() override = default;
 
   // LanguageSettingsPrivateDelegate:
   std::vector<DictionaryStatus> GetHunspellDictionaryStatuses() override;
@@ -172,7 +174,7 @@ TEST_F(LanguageSettingsPrivateApiTest, GetSpellcheckDictionaryStatusesTest) {
   auto function = base::MakeRefCounted<
       LanguageSettingsPrivateGetSpellcheckDictionaryStatusesFunction>();
 
-  absl::optional<base::Value> actual =
+  std::optional<base::Value> actual =
       api_test_utils::RunFunctionAndReturnSingleResult(function.get(), "[]",
                                                        profile());
   ASSERT_TRUE(actual) << function->GetError();
@@ -209,21 +211,21 @@ TEST_F(LanguageSettingsPrivateApiTest, GetAlwaysTranslateLanguagesListTest) {
       ChromeTranslateClient::CreateTranslatePrefs(profile()->GetPrefs());
 
   EXPECT_FALSE(translate_prefs_->HasLanguagePairsToAlwaysTranslate());
-  translate_prefs_->AddLanguagePairToAlwaysTranslateList("af", "en");
+  translate_prefs_->AddLanguagePairToAlwaysTranslateList("ak", "en");
   EXPECT_TRUE(translate_prefs_->HasLanguagePairsToAlwaysTranslate());
 
-  translate_prefs_->AddLanguagePairToAlwaysTranslateList("aa", "es");
+  translate_prefs_->AddLanguagePairToAlwaysTranslateList("af", "es");
   // Use 'tl' as the translate language which is 'fil' as a Chrome language.
   translate_prefs_->AddLanguagePairToAlwaysTranslateList("tl", "es");
   std::vector<std::string> always_translate_languages =
       translate_prefs_->GetAlwaysTranslateLanguages();
-  ASSERT_EQ(std::vector<std::string>({"aa", "af", "fil"}),
+  ASSERT_EQ(std::vector<std::string>({"af", "ak", "fil"}),
             always_translate_languages);
 
   auto function = base::MakeRefCounted<
       LanguageSettingsPrivateGetAlwaysTranslateLanguagesFunction>();
 
-  absl::optional<base::Value> result =
+  std::optional<base::Value> result =
       api_test_utils::RunFunctionAndReturnSingleResult(function.get(), "[]",
                                                        profile());
 
@@ -243,7 +245,7 @@ TEST_F(LanguageSettingsPrivateApiTest, SetTranslateTargetLanguageTest) {
   std::vector<std::string> content_languages_before;
   translate_prefs_->GetLanguageList(&content_languages_before);
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   ASSERT_EQ(std::vector<std::string>({"en-US"}), content_languages_before);
 #else
   ASSERT_EQ(std::vector<std::string>({"en-US", "en"}),
@@ -255,7 +257,7 @@ TEST_F(LanguageSettingsPrivateApiTest, SetTranslateTargetLanguageTest) {
   auto function = base::MakeRefCounted<
       LanguageSettingsPrivateSetTranslateTargetLanguageFunction>();
 
-  absl::optional<base::Value> result =
+  std::optional<base::Value> result =
       api_test_utils::RunFunctionAndReturnSingleResult(function.get(),
                                                        "[\"af\"]", profile());
   ASSERT_EQ(translate_prefs_->GetRecentTargetLanguage(), "af");
@@ -277,7 +279,7 @@ TEST_F(LanguageSettingsPrivateApiTest, GetNeverTranslateLanguagesListTest) {
   auto function = base::MakeRefCounted<
       LanguageSettingsPrivateGetNeverTranslateLanguagesFunction>();
 
-  absl::optional<base::Value> result =
+  std::optional<base::Value> result =
       api_test_utils::RunFunctionAndReturnSingleResult(function.get(), "[]",
                                                        profile());
 
@@ -382,7 +384,7 @@ void LanguageSettingsPrivateApiTest::RunGetLanguageListTest() {
   auto function =
       base::MakeRefCounted<LanguageSettingsPrivateGetLanguageListFunction>();
 
-  absl::optional<base::Value> result =
+  std::optional<base::Value> result =
       api_test_utils::RunFunctionAndReturnSingleResult(function.get(), "[]",
                                                        profile());
 
@@ -397,7 +399,7 @@ void LanguageSettingsPrivateApiTest::RunGetLanguageListTest() {
     std::string language_code = *language_code_ptr;
     EXPECT_FALSE(language_code.empty());
 
-    const absl::optional<bool> maybe_supports_spellcheck =
+    const std::optional<bool> maybe_supports_spellcheck =
         language_val.GetDict().FindBool("supportsSpellcheck");
     const bool supports_spellcheck = maybe_supports_spellcheck.has_value()
                                          ? maybe_supports_spellcheck.value()
@@ -416,7 +418,7 @@ void LanguageSettingsPrivateApiTest::RunGetLanguageListTest() {
 
     // Check that zh and zh-HK aren't shown as supporting UI.
     if (language_code == "zh" || language_code == "zh-HK") {
-      const absl::optional<bool> maybe_supports_ui =
+      const std::optional<bool> maybe_supports_ui =
           language_val.GetDict().FindBool("supportsUI");
       const bool supports_ui =
           maybe_supports_ui.has_value() ? maybe_supports_ui.value() : false;
@@ -427,7 +429,7 @@ void LanguageSettingsPrivateApiTest::RunGetLanguageListTest() {
   EXPECT_EQ(languages_to_test.size(), languages_to_test_found_count);
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 namespace {
 
 namespace input_method = ::ash::input_method;
@@ -463,14 +465,17 @@ class TestInputMethodManager : public input_method::MockInputMethodManager {
       std::string layout("us");
       InputMethodDescriptor extension_ime(
           GetExtensionImeId(), "ExtensionIme", "", layout, {"vi"},
-          false /* is_login_keyboard */, GURL(), GURL());
+          false /* is_login_keyboard */, GURL(), GURL(),
+          /*handwriting_language=*/std::nullopt);
       InputMethodDescriptor component_extension_ime(
           GetComponentExtensionImeId(), "ComponentExtensionIme", "", layout,
-          {"en-US", "en"}, false /* is_login_keyboard */, GURL(), GURL());
+          {"en-US", "en"}, false /* is_login_keyboard */, GURL(), GURL(),
+          /*handwriting_language=*/std::nullopt);
       InputMethodDescriptor arc_ime(GetArcImeId(), "ArcIme", "", layout,
                                     {ash::extension_ime_util::kArcImeLanguage},
                                     false /* is_login_keyboard */, GURL(),
-                                    GURL());
+                                    GURL(),
+                                    /*handwriting_language=*/std::nullopt);
       input_methods_ = {extension_ime, component_extension_ime, arc_ime};
     }
 
@@ -536,7 +541,7 @@ TEST_F(LanguageSettingsPrivateApiTest, GetInputMethodListsTest) {
 
   auto function = base::MakeRefCounted<
       LanguageSettingsPrivateGetInputMethodListsFunction>();
-  absl::optional<base::Value> result_val =
+  std::optional<base::Value> result_val =
       api_test_utils::RunFunctionAndReturnSingleResult(function.get(), "[]",
                                                        profile());
 
@@ -709,7 +714,7 @@ TEST_F(LanguageSettingsPrivateApiTest, RemoveInputMethodTest) {
   TestInputMethodManager::Shutdown();
 }
 
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_WIN)
 class LanguageSettingsPrivateApiTestDelayInit

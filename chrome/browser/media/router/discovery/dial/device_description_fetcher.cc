@@ -53,11 +53,14 @@ void DeviceDescriptionFetcher::ProcessResponse(const std::string& response) {
   // NOTE: The uPnP spec requires devices to set a Content-Type: header of
   // text/xml; charset="utf-8" (sec 2.11).  However Chromecast (and possibly
   // other devices) do not comply, so specifically not checking this header.
-  std::string app_url_header;
-  if (!response_info->headers ||
-      !response_info->headers->GetNormalizedHeader(kApplicationUrlHeaderName,
-                                                   &app_url_header) ||
-      app_url_header.empty()) {
+  if (!response_info->headers) {
+    ReportError("Missing or empty Application-URL:");
+    return;
+  }
+  std::string app_url_header =
+      response_info->headers->GetNormalizedHeader(kApplicationUrlHeaderName)
+          .value_or(std::string());
+  if (app_url_header.empty()) {
     ReportError("Missing or empty Application-URL:");
     return;
   }
@@ -80,7 +83,7 @@ void DeviceDescriptionFetcher::ProcessResponse(const std::string& response) {
 }
 
 void DeviceDescriptionFetcher::ReportError(const std::string& message,
-                                           absl::optional<int> response_code) {
+                                           std::optional<int> response_code) {
   std::move(error_cb_).Run(message);
 }
 

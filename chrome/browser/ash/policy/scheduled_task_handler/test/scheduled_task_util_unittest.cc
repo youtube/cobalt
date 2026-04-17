@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/ash/policy/scheduled_task_handler/scheduled_task_util.h"
+
 #include <memory>
+#include <optional>
 
 #include "ash/constants/ash_switches.h"
 #include "base/check.h"
@@ -14,7 +16,6 @@
 #include "base/time/time_delta_from_string.h"
 #include "chrome/browser/ash/policy/scheduled_task_handler/scheduled_task_executor.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/icu/source/common/unicode/unistr.h"
 #include "third_party/icu/source/i18n/unicode/timezone.h"
 
@@ -46,7 +47,7 @@ TEST(ScheduledTaskUtilTest, DailyTaskShouldBeScheduledInSameDay) {
   data.hour = 12;
   data.minute = 52;
 
-  absl::optional<base::TimeDelta> delay = CalculateNextScheduledTaskTimerDelay(
+  std::optional<base::TimeDelta> delay = CalculateNextScheduledTaskTimerDelay(
       data, TimeFromUtcString("Jan 3 2021, 09:33"), *GetUtcTimeZone());
 
   ASSERT_TRUE(delay.has_value());
@@ -59,7 +60,7 @@ TEST(ScheduledTaskUtilTest, TaskShouldBeDelayedIfTimesMatch) {
   data.hour = 12;
   data.minute = 52;
 
-  absl::optional<base::TimeDelta> delay = CalculateNextScheduledTaskTimerDelay(
+  std::optional<base::TimeDelta> delay = CalculateNextScheduledTaskTimerDelay(
       data, TimeFromUtcString("Jan 3 2021, 12:52"), *GetUtcTimeZone());
 
   ASSERT_TRUE(delay.has_value());
@@ -72,7 +73,7 @@ TEST(ScheduledTaskUtilTest, DailyTaskShouldBeScheduledNextDay) {
   data.hour = 8;
   data.minute = 52;
 
-  absl::optional<base::TimeDelta> delay = CalculateNextScheduledTaskTimerDelay(
+  std::optional<base::TimeDelta> delay = CalculateNextScheduledTaskTimerDelay(
       data, TimeFromUtcString("Jan 3 2021, 09:33"), *GetUtcTimeZone());
 
   ASSERT_TRUE(delay.has_value());
@@ -86,8 +87,40 @@ TEST(ScheduledTaskUtilTest,
   data.hour = 8;
   data.minute = 52;
 
-  absl::optional<base::TimeDelta> delay = CalculateNextScheduledTaskTimerDelay(
+  std::optional<base::TimeDelta> delay = CalculateNextScheduledTaskTimerDelay(
       data, TimeFromUtcString("Jan 31 2021, 09:33"), *GetUtcTimeZone());
+
+  ASSERT_TRUE(delay.has_value());
+  EXPECT_EQ(delay.value(), base::Hours(23) + base::Minutes(19));
+}
+
+TEST(ScheduledTaskUtilTest, DailyTaskShouldBeScheduledNextDayBeforeLeapDay) {
+  ScheduledTaskExecutor::ScheduledTaskData data;
+  data.frequency = ScheduledTaskExecutor::Frequency::kDaily;
+  data.hour = 8;
+  data.minute = 52;
+
+  const base::Time current_time = TimeFromUtcString("Feb 28 1964, 09:33");
+
+  const std::optional<base::TimeDelta> delay =
+      CalculateNextScheduledTaskTimerDelay(data, current_time,
+                                           *GetUtcTimeZone());
+
+  ASSERT_TRUE(delay.has_value());
+  EXPECT_EQ(delay.value(), base::Hours(23) + base::Minutes(19));
+}
+
+TEST(ScheduledTaskUtilTest, DailyTaskShouldBeScheduledNextDayOnLeapDay) {
+  ScheduledTaskExecutor::ScheduledTaskData data;
+  data.frequency = ScheduledTaskExecutor::Frequency::kDaily;
+  data.hour = 8;
+  data.minute = 52;
+
+  const base::Time current_time = TimeFromUtcString("Feb 29 1964, 09:33");
+
+  const std::optional<base::TimeDelta> delay =
+      CalculateNextScheduledTaskTimerDelay(data, current_time,
+                                           *GetUtcTimeZone());
 
   ASSERT_TRUE(delay.has_value());
   EXPECT_EQ(delay.value(), base::TimeDeltaFromString("23h19m"));
@@ -100,7 +133,7 @@ TEST(ScheduledTaskUtilTest, WeeklyTaskShouldBeScheduled) {
   data.minute = 52;
   data.day_of_week = UCAL_TUESDAY;
 
-  absl::optional<base::TimeDelta> delay = CalculateNextScheduledTaskTimerDelay(
+  std::optional<base::TimeDelta> delay = CalculateNextScheduledTaskTimerDelay(
       data, TimeFromUtcString("Sunday Jan 3 2021, 09:33"), *GetUtcTimeZone());
 
   ASSERT_TRUE(delay.has_value());
@@ -114,7 +147,7 @@ TEST(ScheduledTaskUtilTest, MonthlyTaskShouldBeScheduled) {
   data.minute = 52;
   data.day_of_month = 23;
 
-  absl::optional<base::TimeDelta> delay = CalculateNextScheduledTaskTimerDelay(
+  std::optional<base::TimeDelta> delay = CalculateNextScheduledTaskTimerDelay(
       data, TimeFromUtcString("Jan 3 2021, 09:33"), *GetUtcTimeZone());
 
   ASSERT_TRUE(delay.has_value());
@@ -128,7 +161,7 @@ TEST(ScheduledTaskUtilTest, MonthlyTaskShouldBeScheduledForNextMonth) {
   data.minute = 52;
   data.day_of_month = 23;
 
-  absl::optional<base::TimeDelta> delay = CalculateNextScheduledTaskTimerDelay(
+  std::optional<base::TimeDelta> delay = CalculateNextScheduledTaskTimerDelay(
       data, TimeFromUtcString("Jan 31 2021, 09:33"), *GetUtcTimeZone());
 
   ASSERT_TRUE(delay.has_value());
@@ -143,22 +176,11 @@ TEST(ScheduledTaskUtilTest,
   data.minute = 52;
   data.day_of_month = 31;
 
-  absl::optional<base::TimeDelta> delay = CalculateNextScheduledTaskTimerDelay(
+  std::optional<base::TimeDelta> delay = CalculateNextScheduledTaskTimerDelay(
       data, TimeFromUtcString("Sunday Jan 31 2021, 09:33"), *GetUtcTimeZone());
 
   ASSERT_TRUE(delay.has_value());
   EXPECT_EQ(delay.value(), base::TimeDeltaFromString("671h19m"));  // 27d23h19m
-}
-
-TEST(ScheduledTaskUtilTest, GenerateRandomDelayInRange) {
-  base::TimeDelta min_delay = base::Milliseconds(0);
-  base::TimeDelta max_delay = base::Milliseconds(120 * 1000);
-
-  for (int i = 0; i < 50; i++) {
-    base::TimeDelta delay = scheduled_task_util::GenerateRandomDelay(120);
-    EXPECT_GE(delay, min_delay);
-    EXPECT_LT(delay, max_delay);
-  }
 }
 
 TEST(ScheduledTaskUtilTest, ParsesEmptyGracePeriodSwitch) {

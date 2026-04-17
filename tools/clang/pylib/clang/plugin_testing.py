@@ -1,12 +1,12 @@
-#!/usr/bin/env python
 # Copyright 2015 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-from __future__ import print_function
-
+import difflib
 import glob
 import os
+import re
+import shlex
 import subprocess
 import sys
 
@@ -14,24 +14,31 @@ import sys
 class ClangPluginTest(object):
   """Test harness for clang plugins."""
 
-  def __init__(self, test_base, clang_path, plugin_name, reset_results):
+  def __init__(self,
+               test_base,
+               clang_path,
+               plugin_names,
+               reset_results,
+               quiet,
+               filename_regex=None):
     """Constructor.
 
     Args:
       test_base: Path to the directory containing the tests.
       clang_path: Path to the clang binary.
-      plugin_name: Name of the plugin.
-      reset_results: If true, resets expected results to the actual test output.
+      plugin_names: Names of the plugins.
+      reset_results: If True, resets expected results to the actual test output.
+      quiet: If True, avoids printing the contents of the expected and actual
+             files and only prints the diff. Intentionally non-default so the
+             bots can provide spammy output by default :)
+      filename_regex: If present, only runs tests that match the regex pattern.
     """
     self._test_base = test_base
     self._clang_path = clang_path
-    self._plugin_name = plugin_name
+    self._plugin_names = plugin_names
     self._reset_results = reset_results
-
-  def AddPluginArg(self, clang_cmd, plugin_arg):
-    """Helper to add an argument for the tested plugin."""
-    clang_cmd.extend(['-Xclang', '-plugin-arg-%s' % self._plugin_name,
-                      '-Xclang', plugin_arg])
+    self._quiet = quiet
+    self._filename_regex = filename_regex
 
   def AdjustClangArguments(self, clang_cmd):
     """Tests can override this to customize the command line for clang."""
@@ -45,18 +52,31 @@ class ClangPluginTest(object):
 
     Returns: the number of failing tests.
     """
-    print('Using clang %s...' % self._clang_path)
+    print('Using clang %s...\n' % self._clang_path)
 
     os.chdir(self._test_base)
 
-    clang_cmd = [self._clang_path, '-c', '-std=c++14']
-    clang_cmd.extend(['-Xclang', '-add-plugin', '-Xclang', self._plugin_name])
+    clang_cmd = [self._clang_path, '-std=c++20']
+
+    # Use the traditional diagnostics format (see crbug.com/1450229).
+    clang_cmd.extend([
+        '-fno-diagnostics-show-line-numbers', '-fcaret-diagnostics-max-lines=1'
+    ])
+
+    for p in self._plugin_names:
+      clang_cmd.extend(['-Xclang', '-add-plugin', '-Xclang', p])
     self.AdjustClangArguments(clang_cmd)
+
+    if not any('-fsyntax-only' in arg for arg in clang_cmd):
+      clang_cmd.append('-c')
 
     passing = []
     failing = []
-    tests = glob.glob('*.cpp')
+    tests = glob.glob('*.cpp') + glob.glob('*.mm')
     for test in tests:
+      if self._filename_regex and not re.search(self._filename_regex, test):
+        continue
+
       sys.stdout.write('Testing %s... ' % test)
       test_name, _ = os.path.splitext(test)
 
@@ -68,13 +88,13 @@ class ClangPluginTest(object):
         pass
       cmd.append(test)
 
-      print("cmd", cmd)
       failure_message = self.RunOneTest(test_name, cmd)
       if failure_message:
-        print('failed: %s' % failure_message)
+        print(f'failed!\n{failure_message}\n')
+        print(f'command: {shlex.join(cmd)}\n')
         failing.append(test_name)
       else:
-        print('passed!')
+        print(f'passed!')
         passing.append(test_name)
 
     print('Ran %d tests: %d succeeded, %d failed' % (
@@ -103,17 +123,36 @@ class ClangPluginTest(object):
     # to match posix systems.
     actual = actual.replace('\r\n', '\n')
 
-    result_file = '%s.txt%s' % (test_name, '' if self._reset_results else
-                                '.actual')
+    actual_path = f'{test_name}.txt.actual'
+    expected_path = f'{test_name}.txt'
+
+    result_path = expected_path if self._reset_results else actual_path
+
     try:
-      expected = open('%s.txt' % test_name).read()
+      expected = open(expected_path).read()
     except IOError:
-      open(result_file, 'w').write(actual)
+      open(result_path, 'w').write(actual)
       return 'no expected file found'
 
-    if expected != actual:
-      open(result_file, 'w').write(actual)
-      error = 'expected and actual differed\n'
-      error += 'Actual:\n' + actual
-      error += 'Expected:\n' + expected
+    # Normalize backslashes to forward-slashes to avoid failure on Windows.
+    # Also filters out lines with a `DEBUG: ` prefix for ease of printf
+    # debugging.
+    actual_lines = list(
+        filter(lambda line: not line.startswith('DEBUG: '),
+               actual.replace('\\', '/').splitlines(keepends=True)))
+    expected_lines = expected.replace('\\', '/').splitlines(keepends=True)
+
+    diff = list(
+        difflib.unified_diff(expected_lines,
+                             actual_lines,
+                             fromfile=expected_path,
+                             tofile=actual_path))
+
+    if diff:
+      open(result_path, 'w').write(actual)
+      error = f'========   diff   ========\n{"".join(diff)}'
+      if not self._quiet:
+        error += f'\n======== expected ========\n{expected}'
+        error += f'\n========  actual  ========\n{actual}'
+
       return error

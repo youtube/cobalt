@@ -2,10 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
-
-assert(is_chromeos_ash,
-       "Quick Pair protocols (e.g. Fast Pair) are ash-chrome only")
+assert(is_chromeos, "Quick Pair protocols (e.g. Fast Pair) are ash-chrome only")
 
 source_set("message_stream") {
   sources = [
@@ -22,6 +19,7 @@ source_set("message_stream") {
     "//chromeos/ash/services/quick_pair",
     "//chromeos/ash/services/quick_pair/public/cpp",
     "//chromeos/ash/services/quick_pair/public/mojom",
+    "//components/cross_device/logging:logging",
     "//device/bluetooth",
     "//net",
   ]
@@ -47,6 +45,7 @@ static_library("test_support") {
     "//chromeos/ash/services/quick_pair",
     "//chromeos/ash/services/quick_pair/public/cpp",
     "//chromeos/ash/services/quick_pair/public/mojom",
+    "//components/cross_device/logging:logging",
     "//device/bluetooth",
     "//device/bluetooth:mocks",
     "//testing/gtest",

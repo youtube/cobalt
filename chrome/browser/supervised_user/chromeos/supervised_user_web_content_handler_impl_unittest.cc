@@ -16,6 +16,7 @@
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/crosapi/mojom/parent_access.mojom.h"
 #include "components/supervised_user/core/browser/supervised_user_settings_service.h"
+#include "components/supervised_user/core/common/supervised_user_constants.h"
 #include "content/public/browser/web_contents_user_data.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_utils.h"
@@ -75,7 +76,7 @@ TEST_F(SupervisedUserWebContentHandlerImplTest,
 
   auto result = crosapi::mojom::ParentAccessResult::NewApproved(
       crosapi::mojom::ParentAccessApprovedResult::New(
-          "TEST_TOKEN", base::Time::FromDoubleT(123456UL)));
+          "TEST_TOKEN", base::Time::FromSecondsSinceUnixEpoch(123456UL)));
 
   // Capture approval start time and forward clock by the fake approval
   // duration.
@@ -87,15 +88,15 @@ TEST_F(SupervisedUserWebContentHandlerImplTest,
       content::WebContents::Create(
           content::WebContents::CreateParams(GetProfilePtr()));
   SupervisedUserWebContentHandlerImpl web_content_handler(
-      web_contents.get(), url, large_icon_service(),
-      /*frame_id=*/0, /*interstitial_navigation_id=*/0);
+      web_contents.get(), url, large_icon_service(), content::FrameTreeNodeId(),
+      /*interstitial_navigation_id=*/0);
 
   web_content_handler.OnLocalApprovalRequestCompleted(
       supervisedUserSettingsServiceMock, url, start_time, std::move(result));
 
   histogram_tester.ExpectUniqueSample(
       supervised_user::WebContentHandler::GetLocalApprovalResultHistogram(),
-      supervised_user::WebContentHandler::LocalApprovalResult::kApproved, 1);
+      supervised_user::LocalApprovalResult::kApproved, 1);
   histogram_tester.ExpectTotalCount(
       supervised_user::WebContentHandler::
           GetLocalApprovalDurationMillisecondsHistogram(),
@@ -130,15 +131,15 @@ TEST_F(SupervisedUserWebContentHandlerImplTest,
       content::WebContents::Create(
           content::WebContents::CreateParams(GetProfilePtr()));
   SupervisedUserWebContentHandlerImpl web_content_handler(
-      web_contents.get(), url, large_icon_service(),
-      /*frame_id=*/0, /*interstitial_navigation_id=*/0);
+      web_contents.get(), url, large_icon_service(), content::FrameTreeNodeId(),
+      /*interstitial_navigation_id=*/0);
 
   web_content_handler.OnLocalApprovalRequestCompleted(
       supervisedUserSettingsServiceMock, url, start_time, std::move(result));
 
   histogram_tester.ExpectUniqueSample(
       supervised_user::WebContentHandler::GetLocalApprovalResultHistogram(),
-      supervised_user::WebContentHandler::LocalApprovalResult::kDeclined, 1);
+      supervised_user::LocalApprovalResult::kDeclined, 1);
   histogram_tester.ExpectTotalCount(
       supervised_user::WebContentHandler::
           GetLocalApprovalDurationMillisecondsHistogram(),
@@ -173,8 +174,8 @@ TEST_F(SupervisedUserWebContentHandlerImplTest,
       content::WebContents::Create(
           content::WebContents::CreateParams(GetProfilePtr()));
   SupervisedUserWebContentHandlerImpl web_content_handler(
-      web_contents.get(), url, large_icon_service(),
-      /*frame_id=*/0, /*interstitial_navigation_id=*/0);
+      web_contents.get(), url, large_icon_service(), content::FrameTreeNodeId(),
+      /*interstitial_navigation_id=*/0);
 
   web_content_handler.OnLocalApprovalRequestCompleted(
       supervisedUserSettingsServiceMock, url, start_time, std::move(result));
@@ -186,7 +187,7 @@ TEST_F(SupervisedUserWebContentHandlerImplTest,
       0);
   histogram_tester.ExpectUniqueSample(
       supervised_user::WebContentHandler::GetLocalApprovalResultHistogram(),
-      supervised_user::WebContentHandler::LocalApprovalResult::kCanceled, 1);
+      supervised_user::LocalApprovalResult::kCanceled, 1);
 }
 
 TEST_F(SupervisedUserWebContentHandlerImplTest,
@@ -214,8 +215,8 @@ TEST_F(SupervisedUserWebContentHandlerImplTest,
       content::WebContents::Create(
           content::WebContents::CreateParams(GetProfilePtr()));
   SupervisedUserWebContentHandlerImpl web_content_handler(
-      web_contents.get(), url, large_icon_service(),
-      /*frame_id=*/0, /*interstitial_navigation_id=*/0);
+      web_contents.get(), url, large_icon_service(), content::FrameTreeNodeId(),
+      /*interstitial_navigation_id=*/0);
 
   web_content_handler.OnLocalApprovalRequestCompleted(
       supervisedUserSettingsServiceMock, url, start_time, std::move(result));
@@ -227,5 +228,5 @@ TEST_F(SupervisedUserWebContentHandlerImplTest,
       0);
   histogram_tester.ExpectUniqueSample(
       supervised_user::WebContentHandler::GetLocalApprovalResultHistogram(),
-      supervised_user::WebContentHandler::LocalApprovalResult::kError, 1);
+      supervised_user::LocalApprovalResult::kError, 1);
 }

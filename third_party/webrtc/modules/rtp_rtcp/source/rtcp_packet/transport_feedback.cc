@@ -11,13 +11,19 @@
 #include "modules/rtp_rtcp/source/rtcp_packet/transport_feedback.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
-#include <numeric>
+#include <memory>
 #include <utility>
+#include <vector>
 
 #include "absl/algorithm/container.h"
+#include "api/function_view.h"
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "modules/include/module_common_types_public.h"
 #include "modules/rtp_rtcp/source/byte_io.h"
+#include "modules/rtp_rtcp/source/rtcp_packet.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/common_header.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
@@ -73,13 +79,6 @@ constexpr TimeDelta kTimeWrapPeriod = kBaseTimeTick * (1 << 24);
 //    |           recv delta          |  recv delta   | zero padding  |
 //    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 }  // namespace
-constexpr uint8_t TransportFeedback::kFeedbackMessageType;
-constexpr size_t TransportFeedback::kMaxReportedPackets;
-
-constexpr size_t TransportFeedback::LastChunk::kMaxRunLengthCapacity;
-constexpr size_t TransportFeedback::LastChunk::kMaxOneBitCapacity;
-constexpr size_t TransportFeedback::LastChunk::kMaxTwoBitCapacity;
-constexpr size_t TransportFeedback::LastChunk::kMaxVectorCapacity;
 
 TransportFeedback::LastChunk::LastChunk() {
   Clear();
@@ -373,7 +372,7 @@ TransportFeedback::GetReceivedPackets() const {
 }
 
 void TransportFeedback::ForAllPackets(
-    rtc::FunctionView<void(uint16_t, TimeDelta)> handler) const {
+    FunctionView<void(uint16_t, TimeDelta)> handler) const {
   TimeDelta delta_since_base = TimeDelta::Zero();
   auto received_it = received_packets_.begin();
   const uint16_t last_seq_num = base_seq_no_ + num_seq_no_;
@@ -582,9 +581,8 @@ bool TransportFeedback::IsConsistent() const {
     return false;
   }
   if (timestamp != last_timestamp_) {
-    RTC_LOG(LS_ERROR) << "Last timestamp mismatch. Calculated: "
-                      << ToLogString(timestamp)
-                      << ". Saved: " << ToLogString(last_timestamp_);
+    RTC_LOG(LS_ERROR) << "Last timestamp mismatch. Calculated: " << timestamp
+                      << ". Saved: " << last_timestamp_;
     return false;
   }
   if (size_bytes_ != packet_size) {

@@ -5,17 +5,17 @@
 #include "chrome/browser/ui/android/fast_checkout/ui_view_android_utils.h"
 
 #include "base/android/jni_android.h"
-#include "components/autofill/core/browser/autofill_data_util.h"
-#include "components/autofill/core/browser/autofill_test_utils.h"
-#include "components/autofill/core/browser/data_model/autofill_profile.h"
-#include "components/autofill/core/browser/geo/country_names.h"
+#include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
+#include "components/autofill/core/browser/data_quality/autofill_data_util.h"
+#include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace {
+
 TEST(FastCheckoutUIViewAndroidUtils, CreateFastCheckoutAutofillProfile) {
-  autofill::CountryNames::SetLocaleString("en-US");
   JNIEnv* env = base::android::AttachCurrentThread();
-  autofill::AutofillProfile profile = autofill::test::GetVerifiedProfile();
+  autofill::AutofillProfile profile = autofill::test::GetFullProfile();
 
   base::android::ScopedJavaLocalRef<jobject> scoped_profile =
       CreateFastCheckoutAutofillProfile(env, profile, "en-US");
@@ -26,14 +26,12 @@ TEST(FastCheckoutUIViewAndroidUtils, CreateFastCheckoutAutofillProfile) {
       CreateFastCheckoutAutofillProfileFromJava(env, java_profile, "en-US");
 
   EXPECT_EQ(profile.guid(), parsed_profile->guid());
-  EXPECT_EQ(profile.origin(), parsed_profile->origin());
   EXPECT_EQ(profile.language_code(), parsed_profile->language_code());
 
-  const autofill::ServerFieldType types[] = {
+  const autofill::FieldType types[] = {
       autofill::NAME_FULL,
       autofill::NAME_FIRST,
       autofill::NAME_MIDDLE,
-      autofill::NAME_HONORIFIC_PREFIX,
       autofill::NAME_LAST,
       autofill::NAME_LAST_FIRST,
       autofill::NAME_LAST_SECOND,
@@ -50,17 +48,15 @@ TEST(FastCheckoutUIViewAndroidUtils, CreateFastCheckoutAutofillProfile) {
       autofill::PHONE_HOME_WHOLE_NUMBER,
   };
 
-  for (autofill::ServerFieldType type : types) {
+  for (autofill::FieldType type : types) {
     EXPECT_EQ(profile.GetRawInfo(type), parsed_profile->GetRawInfo(type));
   }
 }
 
 TEST(FastCheckoutUIViewAndroidUtils, CreateFastCheckoutCreditCard) {
-  autofill::CountryNames::SetLocaleString("en-US");
   JNIEnv* env = base::android::AttachCurrentThread();
   const autofill::CreditCard credit_cards[] = {
-      autofill::test::GetCreditCard(), autofill::test::GetFullServerCard(),
-      autofill::test::GetMaskedServerCard()};
+      autofill::test::GetCreditCard(), autofill::test::GetMaskedServerCard()};
 
   for (const autofill::CreditCard& credit_card : credit_cards) {
     base::android::ScopedJavaLocalRef<jobject> scoped_credit_card =
@@ -74,3 +70,5 @@ TEST(FastCheckoutUIViewAndroidUtils, CreateFastCheckoutCreditCard) {
     EXPECT_EQ(credit_card, *parsed_credit_card.get());
   }
 }
+
+}  // namespace

@@ -6,6 +6,7 @@
 #define ASH_SYSTEM_MEDIA_QUICK_SETTINGS_MEDIA_VIEW_CONTROLLER_H_
 
 #include "ash/ash_export.h"
+#include "base/memory/weak_ptr.h"
 #include "components/global_media_controls/public/media_dialog_delegate.h"
 #include "components/global_media_controls/public/media_item_manager_observer.h"
 #include "components/global_media_controls/public/media_item_ui_observer_set.h"
@@ -57,8 +58,9 @@ class ASH_EXPORT QuickSettingsMediaViewController
   void OnMediaDialogClosed() override {}
 
   // global_media_controls::MediaItemUIObserver:
-  void OnMediaItemUIClicked(const std::string& id) override;
-  void OnMediaItemUIDestroyed(const std::string& id) override;
+  void OnMediaItemUIClicked(const std::string& id,
+                            bool activate_original_media) override;
+  void OnMediaItemUIShowDevices(const std::string& id) override;
 
   std::unique_ptr<views::View> CreateView();
 
@@ -67,6 +69,12 @@ class ASH_EXPORT QuickSettingsMediaViewController
 
   // Updates the order of media items in the quick settings media view.
   void UpdateMediaItemOrder();
+
+  // Returns the current desired height of the media view.
+  int GetMediaViewHeight();
+
+  // Helper functions for testing.
+  QuickSettingsMediaView* media_view_for_testing() { return media_view_.get(); }
 
  private:
   raw_ptr<UnifiedSystemTrayController> tray_controller_ = nullptr;
@@ -79,7 +87,7 @@ class ASH_EXPORT QuickSettingsMediaViewController
   global_media_controls::MediaItemUIObserverSet media_item_ui_observer_set_{
       this};
 
-  raw_ptr<QuickSettingsMediaView> media_view_ = nullptr;
+  base::WeakPtr<QuickSettingsMediaView> media_view_;
 };
 
 }  // namespace ash

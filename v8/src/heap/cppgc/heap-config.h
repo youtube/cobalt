@@ -6,6 +6,7 @@
 #define V8_HEAP_CPPGC_HEAP_CONFIG_H_
 
 #include "include/cppgc/heap.h"
+#include "src/base/platform/time.h"
 
 namespace cppgc::internal {
 
@@ -14,6 +15,18 @@ using StackState = cppgc::Heap::StackState;
 enum class CollectionType : uint8_t {
   kMinor,
   kMajor,
+};
+
+// Specifies whether free memory should be transparently discarded when it is
+// not yet released. This is generally enabled for free list entries on memory
+// reducing GCs. Windows is the exception where these calls are too expensive.
+//
+// In order to minimize actual discard calls various components optimize the
+// calls here. E.g., we assume that whole pages are freed through a page pool
+// (which doesn't discard on adding) that is fully released after a GC cycle.
+enum class FreeMemoryHandling : uint8_t {
+  kDoNotDiscard,
+  kDiscardWherePossible
 };
 
 struct MarkingConfig {
@@ -34,7 +47,7 @@ struct MarkingConfig {
 struct SweepingConfig {
   using SweepingType = cppgc::Heap::SweepingType;
   enum class CompactableSpaceHandling { kSweep, kIgnore };
-  enum class FreeMemoryHandling { kDoNotDiscard, kDiscardWherePossible };
+  using FreeMemoryHandling = cppgc::internal::FreeMemoryHandling;
 
   SweepingType sweeping_type = SweepingType::kIncrementalAndConcurrent;
   CompactableSpaceHandling compactable_space_handling =

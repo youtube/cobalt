@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//testing/libfuzzer/fuzzer_test.gni")
 import("//third_party/protobuf/proto_library.gni")
 
 static_library("core") {
@@ -10,6 +11,10 @@ static_library("core") {
     "lookalike_url_ui_util.h",
     "lookalike_url_util.cc",
     "lookalike_url_util.h",
+  ]
+  configs += [
+    "//build/config/compiler:wexit_time_destructors",
+    "//build/config/compiler:wglobal_constructors",
   ]
   deps = [
     ":proto",
@@ -22,8 +27,8 @@ static_library("core") {
     "//components/url_formatter",
     "//components/url_formatter/spoof_checks/common_words:common",
     "//components/url_formatter/spoof_checks/top_domains:common",
-    "//components/url_formatter/spoof_checks/top_domains:top500_domains",
-    "//components/url_formatter/spoof_checks/top_domains:top500_domains_header",
+    "//components/url_formatter/spoof_checks/top_domains:top_bucket_domains",
+    "//components/url_formatter/spoof_checks/top_domains:top_bucket_domains_header",
     "//components/version_info:channel",
     "//net",
     "//services/metrics/public/cpp:metrics_cpp",
@@ -38,6 +43,10 @@ static_library("safety_tips") {
     "safety_tip_test_utils.h",
     "safety_tips_config.cc",
     "safety_tips_config.h",
+  ]
+  configs += [
+    "//build/config/compiler:wexit_time_destructors",
+    "//build/config/compiler:wglobal_constructors",
   ]
   deps = [
     ":proto",
@@ -59,6 +68,11 @@ source_set("unit_tests") {
     ":core",
     ":proto",
     ":safety_tips",
+    "//components/url_formatter/spoof_checks/common_words:common",
+    "//components/url_formatter/spoof_checks/common_words:common_words_dafsa",
+    "//components/url_formatter/spoof_checks/top_domains:generate_top_domains_test_trie",
+    "//components/url_formatter/spoof_checks/top_domains:test_top_bucket_domains",
+    "//components/url_formatter/spoof_checks/top_domains:test_top_bucket_domains_header",
     "//components/version_info:channel",
     "//net:test_support",
     "//testing/gtest",
@@ -67,4 +81,15 @@ source_set("unit_tests") {
 
 proto_library("proto") {
   sources = [ "safety_tips.proto" ]
+}
+
+fuzzer_test("lookalike_url_util_fuzzer") {
+  sources = [ "lookalike_url_util_fuzzer.cc" ]
+  deps = [
+    ":core",
+    ":proto",
+    "//base:i18n",
+    "//third_party/abseil-cpp:absl",
+    "//third_party/icu",
+  ]
 }

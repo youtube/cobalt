@@ -20,33 +20,36 @@
 #include "extensions/browser/guest_view/web_view/web_view_renderer_state.h"
 #endif
 
-namespace chrome {
 namespace {
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 void OnFileSystemAccessedInGuestViewContinuation(
-    int render_process_id,
-    int render_frame_id,
+    const content::GlobalRenderFrameHostToken& frame_token,
     const GURL& url,
     base::OnceCallback<void(bool)> callback,
     bool allowed) {
-  content_settings::PageSpecificContentSettings::StorageAccessed(
-      content_settings::mojom::ContentSettingsManager::StorageType::FILE_SYSTEM,
-      render_process_id, render_frame_id, url, !allowed);
+  auto* rfh = content::RenderFrameHost::FromFrameToken(frame_token);
+  if (rfh) {
+    content_settings::PageSpecificContentSettings::StorageAccessed(
+        content_settings::mojom::ContentSettingsManager::StorageType::
+            FILE_SYSTEM,
+        frame_token, rfh->GetStorageKey(), !allowed);
+  }
+
   std::move(callback).Run(allowed);
 }
 
-void OnFileSystemAccessedInGuestView(int render_process_id,
-                                     int render_frame_id,
-                                     const GURL& url,
-                                     bool allowed,
-                                     base::OnceCallback<void(bool)> callback) {
+void OnFileSystemAccessedInGuestView(
+    const content::GlobalRenderFrameHostToken& frame_token,
+    const GURL& url,
+    bool allowed,
+    base::OnceCallback<void(bool)> callback) {
   extensions::WebViewPermissionHelper* web_view_permission_helper =
-      extensions::WebViewPermissionHelper::FromRenderFrameHostId(
-          content::GlobalRenderFrameHostId(render_process_id, render_frame_id));
-  auto continuation = base::BindOnce(
-      &OnFileSystemAccessedInGuestViewContinuation, render_process_id,
-      render_frame_id, url, std::move(callback));
+      extensions::WebViewPermissionHelper::FromRenderFrameHost(
+          content::RenderFrameHost::FromFrameToken(frame_token));
+  auto continuation =
+      base::BindOnce(&OnFileSystemAccessedInGuestViewContinuation, frame_token,
+                     url, std::move(callback));
   if (!web_view_permission_helper) {
     std::move(continuation).Run(allowed);
     return;
@@ -76,8 +79,7 @@ ContentSettingsManagerDelegate::GetCookieSettings(
 }
 
 bool ContentSettingsManagerDelegate::AllowStorageAccess(
-    int render_process_id,
-    int render_frame_id,
+    const content::GlobalRenderFrameHostToken& frame_token,
     content_settings::mojom::ContentSettingsManager::StorageType storage_type,
     const GURL& url,
     bool allowed,
@@ -86,12 +88,11 @@ bool ContentSettingsManagerDelegate::AllowStorageAccess(
   if (storage_type == content_settings::mojom::ContentSettingsManager::
                           StorageType::FILE_SYSTEM &&
       extensions::WebViewRendererState::GetInstance()->IsGuest(
-          render_process_id)) {
+          frame_token.child_id)) {
     content::GetUIThreadTaskRunner({})->PostTask(
         FROM_HERE,
         base::BindOnce(
-            &OnFileSystemAccessedInGuestView, render_process_id,
-            render_frame_id, url, allowed,
+            &OnFileSystemAccessedInGuestView, frame_token, url, allowed,
             base::BindOnce(&PostTaskOnSequence,
                            base::SequencedTaskRunner::GetCurrentDefault(),
                            std::move(*callback))));
@@ -106,5 +107,3 @@ std::unique_ptr<content_settings::ContentSettingsManagerImpl::Delegate>
 ContentSettingsManagerDelegate::Clone() {
   return std::make_unique<ContentSettingsManagerDelegate>();
 }
-
-}  // namespace chrome

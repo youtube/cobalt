@@ -10,17 +10,21 @@
 import 'chrome://support-tool/support_tool.js';
 import 'chrome://support-tool/url_generator.js';
 
-import {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
-import {CrInputElement} from 'chrome://resources/cr_elements/cr_input/cr_input.js';
+import type {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
+import type {CrCheckboxElement} from 'chrome://resources/cr_elements/cr_checkbox/cr_checkbox.js';
+import type {CrInputElement} from 'chrome://resources/cr_elements/cr_input/cr_input.js';
+import type {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import {webUIListenerCallback} from 'chrome://resources/js/cr.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {track} from 'chrome://resources/polymer/v3_0/iron-test-helpers/mock-interactions.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {BrowserProxy, BrowserProxyImpl, DataCollectorItem, IssueDetails, PiiDataItem, UrlGenerationResult} from 'chrome://support-tool/browser_proxy.js';
-import {ScreenshotElement} from 'chrome://support-tool/screenshot.js';
-import {DataExportResult, SupportToolElement, SupportToolPageIndex} from 'chrome://support-tool/support_tool.js';
-import {UrlGeneratorElement} from 'chrome://support-tool/url_generator.js';
+import type {BrowserProxy, DataCollectorItem, IssueDetails, PiiDataItem, SupportTokenGenerationResult} from 'chrome://support-tool/browser_proxy.js';
+import {BrowserProxyImpl} from 'chrome://support-tool/browser_proxy.js';
+import type {ScreenshotElement} from 'chrome://support-tool/screenshot.js';
+import type {DataExportResult, SupportToolElement} from 'chrome://support-tool/support_tool.js';
+import {SupportToolPageIndex} from 'chrome://support-tool/support_tool.js';
+import type {UrlGeneratorElement} from 'chrome://support-tool/url_generator.js';
 import {assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {track} from 'chrome://webui-test/mouse_mock_interactions.js';
 import {waitAfterNextRender} from 'chrome://webui-test/polymer_test_util.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 
@@ -55,7 +59,7 @@ const PII_ITEMS: PiiDataItem[] = [
   {
     piiTypeDescription: 'IP Address',
     piiType: 0,
-    detectedData: '255.255.155.2, 255.255.155.255, 172.11.5.5',
+    detectedData: ['255.255.155.2', '255.255.155.255', '172.11.5.5'],
     count: 3,
     keep: false,
     expandDetails: true,
@@ -63,7 +67,7 @@ const PII_ITEMS: PiiDataItem[] = [
   {
     piiTypeDescription: 'Hash',
     piiType: 1,
-    detectedData: '27540283740a0897ab7c8de0f809add2bacde78f',
+    detectedData: ['27540283740a0897ab7c8de0f809add2bacde78f'],
     count: 1,
     keep: false,
     expandDetails: true,
@@ -71,8 +75,11 @@ const PII_ITEMS: PiiDataItem[] = [
   {
     piiTypeDescription: 'URL',
     piiType: 2,
-    detectedData:
-        'chrome://resources/f?user=bar, chrome-extension://nkoccljplnhpfnfiajclkommnmllphnl/foobar.js?bar=x, http://tets.com',
+    detectedData: [
+      'chrome://resources/f?user=bar',
+      'chrome-extension://nkoccljplnhpfnfiajclkommnmllphnl/foobar.js?bar=x',
+      'http://tets.com',
+    ],
     count: 3,
     keep: false,
     expandDetails: true,
@@ -86,8 +93,11 @@ const PII_ITEMS: PiiDataItem[] = [
  */
 class TestSupportToolBrowserProxy extends TestBrowserProxy implements
     BrowserProxy {
-  private urlGenerationResult_:
-      UrlGenerationResult = {success: false, url: '', errorMessage: ''};
+  private supportTokenGenerationResult_: SupportTokenGenerationResult = {
+    success: false,
+    token: '',
+    errorMessage: '',
+  };
 
   constructor() {
     super([
@@ -100,6 +110,7 @@ class TestSupportToolBrowserProxy extends TestBrowserProxy implements
       'showExportedDataInFolder',
       'getAllDataCollectors',
       'generateCustomizedUrl',
+      'generateSupportToken',
     ]);
   }
 
@@ -148,18 +159,56 @@ class TestSupportToolBrowserProxy extends TestBrowserProxy implements
     this.methodCalled('showExportedDataInFolder');
   }
 
-  setUrlGenerationResult(result: UrlGenerationResult) {
-    this.urlGenerationResult_ = result;
+  setSupportTokenGenerationResult(result: SupportTokenGenerationResult) {
+    this.supportTokenGenerationResult_ = result;
   }
 
-  // Returns this.urlGenerationResult as response. Please call
-  // this.setUrlGenerationResult() before using this function in tests.
+  // Returns this.supportTokenGenerationResult_ as response. Please call
+  // this.setSupportTokenGenerationResult() before using this function in tests.
   generateCustomizedUrl(caseId: string, dataCollectors: DataCollectorItem[]) {
     this.methodCalled('generateCustomizedUrl', caseId, dataCollectors);
-    return Promise.resolve(this.urlGenerationResult_);
+    return Promise.resolve(this.supportTokenGenerationResult_);
+  }
+
+  // Returns this.supportTokenGenerationResult_ as response. Please call
+  // this.setSupportTokenGenerationResult() before using this function in tests.
+  generateSupportToken(dataCollectors: DataCollectorItem[]) {
+    this.methodCalled('generateSupportToken', dataCollectors);
+    return Promise.resolve(this.supportTokenGenerationResult_);
   }
 }
 
+// Waits until `toast` is opened. Waits for 3 seconds and polls every second by
+// default. Resolves to `true` if toast is opened. Returns error otherwise.
+async function waitForToastOpened(
+    toast: CrToastElement, intervalMs: number = 100,
+    timeoutMs: number = 301): Promise<NonNullable<boolean>> {
+  let rejectTimer: number|null = null;
+  let pollTimer: number|null = null;
+
+  function cleanup() {
+    if (rejectTimer) {
+      window.clearTimeout(rejectTimer);
+    }
+    if (pollTimer) {
+      window.clearInterval(pollTimer);
+    }
+  }
+
+  return new Promise((resolve, reject) => {
+    rejectTimer = window.setTimeout(() => {
+      cleanup();
+      reject(new Error('Toast element did not get opened on time'));
+    }, timeoutMs);
+
+    pollTimer = window.setInterval(() => {
+      if (toast.open) {
+        cleanup();
+        resolve(true);
+      }
+    }, intervalMs);
+  });
+}
 
 suite('SupportToolTest', function() {
   let supportTool: SupportToolElement;
@@ -180,18 +229,19 @@ suite('SupportToolTest', function() {
   });
 
   test('support tool pages navigation', () => {
-    const ironPages = supportTool.shadowRoot!.querySelector('iron-pages');
+    const pages = supportTool.shadowRoot!.querySelector('cr-page-selector');
+    assertTrue(!!pages);
+
     // The selected page index must be 0, which means initial page is
     // IssueDetails.
-    assertEquals(ironPages!.selected, SupportToolPageIndex.ISSUE_DETAILS);
+    assertEquals(pages.selected, SupportToolPageIndex.ISSUE_DETAILS);
     // Only continue button container must be visible in initial page.
     assertFalse(
         supportTool.shadowRoot!.getElementById(
                                    'continueButtonContainer')!.hidden);
     // Click on continue button to move onto data collector selection page.
     supportTool.shadowRoot!.getElementById('continueButton')!.click();
-    assertEquals(
-        ironPages!.selected, SupportToolPageIndex.DATA_COLLECTOR_SELECTION);
+    assertEquals(pages.selected, SupportToolPageIndex.DATA_COLLECTOR_SELECTION);
     // Click on continue button to start data collection.
     supportTool.shadowRoot!.getElementById('continueButton')!.click();
     browserProxy.whenCalled('startDataCollection').then(function([
@@ -209,17 +259,17 @@ suite('SupportToolTest', function() {
     assertEquals(
         issueDetails.shadowRoot!.querySelector('cr-input')!.value,
         'testcaseid');
-    const emailOptions = issueDetails.shadowRoot!.querySelectorAll('option')!;
+    const emailOptions = issueDetails.shadowRoot!.querySelectorAll('option');
     // IssueDetailsElement adds DONT_INCLUDE_EMAIL string to the email addresses
     // options as for use to give the option to not include email address.
     assertEquals(EMAIL_ADDRESSES.length + 1, emailOptions.length);
   });
 
-  test('data collector selection page', () => {
+  test('data collector selection page', async () => {
     // Check the contents of data collectors page.
     const ironListItems =
         supportTool.$.dataCollectors.shadowRoot!.querySelector(
-                                                    'iron-list')!.items!;
+                                                    'dom-repeat')!.items!;
     assertEquals(ironListItems.length, DATA_COLLECTORS.length);
     for (let i = 0; i < ironListItems.length; i++) {
       const listItem = ironListItems[i];
@@ -227,13 +277,31 @@ suite('SupportToolTest', function() {
       assertEquals(listItem.isIncluded, DATA_COLLECTORS[i]!.isIncluded);
       assertEquals(listItem.protoEnum, DATA_COLLECTORS[i]!.protoEnum);
     }
+
+    const selectAllCheckbox =
+        supportTool.$.dataCollectors.shadowRoot!.getElementById(
+            'selectAllCheckbox')! as CrCheckboxElement;
+
+    // Verify that the select all functionality works.
+    selectAllCheckbox.click();
+    await selectAllCheckbox.updateComplete;
+    for (let i = 0; i < ironListItems.length; i++) {
+      assertTrue(ironListItems[i].isIncluded);
+    }
+
+    // Verify that the unselect all functionality works.
+    selectAllCheckbox.click();
+    await selectAllCheckbox.updateComplete;
+    for (let i = 0; i < ironListItems.length; i++) {
+      assertFalse(ironListItems[i].isIncluded);
+    }
   });
 
   test('take and remove screenshot', async () => {
     // Go to the data collector selection page.
     supportTool.shadowRoot!.getElementById('continueButton')!.click();
     assertEquals(
-        supportTool.shadowRoot!.querySelector('iron-pages')!.selected,
+        supportTool.shadowRoot!.querySelector('cr-page-selector')!.selected,
         SupportToolPageIndex.DATA_COLLECTOR_SELECTION);
     // Take screenshot.
     const screenshot = supportTool.$.dataCollectors.shadowRoot!
@@ -262,7 +330,7 @@ suite('SupportToolTest', function() {
     // Go to the data collector selection page.
     supportTool.shadowRoot!.getElementById('continueButton')!.click();
     assertEquals(
-        supportTool.shadowRoot!.querySelector('iron-pages')!.selected,
+        supportTool.shadowRoot!.querySelector('cr-page-selector')!.selected,
         SupportToolPageIndex.DATA_COLLECTOR_SELECTION);
     // Take a screenshot.
     const screenshot = supportTool.$.dataCollectors.shadowRoot!
@@ -291,8 +359,6 @@ suite('SupportToolTest', function() {
     const confirmButton = screenshot.shadowRoot!.getElementById('confirmEdit')!;
 
     // After clicking the confirm button, the image is changed.
-    hideInfoButton.click();
-    await waitAfterNextRender(screenshot);
     track(canvas, canvas.width / 4, canvas.height / 4, 1);
     confirmButton.click();
     await waitAfterNextRender(screenshot);
@@ -309,7 +375,7 @@ suite('SupportToolTest', function() {
       // Make sure the issue details page is displayed after cancelling data
       // collection.
       assertEquals(
-          supportTool.shadowRoot!.querySelector('iron-pages')!.selected,
+          supportTool.shadowRoot!.querySelector('cr-page-selector')!.selected,
           SupportToolPageIndex.ISSUE_DETAILS);
     });
     assertEquals(browserProxy.getCallCount('cancelDataCollection'), 1);
@@ -321,7 +387,7 @@ suite('SupportToolTest', function() {
     // filled.
     supportTool.shadowRoot!.getElementById('continueButton')!.click();
     assertEquals(
-        supportTool.shadowRoot!.querySelector('iron-pages')!.selected,
+        supportTool.shadowRoot!.querySelector('cr-page-selector')!.selected,
         SupportToolPageIndex.DATA_COLLECTOR_SELECTION);
     supportTool.shadowRoot!.getElementById('continueButton')!.click();
     // Check the contents of PII selection page.
@@ -339,7 +405,7 @@ suite('SupportToolTest', function() {
     webUIListenerCallback('support-data-export-started');
     flush();
     assertEquals(
-        supportTool.shadowRoot!.querySelector('iron-pages')!.selected,
+        supportTool.shadowRoot!.querySelector('cr-page-selector')!.selected,
         SupportToolPageIndex.EXPORT_SPINNER);
     const exportResult: DataExportResult = {
       success: true,
@@ -349,7 +415,7 @@ suite('SupportToolTest', function() {
     webUIListenerCallback('data-export-completed', exportResult);
     flush();
     assertEquals(
-        supportTool.shadowRoot!.querySelector('iron-pages')!.selected,
+        supportTool.shadowRoot!.querySelector('cr-page-selector')!.selected,
         SupportToolPageIndex.DATA_EXPORT_DONE);
   });
 });
@@ -377,43 +443,78 @@ suite('UrlGeneratorTest', function() {
     caseIdInput.value = 'test123';
     const dataCollectors =
         urlGenerator.shadowRoot!.querySelectorAll('cr-checkbox');
-    // Select the first one of data collectors.
-    dataCollectors[0]!.click();
+    // Select one of data collectors to enable the button.
+    const firstDataCollector = dataCollectors[0]!;
+    firstDataCollector.click();
+    await firstDataCollector.updateComplete;
     // Ensure the button is enabled after we select at least one data collector.
     assertFalse(copyLinkButton.disabled);
-    const expectedLink = 'chrome://support-tool/?case_id=test123&module=jekhh';
+    const expectedToken = 'chrome://support-tool/?case_id=test123&module=jekhh';
     // Set the expected result of URL generation to successful.
-    const expectedResult: UrlGenerationResult = {
+    const expectedResult: SupportTokenGenerationResult = {
       success: true,
-      url: expectedLink,
+      token: expectedToken,
       errorMessage: '',
     };
-    browserProxy.setUrlGenerationResult(expectedResult);
+    browserProxy.setSupportTokenGenerationResult(expectedResult);
     // Click the button to generate URL and copy to clipboard.
     copyLinkButton.click();
     await browserProxy.whenCalled('generateCustomizedUrl');
+    // A toast message needs to be opened when the copy link button is clicked.
+    assertTrue(await waitForToastOpened(urlGenerator.$.copyToast));
     // Check the URL value copied to clipboard if it's as expected.
-    const copiedLink = await navigator.clipboard.readText();
-    assertEquals(copiedLink, expectedLink);
+    const copiedToken = await navigator.clipboard.readText();
+    assertEquals(copiedToken, expectedToken);
   });
 
   test('url generation fail', async () => {
     // Set the expected result of URL generation to error.
-    const expectedResult: UrlGenerationResult = {
+    const expectedResult: SupportTokenGenerationResult = {
       success: false,
-      url: '',
+      token: '',
       errorMessage: 'Test error message',
     };
-    browserProxy.setUrlGenerationResult(expectedResult);
+    browserProxy.setSupportTokenGenerationResult(expectedResult);
     const copyLinkButton = urlGenerator.shadowRoot!.getElementById(
                                'copyURLButton')! as CrButtonElement;
     // Enable the button for testing. The input fields are not important as
     // we're testing for the error message.
     copyLinkButton.disabled = false;
     // Click the button to generate URL.
-    copyLinkButton!.click();
+    copyLinkButton.click();
     await browserProxy.whenCalled('generateCustomizedUrl');
     // Check that there's an error message shown to user.
-    assertTrue(urlGenerator.$.errorMessageToast.open);
+    assertTrue(await waitForToastOpened(urlGenerator.$.errorMessageToast));
+  });
+
+  test('token generation success', async () => {
+    // Ensure the button is disabled when we open the page.
+    const copyTokenButton = urlGenerator.shadowRoot!.getElementById(
+                                'copyTokenButton')! as CrButtonElement;
+    assertTrue(copyTokenButton.disabled);
+    const dataCollectors =
+        urlGenerator.shadowRoot!.querySelectorAll('cr-checkbox');
+    // Select one of data collectors to enable the button.
+    const firstDataCollector = dataCollectors[0]!;
+    firstDataCollector.click();
+    await firstDataCollector.updateComplete;
+    // Ensure the button is enabled after we select at least one data collector.
+    assertFalse(copyTokenButton.disabled);
+    const expectedToken = 'jekhh';
+    // Set the expected result of token generation to successful.
+    const expectedResult: SupportTokenGenerationResult = {
+      success: true,
+      token: expectedToken,
+      errorMessage: '',
+    };
+    browserProxy.setSupportTokenGenerationResult(expectedResult);
+    // Click the button to generate URL and copy to clipboard.
+    copyTokenButton.click();
+    await browserProxy.whenCalled('generateSupportToken');
+    // A toast message needs to be opened when the copy token button is clicked.
+    assertTrue(await waitForToastOpened(urlGenerator.$.copyToast));
+    // Check the token value copied to clipboard if it's as expected.
+    const copiedToken = await navigator.clipboard.readText();
+    assertEquals(copiedToken, expectedToken);
   });
 });

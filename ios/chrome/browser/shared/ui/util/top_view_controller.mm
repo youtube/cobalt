@@ -3,11 +3,8 @@
 // found in the LICENSE file.
 
 #import "ios/chrome/browser/shared/ui/util/top_view_controller.h"
-#import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 
 namespace top_view_controller {
 

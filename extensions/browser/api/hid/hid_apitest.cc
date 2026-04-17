@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <iterator>
 #include <memory>
 
 #include "base/functional/bind.h"
@@ -21,9 +22,9 @@
 #include "services/device/public/cpp/test/fake_hid_manager.h"
 #include "services/device/public/mojom/hid.mojom.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chromeos/dbus/permission_broker/fake_permission_broker_client.h"  // nogncheck
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace extensions {
 
@@ -134,7 +135,7 @@ class TestExtensionsAPIClient : public ShellExtensionsAPIClient {
 class HidApiTest : public ShellApiTest {
  public:
   HidApiTest() {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     // Required for DevicePermissionsPrompt:
     chromeos::PermissionBrokerClient::InitializeFake();
 #endif
@@ -149,7 +150,7 @@ class HidApiTest : public ShellApiTest {
 
   ~HidApiTest() override {
     HidDeviceManager::OverrideHidManagerBinderForTesting(base::NullCallback());
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     chromeos::PermissionBrokerClient::Shutdown();
 #endif
   }
@@ -173,12 +174,13 @@ class HidApiTest : public ShellApiTest {
                  std::string serial_number) {
     std::vector<uint8_t> report_descriptor;
     if (report_id) {
-      report_descriptor.insert(
-          report_descriptor.begin(), kReportDescriptorWithIDs,
-          kReportDescriptorWithIDs + sizeof(kReportDescriptorWithIDs));
+      report_descriptor.insert(report_descriptor.begin(),
+                               std::begin(kReportDescriptorWithIDs),
+                               std::end(kReportDescriptorWithIDs));
     } else {
-      report_descriptor.insert(report_descriptor.begin(), kReportDescriptor,
-                               kReportDescriptor + sizeof(kReportDescriptor));
+      report_descriptor.insert(report_descriptor.begin(),
+                               std::begin(kReportDescriptor),
+                               std::end(kReportDescriptor));
     }
 
     std::vector<device::mojom::HidCollectionInfoPtr> collections;
@@ -261,6 +263,8 @@ device::mojom::HidDeviceInfoPtr CreateDeviceWithOneCollection(
   auto collection = device::mojom::HidCollectionInfo::New();
   collection->usage =
       device::mojom::HidUsageAndPage::New(1, device::mojom::kPageVendor);
+  auto report = device::mojom::HidReportDescription::New();
+  collection->input_reports.push_back(std::move(report));
   device_info->collections.push_back(std::move(collection));
   return device_info;
 }

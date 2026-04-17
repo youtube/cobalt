@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <grit base_dir="." latest_public_release="0" current_release="1"
-      output_all_resource_defines="false" source_lang_id="en" enc_check="möl">
+      source_lang_id="en" enc_check="möl">
   <outputs>
     <output filename="grit/views_examples_resources.h" type="rc_header">
       <emit emit_type='prepend'></emit>
@@ -12,6 +12,51 @@
       <!-- animation example -->
       <message translateable="false" name="IDS_ABORT_ANIMATION_BUTTON">
         Abort Animation
+      </message>
+
+      <!-- actions example -->
+      <message translateable="false" name="IDS_ASSIGN_ACTION_TO_CONTROL">
+        Assign
+      </message>
+
+      <message translateable="false" name="IDS_CREATE_CONTROL">
+        Create
+      </message>
+
+      <message translateable="false" name="IDS_CONTROLS">
+        Controls
+      </message>
+
+      <message translateable="false" name="IDS_AVAILABLE_CONTROLS">
+        Available controls
+      </message>
+
+      <message translateable="false" name="IDS_AVAILABLE_ACTIONS">
+        Available actions
+      </message>
+
+      <message translateable="false" name="IDS_ACTION_CHECKED">
+        Action checked
+      </message>
+
+      <message translateable="false" name="IDS_ACTION_VISIBLE">
+        Action visible
+      </message>
+
+      <message translateable="false" name="IDS_ACTION_ENABLED">
+        Action enabled
+      </message>
+
+      <message translateable="false" name="IDS_ACTION_TEXT">
+        Action text
+      </message>
+
+      <message translateable="false" name="IDS_ACTION_TOOLTIP_TEXT">
+        Action tooltip text
+      </message>
+
+      <message translateable="false" name="IDS_ACTIONS_TRIGGER_INFO">
+        Actions trigger info
       </message>
 
       <!-- badge example -->
@@ -85,6 +130,20 @@
       </message>
       <message translateable="false" name="IDS_COMBOBOX_NAME_2">
         Combo Box 2
+      </message>
+
+      <!-- designer example -->
+      <message translateable="false" name="IDS_DESIGNER_COMBOBOX_NAME">
+        Combo Box
+      </message>
+      <message translateable="false" name="IDS_DESIGNER_TEXTFIELD_NAME">
+        Textfield
+      </message>
+      <message translateable="false" name="IDS_DESIGNER_TOGGLEBUTTON_NAME">
+        ToggleButton
+      </message>
+      <message translateable="false" name="IDS_DESIGNER_IMAGEBUTTON_NAME">
+        ImageButton
       </message>
 
       <!-- dialog example -->
@@ -521,6 +580,17 @@
       </message>
       <message translateable="false" name="IDS_TREE_VIEW_EDIT_BUTTON_LABEL">
         Edit
+      </message>
+
+      <!-- typography example -->
+      <message translateable="false" name="IDS_TYPOGRAPHY_SELECT_LABEL">
+        Typography
+      </message>
+      <message translateable="false" name="IDS_TYPOGRAPHY_HEADLINE_PLACEHOLDER_TEXT">
+        The quick brown fox jumps over the lazy dog
+      </message>
+      <message translateable="false" name="IDS_TYPOGRAPHY_BODY_PLACEHOLDER_TEXT">
+        The quick brown fox jumps over the lazy dog&#10;Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
       </message>
 
       <!-- vector example -->

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "content/browser/media/session/media_session_controller.h"
+
 #include <memory>
 #include <tuple>
 
@@ -9,12 +11,13 @@
 #include "base/time/time.h"
 #include "content/browser/media/media_web_contents_observer.h"
 #include "content/browser/media/session/audio_focus_delegate.h"
-#include "content/browser/media/session/media_session_controller.h"
 #include "content/browser/media/session/media_session_impl.h"
+#include "content/public/browser/media_device_id.h"
 #include "content/test/mock_agent_scheduling_group_host.h"
 #include "content/test/test_render_view_host.h"
 #include "content/test/test_web_contents.h"
 #include "media/audio/audio_device_description.h"
+#include "media/base/picture_in_picture_events_info.h"
 #include "media/mojo/mojom/media_player.mojom.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
@@ -36,7 +39,7 @@ class FakeAudioFocusDelegate : public content::AudioFocusDelegate {
     return audio_focus_result_;
   }
   void AbandonAudioFocus() override { audio_focus_type_.reset(); }
-  absl::optional<media_session::mojom::AudioFocusType> GetCurrentFocusType()
+  std::optional<media_session::mojom::AudioFocusType> GetCurrentFocusType()
       const override {
     return audio_focus_type_;
   }
@@ -48,7 +51,7 @@ class FakeAudioFocusDelegate : public content::AudioFocusDelegate {
   void ReleaseRequestId() override {}
 
  private:
-  absl::optional<media_session::mojom::AudioFocusType> audio_focus_type_;
+  std::optional<media_session::mojom::AudioFocusType> audio_focus_type_;
   AudioFocusResult audio_focus_result_ = AudioFocusResult::kSuccess;
 };
 
@@ -86,7 +89,7 @@ class TestMediaPlayer : public media::mojom::MediaPlayer {
     player_host->OnMediaPlayerAdded(
         std::move(player),
         dummy_player_observer.InitWithNewEndpointAndPassReceiver(),
-        player_id.delegate_id);
+        player_id.player_id);
     player_host.FlushForTesting();
   }
 
@@ -138,8 +141,6 @@ class TestMediaPlayer : public media::mojom::MediaPlayer {
 
   void RequestEnterPictureInPicture() override {}
 
-  void RequestExitPictureInPicture() override {}
-
   void RequestMute(bool mute) override {}
 
   void SetVolumeMultiplier(double multiplier) override {
@@ -152,11 +153,36 @@ class TestMediaPlayer : public media::mojom::MediaPlayer {
 
   void SetPowerExperimentState(bool enabled) override {}
 
-  void SetAudioSinkId(const std::string& sink_id) override {}
+  void SetAudioSinkId(const std::string& sink_id) override {
+    received_set_audio_sink_id_ = sink_id;
+    run_loop_->Quit();
+  }
 
   void SuspendForFrameClosed() override {}
 
   void RequestMediaRemoting() override {}
+
+  void RequestVisibility(
+      RequestVisibilityCallback request_visibility_callback) override {
+    std::move(request_visibility_callback).Run(expected_visibility_);
+    if (run_loop_) {
+      run_loop_->Quit();
+    }
+  }
+
+  // Helper method to set expected video visibility, which is later used as an
+  // argument for the `RequestVisibility` method callback
+  // (`RequestVisibilityCallback`).
+  void SetExpectedVisibility(bool expected_visibility) {
+    expected_visibility_ = expected_visibility;
+  }
+
+  void RecordAutoPictureInPictureInfo(
+      const media::PictureInPictureEventsInfo::AutoPipInfo&
+          auto_picture_in_picture_info) override {
+    auto_picture_in_picture_info_ = auto_picture_in_picture_info;
+    run_loop_->Quit();
+  }
 
   // Getters used from MediaSessionControllerTest.
   bool received_play() const { return received_play_; }
@@ -179,6 +205,15 @@ class TestMediaPlayer : public media::mojom::MediaPlayer {
     return received_volume_multiplier_;
   }
 
+  const std::string& received_set_audio_sink_id() const {
+    return received_set_audio_sink_id_;
+  }
+
+  const media::PictureInPictureEventsInfo::AutoPipInfo&
+  received_auto_picture_in_picture_info() const {
+    return auto_picture_in_picture_info_;
+  }
+
  private:
   std::unique_ptr<base::RunLoop> run_loop_;
   std::unique_ptr<base::RunLoop> run_loop_for_volume_;
@@ -190,6 +225,51 @@ class TestMediaPlayer : public media::mojom::MediaPlayer {
   base::TimeDelta received_seek_forward_time_;
   base::TimeDelta received_seek_backward_time_;
   base::TimeDelta received_seek_to_time_;
+  std::string received_set_audio_sink_id_;
+  bool expected_visibility_ = false;
+  media::PictureInPictureEventsInfo::AutoPipInfo auto_picture_in_picture_info_;
+};
+
+// Helper class to mock `RequestVisibility` callbacks.
+class RequestVisibilityWaiter {
+ public:
+  RequestVisibilityWaiter() = default;
+
+  RequestVisibilityWaiter(const RequestVisibilityWaiter&) = delete;
+  RequestVisibilityWaiter(RequestVisibilityWaiter&&) = delete;
+  RequestVisibilityWaiter& operator=(const RequestVisibilityWaiter&) = delete;
+
+  TestMediaPlayer::RequestVisibilityCallback VisibilityCallback() {
+    meets_visibility_ = std::nullopt;
+    // base::Unretained() is safe since no further tasks can run after
+    // RunLoop::Run() returns.
+    return base::BindOnce(&RequestVisibilityWaiter::RequestVisibility,
+                          base::Unretained(this));
+  }
+
+  void WaitUntilDone() {
+    if (meets_visibility_) {
+      return;
+    }
+    run_loop_ = std::make_unique<base::RunLoop>();
+    run_loop_->Run();
+  }
+
+  bool MeetsVisibility() {
+    DCHECK(meets_visibility_);
+    return meets_visibility_.value();
+  }
+
+ private:
+  void RequestVisibility(bool meets_visibility) {
+    meets_visibility_ = meets_visibility;
+    if (run_loop_) {
+      run_loop_->Quit();
+    }
+  }
+
+  std::unique_ptr<base::RunLoop> run_loop_;
+  std::optional<bool> meets_visibility_;
 };
 
 class MediaSessionControllerTest : public RenderViewHostImplTestHarness {
@@ -207,6 +287,7 @@ class MediaSessionControllerTest : public RenderViewHostImplTestHarness {
   }
 
   void TearDown() override {
+    audio_focus_delegate_ = nullptr;
     // Destruct the controller prior to any other teardown to avoid out of order
     // destruction relative to the MediaSession instance.
     controller_.reset();
@@ -269,6 +350,13 @@ class MediaSessionControllerTest : public RenderViewHostImplTestHarness {
     media_player_->WaitUntilVolumeChanged();
   }
 
+  void RequestVisibility(
+      TestMediaPlayer::RequestVisibilityCallback request_visibility_callback) {
+    controller_->OnRequestVisibility(controller_->get_player_id_for_testing(),
+                                     std::move(request_visibility_callback));
+    media_player_->WaitUntilReceivedMessage();
+  }
+
   // Helpers to check the results of using the basic controls.
   bool ReceivedMessagePlay() { return media_player_->received_play(); }
 
@@ -297,6 +385,12 @@ class MediaSessionControllerTest : public RenderViewHostImplTestHarness {
            media_player_->received_volume_multiplier();
   }
 
+  // Helper method to set the expected visibility that will be used by the
+  // `RequestVisibilityCallback`.
+  void SetExpectedVisibility(bool expected_visibility) {
+    media_player_->SetExpectedVisibility(expected_visibility);
+  }
+
   MediaPlayerId id_ = MediaPlayerId::CreateMediaPlayerIdForTests();
   std::unique_ptr<MediaSessionController> controller_;
   std::unique_ptr<TestMediaPlayer> media_player_;
@@ -304,21 +398,21 @@ class MediaSessionControllerTest : public RenderViewHostImplTestHarness {
 };
 
 TEST_F(MediaSessionControllerTest, NoAudioNoSession) {
-  controller_->SetMetadata(false, true, media::MediaContentType::Persistent);
+  controller_->SetMetadata(false, true, media::MediaContentType::kPersistent);
   ASSERT_TRUE(controller_->OnPlaybackStarted());
   EXPECT_FALSE(media_session()->IsActive());
   EXPECT_FALSE(media_session()->IsControllable());
 }
 
 TEST_F(MediaSessionControllerTest, TransientNoControllableSession) {
-  controller_->SetMetadata(true, false, media::MediaContentType::Transient);
+  controller_->SetMetadata(true, false, media::MediaContentType::kTransient);
   ASSERT_TRUE(controller_->OnPlaybackStarted());
   EXPECT_TRUE(media_session()->IsActive());
   EXPECT_FALSE(media_session()->IsControllable());
 }
 
 TEST_F(MediaSessionControllerTest, BasicControls) {
-  controller_->SetMetadata(true, false, media::MediaContentType::Persistent);
+  controller_->SetMetadata(true, false, media::MediaContentType::kPersistent);
   ASSERT_TRUE(controller_->OnPlaybackStarted());
   EXPECT_TRUE(media_session()->IsActive());
   EXPECT_TRUE(media_session()->IsControllable());
@@ -349,7 +443,7 @@ TEST_F(MediaSessionControllerTest, BasicControls) {
 }
 
 TEST_F(MediaSessionControllerTest, VolumeMultiplier) {
-  controller_->SetMetadata(true, false, media::MediaContentType::Persistent);
+  controller_->SetMetadata(true, false, media::MediaContentType::kPersistent);
   ASSERT_TRUE(controller_->OnPlaybackStarted());
   EXPECT_TRUE(media_session()->IsActive());
   EXPECT_TRUE(media_session()->IsControllable());
@@ -365,7 +459,7 @@ TEST_F(MediaSessionControllerTest, VolumeMultiplier) {
 }
 
 TEST_F(MediaSessionControllerTest, ControllerSidePause) {
-  controller_->SetMetadata(true, false, media::MediaContentType::Persistent);
+  controller_->SetMetadata(true, false, media::MediaContentType::kPersistent);
   ASSERT_TRUE(controller_->OnPlaybackStarted());
   EXPECT_TRUE(media_session()->IsActive());
   EXPECT_TRUE(media_session()->IsControllable());
@@ -382,19 +476,19 @@ TEST_F(MediaSessionControllerTest, ControllerSidePause) {
 }
 
 TEST_F(MediaSessionControllerTest, Reinitialize) {
-  controller_->SetMetadata(false, true, media::MediaContentType::Persistent);
+  controller_->SetMetadata(false, true, media::MediaContentType::kPersistent);
   ASSERT_TRUE(controller_->OnPlaybackStarted());
   EXPECT_FALSE(media_session()->IsActive());
   EXPECT_FALSE(media_session()->IsControllable());
 
   // Create a transient type session.
-  controller_->SetMetadata(true, false, media::MediaContentType::Transient);
+  controller_->SetMetadata(true, false, media::MediaContentType::kTransient);
   EXPECT_TRUE(media_session()->IsActive());
   EXPECT_FALSE(media_session()->IsControllable());
   const int current_player_id = controller_->get_player_id_for_testing();
 
   // Reinitialize the session as a content type.
-  controller_->SetMetadata(true, false, media::MediaContentType::Persistent);
+  controller_->SetMetadata(true, false, media::MediaContentType::kPersistent);
   EXPECT_TRUE(media_session()->IsActive());
   EXPECT_TRUE(media_session()->IsControllable());
   // Player id should not change when there's an active session.
@@ -421,7 +515,7 @@ TEST_F(MediaSessionControllerTest, PositionState) {
 }
 
 TEST_F(MediaSessionControllerTest, RemovePlayerIfSessionReset) {
-  controller_->SetMetadata(true, false, media::MediaContentType::Persistent);
+  controller_->SetMetadata(true, false, media::MediaContentType::kPersistent);
   ASSERT_TRUE(controller_->OnPlaybackStarted());
   EXPECT_TRUE(media_session()->IsActive());
 
@@ -436,6 +530,28 @@ TEST_F(MediaSessionControllerTest, PictureInPictureAvailability) {
   controller_->OnPictureInPictureAvailabilityChanged(true);
   EXPECT_TRUE(controller_->IsPictureInPictureAvailable(
       controller_->get_player_id_for_testing()));
+}
+
+TEST_F(MediaSessionControllerTest, SufficientlyVisibleVideo) {
+  EXPECT_FALSE(controller_->HasSufficientlyVisibleVideo(
+      controller_->get_player_id_for_testing()));
+
+  controller_->OnVideoVisibilityChanged(true);
+  EXPECT_TRUE(controller_->HasSufficientlyVisibleVideo(
+      controller_->get_player_id_for_testing()));
+}
+
+TEST_F(MediaSessionControllerTest, RequestVisibility) {
+  media_player_->SetExpectedVisibility(true);
+  RequestVisibilityWaiter request_visibility_waiter;
+  RequestVisibility(request_visibility_waiter.VisibilityCallback());
+  request_visibility_waiter.WaitUntilDone();
+  EXPECT_TRUE(request_visibility_waiter.MeetsVisibility());
+
+  media_player_->SetExpectedVisibility(false);
+  RequestVisibility(request_visibility_waiter.VisibilityCallback());
+  request_visibility_waiter.WaitUntilDone();
+  EXPECT_FALSE(request_visibility_waiter.MeetsVisibility());
 }
 
 TEST_F(MediaSessionControllerTest, AudioOutputSinkIdChange) {
@@ -454,7 +570,7 @@ TEST_F(MediaSessionControllerTest, AddPlayerWhenUnmuted) {
 
   controller_->SetMetadata(
       /* has_audio = */ true, /* has_video = */ false,
-      media::MediaContentType::Persistent);
+      media::MediaContentType::kPersistent);
   ASSERT_TRUE(controller_->OnPlaybackStarted());
   ASSERT_FALSE(media_session()->IsActive());
 
@@ -466,7 +582,7 @@ TEST_F(MediaSessionControllerTest, AddPlayerWhenUnmuted) {
 TEST_F(MediaSessionControllerTest, RemovePlayerWhenMuted) {
   controller_->SetMetadata(
       /* has_audio = */ true, /* has_video = */ false,
-      media::MediaContentType::Persistent);
+      media::MediaContentType::kPersistent);
   ASSERT_TRUE(controller_->OnPlaybackStarted());
   ASSERT_TRUE(media_session()->IsActive());
 
@@ -480,7 +596,7 @@ TEST_F(MediaSessionControllerTest, EnterLeavePictureInPictureMuted) {
 
   controller_->SetMetadata(
       /* has_audio = */ true, /* has_video = */ false,
-      media::MediaContentType::Persistent);
+      media::MediaContentType::kPersistent);
   ASSERT_TRUE(controller_->OnPlaybackStarted());
   ASSERT_FALSE(media_session()->IsActive());
 
@@ -498,7 +614,7 @@ TEST_F(MediaSessionControllerTest, EnterLeavePictureInPictureMuted) {
 TEST_F(MediaSessionControllerTest, MuteWithPictureInPicture) {
   controller_->SetMetadata(
       /* has_audio = */ true, /* has_video = */ false,
-      media::MediaContentType::Persistent);
+      media::MediaContentType::kPersistent);
   ASSERT_TRUE(controller_->OnPlaybackStarted());
   contents()->SetHasPictureInPictureVideo(true);
   controller_->PictureInPictureStateChanged(true);
@@ -514,7 +630,7 @@ TEST_F(MediaSessionControllerTest, LeavePictureInPictureUnmuted) {
 
   controller_->SetMetadata(
       /* has_audio = */ true, /* has_video = */ false,
-      media::MediaContentType::Persistent);
+      media::MediaContentType::kPersistent);
   ASSERT_TRUE(controller_->OnPlaybackStarted());
   ASSERT_FALSE(media_session()->IsActive());
 
@@ -533,13 +649,13 @@ TEST_F(MediaSessionControllerTest, LeavePictureInPictureUnmuted) {
 TEST_F(MediaSessionControllerTest, AddPlayerWhenAddingAudio) {
   controller_->SetMetadata(
       /* has_audio = */ false, /* has_video = */ true,
-      media::MediaContentType::Persistent);
+      media::MediaContentType::kPersistent);
   ASSERT_TRUE(controller_->OnPlaybackStarted());
   ASSERT_FALSE(media_session()->IsActive());
 
   controller_->SetMetadata(
       /* has_audio = */ true, /* has_video = */ false,
-      media::MediaContentType::Persistent);
+      media::MediaContentType::kPersistent);
   EXPECT_TRUE(media_session()->IsActive());
 }
 
@@ -547,7 +663,7 @@ TEST_F(MediaSessionControllerTest,
        AddPlayerWhenEnteringPictureInPictureWithNoAudio) {
   controller_->SetMetadata(
       /* has_audio = */ false, /* has_video = */ true,
-      media::MediaContentType::Persistent);
+      media::MediaContentType::kPersistent);
   ASSERT_TRUE(controller_->OnPlaybackStarted());
   ASSERT_FALSE(media_session()->IsActive());
 
@@ -560,7 +676,7 @@ TEST_F(MediaSessionControllerTest,
        AddPlayerWhenEnteringPictureInPicturePaused) {
   controller_->SetMetadata(
       /*has_audio=*/false, /*has_video=*/true,
-      media::MediaContentType::Persistent);
+      media::MediaContentType::kPersistent);
   ASSERT_TRUE(controller_->OnPlaybackStarted());
   controller_->OnPlaybackPaused(/*reached_end_of_stream=*/false);
   ASSERT_FALSE(media_session()->IsActive());
@@ -576,7 +692,7 @@ TEST_F(MediaSessionControllerTest,
 
   controller_->SetMetadata(
       /* has_audio = */ false, /* has_video = */ true,
-      media::MediaContentType::Persistent);
+      media::MediaContentType::kPersistent);
   ASSERT_TRUE(controller_->OnPlaybackStarted());
   EXPECT_TRUE(media_session()->IsActive());
 
@@ -586,13 +702,30 @@ TEST_F(MediaSessionControllerTest,
   EXPECT_FALSE(media_session()->IsActive());
 }
 
+TEST_F(MediaSessionControllerTest,
+       AddPlayerWhenStartingRemotePlaybackWithNoAudio) {
+  controller_->SetMetadata(
+      /* has_audio */ false, /* has_video */ true,
+      media::MediaContentType::kPersistent);
+  ASSERT_TRUE(controller_->OnPlaybackStarted());
+  ASSERT_FALSE(media_session()->IsActive());
+
+  controller_->OnRemotePlaybackMetadataChanged(
+      media_session::mojom::RemotePlaybackMetadata::New(
+          "video_codec", "audio_codec",
+          /* is_remote_playback_disabled */ false,
+          /* is_remote_rendering */ true, "device_friendly_name",
+          /* is_encrypted_media */ false));
+  EXPECT_TRUE(media_session()->IsActive());
+}
+
 TEST_F(MediaSessionControllerTest, EndOfPlaybackWithInPictureInPicture) {
   contents()->SetHasPictureInPictureVideo(true);
   controller_->PictureInPictureStateChanged(true);
 
   controller_->SetMetadata(
       /*has_audio=*/true, /*has_video=*/false,
-      media::MediaContentType::Persistent);
+      media::MediaContentType::kPersistent);
   ASSERT_TRUE(controller_->OnPlaybackStarted());
   EXPECT_TRUE(media_session()->IsActive());
   EXPECT_TRUE(media_session()->IsControllable());
@@ -617,14 +750,14 @@ TEST_F(MediaSessionControllerTest, EndOfPlaybackWithInPictureInPicture) {
 TEST_F(MediaSessionControllerTest, HasVideo_True) {
   controller_->SetMetadata(
       /* has_audio = */ true, /* has_video = */ true,
-      media::MediaContentType::Persistent);
+      media::MediaContentType::kPersistent);
   EXPECT_TRUE(controller_->HasVideo(controller_->get_player_id_for_testing()));
 }
 
 TEST_F(MediaSessionControllerTest, HasVideo_False) {
   controller_->SetMetadata(
       /* has_audio = */ true, /* has_video = */ false,
-      media::MediaContentType::Persistent);
+      media::MediaContentType::kPersistent);
   EXPECT_FALSE(controller_->HasVideo(controller_->get_player_id_for_testing()));
 }
 
@@ -632,7 +765,7 @@ TEST_F(MediaSessionControllerTest, AudioFocusRequestFailure) {
   // Start playback with the audio track only.
   controller_->SetMetadata(
       /* has_audio = */ true, /* has_video = */ false,
-      media::MediaContentType::Persistent);
+      media::MediaContentType::kPersistent);
   ASSERT_TRUE(controller_->OnPlaybackStarted());
   ASSERT_TRUE(media_session()->IsActive());
 
@@ -642,7 +775,7 @@ TEST_F(MediaSessionControllerTest, AudioFocusRequestFailure) {
   media_session()->Suspend(MediaSession::SuspendType::kSystem);
   controller_->SetMetadata(
       /* has_audio = */ true, /* has_video = */ true,
-      media::MediaContentType::Persistent);
+      media::MediaContentType::kPersistent);
   EXPECT_FALSE(media_session()->IsActive());
 
   // Have a one-shot player re-activate the session, then discard it.
@@ -651,7 +784,7 @@ TEST_F(MediaSessionControllerTest, AudioFocusRequestFailure) {
   auto transient_controller = CreateController();
   transient_controller->SetMetadata(
       /* has_audio = */ true, /* has_video = */ true,
-      media::MediaContentType::OneShot);
+      media::MediaContentType::kOneShot);
   ASSERT_TRUE(transient_controller->OnPlaybackStarted());
   EXPECT_TRUE(media_session()->IsActive());
   transient_controller->OnPlaybackPaused(false);
@@ -659,7 +792,7 @@ TEST_F(MediaSessionControllerTest, AudioFocusRequestFailure) {
   // Activate the first player.
   controller_->SetMetadata(
       /* has_audio = */ true, /* has_video = */ true,
-      media::MediaContentType::Persistent);
+      media::MediaContentType::kPersistent);
   EXPECT_TRUE(media_session()->IsActive());
 
   // Remove the controller's session and make sure position updates are simply
@@ -667,6 +800,75 @@ TEST_F(MediaSessionControllerTest, AudioFocusRequestFailure) {
   controller_.reset();
   EXPECT_FALSE(media_session()->IsActive());
   media_session()->RebuildAndNotifyMediaPositionChanged();
+}
+
+TEST_F(MediaSessionControllerTest, SetAudioSinkId) {
+  // No sink ID has been set.
+  EXPECT_TRUE(media_player_->received_set_audio_sink_id().empty());
+
+  // Set a non-default device ID.
+  const std::string new_sink_id = "new sink id";
+  controller_->OnSetAudioSinkId(controller_->get_player_id_for_testing(),
+                                new_sink_id);
+  media_player_->WaitUntilReceivedMessage();
+
+  // The media player receives a hashed version of `new_sink_id`, which must
+  // follow a specific format.
+  EXPECT_FALSE(media_player_->received_set_audio_sink_id().empty());
+  EXPECT_TRUE(IsValidDeviceId(media_player_->received_set_audio_sink_id()));
+  EXPECT_NE(media_player_->received_set_audio_sink_id(),
+            media::AudioDeviceDescription::kDefaultDeviceId);
+
+  // Set the default device ID.
+  controller_->OnSetAudioSinkId(
+      controller_->get_player_id_for_testing(),
+      media::AudioDeviceDescription::kDefaultDeviceId);
+  media_player_->WaitUntilReceivedMessage();
+  // The hashed version of the default device ID equals the unhashed version.
+  EXPECT_EQ(media_player_->received_set_audio_sink_id(),
+            media::AudioDeviceDescription::kDefaultDeviceId);
+}
+
+TEST_F(MediaSessionControllerTest, AutoPictureInPictureInfoChanged) {
+  auto received_info = media_player_->received_auto_picture_in_picture_info();
+  EXPECT_EQ(received_info.auto_pip_reason,
+            media::PictureInPictureEventsInfo::AutoPipReason::kUnknown);
+  EXPECT_FALSE(received_info.has_audio_focus);
+  EXPECT_FALSE(received_info.is_playing);
+  EXPECT_FALSE(received_info.was_recently_audible);
+  EXPECT_FALSE(received_info.has_safe_url);
+  EXPECT_FALSE(received_info.meets_media_engagement_conditions);
+  EXPECT_FALSE(received_info.blocked_due_to_content_setting);
+
+  const media::PictureInPictureEventsInfo::AutoPipInfo
+      auto_picture_in_picture_info{
+          .auto_pip_reason =
+              media::PictureInPictureEventsInfo::AutoPipReason::kMediaPlayback,
+          .has_audio_focus = true,
+          .is_playing = true,
+          .was_recently_audible = true,
+          .has_safe_url = true,
+          .meets_media_engagement_conditions = true,
+          .blocked_due_to_content_setting = true,
+      };
+  controller_->OnAutoPictureInPictureInfoChanged(
+      controller_->get_player_id_for_testing(), auto_picture_in_picture_info);
+  media_player_->WaitUntilReceivedMessage();
+  received_info = media_player_->received_auto_picture_in_picture_info();
+
+  EXPECT_EQ(received_info.auto_pip_reason,
+            auto_picture_in_picture_info.auto_pip_reason);
+  EXPECT_EQ(received_info.has_audio_focus,
+            auto_picture_in_picture_info.has_audio_focus);
+  EXPECT_EQ(received_info.is_playing, auto_picture_in_picture_info.is_playing);
+  EXPECT_EQ(received_info.was_recently_audible,
+            auto_picture_in_picture_info.was_recently_audible);
+  EXPECT_EQ(received_info.has_safe_url,
+            auto_picture_in_picture_info.has_safe_url);
+  EXPECT_EQ(received_info.meets_media_engagement_conditions,
+            auto_picture_in_picture_info.meets_media_engagement_conditions);
+  EXPECT_EQ(received_info.blocked_due_to_content_setting,
+            auto_picture_in_picture_info.blocked_due_to_content_setting);
 }
 
 }  // namespace content

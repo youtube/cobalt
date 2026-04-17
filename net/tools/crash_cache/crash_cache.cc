@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 // This command-line program generates the set of files needed for the crash-
 // cache unit tests (DiskCacheTest,CacheBackend_Recover*). This program only
 // works properly on debug mode, because the crash functionality is not compiled
@@ -279,7 +284,8 @@ int LoadOperations(const base::FilePath& path, RankCrashes action,
 
   // Work with a tiny index table (16 entries).
   disk_cache::BackendImpl* cache = new disk_cache::BackendImpl(
-      path, 0xf, cache_thread->task_runner().get(), net::DISK_CACHE, nullptr);
+      path, 0xf, /*cleanup_tracker=*/nullptr, cache_thread->task_runner().get(),
+      net::DISK_CACHE, nullptr);
   if (!cache->SetMaxSize(0x100000))
     return GENERIC;
 
@@ -390,7 +396,7 @@ int main(int argc, const char* argv[]) {
   }
 
   base::FilePath path;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &path);
+  base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &path);
   path = path.AppendASCII("net");
   path = path.AppendASCII("data");
   path = path.AppendASCII("cache_tests");

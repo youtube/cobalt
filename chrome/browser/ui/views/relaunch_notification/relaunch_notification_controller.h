@@ -9,21 +9,20 @@
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "base/timer/wall_clock_timer.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/upgrade_detector/upgrade_detector.h"
 #include "chrome/browser/upgrade_detector/upgrade_observer.h"
 #include "components/prefs/pref_change_registrar.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ui/views/relaunch_notification/relaunch_notification_controller_platform_impl_chromeos.h"
 #else
 #include "chrome/browser/ui/views/relaunch_notification/relaunch_notification_controller_platform_impl_desktop.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace base {
 class Clock;
 class TickClock;
-}
+}  // namespace base
 
 // A class that observes changes to the browser.relaunch_notification
 // preference (which is backed by the RelaunchNotification policy
@@ -86,9 +85,6 @@ class RelaunchNotificationController : public UpgradeObserver {
     kRecommended,  // Relaunches are recommended.
     kRequired,     // Relaunches are required.
   };
-
-  // The platform-specific implementation.
-  RelaunchNotificationControllerPlatformImpl platform_impl_;
 
   // Adjusts to the current notification style as indicated by the
   // browser.relaunch_notification Local State preference. If the notification
@@ -161,9 +157,6 @@ class RelaunchNotificationController : public UpgradeObserver {
   // default notification on Chrome OS.
   virtual void Close();
 
-  // Updates the required relaunch deadline in the UX.
-  virtual void SetDeadline(base::Time deadline);
-
   // Run to restart the browser/device once the relaunch deadline is reached
   // when relaunches are required by policy.
   virtual void OnRelaunchDeadlineExpired();
@@ -174,6 +167,9 @@ class RelaunchNotificationController : public UpgradeObserver {
   // A provider of Time to the controller and its timer for the sake of
   // testability.
   const raw_ptr<const base::Clock> clock_;
+
+  // The platform-specific implementation.
+  RelaunchNotificationControllerPlatformImpl platform_impl_;
 
   // Observes changes to the browser.relaunch_notification Local State pref.
   PrefChangeRegistrar pref_change_registrar_;

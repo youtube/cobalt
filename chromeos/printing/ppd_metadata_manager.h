@@ -7,10 +7,10 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/component_export.h"
 #include "base/containers/flat_map.h"
-#include "base/strings/string_piece.h"
 #include "base/time/time.h"
 #include "chromeos/printing/ppd_metadata_parser.h"
 #include "chromeos/printing/ppd_provider.h"
@@ -26,9 +26,6 @@ enum class PpdIndexChannel { kProduction, kStaging, kDev, kLocalhost };
 // This class must be called from a sequenced context.
 class COMPONENT_EXPORT(CHROMEOS_PRINTING) PpdMetadataManager {
  public:
-  // Used by GetLocale().
-  // Argument denotes success of setting metadata locale for |this|.
-  using GetLocaleCallback = base::OnceCallback<void(bool)>;
 
   // Used by GetPrinters().
   // Arguments denote
@@ -63,27 +60,11 @@ class COMPONENT_EXPORT(CHROMEOS_PRINTING) PpdMetadataManager {
 
   // Assumes ownership of |config_cache|.
   static std::unique_ptr<PpdMetadataManager> Create(
-      base::StringPiece browser_locale,
       PpdIndexChannel channel,
       base::Clock* clock,
       std::unique_ptr<PrinterConfigCache> config_cache);
 
   virtual ~PpdMetadataManager() = default;
-
-  // Primes |this| with the best-fit locale advertised by the Chrome OS
-  // Printing serving root. The best-fit locale is the one closest to
-  // the |browser_locale| passed to Create(). "Closest" is an
-  // implementation-defined concept.
-  //
-  // If a best-fit locale is already set in |this|, |this| invokes |cb|
-  // immediately and indicates success.
-  //
-  // With few exceptions, caller must not call any other method of
-  // |this| until the |cb| indicates success. Exceptional methods are
-  // documented in this header file.
-  //
-  // See also: SetLocaleForTesting()
-  virtual void GetLocale(GetLocaleCallback cb) = 0;
 
   // Calls |cb| with a list of manufacturers.
   // *  On success, the list is created from metadata no older than
@@ -99,14 +80,13 @@ class COMPONENT_EXPORT(CHROMEOS_PRINTING) PpdMetadataManager {
   // *  On success, the map is created from metadata no older than
   //    |age|.
   // *  On failure, the first argument to |cb| is set accordingly.
-  virtual void GetPrinters(base::StringPiece manufacturer,
+  virtual void GetPrinters(std::string_view manufacturer,
                            base::TimeDelta age,
                            GetPrintersCallback cb) = 0;
 
   // Calls |cb| with the subset of strings from |emms| that are
   // available in forward index metadata mapped to the corresponding
   // values read from forward index metadata.
-  // *  Does not rely on prior call to GetLocale().
   // *  During operation, operates with metadata no older than |age|.
   // *  On failure, calls |cb| with an empty map.
   virtual void FindAllEmmsAvailableInIndex(
@@ -117,7 +97,6 @@ class COMPONENT_EXPORT(CHROMEOS_PRINTING) PpdMetadataManager {
   // Searches USB index metadata for a printer with the given
   // |vendor_id| and |product_id|, calling |cb| with the appropriate
   // effective-make-and-model string if one is found.
-  // *  Does not rely on prior call to GetLocale().
   // *  During operation, operates with metadata no older than |age|.
   // *  On failure, calls |cb| with an empty string.
   virtual void FindDeviceInUsbIndex(int vendor_id,
@@ -127,7 +106,6 @@ class COMPONENT_EXPORT(CHROMEOS_PRINTING) PpdMetadataManager {
 
   // Searches the USB vendor ID map for a manufacturer with the given
   // |vendor_id|, calling |cb| with the name found (if any).
-  // *  Does not rely on prior call to GetLocale().
   // *  During operation, operates with metadata no older than |age|.
   // *  On failure, calls |cb| with an empty string.
   virtual void GetUsbManufacturerName(int vendor_id,
@@ -144,7 +122,7 @@ class COMPONENT_EXPORT(CHROMEOS_PRINTING) PpdMetadataManager {
   // fetches, appropriate to the |effective_make_and_model|.
   // Googlers: you may consult
   // go/cros-printing:ppd-metadata#reverse-index
-  virtual void SplitMakeAndModel(base::StringPiece effective_make_and_model,
+  virtual void SplitMakeAndModel(std::string_view effective_make_and_model,
                                  base::TimeDelta age,
                                  PpdProvider::ReverseLookupCallback cb) = 0;
 
@@ -152,13 +130,6 @@ class COMPONENT_EXPORT(CHROMEOS_PRINTING) PpdMetadataManager {
   // Create(); |this| retains ownership.
   virtual PrinterConfigCache* GetPrinterConfigCacheForTesting() const = 0;
 
-  // Fakes a successful call to GetLocale(), setting the internal
-  // locale of |this| to |locale|.
-  //
-  // This method is useful for bypassing a real call to GetLocale(),
-  // which consumers of this class ordinarily must complete successfully
-  // before calling any other method of |this|.
-  virtual void SetLocaleForTesting(base::StringPiece locale) = 0;
 
   // Fakes a successful call to GetManufacturers(), providing |this|
   // with a list of manufacturers.
@@ -167,10 +138,8 @@ class COMPONENT_EXPORT(CHROMEOS_PRINTING) PpdMetadataManager {
   // off the list of |manufacturers_json|. Caller must verify that this
   // method returns true.
   virtual bool SetManufacturersForTesting(
-      base::StringPiece manufacturers_json) = 0;
+      std::string_view manufacturers_json) = 0;
 
-  // Returns the metadata locale currently set in |this|.
-  virtual base::StringPiece ExposeMetadataLocaleForTesting() const = 0;
 };
 
 }  // namespace chromeos

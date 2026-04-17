@@ -40,10 +40,11 @@ class MEDIA_EXPORT AudioToolboxAudioEncoder : public AudioEncoder {
   void Flush(EncoderStatusCB flush_cb) override;
 
  private:
-  bool CreateEncoder(const AudioEncoderConfig& config,
-                     const AudioStreamBasicDescription& output_format);
+  bool CreateEncoder(const AudioStreamBasicDescription& output_format);
 
-  void DoEncode(AudioBus* data);
+  void DrainFifoOutput();
+
+  void DoEncode(const AudioBus* data);
 
   // "Converter" for turning raw audio into encoded samples.
   AudioConverterRef encoder_ = nullptr;

@@ -6,12 +6,11 @@
 
 #include "ash/test/ash_test_base.h"
 #include "ash/wm/tablet_mode/tablet_mode_controller_test_api.h"
-#include "ash/wm/tablet_mode/tablet_mode_multitask_menu_event_handler.h"
+#include "ash/wm/tablet_mode/tablet_mode_multitask_menu_controller.h"
 #include "ash/wm/tablet_mode/tablet_mode_window_manager.h"
 #include "ash/wm/window_state.h"
 #include "ash/wm/wm_event.h"
 #include "chromeos/ui/base/window_properties.h"
-#include "chromeos/ui/wm/features.h"
 #include "ui/aura/window.h"
 
 namespace ash {
@@ -59,15 +58,11 @@ class TabletModeToggleFullscreenEventHandlerTest : public AshTestBase {
                                                gfx::Point(100, end_y),
                                                base::Milliseconds(100), 3);
 
-    if (!chromeos::wm::features::IsWindowLayoutMenuEnabled()) {
-      return;
-    }
-
     // Swiping down on the center reveals the tablet mode multitask menu. Ensure
     // our swipes do not reveal it, as it may eat following gestures.
     auto* multitask_menu = TabletModeControllerTestApi()
                                .tablet_mode_window_manager()
-                               ->tablet_mode_multitask_menu_event_handler()
+                               ->tablet_mode_multitask_menu_controller()
                                ->multitask_menu();
     ASSERT_FALSE(multitask_menu);
   }

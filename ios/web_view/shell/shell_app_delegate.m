@@ -4,11 +4,9 @@
 
 #import "ios/web_view/shell/shell_app_delegate.h"
 
-#import "ios/web_view/shell/shell_view_controller.h"
+#import <ChromeWebView/ChromeWebView.h>
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ios/web_view/shell/shell_view_controller.h"
 
 @implementation ShellAppDelegate
 
@@ -16,6 +14,9 @@
 
 - (BOOL)application:(UIApplication*)application
     willFinishLaunchingWithOptions:(NSDictionary*)launchOptions {
+  [[CWVGlobalState sharedInstance] earlyInit];
+  [[CWVGlobalState sharedInstance] start];
+
   // Note that initialization of the window and the root view controller must be
   // done here, not in -application:didFinishLaunchingWithOptions: when state
   // restoration is supported.
@@ -51,17 +52,17 @@
 }
 
 - (void)applicationWillTerminate:(UIApplication*)application {
+  [[CWVGlobalState sharedInstance] stop];
 }
 
 - (BOOL)application:(UIApplication*)application
-    shouldSaveApplicationState:(NSCoder*)coder {
-  return YES;
+    shouldSaveSecureApplicationState:(NSCoder*)coder {
+  return NO;
 }
 
 - (BOOL)application:(UIApplication*)application
-    shouldRestoreApplicationState:(NSCoder*)coder {
-  // TODO(crbug.com/710329): Make this value configurable in the settings.
-  return YES;
+    shouldRestoreSecureApplicationState:(NSCoder*)coder {
+  return NO;
 }
 
 @end

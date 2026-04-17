@@ -62,7 +62,33 @@ def host_triple(rustc_path):
   return known_vars["host"]
 
 
-RUSTC_CFG_LINE = re.compile("cargo:rustc-cfg=(.*)")
+def set_cargo_cfg_target_env_variables(rustc_path, env):
+  """ Sets CARGO_CFG_TARGET_... based on output from rustc. """
+  target_triple = env["TARGET"]
+  assert target_triple
+
+  # TODO(lukasza): Check if command-line flags other `--target` may affect the
+  # output of `--print-cfg`.  If so, then consider also passing extra `args`
+  # (derived from `rustflags` maybe?).
+  args = [rustc_path, "--print=cfg", f"--target={target_triple}"]
+
+  proc = subprocess.Popen(args, stdout=subprocess.PIPE)
+  for line in io.TextIOWrapper(proc.stdout, encoding="utf-8"):
+    line = line.strip()
+    if "=" not in line: continue
+    key, value = line.split("=")
+    if key.startswith("target_"):
+      key = "CARGO_CFG_" + key.upper()
+      value = value.strip('"')
+      if key in env:
+        env[key] = env[key] + f",{value}"
+      else:
+        env[key] = value
+
+
+# Before 1.77, the format was `cargo:rustc-cfg=`. As of 1.77 the format is now
+# `cargo::rustc-cfg=`.
+RUSTC_CFG_LINE = re.compile("cargo::?rustc-cfg=(.*)")
 
 
 def main():
@@ -74,8 +100,12 @@ def main():
                       required=True,
                       help='where to write output rustc flags')
   parser.add_argument('--target', help='rust target triple')
+  parser.add_argument('--target-abi', help='rust target_abi')
   parser.add_argument('--features', help='features', nargs='+')
   parser.add_argument('--env', help='environment variable', nargs='+')
+  parser.add_argument('--rustflags',
+                      help=('path to a file of newline-separated command line '
+                            'flags for rustc'))
   parser.add_argument('--rust-prefix', required=True, help='rust path prefix')
   parser.add_argument('--generated-files', nargs='+', help='any generated file')
   parser.add_argument('--out-dir', required=True, help='target out dir')
@@ -105,16 +135,26 @@ def main():
       env["TARGET"] = env["HOST"]
     else:
       env["TARGET"] = args.target
-    target_components = env["TARGET"].split("-")
-    env["CARGO_CFG_TARGET_ARCH"] = target_components[0]
+    set_cargo_cfg_target_env_variables(rustc_path, env)
     if args.features:
       for f in args.features:
         feature_name = f.upper().replace("-", "_")
         env["CARGO_FEATURE_%s" % feature_name] = "1"
+    if args.rustflags:
+      with open(args.rustflags) as flags:
+        for flag in flags:
+          if "-Copt-level" in flag:
+            (_, opt) = flag.split("=")
+            env["OPT_LEVEL"] = opt.rstrip()
+        flags.seek(0)
+        env["CARGO_ENCODED_RUSTFLAGS"] = '\x1f'.join(flags.readlines())
     if args.env:
       for e in args.env:
         (k, v) = e.split("=")
         env[k] = v
+    if "OPT_LEVEL" not in env:
+      env["OPT_LEVEL"] = "0"
+
     # Pass through a couple which are useful for diagnostics
     if os.environ.get("RUST_BACKTRACE"):
       env["RUST_BACKTRACE"] = os.environ.get("RUST_BACKTRACE")
@@ -128,7 +168,8 @@ def main():
                           env=env,
                           cwd=args.src_dir,
                           encoding='utf8',
-                          capture_output=True)
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE)
 
     if proc.stderr.rstrip():
       print(proc.stderr.rstrip(), file=sys.stderr)

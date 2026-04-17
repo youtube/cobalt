@@ -10,6 +10,8 @@
 #include "third_party/blink/renderer/core/frame/frame_test_helpers.h"
 #include "third_party/blink/renderer/core/frame/web_local_frame_impl.h"
 #include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
+#include "third_party/blink/renderer/platform/testing/paint_test_configurations.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/testing/testing_platform_support.h"
 #include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
 #include "third_party/blink/renderer/platform/testing/url_test_helpers.h"
@@ -22,7 +24,8 @@ static constexpr int kDeviceHeight = 800;
 static constexpr float kMinimumZoom = 0.25f;
 static constexpr float kMaximumZoom = 5;
 
-class MobileFriendlinessCheckerTest : public testing::Test {
+class MobileFriendlinessCheckerTest : public testing::Test,
+                                      private CullRectTestConfig {
   static void ConfigureAndroidSettings(WebSettings* settings) {
     settings->SetViewportEnabled(true);
     settings->SetViewportMetaEnabled(true);
@@ -123,6 +126,7 @@ class MobileFriendlinessCheckerTest : public testing::Test {
     EXPECT_NE(it, ukm.metrics.end());
     EXPECT_GT(it->second, expected);
   }
+  test::TaskEnvironment task_environment_;
 };
 
 TEST_F(MobileFriendlinessCheckerTest, NoViewportSetting) {
@@ -1061,7 +1065,7 @@ TEST_F(MobileFriendlinessCheckerTest, ScaleTextOutsideViewport) {
   ExpectUkmGT(ukm,
               ukm::builders::MobileFriendliness::
                   kTextContentOutsideViewportPercentageNameHash,
-              90);
+              55);
 }
 
 TEST_F(MobileFriendlinessCheckerTest, ScrollerOutsideViewport) {

@@ -18,7 +18,7 @@ namespace feed {
 enum class FeedSignInUI : int {
   // Histogram recorded when a sync half sheet is shown from Feed, when sign-in
   // UI is not supported.
-  kShowSyncHalfSheet = 0,
+  // kShowSyncHalfSheet = 0, (deprecated)
   // Histogram recorded when a sign-in only flow is shown from Feed.
   kShowSignInOnlyFlow = 1,
   // Histogram recorded when a service disabled toast is shown from Feed.
@@ -164,8 +164,11 @@ enum class FeedUserActionType {
   // User tapped to go to Following feed using the snackbar 'go to Following'
   // option.
   kTappedGoToFeedOnSnackbar = 52,
+
   // User tapped the Crow button in the context menu.
-  kTappedCrowButton = 53,
+  // No longer used after the removal of Crow.
+  // kTappedCrowButton = 53,
+
   // User action caused a first follow sheet to be shown. User action not
   // reported here. iOS only.
   kFirstFollowSheetShown = 54,
@@ -192,11 +195,15 @@ enum class FeedUserActionType {
   // 'refresh' action.
   kTappedRefreshFollowingFeedOnSnackbar = 63,
   // User tapped on the "Continue" of the sign-in promote UI. iOS only.
-  kTappedFeedSignInPromoUIContinue = 64,
+  // Deprecated.
+  // kTappedFeedSignInPromoUIContinue = 64,
   // User tapped on the "Cancel" of the sign-in promote UI. iOS only.
-  kTappedFeedSignInPromoUICancel = 65,
+  // Deprecated.
+  // kTappedFeedSignInPromoUICancel = 65,
+  // User initiated non-swipe manual refresh of the feed.
+  kNonSwipeManualRefresh = 66,
 
-  kMaxValue = kTappedFeedSignInPromoUICancel,
+  kMaxValue = kNonSwipeManualRefresh,
 };
 
 // For testing and debugging only.
@@ -223,7 +230,7 @@ enum class ContentOrder : int {
 // ContentSuggestions.Feed.WebFeed.SortType* histograms.
 // These values are persisted to logs. Entries should never be reused.
 // This must be kept in sync with FeedSortType in enums.xml
-// TODO(crbug.com/1372865): should merge with ContentOrder.
+// TODO(crbug.com/40241876): should merge with ContentOrder.
 enum class FeedSortType : int {
   // Sort Type unspecified.
   kUnspecifiedSortType = 0,

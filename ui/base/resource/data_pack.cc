@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/base/resource/data_pack.h"
 
 #include <errno.h>
@@ -10,6 +15,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/command_line.h"
@@ -19,14 +25,14 @@
 #include "base/files/memory_mapped_file.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_span.h"
 #include "base/memory/ref_counted_memory.h"
-#include "base/metrics/histogram_macros.h"
-#include "base/strings/string_piece.h"
 #include "base/synchronization/lock.h"
-#include "base/sys_byteorder.h"
+#include "base/types/expected_macros.h"
 #include "build/build_config.h"
 #include "net/filter/gzip_header.h"
 #include "third_party/zlib/google/compression_utils.h"
+#include "ui/base/resource/resource_scale_factor.h"
 #include "ui/base/resource/scoped_file_writer.h"
 
 // For details of the file layout, see
@@ -43,45 +49,20 @@ static const size_t kHeaderLengthV4 = 2 * sizeof(uint32_t) + sizeof(uint8_t);
 static const size_t kHeaderLengthV5 =
     sizeof(uint32_t) + sizeof(uint8_t) * 4 + sizeof(uint16_t) * 2;
 
-// We're crashing when trying to load a pak file on Windows.  Add some error
-// codes for logging.
-// http://crbug.com/58056
-// These values are logged to UMA. Entries should not be renumbered and
-// numeric values should never be reused. Keep in sync with "DataPackLoadErrors"
-// in src/tools/metrics/histograms/enums.xml.
-enum LoadErrors {
-  INIT_FAILED_OBSOLETE = 1,
-  BAD_VERSION,
-  INDEX_TRUNCATED,
-  ENTRY_NOT_FOUND,
-  HEADER_TRUNCATED,
-  WRONG_ENCODING,
-  INIT_FAILED_FROM_FILE,
-  UNZIP_FAILED,
-  OPEN_FAILED,
-  MAP_FAILED,
-
-  LOAD_ERRORS_COUNT,
-};
-
-void LogDataPackError(LoadErrors error) {
-  UMA_HISTOGRAM_ENUMERATION("DataPack.Load", error, LOAD_ERRORS_COUNT);
-}
-
 // Prints the given resource id the first time it's loaded if Chrome has been
 // started with --print-resource-ids. This output is then used to generate a
 // more optimal resource renumbering to improve startup speed. See
 // tools/gritsettings/README.md for more info.
 void MaybePrintResourceId(uint16_t resource_id) {
-  // This code is run in other binaries than Chrome which do not initialize the
-  // CommandLine object. Early return in those cases.
-  if (!base::CommandLine::InitializedForCurrentProcess())
-    return;
-
-  // Note: This switch isn't in ui/base/ui_base_switches.h because ui/base
-  // depends on ui/base/resource and thus it would cause a circular dependency.
-  static bool print_resource_ids =
-      base::CommandLine::ForCurrentProcess()->HasSwitch("print-resource-ids");
+  static const bool print_resource_ids = [] {
+    // This code is run in other binaries than Chrome which do not initialize
+    // the CommandLine object. Note: This switch isn't in
+    // ui/base/ui_base_switches.h because ui/base depends on ui/base/resource
+    // and thus it would cause a circular dependency.
+    return base::CommandLine::InitializedForCurrentProcess() &&
+           base::CommandLine::ForCurrentProcess()->HasSwitch(
+               "print-resource-ids");
+  }();
   if (!print_resource_ids)
     return;
 
@@ -95,14 +76,6 @@ void MaybePrintResourceId(uint16_t resource_id) {
     printf("Resource=%d\n", resource_id);
     resource_ids_logged->insert(resource_id);
   }
-}
-
-bool MmapHasGzipHeader(const base::MemoryMappedFile* mmap) {
-  net::GZipHeader header;
-  const char* header_end = nullptr;
-  net::GZipHeader::Status header_status = header.ReadMore(
-      reinterpret_cast<const char*>(mmap->data()), mmap->length(), &header_end);
-  return header_status == net::GZipHeader::COMPLETE_HEADER;
 }
 
 }  // namespace
@@ -124,11 +97,11 @@ int DataPack::Alias::CompareById(const void* void_key, const void* void_entry) {
 }
 
 void DataPack::Iterator::UpdateResourceData() {
-  const Entry* next_entry = entry_ + 1;
-  base::StringPiece data;
-  GetStringPieceFromOffset(entry_->file_offset, next_entry->file_offset,
-                           data_source_, &data);
-  resource_data_ = new ResourceData(entry_->resource_id, data);
+  const Entry* const next_entry = entry_ + 1;
+  resource_data_ = new ResourceData(
+      entry_->resource_id,
+      GetStringViewFromOffset(entry_->file_offset, next_entry->file_offset,
+                              data_source_));
 }
 
 DataPack::Iterator DataPack::begin() const {
@@ -192,7 +165,7 @@ class DataPack::BufferDataSource : public DataPack::DataSource {
   const uint8_t* GetData() const override { return buffer_.data(); }
 
  private:
-  base::span<const uint8_t> buffer_;
+  base::raw_span<const uint8_t> buffer_;
 };
 
 DataPack::DataPack(ResourceScaleFactor resource_scale_factor)
@@ -210,9 +183,23 @@ DataPack::DataPack(ResourceScaleFactor resource_scale_factor)
 DataPack::~DataPack() {
 }
 
+namespace {
+
+#if BUILDFLAG(IS_WIN)
+inline DWORD GetLastErrorOrErrno() {
+  return ::GetLastError();
+}
+#else
+inline int GetLastErrorOrErrno() {
+  return errno;
+}
+#endif
+
+}  // namespace
+
 // static
-std::unique_ptr<DataPack::DataSource> DataPack::LoadFromPathInternal(
-    const base::FilePath& path) {
+base::expected<std::unique_ptr<DataPack::DataSource>, DataPack::ErrorState>
+DataPack::LoadFromPathInternal(const base::FilePath& path) {
   std::unique_ptr<base::MemoryMappedFile> mmap =
       std::make_unique<base::MemoryMappedFile>();
   // Open the file for reading; allowing other consumers to also open it for
@@ -221,36 +208,43 @@ std::unique_ptr<DataPack::DataSource> DataPack::LoadFromPathInternal(
                                  base::File::FLAG_WIN_EXCLUSIVE_WRITE |
                                  base::File::FLAG_WIN_SHARE_DELETE);
   if (!data_file.IsValid()) {
-    DLOG(ERROR) << "Failed to open datapack with base::File::Error "
-                << data_file.error_details();
-    LogDataPackError(OPEN_FAILED);
-    return nullptr;
+    const auto error = GetLastErrorOrErrno();
+    DPLOG(ERROR) << "Failed to open datapack";
+    return base::unexpected(
+        ErrorState{FailureReason::kOpenFile, error, data_file.error_details()});
   }
   if (!mmap->Initialize(std::move(data_file))) {
-    DLOG(ERROR) << "Failed to mmap datapack";
-    LogDataPackError(MAP_FAILED);
-    return nullptr;
+    const auto error = GetLastErrorOrErrno();
+    DPLOG(ERROR) << "Failed to mmap datapack";
+    return base::unexpected(ErrorState{FailureReason::kMapFile, error});
   }
-  if (MmapHasGzipHeader(mmap.get())) {
-    base::StringPiece compressed(reinterpret_cast<char*>(mmap->data()),
-                                 mmap->length());
+  if (net::GZipHeader::HasGZipHeader(mmap->bytes())) {
+    std::string_view compressed(reinterpret_cast<char*>(mmap->data()),
+                                mmap->length());
     std::string data;
     if (!compression::GzipUncompress(compressed, &data)) {
+      const auto error = GetLastErrorOrErrno();
       LOG(ERROR) << "Failed to unzip compressed datapack: " << path;
-      LogDataPackError(UNZIP_FAILED);
-      return nullptr;
+      return base::unexpected(ErrorState{FailureReason::kUnzip, error});
     }
-    return std::make_unique<StringDataSource>(std::move(data));
+    return base::ok(std::make_unique<StringDataSource>(std::move(data)));
   }
-  return std::make_unique<MemoryMappedDataSource>(std::move(mmap));
+  return base::ok(std::make_unique<MemoryMappedDataSource>(std::move(mmap)));
 }
 
 bool DataPack::LoadFromPath(const base::FilePath& path) {
-  std::unique_ptr<DataSource> data_source = LoadFromPathInternal(path);
-  if (!data_source)
-    return false;
+  return LoadFromPathWithError(path).has_value();
+}
 
-  return LoadImpl(std::move(data_source));
+base::expected<void, DataPack::ErrorState> DataPack::LoadFromPathWithError(
+    const base::FilePath& path) {
+  std::unique_ptr<DataPack::DataSource> data_source;
+  ASSIGN_OR_RETURN(data_source, LoadFromPathInternal(path));
+  RETURN_IF_ERROR(LoadImpl(std::move(data_source)),
+                  [](DataPack::FailureReason failure_reason) {
+                    return ErrorState{failure_reason};
+                  });
+  return base::ok();
 }
 
 bool DataPack::LoadFromFile(base::File file) {
@@ -265,34 +259,34 @@ bool DataPack::LoadFromFileRegion(
       std::make_unique<base::MemoryMappedFile>();
   if (!mmap->Initialize(std::move(file), region)) {
     DLOG(ERROR) << "Failed to mmap datapack";
-    LogDataPackError(INIT_FAILED_FROM_FILE);
     mmap.reset();
     return false;
   }
-  return LoadImpl(std::make_unique<MemoryMappedDataSource>(std::move(mmap)));
+  return LoadImpl(std::make_unique<MemoryMappedDataSource>(std::move(mmap)))
+      .has_value();
 }
 
 bool DataPack::LoadFromBuffer(base::span<const uint8_t> buffer) {
-  return LoadImpl(std::make_unique<BufferDataSource>(buffer));
+  return LoadImpl(std::make_unique<BufferDataSource>(buffer)).has_value();
 }
 
-bool DataPack::SanityCheckFileAndRegisterResources(size_t margin_to_skip,
-                                                   const uint8_t* data,
-                                                   size_t data_length) {
+base::expected<void, DataPack::FailureReason>
+DataPack::SanityCheckFileAndRegisterResources(size_t margin_to_skip,
+                                              const uint8_t* data,
+                                              size_t data_length) {
   // 1) Check we have enough entries. There's an extra entry after the last item
   // which gives the length of the last item.
   size_t resource_table_size = (resource_count_ + 1) * sizeof(Entry);
   size_t alias_table_size = alias_count_ * sizeof(Alias);
   if (margin_to_skip + resource_table_size + alias_table_size > data_length) {
-    // TODO(crbug.com/1315912): Add more information to LOG. Ditto below.
+    // TODO(crbug.com/40221977): Add more information to LOG. Ditto below.
     LOG(ERROR) << "Data pack file corruption: "
                << "too short for number of entries. "
                << "data length is " << data_length
                << " bytes, expected longer than "
                << margin_to_skip + resource_table_size + alias_table_size
                << " bytes.";
-    LogDataPackError(INDEX_TRUNCATED);
-    return false;
+    return base::unexpected(FailureReason::kTooShort);
   }
 
   resource_table_ = reinterpret_cast<const Entry*>(&data[margin_to_skip]);
@@ -305,17 +299,16 @@ bool DataPack::SanityCheckFileAndRegisterResources(size_t margin_to_skip,
     if (resource_table_[i].file_offset > data_length) {
       LOG(ERROR) << "Data pack file corruption: "
                  << "Entry #" << i << " past end.";
-      LogDataPackError(ENTRY_NOT_FOUND);
-      return false;
+      return base::unexpected(FailureReason::kBoundsExceeded);
     }
   }
 
   // 3) Verify the entries are ordered correctly.
   for (size_t i = 0; i < resource_count_; ++i) {
     if (resource_table_[i].file_offset > resource_table_[i + 1].file_offset) {
-      LOG(ERROR) << "Data pack file corruption: "
-                 << "Entry #" << i + 1 << " before Entry #" << i << ".";
-      return false;
+      LOG(ERROR) << "Data pack file corruption: " << "Entry #" << i + 1
+                 << " before Entry #" << i << ".";
+      return base::unexpected(FailureReason::kOrderingViolation);
     }
   }
 
@@ -324,60 +317,58 @@ bool DataPack::SanityCheckFileAndRegisterResources(size_t margin_to_skip,
     if (alias_table_[i].entry_index >= resource_count_) {
       LOG(ERROR) << "Data pack file corruption: "
                  << "Alias #" << i << " past end.";
-      LogDataPackError(ENTRY_NOT_FOUND);
-      return false;
+      return base::unexpected(FailureReason::kAliasTableCorrupt);
     }
   }
 
-  return true;
+  return base::ok();
 }
 
-bool DataPack::LoadImpl(std::unique_ptr<DataPack::DataSource> data_source) {
+base::expected<void, DataPack::FailureReason> DataPack::LoadImpl(
+    std::unique_ptr<DataPack::DataSource> data_source) {
   const uint8_t* data = data_source->GetData();
   size_t data_length = data_source->GetLength();
   // Parse the version and check for truncated header.
   uint32_t version = 0;
-  if (data_length > sizeof(version))
-    version = reinterpret_cast<const uint32_t*>(data)[0];
+  if (data_length > sizeof(version)) {
+    memcpy(&version, data, sizeof(uint32_t));
+  }
   size_t header_length =
       version == kFileFormatV4 ? kHeaderLengthV4 : kHeaderLengthV5;
   if (version == 0 || data_length < header_length) {
     DLOG(ERROR) << "Data pack file corruption: incomplete file header.";
-    LogDataPackError(HEADER_TRUNCATED);
-    return false;
+    return base::unexpected(FailureReason::kIncompleteHeader);
   }
 
   // Parse the header of the file.
   if (version == kFileFormatV4) {
-    resource_count_ = reinterpret_cast<const uint32_t*>(data)[1];
+    memcpy(&resource_count_, data + 4, sizeof(uint32_t));
     alias_count_ = 0;
     text_encoding_type_ = static_cast<TextEncodingType>(data[8]);
   } else if (version == kFileFormatV5) {
     // Version 5 added the alias table and changed the header format.
     text_encoding_type_ = static_cast<TextEncodingType>(data[4]);
-    resource_count_ = reinterpret_cast<const uint16_t*>(data)[4];
-    alias_count_ = reinterpret_cast<const uint16_t*>(data)[5];
+    memcpy(&resource_count_, data + 8, sizeof(uint16_t));
+    memcpy(&alias_count_, data + 10, sizeof(uint16_t));
   } else {
     LOG(ERROR) << "Bad data pack version: got " << version << ", expected "
                << kFileFormatV4 << " or " << kFileFormatV5;
-    LogDataPackError(BAD_VERSION);
-    return false;
+    return base::unexpected(FailureReason::kBadPakVersion);
   }
 
   if (text_encoding_type_ != UTF8 && text_encoding_type_ != UTF16 &&
       text_encoding_type_ != BINARY) {
     LOG(ERROR) << "Bad data pack text encoding: got " << text_encoding_type_
                << ", expected between " << BINARY << " and " << UTF16;
-    LogDataPackError(WRONG_ENCODING);
-    return false;
+    return base::unexpected(FailureReason::kBadEncodingType);
   }
 
   // Sanity check the file.
-  if (!SanityCheckFileAndRegisterResources(header_length, data, data_length))
-    return false;
+  RETURN_IF_ERROR(
+      SanityCheckFileAndRegisterResources(header_length, data, data_length));
 
   data_source_ = std::move(data_source);
-  return true;
+  return base::ok();
 }
 
 const DataPack::Entry* DataPack::LookupEntryById(uint16_t resource_id) const {
@@ -402,26 +393,18 @@ bool DataPack::HasResource(uint16_t resource_id) const {
 }
 
 // static
-void DataPack::GetStringPieceFromOffset(uint32_t target_offset,
-                                        uint32_t next_offset,
-                                        const uint8_t* data_source,
-                                        base::StringPiece* data) {
+std::string_view DataPack::GetStringViewFromOffset(uint32_t target_offset,
+                                                   uint32_t next_offset,
+                                                   const uint8_t* data_source) {
   size_t length = next_offset - target_offset;
-  *data = base::StringPiece(
-      reinterpret_cast<const char*>(data_source + target_offset), length);
+  return {reinterpret_cast<const char*>(data_source + target_offset), length};
 }
 
-bool DataPack::GetStringPiece(uint16_t resource_id,
-                              base::StringPiece* data) const {
-  // It won't be hard to make this endian-agnostic, but it's not worth
-  // bothering to do right now.
-#if !defined(ARCH_CPU_LITTLE_ENDIAN)
-#error "datapack assumes little endian"
-#endif
-
+std::optional<std::string_view> DataPack::GetStringView(
+    uint16_t resource_id) const {
   const Entry* target = LookupEntryById(resource_id);
   if (!target)
-    return false;
+    return std::nullopt;
 
   const Entry* next_entry = target + 1;
   // If the next entry points beyond the end of the file this data pack's entry
@@ -435,7 +418,7 @@ bool DataPack::GetStringPiece(uint16_t resource_id,
     LOG(ERROR) << "Entry #" << entry_index << " in data pack points off end "
                << "of file. This should have been caught when loading. Was the "
                << "file modified?";
-    return false;
+    return std::nullopt;
   }
   if (target->file_offset > next_entry->file_offset) {
     size_t entry_index = target - resource_table_;
@@ -443,22 +426,20 @@ bool DataPack::GetStringPiece(uint16_t resource_id,
     LOG(ERROR) << "Entry #" << next_index << " in data pack is before Entry #"
                << entry_index << ". This should have been caught when loading. "
                << "Was the file modified?";
-    return false;
+    return std::nullopt;
   }
 
   MaybePrintResourceId(resource_id);
-  GetStringPieceFromOffset(target->file_offset, next_entry->file_offset,
-                           data_source_->GetData(), data);
-  return true;
+  return GetStringViewFromOffset(target->file_offset, next_entry->file_offset,
+                                 data_source_->GetData());
 }
 
 base::RefCountedStaticMemory* DataPack::GetStaticMemory(
     uint16_t resource_id) const {
-  base::StringPiece piece;
-  if (!GetStringPiece(resource_id, &piece))
-    return NULL;
-
-  return new base::RefCountedStaticMemory(piece.data(), piece.length());
+  if (auto view = GetStringView(resource_id); view.has_value()) {
+    return new base::RefCountedStaticMemory(base::as_byte_span(*view));
+  }
+  return nullptr;
 }
 
 ResourceHandle::TextEncodingType DataPack::GetTextEncodingType() const {
@@ -490,11 +471,8 @@ void DataPack::CheckForDuplicateResources(
 
 // static
 bool DataPack::WritePack(const base::FilePath& path,
-                         const std::map<uint16_t, base::StringPiece>& resources,
+                         const std::map<uint16_t, std::string_view>& resources,
                          TextEncodingType text_encoding_type) {
-#if !defined(ARCH_CPU_LITTLE_ENDIAN)
-#error "datapack assumes little endian"
-#endif
   if (text_encoding_type != UTF8 && text_encoding_type != UTF16 &&
       text_encoding_type != BINARY) {
     LOG(ERROR) << "Invalid text encoding type, got " << text_encoding_type
@@ -518,9 +496,9 @@ bool DataPack::WritePack(const base::FilePath& path,
   std::vector<uint16_t> resource_ids;
   std::map<uint16_t, uint16_t> aliases;  // resource_id -> entry_index
   if (resources_count > 0) {
-    // A reverse map from string pieces to the index of the corresponding
+    // A reverse map from string view to the index of the corresponding
     // original id in the final resource list.
-    std::map<base::StringPiece, uint16_t> rev_map;
+    std::map<std::string_view, uint16_t> rev_map;
     for (const auto& entry : resources) {
       auto it = rev_map.find(entry.second);
       if (it != rev_map.end()) {
@@ -573,7 +551,7 @@ bool DataPack::WritePack(const base::FilePath& path,
   }
 
   for (const auto& resource_id : resource_ids) {
-    const base::StringPiece data = resources.find(resource_id)->second;
+    const std::string_view data = resources.find(resource_id)->second;
     file.Write(data.data(), data.length());
   }
 

@@ -34,6 +34,7 @@
 namespace IPC {
 
 class Listener;
+class UrgentMessageObserver;
 
 //------------------------------------------------------------------------------
 // See
@@ -104,28 +105,6 @@ class COMPONENT_EXPORT(IPC) Channel : public Sender {
     // Requests an associated interface from the remote endpoint.
     virtual void GetRemoteAssociatedInterface(
         mojo::GenericPendingAssociatedReceiver receiver) = 0;
-
-    // Template helper to add an interface factory to this channel.
-    template <typename Interface>
-    using AssociatedReceiverFactory = base::RepeatingCallback<void(
-        mojo::PendingAssociatedReceiver<Interface>)>;
-    template <typename Interface>
-    void AddAssociatedInterface(
-        const AssociatedReceiverFactory<Interface>& factory) {
-      AddGenericAssociatedInterface(
-          Interface::Name_,
-          base::BindRepeating(&BindPendingAssociatedReceiver<Interface>,
-                              factory));
-    }
-
-   private:
-    template <typename Interface>
-    static void BindPendingAssociatedReceiver(
-        const AssociatedReceiverFactory<Interface>& factory,
-        mojo::ScopedInterfaceEndpointHandle handle) {
-      factory.Run(
-          mojo::PendingAssociatedReceiver<Interface>(std::move(handle)));
-    }
   };
 
   // The maximum message size in bytes. Attempting to receive a message of this
@@ -227,6 +206,12 @@ class COMPONENT_EXPORT(IPC) Channel : public Sender {
   // |message| must be allocated using operator new.  This object will be
   // deleted once the contents of the Message have been sent.
   bool Send(Message* message) override = 0;
+
+  // Sets the UrgentMessageObserver for this channel. `observer` must outlive
+  // the channel.
+  //
+  // Only channel associated mojo interfaces support urgent messages.
+  virtual void SetUrgentMessageObserver(UrgentMessageObserver* observer);
 
 #if !BUILDFLAG(IS_NACL)
   // Generates a channel ID that's non-predictable and unique.

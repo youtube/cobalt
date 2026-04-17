@@ -12,6 +12,7 @@
 #include "base/trace_event/trace_event.h"
 #include "content/public/renderer/render_frame.h"
 #include "extensions/common/extension.h"
+#include "extensions/common/mojom/context_type.mojom.h"
 #include "extensions/renderer/console.h"
 #include "extensions/renderer/safe_builtins.h"
 #include "extensions/renderer/script_context.h"
@@ -56,7 +57,7 @@ bool ShouldSuppressFatalErrors() {
 
 // Logs an error for the calling context in preparation for potentially
 // crashing the renderer, with some added metadata about the context:
-//  - Its type (blessed, unblessed, etc).
+//  - Its type (privileged, unprivileged, etc).
 //  - Whether it's valid.
 //  - The extension ID, if one exists.
 // Crashing won't happen in stable/beta releases, but is encouraged to happen
@@ -186,20 +187,23 @@ ModuleSystem::ModuleSystem(ScriptContext* context, const SourceMap* source_map)
   v8::Local<v8::Object> global(context->v8_context()->Global());
   v8::Isolate* isolate = context->isolate();
   // Note: Ensure setting private succeeds with CHECK.
-  // TODO(1276144): remove checks once investigation finished.
+  // TODO(crbug.com/40058107): remove checks once investigation finished.
   CHECK(SetPrivate(global, kModulesField, v8::Object::New(isolate)));
   CHECK(SetPrivate(global, kModuleSystem, v8::External::New(isolate, this)));
   {
     // Note: Ensure privates that were set above can be read immediately.
-    // TODO(1276144): remove checks once investigation finished.
+    // TODO(crbug.com/40058107): remove checks once investigation finished.
     v8::Local<v8::Value> dummy_value;
     CHECK(GetPrivate(global, kModulesField, &dummy_value));
     CHECK(GetPrivate(global, kModuleSystem, &dummy_value));
   }
 
   if (context_->GetRenderFrame() &&
-      context_->context_type() == Feature::BLESSED_EXTENSION_CONTEXT &&
+      context_->context_type() == mojom::ContextType::kPrivilegedExtension &&
       !context_->IsForServiceWorker() && ContextNeedsMojoBindings(context_)) {
+    // Valid enablement code path, so need to ensure MojoJS is allowed for the
+    // process before attempting to enable it.
+    blink::WebV8Features::AllowMojoJSForProcess();
     blink::WebV8Features::EnableMojoJS(context->v8_context(), true);
   }
 }
@@ -222,7 +226,7 @@ void ModuleSystem::AddRoutes() {
 }
 
 void ModuleSystem::Invalidate() {
-  // TODO(1276144): remove checks once investigation finished.
+  // TODO(crbug.com/40058107): remove checks once investigation finished.
   CHECK(!has_been_invalidated_);
   has_been_invalidated_ = true;
 
@@ -235,7 +239,7 @@ void ModuleSystem::Invalidate() {
     if (!isolate->IsExecutionTerminating()) {
       v8::HandleScope scope(GetIsolate());
       v8::Local<v8::Object> global = context()->v8_context()->Global();
-      // TODO(1276144): remove checks once investigation finished.
+      // TODO(crbug.com/40058107): remove checks once investigation finished.
       v8::Local<v8::Value> dummy_value;
       CHECK(GetPrivate(global, kModulesField, &dummy_value));
       DeletePrivate(global, kModulesField);
@@ -285,7 +289,6 @@ void ModuleSystem::RequireForJs(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (!args[0]->IsString()) {
     NOTREACHED() << "require() called with a non-string argument";
-    return;
   }
   v8::Local<v8::String> module_name = args[0].As<v8::String>();
   args.GetReturnValue().Set(RequireForJsInner(module_name, true /* create */));
@@ -332,10 +335,9 @@ void ModuleSystem::CallModuleMethodSafe(const std::string& module_name,
                        blink::WebScriptExecutionCallback());
 }
 
-void ModuleSystem::CallModuleMethodSafe(
-    const std::string& module_name,
-    const std::string& method_name,
-    std::vector<v8::Local<v8::Value>>* args) {
+void ModuleSystem::CallModuleMethodSafe(const std::string& module_name,
+                                        const std::string& method_name,
+                                        v8::LocalVector<v8::Value>* args) {
   CallModuleMethodSafe(module_name, method_name, args->size(), args->data(),
                        blink::WebScriptExecutionCallback());
 }
@@ -404,7 +406,8 @@ void ModuleSystem::LazyFieldGetter(
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Object> parameters = v8::Local<v8::Object>::Cast(info.Data());
   // This context should be the same as context()->v8_context().
-  v8::Local<v8::Context> context = parameters->GetCreationContextChecked();
+  v8::Local<v8::Context> context =
+      parameters->GetCreationContextChecked(isolate);
   v8::Local<v8::Object> global(context->Global());
   v8::Local<v8::Value> module_system_value;
   if (!GetPrivate(context, global, kModuleSystem, &module_system_value) ||
@@ -478,30 +481,8 @@ void ModuleSystem::LazyFieldGetter(
   // that the extension doesn't have permission to use them.
   CHECK(!new_field.IsEmpty());
 
-  // Delete the getter and set this field to |new_field| so the same object is
-  // returned every time a certain API is accessed.
-  v8::Local<v8::Value> val = info.This();
-  if (val->IsObject()) {
-    v8::Local<v8::Object> object = v8::Local<v8::Object>::Cast(val);
-    auto maybe_deleted = object->Delete(context, property);
-    if (!maybe_deleted.IsJust()) {
-      // In theory, deletion should never result in throwing an error. But
-      // crazier things have happened.
-      NOTREACHED();
-      return;
-    }
-    if (!maybe_deleted.FromJust()) {
-      // Deletion can *fail* in certain cases, such as when the script does
-      // Object.freeze(chrome).
-      return;
-    }
-    auto maybe_set = object->CreateDataProperty(context, property, new_field);
-    // Setting a new value can fail in multiple scenarios. Bail out if it does.
-    if (!maybe_set.IsJust() || !maybe_set.FromJust())
-      return;
-  } else {
-    NOTREACHED();
-  }
+  // v8::Object::SetLazyDataProperty() machinery will reconfigure the property
+  // to a regular data property with |new_field| value.
   info.GetReturnValue().Set(new_field);
 }
 
@@ -522,9 +503,9 @@ void ModuleSystem::SetLazyField(v8::Local<v8::Object> object,
                      ToV8StringUnsafe(GetIsolate(), module_name.c_str()));
   SetPrivateProperty(context, parameters, kModuleField,
                      ToV8StringUnsafe(GetIsolate(), module_field.c_str()));
-  auto maybe = object->SetAccessor(
+  auto maybe = object->SetLazyDataProperty(
       context, ToV8StringUnsafe(GetIsolate(), field.c_str()),
-      &ModuleSystem::LazyFieldGetter, nullptr, parameters);
+      &ModuleSystem::LazyFieldGetter, parameters);
   CHECK(v8_helpers::IsTrue(maybe));
 }
 
@@ -542,7 +523,6 @@ void ModuleSystem::OnNativeBindingCreated(
                     &modules) ||
         !modules->IsObject()) {
       NOTREACHED();
-      return;
     }
 
     NativesEnabledScope enabled(this);
@@ -703,7 +683,6 @@ v8::Local<v8::Value> ModuleSystem::LoadModuleWithNativeAPIBridge(
   v8::Local<v8::String> v8_module_name;
   if (!ToV8String(GetIsolate(), module_name.c_str(), &v8_module_name)) {
     NOTREACHED() << "module_name is too long";
-    return v8::Undefined(GetIsolate());
   }
   // Modules are wrapped in (function(){...}) so they always return functions.
   v8::Local<v8::Value> func_as_value =
@@ -723,13 +702,11 @@ v8::Local<v8::Value> ModuleSystem::LoadModuleWithNativeAPIBridge(
   v8::Local<v8::String> v8_key;
   if (!ToV8String(GetIsolate(), "$set", &v8_key)) {
     NOTREACHED();
-    return v8::Undefined(GetIsolate());
   }
 
   v8::Local<v8::Function> function;
   if (!tmpl->GetFunction(v8_context).ToLocal(&function)) {
     NOTREACHED();
-    return v8::Undefined(GetIsolate());
   }
 
   exports->DefineOwnProperty(v8_context, v8_key, function, v8::ReadOnly)
@@ -754,7 +731,6 @@ v8::Local<v8::Value> ModuleSystem::LoadModuleWithNativeAPIBridge(
       // The NativeExtensionBindingsSystem was destroyed. This shouldn't happen,
       // but JS makes the impossible possible!
       NOTREACHED();
-      return v8::Undefined(GetIsolate());
     }
   } else {
     binding_util = v8::Undefined(GetIsolate());

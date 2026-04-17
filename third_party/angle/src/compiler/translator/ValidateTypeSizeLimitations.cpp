@@ -8,6 +8,7 @@
 
 #include "angle_gl.h"
 #include "common/mathutil.h"
+#include "common/span.h"
 #include "compiler/translator/Diagnostics.h"
 #include "compiler/translator/Symbol.h"
 #include "compiler/translator/SymbolTable.h"
@@ -24,10 +25,11 @@ namespace
 // Arbitrarily enforce that all types declared with a size in bytes of over 2 GB will cause
 // compilation failure.
 //
-// For local and global variables, the limit is much lower (16MB) as that much memory won't fit in
+// For local and global variables, the limit is much lower (64KB) as that much memory won't fit in
 // the GPU registers anyway.
-constexpr size_t kMaxVariableSizeInBytes        = static_cast<size_t>(2) * 1024 * 1024 * 1024;
-constexpr size_t kMaxPrivateVariableSizeInBytes = static_cast<size_t>(16) * 1024 * 1024;
+constexpr size_t kMaxVariableSizeInBytes             = static_cast<size_t>(2) * 1024 * 1024 * 1024;
+constexpr size_t kMaxPrivateVariableSizeInBytes      = static_cast<size_t>(64) * 1024;
+constexpr size_t kMaxTotalPrivateVariableSizeInBytes = static_cast<size_t>(16) * 1024 * 1024;
 
 // Traverses intermediate tree to ensure that the shader does not
 // exceed certain implementation-defined limits on the sizes of types.
@@ -70,43 +72,140 @@ class ValidateTypeSizeLimitationsTraverser : public TIntermTraverser
                 continue;
             }
 
-            const TType &variableType = asSymbol->getType();
+            if (!validateVariableSize(variable, asSymbol->getLine()))
+            {
+                return false;
+            }
+        }
 
-            // Create a ShaderVariable from which to compute
-            // (conservative) sizing information.
-            ShaderVariable shaderVar;
-            setCommonVariableProperties(variableType, variable, &shaderVar);
+        return true;
+    }
 
+    void visitFunctionPrototype(TIntermFunctionPrototype *node) override
+    {
+        const TFunction *function = node->getFunction();
+        const size_t paramCount   = function->getParamCount();
+
+        for (size_t paramIndex = 0; paramIndex < paramCount; ++paramIndex)
+        {
+            validateVariableSize(*function->getParam(paramIndex), node->getLine());
+        }
+    }
+
+    bool validateVariableSize(const TVariable &variable, const TSourceLoc &location)
+    {
+        const TType &variableType = variable.getType();
+
+        // Create a ShaderVariable from which to compute
+        // (conservative) sizing information.
+        ShaderVariable shaderVar;
+        setCommonVariableProperties(variableType, variable, &shaderVar);
+
+        size_t variableSize;
+        {
             // Compute the std140 layout of this variable, assuming
             // it's a member of a block (which it might not be).
             Std140BlockEncoder layoutEncoder;
             BlockEncoderVisitor visitor("", "", &layoutEncoder);
             // Since the size limit's arbitrary, it doesn't matter
             // whether the row-major layout is correctly determined.
-            bool isRowMajorLayout = false;
-            TraverseShaderVariable(shaderVar, isRowMajorLayout, &visitor);
-            if (layoutEncoder.getCurrentOffset() > kMaxVariableSizeInBytes)
+            constexpr bool isRowMajorLayout = false;
+
+            // For efficiency, don't actually iterate over all array elements, as only the size
+            // calculation matters.  Instead, for arrays, the size is reduced to 2 (so array-ness
+            // and padding is taken into account), and the total size is derived from the array
+            // size.
+            const uint32_t arraySizeProduct =
+                shaderVar.isArray() ? shaderVar.getArraySizeProduct() : 1;
+            if (arraySizeProduct > 1)
             {
-                error(asSymbol->getLine(),
-                      "Size of declared variable exceeds implementation-defined limit",
-                      asSymbol->getName());
-                return false;
+                shaderVar.arraySizes.resize(1);
+                shaderVar.arraySizes[0] = 2;
             }
 
-            const bool isPrivate = variableType.getQualifier() == EvqTemporary ||
-                                   variableType.getQualifier() == EvqGlobal ||
-                                   variableType.getQualifier() == EvqConst;
-            if (isPrivate)
+            TraverseShaderVariable(shaderVar, isRowMajorLayout, &visitor);
+            variableSize = layoutEncoder.getCurrentOffset();
+
+            if (arraySizeProduct > 1)
             {
-                if (layoutEncoder.getCurrentOffset() > kMaxPrivateVariableSizeInBytes)
+                // Calculate the actual size of the variable.
+                ASSERT(variableSize % 2 == 0);
+                variableSize = variableSize / 2 * arraySizeProduct;
+            }
+        }
+
+        if (variableSize > kMaxVariableSizeInBytes)
+        {
+            error(location, "Size of declared variable exceeds implementation-defined limit",
+                  variable.name());
+            return false;
+        }
+
+        // Skip over struct declarations.  As long as they are not used (or if they are used later
+        // in a less-restricted context (such as a UBO or SSBO)), they can be larger than
+        // kMaxPrivateVariableSizeInBytes.
+        if (variable.symbolType() == SymbolType::Empty && variableType.isStructSpecifier())
+        {
+            return true;
+        }
+
+        switch (variableType.getQualifier())
+        {
+            // List of all types that need to be limited (for example because they cause overflows
+            // in drivers, or create trouble for the SPIR-V gen as the number of an instruction's
+            // arguments cannot be more than 64KB (see OutputSPIRVTraverser::cast)).
+
+            // Local/global variables
+            case EvqTemporary:
+            case EvqGlobal:
+            case EvqConst:
+
+            // Function arguments
+            case EvqParamIn:
+            case EvqParamOut:
+            case EvqParamInOut:
+            case EvqParamConst:
+
+            // Varyings
+            case EvqVaryingIn:
+            case EvqVaryingOut:
+            case EvqSmoothOut:
+            case EvqFlatOut:
+            case EvqNoPerspectiveOut:
+            case EvqCentroidOut:
+            case EvqSampleOut:
+            case EvqNoPerspectiveCentroidOut:
+            case EvqNoPerspectiveSampleOut:
+            case EvqSmoothIn:
+            case EvqFlatIn:
+            case EvqNoPerspectiveIn:
+            case EvqCentroidIn:
+            case EvqNoPerspectiveCentroidIn:
+            case EvqNoPerspectiveSampleIn:
+            case EvqVertexOut:
+            case EvqFragmentIn:
+            case EvqGeometryIn:
+            case EvqGeometryOut:
+            case EvqPerVertexIn:
+            case EvqPerVertexOut:
+            case EvqPatchIn:
+            case EvqPatchOut:
+            case EvqTessControlIn:
+            case EvqTessControlOut:
+            case EvqTessEvaluationIn:
+            case EvqTessEvaluationOut:
+
+                if (variableSize > kMaxPrivateVariableSizeInBytes)
                 {
-                    error(asSymbol->getLine(),
+                    error(location,
                           "Size of declared private variable exceeds implementation-defined limit",
-                          asSymbol->getName());
+                          variable.name());
                     return false;
                 }
-                mTotalPrivateVariablesSize += layoutEncoder.getCurrentOffset();
-            }
+                mTotalPrivateVariablesSize += variableSize;
+                break;
+            default:
+                break;
         }
 
         return true;
@@ -115,7 +214,7 @@ class ValidateTypeSizeLimitationsTraverser : public TIntermTraverser
     void validateTotalPrivateVariableSize()
     {
         if (mTotalPrivateVariablesSize.ValueOrDefault(std::numeric_limits<size_t>::max()) >
-            kMaxPrivateVariableSizeInBytes)
+            kMaxTotalPrivateVariableSizeInBytes)
         {
             mDiagnostics->error(
                 TSourceLoc{},
@@ -188,7 +287,7 @@ class ValidateTypeSizeLimitationsTraverser : public TIntermTraverser
             variableOut->precision = GLVariablePrecision(type);
         }
 
-        const TSpan<const unsigned int> &arraySizes = type.getArraySizes();
+        const angle::Span<const unsigned int> &arraySizes = type.getArraySizes();
         if (!arraySizes.empty())
         {
             variableOut->arraySizes.assign(arraySizes.begin(), arraySizes.end());

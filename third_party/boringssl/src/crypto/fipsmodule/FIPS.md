@@ -1,6 +1,6 @@
-# FIPS 140-2
+# FIPS 140-3
 
-BoringSSL as a whole is not FIPS validated. However, there is a core library (called BoringCrypto) that has been FIPS validated. This document contains some notes about the design of the FIPS module and some documentation on performing FIPS-related tasks. This is not a substitute for reading the offical Security Policy.
+BoringSSL as a whole is not FIPS validated. However, there is a core library (called BoringCrypto) that has been FIPS validated. This document contains some notes about the design of the FIPS module and some documentation on performing FIPS-related tasks. This is not a substitute for reading the official Security Policy.
 
 Please note that we cannot answer questions about FIPS, nor about using BoringSSL in a FIPS-compliant manner. Please consult with an [accredited CMVP lab](http://csrc.nist.gov/groups/STM/testing_labs/) on these subjects.
 
@@ -8,12 +8,34 @@ Please note that we cannot answer questions about FIPS, nor about using BoringSS
 
 BoringCrypto has undergone the following validations:
 
-1. 2017-06-15: certificate [#2964](https://csrc.nist.gov/Projects/Cryptographic-Module-Validation-Program/Certificate/2964), [security policy](/crypto/fipsmodule/policydocs/BoringCrypto-Security-Policy-20170615.docx) (in docx format).
-1. 2018-07-30: certificate [#3318](https://csrc.nist.gov/Projects/Cryptographic-Module-Validation-Program/Certificate/3318), [security policy](/crypto/fipsmodule/policydocs/BoringCrypto-Security-Policy-20180730.docx) (in docx format).
-1. 2019-08-08: certificate [#3678](https://csrc.nist.gov/Projects/Cryptographic-Module-Validation-Program/Certificate/3678), [security policy](/crypto/fipsmodule/policydocs/BoringCrypto-Security-Policy-20190808.docx) (in docx format).
-1. 2019-10-20: certificate [#3753](https://csrc.nist.gov/Projects/Cryptographic-Module-Validation-Program/Certificate/3753), [security policy](/crypto/fipsmodule/policydocs/BoringCrypto-Android-Security-Policy-20191020.docx) (in docx format).
-1. 2021-01-28: certificate [#4156](https://csrc.nist.gov/Projects/Cryptographic-Module-Validation-Program/Certificate/4156), [security policy](/crypto/fipsmodule/policydocs/BoringCrypto-Android-Security-Policy-20210319.docx) (in docx format).
+1. 2017-06-15: certificate [#2964](https://csrc.nist.gov/Projects/Cryptographic-Module-Validation-Program/Certificate/2964), [security policy](./policydocs/BoringCrypto-Security-Policy-20170615.docx) (in docx format).
+1. 2018-07-30: certificate [#3318](https://csrc.nist.gov/Projects/Cryptographic-Module-Validation-Program/Certificate/3318), [security policy](./policydocs/BoringCrypto-Security-Policy-20180730.docx) (in docx format).
+1. 2019-08-08: certificate [#3678](https://csrc.nist.gov/Projects/Cryptographic-Module-Validation-Program/Certificate/3678), [security policy](./policydocs/BoringCrypto-Security-Policy-20190808.docx) (in docx format).
+1. 2019-10-20: certificate [#3753](https://csrc.nist.gov/Projects/Cryptographic-Module-Validation-Program/Certificate/3753), [security policy](./policydocs/BoringCrypto-Android-Security-Policy-20191020.docx) (in docx format).
+1. 2021-01-28: certificate [#4156](https://csrc.nist.gov/Projects/Cryptographic-Module-Validation-Program/Certificate/4156), [security policy](./policydocs/BoringCrypto-Android-Security-Policy-20210319.docx) (in docx format).
 1. 2021-04-29: certificate [#4407](https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/4407).
+1. 2022-06-13: certificate [#4735](https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/4735).
+
+## Update stream
+
+On 2025-01-16, the FedRAMP Board published an [updated policy](https://www.fedramp.gov/updates/docs/cryptographic-module/) on cryptographic modules. That policy suggests that module vendors should “promote the use of update streams over the use of validated module streams”. An _update stream_ “contains the latest patches and updates to be applied to software, regardless of the FIPS-validation status of the changed software”.
+
+BoringSSL's `main` branch is the update stream for the module. We intend to perform validations such that all major changes to the module are submitted to the CMVP within six months, as required by FRR7.
+
+The installation instructions, which are found in the security policy for the validated module stream, are as follows for the update stream:
+
+```sh
+printf "set(CMAKE_C_COMPILER \"clang\")\nset(CMAKE_CXX_COMPILER \"clang++\")\n" > ${HOME}/toolchain
+git clone https://boringssl.googlesource.com/boringssl
+cd boringssl
+mkdir build && cd build
+cmake -GNinja -DCMAKE_TOOLCHAIN_FILE=${HOME}/toolchain -DFIPS=1 -DCMAKE_BUILD_TYPE=Release ..
+ninja && ninja run_tests
+```
+
+The latest stable versions of Clang, Go, Ninja, and CMake should be used.
+
+On the upstream stream, `FIPS_version` will return zero to indicate that it is not the validated module stream.
 
 ## Running ACVP tests
 
@@ -89,7 +111,7 @@ The most obvious cause of relocations are out-calls from the module to non-crypt
 
 Offsets to these functions cannot be known until the final link because only the linker sees the object files containing them. Thus calls to these functions are rewritten into an IP-relative jump to a redirector function. The redirector functions contain a single jump instruction to the real function and are placed outside of the module and are thus not hashed (see diagram).
 
-![module structure](/crypto/fipsmodule/intcheck1.png)
+![module structure](./intcheck1.png)
 
 In this diagram, the integrity check hashes from `module_start` to `module_end`. Since this does not cover the jump to `memcpy`, it's fine that the linker will poke the final offset into that instruction.
 
@@ -121,7 +143,7 @@ In order to actually implement the integrity test, a constructor function within
 
 Initially the known-good value will be incorrect. Another script (`inject_hash.go`) calculates the correct value from the assembled object and injects it back into the object.
 
-![build process](/crypto/fipsmodule/intcheck2.png)
+![build process](./intcheck2.png)
 
 ### Comparison with OpenSSL's method
 
@@ -141,4 +163,4 @@ Some of the similarities are worth noting:
 
 1.  OpenSSL has all out-calls from the module indirecting via the PLT, which is equivalent to the redirector functions described above.
 
-![OpenSSL build process](/crypto/fipsmodule/intcheck3.png)
+![OpenSSL build process](./intcheck3.png)

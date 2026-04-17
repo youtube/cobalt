@@ -110,8 +110,8 @@ int CpuVideoFrame::GetPlaneCount() const {
 const CpuVideoFrame::Plane& CpuVideoFrame::GetPlane(int index) const {
   SB_DCHECK_NE(format_, kInvalid);
   SB_DCHECK_NE(format_, kNativeTexture);
-  SB_DCHECK(index >= 0 && index < GetPlaneCount())
-      << "Invalid index: " << index;
+  SB_DCHECK_GE(index, 0);
+  SB_DCHECK_LT(index, GetPlaneCount());
   return planes_[index];
 }
 

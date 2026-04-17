@@ -6,8 +6,6 @@
 
 #include <string>
 
-#include "ash/components/arc/arc_prefs.h"
-#include "ash/components/arc/arc_util.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
@@ -21,6 +19,9 @@
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/ash/shelf/chrome_shelf_controller.h"
 #include "chrome/grit/generated_resources.h"
+#include "chromeos/ash/experiences/arc/app/arc_app_constants.h"
+#include "chromeos/ash/experiences/arc/arc_prefs.h"
+#include "chromeos/ash/experiences/arc/arc_util.h"
 #include "components/consent_auditor/consent_auditor.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
@@ -133,26 +134,28 @@ void ArcPlayStoreEnabledPreferenceHandler::OnPreferenceChanged() {
       // Tell Consent Auditor that the Play Store consent was revoked.
       signin::IdentityManager* identity_manager =
           IdentityManagerFactory::GetForProfile(profile_);
-      // TODO(crbug.com/850297): Fix unrelated tests that are not properly
+      // TODO(crbug.com/40579665): Fix unrelated tests that are not properly
       // setting up the state of identity_manager and enable the DCHECK instead
       // of the conditional below.
       // DCHECK(identity_manager->HasPrimaryAccount(
       //            signin::ConsentLevel::kSignin));
       if (identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
         // This class doesn't care about browser sync consent.
-        const CoreAccountId account_id = identity_manager->GetPrimaryAccountId(
-            signin::ConsentLevel::kSignin);
+        const GaiaId gaia_id =
+            identity_manager
+                ->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
+                .gaia;
 
         UserConsentTypes::ArcPlayTermsOfServiceConsent play_consent;
         play_consent.set_status(UserConsentTypes::NOT_GIVEN);
         play_consent.set_confirmation_grd_id(
-            IDS_SETTINGS_ANDROID_APPS_DISABLE_DIALOG_REMOVE);
+            IDS_SETTINGS_ANDROID_APPS_REMOVE_BUTTON);
         play_consent.add_description_grd_ids(
-            IDS_SETTINGS_ANDROID_APPS_DISABLE_DIALOG_MESSAGE);
+            IDS_OS_SETTINGS_ANDROID_APPS_DISABLE_DIALOG_MESSAGE);
         play_consent.set_consent_flow(
             UserConsentTypes::ArcPlayTermsOfServiceConsent::SETTING_CHANGE);
         ConsentAuditorFactory::GetForProfile(profile_)->RecordArcPlayConsent(
-            account_id, play_consent);
+            gaia_id, play_consent);
       }
     }
   }
@@ -173,7 +176,8 @@ void ArcPlayStoreEnabledPreferenceHandler::UpdateArcSessionManager() {
   }
 
   if (ShouldArcAlwaysStart()) {
-    arc_session_manager_->AllowActivation();
+    arc_session_manager_->AllowActivation(
+        ArcSessionManager::AllowActivationReason::kAlwaysStartIsEnabled);
     arc_session_manager_->RequestEnable();
   } else if (IsArcPlayStoreEnabledForProfile(profile_)) {
     if (!ShouldArcStartManually()) {

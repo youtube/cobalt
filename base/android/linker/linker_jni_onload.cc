@@ -9,6 +9,7 @@
 
 #include <jni.h>
 
+// Must come after all headers that specialize FromJniType() / ToJniType().
 #include "base/android/linker/linker_jni.h"
 
 namespace chromium_android_linker {
@@ -23,8 +24,9 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
     LOG_ERROR("Could not create JNIEnv");
     return -1;
   }
-  if (!LinkerJNIInit(vm, env))
+  if (!LinkerJNIInit(vm, env)) {
     return -1;
+  }
   LOG_INFO("Done");
   return JNI_VERSION_1_4;
 }

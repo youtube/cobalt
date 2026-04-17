@@ -4,6 +4,9 @@
 
 #include "quiche/quic/core/quic_write_blocked_list.h"
 
+#include <optional>
+#include <tuple>
+
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/common/platform/api/quiche_expect_bug.h"
@@ -85,7 +88,7 @@ class QuicWriteBlockedListTest : public QuicTest {
   }
 
  private:
-  absl::optional<QuicWriteBlockedList> write_blocked_list_;
+  std::optional<QuicWriteBlockedList> write_blocked_list_;
 };
 
 TEST_F(QuicWriteBlockedListTest, PriorityOrder) {

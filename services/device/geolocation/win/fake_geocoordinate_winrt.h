@@ -10,7 +10,8 @@
 #include <wrl/client.h>
 #include <wrl/implements.h>
 
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include <memory>
+#include <optional>
 
 namespace device {
 
@@ -20,17 +21,20 @@ struct FakeGeocoordinateData {
   DOUBLE latitude = 0;
   DOUBLE longitude = 0;
   DOUBLE accuracy = 0;
-  absl::optional<DOUBLE> altitude;
-  absl::optional<DOUBLE> altitude_accuracy;
-  absl::optional<DOUBLE> heading;
-  absl::optional<DOUBLE> speed;
+  std::optional<DOUBLE> altitude;
+  std::optional<DOUBLE> altitude_accuracy;
+  std::optional<DOUBLE> heading;
+  std::optional<DOUBLE> speed;
+  std::optional<ABI::Windows::Devices::Geolocation::AltitudeReferenceSystem>
+      altitude_reference_system;
 };
 
 class FakeGeopoint
     : public Microsoft::WRL::RuntimeClass<
           Microsoft::WRL::RuntimeClassFlags<
               Microsoft::WRL::WinRt | Microsoft::WRL::InhibitRoOriginateError>,
-          ABI::Windows::Devices::Geolocation::IGeopoint> {
+          ABI::Windows::Devices::Geolocation::IGeopoint,
+          ABI::Windows::Devices::Geolocation::IGeoshape> {
  public:
   explicit FakeGeopoint(const FakeGeocoordinateData& position_data);
   FakeGeopoint(const FakeGeopoint&) = delete;
@@ -39,8 +43,17 @@ class FakeGeopoint
   FakeGeopoint& operator=(FakeGeopoint&&) = delete;
   ~FakeGeopoint() override;
 
+  // IGeopoint implementation:
   IFACEMETHODIMP get_Position(
       ABI::Windows::Devices::Geolocation::BasicGeoposition* value) override;
+
+  // IGeoshape implementation:
+  IFACEMETHODIMP get_GeoshapeType(
+      ABI::Windows::Devices::Geolocation::GeoshapeType* value) override;
+  IFACEMETHODIMP get_SpatialReferenceId(UINT32* value) override;
+  IFACEMETHODIMP get_AltitudeReferenceSystem(
+      ABI::Windows::Devices::Geolocation::AltitudeReferenceSystem* value)
+      override;
 
  private:
   const FakeGeocoordinateData position_data_;

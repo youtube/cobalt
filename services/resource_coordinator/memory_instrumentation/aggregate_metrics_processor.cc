@@ -4,7 +4,6 @@
 
 #include "services/resource_coordinator/memory_instrumentation/aggregate_metrics_processor.h"
 
-#include <set>
 #include <string>
 #include <vector>
 
@@ -12,6 +11,7 @@
 #include "base/android/library_loader/anchor_functions_buildflags.h"
 #include "base/bits.h"
 #include "base/command_line.h"
+#include "base/compiler_specific.h"
 #include "base/files/file.h"
 #include "base/format_macros.h"
 #include "base/logging.h"
@@ -24,7 +24,7 @@
 
 namespace {
 
-void LogNativeCodeResidentPages(const std::set<size_t>& accessed_pages_set) {
+void LogNativeCodeResidentPages(base::span<size_t> accessed_pages_set) {
   // |SUPPORTS_CODE_ORDERING| can only be enabled on Android.
   const auto kResidentPagesPath = base::FilePath(
       "/data/local/tmp/chrome/native-library-resident-pages.txt");
@@ -40,8 +40,8 @@ void LogNativeCodeResidentPages(const std::set<size_t>& accessed_pages_set) {
   for (size_t page : accessed_pages_set) {
     std::string page_str = base::StringPrintf("%" PRIuS "\n", page);
 
-    if (file.WriteAtCurrentPos(page_str.c_str(),
-                               static_cast<int>(page_str.size())) < 0) {
+    if (UNSAFE_TODO(file.WriteAtCurrentPos(
+            page_str.c_str(), static_cast<int>(page_str.size()))) < 0) {
       DLOG(WARNING) << "Error while dumping Resident pages";
       return;
     }
@@ -72,12 +72,13 @@ mojom::AggregatedMetricsPtr ComputeGlobalNativeCodeResidentMemoryKb(
     }
   }
 
-  // |accessed_pages_set| will be ~40kB on 32 bit mode and ~80kB on 64 bit mode.
-  std::set<size_t> accessed_pages_set;
+  std::vector<size_t> accessed_pages_set;
+  // The typical size of this set is ~10k entries.
+  accessed_pages_set.reserve(10240);
   for (size_t i = 0; i < common_map.size(); i++) {
     for (int j = 0; j < 8; j++) {
       if (common_map[i] & (1 << j))
-        accessed_pages_set.insert(i * 8 + j);
+        accessed_pages_set.push_back(i * 8 + j);
     }
   }
 
@@ -132,7 +133,7 @@ mojom::AggregatedMetricsPtr ComputeGlobalNativeCodeResidentMemoryKb(
         static_cast<int32_t>(not_resident_ordered_pages * kb_per_page);
   }
 
-  // TODO(crbug.com/956464) replace adding |NativeCodeResidentMemory| to trace
+  // TODO(crbug.com/41455053) replace adding |NativeCodeResidentMemory| to trace
   // this way by adding it through |tracing_observer| in Finalize().
   TRACE_EVENT_INSTANT1(base::trace_event::MemoryDumpManager::kTraceCategory,
                        "ReportGlobalNativeCodeResidentMemoryKb",

@@ -32,10 +32,11 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_TIMING_PERFORMANCE_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_TIMING_PERFORMANCE_H_
 
+#include "base/functional/callback_forward.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "third_party/blink/public/mojom/timing/resource_timing.mojom-blink.h"
-#include "third_party/blink/renderer/bindings/core/v8/v8_performance_entry_filter_options.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_function.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/dom_high_res_time_stamp.h"
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
@@ -45,12 +46,14 @@
 #include "third_party/blink/renderer/core/timing/performance_paint_timing.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_deque.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_linked_hash_set.h"
+#include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/timer.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/linked_hash_set.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
+#include "v8-local-handle.h"
 
 namespace base {
 class Clock;
@@ -66,7 +69,9 @@ class ExecutionContext;
 class LargestContentfulPaint;
 class LayoutShift;
 class MemoryInfo;
+class MemoryMeasurement;
 class Node;
+class PerformanceContainerTiming;
 class PerformanceElementTiming;
 class PerformanceEventTiming;
 class PerformanceMark;
@@ -75,7 +80,6 @@ class PerformanceMeasure;
 class PerformanceNavigation;
 class PerformanceObserver;
 class PerformanceTiming;
-class ScriptPromise;
 class ScriptState;
 class ScriptValue;
 class SoftNavigationEntry;
@@ -96,7 +100,7 @@ MergePerformanceEntryVectors(const PerformanceEntryVector& first_entry_vector,
                              const PerformanceEntryVector& second_entry_vector,
                              const AtomicString& maybe_name);
 
-class CORE_EXPORT Performance : public EventTargetWithInlineData {
+class CORE_EXPORT Performance : public EventTarget {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
@@ -108,11 +112,12 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
   virtual PerformanceTiming* timing() const;
   virtual PerformanceNavigation* navigation() const;
   virtual MemoryInfo* memory(ScriptState*) const;
-  virtual ScriptPromise measureUserAgentSpecificMemory(
+  virtual ScriptPromise<MemoryMeasurement> measureUserAgentSpecificMemory(
       ScriptState*,
       ExceptionState& exception_state) const;
   virtual EventCounts* eventCounts();
   virtual std::uint64_t interactionCount() const = 0;
+  virtual void PopulateContainerTimingEntries() {}
 
   // Reduce the resolution to prevent timing attacks. See:
   // http://www.w3.org/TR/hr-time-2/#privacy-security
@@ -129,24 +134,13 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
       bool allow_negative_value,
       bool cross_origin_isolated_capability);
 
-  static base::TimeDelta MonotonicTimeToTimeDelta(
-      base::TimeTicks time_origin,
-      base::TimeTicks monotonic_time,
-      bool allow_negative_value,
-      bool cross_origin_isolated_capability);
-
   // Translate given platform monotonic time in seconds into a high resolution
   // DOMHighResTimeStamp in milliseconds. The result timestamp is relative to
   // document's time origin and has a time resolution that is safe for
   // exposing to web.
   DOMHighResTimeStamp MonotonicTimeToDOMHighResTimeStamp(base::TimeTicks) const;
-  DOMHighResTimeStamp now() const;
 
-  // Translate given platform monotonic time in seconds into base::TimeDelta.
-  // The result timestamp is relative to document's time origin and is
-  // equivalent to the timestamp returned by the function
-  // MonotonicTimeToDOMHighResTimeStamp.
-  base::TimeDelta MonotonicTimeToTimeDelta(base::TimeTicks) const;
+  DOMHighResTimeStamp now() const;
 
   // High Resolution Time Level 3 timeOrigin.
   // (https://www.w3.org/TR/hr-time-3/#dom-performance-timeorigin)
@@ -158,10 +152,6 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
   // Get all performance entries of the main frame. This is kept until the one
   // with optional filtering options is enabled by default.
   PerformanceEntryVector getEntries();
-
-  // Get performance entries with optional filtering options.
-  PerformanceEntryVector getEntries(ScriptState* script_state,
-                                    PerformanceEntryFilterOptions* options);
 
   // This getBufferedEntriesByType method will return all entries in the buffer
   // regardless of whether they are exposed in the Performance Timeline.
@@ -184,6 +174,18 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
   void clearResourceTimings();
   void setResourceTimingBufferSize(unsigned);
   void setBackForwardCacheRestorationBufferSizeForTest(unsigned);
+  void setEventTimingBufferSizeForTest(unsigned);
+
+  V8Function* bind(V8Function* inner_function,
+                   const ScriptValue this_arg,
+                   const HeapVector<ScriptValue>& prepend_arguments);
+
+  V8Function* bind(V8Function* inner_function) {
+    return bind(inner_function,
+                ScriptValue(inner_function->GetIsolate(),
+                            v8::Undefined(inner_function->GetIsolate())),
+                HeapVector<ScriptValue>());
+  }
 
   DEFINE_ATTRIBUTE_EVENT_LISTENER(resourcetimingbufferfull,
                                   kResourcetimingbufferfull)
@@ -202,21 +204,19 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
 
   void NotifyNavigationTimingToObservers();
 
-  void AddFirstPaintTiming(base::TimeTicks start_time,
-                           bool is_triggered_by_soft_navigation);
-
-  void AddFirstContentfulPaintTiming(base::TimeTicks start_time,
-                                     bool is_triggered_by_soft_navigation);
+  bool IsContainerTimingBufferFull() const;
+  void AddToContainerTimingBuffer(PerformanceContainerTiming&);
+  void NotifyObserversOfContainerTiming();
 
   bool IsElementTimingBufferFull() const;
-  void AddElementTimingBuffer(PerformanceElementTiming&);
+  void AddToElementTimingBuffer(PerformanceElementTiming&);
 
   bool IsEventTimingBufferFull() const;
-  void AddEventTimingBuffer(PerformanceEventTiming&);
+  void AddToEventTimingBuffer(PerformanceEventTiming&);
 
   bool IsLongAnimationFrameBufferFull() const;
 
-  void AddLayoutShiftBuffer(LayoutShift&);
+  void AddToLayoutShiftBuffer(LayoutShift&);
 
   void AddLargestContentfulPaint(LargestContentfulPaint*);
 
@@ -233,6 +233,7 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
   void AddBackForwardCacheRestoration(base::TimeTicks start_time,
                                       base::TimeTicks pageshow_start_time,
                                       base::TimeTicks pageshow_end_time);
+
 
   // This enum is used to index different possible strings for for UMA enum
   // histogram. New enum values can be added, but existing enums must never be
@@ -302,7 +303,7 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
   // Determine whether a given Node can be exposed via a Web Perf API.
   static bool CanExposeNode(Node*);
 
-  ScriptValue toJSONForBinding(ScriptState*) const;
+  ScriptObject toJSONForBinding(ScriptState*) const;
 
   enum Metrics { kRecordSwaps = 0, kDoNotRecordSwaps = 1 };
 
@@ -319,22 +320,32 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
                            const base::TickClock* tick_clock);
   void ResetTimeOriginForTesting(base::TimeTicks time_origin);
 
- private:
-  void AddPaintTiming(PerformancePaintTiming::PaintType,
-                      base::TimeTicks start_time,
-                      bool is_triggered_by_soft_navigation);
+  void SetCrossOriginIsolatedCapabilityForTesting(bool is_isolated) {
+    cross_origin_isolated_capability_ = is_isolated;
+  }
 
+  bool CrossOriginIsolatedCapability() const {
+    return cross_origin_isolated_capability_;
+  }
+
+  // TODO(https://crbug.com/1457049): remove this once visited links are
+  // partitioned.
+  bool softNavPaintMetricsSupported() const;
+
+  base::SingleThreadTaskRunner& GetTaskRunner() { return *task_runner_; }
+
+ private:
   PerformanceMeasure* MeasureInternal(
       ScriptState* script_state,
       const AtomicString& measure_name,
       const V8UnionPerformanceMeasureOptionsOrString* start_or_options,
-      absl::optional<String> end_mark,
+      std::optional<String> end_mark,
       ExceptionState& exception_state);
 
   PerformanceMeasure* MeasureWithDetail(ScriptState* script_state,
                                         const AtomicString& measure_name,
                                         const V8UnionDoubleOrString* start,
-                                        const absl::optional<double>& duration,
+                                        const std::optional<double>& duration,
                                         const V8UnionDoubleOrString* end,
                                         const ScriptValue& detail,
                                         ExceptionState& exception_state);
@@ -346,8 +357,6 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
       const AtomicString& maybe_name = g_null_atom,
       bool include_triggered_by_soft_navigation = false);
 
-  void MeasureMemoryExperimentTimerFired(TimerBase*);
-
   // Get performance entries of the current frame, with an optional name filter.
   PerformanceEntryVector GetEntriesForCurrentFrame(
       const AtomicString& maybe_name = g_null_atom);
@@ -358,12 +367,7 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
       const AtomicString& entry_type,
       const AtomicString& maybe_name = g_null_atom);
 
-  // Get performance entries of nested same-origin iframes, with an optional
-  // type and optional name filter.
-  PerformanceEntryVector GetEntriesWithChildFrames(
-      ScriptState* script_state,
-      const AtomicString& maybe_type = g_null_atom,
-      const AtomicString& maybe_name = g_null_atom);
+  void ProcessUserFeatureMark(const PerformanceMarkOptions* mark_options);
 
  protected:
   Performance(base::TimeTicks time_origin,
@@ -375,6 +379,7 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
   void FireResourceTimingBufferFull(TimerBase*);
 
   void NotifyObserversOfEntry(PerformanceEntry&) const;
+  void NotifyObserversOfContainerEntry(PerformanceEntry&) const;
 
   void DeliverObservationsTimerFired(TimerBase*);
 
@@ -383,6 +388,10 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
   int GetDroppedEntriesForTypes(PerformanceEntryTypeMask);
 
   virtual void BuildJSONValue(V8ObjectBuilder&) const;
+
+  void AddPaintTiming(PerformancePaintTiming::PaintType,
+                      const DOMPaintTimingInfo& paint_timing_info,
+                      bool is_triggered_by_soft_navigation);
 
   PerformanceEntryVector resource_timing_buffer_;
   // The secondary RT buffer, used to store incoming entries after the main
@@ -395,6 +404,8 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
   bool resource_timing_buffer_full_event_pending_ = false;
   PerformanceEntryVector event_timing_buffer_;
   unsigned event_timing_buffer_max_size_;
+  PerformanceEntryVector container_timing_buffer_;
+  unsigned container_timing_buffer_max_size_;
   PerformanceEntryVector element_timing_buffer_;
   unsigned element_timing_buffer_max_size_;
   PerformanceEntryVector layout_shift_buffer_;
@@ -431,6 +442,8 @@ class CORE_EXPORT Performance : public EventTargetWithInlineData {
 
   // Running counter for LongTask observations.
   size_t long_task_counter_ = 0;
+
+  TaskHandle parser_yield_task_handle_;
 };
 
 }  // namespace blink

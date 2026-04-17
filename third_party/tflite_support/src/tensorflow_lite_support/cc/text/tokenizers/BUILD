@@ -7,7 +7,6 @@ load(
 )
 
 package(
-    default_applicable_licenses = ["//tensorflow_lite_support:license"],
     default_visibility = ["//tensorflow_lite_support:users"],
     licenses = ["notice"],  # Apache 2.0
 )
@@ -47,7 +46,6 @@ cc_library(
     ],
     deps = [
         ":tokenizer",
-        "//tensorflow_lite_support/cc/port:integral_types",
         "//tensorflow_lite_support/cc/utils:common_utils",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_googlesource_code_re2//:re2",
@@ -170,7 +168,10 @@ cc_library(
         "//tensorflow_lite_support/cc/port:statusor",
         "//tensorflow_lite_support/metadata:metadata_schema_cc",
         "//tensorflow_lite_support/metadata/cc:metadata_extractor",
+        "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:string_view",
     ],
 )
 

@@ -1,4 +1,4 @@
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
   const {page, session, dp} =
       await testRunner.startBlank(
           "Check that the WebAuthn addVirtualAuthenticator command validates parameters");
@@ -91,6 +91,21 @@
     },
   });
   testRunner.log(largeBlobRequiresCtap2_1Error);
+
+  const internalAuthenticator = await dp.WebAuthn.addVirtualAuthenticator({
+    options: {
+      protocol: "ctap2",
+      transport: "internal",
+    },
+  });
+  testRunner.log(internalAuthenticator.error || "Created first internal authenticator");
+  const alreadyHasInternalAuthenticatorError = await dp.WebAuthn.addVirtualAuthenticator({
+    options: {
+      protocol: "ctap2",
+      transport: "internal",
+    },
+  });
+  testRunner.log(alreadyHasInternalAuthenticatorError);
 
   testRunner.completeTest();
 })

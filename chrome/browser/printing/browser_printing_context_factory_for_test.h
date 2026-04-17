@@ -6,14 +6,15 @@
 #define CHROME_BROWSER_PRINTING_BROWSER_PRINTING_CONTEXT_FACTORY_FOR_TEST_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "build/build_config.h"
 #include "printing/buildflags/buildflags.h"
-#include "printing/print_settings.h"
+#include "printing/page_range.h"
 #include "printing/printing_context.h"
 #include "printing/printing_context_factory_for_test.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "printing/test_printing_context.h"
 
 namespace printing {
 
@@ -25,11 +26,20 @@ class BrowserPrintingContextFactoryForTest
 
   std::unique_ptr<PrintingContext> CreatePrintingContext(
       PrintingContext::Delegate* delegate,
-      bool skip_system_calls) override;
+      PrintingContext::OutOfProcessBehavior out_of_process_behavior) override;
 
   void SetPrinterNameForSubsequentContexts(const std::string& printer_name);
+#if BUILDFLAG(IS_WIN)
+  void SetPrinterLanguageTypeForSubsequentContexts(
+      mojom::PrinterLanguageType printer_language_type);
+#endif
+  void SetUserSettingsPageRangesForSubsequentContext(
+      const PageRanges& page_ranges);
+
+  void SetFailedErrorOnUpdatePrinterSettings();
   void SetCancelErrorOnNewDocument(bool cause_errors);
   void SetFailedErrorOnNewDocument(bool cause_errors);
+  void SetJobIdOnNewDocument(int job_id);
   void SetAccessDeniedErrorOnNewDocument(bool cause_errors);
 #if BUILDFLAG(IS_WIN)
   void SetAccessDeniedErrorOnRenderPage(bool cause_errors);
@@ -40,20 +50,28 @@ class BrowserPrintingContextFactoryForTest
   void SetFailErrorOnUseDefaultSettings();
 #if BUILDFLAG(ENABLE_BASIC_PRINT_DIALOG)
   void SetCancelErrorOnAskUserForSettings();
+  void SetFailErrorOnAskUserForSettings();
 #endif
-  void OnNewDocument(const PrintSettings& settings);
-
-  int new_document_called_count() { return new_document_called_count_; }
-
-  const absl::optional<PrintSettings>& document_print_settings() const {
-    return document_print_settings_;
-  }
+  void SetOnNewDocumentCallback(
+      TestPrintingContext::OnNewDocumentCallback callback);
 
  private:
+  std::unique_ptr<TestPrintingContext> MakeDefaultTestPrintingContext(
+      PrintingContext::Delegate* delegate,
+      PrintingContext::OutOfProcessBehavior out_of_process_behavior,
+      const std::string& printer_name);
+
   std::string printer_name_;
+#if BUILDFLAG(IS_WIN)
+  std::optional<mojom::PrinterLanguageType> printer_language_type_;
+#endif
+  std::optional<PageRanges> page_ranges_;
+
+  bool failed_error_for_update_printer_settings_ = false;
   bool cancels_in_new_document_ = false;
   bool failed_error_for_new_document_ = false;
   bool access_denied_errors_for_new_document_ = false;
+  std::optional<int> new_document_job_id_;
 #if BUILDFLAG(IS_WIN)
   bool access_denied_errors_for_render_page_ = false;
   uint32_t failed_error_for_render_page_number_ = 0;
@@ -63,9 +81,9 @@ class BrowserPrintingContextFactoryForTest
   bool fail_on_use_default_settings_ = false;
 #if BUILDFLAG(ENABLE_BASIC_PRINT_DIALOG)
   bool cancel_on_ask_user_for_settings_ = false;
+  bool fail_on_ask_user_for_settings_ = false;
 #endif
-  int new_document_called_count_ = 0;
-  absl::optional<PrintSettings> document_print_settings_;
+  TestPrintingContext::OnNewDocumentCallback on_new_document_callback_;
 };
 
 }  // namespace printing

@@ -6,15 +6,14 @@ package org.chromium.chrome.browser.compositor.layouts;
 
 import android.graphics.RectF;
 
-import org.chromium.chrome.browser.compositor.layouts.content.TabContentManager;
 import org.chromium.chrome.browser.fullscreen.BrowserControlsManager;
 import org.chromium.chrome.browser.layouts.scene_layer.SceneLayer;
+import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.ui.resources.ResourceManager;
 
 /**
- * Interface that give access the active layout. This is useful to isolate the renderer of
- * all the layout logic.
- * Called from the GL thread.
+ * Interface that give access the active layout. This is useful to isolate the renderer of all the
+ * layout logic. Called from the GL thread.
  */
 public interface LayoutProvider {
     /**
@@ -44,7 +43,8 @@ public interface LayoutProvider {
      * @return                  A {@link SceneLayer} that represents the content for this
      *                          {@link Layout}.
      */
-    SceneLayer getUpdatedActiveSceneLayer(TabContentManager tabContentManager,
+    SceneLayer getUpdatedActiveSceneLayer(
+            TabContentManager tabContentManager,
             ResourceManager resourceManager,
             BrowserControlsManager browserControlsManager);
 }

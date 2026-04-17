@@ -4,16 +4,25 @@
 
 #include <jni.h>
 
+#include <optional>
+#include <string>
+
 #include "base/android/jni_array.h"
+#include "base/android/jni_bytebuffer.h"
 #include "base/android/jni_string.h"
+#include "base/android/scoped_java_ref.h"
+#include "base/check.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
-#include "base/numerics/safe_conversions.h"
-#include "components/webauthn/android/jni_headers/Fido2CredentialRequest_jni.h"
+#include "base/values.h"
 #include "components/webauthn/json/value_conversions.h"
 #include "third_party/blink/public/mojom/webauthn/authenticator.mojom.h"
 
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/webauthn/android/jni_headers/Fido2CredentialRequest_jni.h"
+
+namespace webauthn {
 namespace {
 
 // MojoClassToJSON takes a serialized Mojo object and returns a Java String
@@ -22,12 +31,9 @@ template <typename MojoClass>
 static base::android::ScopedJavaLocalRef<jstring> MojoClassToJSON(
     JNIEnv* env,
     const base::android::JavaParamRef<jobject>& byte_buffer) {
-  const size_t serialized_len =
-      base::checked_cast<size_t>(env->GetDirectBufferCapacity(byte_buffer));
-  const uint8_t* const serialized =
-      reinterpret_cast<uint8_t*>(env->GetDirectBufferAddress(byte_buffer));
+  auto span = base::android::JavaByteBufferToSpan(env, byte_buffer.obj());
   auto options = MojoClass::New();
-  CHECK(MojoClass::Deserialize(serialized, serialized_len, &options));
+  CHECK(MojoClass::Deserialize(span.data(), span.size(), &options));
   base::Value value = webauthn::ToValue(options);
   std::string json;
   base::JSONWriter::Write(value, &json);
@@ -43,7 +49,7 @@ static base::android::ScopedJavaLocalRef<jbyteArray> MojoClassFromJSON(
     ParseFuncType parse_func,
     const base::android::JavaParamRef<jstring>& jjson) {
   const std::string json = base::android::ConvertJavaStringToUTF8(env, jjson);
-  const absl::optional<base::Value> parsed =
+  const std::optional<base::Value> parsed =
       base::JSONReader::Read(json, base::JSON_PARSE_RFC);
   if (!parsed) {
     LOG(ERROR) << __func__ << " failed to parse JSON";
@@ -90,3 +96,5 @@ JNI_Fido2CredentialRequest_GetCredentialResponseFromJson(
   return MojoClassFromJSON<blink::mojom::GetAssertionAuthenticatorResponse>(
       env, webauthn::GetAssertionResponseFromValue, jjson);
 }
+
+}  // namespace webauthn

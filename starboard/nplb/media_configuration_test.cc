@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "starboard/media.h"
-
 #include "starboard/nplb/performance_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

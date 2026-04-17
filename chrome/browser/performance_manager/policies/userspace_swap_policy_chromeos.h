@@ -6,7 +6,6 @@
 #define CHROME_BROWSER_PERFORMANCE_MANAGER_POLICIES_USERSPACE_SWAP_POLICY_CHROMEOS_H_
 
 #include "base/memory/memory_pressure_listener.h"
-#include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
@@ -30,8 +29,8 @@ namespace policies {
 // UserspaceSwapPolicy is a policy which will trigger a renderer to swap itself
 // via userspace.
 class UserspaceSwapPolicy : public GraphOwned,
-                            public ProcessNode::ObserverDefaultImpl,
-                            public SystemNode::ObserverDefaultImpl {
+                            public ProcessNodeObserver,
+                            public SystemNodeObserver {
  public:
   UserspaceSwapPolicy();
 
@@ -74,7 +73,7 @@ class UserspaceSwapPolicy : public GraphOwned,
   virtual bool IsPageNodeVisible(const PageNode* page_node);
   virtual bool IsPageNodeAudible(const PageNode* page_node);
   virtual bool IsPageNodeLoadingOrBusy(const PageNode* page_node);
-  virtual base::TimeDelta GetTimeSinceLastVisibilityChange(
+  virtual base::TimeTicks GetLastVisibilityChangeTime(
       const PageNode* page_node);
 
   // IsEligibleToSwap will return true if the |page_node| belonging to the
@@ -91,9 +90,7 @@ class UserspaceSwapPolicy : public GraphOwned,
 
   // We cache the config object since it cannot change, this makes the code
   // easier to read and testing also becomes easier.
-  const raw_ref<const ash::memory::userspace_swap::UserspaceSwapConfig,
-                ExperimentalAsh>
-      config_;
+  const raw_ref<const ash::memory::userspace_swap::UserspaceSwapConfig> config_;
 
   // Keeps track of the last time we walked the graph looking for processes to
   // swap, the frequency we walk the graph is configurable.
@@ -104,8 +101,6 @@ class UserspaceSwapPolicy : public GraphOwned,
   // limit, we don't want to completely exhaust free space on a device.
   base::TimeTicks last_device_space_check_;
   uint64_t backing_store_available_bytes_ = 0;
-
-  raw_ptr<Graph, ExperimentalAsh> graph_ = nullptr;
 
  private:
   // A helper method which sets the last trim time to the specified time.

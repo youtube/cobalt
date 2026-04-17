@@ -60,7 +60,7 @@ class MockDMGIterator : public DMGIterator {
   std::unique_ptr<ReadStream> GetReadStream() override {
     EXPECT_LT(index_, entries_.size());
     const std::vector<uint8_t>& data = entries_[index_].data;
-    return std::make_unique<MemoryReadStream>(data.data(), data.size());
+    return std::make_unique<MemoryReadStream>(data);
   }
 
   bool IsEmpty() override { return entries_.empty(); }
@@ -133,8 +133,8 @@ TEST(DMGAnalyzerTest, DetachedCodeSignature) {
                   base::File::FLAG_WRITE | base::File::FLAG_WIN_TEMPORARY |
                   base::File::FLAG_DELETE_ON_CLOSE));
   base::FilePath real_code_signature_file;
-  ASSERT_TRUE(
-      base::PathService::Get(base::DIR_SOURCE_ROOT, &real_code_signature_file));
+  ASSERT_TRUE(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT,
+                                     &real_code_signature_file));
   real_code_signature_file = real_code_signature_file.AppendASCII("chrome")
                                  .AppendASCII("test")
                                  .AppendASCII("data")

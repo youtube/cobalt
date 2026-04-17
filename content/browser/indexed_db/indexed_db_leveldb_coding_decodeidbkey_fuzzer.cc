@@ -5,19 +5,21 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <string_view>
 #include <tuple>
 
 #include "content/browser/indexed_db/indexed_db_leveldb_coding.h"
 #include "third_party/blink/public/common/indexeddb/indexeddb_key.h"
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  base::StringPiece key_str_piece(reinterpret_cast<const char*>(data), size);
+  std::string_view key_str_view(reinterpret_cast<const char*>(data), size);
   auto indexed_db_key = std::make_unique<blink::IndexedDBKey>();
-  std::ignore = content::DecodeIDBKey(&key_str_piece, &indexed_db_key);
+  if (content::indexed_db::DecodeIDBKey(&key_str_view, &indexed_db_key)) {
+    // Ensure that encoding |indexed_db_key| produces the same result.
+    std::string result;
+    content::indexed_db::EncodeIDBKey(*indexed_db_key, &result);
+    assert(std::string_view(result) == key_str_view);
+  }
 
-  // Ensure that encoding |indexed_db_key| produces the same result.
-  std::string result;
-  content::EncodeIDBKey(*indexed_db_key, &result);
-  assert(base::StringPiece(result) == key_str_piece);
   return 0;
 }

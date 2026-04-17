@@ -4,6 +4,7 @@
 
 package org.chromium.components.payments;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.payments.mojom.PaymentDetails;
 import org.chromium.payments.mojom.PaymentHandlerMethodData;
 import org.chromium.payments.mojom.PaymentHandlerModifier;
@@ -16,6 +17,7 @@ import java.util.ArrayList;
  * Redacts and converts the payment details update from the merchant into a data structure to be
  * sent to the invoked payment handler.
  */
+@NullMarked
 public class PaymentDetailsConverter {
     /**
      * To be implemented by the object that can check whether the invoked payment instrument is
@@ -33,9 +35,7 @@ public class PaymentDetailsConverter {
                 String methodName, PaymentApp invokedPaymentApp);
     }
 
-    /**
-     * This class has only static methods.
-     */
+    /** This class has only static methods. */
     private PaymentDetailsConverter() {}
 
     /**
@@ -49,7 +49,9 @@ public class PaymentDetailsConverter {
      * @return The data structure that can be sent to the invoked payment handler.
      */
     public static PaymentRequestDetailsUpdate convertToPaymentRequestDetailsUpdate(
-            PaymentDetails details, MethodChecker methodChecker, PaymentApp invokedPaymentApp) {
+            PaymentDetails details,
+            MethodChecker methodChecker,
+            PaymentApp invokedPaymentApp) {
         // Keep in sync with components/payments/content/payment_details_converter.cc.
         assert details != null;
         assert methodChecker != null;
@@ -67,7 +69,7 @@ public class PaymentDetailsConverter {
 
             for (int i = 0; i < details.modifiers.length; i++) {
                 if (!methodChecker.isInvokedInstrumentValidForPaymentMethodIdentifier(
-                            details.modifiers[i].methodData.supportedMethod, invokedPaymentApp)) {
+                        details.modifiers[i].methodData.supportedMethod, invokedPaymentApp)) {
                     continue;
                 }
 

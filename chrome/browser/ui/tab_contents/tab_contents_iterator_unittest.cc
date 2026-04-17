@@ -17,7 +17,7 @@
 #include "chrome/test/base/browser_with_test_window_test.h"
 #include "chrome/test/base/test_browser_window.h"
 
-typedef BrowserWithTestWindowTest BrowserListTest;
+using BrowserListTest = BrowserWithTestWindowTest;
 
 namespace {
 
@@ -56,8 +56,9 @@ TEST_F(BrowserListTest, TabContentsIteratorVerifyCount) {
   EXPECT_EQ(0U, CountAllTabs());
 
   // Add some tabs.
-  for (size_t i = 0; i < 3; ++i)
+  for (size_t i = 0; i < 3; ++i) {
     chrome::NewTab(browser2.get());
+  }
   chrome::NewTab(browser3.get());
 
   EXPECT_EQ(4U, CountAllTabs());
@@ -68,8 +69,9 @@ TEST_F(BrowserListTest, TabContentsIteratorVerifyCount) {
   EXPECT_EQ(1U, CountAllTabs());
 
   // Add lots of tabs.
-  for (size_t i = 0; i < 41; ++i)
+  for (size_t i = 0; i < 41; ++i) {
     chrome::NewTab(browser());
+  }
 
   EXPECT_EQ(42U, CountAllTabs());
   // Close all remaining tabs to keep all the destructors happy.
@@ -99,55 +101,61 @@ TEST_F(BrowserListTest, TabContentsIteratorVerifyBrowser) {
   EXPECT_EQ(0U, CountAllTabs());
 
   // Add some tabs.
-  for (size_t i = 0; i < 3; ++i)
+  for (size_t i = 0; i < 3; ++i) {
     chrome::NewTab(browser2.get());
-  for (size_t i = 0; i < 2; ++i)
+  }
+  for (size_t i = 0; i < 2; ++i) {
     chrome::NewTab(browser3.get());
+  }
 
   size_t count = 0;
   auto& all_tabs = AllTabContentses();
   for (auto iterator = all_tabs.begin(), end = all_tabs.end(); iterator != end;
        ++iterator, ++count) {
-    if (count < 3)
+    if (count < 3) {
       EXPECT_EQ(browser2.get(), iterator.browser());
-    else if (count < 5)
+    } else if (count < 5) {
       EXPECT_EQ(browser3.get(), iterator.browser());
-    else
+    } else {
       ADD_FAILURE();
+    }
   }
 
   // Close some tabs.
   browser2->tab_strip_model()->CloseAllTabs();
+  // This is normally invoked when the tab strip is empty (specifically from
+  // BrowserView::OnWindowCloseRequested).
+  browser2->OnWindowClosing();
+  EXPECT_TRUE(browser2->is_delete_scheduled());
   browser3->tab_strip_model()->CloseWebContentsAt(1, TabCloseTypes::CLOSE_NONE);
 
   count = 0;
   for (auto iterator = all_tabs.begin(), end = all_tabs.end(); iterator != end;
        ++iterator, ++count) {
-    if (count == 0)
+    if (count == 0) {
       EXPECT_EQ(browser3.get(), iterator.browser());
-    else
+    } else {
       ADD_FAILURE();
+    }
   }
 
-  // Now make it one tab per browser.
+  // Add one tab back to browser.
   chrome::NewTab(browser());
-  chrome::NewTab(browser2.get());
 
   count = 0;
   for (auto iterator = all_tabs.begin(), end = all_tabs.end(); iterator != end;
        ++iterator, ++count) {
-    if (count == 0)
+    if (count == 0) {
       EXPECT_EQ(browser(), iterator.browser());
-    else if (count == 1)
-      EXPECT_EQ(browser2.get(), iterator.browser());
-    else if (count == 2)
+    } else if (count == 1) {
       EXPECT_EQ(browser3.get(), iterator.browser());
-    else
+    } else {
       ADD_FAILURE();
+    }
   }
+  EXPECT_EQ(2u, count);
 
   // Close all remaining tabs to keep all the destructors happy.
   browser2->tab_strip_model()->CloseAllTabs();
   browser3->tab_strip_model()->CloseAllTabs();
 }
-

@@ -6,9 +6,11 @@
 #define THIRD_PARTY_BLINK_PUBLIC_COMMON_SCHEDULER_WEB_SCHEDULER_TRACKED_FEATURE_H_
 
 #include <stdint.h>
+
+#include <optional>
 #include <string>
+
 #include "base/containers/enum_set.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/common_export.h"
 
 namespace blink {
@@ -45,7 +47,9 @@ enum class WebSchedulerTrackedFeature : uint32_t {
 
   kContainsPlugins = 12,
   kDocumentLoaded = 13,
-  kDedicatedWorkerOrWorklet = 14,
+
+  // Removed in https://crbug.com/1146955
+  // kDedicatedWorkerOrWorklet = 14,
 
   // There are some other values defined for specific request context types
   // (e.g., XHR). This value corresponds to a network requests not covered by
@@ -55,7 +59,8 @@ enum class WebSchedulerTrackedFeature : uint32_t {
   // kServiceWorkerControlledPage = 16. Removed after implementing ServiceWorker
   // support.
 
-  kOutstandingIndexedDBTransaction = 17,
+  // No longer blocking after https://crbug.com/1378823.
+  // kOutstandingIndexedDBTransaction = 17,
 
   // Whether the page tried to request a permission regardless of the outcome.
   // TODO(altimin): Track this more accurately depending on the data.
@@ -71,13 +76,22 @@ enum class WebSchedulerTrackedFeature : uint32_t {
   kRequestedAudioCapturePermission = 22,
   kRequestedVideoCapturePermission = 23,
   kRequestedBackForwardCacheBlockedSensors = 24,
+
+  // This features is added together with the `kWebTransport` but
+  // as a sticky feature (i.e. the feature won't be removed even after the
+  // connection is closed). Pages with this feature registered will only be
+  // eligible for BFCache if the page doesn't contain "Cache-control: no-store"
+  // header.
+  kWebTransportSticky = 25,
+
   // This covers all background-related permissions, including background sync,
   // background fetch and others.
   kRequestedBackgroundWorkPermission = 26,
 
   kBroadcastChannel = 27,
 
-  kIndexedDBConnection = 28,
+  // No longer blocking after https://crbug.com/1331187.
+  // kIndexedDBConnection = 28,
 
   // kWebGL = 29. Removed after implementing WebGL support.
   // kWebVR = 30. The entire feature has been deleted.
@@ -102,13 +116,13 @@ enum class WebSchedulerTrackedFeature : uint32_t {
   // kAppBanner = 42. Removed after support added for back/forward cache.
   // See https://crbug.com/1276864.
   kPrinting = 43,
-  kWebDatabase = 44,
+  // kWebDatabase = 44, Removed after WebSQL removal.
   kPictureInPicture = 45,
-  kPortal = 46,
+  // kPortal = 46. Removed
   kSpeechRecognizer = 47,
   kIdleManager = 48,
   kPaymentManager = 49,
-  kSpeechSynthesis = 50,
+  // kSpeechSynthesis = 50. Removed
   kKeyboardLock = 51,
   kWebOTPService = 52,
   kOutstandingNetworkRequestDirectSocket = 53,
@@ -120,20 +134,46 @@ enum class WebSchedulerTrackedFeature : uint32_t {
   // This should be used only for testing.
   kDummy = 58,
   kKeepaliveRequest = 59,
-  // An RPC has been made using the "Authorization" header. We record this
-  // whenever we see it but we only care about this if the frame it was made
-  // from is same-origin with the main frame and the main frame used
-  // "Cache-Control: no-store".
-  kAuthorizationHeader = 60,
+  // An JavaScript network request has been received with the "Cache-Control:
+  // no-store" header. We record this whenever we see it but we only care about
+  // this if the frame it was made from is same-origin with the main frame and
+  // the main frame used "Cache-Control: no-store".
+  kJsNetworkRequestReceivedCacheControlNoStoreResource = 60,
   // There is a pending IndexedDB event (e.g. versionchange event sent but the
   // connection is not closed yet) that requires the page not to enter BFCache.
   kIndexedDBEvent = 61,
+  // Aggressive throttling is disabled when a serial port is opened and
+  // re-enabled when the opened port is closed.
+  kWebSerial = 62,
+
+  // These features are added together with the `kWebSocket` and `kWebRTC` but
+  // as sticky features.
+  // See comments for `kWebTransportSticky`.
+  kWebSocketSticky = 63,
+  kWebRTCSticky = 64,
+  kSmartCard = 65,
+  // There is a "live" MediaStreamTrack.
+  kLiveMediaStreamTrack = 66,
+
+  // Originally kUnloadHandlerExistsInMain/SubFrame were not recorded in the
+  // renderer side, but recorded in the browser side, making it impossible to
+  // track the source location. Here we make them a WebSchedulerTrackedFeature,
+  // so that the source location can be tracked. See https://crbug.com/1513120
+  // for details.
+  kUnloadHandler = 67,
+  kParserAborted = 68,
+
+  // Aggressive throttling is disabled when the page has an active Bluetooth
+  // connection.
+  kWebBluetooth = 69,
+
+  // The back/forward cache is disabled during WebAuthn transactions.
+  kWebAuthentication = 70,
 
   // Please keep in sync with WebSchedulerTrackedFeature in
   // tools/metrics/histograms/enums.xml. These values should not be renumbered.
 
-  // NB: This enum is used in a bitmask, so kMaxValue must be less than 64.
-  kMaxValue = kIndexedDBEvent,
+  kMaxValue = kWebAuthentication,
 };
 
 using WebSchedulerTrackedFeatures =
@@ -141,27 +181,17 @@ using WebSchedulerTrackedFeatures =
                   WebSchedulerTrackedFeature::kMinValue,
                   WebSchedulerTrackedFeature::kMaxValue>;
 
-static_assert(static_cast<uint32_t>(WebSchedulerTrackedFeature::kMaxValue) < 64,
-              "This enum is used in a bitmask, so the values should fit into a"
-              "64-bit integer");
-
 BLINK_COMMON_EXPORT std::string FeatureToHumanReadableString(
     WebSchedulerTrackedFeature feature);
 BLINK_COMMON_EXPORT std::string FeatureToShortString(
     WebSchedulerTrackedFeature feature);
 
-BLINK_COMMON_EXPORT absl::optional<WebSchedulerTrackedFeature> StringToFeature(
+BLINK_COMMON_EXPORT std::optional<WebSchedulerTrackedFeature> StringToFeature(
     const std::string& str);
 // Returns true if there was previously a feature by this name.
 // It is not comprehensive, just enough to cover what was used in finch,
 // in order to stop warnings at startup. See https://crbug.com/1363846.
 BLINK_COMMON_EXPORT bool IsRemovedFeature(const std::string& feature);
-
-// Converts a WebSchedulerTrackedFeature to a bit for use in a bitmask.
-BLINK_COMMON_EXPORT constexpr uint64_t FeatureToBit(
-    WebSchedulerTrackedFeature feature) {
-  return 1ull << static_cast<uint32_t>(feature);
-}
 
 // Sticky features can't be unregistered and remain active for the rest of the
 // lifetime of the page.

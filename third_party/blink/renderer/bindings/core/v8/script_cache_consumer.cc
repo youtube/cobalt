@@ -22,22 +22,22 @@
 #include "third_party/blink/renderer/platform/scheduler/public/worker_pool.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_copier.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
-#include "third_party/blink/renderer/platform/wtf/threading_primitives.h"
 #include "v8/include/v8.h"
 
 namespace blink {
 
 ScriptCacheConsumer::ScriptCacheConsumer(
+    v8::Isolate* isolate,
     scoped_refptr<CachedMetadata> cached_metadata,
     const String& script_url_string,
     uint64_t script_resource_identifier)
-    : cached_metadata_(cached_metadata),
+    : isolate_(isolate),
+      cached_metadata_(cached_metadata),
       script_url_string_(script_url_string),
       script_resource_identifier_(script_resource_identifier),
       state_(State::kRunning) {
-  v8::Isolate* isolate = V8PerIsolateData::MainThreadIsolate();
   consume_task_.reset(v8::ScriptCompiler::StartConsumingCodeCache(
-      isolate, V8CodeCache::CreateCachedData(cached_metadata_)));
+      isolate_, V8CodeCache::CreateCachedData(cached_metadata_)));
 
   if (consume_task_) {
     TRACE_EVENT_WITH_FLOW1(
@@ -58,6 +58,23 @@ ScriptCacheConsumer::ScriptCacheConsumer(
     // allowed.
     AdvanceState(State::kConsumeFinished);
   }
+}
+
+ScriptCacheConsumer::ScriptCacheConsumer(
+    v8::Isolate* isolate,
+    scoped_refptr<CachedMetadata> cached_metadata,
+    std::unique_ptr<v8::ScriptCompiler::ConsumeCodeCacheTask>
+        completed_consume_task,
+    const String& script_url_string,
+    uint64_t script_resource_identifier)
+    : isolate_(isolate),
+      cached_metadata_(std::move(cached_metadata)),
+      consume_task_(std::move(completed_consume_task)),
+      script_url_string_(script_url_string),
+      script_resource_identifier_(script_resource_identifier),
+      state_(State::kRunning) {
+  CHECK(consume_task_);
+  AdvanceState(State::kConsumeFinished);
 }
 
 ScriptCacheConsumer::State ScriptCacheConsumer::AdvanceState(
@@ -160,15 +177,12 @@ void ScriptCacheConsumer::NotifyClientWaiting(
   finish_callback_task_runner_ = task_runner;
 
   {
-    v8::Isolate* isolate = V8PerIsolateData::MainThreadIsolate();
-    v8::HandleScope scope(isolate);
+    v8::HandleScope scope(isolate_);
     const ParkableString& source_text = classic_script->SourceText();
-    v8::ScriptOrigin origin = classic_script->CreateScriptOrigin(isolate);
+    v8::ScriptOrigin origin = classic_script->CreateScriptOrigin(isolate_);
     if (consume_task_) {
       consume_task_->SourceTextAvailable(
-          isolate,
-          V8String(isolate, source_text, classic_script->ResourceKeepAlive()),
-          origin);
+          isolate_, V8String(isolate_, source_text), origin);
     }
   }
 

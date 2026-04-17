@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/shared/ffmpeg/ffmpeg_video_decoder.h"
+// clang-format on
+
 // This file contains the creation of the specialized VideoDecoderImpl object
 // corresponding to the version of the linked ffmpeg library.
 
-#include "starboard/shared/ffmpeg/ffmpeg_video_decoder.h"
-
+#include "starboard/common/check_op.h"
 #include "starboard/player.h"
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
@@ -31,8 +34,9 @@ VideoDecoder* VideoDecoder::Create(
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider) {
   FFMPEGDispatch* ffmpeg = FFMPEGDispatch::GetInstance();
-  SB_DCHECK(ffmpeg && ffmpeg->is_valid());
-  SB_DCHECK(FFMPEG == ffmpeg->specialization_version());
+  SB_DCHECK(ffmpeg);
+  SB_DCHECK(ffmpeg->is_valid());
+  SB_DCHECK_EQ(FFMPEG, ffmpeg->specialization_version());
 
   return VideoDecoderImpl<FFMPEG>::Create(
       video_codec, output_mode, decode_target_graphics_context_provider);

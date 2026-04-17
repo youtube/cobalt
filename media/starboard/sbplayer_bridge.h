@@ -20,8 +20,10 @@
 #include <utility>
 #include <vector>
 
+#include "base/atomic_sequence_num.h"
 #include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
@@ -41,9 +43,9 @@
 #include "media/base/audio_decoder_config.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
+#include "media/base/starboard/starboard_renderer_config.h"
 #include "media/base/video_decoder_config.h"
 #include "media/starboard/sbplayer_interface.h"
-#include "media/starboard/sbplayer_set_bounds_helper.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
@@ -87,7 +89,6 @@ class SbPlayerBridge {
                  const std::string& url,
                  SbWindow window,
                  Host* host,
-                 SbPlayerSetBoundsHelper* set_bounds_helper,
                  bool allow_resume_after_suspend,
                  SbPlayerOutputMode default_output_mode,
                  const OnEncryptedMediaInitDataEncounteredCB&
@@ -95,6 +96,7 @@ class SbPlayerBridge {
                  DecodeTargetProvider* const decode_target_provider,
                  std::string pipeline_identifier);
 #endif  // SB_HAS(PLAYER_WITH_URL)
+  using ExperimentalFeatures = StarboardRendererConfig::ExperimentalFeatures;
   // Create a SbPlayerBridge with normal player
   SbPlayerBridge(SbPlayerInterface* interface,
                  const scoped_refptr<base::SequencedTaskRunner>& task_runner,
@@ -107,14 +109,18 @@ class SbPlayerBridge {
                  SbWindow window,
                  SbDrmSystem drm_system,
                  Host* host,
-                 SbPlayerSetBoundsHelper* set_bounds_helper,
                  bool allow_resume_after_suspend,
                  SbPlayerOutputMode default_output_mode,
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
                  DecodeTargetProvider* const decode_target_provider,
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
                  const std::string& max_video_capabilities,
-                 int max_video_input_size
+                 int max_video_input_size,
+                 const ExperimentalFeatures& experimental_features
+#if BUILDFLAG(IS_ANDROID)
+                 ,
+                 jobject surface_view
+#endif  // BUILDFLAG(IS_ANDROID)
 #if COBALT_MEDIA_ENABLE_CVAL
                  ,
                  std::string pipeline_identifier
@@ -133,7 +139,7 @@ class SbPlayerBridge {
   void WriteBuffers(DemuxerStream::Type type,
                     const std::vector<scoped_refptr<DecoderBuffer>>& buffers);
 
-  void SetBounds(int z_index, const gfx::Rect& rect);
+  void SetBounds(const gfx::Rect& rect);
 
   void PrepareForSeek();
   void Seek(base::TimeDelta time);
@@ -180,32 +186,6 @@ class SbPlayerBridge {
     kResuming,
   };
 
-  // This class ensures that the callbacks posted to |task_runner_| are ignored
-  // automatically once SbPlayerBridge is destroyed.
-  class CallbackHelper : public base::RefCountedThreadSafe<CallbackHelper> {
-   public:
-    explicit CallbackHelper(SbPlayerBridge* player_bridge);
-
-    void ClearDecoderBufferCache();
-
-    // The following functions accept SbPlayer as void* to work around the
-    // requirements that types binding to Callbacks have to be complete.
-    void OnDecoderStatus(void* player,
-                         SbMediaType type,
-                         SbPlayerDecoderState state,
-                         int ticket);
-    void OnPlayerStatus(void* player, SbPlayerState state, int ticket);
-    void OnPlayerError(void* player,
-                       SbPlayerError error,
-                       const std::string& message);
-    void OnDeallocateSample(const void* sample_buffer);
-
-    void ResetPlayer();
-
-   private:
-    SbPlayerBridge* player_bridge_;
-  };
-
   static const int64_t kClearDecoderCacheIntervalInMilliseconds = 1000;
 
   // A map from raw data pointer returned by DecoderBuffer::GetData() to the
@@ -218,7 +198,9 @@ class SbPlayerBridge {
     int usage_count;
     SbMediaType type;
   };
-  using DecodingBuffers = absl::flat_hash_map<const void*, DecodingBuffer>;
+  using DecodingBuffers =
+      absl::flat_hash_map<const DecoderBuffer::Allocator::Handle,
+                          DecodingBuffer>;
 
 #if SB_HAS(PLAYER_WITH_URL)
   OnEncryptedMediaInitDataEncounteredCB
@@ -240,7 +222,6 @@ class SbPlayerBridge {
                                  int max_buffers_per_write);
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 
-  template <typename PlayerSampleInfo>
   void WriteBuffersInternal(
       DemuxerStream::Type type,
       const std::vector<scoped_refptr<DecoderBuffer>>& buffers,
@@ -260,6 +241,18 @@ class SbPlayerBridge {
                      SbPlayerError error,
                      const std::string& message);
   void OnDeallocateSample(const void* sample_buffer);
+
+  // Helper methods are used because base::Bind requires complete types for its
+  // arguments, and SbPlayer (an internal type) is an incomplete definition.
+  void OnDecoderStatusTask(void* player,
+                           SbMediaType type,
+                           SbPlayerDecoderState state,
+                           int ticket);
+  void OnPlayerStatusTask(void* player, SbPlayerState state, int ticket);
+  void OnPlayerErrorTask(void* player,
+                         SbPlayerError error,
+                         const std::string& message);
+  void OnDeallocateSampleTask(const void* sample_buffer);
 
   static void DecoderStatusCB(SbPlayer player,
                               void* context,
@@ -298,11 +291,9 @@ class SbPlayerBridge {
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;
   const GetDecodeTargetGraphicsContextProviderFunc
       get_decode_target_graphics_context_provider_func_;
-  scoped_refptr<CallbackHelper> callback_helper_;
   SbWindow window_;
   SbDrmSystem drm_system_ = kSbDrmSystemInvalid;
   Host* const host_;
-  SbPlayerSetBoundsHelper* const set_bounds_helper_;
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
   const bool allow_resume_after_suspend_;
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
@@ -350,10 +341,17 @@ class SbPlayerBridge {
   // A string of video maximum capabilities.
   std::string max_video_capabilities_;
 
+  const ExperimentalFeatures experimental_features_;
+
 #if COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
   // Set the maximum size in bytes of an input buffer for video.
   int max_video_input_size_;
 #endif
+
+#if BUILDFLAG(IS_ANDROID)
+  // Set the surface to Android Overlay's surface view.
+  jobject surface_view_;
+#endif  // BUILDFLAG(IS_ANDROID)
 
   // Keep track of errors during player creation.
   bool is_creating_player_ = false;
@@ -380,6 +378,11 @@ class SbPlayerBridge {
   CValStats* cval_stats_;
   std::string pipeline_identifier_;
 #endif  // COBALT_MEDIA_ENABLE_CVAL
+
+  // NOTE: Do not add member variables after weak_factory_
+  // It should be the first one destroyed among all members.
+  // See base/memory/weak_ptr.h.
+  base::WeakPtrFactory<SbPlayerBridge> weak_factory_{this};
 };
 
 }  // namespace media

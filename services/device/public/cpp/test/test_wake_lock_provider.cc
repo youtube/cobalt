@@ -182,7 +182,7 @@ TestWakeLockProvider::WakeLockDataPerType&
 TestWakeLockProvider::GetWakeLockDataPerType(mojom::WakeLockType type) const {
   auto it = wake_lock_store_.find(type);
   // An entry for |type| should always be created in the constructor.
-  DCHECK(it != wake_lock_store_.end());
+  CHECK(it != wake_lock_store_.end());
   return *(it->second);
 }
 

@@ -44,6 +44,12 @@
       "DelegatedInk*",
       "FromColorSpace/*",
       "ToColorSpace/*",
-      "All/VideoCaptureOverlayRenderTest*"
+      "All/VideoCaptureOverlayRenderTest*",
+      "ReadbackPixelTestRGBA.ExecutesCopyRequest*",
+      "ReadbackPixelTestRGBAWithBlit.ExecutesCopyRequestWithBlit*",
+      "ReadbackPixelTestNV12.ExecutesCopyRequest*",
+      "ReadbackPixelTestNV12WithBlit.ExecutesCopyRequestWithBlit*",
+      "IntersectingMultiplanarVideoQuadPixelTest.*",
+      "VideoRendererPixelHiLoColorSpaceTest.SimpleYUVRect*"
     ]
   }

@@ -4,10 +4,12 @@
 
 #include "ui/events/gestures/motion_event_aura.h"
 
+#include <array>
+
+#include "base/numerics/angle_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/events/event.h"
 #include "ui/events/test/motion_event_test_utils.h"
-#include "ui/gfx/geometry/angle_conversions.h"
 
 namespace {
 
@@ -59,25 +61,25 @@ namespace ui {
 TEST(MotionEventAuraTest, PointerCountAndIds) {
   // Test that |PointerCount()| returns the correct number of pointers, and ids
   // are assigned correctly.
-  int ids[] = {4, 6, 1};
+  auto ids = std::to_array<int>({4, 6, 1});
 
   MotionEventAura event;
   EXPECT_EQ(0U, event.GetPointerCount());
 
-  TouchEvent press0 = TouchWithType(ET_TOUCH_PRESSED, ids[0]);
+  TouchEvent press0 = TouchWithType(EventType::kTouchPressed, ids[0]);
   EXPECT_TRUE(event.OnTouch(press0));
   EXPECT_EQ(1U, event.GetPointerCount());
 
   EXPECT_EQ(ids[0], event.GetPointerId(0));
 
-  TouchEvent press1 = TouchWithType(ET_TOUCH_PRESSED, ids[1]);
+  TouchEvent press1 = TouchWithType(EventType::kTouchPressed, ids[1]);
   EXPECT_TRUE(event.OnTouch(press1));
   EXPECT_EQ(2U, event.GetPointerCount());
 
   EXPECT_EQ(ids[0], event.GetPointerId(0));
   EXPECT_EQ(ids[1], event.GetPointerId(1));
 
-  TouchEvent press2 = TouchWithType(ET_TOUCH_PRESSED, ids[2]);
+  TouchEvent press2 = TouchWithType(EventType::kTouchPressed, ids[2]);
   EXPECT_TRUE(event.OnTouch(press2));
   EXPECT_EQ(3U, event.GetPointerCount());
 
@@ -85,7 +87,7 @@ TEST(MotionEventAuraTest, PointerCountAndIds) {
   EXPECT_EQ(ids[1], event.GetPointerId(1));
   EXPECT_EQ(ids[2], event.GetPointerId(2));
 
-  TouchEvent release1 = TouchWithType(ET_TOUCH_RELEASED, ids[1]);
+  TouchEvent release1 = TouchWithType(EventType::kTouchReleased, ids[1]);
   EXPECT_TRUE(event.OnTouch(release1));
   event.CleanupRemovedTouchPoints(release1);
   EXPECT_EQ(2U, event.GetPointerCount());
@@ -102,14 +104,14 @@ TEST(MotionEventAuraTest, PointerCountAndIds) {
   EXPECT_EQ(event.GetUniqueEventId(), clone->GetUniqueEventId());
   EXPECT_EQ(test::ToString(event), test::ToString(*clone));
 
-  TouchEvent release0 = TouchWithType(ET_TOUCH_RELEASED, ids[0]);
+  TouchEvent release0 = TouchWithType(EventType::kTouchReleased, ids[0]);
   EXPECT_TRUE(event.OnTouch(release0));
   event.CleanupRemovedTouchPoints(release0);
   EXPECT_EQ(1U, event.GetPointerCount());
 
   EXPECT_EQ(ids[2], event.GetPointerId(0));
 
-  TouchEvent release2 = TouchWithType(ET_TOUCH_RELEASED, ids[2]);
+  TouchEvent release2 = TouchWithType(EventType::kTouchReleased, ids[2]);
   EXPECT_TRUE(event.OnTouch(release2));
   event.CleanupRemovedTouchPoints(release2);
   EXPECT_EQ(0U, event.GetPointerCount());
@@ -118,34 +120,34 @@ TEST(MotionEventAuraTest, PointerCountAndIds) {
 TEST(MotionEventAuraTest, GetActionIndexAfterRemoval) {
   // Test that |GetActionIndex()| returns the correct index when points have
   // been removed.
-  int ids[] = {4, 6, 9};
+  auto ids = std::to_array<int>({4, 6, 9});
 
   MotionEventAura event;
   EXPECT_EQ(0U, event.GetPointerCount());
 
-  TouchEvent press0 = TouchWithType(ET_TOUCH_PRESSED, ids[0]);
+  TouchEvent press0 = TouchWithType(EventType::kTouchPressed, ids[0]);
   EXPECT_TRUE(event.OnTouch(press0));
-  TouchEvent press1 = TouchWithType(ET_TOUCH_PRESSED, ids[1]);
+  TouchEvent press1 = TouchWithType(EventType::kTouchPressed, ids[1]);
   EXPECT_TRUE(event.OnTouch(press1));
   EXPECT_EQ(1, event.GetActionIndex());
-  TouchEvent press2 = TouchWithType(ET_TOUCH_PRESSED, ids[2]);
+  TouchEvent press2 = TouchWithType(EventType::kTouchPressed, ids[2]);
   EXPECT_TRUE(event.OnTouch(press2));
   EXPECT_EQ(2, event.GetActionIndex());
   EXPECT_EQ(3U, event.GetPointerCount());
 
-  TouchEvent release1 = TouchWithType(ET_TOUCH_RELEASED, ids[1]);
+  TouchEvent release1 = TouchWithType(EventType::kTouchReleased, ids[1]);
   EXPECT_TRUE(event.OnTouch(release1));
   EXPECT_EQ(1, event.GetActionIndex());
   event.CleanupRemovedTouchPoints(release1);
   EXPECT_EQ(2U, event.GetPointerCount());
 
-  TouchEvent release2 = TouchWithType(ET_TOUCH_RELEASED, ids[0]);
+  TouchEvent release2 = TouchWithType(EventType::kTouchReleased, ids[0]);
   EXPECT_TRUE(event.OnTouch(release2));
   EXPECT_EQ(0, event.GetActionIndex());
   event.CleanupRemovedTouchPoints(release2);
   EXPECT_EQ(1U, event.GetPointerCount());
 
-  TouchEvent release0 = TouchWithType(ET_TOUCH_RELEASED, ids[2]);
+  TouchEvent release0 = TouchWithType(EventType::kTouchReleased, ids[2]);
   EXPECT_TRUE(event.OnTouch(release0));
   event.CleanupRemovedTouchPoints(release0);
   EXPECT_EQ(0U, event.GetPointerCount());
@@ -158,7 +160,7 @@ TEST(MotionEventAuraTest, PointerLocations) {
   const float kRawOffsetX = 11.1f;
   const float kRawOffsetY = 13.3f;
 
-  int ids[] = {15, 13};
+  auto ids = std::to_array<int>({15, 13});
   float x;
   float y;
   float raw_x;
@@ -169,7 +171,7 @@ TEST(MotionEventAuraTest, PointerLocations) {
   raw_x = x + kRawOffsetX;
   raw_y = y + kRawOffsetY;
   TouchEvent press0 =
-      TouchWithPosition(ET_TOUCH_PRESSED, ids[0], x, y, raw_x, raw_y);
+      TouchWithPosition(EventType::kTouchPressed, ids[0], x, y, raw_x, raw_y);
   EXPECT_TRUE(event.OnTouch(press0));
 
   EXPECT_EQ(1U, event.GetPointerCount());
@@ -183,7 +185,7 @@ TEST(MotionEventAuraTest, PointerLocations) {
   raw_x = x + kRawOffsetX;
   raw_y = y + kRawOffsetY;
   TouchEvent press1 =
-      TouchWithPosition(ET_TOUCH_PRESSED, ids[1], x, y, raw_x, raw_y);
+      TouchWithPosition(EventType::kTouchPressed, ids[1], x, y, raw_x, raw_y);
   EXPECT_TRUE(event.OnTouch(press1));
 
   EXPECT_EQ(2U, event.GetPointerCount());
@@ -207,7 +209,7 @@ TEST(MotionEventAuraTest, PointerLocations) {
   raw_x = x + kRawOffsetX;
   raw_y = y + kRawOffsetY;
   TouchEvent move1 =
-      TouchWithPosition(ET_TOUCH_MOVED, ids[1], x, y, raw_x, raw_y);
+      TouchWithPosition(EventType::kTouchMoved, ids[1], x, y, raw_x, raw_y);
   EXPECT_TRUE(event.OnTouch(move1));
 
   EXPECT_FLOAT_EQ(x, event.GetX(1));
@@ -220,7 +222,7 @@ TEST(MotionEventAuraTest, PointerLocations) {
   raw_x = x + kRawOffsetX;
   raw_y = y + kRawOffsetY;
   TouchEvent move0 =
-      TouchWithPosition(ET_TOUCH_MOVED, ids[0], x, y, raw_x, raw_y);
+      TouchWithPosition(EventType::kTouchMoved, ids[0], x, y, raw_x, raw_y);
   EXPECT_TRUE(event.OnTouch(move0));
 
   EXPECT_FLOAT_EQ(x, event.GetX(0));
@@ -233,7 +235,7 @@ TEST(MotionEventAuraTest, TapParams) {
   // Test that touch params are stored correctly.
   MotionEventAura event;
 
-  int ids[] = {15, 13, 25, 23};
+  auto ids = std::to_array<int>({15, 13, 25, 23});
 
   float radius_x;
   float radius_y;
@@ -245,14 +247,15 @@ TEST(MotionEventAuraTest, TapParams) {
   radius_y = 67.89f;
   rotation_angle = 23.f;
   pressure = 0.123f;
-  TouchEvent press0 = TouchWithTapParams(
-      ET_TOUCH_PRESSED, ids[0], radius_x, radius_y, rotation_angle, pressure);
+  TouchEvent press0 =
+      TouchWithTapParams(EventType::kTouchPressed, ids[0], radius_x, radius_y,
+                         rotation_angle, pressure);
   EXPECT_TRUE(event.OnTouch(press0));
 
   EXPECT_EQ(1U, event.GetPointerCount());
   EXPECT_FLOAT_EQ(radius_x, event.GetTouchMajor(0) / 2);
   EXPECT_FLOAT_EQ(radius_y, event.GetTouchMinor(0) / 2);
-  EXPECT_FLOAT_EQ(rotation_angle, gfx::RadToDeg(event.GetOrientation(0)) + 90);
+  EXPECT_FLOAT_EQ(rotation_angle, base::RadToDeg(event.GetOrientation(0)) + 90);
   EXPECT_FLOAT_EQ(pressure, event.GetPressure(0));
   EXPECT_EQ(MotionEvent::ToolType::FINGER, event.GetToolType(0));
 
@@ -261,14 +264,15 @@ TEST(MotionEventAuraTest, TapParams) {
   radius_y = 123.45f;
   rotation_angle = 46.f;
   pressure = 0.456f;
-  TouchEvent press1 = TouchWithTapParams(
-      ET_TOUCH_PRESSED, ids[1], radius_x, radius_y, rotation_angle, pressure);
+  TouchEvent press1 =
+      TouchWithTapParams(EventType::kTouchPressed, ids[1], radius_x, radius_y,
+                         rotation_angle, pressure);
   EXPECT_TRUE(event.OnTouch(press1));
 
   EXPECT_EQ(2U, event.GetPointerCount());
   EXPECT_FLOAT_EQ(radius_y, event.GetTouchMajor(1) / 2);
   EXPECT_FLOAT_EQ(radius_x, event.GetTouchMinor(1) / 2);
-  EXPECT_FLOAT_EQ(rotation_angle, gfx::RadToDeg(event.GetOrientation(1)));
+  EXPECT_FLOAT_EQ(rotation_angle, base::RadToDeg(event.GetOrientation(1)));
   EXPECT_FLOAT_EQ(pressure, event.GetPressure(1));
   EXPECT_EQ(MotionEvent::ToolType::FINGER, event.GetToolType(1));
 
@@ -280,7 +284,7 @@ TEST(MotionEventAuraTest, TapParams) {
   EXPECT_EQ(2U, clone->GetPointerCount());
   EXPECT_FLOAT_EQ(radius_y, clone->GetTouchMajor(1) / 2);
   EXPECT_FLOAT_EQ(radius_x, clone->GetTouchMinor(1) / 2);
-  EXPECT_FLOAT_EQ(rotation_angle, gfx::RadToDeg(clone->GetOrientation(1)));
+  EXPECT_FLOAT_EQ(rotation_angle, base::RadToDeg(clone->GetOrientation(1)));
   EXPECT_FLOAT_EQ(pressure, clone->GetPressure(1));
   EXPECT_EQ(MotionEvent::ToolType::FINGER, clone->GetToolType(1));
 
@@ -289,15 +293,16 @@ TEST(MotionEventAuraTest, TapParams) {
   radius_y = 321.54f;
   rotation_angle = 64.f;
   pressure = 0.654f;
-  TouchEvent move1 = TouchWithTapParams(
-      ET_TOUCH_MOVED, ids[1], radius_x, radius_y, rotation_angle, pressure);
+  TouchEvent move1 =
+      TouchWithTapParams(EventType::kTouchMoved, ids[1], radius_x, radius_y,
+                         rotation_angle, pressure);
   move1.set_location(gfx::Point(20, 21));
   EXPECT_TRUE(event.OnTouch(move1));
 
   EXPECT_EQ(2U, event.GetPointerCount());
   EXPECT_FLOAT_EQ(radius_y, event.GetTouchMajor(1) / 2);
   EXPECT_FLOAT_EQ(radius_x, event.GetTouchMinor(1) / 2);
-  EXPECT_FLOAT_EQ(rotation_angle, gfx::RadToDeg(event.GetOrientation(1)));
+  EXPECT_FLOAT_EQ(rotation_angle, base::RadToDeg(event.GetOrientation(1)));
   EXPECT_FLOAT_EQ(pressure, event.GetPressure(1));
   EXPECT_EQ(MotionEvent::ToolType::FINGER, event.GetToolType(1));
 
@@ -306,14 +311,15 @@ TEST(MotionEventAuraTest, TapParams) {
   radius_y = 67.89f;
   rotation_angle = 92.f;
   pressure = 0.789f;
-  TouchEvent press2 = TouchWithTapParams(
-      ET_TOUCH_PRESSED, ids[2], radius_x, radius_y, rotation_angle, pressure);
+  TouchEvent press2 =
+      TouchWithTapParams(EventType::kTouchPressed, ids[2], radius_x, radius_y,
+                         rotation_angle, pressure);
   EXPECT_TRUE(event.OnTouch(press2));
 
   EXPECT_EQ(3U, event.GetPointerCount());
   EXPECT_FLOAT_EQ(radius_x, event.GetTouchMajor(2) / 2);
   EXPECT_FLOAT_EQ(radius_y, event.GetTouchMinor(2) / 2);
-  EXPECT_FLOAT_EQ(rotation_angle, gfx::RadToDeg(event.GetOrientation(2)) + 90);
+  EXPECT_FLOAT_EQ(rotation_angle, base::RadToDeg(event.GetOrientation(2)) + 90);
   EXPECT_FLOAT_EQ(pressure, event.GetPressure(2));
   EXPECT_EQ(MotionEvent::ToolType::FINGER, event.GetToolType(2));
 
@@ -322,14 +328,16 @@ TEST(MotionEventAuraTest, TapParams) {
   radius_y = 123.45f;
   rotation_angle = 135.f;
   pressure = 0.012f;
-  TouchEvent press3 = TouchWithTapParams(
-      ET_TOUCH_PRESSED, ids[3], radius_x, radius_y, rotation_angle, pressure);
+  TouchEvent press3 =
+      TouchWithTapParams(EventType::kTouchPressed, ids[3], radius_x, radius_y,
+                         rotation_angle, pressure);
   EXPECT_TRUE(event.OnTouch(press3));
 
   EXPECT_EQ(4U, event.GetPointerCount());
   EXPECT_FLOAT_EQ(radius_y, event.GetTouchMajor(3) / 2);
   EXPECT_FLOAT_EQ(radius_x, event.GetTouchMinor(3) / 2);
-  EXPECT_FLOAT_EQ(rotation_angle, gfx::RadToDeg(event.GetOrientation(3)) + 180);
+  EXPECT_FLOAT_EQ(rotation_angle,
+                  base::RadToDeg(event.GetOrientation(3)) + 180);
   EXPECT_FLOAT_EQ(pressure, event.GetPressure(3));
   EXPECT_EQ(MotionEvent::ToolType::FINGER, event.GetToolType(3));
 }
@@ -337,21 +345,21 @@ TEST(MotionEventAuraTest, TapParams) {
 TEST(MotionEventAuraTest, Timestamps) {
   // Test that timestamp information is stored and converted correctly.
   MotionEventAura event;
-  int ids[] = {7, 13};
-  int times_in_ms[] = {59436, 60263, 82175};
+  auto ids = std::to_array<int>({7, 13});
+  auto times_in_ms = std::to_array<int>({59436, 60263, 82175});
 
-  TouchEvent press0 = TouchWithTime(
-      ui::ET_TOUCH_PRESSED, ids[0], times_in_ms[0]);
+  TouchEvent press0 =
+      TouchWithTime(ui::EventType::kTouchPressed, ids[0], times_in_ms[0]);
   EXPECT_TRUE(event.OnTouch(press0));
   EXPECT_EQ(MsToTicks(times_in_ms[0]), event.GetEventTime());
 
-  TouchEvent press1 = TouchWithTime(
-      ui::ET_TOUCH_PRESSED, ids[1], times_in_ms[1]);
+  TouchEvent press1 =
+      TouchWithTime(ui::EventType::kTouchPressed, ids[1], times_in_ms[1]);
   EXPECT_TRUE(event.OnTouch(press1));
   EXPECT_EQ(MsToTicks(times_in_ms[1]), event.GetEventTime());
 
-  TouchEvent move0 = TouchWithTime(
-      ui::ET_TOUCH_MOVED, ids[0], times_in_ms[2]);
+  TouchEvent move0 =
+      TouchWithTime(ui::EventType::kTouchMoved, ids[0], times_in_ms[2]);
   move0.set_location(gfx::Point(12, 21));
   EXPECT_TRUE(event.OnTouch(move0));
   EXPECT_EQ(MsToTicks(times_in_ms[2]), event.GetEventTime());
@@ -363,15 +371,15 @@ TEST(MotionEventAuraTest, Timestamps) {
 
 TEST(MotionEventAuraTest, CachedAction) {
   // Test that the cached action and cached action index are correct.
-  int ids[] = {4, 6};
+  auto ids = std::to_array<int>({4, 6});
   MotionEventAura event;
 
-  TouchEvent press0 = TouchWithType(ET_TOUCH_PRESSED, ids[0]);
+  TouchEvent press0 = TouchWithType(EventType::kTouchPressed, ids[0]);
   EXPECT_TRUE(event.OnTouch(press0));
   EXPECT_EQ(MotionEvent::Action::DOWN, event.GetAction());
   EXPECT_EQ(1U, event.GetPointerCount());
 
-  TouchEvent press1 = TouchWithType(ET_TOUCH_PRESSED, ids[1]);
+  TouchEvent press1 = TouchWithType(EventType::kTouchPressed, ids[1]);
   EXPECT_TRUE(event.OnTouch(press1));
   EXPECT_EQ(MotionEvent::Action::POINTER_DOWN, event.GetAction());
   EXPECT_EQ(1, event.GetActionIndex());
@@ -382,20 +390,20 @@ TEST(MotionEventAuraTest, CachedAction) {
   EXPECT_EQ(MotionEvent::Action::POINTER_DOWN, clone->GetAction());
   EXPECT_EQ(1, clone->GetActionIndex());
 
-  TouchEvent move0 = TouchWithType(ET_TOUCH_MOVED, ids[0]);
+  TouchEvent move0 = TouchWithType(EventType::kTouchMoved, ids[0]);
   move0.set_location(gfx::Point(10, 12));
   EXPECT_TRUE(event.OnTouch(move0));
   EXPECT_EQ(MotionEvent::Action::MOVE, event.GetAction());
   EXPECT_EQ(2U, event.GetPointerCount());
 
-  TouchEvent release0 = TouchWithType(ET_TOUCH_RELEASED, ids[0]);
+  TouchEvent release0 = TouchWithType(EventType::kTouchReleased, ids[0]);
   EXPECT_TRUE(event.OnTouch(release0));
   EXPECT_EQ(MotionEvent::Action::POINTER_UP, event.GetAction());
   EXPECT_EQ(2U, event.GetPointerCount());
   event.CleanupRemovedTouchPoints(release0);
   EXPECT_EQ(1U, event.GetPointerCount());
 
-  TouchEvent release1 = TouchWithType(ET_TOUCH_RELEASED, ids[1]);
+  TouchEvent release1 = TouchWithType(EventType::kTouchReleased, ids[1]);
   EXPECT_TRUE(event.OnTouch(release1));
   EXPECT_EQ(MotionEvent::Action::UP, event.GetAction());
   EXPECT_EQ(1U, event.GetPointerCount());
@@ -404,15 +412,15 @@ TEST(MotionEventAuraTest, CachedAction) {
 }
 
 TEST(MotionEventAuraTest, Cancel) {
-  int ids[] = {4, 6};
+  auto ids = std::to_array<int>({4, 6});
   MotionEventAura event;
 
-  TouchEvent press0 = TouchWithType(ET_TOUCH_PRESSED, ids[0]);
+  TouchEvent press0 = TouchWithType(EventType::kTouchPressed, ids[0]);
   EXPECT_TRUE(event.OnTouch(press0));
   EXPECT_EQ(MotionEvent::Action::DOWN, event.GetAction());
   EXPECT_EQ(1U, event.GetPointerCount());
 
-  TouchEvent press1 = TouchWithType(ET_TOUCH_PRESSED, ids[1]);
+  TouchEvent press1 = TouchWithType(EventType::kTouchPressed, ids[1]);
   EXPECT_TRUE(event.OnTouch(press1));
   EXPECT_EQ(MotionEvent::Action::POINTER_DOWN, event.GetAction());
   EXPECT_EQ(1, event.GetActionIndex());
@@ -425,12 +433,12 @@ TEST(MotionEventAuraTest, Cancel) {
 
 TEST(MotionEventAuraTest, ToolType) {
   MotionEventAura event;
-  TouchEvent touch_event = TouchWithType(ET_TOUCH_PRESSED, 7);
+  TouchEvent touch_event = TouchWithType(EventType::kTouchPressed, 7);
   EXPECT_TRUE(event.OnTouch(touch_event));
   ASSERT_EQ(1U, event.GetPointerCount());
   EXPECT_EQ(MotionEvent::ToolType::FINGER, event.GetToolType(0));
 
-  touch_event = TouchWithType(ET_TOUCH_RELEASED, 7);
+  touch_event = TouchWithType(EventType::kTouchReleased, 7);
   PointerDetails pointer_details(EventPointerType::kPen,
                                  /* pointer_id*/ 7,
                                  /* radius_x */ 5.0f,
@@ -442,16 +450,16 @@ TEST(MotionEventAuraTest, ToolType) {
 }
 
 TEST(MotionEventAuraTest, Flags) {
-  int ids[] = {7, 11};
+  auto ids = std::to_array<int>({7, 11});
   MotionEventAura event;
 
-  TouchEvent press0 = TouchWithType(ET_TOUCH_PRESSED, ids[0]);
-  press0.set_flags(EF_CONTROL_DOWN);
+  TouchEvent press0 = TouchWithType(EventType::kTouchPressed, ids[0]);
+  press0.SetFlags(EF_CONTROL_DOWN);
   EXPECT_TRUE(event.OnTouch(press0));
   EXPECT_EQ(EF_CONTROL_DOWN, event.GetFlags());
 
-  TouchEvent press1 = TouchWithType(ET_TOUCH_PRESSED, ids[1]);
-  press1.set_flags(EF_CONTROL_DOWN | EF_CAPS_LOCK_ON);
+  TouchEvent press1 = TouchWithType(EventType::kTouchPressed, ids[1]);
+  press1.SetFlags(EF_CONTROL_DOWN | EF_CAPS_LOCK_ON);
   EXPECT_TRUE(event.OnTouch(press1));
   EXPECT_EQ(EF_CONTROL_DOWN | EF_CAPS_LOCK_ON, event.GetFlags());
 }
@@ -462,11 +470,13 @@ TEST(MotionEventAuraTest, IgnoresRedundantPresses) {
   const int position_2 = 23;
 
   MotionEventAura event;
-  TouchEvent press1 = TouchWithPosition(ET_TOUCH_PRESSED, id, position_1,
-                                        position_1, position_1, position_1);
+  TouchEvent press1 =
+      TouchWithPosition(EventType::kTouchPressed, id, position_1, position_1,
+                        position_1, position_1);
   EXPECT_TRUE(event.OnTouch(press1));
-  TouchEvent press2 = TouchWithPosition(ET_TOUCH_PRESSED, id, position_2,
-                                        position_2, position_2, position_2);
+  TouchEvent press2 =
+      TouchWithPosition(EventType::kTouchPressed, id, position_2, position_2,
+                        position_2, position_2);
   EXPECT_FALSE(event.OnTouch(press2));
 
   EXPECT_EQ(1U, event.GetPointerCount());
@@ -476,17 +486,19 @@ TEST(MotionEventAuraTest, IgnoresRedundantPresses) {
 TEST(MotionEventAuraTest, IgnoresEventsWithoutPress) {
   int id = 7;
   MotionEventAura event;
-  EXPECT_FALSE(event.OnTouch(TouchWithType(ET_TOUCH_MOVED, id)));
+  EXPECT_FALSE(event.OnTouch(TouchWithType(EventType::kTouchMoved, id)));
 }
 
 TEST(MotionEventAuraTest, IgnoresStationaryMoves) {
   int id = 7;
   MotionEventAura event;
-  EXPECT_TRUE(event.OnTouch(TouchWithType(ET_TOUCH_PRESSED, id)));
-  TouchEvent move0 = TouchWithPosition(ET_TOUCH_MOVED, id, 10, 20, 10, 20);
+  EXPECT_TRUE(event.OnTouch(TouchWithType(EventType::kTouchPressed, id)));
+  TouchEvent move0 =
+      TouchWithPosition(EventType::kTouchMoved, id, 10, 20, 10, 20);
   EXPECT_TRUE(event.OnTouch(move0));
 
-  TouchEvent move1 = TouchWithPosition(ET_TOUCH_MOVED, id, 11, 21, 11, 21);
+  TouchEvent move1 =
+      TouchWithPosition(EventType::kTouchMoved, id, 11, 21, 11, 21);
   EXPECT_TRUE(event.OnTouch(move1));
   EXPECT_FALSE(event.OnTouch(move1));
 }
@@ -496,13 +508,13 @@ TEST(MotionEventAuraTest, IgnoresStationaryMoves) {
 TEST(MotionEventAuraTest, UniqueEventID) {
   MotionEventAura event;
 
-  TouchEvent press0 = TouchWithType(ET_TOUCH_PRESSED, 3);
+  TouchEvent press0 = TouchWithType(EventType::kTouchPressed, 3);
   EXPECT_TRUE(event.OnTouch(press0));
   EXPECT_EQ(MotionEvent::Action::DOWN, event.GetAction());
   ASSERT_EQ(1U, event.GetPointerCount());
   EXPECT_EQ(event.GetUniqueEventId(), press0.unique_event_id());
 
-  TouchEvent press1 = TouchWithType(ET_TOUCH_PRESSED, 6);
+  TouchEvent press1 = TouchWithType(EventType::kTouchPressed, 6);
   EXPECT_TRUE(event.OnTouch(press1));
   EXPECT_EQ(MotionEvent::Action::POINTER_DOWN, event.GetAction());
   EXPECT_EQ(2U, event.GetPointerCount());
@@ -517,7 +529,7 @@ TEST(MotionEventAuraTest, IgnoresTouchesOverCapacity) {
   MotionEventAura event;
   for (int i = 0; i < MotionEvent::MAX_TOUCH_POINT_COUNT + kExtraTouches; ++i) {
     int id = i + kIdOffset;
-    TouchEvent press = TouchWithType(ET_TOUCH_PRESSED, id);
+    TouchEvent press = TouchWithType(EventType::kTouchPressed, id);
     if (i < MotionEvent::MAX_TOUCH_POINT_COUNT)
       EXPECT_TRUE(event.OnTouch(press));
     else
@@ -526,7 +538,7 @@ TEST(MotionEventAuraTest, IgnoresTouchesOverCapacity) {
 
   for (int i = 0; i < MotionEvent::MAX_TOUCH_POINT_COUNT + kExtraTouches; ++i) {
     int id = i + kIdOffset;
-    TouchEvent release = TouchWithType(ET_TOUCH_RELEASED, id);
+    TouchEvent release = TouchWithType(EventType::kTouchReleased, id);
     if (i < MotionEvent::MAX_TOUCH_POINT_COUNT)
       EXPECT_TRUE(event.OnTouch(release));
     else
@@ -536,9 +548,9 @@ TEST(MotionEventAuraTest, IgnoresTouchesOverCapacity) {
 
 TEST(MotionEventAuraTest, PenRadiusDefault) {
   MotionEventAura event;
-  TouchEvent touch_event =
-      ui::TouchEvent(ET_TOUCH_PRESSED, gfx::Point(0, 0), base::TimeTicks(),
-                     ui::PointerDetails(ui::EventPointerType::kPen, 7));
+  TouchEvent touch_event = ui::TouchEvent(
+      EventType::kTouchPressed, gfx::Point(0, 0), base::TimeTicks(),
+      ui::PointerDetails(ui::EventPointerType::kPen, 7));
   EXPECT_TRUE(event.OnTouch(touch_event));
   EXPECT_EQ(MotionEvent::ToolType::STYLUS, event.GetToolType(0));
   EXPECT_EQ(1u, event.GetTouchMajor(0));

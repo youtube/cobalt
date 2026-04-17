@@ -4,6 +4,8 @@
 
 package org.chromium.components.browser_ui.photo_picker;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.ParcelFileDescriptor;
@@ -11,17 +13,19 @@ import android.os.RemoteException;
 import android.os.SystemClock;
 import android.util.Pair;
 
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Log;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.build.annotations.NullMarked;
 
 import java.io.FileDescriptor;
 import java.io.IOException;
 
 /**
- * A helper to accept requests to take image file contents and decode them.
- * As this is intended to be run in a separate, sandboxed process, it also requires calling code to
- * initialize the sandbox.
+ * A helper to accept requests to take image file contents and decode them. As this is intended to
+ * be run in a separate, sandboxed process, it also requires calling code to initialize the sandbox.
  */
+@NullMarked
 public class ImageDecoder extends IDecoderService.Stub {
     // The keys for the bundle when passing data to and from this service.
     public static final String KEY_FILE_DESCRIPTOR = "file_descriptor";
@@ -39,9 +43,7 @@ public class ImageDecoder extends IDecoderService.Stub {
     // Whether the native library and the sandbox have been initialized.
     private boolean mSandboxInitialized;
 
-    /**
-     * Initializes the seccomp-bpf sandbox when it's supported by the device.
-     */
+    /** Initializes the seccomp-bpf sandbox when it's supported by the device. */
     public void initializeSandbox() {
         ImageDecoderJni.get().initializePhotoPickerSandbox();
         mSandboxInitialized = true;
@@ -71,6 +73,7 @@ public class ImageDecoder extends IDecoderService.Stub {
                 return;
             }
 
+            assumeNonNull(pfd);
             FileDescriptor fd = pfd.getFileDescriptor();
 
             long begin = SystemClock.elapsedRealtime();
@@ -90,6 +93,7 @@ public class ImageDecoder extends IDecoderService.Stub {
                 sendReply(callback, bundle); // Sends SUCCESS == false;
                 return;
             }
+            assumeNonNull(decodedBitmap);
 
             // The most widely supported, easiest, and reasonably efficient method is to
             // decode to an immutable bitmap and just return the bitmap over binder. It
@@ -107,8 +111,13 @@ public class ImageDecoder extends IDecoderService.Stub {
             // This service has no UI and maintains no state so if it crashes on
             // decoding a photo, it is better UX to eat the exception instead of showing
             // a crash dialog and discarding other requests that have already been sent.
-            Log.e(TAG,
-                    "Unexpected error during decoding " + filePath + " (width: " + width + ") "
+            Log.e(
+                    TAG,
+                    "Unexpected error during decoding "
+                            + filePath
+                            + " (width: "
+                            + width
+                            + ") "
                             + e);
 
             if (bundle != null) sendReply(callback, bundle);

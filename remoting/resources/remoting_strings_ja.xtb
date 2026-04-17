@@ -4,7 +4,6 @@
 <translation id="1002108253973310084">互換性のないプロトコル バージョンが検出されました。両方のパソコンにインストールしているソフトウェアのバージョンが最新であることを確認し、もう一度お試しください。</translation>
 <translation id="1008557486741366299">後で</translation>
 <translation id="1201402288615127009">次へ</translation>
-<translation id="1296511125400541222">Copyright 2023 The Chromium Authors. All Rights Reserved.</translation>
 <translation id="1297009705180977556"><ph name="HOSTNAME" /> への接続中にエラーが発生しました</translation>
 <translation id="1450760146488584666">リクエストしたオブジェクトは存在しません。</translation>
 <translation id="1480046233931937785">クレジット</translation>
@@ -29,7 +28,7 @@
 <translation id="2329392777730037872">クライアントで <ph name="URL" /> を開けませんでした。</translation>
 <translation id="2359808026110333948">続行</translation>
 <translation id="2366718077645204424">ホストにアクセスできません。お使いのネットワークの設定が原因であることが考えられます。</translation>
-<translation id="2370754117186920852"><ph name="OPTIONAL_OFFLINE_REASON" />最終オンライン: <ph name="RELATIVE_TIMESTAMP" />。</translation>
+<translation id="242591256144136845">Copyright 2025 Google LLC. All Rights Reserved.</translation>
 <translation id="2504109125669302160"><ph name="PRODUCT_NAME" />に「アクセシビリティ」権限を付与する</translation>
 <translation id="2509394361235492552"><ph name="HOSTNAME" /> に接続されました</translation>
 <translation id="2540992418118313681">このパソコンの閲覧と制御の権限を別のユーザーと共有しますか？</translation>
@@ -41,6 +40,7 @@
 <translation id="2758123043070977469">認証中に問題が発生しました。ログインし直してください。</translation>
 <translation id="2803375539583399270">PIN を入力</translation>
 <translation id="2919669478609886916">現在このパソコンを別のユーザーと共有しています。共有を継続しますか？</translation>
+<translation id="2929683002824598593">デバイスを共有</translation>
 <translation id="2939145106548231838">ホストへの認証</translation>
 <translation id="3027681561976217984">タップモード</translation>
 <translation id="3106379468611574572">リモートのパソコンが接続リクエストに応答しません。リモートのパソコンがネットワークに接続していることを確認して、もう一度お試しください。</translation>
@@ -54,7 +54,6 @@
 <translation id="3423542133075182604">セキュリティ キーのリモーティング プロセス</translation>
 <translation id="3581045510967524389">ネットワークに接続できませんでした。デバイスがインターネットに接続されているか確認してください。</translation>
 <translation id="3596628256176442606">このサービスにより、Chromoting クライアントからの着信接続が有効になります。</translation>
-<translation id="369442766917958684">オフラインです。</translation>
 <translation id="3695446226812920698">詳細</translation>
 <translation id="3776024066357219166">Chrome リモート デスクトップ セッションが終了しました。</translation>
 <translation id="3858860766373142691">名前</translation>
@@ -89,12 +88,12 @@
 <translation id="4808503597364150972"><ph name="HOSTNAME" /> の PIN を入力してください。</translation>
 <translation id="4812684235631257312">ホスト</translation>
 <translation id="4867841927763172006">PrtScn を送信</translation>
-<translation id="4960795469833295568">Copyright 2023 Google LLC. All Rights Reserved.</translation>
 <translation id="4974476491460646149"><ph name="HOSTNAME" /> との接続が切断されました</translation>
 <translation id="4985296110227979402">リモート接続に使用するパソコンを最初に設定しておく必要があります</translation>
 <translation id="4987330545941822761">Chrome リモート デスクトップでは、URL をローカルで開くブラウザを決定できません。下のリストから選択してください。</translation>
 <translation id="5064360042339518108"><ph name="HOSTNAME" />（オフライン）</translation>
 <translation id="507204348399810022"><ph name="HOSTNAME" /> へのリモート接続を無効にしてもよろしいですか？</translation>
+<translation id="5095424396646120601">障害レポート</translation>
 <translation id="5170982930780719864">ホスト ID が無効です。</translation>
 <translation id="5204575267916639804">よくある質問</translation>
 <translation id="5222676887888702881">ログアウト</translation>
@@ -107,7 +106,6 @@
 <translation id="5601503069213153581">PIN</translation>
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="5708869785009007625">デスクトップは現在 <ph name="USER" /> と共有されています。</translation>
-<translation id="5750083143895808682"><ph name="EMAIL_ADDRESS" /> としてログインしています。</translation>
 <translation id="579702532610384533">再接続</translation>
 <translation id="5810269635982033450">画面がトラックパッドとして機能します</translation>
 <translation id="5823554426827907568"><ph name="CLIENT_USERNAME" /> さんがあなたの画面を表示して、キーボードとマウスを操作する権限をリクエストしています。このリクエストに心当たりがない場合は、[<ph name="IDS_SHARE_CONFIRM_DIALOG_DECLINE" />] を押します。それ以外の場合は、準備ができたら [<ph name="IDS_SHARE_CONFIRM_DIALOG_CONFIRM" />] を選択して接続を許可します。</translation>
@@ -121,10 +119,12 @@
 <translation id="6178645564515549384">リモート アシスタンス用のネイティブ·メッセージング·ホスト</translation>
 <translation id="618120821413932081">リモート デスクトップの解像度をウィンドウに合わせて更新します</translation>
 <translation id="6223301979382383752">[画面の録画] 設定を開く</translation>
+<translation id="6252344563748670011"><ph name="CLIENT_USERNAME" /> さんがあなたの画面を表示して、キーボードとマウスを操作する権限をリクエストしています。デバイスを共有しますか？</translation>
 <translation id="6284412385303060032">コンソールのログイン画面で実行されるホストは、カーテンモードをサポートするために終了されました（ユーザー固有のセッションで実行されるホストに切り替えられました）。</translation>
 <translation id="6542902059648396432">問題を報告…</translation>
 <translation id="6583902294974160967">サポート</translation>
 <translation id="6612717000975622067">Ctrl-Alt-Del を送信</translation>
+<translation id="6625262630437221505">{0,plural, =1{何も操作しない場合、デバイスは # 秒後に共有を自動的に開始します。}other{何も操作しない場合、デバイスは # 秒後に共有を自動的に開始します。}}</translation>
 <translation id="6654753848497929428">共有</translation>
 <translation id="677755392401385740">次のユーザーのホストを開始しました: <ph name="HOST_USERNAME" />。</translation>
 <translation id="6902524959760471898"><ph name="PRODUCT_NAME" /> クライアントで URL を開くヘルパー アプリケーション</translation>
@@ -138,6 +138,7 @@
 <translation id="7067321367069083429">画面がタッチ スクリーンとして機能します</translation>
 <translation id="7116737094673640201">Chrome リモート デスクトップへようこそ</translation>
 <translation id="7144878232160441200">再読み込み</translation>
+<translation id="7298392173540380852">Copyright 2025 The Chromium Authors. All Rights Reserved.</translation>
 <translation id="7312846573060934304">ホストはオフラインです。</translation>
 <translation id="7319983568955948908">共有を停止</translation>
 <translation id="7359298090707901886">選択されたブラウザでは、ローカルマシンで URL を開けません。</translation>

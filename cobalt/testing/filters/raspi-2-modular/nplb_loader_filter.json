@@ -5,13 +5,16 @@
     "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/16",
     "PosixFileReadTest/*",
     "PosixFileWriteTest/*",
+    "PosixTimeClockTests.ClockIncreasesOverTime",
     "SbAudioSinkTest.*",
-    "SbMediaSetAudioWriteDurationTests*",
-    "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
+    "SbLogFlushTest.DontCrashMeBro",
     "SbMediaCanPlayMimeAndKeySystem.KeySystemWithAttributes",
-    "SbPlayerTest.*",
+    "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
+    "SbMediaSetAudioWriteDurationTests*",
     "SbPlayerGetAudioConfigurationTests*",
     "SbPlayerGetMediaTimeTests*",
-    "SbPlayerWriteSampleTests*"
+    "SbPlayerTest.*",
+    "SbPlayerWriteSampleTests*",
+    "VerticalVideoTests/VerticalVideoTest*"
   ]
 }

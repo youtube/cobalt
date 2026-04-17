@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "pdf/pdfium/pdfium_form_filler.h"
 
 #include <algorithm>
@@ -12,15 +17,12 @@
 #include "base/auto_reset.h"
 #include "base/check_op.h"
 #include "base/containers/contains.h"
-#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
-#include "pdf/pdf_features.h"
 #include "pdf/pdfium/pdfium_engine.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
-#include "third_party/blink/public/web/blink.h"
 #include "third_party/pdfium/public/fpdf_annot.h"
 #include "ui/base/window_open_disposition_utils.h"
 #include "ui/gfx/geometry/rect.h"
@@ -40,18 +42,10 @@ std::string WideStringToString(FPDF_WIDESTRING wide_string) {
 
 }  // namespace
 
-// static
-PDFiumFormFiller::ScriptOption PDFiumFormFiller::DefaultScriptOption() {
-#if defined(PDF_ENABLE_XFA)
-  if (base::FeatureList::IsEnabled(features::kPdfXfaSupport))
-    return PDFiumFormFiller::ScriptOption::kJavaScriptAndXFA;
-#endif  // defined(PDF_ENABLE_XFA)
-  return PDFiumFormFiller::ScriptOption::kJavaScript;
-}
-
 PDFiumFormFiller::PDFiumFormFiller(PDFiumEngine* engine,
                                    ScriptOption script_option)
-    : engine_in_isolate_scope_factory_(engine), script_option_(script_option) {
+    : engine_in_isolate_scope_factory_(engine, script_option),
+      script_option_(script_option) {
   // Initialize FPDF_FORMFILLINFO member variables.  Deriving from this struct
   // allows the static callbacks to be able to cast the FPDF_FORMFILLINFO in
   // callbacks to ourself instead of maintaining a map of them to
@@ -202,17 +196,15 @@ FPDF_SYSTEMTIME PDFiumFormFiller::Form_GetLocalTime(FPDF_FORMFILLINFO* param) {
   base::Time time = base::Time::Now();
   base::Time::Exploded exploded;
   time.LocalExplode(&exploded);
-
-  FPDF_SYSTEMTIME rv;
-  rv.wYear = exploded.year;
-  rv.wMonth = exploded.month;
-  rv.wDayOfWeek = exploded.day_of_week;
-  rv.wDay = exploded.day_of_month;
-  rv.wHour = exploded.hour;
-  rv.wMinute = exploded.minute;
-  rv.wSecond = exploded.second;
-  rv.wMilliseconds = exploded.millisecond;
-  return rv;
+  return FPDF_SYSTEMTIME{
+      .wYear = static_cast<unsigned short>(exploded.year),
+      .wMonth = static_cast<unsigned short>(exploded.month),
+      .wDayOfWeek = static_cast<unsigned short>(exploded.day_of_week),
+      .wDay = static_cast<unsigned short>(exploded.day_of_month),
+      .wHour = static_cast<unsigned short>(exploded.hour),
+      .wMinute = static_cast<unsigned short>(exploded.minute),
+      .wSecond = static_cast<unsigned short>(exploded.second),
+      .wMilliseconds = static_cast<unsigned short>(exploded.millisecond)};
 }
 
 // static
@@ -733,19 +725,25 @@ PDFiumFormFiller::EngineInIsolateScope::EngineInIsolateScope(
 }
 
 PDFiumFormFiller::EngineInIsolateScope::EngineInIsolateScope(
-    EngineInIsolateScope&&) = default;
+    EngineInIsolateScope&&) noexcept = default;
 
 PDFiumFormFiller::EngineInIsolateScope&
-PDFiumFormFiller::EngineInIsolateScope::operator=(EngineInIsolateScope&&) =
-    default;
+PDFiumFormFiller::EngineInIsolateScope::operator=(
+    EngineInIsolateScope&&) noexcept = default;
 
 PDFiumFormFiller::EngineInIsolateScope::~EngineInIsolateScope() = default;
 
 PDFiumFormFiller::EngineInIsolateScopeFactory::EngineInIsolateScopeFactory(
-    PDFiumEngine* engine)
-    : engine_(engine), callback_isolate_(v8::Isolate::TryGetCurrent()) {
-  if (callback_isolate_)
-    CHECK_EQ(blink::MainThreadIsolate(), callback_isolate_);
+    PDFiumEngine* engine,
+    ScriptOption script_option)
+    : engine_(engine),
+      callback_isolate_(script_option !=
+                                PDFiumFormFiller::ScriptOption::kNoJavaScript
+                            ? v8::Isolate::TryGetCurrent()
+                            : nullptr) {
+  if (callback_isolate_) {
+    CHECK_EQ(engine_->client_->GetIsolate(), callback_isolate_);
+  }
 }
 
 PDFiumFormFiller::EngineInIsolateScopeFactory::~EngineInIsolateScopeFactory() =

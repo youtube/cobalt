@@ -18,12 +18,13 @@
 #include "media/audio/test_audio_thread.h"
 #include "media/base/audio_glitch_info.h"
 #include "media/base/audio_parameters.h"
+#include "media/media_buildflags.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // cras_util.h defines custom min/max macros which break compilation, so ensure
 // it's not included until last.  #if avoids presubmit errors.
-#if defined(USE_CRAS)
+#if BUILDFLAG(USE_CRAS)
 #include "media/audio/cras/cras_input.h"
 #endif
 
@@ -66,7 +67,7 @@ class MockAudioManagerCrasInput : public AudioManagerCrasBase {
   bool IsDefault(const std::string& device_id, bool is_input) override {
     return true;
   }
-  enum CRAS_CLIENT_TYPE GetClientType() { return CRAS_CLIENT_TYPE_LACROS; }
+  enum CRAS_CLIENT_TYPE GetClientType() { return CRAS_CLIENT_TYPE_UNKNOWN; }
 
   // We need to override this function in order to skip checking the number
   // of active output streams. It is because the number of active streams

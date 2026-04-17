@@ -33,7 +33,6 @@
 #include "third_party/blink/renderer/core/css/media_query_exp.h"
 #include "third_party/blink/renderer/core/html/parser/html_parser_idioms.h"
 #include "third_party/blink/renderer/core/media_type_names.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 
 namespace blink {
@@ -83,7 +82,7 @@ MediaQuery::MediaQuery(RestrictorType restrictor,
     : media_type_(AttemptStaticStringCreation(media_type.LowerASCII())),
       exp_node_(exp_node),
       restrictor_(restrictor),
-      has_unknown_(exp_node_ ? exp_node_->HasUnknown() : false) {}
+      has_unknown_(exp_node_ && exp_node_->HasUnknown()) {}
 
 MediaQuery::MediaQuery(const MediaQuery& o)
     : media_type_(o.media_type_),

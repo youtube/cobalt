@@ -4,6 +4,8 @@
 
 #include "components/translate/core/browser/translate_download_manager.h"
 
+#include <string_view>
+
 #include "base/check.h"
 #include "base/memory/singleton.h"
 #include "components/translate/core/browser/translate_pref_names.h"
@@ -20,7 +22,7 @@ TranslateDownloadManager::TranslateDownloadManager()
     : language_list_(std::make_unique<TranslateLanguageList>()),
       script_(std::make_unique<TranslateScript>()) {}
 
-TranslateDownloadManager::~TranslateDownloadManager() {}
+TranslateDownloadManager::~TranslateDownloadManager() = default;
 
 void TranslateDownloadManager::Shutdown() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -40,6 +42,13 @@ void TranslateDownloadManager::GetSupportedLanguages(
 }
 
 // static
+void TranslateDownloadManager::RequestLanguageList() {
+  TranslateLanguageList* language_list = GetInstance()->language_list();
+  DCHECK(language_list);
+  language_list->RequestLanguageList();
+}
+
+// static
 base::Time TranslateDownloadManager::GetSupportedLanguagesLastUpdated() {
   TranslateLanguageList* language_list = GetInstance()->language_list();
   DCHECK(language_list);
@@ -49,7 +58,7 @@ base::Time TranslateDownloadManager::GetSupportedLanguagesLastUpdated() {
 
 // static
 std::string TranslateDownloadManager::GetLanguageCode(
-    base::StringPiece language) {
+    std::string_view language) {
   TranslateLanguageList* language_list = GetInstance()->language_list();
   DCHECK(language_list);
 
@@ -57,7 +66,7 @@ std::string TranslateDownloadManager::GetLanguageCode(
 }
 
 // static
-bool TranslateDownloadManager::IsSupportedLanguage(base::StringPiece language) {
+bool TranslateDownloadManager::IsSupportedLanguage(std::string_view language) {
   TranslateLanguageList* language_list = GetInstance()->language_list();
   DCHECK(language_list);
 

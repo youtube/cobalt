@@ -57,6 +57,7 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) DeviceState : public ManagedState {
   const std::string& mdn() const { return mdn_; }
   const CellularScanResults& scan_results() const { return scan_results_; }
   bool inhibited() const { return inhibited_; }
+  bool flashing() const { return flashing_; }
 
   // |ip_configs_| is kept up to date by NetworkStateHandler.
   const base::Value::Dict& ip_configs() const { return ip_configs_; }
@@ -94,6 +95,7 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) DeviceState : public ManagedState {
   // The following return false if the technology does not require a SIM.
   bool IsSimAbsent() const;
   bool IsSimLocked() const;
+  bool IsSimCarrierLocked() const;
 
   // Returns true if |access_point_name| exists in apn_list for this device.
   bool HasAPN(const std::string& access_point_name) const;
@@ -121,6 +123,7 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) DeviceState : public ManagedState {
   CellularScanResults scan_results_;
   CellularSIMSlotInfos sim_slot_infos_;
   bool inhibited_ = false;
+  bool flashing_ = false;
 
   // Ethernet specific properties
   bool eap_authentication_completed_ = false;

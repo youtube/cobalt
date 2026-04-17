@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ash/input_method/pref_change_recorder.h"
 
+#include <optional>
+
 #include "ash/constants/ash_features.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -15,7 +17,6 @@
 #include "components/prefs/scoped_user_pref_update.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash::input_method {
 namespace {
@@ -46,7 +47,7 @@ class FakeInputMethodOptions {
   }
 
  private:
-  raw_ptr<PrefService, ExperimentalAsh> pref_service_;
+  raw_ptr<PrefService> pref_service_;
   const std::string engine_id_;
 };
 
@@ -59,7 +60,7 @@ class PrefChangeRecorderTest : public testing::Test {
 
 struct AutocorrectPrefChangeCase {
   std::string test_name;
-  absl::optional<int> autocorrect_level_from;
+  std::optional<int> autocorrect_level_from;
   int autocorrect_level_to;
   AutocorrectPrefStateTransition expected_metric;
 };
@@ -75,8 +76,9 @@ TEST_P(UserChangesAutocorrectPrefMetric,
   FakeInputMethodOptions options(profile_.GetPrefs(), kUsEnglish);
 
   // Set the initial autocorrect level (simulating previous values set by user).
-  if (test_case.autocorrect_level_from)
+  if (test_case.autocorrect_level_from) {
     options.SetPkAutocorrectLevel(test_case.autocorrect_level_from.value());
+  }
   // Start observing for changes.
   PrefChangeRecorder recorder(profile_.GetPrefs());
   options.SetPkAutocorrectLevel(test_case.autocorrect_level_to);
@@ -102,8 +104,9 @@ TEST_P(UserChangesAutocorrectPrefMetric,
   FakeInputMethodOptions options(profile_.GetPrefs(), kUsEnglish);
 
   // Set the initial autocorrect level (simulating previous values set by user).
-  if (test_case.autocorrect_level_from)
+  if (test_case.autocorrect_level_from) {
     options.SetVkAutocorrectLevel(test_case.autocorrect_level_from.value());
+  }
   // Start observing for changes.
   PrefChangeRecorder recorder(profile_.GetPrefs());
   options.SetVkAutocorrectLevel(test_case.autocorrect_level_to);
@@ -129,8 +132,9 @@ TEST_P(UserChangesAutocorrectPrefMetric,
   FakeInputMethodOptions options(profile_.GetPrefs(), kBrazilPortuguese);
 
   // Set the initial autocorrect level (simulating previous values set by user).
-  if (test_case.autocorrect_level_from)
+  if (test_case.autocorrect_level_from) {
     options.SetPkAutocorrectLevel(test_case.autocorrect_level_from.value());
+  }
   // Start observing for changes.
   PrefChangeRecorder recorder(profile_.GetPrefs());
   options.SetPkAutocorrectLevel(test_case.autocorrect_level_to);
@@ -149,8 +153,9 @@ TEST_P(UserChangesAutocorrectPrefMetric,
   FakeInputMethodOptions options(profile_.GetPrefs(), kBrazilPortuguese);
 
   // Set the initial autocorrect level (simulating previous values set by user).
-  if (test_case.autocorrect_level_from)
+  if (test_case.autocorrect_level_from) {
     options.SetVkAutocorrectLevel(test_case.autocorrect_level_from.value());
+  }
   // Start observing for changes.
   PrefChangeRecorder recorder(profile_.GetPrefs());
   options.SetVkAutocorrectLevel(test_case.autocorrect_level_to);
@@ -169,8 +174,9 @@ TEST_P(UserChangesAutocorrectPrefMetric,
   FakeInputMethodOptions options(profile_.GetPrefs(), kUsEnglish);
 
   // Set the initial autocorrect level (simulating previous values set by user).
-  if (test_case.autocorrect_level_from)
+  if (test_case.autocorrect_level_from) {
     options.SetPkAutocorrectLevel(test_case.autocorrect_level_from.value());
+  }
   // Start observing for changes.
   PrefChangeRecorder recorder(profile_.GetPrefs());
   options.SetPkAutocorrectLevel(test_case.autocorrect_level_to);
@@ -189,8 +195,9 @@ TEST_P(UserChangesAutocorrectPrefMetric,
   FakeInputMethodOptions options(profile_.GetPrefs(), kUsEnglish);
 
   // Set the initial autocorrect level (simulating previous values set by user).
-  if (test_case.autocorrect_level_from)
+  if (test_case.autocorrect_level_from) {
     options.SetVkAutocorrectLevel(test_case.autocorrect_level_from.value());
+  }
   // Start observing for changes.
   PrefChangeRecorder recorder(profile_.GetPrefs());
   options.SetVkAutocorrectLevel(test_case.autocorrect_level_to);
@@ -208,13 +215,13 @@ INSTANTIATE_TEST_SUITE_P(
     testing::ValuesIn<AutocorrectPrefChangeCase>({
         AutocorrectPrefChangeCase{
             "DefaultToEnabled",
-            /*autocorrect_level_from=*/absl::nullopt,
+            /*autocorrect_level_from=*/std::nullopt,
             /*autocorrect_level_to=*/1,
             /*expected_change=*/
             AutocorrectPrefStateTransition::kDefaultToEnabled},
         AutocorrectPrefChangeCase{
             "DefaultToAggressive",
-            /*autocorrect_level_from=*/absl::nullopt,
+            /*autocorrect_level_from=*/std::nullopt,
             /*autocorrect_level_to=*/2,
             /*expected_change=*/
             AutocorrectPrefStateTransition::kDefaultToEnabled},

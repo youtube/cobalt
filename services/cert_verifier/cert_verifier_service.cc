@@ -6,14 +6,24 @@
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/time/time.h"
 #include "mojo/public/cpp/bindings/message.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/completion_once_callback.h"
+#include "net/base/ip_address.h"
 #include "net/cert/cert_verify_result.h"
 #include "net/cert/crl_set.h"
+#include "net/cert/x509_util.h"
 #include "services/cert_verifier/cert_net_url_loader/cert_net_fetcher_url_loader.h"
 #include "services/cert_verifier/cert_verifier_service_factory.h"
 #include "services/network/public/mojom/cert_verifier_service.mojom.h"
+
+#if BUILDFLAG(IS_CT_SUPPORTED)
+#include "components/certificate_transparency/chrome_require_ct_delegate.h"
+#include "services/network/public/mojom/network_context.mojom.h"
+#endif  // BUILDFLAG(IS_CT_SUPPORTED)
 
 namespace cert_verifier {
 namespace internal {
@@ -82,19 +92,28 @@ void ReconnectURLLoaderFactory(
 
 CertVerifierServiceImpl::CertVerifierServiceImpl(
     std::unique_ptr<net::CertVerifierWithUpdatableProc> verifier,
-    mojo::PendingReceiver<mojom::CertVerifierService> receiver,
+    mojo::PendingReceiver<mojom::CertVerifierService> service_receiver,
+    mojo::PendingReceiver<mojom::CertVerifierServiceUpdater> updater_receiver,
     mojo::PendingRemote<mojom::CertVerifierServiceClient> client,
-    scoped_refptr<CertNetFetcherURLLoader> cert_net_fetcher)
-    : verifier_(std::move(verifier)),
-      receiver_(this, std::move(receiver)),
+    scoped_refptr<CertNetFetcherURLLoader> cert_net_fetcher,
+    net::CertVerifyProc::InstanceParams instance_params,
+    bool wait_for_update)
+    : instance_params_(std::move(instance_params)),
+      verifier_(std::move(verifier)),
+      service_receiver_(this, std::move(service_receiver)),
+      updater_receiver_(this, std::move(updater_receiver)),
       client_(std::move(client)),
-      cert_net_fetcher_(std::move(cert_net_fetcher)) {
+      cert_net_fetcher_(std::move(cert_net_fetcher)),
+      waiting_for_update_(wait_for_update) {
   // base::Unretained is safe because |this| owns |receiver_|, so deleting
   // |this| will prevent |receiver_| from calling this callback.
-  receiver_.set_disconnect_handler(
+  service_receiver_.set_disconnect_handler(
       base::BindRepeating(&CertVerifierServiceImpl::OnDisconnectFromService,
                           base::Unretained(this)));
   verifier_->AddObserver(this);
+  if (waiting_for_update_) {
+    wait_start_time_ = base::TimeTicks::Now();
+  }
 }
 
 // Note: this object owns the underlying CertVerifier, which owns all of the
@@ -126,6 +145,54 @@ void CertVerifierServiceImpl::EnableNetworkAccess(
   }
 }
 
+void CertVerifierServiceImpl::UpdateAdditionalCertificates(
+    mojom::AdditionalCertificatesPtr additional_certificates) {
+  UpdateCertVerifierInstanceParams(additional_certificates, &instance_params_);
+  // TODO(hchao, mattm): figure out what to do if the CertVerifierServiceFactory
+  // is destroyed before the CertVerifierService (or if this is not possible in
+  // normal circumstances, add a DCHECK or CHECK here).
+  verifier_->UpdateVerifyProcData(cert_net_fetcher_,
+                                  service_factory_impl_->get_impl_params(),
+                                  instance_params_);
+  if (waiting_for_update_) {
+    base::UmaHistogramTimes("Net.CertVerifier.TimeUntilReady",
+                            base::TimeTicks::Now() - wait_start_time_);
+    base::UmaHistogramCounts100("Net.CertVerifier.QueuedRequestsWhenReady",
+                                queued_requests_.size());
+  }
+  waiting_for_update_ = false;
+
+  // Empty queue if necessary
+  for (auto& queued_request : queued_requests_) {
+    VerifyHelper(queued_request.params, queued_request.net_log_source,
+                 std::move(queued_request.cert_verifier_request));
+  }
+
+  queued_requests_.clear();
+
+  if (update_complete_callback_) {
+    std::move(update_complete_callback_).Run();
+  }
+}
+
+void CertVerifierServiceImpl::WaitUntilNextUpdateForTesting(
+    WaitUntilNextUpdateForTestingCallback callback) {
+  update_complete_callback_ = std::move(callback);
+}
+
+#if BUILDFLAG(IS_CT_SUPPORTED)
+void CertVerifierServiceImpl::SetCTPolicy(
+    network::mojom::CTPolicyPtr ct_policy) {
+  scoped_refptr<certificate_transparency::ChromeRequireCTDelegate>
+      require_ct_delegate = base::MakeRefCounted<
+          certificate_transparency::ChromeRequireCTDelegate>();
+  require_ct_delegate->UpdateCTPolicies(ct_policy->excluded_hosts,
+                                        ct_policy->excluded_spkis);
+  instance_params_.require_ct_delegate = std::move(require_ct_delegate);
+  UpdateVerifierData(service_factory_impl_->get_impl_params());
+}
+#endif
+
 void CertVerifierServiceImpl::SetCertVerifierServiceFactory(
     base::WeakPtr<cert_verifier::CertVerifierServiceFactoryImpl>
         service_factory_impl) {
@@ -133,17 +200,38 @@ void CertVerifierServiceImpl::SetCertVerifierServiceFactory(
 }
 
 void CertVerifierServiceImpl::UpdateVerifierData(
-    const net::CertVerifyProcFactory::ImplParams& impl_params) {
-  verifier_->UpdateVerifyProcData(cert_net_fetcher_, impl_params);
+    const net::CertVerifyProc::ImplParams& impl_params) {
+  verifier_->UpdateVerifyProcData(cert_net_fetcher_, impl_params,
+                                  instance_params_);
 }
 
 void CertVerifierServiceImpl::Verify(
     const net::CertVerifier::RequestParams& params,
-    uint32_t netlog_source_type,
-    uint32_t netlog_source_id,
-    base::TimeTicks netlog_source_start_time,
+    const net::NetLogSource& net_log_source,
     mojo::PendingRemote<mojom::CertVerifierRequest> cert_verifier_request) {
   DVLOG(3) << "Received certificate validation request for hostname: "
+           << params.hostname();
+
+  if (waiting_for_update_) {
+    DVLOG(3)
+        << "initial cert update not received, queueing request for hostname: "
+        << params.hostname();
+    QueuedCertVerifyRequest queued_request;
+    queued_request.params = std::move(params);
+    queued_request.net_log_source = std::move(net_log_source);
+    queued_request.cert_verifier_request = std::move(cert_verifier_request);
+
+    queued_requests_.push_back(std::move(queued_request));
+  } else {
+    VerifyHelper(params, net_log_source, std::move(cert_verifier_request));
+  }
+}
+
+void CertVerifierServiceImpl::VerifyHelper(
+    const net::CertVerifier::RequestParams& params,
+    const net::NetLogSource& net_log_source,
+    mojo::PendingRemote<mojom::CertVerifierRequest> cert_verifier_request) {
+  DVLOG(3) << "Running certificate validation request for hostname: "
            << params.hostname();
   auto result = std::make_unique<net::CertVerifyResult>();
 
@@ -160,24 +248,14 @@ void CertVerifierServiceImpl::Verify(
       base::BindOnce(&CertVerifyResultHelper::CompleteCertVerifierRequest,
                      std::move(result_helper));
 
-  if (netlog_source_type >=
-      static_cast<uint32_t>(net::NetLogSourceType::COUNT)) {
-    // Note that netlog_source_id is not checked here. It is valid to pass a
-    // unbound NetLogWithSource into CertVerifier::Verify. If that occurs
-    // the netlog_source_id passed through mojo will be kInvalidId and the
-    // NetLogWithSource::Make below will in turn create an unbound
-    // NetLogWithSource.
-    receiver_.ReportBadMessage("invalid NetLogSource");
-    return;
-  }
+  // Note it is valid to pass a unbound NetLogWithSource into
+  // CertVerifier::Verify. If that occurs the net_log_source.id passed through
+  // mojo will be kInvalidId and the NetLogWithSource::Make below will in turn
+  // create an unbound NetLogWithSource.
   int net_err = verifier_->Verify(
       params, result.get(), std::move(callback),
       result_helper_ptr->local_request(),
-      net::NetLogWithSource::Make(
-          net::NetLog::Get(),
-          net::NetLogSource(
-              static_cast<net::NetLogSourceType>(netlog_source_type),
-              netlog_source_id, netlog_source_start_time)));
+      net::NetLogWithSource::Make(net::NetLog::Get(), net_log_source));
   if (net_err == net::ERR_IO_PENDING) {
     // If this request is to be completely asynchronously, give the callback
     // ownership of our mojom::CertVerifierRequest and net::CertVerifyResult.
@@ -202,6 +280,17 @@ void CertVerifierServiceImpl::OnDisconnectFromService() {
   }
   delete this;
 }
+
+CertVerifierServiceImpl::QueuedCertVerifyRequest::QueuedCertVerifyRequest() =
+    default;
+CertVerifierServiceImpl::QueuedCertVerifyRequest::~QueuedCertVerifyRequest() =
+    default;
+
+CertVerifierServiceImpl::QueuedCertVerifyRequest::QueuedCertVerifyRequest(
+    CertVerifierServiceImpl::QueuedCertVerifyRequest&&) = default;
+CertVerifierServiceImpl::QueuedCertVerifyRequest&
+CertVerifierServiceImpl::QueuedCertVerifyRequest::operator=(
+    CertVerifierServiceImpl::QueuedCertVerifyRequest&& other) = default;
 
 }  // namespace internal
 }  // namespace cert_verifier

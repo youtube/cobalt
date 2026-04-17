@@ -258,6 +258,9 @@ hy{
         "America:Chihuahua"{
             ec{"Չիուաուա"}
         }
+        "America:Ciudad_Juarez"{
+            ec{"Սյուդադ Խուարես"}
+        }
         "America:Coral_Harbour"{
             ec{"Ատիկոկան"}
         }
@@ -1889,12 +1892,5 @@ hy{
         "meta:Yukon"{
             ls{"Յուկոնի ժամանակ"}
         }
-        fallbackFormat{"{1} ({0})"}
-        gmtFormat{"GMT{0}"}
-        gmtZeroFormat{"GMT"}
-        hourFormat{"+HH:mm;-HH:mm"}
-        regionFormat{"{0}"}
-        regionFormatDaylight{"{0} (+1)"}
-        regionFormatStandard{"{0} (+0)"}
     }
 }

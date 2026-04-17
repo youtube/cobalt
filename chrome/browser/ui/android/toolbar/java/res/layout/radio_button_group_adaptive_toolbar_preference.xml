@@ -51,7 +51,7 @@ found in the LICENSE file.
           android:layout_height="wrap_content"
           android:minHeight="@dimen/min_touch_target_size"
           android:paddingTop="10dp"
-          app:iconSrc="@drawable/btn_mic"
+          app:iconSrc="@drawable/ic_mic_white_24dp"
           app:primaryText="@string/adaptive_toolbar_button_preference_voice_search" />
 
       <org.chromium.components.browser_ui.widget.RadioButtonWithDescription
@@ -69,9 +69,27 @@ found in the LICENSE file.
           android:layout_height="wrap_content"
           android:minHeight="@dimen/min_touch_target_size"
           android:paddingTop="10dp"
-          app:iconSrc="@drawable/btn_star"
+          app:iconSrc="@drawable/star_outline_24dp"
           app:primaryText="@string/adaptive_toolbar_button_preference_add_to_bookmarks" />
 
+      <org.chromium.components.browser_ui.widget.RadioButtonWithDescription
+          android:id="@+id/adaptive_option_read_aloud"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:minHeight="@dimen/min_touch_target_size"
+          android:paddingTop="10dp"
+          app:iconSrc="@drawable/ic_play_circle"
+          app:primaryText="@string/adaptive_toolbar_button_preference_read_aloud" />
+
+      <org.chromium.components.browser_ui.widget.RadioButtonWithDescription
+          android:id="@+id/adaptive_option_page_summary"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:minHeight="@dimen/min_touch_target_size"
+          android:paddingTop="10dp"
+          app:iconSrc="@drawable/summarize_auto"
+          app:primaryText="@string/adaptive_toolbar_button_preference_page_summary"
+          app:descriptionText="@string/adaptive_toolbar_button_preference_page_summary_description"/>
     </org.chromium.components.browser_ui.widget.RadioButtonWithDescriptionLayout>
 
 </LinearLayout>

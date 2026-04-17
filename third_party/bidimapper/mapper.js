@@ -1,21 +1,17959 @@
-var mapperTab=function(){"use strict";var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof window?window:"undefined"!=typeof global?global:"undefined"!=typeof self?self:{},t={},s={},n={},r={},a={},i={},o={};!function(e){var t;Object.defineProperty(e,"__esModule",{value:!0}),e.getParsedType=e.ZodParsedType=e.objectUtil=e.util=void 0,function(e){e.assertEqual=e=>e,e.assertIs=function(e){},e.assertNever=function(e){throw new Error},e.arrayToEnum=e=>{const t={};for(const s of e)t[s]=s;return t},e.getValidEnumValues=t=>{const s=e.objectKeys(t).filter((e=>"number"!=typeof t[t[e]])),n={};for(const e of s)n[e]=t[e];return e.objectValues(n)},e.objectValues=t=>e.objectKeys(t).map((function(e){return t[e]})),e.objectKeys="function"==typeof Object.keys?e=>Object.keys(e):e=>{const t=[];for(const s in e)Object.prototype.hasOwnProperty.call(e,s)&&t.push(s);return t},e.find=(e,t)=>{for(const s of e)if(t(s))return s},e.isInteger="function"==typeof Number.isInteger?e=>Number.isInteger(e):e=>"number"==typeof e&&isFinite(e)&&Math.floor(e)===e,e.joinValues=function(e,t=" | "){return e.map((e=>"string"==typeof e?`'${e}'`:e)).join(t)},e.jsonStringifyReplacer=(e,t)=>"bigint"==typeof t?t.toString():t}(t=e.util||(e.util={})),(e.objectUtil||(e.objectUtil={})).mergeShapes=(e,t)=>({...e,...t}),e.ZodParsedType=t.arrayToEnum(["string","nan","number","integer","float","boolean","date","bigint","symbol","function","undefined","null","array","object","unknown","promise","void","never","map","set"]);e.getParsedType=t=>{switch(typeof t){case"undefined":return e.ZodParsedType.undefined;case"string":return e.ZodParsedType.string;case"number":return isNaN(t)?e.ZodParsedType.nan:e.ZodParsedType.number;case"boolean":return e.ZodParsedType.boolean;case"function":return e.ZodParsedType.function;case"bigint":return e.ZodParsedType.bigint;case"symbol":return e.ZodParsedType.symbol;case"object":return Array.isArray(t)?e.ZodParsedType.array:null===t?e.ZodParsedType.null:t.then&&"function"==typeof t.then&&t.catch&&"function"==typeof t.catch?e.ZodParsedType.promise:"undefined"!=typeof Map&&t instanceof Map?e.ZodParsedType.map:"undefined"!=typeof Set&&t instanceof Set?e.ZodParsedType.set:"undefined"!=typeof Date&&t instanceof Date?e.ZodParsedType.date:e.ZodParsedType.object;default:return e.ZodParsedType.unknown}}}(o);var d={};Object.defineProperty(d,"__esModule",{value:!0}),d.ZodError=d.quotelessJson=d.ZodIssueCode=void 0;const c=o;d.ZodIssueCode=c.util.arrayToEnum(["invalid_type","invalid_literal","custom","invalid_union","invalid_union_discriminator","invalid_enum_value","unrecognized_keys","invalid_arguments","invalid_return_type","invalid_date","invalid_string","too_small","too_big","invalid_intersection_types","not_multiple_of","not_finite"]);d.quotelessJson=e=>JSON.stringify(e,null,2).replace(/"([^"]+)":/g,"$1:");class u extends Error{constructor(e){super(),this.issues=[],this.addIssue=e=>{this.issues=[...this.issues,e]},this.addIssues=(e=[])=>{this.issues=[...this.issues,...e]};const t=new.target.prototype;Object.setPrototypeOf?Object.setPrototypeOf(this,t):this.__proto__=t,this.name="ZodError",this.issues=e}get errors(){return this.issues}format(e){const t=e||function(e){return e.message},s={_errors:[]},n=e=>{for(const r of e.issues)if("invalid_union"===r.code)r.unionErrors.map(n);else if("invalid_return_type"===r.code)n(r.returnTypeError);else if("invalid_arguments"===r.code)n(r.argumentsError);else if(0===r.path.length)s._errors.push(t(r));else{let e=s,n=0;for(;n<r.path.length;){const s=r.path[n];n===r.path.length-1?(e[s]=e[s]||{_errors:[]},e[s]._errors.push(t(r))):e[s]=e[s]||{_errors:[]},e=e[s],n++}}};return n(this),s}toString(){return this.message}get message(){return JSON.stringify(this.issues,c.util.jsonStringifyReplacer,2)}get isEmpty(){return 0===this.issues.length}flatten(e=(e=>e.message)){const t={},s=[];for(const n of this.issues)n.path.length>0?(t[n.path[0]]=t[n.path[0]]||[],t[n.path[0]].push(e(n))):s.push(e(n));return{formErrors:s,fieldErrors:t}}get formErrors(){return this.flatten()}}d.ZodError=u,u.create=e=>new u(e),Object.defineProperty(i,"__esModule",{value:!0});const l=o,p=d;i.default=(e,t)=>{let s;switch(e.code){case p.ZodIssueCode.invalid_type:s=e.received===l.ZodParsedType.undefined?"Required":`Expected ${e.expected}, received ${e.received}`;break;case p.ZodIssueCode.invalid_literal:s=`Invalid literal value, expected ${JSON.stringify(e.expected,l.util.jsonStringifyReplacer)}`;break;case p.ZodIssueCode.unrecognized_keys:s=`Unrecognized key(s) in object: ${l.util.joinValues(e.keys,", ")}`;break;case p.ZodIssueCode.invalid_union:s="Invalid input";break;case p.ZodIssueCode.invalid_union_discriminator:s=`Invalid discriminator value. Expected ${l.util.joinValues(e.options)}`;break;case p.ZodIssueCode.invalid_enum_value:s=`Invalid enum value. Expected ${l.util.joinValues(e.options)}, received '${e.received}'`;break;case p.ZodIssueCode.invalid_arguments:s="Invalid function arguments";break;case p.ZodIssueCode.invalid_return_type:s="Invalid function return type";break;case p.ZodIssueCode.invalid_date:s="Invalid date";break;case p.ZodIssueCode.invalid_string:"object"==typeof e.validation?"includes"in e.validation?(s=`Invalid input: must include "${e.validation.includes}"`,"number"==typeof e.validation.position&&(s=`${s} at one or more positions greater than or equal to ${e.validation.position}`)):"startsWith"in e.validation?s=`Invalid input: must start with "${e.validation.startsWith}"`:"endsWith"in e.validation?s=`Invalid input: must end with "${e.validation.endsWith}"`:l.util.assertNever(e.validation):s="regex"!==e.validation?`Invalid ${e.validation}`:"Invalid";break;case p.ZodIssueCode.too_small:s="array"===e.type?`Array must contain ${e.exact?"exactly":e.inclusive?"at least":"more than"} ${e.minimum} element(s)`:"string"===e.type?`String must contain ${e.exact?"exactly":e.inclusive?"at least":"over"} ${e.minimum} character(s)`:"number"===e.type?`Number must be ${e.exact?"exactly equal to ":e.inclusive?"greater than or equal to ":"greater than "}${e.minimum}`:"date"===e.type?`Date must be ${e.exact?"exactly equal to ":e.inclusive?"greater than or equal to ":"greater than "}${new Date(Number(e.minimum))}`:"Invalid input";break;case p.ZodIssueCode.too_big:s="array"===e.type?`Array must contain ${e.exact?"exactly":e.inclusive?"at most":"less than"} ${e.maximum} element(s)`:"string"===e.type?`String must contain ${e.exact?"exactly":e.inclusive?"at most":"under"} ${e.maximum} character(s)`:"number"===e.type?`Number must be ${e.exact?"exactly":e.inclusive?"less than or equal to":"less than"} ${e.maximum}`:"bigint"===e.type?`BigInt must be ${e.exact?"exactly":e.inclusive?"less than or equal to":"less than"} ${e.maximum}`:"date"===e.type?`Date must be ${e.exact?"exactly":e.inclusive?"smaller than or equal to":"smaller than"} ${new Date(Number(e.maximum))}`:"Invalid input";break;case p.ZodIssueCode.custom:s="Invalid input";break;case p.ZodIssueCode.invalid_intersection_types:s="Intersection results could not be merged";break;case p.ZodIssueCode.not_multiple_of:s=`Number must be a multiple of ${e.multipleOf}`;break;case p.ZodIssueCode.not_finite:s="Number must be finite";break;default:s=t.defaultError,l.util.assertNever(e)}return{message:s}};var h=e&&e.__importDefault||function(e){return e&&e.__esModule?e:{default:e}};Object.defineProperty(a,"__esModule",{value:!0}),a.getErrorMap=a.setErrorMap=a.defaultErrorMap=void 0;const m=h(i);a.defaultErrorMap=m.default;let g=m.default;a.setErrorMap=function(e){g=e},a.getErrorMap=function(){return g};var f={};!function(t){var s=e&&e.__importDefault||function(e){return e&&e.__esModule?e:{default:e}};Object.defineProperty(t,"__esModule",{value:!0}),t.isAsync=t.isValid=t.isDirty=t.isAborted=t.OK=t.DIRTY=t.INVALID=t.ParseStatus=t.addIssueToContext=t.EMPTY_PATH=t.makeIssue=void 0;const n=a,r=s(i);t.makeIssue=e=>{const{data:t,path:s,errorMaps:n,issueData:r}=e,a=[...s,...r.path||[]],i={...r,path:a};let o="";const d=n.filter((e=>!!e)).slice().reverse();for(const e of d)o=e(i,{data:t,defaultError:o}).message;return{...r,path:a,message:r.message||o}},t.EMPTY_PATH=[],t.addIssueToContext=function(e,s){const a=(0,t.makeIssue)({issueData:s,data:e.data,path:e.path,errorMaps:[e.common.contextualErrorMap,e.schemaErrorMap,(0,n.getErrorMap)(),r.default].filter((e=>!!e))});e.common.issues.push(a)};class o{constructor(){this.value="valid"}dirty(){"valid"===this.value&&(this.value="dirty")}abort(){"aborted"!==this.value&&(this.value="aborted")}static mergeArray(e,s){const n=[];for(const r of s){if("aborted"===r.status)return t.INVALID;"dirty"===r.status&&e.dirty(),n.push(r.value)}return{status:e.value,value:n}}static async mergeObjectAsync(e,t){const s=[];for(const e of t)s.push({key:await e.key,value:await e.value});return o.mergeObjectSync(e,s)}static mergeObjectSync(e,s){const n={};for(const r of s){const{key:s,value:a}=r;if("aborted"===s.status)return t.INVALID;if("aborted"===a.status)return t.INVALID;"dirty"===s.status&&e.dirty(),"dirty"===a.status&&e.dirty(),(void 0!==a.value||r.alwaysSet)&&(n[s.value]=a.value)}return{status:e.value,value:n}}}t.ParseStatus=o,t.INVALID=Object.freeze({status:"aborted"});t.DIRTY=e=>({status:"dirty",value:e});t.OK=e=>({status:"valid",value:e});t.isAborted=e=>"aborted"===e.status;t.isDirty=e=>"dirty"===e.status;t.isValid=e=>"valid"===e.status;t.isAsync=e=>"undefined"!=typeof Promise&&e instanceof Promise}(f);var v={};Object.defineProperty(v,"__esModule",{value:!0});var y,x={},b={};y=b,Object.defineProperty(y,"__esModule",{value:!0}),y.errorUtil=void 0,function(e){e.errToObj=e=>"string"==typeof e?{message:e}:e||{},e.toString=e=>"string"==typeof e?e:null==e?void 0:e.message}(y.errorUtil||(y.errorUtil={})),function(e){Object.defineProperty(e,"__esModule",{value:!0}),e.discriminatedUnion=e.date=e.boolean=e.bigint=e.array=e.any=e.coerce=e.ZodFirstPartyTypeKind=e.late=e.ZodSchema=e.Schema=e.custom=e.ZodPipeline=e.ZodBranded=e.BRAND=e.ZodNaN=e.ZodCatch=e.ZodDefault=e.ZodNullable=e.ZodOptional=e.ZodTransformer=e.ZodEffects=e.ZodPromise=e.ZodNativeEnum=e.ZodEnum=e.ZodLiteral=e.ZodLazy=e.ZodFunction=e.ZodSet=e.ZodMap=e.ZodRecord=e.ZodTuple=e.ZodIntersection=e.ZodDiscriminatedUnion=e.ZodUnion=e.ZodObject=e.ZodArray=e.ZodVoid=e.ZodNever=e.ZodUnknown=e.ZodAny=e.ZodNull=e.ZodUndefined=e.ZodSymbol=e.ZodDate=e.ZodBoolean=e.ZodBigInt=e.ZodNumber=e.ZodString=e.ZodType=void 0,e.NEVER=e.void=e.unknown=e.union=e.undefined=e.tuple=e.transformer=e.symbol=e.string=e.strictObject=e.set=e.record=e.promise=e.preprocess=e.pipeline=e.ostring=e.optional=e.onumber=e.oboolean=e.object=e.number=e.nullable=e.null=e.never=e.nativeEnum=e.nan=e.map=e.literal=e.lazy=e.intersection=e.instanceof=e.function=e.enum=e.effect=void 0;const t=a,s=b,n=f,r=o,i=d;class c{constructor(e,t,s,n){this._cachedPath=[],this.parent=e,this.data=t,this._path=s,this._key=n}get path(){return this._cachedPath.length||(this._key instanceof Array?this._cachedPath.push(...this._path,...this._key):this._cachedPath.push(...this._path,this._key)),this._cachedPath}}const u=(e,t)=>{if((0,n.isValid)(t))return{success:!0,data:t.value};if(!e.common.issues.length)throw new Error("Validation failed but no issues detected.");return{success:!1,get error(){if(this._error)return this._error;const t=new i.ZodError(e.common.issues);return this._error=t,this._error}}};function l(e){if(!e)return{};const{errorMap:t,invalid_type_error:s,required_error:n,description:r}=e;if(t&&(s||n))throw new Error('Can\'t use "invalid_type_error" or "required_error" in conjunction with custom error map.');if(t)return{errorMap:t,description:r};return{errorMap:(e,t)=>"invalid_type"!==e.code?{message:t.defaultError}:void 0===t.data?{message:null!=n?n:t.defaultError}:{message:null!=s?s:t.defaultError},description:r}}class p{constructor(e){this.spa=this.safeParseAsync,this._def=e,this.parse=this.parse.bind(this),this.safeParse=this.safeParse.bind(this),this.parseAsync=this.parseAsync.bind(this),this.safeParseAsync=this.safeParseAsync.bind(this),this.spa=this.spa.bind(this),this.refine=this.refine.bind(this),this.refinement=this.refinement.bind(this),this.superRefine=this.superRefine.bind(this),this.optional=this.optional.bind(this),this.nullable=this.nullable.bind(this),this.nullish=this.nullish.bind(this),this.array=this.array.bind(this),this.promise=this.promise.bind(this),this.or=this.or.bind(this),this.and=this.and.bind(this),this.transform=this.transform.bind(this),this.brand=this.brand.bind(this),this.default=this.default.bind(this),this.catch=this.catch.bind(this),this.describe=this.describe.bind(this),this.pipe=this.pipe.bind(this),this.isNullable=this.isNullable.bind(this),this.isOptional=this.isOptional.bind(this)}get description(){return this._def.description}_getType(e){return(0,r.getParsedType)(e.data)}_getOrReturnCtx(e,t){return t||{common:e.parent.common,data:e.data,parsedType:(0,r.getParsedType)(e.data),schemaErrorMap:this._def.errorMap,path:e.path,parent:e.parent}}_processInputParams(e){return{status:new n.ParseStatus,ctx:{common:e.parent.common,data:e.data,parsedType:(0,r.getParsedType)(e.data),schemaErrorMap:this._def.errorMap,path:e.path,parent:e.parent}}}_parseSync(e){const t=this._parse(e);if((0,n.isAsync)(t))throw new Error("Synchronous parse encountered promise.");return t}_parseAsync(e){const t=this._parse(e);return Promise.resolve(t)}parse(e,t){const s=this.safeParse(e,t);if(s.success)return s.data;throw s.error}safeParse(e,t){var s;const n={common:{issues:[],async:null!==(s=null==t?void 0:t.async)&&void 0!==s&&s,contextualErrorMap:null==t?void 0:t.errorMap},path:(null==t?void 0:t.path)||[],schemaErrorMap:this._def.errorMap,parent:null,data:e,parsedType:(0,r.getParsedType)(e)},a=this._parseSync({data:e,path:n.path,parent:n});return u(n,a)}async parseAsync(e,t){const s=await this.safeParseAsync(e,t);if(s.success)return s.data;throw s.error}async safeParseAsync(e,t){const s={common:{issues:[],contextualErrorMap:null==t?void 0:t.errorMap,async:!0},path:(null==t?void 0:t.path)||[],schemaErrorMap:this._def.errorMap,parent:null,data:e,parsedType:(0,r.getParsedType)(e)},a=this._parse({data:e,path:s.path,parent:s}),i=await((0,n.isAsync)(a)?a:Promise.resolve(a));return u(s,i)}refine(e,t){const s=e=>"string"==typeof t||void 0===t?{message:t}:"function"==typeof t?t(e):t;return this._refinement(((t,n)=>{const r=e(t),a=()=>n.addIssue({code:i.ZodIssueCode.custom,...s(t)});return"undefined"!=typeof Promise&&r instanceof Promise?r.then((e=>!!e||(a(),!1))):!!r||(a(),!1)}))}refinement(e,t){return this._refinement(((s,n)=>!!e(s)||(n.addIssue("function"==typeof t?t(s,n):t),!1)))}_refinement(e){return new te({schema:this,typeName:ce.ZodEffects,effect:{type:"refinement",refinement:e}})}superRefine(e){return this._refinement(e)}optional(){return se.create(this,this._def)}nullable(){return ne.create(this,this._def)}nullish(){return this.nullable().optional()}array(){return j.create(this,this._def)}promise(){return ee.create(this,this._def)}or(e){return L.create([this,e],this._def)}and(e){return $.create(this,e,this._def)}transform(e){return new te({...l(this._def),schema:this,typeName:ce.ZodEffects,effect:{type:"transform",transform:e}})}default(e){const t="function"==typeof e?e:()=>e;return new re({...l(this._def),innerType:this,defaultValue:t,typeName:ce.ZodDefault})}brand(){return new oe({typeName:ce.ZodBranded,type:this,...l(this._def)})}catch(e){const t="function"==typeof e?e:()=>e;return new ae({...l(this._def),innerType:this,catchValue:t,typeName:ce.ZodCatch})}describe(e){return new(0,this.constructor)({...this._def,description:e})}pipe(e){return de.create(this,e)}isOptional(){return this.safeParse(void 0).success}isNullable(){return this.safeParse(null).success}}e.ZodType=p,e.Schema=p,e.ZodSchema=p;const h=/^c[^\s-]{8,}$/i,m=/^[a-z][a-z0-9]*$/,g=/[0-9A-HJKMNP-TV-Z]{26}/,v=/^([a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[a-f0-9]{4}-[a-f0-9]{12}|00000000-0000-0000-0000-000000000000)$/i,y=/^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[(((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2}))\.){3}((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2}))\])|(\[IPv6:(([a-f0-9]{1,4}:){7}|::([a-f0-9]{1,4}:){0,6}|([a-f0-9]{1,4}:){1}:([a-f0-9]{1,4}:){0,5}|([a-f0-9]{1,4}:){2}:([a-f0-9]{1,4}:){0,4}|([a-f0-9]{1,4}:){3}:([a-f0-9]{1,4}:){0,3}|([a-f0-9]{1,4}:){4}:([a-f0-9]{1,4}:){0,2}|([a-f0-9]{1,4}:){5}:([a-f0-9]{1,4}:){0,1})([a-f0-9]{1,4}|(((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2}))\.){3}((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2})))\])|([A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])*(\.[A-Za-z]{2,})+))$/,x=/^(\p{Extended_Pictographic}|\p{Emoji_Component})+$/u,C=/^(((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2}))\.){3}((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2}))$/,w=/^(([a-f0-9]{1,4}:){7}|::([a-f0-9]{1,4}:){0,6}|([a-f0-9]{1,4}:){1}:([a-f0-9]{1,4}:){0,5}|([a-f0-9]{1,4}:){2}:([a-f0-9]{1,4}:){0,4}|([a-f0-9]{1,4}:){3}:([a-f0-9]{1,4}:){0,3}|([a-f0-9]{1,4}:){4}:([a-f0-9]{1,4}:){0,2}|([a-f0-9]{1,4}:){5}:([a-f0-9]{1,4}:){0,1})([a-f0-9]{1,4}|(((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2}))\.){3}((25[0-5])|(2[0-4][0-9])|(1[0-9]{2})|([0-9]{1,2})))$/;class _ extends p{constructor(){super(...arguments),this._regex=(e,t,n)=>this.refinement((t=>e.test(t)),{validation:t,code:i.ZodIssueCode.invalid_string,...s.errorUtil.errToObj(n)}),this.nonempty=e=>this.min(1,s.errorUtil.errToObj(e)),this.trim=()=>new _({...this._def,checks:[...this._def.checks,{kind:"trim"}]}),this.toLowerCase=()=>new _({...this._def,checks:[...this._def.checks,{kind:"toLowerCase"}]}),this.toUpperCase=()=>new _({...this._def,checks:[...this._def.checks,{kind:"toUpperCase"}]})}_parse(e){this._def.coerce&&(e.data=String(e.data));if(this._getType(e)!==r.ZodParsedType.string){const t=this._getOrReturnCtx(e);return(0,n.addIssueToContext)(t,{code:i.ZodIssueCode.invalid_type,expected:r.ZodParsedType.string,received:t.parsedType}),n.INVALID}const t=new n.ParseStatus;let s;for(const c of this._def.checks)if("min"===c.kind)e.data.length<c.value&&(s=this._getOrReturnCtx(e,s),(0,n.addIssueToContext)(s,{code:i.ZodIssueCode.too_small,minimum:c.value,type:"string",inclusive:!0,exact:!1,message:c.message}),t.dirty());else if("max"===c.kind)e.data.length>c.value&&(s=this._getOrReturnCtx(e,s),(0,n.addIssueToContext)(s,{code:i.ZodIssueCode.too_big,maximum:c.value,type:"string",inclusive:!0,exact:!1,message:c.message}),t.dirty());else if("length"===c.kind){const r=e.data.length>c.value,a=e.data.length<c.value;(r||a)&&(s=this._getOrReturnCtx(e,s),r?(0,n.addIssueToContext)(s,{code:i.ZodIssueCode.too_big,maximum:c.value,type:"string",inclusive:!0,exact:!0,message:c.message}):a&&(0,n.addIssueToContext)(s,{code:i.ZodIssueCode.too_small,minimum:c.value,type:"string",inclusive:!0,exact:!0,message:c.message}),t.dirty())}else if("email"===c.kind)y.test(e.data)||(s=this._getOrReturnCtx(e,s),(0,n.addIssueToContext)(s,{validation:"email",code:i.ZodIssueCode.invalid_string,message:c.message}),t.dirty());else if("emoji"===c.kind)x.test(e.data)||(s=this._getOrReturnCtx(e,s),(0,n.addIssueToContext)(s,{validation:"emoji",code:i.ZodIssueCode.invalid_string,message:c.message}),t.dirty());else if("uuid"===c.kind)v.test(e.data)||(s=this._getOrReturnCtx(e,s),(0,n.addIssueToContext)(s,{validation:"uuid",code:i.ZodIssueCode.invalid_string,message:c.message}),t.dirty());else if("cuid"===c.kind)h.test(e.data)||(s=this._getOrReturnCtx(e,s),(0,n.addIssueToContext)(s,{validation:"cuid",code:i.ZodIssueCode.invalid_string,message:c.message}),t.dirty());else if("cuid2"===c.kind)m.test(e.data)||(s=this._getOrReturnCtx(e,s),(0,n.addIssueToContext)(s,{validation:"cuid2",code:i.ZodIssueCode.invalid_string,message:c.message}),t.dirty());else if("ulid"===c.kind)g.test(e.data)||(s=this._getOrReturnCtx(e,s),(0,n.addIssueToContext)(s,{validation:"ulid",code:i.ZodIssueCode.invalid_string,message:c.message}),t.dirty());else if("url"===c.kind)try{new URL(e.data)}catch(r){s=this._getOrReturnCtx(e,s),(0,n.addIssueToContext)(s,{validation:"url",code:i.ZodIssueCode.invalid_string,message:c.message}),t.dirty()}else if("regex"===c.kind){c.regex.lastIndex=0;c.regex.test(e.data)||(s=this._getOrReturnCtx(e,s),(0,n.addIssueToContext)(s,{validation:"regex",code:i.ZodIssueCode.invalid_string,message:c.message}),t.dirty())}else if("trim"===c.kind)e.data=e.data.trim();else if("includes"===c.kind)e.data.includes(c.value,c.position)||(s=this._getOrReturnCtx(e,s),(0,n.addIssueToContext)(s,{code:i.ZodIssueCode.invalid_string,validation:{includes:c.value,position:c.position},message:c.message}),t.dirty());else if("toLowerCase"===c.kind)e.data=e.data.toLowerCase();else if("toUpperCase"===c.kind)e.data=e.data.toUpperCase();else if("startsWith"===c.kind)e.data.startsWith(c.value)||(s=this._getOrReturnCtx(e,s),(0,n.addIssueToContext)(s,{code:i.ZodIssueCode.invalid_string,validation:{startsWith:c.value},message:c.message}),t.dirty());else if("endsWith"===c.kind)e.data.endsWith(c.value)||(s=this._getOrReturnCtx(e,s),(0,n.addIssueToContext)(s,{code:i.ZodIssueCode.invalid_string,validation:{endsWith:c.value},message:c.message}),t.dirty());else if("datetime"===c.kind){((d=c).precision?d.offset?new RegExp(`^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{${d.precision}}(([+-]\\d{2}(:?\\d{2})?)|Z)$`):new RegExp(`^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{${d.precision}}Z$`):0===d.precision?d.offset?new RegExp("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(([+-]\\d{2}(:?\\d{2})?)|Z)$"):new RegExp("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"):d.offset?new RegExp("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(([+-]\\d{2}(:?\\d{2})?)|Z)$"):new RegExp("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$")).test(e.data)||(s=this._getOrReturnCtx(e,s),(0,n.addIssueToContext)(s,{code:i.ZodIssueCode.invalid_string,validation:"datetime",message:c.message}),t.dirty())}else"ip"===c.kind?(a=e.data,("v4"!==(o=c.version)&&o||!C.test(a))&&("v6"!==o&&o||!w.test(a))&&(s=this._getOrReturnCtx(e,s),(0,n.addIssueToContext)(s,{validation:"ip",code:i.ZodIssueCode.invalid_string,message:c.message}),t.dirty())):r.util.assertNever(c);var a,o,d;return{status:t.value,value:e.data}}_addCheck(e){return new _({...this._def,checks:[...this._def.checks,e]})}email(e){return this._addCheck({kind:"email",...s.errorUtil.errToObj(e)})}url(e){return this._addCheck({kind:"url",...s.errorUtil.errToObj(e)})}emoji(e){return this._addCheck({kind:"emoji",...s.errorUtil.errToObj(e)})}uuid(e){return this._addCheck({kind:"uuid",...s.errorUtil.errToObj(e)})}cuid(e){return this._addCheck({kind:"cuid",...s.errorUtil.errToObj(e)})}cuid2(e){return this._addCheck({kind:"cuid2",...s.errorUtil.errToObj(e)})}ulid(e){return this._addCheck({kind:"ulid",...s.errorUtil.errToObj(e)})}ip(e){return this._addCheck({kind:"ip",...s.errorUtil.errToObj(e)})}datetime(e){var t;return"string"==typeof e?this._addCheck({kind:"datetime",precision:null,offset:!1,message:e}):this._addCheck({kind:"datetime",precision:void 0===(null==e?void 0:e.precision)?null:null==e?void 0:e.precision,offset:null!==(t=null==e?void 0:e.offset)&&void 0!==t&&t,...s.errorUtil.errToObj(null==e?void 0:e.message)})}regex(e,t){return this._addCheck({kind:"regex",regex:e,...s.errorUtil.errToObj(t)})}includes(e,t){return this._addCheck({kind:"includes",value:e,position:null==t?void 0:t.position,...s.errorUtil.errToObj(null==t?void 0:t.message)})}startsWith(e,t){return this._addCheck({kind:"startsWith",value:e,...s.errorUtil.errToObj(t)})}endsWith(e,t){return this._addCheck({kind:"endsWith",value:e,...s.errorUtil.errToObj(t)})}min(e,t){return this._addCheck({kind:"min",value:e,...s.errorUtil.errToObj(t)})}max(e,t){return this._addCheck({kind:"max",value:e,...s.errorUtil.errToObj(t)})}length(e,t){return this._addCheck({kind:"length",value:e,...s.errorUtil.errToObj(t)})}get isDatetime(){return!!this._def.checks.find((e=>"datetime"===e.kind))}get isEmail(){return!!this._def.checks.find((e=>"email"===e.kind))}get isURL(){return!!this._def.checks.find((e=>"url"===e.kind))}get isEmoji(){return!!this._def.checks.find((e=>"emoji"===e.kind))}get isUUID(){return!!this._def.checks.find((e=>"uuid"===e.kind))}get isCUID(){return!!this._def.checks.find((e=>"cuid"===e.kind))}get isCUID2(){return!!this._def.checks.find((e=>"cuid2"===e.kind))}get isULID(){return!!this._def.checks.find((e=>"ulid"===e.kind))}get isIP(){return!!this._def.checks.find((e=>"ip"===e.kind))}get minLength(){let e=null;for(const t of this._def.checks)"min"===t.kind&&(null===e||t.value>e)&&(e=t.value);return e}get maxLength(){let e=null;for(const t of this._def.checks)"max"===t.kind&&(null===e||t.value<e)&&(e=t.value);return e}}function I(e,t){const s=(e.toString().split(".")[1]||"").length,n=(t.toString().split(".")[1]||"").length,r=s>n?s:n;return parseInt(e.toFixed(r).replace(".",""))%parseInt(t.toFixed(r).replace(".",""))/Math.pow(10,r)}e.ZodString=_,_.create=e=>{var t;return new _({checks:[],typeName:ce.ZodString,coerce:null!==(t=null==e?void 0:e.coerce)&&void 0!==t&&t,...l(e)})};class S extends p{constructor(){super(...arguments),this.min=this.gte,this.max=this.lte,this.step=this.multipleOf}_parse(e){this._def.coerce&&(e.data=Number(e.data));if(this._getType(e)!==r.ZodParsedType.number){const t=this._getOrReturnCtx(e);return(0,n.addIssueToContext)(t,{code:i.ZodIssueCode.invalid_type,expected:r.ZodParsedType.number,received:t.parsedType}),n.INVALID}let t;const s=new n.ParseStatus;for(const a of this._def.checks)if("int"===a.kind)r.util.isInteger(e.data)||(t=this._getOrReturnCtx(e,t),(0,n.addIssueToContext)(t,{code:i.ZodIssueCode.invalid_type,expected:"integer",received:"float",message:a.message}),s.dirty());else if("min"===a.kind){(a.inclusive?e.data<a.value:e.data<=a.value)&&(t=this._getOrReturnCtx(e,t),(0,n.addIssueToContext)(t,{code:i.ZodIssueCode.too_small,minimum:a.value,type:"number",inclusive:a.inclusive,exact:!1,message:a.message}),s.dirty())}else if("max"===a.kind){(a.inclusive?e.data>a.value:e.data>=a.value)&&(t=this._getOrReturnCtx(e,t),(0,n.addIssueToContext)(t,{code:i.ZodIssueCode.too_big,maximum:a.value,type:"number",inclusive:a.inclusive,exact:!1,message:a.message}),s.dirty())}else"multipleOf"===a.kind?0!==I(e.data,a.value)&&(t=this._getOrReturnCtx(e,t),(0,n.addIssueToContext)(t,{code:i.ZodIssueCode.not_multiple_of,multipleOf:a.value,message:a.message}),s.dirty()):"finite"===a.kind?Number.isFinite(e.data)||(t=this._getOrReturnCtx(e,t),(0,n.addIssueToContext)(t,{code:i.ZodIssueCode.not_finite,message:a.message}),s.dirty()):r.util.assertNever(a);return{status:s.value,value:e.data}}gte(e,t){return this.setLimit("min",e,!0,s.errorUtil.toString(t))}gt(e,t){return this.setLimit("min",e,!1,s.errorUtil.toString(t))}lte(e,t){return this.setLimit("max",e,!0,s.errorUtil.toString(t))}lt(e,t){return this.setLimit("max",e,!1,s.errorUtil.toString(t))}setLimit(e,t,n,r){return new S({...this._def,checks:[...this._def.checks,{kind:e,value:t,inclusive:n,message:s.errorUtil.toString(r)}]})}_addCheck(e){return new S({...this._def,checks:[...this._def.checks,e]})}int(e){return this._addCheck({kind:"int",message:s.errorUtil.toString(e)})}positive(e){return this._addCheck({kind:"min",value:0,inclusive:!1,message:s.errorUtil.toString(e)})}negative(e){return this._addCheck({kind:"max",value:0,inclusive:!1,message:s.errorUtil.toString(e)})}nonpositive(e){return this._addCheck({kind:"max",value:0,inclusive:!0,message:s.errorUtil.toString(e)})}nonnegative(e){return this._addCheck({kind:"min",value:0,inclusive:!0,message:s.errorUtil.toString(e)})}multipleOf(e,t){return this._addCheck({kind:"multipleOf",value:e,message:s.errorUtil.toString(t)})}finite(e){return this._addCheck({kind:"finite",message:s.errorUtil.toString(e)})}safe(e){return this._addCheck({kind:"min",inclusive:!0,value:Number.MIN_SAFE_INTEGER,message:s.errorUtil.toString(e)})._addCheck({kind:"max",inclusive:!0,value:Number.MAX_SAFE_INTEGER,message:s.errorUtil.toString(e)})}get minValue(){let e=null;for(const t of this._def.checks)"min"===t.kind&&(null===e||t.value>e)&&(e=t.value);return e}get maxValue(){let e=null;for(const t of this._def.checks)"max"===t.kind&&(null===e||t.value<e)&&(e=t.value);return e}get isInt(){return!!this._def.checks.find((e=>"int"===e.kind||"multipleOf"===e.kind&&r.util.isInteger(e.value)))}get isFinite(){let e=null,t=null;for(const s of this._def.checks){if("finite"===s.kind||"int"===s.kind||"multipleOf"===s.kind)return!0;"min"===s.kind?(null===t||s.value>t)&&(t=s.value):"max"===s.kind&&(null===e||s.value<e)&&(e=s.value)}return Number.isFinite(t)&&Number.isFinite(e)}}e.ZodNumber=S,S.create=e=>new S({checks:[],typeName:ce.ZodNumber,coerce:(null==e?void 0:e.coerce)||!1,...l(e)});class E extends p{constructor(){super(...arguments),this.min=this.gte,this.max=this.lte}_parse(e){this._def.coerce&&(e.data=BigInt(e.data));if(this._getType(e)!==r.ZodParsedType.bigint){const t=this._getOrReturnCtx(e);return(0,n.addIssueToContext)(t,{code:i.ZodIssueCode.invalid_type,expected:r.ZodParsedType.bigint,received:t.parsedType}),n.INVALID}let t;const s=new n.ParseStatus;for(const a of this._def.checks)if("min"===a.kind){(a.inclusive?e.data<a.value:e.data<=a.value)&&(t=this._getOrReturnCtx(e,t),(0,n.addIssueToContext)(t,{code:i.ZodIssueCode.too_small,type:"bigint",minimum:a.value,inclusive:a.inclusive,message:a.message}),s.dirty())}else if("max"===a.kind){(a.inclusive?e.data>a.value:e.data>=a.value)&&(t=this._getOrReturnCtx(e,t),(0,n.addIssueToContext)(t,{code:i.ZodIssueCode.too_big,type:"bigint",maximum:a.value,inclusive:a.inclusive,message:a.message}),s.dirty())}else"multipleOf"===a.kind?e.data%a.value!==BigInt(0)&&(t=this._getOrReturnCtx(e,t),(0,n.addIssueToContext)(t,{code:i.ZodIssueCode.not_multiple_of,multipleOf:a.value,message:a.message}),s.dirty()):r.util.assertNever(a);return{status:s.value,value:e.data}}gte(e,t){return this.setLimit("min",e,!0,s.errorUtil.toString(t))}gt(e,t){return this.setLimit("min",e,!1,s.errorUtil.toString(t))}lte(e,t){return this.setLimit("max",e,!0,s.errorUtil.toString(t))}lt(e,t){return this.setLimit("max",e,!1,s.errorUtil.toString(t))}setLimit(e,t,n,r){return new E({...this._def,checks:[...this._def.checks,{kind:e,value:t,inclusive:n,message:s.errorUtil.toString(r)}]})}_addCheck(e){return new E({...this._def,checks:[...this._def.checks,e]})}positive(e){return this._addCheck({kind:"min",value:BigInt(0),inclusive:!1,message:s.errorUtil.toString(e)})}negative(e){return this._addCheck({kind:"max",value:BigInt(0),inclusive:!1,message:s.errorUtil.toString(e)})}nonpositive(e){return this._addCheck({kind:"max",value:BigInt(0),inclusive:!0,message:s.errorUtil.toString(e)})}nonnegative(e){return this._addCheck({kind:"min",value:BigInt(0),inclusive:!0,message:s.errorUtil.toString(e)})}multipleOf(e,t){return this._addCheck({kind:"multipleOf",value:e,message:s.errorUtil.toString(t)})}get minValue(){let e=null;for(const t of this._def.checks)"min"===t.kind&&(null===e||t.value>e)&&(e=t.value);return e}get maxValue(){let e=null;for(const t of this._def.checks)"max"===t.kind&&(null===e||t.value<e)&&(e=t.value);return e}}e.ZodBigInt=E,E.create=e=>{var t;return new E({checks:[],typeName:ce.ZodBigInt,coerce:null!==(t=null==e?void 0:e.coerce)&&void 0!==t&&t,...l(e)})};class T extends p{_parse(e){this._def.coerce&&(e.data=Boolean(e.data));if(this._getType(e)!==r.ZodParsedType.boolean){const t=this._getOrReturnCtx(e);return(0,n.addIssueToContext)(t,{code:i.ZodIssueCode.invalid_type,expected:r.ZodParsedType.boolean,received:t.parsedType}),n.INVALID}return(0,n.OK)(e.data)}}e.ZodBoolean=T,T.create=e=>new T({typeName:ce.ZodBoolean,coerce:(null==e?void 0:e.coerce)||!1,...l(e)});class P extends p{_parse(e){this._def.coerce&&(e.data=new Date(e.data));if(this._getType(e)!==r.ZodParsedType.date){const t=this._getOrReturnCtx(e);return(0,n.addIssueToContext)(t,{code:i.ZodIssueCode.invalid_type,expected:r.ZodParsedType.date,received:t.parsedType}),n.INVALID}if(isNaN(e.data.getTime())){const t=this._getOrReturnCtx(e);return(0,n.addIssueToContext)(t,{code:i.ZodIssueCode.invalid_date}),n.INVALID}const t=new n.ParseStatus;let s;for(const a of this._def.checks)"min"===a.kind?e.data.getTime()<a.value&&(s=this._getOrReturnCtx(e,s),(0,n.addIssueToContext)(s,{code:i.ZodIssueCode.too_small,message:a.message,inclusive:!0,exact:!1,minimum:a.value,type:"date"}),t.dirty()):"max"===a.kind?e.data.getTime()>a.value&&(s=this._getOrReturnCtx(e,s),(0,n.addIssueToContext)(s,{code:i.ZodIssueCode.too_big,message:a.message,inclusive:!0,exact:!1,maximum:a.value,type:"date"}),t.dirty()):r.util.assertNever(a);return{status:t.value,value:new Date(e.data.getTime())}}_addCheck(e){return new P({...this._def,checks:[...this._def.checks,e]})}min(e,t){return this._addCheck({kind:"min",value:e.getTime(),message:s.errorUtil.toString(t)})}max(e,t){return this._addCheck({kind:"max",value:e.getTime(),message:s.errorUtil.toString(t)})}get minDate(){let e=null;for(const t of this._def.checks)"min"===t.kind&&(null===e||t.value>e)&&(e=t.value);return null!=e?new Date(e):null}get maxDate(){let e=null;for(const t of this._def.checks)"max"===t.kind&&(null===e||t.value<e)&&(e=t.value);return null!=e?new Date(e):null}}e.ZodDate=P,P.create=e=>new P({checks:[],coerce:(null==e?void 0:e.coerce)||!1,typeName:ce.ZodDate,...l(e)});class k extends p{_parse(e){if(this._getType(e)!==r.ZodParsedType.symbol){const t=this._getOrReturnCtx(e);return(0,n.addIssueToContext)(t,{code:i.ZodIssueCode.invalid_type,expected:r.ZodParsedType.symbol,received:t.parsedType}),n.INVALID}return(0,n.OK)(e.data)}}e.ZodSymbol=k,k.create=e=>new k({typeName:ce.ZodSymbol,...l(e)});class N extends p{_parse(e){if(this._getType(e)!==r.ZodParsedType.undefined){const t=this._getOrReturnCtx(e);return(0,n.addIssueToContext)(t,{code:i.ZodIssueCode.invalid_type,expected:r.ZodParsedType.undefined,received:t.parsedType}),n.INVALID}return(0,n.OK)(e.data)}}e.ZodUndefined=N,N.create=e=>new N({typeName:ce.ZodUndefined,...l(e)});class Z extends p{_parse(e){if(this._getType(e)!==r.ZodParsedType.null){const t=this._getOrReturnCtx(e);return(0,n.addIssueToContext)(t,{code:i.ZodIssueCode.invalid_type,expected:r.ZodParsedType.null,received:t.parsedType}),n.INVALID}return(0,n.OK)(e.data)}}e.ZodNull=Z,Z.create=e=>new Z({typeName:ce.ZodNull,...l(e)});class O extends p{constructor(){super(...arguments),this._any=!0}_parse(e){return(0,n.OK)(e.data)}}e.ZodAny=O,O.create=e=>new O({typeName:ce.ZodAny,...l(e)});class M extends p{constructor(){super(...arguments),this._unknown=!0}_parse(e){return(0,n.OK)(e.data)}}e.ZodUnknown=M,M.create=e=>new M({typeName:ce.ZodUnknown,...l(e)});class D extends p{_parse(e){const t=this._getOrReturnCtx(e);return(0,n.addIssueToContext)(t,{code:i.ZodIssueCode.invalid_type,expected:r.ZodParsedType.never,received:t.parsedType}),n.INVALID}}e.ZodNever=D,D.create=e=>new D({typeName:ce.ZodNever,...l(e)});class R extends p{_parse(e){if(this._getType(e)!==r.ZodParsedType.undefined){const t=this._getOrReturnCtx(e);return(0,n.addIssueToContext)(t,{code:i.ZodIssueCode.invalid_type,expected:r.ZodParsedType.void,received:t.parsedType}),n.INVALID}return(0,n.OK)(e.data)}}e.ZodVoid=R,R.create=e=>new R({typeName:ce.ZodVoid,...l(e)});class j extends p{_parse(e){const{ctx:t,status:s}=this._processInputParams(e),a=this._def;if(t.parsedType!==r.ZodParsedType.array)return(0,n.addIssueToContext)(t,{code:i.ZodIssueCode.invalid_type,expected:r.ZodParsedType.array,received:t.parsedType}),n.INVALID;if(null!==a.exactLength){const e=t.data.length>a.exactLength.value,r=t.data.length<a.exactLength.value;(e||r)&&((0,n.addIssueToContext)(t,{code:e?i.ZodIssueCode.too_big:i.ZodIssueCode.too_small,minimum:r?a.exactLength.value:void 0,maximum:e?a.exactLength.value:void 0,type:"array",inclusive:!0,exact:!0,message:a.exactLength.message}),s.dirty())}if(null!==a.minLength&&t.data.length<a.minLength.value&&((0,n.addIssueToContext)(t,{code:i.ZodIssueCode.too_small,minimum:a.minLength.value,type:"array",inclusive:!0,exact:!1,message:a.minLength.message}),s.dirty()),null!==a.maxLength&&t.data.length>a.maxLength.value&&((0,n.addIssueToContext)(t,{code:i.ZodIssueCode.too_big,maximum:a.maxLength.value,type:"array",inclusive:!0,exact:!1,message:a.maxLength.message}),s.dirty()),t.common.async)return Promise.all([...t.data].map(((e,s)=>a.type._parseAsync(new c(t,e,t.path,s))))).then((e=>n.ParseStatus.mergeArray(s,e)));const o=[...t.data].map(((e,s)=>a.type._parseSync(new c(t,e,t.path,s))));return n.ParseStatus.mergeArray(s,o)}get element(){return this._def.type}min(e,t){return new j({...this._def,minLength:{value:e,message:s.errorUtil.toString(t)}})}max(e,t){return new j({...this._def,maxLength:{value:e,message:s.errorUtil.toString(t)}})}length(e,t){return new j({...this._def,exactLength:{value:e,message:s.errorUtil.toString(t)}})}nonempty(e){return this.min(1,e)}}function A(e){if(e instanceof z){const t={};for(const s in e.shape){const n=e.shape[s];t[s]=se.create(A(n))}return new z({...e._def,shape:()=>t})}return e instanceof j?new j({...e._def,type:A(e.element)}):e instanceof se?se.create(A(e.unwrap())):e instanceof ne?ne.create(A(e.unwrap())):e instanceof F?F.create(e.items.map((e=>A(e)))):e}e.ZodArray=j,j.create=(e,t)=>new j({type:e,minLength:null,maxLength:null,exactLength:null,typeName:ce.ZodArray,...l(t)});class z extends p{constructor(){super(...arguments),this._cached=null,this.nonstrict=this.passthrough,this.augment=this.extend}_getCached(){if(null!==this._cached)return this._cached;const e=this._def.shape(),t=r.util.objectKeys(e);return this._cached={shape:e,keys:t}}_parse(e){if(this._getType(e)!==r.ZodParsedType.object){const t=this._getOrReturnCtx(e);return(0,n.addIssueToContext)(t,{code:i.ZodIssueCode.invalid_type,expected:r.ZodParsedType.object,received:t.parsedType}),n.INVALID}const{status:t,ctx:s}=this._processInputParams(e),{shape:a,keys:o}=this._getCached(),d=[];if(!(this._def.catchall instanceof D&&"strip"===this._def.unknownKeys))for(const e in s.data)o.includes(e)||d.push(e);const u=[];for(const e of o){const t=a[e],n=s.data[e];u.push({key:{status:"valid",value:e},value:t._parse(new c(s,n,s.path,e)),alwaysSet:e in s.data})}if(this._def.catchall instanceof D){const e=this._def.unknownKeys;if("passthrough"===e)for(const e of d)u.push({key:{status:"valid",value:e},value:{status:"valid",value:s.data[e]}});else if("strict"===e)d.length>0&&((0,n.addIssueToContext)(s,{code:i.ZodIssueCode.unrecognized_keys,keys:d}),t.dirty());else if("strip"!==e)throw new Error("Internal ZodObject error: invalid unknownKeys value.")}else{const e=this._def.catchall;for(const t of d){const n=s.data[t];u.push({key:{status:"valid",value:t},value:e._parse(new c(s,n,s.path,t)),alwaysSet:t in s.data})}}return s.common.async?Promise.resolve().then((async()=>{const e=[];for(const t of u){const s=await t.key;e.push({key:s,value:await t.value,alwaysSet:t.alwaysSet})}return e})).then((e=>n.ParseStatus.mergeObjectSync(t,e))):n.ParseStatus.mergeObjectSync(t,u)}get shape(){return this._def.shape()}strict(e){return s.errorUtil.errToObj,new z({...this._def,unknownKeys:"strict",...void 0!==e?{errorMap:(t,n)=>{var r,a,i,o;const d=null!==(i=null===(a=(r=this._def).errorMap)||void 0===a?void 0:a.call(r,t,n).message)&&void 0!==i?i:n.defaultError;return"unrecognized_keys"===t.code?{message:null!==(o=s.errorUtil.errToObj(e).message)&&void 0!==o?o:d}:{message:d}}}:{}})}strip(){return new z({...this._def,unknownKeys:"strip"})}passthrough(){return new z({...this._def,unknownKeys:"passthrough"})}extend(e){return new z({...this._def,shape:()=>({...this._def.shape(),...e})})}merge(e){return new z({unknownKeys:e._def.unknownKeys,catchall:e._def.catchall,shape:()=>({...this._def.shape(),...e._def.shape()}),typeName:ce.ZodObject})}setKey(e,t){return this.augment({[e]:t})}catchall(e){return new z({...this._def,catchall:e})}pick(e){const t={};return r.util.objectKeys(e).forEach((s=>{e[s]&&this.shape[s]&&(t[s]=this.shape[s])})),new z({...this._def,shape:()=>t})}omit(e){const t={};return r.util.objectKeys(this.shape).forEach((s=>{e[s]||(t[s]=this.shape[s])})),new z({...this._def,shape:()=>t})}deepPartial(){return A(this)}partial(e){const t={};return r.util.objectKeys(this.shape).forEach((s=>{const n=this.shape[s];e&&!e[s]?t[s]=n:t[s]=n.optional()})),new z({...this._def,shape:()=>t})}required(e){const t={};return r.util.objectKeys(this.shape).forEach((s=>{if(e&&!e[s])t[s]=this.shape[s];else{let e=this.shape[s];for(;e instanceof se;)e=e._def.innerType;t[s]=e}})),new z({...this._def,shape:()=>t})}keyof(){return Y(r.util.objectKeys(this.shape))}}e.ZodObject=z,z.create=(e,t)=>new z({shape:()=>e,unknownKeys:"strip",catchall:D.create(),typeName:ce.ZodObject,...l(t)}),z.strictCreate=(e,t)=>new z({shape:()=>e,unknownKeys:"strict",catchall:D.create(),typeName:ce.ZodObject,...l(t)}),z.lazycreate=(e,t)=>new z({shape:e,unknownKeys:"strip",catchall:D.create(),typeName:ce.ZodObject,...l(t)});class L extends p{_parse(e){const{ctx:t}=this._processInputParams(e),s=this._def.options;if(t.common.async)return Promise.all(s.map((async e=>{const s={...t,common:{...t.common,issues:[]},parent:null};return{result:await e._parseAsync({data:t.data,path:t.path,parent:s}),ctx:s}}))).then((function(e){for(const t of e)if("valid"===t.result.status)return t.result;for(const s of e)if("dirty"===s.result.status)return t.common.issues.push(...s.ctx.common.issues),s.result;const s=e.map((e=>new i.ZodError(e.ctx.common.issues)));return(0,n.addIssueToContext)(t,{code:i.ZodIssueCode.invalid_union,unionErrors:s}),n.INVALID}));{let e;const r=[];for(const n of s){const s={...t,common:{...t.common,issues:[]},parent:null},a=n._parseSync({data:t.data,path:t.path,parent:s});if("valid"===a.status)return a;"dirty"!==a.status||e||(e={result:a,ctx:s}),s.common.issues.length&&r.push(s.common.issues)}if(e)return t.common.issues.push(...e.ctx.common.issues),e.result;const a=r.map((e=>new i.ZodError(e)));return(0,n.addIssueToContext)(t,{code:i.ZodIssueCode.invalid_union,unionErrors:a}),n.INVALID}}get options(){return this._def.options}}e.ZodUnion=L,L.create=(e,t)=>new L({options:e,typeName:ce.ZodUnion,...l(t)});const B=e=>e instanceof H?B(e.schema):e instanceof te?B(e.innerType()):e instanceof G?[e.value]:e instanceof Q?e.options:e instanceof X?Object.keys(e.enum):e instanceof re?B(e._def.innerType):e instanceof N?[void 0]:e instanceof Z?[null]:null;class V extends p{_parse(e){const{ctx:t}=this._processInputParams(e);if(t.parsedType!==r.ZodParsedType.object)return(0,n.addIssueToContext)(t,{code:i.ZodIssueCode.invalid_type,expected:r.ZodParsedType.object,received:t.parsedType}),n.INVALID;const s=this.discriminator,a=t.data[s],o=this.optionsMap.get(a);return o?t.common.async?o._parseAsync({data:t.data,path:t.path,parent:t}):o._parseSync({data:t.data,path:t.path,parent:t}):((0,n.addIssueToContext)(t,{code:i.ZodIssueCode.invalid_union_discriminator,options:Array.from(this.optionsMap.keys()),path:[s]}),n.INVALID)}get discriminator(){return this._def.discriminator}get options(){return this._def.options}get optionsMap(){return this._def.optionsMap}static create(e,t,s){const n=new Map;for(const s of t){const t=B(s.shape[e]);if(!t)throw new Error(`A discriminator value for key \`${e}\` could not be extracted from all schema options`);for(const r of t){if(n.has(r))throw new Error(`Discriminator property ${String(e)} has duplicate value ${String(r)}`);n.set(r,s)}}return new V({typeName:ce.ZodDiscriminatedUnion,discriminator:e,options:t,optionsMap:n,...l(s)})}}function U(e,t){const s=(0,r.getParsedType)(e),n=(0,r.getParsedType)(t);if(e===t)return{valid:!0,data:e};if(s===r.ZodParsedType.object&&n===r.ZodParsedType.object){const s=r.util.objectKeys(t),n=r.util.objectKeys(e).filter((e=>-1!==s.indexOf(e))),a={...e,...t};for(const s of n){const n=U(e[s],t[s]);if(!n.valid)return{valid:!1};a[s]=n.data}return{valid:!0,data:a}}if(s===r.ZodParsedType.array&&n===r.ZodParsedType.array){if(e.length!==t.length)return{valid:!1};const s=[];for(let n=0;n<e.length;n++){const r=U(e[n],t[n]);if(!r.valid)return{valid:!1};s.push(r.data)}return{valid:!0,data:s}}return s===r.ZodParsedType.date&&n===r.ZodParsedType.date&&+e==+t?{valid:!0,data:e}:{valid:!1}}e.ZodDiscriminatedUnion=V;class $ extends p{_parse(e){const{status:t,ctx:s}=this._processInputParams(e),r=(e,r)=>{if((0,n.isAborted)(e)||(0,n.isAborted)(r))return n.INVALID;const a=U(e.value,r.value);return a.valid?(((0,n.isDirty)(e)||(0,n.isDirty)(r))&&t.dirty(),{status:t.value,value:a.data}):((0,n.addIssueToContext)(s,{code:i.ZodIssueCode.invalid_intersection_types}),n.INVALID)};return s.common.async?Promise.all([this._def.left._parseAsync({data:s.data,path:s.path,parent:s}),this._def.right._parseAsync({data:s.data,path:s.path,parent:s})]).then((([e,t])=>r(e,t))):r(this._def.left._parseSync({data:s.data,path:s.path,parent:s}),this._def.right._parseSync({data:s.data,path:s.path,parent:s}))}}e.ZodIntersection=$,$.create=(e,t,s)=>new $({left:e,right:t,typeName:ce.ZodIntersection,...l(s)});class F extends p{_parse(e){const{status:t,ctx:s}=this._processInputParams(e);if(s.parsedType!==r.ZodParsedType.array)return(0,n.addIssueToContext)(s,{code:i.ZodIssueCode.invalid_type,expected:r.ZodParsedType.array,received:s.parsedType}),n.INVALID;if(s.data.length<this._def.items.length)return(0,n.addIssueToContext)(s,{code:i.ZodIssueCode.too_small,minimum:this._def.items.length,inclusive:!0,exact:!1,type:"array"}),n.INVALID;!this._def.rest&&s.data.length>this._def.items.length&&((0,n.addIssueToContext)(s,{code:i.ZodIssueCode.too_big,maximum:this._def.items.length,inclusive:!0,exact:!1,type:"array"}),t.dirty());const a=[...s.data].map(((e,t)=>{const n=this._def.items[t]||this._def.rest;return n?n._parse(new c(s,e,s.path,t)):null})).filter((e=>!!e));return s.common.async?Promise.all(a).then((e=>n.ParseStatus.mergeArray(t,e))):n.ParseStatus.mergeArray(t,a)}get items(){return this._def.items}rest(e){return new F({...this._def,rest:e})}}e.ZodTuple=F,F.create=(e,t)=>{if(!Array.isArray(e))throw new Error("You must pass an array of schemas to z.tuple([ ... ])");return new F({items:e,typeName:ce.ZodTuple,rest:null,...l(t)})};class q extends p{get keySchema(){return this._def.keyType}get valueSchema(){return this._def.valueType}_parse(e){const{status:t,ctx:s}=this._processInputParams(e);if(s.parsedType!==r.ZodParsedType.object)return(0,n.addIssueToContext)(s,{code:i.ZodIssueCode.invalid_type,expected:r.ZodParsedType.object,received:s.parsedType}),n.INVALID;const a=[],o=this._def.keyType,d=this._def.valueType;for(const e in s.data)a.push({key:o._parse(new c(s,e,s.path,e)),value:d._parse(new c(s,s.data[e],s.path,e))});return s.common.async?n.ParseStatus.mergeObjectAsync(t,a):n.ParseStatus.mergeObjectSync(t,a)}get element(){return this._def.valueType}static create(e,t,s){return new q(t instanceof p?{keyType:e,valueType:t,typeName:ce.ZodRecord,...l(s)}:{keyType:_.create(),valueType:e,typeName:ce.ZodRecord,...l(t)})}}e.ZodRecord=q;class W extends p{_parse(e){const{status:t,ctx:s}=this._processInputParams(e);if(s.parsedType!==r.ZodParsedType.map)return(0,n.addIssueToContext)(s,{code:i.ZodIssueCode.invalid_type,expected:r.ZodParsedType.map,received:s.parsedType}),n.INVALID;const a=this._def.keyType,o=this._def.valueType,d=[...s.data.entries()].map((([e,t],n)=>({key:a._parse(new c(s,e,s.path,[n,"key"])),value:o._parse(new c(s,t,s.path,[n,"value"]))})));if(s.common.async){const e=new Map;return Promise.resolve().then((async()=>{for(const s of d){const r=await s.key,a=await s.value;if("aborted"===r.status||"aborted"===a.status)return n.INVALID;"dirty"!==r.status&&"dirty"!==a.status||t.dirty(),e.set(r.value,a.value)}return{status:t.value,value:e}}))}{const e=new Map;for(const s of d){const r=s.key,a=s.value;if("aborted"===r.status||"aborted"===a.status)return n.INVALID;"dirty"!==r.status&&"dirty"!==a.status||t.dirty(),e.set(r.value,a.value)}return{status:t.value,value:e}}}}e.ZodMap=W,W.create=(e,t,s)=>new W({valueType:t,keyType:e,typeName:ce.ZodMap,...l(s)});class K extends p{_parse(e){const{status:t,ctx:s}=this._processInputParams(e);if(s.parsedType!==r.ZodParsedType.set)return(0,n.addIssueToContext)(s,{code:i.ZodIssueCode.invalid_type,expected:r.ZodParsedType.set,received:s.parsedType}),n.INVALID;const a=this._def;null!==a.minSize&&s.data.size<a.minSize.value&&((0,n.addIssueToContext)(s,{code:i.ZodIssueCode.too_small,minimum:a.minSize.value,type:"set",inclusive:!0,exact:!1,message:a.minSize.message}),t.dirty()),null!==a.maxSize&&s.data.size>a.maxSize.value&&((0,n.addIssueToContext)(s,{code:i.ZodIssueCode.too_big,maximum:a.maxSize.value,type:"set",inclusive:!0,exact:!1,message:a.maxSize.message}),t.dirty());const o=this._def.valueType;function d(e){const s=new Set;for(const r of e){if("aborted"===r.status)return n.INVALID;"dirty"===r.status&&t.dirty(),s.add(r.value)}return{status:t.value,value:s}}const u=[...s.data.values()].map(((e,t)=>o._parse(new c(s,e,s.path,t))));return s.common.async?Promise.all(u).then((e=>d(e))):d(u)}min(e,t){return new K({...this._def,minSize:{value:e,message:s.errorUtil.toString(t)}})}max(e,t){return new K({...this._def,maxSize:{value:e,message:s.errorUtil.toString(t)}})}size(e,t){return this.min(e,t).max(e,t)}nonempty(e){return this.min(1,e)}}e.ZodSet=K,K.create=(e,t)=>new K({valueType:e,minSize:null,maxSize:null,typeName:ce.ZodSet,...l(t)});class J extends p{constructor(){super(...arguments),this.validate=this.implement}_parse(e){const{ctx:s}=this._processInputParams(e);if(s.parsedType!==r.ZodParsedType.function)return(0,n.addIssueToContext)(s,{code:i.ZodIssueCode.invalid_type,expected:r.ZodParsedType.function,received:s.parsedType}),n.INVALID;function a(e,r){return(0,n.makeIssue)({data:e,path:s.path,errorMaps:[s.common.contextualErrorMap,s.schemaErrorMap,(0,t.getErrorMap)(),t.defaultErrorMap].filter((e=>!!e)),issueData:{code:i.ZodIssueCode.invalid_arguments,argumentsError:r}})}function o(e,r){return(0,n.makeIssue)({data:e,path:s.path,errorMaps:[s.common.contextualErrorMap,s.schemaErrorMap,(0,t.getErrorMap)(),t.defaultErrorMap].filter((e=>!!e)),issueData:{code:i.ZodIssueCode.invalid_return_type,returnTypeError:r}})}const d={errorMap:s.common.contextualErrorMap},c=s.data;return this._def.returns instanceof ee?(0,n.OK)((async(...e)=>{const t=new i.ZodError([]),s=await this._def.args.parseAsync(e,d).catch((s=>{throw t.addIssue(a(e,s)),t})),n=await c(...s);return await this._def.returns._def.type.parseAsync(n,d).catch((e=>{throw t.addIssue(o(n,e)),t}))})):(0,n.OK)(((...e)=>{const t=this._def.args.safeParse(e,d);if(!t.success)throw new i.ZodError([a(e,t.error)]);const s=c(...t.data),n=this._def.returns.safeParse(s,d);if(!n.success)throw new i.ZodError([o(s,n.error)]);return n.data}))}parameters(){return this._def.args}returnType(){return this._def.returns}args(...e){return new J({...this._def,args:F.create(e).rest(M.create())})}returns(e){return new J({...this._def,returns:e})}implement(e){return this.parse(e)}strictImplement(e){return this.parse(e)}static create(e,t,s){return new J({args:e||F.create([]).rest(M.create()),returns:t||M.create(),typeName:ce.ZodFunction,...l(s)})}}e.ZodFunction=J;class H extends p{get schema(){return this._def.getter()}_parse(e){const{ctx:t}=this._processInputParams(e);return this._def.getter()._parse({data:t.data,path:t.path,parent:t})}}e.ZodLazy=H,H.create=(e,t)=>new H({getter:e,typeName:ce.ZodLazy,...l(t)});class G extends p{_parse(e){if(e.data!==this._def.value){const t=this._getOrReturnCtx(e);return(0,n.addIssueToContext)(t,{received:t.data,code:i.ZodIssueCode.invalid_literal,expected:this._def.value}),n.INVALID}return{status:"valid",value:e.data}}get value(){return this._def.value}}function Y(e,t){return new Q({values:e,typeName:ce.ZodEnum,...l(t)})}e.ZodLiteral=G,G.create=(e,t)=>new G({value:e,typeName:ce.ZodLiteral,...l(t)});class Q extends p{_parse(e){if("string"!=typeof e.data){const t=this._getOrReturnCtx(e),s=this._def.values;return(0,n.addIssueToContext)(t,{expected:r.util.joinValues(s),received:t.parsedType,code:i.ZodIssueCode.invalid_type}),n.INVALID}if(-1===this._def.values.indexOf(e.data)){const t=this._getOrReturnCtx(e),s=this._def.values;return(0,n.addIssueToContext)(t,{received:t.data,code:i.ZodIssueCode.invalid_enum_value,options:s}),n.INVALID}return(0,n.OK)(e.data)}get options(){return this._def.values}get enum(){const e={};for(const t of this._def.values)e[t]=t;return e}get Values(){const e={};for(const t of this._def.values)e[t]=t;return e}get Enum(){const e={};for(const t of this._def.values)e[t]=t;return e}extract(e){return Q.create(e)}exclude(e){return Q.create(this.options.filter((t=>!e.includes(t))))}}e.ZodEnum=Q,Q.create=Y;class X extends p{_parse(e){const t=r.util.getValidEnumValues(this._def.values),s=this._getOrReturnCtx(e);if(s.parsedType!==r.ZodParsedType.string&&s.parsedType!==r.ZodParsedType.number){const e=r.util.objectValues(t);return(0,n.addIssueToContext)(s,{expected:r.util.joinValues(e),received:s.parsedType,code:i.ZodIssueCode.invalid_type}),n.INVALID}if(-1===t.indexOf(e.data)){const e=r.util.objectValues(t);return(0,n.addIssueToContext)(s,{received:s.data,code:i.ZodIssueCode.invalid_enum_value,options:e}),n.INVALID}return(0,n.OK)(e.data)}get enum(){return this._def.values}}e.ZodNativeEnum=X,X.create=(e,t)=>new X({values:e,typeName:ce.ZodNativeEnum,...l(t)});class ee extends p{unwrap(){return this._def.type}_parse(e){const{ctx:t}=this._processInputParams(e);if(t.parsedType!==r.ZodParsedType.promise&&!1===t.common.async)return(0,n.addIssueToContext)(t,{code:i.ZodIssueCode.invalid_type,expected:r.ZodParsedType.promise,received:t.parsedType}),n.INVALID;const s=t.parsedType===r.ZodParsedType.promise?t.data:Promise.resolve(t.data);return(0,n.OK)(s.then((e=>this._def.type.parseAsync(e,{path:t.path,errorMap:t.common.contextualErrorMap}))))}}e.ZodPromise=ee,ee.create=(e,t)=>new ee({type:e,typeName:ce.ZodPromise,...l(t)});class te extends p{innerType(){return this._def.schema}sourceType(){return this._def.schema._def.typeName===ce.ZodEffects?this._def.schema.sourceType():this._def.schema}_parse(e){const{status:t,ctx:s}=this._processInputParams(e),a=this._def.effect||null;if("preprocess"===a.type){const e=a.transform(s.data);return s.common.async?Promise.resolve(e).then((e=>this._def.schema._parseAsync({data:e,path:s.path,parent:s}))):this._def.schema._parseSync({data:e,path:s.path,parent:s})}const i={addIssue:e=>{(0,n.addIssueToContext)(s,e),e.fatal?t.abort():t.dirty()},get path(){return s.path}};if(i.addIssue=i.addIssue.bind(i),"refinement"===a.type){const e=e=>{const t=a.refinement(e,i);if(s.common.async)return Promise.resolve(t);if(t instanceof Promise)throw new Error("Async refinement encountered during synchronous parse operation. Use .parseAsync instead.");return e};if(!1===s.common.async){const r=this._def.schema._parseSync({data:s.data,path:s.path,parent:s});return"aborted"===r.status?n.INVALID:("dirty"===r.status&&t.dirty(),e(r.value),{status:t.value,value:r.value})}return this._def.schema._parseAsync({data:s.data,path:s.path,parent:s}).then((s=>"aborted"===s.status?n.INVALID:("dirty"===s.status&&t.dirty(),e(s.value).then((()=>({status:t.value,value:s.value}))))))}if("transform"===a.type){if(!1===s.common.async){const e=this._def.schema._parseSync({data:s.data,path:s.path,parent:s});if(!(0,n.isValid)(e))return e;const r=a.transform(e.value,i);if(r instanceof Promise)throw new Error("Asynchronous transform encountered during synchronous parse operation. Use .parseAsync instead.");return{status:t.value,value:r}}return this._def.schema._parseAsync({data:s.data,path:s.path,parent:s}).then((e=>(0,n.isValid)(e)?Promise.resolve(a.transform(e.value,i)).then((e=>({status:t.value,value:e}))):e))}r.util.assertNever(a)}}e.ZodEffects=te,e.ZodTransformer=te,te.create=(e,t,s)=>new te({schema:e,typeName:ce.ZodEffects,effect:t,...l(s)}),te.createWithPreprocess=(e,t,s)=>new te({schema:t,effect:{type:"preprocess",transform:e},typeName:ce.ZodEffects,...l(s)});class se extends p{_parse(e){return this._getType(e)===r.ZodParsedType.undefined?(0,n.OK)(void 0):this._def.innerType._parse(e)}unwrap(){return this._def.innerType}}e.ZodOptional=se,se.create=(e,t)=>new se({innerType:e,typeName:ce.ZodOptional,...l(t)});class ne extends p{_parse(e){return this._getType(e)===r.ZodParsedType.null?(0,n.OK)(null):this._def.innerType._parse(e)}unwrap(){return this._def.innerType}}e.ZodNullable=ne,ne.create=(e,t)=>new ne({innerType:e,typeName:ce.ZodNullable,...l(t)});class re extends p{_parse(e){const{ctx:t}=this._processInputParams(e);let s=t.data;return t.parsedType===r.ZodParsedType.undefined&&(s=this._def.defaultValue()),this._def.innerType._parse({data:s,path:t.path,parent:t})}removeDefault(){return this._def.innerType}}e.ZodDefault=re,re.create=(e,t)=>new re({innerType:e,typeName:ce.ZodDefault,defaultValue:"function"==typeof t.default?t.default:()=>t.default,...l(t)});class ae extends p{_parse(e){const{ctx:t}=this._processInputParams(e),s={...t,common:{...t.common,issues:[]}},r=this._def.innerType._parse({data:s.data,path:s.path,parent:{...s}});return(0,n.isAsync)(r)?r.then((e=>({status:"valid",value:"valid"===e.status?e.value:this._def.catchValue({get error(){return new i.ZodError(s.common.issues)},input:s.data})}))):{status:"valid",value:"valid"===r.status?r.value:this._def.catchValue({get error(){return new i.ZodError(s.common.issues)},input:s.data})}}removeCatch(){return this._def.innerType}}e.ZodCatch=ae,ae.create=(e,t)=>new ae({innerType:e,typeName:ce.ZodCatch,catchValue:"function"==typeof t.catch?t.catch:()=>t.catch,...l(t)});class ie extends p{_parse(e){if(this._getType(e)!==r.ZodParsedType.nan){const t=this._getOrReturnCtx(e);return(0,n.addIssueToContext)(t,{code:i.ZodIssueCode.invalid_type,expected:r.ZodParsedType.nan,received:t.parsedType}),n.INVALID}return{status:"valid",value:e.data}}}e.ZodNaN=ie,ie.create=e=>new ie({typeName:ce.ZodNaN,...l(e)}),e.BRAND=Symbol("zod_brand");class oe extends p{_parse(e){const{ctx:t}=this._processInputParams(e),s=t.data;return this._def.type._parse({data:s,path:t.path,parent:t})}unwrap(){return this._def.type}}e.ZodBranded=oe;class de extends p{_parse(e){const{status:t,ctx:s}=this._processInputParams(e);if(s.common.async){return(async()=>{const e=await this._def.in._parseAsync({data:s.data,path:s.path,parent:s});return"aborted"===e.status?n.INVALID:"dirty"===e.status?(t.dirty(),(0,n.DIRTY)(e.value)):this._def.out._parseAsync({data:e.value,path:s.path,parent:s})})()}{const e=this._def.in._parseSync({data:s.data,path:s.path,parent:s});return"aborted"===e.status?n.INVALID:"dirty"===e.status?(t.dirty(),{status:"dirty",value:e.value}):this._def.out._parseSync({data:e.value,path:s.path,parent:s})}}static create(e,t){return new de({in:e,out:t,typeName:ce.ZodPipeline})}}e.ZodPipeline=de;var ce;e.custom=(e,t={},s)=>e?O.create().superRefine(((n,r)=>{var a,i;if(!e(n)){const e="function"==typeof t?t(n):"string"==typeof t?{message:t}:t,o=null===(i=null!==(a=e.fatal)&&void 0!==a?a:s)||void 0===i||i,d="string"==typeof e?{message:e}:e;r.addIssue({code:"custom",...d,fatal:o})}})):O.create(),e.late={object:z.lazycreate},function(e){e.ZodString="ZodString",e.ZodNumber="ZodNumber",e.ZodNaN="ZodNaN",e.ZodBigInt="ZodBigInt",e.ZodBoolean="ZodBoolean",e.ZodDate="ZodDate",e.ZodSymbol="ZodSymbol",e.ZodUndefined="ZodUndefined",e.ZodNull="ZodNull",e.ZodAny="ZodAny",e.ZodUnknown="ZodUnknown",e.ZodNever="ZodNever",e.ZodVoid="ZodVoid",e.ZodArray="ZodArray",e.ZodObject="ZodObject",e.ZodUnion="ZodUnion",e.ZodDiscriminatedUnion="ZodDiscriminatedUnion",e.ZodIntersection="ZodIntersection",e.ZodTuple="ZodTuple",e.ZodRecord="ZodRecord",e.ZodMap="ZodMap",e.ZodSet="ZodSet",e.ZodFunction="ZodFunction",e.ZodLazy="ZodLazy",e.ZodLiteral="ZodLiteral",e.ZodEnum="ZodEnum",e.ZodEffects="ZodEffects",e.ZodNativeEnum="ZodNativeEnum",e.ZodOptional="ZodOptional",e.ZodNullable="ZodNullable",e.ZodDefault="ZodDefault",e.ZodCatch="ZodCatch",e.ZodPromise="ZodPromise",e.ZodBranded="ZodBranded",e.ZodPipeline="ZodPipeline"}(ce=e.ZodFirstPartyTypeKind||(e.ZodFirstPartyTypeKind={}));e.instanceof=(t,s={message:`Input not instance of ${t.name}`})=>(0,e.custom)((e=>e instanceof t),s);const ue=_.create;e.string=ue;const le=S.create;e.number=le;const pe=ie.create;e.nan=pe;const he=E.create;e.bigint=he;const me=T.create;e.boolean=me;const ge=P.create;e.date=ge;const fe=k.create;e.symbol=fe;const ve=N.create;e.undefined=ve;const ye=Z.create;e.null=ye;const xe=O.create;e.any=xe;const be=M.create;e.unknown=be;const Ce=D.create;e.never=Ce;const we=R.create;e.void=we;const _e=j.create;e.array=_e;const Ie=z.create;e.object=Ie;const Se=z.strictCreate;e.strictObject=Se;const Ee=L.create;e.union=Ee;const Te=V.create;e.discriminatedUnion=Te;const Pe=$.create;e.intersection=Pe;const ke=F.create;e.tuple=ke;const Ne=q.create;e.record=Ne;const Ze=W.create;e.map=Ze;const Oe=K.create;e.set=Oe;const Me=J.create;e.function=Me;const De=H.create;e.lazy=De;const Re=G.create;e.literal=Re;const je=Q.create;e.enum=je;const Ae=X.create;e.nativeEnum=Ae;const ze=ee.create;e.promise=ze;const Le=te.create;e.effect=Le,e.transformer=Le;const Be=se.create;e.optional=Be;const Ve=ne.create;e.nullable=Ve;const Ue=te.createWithPreprocess;e.preprocess=Ue;const $e=de.create;e.pipeline=$e;e.ostring=()=>ue().optional();e.onumber=()=>le().optional();e.oboolean=()=>me().optional(),e.coerce={string:e=>_.create({...e,coerce:!0}),number:e=>S.create({...e,coerce:!0}),boolean:e=>T.create({...e,coerce:!0}),bigint:e=>E.create({...e,coerce:!0}),date:e=>P.create({...e,coerce:!0})},e.NEVER=n.INVALID}(x),function(t){var s=e&&e.__createBinding||(Object.create?function(e,t,s,n){void 0===n&&(n=s),Object.defineProperty(e,n,{enumerable:!0,get:function(){return t[s]}})}:function(e,t,s,n){void 0===n&&(n=s),e[n]=t[s]}),n=e&&e.__exportStar||function(e,t){for(var n in e)"default"===n||Object.prototype.hasOwnProperty.call(t,n)||s(t,e,n)};Object.defineProperty(t,"__esModule",{value:!0}),n(a,t),n(f,t),n(v,t),n(o,t),n(x,t),n(d,t)}(r),function(t){var s=e&&e.__createBinding||(Object.create?function(e,t,s,n){void 0===n&&(n=s),Object.defineProperty(e,n,{enumerable:!0,get:function(){return t[s]}})}:function(e,t,s,n){void 0===n&&(n=s),e[n]=t[s]}),n=e&&e.__setModuleDefault||(Object.create?function(e,t){Object.defineProperty(e,"default",{enumerable:!0,value:t})}:function(e,t){e.default=t}),a=e&&e.__importStar||function(e){if(e&&e.__esModule)return e;var t={};if(null!=e)for(var r in e)"default"!==r&&Object.prototype.hasOwnProperty.call(e,r)&&s(t,e,r);return n(t,e),t},i=e&&e.__exportStar||function(e,t){for(var n in e)"default"===n||Object.prototype.hasOwnProperty.call(t,n)||s(t,e,n)};Object.defineProperty(t,"__esModule",{value:!0}),t.z=void 0;const o=a(r);t.z=o,i(r,t),t.default=o}(n);var C={};!function(e){var t,s,n,r,a,i;Object.defineProperty(e,"__esModule",{value:!0}),e.CDP=e.Network=e.Log=e.BrowsingContext=e.Script=e.Message=void 0,function(e){let t;!function(e){e.InvalidArgument="invalid argument",e.InvalidSessionId="invalid session id",e.NoSuchAlert="no such alert",e.NoSuchFrame="no such frame",e.NoSuchNode="no such node",e.NoSuchScript="no such script",e.SessionNotCreated="session not created",e.UnknownCommand="unknown command",e.UnknownError="unknown error",e.UnsupportedOperation="unsupported operation"}(t=e.ErrorCode||(e.ErrorCode={}));class s{error;message;stacktrace;constructor(e,t,s){this.error=e,this.message=t,this.stacktrace=s}toErrorResponse(e){return{id:e,error:this.error,message:this.message,stacktrace:this.stacktrace}}}e.ErrorResponse=s;e.InvalidArgumentException=class extends s{constructor(e,s){super(t.InvalidArgument,e,s)}};e.InvalidSessionIdException=class extends s{constructor(e,s){super(t.InvalidSessionId,e,s)}};e.NoSuchAlertException=class extends s{constructor(e,s){super(t.NoSuchAlert,e,s)}};e.NoSuchFrameException=class extends s{constructor(e){super(t.NoSuchFrame,e)}};e.NoSuchNodeException=class extends s{constructor(e,s){super(t.NoSuchNode,e,s)}};e.NoSuchScriptException=class extends s{constructor(e,s){super(t.NoSuchScript,e,s)}};e.SessionNotCreatedException=class extends s{constructor(e,s){super(t.SessionNotCreated,e,s)}};e.UnknownCommandException=class extends s{constructor(e,s){super(t.UnknownCommand,e,s)}};e.UnknownErrorException=class extends s{constructor(e,s){super(t.UnknownError,e,s)}};e.UnsupportedOperationException=class extends s{constructor(e,s){super(t.UnsupportedOperation,e,s)}}}(e.Message||(e.Message={})),((t=e.Script||(e.Script={})).EventNames||(t.EventNames={})).MessageEvent="script.message",t.AllEvents="script",s=e.BrowsingContext||(e.BrowsingContext={}),(n=s.EventNames||(s.EventNames={})).LoadEvent="browsingContext.load",n.DomContentLoadedEvent="browsingContext.domContentLoaded",n.ContextCreatedEvent="browsingContext.contextCreated",n.ContextDestroyedEvent="browsingContext.contextDestroyed",s.AllEvents="browsingContext",(r=e.Log||(e.Log={})).AllEvents="log",function(e){e.LogEntryAddedEvent="log.entryAdded"}(r.EventNames||(r.EventNames={})),(a=e.Network||(e.Network={})).AllEvents="network",function(e){e.BeforeRequestSentEvent="network.beforeRequestSent",e.ResponseCompletedEvent="network.responseCompleted",e.FetchErrorEvent="network.fetchError"}(a.EventNames||(a.EventNames={})),(i=e.CDP||(e.CDP={})).AllEvents="cdp",function(e){e.EventReceivedEvent="cdp.eventReceived"}(i.EventNames||(i.EventNames={}))}(C),function(e){Object.defineProperty(e,"__esModule",{value:!0}),e.Session=e.CDP=e.BrowsingContext=e.Script=e.CommonDataTypes=e.parseObject=void 0;const t=n,s=C;function r(e,t){const n=t.safeParse(e);if(n.success)return n.data;const r=n.error.errors.map((e=>`${e.message} in ${e.path.map((e=>JSON.stringify(e))).join("/")}.`)).join(" ");throw new s.Message.InvalidArgumentException(r)}var a;e.parseObject=r,function(e){e.SharedReferenceSchema=t.z.object({sharedId:t.z.string().min(1)}),e.RemoteReferenceSchema=t.z.object({handle:t.z.string().min(1)});const s=t.z.object({type:t.z.literal("undefined")}),n=t.z.object({type:t.z.literal("null")}),r=t.z.object({type:t.z.literal("string"),value:t.z.string()}),a=t.z.enum(["NaN","-0","Infinity","-Infinity"]),i=t.z.object({type:t.z.literal("number"),value:t.z.union([a,t.z.number()])}),o=t.z.object({type:t.z.literal("boolean"),value:t.z.boolean()}),d=t.z.object({type:t.z.literal("bigint"),value:t.z.string()}),c=t.z.union([s,n,r,i,o,d]);e.LocalValueSchema=t.z.lazy((()=>t.z.union([c,p,h,g,f,v,y])));const u=t.z.union([e.SharedReferenceSchema,e.RemoteReferenceSchema,e.LocalValueSchema]),l=t.z.array(u),p=t.z.lazy((()=>t.z.object({type:t.z.literal("array"),value:l}))),h=t.z.object({type:t.z.literal("date"),value:t.z.string().min(1)}),m=t.z.lazy((()=>t.z.tuple([t.z.union([t.z.string(),u]),u]))),g=t.z.object({type:t.z.literal("map"),value:t.z.array(m)}),f=t.z.object({type:t.z.literal("object"),value:t.z.array(m)}),v=t.z.lazy((()=>t.z.object({type:t.z.literal("regexp"),value:t.z.object({pattern:t.z.string(),flags:t.z.string().optional()})}))),y=t.z.lazy((()=>t.z.object({type:t.z.literal("set"),value:l})));e.BrowsingContextSchema=t.z.string(),e.MaxDepthSchema=t.z.number().int().nonnegative().max(9007199254740991)}(a=e.CommonDataTypes||(e.CommonDataTypes={})),function(e){const s=t.z.enum(["window","dedicated-worker","shared-worker","service-worker","worker","paint-worklet","audio-worklet","worklet"]);e.GetRealmsParametersSchema=t.z.object({context:a.BrowsingContextSchema.optional(),type:s.optional()}),e.parseGetRealmsParams=function(t){return r(t,e.GetRealmsParametersSchema)};const n=t.z.object({context:a.BrowsingContextSchema,sandbox:t.z.string().optional()}),i=t.z.object({realm:t.z.string().min(1)}),o=t.z.union([i,n]),d=t.z.enum(["root","none"]),c=t.z.object({expression:t.z.string(),awaitPromise:t.z.boolean(),target:o,resultOwnership:d.optional()});e.parseEvaluateParams=function(e){return r(e,c)};const u=t.z.object({target:o,handles:t.z.array(t.z.string())});e.parseDisownParams=function(e){return r(e,u)},e.PreloadScriptSchema=t.z.string(),e.AddPreloadScriptParametersSchema=t.z.object({expression:t.z.string(),sandbox:t.z.string().optional(),context:a.BrowsingContextSchema.optional()}),e.parseAddPreloadScriptParams=function(t){return r(t,e.AddPreloadScriptParametersSchema)},e.RemovePreloadScriptParametersSchema=t.z.object({script:e.PreloadScriptSchema}),e.parseRemovePreloadScriptParams=function(t){return r(t,e.RemovePreloadScriptParametersSchema)};const l=t.z.string(),p=t.z.object({channel:l,maxDepth:t.z.number().int().min(1).max(1).optional(),ownership:d.optional()});e.ChannelSchema=t.z.object({type:t.z.literal("channel"),value:p});const h=t.z.union([a.RemoteReferenceSchema,a.SharedReferenceSchema,a.LocalValueSchema,e.ChannelSchema]),m=t.z.object({functionDeclaration:t.z.string(),target:o,arguments:t.z.array(h).optional(),this:h.optional(),awaitPromise:t.z.boolean(),resultOwnership:d.optional()});e.parseCallFunctionParams=function(e){return r(e,m)}}(e.Script||(e.Script={})),function(e){const s=t.z.object({maxDepth:a.MaxDepthSchema.optional(),root:a.BrowsingContextSchema.optional()});e.parseGetTreeParams=function(e){return r(e,s)};const n=t.z.enum(["none","interactive","complete"]),i=t.z.object({context:a.BrowsingContextSchema,url:t.z.string().url(),wait:n.optional()});e.parseNavigateParams=function(e){return r(e,i)};const o=t.z.object({type:t.z.enum(["tab","window"]),referenceContext:a.BrowsingContextSchema.optional()});e.parseCreateParams=function(e){return r(e,o)};const d=t.z.object({context:a.BrowsingContextSchema});e.parseCloseParams=function(e){return r(e,d)};const c=t.z.object({context:a.BrowsingContextSchema});e.parseCaptureScreenshotParams=function(e){return r(e,c)};const u=t.z.object({height:t.z.number().min(0).default(27.94).optional(),width:t.z.number().min(0).default(21.59).optional()}),l=t.z.object({bottom:t.z.number().min(0).default(1).optional(),left:t.z.number().min(0).default(1).optional(),right:t.z.number().min(0).default(1).optional(),top:t.z.number().min(0).default(1).optional()}),p=t.z.array(t.z.union([t.z.string().min(1),t.z.number().int().nonnegative()])).refine((e=>e.every((e=>{const t=String(e).match(/^(?:(?:\d+)|(?:\d+[-])|(?:[-]\d+)|(?:(?<start>\d+)[-](?<end>\d+)))$/),{start:s,end:n}=t?.groups??{};return!(s&&n&&Number(s)>Number(n))&&t})))),h=t.z.object({context:a.BrowsingContextSchema,background:t.z.boolean().default(!1).optional(),margin:l.optional(),orientation:t.z.enum(["portrait","landscape"]).default("portrait").optional(),page:u.optional(),pageRanges:p.default([]).optional(),scale:t.z.number().min(.1).max(2).default(1).optional(),shrinkToFit:t.z.boolean().default(!0).optional()});e.parsePrintParams=function(e){return r(e,h)}}(e.BrowsingContext||(e.BrowsingContext={})),function(e){const s=t.z.object({cdpMethod:t.z.string(),cdpParams:t.z.object({}).passthrough(),cdpSession:t.z.string().optional()});e.parseSendCommandParams=function(e){return r(e,s)};const n=t.z.object({context:a.BrowsingContextSchema});e.parseGetSessionParams=function(e){return r(e,n)}}(e.CDP||(e.CDP={})),function(e){const n=t.z.enum([s.BrowsingContext.AllEvents,...Object.values(s.BrowsingContext.EventNames),s.Log.AllEvents,...Object.values(s.Log.EventNames),s.CDP.AllEvents,...Object.values(s.CDP.EventNames),s.Network.AllEvents,...Object.values(s.Network.EventNames),s.Script.AllEvents,...Object.values(s.Script.EventNames)]),i=t.z.object({events:t.z.array(n),contexts:t.z.array(a.BrowsingContextSchema).optional()});e.parseSubscribeParams=function(e){return r(e,i)}}(e.Session||(e.Session={}))}(s);var w={},_={},I=e&&e.__importDefault||function(e){return e&&e.__esModule?e:{default:e}};Object.defineProperty(_,"__esModule",{value:!0}),_.EventEmitter=void 0;const S=I((function(e){return{all:e=e||new Map,on:function(t,s){var n=e.get(t);n?n.push(s):e.set(t,[s])},off:function(t,s){var n=e.get(t);n&&(s?n.splice(n.indexOf(s)>>>0,1):e.set(t,[]))},emit:function(t,s){var n=e.get(t);n&&n.slice().map((function(e){e(s)})),(n=e.get("*"))&&n.slice().map((function(e){e(t,s)}))}}}));_.EventEmitter=class{#e=(0,S.default)();on(e,t){return this.#e.on(e,t),this}once(e,t){const s=n=>{t(n),this.off(e,s)};return this.on(e,s)}off(e,t){return this.#e.off(e,t),this}emit(e,t){this.#e.emit(e,t)}};var E={},T={};!function(e){var t;Object.defineProperty(e,"__esModule",{value:!0}),e.LogType=void 0,(t=e.LogType||(e.LogType={})).bidi="BiDi Messages",t.browsingContexts="Browsing Contexts",t.cdp="CDP",t.system="System"}(T),Object.defineProperty(E,"__esModule",{value:!0}),E.ProcessingQueue=void 0;const P=T;E.ProcessingQueue=class{#t;#s;#n;#r=[];#a=!1;constructor(e,t=(()=>Promise.resolve()),s){this.#t=t,this.#n=e,this.#s=s}add(e){this.#r.push(e),this.#i()}async#i(){if(!this.#a){for(this.#a=!0;this.#r.length>0;){const e=this.#r.shift();void 0!==e&&await e.then((e=>this.#n(e))).catch((e=>{this.#s?.(P.LogType.system,"Event was not processed:",e),this.#t(e)}))}this.#a=!1}}};var k={},N={},Z={},O={};Object.defineProperty(O,"__esModule",{value:!0}),O.inchesFromCm=void 0,O.inchesFromCm=function(e){return e/2.54};var M={};Object.defineProperty(M,"__esModule",{value:!0}),M.Deferred=void 0;class D{#o=!1;#d;#c=()=>{};#u=()=>{};get isFinished(){return this.#o}constructor(){this.#d=new Promise(((e,t)=>{this.#c=e,this.#u=t})),this.#d.catch((()=>{}))}then(e,t){return this.#d.then(e,t)}catch(e){return this.#d.catch(e)}resolve(e){this.#o=!0,this.#c(e)}reject(e){this.#o=!0,this.#u(e)}finally(e){return this.#d.finally(e)}[Symbol.toStringTag]="Promise"}M.Deferred=D;var R={},j={};!function(e){Object.defineProperty(e,"__esModule",{value:!0}),e.ScriptEvaluator=e.SHARED_ID_DIVIDER=void 0;const t=C;e.SHARED_ID_DIVIDER="_element_";class s{#l;constructor(e){this.#l=e}static async stringifyObject(e,t){return(await t.cdpClient.sendCommand("Runtime.callFunctionOn",{functionDeclaration:String((e=>String(e))),awaitPromise:!1,arguments:[e],returnByValue:!0,executionContextId:t.executionContextId})).result.value}async serializeCdpObject(e,t,n){const r=s.#p(e),a=await n.cdpClient.sendCommand("Runtime.callFunctionOn",{functionDeclaration:String((e=>e)),awaitPromise:!1,arguments:[r],generateWebDriverValue:!0,executionContextId:n.executionContextId});return n.cdpToBidiValue(a,t)}async scriptEvaluate(e,t,s,n){const r=await e.cdpClient.sendCommand("Runtime.evaluate",{contextId:e.executionContextId,expression:t,awaitPromise:s,generateWebDriverValue:!0});return r.exceptionDetails?{exceptionDetails:await this.#h(r.exceptionDetails,0,n,e),type:"exception",realm:e.realmId}:{type:"success",result:e.cdpToBidiValue(r,n),realm:e.realmId}}async callFunction(e,s,n,r,a,i){const o=`(...args)=>{ return _callFunction((\n${s}\n), args);\n\t      function _callFunction(f, args) {\n\t        const deserializedThis = args.shift();\n\t        const deserializedArgs = args;\n\t        return f.apply(deserializedThis, deserializedArgs);\n\t      }}`,d=[await this.#m(n,e)];let c;d.push(...await Promise.all(r.map((async t=>this.#m(t,e)))));try{c=await e.cdpClient.sendCommand("Runtime.callFunctionOn",{functionDeclaration:o,awaitPromise:a,arguments:d,generateWebDriverValue:!0,executionContextId:e.executionContextId})}catch(e){if(-32e3===e.code&&["Could not find object with given id","Argument should belong to the same JavaScript world as target object"].includes(e.message))throw new t.Message.InvalidArgumentException("Handle was not found.");throw e}return c.exceptionDetails?{exceptionDetails:await this.#h(c.exceptionDetails,1,i,e),type:"exception",realm:e.realmId}:{type:"success",result:e.cdpToBidiValue(c,i),realm:e.realmId}}static#p(e){return void 0!==e.objectId?{objectId:e.objectId}:void 0!==e.unserializableValue?{unserializableValue:e.unserializableValue}:{value:e.value}}async#m(s,n){if("sharedId"in s){const[r,a]=s.sharedId.split(e.SHARED_ID_DIVIDER),i=parseInt(a??"");if(isNaN(i)||void 0===i||void 0===r)throw new t.Message.InvalidArgumentException(`SharedId "${s.sharedId}" should have format "{navigableId}${e.SHARED_ID_DIVIDER}{backendNodeId}".`);if(n.navigableId!==r)throw new t.Message.NoSuchNodeException(`SharedId "${s.sharedId}" belongs to different document. Current document is ${n.navigableId}.`);try{return{objectId:(await n.cdpClient.sendCommand("DOM.resolveNode",{backendNodeId:i,executionContextId:n.executionContextId})).object.objectId}}catch(e){if(-32e3===e.code&&"No node with given id found"===e.message)throw new t.Message.NoSuchNodeException(`SharedId "${s.sharedId}" was not found.`);throw e}}if("handle"in s)return{objectId:s.handle};switch(s.type){case"undefined":return{unserializableValue:"undefined"};case"null":return{unserializableValue:"null"};case"string":return{value:s.value};case"number":return"NaN"===s.value?{unserializableValue:"NaN"}:"-0"===s.value?{unserializableValue:"-0"}:"Infinity"===s.value?{unserializableValue:"Infinity"}:"-Infinity"===s.value?{unserializableValue:"-Infinity"}:{value:s.value};case"boolean":return{value:Boolean(s.value)};case"bigint":return{unserializableValue:`BigInt(${JSON.stringify(s.value)})`};case"date":return{unserializableValue:`new Date(Date.parse(${JSON.stringify(s.value)}))`};case"regexp":return{unserializableValue:`new RegExp(${JSON.stringify(s.value.pattern)}, ${JSON.stringify(s.value.flags)})`};case"map":{const e=await this.#g(s.value,n);return{objectId:(await n.cdpClient.sendCommand("Runtime.callFunctionOn",{functionDeclaration:String(((...e)=>{const t=new Map;for(let s=0;s<e.length;s+=2)t.set(e[s],e[s+1]);return t})),awaitPromise:!1,arguments:e,returnByValue:!1,executionContextId:n.executionContextId})).result.objectId}}case"object":{const e=await this.#g(s.value,n);return{objectId:(await n.cdpClient.sendCommand("Runtime.callFunctionOn",{functionDeclaration:String(((...e)=>{const t={};for(let s=0;s<e.length;s+=2){t[e[s]]=e[s+1]}return t})),awaitPromise:!1,arguments:e,returnByValue:!1,executionContextId:n.executionContextId})).result.objectId}}case"array":{const e=await this.#f(s.value,n);return{objectId:(await n.cdpClient.sendCommand("Runtime.callFunctionOn",{functionDeclaration:String(((...e)=>e)),awaitPromise:!1,arguments:e,returnByValue:!1,executionContextId:n.executionContextId})).result.objectId}}case"set":{const e=await this.#f(s.value,n);return{objectId:(await n.cdpClient.sendCommand("Runtime.callFunctionOn",{functionDeclaration:String(((...e)=>new Set(e))),awaitPromise:!1,arguments:e,returnByValue:!1,executionContextId:n.executionContextId})).result.objectId}}case"channel":{const e=(await n.cdpClient.sendCommand("Runtime.callFunctionOn",{functionDeclaration:String((()=>{const e=[];let t=null;return{async getMessage(){const s=e.length>0?Promise.resolve():new Promise((e=>{t=e}));return await s,e.shift()},sendMessage(s){e.push(s),null!==t&&(t(),t=null)}}})),returnByValue:!1,executionContextId:n.executionContextId,generateWebDriverValue:!1})).result.objectId;this.#v(s,e,n);return{objectId:(await n.cdpClient.sendCommand("Runtime.callFunctionOn",{functionDeclaration:String((e=>e.sendMessage)),arguments:[{objectId:e}],returnByValue:!1,executionContextId:n.executionContextId,generateWebDriverValue:!1})).result.objectId}}default:throw new Error(`Value ${JSON.stringify(s)} is not deserializable.`)}}async#g(e,t){const s=[];for(const n of e){const e=n[0],r=n[1];let a;a="string"==typeof e?{value:e}:await this.#m(e,t);const i=await this.#m(r,t);s.push(a),s.push(i)}return s}async#f(e,t){const s=[];for(const n of e)s.push(await this.#m(n,t));return s}async#v(e,s,n){const r=e.value.channel;for(;;){const a=await n.cdpClient.sendCommand("Runtime.callFunctionOn",{functionDeclaration:String((async e=>e.getMessage())),arguments:[{objectId:s}],awaitPromise:!0,executionContextId:n.executionContextId,generateWebDriverValue:!0});this.#l.registerEvent({method:t.Script.EventNames.MessageEvent,params:{channel:r,data:n.cdpToBidiValue(a,e.value.ownership??"none"),source:{realm:n.realmId,context:n.browsingContextId}}},n.browsingContextId)}}async#h(e,t,n,r){const a=e.stackTrace?.callFrames.map((e=>({url:e.url,functionName:e.functionName,lineNumber:e.lineNumber-t,columnNumber:e.columnNumber}))),i=await this.serializeCdpObject(e.exception,n,r),o=await s.stringifyObject(e.exception,r);return{exception:i,columnNumber:e.columnNumber,lineNumber:e.lineNumber-t,stackTrace:{callFrames:a||[]},text:o||e.text}}}e.ScriptEvaluator=s}(j),Object.defineProperty(R,"__esModule",{value:!0}),R.Realm=void 0;const A=j;R.Realm=class{#y;#x;#b;#C;#w;#_;#I;#S;#l;#E;sandbox;cdpSessionId;constructor(e,t,s,n,r,a,i,o,d,c,u){this.#b=s,this.#C=n,this.#w=r,this.sandbox=o,this.#_=a,this.#I=i,this.cdpSessionId=d,this.#S=c,this.#y=e,this.#x=t,this.#l=u,this.#E=new A.ScriptEvaluator(this.#l),this.#y.realmMap.set(this.#b,this)}async disown(e){if(this.#y.knownHandlesToRealm.get(e)===this.realmId){try{await this.cdpClient.sendCommand("Runtime.releaseObject",{objectId:e})}catch(e){if(-32e3!==e.code||"Invalid remote object id"!==e.message)throw e}this.#y.knownHandlesToRealm.delete(e)}}cdpToBidiValue(e,t){const s=e.result.webDriverValue,n=this.webDriverValueToBiDi(s);if(e.result.objectId){const s=e.result.objectId;"root"===t?(n.handle=s,this.#y.knownHandlesToRealm.set(s,this.realmId)):this.cdpClient.sendCommand("Runtime.releaseObject",{objectId:s})}return n}webDriverValueToBiDi(e){const t=e;if("platformobject"===t.type)return{type:"object"};const s=t.value;if(void 0===s)return t;if("node"===t.type&&(Object.hasOwn(s,"backendNodeId")&&(s.sharedId=`${this.navigableId}${A.SHARED_ID_DIVIDER}${s.backendNodeId}`,delete s.backendNodeId),Object.hasOwn(s,"children")))for(const e in s.children)s.children[e]=this.webDriverValueToBiDi(s.children[e]);if(["array","set"].includes(e.type))for(const e in s)s[e]=this.webDriverValueToBiDi(s[e]);if(["object","map"].includes(e.type))for(const e in s)s[e]=[this.webDriverValueToBiDi(s[e][0]),this.webDriverValueToBiDi(s[e][1])];return t}toBiDi(){return{realm:this.realmId,origin:this.origin,type:this.type,context:this.browsingContextId,...void 0===this.sandbox?{}:{sandbox:this.sandbox}}}get realmId(){return this.#b}get navigableId(){return this.#x.findContext(this.#C)?.navigableId??"UNKNOWN"}get browsingContextId(){return this.#C}get executionContextId(){return this.#w}get origin(){return this.#_}get type(){return this.#I}get cdpClient(){return this.#S}async callFunction(e,t,s,n,r){const a=this.#x.getKnownContext(this.browsingContextId);return await a.awaitUnblocked(),{result:await this.#E.callFunction(this,e,t,s,n,r)}}async scriptEvaluate(e,t,s){const n=this.#x.getKnownContext(this.browsingContextId);return await n.awaitUnblocked(),{result:await this.#E.scriptEvaluate(this,e,t,s)}}async serializeCdpObject(e,t){return this.#E.serializeCdpObject(e,t,this)}async stringifyObject(e){return A.ScriptEvaluator.stringifyObject(e,this)}},Object.defineProperty(Z,"__esModule",{value:!0}),Z.BrowsingContextImpl=void 0;const z=O,L=C,B=T,V=M,U=R;class ${#T={documentInitialized:new V.Deferred,Page:{navigatedWithinDocument:new V.Deferred,lifecycleEvent:{DOMContentLoaded:new V.Deferred,load:new V.Deferred}}};#P;#k;#l;#N=new Map;#y;#Z="about:blank";#O=null;#M;#D;#x;#s;get#R(){if(void 0===this.#D)throw new Error(`No default realm for browsing context ${this.#P}`);return this.#D}constructor(e,t,s,n,r,a,i){this.#M=e,this.#y=t,this.#P=s,this.#k=n,this.#l=r,this.#x=a,this.#s=i,this.#j()}static create(e,t,s,n,r,a,i){const o=new $(e,t,s,n,r,a,i);a.addContext(o),r.registerEvent({method:L.BrowsingContext.EventNames.ContextCreatedEvent,params:o.serializeToBidiValue()},o.contextId)}get navigableId(){return this.#O}updateCdpTarget(e){this.#M=e,this.#j()}async delete(){if(await this.#A(),this.#y.deleteRealms({browsingContextId:this.contextId}),null!==this.parentId){this.#x.getKnownContext(this.parentId).#N.delete(this.contextId)}this.#l.registerEvent({method:L.BrowsingContext.EventNames.ContextDestroyedEvent,params:this.serializeToBidiValue()},this.contextId),this.#x.removeContext(this.contextId)}async#A(){await Promise.all(this.children.map((e=>e.delete())))}get contextId(){return this.#P}get parentId(){return this.#k}get cdpTarget(){return this.#M}get children(){return Array.from(this.#N.values())}get url(){return this.#Z}addChild(e){this.#N.set(e.contextId,e)}async awaitLoaded(){await this.#T.Page.lifecycleEvent.load}async awaitUnblocked(){return this.#M.targetUnblocked}serializeToBidiValue(e=0,t=!0){return{context:this.#P,url:this.url,children:e>0?this.children.map((t=>t.serializeToBidiValue(e-1,!1))):null,...t?{parent:this.#k}:{}}}#j(){this.#M.cdpClient.on("Target.targetInfoChanged",(e=>{this.contextId===e.targetInfo.targetId&&(this.#Z=e.targetInfo.url)})),this.#M.cdpClient.on("Page.frameNavigated",(async e=>{this.contextId===e.frame.id&&(this.#Z=e.frame.url+(e.frame.urlFragment??""),await this.#A(),this.#y.deleteRealms({browsingContextId:this.contextId}))})),this.#M.cdpClient.on("Page.navigatedWithinDocument",(e=>{this.contextId===e.frameId&&(this.#Z=e.url,this.#T.Page.navigatedWithinDocument.resolve(e))})),this.#M.cdpClient.on("Page.lifecycleEvent",(e=>{if(this.contextId!==e.frameId)return;const t=(new Date).getTime();if("init"===e.name&&(this.#z(e.loaderId),this.#T.documentInitialized.resolve()),"commit"!==e.name){if(e.loaderId===this.#O)switch(e.name){case"DOMContentLoaded":this.#T.Page.lifecycleEvent.DOMContentLoaded.resolve(e),this.#l.registerEvent({method:L.BrowsingContext.EventNames.DomContentLoadedEvent,params:{context:this.contextId,navigation:this.#O,timestamp:t,url:this.#Z}},this.contextId);break;case"load":this.#T.Page.lifecycleEvent.load.resolve(e),this.#l.registerEvent({method:L.BrowsingContext.EventNames.LoadEvent,params:{context:this.contextId,navigation:this.#O,timestamp:t,url:this.#Z}},this.contextId)}}else this.#O=e.loaderId})),this.#M.cdpClient.on("Runtime.executionContextCreated",(e=>{if(e.context.auxData.frameId!==this.contextId)return;if(!["default","isolated"].includes(e.context.auxData.type))return;const t=new U.Realm(this.#y,this.#x,e.context.uniqueId,this.contextId,e.context.id,this.#L(e),"window","isolated"===e.context.auxData.type?e.context.name:void 0,this.#M.cdpSessionId,this.#M.cdpClient,this.#l);e.context.auxData.isDefault&&(this.#D=t)})),this.#M.cdpClient.on("Runtime.executionContextDestroyed",(e=>{this.#y.deleteRealms({cdpSessionId:this.#M.cdpSessionId,executionContextId:e.executionContextId})}))}#L(e){return"isolated"===e.context.auxData.type?this.#R.origin:["://",""].includes(e.context.origin)?"null":e.context.origin}#z(e){void 0!==e&&this.#O!==e?(this.#T.documentInitialized.isFinished?this.#T.documentInitialized=new V.Deferred:this.#s?.(B.LogType.browsingContexts,"Document changed"),this.#T.Page.lifecycleEvent.DOMContentLoaded.isFinished?this.#T.Page.lifecycleEvent.DOMContentLoaded=new V.Deferred:this.#s?.(B.LogType.browsingContexts,"Document changed"),this.#T.Page.lifecycleEvent.load.isFinished?this.#T.Page.lifecycleEvent.load=new V.Deferred:this.#s?.(B.LogType.browsingContexts,"Document changed"),this.#O=e):this.#T.Page.navigatedWithinDocument.isFinished&&(this.#T.Page.navigatedWithinDocument=new V.Deferred)}async navigate(e,t){await this.awaitUnblocked();const s=await this.#M.cdpClient.sendCommand("Page.navigate",{url:e,frameId:this.contextId});if(s.errorText)throw new L.Message.UnknownErrorException(s.errorText);switch(this.#z(s.loaderId),t){case"none":break;case"interactive":void 0===s.loaderId?await this.#T.Page.navigatedWithinDocument:await this.#T.Page.lifecycleEvent.DOMContentLoaded;break;case"complete":void 0===s.loaderId?await this.#T.Page.navigatedWithinDocument:await this.#T.Page.lifecycleEvent.load}return{result:{navigation:s.loaderId||null,url:e}}}async getOrCreateSandbox(e){if(void 0===e||""===e)return this.#R;let t=this.#y.findRealms({browsingContextId:this.contextId,sandbox:e});if(0===t.length&&(await this.#M.cdpClient.sendCommand("Page.createIsolatedWorld",{frameId:this.contextId,worldName:e}),t=this.#y.findRealms({browsingContextId:this.contextId,sandbox:e})),1!==t.length)throw Error(`Sandbox ${e} wasn't created.`);return t[0]}async captureScreenshot(){const[,e]=await Promise.all([this.#M.cdpClient.sendCommand("Page.bringToFront"),this.#M.cdpClient.sendCommand("Page.captureScreenshot",{})]);return{result:{data:e.data}}}async print(e){const t={printBackground:e.background,landscape:"landscape"===e.orientation,pageRanges:e.pageRanges?.join(",")??"",scale:e.scale,preferCSSPageSize:!e.shrinkToFit};e.margin?.bottom&&(t.marginBottom=(0,z.inchesFromCm)(e.margin.bottom)),e.margin?.left&&(t.marginLeft=(0,z.inchesFromCm)(e.margin.left)),e.margin?.right&&(t.marginRight=(0,z.inchesFromCm)(e.margin.right)),e.margin?.top&&(t.marginTop=(0,z.inchesFromCm)(e.margin.top)),e.page?.height&&(t.paperHeight=(0,z.inchesFromCm)(e.page.height)),e.page?.width&&(t.paperWidth=(0,z.inchesFromCm)(e.page.width));return{result:{data:(await this.#M.cdpClient.sendCommand("Page.printToPDF",t)).data}}}async addPreloadScript(e){return{result:{script:(await this.#M.cdpClient.sendCommand("Page.addScriptToEvaluateOnNewDocument",{source:`(${e.expression})();`,worldName:e.sandbox})).identifier}}}}Z.BrowsingContextImpl=$;var F={},q={},W={};Object.defineProperty(W,"__esModule",{value:!0}),W.getRemoteValuesText=W.logMessageFormatter=void 0;const K=["%s","%d","%i","%f","%o","%O","%c"];function J(e){return K.some((t=>e.includes(t)))}function H(e){let t="";const s=e[0].value.toString(),n=e.slice(1,void 0),r=s.split(new RegExp(K.map((e=>`(${e})`)).join("|"),"g"));for(const s of r)if(void 0!==s&&""!==s)if(J(s)){const r=n.shift();if(void 0===r)throw new Error(`Less value is provided: "${Q(e,!1)}"`);"%s"===s?t+=Y(r):"%d"===s||"%i"===s?"bigint"===r.type||"number"===r.type||"string"===r.type?t+=parseInt(r.value.toString(),10):t+="NaN":"%f"===s?"bigint"===r.type||"number"===r.type||"string"===r.type?t+=parseFloat(r.value.toString()):t+="NaN":t+=G(r)}else t+=s;if(n.length>0)throw new Error(`More value is provided: "${Q(e,!1)}"`);return t}function G(e){if("array"!==e.type&&"bigint"!==e.type&&"date"!==e.type&&"number"!==e.type&&"object"!==e.type&&"string"!==e.type)return Y(e);if("bigint"===e.type)return`${e.value.toString()}n`;if("number"===e.type)return e.value.toString();if(["date","string"].includes(e.type))return JSON.stringify(e.value);if("object"===e.type)return`{${e.value.map((e=>`${JSON.stringify(e[0])}:${G(e[1])}`)).join(",")}}`;if("array"===e.type)return`[${e.value?.map((e=>G(e))).join(",")??""}]`;throw Error(`Invalid value type: ${e.toString()}`)}function Y(e){if(!Object.hasOwn(e,"value"))return e.type;switch(e.type){case"string":case"number":case"boolean":case"bigint":return String(e.value);case"regexp":return`/${e.value.pattern}/${e.value.flags??""}`;case"date":return new Date(e.value).toString();case"object":return`Object(${e.value?.length??""})`;case"array":return`Array(${e.value?.length??""})`;case"map":return`Map(${e.value.length})`;case"set":return`Set(${e.value.length})`;case"node":return"node";default:return e.type}}function Q(e,t){const s=e[0];return s?"string"===s.type&&J(s.value.toString())&&t?H(e):e.map((e=>Y(e))).join(" "):""}W.logMessageFormatter=H,W.getRemoteValuesText=Q,Object.defineProperty(q,"__esModule",{value:!0}),q.LogManager=void 0;const X=C,ee=W;function te(e){const t=e?.callFrames.map((e=>({columnNumber:e.columnNumber,functionName:e.functionName,lineNumber:e.lineNumber,url:e.url})));return t?{callFrames:t}:void 0}class se{#l;#y;#M;constructor(e,t,s){this.#M=e,this.#y=t,this.#l=s}static create(e,t,s){const n=new se(e,t,s);return n.#B(),n}#B(){this.#V()}#V(){this.#M.cdpClient.on("Runtime.consoleAPICalled",(e=>{const t=this.#y.findRealm({cdpSessionId:this.#M.cdpSessionId,executionContextId:e.executionContextId}),s=void 0===t?Promise.resolve(e.args):Promise.all(e.args.map((e=>t.serializeCdpObject(e,"none"))));this.#l.registerPromiseEvent(s.then((s=>{return{method:X.Log.EventNames.LogEntryAddedEvent,params:{level:(n=e.type,["assert","error"].includes(n)?"error":["debug","trace"].includes(n)?"debug":["warn","warning"].includes(n)?"warn":"info"),source:{realm:t?.realmId??"UNKNOWN",context:t?.browsingContextId??"UNKNOWN"},text:(0,ee.getRemoteValuesText)(s,!0),timestamp:Math.round(e.timestamp),stackTrace:te(e.stackTrace),type:"console",method:"warning"===e.type?"warn":e.type,args:s}};var n})),t?.browsingContextId??"UNKNOWN",X.Log.EventNames.LogEntryAddedEvent)})),this.#M.cdpClient.on("Runtime.exceptionThrown",(e=>{const t=this.#y.findRealm({cdpSessionId:this.#M.cdpSessionId,executionContextId:e.exceptionDetails.executionContextId}),s=(async()=>e.exceptionDetails.exception?void 0===t?JSON.stringify(e.exceptionDetails.exception):t.stringifyObject(e.exceptionDetails.exception):e.exceptionDetails.text)();this.#l.registerPromiseEvent(s.then((s=>({method:X.Log.EventNames.LogEntryAddedEvent,params:{level:"error",source:{realm:t?.realmId??"UNKNOWN",context:t?.browsingContextId??"UNKNOWN"},text:s,timestamp:Math.round(e.timestamp),stackTrace:te(e.exceptionDetails.stackTrace),type:"javascript"}}))),t?.browsingContextId??"UNKNOWN",X.Log.EventNames.LogEntryAddedEvent)}))}}q.LogManager=se;var ne={},re={};Object.defineProperty(re,"__esModule",{value:!0}),re.NetworkRequest=void 0;const ae=M,ie=C;class oe{static#U="UNKNOWN";requestId;#l;#$;#F;#q;#W;#K;#J;constructor(e,t){this.requestId=e,this.#l=t,this.#K=new ae.Deferred,this.#J=new ae.Deferred}onRequestWillBeSentEvent(e){if(void 0!==this.#$)throw new Error("RequestWillBeSentEvent is already set");this.#$=e,void 0!==this.#F&&this.#K.resolve(),this.#H()}onRequestWillBeSentExtraInfoEvent(e){if(void 0!==this.#F)throw new Error("RequestWillBeSentExtraInfoEvent is already set");this.#F=e,void 0!==this.#$&&this.#K.resolve()}onResponseReceivedEvent(e){if(void 0!==this.#q)throw new Error("ResponseReceivedEvent is already set");this.#q=e,void 0!==this.#W&&this.#J.resolve(),this.#G()}onResponseReceivedEventExtraInfo(e){if(void 0!==this.#W)throw new Error("ResponseReceivedExtraInfoEvent is already set");this.#W=e,void 0!==this.#q&&this.#J.resolve()}onLoadingFailedEvent(e){this.#K.resolve(),this.#J.reject(e);const t={...this.#Y(),errorText:e.errorText};this.#l.registerEvent({method:ie.Network.EventNames.FetchErrorEvent,params:t},this.#$?.frameId??null)}#H(){this.#Q()||this.#l.registerPromiseEvent(this.#K.then((()=>this.#X())),this.#$?.frameId??null,ie.Network.EventNames.BeforeRequestSentEvent)}#X(){if(void 0===this.#$)throw new Error("RequestWillBeSentEvent is not set");const e={...this.#Y(),initiator:{type:this.#ee()}};return{method:ie.Network.EventNames.BeforeRequestSentEvent,params:e}}#Y(){return{context:this.#$?.frameId??null,navigation:this.#$?.loaderId??null,redirectCount:0,request:this.#te(),timestamp:Math.round(1e3*(this.#$?.wallTime??0))}}#te(){const e=void 0===this.#F?[]:oe.#se(this.#F.associatedCookies);return{request:this.#$?.requestId??oe.#U,url:this.#$?.request.url??oe.#U,method:this.#$?.request.method??oe.#U,headers:Object.keys(this.#$?.request.headers??[]).map((e=>({name:e,value:this.#$?.request.headers[e]}))),cookies:e,headersSize:-1,bodySize:0,timings:{timeOrigin:0,requestTime:0,redirectStart:0,redirectEnd:0,fetchStart:0,dnsStart:0,dnsEnd:0,connectStart:0,connectEnd:0,tlsStart:0,tlsEnd:0,requestStart:0,responseStart:0,responseEnd:0}}}#ee(){switch(this.#$?.initiator.type){case"parser":case"script":case"preflight":return this.#$?.initiator.type;default:return"other"}}static#ne(e){switch(e){case"Strict":return"strict";case"Lax":return"lax";default:return"none"}}static#se(e){return e.map((e=>({name:e.cookie.name,value:e.cookie.value,domain:e.cookie.domain,path:e.cookie.path,expires:e.cookie.expires,size:e.cookie.size,httpOnly:e.cookie.httpOnly,secure:e.cookie.secure,sameSite:oe.#ne(e.cookie.sameSite)})))}#G(){this.#Q()||this.#l.registerPromiseEvent(this.#J.then((()=>this.#re())),this.#q?.frameId??null,ie.Network.EventNames.ResponseCompletedEvent)}#re(){if(void 0===this.#q)throw new Error("ResponseReceivedEvent is not set");if(void 0===this.#$)throw new Error("RequestWillBeSentEvent is not set");return{method:ie.Network.EventNames.ResponseCompletedEvent,params:{...this.#Y(),response:{url:this.#q.response.url,protocol:this.#q.response.protocol,status:this.#q.response.status,statusText:this.#q.response.statusText,fromCache:this.#q.response.fromDiskCache||this.#q.response.fromPrefetchCache,headers:this.#ae(this.#q.response.headers),mimeType:this.#q.response.mimeType,bytesReceived:this.#q.response.encodedDataLength,headersSize:this.#W?.headersText?.length??-1,bodySize:-1,content:{size:-1}}}}}#ae(e){return Object.keys(e).map((t=>({name:t,value:e[t]})))}#Q(){return this.#$?.request.url.endsWith("/favicon.ico")??!1}}re.NetworkRequest=oe,Object.defineProperty(ne,"__esModule",{value:!0}),ne.NetworkProcessor=void 0;const de=re;class ce{#l;#ie=new Map;constructor(e){this.#l=e}static async create(e,t){const s=new ce(t);return e.on("Network.requestWillBeSent",(e=>{s.#oe(e.requestId).onRequestWillBeSentEvent(e)})),e.on("Network.requestWillBeSentExtraInfo",(e=>{s.#oe(e.requestId).onRequestWillBeSentExtraInfoEvent(e)})),e.on("Network.responseReceived",(e=>{s.#oe(e.requestId).onResponseReceivedEvent(e)})),e.on("Network.responseReceivedExtraInfo",(e=>{s.#oe(e.requestId).onResponseReceivedEventExtraInfo(e)})),e.on("Network.loadingFailed",(e=>{s.#oe(e.requestId).onLoadingFailedEvent(e)})),await e.sendCommand("Network.enable"),s}#oe(e){if(!this.#ie.has(e)){const t=new de.NetworkRequest(e,this.#l);this.#ie.set(e,t)}return this.#ie.get(e)}}ne.NetworkProcessor=ce,Object.defineProperty(F,"__esModule",{value:!0}),F.CdpTarget=void 0;const ue=q,le=C,pe=M,he=ne;class me{#de;#ce;#S;#l;#ue;#le;static create(e,t,s,n,r){const a=new me(e,t,s,r);return ue.LogManager.create(a,n,r),a.#pe(),a.#he(),a}constructor(e,t,s,n){this.#ce=e,this.#S=t,this.#ue=s,this.#l=n,this.#le=!1,this.#de=new pe.Deferred}get targetUnblocked(){return this.#de}get targetId(){return this.#ce}get cdpClient(){return this.#S}get cdpSessionId(){return this.#ue}async#he(){this.#l.isNetworkDomainEnabled&&await this.enableNetworkDomain(),await this.#S.sendCommand("Runtime.enable"),await this.#S.sendCommand("Page.enable"),await this.#S.sendCommand("Page.setLifecycleEventsEnabled",{enabled:!0}),await this.#S.sendCommand("Target.setAutoAttach",{autoAttach:!0,waitForDebuggerOnStart:!0,flatten:!0}),await this.#S.sendCommand("Runtime.runIfWaitingForDebugger"),this.#de.resolve()}async enableNetworkDomain(){this.#le||(this.#le=!0,await he.NetworkProcessor.create(this.cdpClient,this.#l))}#pe(){this.#S.on("*",((e,t)=>{this.#l.registerEvent({method:le.CDP.EventNames.EventReceivedEvent,params:{cdpMethod:e,cdpParams:t||{},cdpSession:this.#ue}},null)}))}}F.CdpTarget=me,Object.defineProperty(N,"__esModule",{value:!0}),N.BrowsingContextProcessor=void 0;const ge=C,fe=T,ve=Z,ye=F;N.BrowsingContextProcessor=class{#x;#me;#l;#s;#y;#ge;constructor(e,t,s,n,r,a){this.#x=r,this.#me=t,this.#l=n,this.#s=a,this.#y=e,this.#ge=s,this.#pe(this.#me.browserClient())}#pe(e){e.on("Target.attachedToTarget",(async t=>{await this.#fe(t,e)})),e.on("Target.detachedFromTarget",(async e=>{await this.#ve(e)})),e.on("Page.frameAttached",(e=>{this.#ye(e)})),e.on("Page.frameDetached",(async e=>{await this.#xe(e)}))}#ye(e){const t=this.#x.findContext(e.parentFrameId);void 0!==t&&ve.BrowsingContextImpl.create(t.cdpTarget,this.#y,e.frameId,e.parentFrameId,this.#l,this.#x,this.#s)}async#xe(e){"swap"!==e.reason&&await(this.#x.findContext(e.frameId)?.delete())}async#fe(e,t){const{sessionId:s,targetInfo:n}=e,r=this.#me.getCdpClient(s);if(!this.#be(n))return await r.sendCommand("Runtime.runIfWaitingForDebugger"),void await t.sendCommand("Target.detachFromTarget",e);this.#s?.(fe.LogType.browsingContexts,"AttachedToTarget event received:",JSON.stringify(e,null,2)),this.#pe(r);const a=ye.CdpTarget.create(n.targetId,r,s,this.#y,this.#l);this.#x.hasKnownContext(n.targetId)?this.#x.getKnownContext(n.targetId).updateCdpTarget(a):ve.BrowsingContextImpl.create(a,this.#y,n.targetId,null,this.#l,this.#x,this.#s)}async#ve(e){const t=e.targetId;await(this.#x.findContext(t)?.delete())}process_browsingContext_getTree(e){return{result:{contexts:(void 0===e.root?this.#x.getTopLevelContexts():[this.#x.getKnownContext(e.root)]).map((t=>t.serializeToBidiValue(e.maxDepth??Number.MAX_VALUE)))}}}async process_browsingContext_create(e){const t=this.#me.browserClient();let s;if(void 0!==e.referenceContext&&(s=this.#x.getKnownContext(e.referenceContext),null!==s.parentId))throw new ge.Message.InvalidArgumentException("referenceContext should be a top-level context");const n=(await t.sendCommand("Target.createTarget",{url:"about:blank",newWindow:"window"===e.type})).targetId,r=this.#x.getKnownContext(n);return await r.awaitLoaded(),{result:r.serializeToBidiValue(1)}}async process_browsingContext_navigate(e){return this.#x.getKnownContext(e.context).navigate(e.url,void 0===e.wait?"none":e.wait)}async process_browsingContext_captureScreenshot(e){return this.#x.getKnownContext(e.context).captureScreenshot()}async process_browsingContext_print(e){return this.#x.getKnownContext(e.context).print(e)}async#Ce(e){if("realm"in e)return this.#y.getRealm({realmId:e.realm});return this.#x.getKnownContext(e.context).getOrCreateSandbox(e.sandbox)}async process_script_addPreloadScript(e){const t=[],s=[];return e.context?t.push(this.#x.getKnownContext(e.context)):t.push(...this.#x.getAllContexts()),s.push(...await Promise.all(t.map((t=>t.addPreloadScript(e))))),s[0]}async process_script_removePreloadScript(e){throw new ge.Message.UnknownErrorException("Not implemented.")}async process_script_evaluate(e){return(await this.#Ce(e.target)).scriptEvaluate(e.expression,e.awaitPromise,e.resultOwnership??"none")}process_script_getRealms(e){void 0!==e.context&&this.#x.getKnownContext(e.context);const t=this.#y.findRealms({browsingContextId:e.context,type:e.type}).map((e=>e.toBiDi()));return{result:{realms:t}}}async process_script_callFunction(e){return(await this.#Ce(e.target)).callFunction(e.functionDeclaration,e.this||{type:"undefined"},e.arguments||[],e.awaitPromise,e.resultOwnership??"none")}async process_script_disown(e){const t=await this.#Ce(e.target);return await Promise.all(e.handles.map((async e=>t.disown(e)))),{result:{}}}async process_browsingContext_close(e){const t=this.#me.browserClient();if(null!==this.#x.getKnownContext(e.context).parentId)throw new ge.Message.InvalidArgumentException("Not a top-level browsing context cannot be closed.");const s=new Promise((s=>{const n=r=>{r.targetId===e.context&&(t.off("Target.detachedFromTarget",n),s())};t.on("Target.detachedFromTarget",n)}));return await t.sendCommand("Target.closeTarget",{targetId:e.context}),await s,{result:{}}}#be(e){return e.targetId!==this.#ge&&["page","iframe"].includes(e.type)}async process_cdp_sendCommand(e){const t=e.cdpSession?this.#me.getCdpClient(e.cdpSession):this.#me.browserClient();return{result:await t.sendCommand(e.cdpMethod,e.cdpParams),cdpSession:e.cdpSession}}process_cdp_getSession(e){const t=e.context,s=this.#x.getKnownContext(t).cdpTarget.cdpSessionId;return void 0===s?{result:{cdpSession:null}}:{result:{cdpSession:s}}}};var xe={};Object.defineProperty(xe,"__esModule",{value:!0}),xe.OutgoingBidiMessage=void 0;class be{#we;#_e;constructor(e,t){this.#we=e,this.#_e=t}static async createFromPromise(e,t){return e.then((e=>new be(e,t)))}static createResolved(e,t){return Promise.resolve(new be(e,t))}get message(){return this.#we}get channel(){return this.#_e}}xe.OutgoingBidiMessage=be,Object.defineProperty(k,"__esModule",{value:!0}),k.CommandProcessor=void 0;const Ce=C,we=T,_e=_,Ie=N,Se=xe;class Ee{parseAddPreloadScriptParams(e){return e}parseRemovePreloadScriptParams(e){return e}parseGetRealmsParams(e){return e}parseCallFunctionParams(e){return e}parseEvaluateParams(e){return e}parseDisownParams(e){return e}parseSendCommandParams(e){return e}parseGetSessionParams(e){return e}parseSubscribeParams(e){return e}parseNavigateParams(e){return e}parseGetTreeParams(e){return e}parseCreateParams(e){return e}parseCloseParams(e){return e}parseCaptureScreenshotParams(e){return e}parsePrintParams(e){return e}}class Te extends _e.EventEmitter{#Ie;#l;#Se;#s;constructor(e,t,s,n,r=new Ee,a,i){super(),this.#l=s,this.#s=i,this.#Ie=new Ie.BrowsingContextProcessor(e,t,n,s,a,i),this.#Se=r}static#Ee(){return{result:{ready:!1,message:"already connected"}}}async#Te(e,t){return await this.#l.subscribe(e.events,e.contexts??[null],t),{result:{}}}async#Pe(e,t){return await this.#l.unsubscribe(e.events,e.contexts??[null],t),{result:{}}}async#ke(e){switch(e.method){case"session.status":return Te.#Ee();case"session.subscribe":return this.#Te(this.#Se.parseSubscribeParams(e.params),e.channel??null);case"session.unsubscribe":return this.#Pe(this.#Se.parseSubscribeParams(e.params),e.channel??null);case"browsingContext.create":return this.#Ie.process_browsingContext_create(this.#Se.parseCreateParams(e.params));case"browsingContext.close":return this.#Ie.process_browsingContext_close(this.#Se.parseCloseParams(e.params));case"browsingContext.getTree":return this.#Ie.process_browsingContext_getTree(this.#Se.parseGetTreeParams(e.params));case"browsingContext.navigate":return this.#Ie.process_browsingContext_navigate(this.#Se.parseNavigateParams(e.params));case"browsingContext.captureScreenshot":return this.#Ie.process_browsingContext_captureScreenshot(this.#Se.parseCaptureScreenshotParams(e.params));case"browsingContext.print":return this.#Ie.process_browsingContext_print(this.#Se.parsePrintParams(e.params));case"script.addPreloadScript":return this.#Ie.process_script_addPreloadScript(this.#Se.parseAddPreloadScriptParams(e.params));case"script.removePreloadScript":return this.#Ie.process_script_removePreloadScript(this.#Se.parseRemovePreloadScriptParams(e.params));case"script.getRealms":return this.#Ie.process_script_getRealms(this.#Se.parseGetRealmsParams(e.params));case"script.callFunction":return this.#Ie.process_script_callFunction(this.#Se.parseCallFunctionParams(e.params));case"script.evaluate":return this.#Ie.process_script_evaluate(this.#Se.parseEvaluateParams(e.params));case"script.disown":return this.#Ie.process_script_disown(this.#Se.parseDisownParams(e.params));case"cdp.sendCommand":return this.#Ie.process_cdp_sendCommand(this.#Se.parseSendCommandParams(e.params));case"cdp.getSession":return this.#Ie.process_cdp_getSession(this.#Se.parseGetSessionParams(e.params));default:throw new Ce.Message.UnknownCommandException(`Unknown command '${e.method}'.`)}}async processCommand(e){try{const t=await this.#ke(e),s={id:e.id,...t};this.emit("response",Se.OutgoingBidiMessage.createResolved(s,e.channel??null))}catch(t){if(t instanceof Ce.Message.ErrorResponse){const s=t;this.emit("response",Se.OutgoingBidiMessage.createResolved(s.toErrorResponse(e.id),e.channel??null))}else{const s=t;this.#s?.(we.LogType.bidi,s),this.emit("response",Se.OutgoingBidiMessage.createResolved(new Ce.Message.ErrorResponse(Ce.Message.ErrorCode.UnknownError,s.message).toErrorResponse(e.id),e.channel??null))}}}}k.CommandProcessor=Te;var Pe={};Object.defineProperty(Pe,"__esModule",{value:!0}),Pe.BrowsingContextStorage=void 0;const ke=C;Pe.BrowsingContextStorage=class{#Ne=new Map;getTopLevelContexts(){return Array.from(this.#Ne.values()).filter((e=>null===e.parentId))}getAllContexts(){return Array.from(this.#Ne.values())}removeContext(e){this.#Ne.delete(e)}addContext(e){this.#Ne.set(e.contextId,e),null!==e.parentId&&this.getKnownContext(e.parentId).addChild(e)}hasKnownContext(e){return this.#Ne.has(e)}findContext(e){return this.#Ne.get(e)}getKnownContext(e){const t=this.findContext(e);if(void 0===t)throw new ke.Message.NoSuchFrameException(`Context ${e} not found`);return t}};var Ne={},Ze={};Object.defineProperty(Ze,"__esModule",{value:!0}),Ze.Buffer=void 0;Ze.Buffer=class{#Ze;#Oe=[];#Me;constructor(e,t=(()=>{})){this.#Ze=e,this.#Me=t}get(){return this.#Oe}add(e){for(this.#Oe.push(e);this.#Oe.length>this.#Ze;){const e=this.#Oe.shift();void 0!==e&&this.#Me(e)}}};var Oe={};Object.defineProperty(Oe,"__esModule",{value:!0}),Oe.IdWrapper=void 0;class Me{static#De=0;#Re;constructor(){this.#Re=++Me.#De}get id(){return this.#Re}}Oe.IdWrapper=Me;var De={};Object.defineProperty(De,"__esModule",{value:!0}),De.SubscriptionManager=De.unrollEvents=De.cartesianProduct=void 0;const Re=C;function je(...e){return e.reduce(((e,t)=>e.flatMap((e=>t.map((t=>[e,t].flat()))))))}function Ae(e){const t=[];for(const s of e)switch(s){case Re.BrowsingContext.AllEvents:t.push(...Object.values(Re.BrowsingContext.EventNames));break;case Re.CDP.AllEvents:t.push(...Object.values(Re.CDP.EventNames));break;case Re.Log.AllEvents:t.push(...Object.values(Re.Log.EventNames));break;case Re.Network.AllEvents:t.push(...Object.values(Re.Network.EventNames));break;case Re.Script.AllEvents:t.push(...Object.values(Re.Script.EventNames));break;default:t.push(s)}return t}De.cartesianProduct=je,De.unrollEvents=Ae;De.SubscriptionManager=class{#je=0;#Ae=new Map;#x;constructor(e){this.#x=e}getChannelsSubscribedToEvent(e,t){return Array.from(this.#Ae.keys()).map((s=>({priority:this.#ze(e,t,s),channel:s}))).filter((({priority:e})=>null!==e)).sort(((e,t)=>e.priority-t.priority)).map((({channel:e})=>e))}#ze(e,t,s){const n=this.#Ae.get(s);if(void 0===n)return null;const r=this.#Le(t),a=[...new Set([null,r])].map((t=>n.get(t)?.get(e))).filter((e=>void 0!==e));return 0===a.length?null:Math.min(...a)}#Le(e){if(null===e)return null;const t=this.#x.findContext(e)?.parentId??null;return null!==t?this.#Le(t):e}subscribe(e,t,s){if(t=this.#Le(t),e===Re.BrowsingContext.AllEvents)return void Object.values(Re.BrowsingContext.EventNames).map((e=>this.subscribe(e,t,s)));if(e===Re.CDP.AllEvents)return void Object.values(Re.CDP.EventNames).map((e=>this.subscribe(e,t,s)));if(e===Re.Log.AllEvents)return void Object.values(Re.Log.EventNames).map((e=>this.subscribe(e,t,s)));if(e===Re.Network.AllEvents)return void Object.values(Re.Network.EventNames).map((e=>this.subscribe(e,t,s)));if(e===Re.Script.AllEvents)return void Object.values(Re.Script.EventNames).map((e=>this.subscribe(e,t,s)));this.#Ae.has(s)||this.#Ae.set(s,new Map);const n=this.#Ae.get(s);n.has(t)||n.set(t,new Map);const r=n.get(t);r.has(e)||r.set(e,this.#je++)}unsubscribeAll(e,t,s){for(const e of t)null!==e&&this.#x.getKnownContext(e);je(Ae(e),t).map((([e,t])=>this.#Be(e,t,s))).forEach((e=>e()))}unsubscribe(e,t,s){this.unsubscribeAll([e],[t],s)}#Be(e,t,s){if(t=this.#Le(t),!this.#Ae.has(s))throw new Re.Message.InvalidArgumentException(`Cannot unsubscribe from ${e}, ${null===t?"null":t}. No subscription found.`);const n=this.#Ae.get(s);if(!n.has(t))throw new Re.Message.InvalidArgumentException(`Cannot unsubscribe from ${e}, ${null===t?"null":t}. No subscription found.`);const r=n.get(t);if(!r.has(e))throw new Re.Message.InvalidArgumentException(`Cannot unsubscribe from ${e}, ${null===t?"null":t}. No subscription found.`);return()=>{r.delete(e),0===r.size&&n.delete(e),0===n.size&&this.#Ae.delete(s)}}},Object.defineProperty(Ne,"__esModule",{value:!0}),Ne.EventManager=void 0;const ze=Ze,Le=Oe,Be=xe,Ve=De;class Ue{#Ve;#P;#Ue;constructor(e,t){this.#Ve=new Le.IdWrapper,this.#P=t,this.#Ue=e}get id(){return this.#Ve.id}get contextId(){return this.#P}get event(){return this.#Ue}}const $e=new Map([["log.entryAdded",100]]);class Fe{static#$e="network";#Fe=new Map;#qe=new Map;#We=new Map;#Ke;#Je;#He;constructor(e){this.#Je=e,this.#Ke=new Ve.SubscriptionManager(e.getBrowsingContextStorage()),this.#He=!1}get isNetworkDomainEnabled(){return this.#He}static#Ge(e,t,s){return JSON.stringify({eventName:e,browsingContext:t,channel:s})}registerEvent(e,t){this.registerPromiseEvent(Promise.resolve(e),t,e.method)}registerPromiseEvent(e,t,s){const n=new Ue(e,t),r=this.#Ke.getChannelsSubscribedToEvent(s,t);this.#Ye(n,s);for(const t of r)this.#Je.emitOutgoingMessage(Be.OutgoingBidiMessage.createFromPromise(e,t)),this.#Qe(n,t,s)}async subscribe(e,t,s){for(const e of t)null!==e&&this.#Je.getBrowsingContextStorage().getKnownContext(e);for(const n of e)for(const e of t){await this.#Xe(n,e),this.#Ke.subscribe(n,e,s);for(const t of this.#et(n,e,s))this.#Je.emitOutgoingMessage(Be.OutgoingBidiMessage.createFromPromise(t.event,s)),this.#Qe(t,s,n)}}async#Xe(e,t){e.startsWith(Fe.#$e)&&(null===t?(this.#He=!0,await Promise.all(this.#Je.getBrowsingContextStorage().getAllContexts().map((e=>e.cdpTarget.enableNetworkDomain())))):await this.#Je.getBrowsingContextStorage().getKnownContext(t).cdpTarget.enableNetworkDomain())}unsubscribe(e,t,s){this.#Ke.unsubscribeAll(e,t,s)}#Ye(e,t){if(!$e.has(t))return;const s=Fe.#Ge(t,e.contextId);this.#qe.has(s)||this.#qe.set(s,new ze.Buffer($e.get(t))),this.#qe.get(s).add(e),this.#Fe.has(t)||this.#Fe.set(t,new Set),this.#Fe.get(t).add(e.contextId)}#Qe(e,t,s){if(!$e.has(s))return;const n=Fe.#Ge(s,e.contextId,t);this.#We.set(n,Math.max(this.#We.get(n)??0,e.id))}#et(e,t,s){const n=Fe.#Ge(e,t),r=Fe.#Ge(e,t,s),a=this.#We.get(r)??-1/0,i=this.#qe.get(n)?.get().filter((e=>e.id>a))??[];return null===t&&Array.from(this.#Fe.get(e)?.keys()??[]).filter((e=>null!==e&&this.#Je.getBrowsingContextStorage().hasKnownContext(e))).map((t=>this.#et(e,t,s))).forEach((e=>i.push(...e))),i.sort(((e,t)=>e.id-t.id))}}Ne.EventManager=Fe;var qe={};Object.defineProperty(qe,"__esModule",{value:!0}),qe.RealmStorage=void 0;const We=C;qe.RealmStorage=class{#tt=new Map;#st=new Map;get knownHandlesToRealm(){return this.#tt}get realmMap(){return this.#st}findRealms(e){return Array.from(this.#st.values()).filter((t=>(void 0===e.realmId||e.realmId===t.realmId)&&((void 0===e.browsingContextId||e.browsingContextId===t.browsingContextId)&&((void 0===e.navigableId||e.navigableId===t.navigableId)&&((void 0===e.executionContextId||e.executionContextId===t.executionContextId)&&((void 0===e.origin||e.origin===t.origin)&&((void 0===e.type||e.type===t.type)&&((void 0===e.sandbox||e.sandbox===t.sandbox)&&(void 0===e.cdpSessionId||e.cdpSessionId===t.cdpSessionId)))))))))}findRealm(e){const t=this.findRealms(e);if(1===t.length)return t[0]}getRealm(e){const t=this.findRealm(e);if(void 0===t)throw new We.Message.NoSuchFrameException(`Realm ${JSON.stringify(e)} not found`);return t}deleteRealms(e){this.findRealms(e).map((e=>{this.#st.delete(e.realmId),Array.from(this.#tt.entries()).filter((([,t])=>t===e.realmId)).map((([e])=>this.#tt.delete(e)))}))}},Object.defineProperty(w,"__esModule",{value:!0}),w.BidiServer=void 0;const Ke=_,Je=E,He=k,Ge=Pe,Ye=Ne,Qe=qe;class Xe extends Ke.EventEmitter{#nt;#rt;#at;#x;#y;#s;#it=e=>{this.#at.processCommand(e)};#ot=async e=>{const t=e.message;null!==e.channel&&(t.channel=e.channel),await this.#rt.sendMessage(t)};constructor(e,t,s,n,r){super(),this.#s=r,this.#x=new Ge.BrowsingContextStorage,this.#y=new Qe.RealmStorage,this.#nt=new Je.ProcessingQueue(this.#ot,(()=>Promise.resolve()),this.#s),this.#rt=e,this.#rt.setOnMessage(this.#it),this.#at=new He.CommandProcessor(this.#y,t,new Ye.EventManager(this),s,n,this.#x,this.#s),this.#at.on("response",(e=>{this.emitOutgoingMessage(e)}))}static async createAndStart(e,t,s,n,r){const a=new Xe(e,t,s,n,r),i=t.browserClient();return await i.sendCommand("Target.setDiscoverTargets",{discover:!0}),await i.sendCommand("Target.setAutoAttach",{autoAttach:!0,waitForDebuggerOnStart:!0,flatten:!0}),await a.topLevelContextsLoaded(),a}async topLevelContextsLoaded(){await Promise.all(this.#x.getTopLevelContexts().map((e=>e.awaitLoaded())))}emitOutgoingMessage(e){this.#nt.add(e)}close(){this.#rt.close()}getBrowsingContextStorage(){return this.#x}}w.BidiServer=Xe;var et={},tt={};Object.defineProperty(tt,"__esModule",{value:!0}),tt.CdpClient=void 0;const st=_;class nt extends st.EventEmitter{#me;#dt;constructor(e,t){super(),this.#me=e,this.#dt=t}static create(e,t){return new nt(e,t)}sendCommand(e,...t){const s=t[0];return this.#me.sendCommand(e,s,this.#dt)}}tt.CdpClient=nt;var rt={};Object.defineProperty(rt,"__esModule",{value:!0}),rt.CdpConnection=void 0;const at=tt;rt.CdpConnection=class{#rt;#ct;#ut=new Map;#lt=new Map;#pt;#ht=0;constructor(e,t=(()=>{})){this.#rt=e,this.#pt=t,this.#rt.setOnMessage(this.#mt),this.#ct=at.CdpClient.create(this,null)}close(){this.#rt.close();for(const[,{reject:e}]of this.#lt)e(new Error("Disconnected"));this.#lt.clear(),this.#ut.clear()}browserClient(){return this.#ct}getCdpClient(e){const t=this.#ut.get(e);if(!t)throw new Error("Unknown CDP session ID");return t}sendCommand(e,t,s){return new Promise(((n,r)=>{const a=this.#ht++;this.#lt.set(a,{resolve:n,reject:r});const i={id:a,method:e,params:t};s&&(i.sessionId=s);const o=JSON.stringify(i),d=JSON.stringify(i,null,2);this.#rt.sendMessage(o),this.#pt("sent ▸",d)}))}#mt=e=>{const t=JSON.parse(e),s=JSON.stringify(t,null,2);if(this.#pt("received ◂",s),"Target.attachedToTarget"===t.method){const{sessionId:e}=t.params;this.#ut.set(e,at.CdpClient.create(this,e))}else if("Target.detachedFromTarget"===t.method){const{sessionId:e}=t.params;this.#ut.get(e)&&this.#ut.delete(e)}if(void 0!==t.id){const e=this.#lt.get(t.id);e&&(t.result?e.resolve(t.result):t.error&&e.reject(t.error))}else if(t.method){const e=t.sessionId?this.#ut.get(t.sessionId):this.#ct;e&&e.emit(t.method,t.params||{})}}};var it={};Object.defineProperty(it,"__esModule",{value:!0}),it.WebSocketTransport=void 0;it.WebSocketTransport=class{#mt=null;#gt;constructor(e){this.#gt=e,this.#gt.on("message",(e=>{this.#mt?.(e)}))}setOnMessage(e){this.#mt=e}sendMessage(e){this.#gt.send(e)}close(){this.#mt=null,this.#gt.close()}},function(e){Object.defineProperty(e,"__esModule",{value:!0}),e.WebSocketTransport=e.CdpConnection=e.CdpClient=void 0;var t=tt;Object.defineProperty(e,"CdpClient",{enumerable:!0,get:function(){return t.CdpClient}});var s=rt;Object.defineProperty(e,"CdpConnection",{enumerable:!0,get:function(){return s.CdpConnection}});var n=it;Object.defineProperty(e,"WebSocketTransport",{enumerable:!0,get:function(){return n.WebSocketTransport}})}(et);var ot={};Object.defineProperty(ot,"__esModule",{value:!0}),ot.log=ot.generatePage=void 0;const dt=T;function ct(e){const t=`${e}_log`,s=document.getElementById(t);if(s)return s;const n=document.getElementById("details"),r=document.createElement("div");r.className="divider",n.appendChild(r);const a=document.createElement("div");return a.className="item",a.innerHTML=`<h3>${e}</h3><div id="${t}" class="log"></div>`,n.appendChild(a),document.getElementById(t)}ot.generatePage=function(){globalThis.document?.documentElement&&(window.document.documentElement.innerHTML='<!DOCTYPE html><title>BiDi-CDP Mapper</title><style>body{font-family: Roboto, serif; font-size: 13px; color: #202124;}.log{padding: 12px; font-family: Menlo, Consolas, Monaco, Liberation Mono, Lucida Console, monospace; font-size: 11px; line-height: 180%; background: #f1f3f4; border-radius: 4px;}.pre{overflow-wrap: break-word; padding: 10px;}.card{margin: 60px auto; padding: 2px 0; max-width: 900px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15), 0 1px 6px rgba(0, 0, 0, 0.2); border-radius: 8px;}.divider{height: 1px; background: #f0f0f0;}.item{padding: 16px 20px;}</style><div class="card"><div class="item"><h1>BiDi-CDP Mapper is controlling this tab</h1><p>Closing or reloading it will stop the BiDi process. <a target="_blank" title="BiDi-CDP Mapper GitHub Repository" href="https://github.com/GoogleChromeLabs/chromium-bidi">Details.</a></p></div><div class="divider"></div><details id="details"><summary class="item">Debug information</summary></details></div>',ct(dt.LogType.system),ct(dt.LogType.bidi),ct(dt.LogType.browsingContexts),ct(dt.LogType.cdp))},ot.log=function(t,...s){if(!globalThis.document?.documentElement)return;e.window?.sendDebugMessage?.(JSON.stringify({logType:t,messages:s}));const n=ct(t),r=document.createElement("div");r.className="pre",r.textContent=s.join(" "),n.appendChild(r)};
-/**
-	 * Copyright 2021 Google LLC.
-	 * Copyright (c) Microsoft Corporation.
-	 *
-	 * Licensed under the Apache License, Version 2.0 (the "License");
-	 * you may not use this file except in compliance with the License.
-	 * You may obtain a copy of the License at
-	 *
-	 *     http://www.apache.org/licenses/LICENSE-2.0
-	 *
-	 * Unless required by applicable law or agreed to in writing, software
-	 * distributed under the License is distributed on an "AS IS" BASIS,
-	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	 * See the License for the specific language governing permissions and
-	 * limitations under the License.
-	 *
-	 * @license
-	 */
-var ut=e&&e.__createBinding||(Object.create?function(e,t,s,n){void 0===n&&(n=s);var r=Object.getOwnPropertyDescriptor(t,s);r&&!("get"in r?!t.__esModule:r.writable||r.configurable)||(r={enumerable:!0,get:function(){return t[s]}}),Object.defineProperty(e,n,r)}:function(e,t,s,n){void 0===n&&(n=s),e[n]=t[s]}),lt=e&&e.__setModuleDefault||(Object.create?function(e,t){Object.defineProperty(e,"default",{enumerable:!0,value:t})}:function(e,t){e.default=t}),pt=e&&e.__importStar||function(e){if(e&&e.__esModule)return e;var t={};if(null!=e)for(var s in e)"default"!==s&&Object.prototype.hasOwnProperty.call(e,s)&&ut(t,e,s);return lt(t,e),t};Object.defineProperty(t,"__esModule",{value:!0});const ht=pt(s),mt=C,gt=w,ft=et,vt=T,yt=xe,xt=ot,bt=async function(){return new Promise((e=>{window.setSelfTargetId=t=>{(0,xt.log)(vt.LogType.system,"Current target ID:",t),e(t)}}))}();(async()=>{(0,xt.generatePage)();const e=await bt,t=await async function(e){class t{#mt=null;constructor(){window.onBidiMessage=e=>{let s;(0,xt.log)(vt.LogType.bidi,"received ◂",e);try{s=t.#ft(e)}catch(t){return void this.#vt(e,mt.Message.ErrorCode.InvalidArgument,t.message,null)}this.#mt?.call(null,s)}}setOnMessage(e){this.#mt=e}sendMessage(e){const t=JSON.stringify(e);window.sendBidiResponse(t),(0,xt.log)(vt.LogType.bidi,"sent ▸",t)}close(){this.#mt=null,window.onBidiMessage=null}#vt(e,s,n,r){const a=t.#yt(e,s,n);r?this.sendMessage({...a,channel:r}):this.sendMessage(a)}static#xt(e){return null===e?"null":Array.isArray(e)?"array":typeof e}static#yt(e,s,n){let r;try{const s=JSON.parse(e);"object"===t.#xt(s)&&"id"in s&&(r=s.id)}catch{}return{id:r,error:s,message:n}}static#ft(e){let s;try{s=JSON.parse(e)}catch{throw new Error("Cannot parse data as JSON")}const n=t.#xt(s);if("object"!==n)throw new Error(`Expected JSON object but got ${n}`);const{id:r,method:a,params:i}=s,o=t.#xt(r);if("number"!==o||!Number.isInteger(r)||r<0)throw new Error(`Expected unsigned integer but got ${o}`);const d=t.#xt(a);if("string"!==d)throw new Error(`Expected string method but got ${d}`);const c=t.#xt(i);if("object"!==c)throw new Error(`Expected object params but got ${c}`);let u=s.channel;if(void 0!==u){const e=t.#xt(u);if("string"!==e)throw new Error(`Expected string channel but got ${e}`);""===u&&(u=void 0)}return{id:r,method:a,params:i,channel:u}}}return gt.BidiServer.createAndStart(new t,function(){class e{#mt=null;constructor(){window.cdp.onmessage=e=>{this.#mt?.call(null,e)}}setOnMessage(e){this.#mt=e}sendMessage(e){window.cdp.send(e)}close(){this.#mt=null,window.cdp.onmessage=null}}return new ft.CdpConnection(new e,((...e)=>{(0,xt.log)(vt.LogType.cdp,...e)}))}(),e,new Ct,xt.log)}(e);(0,xt.log)(vt.LogType.system,"Launched"),t.emitOutgoingMessage(yt.OutgoingBidiMessage.createResolved({launched:!0},null))})();class Ct{parseAddPreloadScriptParams(e){return ht.Script.parseAddPreloadScriptParams(e)}parseRemovePreloadScriptParams(e){return ht.Script.parseRemovePreloadScriptParams(e)}parseGetRealmsParams(e){return ht.Script.parseGetRealmsParams(e)}parseCallFunctionParams(e){return ht.Script.parseCallFunctionParams(e)}parseEvaluateParams(e){return ht.Script.parseEvaluateParams(e)}parseDisownParams(e){return ht.Script.parseDisownParams(e)}parseSendCommandParams(e){return ht.CDP.parseSendCommandParams(e)}parseGetSessionParams(e){return ht.CDP.parseGetSessionParams(e)}parseSubscribeParams(e){return ht.Session.parseSubscribeParams(e)}parseNavigateParams(e){return ht.BrowsingContext.parseNavigateParams(e)}parseGetTreeParams(e){return ht.BrowsingContext.parseGetTreeParams(e)}parseCreateParams(e){return ht.BrowsingContext.parseCreateParams(e)}parseCloseParams(e){return ht.BrowsingContext.parseCloseParams(e)}parseCaptureScreenshotParams(e){return ht.BrowsingContext.parseCaptureScreenshotParams(e)}parsePrintParams(e){return ht.BrowsingContext.parsePrintParams(e)}}return t}();
+(function () {
+    'use strict';
+
+    function mitt(n){return {all:n=n||new Map,on:function(t,e){var i=n.get(t);i?i.push(e):n.set(t,[e]);},off:function(t,e){var i=n.get(t);i&&(e?i.splice(i.indexOf(e)>>>0,1):n.set(t,[]));},emit:function(t,e){var i=n.get(t);i&&i.slice().map(function(n){n(e);}),(i=n.get("*"))&&i.slice().map(function(n){n(t,e);});}}}
+
+    /**
+     * Copyright 2022 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class EventEmitter {
+        #emitter = mitt();
+        on(type, handler) {
+            this.#emitter.on(type, handler);
+            return this;
+        }
+        once(event, handler) {
+            const onceHandler = (eventData) => {
+                handler(eventData);
+                this.off(event, onceHandler);
+            };
+            return this.on(event, onceHandler);
+        }
+        off(type, handler) {
+            this.#emitter.off(type, handler);
+            return this;
+        }
+        emit(event, eventData) {
+            this.#emitter.emit(event, eventData);
+        }
+        removeAllListeners(event) {
+            if (event) {
+                this.#emitter.all.delete(event);
+            }
+            else {
+                this.#emitter.all.clear();
+            }
+            return this;
+        }
+    }
+
+    /**
+     * Copyright 2021 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    var LogType;
+    (function (LogType) {
+        LogType["bidi"] = "bidi";
+        LogType["cdp"] = "cdp";
+        LogType["debug"] = "debug";
+        LogType["debugError"] = "debug:error";
+        LogType["debugInfo"] = "debug:info";
+        LogType["debugWarn"] = "debug:warn";
+    })(LogType || (LogType = {}));
+
+    /**
+     * Copyright 2022 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    var _a$6;
+    class ProcessingQueue {
+        static LOGGER_PREFIX = `${LogType.debug}:queue`;
+        #logger;
+        #processor;
+        #queue = [];
+        #isProcessing = false;
+        constructor(processor, logger) {
+            this.#processor = processor;
+            this.#logger = logger;
+        }
+        add(entry, name) {
+            this.#queue.push([entry, name]);
+            void this.#processIfNeeded();
+        }
+        async #processIfNeeded() {
+            if (this.#isProcessing) {
+                return;
+            }
+            this.#isProcessing = true;
+            while (this.#queue.length > 0) {
+                const arrayEntry = this.#queue.shift();
+                if (!arrayEntry) {
+                    continue;
+                }
+                const [entryPromise, name] = arrayEntry;
+                this.#logger?.(_a$6.LOGGER_PREFIX, 'Processing event:', name);
+                await entryPromise
+                    .then((entry) => {
+                    if (entry.kind === 'error') {
+                        this.#logger?.(LogType.debugError, 'Event threw before sending:', entry.error.message, entry.error.stack);
+                        return;
+                    }
+                    return this.#processor(entry.value);
+                })
+                    .catch((error) => {
+                    this.#logger?.(LogType.debugError, 'Event was not processed:', error?.message);
+                });
+            }
+            this.#isProcessing = false;
+        }
+    }
+    _a$6 = ProcessingQueue;
+
+    /**
+     * Copyright 2023 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    var BiDiModule;
+    (function (BiDiModule) {
+        BiDiModule["Bluetooth"] = "bluetooth";
+        BiDiModule["Browser"] = "browser";
+        BiDiModule["BrowsingContext"] = "browsingContext";
+        BiDiModule["Cdp"] = "goog:cdp";
+        BiDiModule["Input"] = "input";
+        BiDiModule["Log"] = "log";
+        BiDiModule["Network"] = "network";
+        BiDiModule["Script"] = "script";
+        BiDiModule["Session"] = "session";
+    })(BiDiModule || (BiDiModule = {}));
+    var Script$2;
+    (function (Script) {
+        (function (EventNames) {
+            EventNames["Message"] = "script.message";
+            EventNames["RealmCreated"] = "script.realmCreated";
+            EventNames["RealmDestroyed"] = "script.realmDestroyed";
+        })(Script.EventNames || (Script.EventNames = {}));
+    })(Script$2 || (Script$2 = {}));
+    var Log$1;
+    (function (Log) {
+        (function (EventNames) {
+            EventNames["LogEntryAdded"] = "log.entryAdded";
+        })(Log.EventNames || (Log.EventNames = {}));
+    })(Log$1 || (Log$1 = {}));
+    var BrowsingContext$2;
+    (function (BrowsingContext) {
+        (function (EventNames) {
+            EventNames["ContextCreated"] = "browsingContext.contextCreated";
+            EventNames["ContextDestroyed"] = "browsingContext.contextDestroyed";
+            EventNames["DomContentLoaded"] = "browsingContext.domContentLoaded";
+            EventNames["DownloadWillBegin"] = "browsingContext.downloadWillBegin";
+            EventNames["FragmentNavigated"] = "browsingContext.fragmentNavigated";
+            EventNames["HistoryUpdated"] = "browsingContext.historyUpdated";
+            EventNames["Load"] = "browsingContext.load";
+            EventNames["NavigationAborted"] = "browsingContext.navigationAborted";
+            EventNames["NavigationCommitted"] = "browsingContext.navigationCommitted";
+            EventNames["NavigationFailed"] = "browsingContext.navigationFailed";
+            EventNames["NavigationStarted"] = "browsingContext.navigationStarted";
+            EventNames["UserPromptClosed"] = "browsingContext.userPromptClosed";
+            EventNames["UserPromptOpened"] = "browsingContext.userPromptOpened";
+        })(BrowsingContext.EventNames || (BrowsingContext.EventNames = {}));
+    })(BrowsingContext$2 || (BrowsingContext$2 = {}));
+    var Input$2;
+    (function (Input) {
+        (function (EventNames) {
+            EventNames["FileDialogOpened"] = "input.fileDialogOpened";
+        })(Input.EventNames || (Input.EventNames = {}));
+    })(Input$2 || (Input$2 = {}));
+    var Network$2;
+    (function (Network) {
+        (function (EventNames) {
+            EventNames["AuthRequired"] = "network.authRequired";
+            EventNames["BeforeRequestSent"] = "network.beforeRequestSent";
+            EventNames["FetchError"] = "network.fetchError";
+            EventNames["ResponseCompleted"] = "network.responseCompleted";
+            EventNames["ResponseStarted"] = "network.responseStarted";
+        })(Network.EventNames || (Network.EventNames = {}));
+    })(Network$2 || (Network$2 = {}));
+    var Bluetooth$2;
+    (function (Bluetooth) {
+        (function (EventNames) {
+            EventNames["RequestDevicePromptUpdated"] = "bluetooth.requestDevicePromptUpdated";
+            EventNames["GattConnectionAttempted"] = "bluetooth.gattConnectionAttempted";
+            EventNames["CharacteristicEventGenerated"] = "bluetooth.characteristicEventGenerated";
+        })(Bluetooth.EventNames || (Bluetooth.EventNames = {}));
+    })(Bluetooth$2 || (Bluetooth$2 = {}));
+    const EVENT_NAMES = new Set([
+        ...Object.values(BiDiModule),
+        ...Object.values(Bluetooth$2.EventNames),
+        ...Object.values(BrowsingContext$2.EventNames),
+        ...Object.values(Input$2.EventNames),
+        ...Object.values(Log$1.EventNames),
+        ...Object.values(Network$2.EventNames),
+        ...Object.values(Script$2.EventNames),
+    ]);
+
+    class Exception extends Error {
+        error;
+        message;
+        stacktrace;
+        constructor(error, message, stacktrace) {
+            super();
+            this.error = error;
+            this.message = message;
+            this.stacktrace = stacktrace;
+        }
+        toErrorResponse(commandId) {
+            return {
+                type: 'error',
+                id: commandId,
+                error: this.error,
+                message: this.message,
+                stacktrace: this.stacktrace,
+            };
+        }
+    }
+    class InvalidArgumentException extends Exception {
+        constructor(message, stacktrace) {
+            super("invalid argument" , message, stacktrace);
+        }
+    }
+    class InvalidSelectorException extends Exception {
+        constructor(message, stacktrace) {
+            super("invalid selector" , message, stacktrace);
+        }
+    }
+    class MoveTargetOutOfBoundsException extends Exception {
+        constructor(message, stacktrace) {
+            super("move target out of bounds" , message, stacktrace);
+        }
+    }
+    class NoSuchAlertException extends Exception {
+        constructor(message, stacktrace) {
+            super("no such alert" , message, stacktrace);
+        }
+    }
+    class NoSuchElementException extends Exception {
+        constructor(message, stacktrace) {
+            super("no such element" , message, stacktrace);
+        }
+    }
+    class NoSuchFrameException extends Exception {
+        constructor(message, stacktrace) {
+            super("no such frame" , message, stacktrace);
+        }
+    }
+    class NoSuchHandleException extends Exception {
+        constructor(message, stacktrace) {
+            super("no such handle" , message, stacktrace);
+        }
+    }
+    class NoSuchHistoryEntryException extends Exception {
+        constructor(message, stacktrace) {
+            super("no such history entry" , message, stacktrace);
+        }
+    }
+    class NoSuchInterceptException extends Exception {
+        constructor(message, stacktrace) {
+            super("no such intercept" , message, stacktrace);
+        }
+    }
+    class NoSuchNodeException extends Exception {
+        constructor(message, stacktrace) {
+            super("no such node" , message, stacktrace);
+        }
+    }
+    class NoSuchRequestException extends Exception {
+        constructor(message, stacktrace) {
+            super("no such request" , message, stacktrace);
+        }
+    }
+    class NoSuchScriptException extends Exception {
+        constructor(message, stacktrace) {
+            super("no such script" , message, stacktrace);
+        }
+    }
+    class NoSuchUserContextException extends Exception {
+        constructor(message, stacktrace) {
+            super("no such user context" , message, stacktrace);
+        }
+    }
+    class UnknownCommandException extends Exception {
+        constructor(message, stacktrace) {
+            super("unknown command" , message, stacktrace);
+        }
+    }
+    class UnknownErrorException extends Exception {
+        constructor(message, stacktrace = new Error().stack) {
+            super("unknown error" , message, stacktrace);
+        }
+    }
+    class UnableToCaptureScreenException extends Exception {
+        constructor(message, stacktrace) {
+            super("unable to capture screen" , message, stacktrace);
+        }
+    }
+    class UnsupportedOperationException extends Exception {
+        constructor(message, stacktrace) {
+            super("unsupported operation" , message, stacktrace);
+        }
+    }
+    class UnableToSetCookieException extends Exception {
+        constructor(message, stacktrace) {
+            super("unable to set cookie" , message, stacktrace);
+        }
+    }
+    class UnableToSetFileInputException extends Exception {
+        constructor(message, stacktrace) {
+            super("unable to set file input" , message, stacktrace);
+        }
+    }
+    class InvalidWebExtensionException extends Exception {
+        constructor(message, stacktrace) {
+            super("invalid web extension" , message, stacktrace);
+        }
+    }
+    class NoSuchWebExtensionException extends Exception {
+        constructor(message, stacktrace) {
+            super("no such web extension" , message, stacktrace);
+        }
+    }
+
+    /**
+     * Copyright 2023 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class BidiNoOpParser {
+        parseDisableSimulationParameters(params) {
+            return params;
+        }
+        parseHandleRequestDevicePromptParams(params) {
+            return params;
+        }
+        parseSimulateAdapterParameters(params) {
+            return params;
+        }
+        parseSimulateAdvertisementParameters(params) {
+            return params;
+        }
+        parseSimulateCharacteristicParameters(params) {
+            return params;
+        }
+        parseSimulateCharacteristicResponseParameters(params) {
+            return params;
+        }
+        parseSimulateDescriptorParameters(params) {
+            return params;
+        }
+        parseSimulateGattConnectionResponseParameters(params) {
+            return params;
+        }
+        parseSimulateGattDisconnectionParameters(params) {
+            return params;
+        }
+        parseSimulatePreconnectedPeripheralParameters(params) {
+            return params;
+        }
+        parseSimulateServiceParameters(params) {
+            return params;
+        }
+        parseCreateUserContextParameters(params) {
+            return params;
+        }
+        parseRemoveUserContextParameters(params) {
+            return params;
+        }
+        parseActivateParams(params) {
+            return params;
+        }
+        parseCaptureScreenshotParams(params) {
+            return params;
+        }
+        parseCloseParams(params) {
+            return params;
+        }
+        parseCreateParams(params) {
+            return params;
+        }
+        parseGetTreeParams(params) {
+            return params;
+        }
+        parseHandleUserPromptParams(params) {
+            return params;
+        }
+        parseLocateNodesParams(params) {
+            return params;
+        }
+        parseNavigateParams(params) {
+            return params;
+        }
+        parsePrintParams(params) {
+            return params;
+        }
+        parseReloadParams(params) {
+            return params;
+        }
+        parseSetViewportParams(params) {
+            return params;
+        }
+        parseTraverseHistoryParams(params) {
+            return params;
+        }
+        parseGetSessionParams(params) {
+            return params;
+        }
+        parseResolveRealmParams(params) {
+            return params;
+        }
+        parseSendCommandParams(params) {
+            return params;
+        }
+        parseSetGeolocationOverrideParams(params) {
+            return params;
+        }
+        parseAddPreloadScriptParams(params) {
+            return params;
+        }
+        parseCallFunctionParams(params) {
+            return params;
+        }
+        parseDisownParams(params) {
+            return params;
+        }
+        parseEvaluateParams(params) {
+            return params;
+        }
+        parseGetRealmsParams(params) {
+            return params;
+        }
+        parseRemovePreloadScriptParams(params) {
+            return params;
+        }
+        parsePerformActionsParams(params) {
+            return params;
+        }
+        parseReleaseActionsParams(params) {
+            return params;
+        }
+        parseSetFilesParams(params) {
+            return params;
+        }
+        parseAddInterceptParams(params) {
+            return params;
+        }
+        parseContinueRequestParams(params) {
+            return params;
+        }
+        parseContinueResponseParams(params) {
+            return params;
+        }
+        parseContinueWithAuthParams(params) {
+            return params;
+        }
+        parseFailRequestParams(params) {
+            return params;
+        }
+        parseProvideResponseParams(params) {
+            return params;
+        }
+        parseRemoveInterceptParams(params) {
+            return params;
+        }
+        parseSetCacheBehavior(params) {
+            return params;
+        }
+        parseSetPermissionsParams(params) {
+            return params;
+        }
+        parseSubscribeParams(params) {
+            return params;
+        }
+        parseUnsubscribeParams(params) {
+            return params;
+        }
+        parseDeleteCookiesParams(params) {
+            return params;
+        }
+        parseGetCookiesParams(params) {
+            return params;
+        }
+        parseSetCookieParams(params) {
+            return params;
+        }
+        parseInstallParams(params) {
+            return params;
+        }
+        parseUninstallParams(params) {
+            return params;
+        }
+    }
+
+    /**
+     * Copyright 2023 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class BrowserProcessor {
+        #browserCdpClient;
+        #browsingContextStorage;
+        #userContextStorage;
+        #mapperOptionsStorage;
+        constructor(browserCdpClient, browsingContextStorage, mapperOptionsStorage, userContextStorage) {
+            this.#browserCdpClient = browserCdpClient;
+            this.#browsingContextStorage = browsingContextStorage;
+            this.#mapperOptionsStorage = mapperOptionsStorage;
+            this.#userContextStorage = userContextStorage;
+        }
+        close() {
+            setTimeout(() => this.#browserCdpClient.sendCommand('Browser.close'), 0);
+            return {};
+        }
+        async createUserContext(params) {
+            const w3cParams = params;
+            if (w3cParams.acceptInsecureCerts !== undefined) {
+                if (w3cParams.acceptInsecureCerts === false &&
+                    this.#mapperOptionsStorage.mapperOptions?.acceptInsecureCerts === true)
+                    throw new UnknownErrorException(`Cannot set user context's "acceptInsecureCerts" to false, when a capability "acceptInsecureCerts" is set to true`);
+            }
+            const request = {};
+            if (w3cParams.proxy) {
+                const proxyStr = getProxyStr(w3cParams.proxy);
+                if (proxyStr) {
+                    request.proxyServer = proxyStr;
+                }
+                if (w3cParams.proxy.noProxy) {
+                    request.proxyBypassList = w3cParams.proxy.noProxy.join(',');
+                }
+            }
+            else {
+                if (params['goog:proxyServer'] !== undefined) {
+                    request.proxyServer = params['goog:proxyServer'];
+                }
+                const proxyBypassList = params['goog:proxyBypassList'] ?? undefined;
+                if (proxyBypassList) {
+                    request.proxyBypassList = proxyBypassList.join(',');
+                }
+            }
+            const context = await this.#browserCdpClient.sendCommand('Target.createBrowserContext', request);
+            this.#userContextStorage.getConfig(context.browserContextId).acceptInsecureCerts = params['acceptInsecureCerts'];
+            return {
+                userContext: context.browserContextId,
+            };
+        }
+        async removeUserContext(params) {
+            const userContext = params.userContext;
+            if (userContext === 'default') {
+                throw new InvalidArgumentException('`default` user context cannot be removed');
+            }
+            try {
+                await this.#browserCdpClient.sendCommand('Target.disposeBrowserContext', {
+                    browserContextId: userContext,
+                });
+            }
+            catch (err) {
+                if (err.message.startsWith('Failed to find context with id')) {
+                    throw new NoSuchUserContextException(err.message);
+                }
+                throw err;
+            }
+            return {};
+        }
+        async getUserContexts() {
+            return {
+                userContexts: await this.#userContextStorage.getUserContexts(),
+            };
+        }
+        async #getWindowInfo(targetId) {
+            const windowInfo = await this.#browserCdpClient.sendCommand('Browser.getWindowForTarget', { targetId });
+            return {
+                active: false,
+                clientWindow: `${windowInfo.windowId}`,
+                state: windowInfo.bounds.windowState ?? 'normal',
+                height: windowInfo.bounds.height ?? 0,
+                width: windowInfo.bounds.width ?? 0,
+                x: windowInfo.bounds.left ?? 0,
+                y: windowInfo.bounds.top ?? 0,
+            };
+        }
+        async getClientWindows() {
+            const topLevelTargetIds = this.#browsingContextStorage
+                .getTopLevelContexts()
+                .map((b) => b.cdpTarget.id);
+            const clientWindows = await Promise.all(topLevelTargetIds.map(async (targetId) => await this.#getWindowInfo(targetId)));
+            const uniqueClientWindowIds = new Set();
+            const uniqueClientWindows = new Array();
+            for (const window of clientWindows) {
+                if (!uniqueClientWindowIds.has(window.clientWindow)) {
+                    uniqueClientWindowIds.add(window.clientWindow);
+                    uniqueClientWindows.push(window);
+                }
+            }
+            return { clientWindows: uniqueClientWindows };
+        }
+    }
+    function getProxyStr(proxyConfig) {
+        if (proxyConfig.proxyType === 'direct' ||
+            proxyConfig.proxyType === 'system') {
+            return undefined;
+        }
+        if (proxyConfig.proxyType === 'pac') {
+            throw new UnsupportedOperationException(`PAC proxy configuration is not supported per user context`);
+        }
+        if (proxyConfig.proxyType === 'autodetect') {
+            throw new UnsupportedOperationException(`Autodetect proxy is not supported per user context`);
+        }
+        if (proxyConfig.proxyType === 'manual') {
+            const servers = [];
+            if (proxyConfig.httpProxy !== undefined) {
+                servers.push(`http=${proxyConfig.httpProxy}`);
+            }
+            if (proxyConfig.ftpProxy !== undefined) {
+                servers.push(`ftp=${proxyConfig.ftpProxy}`);
+            }
+            if (proxyConfig.sslProxy !== undefined) {
+                servers.push(`https=${proxyConfig.sslProxy}`);
+            }
+            if (proxyConfig.socksProxy !== undefined ||
+                proxyConfig.socksVersion !== undefined) {
+                if (proxyConfig.socksProxy === undefined) {
+                    throw new InvalidArgumentException(`'socksVersion' cannot be set without 'socksProxy'`);
+                }
+                if (proxyConfig.socksVersion === undefined ||
+                    typeof proxyConfig.socksVersion !== 'number' ||
+                    !Number.isInteger(proxyConfig.socksVersion) ||
+                    proxyConfig.socksVersion < 0 ||
+                    proxyConfig.socksVersion > 255) {
+                    throw new InvalidArgumentException(`'socksVersion' must be between 0 and 255`);
+                }
+                servers.push(`socks=socks${proxyConfig.socksVersion}://${proxyConfig.socksProxy}`);
+            }
+            if (servers.length === 0) {
+                return undefined;
+            }
+            return servers.join(';');
+        }
+        throw new UnknownErrorException(`Unknown proxy type`);
+    }
+
+    /**
+     * Copyright 2023 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class CdpProcessor {
+        #browsingContextStorage;
+        #realmStorage;
+        #cdpConnection;
+        #browserCdpClient;
+        constructor(browsingContextStorage, realmStorage, cdpConnection, browserCdpClient) {
+            this.#browsingContextStorage = browsingContextStorage;
+            this.#realmStorage = realmStorage;
+            this.#cdpConnection = cdpConnection;
+            this.#browserCdpClient = browserCdpClient;
+        }
+        getSession(params) {
+            const context = params.context;
+            const sessionId = this.#browsingContextStorage.getContext(context).cdpTarget.cdpSessionId;
+            if (sessionId === undefined) {
+                return {};
+            }
+            return { session: sessionId };
+        }
+        resolveRealm(params) {
+            const context = params.realm;
+            const realm = this.#realmStorage.getRealm({ realmId: context });
+            if (realm === undefined) {
+                throw new UnknownErrorException(`Could not find realm ${params.realm}`);
+            }
+            return { executionContextId: realm.executionContextId };
+        }
+        async sendCommand(params) {
+            const client = params.session
+                ? this.#cdpConnection.getCdpClient(params.session)
+                : this.#browserCdpClient;
+            const result = await client.sendCommand(params.method, params.params);
+            return {
+                result,
+                session: params.session,
+            };
+        }
+    }
+
+    class BrowsingContextProcessor {
+        #browserCdpClient;
+        #browsingContextStorage;
+        #eventManager;
+        #userContextStorage;
+        constructor(browserCdpClient, browsingContextStorage, userContextStorage, eventManager) {
+            this.#userContextStorage = userContextStorage;
+            this.#browserCdpClient = browserCdpClient;
+            this.#browsingContextStorage = browsingContextStorage;
+            this.#eventManager = eventManager;
+            this.#eventManager.addSubscribeHook(BrowsingContext$2.EventNames.ContextCreated, this.#onContextCreatedSubscribeHook.bind(this));
+        }
+        getTree(params) {
+            const resultContexts = params.root === undefined
+                ? this.#browsingContextStorage.getTopLevelContexts()
+                : [this.#browsingContextStorage.getContext(params.root)];
+            return {
+                contexts: resultContexts.map((c) => c.serializeToBidiValue(params.maxDepth ?? Number.MAX_VALUE)),
+            };
+        }
+        async create(params) {
+            let referenceContext;
+            let userContext = 'default';
+            if (params.referenceContext !== undefined) {
+                referenceContext = this.#browsingContextStorage.getContext(params.referenceContext);
+                if (!referenceContext.isTopLevelContext()) {
+                    throw new InvalidArgumentException(`referenceContext should be a top-level context`);
+                }
+                userContext = referenceContext.userContext;
+            }
+            if (params.userContext !== undefined) {
+                userContext = params.userContext;
+            }
+            const existingContexts = this.#browsingContextStorage
+                .getAllContexts()
+                .filter((context) => context.userContext === userContext);
+            let newWindow = false;
+            switch (params.type) {
+                case "tab" :
+                    newWindow = false;
+                    break;
+                case "window" :
+                    newWindow = true;
+                    break;
+            }
+            if (!existingContexts.length) {
+                newWindow = true;
+            }
+            let result;
+            try {
+                result = await this.#browserCdpClient.sendCommand('Target.createTarget', {
+                    url: 'about:blank',
+                    newWindow,
+                    browserContextId: userContext === 'default' ? undefined : userContext,
+                    background: params.background === true,
+                });
+            }
+            catch (err) {
+                if (
+                err.message.startsWith('Failed to find browser context with id') ||
+                    err.message === 'browserContextId') {
+                    throw new NoSuchUserContextException(`The context ${userContext} was not found`);
+                }
+                throw err;
+            }
+            const context = await this.#browsingContextStorage.waitForContext(result.targetId);
+            await context.lifecycleLoaded();
+            return { context: context.id };
+        }
+        navigate(params) {
+            const context = this.#browsingContextStorage.getContext(params.context);
+            return context.navigate(params.url, params.wait ?? "none" );
+        }
+        reload(params) {
+            const context = this.#browsingContextStorage.getContext(params.context);
+            return context.reload(params.ignoreCache ?? false, params.wait ?? "none" );
+        }
+        async activate(params) {
+            const context = this.#browsingContextStorage.getContext(params.context);
+            if (!context.isTopLevelContext()) {
+                throw new InvalidArgumentException('Activation is only supported on the top-level context');
+            }
+            await context.activate();
+            return {};
+        }
+        async captureScreenshot(params) {
+            const context = this.#browsingContextStorage.getContext(params.context);
+            return await context.captureScreenshot(params);
+        }
+        async print(params) {
+            const context = this.#browsingContextStorage.getContext(params.context);
+            return await context.print(params);
+        }
+        async setViewport(params) {
+            const impactedTopLevelContexts = await this.#getRelatedTopLevelBrowsingContexts(params.context, params.userContexts);
+            for (const userContextId of params.userContexts ?? []) {
+                const userContextConfig = this.#userContextStorage.getConfig(userContextId);
+                if (params.devicePixelRatio !== undefined) {
+                    userContextConfig.devicePixelRatio = params.devicePixelRatio;
+                }
+                if (params.viewport !== undefined) {
+                    userContextConfig.viewport = params.viewport;
+                }
+            }
+            await Promise.all(impactedTopLevelContexts.map((context) => context.setViewport(params.viewport, params.devicePixelRatio)));
+            return {};
+        }
+        async #getRelatedTopLevelBrowsingContexts(browsingContextId, userContextIds) {
+            if (browsingContextId === undefined && userContextIds === undefined) {
+                throw new InvalidArgumentException('Either userContexts or context must be provided');
+            }
+            if (browsingContextId !== undefined && userContextIds !== undefined) {
+                throw new InvalidArgumentException('userContexts and context are mutually exclusive');
+            }
+            if (browsingContextId !== undefined) {
+                const context = this.#browsingContextStorage.getContext(browsingContextId);
+                if (!context.isTopLevelContext()) {
+                    throw new InvalidArgumentException('Emulating viewport is only supported on the top-level context');
+                }
+                return [context];
+            }
+            await this.#userContextStorage.verifyUserContextIdList(userContextIds);
+            const result = [];
+            for (const userContextId of userContextIds) {
+                const topLevelBrowsingContexts = this.#browsingContextStorage
+                    .getTopLevelContexts()
+                    .filter((browsingContext) => browsingContext.userContext === userContextId);
+                result.push(...topLevelBrowsingContexts);
+            }
+            return [...new Set(result).values()];
+        }
+        async traverseHistory(params) {
+            const context = this.#browsingContextStorage.getContext(params.context);
+            if (!context) {
+                throw new InvalidArgumentException(`No browsing context with id ${params.context}`);
+            }
+            if (!context.isTopLevelContext()) {
+                throw new InvalidArgumentException('Traversing history is only supported on the top-level context');
+            }
+            await context.traverseHistory(params.delta);
+            return {};
+        }
+        async handleUserPrompt(params) {
+            const context = this.#browsingContextStorage.getContext(params.context);
+            try {
+                await context.handleUserPrompt(params.accept, params.userText);
+            }
+            catch (error) {
+                if (error.message?.includes('No dialog is showing')) {
+                    throw new NoSuchAlertException('No dialog is showing');
+                }
+                throw error;
+            }
+            return {};
+        }
+        async close(params) {
+            const context = this.#browsingContextStorage.getContext(params.context);
+            if (!context.isTopLevelContext()) {
+                throw new InvalidArgumentException(`Non top-level browsing context ${context.id} cannot be closed.`);
+            }
+            const parentCdpClient = context.cdpTarget.parentCdpClient;
+            try {
+                const detachedFromTargetPromise = new Promise((resolve) => {
+                    const onContextDestroyed = (event) => {
+                        if (event.targetId === params.context) {
+                            parentCdpClient.off('Target.detachedFromTarget', onContextDestroyed);
+                            resolve();
+                        }
+                    };
+                    parentCdpClient.on('Target.detachedFromTarget', onContextDestroyed);
+                });
+                try {
+                    if (params.promptUnload) {
+                        await context.close();
+                    }
+                    else {
+                        await parentCdpClient.sendCommand('Target.closeTarget', {
+                            targetId: params.context,
+                        });
+                    }
+                }
+                catch (error) {
+                    if (!parentCdpClient.isCloseError(error)) {
+                        throw error;
+                    }
+                }
+                await detachedFromTargetPromise;
+            }
+            catch (error) {
+                if (!(error.code === -32e3  &&
+                    error.message === 'Not attached to an active page')) {
+                    throw error;
+                }
+            }
+            return {};
+        }
+        async locateNodes(params) {
+            const context = this.#browsingContextStorage.getContext(params.context);
+            return await context.locateNodes(params);
+        }
+        #onContextCreatedSubscribeHook(contextId) {
+            const context = this.#browsingContextStorage.getContext(contextId);
+            const contextsToReport = [
+                context,
+                ...this.#browsingContextStorage.getContext(contextId).allChildren,
+            ];
+            contextsToReport.forEach((context) => {
+                this.#eventManager.registerEvent({
+                    type: 'event',
+                    method: BrowsingContext$2.EventNames.ContextCreated,
+                    params: context.serializeToBidiValue(),
+                }, context.id);
+            });
+            return Promise.resolve();
+        }
+    }
+
+    /**
+     * Copyright 2025 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class EmulationProcessor {
+        #userContextStorage;
+        #browsingContextStorage;
+        constructor(browsingContextStorage, userContextStorage) {
+            this.#userContextStorage = userContextStorage;
+            this.#browsingContextStorage = browsingContextStorage;
+        }
+        async setGeolocationOverride(params) {
+            if ('coordinates' in params && 'error' in params) {
+                throw new InvalidArgumentException('Coordinates and error cannot be set at the same time');
+            }
+            let geolocation = null;
+            if ('coordinates' in params) {
+                if ((params.coordinates?.altitude ?? null) === null &&
+                    (params.coordinates?.altitudeAccuracy ?? null) !== null) {
+                    throw new InvalidArgumentException('Geolocation altitudeAccuracy can be set only with altitude');
+                }
+                geolocation = params.coordinates;
+            }
+            else if ('error' in params) {
+                if (params.error.type !== 'positionUnavailable') {
+                    throw new InvalidArgumentException(`Unknown geolocation error ${params.error.type}`);
+                }
+                geolocation = params.error;
+            }
+            else {
+                throw new InvalidArgumentException(`Coordinates or error should be set`);
+            }
+            const browsingContexts = await this.#getRelatedTopLevelBrowsingContexts(params.contexts, params.userContexts);
+            for (const userContextId of params.userContexts ?? []) {
+                const userContextConfig = this.#userContextStorage.getConfig(userContextId);
+                userContextConfig.geolocation = geolocation;
+            }
+            await Promise.all(browsingContexts.map(async (context) => await context.cdpTarget.setGeolocationOverride(geolocation)));
+            return {};
+        }
+        async #getRelatedTopLevelBrowsingContexts(browsingContextIds, userContextIds) {
+            if (browsingContextIds === undefined && userContextIds === undefined) {
+                throw new InvalidArgumentException('Either user contexts or browsing contexts must be provided');
+            }
+            if (browsingContextIds !== undefined && userContextIds !== undefined) {
+                throw new InvalidArgumentException('User contexts and browsing contexts are mutually exclusive');
+            }
+            const result = [];
+            if (browsingContextIds === undefined) {
+                if (userContextIds.length === 0) {
+                    throw new InvalidArgumentException('user context should be provided');
+                }
+                await this.#userContextStorage.verifyUserContextIdList(userContextIds);
+                for (const userContextId of userContextIds) {
+                    const topLevelBrowsingContexts = this.#browsingContextStorage
+                        .getTopLevelContexts()
+                        .filter((browsingContext) => browsingContext.userContext === userContextId);
+                    result.push(...topLevelBrowsingContexts);
+                }
+            }
+            else {
+                if (browsingContextIds.length === 0) {
+                    throw new InvalidArgumentException('browsing context should be provided');
+                }
+                for (const browsingContextId of browsingContextIds) {
+                    const browsingContext = this.#browsingContextStorage.getContext(browsingContextId);
+                    if (!browsingContext.isTopLevelContext()) {
+                        throw new InvalidArgumentException('The command is only supported on the top-level context');
+                    }
+                    result.push(browsingContext);
+                }
+            }
+            return [...new Set(result).values()];
+        }
+    }
+
+    /**
+     * Copyright 2023 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    function assert(predicate, message) {
+        if (!predicate) {
+            throw new Error(message ?? 'Internal assertion failed.');
+        }
+    }
+
+    /*
+     * Copyright 2024 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    function isSingleComplexGrapheme(value) {
+        return isSingleGrapheme(value) && value.length > 1;
+    }
+    function isSingleGrapheme(value) {
+        const segmenter = new Intl.Segmenter('en', { granularity: 'grapheme' });
+        return [...segmenter.segment(value)].length === 1;
+    }
+
+    /**
+     * Copyright 2023 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class NoneSource {
+        type = "none" ;
+    }
+    class KeySource {
+        type = "key" ;
+        pressed = new Set();
+        #modifiers = 0;
+        get modifiers() {
+            return this.#modifiers;
+        }
+        get alt() {
+            return (this.#modifiers & 1) === 1;
+        }
+        set alt(value) {
+            this.#setModifier(value, 1);
+        }
+        get ctrl() {
+            return (this.#modifiers & 2) === 2;
+        }
+        set ctrl(value) {
+            this.#setModifier(value, 2);
+        }
+        get meta() {
+            return (this.#modifiers & 4) === 4;
+        }
+        set meta(value) {
+            this.#setModifier(value, 4);
+        }
+        get shift() {
+            return (this.#modifiers & 8) === 8;
+        }
+        set shift(value) {
+            this.#setModifier(value, 8);
+        }
+        #setModifier(value, bit) {
+            if (value) {
+                this.#modifiers |= bit;
+            }
+            else {
+                this.#modifiers &= ~bit;
+            }
+        }
+    }
+    class PointerSource {
+        type = "pointer" ;
+        subtype;
+        pointerId;
+        pressed = new Set();
+        x = 0;
+        y = 0;
+        radiusX;
+        radiusY;
+        force;
+        constructor(id, subtype) {
+            this.pointerId = id;
+            this.subtype = subtype;
+        }
+        get buttons() {
+            let buttons = 0;
+            for (const button of this.pressed) {
+                switch (button) {
+                    case 0:
+                        buttons |= 1;
+                        break;
+                    case 1:
+                        buttons |= 4;
+                        break;
+                    case 2:
+                        buttons |= 2;
+                        break;
+                    case 3:
+                        buttons |= 8;
+                        break;
+                    case 4:
+                        buttons |= 16;
+                        break;
+                }
+            }
+            return buttons;
+        }
+        static ClickContext = class ClickContext {
+            static #DOUBLE_CLICK_TIME_MS = 500;
+            static #MAX_DOUBLE_CLICK_RADIUS = 2;
+            count = 0;
+            #x;
+            #y;
+            #time;
+            constructor(x, y, time) {
+                this.#x = x;
+                this.#y = y;
+                this.#time = time;
+            }
+            compare(context) {
+                return (
+                context.#time - this.#time > ClickContext.#DOUBLE_CLICK_TIME_MS ||
+                    Math.abs(context.#x - this.#x) >
+                        ClickContext.#MAX_DOUBLE_CLICK_RADIUS ||
+                    Math.abs(context.#y - this.#y) > ClickContext.#MAX_DOUBLE_CLICK_RADIUS);
+            }
+        };
+        #clickContexts = new Map();
+        setClickCount(button, context) {
+            let storedContext = this.#clickContexts.get(button);
+            if (!storedContext || storedContext.compare(context)) {
+                storedContext = context;
+            }
+            ++storedContext.count;
+            this.#clickContexts.set(button, storedContext);
+            return storedContext.count;
+        }
+        getClickCount(button) {
+            return this.#clickContexts.get(button)?.count ?? 0;
+        }
+        resetClickCount() {
+            this.#clickContexts = new Map();
+        }
+    }
+    class WheelSource {
+        type = "wheel" ;
+    }
+
+    /**
+     * Copyright 2023 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    function getNormalizedKey(value) {
+        switch (value) {
+            case '\uE000':
+                return 'Unidentified';
+            case '\uE001':
+                return 'Cancel';
+            case '\uE002':
+                return 'Help';
+            case '\uE003':
+                return 'Backspace';
+            case '\uE004':
+                return 'Tab';
+            case '\uE005':
+                return 'Clear';
+            case '\uE006':
+            case '\uE007':
+                return 'Enter';
+            case '\uE008':
+                return 'Shift';
+            case '\uE009':
+                return 'Control';
+            case '\uE00A':
+                return 'Alt';
+            case '\uE00B':
+                return 'Pause';
+            case '\uE00C':
+                return 'Escape';
+            case '\uE00D':
+                return ' ';
+            case '\uE00E':
+                return 'PageUp';
+            case '\uE00F':
+                return 'PageDown';
+            case '\uE010':
+                return 'End';
+            case '\uE011':
+                return 'Home';
+            case '\uE012':
+                return 'ArrowLeft';
+            case '\uE013':
+                return 'ArrowUp';
+            case '\uE014':
+                return 'ArrowRight';
+            case '\uE015':
+                return 'ArrowDown';
+            case '\uE016':
+                return 'Insert';
+            case '\uE017':
+                return 'Delete';
+            case '\uE018':
+                return ';';
+            case '\uE019':
+                return '=';
+            case '\uE01A':
+                return '0';
+            case '\uE01B':
+                return '1';
+            case '\uE01C':
+                return '2';
+            case '\uE01D':
+                return '3';
+            case '\uE01E':
+                return '4';
+            case '\uE01F':
+                return '5';
+            case '\uE020':
+                return '6';
+            case '\uE021':
+                return '7';
+            case '\uE022':
+                return '8';
+            case '\uE023':
+                return '9';
+            case '\uE024':
+                return '*';
+            case '\uE025':
+                return '+';
+            case '\uE026':
+                return ',';
+            case '\uE027':
+                return '-';
+            case '\uE028':
+                return '.';
+            case '\uE029':
+                return '/';
+            case '\uE031':
+                return 'F1';
+            case '\uE032':
+                return 'F2';
+            case '\uE033':
+                return 'F3';
+            case '\uE034':
+                return 'F4';
+            case '\uE035':
+                return 'F5';
+            case '\uE036':
+                return 'F6';
+            case '\uE037':
+                return 'F7';
+            case '\uE038':
+                return 'F8';
+            case '\uE039':
+                return 'F9';
+            case '\uE03A':
+                return 'F10';
+            case '\uE03B':
+                return 'F11';
+            case '\uE03C':
+                return 'F12';
+            case '\uE03D':
+                return 'Meta';
+            case '\uE040':
+                return 'ZenkakuHankaku';
+            case '\uE050':
+                return 'Shift';
+            case '\uE051':
+                return 'Control';
+            case '\uE052':
+                return 'Alt';
+            case '\uE053':
+                return 'Meta';
+            case '\uE054':
+                return 'PageUp';
+            case '\uE055':
+                return 'PageDown';
+            case '\uE056':
+                return 'End';
+            case '\uE057':
+                return 'Home';
+            case '\uE058':
+                return 'ArrowLeft';
+            case '\uE059':
+                return 'ArrowUp';
+            case '\uE05A':
+                return 'ArrowRight';
+            case '\uE05B':
+                return 'ArrowDown';
+            case '\uE05C':
+                return 'Insert';
+            case '\uE05D':
+                return 'Delete';
+            default:
+                return value;
+        }
+    }
+    function getKeyCode(key) {
+        switch (key) {
+            case '`':
+            case '~':
+                return 'Backquote';
+            case '\\':
+            case '|':
+                return 'Backslash';
+            case '\uE003':
+                return 'Backspace';
+            case '[':
+            case '{':
+                return 'BracketLeft';
+            case ']':
+            case '}':
+                return 'BracketRight';
+            case ',':
+            case '<':
+                return 'Comma';
+            case '0':
+            case ')':
+                return 'Digit0';
+            case '1':
+            case '!':
+                return 'Digit1';
+            case '2':
+            case '@':
+                return 'Digit2';
+            case '3':
+            case '#':
+                return 'Digit3';
+            case '4':
+            case '$':
+                return 'Digit4';
+            case '5':
+            case '%':
+                return 'Digit5';
+            case '6':
+            case '^':
+                return 'Digit6';
+            case '7':
+            case '&':
+                return 'Digit7';
+            case '8':
+            case '*':
+                return 'Digit8';
+            case '9':
+            case '(':
+                return 'Digit9';
+            case '=':
+            case '+':
+                return 'Equal';
+            case '>':
+                return 'IntlBackslash';
+            case 'a':
+            case 'A':
+                return 'KeyA';
+            case 'b':
+            case 'B':
+                return 'KeyB';
+            case 'c':
+            case 'C':
+                return 'KeyC';
+            case 'd':
+            case 'D':
+                return 'KeyD';
+            case 'e':
+            case 'E':
+                return 'KeyE';
+            case 'f':
+            case 'F':
+                return 'KeyF';
+            case 'g':
+            case 'G':
+                return 'KeyG';
+            case 'h':
+            case 'H':
+                return 'KeyH';
+            case 'i':
+            case 'I':
+                return 'KeyI';
+            case 'j':
+            case 'J':
+                return 'KeyJ';
+            case 'k':
+            case 'K':
+                return 'KeyK';
+            case 'l':
+            case 'L':
+                return 'KeyL';
+            case 'm':
+            case 'M':
+                return 'KeyM';
+            case 'n':
+            case 'N':
+                return 'KeyN';
+            case 'o':
+            case 'O':
+                return 'KeyO';
+            case 'p':
+            case 'P':
+                return 'KeyP';
+            case 'q':
+            case 'Q':
+                return 'KeyQ';
+            case 'r':
+            case 'R':
+                return 'KeyR';
+            case 's':
+            case 'S':
+                return 'KeyS';
+            case 't':
+            case 'T':
+                return 'KeyT';
+            case 'u':
+            case 'U':
+                return 'KeyU';
+            case 'v':
+            case 'V':
+                return 'KeyV';
+            case 'w':
+            case 'W':
+                return 'KeyW';
+            case 'x':
+            case 'X':
+                return 'KeyX';
+            case 'y':
+            case 'Y':
+                return 'KeyY';
+            case 'z':
+            case 'Z':
+                return 'KeyZ';
+            case '-':
+            case '_':
+                return 'Minus';
+            case '.':
+                return 'Period';
+            case "'":
+            case '"':
+                return 'Quote';
+            case ';':
+            case ':':
+                return 'Semicolon';
+            case '/':
+            case '?':
+                return 'Slash';
+            case '\uE00A':
+                return 'AltLeft';
+            case '\uE052':
+                return 'AltRight';
+            case '\uE009':
+                return 'ControlLeft';
+            case '\uE051':
+                return 'ControlRight';
+            case '\uE006':
+                return 'Enter';
+            case '\uE00B':
+                return 'Pause';
+            case '\uE03D':
+                return 'MetaLeft';
+            case '\uE053':
+                return 'MetaRight';
+            case '\uE008':
+                return 'ShiftLeft';
+            case '\uE050':
+                return 'ShiftRight';
+            case ' ':
+            case '\uE00D':
+                return 'Space';
+            case '\uE004':
+                return 'Tab';
+            case '\uE017':
+                return 'Delete';
+            case '\uE010':
+                return 'End';
+            case '\uE002':
+                return 'Help';
+            case '\uE011':
+                return 'Home';
+            case '\uE016':
+                return 'Insert';
+            case '\uE00F':
+                return 'PageDown';
+            case '\uE00E':
+                return 'PageUp';
+            case '\uE015':
+                return 'ArrowDown';
+            case '\uE012':
+                return 'ArrowLeft';
+            case '\uE014':
+                return 'ArrowRight';
+            case '\uE013':
+                return 'ArrowUp';
+            case '\uE00C':
+                return 'Escape';
+            case '\uE031':
+                return 'F1';
+            case '\uE032':
+                return 'F2';
+            case '\uE033':
+                return 'F3';
+            case '\uE034':
+                return 'F4';
+            case '\uE035':
+                return 'F5';
+            case '\uE036':
+                return 'F6';
+            case '\uE037':
+                return 'F7';
+            case '\uE038':
+                return 'F8';
+            case '\uE039':
+                return 'F9';
+            case '\uE03A':
+                return 'F10';
+            case '\uE03B':
+                return 'F11';
+            case '\uE03C':
+                return 'F12';
+            case '\uE019':
+                return 'NumpadEqual';
+            case '\uE01A':
+            case '\uE05C':
+                return 'Numpad0';
+            case '\uE01B':
+            case '\uE056':
+                return 'Numpad1';
+            case '\uE01C':
+            case '\uE05B':
+                return 'Numpad2';
+            case '\uE01D':
+            case '\uE055':
+                return 'Numpad3';
+            case '\uE01E':
+            case '\uE058':
+                return 'Numpad4';
+            case '\uE01F':
+                return 'Numpad5';
+            case '\uE020':
+            case '\uE05A':
+                return 'Numpad6';
+            case '\uE021':
+            case '\uE057':
+                return 'Numpad7';
+            case '\uE022':
+            case '\uE059':
+                return 'Numpad8';
+            case '\uE023':
+            case '\uE054':
+                return 'Numpad9';
+            case '\uE025':
+                return 'NumpadAdd';
+            case '\uE026':
+                return 'NumpadComma';
+            case '\uE028':
+            case '\uE05D':
+                return 'NumpadDecimal';
+            case '\uE029':
+                return 'NumpadDivide';
+            case '\uE007':
+                return 'NumpadEnter';
+            case '\uE024':
+                return 'NumpadMultiply';
+            case '\uE027':
+                return 'NumpadSubtract';
+            default:
+                return;
+        }
+    }
+    function getKeyLocation(key) {
+        switch (key) {
+            case '\uE007':
+            case '\uE008':
+            case '\uE009':
+            case '\uE00A':
+            case '\uE03D':
+                return 1;
+            case '\uE019':
+            case '\uE01A':
+            case '\uE01B':
+            case '\uE01C':
+            case '\uE01D':
+            case '\uE01E':
+            case '\uE01F':
+            case '\uE020':
+            case '\uE021':
+            case '\uE022':
+            case '\uE023':
+            case '\uE024':
+            case '\uE025':
+            case '\uE026':
+            case '\uE027':
+            case '\uE028':
+            case '\uE029':
+            case '\uE054':
+            case '\uE055':
+            case '\uE056':
+            case '\uE057':
+            case '\uE058':
+            case '\uE059':
+            case '\uE05A':
+            case '\uE05B':
+            case '\uE05C':
+            case '\uE05D':
+                return 3;
+            case '\uE050':
+            case '\uE051':
+            case '\uE052':
+            case '\uE053':
+                return 2;
+            default:
+                return 0;
+        }
+    }
+
+    /**
+     * Copyright 2023 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    const KeyToKeyCode = {
+        '0': 48,
+        '1': 49,
+        '2': 50,
+        '3': 51,
+        '4': 52,
+        '5': 53,
+        '6': 54,
+        '7': 55,
+        '8': 56,
+        '9': 57,
+        Abort: 3,
+        Help: 6,
+        Backspace: 8,
+        Tab: 9,
+        Numpad5: 12,
+        NumpadEnter: 13,
+        Enter: 13,
+        '\\r': 13,
+        '\\n': 13,
+        ShiftLeft: 16,
+        ShiftRight: 16,
+        ControlLeft: 17,
+        ControlRight: 17,
+        AltLeft: 18,
+        AltRight: 18,
+        Pause: 19,
+        CapsLock: 20,
+        Escape: 27,
+        Convert: 28,
+        NonConvert: 29,
+        Space: 32,
+        Numpad9: 33,
+        PageUp: 33,
+        Numpad3: 34,
+        PageDown: 34,
+        End: 35,
+        Numpad1: 35,
+        Home: 36,
+        Numpad7: 36,
+        ArrowLeft: 37,
+        Numpad4: 37,
+        Numpad8: 38,
+        ArrowUp: 38,
+        ArrowRight: 39,
+        Numpad6: 39,
+        Numpad2: 40,
+        ArrowDown: 40,
+        Select: 41,
+        Open: 43,
+        PrintScreen: 44,
+        Insert: 45,
+        Numpad0: 45,
+        Delete: 46,
+        NumpadDecimal: 46,
+        Digit0: 48,
+        Digit1: 49,
+        Digit2: 50,
+        Digit3: 51,
+        Digit4: 52,
+        Digit5: 53,
+        Digit6: 54,
+        Digit7: 55,
+        Digit8: 56,
+        Digit9: 57,
+        KeyA: 65,
+        KeyB: 66,
+        KeyC: 67,
+        KeyD: 68,
+        KeyE: 69,
+        KeyF: 70,
+        KeyG: 71,
+        KeyH: 72,
+        KeyI: 73,
+        KeyJ: 74,
+        KeyK: 75,
+        KeyL: 76,
+        KeyM: 77,
+        KeyN: 78,
+        KeyO: 79,
+        KeyP: 80,
+        KeyQ: 81,
+        KeyR: 82,
+        KeyS: 83,
+        KeyT: 84,
+        KeyU: 85,
+        KeyV: 86,
+        KeyW: 87,
+        KeyX: 88,
+        KeyY: 89,
+        KeyZ: 90,
+        MetaLeft: 91,
+        MetaRight: 92,
+        ContextMenu: 93,
+        NumpadMultiply: 106,
+        NumpadAdd: 107,
+        NumpadSubtract: 109,
+        NumpadDivide: 111,
+        F1: 112,
+        F2: 113,
+        F3: 114,
+        F4: 115,
+        F5: 116,
+        F6: 117,
+        F7: 118,
+        F8: 119,
+        F9: 120,
+        F10: 121,
+        F11: 122,
+        F12: 123,
+        F13: 124,
+        F14: 125,
+        F15: 126,
+        F16: 127,
+        F17: 128,
+        F18: 129,
+        F19: 130,
+        F20: 131,
+        F21: 132,
+        F22: 133,
+        F23: 134,
+        F24: 135,
+        NumLock: 144,
+        ScrollLock: 145,
+        AudioVolumeMute: 173,
+        AudioVolumeDown: 174,
+        AudioVolumeUp: 175,
+        MediaTrackNext: 176,
+        MediaTrackPrevious: 177,
+        MediaStop: 178,
+        MediaPlayPause: 179,
+        Semicolon: 186,
+        Equal: 187,
+        NumpadEqual: 187,
+        Comma: 188,
+        Minus: 189,
+        Period: 190,
+        Slash: 191,
+        Backquote: 192,
+        BracketLeft: 219,
+        Backslash: 220,
+        BracketRight: 221,
+        Quote: 222,
+        AltGraph: 225,
+        Props: 247,
+        Cancel: 3,
+        Clear: 12,
+        Shift: 16,
+        Control: 17,
+        Alt: 18,
+        Accept: 30,
+        ModeChange: 31,
+        ' ': 32,
+        Print: 42,
+        Execute: 43,
+        '\\u0000': 46,
+        a: 65,
+        b: 66,
+        c: 67,
+        d: 68,
+        e: 69,
+        f: 70,
+        g: 71,
+        h: 72,
+        i: 73,
+        j: 74,
+        k: 75,
+        l: 76,
+        m: 77,
+        n: 78,
+        o: 79,
+        p: 80,
+        q: 81,
+        r: 82,
+        s: 83,
+        t: 84,
+        u: 85,
+        v: 86,
+        w: 87,
+        x: 88,
+        y: 89,
+        z: 90,
+        Meta: 91,
+        '*': 106,
+        '+': 107,
+        '-': 109,
+        '/': 111,
+        ';': 186,
+        '=': 187,
+        ',': 188,
+        '.': 190,
+        '`': 192,
+        '[': 219,
+        '\\\\': 220,
+        ']': 221,
+        "'": 222,
+        Attn: 246,
+        CrSel: 247,
+        ExSel: 248,
+        EraseEof: 249,
+        Play: 250,
+        ZoomOut: 251,
+        ')': 48,
+        '!': 49,
+        '@': 50,
+        '#': 51,
+        $: 52,
+        '%': 53,
+        '^': 54,
+        '&': 55,
+        '(': 57,
+        A: 65,
+        B: 66,
+        C: 67,
+        D: 68,
+        E: 69,
+        F: 70,
+        G: 71,
+        H: 72,
+        I: 73,
+        J: 74,
+        K: 75,
+        L: 76,
+        M: 77,
+        N: 78,
+        O: 79,
+        P: 80,
+        Q: 81,
+        R: 82,
+        S: 83,
+        T: 84,
+        U: 85,
+        V: 86,
+        W: 87,
+        X: 88,
+        Y: 89,
+        Z: 90,
+        ':': 186,
+        '<': 188,
+        _: 189,
+        '>': 190,
+        '?': 191,
+        '~': 192,
+        '{': 219,
+        '|': 220,
+        '}': 221,
+        '"': 222,
+        Camera: 44,
+        EndCall: 95,
+        VolumeDown: 182,
+        VolumeUp: 183,
+    };
+
+    /**
+     * Copyright 2023 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    const CALCULATE_IN_VIEW_CENTER_PT_DECL = ((i) => {
+        const t = i.getClientRects()[0], e = Math.max(0, Math.min(t.x, t.x + t.width)), n = Math.min(window.innerWidth, Math.max(t.x, t.x + t.width)), h = Math.max(0, Math.min(t.y, t.y + t.height)), m = Math.min(window.innerHeight, Math.max(t.y, t.y + t.height));
+        return [e + ((n - e) >> 1), h + ((m - h) >> 1)];
+    }).toString();
+    const IS_MAC_DECL = (() => {
+        return navigator.platform.toLowerCase().includes('mac');
+    }).toString();
+    async function getElementCenter(context, element) {
+        const sandbox = await context.getOrCreateSandbox(undefined);
+        const result = await sandbox.callFunction(CALCULATE_IN_VIEW_CENTER_PT_DECL, false, { type: 'undefined' }, [element]);
+        if (result.type === 'exception') {
+            throw new NoSuchElementException(`Origin element ${element.sharedId} was not found`);
+        }
+        assert(result.result.type === 'array');
+        assert(result.result.value?.[0]?.type === 'number');
+        assert(result.result.value?.[1]?.type === 'number');
+        const { result: { value: [{ value: x }, { value: y }], }, } = result;
+        return { x: x, y: y };
+    }
+    class ActionDispatcher {
+        static isMacOS = async (context) => {
+            const result = await (await context.getOrCreateSandbox(undefined)).callFunction(IS_MAC_DECL, false);
+            assert(result.type !== 'exception');
+            assert(result.result.type === 'boolean');
+            return result.result.value;
+        };
+        #browsingContextStorage;
+        #tickStart = 0;
+        #tickDuration = 0;
+        #inputState;
+        #contextId;
+        #isMacOS;
+        constructor(inputState, browsingContextStorage, contextId, isMacOS) {
+            this.#browsingContextStorage = browsingContextStorage;
+            this.#inputState = inputState;
+            this.#contextId = contextId;
+            this.#isMacOS = isMacOS;
+        }
+        get #context() {
+            return this.#browsingContextStorage.getContext(this.#contextId);
+        }
+        async dispatchActions(optionsByTick) {
+            await this.#inputState.queue.run(async () => {
+                for (const options of optionsByTick) {
+                    await this.dispatchTickActions(options);
+                }
+            });
+        }
+        async dispatchTickActions(options) {
+            this.#tickStart = performance.now();
+            this.#tickDuration = 0;
+            for (const { action } of options) {
+                if ('duration' in action && action.duration !== undefined) {
+                    this.#tickDuration = Math.max(this.#tickDuration, action.duration);
+                }
+            }
+            const promises = [
+                new Promise((resolve) => setTimeout(resolve, this.#tickDuration)),
+            ];
+            for (const option of options) {
+                promises.push(this.#dispatchAction(option));
+            }
+            await Promise.all(promises);
+        }
+        async #dispatchAction({ id, action }) {
+            const source = this.#inputState.get(id);
+            const keyState = this.#inputState.getGlobalKeyState();
+            switch (action.type) {
+                case 'keyDown': {
+                    await this.#dispatchKeyDownAction(source, action);
+                    this.#inputState.cancelList.push({
+                        id,
+                        action: {
+                            ...action,
+                            type: 'keyUp',
+                        },
+                    });
+                    break;
+                }
+                case 'keyUp': {
+                    await this.#dispatchKeyUpAction(source, action);
+                    break;
+                }
+                case 'pause': {
+                    break;
+                }
+                case 'pointerDown': {
+                    await this.#dispatchPointerDownAction(source, keyState, action);
+                    this.#inputState.cancelList.push({
+                        id,
+                        action: {
+                            ...action,
+                            type: 'pointerUp',
+                        },
+                    });
+                    break;
+                }
+                case 'pointerMove': {
+                    await this.#dispatchPointerMoveAction(source, keyState, action);
+                    break;
+                }
+                case 'pointerUp': {
+                    await this.#dispatchPointerUpAction(source, keyState, action);
+                    break;
+                }
+                case 'scroll': {
+                    await this.#dispatchScrollAction(source, keyState, action);
+                    break;
+                }
+            }
+        }
+        async #dispatchPointerDownAction(source, keyState, action) {
+            const { button } = action;
+            if (source.pressed.has(button)) {
+                return;
+            }
+            source.pressed.add(button);
+            const { x, y, subtype: pointerType } = source;
+            const { width, height, pressure, twist, tangentialPressure } = action;
+            const { tiltX, tiltY } = getTilt(action);
+            const { modifiers } = keyState;
+            const { radiusX, radiusY } = getRadii(width ?? 1, height ?? 1);
+            switch (pointerType) {
+                case "mouse" :
+                case "pen" :
+                    await this.#context.cdpTarget.cdpClient.sendCommand('Input.dispatchMouseEvent', {
+                        type: 'mousePressed',
+                        x,
+                        y,
+                        modifiers,
+                        button: getCdpButton(button),
+                        buttons: source.buttons,
+                        clickCount: source.setClickCount(button, new PointerSource.ClickContext(x, y, performance.now())),
+                        pointerType,
+                        tangentialPressure,
+                        tiltX,
+                        tiltY,
+                        twist,
+                        force: pressure,
+                    });
+                    break;
+                case "touch" :
+                    await this.#context.cdpTarget.cdpClient.sendCommand('Input.dispatchTouchEvent', {
+                        type: 'touchStart',
+                        touchPoints: [
+                            {
+                                x,
+                                y,
+                                radiusX,
+                                radiusY,
+                                tangentialPressure,
+                                tiltX,
+                                tiltY,
+                                twist,
+                                force: pressure,
+                                id: source.pointerId,
+                            },
+                        ],
+                        modifiers,
+                    });
+                    break;
+            }
+            source.radiusX = radiusX;
+            source.radiusY = radiusY;
+            source.force = pressure;
+        }
+        #dispatchPointerUpAction(source, keyState, action) {
+            const { button } = action;
+            if (!source.pressed.has(button)) {
+                return;
+            }
+            source.pressed.delete(button);
+            const { x, y, force, radiusX, radiusY, subtype: pointerType } = source;
+            const { modifiers } = keyState;
+            switch (pointerType) {
+                case "mouse" :
+                case "pen" :
+                    return this.#context.cdpTarget.cdpClient.sendCommand('Input.dispatchMouseEvent', {
+                        type: 'mouseReleased',
+                        x,
+                        y,
+                        modifiers,
+                        button: getCdpButton(button),
+                        buttons: source.buttons,
+                        clickCount: source.getClickCount(button),
+                        pointerType,
+                    });
+                case "touch" :
+                    return this.#context.cdpTarget.cdpClient.sendCommand('Input.dispatchTouchEvent', {
+                        type: 'touchEnd',
+                        touchPoints: [
+                            {
+                                x,
+                                y,
+                                id: source.pointerId,
+                                force,
+                                radiusX,
+                                radiusY,
+                            },
+                        ],
+                        modifiers,
+                    });
+            }
+        }
+        async #dispatchPointerMoveAction(source, keyState, action) {
+            const { x: startX, y: startY, subtype: pointerType } = source;
+            const { width, height, pressure, twist, tangentialPressure, x: offsetX, y: offsetY, origin = 'viewport', duration = this.#tickDuration, } = action;
+            const { tiltX, tiltY } = getTilt(action);
+            const { radiusX, radiusY } = getRadii(width ?? 1, height ?? 1);
+            const { targetX, targetY } = await this.#getCoordinateFromOrigin(origin, offsetX, offsetY, startX, startY);
+            if (targetX < 0 || targetY < 0) {
+                throw new MoveTargetOutOfBoundsException(`Cannot move beyond viewport (x: ${targetX}, y: ${targetY})`);
+            }
+            let last;
+            do {
+                const ratio = duration > 0 ? (performance.now() - this.#tickStart) / duration : 1;
+                last = ratio >= 1;
+                let x;
+                let y;
+                if (last) {
+                    x = targetX;
+                    y = targetY;
+                }
+                else {
+                    x = Math.round(ratio * (targetX - startX) + startX);
+                    y = Math.round(ratio * (targetY - startY) + startY);
+                }
+                if (source.x !== x || source.y !== y) {
+                    const { modifiers } = keyState;
+                    switch (pointerType) {
+                        case "mouse" :
+                            await this.#context.cdpTarget.cdpClient.sendCommand('Input.dispatchMouseEvent', {
+                                type: 'mouseMoved',
+                                x,
+                                y,
+                                modifiers,
+                                clickCount: 0,
+                                button: getCdpButton(source.pressed.values().next().value ?? 5),
+                                buttons: source.buttons,
+                                pointerType,
+                                tangentialPressure,
+                                tiltX,
+                                tiltY,
+                                twist,
+                                force: pressure,
+                            });
+                            break;
+                        case "pen" :
+                            if (source.pressed.size !== 0) {
+                                await this.#context.cdpTarget.cdpClient.sendCommand('Input.dispatchMouseEvent', {
+                                    type: 'mouseMoved',
+                                    x,
+                                    y,
+                                    modifiers,
+                                    clickCount: 0,
+                                    button: getCdpButton(source.pressed.values().next().value ?? 5),
+                                    buttons: source.buttons,
+                                    pointerType,
+                                    tangentialPressure,
+                                    tiltX,
+                                    tiltY,
+                                    twist,
+                                    force: pressure ?? 0.5,
+                                });
+                            }
+                            break;
+                        case "touch" :
+                            if (source.pressed.size !== 0) {
+                                await this.#context.cdpTarget.cdpClient.sendCommand('Input.dispatchTouchEvent', {
+                                    type: 'touchMove',
+                                    touchPoints: [
+                                        {
+                                            x,
+                                            y,
+                                            radiusX,
+                                            radiusY,
+                                            tangentialPressure,
+                                            tiltX,
+                                            tiltY,
+                                            twist,
+                                            force: pressure,
+                                            id: source.pointerId,
+                                        },
+                                    ],
+                                    modifiers,
+                                });
+                            }
+                            break;
+                    }
+                    source.x = x;
+                    source.y = y;
+                    source.radiusX = radiusX;
+                    source.radiusY = radiusY;
+                    source.force = pressure;
+                }
+            } while (!last);
+        }
+        async #getFrameOffset() {
+            if (this.#context.id === this.#context.cdpTarget.id) {
+                return { x: 0, y: 0 };
+            }
+            const { backendNodeId } = await this.#context.cdpTarget.cdpClient.sendCommand('DOM.getFrameOwner', { frameId: this.#context.id });
+            const { model: frameBoxModel } = await this.#context.cdpTarget.cdpClient.sendCommand('DOM.getBoxModel', {
+                backendNodeId,
+            });
+            return { x: frameBoxModel.content[0], y: frameBoxModel.content[1] };
+        }
+        async #getCoordinateFromOrigin(origin, offsetX, offsetY, startX, startY) {
+            let targetX;
+            let targetY;
+            const frameOffset = await this.#getFrameOffset();
+            switch (origin) {
+                case 'viewport':
+                    targetX = offsetX + frameOffset.x;
+                    targetY = offsetY + frameOffset.y;
+                    break;
+                case 'pointer':
+                    targetX = startX + offsetX + frameOffset.x;
+                    targetY = startY + offsetY + frameOffset.y;
+                    break;
+                default: {
+                    const { x: posX, y: posY } = await getElementCenter(this.#context, origin.element);
+                    targetX = posX + offsetX + frameOffset.x;
+                    targetY = posY + offsetY + frameOffset.y;
+                    break;
+                }
+            }
+            return { targetX, targetY };
+        }
+        async #dispatchScrollAction(_source, keyState, action) {
+            const { deltaX: targetDeltaX, deltaY: targetDeltaY, x: offsetX, y: offsetY, origin = 'viewport', duration = this.#tickDuration, } = action;
+            if (origin === 'pointer') {
+                throw new InvalidArgumentException('"pointer" origin is invalid for scrolling.');
+            }
+            const { targetX, targetY } = await this.#getCoordinateFromOrigin(origin, offsetX, offsetY, 0, 0);
+            if (targetX < 0 || targetY < 0) {
+                throw new MoveTargetOutOfBoundsException(`Cannot move beyond viewport (x: ${targetX}, y: ${targetY})`);
+            }
+            let currentDeltaX = 0;
+            let currentDeltaY = 0;
+            let last;
+            do {
+                const ratio = duration > 0 ? (performance.now() - this.#tickStart) / duration : 1;
+                last = ratio >= 1;
+                let deltaX;
+                let deltaY;
+                if (last) {
+                    deltaX = targetDeltaX - currentDeltaX;
+                    deltaY = targetDeltaY - currentDeltaY;
+                }
+                else {
+                    deltaX = Math.round(ratio * targetDeltaX - currentDeltaX);
+                    deltaY = Math.round(ratio * targetDeltaY - currentDeltaY);
+                }
+                if (deltaX !== 0 || deltaY !== 0) {
+                    const { modifiers } = keyState;
+                    await this.#context.cdpTarget.cdpClient.sendCommand('Input.dispatchMouseEvent', {
+                        type: 'mouseWheel',
+                        deltaX,
+                        deltaY,
+                        x: targetX,
+                        y: targetY,
+                        modifiers,
+                    });
+                    currentDeltaX += deltaX;
+                    currentDeltaY += deltaY;
+                }
+            } while (!last);
+        }
+        async #dispatchKeyDownAction(source, action) {
+            const rawKey = action.value;
+            if (!isSingleGrapheme(rawKey)) {
+                throw new InvalidArgumentException(`Invalid key value: ${rawKey}`);
+            }
+            const isGrapheme = isSingleComplexGrapheme(rawKey);
+            const key = getNormalizedKey(rawKey);
+            const repeat = source.pressed.has(key);
+            const code = getKeyCode(rawKey);
+            const location = getKeyLocation(rawKey);
+            switch (key) {
+                case 'Alt':
+                    source.alt = true;
+                    break;
+                case 'Shift':
+                    source.shift = true;
+                    break;
+                case 'Control':
+                    source.ctrl = true;
+                    break;
+                case 'Meta':
+                    source.meta = true;
+                    break;
+            }
+            source.pressed.add(key);
+            const { modifiers } = source;
+            const unmodifiedText = getKeyEventUnmodifiedText(key, source, isGrapheme);
+            const text = getKeyEventText(code ?? '', source) ?? unmodifiedText;
+            let command;
+            if (this.#isMacOS && source.meta) {
+                switch (code) {
+                    case 'KeyA':
+                        command = 'SelectAll';
+                        break;
+                    case 'KeyC':
+                        command = 'Copy';
+                        break;
+                    case 'KeyV':
+                        command = source.shift ? 'PasteAndMatchStyle' : 'Paste';
+                        break;
+                    case 'KeyX':
+                        command = 'Cut';
+                        break;
+                    case 'KeyZ':
+                        command = source.shift ? 'Redo' : 'Undo';
+                        break;
+                }
+            }
+            const promises = [
+                this.#context.cdpTarget.cdpClient.sendCommand('Input.dispatchKeyEvent', {
+                    type: text ? 'keyDown' : 'rawKeyDown',
+                    windowsVirtualKeyCode: KeyToKeyCode[key],
+                    key,
+                    code,
+                    text,
+                    unmodifiedText,
+                    autoRepeat: repeat,
+                    isSystemKey: source.alt || undefined,
+                    location: location < 3 ? location : undefined,
+                    isKeypad: location === 3,
+                    modifiers,
+                    commands: command ? [command] : undefined,
+                }),
+            ];
+            if (key === 'Escape') {
+                if (!source.alt &&
+                    ((this.#isMacOS && !source.ctrl && !source.meta) || !this.#isMacOS)) {
+                    promises.push(this.#context.cdpTarget.cdpClient.sendCommand('Input.cancelDragging'));
+                }
+            }
+            await Promise.all(promises);
+        }
+        #dispatchKeyUpAction(source, action) {
+            const rawKey = action.value;
+            if (!isSingleGrapheme(rawKey)) {
+                throw new InvalidArgumentException(`Invalid key value: ${rawKey}`);
+            }
+            const isGrapheme = isSingleComplexGrapheme(rawKey);
+            const key = getNormalizedKey(rawKey);
+            if (!source.pressed.has(key)) {
+                return;
+            }
+            const code = getKeyCode(rawKey);
+            const location = getKeyLocation(rawKey);
+            switch (key) {
+                case 'Alt':
+                    source.alt = false;
+                    break;
+                case 'Shift':
+                    source.shift = false;
+                    break;
+                case 'Control':
+                    source.ctrl = false;
+                    break;
+                case 'Meta':
+                    source.meta = false;
+                    break;
+            }
+            source.pressed.delete(key);
+            const { modifiers } = source;
+            const unmodifiedText = getKeyEventUnmodifiedText(key, source, isGrapheme);
+            const text = getKeyEventText(code ?? '', source) ?? unmodifiedText;
+            return this.#context.cdpTarget.cdpClient.sendCommand('Input.dispatchKeyEvent', {
+                type: 'keyUp',
+                windowsVirtualKeyCode: KeyToKeyCode[key],
+                key,
+                code,
+                text,
+                unmodifiedText,
+                location: location < 3 ? location : undefined,
+                isSystemKey: source.alt || undefined,
+                isKeypad: location === 3,
+                modifiers,
+            });
+        }
+    }
+    const getKeyEventUnmodifiedText = (key, source, isGrapheme) => {
+        if (isGrapheme) {
+            return key;
+        }
+        if (key === 'Enter') {
+            return '\r';
+        }
+        return [...key].length === 1
+            ? source.shift
+                ? key.toLocaleUpperCase('en-US')
+                : key
+            : undefined;
+    };
+    const getKeyEventText = (code, source) => {
+        if (source.ctrl) {
+            switch (code) {
+                case 'Digit2':
+                    if (source.shift) {
+                        return '\x00';
+                    }
+                    break;
+                case 'KeyA':
+                    return '\x01';
+                case 'KeyB':
+                    return '\x02';
+                case 'KeyC':
+                    return '\x03';
+                case 'KeyD':
+                    return '\x04';
+                case 'KeyE':
+                    return '\x05';
+                case 'KeyF':
+                    return '\x06';
+                case 'KeyG':
+                    return '\x07';
+                case 'KeyH':
+                    return '\x08';
+                case 'KeyI':
+                    return '\x09';
+                case 'KeyJ':
+                    return '\x0A';
+                case 'KeyK':
+                    return '\x0B';
+                case 'KeyL':
+                    return '\x0C';
+                case 'KeyM':
+                    return '\x0D';
+                case 'KeyN':
+                    return '\x0E';
+                case 'KeyO':
+                    return '\x0F';
+                case 'KeyP':
+                    return '\x10';
+                case 'KeyQ':
+                    return '\x11';
+                case 'KeyR':
+                    return '\x12';
+                case 'KeyS':
+                    return '\x13';
+                case 'KeyT':
+                    return '\x14';
+                case 'KeyU':
+                    return '\x15';
+                case 'KeyV':
+                    return '\x16';
+                case 'KeyW':
+                    return '\x17';
+                case 'KeyX':
+                    return '\x18';
+                case 'KeyY':
+                    return '\x19';
+                case 'KeyZ':
+                    return '\x1A';
+                case 'BracketLeft':
+                    return '\x1B';
+                case 'Backslash':
+                    return '\x1C';
+                case 'BracketRight':
+                    return '\x1D';
+                case 'Digit6':
+                    if (source.shift) {
+                        return '\x1E';
+                    }
+                    break;
+                case 'Minus':
+                    return '\x1F';
+            }
+            return '';
+        }
+        if (source.alt) {
+            return '';
+        }
+        return;
+    };
+    function getCdpButton(button) {
+        switch (button) {
+            case 0:
+                return 'left';
+            case 1:
+                return 'middle';
+            case 2:
+                return 'right';
+            case 3:
+                return 'back';
+            case 4:
+                return 'forward';
+            default:
+                return 'none';
+        }
+    }
+    function getTilt(action) {
+        const altitudeAngle = action.altitudeAngle ?? Math.PI / 2;
+        const azimuthAngle = action.azimuthAngle ?? 0;
+        let tiltXRadians = 0;
+        let tiltYRadians = 0;
+        if (altitudeAngle === 0) {
+            if (azimuthAngle === 0 || azimuthAngle === 2 * Math.PI) {
+                tiltXRadians = Math.PI / 2;
+            }
+            if (azimuthAngle === Math.PI / 2) {
+                tiltYRadians = Math.PI / 2;
+            }
+            if (azimuthAngle === Math.PI) {
+                tiltXRadians = -Math.PI / 2;
+            }
+            if (azimuthAngle === (3 * Math.PI) / 2) {
+                tiltYRadians = -Math.PI / 2;
+            }
+            if (azimuthAngle > 0 && azimuthAngle < Math.PI / 2) {
+                tiltXRadians = Math.PI / 2;
+                tiltYRadians = Math.PI / 2;
+            }
+            if (azimuthAngle > Math.PI / 2 && azimuthAngle < Math.PI) {
+                tiltXRadians = -Math.PI / 2;
+                tiltYRadians = Math.PI / 2;
+            }
+            if (azimuthAngle > Math.PI && azimuthAngle < (3 * Math.PI) / 2) {
+                tiltXRadians = -Math.PI / 2;
+                tiltYRadians = -Math.PI / 2;
+            }
+            if (azimuthAngle > (3 * Math.PI) / 2 && azimuthAngle < 2 * Math.PI) {
+                tiltXRadians = Math.PI / 2;
+                tiltYRadians = -Math.PI / 2;
+            }
+        }
+        if (altitudeAngle !== 0) {
+            const tanAlt = Math.tan(altitudeAngle);
+            tiltXRadians = Math.atan(Math.cos(azimuthAngle) / tanAlt);
+            tiltYRadians = Math.atan(Math.sin(azimuthAngle) / tanAlt);
+        }
+        const factor = 180 / Math.PI;
+        return {
+            tiltX: Math.round(tiltXRadians * factor),
+            tiltY: Math.round(tiltYRadians * factor),
+        };
+    }
+    function getRadii(width, height) {
+        return {
+            radiusX: width ? width / 2 : 0.5,
+            radiusY: height ? height / 2 : 0.5,
+        };
+    }
+
+    /**
+     * Copyright 2023 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     * Copyright 2022 The Chromium Authors.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class Mutex {
+        #locked = false;
+        #acquirers = [];
+        acquire() {
+            const state = { resolved: false };
+            if (this.#locked) {
+                return new Promise((resolve) => {
+                    this.#acquirers.push(() => resolve(this.#release.bind(this, state)));
+                });
+            }
+            this.#locked = true;
+            return Promise.resolve(this.#release.bind(this, state));
+        }
+        #release(state) {
+            if (state.resolved) {
+                throw new Error('Cannot release more than once.');
+            }
+            state.resolved = true;
+            const resolve = this.#acquirers.shift();
+            if (!resolve) {
+                this.#locked = false;
+                return;
+            }
+            resolve();
+        }
+        async run(action) {
+            const release = await this.acquire();
+            try {
+                const result = await action();
+                return result;
+            }
+            finally {
+                release();
+            }
+        }
+    }
+
+    /**
+     * Copyright 2023 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class InputState {
+        cancelList = [];
+        #sources = new Map();
+        #mutex = new Mutex();
+        getOrCreate(id, type, subtype) {
+            let source = this.#sources.get(id);
+            if (!source) {
+                switch (type) {
+                    case "none" :
+                        source = new NoneSource();
+                        break;
+                    case "key" :
+                        source = new KeySource();
+                        break;
+                    case "pointer" : {
+                        let pointerId = subtype === "mouse"  ? 0 : 2;
+                        const pointerIds = new Set();
+                        for (const [, source] of this.#sources) {
+                            if (source.type === "pointer" ) {
+                                pointerIds.add(source.pointerId);
+                            }
+                        }
+                        while (pointerIds.has(pointerId)) {
+                            ++pointerId;
+                        }
+                        source = new PointerSource(pointerId, subtype);
+                        break;
+                    }
+                    case "wheel" :
+                        source = new WheelSource();
+                        break;
+                    default:
+                        throw new InvalidArgumentException(`Expected "${"none" }", "${"key" }", "${"pointer" }", or "${"wheel" }". Found unknown source type ${type}.`);
+                }
+                this.#sources.set(id, source);
+                return source;
+            }
+            if (source.type !== type) {
+                throw new InvalidArgumentException(`Input source type of ${id} is ${source.type}, but received ${type}.`);
+            }
+            return source;
+        }
+        get(id) {
+            const source = this.#sources.get(id);
+            if (!source) {
+                throw new UnknownErrorException(`Internal error.`);
+            }
+            return source;
+        }
+        getGlobalKeyState() {
+            const state = new KeySource();
+            for (const [, source] of this.#sources) {
+                if (source.type !== "key" ) {
+                    continue;
+                }
+                for (const pressed of source.pressed) {
+                    state.pressed.add(pressed);
+                }
+                state.alt ||= source.alt;
+                state.ctrl ||= source.ctrl;
+                state.meta ||= source.meta;
+                state.shift ||= source.shift;
+            }
+            return state;
+        }
+        get queue() {
+            return this.#mutex;
+        }
+    }
+
+    /**
+     * Copyright 2023 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class InputStateManager extends WeakMap {
+        get(context) {
+            assert(context.isTopLevelContext());
+            if (!this.has(context)) {
+                this.set(context, new InputState());
+            }
+            return super.get(context);
+        }
+    }
+
+    /*
+     * Copyright 2023 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class InputProcessor {
+        #browsingContextStorage;
+        #inputStateManager = new InputStateManager();
+        constructor(browsingContextStorage) {
+            this.#browsingContextStorage = browsingContextStorage;
+        }
+        async performActions(params) {
+            const context = this.#browsingContextStorage.getContext(params.context);
+            const inputState = this.#inputStateManager.get(context.top);
+            const actionsByTick = this.#getActionsByTick(params, inputState);
+            const dispatcher = new ActionDispatcher(inputState, this.#browsingContextStorage, params.context, await ActionDispatcher.isMacOS(context).catch(() => false));
+            await dispatcher.dispatchActions(actionsByTick);
+            return {};
+        }
+        async releaseActions(params) {
+            const context = this.#browsingContextStorage.getContext(params.context);
+            const topContext = context.top;
+            const inputState = this.#inputStateManager.get(topContext);
+            const dispatcher = new ActionDispatcher(inputState, this.#browsingContextStorage, params.context, await ActionDispatcher.isMacOS(context).catch(() => false));
+            await dispatcher.dispatchTickActions(inputState.cancelList.reverse());
+            this.#inputStateManager.delete(topContext);
+            return {};
+        }
+        async setFiles(params) {
+            const context = this.#browsingContextStorage.getContext(params.context);
+            const realm = await context.getOrCreateSandbox(undefined);
+            let result;
+            try {
+                result = await realm.callFunction(String(function getFiles(fileListLength) {
+                    if (!(this instanceof HTMLInputElement)) {
+                        if (this instanceof Element) {
+                            return 1 ;
+                        }
+                        return 0 ;
+                    }
+                    if (this.type !== 'file') {
+                        return 2 ;
+                    }
+                    if (this.disabled) {
+                        return 3 ;
+                    }
+                    if (fileListLength > 1 && !this.multiple) {
+                        return 4 ;
+                    }
+                    return;
+                }), false, params.element, [{ type: 'number', value: params.files.length }]);
+            }
+            catch {
+                throw new NoSuchNodeException(`Could not find element ${params.element.sharedId}`);
+            }
+            assert(result.type === 'success');
+            if (result.result.type === 'number') {
+                switch (result.result.value) {
+                    case 0 : {
+                        throw new NoSuchElementException(`Could not find element ${params.element.sharedId}`);
+                    }
+                    case 1 : {
+                        throw new UnableToSetFileInputException(`Element ${params.element.sharedId} is not a input`);
+                    }
+                    case 2 : {
+                        throw new UnableToSetFileInputException(`Input element ${params.element.sharedId} is not a file type`);
+                    }
+                    case 3 : {
+                        throw new UnableToSetFileInputException(`Input element ${params.element.sharedId} is disabled`);
+                    }
+                    case 4 : {
+                        throw new UnableToSetFileInputException(`Cannot set multiple files on a non-multiple input element`);
+                    }
+                }
+            }
+            if (params.files.length === 0) {
+                await realm.callFunction(String(function dispatchEvent() {
+                    if (this.files?.length === 0) {
+                        this.dispatchEvent(new Event('cancel', {
+                            bubbles: true,
+                        }));
+                        return;
+                    }
+                    this.files = new DataTransfer().files;
+                    this.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+                    this.dispatchEvent(new Event('change', { bubbles: true }));
+                }), false, params.element);
+                return {};
+            }
+            const paths = [];
+            for (let i = 0; i < params.files.length; ++i) {
+                const result = await realm.callFunction(String(function getFiles(index) {
+                    return this.files?.item(index);
+                }), false, params.element, [{ type: 'number', value: 0 }], "root" );
+                assert(result.type === 'success');
+                if (result.result.type !== 'object') {
+                    break;
+                }
+                const { handle } = result.result;
+                assert(handle !== undefined);
+                const { path } = await realm.cdpClient.sendCommand('DOM.getFileInfo', {
+                    objectId: handle,
+                });
+                paths.push(path);
+                void realm.disown(handle).catch(undefined);
+            }
+            paths.sort();
+            const sortedFiles = [...params.files].sort();
+            if (paths.length !== params.files.length ||
+                sortedFiles.some((path, index) => {
+                    return paths[index] !== path;
+                })) {
+                const { objectId } = await realm.deserializeForCdp(params.element);
+                assert(objectId !== undefined);
+                await realm.cdpClient.sendCommand('DOM.setFileInputFiles', {
+                    files: params.files,
+                    objectId,
+                });
+            }
+            else {
+                await realm.callFunction(String(function dispatchEvent() {
+                    this.dispatchEvent(new Event('cancel', {
+                        bubbles: true,
+                    }));
+                }), false, params.element);
+            }
+            return {};
+        }
+        #getActionsByTick(params, inputState) {
+            const actionsByTick = [];
+            for (const action of params.actions) {
+                switch (action.type) {
+                    case "pointer" : {
+                        action.parameters ??= { pointerType: "mouse"  };
+                        action.parameters.pointerType ??= "mouse" ;
+                        const source = inputState.getOrCreate(action.id, "pointer" , action.parameters.pointerType);
+                        if (source.subtype !== action.parameters.pointerType) {
+                            throw new InvalidArgumentException(`Expected input source ${action.id} to be ${source.subtype}; got ${action.parameters.pointerType}.`);
+                        }
+                        source.resetClickCount();
+                        break;
+                    }
+                    default:
+                        inputState.getOrCreate(action.id, action.type);
+                }
+                const actions = action.actions.map((item) => ({
+                    id: action.id,
+                    action: item,
+                }));
+                for (let i = 0; i < actions.length; i++) {
+                    if (actionsByTick.length === i) {
+                        actionsByTick.push([]);
+                    }
+                    actionsByTick[i].push(actions[i]);
+                }
+            }
+            return actionsByTick;
+        }
+    }
+
+    /**
+     * Copyright 2024 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    function base64ToString(base64Str) {
+        if ('atob' in globalThis) {
+            return globalThis.atob(base64Str);
+        }
+        return Buffer.from(base64Str, 'base64').toString('ascii');
+    }
+
+    /*
+     * Copyright 2023 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     *
+     */
+    function computeHeadersSize(headers) {
+        const requestHeaders = headers.reduce((acc, header) => {
+            return `${acc}${header.name}: ${header.value.value}\r\n`;
+        }, '');
+        return new TextEncoder().encode(requestHeaders).length;
+    }
+    function stringToBase64(str) {
+        return typedArrayToBase64(new TextEncoder().encode(str));
+    }
+    function typedArrayToBase64(typedArray) {
+        const chunkSize = 65534;
+        const chunks = [];
+        for (let i = 0; i < typedArray.length; i += chunkSize) {
+            const chunk = typedArray.subarray(i, i + chunkSize);
+            chunks.push(String.fromCodePoint.apply(null, chunk));
+        }
+        const binaryString = chunks.join('');
+        return btoa(binaryString);
+    }
+    function bidiNetworkHeadersFromCdpNetworkHeaders(headers) {
+        if (!headers) {
+            return [];
+        }
+        return Object.entries(headers).map(([name, value]) => ({
+            name,
+            value: {
+                type: 'string',
+                value,
+            },
+        }));
+    }
+    function cdpFetchHeadersFromBidiNetworkHeaders(headers) {
+        if (headers === undefined) {
+            return undefined;
+        }
+        return headers.map(({ name, value }) => ({
+            name,
+            value: value.value,
+        }));
+    }
+    function networkHeaderFromCookieHeaders(headers) {
+        if (headers === undefined) {
+            return undefined;
+        }
+        const value = headers.reduce((acc, value, index) => {
+            if (index > 0) {
+                acc += ';';
+            }
+            const cookieValue = value.value.type === 'base64'
+                ? btoa(value.value.value)
+                : value.value.value;
+            acc += `${value.name}=${cookieValue}`;
+            return acc;
+        }, '');
+        return {
+            name: 'Cookie',
+            value: {
+                type: 'string',
+                value,
+            },
+        };
+    }
+    function cdpAuthChallengeResponseFromBidiAuthContinueWithAuthAction(action) {
+        switch (action) {
+            case 'default':
+                return 'Default';
+            case 'cancel':
+                return 'CancelAuth';
+            case 'provideCredentials':
+                return 'ProvideCredentials';
+        }
+    }
+    function cdpToBiDiCookie(cookie) {
+        const result = {
+            name: cookie.name,
+            value: { type: 'string', value: cookie.value },
+            domain: cookie.domain,
+            path: cookie.path,
+            size: cookie.size,
+            httpOnly: cookie.httpOnly,
+            secure: cookie.secure,
+            sameSite: cookie.sameSite === undefined
+                ? "none"
+                : sameSiteCdpToBiDi(cookie.sameSite),
+            ...(cookie.expires >= 0 ? { expiry: cookie.expires } : undefined),
+        };
+        result[`goog:session`] = cookie.session;
+        result[`goog:priority`] = cookie.priority;
+        result[`goog:sameParty`] = cookie.sameParty;
+        result[`goog:sourceScheme`] = cookie.sourceScheme;
+        result[`goog:sourcePort`] = cookie.sourcePort;
+        if (cookie.partitionKey !== undefined) {
+            result[`goog:partitionKey`] = cookie.partitionKey;
+        }
+        if (cookie.partitionKeyOpaque !== undefined) {
+            result[`goog:partitionKeyOpaque`] = cookie.partitionKeyOpaque;
+        }
+        return result;
+    }
+    function deserializeByteValue(value) {
+        if (value.type === 'base64') {
+            return base64ToString(value.value);
+        }
+        return value.value;
+    }
+    function bidiToCdpCookie(params, partitionKey) {
+        const deserializedValue = deserializeByteValue(params.cookie.value);
+        const result = {
+            name: params.cookie.name,
+            value: deserializedValue,
+            domain: params.cookie.domain,
+            path: params.cookie.path ?? '/',
+            secure: params.cookie.secure ?? false,
+            httpOnly: params.cookie.httpOnly ?? false,
+            ...(partitionKey.sourceOrigin !== undefined && {
+                partitionKey: {
+                    hasCrossSiteAncestor: false,
+                    topLevelSite: partitionKey.sourceOrigin,
+                },
+            }),
+            ...(params.cookie.expiry !== undefined && {
+                expires: params.cookie.expiry,
+            }),
+            ...(params.cookie.sameSite !== undefined && {
+                sameSite: sameSiteBiDiToCdp(params.cookie.sameSite),
+            }),
+        };
+        if (params.cookie[`goog:url`] !== undefined) {
+            result.url = params.cookie[`goog:url`];
+        }
+        if (params.cookie[`goog:priority`] !== undefined) {
+            result.priority = params.cookie[`goog:priority`];
+        }
+        if (params.cookie[`goog:sameParty`] !== undefined) {
+            result.sameParty = params.cookie[`goog:sameParty`];
+        }
+        if (params.cookie[`goog:sourceScheme`] !== undefined) {
+            result.sourceScheme = params.cookie[`goog:sourceScheme`];
+        }
+        if (params.cookie[`goog:sourcePort`] !== undefined) {
+            result.sourcePort = params.cookie[`goog:sourcePort`];
+        }
+        return result;
+    }
+    function sameSiteCdpToBiDi(sameSite) {
+        switch (sameSite) {
+            case 'Strict':
+                return "strict" ;
+            case 'None':
+                return "none" ;
+            case 'Lax':
+                return "lax" ;
+            default:
+                return "lax" ;
+        }
+    }
+    function sameSiteBiDiToCdp(sameSite) {
+        switch (sameSite) {
+            case "strict" :
+                return 'Strict';
+            case "lax" :
+                return 'Lax';
+            case "none" :
+                return 'None';
+        }
+        throw new InvalidArgumentException(`Unknown 'sameSite' value ${sameSite}`);
+    }
+    function isSpecialScheme(protocol) {
+        return ['ftp', 'file', 'http', 'https', 'ws', 'wss'].includes(protocol.replace(/:$/, ''));
+    }
+    function getScheme(url) {
+        return url.protocol.replace(/:$/, '');
+    }
+    function matchUrlPattern(pattern, url) {
+        const parsedUrl = new URL(url);
+        if (pattern.protocol !== undefined &&
+            pattern.protocol !== getScheme(parsedUrl)) {
+            return false;
+        }
+        if (pattern.hostname !== undefined &&
+            pattern.hostname !== parsedUrl.hostname) {
+            return false;
+        }
+        if (pattern.port !== undefined && pattern.port !== parsedUrl.port) {
+            return false;
+        }
+        if (pattern.pathname !== undefined &&
+            pattern.pathname !== parsedUrl.pathname) {
+            return false;
+        }
+        if (pattern.search !== undefined && pattern.search !== parsedUrl.search) {
+            return false;
+        }
+        return true;
+    }
+    function bidiBodySizeFromCdpPostDataEntries(entries) {
+        let size = 0;
+        for (const entry of entries) {
+            size += atob(entry.bytes ?? '').length;
+        }
+        return size;
+    }
+    function getTiming(timing, offset = 0) {
+        if (!timing) {
+            return 0;
+        }
+        if (timing <= 0 || timing + offset <= 0) {
+            return 0;
+        }
+        return timing + offset;
+    }
+
+    /**
+     * Copyright 2023 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class NetworkProcessor {
+        #browsingContextStorage;
+        #networkStorage;
+        constructor(browsingContextStorage, networkStorage) {
+            this.#browsingContextStorage = browsingContextStorage;
+            this.#networkStorage = networkStorage;
+        }
+        async addIntercept(params) {
+            this.#browsingContextStorage.verifyTopLevelContextsList(params.contexts);
+            const urlPatterns = params.urlPatterns ?? [];
+            const parsedUrlPatterns = NetworkProcessor.parseUrlPatterns(urlPatterns);
+            const intercept = this.#networkStorage.addIntercept({
+                urlPatterns: parsedUrlPatterns,
+                phases: params.phases,
+                contexts: params.contexts,
+            });
+            await Promise.all(this.#browsingContextStorage.getAllContexts().map((context) => {
+                return context.cdpTarget.toggleNetwork();
+            }));
+            return {
+                intercept,
+            };
+        }
+        async continueRequest(params) {
+            if (params.url !== undefined) {
+                NetworkProcessor.parseUrlString(params.url);
+            }
+            if (params.method !== undefined) {
+                if (!NetworkProcessor.isMethodValid(params.method)) {
+                    throw new InvalidArgumentException(`Method '${params.method}' is invalid.`);
+                }
+            }
+            if (params.headers) {
+                NetworkProcessor.validateHeaders(params.headers);
+            }
+            const request = this.#getBlockedRequestOrFail(params.request, [
+                "beforeRequestSent" ,
+            ]);
+            try {
+                await request.continueRequest(params);
+            }
+            catch (error) {
+                throw NetworkProcessor.wrapInterceptionError(error);
+            }
+            return {};
+        }
+        async continueResponse(params) {
+            if (params.headers) {
+                NetworkProcessor.validateHeaders(params.headers);
+            }
+            const request = this.#getBlockedRequestOrFail(params.request, [
+                "authRequired" ,
+                "responseStarted" ,
+            ]);
+            try {
+                await request.continueResponse(params);
+            }
+            catch (error) {
+                throw NetworkProcessor.wrapInterceptionError(error);
+            }
+            return {};
+        }
+        async continueWithAuth(params) {
+            const networkId = params.request;
+            const request = this.#getBlockedRequestOrFail(networkId, [
+                "authRequired" ,
+            ]);
+            await request.continueWithAuth(params);
+            return {};
+        }
+        async failRequest({ request: networkId, }) {
+            const request = this.#getRequestOrFail(networkId);
+            if (request.interceptPhase === "authRequired" ) {
+                throw new InvalidArgumentException(`Request '${networkId}' in 'authRequired' phase cannot be failed`);
+            }
+            if (!request.interceptPhase) {
+                throw new NoSuchRequestException(`No blocked request found for network id '${networkId}'`);
+            }
+            await request.failRequest('Failed');
+            return {};
+        }
+        async provideResponse(params) {
+            if (params.headers) {
+                NetworkProcessor.validateHeaders(params.headers);
+            }
+            const request = this.#getBlockedRequestOrFail(params.request, [
+                "beforeRequestSent" ,
+                "responseStarted" ,
+                "authRequired" ,
+            ]);
+            try {
+                await request.provideResponse(params);
+            }
+            catch (error) {
+                throw NetworkProcessor.wrapInterceptionError(error);
+            }
+            return {};
+        }
+        async removeIntercept(params) {
+            this.#networkStorage.removeIntercept(params.intercept);
+            await Promise.all(this.#browsingContextStorage.getAllContexts().map((context) => {
+                return context.cdpTarget.toggleNetwork();
+            }));
+            return {};
+        }
+        async setCacheBehavior(params) {
+            const contexts = this.#browsingContextStorage.verifyTopLevelContextsList(params.contexts);
+            if (contexts.size === 0) {
+                this.#networkStorage.defaultCacheBehavior = params.cacheBehavior;
+                await Promise.all(this.#browsingContextStorage.getAllContexts().map((context) => {
+                    return context.cdpTarget.toggleSetCacheDisabled();
+                }));
+                return {};
+            }
+            const cacheDisabled = params.cacheBehavior === 'bypass';
+            await Promise.all([...contexts.values()].map((context) => {
+                return context.cdpTarget.toggleSetCacheDisabled(cacheDisabled);
+            }));
+            return {};
+        }
+        #getRequestOrFail(id) {
+            const request = this.#networkStorage.getRequestById(id);
+            if (!request) {
+                throw new NoSuchRequestException(`Network request with ID '${id}' doesn't exist`);
+            }
+            return request;
+        }
+        #getBlockedRequestOrFail(id, phases) {
+            const request = this.#getRequestOrFail(id);
+            if (!request.interceptPhase) {
+                throw new NoSuchRequestException(`No blocked request found for network id '${id}'`);
+            }
+            if (request.interceptPhase && !phases.includes(request.interceptPhase)) {
+                throw new InvalidArgumentException(`Blocked request for network id '${id}' is in '${request.interceptPhase}' phase`);
+            }
+            return request;
+        }
+        static validateHeaders(headers) {
+            for (const header of headers) {
+                let headerValue;
+                if (header.value.type === 'string') {
+                    headerValue = header.value.value;
+                }
+                else {
+                    headerValue = atob(header.value.value);
+                }
+                if (headerValue !== headerValue.trim() ||
+                    headerValue.includes('\n') ||
+                    headerValue.includes('\0')) {
+                    throw new InvalidArgumentException(`Header value '${headerValue}' is not acceptable value`);
+                }
+            }
+        }
+        static isMethodValid(method) {
+            return /^[!#$%&'*+\-.^_`|~a-zA-Z\d]+$/.test(method);
+        }
+        static parseUrlString(url) {
+            try {
+                return new URL(url);
+            }
+            catch (error) {
+                throw new InvalidArgumentException(`Invalid URL '${url}': ${error}`);
+            }
+        }
+        static parseUrlPatterns(urlPatterns) {
+            return urlPatterns.map((urlPattern) => {
+                let patternUrl = '';
+                let hasProtocol = true;
+                let hasHostname = true;
+                let hasPort = true;
+                let hasPathname = true;
+                let hasSearch = true;
+                switch (urlPattern.type) {
+                    case 'string': {
+                        patternUrl = unescapeURLPattern(urlPattern.pattern);
+                        break;
+                    }
+                    case 'pattern': {
+                        if (urlPattern.protocol === undefined) {
+                            hasProtocol = false;
+                            patternUrl += 'http';
+                        }
+                        else {
+                            if (urlPattern.protocol === '') {
+                                throw new InvalidArgumentException('URL pattern must specify a protocol');
+                            }
+                            urlPattern.protocol = unescapeURLPattern(urlPattern.protocol);
+                            if (!urlPattern.protocol.match(/^[a-zA-Z+-.]+$/)) {
+                                throw new InvalidArgumentException('Forbidden characters');
+                            }
+                            patternUrl += urlPattern.protocol;
+                        }
+                        const scheme = patternUrl.toLocaleLowerCase();
+                        patternUrl += ':';
+                        if (isSpecialScheme(scheme)) {
+                            patternUrl += '//';
+                        }
+                        if (urlPattern.hostname === undefined) {
+                            if (scheme !== 'file') {
+                                patternUrl += 'placeholder';
+                            }
+                            hasHostname = false;
+                        }
+                        else {
+                            if (urlPattern.hostname === '') {
+                                throw new InvalidArgumentException('URL pattern must specify a hostname');
+                            }
+                            if (urlPattern.protocol === 'file') {
+                                throw new InvalidArgumentException(`URL pattern protocol cannot be 'file'`);
+                            }
+                            urlPattern.hostname = unescapeURLPattern(urlPattern.hostname);
+                            let insideBrackets = false;
+                            for (const c of urlPattern.hostname) {
+                                if (c === '/' || c === '?' || c === '#') {
+                                    throw new InvalidArgumentException(`'/', '?', '#' are forbidden in hostname`);
+                                }
+                                if (!insideBrackets && c === ':') {
+                                    throw new InvalidArgumentException(`':' is only allowed inside brackets in hostname`);
+                                }
+                                if (c === '[') {
+                                    insideBrackets = true;
+                                }
+                                if (c === ']') {
+                                    insideBrackets = false;
+                                }
+                            }
+                            patternUrl += urlPattern.hostname;
+                        }
+                        if (urlPattern.port === undefined) {
+                            hasPort = false;
+                        }
+                        else {
+                            if (urlPattern.port === '') {
+                                throw new InvalidArgumentException(`URL pattern must specify a port`);
+                            }
+                            urlPattern.port = unescapeURLPattern(urlPattern.port);
+                            patternUrl += ':';
+                            if (!urlPattern.port.match(/^\d+$/)) {
+                                throw new InvalidArgumentException('Forbidden characters');
+                            }
+                            patternUrl += urlPattern.port;
+                        }
+                        if (urlPattern.pathname === undefined) {
+                            hasPathname = false;
+                        }
+                        else {
+                            urlPattern.pathname = unescapeURLPattern(urlPattern.pathname);
+                            if (urlPattern.pathname[0] !== '/') {
+                                patternUrl += '/';
+                            }
+                            if (urlPattern.pathname.includes('#') ||
+                                urlPattern.pathname.includes('?')) {
+                                throw new InvalidArgumentException('Forbidden characters');
+                            }
+                            patternUrl += urlPattern.pathname;
+                        }
+                        if (urlPattern.search === undefined) {
+                            hasSearch = false;
+                        }
+                        else {
+                            urlPattern.search = unescapeURLPattern(urlPattern.search);
+                            if (urlPattern.search[0] !== '?') {
+                                patternUrl += '?';
+                            }
+                            if (urlPattern.search.includes('#')) {
+                                throw new InvalidArgumentException('Forbidden characters');
+                            }
+                            patternUrl += urlPattern.search;
+                        }
+                        break;
+                    }
+                }
+                const serializePort = (url) => {
+                    const defaultPorts = {
+                        'ftp:': 21,
+                        'file:': null,
+                        'http:': 80,
+                        'https:': 443,
+                        'ws:': 80,
+                        'wss:': 443,
+                    };
+                    if (isSpecialScheme(url.protocol) &&
+                        defaultPorts[url.protocol] !== null &&
+                        (!url.port || String(defaultPorts[url.protocol]) === url.port)) {
+                        return '';
+                    }
+                    else if (url.port) {
+                        return url.port;
+                    }
+                    return undefined;
+                };
+                try {
+                    const url = new URL(patternUrl);
+                    return {
+                        protocol: hasProtocol ? url.protocol.replace(/:$/, '') : undefined,
+                        hostname: hasHostname ? url.hostname : undefined,
+                        port: hasPort ? serializePort(url) : undefined,
+                        pathname: hasPathname && url.pathname ? url.pathname : undefined,
+                        search: hasSearch ? url.search : undefined,
+                    };
+                }
+                catch (err) {
+                    throw new InvalidArgumentException(`${err.message} '${patternUrl}'`);
+                }
+            });
+        }
+        static wrapInterceptionError(error) {
+            if (error?.message.includes('Invalid header') ||
+                error?.message.includes('Unsafe header')) {
+                return new InvalidArgumentException(error.message);
+            }
+            return error;
+        }
+    }
+    function unescapeURLPattern(pattern) {
+        const forbidden = new Set(['(', ')', '*', '{', '}']);
+        let result = '';
+        let isEscaped = false;
+        for (const c of pattern) {
+            if (!isEscaped) {
+                if (forbidden.has(c)) {
+                    throw new InvalidArgumentException('Forbidden characters');
+                }
+                if (c === '\\') {
+                    isEscaped = true;
+                    continue;
+                }
+            }
+            result += c;
+            isEscaped = false;
+        }
+        return result;
+    }
+
+    /**
+     * Copyright 2024 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class PermissionsProcessor {
+        #browserCdpClient;
+        constructor(browserCdpClient) {
+            this.#browserCdpClient = browserCdpClient;
+        }
+        async setPermissions(params) {
+            try {
+                const userContextId = params['goog:userContext'] ||
+                    params.userContext;
+                await this.#browserCdpClient.sendCommand('Browser.setPermission', {
+                    origin: params.origin,
+                    browserContextId: userContextId && userContextId !== 'default'
+                        ? userContextId
+                        : undefined,
+                    permission: {
+                        name: params.descriptor.name,
+                    },
+                    setting: params.state,
+                });
+            }
+            catch (err) {
+                if (err.message ===
+                    `Permission can't be granted to opaque origins.`) {
+                    return {};
+                }
+                throw new InvalidArgumentException(err.message);
+            }
+            return {};
+        }
+    }
+
+    /**
+     * Copyright 2023 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    function bytesToHex(bytes) {
+        return bytes.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '');
+    }
+    function uuidv4() {
+        if ('crypto' in globalThis && 'randomUUID' in globalThis.crypto) {
+            return globalThis.crypto.randomUUID();
+        }
+        const randomValues = new Uint8Array(16);
+        if ('crypto' in globalThis && 'getRandomValues' in globalThis.crypto) {
+            globalThis.crypto.getRandomValues(randomValues);
+        }
+        else {
+            require('crypto').webcrypto.getRandomValues(randomValues);
+        }
+        randomValues[6] = (randomValues[6] & 0x0f) | 0x40;
+        randomValues[8] = (randomValues[8] & 0x3f) | 0x80;
+        return [
+            bytesToHex(randomValues.subarray(0, 4)),
+            bytesToHex(randomValues.subarray(4, 6)),
+            bytesToHex(randomValues.subarray(6, 8)),
+            bytesToHex(randomValues.subarray(8, 10)),
+            bytesToHex(randomValues.subarray(10, 16)),
+        ].join('-');
+    }
+
+    /*
+     * Copyright 2023 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     *
+     */
+    class ChannelProxy {
+        #properties;
+        #id = uuidv4();
+        #logger;
+        constructor(channel, logger) {
+            this.#properties = channel;
+            this.#logger = logger;
+        }
+        async init(realm, eventManager) {
+            const channelHandle = await ChannelProxy.#createAndGetHandleInRealm(realm);
+            const sendMessageHandle = await ChannelProxy.#createSendMessageHandle(realm, channelHandle);
+            void this.#startListener(realm, channelHandle, eventManager);
+            return sendMessageHandle;
+        }
+        async startListenerFromWindow(realm, eventManager) {
+            try {
+                const channelHandle = await this.#getHandleFromWindow(realm);
+                void this.#startListener(realm, channelHandle, eventManager);
+            }
+            catch (error) {
+                this.#logger?.(LogType.debugError, error);
+            }
+        }
+        static #createChannelProxyEvalStr() {
+            const functionStr = String(() => {
+                const queue = [];
+                let queueNonEmptyResolver = null;
+                return {
+                    async getMessage() {
+                        const onMessage = queue.length > 0
+                            ? Promise.resolve()
+                            : new Promise((resolve) => {
+                                queueNonEmptyResolver = resolve;
+                            });
+                        await onMessage;
+                        return queue.shift();
+                    },
+                    sendMessage(message) {
+                        queue.push(message);
+                        if (queueNonEmptyResolver !== null) {
+                            queueNonEmptyResolver();
+                            queueNonEmptyResolver = null;
+                        }
+                    },
+                };
+            });
+            return `(${functionStr})()`;
+        }
+        static async #createAndGetHandleInRealm(realm) {
+            const createChannelHandleResult = await realm.cdpClient.sendCommand('Runtime.evaluate', {
+                expression: this.#createChannelProxyEvalStr(),
+                contextId: realm.executionContextId,
+                serializationOptions: {
+                    serialization: "idOnly" ,
+                },
+            });
+            if (createChannelHandleResult.exceptionDetails ||
+                createChannelHandleResult.result.objectId === undefined) {
+                throw new Error(`Cannot create channel`);
+            }
+            return createChannelHandleResult.result.objectId;
+        }
+        static async #createSendMessageHandle(realm, channelHandle) {
+            const sendMessageArgResult = await realm.cdpClient.sendCommand('Runtime.callFunctionOn', {
+                functionDeclaration: String((channelHandle) => {
+                    return channelHandle.sendMessage;
+                }),
+                arguments: [{ objectId: channelHandle }],
+                executionContextId: realm.executionContextId,
+                serializationOptions: {
+                    serialization: "idOnly" ,
+                },
+            });
+            return sendMessageArgResult.result.objectId;
+        }
+        async #startListener(realm, channelHandle, eventManager) {
+            for (;;) {
+                try {
+                    const message = await realm.cdpClient.sendCommand('Runtime.callFunctionOn', {
+                        functionDeclaration: String(async (channelHandle) => await channelHandle.getMessage()),
+                        arguments: [
+                            {
+                                objectId: channelHandle,
+                            },
+                        ],
+                        awaitPromise: true,
+                        executionContextId: realm.executionContextId,
+                        serializationOptions: {
+                            serialization: "deep" ,
+                            maxDepth: this.#properties.serializationOptions?.maxObjectDepth ??
+                                undefined,
+                        },
+                    });
+                    if (message.exceptionDetails) {
+                        throw new Error('Runtime.callFunctionOn in ChannelProxy', {
+                            cause: message.exceptionDetails,
+                        });
+                    }
+                    for (const browsingContext of realm.associatedBrowsingContexts) {
+                        eventManager.registerEvent({
+                            type: 'event',
+                            method: Script$2.EventNames.Message,
+                            params: {
+                                channel: this.#properties.channel,
+                                data: realm.cdpToBidiValue(message, this.#properties.ownership ?? "none" ),
+                                source: realm.source,
+                            },
+                        }, browsingContext.id);
+                    }
+                }
+                catch (error) {
+                    this.#logger?.(LogType.debugError, error);
+                    break;
+                }
+            }
+        }
+        async #getHandleFromWindow(realm) {
+            const channelHandleResult = await realm.cdpClient.sendCommand('Runtime.callFunctionOn', {
+                functionDeclaration: String((id) => {
+                    const w = window;
+                    if (w[id] === undefined) {
+                        return new Promise((resolve) => (w[id] = resolve));
+                    }
+                    const channelProxy = w[id];
+                    delete w[id];
+                    return channelProxy;
+                }),
+                arguments: [{ value: this.#id }],
+                executionContextId: realm.executionContextId,
+                awaitPromise: true,
+                serializationOptions: {
+                    serialization: "idOnly" ,
+                },
+            });
+            if (channelHandleResult.exceptionDetails !== undefined ||
+                channelHandleResult.result.objectId === undefined) {
+                throw new Error(`ChannelHandle not found in window["${this.#id}"]`);
+            }
+            return channelHandleResult.result.objectId;
+        }
+        getEvalInWindowStr() {
+            const delegate = String((id, channelProxy) => {
+                const w = window;
+                if (w[id] === undefined) {
+                    w[id] = channelProxy;
+                }
+                else {
+                    w[id](channelProxy);
+                    delete w[id];
+                }
+                return channelProxy.sendMessage;
+            });
+            const channelProxyEval = ChannelProxy.#createChannelProxyEvalStr();
+            return `(${delegate})('${this.#id}',${channelProxyEval})`;
+        }
+    }
+
+    /*
+     * Copyright 2023 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     *
+     */
+    class PreloadScript {
+        #id = uuidv4();
+        #cdpPreloadScripts = [];
+        #functionDeclaration;
+        #targetIds = new Set();
+        #channels;
+        #sandbox;
+        #contexts;
+        #userContexts;
+        get id() {
+            return this.#id;
+        }
+        get targetIds() {
+            return this.#targetIds;
+        }
+        constructor(params, logger) {
+            this.#channels =
+                params.arguments?.map((a) => new ChannelProxy(a.value, logger)) ?? [];
+            this.#functionDeclaration = params.functionDeclaration;
+            this.#sandbox = params.sandbox;
+            this.#contexts = params.contexts;
+            this.#userContexts = params.userContexts;
+        }
+        get channels() {
+            return this.#channels;
+        }
+        get contexts() {
+            return this.#contexts;
+        }
+        get userContexts() {
+            return this.#userContexts;
+        }
+        #getEvaluateString() {
+            const channelsArgStr = `[${this.channels
+            .map((c) => c.getEvalInWindowStr())
+            .join(', ')}]`;
+            return `(()=>{(${this.#functionDeclaration})(...${channelsArgStr})})()`;
+        }
+        async initInTargets(cdpTargets, runImmediately) {
+            await Promise.all(Array.from(cdpTargets).map((cdpTarget) => this.initInTarget(cdpTarget, runImmediately)));
+        }
+        async initInTarget(cdpTarget, runImmediately) {
+            const addCdpPreloadScriptResult = await cdpTarget.cdpClient.sendCommand('Page.addScriptToEvaluateOnNewDocument', {
+                source: this.#getEvaluateString(),
+                worldName: this.#sandbox,
+                runImmediately,
+            });
+            this.#cdpPreloadScripts.push({
+                target: cdpTarget,
+                preloadScriptId: addCdpPreloadScriptResult.identifier,
+            });
+            this.#targetIds.add(cdpTarget.id);
+        }
+        async remove() {
+            await Promise.all([
+                this.#cdpPreloadScripts.map(async (cdpPreloadScript) => {
+                    const cdpTarget = cdpPreloadScript.target;
+                    const cdpPreloadScriptId = cdpPreloadScript.preloadScriptId;
+                    return await cdpTarget.cdpClient.sendCommand('Page.removeScriptToEvaluateOnNewDocument', {
+                        identifier: cdpPreloadScriptId,
+                    });
+                }),
+            ]);
+        }
+        dispose(cdpTargetId) {
+            this.#cdpPreloadScripts = this.#cdpPreloadScripts.filter((cdpPreloadScript) => cdpPreloadScript.target?.id !== cdpTargetId);
+            this.#targetIds.delete(cdpTargetId);
+        }
+    }
+
+    /**
+     * Copyright 2023 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class ScriptProcessor {
+        #eventManager;
+        #browsingContextStorage;
+        #realmStorage;
+        #preloadScriptStorage;
+        #userContextStorage;
+        #logger;
+        constructor(eventManager, browsingContextStorage, realmStorage, preloadScriptStorage, userContextStorage, logger) {
+            this.#browsingContextStorage = browsingContextStorage;
+            this.#realmStorage = realmStorage;
+            this.#preloadScriptStorage = preloadScriptStorage;
+            this.#userContextStorage = userContextStorage;
+            this.#logger = logger;
+            this.#eventManager = eventManager;
+            this.#eventManager.addSubscribeHook(Script$2.EventNames.RealmCreated, this.#onRealmCreatedSubscribeHook.bind(this));
+        }
+        #onRealmCreatedSubscribeHook(contextId) {
+            const context = this.#browsingContextStorage.getContext(contextId);
+            const contextsToReport = [
+                context,
+                ...this.#browsingContextStorage.getContext(contextId).allChildren,
+            ];
+            const realms = new Set();
+            for (const reportContext of contextsToReport) {
+                const realmsForContext = this.#realmStorage.findRealms({
+                    browsingContextId: reportContext.id,
+                });
+                for (const realm of realmsForContext) {
+                    realms.add(realm);
+                }
+            }
+            for (const realm of realms) {
+                this.#eventManager.registerEvent({
+                    type: 'event',
+                    method: Script$2.EventNames.RealmCreated,
+                    params: realm.realmInfo,
+                }, context.id);
+            }
+            return Promise.resolve();
+        }
+        async addPreloadScript(params) {
+            if (params.userContexts?.length && params.contexts?.length) {
+                throw new InvalidArgumentException('Both userContexts and contexts cannot be specified.');
+            }
+            const userContexts = await this.#userContextStorage.verifyUserContextIdList(params.userContexts ?? []);
+            const browsingContexts = this.#browsingContextStorage.verifyTopLevelContextsList(params.contexts);
+            const preloadScript = new PreloadScript(params, this.#logger);
+            this.#preloadScriptStorage.add(preloadScript);
+            let contextsToRunIn = [];
+            if (userContexts.size) {
+                contextsToRunIn = this.#browsingContextStorage
+                    .getTopLevelContexts()
+                    .filter((context) => {
+                    return userContexts.has(context.userContext);
+                });
+            }
+            else if (browsingContexts.size) {
+                contextsToRunIn = [...browsingContexts.values()];
+            }
+            else {
+                contextsToRunIn = this.#browsingContextStorage.getTopLevelContexts();
+            }
+            const cdpTargets = new Set(contextsToRunIn.map((context) => context.cdpTarget));
+            await preloadScript.initInTargets(cdpTargets, false);
+            return {
+                script: preloadScript.id,
+            };
+        }
+        async removePreloadScript(params) {
+            const { script: id } = params;
+            const script = this.#preloadScriptStorage.getPreloadScript(id);
+            await script.remove();
+            this.#preloadScriptStorage.remove(id);
+            return {};
+        }
+        async callFunction(params) {
+            const realm = await this.#getRealm(params.target);
+            return await realm.callFunction(params.functionDeclaration, params.awaitPromise, params.this, params.arguments, params.resultOwnership, params.serializationOptions, params.userActivation);
+        }
+        async evaluate(params) {
+            const realm = await this.#getRealm(params.target);
+            return await realm.evaluate(params.expression, params.awaitPromise, params.resultOwnership, params.serializationOptions, params.userActivation);
+        }
+        async disown(params) {
+            const realm = await this.#getRealm(params.target);
+            await Promise.all(params.handles.map(async (handle) => await realm.disown(handle)));
+            return {};
+        }
+        getRealms(params) {
+            if (params.context !== undefined) {
+                this.#browsingContextStorage.getContext(params.context);
+            }
+            const realms = this.#realmStorage
+                .findRealms({
+                browsingContextId: params.context,
+                type: params.type,
+            })
+                .map((realm) => realm.realmInfo);
+            return { realms };
+        }
+        async #getRealm(target) {
+            if ('context' in target) {
+                const context = this.#browsingContextStorage.getContext(target.context);
+                return await context.getOrCreateSandbox(target.sandbox);
+            }
+            return this.#realmStorage.getRealm({
+                realmId: target.realm,
+            });
+        }
+    }
+
+    /**
+     * Copyright 2023 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class SessionProcessor {
+        #eventManager;
+        #browserCdpClient;
+        #initConnection;
+        #created = false;
+        constructor(eventManager, browserCdpClient, initConnection) {
+            this.#eventManager = eventManager;
+            this.#browserCdpClient = browserCdpClient;
+            this.#initConnection = initConnection;
+        }
+        status() {
+            return { ready: false, message: 'already connected' };
+        }
+        #mergeCapabilities(capabilitiesRequest) {
+            const mergedCapabilities = [];
+            for (const first of capabilitiesRequest.firstMatch ?? [{}]) {
+                const result = {
+                    ...capabilitiesRequest.alwaysMatch,
+                };
+                for (const key of Object.keys(first)) {
+                    if (result[key] !== undefined) {
+                        throw new InvalidArgumentException(`Capability ${key} in firstMatch is already defined in alwaysMatch`);
+                    }
+                    result[key] = first[key];
+                }
+                mergedCapabilities.push(result);
+            }
+            const match = mergedCapabilities.find((c) => c.browserName === 'chrome') ??
+                mergedCapabilities[0] ??
+                {};
+            match.unhandledPromptBehavior = this.#getUnhandledPromptBehavior(match.unhandledPromptBehavior);
+            return match;
+        }
+        #getUnhandledPromptBehavior(capabilityValue) {
+            if (capabilityValue === undefined) {
+                return undefined;
+            }
+            if (typeof capabilityValue === 'object') {
+                return capabilityValue;
+            }
+            if (typeof capabilityValue !== 'string') {
+                throw new InvalidArgumentException(`Unexpected 'unhandledPromptBehavior' type: ${typeof capabilityValue}`);
+            }
+            switch (capabilityValue) {
+                case 'accept':
+                case 'accept and notify':
+                    return {
+                        default: "accept" ,
+                        beforeUnload: "accept" ,
+                    };
+                case 'dismiss':
+                case 'dismiss and notify':
+                    return {
+                        default: "dismiss" ,
+                        beforeUnload: "accept" ,
+                    };
+                case 'ignore':
+                    return {
+                        default: "ignore" ,
+                        beforeUnload: "accept" ,
+                    };
+                default:
+                    throw new InvalidArgumentException(`Unexpected 'unhandledPromptBehavior' value: ${capabilityValue}`);
+            }
+        }
+        async new(params) {
+            if (this.#created) {
+                throw new Error('Session has been already created.');
+            }
+            this.#created = true;
+            const matchedCapabitlites = this.#mergeCapabilities(params.capabilities);
+            await this.#initConnection(matchedCapabitlites);
+            const version = await this.#browserCdpClient.sendCommand('Browser.getVersion');
+            return {
+                sessionId: 'unknown',
+                capabilities: {
+                    ...matchedCapabitlites,
+                    acceptInsecureCerts: matchedCapabitlites.acceptInsecureCerts ?? false,
+                    browserName: version.product,
+                    browserVersion: version.revision,
+                    platformName: '',
+                    setWindowRect: false,
+                    webSocketUrl: '',
+                    userAgent: version.userAgent,
+                },
+            };
+        }
+        async subscribe(params, googChannel = null) {
+            const subscription = await this.#eventManager.subscribe(params.events, params.contexts ?? [], params.userContexts ?? [], googChannel);
+            return {
+                subscription,
+            };
+        }
+        async unsubscribe(params, googChannel = null) {
+            if ('subscriptions' in params) {
+                await this.#eventManager.unsubscribeByIds(params.subscriptions);
+                return {};
+            }
+            await this.#eventManager.unsubscribe(params.events, params.contexts ?? [], googChannel);
+            return {};
+        }
+    }
+
+    class StorageProcessor {
+        #browserCdpClient;
+        #browsingContextStorage;
+        #logger;
+        constructor(browserCdpClient, browsingContextStorage, logger) {
+            this.#browsingContextStorage = browsingContextStorage;
+            this.#browserCdpClient = browserCdpClient;
+            this.#logger = logger;
+        }
+        async deleteCookies(params) {
+            const partitionKey = this.#expandStoragePartitionSpec(params.partition);
+            let cdpResponse;
+            try {
+                cdpResponse = await this.#browserCdpClient.sendCommand('Storage.getCookies', {
+                    browserContextId: this.#getCdpBrowserContextId(partitionKey),
+                });
+            }
+            catch (err) {
+                if (this.#isNoSuchUserContextError(err)) {
+                    throw new NoSuchUserContextException(err.message);
+                }
+                throw err;
+            }
+            const cdpCookiesToDelete = cdpResponse.cookies
+                .filter(
+            (c) => partitionKey.sourceOrigin === undefined ||
+                c.partitionKey?.topLevelSite === partitionKey.sourceOrigin)
+                .filter((cdpCookie) => {
+                const bidiCookie = cdpToBiDiCookie(cdpCookie);
+                return this.#matchCookie(bidiCookie, params.filter);
+            })
+                .map((cookie) => ({
+                ...cookie,
+                expires: 1,
+            }));
+            await this.#browserCdpClient.sendCommand('Storage.setCookies', {
+                cookies: cdpCookiesToDelete,
+                browserContextId: this.#getCdpBrowserContextId(partitionKey),
+            });
+            return {
+                partitionKey,
+            };
+        }
+        async getCookies(params) {
+            const partitionKey = this.#expandStoragePartitionSpec(params.partition);
+            let cdpResponse;
+            try {
+                cdpResponse = await this.#browserCdpClient.sendCommand('Storage.getCookies', {
+                    browserContextId: this.#getCdpBrowserContextId(partitionKey),
+                });
+            }
+            catch (err) {
+                if (this.#isNoSuchUserContextError(err)) {
+                    throw new NoSuchUserContextException(err.message);
+                }
+                throw err;
+            }
+            const filteredBiDiCookies = cdpResponse.cookies
+                .filter(
+            (c) => partitionKey.sourceOrigin === undefined ||
+                c.partitionKey?.topLevelSite === partitionKey.sourceOrigin)
+                .map((c) => cdpToBiDiCookie(c))
+                .filter((c) => this.#matchCookie(c, params.filter));
+            return {
+                cookies: filteredBiDiCookies,
+                partitionKey,
+            };
+        }
+        async setCookie(params) {
+            const partitionKey = this.#expandStoragePartitionSpec(params.partition);
+            const cdpCookie = bidiToCdpCookie(params, partitionKey);
+            try {
+                await this.#browserCdpClient.sendCommand('Storage.setCookies', {
+                    cookies: [cdpCookie],
+                    browserContextId: this.#getCdpBrowserContextId(partitionKey),
+                });
+            }
+            catch (err) {
+                if (this.#isNoSuchUserContextError(err)) {
+                    throw new NoSuchUserContextException(err.message);
+                }
+                this.#logger?.(LogType.debugError, err);
+                throw new UnableToSetCookieException(err.toString());
+            }
+            return {
+                partitionKey,
+            };
+        }
+        #isNoSuchUserContextError(err) {
+            return err.message?.startsWith('Failed to find browser context for id');
+        }
+        #getCdpBrowserContextId(partitionKey) {
+            return partitionKey.userContext === 'default'
+                ? undefined
+                : partitionKey.userContext;
+        }
+        #expandStoragePartitionSpecByBrowsingContext(descriptor) {
+            const browsingContextId = descriptor.context;
+            const browsingContext = this.#browsingContextStorage.getContext(browsingContextId);
+            return {
+                userContext: browsingContext.userContext,
+            };
+        }
+        #expandStoragePartitionSpecByStorageKey(descriptor) {
+            const unsupportedPartitionKeys = new Map();
+            let sourceOrigin = descriptor.sourceOrigin;
+            if (sourceOrigin !== undefined) {
+                const url = NetworkProcessor.parseUrlString(sourceOrigin);
+                if (url.origin === 'null') {
+                    sourceOrigin = url.origin;
+                }
+                else {
+                    sourceOrigin = `${url.protocol}//${url.hostname}`;
+                }
+            }
+            for (const [key, value] of Object.entries(descriptor)) {
+                if (key !== undefined &&
+                    value !== undefined &&
+                    !['type', 'sourceOrigin', 'userContext'].includes(key)) {
+                    unsupportedPartitionKeys.set(key, value);
+                }
+            }
+            if (unsupportedPartitionKeys.size > 0) {
+                this.#logger?.(LogType.debugInfo, `Unsupported partition keys: ${JSON.stringify(Object.fromEntries(unsupportedPartitionKeys))}`);
+            }
+            const userContext = descriptor.userContext ?? 'default';
+            return {
+                userContext,
+                ...(sourceOrigin === undefined ? {} : { sourceOrigin }),
+            };
+        }
+        #expandStoragePartitionSpec(partitionSpec) {
+            if (partitionSpec === undefined) {
+                return { userContext: 'default' };
+            }
+            if (partitionSpec.type === 'context') {
+                return this.#expandStoragePartitionSpecByBrowsingContext(partitionSpec);
+            }
+            assert(partitionSpec.type === 'storageKey', 'Unknown partition type');
+            return this.#expandStoragePartitionSpecByStorageKey(partitionSpec);
+        }
+        #matchCookie(cookie, filter) {
+            if (filter === undefined) {
+                return true;
+            }
+            return ((filter.domain === undefined || filter.domain === cookie.domain) &&
+                (filter.name === undefined || filter.name === cookie.name) &&
+                (filter.value === undefined ||
+                    deserializeByteValue(filter.value) ===
+                        deserializeByteValue(cookie.value)) &&
+                (filter.path === undefined || filter.path === cookie.path) &&
+                (filter.size === undefined || filter.size === cookie.size) &&
+                (filter.httpOnly === undefined || filter.httpOnly === cookie.httpOnly) &&
+                (filter.secure === undefined || filter.secure === cookie.secure) &&
+                (filter.sameSite === undefined || filter.sameSite === cookie.sameSite) &&
+                (filter.expiry === undefined || filter.expiry === cookie.expiry));
+        }
+    }
+
+    /**
+     * Copyright 2025 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class WebExtensionProcessor {
+        #browserCdpClient;
+        constructor(browserCdpClient) {
+            this.#browserCdpClient = browserCdpClient;
+        }
+        async install(params) {
+            switch (params.extensionData.type) {
+                case 'archivePath':
+                case 'base64':
+                    throw new UnsupportedOperationException('Archived and Base64 extensions are not supported');
+            }
+            try {
+                const response = await this.#browserCdpClient.sendCommand('Extensions.loadUnpacked', {
+                    path: params.extensionData.path,
+                });
+                return {
+                    extension: response.id,
+                };
+            }
+            catch (err) {
+                if (err.message.startsWith('invalid web extension')) {
+                    throw new InvalidWebExtensionException(err.message);
+                }
+                throw err;
+            }
+        }
+        async uninstall(params) {
+            try {
+                await this.#browserCdpClient.sendCommand('Extensions.uninstall', {
+                    id: params.extension,
+                });
+                return {};
+            }
+            catch (err) {
+                if (err.message ===
+                    'Uninstall failed. Reason: could not find extension.') {
+                    throw new NoSuchWebExtensionException('no such web extension');
+                }
+                throw err;
+            }
+        }
+    }
+
+    /**
+     * Copyright 2021 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class OutgoingMessage {
+        #message;
+        #googChannel;
+        constructor(message, googChannel = null) {
+            this.#message = message;
+            this.#googChannel = googChannel;
+        }
+        static createFromPromise(messagePromise, googChannel) {
+            return messagePromise.then((message) => {
+                if (message.kind === 'success') {
+                    return {
+                        kind: 'success',
+                        value: new OutgoingMessage(message.value, googChannel),
+                    };
+                }
+                return message;
+            });
+        }
+        static createResolved(message, googChannel = null) {
+            return Promise.resolve({
+                kind: 'success',
+                value: new OutgoingMessage(message, googChannel),
+            });
+        }
+        get message() {
+            return this.#message;
+        }
+        get googChannel() {
+            return this.#googChannel;
+        }
+    }
+
+    /**
+     * Copyright 2021 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class CommandProcessor extends EventEmitter {
+        #bluetoothProcessor;
+        #browserProcessor;
+        #browsingContextProcessor;
+        #cdpProcessor;
+        #emulationProcessor;
+        #inputProcessor;
+        #networkProcessor;
+        #permissionsProcessor;
+        #scriptProcessor;
+        #sessionProcessor;
+        #storageProcessor;
+        #webExtensionProcessor;
+        #parser;
+        #logger;
+        constructor(cdpConnection, browserCdpClient, eventManager, browsingContextStorage, realmStorage, preloadScriptStorage, networkStorage, mapperOptionsStorage, bluetoothProcessor, userContextStorage, parser = new BidiNoOpParser(), initConnection, logger) {
+            super();
+            this.#parser = parser;
+            this.#logger = logger;
+            this.#bluetoothProcessor = bluetoothProcessor;
+            this.#browserProcessor = new BrowserProcessor(browserCdpClient, browsingContextStorage, mapperOptionsStorage, userContextStorage);
+            this.#browsingContextProcessor = new BrowsingContextProcessor(browserCdpClient, browsingContextStorage, userContextStorage, eventManager);
+            this.#cdpProcessor = new CdpProcessor(browsingContextStorage, realmStorage, cdpConnection, browserCdpClient);
+            this.#emulationProcessor = new EmulationProcessor(browsingContextStorage, userContextStorage);
+            this.#inputProcessor = new InputProcessor(browsingContextStorage);
+            this.#networkProcessor = new NetworkProcessor(browsingContextStorage, networkStorage);
+            this.#permissionsProcessor = new PermissionsProcessor(browserCdpClient);
+            this.#scriptProcessor = new ScriptProcessor(eventManager, browsingContextStorage, realmStorage, preloadScriptStorage, userContextStorage, logger);
+            this.#sessionProcessor = new SessionProcessor(eventManager, browserCdpClient, initConnection);
+            this.#storageProcessor = new StorageProcessor(browserCdpClient, browsingContextStorage, logger);
+            this.#webExtensionProcessor = new WebExtensionProcessor(browserCdpClient);
+        }
+        async #processCommand(command) {
+            switch (command.method) {
+                case 'bluetooth.disableSimulation':
+                    return await this.#bluetoothProcessor.disableSimulation(this.#parser.parseDisableSimulationParameters(command.params));
+                case 'bluetooth.handleRequestDevicePrompt':
+                    return await this.#bluetoothProcessor.handleRequestDevicePrompt(this.#parser.parseHandleRequestDevicePromptParams(command.params));
+                case 'bluetooth.simulateAdapter':
+                    return await this.#bluetoothProcessor.simulateAdapter(this.#parser.parseSimulateAdapterParameters(command.params));
+                case 'bluetooth.simulateAdvertisement':
+                    return await this.#bluetoothProcessor.simulateAdvertisement(this.#parser.parseSimulateAdvertisementParameters(command.params));
+                case 'bluetooth.simulateCharacteristic':
+                    return await this.#bluetoothProcessor.simulateCharacteristic(this.#parser.parseSimulateCharacteristicParameters(command.params));
+                case 'bluetooth.simulateCharacteristicResponse':
+                    return await this.#bluetoothProcessor.simulateCharacteristicResponse(this.#parser.parseSimulateCharacteristicResponseParameters(command.params));
+                case 'bluetooth.simulateDescriptor':
+                    return await this.#bluetoothProcessor.simulateDescriptor(this.#parser.parseSimulateDescriptorParameters(command.params));
+                case 'bluetooth.simulateDescriptorResponse':
+                    throw new UnknownErrorException(`Method ${command.method} is not implemented.`);
+                case 'bluetooth.simulateGattConnectionResponse':
+                    return await this.#bluetoothProcessor.simulateGattConnectionResponse(this.#parser.parseSimulateGattConnectionResponseParameters(command.params));
+                case 'bluetooth.simulateGattDisconnection':
+                    return await this.#bluetoothProcessor.simulateGattDisconnection(this.#parser.parseSimulateGattDisconnectionParameters(command.params));
+                case 'bluetooth.simulatePreconnectedPeripheral':
+                    return await this.#bluetoothProcessor.simulatePreconnectedPeripheral(this.#parser.parseSimulatePreconnectedPeripheralParameters(command.params));
+                case 'bluetooth.simulateService':
+                    return await this.#bluetoothProcessor.simulateService(this.#parser.parseSimulateServiceParameters(command.params));
+                case 'browser.close':
+                    return this.#browserProcessor.close();
+                case 'browser.createUserContext':
+                    return await this.#browserProcessor.createUserContext(this.#parser.parseCreateUserContextParameters(command.params));
+                case 'browser.getClientWindows':
+                    return await this.#browserProcessor.getClientWindows();
+                case 'browser.getUserContexts':
+                    return await this.#browserProcessor.getUserContexts();
+                case 'browser.removeUserContext':
+                    return await this.#browserProcessor.removeUserContext(this.#parser.parseRemoveUserContextParameters(command.params));
+                case 'browser.setClientWindowState':
+                    throw new UnknownErrorException(`Method ${command.method} is not implemented.`);
+                case 'browsingContext.activate':
+                    return await this.#browsingContextProcessor.activate(this.#parser.parseActivateParams(command.params));
+                case 'browsingContext.captureScreenshot':
+                    return await this.#browsingContextProcessor.captureScreenshot(this.#parser.parseCaptureScreenshotParams(command.params));
+                case 'browsingContext.close':
+                    return await this.#browsingContextProcessor.close(this.#parser.parseCloseParams(command.params));
+                case 'browsingContext.create':
+                    return await this.#browsingContextProcessor.create(this.#parser.parseCreateParams(command.params));
+                case 'browsingContext.getTree':
+                    return this.#browsingContextProcessor.getTree(this.#parser.parseGetTreeParams(command.params));
+                case 'browsingContext.handleUserPrompt':
+                    return await this.#browsingContextProcessor.handleUserPrompt(this.#parser.parseHandleUserPromptParams(command.params));
+                case 'browsingContext.locateNodes':
+                    return await this.#browsingContextProcessor.locateNodes(this.#parser.parseLocateNodesParams(command.params));
+                case 'browsingContext.navigate':
+                    return await this.#browsingContextProcessor.navigate(this.#parser.parseNavigateParams(command.params));
+                case 'browsingContext.print':
+                    return await this.#browsingContextProcessor.print(this.#parser.parsePrintParams(command.params));
+                case 'browsingContext.reload':
+                    return await this.#browsingContextProcessor.reload(this.#parser.parseReloadParams(command.params));
+                case 'browsingContext.setViewport':
+                    return await this.#browsingContextProcessor.setViewport(this.#parser.parseSetViewportParams(command.params));
+                case 'browsingContext.traverseHistory':
+                    return await this.#browsingContextProcessor.traverseHistory(this.#parser.parseTraverseHistoryParams(command.params));
+                case 'goog:cdp.getSession':
+                    return this.#cdpProcessor.getSession(this.#parser.parseGetSessionParams(command.params));
+                case 'goog:cdp.resolveRealm':
+                    return this.#cdpProcessor.resolveRealm(this.#parser.parseResolveRealmParams(command.params));
+                case 'goog:cdp.sendCommand':
+                    return await this.#cdpProcessor.sendCommand(this.#parser.parseSendCommandParams(command.params));
+                case 'emulation.setGeolocationOverride':
+                    return await this.#emulationProcessor.setGeolocationOverride(this.#parser.parseSetGeolocationOverrideParams(command.params));
+                case 'input.performActions':
+                    return await this.#inputProcessor.performActions(this.#parser.parsePerformActionsParams(command.params));
+                case 'input.releaseActions':
+                    return await this.#inputProcessor.releaseActions(this.#parser.parseReleaseActionsParams(command.params));
+                case 'input.setFiles':
+                    return await this.#inputProcessor.setFiles(this.#parser.parseSetFilesParams(command.params));
+                case 'network.addIntercept':
+                    return await this.#networkProcessor.addIntercept(this.#parser.parseAddInterceptParams(command.params));
+                case 'network.continueRequest':
+                    return await this.#networkProcessor.continueRequest(this.#parser.parseContinueRequestParams(command.params));
+                case 'network.continueResponse':
+                    return await this.#networkProcessor.continueResponse(this.#parser.parseContinueResponseParams(command.params));
+                case 'network.continueWithAuth':
+                    return await this.#networkProcessor.continueWithAuth(this.#parser.parseContinueWithAuthParams(command.params));
+                case 'network.failRequest':
+                    return await this.#networkProcessor.failRequest(this.#parser.parseFailRequestParams(command.params));
+                case 'network.provideResponse':
+                    return await this.#networkProcessor.provideResponse(this.#parser.parseProvideResponseParams(command.params));
+                case 'network.removeIntercept':
+                    return await this.#networkProcessor.removeIntercept(this.#parser.parseRemoveInterceptParams(command.params));
+                case 'network.setCacheBehavior':
+                    return await this.#networkProcessor.setCacheBehavior(this.#parser.parseSetCacheBehavior(command.params));
+                case 'permissions.setPermission':
+                    return await this.#permissionsProcessor.setPermissions(this.#parser.parseSetPermissionsParams(command.params));
+                case 'script.addPreloadScript':
+                    return await this.#scriptProcessor.addPreloadScript(this.#parser.parseAddPreloadScriptParams(command.params));
+                case 'script.callFunction':
+                    return await this.#scriptProcessor.callFunction(this.#parser.parseCallFunctionParams(this.#processTargetParams(command.params)));
+                case 'script.disown':
+                    return await this.#scriptProcessor.disown(this.#parser.parseDisownParams(this.#processTargetParams(command.params)));
+                case 'script.evaluate':
+                    return await this.#scriptProcessor.evaluate(this.#parser.parseEvaluateParams(this.#processTargetParams(command.params)));
+                case 'script.getRealms':
+                    return this.#scriptProcessor.getRealms(this.#parser.parseGetRealmsParams(command.params));
+                case 'script.removePreloadScript':
+                    return await this.#scriptProcessor.removePreloadScript(this.#parser.parseRemovePreloadScriptParams(command.params));
+                case 'session.end':
+                    throw new UnknownErrorException(`Method ${command.method} is not implemented.`);
+                case 'session.new':
+                    return await this.#sessionProcessor.new(command.params);
+                case 'session.status':
+                    return this.#sessionProcessor.status();
+                case 'session.subscribe':
+                    return await this.#sessionProcessor.subscribe(this.#parser.parseSubscribeParams(command.params), command['goog:channel']);
+                case 'session.unsubscribe':
+                    return await this.#sessionProcessor.unsubscribe(this.#parser.parseUnsubscribeParams(command.params), command['goog:channel']);
+                case 'storage.deleteCookies':
+                    return await this.#storageProcessor.deleteCookies(this.#parser.parseDeleteCookiesParams(command.params));
+                case 'storage.getCookies':
+                    return await this.#storageProcessor.getCookies(this.#parser.parseGetCookiesParams(command.params));
+                case 'storage.setCookie':
+                    return await this.#storageProcessor.setCookie(this.#parser.parseSetCookieParams(command.params));
+                case 'webExtension.install':
+                    return await this.#webExtensionProcessor.install(this.#parser.parseInstallParams(command.params));
+                case 'webExtension.uninstall':
+                    return await this.#webExtensionProcessor.uninstall(this.#parser.parseUninstallParams(command.params));
+            }
+            throw new UnknownCommandException(`Unknown command '${command?.method}'.`);
+        }
+        #processTargetParams(params) {
+            if (typeof params === 'object' &&
+                params &&
+                'target' in params &&
+                typeof params.target === 'object' &&
+                params.target &&
+                'context' in params.target) {
+                delete params.target['realm'];
+            }
+            return params;
+        }
+        async processCommand(command) {
+            try {
+                const result = await this.#processCommand(command);
+                const response = {
+                    type: 'success',
+                    id: command.id,
+                    result,
+                };
+                this.emit("response" , {
+                    message: OutgoingMessage.createResolved(response, command['goog:channel']),
+                    event: command.method,
+                });
+            }
+            catch (e) {
+                if (e instanceof Exception) {
+                    this.emit("response" , {
+                        message: OutgoingMessage.createResolved(e.toErrorResponse(command.id), command['goog:channel']),
+                        event: command.method,
+                    });
+                }
+                else {
+                    const error = e;
+                    this.#logger?.(LogType.bidi, error);
+                    this.emit("response" , {
+                        message: OutgoingMessage.createResolved(new UnknownErrorException(error.message, error.stack).toErrorResponse(command.id), command['goog:channel']),
+                        event: command.method,
+                    });
+                }
+            }
+        }
+    }
+
+    /*
+     *  Copyright 2025 Google LLC.
+     *  Copyright (c) Microsoft Corporation.
+     *
+     *  Licensed under the Apache License, Version 2.0 (the "License");
+     *  you may not use this file except in compliance with the License.
+     *  You may obtain a copy of the License at
+     *
+     *      http://www.apache.org/licenses/LICENSE-2.0
+     *
+     *  Unless required by applicable law or agreed to in writing, software
+     *  distributed under the License is distributed on an "AS IS" BASIS,
+     *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     *  See the License for the specific language governing permissions and
+     *  limitations under the License.
+     *
+     */
+    class MapperOptionsStorage {
+        mapperOptions;
+    }
+
+    /**
+     * Copyright 2024 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class BluetoothGattItem {
+        id;
+        uuid;
+        constructor(id, uuid) {
+            this.id = id;
+            this.uuid = uuid;
+        }
+    }
+    class BluetoothDescriptor extends BluetoothGattItem {
+        characteristic;
+        constructor(id, uuid, characteristic) {
+            super(id, uuid);
+            this.characteristic = characteristic;
+        }
+    }
+    class BluetoothCharacteristic extends BluetoothGattItem {
+        descriptors = new Map();
+        service;
+        constructor(id, uuid, service) {
+            super(id, uuid);
+            this.service = service;
+        }
+    }
+    class BluetoothService extends BluetoothGattItem {
+        characteristics = new Map();
+        device;
+        constructor(id, uuid, device) {
+            super(id, uuid);
+            this.device = device;
+        }
+    }
+    class BluetoothDevice {
+        address;
+        services = new Map();
+        constructor(address) {
+            this.address = address;
+        }
+    }
+    class BluetoothProcessor {
+        #eventManager;
+        #browsingContextStorage;
+        #bluetoothDevices;
+        #bluetoothCharacteristics;
+        constructor(eventManager, browsingContextStorage) {
+            this.#eventManager = eventManager;
+            this.#browsingContextStorage = browsingContextStorage;
+            this.#bluetoothDevices = new Map();
+            this.#bluetoothCharacteristics = new Map();
+        }
+        #getDevice(address) {
+            const device = this.#bluetoothDevices.get(address);
+            if (!device) {
+                throw new InvalidArgumentException(`Bluetooth device with address ${address} does not exist`);
+            }
+            return device;
+        }
+        #getService(device, serviceUuid) {
+            const service = device.services.get(serviceUuid);
+            if (!service) {
+                throw new InvalidArgumentException(`Service with UUID ${serviceUuid} on device ${device.address} does not exist`);
+            }
+            return service;
+        }
+        #getCharacteristic(service, characteristicUuid) {
+            const characteristic = service.characteristics.get(characteristicUuid);
+            if (!characteristic) {
+                throw new InvalidArgumentException(`Characteristic with UUID ${characteristicUuid} does not exist for service ${service.uuid} on device ${service.device.address}`);
+            }
+            return characteristic;
+        }
+        #getDescriptor(characteristic, descriptorUuid) {
+            const descriptor = characteristic.descriptors.get(descriptorUuid);
+            if (!descriptor) {
+                throw new InvalidArgumentException(`Descriptor with UUID ${descriptorUuid} does not exist for characteristic ${characteristic.uuid} on service ${characteristic.service.uuid} on device ${characteristic.service.device.address}`);
+            }
+            return descriptor;
+        }
+        async simulateAdapter(params) {
+            if (params.state === undefined) {
+                throw new InvalidArgumentException(`Parameter "state" is required for creating a Bluetooth adapter`);
+            }
+            const context = this.#browsingContextStorage.getContext(params.context);
+            await context.cdpTarget.browserCdpClient.sendCommand('BluetoothEmulation.disable');
+            this.#bluetoothDevices.clear();
+            this.#bluetoothCharacteristics.clear();
+            await context.cdpTarget.browserCdpClient.sendCommand('BluetoothEmulation.enable', {
+                state: params.state,
+                leSupported: params.leSupported ?? true,
+            });
+            return {};
+        }
+        async disableSimulation(params) {
+            const context = this.#browsingContextStorage.getContext(params.context);
+            await context.cdpTarget.browserCdpClient.sendCommand('BluetoothEmulation.disable');
+            this.#bluetoothDevices.clear();
+            this.#bluetoothCharacteristics.clear();
+            return {};
+        }
+        async simulatePreconnectedPeripheral(params) {
+            if (this.#bluetoothDevices.has(params.address)) {
+                throw new InvalidArgumentException(`Bluetooth device with address ${params.address} already exists`);
+            }
+            const context = this.#browsingContextStorage.getContext(params.context);
+            await context.cdpTarget.browserCdpClient.sendCommand('BluetoothEmulation.simulatePreconnectedPeripheral', {
+                address: params.address,
+                name: params.name,
+                knownServiceUuids: params.knownServiceUuids,
+                manufacturerData: params.manufacturerData,
+            });
+            this.#bluetoothDevices.set(params.address, new BluetoothDevice(params.address));
+            return {};
+        }
+        async simulateAdvertisement(params) {
+            const context = this.#browsingContextStorage.getContext(params.context);
+            await context.cdpTarget.browserCdpClient.sendCommand('BluetoothEmulation.simulateAdvertisement', {
+                entry: params.scanEntry,
+            });
+            return {};
+        }
+        async simulateCharacteristic(params) {
+            const device = this.#getDevice(params.address);
+            const service = this.#getService(device, params.serviceUuid);
+            const context = this.#browsingContextStorage.getContext(params.context);
+            switch (params.type) {
+                case 'add': {
+                    if (params.characteristicProperties === undefined) {
+                        throw new InvalidArgumentException(`Parameter "characteristicProperties" is required for adding a Bluetooth characteristic`);
+                    }
+                    if (service.characteristics.has(params.characteristicUuid)) {
+                        throw new InvalidArgumentException(`Characteristic with UUID ${params.characteristicUuid} already exists`);
+                    }
+                    const response = await context.cdpTarget.browserCdpClient.sendCommand('BluetoothEmulation.addCharacteristic', {
+                        serviceId: service.id,
+                        characteristicUuid: params.characteristicUuid,
+                        properties: params.characteristicProperties,
+                    });
+                    const characteristic = new BluetoothCharacteristic(response.characteristicId, params.characteristicUuid, service);
+                    service.characteristics.set(params.characteristicUuid, characteristic);
+                    this.#bluetoothCharacteristics.set(characteristic.id, characteristic);
+                    return {};
+                }
+                case 'remove': {
+                    if (params.characteristicProperties !== undefined) {
+                        throw new InvalidArgumentException(`Parameter "characteristicProperties" should not be provided for removing a Bluetooth characteristic`);
+                    }
+                    const characteristic = this.#getCharacteristic(service, params.characteristicUuid);
+                    await context.cdpTarget.browserCdpClient.sendCommand('BluetoothEmulation.removeCharacteristic', {
+                        characteristicId: characteristic.id,
+                    });
+                    service.characteristics.delete(params.characteristicUuid);
+                    this.#bluetoothCharacteristics.delete(characteristic.id);
+                    return {};
+                }
+                default:
+                    throw new InvalidArgumentException(`Parameter "type" of ${params.type} is not supported`);
+            }
+        }
+        async simulateCharacteristicResponse(params) {
+            const context = this.#browsingContextStorage.getContext(params.context);
+            const device = this.#getDevice(params.address);
+            const service = this.#getService(device, params.serviceUuid);
+            const characteristic = this.#getCharacteristic(service, params.characteristicUuid);
+            await context.cdpTarget.browserCdpClient.sendCommand('BluetoothEmulation.simulateCharacteristicOperationResponse', {
+                characteristicId: characteristic.id,
+                type: params.type,
+                code: params.code,
+                ...(params.data && {
+                    data: btoa(String.fromCharCode(...params.data)),
+                }),
+            });
+            return {};
+        }
+        async simulateDescriptor(params) {
+            const device = this.#getDevice(params.address);
+            const service = this.#getService(device, params.serviceUuid);
+            const characteristic = this.#getCharacteristic(service, params.characteristicUuid);
+            const context = this.#browsingContextStorage.getContext(params.context);
+            switch (params.type) {
+                case 'add': {
+                    if (characteristic.descriptors.has(params.descriptorUuid)) {
+                        throw new InvalidArgumentException(`Descriptor with UUID ${params.descriptorUuid} already exists`);
+                    }
+                    const response = await context.cdpTarget.browserCdpClient.sendCommand('BluetoothEmulation.addDescriptor', {
+                        characteristicId: characteristic.id,
+                        descriptorUuid: params.descriptorUuid,
+                    });
+                    characteristic.descriptors.set(params.descriptorUuid, new BluetoothDescriptor(response.descriptorId, params.descriptorUuid, characteristic));
+                    return {};
+                }
+                case 'remove': {
+                    const descriptor = this.#getDescriptor(characteristic, params.descriptorUuid);
+                    await context.cdpTarget.browserCdpClient.sendCommand('BluetoothEmulation.removeDescriptor', {
+                        descriptorId: descriptor.id,
+                    });
+                    characteristic.descriptors.delete(params.descriptorUuid);
+                    return {};
+                }
+                default:
+                    throw new InvalidArgumentException(`Parameter "type" of ${params.type} is not supported`);
+            }
+        }
+        async simulateGattConnectionResponse(params) {
+            const context = this.#browsingContextStorage.getContext(params.context);
+            await context.cdpTarget.browserCdpClient.sendCommand('BluetoothEmulation.simulateGATTOperationResponse', {
+                address: params.address,
+                type: 'connection',
+                code: params.code,
+            });
+            return {};
+        }
+        async simulateGattDisconnection(params) {
+            const context = this.#browsingContextStorage.getContext(params.context);
+            await context.cdpTarget.browserCdpClient.sendCommand('BluetoothEmulation.simulateGATTDisconnection', {
+                address: params.address,
+            });
+            return {};
+        }
+        async simulateService(params) {
+            const device = this.#getDevice(params.address);
+            const context = this.#browsingContextStorage.getContext(params.context);
+            switch (params.type) {
+                case 'add': {
+                    if (device.services.has(params.uuid)) {
+                        throw new InvalidArgumentException(`Service with UUID ${params.uuid} already exists`);
+                    }
+                    const response = await context.cdpTarget.browserCdpClient.sendCommand('BluetoothEmulation.addService', {
+                        address: params.address,
+                        serviceUuid: params.uuid,
+                    });
+                    device.services.set(params.uuid, new BluetoothService(response.serviceId, params.uuid, device));
+                    return {};
+                }
+                case 'remove': {
+                    const service = this.#getService(device, params.uuid);
+                    await context.cdpTarget.browserCdpClient.sendCommand('BluetoothEmulation.removeService', {
+                        serviceId: service.id,
+                    });
+                    device.services.delete(params.uuid);
+                    return {};
+                }
+                default:
+                    throw new InvalidArgumentException(`Parameter "type" of ${params.type} is not supported`);
+            }
+        }
+        onCdpTargetCreated(cdpTarget) {
+            cdpTarget.cdpClient.on('DeviceAccess.deviceRequestPrompted', (event) => {
+                this.#eventManager.registerEvent({
+                    type: 'event',
+                    method: 'bluetooth.requestDevicePromptUpdated',
+                    params: {
+                        context: cdpTarget.id,
+                        prompt: event.id,
+                        devices: event.devices,
+                    },
+                }, cdpTarget.id);
+            });
+            cdpTarget.browserCdpClient.on('BluetoothEmulation.gattOperationReceived', async (event) => {
+                switch (event.type) {
+                    case 'connection':
+                        this.#eventManager.registerEvent({
+                            type: 'event',
+                            method: 'bluetooth.gattConnectionAttempted',
+                            params: {
+                                context: cdpTarget.id,
+                                address: event.address,
+                            },
+                        }, cdpTarget.id);
+                        return;
+                    case 'discovery':
+                        await cdpTarget.browserCdpClient.sendCommand('BluetoothEmulation.simulateGATTOperationResponse', {
+                            address: event.address,
+                            type: 'discovery',
+                            code: 0x0,
+                        });
+                }
+            });
+            cdpTarget.browserCdpClient.on('BluetoothEmulation.characteristicOperationReceived', (event) => {
+                if (!this.#bluetoothCharacteristics.has(event.characteristicId)) {
+                    return;
+                }
+                let type;
+                if (event.type === 'write') {
+                    if (event.writeType === 'write-default-deprecated') {
+                        return;
+                    }
+                    type = event.writeType;
+                }
+                else {
+                    type = event.type;
+                }
+                const characteristic = this.#bluetoothCharacteristics.get(event.characteristicId);
+                this.#eventManager.registerEvent({
+                    type: 'event',
+                    method: 'bluetooth.characteristicEventGenerated',
+                    params: {
+                        context: cdpTarget.id,
+                        address: characteristic.service.device.address,
+                        serviceUuid: characteristic.service.uuid,
+                        characteristicUuid: characteristic.uuid,
+                        type,
+                        ...(event.data && {
+                            data: Array.from(atob(event.data), (c) => c.charCodeAt(0)),
+                        }),
+                    },
+                }, cdpTarget.id);
+            });
+        }
+        async handleRequestDevicePrompt(params) {
+            const context = this.#browsingContextStorage.getContext(params.context);
+            if (params.accept) {
+                await context.cdpTarget.cdpClient.sendCommand('DeviceAccess.selectPrompt', {
+                    id: params.prompt,
+                    deviceId: params.device,
+                });
+            }
+            else {
+                await context.cdpTarget.cdpClient.sendCommand('DeviceAccess.cancelPrompt', {
+                    id: params.prompt,
+                });
+            }
+            return {};
+        }
+    }
+
+    /**
+     * Copyright 2025 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class UserContextConfig {
+        userContextId;
+        acceptInsecureCerts;
+        viewport;
+        devicePixelRatio;
+        geolocation;
+        constructor(userContextId) {
+            this.userContextId = userContextId;
+        }
+    }
+
+    /**
+     * Copyright 2025 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class UserContextStorage {
+        #browserClient;
+        #userConfigMap = new Map();
+        constructor(browserClient) {
+            this.#browserClient = browserClient;
+        }
+        async getUserContexts() {
+            const result = await this.#browserClient.sendCommand('Target.getBrowserContexts');
+            return [
+                {
+                    userContext: 'default',
+                },
+                ...result.browserContextIds.map((id) => {
+                    return {
+                        userContext: id,
+                    };
+                }),
+            ];
+        }
+        getConfig(userContextId) {
+            const userContextConfig = this.#userConfigMap.get(userContextId) ??
+                new UserContextConfig(userContextId);
+            this.#userConfigMap.set(userContextId, userContextConfig);
+            return userContextConfig;
+        }
+        async verifyUserContextIdList(userContextIds) {
+            const foundContexts = new Set();
+            if (!userContextIds.length) {
+                return foundContexts;
+            }
+            const userContexts = await this.getUserContexts();
+            const knownUserContextIds = new Set(userContexts.map((userContext) => userContext.userContext));
+            for (const userContextId of userContextIds) {
+                if (!knownUserContextIds.has(userContextId)) {
+                    throw new NoSuchUserContextException(`User context ${userContextId} not found`);
+                }
+                foundContexts.add(userContextId);
+            }
+            return foundContexts;
+        }
+    }
+
+    /**
+     * Copyright 2022 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class Deferred {
+        #isFinished = false;
+        #promise;
+        #result;
+        #resolve;
+        #reject;
+        get isFinished() {
+            return this.#isFinished;
+        }
+        get result() {
+            if (!this.#isFinished) {
+                throw new Error('Deferred is not finished yet');
+            }
+            return this.#result;
+        }
+        constructor() {
+            this.#promise = new Promise((resolve, reject) => {
+                this.#resolve = resolve;
+                this.#reject = reject;
+            });
+            this.#promise.catch((_error) => {
+            });
+        }
+        then(onFulfilled, onRejected) {
+            return this.#promise.then(onFulfilled, onRejected);
+        }
+        catch(onRejected) {
+            return this.#promise.catch(onRejected);
+        }
+        resolve(value) {
+            this.#result = value;
+            if (!this.#isFinished) {
+                this.#isFinished = true;
+                this.#resolve(value);
+            }
+        }
+        reject(reason) {
+            if (!this.#isFinished) {
+                this.#isFinished = true;
+                this.#reject(reason);
+            }
+        }
+        finally(onFinally) {
+            return this.#promise.finally(onFinally);
+        }
+        [Symbol.toStringTag] = 'Promise';
+    }
+
+    /**
+     * Copyright 2024 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    function getTimestamp() {
+        return new Date().getTime();
+    }
+
+    /**
+     * Copyright 2023 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    function inchesFromCm(cm) {
+        return cm / 2.54;
+    }
+
+    /*
+     * Copyright 2023 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    const SHARED_ID_DIVIDER = '_element_';
+    function getSharedId(frameId, documentId, backendNodeId) {
+        return `f.${frameId}.d.${documentId}.e.${backendNodeId}`;
+    }
+    function parseLegacySharedId(sharedId) {
+        const match = sharedId.match(new RegExp(`(.*)${SHARED_ID_DIVIDER}(.*)`));
+        if (!match) {
+            return null;
+        }
+        const documentId = match[1];
+        const elementId = match[2];
+        if (documentId === undefined || elementId === undefined) {
+            return null;
+        }
+        const backendNodeId = parseInt(elementId ?? '');
+        if (isNaN(backendNodeId)) {
+            return null;
+        }
+        return {
+            documentId,
+            backendNodeId,
+        };
+    }
+    function parseSharedId(sharedId) {
+        const legacyFormattedSharedId = parseLegacySharedId(sharedId);
+        if (legacyFormattedSharedId !== null) {
+            return { ...legacyFormattedSharedId, frameId: undefined };
+        }
+        const match = sharedId.match(/f\.(.*)\.d\.(.*)\.e\.([0-9]*)/);
+        if (!match) {
+            return null;
+        }
+        const frameId = match[1];
+        const documentId = match[2];
+        const elementId = match[3];
+        if (frameId === undefined ||
+            documentId === undefined ||
+            elementId === undefined) {
+            return null;
+        }
+        const backendNodeId = parseInt(elementId ?? '');
+        if (isNaN(backendNodeId)) {
+            return null;
+        }
+        return {
+            frameId,
+            documentId,
+            backendNodeId,
+        };
+    }
+
+    class Realm {
+        #cdpClient;
+        #eventManager;
+        #executionContextId;
+        #logger;
+        #origin;
+        #realmId;
+        #realmStorage;
+        constructor(cdpClient, eventManager, executionContextId, logger, origin, realmId, realmStorage) {
+            this.#cdpClient = cdpClient;
+            this.#eventManager = eventManager;
+            this.#executionContextId = executionContextId;
+            this.#logger = logger;
+            this.#origin = origin;
+            this.#realmId = realmId;
+            this.#realmStorage = realmStorage;
+            this.#realmStorage.addRealm(this);
+        }
+        cdpToBidiValue(cdpValue, resultOwnership) {
+            const bidiValue = this.serializeForBiDi(cdpValue.result.deepSerializedValue, new Map());
+            if (cdpValue.result.objectId) {
+                const objectId = cdpValue.result.objectId;
+                if (resultOwnership === "root" ) {
+                    bidiValue.handle = objectId;
+                    this.#realmStorage.knownHandlesToRealmMap.set(objectId, this.realmId);
+                }
+                else {
+                    void this.#releaseObject(objectId).catch((error) => this.#logger?.(LogType.debugError, error));
+                }
+            }
+            return bidiValue;
+        }
+        serializeForBiDi(deepSerializedValue, internalIdMap) {
+            if (Object.hasOwn(deepSerializedValue, 'weakLocalObjectReference')) {
+                const weakLocalObjectReference = deepSerializedValue.weakLocalObjectReference;
+                if (!internalIdMap.has(weakLocalObjectReference)) {
+                    internalIdMap.set(weakLocalObjectReference, uuidv4());
+                }
+                deepSerializedValue.internalId = internalIdMap.get(weakLocalObjectReference);
+                delete deepSerializedValue['weakLocalObjectReference'];
+            }
+            if (deepSerializedValue.type === 'node' &&
+                deepSerializedValue.value &&
+                Object.hasOwn(deepSerializedValue.value, 'frameId')) {
+                delete deepSerializedValue.value['frameId'];
+            }
+            if (deepSerializedValue.type === 'platformobject') {
+                return { type: 'object' };
+            }
+            const bidiValue = deepSerializedValue.value;
+            if (bidiValue === undefined) {
+                return deepSerializedValue;
+            }
+            if (['array', 'set', 'htmlcollection', 'nodelist'].includes(deepSerializedValue.type)) {
+                for (const i in bidiValue) {
+                    bidiValue[i] = this.serializeForBiDi(bidiValue[i], internalIdMap);
+                }
+            }
+            if (['object', 'map'].includes(deepSerializedValue.type)) {
+                for (const i in bidiValue) {
+                    bidiValue[i] = [
+                        this.serializeForBiDi(bidiValue[i][0], internalIdMap),
+                        this.serializeForBiDi(bidiValue[i][1], internalIdMap),
+                    ];
+                }
+            }
+            return deepSerializedValue;
+        }
+        get realmId() {
+            return this.#realmId;
+        }
+        get executionContextId() {
+            return this.#executionContextId;
+        }
+        get origin() {
+            return this.#origin;
+        }
+        get source() {
+            return {
+                realm: this.realmId,
+            };
+        }
+        get cdpClient() {
+            return this.#cdpClient;
+        }
+        get baseInfo() {
+            return {
+                realm: this.realmId,
+                origin: this.origin,
+            };
+        }
+        async evaluate(expression, awaitPromise, resultOwnership = "none" , serializationOptions = {}, userActivation = false, includeCommandLineApi = false) {
+            const cdpEvaluateResult = await this.cdpClient.sendCommand('Runtime.evaluate', {
+                contextId: this.executionContextId,
+                expression,
+                awaitPromise,
+                serializationOptions: Realm.#getSerializationOptions("deep" , serializationOptions),
+                userGesture: userActivation,
+                includeCommandLineAPI: includeCommandLineApi,
+            });
+            if (cdpEvaluateResult.exceptionDetails) {
+                return await this.#getExceptionResult(cdpEvaluateResult.exceptionDetails, 0, resultOwnership);
+            }
+            return {
+                realm: this.realmId,
+                result: this.cdpToBidiValue(cdpEvaluateResult, resultOwnership),
+                type: 'success',
+            };
+        }
+        #registerEvent(event) {
+            if (this.associatedBrowsingContexts.length === 0) {
+                this.#eventManager.registerGlobalEvent(event);
+            }
+            else {
+                for (const browsingContext of this.associatedBrowsingContexts) {
+                    this.#eventManager.registerEvent(event, browsingContext.id);
+                }
+            }
+        }
+        initialize() {
+            this.#registerEvent({
+                type: 'event',
+                method: Script$2.EventNames.RealmCreated,
+                params: this.realmInfo,
+            });
+        }
+        async serializeCdpObject(cdpRemoteObject, resultOwnership) {
+            const argument = Realm.#cdpRemoteObjectToCallArgument(cdpRemoteObject);
+            const cdpValue = await this.cdpClient.sendCommand('Runtime.callFunctionOn', {
+                functionDeclaration: String((remoteObject) => remoteObject),
+                awaitPromise: false,
+                arguments: [argument],
+                serializationOptions: {
+                    serialization: "deep" ,
+                },
+                executionContextId: this.executionContextId,
+            });
+            return this.cdpToBidiValue(cdpValue, resultOwnership);
+        }
+        static #cdpRemoteObjectToCallArgument(cdpRemoteObject) {
+            if (cdpRemoteObject.objectId !== undefined) {
+                return { objectId: cdpRemoteObject.objectId };
+            }
+            if (cdpRemoteObject.unserializableValue !== undefined) {
+                return { unserializableValue: cdpRemoteObject.unserializableValue };
+            }
+            return { value: cdpRemoteObject.value };
+        }
+        async stringifyObject(cdpRemoteObject) {
+            const { result } = await this.cdpClient.sendCommand('Runtime.callFunctionOn', {
+                functionDeclaration: String((remoteObject) => String(remoteObject)),
+                awaitPromise: false,
+                arguments: [cdpRemoteObject],
+                returnByValue: true,
+                executionContextId: this.executionContextId,
+            });
+            return result.value;
+        }
+        async #flattenKeyValuePairs(mappingLocalValue) {
+            const keyValueArray = await Promise.all(mappingLocalValue.map(async ([key, value]) => {
+                let keyArg;
+                if (typeof key === 'string') {
+                    keyArg = { value: key };
+                }
+                else {
+                    keyArg = await this.deserializeForCdp(key);
+                }
+                const valueArg = await this.deserializeForCdp(value);
+                return [keyArg, valueArg];
+            }));
+            return keyValueArray.flat();
+        }
+        async #flattenValueList(listLocalValue) {
+            return await Promise.all(listLocalValue.map((localValue) => this.deserializeForCdp(localValue)));
+        }
+        async #serializeCdpExceptionDetails(cdpExceptionDetails, lineOffset, resultOwnership) {
+            const callFrames = cdpExceptionDetails.stackTrace?.callFrames.map((frame) => ({
+                url: frame.url,
+                functionName: frame.functionName,
+                lineNumber: frame.lineNumber - lineOffset,
+                columnNumber: frame.columnNumber,
+            })) ?? [];
+            const exception = cdpExceptionDetails.exception;
+            return {
+                exception: await this.serializeCdpObject(exception, resultOwnership),
+                columnNumber: cdpExceptionDetails.columnNumber,
+                lineNumber: cdpExceptionDetails.lineNumber - lineOffset,
+                stackTrace: {
+                    callFrames,
+                },
+                text: (await this.stringifyObject(exception)) || cdpExceptionDetails.text,
+            };
+        }
+        async callFunction(functionDeclaration, awaitPromise, thisLocalValue = {
+            type: 'undefined',
+        }, argumentsLocalValues = [], resultOwnership = "none" , serializationOptions = {}, userActivation = false) {
+            const callFunctionAndSerializeScript = `(...args) => {
+      function callFunction(f, args) {
+        const deserializedThis = args.shift();
+        const deserializedArgs = args;
+        return f.apply(deserializedThis, deserializedArgs);
+      }
+      return callFunction((
+        ${functionDeclaration}
+      ), args);
+    }`;
+            const thisAndArgumentsList = [
+                await this.deserializeForCdp(thisLocalValue),
+                ...(await Promise.all(argumentsLocalValues.map(async (argumentLocalValue) => await this.deserializeForCdp(argumentLocalValue)))),
+            ];
+            let cdpCallFunctionResult;
+            try {
+                cdpCallFunctionResult = await this.cdpClient.sendCommand('Runtime.callFunctionOn', {
+                    functionDeclaration: callFunctionAndSerializeScript,
+                    awaitPromise,
+                    arguments: thisAndArgumentsList,
+                    serializationOptions: Realm.#getSerializationOptions("deep" , serializationOptions),
+                    executionContextId: this.executionContextId,
+                    userGesture: userActivation,
+                });
+            }
+            catch (error) {
+                if (error.code === -32e3  &&
+                    [
+                        'Could not find object with given id',
+                        'Argument should belong to the same JavaScript world as target object',
+                        'Invalid remote object id',
+                    ].includes(error.message)) {
+                    throw new NoSuchHandleException('Handle was not found.');
+                }
+                throw error;
+            }
+            if (cdpCallFunctionResult.exceptionDetails) {
+                return await this.#getExceptionResult(cdpCallFunctionResult.exceptionDetails, 1, resultOwnership);
+            }
+            return {
+                type: 'success',
+                result: this.cdpToBidiValue(cdpCallFunctionResult, resultOwnership),
+                realm: this.realmId,
+            };
+        }
+        async deserializeForCdp(localValue) {
+            if ('handle' in localValue && localValue.handle) {
+                return { objectId: localValue.handle };
+            }
+            else if ('handle' in localValue || 'sharedId' in localValue) {
+                throw new NoSuchHandleException('Handle was not found.');
+            }
+            switch (localValue.type) {
+                case 'undefined':
+                    return { unserializableValue: 'undefined' };
+                case 'null':
+                    return { unserializableValue: 'null' };
+                case 'string':
+                    return { value: localValue.value };
+                case 'number':
+                    if (localValue.value === 'NaN') {
+                        return { unserializableValue: 'NaN' };
+                    }
+                    else if (localValue.value === '-0') {
+                        return { unserializableValue: '-0' };
+                    }
+                    else if (localValue.value === 'Infinity') {
+                        return { unserializableValue: 'Infinity' };
+                    }
+                    else if (localValue.value === '-Infinity') {
+                        return { unserializableValue: '-Infinity' };
+                    }
+                    return {
+                        value: localValue.value,
+                    };
+                case 'boolean':
+                    return { value: Boolean(localValue.value) };
+                case 'bigint':
+                    return {
+                        unserializableValue: `BigInt(${JSON.stringify(localValue.value)})`,
+                    };
+                case 'date':
+                    return {
+                        unserializableValue: `new Date(Date.parse(${JSON.stringify(localValue.value)}))`,
+                    };
+                case 'regexp':
+                    return {
+                        unserializableValue: `new RegExp(${JSON.stringify(localValue.value.pattern)}, ${JSON.stringify(localValue.value.flags)})`,
+                    };
+                case 'map': {
+                    const keyValueArray = await this.#flattenKeyValuePairs(localValue.value);
+                    const { result } = await this.cdpClient.sendCommand('Runtime.callFunctionOn', {
+                        functionDeclaration: String((...args) => {
+                            const result = new Map();
+                            for (let i = 0; i < args.length; i += 2) {
+                                result.set(args[i], args[i + 1]);
+                            }
+                            return result;
+                        }),
+                        awaitPromise: false,
+                        arguments: keyValueArray,
+                        returnByValue: false,
+                        executionContextId: this.executionContextId,
+                    });
+                    return { objectId: result.objectId };
+                }
+                case 'object': {
+                    const keyValueArray = await this.#flattenKeyValuePairs(localValue.value);
+                    const { result } = await this.cdpClient.sendCommand('Runtime.callFunctionOn', {
+                        functionDeclaration: String((...args) => {
+                            const result = {};
+                            for (let i = 0; i < args.length; i += 2) {
+                                const key = args[i];
+                                result[key] = args[i + 1];
+                            }
+                            return result;
+                        }),
+                        awaitPromise: false,
+                        arguments: keyValueArray,
+                        returnByValue: false,
+                        executionContextId: this.executionContextId,
+                    });
+                    return { objectId: result.objectId };
+                }
+                case 'array': {
+                    const args = await this.#flattenValueList(localValue.value);
+                    const { result } = await this.cdpClient.sendCommand('Runtime.callFunctionOn', {
+                        functionDeclaration: String((...args) => args),
+                        awaitPromise: false,
+                        arguments: args,
+                        returnByValue: false,
+                        executionContextId: this.executionContextId,
+                    });
+                    return { objectId: result.objectId };
+                }
+                case 'set': {
+                    const args = await this.#flattenValueList(localValue.value);
+                    const { result } = await this.cdpClient.sendCommand('Runtime.callFunctionOn', {
+                        functionDeclaration: String((...args) => new Set(args)),
+                        awaitPromise: false,
+                        arguments: args,
+                        returnByValue: false,
+                        executionContextId: this.executionContextId,
+                    });
+                    return { objectId: result.objectId };
+                }
+                case 'channel': {
+                    const channelProxy = new ChannelProxy(localValue.value, this.#logger);
+                    const channelProxySendMessageHandle = await channelProxy.init(this, this.#eventManager);
+                    return { objectId: channelProxySendMessageHandle };
+                }
+            }
+            throw new Error(`Value ${JSON.stringify(localValue)} is not deserializable.`);
+        }
+        async #getExceptionResult(exceptionDetails, lineOffset, resultOwnership) {
+            return {
+                exceptionDetails: await this.#serializeCdpExceptionDetails(exceptionDetails, lineOffset, resultOwnership),
+                realm: this.realmId,
+                type: 'exception',
+            };
+        }
+        static #getSerializationOptions(serialization, serializationOptions) {
+            return {
+                serialization,
+                additionalParameters: Realm.#getAdditionalSerializationParameters(serializationOptions),
+                ...Realm.#getMaxObjectDepth(serializationOptions),
+            };
+        }
+        static #getAdditionalSerializationParameters(serializationOptions) {
+            const additionalParameters = {};
+            if (serializationOptions.maxDomDepth !== undefined) {
+                additionalParameters['maxNodeDepth'] =
+                    serializationOptions.maxDomDepth === null
+                        ? 1000
+                        : serializationOptions.maxDomDepth;
+            }
+            if (serializationOptions.includeShadowTree !== undefined) {
+                additionalParameters['includeShadowTree'] =
+                    serializationOptions.includeShadowTree;
+            }
+            return additionalParameters;
+        }
+        static #getMaxObjectDepth(serializationOptions) {
+            return serializationOptions.maxObjectDepth === undefined ||
+                serializationOptions.maxObjectDepth === null
+                ? {}
+                : { maxDepth: serializationOptions.maxObjectDepth };
+        }
+        async #releaseObject(handle) {
+            try {
+                await this.cdpClient.sendCommand('Runtime.releaseObject', {
+                    objectId: handle,
+                });
+            }
+            catch (error) {
+                if (!(error.code === -32e3  &&
+                    error.message === 'Invalid remote object id')) {
+                    throw error;
+                }
+            }
+        }
+        async disown(handle) {
+            if (this.#realmStorage.knownHandlesToRealmMap.get(handle) !== this.realmId) {
+                return;
+            }
+            await this.#releaseObject(handle);
+            this.#realmStorage.knownHandlesToRealmMap.delete(handle);
+        }
+        dispose() {
+            this.#registerEvent({
+                type: 'event',
+                method: Script$2.EventNames.RealmDestroyed,
+                params: {
+                    realm: this.realmId,
+                },
+            });
+        }
+    }
+
+    /**
+     * Copyright 2024 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class WindowRealm extends Realm {
+        #browsingContextId;
+        #browsingContextStorage;
+        sandbox;
+        constructor(browsingContextId, browsingContextStorage, cdpClient, eventManager, executionContextId, logger, origin, realmId, realmStorage, sandbox) {
+            super(cdpClient, eventManager, executionContextId, logger, origin, realmId, realmStorage);
+            this.#browsingContextId = browsingContextId;
+            this.#browsingContextStorage = browsingContextStorage;
+            this.sandbox = sandbox;
+            this.initialize();
+        }
+        #getBrowsingContextId(navigableId) {
+            const maybeBrowsingContext = this.#browsingContextStorage
+                .getAllContexts()
+                .find((context) => context.navigableId === navigableId);
+            return maybeBrowsingContext?.id ?? 'UNKNOWN';
+        }
+        get browsingContext() {
+            return this.#browsingContextStorage.getContext(this.#browsingContextId);
+        }
+        get associatedBrowsingContexts() {
+            return [this.browsingContext];
+        }
+        get realmType() {
+            return 'window';
+        }
+        get realmInfo() {
+            return {
+                ...this.baseInfo,
+                type: this.realmType,
+                context: this.#browsingContextId,
+                sandbox: this.sandbox,
+            };
+        }
+        get source() {
+            return {
+                realm: this.realmId,
+                context: this.browsingContext.id,
+            };
+        }
+        serializeForBiDi(deepSerializedValue, internalIdMap) {
+            const bidiValue = deepSerializedValue.value;
+            if (deepSerializedValue.type === 'node' && bidiValue !== undefined) {
+                if (Object.hasOwn(bidiValue, 'backendNodeId')) {
+                    let navigableId = this.browsingContext.navigableId ?? 'UNKNOWN';
+                    if (Object.hasOwn(bidiValue, 'loaderId')) {
+                        navigableId = bidiValue.loaderId;
+                        delete bidiValue['loaderId'];
+                    }
+                    deepSerializedValue.sharedId =
+                        getSharedId(this.#getBrowsingContextId(navigableId), navigableId, bidiValue.backendNodeId);
+                    delete bidiValue['backendNodeId'];
+                }
+                if (Object.hasOwn(bidiValue, 'children')) {
+                    for (const i in bidiValue.children) {
+                        bidiValue.children[i] = this.serializeForBiDi(bidiValue.children[i], internalIdMap);
+                    }
+                }
+                if (Object.hasOwn(bidiValue, 'shadowRoot') &&
+                    bidiValue.shadowRoot !== null) {
+                    bidiValue.shadowRoot = this.serializeForBiDi(bidiValue.shadowRoot, internalIdMap);
+                }
+                if (bidiValue.namespaceURI === '') {
+                    bidiValue.namespaceURI = null;
+                }
+            }
+            return super.serializeForBiDi(deepSerializedValue, internalIdMap);
+        }
+        async deserializeForCdp(localValue) {
+            if ('sharedId' in localValue && localValue.sharedId) {
+                const parsedSharedId = parseSharedId(localValue.sharedId);
+                if (parsedSharedId === null) {
+                    throw new NoSuchNodeException(`SharedId "${localValue.sharedId}" was not found.`);
+                }
+                const { documentId, backendNodeId } = parsedSharedId;
+                if (this.browsingContext.navigableId !== documentId) {
+                    throw new NoSuchNodeException(`SharedId "${localValue.sharedId}" belongs to different document. Current document is ${this.browsingContext.navigableId}.`);
+                }
+                try {
+                    const { object } = await this.cdpClient.sendCommand('DOM.resolveNode', {
+                        backendNodeId,
+                        executionContextId: this.executionContextId,
+                    });
+                    return { objectId: object.objectId };
+                }
+                catch (error) {
+                    if (error.code === -32e3  &&
+                        error.message === 'No node with given id found') {
+                        throw new NoSuchNodeException(`SharedId "${localValue.sharedId}" was not found.`);
+                    }
+                    throw new UnknownErrorException(error.message, error.stack);
+                }
+            }
+            return await super.deserializeForCdp(localValue);
+        }
+        async evaluate(expression, awaitPromise, resultOwnership, serializationOptions, userActivation, includeCommandLineApi) {
+            await this.#browsingContextStorage
+                .getContext(this.#browsingContextId)
+                .targetUnblockedOrThrow();
+            return await super.evaluate(expression, awaitPromise, resultOwnership, serializationOptions, userActivation, includeCommandLineApi);
+        }
+        async callFunction(functionDeclaration, awaitPromise, thisLocalValue, argumentsLocalValues, resultOwnership, serializationOptions, userActivation) {
+            await this.#browsingContextStorage
+                .getContext(this.#browsingContextId)
+                .targetUnblockedOrThrow();
+            return await super.callFunction(functionDeclaration, awaitPromise, thisLocalValue, argumentsLocalValues, resultOwnership, serializationOptions, userActivation);
+        }
+    }
+
+    /*
+     *  Copyright 2024 Google LLC.
+     *  Copyright (c) Microsoft Corporation.
+     *
+     *  Licensed under the Apache License, Version 2.0 (the "License");
+     *  you may not use this file except in compliance with the License.
+     *  You may obtain a copy of the License at
+     *
+     *      http://www.apache.org/licenses/LICENSE-2.0
+     *
+     *  Unless required by applicable law or agreed to in writing, software
+     *  distributed under the License is distributed on an "AS IS" BASIS,
+     *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     *  See the License for the specific language governing permissions and
+     *  limitations under the License.
+     *
+     */
+    function urlMatchesAboutBlank(url) {
+        if (url === '') {
+            return true;
+        }
+        try {
+            const parsedUrl = new URL(url);
+            const schema = parsedUrl.protocol.replace(/:$/, '');
+            return (schema.toLowerCase() === 'about' &&
+                parsedUrl.pathname.toLowerCase() === 'blank' &&
+                parsedUrl.username === '' &&
+                parsedUrl.password === '' &&
+                parsedUrl.host === '');
+        }
+        catch (err) {
+            if (err instanceof TypeError) {
+                return false;
+            }
+            throw err;
+        }
+    }
+
+    /*
+     *  Copyright 2024 Google LLC.
+     *  Copyright (c) Microsoft Corporation.
+     *
+     *  Licensed under the Apache License, Version 2.0 (the "License");
+     *  you may not use this file except in compliance with the License.
+     *  You may obtain a copy of the License at
+     *
+     *      http://www.apache.org/licenses/LICENSE-2.0
+     *
+     *  Unless required by applicable law or agreed to in writing, software
+     *  distributed under the License is distributed on an "AS IS" BASIS,
+     *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     *  See the License for the specific language governing permissions and
+     *  limitations under the License.
+     *
+     */
+    class NavigationResult {
+        eventName;
+        message;
+        constructor(eventName, message) {
+            this.eventName = eventName;
+            this.message = message;
+        }
+    }
+    class NavigationState {
+        navigationId = uuidv4();
+        #browsingContextId;
+        #started = false;
+        #finished = new Deferred();
+        url;
+        loaderId;
+        #isInitial;
+        #eventManager;
+        committed = new Deferred();
+        isFragmentNavigation;
+        get finished() {
+            return this.#finished;
+        }
+        constructor(url, browsingContextId, isInitial, eventManager) {
+            this.#browsingContextId = browsingContextId;
+            this.url = url;
+            this.#isInitial = isInitial;
+            this.#eventManager = eventManager;
+        }
+        navigationInfo() {
+            return {
+                context: this.#browsingContextId,
+                navigation: this.navigationId,
+                timestamp: getTimestamp(),
+                url: this.url,
+            };
+        }
+        start() {
+            if (
+            !this.#isInitial &&
+                !this.#started &&
+                !this.isFragmentNavigation) {
+                this.#eventManager.registerEvent({
+                    type: 'event',
+                    method: BrowsingContext$2.EventNames.NavigationStarted,
+                    params: this.navigationInfo(),
+                }, this.#browsingContextId);
+            }
+            this.#started = true;
+        }
+        #finish(navigationResult) {
+            this.#started = true;
+            if (!this.#isInitial &&
+                !this.#finished.isFinished &&
+                navigationResult.eventName !== "browsingContext.load" ) {
+                this.#eventManager.registerEvent({
+                    type: 'event',
+                    method: navigationResult.eventName,
+                    params: this.navigationInfo(),
+                }, this.#browsingContextId);
+            }
+            this.#finished.resolve(navigationResult);
+        }
+        frameNavigated() {
+            this.committed.resolve();
+            if (!this.#isInitial) {
+                this.#eventManager.registerEvent({
+                    type: 'event',
+                    method: BrowsingContext$2.EventNames.NavigationCommitted,
+                    params: this.navigationInfo(),
+                }, this.#browsingContextId);
+            }
+        }
+        fragmentNavigated() {
+            this.committed.resolve();
+            this.#finish(new NavigationResult("browsingContext.fragmentNavigated" ));
+        }
+        load() {
+            this.#finish(new NavigationResult("browsingContext.load" ));
+        }
+        fail(message) {
+            this.#finish(new NavigationResult(this.committed.isFinished
+                ? "browsingContext.navigationAborted"
+                : "browsingContext.navigationFailed" , message));
+        }
+    }
+    class NavigationTracker {
+        #eventManager;
+        #logger;
+        #loaderIdToNavigationsMap = new Map();
+        #browsingContextId;
+        #lastCommittedNavigation;
+        #pendingNavigation;
+        #isInitialNavigation = true;
+        constructor(url, browsingContextId, eventManager, logger) {
+            this.#browsingContextId = browsingContextId;
+            this.#eventManager = eventManager;
+            this.#logger = logger;
+            this.#isInitialNavigation = true;
+            this.#lastCommittedNavigation = new NavigationState(url, browsingContextId, urlMatchesAboutBlank(url), this.#eventManager);
+        }
+        get currentNavigationId() {
+            if (this.#pendingNavigation?.isFragmentNavigation === false) {
+                return this.#pendingNavigation.navigationId;
+            }
+            return this.#lastCommittedNavigation.navigationId;
+        }
+        get isInitialNavigation() {
+            return this.#isInitialNavigation;
+        }
+        get url() {
+            return this.#lastCommittedNavigation.url;
+        }
+        createPendingNavigation(url, canBeInitialNavigation = false) {
+            this.#logger?.(LogType.debug, 'createCommandNavigation');
+            this.#isInitialNavigation =
+                canBeInitialNavigation &&
+                    this.#isInitialNavigation &&
+                    urlMatchesAboutBlank(url);
+            this.#pendingNavigation?.fail('navigation canceled by concurrent navigation');
+            const navigation = new NavigationState(url, this.#browsingContextId, this.#isInitialNavigation, this.#eventManager);
+            this.#pendingNavigation = navigation;
+            return navigation;
+        }
+        dispose() {
+            this.#pendingNavigation?.fail('navigation canceled by context disposal');
+            this.#lastCommittedNavigation.fail('navigation canceled by context disposal');
+        }
+        onTargetInfoChanged(url) {
+            this.#logger?.(LogType.debug, `onTargetInfoChanged ${url}`);
+            this.#lastCommittedNavigation.url = url;
+        }
+        #getNavigationForFrameNavigated(url, loaderId) {
+            if (this.#loaderIdToNavigationsMap.has(loaderId)) {
+                return this.#loaderIdToNavigationsMap.get(loaderId);
+            }
+            if (this.#pendingNavigation !== undefined &&
+                this.#pendingNavigation.loaderId === undefined) {
+                return this.#pendingNavigation;
+            }
+            return this.createPendingNavigation(url, true);
+        }
+        frameNavigated(url, loaderId, unreachableUrl) {
+            this.#logger?.(LogType.debug, `frameNavigated ${url}`);
+            if (unreachableUrl !== undefined) {
+                const navigation = this.#loaderIdToNavigationsMap.get(loaderId) ??
+                    this.#pendingNavigation ??
+                    this.createPendingNavigation(unreachableUrl, true);
+                navigation.url = unreachableUrl;
+                navigation.start();
+                navigation.fail('the requested url is unreachable');
+                return;
+            }
+            const navigation = this.#getNavigationForFrameNavigated(url, loaderId);
+            if (navigation !== this.#lastCommittedNavigation) {
+                this.#lastCommittedNavigation.fail('navigation canceled by concurrent navigation');
+            }
+            navigation.url = url;
+            navigation.loaderId = loaderId;
+            this.#loaderIdToNavigationsMap.set(loaderId, navigation);
+            navigation.start();
+            navigation.frameNavigated();
+            this.#lastCommittedNavigation = navigation;
+            if (this.#pendingNavigation === navigation) {
+                this.#pendingNavigation = undefined;
+            }
+        }
+        navigatedWithinDocument(url, navigationType) {
+            this.#logger?.(LogType.debug, `navigatedWithinDocument ${url}, ${navigationType}`);
+            this.#lastCommittedNavigation.url = url;
+            if (navigationType !== 'fragment') {
+                return;
+            }
+            const fragmentNavigation = this.#pendingNavigation?.isFragmentNavigation === true
+                ? this.#pendingNavigation
+                : new NavigationState(url, this.#browsingContextId, false, this.#eventManager);
+            fragmentNavigation.fragmentNavigated();
+            if (fragmentNavigation === this.#pendingNavigation) {
+                this.#pendingNavigation = undefined;
+            }
+        }
+        loadPageEvent(loaderId) {
+            this.#logger?.(LogType.debug, 'loadPageEvent');
+            this.#isInitialNavigation = false;
+            this.#loaderIdToNavigationsMap.get(loaderId)?.load();
+        }
+        failNavigation(navigation, errorText) {
+            this.#logger?.(LogType.debug, 'failCommandNavigation');
+            navigation.fail(errorText);
+        }
+        navigationCommandFinished(navigation, loaderId) {
+            this.#logger?.(LogType.debug, `finishCommandNavigation ${navigation.navigationId}, ${loaderId}`);
+            if (loaderId !== undefined) {
+                navigation.loaderId = loaderId;
+                this.#loaderIdToNavigationsMap.set(loaderId, navigation);
+            }
+            navigation.isFragmentNavigation = loaderId === undefined;
+        }
+        frameStartedNavigating(url, loaderId, navigationType) {
+            this.#logger?.(LogType.debug, `frameStartedNavigating ${url}, ${loaderId}`);
+            if (this.#pendingNavigation &&
+                this.#pendingNavigation?.loaderId !== undefined &&
+                this.#pendingNavigation?.loaderId !== loaderId) {
+                this.#pendingNavigation?.fail('navigation canceled by concurrent navigation');
+                this.#pendingNavigation = undefined;
+            }
+            if (this.#loaderIdToNavigationsMap.has(loaderId)) {
+                const existingNavigation = this.#loaderIdToNavigationsMap.get(loaderId);
+                existingNavigation.isFragmentNavigation =
+                    NavigationTracker.#isFragmentNavigation(navigationType);
+                this.#pendingNavigation = existingNavigation;
+                return;
+            }
+            const pendingNavigation = this.#pendingNavigation ?? this.createPendingNavigation(url, true);
+            this.#loaderIdToNavigationsMap.set(loaderId, pendingNavigation);
+            pendingNavigation.isFragmentNavigation =
+                NavigationTracker.#isFragmentNavigation(navigationType);
+            pendingNavigation.url = url;
+            pendingNavigation.loaderId = loaderId;
+            pendingNavigation.start();
+        }
+        static #isFragmentNavigation(navigationType) {
+            return ['historySameDocument', 'sameDocument'].includes(navigationType);
+        }
+        networkLoadingFailed(loaderId, errorText) {
+            this.#loaderIdToNavigationsMap.get(loaderId)?.fail(errorText);
+        }
+    }
+
+    /**
+     * Copyright 2022 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    var _a$5;
+    class BrowsingContextImpl {
+        static LOGGER_PREFIX = `${LogType.debug}:browsingContext`;
+        #children = new Set();
+        #id;
+        userContext;
+        #loaderId;
+        #parentId = null;
+        #originalOpener;
+        #lifecycle = {
+            DOMContentLoaded: new Deferred(),
+            load: new Deferred(),
+        };
+        #cdpTarget;
+        #defaultRealmDeferred = new Deferred();
+        #browsingContextStorage;
+        #eventManager;
+        #logger;
+        #navigationTracker;
+        #realmStorage;
+        #unhandledPromptBehavior;
+        #lastUserPromptType;
+        constructor(id, parentId, userContext, cdpTarget, eventManager, browsingContextStorage, realmStorage, url, originalOpener, unhandledPromptBehavior, logger) {
+            this.#cdpTarget = cdpTarget;
+            this.#id = id;
+            this.#parentId = parentId;
+            this.userContext = userContext;
+            this.#eventManager = eventManager;
+            this.#browsingContextStorage = browsingContextStorage;
+            this.#realmStorage = realmStorage;
+            this.#unhandledPromptBehavior = unhandledPromptBehavior;
+            this.#logger = logger;
+            this.#originalOpener = originalOpener;
+            this.#navigationTracker = new NavigationTracker(url, id, eventManager, logger);
+        }
+        static create(id, parentId, userContext, cdpTarget, eventManager, browsingContextStorage, realmStorage, url, originalOpener, unhandledPromptBehavior, logger) {
+            const context = new _a$5(id, parentId, userContext, cdpTarget, eventManager, browsingContextStorage, realmStorage, url, originalOpener, unhandledPromptBehavior, logger);
+            context.#initListeners();
+            browsingContextStorage.addContext(context);
+            if (!context.isTopLevelContext()) {
+                context.parent.addChild(context.id);
+            }
+            eventManager.registerPromiseEvent(context.targetUnblockedOrThrow().then(() => {
+                return {
+                    kind: 'success',
+                    value: {
+                        type: 'event',
+                        method: BrowsingContext$2.EventNames.ContextCreated,
+                        params: {
+                            ...context.serializeToBidiValue(),
+                            url,
+                        },
+                    },
+                };
+            }, (error) => {
+                return {
+                    kind: 'error',
+                    error,
+                };
+            }), context.id, BrowsingContext$2.EventNames.ContextCreated);
+            return context;
+        }
+        get navigableId() {
+            return this.#loaderId;
+        }
+        get navigationId() {
+            return this.#navigationTracker.currentNavigationId;
+        }
+        dispose(emitContextDestroyed) {
+            this.#navigationTracker.dispose();
+            this.#realmStorage.deleteRealms({
+                browsingContextId: this.id,
+            });
+            if (!this.isTopLevelContext()) {
+                this.parent.#children.delete(this.id);
+            }
+            this.#failLifecycleIfNotFinished();
+            if (emitContextDestroyed) {
+                this.#eventManager.registerEvent({
+                    type: 'event',
+                    method: BrowsingContext$2.EventNames.ContextDestroyed,
+                    params: this.serializeToBidiValue(null),
+                }, this.id);
+            }
+            this.#deleteAllChildren();
+            this.#eventManager.clearBufferedEvents(this.id);
+            this.#browsingContextStorage.deleteContextById(this.id);
+        }
+        get id() {
+            return this.#id;
+        }
+        get parentId() {
+            return this.#parentId;
+        }
+        set parentId(parentId) {
+            if (this.#parentId !== null) {
+                this.#logger?.(LogType.debugError, 'Parent context already set');
+                return;
+            }
+            this.#parentId = parentId;
+            if (!this.isTopLevelContext()) {
+                this.parent.addChild(this.id);
+            }
+        }
+        get parent() {
+            if (this.parentId === null) {
+                return null;
+            }
+            return this.#browsingContextStorage.getContext(this.parentId);
+        }
+        get directChildren() {
+            return [...this.#children].map((id) => this.#browsingContextStorage.getContext(id));
+        }
+        get allChildren() {
+            const children = this.directChildren;
+            return children.concat(...children.map((child) => child.allChildren));
+        }
+        isTopLevelContext() {
+            return this.#parentId === null;
+        }
+        get top() {
+            let topContext = this;
+            let parent = topContext.parent;
+            while (parent) {
+                topContext = parent;
+                parent = topContext.parent;
+            }
+            return topContext;
+        }
+        addChild(childId) {
+            this.#children.add(childId);
+        }
+        #deleteAllChildren(emitContextDestroyed = false) {
+            this.directChildren.map((child) => child.dispose(emitContextDestroyed));
+        }
+        get cdpTarget() {
+            return this.#cdpTarget;
+        }
+        updateCdpTarget(cdpTarget) {
+            this.#cdpTarget = cdpTarget;
+            this.#initListeners();
+        }
+        get url() {
+            return this.#navigationTracker.url;
+        }
+        async lifecycleLoaded() {
+            await this.#lifecycle.load;
+        }
+        async targetUnblockedOrThrow() {
+            const result = await this.#cdpTarget.unblocked;
+            if (result.kind === 'error') {
+                throw result.error;
+            }
+        }
+        async getOrCreateSandbox(sandbox) {
+            if (sandbox === undefined || sandbox === '') {
+                return await this.#defaultRealmDeferred;
+            }
+            let maybeSandboxes = this.#realmStorage.findRealms({
+                browsingContextId: this.id,
+                sandbox,
+            });
+            if (maybeSandboxes.length === 0) {
+                await this.#cdpTarget.cdpClient.sendCommand('Page.createIsolatedWorld', {
+                    frameId: this.id,
+                    worldName: sandbox,
+                });
+                maybeSandboxes = this.#realmStorage.findRealms({
+                    browsingContextId: this.id,
+                    sandbox,
+                });
+                assert(maybeSandboxes.length !== 0);
+            }
+            return maybeSandboxes[0];
+        }
+        serializeToBidiValue(maxDepth = 0, addParentField = true) {
+            return {
+                context: this.#id,
+                url: this.url,
+                userContext: this.userContext,
+                originalOpener: this.#originalOpener ?? null,
+                clientWindow: `${this.cdpTarget.windowId}`,
+                children: maxDepth === null || maxDepth > 0
+                    ? this.directChildren.map((c) => c.serializeToBidiValue(maxDepth === null ? maxDepth : maxDepth - 1, false))
+                    : null,
+                ...(addParentField ? { parent: this.#parentId } : {}),
+            };
+        }
+        onTargetInfoChanged(params) {
+            this.#navigationTracker.onTargetInfoChanged(params.targetInfo.url);
+        }
+        #initListeners() {
+            this.#cdpTarget.cdpClient.on('Network.loadingFailed', (params) => {
+                this.#navigationTracker.networkLoadingFailed(params.requestId, params.errorText);
+            });
+            this.#cdpTarget.cdpClient.on('Page.fileChooserOpened', (params) => {
+                if (this.id !== params.frameId) {
+                    return;
+                }
+                if (this.#loaderId === undefined) {
+                    this.#logger?.(LogType.debugError, 'LoaderId should be defined when file upload is shown', params);
+                    return;
+                }
+                const element = params.backendNodeId === undefined
+                    ? undefined
+                    : {
+                        sharedId: getSharedId(this.id, this.#loaderId, params.backendNodeId),
+                    };
+                this.#eventManager.registerEvent({
+                    type: 'event',
+                    method: Input$2.EventNames.FileDialogOpened,
+                    params: {
+                        context: this.id,
+                        multiple: params.mode === 'selectMultiple',
+                        element,
+                    },
+                }, this.id);
+            });
+            this.#cdpTarget.cdpClient.on('Page.frameNavigated', (params) => {
+                if (this.id !== params.frame.id) {
+                    return;
+                }
+                this.#navigationTracker.frameNavigated(params.frame.url + (params.frame.urlFragment ?? ''), params.frame.loaderId,
+                params.frame.unreachableUrl);
+                this.#deleteAllChildren();
+                this.#documentChanged(params.frame.loaderId);
+            });
+            this.#cdpTarget.cdpClient.on('Page.frameStartedNavigating', (params) => {
+                if (this.id !== params.frameId) {
+                    return;
+                }
+                this.#navigationTracker.frameStartedNavigating(params.url, params.loaderId, params.navigationType);
+            });
+            this.#cdpTarget.cdpClient.on('Page.navigatedWithinDocument', (params) => {
+                if (this.id !== params.frameId) {
+                    return;
+                }
+                this.#navigationTracker.navigatedWithinDocument(params.url, params.navigationType);
+                if (params.navigationType === 'historyApi') {
+                    this.#eventManager.registerEvent({
+                        type: 'event',
+                        method: 'browsingContext.historyUpdated',
+                        params: {
+                            context: this.id,
+                            url: this.#navigationTracker.url,
+                        },
+                    }, this.id);
+                    return;
+                }
+            });
+            this.#cdpTarget.cdpClient.on('Page.lifecycleEvent', (params) => {
+                if (this.id !== params.frameId) {
+                    return;
+                }
+                if (params.name === 'init') {
+                    this.#documentChanged(params.loaderId);
+                    return;
+                }
+                if (params.name === 'commit') {
+                    this.#loaderId = params.loaderId;
+                    return;
+                }
+                if (!this.#loaderId) {
+                    this.#loaderId = params.loaderId;
+                }
+                if (params.loaderId !== this.#loaderId) {
+                    return;
+                }
+                switch (params.name) {
+                    case 'DOMContentLoaded':
+                        if (!this.#navigationTracker.isInitialNavigation) {
+                            this.#eventManager.registerEvent({
+                                type: 'event',
+                                method: BrowsingContext$2.EventNames.DomContentLoaded,
+                                params: {
+                                    context: this.id,
+                                    navigation: this.#navigationTracker.currentNavigationId,
+                                    timestamp: getTimestamp(),
+                                    url: this.#navigationTracker.url,
+                                },
+                            }, this.id);
+                        }
+                        this.#lifecycle.DOMContentLoaded.resolve();
+                        break;
+                    case 'load':
+                        if (!this.#navigationTracker.isInitialNavigation) {
+                            this.#eventManager.registerEvent({
+                                type: 'event',
+                                method: BrowsingContext$2.EventNames.Load,
+                                params: {
+                                    context: this.id,
+                                    navigation: this.#navigationTracker.currentNavigationId,
+                                    timestamp: getTimestamp(),
+                                    url: this.#navigationTracker.url,
+                                },
+                            }, this.id);
+                        }
+                        this.#navigationTracker.loadPageEvent(params.loaderId);
+                        this.#lifecycle.load.resolve();
+                        break;
+                }
+            });
+            this.#cdpTarget.cdpClient.on('Runtime.executionContextCreated', (params) => {
+                const { auxData, name, uniqueId, id } = params.context;
+                if (!auxData || auxData.frameId !== this.id) {
+                    return;
+                }
+                let origin;
+                let sandbox;
+                switch (auxData.type) {
+                    case 'isolated':
+                        sandbox = name;
+                        if (!this.#defaultRealmDeferred.isFinished) {
+                            this.#logger?.(LogType.debugError, 'Unexpectedly, isolated realm created before the default one');
+                        }
+                        origin = this.#defaultRealmDeferred.isFinished
+                            ? this.#defaultRealmDeferred.result.origin
+                            :
+                                '';
+                        break;
+                    case 'default':
+                        origin = serializeOrigin(params.context.origin);
+                        break;
+                    default:
+                        return;
+                }
+                const realm = new WindowRealm(this.id, this.#browsingContextStorage, this.#cdpTarget.cdpClient, this.#eventManager, id, this.#logger, origin, uniqueId, this.#realmStorage, sandbox);
+                if (auxData.isDefault) {
+                    this.#defaultRealmDeferred.resolve(realm);
+                    void Promise.all(this.#cdpTarget
+                        .getChannels()
+                        .map((channel) => channel.startListenerFromWindow(realm, this.#eventManager)));
+                }
+            });
+            this.#cdpTarget.cdpClient.on('Runtime.executionContextDestroyed', (params) => {
+                if (this.#defaultRealmDeferred.isFinished &&
+                    this.#defaultRealmDeferred.result.executionContextId ===
+                        params.executionContextId) {
+                    this.#defaultRealmDeferred = new Deferred();
+                }
+                this.#realmStorage.deleteRealms({
+                    cdpSessionId: this.#cdpTarget.cdpSessionId,
+                    executionContextId: params.executionContextId,
+                });
+            });
+            this.#cdpTarget.cdpClient.on('Runtime.executionContextsCleared', () => {
+                if (!this.#defaultRealmDeferred.isFinished) {
+                    this.#defaultRealmDeferred.reject(new UnknownErrorException('execution contexts cleared'));
+                }
+                this.#defaultRealmDeferred = new Deferred();
+                this.#realmStorage.deleteRealms({
+                    cdpSessionId: this.#cdpTarget.cdpSessionId,
+                });
+            });
+            this.#cdpTarget.cdpClient.on('Page.javascriptDialogClosed', (params) => {
+                if (params.frameId && this.id !== params.frameId) {
+                    return;
+                }
+                if (!params.frameId &&
+                    this.#parentId &&
+                    this.#cdpTarget.cdpClient !==
+                        this.#browsingContextStorage.getContext(this.#parentId)?.cdpTarget
+                            .cdpClient) {
+                    return;
+                }
+                const accepted = params.result;
+                if (this.#lastUserPromptType === undefined) {
+                    this.#logger?.(LogType.debugError, 'Unexpectedly no opening prompt event before closing one');
+                }
+                this.#eventManager.registerEvent({
+                    type: 'event',
+                    method: BrowsingContext$2.EventNames.UserPromptClosed,
+                    params: {
+                        context: this.id,
+                        accepted,
+                        type: this.#lastUserPromptType ??
+                            'UNKNOWN',
+                        userText: accepted && params.userInput ? params.userInput : undefined,
+                    },
+                }, this.id);
+                this.#lastUserPromptType = undefined;
+            });
+            this.#cdpTarget.cdpClient.on('Page.javascriptDialogOpening', (params) => {
+                if (params.frameId && this.id !== params.frameId) {
+                    return;
+                }
+                if (!params.frameId &&
+                    this.#parentId &&
+                    this.#cdpTarget.cdpClient !==
+                        this.#browsingContextStorage.getContext(this.#parentId)?.cdpTarget
+                            .cdpClient) {
+                    return;
+                }
+                const promptType = _a$5.#getPromptType(params.type);
+                this.#lastUserPromptType = promptType;
+                const promptHandler = this.#getPromptHandler(promptType);
+                this.#eventManager.registerEvent({
+                    type: 'event',
+                    method: BrowsingContext$2.EventNames.UserPromptOpened,
+                    params: {
+                        context: this.id,
+                        handler: promptHandler,
+                        type: promptType,
+                        message: params.message,
+                        ...(params.type === 'prompt'
+                            ? { defaultValue: params.defaultPrompt }
+                            : {}),
+                    },
+                }, this.id);
+                switch (promptHandler) {
+                    case "accept" :
+                        void this.handleUserPrompt(true);
+                        break;
+                    case "dismiss" :
+                        void this.handleUserPrompt(false);
+                        break;
+                }
+            });
+            this.#cdpTarget.browserCdpClient.on('Browser.downloadWillBegin', (params) => {
+                if (this.id !== params.frameId) {
+                    return;
+                }
+                this.#eventManager.registerEvent({
+                    type: 'event',
+                    method: BrowsingContext$2.EventNames.DownloadWillBegin,
+                    params: {
+                        context: this.id,
+                        suggestedFilename: params.suggestedFilename,
+                        navigation: params.guid,
+                        timestamp: getTimestamp(),
+                        url: params.url,
+                    },
+                }, this.id);
+            });
+        }
+        static #getPromptType(cdpType) {
+            switch (cdpType) {
+                case 'alert':
+                    return "alert" ;
+                case 'beforeunload':
+                    return "beforeunload" ;
+                case 'confirm':
+                    return "confirm" ;
+                case 'prompt':
+                    return "prompt" ;
+            }
+        }
+        #getPromptHandler(promptType) {
+            const defaultPromptHandler = "dismiss" ;
+            switch (promptType) {
+                case "alert" :
+                    return (this.#unhandledPromptBehavior?.alert ??
+                        this.#unhandledPromptBehavior?.default ??
+                        defaultPromptHandler);
+                case "beforeunload" :
+                    return (this.#unhandledPromptBehavior?.beforeUnload ??
+                        this.#unhandledPromptBehavior?.default ??
+                        "accept" );
+                case "confirm" :
+                    return (this.#unhandledPromptBehavior?.confirm ??
+                        this.#unhandledPromptBehavior?.default ??
+                        defaultPromptHandler);
+                case "prompt" :
+                    return (this.#unhandledPromptBehavior?.prompt ??
+                        this.#unhandledPromptBehavior?.default ??
+                        defaultPromptHandler);
+            }
+        }
+        #documentChanged(loaderId) {
+            if (loaderId === undefined || this.#loaderId === loaderId) {
+                return;
+            }
+            this.#resetLifecycleIfFinished();
+            this.#loaderId = loaderId;
+            this.#deleteAllChildren(true);
+        }
+        #resetLifecycleIfFinished() {
+            if (this.#lifecycle.DOMContentLoaded.isFinished) {
+                this.#lifecycle.DOMContentLoaded = new Deferred();
+            }
+            else {
+                this.#logger?.(_a$5.LOGGER_PREFIX, 'Document changed (DOMContentLoaded)');
+            }
+            if (this.#lifecycle.load.isFinished) {
+                this.#lifecycle.load = new Deferred();
+            }
+            else {
+                this.#logger?.(_a$5.LOGGER_PREFIX, 'Document changed (load)');
+            }
+        }
+        #failLifecycleIfNotFinished() {
+            if (!this.#lifecycle.DOMContentLoaded.isFinished) {
+                this.#lifecycle.DOMContentLoaded.reject(new UnknownErrorException('navigation canceled'));
+            }
+            if (!this.#lifecycle.load.isFinished) {
+                this.#lifecycle.load.reject(new UnknownErrorException('navigation canceled'));
+            }
+        }
+        async navigate(url, wait) {
+            try {
+                new URL(url);
+            }
+            catch {
+                throw new InvalidArgumentException(`Invalid URL: ${url}`);
+            }
+            const navigationState = this.#navigationTracker.createPendingNavigation(url);
+            const cdpNavigatePromise = (async () => {
+                const cdpNavigateResult = await this.#cdpTarget.cdpClient.sendCommand('Page.navigate', {
+                    url,
+                    frameId: this.id,
+                });
+                if (cdpNavigateResult.errorText) {
+                    this.#navigationTracker.failNavigation(navigationState, cdpNavigateResult.errorText);
+                    throw new UnknownErrorException(cdpNavigateResult.errorText);
+                }
+                this.#navigationTracker.navigationCommandFinished(navigationState, cdpNavigateResult.loaderId);
+                this.#documentChanged(cdpNavigateResult.loaderId);
+            })();
+            const result = await Promise.race([
+                this.#waitNavigation(wait, cdpNavigatePromise, navigationState),
+                navigationState.finished,
+            ]);
+            if (result instanceof NavigationResult) {
+                if (
+                result.eventName === "browsingContext.navigationAborted"  ||
+                    result.eventName === "browsingContext.navigationFailed" ) {
+                    throw new UnknownErrorException(result.message ?? 'unknown exception');
+                }
+            }
+            return {
+                navigation: navigationState.navigationId,
+                url: navigationState.url,
+            };
+        }
+        async #waitNavigation(wait, cdpCommandPromise, navigationState) {
+            await Promise.all([navigationState.committed, cdpCommandPromise]);
+            if (wait === "none" ) {
+                return;
+            }
+            if (navigationState.isFragmentNavigation === true) {
+                await navigationState.finished;
+                return;
+            }
+            if (wait === "interactive" ) {
+                await this.#lifecycle.DOMContentLoaded;
+                return;
+            }
+            if (wait === "complete" ) {
+                await this.#lifecycle.load;
+                return;
+            }
+            throw new InvalidArgumentException(`Wait condition ${wait} is not supported`);
+        }
+        async reload(ignoreCache, wait) {
+            await this.targetUnblockedOrThrow();
+            this.#resetLifecycleIfFinished();
+            const navigationState = this.#navigationTracker.createPendingNavigation(this.#navigationTracker.url);
+            const cdpReloadPromise = this.#cdpTarget.cdpClient.sendCommand('Page.reload', {
+                ignoreCache,
+            });
+            const result = await Promise.race([
+                this.#waitNavigation(wait, cdpReloadPromise, navigationState),
+                navigationState.finished,
+            ]);
+            if (result instanceof NavigationResult) {
+                if (result.eventName === "browsingContext.navigationAborted"  ||
+                    result.eventName === "browsingContext.navigationFailed" ) {
+                    throw new UnknownErrorException(result.message ?? 'unknown exception');
+                }
+            }
+            return {
+                navigation: navigationState.navigationId,
+                url: navigationState.url,
+            };
+        }
+        async setViewport(viewport, devicePixelRatio) {
+            await this.cdpTarget.setViewport(viewport, devicePixelRatio);
+        }
+        async handleUserPrompt(accept, userText) {
+            await this.#cdpTarget.cdpClient.sendCommand('Page.handleJavaScriptDialog', {
+                accept: accept ?? true,
+                promptText: userText,
+            });
+        }
+        async activate() {
+            await this.#cdpTarget.cdpClient.sendCommand('Page.bringToFront');
+        }
+        async captureScreenshot(params) {
+            if (!this.isTopLevelContext()) {
+                throw new UnsupportedOperationException(`Non-top-level 'context' (${params.context}) is currently not supported`);
+            }
+            const formatParameters = getImageFormatParameters(params);
+            let captureBeyondViewport = false;
+            let script;
+            params.origin ??= 'viewport';
+            switch (params.origin) {
+                case 'document': {
+                    script = String(() => {
+                        const element = document.documentElement;
+                        return {
+                            x: 0,
+                            y: 0,
+                            width: element.scrollWidth,
+                            height: element.scrollHeight,
+                        };
+                    });
+                    captureBeyondViewport = true;
+                    break;
+                }
+                case 'viewport': {
+                    script = String(() => {
+                        const viewport = window.visualViewport;
+                        return {
+                            x: viewport.pageLeft,
+                            y: viewport.pageTop,
+                            width: viewport.width,
+                            height: viewport.height,
+                        };
+                    });
+                    break;
+                }
+            }
+            const realm = await this.getOrCreateSandbox(undefined);
+            const originResult = await realm.callFunction(script, false);
+            assert(originResult.type === 'success');
+            const origin = deserializeDOMRect(originResult.result);
+            assert(origin);
+            let rect = origin;
+            if (params.clip) {
+                const clip = params.clip;
+                if (params.origin === 'viewport' && clip.type === 'box') {
+                    clip.x += origin.x;
+                    clip.y += origin.y;
+                }
+                rect = getIntersectionRect(await this.#parseRect(clip), origin);
+            }
+            if (rect.width === 0 || rect.height === 0) {
+                throw new UnableToCaptureScreenException(`Unable to capture screenshot with zero dimensions: width=${rect.width}, height=${rect.height}`);
+            }
+            return await this.#cdpTarget.cdpClient.sendCommand('Page.captureScreenshot', {
+                clip: { ...rect, scale: 1.0 },
+                ...formatParameters,
+                captureBeyondViewport,
+            });
+        }
+        async print(params) {
+            if (!this.isTopLevelContext()) {
+                throw new UnsupportedOperationException('Printing of non-top level contexts is not supported');
+            }
+            const cdpParams = {};
+            if (params.background !== undefined) {
+                cdpParams.printBackground = params.background;
+            }
+            if (params.margin?.bottom !== undefined) {
+                cdpParams.marginBottom = inchesFromCm(params.margin.bottom);
+            }
+            if (params.margin?.left !== undefined) {
+                cdpParams.marginLeft = inchesFromCm(params.margin.left);
+            }
+            if (params.margin?.right !== undefined) {
+                cdpParams.marginRight = inchesFromCm(params.margin.right);
+            }
+            if (params.margin?.top !== undefined) {
+                cdpParams.marginTop = inchesFromCm(params.margin.top);
+            }
+            if (params.orientation !== undefined) {
+                cdpParams.landscape = params.orientation === 'landscape';
+            }
+            if (params.page?.height !== undefined) {
+                cdpParams.paperHeight = inchesFromCm(params.page.height);
+            }
+            if (params.page?.width !== undefined) {
+                cdpParams.paperWidth = inchesFromCm(params.page.width);
+            }
+            if (params.pageRanges !== undefined) {
+                for (const range of params.pageRanges) {
+                    if (typeof range === 'number') {
+                        continue;
+                    }
+                    const rangeParts = range.split('-');
+                    if (rangeParts.length < 1 || rangeParts.length > 2) {
+                        throw new InvalidArgumentException(`Invalid page range: ${range} is not a valid integer range.`);
+                    }
+                    if (rangeParts.length === 1) {
+                        void parseInteger(rangeParts[0] ?? '');
+                        continue;
+                    }
+                    let lowerBound;
+                    let upperBound;
+                    const [rangeLowerPart = '', rangeUpperPart = ''] = rangeParts;
+                    if (rangeLowerPart === '') {
+                        lowerBound = 1;
+                    }
+                    else {
+                        lowerBound = parseInteger(rangeLowerPart);
+                    }
+                    if (rangeUpperPart === '') {
+                        upperBound = Number.MAX_SAFE_INTEGER;
+                    }
+                    else {
+                        upperBound = parseInteger(rangeUpperPart);
+                    }
+                    if (lowerBound > upperBound) {
+                        throw new InvalidArgumentException(`Invalid page range: ${rangeLowerPart} > ${rangeUpperPart}`);
+                    }
+                }
+                cdpParams.pageRanges = params.pageRanges.join(',');
+            }
+            if (params.scale !== undefined) {
+                cdpParams.scale = params.scale;
+            }
+            if (params.shrinkToFit !== undefined) {
+                cdpParams.preferCSSPageSize = !params.shrinkToFit;
+            }
+            try {
+                const result = await this.#cdpTarget.cdpClient.sendCommand('Page.printToPDF', cdpParams);
+                return {
+                    data: result.data,
+                };
+            }
+            catch (error) {
+                if (error.message ===
+                    'invalid print parameters: content area is empty') {
+                    throw new UnsupportedOperationException(error.message);
+                }
+                throw error;
+            }
+        }
+        async #parseRect(clip) {
+            switch (clip.type) {
+                case 'box':
+                    return { x: clip.x, y: clip.y, width: clip.width, height: clip.height };
+                case 'element': {
+                    const sandbox = await this.getOrCreateSandbox(undefined);
+                    const result = await sandbox.callFunction(String((element) => {
+                        return element instanceof Element;
+                    }), false, { type: 'undefined' }, [clip.element]);
+                    if (result.type === 'exception') {
+                        throw new NoSuchElementException(`Element '${clip.element.sharedId}' was not found`);
+                    }
+                    assert(result.result.type === 'boolean');
+                    if (!result.result.value) {
+                        throw new NoSuchElementException(`Node '${clip.element.sharedId}' is not an Element`);
+                    }
+                    {
+                        const result = await sandbox.callFunction(String((element) => {
+                            const rect = element.getBoundingClientRect();
+                            return {
+                                x: rect.x,
+                                y: rect.y,
+                                height: rect.height,
+                                width: rect.width,
+                            };
+                        }), false, { type: 'undefined' }, [clip.element]);
+                        assert(result.type === 'success');
+                        const rect = deserializeDOMRect(result.result);
+                        if (!rect) {
+                            throw new UnableToCaptureScreenException(`Could not get bounding box for Element '${clip.element.sharedId}'`);
+                        }
+                        return rect;
+                    }
+                }
+            }
+        }
+        async close() {
+            await this.#cdpTarget.cdpClient.sendCommand('Page.close');
+        }
+        async traverseHistory(delta) {
+            if (delta === 0) {
+                return;
+            }
+            const history = await this.#cdpTarget.cdpClient.sendCommand('Page.getNavigationHistory');
+            const entry = history.entries[history.currentIndex + delta];
+            if (!entry) {
+                throw new NoSuchHistoryEntryException(`No history entry at delta ${delta}`);
+            }
+            await this.#cdpTarget.cdpClient.sendCommand('Page.navigateToHistoryEntry', {
+                entryId: entry.id,
+            });
+        }
+        async toggleModulesIfNeeded() {
+            await Promise.all([
+                this.#cdpTarget.toggleNetworkIfNeeded(),
+                this.#cdpTarget.toggleDeviceAccessIfNeeded(),
+            ]);
+        }
+        async locateNodes(params) {
+            return await this.#locateNodesByLocator(await this.#defaultRealmDeferred, params.locator, params.startNodes ?? [], params.maxNodeCount, params.serializationOptions);
+        }
+        async #getLocatorDelegate(realm, locator, maxNodeCount, startNodes) {
+            switch (locator.type) {
+                case 'context':
+                    throw new Error('Unreachable');
+                case 'css':
+                    return {
+                        functionDeclaration: String((cssSelector, maxNodeCount, ...startNodes) => {
+                            const locateNodesUsingCss = (element) => {
+                                if (!(element instanceof HTMLElement ||
+                                    element instanceof Document ||
+                                    element instanceof DocumentFragment)) {
+                                    throw new Error('startNodes in css selector should be HTMLElement, Document or DocumentFragment');
+                                }
+                                return [...element.querySelectorAll(cssSelector)];
+                            };
+                            startNodes = startNodes.length > 0 ? startNodes : [document];
+                            const returnedNodes = startNodes
+                                .map((startNode) =>
+                            locateNodesUsingCss(startNode))
+                                .flat(1);
+                            return maxNodeCount === 0
+                                ? returnedNodes
+                                : returnedNodes.slice(0, maxNodeCount);
+                        }),
+                        argumentsLocalValues: [
+                            { type: 'string', value: locator.value },
+                            { type: 'number', value: maxNodeCount ?? 0 },
+                            ...startNodes,
+                        ],
+                    };
+                case 'xpath':
+                    return {
+                        functionDeclaration: String((xPathSelector, maxNodeCount, ...startNodes) => {
+                            const evaluator = new XPathEvaluator();
+                            const expression = evaluator.createExpression(xPathSelector);
+                            const locateNodesUsingXpath = (element) => {
+                                const xPathResult = expression.evaluate(element, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE);
+                                const returnedNodes = [];
+                                for (let i = 0; i < xPathResult.snapshotLength; i++) {
+                                    returnedNodes.push(xPathResult.snapshotItem(i));
+                                }
+                                return returnedNodes;
+                            };
+                            startNodes = startNodes.length > 0 ? startNodes : [document];
+                            const returnedNodes = startNodes
+                                .map((startNode) =>
+                            locateNodesUsingXpath(startNode))
+                                .flat(1);
+                            return maxNodeCount === 0
+                                ? returnedNodes
+                                : returnedNodes.slice(0, maxNodeCount);
+                        }),
+                        argumentsLocalValues: [
+                            { type: 'string', value: locator.value },
+                            { type: 'number', value: maxNodeCount ?? 0 },
+                            ...startNodes,
+                        ],
+                    };
+                case 'innerText':
+                    if (locator.value === '') {
+                        throw new InvalidSelectorException('innerText locator cannot be empty');
+                    }
+                    return {
+                        functionDeclaration: String((innerTextSelector, fullMatch, ignoreCase, maxNodeCount, maxDepth, ...startNodes) => {
+                            const searchText = ignoreCase
+                                ? innerTextSelector.toUpperCase()
+                                : innerTextSelector;
+                            const locateNodesUsingInnerText = (node, currentMaxDepth) => {
+                                const returnedNodes = [];
+                                if (node instanceof DocumentFragment ||
+                                    node instanceof Document) {
+                                    const children = [...node.children];
+                                    children.forEach((child) =>
+                                    returnedNodes.push(...locateNodesUsingInnerText(child, currentMaxDepth)));
+                                    return returnedNodes;
+                                }
+                                if (!(node instanceof HTMLElement)) {
+                                    return [];
+                                }
+                                const element = node;
+                                const nodeInnerText = ignoreCase
+                                    ? element.innerText?.toUpperCase()
+                                    : element.innerText;
+                                if (!nodeInnerText.includes(searchText)) {
+                                    return [];
+                                }
+                                const childNodes = [];
+                                for (const child of element.children) {
+                                    if (child instanceof HTMLElement) {
+                                        childNodes.push(child);
+                                    }
+                                }
+                                if (childNodes.length === 0) {
+                                    if (fullMatch && nodeInnerText === searchText) {
+                                        returnedNodes.push(element);
+                                    }
+                                    else {
+                                        if (!fullMatch) {
+                                            returnedNodes.push(element);
+                                        }
+                                    }
+                                }
+                                else {
+                                    const childNodeMatches =
+                                    currentMaxDepth <= 0
+                                        ? []
+                                        : childNodes
+                                            .map((child) => locateNodesUsingInnerText(child, currentMaxDepth - 1))
+                                            .flat(1);
+                                    if (childNodeMatches.length === 0) {
+                                        if (!fullMatch || nodeInnerText === searchText) {
+                                            returnedNodes.push(element);
+                                        }
+                                    }
+                                    else {
+                                        returnedNodes.push(...childNodeMatches);
+                                    }
+                                }
+                                return returnedNodes;
+                            };
+                            startNodes = startNodes.length > 0 ? startNodes : [document];
+                            const returnedNodes = startNodes
+                                .map((startNode) =>
+                            locateNodesUsingInnerText(startNode, maxDepth))
+                                .flat(1);
+                            return maxNodeCount === 0
+                                ? returnedNodes
+                                : returnedNodes.slice(0, maxNodeCount);
+                        }),
+                        argumentsLocalValues: [
+                            { type: 'string', value: locator.value },
+                            { type: 'boolean', value: locator.matchType !== 'partial' },
+                            { type: 'boolean', value: locator.ignoreCase === true },
+                            { type: 'number', value: maxNodeCount ?? 0 },
+                            { type: 'number', value: locator.maxDepth ?? 1000 },
+                            ...startNodes,
+                        ],
+                    };
+                case 'accessibility': {
+                    if (!locator.value.name && !locator.value.role) {
+                        throw new InvalidSelectorException('Either name or role has to be specified');
+                    }
+                    await Promise.all([
+                        this.#cdpTarget.cdpClient.sendCommand('Accessibility.enable'),
+                        this.#cdpTarget.cdpClient.sendCommand('Accessibility.getRootAXNode'),
+                    ]);
+                    const bindings = await realm.evaluate(
+                     '({getAccessibleName, getAccessibleRole})',
+                     false, "root" ,
+                     undefined,
+                     false,
+                     true);
+                    if (bindings.type !== 'success') {
+                        throw new Error('Could not get bindings');
+                    }
+                    if (bindings.result.type !== 'object') {
+                        throw new Error('Could not get bindings');
+                    }
+                    return {
+                        functionDeclaration: String((name, role, bindings, maxNodeCount, ...startNodes) => {
+                            const returnedNodes = [];
+                            let aborted = false;
+                            function collect(contextNodes, selector) {
+                                if (aborted) {
+                                    return;
+                                }
+                                for (const contextNode of contextNodes) {
+                                    let match = true;
+                                    if (selector.role) {
+                                        const role = bindings.getAccessibleRole(contextNode);
+                                        if (selector.role !== role) {
+                                            match = false;
+                                        }
+                                    }
+                                    if (selector.name) {
+                                        const name = bindings.getAccessibleName(contextNode);
+                                        if (selector.name !== name) {
+                                            match = false;
+                                        }
+                                    }
+                                    if (match) {
+                                        if (maxNodeCount !== 0 &&
+                                            returnedNodes.length === maxNodeCount) {
+                                            aborted = true;
+                                            break;
+                                        }
+                                        returnedNodes.push(contextNode);
+                                    }
+                                    const childNodes = [];
+                                    for (const child of contextNode.children) {
+                                        if (child instanceof HTMLElement) {
+                                            childNodes.push(child);
+                                        }
+                                    }
+                                    collect(childNodes, selector);
+                                }
+                            }
+                            startNodes =
+                                startNodes.length > 0
+                                    ? startNodes
+                                    : Array.from(document.documentElement.children).filter((c) => c instanceof HTMLElement);
+                            collect(startNodes, {
+                                role,
+                                name,
+                            });
+                            return returnedNodes;
+                        }),
+                        argumentsLocalValues: [
+                            { type: 'string', value: locator.value.name || '' },
+                            { type: 'string', value: locator.value.role || '' },
+                            { handle: bindings.result.handle },
+                            { type: 'number', value: maxNodeCount ?? 0 },
+                            ...startNodes,
+                        ],
+                    };
+                }
+            }
+        }
+        async #locateNodesByLocator(realm, locator, startNodes, maxNodeCount, serializationOptions) {
+            if (locator.type === 'context') {
+                if (startNodes.length !== 0) {
+                    throw new InvalidArgumentException('Start nodes are not supported');
+                }
+                const contextId = locator.value.context;
+                if (!contextId) {
+                    throw new InvalidSelectorException('Invalid context');
+                }
+                const context = this.#browsingContextStorage.getContext(contextId);
+                const parent = context.parent;
+                if (!parent) {
+                    throw new InvalidArgumentException('This context has no container');
+                }
+                try {
+                    const { backendNodeId } = await parent.#cdpTarget.cdpClient.sendCommand('DOM.getFrameOwner', {
+                        frameId: contextId,
+                    });
+                    const { object } = await parent.#cdpTarget.cdpClient.sendCommand('DOM.resolveNode', {
+                        backendNodeId,
+                    });
+                    const locatorResult = await realm.callFunction(`function () { return this; }`, false, { handle: object.objectId }, [], "none" , serializationOptions);
+                    if (locatorResult.type === 'exception') {
+                        throw new Error('Unknown exception');
+                    }
+                    return { nodes: [locatorResult.result] };
+                }
+                catch {
+                    throw new InvalidArgumentException('Context does not exist');
+                }
+            }
+            const locatorDelegate = await this.#getLocatorDelegate(realm, locator, maxNodeCount, startNodes);
+            serializationOptions = {
+                ...serializationOptions,
+                maxObjectDepth: 1,
+            };
+            const locatorResult = await realm.callFunction(locatorDelegate.functionDeclaration, false, { type: 'undefined' }, locatorDelegate.argumentsLocalValues, "none" , serializationOptions);
+            if (locatorResult.type !== 'success') {
+                this.#logger?.(_a$5.LOGGER_PREFIX, 'Failed locateNodesByLocator', locatorResult);
+                if (
+                locatorResult.exceptionDetails.text?.endsWith('is not a valid selector.') ||
+                    locatorResult.exceptionDetails.text?.endsWith('is not a valid XPath expression.')) {
+                    throw new InvalidSelectorException(`Not valid selector ${typeof locator.value === 'string' ? locator.value : JSON.stringify(locator.value)}`);
+                }
+                if (locatorResult.exceptionDetails.text ===
+                    'Error: startNodes in css selector should be HTMLElement, Document or DocumentFragment') {
+                    throw new InvalidArgumentException('startNodes in css selector should be HTMLElement, Document or DocumentFragment');
+                }
+                throw new UnknownErrorException(`Unexpected error in selector script: ${locatorResult.exceptionDetails.text}`);
+            }
+            if (locatorResult.result.type !== 'array') {
+                throw new UnknownErrorException(`Unexpected selector script result type: ${locatorResult.result.type}`);
+            }
+            const nodes = locatorResult.result.value.map((value) => {
+                if (value.type !== 'node') {
+                    throw new UnknownErrorException(`Unexpected selector script result element: ${value.type}`);
+                }
+                return value;
+            });
+            return { nodes };
+        }
+    }
+    _a$5 = BrowsingContextImpl;
+    function serializeOrigin(origin) {
+        if (['://', ''].includes(origin)) {
+            origin = 'null';
+        }
+        return origin;
+    }
+    function getImageFormatParameters(params) {
+        const { quality, type } = params.format ?? {
+            type: 'image/png',
+        };
+        switch (type) {
+            case 'image/png': {
+                return { format: 'png' };
+            }
+            case 'image/jpeg': {
+                return {
+                    format: 'jpeg',
+                    ...(quality === undefined ? {} : { quality: Math.round(quality * 100) }),
+                };
+            }
+            case 'image/webp': {
+                return {
+                    format: 'webp',
+                    ...(quality === undefined ? {} : { quality: Math.round(quality * 100) }),
+                };
+            }
+        }
+        throw new InvalidArgumentException(`Image format '${type}' is not a supported format`);
+    }
+    function deserializeDOMRect(result) {
+        if (result.type !== 'object' || result.value === undefined) {
+            return;
+        }
+        const x = result.value.find(([key]) => {
+            return key === 'x';
+        })?.[1];
+        const y = result.value.find(([key]) => {
+            return key === 'y';
+        })?.[1];
+        const height = result.value.find(([key]) => {
+            return key === 'height';
+        })?.[1];
+        const width = result.value.find(([key]) => {
+            return key === 'width';
+        })?.[1];
+        if (x?.type !== 'number' ||
+            y?.type !== 'number' ||
+            height?.type !== 'number' ||
+            width?.type !== 'number') {
+            return;
+        }
+        return {
+            x: x.value,
+            y: y.value,
+            width: width.value,
+            height: height.value,
+        };
+    }
+    function normalizeRect(box) {
+        return {
+            ...(box.width < 0
+                ? {
+                    x: box.x + box.width,
+                    width: -box.width,
+                }
+                : {
+                    x: box.x,
+                    width: box.width,
+                }),
+            ...(box.height < 0
+                ? {
+                    y: box.y + box.height,
+                    height: -box.height,
+                }
+                : {
+                    y: box.y,
+                    height: box.height,
+                }),
+        };
+    }
+    function getIntersectionRect(first, second) {
+        first = normalizeRect(first);
+        second = normalizeRect(second);
+        const x = Math.max(first.x, second.x);
+        const y = Math.max(first.y, second.y);
+        return {
+            x,
+            y,
+            width: Math.max(Math.min(first.x + first.width, second.x + second.width) - x, 0),
+            height: Math.max(Math.min(first.y + first.height, second.y + second.height) - y, 0),
+        };
+    }
+    function parseInteger(value) {
+        value = value.trim();
+        if (!/^[0-9]+$/.test(value)) {
+            throw new InvalidArgumentException(`Invalid integer: ${value}`);
+        }
+        return parseInt(value);
+    }
+
+    /**
+     * Copyright 2024 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class WorkerRealm extends Realm {
+        #realmType;
+        #ownerRealms;
+        constructor(cdpClient, eventManager, executionContextId, logger, origin, ownerRealms, realmId, realmStorage, realmType) {
+            super(cdpClient, eventManager, executionContextId, logger, origin, realmId, realmStorage);
+            this.#ownerRealms = ownerRealms;
+            this.#realmType = realmType;
+            this.initialize();
+        }
+        get associatedBrowsingContexts() {
+            return this.#ownerRealms.flatMap((realm) => realm.associatedBrowsingContexts);
+        }
+        get realmType() {
+            return this.#realmType;
+        }
+        get source() {
+            return {
+                realm: this.realmId,
+                context: this.associatedBrowsingContexts[0]?.id,
+            };
+        }
+        get realmInfo() {
+            const owners = this.#ownerRealms.map((realm) => realm.realmId);
+            const { realmType } = this;
+            switch (realmType) {
+                case 'dedicated-worker': {
+                    const owner = owners[0];
+                    if (owner === undefined || owners.length !== 1) {
+                        throw new Error('Dedicated worker must have exactly one owner');
+                    }
+                    return {
+                        ...this.baseInfo,
+                        type: realmType,
+                        owners: [owner],
+                    };
+                }
+                case 'service-worker':
+                case 'shared-worker': {
+                    return {
+                        ...this.baseInfo,
+                        type: realmType,
+                    };
+                }
+            }
+        }
+    }
+
+    /**
+     * Copyright 2022 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    const specifiers = ['%s', '%d', '%i', '%f', '%o', '%O', '%c'];
+    function isFormatSpecifier(str) {
+        return specifiers.some((spec) => str.includes(spec));
+    }
+    function logMessageFormatter(args) {
+        let output = '';
+        const argFormat = args[0].value.toString();
+        const argValues = args.slice(1, undefined);
+        const tokens = argFormat.split(new RegExp(specifiers.map((spec) => `(${spec})`).join('|'), 'g'));
+        for (const token of tokens) {
+            if (token === undefined || token === '') {
+                continue;
+            }
+            if (isFormatSpecifier(token)) {
+                const arg = argValues.shift();
+                assert(arg, `Less value is provided: "${getRemoteValuesText(args, false)}"`);
+                if (token === '%s') {
+                    output += stringFromArg(arg);
+                }
+                else if (token === '%d' || token === '%i') {
+                    if (arg.type === 'bigint' ||
+                        arg.type === 'number' ||
+                        arg.type === 'string') {
+                        output += parseInt(arg.value.toString(), 10);
+                    }
+                    else {
+                        output += 'NaN';
+                    }
+                }
+                else if (token === '%f') {
+                    if (arg.type === 'bigint' ||
+                        arg.type === 'number' ||
+                        arg.type === 'string') {
+                        output += parseFloat(arg.value.toString());
+                    }
+                    else {
+                        output += 'NaN';
+                    }
+                }
+                else {
+                    output += toJson(arg);
+                }
+            }
+            else {
+                output += token;
+            }
+        }
+        if (argValues.length > 0) {
+            throw new Error(`More value is provided: "${getRemoteValuesText(args, false)}"`);
+        }
+        return output;
+    }
+    function toJson(arg) {
+        if (arg.type !== 'array' &&
+            arg.type !== 'bigint' &&
+            arg.type !== 'date' &&
+            arg.type !== 'number' &&
+            arg.type !== 'object' &&
+            arg.type !== 'string') {
+            return stringFromArg(arg);
+        }
+        if (arg.type === 'bigint') {
+            return `${arg.value.toString()}n`;
+        }
+        if (arg.type === 'number') {
+            return arg.value.toString();
+        }
+        if (['date', 'string'].includes(arg.type)) {
+            return JSON.stringify(arg.value);
+        }
+        if (arg.type === 'object') {
+            return `{${arg.value
+            .map((pair) => {
+            return `${JSON.stringify(pair[0])}:${toJson(pair[1])}`;
+        })
+            .join(',')}}`;
+        }
+        if (arg.type === 'array') {
+            return `[${arg.value?.map((val) => toJson(val)).join(',') ?? ''}]`;
+        }
+        throw Error(`Invalid value type: ${arg}`);
+    }
+    function stringFromArg(arg) {
+        if (!Object.hasOwn(arg, 'value')) {
+            return arg.type;
+        }
+        switch (arg.type) {
+            case 'string':
+            case 'number':
+            case 'boolean':
+            case 'bigint':
+                return String(arg.value);
+            case 'regexp':
+                return `/${arg.value.pattern}/${arg.value.flags ?? ''}`;
+            case 'date':
+                return new Date(arg.value).toString();
+            case 'object':
+                return `Object(${arg.value?.length ?? ''})`;
+            case 'array':
+                return `Array(${arg.value?.length ?? ''})`;
+            case 'map':
+                return `Map(${arg.value?.length})`;
+            case 'set':
+                return `Set(${arg.value?.length})`;
+            default:
+                return arg.type;
+        }
+    }
+    function getRemoteValuesText(args, formatText) {
+        const arg = args[0];
+        if (!arg) {
+            return '';
+        }
+        if (arg.type === 'string' &&
+            isFormatSpecifier(arg.value.toString()) &&
+            formatText) {
+            return logMessageFormatter(args);
+        }
+        return args
+            .map((arg) => {
+            return stringFromArg(arg);
+        })
+            .join('\u0020');
+    }
+
+    var _a$4;
+    function getBidiStackTrace(cdpStackTrace) {
+        const stackFrames = cdpStackTrace?.callFrames.map((callFrame) => {
+            return {
+                columnNumber: callFrame.columnNumber,
+                functionName: callFrame.functionName,
+                lineNumber: callFrame.lineNumber,
+                url: callFrame.url,
+            };
+        });
+        return stackFrames ? { callFrames: stackFrames } : undefined;
+    }
+    function getLogLevel(consoleApiType) {
+        if (["error" , 'assert'].includes(consoleApiType)) {
+            return "error" ;
+        }
+        if (["debug" , 'trace'].includes(consoleApiType)) {
+            return "debug" ;
+        }
+        if (["warn" , 'warning'].includes(consoleApiType)) {
+            return "warn" ;
+        }
+        return "info" ;
+    }
+    function getLogMethod(consoleApiType) {
+        switch (consoleApiType) {
+            case 'warning':
+                return 'warn';
+            case 'startGroup':
+                return 'group';
+            case 'startGroupCollapsed':
+                return 'groupCollapsed';
+            case 'endGroup':
+                return 'groupEnd';
+        }
+        return consoleApiType;
+    }
+    class LogManager {
+        #eventManager;
+        #realmStorage;
+        #cdpTarget;
+        #logger;
+        constructor(cdpTarget, realmStorage, eventManager, logger) {
+            this.#cdpTarget = cdpTarget;
+            this.#realmStorage = realmStorage;
+            this.#eventManager = eventManager;
+            this.#logger = logger;
+        }
+        static create(cdpTarget, realmStorage, eventManager, logger) {
+            const logManager = new _a$4(cdpTarget, realmStorage, eventManager, logger);
+            logManager.#initializeEntryAddedEventListener();
+            return logManager;
+        }
+        async #heuristicSerializeArg(arg, realm) {
+            switch (arg.type) {
+                case 'undefined':
+                    return { type: 'undefined' };
+                case 'boolean':
+                    return { type: 'boolean', value: arg.value };
+                case 'string':
+                    return { type: 'string', value: arg.value };
+                case 'number':
+                    return { type: 'number', value: arg.unserializableValue ?? arg.value };
+                case 'bigint':
+                    if (arg.unserializableValue !== undefined &&
+                        arg.unserializableValue[arg.unserializableValue.length - 1] === 'n') {
+                        return {
+                            type: arg.type,
+                            value: arg.unserializableValue.slice(0, -1),
+                        };
+                    }
+                    break;
+                case 'object':
+                    if (arg.subtype === 'null') {
+                        return { type: 'null' };
+                    }
+                    break;
+            }
+            return await realm.serializeCdpObject(arg, "none" );
+        }
+        #initializeEntryAddedEventListener() {
+            this.#cdpTarget.cdpClient.on('Runtime.consoleAPICalled', (params) => {
+                const realm = this.#realmStorage.findRealm({
+                    cdpSessionId: this.#cdpTarget.cdpSessionId,
+                    executionContextId: params.executionContextId,
+                });
+                if (realm === undefined) {
+                    this.#logger?.(LogType.cdp, params);
+                    return;
+                }
+                const argsPromise = Promise.all(params.args.map((arg) => this.#heuristicSerializeArg(arg, realm)));
+                for (const browsingContext of realm.associatedBrowsingContexts) {
+                    this.#eventManager.registerPromiseEvent(argsPromise.then((args) => ({
+                        kind: 'success',
+                        value: {
+                            type: 'event',
+                            method: Log$1.EventNames.LogEntryAdded,
+                            params: {
+                                level: getLogLevel(params.type),
+                                source: realm.source,
+                                text: getRemoteValuesText(args, true),
+                                timestamp: Math.round(params.timestamp),
+                                stackTrace: getBidiStackTrace(params.stackTrace),
+                                type: 'console',
+                                method: getLogMethod(params.type),
+                                args,
+                            },
+                        },
+                    }), (error) => ({
+                        kind: 'error',
+                        error,
+                    })), browsingContext.id, Log$1.EventNames.LogEntryAdded);
+                }
+            });
+            this.#cdpTarget.cdpClient.on('Runtime.exceptionThrown', (params) => {
+                const realm = this.#realmStorage.findRealm({
+                    cdpSessionId: this.#cdpTarget.cdpSessionId,
+                    executionContextId: params.exceptionDetails.executionContextId,
+                });
+                if (realm === undefined) {
+                    this.#logger?.(LogType.cdp, params);
+                    return;
+                }
+                for (const browsingContext of realm.associatedBrowsingContexts) {
+                    this.#eventManager.registerPromiseEvent(_a$4.#getExceptionText(params, realm).then((text) => ({
+                        kind: 'success',
+                        value: {
+                            type: 'event',
+                            method: Log$1.EventNames.LogEntryAdded,
+                            params: {
+                                level: "error" ,
+                                source: realm.source,
+                                text,
+                                timestamp: Math.round(params.timestamp),
+                                stackTrace: getBidiStackTrace(params.exceptionDetails.stackTrace),
+                                type: 'javascript',
+                            },
+                        },
+                    }), (error) => ({
+                        kind: 'error',
+                        error,
+                    })), browsingContext.id, Log$1.EventNames.LogEntryAdded);
+                }
+            });
+        }
+        static async #getExceptionText(params, realm) {
+            if (!params.exceptionDetails.exception) {
+                return params.exceptionDetails.text;
+            }
+            if (realm === undefined) {
+                return JSON.stringify(params.exceptionDetails.exception);
+            }
+            return await realm.stringifyObject(params.exceptionDetails.exception);
+        }
+    }
+    _a$4 = LogManager;
+
+    class CdpTarget {
+        #id;
+        #cdpClient;
+        #browserCdpClient;
+        #parentCdpClient;
+        #realmStorage;
+        #eventManager;
+        #preloadScriptStorage;
+        #browsingContextStorage;
+        #prerenderingDisabled;
+        #networkStorage;
+        #userContextConfig;
+        #unblocked = new Deferred();
+        #unhandledPromptBehavior;
+        #logger;
+        #previousViewport = { width: 0, height: 0 };
+        #windowId;
+        #deviceAccessEnabled = false;
+        #cacheDisableState = false;
+        #fetchDomainStages = {
+            request: false,
+            response: false,
+            auth: false,
+        };
+        static create(targetId, cdpClient, browserCdpClient, parentCdpClient, realmStorage, eventManager, preloadScriptStorage, browsingContextStorage, networkStorage, prerenderingDisabled, userContextConfig, unhandledPromptBehavior, logger) {
+            const cdpTarget = new CdpTarget(targetId, cdpClient, browserCdpClient, parentCdpClient, eventManager, realmStorage, preloadScriptStorage, browsingContextStorage, networkStorage, prerenderingDisabled, userContextConfig, unhandledPromptBehavior, logger);
+            LogManager.create(cdpTarget, realmStorage, eventManager, logger);
+            cdpTarget.#setEventListeners();
+            void cdpTarget.#unblock();
+            return cdpTarget;
+        }
+        constructor(targetId, cdpClient, browserCdpClient, parentCdpClient, eventManager, realmStorage, preloadScriptStorage, browsingContextStorage, networkStorage, prerenderingDisabled, userContextConfig, unhandledPromptBehavior, logger) {
+            this.#userContextConfig = userContextConfig;
+            this.#id = targetId;
+            this.#cdpClient = cdpClient;
+            this.#browserCdpClient = browserCdpClient;
+            this.#parentCdpClient = parentCdpClient;
+            this.#eventManager = eventManager;
+            this.#realmStorage = realmStorage;
+            this.#preloadScriptStorage = preloadScriptStorage;
+            this.#networkStorage = networkStorage;
+            this.#browsingContextStorage = browsingContextStorage;
+            this.#prerenderingDisabled = prerenderingDisabled;
+            this.#unhandledPromptBehavior = unhandledPromptBehavior;
+            this.#logger = logger;
+        }
+        get unblocked() {
+            return this.#unblocked;
+        }
+        get id() {
+            return this.#id;
+        }
+        get cdpClient() {
+            return this.#cdpClient;
+        }
+        get parentCdpClient() {
+            return this.#parentCdpClient;
+        }
+        get browserCdpClient() {
+            return this.#browserCdpClient;
+        }
+        get cdpSessionId() {
+            return this.#cdpClient.sessionId;
+        }
+        get windowId() {
+            if (this.#windowId === undefined) {
+                this.#logger?.(LogType.debugError, 'Getting windowId before it was set, returning 0');
+            }
+            return this.#windowId ?? 0;
+        }
+        async #unblock() {
+            try {
+                await Promise.all([
+                    this.#cdpClient.sendCommand('Page.enable', {
+                        enableFileChooserOpenedEvent: true,
+                    }),
+                    ...(this.#ignoreFileDialog()
+                        ? []
+                        : [
+                            this.#cdpClient.sendCommand('Page.setInterceptFileChooserDialog', {
+                                enabled: true,
+                                cancel: true,
+                            }),
+                        ]),
+                    this.#cdpClient
+                        .sendCommand('Page.getFrameTree')
+                        .then((frameTree) => this.#restoreFrameTreeState(frameTree.frameTree)),
+                    this.#cdpClient.sendCommand('Runtime.enable'),
+                    this.#cdpClient.sendCommand('Page.setLifecycleEventsEnabled', {
+                        enabled: true,
+                    }),
+                    this.#cdpClient
+                        .sendCommand('Page.setPrerenderingAllowed', {
+                        isAllowed: !this.#prerenderingDisabled,
+                    })
+                        .catch(() => {
+                    }),
+                    this.#cdpClient
+                        .sendCommand('Network.enable')
+                        .then(() => this.toggleNetworkIfNeeded()),
+                    this.#cdpClient.sendCommand('Target.setAutoAttach', {
+                        autoAttach: true,
+                        waitForDebuggerOnStart: true,
+                        flatten: true,
+                    }),
+                    this.#updateWindowId(),
+                    this.#setUserContextConfig(),
+                    this.#initAndEvaluatePreloadScripts(),
+                    this.#cdpClient.sendCommand('Runtime.runIfWaitingForDebugger'),
+                    this.#parentCdpClient.sendCommand('Runtime.runIfWaitingForDebugger'),
+                    this.toggleDeviceAccessIfNeeded(),
+                ]);
+            }
+            catch (error) {
+                this.#logger?.(LogType.debugError, 'Failed to unblock target', error);
+                if (!this.#cdpClient.isCloseError(error)) {
+                    this.#unblocked.resolve({
+                        kind: 'error',
+                        error,
+                    });
+                    return;
+                }
+            }
+            this.#unblocked.resolve({
+                kind: 'success',
+                value: undefined,
+            });
+        }
+        #restoreFrameTreeState(frameTree) {
+            const frame = frameTree.frame;
+            const maybeContext = this.#browsingContextStorage.findContext(frame.id);
+            if (maybeContext !== undefined) {
+                if (maybeContext.parentId === null &&
+                    frame.parentId !== null &&
+                    frame.parentId !== undefined) {
+                    maybeContext.parentId = frame.parentId;
+                }
+            }
+            if (maybeContext === undefined && frame.parentId !== undefined) {
+                const parentBrowsingContext = this.#browsingContextStorage.getContext(frame.parentId);
+                BrowsingContextImpl.create(frame.id, frame.parentId, parentBrowsingContext.userContext, parentBrowsingContext.cdpTarget, this.#eventManager, this.#browsingContextStorage, this.#realmStorage, frame.url, undefined, this.#unhandledPromptBehavior, this.#logger);
+            }
+            frameTree.childFrames?.map((frameTree) => this.#restoreFrameTreeState(frameTree));
+        }
+        async toggleFetchIfNeeded() {
+            const stages = this.#networkStorage.getInterceptionStages(this.topLevelId);
+            if (this.#fetchDomainStages.request === stages.request &&
+                this.#fetchDomainStages.response === stages.response &&
+                this.#fetchDomainStages.auth === stages.auth) {
+                return;
+            }
+            const patterns = [];
+            this.#fetchDomainStages = stages;
+            if (stages.request || stages.auth) {
+                patterns.push({
+                    urlPattern: '*',
+                    requestStage: 'Request',
+                });
+            }
+            if (stages.response) {
+                patterns.push({
+                    urlPattern: '*',
+                    requestStage: 'Response',
+                });
+            }
+            if (patterns.length) {
+                await this.#cdpClient.sendCommand('Fetch.enable', {
+                    patterns,
+                    handleAuthRequests: stages.auth,
+                });
+            }
+            else {
+                const blockedRequest = this.#networkStorage
+                    .getRequestsByTarget(this)
+                    .filter((request) => request.interceptPhase);
+                void Promise.allSettled(blockedRequest.map((request) => request.waitNextPhase))
+                    .then(async () => {
+                    const blockedRequest = this.#networkStorage
+                        .getRequestsByTarget(this)
+                        .filter((request) => request.interceptPhase);
+                    if (blockedRequest.length) {
+                        return await this.toggleFetchIfNeeded();
+                    }
+                    return await this.#cdpClient.sendCommand('Fetch.disable');
+                })
+                    .catch((error) => {
+                    this.#logger?.(LogType.bidi, 'Disable failed', error);
+                });
+            }
+        }
+        async toggleNetworkIfNeeded() {
+            try {
+                await Promise.all([
+                    this.toggleSetCacheDisabled(),
+                    this.toggleFetchIfNeeded(),
+                ]);
+            }
+            catch (err) {
+                this.#logger?.(LogType.debugError, err);
+                if (!this.#isExpectedError(err)) {
+                    throw err;
+                }
+            }
+        }
+        async toggleSetCacheDisabled(disable) {
+            const defaultCacheDisabled = this.#networkStorage.defaultCacheBehavior === 'bypass';
+            const cacheDisabled = disable ?? defaultCacheDisabled;
+            if (this.#cacheDisableState === cacheDisabled) {
+                return;
+            }
+            this.#cacheDisableState = cacheDisabled;
+            try {
+                await this.#cdpClient.sendCommand('Network.setCacheDisabled', {
+                    cacheDisabled,
+                });
+            }
+            catch (err) {
+                this.#logger?.(LogType.debugError, err);
+                this.#cacheDisableState = !cacheDisabled;
+                if (!this.#isExpectedError(err)) {
+                    throw err;
+                }
+            }
+        }
+        async toggleDeviceAccessIfNeeded() {
+            const enabled = this.isSubscribedTo(Bluetooth$2.EventNames.RequestDevicePromptUpdated);
+            if (this.#deviceAccessEnabled === enabled) {
+                return;
+            }
+            this.#deviceAccessEnabled = enabled;
+            try {
+                await this.#cdpClient.sendCommand(enabled ? 'DeviceAccess.enable' : 'DeviceAccess.disable');
+            }
+            catch (err) {
+                this.#logger?.(LogType.debugError, err);
+                this.#deviceAccessEnabled = !enabled;
+                if (!this.#isExpectedError(err)) {
+                    throw err;
+                }
+            }
+        }
+        #isExpectedError(err) {
+            const error = err;
+            return ((error.code === -32001 &&
+                error.message === 'Session with given id not found.') ||
+                this.#cdpClient.isCloseError(err));
+        }
+        #setEventListeners() {
+            this.#cdpClient.on('*', (event, params) => {
+                if (typeof event !== 'string') {
+                    return;
+                }
+                this.#eventManager.registerEvent({
+                    type: 'event',
+                    method: `goog:cdp.${event}`,
+                    params: {
+                        event,
+                        params,
+                        session: this.cdpSessionId,
+                    },
+                }, this.id);
+            });
+        }
+        async #enableFetch(stages) {
+            const patterns = [];
+            if (stages.request || stages.auth) {
+                patterns.push({
+                    urlPattern: '*',
+                    requestStage: 'Request',
+                });
+            }
+            if (stages.response) {
+                patterns.push({
+                    urlPattern: '*',
+                    requestStage: 'Response',
+                });
+            }
+            if (patterns.length) {
+                const oldStages = this.#fetchDomainStages;
+                this.#fetchDomainStages = stages;
+                try {
+                    await this.#cdpClient.sendCommand('Fetch.enable', {
+                        patterns,
+                        handleAuthRequests: stages.auth,
+                    });
+                }
+                catch {
+                    this.#fetchDomainStages = oldStages;
+                }
+            }
+        }
+        async #disableFetch() {
+            const blockedRequest = this.#networkStorage
+                .getRequestsByTarget(this)
+                .filter((request) => request.interceptPhase);
+            if (blockedRequest.length === 0) {
+                this.#fetchDomainStages = {
+                    request: false,
+                    response: false,
+                    auth: false,
+                };
+                await this.#cdpClient.sendCommand('Fetch.disable');
+            }
+        }
+        async toggleNetwork() {
+            const stages = this.#networkStorage.getInterceptionStages(this.topLevelId);
+            const fetchEnable = Object.values(stages).some((value) => value);
+            const fetchChanged = this.#fetchDomainStages.request !== stages.request ||
+                this.#fetchDomainStages.response !== stages.response ||
+                this.#fetchDomainStages.auth !== stages.auth;
+            this.#logger?.(LogType.debugInfo, 'Toggle Network', `Fetch (${fetchEnable}) ${fetchChanged}`);
+            if (fetchEnable && fetchChanged) {
+                await this.#enableFetch(stages);
+            }
+            if (!fetchEnable && fetchChanged) {
+                await this.#disableFetch();
+            }
+        }
+        getChannels() {
+            return this.#preloadScriptStorage
+                .find()
+                .flatMap((script) => script.channels);
+        }
+        async #updateWindowId() {
+            const { windowId } = await this.#browserCdpClient.sendCommand('Browser.getWindowForTarget', { targetId: this.id });
+            this.#windowId = windowId;
+        }
+        async #initAndEvaluatePreloadScripts() {
+            await Promise.all(this.#preloadScriptStorage
+                .find({
+                targetId: this.topLevelId,
+            })
+                .map((script) => {
+                return script.initInTarget(this, true);
+            }));
+        }
+        async setViewport(viewport, devicePixelRatio) {
+            if (viewport === null && devicePixelRatio === null) {
+                await this.cdpClient.sendCommand('Emulation.clearDeviceMetricsOverride');
+                return;
+            }
+            let newViewport;
+            if (viewport === undefined) {
+                newViewport = this.#previousViewport;
+            }
+            else if (viewport === null) {
+                newViewport = {
+                    width: 0,
+                    height: 0,
+                };
+            }
+            else {
+                newViewport = viewport;
+            }
+            try {
+                await this.cdpClient.sendCommand('Emulation.setDeviceMetricsOverride', {
+                    width: newViewport.width,
+                    height: newViewport.height,
+                    deviceScaleFactor: devicePixelRatio ? devicePixelRatio : 0,
+                    mobile: false,
+                    dontSetVisibleSize: true,
+                });
+                this.#previousViewport = newViewport;
+            }
+            catch (err) {
+                if (err.message.startsWith(
+                'Width and height values must be positive')) {
+                    throw new UnsupportedOperationException('Provided viewport dimensions are not supported');
+                }
+                throw err;
+            }
+        }
+        async #setUserContextConfig() {
+            const promises = [];
+            if (this.#userContextConfig.viewport !== undefined ||
+                this.#userContextConfig.devicePixelRatio !== undefined) {
+                promises.push(this.setViewport(this.#userContextConfig.viewport, this.#userContextConfig.devicePixelRatio));
+            }
+            if (this.#userContextConfig.geolocation !== undefined &&
+                this.#userContextConfig.geolocation !== null) {
+                promises.push(this.setGeolocationOverride(this.#userContextConfig.geolocation));
+            }
+            if (this.#userContextConfig.acceptInsecureCerts !== undefined) {
+                promises.push(this.cdpClient.sendCommand('Security.setIgnoreCertificateErrors', {
+                    ignore: this.#userContextConfig.acceptInsecureCerts,
+                }));
+            }
+            await Promise.all(promises);
+        }
+        get topLevelId() {
+            return (this.#browsingContextStorage.findTopLevelContextId(this.id) ?? this.id);
+        }
+        isSubscribedTo(moduleOrEvent) {
+            return this.#eventManager.subscriptionManager.isSubscribedTo(moduleOrEvent, this.topLevelId);
+        }
+        #ignoreFileDialog() {
+            return ((this.#unhandledPromptBehavior?.file ??
+                this.#unhandledPromptBehavior?.default ??
+                "ignore" ) ===
+                "ignore" );
+        }
+        async setGeolocationOverride(geolocation) {
+            if (geolocation === null) {
+                await this.cdpClient.sendCommand('Emulation.clearGeolocationOverride');
+            }
+            else if ('type' in geolocation) {
+                if (geolocation.type !== 'positionUnavailable') {
+                    throw new UnknownErrorException(`Unknown geolocation error ${geolocation.type}`);
+                }
+                await this.cdpClient.sendCommand('Emulation.setGeolocationOverride', {});
+            }
+            else if ('latitude' in geolocation) {
+                await this.cdpClient.sendCommand('Emulation.setGeolocationOverride', {
+                    latitude: geolocation.latitude,
+                    longitude: geolocation.longitude,
+                    accuracy: geolocation.accuracy ?? 1,
+                    altitude: geolocation.altitude ?? undefined,
+                    altitudeAccuracy: geolocation.altitudeAccuracy ?? undefined,
+                    heading: geolocation.heading ?? undefined,
+                    speed: geolocation.speed ?? undefined,
+                });
+            }
+            else {
+                throw new UnknownErrorException('Unexpected geolocation coordinates value');
+            }
+        }
+    }
+
+    const cdpToBidiTargetTypes = {
+        service_worker: 'service-worker',
+        shared_worker: 'shared-worker',
+        worker: 'dedicated-worker',
+    };
+    class CdpTargetManager {
+        #browserCdpClient;
+        #cdpConnection;
+        #targetKeysToBeIgnoredByAutoAttach = new Set();
+        #selfTargetId;
+        #eventManager;
+        #browsingContextStorage;
+        #networkStorage;
+        #userContextStorage;
+        #bluetoothProcessor;
+        #preloadScriptStorage;
+        #realmStorage;
+        #defaultUserContextId;
+        #logger;
+        #unhandledPromptBehavior;
+        #prerenderingDisabled;
+        constructor(cdpConnection, browserCdpClient, selfTargetId, eventManager, browsingContextStorage, userContextStorage, realmStorage, networkStorage, bluetoothProcessor, preloadScriptStorage, defaultUserContextId, prerenderingDisabled, unhandledPromptBehavior, logger) {
+            this.#userContextStorage = userContextStorage;
+            this.#cdpConnection = cdpConnection;
+            this.#browserCdpClient = browserCdpClient;
+            this.#targetKeysToBeIgnoredByAutoAttach.add(selfTargetId);
+            this.#selfTargetId = selfTargetId;
+            this.#eventManager = eventManager;
+            this.#browsingContextStorage = browsingContextStorage;
+            this.#preloadScriptStorage = preloadScriptStorage;
+            this.#networkStorage = networkStorage;
+            this.#bluetoothProcessor = bluetoothProcessor;
+            this.#realmStorage = realmStorage;
+            this.#defaultUserContextId = defaultUserContextId;
+            this.#prerenderingDisabled = prerenderingDisabled;
+            this.#unhandledPromptBehavior = unhandledPromptBehavior;
+            this.#logger = logger;
+            this.#setEventListeners(browserCdpClient);
+        }
+        #setEventListeners(cdpClient) {
+            cdpClient.on('Target.attachedToTarget', (params) => {
+                this.#handleAttachedToTargetEvent(params, cdpClient);
+            });
+            cdpClient.on('Target.detachedFromTarget', this.#handleDetachedFromTargetEvent.bind(this));
+            cdpClient.on('Target.targetInfoChanged', this.#handleTargetInfoChangedEvent.bind(this));
+            cdpClient.on('Inspector.targetCrashed', () => {
+                this.#handleTargetCrashedEvent(cdpClient);
+            });
+            cdpClient.on('Page.frameAttached', this.#handleFrameAttachedEvent.bind(this));
+            cdpClient.on('Page.frameSubtreeWillBeDetached', this.#handleFrameSubtreeWillBeDetached.bind(this));
+        }
+        #handleFrameAttachedEvent(params) {
+            const parentBrowsingContext = this.#browsingContextStorage.findContext(params.parentFrameId);
+            if (parentBrowsingContext !== undefined) {
+                BrowsingContextImpl.create(params.frameId, params.parentFrameId, parentBrowsingContext.userContext, parentBrowsingContext.cdpTarget, this.#eventManager, this.#browsingContextStorage, this.#realmStorage,
+                'about:blank', undefined, this.#unhandledPromptBehavior, this.#logger);
+            }
+        }
+        #handleFrameSubtreeWillBeDetached(params) {
+            this.#browsingContextStorage.findContext(params.frameId)?.dispose(true);
+        }
+        #handleAttachedToTargetEvent(params, parentSessionCdpClient) {
+            const { sessionId, targetInfo } = params;
+            const targetCdpClient = this.#cdpConnection.getCdpClient(sessionId);
+            const detach = async () => {
+                await targetCdpClient
+                    .sendCommand('Runtime.runIfWaitingForDebugger')
+                    .then(() => parentSessionCdpClient.sendCommand('Target.detachFromTarget', params))
+                    .catch((error) => this.#logger?.(LogType.debugError, error));
+            };
+            if (this.#selfTargetId === targetInfo.targetId) {
+                void detach();
+                return;
+            }
+            const targetKey = targetInfo.type === 'service_worker'
+                ? `${parentSessionCdpClient.sessionId}_${targetInfo.targetId}`
+                : targetInfo.targetId;
+            if (this.#targetKeysToBeIgnoredByAutoAttach.has(targetKey)) {
+                return;
+            }
+            this.#targetKeysToBeIgnoredByAutoAttach.add(targetKey);
+            const userContext = targetInfo.browserContextId &&
+                targetInfo.browserContextId !== this.#defaultUserContextId
+                ? targetInfo.browserContextId
+                : 'default';
+            switch (targetInfo.type) {
+                case 'tab': {
+                    this.#setEventListeners(targetCdpClient);
+                    void (async () => {
+                        await targetCdpClient.sendCommand('Target.setAutoAttach', {
+                            autoAttach: true,
+                            waitForDebuggerOnStart: true,
+                            flatten: true,
+                        });
+                    })();
+                    return;
+                }
+                case 'page':
+                case 'iframe': {
+                    const cdpTarget = this.#createCdpTarget(targetCdpClient, parentSessionCdpClient, targetInfo, userContext);
+                    const maybeContext = this.#browsingContextStorage.findContext(targetInfo.targetId);
+                    if (maybeContext && targetInfo.type === 'iframe') {
+                        maybeContext.updateCdpTarget(cdpTarget);
+                    }
+                    else {
+                        const parentId = this.#findFrameParentId(targetInfo, parentSessionCdpClient.sessionId);
+                        BrowsingContextImpl.create(targetInfo.targetId, parentId, userContext, cdpTarget, this.#eventManager, this.#browsingContextStorage, this.#realmStorage,
+                        targetInfo.url === '' ? 'about:blank' : targetInfo.url, targetInfo.openerFrameId ?? targetInfo.openerId, this.#unhandledPromptBehavior, this.#logger);
+                    }
+                    return;
+                }
+                case 'service_worker':
+                case 'worker': {
+                    const realm = this.#realmStorage.findRealm({
+                        cdpSessionId: parentSessionCdpClient.sessionId,
+                    });
+                    if (!realm) {
+                        void detach();
+                        return;
+                    }
+                    const cdpTarget = this.#createCdpTarget(targetCdpClient, parentSessionCdpClient, targetInfo, userContext);
+                    this.#handleWorkerTarget(cdpToBidiTargetTypes[targetInfo.type], cdpTarget, realm);
+                    return;
+                }
+                case 'shared_worker': {
+                    const cdpTarget = this.#createCdpTarget(targetCdpClient, parentSessionCdpClient, targetInfo, userContext);
+                    this.#handleWorkerTarget(cdpToBidiTargetTypes[targetInfo.type], cdpTarget);
+                    return;
+                }
+            }
+            void detach();
+        }
+        #findFrameParentId(targetInfo, parentSessionId) {
+            if (targetInfo.type !== 'iframe') {
+                return null;
+            }
+            const parentId = targetInfo.openerFrameId ?? targetInfo.openerId;
+            if (parentId !== undefined) {
+                return parentId;
+            }
+            if (parentSessionId !== undefined) {
+                return (this.#browsingContextStorage.findContextBySession(parentSessionId)
+                    ?.id ?? null);
+            }
+            return null;
+        }
+        #createCdpTarget(targetCdpClient, parentCdpClient, targetInfo, userContext) {
+            this.#setEventListeners(targetCdpClient);
+            this.#preloadScriptStorage.onCdpTargetCreated(targetInfo.targetId, userContext);
+            const target = CdpTarget.create(targetInfo.targetId, targetCdpClient, this.#browserCdpClient, parentCdpClient, this.#realmStorage, this.#eventManager, this.#preloadScriptStorage, this.#browsingContextStorage, this.#networkStorage, this.#prerenderingDisabled, this.#userContextStorage.getConfig(userContext), this.#unhandledPromptBehavior, this.#logger);
+            this.#networkStorage.onCdpTargetCreated(target);
+            this.#bluetoothProcessor.onCdpTargetCreated(target);
+            return target;
+        }
+        #workers = new Map();
+        #handleWorkerTarget(realmType, cdpTarget, ownerRealm) {
+            cdpTarget.cdpClient.on('Runtime.executionContextCreated', (params) => {
+                const { uniqueId, id, origin } = params.context;
+                const workerRealm = new WorkerRealm(cdpTarget.cdpClient, this.#eventManager, id, this.#logger, serializeOrigin(origin), ownerRealm ? [ownerRealm] : [], uniqueId, this.#realmStorage, realmType);
+                this.#workers.set(cdpTarget.cdpSessionId, workerRealm);
+            });
+        }
+        #handleDetachedFromTargetEvent({ sessionId, targetId, }) {
+            if (targetId) {
+                this.#preloadScriptStorage.find({ targetId }).map((preloadScript) => {
+                    preloadScript.dispose(targetId);
+                });
+            }
+            const context = this.#browsingContextStorage.findContextBySession(sessionId);
+            if (context) {
+                context.dispose(true);
+                return;
+            }
+            const worker = this.#workers.get(sessionId);
+            if (worker) {
+                this.#realmStorage.deleteRealms({
+                    cdpSessionId: worker.cdpClient.sessionId,
+                });
+            }
+        }
+        #handleTargetInfoChangedEvent(params) {
+            const context = this.#browsingContextStorage.findContext(params.targetInfo.targetId);
+            if (context) {
+                context.onTargetInfoChanged(params);
+            }
+        }
+        #handleTargetCrashedEvent(cdpClient) {
+            const realms = this.#realmStorage.findRealms({
+                cdpSessionId: cdpClient.sessionId,
+            });
+            for (const realm of realms) {
+                realm.dispose();
+            }
+        }
+    }
+
+    /**
+     * Copyright 2022 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class BrowsingContextStorage {
+        #contexts = new Map();
+        #eventEmitter = new EventEmitter();
+        getTopLevelContexts() {
+            return this.getAllContexts().filter((context) => context.isTopLevelContext());
+        }
+        getAllContexts() {
+            return Array.from(this.#contexts.values());
+        }
+        deleteContextById(id) {
+            this.#contexts.delete(id);
+        }
+        deleteContext(context) {
+            this.#contexts.delete(context.id);
+        }
+        addContext(context) {
+            this.#contexts.set(context.id, context);
+            this.#eventEmitter.emit("added" , {
+                browsingContext: context,
+            });
+        }
+        waitForContext(browsingContextId) {
+            if (this.#contexts.has(browsingContextId)) {
+                return Promise.resolve(this.getContext(browsingContextId));
+            }
+            return new Promise((resolve) => {
+                const listener = (event) => {
+                    if (event.browsingContext.id === browsingContextId) {
+                        this.#eventEmitter.off("added" , listener);
+                        resolve(event.browsingContext);
+                    }
+                };
+                this.#eventEmitter.on("added" , listener);
+            });
+        }
+        hasContext(id) {
+            return this.#contexts.has(id);
+        }
+        findContext(id) {
+            return this.#contexts.get(id);
+        }
+        findTopLevelContextId(id) {
+            if (id === null) {
+                return null;
+            }
+            const maybeContext = this.findContext(id);
+            if (!maybeContext) {
+                return null;
+            }
+            const parentId = maybeContext.parentId ?? null;
+            if (parentId === null) {
+                return id;
+            }
+            return this.findTopLevelContextId(parentId);
+        }
+        findContextBySession(sessionId) {
+            for (const context of this.#contexts.values()) {
+                if (context.cdpTarget.cdpSessionId === sessionId) {
+                    return context;
+                }
+            }
+            return;
+        }
+        getContext(id) {
+            const result = this.findContext(id);
+            if (result === undefined) {
+                throw new NoSuchFrameException(`Context ${id} not found`);
+            }
+            return result;
+        }
+        verifyTopLevelContextsList(contexts) {
+            const foundContexts = new Set();
+            if (!contexts) {
+                return foundContexts;
+            }
+            for (const contextId of contexts) {
+                const context = this.getContext(contextId);
+                if (context.isTopLevelContext()) {
+                    foundContexts.add(context);
+                }
+                else {
+                    throw new InvalidArgumentException(`Non top-level context '${contextId}' given.`);
+                }
+            }
+            return foundContexts;
+        }
+        verifyContextsList(contexts) {
+            if (!contexts.length) {
+                return;
+            }
+            for (const contextId of contexts) {
+                this.getContext(contextId);
+            }
+        }
+    }
+
+    /**
+     * Copyright 2023 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class DefaultMap extends Map {
+        #getDefaultValue;
+        constructor(getDefaultValue, entries) {
+            super(entries);
+            this.#getDefaultValue = getDefaultValue;
+        }
+        get(key) {
+            if (!this.has(key)) {
+                this.set(key, this.#getDefaultValue(key));
+            }
+            return super.get(key);
+        }
+    }
+
+    /*
+     * Copyright 2023 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     *
+     */
+    var _a$3;
+    const REALM_REGEX = /(?<=realm=").*(?=")/;
+    class NetworkRequest {
+        static unknownParameter = 'UNKNOWN';
+        #id;
+        #fetchId;
+        #interceptPhase;
+        #servedFromCache = false;
+        #redirectCount;
+        #request = {};
+        #requestOverrides;
+        #responseOverrides;
+        #response = {};
+        #eventManager;
+        #networkStorage;
+        #cdpTarget;
+        #logger;
+        #emittedEvents = {
+            [Network$2.EventNames.AuthRequired]: false,
+            [Network$2.EventNames.BeforeRequestSent]: false,
+            [Network$2.EventNames.FetchError]: false,
+            [Network$2.EventNames.ResponseCompleted]: false,
+            [Network$2.EventNames.ResponseStarted]: false,
+        };
+        waitNextPhase = new Deferred();
+        constructor(id, eventManager, networkStorage, cdpTarget, redirectCount = 0, logger) {
+            this.#id = id;
+            this.#eventManager = eventManager;
+            this.#networkStorage = networkStorage;
+            this.#cdpTarget = cdpTarget;
+            this.#redirectCount = redirectCount;
+            this.#logger = logger;
+        }
+        get id() {
+            return this.#id;
+        }
+        get fetchId() {
+            return this.#fetchId;
+        }
+        get interceptPhase() {
+            return this.#interceptPhase;
+        }
+        get url() {
+            const fragment = this.#request.info?.request.urlFragment ??
+                this.#request.paused?.request.urlFragment ??
+                '';
+            const url = this.#response.paused?.request.url ??
+                this.#requestOverrides?.url ??
+                this.#response.info?.url ??
+                this.#request.auth?.request.url ??
+                this.#request.info?.request.url ??
+                this.#request.paused?.request.url ??
+                _a$3.unknownParameter;
+            return `${url}${fragment}`;
+        }
+        get redirectCount() {
+            return this.#redirectCount;
+        }
+        get cdpTarget() {
+            return this.#cdpTarget;
+        }
+        get cdpClient() {
+            return this.#cdpTarget.cdpClient;
+        }
+        isRedirecting() {
+            return Boolean(this.#request.info);
+        }
+        #isDataUrl() {
+            return this.url.startsWith('data:');
+        }
+        get #method() {
+            return (this.#requestOverrides?.method ??
+                this.#request.info?.request.method ??
+                this.#request.paused?.request.method ??
+                this.#request.auth?.request.method ??
+                this.#response.paused?.request.method);
+        }
+        get #navigationId() {
+            if (!this.#request.info ||
+                !this.#request.info.loaderId ||
+                this.#request.info.loaderId !== this.#request.info.requestId) {
+                return null;
+            }
+            return this.#networkStorage.getNavigationId(this.#context ?? undefined);
+        }
+        get #cookies() {
+            let cookies = [];
+            if (this.#request.extraInfo) {
+                cookies = this.#request.extraInfo.associatedCookies
+                    .filter(({ blockedReasons }) => {
+                    return !Array.isArray(blockedReasons) || blockedReasons.length === 0;
+                })
+                    .map(({ cookie }) => cdpToBiDiCookie(cookie));
+            }
+            return cookies;
+        }
+        get #bodySize() {
+            let bodySize = 0;
+            if (typeof this.#requestOverrides?.bodySize === 'number') {
+                bodySize = this.#requestOverrides.bodySize;
+            }
+            else {
+                bodySize = bidiBodySizeFromCdpPostDataEntries(this.#request.info?.request.postDataEntries ?? []);
+            }
+            return bodySize;
+        }
+        get #context() {
+            return (this.#response.paused?.frameId ??
+                this.#request.info?.frameId ??
+                this.#request.paused?.frameId ??
+                this.#request.auth?.frameId ??
+                null);
+        }
+        get #statusCode() {
+            return (this.#responseOverrides?.statusCode ??
+                this.#response.paused?.responseStatusCode ??
+                this.#response.extraInfo?.statusCode ??
+                this.#response.info?.status);
+        }
+        get #requestHeaders() {
+            let headers = [];
+            if (this.#requestOverrides?.headers) {
+                const headerMap = new DefaultMap(() => []);
+                for (const header of this.#requestOverrides.headers) {
+                    headerMap.get(header.name).push(header.value.value);
+                }
+                for (const [name, value] of headerMap.entries()) {
+                    headers.push({
+                        name,
+                        value: {
+                            type: 'string',
+                            value: value.join('\n').trimEnd(),
+                        },
+                    });
+                }
+            }
+            else {
+                headers = [
+                    ...bidiNetworkHeadersFromCdpNetworkHeaders(this.#request.info?.request.headers),
+                    ...bidiNetworkHeadersFromCdpNetworkHeaders(this.#request.extraInfo?.headers),
+                ];
+            }
+            return headers;
+        }
+        get #authChallenges() {
+            if (!this.#response.info) {
+                return;
+            }
+            if (!(this.#statusCode === 401 || this.#statusCode === 407)) {
+                return undefined;
+            }
+            const headerName = this.#statusCode === 401 ? 'WWW-Authenticate' : 'Proxy-Authenticate';
+            const authChallenges = [];
+            for (const [header, value] of Object.entries(this.#response.info.headers)) {
+                if (header.localeCompare(headerName, undefined, { sensitivity: 'base' }) === 0) {
+                    authChallenges.push({
+                        scheme: value.split(' ').at(0) ?? '',
+                        realm: value.match(REALM_REGEX)?.at(0) ?? '',
+                    });
+                }
+            }
+            return authChallenges;
+        }
+        get #timings() {
+            const responseTimeOffset = getTiming(getTiming(this.#response.info?.timing?.requestTime) -
+                getTiming(this.#request.info?.timestamp));
+            return {
+                timeOrigin: Math.round(getTiming(this.#request.info?.wallTime) * 1000),
+                requestTime: 0,
+                redirectStart: 0,
+                redirectEnd: 0,
+                fetchStart: getTiming(this.#response.info?.timing?.workerFetchStart, responseTimeOffset),
+                dnsStart: getTiming(this.#response.info?.timing?.dnsStart, responseTimeOffset),
+                dnsEnd: getTiming(this.#response.info?.timing?.dnsEnd, responseTimeOffset),
+                connectStart: getTiming(this.#response.info?.timing?.connectStart, responseTimeOffset),
+                connectEnd: getTiming(this.#response.info?.timing?.connectEnd, responseTimeOffset),
+                tlsStart: getTiming(this.#response.info?.timing?.sslStart, responseTimeOffset),
+                requestStart: getTiming(this.#response.info?.timing?.sendStart, responseTimeOffset),
+                responseStart: getTiming(this.#response.info?.timing?.receiveHeadersStart, responseTimeOffset),
+                responseEnd: getTiming(this.#response.info?.timing?.receiveHeadersEnd, responseTimeOffset),
+            };
+        }
+        #phaseChanged() {
+            this.waitNextPhase.resolve();
+            this.waitNextPhase = new Deferred();
+        }
+        #interceptsInPhase(phase) {
+            if (!this.#cdpTarget.isSubscribedTo(`network.${phase}`)) {
+                return new Set();
+            }
+            return this.#networkStorage.getInterceptsForPhase(this, phase);
+        }
+        #isBlockedInPhase(phase) {
+            return this.#interceptsInPhase(phase).size > 0;
+        }
+        handleRedirect(event) {
+            this.#response.hasExtraInfo = false;
+            this.#response.info = event.redirectResponse;
+            this.#emitEventsIfReady({
+                wasRedirected: true,
+            });
+        }
+        #emitEventsIfReady(options = {}) {
+            const requestExtraInfoCompleted =
+            options.wasRedirected ||
+                options.hasFailed ||
+                this.#isDataUrl() ||
+                Boolean(this.#request.extraInfo) ||
+                this.#servedFromCache ||
+                Boolean(this.#response.info && !this.#response.hasExtraInfo);
+            const noInterceptionExpected =
+            this.#isDataUrl() ||
+                this.#servedFromCache;
+            const requestInterceptionExpected = !noInterceptionExpected &&
+                this.#isBlockedInPhase("beforeRequestSent" );
+            const requestInterceptionCompleted = !requestInterceptionExpected ||
+                (requestInterceptionExpected && Boolean(this.#request.paused));
+            if (Boolean(this.#request.info) &&
+                (requestInterceptionExpected
+                    ? requestInterceptionCompleted
+                    : requestExtraInfoCompleted)) {
+                this.#emitEvent(this.#getBeforeRequestEvent.bind(this));
+            }
+            const responseExtraInfoCompleted = Boolean(this.#response.extraInfo) ||
+                this.#servedFromCache ||
+                Boolean(this.#response.info && !this.#response.hasExtraInfo);
+            const responseInterceptionExpected = !noInterceptionExpected &&
+                this.#isBlockedInPhase("responseStarted" );
+            if (this.#response.info ||
+                (responseInterceptionExpected && Boolean(this.#response.paused))) {
+                this.#emitEvent(this.#getResponseStartedEvent.bind(this));
+            }
+            const responseInterceptionCompleted = !responseInterceptionExpected ||
+                (responseInterceptionExpected && Boolean(this.#response.paused));
+            if (Boolean(this.#response.info) &&
+                responseExtraInfoCompleted &&
+                responseInterceptionCompleted) {
+                this.#emitEvent(this.#getResponseReceivedEvent.bind(this));
+                this.#networkStorage.deleteRequest(this.id);
+            }
+        }
+        onRequestWillBeSentEvent(event) {
+            this.#request.info = event;
+            this.#emitEventsIfReady();
+        }
+        onRequestWillBeSentExtraInfoEvent(event) {
+            this.#request.extraInfo = event;
+            this.#emitEventsIfReady();
+        }
+        onResponseReceivedExtraInfoEvent(event) {
+            if (event.statusCode >= 300 &&
+                event.statusCode <= 399 &&
+                this.#request.info &&
+                event.headers['location'] === this.#request.info.request.url) {
+                return;
+            }
+            this.#response.extraInfo = event;
+            this.#emitEventsIfReady();
+        }
+        onResponseReceivedEvent(event) {
+            this.#response.hasExtraInfo = event.hasExtraInfo;
+            this.#response.info = event.response;
+            this.#emitEventsIfReady();
+        }
+        onServedFromCache() {
+            this.#servedFromCache = true;
+            this.#emitEventsIfReady();
+        }
+        onLoadingFailedEvent(event) {
+            this.#emitEventsIfReady({
+                hasFailed: true,
+            });
+            this.#emitEvent(() => {
+                return {
+                    method: Network$2.EventNames.FetchError,
+                    params: {
+                        ...this.#getBaseEventParams(),
+                        errorText: event.errorText,
+                    },
+                };
+            });
+        }
+        async failRequest(errorReason) {
+            assert(this.#fetchId, 'Network Interception not set-up.');
+            await this.cdpClient.sendCommand('Fetch.failRequest', {
+                requestId: this.#fetchId,
+                errorReason,
+            });
+            this.#interceptPhase = undefined;
+        }
+        onRequestPaused(event) {
+            this.#fetchId = event.requestId;
+            if (event.responseStatusCode || event.responseErrorReason) {
+                this.#response.paused = event;
+                if (this.#isBlockedInPhase("responseStarted" ) &&
+                    !this.#emittedEvents[Network$2.EventNames.ResponseStarted] &&
+                    this.#fetchId !== this.id) {
+                    this.#interceptPhase = "responseStarted" ;
+                }
+                else {
+                    void this.#continueResponse();
+                }
+            }
+            else {
+                this.#request.paused = event;
+                if (this.#isBlockedInPhase("beforeRequestSent" ) &&
+                    !this.#emittedEvents[Network$2.EventNames.BeforeRequestSent] &&
+                    this.#fetchId !== this.id) {
+                    this.#interceptPhase = "beforeRequestSent" ;
+                }
+                else {
+                    void this.#continueRequest();
+                }
+            }
+            this.#emitEventsIfReady();
+        }
+        onAuthRequired(event) {
+            this.#fetchId = event.requestId;
+            this.#request.auth = event;
+            if (this.#isBlockedInPhase("authRequired" ) &&
+                this.#fetchId !== this.id) {
+                this.#interceptPhase = "authRequired" ;
+            }
+            else {
+                void this.#continueWithAuth({
+                    response: 'Default',
+                });
+            }
+            this.#emitEvent(() => {
+                return {
+                    method: Network$2.EventNames.AuthRequired,
+                    params: {
+                        ...this.#getBaseEventParams("authRequired" ),
+                        response: this.#getResponseEventParams(),
+                    },
+                };
+            });
+        }
+        async continueRequest(overrides = {}) {
+            const overrideHeaders = this.#getOverrideHeader(overrides.headers, overrides.cookies);
+            const headers = cdpFetchHeadersFromBidiNetworkHeaders(overrideHeaders);
+            const postData = getCdpBodyFromBiDiBytesValue(overrides.body);
+            await this.#continueRequest({
+                url: overrides.url,
+                method: overrides.method,
+                headers,
+                postData,
+            });
+            this.#requestOverrides = {
+                url: overrides.url,
+                method: overrides.method,
+                headers: overrides.headers,
+                cookies: overrides.cookies,
+                bodySize: getSizeFromBiDiBytesValue(overrides.body),
+            };
+        }
+        async #continueRequest(overrides = {}) {
+            assert(this.#fetchId, 'Network Interception not set-up.');
+            await this.cdpClient.sendCommand('Fetch.continueRequest', {
+                requestId: this.#fetchId,
+                url: overrides.url,
+                method: overrides.method,
+                headers: overrides.headers,
+                postData: overrides.postData,
+            });
+            this.#interceptPhase = undefined;
+        }
+        async continueResponse(overrides = {}) {
+            if (this.interceptPhase === "authRequired" ) {
+                if (overrides.credentials) {
+                    await Promise.all([
+                        this.waitNextPhase,
+                        await this.#continueWithAuth({
+                            response: 'ProvideCredentials',
+                            username: overrides.credentials.username,
+                            password: overrides.credentials.password,
+                        }),
+                    ]);
+                }
+                else {
+                    return await this.#continueWithAuth({
+                        response: 'ProvideCredentials',
+                    });
+                }
+            }
+            if (this.#interceptPhase === "responseStarted" ) {
+                const overrideHeaders = this.#getOverrideHeader(overrides.headers, overrides.cookies);
+                const responseHeaders = cdpFetchHeadersFromBidiNetworkHeaders(overrideHeaders);
+                await this.#continueResponse({
+                    responseCode: overrides.statusCode ?? this.#response.paused?.responseStatusCode,
+                    responsePhrase: overrides.reasonPhrase ?? this.#response.paused?.responseStatusText,
+                    responseHeaders: responseHeaders ?? this.#response.paused?.responseHeaders,
+                });
+                this.#responseOverrides = {
+                    statusCode: overrides.statusCode,
+                    headers: overrideHeaders,
+                };
+            }
+        }
+        async #continueResponse({ responseCode, responsePhrase, responseHeaders, } = {}) {
+            assert(this.#fetchId, 'Network Interception not set-up.');
+            await this.cdpClient.sendCommand('Fetch.continueResponse', {
+                requestId: this.#fetchId,
+                responseCode,
+                responsePhrase,
+                responseHeaders,
+            });
+            this.#interceptPhase = undefined;
+        }
+        async continueWithAuth(authChallenge) {
+            let username;
+            let password;
+            if (authChallenge.action === 'provideCredentials') {
+                const { credentials } = authChallenge;
+                username = credentials.username;
+                password = credentials.password;
+            }
+            const response = cdpAuthChallengeResponseFromBidiAuthContinueWithAuthAction(authChallenge.action);
+            await this.#continueWithAuth({
+                response,
+                username,
+                password,
+            });
+        }
+        async provideResponse(overrides) {
+            assert(this.#fetchId, 'Network Interception not set-up.');
+            if (this.interceptPhase === "authRequired" ) {
+                return await this.#continueWithAuth({
+                    response: 'ProvideCredentials',
+                });
+            }
+            if (!overrides.body && !overrides.headers) {
+                return await this.#continueRequest();
+            }
+            const overrideHeaders = this.#getOverrideHeader(overrides.headers, overrides.cookies);
+            const responseHeaders = cdpFetchHeadersFromBidiNetworkHeaders(overrideHeaders);
+            const responseCode = overrides.statusCode ?? this.#statusCode ?? 200;
+            await this.cdpClient.sendCommand('Fetch.fulfillRequest', {
+                requestId: this.#fetchId,
+                responseCode,
+                responsePhrase: overrides.reasonPhrase,
+                responseHeaders,
+                body: getCdpBodyFromBiDiBytesValue(overrides.body),
+            });
+            this.#interceptPhase = undefined;
+        }
+        dispose() {
+            this.waitNextPhase.reject(new Error('waitNextPhase disposed'));
+        }
+        async #continueWithAuth(authChallengeResponse) {
+            assert(this.#fetchId, 'Network Interception not set-up.');
+            await this.cdpClient.sendCommand('Fetch.continueWithAuth', {
+                requestId: this.#fetchId,
+                authChallengeResponse,
+            });
+            this.#interceptPhase = undefined;
+        }
+        #emitEvent(getEvent) {
+            let event;
+            try {
+                event = getEvent();
+            }
+            catch (error) {
+                this.#logger?.(LogType.debugError, error);
+                return;
+            }
+            if (this.#isIgnoredEvent() ||
+                (this.#emittedEvents[event.method] &&
+                    event.method !== Network$2.EventNames.AuthRequired)) {
+                return;
+            }
+            this.#phaseChanged();
+            this.#emittedEvents[event.method] = true;
+            if (this.#context) {
+                this.#eventManager.registerEvent(Object.assign(event, {
+                    type: 'event',
+                }), this.#context);
+            }
+            else {
+                this.#eventManager.registerGlobalEvent(Object.assign(event, {
+                    type: 'event',
+                }));
+            }
+        }
+        #getBaseEventParams(phase) {
+            const interceptProps = {
+                isBlocked: false,
+            };
+            if (phase) {
+                const blockedBy = this.#interceptsInPhase(phase);
+                interceptProps.isBlocked = blockedBy.size > 0;
+                if (interceptProps.isBlocked) {
+                    interceptProps.intercepts = [...blockedBy];
+                }
+            }
+            return {
+                context: this.#context,
+                navigation: this.#navigationId,
+                redirectCount: this.#redirectCount,
+                request: this.#getRequestData(),
+                timestamp: Math.round(getTiming(this.#request.info?.wallTime) * 1000),
+                ...interceptProps,
+            };
+        }
+        #getResponseEventParams() {
+            if (this.#response.info?.fromDiskCache) {
+                this.#response.extraInfo = undefined;
+            }
+            const headers = [
+                ...bidiNetworkHeadersFromCdpNetworkHeaders(this.#response.info?.headers),
+                ...bidiNetworkHeadersFromCdpNetworkHeaders(this.#response.extraInfo?.headers),
+            ];
+            const authChallenges = this.#authChallenges;
+            const response = {
+                url: this.url,
+                protocol: this.#response.info?.protocol ?? '',
+                status: this.#statusCode ?? -1,
+                statusText: this.#response.info?.statusText ||
+                    this.#response.paused?.responseStatusText ||
+                    '',
+                fromCache: this.#response.info?.fromDiskCache ||
+                    this.#response.info?.fromPrefetchCache ||
+                    this.#servedFromCache,
+                headers: this.#responseOverrides?.headers ?? headers,
+                mimeType: this.#response.info?.mimeType || '',
+                bytesReceived: this.#response.info?.encodedDataLength || 0,
+                headersSize: computeHeadersSize(headers),
+                bodySize: 0,
+                content: {
+                    size: 0,
+                },
+                ...(authChallenges ? { authChallenges } : {}),
+            };
+            return {
+                ...response,
+                'goog:securityDetails': this.#response.info?.securityDetails,
+            };
+        }
+        #getRequestData() {
+            const headers = this.#requestHeaders;
+            const request = {
+                request: this.#id,
+                url: this.url,
+                method: this.#method ?? _a$3.unknownParameter,
+                headers,
+                cookies: this.#cookies,
+                headersSize: computeHeadersSize(headers),
+                bodySize: this.#bodySize,
+                destination: this.#getDestination(),
+                initiatorType: this.#getInitiatorType(),
+                timings: this.#timings,
+            };
+            return {
+                ...request,
+                'goog:postData': this.#request.info?.request?.postData,
+                'goog:hasPostData': this.#request.info?.request?.hasPostData,
+                'goog:resourceType': this.#request.info?.type,
+                'goog:resourceInitiator': this.#request.info?.initiator,
+            };
+        }
+        #getDestination() {
+            switch (this.#request.info?.type) {
+                case 'Script':
+                    return 'script';
+                case 'Stylesheet':
+                    return 'style';
+                case 'Image':
+                    return 'image';
+                case 'Document':
+                    return this.#request.info?.initiator.type === 'parser' ? 'iframe' : '';
+                default:
+                    return '';
+            }
+        }
+        #getInitiatorType() {
+            if (this.#request.info?.initiator.type === 'parser') {
+                switch (this.#request.info?.type) {
+                    case 'Document':
+                        return 'iframe';
+                    case 'Font':
+                        return this.#request.info?.initiator?.url ===
+                            this.#request.info?.documentURL
+                            ? 'font'
+                            : 'css';
+                    case 'Image':
+                        return this.#request.info?.initiator?.url ===
+                            this.#request.info?.documentURL
+                            ? 'img'
+                            : 'css';
+                    case 'Script':
+                        return 'script';
+                    case 'Stylesheet':
+                        return 'link';
+                    default:
+                        return null;
+                }
+            }
+            if (this.#request?.info?.type === 'Fetch') {
+                return 'fetch';
+            }
+            return null;
+        }
+        #getBeforeRequestEvent() {
+            assert(this.#request.info, 'RequestWillBeSentEvent is not set');
+            return {
+                method: Network$2.EventNames.BeforeRequestSent,
+                params: {
+                    ...this.#getBaseEventParams("beforeRequestSent" ),
+                    initiator: {
+                        type: _a$3.#getInitiator(this.#request.info.initiator.type),
+                        columnNumber: this.#request.info.initiator.columnNumber,
+                        lineNumber: this.#request.info.initiator.lineNumber,
+                        stackTrace: this.#request.info.initiator.stack,
+                        request: this.#request.info.initiator.requestId,
+                    },
+                },
+            };
+        }
+        #getResponseStartedEvent() {
+            return {
+                method: Network$2.EventNames.ResponseStarted,
+                params: {
+                    ...this.#getBaseEventParams("responseStarted" ),
+                    response: this.#getResponseEventParams(),
+                },
+            };
+        }
+        #getResponseReceivedEvent() {
+            return {
+                method: Network$2.EventNames.ResponseCompleted,
+                params: {
+                    ...this.#getBaseEventParams(),
+                    response: this.#getResponseEventParams(),
+                },
+            };
+        }
+        #isIgnoredEvent() {
+            const faviconUrl = '/favicon.ico';
+            return (this.#request.paused?.request.url.endsWith(faviconUrl) ??
+                this.#request.info?.request.url.endsWith(faviconUrl) ??
+                false);
+        }
+        #getOverrideHeader(headers, cookies) {
+            if (!headers && !cookies) {
+                return undefined;
+            }
+            let overrideHeaders = headers;
+            const cookieHeader = networkHeaderFromCookieHeaders(cookies);
+            if (cookieHeader && !overrideHeaders) {
+                overrideHeaders = this.#requestHeaders;
+            }
+            if (cookieHeader && overrideHeaders) {
+                overrideHeaders.filter((header) => header.name.localeCompare('cookie', undefined, {
+                    sensitivity: 'base',
+                }) !== 0);
+                overrideHeaders.push(cookieHeader);
+            }
+            return overrideHeaders;
+        }
+        static #getInitiator(initiatorType) {
+            switch (initiatorType) {
+                case 'parser':
+                case 'script':
+                case 'preflight':
+                    return initiatorType;
+                default:
+                    return 'other';
+            }
+        }
+    }
+    _a$3 = NetworkRequest;
+    function getCdpBodyFromBiDiBytesValue(body) {
+        let parsedBody;
+        if (body?.type === 'string') {
+            parsedBody = stringToBase64(body.value);
+        }
+        else if (body?.type === 'base64') {
+            parsedBody = body.value;
+        }
+        return parsedBody;
+    }
+    function getSizeFromBiDiBytesValue(body) {
+        if (body?.type === 'string') {
+            return body.value.length;
+        }
+        else if (body?.type === 'base64') {
+            return atob(body.value).length;
+        }
+        return 0;
+    }
+
+    class NetworkStorage {
+        #browsingContextStorage;
+        #eventManager;
+        #logger;
+        #requests = new Map();
+        #intercepts = new Map();
+        #defaultCacheBehavior = 'default';
+        constructor(eventManager, browsingContextStorage, browserClient, logger) {
+            this.#browsingContextStorage = browsingContextStorage;
+            this.#eventManager = eventManager;
+            browserClient.on('Target.detachedFromTarget', ({ sessionId }) => {
+                this.disposeRequestMap(sessionId);
+            });
+            this.#logger = logger;
+        }
+        #getOrCreateNetworkRequest(id, cdpTarget, redirectCount) {
+            let request = this.getRequestById(id);
+            if (request) {
+                return request;
+            }
+            request = new NetworkRequest(id, this.#eventManager, this, cdpTarget, redirectCount, this.#logger);
+            this.addRequest(request);
+            return request;
+        }
+        onCdpTargetCreated(cdpTarget) {
+            const cdpClient = cdpTarget.cdpClient;
+            const listeners = [
+                [
+                    'Network.requestWillBeSent',
+                    (params) => {
+                        const request = this.getRequestById(params.requestId);
+                        if (request && request.isRedirecting()) {
+                            request.handleRedirect(params);
+                            this.deleteRequest(params.requestId);
+                            this.#getOrCreateNetworkRequest(params.requestId, cdpTarget, request.redirectCount + 1).onRequestWillBeSentEvent(params);
+                        }
+                        else {
+                            this.#getOrCreateNetworkRequest(params.requestId, cdpTarget).onRequestWillBeSentEvent(params);
+                        }
+                    },
+                ],
+                [
+                    'Network.requestWillBeSentExtraInfo',
+                    (params) => {
+                        this.#getOrCreateNetworkRequest(params.requestId, cdpTarget).onRequestWillBeSentExtraInfoEvent(params);
+                    },
+                ],
+                [
+                    'Network.responseReceived',
+                    (params) => {
+                        this.#getOrCreateNetworkRequest(params.requestId, cdpTarget).onResponseReceivedEvent(params);
+                    },
+                ],
+                [
+                    'Network.responseReceivedExtraInfo',
+                    (params) => {
+                        this.#getOrCreateNetworkRequest(params.requestId, cdpTarget).onResponseReceivedExtraInfoEvent(params);
+                    },
+                ],
+                [
+                    'Network.requestServedFromCache',
+                    (params) => {
+                        this.#getOrCreateNetworkRequest(params.requestId, cdpTarget).onServedFromCache();
+                    },
+                ],
+                [
+                    'Network.loadingFailed',
+                    (params) => {
+                        this.#getOrCreateNetworkRequest(params.requestId, cdpTarget).onLoadingFailedEvent(params);
+                    },
+                ],
+                [
+                    'Fetch.requestPaused',
+                    (event) => {
+                        this.#getOrCreateNetworkRequest(
+                        event.networkId ?? event.requestId, cdpTarget).onRequestPaused(event);
+                    },
+                ],
+                [
+                    'Fetch.authRequired',
+                    (event) => {
+                        let request = this.getRequestByFetchId(event.requestId);
+                        if (!request) {
+                            request = this.#getOrCreateNetworkRequest(event.requestId, cdpTarget);
+                        }
+                        request.onAuthRequired(event);
+                    },
+                ],
+            ];
+            for (const [event, listener] of listeners) {
+                cdpClient.on(event, listener);
+            }
+        }
+        getInterceptionStages(browsingContextId) {
+            const stages = {
+                request: false,
+                response: false,
+                auth: false,
+            };
+            for (const intercept of this.#intercepts.values()) {
+                if (intercept.contexts &&
+                    !intercept.contexts.includes(browsingContextId)) {
+                    continue;
+                }
+                stages.request ||= intercept.phases.includes("beforeRequestSent" );
+                stages.response ||= intercept.phases.includes("responseStarted" );
+                stages.auth ||= intercept.phases.includes("authRequired" );
+            }
+            return stages;
+        }
+        getInterceptsForPhase(request, phase) {
+            if (request.url === NetworkRequest.unknownParameter) {
+                return new Set();
+            }
+            const intercepts = new Set();
+            for (const [interceptId, intercept] of this.#intercepts.entries()) {
+                if (!intercept.phases.includes(phase) ||
+                    (intercept.contexts &&
+                        !intercept.contexts.includes(request.cdpTarget.topLevelId))) {
+                    continue;
+                }
+                if (intercept.urlPatterns.length === 0) {
+                    intercepts.add(interceptId);
+                    continue;
+                }
+                for (const pattern of intercept.urlPatterns) {
+                    if (matchUrlPattern(pattern, request.url)) {
+                        intercepts.add(interceptId);
+                        break;
+                    }
+                }
+            }
+            return intercepts;
+        }
+        disposeRequestMap(sessionId) {
+            for (const request of this.#requests.values()) {
+                if (request.cdpClient.sessionId === sessionId) {
+                    this.#requests.delete(request.id);
+                    request.dispose();
+                }
+            }
+        }
+        addIntercept(value) {
+            const interceptId = uuidv4();
+            this.#intercepts.set(interceptId, value);
+            return interceptId;
+        }
+        removeIntercept(intercept) {
+            if (!this.#intercepts.has(intercept)) {
+                throw new NoSuchInterceptException(`Intercept '${intercept}' does not exist.`);
+            }
+            this.#intercepts.delete(intercept);
+        }
+        getRequestsByTarget(target) {
+            const requests = [];
+            for (const request of this.#requests.values()) {
+                if (request.cdpTarget === target) {
+                    requests.push(request);
+                }
+            }
+            return requests;
+        }
+        getRequestById(id) {
+            return this.#requests.get(id);
+        }
+        getRequestByFetchId(fetchId) {
+            for (const request of this.#requests.values()) {
+                if (request.fetchId === fetchId) {
+                    return request;
+                }
+            }
+            return;
+        }
+        addRequest(request) {
+            this.#requests.set(request.id, request);
+        }
+        deleteRequest(id) {
+            this.#requests.delete(id);
+        }
+        getNavigationId(contextId) {
+            if (contextId === undefined) {
+                return null;
+            }
+            return (this.#browsingContextStorage.findContext(contextId)?.navigationId ?? null);
+        }
+        set defaultCacheBehavior(behavior) {
+            this.#defaultCacheBehavior = behavior;
+        }
+        get defaultCacheBehavior() {
+            return this.#defaultCacheBehavior;
+        }
+    }
+
+    /*
+     * Copyright 2023 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class PreloadScriptStorage {
+        #scripts = new Set();
+        find(filter) {
+            if (!filter) {
+                return [...this.#scripts];
+            }
+            return [...this.#scripts].filter((script) => {
+                if (script.contexts === undefined && script.userContexts === undefined) {
+                    return true;
+                }
+                if (filter.targetId !== undefined &&
+                    script.targetIds.has(filter.targetId)) {
+                    return true;
+                }
+                return false;
+            });
+        }
+        add(preloadScript) {
+            this.#scripts.add(preloadScript);
+        }
+        remove(id) {
+            const script = [...this.#scripts].find((script) => script.id === id);
+            if (script === undefined) {
+                throw new NoSuchScriptException(`No preload script with id '${id}'`);
+            }
+            this.#scripts.delete(script);
+        }
+        getPreloadScript(id) {
+            const script = [...this.#scripts].find((script) => script.id === id);
+            if (script === undefined) {
+                throw new NoSuchScriptException(`No preload script with id '${id}'`);
+            }
+            return script;
+        }
+        onCdpTargetCreated(targetId, userContext) {
+            const scriptInUserContext = [...this.#scripts].filter((script) => {
+                if (!script.userContexts && !script.contexts) {
+                    return true;
+                }
+                return script.userContexts?.includes(userContext);
+            });
+            for (const script of scriptInUserContext) {
+                script.targetIds.add(targetId);
+            }
+        }
+    }
+
+    class RealmStorage {
+        #knownHandlesToRealmMap = new Map();
+        #realmMap = new Map();
+        get knownHandlesToRealmMap() {
+            return this.#knownHandlesToRealmMap;
+        }
+        addRealm(realm) {
+            this.#realmMap.set(realm.realmId, realm);
+        }
+        findRealms(filter) {
+            return Array.from(this.#realmMap.values()).filter((realm) => {
+                if (filter.realmId !== undefined && filter.realmId !== realm.realmId) {
+                    return false;
+                }
+                if (filter.browsingContextId !== undefined &&
+                    !realm.associatedBrowsingContexts
+                        .map((browsingContext) => browsingContext.id)
+                        .includes(filter.browsingContextId)) {
+                    return false;
+                }
+                if (filter.sandbox !== undefined &&
+                    (!(realm instanceof WindowRealm) || filter.sandbox !== realm.sandbox)) {
+                    return false;
+                }
+                if (filter.executionContextId !== undefined &&
+                    filter.executionContextId !== realm.executionContextId) {
+                    return false;
+                }
+                if (filter.origin !== undefined && filter.origin !== realm.origin) {
+                    return false;
+                }
+                if (filter.type !== undefined && filter.type !== realm.realmType) {
+                    return false;
+                }
+                if (filter.cdpSessionId !== undefined &&
+                    filter.cdpSessionId !== realm.cdpClient.sessionId) {
+                    return false;
+                }
+                return true;
+            });
+        }
+        findRealm(filter) {
+            const maybeRealms = this.findRealms(filter);
+            if (maybeRealms.length !== 1) {
+                return undefined;
+            }
+            return maybeRealms[0];
+        }
+        getRealm(filter) {
+            const maybeRealm = this.findRealm(filter);
+            if (maybeRealm === undefined) {
+                throw new NoSuchFrameException(`Realm ${JSON.stringify(filter)} not found`);
+            }
+            return maybeRealm;
+        }
+        deleteRealms(filter) {
+            this.findRealms(filter).map((realm) => {
+                realm.dispose();
+                this.#realmMap.delete(realm.realmId);
+                Array.from(this.knownHandlesToRealmMap.entries())
+                    .filter(([, r]) => r === realm.realmId)
+                    .map(([handle]) => this.knownHandlesToRealmMap.delete(handle));
+            });
+        }
+    }
+
+    /**
+     * Copyright 2022 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    let Buffer$1 = class Buffer {
+        #capacity;
+        #entries = [];
+        #onItemRemoved;
+        constructor(capacity, onItemRemoved) {
+            this.#capacity = capacity;
+            this.#onItemRemoved = onItemRemoved;
+        }
+        get() {
+            return this.#entries;
+        }
+        add(value) {
+            this.#entries.push(value);
+            while (this.#entries.length > this.#capacity) {
+                const item = this.#entries.shift();
+                if (item !== undefined) {
+                    this.#onItemRemoved?.(item);
+                }
+            }
+        }
+    };
+
+    /**
+     * Copyright 2022 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class IdWrapper {
+        static #counter = 0;
+        #id;
+        constructor() {
+            this.#id = ++IdWrapper.#counter;
+        }
+        get id() {
+            return this.#id;
+        }
+    }
+
+    /**
+     * Copyright 2023 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    function isCdpEvent(name) {
+        return (name.split('.').at(0)?.startsWith(BiDiModule.Cdp) ?? false);
+    }
+    function assertSupportedEvent(name) {
+        if (!EVENT_NAMES.has(name) && !isCdpEvent(name)) {
+            throw new InvalidArgumentException(`Unknown event: ${name}`);
+        }
+    }
+
+    /**
+     * Copyright 2022 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    function unrollEvents(events) {
+        const allEvents = new Set();
+        function addEvents(events) {
+            for (const event of events) {
+                allEvents.add(event);
+            }
+        }
+        for (const event of events) {
+            switch (event) {
+                case BiDiModule.Bluetooth:
+                    addEvents(Object.values(Bluetooth$2.EventNames));
+                    break;
+                case BiDiModule.BrowsingContext:
+                    addEvents(Object.values(BrowsingContext$2.EventNames));
+                    break;
+                case BiDiModule.Input:
+                    addEvents(Object.values(Input$2.EventNames));
+                    break;
+                case BiDiModule.Log:
+                    addEvents(Object.values(Log$1.EventNames));
+                    break;
+                case BiDiModule.Network:
+                    addEvents(Object.values(Network$2.EventNames));
+                    break;
+                case BiDiModule.Script:
+                    addEvents(Object.values(Script$2.EventNames));
+                    break;
+                default:
+                    allEvents.add(event);
+            }
+        }
+        return allEvents.values();
+    }
+    class SubscriptionManager {
+        #subscriptions = [];
+        #knownSubscriptionIds = new Set();
+        #browsingContextStorage;
+        constructor(browsingContextStorage) {
+            this.#browsingContextStorage = browsingContextStorage;
+        }
+        getGoogChannelsSubscribedToEvent(eventName, contextId) {
+            const googChannels = new Set();
+            for (const subscription of this.#subscriptions) {
+                if (this.#isSubscribedTo(subscription, eventName, contextId)) {
+                    googChannels.add(subscription.googChannel);
+                }
+            }
+            return Array.from(googChannels);
+        }
+        getGoogChannelsSubscribedToEventGlobally(eventName) {
+            const googChannels = new Set();
+            for (const subscription of this.#subscriptions) {
+                if (this.#isSubscribedTo(subscription, eventName)) {
+                    googChannels.add(subscription.googChannel);
+                }
+            }
+            return Array.from(googChannels);
+        }
+        #isSubscribedTo(subscription, moduleOrEvent, browsingContextId) {
+            let includesEvent = false;
+            for (const eventName of subscription.eventNames) {
+                if (
+                eventName === moduleOrEvent ||
+                    eventName === moduleOrEvent.split('.').at(0) ||
+                    eventName.split('.').at(0) === moduleOrEvent) {
+                    includesEvent = true;
+                    break;
+                }
+            }
+            if (!includesEvent) {
+                return false;
+            }
+            if (subscription.userContextIds.size !== 0) {
+                if (!browsingContextId) {
+                    return false;
+                }
+                const context = this.#browsingContextStorage.findContext(browsingContextId);
+                if (!context) {
+                    return false;
+                }
+                return subscription.userContextIds.has(context.userContext);
+            }
+            if (subscription.topLevelTraversableIds.size !== 0) {
+                if (!browsingContextId) {
+                    return false;
+                }
+                const topLevelContext = this.#browsingContextStorage.findTopLevelContextId(browsingContextId);
+                return (topLevelContext !== null &&
+                    subscription.topLevelTraversableIds.has(topLevelContext));
+            }
+            return true;
+        }
+        isSubscribedTo(moduleOrEvent, contextId) {
+            for (const subscription of this.#subscriptions) {
+                if (this.#isSubscribedTo(subscription, moduleOrEvent, contextId)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        subscribe(eventNames, contextIds, userContextIds, googChannel) {
+            const subscription = {
+                id: uuidv4(),
+                eventNames: new Set(unrollEvents(eventNames)),
+                topLevelTraversableIds: new Set(contextIds.map((contextId) => {
+                    const topLevelContext = this.#browsingContextStorage.findTopLevelContextId(contextId);
+                    if (!topLevelContext) {
+                        throw new NoSuchFrameException(`Top-level navigable not found for context id ${contextId}`);
+                    }
+                    return topLevelContext;
+                })),
+                userContextIds: new Set(userContextIds),
+                googChannel,
+            };
+            this.#subscriptions.push(subscription);
+            this.#knownSubscriptionIds.add(subscription.id);
+            return subscription;
+        }
+        unsubscribe(inputEventNames, inputContextIds, googChannel) {
+            const eventNames = new Set(unrollEvents(inputEventNames));
+            this.#browsingContextStorage.verifyContextsList(inputContextIds);
+            const topLevelTraversables = new Set(inputContextIds.map((contextId) => {
+                const topLevelContext = this.#browsingContextStorage.findTopLevelContextId(contextId);
+                if (!topLevelContext) {
+                    throw new NoSuchFrameException(`Top-level navigable not found for context id ${contextId}`);
+                }
+                return topLevelContext;
+            }));
+            const isGlobalUnsubscribe = topLevelTraversables.size === 0;
+            const newSubscriptions = [];
+            const eventsMatched = new Set();
+            const contextsMatched = new Set();
+            for (const subscription of this.#subscriptions) {
+                if (subscription.googChannel !== googChannel) {
+                    newSubscriptions.push(subscription);
+                    continue;
+                }
+                if (subscription.userContextIds.size !== 0) {
+                    newSubscriptions.push(subscription);
+                    continue;
+                }
+                if (intersection(subscription.eventNames, eventNames).size === 0) {
+                    newSubscriptions.push(subscription);
+                    continue;
+                }
+                if (isGlobalUnsubscribe) {
+                    if (subscription.topLevelTraversableIds.size !== 0) {
+                        newSubscriptions.push(subscription);
+                        continue;
+                    }
+                    const subscriptionEventNames = new Set(subscription.eventNames);
+                    for (const eventName of eventNames) {
+                        if (subscriptionEventNames.has(eventName)) {
+                            eventsMatched.add(eventName);
+                            subscriptionEventNames.delete(eventName);
+                        }
+                    }
+                    if (subscriptionEventNames.size !== 0) {
+                        newSubscriptions.push({
+                            ...subscription,
+                            eventNames: subscriptionEventNames,
+                        });
+                    }
+                }
+                else {
+                    if (subscription.topLevelTraversableIds.size === 0) {
+                        newSubscriptions.push(subscription);
+                        continue;
+                    }
+                    const eventMap = new Map();
+                    for (const eventName of subscription.eventNames) {
+                        eventMap.set(eventName, new Set(subscription.topLevelTraversableIds));
+                    }
+                    for (const eventName of eventNames) {
+                        const eventContextSet = eventMap.get(eventName);
+                        if (!eventContextSet) {
+                            continue;
+                        }
+                        for (const toRemoveId of topLevelTraversables) {
+                            if (eventContextSet.has(toRemoveId)) {
+                                contextsMatched.add(toRemoveId);
+                                eventsMatched.add(eventName);
+                                eventContextSet.delete(toRemoveId);
+                            }
+                        }
+                        if (eventContextSet.size === 0) {
+                            eventMap.delete(eventName);
+                        }
+                    }
+                    for (const [eventName, remainingContextIds] of eventMap) {
+                        const partialSubscription = {
+                            id: subscription.id,
+                            googChannel: subscription.googChannel,
+                            eventNames: new Set([eventName]),
+                            topLevelTraversableIds: remainingContextIds,
+                            userContextIds: new Set(),
+                        };
+                        newSubscriptions.push(partialSubscription);
+                    }
+                }
+            }
+            if (!equal(eventsMatched, eventNames)) {
+                throw new InvalidArgumentException('No subscription found');
+            }
+            if (!isGlobalUnsubscribe && !equal(contextsMatched, topLevelTraversables)) {
+                throw new InvalidArgumentException('No subscription found');
+            }
+            this.#subscriptions = newSubscriptions;
+        }
+        unsubscribeById(subscriptionIds) {
+            const subscriptionIdsSet = new Set(subscriptionIds);
+            const unknownIds = difference(subscriptionIdsSet, this.#knownSubscriptionIds);
+            if (unknownIds.size !== 0) {
+                throw new InvalidArgumentException('No subscription found');
+            }
+            this.#subscriptions = this.#subscriptions.filter((subscription) => {
+                return !subscriptionIdsSet.has(subscription.id);
+            });
+            this.#knownSubscriptionIds = difference(this.#knownSubscriptionIds, subscriptionIdsSet);
+        }
+    }
+    function intersection(setA, setB) {
+        const result = new Set();
+        for (const a of setA) {
+            if (setB.has(a)) {
+                result.add(a);
+            }
+        }
+        return result;
+    }
+    function difference(setA, setB) {
+        const result = new Set();
+        for (const a of setA) {
+            if (!setB.has(a)) {
+                result.add(a);
+            }
+        }
+        return result;
+    }
+    function equal(setA, setB) {
+        if (setA.size !== setB.size) {
+            return false;
+        }
+        for (const a of setA) {
+            if (!setB.has(a)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Copyright 2022 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    var _a$2;
+    class EventWrapper {
+        #idWrapper = new IdWrapper();
+        #contextId;
+        #event;
+        constructor(event, contextId) {
+            this.#event = event;
+            this.#contextId = contextId;
+        }
+        get id() {
+            return this.#idWrapper.id;
+        }
+        get contextId() {
+            return this.#contextId;
+        }
+        get event() {
+            return this.#event;
+        }
+    }
+    const eventBufferLength = new Map([[Log$1.EventNames.LogEntryAdded, 100]]);
+    class EventManager extends EventEmitter {
+        #eventToContextsMap = new DefaultMap(() => new Set());
+        #eventBuffers = new Map();
+        #lastMessageSent = new Map();
+        #subscriptionManager;
+        #browsingContextStorage;
+        #subscribeHooks;
+        #userContextStorage;
+        constructor(browsingContextStorage, userContextStorage) {
+            super();
+            this.#browsingContextStorage = browsingContextStorage;
+            this.#userContextStorage = userContextStorage;
+            this.#subscriptionManager = new SubscriptionManager(browsingContextStorage);
+            this.#subscribeHooks = new DefaultMap(() => []);
+        }
+        get subscriptionManager() {
+            return this.#subscriptionManager;
+        }
+        static #getMapKey(eventName, browsingContext) {
+            return JSON.stringify({ eventName, browsingContext });
+        }
+        addSubscribeHook(event, hook) {
+            this.#subscribeHooks.get(event).push(hook);
+        }
+        registerEvent(event, contextId) {
+            this.registerPromiseEvent(Promise.resolve({
+                kind: 'success',
+                value: event,
+            }), contextId, event.method);
+        }
+        registerGlobalEvent(event) {
+            this.registerGlobalPromiseEvent(Promise.resolve({
+                kind: 'success',
+                value: event,
+            }), event.method);
+        }
+        registerPromiseEvent(event, contextId, eventName) {
+            const eventWrapper = new EventWrapper(event, contextId);
+            const sortedGoogChannels = this.#subscriptionManager.getGoogChannelsSubscribedToEvent(eventName, contextId);
+            this.#bufferEvent(eventWrapper, eventName);
+            for (const googChannel of sortedGoogChannels) {
+                this.emit("event" , {
+                    message: OutgoingMessage.createFromPromise(event, googChannel),
+                    event: eventName,
+                });
+                this.#markEventSent(eventWrapper, googChannel, eventName);
+            }
+        }
+        registerGlobalPromiseEvent(event, eventName) {
+            const eventWrapper = new EventWrapper(event, null);
+            const sortedGoogChannels = this.#subscriptionManager.getGoogChannelsSubscribedToEventGlobally(eventName);
+            this.#bufferEvent(eventWrapper, eventName);
+            for (const googChannel of sortedGoogChannels) {
+                this.emit("event" , {
+                    message: OutgoingMessage.createFromPromise(event, googChannel),
+                    event: eventName,
+                });
+                this.#markEventSent(eventWrapper, googChannel, eventName);
+            }
+        }
+        async subscribe(eventNames, contextIds, userContextIds, googChannel) {
+            for (const name of eventNames) {
+                assertSupportedEvent(name);
+            }
+            if (userContextIds.length && contextIds.length) {
+                throw new InvalidArgumentException('Both userContexts and contexts cannot be specified.');
+            }
+            this.#browsingContextStorage.verifyContextsList(contextIds);
+            await this.#userContextStorage.verifyUserContextIdList(userContextIds);
+            const unrolledEventNames = new Set(unrollEvents(eventNames));
+            const subscribeStepEvents = new Map();
+            const subscriptionNavigableIds = new Set(contextIds.length
+                ? contextIds.map((contextId) => {
+                    const id = this.#browsingContextStorage.findTopLevelContextId(contextId);
+                    if (!id) {
+                        throw new InvalidArgumentException('Invalid context id');
+                    }
+                    return id;
+                })
+                : this.#browsingContextStorage.getTopLevelContexts().map((c) => c.id));
+            for (const eventName of unrolledEventNames) {
+                const subscribedNavigableIds = new Set(this.#browsingContextStorage
+                    .getTopLevelContexts()
+                    .map((c) => c.id)
+                    .filter((id) => {
+                    return this.#subscriptionManager.isSubscribedTo(eventName, id);
+                }));
+                subscribeStepEvents.set(eventName, difference(subscriptionNavigableIds, subscribedNavigableIds));
+            }
+            const subscription = this.#subscriptionManager.subscribe(eventNames, contextIds, userContextIds, googChannel);
+            for (const eventName of subscription.eventNames) {
+                for (const contextId of subscriptionNavigableIds) {
+                    for (const eventWrapper of this.#getBufferedEvents(eventName, contextId, googChannel)) {
+                        this.emit("event" , {
+                            message: OutgoingMessage.createFromPromise(eventWrapper.event, googChannel),
+                            event: eventName,
+                        });
+                        this.#markEventSent(eventWrapper, googChannel, eventName);
+                    }
+                }
+            }
+            for (const [eventName, contextIds] of subscribeStepEvents) {
+                for (const contextId of contextIds) {
+                    this.#subscribeHooks.get(eventName).forEach((hook) => hook(contextId));
+                }
+            }
+            await this.toggleModulesIfNeeded();
+            return subscription.id;
+        }
+        async unsubscribe(eventNames, contextIds, googChannel) {
+            for (const name of eventNames) {
+                assertSupportedEvent(name);
+            }
+            this.#subscriptionManager.unsubscribe(eventNames, contextIds, googChannel);
+            await this.toggleModulesIfNeeded();
+        }
+        async unsubscribeByIds(subscriptionIds) {
+            this.#subscriptionManager.unsubscribeById(subscriptionIds);
+            await this.toggleModulesIfNeeded();
+        }
+        async toggleModulesIfNeeded() {
+            await Promise.all(this.#browsingContextStorage.getAllContexts().map(async (context) => {
+                return await context.toggleModulesIfNeeded();
+            }));
+        }
+        clearBufferedEvents(contextId) {
+            for (const eventName of eventBufferLength.keys()) {
+                const bufferMapKey = _a$2.#getMapKey(eventName, contextId);
+                this.#eventBuffers.delete(bufferMapKey);
+            }
+        }
+        #bufferEvent(eventWrapper, eventName) {
+            if (!eventBufferLength.has(eventName)) {
+                return;
+            }
+            const bufferMapKey = _a$2.#getMapKey(eventName, eventWrapper.contextId);
+            if (!this.#eventBuffers.has(bufferMapKey)) {
+                this.#eventBuffers.set(bufferMapKey, new Buffer$1(eventBufferLength.get(eventName)));
+            }
+            this.#eventBuffers.get(bufferMapKey).add(eventWrapper);
+            this.#eventToContextsMap.get(eventName).add(eventWrapper.contextId);
+        }
+        #markEventSent(eventWrapper, googChannel, eventName) {
+            if (!eventBufferLength.has(eventName)) {
+                return;
+            }
+            const lastSentMapKey = _a$2.#getMapKey(eventName, eventWrapper.contextId);
+            const lastId = Math.max(this.#lastMessageSent.get(lastSentMapKey)?.get(googChannel) ?? 0, eventWrapper.id);
+            const googChannelMap = this.#lastMessageSent.get(lastSentMapKey);
+            if (googChannelMap) {
+                googChannelMap.set(googChannel, lastId);
+            }
+            else {
+                this.#lastMessageSent.set(lastSentMapKey, new Map([[googChannel, lastId]]));
+            }
+        }
+        #getBufferedEvents(eventName, contextId, googChannel) {
+            const bufferMapKey = _a$2.#getMapKey(eventName, contextId);
+            const lastSentMessageId = this.#lastMessageSent.get(bufferMapKey)?.get(googChannel) ?? -Infinity;
+            const result = this.#eventBuffers
+                .get(bufferMapKey)
+                ?.get()
+                .filter((wrapper) => wrapper.id > lastSentMessageId) ?? [];
+            if (contextId === null) {
+                Array.from(this.#eventToContextsMap.get(eventName).keys())
+                    .filter((_contextId) =>
+                _contextId !== null &&
+                    this.#browsingContextStorage.hasContext(_contextId))
+                    .map((_contextId) => this.#getBufferedEvents(eventName, _contextId, googChannel))
+                    .forEach((events) => result.push(...events));
+            }
+            return result.sort((e1, e2) => e1.id - e2.id);
+        }
+    }
+    _a$2 = EventManager;
+
+    /**
+     * Copyright 2021 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class BidiServer extends EventEmitter {
+        #messageQueue;
+        #transport;
+        #commandProcessor;
+        #eventManager;
+        #browsingContextStorage = new BrowsingContextStorage();
+        #realmStorage = new RealmStorage();
+        #preloadScriptStorage = new PreloadScriptStorage();
+        #bluetoothProcessor;
+        #logger;
+        #handleIncomingMessage = (message) => {
+            void this.#commandProcessor.processCommand(message).catch((error) => {
+                this.#logger?.(LogType.debugError, error);
+            });
+        };
+        #processOutgoingMessage = async (messageEntry) => {
+            const message = messageEntry.message;
+            if (messageEntry.googChannel !== null) {
+                message['goog:channel'] = messageEntry.googChannel;
+            }
+            await this.#transport.sendMessage(message);
+        };
+        constructor(bidiTransport, cdpConnection, browserCdpClient, selfTargetId, defaultUserContextId, parser, logger) {
+            super();
+            this.#logger = logger;
+            this.#messageQueue = new ProcessingQueue(this.#processOutgoingMessage, this.#logger);
+            this.#transport = bidiTransport;
+            this.#transport.setOnMessage(this.#handleIncomingMessage);
+            const userContextStorage = new UserContextStorage(browserCdpClient);
+            this.#eventManager = new EventManager(this.#browsingContextStorage, userContextStorage);
+            const networkStorage = new NetworkStorage(this.#eventManager, this.#browsingContextStorage, browserCdpClient, logger);
+            const mapperOptionsStorage = new MapperOptionsStorage();
+            this.#bluetoothProcessor = new BluetoothProcessor(this.#eventManager, this.#browsingContextStorage);
+            this.#commandProcessor = new CommandProcessor(cdpConnection, browserCdpClient, this.#eventManager, this.#browsingContextStorage, this.#realmStorage, this.#preloadScriptStorage, networkStorage, mapperOptionsStorage, this.#bluetoothProcessor, userContextStorage, parser, async (options) => {
+                mapperOptionsStorage.mapperOptions = options;
+                await browserCdpClient.sendCommand('Security.setIgnoreCertificateErrors', {
+                    ignore: options.acceptInsecureCerts ?? false,
+                });
+                new CdpTargetManager(cdpConnection, browserCdpClient, selfTargetId, this.#eventManager, this.#browsingContextStorage, userContextStorage, this.#realmStorage, networkStorage, this.#bluetoothProcessor, this.#preloadScriptStorage, defaultUserContextId, options?.['goog:prerenderingDisabled'] ?? false, options?.unhandledPromptBehavior, logger);
+                await browserCdpClient.sendCommand('Target.setDiscoverTargets', {
+                    discover: true,
+                });
+                await browserCdpClient.sendCommand('Target.setAutoAttach', {
+                    autoAttach: true,
+                    waitForDebuggerOnStart: true,
+                    flatten: true,
+                    filter: [
+                        {
+                            type: 'page',
+                            exclude: true,
+                        },
+                        {},
+                    ],
+                });
+                await this.#topLevelContextsLoaded();
+            }, this.#logger);
+            this.#eventManager.on("event" , ({ message, event }) => {
+                this.emitOutgoingMessage(message, event);
+            });
+            this.#commandProcessor.on("response" , ({ message, event }) => {
+                this.emitOutgoingMessage(message, event);
+            });
+        }
+        static async createAndStart(bidiTransport, cdpConnection, browserCdpClient, selfTargetId, parser, logger) {
+            const [{ browserContextIds }, { targetInfos }] = await Promise.all([
+                browserCdpClient.sendCommand('Target.getBrowserContexts'),
+                browserCdpClient.sendCommand('Target.getTargets'),
+                browserCdpClient.sendCommand('Browser.setDownloadBehavior', {
+                    behavior: 'default',
+                    eventsEnabled: true,
+                }),
+            ]);
+            let defaultUserContextId = 'default';
+            for (const info of targetInfos) {
+                if (info.browserContextId &&
+                    !browserContextIds.includes(info.browserContextId)) {
+                    defaultUserContextId = info.browserContextId;
+                    break;
+                }
+            }
+            const server = new BidiServer(bidiTransport, cdpConnection, browserCdpClient, selfTargetId, defaultUserContextId, parser, logger);
+            return server;
+        }
+        emitOutgoingMessage(messageEntry, event) {
+            this.#messageQueue.add(messageEntry, event);
+        }
+        close() {
+            this.#transport.close();
+        }
+        async #topLevelContextsLoaded() {
+            await Promise.all(this.#browsingContextStorage
+                .getTopLevelContexts()
+                .map((c) => c.lifecycleLoaded()));
+        }
+    }
+
+    /**
+     * Copyright 2021 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    class CloseError extends Error {
+    }
+    class MapperCdpClient extends EventEmitter {
+        #cdpConnection;
+        #sessionId;
+        constructor(cdpConnection, sessionId) {
+            super();
+            this.#cdpConnection = cdpConnection;
+            this.#sessionId = sessionId;
+        }
+        get sessionId() {
+            return this.#sessionId;
+        }
+        sendCommand(method, ...params) {
+            return this.#cdpConnection.sendCommand(method, params[0], this.#sessionId);
+        }
+        isCloseError(error) {
+            return error instanceof CloseError;
+        }
+    }
+
+    var _a$1;
+    class MapperCdpConnection {
+        static LOGGER_PREFIX_RECV = `${LogType.cdp}:RECV ◂`;
+        static LOGGER_PREFIX_SEND = `${LogType.cdp}:SEND ▸`;
+        #mainBrowserCdpClient;
+        #transport;
+        #sessionCdpClients = new Map();
+        #commandCallbacks = new Map();
+        #logger;
+        #nextId = 0;
+        constructor(transport, logger) {
+            this.#transport = transport;
+            this.#logger = logger;
+            this.#transport.setOnMessage(this.#onMessage);
+            this.#mainBrowserCdpClient = this.#createCdpClient(undefined);
+        }
+        close() {
+            this.#transport.close();
+            for (const [, { reject, error }] of this.#commandCallbacks) {
+                reject(error);
+            }
+            this.#commandCallbacks.clear();
+            this.#sessionCdpClients.clear();
+        }
+        async createBrowserSession() {
+            const { sessionId } = await this.#mainBrowserCdpClient.sendCommand('Target.attachToBrowserTarget');
+            return this.#createCdpClient(sessionId);
+        }
+        getCdpClient(sessionId) {
+            const cdpClient = this.#sessionCdpClients.get(sessionId);
+            if (!cdpClient) {
+                throw new Error(`Unknown CDP session ID: ${sessionId}`);
+            }
+            return cdpClient;
+        }
+        sendCommand(method, params, sessionId) {
+            return new Promise((resolve, reject) => {
+                const id = this.#nextId++;
+                this.#commandCallbacks.set(id, {
+                    sessionId,
+                    resolve,
+                    reject,
+                    error: new CloseError(`${method} ${JSON.stringify(params)} ${sessionId ?? ''} call rejected because the connection has been closed.`),
+                });
+                const cdpMessage = { id, method, params };
+                if (sessionId) {
+                    cdpMessage.sessionId = sessionId;
+                }
+                void this.#transport
+                    .sendMessage(JSON.stringify(cdpMessage))
+                    ?.catch((error) => {
+                    this.#logger?.(LogType.debugError, error);
+                    this.#transport.close();
+                });
+                this.#logger?.(_a$1.LOGGER_PREFIX_SEND, cdpMessage);
+            });
+        }
+        #onMessage = (json) => {
+            const message = JSON.parse(json);
+            this.#logger?.(_a$1.LOGGER_PREFIX_RECV, message);
+            if (message.method === 'Target.attachedToTarget') {
+                const { sessionId } = message.params;
+                this.#createCdpClient(sessionId);
+            }
+            if (message.id !== undefined) {
+                const callbacks = this.#commandCallbacks.get(message.id);
+                this.#commandCallbacks.delete(message.id);
+                if (callbacks) {
+                    if (message.result) {
+                        callbacks.resolve(message.result);
+                    }
+                    else if (message.error) {
+                        callbacks.reject(message.error);
+                    }
+                }
+            }
+            else if (message.method) {
+                const client = this.#sessionCdpClients.get(message.sessionId ?? undefined);
+                client?.emit(message.method, message.params || {});
+                if (message.method === 'Target.detachedFromTarget') {
+                    const { sessionId } = message.params;
+                    const client = this.#sessionCdpClients.get(sessionId);
+                    if (client) {
+                        this.#sessionCdpClients.delete(sessionId);
+                        client.removeAllListeners();
+                    }
+                    for (const callback of this.#commandCallbacks.values()) {
+                        if (callback.sessionId === sessionId) {
+                            callback.reject(callback.error);
+                        }
+                    }
+                }
+            }
+        };
+        #createCdpClient(sessionId) {
+            const cdpClient = new MapperCdpClient(this, sessionId);
+            this.#sessionCdpClients.set(sessionId, cdpClient);
+            return cdpClient;
+        }
+    }
+    _a$1 = MapperCdpConnection;
+
+    var util;
+    (function (util) {
+        util.assertEqual = (val) => val;
+        function assertIs(_arg) { }
+        util.assertIs = assertIs;
+        function assertNever(_x) {
+            throw new Error();
+        }
+        util.assertNever = assertNever;
+        util.arrayToEnum = (items) => {
+            const obj = {};
+            for (const item of items) {
+                obj[item] = item;
+            }
+            return obj;
+        };
+        util.getValidEnumValues = (obj) => {
+            const validKeys = util.objectKeys(obj).filter((k) => typeof obj[obj[k]] !== "number");
+            const filtered = {};
+            for (const k of validKeys) {
+                filtered[k] = obj[k];
+            }
+            return util.objectValues(filtered);
+        };
+        util.objectValues = (obj) => {
+            return util.objectKeys(obj).map(function (e) {
+                return obj[e];
+            });
+        };
+        util.objectKeys = typeof Object.keys === "function"
+            ? (obj) => Object.keys(obj)
+            : (object) => {
+                const keys = [];
+                for (const key in object) {
+                    if (Object.prototype.hasOwnProperty.call(object, key)) {
+                        keys.push(key);
+                    }
+                }
+                return keys;
+            };
+        util.find = (arr, checker) => {
+            for (const item of arr) {
+                if (checker(item))
+                    return item;
+            }
+            return undefined;
+        };
+        util.isInteger = typeof Number.isInteger === "function"
+            ? (val) => Number.isInteger(val)
+            : (val) => typeof val === "number" && isFinite(val) && Math.floor(val) === val;
+        function joinValues(array, separator = " | ") {
+            return array
+                .map((val) => (typeof val === "string" ? `'${val}'` : val))
+                .join(separator);
+        }
+        util.joinValues = joinValues;
+        util.jsonStringifyReplacer = (_, value) => {
+            if (typeof value === "bigint") {
+                return value.toString();
+            }
+            return value;
+        };
+    })(util || (util = {}));
+    var objectUtil;
+    (function (objectUtil) {
+        objectUtil.mergeShapes = (first, second) => {
+            return {
+                ...first,
+                ...second,
+            };
+        };
+    })(objectUtil || (objectUtil = {}));
+    const ZodParsedType = util.arrayToEnum([
+        "string",
+        "nan",
+        "number",
+        "integer",
+        "float",
+        "boolean",
+        "date",
+        "bigint",
+        "symbol",
+        "function",
+        "undefined",
+        "null",
+        "array",
+        "object",
+        "unknown",
+        "promise",
+        "void",
+        "never",
+        "map",
+        "set",
+    ]);
+    const getParsedType = (data) => {
+        const t = typeof data;
+        switch (t) {
+            case "undefined":
+                return ZodParsedType.undefined;
+            case "string":
+                return ZodParsedType.string;
+            case "number":
+                return isNaN(data) ? ZodParsedType.nan : ZodParsedType.number;
+            case "boolean":
+                return ZodParsedType.boolean;
+            case "function":
+                return ZodParsedType.function;
+            case "bigint":
+                return ZodParsedType.bigint;
+            case "symbol":
+                return ZodParsedType.symbol;
+            case "object":
+                if (Array.isArray(data)) {
+                    return ZodParsedType.array;
+                }
+                if (data === null) {
+                    return ZodParsedType.null;
+                }
+                if (data.then &&
+                    typeof data.then === "function" &&
+                    data.catch &&
+                    typeof data.catch === "function") {
+                    return ZodParsedType.promise;
+                }
+                if (typeof Map !== "undefined" && data instanceof Map) {
+                    return ZodParsedType.map;
+                }
+                if (typeof Set !== "undefined" && data instanceof Set) {
+                    return ZodParsedType.set;
+                }
+                if (typeof Date !== "undefined" && data instanceof Date) {
+                    return ZodParsedType.date;
+                }
+                return ZodParsedType.object;
+            default:
+                return ZodParsedType.unknown;
+        }
+    };
+    const ZodIssueCode = util.arrayToEnum([
+        "invalid_type",
+        "invalid_literal",
+        "custom",
+        "invalid_union",
+        "invalid_union_discriminator",
+        "invalid_enum_value",
+        "unrecognized_keys",
+        "invalid_arguments",
+        "invalid_return_type",
+        "invalid_date",
+        "invalid_string",
+        "too_small",
+        "too_big",
+        "invalid_intersection_types",
+        "not_multiple_of",
+        "not_finite",
+    ]);
+    const quotelessJson = (obj) => {
+        const json = JSON.stringify(obj, null, 2);
+        return json.replace(/"([^"]+)":/g, "$1:");
+    };
+    class ZodError extends Error {
+        get errors() {
+            return this.issues;
+        }
+        constructor(issues) {
+            super();
+            this.issues = [];
+            this.addIssue = (sub) => {
+                this.issues = [...this.issues, sub];
+            };
+            this.addIssues = (subs = []) => {
+                this.issues = [...this.issues, ...subs];
+            };
+            const actualProto = new.target.prototype;
+            if (Object.setPrototypeOf) {
+                Object.setPrototypeOf(this, actualProto);
+            }
+            else {
+                this.__proto__ = actualProto;
+            }
+            this.name = "ZodError";
+            this.issues = issues;
+        }
+        format(_mapper) {
+            const mapper = _mapper ||
+                function (issue) {
+                    return issue.message;
+                };
+            const fieldErrors = { _errors: [] };
+            const processError = (error) => {
+                for (const issue of error.issues) {
+                    if (issue.code === "invalid_union") {
+                        issue.unionErrors.map(processError);
+                    }
+                    else if (issue.code === "invalid_return_type") {
+                        processError(issue.returnTypeError);
+                    }
+                    else if (issue.code === "invalid_arguments") {
+                        processError(issue.argumentsError);
+                    }
+                    else if (issue.path.length === 0) {
+                        fieldErrors._errors.push(mapper(issue));
+                    }
+                    else {
+                        let curr = fieldErrors;
+                        let i = 0;
+                        while (i < issue.path.length) {
+                            const el = issue.path[i];
+                            const terminal = i === issue.path.length - 1;
+                            if (!terminal) {
+                                curr[el] = curr[el] || { _errors: [] };
+                            }
+                            else {
+                                curr[el] = curr[el] || { _errors: [] };
+                                curr[el]._errors.push(mapper(issue));
+                            }
+                            curr = curr[el];
+                            i++;
+                        }
+                    }
+                }
+            };
+            processError(this);
+            return fieldErrors;
+        }
+        static assert(value) {
+            if (!(value instanceof ZodError)) {
+                throw new Error(`Not a ZodError: ${value}`);
+            }
+        }
+        toString() {
+            return this.message;
+        }
+        get message() {
+            return JSON.stringify(this.issues, util.jsonStringifyReplacer, 2);
+        }
+        get isEmpty() {
+            return this.issues.length === 0;
+        }
+        flatten(mapper = (issue) => issue.message) {
+            const fieldErrors = {};
+            const formErrors = [];
+            for (const sub of this.issues) {
+                if (sub.path.length > 0) {
+                    fieldErrors[sub.path[0]] = fieldErrors[sub.path[0]] || [];
+                    fieldErrors[sub.path[0]].push(mapper(sub));
+                }
+                else {
+                    formErrors.push(mapper(sub));
+                }
+            }
+            return { formErrors, fieldErrors };
+        }
+        get formErrors() {
+            return this.flatten();
+        }
+    }
+    ZodError.create = (issues) => {
+        const error = new ZodError(issues);
+        return error;
+    };
+    const errorMap = (issue, _ctx) => {
+        let message;
+        switch (issue.code) {
+            case ZodIssueCode.invalid_type:
+                if (issue.received === ZodParsedType.undefined) {
+                    message = "Required";
+                }
+                else {
+                    message = `Expected ${issue.expected}, received ${issue.received}`;
+                }
+                break;
+            case ZodIssueCode.invalid_literal:
+                message = `Invalid literal value, expected ${JSON.stringify(issue.expected, util.jsonStringifyReplacer)}`;
+                break;
+            case ZodIssueCode.unrecognized_keys:
+                message = `Unrecognized key(s) in object: ${util.joinValues(issue.keys, ", ")}`;
+                break;
+            case ZodIssueCode.invalid_union:
+                message = `Invalid input`;
+                break;
+            case ZodIssueCode.invalid_union_discriminator:
+                message = `Invalid discriminator value. Expected ${util.joinValues(issue.options)}`;
+                break;
+            case ZodIssueCode.invalid_enum_value:
+                message = `Invalid enum value. Expected ${util.joinValues(issue.options)}, received '${issue.received}'`;
+                break;
+            case ZodIssueCode.invalid_arguments:
+                message = `Invalid function arguments`;
+                break;
+            case ZodIssueCode.invalid_return_type:
+                message = `Invalid function return type`;
+                break;
+            case ZodIssueCode.invalid_date:
+                message = `Invalid date`;
+                break;
+            case ZodIssueCode.invalid_string:
+                if (typeof issue.validation === "object") {
+                    if ("includes" in issue.validation) {
+                        message = `Invalid input: must include "${issue.validation.includes}"`;
+                        if (typeof issue.validation.position === "number") {
+                            message = `${message} at one or more positions greater than or equal to ${issue.validation.position}`;
+                        }
+                    }
+                    else if ("startsWith" in issue.validation) {
+                        message = `Invalid input: must start with "${issue.validation.startsWith}"`;
+                    }
+                    else if ("endsWith" in issue.validation) {
+                        message = `Invalid input: must end with "${issue.validation.endsWith}"`;
+                    }
+                    else {
+                        util.assertNever(issue.validation);
+                    }
+                }
+                else if (issue.validation !== "regex") {
+                    message = `Invalid ${issue.validation}`;
+                }
+                else {
+                    message = "Invalid";
+                }
+                break;
+            case ZodIssueCode.too_small:
+                if (issue.type === "array")
+                    message = `Array must contain ${issue.exact ? "exactly" : issue.inclusive ? `at least` : `more than`} ${issue.minimum} element(s)`;
+                else if (issue.type === "string")
+                    message = `String must contain ${issue.exact ? "exactly" : issue.inclusive ? `at least` : `over`} ${issue.minimum} character(s)`;
+                else if (issue.type === "number")
+                    message = `Number must be ${issue.exact
+                    ? `exactly equal to `
+                    : issue.inclusive
+                        ? `greater than or equal to `
+                        : `greater than `}${issue.minimum}`;
+                else if (issue.type === "date")
+                    message = `Date must be ${issue.exact
+                    ? `exactly equal to `
+                    : issue.inclusive
+                        ? `greater than or equal to `
+                        : `greater than `}${new Date(Number(issue.minimum))}`;
+                else
+                    message = "Invalid input";
+                break;
+            case ZodIssueCode.too_big:
+                if (issue.type === "array")
+                    message = `Array must contain ${issue.exact ? `exactly` : issue.inclusive ? `at most` : `less than`} ${issue.maximum} element(s)`;
+                else if (issue.type === "string")
+                    message = `String must contain ${issue.exact ? `exactly` : issue.inclusive ? `at most` : `under`} ${issue.maximum} character(s)`;
+                else if (issue.type === "number")
+                    message = `Number must be ${issue.exact
+                    ? `exactly`
+                    : issue.inclusive
+                        ? `less than or equal to`
+                        : `less than`} ${issue.maximum}`;
+                else if (issue.type === "bigint")
+                    message = `BigInt must be ${issue.exact
+                    ? `exactly`
+                    : issue.inclusive
+                        ? `less than or equal to`
+                        : `less than`} ${issue.maximum}`;
+                else if (issue.type === "date")
+                    message = `Date must be ${issue.exact
+                    ? `exactly`
+                    : issue.inclusive
+                        ? `smaller than or equal to`
+                        : `smaller than`} ${new Date(Number(issue.maximum))}`;
+                else
+                    message = "Invalid input";
+                break;
+            case ZodIssueCode.custom:
+                message = `Invalid input`;
+                break;
+            case ZodIssueCode.invalid_intersection_types:
+                message = `Intersection results could not be merged`;
+                break;
+            case ZodIssueCode.not_multiple_of:
+                message = `Number must be a multiple of ${issue.multipleOf}`;
+                break;
+            case ZodIssueCode.not_finite:
+                message = "Number must be finite";
+                break;
+            default:
+                message = _ctx.defaultError;
+                util.assertNever(issue);
+        }
+        return { message };
+    };
+    let overrideErrorMap = errorMap;
+    function setErrorMap(map) {
+        overrideErrorMap = map;
+    }
+    function getErrorMap() {
+        return overrideErrorMap;
+    }
+    const makeIssue = (params) => {
+        const { data, path, errorMaps, issueData } = params;
+        const fullPath = [...path, ...(issueData.path || [])];
+        const fullIssue = {
+            ...issueData,
+            path: fullPath,
+        };
+        if (issueData.message !== undefined) {
+            return {
+                ...issueData,
+                path: fullPath,
+                message: issueData.message,
+            };
+        }
+        let errorMessage = "";
+        const maps = errorMaps
+            .filter((m) => !!m)
+            .slice()
+            .reverse();
+        for (const map of maps) {
+            errorMessage = map(fullIssue, { data, defaultError: errorMessage }).message;
+        }
+        return {
+            ...issueData,
+            path: fullPath,
+            message: errorMessage,
+        };
+    };
+    const EMPTY_PATH = [];
+    function addIssueToContext(ctx, issueData) {
+        const overrideMap = getErrorMap();
+        const issue = makeIssue({
+            issueData: issueData,
+            data: ctx.data,
+            path: ctx.path,
+            errorMaps: [
+                ctx.common.contextualErrorMap,
+                ctx.schemaErrorMap,
+                overrideMap,
+                overrideMap === errorMap ? undefined : errorMap,
+            ].filter((x) => !!x),
+        });
+        ctx.common.issues.push(issue);
+    }
+    class ParseStatus {
+        constructor() {
+            this.value = "valid";
+        }
+        dirty() {
+            if (this.value === "valid")
+                this.value = "dirty";
+        }
+        abort() {
+            if (this.value !== "aborted")
+                this.value = "aborted";
+        }
+        static mergeArray(status, results) {
+            const arrayValue = [];
+            for (const s of results) {
+                if (s.status === "aborted")
+                    return INVALID;
+                if (s.status === "dirty")
+                    status.dirty();
+                arrayValue.push(s.value);
+            }
+            return { status: status.value, value: arrayValue };
+        }
+        static async mergeObjectAsync(status, pairs) {
+            const syncPairs = [];
+            for (const pair of pairs) {
+                const key = await pair.key;
+                const value = await pair.value;
+                syncPairs.push({
+                    key,
+                    value,
+                });
+            }
+            return ParseStatus.mergeObjectSync(status, syncPairs);
+        }
+        static mergeObjectSync(status, pairs) {
+            const finalObject = {};
+            for (const pair of pairs) {
+                const { key, value } = pair;
+                if (key.status === "aborted")
+                    return INVALID;
+                if (value.status === "aborted")
+                    return INVALID;
+                if (key.status === "dirty")
+                    status.dirty();
+                if (value.status === "dirty")
+                    status.dirty();
+                if (key.value !== "__proto__" &&
+                    (typeof value.value !== "undefined" || pair.alwaysSet)) {
+                    finalObject[key.value] = value.value;
+                }
+            }
+            return { status: status.value, value: finalObject };
+        }
+    }
+    const INVALID = Object.freeze({
+        status: "aborted",
+    });
+    const DIRTY = (value) => ({ status: "dirty", value });
+    const OK = (value) => ({ status: "valid", value });
+    const isAborted = (x) => x.status === "aborted";
+    const isDirty = (x) => x.status === "dirty";
+    const isValid = (x) => x.status === "valid";
+    const isAsync = (x) => typeof Promise !== "undefined" && x instanceof Promise;
+    /******************************************************************************
+    Copyright (c) Microsoft Corporation.
+    Permission to use, copy, modify, and/or distribute this software for any
+    purpose with or without fee is hereby granted.
+    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+    REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+    AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+    INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+    LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+    OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+    PERFORMANCE OF THIS SOFTWARE.
+    ***************************************************************************** */
+    function __classPrivateFieldGet(receiver, state, kind, f) {
+        if (typeof state === "function" ? receiver !== state || true : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
+        return state.get(receiver);
+    }
+    function __classPrivateFieldSet(receiver, state, value, kind, f) {
+        if (typeof state === "function" ? receiver !== state || true : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
+        return (state.set(receiver, value)), value;
+    }
+    typeof SuppressedError === "function" ? SuppressedError : function (error, suppressed, message) {
+        var e = new Error(message);
+        return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
+    };
+    var errorUtil;
+    (function (errorUtil) {
+        errorUtil.errToObj = (message) => typeof message === "string" ? { message } : message || {};
+        errorUtil.toString = (message) => typeof message === "string" ? message : message === null || message === void 0 ? void 0 : message.message;
+    })(errorUtil || (errorUtil = {}));
+    var _ZodEnum_cache, _ZodNativeEnum_cache;
+    class ParseInputLazyPath {
+        constructor(parent, value, path, key) {
+            this._cachedPath = [];
+            this.parent = parent;
+            this.data = value;
+            this._path = path;
+            this._key = key;
+        }
+        get path() {
+            if (!this._cachedPath.length) {
+                if (this._key instanceof Array) {
+                    this._cachedPath.push(...this._path, ...this._key);
+                }
+                else {
+                    this._cachedPath.push(...this._path, this._key);
+                }
+            }
+            return this._cachedPath;
+        }
+    }
+    const handleResult = (ctx, result) => {
+        if (isValid(result)) {
+            return { success: true, data: result.value };
+        }
+        else {
+            if (!ctx.common.issues.length) {
+                throw new Error("Validation failed but no issues detected.");
+            }
+            return {
+                success: false,
+                get error() {
+                    if (this._error)
+                        return this._error;
+                    const error = new ZodError(ctx.common.issues);
+                    this._error = error;
+                    return this._error;
+                },
+            };
+        }
+    };
+    function processCreateParams(params) {
+        if (!params)
+            return {};
+        const { errorMap, invalid_type_error, required_error, description } = params;
+        if (errorMap && (invalid_type_error || required_error)) {
+            throw new Error(`Can't use "invalid_type_error" or "required_error" in conjunction with custom error map.`);
+        }
+        if (errorMap)
+            return { errorMap: errorMap, description };
+        const customMap = (iss, ctx) => {
+            var _a, _b;
+            const { message } = params;
+            if (iss.code === "invalid_enum_value") {
+                return { message: message !== null && message !== void 0 ? message : ctx.defaultError };
+            }
+            if (typeof ctx.data === "undefined") {
+                return { message: (_a = message !== null && message !== void 0 ? message : required_error) !== null && _a !== void 0 ? _a : ctx.defaultError };
+            }
+            if (iss.code !== "invalid_type")
+                return { message: ctx.defaultError };
+            return { message: (_b = message !== null && message !== void 0 ? message : invalid_type_error) !== null && _b !== void 0 ? _b : ctx.defaultError };
+        };
+        return { errorMap: customMap, description };
+    }
+    class ZodType {
+        get description() {
+            return this._def.description;
+        }
+        _getType(input) {
+            return getParsedType(input.data);
+        }
+        _getOrReturnCtx(input, ctx) {
+            return (ctx || {
+                common: input.parent.common,
+                data: input.data,
+                parsedType: getParsedType(input.data),
+                schemaErrorMap: this._def.errorMap,
+                path: input.path,
+                parent: input.parent,
+            });
+        }
+        _processInputParams(input) {
+            return {
+                status: new ParseStatus(),
+                ctx: {
+                    common: input.parent.common,
+                    data: input.data,
+                    parsedType: getParsedType(input.data),
+                    schemaErrorMap: this._def.errorMap,
+                    path: input.path,
+                    parent: input.parent,
+                },
+            };
+        }
+        _parseSync(input) {
+            const result = this._parse(input);
+            if (isAsync(result)) {
+                throw new Error("Synchronous parse encountered promise.");
+            }
+            return result;
+        }
+        _parseAsync(input) {
+            const result = this._parse(input);
+            return Promise.resolve(result);
+        }
+        parse(data, params) {
+            const result = this.safeParse(data, params);
+            if (result.success)
+                return result.data;
+            throw result.error;
+        }
+        safeParse(data, params) {
+            var _a;
+            const ctx = {
+                common: {
+                    issues: [],
+                    async: (_a = params === null || params === void 0 ? void 0 : params.async) !== null && _a !== void 0 ? _a : false,
+                    contextualErrorMap: params === null || params === void 0 ? void 0 : params.errorMap,
+                },
+                path: (params === null || params === void 0 ? void 0 : params.path) || [],
+                schemaErrorMap: this._def.errorMap,
+                parent: null,
+                data,
+                parsedType: getParsedType(data),
+            };
+            const result = this._parseSync({ data, path: ctx.path, parent: ctx });
+            return handleResult(ctx, result);
+        }
+        "~validate"(data) {
+            var _a, _b;
+            const ctx = {
+                common: {
+                    issues: [],
+                    async: !!this["~standard"].async,
+                },
+                path: [],
+                schemaErrorMap: this._def.errorMap,
+                parent: null,
+                data,
+                parsedType: getParsedType(data),
+            };
+            if (!this["~standard"].async) {
+                try {
+                    const result = this._parseSync({ data, path: [], parent: ctx });
+                    return isValid(result)
+                        ? {
+                            value: result.value,
+                        }
+                        : {
+                            issues: ctx.common.issues,
+                        };
+                }
+                catch (err) {
+                    if ((_b = (_a = err === null || err === void 0 ? void 0 : err.message) === null || _a === void 0 ? void 0 : _a.toLowerCase()) === null || _b === void 0 ? void 0 : _b.includes("encountered")) {
+                        this["~standard"].async = true;
+                    }
+                    ctx.common = {
+                        issues: [],
+                        async: true,
+                    };
+                }
+            }
+            return this._parseAsync({ data, path: [], parent: ctx }).then((result) => isValid(result)
+                ? {
+                    value: result.value,
+                }
+                : {
+                    issues: ctx.common.issues,
+                });
+        }
+        async parseAsync(data, params) {
+            const result = await this.safeParseAsync(data, params);
+            if (result.success)
+                return result.data;
+            throw result.error;
+        }
+        async safeParseAsync(data, params) {
+            const ctx = {
+                common: {
+                    issues: [],
+                    contextualErrorMap: params === null || params === void 0 ? void 0 : params.errorMap,
+                    async: true,
+                },
+                path: (params === null || params === void 0 ? void 0 : params.path) || [],
+                schemaErrorMap: this._def.errorMap,
+                parent: null,
+                data,
+                parsedType: getParsedType(data),
+            };
+            const maybeAsyncResult = this._parse({ data, path: ctx.path, parent: ctx });
+            const result = await (isAsync(maybeAsyncResult)
+                ? maybeAsyncResult
+                : Promise.resolve(maybeAsyncResult));
+            return handleResult(ctx, result);
+        }
+        refine(check, message) {
+            const getIssueProperties = (val) => {
+                if (typeof message === "string" || typeof message === "undefined") {
+                    return { message };
+                }
+                else if (typeof message === "function") {
+                    return message(val);
+                }
+                else {
+                    return message;
+                }
+            };
+            return this._refinement((val, ctx) => {
+                const result = check(val);
+                const setError = () => ctx.addIssue({
+                    code: ZodIssueCode.custom,
+                    ...getIssueProperties(val),
+                });
+                if (typeof Promise !== "undefined" && result instanceof Promise) {
+                    return result.then((data) => {
+                        if (!data) {
+                            setError();
+                            return false;
+                        }
+                        else {
+                            return true;
+                        }
+                    });
+                }
+                if (!result) {
+                    setError();
+                    return false;
+                }
+                else {
+                    return true;
+                }
+            });
+        }
+        refinement(check, refinementData) {
+            return this._refinement((val, ctx) => {
+                if (!check(val)) {
+                    ctx.addIssue(typeof refinementData === "function"
+                        ? refinementData(val, ctx)
+                        : refinementData);
+                    return false;
+                }
+                else {
+                    return true;
+                }
+            });
+        }
+        _refinement(refinement) {
+            return new ZodEffects({
+                schema: this,
+                typeName: ZodFirstPartyTypeKind.ZodEffects,
+                effect: { type: "refinement", refinement },
+            });
+        }
+        superRefine(refinement) {
+            return this._refinement(refinement);
+        }
+        constructor(def) {
+            this.spa = this.safeParseAsync;
+            this._def = def;
+            this.parse = this.parse.bind(this);
+            this.safeParse = this.safeParse.bind(this);
+            this.parseAsync = this.parseAsync.bind(this);
+            this.safeParseAsync = this.safeParseAsync.bind(this);
+            this.spa = this.spa.bind(this);
+            this.refine = this.refine.bind(this);
+            this.refinement = this.refinement.bind(this);
+            this.superRefine = this.superRefine.bind(this);
+            this.optional = this.optional.bind(this);
+            this.nullable = this.nullable.bind(this);
+            this.nullish = this.nullish.bind(this);
+            this.array = this.array.bind(this);
+            this.promise = this.promise.bind(this);
+            this.or = this.or.bind(this);
+            this.and = this.and.bind(this);
+            this.transform = this.transform.bind(this);
+            this.brand = this.brand.bind(this);
+            this.default = this.default.bind(this);
+            this.catch = this.catch.bind(this);
+            this.describe = this.describe.bind(this);
+            this.pipe = this.pipe.bind(this);
+            this.readonly = this.readonly.bind(this);
+            this.isNullable = this.isNullable.bind(this);
+            this.isOptional = this.isOptional.bind(this);
+            this["~standard"] = {
+                version: 1,
+                vendor: "zod",
+                validate: (data) => this["~validate"](data),
+            };
+        }
+        optional() {
+            return ZodOptional.create(this, this._def);
+        }
+        nullable() {
+            return ZodNullable.create(this, this._def);
+        }
+        nullish() {
+            return this.nullable().optional();
+        }
+        array() {
+            return ZodArray.create(this);
+        }
+        promise() {
+            return ZodPromise.create(this, this._def);
+        }
+        or(option) {
+            return ZodUnion.create([this, option], this._def);
+        }
+        and(incoming) {
+            return ZodIntersection.create(this, incoming, this._def);
+        }
+        transform(transform) {
+            return new ZodEffects({
+                ...processCreateParams(this._def),
+                schema: this,
+                typeName: ZodFirstPartyTypeKind.ZodEffects,
+                effect: { type: "transform", transform },
+            });
+        }
+        default(def) {
+            const defaultValueFunc = typeof def === "function" ? def : () => def;
+            return new ZodDefault({
+                ...processCreateParams(this._def),
+                innerType: this,
+                defaultValue: defaultValueFunc,
+                typeName: ZodFirstPartyTypeKind.ZodDefault,
+            });
+        }
+        brand() {
+            return new ZodBranded({
+                typeName: ZodFirstPartyTypeKind.ZodBranded,
+                type: this,
+                ...processCreateParams(this._def),
+            });
+        }
+        catch(def) {
+            const catchValueFunc = typeof def === "function" ? def : () => def;
+            return new ZodCatch({
+                ...processCreateParams(this._def),
+                innerType: this,
+                catchValue: catchValueFunc,
+                typeName: ZodFirstPartyTypeKind.ZodCatch,
+            });
+        }
+        describe(description) {
+            const This = this.constructor;
+            return new This({
+                ...this._def,
+                description,
+            });
+        }
+        pipe(target) {
+            return ZodPipeline.create(this, target);
+        }
+        readonly() {
+            return ZodReadonly.create(this);
+        }
+        isOptional() {
+            return this.safeParse(undefined).success;
+        }
+        isNullable() {
+            return this.safeParse(null).success;
+        }
+    }
+    const cuidRegex = /^c[^\s-]{8,}$/i;
+    const cuid2Regex = /^[0-9a-z]+$/;
+    const ulidRegex = /^[0-9A-HJKMNP-TV-Z]{26}$/i;
+    const uuidRegex = /^[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}$/i;
+    const nanoidRegex = /^[a-z0-9_-]{21}$/i;
+    const jwtRegex = /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]*$/;
+    const durationRegex = /^[-+]?P(?!$)(?:(?:[-+]?\d+Y)|(?:[-+]?\d+[.,]\d+Y$))?(?:(?:[-+]?\d+M)|(?:[-+]?\d+[.,]\d+M$))?(?:(?:[-+]?\d+W)|(?:[-+]?\d+[.,]\d+W$))?(?:(?:[-+]?\d+D)|(?:[-+]?\d+[.,]\d+D$))?(?:T(?=[\d+-])(?:(?:[-+]?\d+H)|(?:[-+]?\d+[.,]\d+H$))?(?:(?:[-+]?\d+M)|(?:[-+]?\d+[.,]\d+M$))?(?:[-+]?\d+(?:[.,]\d+)?S)?)??$/;
+    const emailRegex = /^(?!\.)(?!.*\.\.)([A-Z0-9_'+\-\.]*)[A-Z0-9_+-]@([A-Z0-9][A-Z0-9\-]*\.)+[A-Z]{2,}$/i;
+    const _emojiRegex = `^(\\p{Extended_Pictographic}|\\p{Emoji_Component})+$`;
+    let emojiRegex;
+    const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$/;
+    const ipv4CidrRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\/(3[0-2]|[12]?[0-9])$/;
+    const ipv6Regex = /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/;
+    const ipv6CidrRegex = /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))\/(12[0-8]|1[01][0-9]|[1-9]?[0-9])$/;
+    const base64Regex = /^([0-9a-zA-Z+/]{4})*(([0-9a-zA-Z+/]{2}==)|([0-9a-zA-Z+/]{3}=))?$/;
+    const base64urlRegex = /^([0-9a-zA-Z-_]{4})*(([0-9a-zA-Z-_]{2}(==)?)|([0-9a-zA-Z-_]{3}(=)?))?$/;
+    const dateRegexSource = `((\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-((0[13578]|1[02])-(0[1-9]|[12]\\d|3[01])|(0[469]|11)-(0[1-9]|[12]\\d|30)|(02)-(0[1-9]|1\\d|2[0-8])))`;
+    const dateRegex = new RegExp(`^${dateRegexSource}$`);
+    function timeRegexSource(args) {
+        let secondsRegexSource = `[0-5]\\d`;
+        if (args.precision) {
+            secondsRegexSource = `${secondsRegexSource}\\.\\d{${args.precision}}`;
+        }
+        else if (args.precision == null) {
+            secondsRegexSource = `${secondsRegexSource}(\\.\\d+)?`;
+        }
+        const secondsQuantifier = args.precision ? "+" : "?";
+        return `([01]\\d|2[0-3]):[0-5]\\d(:${secondsRegexSource})${secondsQuantifier}`;
+    }
+    function timeRegex(args) {
+        return new RegExp(`^${timeRegexSource(args)}$`);
+    }
+    function datetimeRegex(args) {
+        let regex = `${dateRegexSource}T${timeRegexSource(args)}`;
+        const opts = [];
+        opts.push(args.local ? `Z?` : `Z`);
+        if (args.offset)
+            opts.push(`([+-]\\d{2}:?\\d{2})`);
+        regex = `${regex}(${opts.join("|")})`;
+        return new RegExp(`^${regex}$`);
+    }
+    function isValidIP(ip, version) {
+        if ((version === "v4" || !version) && ipv4Regex.test(ip)) {
+            return true;
+        }
+        if ((version === "v6" || !version) && ipv6Regex.test(ip)) {
+            return true;
+        }
+        return false;
+    }
+    function isValidJWT(jwt, alg) {
+        if (!jwtRegex.test(jwt))
+            return false;
+        try {
+            const [header] = jwt.split(".");
+            const base64 = header
+                .replace(/-/g, "+")
+                .replace(/_/g, "/")
+                .padEnd(header.length + ((4 - (header.length % 4)) % 4), "=");
+            const decoded = JSON.parse(atob(base64));
+            if (typeof decoded !== "object" || decoded === null)
+                return false;
+            if (!decoded.typ || !decoded.alg)
+                return false;
+            if (alg && decoded.alg !== alg)
+                return false;
+            return true;
+        }
+        catch (_a) {
+            return false;
+        }
+    }
+    function isValidCidr(ip, version) {
+        if ((version === "v4" || !version) && ipv4CidrRegex.test(ip)) {
+            return true;
+        }
+        if ((version === "v6" || !version) && ipv6CidrRegex.test(ip)) {
+            return true;
+        }
+        return false;
+    }
+    class ZodString extends ZodType {
+        _parse(input) {
+            if (this._def.coerce) {
+                input.data = String(input.data);
+            }
+            const parsedType = this._getType(input);
+            if (parsedType !== ZodParsedType.string) {
+                const ctx = this._getOrReturnCtx(input);
+                addIssueToContext(ctx, {
+                    code: ZodIssueCode.invalid_type,
+                    expected: ZodParsedType.string,
+                    received: ctx.parsedType,
+                });
+                return INVALID;
+            }
+            const status = new ParseStatus();
+            let ctx = undefined;
+            for (const check of this._def.checks) {
+                if (check.kind === "min") {
+                    if (input.data.length < check.value) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            code: ZodIssueCode.too_small,
+                            minimum: check.value,
+                            type: "string",
+                            inclusive: true,
+                            exact: false,
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "max") {
+                    if (input.data.length > check.value) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            code: ZodIssueCode.too_big,
+                            maximum: check.value,
+                            type: "string",
+                            inclusive: true,
+                            exact: false,
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "length") {
+                    const tooBig = input.data.length > check.value;
+                    const tooSmall = input.data.length < check.value;
+                    if (tooBig || tooSmall) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        if (tooBig) {
+                            addIssueToContext(ctx, {
+                                code: ZodIssueCode.too_big,
+                                maximum: check.value,
+                                type: "string",
+                                inclusive: true,
+                                exact: true,
+                                message: check.message,
+                            });
+                        }
+                        else if (tooSmall) {
+                            addIssueToContext(ctx, {
+                                code: ZodIssueCode.too_small,
+                                minimum: check.value,
+                                type: "string",
+                                inclusive: true,
+                                exact: true,
+                                message: check.message,
+                            });
+                        }
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "email") {
+                    if (!emailRegex.test(input.data)) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            validation: "email",
+                            code: ZodIssueCode.invalid_string,
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "emoji") {
+                    if (!emojiRegex) {
+                        emojiRegex = new RegExp(_emojiRegex, "u");
+                    }
+                    if (!emojiRegex.test(input.data)) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            validation: "emoji",
+                            code: ZodIssueCode.invalid_string,
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "uuid") {
+                    if (!uuidRegex.test(input.data)) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            validation: "uuid",
+                            code: ZodIssueCode.invalid_string,
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "nanoid") {
+                    if (!nanoidRegex.test(input.data)) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            validation: "nanoid",
+                            code: ZodIssueCode.invalid_string,
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "cuid") {
+                    if (!cuidRegex.test(input.data)) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            validation: "cuid",
+                            code: ZodIssueCode.invalid_string,
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "cuid2") {
+                    if (!cuid2Regex.test(input.data)) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            validation: "cuid2",
+                            code: ZodIssueCode.invalid_string,
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "ulid") {
+                    if (!ulidRegex.test(input.data)) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            validation: "ulid",
+                            code: ZodIssueCode.invalid_string,
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "url") {
+                    try {
+                        new URL(input.data);
+                    }
+                    catch (_a) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            validation: "url",
+                            code: ZodIssueCode.invalid_string,
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "regex") {
+                    check.regex.lastIndex = 0;
+                    const testResult = check.regex.test(input.data);
+                    if (!testResult) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            validation: "regex",
+                            code: ZodIssueCode.invalid_string,
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "trim") {
+                    input.data = input.data.trim();
+                }
+                else if (check.kind === "includes") {
+                    if (!input.data.includes(check.value, check.position)) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            code: ZodIssueCode.invalid_string,
+                            validation: { includes: check.value, position: check.position },
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "toLowerCase") {
+                    input.data = input.data.toLowerCase();
+                }
+                else if (check.kind === "toUpperCase") {
+                    input.data = input.data.toUpperCase();
+                }
+                else if (check.kind === "startsWith") {
+                    if (!input.data.startsWith(check.value)) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            code: ZodIssueCode.invalid_string,
+                            validation: { startsWith: check.value },
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "endsWith") {
+                    if (!input.data.endsWith(check.value)) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            code: ZodIssueCode.invalid_string,
+                            validation: { endsWith: check.value },
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "datetime") {
+                    const regex = datetimeRegex(check);
+                    if (!regex.test(input.data)) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            code: ZodIssueCode.invalid_string,
+                            validation: "datetime",
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "date") {
+                    const regex = dateRegex;
+                    if (!regex.test(input.data)) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            code: ZodIssueCode.invalid_string,
+                            validation: "date",
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "time") {
+                    const regex = timeRegex(check);
+                    if (!regex.test(input.data)) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            code: ZodIssueCode.invalid_string,
+                            validation: "time",
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "duration") {
+                    if (!durationRegex.test(input.data)) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            validation: "duration",
+                            code: ZodIssueCode.invalid_string,
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "ip") {
+                    if (!isValidIP(input.data, check.version)) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            validation: "ip",
+                            code: ZodIssueCode.invalid_string,
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "jwt") {
+                    if (!isValidJWT(input.data, check.alg)) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            validation: "jwt",
+                            code: ZodIssueCode.invalid_string,
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "cidr") {
+                    if (!isValidCidr(input.data, check.version)) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            validation: "cidr",
+                            code: ZodIssueCode.invalid_string,
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "base64") {
+                    if (!base64Regex.test(input.data)) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            validation: "base64",
+                            code: ZodIssueCode.invalid_string,
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "base64url") {
+                    if (!base64urlRegex.test(input.data)) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            validation: "base64url",
+                            code: ZodIssueCode.invalid_string,
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else {
+                    util.assertNever(check);
+                }
+            }
+            return { status: status.value, value: input.data };
+        }
+        _regex(regex, validation, message) {
+            return this.refinement((data) => regex.test(data), {
+                validation,
+                code: ZodIssueCode.invalid_string,
+                ...errorUtil.errToObj(message),
+            });
+        }
+        _addCheck(check) {
+            return new ZodString({
+                ...this._def,
+                checks: [...this._def.checks, check],
+            });
+        }
+        email(message) {
+            return this._addCheck({ kind: "email", ...errorUtil.errToObj(message) });
+        }
+        url(message) {
+            return this._addCheck({ kind: "url", ...errorUtil.errToObj(message) });
+        }
+        emoji(message) {
+            return this._addCheck({ kind: "emoji", ...errorUtil.errToObj(message) });
+        }
+        uuid(message) {
+            return this._addCheck({ kind: "uuid", ...errorUtil.errToObj(message) });
+        }
+        nanoid(message) {
+            return this._addCheck({ kind: "nanoid", ...errorUtil.errToObj(message) });
+        }
+        cuid(message) {
+            return this._addCheck({ kind: "cuid", ...errorUtil.errToObj(message) });
+        }
+        cuid2(message) {
+            return this._addCheck({ kind: "cuid2", ...errorUtil.errToObj(message) });
+        }
+        ulid(message) {
+            return this._addCheck({ kind: "ulid", ...errorUtil.errToObj(message) });
+        }
+        base64(message) {
+            return this._addCheck({ kind: "base64", ...errorUtil.errToObj(message) });
+        }
+        base64url(message) {
+            return this._addCheck({
+                kind: "base64url",
+                ...errorUtil.errToObj(message),
+            });
+        }
+        jwt(options) {
+            return this._addCheck({ kind: "jwt", ...errorUtil.errToObj(options) });
+        }
+        ip(options) {
+            return this._addCheck({ kind: "ip", ...errorUtil.errToObj(options) });
+        }
+        cidr(options) {
+            return this._addCheck({ kind: "cidr", ...errorUtil.errToObj(options) });
+        }
+        datetime(options) {
+            var _a, _b;
+            if (typeof options === "string") {
+                return this._addCheck({
+                    kind: "datetime",
+                    precision: null,
+                    offset: false,
+                    local: false,
+                    message: options,
+                });
+            }
+            return this._addCheck({
+                kind: "datetime",
+                precision: typeof (options === null || options === void 0 ? void 0 : options.precision) === "undefined" ? null : options === null || options === void 0 ? void 0 : options.precision,
+                offset: (_a = options === null || options === void 0 ? void 0 : options.offset) !== null && _a !== void 0 ? _a : false,
+                local: (_b = options === null || options === void 0 ? void 0 : options.local) !== null && _b !== void 0 ? _b : false,
+                ...errorUtil.errToObj(options === null || options === void 0 ? void 0 : options.message),
+            });
+        }
+        date(message) {
+            return this._addCheck({ kind: "date", message });
+        }
+        time(options) {
+            if (typeof options === "string") {
+                return this._addCheck({
+                    kind: "time",
+                    precision: null,
+                    message: options,
+                });
+            }
+            return this._addCheck({
+                kind: "time",
+                precision: typeof (options === null || options === void 0 ? void 0 : options.precision) === "undefined" ? null : options === null || options === void 0 ? void 0 : options.precision,
+                ...errorUtil.errToObj(options === null || options === void 0 ? void 0 : options.message),
+            });
+        }
+        duration(message) {
+            return this._addCheck({ kind: "duration", ...errorUtil.errToObj(message) });
+        }
+        regex(regex, message) {
+            return this._addCheck({
+                kind: "regex",
+                regex: regex,
+                ...errorUtil.errToObj(message),
+            });
+        }
+        includes(value, options) {
+            return this._addCheck({
+                kind: "includes",
+                value: value,
+                position: options === null || options === void 0 ? void 0 : options.position,
+                ...errorUtil.errToObj(options === null || options === void 0 ? void 0 : options.message),
+            });
+        }
+        startsWith(value, message) {
+            return this._addCheck({
+                kind: "startsWith",
+                value: value,
+                ...errorUtil.errToObj(message),
+            });
+        }
+        endsWith(value, message) {
+            return this._addCheck({
+                kind: "endsWith",
+                value: value,
+                ...errorUtil.errToObj(message),
+            });
+        }
+        min(minLength, message) {
+            return this._addCheck({
+                kind: "min",
+                value: minLength,
+                ...errorUtil.errToObj(message),
+            });
+        }
+        max(maxLength, message) {
+            return this._addCheck({
+                kind: "max",
+                value: maxLength,
+                ...errorUtil.errToObj(message),
+            });
+        }
+        length(len, message) {
+            return this._addCheck({
+                kind: "length",
+                value: len,
+                ...errorUtil.errToObj(message),
+            });
+        }
+        nonempty(message) {
+            return this.min(1, errorUtil.errToObj(message));
+        }
+        trim() {
+            return new ZodString({
+                ...this._def,
+                checks: [...this._def.checks, { kind: "trim" }],
+            });
+        }
+        toLowerCase() {
+            return new ZodString({
+                ...this._def,
+                checks: [...this._def.checks, { kind: "toLowerCase" }],
+            });
+        }
+        toUpperCase() {
+            return new ZodString({
+                ...this._def,
+                checks: [...this._def.checks, { kind: "toUpperCase" }],
+            });
+        }
+        get isDatetime() {
+            return !!this._def.checks.find((ch) => ch.kind === "datetime");
+        }
+        get isDate() {
+            return !!this._def.checks.find((ch) => ch.kind === "date");
+        }
+        get isTime() {
+            return !!this._def.checks.find((ch) => ch.kind === "time");
+        }
+        get isDuration() {
+            return !!this._def.checks.find((ch) => ch.kind === "duration");
+        }
+        get isEmail() {
+            return !!this._def.checks.find((ch) => ch.kind === "email");
+        }
+        get isURL() {
+            return !!this._def.checks.find((ch) => ch.kind === "url");
+        }
+        get isEmoji() {
+            return !!this._def.checks.find((ch) => ch.kind === "emoji");
+        }
+        get isUUID() {
+            return !!this._def.checks.find((ch) => ch.kind === "uuid");
+        }
+        get isNANOID() {
+            return !!this._def.checks.find((ch) => ch.kind === "nanoid");
+        }
+        get isCUID() {
+            return !!this._def.checks.find((ch) => ch.kind === "cuid");
+        }
+        get isCUID2() {
+            return !!this._def.checks.find((ch) => ch.kind === "cuid2");
+        }
+        get isULID() {
+            return !!this._def.checks.find((ch) => ch.kind === "ulid");
+        }
+        get isIP() {
+            return !!this._def.checks.find((ch) => ch.kind === "ip");
+        }
+        get isCIDR() {
+            return !!this._def.checks.find((ch) => ch.kind === "cidr");
+        }
+        get isBase64() {
+            return !!this._def.checks.find((ch) => ch.kind === "base64");
+        }
+        get isBase64url() {
+            return !!this._def.checks.find((ch) => ch.kind === "base64url");
+        }
+        get minLength() {
+            let min = null;
+            for (const ch of this._def.checks) {
+                if (ch.kind === "min") {
+                    if (min === null || ch.value > min)
+                        min = ch.value;
+                }
+            }
+            return min;
+        }
+        get maxLength() {
+            let max = null;
+            for (const ch of this._def.checks) {
+                if (ch.kind === "max") {
+                    if (max === null || ch.value < max)
+                        max = ch.value;
+                }
+            }
+            return max;
+        }
+    }
+    ZodString.create = (params) => {
+        var _a;
+        return new ZodString({
+            checks: [],
+            typeName: ZodFirstPartyTypeKind.ZodString,
+            coerce: (_a = params === null || params === void 0 ? void 0 : params.coerce) !== null && _a !== void 0 ? _a : false,
+            ...processCreateParams(params),
+        });
+    };
+    function floatSafeRemainder(val, step) {
+        const valDecCount = (val.toString().split(".")[1] || "").length;
+        const stepDecCount = (step.toString().split(".")[1] || "").length;
+        const decCount = valDecCount > stepDecCount ? valDecCount : stepDecCount;
+        const valInt = parseInt(val.toFixed(decCount).replace(".", ""));
+        const stepInt = parseInt(step.toFixed(decCount).replace(".", ""));
+        return (valInt % stepInt) / Math.pow(10, decCount);
+    }
+    class ZodNumber extends ZodType {
+        constructor() {
+            super(...arguments);
+            this.min = this.gte;
+            this.max = this.lte;
+            this.step = this.multipleOf;
+        }
+        _parse(input) {
+            if (this._def.coerce) {
+                input.data = Number(input.data);
+            }
+            const parsedType = this._getType(input);
+            if (parsedType !== ZodParsedType.number) {
+                const ctx = this._getOrReturnCtx(input);
+                addIssueToContext(ctx, {
+                    code: ZodIssueCode.invalid_type,
+                    expected: ZodParsedType.number,
+                    received: ctx.parsedType,
+                });
+                return INVALID;
+            }
+            let ctx = undefined;
+            const status = new ParseStatus();
+            for (const check of this._def.checks) {
+                if (check.kind === "int") {
+                    if (!util.isInteger(input.data)) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            code: ZodIssueCode.invalid_type,
+                            expected: "integer",
+                            received: "float",
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "min") {
+                    const tooSmall = check.inclusive
+                        ? input.data < check.value
+                        : input.data <= check.value;
+                    if (tooSmall) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            code: ZodIssueCode.too_small,
+                            minimum: check.value,
+                            type: "number",
+                            inclusive: check.inclusive,
+                            exact: false,
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "max") {
+                    const tooBig = check.inclusive
+                        ? input.data > check.value
+                        : input.data >= check.value;
+                    if (tooBig) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            code: ZodIssueCode.too_big,
+                            maximum: check.value,
+                            type: "number",
+                            inclusive: check.inclusive,
+                            exact: false,
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "multipleOf") {
+                    if (floatSafeRemainder(input.data, check.value) !== 0) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            code: ZodIssueCode.not_multiple_of,
+                            multipleOf: check.value,
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "finite") {
+                    if (!Number.isFinite(input.data)) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            code: ZodIssueCode.not_finite,
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else {
+                    util.assertNever(check);
+                }
+            }
+            return { status: status.value, value: input.data };
+        }
+        gte(value, message) {
+            return this.setLimit("min", value, true, errorUtil.toString(message));
+        }
+        gt(value, message) {
+            return this.setLimit("min", value, false, errorUtil.toString(message));
+        }
+        lte(value, message) {
+            return this.setLimit("max", value, true, errorUtil.toString(message));
+        }
+        lt(value, message) {
+            return this.setLimit("max", value, false, errorUtil.toString(message));
+        }
+        setLimit(kind, value, inclusive, message) {
+            return new ZodNumber({
+                ...this._def,
+                checks: [
+                    ...this._def.checks,
+                    {
+                        kind,
+                        value,
+                        inclusive,
+                        message: errorUtil.toString(message),
+                    },
+                ],
+            });
+        }
+        _addCheck(check) {
+            return new ZodNumber({
+                ...this._def,
+                checks: [...this._def.checks, check],
+            });
+        }
+        int(message) {
+            return this._addCheck({
+                kind: "int",
+                message: errorUtil.toString(message),
+            });
+        }
+        positive(message) {
+            return this._addCheck({
+                kind: "min",
+                value: 0,
+                inclusive: false,
+                message: errorUtil.toString(message),
+            });
+        }
+        negative(message) {
+            return this._addCheck({
+                kind: "max",
+                value: 0,
+                inclusive: false,
+                message: errorUtil.toString(message),
+            });
+        }
+        nonpositive(message) {
+            return this._addCheck({
+                kind: "max",
+                value: 0,
+                inclusive: true,
+                message: errorUtil.toString(message),
+            });
+        }
+        nonnegative(message) {
+            return this._addCheck({
+                kind: "min",
+                value: 0,
+                inclusive: true,
+                message: errorUtil.toString(message),
+            });
+        }
+        multipleOf(value, message) {
+            return this._addCheck({
+                kind: "multipleOf",
+                value: value,
+                message: errorUtil.toString(message),
+            });
+        }
+        finite(message) {
+            return this._addCheck({
+                kind: "finite",
+                message: errorUtil.toString(message),
+            });
+        }
+        safe(message) {
+            return this._addCheck({
+                kind: "min",
+                inclusive: true,
+                value: Number.MIN_SAFE_INTEGER,
+                message: errorUtil.toString(message),
+            })._addCheck({
+                kind: "max",
+                inclusive: true,
+                value: Number.MAX_SAFE_INTEGER,
+                message: errorUtil.toString(message),
+            });
+        }
+        get minValue() {
+            let min = null;
+            for (const ch of this._def.checks) {
+                if (ch.kind === "min") {
+                    if (min === null || ch.value > min)
+                        min = ch.value;
+                }
+            }
+            return min;
+        }
+        get maxValue() {
+            let max = null;
+            for (const ch of this._def.checks) {
+                if (ch.kind === "max") {
+                    if (max === null || ch.value < max)
+                        max = ch.value;
+                }
+            }
+            return max;
+        }
+        get isInt() {
+            return !!this._def.checks.find((ch) => ch.kind === "int" ||
+                (ch.kind === "multipleOf" && util.isInteger(ch.value)));
+        }
+        get isFinite() {
+            let max = null, min = null;
+            for (const ch of this._def.checks) {
+                if (ch.kind === "finite" ||
+                    ch.kind === "int" ||
+                    ch.kind === "multipleOf") {
+                    return true;
+                }
+                else if (ch.kind === "min") {
+                    if (min === null || ch.value > min)
+                        min = ch.value;
+                }
+                else if (ch.kind === "max") {
+                    if (max === null || ch.value < max)
+                        max = ch.value;
+                }
+            }
+            return Number.isFinite(min) && Number.isFinite(max);
+        }
+    }
+    ZodNumber.create = (params) => {
+        return new ZodNumber({
+            checks: [],
+            typeName: ZodFirstPartyTypeKind.ZodNumber,
+            coerce: (params === null || params === void 0 ? void 0 : params.coerce) || false,
+            ...processCreateParams(params),
+        });
+    };
+    class ZodBigInt extends ZodType {
+        constructor() {
+            super(...arguments);
+            this.min = this.gte;
+            this.max = this.lte;
+        }
+        _parse(input) {
+            if (this._def.coerce) {
+                try {
+                    input.data = BigInt(input.data);
+                }
+                catch (_a) {
+                    return this._getInvalidInput(input);
+                }
+            }
+            const parsedType = this._getType(input);
+            if (parsedType !== ZodParsedType.bigint) {
+                return this._getInvalidInput(input);
+            }
+            let ctx = undefined;
+            const status = new ParseStatus();
+            for (const check of this._def.checks) {
+                if (check.kind === "min") {
+                    const tooSmall = check.inclusive
+                        ? input.data < check.value
+                        : input.data <= check.value;
+                    if (tooSmall) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            code: ZodIssueCode.too_small,
+                            type: "bigint",
+                            minimum: check.value,
+                            inclusive: check.inclusive,
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "max") {
+                    const tooBig = check.inclusive
+                        ? input.data > check.value
+                        : input.data >= check.value;
+                    if (tooBig) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            code: ZodIssueCode.too_big,
+                            type: "bigint",
+                            maximum: check.value,
+                            inclusive: check.inclusive,
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "multipleOf") {
+                    if (input.data % check.value !== BigInt(0)) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            code: ZodIssueCode.not_multiple_of,
+                            multipleOf: check.value,
+                            message: check.message,
+                        });
+                        status.dirty();
+                    }
+                }
+                else {
+                    util.assertNever(check);
+                }
+            }
+            return { status: status.value, value: input.data };
+        }
+        _getInvalidInput(input) {
+            const ctx = this._getOrReturnCtx(input);
+            addIssueToContext(ctx, {
+                code: ZodIssueCode.invalid_type,
+                expected: ZodParsedType.bigint,
+                received: ctx.parsedType,
+            });
+            return INVALID;
+        }
+        gte(value, message) {
+            return this.setLimit("min", value, true, errorUtil.toString(message));
+        }
+        gt(value, message) {
+            return this.setLimit("min", value, false, errorUtil.toString(message));
+        }
+        lte(value, message) {
+            return this.setLimit("max", value, true, errorUtil.toString(message));
+        }
+        lt(value, message) {
+            return this.setLimit("max", value, false, errorUtil.toString(message));
+        }
+        setLimit(kind, value, inclusive, message) {
+            return new ZodBigInt({
+                ...this._def,
+                checks: [
+                    ...this._def.checks,
+                    {
+                        kind,
+                        value,
+                        inclusive,
+                        message: errorUtil.toString(message),
+                    },
+                ],
+            });
+        }
+        _addCheck(check) {
+            return new ZodBigInt({
+                ...this._def,
+                checks: [...this._def.checks, check],
+            });
+        }
+        positive(message) {
+            return this._addCheck({
+                kind: "min",
+                value: BigInt(0),
+                inclusive: false,
+                message: errorUtil.toString(message),
+            });
+        }
+        negative(message) {
+            return this._addCheck({
+                kind: "max",
+                value: BigInt(0),
+                inclusive: false,
+                message: errorUtil.toString(message),
+            });
+        }
+        nonpositive(message) {
+            return this._addCheck({
+                kind: "max",
+                value: BigInt(0),
+                inclusive: true,
+                message: errorUtil.toString(message),
+            });
+        }
+        nonnegative(message) {
+            return this._addCheck({
+                kind: "min",
+                value: BigInt(0),
+                inclusive: true,
+                message: errorUtil.toString(message),
+            });
+        }
+        multipleOf(value, message) {
+            return this._addCheck({
+                kind: "multipleOf",
+                value,
+                message: errorUtil.toString(message),
+            });
+        }
+        get minValue() {
+            let min = null;
+            for (const ch of this._def.checks) {
+                if (ch.kind === "min") {
+                    if (min === null || ch.value > min)
+                        min = ch.value;
+                }
+            }
+            return min;
+        }
+        get maxValue() {
+            let max = null;
+            for (const ch of this._def.checks) {
+                if (ch.kind === "max") {
+                    if (max === null || ch.value < max)
+                        max = ch.value;
+                }
+            }
+            return max;
+        }
+    }
+    ZodBigInt.create = (params) => {
+        var _a;
+        return new ZodBigInt({
+            checks: [],
+            typeName: ZodFirstPartyTypeKind.ZodBigInt,
+            coerce: (_a = params === null || params === void 0 ? void 0 : params.coerce) !== null && _a !== void 0 ? _a : false,
+            ...processCreateParams(params),
+        });
+    };
+    class ZodBoolean extends ZodType {
+        _parse(input) {
+            if (this._def.coerce) {
+                input.data = Boolean(input.data);
+            }
+            const parsedType = this._getType(input);
+            if (parsedType !== ZodParsedType.boolean) {
+                const ctx = this._getOrReturnCtx(input);
+                addIssueToContext(ctx, {
+                    code: ZodIssueCode.invalid_type,
+                    expected: ZodParsedType.boolean,
+                    received: ctx.parsedType,
+                });
+                return INVALID;
+            }
+            return OK(input.data);
+        }
+    }
+    ZodBoolean.create = (params) => {
+        return new ZodBoolean({
+            typeName: ZodFirstPartyTypeKind.ZodBoolean,
+            coerce: (params === null || params === void 0 ? void 0 : params.coerce) || false,
+            ...processCreateParams(params),
+        });
+    };
+    class ZodDate extends ZodType {
+        _parse(input) {
+            if (this._def.coerce) {
+                input.data = new Date(input.data);
+            }
+            const parsedType = this._getType(input);
+            if (parsedType !== ZodParsedType.date) {
+                const ctx = this._getOrReturnCtx(input);
+                addIssueToContext(ctx, {
+                    code: ZodIssueCode.invalid_type,
+                    expected: ZodParsedType.date,
+                    received: ctx.parsedType,
+                });
+                return INVALID;
+            }
+            if (isNaN(input.data.getTime())) {
+                const ctx = this._getOrReturnCtx(input);
+                addIssueToContext(ctx, {
+                    code: ZodIssueCode.invalid_date,
+                });
+                return INVALID;
+            }
+            const status = new ParseStatus();
+            let ctx = undefined;
+            for (const check of this._def.checks) {
+                if (check.kind === "min") {
+                    if (input.data.getTime() < check.value) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            code: ZodIssueCode.too_small,
+                            message: check.message,
+                            inclusive: true,
+                            exact: false,
+                            minimum: check.value,
+                            type: "date",
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (check.kind === "max") {
+                    if (input.data.getTime() > check.value) {
+                        ctx = this._getOrReturnCtx(input, ctx);
+                        addIssueToContext(ctx, {
+                            code: ZodIssueCode.too_big,
+                            message: check.message,
+                            inclusive: true,
+                            exact: false,
+                            maximum: check.value,
+                            type: "date",
+                        });
+                        status.dirty();
+                    }
+                }
+                else {
+                    util.assertNever(check);
+                }
+            }
+            return {
+                status: status.value,
+                value: new Date(input.data.getTime()),
+            };
+        }
+        _addCheck(check) {
+            return new ZodDate({
+                ...this._def,
+                checks: [...this._def.checks, check],
+            });
+        }
+        min(minDate, message) {
+            return this._addCheck({
+                kind: "min",
+                value: minDate.getTime(),
+                message: errorUtil.toString(message),
+            });
+        }
+        max(maxDate, message) {
+            return this._addCheck({
+                kind: "max",
+                value: maxDate.getTime(),
+                message: errorUtil.toString(message),
+            });
+        }
+        get minDate() {
+            let min = null;
+            for (const ch of this._def.checks) {
+                if (ch.kind === "min") {
+                    if (min === null || ch.value > min)
+                        min = ch.value;
+                }
+            }
+            return min != null ? new Date(min) : null;
+        }
+        get maxDate() {
+            let max = null;
+            for (const ch of this._def.checks) {
+                if (ch.kind === "max") {
+                    if (max === null || ch.value < max)
+                        max = ch.value;
+                }
+            }
+            return max != null ? new Date(max) : null;
+        }
+    }
+    ZodDate.create = (params) => {
+        return new ZodDate({
+            checks: [],
+            coerce: (params === null || params === void 0 ? void 0 : params.coerce) || false,
+            typeName: ZodFirstPartyTypeKind.ZodDate,
+            ...processCreateParams(params),
+        });
+    };
+    class ZodSymbol extends ZodType {
+        _parse(input) {
+            const parsedType = this._getType(input);
+            if (parsedType !== ZodParsedType.symbol) {
+                const ctx = this._getOrReturnCtx(input);
+                addIssueToContext(ctx, {
+                    code: ZodIssueCode.invalid_type,
+                    expected: ZodParsedType.symbol,
+                    received: ctx.parsedType,
+                });
+                return INVALID;
+            }
+            return OK(input.data);
+        }
+    }
+    ZodSymbol.create = (params) => {
+        return new ZodSymbol({
+            typeName: ZodFirstPartyTypeKind.ZodSymbol,
+            ...processCreateParams(params),
+        });
+    };
+    class ZodUndefined extends ZodType {
+        _parse(input) {
+            const parsedType = this._getType(input);
+            if (parsedType !== ZodParsedType.undefined) {
+                const ctx = this._getOrReturnCtx(input);
+                addIssueToContext(ctx, {
+                    code: ZodIssueCode.invalid_type,
+                    expected: ZodParsedType.undefined,
+                    received: ctx.parsedType,
+                });
+                return INVALID;
+            }
+            return OK(input.data);
+        }
+    }
+    ZodUndefined.create = (params) => {
+        return new ZodUndefined({
+            typeName: ZodFirstPartyTypeKind.ZodUndefined,
+            ...processCreateParams(params),
+        });
+    };
+    class ZodNull extends ZodType {
+        _parse(input) {
+            const parsedType = this._getType(input);
+            if (parsedType !== ZodParsedType.null) {
+                const ctx = this._getOrReturnCtx(input);
+                addIssueToContext(ctx, {
+                    code: ZodIssueCode.invalid_type,
+                    expected: ZodParsedType.null,
+                    received: ctx.parsedType,
+                });
+                return INVALID;
+            }
+            return OK(input.data);
+        }
+    }
+    ZodNull.create = (params) => {
+        return new ZodNull({
+            typeName: ZodFirstPartyTypeKind.ZodNull,
+            ...processCreateParams(params),
+        });
+    };
+    class ZodAny extends ZodType {
+        constructor() {
+            super(...arguments);
+            this._any = true;
+        }
+        _parse(input) {
+            return OK(input.data);
+        }
+    }
+    ZodAny.create = (params) => {
+        return new ZodAny({
+            typeName: ZodFirstPartyTypeKind.ZodAny,
+            ...processCreateParams(params),
+        });
+    };
+    class ZodUnknown extends ZodType {
+        constructor() {
+            super(...arguments);
+            this._unknown = true;
+        }
+        _parse(input) {
+            return OK(input.data);
+        }
+    }
+    ZodUnknown.create = (params) => {
+        return new ZodUnknown({
+            typeName: ZodFirstPartyTypeKind.ZodUnknown,
+            ...processCreateParams(params),
+        });
+    };
+    class ZodNever extends ZodType {
+        _parse(input) {
+            const ctx = this._getOrReturnCtx(input);
+            addIssueToContext(ctx, {
+                code: ZodIssueCode.invalid_type,
+                expected: ZodParsedType.never,
+                received: ctx.parsedType,
+            });
+            return INVALID;
+        }
+    }
+    ZodNever.create = (params) => {
+        return new ZodNever({
+            typeName: ZodFirstPartyTypeKind.ZodNever,
+            ...processCreateParams(params),
+        });
+    };
+    class ZodVoid extends ZodType {
+        _parse(input) {
+            const parsedType = this._getType(input);
+            if (parsedType !== ZodParsedType.undefined) {
+                const ctx = this._getOrReturnCtx(input);
+                addIssueToContext(ctx, {
+                    code: ZodIssueCode.invalid_type,
+                    expected: ZodParsedType.void,
+                    received: ctx.parsedType,
+                });
+                return INVALID;
+            }
+            return OK(input.data);
+        }
+    }
+    ZodVoid.create = (params) => {
+        return new ZodVoid({
+            typeName: ZodFirstPartyTypeKind.ZodVoid,
+            ...processCreateParams(params),
+        });
+    };
+    class ZodArray extends ZodType {
+        _parse(input) {
+            const { ctx, status } = this._processInputParams(input);
+            const def = this._def;
+            if (ctx.parsedType !== ZodParsedType.array) {
+                addIssueToContext(ctx, {
+                    code: ZodIssueCode.invalid_type,
+                    expected: ZodParsedType.array,
+                    received: ctx.parsedType,
+                });
+                return INVALID;
+            }
+            if (def.exactLength !== null) {
+                const tooBig = ctx.data.length > def.exactLength.value;
+                const tooSmall = ctx.data.length < def.exactLength.value;
+                if (tooBig || tooSmall) {
+                    addIssueToContext(ctx, {
+                        code: tooBig ? ZodIssueCode.too_big : ZodIssueCode.too_small,
+                        minimum: (tooSmall ? def.exactLength.value : undefined),
+                        maximum: (tooBig ? def.exactLength.value : undefined),
+                        type: "array",
+                        inclusive: true,
+                        exact: true,
+                        message: def.exactLength.message,
+                    });
+                    status.dirty();
+                }
+            }
+            if (def.minLength !== null) {
+                if (ctx.data.length < def.minLength.value) {
+                    addIssueToContext(ctx, {
+                        code: ZodIssueCode.too_small,
+                        minimum: def.minLength.value,
+                        type: "array",
+                        inclusive: true,
+                        exact: false,
+                        message: def.minLength.message,
+                    });
+                    status.dirty();
+                }
+            }
+            if (def.maxLength !== null) {
+                if (ctx.data.length > def.maxLength.value) {
+                    addIssueToContext(ctx, {
+                        code: ZodIssueCode.too_big,
+                        maximum: def.maxLength.value,
+                        type: "array",
+                        inclusive: true,
+                        exact: false,
+                        message: def.maxLength.message,
+                    });
+                    status.dirty();
+                }
+            }
+            if (ctx.common.async) {
+                return Promise.all([...ctx.data].map((item, i) => {
+                    return def.type._parseAsync(new ParseInputLazyPath(ctx, item, ctx.path, i));
+                })).then((result) => {
+                    return ParseStatus.mergeArray(status, result);
+                });
+            }
+            const result = [...ctx.data].map((item, i) => {
+                return def.type._parseSync(new ParseInputLazyPath(ctx, item, ctx.path, i));
+            });
+            return ParseStatus.mergeArray(status, result);
+        }
+        get element() {
+            return this._def.type;
+        }
+        min(minLength, message) {
+            return new ZodArray({
+                ...this._def,
+                minLength: { value: minLength, message: errorUtil.toString(message) },
+            });
+        }
+        max(maxLength, message) {
+            return new ZodArray({
+                ...this._def,
+                maxLength: { value: maxLength, message: errorUtil.toString(message) },
+            });
+        }
+        length(len, message) {
+            return new ZodArray({
+                ...this._def,
+                exactLength: { value: len, message: errorUtil.toString(message) },
+            });
+        }
+        nonempty(message) {
+            return this.min(1, message);
+        }
+    }
+    ZodArray.create = (schema, params) => {
+        return new ZodArray({
+            type: schema,
+            minLength: null,
+            maxLength: null,
+            exactLength: null,
+            typeName: ZodFirstPartyTypeKind.ZodArray,
+            ...processCreateParams(params),
+        });
+    };
+    function deepPartialify(schema) {
+        if (schema instanceof ZodObject) {
+            const newShape = {};
+            for (const key in schema.shape) {
+                const fieldSchema = schema.shape[key];
+                newShape[key] = ZodOptional.create(deepPartialify(fieldSchema));
+            }
+            return new ZodObject({
+                ...schema._def,
+                shape: () => newShape,
+            });
+        }
+        else if (schema instanceof ZodArray) {
+            return new ZodArray({
+                ...schema._def,
+                type: deepPartialify(schema.element),
+            });
+        }
+        else if (schema instanceof ZodOptional) {
+            return ZodOptional.create(deepPartialify(schema.unwrap()));
+        }
+        else if (schema instanceof ZodNullable) {
+            return ZodNullable.create(deepPartialify(schema.unwrap()));
+        }
+        else if (schema instanceof ZodTuple) {
+            return ZodTuple.create(schema.items.map((item) => deepPartialify(item)));
+        }
+        else {
+            return schema;
+        }
+    }
+    class ZodObject extends ZodType {
+        constructor() {
+            super(...arguments);
+            this._cached = null;
+            this.nonstrict = this.passthrough;
+            this.augment = this.extend;
+        }
+        _getCached() {
+            if (this._cached !== null)
+                return this._cached;
+            const shape = this._def.shape();
+            const keys = util.objectKeys(shape);
+            return (this._cached = { shape, keys });
+        }
+        _parse(input) {
+            const parsedType = this._getType(input);
+            if (parsedType !== ZodParsedType.object) {
+                const ctx = this._getOrReturnCtx(input);
+                addIssueToContext(ctx, {
+                    code: ZodIssueCode.invalid_type,
+                    expected: ZodParsedType.object,
+                    received: ctx.parsedType,
+                });
+                return INVALID;
+            }
+            const { status, ctx } = this._processInputParams(input);
+            const { shape, keys: shapeKeys } = this._getCached();
+            const extraKeys = [];
+            if (!(this._def.catchall instanceof ZodNever &&
+                this._def.unknownKeys === "strip")) {
+                for (const key in ctx.data) {
+                    if (!shapeKeys.includes(key)) {
+                        extraKeys.push(key);
+                    }
+                }
+            }
+            const pairs = [];
+            for (const key of shapeKeys) {
+                const keyValidator = shape[key];
+                const value = ctx.data[key];
+                pairs.push({
+                    key: { status: "valid", value: key },
+                    value: keyValidator._parse(new ParseInputLazyPath(ctx, value, ctx.path, key)),
+                    alwaysSet: key in ctx.data,
+                });
+            }
+            if (this._def.catchall instanceof ZodNever) {
+                const unknownKeys = this._def.unknownKeys;
+                if (unknownKeys === "passthrough") {
+                    for (const key of extraKeys) {
+                        pairs.push({
+                            key: { status: "valid", value: key },
+                            value: { status: "valid", value: ctx.data[key] },
+                        });
+                    }
+                }
+                else if (unknownKeys === "strict") {
+                    if (extraKeys.length > 0) {
+                        addIssueToContext(ctx, {
+                            code: ZodIssueCode.unrecognized_keys,
+                            keys: extraKeys,
+                        });
+                        status.dirty();
+                    }
+                }
+                else if (unknownKeys === "strip") ;
+                else {
+                    throw new Error(`Internal ZodObject error: invalid unknownKeys value.`);
+                }
+            }
+            else {
+                const catchall = this._def.catchall;
+                for (const key of extraKeys) {
+                    const value = ctx.data[key];
+                    pairs.push({
+                        key: { status: "valid", value: key },
+                        value: catchall._parse(new ParseInputLazyPath(ctx, value, ctx.path, key)
+                        ),
+                        alwaysSet: key in ctx.data,
+                    });
+                }
+            }
+            if (ctx.common.async) {
+                return Promise.resolve()
+                    .then(async () => {
+                    const syncPairs = [];
+                    for (const pair of pairs) {
+                        const key = await pair.key;
+                        const value = await pair.value;
+                        syncPairs.push({
+                            key,
+                            value,
+                            alwaysSet: pair.alwaysSet,
+                        });
+                    }
+                    return syncPairs;
+                })
+                    .then((syncPairs) => {
+                    return ParseStatus.mergeObjectSync(status, syncPairs);
+                });
+            }
+            else {
+                return ParseStatus.mergeObjectSync(status, pairs);
+            }
+        }
+        get shape() {
+            return this._def.shape();
+        }
+        strict(message) {
+            errorUtil.errToObj;
+            return new ZodObject({
+                ...this._def,
+                unknownKeys: "strict",
+                ...(message !== undefined
+                    ? {
+                        errorMap: (issue, ctx) => {
+                            var _a, _b, _c, _d;
+                            const defaultError = (_c = (_b = (_a = this._def).errorMap) === null || _b === void 0 ? void 0 : _b.call(_a, issue, ctx).message) !== null && _c !== void 0 ? _c : ctx.defaultError;
+                            if (issue.code === "unrecognized_keys")
+                                return {
+                                    message: (_d = errorUtil.errToObj(message).message) !== null && _d !== void 0 ? _d : defaultError,
+                                };
+                            return {
+                                message: defaultError,
+                            };
+                        },
+                    }
+                    : {}),
+            });
+        }
+        strip() {
+            return new ZodObject({
+                ...this._def,
+                unknownKeys: "strip",
+            });
+        }
+        passthrough() {
+            return new ZodObject({
+                ...this._def,
+                unknownKeys: "passthrough",
+            });
+        }
+        extend(augmentation) {
+            return new ZodObject({
+                ...this._def,
+                shape: () => ({
+                    ...this._def.shape(),
+                    ...augmentation,
+                }),
+            });
+        }
+        merge(merging) {
+            const merged = new ZodObject({
+                unknownKeys: merging._def.unknownKeys,
+                catchall: merging._def.catchall,
+                shape: () => ({
+                    ...this._def.shape(),
+                    ...merging._def.shape(),
+                }),
+                typeName: ZodFirstPartyTypeKind.ZodObject,
+            });
+            return merged;
+        }
+        setKey(key, schema) {
+            return this.augment({ [key]: schema });
+        }
+        catchall(index) {
+            return new ZodObject({
+                ...this._def,
+                catchall: index,
+            });
+        }
+        pick(mask) {
+            const shape = {};
+            util.objectKeys(mask).forEach((key) => {
+                if (mask[key] && this.shape[key]) {
+                    shape[key] = this.shape[key];
+                }
+            });
+            return new ZodObject({
+                ...this._def,
+                shape: () => shape,
+            });
+        }
+        omit(mask) {
+            const shape = {};
+            util.objectKeys(this.shape).forEach((key) => {
+                if (!mask[key]) {
+                    shape[key] = this.shape[key];
+                }
+            });
+            return new ZodObject({
+                ...this._def,
+                shape: () => shape,
+            });
+        }
+        deepPartial() {
+            return deepPartialify(this);
+        }
+        partial(mask) {
+            const newShape = {};
+            util.objectKeys(this.shape).forEach((key) => {
+                const fieldSchema = this.shape[key];
+                if (mask && !mask[key]) {
+                    newShape[key] = fieldSchema;
+                }
+                else {
+                    newShape[key] = fieldSchema.optional();
+                }
+            });
+            return new ZodObject({
+                ...this._def,
+                shape: () => newShape,
+            });
+        }
+        required(mask) {
+            const newShape = {};
+            util.objectKeys(this.shape).forEach((key) => {
+                if (mask && !mask[key]) {
+                    newShape[key] = this.shape[key];
+                }
+                else {
+                    const fieldSchema = this.shape[key];
+                    let newField = fieldSchema;
+                    while (newField instanceof ZodOptional) {
+                        newField = newField._def.innerType;
+                    }
+                    newShape[key] = newField;
+                }
+            });
+            return new ZodObject({
+                ...this._def,
+                shape: () => newShape,
+            });
+        }
+        keyof() {
+            return createZodEnum(util.objectKeys(this.shape));
+        }
+    }
+    ZodObject.create = (shape, params) => {
+        return new ZodObject({
+            shape: () => shape,
+            unknownKeys: "strip",
+            catchall: ZodNever.create(),
+            typeName: ZodFirstPartyTypeKind.ZodObject,
+            ...processCreateParams(params),
+        });
+    };
+    ZodObject.strictCreate = (shape, params) => {
+        return new ZodObject({
+            shape: () => shape,
+            unknownKeys: "strict",
+            catchall: ZodNever.create(),
+            typeName: ZodFirstPartyTypeKind.ZodObject,
+            ...processCreateParams(params),
+        });
+    };
+    ZodObject.lazycreate = (shape, params) => {
+        return new ZodObject({
+            shape,
+            unknownKeys: "strip",
+            catchall: ZodNever.create(),
+            typeName: ZodFirstPartyTypeKind.ZodObject,
+            ...processCreateParams(params),
+        });
+    };
+    class ZodUnion extends ZodType {
+        _parse(input) {
+            const { ctx } = this._processInputParams(input);
+            const options = this._def.options;
+            function handleResults(results) {
+                for (const result of results) {
+                    if (result.result.status === "valid") {
+                        return result.result;
+                    }
+                }
+                for (const result of results) {
+                    if (result.result.status === "dirty") {
+                        ctx.common.issues.push(...result.ctx.common.issues);
+                        return result.result;
+                    }
+                }
+                const unionErrors = results.map((result) => new ZodError(result.ctx.common.issues));
+                addIssueToContext(ctx, {
+                    code: ZodIssueCode.invalid_union,
+                    unionErrors,
+                });
+                return INVALID;
+            }
+            if (ctx.common.async) {
+                return Promise.all(options.map(async (option) => {
+                    const childCtx = {
+                        ...ctx,
+                        common: {
+                            ...ctx.common,
+                            issues: [],
+                        },
+                        parent: null,
+                    };
+                    return {
+                        result: await option._parseAsync({
+                            data: ctx.data,
+                            path: ctx.path,
+                            parent: childCtx,
+                        }),
+                        ctx: childCtx,
+                    };
+                })).then(handleResults);
+            }
+            else {
+                let dirty = undefined;
+                const issues = [];
+                for (const option of options) {
+                    const childCtx = {
+                        ...ctx,
+                        common: {
+                            ...ctx.common,
+                            issues: [],
+                        },
+                        parent: null,
+                    };
+                    const result = option._parseSync({
+                        data: ctx.data,
+                        path: ctx.path,
+                        parent: childCtx,
+                    });
+                    if (result.status === "valid") {
+                        return result;
+                    }
+                    else if (result.status === "dirty" && !dirty) {
+                        dirty = { result, ctx: childCtx };
+                    }
+                    if (childCtx.common.issues.length) {
+                        issues.push(childCtx.common.issues);
+                    }
+                }
+                if (dirty) {
+                    ctx.common.issues.push(...dirty.ctx.common.issues);
+                    return dirty.result;
+                }
+                const unionErrors = issues.map((issues) => new ZodError(issues));
+                addIssueToContext(ctx, {
+                    code: ZodIssueCode.invalid_union,
+                    unionErrors,
+                });
+                return INVALID;
+            }
+        }
+        get options() {
+            return this._def.options;
+        }
+    }
+    ZodUnion.create = (types, params) => {
+        return new ZodUnion({
+            options: types,
+            typeName: ZodFirstPartyTypeKind.ZodUnion,
+            ...processCreateParams(params),
+        });
+    };
+    const getDiscriminator = (type) => {
+        if (type instanceof ZodLazy) {
+            return getDiscriminator(type.schema);
+        }
+        else if (type instanceof ZodEffects) {
+            return getDiscriminator(type.innerType());
+        }
+        else if (type instanceof ZodLiteral) {
+            return [type.value];
+        }
+        else if (type instanceof ZodEnum) {
+            return type.options;
+        }
+        else if (type instanceof ZodNativeEnum) {
+            return util.objectValues(type.enum);
+        }
+        else if (type instanceof ZodDefault) {
+            return getDiscriminator(type._def.innerType);
+        }
+        else if (type instanceof ZodUndefined) {
+            return [undefined];
+        }
+        else if (type instanceof ZodNull) {
+            return [null];
+        }
+        else if (type instanceof ZodOptional) {
+            return [undefined, ...getDiscriminator(type.unwrap())];
+        }
+        else if (type instanceof ZodNullable) {
+            return [null, ...getDiscriminator(type.unwrap())];
+        }
+        else if (type instanceof ZodBranded) {
+            return getDiscriminator(type.unwrap());
+        }
+        else if (type instanceof ZodReadonly) {
+            return getDiscriminator(type.unwrap());
+        }
+        else if (type instanceof ZodCatch) {
+            return getDiscriminator(type._def.innerType);
+        }
+        else {
+            return [];
+        }
+    };
+    class ZodDiscriminatedUnion extends ZodType {
+        _parse(input) {
+            const { ctx } = this._processInputParams(input);
+            if (ctx.parsedType !== ZodParsedType.object) {
+                addIssueToContext(ctx, {
+                    code: ZodIssueCode.invalid_type,
+                    expected: ZodParsedType.object,
+                    received: ctx.parsedType,
+                });
+                return INVALID;
+            }
+            const discriminator = this.discriminator;
+            const discriminatorValue = ctx.data[discriminator];
+            const option = this.optionsMap.get(discriminatorValue);
+            if (!option) {
+                addIssueToContext(ctx, {
+                    code: ZodIssueCode.invalid_union_discriminator,
+                    options: Array.from(this.optionsMap.keys()),
+                    path: [discriminator],
+                });
+                return INVALID;
+            }
+            if (ctx.common.async) {
+                return option._parseAsync({
+                    data: ctx.data,
+                    path: ctx.path,
+                    parent: ctx,
+                });
+            }
+            else {
+                return option._parseSync({
+                    data: ctx.data,
+                    path: ctx.path,
+                    parent: ctx,
+                });
+            }
+        }
+        get discriminator() {
+            return this._def.discriminator;
+        }
+        get options() {
+            return this._def.options;
+        }
+        get optionsMap() {
+            return this._def.optionsMap;
+        }
+        static create(discriminator, options, params) {
+            const optionsMap = new Map();
+            for (const type of options) {
+                const discriminatorValues = getDiscriminator(type.shape[discriminator]);
+                if (!discriminatorValues.length) {
+                    throw new Error(`A discriminator value for key \`${discriminator}\` could not be extracted from all schema options`);
+                }
+                for (const value of discriminatorValues) {
+                    if (optionsMap.has(value)) {
+                        throw new Error(`Discriminator property ${String(discriminator)} has duplicate value ${String(value)}`);
+                    }
+                    optionsMap.set(value, type);
+                }
+            }
+            return new ZodDiscriminatedUnion({
+                typeName: ZodFirstPartyTypeKind.ZodDiscriminatedUnion,
+                discriminator,
+                options,
+                optionsMap,
+                ...processCreateParams(params),
+            });
+        }
+    }
+    function mergeValues(a, b) {
+        const aType = getParsedType(a);
+        const bType = getParsedType(b);
+        if (a === b) {
+            return { valid: true, data: a };
+        }
+        else if (aType === ZodParsedType.object && bType === ZodParsedType.object) {
+            const bKeys = util.objectKeys(b);
+            const sharedKeys = util
+                .objectKeys(a)
+                .filter((key) => bKeys.indexOf(key) !== -1);
+            const newObj = { ...a, ...b };
+            for (const key of sharedKeys) {
+                const sharedValue = mergeValues(a[key], b[key]);
+                if (!sharedValue.valid) {
+                    return { valid: false };
+                }
+                newObj[key] = sharedValue.data;
+            }
+            return { valid: true, data: newObj };
+        }
+        else if (aType === ZodParsedType.array && bType === ZodParsedType.array) {
+            if (a.length !== b.length) {
+                return { valid: false };
+            }
+            const newArray = [];
+            for (let index = 0; index < a.length; index++) {
+                const itemA = a[index];
+                const itemB = b[index];
+                const sharedValue = mergeValues(itemA, itemB);
+                if (!sharedValue.valid) {
+                    return { valid: false };
+                }
+                newArray.push(sharedValue.data);
+            }
+            return { valid: true, data: newArray };
+        }
+        else if (aType === ZodParsedType.date &&
+            bType === ZodParsedType.date &&
+            +a === +b) {
+            return { valid: true, data: a };
+        }
+        else {
+            return { valid: false };
+        }
+    }
+    class ZodIntersection extends ZodType {
+        _parse(input) {
+            const { status, ctx } = this._processInputParams(input);
+            const handleParsed = (parsedLeft, parsedRight) => {
+                if (isAborted(parsedLeft) || isAborted(parsedRight)) {
+                    return INVALID;
+                }
+                const merged = mergeValues(parsedLeft.value, parsedRight.value);
+                if (!merged.valid) {
+                    addIssueToContext(ctx, {
+                        code: ZodIssueCode.invalid_intersection_types,
+                    });
+                    return INVALID;
+                }
+                if (isDirty(parsedLeft) || isDirty(parsedRight)) {
+                    status.dirty();
+                }
+                return { status: status.value, value: merged.data };
+            };
+            if (ctx.common.async) {
+                return Promise.all([
+                    this._def.left._parseAsync({
+                        data: ctx.data,
+                        path: ctx.path,
+                        parent: ctx,
+                    }),
+                    this._def.right._parseAsync({
+                        data: ctx.data,
+                        path: ctx.path,
+                        parent: ctx,
+                    }),
+                ]).then(([left, right]) => handleParsed(left, right));
+            }
+            else {
+                return handleParsed(this._def.left._parseSync({
+                    data: ctx.data,
+                    path: ctx.path,
+                    parent: ctx,
+                }), this._def.right._parseSync({
+                    data: ctx.data,
+                    path: ctx.path,
+                    parent: ctx,
+                }));
+            }
+        }
+    }
+    ZodIntersection.create = (left, right, params) => {
+        return new ZodIntersection({
+            left: left,
+            right: right,
+            typeName: ZodFirstPartyTypeKind.ZodIntersection,
+            ...processCreateParams(params),
+        });
+    };
+    class ZodTuple extends ZodType {
+        _parse(input) {
+            const { status, ctx } = this._processInputParams(input);
+            if (ctx.parsedType !== ZodParsedType.array) {
+                addIssueToContext(ctx, {
+                    code: ZodIssueCode.invalid_type,
+                    expected: ZodParsedType.array,
+                    received: ctx.parsedType,
+                });
+                return INVALID;
+            }
+            if (ctx.data.length < this._def.items.length) {
+                addIssueToContext(ctx, {
+                    code: ZodIssueCode.too_small,
+                    minimum: this._def.items.length,
+                    inclusive: true,
+                    exact: false,
+                    type: "array",
+                });
+                return INVALID;
+            }
+            const rest = this._def.rest;
+            if (!rest && ctx.data.length > this._def.items.length) {
+                addIssueToContext(ctx, {
+                    code: ZodIssueCode.too_big,
+                    maximum: this._def.items.length,
+                    inclusive: true,
+                    exact: false,
+                    type: "array",
+                });
+                status.dirty();
+            }
+            const items = [...ctx.data]
+                .map((item, itemIndex) => {
+                const schema = this._def.items[itemIndex] || this._def.rest;
+                if (!schema)
+                    return null;
+                return schema._parse(new ParseInputLazyPath(ctx, item, ctx.path, itemIndex));
+            })
+                .filter((x) => !!x);
+            if (ctx.common.async) {
+                return Promise.all(items).then((results) => {
+                    return ParseStatus.mergeArray(status, results);
+                });
+            }
+            else {
+                return ParseStatus.mergeArray(status, items);
+            }
+        }
+        get items() {
+            return this._def.items;
+        }
+        rest(rest) {
+            return new ZodTuple({
+                ...this._def,
+                rest,
+            });
+        }
+    }
+    ZodTuple.create = (schemas, params) => {
+        if (!Array.isArray(schemas)) {
+            throw new Error("You must pass an array of schemas to z.tuple([ ... ])");
+        }
+        return new ZodTuple({
+            items: schemas,
+            typeName: ZodFirstPartyTypeKind.ZodTuple,
+            rest: null,
+            ...processCreateParams(params),
+        });
+    };
+    class ZodRecord extends ZodType {
+        get keySchema() {
+            return this._def.keyType;
+        }
+        get valueSchema() {
+            return this._def.valueType;
+        }
+        _parse(input) {
+            const { status, ctx } = this._processInputParams(input);
+            if (ctx.parsedType !== ZodParsedType.object) {
+                addIssueToContext(ctx, {
+                    code: ZodIssueCode.invalid_type,
+                    expected: ZodParsedType.object,
+                    received: ctx.parsedType,
+                });
+                return INVALID;
+            }
+            const pairs = [];
+            const keyType = this._def.keyType;
+            const valueType = this._def.valueType;
+            for (const key in ctx.data) {
+                pairs.push({
+                    key: keyType._parse(new ParseInputLazyPath(ctx, key, ctx.path, key)),
+                    value: valueType._parse(new ParseInputLazyPath(ctx, ctx.data[key], ctx.path, key)),
+                    alwaysSet: key in ctx.data,
+                });
+            }
+            if (ctx.common.async) {
+                return ParseStatus.mergeObjectAsync(status, pairs);
+            }
+            else {
+                return ParseStatus.mergeObjectSync(status, pairs);
+            }
+        }
+        get element() {
+            return this._def.valueType;
+        }
+        static create(first, second, third) {
+            if (second instanceof ZodType) {
+                return new ZodRecord({
+                    keyType: first,
+                    valueType: second,
+                    typeName: ZodFirstPartyTypeKind.ZodRecord,
+                    ...processCreateParams(third),
+                });
+            }
+            return new ZodRecord({
+                keyType: ZodString.create(),
+                valueType: first,
+                typeName: ZodFirstPartyTypeKind.ZodRecord,
+                ...processCreateParams(second),
+            });
+        }
+    }
+    class ZodMap extends ZodType {
+        get keySchema() {
+            return this._def.keyType;
+        }
+        get valueSchema() {
+            return this._def.valueType;
+        }
+        _parse(input) {
+            const { status, ctx } = this._processInputParams(input);
+            if (ctx.parsedType !== ZodParsedType.map) {
+                addIssueToContext(ctx, {
+                    code: ZodIssueCode.invalid_type,
+                    expected: ZodParsedType.map,
+                    received: ctx.parsedType,
+                });
+                return INVALID;
+            }
+            const keyType = this._def.keyType;
+            const valueType = this._def.valueType;
+            const pairs = [...ctx.data.entries()].map(([key, value], index) => {
+                return {
+                    key: keyType._parse(new ParseInputLazyPath(ctx, key, ctx.path, [index, "key"])),
+                    value: valueType._parse(new ParseInputLazyPath(ctx, value, ctx.path, [index, "value"])),
+                };
+            });
+            if (ctx.common.async) {
+                const finalMap = new Map();
+                return Promise.resolve().then(async () => {
+                    for (const pair of pairs) {
+                        const key = await pair.key;
+                        const value = await pair.value;
+                        if (key.status === "aborted" || value.status === "aborted") {
+                            return INVALID;
+                        }
+                        if (key.status === "dirty" || value.status === "dirty") {
+                            status.dirty();
+                        }
+                        finalMap.set(key.value, value.value);
+                    }
+                    return { status: status.value, value: finalMap };
+                });
+            }
+            else {
+                const finalMap = new Map();
+                for (const pair of pairs) {
+                    const key = pair.key;
+                    const value = pair.value;
+                    if (key.status === "aborted" || value.status === "aborted") {
+                        return INVALID;
+                    }
+                    if (key.status === "dirty" || value.status === "dirty") {
+                        status.dirty();
+                    }
+                    finalMap.set(key.value, value.value);
+                }
+                return { status: status.value, value: finalMap };
+            }
+        }
+    }
+    ZodMap.create = (keyType, valueType, params) => {
+        return new ZodMap({
+            valueType,
+            keyType,
+            typeName: ZodFirstPartyTypeKind.ZodMap,
+            ...processCreateParams(params),
+        });
+    };
+    class ZodSet extends ZodType {
+        _parse(input) {
+            const { status, ctx } = this._processInputParams(input);
+            if (ctx.parsedType !== ZodParsedType.set) {
+                addIssueToContext(ctx, {
+                    code: ZodIssueCode.invalid_type,
+                    expected: ZodParsedType.set,
+                    received: ctx.parsedType,
+                });
+                return INVALID;
+            }
+            const def = this._def;
+            if (def.minSize !== null) {
+                if (ctx.data.size < def.minSize.value) {
+                    addIssueToContext(ctx, {
+                        code: ZodIssueCode.too_small,
+                        minimum: def.minSize.value,
+                        type: "set",
+                        inclusive: true,
+                        exact: false,
+                        message: def.minSize.message,
+                    });
+                    status.dirty();
+                }
+            }
+            if (def.maxSize !== null) {
+                if (ctx.data.size > def.maxSize.value) {
+                    addIssueToContext(ctx, {
+                        code: ZodIssueCode.too_big,
+                        maximum: def.maxSize.value,
+                        type: "set",
+                        inclusive: true,
+                        exact: false,
+                        message: def.maxSize.message,
+                    });
+                    status.dirty();
+                }
+            }
+            const valueType = this._def.valueType;
+            function finalizeSet(elements) {
+                const parsedSet = new Set();
+                for (const element of elements) {
+                    if (element.status === "aborted")
+                        return INVALID;
+                    if (element.status === "dirty")
+                        status.dirty();
+                    parsedSet.add(element.value);
+                }
+                return { status: status.value, value: parsedSet };
+            }
+            const elements = [...ctx.data.values()].map((item, i) => valueType._parse(new ParseInputLazyPath(ctx, item, ctx.path, i)));
+            if (ctx.common.async) {
+                return Promise.all(elements).then((elements) => finalizeSet(elements));
+            }
+            else {
+                return finalizeSet(elements);
+            }
+        }
+        min(minSize, message) {
+            return new ZodSet({
+                ...this._def,
+                minSize: { value: minSize, message: errorUtil.toString(message) },
+            });
+        }
+        max(maxSize, message) {
+            return new ZodSet({
+                ...this._def,
+                maxSize: { value: maxSize, message: errorUtil.toString(message) },
+            });
+        }
+        size(size, message) {
+            return this.min(size, message).max(size, message);
+        }
+        nonempty(message) {
+            return this.min(1, message);
+        }
+    }
+    ZodSet.create = (valueType, params) => {
+        return new ZodSet({
+            valueType,
+            minSize: null,
+            maxSize: null,
+            typeName: ZodFirstPartyTypeKind.ZodSet,
+            ...processCreateParams(params),
+        });
+    };
+    class ZodFunction extends ZodType {
+        constructor() {
+            super(...arguments);
+            this.validate = this.implement;
+        }
+        _parse(input) {
+            const { ctx } = this._processInputParams(input);
+            if (ctx.parsedType !== ZodParsedType.function) {
+                addIssueToContext(ctx, {
+                    code: ZodIssueCode.invalid_type,
+                    expected: ZodParsedType.function,
+                    received: ctx.parsedType,
+                });
+                return INVALID;
+            }
+            function makeArgsIssue(args, error) {
+                return makeIssue({
+                    data: args,
+                    path: ctx.path,
+                    errorMaps: [
+                        ctx.common.contextualErrorMap,
+                        ctx.schemaErrorMap,
+                        getErrorMap(),
+                        errorMap,
+                    ].filter((x) => !!x),
+                    issueData: {
+                        code: ZodIssueCode.invalid_arguments,
+                        argumentsError: error,
+                    },
+                });
+            }
+            function makeReturnsIssue(returns, error) {
+                return makeIssue({
+                    data: returns,
+                    path: ctx.path,
+                    errorMaps: [
+                        ctx.common.contextualErrorMap,
+                        ctx.schemaErrorMap,
+                        getErrorMap(),
+                        errorMap,
+                    ].filter((x) => !!x),
+                    issueData: {
+                        code: ZodIssueCode.invalid_return_type,
+                        returnTypeError: error,
+                    },
+                });
+            }
+            const params = { errorMap: ctx.common.contextualErrorMap };
+            const fn = ctx.data;
+            if (this._def.returns instanceof ZodPromise) {
+                const me = this;
+                return OK(async function (...args) {
+                    const error = new ZodError([]);
+                    const parsedArgs = await me._def.args
+                        .parseAsync(args, params)
+                        .catch((e) => {
+                        error.addIssue(makeArgsIssue(args, e));
+                        throw error;
+                    });
+                    const result = await Reflect.apply(fn, this, parsedArgs);
+                    const parsedReturns = await me._def.returns._def.type
+                        .parseAsync(result, params)
+                        .catch((e) => {
+                        error.addIssue(makeReturnsIssue(result, e));
+                        throw error;
+                    });
+                    return parsedReturns;
+                });
+            }
+            else {
+                const me = this;
+                return OK(function (...args) {
+                    const parsedArgs = me._def.args.safeParse(args, params);
+                    if (!parsedArgs.success) {
+                        throw new ZodError([makeArgsIssue(args, parsedArgs.error)]);
+                    }
+                    const result = Reflect.apply(fn, this, parsedArgs.data);
+                    const parsedReturns = me._def.returns.safeParse(result, params);
+                    if (!parsedReturns.success) {
+                        throw new ZodError([makeReturnsIssue(result, parsedReturns.error)]);
+                    }
+                    return parsedReturns.data;
+                });
+            }
+        }
+        parameters() {
+            return this._def.args;
+        }
+        returnType() {
+            return this._def.returns;
+        }
+        args(...items) {
+            return new ZodFunction({
+                ...this._def,
+                args: ZodTuple.create(items).rest(ZodUnknown.create()),
+            });
+        }
+        returns(returnType) {
+            return new ZodFunction({
+                ...this._def,
+                returns: returnType,
+            });
+        }
+        implement(func) {
+            const validatedFunc = this.parse(func);
+            return validatedFunc;
+        }
+        strictImplement(func) {
+            const validatedFunc = this.parse(func);
+            return validatedFunc;
+        }
+        static create(args, returns, params) {
+            return new ZodFunction({
+                args: (args
+                    ? args
+                    : ZodTuple.create([]).rest(ZodUnknown.create())),
+                returns: returns || ZodUnknown.create(),
+                typeName: ZodFirstPartyTypeKind.ZodFunction,
+                ...processCreateParams(params),
+            });
+        }
+    }
+    class ZodLazy extends ZodType {
+        get schema() {
+            return this._def.getter();
+        }
+        _parse(input) {
+            const { ctx } = this._processInputParams(input);
+            const lazySchema = this._def.getter();
+            return lazySchema._parse({ data: ctx.data, path: ctx.path, parent: ctx });
+        }
+    }
+    ZodLazy.create = (getter, params) => {
+        return new ZodLazy({
+            getter: getter,
+            typeName: ZodFirstPartyTypeKind.ZodLazy,
+            ...processCreateParams(params),
+        });
+    };
+    class ZodLiteral extends ZodType {
+        _parse(input) {
+            if (input.data !== this._def.value) {
+                const ctx = this._getOrReturnCtx(input);
+                addIssueToContext(ctx, {
+                    received: ctx.data,
+                    code: ZodIssueCode.invalid_literal,
+                    expected: this._def.value,
+                });
+                return INVALID;
+            }
+            return { status: "valid", value: input.data };
+        }
+        get value() {
+            return this._def.value;
+        }
+    }
+    ZodLiteral.create = (value, params) => {
+        return new ZodLiteral({
+            value: value,
+            typeName: ZodFirstPartyTypeKind.ZodLiteral,
+            ...processCreateParams(params),
+        });
+    };
+    function createZodEnum(values, params) {
+        return new ZodEnum({
+            values,
+            typeName: ZodFirstPartyTypeKind.ZodEnum,
+            ...processCreateParams(params),
+        });
+    }
+    class ZodEnum extends ZodType {
+        constructor() {
+            super(...arguments);
+            _ZodEnum_cache.set(this, void 0);
+        }
+        _parse(input) {
+            if (typeof input.data !== "string") {
+                const ctx = this._getOrReturnCtx(input);
+                const expectedValues = this._def.values;
+                addIssueToContext(ctx, {
+                    expected: util.joinValues(expectedValues),
+                    received: ctx.parsedType,
+                    code: ZodIssueCode.invalid_type,
+                });
+                return INVALID;
+            }
+            if (!__classPrivateFieldGet(this, _ZodEnum_cache)) {
+                __classPrivateFieldSet(this, _ZodEnum_cache, new Set(this._def.values));
+            }
+            if (!__classPrivateFieldGet(this, _ZodEnum_cache).has(input.data)) {
+                const ctx = this._getOrReturnCtx(input);
+                const expectedValues = this._def.values;
+                addIssueToContext(ctx, {
+                    received: ctx.data,
+                    code: ZodIssueCode.invalid_enum_value,
+                    options: expectedValues,
+                });
+                return INVALID;
+            }
+            return OK(input.data);
+        }
+        get options() {
+            return this._def.values;
+        }
+        get enum() {
+            const enumValues = {};
+            for (const val of this._def.values) {
+                enumValues[val] = val;
+            }
+            return enumValues;
+        }
+        get Values() {
+            const enumValues = {};
+            for (const val of this._def.values) {
+                enumValues[val] = val;
+            }
+            return enumValues;
+        }
+        get Enum() {
+            const enumValues = {};
+            for (const val of this._def.values) {
+                enumValues[val] = val;
+            }
+            return enumValues;
+        }
+        extract(values, newDef = this._def) {
+            return ZodEnum.create(values, {
+                ...this._def,
+                ...newDef,
+            });
+        }
+        exclude(values, newDef = this._def) {
+            return ZodEnum.create(this.options.filter((opt) => !values.includes(opt)), {
+                ...this._def,
+                ...newDef,
+            });
+        }
+    }
+    _ZodEnum_cache = new WeakMap();
+    ZodEnum.create = createZodEnum;
+    class ZodNativeEnum extends ZodType {
+        constructor() {
+            super(...arguments);
+            _ZodNativeEnum_cache.set(this, void 0);
+        }
+        _parse(input) {
+            const nativeEnumValues = util.getValidEnumValues(this._def.values);
+            const ctx = this._getOrReturnCtx(input);
+            if (ctx.parsedType !== ZodParsedType.string &&
+                ctx.parsedType !== ZodParsedType.number) {
+                const expectedValues = util.objectValues(nativeEnumValues);
+                addIssueToContext(ctx, {
+                    expected: util.joinValues(expectedValues),
+                    received: ctx.parsedType,
+                    code: ZodIssueCode.invalid_type,
+                });
+                return INVALID;
+            }
+            if (!__classPrivateFieldGet(this, _ZodNativeEnum_cache)) {
+                __classPrivateFieldSet(this, _ZodNativeEnum_cache, new Set(util.getValidEnumValues(this._def.values)));
+            }
+            if (!__classPrivateFieldGet(this, _ZodNativeEnum_cache).has(input.data)) {
+                const expectedValues = util.objectValues(nativeEnumValues);
+                addIssueToContext(ctx, {
+                    received: ctx.data,
+                    code: ZodIssueCode.invalid_enum_value,
+                    options: expectedValues,
+                });
+                return INVALID;
+            }
+            return OK(input.data);
+        }
+        get enum() {
+            return this._def.values;
+        }
+    }
+    _ZodNativeEnum_cache = new WeakMap();
+    ZodNativeEnum.create = (values, params) => {
+        return new ZodNativeEnum({
+            values: values,
+            typeName: ZodFirstPartyTypeKind.ZodNativeEnum,
+            ...processCreateParams(params),
+        });
+    };
+    class ZodPromise extends ZodType {
+        unwrap() {
+            return this._def.type;
+        }
+        _parse(input) {
+            const { ctx } = this._processInputParams(input);
+            if (ctx.parsedType !== ZodParsedType.promise &&
+                ctx.common.async === false) {
+                addIssueToContext(ctx, {
+                    code: ZodIssueCode.invalid_type,
+                    expected: ZodParsedType.promise,
+                    received: ctx.parsedType,
+                });
+                return INVALID;
+            }
+            const promisified = ctx.parsedType === ZodParsedType.promise
+                ? ctx.data
+                : Promise.resolve(ctx.data);
+            return OK(promisified.then((data) => {
+                return this._def.type.parseAsync(data, {
+                    path: ctx.path,
+                    errorMap: ctx.common.contextualErrorMap,
+                });
+            }));
+        }
+    }
+    ZodPromise.create = (schema, params) => {
+        return new ZodPromise({
+            type: schema,
+            typeName: ZodFirstPartyTypeKind.ZodPromise,
+            ...processCreateParams(params),
+        });
+    };
+    class ZodEffects extends ZodType {
+        innerType() {
+            return this._def.schema;
+        }
+        sourceType() {
+            return this._def.schema._def.typeName === ZodFirstPartyTypeKind.ZodEffects
+                ? this._def.schema.sourceType()
+                : this._def.schema;
+        }
+        _parse(input) {
+            const { status, ctx } = this._processInputParams(input);
+            const effect = this._def.effect || null;
+            const checkCtx = {
+                addIssue: (arg) => {
+                    addIssueToContext(ctx, arg);
+                    if (arg.fatal) {
+                        status.abort();
+                    }
+                    else {
+                        status.dirty();
+                    }
+                },
+                get path() {
+                    return ctx.path;
+                },
+            };
+            checkCtx.addIssue = checkCtx.addIssue.bind(checkCtx);
+            if (effect.type === "preprocess") {
+                const processed = effect.transform(ctx.data, checkCtx);
+                if (ctx.common.async) {
+                    return Promise.resolve(processed).then(async (processed) => {
+                        if (status.value === "aborted")
+                            return INVALID;
+                        const result = await this._def.schema._parseAsync({
+                            data: processed,
+                            path: ctx.path,
+                            parent: ctx,
+                        });
+                        if (result.status === "aborted")
+                            return INVALID;
+                        if (result.status === "dirty")
+                            return DIRTY(result.value);
+                        if (status.value === "dirty")
+                            return DIRTY(result.value);
+                        return result;
+                    });
+                }
+                else {
+                    if (status.value === "aborted")
+                        return INVALID;
+                    const result = this._def.schema._parseSync({
+                        data: processed,
+                        path: ctx.path,
+                        parent: ctx,
+                    });
+                    if (result.status === "aborted")
+                        return INVALID;
+                    if (result.status === "dirty")
+                        return DIRTY(result.value);
+                    if (status.value === "dirty")
+                        return DIRTY(result.value);
+                    return result;
+                }
+            }
+            if (effect.type === "refinement") {
+                const executeRefinement = (acc) => {
+                    const result = effect.refinement(acc, checkCtx);
+                    if (ctx.common.async) {
+                        return Promise.resolve(result);
+                    }
+                    if (result instanceof Promise) {
+                        throw new Error("Async refinement encountered during synchronous parse operation. Use .parseAsync instead.");
+                    }
+                    return acc;
+                };
+                if (ctx.common.async === false) {
+                    const inner = this._def.schema._parseSync({
+                        data: ctx.data,
+                        path: ctx.path,
+                        parent: ctx,
+                    });
+                    if (inner.status === "aborted")
+                        return INVALID;
+                    if (inner.status === "dirty")
+                        status.dirty();
+                    executeRefinement(inner.value);
+                    return { status: status.value, value: inner.value };
+                }
+                else {
+                    return this._def.schema
+                        ._parseAsync({ data: ctx.data, path: ctx.path, parent: ctx })
+                        .then((inner) => {
+                        if (inner.status === "aborted")
+                            return INVALID;
+                        if (inner.status === "dirty")
+                            status.dirty();
+                        return executeRefinement(inner.value).then(() => {
+                            return { status: status.value, value: inner.value };
+                        });
+                    });
+                }
+            }
+            if (effect.type === "transform") {
+                if (ctx.common.async === false) {
+                    const base = this._def.schema._parseSync({
+                        data: ctx.data,
+                        path: ctx.path,
+                        parent: ctx,
+                    });
+                    if (!isValid(base))
+                        return base;
+                    const result = effect.transform(base.value, checkCtx);
+                    if (result instanceof Promise) {
+                        throw new Error(`Asynchronous transform encountered during synchronous parse operation. Use .parseAsync instead.`);
+                    }
+                    return { status: status.value, value: result };
+                }
+                else {
+                    return this._def.schema
+                        ._parseAsync({ data: ctx.data, path: ctx.path, parent: ctx })
+                        .then((base) => {
+                        if (!isValid(base))
+                            return base;
+                        return Promise.resolve(effect.transform(base.value, checkCtx)).then((result) => ({ status: status.value, value: result }));
+                    });
+                }
+            }
+            util.assertNever(effect);
+        }
+    }
+    ZodEffects.create = (schema, effect, params) => {
+        return new ZodEffects({
+            schema,
+            typeName: ZodFirstPartyTypeKind.ZodEffects,
+            effect,
+            ...processCreateParams(params),
+        });
+    };
+    ZodEffects.createWithPreprocess = (preprocess, schema, params) => {
+        return new ZodEffects({
+            schema,
+            effect: { type: "preprocess", transform: preprocess },
+            typeName: ZodFirstPartyTypeKind.ZodEffects,
+            ...processCreateParams(params),
+        });
+    };
+    class ZodOptional extends ZodType {
+        _parse(input) {
+            const parsedType = this._getType(input);
+            if (parsedType === ZodParsedType.undefined) {
+                return OK(undefined);
+            }
+            return this._def.innerType._parse(input);
+        }
+        unwrap() {
+            return this._def.innerType;
+        }
+    }
+    ZodOptional.create = (type, params) => {
+        return new ZodOptional({
+            innerType: type,
+            typeName: ZodFirstPartyTypeKind.ZodOptional,
+            ...processCreateParams(params),
+        });
+    };
+    class ZodNullable extends ZodType {
+        _parse(input) {
+            const parsedType = this._getType(input);
+            if (parsedType === ZodParsedType.null) {
+                return OK(null);
+            }
+            return this._def.innerType._parse(input);
+        }
+        unwrap() {
+            return this._def.innerType;
+        }
+    }
+    ZodNullable.create = (type, params) => {
+        return new ZodNullable({
+            innerType: type,
+            typeName: ZodFirstPartyTypeKind.ZodNullable,
+            ...processCreateParams(params),
+        });
+    };
+    class ZodDefault extends ZodType {
+        _parse(input) {
+            const { ctx } = this._processInputParams(input);
+            let data = ctx.data;
+            if (ctx.parsedType === ZodParsedType.undefined) {
+                data = this._def.defaultValue();
+            }
+            return this._def.innerType._parse({
+                data,
+                path: ctx.path,
+                parent: ctx,
+            });
+        }
+        removeDefault() {
+            return this._def.innerType;
+        }
+    }
+    ZodDefault.create = (type, params) => {
+        return new ZodDefault({
+            innerType: type,
+            typeName: ZodFirstPartyTypeKind.ZodDefault,
+            defaultValue: typeof params.default === "function"
+                ? params.default
+                : () => params.default,
+            ...processCreateParams(params),
+        });
+    };
+    class ZodCatch extends ZodType {
+        _parse(input) {
+            const { ctx } = this._processInputParams(input);
+            const newCtx = {
+                ...ctx,
+                common: {
+                    ...ctx.common,
+                    issues: [],
+                },
+            };
+            const result = this._def.innerType._parse({
+                data: newCtx.data,
+                path: newCtx.path,
+                parent: {
+                    ...newCtx,
+                },
+            });
+            if (isAsync(result)) {
+                return result.then((result) => {
+                    return {
+                        status: "valid",
+                        value: result.status === "valid"
+                            ? result.value
+                            : this._def.catchValue({
+                                get error() {
+                                    return new ZodError(newCtx.common.issues);
+                                },
+                                input: newCtx.data,
+                            }),
+                    };
+                });
+            }
+            else {
+                return {
+                    status: "valid",
+                    value: result.status === "valid"
+                        ? result.value
+                        : this._def.catchValue({
+                            get error() {
+                                return new ZodError(newCtx.common.issues);
+                            },
+                            input: newCtx.data,
+                        }),
+                };
+            }
+        }
+        removeCatch() {
+            return this._def.innerType;
+        }
+    }
+    ZodCatch.create = (type, params) => {
+        return new ZodCatch({
+            innerType: type,
+            typeName: ZodFirstPartyTypeKind.ZodCatch,
+            catchValue: typeof params.catch === "function" ? params.catch : () => params.catch,
+            ...processCreateParams(params),
+        });
+    };
+    class ZodNaN extends ZodType {
+        _parse(input) {
+            const parsedType = this._getType(input);
+            if (parsedType !== ZodParsedType.nan) {
+                const ctx = this._getOrReturnCtx(input);
+                addIssueToContext(ctx, {
+                    code: ZodIssueCode.invalid_type,
+                    expected: ZodParsedType.nan,
+                    received: ctx.parsedType,
+                });
+                return INVALID;
+            }
+            return { status: "valid", value: input.data };
+        }
+    }
+    ZodNaN.create = (params) => {
+        return new ZodNaN({
+            typeName: ZodFirstPartyTypeKind.ZodNaN,
+            ...processCreateParams(params),
+        });
+    };
+    const BRAND = Symbol("zod_brand");
+    class ZodBranded extends ZodType {
+        _parse(input) {
+            const { ctx } = this._processInputParams(input);
+            const data = ctx.data;
+            return this._def.type._parse({
+                data,
+                path: ctx.path,
+                parent: ctx,
+            });
+        }
+        unwrap() {
+            return this._def.type;
+        }
+    }
+    class ZodPipeline extends ZodType {
+        _parse(input) {
+            const { status, ctx } = this._processInputParams(input);
+            if (ctx.common.async) {
+                const handleAsync = async () => {
+                    const inResult = await this._def.in._parseAsync({
+                        data: ctx.data,
+                        path: ctx.path,
+                        parent: ctx,
+                    });
+                    if (inResult.status === "aborted")
+                        return INVALID;
+                    if (inResult.status === "dirty") {
+                        status.dirty();
+                        return DIRTY(inResult.value);
+                    }
+                    else {
+                        return this._def.out._parseAsync({
+                            data: inResult.value,
+                            path: ctx.path,
+                            parent: ctx,
+                        });
+                    }
+                };
+                return handleAsync();
+            }
+            else {
+                const inResult = this._def.in._parseSync({
+                    data: ctx.data,
+                    path: ctx.path,
+                    parent: ctx,
+                });
+                if (inResult.status === "aborted")
+                    return INVALID;
+                if (inResult.status === "dirty") {
+                    status.dirty();
+                    return {
+                        status: "dirty",
+                        value: inResult.value,
+                    };
+                }
+                else {
+                    return this._def.out._parseSync({
+                        data: inResult.value,
+                        path: ctx.path,
+                        parent: ctx,
+                    });
+                }
+            }
+        }
+        static create(a, b) {
+            return new ZodPipeline({
+                in: a,
+                out: b,
+                typeName: ZodFirstPartyTypeKind.ZodPipeline,
+            });
+        }
+    }
+    class ZodReadonly extends ZodType {
+        _parse(input) {
+            const result = this._def.innerType._parse(input);
+            const freeze = (data) => {
+                if (isValid(data)) {
+                    data.value = Object.freeze(data.value);
+                }
+                return data;
+            };
+            return isAsync(result)
+                ? result.then((data) => freeze(data))
+                : freeze(result);
+        }
+        unwrap() {
+            return this._def.innerType;
+        }
+    }
+    ZodReadonly.create = (type, params) => {
+        return new ZodReadonly({
+            innerType: type,
+            typeName: ZodFirstPartyTypeKind.ZodReadonly,
+            ...processCreateParams(params),
+        });
+    };
+    function cleanParams(params, data) {
+        const p = typeof params === "function"
+            ? params(data)
+            : typeof params === "string"
+                ? { message: params }
+                : params;
+        const p2 = typeof p === "string" ? { message: p } : p;
+        return p2;
+    }
+    function custom(check, _params = {},
+    fatal) {
+        if (check)
+            return ZodAny.create().superRefine((data, ctx) => {
+                var _a, _b;
+                const r = check(data);
+                if (r instanceof Promise) {
+                    return r.then((r) => {
+                        var _a, _b;
+                        if (!r) {
+                            const params = cleanParams(_params, data);
+                            const _fatal = (_b = (_a = params.fatal) !== null && _a !== void 0 ? _a : fatal) !== null && _b !== void 0 ? _b : true;
+                            ctx.addIssue({ code: "custom", ...params, fatal: _fatal });
+                        }
+                    });
+                }
+                if (!r) {
+                    const params = cleanParams(_params, data);
+                    const _fatal = (_b = (_a = params.fatal) !== null && _a !== void 0 ? _a : fatal) !== null && _b !== void 0 ? _b : true;
+                    ctx.addIssue({ code: "custom", ...params, fatal: _fatal });
+                }
+                return;
+            });
+        return ZodAny.create();
+    }
+    const late = {
+        object: ZodObject.lazycreate,
+    };
+    var ZodFirstPartyTypeKind;
+    (function (ZodFirstPartyTypeKind) {
+        ZodFirstPartyTypeKind["ZodString"] = "ZodString";
+        ZodFirstPartyTypeKind["ZodNumber"] = "ZodNumber";
+        ZodFirstPartyTypeKind["ZodNaN"] = "ZodNaN";
+        ZodFirstPartyTypeKind["ZodBigInt"] = "ZodBigInt";
+        ZodFirstPartyTypeKind["ZodBoolean"] = "ZodBoolean";
+        ZodFirstPartyTypeKind["ZodDate"] = "ZodDate";
+        ZodFirstPartyTypeKind["ZodSymbol"] = "ZodSymbol";
+        ZodFirstPartyTypeKind["ZodUndefined"] = "ZodUndefined";
+        ZodFirstPartyTypeKind["ZodNull"] = "ZodNull";
+        ZodFirstPartyTypeKind["ZodAny"] = "ZodAny";
+        ZodFirstPartyTypeKind["ZodUnknown"] = "ZodUnknown";
+        ZodFirstPartyTypeKind["ZodNever"] = "ZodNever";
+        ZodFirstPartyTypeKind["ZodVoid"] = "ZodVoid";
+        ZodFirstPartyTypeKind["ZodArray"] = "ZodArray";
+        ZodFirstPartyTypeKind["ZodObject"] = "ZodObject";
+        ZodFirstPartyTypeKind["ZodUnion"] = "ZodUnion";
+        ZodFirstPartyTypeKind["ZodDiscriminatedUnion"] = "ZodDiscriminatedUnion";
+        ZodFirstPartyTypeKind["ZodIntersection"] = "ZodIntersection";
+        ZodFirstPartyTypeKind["ZodTuple"] = "ZodTuple";
+        ZodFirstPartyTypeKind["ZodRecord"] = "ZodRecord";
+        ZodFirstPartyTypeKind["ZodMap"] = "ZodMap";
+        ZodFirstPartyTypeKind["ZodSet"] = "ZodSet";
+        ZodFirstPartyTypeKind["ZodFunction"] = "ZodFunction";
+        ZodFirstPartyTypeKind["ZodLazy"] = "ZodLazy";
+        ZodFirstPartyTypeKind["ZodLiteral"] = "ZodLiteral";
+        ZodFirstPartyTypeKind["ZodEnum"] = "ZodEnum";
+        ZodFirstPartyTypeKind["ZodEffects"] = "ZodEffects";
+        ZodFirstPartyTypeKind["ZodNativeEnum"] = "ZodNativeEnum";
+        ZodFirstPartyTypeKind["ZodOptional"] = "ZodOptional";
+        ZodFirstPartyTypeKind["ZodNullable"] = "ZodNullable";
+        ZodFirstPartyTypeKind["ZodDefault"] = "ZodDefault";
+        ZodFirstPartyTypeKind["ZodCatch"] = "ZodCatch";
+        ZodFirstPartyTypeKind["ZodPromise"] = "ZodPromise";
+        ZodFirstPartyTypeKind["ZodBranded"] = "ZodBranded";
+        ZodFirstPartyTypeKind["ZodPipeline"] = "ZodPipeline";
+        ZodFirstPartyTypeKind["ZodReadonly"] = "ZodReadonly";
+    })(ZodFirstPartyTypeKind || (ZodFirstPartyTypeKind = {}));
+    const instanceOfType = (
+    cls, params = {
+        message: `Input not instance of ${cls.name}`,
+    }) => custom((data) => data instanceof cls, params);
+    const stringType = ZodString.create;
+    const numberType = ZodNumber.create;
+    const nanType = ZodNaN.create;
+    const bigIntType = ZodBigInt.create;
+    const booleanType = ZodBoolean.create;
+    const dateType = ZodDate.create;
+    const symbolType = ZodSymbol.create;
+    const undefinedType = ZodUndefined.create;
+    const nullType = ZodNull.create;
+    const anyType = ZodAny.create;
+    const unknownType = ZodUnknown.create;
+    const neverType = ZodNever.create;
+    const voidType = ZodVoid.create;
+    const arrayType = ZodArray.create;
+    const objectType = ZodObject.create;
+    const strictObjectType = ZodObject.strictCreate;
+    const unionType = ZodUnion.create;
+    const discriminatedUnionType = ZodDiscriminatedUnion.create;
+    const intersectionType = ZodIntersection.create;
+    const tupleType = ZodTuple.create;
+    const recordType = ZodRecord.create;
+    const mapType = ZodMap.create;
+    const setType = ZodSet.create;
+    const functionType = ZodFunction.create;
+    const lazyType = ZodLazy.create;
+    const literalType = ZodLiteral.create;
+    const enumType = ZodEnum.create;
+    const nativeEnumType = ZodNativeEnum.create;
+    const promiseType = ZodPromise.create;
+    const effectsType = ZodEffects.create;
+    const optionalType = ZodOptional.create;
+    const nullableType = ZodNullable.create;
+    const preprocessType = ZodEffects.createWithPreprocess;
+    const pipelineType = ZodPipeline.create;
+    const ostring = () => stringType().optional();
+    const onumber = () => numberType().optional();
+    const oboolean = () => booleanType().optional();
+    const coerce = {
+        string: ((arg) => ZodString.create({ ...arg, coerce: true })),
+        number: ((arg) => ZodNumber.create({ ...arg, coerce: true })),
+        boolean: ((arg) => ZodBoolean.create({
+            ...arg,
+            coerce: true,
+        })),
+        bigint: ((arg) => ZodBigInt.create({ ...arg, coerce: true })),
+        date: ((arg) => ZodDate.create({ ...arg, coerce: true })),
+    };
+    const NEVER = INVALID;
+    var z = Object.freeze({
+        __proto__: null,
+        defaultErrorMap: errorMap,
+        setErrorMap: setErrorMap,
+        getErrorMap: getErrorMap,
+        makeIssue: makeIssue,
+        EMPTY_PATH: EMPTY_PATH,
+        addIssueToContext: addIssueToContext,
+        ParseStatus: ParseStatus,
+        INVALID: INVALID,
+        DIRTY: DIRTY,
+        OK: OK,
+        isAborted: isAborted,
+        isDirty: isDirty,
+        isValid: isValid,
+        isAsync: isAsync,
+        get util () { return util; },
+        get objectUtil () { return objectUtil; },
+        ZodParsedType: ZodParsedType,
+        getParsedType: getParsedType,
+        ZodType: ZodType,
+        datetimeRegex: datetimeRegex,
+        ZodString: ZodString,
+        ZodNumber: ZodNumber,
+        ZodBigInt: ZodBigInt,
+        ZodBoolean: ZodBoolean,
+        ZodDate: ZodDate,
+        ZodSymbol: ZodSymbol,
+        ZodUndefined: ZodUndefined,
+        ZodNull: ZodNull,
+        ZodAny: ZodAny,
+        ZodUnknown: ZodUnknown,
+        ZodNever: ZodNever,
+        ZodVoid: ZodVoid,
+        ZodArray: ZodArray,
+        ZodObject: ZodObject,
+        ZodUnion: ZodUnion,
+        ZodDiscriminatedUnion: ZodDiscriminatedUnion,
+        ZodIntersection: ZodIntersection,
+        ZodTuple: ZodTuple,
+        ZodRecord: ZodRecord,
+        ZodMap: ZodMap,
+        ZodSet: ZodSet,
+        ZodFunction: ZodFunction,
+        ZodLazy: ZodLazy,
+        ZodLiteral: ZodLiteral,
+        ZodEnum: ZodEnum,
+        ZodNativeEnum: ZodNativeEnum,
+        ZodPromise: ZodPromise,
+        ZodEffects: ZodEffects,
+        ZodTransformer: ZodEffects,
+        ZodOptional: ZodOptional,
+        ZodNullable: ZodNullable,
+        ZodDefault: ZodDefault,
+        ZodCatch: ZodCatch,
+        ZodNaN: ZodNaN,
+        BRAND: BRAND,
+        ZodBranded: ZodBranded,
+        ZodPipeline: ZodPipeline,
+        ZodReadonly: ZodReadonly,
+        custom: custom,
+        Schema: ZodType,
+        ZodSchema: ZodType,
+        late: late,
+        get ZodFirstPartyTypeKind () { return ZodFirstPartyTypeKind; },
+        coerce: coerce,
+        any: anyType,
+        array: arrayType,
+        bigint: bigIntType,
+        boolean: booleanType,
+        date: dateType,
+        discriminatedUnion: discriminatedUnionType,
+        effect: effectsType,
+        'enum': enumType,
+        'function': functionType,
+        'instanceof': instanceOfType,
+        intersection: intersectionType,
+        lazy: lazyType,
+        literal: literalType,
+        map: mapType,
+        nan: nanType,
+        nativeEnum: nativeEnumType,
+        never: neverType,
+        'null': nullType,
+        nullable: nullableType,
+        number: numberType,
+        object: objectType,
+        oboolean: oboolean,
+        onumber: onumber,
+        optional: optionalType,
+        ostring: ostring,
+        pipeline: pipelineType,
+        preprocess: preprocessType,
+        promise: promiseType,
+        record: recordType,
+        set: setType,
+        strictObject: strictObjectType,
+        string: stringType,
+        symbol: symbolType,
+        transformer: effectsType,
+        tuple: tupleType,
+        'undefined': undefinedType,
+        union: unionType,
+        unknown: unknownType,
+        'void': voidType,
+        NEVER: NEVER,
+        ZodIssueCode: ZodIssueCode,
+        quotelessJson: quotelessJson,
+        ZodError: ZodError
+    });
+
+    /**
+     * Copyright 2024 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    var Bluetooth$1;
+    (function (Bluetooth) {
+        Bluetooth.BluetoothUuidSchema = z.lazy(() => z.string());
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.BluetoothManufacturerDataSchema = z.lazy(() => z.object({
+            key: z.number().int().nonnegative(),
+            data: z.string(),
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.CharacteristicPropertiesSchema = z.lazy(() => z.object({
+            broadcast: z.boolean().optional(),
+            read: z.boolean().optional(),
+            writeWithoutResponse: z.boolean().optional(),
+            write: z.boolean().optional(),
+            notify: z.boolean().optional(),
+            indicate: z.boolean().optional(),
+            authenticatedSignedWrites: z.boolean().optional(),
+            extendedProperties: z.boolean().optional(),
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.RequestDeviceSchema = z.lazy(() => z.string());
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.RequestDeviceInfoSchema = z.lazy(() => z.object({
+            id: Bluetooth.RequestDeviceSchema,
+            name: z.union([z.string(), z.null()]),
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.RequestDevicePromptSchema = z.lazy(() => z.string());
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.ScanRecordSchema = z.lazy(() => z.object({
+            name: z.string().optional(),
+            uuids: z.array(Bluetooth.BluetoothUuidSchema).optional(),
+            appearance: z.number().optional(),
+            manufacturerData: z
+                .array(Bluetooth.BluetoothManufacturerDataSchema)
+                .optional(),
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    z.lazy(() => z.union([
+        Bluetooth$1.HandleRequestDevicePromptSchema,
+        Bluetooth$1.SimulateAdapterSchema,
+        Bluetooth$1.DisableSimulationSchema,
+        Bluetooth$1.SimulatePreconnectedPeripheralSchema,
+        Bluetooth$1.SimulateAdvertisementSchema,
+        Bluetooth$1.SimulateGattConnectionResponseSchema,
+        Bluetooth$1.SimulateGattDisconnectionSchema,
+        Bluetooth$1.SimulateServiceSchema,
+        Bluetooth$1.SimulateCharacteristicSchema,
+        Bluetooth$1.SimulateCharacteristicResponseSchema,
+        Bluetooth$1.SimulateDescriptorSchema,
+        Bluetooth$1.SimulateDescriptorResponseSchema,
+        z.object({}),
+    ]));
+    (function (Bluetooth) {
+        Bluetooth.HandleRequestDevicePromptSchema = z.lazy(() => z.object({
+            method: z.literal('bluetooth.handleRequestDevicePrompt'),
+            params: Bluetooth.HandleRequestDevicePromptParametersSchema,
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.HandleRequestDevicePromptParametersSchema = z.lazy(() => z
+            .object({
+            context: z.string(),
+            prompt: Bluetooth.RequestDevicePromptSchema,
+        })
+            .and(z.union([
+            Bluetooth.HandleRequestDevicePromptAcceptParametersSchema,
+            Bluetooth.HandleRequestDevicePromptCancelParametersSchema,
+        ])));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.HandleRequestDevicePromptAcceptParametersSchema = z.lazy(() => z.object({
+            accept: z.literal(true),
+            device: Bluetooth.RequestDeviceSchema,
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.HandleRequestDevicePromptCancelParametersSchema = z.lazy(() => z.object({
+            accept: z.literal(false),
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.SimulateAdapterSchema = z.lazy(() => z.object({
+            method: z.literal('bluetooth.simulateAdapter'),
+            params: Bluetooth.SimulateAdapterParametersSchema,
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.SimulateAdapterParametersSchema = z.lazy(() => z.object({
+            context: z.string(),
+            leSupported: z.boolean().optional(),
+            state: z.enum(['absent', 'powered-off', 'powered-on']),
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.DisableSimulationSchema = z.lazy(() => z.object({
+            method: z.literal('bluetooth.disableSimulation'),
+            params: Bluetooth.DisableSimulationParametersSchema,
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.DisableSimulationParametersSchema = z.lazy(() => z.object({
+            context: z.string(),
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.SimulatePreconnectedPeripheralSchema = z.lazy(() => z.object({
+            method: z.literal('bluetooth.simulatePreconnectedPeripheral'),
+            params: Bluetooth.SimulatePreconnectedPeripheralParametersSchema,
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.SimulatePreconnectedPeripheralParametersSchema = z.lazy(() => z.object({
+            context: z.string(),
+            address: z.string(),
+            name: z.string(),
+            manufacturerData: z.array(Bluetooth.BluetoothManufacturerDataSchema),
+            knownServiceUuids: z.array(Bluetooth.BluetoothUuidSchema),
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.SimulateAdvertisementSchema = z.lazy(() => z.object({
+            method: z.literal('bluetooth.simulateAdvertisement'),
+            params: Bluetooth.SimulateAdvertisementParametersSchema,
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.SimulateAdvertisementParametersSchema = z.lazy(() => z.object({
+            context: z.string(),
+            scanEntry: Bluetooth.SimulateAdvertisementScanEntryParametersSchema,
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.SimulateAdvertisementScanEntryParametersSchema = z.lazy(() => z.object({
+            deviceAddress: z.string(),
+            rssi: z.number(),
+            scanRecord: Bluetooth.ScanRecordSchema,
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.SimulateGattConnectionResponseSchema = z.lazy(() => z.object({
+            method: z.literal('bluetooth.simulateGattConnectionResponse'),
+            params: Bluetooth.SimulateGattConnectionResponseParametersSchema,
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.SimulateGattConnectionResponseParametersSchema = z.lazy(() => z.object({
+            context: z.string(),
+            address: z.string(),
+            code: z.number().int().nonnegative(),
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.SimulateGattDisconnectionSchema = z.lazy(() => z.object({
+            method: z.literal('bluetooth.simulateGattDisconnection'),
+            params: Bluetooth.SimulateGattDisconnectionParametersSchema,
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.SimulateGattDisconnectionParametersSchema = z.lazy(() => z.object({
+            context: z.string(),
+            address: z.string(),
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.SimulateServiceSchema = z.lazy(() => z.object({
+            method: z.literal('bluetooth.simulateService'),
+            params: Bluetooth.SimulateServiceParametersSchema,
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.SimulateServiceParametersSchema = z.lazy(() => z.object({
+            context: z.string(),
+            address: z.string(),
+            uuid: Bluetooth.BluetoothUuidSchema,
+            type: z.enum(['add', 'remove']),
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.SimulateCharacteristicSchema = z.lazy(() => z.object({
+            method: z.literal('bluetooth.simulateCharacteristic'),
+            params: Bluetooth.SimulateCharacteristicParametersSchema,
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.SimulateCharacteristicParametersSchema = z.lazy(() => z.object({
+            context: z.string(),
+            address: z.string(),
+            serviceUuid: Bluetooth.BluetoothUuidSchema,
+            characteristicUuid: Bluetooth.BluetoothUuidSchema,
+            characteristicProperties: Bluetooth.CharacteristicPropertiesSchema.optional(),
+            type: z.enum(['add', 'remove']),
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.SimulateCharacteristicResponseSchema = z.lazy(() => z.object({
+            method: z.literal('bluetooth.simulateCharacteristicResponse'),
+            params: Bluetooth.SimulateCharacteristicResponseParametersSchema,
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.SimulateCharacteristicResponseParametersSchema = z.lazy(() => z.object({
+            context: z.string(),
+            address: z.string(),
+            serviceUuid: Bluetooth.BluetoothUuidSchema,
+            characteristicUuid: Bluetooth.BluetoothUuidSchema,
+            type: z.enum([
+                'read',
+                'write',
+                'subscribe-to-notifications',
+                'unsubscribe-from-notifications',
+            ]),
+            code: z.number().int().nonnegative(),
+            data: z.array(z.number().int().nonnegative()).optional(),
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.SimulateDescriptorSchema = z.lazy(() => z.object({
+            method: z.literal('bluetooth.simulateDescriptor'),
+            params: Bluetooth.SimulateDescriptorParametersSchema,
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.SimulateDescriptorParametersSchema = z.lazy(() => z.object({
+            context: z.string(),
+            address: z.string(),
+            serviceUuid: Bluetooth.BluetoothUuidSchema,
+            characteristicUuid: Bluetooth.BluetoothUuidSchema,
+            descriptorUuid: Bluetooth.BluetoothUuidSchema,
+            type: z.enum(['add', 'remove']),
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.SimulateDescriptorResponseSchema = z.lazy(() => z.object({
+            method: z.literal('bluetooth.simulateDescriptorResponse'),
+            params: Bluetooth.SimulateDescriptorResponseParametersSchema,
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.SimulateDescriptorResponseParametersSchema = z.lazy(() => z.object({
+            context: z.string(),
+            address: z.string(),
+            serviceUuid: Bluetooth.BluetoothUuidSchema,
+            characteristicUuid: Bluetooth.BluetoothUuidSchema,
+            descriptorUuid: Bluetooth.BluetoothUuidSchema,
+            type: z.enum(['read', 'write']),
+            code: z.number().int().nonnegative(),
+            data: z.array(z.number().int().nonnegative()).optional(),
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    z.lazy(() => z.union([
+        Bluetooth$1.RequestDevicePromptUpdatedSchema,
+        Bluetooth$1.GattConnectionAttemptedSchema,
+    ]));
+    (function (Bluetooth) {
+        Bluetooth.RequestDevicePromptUpdatedSchema = z.lazy(() => z.object({
+            method: z.literal('bluetooth.requestDevicePromptUpdated'),
+            params: Bluetooth.RequestDevicePromptUpdatedParametersSchema,
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.RequestDevicePromptUpdatedParametersSchema = z.lazy(() => z.object({
+            context: z.string(),
+            prompt: Bluetooth.RequestDevicePromptSchema,
+            devices: z.array(Bluetooth.RequestDeviceInfoSchema),
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.GattConnectionAttemptedSchema = z.lazy(() => z.object({
+            method: z.literal('bluetooth.gattConnectionAttempted'),
+            params: Bluetooth.GattConnectionAttemptedParametersSchema,
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.GattConnectionAttemptedParametersSchema = z.lazy(() => z.object({
+            context: z.string(),
+            address: z.string(),
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.CharacteristicEventGeneratedSchema = z.lazy(() => z.object({
+            method: z.literal('bluetooth.characteristicEventGenerated'),
+            params: Bluetooth.CharacteristicEventGeneratedParametersSchema,
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.CharacteristicEventGeneratedParametersSchema = z.lazy(() => z.object({
+            context: z.string(),
+            address: z.string(),
+            serviceUuid: Bluetooth.BluetoothUuidSchema,
+            characteristicUuid: Bluetooth.BluetoothUuidSchema,
+            type: z.enum([
+                'read',
+                'write-with-response',
+                'write-without-response',
+                'subscribe-to-notifications',
+                'unsubscribe-from-notifications',
+            ]),
+            data: z.array(z.number().int().nonnegative()).optional(),
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.DescriptorEventGeneratedSchema = z.lazy(() => z.object({
+            method: z.literal('bluetooth.descriptorEventGenerated'),
+            params: Bluetooth.DescriptorEventGeneratedParametersSchema,
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+    (function (Bluetooth) {
+        Bluetooth.DescriptorEventGeneratedParametersSchema = z.lazy(() => z.object({
+            context: z.string(),
+            address: z.string(),
+            serviceUuid: Bluetooth.BluetoothUuidSchema,
+            characteristicUuid: Bluetooth.BluetoothUuidSchema,
+            descriptorUuid: Bluetooth.BluetoothUuidSchema,
+            type: z.enum(['read', 'write']),
+            data: z.array(z.number().int().nonnegative()).optional(),
+        }));
+    })(Bluetooth$1 || (Bluetooth$1 = {}));
+
+    /**
+     * Copyright 2024 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    z.lazy(() => Permissions$1.SetPermissionSchema);
+    var Permissions$1;
+    (function (Permissions) {
+        Permissions.PermissionDescriptorSchema = z.lazy(() => z.object({
+            name: z.string(),
+        }));
+    })(Permissions$1 || (Permissions$1 = {}));
+    (function (Permissions) {
+        Permissions.PermissionStateSchema = z.lazy(() => z.enum(['granted', 'denied', 'prompt']));
+    })(Permissions$1 || (Permissions$1 = {}));
+    (function (Permissions) {
+        Permissions.SetPermissionSchema = z.lazy(() => z.object({
+            method: z.literal('permissions.setPermission'),
+            params: Permissions.SetPermissionParametersSchema,
+        }));
+    })(Permissions$1 || (Permissions$1 = {}));
+    (function (Permissions) {
+        Permissions.SetPermissionParametersSchema = z.lazy(() => z.object({
+            descriptor: Permissions.PermissionDescriptorSchema,
+            state: Permissions.PermissionStateSchema,
+            origin: z.string(),
+            userContext: z.string().optional(),
+        }));
+    })(Permissions$1 || (Permissions$1 = {}));
+
+    /**
+     * Copyright 2024 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    const EventSchema = z.lazy(() => z
+        .object({
+        type: z.literal('event'),
+    })
+        .and(EventDataSchema)
+        .and(ExtensibleSchema));
+    z.lazy(() => z
+        .object({
+        id: JsUintSchema,
+    })
+        .and(CommandDataSchema)
+        .and(ExtensibleSchema));
+    const CommandResponseSchema = z.lazy(() => z
+        .object({
+        type: z.literal('success'),
+        id: JsUintSchema,
+        result: ResultDataSchema,
+    })
+        .and(ExtensibleSchema));
+    const EventDataSchema = z.lazy(() => z.union([
+        BrowsingContextEventSchema,
+        InputEventSchema,
+        LogEventSchema,
+        NetworkEventSchema,
+        ScriptEventSchema,
+    ]));
+    const CommandDataSchema = z.lazy(() => z.union([
+        BrowserCommandSchema,
+        BrowsingContextCommandSchema,
+        EmulationCommandSchema,
+        InputCommandSchema,
+        NetworkCommandSchema,
+        ScriptCommandSchema,
+        SessionCommandSchema,
+        StorageCommandSchema,
+        WebExtensionCommandSchema,
+    ]));
+    const ResultDataSchema = z.lazy(() => z.union([
+        BrowsingContextResultSchema,
+        EmptyResultSchema,
+        NetworkResultSchema,
+        ScriptResultSchema,
+        SessionResultSchema,
+        StorageResultSchema,
+        WebExtensionResultSchema,
+    ]));
+    const EmptyParamsSchema = z.lazy(() => ExtensibleSchema);
+    z.lazy(() => z.union([CommandResponseSchema, ErrorResponseSchema, EventSchema]));
+    const ErrorResponseSchema = z.lazy(() => z
+        .object({
+        type: z.literal('error'),
+        id: z.union([JsUintSchema, z.null()]),
+        error: ErrorCodeSchema,
+        message: z.string(),
+        stacktrace: z.string().optional(),
+    })
+        .and(ExtensibleSchema));
+    const EmptyResultSchema = z.lazy(() => ExtensibleSchema);
+    const ExtensibleSchema = z.lazy(() => z.record(z.string(), z.any()));
+    const JsIntSchema = z
+        .number()
+        .int()
+        .gte(-9007199254740991)
+        .lte(9007199254740991);
+    const JsUintSchema = z
+        .number()
+        .int()
+        .nonnegative()
+        .gte(0)
+        .lte(9007199254740991);
+    const ErrorCodeSchema = z.lazy(() => z.enum([
+        'invalid argument',
+        'invalid selector',
+        'invalid session id',
+        'invalid web extension',
+        'move target out of bounds',
+        'no such alert',
+        'no such element',
+        'no such frame',
+        'no such handle',
+        'no such history entry',
+        'no such intercept',
+        'no such node',
+        'no such request',
+        'no such script',
+        'no such storage partition',
+        'no such user context',
+        'no such web extension',
+        'session not created',
+        'unable to capture screen',
+        'unable to close browser',
+        'unable to set cookie',
+        'unable to set file input',
+        'underspecified storage partition',
+        'unknown command',
+        'unknown error',
+        'unsupported operation',
+    ]));
+    const SessionCommandSchema = z.lazy(() => z.union([
+        Session$1.EndSchema,
+        Session$1.NewSchema,
+        Session$1.StatusSchema,
+        Session$1.SubscribeSchema,
+        Session$1.UnsubscribeSchema,
+    ]));
+    var Session$1;
+    (function (Session) {
+        Session.ProxyConfigurationSchema = z.lazy(() => z.union([
+            Session.AutodetectProxyConfigurationSchema,
+            Session.DirectProxyConfigurationSchema,
+            Session.ManualProxyConfigurationSchema,
+            Session.PacProxyConfigurationSchema,
+            Session.SystemProxyConfigurationSchema,
+        ]));
+    })(Session$1 || (Session$1 = {}));
+    const SessionResultSchema = z.lazy(() => z.union([
+        Session$1.NewResultSchema,
+        Session$1.StatusResultSchema,
+        Session$1.SubscribeResultSchema,
+    ]));
+    (function (Session) {
+        Session.CapabilitiesRequestSchema = z.lazy(() => z.object({
+            alwaysMatch: Session.CapabilityRequestSchema.optional(),
+            firstMatch: z.array(Session.CapabilityRequestSchema).optional(),
+        }));
+    })(Session$1 || (Session$1 = {}));
+    (function (Session) {
+        Session.CapabilityRequestSchema = z.lazy(() => z
+            .object({
+            acceptInsecureCerts: z.boolean().optional(),
+            browserName: z.string().optional(),
+            browserVersion: z.string().optional(),
+            platformName: z.string().optional(),
+            proxy: Session.ProxyConfigurationSchema.optional(),
+            unhandledPromptBehavior: Session.UserPromptHandlerSchema.optional(),
+        })
+            .and(ExtensibleSchema));
+    })(Session$1 || (Session$1 = {}));
+    (function (Session) {
+        Session.AutodetectProxyConfigurationSchema = z.lazy(() => z
+            .object({
+            proxyType: z.literal('autodetect'),
+        })
+            .and(ExtensibleSchema));
+    })(Session$1 || (Session$1 = {}));
+    (function (Session) {
+        Session.DirectProxyConfigurationSchema = z.lazy(() => z
+            .object({
+            proxyType: z.literal('direct'),
+        })
+            .and(ExtensibleSchema));
+    })(Session$1 || (Session$1 = {}));
+    (function (Session) {
+        Session.ManualProxyConfigurationSchema = z.lazy(() => z
+            .object({
+            proxyType: z.literal('manual'),
+            ftpProxy: z.string().optional(),
+            httpProxy: z.string().optional(),
+            sslProxy: z.string().optional(),
+        })
+            .and(Session.SocksProxyConfigurationSchema.or(z.object({})))
+            .and(z.object({
+            noProxy: z.array(z.string()).optional(),
+        }))
+            .and(ExtensibleSchema));
+    })(Session$1 || (Session$1 = {}));
+    (function (Session) {
+        Session.SocksProxyConfigurationSchema = z.lazy(() => z.object({
+            socksProxy: z.string(),
+            socksVersion: z.number().int().nonnegative().gte(0).lte(255),
+        }));
+    })(Session$1 || (Session$1 = {}));
+    (function (Session) {
+        Session.PacProxyConfigurationSchema = z.lazy(() => z
+            .object({
+            proxyType: z.literal('pac'),
+            proxyAutoconfigUrl: z.string(),
+        })
+            .and(ExtensibleSchema));
+    })(Session$1 || (Session$1 = {}));
+    (function (Session) {
+        Session.SystemProxyConfigurationSchema = z.lazy(() => z
+            .object({
+            proxyType: z.literal('system'),
+        })
+            .and(ExtensibleSchema));
+    })(Session$1 || (Session$1 = {}));
+    (function (Session) {
+        Session.UserPromptHandlerSchema = z.lazy(() => z.object({
+            alert: Session.UserPromptHandlerTypeSchema.optional(),
+            beforeUnload: Session.UserPromptHandlerTypeSchema.optional(),
+            confirm: Session.UserPromptHandlerTypeSchema.optional(),
+            default: Session.UserPromptHandlerTypeSchema.optional(),
+            file: Session.UserPromptHandlerTypeSchema.optional(),
+            prompt: Session.UserPromptHandlerTypeSchema.optional(),
+        }));
+    })(Session$1 || (Session$1 = {}));
+    (function (Session) {
+        Session.UserPromptHandlerTypeSchema = z.lazy(() => z.enum(['accept', 'dismiss', 'ignore']));
+    })(Session$1 || (Session$1 = {}));
+    (function (Session) {
+        Session.SubscriptionSchema = z.lazy(() => z.string());
+    })(Session$1 || (Session$1 = {}));
+    (function (Session) {
+        Session.SubscriptionRequestSchema = z.lazy(() => z.object({
+            events: z.array(z.string()).min(1),
+            contexts: z
+                .array(BrowsingContext$1.BrowsingContextSchema)
+                .min(1)
+                .optional(),
+            userContexts: z.array(Browser$1.UserContextSchema).min(1).optional(),
+        }));
+    })(Session$1 || (Session$1 = {}));
+    (function (Session) {
+        Session.UnsubscribeByIdRequestSchema = z.lazy(() => z.object({
+            subscriptions: z.array(Session.SubscriptionSchema).min(1),
+        }));
+    })(Session$1 || (Session$1 = {}));
+    (function (Session) {
+        Session.UnsubscribeByAttributesRequestSchema = z.lazy(() => z.object({
+            events: z.array(z.string()).min(1),
+            contexts: z
+                .array(BrowsingContext$1.BrowsingContextSchema)
+                .min(1)
+                .optional(),
+        }));
+    })(Session$1 || (Session$1 = {}));
+    (function (Session) {
+        Session.StatusSchema = z.lazy(() => z.object({
+            method: z.literal('session.status'),
+            params: EmptyParamsSchema,
+        }));
+    })(Session$1 || (Session$1 = {}));
+    (function (Session) {
+        Session.StatusResultSchema = z.lazy(() => z.object({
+            ready: z.boolean(),
+            message: z.string(),
+        }));
+    })(Session$1 || (Session$1 = {}));
+    (function (Session) {
+        Session.NewSchema = z.lazy(() => z.object({
+            method: z.literal('session.new'),
+            params: Session.NewParametersSchema,
+        }));
+    })(Session$1 || (Session$1 = {}));
+    (function (Session) {
+        Session.NewParametersSchema = z.lazy(() => z.object({
+            capabilities: Session.CapabilitiesRequestSchema,
+        }));
+    })(Session$1 || (Session$1 = {}));
+    (function (Session) {
+        Session.NewResultSchema = z.lazy(() => z.object({
+            sessionId: z.string(),
+            capabilities: z
+                .object({
+                acceptInsecureCerts: z.boolean(),
+                browserName: z.string(),
+                browserVersion: z.string(),
+                platformName: z.string(),
+                setWindowRect: z.boolean(),
+                userAgent: z.string(),
+                proxy: Session.ProxyConfigurationSchema.optional(),
+                unhandledPromptBehavior: Session.UserPromptHandlerSchema.optional(),
+                webSocketUrl: z.string().optional(),
+            })
+                .and(ExtensibleSchema),
+        }));
+    })(Session$1 || (Session$1 = {}));
+    (function (Session) {
+        Session.EndSchema = z.lazy(() => z.object({
+            method: z.literal('session.end'),
+            params: EmptyParamsSchema,
+        }));
+    })(Session$1 || (Session$1 = {}));
+    (function (Session) {
+        Session.SubscribeSchema = z.lazy(() => z.object({
+            method: z.literal('session.subscribe'),
+            params: Session.SubscriptionRequestSchema,
+        }));
+    })(Session$1 || (Session$1 = {}));
+    (function (Session) {
+        Session.SubscribeResultSchema = z.lazy(() => z.object({
+            subscription: Session.SubscriptionSchema,
+        }));
+    })(Session$1 || (Session$1 = {}));
+    (function (Session) {
+        Session.UnsubscribeSchema = z.lazy(() => z.object({
+            method: z.literal('session.unsubscribe'),
+            params: Session.UnsubscribeParametersSchema,
+        }));
+    })(Session$1 || (Session$1 = {}));
+    (function (Session) {
+        Session.UnsubscribeParametersSchema = z.lazy(() => z.union([
+            Session.UnsubscribeByAttributesRequestSchema,
+            Session.UnsubscribeByIdRequestSchema,
+        ]));
+    })(Session$1 || (Session$1 = {}));
+    const BrowserCommandSchema = z.lazy(() => z.union([
+        Browser$1.CloseSchema,
+        Browser$1.CreateUserContextSchema,
+        Browser$1.GetClientWindowsSchema,
+        Browser$1.GetUserContextsSchema,
+        Browser$1.RemoveUserContextSchema,
+        Browser$1.SetClientWindowStateSchema,
+    ]));
+    z.lazy(() => z.union([
+        Browser$1.CreateUserContextResultSchema,
+        Browser$1.GetUserContextsResultSchema,
+    ]));
+    var Browser$1;
+    (function (Browser) {
+        Browser.ClientWindowSchema = z.lazy(() => z.string());
+    })(Browser$1 || (Browser$1 = {}));
+    (function (Browser) {
+        Browser.ClientWindowInfoSchema = z.lazy(() => z.object({
+            active: z.boolean(),
+            clientWindow: Browser.ClientWindowSchema,
+            height: JsUintSchema,
+            state: z.enum(['fullscreen', 'maximized', 'minimized', 'normal']),
+            width: JsUintSchema,
+            x: JsIntSchema,
+            y: JsIntSchema,
+        }));
+    })(Browser$1 || (Browser$1 = {}));
+    (function (Browser) {
+        Browser.UserContextSchema = z.lazy(() => z.string());
+    })(Browser$1 || (Browser$1 = {}));
+    (function (Browser) {
+        Browser.UserContextInfoSchema = z.lazy(() => z.object({
+            userContext: Browser.UserContextSchema,
+        }));
+    })(Browser$1 || (Browser$1 = {}));
+    (function (Browser) {
+        Browser.CloseSchema = z.lazy(() => z.object({
+            method: z.literal('browser.close'),
+            params: EmptyParamsSchema,
+        }));
+    })(Browser$1 || (Browser$1 = {}));
+    (function (Browser) {
+        Browser.CreateUserContextSchema = z.lazy(() => z.object({
+            method: z.literal('browser.createUserContext'),
+            params: Browser.CreateUserContextParametersSchema,
+        }));
+    })(Browser$1 || (Browser$1 = {}));
+    (function (Browser) {
+        Browser.CreateUserContextParametersSchema = z.lazy(() => z.object({
+            acceptInsecureCerts: z.boolean().optional(),
+            proxy: Session$1.ProxyConfigurationSchema.optional(),
+        }));
+    })(Browser$1 || (Browser$1 = {}));
+    (function (Browser) {
+        Browser.CreateUserContextResultSchema = z.lazy(() => Browser.UserContextInfoSchema);
+    })(Browser$1 || (Browser$1 = {}));
+    (function (Browser) {
+        Browser.GetClientWindowsSchema = z.lazy(() => z.object({
+            method: z.literal('browser.getClientWindows'),
+            params: EmptyParamsSchema,
+        }));
+    })(Browser$1 || (Browser$1 = {}));
+    (function (Browser) {
+        Browser.GetClientWindowsResultSchema = z.lazy(() => z.object({
+            clientWindows: z.array(Browser.ClientWindowInfoSchema),
+        }));
+    })(Browser$1 || (Browser$1 = {}));
+    (function (Browser) {
+        Browser.GetUserContextsSchema = z.lazy(() => z.object({
+            method: z.literal('browser.getUserContexts'),
+            params: EmptyParamsSchema,
+        }));
+    })(Browser$1 || (Browser$1 = {}));
+    (function (Browser) {
+        Browser.GetUserContextsResultSchema = z.lazy(() => z.object({
+            userContexts: z.array(Browser.UserContextInfoSchema).min(1),
+        }));
+    })(Browser$1 || (Browser$1 = {}));
+    (function (Browser) {
+        Browser.RemoveUserContextSchema = z.lazy(() => z.object({
+            method: z.literal('browser.removeUserContext'),
+            params: Browser.RemoveUserContextParametersSchema,
+        }));
+    })(Browser$1 || (Browser$1 = {}));
+    (function (Browser) {
+        Browser.RemoveUserContextParametersSchema = z.lazy(() => z.object({
+            userContext: Browser.UserContextSchema,
+        }));
+    })(Browser$1 || (Browser$1 = {}));
+    (function (Browser) {
+        Browser.SetClientWindowStateSchema = z.lazy(() => z.object({
+            method: z.literal('browser.setClientWindowState'),
+            params: Browser.SetClientWindowStateParametersSchema,
+        }));
+    })(Browser$1 || (Browser$1 = {}));
+    (function (Browser) {
+        Browser.SetClientWindowStateParametersSchema = z.lazy(() => z
+            .object({
+            clientWindow: Browser.ClientWindowSchema,
+        })
+            .and(z.union([
+            Browser.ClientWindowNamedStateSchema,
+            Browser.ClientWindowRectStateSchema,
+        ])));
+    })(Browser$1 || (Browser$1 = {}));
+    (function (Browser) {
+        Browser.ClientWindowNamedStateSchema = z.lazy(() => z.object({
+            state: z.enum(['fullscreen', 'maximized', 'minimized']),
+        }));
+    })(Browser$1 || (Browser$1 = {}));
+    (function (Browser) {
+        Browser.ClientWindowRectStateSchema = z.lazy(() => z.object({
+            state: z.literal('normal'),
+            width: JsUintSchema.optional(),
+            height: JsUintSchema.optional(),
+            x: JsIntSchema.optional(),
+            y: JsIntSchema.optional(),
+        }));
+    })(Browser$1 || (Browser$1 = {}));
+    const BrowsingContextCommandSchema = z.lazy(() => z.union([
+        BrowsingContext$1.ActivateSchema,
+        BrowsingContext$1.CaptureScreenshotSchema,
+        BrowsingContext$1.CloseSchema,
+        BrowsingContext$1.CreateSchema,
+        BrowsingContext$1.GetTreeSchema,
+        BrowsingContext$1.HandleUserPromptSchema,
+        BrowsingContext$1.LocateNodesSchema,
+        BrowsingContext$1.NavigateSchema,
+        BrowsingContext$1.PrintSchema,
+        BrowsingContext$1.ReloadSchema,
+        BrowsingContext$1.SetViewportSchema,
+        BrowsingContext$1.TraverseHistorySchema,
+    ]));
+    const BrowsingContextEventSchema = z.lazy(() => z.union([
+        BrowsingContext$1.ContextCreatedSchema,
+        BrowsingContext$1.ContextDestroyedSchema,
+        BrowsingContext$1.DomContentLoadedSchema,
+        BrowsingContext$1.DownloadWillBeginSchema,
+        BrowsingContext$1.FragmentNavigatedSchema,
+        BrowsingContext$1.HistoryUpdatedSchema,
+        BrowsingContext$1.LoadSchema,
+        BrowsingContext$1.NavigationAbortedSchema,
+        BrowsingContext$1.NavigationCommittedSchema,
+        BrowsingContext$1.NavigationFailedSchema,
+        BrowsingContext$1.NavigationStartedSchema,
+        BrowsingContext$1.UserPromptClosedSchema,
+        BrowsingContext$1.UserPromptOpenedSchema,
+    ]));
+    const BrowsingContextResultSchema = z.lazy(() => z.union([
+        BrowsingContext$1.CaptureScreenshotResultSchema,
+        BrowsingContext$1.CreateResultSchema,
+        BrowsingContext$1.GetTreeResultSchema,
+        BrowsingContext$1.LocateNodesResultSchema,
+        BrowsingContext$1.NavigateResultSchema,
+        BrowsingContext$1.PrintResultSchema,
+        BrowsingContext$1.TraverseHistoryResultSchema,
+    ]));
+    var BrowsingContext$1;
+    (function (BrowsingContext) {
+        BrowsingContext.BrowsingContextSchema = z.lazy(() => z.string());
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.InfoListSchema = z.lazy(() => z.array(BrowsingContext.InfoSchema));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.InfoSchema = z.lazy(() => z.object({
+            children: z.union([BrowsingContext.InfoListSchema, z.null()]),
+            clientWindow: Browser$1.ClientWindowSchema,
+            context: BrowsingContext.BrowsingContextSchema,
+            originalOpener: z.union([
+                BrowsingContext.BrowsingContextSchema,
+                z.null(),
+            ]),
+            url: z.string(),
+            userContext: Browser$1.UserContextSchema,
+            parent: z
+                .union([BrowsingContext.BrowsingContextSchema, z.null()])
+                .optional(),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.LocatorSchema = z.lazy(() => z.union([
+            BrowsingContext.AccessibilityLocatorSchema,
+            BrowsingContext.CssLocatorSchema,
+            BrowsingContext.ContextLocatorSchema,
+            BrowsingContext.InnerTextLocatorSchema,
+            BrowsingContext.XPathLocatorSchema,
+        ]));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.AccessibilityLocatorSchema = z.lazy(() => z.object({
+            type: z.literal('accessibility'),
+            value: z.object({
+                name: z.string().optional(),
+                role: z.string().optional(),
+            }),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.CssLocatorSchema = z.lazy(() => z.object({
+            type: z.literal('css'),
+            value: z.string(),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.ContextLocatorSchema = z.lazy(() => z.object({
+            type: z.literal('context'),
+            value: z.object({
+                context: BrowsingContext.BrowsingContextSchema,
+            }),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.InnerTextLocatorSchema = z.lazy(() => z.object({
+            type: z.literal('innerText'),
+            value: z.string(),
+            ignoreCase: z.boolean().optional(),
+            matchType: z.enum(['full', 'partial']).optional(),
+            maxDepth: JsUintSchema.optional(),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.XPathLocatorSchema = z.lazy(() => z.object({
+            type: z.literal('xpath'),
+            value: z.string(),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.NavigationSchema = z.lazy(() => z.string());
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.BaseNavigationInfoSchema = z.lazy(() => z.object({
+            context: BrowsingContext.BrowsingContextSchema,
+            navigation: z.union([BrowsingContext.NavigationSchema, z.null()]),
+            timestamp: JsUintSchema,
+            url: z.string(),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.NavigationInfoSchema = z.lazy(() => BrowsingContext.BaseNavigationInfoSchema);
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.ReadinessStateSchema = z.lazy(() => z.enum(['none', 'interactive', 'complete']));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.UserPromptTypeSchema = z.lazy(() => z.enum(['alert', 'beforeunload', 'confirm', 'prompt']));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.ActivateSchema = z.lazy(() => z.object({
+            method: z.literal('browsingContext.activate'),
+            params: BrowsingContext.ActivateParametersSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.ActivateParametersSchema = z.lazy(() => z.object({
+            context: BrowsingContext.BrowsingContextSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.CaptureScreenshotParametersSchema = z.lazy(() => z.object({
+            context: BrowsingContext.BrowsingContextSchema,
+            origin: z.enum(['viewport', 'document']).default('viewport').optional(),
+            format: BrowsingContext.ImageFormatSchema.optional(),
+            clip: BrowsingContext.ClipRectangleSchema.optional(),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.CaptureScreenshotSchema = z.lazy(() => z.object({
+            method: z.literal('browsingContext.captureScreenshot'),
+            params: BrowsingContext.CaptureScreenshotParametersSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.ImageFormatSchema = z.lazy(() => z.object({
+            type: z.string(),
+            quality: z.number().gte(0).lte(1).optional(),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.ClipRectangleSchema = z.lazy(() => z.union([
+            BrowsingContext.BoxClipRectangleSchema,
+            BrowsingContext.ElementClipRectangleSchema,
+        ]));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.ElementClipRectangleSchema = z.lazy(() => z.object({
+            type: z.literal('element'),
+            element: Script$1.SharedReferenceSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.BoxClipRectangleSchema = z.lazy(() => z.object({
+            type: z.literal('box'),
+            x: z.number(),
+            y: z.number(),
+            width: z.number(),
+            height: z.number(),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.CaptureScreenshotResultSchema = z.lazy(() => z.object({
+            data: z.string(),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.CloseSchema = z.lazy(() => z.object({
+            method: z.literal('browsingContext.close'),
+            params: BrowsingContext.CloseParametersSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.CloseParametersSchema = z.lazy(() => z.object({
+            context: BrowsingContext.BrowsingContextSchema,
+            promptUnload: z.boolean().default(false).optional(),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.CreateSchema = z.lazy(() => z.object({
+            method: z.literal('browsingContext.create'),
+            params: BrowsingContext.CreateParametersSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.CreateTypeSchema = z.lazy(() => z.enum(['tab', 'window']));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.CreateParametersSchema = z.lazy(() => z.object({
+            type: BrowsingContext.CreateTypeSchema,
+            referenceContext: BrowsingContext.BrowsingContextSchema.optional(),
+            background: z.boolean().default(false).optional(),
+            userContext: Browser$1.UserContextSchema.optional(),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.CreateResultSchema = z.lazy(() => z.object({
+            context: BrowsingContext.BrowsingContextSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.GetTreeSchema = z.lazy(() => z.object({
+            method: z.literal('browsingContext.getTree'),
+            params: BrowsingContext.GetTreeParametersSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.GetTreeParametersSchema = z.lazy(() => z.object({
+            maxDepth: JsUintSchema.optional(),
+            root: BrowsingContext.BrowsingContextSchema.optional(),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.GetTreeResultSchema = z.lazy(() => z.object({
+            contexts: BrowsingContext.InfoListSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.HandleUserPromptSchema = z.lazy(() => z.object({
+            method: z.literal('browsingContext.handleUserPrompt'),
+            params: BrowsingContext.HandleUserPromptParametersSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.HandleUserPromptParametersSchema = z.lazy(() => z.object({
+            context: BrowsingContext.BrowsingContextSchema,
+            accept: z.boolean().optional(),
+            userText: z.string().optional(),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.LocateNodesParametersSchema = z.lazy(() => z.object({
+            context: BrowsingContext.BrowsingContextSchema,
+            locator: BrowsingContext.LocatorSchema,
+            maxNodeCount: JsUintSchema.gte(1).optional(),
+            serializationOptions: Script$1.SerializationOptionsSchema.optional(),
+            startNodes: z.array(Script$1.SharedReferenceSchema).min(1).optional(),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.LocateNodesSchema = z.lazy(() => z.object({
+            method: z.literal('browsingContext.locateNodes'),
+            params: BrowsingContext.LocateNodesParametersSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.LocateNodesResultSchema = z.lazy(() => z.object({
+            nodes: z.array(Script$1.NodeRemoteValueSchema),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.NavigateSchema = z.lazy(() => z.object({
+            method: z.literal('browsingContext.navigate'),
+            params: BrowsingContext.NavigateParametersSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.NavigateParametersSchema = z.lazy(() => z.object({
+            context: BrowsingContext.BrowsingContextSchema,
+            url: z.string(),
+            wait: BrowsingContext.ReadinessStateSchema.optional(),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.NavigateResultSchema = z.lazy(() => z.object({
+            navigation: z.union([BrowsingContext.NavigationSchema, z.null()]),
+            url: z.string(),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.PrintSchema = z.lazy(() => z.object({
+            method: z.literal('browsingContext.print'),
+            params: BrowsingContext.PrintParametersSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.PrintParametersSchema = z.lazy(() => z.object({
+            context: BrowsingContext.BrowsingContextSchema,
+            background: z.boolean().default(false).optional(),
+            margin: BrowsingContext.PrintMarginParametersSchema.optional(),
+            orientation: z
+                .enum(['portrait', 'landscape'])
+                .default('portrait')
+                .optional(),
+            page: BrowsingContext.PrintPageParametersSchema.optional(),
+            pageRanges: z.array(z.union([JsUintSchema, z.string()])).optional(),
+            scale: z.number().gte(0.1).lte(2).default(1).optional(),
+            shrinkToFit: z.boolean().default(true).optional(),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.PrintMarginParametersSchema = z.lazy(() => z.object({
+            bottom: z.number().gte(0).default(1).optional(),
+            left: z.number().gte(0).default(1).optional(),
+            right: z.number().gte(0).default(1).optional(),
+            top: z.number().gte(0).default(1).optional(),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.PrintPageParametersSchema = z.lazy(() => z.object({
+            height: z.number().gte(0.0352).default(27.94).optional(),
+            width: z.number().gte(0.0352).default(21.59).optional(),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.PrintResultSchema = z.lazy(() => z.object({
+            data: z.string(),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.ReloadSchema = z.lazy(() => z.object({
+            method: z.literal('browsingContext.reload'),
+            params: BrowsingContext.ReloadParametersSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.ReloadParametersSchema = z.lazy(() => z.object({
+            context: BrowsingContext.BrowsingContextSchema,
+            ignoreCache: z.boolean().optional(),
+            wait: BrowsingContext.ReadinessStateSchema.optional(),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.SetViewportSchema = z.lazy(() => z.object({
+            method: z.literal('browsingContext.setViewport'),
+            params: BrowsingContext.SetViewportParametersSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.SetViewportParametersSchema = z.lazy(() => z.object({
+            context: BrowsingContext.BrowsingContextSchema.optional(),
+            viewport: z.union([BrowsingContext.ViewportSchema, z.null()]).optional(),
+            devicePixelRatio: z.union([z.number().gt(0), z.null()]).optional(),
+            userContexts: z.array(Browser$1.UserContextSchema).min(1).optional(),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.ViewportSchema = z.lazy(() => z.object({
+            width: JsUintSchema,
+            height: JsUintSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.TraverseHistorySchema = z.lazy(() => z.object({
+            method: z.literal('browsingContext.traverseHistory'),
+            params: BrowsingContext.TraverseHistoryParametersSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.TraverseHistoryParametersSchema = z.lazy(() => z.object({
+            context: BrowsingContext.BrowsingContextSchema,
+            delta: JsIntSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.TraverseHistoryResultSchema = z.lazy(() => z.object({}));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.ContextCreatedSchema = z.lazy(() => z.object({
+            method: z.literal('browsingContext.contextCreated'),
+            params: BrowsingContext.InfoSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.ContextDestroyedSchema = z.lazy(() => z.object({
+            method: z.literal('browsingContext.contextDestroyed'),
+            params: BrowsingContext.InfoSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.NavigationStartedSchema = z.lazy(() => z.object({
+            method: z.literal('browsingContext.navigationStarted'),
+            params: BrowsingContext.NavigationInfoSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.FragmentNavigatedSchema = z.lazy(() => z.object({
+            method: z.literal('browsingContext.fragmentNavigated'),
+            params: BrowsingContext.NavigationInfoSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.HistoryUpdatedSchema = z.lazy(() => z.object({
+            method: z.literal('browsingContext.historyUpdated'),
+            params: BrowsingContext.HistoryUpdatedParametersSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.HistoryUpdatedParametersSchema = z.lazy(() => z.object({
+            context: BrowsingContext.BrowsingContextSchema,
+            url: z.string(),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.DomContentLoadedSchema = z.lazy(() => z.object({
+            method: z.literal('browsingContext.domContentLoaded'),
+            params: BrowsingContext.NavigationInfoSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.LoadSchema = z.lazy(() => z.object({
+            method: z.literal('browsingContext.load'),
+            params: BrowsingContext.NavigationInfoSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.DownloadWillBeginSchema = z.lazy(() => z.object({
+            method: z.literal('browsingContext.downloadWillBegin'),
+            params: BrowsingContext.DownloadWillBeginParamsSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.DownloadWillBeginParamsSchema = z.lazy(() => z
+            .object({
+            suggestedFilename: z.string(),
+        })
+            .and(BrowsingContext.BaseNavigationInfoSchema));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.NavigationAbortedSchema = z.lazy(() => z.object({
+            method: z.literal('browsingContext.navigationAborted'),
+            params: BrowsingContext.NavigationInfoSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.NavigationCommittedSchema = z.lazy(() => z.object({
+            method: z.literal('browsingContext.navigationCommitted'),
+            params: BrowsingContext.NavigationInfoSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.NavigationFailedSchema = z.lazy(() => z.object({
+            method: z.literal('browsingContext.navigationFailed'),
+            params: BrowsingContext.NavigationInfoSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.UserPromptClosedSchema = z.lazy(() => z.object({
+            method: z.literal('browsingContext.userPromptClosed'),
+            params: BrowsingContext.UserPromptClosedParametersSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.UserPromptClosedParametersSchema = z.lazy(() => z.object({
+            context: BrowsingContext.BrowsingContextSchema,
+            accepted: z.boolean(),
+            type: BrowsingContext.UserPromptTypeSchema,
+            userText: z.string().optional(),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.UserPromptOpenedSchema = z.lazy(() => z.object({
+            method: z.literal('browsingContext.userPromptOpened'),
+            params: BrowsingContext.UserPromptOpenedParametersSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.UserPromptOpenedParametersSchema = z.lazy(() => z.object({
+            context: BrowsingContext.BrowsingContextSchema,
+            handler: Session$1.UserPromptHandlerTypeSchema,
+            message: z.string(),
+            type: BrowsingContext.UserPromptTypeSchema,
+            defaultValue: z.string().optional(),
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    const EmulationCommandSchema = z.lazy(() => Emulation$1.SetGeolocationOverrideSchema);
+    var Emulation$1;
+    (function (Emulation) {
+        Emulation.SetGeolocationOverrideSchema = z.lazy(() => z.object({
+            method: z.literal('emulation.setGeolocationOverride'),
+            params: Emulation.SetGeolocationOverrideParametersSchema,
+        }));
+    })(Emulation$1 || (Emulation$1 = {}));
+    (function (Emulation) {
+        Emulation.SetGeolocationOverrideParametersSchema = z.lazy(() => z
+            .union([
+            z.object({
+                coordinates: z.union([
+                    Emulation.GeolocationCoordinatesSchema,
+                    z.null(),
+                ]),
+            }),
+            z.object({
+                error: Emulation.GeolocationPositionErrorSchema,
+            }),
+        ])
+            .and(z.object({
+            contexts: z
+                .array(BrowsingContext$1.BrowsingContextSchema)
+                .min(1)
+                .optional(),
+            userContexts: z.array(Browser$1.UserContextSchema).min(1).optional(),
+        })));
+    })(Emulation$1 || (Emulation$1 = {}));
+    (function (Emulation) {
+        Emulation.GeolocationCoordinatesSchema = z.lazy(() => z.object({
+            latitude: z.number().gte(-90).lte(90),
+            longitude: z.number().gte(-180).lte(180),
+            accuracy: z.number().gte(0).default(1).optional(),
+            altitude: z.union([z.number(), z.null().default(null)]).optional(),
+            altitudeAccuracy: z
+                .union([z.number().gte(0), z.null().default(null)])
+                .optional(),
+            heading: z
+                .union([z.number().gt(0).lt(360), z.null().default(null)])
+                .optional(),
+            speed: z.union([z.number().gte(0), z.null().default(null)]).optional(),
+        }));
+    })(Emulation$1 || (Emulation$1 = {}));
+    (function (Emulation) {
+        Emulation.GeolocationPositionErrorSchema = z.lazy(() => z.object({
+            type: z.literal('positionUnavailable'),
+        }));
+    })(Emulation$1 || (Emulation$1 = {}));
+    const NetworkCommandSchema = z.lazy(() => z.union([
+        Network$1.AddInterceptSchema,
+        Network$1.ContinueRequestSchema,
+        Network$1.ContinueResponseSchema,
+        Network$1.ContinueWithAuthSchema,
+        Network$1.FailRequestSchema,
+        Network$1.ProvideResponseSchema,
+        Network$1.RemoveInterceptSchema,
+        Network$1.SetCacheBehaviorSchema,
+    ]));
+    const NetworkEventSchema = z.lazy(() => z.union([
+        Network$1.AuthRequiredSchema,
+        Network$1.BeforeRequestSentSchema,
+        Network$1.FetchErrorSchema,
+        Network$1.ResponseCompletedSchema,
+        Network$1.ResponseStartedSchema,
+    ]));
+    const NetworkResultSchema = z.lazy(() => Network$1.AddInterceptResultSchema);
+    var Network$1;
+    (function (Network) {
+        Network.AuthChallengeSchema = z.lazy(() => z.object({
+            scheme: z.string(),
+            realm: z.string(),
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.AuthCredentialsSchema = z.lazy(() => z.object({
+            type: z.literal('password'),
+            username: z.string(),
+            password: z.string(),
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.BaseParametersSchema = z.lazy(() => z.object({
+            context: z.union([BrowsingContext$1.BrowsingContextSchema, z.null()]),
+            isBlocked: z.boolean(),
+            navigation: z.union([BrowsingContext$1.NavigationSchema, z.null()]),
+            redirectCount: JsUintSchema,
+            request: Network.RequestDataSchema,
+            timestamp: JsUintSchema,
+            intercepts: z.array(Network.InterceptSchema).min(1).optional(),
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.BytesValueSchema = z.lazy(() => z.union([Network.StringValueSchema, Network.Base64ValueSchema]));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.StringValueSchema = z.lazy(() => z.object({
+            type: z.literal('string'),
+            value: z.string(),
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.Base64ValueSchema = z.lazy(() => z.object({
+            type: z.literal('base64'),
+            value: z.string(),
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.SameSiteSchema = z.lazy(() => z.enum(['strict', 'lax', 'none']));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.CookieSchema = z.lazy(() => z
+            .object({
+            name: z.string(),
+            value: Network.BytesValueSchema,
+            domain: z.string(),
+            path: z.string(),
+            size: JsUintSchema,
+            httpOnly: z.boolean(),
+            secure: z.boolean(),
+            sameSite: Network.SameSiteSchema,
+            expiry: JsUintSchema.optional(),
+        })
+            .and(ExtensibleSchema));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.CookieHeaderSchema = z.lazy(() => z.object({
+            name: z.string(),
+            value: Network.BytesValueSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.FetchTimingInfoSchema = z.lazy(() => z.object({
+            timeOrigin: z.number(),
+            requestTime: z.number(),
+            redirectStart: z.number(),
+            redirectEnd: z.number(),
+            fetchStart: z.number(),
+            dnsStart: z.number(),
+            dnsEnd: z.number(),
+            connectStart: z.number(),
+            connectEnd: z.number(),
+            tlsStart: z.number(),
+            requestStart: z.number(),
+            responseStart: z.number(),
+            responseEnd: z.number(),
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.HeaderSchema = z.lazy(() => z.object({
+            name: z.string(),
+            value: Network.BytesValueSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.InitiatorSchema = z.lazy(() => z.object({
+            columnNumber: JsUintSchema.optional(),
+            lineNumber: JsUintSchema.optional(),
+            request: Network.RequestSchema.optional(),
+            stackTrace: Script$1.StackTraceSchema.optional(),
+            type: z.enum(['parser', 'script', 'preflight', 'other']).optional(),
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.InterceptSchema = z.lazy(() => z.string());
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.RequestSchema = z.lazy(() => z.string());
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.RequestDataSchema = z.lazy(() => z.object({
+            request: Network.RequestSchema,
+            url: z.string(),
+            method: z.string(),
+            headers: z.array(Network.HeaderSchema),
+            cookies: z.array(Network.CookieSchema),
+            headersSize: JsUintSchema,
+            bodySize: z.union([JsUintSchema, z.null()]),
+            destination: z.string(),
+            initiatorType: z.union([z.string(), z.null()]),
+            timings: Network.FetchTimingInfoSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.ResponseContentSchema = z.lazy(() => z.object({
+            size: JsUintSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.ResponseDataSchema = z.lazy(() => z.object({
+            url: z.string(),
+            protocol: z.string(),
+            status: JsUintSchema,
+            statusText: z.string(),
+            fromCache: z.boolean(),
+            headers: z.array(Network.HeaderSchema),
+            mimeType: z.string(),
+            bytesReceived: JsUintSchema,
+            headersSize: z.union([JsUintSchema, z.null()]),
+            bodySize: z.union([JsUintSchema, z.null()]),
+            content: Network.ResponseContentSchema,
+            authChallenges: z.array(Network.AuthChallengeSchema).optional(),
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.SetCookieHeaderSchema = z.lazy(() => z.object({
+            name: z.string(),
+            value: Network.BytesValueSchema,
+            domain: z.string().optional(),
+            httpOnly: z.boolean().optional(),
+            expiry: z.string().optional(),
+            maxAge: JsIntSchema.optional(),
+            path: z.string().optional(),
+            sameSite: Network.SameSiteSchema.optional(),
+            secure: z.boolean().optional(),
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.UrlPatternSchema = z.lazy(() => z.union([Network.UrlPatternPatternSchema, Network.UrlPatternStringSchema]));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.UrlPatternPatternSchema = z.lazy(() => z.object({
+            type: z.literal('pattern'),
+            protocol: z.string().optional(),
+            hostname: z.string().optional(),
+            port: z.string().optional(),
+            pathname: z.string().optional(),
+            search: z.string().optional(),
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.UrlPatternStringSchema = z.lazy(() => z.object({
+            type: z.literal('string'),
+            pattern: z.string(),
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.AddInterceptParametersSchema = z.lazy(() => z.object({
+            phases: z.array(Network.InterceptPhaseSchema).min(1),
+            contexts: z
+                .array(BrowsingContext$1.BrowsingContextSchema)
+                .min(1)
+                .optional(),
+            urlPatterns: z.array(Network.UrlPatternSchema).optional(),
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.AddInterceptSchema = z.lazy(() => z.object({
+            method: z.literal('network.addIntercept'),
+            params: Network.AddInterceptParametersSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.InterceptPhaseSchema = z.lazy(() => z.enum(['beforeRequestSent', 'responseStarted', 'authRequired']));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.AddInterceptResultSchema = z.lazy(() => z.object({
+            intercept: Network.InterceptSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.ContinueRequestSchema = z.lazy(() => z.object({
+            method: z.literal('network.continueRequest'),
+            params: Network.ContinueRequestParametersSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.ContinueRequestParametersSchema = z.lazy(() => z.object({
+            request: Network.RequestSchema,
+            body: Network.BytesValueSchema.optional(),
+            cookies: z.array(Network.CookieHeaderSchema).optional(),
+            headers: z.array(Network.HeaderSchema).optional(),
+            method: z.string().optional(),
+            url: z.string().optional(),
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.ContinueResponseSchema = z.lazy(() => z.object({
+            method: z.literal('network.continueResponse'),
+            params: Network.ContinueResponseParametersSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.ContinueResponseParametersSchema = z.lazy(() => z.object({
+            request: Network.RequestSchema,
+            cookies: z.array(Network.SetCookieHeaderSchema).optional(),
+            credentials: Network.AuthCredentialsSchema.optional(),
+            headers: z.array(Network.HeaderSchema).optional(),
+            reasonPhrase: z.string().optional(),
+            statusCode: JsUintSchema.optional(),
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.ContinueWithAuthSchema = z.lazy(() => z.object({
+            method: z.literal('network.continueWithAuth'),
+            params: Network.ContinueWithAuthParametersSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.ContinueWithAuthParametersSchema = z.lazy(() => z
+            .object({
+            request: Network.RequestSchema,
+        })
+            .and(z.union([
+            Network.ContinueWithAuthCredentialsSchema,
+            Network.ContinueWithAuthNoCredentialsSchema,
+        ])));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.ContinueWithAuthCredentialsSchema = z.lazy(() => z.object({
+            action: z.literal('provideCredentials'),
+            credentials: Network.AuthCredentialsSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.ContinueWithAuthNoCredentialsSchema = z.lazy(() => z.object({
+            action: z.enum(['default', 'cancel']),
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.FailRequestSchema = z.lazy(() => z.object({
+            method: z.literal('network.failRequest'),
+            params: Network.FailRequestParametersSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.FailRequestParametersSchema = z.lazy(() => z.object({
+            request: Network.RequestSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.ProvideResponseSchema = z.lazy(() => z.object({
+            method: z.literal('network.provideResponse'),
+            params: Network.ProvideResponseParametersSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.ProvideResponseParametersSchema = z.lazy(() => z.object({
+            request: Network.RequestSchema,
+            body: Network.BytesValueSchema.optional(),
+            cookies: z.array(Network.SetCookieHeaderSchema).optional(),
+            headers: z.array(Network.HeaderSchema).optional(),
+            reasonPhrase: z.string().optional(),
+            statusCode: JsUintSchema.optional(),
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.RemoveInterceptSchema = z.lazy(() => z.object({
+            method: z.literal('network.removeIntercept'),
+            params: Network.RemoveInterceptParametersSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.RemoveInterceptParametersSchema = z.lazy(() => z.object({
+            intercept: Network.InterceptSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.SetCacheBehaviorSchema = z.lazy(() => z.object({
+            method: z.literal('network.setCacheBehavior'),
+            params: Network.SetCacheBehaviorParametersSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.SetCacheBehaviorParametersSchema = z.lazy(() => z.object({
+            cacheBehavior: z.enum(['default', 'bypass']),
+            contexts: z
+                .array(BrowsingContext$1.BrowsingContextSchema)
+                .min(1)
+                .optional(),
+        }));
+    })(Network$1 || (Network$1 = {}));
+    const ScriptEventSchema = z.lazy(() => z.union([
+        Script$1.MessageSchema,
+        Script$1.RealmCreatedSchema,
+        Script$1.RealmDestroyedSchema,
+    ]));
+    (function (Network) {
+        Network.AuthRequiredParametersSchema = z.lazy(() => Network.BaseParametersSchema.and(z.object({
+            response: Network.ResponseDataSchema,
+        })));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.BeforeRequestSentParametersSchema = z.lazy(() => Network.BaseParametersSchema.and(z.object({
+            initiator: Network.InitiatorSchema.optional(),
+        })));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.FetchErrorParametersSchema = z.lazy(() => Network.BaseParametersSchema.and(z.object({
+            errorText: z.string(),
+        })));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.ResponseCompletedParametersSchema = z.lazy(() => Network.BaseParametersSchema.and(z.object({
+            response: Network.ResponseDataSchema,
+        })));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.ResponseStartedParametersSchema = z.lazy(() => Network.BaseParametersSchema.and(z.object({
+            response: Network.ResponseDataSchema,
+        })));
+    })(Network$1 || (Network$1 = {}));
+    const ScriptCommandSchema = z.lazy(() => z.union([
+        Script$1.AddPreloadScriptSchema,
+        Script$1.CallFunctionSchema,
+        Script$1.DisownSchema,
+        Script$1.EvaluateSchema,
+        Script$1.GetRealmsSchema,
+        Script$1.RemovePreloadScriptSchema,
+    ]));
+    const ScriptResultSchema = z.lazy(() => z.union([
+        Script$1.AddPreloadScriptResultSchema,
+        Script$1.EvaluateResultSchema,
+        Script$1.GetRealmsResultSchema,
+    ]));
+    (function (Network) {
+        Network.AuthRequiredSchema = z.lazy(() => z.object({
+            method: z.literal('network.authRequired'),
+            params: Network.AuthRequiredParametersSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.BeforeRequestSentSchema = z.lazy(() => z.object({
+            method: z.literal('network.beforeRequestSent'),
+            params: Network.BeforeRequestSentParametersSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.FetchErrorSchema = z.lazy(() => z.object({
+            method: z.literal('network.fetchError'),
+            params: Network.FetchErrorParametersSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.ResponseCompletedSchema = z.lazy(() => z.object({
+            method: z.literal('network.responseCompleted'),
+            params: Network.ResponseCompletedParametersSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.ResponseStartedSchema = z.lazy(() => z.object({
+            method: z.literal('network.responseStarted'),
+            params: Network.ResponseStartedParametersSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    var Script$1;
+    (function (Script) {
+        Script.ChannelSchema = z.lazy(() => z.string());
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.EvaluateResultSuccessSchema = z.lazy(() => z.object({
+            type: z.literal('success'),
+            result: Script.RemoteValueSchema,
+            realm: Script.RealmSchema,
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.ExceptionDetailsSchema = z.lazy(() => z.object({
+            columnNumber: JsUintSchema,
+            exception: Script.RemoteValueSchema,
+            lineNumber: JsUintSchema,
+            stackTrace: Script.StackTraceSchema,
+            text: z.string(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.ChannelValueSchema = z.lazy(() => z.object({
+            type: z.literal('channel'),
+            value: Script.ChannelPropertiesSchema,
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.ChannelPropertiesSchema = z.lazy(() => z.object({
+            channel: Script.ChannelSchema,
+            serializationOptions: Script.SerializationOptionsSchema.optional(),
+            ownership: Script.ResultOwnershipSchema.optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.EvaluateResultSchema = z.lazy(() => z.union([
+            Script.EvaluateResultSuccessSchema,
+            Script.EvaluateResultExceptionSchema,
+        ]));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.EvaluateResultExceptionSchema = z.lazy(() => z.object({
+            type: z.literal('exception'),
+            exceptionDetails: Script.ExceptionDetailsSchema,
+            realm: Script.RealmSchema,
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.HandleSchema = z.lazy(() => z.string());
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.InternalIdSchema = z.lazy(() => z.string());
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.ListLocalValueSchema = z.lazy(() => z.array(Script.LocalValueSchema));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.LocalValueSchema = z.lazy(() => z.union([
+            Script.RemoteReferenceSchema,
+            Script.PrimitiveProtocolValueSchema,
+            Script.ChannelValueSchema,
+            Script.ArrayLocalValueSchema,
+            Script.DateLocalValueSchema,
+            Script.MapLocalValueSchema,
+            Script.ObjectLocalValueSchema,
+            Script.RegExpLocalValueSchema,
+            Script.SetLocalValueSchema,
+        ]));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.ArrayLocalValueSchema = z.lazy(() => z.object({
+            type: z.literal('array'),
+            value: Script.ListLocalValueSchema,
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.DateLocalValueSchema = z.lazy(() => z.object({
+            type: z.literal('date'),
+            value: z.string(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.MappingLocalValueSchema = z.lazy(() => z.array(z.tuple([
+            z.union([Script.LocalValueSchema, z.string()]),
+            Script.LocalValueSchema,
+        ])));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.MapLocalValueSchema = z.lazy(() => z.object({
+            type: z.literal('map'),
+            value: Script.MappingLocalValueSchema,
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.ObjectLocalValueSchema = z.lazy(() => z.object({
+            type: z.literal('object'),
+            value: Script.MappingLocalValueSchema,
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.RegExpValueSchema = z.lazy(() => z.object({
+            pattern: z.string(),
+            flags: z.string().optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.RegExpLocalValueSchema = z.lazy(() => z.object({
+            type: z.literal('regexp'),
+            value: Script.RegExpValueSchema,
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.SetLocalValueSchema = z.lazy(() => z.object({
+            type: z.literal('set'),
+            value: Script.ListLocalValueSchema,
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.PreloadScriptSchema = z.lazy(() => z.string());
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.RealmSchema = z.lazy(() => z.string());
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.PrimitiveProtocolValueSchema = z.lazy(() => z.union([
+            Script.UndefinedValueSchema,
+            Script.NullValueSchema,
+            Script.StringValueSchema,
+            Script.NumberValueSchema,
+            Script.BooleanValueSchema,
+            Script.BigIntValueSchema,
+        ]));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.UndefinedValueSchema = z.lazy(() => z.object({
+            type: z.literal('undefined'),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.NullValueSchema = z.lazy(() => z.object({
+            type: z.literal('null'),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.StringValueSchema = z.lazy(() => z.object({
+            type: z.literal('string'),
+            value: z.string(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.SpecialNumberSchema = z.lazy(() => z.enum(['NaN', '-0', 'Infinity', '-Infinity']));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.NumberValueSchema = z.lazy(() => z.object({
+            type: z.literal('number'),
+            value: z.union([z.number(), Script.SpecialNumberSchema]),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.BooleanValueSchema = z.lazy(() => z.object({
+            type: z.literal('boolean'),
+            value: z.boolean(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.BigIntValueSchema = z.lazy(() => z.object({
+            type: z.literal('bigint'),
+            value: z.string(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.RealmInfoSchema = z.lazy(() => z.union([
+            Script.WindowRealmInfoSchema,
+            Script.DedicatedWorkerRealmInfoSchema,
+            Script.SharedWorkerRealmInfoSchema,
+            Script.ServiceWorkerRealmInfoSchema,
+            Script.WorkerRealmInfoSchema,
+            Script.PaintWorkletRealmInfoSchema,
+            Script.AudioWorkletRealmInfoSchema,
+            Script.WorkletRealmInfoSchema,
+        ]));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.BaseRealmInfoSchema = z.lazy(() => z.object({
+            realm: Script.RealmSchema,
+            origin: z.string(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.WindowRealmInfoSchema = z.lazy(() => Script.BaseRealmInfoSchema.and(z.object({
+            type: z.literal('window'),
+            context: BrowsingContext$1.BrowsingContextSchema,
+            sandbox: z.string().optional(),
+        })));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.DedicatedWorkerRealmInfoSchema = z.lazy(() => Script.BaseRealmInfoSchema.and(z.object({
+            type: z.literal('dedicated-worker'),
+            owners: z.tuple([Script.RealmSchema]),
+        })));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.SharedWorkerRealmInfoSchema = z.lazy(() => Script.BaseRealmInfoSchema.and(z.object({
+            type: z.literal('shared-worker'),
+        })));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.ServiceWorkerRealmInfoSchema = z.lazy(() => Script.BaseRealmInfoSchema.and(z.object({
+            type: z.literal('service-worker'),
+        })));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.WorkerRealmInfoSchema = z.lazy(() => Script.BaseRealmInfoSchema.and(z.object({
+            type: z.literal('worker'),
+        })));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.PaintWorkletRealmInfoSchema = z.lazy(() => Script.BaseRealmInfoSchema.and(z.object({
+            type: z.literal('paint-worklet'),
+        })));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.AudioWorkletRealmInfoSchema = z.lazy(() => Script.BaseRealmInfoSchema.and(z.object({
+            type: z.literal('audio-worklet'),
+        })));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.WorkletRealmInfoSchema = z.lazy(() => Script.BaseRealmInfoSchema.and(z.object({
+            type: z.literal('worklet'),
+        })));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.RealmTypeSchema = z.lazy(() => z.enum([
+            'window',
+            'dedicated-worker',
+            'shared-worker',
+            'service-worker',
+            'worker',
+            'paint-worklet',
+            'audio-worklet',
+            'worklet',
+        ]));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.ListRemoteValueSchema = z.lazy(() => z.array(Script.RemoteValueSchema));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.MappingRemoteValueSchema = z.lazy(() => z.array(z.tuple([
+            z.union([Script.RemoteValueSchema, z.string()]),
+            Script.RemoteValueSchema,
+        ])));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.RemoteValueSchema = z.lazy(() => z.union([
+            Script.PrimitiveProtocolValueSchema,
+            Script.SymbolRemoteValueSchema,
+            Script.ArrayRemoteValueSchema,
+            Script.ObjectRemoteValueSchema,
+            Script.FunctionRemoteValueSchema,
+            Script.RegExpRemoteValueSchema,
+            Script.DateRemoteValueSchema,
+            Script.MapRemoteValueSchema,
+            Script.SetRemoteValueSchema,
+            Script.WeakMapRemoteValueSchema,
+            Script.WeakSetRemoteValueSchema,
+            Script.GeneratorRemoteValueSchema,
+            Script.ErrorRemoteValueSchema,
+            Script.ProxyRemoteValueSchema,
+            Script.PromiseRemoteValueSchema,
+            Script.TypedArrayRemoteValueSchema,
+            Script.ArrayBufferRemoteValueSchema,
+            Script.NodeListRemoteValueSchema,
+            Script.HtmlCollectionRemoteValueSchema,
+            Script.NodeRemoteValueSchema,
+            Script.WindowProxyRemoteValueSchema,
+        ]));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.RemoteReferenceSchema = z.lazy(() => z.union([Script.SharedReferenceSchema, Script.RemoteObjectReferenceSchema]));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.SharedReferenceSchema = z.lazy(() => z
+            .object({
+            sharedId: Script.SharedIdSchema,
+            handle: Script.HandleSchema.optional(),
+        })
+            .and(ExtensibleSchema));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.RemoteObjectReferenceSchema = z.lazy(() => z
+            .object({
+            handle: Script.HandleSchema,
+            sharedId: Script.SharedIdSchema.optional(),
+        })
+            .and(ExtensibleSchema));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.SymbolRemoteValueSchema = z.lazy(() => z.object({
+            type: z.literal('symbol'),
+            handle: Script.HandleSchema.optional(),
+            internalId: Script.InternalIdSchema.optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.ArrayRemoteValueSchema = z.lazy(() => z.object({
+            type: z.literal('array'),
+            handle: Script.HandleSchema.optional(),
+            internalId: Script.InternalIdSchema.optional(),
+            value: Script.ListRemoteValueSchema.optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.ObjectRemoteValueSchema = z.lazy(() => z.object({
+            type: z.literal('object'),
+            handle: Script.HandleSchema.optional(),
+            internalId: Script.InternalIdSchema.optional(),
+            value: Script.MappingRemoteValueSchema.optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.FunctionRemoteValueSchema = z.lazy(() => z.object({
+            type: z.literal('function'),
+            handle: Script.HandleSchema.optional(),
+            internalId: Script.InternalIdSchema.optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.RegExpRemoteValueSchema = z.lazy(() => Script.RegExpLocalValueSchema.and(z.object({
+            handle: Script.HandleSchema.optional(),
+            internalId: Script.InternalIdSchema.optional(),
+        })));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.DateRemoteValueSchema = z.lazy(() => Script.DateLocalValueSchema.and(z.object({
+            handle: Script.HandleSchema.optional(),
+            internalId: Script.InternalIdSchema.optional(),
+        })));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.MapRemoteValueSchema = z.lazy(() => z.object({
+            type: z.literal('map'),
+            handle: Script.HandleSchema.optional(),
+            internalId: Script.InternalIdSchema.optional(),
+            value: Script.MappingRemoteValueSchema.optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.SetRemoteValueSchema = z.lazy(() => z.object({
+            type: z.literal('set'),
+            handle: Script.HandleSchema.optional(),
+            internalId: Script.InternalIdSchema.optional(),
+            value: Script.ListRemoteValueSchema.optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.WeakMapRemoteValueSchema = z.lazy(() => z.object({
+            type: z.literal('weakmap'),
+            handle: Script.HandleSchema.optional(),
+            internalId: Script.InternalIdSchema.optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.WeakSetRemoteValueSchema = z.lazy(() => z.object({
+            type: z.literal('weakset'),
+            handle: Script.HandleSchema.optional(),
+            internalId: Script.InternalIdSchema.optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.GeneratorRemoteValueSchema = z.lazy(() => z.object({
+            type: z.literal('generator'),
+            handle: Script.HandleSchema.optional(),
+            internalId: Script.InternalIdSchema.optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.ErrorRemoteValueSchema = z.lazy(() => z.object({
+            type: z.literal('error'),
+            handle: Script.HandleSchema.optional(),
+            internalId: Script.InternalIdSchema.optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.ProxyRemoteValueSchema = z.lazy(() => z.object({
+            type: z.literal('proxy'),
+            handle: Script.HandleSchema.optional(),
+            internalId: Script.InternalIdSchema.optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.PromiseRemoteValueSchema = z.lazy(() => z.object({
+            type: z.literal('promise'),
+            handle: Script.HandleSchema.optional(),
+            internalId: Script.InternalIdSchema.optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.TypedArrayRemoteValueSchema = z.lazy(() => z.object({
+            type: z.literal('typedarray'),
+            handle: Script.HandleSchema.optional(),
+            internalId: Script.InternalIdSchema.optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.ArrayBufferRemoteValueSchema = z.lazy(() => z.object({
+            type: z.literal('arraybuffer'),
+            handle: Script.HandleSchema.optional(),
+            internalId: Script.InternalIdSchema.optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.NodeListRemoteValueSchema = z.lazy(() => z.object({
+            type: z.literal('nodelist'),
+            handle: Script.HandleSchema.optional(),
+            internalId: Script.InternalIdSchema.optional(),
+            value: Script.ListRemoteValueSchema.optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.HtmlCollectionRemoteValueSchema = z.lazy(() => z.object({
+            type: z.literal('htmlcollection'),
+            handle: Script.HandleSchema.optional(),
+            internalId: Script.InternalIdSchema.optional(),
+            value: Script.ListRemoteValueSchema.optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.NodeRemoteValueSchema = z.lazy(() => z.object({
+            type: z.literal('node'),
+            sharedId: Script.SharedIdSchema.optional(),
+            handle: Script.HandleSchema.optional(),
+            internalId: Script.InternalIdSchema.optional(),
+            value: Script.NodePropertiesSchema.optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.NodePropertiesSchema = z.lazy(() => z.object({
+            nodeType: JsUintSchema,
+            childNodeCount: JsUintSchema,
+            attributes: z.record(z.string(), z.string()).optional(),
+            children: z.array(Script.NodeRemoteValueSchema).optional(),
+            localName: z.string().optional(),
+            mode: z.enum(['open', 'closed']).optional(),
+            namespaceURI: z.string().optional(),
+            nodeValue: z.string().optional(),
+            shadowRoot: z.union([Script.NodeRemoteValueSchema, z.null()]).optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.WindowProxyRemoteValueSchema = z.lazy(() => z.object({
+            type: z.literal('window'),
+            value: Script.WindowProxyPropertiesSchema,
+            handle: Script.HandleSchema.optional(),
+            internalId: Script.InternalIdSchema.optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.WindowProxyPropertiesSchema = z.lazy(() => z.object({
+            context: BrowsingContext$1.BrowsingContextSchema,
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.ResultOwnershipSchema = z.lazy(() => z.enum(['root', 'none']));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.SerializationOptionsSchema = z.lazy(() => z.object({
+            maxDomDepth: z.union([JsUintSchema, z.null()]).default(0).optional(),
+            maxObjectDepth: z
+                .union([JsUintSchema, z.null()])
+                .default(null)
+                .optional(),
+            includeShadowTree: z
+                .enum(['none', 'open', 'all'])
+                .default('none')
+                .optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.SharedIdSchema = z.lazy(() => z.string());
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.StackFrameSchema = z.lazy(() => z.object({
+            columnNumber: JsUintSchema,
+            functionName: z.string(),
+            lineNumber: JsUintSchema,
+            url: z.string(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.StackTraceSchema = z.lazy(() => z.object({
+            callFrames: z.array(Script.StackFrameSchema),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.SourceSchema = z.lazy(() => z.object({
+            realm: Script.RealmSchema,
+            context: BrowsingContext$1.BrowsingContextSchema.optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.RealmTargetSchema = z.lazy(() => z.object({
+            realm: Script.RealmSchema,
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.ContextTargetSchema = z.lazy(() => z.object({
+            context: BrowsingContext$1.BrowsingContextSchema,
+            sandbox: z.string().optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.TargetSchema = z.lazy(() => z.union([Script.ContextTargetSchema, Script.RealmTargetSchema]));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.AddPreloadScriptSchema = z.lazy(() => z.object({
+            method: z.literal('script.addPreloadScript'),
+            params: Script.AddPreloadScriptParametersSchema,
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.AddPreloadScriptParametersSchema = z.lazy(() => z.object({
+            functionDeclaration: z.string(),
+            arguments: z.array(Script.ChannelValueSchema).optional(),
+            contexts: z
+                .array(BrowsingContext$1.BrowsingContextSchema)
+                .min(1)
+                .optional(),
+            userContexts: z.array(Browser$1.UserContextSchema).min(1).optional(),
+            sandbox: z.string().optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.AddPreloadScriptResultSchema = z.lazy(() => z.object({
+            script: Script.PreloadScriptSchema,
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.DisownSchema = z.lazy(() => z.object({
+            method: z.literal('script.disown'),
+            params: Script.DisownParametersSchema,
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.DisownParametersSchema = z.lazy(() => z.object({
+            handles: z.array(Script.HandleSchema),
+            target: Script.TargetSchema,
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.CallFunctionParametersSchema = z.lazy(() => z.object({
+            functionDeclaration: z.string(),
+            awaitPromise: z.boolean(),
+            target: Script.TargetSchema,
+            arguments: z.array(Script.LocalValueSchema).optional(),
+            resultOwnership: Script.ResultOwnershipSchema.optional(),
+            serializationOptions: Script.SerializationOptionsSchema.optional(),
+            this: Script.LocalValueSchema.optional(),
+            userActivation: z.boolean().default(false).optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.CallFunctionSchema = z.lazy(() => z.object({
+            method: z.literal('script.callFunction'),
+            params: Script.CallFunctionParametersSchema,
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.EvaluateSchema = z.lazy(() => z.object({
+            method: z.literal('script.evaluate'),
+            params: Script.EvaluateParametersSchema,
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.EvaluateParametersSchema = z.lazy(() => z.object({
+            expression: z.string(),
+            target: Script.TargetSchema,
+            awaitPromise: z.boolean(),
+            resultOwnership: Script.ResultOwnershipSchema.optional(),
+            serializationOptions: Script.SerializationOptionsSchema.optional(),
+            userActivation: z.boolean().default(false).optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.GetRealmsSchema = z.lazy(() => z.object({
+            method: z.literal('script.getRealms'),
+            params: Script.GetRealmsParametersSchema,
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.GetRealmsParametersSchema = z.lazy(() => z.object({
+            context: BrowsingContext$1.BrowsingContextSchema.optional(),
+            type: Script.RealmTypeSchema.optional(),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.GetRealmsResultSchema = z.lazy(() => z.object({
+            realms: z.array(Script.RealmInfoSchema),
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.RemovePreloadScriptSchema = z.lazy(() => z.object({
+            method: z.literal('script.removePreloadScript'),
+            params: Script.RemovePreloadScriptParametersSchema,
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.RemovePreloadScriptParametersSchema = z.lazy(() => z.object({
+            script: Script.PreloadScriptSchema,
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.MessageParametersSchema = z.lazy(() => z.object({
+            channel: Script.ChannelSchema,
+            data: Script.RemoteValueSchema,
+            source: Script.SourceSchema,
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.RealmCreatedSchema = z.lazy(() => z.object({
+            method: z.literal('script.realmCreated'),
+            params: Script.RealmInfoSchema,
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.MessageSchema = z.lazy(() => z.object({
+            method: z.literal('script.message'),
+            params: Script.MessageParametersSchema,
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.RealmDestroyedSchema = z.lazy(() => z.object({
+            method: z.literal('script.realmDestroyed'),
+            params: Script.RealmDestroyedParametersSchema,
+        }));
+    })(Script$1 || (Script$1 = {}));
+    (function (Script) {
+        Script.RealmDestroyedParametersSchema = z.lazy(() => z.object({
+            realm: Script.RealmSchema,
+        }));
+    })(Script$1 || (Script$1 = {}));
+    const StorageCommandSchema = z.lazy(() => z.union([
+        Storage$1.DeleteCookiesSchema,
+        Storage$1.GetCookiesSchema,
+        Storage$1.SetCookieSchema,
+    ]));
+    const StorageResultSchema = z.lazy(() => z.union([
+        Storage$1.DeleteCookiesResultSchema,
+        Storage$1.GetCookiesResultSchema,
+        Storage$1.SetCookieResultSchema,
+    ]));
+    var Storage$1;
+    (function (Storage) {
+        Storage.PartitionKeySchema = z.lazy(() => z
+            .object({
+            userContext: z.string().optional(),
+            sourceOrigin: z.string().optional(),
+        })
+            .and(ExtensibleSchema));
+    })(Storage$1 || (Storage$1 = {}));
+    (function (Storage) {
+        Storage.GetCookiesSchema = z.lazy(() => z.object({
+            method: z.literal('storage.getCookies'),
+            params: Storage.GetCookiesParametersSchema,
+        }));
+    })(Storage$1 || (Storage$1 = {}));
+    (function (Storage) {
+        Storage.CookieFilterSchema = z.lazy(() => z
+            .object({
+            name: z.string().optional(),
+            value: Network$1.BytesValueSchema.optional(),
+            domain: z.string().optional(),
+            path: z.string().optional(),
+            size: JsUintSchema.optional(),
+            httpOnly: z.boolean().optional(),
+            secure: z.boolean().optional(),
+            sameSite: Network$1.SameSiteSchema.optional(),
+            expiry: JsUintSchema.optional(),
+        })
+            .and(ExtensibleSchema));
+    })(Storage$1 || (Storage$1 = {}));
+    (function (Storage) {
+        Storage.BrowsingContextPartitionDescriptorSchema = z.lazy(() => z.object({
+            type: z.literal('context'),
+            context: BrowsingContext$1.BrowsingContextSchema,
+        }));
+    })(Storage$1 || (Storage$1 = {}));
+    (function (Storage) {
+        Storage.StorageKeyPartitionDescriptorSchema = z.lazy(() => z
+            .object({
+            type: z.literal('storageKey'),
+            userContext: z.string().optional(),
+            sourceOrigin: z.string().optional(),
+        })
+            .and(ExtensibleSchema));
+    })(Storage$1 || (Storage$1 = {}));
+    (function (Storage) {
+        Storage.PartitionDescriptorSchema = z.lazy(() => z.union([
+            Storage.BrowsingContextPartitionDescriptorSchema,
+            Storage.StorageKeyPartitionDescriptorSchema,
+        ]));
+    })(Storage$1 || (Storage$1 = {}));
+    (function (Storage) {
+        Storage.GetCookiesParametersSchema = z.lazy(() => z.object({
+            filter: Storage.CookieFilterSchema.optional(),
+            partition: Storage.PartitionDescriptorSchema.optional(),
+        }));
+    })(Storage$1 || (Storage$1 = {}));
+    (function (Storage) {
+        Storage.GetCookiesResultSchema = z.lazy(() => z.object({
+            cookies: z.array(Network$1.CookieSchema),
+            partitionKey: Storage.PartitionKeySchema,
+        }));
+    })(Storage$1 || (Storage$1 = {}));
+    (function (Storage) {
+        Storage.SetCookieSchema = z.lazy(() => z.object({
+            method: z.literal('storage.setCookie'),
+            params: Storage.SetCookieParametersSchema,
+        }));
+    })(Storage$1 || (Storage$1 = {}));
+    (function (Storage) {
+        Storage.PartialCookieSchema = z.lazy(() => z
+            .object({
+            name: z.string(),
+            value: Network$1.BytesValueSchema,
+            domain: z.string(),
+            path: z.string().optional(),
+            httpOnly: z.boolean().optional(),
+            secure: z.boolean().optional(),
+            sameSite: Network$1.SameSiteSchema.optional(),
+            expiry: JsUintSchema.optional(),
+        })
+            .and(ExtensibleSchema));
+    })(Storage$1 || (Storage$1 = {}));
+    (function (Storage) {
+        Storage.SetCookieParametersSchema = z.lazy(() => z.object({
+            cookie: Storage.PartialCookieSchema,
+            partition: Storage.PartitionDescriptorSchema.optional(),
+        }));
+    })(Storage$1 || (Storage$1 = {}));
+    (function (Storage) {
+        Storage.SetCookieResultSchema = z.lazy(() => z.object({
+            partitionKey: Storage.PartitionKeySchema,
+        }));
+    })(Storage$1 || (Storage$1 = {}));
+    (function (Storage) {
+        Storage.DeleteCookiesSchema = z.lazy(() => z.object({
+            method: z.literal('storage.deleteCookies'),
+            params: Storage.DeleteCookiesParametersSchema,
+        }));
+    })(Storage$1 || (Storage$1 = {}));
+    (function (Storage) {
+        Storage.DeleteCookiesParametersSchema = z.lazy(() => z.object({
+            filter: Storage.CookieFilterSchema.optional(),
+            partition: Storage.PartitionDescriptorSchema.optional(),
+        }));
+    })(Storage$1 || (Storage$1 = {}));
+    (function (Storage) {
+        Storage.DeleteCookiesResultSchema = z.lazy(() => z.object({
+            partitionKey: Storage.PartitionKeySchema,
+        }));
+    })(Storage$1 || (Storage$1 = {}));
+    const LogEventSchema = z.lazy(() => Log.EntryAddedSchema);
+    var Log;
+    (function (Log) {
+        Log.LevelSchema = z.lazy(() => z.enum(['debug', 'info', 'warn', 'error']));
+    })(Log || (Log = {}));
+    (function (Log) {
+        Log.EntrySchema = z.lazy(() => z.union([
+            Log.GenericLogEntrySchema,
+            Log.ConsoleLogEntrySchema,
+            Log.JavascriptLogEntrySchema,
+        ]));
+    })(Log || (Log = {}));
+    (function (Log) {
+        Log.BaseLogEntrySchema = z.lazy(() => z.object({
+            level: Log.LevelSchema,
+            source: Script$1.SourceSchema,
+            text: z.union([z.string(), z.null()]),
+            timestamp: JsUintSchema,
+            stackTrace: Script$1.StackTraceSchema.optional(),
+        }));
+    })(Log || (Log = {}));
+    (function (Log) {
+        Log.GenericLogEntrySchema = z.lazy(() => Log.BaseLogEntrySchema.and(z.object({
+            type: z.string(),
+        })));
+    })(Log || (Log = {}));
+    (function (Log) {
+        Log.ConsoleLogEntrySchema = z.lazy(() => Log.BaseLogEntrySchema.and(z.object({
+            type: z.literal('console'),
+            method: z.string(),
+            args: z.array(Script$1.RemoteValueSchema),
+        })));
+    })(Log || (Log = {}));
+    (function (Log) {
+        Log.JavascriptLogEntrySchema = z.lazy(() => Log.BaseLogEntrySchema.and(z.object({
+            type: z.literal('javascript'),
+        })));
+    })(Log || (Log = {}));
+    (function (Log) {
+        Log.EntryAddedSchema = z.lazy(() => z.object({
+            method: z.literal('log.entryAdded'),
+            params: Log.EntrySchema,
+        }));
+    })(Log || (Log = {}));
+    const InputCommandSchema = z.lazy(() => z.union([
+        Input$1.PerformActionsSchema,
+        Input$1.ReleaseActionsSchema,
+        Input$1.SetFilesSchema,
+    ]));
+    const InputEventSchema = z.lazy(() => Input$1.FileDialogOpenedSchema);
+    var Input$1;
+    (function (Input) {
+        Input.ElementOriginSchema = z.lazy(() => z.object({
+            type: z.literal('element'),
+            element: Script$1.SharedReferenceSchema,
+        }));
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.PerformActionsParametersSchema = z.lazy(() => z.object({
+            context: BrowsingContext$1.BrowsingContextSchema,
+            actions: z.array(Input.SourceActionsSchema),
+        }));
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.NoneSourceActionsSchema = z.lazy(() => z.object({
+            type: z.literal('none'),
+            id: z.string(),
+            actions: z.array(Input.NoneSourceActionSchema),
+        }));
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.KeySourceActionsSchema = z.lazy(() => z.object({
+            type: z.literal('key'),
+            id: z.string(),
+            actions: z.array(Input.KeySourceActionSchema),
+        }));
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.PointerSourceActionsSchema = z.lazy(() => z.object({
+            type: z.literal('pointer'),
+            id: z.string(),
+            parameters: Input.PointerParametersSchema.optional(),
+            actions: z.array(Input.PointerSourceActionSchema),
+        }));
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.PerformActionsSchema = z.lazy(() => z.object({
+            method: z.literal('input.performActions'),
+            params: Input.PerformActionsParametersSchema,
+        }));
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.SourceActionsSchema = z.lazy(() => z.union([
+            Input.NoneSourceActionsSchema,
+            Input.KeySourceActionsSchema,
+            Input.PointerSourceActionsSchema,
+            Input.WheelSourceActionsSchema,
+        ]));
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.NoneSourceActionSchema = z.lazy(() => Input.PauseActionSchema);
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.KeySourceActionSchema = z.lazy(() => z.union([
+            Input.PauseActionSchema,
+            Input.KeyDownActionSchema,
+            Input.KeyUpActionSchema,
+        ]));
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.PointerTypeSchema = z.lazy(() => z.enum(['mouse', 'pen', 'touch']));
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.PointerParametersSchema = z.lazy(() => z.object({
+            pointerType: Input.PointerTypeSchema.default('mouse').optional(),
+        }));
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.WheelSourceActionsSchema = z.lazy(() => z.object({
+            type: z.literal('wheel'),
+            id: z.string(),
+            actions: z.array(Input.WheelSourceActionSchema),
+        }));
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.PointerSourceActionSchema = z.lazy(() => z.union([
+            Input.PauseActionSchema,
+            Input.PointerDownActionSchema,
+            Input.PointerUpActionSchema,
+            Input.PointerMoveActionSchema,
+        ]));
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.WheelSourceActionSchema = z.lazy(() => z.union([Input.PauseActionSchema, Input.WheelScrollActionSchema]));
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.PauseActionSchema = z.lazy(() => z.object({
+            type: z.literal('pause'),
+            duration: JsUintSchema.optional(),
+        }));
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.KeyDownActionSchema = z.lazy(() => z.object({
+            type: z.literal('keyDown'),
+            value: z.string(),
+        }));
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.KeyUpActionSchema = z.lazy(() => z.object({
+            type: z.literal('keyUp'),
+            value: z.string(),
+        }));
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.PointerUpActionSchema = z.lazy(() => z.object({
+            type: z.literal('pointerUp'),
+            button: JsUintSchema,
+        }));
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.PointerDownActionSchema = z.lazy(() => z
+            .object({
+            type: z.literal('pointerDown'),
+            button: JsUintSchema,
+        })
+            .and(Input.PointerCommonPropertiesSchema));
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.PointerMoveActionSchema = z.lazy(() => z
+            .object({
+            type: z.literal('pointerMove'),
+            x: z.number(),
+            y: z.number(),
+            duration: JsUintSchema.optional(),
+            origin: Input.OriginSchema.optional(),
+        })
+            .and(Input.PointerCommonPropertiesSchema));
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.WheelScrollActionSchema = z.lazy(() => z.object({
+            type: z.literal('scroll'),
+            x: JsIntSchema,
+            y: JsIntSchema,
+            deltaX: JsIntSchema,
+            deltaY: JsIntSchema,
+            duration: JsUintSchema.optional(),
+            origin: Input.OriginSchema.default('viewport').optional(),
+        }));
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.PointerCommonPropertiesSchema = z.lazy(() => z.object({
+            width: JsUintSchema.default(1).optional(),
+            height: JsUintSchema.default(1).optional(),
+            pressure: z.number().default(0).optional(),
+            tangentialPressure: z.number().default(0).optional(),
+            twist: z
+                .number()
+                .int()
+                .nonnegative()
+                .gte(0)
+                .lte(359)
+                .default(0)
+                .optional(),
+            altitudeAngle: z
+                .number()
+                .gte(0)
+                .lte(1.5707963267948966)
+                .default(0)
+                .optional(),
+            azimuthAngle: z
+                .number()
+                .gte(0)
+                .lte(6.283185307179586)
+                .default(0)
+                .optional(),
+        }));
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.OriginSchema = z.lazy(() => z.union([
+            z.literal('viewport'),
+            z.literal('pointer'),
+            Input.ElementOriginSchema,
+        ]));
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.ReleaseActionsSchema = z.lazy(() => z.object({
+            method: z.literal('input.releaseActions'),
+            params: Input.ReleaseActionsParametersSchema,
+        }));
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.ReleaseActionsParametersSchema = z.lazy(() => z.object({
+            context: BrowsingContext$1.BrowsingContextSchema,
+        }));
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.SetFilesSchema = z.lazy(() => z.object({
+            method: z.literal('input.setFiles'),
+            params: Input.SetFilesParametersSchema,
+        }));
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.SetFilesParametersSchema = z.lazy(() => z.object({
+            context: BrowsingContext$1.BrowsingContextSchema,
+            element: Script$1.SharedReferenceSchema,
+            files: z.array(z.string()),
+        }));
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.FileDialogOpenedSchema = z.lazy(() => z.object({
+            method: z.literal('input.fileDialogOpened'),
+            params: Input.FileDialogInfoSchema,
+        }));
+    })(Input$1 || (Input$1 = {}));
+    (function (Input) {
+        Input.FileDialogInfoSchema = z.lazy(() => z.object({
+            context: BrowsingContext$1.BrowsingContextSchema,
+            element: Script$1.SharedReferenceSchema.optional(),
+            multiple: z.boolean(),
+        }));
+    })(Input$1 || (Input$1 = {}));
+    const WebExtensionCommandSchema = z.lazy(() => z.union([WebExtension.InstallSchema, WebExtension.UninstallSchema]));
+    const WebExtensionResultSchema = z.lazy(() => WebExtension.InstallResultSchema);
+    var WebExtension;
+    (function (WebExtension) {
+        WebExtension.ExtensionSchema = z.lazy(() => z.string());
+    })(WebExtension || (WebExtension = {}));
+    (function (WebExtension) {
+        WebExtension.InstallParametersSchema = z.lazy(() => z.object({
+            extensionData: WebExtension.ExtensionDataSchema,
+        }));
+    })(WebExtension || (WebExtension = {}));
+    (function (WebExtension) {
+        WebExtension.InstallSchema = z.lazy(() => z.object({
+            method: z.literal('webExtension.install'),
+            params: WebExtension.InstallParametersSchema,
+        }));
+    })(WebExtension || (WebExtension = {}));
+    (function (WebExtension) {
+        WebExtension.ExtensionDataSchema = z.lazy(() => z.union([
+            WebExtension.ExtensionArchivePathSchema,
+            WebExtension.ExtensionBase64EncodedSchema,
+            WebExtension.ExtensionPathSchema,
+        ]));
+    })(WebExtension || (WebExtension = {}));
+    (function (WebExtension) {
+        WebExtension.ExtensionPathSchema = z.lazy(() => z.object({
+            type: z.literal('path'),
+            path: z.string(),
+        }));
+    })(WebExtension || (WebExtension = {}));
+    (function (WebExtension) {
+        WebExtension.ExtensionArchivePathSchema = z.lazy(() => z.object({
+            type: z.literal('archivePath'),
+            path: z.string(),
+        }));
+    })(WebExtension || (WebExtension = {}));
+    (function (WebExtension) {
+        WebExtension.ExtensionBase64EncodedSchema = z.lazy(() => z.object({
+            type: z.literal('base64'),
+            value: z.string(),
+        }));
+    })(WebExtension || (WebExtension = {}));
+    (function (WebExtension) {
+        WebExtension.InstallResultSchema = z.lazy(() => z.object({
+            extension: WebExtension.ExtensionSchema,
+        }));
+    })(WebExtension || (WebExtension = {}));
+    (function (WebExtension) {
+        WebExtension.UninstallSchema = z.lazy(() => z.object({
+            method: z.literal('webExtension.uninstall'),
+            params: WebExtension.UninstallParametersSchema,
+        }));
+    })(WebExtension || (WebExtension = {}));
+    (function (WebExtension) {
+        WebExtension.UninstallParametersSchema = z.lazy(() => z.object({
+            extension: WebExtension.ExtensionSchema,
+        }));
+    })(WebExtension || (WebExtension = {}));
+
+    /**
+     * Copyright 2022 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    function parseObject(obj, schema) {
+        const parseResult = schema.safeParse(obj);
+        if (parseResult.success) {
+            return parseResult.data;
+        }
+        const errorMessage = parseResult.error.errors
+            .map((e) => `${e.message} in ` +
+            `${e.path.map((p) => JSON.stringify(p)).join('/')}.`)
+            .join(' ');
+        throw new InvalidArgumentException(errorMessage);
+    }
+    var Browser;
+    (function (Browser) {
+        function parseCreateUserContextParameters(params) {
+            return parseObject(params, Browser$1.CreateUserContextParametersSchema);
+        }
+        Browser.parseCreateUserContextParameters = parseCreateUserContextParameters;
+        function parseRemoveUserContextParameters(params) {
+            return parseObject(params, Browser$1.RemoveUserContextParametersSchema);
+        }
+        Browser.parseRemoveUserContextParameters = parseRemoveUserContextParameters;
+    })(Browser || (Browser = {}));
+    var Network;
+    (function (Network) {
+        function parseAddInterceptParameters(params) {
+            return parseObject(params, Network$1.AddInterceptParametersSchema);
+        }
+        Network.parseAddInterceptParameters = parseAddInterceptParameters;
+        function parseContinueRequestParameters(params) {
+            return parseObject(params, Network$1.ContinueRequestParametersSchema);
+        }
+        Network.parseContinueRequestParameters = parseContinueRequestParameters;
+        function parseContinueResponseParameters(params) {
+            return parseObject(params, Network$1.ContinueResponseParametersSchema);
+        }
+        Network.parseContinueResponseParameters = parseContinueResponseParameters;
+        function parseContinueWithAuthParameters(params) {
+            return parseObject(params, Network$1.ContinueWithAuthParametersSchema);
+        }
+        Network.parseContinueWithAuthParameters = parseContinueWithAuthParameters;
+        function parseFailRequestParameters(params) {
+            return parseObject(params, Network$1.FailRequestParametersSchema);
+        }
+        Network.parseFailRequestParameters = parseFailRequestParameters;
+        function parseProvideResponseParameters(params) {
+            return parseObject(params, Network$1.ProvideResponseParametersSchema);
+        }
+        Network.parseProvideResponseParameters = parseProvideResponseParameters;
+        function parseRemoveInterceptParameters(params) {
+            return parseObject(params, Network$1.RemoveInterceptParametersSchema);
+        }
+        Network.parseRemoveInterceptParameters = parseRemoveInterceptParameters;
+        function parseSetCacheBehavior(params) {
+            return parseObject(params, Network$1.SetCacheBehaviorParametersSchema);
+        }
+        Network.parseSetCacheBehavior = parseSetCacheBehavior;
+    })(Network || (Network = {}));
+    var Script;
+    (function (Script) {
+        function parseGetRealmsParams(params) {
+            return parseObject(params, Script$1.GetRealmsParametersSchema);
+        }
+        Script.parseGetRealmsParams = parseGetRealmsParams;
+        function parseEvaluateParams(params) {
+            return parseObject(params, Script$1.EvaluateParametersSchema);
+        }
+        Script.parseEvaluateParams = parseEvaluateParams;
+        function parseDisownParams(params) {
+            return parseObject(params, Script$1.DisownParametersSchema);
+        }
+        Script.parseDisownParams = parseDisownParams;
+        function parseAddPreloadScriptParams(params) {
+            return parseObject(params, Script$1.AddPreloadScriptParametersSchema);
+        }
+        Script.parseAddPreloadScriptParams = parseAddPreloadScriptParams;
+        function parseRemovePreloadScriptParams(params) {
+            return parseObject(params, Script$1.RemovePreloadScriptParametersSchema);
+        }
+        Script.parseRemovePreloadScriptParams = parseRemovePreloadScriptParams;
+        function parseCallFunctionParams(params) {
+            return parseObject(params, Script$1.CallFunctionParametersSchema);
+        }
+        Script.parseCallFunctionParams = parseCallFunctionParams;
+    })(Script || (Script = {}));
+    var BrowsingContext;
+    (function (BrowsingContext) {
+        function parseActivateParams(params) {
+            return parseObject(params, BrowsingContext$1.ActivateParametersSchema);
+        }
+        BrowsingContext.parseActivateParams = parseActivateParams;
+        function parseGetTreeParams(params) {
+            return parseObject(params, BrowsingContext$1.GetTreeParametersSchema);
+        }
+        BrowsingContext.parseGetTreeParams = parseGetTreeParams;
+        function parseNavigateParams(params) {
+            return parseObject(params, BrowsingContext$1.NavigateParametersSchema);
+        }
+        BrowsingContext.parseNavigateParams = parseNavigateParams;
+        function parseReloadParams(params) {
+            return parseObject(params, BrowsingContext$1.ReloadParametersSchema);
+        }
+        BrowsingContext.parseReloadParams = parseReloadParams;
+        function parseCreateParams(params) {
+            return parseObject(params, BrowsingContext$1.CreateParametersSchema);
+        }
+        BrowsingContext.parseCreateParams = parseCreateParams;
+        function parseCloseParams(params) {
+            return parseObject(params, BrowsingContext$1.CloseParametersSchema);
+        }
+        BrowsingContext.parseCloseParams = parseCloseParams;
+        function parseCaptureScreenshotParams(params) {
+            return parseObject(params, BrowsingContext$1.CaptureScreenshotParametersSchema);
+        }
+        BrowsingContext.parseCaptureScreenshotParams = parseCaptureScreenshotParams;
+        function parsePrintParams(params) {
+            return parseObject(params, BrowsingContext$1.PrintParametersSchema);
+        }
+        BrowsingContext.parsePrintParams = parsePrintParams;
+        function parseSetViewportParams(params) {
+            return parseObject(params, BrowsingContext$1.SetViewportParametersSchema);
+        }
+        BrowsingContext.parseSetViewportParams = parseSetViewportParams;
+        function parseTraverseHistoryParams(params) {
+            return parseObject(params, BrowsingContext$1.TraverseHistoryParametersSchema);
+        }
+        BrowsingContext.parseTraverseHistoryParams = parseTraverseHistoryParams;
+        function parseHandleUserPromptParameters(params) {
+            return parseObject(params, BrowsingContext$1.HandleUserPromptParametersSchema);
+        }
+        BrowsingContext.parseHandleUserPromptParameters = parseHandleUserPromptParameters;
+        function parseLocateNodesParams(params) {
+            return parseObject(params, BrowsingContext$1.LocateNodesParametersSchema);
+        }
+        BrowsingContext.parseLocateNodesParams = parseLocateNodesParams;
+    })(BrowsingContext || (BrowsingContext = {}));
+    var Session;
+    (function (Session) {
+        function parseSubscribeParams(params) {
+            return parseObject(params, Session$1.SubscriptionRequestSchema);
+        }
+        Session.parseSubscribeParams = parseSubscribeParams;
+        function parseUnsubscribeParams(params) {
+            if (params && typeof params === 'object' && 'subscriptions' in params) {
+                return parseObject(params, Session$1.UnsubscribeByIdRequestSchema);
+            }
+            return parseObject(params, Session$1.UnsubscribeParametersSchema);
+        }
+        Session.parseUnsubscribeParams = parseUnsubscribeParams;
+    })(Session || (Session = {}));
+    var Emulation;
+    (function (Emulation) {
+        function parseSetGeolocationOverrideParams(params) {
+            if ('coordinates' in params && 'error' in params) {
+                throw new InvalidArgumentException('Coordinates and error cannot be set at the same time');
+            }
+            return parseObject(params, Emulation$1.SetGeolocationOverrideParametersSchema);
+        }
+        Emulation.parseSetGeolocationOverrideParams = parseSetGeolocationOverrideParams;
+    })(Emulation || (Emulation = {}));
+    var Input;
+    (function (Input) {
+        function parsePerformActionsParams(params) {
+            return parseObject(params, Input$1.PerformActionsParametersSchema);
+        }
+        Input.parsePerformActionsParams = parsePerformActionsParams;
+        function parseReleaseActionsParams(params) {
+            return parseObject(params, Input$1.ReleaseActionsParametersSchema);
+        }
+        Input.parseReleaseActionsParams = parseReleaseActionsParams;
+        function parseSetFilesParams(params) {
+            return parseObject(params, Input$1.SetFilesParametersSchema);
+        }
+        Input.parseSetFilesParams = parseSetFilesParams;
+    })(Input || (Input = {}));
+    var Storage;
+    (function (Storage) {
+        function parseGetCookiesParams(params) {
+            return parseObject(params, Storage$1.GetCookiesParametersSchema);
+        }
+        Storage.parseGetCookiesParams = parseGetCookiesParams;
+        function parseSetCookieParams(params) {
+            return parseObject(params, Storage$1.SetCookieParametersSchema);
+        }
+        Storage.parseSetCookieParams = parseSetCookieParams;
+        function parseDeleteCookiesParams(params) {
+            return parseObject(params, Storage$1.DeleteCookiesParametersSchema);
+        }
+        Storage.parseDeleteCookiesParams = parseDeleteCookiesParams;
+    })(Storage || (Storage = {}));
+    var Cdp;
+    (function (Cdp) {
+        const SendCommandRequestSchema = z.object({
+            method: z.string(),
+            params: z.object({}).passthrough().optional(),
+            session: z.string().optional(),
+        });
+        const GetSessionRequestSchema = z.object({
+            context: BrowsingContext$1.BrowsingContextSchema,
+        });
+        const ResolveRealmRequestSchema = z.object({
+            realm: Script$1.RealmSchema,
+        });
+        function parseSendCommandRequest(params) {
+            return parseObject(params, SendCommandRequestSchema);
+        }
+        Cdp.parseSendCommandRequest = parseSendCommandRequest;
+        function parseGetSessionRequest(params) {
+            return parseObject(params, GetSessionRequestSchema);
+        }
+        Cdp.parseGetSessionRequest = parseGetSessionRequest;
+        function parseResolveRealmRequest(params) {
+            return parseObject(params, ResolveRealmRequestSchema);
+        }
+        Cdp.parseResolveRealmRequest = parseResolveRealmRequest;
+    })(Cdp || (Cdp = {}));
+    var Permissions;
+    (function (Permissions) {
+        function parseSetPermissionsParams(params) {
+            return {
+                ...params,
+                ...parseObject(params, Permissions$1.SetPermissionParametersSchema),
+            };
+        }
+        Permissions.parseSetPermissionsParams = parseSetPermissionsParams;
+    })(Permissions || (Permissions = {}));
+    var Bluetooth;
+    (function (Bluetooth) {
+        function parseHandleRequestDevicePromptParams(params) {
+            return parseObject(params, Bluetooth$1
+                .HandleRequestDevicePromptParametersSchema);
+        }
+        Bluetooth.parseHandleRequestDevicePromptParams = parseHandleRequestDevicePromptParams;
+        function parseSimulateAdapterParams(params) {
+            return parseObject(params, Bluetooth$1.SimulateAdapterParametersSchema);
+        }
+        Bluetooth.parseSimulateAdapterParams = parseSimulateAdapterParams;
+        function parseDisableSimulationParameters(params) {
+            return parseObject(params, Bluetooth$1.DisableSimulationParametersSchema);
+        }
+        Bluetooth.parseDisableSimulationParameters = parseDisableSimulationParameters;
+        function parseSimulateAdvertisementParams(params) {
+            return parseObject(params, Bluetooth$1.SimulateAdvertisementParametersSchema);
+        }
+        Bluetooth.parseSimulateAdvertisementParams = parseSimulateAdvertisementParams;
+        function parseSimulateCharacteristicParams(params) {
+            return parseObject(params, Bluetooth$1.SimulateCharacteristicParametersSchema);
+        }
+        Bluetooth.parseSimulateCharacteristicParams = parseSimulateCharacteristicParams;
+        function parseSimulateCharacteristicResponseParams(params) {
+            return parseObject(params, Bluetooth$1
+                .SimulateCharacteristicResponseParametersSchema);
+        }
+        Bluetooth.parseSimulateCharacteristicResponseParams = parseSimulateCharacteristicResponseParams;
+        function parseSimulateDescriptorParams(params) {
+            return parseObject(params, Bluetooth$1.SimulateDescriptorParametersSchema);
+        }
+        Bluetooth.parseSimulateDescriptorParams = parseSimulateDescriptorParams;
+        function parseSimulateGattConnectionResponseParams(params) {
+            return parseObject(params, Bluetooth$1
+                .SimulateGattConnectionResponseParametersSchema);
+        }
+        Bluetooth.parseSimulateGattConnectionResponseParams = parseSimulateGattConnectionResponseParams;
+        function parseSimulateGattDisconnectionParams(params) {
+            return parseObject(params, Bluetooth$1
+                .SimulateGattDisconnectionParametersSchema);
+        }
+        Bluetooth.parseSimulateGattDisconnectionParams = parseSimulateGattDisconnectionParams;
+        function parseSimulatePreconnectedPeripheralParams(params) {
+            return parseObject(params, Bluetooth$1
+                .SimulatePreconnectedPeripheralParametersSchema);
+        }
+        Bluetooth.parseSimulatePreconnectedPeripheralParams = parseSimulatePreconnectedPeripheralParams;
+        function parseSimulateServiceParams(params) {
+            return parseObject(params, Bluetooth$1.SimulateServiceParametersSchema);
+        }
+        Bluetooth.parseSimulateServiceParams = parseSimulateServiceParams;
+    })(Bluetooth || (Bluetooth = {}));
+    var WebModule;
+    (function (WebModule) {
+        function parseInstallParams(params) {
+            return parseObject(params, WebExtension.InstallParametersSchema);
+        }
+        WebModule.parseInstallParams = parseInstallParams;
+        function parseUninstallParams(params) {
+            return parseObject(params, WebExtension.UninstallParametersSchema);
+        }
+        WebModule.parseUninstallParams = parseUninstallParams;
+    })(WebModule || (WebModule = {}));
+
+    class BidiParser {
+        parseDisableSimulationParameters(params) {
+            return Bluetooth.parseDisableSimulationParameters(params);
+        }
+        parseHandleRequestDevicePromptParams(params) {
+            return Bluetooth.parseHandleRequestDevicePromptParams(params);
+        }
+        parseSimulateAdapterParameters(params) {
+            return Bluetooth.parseSimulateAdapterParams(params);
+        }
+        parseSimulateAdvertisementParameters(params) {
+            return Bluetooth.parseSimulateAdvertisementParams(params);
+        }
+        parseSimulateCharacteristicParameters(params) {
+            return Bluetooth.parseSimulateCharacteristicParams(params);
+        }
+        parseSimulateCharacteristicResponseParameters(params) {
+            return Bluetooth.parseSimulateCharacteristicResponseParams(params);
+        }
+        parseSimulateDescriptorParameters(params) {
+            return Bluetooth.parseSimulateDescriptorParams(params);
+        }
+        parseSimulateGattConnectionResponseParameters(params) {
+            return Bluetooth.parseSimulateGattConnectionResponseParams(params);
+        }
+        parseSimulateGattDisconnectionParameters(params) {
+            return Bluetooth.parseSimulateGattDisconnectionParams(params);
+        }
+        parseSimulatePreconnectedPeripheralParameters(params) {
+            return Bluetooth.parseSimulatePreconnectedPeripheralParams(params);
+        }
+        parseSimulateServiceParameters(params) {
+            return Bluetooth.parseSimulateServiceParams(params);
+        }
+        parseCreateUserContextParameters(params) {
+            Browser.parseCreateUserContextParameters(params);
+            return params;
+        }
+        parseRemoveUserContextParameters(params) {
+            return Browser.parseRemoveUserContextParameters(params);
+        }
+        parseActivateParams(params) {
+            return BrowsingContext.parseActivateParams(params);
+        }
+        parseCaptureScreenshotParams(params) {
+            return BrowsingContext.parseCaptureScreenshotParams(params);
+        }
+        parseCloseParams(params) {
+            return BrowsingContext.parseCloseParams(params);
+        }
+        parseCreateParams(params) {
+            return BrowsingContext.parseCreateParams(params);
+        }
+        parseGetTreeParams(params) {
+            return BrowsingContext.parseGetTreeParams(params);
+        }
+        parseHandleUserPromptParams(params) {
+            return BrowsingContext.parseHandleUserPromptParameters(params);
+        }
+        parseLocateNodesParams(params) {
+            return BrowsingContext.parseLocateNodesParams(params);
+        }
+        parseNavigateParams(params) {
+            return BrowsingContext.parseNavigateParams(params);
+        }
+        parsePrintParams(params) {
+            return BrowsingContext.parsePrintParams(params);
+        }
+        parseReloadParams(params) {
+            return BrowsingContext.parseReloadParams(params);
+        }
+        parseSetViewportParams(params) {
+            return BrowsingContext.parseSetViewportParams(params);
+        }
+        parseTraverseHistoryParams(params) {
+            return BrowsingContext.parseTraverseHistoryParams(params);
+        }
+        parseGetSessionParams(params) {
+            return Cdp.parseGetSessionRequest(params);
+        }
+        parseResolveRealmParams(params) {
+            return Cdp.parseResolveRealmRequest(params);
+        }
+        parseSendCommandParams(params) {
+            return Cdp.parseSendCommandRequest(params);
+        }
+        parseSetGeolocationOverrideParams(params) {
+            return Emulation.parseSetGeolocationOverrideParams(params);
+        }
+        parsePerformActionsParams(params) {
+            return Input.parsePerformActionsParams(params);
+        }
+        parseReleaseActionsParams(params) {
+            return Input.parseReleaseActionsParams(params);
+        }
+        parseSetFilesParams(params) {
+            return Input.parseSetFilesParams(params);
+        }
+        parseAddInterceptParams(params) {
+            return Network.parseAddInterceptParameters(params);
+        }
+        parseContinueRequestParams(params) {
+            return Network.parseContinueRequestParameters(params);
+        }
+        parseContinueResponseParams(params) {
+            return Network.parseContinueResponseParameters(params);
+        }
+        parseContinueWithAuthParams(params) {
+            return Network.parseContinueWithAuthParameters(params);
+        }
+        parseFailRequestParams(params) {
+            return Network.parseFailRequestParameters(params);
+        }
+        parseProvideResponseParams(params) {
+            return Network.parseProvideResponseParameters(params);
+        }
+        parseRemoveInterceptParams(params) {
+            return Network.parseRemoveInterceptParameters(params);
+        }
+        parseSetCacheBehavior(params) {
+            return Network.parseSetCacheBehavior(params);
+        }
+        parseSetPermissionsParams(params) {
+            return Permissions.parseSetPermissionsParams(params);
+        }
+        parseAddPreloadScriptParams(params) {
+            return Script.parseAddPreloadScriptParams(params);
+        }
+        parseCallFunctionParams(params) {
+            return Script.parseCallFunctionParams(params);
+        }
+        parseDisownParams(params) {
+            return Script.parseDisownParams(params);
+        }
+        parseEvaluateParams(params) {
+            return Script.parseEvaluateParams(params);
+        }
+        parseGetRealmsParams(params) {
+            return Script.parseGetRealmsParams(params);
+        }
+        parseRemovePreloadScriptParams(params) {
+            return Script.parseRemovePreloadScriptParams(params);
+        }
+        parseSubscribeParams(params) {
+            return Session.parseSubscribeParams(params);
+        }
+        parseUnsubscribeParams(params) {
+            return Session.parseUnsubscribeParams(params);
+        }
+        parseDeleteCookiesParams(params) {
+            return Storage.parseDeleteCookiesParams(params);
+        }
+        parseGetCookiesParams(params) {
+            return Storage.parseGetCookiesParams(params);
+        }
+        parseSetCookieParams(params) {
+            return Storage.parseSetCookieParams(params);
+        }
+        parseInstallParams(params) {
+            return WebModule.parseInstallParams(params);
+        }
+        parseUninstallParams(params) {
+            return WebModule.parseUninstallParams(params);
+        }
+    }
+
+    /**
+     * Copyright 2022 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     */
+    const mapperPageSource = '<!DOCTYPE html><title>BiDi-CDP Mapper</title><style>body{font-family: Roboto,serif;font-size:13px;color:#202124;}.log{padding: 10px;font-family:Menlo, Consolas, Monaco, Liberation Mono, Lucida Console, monospace;font-size:11px;line-height:180%;background: #f1f3f4;border-radius:4px;}.pre{overflow-wrap: break-word; margin:10px;}.card{margin:60px auto;padding:2px 0;max-width:900px;box-shadow:0 1px 4px rgba(0,0,0,0.15),0 1px 6px rgba(0,0,0,0.2);border-radius:8px;}.divider{height:1px;background:#f0f0f0;}.item{padding:16px 20px;}</style><div class="card"><div class="item"><h1>BiDi-CDP Mapper is controlling this tab</h1><p>Closing or reloading it will stop the BiDi process. <a target="_blank" title="BiDi-CDP Mapper GitHub Repository" href="https://github.com/GoogleChromeLabs/chromium-bidi">Details.</a></p></div><div class="item"><div id="logs" class="log"></div></div></div></div>';
+    function generatePage() {
+        if (!globalThis.document.documentElement) {
+            return;
+        }
+        globalThis.document.documentElement.innerHTML = mapperPageSource;
+        globalThis.window.onbeforeunload = () => 'Closing or reloading this tab will stop the BiDi process. Are you sure you want to leave?';
+    }
+    function stringify(message) {
+        if (typeof message === 'object') {
+            return JSON.stringify(message, null, 2);
+        }
+        return message;
+    }
+    function log(logPrefix, ...messages) {
+        if (!globalThis.document.documentElement) {
+            return;
+        }
+        if (!logPrefix.startsWith(LogType.bidi)) {
+            globalThis.window?.sendDebugMessage?.(JSON.stringify({ logType: logPrefix, messages }, null, 2));
+        }
+        const debugContainer = document.getElementById('logs');
+        if (!debugContainer) {
+            return;
+        }
+        const lineElement = document.createElement('div');
+        lineElement.className = 'pre';
+        lineElement.textContent = [logPrefix, ...messages].map(stringify).join(' ');
+        debugContainer.appendChild(lineElement);
+        if (debugContainer.childNodes.length > 400) {
+            debugContainer.removeChild(debugContainer.childNodes[0]);
+        }
+    }
+
+    var _a;
+    class WindowBidiTransport {
+        static LOGGER_PREFIX_RECV = `${LogType.bidi}:RECV ◂`;
+        static LOGGER_PREFIX_SEND = `${LogType.bidi}:SEND ▸`;
+        static LOGGER_PREFIX_WARN = LogType.debugWarn;
+        #onMessage = null;
+        constructor() {
+            window.onBidiMessage = (message) => {
+                log(_a.LOGGER_PREFIX_RECV, message);
+                try {
+                    const command = _a.#parseBidiMessage(message);
+                    this.#onMessage?.call(null, command);
+                }
+                catch (e) {
+                    const error = e instanceof Error ? e : new Error(e);
+                    this.#respondWithError(message, "invalid argument" , error, null);
+                }
+            };
+        }
+        setOnMessage(onMessage) {
+            this.#onMessage = onMessage;
+        }
+        sendMessage(message) {
+            log(_a.LOGGER_PREFIX_SEND, message);
+            const json = JSON.stringify(message);
+            window.sendBidiResponse(json);
+        }
+        close() {
+            this.#onMessage = null;
+            window.onBidiMessage = null;
+        }
+        #respondWithError(plainCommandData, errorCode, error, googChannel) {
+            const errorResponse = _a.#getErrorResponse(plainCommandData, errorCode, error);
+            if (googChannel) {
+                this.sendMessage({
+                    ...errorResponse,
+                    'goog:channel': googChannel,
+                });
+            }
+            else {
+                this.sendMessage(errorResponse);
+            }
+        }
+        static #getJsonType(value) {
+            if (value === null) {
+                return 'null';
+            }
+            if (Array.isArray(value)) {
+                return 'array';
+            }
+            return typeof value;
+        }
+        static #getErrorResponse(message, errorCode, error) {
+            let messageId;
+            try {
+                const command = JSON.parse(message);
+                if (_a.#getJsonType(command) === 'object' &&
+                    'id' in command) {
+                    messageId = command.id;
+                }
+            }
+            catch { }
+            return {
+                type: 'error',
+                id: messageId,
+                error: errorCode,
+                message: error.message,
+            };
+        }
+        static #parseBidiMessage(message) {
+            let command;
+            try {
+                command = JSON.parse(message);
+            }
+            catch {
+                throw new Error('Cannot parse data as JSON');
+            }
+            const type = _a.#getJsonType(command);
+            if (type !== 'object') {
+                throw new Error(`Expected JSON object but got ${type}`);
+            }
+            const { id, method, params } = command;
+            const idType = _a.#getJsonType(id);
+            if (idType !== 'number' || !Number.isInteger(id) || id < 0) {
+                throw new Error(`Expected unsigned integer but got ${idType}`);
+            }
+            const methodType = _a.#getJsonType(method);
+            if (methodType !== 'string') {
+                throw new Error(`Expected string method but got ${methodType}`);
+            }
+            const paramsType = _a.#getJsonType(params);
+            if (paramsType !== 'object') {
+                throw new Error(`Expected object params but got ${paramsType}`);
+            }
+            let googChannel = command['goog:channel'];
+            if (googChannel !== undefined) {
+                const googChannelType = _a.#getJsonType(googChannel);
+                if (googChannelType !== 'string') {
+                    throw new Error(`Expected string channel but got ${googChannelType}`);
+                }
+                if (googChannel === '') {
+                    googChannel = undefined;
+                }
+            }
+            return {
+                id,
+                method,
+                params,
+                'goog:channel': googChannel,
+            };
+        }
+    }
+    _a = WindowBidiTransport;
+    class WindowCdpTransport {
+        #onMessage = null;
+        #cdpSend;
+        constructor() {
+            this.#cdpSend = window.cdp.send;
+            window.cdp.send = undefined;
+            window.cdp.onmessage = (message) => {
+                this.#onMessage?.call(null, message);
+            };
+        }
+        setOnMessage(onMessage) {
+            this.#onMessage = onMessage;
+        }
+        sendMessage(message) {
+            this.#cdpSend(message);
+        }
+        close() {
+            this.#onMessage = null;
+            window.cdp.onmessage = null;
+        }
+    }
+
+    /**
+     * Copyright 2021 Google LLC.
+     * Copyright (c) Microsoft Corporation.
+     *
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     *     http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     *
+     * @license
+     */
+    generatePage();
+    const mapperTabToServerTransport = new WindowBidiTransport();
+    const cdpTransport = new WindowCdpTransport();
+    const cdpConnection = new MapperCdpConnection(cdpTransport, log);
+    async function runMapperInstance(selfTargetId) {
+        console.log('Launching Mapper instance with selfTargetId:', selfTargetId);
+        const bidiServer = await BidiServer.createAndStart(mapperTabToServerTransport, cdpConnection,
+        await cdpConnection.createBrowserSession(), selfTargetId, new BidiParser(), log);
+        log(LogType.debugInfo, 'Mapper instance has been launched');
+        return bidiServer;
+    }
+    window.runMapperInstance = async (selfTargetId) => {
+        await runMapperInstance(selfTargetId);
+    };
+
+})();
 //# sourceMappingURL=mapperTab.js.map

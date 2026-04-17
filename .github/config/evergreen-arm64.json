@@ -1,0 +1,23 @@
+{
+  "docker_service": "linux",
+  "platforms": [
+    "evergreen-arm64"
+  ],
+  "test_package": true,
+  "targets": [
+    "cobalt",
+    "cobalt_loaded_content"
+  ],
+  "build_configs": [
+    "debug",
+    "devel",
+    "qa",
+    "gold"
+  ],
+  "includes": [
+    {
+      "name": "arm64",
+      "platform": "evergreen-arm64"
+    }
+  ]
+}

@@ -12,23 +12,15 @@
 #include "base/trace_event/trace_event.h"
 #include "cc/paint/paint_flags.h"
 #include "skia/ext/image_operations.h"
+#include "third_party/skia/include/core/SkPath.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/themed_vector_icon.h"
 #include "ui/gfx/canvas.h"
+#include "ui/gfx/geometry/skia_conversions.h"
 #include "ui/gfx/image/image_skia_rep.h"
 #include "ui/gfx/paint_vector_icon.h"
 
 namespace views {
-
-namespace {
-
-// Returns the pixels for the bitmap in |image| at scale |image_scale|.
-void* GetBitmapPixels(const gfx::ImageSkia& image, float image_scale) {
-  DCHECK_NE(0.0f, image_scale);
-  return image.GetRepresentation(image_scale).GetBitmap().getPixels();
-}
-
-}  // namespace
 
 ImageView::ImageView() = default;
 
@@ -39,14 +31,12 @@ ImageView::ImageView(const ui::ImageModel& image_model) {
 ImageView::~ImageView() = default;
 
 void ImageView::SetImage(const ui::ImageModel& image_model) {
-  if (IsImageEqual(image_model))
-    return;
-
-  const gfx::Size pref_size = GetPreferredSize();
+  const gfx::Size pref_size = GetPreferredSize({});
   image_model_ = image_model;
   scaled_image_ = gfx::ImageSkia();
-  if (pref_size != GetPreferredSize())
+  if (pref_size != GetPreferredSize({})) {
     PreferredSizeChanged();
+  }
   SchedulePaint();
 }
 
@@ -58,31 +48,16 @@ ui::ImageModel ImageView::GetImageModel() const {
   return image_model_;
 }
 
-bool ImageView::IsImageEqual(const ui::ImageModel& image_model) const {
-  if (image_model != image_model_)
-    return false;
-
-  // It's not feasible to run the old and new generators and compare output
-  // here, so for safety, simply assume the new generator's output differs.
-  if (image_model.IsImageGenerator())
-    return false;
-
-  if (!image_model.IsImage())
-    return true;
-
-  // An ImageModel's Image holds a handle to a backing store, which may have
-  // changed since the last call to SetImage(). The expectation is that
-  // SetImage() with different pixels is treated as though the image changed.
-  // For this reason we compare not only the Image but also the pixels we last
-  // painted.
-  return last_paint_scale_ != 0.0f &&
-         last_painted_bitmap_pixels_ ==
-             GetBitmapPixels(image_model.GetImage().AsImageSkia(),
-                             last_paint_scale_);
-}
-
 gfx::Size ImageView::GetImageSize() const {
   return image_size_.value_or(image_model_.Size());
+}
+
+void ImageView::SetCornerRadius(int corner_radius) {
+  corner_radius_ = corner_radius;
+}
+
+int ImageView::GetCornerRadius() const {
+  return corner_radius_;
 }
 
 void ImageView::OnPaint(gfx::Canvas* canvas) {
@@ -90,6 +65,13 @@ void ImageView::OnPaint(gfx::Canvas* canvas) {
   // so the border can paint over content (for rounded corners that overlap
   // content).
   TRACE_EVENT1("views", "ImageView::OnPaint", "class", GetClassName());
+  if (corner_radius_) {
+    SkPath mask;
+    mask.addRoundRect(gfx::RectToSkRect(GetImageBounds()), corner_radius_,
+                      corner_radius_);
+    canvas->ClipPath(mask, true);
+  }
+
   OnPaintBackground(canvas);
   OnPaintImage(canvas);
   OnPaintBorder(canvas);
@@ -99,23 +81,22 @@ void ImageView::OnThemeChanged() {
   View::OnThemeChanged();
   if (image_model_.IsImageGenerator() ||
       (image_model_.IsVectorIcon() &&
-       !image_model_.GetVectorIcon().has_color())) {
+       image_model_.GetVectorIcon().color().IsSemantic())) {
     scaled_image_ = gfx::ImageSkia();
     SchedulePaint();
   }
 }
 
 void ImageView::OnPaintImage(gfx::Canvas* canvas) {
-  last_paint_scale_ = canvas->image_scale();
-  last_painted_bitmap_pixels_ = nullptr;
-
-  gfx::ImageSkia image = GetPaintImage(last_paint_scale_);
-  if (image.isNull())
+  gfx::ImageSkia image = GetPaintImage(canvas->image_scale());
+  if (image.isNull()) {
     return;
+  }
 
   gfx::Rect image_bounds(GetImageBounds());
-  if (image_bounds.IsEmpty())
+  if (image_bounds.IsEmpty()) {
     return;
+  }
 
   if (image_bounds.size() != gfx::Size(image.width(), image.height())) {
     // Resize case
@@ -128,24 +109,27 @@ void ImageView::OnPaintImage(gfx::Canvas* canvas) {
   } else {
     canvas->DrawImageInt(image, image_bounds.x(), image_bounds.y());
   }
-  last_painted_bitmap_pixels_ = GetBitmapPixels(image, last_paint_scale_);
 }
 
 gfx::ImageSkia ImageView::GetPaintImage(float scale) {
-  if (image_model_.IsEmpty())
+  if (image_model_.IsEmpty()) {
     return gfx::ImageSkia();
+  }
 
   if (image_model_.IsImage() || image_model_.IsImageGenerator()) {
     const gfx::ImageSkia image = image_model_.Rasterize(GetColorProvider());
-    if (image.isNull())
+    if (image.isNull()) {
       return image;
+    }
 
     const gfx::ImageSkiaRep& rep = image.GetRepresentation(scale);
-    if (rep.scale() == scale || rep.unscaled())
+    if (rep.scale() == scale || rep.unscaled()) {
       return image;
+    }
 
-    if (scaled_image_.HasRepresentation(scale))
+    if (scaled_image_.HasRepresentation(scale)) {
       return scaled_image_;
+    }
 
     // Only caches one image rep for the current scale.
     scaled_image_ = gfx::ImageSkia();
@@ -163,7 +147,7 @@ gfx::ImageSkia ImageView::GetPaintImage(float scale) {
   return scaled_image_;
 }
 
-BEGIN_METADATA(ImageView, ImageViewBase)
+BEGIN_METADATA(ImageView)
 END_METADATA
 
 }  // namespace views

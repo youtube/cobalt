@@ -8,7 +8,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Pair;
 
-import org.chromium.base.ContextUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.util.Iterator;
 import java.util.PriorityQueue;
@@ -24,6 +25,7 @@ import java.util.PriorityQueue;
  * TODO(qinmin): convert all notification code to use this class instead of directly sending
  * notifications to the NotificationManager.
  */
+@NullMarked
 public class ThrottlingNotificationScheduler {
     // To avoid notification updates being throttled by Android, using 350 ms as the interval
     // so that no more than 3 updates are posted per second.
@@ -77,13 +79,19 @@ public class ThrottlingNotificationScheduler {
      * @param notificationWrapper Weapper containing the notification to be posted.
      */
     public void addPendingNotification(NotificationWrapper notificationWrapper) {
-        Pair<String, Integer> taskId = Pair.create(notificationWrapper.getMetadata().tag,
-                Integer.valueOf(notificationWrapper.getMetadata().id));
+        Pair<String, Integer> taskId =
+                Pair.create(
+                        notificationWrapper.getMetadata().tag,
+                        Integer.valueOf(notificationWrapper.getMetadata().id));
         PendingNotificationTask task =
-                new PendingNotificationTask(taskId, PendingNotificationTask.Priority.HIGH, () -> {
-                    new NotificationManagerProxyImpl(ContextUtils.getApplicationContext())
-                            .notify(notificationWrapper);
-                });
+                new PendingNotificationTask(
+                        taskId,
+                        PendingNotificationTask.Priority.HIGH,
+                        () -> {
+                            BaseNotificationManagerProxyFactory.create()
+                                    .notify(notificationWrapper);
+                        });
+        addPendingNotificationTask(task);
     }
 
     /**
@@ -102,12 +110,10 @@ public class ThrottlingNotificationScheduler {
     public void cancelPendingNotification(String tag, int id) {
         Pair<String, Integer> taskId = Pair.create(tag, Integer.valueOf(id));
         removePendingNotificationTask(taskId);
-        new NotificationManagerProxyImpl(ContextUtils.getApplicationContext()).cancel(tag, id);
+        BaseNotificationManagerProxyFactory.create().cancel(tag, id);
     }
 
-    /**
-     * Clear the pending task queue.
-     */
+    /** Clear the pending task queue. */
     public void clear() {
         mPendingNotificationTasks.clear();
         mHandler.removeCallbacksAndMessages(null);
@@ -118,8 +124,7 @@ public class ThrottlingNotificationScheduler {
      * Removes a pending task from the task queue and return it.
      * @param taskId ID of the task.
      */
-
-    private PendingNotificationTask removePendingNotificationTask(Object taskId) {
+    private @Nullable PendingNotificationTask removePendingNotificationTask(Object taskId) {
         Iterator<PendingNotificationTask> iter = mPendingNotificationTasks.iterator();
         while (iter.hasNext()) {
             PendingNotificationTask task = iter.next();
@@ -131,9 +136,7 @@ public class ThrottlingNotificationScheduler {
         return null;
     }
 
-    /**
-     * Get the next task from the queue, and schedule another task |UPDATE_DELAY_MILLIS| later.
-     */
+    /** Get the next task from the queue, and schedule another task |UPDATE_DELAY_MILLIS| later. */
     private void pumpQueue() {
         PendingNotificationTask task = mPendingNotificationTasks.poll();
         if (task != null) {

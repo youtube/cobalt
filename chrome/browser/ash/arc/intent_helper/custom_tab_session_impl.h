@@ -7,11 +7,11 @@
 
 #include <memory>
 
-#include "ash/components/arc/mojom/intent_helper.mojom.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/timer/elapsed_timer.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
+#include "chromeos/ash/experiences/arc/mojom/intent_helper.mojom.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 
@@ -60,7 +60,7 @@ class CustomTabSessionImpl : public arc::mojom::CustomTabSession,
 
   // The browser object provides windowing and command controller for the
   // custom tab.
-  raw_ptr<Browser, ExperimentalAsh> browser_;
+  raw_ptr<Browser> browser_;
 
   // The custom tab object.
   std::unique_ptr<arc::CustomTab> custom_tab_;

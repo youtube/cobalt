@@ -43,7 +43,7 @@ class CAPTURE_EXPORT CameraAppDeviceBridgeImpl
 
   void OnVideoCaptureDeviceCreated(
       const std::string& device_id,
-      scoped_refptr<base::SingleThreadTaskRunner> ipc_task_runner);
+      scoped_refptr<base::SingleThreadTaskRunner> vcd_task_runner);
 
   void OnVideoCaptureDeviceClosing(const std::string& device_id);
 
@@ -69,7 +69,10 @@ class CAPTURE_EXPORT CameraAppDeviceBridgeImpl
 
   void RemoveCameraAppDevice(const std::string& device_id);
 
-  void RemoveIpcTaskRunner(const std::string& device_id);
+  void RemoveVCDTaskRunner(const std::string& device_id);
+
+  void SetUITaskRunner(
+      scoped_refptr<base::SingleThreadTaskRunner> ui_task_runner);
 
   // cros::mojom::CameraAppDeviceBridge implementations.
   void GetCameraAppDevice(const std::string& device_id,
@@ -82,13 +85,20 @@ class CAPTURE_EXPORT CameraAppDeviceBridgeImpl
       bool enabled,
       SetVirtualDeviceEnabledCallback callback) override;
 
+  void SetDeviceInUse(const std::string& device_id, bool in_use);
+
+  void IsDeviceInUse(const std::string& device_id,
+                     IsDeviceInUseCallback callback) override;
+
  private:
   friend struct base::DefaultSingletonTraits<CameraAppDeviceBridgeImpl>;
 
-  bool is_supported_;
+  void StopOnIPCThread();
 
-  // It is used for calls which should run on the mojo sequence.
-  scoped_refptr<base::SequencedTaskRunner> mojo_task_runner_;
+  void BindReceiverOnIPCThread(
+      mojo::PendingReceiver<cros::mojom::CameraAppDeviceBridge> receiver);
+
+  bool is_supported_;
 
   base::Lock camera_info_getter_lock_;
   CameraInfoGetter camera_info_getter_ GUARDED_BY(camera_info_getter_lock_);
@@ -105,7 +115,19 @@ class CAPTURE_EXPORT CameraAppDeviceBridgeImpl
 
   base::Lock task_runner_map_lock_;
   base::flat_map<std::string, scoped_refptr<base::SingleThreadTaskRunner>>
-      ipc_task_runners_ GUARDED_BY(task_runner_map_lock_);
+      vcd_task_runners_ GUARDED_BY(task_runner_map_lock_);
+
+  base::Lock devices_in_use_lock_;
+  base::flat_set<std::string> devices_in_use_ GUARDED_BY(devices_in_use_lock_);
+
+  // TODO(b/308549369, b/308797472): Once mojo service manager issue in the VCD
+  // utility process is fixed, remove this thread and let CameraHalDelegate owns
+  // CameraAppDeviceBridgeImpl.
+  base::Thread ipc_thread_;
+
+  scoped_refptr<base::SingleThreadTaskRunner> ipc_task_runner_;
+
+  scoped_refptr<base::SingleThreadTaskRunner> ui_task_runner_;
 };
 
 }  // namespace media

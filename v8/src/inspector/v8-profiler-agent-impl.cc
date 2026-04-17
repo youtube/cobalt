@@ -267,8 +267,9 @@ void V8ProfilerAgentImpl::restore() {
       bool updatesAllowed = m_state->booleanProperty(
           ProfilerAgentState::preciseCoverageAllowTriggeredUpdates, false);
       double timestamp;
-      startPreciseCoverage(Maybe<bool>(callCount), Maybe<bool>(detailed),
-                           Maybe<bool>(updatesAllowed), &timestamp);
+      startPreciseCoverage(std::optional<bool>(callCount),
+                           std::optional<bool>(detailed),
+                           std::optional<bool>(updatesAllowed), &timestamp);
     }
   }
 }
@@ -293,7 +294,7 @@ Response V8ProfilerAgentImpl::stop(
       stopProfiling(m_frontendInitiatedProfileId, !!profile);
   if (profile) {
     *profile = std::move(cpuProfile);
-    if (!profile->get()) return Response::ServerError("Profile is not found");
+    if (!*profile) return Response::ServerError("Profile is not found");
   }
   m_frontendInitiatedProfileId = String16();
   m_state->setBoolean(ProfilerAgentState::userInitiatedProfiling, false);
@@ -301,13 +302,13 @@ Response V8ProfilerAgentImpl::stop(
 }
 
 Response V8ProfilerAgentImpl::startPreciseCoverage(
-    Maybe<bool> callCount, Maybe<bool> detailed,
-    Maybe<bool> allowTriggeredUpdates, double* out_timestamp) {
+    std::optional<bool> callCount, std::optional<bool> detailed,
+    std::optional<bool> allowTriggeredUpdates, double* out_timestamp) {
   if (!m_enabled) return Response::ServerError("Profiler is not enabled");
   *out_timestamp = v8::base::TimeTicks::Now().since_origin().InSecondsF();
-  bool callCountValue = callCount.fromMaybe(false);
-  bool detailedValue = detailed.fromMaybe(false);
-  bool allowTriggeredUpdatesValue = allowTriggeredUpdates.fromMaybe(false);
+  bool callCountValue = callCount.value_or(false);
+  bool detailedValue = detailed.value_or(false);
+  bool allowTriggeredUpdatesValue = allowTriggeredUpdates.value_or(false);
   m_state->setBoolean(ProfilerAgentState::preciseCoverageStarted, true);
   m_state->setBoolean(ProfilerAgentState::preciseCoverageCallCount,
                       callCountValue);

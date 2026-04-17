@@ -10,6 +10,7 @@
 
 #include "base/memory/weak_ptr.h"
 #include "components/device_signals/core/browser/signals_aggregator.h"
+#include "components/device_signals/core/browser/signals_types.h"
 
 namespace device_signals {
 
@@ -29,18 +30,22 @@ class SignalsAggregatorImpl : public SignalsAggregator {
   ~SignalsAggregatorImpl() override;
 
   // SignalsAggregator:
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
   void GetSignalsForUser(const UserContext& user_context,
                          const SignalsAggregationRequest& request,
                          GetSignalsCallback callback) override;
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
   void GetSignals(const SignalsAggregationRequest& request,
                   GetSignalsCallback callback) override;
 
  private:
-  void OnUserPermissionChecked(const SignalsAggregationRequest& request,
-                               GetSignalsCallback callback,
-                               const UserPermission user_permission);
+  void GetSignal(SignalName signal_name,
+                 UserPermission permission,
+                 const SignalsAggregationRequest& request,
+                 SignalsAggregationResponse* response,
+                 base::OnceClosure done_closure);
 
-  base::raw_ptr<UserPermissionService> permission_service_;
+  const raw_ptr<UserPermissionService> permission_service_;
   std::vector<std::unique_ptr<SignalsCollector>> collectors_;
 
   base::WeakPtrFactory<SignalsAggregatorImpl> weak_factory_{this};

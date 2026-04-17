@@ -18,15 +18,8 @@
 
 #include "base/base_switches.h"
 #include "base/command_line.h"
-#include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#include "base/functional/bind.h"
-#include "base/functional/callback_helpers.h"
 #include "base/memory/ref_counted_memory.h"
-#include "base/strings/utf_string_conversions.h"
-#include "base/task/current_thread.h"
-#include "base/threading/thread.h"
-#include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "cc/base/switches.h"
 #include "cobalt/shell/android/shell_descriptors.h"
@@ -47,6 +40,7 @@
 #include "device/bluetooth/bluetooth_adapter_factory.h"
 #include "net/base/filename_util.h"
 #include "net/base/net_module.h"
+#include "net/base/url_util.h"
 #include "net/grit/net_resources.h"
 #include "ui/base/buildflags.h"
 #include "ui/base/resource/resource_bundle.h"
@@ -72,9 +66,9 @@
 #include "ui/linux/linux_ui_factory.h"  // nogncheck
 #endif
 
-#if defined(RUN_BROWSER_TESTS)
-#include "cobalt/shell/common/shell_test_switches.h"  // nogncheck
-#endif  // defined(RUN_BROWSER_TESTS)
+#if BUILDFLAG(IS_STARBOARD)
+#include "cobalt/shell/common/device_authentication.h"
+#endif
 
 namespace content {
 
@@ -89,18 +83,25 @@ GURL GetStartupURL() {
   // Delay renderer creation on Android until surface is ready.
   return GURL();
 #else
+  GURL initial_url = GURL(switches::kDefaultURL);
   const base::CommandLine::StringVector& args = command_line->GetArgs();
-  if (args.empty()) {
-    return GURL("https://www.google.com/");
+  if (!args.empty()) {
+    std::string url_string = args[0];
+    GURL url = GURL(url_string);
+    if (url.is_valid() && url.has_scheme()) {
+      initial_url = url;
+    } else {
+      LOG(WARNING) << "URL \"" << url_string
+                   << "\" from parameter is not valid, open it as a file.";
+      return net::FilePathToFileURL(
+          base::MakeAbsoluteFilePath(base::FilePath(url_string)));
+    }
   }
 
-  GURL url(args[0]);
-  if (url.is_valid() && url.has_scheme()) {
-    return url;
-  }
-
-  return net::FilePathToFileURL(
-      base::MakeAbsoluteFilePath(base::FilePath(args[0])));
+#if BUILDFLAG(IS_STARBOARD)
+  initial_url = GetDeviceAuthenticationSignedURL(initial_url);
+#endif
+  return initial_url;
 #endif
 }
 
@@ -114,7 +115,9 @@ scoped_refptr<base::RefCountedMemory> PlatformResourceProvider(int key) {
 
 }  // namespace
 
-ShellBrowserMainParts::ShellBrowserMainParts() = default;
+ShellBrowserMainParts::ShellBrowserMainParts(const std::string& deep_link,
+                                             bool is_visible)
+    : deep_link_(deep_link), is_visible_(is_visible) {}
 
 ShellBrowserMainParts::~ShellBrowserMainParts() = default;
 
@@ -142,16 +145,16 @@ void ShellBrowserMainParts::InitializeBrowserContexts() {
 
 void ShellBrowserMainParts::InitializeMessageLoopContext() {
   Shell::CreateNewWindow(browser_context_.get(), GetStartupURL(), nullptr,
-                         gfx::Size());
+                         gfx::Size(),
+#if BUILDFLAG(IS_ANDROID)
+                         false /* create_splash_screen_web_contents */
+#else
+                         switches::ShouldCreateSplashScreen(), deep_link_
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
 }
 
 void ShellBrowserMainParts::ToolkitInitialized() {
-#if defined(RUN_BROWSER_TESTS)
-  if (switches::IsRunWebTestsSwitchPresent()) {
-    return;
-  }
-#endif  // defined(RUN_BROWSER_TESTS)
-
 #if BUILDFLAG(IS_LINUX)
   ui::LinuxUi::SetInstance(ui::GetDefaultLinuxUi());
 #endif
@@ -178,7 +181,7 @@ void ShellBrowserMainParts::PostCreateThreads() {
 
 int ShellBrowserMainParts::PreMainMessageLoopRun() {
   InitializeBrowserContexts();
-  Shell::Initialize(CreateShellPlatformDelegate());
+  Shell::Initialize(CreateShellPlatformDelegate(), is_visible_);
   net::NetModule::SetResourceProvider(PlatformResourceProvider);
   ShellDevToolsManagerDelegate::StartHttpHandler(browser_context_.get());
   InitializeMessageLoopContext();
@@ -206,6 +209,12 @@ void ShellBrowserMainParts::PostDestroyThreads() {
   device::BluetoothAdapterFactory::Shutdown();
   bluez::DBusBluezManagerWrapperLinux::Shutdown();
 #endif
+}
+
+void ShellBrowserMainParts::PostOrRunIfStorageMigrationFinished(
+    base::OnceClosure task) {
+  // Default implementation doesn't defer tasks.
+  std::move(task).Run();
 }
 
 std::unique_ptr<ShellPlatformDelegate>

@@ -32,6 +32,7 @@ source_set("traced_perf_main") {
     ":producer",
     "../../../gn:default_deps",
     "../../../src/base",
+    "../../../src/base:version",
     "../../../src/tracing/ipc/producer",
   ]
   sources = [
@@ -46,7 +47,7 @@ source_set("producer") {
     ":regs_parsing",
     ":unwinding",
     "../../../include/perfetto/tracing/core",
-    "../../../src/tracing/core:service",  # for metatrace
+    "../../../src/tracing/service",  # for metatrace
   ]
   deps = [
     ":proc_descriptors",
@@ -90,7 +91,7 @@ source_set("common_types") {
 source_set("unwinding") {
   public_deps = [
     "../../../gn:libunwindstack",
-    "../../../src/tracing/core:service",  # for metatrace
+    "../../../src/tracing/service",  # for metatrace
   ]
   deps = [
     ":common_types",
@@ -101,6 +102,8 @@ source_set("unwinding") {
     "../common:unwind_support",
   ]
   sources = [
+    "frame_pointer_unwinder.cc",
+    "frame_pointer_unwinder.h",
     "unwind_queue.h",
     "unwinding.cc",
     "unwinding.h",
@@ -147,6 +150,7 @@ source_set("producer_unittests") {
   ]
   sources = [
     "event_config_unittest.cc",
+    "frame_pointer_unwinder_unittest.cc",
     "perf_producer_unittest.cc",
     "unwind_queue_unittest.cc",
   ]

@@ -4,8 +4,8 @@
 
 package org.chromium.chrome.browser.paint_preview;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.MediumTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.uiautomator.UiDevice;
 
 import org.junit.Assert;
@@ -13,37 +13,28 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import org.chromium.base.test.params.ParameterizedCommandLineFlags;
-import org.chromium.base.test.params.ParameterizedCommandLineFlags.Switches;
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
-import org.chromium.base.test.util.Restriction;
+import org.chromium.base.test.util.DisabledTest;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.base.ColdStartTracker;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
+import org.chromium.chrome.browser.metrics.SimpleStartupForegroundSessionDetector;
 import org.chromium.chrome.browser.paint_preview.services.PaintPreviewTabServiceFactory;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tabmodel.TabClosureParams;
+import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 
 import java.util.concurrent.ExecutionException;
 
 /**
- * Tests for the {@link StartupPaintPreviewHelper} class.
- * This test suite cannot be batched because tests rely on the cold start behavior of
- * {@link ChromeActivity}.
+ * Tests for the {@link StartupPaintPreviewHelper} class. This test suite cannot be batched because
+ * tests rely on the cold start behavior of {@link ChromeActivity}.
  */
-@RunWith(StartupPaintPreviewHelperTestRunner.class)
+@RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
-@ParameterizedCommandLineFlags({
-    @Switches("disable-features=" + ChromeFeatureList.START_SURFACE_ANDROID + ","
-            + ChromeFeatureList.INSTANT_START)
-    ,
-            @Switches("enable-features=" + ChromeFeatureList.START_SURFACE_ANDROID),
-            @Switches("enable-features=" + ChromeFeatureList.INSTANT_START),
-            @Switches("enable-features=" + ChromeFeatureList.START_SURFACE_ANDROID + ","
-                    + ChromeFeatureList.INSTANT_START),
-})
 public class StartupPaintPreviewHelperTest {
     @Rule
     public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
@@ -56,24 +47,23 @@ public class StartupPaintPreviewHelperTest {
      */
     @Test
     @MediumTest
-    @Restriction(StartupPaintPreviewHelperTestRunner.RESTRICTION_TYPE_KEEP_ACTIVITIES)
     public void testCaptureOnBackgrounded() throws ExecutionException {
         mActivityTestRule.startMainActivityWithURL(
                 mActivityTestRule.getTestServer().getURL(TEST_URL));
         Tab tab = mActivityTestRule.getActivity().getActivityTab();
-        CriteriaHelper.pollUiThread(()
-                                            -> PaintPreviewTabServiceFactory.getServiceInstance()
-                                                       .hasNativeServiceForTesting(),
+        CriteriaHelper.pollUiThread(
+                () ->
+                        PaintPreviewTabServiceFactory.getServiceInstance()
+                                .hasNativeServiceForTesting(),
                 "Native tab service not loaded");
-        CriteriaHelper.pollUiThread(()
-                                            -> PaintPreviewTabServiceFactory.getServiceInstance()
-                                                       .isNativeCacheInitialized(),
+        CriteriaHelper.pollUiThread(
+                () -> PaintPreviewTabServiceFactory.getServiceInstance().isNativeCacheInitialized(),
                 "Native capture cache not loaded");
 
         // Verify no capture exists for this tab and no paint preview is showing.
         assertHasCaptureForTab(tab, false);
         TabbedPaintPreview tabbedPaintPreview =
-                TestThreadUtils.runOnUiThreadBlocking(() -> TabbedPaintPreview.get(tab));
+                ThreadUtils.runOnUiThreadBlocking(() -> TabbedPaintPreview.get(tab));
         Assert.assertFalse("No preview should be showing.", tabbedPaintPreview.isShowing());
         Assert.assertFalse("No preview should be attached.", tabbedPaintPreview.isAttached());
 
@@ -85,11 +75,16 @@ public class StartupPaintPreviewHelperTest {
         Assert.assertFalse("No preview should be attached.", tabbedPaintPreview.isAttached());
 
         // Closing the tab should delete its captured paint preview.
-        TestThreadUtils.runOnUiThreadBlocking(()
-                                                      -> mActivityTestRule.getActivity()
-                                                                 .getTabModelSelector()
-                                                                 .getCurrentModel()
-                                                                 .closeTab(tab));
+        ThreadUtils.runOnUiThreadBlocking(
+                () ->
+                        mActivityTestRule
+                                .getActivity()
+                                .getTabModelSelector()
+                                .getCurrentModel()
+                                .getTabRemover()
+                                .closeTabs(
+                                        TabClosureParams.closeTab(tab).allowUndo(false).build(),
+                                        /* allowDialog= */ false));
         assertHasCaptureForTab(tab, false);
     }
 
@@ -99,24 +94,28 @@ public class StartupPaintPreviewHelperTest {
      */
     @Test
     @MediumTest
-    @Restriction(StartupPaintPreviewHelperTestRunner.RESTRICTION_TYPE_KEEP_ACTIVITIES)
+    @DisabledTest(message = "Pending revival. See crbug.com/333779543.")
     public void testDisplayOnStartup() throws ExecutionException {
         mActivityTestRule.startMainActivityWithURL(
                 mActivityTestRule.getTestServer().getURL(TEST_URL));
+        final ChromeTabbedActivity activity = mActivityTestRule.getActivity();
+        CriteriaHelper.pollUiThread(
+                () -> activity.getTabModelSelector().isTabStateInitialized(),
+                "Tab state never initialized.");
         final Tab tab = mActivityTestRule.getActivity().getActivityTab();
-        CriteriaHelper.pollUiThread(()
-                                            -> PaintPreviewTabServiceFactory.getServiceInstance()
-                                                       .hasNativeServiceForTesting(),
+        CriteriaHelper.pollUiThread(
+                () ->
+                        PaintPreviewTabServiceFactory.getServiceInstance()
+                                .hasNativeServiceForTesting(),
                 "Native tab service not loaded");
-        CriteriaHelper.pollUiThread(()
-                                            -> PaintPreviewTabServiceFactory.getServiceInstance()
-                                                       .isNativeCacheInitialized(),
+        CriteriaHelper.pollUiThread(
+                () -> PaintPreviewTabServiceFactory.getServiceInstance().isNativeCacheInitialized(),
                 "Native capture cache not loaded");
 
         // Verify no capture exists for this tab and no paint preview is showing.
         assertHasCaptureForTab(tab, false);
         TabbedPaintPreview tabbedPaintPreview =
-                TestThreadUtils.runOnUiThreadBlocking(() -> TabbedPaintPreview.get(tab));
+                ThreadUtils.runOnUiThreadBlocking(() -> TabbedPaintPreview.get(tab));
         Assert.assertFalse("No preview should be showing.", tabbedPaintPreview.isShowing());
         Assert.assertFalse("No preview should be attached.", tabbedPaintPreview.isAttached());
 
@@ -124,37 +123,57 @@ public class StartupPaintPreviewHelperTest {
         UiDevice.getInstance(InstrumentationRegistry.getInstrumentation()).pressHome();
         assertHasCaptureForTab(mActivityTestRule.getActivity().getActivityTab(), true);
 
-        // Restart Chrome. Paint preview should be shown on startup.
-        ChromeTabbedActivity activity = mActivityTestRule.getActivity();
-        TestThreadUtils.runOnUiThreadBlocking(() -> activity.finish());
-        CriteriaHelper.pollUiThread(() -> activity.isDestroyed(), "Activity didn't get destroyed.");
+        // Emulate browser cold start. Paint preview should be shown on startup.
+        pretendColdStartBeforeForegrounded();
+        ThreadUtils.runOnUiThreadBlocking(activity::finish);
+        CriteriaHelper.pollUiThread(activity::isDestroyed, "Activity didn't get destroyed.");
 
         mActivityTestRule.startMainActivityFromLauncher();
-        final Tab previewTab = mActivityTestRule.getActivity().getActivityTab();
+        final ChromeTabbedActivity newActivity = mActivityTestRule.getActivity();
+        CriteriaHelper.pollUiThread(
+                () -> newActivity.getTabModelSelector().isTabStateInitialized(),
+                "Tab state never initialized.");
+        final Tab previewTab = newActivity.getActivityTab();
         tabbedPaintPreview =
-                TestThreadUtils.runOnUiThreadBlocking(() -> TabbedPaintPreview.get(previewTab));
+                ThreadUtils.runOnUiThreadBlocking(() -> TabbedPaintPreview.get(previewTab));
 
-        // Paint Preview might be showed and get removed before we can assert it's showing. Hence,
-        // we assert that is was *ever* shown for this tab, instead.
+        // Paint Preview might be showed and get removed before we can assert it's showing. Instead
+        // assert that it was shown for this tab at least once.
         TabbedPaintPreviewTest.assertWasEverShown(tabbedPaintPreview, true);
 
         // Closing the tab should delete its captured paint preview.
-        TestThreadUtils.runOnUiThreadBlocking(()
-                                                      -> mActivityTestRule.getActivity()
-                                                                 .getTabModelSelector()
-                                                                 .getCurrentModel()
-                                                                 .closeTab(previewTab));
+        ThreadUtils.runOnUiThreadBlocking(
+                () ->
+                        mActivityTestRule
+                                .getActivity()
+                                .getTabModelSelector()
+                                .getCurrentModel()
+                                .getTabRemover()
+                                .closeTabs(
+                                        TabClosureParams.closeTab(tab).allowUndo(false).build(),
+                                        /* allowDialog= */ false));
         assertHasCaptureForTab(previewTab, false);
     }
 
+    private void pretendColdStartBeforeForegrounded() {
+        // Paint preview is shown only on cold start, but it is not possible to restart the process
+        // within a test. Instead set up the ColdStartTracker to report a cold start.
+        ColdStartTracker.setStartedAsColdForTesting();
+        // Reset the SimpleStartupForegroundSessionDetector to the initial state as if the
+        // foreground session has not started.
+        SimpleStartupForegroundSessionDetector.resetForTesting();
+    }
+
     private static void assertHasCaptureForTab(Tab tab, boolean shouldHaveCapture) {
-        String shownMessage = shouldHaveCapture ? "No paint preview capture found."
-                                                : "Paint preview capture should have not existed.";
+        String shownMessage =
+                shouldHaveCapture
+                        ? "No paint preview capture found."
+                        : "Paint preview capture should have not existed.";
         CriteriaHelper.pollUiThread(
-                ()
-                        -> PaintPreviewTabServiceFactory.getServiceInstance().hasCaptureForTab(
-                                   tab.getId())
-                        == shouldHaveCapture,
+                () ->
+                        PaintPreviewTabServiceFactory.getServiceInstance()
+                                        .hasCaptureForTab(tab.getId())
+                                == shouldHaveCapture,
                 shownMessage);
     }
 }

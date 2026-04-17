@@ -5,6 +5,7 @@
 #include "services/network/tcp_connected_socket.h"
 
 #include <algorithm>
+#include <optional>
 #include <utility>
 
 #include "base/check_op.h"
@@ -16,7 +17,6 @@
 #include "net/socket/client_socket_handle.h"
 #include "services/network/public/mojom/tcp_socket.mojom.h"
 #include "services/network/tls_client_socket.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace network {
 
@@ -111,21 +111,21 @@ TCPConnectedSocket::~TCPConnectedSocket() {
     // If |this| is destroyed when connect hasn't completed, tell the consumer
     // that request has been aborted.
     std::move(connect_callback_)
-        .Run(net::ERR_ABORTED, absl::nullopt, absl::nullopt,
+        .Run(net::ERR_ABORTED, std::nullopt, std::nullopt,
              mojo::ScopedDataPipeConsumerHandle(),
              mojo::ScopedDataPipeProducerHandle());
   }
 }
 
 void TCPConnectedSocket::Connect(
-    const absl::optional<net::IPEndPoint>& local_addr,
+    const std::optional<net::IPEndPoint>& local_addr,
     const net::AddressList& remote_addr_list,
     mojom::TCPConnectedSocketOptionsPtr tcp_connected_socket_options,
     mojom::NetworkContext::CreateTCPConnectedSocketCallback callback) {
   DCHECK(!socket_);
   DCHECK(callback);
 
-  // TODO(https://crbug.com/1123197): Pass a non-null NetworkQualityEstimator.
+  // TODO(crbug.com/40146880): Pass a non-null NetworkQualityEstimator.
   net::NetworkQualityEstimator* network_quality_estimator = nullptr;
 
   std::unique_ptr<net::TransportClientSocket> socket =
@@ -177,7 +177,7 @@ void TCPConnectedSocket::UpgradeToTLS(
   if (!tls_socket_factory_) {
     std::move(callback).Run(
         net::ERR_NOT_IMPLEMENTED, mojo::ScopedDataPipeConsumerHandle(),
-        mojo::ScopedDataPipeProducerHandle(), absl::nullopt /* ssl_info*/);
+        mojo::ScopedDataPipeProducerHandle(), std::nullopt /* ssl_info*/);
     return;
   }
   // Wait for data pipes to be closed by the client before doing the upgrade.
@@ -268,7 +268,7 @@ void TCPConnectedSocket::OnConnectCompleted(int result) {
 
   if (result != net::OK) {
     std::move(connect_callback_)
-        .Run(result, absl::nullopt, absl::nullopt,
+        .Run(result, std::nullopt, std::nullopt,
              mojo::ScopedDataPipeConsumerHandle(),
              mojo::ScopedDataPipeProducerHandle());
     return;

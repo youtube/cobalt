@@ -4,12 +4,12 @@
 
 package org.chromium.content.browser;
 
-import org.chromium.base.annotations.NativeMethods;
-import org.chromium.net.ProxyChangeListener;
+import org.jni_zero.NativeMethods;
 
-/**
- * Implementations of {@link ContentViewStatics}.
- */
+import org.chromium.build.annotations.NullMarked;
+
+/** Implementations of {@link ContentViewStatics}. */
+@NullMarked
 public class ContentViewStaticsImpl {
     /**
      * Suspends Webkit timers in all renderers.
@@ -20,22 +20,6 @@ public class ContentViewStaticsImpl {
      */
     public static void setWebKitSharedTimersSuspended(boolean suspend) {
         ContentViewStaticsImplJni.get().setWebKitSharedTimersSuspended(suspend);
-    }
-
-    /**
-     * Enables platform notifications of data state and proxy changes.
-     * Notifications are enabled by default.
-     */
-    public static void enablePlatformNotifications() {
-        ProxyChangeListener.setEnabled(true);
-    }
-
-    /**
-     * Disables platform notifications of data state and proxy changes.
-     * Notifications are enabled by default.
-     */
-    public static void disablePlatformNotifications() {
-        ProxyChangeListener.setEnabled(false);
     }
 
     @NativeMethods

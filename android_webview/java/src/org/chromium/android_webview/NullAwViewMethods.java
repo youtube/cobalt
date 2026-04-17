@@ -25,12 +25,13 @@ import org.chromium.android_webview.AwContents.InternalAccessDelegate;
  * to the {@link FullScreenView} in embedded mode, but not to both at the same time.
  */
 class NullAwViewMethods implements AwViewMethods {
-    private AwContents mAwContents;
-    private InternalAccessDelegate mInternalAccessAdapter;
-    private View mContainerView;
+    private final AwContents mAwContents;
+    private final InternalAccessDelegate mInternalAccessAdapter;
+    private final View mContainerView;
 
     public NullAwViewMethods(
-            AwContents awContents, InternalAccessDelegate internalAccessAdapter,
+            AwContents awContents,
+            InternalAccessDelegate internalAccessAdapter,
             View containerView) {
         mAwContents = awContents;
         mInternalAccessAdapter = internalAccessAdapter;
@@ -70,6 +71,7 @@ class NullAwViewMethods implements AwViewMethods {
     public boolean onDragEvent(DragEvent event) {
         return false; // Intentional no-op.
     }
+
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
         return false; // Intentional no-op.
@@ -141,8 +143,8 @@ class NullAwViewMethods implements AwViewMethods {
     }
 
     @Override
-    public void onContainerViewOverScrolled(int scrollX, int scrollY, boolean clampedX,
-            boolean clampedY) {
+    public void onContainerViewOverScrolled(
+            int scrollX, int scrollY, boolean clampedX, boolean clampedY) {
         // Intentional no-op.
     }
 
@@ -189,5 +191,15 @@ class NullAwViewMethods implements AwViewMethods {
     @Override
     public boolean performAccessibilityAction(final int action, final Bundle arguments) {
         return false;
+    }
+
+    @Override
+    public void onStartTemporaryDetach() {
+        // Intentional no-op.
+    }
+
+    @Override
+    public void onFinishTemporaryDetach() {
+        // Intentional no-op.
     }
 }

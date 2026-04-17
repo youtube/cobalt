@@ -25,13 +25,13 @@ LearningTaskControllerImpl::LearningTaskControllerImpl(
     : task_(task),
       training_data_(std::make_unique<TrainingData>()),
       reporter_(std::move(reporter)),
-      helper_(std::make_unique<LearningTaskControllerHelper>(
-          task,
-          base::BindRepeating(&LearningTaskControllerImpl::AddFinishedExample,
-                              AsWeakPtr()),
-          std::move(feature_provider))),
       expected_feature_count_(task_.feature_descriptions.size()) {
   // Note that |helper_| uses the full set of features.
+  helper_ = std::make_unique<LearningTaskControllerHelper>(
+      task,
+      base::BindRepeating(&LearningTaskControllerImpl::AddFinishedExample,
+                          weak_ptr_factory_.GetWeakPtr()),
+      std::move(feature_provider));
 
   // TODO(liberato): Make this compositional.  FeatureSubsetTaskController?
   if (task_.feature_subset_size)
@@ -52,8 +52,8 @@ LearningTaskControllerImpl::~LearningTaskControllerImpl() = default;
 void LearningTaskControllerImpl::BeginObservation(
     base::UnguessableToken id,
     const FeatureVector& features,
-    const absl::optional<TargetValue>& default_target,
-    const absl::optional<ukm::SourceId>& source_id) {
+    const std::optional<TargetValue>& default_target,
+    const std::optional<ukm::SourceId>& source_id) {
   // TODO(liberato): Should we enforce that the right number of features are
   // present here?  Right now, we allow it to be shorter, so that features from
   // a FeatureProvider may be omitted.  Of course, they have to be at the end in
@@ -87,7 +87,7 @@ void LearningTaskControllerImpl::CancelObservation(base::UnguessableToken id) {
 
 void LearningTaskControllerImpl::UpdateDefaultTarget(
     base::UnguessableToken id,
-    const absl::optional<TargetValue>& default_target) {
+    const std::optional<TargetValue>& default_target) {
   NOTREACHED();
 }
 
@@ -101,7 +101,7 @@ void LearningTaskControllerImpl::PredictDistribution(
   if (model_)
     std::move(callback).Run(model_->PredictDistribution(features));
   else
-    std::move(callback).Run(absl::nullopt);
+    std::move(callback).Run(std::nullopt);
 }
 
 void LearningTaskControllerImpl::AddFinishedExample(LabelledExample example,
@@ -163,7 +163,8 @@ void LearningTaskControllerImpl::AddFinishedExample(LabelledExample example,
   last_training_size_ = training_data_->size();
 
   TrainedModelCB model_cb =
-      base::BindOnce(&LearningTaskControllerImpl::OnModelTrained, AsWeakPtr(),
+      base::BindOnce(&LearningTaskControllerImpl::OnModelTrained,
+                     weak_ptr_factory_.GetWeakPtr(),
                      training_data_->total_weight(), training_data_->size());
   training_is_in_progress_ = true;
   // Note that this copies the training data, so it's okay if we add more

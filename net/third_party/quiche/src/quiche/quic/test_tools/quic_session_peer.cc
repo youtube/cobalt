@@ -4,6 +4,9 @@
 
 #include "quiche/quic/test_tools/quic_session_peer.h"
 
+#include <memory>
+#include <utility>
+
 #include "absl/container/flat_hash_map.h"
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_stream.h"
@@ -240,6 +243,11 @@ size_t QuicSessionPeer::GetNumOpenDynamicStreams(QuicSession* session) {
 // static
 size_t QuicSessionPeer::GetNumDrainingStreams(QuicSession* session) {
   return session->num_draining_streams_;
+}
+
+// static
+QuicAlarm* QuicSessionPeer::GetStreamCountResetAlarm(QuicSession* session) {
+  return session->stream_count_reset_alarm_.get();
 }
 
 }  // namespace test

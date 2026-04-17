@@ -17,6 +17,7 @@
 
 #include <deque>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -130,20 +131,14 @@ class MEDIA_EXPORT ProgressiveDemuxer : public ::media::Demuxer {
     NOTIMPLEMENTED();
     return 0;
   }
-  absl::optional<::media::container_names::MediaContainerName>
+  std::optional<::media::container_names::MediaContainerName>
   GetContainerForMetrics() const override {
-    return absl::nullopt;
+    return std::nullopt;
   }
-  void OnEnabledAudioTracksChanged(
-      const std::vector<::media::MediaTrack::Id>& track_ids,
-      base::TimeDelta currTime,
-      TrackChangeCB change_completed_cb) override {
-    NOTIMPLEMENTED();
-  }
-  void OnSelectedVideoTrackChanged(
-      const std::vector<::media::MediaTrack::Id>& track_ids,
-      base::TimeDelta currTime,
-      TrackChangeCB change_completed_cb) override {
+  void OnTracksChanged(DemuxerStream::Type track_type,
+                       const std::vector<MediaTrack::Id>& tracks,
+                       base::TimeDelta timestamp,
+                       TrackChangeCB change_completed_cb) override {
     NOTIMPLEMENTED();
   }
   void SetPlaybackRate(double rate) override { NOTIMPLEMENTED(); }

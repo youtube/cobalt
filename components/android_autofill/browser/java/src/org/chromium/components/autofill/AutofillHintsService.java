@@ -7,30 +7,31 @@ package org.chromium.components.autofill;
 import android.os.IBinder;
 
 import org.chromium.base.Log;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.build.annotations.RequiresNonNull;
 import org.chromium.components.autofill_public.IAutofillHintsService;
 import org.chromium.components.autofill_public.IViewTypeCallback;
 import org.chromium.components.autofill_public.ViewType;
 
 import java.util.List;
 
-/**
- * This class is used to talk to autofill service about the view type.
- */
+/** This class is used to talk to autofill service about the view type. */
+@NullMarked
 public class AutofillHintsService {
     private static final String TAG = "AutofillHintsService";
 
     public AutofillHintsService() {
-        mBinder = new IAutofillHintsService.Stub() {
-            @Override
-            public void registerViewTypeCallback(IViewTypeCallback callback) {
-                mCallback = callback;
-                if (mUnsentViewTypes != null) {
-                    invokeOnViewTypeAvailable();
-                } else if (mQueryFailed != null) {
-                    invokeOnQueryFailed();
-                }
-            }
-        };
+        mBinder =
+                new IAutofillHintsService.Stub() {
+                    @Override
+                    public void registerViewTypeCallback(IViewTypeCallback callback) {
+                        mCallback = callback;
+                        if (mUnsentViewTypes != null) {
+                            invokeOnViewTypeAvailable();
+                        }
+                    }
+                };
     }
 
     public IBinder getBinder() {
@@ -44,13 +45,7 @@ public class AutofillHintsService {
         invokeOnViewTypeAvailable();
     }
 
-    public void onQueryFailed() {
-        if (mQueryFailed != null) return;
-        mQueryFailed = Boolean.TRUE;
-        if (mCallback == null) return;
-        invokeOnQueryFailed();
-    }
-
+    @RequiresNonNull("mCallback")
     private void invokeOnViewTypeAvailable() {
         try {
             mCallback.onViewTypeAvailable(mUnsentViewTypes);
@@ -59,16 +54,7 @@ public class AutofillHintsService {
         }
     }
 
-    private void invokeOnQueryFailed() {
-        try {
-            mCallback.onQueryFailed();
-        } catch (Exception e) {
-            Log.e(TAG, "onQueryFailed ", e);
-        }
-    }
-
-    private IAutofillHintsService.Stub mBinder;
-    private IViewTypeCallback mCallback;
-    private List<ViewType> mUnsentViewTypes;
-    private Boolean mQueryFailed;
+    private final IAutofillHintsService.Stub mBinder;
+    private @Nullable IViewTypeCallback mCallback;
+    private @Nullable List<ViewType> mUnsentViewTypes;
 }

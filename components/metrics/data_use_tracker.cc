@@ -7,8 +7,7 @@
 #include <memory>
 #include <string>
 
-#include "base/strings/string_number_conversions.h"
-#include "base/strings/stringprintf.h"
+#include "base/i18n/time_formatting.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "components/metrics/metrics_pref_names.h"
@@ -29,7 +28,7 @@ const double kDefaultUMARatio = 0.05;
 DataUseTracker::DataUseTracker(PrefService* local_state)
     : local_state_(local_state) {}
 
-DataUseTracker::~DataUseTracker() {}
+DataUseTracker::~DataUseTracker() = default;
 
 // static
 std::unique_ptr<DataUseTracker> DataUseTracker::Create(
@@ -155,11 +154,8 @@ base::Time DataUseTracker::GetCurrentMeasurementDate() const {
 
 std::string DataUseTracker::GetCurrentMeasurementDateAsString() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  base::Time::Exploded today_exploded;
-  GetCurrentMeasurementDate().LocalExplode(&today_exploded);
-  return base::StringPrintf("%04d-%02d-%02d", today_exploded.year,
-                            today_exploded.month, today_exploded.day_of_month);
+  return base::UnlocalizedTimeFormatWithPattern(GetCurrentMeasurementDate(),
+                                                "yyyy-MM-dd");
 }
 
 }  // namespace metrics

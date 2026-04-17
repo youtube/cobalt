@@ -30,7 +30,6 @@ std::string JavaScriptDialogTypeToString(
       return "prompt";
     default:
       NOTREACHED() << "Unknown JavaScript Message Type.";
-      return "unknown";
   }
 }
 

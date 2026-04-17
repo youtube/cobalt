@@ -4,13 +4,13 @@
 
 #include "ash/metrics/pointer_metrics_recorder.h"
 
-#include "ash/constants/app_types.h"
 #include "ash/display/screen_orientation_controller.h"
 #include "ash/shell.h"
-#include "ash/wm/tablet_mode/tablet_mode_controller.h"
 #include "base/metrics/histogram_macros.h"
-#include "ui/aura/client/aura_constants.h"
+#include "chromeos/ui/base/app_types.h"
+#include "chromeos/ui/base/window_properties.h"
 #include "ui/aura/window.h"
+#include "ui/display/screen.h"
 #include "ui/events/event_constants.h"
 #include "ui/events/types/event_type.h"
 #include "ui/views/widget/widget.h"
@@ -19,26 +19,23 @@ namespace ash {
 
 namespace {
 
-int GetDestination(views::Widget* target) {
-  if (!target)
-    return static_cast<int>(AppType::NON_APP);
+chromeos::AppType GetDestination(views::Widget* target) {
+  if (!target) {
+    return chromeos::AppType::NON_APP;
+  }
 
   aura::Window* window = target->GetNativeWindow();
   DCHECK(window);
-  int app_type = window->GetProperty(aura::client::kAppType);
-  // Use "BROWSER" for Lacros Chrome's pointer metrics.
-  if (app_type == static_cast<int>(AppType::LACROS))
-    return static_cast<int>(AppType::BROWSER);
-  return app_type;
+  return window->GetProperty(chromeos::kAppTypeKey);
 }
 
-DownEventMetric2 FindCombination(int destination,
+DownEventMetric2 FindCombination(chromeos::AppType destination,
                                  DownEventSource input_type,
                                  DownEventFormFactor form_factor) {
   constexpr int kNumCombinationPerDestination =
       static_cast<int>(DownEventSource::kSourceCount) *
       static_cast<int>(DownEventFormFactor::kFormFactorCount);
-  int result = destination * kNumCombinationPerDestination +
+  int result = static_cast<int>(destination) * kNumCombinationPerDestination +
                static_cast<int>(DownEventFormFactor::kFormFactorCount) *
                    static_cast<int>(input_type) +
                static_cast<int>(form_factor);
@@ -52,7 +49,7 @@ void RecordUMA(ui::EventPointerType type, ui::EventTarget* event_target) {
   views::Widget* target = views::Widget::GetTopLevelWidgetForNativeView(
       static_cast<aura::Window*>(event_target));
   DownEventFormFactor form_factor = DownEventFormFactor::kClamshell;
-  if (Shell::Get()->tablet_mode_controller()->InTabletMode()) {
+  if (display::Screen::GetScreen()->InTabletMode()) {
     chromeos::OrientationType screen_orientation =
         Shell::Get()->screen_orientation_controller()->GetCurrentOrientation();
     if (screen_orientation == chromeos::OrientationType::kLandscapePrimary ||
@@ -97,13 +94,15 @@ PointerMetricsRecorder::~PointerMetricsRecorder() {
 }
 
 void PointerMetricsRecorder::OnMouseEvent(ui::MouseEvent* event) {
-  if (event->type() == ui::ET_MOUSE_PRESSED)
+  if (event->type() == ui::EventType::kMousePressed) {
     RecordUMA(event->pointer_details().pointer_type, event->target());
+  }
 }
 
 void PointerMetricsRecorder::OnTouchEvent(ui::TouchEvent* event) {
-  if (event->type() == ui::ET_TOUCH_PRESSED)
+  if (event->type() == ui::EventType::kTouchPressed) {
     RecordUMA(event->pointer_details().pointer_type, event->target());
+  }
 }
 
 }  // namespace ash

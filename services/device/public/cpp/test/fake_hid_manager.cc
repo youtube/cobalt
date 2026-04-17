@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "services/device/public/cpp/test/fake_hid_manager.h"
 
 #include <memory>
@@ -68,7 +73,7 @@ void FakeHidConnection::Read(ReadCallback callback) {
   uint8_t report_id = device_->has_report_id ? 1 : 0;
 
   if (!allow_fido_reports_ && IsFidoReport(report_id, *device_)) {
-    std::move(callback).Run(false, 0, absl::nullopt);
+    std::move(callback).Run(false, 0, std::nullopt);
     return;
   }
 
@@ -108,13 +113,13 @@ void FakeHidConnection::Write(uint8_t report_id,
 void FakeHidConnection::GetFeatureReport(uint8_t report_id,
                                          GetFeatureReportCallback callback) {
   if (!allow_fido_reports_ && IsFidoReport(report_id, *device_)) {
-    std::move(callback).Run(false, absl::nullopt);
+    std::move(callback).Run(false, std::nullopt);
     return;
   }
 
   uint8_t expected_report_id = device_->has_report_id ? 1 : 0;
   if (report_id != expected_report_id) {
-    std::move(callback).Run(false, absl::nullopt);
+    std::move(callback).Run(false, std::nullopt);
     return;
   }
 

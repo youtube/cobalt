@@ -2,25 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#import "ios/web_view/internal/autofill/cwv_credit_card_internal.h"
-
 #import <UIKit/UIKit.h>
-#include <string>
 
-#include "base/base_paths.h"
-#include "base/path_service.h"
-#include "base/strings/sys_string_conversions.h"
-#include "components/autofill/core/browser/autofill_test_utils.h"
-#include "components/autofill/core/browser/data_model/credit_card.h"
-#include "testing/gtest/include/gtest/gtest.h"
+#import <string>
+
+#import "base/base_paths.h"
+#import "base/path_service.h"
+#import "base/strings/sys_string_conversions.h"
+#import "components/autofill/core/browser/data_model/payments/credit_card.h"
+#import "components/autofill/core/browser/test_utils/autofill_test_utils.h"
+#import "ios/web_view/internal/autofill/cwv_credit_card_internal.h"
+#import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
-#include "testing/platform_test.h"
-#include "ui/base/l10n/l10n_util_mac.h"
-#include "ui/base/resource/resource_bundle.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "testing/platform_test.h"
+#import "ui/base/l10n/l10n_util_mac.h"
+#import "ui/base/resource/resource_bundle.h"
+#import "ui/base/resource/resource_scale_factor.h"
 
 namespace ios_web_view {
 
@@ -35,16 +32,16 @@ class CWVCreditCardTest : public PlatformTest {
         ui::ResourceBundle::GetSharedInstance();
 
     // Don't load 100P resource since no @1x devices are supported.
-    if (ui::ResourceBundle::IsScaleFactorSupported(ui::k200Percent)) {
+    if (ui::IsScaleFactorSupported(ui::k200Percent)) {
       base::FilePath pak_file_200;
-      base::PathService::Get(base::DIR_MODULE, &pak_file_200);
+      base::PathService::Get(base::DIR_ASSETS, &pak_file_200);
       pak_file_200 =
           pak_file_200.Append(FILE_PATH_LITERAL("web_view_200_percent.pak"));
       resource_bundle.AddDataPackFromPath(pak_file_200, ui::k200Percent);
     }
-    if (ui::ResourceBundle::IsScaleFactorSupported(ui::k300Percent)) {
+    if (ui::IsScaleFactorSupported(ui::k300Percent)) {
       base::FilePath pak_file_300;
-      base::PathService::Get(base::DIR_MODULE, &pak_file_300);
+      base::PathService::Get(base::DIR_ASSETS, &pak_file_300);
       pak_file_300 =
           pak_file_300.Append(FILE_PATH_LITERAL("web_view_300_percent.pak"));
       resource_bundle.AddDataPackFromPath(pak_file_300, ui::k300Percent);

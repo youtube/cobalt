@@ -6,22 +6,9 @@
 
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
-#include "chrome/browser/chrome_for_testing/buildflags.h"
 #include "chrome/common/chrome_version.h"
 
 #define FPL FILE_PATH_LITERAL
-
-#if BUILDFLAG(IS_MAC)
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-#define PRODUCT_STRING "Google Chrome"
-#elif BUILDFLAG(GOOGLE_CHROME_FOR_TESTING_BRANDING)
-#define PRODUCT_STRING "Google Chrome for Testing"
-#elif BUILDFLAG(CHROMIUM_BRANDING)
-#define PRODUCT_STRING "Chromium"
-#else
-#error Unknown branding
-#endif
-#endif  // BUILDFLAG(IS_MAC)
 
 namespace chrome {
 
@@ -51,9 +38,9 @@ const base::FilePath::CharType kHelperProcessExecutableName[] =
     FPL("chrome.exe");
 #elif BUILDFLAG(IS_MAC)
 const base::FilePath::CharType kBrowserProcessExecutableName[] =
-    FPL(PRODUCT_STRING);
+    FPL(PRODUCT_FULLNAME_STRING);
 const base::FilePath::CharType kHelperProcessExecutableName[] =
-    FPL(PRODUCT_STRING " Helper");
+    FPL(PRODUCT_FULLNAME_STRING " Helper");
 #elif BUILDFLAG(IS_ANDROID)
 // NOTE: Keep it synced with the process names defined in AndroidManifest.xml.
 const base::FilePath::CharType kBrowserProcessExecutableName[] = FPL("chrome");
@@ -73,9 +60,18 @@ const base::FilePath::CharType kHelperProcessExecutablePath[] =
     FPL("chrome.exe");
 #elif BUILDFLAG(IS_MAC)
 const base::FilePath::CharType kBrowserProcessExecutablePath[] =
-    FPL(PRODUCT_STRING ".app/Contents/MacOS/" PRODUCT_STRING);
+    FPL(PRODUCT_FULLNAME_STRING ".app/Contents/MacOS/" PRODUCT_FULLNAME_STRING);
+const base::FilePath::CharType
+    kGoogleChromeForTestingBrowserProcessExecutablePath[] =
+        FPL("Google Chrome for Testing.app/Contents/MacOS/Google Chrome for "
+            "Testing");
+const base::FilePath::CharType kGoogleChromeBrowserProcessExecutablePath[] =
+    FPL("Google Chrome.app/Contents/MacOS/Google Chrome");
+const base::FilePath::CharType kChromiumBrowserProcessExecutablePath[] =
+    FPL("Chromium.app/Contents/MacOS/Chromium");
 const base::FilePath::CharType kHelperProcessExecutablePath[] =
-    FPL(PRODUCT_STRING " Helper.app/Contents/MacOS/" PRODUCT_STRING " Helper");
+    FPL(PRODUCT_FULLNAME_STRING
+        " Helper.app/Contents/MacOS/" PRODUCT_FULLNAME_STRING " Helper");
 #elif BUILDFLAG(IS_ANDROID)
 const base::FilePath::CharType kBrowserProcessExecutablePath[] = FPL("chrome");
 const base::FilePath::CharType kHelperProcessExecutablePath[] = FPL("chrome");
@@ -86,9 +82,9 @@ const base::FilePath::CharType kHelperProcessExecutablePath[] = FPL("chrome");
 
 #if BUILDFLAG(IS_MAC)
 const base::FilePath::CharType kFrameworkName[] =
-    FPL(PRODUCT_STRING " Framework.framework");
+    FPL(PRODUCT_FULLNAME_STRING " Framework.framework");
 const base::FilePath::CharType kFrameworkExecutableName[] =
-    FPL(PRODUCT_STRING " Framework");
+    FPL(PRODUCT_FULLNAME_STRING " Framework");
 const char kMacHelperSuffixAlerts[] = " (Alerts)";
 #endif  // BUILDFLAG(IS_MAC)
 
@@ -103,17 +99,18 @@ const char kInitialProfile[] = "Default";
 const char kMultiProfileDirPrefix[] = "Profile ";
 const base::FilePath::CharType kGuestProfileDir[] = FPL("Guest Profile");
 const base::FilePath::CharType kSystemProfileDir[] = FPL("System Profile");
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-const char kWebAppProfilePrefix[] = "web-app-profile-";
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
 // filenames
+const base::FilePath::CharType kAccountPreferencesFilename[] =
+    FPL("AccountPreferences");
 const base::FilePath::CharType kCacheDirname[] = FPL("Cache");
 const base::FilePath::CharType kCookieFilename[] = FPL("Cookies");
 const base::FilePath::CharType kCRLSetFilename[] =
     FPL("Certificate Revocation Lists");
 const base::FilePath::CharType kCustomDictionaryFileName[] =
     FPL("Custom Dictionary.txt");
+const base::FilePath::CharType kDeviceBoundSessionsFilename[] =
+    FPL("Device Bound Sessions");
 const base::FilePath::CharType kDownloadServiceStorageDirname[] =
     FPL("Download Service");
 const base::FilePath::CharType kExtensionActivityLogFilename[] =
@@ -174,6 +171,8 @@ const base::FilePath::CharType kJumpListIconDirname[] = FPL("JumpListIcons");
 // directory names
 #if BUILDFLAG(IS_WIN)
 const wchar_t kUserDataDirname[] = L"User Data";
+#elif BUILDFLAG(IS_ANDROID)
+const base::FilePath::CharType kOTRTempStateDirname[] = FPL("OTRTempState");
 #endif
 
 const float kMaxShareOfExtensionProcesses = 0.30f;

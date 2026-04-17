@@ -5,8 +5,17 @@
 #ifndef CONTENT_BROWSER_DEVTOOLS_PROTOCOL_EMULATION_HANDLER_H_
 #define CONTENT_BROWSER_DEVTOOLS_PROTOCOL_EMULATION_HANDLER_H_
 
+#include <memory>
+
+#include "base/containers/flat_map.h"
+#include "base/memory/raw_ptr.h"
 #include "content/browser/devtools/protocol/devtools_domain_handler.h"
 #include "content/browser/devtools/protocol/emulation.h"
+#include "content/browser/devtools/protocol/protocol.h"
+#include "services/device/public/cpp/compute_pressure/buildflags.h"
+#include "services/device/public/mojom/pressure_update.mojom-shared.h"
+#include "services/device/public/mojom/sensor.mojom-shared.h"
+#include "services/device/public/mojom/sensor_provider.mojom-shared.h"
 #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
 #include "third_party/blink/public/common/widget/device_emulation_params.h"
 
@@ -14,11 +23,17 @@ namespace net {
 class HttpRequestHeaders;
 }  // namespace net
 
+namespace download {
+class DownloadUrlParameters;
+}  // namespace download
+
 namespace content {
 
 class DevToolsAgentHostImpl;
 class RenderFrameHostImpl;
 class RenderWidgetHostImpl;
+class ScopedVirtualSensorForDevTools;
+class ScopedVirtualPressureSourceForDevTools;
 class WebContentsImpl;
 
 namespace protocol {
@@ -42,24 +57,41 @@ class EmulationHandler : public DevToolsDomainHandler,
 
   Response Disable() override;
 
+  void GetOverriddenSensorInformation(
+      const Emulation::SensorType& type,
+      std::unique_ptr<GetOverriddenSensorInformationCallback>) override;
+  Response SetSensorOverrideEnabled(
+      bool enabled,
+      const Emulation::SensorType& type,
+      std::unique_ptr<Emulation::SensorMetadata> metadata) override;
+  void SetSensorOverrideReadings(
+      const Emulation::SensorType& type,
+      std::unique_ptr<Emulation::SensorReading> reading,
+      std::unique_ptr<SetSensorOverrideReadingsCallback>) override;
+
   Response SetIdleOverride(bool is_user_active,
                            bool is_screen_unlocked) override;
   Response ClearIdleOverride() override;
 
-  Response SetGeolocationOverride(Maybe<double> latitude,
-                                  Maybe<double> longitude,
-                                  Maybe<double> accuracy) override;
+  Response SetGeolocationOverride(std::optional<double> latitude,
+                                  std::optional<double> longitude,
+                                  std::optional<double> accuracy,
+                                  std::optional<double> altitude,
+                                  std::optional<double> altitude_accuracy,
+                                  std::optional<double> heading,
+                                  std::optional<double> speed
+                            ) override;
   Response ClearGeolocationOverride() override;
 
   Response SetEmitTouchEventsForMouse(
       bool enabled,
-      Maybe<std::string> configuration) override;
+      std::optional<std::string> configuration) override;
 
-  Response SetUserAgentOverride(
-      const std::string& user_agent,
-      Maybe<std::string> accept_language,
-      Maybe<std::string> platform,
-      Maybe<Emulation::UserAgentMetadata> ua_metadata_override) override;
+  Response SetUserAgentOverride(const std::string& user_agent,
+                                std::optional<std::string> accept_language,
+                                std::optional<std::string> platform,
+                                std::unique_ptr<Emulation::UserAgentMetadata>
+                                    ua_metadata_override) override;
 
   Response CanEmulate(bool* result) override;
   Response SetDeviceMetricsOverride(
@@ -67,15 +99,17 @@ class EmulationHandler : public DevToolsDomainHandler,
       int height,
       double device_scale_factor,
       bool mobile,
-      Maybe<double> scale,
-      Maybe<int> screen_widget,
-      Maybe<int> screen_height,
-      Maybe<int> position_x,
-      Maybe<int> position_y,
-      Maybe<bool> dont_set_visible_size,
-      Maybe<Emulation::ScreenOrientation> screen_orientation,
-      Maybe<protocol::Page::Viewport> viewport,
-      Maybe<protocol::Emulation::DisplayFeature> displayFeature) override;
+      std::optional<double> scale,
+      std::optional<int> screen_widget,
+      std::optional<int> screen_height,
+      std::optional<int> position_x,
+      std::optional<int> position_y,
+      std::optional<bool> dont_set_visible_size,
+      std::unique_ptr<Emulation::ScreenOrientation> screen_orientation,
+      std::unique_ptr<protocol::Page::Viewport> viewport,
+      std::unique_ptr<protocol::Emulation::DisplayFeature> display_feature,
+      std::unique_ptr<protocol::Emulation::DevicePosture> device_posture)
+      override;
   Response ClearDeviceMetricsOverride() override;
 
   Response SetVisibleSize(int width, int height) override;
@@ -83,9 +117,9 @@ class EmulationHandler : public DevToolsDomainHandler,
   Response SetFocusEmulationEnabled(bool) override;
 
   Response SetEmulatedMedia(
-      Maybe<std::string> media,
-      Maybe<protocol::Array<protocol::Emulation::MediaFeature>> features)
-      override;
+      std::optional<std::string> media,
+      std::unique_ptr<protocol::Array<protocol::Emulation::MediaFeature>>
+          features) override;
 
   blink::DeviceEmulationParams GetDeviceEmulationParams();
   void SetDeviceEmulationParams(const blink::DeviceEmulationParams& params);
@@ -100,14 +134,43 @@ class EmulationHandler : public DevToolsDomainHandler,
                       bool* user_agent_overridden,
                       bool* accept_language_overridden);
   bool ApplyUserAgentMetadataOverrides(
-      absl::optional<blink::UserAgentMetadata>* override_out);
+      std::optional<blink::UserAgentMetadata>* override_out);
+  void ApplyNetworkOverridesForDownload(
+      download::DownloadUrlParameters* parameters);
 
  private:
   WebContentsImpl* GetWebContents();
+
   void UpdateTouchEventEmulationState();
   void UpdateDeviceEmulationState();
   void UpdateDeviceEmulationStateForHost(
       RenderWidgetHostImpl* render_widget_host);
+
+  Response SetDevicePostureOverride(
+      std::unique_ptr<protocol::Emulation::DevicePosture> posture) override;
+  Response ClearDevicePostureOverride() override;
+  Response SetDisplayFeaturesOverride(
+      std::unique_ptr<protocol::Array<protocol::Emulation::DisplayFeature>>
+          features) override;
+  Response ClearDisplayFeaturesOverride() override;
+
+  Response SetPressureSourceOverrideEnabled(
+      bool enabled,
+      const Emulation::PressureSource& source,
+      std::unique_ptr<Emulation::PressureMetadata> metadata) override;
+  // TODO: Remove obsolete method.
+  // `SetPressureStateOverride` will be replaced by SetPressureDataOverride.
+  // The method UpdateVirtualPressureSourceState called previously
+  // was removed in //content.
+  void SetPressureStateOverride(
+      const Emulation::PressureSource& source,
+      const Emulation::PressureState& state,
+      std::unique_ptr<SetPressureStateOverrideCallback>) override;
+  void SetPressureDataOverride(
+      const Emulation::PressureSource& source,
+      const Emulation::PressureState& state,
+      std::optional<double> own_contribution_estimate,
+      std::unique_ptr<SetPressureDataOverrideCallback>) override;
 
   bool touch_emulation_enabled_;
   std::string touch_emulation_configuration_;
@@ -119,7 +182,7 @@ class EmulationHandler : public DevToolsDomainHandler,
   // |user_agent_metadata_| is meaningful if |user_agent_| is non-empty.
   // In that case nullopt will disable sending of client hints, and a
   // non-nullopt value will be sent.
-  absl::optional<blink::UserAgentMetadata> user_agent_metadata_;
+  std::optional<blink::UserAgentMetadata> user_agent_metadata_;
   std::string accept_language_;
   // If |prefers_color_scheme_| is either "light" or "dark", it is used to
   // override the "prefers-color-scheme" client hint header, when present.
@@ -127,8 +190,24 @@ class EmulationHandler : public DevToolsDomainHandler,
   // If |prefers_reduced_motion_| is "reduce", it is used to override the
   // "prefers-reduced-motion" client hint header, when present.
   std::string prefers_reduced_motion_;
+  // If |prefers_reduced_transparency_| is "reduce", it is used to override the
+  // "prefers-reduced-transparency" client hint header, when present.
+  std::string prefers_reduced_transparency_;
 
-  RenderFrameHostImpl* host_;
+  base::flat_map<device::mojom::SensorType,
+                 std::unique_ptr<ScopedVirtualSensorForDevTools>>
+      sensor_overrides_;
+
+#if BUILDFLAG(ENABLE_COMPUTE_PRESSURE)
+  base::flat_map<device::mojom::PressureSource,
+                 std::unique_ptr<ScopedVirtualPressureSourceForDevTools>>
+      pressure_overrides_;
+#endif  // BUILDFLAG(ENABLE_COMPUTE_PRESSURE)
+
+  // True when SetDevicePostureOverride() has been called.
+  bool device_posture_emulation_enabled_ = false;
+
+  raw_ptr<RenderFrameHostImpl> host_;
 
   base::ScopedClosureRunner capture_handle_;
 };

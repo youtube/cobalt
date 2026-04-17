@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <string>
-#include <vector>
-
 #include <condition_variable>
 #include <mutex>
 #include <optional>
+#include <string>
+#include <vector>
+
+#include "build/build_config.h"
 #include "starboard/common/media.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
@@ -27,6 +28,10 @@
 #include "starboard/player.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "starboard/tvos/shared/run_in_background_thread_and_wait.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 namespace nplb {
 namespace {
@@ -114,8 +119,16 @@ class SbPlayerTest : public ::testing::Test {
       if (now > wait_end) {
         break;
       }
+
+#if BUILDFLAG(IS_IOS_TVOS)
+      RunInBackgroundThreadAndWait([&] {
+        condition_variable_.wait_for(lock,
+                                     std::chrono::microseconds(wait_end - now));
+      });
+#else
       condition_variable_.wait_for(lock,
                                    std::chrono::microseconds(wait_end - now));
+#endif  // BUILDFLAG(IS_IOS_TVOS)
     }
 
     SB_LOG(INFO) << "WaitForPlayerInitializedOrError() timed out.";

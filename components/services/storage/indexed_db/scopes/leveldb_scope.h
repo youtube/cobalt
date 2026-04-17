@@ -27,7 +27,7 @@
 #include "third_party/leveldatabase/src/include/leveldb/status.h"
 #include "third_party/leveldatabase/src/include/leveldb/write_batch.h"
 
-namespace content {
+namespace content::indexed_db {
 
 // LevelDBScope is a specialized type of transaction used only for writing data,
 // and is created using the |LevelDBScopes::CreateScope| method.
@@ -41,8 +41,6 @@ namespace content {
 // To support this, the following invariants have to be followed:
 // * The locks the scope was created with should protect it from colliding with
 //   modifications by other parties.
-// * The |empty_ranges| the scope was created with are truly empty.
-// * The |empty_ranges| are also disjoints - none of them intersect.
 // * All 'Get' operations in the range/s locked by this scope will first call
 //   |WriteChangesAndUndoLog()| so all writes are submitted to LevelDB.
 // * Any ranges deleted with |kDeferred| or |kDeferredWithCompaction| could
@@ -65,8 +63,8 @@ namespace content {
 class LevelDBScope {
  public:
   using RollbackCallback =
-      base::OnceCallback<leveldb::Status(int64_t scope_id,
-                                         std::vector<PartitionedLock> locks)>;
+      base::OnceCallback<void(int64_t scope_id,
+                              std::vector<PartitionedLock> locks)>;
   using TearDownCallback = base::RepeatingCallback<void(leveldb::Status)>;
   using CleanupCallback = base::OnceCallback<void(int64_t scope_id)>;
 
@@ -97,51 +95,27 @@ class LevelDBScope {
   // In the case of LevelDBScopes being in the mode
   // TaskRunnerMode::kUseCurrentSequence, rollbacks happen synchronously. The
   // status of this possibly synchronous rollback is returned.
-  leveldb::Status Rollback();
+  void Rollback();
 
   uint64_t GetMemoryUsage() const {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     return buffer_batch_.ApproximateSize();
   }
 
-  uint64_t GetApproximateBytesWritten() const {
-    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    return approximate_bytes_written_.ValueOrDie();
-  }
-
  private:
-  using EmptyRange = std::pair<std::string, std::string>;
   friend class LevelDBScopes;
   class UndoLogWriter;
-
-  struct EmptyRangeLessThan {
-    // This constructor is needed to satisfy the constraints of having default
-    // construction of the |empty_ranges_| flat_map below.
-    EmptyRangeLessThan();
-    explicit EmptyRangeLessThan(const leveldb::Comparator* comparator);
-    EmptyRangeLessThan(const EmptyRangeLessThan& other);
-    EmptyRangeLessThan& operator=(const EmptyRangeLessThan& other);
-
-    // The ranges are expected to be disjoint.
-    bool operator()(const EmptyRange& lhs, const EmptyRange& rhs) const;
-
-    raw_ptr<const leveldb::Comparator, DanglingUntriaged> comparator_ = nullptr;
-  };
 
   enum class Mode { kInMemory, kUndoLogOnDisk };
 
   bool IsUndoLogMode() const { return mode_ == Mode::kUndoLogOnDisk; }
 
-  // In |empty_ranges|, |pair.first| is the inclusive range begin, and
-  // |pair.second| is the exclusive range end.
   LevelDBScope(int64_t scope_id,
                std::vector<uint8_t> prefix,
                size_t write_batch_size,
                scoped_refptr<LevelDBState> level_db,
                std::vector<PartitionedLock> locks,
-               std::vector<EmptyRange> empty_ranges,
-               RollbackCallback rollback_callback,
-               TearDownCallback tear_down_callback);
+               RollbackCallback rollback_callback);
 
   // Called by LevelDBScopes. Saves all data, release all locks, and returns the
   // status & the mode of this scope. The caller (LevelDBScopes) is expected to
@@ -161,7 +135,6 @@ class LevelDBScope {
   // decrements the |undo_sequence_number_|.
   void AddBufferedUndoTask();
 
-  void AddCleanupDeleteRangeTask(std::string begin, std::string end);
   void AddCleanupDeleteAndCompactRangeTask(std::string begin, std::string end);
   // Writes the current |cleanup_task_buffer_| to the |write_batch_|, and
   // decrements the |cleanup_sequence_number_|.
@@ -183,9 +156,7 @@ class LevelDBScope {
 
 #if DCHECK_IS_ON()
   std::vector<std::pair<std::string, std::string>> deferred_delete_ranges_;
-  bool IsRangeEmpty(const EmptyRange& range);
   bool IsInDeferredDeletionRange(const leveldb::Slice& key);
-  void ValidateEmptyRanges();
 #endif
 
   SEQUENCE_CHECKER(sequence_checker_);
@@ -201,14 +172,10 @@ class LevelDBScope {
   const size_t write_batch_size_;
   const scoped_refptr<LevelDBState> level_db_;
   std::vector<PartitionedLock> locks_;
-  base::flat_map<EmptyRange, bool, EmptyRangeLessThan> empty_ranges_;
   RollbackCallback rollback_callback_;
-  // Warning: Calling this callback can destroy this scope.
-  TearDownCallback tear_down_callback_;
 
   leveldb::WriteBatch buffer_batch_;
   bool buffer_batch_empty_ = true;
-  base::CheckedNumeric<uint64_t> approximate_bytes_written_ = 0;
   bool has_written_to_disk_ = false;
   bool committed_ = false;
 
@@ -218,6 +185,6 @@ class LevelDBScope {
   std::string value_buffer_;
 };
 
-}  // namespace content
+}  // namespace content::indexed_db
 
 #endif  // COMPONENTS_SERVICES_STORAGE_INDEXED_DB_SCOPES_LEVELDB_SCOPE_H_

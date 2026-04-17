@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,8 +22,7 @@ namespace storage {
 // of execution) or with File::FILE_OK if no error occurred.
 
 class COMPONENT_EXPORT(STORAGE_BROWSER) CopyOrMoveHookDelegateComposite
-    : public CopyOrMoveHookDelegate,
-      public base::SupportsWeakPtr<CopyOrMoveHookDelegateComposite> {
+    : public CopyOrMoveHookDelegate {
  public:
   // If parent is no CopyOrMoveHookDelegateComposite, a new one is created and
   // parent and child are added. If parent is already a composite, child is
@@ -50,7 +49,8 @@ class COMPONENT_EXPORT(STORAGE_BROWSER) CopyOrMoveHookDelegateComposite
 
   void OnError(const FileSystemURL& source_url,
                const FileSystemURL& destination_url,
-               base::File::Error error) override;
+               base::File::Error error,
+               ErrorCallback callback) override;
 
   void OnEndCopy(const FileSystemURL& source_url,
                  const FileSystemURL& destination_url) override;

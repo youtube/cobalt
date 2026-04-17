@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/switches.h"
 
+#include "cobalt/shell/common/shell_switches.h"
+
 namespace cobalt {
 namespace switches {
 
@@ -21,7 +23,7 @@ std::string GetInitialURL(const base::CommandLine& command_line) {
   if (command_line.HasSwitch(kInitialURL)) {
     return command_line.GetSwitchValueASCII(kInitialURL);
   }
-  return kDefaultURL;
+  return ::switches::kDefaultURL;
 }
 
 }  // namespace switches

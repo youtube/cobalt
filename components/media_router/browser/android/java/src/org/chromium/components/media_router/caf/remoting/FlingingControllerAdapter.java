@@ -4,25 +4,30 @@
 
 package org.chromium.components.media_router.caf.remoting;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import com.google.android.gms.cast.MediaInfo;
 import com.google.android.gms.cast.MediaStatus;
 import com.google.android.gms.cast.framework.media.RemoteMediaClient;
 import com.google.android.gms.common.api.Result;
 
 import org.chromium.base.Log;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.media_router.FlingingController;
 import org.chromium.components.media_router.MediaController;
 import org.chromium.components.media_router.MediaStatusBridge;
 import org.chromium.components.media_router.MediaStatusObserver;
 
 /** Adapter class for bridging {@link RemoteMediaClient} and {@link FlingController}. */
+@NullMarked
 public class FlingingControllerAdapter implements FlingingController, MediaController {
     private static final String TAG = "FlingCtrlAdptr";
 
     private final StreamPositionExtrapolator mStreamPositionExtrapolator;
     private final RemotingSessionController mSessionController;
     private String mMediaUrl;
-    private MediaStatusObserver mMediaStatusObserver;
+    private @Nullable MediaStatusObserver mMediaStatusObserver;
     private boolean mLoaded;
     private boolean mHasEverReceivedValidMediaSession;
 
@@ -80,13 +85,15 @@ public class FlingingControllerAdapter implements FlingingController, MediaContr
     /** Starts loading the media URL, from the given position. */
     public void load(long position, boolean autoplay) {
         if (!mSessionController.isConnected()) return;
+        assumeNonNull(mSessionController.getRemoteMediaClient());
 
         mLoaded = true;
 
-        MediaInfo mediaInfo = new MediaInfo.Builder(mMediaUrl)
-                                      .setContentType("*/*")
-                                      .setStreamType(MediaInfo.STREAM_TYPE_BUFFERED)
-                                      .build();
+        MediaInfo mediaInfo =
+                new MediaInfo.Builder(mMediaUrl)
+                        .setContentType("*/*")
+                        .setStreamType(MediaInfo.STREAM_TYPE_BUFFERED)
+                        .build();
         mSessionController.getRemoteMediaClient().load(mediaInfo, autoplay, position);
     }
 
@@ -97,48 +104,63 @@ public class FlingingControllerAdapter implements FlingingController, MediaContr
     @Override
     public void play() {
         if (!mSessionController.isConnected()) return;
+        assumeNonNull(mSessionController.getRemoteMediaClient());
 
         if (!mLoaded) {
             load(/* position= */ 0, /* autoplay= */ true);
             return;
         }
 
-        mSessionController.getRemoteMediaClient().play().setResultCallback(
-                this::onMediaCommandResult);
+        mSessionController
+                .getRemoteMediaClient()
+                .play()
+                .setResultCallback(this::onMediaCommandResult);
     }
 
     @Override
     public void pause() {
         if (!mSessionController.isConnected()) return;
-        mSessionController.getRemoteMediaClient().pause().setResultCallback(
-                this::onMediaCommandResult);
+        assumeNonNull(mSessionController.getRemoteMediaClient());
+        mSessionController
+                .getRemoteMediaClient()
+                .pause()
+                .setResultCallback(this::onMediaCommandResult);
     }
 
     @Override
     public void setMute(boolean mute) {
         if (!mSessionController.isConnected()) return;
-        mSessionController.getRemoteMediaClient().setStreamMute(mute).setResultCallback(
-                this::onMediaCommandResult);
+        assumeNonNull(mSessionController.getRemoteMediaClient());
+        mSessionController
+                .getRemoteMediaClient()
+                .setStreamMute(mute)
+                .setResultCallback(this::onMediaCommandResult);
     }
 
     @Override
     public void setVolume(double volume) {
         if (!mSessionController.isConnected()) return;
-        mSessionController.getRemoteMediaClient().setStreamVolume(volume).setResultCallback(
-                this::onMediaCommandResult);
+        assumeNonNull(mSessionController.getRemoteMediaClient());
+        mSessionController
+                .getRemoteMediaClient()
+                .setStreamVolume(volume)
+                .setResultCallback(this::onMediaCommandResult);
     }
 
     @Override
     public void seek(long position) {
         if (!mSessionController.isConnected()) return;
+        assumeNonNull(mSessionController.getRemoteMediaClient());
 
         if (!mLoaded) {
             load(position, /* autoplay= */ true);
             return;
         }
 
-        mSessionController.getRemoteMediaClient().seek(position).setResultCallback(
-                this::onMediaCommandResult);
+        mSessionController
+                .getRemoteMediaClient()
+                .seek(position)
+                .setResultCallback(this::onMediaCommandResult);
         mStreamPositionExtrapolator.onSeek(position);
     }
 
@@ -150,6 +172,7 @@ public class FlingingControllerAdapter implements FlingingController, MediaContr
         if (mMediaStatusObserver == null) return;
 
         RemoteMediaClient remoteMediaClient = mSessionController.getRemoteMediaClient();
+        assumeNonNull(remoteMediaClient);
 
         MediaStatus mediaStatus = remoteMediaClient.getMediaStatus();
         if (mediaStatus != null) {
@@ -159,9 +182,11 @@ public class FlingingControllerAdapter implements FlingingController, MediaContr
                 mLoaded = false;
                 mStreamPositionExtrapolator.onFinish();
             } else {
-                mStreamPositionExtrapolator.update(remoteMediaClient.getStreamDuration(),
+                mStreamPositionExtrapolator.update(
+                        remoteMediaClient.getStreamDuration(),
                         remoteMediaClient.getApproximateStreamPosition(),
-                        remoteMediaClient.isPlaying(), mediaStatus.getPlaybackRate());
+                        remoteMediaClient.isPlaying(),
+                        mediaStatus.getPlaybackRate());
             }
 
             mMediaStatusObserver.onMediaStatusUpdate(new MediaStatusBridge(mediaStatus));
@@ -183,7 +208,9 @@ public class FlingingControllerAdapter implements FlingingController, MediaContr
         // onResult() called, so we should not rely on onResult() being called for every API call.
         // See https://crbug.com/853923.
         if (!result.getStatus().isSuccess()) {
-            Log.e(TAG, "Error when sending command. Status code: %d",
+            Log.e(
+                    TAG,
+                    "Error when sending command. Status code: %d",
                     result.getStatus().getStatusCode());
         }
     }

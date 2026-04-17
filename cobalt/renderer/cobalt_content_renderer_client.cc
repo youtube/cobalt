@@ -5,27 +5,76 @@
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
 
 #include <string>
+#include <variant>
 
+#include "base/command_line.h"
+#include "base/containers/flat_map.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
+#include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
+#include "cobalt/shell/common/url_constants.h"
 #include "components/cdm/renderer/widevine_key_system_info.h"
 #include "components/js_injection/renderer/js_communication.h"
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_thread.h"
+#include "media/base/decoder_buffer.h"
+#include "media/base/key_systems_support_registration.h"
 #include "media/base/media_log.h"
+#include "media/base/media_switches.h"
 #include "media/base/renderer_factory.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
-#include "media/starboard/bind_host_receiver_callback.h"
+#include "media/starboard/decoder_buffer_allocator.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
+#include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/platform.h"
+#include "third_party/blink/public/platform/web_string.h"
+#include "third_party/blink/public/web/web_security_policy.h"
 #include "third_party/blink/public/web/web_view.h"
 #include "ui/gfx/geometry/size_conversions.h"
 
 namespace cobalt {
 
 namespace {
+
+const char kH5vccSettingsKeyMediaDisableLowPerformanceSoftwareDecoder[] =
+    "Media.DisableLowPerformanceSoftwareDecoder";
+const char kH5vccSettingsKeyMediaEnableAllocateOnDemand[] =
+    "Media.EnableAllocateOnDemand";
+const char kH5vccSettingsKeyMediaEnableAv1StartupOptimization[] =
+    "Media.EnableAv1StartupOptimization";
+// TODO: b/474454335 - Remove once seek experiment is done.
+const char kH5vccSettingsKeyMediaEnableFlushDuringSeek[] =
+    "Media.EnableFlushDuringSeek";
+// TODO: b/474454335 - Remove once seek experiment is done.
+const char kH5vccSettingsKeyMediaEnableResetAudioDecoder[] =
+    "Media.EnableResetAudioDecoder";
+const char kH5vccSettingsKeyMediaVideoBufferSizeClampMb[] =
+    "Media.VideoBufferSizeClampMb";
+const char kH5vccSettingsKeyMediaVideoDecoderInitialPrerollCount[] =
+    "Media.VideoDecoderInitialPrerollCount";
+const char kH5vccSettingsKeyMediaVideoRendererMinInputBuffers[] =
+    "Media.VideoRendererMinInputBuffers";
+const char kH5vccSettingsKeyMediaVideoRendererMinDecodedFrames[] =
+    "Media.VideoRendererMinDecodedFrames";
+const char kH5vccSettingsKeyMediaMaxSamplesPerWrite[] =
+    "Media.MaxSamplesPerWrite";
+
+// Map that stores all current bindings of H5vcc settings to media switches.
+// If a setting has a corresponding switch, we will enable the switch with the
+// corresponding value.
+const base::flat_map<std::string, const char*> kH5vccSettingToSwitchMap = {
+    {kH5vccSettingsKeyMediaVideoBufferSizeClampMb,
+     switches::kMSEVideoBufferSizeLimitClampMb},
+};
+
+using ExperimentalFeatures =
+    ::media::StarboardRendererConfig::ExperimentalFeatures;
+using H5vccSettingValue = std::variant<std::string, int64_t>;
 
 // TODO(b/376542844): Eliminate the usage of hardcoded MIME string once we
 // support to query codec capabilities with configs. The profile information
@@ -65,7 +114,6 @@ std::string GetMimeFromAudioType(const ::media::AudioType& type) {
   }
 }
 
-#if BUILDFLAG(IS_ANDROID)
 ::media::SupportedCodecs GetStarboardEmeSupportedCodecs() {
   ::media::SupportedCodecs codecs =
       ::media::EME_CODEC_AAC | ::media::EME_CODEC_AVC1 |
@@ -73,33 +121,186 @@ std::string GetMimeFromAudioType(const ::media::AudioType& type) {
       ::media::EME_CODEC_VP8 | ::media::EME_CODEC_OPUS |
       ::media::EME_CODEC_VORBIS | ::media::EME_CODEC_MPEG_H_AUDIO |
       ::media::EME_CODEC_FLAC | ::media::EME_CODEC_HEVC_PROFILE_MAIN |
-      ::media::EME_CODEC_HEVC_PROFILE_MAIN10 | ::media::EME_CODEC_AV1 |
-      ::media::EME_CODEC_AC3 | ::media::EME_CODEC_EAC3;
+      ::media::EME_CODEC_HEVC_PROFILE_MAIN10 | ::media::EME_CODEC_AC3 |
+      ::media::EME_CODEC_EAC3;
+
+#if BUILDFLAG(ENABLE_AV1_DECODER)
+  codecs |= ::media::EME_CODEC_AV1;
+#endif
+
   // TODO(b/375232937) Add IAMF
   return codecs;
 }
-#endif
 
 void BindHostReceiverWithValuation(mojo::GenericPendingReceiver receiver) {
   content::RenderThread::Get()->BindHostReceiver(std::move(receiver));
 }
 
-}  // namespace
-
-static_assert(std::is_same<::media::BindHostReceiverCallback,
-                           base::RepeatingCallback<
-                               decltype(BindHostReceiverWithValuation)>>::value,
-              "These two types must be the same");
-
-CobaltContentRendererClient::CobaltContentRendererClient() {
-  DETACH_FROM_THREAD(thread_checker_);
+// TODO: b/460292554 - This code is a tentative solution, and will be replaced
+// once base::Feature is fully supported.
+//
+// Append the h5vcc setting to the corresponding media switch, if such mapping
+// exists. H5vcc settings are either pass their value to a media switch for code
+// in /media to use, or are given to Starboard Renderer for direct usage.
+bool AppendSettingToSwitch(const std::string& setting_name,
+                           const H5vccSettingValue& setting_value) {
+  auto it = kH5vccSettingToSwitchMap.find(setting_name);
+  if (it == kH5vccSettingToSwitchMap.end()) {
+    return false;
+  }
+  std::string switch_name = it->second;
+  std::string setting_str;
+  if (auto* val_str = std::get_if<std::string>(&setting_value)) {
+    setting_str = *val_str;
+  } else if (auto* val_int = std::get_if<int64_t>(&setting_value)) {
+    setting_str = base::NumberToString(*val_int);
+  } else {
+    LOG(WARNING) << "Attempted to apply switch " << switch_name
+                 << " but the setting value was not an integer or string.";
+    return false;
+  }
+  base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(switch_name,
+                                                            setting_str);
+  LOG(INFO) << "Applied command line switch: " << switch_name << " = "
+            << setting_str;
+  return true;
 }
 
-CobaltContentRendererClient::~CobaltContentRendererClient() = default;
+std::map<std::string, H5vccSettingValue> ParseH5vccSettings(
+    cobalt::mojom::SettingsPtr settings) {
+  std::map<std::string, H5vccSettingValue> h5vcc_settings;
+  for (auto& [key, value] : settings->settings) {
+    if (value->is_string_value()) {
+      h5vcc_settings.emplace(key, std::move(value->get_string_value()));
+    } else if (value->is_int_value()) {
+      h5vcc_settings.emplace(key, value->get_int_value());
+    } else {
+      NOTREACHED();
+    }
+  }
+  return h5vcc_settings;
+}
+
+template <typename T>
+const T* GetSettingValue(
+    const std::map<std::string, H5vccSettingValue>& settings,
+    const std::string& key) {
+  auto it = settings.find(key);
+  if (it == settings.end()) {
+    return nullptr;
+  }
+  return std::get_if<T>(&it->second);
+}
+
+// Experiment framework uses 0 as the sentinel value for unset.
+// e.g.)
+// http://go/latestexpcl/player_web/features/player_web_cobalt.impl.gcl;l=332;rcl=862772714
+constexpr int kH5vccUnsetSentinel = 0;
+
+std::optional<int> ProcessRangedIntH5vccSetting(
+    const std::map<std::string, H5vccSettingValue>& settings,
+    const char* key,
+    int min_val,
+    int max_val,
+    int unset_sentinel) {
+  auto* val = GetSettingValue<int64_t>(settings, key);
+  if (!val) {
+    return std::nullopt;
+  }
+  if (*val == unset_sentinel) {
+    LOG(INFO) << "Value for " << key << " matches unset sentinel (" << *val
+              << "); falling back to system default.";
+    return std::nullopt;
+  }
+  if (*val < min_val || max_val < *val) {
+    LOG(WARNING) << "Invalid value for " << key << ": " << *val;
+    return std::nullopt;
+  }
+
+  return static_cast<int>(*val);
+}
+
+ExperimentalFeatures ProcessH5vccSettings(
+    const std::map<std::string, H5vccSettingValue>& settings) {
+  ExperimentalFeatures parsed;
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaEnableAllocateOnDemand)) {
+    bool enable_allocate_on_demand = *val != 0;
+    auto* allocator = ::media::DecoderBufferAllocator::Get();
+    CHECK(allocator);
+    allocator->SetAllocateOnDemand(enable_allocate_on_demand);
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings,
+          kH5vccSettingsKeyMediaDisableLowPerformanceSoftwareDecoder)) {
+    parsed.disable_low_performance_sw_decoder = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaEnableAv1StartupOptimization)) {
+    parsed.enable_av1_startup_optimization = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaEnableFlushDuringSeek)) {
+    parsed.enable_flush_during_seek = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaEnableResetAudioDecoder)) {
+    parsed.enable_reset_audio_decoder = *val != 0;
+  }
+
+  parsed.video_decoder_initial_preroll_count = ProcessRangedIntH5vccSetting(
+      settings, kH5vccSettingsKeyMediaVideoDecoderInitialPrerollCount,
+      /*min_val=*/1, /*max_val=*/100'000, kH5vccUnsetSentinel);
+  parsed.video_renderer_min_input_buffers = ProcessRangedIntH5vccSetting(
+      settings, kH5vccSettingsKeyMediaVideoRendererMinInputBuffers,
+      /*min_val=*/1, /*max_val=*/100'000, kH5vccUnsetSentinel);
+  parsed.video_renderer_min_decoded_frames = ProcessRangedIntH5vccSetting(
+      settings, kH5vccSettingsKeyMediaVideoRendererMinDecodedFrames,
+      /*min_val=*/1, /*max_val=*/100'000, kH5vccUnsetSentinel);
+  parsed.max_samples_per_write = ProcessRangedIntH5vccSetting(
+      settings, kH5vccSettingsKeyMediaMaxSamplesPerWrite, /*min_val=*/1,
+      /*max_val=*/100'000, kH5vccUnsetSentinel);
+
+  for (const auto& [setting_name, setting_value] : settings) {
+    AppendSettingToSwitch(setting_name, setting_value);
+  }
+  return parsed;
+}
+
+}  // namespace
+
+void CobaltContentRendererClient::EnsureH5vccSettingsRemoteInitialized() {
+  CHECK(content::RenderThread::IsMainThread());
+  if (h5vcc_settings_remote_) {
+    return;
+  }
+
+  h5vcc_settings_remote_ = {
+      new mojo::Remote<cobalt::mojom::H5vccSettings>(),
+      base::OnTaskRunnerDeleter(
+          base::SequencedTaskRunner::GetCurrentDefault())};
+  content::RenderThread::Get()->BindHostReceiver(
+      h5vcc_settings_remote_->BindNewPipeAndPassReceiver());
+}
+
+void CobaltContentRendererClient::BindHostReceiver(
+    mojo::GenericPendingReceiver receiver) {
+  CHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
+  BindHostReceiverWithValuation(std::move(receiver));
+}
+
+CobaltContentRendererClient::CobaltContentRendererClient()
+    : h5vcc_settings_remote_(nullptr, base::OnTaskRunnerDeleter(nullptr)) {
+  CHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
+}
+
+CobaltContentRendererClient::~CobaltContentRendererClient() {
+  CHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
+}
 
 void CobaltContentRendererClient::RenderFrameCreated(
     content::RenderFrame* render_frame) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK(content::RenderThread::IsMainThread());
   new js_injection::JsCommunication(render_frame);
   new CobaltRenderFrameObserver(render_frame);
   if (render_frame->GetWebView()) {
@@ -108,10 +309,51 @@ void CobaltContentRendererClient::RenderFrameCreated(
   } else {
     LOG(WARNING) << "RenderFrameCreated is called with no webview.";
   }
+
+  if (sb_window_handle_.load() == 0 && !window_handle_requested_) {
+    window_handle_requested_ = true;
+    mojo::Remote<media::mojom::PlatformWindowProvider> window_provider;
+    render_frame->GetBrowserInterfaceBroker().GetInterface(
+        window_provider.BindNewPipeAndPassReceiver());
+
+    auto* window_provider_ptr = window_provider.get();
+    window_provider_ptr->GetSbWindow(
+        base::BindPostTaskToCurrentDefault(base::BindOnce(
+            [](base::WeakPtr<CobaltContentRendererClient> client,
+               mojo::Remote<media::mojom::PlatformWindowProvider> remote,
+               uint64_t handle) {
+              if (client) {
+                client->OnGetSbWindow(handle);
+              }
+            },
+            weak_factory_.GetWeakPtr(), std::move(window_provider))));
+  }
+
+  EnsureH5vccSettingsRemoteInitialized();
 }
 
-#if BUILDFLAG(IS_ANDROID)
+void CobaltContentRendererClient::OnGetSbWindow(uint64_t handle) {
+  CHECK(content::RenderThread::IsMainThread());
+  if (!handle) {
+    LOG(ERROR) << "Renderer received invalid SbWindow handle.";
+    return;
+  }
+
+  LOG(INFO) << "Renderer received SbWindow handle: "
+            << reinterpret_cast<void*>(handle);
+  sb_window_handle_ = handle;
+}
+
+void CobaltContentRendererClient::RenderThreadStarted() {
+  CHECK(content::RenderThread::IsMainThread());
+
+  // Register h5vcc scheme for renders to use Fetch API.
+  blink::WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(
+      blink::WebString::FromASCII(content::kH5vccEmbeddedScheme));
+}
+
 void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
+  CHECK(content::RenderThread::IsMainThread());
   ::media::SupportedCodecs codecs = GetStarboardEmeSupportedCodecs();
 
   using Robustness = cdm::WidevineKeySystemInfo::Robustness;
@@ -134,21 +376,21 @@ void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
       ::media::EmeFeatureSupport::ALWAYS_ENABLED,    // Persistent state.
       ::media::EmeFeatureSupport::ALWAYS_ENABLED));  // Distinctive identifier.
 }
-#endif
 
-void CobaltContentRendererClient::GetSupportedKeySystems(
+std::unique_ptr<::media::KeySystemSupportRegistration>
+CobaltContentRendererClient::GetSupportedKeySystems(
+    content::RenderFrame* render_frame,
     ::media::GetSupportedKeySystemsCB cb) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK(content::RenderThread::IsMainThread());
   ::media::KeySystemInfos key_systems;
-#if BUILDFLAG(IS_ANDROID)
   AddStarboardCmaKeySystems(&key_systems);
   std::move(cb).Run(std::move(key_systems));
-#endif
+  return nullptr;
 }
 
-bool CobaltContentRendererClient::IsSupportedAudioType(
+bool CobaltContentRendererClient::IsDecoderSupportedAudioType(
     const ::media::AudioType& type) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK(content::RenderThread::IsMainThread());
   std::string mime = GetMimeFromAudioType(type);
   SbMediaSupportType support_type = kSbMediaSupportTypeNotSupported;
   if (!mime.empty()) {
@@ -160,9 +402,9 @@ bool CobaltContentRendererClient::IsSupportedAudioType(
   return result;
 }
 
-bool CobaltContentRendererClient::IsSupportedVideoType(
+bool CobaltContentRendererClient::IsDecoderSupportedVideoType(
     const ::media::VideoType& type) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK(content::RenderThread::IsMainThread());
   std::string mime = GetMimeFromVideoType(type);
   SbMediaSupportType support_type = kSbMediaSupportTypeNotSupported;
   if (!mime.empty()) {
@@ -176,27 +418,41 @@ bool CobaltContentRendererClient::IsSupportedVideoType(
 
 void CobaltContentRendererClient::RunScriptsAtDocumentStart(
     content::RenderFrame* render_frame) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK(content::RenderThread::IsMainThread());
   js_injection::JsCommunication* communication =
       js_injection::JsCommunication::Get(render_frame);
   communication->RunScriptsAtDocumentStart();
 }
 
-void CobaltContentRendererClient::BindHostReceiver(
-    mojo::GenericPendingReceiver receiver) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  BindHostReceiverWithValuation(std::move(receiver));
-}
-
 void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
-    media::RendererFactoryTraits* renderer_factory_traits) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+    ::media::RendererFactoryTraits* renderer_factory_traits) {
+  CHECK(content::RenderThread::IsMainThread());
+
   // TODO(b/383327725) - Cobalt: Inject these values from the web app.
   renderer_factory_traits->audio_write_duration_local =
       base::Microseconds(kSbPlayerWriteDurationLocal);
   renderer_factory_traits->audio_write_duration_remote =
       base::Microseconds(kSbPlayerWriteDurationRemote);
   renderer_factory_traits->viewport_size = viewport_size_;
+#if BUILDFLAG(IS_STARBOARD)
+  // Using base::Unretained(this) is safe here because
+  // CobaltContentRendererClient is a process-global singleton that outlives
+  // the media pipeline, and GetSbWindowHandle() only accesses an atomic
+  // member variable.
+  renderer_factory_traits->get_sb_window_handle_callback = base::BindRepeating(
+      &CobaltContentRendererClient::GetSbWindowHandle, base::Unretained(this));
+#endif  // BUILDFLAG(IS_STARBOARD)
+
+  EnsureH5vccSettingsRemoteInitialized();
+
+  cobalt::mojom::SettingsPtr settings;
+  ExperimentalFeatures experimental_features;
+  if ((*h5vcc_settings_remote_)->GetSettings(&settings) && settings) {
+    auto h5vcc_settings = ParseH5vccSettings(std::move(settings));
+    experimental_features = ProcessH5vccSettings(h5vcc_settings);
+  }
+  renderer_factory_traits->experimental_features = experimental_features;
+
   // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
   renderer_factory_traits->bind_host_receiver_callback =
       base::BindPostTaskToCurrentDefault(
@@ -205,7 +461,7 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
 }
 
 void CobaltContentRendererClient::PostSandboxInitialized() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK(content::RenderThread::IsMainThread());
 
   // Register the current thread (which is the InProcessRendererThread in
   // single- process mode) for hang watching. Store the ScopedClosureRunner to

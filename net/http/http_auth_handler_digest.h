@@ -7,10 +7,10 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
-#include "base/strings/string_piece_forward.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/net_export.h"
 #include "net/http/http_auth_handler.h"
@@ -112,17 +112,21 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerDigest : public HttpAuthHandler {
   FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionTest, DigestPreAuthNonceCount);
 
   // Possible values for the "algorithm" property.
-  enum DigestAlgorithm {
+  enum class Algorithm {
     // No algorithm was specified. According to RFC 2617 this means
-    // we should default to ALGORITHM_MD5.
-    ALGORITHM_UNSPECIFIED,
+    // we should default to MD5.
+    UNSPECIFIED,
 
     // Hashes are run for every request.
-    ALGORITHM_MD5,
+    MD5,
 
     // Hash is run only once during the first WWW-Authenticate handshake.
     // (SESS means session).
-    ALGORITHM_MD5_SESS,
+    MD5_SESS,
+
+    // SHA256 variants of the above.
+    SHA256,
+    SHA256_SESS,
   };
 
   // Possible values for QualityOfProtection.
@@ -144,14 +148,14 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerDigest : public HttpAuthHandler {
   bool ParseChallenge(HttpAuthChallengeTokenizer* challenge);
 
   // Parse an individual property. Returns true on success.
-  bool ParseChallengeProperty(base::StringPiece name, base::StringPiece value);
+  bool ParseChallengeProperty(std::string_view name, std::string_view value);
 
   // Generates a random string, to be used for client-nonce.
   static std::string GenerateNonce();
 
   // Convert enum value back to string.
   static std::string QopToString(QualityOfProtection qop);
-  static std::string AlgorithmToString(DigestAlgorithm algorithm);
+  static std::string AlgorithmToString(Algorithm algorithm);
 
   // Extract the method and path of the request, as needed by
   // the 'A2' production. (path may be a hostname for proxy).
@@ -178,8 +182,9 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerDigest : public HttpAuthHandler {
   std::string domain_;
   std::string opaque_;
   bool stale_ = false;
-  DigestAlgorithm algorithm_ = ALGORITHM_UNSPECIFIED;
+  Algorithm algorithm_ = Algorithm::UNSPECIFIED;
   QualityOfProtection qop_ = QOP_UNSPECIFIED;
+  bool userhash_ = false;
 
   // The realm as initially encoded over-the-wire. This is used in the
   // challenge text, rather than |realm_| which has been converted to
@@ -188,6 +193,8 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerDigest : public HttpAuthHandler {
 
   int nonce_count_;
   raw_ptr<const NonceGenerator> nonce_generator_;
+
+  class DigestContext;
 };
 
 }  // namespace net

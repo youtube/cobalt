@@ -9,7 +9,6 @@
 #include "base/functional/callback.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "ui/events/event_utils.h"
 #include "ui/events/ozone/events_ozone.h"
 
@@ -28,18 +27,26 @@ bool UIControlsOzone::SendKeyEvents(gfx::NativeWindow window,
                                     int key_event_types,
                                     int accelerator_state) {
   return SendKeyEventsNotifyWhenDone(window, key, key_event_types,
-                                     base::OnceClosure(), accelerator_state);
+                                     base::OnceClosure(), accelerator_state,
+                                     ui_controls::KeyEventType::kKeyRelease);
 }
 
-bool UIControlsOzone::SendKeyEventsNotifyWhenDone(gfx::NativeWindow window,
-                                                  ui::KeyboardCode key,
-                                                  int key_event_types,
-                                                  base::OnceClosure closure,
-                                                  int accelerator_state) {
+bool UIControlsOzone::SendKeyEventsNotifyWhenDone(
+    gfx::NativeWindow window,
+    ui::KeyboardCode key,
+    int key_event_types,
+    base::OnceClosure closure,
+    int accelerator_state,
+    ui_controls::KeyEventType wait_for) {
+  CHECK(wait_for == ui_controls::KeyEventType::kKeyPress ||
+        wait_for == ui_controls::KeyEventType::kKeyRelease);
+  // This doesn't time out if `window` is deleted before the key release events
+  // are dispatched, so it's fine to ignore `wait_for` and always wait for key
+  // release events.
   WindowTreeHost* optional_host = nullptr;
   // Send the key event to the window's host, which may not match |host_|.
   // This logic should probably exist for the non-aura path as well.
-  // TODO(https://crbug.com/1116649) Support non-aura path.
+  // TODO(crbug.com/40144825) Support non-aura path.
 #if defined(USE_AURA)
   if (window != nullptr && window->GetHost() != nullptr &&
       window->GetHost() != host_)
@@ -61,35 +68,35 @@ bool UIControlsOzone::SendKeyEventsNotifyWhenDone(gfx::NativeWindow window,
   if (has_press) {
     if (has_control) {
       flags |= ui::EF_CONTROL_DOWN;
-      PostKeyEvent(ui::ET_KEY_PRESSED, ui::VKEY_CONTROL, flags, display_id,
-                   base::OnceClosure(), optional_host);
+      PostKeyEvent(ui::EventType::kKeyPressed, ui::VKEY_CONTROL, flags,
+                   display_id, base::OnceClosure(), optional_host);
     }
 
     if (has_shift) {
       flags |= ui::EF_SHIFT_DOWN;
-      PostKeyEvent(ui::ET_KEY_PRESSED, ui::VKEY_SHIFT, flags, display_id,
-                   base::OnceClosure(), optional_host);
+      PostKeyEvent(ui::EventType::kKeyPressed, ui::VKEY_SHIFT, flags,
+                   display_id, base::OnceClosure(), optional_host);
     }
 
     if (has_alt) {
       flags |= ui::EF_ALT_DOWN;
-      PostKeyEvent(ui::ET_KEY_PRESSED, ui::VKEY_MENU, flags, display_id,
+      PostKeyEvent(ui::EventType::kKeyPressed, ui::VKEY_MENU, flags, display_id,
                    base::OnceClosure(), optional_host);
     }
 
     if (has_command) {
       flags |= ui::EF_COMMAND_DOWN;
-      PostKeyEvent(ui::ET_KEY_PRESSED, ui::VKEY_LWIN, flags, display_id,
+      PostKeyEvent(ui::EventType::kKeyPressed, ui::VKEY_LWIN, flags, display_id,
                    base::OnceClosure(), optional_host);
     }
 
-    PostKeyEvent(ui::ET_KEY_PRESSED, key, flags, display_id,
+    PostKeyEvent(ui::EventType::kKeyPressed, key, flags, display_id,
                  has_release ? base::OnceClosure() : std::move(closure),
                  optional_host);
   }
 
   if (has_release) {
-    PostKeyEvent(ui::ET_KEY_RELEASED, key, flags, display_id,
+    PostKeyEvent(ui::EventType::kKeyReleased, key, flags, display_id,
                  (has_control || has_shift || has_alt || has_command)
                      ? base::OnceClosure()
                      : std::move(closure),
@@ -97,16 +104,17 @@ bool UIControlsOzone::SendKeyEventsNotifyWhenDone(gfx::NativeWindow window,
 
     if (has_alt) {
       flags &= ~ui::EF_ALT_DOWN;
-      PostKeyEvent(ui::ET_KEY_RELEASED, ui::VKEY_MENU, flags, display_id,
-                   (has_shift || has_control || has_command)
-                       ? base::OnceClosure()
-                       : std::move(closure),
-                   optional_host);
+      PostKeyEvent(
+          ui::EventType::kKeyReleased, ui::VKEY_MENU, flags, display_id,
+          (has_shift || has_control || has_command) ? base::OnceClosure()
+                                                    : std::move(closure),
+          optional_host);
     }
 
     if (has_shift) {
       flags &= ~ui::EF_SHIFT_DOWN;
-      PostKeyEvent(ui::ET_KEY_RELEASED, ui::VKEY_SHIFT, flags, display_id,
+      PostKeyEvent(ui::EventType::kKeyReleased, ui::VKEY_SHIFT, flags,
+                   display_id,
                    (has_control || has_command) ? base::OnceClosure()
                                                 : std::move(closure),
                    optional_host);
@@ -114,15 +122,16 @@ bool UIControlsOzone::SendKeyEventsNotifyWhenDone(gfx::NativeWindow window,
 
     if (has_control) {
       flags &= ~ui::EF_CONTROL_DOWN;
-      PostKeyEvent(ui::ET_KEY_RELEASED, ui::VKEY_CONTROL, flags, display_id,
+      PostKeyEvent(ui::EventType::kKeyReleased, ui::VKEY_CONTROL, flags,
+                   display_id,
                    has_command ? base::OnceClosure() : std::move(closure),
                    optional_host);
     }
 
     if (has_command) {
       flags &= ~ui::EF_COMMAND_DOWN;
-      PostKeyEvent(ui::ET_KEY_RELEASED, ui::VKEY_LWIN, flags, display_id,
-                   std::move(closure), optional_host);
+      PostKeyEvent(ui::EventType::kKeyReleased, ui::VKEY_LWIN, flags,
+                   display_id, std::move(closure), optional_host);
     }
   }
 
@@ -143,9 +152,9 @@ bool UIControlsOzone::SendMouseMoveNotifyWhenDone(int screen_x,
   ui::EventType event_type;
 
   if (button_down_mask_)
-    event_type = ui::ET_MOUSE_DRAGGED;
+    event_type = ui::EventType::kMouseDragged;
   else
-    event_type = ui::ET_MOUSE_MOVED;
+    event_type = ui::EventType::kMouseMoved;
 
   PostMouseEvent(event_type, host_location, button_down_mask_, 0, display_id,
                  std::move(closure));
@@ -184,7 +193,6 @@ bool UIControlsOzone::SendMouseEventsNotifyWhenDone(
       break;
     default:
       NOTREACHED();
-      break;
   }
 
   // Process the accelerator key state.
@@ -201,14 +209,14 @@ bool UIControlsOzone::SendMouseEventsNotifyWhenDone(
   if (button_state & ui_controls::DOWN) {
     button_down_mask_ |= flag;
     // Pass the real closure to the last generated MouseEvent.
-    PostMouseEvent(ui::ET_MOUSE_PRESSED, host_location,
+    PostMouseEvent(ui::EventType::kMousePressed, host_location,
                    button_down_mask_ | flag, changed_button_flag, display_id,
                    (button_state & ui_controls::UP) ? base::OnceClosure()
                                                     : std::move(closure));
   }
   if (button_state & ui_controls::UP) {
     button_down_mask_ &= ~flag;
-    PostMouseEvent(ui::ET_MOUSE_RELEASED, host_location,
+    PostMouseEvent(ui::EventType::kMouseReleased, host_location,
                    button_down_mask_ | flag, changed_button_flag, display_id,
                    std::move(closure));
   }
@@ -240,15 +248,15 @@ bool UIControlsOzone::SendTouchEventsNotifyWhenDone(int action,
   bool has_release = action & ui_controls::kTouchRelease;
   if (action & ui_controls::kTouchPress) {
     PostTouchEvent(
-        ui::ET_TOUCH_PRESSED, host_location, id, display_id,
+        ui::EventType::kTouchPressed, host_location, id, display_id,
         (has_move || has_release) ? base::OnceClosure() : std::move(task));
   }
   if (has_move) {
-    PostTouchEvent(ui::ET_TOUCH_MOVED, host_location, id, display_id,
+    PostTouchEvent(ui::EventType::kTouchMoved, host_location, id, display_id,
                    has_release ? base::OnceClosure() : std::move(task));
   }
   if (has_release) {
-    PostTouchEvent(ui::ET_TOUCH_RELEASED, host_location, id, display_id,
+    PostTouchEvent(ui::EventType::kTouchReleased, host_location, id, display_id,
                    std::move(task));
   }
   return true;
@@ -292,7 +300,7 @@ void UIControlsOzone::PostKeyEventTask(ui::EventType type,
   flags |= ui::EF_FINAL;
 
   ui::KeyEvent key_event(type, key_code, flags);
-  if (type == ui::ET_KEY_PRESSED) {
+  if (type == ui::EventType::kKeyPressed) {
     // Set a property as if this is a key event not consumed by IME.
     // Ozone/X11+GTK IME works so already. Ozone/wayland IME relies on this
     // flag to work properly.
@@ -327,7 +335,7 @@ void UIControlsOzone::PostMouseEventTask(ui::EventType type,
   // This hack is necessary to set the repeat count for clicks.
   ui::MouseEvent mouse_event2(&mouse_event);
 
-  SendEventToSink(&mouse_event2, display_id, std::move(closure));
+  SendEventToSink(&mouse_event2, display_id, std::move(closure), nullptr);
 }
 
 void UIControlsOzone::PostTouchEvent(ui::EventType type,

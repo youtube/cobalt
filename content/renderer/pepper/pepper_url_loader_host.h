@@ -10,6 +10,7 @@
 #include <memory>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "ppapi/host/resource_host.h"
 #include "ppapi/proxy/resource_message_params.h"
 #include "ppapi/shared_impl/url_request_info_data.h"
@@ -52,7 +53,7 @@ class PepperURLLoaderHost : public ppapi::host::ResourceHost,
                    uint64_t total_bytes_to_be_sent) override;
   void DidReceiveResponse(const blink::WebURLResponse& response) override;
   void DidDownloadData(uint64_t data_length) override;
-  void DidReceiveData(const char* data, int data_length) override;
+  void DidReceiveData(base::span<const char> data) override;
   void DidFinishLoading() override;
   void DidFail(const blink::WebURLError& error) override;
 
@@ -102,7 +103,7 @@ class PepperURLLoaderHost : public ppapi::host::ResourceHost,
   void UpdateProgress();
 
   // Non-owning pointer.
-  RendererPpapiHostImpl* renderer_ppapi_host_;
+  raw_ptr<RendererPpapiHostImpl> renderer_ppapi_host_;
 
   // If true, then the plugin instance is a full-frame plugin and we're just
   // wrapping the main document's loader (i.e. loader_ is null).

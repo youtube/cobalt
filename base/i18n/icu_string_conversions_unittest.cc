@@ -2,18 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/i18n/icu_string_conversions.h"
 
 #include <math.h>
 #include <stdarg.h>
 #include <stddef.h>
 
+#include <array>
 #include <limits>
 #include <sstream>
 
 #include "base/check_op.h"
 #include "base/format_macros.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
@@ -32,9 +37,9 @@ namespace {
 // This is to help write tests for functions with std::u16string params until
 // the C++ 0x UTF-16 literal is well-supported by compilers.
 std::u16string BuildString16(const wchar_t* s) {
-#if defined(WCHAR_T_IS_UTF16)
+#if defined(WCHAR_T_IS_16_BIT)
   return WideToUTF16(s);
-#elif defined(WCHAR_T_IS_UTF32)
+#elif defined(WCHAR_T_IS_32_BIT)
   std::u16string u16;
   while (*s != 0) {
     DCHECK_LE(static_cast<unsigned int>(*s), 0xFFFFu);
@@ -65,14 +70,15 @@ std::u16string BuildString16(const wchar_t* s) {
 // To avoid the clutter, |u16_wide| will be set to NULL
 // if it's identical to |wide| on *all* platforms.
 
-static const struct {
+struct ConvertCodepageCases {
   const char* codepage_name;
   const char* encoded;
   OnStringConversionError::Type on_error;
   bool success;
   const wchar_t* wide;
   const wchar_t* u16_wide;
-} kConvertCodepageCases[] = {
+};
+static const auto kConvertCodepageCases = std::to_array<ConvertCodepageCases>({
     // Test a case where the input cannot be decoded, using SKIP, FAIL
     // and SUBSTITUTE error handling rules. "A7 41" is valid, but "A6" isn't.
     {"big5", "\xA7\x41\xA6", OnStringConversionError::FAIL, false, L"",
@@ -99,9 +105,9 @@ static const struct {
      L"\x00A5\x00A8", nullptr},
     // Chinese (GB18030) : A 4 byte sequence mapped to plane 2 (U+20000)
     {"gb18030", "\x95\x32\x82\x36\xD2\xBB", OnStringConversionError::FAIL, true,
-#if defined(WCHAR_T_IS_UTF16)
+#if defined(WCHAR_T_IS_16_BIT)
      L"\xD840\xDC00\x4E00",
-#elif defined(WCHAR_T_IS_UTF32)
+#elif defined(WCHAR_T_IS_32_BIT)
      L"\x20000\x4E00",
 #endif
      L"\xD840\xDC00\x4E00"},
@@ -160,25 +166,25 @@ static const struct {
      L"\x0E2A\x0E27\x0E31\x0E2A\x0E14\x0E35"
      L"\x0E04\x0E23\x0e31\x0E1A",
      nullptr},
-};
+});
 
 TEST(ICUStringConversionsTest, ConvertBetweenCodepageAndUTF16) {
   for (size_t i = 0; i < std::size(kConvertCodepageCases); ++i) {
-    SCOPED_TRACE(base::StringPrintf(
-                     "Test[%" PRIuS "]: <encoded: %s> <codepage: %s>", i,
-                     kConvertCodepageCases[i].encoded,
-                     kConvertCodepageCases[i].codepage_name));
+    SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS
+                                    "]: <encoded: %s> <codepage: %s>",
+                                    i, kConvertCodepageCases[i].encoded,
+                                    kConvertCodepageCases[i].codepage_name));
 
     std::u16string utf16;
     bool success = CodepageToUTF16(kConvertCodepageCases[i].encoded,
                                    kConvertCodepageCases[i].codepage_name,
-                                   kConvertCodepageCases[i].on_error,
-                                   &utf16);
+                                   kConvertCodepageCases[i].on_error, &utf16);
     std::u16string utf16_expected;
-    if (kConvertCodepageCases[i].u16_wide == nullptr)
+    if (kConvertCodepageCases[i].u16_wide == nullptr) {
       utf16_expected = BuildString16(kConvertCodepageCases[i].wide);
-    else
+    } else {
       utf16_expected = BuildString16(kConvertCodepageCases[i].u16_wide);
+    }
     EXPECT_EQ(kConvertCodepageCases[i].success, success);
     EXPECT_EQ(utf16_expected, utf16);
 
@@ -196,33 +202,36 @@ TEST(ICUStringConversionsTest, ConvertBetweenCodepageAndUTF16) {
   }
 }
 
-static const struct {
+struct ConvertAndNormalizeCases {
   const char* encoded;
   const char* codepage_name;
   bool expected_success;
   const char* expected_value;
-} kConvertAndNormalizeCases[] = {
-  {"foo-\xe4.html", "iso-8859-1", true, "foo-\xc3\xa4.html"},
-  {"foo-\xe4.html", "iso-8859-7", true, "foo-\xce\xb4.html"},
-  {"foo-\xe4.html", "foo-bar", false, ""},
-  // HTML Encoding spec treats US-ASCII as synonymous with windows-1252
-  {"foo-\xff.html", "ascii", true, "foo-\xc3\xbf.html"},
-  {"foo.html", "ascii", true, "foo.html"},
-  {"foo-a\xcc\x88.html", "utf-8", true, "foo-\xc3\xa4.html"},
-  {"\x95\x32\x82\x36\xD2\xBB", "gb18030", true, "\xF0\xA0\x80\x80\xE4\xB8\x80"},
-  {"\xA7\x41\xA6\x6E", "big5", true, "\xE4\xBD\xA0\xE5\xA5\xBD"},
-  // Windows-1258 does have a combining character at xD2 (which is U+0309).
-  // The sequence of (U+00E2, U+0309) is also encoded as U+1EA9.
-  {"foo\xE2\xD2", "windows-1258", true, "foo\xE1\xBA\xA9"},
-  {"", "iso-8859-1", true, ""},
 };
+constexpr auto kConvertAndNormalizeCases =
+    std::to_array<ConvertAndNormalizeCases>({
+        {"foo-\xe4.html", "iso-8859-1", true, "foo-\xc3\xa4.html"},
+        {"foo-\xe4.html", "iso-8859-7", true, "foo-\xce\xb4.html"},
+        {"foo-\xe4.html", "foo-bar", false, ""},
+        // HTML Encoding spec treats US-ASCII as synonymous with windows-1252
+        {"foo-\xff.html", "ascii", true, "foo-\xc3\xbf.html"},
+        {"foo.html", "ascii", true, "foo.html"},
+        {"foo-a\xcc\x88.html", "utf-8", true, "foo-\xc3\xa4.html"},
+        {"\x95\x32\x82\x36\xD2\xBB", "gb18030", true,
+         "\xF0\xA0\x80\x80\xE4\xB8\x80"},
+        {"\xA7\x41\xA6\x6E", "big5", true, "\xE4\xBD\xA0\xE5\xA5\xBD"},
+        // Windows-1258 does have a combining character at xD2 (which is
+        // U+0309). The sequence of (U+00E2, U+0309) is also encoded as U+1EA9.
+        {"foo\xE2\xD2", "windows-1258", true, "foo\xE1\xBA\xA9"},
+        {"", "iso-8859-1", true, ""},
+    });
 TEST(ICUStringConversionsTest, ConvertToUtf8AndNormalize) {
   std::string result;
   for (size_t i = 0; i < std::size(kConvertAndNormalizeCases); ++i) {
-    SCOPED_TRACE(base::StringPrintf(
-                     "Test[%" PRIuS "]: <encoded: %s> <codepage: %s>", i,
-                     kConvertAndNormalizeCases[i].encoded,
-                     kConvertAndNormalizeCases[i].codepage_name));
+    SCOPED_TRACE(
+        base::StringPrintf("Test[%" PRIuS "]: <encoded: %s> <codepage: %s>", i,
+                           kConvertAndNormalizeCases[i].encoded,
+                           kConvertAndNormalizeCases[i].codepage_name));
 
     bool success = ConvertToUtf8AndNormalize(
         kConvertAndNormalizeCases[i].encoded,

@@ -6,9 +6,13 @@
 // threat urls.  It then uses a real browser to go to these urls, and sends
 // "goback" or "proceed" commands and verifies they work.
 
+#include "components/safe_browsing/content/browser/safe_browsing_blocking_page.h"
+
 #include <algorithm>
 #include <map>
 #include <memory>
+#include <optional>
+#include <string_view>
 #include <utility>
 
 #include "base/command_line.h"
@@ -18,7 +22,9 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
@@ -28,24 +34,28 @@
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/history/history_service_factory.h"
+#include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/interstitials/security_interstitial_idn_test.h"
+#include "chrome/browser/interstitials/security_interstitial_page_test_utils.h"
 #include "chrome/browser/password_manager/password_manager_test_base.h"
 #include "chrome/browser/password_manager/passwords_navigation_observer.h"
+#include "chrome/browser/policy/dm_token_utils.h"
 #include "chrome/browser/policy/policy_test_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/renderer_context_menu/render_view_context_menu_test_util.h"
-#include "chrome/browser/safe_browsing/chrome_safe_browsing_blocking_page_factory.h"
+#include "chrome/browser/safe_browsing/safe_browsing_blocking_page_platform_test_helper.h"
 #include "chrome/browser/safe_browsing/safe_browsing_metrics_collector_factory.h"
-#include "chrome/browser/safe_browsing/safe_browsing_navigation_observer_manager_factory.h"
 #include "chrome/browser/safe_browsing/test_safe_browsing_service.h"
+#include "chrome/browser/safe_browsing/url_lookup_service_factory.h"
 #include "chrome/browser/safe_browsing/user_interaction_observer.h"
 #include "chrome/browser/safe_browsing/verdict_cache_manager_factory.h"
 #include "chrome/browser/ssl/cert_verifier_browser_test.h"
-#include "chrome/browser/ssl/security_state_tab_helper.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/hats/mock_trust_safety_sentiment_service.h"
+#include "chrome/browser/ui/hats/trust_safety_sentiment_service_factory.h"
+#include "chrome/browser/ui/safety_hub/safety_hub_util.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/location_bar/location_icon_view.h"
@@ -58,7 +68,10 @@
 #include "chrome/common/url_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/enterprise/connectors/core/common.h"
+#include "components/enterprise/connectors/core/connectors_prefs.h"
 #include "components/google/core/common/google_util.h"
+#include "components/grit/components_resources.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/page_info/core/features.h"
 #include "components/permissions/permission_util.h"
@@ -66,7 +79,8 @@
 #include "components/policy/core/common/policy_types.h"
 #include "components/policy/policy_constants.h"
 #include "components/prefs/pref_service.h"
-#include "components/safe_browsing/content/browser/safe_browsing_blocking_page.h"
+#include "components/safe_browsing/content/browser/async_check_tracker.h"
+#include "components/safe_browsing/content/browser/content_unsafe_resource_util.h"
 #include "components/safe_browsing/content/browser/safe_browsing_blocking_page_factory.h"
 #include "components/safe_browsing/content/browser/threat_details.h"
 #include "components/safe_browsing/content/browser/ui_manager.h"
@@ -78,28 +92,33 @@
 #include "components/safe_browsing/core/browser/safe_browsing_metrics_collector.h"
 #include "components/safe_browsing/core/browser/verdict_cache_manager.h"
 #include "components/safe_browsing/core/common/features.h"
+#include "components/safe_browsing/core/common/hashprefix_realtime/hash_realtime_utils.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #include "components/safe_browsing/core/common/web_ui_constants.h"
 #include "components/security_interstitials/content/security_interstitial_controller_client.h"
 #include "components/security_interstitials/content/security_interstitial_tab_helper.h"
 #include "components/security_interstitials/content/ssl_blocking_page.h"
-#include "components/security_interstitials/content/unsafe_resource_util.h"
 #include "components/security_interstitials/core/controller_client.h"
 #include "components/security_interstitials/core/metrics_helper.h"
 #include "components/security_interstitials/core/unsafe_resource.h"
+#include "components/security_interstitials/core/unsafe_resource_locator.h"
 #include "components/security_interstitials/core/urls.h"
+#include "components/security_state/content/security_state_tab_helper.h"
 #include "components/security_state/core/security_state.h"
 #include "components/strings/grit/components_strings.h"
+#include "components/ukm/test_ukm_recorder.h"
 #include "components/unified_consent/pref_names.h"
+#include "components/webui/chrome_urls/pref_names.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/disallow_activation_reason.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
-#include "content/public/browser/notification_types.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/isolated_world_ids.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/fenced_frame_test_util.h"
@@ -116,19 +135,14 @@
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/mojom/fetch_api.mojom.h"
 #include "testing/gmock/include/gmock/gmock-matchers.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/features.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/window_open_disposition.h"
 #include "ui/events/test/test_event.h"
 #include "ui/views/controls/styled_label.h"
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-// Delayed warnings feature checks if the Suspicious Site Reporter extension
-// is installed. These includes are to fake-install this extension.
-#include "chrome/browser/extensions/crx_installer.h"
-#include "extensions/browser/notification_types.h"
-#include "extensions/browser/test_extension_registry_observer.h"
-#include "extensions/common/extension.h"
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/metrics/desktop_session_duration/desktop_session_duration_tracker.h"
 #endif
 
 using chrome_browser_interstitials::SecurityInterstitialIDNTest;
@@ -145,18 +159,27 @@ const char kEmptyPage[] = "/empty.html";
 const char kHTTPSPage[] = "/ssl/google.html";
 const char kMaliciousPage[] = "/safe_browsing/malware.html";
 const char kCrossSiteMaliciousPage[] = "/safe_browsing/malware2.html";
-const char kCrossSiteMaliciousEmbedPage[] = "/safe_browsing/malware4.html";
-const char kPageWithCrossOriginMaliciousIframe[] =
-    "/safe_browsing/malware3.html";
-const char kCrossOriginMaliciousIframeHost[] = "malware.test";
 const char kMaliciousIframe[] = "/safe_browsing/malware_iframe.html";
+const char kRedirectToMalware[] = "/safe_browsing/redirect_to_malware.html";
 const char kUnrelatedUrl[] = "https://www.google.com";
 const char kEnhancedProtectionUrl[] = "chrome://settings/security?q=enhanced";
 const char kMaliciousJsPage[] = "/safe_browsing/malware_js.html";
 const char kMaliciousJs[] = "/safe_browsing/script.js";
-const char kMaliciousFencedFrameOwner[] =
-    "/safe_browsing/malware_in_fenced_frame.html";
-const char kMaliciousFencedFrame[] = "/safe_browsing/malware_fenced_frame.html";
+
+const char kInterstitialCloseHistogram[] = "interstitial.CloseReason";
+const char kInterstitialPreCommitPageHistogramSuffix[] = ".before_page_shown";
+
+std::string GetHistogramPrefix(const SBThreatType& threat_type) {
+  if (threat_type == SBThreatType::SB_THREAT_TYPE_URL_MALWARE) {
+    return "malware";
+  } else if (threat_type == SBThreatType::SB_THREAT_TYPE_URL_PHISHING) {
+    return "phishing";
+  } else if (threat_type == SBThreatType::SB_THREAT_TYPE_URL_UNWANTED) {
+    return "harmful";
+  } else {
+    NOTREACHED();
+  }
+}
 
 }  // namespace
 
@@ -194,13 +217,14 @@ bool WaitForReady(Browser* browser) {
   if (!content::WaitForRenderFrameReady(contents->GetPrimaryMainFrame())) {
     return false;
   }
-  return IsShowingInterstitial(contents);
+  return chrome_browser_interstitials::IsShowingInterstitial(contents);
 }
 
 Visibility GetVisibility(Browser* browser, const std::string& node_id) {
   content::RenderFrameHost* rfh = GetRenderFrameHost(browser);
-  if (!rfh)
+  if (!rfh) {
     return VISIBILITY_ERROR;
+  }
 
   // clang-format off
   std::string jsFindVisibility = R"(
@@ -219,12 +243,13 @@ Visibility GetVisibility(Browser* browser, const std::string& node_id) {
     }(document.getElementById(')" + node_id + R"(')));)";
   // clang-format on
 
-  base::Value value = content::ExecuteScriptAndGetValue(rfh, jsFindVisibility);
+  content::EvalJsResult result = content::EvalJs(rfh, jsFindVisibility);
 
-  if (!value.is_bool())
+  if (result != true && result != false) {
     return VISIBILITY_ERROR;
+  }
 
-  return value.GetBool() ? VISIBLE : HIDDEN;
+  return result == true ? VISIBLE : HIDDEN;
 }
 
 bool Click(Browser* browser, const std::string& node_id) {
@@ -233,15 +258,16 @@ bool Click(Browser* browser, const std::string& node_id) {
          node_id == "opt-in-checkbox" || node_id == "enhanced-protection-link")
       << "Unexpected node_id: " << node_id;
   content::RenderFrameHost* rfh = GetRenderFrameHost(browser);
-  if (!rfh)
+  if (!rfh) {
     return false;
-  // We don't use ExecuteScriptAndGetValue for this one, since clicking
+  }
+  // We don't use EvalJs for this one, since clicking
   // the button/link may navigate away before the injected javascript can
   // reply, hanging the test.
-  rfh->ExecuteJavaScriptForTests(u"document.getElementById('" +
-                                     base::ASCIIToUTF16(node_id) +
-                                     u"').click();\n",
-                                 base::NullCallback());
+  rfh->ExecuteJavaScriptForTests(
+      u"document.getElementById('" + base::ASCIIToUTF16(node_id) +
+          u"').click();\n",
+      base::NullCallback(), content::ISOLATED_WORLD_ID_GLOBAL);
   return true;
 }
 
@@ -251,85 +277,34 @@ bool ClickAndWaitForDetach(Browser* browser, const std::string& node_id) {
   // cause a nav entry committed event.
   content::TestNavigationObserver observer(
       browser->tab_strip_model()->GetActiveWebContents());
-  if (!Click(browser, node_id))
+  if (!Click(browser, node_id)) {
     return false;
+  }
   observer.WaitForNavigationFinished();
   return true;
 }
 
-// A SafeBrowingUIManager class that allows intercepting malware details.
-class FakeSafeBrowsingUIManager : public TestSafeBrowsingUIManager {
- public:
-  explicit FakeSafeBrowsingUIManager(
-      std::unique_ptr<SafeBrowsingBlockingPageFactory> blocking_page_factory)
-      : TestSafeBrowsingUIManager(std::move(blocking_page_factory)) {}
+void ExpectSecurityIndicatorDowngrade(content::WebContents* tab,
+                                      net::CertStatus cert_status) {
+  SecurityStateTabHelper* helper = SecurityStateTabHelper::FromWebContents(tab);
+  ASSERT_TRUE(helper);
+  EXPECT_EQ(security_state::DANGEROUS, helper->GetSecurityLevel());
+  EXPECT_NE(security_state::MALICIOUS_CONTENT_STATUS_NONE,
+            helper->GetVisibleSecurityState()->malicious_content_status);
+  // TODO(felt): Restore this check when https://crbug.com/641187 is fixed.
+  // EXPECT_EQ(cert_status, helper->GetSecurityInfo().cert_status);
+}
 
-  FakeSafeBrowsingUIManager(const FakeSafeBrowsingUIManager&) = delete;
-  FakeSafeBrowsingUIManager& operator=(const FakeSafeBrowsingUIManager&) =
-      delete;
-
-  // Overrides SafeBrowsingUIManager
-  void SendThreatDetails(
-      content::BrowserContext* browser_context,
-      std::unique_ptr<ClientSafeBrowsingReportRequest> report) override {
-    std::string serialized;
-    report->SerializeToString(&serialized);
-
-    // Notify the UI thread that we got a report.
-    content::GetUIThreadTaskRunner({})->PostTask(
-        FROM_HERE,
-        base::BindOnce(&FakeSafeBrowsingUIManager::OnThreatDetailsDone, this,
-                       serialized));
-  }
-
-  void OnThreatDetailsDone(const std::string& serialized) {
-    if (threat_details_done_) {
-      return;
-    }
-    EXPECT_TRUE(BrowserThread::CurrentlyOn(BrowserThread::UI));
-    report_ = serialized;
-
-    ASSERT_TRUE(threat_details_done_callback_);
-    std::move(threat_details_done_callback_).Run();
-    threat_details_done_ = true;
-  }
-
-  void MaybeReportSafeBrowsingHit(std::unique_ptr<HitReport> hit_report,
-                                  WebContents* web_contents) override {
-    if (SafeBrowsingUIManager::ShouldSendHitReport(hit_report.get(),
-                                                   web_contents)) {
-      hit_report_sent_ = true;
-    }
-  }
-
-  bool hit_report_sent() { return hit_report_sent_; }
-
-  void set_threat_details_done_callback(base::OnceClosure callback) {
-    EXPECT_TRUE(BrowserThread::CurrentlyOn(BrowserThread::UI));
-    EXPECT_FALSE(threat_details_done_callback_);
-    threat_details_done_callback_ = std::move(callback);
-  }
-
-  std::string GetReport() {
-    EXPECT_TRUE(BrowserThread::CurrentlyOn(BrowserThread::UI));
-    return report_;
-  }
-
- protected:
-  ~FakeSafeBrowsingUIManager() override {}
-
- private:
-  std::string report_;
-  base::OnceClosure threat_details_done_callback_;
-  bool threat_details_done_ = false;
-  bool hit_report_sent_ = false;
-};
+void ExpectNoSecurityIndicatorDowngrade(content::WebContents* tab) {
+  SecurityStateTabHelper* helper = SecurityStateTabHelper::FromWebContents(tab);
+  ASSERT_TRUE(helper);
+  EXPECT_EQ(security_state::NONE, helper->GetSecurityLevel());
+  EXPECT_EQ(security_state::MALICIOUS_CONTENT_STATUS_NONE,
+            helper->GetVisibleSecurityState()->malicious_content_status);
+}
 
 class TestThreatDetailsFactory : public ThreatDetailsFactory {
  public:
-  TestThreatDetailsFactory() : details_() {}
-  ~TestThreatDetailsFactory() override {}
-
   std::unique_ptr<ThreatDetails> CreateThreatDetails(
       BaseUIManager* delegate,
       WebContents* web_contents,
@@ -351,136 +326,14 @@ class TestThreatDetailsFactory : public ThreatDetailsFactory {
   ThreatDetails* get_details() { return details_; }
 
  private:
-  raw_ptr<ThreatDetails, DanglingUntriaged> details_;
+  raw_ptr<ThreatDetails, AcrossTasksDanglingUntriaged> details_ = nullptr;
 };
 
-// A SafeBrowingBlockingPage class that lets us wait until it's hidden.
-class TestSafeBrowsingBlockingPage : public SafeBrowsingBlockingPage {
- public:
-  TestSafeBrowsingBlockingPage(
-      BaseUIManager* manager,
-      WebContents* web_contents,
-      const GURL& main_frame_url,
-      const UnsafeResourceList& unsafe_resources,
-      const BaseSafeBrowsingErrorUI::SBErrorDisplayOptions& display_options,
-      bool should_trigger_reporting)
-      : SafeBrowsingBlockingPage(
-            manager,
-            web_contents,
-            main_frame_url,
-            unsafe_resources,
-            ChromeSafeBrowsingBlockingPageFactory::CreateControllerClient(
-                web_contents,
-                unsafe_resources,
-                manager),
-            display_options,
-            should_trigger_reporting,
-            HistoryServiceFactory::GetForProfile(
-                Profile::FromBrowserContext(web_contents->GetBrowserContext()),
-                ServiceAccessType::EXPLICIT_ACCESS),
-            SafeBrowsingNavigationObserverManagerFactory::GetForBrowserContext(
-                web_contents->GetBrowserContext()),
-            SafeBrowsingMetricsCollectorFactory::GetForProfile(
-                Profile::FromBrowserContext(web_contents->GetBrowserContext())),
-            g_browser_process->safe_browsing_service()->trigger_manager()),
-        wait_for_delete_(false) {
-    // Don't wait the whole 3 seconds for the browser test.
-    SetThreatDetailsProceedDelayForTesting(100);
-  }
-
-  ~TestSafeBrowsingBlockingPage() override {
-    if (!wait_for_delete_)
-      return;
-
-    // Notify that we are gone
-    base::RunLoop::QuitCurrentWhenIdleDeprecated();
-    wait_for_delete_ = false;
-  }
-
-  void WaitForDelete() {
-    wait_for_delete_ = true;
-    content::RunMessageLoop();
-  }
-
-  // SecurityInterstitialPage methods:
-  void CommandReceived(const std::string& command) override {
-    SafeBrowsingBlockingPage::CommandReceived(command);
-  }
-
- private:
-  bool wait_for_delete_;
-};
-
-void AssertNoInterstitial(Browser* browser, bool wait_for_delete) {
+void AssertNoInterstitial(Browser* browser) {
   WebContents* contents = browser->tab_strip_model()->GetActiveWebContents();
-  ASSERT_FALSE(IsShowingInterstitial(contents));
+  ASSERT_FALSE(chrome_browser_interstitials::IsShowingInterstitial(contents));
   return;
 }
-
-class TestSafeBrowsingBlockingPageFactory
-    : public SafeBrowsingBlockingPageFactory {
- public:
-  TestSafeBrowsingBlockingPageFactory() : always_show_back_to_safety_(true) {}
-  ~TestSafeBrowsingBlockingPageFactory() override {}
-
-  void SetAlwaysShowBackToSafety(bool value) {
-    always_show_back_to_safety_ = value;
-  }
-
-  SafeBrowsingBlockingPage* CreateSafeBrowsingPage(
-      BaseUIManager* delegate,
-      WebContents* web_contents,
-      const GURL& main_frame_url,
-      const SafeBrowsingBlockingPage::UnsafeResourceList& unsafe_resources,
-      bool should_trigger_reporting) override {
-    PrefService* prefs =
-        Profile::FromBrowserContext(web_contents->GetBrowserContext())
-            ->GetPrefs();
-    bool is_extended_reporting_opt_in_allowed =
-        prefs->GetBoolean(prefs::kSafeBrowsingExtendedReportingOptInAllowed);
-    bool is_proceed_anyway_disabled =
-        prefs->GetBoolean(prefs::kSafeBrowsingProceedAnywayDisabled);
-
-    BaseSafeBrowsingErrorUI::SBErrorDisplayOptions display_options(
-        BaseBlockingPage::IsMainPageLoadBlocked(unsafe_resources),
-        is_extended_reporting_opt_in_allowed,
-        web_contents->GetBrowserContext()->IsOffTheRecord(),
-        IsExtendedReportingEnabled(*prefs),
-        IsExtendedReportingPolicyManaged(*prefs),
-        IsEnhancedProtectionEnabled(*prefs), is_proceed_anyway_disabled,
-        true,  // should_open_links_in_new_tab
-        always_show_back_to_safety_,
-        /*is_enhanced_protection_message_enabled=*/true,
-        IsSafeBrowsingPolicyManaged(*prefs),
-        "cpn_safe_browsing" /* help_center_article_link */);
-    return new TestSafeBrowsingBlockingPage(
-        delegate, web_contents, main_frame_url, unsafe_resources,
-        display_options, should_trigger_reporting);
-  }
-
-  security_interstitials::SecurityInterstitialPage* CreateEnterpriseWarnPage(
-      BaseUIManager* ui_manager,
-      content::WebContents* web_contents,
-      const GURL& main_frame_url,
-      const SafeBrowsingBlockingPage::UnsafeResourceList& unsafe_resources)
-      override {
-    NOTREACHED();
-    return nullptr;
-  }
-
-  security_interstitials::SecurityInterstitialPage* CreateEnterpriseBlockPage(
-      BaseUIManager* ui_manager,
-      content::WebContents* web_contents,
-      const GURL& main_frame_url,
-      const SafeBrowsingBlockingPage::UnsafeResourceList& unsafe_resources)
-      override {
-    NOTREACHED();
-    return nullptr;
-  }
-
- private:
-  bool always_show_back_to_safety_;
-};
 
 // Tests the safe browsing blocking page in a browser.
 class SafeBrowsingBlockingPageBrowserTest
@@ -496,7 +349,16 @@ class SafeBrowsingBlockingPageBrowserTest
         {kTagAndAttributeParamName, "div,foo,div,baz"}};
     base::test::FeatureRefAndParams tag_and_attribute(
         safe_browsing::kThreatDomDetailsTagAndAttributeFeature, parameters);
-    scoped_feature_list_.InitWithFeaturesAndParameters({tag_and_attribute}, {});
+    base::test::FeatureRefAndParams add_warning_shown_timestamp_csbrrs(
+        safe_browsing::kAddWarningShownTSToClientSafeBrowsingReport, {});
+    base::test::FeatureRefAndParams create_warning_shown_csbrrs(
+        safe_browsing::kCreateWarningShownClientSafeBrowsingReports, {});
+    base::test::FeatureRefAndParams abusive_notification_revocation(
+        safe_browsing::kSafetyHubAbusiveNotificationRevocation, {});
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        {tag_and_attribute, add_warning_shown_timestamp_csbrrs,
+         create_warning_shown_csbrrs, abusive_notification_revocation},
+        {});
   }
 
   SafeBrowsingBlockingPageBrowserTest(
@@ -504,7 +366,7 @@ class SafeBrowsingBlockingPageBrowserTest
   SafeBrowsingBlockingPageBrowserTest& operator=(
       const SafeBrowsingBlockingPageBrowserTest&) = delete;
 
-  ~SafeBrowsingBlockingPageBrowserTest() override {}
+  ~SafeBrowsingBlockingPageBrowserTest() override = default;
 
   void CreatedBrowserMainParts(
       content::BrowserMainParts* browser_main_parts) override {
@@ -517,8 +379,7 @@ class SafeBrowsingBlockingPageBrowserTest
     factory_.SetTestUIManager(
         new FakeSafeBrowsingUIManager(std::move(blocking_page_factory)));
     factory_.SetTestDatabaseManager(new FakeSafeBrowsingDatabaseManager(
-        content::GetUIThreadTaskRunner({}),
-        content::GetIOThreadTaskRunner({})));
+        content::GetUIThreadTaskRunner({})));
     SafeBrowsingService::RegisterFactory(&factory_);
     ThreatDetails::RegisterFactory(&details_factory_);
   }
@@ -531,14 +392,21 @@ class SafeBrowsingBlockingPageBrowserTest
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
     CertVerifierBrowserTest::SetUpCommandLine(command_line);
-    if (testing::get<1>(GetParam()))
+    if (testing::get<1>(GetParam())) {
       content::IsolateAllSitesForTesting(command_line);
+    }
+    // TODO(crbug.com/40285326): This fails with the field trial testing config.
+    command_line->AppendSwitch("disable-field-trial-config");
   }
 
   void SetUpOnMainThread() override {
     host_resolver()->AddRule("*", "127.0.0.1");
     content::SetupCrossSiteRedirector(embedded_test_server());
     ASSERT_TRUE(embedded_test_server()->Start());
+    // The tests expect to load chrome://safe-browsing, which is an
+    // internal debugging page.
+    g_browser_process->local_state()->SetBoolean(
+        chrome_urls::kInternalOnlyUisEnabled, true);
   }
 
   SBThreatType GetThreatType() const { return testing::get<0>(GetParam()); }
@@ -633,33 +501,19 @@ class SafeBrowsingBlockingPageBrowserTest
   }
 
   // Adds a safebrowsing threat results to the fake safebrowsing service,
-  // navigates to a page with an iframe containing the threat site, and returns
-  // the url of the parent page.
-  GURL SetupThreatIframeWarningAndNavigate() {
-    GURL url = embedded_test_server()->GetURL(kCrossSiteMaliciousPage);
-    GURL iframe_url = embedded_test_server()->GetURL(kMaliciousIframe);
-    SetURLThreatType(iframe_url, GetThreatType());
+  // navigates to a page with a subresource containing the threat site, and
+  // returns the url of the parent page.
+  GURL SetupThreatOnSubresourceAndNavigate(std::string_view main_frame_url,
+                                           std::string_view subresource_url) {
+    GURL url = embedded_test_server()->GetURL(main_frame_url);
+    GURL embedded_url = embedded_test_server()->GetURL(subresource_url);
+    SetURLThreatType(embedded_url, GetThreatType());
 
     EXPECT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
-    EXPECT_TRUE(WaitForReady(browser()));
-    return url;
-  }
-
-  // Adds a safebrowsing threat results to the fake safebrowsing service, and
-  // navigates to a page with a cross-origin iframe containing the threat site.
-  // Returns the url of the parent page and sets |iframe_url| to the malicious
-  // cross-origin iframe.
-  GURL SetupCrossOriginThreatIframeWarningAndNavigate(GURL* iframe_url) {
-    GURL url =
-        embedded_test_server()->GetURL(kPageWithCrossOriginMaliciousIframe);
-    *iframe_url = embedded_test_server()->GetURL(kMaliciousIframe);
-    GURL::Replacements replace_host;
-    replace_host.SetHostStr(kCrossOriginMaliciousIframeHost);
-    *iframe_url = iframe_url->ReplaceComponents(replace_host);
-    SetURLThreatType(*iframe_url, GetThreatType());
-
-    EXPECT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
-    EXPECT_TRUE(WaitForReady(browser()));
+    WebContents* contents =
+        browser()->tab_strip_model()->GetActiveWebContents();
+    EXPECT_TRUE(
+        content::WaitForRenderFrameReady(contents->GetPrimaryMainFrame()));
     return url;
   }
 
@@ -701,6 +555,30 @@ class SafeBrowsingBlockingPageBrowserTest
         ->GetReport();
   }
 
+  void SetExpectEmptyReportForHats(bool expect_empty_report_for_hats) {
+    static_cast<FakeSafeBrowsingUIManager*>(
+        factory_.test_safe_browsing_service()->ui_manager().get())
+        ->SetExpectEmptyReportForHats(expect_empty_report_for_hats);
+  }
+
+  void SetExpectReportUrlForHats(bool expect_report_url_for_hats) {
+    static_cast<FakeSafeBrowsingUIManager*>(
+        factory_.test_safe_browsing_service()->ui_manager().get())
+        ->SetExpectReportUrlForHats(expect_report_url_for_hats);
+  }
+
+  void SetExpectInterstitialInteractions(
+      bool expect_interstitial_interactions) {
+    static_cast<FakeSafeBrowsingUIManager*>(
+        factory_.test_safe_browsing_service()->ui_manager().get())
+        ->SetExpectInterstitialInteractions(expect_interstitial_interactions);
+  }
+
+  FakeSafeBrowsingUIManager* GetSafeBrowsingUiManager() {
+    return static_cast<FakeSafeBrowsingUIManager*>(
+        factory_.test_safe_browsing_service()->ui_manager().get());
+  }
+
   content::RenderFrameHost* GetRenderFrameHost() {
     return ::safe_browsing::GetRenderFrameHost(browser());
   }
@@ -717,8 +595,8 @@ class SafeBrowsingBlockingPageBrowserTest
     return ::safe_browsing::ClickAndWaitForDetach(browser(), node_id);
   }
 
-  void AssertNoInterstitial(bool wait_for_delete) {
-    return ::safe_browsing::AssertNoInterstitial(browser(), wait_for_delete);
+  void AssertNoInterstitial() {
+    return ::safe_browsing::AssertNoInterstitial(browser());
   }
 
   void TestReportingDisabledAndDontProceed(const GURL& url) {
@@ -734,7 +612,7 @@ class SafeBrowsingBlockingPageBrowserTest
     EXPECT_EQ(VISIBLE, GetVisibility("proceed-link"));
 
     EXPECT_TRUE(ClickAndWaitForDetach("primary-button"));
-    AssertNoInterstitial(false);          // Assert the interstitial is gone
+    AssertNoInterstitial();               // Assert the interstitial is gone
     EXPECT_EQ(GURL(url::kAboutBlankURL),  // Back to "about:blank"
               browser()
                   ->tab_strip_model()
@@ -761,6 +639,26 @@ class SafeBrowsingBlockingPageBrowserTest
     EXPECT_EQ(expected_tag_name, actual_resource.tag_name());
   }
 
+  void VerifyInteractionOccurrenceCount(
+      const ClientSafeBrowsingReportRequest& report,
+      const ClientSafeBrowsingReportRequest::InterstitialInteraction&
+          actual_interaction,
+      const ClientSafeBrowsingReportRequest::InterstitialInteraction::
+          SecurityInterstitialInteraction& expected_interaction_type,
+      const int& expected_occurrence_count) {
+    // Find the interaction within the report by comparing
+    // security_interstitial_interaction.
+    for (auto interaction : report.interstitial_interactions()) {
+      if (actual_interaction.security_interstitial_interaction() ==
+          interaction.security_interstitial_interaction()) {
+        EXPECT_EQ(expected_interaction_type,
+                  interaction.security_interstitial_interaction());
+        EXPECT_EQ(expected_occurrence_count, interaction.occurrence_count());
+        break;
+      }
+    }
+  }
+
   void VerifyElement(
       const ClientSafeBrowsingReportRequest& report,
       const HTMLElement& actual_element,
@@ -783,29 +681,23 @@ class SafeBrowsingBlockingPageBrowserTest
 
   void ExpectSecurityIndicatorDowngrade(content::WebContents* tab,
                                         net::CertStatus cert_status) {
-    SecurityStateTabHelper* helper =
-        SecurityStateTabHelper::FromWebContents(tab);
-    ASSERT_TRUE(helper);
-    EXPECT_EQ(security_state::DANGEROUS, helper->GetSecurityLevel());
-    EXPECT_NE(security_state::MALICIOUS_CONTENT_STATUS_NONE,
-              helper->GetVisibleSecurityState()->malicious_content_status);
-    // TODO(felt): Restore this check when https://crbug.com/641187 is fixed.
-    // EXPECT_EQ(cert_status, helper->GetSecurityInfo().cert_status);
+    ::safe_browsing::ExpectSecurityIndicatorDowngrade(tab, cert_status);
   }
 
   void ExpectNoSecurityIndicatorDowngrade(content::WebContents* tab) {
-    SecurityStateTabHelper* helper =
-        SecurityStateTabHelper::FromWebContents(tab);
-    ASSERT_TRUE(helper);
-    EXPECT_EQ(security_state::NONE, helper->GetSecurityLevel());
-    EXPECT_EQ(security_state::MALICIOUS_CONTENT_STATUS_NONE,
-              helper->GetVisibleSecurityState()->malicious_content_status);
+    ::safe_browsing::ExpectNoSecurityIndicatorDowngrade(tab);
   }
 
   bool hit_report_sent() {
     return static_cast<FakeSafeBrowsingUIManager*>(
                factory_.test_safe_browsing_service()->ui_manager().get())
         ->hit_report_sent();
+  }
+
+  bool report_sent() {
+    return static_cast<FakeSafeBrowsingUIManager*>(
+               factory_.test_safe_browsing_service()->ui_manager().get())
+        ->report_sent();
   }
 
   // Helper method for LearnMore test below. Implemented as a test fixture
@@ -828,6 +720,14 @@ class SafeBrowsingBlockingPageBrowserTest
 
   void SetAlwaysShowBackToSafety(bool val) {
     raw_blocking_page_factory_->SetAlwaysShowBackToSafety(val);
+  }
+
+  MockTrustSafetySentimentService* mock_sentiment_service() {
+    return raw_blocking_page_factory_->GetMockSentimentService();
+  }
+
+  HostContentSettingsMap* hcsm() {
+    return HostContentSettingsMapFactory::GetForProfile(browser()->profile());
   }
 
  protected:
@@ -867,6 +767,20 @@ class SafeBrowsingBlockingPageBrowserTest
   net::EmbeddedTestServer https_server_;
 };
 
+class SafeBrowsingHatsSurveyBrowserTest
+    : public SafeBrowsingBlockingPageBrowserTest {
+ public:
+  SafeBrowsingHatsSurveyBrowserTest() {
+    scoped_feature_list_.InitAndEnableFeature(kRedWarningSurvey);
+  }
+  ~SafeBrowsingHatsSurveyBrowserTest() override = default;
+
+  void SetUp() override { SafeBrowsingBlockingPageBrowserTest::SetUp(); }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
 IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest, HardcodedUrls) {
   const GURL urls[] = {GURL(kChromeUISafeBrowsingMatchMalwareUrl),
                        GURL(kChromeUISafeBrowsingMatchPhishingUrl),
@@ -886,7 +800,7 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest, HardcodedUrls) {
     EXPECT_EQ(HIDDEN, GetVisibility("error-code"));
     EXPECT_TRUE(ClickAndWaitForDetach("primary-button"));
 
-    AssertNoInterstitial(false);          // Assert the interstitial is gone
+    AssertNoInterstitial();               // Assert the interstitial is gone
     EXPECT_EQ(GURL(url::kAboutBlankURL),  // Back to "about:blank"
               browser()
                   ->tab_strip_model()
@@ -908,7 +822,7 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest, DontProceed) {
   EXPECT_EQ(HIDDEN, GetVisibility("error-code"));
   EXPECT_TRUE(ClickAndWaitForDetach("primary-button"));
 
-  AssertNoInterstitial(false);          // Assert the interstitial is gone
+  AssertNoInterstitial();               // Assert the interstitial is gone
   EXPECT_EQ(GURL(url::kAboutBlankURL),  // Back to "about:blank"
             browser()
                 ->tab_strip_model()
@@ -932,7 +846,7 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest, DontProceed_RTL) {
   EXPECT_EQ(HIDDEN, GetVisibility("error-code"));
   EXPECT_TRUE(ClickAndWaitForDetach("primary-button"));
 
-  AssertNoInterstitial(false);          // Assert the interstitial is gone
+  AssertNoInterstitial();               // Assert the interstitial is gone
   EXPECT_EQ(GURL(url::kAboutBlankURL),  // Back to "about:blank"
             browser()
                 ->tab_strip_model()
@@ -944,7 +858,7 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest, Proceed) {
   GURL url = SetupWarningAndNavigate(browser());
 
   EXPECT_TRUE(ClickAndWaitForDetach("proceed-link"));
-  AssertNoInterstitial(true);  // Assert the interstitial is gone.
+  AssertNoInterstitial();  // Assert the interstitial is gone.
   EXPECT_EQ(url, browser()
                      ->tab_strip_model()
                      ->GetActiveWebContents()
@@ -958,140 +872,22 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest, Proceed_RTL) {
   GURL url = SetupWarningAndNavigate(browser());
 
   EXPECT_TRUE(ClickAndWaitForDetach("proceed-link"));
-  AssertNoInterstitial(true);  // Assert the interstitial is gone.
+  AssertNoInterstitial();  // Assert the interstitial is gone.
   EXPECT_EQ(url, browser()
                      ->tab_strip_model()
                      ->GetActiveWebContents()
                      ->GetLastCommittedURL());
 }
 
-IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest, IframeDontProceed) {
-  SetupThreatIframeWarningAndNavigate();
-
-  EXPECT_EQ(VISIBLE, GetVisibility("primary-button"));
-  EXPECT_EQ(HIDDEN, GetVisibility("details"));
-  EXPECT_EQ(HIDDEN, GetVisibility("proceed-link"));
-  EXPECT_EQ(HIDDEN, GetVisibility("error-code"));
-  EXPECT_TRUE(Click("details-button"));
-  EXPECT_EQ(VISIBLE, GetVisibility("details"));
-  EXPECT_EQ(VISIBLE, GetVisibility("proceed-link"));
-  EXPECT_EQ(HIDDEN, GetVisibility("error-code"));
-  EXPECT_TRUE(ClickAndWaitForDetach("primary-button"));
-
-  AssertNoInterstitial(false);  // Assert the interstitial is gone
-
-  EXPECT_EQ(GURL(url::kAboutBlankURL),  // Back to "about:blank"
-            browser()
-                ->tab_strip_model()
-                ->GetActiveWebContents()
-                ->GetLastCommittedURL());
+IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest, IframeNoWarning) {
+  SetupThreatOnSubresourceAndNavigate(kCrossSiteMaliciousPage,
+                                      kMaliciousIframe);
+  AssertNoInterstitial();
 }
 
-IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest, IframeProceed) {
-  GURL url = SetupThreatIframeWarningAndNavigate();
-
-  EXPECT_TRUE(ClickAndWaitForDetach("proceed-link"));
-  AssertNoInterstitial(true);  // Assert the interstitial is gone
-
-  EXPECT_EQ(url, browser()
-                     ->tab_strip_model()
-                     ->GetActiveWebContents()
-                     ->GetLastCommittedURL());
-}
-
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_IframeOptInAndReportThreatDetails \
-  DISABLED_IframeOptInAndReportThreatDetails
-#else
-#define MAYBE_IframeOptInAndReportThreatDetails \
-  IframeOptInAndReportThreatDetails
-#endif
-IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
-                       MAYBE_IframeOptInAndReportThreatDetails) {
-  SetExtendedReportingPrefForTests(browser()->profile()->GetPrefs(), true);
-  // The extended reporting opt-in is presented in the interstitial for malware,
-  // phishing, and UwS threats.
-  const bool expect_threat_details =
-      SafeBrowsingBlockingPage::ShouldReportThreatDetails(GetThreatType());
-
-  scoped_refptr<content::MessageLoopRunner> threat_report_sent_runner(
-      new content::MessageLoopRunner);
-  if (expect_threat_details)
-    SetReportSentCallback(threat_report_sent_runner->QuitClosure());
-
-  // Set up testing url containing iframe and cross site iframe.
-  GURL url = SetupThreatIframeWarningAndNavigate();
-
-  ThreatDetails* threat_details = details_factory_.get_details();
-  EXPECT_EQ(expect_threat_details, threat_details != nullptr);
-  EXPECT_TRUE(ClickAndWaitForDetach("proceed-link"));
-  AssertNoInterstitial(true);  // Assert the interstitial is gone
-
-  EXPECT_TRUE(IsExtendedReportingEnabled(*browser()->profile()->GetPrefs()));
-  EXPECT_EQ(url, browser()
-                     ->tab_strip_model()
-                     ->GetActiveWebContents()
-                     ->GetLastCommittedURL());
-
-  if (expect_threat_details) {
-    threat_report_sent_runner->Run();
-    std::string serialized = GetReportSent();
-    ClientSafeBrowsingReportRequest report;
-    ASSERT_TRUE(report.ParseFromString(serialized));
-    // Verify the report is complete.
-    EXPECT_TRUE(report.complete());
-    // Do some basic verification of report contents.
-    EXPECT_EQ(url.spec(), report.page_url());
-    EXPECT_EQ(embedded_test_server()->GetURL(kMaliciousIframe).spec(),
-              report.url());
-    std::vector<ClientSafeBrowsingReportRequest::Resource> resources;
-    for (auto resource : report.resources()) {
-      resources.push_back(resource);
-    }
-    // Sort resources based on their urls.
-    std::sort(resources.begin(), resources.end(),
-              [](const ClientSafeBrowsingReportRequest::Resource& a,
-                 const ClientSafeBrowsingReportRequest::Resource& b) -> bool {
-                return a.url() < b.url();
-              });
-    ASSERT_EQ(2U, resources.size());
-    VerifyResource(
-        report, resources[0],
-        embedded_test_server()->GetURL(kCrossSiteMaliciousPage).spec(),
-        embedded_test_server()->GetURL(kCrossSiteMaliciousPage).spec(), 1, "");
-    VerifyResource(report, resources[1],
-                   embedded_test_server()->GetURL(kMaliciousIframe).spec(),
-                   url.spec(),  // kCrossSiteMaliciousPage
-                   0, "IFRAME");
-
-    ASSERT_EQ(2, report.dom_size());
-    // Because the order of elements is not deterministic, we basically need to
-    // verify the relationship. Namely that there is an IFRAME element and that
-    // it has a DIV as its parent.
-    int iframe_node_id = -1;
-    for (const HTMLElement& elem : report.dom()) {
-      if (elem.tag() == "IFRAME") {
-        iframe_node_id = elem.id();
-        VerifyElement(report, elem, "IFRAME", /*expected_child_ids_size=*/0,
-                      std::vector<mojom::AttributeNameValuePtr>());
-        break;
-      }
-    }
-    EXPECT_GT(iframe_node_id, -1);
-
-    // Find the parent DIV that is the parent of the iframe.
-    for (const HTMLElement& elem : report.dom()) {
-      if (elem.id() != iframe_node_id) {
-        std::vector<mojom::AttributeNameValuePtr> attributes;
-        attributes.push_back(mojom::AttributeNameValue::New("foo", "1"));
-        // Not the IFRAME, so this is the parent DIV
-        VerifyElement(report, elem, "DIV", /*expected_child_ids_size=*/1,
-                      attributes);
-        // Make sure this DIV has the IFRAME as a child.
-        EXPECT_EQ(iframe_node_id, elem.child_ids(0));
-      }
-    }
-  }
+IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest, JsNoWarning) {
+  SetupThreatOnSubresourceAndNavigate(kMaliciousJsPage, kMaliciousJs);
+  AssertNoInterstitial();
 }
 
 IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
@@ -1100,10 +896,9 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
   const bool expect_threat_details =
       SafeBrowsingBlockingPage::ShouldReportThreatDetails(GetThreatType());
 
-  scoped_refptr<content::MessageLoopRunner> threat_report_sent_runner(
-      new content::MessageLoopRunner);
+  base::RunLoop threat_report_sent_loop;
   if (expect_threat_details)
-    SetReportSentCallback(threat_report_sent_runner->QuitClosure());
+    SetReportSentCallback(threat_report_sent_loop.QuitClosure());
 
   // Navigate to a safe page which contains multiple potential DOM details.
   // (Despite the name, kMaliciousPage is not the page flagged as bad in this
@@ -1124,7 +919,7 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
 
   // Go back.
   EXPECT_TRUE(ClickAndWaitForDetach("primary-button"));
-  AssertNoInterstitial(true);  // Assert the interstitial is gone
+  AssertNoInterstitial();  // Assert the interstitial is gone
 
   EXPECT_TRUE(IsExtendedReportingEnabled(*browser()->profile()->GetPrefs()));
   EXPECT_EQ(safe_url, browser()
@@ -1133,7 +928,7 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
                           ->GetLastCommittedURL());
 
   if (expect_threat_details) {
-    threat_report_sent_runner->Run();
+    threat_report_sent_loop.Run();
     std::string serialized = GetReportSent();
     ClientSafeBrowsingReportRequest report;
     ASSERT_TRUE(report.ParseFromString(serialized));
@@ -1146,17 +941,15 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
   }
 }
 
-IN_PROC_BROWSER_TEST_P(
-    SafeBrowsingBlockingPageBrowserTest,
-    MainFrameBlockedShouldHaveNoDOMDetailsWhenProceeding) {
+IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
+                       MainFrameBlockedShouldHaveNoDOMDetailsWhenProceeding) {
   SetExtendedReportingPrefForTests(browser()->profile()->GetPrefs(), true);
   const bool expect_threat_details =
       SafeBrowsingBlockingPage::ShouldReportThreatDetails(GetThreatType());
 
-  scoped_refptr<content::MessageLoopRunner> threat_report_sent_runner(
-      new content::MessageLoopRunner);
+  base::RunLoop threat_report_sent_loop;
   if (expect_threat_details)
-    SetReportSentCallback(threat_report_sent_runner->QuitClosure());
+    SetReportSentCallback(threat_report_sent_loop.QuitClosure());
 
   // Navigate to a safe page which contains multiple potential DOM details.
   // (Despite the name, kMaliciousPage is not the page flagged as bad in this
@@ -1175,7 +968,7 @@ IN_PROC_BROWSER_TEST_P(
 
   // Proceed through the warning.
   EXPECT_TRUE(ClickAndWaitForDetach("proceed-link"));
-  AssertNoInterstitial(true);  // Assert the interstitial is gone
+  AssertNoInterstitial();  // Assert the interstitial is gone
 
   EXPECT_TRUE(IsExtendedReportingEnabled(*browser()->profile()->GetPrefs()));
   EXPECT_EQ(url, browser()
@@ -1184,7 +977,7 @@ IN_PROC_BROWSER_TEST_P(
                      ->GetLastCommittedURL());
 
   if (expect_threat_details) {
-    threat_report_sent_runner->Run();
+    threat_report_sent_loop.Run();
     std::string serialized = GetReportSent();
     ClientSafeBrowsingReportRequest report;
     ASSERT_TRUE(report.ParseFromString(serialized));
@@ -1220,7 +1013,7 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest, ProceedDisabled) {
   observer.WaitForNavigationFinished();
 
   // The "proceed" command should go back instead, if proceeding is disabled.
-  AssertNoInterstitial(true);
+  AssertNoInterstitial();
   EXPECT_EQ(GURL(url::kAboutBlankURL),  // Back to "about:blank"
             browser()
                 ->tab_strip_model()
@@ -1253,9 +1046,8 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
   browser()->profile()->GetPrefs()->SetBoolean(
       prefs::kSafeBrowsingExtendedReportingOptInAllowed, false);
 
-  scoped_refptr<content::MessageLoopRunner> threat_report_sent_runner(
-      new content::MessageLoopRunner);
-  SetReportSentCallback(threat_report_sent_runner->QuitClosure());
+  base::RunLoop threat_report_sent_loop;
+  SetReportSentCallback(threat_report_sent_loop.QuitClosure());
 
   TestReportingDisabledAndDontProceed(
       embedded_test_server()->GetURL(kEmptyPage));
@@ -1268,6 +1060,8 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
   safe_browsing::SetSafeBrowsingState(
       browser()->profile()->GetPrefs(),
       safe_browsing::SafeBrowsingState::STANDARD_PROTECTION);
+  browser()->profile()->GetPrefs()->SetBoolean(
+      prefs::kSafeBrowsingSurveysEnabled, false);
   // Start navigation to bad page (kEmptyPage), which will be blocked before it
   // is committed.
   const GURL url = SetupWarningAndNavigate(browser());
@@ -1299,7 +1093,7 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
 }
 
 #if (BUILDFLAG(IS_MAC) && !defined(NDEBUG)) || defined(MEMORY_SANITIZER)
-// TODO(crbug.com/1132307): Address flaky timeout.
+// TODO(crbug.com/40721886): Address flaky timeout.
 #define MAYBE_LearnMore DISABLED_LearnMore
 #else
 #define MAYBE_LearnMore LearnMore
@@ -1335,7 +1129,7 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest, MAYBE_LearnMore) {
   EXPECT_EQ(1, browser()->tab_strip_model()->active_index());
   WebContents* new_tab = browser()->tab_strip_model()->GetWebContentsAt(1);
   ASSERT_TRUE(new_tab);
-  EXPECT_FALSE(IsShowingInterstitial(new_tab));
+  EXPECT_FALSE(chrome_browser_interstitials::IsShowingInterstitial(new_tab));
 
   // Interstitial still displays in the background tab.
   browser()->tab_strip_model()->ActivateTabAt(
@@ -1344,35 +1138,32 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest, MAYBE_LearnMore) {
   EXPECT_EQ(0, browser()->tab_strip_model()->active_index());
   EXPECT_EQ(interstitial_tab,
             browser()->tab_strip_model()->GetActiveWebContents());
-  EXPECT_TRUE(IsShowingInterstitial(
+  EXPECT_TRUE(chrome_browser_interstitials::IsShowingInterstitial(
       browser()->tab_strip_model()->GetActiveWebContents()));
 }
 
 IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
                        Histograms_DontProceed) {
+  ukm::TestAutoSetUkmRecorder test_ukm_recorder;
   WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
   SafeBrowsingMetricsCollector* metrics_collector =
       SafeBrowsingMetricsCollectorFactory::GetForProfile(
           Profile::FromBrowserContext(web_contents->GetBrowserContext()));
-  EXPECT_EQ(absl::nullopt,
+  EXPECT_EQ(std::nullopt,
             metrics_collector->GetLatestEventTimestamp(
                 SafeBrowsingMetricsCollector::EventType::
                     SECURITY_SENSITIVE_SAFE_BROWSING_INTERSTITIAL));
   base::HistogramTester histograms;
-  std::string prefix;
   SBThreatType threat_type = GetThreatType();
-  if (threat_type == SB_THREAT_TYPE_URL_MALWARE)
-    prefix = "malware";
-  else if (threat_type == SB_THREAT_TYPE_URL_PHISHING)
-    prefix = "phishing";
-  else if (threat_type == SB_THREAT_TYPE_URL_UNWANTED)
-    prefix = "harmful";
-  else
-    NOTREACHED();
+  std::string prefix = GetHistogramPrefix(threat_type);
   const std::string decision_histogram = "interstitial." + prefix + ".decision";
   const std::string interaction_histogram =
       "interstitial." + prefix + ".interaction";
+  const std::string delay_histogram = "interstitial." + prefix + ".show_delay";
+  const std::string delay_long_range_histogram =
+      "interstitial." + prefix + ".show_delay_long_range";
+  const std::string threat_source = ".from_device_v4";
 
   // TODO(nparker): Check for *.from_device as well.
 
@@ -1381,10 +1172,20 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
   histograms.ExpectTotalCount(interaction_histogram, 0);
 
   // After navigating to the page, the totals should be set.
-  SetupWarningAndNavigate(browser());
+  const GURL url = SetupWarningAndNavigate(browser());
   histograms.ExpectTotalCount(decision_histogram, 1);
   histograms.ExpectBucketCount(decision_histogram,
                                security_interstitials::MetricsHelper::SHOW, 1);
+  histograms.ExpectBucketCount(
+      decision_histogram + kInterstitialPreCommitPageHistogramSuffix,
+      security_interstitials::MetricsHelper::SHOW, 1);
+  histograms.ExpectTimeBucketCount(delay_histogram, base::TimeDelta::Min(), 1);
+  histograms.ExpectTimeBucketCount(delay_histogram + threat_source,
+                                   base::TimeDelta::Min(), 1);
+  histograms.ExpectTimeBucketCount(delay_long_range_histogram,
+                                   base::TimeDelta::Min(), 1);
+  histograms.ExpectTimeBucketCount(delay_long_range_histogram + threat_source,
+                                   base::TimeDelta::Min(), 1);
   histograms.ExpectTotalCount(interaction_histogram, 2);
   histograms.ExpectBucketCount(
       interaction_histogram,
@@ -1394,18 +1195,21 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
       security_interstitials::MetricsHelper::SHOW_ENHANCED_PROTECTION, 1);
 
   // Check if security sensitive event is added to prefs.
-  EXPECT_NE(absl::nullopt,
+  EXPECT_NE(std::nullopt,
             metrics_collector->GetLatestEventTimestamp(
                 SafeBrowsingMetricsCollector::EventType::
                     SECURITY_SENSITIVE_SAFE_BROWSING_INTERSTITIAL));
 
   // Decision should be recorded.
   EXPECT_TRUE(ClickAndWaitForDetach("primary-button"));
-  AssertNoInterstitial(false);  // Assert the interstitial is gone
+  AssertNoInterstitial();  // Assert the interstitial is gone
   histograms.ExpectTotalCount(decision_histogram, 2);
   histograms.ExpectBucketCount(
       decision_histogram, security_interstitials::MetricsHelper::DONT_PROCEED,
       1);
+  histograms.ExpectBucketCount(
+      decision_histogram + kInterstitialPreCommitPageHistogramSuffix,
+      security_interstitials::MetricsHelper::DONT_PROCEED, 1);
   histograms.ExpectTotalCount(interaction_histogram, 2);
   histograms.ExpectBucketCount(
       interaction_histogram,
@@ -1413,24 +1217,42 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
   histograms.ExpectBucketCount(
       interaction_histogram,
       security_interstitials::MetricsHelper::SHOW_ENHANCED_PROTECTION, 1);
+
+  // CloseReason histograms.
+  histograms.ExpectTotalCount(kInterstitialCloseHistogram, 2);
+  histograms.ExpectBucketCount(
+      kInterstitialCloseHistogram,
+      security_interstitials::SecurityInterstitialTabHelper::
+          InterstitialCloseReason::INTERSTITIAL_SHOWN,
+      1);
+  histograms.ExpectBucketCount(
+      kInterstitialCloseHistogram,
+      security_interstitials::SecurityInterstitialTabHelper::
+          InterstitialCloseReason::NAVIGATE_AWAY,
+      1);
+
+  // Check that we are recording the UKM when interstitial is shown and we do
+  // not record for the interstitial bypassed.
+  auto ukm_entries =
+      test_ukm_recorder.GetEntriesByName("SafeBrowsingInterstitial");
+  EXPECT_EQ(1u, ukm_entries.size());
+  test_ukm_recorder.ExpectEntrySourceHasUrl(ukm_entries[0], url);
+  test_ukm_recorder.ExpectEntryMetric(ukm_entries[0], "Shown", true);
 }
 
 IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
                        Histograms_Proceed) {
+  ukm::TestAutoSetUkmRecorder test_ukm_recorder;
   base::HistogramTester histograms;
-  std::string prefix;
   SBThreatType threat_type = GetThreatType();
-  if (threat_type == SB_THREAT_TYPE_URL_MALWARE)
-    prefix = "malware";
-  else if (threat_type == SB_THREAT_TYPE_URL_PHISHING)
-    prefix = "phishing";
-  else if (threat_type == SB_THREAT_TYPE_URL_UNWANTED)
-    prefix = "harmful";
-  else
-    NOTREACHED();
+  std::string prefix = GetHistogramPrefix(threat_type);
   const std::string decision_histogram = "interstitial." + prefix + ".decision";
   const std::string interaction_histogram =
       "interstitial." + prefix + ".interaction";
+  const std::string delay_histogram = "interstitial." + prefix + ".show_delay";
+  const std::string delay_long_range_histogram =
+      "interstitial." + prefix + ".show_delay_long_range";
+  const std::string threat_source = ".from_device_v4";
 
   // Histograms should start off empty.
   histograms.ExpectTotalCount(decision_histogram, 0);
@@ -1441,6 +1263,16 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
   histograms.ExpectTotalCount(decision_histogram, 1);
   histograms.ExpectBucketCount(decision_histogram,
                                security_interstitials::MetricsHelper::SHOW, 1);
+  histograms.ExpectBucketCount(
+      decision_histogram + kInterstitialPreCommitPageHistogramSuffix,
+      security_interstitials::MetricsHelper::SHOW, 1);
+  histograms.ExpectTimeBucketCount(delay_histogram, base::TimeDelta::Min(), 1);
+  histograms.ExpectTimeBucketCount(delay_histogram + threat_source,
+                                   base::TimeDelta::Min(), 1);
+  histograms.ExpectTimeBucketCount(delay_long_range_histogram,
+                                   base::TimeDelta::Min(), 1);
+  histograms.ExpectTimeBucketCount(delay_long_range_histogram + threat_source,
+                                   base::TimeDelta::Min(), 1);
   histograms.ExpectTotalCount(interaction_histogram, 2);
   histograms.ExpectBucketCount(
       interaction_histogram,
@@ -1451,10 +1283,13 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
 
   // Decision should be recorded.
   EXPECT_TRUE(ClickAndWaitForDetach("proceed-link"));
-  AssertNoInterstitial(true);  // Assert the interstitial is gone.
+  AssertNoInterstitial();  // Assert the interstitial is gone.
   histograms.ExpectTotalCount(decision_histogram, 2);
   histograms.ExpectBucketCount(
       decision_histogram, security_interstitials::MetricsHelper::PROCEED, 1);
+  histograms.ExpectBucketCount(
+      decision_histogram + kInterstitialPreCommitPageHistogramSuffix,
+      security_interstitials::MetricsHelper::PROCEED, 1);
   histograms.ExpectTotalCount(interaction_histogram, 2);
   histograms.ExpectBucketCount(
       interaction_histogram,
@@ -1462,13 +1297,73 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
   histograms.ExpectBucketCount(
       interaction_histogram,
       security_interstitials::MetricsHelper::SHOW_ENHANCED_PROTECTION, 1);
+  histograms.ExpectBucketCount(
+      interaction_histogram,
+      security_interstitials::MetricsHelper::CLOSE_INTERSTITIAL_WITHOUT_UI, 0);
+
+  // CloseReason histograms.
+  histograms.ExpectTotalCount(kInterstitialCloseHistogram, 2);
+  histograms.ExpectBucketCount(
+      kInterstitialCloseHistogram,
+      security_interstitials::SecurityInterstitialTabHelper::
+          InterstitialCloseReason::INTERSTITIAL_SHOWN,
+      1);
+  histograms.ExpectBucketCount(
+      kInterstitialCloseHistogram,
+      security_interstitials::SecurityInterstitialTabHelper::
+          InterstitialCloseReason::NAVIGATE_AWAY,
+      1);
+
+  // Check that we are recording the UKM when interstitial is shown and we do
+  // not record for the interstitial bypassed.
+  auto ukm_entries =
+      test_ukm_recorder.GetEntriesByName("SafeBrowsingInterstitial");
+  EXPECT_EQ(2u, ukm_entries.size());
+  test_ukm_recorder.ExpectEntrySourceHasUrl(ukm_entries[0], url);
+  test_ukm_recorder.ExpectEntrySourceHasUrl(ukm_entries[1], url);
+  test_ukm_recorder.ExpectEntryMetric(ukm_entries[0], "Shown", true);
+  test_ukm_recorder.ExpectEntryMetric(ukm_entries[1], "Bypassed", true);
+}
+
+IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
+                       Histograms_UserMadeNoDecision) {
+  base::HistogramTester histograms;
+  SBThreatType threat_type = GetThreatType();
+  std::string prefix = GetHistogramPrefix(threat_type);
+  const std::string interaction_histogram =
+      "interstitial." + prefix + ".interaction";
+
+  // Histograms should start off empty.
+  histograms.ExpectTotalCount(interaction_histogram, 0);
+
+  // Navigate to the page and show warning.
+  GURL url = SetupWarningAndNavigate(browser());
+
+  // Close tab without making an explicit choice on interstitial.
+  chrome::CloseTab(browser());
+  histograms.ExpectBucketCount(
+      interaction_histogram,
+      security_interstitials::MetricsHelper::CLOSE_INTERSTITIAL_WITHOUT_UI, 1);
+
+  // CloseReason histograms.
+  histograms.ExpectTotalCount(kInterstitialCloseHistogram, 2);
+  histograms.ExpectBucketCount(
+      kInterstitialCloseHistogram,
+      security_interstitials::SecurityInterstitialTabHelper::
+          InterstitialCloseReason::INTERSTITIAL_SHOWN,
+      1);
+  histograms.ExpectBucketCount(
+      kInterstitialCloseHistogram,
+      security_interstitials::SecurityInterstitialTabHelper::
+          InterstitialCloseReason::CLOSE_TAB,
+      1);
 }
 
 IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest, AllowlistRevisit) {
   GURL url = SetupWarningAndNavigate(browser());
 
   EXPECT_TRUE(ClickAndWaitForDetach("proceed-link"));
-  AssertNoInterstitial(true);  // Assert the interstitial is gone.
+  AssertNoInterstitial();  // Assert the interstitial is gone.
   EXPECT_EQ(url, browser()
                      ->tab_strip_model()
                      ->GetActiveWebContents()
@@ -1476,31 +1371,11 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest, AllowlistRevisit) {
 
   // Unrelated pages should not be allowlisted now.
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(kUnrelatedUrl)));
-  AssertNoInterstitial(false);
+  AssertNoInterstitial();
 
   // The allowlisted page should remain allowlisted.
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
-  AssertNoInterstitial(false);
-}
-
-IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
-                       AllowlistIframeRevisit) {
-  GURL url = SetupThreatIframeWarningAndNavigate();
-
-  EXPECT_TRUE(ClickAndWaitForDetach("proceed-link"));
-  AssertNoInterstitial(true);  // Assert the interstitial is gone.
-  EXPECT_EQ(url, browser()
-                     ->tab_strip_model()
-                     ->GetActiveWebContents()
-                     ->GetLastCommittedURL());
-
-  // Unrelated pages should not be allowlisted now.
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(kUnrelatedUrl)));
-  AssertNoInterstitial(false);
-
-  // The allowlisted page should remain allowlisted.
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
-  AssertNoInterstitial(false);
+  AssertNoInterstitial();
 }
 
 IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest, AllowlistUnsaved) {
@@ -1508,17 +1383,17 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest, AllowlistUnsaved) {
 
   // Navigate without making a decision.
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(kUnrelatedUrl)));
-  AssertNoInterstitial(false);
+  AssertNoInterstitial();
 
   // The non-allowlisted page should now show an interstitial.
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
   EXPECT_TRUE(WaitForReady(browser()));
   EXPECT_TRUE(ClickAndWaitForDetach("proceed-link"));
-  AssertNoInterstitial(true);
+  AssertNoInterstitial();
 }
 
 #if (BUILDFLAG(IS_MAC) && !defined(NDEBUG)) || defined(MEMORY_SANITIZER)
-// TODO(crbug.com/1132307): Address flay failure.
+// TODO(crbug.com/40721886): Address flay failure.
 #define MAYBE_VerifyHitReportSentOnSBERAndNotIncognito \
   DISABLED_VerifyHitReportSentOnSBERAndNotIncognito
 #else
@@ -1532,38 +1407,40 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
   const bool expect_threat_details =
       SafeBrowsingBlockingPage::ShouldReportThreatDetails(GetThreatType());
 
-  scoped_refptr<content::MessageLoopRunner> threat_report_sent_runner(
-      new content::MessageLoopRunner);
+  base::RunLoop threat_report_sent_loop;
   if (expect_threat_details)
-    SetReportSentCallback(threat_report_sent_runner->QuitClosure());
+    SetReportSentCallback(threat_report_sent_loop.QuitClosure());
 
   browser()->profile()->GetPrefs()->SetBoolean(
       prefs::kSafeBrowsingScoutReportingEnabled, true);
-  GURL url = SetupWarningAndNavigate(browser());            // not incognito
+  GURL url = SetupWarningAndNavigate(browser());  // not incognito
   EXPECT_TRUE(hit_report_sent());
+  EXPECT_TRUE(report_sent());
 }
 
 IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
                        VerifyHitReportNotSentOnIncognito) {
+  browser()->profile()->GetPrefs()->SetBoolean(
+      prefs::kSafeBrowsingSurveysEnabled, false);
   // The extended reporting opt-in is presented in the interstitial for malware,
   // phishing, and UwS threats.
   const bool expect_threat_details =
       SafeBrowsingBlockingPage::ShouldReportThreatDetails(GetThreatType());
 
-  scoped_refptr<content::MessageLoopRunner> threat_report_sent_runner(
-      new content::MessageLoopRunner);
+  base::RunLoop threat_report_sent_loop;
   if (expect_threat_details)
-    SetReportSentCallback(threat_report_sent_runner->QuitClosure());
+    SetReportSentCallback(threat_report_sent_loop.QuitClosure());
 
   Browser* incognito_browser = CreateIncognitoBrowser();
   incognito_browser->profile()->GetPrefs()->SetBoolean(
-      prefs::kSafeBrowsingScoutReportingEnabled, true);     // set up SBER
-  GURL url = SetupWarningAndNavigate(incognito_browser);    // incognito
+      prefs::kSafeBrowsingScoutReportingEnabled, true);   // set up SBER
+  GURL url = SetupWarningAndNavigate(incognito_browser);  // incognito
   // Check enhanced protection message is not shown.
   EXPECT_EQ(HIDDEN, ::safe_browsing::GetVisibility(
                         incognito_browser, "enhanced-protection-message"));
 
   EXPECT_FALSE(hit_report_sent());
+  EXPECT_FALSE(report_sent());
 }
 
 IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
@@ -1573,15 +1450,15 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
   const bool expect_threat_details =
       SafeBrowsingBlockingPage::ShouldReportThreatDetails(GetThreatType());
 
-  scoped_refptr<content::MessageLoopRunner> threat_report_sent_runner(
-      new content::MessageLoopRunner);
+  base::RunLoop threat_report_sent_loop;
   if (expect_threat_details)
-    SetReportSentCallback(threat_report_sent_runner->QuitClosure());
+    SetReportSentCallback(threat_report_sent_loop.QuitClosure());
 
   browser()->profile()->GetPrefs()->SetBoolean(
-      prefs::kSafeBrowsingScoutReportingEnabled, false);     // set up SBER
-  GURL url = SetupWarningAndNavigate(browser());             // not incognito
+      prefs::kSafeBrowsingScoutReportingEnabled, false);  // set up SBER
+  GURL url = SetupWarningAndNavigate(browser());          // not incognito
   EXPECT_FALSE(hit_report_sent());
+  EXPECT_FALSE(report_sent());
 }
 
 namespace {
@@ -1595,7 +1472,7 @@ class SecurityStyleTestObserver : public content::WebContentsObserver {
   SecurityStyleTestObserver& operator=(const SecurityStyleTestObserver&) =
       delete;
 
-  absl::optional<security_state::SecurityLevel> latest_security_level() const {
+  std::optional<security_state::SecurityLevel> latest_security_level() const {
     return latest_security_level_;
   }
 
@@ -1606,32 +1483,10 @@ class SecurityStyleTestObserver : public content::WebContentsObserver {
   }
 
  private:
-  absl::optional<security_state::SecurityLevel> latest_security_level_;
+  std::optional<security_state::SecurityLevel> latest_security_level_;
 };
 
 }  // namespace
-
-// Test that the security indicator gets updated on a Safe Browsing
-// interstitial triggered by a subresource. Regression test for
-// https://crbug.com/659713.
-IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
-                       SecurityStateDowngradedForSubresourceInterstitial) {
-  WebContents* error_tab = browser()->tab_strip_model()->GetActiveWebContents();
-  ASSERT_TRUE(error_tab);
-  SecurityStyleTestObserver observer(error_tab);
-  // The security indicator should be downgraded while the interstitial shows.
-  SetupThreatIframeWarningAndNavigate();
-  ExpectSecurityIndicatorDowngrade(error_tab, 0u);
-  EXPECT_EQ(security_state::SecurityLevel::DANGEROUS,
-            observer.latest_security_level());
-
-  // The security indicator should still be downgraded post-interstitial.
-  EXPECT_TRUE(ClickAndWaitForDetach("proceed-link"));
-  AssertNoInterstitial(true);
-  WebContents* post_tab = browser()->tab_strip_model()->GetActiveWebContents();
-  ASSERT_TRUE(post_tab);
-  ExpectSecurityIndicatorDowngrade(post_tab, 0u);
-}
 
 // Test that the security indicator does not stay downgraded after
 // clicking back from a Safe Browsing interstitial. Regression test for
@@ -1665,7 +1520,7 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
   EXPECT_TRUE(ClickAndWaitForDetach("primary-button"));
 
   // The security indicator should *not* still be downgraded after going back.
-  AssertNoInterstitial(true);
+  AssertNoInterstitial();
   WebContents* post_tab = browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_TRUE(post_tab);
   entry = post_tab->GetController().GetVisibleEntry();
@@ -1677,54 +1532,6 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
   // Navigate to the URL that the interstitial was on, and check that it
   // is no longer marked as dangerous.
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), bad_url));
-  ExpectNoSecurityIndicatorDowngrade(
-      browser()->tab_strip_model()->GetActiveWebContents());
-}
-
-// Test that the security indicator does not stay downgraded after
-// clicking back from a Safe Browsing interstitial triggered by a
-// subresource. Regression test for https://crbug.com/659709.
-IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
-                       SecurityStateGoBackOnSubresourceInterstitial) {
-  // Navigate to a page so that there is somewhere to go back to.
-  GURL start_url = embedded_test_server()->GetURL(kEmptyPage);
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), start_url));
-
-  // The security indicator should be downgraded while the interstitial
-  // shows. Load a cross-origin iframe to be sure that the main frame origin
-  // (rather than the subresource origin) is being added and removed from the
-  // allowlist; this is a regression test for https://crbug.com/710955.
-  GURL bad_iframe_url;
-  GURL main_url =
-      SetupCrossOriginThreatIframeWarningAndNavigate(&bad_iframe_url);
-  WebContents* error_tab = browser()->tab_strip_model()->GetActiveWebContents();
-  ASSERT_TRUE(error_tab);
-  ExpectSecurityIndicatorDowngrade(error_tab, 0u);
-
-  // Go back.
-  EXPECT_EQ(VISIBLE, GetVisibility("primary-button"));
-  EXPECT_EQ(HIDDEN, GetVisibility("details"));
-  EXPECT_EQ(HIDDEN, GetVisibility("proceed-link"));
-  EXPECT_EQ(HIDDEN, GetVisibility("error-code"));
-  EXPECT_TRUE(Click("details-button"));
-  EXPECT_EQ(VISIBLE, GetVisibility("details"));
-  EXPECT_EQ(VISIBLE, GetVisibility("proceed-link"));
-  EXPECT_EQ(HIDDEN, GetVisibility("error-code"));
-  EXPECT_TRUE(ClickAndWaitForDetach("primary-button"));
-
-  // The security indicator should *not* still be downgraded after going back.
-  AssertNoInterstitial(true);
-  WebContents* post_tab = browser()->tab_strip_model()->GetActiveWebContents();
-  ASSERT_TRUE(post_tab);
-  content::NavigationEntry* entry = post_tab->GetController().GetVisibleEntry();
-  ASSERT_TRUE(entry);
-  EXPECT_EQ(start_url, entry->GetURL());
-  ExpectNoSecurityIndicatorDowngrade(post_tab);
-
-  // Clear the malicious subresource URL, and check that the hostname of the
-  // interstitial is no longer marked as Dangerous.
-  ClearBadURL(bad_iframe_url);
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), main_url));
   ExpectNoSecurityIndicatorDowngrade(
       browser()->tab_strip_model()->GetActiveWebContents());
 }
@@ -1741,7 +1548,7 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
 
   // The security indicator should still be downgraded post-interstitial.
   EXPECT_TRUE(ClickAndWaitForDetach("proceed-link"));
-  AssertNoInterstitial(true);
+  AssertNoInterstitial();
   WebContents* post_tab = browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_TRUE(post_tab);
   ExpectSecurityIndicatorDowngrade(post_tab, 0u);
@@ -1761,7 +1568,7 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
 
   // The security indicator should still be downgraded post-interstitial.
   EXPECT_TRUE(ClickAndWaitForDetach("proceed-link"));
-  AssertNoInterstitial(true);
+  AssertNoInterstitial();
   WebContents* post_tab = browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_TRUE(post_tab);
   ExpectSecurityIndicatorDowngrade(post_tab, 0u);
@@ -1779,7 +1586,7 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
 
   // The security indicator should still be downgraded post-interstitial.
   EXPECT_TRUE(ClickAndWaitForDetach("proceed-link"));
-  AssertNoInterstitial(true);
+  AssertNoInterstitial();
   WebContents* post_tab = browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_TRUE(post_tab);
   // TODO(felt): Sometimes the cert status here is 0u, which is wrong.
@@ -1804,71 +1611,22 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
   WebContents* contents = browser()->tab_strip_model()->GetActiveWebContents();
   EXPECT_TRUE(
       content::WaitForRenderFrameReady(contents->GetPrimaryMainFrame()));
-  EXPECT_FALSE(IsShowingInterstitial(contents));
-}
-
-// Test that no safe browsing interstitial will be shown, if the subresource URL
-// matches enterprise safe browsing allowlist domains. Regression test for
-// https://crbug.com/1179276.
-IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
-                       VerifyEnterpriseAllowlistSubresource) {
-  GURL url = embedded_test_server()->GetURL(kMaliciousJsPage);
-  GURL js_url = embedded_test_server()->GetURL(kMaliciousJs);
-  // Add test server domain into the enterprise allowlist.
-  base::Value::List allowlist;
-  allowlist.Append(url.host());
-  browser()->profile()->GetPrefs()->SetList(
-      prefs::kSafeBrowsingAllowlistDomains, std::move(allowlist));
-
-  SetURLThreatType(js_url, GetThreatType());
-  // Open a new tab to rebind the allowlist to the renderer.
-  chrome::NewTab(browser());
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
-  base::RunLoop().RunUntilIdle();
-  WebContents* contents = browser()->tab_strip_model()->GetActiveWebContents();
-  EXPECT_TRUE(
-      content::WaitForRenderFrameReady(contents->GetPrimaryMainFrame()));
-  EXPECT_FALSE(IsShowingInterstitial(contents));
+  EXPECT_FALSE(chrome_browser_interstitials::IsShowingInterstitial(contents));
 }
 
 INSTANTIATE_TEST_SUITE_P(
     SafeBrowsingBlockingPageBrowserTestWithThreatTypeAndIsolationSetting,
     SafeBrowsingBlockingPageBrowserTest,
     testing::Combine(
-        testing::Values(SB_THREAT_TYPE_URL_MALWARE,  // Threat types
-                        SB_THREAT_TYPE_URL_PHISHING,
-                        SB_THREAT_TYPE_URL_UNWANTED),
+        testing::Values(
+            SBThreatType::SB_THREAT_TYPE_URL_MALWARE,  // Threat types
+            SBThreatType::SB_THREAT_TYPE_URL_PHISHING,
+            SBThreatType::SB_THREAT_TYPE_URL_UNWANTED),
         testing::Bool()));  // If isolate all sites for testing.
-
-// Tests that commands work in a subframe triggered interstitial if a different
-// interstitial has been shown previously on the same webcontents. Regression
-// test for crbug.com/1021334
-IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
-                       IframeProceedAfterMainFrameInterstitial) {
-  // Navigate to a site that triggers an interstitial due to a bad main frame
-  // URL.
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      browser(), GURL(kChromeUISafeBrowsingMatchMalwareUrl)));
-  EXPECT_TRUE(WaitForReady(browser()));
-  EXPECT_TRUE(ClickAndWaitForDetach("primary-button"));
-  AssertNoInterstitial(false);
-
-  // Navigate to a site that triggers an interstitial due to a bad iframe.
-  GURL url = SetupThreatIframeWarningAndNavigate();
-
-  // Commands should work.
-  EXPECT_TRUE(ClickAndWaitForDetach("proceed-link"));
-  AssertNoInterstitial(true);  // Assert the interstitial is gone
-
-  EXPECT_EQ(url, browser()
-                     ->tab_strip_model()
-                     ->GetActiveWebContents()
-                     ->GetLastCommittedURL());
-}
 
 // Check back and forward work correctly after clicking through an interstitial.
 #if (BUILDFLAG(IS_MAC) && !defined(NDEBUG)) || defined(MEMORY_SANITIZER)
-// TODO(crbug.com/1132307): Address flay failure.
+// TODO(crbug.com/40721886): Address flay failure.
 #define MAYBE_NavigatingBackAndForth DISABLED_NavigatingBackAndForth
 #else
 #define MAYBE_NavigatingBackAndForth NavigatingBackAndForth
@@ -1882,7 +1640,7 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
   // Navigate to a site that triggers a warning and click through it.
   const GURL bad_url = SetupWarningAndNavigate(browser());
   EXPECT_TRUE(ClickAndWaitForDetach("proceed-link"));
-  AssertNoInterstitial(true);
+  AssertNoInterstitial();
   // Go back and check we are back on the safe site.
   WebContents* contents = browser()->tab_strip_model()->GetActiveWebContents();
   content::TestNavigationObserver back_observer(contents);
@@ -1894,51 +1652,534 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
   contents->GetController().GoForward();
   forward_observer.Wait();
   WaitForReady(browser());
-  AssertNoInterstitial(true);
+  AssertNoInterstitial();
   EXPECT_EQ(bad_url, contents->GetLastCommittedURL());
 }
 
-// Regression test for https://crbug.com/1333623.
 IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
-                       EmbedElementMalwareLandingInterstitial) {
-  GURL url = embedded_test_server()->GetURL(kCrossSiteMaliciousEmbedPage);
-  GURL embed_url = embedded_test_server()->GetURL(kMaliciousIframe);
-  SetURLThreatType(embed_url, SB_THREAT_TYPE_URL_MALWARE);
-  SetURLThreatPatternType(embed_url, ThreatPatternType::MALWARE_LANDING);
+                       TimestampInCSBRRClickedThroughBlockingPage) {
+  SetExtendedReportingPrefForTests(browser()->profile()->GetPrefs(), true);
+  content::TestNavigationObserver observer(
+      browser()->tab_strip_model()->GetActiveWebContents());
+  SetupWarningAndNavigate(browser());
 
-  EXPECT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
-  base::RunLoop().RunUntilIdle();
-  WebContents* contents = browser()->tab_strip_model()->GetActiveWebContents();
-  EXPECT_TRUE(
-      content::WaitForRenderFrameReady(contents->GetPrimaryMainFrame()));
-  // Show an interstitial when the malware landing page is loaded as an <embed>
-  // element, because it can cause similar harm as <iframe>.
-  EXPECT_TRUE(IsShowingInterstitial(contents));
+  // Proceed to unsafe site, sending CSBRR.
+  EXPECT_TRUE(ClickAndWaitForDetach("proceed-link"));
+  observer.WaitForNavigationFinished();
+
+  // The "proceed" command should go back instead, if proceeding is disabled.
+  AssertNoInterstitial();
+
+  base::RunLoop threat_report_sent_loop;
+  SetReportSentCallback(threat_report_sent_loop.QuitClosure());
+
+  threat_report_sent_loop.Run();
+  std::string serialized = GetReportSent();
+  ClientSafeBrowsingReportRequest report;
+  ASSERT_TRUE(report.ParseFromString(serialized));
+  // The timstamp of the warning shown should be in CSBRRs.
+  EXPECT_TRUE(report.has_warning_shown_timestamp_msec());
 }
 
 IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
-                       JsElementInterstitial) {
+                       FallbackCSBRRSentWithExpectedFieldsPopulated) {
+  SetExtendedReportingPrefForTests(browser()->profile()->GetPrefs(), true);
+  content::TestNavigationObserver observer(
+      browser()->tab_strip_model()->GetActiveWebContents());
+  base::RunLoop threat_report_sent_loop;
+  SetReportSentCallback(threat_report_sent_loop.QuitClosure());
+  SetupWarningAndNavigate(browser());
+  ASSERT_TRUE(chrome_browser_interstitials::IsShowingInterstitial(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+
+  // Send CSBRR without interactions.
+  chrome::CloseTab(browser());
+  observer.WaitForNavigationFinished();
+  threat_report_sent_loop.Run();
+
+  std::string serialized = GetReportSent();
+  ClientSafeBrowsingReportRequest report;
+  ASSERT_TRUE(report.ParseFromString(serialized));
+  // The timstamp of the warning shown should be in CSBRRs.
+  EXPECT_TRUE(report.has_warning_shown_timestamp_msec());
+
+  // The `client_properties` field should be populated in fallback CSBRRs.
+  EXPECT_TRUE(report.has_client_properties());
+  EXPECT_TRUE(report.client_properties().has_url_api_type());
+  EXPECT_TRUE(report.client_properties().has_is_async_check());
+  EXPECT_EQ(report.client_properties().url_api_type(),
+            ClientSafeBrowsingReportRequest::PVER4_NATIVE);
+  EXPECT_FALSE(report.client_properties().is_async_check());
+}
+
+IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageBrowserTest,
+                       IgnoreFutureAutoRevocation) {
+  GURL url = SetupWarningAndNavigate(browser());
+  EXPECT_FALSE(
+      safety_hub_util::IsAbusiveNotificationRevocationIgnored(hcsm(), url));
+  EXPECT_TRUE(ClickAndWaitForDetach("proceed-link"));
+  AssertNoInterstitial();  // Assert the interstitial is gone.
+  if (GetThreatType() == SBThreatType::SB_THREAT_TYPE_URL_PHISHING) {
+    EXPECT_TRUE(
+        safety_hub_util::IsAbusiveNotificationRevocationIgnored(hcsm(), url));
+  } else {
+    EXPECT_FALSE(
+        safety_hub_util::IsAbusiveNotificationRevocationIgnored(hcsm(), url));
+  }
+}
+
+class AntiPhishingTelemetryBrowserTest
+    : public SafeBrowsingBlockingPageBrowserTest {};
+
+INSTANTIATE_TEST_SUITE_P(
+    AntiPhishingTelemetryBrowserTestWithThreatTypeAndIsolationSetting,
+    AntiPhishingTelemetryBrowserTest,
+    testing::Combine(
+        testing::Values(
+            SBThreatType::SB_THREAT_TYPE_URL_PHISHING,  // Threat types
+            SBThreatType::SB_THREAT_TYPE_URL_CLIENT_SIDE_PHISHING),
+        testing::Bool()));  // If isolate all sites for testing.
+
+IN_PROC_BROWSER_TEST_P(AntiPhishingTelemetryBrowserTest,
+                       CheckReportListsInteractions) {
+  SetExtendedReportingPrefForTests(browser()->profile()->GetPrefs(), true);
+  content::TestNavigationObserver observer(
+      browser()->tab_strip_model()->GetActiveWebContents());
+  SetupWarningAndNavigate(browser());
+
+  // Show details 3x to make sure map records all 3 occurrences in interstitial
+  // interaction map.
+  EXPECT_TRUE(Click("details-button"));
+  SendCommand(security_interstitials::CMD_SHOW_MORE_SECTION);
+  SendCommand(security_interstitials::CMD_SHOW_MORE_SECTION);
+
+  // Proceed to unsafe site, sending CSBRR.
+  EXPECT_TRUE(ClickAndWaitForDetach("proceed-link"));
+  observer.WaitForNavigationFinished();
+
+  // The "proceed" command should go back instead, if proceeding is disabled.
+  AssertNoInterstitial();
+
+  scoped_refptr<content::MessageLoopRunner> threat_report_sent_runner(
+      new content::MessageLoopRunner);
+  SetReportSentCallback(threat_report_sent_runner->QuitClosure());
+
+  threat_report_sent_runner->Run();
+  std::string serialized = GetReportSent();
+  ClientSafeBrowsingReportRequest report;
+  ASSERT_TRUE(report.ParseFromString(serialized));
+
+  EXPECT_EQ(report.url(), embedded_test_server()->GetURL(kEmptyPage));
   SBThreatType threat_type = GetThreatType();
-  GURL url = embedded_test_server()->GetURL(kMaliciousJsPage);
-  GURL js_url = embedded_test_server()->GetURL(kMaliciousJs);
-  SetURLThreatType(js_url, threat_type);
-  if (threat_type == SB_THREAT_TYPE_URL_MALWARE) {
-    SetURLThreatPatternType(js_url, ThreatPatternType::MALWARE_LANDING);
+  // SB_THREAT_TYPE_URL_CLIENT_SIDE_PHISHING does not set the page_url because
+  // its resource's navigation_url is empty.
+  if (threat_type == SBThreatType::SB_THREAT_TYPE_URL_PHISHING) {
+    EXPECT_EQ(report.page_url(), embedded_test_server()->GetURL(kEmptyPage));
+  }
+  // Create sorted vector of interstitial interactions. Sorted by
+  // security_interstitial_interaction numeric value.
+  std::vector<ClientSafeBrowsingReportRequest::InterstitialInteraction>
+      interactions;
+  for (auto interaction : report.interstitial_interactions()) {
+    interactions.push_back(interaction);
+  }
+  std::sort(
+      interactions.begin(), interactions.end(),
+      [](const ClientSafeBrowsingReportRequest::InterstitialInteraction& a,
+         const ClientSafeBrowsingReportRequest::InterstitialInteraction& b)
+          -> bool {
+        return a.security_interstitial_interaction() <
+               b.security_interstitial_interaction();
+      });
+
+  // Verify the report interactions are complete and correct.
+  EXPECT_EQ(report.interstitial_interactions_size(), 2);
+  VerifyInteractionOccurrenceCount(
+      report, interactions[0],
+      ClientSafeBrowsingReportRequest::InterstitialInteraction::CMD_PROCEED, 1);
+  VerifyInteractionOccurrenceCount(
+      report, interactions[1],
+      ClientSafeBrowsingReportRequest::InterstitialInteraction::
+          CMD_SHOW_MORE_SECTION,
+      3);
+}
+
+IN_PROC_BROWSER_TEST_P(AntiPhishingTelemetryBrowserTest,
+                       CheckReportCloseTabOnInterstitial) {
+  SetExtendedReportingPrefForTests(browser()->profile()->GetPrefs(), true);
+  content::TestNavigationObserver observer(
+      browser()->tab_strip_model()->GetActiveWebContents());
+  scoped_refptr<content::MessageLoopRunner> threat_report_sent_runner(
+      new content::MessageLoopRunner);
+  SetReportSentCallback(threat_report_sent_runner->QuitClosure());
+  SetupWarningAndNavigate(browser());
+  ASSERT_TRUE(chrome_browser_interstitials::IsShowingInterstitial(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+
+  // Send CSBRR without interactions.
+  chrome::CloseTab(browser());
+  observer.WaitForNavigationFinished();
+  threat_report_sent_runner->Run();
+
+  std::string serialized = GetReportSent();
+  ClientSafeBrowsingReportRequest report;
+  ASSERT_TRUE(report.ParseFromString(serialized));
+
+  EXPECT_EQ(report.url(), embedded_test_server()->GetURL(kEmptyPage));
+  // Verify the report interactions only contain interstitial interactions.
+  SBThreatType threat_type = GetThreatType();
+  if (threat_type == SBThreatType::SB_THREAT_TYPE_URL_PHISHING) {
+    EXPECT_EQ(report.type(),
+              ClientSafeBrowsingReportRequest_ReportType_URL_PHISHING);
+    EXPECT_EQ(report.page_url(), embedded_test_server()->GetURL(kEmptyPage));
+  }
+  if (threat_type == SBThreatType::SB_THREAT_TYPE_URL_CLIENT_SIDE_PHISHING) {
+    EXPECT_EQ(
+        report.type(),
+        ClientSafeBrowsingReportRequest_ReportType_URL_CLIENT_SIDE_PHISHING);
+  }
+  EXPECT_EQ(report.interstitial_interactions_size(), 1);
+  EXPECT_EQ(
+      report.interstitial_interactions(0).security_interstitial_interaction(),
+      ClientSafeBrowsingReportRequest::InterstitialInteraction::
+          CMD_CLOSE_INTERSTITIAL_WITHOUT_UI);
+  EXPECT_EQ(report.interstitial_interactions(0).occurrence_count(), 1);
+}
+
+IN_PROC_BROWSER_TEST_P(
+    AntiPhishingTelemetryBrowserTest,
+    CheckReportListsInteractionsNoExplicitInterstitialDecision) {
+  SetExtendedReportingPrefForTests(browser()->profile()->GetPrefs(), true);
+
+  content::TestNavigationObserver observer(
+      browser()->tab_strip_model()->GetActiveWebContents());
+  scoped_refptr<content::MessageLoopRunner> threat_report_sent_runner(
+      new content::MessageLoopRunner);
+  SetReportSentCallback(threat_report_sent_runner->QuitClosure());
+
+  // Navigate to the page and show warning.
+  SetupWarningAndNavigate(browser());
+
+  // Navigate away from interstitial without making an explicit choice through
+  // the UI.
+  ASSERT_TRUE(
+      ui_test_utils::NavigateToURL(browser(), GURL(url::kAboutBlankURL)));
+
+  observer.WaitForNavigationFinished();
+  threat_report_sent_runner->Run();
+  std::string serialized = GetReportSent();
+  ClientSafeBrowsingReportRequest report;
+  ASSERT_TRUE(report.ParseFromString(serialized));
+
+  EXPECT_EQ(report.url(), embedded_test_server()->GetURL(kEmptyPage));
+  SBThreatType threat_type = GetThreatType();
+  if (threat_type == SBThreatType::SB_THREAT_TYPE_URL_PHISHING) {
+    EXPECT_EQ(report.page_url(), embedded_test_server()->GetURL(kEmptyPage));
+  }
+  // Verify the report interaction only contains a
+  // CMD_CLOSE_INTERSTITIAL_WITHOUT_UI interaction.
+  EXPECT_EQ(report.interstitial_interactions_size(), 1);
+  EXPECT_EQ(
+      report.interstitial_interactions(0).security_interstitial_interaction(),
+      ClientSafeBrowsingReportRequest::InterstitialInteraction::
+          CMD_CLOSE_INTERSTITIAL_WITHOUT_UI);
+  EXPECT_EQ(report.interstitial_interactions(0).occurrence_count(), 1);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    SafeBrowsingHatsSurveyBrowserTestWithThreatTypeAndIsolationSetting,
+    SafeBrowsingHatsSurveyBrowserTest,
+    testing::Combine(
+        // Threat types.
+        testing::Values(SBThreatType::SB_THREAT_TYPE_URL_MALWARE),
+        // If isolate all sites for testing.
+        testing::Bool()));
+
+IN_PROC_BROWSER_TEST_P(SafeBrowsingHatsSurveyBrowserTest,
+                       ReportNotSentToSbButAttachedForHats) {
+  SetExtendedReportingPrefForTests(browser()->profile()->GetPrefs(), false);
+  SetExpectEmptyReportForHats(false);
+  SetExpectReportUrlForHats(true);
+  SetExpectInterstitialInteractions(true);
+  content::TestNavigationObserver observer(
+      browser()->tab_strip_model()->GetActiveWebContents());
+  SetupWarningAndNavigate(browser());
+  ASSERT_TRUE(chrome_browser_interstitials::IsShowingInterstitial(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+  EXPECT_CALL(*GetSafeBrowsingUiManager(), OnAttachThreatDetailsAndLaunchSurvey)
+      .Times(1);
+
+  // Generate interstitial interactions.
+  EXPECT_TRUE(Click("details-button"));
+  SendCommand(security_interstitials::CMD_SHOW_MORE_SECTION);
+  SendCommand(security_interstitials::CMD_SHOW_MORE_SECTION);
+
+  // Bypass warning.
+  // This triggers AttachThreatDetailsAndLaunchSurvey.
+  EXPECT_TRUE(ClickAndWaitForDetach("proceed-link"));
+  observer.WaitForNavigationFinished();
+
+  std::string report = GetReportSent();
+  EXPECT_TRUE(report.empty());
+}
+
+IN_PROC_BROWSER_TEST_P(SafeBrowsingHatsSurveyBrowserTest,
+                       ReportSentToSbAndAttachedForHats) {
+  SetExtendedReportingPrefForTests(browser()->profile()->GetPrefs(), true);
+  SetExpectEmptyReportForHats(false);
+  SetExpectReportUrlForHats(true);
+  SetExpectInterstitialInteractions(true);
+  content::TestNavigationObserver observer(
+      browser()->tab_strip_model()->GetActiveWebContents());
+  scoped_refptr<content::MessageLoopRunner> threat_report_sent_runner(
+      new content::MessageLoopRunner);
+  SetReportSentCallback(threat_report_sent_runner->QuitClosure());
+  SetupWarningAndNavigate(browser());
+  ASSERT_TRUE(chrome_browser_interstitials::IsShowingInterstitial(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+  EXPECT_CALL(*GetSafeBrowsingUiManager(), OnAttachThreatDetailsAndLaunchSurvey)
+      .Times(1);
+  // Generate interstitial interactions.
+  EXPECT_TRUE(Click("details-button"));
+  SendCommand(security_interstitials::CMD_SHOW_MORE_SECTION);
+  SendCommand(security_interstitials::CMD_SHOW_MORE_SECTION);
+
+  // Bypass warning.
+  // This triggers AttachThreatDetailsAndLaunchSurvey.
+  EXPECT_TRUE(ClickAndWaitForDetach("proceed-link"));
+  observer.WaitForNavigationFinished();
+  threat_report_sent_runner->Run();
+  std::string report = GetReportSent();
+  EXPECT_FALSE(report.empty());
+}
+
+IN_PROC_BROWSER_TEST_P(SafeBrowsingHatsSurveyBrowserTest,
+                       NoHatsSurveyWhenProceedDisabled) {
+  browser()->profile()->GetPrefs()->SetBoolean(
+      prefs::kSafeBrowsingProceedAnywayDisabled, true);
+  SetExtendedReportingPrefForTests(browser()->profile()->GetPrefs(), false);
+  SetExpectEmptyReportForHats(true);
+  content::TestNavigationObserver observer(
+      browser()->tab_strip_model()->GetActiveWebContents());
+  SetupWarningAndNavigate(browser());
+  ASSERT_TRUE(chrome_browser_interstitials::IsShowingInterstitial(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+  EXPECT_CALL(*GetSafeBrowsingUiManager(), OnAttachThreatDetailsAndLaunchSurvey)
+      .Times(0);
+
+  // Generate interstitial interactions.
+  EXPECT_TRUE(Click("details-button"));
+  SendCommand(security_interstitials::CMD_SHOW_MORE_SECTION);
+  SendCommand(security_interstitials::CMD_SHOW_MORE_SECTION);
+
+  // Navigate away from the page.
+  // This would trigger AttachThreatDetailsAndLaunchSurvey but does not because
+  // proceed is disabled.
+  ASSERT_TRUE(
+      ui_test_utils::NavigateToURL(browser(), GURL(url::kAboutBlankURL)));
+  observer.WaitForNavigationFinished();
+}
+
+IN_PROC_BROWSER_TEST_P(SafeBrowsingHatsSurveyBrowserTest,
+                       NoHatsSurveyWhenSafeBrowsingSurveysDisabled) {
+  browser()->profile()->GetPrefs()->SetBoolean(
+      prefs::kSafeBrowsingSurveysEnabled, false);
+  SetExtendedReportingPrefForTests(browser()->profile()->GetPrefs(), false);
+  SetExpectEmptyReportForHats(true);
+  content::TestNavigationObserver observer(
+      browser()->tab_strip_model()->GetActiveWebContents());
+  SetupWarningAndNavigate(browser());
+  ASSERT_TRUE(chrome_browser_interstitials::IsShowingInterstitial(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+  EXPECT_CALL(*GetSafeBrowsingUiManager(), OnAttachThreatDetailsAndLaunchSurvey)
+      .Times(0);
+
+  // Generate interstitial interactions.
+  EXPECT_TRUE(Click("details-button"));
+  SendCommand(security_interstitials::CMD_SHOW_MORE_SECTION);
+  SendCommand(security_interstitials::CMD_SHOW_MORE_SECTION);
+
+  // Bypass warning.
+  // This would trigger AttachThreatDetailsAndLaunchSurvey but does not because
+  // Safe Browsing surveys are disabled.
+  EXPECT_TRUE(ClickAndWaitForDetach("proceed-link"));
+  observer.WaitForNavigationFinished();
+}
+
+class TrustSafetySentimentSurveyV2BrowserTest
+    : public SafeBrowsingBlockingPageBrowserTest {
+ public:
+  TrustSafetySentimentSurveyV2BrowserTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        features::kTrustSafetySentimentSurveyV2);
+  }
+  ~TrustSafetySentimentSurveyV2BrowserTest() override = default;
+
+  void SetUp() override {
+#if BUILDFLAG(IS_CHROMEOS)
+    metrics::DesktopSessionDurationTracker::Initialize();
+#endif
+    SafeBrowsingBlockingPageBrowserTest::SetUp();
   }
 
-  EXPECT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
-  base::RunLoop().RunUntilIdle();
-  WebContents* contents = browser()->tab_strip_model()->GetActiveWebContents();
-  EXPECT_TRUE(
-      content::WaitForRenderFrameReady(contents->GetPrimaryMainFrame()));
-  if (threat_type == SB_THREAT_TYPE_URL_MALWARE ||
-      threat_type == SB_THREAT_TYPE_URL_UNWANTED) {
-    // Do not show an interstitial when the malware landing page or UwS landing
-    // page is loaded as a subresource to avoid false positives.
-    EXPECT_FALSE(IsShowingInterstitial(contents));
-  } else {
-    EXPECT_TRUE(IsShowingInterstitial(contents));
+  void TearDown() override {
+#if BUILDFLAG(IS_CHROMEOS)
+    metrics::DesktopSessionDurationTracker::CleanupForTesting();
+#endif
   }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    TrustSafetySentimentSurveyV2BrowserTestWithThreatTypeAndIsolationSetting,
+    TrustSafetySentimentSurveyV2BrowserTest,
+    testing::Combine(
+        testing::Values(
+            SBThreatType::SB_THREAT_TYPE_URL_PHISHING,  // Threat types
+            SBThreatType::SB_THREAT_TYPE_URL_CLIENT_SIDE_PHISHING,
+            SBThreatType::SB_THREAT_TYPE_URL_MALWARE,
+            SBThreatType::SB_THREAT_TYPE_URL_UNWANTED),
+        testing::Bool()));  // If isolate all sites for testing.
+
+IN_PROC_BROWSER_TEST_P(TrustSafetySentimentSurveyV2BrowserTest,
+                       TrustSafetySentimentTriggerredOnProceed) {
+  GURL url = SetupWarningAndNavigate(browser());
+  EXPECT_CALL(*mock_sentiment_service(),
+              InteractedWithSafeBrowsingInterstitial(/*did_proceed=*/true,
+                                                     GetThreatType()));
+  EXPECT_TRUE(ClickAndWaitForDetach("proceed-link"));
+  AssertNoInterstitial();  // Assert the interstitial is gone.
+}
+
+IN_PROC_BROWSER_TEST_P(TrustSafetySentimentSurveyV2BrowserTest,
+                       TrustSafetySentimentTriggerredOnPrimaryButtonClick) {
+  GURL url = SetupWarningAndNavigate(browser());
+  EXPECT_CALL(*mock_sentiment_service(),
+              InteractedWithSafeBrowsingInterstitial(/*did_proceed=*/false,
+                                                     GetThreatType()));
+  EXPECT_TRUE(ClickAndWaitForDetach("primary-button"));
+  AssertNoInterstitial();  // Assert the interstitial is gone.
+}
+
+IN_PROC_BROWSER_TEST_P(TrustSafetySentimentSurveyV2BrowserTest,
+                       TrustSafetySentimentTriggeredOnCloseInterstitialTab) {
+  content::TestNavigationObserver observer(
+      browser()->tab_strip_model()->GetActiveWebContents());
+  GURL url = SetupWarningAndNavigate(browser());
+  EXPECT_CALL(*mock_sentiment_service(),
+              InteractedWithSafeBrowsingInterstitial(/*did_proceed=*/false,
+                                                     GetThreatType()));
+  chrome::CloseTab(browser());
+  observer.WaitForNavigationFinished();
+}
+
+using RedInterstitialUIBrowserTest = SafeBrowsingBlockingPageBrowserTest;
+
+INSTANTIATE_TEST_SUITE_P(
+    RedInterstitialUIBrowserTestWithThreatTypeAndIsolationSetting,
+    RedInterstitialUIBrowserTest,
+    testing::Combine(
+        testing::Values(
+            SBThreatType::SB_THREAT_TYPE_URL_PHISHING,  // Threat types
+            SBThreatType::SB_THREAT_TYPE_URL_MALWARE,
+            SBThreatType::SB_THREAT_TYPE_URL_CLIENT_SIDE_PHISHING,
+            SBThreatType::SB_THREAT_TYPE_URL_UNWANTED),
+        testing::Bool()));  // If isolate all sites for testing.
+
+IN_PROC_BROWSER_TEST_P(RedInterstitialUIBrowserTest,
+                       TestInterstitialPageStringsEnhancedEnabled) {
+  safe_browsing::SetSafeBrowsingState(
+      browser()->profile()->GetPrefs(),
+      safe_browsing::SafeBrowsingState::ENHANCED_PROTECTION);
+  auto threat_report_sent_runner = std::make_unique<base::RunLoop>();
+  SetReportSentCallback(threat_report_sent_runner->QuitClosure());
+  GURL url = SetupWarningAndNavigate(browser());
+
+  WebContents* contents = browser()->tab_strip_model()->GetActiveWebContents();
+  SafeBrowsingBlockingPage* interstitial_page;
+  security_interstitials::SecurityInterstitialTabHelper* helper =
+      security_interstitials::SecurityInterstitialTabHelper::FromWebContents(
+          contents);
+  ASSERT_TRUE(helper);
+  interstitial_page = static_cast<SafeBrowsingBlockingPage*>(
+      helper->GetBlockingPageForCurrentlyCommittedNavigationForTesting());
+  BaseSafeBrowsingErrorUI* temp_var = interstitial_page->sb_error_ui();
+  base::Value::Dict load_time_data;
+  temp_var->PopulateStringsForHtml(load_time_data);
+
+  // Safe browsing blocking page should use correct heading and primary,
+  // explanation, and proceed paragraph strings.
+  ASSERT_EQ(
+      load_time_data.Find("heading")->GetString(),
+      base::UTF16ToUTF8(l10n_util::GetStringUTF16(IDS_SAFEBROWSING_HEADING)));
+  SBThreatType threat_type = GetThreatType();
+  if (threat_type == SBThreatType::SB_THREAT_TYPE_URL_PHISHING ||
+      threat_type == SBThreatType::SB_THREAT_TYPE_URL_CLIENT_SIDE_PHISHING) {
+    ASSERT_EQ(load_time_data.Find("primaryParagraph")->GetString(),
+              base::UTF16ToUTF8(l10n_util::GetStringUTF16(
+                  IDS_PHISHING_V4_PRIMARY_PARAGRAPH)));
+    ASSERT_EQ(load_time_data.Find("explanationParagraph")->GetString(),
+              base::UTF16ToUTF8(l10n_util::GetStringUTF16(
+                  IDS_PHISHING_V4_EXPLANATION_PARAGRAPH)));
+    ASSERT_EQ(load_time_data.Find("finalParagraph")->GetString(),
+              base::UTF16ToUTF8(l10n_util::GetStringUTF16(
+                  IDS_PHISHING_V4_PROCEED_PARAGRAPH)));
+  } else if (threat_type == SBThreatType::SB_THREAT_TYPE_URL_MALWARE) {
+    ASSERT_EQ(load_time_data.Find("primaryParagraph")->GetString(),
+              base::UTF16ToUTF8(
+                  l10n_util::GetStringUTF16(IDS_MALWARE_V3_PRIMARY_PARAGRAPH)));
+    ASSERT_EQ(load_time_data.Find("explanationParagraph")->GetString(),
+              base::UTF16ToUTF8(l10n_util::GetStringUTF16(
+                  IDS_MALWARE_V3_EXPLANATION_PARAGRAPH)));
+    ASSERT_EQ(load_time_data.Find("finalParagraph")->GetString(),
+              base::UTF16ToUTF8(
+                  l10n_util::GetStringUTF16(IDS_MALWARE_V3_PROCEED_PARAGRAPH)));
+  } else {
+    ASSERT_EQ(load_time_data.Find("primaryParagraph")->GetString(),
+              base::UTF16ToUTF8(
+                  l10n_util::GetStringUTF16(IDS_HARMFUL_V3_PRIMARY_PARAGRAPH)));
+    ASSERT_EQ(load_time_data.Find("explanationParagraph")->GetString(),
+              base::UTF16ToUTF8(l10n_util::GetStringUTF16(
+                  IDS_HARMFUL_V3_EXPLANATION_PARAGRAPH)));
+    ASSERT_EQ(load_time_data.Find("finalParagraph")->GetString(),
+              base::UTF16ToUTF8(
+                  l10n_util::GetStringUTF16(IDS_HARMFUL_V3_PROCEED_PARAGRAPH)));
+  }
+}
+
+IN_PROC_BROWSER_TEST_P(RedInterstitialUIBrowserTest,
+                       TestInterstitialPageStringsStandardEnabled) {
+  safe_browsing::SetSafeBrowsingState(
+      browser()->profile()->GetPrefs(),
+      safe_browsing::SafeBrowsingState::STANDARD_PROTECTION);
+  auto threat_report_sent_runner = std::make_unique<base::RunLoop>();
+  SetReportSentCallback(threat_report_sent_runner->QuitClosure());
+  GURL url = SetupWarningAndNavigate(browser());
+
+  WebContents* contents = browser()->tab_strip_model()->GetActiveWebContents();
+  SafeBrowsingBlockingPage* interstitial_page;
+  security_interstitials::SecurityInterstitialTabHelper* helper =
+      security_interstitials::SecurityInterstitialTabHelper::FromWebContents(
+          contents);
+  ASSERT_TRUE(helper);
+  interstitial_page = static_cast<SafeBrowsingBlockingPage*>(
+      helper->GetBlockingPageForCurrentlyCommittedNavigationForTesting());
+  BaseSafeBrowsingErrorUI* temp_var = interstitial_page->sb_error_ui();
+  base::Value::Dict load_time_data;
+  temp_var->PopulateStringsForHtml(load_time_data);
+
+  // Safe browsing blocking page should use correct header and enhanced
+  // protection promo message strings.
+  ASSERT_EQ(
+      load_time_data.Find("heading")->GetString(),
+      base::UTF16ToUTF8(l10n_util::GetStringUTF16(IDS_SAFEBROWSING_HEADING)));
+  ASSERT_EQ(
+      load_time_data.Find(security_interstitials::kEnhancedProtectionMessage)
+          ->GetString(),
+      base::UTF16ToUTF8(l10n_util::GetStringUTF16(
+          IDS_SAFE_BROWSING_ENHANCED_PROTECTION_MESSAGE)));
 }
 
 class SafeBrowsingBlockingPageDelayedWarningBrowserTest
@@ -1955,11 +2196,7 @@ class SafeBrowsingBlockingPageDelayedWarningBrowserTest
       const SafeBrowsingBlockingPageDelayedWarningBrowserTest&) = delete;
 
   void SetUp() override {
-    std::vector<base::test::FeatureRefAndParams> enabled_features{
-        base::test::FeatureRefAndParams(blink::features::kPortals, {}),
-        base::test::FeatureRefAndParams(blink::features::kPortalsCrossOrigin,
-                                        {}),
-    };
+    std::vector<base::test::FeatureRefAndParams> enabled_features;
     if (warning_on_mouse_click_enabled()) {
       enabled_features.push_back(base::test::FeatureRefAndParams(
           kDelayedWarnings, {{"mouse", "true"}}));
@@ -1977,16 +2214,17 @@ class SafeBrowsingBlockingPageDelayedWarningBrowserTest
   }
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
-    if (testing::get<0>(GetParam()))
+    if (testing::get<0>(GetParam())) {
       content::IsolateAllSitesForTesting(command_line);
+    }
+    // TODO(crbug.com/40285326): This fails with the field trial testing config.
+    command_line->AppendSwitch("disable-field-trial-config");
   }
 
   void SetUpOnMainThread() override {
     host_resolver()->AddRule("*", "127.0.0.1");
     content::SetupCrossSiteRedirector(embedded_test_server());
     ASSERT_TRUE(embedded_test_server()->Start());
-    SafeBrowsingUserInteractionObserver::
-        ResetSuspiciousSiteReporterExtensionIdForTesting();
   }
 
   void CreatedBrowserMainParts(
@@ -1997,8 +2235,7 @@ class SafeBrowsingBlockingPageDelayedWarningBrowserTest
     factory_.SetTestUIManager(new FakeSafeBrowsingUIManager(
         std::make_unique<TestSafeBrowsingBlockingPageFactory>()));
     factory_.SetTestDatabaseManager(new FakeSafeBrowsingDatabaseManager(
-        content::GetUIThreadTaskRunner({}),
-        content::GetIOThreadTaskRunner({})));
+        content::GetUIThreadTaskRunner({})));
     SafeBrowsingService::RegisterFactory(&factory_);
     ThreatDetails::RegisterFactory(&details_factory_);
   }
@@ -2008,7 +2245,7 @@ class SafeBrowsingBlockingPageDelayedWarningBrowserTest
     content::WebContents* contents =
         browser->tab_strip_model()->GetActiveWebContents();
     content::TestNavigationObserver observer(contents);
-    content::NativeWebKeyboardEvent event(
+    input::NativeWebKeyboardEvent event(
         blink::WebKeyboardEvent::Type::kRawKeyDown,
         blink::WebInputEvent::kNoModifiers,
         blink::WebInputEvent::GetStaticTimeStampForTests());
@@ -2049,7 +2286,7 @@ class SafeBrowsingBlockingPageDelayedWarningBrowserTest
         browser->tab_strip_model()->GetActiveWebContents();
     content::TestNavigationObserver observer(contents);
     const char* const kScript = "document.body.webkitRequestFullscreen()";
-    EXPECT_TRUE(content::ExecuteScript(contents, kScript));
+    EXPECT_TRUE(content::ExecJs(contents, kScript));
     observer.WaitForNavigationFinished();
     return WaitForReady(browser);
   }
@@ -2059,7 +2296,7 @@ class SafeBrowsingBlockingPageDelayedWarningBrowserTest
         browser->tab_strip_model()->GetActiveWebContents();
     content::TestNavigationObserver observer(contents);
     const char* const kScript = "Notification.requestPermission(function(){})";
-    EXPECT_TRUE(content::ExecuteScript(contents, kScript));
+    EXPECT_TRUE(content::ExecJs(contents, kScript));
     observer.WaitForNavigationFinished();
     return WaitForReady(browser);
   }
@@ -2069,7 +2306,8 @@ class SafeBrowsingBlockingPageDelayedWarningBrowserTest
         browser->tab_strip_model()->GetActiveWebContents();
     content::TestNavigationObserver observer(contents);
     const char* const kScript = "navigator.mediaDevices.getDisplayMedia()";
-    EXPECT_TRUE(content::ExecuteScript(contents, kScript));
+    EXPECT_TRUE(content::ExecJs(contents, kScript,
+                                content::EXECUTE_SCRIPT_NO_RESOLVE_PROMISES));
     observer.WaitForNavigationFinished();
     return WaitForReady(browser);
   }
@@ -2098,15 +2336,11 @@ class SafeBrowsingBlockingPageDelayedWarningBrowserTest
   }
 
   void NavigateAndAssertNoInterstitial() {
-    // Use a page that contains an iframe so that we can test both top frame
-    // and subresource warnings.
     const GURL top_frame = embedded_test_server()->GetURL("/iframe.html");
-    SetURLThreatType(top_frame, SB_THREAT_TYPE_URL_PHISHING);
-    const GURL iframe = embedded_test_server()->GetURL("/title1.html");
-    SetURLThreatType(iframe, SB_THREAT_TYPE_URL_PHISHING);
+    SetURLThreatType(top_frame, SBThreatType::SB_THREAT_TYPE_URL_PHISHING);
 
     ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), top_frame));
-    AssertNoInterstitial(browser(), true);
+    AssertNoInterstitial(browser());
   }
 
   bool warning_on_mouse_click_enabled() const {
@@ -2130,41 +2364,6 @@ class SafeBrowsingBlockingPageDelayedWarningBrowserTest
   }
 
  protected:
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-  // Installs an extension and returns its ID.
-  std::string InstallTestExtension() {
-    using extensions::CrxInstaller;
-    using extensions::CrxInstallError;
-    using extensions::ExtensionService;
-    using extensions::ExtensionSystem;
-
-    base::FilePath path = ui_test_utils::GetTestFilePath(
-        base::FilePath().AppendASCII("extensions"),
-        base::FilePath().AppendASCII("theme.crx"));
-    ExtensionService* service =
-        ExtensionSystem::Get(browser()->profile())->extension_service();
-    scoped_refptr<CrxInstaller> installer = CrxInstaller::CreateSilent(service);
-
-    installer->set_install_cause(extension_misc::INSTALL_CAUSE_AUTOMATION);
-    installer->set_install_immediately(true);
-    installer->set_allow_silent_install(true);
-    installer->set_off_store_install_allow_reason(
-        CrxInstaller::OffStoreInstallAllowedInTest);
-    installer->set_creation_flags(extensions::Extension::FROM_WEBSTORE);
-
-    base::test::TestFuture<absl::optional<CrxInstallError>> done_future;
-    installer->AddInstallerCallback(
-        done_future.GetCallback<const absl::optional<CrxInstallError>&>());
-
-    installer->InstallCrx(path);
-
-    auto optional_error = done_future.Get();
-    EXPECT_FALSE(optional_error.has_value());
-
-    return installer->extension()->id();
-  }
-#endif
-
   base::test::ScopedFeatureList scoped_feature_list_;
 
  private:
@@ -2188,7 +2387,7 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageDelayedWarningBrowserTest,
 
   // Navigate to a non-phishing page. The warning should not be delayed.
   const GURL url = embedded_test_server()->GetURL("/empty.html");
-  SetURLThreatType(url, SB_THREAT_TYPE_URL_MALWARE);
+  SetURLThreatType(url, SBThreatType::SB_THREAT_TYPE_URL_MALWARE);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
   EXPECT_TRUE(WaitForReady(browser()));
 
@@ -2229,75 +2428,12 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageDelayedWarningBrowserTest,
   EXPECT_TRUE(TypeAndWaitForInterstitial(browser()));
 
   EXPECT_TRUE(ClickAndWaitForDetach(browser(), "primary-button"));
-  AssertNoInterstitial(browser(), false);  // Assert the interstitial is gone
+  AssertNoInterstitial(browser());         // Assert the interstitial is gone
   EXPECT_EQ(GURL(url::kAboutBlankURL),     // Back to "about:blank"
             browser()
                 ->tab_strip_model()
                 ->GetActiveWebContents()
                 ->GetLastCommittedURL());
-
-  histograms.ExpectUniqueTimeSample(kDelayedWarningsTimeOnPageHistogram,
-                                    base::Seconds(kTimeOnPage), 1);
-}
-
-// Same as KeyPress_WarningShown, but user disabled URL elision by enabling
-// "Always Show Full URLs" option. A separate histogram must be recorded.
-IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageDelayedWarningBrowserTest,
-                       KeyPress_WarningShown_UrlElisionDisabled) {
-  constexpr int kTimeOnPage = 10;
-  browser()->profile()->GetPrefs()->SetBoolean(
-      omnibox::kPreventUrlElisionsInOmnibox, true);
-
-  base::HistogramTester histograms;
-  NavigateAndAssertNoInterstitial();
-  content::WebContents* web_contents =
-      browser()->tab_strip_model()->GetActiveWebContents();
-
-  // Inject a test clock to test the histogram that records the time on the
-  // delayed warning page before the warning shows or the user leaves the page.
-  base::SimpleTestClock clock;
-  SafeBrowsingUserInteractionObserver* observer =
-      SafeBrowsingUserInteractionObserver::FromWebContents(web_contents);
-  ASSERT_TRUE(observer);
-  clock.SetNow(observer->GetCreationTimeForTesting());
-  observer->SetClockForTesting(&clock);
-  clock.Advance(base::Seconds(kTimeOnPage));
-
-  // Type something. An interstitial should be shown.
-  EXPECT_TRUE(TypeAndWaitForInterstitial(browser()));
-
-  EXPECT_TRUE(ClickAndWaitForDetach(browser(), "primary-button"));
-  AssertNoInterstitial(browser(), false);  // Assert the interstitial is gone
-  EXPECT_EQ(GURL(url::kAboutBlankURL),     // Back to "about:blank"
-            web_contents->GetLastCommittedURL());
-
-  histograms.ExpectUniqueTimeSample(
-      kDelayedWarningsTimeOnPageWithElisionDisabledHistogram,
-      base::Seconds(kTimeOnPage), 1);
-}
-
-// Same as KeyPress_WarningShown_UrlElisionDisabled, but user disabled URL
-// elision by installing Suspicious Site Reporter extension.
-IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageDelayedWarningBrowserTest,
-                       KeyPress_WarningShown_UrlElisionDisabled_Extension) {
-  const std::string extension_id = InstallTestExtension();
-  SafeBrowsingUserInteractionObserver::
-      SetSuspiciousSiteReporterExtensionIdForTesting(extension_id.c_str());
-
-  base::HistogramTester histograms;
-  NavigateAndAssertNoInterstitial();
-
-  // Type something. An interstitial should be shown.
-  EXPECT_TRUE(TypeAndWaitForInterstitial(browser()));
-
-  EXPECT_TRUE(ClickAndWaitForDetach(browser(), "primary-button"));
-  AssertNoInterstitial(browser(), false);  // Assert the interstitial is gone
-  EXPECT_EQ(GURL(url::kAboutBlankURL),     // Back to "about:blank"
-            browser()
-                ->tab_strip_model()
-                ->GetActiveWebContents()
-                ->GetLastCommittedURL());
-
 }
 
 IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageDelayedWarningBrowserTest,
@@ -2308,19 +2444,19 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageDelayedWarningBrowserTest,
   // Press ESC key. The interstitial should not be shown.
   content::WebContents* contents =
       browser()->tab_strip_model()->GetActiveWebContents();
-  content::NativeWebKeyboardEvent event(
+  input::NativeWebKeyboardEvent event(
       blink::WebKeyboardEvent::Type::kRawKeyDown,
       blink::WebInputEvent::kNoModifiers,
       blink::WebInputEvent::GetStaticTimeStampForTests());
   event.windows_key_code = ui::VKEY_ESCAPE;
   // Browser expects a non-synthesized event to have an os_event. Make the
   // browser ignore this event instead.
-  event.skip_in_browser = true;
+  event.skip_if_unhandled = true;
   contents->GetPrimaryMainFrame()
       ->GetRenderViewHost()
       ->GetWidget()
       ->ForwardKeyboardEvent(event);
-  AssertNoInterstitial(browser(), false);
+  AssertNoInterstitial(browser());
 
   // Navigate to about:blank twice to "flush" metrics, if any. The delayed
   // warning user interaction observer may not have been deleted after the first
@@ -2340,19 +2476,19 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageDelayedWarningBrowserTest,
   // the CTRL modifier unless it's CTRL+C or CTRL+V.
   content::WebContents* contents =
       browser()->tab_strip_model()->GetActiveWebContents();
-  content::NativeWebKeyboardEvent event(
+  input::NativeWebKeyboardEvent event(
       blink::WebKeyboardEvent::Type::kRawKeyDown,
       blink::WebInputEvent::kControlKey,
       blink::WebInputEvent::GetStaticTimeStampForTests());
   event.windows_key_code = ui::VKEY_A;
   // Browser expects a non-synthesized event to have an os_event. Make the
   // browser ignore this event instead.
-  event.skip_in_browser = true;
+  event.skip_if_unhandled = true;
   contents->GetPrimaryMainFrame()
       ->GetRenderViewHost()
       ->GetWidget()
       ->ForwardKeyboardEvent(event);
-  AssertNoInterstitial(browser(), false);
+  AssertNoInterstitial(browser());
 
   // Navigate to about:blank twice to "flush" metrics, if any. The delayed
   // warning user interaction observer may not have been deleted after the first
@@ -2371,13 +2507,13 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageDelayedWarningBrowserTest,
       browser()->tab_strip_model()->GetActiveWebContents();
   content::TestNavigationObserver observer(contents);
 
-  content::NativeWebKeyboardEvent event(
+  input::NativeWebKeyboardEvent event(
       blink::WebKeyboardEvent::Type::kRawKeyDown,
       blink::WebInputEvent::kControlKey,
       blink::WebInputEvent::GetStaticTimeStampForTests());
   event.windows_key_code = ui::VKEY_C;
   event.native_key_code = ui::VKEY_C;
-  // We don't set event.skip_in_browser = true here because the event will be
+  // We don't set event.skip_if_unhandled = true here because the event will be
   // consumed by UserInteractionObserver and not passed to the browser.
   contents->GetPrimaryMainFrame()
       ->GetRenderViewHost()
@@ -2388,7 +2524,7 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageDelayedWarningBrowserTest,
   EXPECT_TRUE(WaitForReady(browser()));
 
   EXPECT_TRUE(ClickAndWaitForDetach(browser(), "primary-button"));
-  AssertNoInterstitial(browser(), false);  // Assert the interstitial is gone
+  AssertNoInterstitial(browser());         // Assert the interstitial is gone
   EXPECT_EQ(GURL(url::kAboutBlankURL),     // Back to "about:blank"
             browser()
                 ->tab_strip_model()
@@ -2406,25 +2542,25 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageDelayedWarningBrowserTest,
   // Press ESC key. The interstitial should not be shown.
   content::WebContents* contents =
       browser()->tab_strip_model()->GetActiveWebContents();
-  content::NativeWebKeyboardEvent event(
+  input::NativeWebKeyboardEvent event(
       blink::WebKeyboardEvent::Type::kRawKeyDown,
       blink::WebInputEvent::kNoModifiers,
       blink::WebInputEvent::GetStaticTimeStampForTests());
   event.windows_key_code = ui::VKEY_ESCAPE;
   // Browser expects a non-synthesized event to have an os_event. Make the
   // browser ignore this event instead.
-  event.skip_in_browser = true;
+  event.skip_if_unhandled = true;
   contents->GetPrimaryMainFrame()
       ->GetRenderViewHost()
       ->GetWidget()
       ->ForwardKeyboardEvent(event);
   base::RunLoop().RunUntilIdle();
-  AssertNoInterstitial(browser(), false);
+  AssertNoInterstitial(browser());
 
   // Now type something. The interstitial should be shown.
   EXPECT_TRUE(TypeAndWaitForInterstitial(browser()));
   EXPECT_TRUE(ClickAndWaitForDetach(browser(), "primary-button"));
-  AssertNoInterstitial(browser(), false);  // Assert the interstitial is gone
+  AssertNoInterstitial(browser());         // Assert the interstitial is gone
   EXPECT_EQ(GURL(url::kAboutBlankURL),     // Back to "about:blank"
             browser()
                 ->tab_strip_model()
@@ -2432,8 +2568,9 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageDelayedWarningBrowserTest,
                 ->GetLastCommittedURL());
 }
 
+// Disabled due to flakiness. https://crbug.com/332097746.
 IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageDelayedWarningBrowserTest,
-                       Fullscreen_WarningShown) {
+                       DISABLED_Fullscreen_WarningShown) {
   base::HistogramTester histograms;
   NavigateAndAssertNoInterstitial();
 
@@ -2443,7 +2580,7 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageDelayedWarningBrowserTest,
       browser()->tab_strip_model()->GetActiveWebContents()->IsFullscreen());
 
   EXPECT_TRUE(ClickAndWaitForDetach(browser(), "primary-button"));
-  AssertNoInterstitial(browser(), false);  // Assert the interstitial is gone
+  AssertNoInterstitial(browser());         // Assert the interstitial is gone
   EXPECT_EQ(GURL(url::kAboutBlankURL),     // Back to "about:blank"
             browser()
                 ->tab_strip_model()
@@ -2461,7 +2598,7 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageDelayedWarningBrowserTest,
   EXPECT_TRUE(RequestPermissionAndWaitForInterstitial(browser()));
 
   EXPECT_TRUE(ClickAndWaitForDetach(browser(), "primary-button"));
-  AssertNoInterstitial(browser(), false);  // Assert the interstitial is gone
+  AssertNoInterstitial(browser());         // Assert the interstitial is gone
   EXPECT_EQ(GURL(url::kAboutBlankURL),     // Back to "about:blank"
             browser()
                 ->tab_strip_model()
@@ -2484,12 +2621,12 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageDelayedWarningBrowserTest,
   content::WebContents* contents =
       browser()->tab_strip_model()->GetActiveWebContents();
   content::TestNavigationObserver observer(contents);
-  EXPECT_TRUE(content::ExecuteScript(contents, "alert('test')"));
+  EXPECT_TRUE(content::ExecJs(contents, "alert('test')"));
   observer.WaitForNavigationFinished();
   EXPECT_TRUE(WaitForReady(browser()));
 
   EXPECT_TRUE(ClickAndWaitForDetach(browser(), "primary-button"));
-  AssertNoInterstitial(browser(), false);  // Assert the interstitial is gone
+  AssertNoInterstitial(browser());         // Assert the interstitial is gone
   EXPECT_EQ(GURL(url::kAboutBlankURL),     // Back to "about:blank"
             browser()
                 ->tab_strip_model()
@@ -2509,7 +2646,7 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageDelayedWarningBrowserTest,
       browser()->tab_strip_model()->GetActiveWebContents()->IsFullscreen());
 
   EXPECT_TRUE(ClickAndWaitForDetach(browser(), "primary-button"));
-  AssertNoInterstitial(browser(), false);  // Assert the interstitial is gone
+  AssertNoInterstitial(browser());         // Assert the interstitial is gone
   EXPECT_EQ(GURL(url::kAboutBlankURL),     // Back to "about:blank"
             browser()
                 ->tab_strip_model()
@@ -2528,8 +2665,8 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageDelayedWarningBrowserTest,
       browser()->tab_strip_model()->GetActiveWebContents();
   content::TestNavigationObserver observer(contents);
   std::unique_ptr<TestRenderViewContextMenu> menu(
-      TestRenderViewContextMenu::Create(
-          contents, contents->GetLastCommittedURL(), GURL(), GURL()));
+      TestRenderViewContextMenu::Create(contents,
+                                        contents->GetLastCommittedURL()));
   menu->ExecuteCommand(IDC_CONTENT_CONTEXT_PASTE, 0);
   observer.WaitForNavigationFinished();
   EXPECT_TRUE(WaitForReady(browser()));
@@ -2549,7 +2686,7 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageDelayedWarningBrowserTest,
   // Click on the page. An interstitial shouldn't be shown because the feature
   // parameter is off.
   MouseClick(browser());
-  AssertNoInterstitial(browser(), false);
+  AssertNoInterstitial(browser());
 
   // Navigate away to "flush" the metrics.
   ASSERT_TRUE(
@@ -2569,7 +2706,7 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageDelayedWarningBrowserTest,
   EXPECT_TRUE(MouseClickAndWaitForInterstitial(browser()));
 
   EXPECT_TRUE(ClickAndWaitForDetach(browser(), "primary-button"));
-  AssertNoInterstitial(browser(), false);  // Assert the interstitial is gone
+  AssertNoInterstitial(browser());         // Assert the interstitial is gone
   EXPECT_EQ(GURL(url::kAboutBlankURL),     // Back to "about:blank"
             browser()
                 ->tab_strip_model()
@@ -2585,7 +2722,7 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageDelayedWarningBrowserTest,
   NavigateAndAssertNoInterstitial();
 
   DownloadAndWaitForNavigation(browser());
-  AssertNoInterstitial(browser(), false);
+  AssertNoInterstitial(browser());
 
   // Navigate away to "flush" the metrics.
   ASSERT_TRUE(
@@ -2599,7 +2736,7 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageDelayedWarningBrowserTest,
 
   const GURL url_204 = embedded_test_server()->GetURL("/page204.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url_204));
-  AssertNoInterstitial(browser(), false);
+  AssertNoInterstitial(browser());
 
   EXPECT_TRUE(TypeAndWaitForInterstitial(browser()));
 
@@ -2615,27 +2752,29 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageDelayedWarningBrowserTest,
                        PasswordSaveDisabled) {
   base::HistogramTester histograms;
 
-  // Navigate to the page.
+  // This is needed for tests using BubbleObserver
   content::WebContents* contents =
       browser()->tab_strip_model()->GetActiveWebContents();
+
+  // Navigate to the page.
   content::TestNavigationObserver observer1(contents);
   const GURL url =
       embedded_test_server()->GetURL("/password/password_form.html");
-  SetURLThreatType(url, SB_THREAT_TYPE_URL_PHISHING);
+  SetURLThreatType(url, SBThreatType::SB_THREAT_TYPE_URL_PHISHING);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
   observer1.Wait();
 
   // Submit a password.
   PasswordsNavigationObserver observer2(contents);
-  std::unique_ptr<BubbleObserver> prompt_observer(new BubbleObserver(contents));
+  BubbleObserver prompt_observer(contents);
   std::string fill_and_submit =
       "document.getElementById('retry_password_field').value = 'pw';"
       "document.getElementById('retry_submit_button').click()";
-  ASSERT_TRUE(content::ExecuteScript(contents, fill_and_submit));
+  ASSERT_TRUE(content::ExecJs(contents, fill_and_submit));
   ASSERT_TRUE(observer2.Wait());
-  EXPECT_FALSE(prompt_observer->IsSavePromptShownAutomatically());
+  EXPECT_FALSE(prompt_observer.IsSavePromptShownAutomatically());
   PasswordManagerBrowserTestBase::WaitForPasswordStore(browser());
-  AssertNoInterstitial(browser(), false);
+  AssertNoInterstitial(browser());
 
   // Navigate away to "flush" the metrics.
   ASSERT_TRUE(
@@ -2653,37 +2792,35 @@ INSTANTIATE_TEST_SUITE_P(
 // displayed.
 class SafeBrowsingBlockingPageIDNTest
     : public SecurityInterstitialIDNTest,
-      public testing::WithParamInterface<testing::tuple<bool, SBThreatType>> {
+      public testing::WithParamInterface<SBThreatType> {
  protected:
   // SecurityInterstitialIDNTest implementation
   security_interstitials::SecurityInterstitialPage* CreateInterstitial(
       content::WebContents* contents,
       const GURL& request_url) const override {
     SafeBrowsingUIManager::CreateAllowlistForTesting(contents);
-    const bool is_subresource = testing::get<0>(GetParam());
-
     SafeBrowsingService* sb_service =
         g_browser_process->safe_browsing_service();
+    auto* primary_main_frame = contents->GetPrimaryMainFrame();
     const content::GlobalRenderFrameHostId primary_main_frame_id =
-        contents->GetPrimaryMainFrame()->GetGlobalId();
+        primary_main_frame->GetGlobalId();
     SafeBrowsingBlockingPage::UnsafeResource resource;
 
     resource.url = request_url;
-    resource.is_subresource = is_subresource;
-    resource.threat_type = testing::get<1>(GetParam());
-    resource.render_process_id = primary_main_frame_id.child_id;
-    resource.render_frame_id = primary_main_frame_id.frame_routing_id;
+    resource.threat_type = GetParam();
+    resource.rfh_locator = security_interstitials::UnsafeResourceLocator::
+        CreateForRenderFrameToken(primary_main_frame_id.child_id,
+                                  primary_main_frame->GetFrameToken().value());
     resource.threat_source = safe_browsing::ThreatSource::LOCAL_PVER4;
 
     auto* ui_manager = sb_service->ui_manager().get();
-    return ui_manager->blocking_page_factory()->CreateSafeBrowsingPage(
-        ui_manager, contents,
-        is_subresource ? GURL("http://mainframe.example.com/") : request_url,
-        {resource}, true);
+    return ui_manager->CreateBlockingPage(
+        contents, request_url, {resource}, /*forward_extension_event=*/false,
+        /*blocked_page_shown_timestamp=*/std::nullopt);
   }
 };
 
-// TODO(crbug.com/1039367): VerifyIDNDecoded does not work with committed
+// TODO(crbug.com/40666794): VerifyIDNDecoded does not work with committed
 // interstitials, this test should be re-enabled once it is adapted.
 IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageIDNTest,
                        DISABLED_SafeBrowsingBlockingPageDecodesIDN) {
@@ -2693,61 +2830,9 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageIDNTest,
 INSTANTIATE_TEST_SUITE_P(
     SafeBrowsingBlockingPageIDNTestWithThreatType,
     SafeBrowsingBlockingPageIDNTest,
-    testing::Combine(testing::Values(false, true),
-                     testing::Values(SB_THREAT_TYPE_URL_MALWARE,
-                                     SB_THREAT_TYPE_URL_PHISHING,
-                                     SB_THREAT_TYPE_URL_UNWANTED)));
-
-// Tests with the <portal> tag.
-class SafeBrowsingBlockingPageDelayedWarningWithPortalBrowserTest
-    : public SafeBrowsingBlockingPageDelayedWarningBrowserTest {
- public:
-  SafeBrowsingBlockingPageDelayedWarningWithPortalBrowserTest() = default;
-
-  void SetUp() override {
-    scoped_feature_list_.InitWithFeatures(
-        /*enabled_features=*/{kDelayedWarnings, blink::features::kPortals,
-                              blink::features::kPortalsCrossOrigin},
-        /*disabled_features=*/{});
-    InProcessBrowserTest::SetUp();
-  }
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    All,
-    SafeBrowsingBlockingPageDelayedWarningWithPortalBrowserTest,
-    testing::Combine(
-        testing::Values(false, true), /* IsolateAllSitesForTesting */
-        testing::Values(false, true) /* Show warning on mouse click */));
-
-// Tests that if a page embeds a portal whose contents are considered dangerous
-// by Safe Browsing, the embedder is also treated as dangerous, and the
-// interstitial isn't delayed. This is similar to
-// PortalBrowserTest.EmbedderOfDangerousPortalConsideredDangerous.
-// TODO(crbug.com/1222099): Flaky.
-IN_PROC_BROWSER_TEST_P(
-    SafeBrowsingBlockingPageDelayedWarningWithPortalBrowserTest,
-    DISABLED_Portal_WarningNotDelayed) {
-  GURL main_url(embedded_test_server()->GetURL("a.com", "/title1.html"));
-  GURL dangerous_url(
-      embedded_test_server()->GetURL("evil.com", "/title2.html"));
-  SetURLThreatType(dangerous_url, SB_THREAT_TYPE_URL_PHISHING);
-
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), main_url));
-  WebContents* contents = browser()->tab_strip_model()->GetActiveWebContents();
-
-  content::TestNavigationObserver observer(contents);
-  ASSERT_TRUE(content::ExecJs(
-      contents,
-      content::JsReplace("let portal = document.createElement('portal');"
-                         "portal.src = $1;"
-                         "document.body.appendChild(portal);",
-                         dangerous_url)));
-  observer.WaitForNavigationFinished();
-  // The interstitial should be shown immediately.
-  EXPECT_TRUE(WaitForReady(browser()));
-  EXPECT_TRUE(IsShowingInterstitial(contents));
-}
+    testing::Values(SBThreatType::SB_THREAT_TYPE_URL_MALWARE,
+                    SBThreatType::SB_THREAT_TYPE_URL_PHISHING,
+                    SBThreatType::SB_THREAT_TYPE_URL_UNWANTED));
 
 class SafeBrowsingBlockingPageEnhancedProtectionMessageTest
     : public policy::PolicyTest {
@@ -2759,9 +2844,7 @@ class SafeBrowsingBlockingPageEnhancedProtectionMessageTest
   SafeBrowsingBlockingPageEnhancedProtectionMessageTest& operator=(
       const SafeBrowsingBlockingPageEnhancedProtectionMessageTest&) = delete;
 
-  void SetUp() override {
-    InProcessBrowserTest::SetUp();
-  }
+  void SetUp() override { InProcessBrowserTest::SetUp(); }
 
   void SetUpOnMainThread() override {
     host_resolver()->AddRule("*", "127.0.0.1");
@@ -2777,8 +2860,7 @@ class SafeBrowsingBlockingPageEnhancedProtectionMessageTest
     factory_.SetTestUIManager(new FakeSafeBrowsingUIManager(
         std::make_unique<TestSafeBrowsingBlockingPageFactory>()));
     factory_.SetTestDatabaseManager(new FakeSafeBrowsingDatabaseManager(
-        content::GetUIThreadTaskRunner({}),
-        content::GetIOThreadTaskRunner({})));
+        content::GetUIThreadTaskRunner({})));
     SafeBrowsingService::RegisterFactory(&factory_);
     ThreatDetails::RegisterFactory(&details_factory_);
   }
@@ -2790,10 +2872,18 @@ class SafeBrowsingBlockingPageEnhancedProtectionMessageTest
 
     static_cast<FakeSafeBrowsingDatabaseManager*>(
         service->database_manager().get())
-        ->AddDangerousUrl(url, SB_THREAT_TYPE_URL_MALWARE);
+        ->AddDangerousUrl(url, SBThreatType::SB_THREAT_TYPE_URL_MALWARE);
 
     ASSERT_TRUE(ui_test_utils::NavigateToURL(browser, url));
     EXPECT_TRUE(WaitForReady(browser));
+  }
+
+  // A test should call this function if it is expected to trigger a threat
+  // report.
+  void SetReportSentCallback(base::OnceClosure callback) {
+    static_cast<FakeSafeBrowsingUIManager*>(
+        factory_.test_safe_browsing_service()->ui_manager().get())
+        ->set_threat_details_done_callback(std::move(callback));
   }
 
  private:
@@ -2821,7 +2911,7 @@ IN_PROC_BROWSER_TEST_F(SafeBrowsingBlockingPageEnhancedProtectionMessageTest,
   WebContents* interstitial_tab =
       browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_TRUE(interstitial_tab);
-  ASSERT_TRUE(IsShowingInterstitial(
+  ASSERT_TRUE(chrome_browser_interstitials::IsShowingInterstitial(
       browser()->tab_strip_model()->GetActiveWebContents()));
 
   content::TestNavigationObserver nav_observer(nullptr);
@@ -2837,7 +2927,7 @@ IN_PROC_BROWSER_TEST_F(SafeBrowsingBlockingPageEnhancedProtectionMessageTest,
   EXPECT_EQ(1, browser()->tab_strip_model()->active_index());
 
   // Assert the interstitial is not present in the foreground tab.
-  ASSERT_FALSE(IsShowingInterstitial(
+  ASSERT_FALSE(chrome_browser_interstitials::IsShowingInterstitial(
       browser()->tab_strip_model()->GetActiveWebContents()));
 
   // Foreground tab displays the setting page.
@@ -2852,8 +2942,13 @@ IN_PROC_BROWSER_TEST_F(SafeBrowsingBlockingPageEnhancedProtectionMessageTest,
   EXPECT_EQ(0, browser()->tab_strip_model()->active_index());
   EXPECT_EQ(interstitial_tab,
             browser()->tab_strip_model()->GetActiveWebContents());
-  EXPECT_TRUE(IsShowingInterstitial(
+  EXPECT_TRUE(chrome_browser_interstitials::IsShowingInterstitial(
       browser()->tab_strip_model()->GetActiveWebContents()));
+
+  // Set threat report sent runner, since a report will be sent when web
+  // contents are destroyed.
+  auto threat_report_sent_runner = std::make_unique<base::RunLoop>();
+  SetReportSentCallback(threat_report_sent_runner->QuitClosure());
 }
 
 IN_PROC_BROWSER_TEST_F(SafeBrowsingBlockingPageEnhancedProtectionMessageTest,
@@ -2865,7 +2960,10 @@ IN_PROC_BROWSER_TEST_F(SafeBrowsingBlockingPageEnhancedProtectionMessageTest,
       safe_browsing::SafeBrowsingState::ENHANCED_PROTECTION);
   SetupWarningAndNavigateToURL(embedded_test_server()->GetURL("/empty.html"),
                                browser());
-  EXPECT_TRUE(IsShowingInterstitial(
+  auto threat_report_sent_runner = std::make_unique<base::RunLoop>();
+  SetReportSentCallback(threat_report_sent_runner->QuitClosure());
+
+  EXPECT_TRUE(chrome_browser_interstitials::IsShowingInterstitial(
       browser()->tab_strip_model()->GetActiveWebContents()));
   // Check enhanced protection message is not shown.
   EXPECT_EQ(HIDDEN, ::safe_browsing::GetVisibility(
@@ -2883,38 +2981,27 @@ IN_PROC_BROWSER_TEST_F(SafeBrowsingBlockingPageEnhancedProtectionMessageTest,
   SetupWarningAndNavigateToURL(embedded_test_server()->GetURL("/empty.html"),
                                browser());
 
-  EXPECT_TRUE(IsShowingInterstitial(
+  EXPECT_TRUE(chrome_browser_interstitials::IsShowingInterstitial(
       browser()->tab_strip_model()->GetActiveWebContents()));
   // Check enhanced protection message is not shown.
   EXPECT_EQ(HIDDEN, ::safe_browsing::GetVisibility(
                         browser(), "enhanced-protection-message"));
 }
 
-// Tests for real time URL check. To test it without making network requests to
-// Safe Browsing servers, store an unsafe verdict in cache for the URL.
-class SafeBrowsingBlockingPageRealTimeUrlCheckTest
+class SafeBrowsingBlockingPageAsyncChecksTestBase
     : public InProcessBrowserTest {
  public:
-  SafeBrowsingBlockingPageRealTimeUrlCheckTest() = default;
-
-  SafeBrowsingBlockingPageRealTimeUrlCheckTest(
-      const SafeBrowsingBlockingPageRealTimeUrlCheckTest&) = delete;
-  SafeBrowsingBlockingPageRealTimeUrlCheckTest& operator=(
-      const SafeBrowsingBlockingPageRealTimeUrlCheckTest&) = delete;
-
-  void SetUp() override {
-    scoped_feature_list_.InitWithFeatures(
-        /*enabled_features=*/{},
-        /*disabled_features=*/{kDelayedWarnings});
-    InProcessBrowserTest::SetUp();
-  }
+  SafeBrowsingBlockingPageAsyncChecksTestBase() = default;
 
   void SetUpOnMainThread() override {
     host_resolver()->AddRule("*", "127.0.0.1");
     content::SetupCrossSiteRedirector(embedded_test_server());
     ASSERT_TRUE(embedded_test_server()->Start());
+    // The tests expect to load chrome://safe-browsing, which is an
+    // internal debugging page.
+    g_browser_process->local_state()->SetBoolean(
+        chrome_urls::kInternalOnlyUisEnabled, true);
   }
-
   void CreatedBrowserMainParts(
       content::BrowserMainParts* browser_main_parts) override {
     InProcessBrowserTest::CreatedBrowserMainParts(browser_main_parts);
@@ -2923,25 +3010,854 @@ class SafeBrowsingBlockingPageRealTimeUrlCheckTest
     factory_.SetTestUIManager(new FakeSafeBrowsingUIManager(
         std::make_unique<TestSafeBrowsingBlockingPageFactory>()));
     factory_.SetTestDatabaseManager(new FakeSafeBrowsingDatabaseManager(
-        content::GetUIThreadTaskRunner({}),
-        content::GetIOThreadTaskRunner({})));
+        content::GetUIThreadTaskRunner({})));
     SafeBrowsingService::RegisterFactory(&factory_);
   }
 
  protected:
-  void SetupUnsafeVerdict(GURL url, Profile* profile) {
-    auto* command_line = base::CommandLine::ForCurrentProcess();
-    command_line->AppendSwitchASCII(
-        "mark_as_real_time_phishing",
-        embedded_test_server()->GetURL("/empty.html").spec());
+  void SetupUrlRealTimeVerdictInCacheManager(
+      GURL url,
+      Profile* profile,
+      RTLookupResponse::ThreatInfo::VerdictType verdict_type,
+      std::optional<RTLookupResponse::ThreatInfo::ThreatType> threat_type) {
     safe_browsing::VerdictCacheManagerFactory::GetForProfile(profile)
-        ->CacheArtificialRealTimeUrlVerdict();
+        ->CacheArtificialRealTimeUrlVerdict(url.spec(), verdict_type,
+                                            threat_type);
+  }
+  void SetUpEnterpriseUrlCheck() {
+    browser()->profile()->GetPrefs()->SetInteger(
+        enterprise_connectors::kEnterpriseRealTimeUrlCheckMode,
+        enterprise_connectors::REAL_TIME_CHECK_FOR_MAINFRAME_ENABLED);
+    browser()->profile()->GetPrefs()->SetInteger(
+        enterprise_connectors::kEnterpriseRealTimeUrlCheckScope,
+        policy::POLICY_SCOPE_MACHINE);
+    SetDMTokenForTesting(policy::DMToken::CreateValidToken("dm_token"));
+  }
+  void NavigateToURLAndWaitForAsyncChecks(GURL url) {
+    ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+    SafeBrowsingBlockingPageTestHelper::MaybeWaitForAsyncChecksToComplete(
+        browser()->tab_strip_model()->GetActiveWebContents(),
+        factory_.test_safe_browsing_service()->ui_manager().get(),
+        /*wait_for_load_stop=*/true);
+  }
+
+  TestSafeBrowsingServiceFactory factory_;
+};
+
+using SafeBrowsingBlockingPageAsyncChecksTest =
+    SafeBrowsingBlockingPageAsyncChecksTestBase;
+
+IN_PROC_BROWSER_TEST_F(SafeBrowsingBlockingPageAsyncChecksTest,
+                       EnterpriseRealTimeUrlCheck) {
+  base::HistogramTester histogram_tester;
+  safe_browsing::SetSafeBrowsingState(
+      browser()->profile()->GetPrefs(),
+      safe_browsing::SafeBrowsingState::STANDARD_PROTECTION);
+  SetUpEnterpriseUrlCheck();
+
+  GURL url = embedded_test_server()->GetURL(kEmptyPage);
+  SetupUrlRealTimeVerdictInCacheManager(url, browser()->profile(),
+                                        RTLookupResponse::ThreatInfo::SAFE,
+                                        /*threat_type=*/std::nullopt);
+  NavigateToURLAndWaitForAsyncChecks(url);
+  ASSERT_FALSE(chrome_browser_interstitials::IsShowingInterstitial(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+
+  // Whether or not async checks are enabled, only a sync check is performed
+  // (the enterprise URT check).
+  histogram_tester.ExpectTotalCount(
+      "SafeBrowsing.BrowserThrottle.TotalDelay2.EnterpriseFullUrlLookup",
+      /*expected_count=*/1);
+}
+
+IN_PROC_BROWSER_TEST_F(SafeBrowsingBlockingPageAsyncChecksTest,
+                       ConsumerRealTimeUrlCheck) {
+  base::HistogramTester histogram_tester;
+  safe_browsing::SetSafeBrowsingState(
+      browser()->profile()->GetPrefs(),
+      safe_browsing::SafeBrowsingState::STANDARD_PROTECTION);
+  browser()->profile()->GetPrefs()->SetBoolean(
+      unified_consent::prefs::kUrlKeyedAnonymizedDataCollectionEnabled, true);
+
+  GURL url = embedded_test_server()->GetURL(kEmptyPage);
+  SetupUrlRealTimeVerdictInCacheManager(url, browser()->profile(),
+                                        RTLookupResponse::ThreatInfo::SAFE,
+                                        /*threat_type=*/std::nullopt);
+  NavigateToURLAndWaitForAsyncChecks(url);
+  ASSERT_FALSE(chrome_browser_interstitials::IsShowingInterstitial(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+
+  // When async checks are enabled, the sync check is an HPD check.
+  histogram_tester.ExpectTotalCount(
+      "SafeBrowsing.BrowserThrottle.TotalDelay2.HashPrefixDatabaseCheck",
+      /*expected_count=*/1);
+}
+
+class SafeBrowsingBlockingPageAsyncChecksTimingTestBase
+    : public SafeBrowsingBlockingPageAsyncChecksTestBase {
+ public:
+  SafeBrowsingBlockingPageAsyncChecksTimingTestBase() = default;
+
+  void SetUp() override {
+    feature_list_.InitWithFeatures(
+        {kCreateWarningShownClientSafeBrowsingReports}, {kRedWarningSurvey});
+    SafeBrowsingBlockingPageAsyncChecksTestBase::SetUp();
+  }
+
+  void TearDown() override {
+    RealTimeUrlLookupServiceFactory::GetInstance()
+        ->SetURLLoaderFactoryForTesting(nullptr);
+    SafeBrowsingBlockingPageAsyncChecksTestBase::TearDown();
+    ThreatDetails::RegisterFactory(nullptr);
+  }
+
+  void CreatedBrowserMainParts(
+      content::BrowserMainParts* browser_main_parts) override {
+    SafeBrowsingBlockingPageAsyncChecksTestBase::CreatedBrowserMainParts(
+        browser_main_parts);
+    ThreatDetails::RegisterFactory(&details_factory_);
+  }
+
+ protected:
+  // Helper struct for test cases.
+  struct UrlAndIsUnsafe {
+    std::string relative_url;
+    bool is_unsafe;
+  };
+
+  void SetURLLoaderFactoryForTesting() {
+    auto ref_counted_url_loader_factory =
+        base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
+            &test_url_loader_factory_);
+    RealTimeUrlLookupServiceFactory::GetInstance()
+        ->SetURLLoaderFactoryForTesting(ref_counted_url_loader_factory);
+  }
+
+  void EnableAsyncCheck() {
+    SetURLLoaderFactoryForTesting();
+    // Enable enhanced protection which enables real-time URL check which is
+    // conducted asynchronously.
+    safe_browsing::SetSafeBrowsingState(
+        browser()->profile()->GetPrefs(),
+        safe_browsing::SafeBrowsingState::ENHANCED_PROTECTION);
+  }
+
+  void SetURLThreatType(const GURL& url, SBThreatType threat_type) {
+    TestSafeBrowsingService* service = factory_.test_safe_browsing_service();
+    ASSERT_TRUE(service);
+
+    static_cast<FakeSafeBrowsingDatabaseManager*>(
+        service->database_manager().get())
+        ->AddDangerousUrl(url, threat_type);
+  }
+
+  void SetURLHighConfidenceAllowlistMatch(const GURL& url,
+                                          bool match_allowlist) {
+    TestSafeBrowsingService* service = factory_.test_safe_browsing_service();
+    ASSERT_TRUE(service);
+
+    static_cast<FakeSafeBrowsingDatabaseManager*>(
+        service->database_manager().get())
+        ->SetHighConfidenceAllowlistMatchResult(url, match_allowlist);
+  }
+
+  void ReturnUrlRealTimeVerdictInUrlLoader(GURL url, bool is_unsafe) {
+    constexpr char kRealTimeLookupUrl[] =
+        "https://safebrowsing.google.com/safebrowsing/clientreport/realtime";
+    RTLookupResponse response;
+    RTLookupResponse::ThreatInfo* new_threat_info = response.add_threat_info();
+    RTLookupResponse::ThreatInfo threat_info;
+    if (is_unsafe) {
+      threat_info.set_verdict_type(RTLookupResponse::ThreatInfo::DANGEROUS);
+      threat_info.set_threat_type(
+          RTLookupResponse::ThreatInfo::SOCIAL_ENGINEERING);
+    } else {
+      threat_info.set_verdict_type(RTLookupResponse::ThreatInfo::SAFE);
+    }
+    threat_info.set_cache_duration_sec(60);
+    threat_info.set_cache_expression_using_match_type(url.host());
+    threat_info.set_cache_expression_match_type(
+        RTLookupResponse::ThreatInfo::COVERING_MATCH);
+    *new_threat_info = threat_info;
+    std::string expected_response_str;
+    response.SerializeToString(&expected_response_str);
+    test_url_loader_factory_.AddResponse(kRealTimeLookupUrl,
+                                         expected_response_str);
+  }
+
+  // The following events happen in sequence:
+  //   1. WillProcessResponse is called.
+  //   2. Safe Browsing checks complete.
+  //   3. Navigation finished.
+  GURL SetupWarningShownBetweenProcessResponseAndFinishNavigationAndNavigate(
+      std::vector<UrlAndIsUnsafe> url_and_server_redirects) {
+    CHECK(!url_and_server_redirects.empty());
+    GURL original_url = embedded_test_server()->GetURL(
+        url_and_server_redirects.front().relative_url);
+    GURL final_url = embedded_test_server()->GetURL(
+        url_and_server_redirects.back().relative_url);
+    content::TestNavigationManager navigation_manager(
+        browser()->tab_strip_model()->GetActiveWebContents(), original_url);
+    ui_test_utils::NavigateToURLWithDisposition(
+        browser(), original_url, WindowOpenDisposition::CURRENT_TAB,
+        ui_test_utils::BROWSER_TEST_NO_WAIT);
+    EXPECT_TRUE(navigation_manager.WaitForResponse());
+
+    // At this point, WillProcessResponse is called so the async checker is
+    // transferred to AsyncCheckTracker.
+    AsyncCheckTracker* tracker =
+        safe_browsing::AsyncCheckTracker::GetOrCreateForWebContents(
+            browser()->tab_strip_model()->GetActiveWebContents(),
+            factory_.test_safe_browsing_service()->ui_manager().get(),
+            /*should_sync_checker_check_allowlist=*/false);
+    EXPECT_EQ(tracker->PendingCheckersSizeForTesting(), 1u);
+
+    GURL interstitial_url;
+    for (const auto& url_and_server_redirect : url_and_server_redirects) {
+      GURL url =
+          embedded_test_server()->GetURL(url_and_server_redirect.relative_url);
+      ReturnUrlRealTimeVerdictInUrlLoader(url,
+                                          url_and_server_redirect.is_unsafe);
+      if (url_and_server_redirect.is_unsafe) {
+        interstitial_url = url;
+      }
+    }
+    SafeBrowsingBlockingPageTestHelper::MaybeWaitForAsyncChecksToComplete(
+        browser()->tab_strip_model()->GetActiveWebContents(),
+        factory_.test_safe_browsing_service()->ui_manager().get(),
+        /*wait_for_load_stop=*/false);
+
+    // At this point, the async check is completed, but the navigation has not
+    // yet finished.
+    navigation_manager.ResumeNavigation();
+    EXPECT_TRUE(navigation_manager.WaitForNavigationFinished());
+
+    // After the navigation is finished, we need to wait for the navigation of
+    // the interstitial to complete.
+    content::TestNavigationManager interstitial_navigation_manager(
+        browser()->tab_strip_model()->GetActiveWebContents(), interstitial_url);
+    EXPECT_TRUE(interstitial_navigation_manager.WaitForNavigationFinished());
+    content::WaitForLoadStop(
+        browser()->tab_strip_model()->GetActiveWebContents());
+
+    EXPECT_TRUE(chrome_browser_interstitials::IsShowingInterstitial(
+        browser()->tab_strip_model()->GetActiveWebContents()));
+
+    // Reset dangerous response so future URLs are not accidentally flagged
+    // by real-time URL check.
+    test_url_loader_factory_.ClearResponses();
+    return final_url;
+  }
+
+  void NavigateAndAwaitNavigationFinished(std::string relative_url) {
+    GURL original_url = embedded_test_server()->GetURL(relative_url);
+    content::TestNavigationManager navigation_manager(
+        browser()->tab_strip_model()->GetActiveWebContents(), original_url);
+    ui_test_utils::NavigateToURLWithDisposition(
+        browser(), original_url, WindowOpenDisposition::CURRENT_TAB,
+        ui_test_utils::BROWSER_TEST_NO_WAIT);
+    EXPECT_TRUE(navigation_manager.WaitForNavigationFinished());
+  }
+
+  // This is expected to be used after NavigateAndAwaitNavigationFinished has
+  // completed navigating to the same URLs. This method expects that at least
+  // one of the URLs is unsafe.
+  GURL ReturnUrlRealTimeVerdictsForUnsafeChain(
+      std::vector<UrlAndIsUnsafe> url_and_server_redirects) {
+    GURL final_url = embedded_test_server()->GetURL(
+        url_and_server_redirects.back().relative_url);
+
+    // At this point, the navigation has finished but the async check has not
+    // yet completed.
+    AsyncCheckTracker* tracker =
+        safe_browsing::AsyncCheckTracker::GetOrCreateForWebContents(
+            browser()->tab_strip_model()->GetActiveWebContents(),
+            factory_.test_safe_browsing_service()->ui_manager().get(),
+            /*should_sync_checker_check_allowlist=*/false);
+    EXPECT_EQ(tracker->PendingCheckersSizeForTesting(), 1u);
+
+    for (const auto& url_and_server_redirect : url_and_server_redirects) {
+      GURL url =
+          embedded_test_server()->GetURL(url_and_server_redirect.relative_url);
+      ReturnUrlRealTimeVerdictInUrlLoader(url,
+                                          url_and_server_redirect.is_unsafe);
+    }
+    SafeBrowsingBlockingPageTestHelper::MaybeWaitForAsyncChecksToComplete(
+        browser()->tab_strip_model()->GetActiveWebContents(),
+        factory_.test_safe_browsing_service()->ui_manager().get(),
+        /*wait_for_load_stop=*/true);
+
+    EXPECT_TRUE(chrome_browser_interstitials::IsShowingInterstitial(
+        browser()->tab_strip_model()->GetActiveWebContents()));
+
+    // Reset dangerous response so future URLs are not accidentally
+    // flagged by real-time URL check.
+    test_url_loader_factory_.ClearResponses();
+    return final_url;
+  }
+
+  // The following events happen in sequence:
+  //   1. Navigation finished.
+  //   2. Safe Browsing checks complete.
+  GURL SetupWarningShownAfterFinishNavigationAndNavigate(
+      std::vector<UrlAndIsUnsafe> url_and_server_redirects) {
+    CHECK(!url_and_server_redirects.empty());
+    NavigateAndAwaitNavigationFinished(
+        url_and_server_redirects.front().relative_url);
+    return ReturnUrlRealTimeVerdictsForUnsafeChain(url_and_server_redirects);
+  }
+
+  void SetReportSentCallback(base::OnceClosure callback) {
+    static_cast<FakeSafeBrowsingUIManager*>(
+        factory_.test_safe_browsing_service()->ui_manager().get())
+        ->set_threat_details_done_callback(std::move(callback));
+  }
+
+  std::string GetReportSent() {
+    return static_cast<FakeSafeBrowsingUIManager*>(
+               factory_.test_safe_browsing_service()->ui_manager().get())
+        ->GetReport();
+  }
+
+  std::optional<bool> shown_report_sent_is_async_check() {
+    return static_cast<FakeSafeBrowsingUIManager*>(
+               factory_.test_safe_browsing_service()->ui_manager().get())
+        ->report_sent_is_async_check();
+  }
+
+  base::HistogramTester histogram_tester_;
+  TestThreatDetailsFactory details_factory_;
+
+ private:
+  network::TestURLLoaderFactory test_url_loader_factory_;
+  base::test::ScopedFeatureList feature_list_;
+};
+
+class SafeBrowsingBlockingPageAsyncChecksTimingTest
+    : public SafeBrowsingBlockingPageAsyncChecksTimingTestBase,
+      public testing::WithParamInterface<bool> {
+ public:
+  SafeBrowsingBlockingPageAsyncChecksTimingTest() = default;
+
+  GURL SetupPostCommitInterstitialAndNavigate(
+      std::vector<UrlAndIsUnsafe> url_and_server_redirects,
+      base::OnceClosure report_sent_callback) {
+    // Call SetupUrlRealTimeVerdictInCacheManager with a random URL to ensure
+    // RealTimeUrlLookupServiceBase::CanCheckUrl returns true so the real time
+    // check is performed.
+    SetupUrlRealTimeVerdictInCacheManager(GURL("https://random.url"),
+                                          browser()->profile(),
+                                          RTLookupResponse::ThreatInfo::SAFE,
+                                          /*threat_type=*/std::nullopt);
+    SetReportSentCallback(std::move(report_sent_callback));
+    bool check_complete_after_navigation_finish = GetParam();
+    if (check_complete_after_navigation_finish) {
+      return SetupWarningShownAfterFinishNavigationAndNavigate(
+          url_and_server_redirects);
+    } else {
+      return SetupWarningShownBetweenProcessResponseAndFinishNavigationAndNavigate(
+          url_and_server_redirects);
+    }
+  }
+};
+
+class SafeBrowsingBlockingPageAsyncChecksPrerenderingTest
+    : public SafeBrowsingBlockingPageAsyncChecksTimingTestBase {
+ public:
+  SafeBrowsingBlockingPageAsyncChecksPrerenderingTest() = default;
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    SafeBrowsingBlockingPageAsyncChecksTimingTestBase::SetUpCommandLine(
+        command_line);
+    // |prerender_helper_| has a ScopedFeatureList so we needed to delay its
+    // creation until now because
+    // SafeBrowsingBlockingPageAsyncChecksTimingTestBase also uses a
+    // ScopedFeatureList and initialization order matters.
+    prerender_helper_ = std::make_unique<
+        content::test::PrerenderTestHelper>(base::BindRepeating(
+        &SafeBrowsingBlockingPageAsyncChecksPrerenderingTest::GetWebContents,
+        base::Unretained(this)));
+  }
+
+  void SetUpOnMainThread() override {
+    prerender_helper_->RegisterServerRequestMonitor(embedded_test_server());
+    SafeBrowsingBlockingPageAsyncChecksTimingTestBase::SetUpOnMainThread();
+  }
+
+  content::test::PrerenderTestHelper& prerender_helper() {
+    return *prerender_helper_;
+  }
+
+  content::WebContents* GetWebContents() {
+    return browser()->tab_strip_model()->GetActiveWebContents();
   }
 
  private:
-  TestSafeBrowsingServiceFactory factory_;
-  base::test::ScopedFeatureList scoped_feature_list_;
+  std::unique_ptr<content::test::PrerenderTestHelper> prerender_helper_;
 };
+
+// Test that prerendering doesn't affect the primary frame's threat report.
+IN_PROC_BROWSER_TEST_F(
+    SafeBrowsingBlockingPageAsyncChecksPrerenderingTest,
+    PostCommitInterstitialReportThreatDetails_DontContainPrerenderingInfo) {
+  EnableAsyncCheck();
+
+  // Navigate to unsafe page, but don't yet return unsafe for the Safe Browsing
+  // lookup.
+  auto threat_report_sent_runner = std::make_unique<base::RunLoop>();
+  SetReportSentCallback(threat_report_sent_runner->QuitClosure());
+  // Call SetupUrlRealTimeVerdictInCacheManager with a random URL to ensure
+  // RealTimeUrlLookupServiceBase::CanCheckUrl returns true so the real time
+  // check is performed.
+  SetupUrlRealTimeVerdictInCacheManager(GURL("https://random.url"),
+                                        browser()->profile(),
+                                        RTLookupResponse::ThreatInfo::SAFE,
+                                        /*threat_type=*/std::nullopt);
+  std::vector<UrlAndIsUnsafe> url_and_server_redirects = {
+      {kMaliciousPage, /* is_unsafe */ true}};
+  NavigateAndAwaitNavigationFinished(
+      url_and_server_redirects.front().relative_url);
+
+  // Set up prerendering.
+  GURL prerender_url = embedded_test_server()->GetURL("/title1.html");
+  SetupUrlRealTimeVerdictInCacheManager(prerender_url, browser()->profile(),
+                                        RTLookupResponse::ThreatInfo::SAFE,
+                                        /*threat_type=*/std::nullopt);
+  content::FrameTreeNodeId host_id =
+      prerender_helper().AddPrerender(prerender_url);
+  content::RenderFrameHost* prerender_render_frame_host =
+      prerender_helper().GetPrerenderedMainFrameHost(host_id);
+  EXPECT_NE(prerender_render_frame_host, nullptr);
+  EXPECT_EQ(prerender_url, prerender_render_frame_host->GetLastCommittedURL());
+
+  // Return unsafe for the Safe Browsing lookup, which displays a post-commit
+  // interstitial.
+  GURL url = ReturnUrlRealTimeVerdictsForUnsafeChain(url_and_server_redirects);
+
+  ThreatDetails* threat_details = details_factory_.get_details();
+  EXPECT_TRUE(threat_details != nullptr);
+
+  // Proceed through the warning.
+  EXPECT_TRUE(ClickAndWaitForDetach(browser(), "proceed-link"));
+  AssertNoInterstitial(browser());  // Assert the interstitial is gone
+
+  EXPECT_TRUE(IsExtendedReportingEnabled(*browser()->profile()->GetPrefs()));
+  EXPECT_EQ(url, browser()
+                     ->tab_strip_model()
+                     ->GetActiveWebContents()
+                     ->GetLastCommittedURL());
+
+  threat_report_sent_runner->Run();
+  std::string serialized = GetReportSent();
+  ClientSafeBrowsingReportRequest report;
+  ASSERT_TRUE(report.ParseFromString(serialized));
+  // Verify the report is complete.
+  EXPECT_TRUE(report.complete());
+  // The threat report should not contain the prerender information.
+  EXPECT_NE(prerender_url.spec(), report.page_url());
+  EXPECT_NE(prerender_url.spec(), report.url());
+  for (const auto& resource : report.resources()) {
+    EXPECT_NE(prerender_url.spec(), resource.url());
+  }
+  // We don't check the specific size of resources here. The size can be either
+  // 1 or 2 depending on whether DOM details have been collected when we
+  // proceed.
+  ASSERT_NE(0, report.resources_size());
+}
+
+INSTANTIATE_TEST_SUITE_P(CheckCompleteAfterNavigationFinish,
+                         SafeBrowsingBlockingPageAsyncChecksTimingTest,
+                         testing::Bool());
+
+IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageAsyncChecksTimingTest,
+                       VerifyHistogramsAndHitReport) {
+  EnableAsyncCheck();
+  auto threat_report_sent_runner = std::make_unique<base::RunLoop>();
+  GURL url = SetupPostCommitInterstitialAndNavigate(
+      {{kMaliciousPage, /* is_unsafe */ true}},
+      threat_report_sent_runner->QuitClosure());
+
+  int hit_report_count =
+      static_cast<FakeSafeBrowsingUIManager*>(
+          factory_.test_safe_browsing_service()->ui_manager().get())
+          ->hit_report_count();
+  EXPECT_EQ(hit_report_count, 1);
+  EXPECT_TRUE(shown_report_sent_is_async_check().value());
+
+  histogram_tester_.ExpectUniqueSample(
+      "interstitial.phishing.decision.after_page_shown",
+      /*sample=*/security_interstitials::MetricsHelper::SHOW,
+      /*expected_bucket_count=*/1);
+}
+
+// Confirm that duplicate hit reports aren't sent in the case where URT falls
+// back to HPD due to a high-confidence allowlist match.
+IN_PROC_BROWSER_TEST_P(
+    SafeBrowsingBlockingPageAsyncChecksTimingTest,
+    NoDuplicateHitReports_FallbackFromHighConfidenceAllowlistMatch) {
+  EnableAsyncCheck();
+  // Call SetupUrlRealTimeVerdictInCacheManager with a random URL to ensure
+  // RealTimeUrlLookupServiceBase::CanCheckUrl returns true so the real time
+  // check is performed.
+  SetupUrlRealTimeVerdictInCacheManager(GURL("https://random.url"),
+                                        browser()->profile(),
+                                        RTLookupResponse::ThreatInfo::SAFE,
+                                        /*threat_type=*/std::nullopt);
+  GURL url = embedded_test_server()->GetURL(kEmptyPage);
+  SetURLHighConfidenceAllowlistMatch(url, true);
+  SetURLThreatType(url, SBThreatType::SB_THREAT_TYPE_URL_PHISHING);
+  NavigateToURLAndWaitForAsyncChecks(url);
+
+  auto threat_report_sent_runner = std::make_unique<base::RunLoop>();
+  SetReportSentCallback(threat_report_sent_runner->QuitClosure());
+
+  int hit_report_count =
+      static_cast<FakeSafeBrowsingUIManager*>(
+          factory_.test_safe_browsing_service()->ui_manager().get())
+          ->hit_report_count();
+  ASSERT_EQ(hit_report_count, 1);
+  EXPECT_FALSE(shown_report_sent_is_async_check().value());
+}
+
+// Confirm that duplicate hit reports aren't sent in the case where URT is
+// not eligible and HPD is used instead for the async check.
+IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageAsyncChecksTimingTest,
+                       NoDuplicateHitReports_UrlRealTimeUncheckable) {
+  EnableAsyncCheck();
+  // Do not call |SetupUrlRealTimeVerdictInCacheManager| with a random URL,
+  // that way the real-time URL lookup will instead fall back to hash database
+  // checks instead, since the URL is not eligible for real-time lookups.
+  GURL url = embedded_test_server()->GetURL(kEmptyPage);
+  SetURLThreatType(url, SBThreatType::SB_THREAT_TYPE_URL_PHISHING);
+  NavigateToURLAndWaitForAsyncChecks(url);
+
+  auto threat_report_sent_runner = std::make_unique<base::RunLoop>();
+  SetReportSentCallback(threat_report_sent_runner->QuitClosure());
+
+  int hit_report_count =
+      static_cast<FakeSafeBrowsingUIManager*>(
+          factory_.test_safe_browsing_service()->ui_manager().get())
+          ->hit_report_count();
+  ASSERT_EQ(hit_report_count, 1);
+  EXPECT_FALSE(shown_report_sent_is_async_check().value());
+}
+
+// Confirm that duplicate hit reports aren't sent for web UI URLs.
+IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageAsyncChecksTimingTest,
+                       NoDuplicateHitReports_WebUiUrl) {
+  EnableAsyncCheck();
+  NavigateToURLAndWaitForAsyncChecks(
+      GURL(kChromeUISafeBrowsingMatchPhishingUrl));
+
+  auto threat_report_sent_runner = std::make_unique<base::RunLoop>();
+  SetReportSentCallback(threat_report_sent_runner->QuitClosure());
+
+  int hit_report_count =
+      static_cast<FakeSafeBrowsingUIManager*>(
+          factory_.test_safe_browsing_service()->ui_manager().get())
+          ->hit_report_count();
+  ASSERT_EQ(hit_report_count, 1);
+  EXPECT_FALSE(shown_report_sent_is_async_check().value());
+}
+
+IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageAsyncChecksTimingTest,
+                       PostCommitInterstitialDontProceed) {
+  EnableAsyncCheck();
+  auto threat_report_sent_runner = std::make_unique<base::RunLoop>();
+  SetupPostCommitInterstitialAndNavigate(
+      {{kMaliciousPage, /* is_unsafe */ true}},
+      threat_report_sent_runner->QuitClosure());
+
+  EXPECT_EQ(VISIBLE, GetVisibility(browser(), "primary-button"));
+  EXPECT_EQ(HIDDEN, GetVisibility(browser(), "details"));
+  EXPECT_EQ(HIDDEN, GetVisibility(browser(), "proceed-link"));
+  EXPECT_EQ(HIDDEN, GetVisibility(browser(), "error-code"));
+  EXPECT_TRUE(Click(browser(), "details-button"));
+  EXPECT_EQ(VISIBLE, GetVisibility(browser(), "details"));
+  EXPECT_EQ(VISIBLE, GetVisibility(browser(), "proceed-link"));
+  EXPECT_EQ(HIDDEN, GetVisibility(browser(), "error-code"));
+  EXPECT_TRUE(ClickAndWaitForDetach(browser(), "primary-button"));
+
+  AssertNoInterstitial(browser());  // Assert the interstitial is gone
+
+  EXPECT_EQ(GURL(url::kAboutBlankURL),  // Back to "about:blank"
+            browser()
+                ->tab_strip_model()
+                ->GetActiveWebContents()
+                ->GetLastCommittedURL());
+}
+
+IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageAsyncChecksTimingTest,
+                       PostCommitInterstitialProceed) {
+  EnableAsyncCheck();
+  auto threat_report_sent_runner = std::make_unique<base::RunLoop>();
+  GURL url = SetupPostCommitInterstitialAndNavigate(
+      {{kMaliciousPage, /* is_unsafe */ true}},
+      threat_report_sent_runner->QuitClosure());
+
+  EXPECT_TRUE(ClickAndWaitForDetach(browser(), "proceed-link"));
+  AssertNoInterstitial(browser());  // Assert the interstitial is gone
+
+  EXPECT_EQ(url, browser()
+                     ->tab_strip_model()
+                     ->GetActiveWebContents()
+                     ->GetLastCommittedURL());
+}
+
+IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageAsyncChecksTimingTest,
+                       PostCommitInterstitialServerRedirect_OriginIsUnsafe) {
+  EnableAsyncCheck();
+  auto threat_report_sent_runner = std::make_unique<base::RunLoop>();
+  GURL url = SetupPostCommitInterstitialAndNavigate(
+      {{kRedirectToMalware, /* is_unsafe */ true},
+       {kMaliciousPage, /* is_unsafe */ false}},
+      threat_report_sent_runner->QuitClosure());
+
+  // The original URL is unsafe, so it should be displayed in the URL bar.
+  GURL original_url = embedded_test_server()->GetURL(kRedirectToMalware);
+  EXPECT_EQ(
+      original_url,
+      browser()->tab_strip_model()->GetActiveWebContents()->GetVisibleURL());
+
+  EXPECT_TRUE(ClickAndWaitForDetach(browser(), "proceed-link"));
+  AssertNoInterstitial(browser());  // Assert the interstitial is gone
+
+  EXPECT_EQ(url, browser()
+                     ->tab_strip_model()
+                     ->GetActiveWebContents()
+                     ->GetLastCommittedURL());
+}
+
+IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageAsyncChecksTimingTest,
+                       PostCommitInterstitialServerRedirect_RedirectIsUnsafe) {
+  EnableAsyncCheck();
+  auto threat_report_sent_runner = std::make_unique<base::RunLoop>();
+  GURL url = SetupPostCommitInterstitialAndNavigate(
+      {{kRedirectToMalware, /* is_unsafe */ false},
+       {kMaliciousPage, /* is_unsafe */ true}},
+      threat_report_sent_runner->QuitClosure());
+
+  // The final URL is unsafe, so it should be displayed in the URL bar.
+  GURL final_url = embedded_test_server()->GetURL(kMaliciousPage);
+  EXPECT_EQ(
+      final_url,
+      browser()->tab_strip_model()->GetActiveWebContents()->GetVisibleURL());
+
+  EXPECT_TRUE(ClickAndWaitForDetach(browser(), "proceed-link"));
+  AssertNoInterstitial(browser());  // Assert the interstitial is gone
+
+  EXPECT_EQ(url, browser()
+                     ->tab_strip_model()
+                     ->GetActiveWebContents()
+                     ->GetLastCommittedURL());
+}
+
+IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageAsyncChecksTimingTest,
+                       PostCommitInterstitialReportThreatDetails) {
+  EnableAsyncCheck();
+  auto threat_report_sent_runner = std::make_unique<base::RunLoop>();
+  GURL url = SetupPostCommitInterstitialAndNavigate(
+      {{kMaliciousPage, /* is_unsafe */ true}},
+      threat_report_sent_runner->QuitClosure());
+
+  ThreatDetails* threat_details = details_factory_.get_details();
+  EXPECT_TRUE(threat_details != nullptr);
+  EXPECT_TRUE(ClickAndWaitForDetach(browser(), "proceed-link"));
+  AssertNoInterstitial(browser());  // Assert the interstitial is gone
+
+  EXPECT_EQ(url, browser()
+                     ->tab_strip_model()
+                     ->GetActiveWebContents()
+                     ->GetLastCommittedURL());
+
+  threat_report_sent_runner->Run();
+  std::string serialized = GetReportSent();
+  ClientSafeBrowsingReportRequest report;
+  ASSERT_TRUE(report.ParseFromString(serialized));
+  // Verify the report is complete.
+  EXPECT_TRUE(report.complete());
+  // Do some basic verification of report contents.
+  EXPECT_EQ(url.spec(), report.page_url());
+  EXPECT_EQ(url.spec(), report.url());
+  // We don't check the specific size of resources here. The size can be either
+  // 1 or 2 depending on whether DOM details have been collected when we
+  // proceed.
+  ASSERT_NE(0, report.resources_size());
+}
+
+IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageAsyncChecksTimingTest,
+                       PostCommitInterstitialAllowlistRevisit) {
+  EnableAsyncCheck();
+  auto threat_report_sent_runner = std::make_unique<base::RunLoop>();
+  GURL url = SetupPostCommitInterstitialAndNavigate(
+      {{kMaliciousPage, /* is_unsafe */ true}},
+      threat_report_sent_runner->QuitClosure());
+
+  EXPECT_TRUE(ClickAndWaitForDetach(browser(), "proceed-link"));
+  AssertNoInterstitial(browser());  // Assert the interstitial is gone.
+  EXPECT_EQ(url, browser()
+                     ->tab_strip_model()
+                     ->GetActiveWebContents()
+                     ->GetLastCommittedURL());
+
+  // Navigate to an unrelated page and revisit the allowlisted URL.
+  SetupUrlRealTimeVerdictInCacheManager(GURL(kUnrelatedUrl),
+                                        browser()->profile(),
+                                        RTLookupResponse::ThreatInfo::SAFE,
+                                        /*threat_type=*/std::nullopt);
+  NavigateToURLAndWaitForAsyncChecks(GURL(kUnrelatedUrl));
+  AssertNoInterstitial(browser());
+
+  // The allowlisted page should remain allowlisted.
+  NavigateToURLAndWaitForAsyncChecks(url);
+  AssertNoInterstitial(browser());
+}
+
+// Test that the security indicator gets updated on a Safe Browsing
+// interstitial triggered post commit. Regression test for
+// https://crbug.com/659713.
+IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageAsyncChecksTimingTest,
+                       SecurityStateDowngradedForPostCommitInterstitial) {
+  EnableAsyncCheck();
+  WebContents* error_tab = browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(error_tab);
+  SecurityStyleTestObserver observer(error_tab);
+
+  auto threat_report_sent_runner = std::make_unique<base::RunLoop>();
+  GURL url = SetupPostCommitInterstitialAndNavigate(
+      {{kMaliciousPage, /* is_unsafe */ true}},
+      threat_report_sent_runner->QuitClosure());
+
+  // The security indicator should be downgraded while the interstitial shows.
+  ExpectSecurityIndicatorDowngrade(error_tab, 0u);
+  EXPECT_EQ(security_state::SecurityLevel::DANGEROUS,
+            observer.latest_security_level());
+
+  // The security indicator should still be downgraded post-interstitial.
+  EXPECT_TRUE(ClickAndWaitForDetach(browser(), "proceed-link"));
+  AssertNoInterstitial(browser());
+  WebContents* post_tab = browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(post_tab);
+  ExpectSecurityIndicatorDowngrade(post_tab, 0u);
+}
+
+// Test that the security indicator does not stay downgraded after
+// clicking back from a Safe Browsing interstitial triggered post commit.
+// Regression test for https://crbug.com/659709.
+IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageAsyncChecksTimingTest,
+                       SecurityStateGoBackOnPostCommitInterstitial) {
+  EnableAsyncCheck();
+
+  // Navigate to a page so that there is somewhere to go back to.
+  GURL start_url = embedded_test_server()->GetURL(kEmptyPage);
+  NavigateToURLAndWaitForAsyncChecks(start_url);
+
+  // The security indicator should be downgraded while the interstitial
+  // shows.
+  auto threat_report_sent_runner = std::make_unique<base::RunLoop>();
+  GURL main_url = SetupPostCommitInterstitialAndNavigate(
+      {{kMaliciousPage, /* is_unsafe */ true}},
+      threat_report_sent_runner->QuitClosure());
+  WebContents* error_tab = browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(error_tab);
+  ExpectSecurityIndicatorDowngrade(error_tab, 0u);
+
+  // Go back.
+  EXPECT_EQ(VISIBLE, GetVisibility(browser(), "primary-button"));
+  EXPECT_EQ(HIDDEN, GetVisibility(browser(), "details"));
+  EXPECT_EQ(HIDDEN, GetVisibility(browser(), "proceed-link"));
+  EXPECT_EQ(HIDDEN, GetVisibility(browser(), "error-code"));
+  EXPECT_TRUE(Click(browser(), "details-button"));
+  EXPECT_EQ(VISIBLE, GetVisibility(browser(), "details"));
+  EXPECT_EQ(VISIBLE, GetVisibility(browser(), "proceed-link"));
+  EXPECT_EQ(HIDDEN, GetVisibility(browser(), "error-code"));
+  EXPECT_TRUE(ClickAndWaitForDetach(browser(), "primary-button"));
+
+  // The security indicator should *not* still be downgraded after going back.
+  AssertNoInterstitial(browser());
+  WebContents* post_tab = browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(post_tab);
+  content::NavigationEntry* entry = post_tab->GetController().GetVisibleEntry();
+  ASSERT_TRUE(entry);
+  EXPECT_EQ(start_url, entry->GetURL());
+  ExpectNoSecurityIndicatorDowngrade(post_tab);
+}
+
+IN_PROC_BROWSER_TEST_P(SafeBrowsingBlockingPageAsyncChecksTimingTest,
+                       SecurityStateGoBackFlaggedByBothChecks) {
+  EnableAsyncCheck();
+
+  // Navigate to a page so that there is somewhere to go back to.
+  GURL start_url = embedded_test_server()->GetURL(kEmptyPage);
+  NavigateToURLAndWaitForAsyncChecks(start_url);
+
+  auto threat_report_sent_runner = std::make_unique<base::RunLoop>();
+  SetReportSentCallback(threat_report_sent_runner->QuitClosure());
+  GURL url = embedded_test_server()->GetURL(kMaliciousPage);
+
+  // Mark the URL as dangerous for both checks.
+  SetupUrlRealTimeVerdictInCacheManager(
+      url, browser()->profile(), RTLookupResponse::ThreatInfo::DANGEROUS,
+      RTLookupResponse::ThreatInfo::SOCIAL_ENGINEERING);
+  SetURLThreatType(url, SBThreatType::SB_THREAT_TYPE_URL_PHISHING);
+  NavigateToURLAndWaitForAsyncChecks(url);
+
+  // The security indicator should be downgraded while the interstitial
+  // shows.
+  WebContents* error_tab = browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(error_tab);
+  ExpectSecurityIndicatorDowngrade(error_tab, 0u);
+
+  // Go back.
+  EXPECT_TRUE(ClickAndWaitForDetach(browser(), "primary-button"));
+
+  // The security indicator should *not* still be downgraded after going back.
+  AssertNoInterstitial(browser());
+  WebContents* post_tab = browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(post_tab);
+  content::NavigationEntry* entry = post_tab->GetController().GetVisibleEntry();
+  ASSERT_TRUE(entry);
+  EXPECT_EQ(start_url, entry->GetURL());
+  ExpectNoSecurityIndicatorDowngrade(post_tab);
+}
+
+// Tests that commands work in a post commit interstitial if a pre commit
+// interstitial has been shown previously on the same webcontents. Regression
+// test for crbug.com/1021334
+#if BUILDFLAG(IS_LINUX) && defined(MEMORY_SANITIZER)
+// TODO(crbug.com/325491320): re-enable test
+#define MAYBE_PostCommitInterstitialProceedAfterPreCommitInterstitial \
+  DISABLED_PostCommitInterstitialProceedAfterPreCommitInterstitial
+#else
+#define MAYBE_PostCommitInterstitialProceedAfterPreCommitInterstitial \
+  PostCommitInterstitialProceedAfterPreCommitInterstitial
+#endif
+IN_PROC_BROWSER_TEST_P(
+    SafeBrowsingBlockingPageAsyncChecksTimingTest,
+    MAYBE_PostCommitInterstitialProceedAfterPreCommitInterstitial) {
+  EnableAsyncCheck();
+  // Trigger a pre commit interstitial and go back.
+  GURL start_url = embedded_test_server()->GetURL(kEmptyPage);
+  SetURLThreatType(start_url, SBThreatType::SB_THREAT_TYPE_URL_PHISHING);
+  NavigateToURLAndWaitForAsyncChecks(start_url);
+  EXPECT_TRUE(ClickAndWaitForDetach(browser(), "primary-button"));
+  AssertNoInterstitial(browser());
+
+  // Trigger a post commit interstitial.
+  auto threat_report_sent_runner = std::make_unique<base::RunLoop>();
+  GURL main_url = SetupPostCommitInterstitialAndNavigate(
+      {{kMaliciousPage, /* is_unsafe */ true}},
+      threat_report_sent_runner->QuitClosure());
+
+  // Commands should work.
+  EXPECT_TRUE(ClickAndWaitForDetach(browser(), "proceed-link"));
+  AssertNoInterstitial(browser());  // Assert the interstitial is gone
+
+  EXPECT_EQ(main_url, browser()
+                          ->tab_strip_model()
+                          ->GetActiveWebContents()
+                          ->GetLastCommittedURL());
+}
 
 IN_PROC_BROWSER_TEST_F(SafeBrowsingBlockingPageRealTimeUrlCheckTest,
                        WarningShown_EnhancedProtectionEnabled) {
@@ -2950,9 +3866,11 @@ IN_PROC_BROWSER_TEST_F(SafeBrowsingBlockingPageRealTimeUrlCheckTest,
       safe_browsing::SafeBrowsingState::ENHANCED_PROTECTION);
   GURL url = embedded_test_server()->GetURL("/empty.html");
   SetupUnsafeVerdict(url, browser()->profile());
+  auto threat_report_sent_runner = std::make_unique<base::RunLoop>();
+  SetReportSentCallback(threat_report_sent_runner->QuitClosure());
 
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
-  ASSERT_TRUE(IsShowingInterstitial(
+  NavigateToURL(url);
+  ASSERT_TRUE(chrome_browser_interstitials::IsShowingInterstitial(
       browser()->tab_strip_model()->GetActiveWebContents()));
 }
 
@@ -2966,8 +3884,8 @@ IN_PROC_BROWSER_TEST_F(SafeBrowsingBlockingPageRealTimeUrlCheckTest,
   GURL url = embedded_test_server()->GetURL("/empty.html");
   SetupUnsafeVerdict(url, browser()->profile());
 
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
-  ASSERT_TRUE(IsShowingInterstitial(
+  NavigateToURL(url);
+  ASSERT_TRUE(chrome_browser_interstitials::IsShowingInterstitial(
       browser()->tab_strip_model()->GetActiveWebContents()));
 }
 
@@ -2981,9 +3899,279 @@ IN_PROC_BROWSER_TEST_F(SafeBrowsingBlockingPageRealTimeUrlCheckTest,
   GURL url = embedded_test_server()->GetURL("/empty.html");
   SetupUnsafeVerdict(url, browser()->profile());
 
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
-  ASSERT_FALSE(IsShowingInterstitial(
+  NavigateToURL(url);
+  ASSERT_FALSE(chrome_browser_interstitials::IsShowingInterstitial(
       browser()->tab_strip_model()->GetActiveWebContents()));
+}
+
+IN_PROC_BROWSER_TEST_F(SafeBrowsingBlockingPageRealTimeUrlCheckTest,
+                       EnterpriseRealTimeUrlCheck_HistogramHasDmToken) {
+  base::HistogramTester histogram_tester;
+  safe_browsing::SetSafeBrowsingState(
+      browser()->profile()->GetPrefs(),
+      safe_browsing::SafeBrowsingState::STANDARD_PROTECTION);
+
+  // Set up enterprise lookup, including DM token.
+  browser()->profile()->GetPrefs()->SetInteger(
+      enterprise_connectors::kEnterpriseRealTimeUrlCheckMode,
+      enterprise_connectors::REAL_TIME_CHECK_FOR_MAINFRAME_ENABLED);
+  browser()->profile()->GetPrefs()->SetInteger(
+      enterprise_connectors::kEnterpriseRealTimeUrlCheckScope,
+      policy::POLICY_SCOPE_MACHINE);
+  SetDMTokenForTesting(policy::DMToken::CreateValidToken("dm_token"));
+
+  GURL url = embedded_test_server()->GetURL(kEmptyPage);
+  SetupUrlRealTimeVerdictInCacheManager(url, browser()->profile(),
+                                        RTLookupResponse::ThreatInfo::SAFE,
+                                        /*threat_type=*/std::nullopt);
+  NavigateToURL(url);
+
+  histogram_tester.ExpectUniqueSample(
+      "SafeBrowsing.RT.EnterpriseRealTimePolicyEnabled.HasDmToken",
+      /*sample=*/true,
+      /*expected_bucket_count=*/1);
+}
+
+IN_PROC_BROWSER_TEST_F(SafeBrowsingBlockingPageRealTimeUrlCheckTest,
+                       EnterpriseRealTimeUrlCheck_HistogramHasNoDmToken) {
+  base::HistogramTester histogram_tester;
+  safe_browsing::SetSafeBrowsingState(
+      browser()->profile()->GetPrefs(),
+      safe_browsing::SafeBrowsingState::STANDARD_PROTECTION);
+
+  // Set up enterprise lookup, but no DM token.
+  browser()->profile()->GetPrefs()->SetInteger(
+      enterprise_connectors::kEnterpriseRealTimeUrlCheckMode,
+      enterprise_connectors::REAL_TIME_CHECK_FOR_MAINFRAME_ENABLED);
+  browser()->profile()->GetPrefs()->SetInteger(
+      enterprise_connectors::kEnterpriseRealTimeUrlCheckScope,
+      policy::POLICY_SCOPE_MACHINE);
+
+  GURL url = embedded_test_server()->GetURL(kEmptyPage);
+  SetupUrlRealTimeVerdictInCacheManager(url, browser()->profile(),
+                                        RTLookupResponse::ThreatInfo::SAFE,
+                                        /*threat_type=*/std::nullopt);
+  NavigateToURL(url);
+
+  histogram_tester.ExpectUniqueSample(
+      "SafeBrowsing.RT.EnterpriseRealTimePolicyEnabled.HasDmToken",
+      /*sample=*/false,
+      /*expected_bucket_count=*/1);
+}
+
+IN_PROC_BROWSER_TEST_F(
+    SafeBrowsingBlockingPageRealTimeUrlCheckTest,
+    EnterpriseRealTimeUrlCheck_NoHistogramBecausePolicyDisabled) {
+  base::HistogramTester histogram_tester;
+  safe_browsing::SetSafeBrowsingState(
+      browser()->profile()->GetPrefs(),
+      safe_browsing::SafeBrowsingState::STANDARD_PROTECTION);
+
+  // Set up enterprise lookup so that the policy is disabled.
+  browser()->profile()->GetPrefs()->SetInteger(
+      enterprise_connectors::kEnterpriseRealTimeUrlCheckMode,
+      enterprise_connectors::REAL_TIME_CHECK_DISABLED);
+  browser()->profile()->GetPrefs()->SetInteger(
+      enterprise_connectors::kEnterpriseRealTimeUrlCheckScope,
+      policy::POLICY_SCOPE_MACHINE);
+  SetDMTokenForTesting(policy::DMToken::CreateValidToken("dm_token"));
+
+  GURL url = embedded_test_server()->GetURL(kEmptyPage);
+  SetupUrlRealTimeVerdictInCacheManager(url, browser()->profile(),
+                                        RTLookupResponse::ThreatInfo::SAFE,
+                                        /*threat_type=*/std::nullopt);
+  NavigateToURL(url);
+
+  histogram_tester.ExpectTotalCount(
+      "SafeBrowsing.RT.EnterpriseRealTimePolicyEnabled.HasDmToken",
+      /*expected_count=*/0);
+}
+
+// Tests for hash-prefix real-time check. To avoid redundant testing of the
+// HashRealTimeService, this populates the local cache instead of mocking
+// network requests.
+class SafeBrowsingBlockingPageHashRealTimeCheckTest
+    : public InProcessBrowserTest {
+ public:
+  SafeBrowsingBlockingPageHashRealTimeCheckTest() = default;
+  SafeBrowsingBlockingPageHashRealTimeCheckTest(
+      const SafeBrowsingBlockingPageHashRealTimeCheckTest&) = delete;
+  SafeBrowsingBlockingPageHashRealTimeCheckTest& operator=(
+      const SafeBrowsingBlockingPageHashRealTimeCheckTest&) = delete;
+
+  void SetUp() override {
+    InitFeatures();
+    InProcessBrowserTest::SetUp();
+  }
+  void SetUpOnMainThread() override {
+    host_resolver()->AddRule("*", "127.0.0.1");
+    content::SetupCrossSiteRedirector(embedded_test_server());
+    ASSERT_TRUE(embedded_test_server()->Start());
+  }
+  void CreatedBrowserMainParts(
+      content::BrowserMainParts* browser_main_parts) override {
+    InProcessBrowserTest::CreatedBrowserMainParts(browser_main_parts);
+    // Test UI manager and test database manager should be set before
+    // the browser is started but after threads are created.
+    factory_.SetTestUIManager(new FakeSafeBrowsingUIManager(
+        std::make_unique<TestSafeBrowsingBlockingPageFactory>()));
+    factory_.SetTestDatabaseManager(new FakeSafeBrowsingDatabaseManager(
+        content::GetUIThreadTaskRunner({})));
+    SafeBrowsingService::RegisterFactory(&factory_);
+  }
+
+ protected:
+  virtual void InitFeatures() {
+    std::vector<base::test::FeatureRef> enabled_features = {
+        kHashPrefixRealTimeLookups};
+    std::vector<base::test::FeatureRef> disabled_features = {};
+    scoped_feature_list_.InitWithFeatures(enabled_features, disabled_features);
+  }
+  void SetUpVerdict(GURL url, Profile* profile, bool is_unsafe) {
+    safe_browsing::VerdictCacheManagerFactory::GetForProfile(profile)
+        ->CacheArtificialHashRealTimeLookupVerdict(url.spec(), is_unsafe);
+  }
+  void SetUpAndNavigateToUrl(bool is_unsafe) {
+    GURL url = embedded_test_server()->GetURL("/empty.html");
+    SetUpVerdict(url, browser()->profile(), is_unsafe);
+    ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+    SafeBrowsingBlockingPageTestHelper::MaybeWaitForAsyncChecksToComplete(
+        browser()->tab_strip_model()->GetActiveWebContents(),
+        factory_.test_safe_browsing_service()->ui_manager().get(),
+        /*wait_for_load_stop=*/true);
+  }
+  bool IsShowingInterstitial() {
+    return ::safe_browsing::IsShowingInterstitial(
+        browser()->tab_strip_model()->GetActiveWebContents());
+  }
+  std::optional<ThreatSource> hit_report_sent_threat_source() {
+    return static_cast<FakeSafeBrowsingUIManager*>(
+               factory_.test_safe_browsing_service()->ui_manager().get())
+        ->hit_report_sent_threat_source();
+  }
+  std::string GetReportSent() {
+    return static_cast<FakeSafeBrowsingUIManager*>(
+               factory_.test_safe_browsing_service()->ui_manager().get())
+        ->GetReport();
+  }
+  void SetReportSentCallback(base::OnceClosure callback) {
+    static_cast<FakeSafeBrowsingUIManager*>(
+        factory_.test_safe_browsing_service()->ui_manager().get())
+        ->set_threat_details_done_callback(std::move(callback));
+  }
+
+  base::test::ScopedFeatureList scoped_feature_list_;
+  TestSafeBrowsingServiceFactory factory_;
+
+ private:
+  hash_realtime_utils::GoogleChromeBrandingPretenderForTesting apply_branding_;
+};
+class SafeBrowsingBlockingPageHashRealTimeCheckFeatureOffTest
+    : public SafeBrowsingBlockingPageHashRealTimeCheckTest {
+ protected:
+  void InitFeatures() override {
+    std::vector<base::test::FeatureRef> enabled_features = {};
+    std::vector<base::test::FeatureRef> disabled_features = {
+        kHashPrefixRealTimeLookups};
+    scoped_feature_list_.InitWithFeatures(enabled_features, disabled_features);
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(SafeBrowsingBlockingPageHashRealTimeCheckTest,
+                       ShowWarning) {
+  base::HistogramTester histogram_tester;
+  SetUpAndNavigateToUrl(/*is_unsafe=*/true);
+  ASSERT_TRUE(IsShowingInterstitial());
+  // The TotalDelay2 metric is logged for whichever check is run sync. When
+  // async checks are enabled, it's the hash-prefix database check, since the
+  // hash-prefix real-time check is run async.
+  histogram_tester.ExpectTotalCount(
+      "SafeBrowsing.BrowserThrottle.TotalDelay2.HashPrefixRealTimeCheck",
+      /*expected_count=*/0);
+  histogram_tester.ExpectTotalCount(
+      "SafeBrowsing.BrowserThrottle.TotalDelay2.HashPrefixDatabaseCheck",
+      /*expected_count=*/1);
+  histogram_tester.ExpectUniqueSample(
+      "SafeBrowsing.HPRT.Ineligible.IneligibleForSessionOrLocation",
+      /*sample=*/false,
+      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectTotalCount(
+      "interstitial.phishing.decision.from_hash_prefix_real_time_check_v5",
+      /*expected_count=*/1);
+}
+IN_PROC_BROWSER_TEST_F(SafeBrowsingBlockingPageHashRealTimeCheckTest,
+                       DontShowWarning_PageIsSafe) {
+  base::HistogramTester histogram_tester;
+  SetUpAndNavigateToUrl(/*is_unsafe=*/false);
+  ASSERT_FALSE(IsShowingInterstitial());
+  // The TotalDelay2 metric is logged for whichever check is run sync. When
+  // async checks are enabled, it's the hash-prefix database check, since the
+  // hash-prefix real-time check is run async.
+  histogram_tester.ExpectTotalCount(
+      "SafeBrowsing.BrowserThrottle.TotalDelay2.HashPrefixRealTimeCheck",
+      /*expected_count=*/0);
+  histogram_tester.ExpectTotalCount(
+      "SafeBrowsing.BrowserThrottle.TotalDelay2.HashPrefixDatabaseCheck",
+      /*expected_count=*/1);
+  histogram_tester.ExpectUniqueSample(
+      "SafeBrowsing.HPRT.Ineligible.IneligibleForSessionOrLocation",
+      /*sample=*/false,
+      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectTotalCount(
+      "interstitial.phishing.decision.from_hash_prefix_real_time_check_v5",
+      /*expected_count=*/0);
+}
+IN_PROC_BROWSER_TEST_F(SafeBrowsingBlockingPageHashRealTimeCheckFeatureOffTest,
+                       DontShowWarning_FeatureIsOff) {
+  base::HistogramTester histogram_tester;
+  SetUpAndNavigateToUrl(/*is_unsafe=*/true);
+  ASSERT_FALSE(IsShowingInterstitial());
+  histogram_tester.ExpectTotalCount(
+      "SafeBrowsing.BrowserThrottle.TotalDelay2.HashPrefixRealTimeCheck",
+      /*expected_count=*/0);
+  histogram_tester.ExpectTotalCount(
+      "SafeBrowsing.BrowserThrottle.TotalDelay2.HashPrefixDatabaseCheck",
+      /*expected_count=*/1);
+  histogram_tester.ExpectUniqueSample(
+      "SafeBrowsing.HPRT.Ineligible.IneligibleForSessionOrLocation",
+      /*sample=*/true,
+      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectTotalCount(
+      "interstitial.phishing.decision.from_hash_prefix_real_time_check_v5",
+      /*expected_count=*/0);
+}
+IN_PROC_BROWSER_TEST_F(SafeBrowsingBlockingPageHashRealTimeCheckTest,
+                       TriggerHitReportAndClientSafeBrowsingReportRequest) {
+  if (base::FeatureList::IsEnabled(kExtendedReportingRemovePrefDependency)) {
+    // If the extended reporting pref dependency is removed, this test will not
+    // be run since it is testing HPRT lookup cases.
+    // TODO(crbug.com/362530516): Remove this test case and add a new test for
+    // sampled HPRT lookups.
+    return;
+  }
+  SetExtendedReportingPrefForTests(browser()->profile()->GetPrefs(), true);
+  SetUpAndNavigateToUrl(/*is_unsafe=*/true);
+  ASSERT_TRUE(IsShowingInterstitial());
+
+  // Verify correct hit report is sent.
+  EXPECT_EQ(hit_report_sent_threat_source(),
+            ThreatSource::NATIVE_PVER5_REAL_TIME);
+
+  // Verify correct CSBRR is sent.
+  auto threat_report_sent_runner = std::make_unique<base::RunLoop>();
+  SetReportSentCallback(threat_report_sent_runner->QuitClosure());
+  EXPECT_TRUE(ClickAndWaitForDetach(browser(), "proceed-link"));
+  ASSERT_FALSE(IsShowingInterstitial());
+  threat_report_sent_runner->Run();
+  std::string serialized_report = GetReportSent();
+  ClientSafeBrowsingReportRequest report;
+  ASSERT_TRUE(report.ParseFromString(serialized_report));
+  EXPECT_EQ(report.type(),
+            ClientSafeBrowsingReportRequest_ReportType_URL_PHISHING);
+  EXPECT_EQ(
+      report.client_properties().url_api_type(),
+      ClientSafeBrowsingReportRequest_SafeBrowsingUrlApiType_PVER5_NATIVE_REAL_TIME);
+  EXPECT_EQ(report.client_properties().is_async_check(), true);
 }
 
 class SafeBrowsingPrerenderBrowserTest
@@ -3000,7 +4188,7 @@ class SafeBrowsingPrerenderBrowserTest
       const SafeBrowsingPrerenderBrowserTest&) = delete;
 
   void SetUp() override {
-    prerender_helper_.SetUp(embedded_test_server());
+    prerender_helper_.RegisterServerRequestMonitor(embedded_test_server());
     SafeBrowsingBlockingPageBrowserTest::SetUp();
   }
 
@@ -3021,7 +4209,8 @@ class SafeBrowsingPrerenderBrowserTest
     prerender_helper().AddPrerenderAsync(prerender_url);
     observer.WaitForDestroyed();
 
-    EXPECT_FALSE(IsShowingInterstitial(GetWebContents()));
+    EXPECT_FALSE(
+        chrome_browser_interstitials::IsShowingInterstitial(GetWebContents()));
     ExpectNoSecurityIndicatorDowngrade(GetWebContents());
   }
 
@@ -3033,14 +4222,16 @@ INSTANTIATE_TEST_SUITE_P(
     All,
     SafeBrowsingPrerenderBrowserTest,
     testing::Combine(
-        testing::Values(SB_THREAT_TYPE_URL_MALWARE,  // Threat types
-                        SB_THREAT_TYPE_URL_PHISHING,
-                        SB_THREAT_TYPE_URL_UNWANTED),
+        testing::Values(
+            SBThreatType::SB_THREAT_TYPE_URL_MALWARE,  // Threat types
+            SBThreatType::SB_THREAT_TYPE_URL_PHISHING,
+            SBThreatType::SB_THREAT_TYPE_URL_UNWANTED),
         testing::Bool()));  // If isolate all sites for testing.
 
 // Attempt to prerender an unsafe page. The prerender navigation should be
 // cancelled and should not affect the security state of the primary page.
 IN_PROC_BROWSER_TEST_P(SafeBrowsingPrerenderBrowserTest, UnsafePrerender) {
+  base::HistogramTester histograms;
   const GURL initial_url = embedded_test_server()->GetURL("/title1.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), initial_url));
 
@@ -3048,161 +4239,9 @@ IN_PROC_BROWSER_TEST_P(SafeBrowsingPrerenderBrowserTest, UnsafePrerender) {
   SetURLThreatType(prerender_url, GetThreatType());
 
   PrerenderAndExpectCancellation(prerender_url);
-}
-
-// Like SafeBrowsingPrerenderBrowserTest.UnsafePrerender, but for when a
-// prerendered page has a subresource that's unsafe.
-IN_PROC_BROWSER_TEST_P(SafeBrowsingPrerenderBrowserTest,
-                       UnsafeSubresourcePrerender) {
-  const GURL initial_url = embedded_test_server()->GetURL("/title1.html");
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), initial_url));
-
-  const GURL prerender_url = embedded_test_server()->GetURL(kMaliciousJsPage);
-  const GURL unsafe_resource_url = embedded_test_server()->GetURL(kMaliciousJs);
-  SetURLThreatType(unsafe_resource_url, GetThreatType());
-
-  PrerenderAndExpectCancellation(prerender_url);
-}
-
-// Like SafeBrowsingPrerenderBrowserTest.UnsafePrerender, but for when a
-// prerendered page has a subframe that's unsafe.
-IN_PROC_BROWSER_TEST_P(SafeBrowsingPrerenderBrowserTest,
-                       UnsafeSubframePrerender) {
-  const GURL initial_url = embedded_test_server()->GetURL("/title1.html");
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), initial_url));
-
-  const GURL prerender_url =
-      embedded_test_server()->GetURL("/iframe_blank.html");
-  const GURL unsafe_iframe_url =
-      embedded_test_server()->GetURL(kMaliciousIframe);
-  SetURLThreatType(unsafe_iframe_url, GetThreatType());
-
-  auto host_id = prerender_helper().AddPrerender(prerender_url);
-  content::RenderFrameHost* prerender_rfh =
-      prerender_helper().GetPrerenderedMainFrameHost(host_id);
-  ASSERT_TRUE(prerender_rfh);
-
-  content::test::PrerenderHostObserver observer(*GetWebContents(), host_id);
-  content::ExecuteScriptAsync(
-      prerender_rfh,
-      content::JsReplace("document.getElementById('test').src = $1;",
-                         unsafe_iframe_url));
-  observer.WaitForDestroyed();
-
-  EXPECT_FALSE(IsShowingInterstitial(GetWebContents()));
-  ExpectNoSecurityIndicatorDowngrade(GetWebContents());
-}
-
-IN_PROC_BROWSER_TEST_P(SafeBrowsingPrerenderBrowserTest,
-                       UnsafeSubresourceOfSubframePrerender) {
-  const GURL initial_url = embedded_test_server()->GetURL("/title1.html");
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), initial_url));
-
-  const GURL prerender_url =
-      embedded_test_server()->GetURL("/iframe_blank.html");
-  const GURL subframe_url = embedded_test_server()->GetURL(kMaliciousJsPage);
-  const GURL unsafe_resource_url = embedded_test_server()->GetURL(kMaliciousJs);
-  SetURLThreatType(unsafe_resource_url, GetThreatType());
-
-  auto host_id = prerender_helper().AddPrerender(prerender_url);
-  content::RenderFrameHost* prerender_rfh =
-      prerender_helper().GetPrerenderedMainFrameHost(host_id);
-  ASSERT_TRUE(prerender_rfh);
-
-  content::test::PrerenderHostObserver observer(*GetWebContents(), host_id);
-  content::ExecuteScriptAsync(
-      prerender_rfh,
-      content::JsReplace("document.getElementById('test').src = $1;",
-                         subframe_url));
-  observer.WaitForDestroyed();
-
-  EXPECT_FALSE(IsShowingInterstitial(GetWebContents()));
-  ExpectNoSecurityIndicatorDowngrade(GetWebContents());
-}
-
-IN_PROC_BROWSER_TEST_P(SafeBrowsingPrerenderBrowserTest,
-                       UnsafeCrossOriginSubframePrerender) {
-  const GURL initial_url = embedded_test_server()->GetURL("/title1.html");
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), initial_url));
-
-  const GURL prerender_url =
-      embedded_test_server()->GetURL(kPageWithCrossOriginMaliciousIframe);
-  const GURL unsafe_iframe_url = embedded_test_server()->GetURL(
-      kCrossOriginMaliciousIframeHost, kMaliciousIframe);
-  SetURLThreatType(unsafe_iframe_url, GetThreatType());
-
-  PrerenderAndExpectCancellation(prerender_url);
-}
-
-class SafeBrowsingThreatDetailsPrerenderBrowserTest
-    : public SafeBrowsingPrerenderBrowserTest {};
-
-INSTANTIATE_TEST_SUITE_P(
-    All,
-    SafeBrowsingThreatDetailsPrerenderBrowserTest,
-    // We simulate a SB_THREAT_TYPE_URL_CLIENT_SIDE_MALWARE to trigger DOM
-    // detail collection.
-    testing::Combine(testing::Values(SB_THREAT_TYPE_URL_CLIENT_SIDE_MALWARE),
-                     testing::Bool()));  // If isolate all sites for testing.
-
-// Test that the prerendering doesn't affect on the primary's threat report.
-IN_PROC_BROWSER_TEST_P(SafeBrowsingThreatDetailsPrerenderBrowserTest,
-                       DontContainPrerenderingInfoInThreatReport) {
-  SetExtendedReportingPrefForTests(browser()->profile()->GetPrefs(), true);
-  const bool expect_threat_details =
-      SafeBrowsingBlockingPage::ShouldReportThreatDetails(GetThreatType());
-
-  auto threat_report_sent_runner = std::make_unique<base::RunLoop>();
-  if (expect_threat_details)
-    SetReportSentCallback(threat_report_sent_runner->QuitClosure());
-
-  // Navigate to a safe page which contains multiple potential DOM details
-  // on the primary page. (Despite the name, kMaliciousPage is not the page
-  // flagged as bad in this test.)
-  GURL primary_url = embedded_test_server()->GetURL(kMaliciousPage);
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), primary_url));
-  EXPECT_EQ(nullptr, details_factory_.get_details());
-
-  // Navigate to a different page on the prerendering page.
-  GURL prerender_url = embedded_test_server()->GetURL("/title1.html");
-  int host_id = prerender_helper().AddPrerender(prerender_url);
-  content::RenderFrameHost* prerender_render_frame_host =
-      prerender_helper().GetPrerenderedMainFrameHost(host_id);
-  EXPECT_NE(prerender_render_frame_host, nullptr);
-  EXPECT_EQ(prerender_url, prerender_render_frame_host->GetLastCommittedURL());
-
-  // Start navigation to bad page (kEmptyPage), which will be blocked before it
-  // is committed.
-  SetupWarningAndNavigate(browser());
-
-  ThreatDetails* threat_details = details_factory_.get_details();
-  EXPECT_EQ(expect_threat_details, threat_details != nullptr);
-
-  // Proceed through the warning.
-  EXPECT_TRUE(ClickAndWaitForDetach("proceed-link"));
-  AssertNoInterstitial(true);  // Assert the interstitial is gone
-
-  EXPECT_TRUE(IsExtendedReportingEnabled(*browser()->profile()->GetPrefs()));
-  EXPECT_EQ(primary_url, browser()
-                             ->tab_strip_model()
-                             ->GetActiveWebContents()
-                             ->GetLastCommittedURL());
-
-  if (expect_threat_details) {
-    threat_report_sent_runner->Run();
-    std::string serialized = GetReportSent();
-    ClientSafeBrowsingReportRequest report;
-    ASSERT_TRUE(report.ParseFromString(serialized));
-    // Verify the report is complete.
-    EXPECT_TRUE(report.complete());
-
-    // The threat report should not contain the prerender information.
-    EXPECT_NE(prerender_url.spec(), report.page_url());
-    EXPECT_NE(prerender_url.spec(), report.url());
-    ASSERT_EQ(3, report.resources_size());
-    for (const auto& resource : report.resources())
-      EXPECT_NE(prerender_url.spec(), resource.url());
-  }
+  histograms.ExpectUniqueSample(
+      "Prerender.Experimental.PrerenderHostFinalStatus.SpeculationRule",
+      /*PrerenderFinalStatus::kBlockedByClient=*/28, 1);
 }
 
 class SafeBrowsingBlockingPageDelayedWarningPrerenderingBrowserTest
@@ -3227,7 +4266,7 @@ class SafeBrowsingBlockingPageDelayedWarningPrerenderingBrowserTest
   }
 
   void SetUpOnMainThread() override {
-    prerender_helper_->SetUp(embedded_test_server());
+    prerender_helper_->RegisterServerRequestMonitor(embedded_test_server());
     SafeBrowsingBlockingPageDelayedWarningBrowserTest::SetUpOnMainThread();
   }
 
@@ -3266,169 +4305,75 @@ IN_PROC_BROWSER_TEST_P(
   prerender_helper().NavigatePrimaryPage(prerender_url);
 }
 
-class SafeBrowsingFencedFrameBrowserTest
+class WarningShownTimestampCSBRRDisabledBrowserTest
     : public SafeBrowsingBlockingPageBrowserTest {
  public:
-  ~SafeBrowsingFencedFrameBrowserTest() override = default;
+  WarningShownTimestampCSBRRDisabledBrowserTest() {
+    scoped_feature_list_.InitAndDisableFeature(
+        safe_browsing::kAddWarningShownTSToClientSafeBrowsingReport);
+  }
+  ~WarningShownTimestampCSBRRDisabledBrowserTest() override = default;
 
-  void SetUpOnMainThread() override {
-    SafeBrowsingBlockingPageBrowserTest::SetUpOnMainThread();
-    https_server_.ServeFilesFromSourceDirectory(GetChromeTestDataDir());
-    ASSERT_TRUE(https_server_.Start());
-    scoped_refptr<net::X509Certificate> cert(https_server_.GetCertificate());
-    net::CertVerifyResult verify_result;
-    verify_result.verified_cert = cert;
-    verify_result.cert_status = 0;
-    mock_cert_verifier()->AddResultForCert(cert.get(), verify_result, net::OK);
+  void SetUp() override { SafeBrowsingBlockingPageBrowserTest::SetUp(); }
+
+  content::WebContents* GetWebContents() {
+    return browser()->tab_strip_model()->GetActiveWebContents();
   }
 
-  void AddFencedFrameAndExpectInterstitial(const GURL& url) {
-    content::WebContents* contents =
-        browser()->tab_strip_model()->GetActiveWebContents();
-    content::TestFrameNavigationObserver error_page_navigation_observer(
-        contents->GetPrimaryMainFrame());
-    // The error checking that the FencedFrameTestHelper performs is not
-    // suitable for this case. The resulting error page is an interstitial shown
-    // in the frame that owns the fenced frame, not in the fenced frame itself.
-    // So we just use our own script to create the fenced frame.
-    // TODO(1257133): Once issue 1257133 is fixed, we would then be able to use
-    // FencedFrameTestHelper::CreateFencedFrame for this case as well.
-    constexpr char kAddFencedFrameScript[] = R"({
-          const fencedFrame = document.createElement('fencedframe');
-          fencedFrame.config = new FencedFrameConfig($1);
-          document.body.appendChild(fencedFrame);
-        })";
-    EXPECT_TRUE(
-        content::ExecJs(contents->GetPrimaryMainFrame(),
-                        content::JsReplace(kAddFencedFrameScript, url)));
-    error_page_navigation_observer.Wait();
-    EXPECT_FALSE(error_page_navigation_observer.last_navigation_succeeded());
-    EXPECT_EQ(net::ERR_BLOCKED_BY_CLIENT,
-              error_page_navigation_observer.last_net_error_code());
-    EXPECT_TRUE(IsShowingInterstitial(contents));
+  void RunThreatReportSentLoop() {
+    base::RunLoop threat_report_sent_loop;
+    SetReportSentCallback(threat_report_sent_loop.QuitClosure());
+    threat_report_sent_loop.Run();
   }
 
-  net::EmbeddedTestServer& https_server() { return https_server_; }
-
- private:
-  content::test::FencedFrameTestHelper fenced_frame_helper_;
-  net::EmbeddedTestServer https_server_{net::EmbeddedTestServer::TYPE_HTTPS};
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    All,
-    SafeBrowsingFencedFrameBrowserTest,
-    testing::Combine(
-        testing::Values(SB_THREAT_TYPE_URL_MALWARE,  // Threat types
-                        SB_THREAT_TYPE_URL_PHISHING,
-                        SB_THREAT_TYPE_URL_UNWANTED),
-        testing::Bool()));  // If isolate all sites for testing.
-
-IN_PROC_BROWSER_TEST_P(SafeBrowsingFencedFrameBrowserTest, UnsafeFencedFrame) {
-  const GURL initial_url = embedded_test_server()->GetURL("/title1.html");
-  const GURL fenced_frame_url =
-      https_server().GetURL("/fenced_frames/title1.html");
-  SetURLThreatType(fenced_frame_url, GetThreatType());
-
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), initial_url));
-  ASSERT_FALSE(browser()
-                   ->tab_strip_model()
-                   ->GetActiveWebContents()
-                   ->GetPrimaryMainFrame()
-                   ->IsErrorDocument());
-  AddFencedFrameAndExpectInterstitial(fenced_frame_url);
-}
-
-// This test is modeled after IframeOptInAndReportThreatDetails above.
-IN_PROC_BROWSER_TEST_P(SafeBrowsingFencedFrameBrowserTest,
-                       FencedFrameInThreatDetails) {
-  SetExtendedReportingPrefForTests(browser()->profile()->GetPrefs(), true);
-  const bool expect_threat_details =
-      SafeBrowsingBlockingPage::ShouldReportThreatDetails(GetThreatType());
-  const GURL initial_url = https_server().GetURL(kMaliciousFencedFrameOwner);
-  const GURL fenced_frame_url = https_server().GetURL(kMaliciousFencedFrame);
-  SetURLThreatType(fenced_frame_url, GetThreatType());
-
-  base::RunLoop threat_report_sent_run_loop;
-  if (expect_threat_details)
-    SetReportSentCallback(threat_report_sent_run_loop.QuitClosure());
-
-  content::WebContents* contents =
-      browser()->tab_strip_model()->GetActiveWebContents();
-  // TODO(1257133): Once issue 1257133 is fixed, and fenced frame load state
-  // is considered, we would then be able to use NavigateToURL on its own.
-  content::TestNavigationObserver error_observer(contents,
-                                                 net::ERR_BLOCKED_BY_CLIENT);
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), initial_url));
-  error_observer.Wait();
-  EXPECT_TRUE(IsShowingInterstitial(contents));
-
-  ThreatDetails* threat_details = details_factory_.get_details();
-  EXPECT_EQ(expect_threat_details, threat_details != nullptr);
-  EXPECT_TRUE(ClickAndWaitForDetach("proceed-link"));
-  AssertNoInterstitial(true);
-  EXPECT_TRUE(IsExtendedReportingEnabled(*browser()->profile()->GetPrefs()));
-  EXPECT_EQ(initial_url, contents->GetLastCommittedURL());
-
-  if (expect_threat_details) {
-    threat_report_sent_run_loop.Run();
+  void CheckCSBRRForTimestamp() {
     std::string serialized = GetReportSent();
     ClientSafeBrowsingReportRequest report;
     ASSERT_TRUE(report.ParseFromString(serialized));
-    EXPECT_TRUE(report.complete());
-
-    // Do some basic verification of report contents.
-    EXPECT_EQ(initial_url.spec(), report.page_url());
-    EXPECT_EQ(fenced_frame_url.spec(), report.url());
-    std::vector<ClientSafeBrowsingReportRequest::Resource> resources;
-    for (auto resource : report.resources()) {
-      resources.push_back(resource);
-    }
-    // Sort resources since their order is not deterministic.
-    std::sort(resources.begin(), resources.end(),
-              [](const ClientSafeBrowsingReportRequest::Resource& a,
-                 const ClientSafeBrowsingReportRequest::Resource& b) -> bool {
-                return a.url() < b.url();
-              });
-
-    // Fenced frames loaded with configs do not have the `src` attribute set, so
-    // they do not show up on the safe browsing report.
-    // TODO(https://crbug.com/1428788): Update this once config-loaded fenced
-    // frames show up on the safe browsing report.
-    ASSERT_EQ(2U, resources.size());
-    VerifyResource(report, resources[1], initial_url.spec(), initial_url.spec(),
-                   0, "");
-    VerifyResource(report, resources[0], fenced_frame_url.spec(),
-                   initial_url.spec(), 0, "");
-
-    ASSERT_EQ(2, report.dom_size());
-    // Because the order of elements is not deterministic, we just verify the
-    // relationship that there is a FENCEDFRAME element that has a DIV as its
-    // parent.
-    int fenced_frame_node_id = -1;
-    for (const HTMLElement& elem : report.dom()) {
-      if (elem.tag() == "FENCEDFRAME") {
-        fenced_frame_node_id = elem.id();
-        VerifyElement(report, elem, "FENCEDFRAME",
-                      /*expected_child_ids_size=*/0,
-                      std::vector<mojom::AttributeNameValuePtr>());
-        break;
-      }
-    }
-    EXPECT_GT(fenced_frame_node_id, -1);
-
-    // Find the parent DIV of the FENCEDFRAME.
-    for (const HTMLElement& elem : report.dom()) {
-      if (elem.id() != fenced_frame_node_id) {
-        std::vector<mojom::AttributeNameValuePtr> attributes;
-        attributes.push_back(mojom::AttributeNameValue::New("foo", "1"));
-        VerifyElement(report, elem, "DIV", /*expected_child_ids_size=*/1,
-                      attributes);
-        // Make sure this DIV has the FENCEDFRAME as a child.
-        EXPECT_EQ(fenced_frame_node_id, elem.child_ids(0));
-      }
-    }
+    // The timestamp of the warning shown should not be in the report.
+    EXPECT_FALSE(report.has_warning_shown_timestamp_msec());
   }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    WarningShownTimestampCSBRRDisabledBrowserTestWithThreatTypeAndIsolationSetting,
+    WarningShownTimestampCSBRRDisabledBrowserTest,
+    testing::Combine(
+        testing::Values(
+            SBThreatType::SB_THREAT_TYPE_URL_PHISHING,  // Threat types
+            SBThreatType::SB_THREAT_TYPE_URL_CLIENT_SIDE_PHISHING),
+        testing::Bool()));  // If isolate all sites for testing.
+
+IN_PROC_BROWSER_TEST_P(WarningShownTimestampCSBRRDisabledBrowserTest,
+                       TimestampNotInCSBRRClickedThroughBlockingPage) {
+  SetExtendedReportingPrefForTests(browser()->profile()->GetPrefs(), true);
+  content::TestNavigationObserver observer(
+      browser()->tab_strip_model()->GetActiveWebContents());
+  SetupWarningAndNavigate(browser());
+
+  // Proceed to unsafe site, sending CSBRR.
+  EXPECT_TRUE(ClickAndWaitForDetach("proceed-link"));
+
+  observer.WaitForNavigationFinished();
+  RunThreatReportSentLoop();
+  CheckCSBRRForTimestamp();
+}
+IN_PROC_BROWSER_TEST_P(WarningShownTimestampCSBRRDisabledBrowserTest,
+                       TimestampNotInFallbackCSBRRSent) {
+  SetExtendedReportingPrefForTests(browser()->profile()->GetPrefs(), true);
+  content::TestNavigationObserver observer(
+      browser()->tab_strip_model()->GetActiveWebContents());
+  SetupWarningAndNavigate(browser());
+
+  // Send CSBRR without interactions.
+  chrome::CloseTab(browser());
+
+  observer.WaitForNavigationFinished();
+  RunThreatReportSentLoop();
+  CheckCSBRRForTimestamp();
 }
 
 }  // namespace safe_browsing

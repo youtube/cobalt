@@ -1,8 +1,13 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assert, assertInstanceof, assertNotReached} from '../assert.js';
+import {
+  assert,
+  assertExists,
+  assertInstanceof,
+  assertNotReached,
+} from '../assert.js';
 import * as dom from '../dom.js';
 import {Point} from '../geometry.js';
 import {I18nString} from '../i18n_string.js';
@@ -16,13 +21,24 @@ import {
 import {Filenamer} from '../models/file_namer.js';
 import {getI18nMessage} from '../models/load_time_data.js';
 import {ResultSaver} from '../models/result_saver.js';
-import {ChromeHelper} from '../mojo/chrome_helper.js';
-import {ToteMetricFormat} from '../mojo/type.js';
+import {
+  ChromeHelper,
+  createBigBufferFromBlob,
+  createNumArrayFromBlob,
+  handleBigBufferError,
+  shouldUseBigBuffer,
+} from '../mojo/chrome_helper.js';
+import {
+  BigBuffer,
+  PdfBuilderRemote,
+} from '../mojo/type.js';
 import * as nav from '../nav.js';
+import {PerfLogger} from '../perf.js';
 import {speakMessage} from '../spoken_msg.js';
 import {show as showToast} from '../toast.js';
 import {
   MimeType,
+  PerfEvent,
   Rotation,
   ViewName,
 } from '../type.js';
@@ -47,6 +63,7 @@ interface PageInternal extends Page {
   isCornersUpdated: boolean;
   isRotationUpdated: boolean;
   croppedBlob: Blob;
+  isDirty: boolean;
 }
 
 export enum Mode {
@@ -57,6 +74,25 @@ export enum Mode {
 // The class to set on page element when the page is selected.
 const ACTIVE_PAGE_CLASS = 'active';
 const DELETE_PAGE_BUTTON_SELECTOR = '.delete';
+
+// The initialized `DocumentReview` instance.
+let instance: DocumentReview|null = null;
+
+/**
+ * Initialize the `DocumentReview` instance. It should only be initialize once.
+ */
+export function initializeInstance(resultSaver: ResultSaver): DocumentReview {
+  assert(instance === null);
+  instance = new DocumentReview(resultSaver);
+  return instance;
+}
+
+/**
+ * Get the `DocumentReview` instance for testing purpose.
+ */
+export function getInstanceForTest(): DocumentReview {
+  return assertExists(instance);
+}
 
 /**
  * View controller for reviewing document scanning.
@@ -111,9 +147,18 @@ export class DocumentReview extends View {
    */
   private fixCount = 0;
 
+  /**
+   * The processing time of last saved file.
+   */
+  private lastFileProcessingTime: number|null = null;
+
+  /**
+   * The interface to build PDFs.
+   */
+  private readonly pdfBuilder = new PdfBuilder();
+
   constructor(protected readonly resultSaver: ResultSaver) {
     super(ViewName.DOCUMENT_REVIEW, {
-      dismissByEsc: true,
       defaultFocusSelector: '.show .primary',
     });
     this.pagesElement =
@@ -134,14 +179,13 @@ export class DocumentReview extends View {
         return;
       }
       const index = Array.from(this.pagesElement.children).indexOf(pageElement);
-      await this.waitForUpdatingPage();
       const clickOnDeleteButton =
           target.closest(DELETE_PAGE_BUTTON_SELECTOR) !== null;
       if (clickOnDeleteButton) {
         await this.onDeletePage(index);
         return;
       }
-      this.selectPage(index);
+      await this.onSelectPage(index);
     });
 
     const pagesElementMutationObserver = new MutationObserver((mutations) => {
@@ -156,10 +200,16 @@ export class DocumentReview extends View {
 
     const fixMode = new DocumentFixMode({
       target: this.previewElement,
-      onDone: () => {
-        this.waitForUpdatingPage(() => this.showMode(Mode.PREVIEW));
+      onDone: async () => {
+        await this.waitForUpdatingPage(() => this.showMode(Mode.PREVIEW));
+        for (const [index, page] of this.pages.entries()) {
+          if (page.isDirty) {
+            void this.pdfBuilder.addPage(page.croppedBlob, index);
+            page.isDirty = false;
+          }
+        }
       },
-      onUpdatePage: ({corners, rotation}) => {
+      onUpdatePage: async ({corners, rotation}) => {
         const page = this.pages[this.selectedIndex];
         const isCornersUpdated = page.isCornersUpdated ||
             page.corners.some(
@@ -167,7 +217,7 @@ export class DocumentReview extends View {
                     oldCorner.y !== corners[i].y);
         const isRotationUpdated =
             page.isRotationUpdated || page.rotation !== rotation;
-        this.updatePage(this.selectedIndex, {
+        await this.updatePage(this.selectedIndex, {
           ...page,
           corners,
           rotation,
@@ -190,32 +240,41 @@ export class DocumentReview extends View {
         this.clearPages();
         this.close();
       },
-      onFix: () => {
+      onFix: async () => {
         sendDocScanEvent(DocScanActionType.FIX);
-        this.showMode(Mode.FIX);
+        await this.showMode(Mode.FIX);
       },
-      onShare: () => {
+      onShare: async () => {
         this.sendResultEvent(DocScanResultActionType.SHARE);
-        this.share(
+        await this.share(
             this.pages.length > 1 ? MimeType.PDF : MimeType.JPEG,
         );
       },
-      onSave: (mimeType: MimeType.JPEG|MimeType.PDF) => {
+      onSave: async (mimeType: MimeType.JPEG|MimeType.PDF) => {
+        const perfLogger = PerfLogger.getInstance();
+        if (mimeType === MimeType.PDF) {
+          perfLogger.start(PerfEvent.DOCUMENT_PDF_SAVING);
+        }
         this.sendResultEvent(
             mimeType === MimeType.JPEG ? DocScanResultActionType.SAVE_AS_PHOTO :
                                          DocScanResultActionType.SAVE_AS_PDF);
         nav.open(ViewName.FLASH);
-        this.save(mimeType)
-            .then(() => {
-              this.clearPages();
-              this.close();
-            })
-            .catch(() => {
-              showToast(I18nString.ERROR_MSG_SAVE_FILE_FAILED);
-            })
-            .finally(() => {
-              nav.close(ViewName.FLASH);
-            });
+        let hasError = false;
+        const pageCount = this.pages.length;
+        try {
+          await this.save(mimeType);
+          this.clearPages();
+          this.close();
+        } catch (e) {
+          hasError = true;
+          showToast(I18nString.ERROR_MSG_SAVE_FILE_FAILED);
+        } finally {
+          nav.close(ViewName.FLASH);
+          if (mimeType === MimeType.PDF) {
+            perfLogger.stop(
+                PerfEvent.DOCUMENT_PDF_SAVING, {hasError, pageCount});
+          }
+        }
       },
     });
     this.modes = {
@@ -235,9 +294,14 @@ export class DocumentReview extends View {
       isCornersUpdated: false,
       isRotationUpdated: false,
       croppedBlob,
+      isDirty: false,
     };
     await this.addPageView(croppedBlob);
     this.pages.push(pageInternal);
+    if (this.pages.length === 1) {
+      this.pdfBuilder.create();
+    }
+    void this.pdfBuilder.addPage(croppedBlob, this.pages.length - 1);
   }
 
   private async addPageView(blob: Blob): Promise<void> {
@@ -251,16 +315,20 @@ export class DocumentReview extends View {
    * is JPEG, only saves the first page.
    */
   private async save(mimeType: MimeType.JPEG|MimeType.PDF): Promise<void> {
+    const startTime = performance.now();
     const blobs = this.pages.map((page) => page.croppedBlob);
     const name = (new Filenamer()).newDocumentName(mimeType);
     if (mimeType === MimeType.JPEG) {
-      await this.resultSaver.savePhoto(
-          blobs[0], ToteMetricFormat.SCAN_JPG, name, null);
+      await this.resultSaver.savePhoto(blobs[0], name, null);
     } else {
-      const pdfBlob = await ChromeHelper.getInstance().convertToPdf(blobs);
-      await this.resultSaver.savePhoto(
-          pdfBlob, ToteMetricFormat.SCAN_PDF, name, null);
+      const blob = await this.pdfBuilder.save();
+      await this.resultSaver.savePhoto(blob, name, null);
     }
+    this.lastFileProcessingTime = performance.now() - startTime;
+  }
+
+  getLastFileProcessingTime(): number {
+    return assertExists(this.lastFileProcessingTime);
   }
 
   /**
@@ -270,9 +338,8 @@ export class DocumentReview extends View {
   private async share(mimeType: MimeType.JPEG|MimeType.PDF): Promise<void> {
     const blobs = this.pages.map((page) => page.croppedBlob);
     const name = (new Filenamer()).newDocumentName(mimeType);
-    const blob = mimeType === MimeType.JPEG ?
-        blobs[0] :
-        await ChromeHelper.getInstance().convertToPdf(blobs);
+    const blob =
+        mimeType === MimeType.JPEG ? blobs[0] : await this.pdfBuilder.save();
     const file = new File([blob], name, {type: mimeType});
     await share(file);
   }
@@ -324,7 +391,7 @@ export class DocumentReview extends View {
       case Mode.PREVIEW: {
         const {src} = this.getPageImageElement(
             this.pagesElement.children[this.selectedIndex]);
-        this.modes[mode].update({src, pageIndex: this.selectedIndex});
+        await this.modes[mode].update({src, pageIndex: this.selectedIndex});
         break;
       }
       default:
@@ -346,7 +413,7 @@ export class DocumentReview extends View {
     if (this.updatingPage !== null) {
       return;
     }
-    while (this.pendingUpdatePayload) {
+    while (this.pendingUpdatePayload !== null) {
       this.updatingPage = this.updatePageInternal(...this.pendingUpdatePayload);
       this.pendingUpdatePayload = null;
       await this.updatingPage;
@@ -359,7 +426,7 @@ export class DocumentReview extends View {
    */
   private async waitForUpdatingPage<T>(onUpdated?: () => Promise<T>):
       Promise<T|undefined> {
-    if (!this.updatingPage) {
+    if (this.updatingPage === null) {
       return onUpdated?.();
     }
     nav.open(ViewName.FLASH);
@@ -378,7 +445,7 @@ export class DocumentReview extends View {
     const {blob: croppedBlob} = await this.crop(page);
     const pageElement = this.pagesElement.children[index];
     await this.updatePageView(pageElement, croppedBlob);
-    this.pages[index] = {...page, croppedBlob};
+    this.pages[index] = {...page, croppedBlob, isDirty: true};
   }
 
   private async updatePageView(pageElement: ParentNode, blob: Blob):
@@ -391,6 +458,7 @@ export class DocumentReview extends View {
    * The handler called when users delete a page.
    */
   private async onDeletePage(index: number): Promise<void> {
+    await this.waitForUpdatingPage();
     sendDocScanEvent(DocScanActionType.DELETE_PAGE);
     await this.deletePage(index);
     speakMessage(getI18nMessage(I18nString.DELETE_PAGE_MESSAGE, index + 1));
@@ -407,6 +475,7 @@ export class DocumentReview extends View {
   private async deletePage(index: number): Promise<void> {
     this.deletePageView(index);
     this.pages.splice(index, 1);
+    this.pdfBuilder.deletePage(index);
     await this.selectPage(
         this.selectedIndex === this.pages.length ? this.pages.length - 1 :
                                                    this.selectedIndex);
@@ -419,18 +488,19 @@ export class DocumentReview extends View {
     pageElement.remove();
   }
 
-  private async selectPage(index: number): Promise<void> {
+  // TODO(pihsun): Revisit which operations of document scanning should be on
+  // the same queue.
+  private async selectPage(index: number) {
     this.selectedIndex = index;
-    await this.updateModeView(this.mode);
     this.selectPageView(index);
+    await this.updateModeView(this.mode);
   }
 
   /**
    * Changes active page and updates related elements.
    */
   private selectPageView(index: number): void {
-    for (let i = 0; i < this.pagesElement.children.length; i++) {
-      const pageElement = this.pagesElement.children[i];
+    for (const pageElement of this.pagesElement.children) {
       pageElement.classList.remove(ACTIVE_PAGE_CLASS);
       pageElement.setAttribute('aria-selected', 'false');
       pageElement.setAttribute('tabindex', '-1');
@@ -449,6 +519,7 @@ export class DocumentReview extends View {
    */
   private clearPages(): void {
     this.pages = [];
+    this.pdfBuilder.clear();
     this.clearPagesView();
   }
 
@@ -463,7 +534,7 @@ export class DocumentReview extends View {
   private async crop(page: Page): Promise<Page> {
     const {blob, corners, rotation} = page;
     const newBlob = await ChromeHelper.getInstance().convertToDocument(
-        blob, corners, rotation, MimeType.JPEG);
+        blob, corners, rotation);
     return {...page, blob: newBlob};
   }
 
@@ -472,17 +543,15 @@ export class DocumentReview extends View {
   }
 
   protected override leaving(): boolean {
-    this.waitForUpdatingPage();
+    // TODO(pihsun): Should have a proper way to "pause" leaving.
+    void this.waitForUpdatingPage();
     if (this.pages.length === 0) {
       this.fixCount = 0;
     }
     return true;
   }
 
-  override onKeyPressed(key: KeyboardShortcut): boolean {
-    if (super.onKeyPressed(key)) {
-      return true;
-    }
+  override handlingKey(key: KeyboardShortcut): boolean {
     if (this.pages.length === 1 ||
         !this.pagesElement.contains(document.activeElement)) {
       return false;
@@ -490,16 +559,22 @@ export class DocumentReview extends View {
     if (key === 'ArrowUp') {
       const index = this.selectedIndex === 0 ? this.pages.length - 1 :
                                                this.selectedIndex - 1;
-      this.selectPage(index);
+      // TODO(b/301360817): Revisit which operations should be on the same
+      // queue.
+      void this.onSelectPage(index);
       return true;
     } else if (key === 'ArrowDown') {
       const index = this.selectedIndex === this.pages.length - 1 ?
           0 :
           this.selectedIndex + 1;
-      this.selectPage(index);
+      // TODO(b/301360817): Revisit which operations should be on the same
+      // queue.
+      void this.onSelectPage(index);
       return true;
     } else if (key === 'Delete') {
-      this.onDeletePage(this.selectedIndex);
+      // TODO(b/301360817): Revisit which operations should be on the same
+      // queue.
+      void this.onDeletePage(this.selectedIndex);
       return true;
     }
     return false;
@@ -540,5 +615,106 @@ export class DocumentReview extends View {
       deleteButton.setAttribute(
           'aria-label', getI18nMessage(I18nString.DELETE_PAGE_BUTTON, i + 1));
     }
+  }
+
+  /**
+   * The handler called when users select a page.
+   */
+  private async onSelectPage(index: number) {
+    await this.waitForUpdatingPage();
+    await this.selectPage(index);
+  }
+}
+
+/**
+ * PdfBuilder allows users to build a PDF progressively. Users should start with
+ * a `create()` call and release the PDF with a `clear()` call.
+ */
+class PdfBuilder {
+  private builder: PdfBuilderRemote|null = null;
+
+  /**
+   * Creates a PDF. This must be called before any other calls.
+   */
+  create(): void {
+    this.builder = ChromeHelper.getInstance().createPdfBuilder();
+  }
+
+  /**
+   * Adds a page with the image at `index`. Replace if the page already exists.
+   */
+  async addPage(jpg: Blob, index: number): Promise<void> {
+    assert(this.builder !== null);
+    try {
+      if (shouldUseBigBuffer()) {
+        const bigBuffer = await createBigBufferFromBlob(jpg);
+        this.builder.addPage(bigBuffer, index);
+        return;
+      }
+    } catch (e) {
+      handleBigBufferError(e);
+    }
+    const numArray = await createNumArrayFromBlob(jpg);
+    this.builder.addPageInline(numArray, index);
+  }
+
+  /**
+   * Deletes the page at `index`.
+   */
+  deletePage(index: number): void {
+    assert(this.builder !== null);
+    this.builder.deletePage(index);
+  }
+
+  /**
+   * Returns the current PDF.
+   */
+  async save(): Promise<Blob> {
+    assert(this.builder !== null);
+    try {
+      if (shouldUseBigBuffer()) {
+        const {pdf} = await this.builder.save();
+        return this.createPdfBlob(pdf);
+      }
+    } catch (e) {
+      handleBigBufferError(e);
+    }
+    const {pdf} = await this.builder.saveInline();
+    return new Blob([new Uint8Array(pdf)], {type: MimeType.PDF});
+  }
+
+  /**
+   * Releases the resource. Call it when the PDF is no longer needed.
+   */
+  clear(): void {
+    assert(this.builder !== null);
+    this.builder.$.close();
+    this.builder = null;
+  }
+
+  /**
+   * Create a PDF Blob from `bigBuffer`.
+   *
+   * This function handles the different ways the data can be stored in the
+   * `bigBuffer` object and returns a Blob containing the PDF data. Only one of
+   * the three scenarios will happen:
+   *
+   * - `invalidBuffer` is true, no data is sent.
+   * - `bytes` is defined, creates a Blob from the provided byte array.
+   * - `sharedMemory` is defined, maps the shared memory region to a buffer and
+   *   creates a Blob from the mapped data.
+   */
+  private createPdfBlob(bigBuffer: BigBuffer): Blob {
+    assert(bigBuffer.invalidBuffer !== true);
+    let bytes: Uint8Array|null = null;
+    if (bigBuffer.bytes !== undefined) {
+      bytes = new Uint8Array(bigBuffer.bytes);
+    } else {
+      const {bufferHandle, size} = assertExists(bigBuffer.sharedMemory);
+      const {result, buffer} = bufferHandle.mapBuffer(0, size);
+      assert(result === Mojo.RESULT_OK);
+      bytes = new Uint8Array(buffer);
+    }
+    return new Blob([assertExists(bytes)], {type: MimeType.PDF});
   }
 }

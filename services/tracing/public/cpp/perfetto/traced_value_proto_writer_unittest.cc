@@ -2,12 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "services/tracing/public/cpp/perfetto/traced_value_proto_writer.h"
 
 #include <memory>
 #include <string>
 
 #include "base/memory/raw_ptr.h"
+#include "base/notreached.h"
+#include "base/trace_event/perfetto_proto_appender.h"
 #include "base/trace_event/traced_value.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/perfetto/include/perfetto/protozero/scattered_heap_buffer.h"
@@ -55,15 +62,9 @@ class ProtoInputStream : public google::protobuf::io::ZeroCopyInputStream {
     has_backed_up_ = true;
   }
 
-  bool Skip(int count) override {
-    NOTREACHED();
-    return false;
-  }
+  bool Skip(int count) override { NOTREACHED(); }
 
-  int64_t ByteCount() const override {
-    NOTREACHED();
-    return 0;
-  }
+  int64_t ByteCount() const override { NOTREACHED(); }
 
  private:
   raw_ptr<const protozero::ScatteredHeapBuffer> buffer_;
@@ -86,7 +87,6 @@ const NestedValue* FindDictEntry(const NestedValue* dict, const char* name) {
   }
 
   NOTREACHED();
-  return nullptr;
 }
 
 bool IsValue(const NestedValue* proto_value, bool value) {
@@ -109,7 +109,7 @@ bool IsValue(const NestedValue* proto_value, const char* value) {
 
 NestedValue GetProtoFromTracedValue(TracedValue* traced_value) {
   protozero::HeapBuffered<perfetto::protos::pbzero::DebugAnnotation> proto;
-  PerfettoProtoAppender proto_appender(proto.get());
+  base::trace_event::PerfettoProtoAppender proto_appender(proto.get());
   EXPECT_TRUE(traced_value->AppendToProto(&proto_appender));
 
   DebugAnnotation full_proto;

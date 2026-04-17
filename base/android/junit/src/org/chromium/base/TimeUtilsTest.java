@@ -4,7 +4,7 @@
 
 package org.chromium.base;
 
-import static junit.framework.Assert.assertEquals;
+import static org.junit.Assert.assertEquals;
 
 import androidx.test.filters.SmallTest;
 
@@ -19,14 +19,11 @@ import org.chromium.base.TimeUtils.ElapsedRealtimeNanosTimer;
 import org.chromium.base.TimeUtils.UptimeMillisTimer;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 
-/**
- * Unit tests for {@link TimeUtils}.
- */
+/** Unit tests for {@link TimeUtils}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class TimeUtilsTest {
-    @Rule
-    public FakeTimeTestRule mFakeTime = new FakeTimeTestRule();
+    @Rule public FakeTimeTestRule mFakeTime = new FakeTimeTestRule();
 
     @Test
     @SmallTest

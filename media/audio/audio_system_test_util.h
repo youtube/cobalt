@@ -5,6 +5,8 @@
 #ifndef MEDIA_AUDIO_AUDIO_SYSTEM_TEST_UTIL_H_
 #define MEDIA_AUDIO_AUDIO_SYSTEM_TEST_UTIL_H_
 
+#include <optional>
+
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/run_loop.h"
@@ -14,13 +16,12 @@
 #include "media/audio/mock_audio_manager.h"
 #include "media/base/audio_parameters.h"
 #include "testing/gmock/include/gmock/gmock.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
 
 // For tests only. Creates AudioSystem callbacks to be passed to AudioSystem
 // methods. When AudioSystem calls such a callback, it verifies treading
-// expectations and checks recieved parameters against expected values passed
+// expectations and checks received parameters against expected values passed
 // during its creation. After that it calls |on_cb_received| closure.
 // Note AudioSystemCallbackExpectations object must outlive all the callbacks
 // it produced, since they contain raw pointers to it.
@@ -36,7 +37,7 @@ class AudioSystemCallbackExpectations {
   AudioSystem::OnAudioParamsCallback GetAudioParamsCallback(
       const base::Location& location,
       base::OnceClosure on_cb_received,
-      const absl::optional<AudioParameters>& expected_params);
+      const std::optional<AudioParameters>& expected_params);
 
   AudioSystem::OnBoolCallback GetBoolCallback(const base::Location& location,
                                               base::OnceClosure on_cb_received,
@@ -50,20 +51,20 @@ class AudioSystemCallbackExpectations {
   AudioSystem::OnInputDeviceInfoCallback GetInputDeviceInfoCallback(
       const base::Location& location,
       base::OnceClosure on_cb_received,
-      const absl::optional<AudioParameters>& expected_input,
-      const absl::optional<std::string>& expected_associated_device_id);
+      const std::optional<AudioParameters>& expected_input,
+      const std::optional<std::string>& expected_associated_device_id);
 
   AudioSystem::OnDeviceIdCallback GetDeviceIdCallback(
       const base::Location& location,
       base::OnceClosure on_cb_received,
-      const absl::optional<std::string>& expected_id);
+      const std::optional<std::string>& expected_id);
 
  private:
   // Methods to verify correctness of received data.
   void OnAudioParams(const std::string& from_here,
                      base::OnceClosure on_cb_received,
-                     const absl::optional<AudioParameters>& expected,
-                     const absl::optional<AudioParameters>& received);
+                     const std::optional<AudioParameters>& expected,
+                     const std::optional<AudioParameters>& received);
 
   void OnBool(const std::string& from_here,
               base::OnceClosure on_cb_received,
@@ -79,15 +80,15 @@ class AudioSystemCallbackExpectations {
   void OnInputDeviceInfo(
       const std::string& from_here,
       base::OnceClosure on_cb_received,
-      const absl::optional<AudioParameters>& expected_input,
-      const absl::optional<std::string>& expected_associated_device_id,
-      const absl::optional<AudioParameters>& input,
-      const absl::optional<std::string>& associated_device_id);
+      const std::optional<AudioParameters>& expected_input,
+      const std::optional<std::string>& expected_associated_device_id,
+      const std::optional<AudioParameters>& input,
+      const std::optional<std::string>& associated_device_id);
 
   void OnDeviceId(const std::string& from_here,
                   base::OnceClosure on_cb_received,
-                  const absl::optional<std::string>& expected_id,
-                  const absl::optional<std::string>& result_id);
+                  const std::optional<std::string>& expected_id,
+                  const std::optional<std::string>& result_id);
 
   THREAD_CHECKER(thread_checker_);
 };
@@ -165,7 +166,7 @@ TYPED_TEST_P(AudioSystemTestTemplate, GetInputStreamParametersNoDevice) {
       AudioDeviceDescription::kDefaultDeviceId,
       this->expectations_.GetAudioParamsCallback(
           FROM_HERE, wait_loop.QuitClosure(),
-          absl::optional<AudioParameters>()));
+          std::optional<AudioParameters>()));
   wait_loop.Run();
 }
 
@@ -178,15 +179,6 @@ TYPED_TEST_P(AudioSystemTestTemplate, GetOutputStreamParameters) {
   wait_loop.Run();
 }
 
-TYPED_TEST_P(AudioSystemTestTemplate, GetDefaultOutputStreamParameters) {
-  base::RunLoop wait_loop;
-  this->audio_system()->GetOutputStreamParameters(
-      AudioDeviceDescription::kDefaultDeviceId,
-      this->expectations_.GetAudioParamsCallback(
-          FROM_HERE, wait_loop.QuitClosure(), this->default_output_params_));
-  wait_loop.Run();
-}
-
 TYPED_TEST_P(AudioSystemTestTemplate,
              GetOutputStreamParametersForDefaultDeviceNoDevices) {
   this->audio_manager()->SetHasOutputDevices(false);
@@ -195,7 +187,7 @@ TYPED_TEST_P(AudioSystemTestTemplate,
       AudioDeviceDescription::kDefaultDeviceId,
       this->expectations_.GetAudioParamsCallback(
           FROM_HERE, wait_loop.QuitClosure(),
-          absl::optional<AudioParameters>()));
+          std::optional<AudioParameters>()));
   wait_loop.Run();
 }
 
@@ -206,7 +198,7 @@ TYPED_TEST_P(AudioSystemTestTemplate,
   this->audio_system()->GetOutputStreamParameters(
       "non-default-device-id", this->expectations_.GetAudioParamsCallback(
                                    FROM_HERE, wait_loop.QuitClosure(),
-                                   absl::optional<AudioParameters>()));
+                                   std::optional<AudioParameters>()));
   wait_loop.Run();
 }
 
@@ -326,7 +318,7 @@ TYPED_TEST_P(AudioSystemTestTemplate, GetInputDeviceInfoNoAssociation) {
       "non-default-device-id",
       this->expectations_.GetInputDeviceInfoCallback(
           FROM_HERE, wait_loop.QuitClosure(), this->input_params_,
-          absl::optional<std::string>()));
+          std::optional<std::string>()));
   wait_loop.Run();
 }
 
@@ -350,7 +342,6 @@ REGISTER_TYPED_TEST_SUITE_P(
     GetInputStreamParametersNormal,
     GetInputStreamParametersNoDevice,
     GetOutputStreamParameters,
-    GetDefaultOutputStreamParameters,
     GetOutputStreamParametersForDefaultDeviceNoDevices,
     GetOutputStreamParametersForNonDefaultDeviceNoDevices,
     HasInputDevices,

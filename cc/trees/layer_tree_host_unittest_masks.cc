@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "cc/trees/layer_tree_host.h"
-
 #include "base/time/time.h"
 #include "cc/test/fake_picture_layer.h"
 #include "cc/test/fake_recording_source.h"
 #include "cc/test/layer_tree_test.h"
 #include "cc/test/property_tree_test_utils.h"
+#include "cc/trees/layer_tree_host.h"
 #include "cc/trees/layer_tree_impl.h"
+#include "components/viz/common/quads/compositor_frame.h"
 #include "components/viz/common/quads/compositor_render_pass_draw_quad.h"
 
 namespace cc {
@@ -30,19 +30,8 @@ class LayerTreeTestMaskLayerForSurfaceWithContentRectNotAtOrigin
     scoped_refptr<FakePictureLayer> content_layer =
         FakePictureLayer::Create(&client_);
 
-    std::unique_ptr<RecordingSource> recording_source =
-        FakeRecordingSource::CreateFilledRecordingSource(gfx::Size(100, 100));
-    PaintFlags paint1, paint2;
-    static_cast<FakeRecordingSource*>(recording_source.get())
-        ->add_draw_rect_with_flags(gfx::Rect(0, 0, 100, 90), paint1);
-    static_cast<FakeRecordingSource*>(recording_source.get())
-        ->add_draw_rect_with_flags(gfx::Rect(0, 90, 100, 10), paint2);
-    client_.set_fill_with_nonsolid_color(true);
-    static_cast<FakeRecordingSource*>(recording_source.get())->Rerecord();
-
-    scoped_refptr<FakePictureLayer> mask_layer =
-        FakePictureLayer::CreateWithRecordingSource(
-            &client_, std::move(recording_source));
+    mask_client_.set_fill_with_nonsolid_color(true);
+    auto mask_layer = FakePictureLayer::Create(&mask_client_);
     content_layer->SetMaskLayer(mask_layer);
 
     gfx::Size layer_size(100, 100);
@@ -50,6 +39,7 @@ class LayerTreeTestMaskLayerForSurfaceWithContentRectNotAtOrigin
 
     gfx::Size mask_size(100, 100);
     mask_layer->SetBounds(mask_size);
+    mask_client_.set_bounds(mask_size);
     mask_layer_id_ = mask_layer->id();
 
     scoped_refptr<Layer> clip_layer = Layer::Create();
@@ -73,12 +63,10 @@ class LayerTreeTestMaskLayerForSurfaceWithContentRectNotAtOrigin
 
   void BeginTest() override { PostSetNeedsCommitToMainThread(); }
 
-  DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* host_impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
-                                   DrawResult draw_result) override {
-    EXPECT_EQ(3u, frame_data->render_passes.size());
-    viz::CompositorRenderPass* root_pass =
-        frame_data->render_passes.back().get();
+  void DisplayReceivedCompositorFrameOnThread(
+      const viz::CompositorFrame& frame) override {
+    EXPECT_EQ(3u, frame.render_pass_list.size());
+    viz::CompositorRenderPass* root_pass = frame.render_pass_list.back().get();
     EXPECT_EQ(2u, root_pass->quad_list.size());
 
     // There's a solid color quad under everything.
@@ -97,15 +85,19 @@ class LayerTreeTestMaskLayerForSurfaceWithContentRectNotAtOrigin
 
     // We use kDstIn blend mode instead of the mask feature of RenderPass.
     EXPECT_EQ(gfx::RectF(), render_pass_quad->mask_uv_rect);
-    viz::CompositorRenderPass* mask_pass = frame_data->render_passes[1].get();
+    viz::CompositorRenderPass* mask_pass = frame.render_pass_list[1].get();
     EXPECT_EQ(SkBlendMode::kDstIn,
               mask_pass->quad_list.front()->shared_quad_state->blend_mode);
     EndTest();
-    return draw_result;
+    ++display_count_;
   }
+
+  void AfterTest() override { EXPECT_EQ(1, display_count_); }
 
   int mask_layer_id_;
   FakeContentLayerClient client_;
+  FakeContentLayerClient mask_client_;
+  int display_count_ = 0;
 };
 
 SINGLE_AND_MULTI_THREAD_TEST_F(
@@ -135,23 +127,13 @@ class LayerTreeTestMaskLayerForSurfaceWithContentRectNotAtOriginWithLayerList
     SetScrollOffset(scroll, gfx::PointF(50, 50));
 
     client_.set_bounds(root->bounds());
+    client_.set_fill_with_nonsolid_color(true);
     auto content_layer = FakePictureLayer::Create(&client_);
     content_layer->SetBounds(layer_size);
     CopyProperties(scroll, content_layer.get());
     root->AddChild(content_layer);
 
-    std::unique_ptr<RecordingSource> recording_source =
-        FakeRecordingSource::CreateFilledRecordingSource(gfx::Size(100, 100));
-    PaintFlags paint1, paint2;
-    static_cast<FakeRecordingSource*>(recording_source.get())
-        ->add_draw_rect_with_flags(gfx::Rect(0, 0, 100, 90), paint1);
-    static_cast<FakeRecordingSource*>(recording_source.get())
-        ->add_draw_rect_with_flags(gfx::Rect(0, 90, 100, 10), paint2);
-    client_.set_fill_with_nonsolid_color(true);
-    static_cast<FakeRecordingSource*>(recording_source.get())->Rerecord();
-
-    auto mask_layer = FakePictureLayer::CreateWithRecordingSource(
-        &client_, std::move(recording_source));
+    auto mask_layer = FakePictureLayer::Create(&client_);
     SetupMaskProperties(content_layer.get(), mask_layer.get());
     root->AddChild(mask_layer);
 
@@ -160,11 +142,10 @@ class LayerTreeTestMaskLayerForSurfaceWithContentRectNotAtOriginWithLayerList
 
   void BeginTest() override { PostSetNeedsCommitToMainThread(); }
 
-  DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* host_impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
-                                   DrawResult draw_result) override {
-    EXPECT_EQ(1u, frame_data->render_passes.size());
-    viz::CompositorRenderPass* pass = frame_data->render_passes.back().get();
+  void DisplayReceivedCompositorFrameOnThread(
+      const viz::CompositorFrame& frame) override {
+    EXPECT_EQ(1u, frame.render_pass_list.size());
+    viz::CompositorRenderPass* pass = frame.render_pass_list.back().get();
     EXPECT_EQ(3u, pass->quad_list.size());
 
     // There's a solid color quad under everything.
@@ -183,11 +164,14 @@ class LayerTreeTestMaskLayerForSurfaceWithContentRectNotAtOriginWithLayerList
     // We use kDstIn blend mode for mask.
     EXPECT_EQ(SkBlendMode::kDstIn, mask_quad->shared_quad_state->blend_mode);
     EndTest();
-    return draw_result;
+    ++display_count_;
   }
+
+  void AfterTest() override { EXPECT_EQ(1, display_count_); }
 
   int mask_layer_id_;
   FakeContentLayerClient client_;
+  int display_count_ = 0;
 };
 
 SINGLE_AND_MULTI_THREAD_TEST_F(
@@ -213,19 +197,8 @@ class LayerTreeTestMaskLayerForSurfaceWithClippedLayer : public LayerTreeTest {
         FakePictureLayer::Create(&client_);
     content_layer->AddChild(content_child_layer);
 
-    std::unique_ptr<RecordingSource> recording_source =
-        FakeRecordingSource::CreateFilledRecordingSource(gfx::Size(50, 50));
-    PaintFlags paint1, paint2;
-    static_cast<FakeRecordingSource*>(recording_source.get())
-        ->add_draw_rect_with_flags(gfx::Rect(0, 0, 50, 40), paint1);
-    static_cast<FakeRecordingSource*>(recording_source.get())
-        ->add_draw_rect_with_flags(gfx::Rect(0, 40, 50, 10), paint2);
-    client_.set_fill_with_nonsolid_color(true);
-    static_cast<FakeRecordingSource*>(recording_source.get())->Rerecord();
-
-    scoped_refptr<FakePictureLayer> mask_layer =
-        FakePictureLayer::CreateWithRecordingSource(
-            &client_, std::move(recording_source));
+    mask_client_.set_fill_with_nonsolid_color(true);
+    auto mask_layer = FakePictureLayer::Create(&mask_client_);
     content_layer->SetMaskLayer(mask_layer);
 
     gfx::Size root_size(100, 100);
@@ -248,6 +221,7 @@ class LayerTreeTestMaskLayerForSurfaceWithClippedLayer : public LayerTreeTest {
 
     gfx::Size mask_size(50, 50);
     mask_layer->SetBounds(mask_size);
+    mask_client_.set_bounds(mask_size);
     mask_layer_id_ = mask_layer->id();
 
     layer_tree_host()->SetRootLayer(root);
@@ -257,12 +231,10 @@ class LayerTreeTestMaskLayerForSurfaceWithClippedLayer : public LayerTreeTest {
 
   void BeginTest() override { PostSetNeedsCommitToMainThread(); }
 
-  DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* host_impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
-                                   DrawResult draw_result) override {
-    EXPECT_EQ(3u, frame_data->render_passes.size());
-    viz::CompositorRenderPass* root_pass =
-        frame_data->render_passes.back().get();
+  void DisplayReceivedCompositorFrameOnThread(
+      const viz::CompositorFrame& frame) override {
+    EXPECT_EQ(3u, frame.render_pass_list.size());
+    viz::CompositorRenderPass* root_pass = frame.render_pass_list.back().get();
     EXPECT_EQ(2u, root_pass->quad_list.size());
 
     // There's a solid color quad under everything.
@@ -283,15 +255,19 @@ class LayerTreeTestMaskLayerForSurfaceWithClippedLayer : public LayerTreeTest {
 
     // We use kDstIn blend mode instead of the mask feature of RenderPass.
     EXPECT_EQ(gfx::RectF(), render_pass_quad->mask_uv_rect);
-    viz::CompositorRenderPass* mask_pass = frame_data->render_passes[1].get();
+    viz::CompositorRenderPass* mask_pass = frame.render_pass_list[1].get();
     EXPECT_EQ(SkBlendMode::kDstIn,
               mask_pass->quad_list.front()->shared_quad_state->blend_mode);
     EndTest();
-    return draw_result;
+    ++display_count_;
   }
+
+  void AfterTest() override { EXPECT_EQ(1, display_count_); }
 
   int mask_layer_id_;
   FakeContentLayerClient client_;
+  FakeContentLayerClient mask_client_;
+  int display_count_ = 0;
 };
 
 SINGLE_AND_MULTI_THREAD_TEST_F(
@@ -318,19 +294,8 @@ class LayerTreeTestMaskLayerForSurfaceWithDifferentScale
         FakePictureLayer::Create(&client_);
     content_layer->AddChild(content_child_layer);
 
-    std::unique_ptr<RecordingSource> recording_source =
-        FakeRecordingSource::CreateFilledRecordingSource(gfx::Size(50, 50));
-    PaintFlags paint1, paint2;
-    static_cast<FakeRecordingSource*>(recording_source.get())
-        ->add_draw_rect_with_flags(gfx::Rect(0, 0, 50, 40), paint1);
-    static_cast<FakeRecordingSource*>(recording_source.get())
-        ->add_draw_rect_with_flags(gfx::Rect(0, 40, 50, 10), paint2);
-    client_.set_fill_with_nonsolid_color(true);
-    static_cast<FakeRecordingSource*>(recording_source.get())->Rerecord();
-
-    scoped_refptr<FakePictureLayer> mask_layer =
-        FakePictureLayer::CreateWithRecordingSource(
-            &client_, std::move(recording_source));
+    mask_client_.set_fill_with_nonsolid_color(true);
+    auto mask_layer = FakePictureLayer::Create(&mask_client_);
     content_layer->SetMaskLayer(mask_layer);
 
     gfx::Size root_size(100, 100);
@@ -357,6 +322,7 @@ class LayerTreeTestMaskLayerForSurfaceWithDifferentScale
 
     gfx::Size mask_size(50, 50);
     mask_layer->SetBounds(mask_size);
+    mask_client_.set_bounds(mask_size);
     mask_layer_id_ = mask_layer->id();
 
     layer_tree_host()->SetRootLayer(root);
@@ -366,12 +332,10 @@ class LayerTreeTestMaskLayerForSurfaceWithDifferentScale
 
   void BeginTest() override { PostSetNeedsCommitToMainThread(); }
 
-  DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* host_impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
-                                   DrawResult draw_result) override {
-    EXPECT_EQ(3u, frame_data->render_passes.size());
-    viz::CompositorRenderPass* root_pass =
-        frame_data->render_passes.back().get();
+  void DisplayReceivedCompositorFrameOnThread(
+      const viz::CompositorFrame& frame) override {
+    EXPECT_EQ(3u, frame.render_pass_list.size());
+    viz::CompositorRenderPass* root_pass = frame.render_pass_list.back().get();
     EXPECT_EQ(2u, root_pass->quad_list.size());
 
     // There's a solid color quad under everything.
@@ -398,15 +362,19 @@ class LayerTreeTestMaskLayerForSurfaceWithDifferentScale
 
     // We use kDstIn blend mode instead of the mask feature of RenderPass.
     EXPECT_EQ(gfx::RectF(), render_pass_quad->mask_uv_rect);
-    viz::CompositorRenderPass* mask_pass = frame_data->render_passes[1].get();
+    viz::CompositorRenderPass* mask_pass = frame.render_pass_list[1].get();
     EXPECT_EQ(SkBlendMode::kDstIn,
               mask_pass->quad_list.front()->shared_quad_state->blend_mode);
     EndTest();
-    return draw_result;
+    ++display_count_;
   }
+
+  void AfterTest() override { EXPECT_EQ(1, display_count_); }
 
   int mask_layer_id_;
   FakeContentLayerClient client_;
+  FakeContentLayerClient mask_client_;
+  int display_count_ = 0;
 };
 
 SINGLE_AND_MULTI_THREAD_TEST_F(
@@ -431,19 +399,8 @@ class LayerTreeTestMaskLayerWithScaling : public LayerTreeTest {
         FakePictureLayer::Create(&client_);
     scaling_layer->AddChild(content_layer);
 
-    std::unique_ptr<RecordingSource> recording_source =
-        FakeRecordingSource::CreateFilledRecordingSource(gfx::Size(100, 100));
-    PaintFlags paint1, paint2;
-    static_cast<FakeRecordingSource*>(recording_source.get())
-        ->add_draw_rect_with_flags(gfx::Rect(0, 0, 100, 10), paint1);
-    static_cast<FakeRecordingSource*>(recording_source.get())
-        ->add_draw_rect_with_flags(gfx::Rect(0, 10, 100, 90), paint2);
-    client_.set_fill_with_nonsolid_color(true);
-    static_cast<FakeRecordingSource*>(recording_source.get())->Rerecord();
-
-    scoped_refptr<FakePictureLayer> mask_layer =
-        FakePictureLayer::CreateWithRecordingSource(
-            &client_, std::move(recording_source));
+    mask_client_.set_fill_with_nonsolid_color(true);
+    auto mask_layer = FakePictureLayer::Create(&mask_client_);
     content_layer->SetMaskLayer(mask_layer);
 
     gfx::Size root_size(100, 100);
@@ -457,6 +414,7 @@ class LayerTreeTestMaskLayerWithScaling : public LayerTreeTest {
 
     content_layer->SetBounds(scaling_layer_size);
     mask_layer->SetBounds(scaling_layer_size);
+    mask_client_.set_bounds(scaling_layer_size);
 
     layer_tree_host()->SetRootLayer(root);
     LayerTreeTest::SetupTree();
@@ -465,12 +423,10 @@ class LayerTreeTestMaskLayerWithScaling : public LayerTreeTest {
 
   void BeginTest() override { PostSetNeedsCommitToMainThread(); }
 
-  DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* host_impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
-                                   DrawResult draw_result) override {
-    EXPECT_EQ(3u, frame_data->render_passes.size());
-    viz::CompositorRenderPass* root_pass =
-        frame_data->render_passes.back().get();
+  void DisplayReceivedCompositorFrameOnThread(
+      const viz::CompositorFrame& frame) override {
+    EXPECT_EQ(3u, frame.render_pass_list.size());
+    viz::CompositorRenderPass* root_pass = frame.render_pass_list.back().get();
     EXPECT_EQ(2u, root_pass->quad_list.size());
 
     // There's a solid color quad under everything.
@@ -488,11 +444,11 @@ class LayerTreeTestMaskLayerWithScaling : public LayerTreeTest {
 
     // We use kDstIn blend mode instead of the mask feature of RenderPass.
     EXPECT_EQ(gfx::RectF(), render_pass_quad->mask_uv_rect);
-    viz::CompositorRenderPass* mask_pass = frame_data->render_passes[1].get();
+    viz::CompositorRenderPass* mask_pass = frame.render_pass_list[1].get();
     EXPECT_EQ(SkBlendMode::kDstIn,
               mask_pass->quad_list.front()->shared_quad_state->blend_mode);
 
-    switch (host_impl->active_tree()->source_frame_number()) {
+    switch (display_count_) {
       case 0:
         // Check that the tree scaling is correctly taken into account for the
         // mask, that should fully map onto the quad.
@@ -507,21 +463,30 @@ class LayerTreeTestMaskLayerWithScaling : public LayerTreeTest {
         EndTest();
         break;
     }
-    return draw_result;
+    ++display_count_;
   }
 
-  void DidCommit() override {
-    switch (layer_tree_host()->SourceFrameNumber()) {
-      case 1:
+  void DidCommitAndDrawFrame() override {
+    switch (commit_count_) {
+      case 0:
         gfx::Size double_root_size(200, 200);
         GenerateNewLocalSurfaceId();
         layer_tree_host()->SetViewportRectAndScale(
             gfx::Rect(double_root_size), 2.f, GetCurrentLocalSurfaceId());
         break;
     }
+    ++commit_count_;
+  }
+
+  void AfterTest() override {
+    EXPECT_EQ(2, commit_count_);
+    EXPECT_EQ(2, display_count_);
   }
 
   FakeContentLayerClient client_;
+  FakeContentLayerClient mask_client_;
+  int commit_count_ = 0;
+  int display_count_ = 0;
 };
 
 SINGLE_AND_MULTI_THREAD_TEST_F(LayerTreeTestMaskLayerWithScaling);
@@ -537,19 +502,8 @@ class LayerTreeTestMaskWithNonExactTextureSize : public LayerTreeTest {
         FakePictureLayer::Create(&client_);
     root->AddChild(content_layer);
 
-    std::unique_ptr<RecordingSource> recording_source =
-        FakeRecordingSource::CreateFilledRecordingSource(gfx::Size(100, 100));
-    PaintFlags paint1, paint2;
-    static_cast<FakeRecordingSource*>(recording_source.get())
-        ->add_draw_rect_with_flags(gfx::Rect(0, 0, 100, 90), paint1);
-    static_cast<FakeRecordingSource*>(recording_source.get())
-        ->add_draw_rect_with_flags(gfx::Rect(0, 90, 100, 10), paint2);
-    client_.set_fill_with_nonsolid_color(true);
-    static_cast<FakeRecordingSource*>(recording_source.get())->Rerecord();
-
-    scoped_refptr<FakePictureLayer> mask_layer =
-        FakePictureLayer::CreateWithRecordingSource(
-            &client_, std::move(recording_source));
+    mask_client_.set_fill_with_nonsolid_color(true);
+    auto mask_layer = FakePictureLayer::Create(&mask_client_);
     content_layer->SetMaskLayer(mask_layer);
 
     gfx::Size root_size(100, 100);
@@ -561,6 +515,7 @@ class LayerTreeTestMaskWithNonExactTextureSize : public LayerTreeTest {
     gfx::Size mask_size(100, 100);
     gfx::Size mask_texture_size(120, 150);
     mask_layer->SetBounds(mask_size);
+    mask_client_.set_bounds(mask_size);
     mask_layer->set_fixed_tile_size(mask_texture_size);
 
     layer_tree_host()->SetRootLayer(root);
@@ -570,12 +525,10 @@ class LayerTreeTestMaskWithNonExactTextureSize : public LayerTreeTest {
 
   void BeginTest() override { PostSetNeedsCommitToMainThread(); }
 
-  DrawResult PrepareToDrawOnThread(LayerTreeHostImpl* host_impl,
-                                   LayerTreeHostImpl::FrameData* frame_data,
-                                   DrawResult draw_result) override {
-    EXPECT_EQ(3u, frame_data->render_passes.size());
-    viz::CompositorRenderPass* root_pass =
-        frame_data->render_passes.back().get();
+  void DisplayReceivedCompositorFrameOnThread(
+      const viz::CompositorFrame& frame) override {
+    EXPECT_EQ(3u, frame.render_pass_list.size());
+    viz::CompositorRenderPass* root_pass = frame.render_pass_list.back().get();
     EXPECT_EQ(2u, root_pass->quad_list.size());
 
     // There's a solid color quad under everything.
@@ -593,15 +546,19 @@ class LayerTreeTestMaskWithNonExactTextureSize : public LayerTreeTest {
 
     // We use kDstIn blend mode instead of the mask feature of RenderPass.
     EXPECT_EQ(gfx::RectF(), render_pass_quad->mask_uv_rect);
-    viz::CompositorRenderPass* mask_pass = frame_data->render_passes[1].get();
+    viz::CompositorRenderPass* mask_pass = frame.render_pass_list[1].get();
     EXPECT_EQ(SkBlendMode::kDstIn,
               mask_pass->quad_list.front()->shared_quad_state->blend_mode);
     EndTest();
-    return draw_result;
+    ++display_count_;
   }
+
+  void AfterTest() override { EXPECT_EQ(1, display_count_); }
 
   int mask_layer_id_;
   FakeContentLayerClient client_;
+  FakeContentLayerClient mask_client_;
+  int display_count_ = 0;
 };
 
 SINGLE_AND_MULTI_THREAD_TEST_F(LayerTreeTestMaskWithNonExactTextureSize);

@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+
 #include "media/base/audio_decoder_config.h"
 #include "media/base/demuxer.h"
 #include "media/base/demuxer_memory_limit.h"
 #include "media/base/media_util.h"
 #include "media/base/video_decoder_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
 
@@ -78,29 +79,23 @@ TEST(DemuxerMemoryLimitCastTest, GetDemuxerStreamAudioMemoryLimit) {
 }
 
 TEST(DemuxerMemoryLimitCastTest, GetDemuxerStreamVideoMemoryLimit) {
-  EXPECT_EQ(GetDemuxerStreamVideoMemoryLimit(
-                Demuxer::DemuxerTypes::kFFmpegDemuxer, nullptr),
-            internal::kDemuxerStreamVideoMemoryLimitDefault);
-  EXPECT_EQ(GetDemuxerStreamVideoMemoryLimit(
-                Demuxer::DemuxerTypes::kChunkDemuxer, nullptr),
-            internal::kDemuxerStreamVideoMemoryLimitLow);
-  EXPECT_EQ(GetDemuxerStreamVideoMemoryLimit(
-                Demuxer::DemuxerTypes::kMediaUrlDemuxer, nullptr),
-            internal::kDemuxerStreamVideoMemoryLimitLow);
+  EXPECT_EQ(
+      GetDemuxerStreamVideoMemoryLimit(DemuxerType::kFFmpegDemuxer, nullptr),
+      internal::kDemuxerStreamVideoMemoryLimitDefault);
+  EXPECT_EQ(
+      GetDemuxerStreamVideoMemoryLimit(DemuxerType::kChunkDemuxer, nullptr),
+      internal::kDemuxerStreamVideoMemoryLimitLow);
 
   VideoDecoderConfig video_config(
       VideoCodec::kVP8, VIDEO_CODEC_PROFILE_UNKNOWN,
       VideoDecoderConfig::AlphaMode::kIsOpaque, VideoColorSpace(),
       kNoTransformation, kCodedSize, kVisibleRect, kNaturalSize,
       EmptyExtraData(), EncryptionScheme::kUnencrypted);
-  EXPECT_EQ(GetDemuxerStreamVideoMemoryLimit(
-                Demuxer::DemuxerTypes::kFFmpegDemuxer, &video_config),
+  EXPECT_EQ(GetDemuxerStreamVideoMemoryLimit(DemuxerType::kFFmpegDemuxer,
+                                             &video_config),
             internal::kDemuxerStreamVideoMemoryLimitDefault);
-  EXPECT_EQ(GetDemuxerStreamVideoMemoryLimit(
-                Demuxer::DemuxerTypes::kChunkDemuxer, &video_config),
-            internal::kDemuxerStreamVideoMemoryLimitLow);
-  EXPECT_EQ(GetDemuxerStreamVideoMemoryLimit(
-                Demuxer::DemuxerTypes::kMediaUrlDemuxer, &video_config),
+  EXPECT_EQ(GetDemuxerStreamVideoMemoryLimit(DemuxerType::kChunkDemuxer,
+                                             &video_config),
             internal::kDemuxerStreamVideoMemoryLimitLow);
 
   video_config.Initialize(VideoCodec::kVP9, VIDEO_CODEC_PROFILE_UNKNOWN,
@@ -108,25 +103,19 @@ TEST(DemuxerMemoryLimitCastTest, GetDemuxerStreamVideoMemoryLimit) {
                           VideoColorSpace(), kNoTransformation, kCodedSize,
                           kVisibleRect, kNaturalSize, EmptyExtraData(),
                           EncryptionScheme::kUnencrypted);
-  EXPECT_EQ(GetDemuxerStreamVideoMemoryLimit(
-                Demuxer::DemuxerTypes::kFFmpegDemuxer, &video_config),
+  EXPECT_EQ(GetDemuxerStreamVideoMemoryLimit(DemuxerType::kFFmpegDemuxer,
+                                             &video_config),
             internal::kDemuxerStreamVideoMemoryLimitDefault);
-  EXPECT_EQ(GetDemuxerStreamVideoMemoryLimit(
-                Demuxer::DemuxerTypes::kChunkDemuxer, &video_config),
+  EXPECT_EQ(GetDemuxerStreamVideoMemoryLimit(DemuxerType::kChunkDemuxer,
+                                             &video_config),
             internal::kDemuxerStreamVideoMemoryLimitMedium);
-  EXPECT_EQ(GetDemuxerStreamVideoMemoryLimit(
-                Demuxer::DemuxerTypes::kMediaUrlDemuxer, &video_config),
-            internal::kDemuxerStreamVideoMemoryLimitLow);
 }
 
 TEST(DemuxerMemoryLimitCastTest, GetDemuxerMemoryLimit) {
-  EXPECT_EQ(GetDemuxerMemoryLimit(Demuxer::DemuxerTypes::kFFmpegDemuxer),
+  EXPECT_EQ(GetDemuxerMemoryLimit(DemuxerType::kFFmpegDemuxer),
             internal::kDemuxerStreamAudioMemoryLimitLow +
                 internal::kDemuxerStreamVideoMemoryLimitDefault);
-  EXPECT_EQ(GetDemuxerMemoryLimit(Demuxer::DemuxerTypes::kChunkDemuxer),
-            internal::kDemuxerStreamAudioMemoryLimitLow +
-                internal::kDemuxerStreamVideoMemoryLimitLow);
-  EXPECT_EQ(GetDemuxerMemoryLimit(Demuxer::DemuxerTypes::kMediaUrlDemuxer),
+  EXPECT_EQ(GetDemuxerMemoryLimit(DemuxerType::kChunkDemuxer),
             internal::kDemuxerStreamAudioMemoryLimitLow +
                 internal::kDemuxerStreamVideoMemoryLimitLow);
 }

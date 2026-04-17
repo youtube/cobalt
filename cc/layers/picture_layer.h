@@ -13,12 +13,13 @@
 #include "cc/base/invalidation_region.h"
 #include "cc/benchmarks/micro_benchmark_controller.h"
 #include "cc/layers/layer.h"
+#include "cc/layers/recording_source.h"
 
 namespace cc {
 
 class ContentLayerClient;
 class DisplayItemList;
-class RecordingSource;
+class RasterSource;
 
 class CC_EXPORT PictureLayer : public Layer {
  public:
@@ -29,68 +30,47 @@ class CC_EXPORT PictureLayer : public Layer {
 
   void ClearClient();
 
-  void SetNearestNeighbor(bool nearest_neighbor);
-  bool nearest_neighbor() const {
-    return picture_layer_inputs_.nearest_neighbor;
-  }
-
   void SetIsBackdropFilterMask(bool is_backdrop_filter_mask);
-  bool is_backdrop_filter_mask() const {
-    return picture_layer_inputs_.is_backdrop_filter_mask;
-  }
+  bool is_backdrop_filter_mask() const { return is_backdrop_filter_mask_; }
 
   // Layer interface.
   std::unique_ptr<LayerImpl> CreateLayerImpl(
       LayerTreeImpl* tree_impl) const override;
   void SetLayerTreeHost(LayerTreeHost* host) override;
-  void PushPropertiesTo(LayerImpl* layer,
-                        const CommitState& commit_state,
-                        const ThreadUnsafeCommitState& unsafe_state) override;
   void SetNeedsDisplayRect(const gfx::Rect& layer_rect) override;
+  bool RequiresSetNeedsDisplayOnHdrHeadroomChange() const override;
   sk_sp<const SkPicture> GetPicture() const override;
   bool Update() override;
   void RunMicroBenchmark(MicroBenchmark* benchmark) override;
   void CaptureContent(const gfx::Rect& rect,
                       std::vector<NodeInfo>* content) const override;
 
-  ContentLayerClient* client() { return picture_layer_inputs_.client; }
+  ContentLayerClient* client() { return client_; }
 
-  RecordingSource* GetRecordingSourceForTesting() {
-    return recording_source_.Write(*this).get();
+  // Forces an update of recording source even without invalidation.
+  void SetForceUpdateRecordingSource();
+
+  RecordingSource& GetRecordingSourceForTesting() {
+    return recording_source_.Write(*this);
   }
-
-  const RecordingSource* GetRecordingSourceForTesting() const {
+  const RecordingSource& GetRecordingSourceForTesting() const {
     return recording_source_.Read(*this);
   }
 
-  const DisplayItemList* GetDisplayItemList() const;
-
-  gfx::Vector2dF DirectlyCompositedImageDefaultRasterScaleForTesting() const {
-    return picture_layer_inputs_.directly_composited_image_default_raster_scale;
-  }
-
  protected:
-  // Encapsulates all data, callbacks or interfaces received from the embedder.
-  struct PictureLayerInputs {
-    PictureLayerInputs();
-    ~PictureLayerInputs();
-
-    raw_ptr<ContentLayerClient> client = nullptr;
-    bool nearest_neighbor = false;
-    bool is_backdrop_filter_mask = false;
-    scoped_refptr<DisplayItemList> display_list;
-    gfx::Vector2dF directly_composited_image_default_raster_scale;
-  };
-
   explicit PictureLayer(ContentLayerClient* client);
-  // Allow tests to inject a recording source.
-  PictureLayer(ContentLayerClient* client,
-               std::unique_ptr<RecordingSource> source);
   ~PictureLayer() override;
+
+  void PushDirtyPropertiesTo(
+      LayerImpl* layer,
+      uint8_t dirty_flag,
+      const CommitState& commit_state,
+      const ThreadUnsafeCommitState& unsafe_state) override;
 
   bool HasDrawableContent() const override;
 
-  PictureLayerInputs picture_layer_inputs_;
+  // Can be overridden in tests to customize RasterSource.
+  virtual scoped_refptr<RasterSource> CreateRasterSource() const;
 
  private:
   friend class TestSerializationPictureLayer;
@@ -98,7 +78,14 @@ class CC_EXPORT PictureLayer : public Layer {
   // Called on impl thread
   void DropRecordingSourceContentIfInvalid(int source_frame_number);
 
-  ProtectedSequenceWritable<std::unique_ptr<RecordingSource>> recording_source_;
+  const DisplayItemList* GetDisplayItemList() const;
+
+  // These fields are not protected because they are only modified during
+  // LayerTreeHost::PaintContent().
+  raw_ptr<ContentLayerClient, DanglingUntriaged> client_ = nullptr;
+  bool is_backdrop_filter_mask_ = false;
+
+  ProtectedSequenceWritable<RecordingSource> recording_source_;
   ProtectedSequenceForbidden<devtools_instrumentation::ScopedLayerObjectTracker>
       instrumentation_object_tracker_;
 

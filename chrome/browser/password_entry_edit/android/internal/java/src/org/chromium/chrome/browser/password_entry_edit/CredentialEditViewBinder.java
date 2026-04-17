@@ -14,6 +14,7 @@ import static org.chromium.chrome.browser.password_entry_edit.CredentialEditProp
 import static org.chromium.chrome.browser.password_entry_edit.CredentialEditProperties.URL_OR_APP;
 import static org.chromium.chrome.browser.password_entry_edit.CredentialEditProperties.USERNAME;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 
@@ -21,6 +22,7 @@ import org.chromium.ui.modelutil.PropertyModel;
  * Maps {@link CredentialEditProperties} changes in a {@link PropertyModel} to the suitable methods
  * in {@link CredentialEditFragmentView}.
  */
+@NullMarked
 class CredentialEditViewBinder {
     static void bindCredentialEditView(
             PropertyModel model, CredentialEditFragmentView fragmentView, PropertyKey propertyKey) {
@@ -29,7 +31,7 @@ class CredentialEditViewBinder {
         } else if (propertyKey == URL_OR_APP) {
             fragmentView.setUrlOrApp(model.get(URL_OR_APP));
         } else if (propertyKey == FEDERATION_ORIGIN) {
-            // TODO(crbug.com/1180252): Treat this case when the federated credentials
+            // TODO(crbug.com/40169863): Treat this case when the federated credentials
             // layout is in place.
         } else if (propertyKey == USERNAME) {
             fragmentView.setUsername(model.get(USERNAME));
@@ -38,7 +40,7 @@ class CredentialEditViewBinder {
         } else if (propertyKey == PASSWORD_VISIBLE) {
             fragmentView.changePasswordVisibility(model.get(PASSWORD_VISIBLE));
         } else if (propertyKey == PASSWORD) {
-                fragmentView.setPassword(model.get(PASSWORD));
+            fragmentView.setPassword(model.get(PASSWORD));
         } else if (propertyKey == EMPTY_PASSWORD_ERROR) {
             fragmentView.changePasswordError(model.get(EMPTY_PASSWORD_ERROR));
         } else if (propertyKey == UI_DISMISSED_BY_NATIVE) {

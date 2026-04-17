@@ -24,10 +24,6 @@ bool GetNvidiaDriverVersionWithXNVCtrl(std::string *version);
 // Live in SystemInfo.cpp
 bool ParseAMDBrahmaDriverVersion(const std::string &content, std::string *version);
 bool ParseAMDCatalystDriverVersion(const std::string &content, std::string *version);
-bool ParseMacMachineModel(const std::string &identifier,
-                          std::string *type,
-                          int32_t *major,
-                          int32_t *minor);
 bool CMDeviceIDToDeviceAndVendorID(const std::string &id, uint32_t *vendorId, uint32_t *deviceId);
 
 #if defined(ANGLE_PLATFORM_MACOS) || defined(ANGLE_PLATFORM_MACCATALYST)
@@ -40,12 +36,18 @@ bool GetSystemInfo_ios(SystemInfo *info);
 // Helper to get the active GPU ID from a given Core Graphics display ID.
 uint64_t GetGpuIDFromDisplayID(uint32_t displayID);
 
+#    if ANGLE_ENABLE_CGL
 // Helper to get the active GPU ID from an OpenGL display mask.
 uint64_t GetGpuIDFromOpenGLDisplayMask(uint32_t displayMask);
+#    endif
 
+#endif
+
+#if defined(ANGLE_PLATFORM_MACOS) && ANGLE_ENABLE_METAL
 // Get VendorID from metal device's registry ID
 VendorID GetVendorIDFromMetalDeviceRegistryID(uint64_t registryID);
 #endif
+
 
 }  // namespace angle
 

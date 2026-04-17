@@ -6,30 +6,39 @@
 
 #include <utility>
 
+#include "ash/constants/web_app_id_constants.h"
 #include "base/feature_list.h"
+#include "base/memory/weak_ptr.h"
+#include "base/trace_event/trace_event.h"
+#include "build/build_config.h"
 #include "chrome/browser/apps/app_service/app_icon/app_icon_factory.h"
-#include "chrome/browser/apps/app_service/app_icon/app_icon_util.h"
 #include "chrome/browser/apps/app_service/app_launch_params.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/web_applications/web_app.h"
+#include "chrome/browser/web_applications/web_app_command_scheduler.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
+#include "chromeos/constants/chromeos_features.h"
+#include "components/services/app_service/public/cpp/icon_effects.h"
+#include "components/services/app_service/public/cpp/intent_util.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
+#include "ash/constants/ash_features.h"
 #include "ash/public/cpp/app_menu_constants.h"
 #include "ash/webui/projector_app/public/cpp/projector_app_constants.h"  // nogncheck
 #include "base/functional/bind.h"
 #include "base/strings/utf_string_conversions.h"
+#include "chrome/browser/apps/app_service/app_service_proxy.h"
+#include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/apps/app_service/menu_item_constants.h"
 #include "chrome/browser/apps/app_service/menu_util.h"
-#include "chrome/browser/ash/crosapi/browser_util.h"
+#include "chrome/browser/apps/app_service/promise_apps/promise_app_web_apps_utils.h"
 #include "chrome/browser/ash/guest_os/guest_os_terminal.h"
 #include "chrome/browser/ash/system_web_apps/system_web_app_manager.h"
 #include "chrome/browser/web_applications/web_app_icon_manager.h"
 #include "chrome/grit/generated_resources.h"
-#include "components/services/app_service/public/cpp/app_registry_cache.h"
 #include "components/services/app_service/public/cpp/instance_registry.h"
 #include "components/services/app_service/public/cpp/intent_filter_util.h"
 #endif
@@ -38,25 +47,14 @@ using apps::IconEffects;
 
 namespace web_app {
 
-namespace {
-
-bool ShouldObserveMediaRequests() {
-  return true;
-}
-
-}  // namespace
-
 WebApps::WebApps(apps::AppServiceProxy* proxy)
     : apps::AppPublisher(proxy),
       profile_(proxy->profile()),
       provider_(WebAppProvider::GetForLocalAppsUnchecked(profile_)),
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
       instance_registry_(&proxy->InstanceRegistry()),
 #endif
-      publisher_helper_(profile_,
-                        provider_,
-                        this,
-                        ShouldObserveMediaRequests()) {
+      publisher_helper_(profile_, provider_, this) {
   Initialize();
 }
 
@@ -68,21 +66,24 @@ void WebApps::Shutdown() {
   }
 }
 
-const WebApp* WebApps::GetWebApp(const AppId& app_id) const {
+const WebApp* WebApps::GetWebApp(const webapps::AppId& app_id) const {
   DCHECK(provider_);
   return provider_->registrar_unsafe().GetAppById(app_id);
 }
 
 void WebApps::Initialize() {
   DCHECK(profile_);
-  if (!AreWebAppsEnabled(profile_)) {
+
+  // In some tests, WebAppPublisherHelper could be created during the shutdown
+  // stage as the web app publisher is created async by AppServiceProxy. So
+  // provider_ could be null in some tests.
+  if (!AreWebAppsEnabled(profile_) || !provider_) {
     return;
   }
 
-  DCHECK(provider_);
-
   provider_->on_registry_ready().Post(
-      FROM_HERE, base::BindOnce(&WebApps::InitWebApps, AsWeakPtr()));
+      FROM_HERE,
+      base::BindOnce(&WebApps::InitWebApps, weak_ptr_factory_.GetWeakPtr()));
 }
 
 void WebApps::LoadIcon(const std::string& app_id,
@@ -96,7 +97,7 @@ void WebApps::LoadIcon(const std::string& app_id,
                               std::move(callback));
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 void WebApps::GetCompressedIconData(const std::string& app_id,
                                     int32_t size_in_dip,
                                     ui::ResourceScaleFactor scale_factor,
@@ -140,19 +141,12 @@ void WebApps::LaunchAppWithParams(apps::AppLaunchParams&& params,
       base::BindOnce(
           [](apps::LaunchCallback callback,
              content::WebContents* web_contents) {
-            apps::LaunchResult::State result = web_contents
-                                                   ? apps::LaunchResult::SUCCESS
-                                                   : apps::LaunchResult::FAILED;
+            apps::LaunchResult::State result =
+                web_contents ? apps::LaunchResult::State::kSuccess
+                             : apps::LaunchResult::State::kFailed;
             std::move(callback).Run(apps::LaunchResult(result));
           },
           std::move(callback)));
-}
-
-void WebApps::LaunchShortcut(const std::string& app_id,
-                             const std::string& shortcut_id,
-                             int64_t display_id) {
-  publisher_helper().ExecuteContextMenuCommand(app_id, shortcut_id, display_id,
-                                               base::DoNothing());
 }
 
 void WebApps::SetPermission(const std::string& app_id,
@@ -173,7 +167,7 @@ void WebApps::Uninstall(const std::string& app_id,
                                      report_abuse);
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 void WebApps::GetMenuModel(const std::string& app_id,
                            apps::MenuType menu_type,
                            int64_t display_id,
@@ -183,6 +177,13 @@ void WebApps::GetMenuModel(const std::string& app_id,
     std::move(callback).Run(apps::MenuItems());
     return;
   }
+
+  bool can_close = true;
+  apps::AppServiceProxyFactory::GetForProfile(profile())
+      ->AppRegistryCache()
+      .ForOneApp(app_id, [&can_close](const apps::AppUpdate& update) {
+        can_close = update.AllowClose().value_or(true);
+      });
 
   apps::MenuItems menu_items;
   auto* swa_manager = ash::SystemWebAppManager::Get(profile());
@@ -196,20 +197,28 @@ void WebApps::GetMenuModel(const std::string& app_id,
       apps::AddCommandItem(ash::LAUNCH_NEW,
                            IDS_APP_LIST_CONTEXT_MENU_NEW_WINDOW, menu_items);
     }
-  } else {
-    apps::CreateOpenNewSubmenu(
-        publisher_helper().GetWindowMode(app_id) == apps::WindowMode::kBrowser
-            ? IDS_APP_LIST_CONTEXT_MENU_NEW_TAB
-            : IDS_APP_LIST_CONTEXT_MENU_NEW_WINDOW,
-        menu_items);
+    // If app cannot be closed there should be no more than 1 open window, so we
+    // should not allow open more windows because user won't be able to close
+    // them.
+  } else if (can_close) {
+    // Isolated web apps can only be launched in new window.
+    if (web_app->isolation_data().has_value()) {
+      apps::AddCommandItem(ash::LAUNCH_NEW,
+                           IDS_APP_LIST_CONTEXT_MENU_NEW_WINDOW, menu_items);
+    } else {
+      apps::CreateOpenNewSubmenu(
+          publisher_helper().GetWindowMode(app_id) == apps::WindowMode::kBrowser
+              ? IDS_APP_LIST_CONTEXT_MENU_NEW_TAB
+              : IDS_APP_LIST_CONTEXT_MENU_NEW_WINDOW,
+          menu_items);
+    }
   }
 
   if (app_id == guest_os::kTerminalSystemAppId) {
     guest_os::AddTerminalMenuItems(profile_, menu_items);
   }
 
-  if (menu_type == apps::MenuType::kShelf &&
-      instance_registry_->ContainsAppId(app_id)) {
+  if (ShouldAddCloseItem(app_id, menu_type, profile_)) {
     apps::AddCommandItem(ash::MENU_CLOSE, IDS_SHELF_CONTEXT_MENU_CLOSE,
                          menu_items);
   }
@@ -234,6 +243,10 @@ void WebApps::GetMenuModel(const std::string& app_id,
 }
 #endif
 
+void WebApps::UpdateAppSize(const std::string& app_id) {
+  publisher_helper().UpdateAppSize(app_id);
+}
+
 void WebApps::SetWindowMode(const std::string& app_id,
                             apps::WindowMode window_mode) {
   publisher_helper().SetWindowMode(app_id, window_mode);
@@ -251,46 +264,64 @@ void WebApps::PublishWebApps(std::vector<apps::AppPtr> apps) {
   if (apps.empty()) {
     return;
   }
+#if BUILDFLAG(IS_CHROMEOS)
+  // This is for prototyping and testing only. It is to provide an easy way to
+  // simulate web app promise icon behaviour for the UI/ client development of
+  // web app promise icons.
+  // TODO(b/261907269): Remove this code snippet and use real listeners for web
+  // app installation events.
+  if (ash::features::ArePromiseIconsForWebAppsEnabled()) {
+    for (auto& app : apps) {
+      apps::MaybeSimulatePromiseAppInstallationEvents(proxy(), app.get());
+    }
+  }
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
-  apps::AppPublisher::Publish(std::move(apps), app_type(),
+  apps::AppPublisher::Publish(std::move(apps), apps::AppType::kWeb,
                               /*should_notify_initialized=*/false);
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  const WebApp* web_app = GetWebApp(ash::kChromeUITrustedProjectorSwaAppId);
+#if BUILDFLAG(IS_CHROMEOS)
+  const WebApp* web_app = GetWebApp(ash::kChromeUIUntrustedProjectorSwaAppId);
   if (web_app) {
     proxy()->SetSupportedLinksPreference(
-        ash::kChromeUITrustedProjectorSwaAppId);
+        ash::kChromeUIUntrustedProjectorSwaAppId);
   }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
 void WebApps::PublishWebApp(apps::AppPtr app) {
   if (!is_ready_) {
     return;
   }
+#if BUILDFLAG(IS_CHROMEOS)
+  bool is_projector = app->app_id == ash::kChromeUIUntrustedProjectorSwaAppId;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  bool is_projector = app->app_id == ash::kChromeUITrustedProjectorSwaAppId;
-#endif
+  // This is for prototyping and testing only.
+  // TODO(b/261907269): Remove this code snippet and use real listeners for web
+  // app installation events.
+  if (ash::features::ArePromiseIconsForWebAppsEnabled()) {
+    apps::MaybeSimulatePromiseAppInstallationEvents(proxy(), app.get());
+  }
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
   apps::AppPublisher::Publish(std::move(app));
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   if (is_projector) {
     // After OOBE, PublishWebApps() above could execute before the Projector app
     // has been registered. Since we need to call SetSupportedLinksPreference()
     // after the intent filter has been registered, we need this call for the
     // OOBE case.
     proxy()->SetSupportedLinksPreference(
-        ash::kChromeUITrustedProjectorSwaAppId);
+        ash::kChromeUIUntrustedProjectorSwaAppId);
   }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
 void WebApps::ModifyWebAppCapabilityAccess(
     const std::string& app_id,
-    absl::optional<bool> accessing_camera,
-    absl::optional<bool> accessing_microphone) {
+    std::optional<bool> accessing_camera,
+    std::optional<bool> accessing_microphone) {
   apps::AppPublisher::ModifyCapabilityAccess(
       app_id, std::move(accessing_camera), std::move(accessing_microphone));
 }
@@ -306,16 +337,18 @@ std::vector<apps::AppPtr> WebApps::CreateWebApps() {
 }
 
 void WebApps::InitWebApps() {
+  TRACE_EVENT0("ui", "WebApps::InitWebApps");
   is_ready_ = true;
 
-  RegisterPublisher(app_type());
+  RegisterPublisher(apps::AppType::kWeb);
 
   std::vector<apps::AppPtr> apps = CreateWebApps();
-  apps::AppPublisher::Publish(std::move(apps), app_type(),
+
+  apps::AppPublisher::Publish(std::move(apps), apps::AppType::kWeb,
                               /*should_notify_initialized=*/true);
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 void WebApps::PauseApp(const std::string& app_id) {
   publisher_helper().PauseApp(app_id);
 }
@@ -342,7 +375,7 @@ void WebApps::GetAppShortcutMenuModel(
   if (!web_app->shortcuts_menu_item_infos().empty()) {
     provider()->icon_manager().ReadAllShortcutsMenuIcons(
         app_id, base::BindOnce(&WebApps::OnShortcutsMenuIconsRead,
-                               base::AsWeakPtr<WebApps>(this), app_id,
+                               weak_ptr_factory_.GetWeakPtr(), app_id,
                                std::move(menu_items), std::move(callback)));
   } else {
     std::move(callback).Run(std::move(menu_items));

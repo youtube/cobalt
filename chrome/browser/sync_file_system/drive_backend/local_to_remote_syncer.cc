@@ -65,11 +65,10 @@ bool IsLocalFileMissing(const SyncFileMetadata& local_metadata,
 }
 
 std::string GetMimeTypeFromTitle(const base::FilePath& title) {
-  base::FilePath::StringType extension = title.Extension();
   std::string mime_type;
-  if (extension.empty() ||
-      !net::GetWellKnownMimeTypeFromExtension(extension.substr(1), &mime_type))
+  if (!net::GetWellKnownMimeTypeFromFile(title, &mime_type)) {
     return kMimeTypeOctetStream;
+  }
   return mime_type;
 }
 
@@ -148,11 +147,6 @@ void LocalToRemoteSyncer::RunPreflight(std::unique_ptr<SyncTaskToken> token) {
   } else if (active_ancestor_path != path) {
     if (!active_ancestor_path.AppendRelativePath(path, &missing_entries)) {
       NOTREACHED();
-      token->RecordLog(
-          base::StringPrintf("Detected invalid ancestor: %" PRFilePath,
-                             active_ancestor_path.value().c_str()));
-      SyncTaskManager::NotifyTaskDone(std::move(token), SYNC_STATUS_FAILED);
-      return;
     }
   }
 
@@ -257,8 +251,6 @@ void LocalToRemoteSyncer::MoveToBackground(
     if (!GetKnownChangeID(metadata_database(), remote_file_tracker_->file_id(),
                           &remote_file_change_id_)) {
       NOTREACHED();
-      SyncCompleted(std::move(token), SYNC_STATUS_FAILED);
-      return;
     }
 
     blocker->tracker_ids.push_back(remote_file_tracker_->tracker_id());
@@ -352,10 +344,6 @@ void LocalToRemoteSyncer::HandleConflict(std::unique_ptr<SyncTaskToken> token) {
   if (!metadata_database()->FindFileByFileID(remote_file_tracker_->file_id(),
                                              &remote_file_metadata)) {
     NOTREACHED();
-    MoveToBackground(base::BindOnce(&LocalToRemoteSyncer::CreateRemoteFolder,
-                                    weak_ptr_factory_.GetWeakPtr()),
-                     std::move(token));
-    return;
   }
 
   const FileDetails& remote_details = remote_file_metadata.details();
@@ -451,8 +439,6 @@ void LocalToRemoteSyncer::DeleteRemoteFile(
   switch (remote_file_tracker_->synced_details().file_kind()) {
     case FILE_KIND_UNSUPPORTED:
       NOTREACHED();
-      file_type_ = SYNC_FILE_TYPE_UNKNOWN;
-      break;
     case FILE_KIND_FILE:
       file_type_ = SYNC_FILE_TYPE_FILE;
       break;
@@ -546,8 +532,6 @@ void LocalToRemoteSyncer::DidUploadExistingFile(
 
   if (!entry) {
     NOTREACHED();
-    SyncCompleted(std::move(token), SYNC_STATUS_FAILED);
-    return;
   }
 
   DCHECK(entry);
@@ -561,8 +545,6 @@ void LocalToRemoteSyncer::DidUploadExistingFile(
   if (!metadata_database()->FindFileByFileID(remote_file_tracker_->file_id(),
                                              &file)) {
     NOTREACHED();
-    SyncCompleted(std::move(token), SYNC_STATUS_FAILED);
-    return;
   }
 
   const FileDetails& details = file.details();
@@ -613,8 +595,6 @@ void LocalToRemoteSyncer::DidGetRemoteMetadata(
 
   if (!entry) {
     NOTREACHED();
-    SyncCompleted(std::move(token), SYNC_STATUS_FAILED);
-    return;
   }
 
   retry_on_success_ = true;
@@ -653,8 +633,6 @@ void LocalToRemoteSyncer::DidUploadNewFile(
 
   if (!entry) {
     NOTREACHED();
-    SyncCompleted(std::move(token), SYNC_STATUS_FAILED);
-    return;
   }
 
   status = metadata_database()->ReplaceActiveTrackerWithNewResource(
@@ -713,8 +691,6 @@ void LocalToRemoteSyncer::DidCreateRemoteFolder(
   }
 
   NOTREACHED();
-  SyncCompleted(std::move(token), SYNC_STATUS_FAILED);
-  return;
 }
 
 void LocalToRemoteSyncer::DidDetachResourceForCreationConflict(

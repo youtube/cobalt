@@ -2,22 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/updater/net/network.h"
-
 #include <curl/curl.h>
 #include <curl/system.h>
 #include <dlfcn.h>
 
 #include <array>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
+#include "base/compiler_specific.h"
 #include "base/containers/flat_map.h"
+#include "base/containers/span.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
@@ -31,13 +33,19 @@
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/threading/sequence_bound.h"
+#include "chrome/updater/net/network.h"
 #include "chrome/updater/policy/service.h"
+#include "chrome/updater/util/util.h"
 #include "components/update_client/network.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace updater {
 namespace {
+
+struct CurlDeleter {
+  void operator()(CURL* curl) { curl_easy_cleanup(curl); }
+};
+using CurlUniquePtr = std::unique_ptr<CURL, CurlDeleter>;
 
 class LibcurlNetworkFetcherImpl {
  public:
@@ -56,7 +64,7 @@ class LibcurlNetworkFetcherImpl {
   ~LibcurlNetworkFetcherImpl();
 
   LibcurlNetworkFetcherImpl(
-      CURL* curl,
+      CurlUniquePtr curl,
       scoped_refptr<base::SequencedTaskRunner> callback_sequence_);
 
   void PostRequest(
@@ -107,7 +115,7 @@ class LibcurlNetworkFetcherImpl {
     return response_headers.contains(lower) ? response_headers.at(lower) : "";
   }
 
-  base::raw_ptr<CURL> curl_;
+  CurlUniquePtr curl_;
   std::array<char, CURL_ERROR_SIZE> curl_error_buf_;
 
   // Sequence to post callbacks to.
@@ -120,14 +128,10 @@ class LibcurlNetworkFetcherImpl {
 };
 
 LibcurlNetworkFetcherImpl::LibcurlNetworkFetcherImpl(
-    CURL* curl,
+    CurlUniquePtr curl,
     scoped_refptr<base::SequencedTaskRunner> callback_sequence)
-    : curl_(curl), callback_sequence_(callback_sequence) {}
-
-LibcurlNetworkFetcherImpl::~LibcurlNetworkFetcherImpl() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  curl_easy_cleanup(curl_);
-}
+    : curl_(std::move(curl)), callback_sequence_(callback_sequence) {}
+LibcurlNetworkFetcherImpl::~LibcurlNetworkFetcherImpl() = default;
 
 void LibcurlNetworkFetcherImpl::PostRequest(
     const GURL& url,
@@ -140,7 +144,7 @@ void LibcurlNetworkFetcherImpl::PostRequest(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   VLOG(2) << __func__;
 
-  curl_easy_reset(curl_);
+  curl_easy_reset(curl_.get());
 
   struct curl_slist* headers = nullptr;
 
@@ -151,26 +155,30 @@ void LibcurlNetworkFetcherImpl::PostRequest(
   }
 
   base::flat_map<std::string, std::string> response_headers;
-  std::unique_ptr<std::string> response_body = std::make_unique<std::string>();
+  std::optional<std::string> response_body = std::string();
 
   base::WeakPtr<LibcurlNetworkFetcherImpl> weak_ptr =
       weak_factory_.GetWeakPtr();
-  if (curl_easy_setopt(curl_, CURLOPT_URL, url.spec().c_str()) ||
-      curl_easy_setopt(curl_, CURLOPT_HTTPPOST, 1L) ||
-      curl_easy_setopt(curl_, CURLOPT_HTTPHEADER, headers) ||
-      curl_easy_setopt(curl_, CURLOPT_POSTFIELDSIZE, post_data.size()) ||
-      curl_easy_setopt(curl_, CURLOPT_POSTFIELDS, post_data.c_str()) ||
-      curl_easy_setopt(curl_, CURLOPT_HEADERFUNCTION,
+  if (curl_easy_setopt(curl_.get(), CURLOPT_URL, url.spec().c_str()) ||
+      curl_easy_setopt(curl_.get(), CURLOPT_HTTPPOST, 1L) ||
+      curl_easy_setopt(curl_.get(), CURLOPT_USERAGENT,
+                       GetUpdaterUserAgent().c_str()) ||
+      curl_easy_setopt(curl_.get(), CURLOPT_HTTPHEADER, headers) ||
+      curl_easy_setopt(curl_.get(), CURLOPT_POSTFIELDSIZE, post_data.size()) ||
+      curl_easy_setopt(curl_.get(), CURLOPT_POSTFIELDS, post_data.c_str()) ||
+      curl_easy_setopt(curl_.get(), CURLOPT_HEADERFUNCTION,
                        &LibcurlNetworkFetcherImpl::CurlHeaderCallback) ||
-      curl_easy_setopt(curl_, CURLOPT_HEADERDATA, &response_headers) ||
-      curl_easy_setopt(curl_, CURLOPT_WRITEFUNCTION,
+      curl_easy_setopt(curl_.get(), CURLOPT_HEADERDATA, &response_headers) ||
+      curl_easy_setopt(curl_.get(), CURLOPT_WRITEFUNCTION,
                        &LibcurlNetworkFetcherImpl::CurlWriteStringCallback) ||
-      curl_easy_setopt(curl_, CURLOPT_WRITEDATA, response_body.get()) ||
-      curl_easy_setopt(curl_, CURLOPT_NOPROGRESS, 0) ||
-      curl_easy_setopt(curl_, CURLOPT_XFERINFOFUNCTION,
+      curl_easy_setopt(curl_.get(), CURLOPT_WRITEDATA,
+                       &response_body.value()) ||
+      curl_easy_setopt(curl_.get(), CURLOPT_NOPROGRESS, 0) ||
+      curl_easy_setopt(curl_.get(), CURLOPT_XFERINFOFUNCTION,
                        &LibcurlNetworkFetcherImpl::CurlTransferCallback) ||
-      curl_easy_setopt(curl_, CURLOPT_XFERINFODATA, &weak_ptr) ||
-      curl_easy_setopt(curl_, CURLOPT_ERRORBUFFER, curl_error_buf_.data())) {
+      curl_easy_setopt(curl_.get(), CURLOPT_XFERINFODATA, &weak_ptr) ||
+      curl_easy_setopt(curl_.get(), CURLOPT_ERRORBUFFER,
+                       curl_error_buf_.data())) {
     VLOG(1) << "Failed to set curl options for HTTP POST.";
     curl_slist_free_all(headers);
     return;
@@ -179,7 +187,7 @@ void LibcurlNetworkFetcherImpl::PostRequest(
   response_started_callback_ = std::move(response_started_callback);
   progress_callback_ = std::move(progress_callback);
 
-  CURLcode result = curl_easy_perform(curl_);
+  CURLcode result = curl_easy_perform(curl_.get());
   if (result != CURLE_OK) {
     VLOG(1) << "Failed to perform HTTP POST. "
             << (curl_error_buf_[0] ? curl_error_buf_.data() : "")
@@ -203,6 +211,8 @@ void LibcurlNetworkFetcherImpl::PostRequest(
                          update_client::NetworkFetcher::kHeaderEtag),
           GetHeaderValue(response_headers,
                          update_client::NetworkFetcher::kHeaderXCupServerProof),
+          GetHeaderValue(response_headers,
+                         update_client::NetworkFetcher::kHeaderCookie),
           x_retry_after));
 
   curl_slist_free_all(headers);
@@ -228,20 +238,23 @@ void LibcurlNetworkFetcherImpl::DownloadToFile(
     return;
   }
 
-  curl_easy_reset(curl_);
+  curl_easy_reset(curl_.get());
 
   base::WeakPtr<LibcurlNetworkFetcherImpl> weak_ptr =
       weak_factory_.GetWeakPtr();
-  if (curl_easy_setopt(curl_, CURLOPT_URL, url.spec().c_str()) ||
-      curl_easy_setopt(curl_, CURLOPT_HTTPGET, 1L) ||
-      curl_easy_setopt(curl_, CURLOPT_WRITEFUNCTION,
+  if (curl_easy_setopt(curl_.get(), CURLOPT_URL, url.spec().c_str()) ||
+      curl_easy_setopt(curl_.get(), CURLOPT_HTTPGET, 1L) ||
+      curl_easy_setopt(curl_.get(), CURLOPT_USERAGENT,
+                       GetUpdaterUserAgent().c_str()) ||
+      curl_easy_setopt(curl_.get(), CURLOPT_WRITEFUNCTION,
                        &LibcurlNetworkFetcherImpl::CurlWriteFileCallback) ||
-      curl_easy_setopt(curl_, CURLOPT_WRITEDATA, &file) ||
-      curl_easy_setopt(curl_, CURLOPT_NOPROGRESS, 0) ||
-      curl_easy_setopt(curl_, CURLOPT_XFERINFOFUNCTION,
+      curl_easy_setopt(curl_.get(), CURLOPT_WRITEDATA, &file) ||
+      curl_easy_setopt(curl_.get(), CURLOPT_NOPROGRESS, 0) ||
+      curl_easy_setopt(curl_.get(), CURLOPT_XFERINFOFUNCTION,
                        &LibcurlNetworkFetcherImpl::CurlTransferCallback) ||
-      curl_easy_setopt(curl_, CURLOPT_XFERINFODATA, &weak_ptr) ||
-      curl_easy_setopt(curl_, CURLOPT_ERRORBUFFER, curl_error_buf_.data())) {
+      curl_easy_setopt(curl_.get(), CURLOPT_XFERINFODATA, &weak_ptr) ||
+      curl_easy_setopt(curl_.get(), CURLOPT_ERRORBUFFER,
+                       curl_error_buf_.data())) {
     VLOG(1) << "Failed to set curl options for HTTP GET.";
     return;
   }
@@ -251,14 +264,14 @@ void LibcurlNetworkFetcherImpl::DownloadToFile(
 
   curl_off_t downloaded_bytes = 0;
   curl_error_buf_[0] = '\0';
-  CURLcode result = curl_easy_perform(curl_);
+  CURLcode result = curl_easy_perform(curl_.get());
   if (result != CURLE_OK) {
     VLOG(1) << "Failed to perform HTTP GET. "
             << (curl_error_buf_[0] ? curl_error_buf_.data() : "")
             << " (CURLcode " << result << ")";
-  } else if (curl_easy_getinfo(curl_, CURLINFO_SIZE_DOWNLOAD_T,
+  } else if (curl_easy_getinfo(curl_.get(), CURLINFO_SIZE_DOWNLOAD_T,
                                &downloaded_bytes) != CURLE_OK) {
-    VLOG(1) << "Cannot retrieve downloaded bytes for finished trasnfer";
+    VLOG(1) << "Cannot retrieve downloaded bytes for finished transfer";
     downloaded_bytes = 0;
   }
 
@@ -274,8 +287,8 @@ void LibcurlNetworkFetcherImpl::OnTransferInfo(curl_off_t total,
     // Query for an HTTP response code. If one has not been sent yet, the
     // transfer has not started.
     long response_code = 0;
-    if (curl_easy_getinfo(curl_, CURLINFO_RESPONSE_CODE, &response_code) !=
-        CURLE_OK) {
+    if (curl_easy_getinfo(curl_.get(), CURLINFO_RESPONSE_CODE,
+                          &response_code) != CURLE_OK) {
       VLOG(1) << "Cannot retrieve HTTP response code for ongoing transfer.";
       return;
     } else if (response_code) {
@@ -339,15 +352,20 @@ size_t LibcurlNetworkFetcherImpl::CurlWriteFileCallback(void* data,
                                                         size_t member_size,
                                                         size_t num_members,
                                                         void* userp) {
-  base::CheckedNumeric<size_t> write_size =
+  // SAFETY: libcurl guarantees that `member_size` and `num_members` describe a
+  // valid readable portion of `data`. `userp` is a pointer to a stack
+  // allocated `base::File` guaranteed to be valid throughout the libcurl
+  // operation by `DownloadToFile`.
+  const base::CheckedNumeric<size_t> write_size =
       base::CheckedNumeric<size_t>(member_size) *
       base::CheckedNumeric<size_t>(num_members);
-  base::File* file = static_cast<base::File*>(userp);
-
-  int bytes_written = file->WriteAtCurrentPos(
-      static_cast<const char*>(data), write_size.Cast<int>().ValueOrDefault(0));
-
-  return bytes_written > 0 ? bytes_written : 0;
+  CHECK_LE(size_t{write_size.ValueOrDie()}, size_t{CURL_MAX_WRITE_SIZE});
+  CHECK(data);
+  const auto data_span = UNSAFE_BUFFERS(base::span<uint8_t>(
+      static_cast<uint8_t*>(data), write_size.ValueOrDie()));
+  auto* file = static_cast<base::File*>(userp);
+  const std::optional<int> bytes_written = file->WriteAtCurrentPos(data_span);
+  return bytes_written.value_or(0);
 }
 
 int LibcurlNetworkFetcherImpl::CurlTransferCallback(void* userp,
@@ -388,9 +406,8 @@ class LibcurlNetworkFetcher : public update_client::NetworkFetcher {
   LibcurlNetworkFetcher() = delete;
   LibcurlNetworkFetcher(const LibcurlNetworkFetcher&) = delete;
   LibcurlNetworkFetcher& operator=(const LibcurlNetworkFetcher&) = delete;
-  ~LibcurlNetworkFetcher() override = default;
 
-  explicit LibcurlNetworkFetcher(CURL* curl);
+  explicit LibcurlNetworkFetcher(CurlUniquePtr curl);
 
   // Overrides for update_client::NetworkFetcher
   void PostRequest(
@@ -402,20 +419,21 @@ class LibcurlNetworkFetcher : public update_client::NetworkFetcher {
       ProgressCallback progress_callback,
       PostRequestCompleteCallback post_request_complete_callback) override;
 
-  void DownloadToFile(const GURL& url,
-                      const base::FilePath& file_path,
-                      ResponseStartedCallback response_started_callback,
-                      ProgressCallback progress_callback,
-                      DownloadToFileCompleteCallback
-                          download_to_file_complete_callback) override;
+  base::OnceClosure DownloadToFile(
+      const GURL& url,
+      const base::FilePath& file_path,
+      ResponseStartedCallback response_started_callback,
+      ProgressCallback progress_callback,
+      DownloadToFileCompleteCallback download_to_file_complete_callback)
+      override;
 
  private:
   base::SequenceBound<LibcurlNetworkFetcherImpl> impl_;
 };
 
-LibcurlNetworkFetcher::LibcurlNetworkFetcher(CURL* curl)
+LibcurlNetworkFetcher::LibcurlNetworkFetcher(CurlUniquePtr curl)
     : impl_(base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()}),
-            curl,
+            std::move(curl),
             base::SequencedTaskRunner::GetCurrentDefault()) {}
 
 void LibcurlNetworkFetcher::PostRequest(
@@ -433,7 +451,7 @@ void LibcurlNetworkFetcher::PostRequest(
                 std::move(post_request_complete_callback));
 }
 
-void LibcurlNetworkFetcher::DownloadToFile(
+base::OnceClosure LibcurlNetworkFetcher::DownloadToFile(
     const GURL& url,
     const base::FilePath& file_path,
     ResponseStartedCallback response_started_callback,
@@ -443,6 +461,7 @@ void LibcurlNetworkFetcher::DownloadToFile(
       .WithArgs(url, file_path, std::move(response_started_callback),
                 std::move(progress_callback),
                 std::move(download_to_file_complete_callback));
+  return base::DoNothing();
 }
 
 }  // namespace
@@ -450,19 +469,18 @@ void LibcurlNetworkFetcher::DownloadToFile(
 class NetworkFetcherFactory::Impl {};
 
 NetworkFetcherFactory::NetworkFetcherFactory(
-    absl::optional<PolicyServiceProxyConfiguration>) {}
+    std::optional<PolicyServiceProxyConfiguration>) {}
 NetworkFetcherFactory::~NetworkFetcherFactory() = default;
 
 std::unique_ptr<update_client::NetworkFetcher> NetworkFetcherFactory::Create()
     const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  CURL* curl = curl_easy_init();
+  CurlUniquePtr curl{curl_easy_init()};
   if (!curl) {
     VLOG(1) << "Failed to initialize a curl handle.";
     return nullptr;
   }
-
-  return std::make_unique<LibcurlNetworkFetcher>(curl);
+  return std::make_unique<LibcurlNetworkFetcher>(std::move(curl));
 }
 
 }  // namespace updater

@@ -10,19 +10,23 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/types/strong_alias.h"
 #include "base/values.h"
+#include "extensions/common/api/storage.h"
 
 namespace extensions {
 
 enum class StorageAreaNamespace;
 
-using SettingsChangedCallback = base::RepeatingCallback<
-    void(const std::string&, StorageAreaNamespace, base::Value)>;
+using SettingsChangedCallback =
+    base::RepeatingCallback<void(const std::string&,
+                                 StorageAreaNamespace,
+                                 std::optional<api::storage::AccessLevel>,
+                                 base::Value)>;
 
 using SequenceBoundSettingsChangedCallback =
     base::StrongAlias<class SequenceBoundSettingsChangedCallbackTag,
                       SettingsChangedCallback>;
 
-// Returns a callback that is guaranteed to run on |task_runner|. This should be
+// Returns a callback that is guaranteed to run on `task_runner`. This should be
 // used when the callback is invoked from other sequences.
 inline SequenceBoundSettingsChangedCallback
 GetSequenceBoundSettingsChangedCallback(

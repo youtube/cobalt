@@ -7,6 +7,8 @@
 #include <fuchsia/web/cpp/fidl.h>
 #include <lib/fidl/cpp/interface_ptr_set.h>
 #include <lib/sys/cpp/component_context.h>
+
+#include <optional>
 #include <vector>
 
 #include "base/command_line.h"
@@ -22,7 +24,6 @@
 #include "net/base/net_errors.h"
 #include "net/base/port_util.h"
 #include "net/socket/tcp_server_socket.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace {
 
@@ -45,7 +46,7 @@ class DevToolsSocketFactory : public content::DevToolsSocketFactory {
     auto socket =
         std::make_unique<net::TCPServerSocket>(nullptr, net::NetLogSource());
     int error = socket->Listen(ip_end_point_, kTcpListenBackLog,
-                               /*ipv6_only=*/absl::nullopt);
+                               /*ipv6_only=*/std::nullopt);
     if (error != net::OK) {
       LOG(WARNING) << "Failed to start the HTTP debugger service. "
                    << net::ErrorToString(error);
@@ -186,7 +187,7 @@ class UserModeController : public WebEngineDevToolsController {
   bool is_remote_debugging_started_ = false;
 
   // Currently active DevTools port. Set to 0 on service startup error.
-  absl::optional<uint16_t> devtools_port_;
+  std::optional<uint16_t> devtools_port_;
 
   // Set of Frames' content::WebContents which are remotely debuggable.
   base::flat_set<content::WebContents*> debuggable_contents_;
@@ -247,7 +248,7 @@ class DebugModeController : public WebEngineDevToolsController,
   }
 
   // Currently active DevTools port. Set to 0 on service startup error.
-  absl::optional<uint16_t> devtools_port_;
+  std::optional<uint16_t> devtools_port_;
 
  private:
   // fuchsia::web::Debug implementation.
@@ -335,7 +336,7 @@ class MixedModeController : public DebugModeController {
 std::unique_ptr<WebEngineDevToolsController>
 WebEngineDevToolsController::CreateFromCommandLine(
     const base::CommandLine& command_line) {
-  absl::optional<uint16_t> devtools_port;
+  std::optional<uint16_t> devtools_port;
   if (command_line.HasSwitch(switches::kRemoteDebuggingPort)) {
     // Set up DevTools to listen on all network routes on the command-line
     // provided port.

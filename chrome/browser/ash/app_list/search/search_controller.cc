@@ -6,14 +6,16 @@
 
 #include <algorithm>
 
+#include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
+#include "ash/public/cpp/app_list/app_list_controller.h"
 #include "ash/public/cpp/app_list/app_list_features.h"
 #include "ash/public/cpp/app_list/app_list_metrics.h"
 #include "ash/public/cpp/app_list/app_list_types.h"
-#include "ash/public/cpp/tablet_mode.h"
-#include "ash/shell.h"
 #include "ash/system/federated/federated_service_controller_impl.h"
-#include "base/logging.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback_forward.h"
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/metrics_hashes.h"
 #include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
@@ -23,22 +25,29 @@
 #include "chrome/browser/ash/app_list/app_list_model_updater.h"
 #include "chrome/browser/ash/app_list/search/app_search_data_source.h"
 #include "chrome/browser/ash/app_list/search/chrome_search_result.h"
+#include "chrome/browser/ash/app_list/search/common/file_util.h"
 #include "chrome/browser/ash/app_list/search/common/keyword_util.h"
 #include "chrome/browser/ash/app_list/search/common/string_util.h"
+#include "chrome/browser/ash/app_list/search/common/types_util.h"
 #include "chrome/browser/ash/app_list/search/ranking/ranker_manager.h"
 #include "chrome/browser/ash/app_list/search/ranking/sorting.h"
+#include "chrome/browser/ash/app_list/search/search_engine.h"
 #include "chrome/browser/ash/app_list/search/search_features.h"
+#include "chrome/browser/ash/app_list/search/search_file_scanner.h"
 #include "chrome/browser/ash/app_list/search/search_metrics_manager.h"
 #include "chrome/browser/ash/app_list/search/search_provider.h"
 #include "chrome/browser/ash/app_list/search/search_session_metrics_manager.h"
-#include "chrome/browser/metrics/structured/event_logging_features.h"
+#include "chrome/browser/ash/app_list/search/types.h"
+#include "chrome/browser/ash/file_manager/path_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
+#include "ui/display/screen.h"
 
 namespace app_list {
 namespace {
+
 
 void ClearNonZeroStateResults(ResultsMap& results) {
   for (auto it = results.begin(); it != results.end();) {
@@ -48,10 +57,6 @@ void ClearNonZeroStateResults(ResultsMap& results) {
       ++it;
     }
   }
-}
-
-bool IsTabletMode() {
-  return ash::TabletMode::IsInTabletMode();
 }
 
 }  // namespace
@@ -66,14 +71,15 @@ SearchController::SearchController(
       model_updater_(model_updater),
       list_controller_(list_controller),
       notifier_(notifier),
-      federated_service_controller_(federated_service_controller) {}
+      federated_service_controller_(federated_service_controller) {
+}
 
 SearchController::~SearchController() = default;
 
 void SearchController::Initialize() {
   burn_in_controller_ = std::make_unique<BurnInController>(base::BindRepeating(
       &SearchController::OnBurnInPeriodElapsed, base::Unretained(this)));
-  ranker_manager_ = std::make_unique<RankerManager>(profile_, this);
+  ranker_manager_ = std::make_unique<RankerManager>(profile_);
   metrics_manager_ =
       std::make_unique<SearchMetricsManager>(profile_, notifier_);
   session_metrics_manager_ =
@@ -85,13 +91,22 @@ void SearchController::Initialize() {
       profile_, list_controller_, base::DefaultClock::GetInstance());
   app_discovery_metrics_manager_ =
       std::make_unique<AppDiscoveryMetricsManager>(profile_);
+  search_engine_ = std::make_unique<SearchEngine>(profile_);
+
+  if (search_features::IsLauncherSearchFileScanEnabled()) {
+    search_file_scanner_ = std::make_unique<SearchFileScanner>(
+        profile_, file_manager::util::GetMyFilesFolderForProfile(profile_),
+        GetTrashPaths(profile_));
+  }
+}
+
+std::vector<ash::AppListSearchControlCategory>
+SearchController::GetToggleableCategories() const {
+  return toggleable_categories_;
 }
 
 void SearchController::OnBurnInPeriodElapsed() {
   ranker_manager_->OnBurnInPeriodElapsed();
-  if (search_features::isLauncherOmniboxPublishLogicLogEnabled()) {
-    LOG(ERROR) << "Launcher search burn-in period elapsed publish";
-  }
   Publish();
 }
 
@@ -99,8 +114,18 @@ void SearchController::AddProvider(std::unique_ptr<SearchProvider> provider) {
   if (ash::IsZeroStateResultType(provider->ResultType())) {
     ++total_zero_state_blockers_;
   }
-  provider->set_controller(this);
-  providers_.emplace_back(std::move(provider));
+
+  // TODO(b/315709613): Temporary. Update the factory.
+  const auto control_category =
+      MapSearchCategoryToControlCategory(provider->search_category());
+  if (control_category != ControlCategory::kCannotToggle &&
+      std::find(toggleable_categories_.begin(), toggleable_categories_.end(),
+                control_category) == toggleable_categories_.end()) {
+    toggleable_categories_.push_back(control_category);
+    std::sort(toggleable_categories_.begin(), toggleable_categories_.end());
+  }
+
+  search_engine_->AddProvider(std::move(provider));
 }
 
 void SearchController::StartSearch(const std::u16string& query) {
@@ -128,15 +153,33 @@ void SearchController::StartSearch(const std::u16string& query) {
   }
 
   categories_ = CreateAllCategories();
-  ranker_manager_->Start(truncated_query, results_, categories_);
+  SearchOptions search_options;
+
+  if (ash::features::IsLauncherSearchControlEnabled()) {
+    search_options.search_categories = std::vector<SearchCategory>();
+    base::flat_set<ControlCategory> disabled_categories;
+    for (const auto category : toggleable_categories_) {
+      if (!IsControlCategoryEnabled(profile_, category)) {
+        disabled_categories.insert(category);
+      }
+    }
+
+    for (const auto category : search_engine_->GetAllSearchCategories()) {
+      if (!disabled_categories.contains(
+              MapSearchCategoryToControlCategory(category))) {
+        search_options.search_categories->push_back(category);
+      }
+    }
+  }
+
+  ranker_manager_->Start(truncated_query, categories_);
 
   session_start_ = base::Time::Now();
   last_query_ = truncated_query;
 
-  // Search all providers.
-  for (const auto& provider : providers_) {
-    provider->Start(truncated_query);
-  }
+  search_engine_->StartSearch(truncated_query, std::move(search_options),
+                              base::BindRepeating(&SearchController::SetResults,
+                                                  base::Unretained(this)));
 }
 
 void SearchController::ClearSearch() {
@@ -146,15 +189,10 @@ void SearchController::ClearSearch() {
   ClearNonZeroStateResults(results_);
   last_query_.clear();
 
-  for (const auto& provider : providers_) {
-    provider->StopQuery();
-  }
+  search_engine_->StopQuery();
 
-  if (search_features::isLauncherOmniboxPublishLogicLogEnabled()) {
-    LOG(ERROR) << "Launcher search clear search publish";
-  }
   Publish();
-  ranker_manager_->Start(u"", results_, categories_);
+  ranker_manager_->Start(u"", categories_);
 }
 
 void SearchController::StartZeroState(base::OnceClosure on_done,
@@ -168,16 +206,15 @@ void SearchController::StartZeroState(base::OnceClosure on_done,
   // sorting in SetResults.
   categories_ = CreateAllCategories();
 
-  ranker_manager_->Start(std::u16string(), results_, categories_);
+  ranker_manager_->Start(std::u16string(), categories_);
 
   last_query_.clear();
 
   on_zero_state_done_.AddUnsafe(std::move(on_done));
   returned_zero_state_blockers_ = 0;
 
-  for (const auto& provider : providers_) {
-    provider->StartZeroState();
-  }
+  search_engine_->StartZeroState(base::BindRepeating(
+      &SearchController::SetResults, base::Unretained(this)));
 
   zero_state_timeout_.Start(
       FROM_HERE, timeout,
@@ -194,9 +231,6 @@ void SearchController::OnZeroStateTimedOut() {
   // Zero state callbacks will get run when next batch of results gets
   // published.
   if (last_query_.empty() && !on_zero_state_done_.empty()) {
-    if (search_features::isLauncherOmniboxPublishLogicLogEnabled()) {
-      LOG(ERROR) << "Launcher search zero state timeout publish";
-    }
     Publish();
   }
 }
@@ -204,16 +238,13 @@ void SearchController::OnZeroStateTimedOut() {
 void SearchController::AppListViewChanging(bool is_visible) {
   // In tablet mode, the launcher is always visible so do not log launcher open
   // if the device is in tablet mode.
-  if (is_visible && !IsTabletMode() &&
-      base::FeatureList::IsEnabled(metrics::structured::kAppDiscoveryLogging)) {
+  if (is_visible && !display::Screen::GetScreen()->InTabletMode()) {
     app_discovery_metrics_manager_->OnLauncherOpen();
   }
 
   // On close.
   if (!is_visible) {
-    for (const auto& provider : providers_) {
-      provider->StopZeroState();
-    }
+    search_engine_->StopZeroState();
   }
 }
 
@@ -225,9 +256,7 @@ void SearchController::OpenResult(ChromeSearchResult* result, int event_flags) {
   }
 
   metrics_manager_->OnOpen(result->result_type(), last_query_);
-  if (base::FeatureList::IsEnabled(metrics::structured::kAppDiscoveryLogging)) {
-    app_discovery_metrics_manager_->OnOpenResult(result, last_query_);
-  }
+  app_discovery_metrics_manager_->OnOpenResult(result, last_query_);
 
   const bool dismiss_view_on_open = result->dismiss_view_on_open();
 
@@ -236,8 +265,7 @@ void SearchController::OpenResult(ChromeSearchResult* result, int event_flags) {
 
   // Launching apps can take some time. It looks nicer to eagerly dismiss the
   // app list if |result| permits it. Do not close app list for home launcher.
-  if (dismiss_view_on_open &&
-      (!ash::TabletMode::Get() || !ash::TabletMode::Get()->InTabletMode())) {
+  if (dismiss_view_on_open && !display::Screen::GetScreen()->InTabletMode()) {
     list_controller_->DismissView();
   }
 }
@@ -253,68 +281,52 @@ void SearchController::InvokeResultAction(ChromeSearchResult* result,
     // We need to update the currently published results to not include the
     // just-removed result. Manually set the result as filtered and re-publish.
     result->scoring().set_filtered(true);
-    if (search_features::isLauncherOmniboxPublishLogicLogEnabled()) {
-      LOG(ERROR) << "Launcher search remove publish";
-    }
     Publish();
   }
 }
 
-void SearchController::SetResults(const SearchProvider* provider,
-                                  Results results) {
+void SearchController::SetResults(ResultType result_type, Results results) {
   // Re-post onto the UI sequence if not called from there.
   auto ui_thread = content::GetUIThreadTaskRunner({});
   if (!ui_thread->RunsTasksInCurrentSequence()) {
     ui_thread->PostTask(
         FROM_HERE,
         base::BindOnce(&SearchController::SetResults, base::Unretained(this),
-                       provider, std::move(results)));
+                       result_type, std::move(results)));
     return;
   }
 
-  results_[provider->ResultType()] = std::move(results);
-  if (ash::IsZeroStateResultType(provider->ResultType())) {
-    SetZeroStateResults(provider);
+  results_[result_type] = std::move(results);
+  if (ash::IsZeroStateResultType(result_type)) {
+    SetZeroStateResults(result_type);
   } else {
-    SetSearchResults(provider);
+    SetSearchResults(result_type);
   }
   if (results_changed_callback_for_test_) {
-    results_changed_callback_for_test_.Run(provider->ResultType());
+    results_changed_callback_for_test_.Run(result_type);
   }
 }
 
-void SearchController::SetSearchResults(const SearchProvider* provider) {
-  Rank(provider->ResultType());
+void SearchController::SetSearchResults(ResultType result_type) {
+  Rank(result_type);
 
-  for (const auto& result : results_[provider->ResultType()]) {
+  for (const auto& result : results_[result_type]) {
     metrics_manager_->OnSearchResultsUpdated(result->scoring());
   }
 
-  bool is_post_burn_in = burn_in_controller_->UpdateResults(
-      results_, categories_, provider->ResultType());
+  bool is_post_burn_in =
+      burn_in_controller_->UpdateResults(results_, categories_, result_type);
   // If the burn-in period has not yet elapsed, don't call Publish here (this
   // case is covered by a call scheduled within the burn-in controller).
   if (!last_query_.empty() && is_post_burn_in) {
-    if (search_features::isLauncherOmniboxPublishLogicLogEnabled()) {
-      LOG(ERROR) << "Launcher search post burn-in publish from "
-                 << static_cast<int>(provider->ResultType());
-    }
     Publish();
-  } else if (search_features::isLauncherOmniboxPublishLogicLogEnabled() &&
-             !last_query_.empty()) {
-    LOG(ERROR) << "Launcher search pre burn-in from "
-               << static_cast<int>(provider->ResultType());
-  } else if (search_features::isLauncherOmniboxPublishLogicLogEnabled()) {
-    // We should expect no log from here.
-    LOG(ERROR) << "Launcher search empty query results from "
-               << static_cast<int>(provider->ResultType());
   }
 }
 
-void SearchController::SetZeroStateResults(const SearchProvider* provider) {
-  Rank(provider->ResultType());
+void SearchController::SetZeroStateResults(ResultType result_type) {
+  Rank(result_type);
 
-  if (ash::IsZeroStateResultType(provider->ResultType())) {
+  if (ash::IsZeroStateResultType(result_type)) {
     ++returned_zero_state_blockers_;
   }
 
@@ -329,9 +341,6 @@ void SearchController::SetZeroStateResults(const SearchProvider* provider) {
   if (!on_zero_state_done_.empty() &&
       returned_zero_state_blockers_ < total_zero_state_blockers_) {
     return;
-  }
-  if (search_features::isLauncherOmniboxPublishLogicLogEnabled()) {
-    LOG(ERROR) << "Launcher search zero state publish";
   }
   Publish();
 }
@@ -365,7 +374,7 @@ void SearchController::Publish() {
 
   // Compile a single list of results and sort first by their category with best
   // match first, then by burn-in iteration number, and finally by relevance.
-  std::vector<ChromeSearchResult*> all_results;
+  std::vector<raw_ptr<ChromeSearchResult, VectorExperimental>> all_results;
   for (const auto& type_results : results_) {
     for (const auto& result : type_results.second) {
       double score = result->scoring().FinalScore();
@@ -387,7 +396,7 @@ void SearchController::Publish() {
 
   if (!observer_list_.empty()) {
     std::vector<const ChromeSearchResult*> observer_results;
-    for (auto* result : all_results) {
+    for (ChromeSearchResult* result : all_results) {
       observer_results.push_back(const_cast<const ChromeSearchResult*>(result));
     }
 
@@ -452,6 +461,10 @@ void SearchController::RemoveObserver(Observer* observer) {
   observer_list_.RemoveObserver(observer);
 }
 
+void SearchController::OnDefaultSearchIsGoogleSet(bool is_google) {
+  federated_metrics_manager_->OnDefaultSearchIsGoogleSet(is_google);
+}
+
 std::u16string SearchController::get_query() {
   return last_query_;
 }
@@ -463,23 +476,8 @@ base::Time SearchController::session_start() {
 size_t SearchController::ReplaceProvidersForResultTypeForTest(
     ash::AppListSearchResultType result_type,
     std::unique_ptr<SearchProvider> new_provider) {
-  DCHECK_EQ(result_type, new_provider->ResultType());
-
-  size_t removed_providers = base::EraseIf(
-      providers_, [&](const std::unique_ptr<SearchProvider>& provider) {
-        return provider->ResultType() == result_type;
-      });
-  if (!removed_providers) {
-    return 0u;
-  }
-  DCHECK_EQ(1u, removed_providers);
-
-  if (ash::IsZeroStateResultType(result_type)) {
-    total_zero_state_blockers_ -= removed_providers;
-  }
-
-  AddProvider(std::move(new_provider));
-  return removed_providers;
+  return search_engine_->ReplaceProvidersForResultTypeForTest(
+      result_type, std::move(new_provider));
 }
 
 ChromeSearchResult* SearchController::GetResultByTitleForTest(

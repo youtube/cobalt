@@ -2,20 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "content/public/browser/remote_cocoa.h"
-
 #include <utility>
 #include <vector>
 
 #include "base/functional/bind.h"
-#include "base/mac/scoped_nsobject.h"
+#include "components/input/native_web_keyboard_event.h"
+#include "components/input/web_input_event_builders_mac.h"
 #include "content/app_shim_remote_cocoa/render_widget_host_ns_view_bridge.h"
 #include "content/app_shim_remote_cocoa/render_widget_host_ns_view_host_helper.h"
 #include "content/app_shim_remote_cocoa/web_contents_ns_view_bridge.h"
-#include "content/browser/renderer_host/input/web_input_event_builders_mac.h"
 #include "content/common/render_widget_host_ns_view.mojom.h"
 #include "content/common/web_contents_ns_view_bridge.mojom.h"
-#include "content/public/browser/native_web_keyboard_event.h"
+#include "content/public/browser/remote_cocoa.h"
 #include "content/public/browser/render_widget_host_view_mac_delegate.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
@@ -65,6 +63,7 @@ class RenderWidgetHostNSViewBridgeOwner
       const RenderWidgetHostNSViewBridgeOwner&) = delete;
 
  private:
+  NSAccessibilityRemoteUIElement* __strong remote_accessibility_element_;
   void OnMojoDisconnect() { delete this; }
 
   std::unique_ptr<blink::WebCoalescedInputEvent> TranslateEvent(
@@ -75,6 +74,19 @@ class RenderWidgetHostNSViewBridgeOwner
         ui::LatencyInfo());
   }
 
+  id GetAccessibilityElement() override {
+    if (!remote_accessibility_element_) {
+      base::ProcessId browser_pid = base::kNullProcessId;
+      std::vector<uint8_t> element_token;
+      host_->GetRenderWidgetAccessibilityToken(&browser_pid, &element_token);
+      [NSAccessibilityRemoteUIElement
+          registerRemoteUIProcessIdentifier:browser_pid];
+      remote_accessibility_element_ =
+          ui::RemoteAccessibility::GetRemoteElementFromToken(element_token);
+    }
+    return remote_accessibility_element_;
+  }
+
   // RenderWidgetHostNSViewHostHelper implementation.
   id GetRootBrowserAccessibilityElement() override {
     // The RenderWidgetHostViewCocoa in the app shim process does not
@@ -83,21 +95,25 @@ class RenderWidgetHostNSViewBridgeOwner
     return nil;
   }
   id GetFocusedBrowserAccessibilityElement() override {
-    // See above.
-    return nil;
+    // Some ATs (e.g. Text To Speech) need to access the focused
+    // element in the app shim process. We make these apps work by
+    // returning the `accessibilityFocusedUIElement` of the BridgedContentView,
+    // which is an NSAccessibilityRemoteUIElement in app shim process.
+    NSView* bridgedContentView = [[bridge_->GetNSView() superview] superview];
+    return [bridgedContentView accessibilityFocusedUIElement];
   }
   void SetAccessibilityWindow(NSWindow* window) override {
     host_->SetRemoteAccessibilityWindowToken(
         ui::RemoteAccessibility::GetTokenForLocalElement(window));
   }
 
-  void ForwardKeyboardEvent(const content::NativeWebKeyboardEvent& key_event,
+  void ForwardKeyboardEvent(const input::NativeWebKeyboardEvent& key_event,
                             const ui::LatencyInfo& latency_info) override {
     ForwardKeyboardEventWithCommands(
         key_event, latency_info, std::vector<blink::mojom::EditCommandPtr>());
   }
   void ForwardKeyboardEventWithCommands(
-      const content::NativeWebKeyboardEvent& key_event,
+      const input::NativeWebKeyboardEvent& key_event,
       const ui::LatencyInfo& latency_info,
       std::vector<blink::mojom::EditCommandPtr> edit_commands) override {
     const blink::WebKeyboardEvent* web_event =
@@ -108,9 +124,9 @@ class RenderWidgetHostNSViewBridgeOwner
             std::vector<std::unique_ptr<blink::WebInputEvent>>{},
             std::vector<std::unique_ptr<blink::WebInputEvent>>{}, latency_info);
     std::vector<uint8_t> native_event_data =
-        ui::EventToData(key_event.os_event);
+        ui::EventToData(key_event.os_event.Get());
     host_->ForwardKeyboardEventWithCommands(
-        std::move(input_event), native_event_data, key_event.skip_in_browser,
+        std::move(input_event), native_event_data, key_event.skip_if_unhandled,
         std::move(edit_commands));
   }
   void RouteOrProcessMouseEvent(
@@ -150,8 +166,6 @@ class RenderWidgetHostNSViewBridgeOwner
 
   mojo::AssociatedRemote<mojom::RenderWidgetHostNSViewHost> host_;
   std::unique_ptr<RenderWidgetHostNSViewBridge> bridge_;
-  base::scoped_nsobject<NSAccessibilityRemoteUIElement>
-      remote_accessibility_element_;
 };
 }
 

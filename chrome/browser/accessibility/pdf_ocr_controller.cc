@@ -4,32 +4,63 @@
 
 #include "chrome/browser/accessibility/pdf_ocr_controller.h"
 
+#include <vector>
+
+#include "base/check_is_test.h"
 #include "base/check_op.h"
-#include "chrome/browser/accessibility/ax_screen_ai_annotator_factory.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/metrics/metrics_hashes.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
+#include "chrome/browser/pdf/pdf_viewer_stream_manager.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/common/pdf_util.h"
-#include "chrome/common/pref_names.h"
-#include "components/prefs/pref_service.h"
-#include "components/services/screen_ai/public/cpp/screen_ai_service_router.h"
-#include "components/services/screen_ai/public/cpp/screen_ai_service_router_factory.h"
+#include "chrome/browser/screen_ai/screen_ai_install_state.h"
+#include "chrome/browser/screen_ai/screen_ai_service_router.h"
+#include "chrome/browser/screen_ai/screen_ai_service_router_factory.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/grit/generated_resources.h"
+#include "components/language/core/browser/pref_names.h"
+#include "components/language/core/common/language_util.h"
+#include "components/pdf/common/pdf_util.h"
+#include "content/public/browser/browser_accessibility_state.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_iterator.h"
+#include "content/public/browser/scoped_accessibility_mode.h"
 #include "content/public/browser/web_contents.h"
+#include "pdf/pdf_features.h"
+#include "ui/accessibility/accessibility_features.h"
+#include "ui/accessibility/platform/ax_platform.h"
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/ash/accessibility/accessibility_manager.h"
+#endif
 
 namespace {
 
-constexpr char kHtmlMimeType[] = "text/html";
+constexpr uint32_t kMaxInitializationRetry = 3;
+constexpr base::TimeDelta kRetryDelay = base::Minutes(5);
 
-// For a PDF tab, there are two associated processes (and two WebContentses):
-// (i) PDF Viewer Mimehandler (mime type = text/html) and (ii) PDF renderer
-// process (mime type = application/pdf). This helper function returns all PDF-
-// related WebContentses associated with the Mimehandlers for a given Profile.
-// Note that it does trigger PdfAccessibilityTree::AccessibilityModeChanged()
-// if the AXMode with ui::AXMode::kPDFOcr is set on PDF WebContents with the
-// text/html mime type; but it does not on PDF WebContents with the
-// application/pdf mime type.
-std::vector<content::WebContents*> GetPdfHtmlWebContentses(Profile* profile) {
+// Returns all WebContents with PDF content associated with a given Profile.
+// When a PDF is opened in GuestView PDF Viewer, the following structure is
+// expected:
+// -----------------------------------------
+// WebContents A:
+//  Primary main frame
+//   WebContents B (inner PDF WebContents):
+//    PDF extension frame
+//     PDF content frame (renderer)
+// -----------------------------------------
+// On the other hand, OOPIF PDF Viewer doesn't create an inner WebContents.
+// When a PDF is opened in OOPIF PDF Viewer, the following structure is
+// expected:
+// -----------------------------------------
+// WebContents A:
+//  Primary main frame
+//   PDF extension frame
+//    PDF content frame (renderer)
+// -----------------------------------------
+std::vector<content::WebContents*> GetAllPdfWebContents(Profile* profile) {
   // Code borrowed from `content::WebContentsImpl::GetAllWebContents()`.
   std::vector<content::WebContents*> result;
 
@@ -52,133 +83,213 @@ std::vector<content::WebContents*> GetPdfHtmlWebContentses(Profile* profile) {
         Profile::FromBrowserContext(web_contents->GetBrowserContext())) {
       continue;
     }
-    // Check if WebContents is PDF's.
-    if (!IsPdfExtensionOrigin(
-            web_contents->GetPrimaryMainFrame()->GetLastCommittedOrigin())) {
-      continue;
+
+    if (chrome_pdf::features::IsOopifPdfEnabled()) {
+      // If `web_contents` has a `pdf::PdfViewerStreamManager`, then there must
+      // be a PDF in the WebContents in OOPIF PDF Viewer.
+      if (pdf::PdfViewerStreamManager::FromWebContents(web_contents)) {
+        result.push_back(web_contents);
+      }
+    } else if (IsPdfExtensionOrigin(web_contents->GetPrimaryMainFrame()
+                                        ->GetLastCommittedOrigin())) {
+      // GuestView PDF Viewer case. If the WebContents has a PDF, GuestView PDF
+      // Viewer has one inner PDF WebContents, and its primary main frame has
+      // the PDF extension origin. It will iterate on this innter PDF
+      // WebContents, so check its primary main frame.
+      result.push_back(web_contents);
     }
-    DCHECK_EQ(web_contents->GetContentsMimeType(), kHtmlMimeType);
-    result.push_back(web_contents);
   }
   return result;
+}
+
+// Returns true if a screen reader is present, if the screen reader AXMode is
+// enabled on any PDF web contents, or (on Chrome OS only) if select-to-speak is
+// enabled.
+bool IsAccessibilityEnabled(Profile* profile) {
+  // Active if a screen reader is present.
+  if (ui::AXPlatform::GetInstance().IsScreenReaderActive()) {
+    return true;
+  }
+
+#if BUILDFLAG(IS_CHROMEOS)
+  // Conditionally active if select-to-speak is enabled.
+  if (features::IsAccessibilityPdfOcrForSelectToSpeakEnabled() &&
+      ash::AccessibilityManager::Get()->IsSelectToSpeakEnabled()) {
+    return true;
+  }
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
+  // Check all web contentses. `ReadAnythingUntrustedPageHandler` sets the
+  // extended properties mode when starting to observe a PDF WebContents via
+  // `SetUpPdfObserver()`. So if any of them have that mode enabled,
+  // return true.
+  for (auto* contents : GetAllPdfWebContents(profile)) {
+    if (contents->GetAccessibilityMode().has_mode(
+            ui::AXMode::kExtendedProperties)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+void RecordAcceptLanguages(const std::string& accept_languages) {
+  for (const std::string& language :
+       base::SplitString(accept_languages, ",", base::TRIM_WHITESPACE,
+                         base::SPLIT_WANT_NONEMPTY)) {
+    // Convert to a Chrome language code synonym. This language synonym is then
+    // converted into a `LocaleCodeBCP47` enum value for a UMA histogram. See
+    // tools/metrics/histograms/enums.xml enum LocaleCodeBCP47. The enum there
+    // doesn't always have locales where the base lang and the locale are the
+    // same (e.g. they don't have id-id, but do have id). So if the base lang
+    // and the locale are the same, just use the base lang.
+    std::string language_to_log = language;
+    std::vector<std::string> lang_split =
+        base::SplitString(base::ToLowerASCII(language_to_log), "-",
+                          base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+    if (lang_split.size() == 2 && lang_split[0] == lang_split[1]) {
+      language_to_log = lang_split[0];
+    }
+    language::ToChromeLanguageSynonym(&language_to_log);
+    // TODO(crbug.com/40267312): Add a browser test to validate this UMA metric.
+    base::UmaHistogramSparse("Accessibility.PdfOcr.UserAcceptLanguage",
+                             base::HashMetricName(language_to_log));
+  }
 }
 
 }  // namespace
 
 namespace screen_ai {
 
-PdfOcrController::PdfOcrController(Profile* profile) : profile_(profile) {
-  // Initialize an observer for changes of PDF OCR pref.
+PdfOcrController::PdfOcrController(Profile* profile)
+    : profile_(profile), initialization_retry_wait_(kRetryDelay) {
   DCHECK(profile_);
-  VLOG(2) << "Init PdfOcrController";
-  pref_change_registrar_.Init(profile_->GetPrefs());
-  pref_change_registrar_.Add(
-      prefs::kAccessibilityPdfOcrAlwaysActive,
-      base::BindRepeating(&PdfOcrController::OnPdfOcrAlwaysActiveChanged,
-                          weak_ptr_factory_.GetWeakPtr()));
 
-  // Annotator function of ScreenAI service requires AXScreenAIAnnotator to be
-  // ready to receive OCR accessibility tree data.
-  screen_ai::AXScreenAIAnnotatorFactory::EnsureExistsForBrowserContext(
-      profile_);
-
-  component_ready_observer_.Observe(ScreenAIInstallState::GetInstance());
-
-  // Trigger if the preference is already set.
-  if (profile_->GetPrefs()->GetBoolean(
-          prefs::kAccessibilityPdfOcrAlwaysActive)) {
-    OnPdfOcrAlwaysActiveChanged();
+  // Register for changes to screenreader/spoken feedback/select to speak.
+#if BUILDFLAG(IS_CHROMEOS)
+  if (auto* const accessibility_manager = ash::AccessibilityManager::Get();
+      accessibility_manager) {
+    // Unretained is safe because `this` owns the subscription.
+    accessibility_status_subscription_ =
+        accessibility_manager->RegisterCallback(
+            base::BindRepeating(&PdfOcrController::OnAccessibilityStatusEvent,
+                                base::Unretained(this)));
   }
+#else   // BUILDFLAG(IS_CHROMEOS)
+  ax_mode_observation_.Observe(&ui::AXPlatform::GetInstance());
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
+  // Trigger if a screen reader or Select-to-Speak on ChromeOS is enabled.
+  OnActivationChanged();
 }
 
 PdfOcrController::~PdfOcrController() = default;
 
 // static
 std::vector<content::WebContents*>
-PdfOcrController::GetAllPdfWebContentsesForTesting(Profile* profile) {
-  return GetPdfHtmlWebContentses(profile);
-}
-
-void PdfOcrController::RunPdfOcrOnlyOnce(content::WebContents* web_contents) {
-  // TODO(crbug.com/1393069): Need to wait for the Screen AI library to be
-  // installed if not ready yet. Then, set the AXMode for PDF OCR only when the
-  // Screen AI library is downloaded and ready.
-  DCHECK(web_contents);
-  // `web_contents` should be a PDF Viewer Mimehandler.
-  DCHECK_EQ(web_contents->GetContentsMimeType(), kHtmlMimeType);
-
-  ui::AXMode ax_mode = web_contents->GetAccessibilityMode();
-  ax_mode.set_mode(ui::AXMode::kPDFOcr, true);
-  web_contents->SetAccessibilityMode(ax_mode);
+PdfOcrController::GetAllPdfWebContentsForTesting(Profile* profile) {
+  return GetAllPdfWebContents(profile);
 }
 
 bool PdfOcrController::IsEnabled() const {
-  return profile_->GetPrefs()->GetBoolean(
-      prefs::kAccessibilityPdfOcrAlwaysActive);
+  return scoped_accessibility_mode_ != nullptr;
 }
 
-void PdfOcrController::OnPdfOcrAlwaysActiveChanged() {
-  bool is_always_active =
-      profile_->GetPrefs()->GetBoolean(prefs::kAccessibilityPdfOcrAlwaysActive);
-  VLOG(2) << "PDF OCR Always Active changed: " << is_always_active;
+#if BUILDFLAG(IS_CHROMEOS)
+void PdfOcrController::OnAccessibilityStatusEvent(
+    const ash::AccessibilityStatusEventDetails& details) {
+  if (details.notification_type ==
+          ash::AccessibilityNotificationType::kToggleSpokenFeedback ||
+      details.notification_type ==
+          ash::AccessibilityNotificationType::kToggleSelectToSpeak) {
+    OnActivationChanged();
+  }
+}
+#endif  // BUIDLFLAG(IS_CHROMEOS)
 
-  if (is_always_active) {
-    // If Screen AI service is not ready and user is requesting OCR, keep the
-    // request until service is up.
-    if (screen_ai::ScreenAIInstallState::GetInstance()->get_state() !=
-        ScreenAIInstallState::State::kReady) {
-      // TODO(crbug.com/1393069): Consider letting user know that OCR will run
-      // when service is ready.
-      send_always_active_state_when_service_is_ready_ = true;
+void PdfOcrController::OnActivationChanged() {
+  // PDF Searchify feature performs OCR on all inaccessible PDFs regardless of
+  // accessibility settings. Therefore if it is enabled, we don't need to enable
+  // OCR in PDF viewer.
+  // TODO(crbug.com/360803943): Remove this class when PDF Searchify is
+  // launched.
+  bool enable =
+      (!base::FeatureList::IsEnabled(chrome_pdf::features::kPdfSearchify) &&
+       IsAccessibilityEnabled(profile_));
+
+  if (enable == IsEnabled()) {
+    return;  // No change in activation.
+  }
+
+  if (enable) {
+    RecordAcceptLanguages(
+        profile_->GetPrefs()->GetString(language::prefs::kAcceptLanguages));
+
+    if (!ocr_service_ready_) {
+      InitializeService();
       return;
     }
+
+    // This will send the `kPDFOcr` flag to all WebContents. Strictly speaking,
+    // it need only be sent to those associated with PDF Viewer Mimehandlers,
+    // but we have no filtering mechanism today. The others should simply ignore
+    // it.
+    scoped_accessibility_mode_ =
+        content::BrowserAccessibilityState::GetInstance()
+            ->CreateScopedModeForBrowserContext(profile_, ui::AXMode::kPDFOcr);
   } else {
-    // If user has previously requested Always Active and the service was not
-    // ready then, and now user has untoggeled it, ignore both requests.
-    if (send_always_active_state_when_service_is_ready_) {
-      send_always_active_state_when_service_is_ready_ = false;
-      return;
+    scoped_accessibility_mode_.reset();
+  }
+}
+
+void PdfOcrController::InitializeService() {
+  // Avoid repeated requests.
+  if (waiting_for_ocr_service_initialization_) {
+    return;
+  }
+  waiting_for_ocr_service_initialization_ = true;
+
+  screen_ai::ScreenAIServiceRouterFactory::GetForBrowserContext(profile_)
+      ->GetServiceStateAsync(
+          ScreenAIServiceRouter::Service::kOCR,
+          base::BindOnce(&PdfOcrController::OCRServiceInitializationCallback,
+                         weak_ptr_factory_.GetWeakPtr()));
+}
+
+void PdfOcrController::OCRServiceInitializationCallback(bool successful) {
+  waiting_for_ocr_service_initialization_ = false;
+  ocr_service_ready_ = successful;
+  if (successful) {
+    OnActivationChanged();
+    base::UmaHistogramCounts100(
+        "Accessibility.ScreenAI.Component.InstallRetries",
+        initialization_retries_);
+  } else {
+    // Schedule a retry.
+    initialization_retries_++;
+    if (initialization_retries_ < kMaxInitializationRetry) {
+      base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+          FROM_HERE,
+          base::BindOnce(&PdfOcrController::InitializeService,
+                         weak_ptr_factory_.GetWeakPtr()),
+          initialization_retry_wait_);
     }
   }
-
-  SendPdfOcrAlwaysActiveToAll(is_always_active);
 }
 
-void PdfOcrController::SendPdfOcrAlwaysActiveToAll(bool is_always_active) {
-  std::vector<content::WebContents*> html_web_contents_vector =
-      GetPdfHtmlWebContentses(profile_);
-  // Iterate over all WebContentses associated with PDF Viewer Mimehandlers and
-  // set the AXMode with the ui::AXMode::kPDFOcr flag.
-  for (auto* web_contents : html_web_contents_vector) {
-    ui::AXMode ax_mode = web_contents->GetAccessibilityMode();
-    ax_mode.set_mode(ui::AXMode::kPDFOcr, is_always_active);
-    web_contents->SetAccessibilityMode(ax_mode);
-  }
+void PdfOcrController::Activate() {
+  OnActivationChanged();
 }
 
-void PdfOcrController::StateChanged(ScreenAIInstallState::State state) {
-  switch (state) {
-    case ScreenAIInstallState::State::kNotDownloaded:
-      break;
-
-    case ScreenAIInstallState::State::kDownloading:
-      break;
-
-    case ScreenAIInstallState::State::kFailed:
-      // TODO(crbug.com/1393069): Disable menu items.
-      break;
-
-    case ScreenAIInstallState::State::kDownloaded:
-      screen_ai::ScreenAIServiceRouterFactory::GetForBrowserContext(profile_)
-          ->LaunchIfNotRunning();
-      break;
-
-    case ScreenAIInstallState::State::kReady:
-      if (send_always_active_state_when_service_is_ready_) {
-        send_always_active_state_when_service_is_ready_ = false;
-        SendPdfOcrAlwaysActiveToAll(true);
-      }
-  }
+#if !BUILDFLAG(IS_CHROMEOS)
+void PdfOcrController::OnAXModeAdded(ui::AXMode mode) {
+  OnActivationChanged();
 }
+
+void PdfOcrController::OnAssistiveTechChanged(
+    ui::AssistiveTech assistive_tech) {
+  OnActivationChanged();
+}
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace screen_ai

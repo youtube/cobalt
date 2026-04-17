@@ -12,7 +12,6 @@
 #include "base/location.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
@@ -123,9 +122,9 @@ content::WebContents* GetWebContentsByFrameID(int render_process_id,
 content::WebContents::Getter GetWebContentsGetter(
     content::WebContents* web_contents) {
   // The FrameTreeNode ID should be used to access the WebContents.
-  int frame_tree_node_id =
+  content::FrameTreeNodeId frame_tree_node_id =
       web_contents->GetPrimaryMainFrame()->GetFrameTreeNodeId();
-  if (frame_tree_node_id != content::RenderFrameHost::kNoFrameTreeNodeId) {
+  if (frame_tree_node_id) {
     return base::BindRepeating(content::WebContents::FromFrameTreeNodeId,
                                frame_tree_node_id);
   }
@@ -134,12 +133,12 @@ content::WebContents::Getter GetWebContentsGetter(
   // the WebContents.
   return base::BindRepeating(
       &GetWebContentsByFrameID,
-      web_contents->GetPrimaryMainFrame()->GetProcess()->GetID(),
+      web_contents->GetPrimaryMainFrame()->GetProcess()->GetDeprecatedID(),
       web_contents->GetPrimaryMainFrame()->GetRoutingID());
 }
 
 void AcquireFileAccessPermissionDoneForScheduleDownload(
-    content::WebContents* web_contents,
+    const content::WebContents::Getter& wc_getter,
     const std::string& name_space,
     const GURL& url,
     OfflinePageUtils::DownloadUIActionFlags ui_action,
@@ -147,6 +146,11 @@ void AcquireFileAccessPermissionDoneForScheduleDownload(
     bool granted) {
   if (!granted)
     return;
+  content::WebContents* web_contents = wc_getter.Run();
+  if (!web_contents) {
+    return;
+  }
+
   OfflinePageTabHelper* tab_helper =
       OfflinePageTabHelper::FromWebContents(web_contents);
   if (!tab_helper)
@@ -296,7 +300,8 @@ void OfflinePageUtils::ScheduleDownload(content::WebContents* web_contents,
   AcquireFileAccessPermission(
       web_contents,
       base::BindOnce(&AcquireFileAccessPermissionDoneForScheduleDownload,
-                     web_contents, name_space, url, ui_action, request_origin));
+                     GetWebContentsGetter(web_contents), name_space, url,
+                     ui_action, request_origin));
 }
 
 // static

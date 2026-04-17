@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <array>
 #include <vector>
 
 #include "cc/base/region.h"
@@ -16,21 +17,9 @@
 namespace cc {
 namespace {
 
-std::unique_ptr<FakeRecordingSource> CreateRecordingSource(
-    const gfx::Rect& viewport) {
-  gfx::Rect layer_rect(viewport.right(), viewport.bottom());
-  std::unique_ptr<FakeRecordingSource> recording_source =
-      FakeRecordingSource::CreateRecordingSource(viewport, layer_rect.size());
-  return recording_source;
-}
-
 TEST(RecordingSourceTest, DiscardableImagesWithTransform) {
-  gfx::Rect recorded_viewport(256, 256);
-
-  std::unique_ptr<FakeRecordingSource> recording_source =
-      FakeRecordingSource::CreateFilledRecordingSource(
-          recorded_viewport.size());
-  PaintImage discardable_image[2][2];
+  FakeRecordingSource recording_source(gfx::Size(256, 256));
+  std::array<std::array<PaintImage, 2>, 2> discardable_image;
   gfx::Transform identity_transform;
   discardable_image[0][0] = CreateDiscardablePaintImage(gfx::Size(32, 32));
   // Translate transform is equivalent to moving using point.
@@ -44,22 +33,24 @@ TEST(RecordingSourceTest, DiscardableImagesWithTransform) {
   rotate_transform.Rotate(45);
   discardable_image[1][1] = CreateDiscardablePaintImage(gfx::Size(32, 32));
 
-  recording_source->add_draw_image_with_transform(discardable_image[0][0],
-                                                  identity_transform);
-  recording_source->add_draw_image_with_transform(discardable_image[1][0],
-                                                  translate_transform);
-  recording_source->add_draw_image_with_transform(discardable_image[1][1],
-                                                  rotate_transform);
-  recording_source->Rerecord();
+  recording_source.add_draw_image_with_transform(discardable_image[0][0],
+                                                 identity_transform);
+  recording_source.add_draw_image_with_transform(discardable_image[1][0],
+                                                 translate_transform);
+  recording_source.add_draw_image_with_transform(discardable_image[1][1],
+                                                 rotate_transform);
+  recording_source.Rerecord();
 
   scoped_refptr<RasterSource> raster_source =
-      recording_source->CreateRasterSource();
+      recording_source.CreateRasterSource();
+  scoped_refptr<DiscardableImageMap> image_map =
+      raster_source->GetDisplayItemList()->GenerateDiscardableImageMap(
+          ScrollOffsetMap());
 
   // Tile sized iterators. These should find only one pixel ref.
   {
-    std::vector<const DrawImage*> images;
-    raster_source->GetDiscardableImagesInRect(gfx::Rect(0, 0, 128, 128),
-                                              &images);
+    std::vector<const DrawImage*> images =
+        image_map->GetDiscardableImagesInRect(gfx::Rect(0, 0, 128, 128));
     EXPECT_EQ(2u, images.size());
     EXPECT_TRUE(
         images[0]->paint_image().IsSameForTesting(discardable_image[0][0]));
@@ -69,9 +60,8 @@ TEST(RecordingSourceTest, DiscardableImagesWithTransform) {
 
   // Shifted tile sized iterators. These should find only one pixel ref.
   {
-    std::vector<const DrawImage*> images;
-    raster_source->GetDiscardableImagesInRect(gfx::Rect(130, 140, 128, 128),
-                                              &images);
+    std::vector<const DrawImage*> images =
+        image_map->GetDiscardableImagesInRect(gfx::Rect(130, 140, 128, 128));
     EXPECT_EQ(1u, images.size());
     EXPECT_TRUE(
         images[0]->paint_image().IsSameForTesting(discardable_image[1][1]));
@@ -79,9 +69,8 @@ TEST(RecordingSourceTest, DiscardableImagesWithTransform) {
 
   // The rotated bitmap would still be in the top right tile.
   {
-    std::vector<const DrawImage*> images;
-    raster_source->GetDiscardableImagesInRect(gfx::Rect(130, 0, 128, 128),
-                                              &images);
+    std::vector<const DrawImage*> images =
+        image_map->GetDiscardableImagesInRect(gfx::Rect(130, 0, 128, 128));
     EXPECT_EQ(1u, images.size());
     EXPECT_TRUE(
         images[0]->paint_image().IsSameForTesting(discardable_image[1][1]));
@@ -89,9 +78,8 @@ TEST(RecordingSourceTest, DiscardableImagesWithTransform) {
 
   // Layer sized iterators. These should find all pixel refs.
   {
-    std::vector<const DrawImage*> images;
-    raster_source->GetDiscardableImagesInRect(gfx::Rect(0, 0, 256, 256),
-                                              &images);
+    std::vector<const DrawImage*> images =
+        image_map->GetDiscardableImagesInRect(gfx::Rect(0, 0, 256, 256));
     EXPECT_EQ(3u, images.size());
     // Top left tile with bitmap[0][0] and bitmap[1][1].
     EXPECT_TRUE(
@@ -104,9 +92,8 @@ TEST(RecordingSourceTest, DiscardableImagesWithTransform) {
 
   // Verify different raster scales
   for (float scale = 1.f; scale <= 5.f; scale += 0.5f) {
-    std::vector<const DrawImage*> images;
-    raster_source->GetDiscardableImagesInRect(gfx::Rect(130, 0, 128, 128),
-                                              &images);
+    std::vector<const DrawImage*> images =
+        image_map->GetDiscardableImagesInRect(gfx::Rect(130, 0, 128, 128));
     DrawImage image(*images[0], scale, PaintImage::kDefaultFrameIndex,
                     TargetColorParams());
     EXPECT_EQ(1u, images.size());
@@ -116,95 +103,86 @@ TEST(RecordingSourceTest, DiscardableImagesWithTransform) {
 }
 
 TEST(RecordingSourceTest, EmptyImages) {
-  gfx::Rect recorded_viewport(0, 0, 256, 256);
-
-  std::unique_ptr<FakeRecordingSource> recording_source =
-      CreateRecordingSource(recorded_viewport);
-  recording_source->Rerecord();
+  FakeRecordingSource recording_source(gfx::Size(256, 256));
+  recording_source.Rerecord();
 
   scoped_refptr<RasterSource> raster_source =
-      recording_source->CreateRasterSource();
+      recording_source.CreateRasterSource();
+  scoped_refptr<DiscardableImageMap> image_map =
+      raster_source->GetDisplayItemList()->GenerateDiscardableImageMap(
+          ScrollOffsetMap());
 
   // Tile sized iterators.
   {
-    std::vector<const DrawImage*> images;
-    raster_source->GetDiscardableImagesInRect(gfx::Rect(0, 0, 128, 128),
-                                              &images);
+    std::vector<const DrawImage*> images =
+        image_map->GetDiscardableImagesInRect(gfx::Rect(0, 0, 128, 128));
     EXPECT_TRUE(images.empty());
   }
   // Shifted tile sized iterators.
   {
-    std::vector<const DrawImage*> images;
-    raster_source->GetDiscardableImagesInRect(gfx::Rect(140, 140, 128, 128),
-                                              &images);
+    std::vector<const DrawImage*> images =
+        image_map->GetDiscardableImagesInRect(gfx::Rect(140, 140, 128, 128));
     EXPECT_TRUE(images.empty());
   }
   // Layer sized iterators.
   {
-    std::vector<const DrawImage*> images;
-    raster_source->GetDiscardableImagesInRect(gfx::Rect(0, 0, 256, 256),
-                                              &images);
+    std::vector<const DrawImage*> images =
+        image_map->GetDiscardableImagesInRect(gfx::Rect(0, 0, 256, 256));
     EXPECT_TRUE(images.empty());
   }
 }
 
 TEST(RecordingSourceTest, NoDiscardableImages) {
-  gfx::Rect recorded_viewport(0, 0, 256, 256);
-
-  std::unique_ptr<FakeRecordingSource> recording_source =
-      CreateRecordingSource(recorded_viewport);
+  FakeRecordingSource recording_source(gfx::Size(256, 256));
 
   PaintFlags simple_flags;
   simple_flags.setColor(SkColorSetARGB(255, 12, 23, 34));
 
   auto non_discardable_image =
       CreateNonDiscardablePaintImage(gfx::Size(128, 128));
-  recording_source->add_draw_rect_with_flags(gfx::Rect(0, 0, 256, 256),
-                                             simple_flags);
-  recording_source->add_draw_rect_with_flags(gfx::Rect(128, 128, 512, 512),
-                                             simple_flags);
-  recording_source->add_draw_rect_with_flags(gfx::Rect(512, 0, 256, 256),
-                                             simple_flags);
-  recording_source->add_draw_rect_with_flags(gfx::Rect(0, 512, 256, 256),
-                                             simple_flags);
-  recording_source->add_draw_image(non_discardable_image, gfx::Point(128, 0));
-  recording_source->add_draw_image(non_discardable_image, gfx::Point(0, 128));
-  recording_source->add_draw_image(non_discardable_image, gfx::Point(150, 150));
-  recording_source->Rerecord();
+  recording_source.add_draw_rect_with_flags(gfx::Rect(0, 0, 256, 256),
+                                            simple_flags);
+  recording_source.add_draw_rect_with_flags(gfx::Rect(128, 128, 512, 512),
+                                            simple_flags);
+  recording_source.add_draw_rect_with_flags(gfx::Rect(512, 0, 256, 256),
+                                            simple_flags);
+  recording_source.add_draw_rect_with_flags(gfx::Rect(0, 512, 256, 256),
+                                            simple_flags);
+  recording_source.add_draw_image(non_discardable_image, gfx::Point(128, 0));
+  recording_source.add_draw_image(non_discardable_image, gfx::Point(0, 128));
+  recording_source.add_draw_image(non_discardable_image, gfx::Point(150, 150));
+  recording_source.Rerecord();
 
   scoped_refptr<RasterSource> raster_source =
-      recording_source->CreateRasterSource();
+      recording_source.CreateRasterSource();
+  scoped_refptr<DiscardableImageMap> image_map =
+      raster_source->GetDisplayItemList()->GenerateDiscardableImageMap(
+          ScrollOffsetMap());
 
   // Tile sized iterators.
   {
-    std::vector<const DrawImage*> images;
-    raster_source->GetDiscardableImagesInRect(gfx::Rect(0, 0, 128, 128),
-                                              &images);
+    std::vector<const DrawImage*> images =
+        image_map->GetDiscardableImagesInRect(gfx::Rect(0, 0, 128, 128));
     EXPECT_TRUE(images.empty());
   }
   // Shifted tile sized iterators.
   {
-    std::vector<const DrawImage*> images;
-    raster_source->GetDiscardableImagesInRect(gfx::Rect(140, 140, 128, 128),
-                                              &images);
+    std::vector<const DrawImage*> images =
+        image_map->GetDiscardableImagesInRect(gfx::Rect(140, 140, 128, 128));
     EXPECT_TRUE(images.empty());
   }
   // Layer sized iterators.
   {
-    std::vector<const DrawImage*> images;
-    raster_source->GetDiscardableImagesInRect(gfx::Rect(0, 0, 256, 256),
-                                              &images);
+    std::vector<const DrawImage*> images =
+        image_map->GetDiscardableImagesInRect(gfx::Rect(0, 0, 256, 256));
     EXPECT_TRUE(images.empty());
   }
 }
 
 TEST(RecordingSourceTest, DiscardableImages) {
-  gfx::Rect recorded_viewport(0, 0, 256, 256);
+  FakeRecordingSource recording_source(gfx::Size(256, 256));
 
-  std::unique_ptr<FakeRecordingSource> recording_source =
-      CreateRecordingSource(recorded_viewport);
-
-  PaintImage discardable_image[2][2];
+  std::array<std::array<PaintImage, 2>, 2> discardable_image;
   discardable_image[0][0] = CreateDiscardablePaintImage(gfx::Size(32, 32));
   discardable_image[1][0] = CreateDiscardablePaintImage(gfx::Size(32, 32));
   discardable_image[1][1] = CreateDiscardablePaintImage(gfx::Size(32, 32));
@@ -215,20 +193,22 @@ TEST(RecordingSourceTest, DiscardableImages) {
   // |---|---|
   // | x | x |
   // |---|---|
-  recording_source->add_draw_image(discardable_image[0][0], gfx::Point(0, 0));
-  recording_source->add_draw_image(discardable_image[1][0], gfx::Point(0, 130));
-  recording_source->add_draw_image(discardable_image[1][1],
-                                   gfx::Point(140, 140));
-  recording_source->Rerecord();
+  recording_source.add_draw_image(discardable_image[0][0], gfx::Point(0, 0));
+  recording_source.add_draw_image(discardable_image[1][0], gfx::Point(0, 130));
+  recording_source.add_draw_image(discardable_image[1][1],
+                                  gfx::Point(140, 140));
+  recording_source.Rerecord();
 
   scoped_refptr<RasterSource> raster_source =
-      recording_source->CreateRasterSource();
+      recording_source.CreateRasterSource();
+  scoped_refptr<DiscardableImageMap> image_map =
+      raster_source->GetDisplayItemList()->GenerateDiscardableImageMap(
+          ScrollOffsetMap());
 
   // Tile sized iterators. These should find only one image.
   {
-    std::vector<const DrawImage*> images;
-    raster_source->GetDiscardableImagesInRect(gfx::Rect(0, 0, 128, 128),
-                                              &images);
+    std::vector<const DrawImage*> images =
+        image_map->GetDiscardableImagesInRect(gfx::Rect(0, 0, 128, 128));
     EXPECT_EQ(1u, images.size());
     EXPECT_TRUE(
         images[0]->paint_image().IsSameForTesting(discardable_image[0][0]));
@@ -236,9 +216,8 @@ TEST(RecordingSourceTest, DiscardableImages) {
 
   // Shifted tile sized iterators. These should find only one image.
   {
-    std::vector<const DrawImage*> images;
-    raster_source->GetDiscardableImagesInRect(gfx::Rect(140, 140, 128, 128),
-                                              &images);
+    std::vector<const DrawImage*> images =
+        image_map->GetDiscardableImagesInRect(gfx::Rect(140, 140, 128, 128));
     EXPECT_EQ(1u, images.size());
     EXPECT_TRUE(
         images[0]->paint_image().IsSameForTesting(discardable_image[1][1]));
@@ -246,17 +225,15 @@ TEST(RecordingSourceTest, DiscardableImages) {
 
   // Ensure there's no discardable images in the empty cell
   {
-    std::vector<const DrawImage*> images;
-    raster_source->GetDiscardableImagesInRect(gfx::Rect(140, 0, 128, 128),
-                                              &images);
+    std::vector<const DrawImage*> images =
+        image_map->GetDiscardableImagesInRect(gfx::Rect(140, 0, 128, 128));
     EXPECT_TRUE(images.empty());
   }
 
   // Layer sized iterators. These should find all 3 images.
   {
-    std::vector<const DrawImage*> images;
-    raster_source->GetDiscardableImagesInRect(gfx::Rect(0, 0, 256, 256),
-                                              &images);
+    std::vector<const DrawImage*> images =
+        image_map->GetDiscardableImagesInRect(gfx::Rect(0, 0, 256, 256));
     EXPECT_EQ(3u, images.size());
     EXPECT_TRUE(
         images[0]->paint_image().IsSameForTesting(discardable_image[0][0]));
@@ -268,14 +245,11 @@ TEST(RecordingSourceTest, DiscardableImages) {
 }
 
 TEST(RecordingSourceTest, DiscardableImagesBaseNonDiscardable) {
-  gfx::Rect recorded_viewport(0, 0, 512, 512);
-
-  std::unique_ptr<FakeRecordingSource> recording_source =
-      CreateRecordingSource(recorded_viewport);
+  FakeRecordingSource recording_source(gfx::Size(512, 512));
   PaintImage non_discardable_image =
       CreateNonDiscardablePaintImage(gfx::Size(512, 512));
 
-  PaintImage discardable_image[2][2];
+  std::array<std::array<PaintImage, 2>, 2> discardable_image;
   discardable_image[0][0] = CreateDiscardablePaintImage(gfx::Size(128, 128));
   discardable_image[0][1] = CreateDiscardablePaintImage(gfx::Size(128, 128));
   discardable_image[1][1] = CreateDiscardablePaintImage(gfx::Size(128, 128));
@@ -287,46 +261,45 @@ TEST(RecordingSourceTest, DiscardableImagesBaseNonDiscardable) {
   // |---|---|
   // |   | x |
   // |---|---|
-  recording_source->add_draw_image(non_discardable_image, gfx::Point(0, 0));
-  recording_source->add_draw_image(discardable_image[0][0], gfx::Point(0, 0));
-  recording_source->add_draw_image(discardable_image[0][1], gfx::Point(260, 0));
-  recording_source->add_draw_image(discardable_image[1][1],
-                                   gfx::Point(260, 260));
-  recording_source->Rerecord();
+  recording_source.add_draw_image(non_discardable_image, gfx::Point(0, 0));
+  recording_source.add_draw_image(discardable_image[0][0], gfx::Point(0, 0));
+  recording_source.add_draw_image(discardable_image[0][1], gfx::Point(260, 0));
+  recording_source.add_draw_image(discardable_image[1][1],
+                                  gfx::Point(260, 260));
+  recording_source.Rerecord();
 
   scoped_refptr<RasterSource> raster_source =
-      recording_source->CreateRasterSource();
+      recording_source.CreateRasterSource();
+  scoped_refptr<DiscardableImageMap> image_map =
+      raster_source->GetDisplayItemList()->GenerateDiscardableImageMap(
+          ScrollOffsetMap());
 
   // Tile sized iterators. These should find only one image.
   {
-    std::vector<const DrawImage*> images;
-    raster_source->GetDiscardableImagesInRect(gfx::Rect(0, 0, 256, 256),
-                                              &images);
+    std::vector<const DrawImage*> images =
+        image_map->GetDiscardableImagesInRect(gfx::Rect(0, 0, 256, 256));
     EXPECT_EQ(1u, images.size());
     EXPECT_TRUE(
         images[0]->paint_image().IsSameForTesting(discardable_image[0][0]));
   }
   // Shifted tile sized iterators. These should find only one image.
   {
-    std::vector<const DrawImage*> images;
-    raster_source->GetDiscardableImagesInRect(gfx::Rect(260, 260, 256, 256),
-                                              &images);
+    std::vector<const DrawImage*> images =
+        image_map->GetDiscardableImagesInRect(gfx::Rect(260, 260, 256, 256));
     EXPECT_EQ(1u, images.size());
     EXPECT_TRUE(
         images[0]->paint_image().IsSameForTesting(discardable_image[1][1]));
   }
   // Ensure there's no discardable images in the empty cell
   {
-    std::vector<const DrawImage*> images;
-    raster_source->GetDiscardableImagesInRect(gfx::Rect(0, 256, 256, 256),
-                                              &images);
+    std::vector<const DrawImage*> images =
+        image_map->GetDiscardableImagesInRect(gfx::Rect(0, 256, 256, 256));
     EXPECT_TRUE(images.empty());
   }
   // Layer sized iterators. These should find three images.
   {
-    std::vector<const DrawImage*> images;
-    raster_source->GetDiscardableImagesInRect(gfx::Rect(0, 0, 512, 512),
-                                              &images);
+    std::vector<const DrawImage*> images =
+        image_map->GetDiscardableImagesInRect(gfx::Rect(0, 0, 512, 512));
     EXPECT_EQ(3u, images.size());
     EXPECT_TRUE(
         images[0]->paint_image().IsSameForTesting(discardable_image[0][0]));
@@ -342,9 +315,8 @@ TEST(RecordingSourceTest, AnalyzeIsSolid) {
   const std::vector<float> recording_scales = {1.f,   1.25f, 1.33f, 1.5f, 1.6f,
                                                1.66f, 2.f,   2.25f, 2.5f};
   for (float recording_scale : recording_scales) {
-    std::unique_ptr<FakeRecordingSource> recording_source =
-        FakeRecordingSource::CreateFilledRecordingSource(layer_bounds);
-    recording_source->SetRecordingScaleFactor(recording_scale);
+    FakeRecordingSource recording_source(layer_bounds);
+    recording_source.SetRecordingScaleFactor(recording_scale);
 
     PaintFlags solid_flags;
     SkColor4f solid_color{0.1f, 0.2f, 0.3f, 1.0f};
@@ -354,12 +326,12 @@ TEST(RecordingSourceTest, AnalyzeIsSolid) {
     PaintFlags non_solid_flags;
     non_solid_flags.setColor(non_solid_color);
 
-    recording_source->add_draw_rect_with_flags(
+    recording_source.add_draw_rect_with_flags(
         gfx::ScaleToEnclosingRect(gfx::Rect(layer_bounds), recording_scale),
         solid_flags);
-    recording_source->Rerecord();
+    recording_source.Rerecord();
 
-    scoped_refptr<RasterSource> raster = recording_source->CreateRasterSource();
+    scoped_refptr<RasterSource> raster = recording_source.CreateRasterSource();
 
     EXPECT_TRUE(raster->IsSolidColor())
         << " recording scale: " << recording_scale;
@@ -367,22 +339,31 @@ TEST(RecordingSourceTest, AnalyzeIsSolid) {
 
     for (int y = 0; y < layer_bounds.height(); y += 50) {
       for (int x = 0; x < layer_bounds.width(); x += 50) {
-        recording_source->reset_draws();
-        recording_source->add_draw_rect_with_flags(
+        recording_source.reset_draws();
+        recording_source.add_draw_rect_with_flags(
             gfx::ScaleToEnclosingRect(gfx::Rect(layer_bounds), recording_scale),
             solid_flags);
-        recording_source->add_draw_rect_with_flags(
+        recording_source.add_draw_rect_with_flags(
             gfx::Rect(std::round(x * recording_scale),
                       std::round(y * recording_scale), 1, 1),
             non_solid_flags);
-        recording_source->Rerecord();
-        raster = recording_source->CreateRasterSource();
+        recording_source.Rerecord();
+        raster = recording_source.CreateRasterSource();
         EXPECT_FALSE(raster->IsSolidColor())
             << " recording scale: " << recording_scale << " pixel at: (" << x
             << ", " << y << ") was not solid.";
       }
     }
   }
+}
+
+TEST(RecordingSourceTest, RecordedBounds) {
+  FakeRecordingSource recording_source(gfx::Size(400, 400));
+  recording_source.add_draw_rect(gfx::Rect(100, 100, 100, 100));
+  recording_source.add_draw_rect(gfx::Rect(50, 200, 200, 50));
+  recording_source.Rerecord();
+  auto raster = recording_source.CreateRasterSource();
+  EXPECT_EQ(gfx::Rect(50, 100, 200, 150), raster->recorded_bounds());
 }
 
 }  // namespace

@@ -7,7 +7,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 
 namespace ash {
 class NetworkDeviceHandler;
@@ -32,9 +32,8 @@ class DeviceDockMacAddressHandler {
  private:
   void OnDockMacAddressSourcePolicyChanged();
 
-  raw_ptr<ash::CrosSettings, ExperimentalAsh> cros_settings_;
-  raw_ptr<ash::NetworkDeviceHandler, DanglingUntriaged | ExperimentalAsh>
-      network_device_handler_;
+  raw_ptr<ash::CrosSettings, DanglingUntriaged> cros_settings_;
+  raw_ptr<ash::NetworkDeviceHandler, DanglingUntriaged> network_device_handler_;
   base::CallbackListSubscription dock_mac_address_source_policy_subscription_;
   base::WeakPtrFactory<DeviceDockMacAddressHandler> weak_factory_{this};
 };

@@ -9,13 +9,11 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/path_service.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/test/scoped_command_line.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_paths.h"
@@ -114,8 +112,6 @@ class CorsFileOriginBrowserTest : public ContentBrowserTest {
     if (AllowFileAccessFromFiles()) {
       command_line->AppendSwitch(switches::kAllowFileAccessFromFiles);
     }
-
-    ContentBrowserTest::SetUpCommandLine(command_line);
   }
   void SetUpOnMainThread() override {
     base::AutoLock lock(lock_);
@@ -165,8 +161,9 @@ class CorsFileOriginBrowserTest : public ContentBrowserTest {
       // Return the request origin header as the body so that JavaScript can
       // check if it sent the expected origin header.
       auto origin = request.headers.find(net::HttpRequestHeaders::kOrigin);
-      if (origin != request.headers.end())
+      if (origin != request.headers.end()) {
         response->set_content(origin->second);
+      }
     }
     return response;
   }
@@ -246,8 +243,7 @@ IN_PROC_BROWSER_TEST_F(CorsFileOriginBrowserTest, AccessToAnotherFileUrl) {
 
 // TODO(lukasza, nasko): https://crbug.com/981018: Enable this test on Macs
 // after understanding what makes it flakily fail on the mac-rel trybot.
-// Also flaky on Lacros: https://crbug.com/1247748.
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_MAC)
 #define MAYBE_UniversalAccessFromFileUrls DISABLED_UniversalAccessFromFileUrls
 #else
 #define MAYBE_UniversalAccessFromFileUrls UniversalAccessFromFileUrls

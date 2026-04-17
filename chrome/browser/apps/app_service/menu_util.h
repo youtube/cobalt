@@ -8,13 +8,14 @@
 #include <stdint.h>
 
 #include <string>
+#include <string_view>
 #include <vector>
 
-#include "base/strings/string_piece.h"
 #include "chrome/browser/apps/app_service/app_shortcut_item.h"
 #include "components/services/app_service/public/cpp/menu.h"
+#include "ui/base/interaction/element_identifier.h"
 #include "ui/base/models/menu_separator_types.h"
-#include "ui/base/models/simple_menu_model.h"
+#include "ui/menus/simple_menu_model.h"
 
 class Profile;
 
@@ -27,6 +28,10 @@ class SimpleMenuModel;
 }  // namespace ui
 
 namespace apps {
+
+// ElementIdentifier associated with the item added by
+// PopulateLaunchNewItemFromMenuItem() below.
+DECLARE_ELEMENT_IDENTIFIER_VALUE(kLaunchNewMenuItem);
 
 // Adds a command menu item to |menu_items|.
 void AddCommandItem(uint32_t command_id,
@@ -73,11 +78,11 @@ void PopulateItemFromMenuItem(const MenuItemPtr& menu_item,
                               apps::AppShortcutItems* arc_shortcut_items);
 
 // Convert |menu_type| to string. Useful to pass |menu_type| enum as string id.
-base::StringPiece MenuTypeToString(MenuType menu_type);
+std::string_view MenuTypeToString(MenuType menu_type);
 
 // Convert |menu_type| string to enum. Useful to pass |menu_type| enum as string
 // id.
-MenuType MenuTypeFromString(base::StringPiece menu_type);
+MenuType MenuTypeFromString(std::string_view menu_type);
 
 // Returns the browser menu items for the given |menu_type|.
 MenuItems CreateBrowserMenuItems(const Profile* profile);

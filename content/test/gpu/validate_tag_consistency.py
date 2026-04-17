@@ -9,42 +9,204 @@ from __future__ import print_function
 import argparse
 import logging
 import os
+import textwrap
+from typing import Dict, List
 import sys
 
+# Constants for tag set generation.
+LINE_START = '# '
+TAG_SET_START = 'tags: [ '
+TAG_SET_END = ' ]'
+DEFAULT_LINE_LENGTH = 80 - len(LINE_START) - len(TAG_SET_START)
+BREAK_INDENTATION = ' ' * 4
+
+# Certain tags are technically subsets of other tags, e.g. win10 falls under the
+# general win umbrella. We take this into account when checking for conflicting
+# expectations, so we store the source of truth here and generate the resulting
+# strings for the tag header.
+TAG_SPECIALIZATIONS = {
+    'OS_TAGS': {
+        'android': [
+            'android-oreo',
+            'android-pie',
+            'android-q',
+            'android-r',
+            'android-s',
+            'android-t',
+            'android-14',
+            'android-15',
+            'android-16',
+        ],
+        'chromeos': [],
+        'fuchsia': [],
+        'linux': [
+            'ubuntu',
+        ],
+        'mac': [
+            'highsierra',
+            'mojave',
+            'catalina',
+            'bigsur',
+            'monterey',
+            'ventura',
+            'sonoma',
+            'sequoia',
+        ],
+        'win': [
+            'win8',
+            'win10',
+            'win11',
+        ],
+    },
+    'BROWSER_TAGS': {
+        'android-chromium': [],
+        'android-webview-instrumentation': [],
+        'debug': [
+            'debug-x64',
+        ],
+        'release': [
+            'release-x64',
+        ],
+        # These two are both Fuchsia-related.
+        'fuchsia-chrome': [],
+        'web-engine-shell': [],
+        # ChromeOS.
+        'cros-chrome': [],
+    },
+    'GPU_TAGS': {
+        'amd': [
+            'amd-0x6613',
+            'amd-0x679e',
+            'amd-0x67ef',
+            'amd-0x6821',
+            'amd-0x7340',
+            'amd-0x7480',
+        ],
+        'amd64': [],
+        'apple': [
+            'apple-apple-m1',
+            'apple-apple-m2',
+            'apple-apple-m3',
+            'apple-angle-metal-renderer:-apple-m1',
+            'apple-angle-metal-renderer:-apple-m2',
+            'apple-angle-metal-renderer:-apple-m3',
+        ],
+        'arm': [],
+        'google': [
+            'google-0xffff',
+            'google-0xc0de',
+        ],
+        'imagination': [],
+        'intel': [
+            # Individual GPUs should technically fit under intel-gen-X, but we
+            # only support one level of nesting, so treat the generation tags as
+            # individual GPUs.
+            'intel-gen-9',
+            'intel-gen-12',
+            'intel-0xa2e',
+            'intel-0xd26',
+            'intel-0xa011',
+            'intel-0x3e92',
+            'intel-0x3e9b',
+            'intel-0x4680',
+            'intel-0x46a8',
+            'intel-0x5912',
+            'intel-0x9bc5',
+        ],
+        'microsoft': [
+            'microsoft-0xffff',
+        ],
+        'nvidia': [
+            'nvidia-0xfe9',
+            'nvidia-0x1cb3',
+            'nvidia-0x2184',
+            'nvidia-0x2783',
+        ],
+        'qualcomm': [
+            # 043a = 0x41333430 = older Adreno GPU
+            # 0636 = 0x36333630 = Adreno 690 GPU (such as Surface Pro 9 5G)
+            # 0c36 = 0x36334330 = Adreno 741 GPU
+            'qualcomm-0x41333430',
+            'qualcomm-0x36333630',
+            'qualcomm-0x36334330',
+        ],
+    },
+}
+
+
+def _GenerateTagSpecializationStrings() -> Dict[str, str]:
+  """Generates string a string representation of |TAG_SPECIALIZATIONS|.
+
+  The resulting dictionary can be fed directly into string.format().
+
+  Returns:
+    A dict mapping tag_set_name to tag_set_string. |tag_set_string| is the
+    formatted, expectation parser-compatible string for the information
+    contained within TAG_SPECIALIZATIONS[tag_set_name].
+  """
+  tag_specialization_strings = {}
+  for tag_set_name, tag_set in TAG_SPECIALIZATIONS.items():
+    # Create an appropriately wrapped set of lines for each group, join them,
+    # and add the necessary bits to make them a parseable tag set.
+    wrapped_tag_lines = []
+    num_groups = len(tag_set)
+    current_group = 0
+    for general_tag, specialized_tags in tag_set.items():
+      current_group += 1
+      wrapped_tag_lines.extend(
+          _CreateWrappedLinesForTagGroup([general_tag] + specialized_tags,
+                                         current_group == num_groups))
+
+    wrapped_tags_string = '\n'.join(wrapped_tag_lines)
+    tag_set_string = ''
+    for i, line in enumerate(wrapped_tags_string.splitlines(True)):
+      tag_set_string += LINE_START
+      if i == 0:
+        tag_set_string += TAG_SET_START
+      else:
+        tag_set_string += (' ' * len(TAG_SET_START))
+      tag_set_string += line
+    tag_set_string += TAG_SET_END
+    tag_specialization_strings[tag_set_name] = tag_set_string
+  return tag_specialization_strings
+
+
+def _CreateWrappedLinesForTagGroup(tag_group: List[str],
+                                   is_last_group: bool) -> List[str]:
+  tag_line = ' '.join(tag_group)
+  line_length = DEFAULT_LINE_LENGTH
+  # If this will be the last group, we have to make sure we wrap such that
+  # there will be enough room for the closing bracket of the tag set.
+  if is_last_group:
+    line_length -= len(TAG_SET_END)
+  return textwrap.wrap(tag_line,
+                       width=line_length,
+                       subsequent_indent=BREAK_INDENTATION,
+                       break_on_hyphens=False)
+
+
+# f-strings aren't viable here since we're relying on kwarg expansion of a
+# return value.
+# pylint: disable=consider-using-f-string
 TAG_HEADER = """\
 # OS
-# tags: [ android android-lollipop android-marshmallow android-nougat
-#             android-pie android-r android-s android-t
-#         chromeos
-#         fuchsia
-#         linux ubuntu
-#         mac highsierra mojave catalina bigsur monterey ventura
-#         win win8 win10 ]
+{OS_TAGS}
 # Devices
 # tags: [ android-nexus-5x android-pixel-2 android-pixel-4
-#             android-pixel-6 android-shield-android-tv android-sm-a135m
-#             android-sm-a235m
-#         chromeos-board-amd64-generic chromeos-board-kevin chromeos-board-eve
-#             chromeos-board-jacuzzi chromeos-board-octopus
-#         fuchsia-board-astro fuchsia-board-sherlock fuchsia-board-qemu-x64 ]
+#             android-pixel-6 android-shield-android-tv android-sm-a137f
+#             android-sm-a236b android-sm-s911u1
+#         android-brya android-corsola
+#         chromeos-board-amd64-generic chromeos-board-eve chromeos-board-jacuzzi
+#             chromeos-board-octopus chromeos-board-volteer
+#         fuchsia-board-astro fuchsia-board-nelson fuchsia-board-sherlock
+#             fuchsia-board-qemu-x64 ]
 # Platform
 # tags: [ desktop
 #         mobile ]
 # Browser
-# tags: [ android-chromium android-webview-instrumentation
-#         debug debug-x64
-#         release release-x64
-#         fuchsia-chrome web-engine-shell
-#         lacros-chrome cros-chrome ]
+{BROWSER_TAGS}
 # GPU
-# tags: [ amd amd-0x6613 amd-0x679e amd-0x67ef amd-0x6821 amd-0x7340
-#         apple apple-apple-m1 apple-angle-metal-renderer:-apple-m1
-#         arm
-#         google google-0xffff google-0xc0de
-#         intel intel-gen-9 intel-gen-12 intel-0xa2e intel-0xd26 intel-0xa011
-#               intel-0x3e92 intel-0x3e9b intel-0x5912 intel-0x9bc5
-#         nvidia nvidia-0xfe9 nvidia-0x1cb3 nvidia-0x2184
-#         qualcomm ]
+{GPU_TAGS}
 # Architecture
 # tags: [ mac-arm64 mac-x86_64 ]
 # Decoder
@@ -59,27 +221,41 @@ TAG_HEADER = """\
 #         angle-swiftshader
 #         angle-vulkan ]
 # Skia Renderer
-# tags: [ renderer-skia-dawn
-#         renderer-skia-gl
+# tags: [ renderer-skia-gl
 #         renderer-skia-vulkan
 #         renderer-software ]
 # Driver
 # tags: [ mesa_lt_19.1
-#         mesa_ge_21.0 ]
+#         mesa_ge_21.0
+#         mesa_ge_23.2
+#         nvidia_ge_31.0.15.4601 nvidia_lt_31.0.15.4601
+#         nvidia_ge_535.183.01 nvidia_lt_535.183.01 ]
 # ASan
 # tags: [ asan no-asan ]
 # Display Server
 # tags: [ display-server-wayland display-server-x ]
-# OOP-Canvas
-# tags: [ oop-c no-oop-c ]
 # WebGPU Backend Validation
 # tags: [ dawn-backend-validation dawn-no-backend-validation ]
 # WebGPU Adapter
 # tags: [ webgpu-adapter-default webgpu-adapter-swiftshader ]
+# WebGPU DXC
+# tags: [ webgpu-dxc-enabled webgpu-dxc-disabled ]
+# WebGPU worker usage
+# tags: [ webgpu-no-worker
+#         webgpu-service-worker
+#         webgpu-dedicated-worker
+#         webgpu-shared-worker ]
+# WebGPU Compat context
+# tags: [ compat-default compat-min-es31 ]
 # Clang coverage
 # tags: [ clang-coverage no-clang-coverage ]
+# Skia Graphite
+# tags: [ graphite-enabled graphite-disabled ]
+# Memory capacity
+# tags: [ memory_lt_16gb memory_ge_16gb ]
 # results: [ Failure RetryOnFailure Skip Slow ]
-"""
+""".format(**_GenerateTagSpecializationStrings())
+# pylint: enable=consider-using-f-string
 
 TAG_HEADER_BEGIN =\
     '# BEGIN TAG HEADER (autogenerated, see validate_tag_consistency.py)'
@@ -92,7 +268,7 @@ EXPECTATION_DIR = os.path.join(os.path.dirname(__file__), 'gpu_tests',
 def Validate():
   retval = 0
   for f in (f for f in os.listdir(EXPECTATION_DIR) if f.endswith('.txt')):
-    with open(os.path.join(EXPECTATION_DIR, f)) as infile:
+    with open(os.path.join(EXPECTATION_DIR, f), encoding='utf-8') as infile:
       content = infile.read()
       start_index = content.find(TAG_HEADER_BEGIN)
       end_index = content.find(TAG_HEADER_END)
@@ -114,7 +290,7 @@ def Apply():
   retval = 0
   for f in (f for f in os.listdir(EXPECTATION_DIR) if f.endswith('.txt')):
     filepath = os.path.join(EXPECTATION_DIR, f)
-    with open(filepath) as infile:
+    with open(filepath, encoding='utf-8') as infile:
       content = infile.read()
     start_index = content.find(TAG_HEADER_BEGIN)
     if start_index < 0:
@@ -132,7 +308,7 @@ def Apply():
       continue
     content = (content[:start_index + len(TAG_HEADER_BEGIN)] + '\n' +
                TAG_HEADER + content[end_index:])
-    with open(filepath, 'w') as outfile:
+    with open(filepath, 'w', encoding='utf-8') as outfile:
       outfile.write(content)
   return retval
 

@@ -98,9 +98,7 @@ message SyncEnums {
     // DEPRECATED_AUTH_EXPIRED = 4;
     // DEPRECATED_USER_NOT_ACTIVATED = 5;
     // DEPRECATED_AUTH_INVALID = 6;
-    // A clear of the user data is pending (e.g. initiated by privacy request).
-    // The client should come back later.
-    CLEAR_PENDING = 7;
+    // DEPRECATED_CLEAR_PENDING = 7;
     // A transient error occurred (e.g. a backend timeout). The client should
     // try again later.
     TRANSIENT_ERROR = 8;
@@ -140,7 +138,7 @@ message SyncEnums {
 
   // New enums to describe the device type were introduced; OsType and
   // FormFactor. Deprecated 12/2022.
-  // TODO(1395353): Remove deprecated values from DeviceType enum.
+  // TODO(crbug.com/40882073): Remove deprecated values from DeviceType enum.
   enum DeviceType {
     TYPE_UNSET = 0 [deprecated = true];
     TYPE_WIN = 1 [deprecated = true];
@@ -171,6 +169,9 @@ message SyncEnums {
     DEVICE_FORM_FACTOR_DESKTOP = 1;
     DEVICE_FORM_FACTOR_PHONE = 2;
     DEVICE_FORM_FACTOR_TABLET = 3;
+    DEVICE_FORM_FACTOR_AUTOMOTIVE = 4;
+    DEVICE_FORM_FACTOR_WEARABLE = 5;
+    DEVICE_FORM_FACTOR_TV = 6;
   }
 
   // Types of browsers; used for history-related data types.
@@ -179,6 +180,7 @@ message SyncEnums {
     TYPE_TABBED = 1;      // A normal tabbed window.
     TYPE_POPUP = 2;       // A popup window.
     TYPE_CUSTOM_TAB = 3;  // A custom tab within an app.
+    TYPE_AUTH_TAB = 4;    // A auth-dedicated custom tab within an app.
   }
 
   // The "password state" is the presence/absence of a password field on a
@@ -199,6 +201,7 @@ message SyncEnums {
   // don't add any values < 12 unless there's a good reason for it.
   //
   // Introduced in M28.
+  // LINT.IfChange(SyncGetUpdatesOrigin)
   enum GetUpdatesOrigin {
     UNKNOWN_ORIGIN = 0;  // The source was not set by the caller.
     PERIODIC = 4;        // The source of the update was periodic polling.
@@ -217,9 +220,20 @@ message SyncEnums {
     GU_TRIGGER = 12;  // The client is in 'normal' mode.  It may have several
                       // reasons for requesting an update.  See the per-type
                       // GetUpdateTriggers message for more details.
-    RETRY = 13;       // A retry GU to pick up updates missed by last GU due to
-                      // replication delay, missing hints, etc.
+    // DEPRECATED_RETRY = 13;
     PROGRAMMATIC = 14;  // A GU to programmatically enable/disable a
                         // datatype, often due to error handling.
+  }
+  // LINT.ThenChange(/tools/metrics/histograms/metadata/sync/enums.xml:SyncGetUpdatesOrigin)
+
+  // Type of message sent to the receiving device for the send tab to self
+  // feature.
+  enum SendTabReceivingType {
+    // Send tab notification can be received as an in-app message. This is the
+    // default value.
+    SEND_TAB_RECEIVING_TYPE_CHROME_OR_UNSPECIFIED = 0;
+    // Send tab notification can be received as a push notification and/or
+    // in-app message.
+    SEND_TAB_RECEIVING_TYPE_CHROME_AND_PUSH_NOTIFICATION = 1;
   }
 }

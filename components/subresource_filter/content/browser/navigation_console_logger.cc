@@ -4,8 +4,10 @@
 
 #include "components/subresource_filter/content/browser/navigation_console_logger.h"
 
+#include "base/check.h"
+#include "base/check_op.h"
 #include "base/memory/ptr_util.h"
-#include "components/subresource_filter/content/browser/content_subresource_filter_web_contents_helper.h"
+#include "components/subresource_filter/content/shared/browser/utils.h"
 #include "content/public/browser/frame_type.h"
 #include "content/public/browser/navigation_handle.h"
 
@@ -16,9 +18,9 @@ void NavigationConsoleLogger::LogMessageOnCommit(
     content::NavigationHandle* handle,
     blink::mojom::ConsoleMessageLevel level,
     const std::string& message) {
-  DCHECK(IsInSubresourceFilterRoot(handle));
-  DCHECK_NE(handle->GetNavigatingFrameType(),
-            content::FrameType::kFencedFrameRoot);
+  CHECK(IsInSubresourceFilterRoot(handle));
+  CHECK_NE(handle->GetNavigatingFrameType(),
+           content::FrameType::kFencedFrameRoot);
 
   if (handle->HasCommitted() && !handle->IsErrorPage()) {
     handle->GetRenderFrameHost()->AddMessageToConsole(level, message);
@@ -31,9 +33,9 @@ void NavigationConsoleLogger::LogMessageOnCommit(
 // static
 NavigationConsoleLogger* NavigationConsoleLogger::CreateIfNeededForNavigation(
     content::NavigationHandle* handle) {
-  DCHECK(IsInSubresourceFilterRoot(handle));
-  DCHECK_NE(handle->GetNavigatingFrameType(),
-            content::FrameType::kFencedFrameRoot);
+  CHECK(IsInSubresourceFilterRoot(handle));
+  CHECK_NE(handle->GetNavigatingFrameType(),
+           content::FrameType::kFencedFrameRoot);
   return GetOrCreateForNavigationHandle(*handle);
 }
 
@@ -45,8 +47,9 @@ NavigationConsoleLogger::NavigationConsoleLogger(
 
 void NavigationConsoleLogger::DidFinishNavigation(
     content::NavigationHandle* handle) {
-  if (handle != handle_)
+  if (handle != handle_) {
     return;
+  }
 
   // The root frame navigation has finished.
   if (handle->HasCommitted() && !handle->IsErrorPage()) {

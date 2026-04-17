@@ -22,9 +22,6 @@
 
 #include "tcuANGLENativeDisplayFactory.h"
 
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
-
 #include "deClock.h"
 #include "deMemory.h"
 #include "egluDefs.hpp"
@@ -32,7 +29,7 @@
 #include "tcuTexture.hpp"
 #include "util/OSPixmap.h"
 #include "util/OSWindow.h"
-#include "util/angle_features_autogen.h"
+#include "util/autogen/angle_features_autogen.h"
 
 // clang-format off
 #if (DE_OS == DE_OS_WIN32)
@@ -53,6 +50,10 @@
 #if defined(ANGLE_USE_WAYLAND)
 #    include <wayland-client.h>
 #    include <wayland-egl-backend.h>
+#endif
+
+#if (DE_OS == DE_OS_ANDROID)
+#    define NATIVE_EGL_LIBRARY_FULL_NAME "libEGL.so"
 #endif
 
 namespace tcu
@@ -84,10 +85,12 @@ constexpr eglu::NativePixmap::Capability kBitmapCapabilities =
     eglu::NativePixmap::CAPABILITY_CREATE_SURFACE_LEGACY;
 constexpr eglu::NativeWindow::Capability kWindowCapabilities =
     static_cast<eglu::NativeWindow::Capability>(
+#if (DE_OS == DE_OS_WIN32)
+        eglu::NativeWindow::CAPABILITY_READ_SCREEN_PIXELS |
+#endif
         eglu::NativeWindow::CAPABILITY_CREATE_SURFACE_LEGACY |
         eglu::NativeWindow::CAPABILITY_GET_SURFACE_SIZE |
         eglu::NativeWindow::CAPABILITY_GET_SCREEN_SIZE |
-        eglu::NativeWindow::CAPABILITY_READ_SCREEN_PIXELS |
         eglu::NativeWindow::CAPABILITY_SET_SURFACE_SIZE |
         eglu::NativeWindow::CAPABILITY_CHANGE_VISIBILITY |
         eglu::NativeWindow::CAPABILITY_CREATE_SURFACE_PLATFORM_EXTENSION);
@@ -95,7 +98,10 @@ constexpr eglu::NativeWindow::Capability kWindowCapabilities =
 class ANGLENativeDisplay : public eglu::NativeDisplay
 {
   public:
-    explicit ANGLENativeDisplay(EGLNativeDisplayType display, std::vector<eglw::EGLAttrib> attribs);
+    explicit ANGLENativeDisplay(EGLNativeDisplayType display,
+                                std::vector<eglw::EGLAttrib> attribs,
+                                const EGLenum platformType,
+                                const char *eglLibraryName);
     ~ANGLENativeDisplay() override = default;
 
     void *getPlatformNative() override
@@ -192,10 +198,13 @@ class NativeWindow : public eglu::NativeWindow
 
 // ANGLE NativeDisplay
 
-ANGLENativeDisplay::ANGLENativeDisplay(EGLNativeDisplayType display, std::vector<EGLAttrib> attribs)
-    : eglu::NativeDisplay(kDisplayCapabilities, EGL_PLATFORM_ANGLE_ANGLE, "EGL_EXT_platform_base"),
+ANGLENativeDisplay::ANGLENativeDisplay(EGLNativeDisplayType display,
+                                       std::vector<EGLAttrib> attribs,
+                                       const EGLenum platformType,
+                                       const char *eglLibraryName)
+    : eglu::NativeDisplay(kDisplayCapabilities, platformType, "EGL_EXT_platform_base"),
       mDeviceContext(display),
-      mLibrary(ANGLE_EGL_LIBRARY_FULL_NAME),
+      mLibrary(eglLibraryName),
       mPlatformAttributes(std::move(attribs))
 {}
 
@@ -209,12 +218,12 @@ NativePixmap::NativePixmap(EGLNativeDisplayType display, int width, int height, 
 #else
     if (!mPixmap)
     {
-        throw ResourceError("Failed to create pixmap", DE_NULL, __FILE__, __LINE__);
+        throw ResourceError("Failed to create pixmap", nullptr, __FILE__, __LINE__);
     }
 
     if (!mPixmap->initialize(display, width, height, bitDepth))
     {
-        throw ResourceError("Failed to initialize pixmap", DE_NULL, __FILE__, __LINE__);
+        throw ResourceError("Failed to initialize pixmap", nullptr, __FILE__, __LINE__);
     }
 #endif
 }
@@ -274,7 +283,7 @@ NativeWindowFactory::NativeWindowFactory(EventState *eventState, uint32_t preRot
 eglu::NativeWindow *NativeWindowFactory::createWindow(eglu::NativeDisplay *nativeDisplay,
                                                       const eglu::WindowParams &params) const
 {
-    DE_ASSERT(DE_FALSE);
+    DE_ASSERT(false);
     return nullptr;
 }
 
@@ -332,7 +341,7 @@ void NativeWindow::setVisibility(eglu::WindowParams::Visibility visibility)
             break;
 
         default:
-            DE_ASSERT(DE_FALSE);
+            DE_ASSERT(false);
     }
 }
 
@@ -400,12 +409,12 @@ void NativeWindow::readScreenPixels(tcu::TextureLevel *dst) const
                     mWindow->getWidth(), mWindow->getHeight());
     if (!mWindow->takeScreenshot(reinterpret_cast<uint8_t *>(dst->getAccess().getDataPtr())))
     {
-        throw InternalError("Failed to read screen pixels", DE_NULL, __FILE__, __LINE__);
+        throw InternalError("Failed to read screen pixels", nullptr, __FILE__, __LINE__);
     }
 
     if (mPreRotation != 0)
     {
-        throw InternalError("Read screen pixels with prerotation is not supported", DE_NULL,
+        throw InternalError("Read screen pixels with prerotation is not supported", nullptr,
                             __FILE__, __LINE__);
     }
 }
@@ -416,14 +425,16 @@ ANGLENativeDisplayFactory::ANGLENativeDisplayFactory(
     const std::string &name,
     const std::string &description,
     std::vector<eglw::EGLAttrib> platformAttributes,
-    EventState *eventState)
+    EventState *eventState,
+    const EGLenum platformType)
     : eglu::NativeDisplayFactory(name,
                                  description,
                                  kDisplayCapabilities,
-                                 EGL_PLATFORM_ANGLE_ANGLE,
+                                 platformType,
                                  "EGL_EXT_platform_base"),
       mNativeDisplay(bitCast<eglw::EGLNativeDisplayType>(EGL_DEFAULT_DISPLAY)),
-      mPlatformAttributes(std::move(platformAttributes))
+      mPlatformAttributes(std::move(platformAttributes)),
+      mPlatformType(platformType)
 {
 #if (DE_OS == DE_OS_UNIX)
 #    if defined(ANGLE_USE_X11)
@@ -486,8 +497,24 @@ eglu::NativeDisplay *ANGLENativeDisplayFactory::createDisplay(
     const eglw::EGLAttrib *attribList) const
 {
     DE_UNREF(attribList);
-    return new ANGLENativeDisplay(bitCast<EGLNativeDisplayType>(mNativeDisplay),
-                                  mPlatformAttributes);
+    if (mPlatformType == EGL_PLATFORM_ANGLE_ANGLE)
+    {
+        return new ANGLENativeDisplay(bitCast<EGLNativeDisplayType>(mNativeDisplay),
+                                      mPlatformAttributes, mPlatformType,
+                                      ANGLE_EGL_LIBRARY_FULL_NAME);
+    }
+#if (DE_OS == DE_OS_ANDROID)
+    else if (mPlatformType == EGL_PLATFORM_ANDROID_KHR)
+    {
+        return new ANGLENativeDisplay(bitCast<EGLNativeDisplayType>(mNativeDisplay),
+                                      mPlatformAttributes, mPlatformType,
+                                      NATIVE_EGL_LIBRARY_FULL_NAME);
+    }
+#endif
+    else
+    {
+        throw InternalError("unsupported platform type", nullptr, __FILE__, __LINE__);
+    }
 }
 
 }  // namespace tcu

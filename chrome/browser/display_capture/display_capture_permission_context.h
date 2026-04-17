@@ -26,16 +26,13 @@ class DisplayCapturePermissionContext
       const GURL& embedding_origin) const override;
 
   void DecidePermission(
-      const permissions::PermissionRequestID& id,
-      const GURL& requesting_origin,
-      const GURL& embedding_origin,
-      bool user_gesture,
+      std::unique_ptr<permissions::PermissionRequestData> request_data,
       permissions::BrowserPermissionCallback callback) override;
 
-  void UpdateContentSetting(const GURL& requesting_origin,
-                            const GURL& embedding_origin,
-                            ContentSetting content_setting,
-                            bool is_one_time) override;
+  void UpdateContentSetting(
+      const permissions::PermissionRequestData& request_data,
+      ContentSetting content_setting,
+      bool is_one_time) override;
 };
 
 #endif  // CHROME_BROWSER_DISPLAY_CAPTURE_DISPLAY_CAPTURE_PERMISSION_CONTEXT_H_

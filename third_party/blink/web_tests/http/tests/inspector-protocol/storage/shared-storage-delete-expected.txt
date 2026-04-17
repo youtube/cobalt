@@ -1,2 +1,0 @@
-Tests shared storage item deletion & clearing via devtools.
-

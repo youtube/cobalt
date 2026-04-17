@@ -2,13 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "content/browser/background_fetch/mock_background_fetch_delegate.h"
+
 #include <utility>
 #include <vector>
 
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
-#include "content/browser/background_fetch/mock_background_fetch_delegate.h"
 #include "content/public/browser/background_fetch_description.h"
 #include "content/public/browser/background_fetch_response.h"
 #include "content/public/browser/browser_thread.h"
@@ -26,7 +28,7 @@ MockBackgroundFetchDelegate::TestResponseBuilder::TestResponseBuilder(
     : response_(std::make_unique<TestResponse>()) {
   response_->succeeded = network::IsSuccessfulStatus(response_code);
   response_->headers = base::MakeRefCounted<net::HttpResponseHeaders>(
-      "HTTP/1.1 " + std::to_string(response_code));
+      "HTTP/1.1 " + base::NumberToString(response_code));
 }
 
 MockBackgroundFetchDelegate::TestResponseBuilder::~TestResponseBuilder() =
@@ -158,7 +160,7 @@ void MockBackgroundFetchDelegate::DownloadUrl(
                 std::make_unique<BackgroundFetchResponse>(
                     std::vector<GURL>({url}), test_response->headers),
                 base::Time::Now(), response_path,
-                /* blob_handle= */ absl::nullopt, test_response->data.size())));
+                /* blob_handle= */ std::nullopt, test_response->data.size())));
   } else {
     auto response = std::make_unique<BackgroundFetchResponse>(
         std::vector<GURL>({url}), test_response->headers);
@@ -186,8 +188,8 @@ void MockBackgroundFetchDelegate::MarkJobComplete(
 
 void MockBackgroundFetchDelegate::UpdateUI(
     const std::string& job_unique_id,
-    const absl::optional<std::string>& title,
-    const absl::optional<SkBitmap>& icon) {
+    const std::optional<std::string>& title,
+    const std::optional<SkBitmap>& icon) {
   job_id_to_client_map_[job_unique_id]->OnUIUpdated(job_unique_id);
 }
 

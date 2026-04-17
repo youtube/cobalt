@@ -4,9 +4,9 @@
 
 #include "ui/accessibility/ax_mode.h"
 
+#include <string_view>
 #include <vector>
 
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 
 namespace ui {
@@ -15,23 +15,23 @@ std::ostream& operator<<(std::ostream& stream, const AXMode& mode) {
   return stream << mode.ToString();
 }
 
-bool AXMode::HasExperimentalFlags(uint32_t experimental_flag) const {
-  return (experimental_flags_ & experimental_flag) == experimental_flag;
+bool AXMode::HasFilterFlags(uint32_t filter_flag) const {
+  return (filter_flags_ & filter_flag) == filter_flag;
 }
 
-void AXMode::SetExperimentalFlags(uint32_t experimental_flag, bool value) {
-  experimental_flags_ = value ? (experimental_flags_ | experimental_flag)
-                              : (experimental_flags_ & ~experimental_flag);
+void AXMode::SetFilterFlags(uint32_t filter_flag, bool value) {
+  filter_flags_ =
+      value ? (filter_flags_ | filter_flag) : (filter_flags_ & ~filter_flag);
 }
 
 std::string AXMode::ToString() const {
-  std::vector<base::StringPiece> tokens;
+  std::vector<std::string_view> tokens;
 
   // Written as a loop with a switch so that this crashes if a new
   // mode flag is added without adding support for logging it.
   for (uint32_t mode_flag = AXMode::kFirstModeFlag;
        mode_flag <= AXMode::kLastModeFlag; mode_flag = mode_flag << 1) {
-    base::StringPiece flag_name;
+    std::string_view flag_name;
     switch (mode_flag) {
       case AXMode::kNativeAPIs:
         flag_name = "kNativeAPIs";
@@ -42,8 +42,8 @@ std::string AXMode::ToString() const {
       case AXMode::kInlineTextBoxes:
         flag_name = "kInlineTextBoxes";
         break;
-      case AXMode::kScreenReader:
-        flag_name = "kScreenReader";
+      case AXMode::kExtendedProperties:
+        flag_name = "kExtendedProperties";
         break;
       case AXMode::kHTML:
         flag_name = "kHTML";
@@ -51,14 +51,23 @@ std::string AXMode::ToString() const {
       case AXMode::kLabelImages:
         flag_name = "kLabelImages";
         break;
-      case AXMode::kPDF:
-        flag_name = "kPDF";
+      case AXMode::kPDFPrinting:
+        flag_name = "kPDFPrinting";
         break;
       case AXMode::kPDFOcr:
         flag_name = "kPDFOcr";
         break;
       case AXMode::kHTMLMetadata:
         flag_name = "kHTMLMetadata";
+        break;
+      case AXMode::kAnnotateMainNode:
+        flag_name = "kAnnotateMainNode";
+        break;
+      case kFromPlatform:
+        flag_name = "kFromPlatform";
+        break;
+      case AXMode::kScreenReader:
+        flag_name = "kScreenReader";
         break;
     }
 
@@ -68,19 +77,22 @@ std::string AXMode::ToString() const {
       tokens.push_back(flag_name);
   }
 
-  for (uint32_t experimental_mode_flag = AXMode::kExperimentalFirstFlag;
-       experimental_mode_flag <= AXMode::kExperimentalLastFlag;
-       experimental_mode_flag = experimental_mode_flag << 1) {
-    base::StringPiece flag_name;
-    switch (experimental_mode_flag) {
-      case AXMode::kExperimentalFormControls:
-        flag_name = "kExperimentalFormControls";
+  for (uint32_t filter_mode_flag = AXMode::kFilterFirstFlag;
+       filter_mode_flag <= AXMode::kFilterLastFlag;
+       filter_mode_flag = filter_mode_flag << 1) {
+    std::string_view flag_name;
+    switch (filter_mode_flag) {
+      case AXMode::kFormsAndLabelsOnly:
+        flag_name = "kFormsAndLabelsOnly";
+        break;
+      case AXMode::kOnScreenOnly:
+        flag_name = "kOnScreenOnly";
         break;
     }
 
     DCHECK(!flag_name.empty());
 
-    if (HasExperimentalFlags(experimental_mode_flag)) {
+    if (HasFilterFlags(filter_mode_flag)) {
       tokens.push_back(flag_name);
     }
   }

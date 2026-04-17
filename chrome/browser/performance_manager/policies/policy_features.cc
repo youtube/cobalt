@@ -8,16 +8,15 @@
 #include "base/metrics/field_trial_params.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "base/allocator/buildflags.h"
 #endif
 
 namespace performance_manager {
 namespace features {
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 
 BASE_FEATURE(kTrimOnMemoryPressure,
              "TrimOnMemoryPressure",
@@ -32,6 +31,10 @@ BASE_FEATURE(kTrimArcVmOnMemoryPressure,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTrimOnFreeze, "TrimOnFreeze", base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kDisableTrimmingWhileSuspended,
+             "DisableTrimmingWhileSuspended",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 const base::FeatureParam<int> kGraphWalkBackoffTimeSec = {
     &kTrimOnMemoryPressure, "GraphWalkBackoffTimeSec", 180};
@@ -83,11 +86,25 @@ const base::FeatureParam<int> kTrimArcVmPagesPerMinute = {
 
 // Specifies the minimum amount of time a parent frame node must be invisible
 // before considering the process node for working set trim.
-const int kNodeInvisibileTimeSec = 900;
+const int kNodeInvisibleTimeSec = 900;
 
 // Specifies the minimum amount of time a parent frame node must be invisible
 // before considering the process node for working set trim.
 const int kNodeTrimBackoffTimeSec = 1800;
+
+// Specifies the duration trimming is disabled just after suspend is done.
+// Disabling trimming workingset for 15 mins after device is resumed has 2
+// purposes:
+//
+// * To mitigate load pressure on system because the system is busy just after
+//   resuming for a while.
+// * GetLastVisibilityChangeTime() of each node become meaningless because
+//   the monotonic clock keeps proceeding during dark resume. Waiting for
+//   kNodeInvisibleTimeSec after resuming ensures that enough time has elapsed
+//   so that inappropriately added time from dark resume can no longer affect
+//   whether or not a tab has been invisible for long enough to be eligible for
+//   trimming.
+const int kSuspendBackoffTimeSec = kNodeInvisibleTimeSec;
 
 TrimOnMemoryPressureParams::TrimOnMemoryPressureParams() = default;
 TrimOnMemoryPressureParams::TrimOnMemoryPressureParams(
@@ -99,8 +116,9 @@ TrimOnMemoryPressureParams TrimOnMemoryPressureParams::GetParams() {
   TrimOnMemoryPressureParams params;
   params.graph_walk_backoff_time =
       base::Seconds(kGraphWalkBackoffTimeSec.Get());
-  params.node_invisible_time = base::Seconds(kNodeInvisibileTimeSec);
+  params.node_invisible_time = base::Seconds(kNodeInvisibleTimeSec);
   params.node_trim_backoff_time = base::Seconds(kNodeTrimBackoffTimeSec);
+  params.suspend_backoff_time = base::Seconds(kSuspendBackoffTimeSec);
 
   params.arc_process_trim_backoff_time =
       base::Seconds(kArcProcessTrimBackoffTimeSec.Get());
@@ -134,7 +152,7 @@ TrimOnMemoryPressureParams TrimOnMemoryPressureParams::GetParams() {
   return params;
 }
 
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace features
 }  // namespace performance_manager

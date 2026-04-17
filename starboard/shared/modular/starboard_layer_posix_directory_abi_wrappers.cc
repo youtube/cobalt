@@ -13,9 +13,13 @@
 // limitations under the License.
 
 #include "starboard/shared/modular/starboard_layer_posix_directory_abi_wrappers.h"
+
 #include <string.h>
+
 #include <algorithm>
+
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 
 int __abi_wrap_readdir_r(musl_dir* dirp,
                          struct musl_dirent* musl_entry,
@@ -58,6 +62,32 @@ struct musl_dir* __abi_wrap_opendir(const char* name) {
   }
 
   DIR* directory = opendir(name);
+
+  if (!directory) {
+    return nullptr;
+  }
+
+  musl_dir* musl_directory = (musl_dir*)calloc(1, sizeof(musl_dir));
+  if (!musl_directory) {
+    errno = ENOMEM;
+    return nullptr;
+  }
+  musl_directory->dir = directory;
+
+  musl_dirent* musl_dir_entry = (musl_dirent*)calloc(1, sizeof(musl_dirent));
+  if (!musl_dir_entry) {
+    errno = ENOMEM;
+    free(musl_directory);
+    return nullptr;
+  }
+  musl_directory->musl_dir_entry = musl_dir_entry;
+
+  return musl_directory;
+}
+
+struct musl_dir* __abi_wrap_fdopendir(int fd) {
+  DIR* directory = fdopendir(fd);
+
   if (!directory) {
     return nullptr;
   }
@@ -113,10 +143,13 @@ struct musl_dirent* __abi_wrap_readdir(musl_dir* dirp) {
   dirp->musl_dir_entry->d_reclen = result_platform->d_reclen;
   dirp->musl_dir_entry->d_type = result_platform->d_type;
 
-  memset(dirp->musl_dir_entry->d_name, 0, sizeof(dirp->musl_dir_entry->d_name));
-  constexpr auto minlen = std::min(sizeof(dirp->musl_dir_entry->d_name),
-                                   sizeof(result_platform->d_name));
-  memcpy(dirp->musl_dir_entry->d_name, result_platform->d_name, minlen);
+  if (starboard::strlcpy(dirp->musl_dir_entry->d_name, result_platform->d_name,
+                         sizeof(dirp->musl_dir_entry->d_name)) >=
+      sizeof(dirp->musl_dir_entry->d_name)) {
+    SB_LOG(WARNING) << "Truncated d_name in readdir wrapper."
+                    << " src_size=" << sizeof(result_platform->d_name)
+                    << " dst_size=" << sizeof(dirp->musl_dir_entry->d_name);
+  }
 
   return dirp->musl_dir_entry;
 }

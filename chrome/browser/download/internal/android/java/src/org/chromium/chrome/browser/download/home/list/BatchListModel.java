@@ -4,10 +4,11 @@
 
 package org.chromium.chrome.browser.download.home.list;
 
-import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.BatchingListUpdateCallback;
 import androidx.recyclerview.widget.ListUpdateCallback;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.ui.modelutil.ListModel;
 
 /**
@@ -15,33 +16,37 @@ import org.chromium.ui.modelutil.ListModel;
  * @see BatchingListUpdateCallback
  * @param <T> The object type that this class manages in a list.
  */
+@NullMarked
 public abstract class BatchListModel<T> extends ListModel<T> {
     final BatchingListUpdateCallback mBatchingCallback;
 
     /** Creates a new BatchListModel instance. */
     public BatchListModel() {
-        mBatchingCallback = new BatchingListUpdateCallback(new ListUpdateCallback() {
-            @Override
-            public void onInserted(int position, int count) {
-                super_notifyItemRangeInserted(position, count);
-            }
+        mBatchingCallback =
+                new BatchingListUpdateCallback(
+                        new ListUpdateCallback() {
+                            @Override
+                            public void onInserted(int position, int count) {
+                                super_notifyItemRangeInserted(position, count);
+                            }
 
-            @Override
-            public void onRemoved(int position, int count) {
-                super_notifyItemRangeRemoved(position, count);
-            }
+                            @Override
+                            public void onRemoved(int position, int count) {
+                                super_notifyItemRangeRemoved(position, count);
+                            }
 
-            @Override
-            public void onMoved(int fromPosition, int toPosition) {
-                assert false : "ListUpdateCallback#onMoved() is not supported by ListObservable.";
-            }
+                            @Override
+                            public void onMoved(int fromPosition, int toPosition) {
+                                assert false : "ListUpdateCallback#onMoved() not supported.";
+                            }
 
-            @Override
-            public void onChanged(int position, int count, @Nullable Object payload) {
-                assert payload == null;
-                super_notifyItemRangeChanged(position, count);
-            }
-        });
+                            @Override
+                            public void onChanged(
+                                    int position, int count, @Nullable Object payload) {
+                                assert payload == null;
+                                super_notifyItemRangeChanged(position, count);
+                            }
+                        });
     }
 
     /**

@@ -33,7 +33,6 @@ struct EnumTraits<viz::mojom::ContextLostReason,
         return viz::mojom::ContextLostReason::INVALID_GPU_MESSAGE;
     }
     NOTREACHED();
-    return viz::mojom::ContextLostReason::UNKNOWN;
   }
 
   static bool FromMojom(viz::mojom::ContextLostReason reason,

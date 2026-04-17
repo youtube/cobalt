@@ -4,9 +4,11 @@
 
 #include "chrome/updater/crash_reporter.h"
 
+#include <algorithm>
 #include <iterator>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -16,7 +18,6 @@
 #include "base/logging.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -26,8 +27,8 @@
 #include "chrome/updater/updater_branding.h"
 #include "chrome/updater/updater_scope.h"
 #include "chrome/updater/util/util.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/crashpad/crashpad/client/crashpad_client.h"
+#include "third_party/crashpad/crashpad/client/crashpad_info.h"
 #include "third_party/crashpad/crashpad/handler/handler_main.h"
 #include "url/gurl.h"
 
@@ -43,21 +44,24 @@ crashpad::CrashpadClient& GetCrashpadClient() {
 std::vector<std::string> MakeCrashHandlerArgs(UpdaterScope updater_scope) {
   base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
   command_line.AppendSwitch(kCrashHandlerSwitch);
-  command_line.AppendSwitch(kEnableLoggingSwitch);
-  command_line.AppendSwitchASCII(kLoggingModuleSwitch,
-                                 kLoggingModuleSwitchValue);
   if (IsSystemInstall(updater_scope)) {
     command_line.AppendSwitch(kSystemSwitch);
+  }
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(kMonitorSelfSwitch)) {
+    command_line.AppendSwitch(kMonitorSelfSwitch);
+    if (updater_scope == UpdaterScope::kSystem) {
+      command_line.AppendSwitchUTF8(kMonitorSelfSwitchArgument,
+                                    base::StrCat({"--", kSystemSwitch}));
+    }
   }
 
   // The first element in the command line arguments is the program name,
   // which must be skipped.
 #if BUILDFLAG(IS_WIN)
   std::vector<std::string> args;
-  base::ranges::transform(
-      ++command_line.argv().begin(), command_line.argv().end(),
-      std::back_inserter(args),
-      [](const auto& arg) { return base::WideToUTF8(arg); });
+  std::ranges::transform(++command_line.argv().begin(),
+                         command_line.argv().end(), std::back_inserter(args),
+                         [](const auto& arg) { return base::WideToUTF8(arg); });
 
   return args;
 #else
@@ -76,7 +80,7 @@ void StartCrashReporter(UpdaterScope updater_scope,
   base::FilePath handler_path;
   base::PathService::Get(base::FILE_EXE, &handler_path);
 
-  const absl::optional<base::FilePath> database_path =
+  const std::optional<base::FilePath> database_path =
       EnsureCrashDatabasePath(updater_scope);
   if (!database_path) {
     LOG(ERROR) << "Failed to get the database path.";
@@ -87,14 +91,28 @@ void StartCrashReporter(UpdaterScope updater_scope,
   annotations["ver"] = version;
   annotations["prod"] = CRASH_PRODUCT_NAME;
 
+  // Save dereferenced memory from all registers on the crashing thread.
+  // Crashpad saves up to 512 bytes per CPU register, and in the worst case,
+  // ARM64 has 32 registers.
+  static constexpr uint32_t kIndirectMemoryLimit = 32 * 512;
+  crashpad::CrashpadInfo::GetCrashpadInfo()
+      ->set_gather_indirectly_referenced_memory(crashpad::TriState::kEnabled,
+                                                kIndirectMemoryLimit);
   crashpad::CrashpadClient& client = GetCrashpadClient();
+  std::vector<base::FilePath> attachments;
+#if !BUILDFLAG(IS_MAC)  // Crashpad does not support attachments on macOS.
+  std::optional<base::FilePath> log_file = GetLogFilePath(updater_scope);
+  if (log_file) {
+    attachments.push_back(*log_file);
+  }
+#endif
   if (!client.StartHandler(
           handler_path, *database_path,
           /*metrics_dir=*/base::FilePath(),
           CreateExternalConstants()->CrashUploadURL().possibly_invalid_spec(),
           annotations, MakeCrashHandlerArgs(updater_scope),
           /*restartable=*/true,
-          /*asynchronous_start=*/false)) {
+          /*asynchronous_start=*/false, attachments)) {
     VLOG(1) << "Failed to start handler.";
     return;
   }
@@ -105,10 +123,6 @@ void StartCrashReporter(UpdaterScope updater_scope,
 int CrashReporterMain() {
   base::CommandLine command_line = *base::CommandLine::ForCurrentProcess();
   CHECK(command_line.HasSwitch(kCrashHandlerSwitch));
-
-  // Disable rate-limiting until this is fixed:
-  //   https://bugs.chromium.org/p/crashpad/issues/detail?id=23
-  command_line.AppendSwitch(kNoRateLimitSwitch);
 
   // Because of https://bugs.chromium.org/p/crashpad/issues/detail?id=82,
   // Crashpad fails on the presence of flags it doesn't handle.

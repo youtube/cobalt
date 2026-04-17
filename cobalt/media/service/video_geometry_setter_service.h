@@ -73,6 +73,9 @@ class VideoGeometrySetterService final
   mojo::Receiver<mojom::VideoGeometrySetter> video_geometry_setter_receiver_{
       this};
 
+  // NOTE: Do not add member variables after weak_factory_
+  // It should be the first one destroyed among all members.
+  // See base/memory/weak_ptr.h.
   base::WeakPtrFactory<VideoGeometrySetterService> weak_factory_{this};
 };
 

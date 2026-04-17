@@ -14,20 +14,20 @@ namespace net {
 namespace internal {
 
 DnsConfigServiceFuchsia::DnsConfigServiceFuchsia()
-    : DnsConfigService(
-          base::FilePath::StringPieceType() /* hosts_file_path */) {}
+    : DnsConfigService(base::FilePath::StringViewType() /* hosts_file_path */) {
+}
 DnsConfigServiceFuchsia::~DnsConfigServiceFuchsia() = default;
 
 void DnsConfigServiceFuchsia::ReadConfigNow() {
-  // TODO(crbug.com/950717): Implement this method.
+  // TODO(crbug.com/42050635): Implement this method.
 }
 
 void DnsConfigServiceFuchsia::ReadHostsNow() {
-  // TODO(crbug.com/950717): Implement this method.
+  // TODO(crbug.com/42050635): Implement this method.
 }
 
 bool DnsConfigServiceFuchsia::StartWatching() {
-  // TODO(crbug.com/950717): Implement this method.
+  // TODO(crbug.com/42050635): Implement this method.
   return false;
 }
 

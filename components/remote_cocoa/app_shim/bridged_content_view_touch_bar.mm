@@ -2,13 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <os/availability.h>
-
-#import "base/mac/scoped_nsobject.h"
 #include "base/strings/sys_string_conversions.h"
 #import "components/remote_cocoa/app_shim/bridged_content_view.h"
 #import "components/remote_cocoa/app_shim/native_widget_ns_window_bridge.h"
 #include "components/remote_cocoa/common/native_widget_ns_window_host.mojom.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 
 namespace {
 
@@ -26,7 +24,8 @@ NSString* const kTouchBarCancelId = @"com.google.chrome-CANCEL";
 @implementation BridgedContentView (TouchBarAdditions)
 
 - (void)touchBarButtonAction:(id)sender {
-  ui::DialogButton type = static_cast<ui::DialogButton>([sender tag]);
+  ui::mojom::DialogButton type =
+      static_cast<ui::mojom::DialogButton>([sender tag]);
   if (_bridge)
     _bridge->host()->DoDialogButtonAction(type);
 }
@@ -52,11 +51,11 @@ NSString* const kTouchBarCancelId = @"com.google.chrome-CANCEL";
                           items:items];
   }
 
-  ui::DialogButton type = ui::DIALOG_BUTTON_NONE;
+  ui::mojom::DialogButton type = ui::mojom::DialogButton::kNone;
   if ([identifier isEqualToString:kTouchBarOKId])
-    type = ui::DIALOG_BUTTON_OK;
+    type = ui::mojom::DialogButton::kOk;
   else if ([identifier isEqualToString:kTouchBarCancelId])
-    type = ui::DIALOG_BUTTON_CANCEL;
+    type = ui::mojom::DialogButton::kCancel;
   else
     return nil;
 
@@ -69,8 +68,8 @@ NSString* const kTouchBarCancelId = @"com.google.chrome-CANCEL";
   if (!buttonExists)
     return nil;
 
-  base::scoped_nsobject<NSCustomTouchBarItem> item([[NSClassFromString(
-      @"NSCustomTouchBarItem") alloc] initWithIdentifier:identifier]);
+  NSCustomTouchBarItem* item = [[NSClassFromString(@"NSCustomTouchBarItem")
+      alloc] initWithIdentifier:identifier];
   NSButton* button =
       [NSButton buttonWithTitle:base::SysUTF16ToNSString(buttonLabel)
                          target:self
@@ -85,9 +84,9 @@ NSString* const kTouchBarCancelId = @"com.google.chrome-CANCEL";
                                               alpha:1.0]];
   }
   [button setEnabled:isButtonEnabled];
-  [button setTag:type];
+  [button setTag:static_cast<int>(type)];
   [item setView:button];
-  return item.autorelease();
+  return item;
 }
 
 // NSTouchBarProvider protocol implementation (via NSResponder category).
@@ -101,8 +100,7 @@ NSString* const kTouchBarCancelId = @"com.google.chrome-CANCEL";
   if (!buttonsExist)
     return nil;
 
-  base::scoped_nsobject<NSTouchBar> bar(
-      [[NSClassFromString(@"NSTouchBar") alloc] init]);
+  NSTouchBar* bar = [[NSTouchBar alloc] init];
   [bar setDelegate:self];
 
   // Use a group rather than individual items so they can be centered together.
@@ -110,7 +108,7 @@ NSString* const kTouchBarCancelId = @"com.google.chrome-CANCEL";
 
   // Setting the group as principal will center it in the TouchBar.
   [bar setPrincipalItemIdentifier:kTouchBarDialogButtonsGroupId];
-  return bar.autorelease();
+  return bar;
 }
 
 @end

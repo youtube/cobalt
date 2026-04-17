@@ -14,6 +14,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/password_manager/chrome_password_manager_client.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/autofill/chrome_autofill_client.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/passwords/manage_passwords_ui_controller.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -63,7 +64,7 @@ class TestManagePasswordsUIController : public ManagePasswordsUIController {
       CredentialManagerDialogController* controller) override;
   AutoSigninFirstRunPrompt* CreateAutoSigninPrompt(
       CredentialManagerDialogController* controller) override;
-  CredentialLeakPrompt* CreateCredentialLeakPrompt(
+  std::unique_ptr<CredentialLeakPrompt> CreateCredentialLeakPrompt(
       CredentialLeakDialogController* controller) override;
 
   AccountChooserDialogView* current_account_chooser() const {
@@ -75,18 +76,18 @@ class TestManagePasswordsUIController : public ManagePasswordsUIController {
         current_autosignin_prompt_);
   }
 
-  CredentialLeakDialogView* current_credential_leak_prompt() const {
-    return static_cast<CredentialLeakDialogView*>(
-        current_credential_leak_prompt_);
+  views::Widget* current_credential_leak_widget() const {
+    return current_credential_leak_prompt_->GetWidgetForTesting();
   }
 
-  MOCK_METHOD0(OnDialogClosed, void());
+  MOCK_METHOD(void, OnDialogClosed, (), ());
 
  private:
-  raw_ptr<AccountChooserPrompt, DanglingUntriaged> current_account_chooser_;
-  raw_ptr<AutoSigninFirstRunPrompt, DanglingUntriaged>
+  raw_ptr<AccountChooserPrompt, AcrossTasksDanglingUntriaged>
+      current_account_chooser_;
+  raw_ptr<AutoSigninFirstRunPrompt, AcrossTasksDanglingUntriaged>
       current_autosignin_prompt_;
-  raw_ptr<CredentialLeakPrompt, DanglingUntriaged>
+  raw_ptr<CredentialLeakPrompt, AcrossTasksDanglingUntriaged>
       current_credential_leak_prompt_;
 };
 
@@ -124,12 +125,13 @@ TestManagePasswordsUIController::CreateAutoSigninPrompt(
   return current_autosignin_prompt_;
 }
 
-CredentialLeakPrompt*
+std::unique_ptr<CredentialLeakPrompt>
 TestManagePasswordsUIController::CreateCredentialLeakPrompt(
     CredentialLeakDialogController* controller) {
-  current_credential_leak_prompt_ =
+  auto current_credential_leak_prompt =
       ManagePasswordsUIController::CreateCredentialLeakPrompt(controller);
-  return current_credential_leak_prompt_;
+  current_credential_leak_prompt_ = current_credential_leak_prompt.get();
+  return current_credential_leak_prompt;
 }
 
 std::unique_ptr<password_manager::PasswordFormManagerForUI> WrapFormInManager(
@@ -161,8 +163,11 @@ class PasswordDialogViewTest : public DialogBrowserTest {
         browser()->tab_strip_model()->GetActiveWebContents());
   }
 
-  MOCK_METHOD1(OnChooseCredential, void(const password_manager::PasswordForm*));
-  MOCK_METHOD0(OnIconRequestDone, void());
+  MOCK_METHOD(void,
+              OnChooseCredential,
+              (const password_manager::PasswordForm*),
+              ());
+  MOCK_METHOD(void, OnIconRequestDone, (), ());
 
   // Called on the server background thread.
   std::unique_ptr<HttpResponse> HandleRequest(const HttpRequest& request) {
@@ -174,7 +179,8 @@ class PasswordDialogViewTest : public DialogBrowserTest {
   }
 
  private:
-  raw_ptr<TestManagePasswordsUIController, DanglingUntriaged> controller_;
+  raw_ptr<TestManagePasswordsUIController, AcrossTasksDanglingUntriaged>
+      controller_;
 };
 
 void PasswordDialogViewTest::SetUpOnMainThread() {
@@ -210,9 +216,10 @@ content::WebContents* PasswordDialogViewTest::SetupTabWithTestController(
   content::WebContents* raw_new_tab = new_tab.get();
   EXPECT_TRUE(raw_new_tab);
 
-  // ManagePasswordsUIController needs ChromePasswordManagerClient for logging.
-  ChromePasswordManagerClient::CreateForWebContentsWithAutofillClient(
-      raw_new_tab, nullptr);
+  // ManagePasswordsUIController needs ChromePasswordManagerClient for logging
+  // and ChromePasswordManagerClient needs ChromeAutofillClient.
+  autofill::ChromeAutofillClient::CreateForWebContents(raw_new_tab);
+  ChromePasswordManagerClient::CreateForWebContents(raw_new_tab);
   EXPECT_TRUE(ChromePasswordManagerClient::FromWebContents(raw_new_tab));
   controller_ = new TestManagePasswordsUIController(raw_new_tab);
   browser->tab_strip_model()->AppendWebContents(std::move(new_tab), true);
@@ -239,12 +246,13 @@ IN_PROC_BROWSER_TEST_F(PasswordDialogViewTest,
   form.display_name = u"Peter";
   form.username_value = u"peter@pan.test";
   form.icon_url = GURL("broken url");
+  form.match_type = password_manager::PasswordForm::MatchType::kExact;
   local_credentials.push_back(
       std::make_unique<password_manager::PasswordForm>(form));
   form.icon_url = embedded_test_server()->GetURL("/icon.png");
   form.display_name = u"Peter Pan";
   form.federation_origin =
-      url::Origin::Create(GURL("https://google.com/federation"));
+      url::SchemeHostPort(GURL("https://google.com/federation"));
   local_credentials.push_back(
       std::make_unique<password_manager::PasswordForm>(form));
 
@@ -275,13 +283,14 @@ IN_PROC_BROWSER_TEST_F(
   form.display_name = u"Peter";
   form.username_value = u"peter@pan.test";
   form.icon_url = GURL("broken url");
+  form.match_type = password_manager::PasswordForm::MatchType::kExact;
   local_credentials.push_back(
       std::make_unique<password_manager::PasswordForm>(form));
   GURL icon_url("https://google.com/icon.png");
   form.icon_url = icon_url;
   form.display_name = u"Peter Pan";
   form.federation_origin =
-      url::Origin::Create(GURL("https://google.com/federation"));
+      url::SchemeHostPort(GURL("https://google.com/federation"));
   local_credentials.push_back(
       std::make_unique<password_manager::PasswordForm>(form));
 
@@ -310,6 +319,7 @@ IN_PROC_BROWSER_TEST_F(PasswordDialogViewTest,
   form.url = origin;
   form.display_name = u"Peter";
   form.username_value = u"peter@pan.test";
+  form.match_type = password_manager::PasswordForm::MatchType::kExact;
   local_credentials.push_back(
       std::make_unique<password_manager::PasswordForm>(form));
 
@@ -334,6 +344,7 @@ IN_PROC_BROWSER_TEST_F(PasswordDialogViewTest,
   form.url = origin;
   form.display_name = u"Peter";
   form.username_value = u"peter@pan.test";
+  form.match_type = password_manager::PasswordForm::MatchType::kExact;
   local_credentials.push_back(
       std::make_unique<password_manager::PasswordForm>(form));
 
@@ -358,6 +369,7 @@ IN_PROC_BROWSER_TEST_F(PasswordDialogViewTest,
   form.url = origin;
   form.display_name = u"Peter";
   form.username_value = u"peter@pan.test";
+  form.match_type = password_manager::PasswordForm::MatchType::kExact;
   local_credentials.push_back(
       std::make_unique<password_manager::PasswordForm>(form));
 
@@ -390,6 +402,7 @@ IN_PROC_BROWSER_TEST_F(PasswordDialogViewTest,
   form.url = origin;
   form.display_name = u"Peter";
   form.username_value = u"peter@pan.test";
+  form.match_type = password_manager::PasswordForm::MatchType::kExact;
   local_credentials.push_back(
       std::make_unique<password_manager::PasswordForm>(form));
 
@@ -423,6 +436,7 @@ IN_PROC_BROWSER_TEST_F(PasswordDialogViewTest, PopupAccountChooserInIncognito) {
   form.url = origin;
   form.display_name = u"Peter";
   form.username_value = u"peter@pan.test";
+  form.match_type = password_manager::PasswordForm::MatchType::kExact;
   local_credentials.push_back(
       std::make_unique<password_manager::PasswordForm>(form));
 
@@ -471,16 +485,15 @@ IN_PROC_BROWSER_TEST_F(PasswordDialogViewTest, EscCancelsAutoSigninPrompt) {
 IN_PROC_BROWSER_TEST_F(PasswordDialogViewTest, PopupCredentialsLeakedPrompt) {
   CredentialLeakType leak_type = CredentialLeakFlags::kPasswordSaved |
                                  CredentialLeakFlags::kPasswordUsedOnOtherSites;
-  GURL origin("https://example.com");
-  std::u16string username(u"Eve");
-  controller()->OnCredentialLeak(leak_type, origin, username);
-  ASSERT_TRUE(controller()->current_credential_leak_prompt());
+  controller()->OnCredentialLeak(password_manager::LeakedPasswordDetails(
+      leak_type, GURL("https://example.com"), u"Eve", u"qwerty",
+      /*in_account_store=*/false));
+  ASSERT_TRUE(controller()->current_credential_leak_widget());
   EXPECT_EQ(password_manager::ui::INACTIVE_STATE, controller()->GetState());
-  CredentialLeakDialogView* dialog =
-      controller()->current_credential_leak_prompt();
-  views::test::WidgetDestroyedWaiter bubble_observer(dialog->GetWidget());
+  views::Widget* dialog = controller()->current_credential_leak_widget();
+  views::test::WidgetDestroyedWaiter bubble_observer(dialog);
   ui::Accelerator esc(ui::VKEY_ESCAPE, 0);
-  EXPECT_TRUE(dialog->GetWidget()->client_view()->AcceleratorPressed(esc));
+  EXPECT_TRUE(dialog->client_view()->AcceleratorPressed(esc));
   bubble_observer.Wait();
 }
 
@@ -495,6 +508,7 @@ IN_PROC_BROWSER_TEST_F(PasswordDialogViewTest,
   form.url = origin;
   form.username_value = u"peter@pan.test";
   form.password_value = u"I can fly!";
+  form.match_type = password_manager::PasswordForm::MatchType::kExact;
 
   // Successful login alone will not prompt:
   client()->NotifySuccessfulLoginWithExistingPassword(WrapFormInManager(&form));
@@ -539,12 +553,14 @@ void PasswordDialogViewTest::ShowUi(const std::string& name) {
   }
 
   GURL origin("https://example.com");
-  std::u16string username(u"Eve");
   if (name == "CredentialLeak") {
     CredentialLeakType leak_type =
         CredentialLeakFlags::kPasswordSaved |
         CredentialLeakFlags::kPasswordUsedOnOtherSites;
-    controller()->OnCredentialLeak(leak_type, origin, username);
+
+    controller()->OnCredentialLeak(password_manager::LeakedPasswordDetails(
+        leak_type, origin, u"Eve", u"qwerty",
+        /*in_account_store=*/false));
     return;
   }
 
@@ -554,6 +570,8 @@ void PasswordDialogViewTest::ShowUi(const std::string& name) {
   form.url = origin;
   form.display_name = u"Peter Pan";
   form.username_value = u"peter@pan.test";
+  form.match_type = password_manager::PasswordForm::MatchType::kExact;
+
   if (name == "PopupAutoSigninPrompt") {
     form.icon_url = GURL("broken url");
     local_credentials.push_back(
@@ -561,7 +579,7 @@ void PasswordDialogViewTest::ShowUi(const std::string& name) {
     form.icon_url = GURL("https://google.com/icon.png");
     form.display_name = u"Peter";
     form.federation_origin =
-        url::Origin::Create(GURL("https://google.com/federation"));
+        url::SchemeHostPort(GURL("https://google.com/federation"));
     local_credentials.push_back(
         std::make_unique<password_manager::PasswordForm>(form));
     controller()->OnAutoSignin(std::move(local_credentials),
@@ -577,19 +595,19 @@ void PasswordDialogViewTest::ShowUi(const std::string& name) {
       form.display_name = u"Tinkerbell";
       form.username_value = u"tinkerbell@pan.test";
       form.federation_origin =
-          url::Origin::Create(GURL("https://google.com/neverland"));
+          url::SchemeHostPort(GURL("https://google.com/neverland"));
       local_credentials.push_back(
           std::make_unique<password_manager::PasswordForm>(form));
       form.display_name = u"James Hook";
       form.username_value = u"james@pan.test";
       form.federation_origin =
-          url::Origin::Create(GURL("https://google.com/jollyroger"));
+          url::SchemeHostPort(GURL("https://google.com/jollyroger"));
       local_credentials.push_back(
           std::make_unique<password_manager::PasswordForm>(form));
       form.display_name = u"Wendy Darling";
       form.username_value = u"wendy@pan.test";
       form.federation_origin =
-          url::Origin::Create(GURL("https://google.com/london"));
+          url::SchemeHostPort(GURL("https://google.com/london"));
       local_credentials.push_back(
           std::make_unique<password_manager::PasswordForm>(form));
     }

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/base/ime/win/tsf_bridge.h"
 
 #include <msctf.h>
@@ -49,10 +54,12 @@ class TSFBridgeImpl : public TSFBridge {
   void RemoveFocusedClient(TextInputClient* client) override;
   void SetImeKeyEventDispatcher(
       ImeKeyEventDispatcher* ime_key_event_dispatcher) override;
-  void RemoveImeKeyEventDispatcher() override;
+  void RemoveImeKeyEventDispatcher(
+      ImeKeyEventDispatcher* ime_key_event_dispatcher) override;
   bool IsInputLanguageCJK() override;
   Microsoft::WRL::ComPtr<ITfThreadMgr> GetThreadManager() override;
   TextInputClient* GetFocusedTextInputClient() const override;
+  void OnUrlChanged() override;
 
  private:
   // Returns S_OK if |tsf_document_map_| is successfully initialized. This
@@ -154,6 +161,9 @@ class TSFBridgeImpl : public TSFBridge {
 
   // Represents the window that is currently owns text input focus.
   HWND attached_window_handle_ = nullptr;
+
+  // Tracks Windows OS support for empty TSF text stores, available on win11+.
+  bool empty_tsf_support_ = false;
 };
 
 TSFBridgeImpl::TSFBridgeImpl() = default;
@@ -266,7 +276,24 @@ void TSFBridgeImpl::OnTextInputTypeChanged(const TextInputClient* client) {
   // prepare the TSF document for reuse by clearing focus first.
   if (input_type_ != TEXT_INPUT_TYPE_NONE &&
       input_type_ == client_->GetTextInputType()) {
-    thread_manager_->SetFocus(nullptr);
+    if (empty_tsf_support_) {
+      // Switch focus to empty doc. This optimizes the reuse, since here TSF
+      // changes the text store's edit context state. So switching
+      // the focus back to the edit context helps to reuse the TSF document.
+      // It also reduces focus noise to TSF's default document which is only
+      // there for app compat with embedded controls.
+      TSFDocumentMap::iterator it =
+          tsf_document_map_.find(TEXT_INPUT_TYPE_NONE);
+      if (it != tsf_document_map_.end()) {
+        thread_manager_->SetFocus(it->second.document_manager.Get());
+      } else {
+        // If we don't have an empty document, set focus to TSF default
+        // document.
+        thread_manager_->SetFocus(nullptr);
+      }
+    } else {
+      thread_manager_->SetFocus(nullptr);
+    }
   }
   input_type_ = client_->GetTextInputType();
   TSFDocument* document = GetAssociatedDocument();
@@ -370,7 +397,8 @@ void TSFBridgeImpl::SetImeKeyEventDispatcher(
   }
 }
 
-void TSFBridgeImpl::RemoveImeKeyEventDispatcher() {
+void TSFBridgeImpl::RemoveImeKeyEventDispatcher(
+    ImeKeyEventDispatcher* ime_key_event_dispatcher) {
   DCHECK(base::CurrentUIThread::IsSet());
   DCHECK(IsInitialized());
 
@@ -378,7 +406,8 @@ void TSFBridgeImpl::RemoveImeKeyEventDispatcher() {
        it != tsf_document_map_.end(); ++it) {
     if (it->second.text_store.get() == nullptr)
       continue;
-    it->second.text_store->RemoveImeKeyEventDispatcher();
+    it->second.text_store->RemoveImeKeyEventDispatcher(
+        ime_key_event_dispatcher);
   }
 }
 
@@ -393,6 +422,14 @@ bool TSFBridgeImpl::IsInputLanguageCJK() {
 
 TextInputClient* TSFBridgeImpl::GetFocusedTextInputClient() const {
   return client_;
+}
+
+void TSFBridgeImpl::OnUrlChanged() {
+  TSFDocument* document = GetAssociatedDocument();
+  if (!document || !document->text_store) {
+    return;
+  }
+  document->text_store->MaybeSendOnUrlChanged();
 }
 
 Microsoft::WRL::ComPtr<ITfThreadMgr> TSFBridgeImpl::GetThreadManager() {
@@ -495,6 +532,17 @@ HRESULT TSFBridgeImpl::InitializeDocumentMapInternal() {
       TEXT_INPUT_TYPE_TELEPHONE, TEXT_INPUT_TYPE_URL,
       TEXT_INPUT_TYPE_TEXT_AREA,
   };
+  // Query TSF for empty TSF text store support, introduced with Windows 11.
+  // If support is present, as indicated by successful return of an interface
+  // for the IID value GUID_COMPARTMENT_EMPTYCONTEXT, we use a dummy/empty Text
+  // store when there is no text.
+  Microsoft::WRL::ComPtr<IUnknown> flag_empty_context;
+  HRESULT res = thread_manager_->QueryInterface(GUID_COMPARTMENT_EMPTYCONTEXT,
+                                                &flag_empty_context);
+  if (SUCCEEDED(res)) {
+    empty_tsf_support_ = true;
+  }
+
   for (size_t i = 0; i < std::size(kTextInputTypes); ++i) {
     const TextInputType input_type = kTextInputTypes[i];
     Microsoft::WRL::ComPtr<ITfContext> context;
@@ -502,7 +550,9 @@ HRESULT TSFBridgeImpl::InitializeDocumentMapInternal() {
     DWORD source_cookie = TF_INVALID_COOKIE;
     DWORD key_trace_sink_cookie = TF_INVALID_COOKIE;
     DWORD language_profile_cookie = TF_INVALID_COOKIE;
-    const bool use_null_text_store = (input_type == TEXT_INPUT_TYPE_NONE);
+    // Use a null text store if empty tsf text store is not supported.
+    const bool use_null_text_store =
+        (input_type == TEXT_INPUT_TYPE_NONE && !empty_tsf_support_);
     DWORD* source_cookie_ptr = use_null_text_store ? nullptr : &source_cookie;
     DWORD* key_trace_sink_cookie_ptr =
         use_null_text_store ? nullptr : &key_trace_sink_cookie;
@@ -510,7 +560,8 @@ HRESULT TSFBridgeImpl::InitializeDocumentMapInternal() {
         use_null_text_store ? nullptr : &language_profile_cookie;
     scoped_refptr<TSFTextStore> text_store =
         use_null_text_store ? nullptr : new TSFTextStore();
-    if (text_store) {
+    if (text_store && input_type != TEXT_INPUT_TYPE_NONE) {
+      // No need to initialize for TEXT_INPUT_TYPE_NONE.
       HRESULT hr = text_store->Initialize();
       if (FAILED(hr))
         return hr;
@@ -520,7 +571,10 @@ HRESULT TSFBridgeImpl::InitializeDocumentMapInternal() {
         key_trace_sink_cookie_ptr, language_profile_cookie_ptr);
     if (FAILED(hr))
       return hr;
-    if (input_type == TEXT_INPUT_TYPE_PASSWORD) {
+    if (input_type == TEXT_INPUT_TYPE_PASSWORD ||
+        (empty_tsf_support_ && input_type == TEXT_INPUT_TYPE_NONE)) {
+      // Disable context for TEXT_INPUT_TYPE_NONE, if empty text store is
+      // supported.
       hr = InitializeDisabledContext(context.Get());
       if (FAILED(hr))
         return hr;
@@ -533,6 +587,11 @@ HRESULT TSFBridgeImpl::InitializeDocumentMapInternal() {
         language_profile_cookie;
     if (text_store)
       text_store->OnContextInitialized(context.Get());
+
+    // Set the flag for empty text store.
+    if (text_store && input_type == TEXT_INPUT_TYPE_NONE) {
+      text_store->UseEmptyTextStore(empty_tsf_support_);
+    }
   }
   return S_OK;
 }
@@ -665,10 +724,6 @@ HRESULT TSFBridge::Initialize() {
     return S_OK;
   }
 
-  // If we aren't supporting TSF early out.
-  if (!base::FeatureList::IsEnabled(features::kTSFImeSupport))
-    return E_FAIL;
-
   auto delegate = std::make_unique<TSFBridgeImpl>();
   HRESULT hr = delegate->Initialize();
   if (SUCCEEDED(hr)) {
@@ -682,8 +737,6 @@ void TSFBridge::InitializeForTesting() {
   if (!base::CurrentUIThread::IsSet()) {
     return;
   }
-  if (!base::FeatureList::IsEnabled(features::kTSFImeSupport))
-    return;
   ReplaceThreadLocalTSFBridge(std::make_unique<MockTSFBridge>());
 }
 

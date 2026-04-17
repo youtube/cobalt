@@ -7,11 +7,14 @@
 #include <stddef.h>
 
 #include <string>
+#include <string_view>
 
 #include "ash/public/cpp/desk_template.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/json/json_reader.h"
+#include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -24,6 +27,7 @@
 #include "components/account_id/account_id.h"
 #include "components/app_constants/constants.h"
 #include "components/desks_storage/core/desk_storage_metrics_util.h"
+#include "components/desks_storage/core/desk_template_conversion.h"
 #include "components/desks_storage/core/desk_template_util.h"
 #include "components/desks_storage/core/desk_test_util.h"
 #include "components/services/app_service/public/cpp/app_registry_cache.h"
@@ -41,8 +45,9 @@ using TestUuidId = base::StrongAlias<class TestUuidIdTag, int>;
 // found, false if not.
 bool FindUuidInUuidList(
     const base::Uuid& uuid,
-    const std::vector<const ash::DeskTemplate*>& entry_list) {
-  for (auto* entry : entry_list) {
+    const std::vector<raw_ptr<const ash::DeskTemplate, VectorExperimental>>&
+        entry_list) {
+  for (const ash::DeskTemplate* entry : entry_list) {
     if (entry->uuid() == uuid)
       return true;
   }
@@ -194,6 +199,21 @@ std::unique_ptr<ash::DeskTemplate> MakeTestSaveAndRecallDesk(
   return entry;
 }
 
+// Creates a template with the same UUID as the test policy template but with
+// a different policy.
+std::unique_ptr<ash::DeskTemplate> MakePolicyTemplateWithEmptyPolicy() {
+  std::unique_ptr<ash::DeskTemplate> desk_template =
+      std::make_unique<ash::DeskTemplate>(
+          base::Uuid::ParseCaseInsensitive(
+              "27ea906b-a7d3-40b1-8c36-76d332d7f184"),
+          ash::DeskTemplateSource::kUser, base::StringPrintf("desk_01"),
+          base::Time::Now(), ash::DeskTemplateType::kTemplate, false,
+          base::Value());
+  desk_template->set_desk_restore_data(
+      std::make_unique<app_restore::RestoreData>());
+  return desk_template;
+}
+
 }  // namespace
 
 // TODO(crbug:1320940): Clean up tests to move on from std::string.
@@ -335,6 +355,26 @@ class LocalDeskDataManagerTest : public testing::Test {
     EXPECT_EQ(result.entries.size(), expected_size);
   }
 
+  void VerifyUpdateEntryDuplicate() {
+    EXPECT_EQ(data_manager_->last_update_status_,
+              LocalDeskDataManager::UpdateEntryStatus::kDuplicate);
+  }
+
+  void VerifyUpdateEntryOk() {
+    EXPECT_EQ(data_manager_->last_update_status_,
+              LocalDeskDataManager::UpdateEntryStatus::kOk);
+  }
+
+  void VerifyUpdateEntryOutdatePolicy() {
+    EXPECT_EQ(data_manager_->last_update_status_,
+              LocalDeskDataManager::UpdateEntryStatus::kOutdatedPolicy);
+  }
+
+  void VerifyUpdateEntryNotFound() {
+    EXPECT_EQ(data_manager_->last_update_status_,
+              LocalDeskDataManager::UpdateEntryStatus::kNotFound);
+  }
+
   base::ScopedTempDir temp_dir_;
   std::unique_ptr<ash::DeskTemplate> sample_desk_template_one_;
   std::unique_ptr<ash::DeskTemplate> sample_desk_template_one_duplicate_;
@@ -421,6 +461,28 @@ TEST_F(LocalDeskDataManagerTest, CanGetAllEntries) {
   EXPECT_FALSE(FindUuidInUuidList(GetTestUuid(TestUuidId(4)), result.entries));
 }
 
+TEST_F(LocalDeskDataManagerTest, CanGetAllUuids) {
+  data_manager_->AddOrUpdateEntry(std::move(sample_desk_template_one_),
+                                  base::BindOnce(&VerifyEntryAddedCorrectly));
+
+  data_manager_->AddOrUpdateEntry(std::move(sample_desk_template_two_),
+                                  base::BindOnce(&VerifyEntryAddedCorrectly));
+
+  data_manager_->AddOrUpdateEntry(std::move(sample_desk_template_three_),
+                                  base::BindOnce(&VerifyEntryAddedCorrectly));
+
+  task_environment_.RunUntilIdle();
+
+  std::set<base::Uuid> entry_uuids = data_manager_->GetAllEntryUuids();
+
+  entry_uuids.erase(GetTestUuid(TestUuidId(1)));
+  entry_uuids.erase(GetTestUuid(TestUuidId(2)));
+  entry_uuids.erase(GetTestUuid(TestUuidId(3)));
+
+  // We should have exactly the correct set of IDs returned from the model.
+  EXPECT_TRUE(entry_uuids.empty());
+}
+
 TEST_F(LocalDeskDataManagerTest, GetAllEntriesIncludesPolicyValues) {
   data_manager_->AddOrUpdateEntry(std::move(sample_desk_template_one_),
                                   base::BindOnce(&VerifyEntryAddedCorrectly));
@@ -445,11 +507,11 @@ TEST_F(LocalDeskDataManagerTest, GetAllEntriesIncludesPolicyValues) {
   EXPECT_TRUE(FindUuidInUuidList(GetTestUuid(TestUuidId(9)), result.entries));
 
   // One of these templates should be from policy.
-  EXPECT_EQ(base::ranges::count_if(result.entries,
-                                   [](const ash::DeskTemplate* entry) {
-                                     return entry->source() ==
-                                            ash::DeskTemplateSource::kPolicy;
-                                   }),
+  EXPECT_EQ(std::ranges::count_if(result.entries,
+                                  [](const ash::DeskTemplate* entry) {
+                                    return entry->source() ==
+                                           ash::DeskTemplateSource::kPolicy;
+                                  }),
             1l);
 
   // Sanity check for the search function.
@@ -999,6 +1061,81 @@ TEST_F(LocalDeskDataManagerTest, AddUnknownDeskTypeShouldFail) {
       base::BindOnce(&VerifyEntryAddedErrorInvalidArgument));
 
   task_environment_.RunUntilIdle();
+}
+
+TEST_F(LocalDeskDataManagerTest, UpdtesAdminTemplatesCorrectly) {
+  // populate with single template.
+  data_manager_->AddOrUpdateEntry(
+      MakeTestDeskTemplate(GetTestUuid(TestUuidId(5)),
+                           ash::DeskTemplateSource::kUser,
+                           std::string("desk_01"), base::Time::Now()),
+      base::BindOnce(&VerifyEntryAddedCorrectly));
+
+  // Update with modified template.
+  data_manager_->UpdateEntry(MakeTestDeskTemplate(
+      GetTestUuid(TestUuidId(5)), ash::DeskTemplateSource::kUser,
+      std::string("desk_02"), base::Time::Now()));
+
+  task_environment_.RunUntilIdle();
+
+  VerifyAllEntries(1ul, "Updated template");
+  auto result = data_manager_->GetAllEntries();
+  EXPECT_EQ(result.entries.at(0)->template_name(), u"desk_02");
+  VerifyUpdateEntryOk();
+}
+
+TEST_F(LocalDeskDataManagerTest, IngoresUpdateForNonExistantTemplate) {
+  // Update with modified template.
+  data_manager_->UpdateEntry(MakeTestDeskTemplate(
+      GetTestUuid(TestUuidId(5)), ash::DeskTemplateSource::kUser,
+      std::string("desk_02"), base::Time::Now()));
+
+  task_environment_.RunUntilIdle();
+
+  VerifyAllEntries(0ul, "Updated template");
+  VerifyUpdateEntryNotFound();
+}
+
+TEST_F(LocalDeskDataManagerTest, DoesNotUpdateWhenRestoreContentIsTheSame) {
+  auto parsed_json = base::JSONReader::ReadAndReturnValueWithError(
+      std::string_view(desk_test_util::kAdminTemplatePolicyWithOneTemplate));
+
+  EXPECT_TRUE(parsed_json.has_value());
+  EXPECT_TRUE(parsed_json->is_list());
+
+  // "retrieve policy" and add it to the model. We do this to easily get a
+  // fully enough defined template.
+  std::vector<std::unique_ptr<ash::DeskTemplate>> parsed_policy =
+      desk_template_conversion::ParseAdminTemplatesFromPolicyValue(
+          parsed_json.value());
+  data_manager_->AddOrUpdateEntry(parsed_policy.at(0)->Clone(),
+                                  base::BindOnce(&VerifyEntryAddedCorrectly));
+
+  // If we update the template it should return kDuplicate.
+  data_manager_->UpdateEntry(parsed_policy.at(0)->Clone());
+  VerifyUpdateEntryDuplicate();
+}
+
+TEST_F(LocalDeskDataManagerTest, DoesNotOverwriteOnDifferentPolicy) {
+  auto parsed_json = base::JSONReader::ReadAndReturnValueWithError(
+      std::string_view(desk_test_util::kAdminTemplatePolicyWithOneTemplate));
+
+  EXPECT_TRUE(parsed_json.has_value());
+  EXPECT_TRUE(parsed_json->is_list());
+
+  // "retrieve policy" and add it to the model. We do this to easily get a
+  // fully enough defined template.
+  std::vector<std::unique_ptr<ash::DeskTemplate>> parsed_policy =
+      desk_template_conversion::ParseAdminTemplatesFromPolicyValue(
+          parsed_json.value());
+  data_manager_->AddOrUpdateEntry(parsed_policy.at(0)->Clone(),
+                                  base::BindOnce(&VerifyEntryAddedCorrectly));
+
+  // If we update the template it should return kOutdatedPolicy because the
+  // policy definitions differ.  During runtime this happens if we attempt to
+  // update a template that has had a new policy pushed to it.
+  data_manager_->UpdateEntry(MakePolicyTemplateWithEmptyPolicy());
+  VerifyUpdateEntryOutdatePolicy();
 }
 
 }  // namespace desks_storage

@@ -24,6 +24,7 @@
 #include "third_party/blink/renderer/core/testing/wait_for_event.h"
 #include "third_party/blink/renderer/platform/file_metadata.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/wtf/date_math.h"
 
 namespace blink {
@@ -50,6 +51,7 @@ class WebKitDirectoryChromeClient : public EmptyChromeClient {
 }  // namespace
 
 TEST(FileInputTypeTest, createFileList) {
+  test::TaskEnvironment task_environment;
   FileChooserFileInfoList files;
 
   // Native file.
@@ -59,7 +61,8 @@ TEST(FileInputTypeTest, createFileList) {
   // Non-native file.
   KURL url("filesystem:http://example.com/isolated/hash/non-native-file");
   files.push_back(CreateFileChooserFileInfoFileSystem(
-      url, base::Time::FromJsTime(1.0 * kMsPerDay + 3), 64));
+      url, base::Time::FromMillisecondsSinceUnixEpoch(1.0 * kMsPerDay + 3),
+      64));
 
   ScopedNullExecutionContext execution_context;
   FileList* list = FileInputType::CreateFileList(
@@ -78,19 +81,43 @@ TEST(FileInputTypeTest, createFileList) {
   EXPECT_EQ(1.0 * kMsPerDay + 3, list->item(1)->lastModified());
 }
 
+#if BUILDFLAG(IS_ANDROID)
+TEST(FileInputTypeTest, createFileListContentUri) {
+  test::TaskEnvironment task_environment;
+  FileChooserFileInfoList files;
+
+  files.push_back(CreateFileChooserFileInfoNative(
+      "content://authority/id-123", "display-name",
+      Vector<String>({"base", "subdir"})));
+
+  ScopedNullExecutionContext execution_context;
+  FileList* list = FileInputType::CreateFileList(
+      execution_context.GetExecutionContext(), files,
+      base::FilePath("content://authority/id-base"));
+  ASSERT_TRUE(list);
+  ASSERT_EQ(1u, list->length());
+
+  EXPECT_EQ("content://authority/id-123", list->item(0)->GetPath());
+  EXPECT_EQ("display-name", list->item(0)->name());
+  EXPECT_EQ("base/subdir/display-name", list->item(0)->webkitRelativePath());
+  EXPECT_TRUE(list->item(0)->FileSystemURL().IsEmpty());
+}
+#endif
+
 TEST(FileInputTypeTest, ignoreDroppedNonNativeFiles) {
+  test::TaskEnvironment task_environment;
   ScopedNullExecutionContext execution_context;
   auto* document =
       Document::CreateForTest(execution_context.GetExecutionContext());
-  auto* input =
-      MakeGarbageCollected<HTMLInputElement>(*document, CreateElementFlags());
+  auto* input = MakeGarbageCollected<HTMLInputElement>(*document);
   InputType* file_input = MakeGarbageCollected<FileInputType>(*input);
 
   DataObject* native_file_raw_drag_data = DataObject::Create();
   const DragData native_file_drag_data(native_file_raw_drag_data, gfx::PointF(),
-                                       gfx::PointF(), kDragOperationCopy);
-  native_file_drag_data.PlatformData()->Add(
-      MakeGarbageCollected<File>("/native/path"));
+                                       gfx::PointF(), kDragOperationCopy,
+                                       false);
+  native_file_drag_data.PlatformData()->Add(MakeGarbageCollected<File>(
+      &execution_context.GetExecutionContext(), "/native/path"));
   native_file_drag_data.PlatformData()->SetFilesystemId("fileSystemId");
   file_input->ReceiveDroppedFiles(&native_file_drag_data);
   EXPECT_EQ("fileSystemId", file_input->DroppedFileSystemId());
@@ -100,7 +127,7 @@ TEST(FileInputTypeTest, ignoreDroppedNonNativeFiles) {
   DataObject* non_native_file_raw_drag_data = DataObject::Create();
   const DragData non_native_file_drag_data(non_native_file_raw_drag_data,
                                            gfx::PointF(), gfx::PointF(),
-                                           kDragOperationCopy);
+                                           kDragOperationCopy, false);
   FileMetadata metadata;
   metadata.length = 1234;
   const KURL url("filesystem:http://example.com/isolated/hash/non-native-file");
@@ -115,11 +142,11 @@ TEST(FileInputTypeTest, ignoreDroppedNonNativeFiles) {
 }
 
 TEST(FileInputTypeTest, setFilesFromPaths) {
+  test::TaskEnvironment task_environment;
   ScopedNullExecutionContext execution_context;
   auto* document =
       Document::CreateForTest(execution_context.GetExecutionContext());
-  auto* input =
-      MakeGarbageCollected<HTMLInputElement>(*document, CreateElementFlags());
+  auto* input = MakeGarbageCollected<HTMLInputElement>(*document);
   InputType* file_input = MakeGarbageCollected<FileInputType>(*input);
   Vector<String> paths;
   paths.push_back("/native/path");
@@ -150,6 +177,8 @@ TEST(FileInputTypeTest, setFilesFromPaths) {
 }
 
 TEST(FileInputTypeTest, DropTouchesNoPopupOpeningObserver) {
+  test::TaskEnvironment task_environment;
+  ScopedNullExecutionContext execution_context;
   auto* chrome_client = MakeGarbageCollected<WebKitDirectoryChromeClient>();
   auto page_holder =
       std::make_unique<DummyPageHolder>(gfx::Size(), chrome_client);
@@ -162,8 +191,9 @@ TEST(FileInputTypeTest, DropTouchesNoPopupOpeningObserver) {
   MockFileChooser chooser(doc.GetFrame()->GetBrowserInterfaceBroker(),
                           run_loop.QuitClosure());
   DragData drag_data(DataObject::Create(), gfx::PointF(), gfx::PointF(),
-                     kDragOperationCopy);
-  drag_data.PlatformData()->Add(MakeGarbageCollected<File>("/foo/bar"));
+                     kDragOperationCopy, false);
+  drag_data.PlatformData()->Add(MakeGarbageCollected<File>(
+      &execution_context.GetExecutionContext(), "/foo/bar"));
   input.ReceiveDroppedFiles(&drag_data);
   run_loop.Run();
 
@@ -174,6 +204,7 @@ TEST(FileInputTypeTest, DropTouchesNoPopupOpeningObserver) {
 }
 
 TEST(FileInputTypeTest, BeforePseudoCrash) {
+  test::TaskEnvironment task_environment;
   std::unique_ptr<DummyPageHolder> page_holder =
       std::make_unique<DummyPageHolder>(gfx::Size(800, 600));
   Document& doc = page_holder->GetDocument();
@@ -214,6 +245,7 @@ TEST(FileInputTypeTest, BeforePseudoCrash) {
 }
 
 TEST(FileInputTypeTest, ChangeTypeDuringOpeningFileChooser) {
+  test::TaskEnvironment task_environment;
   // We use WebViewHelper instead of DummyPageHolder, in order to use
   // ChromeClientImpl.
   frame_test_helpers::WebViewHelper helper;
@@ -248,12 +280,12 @@ TEST(FileInputTypeTest, ChangeTypeDuringOpeningFileChooser) {
 
 // Tests selecting same file twice should fire cancel event second time.
 TEST(FileInputTypeTest, SetFilesFireCorrectEventsForSameFile) {
+  test::TaskEnvironment task_environment;
   ScopedNullExecutionContext execution_context;
 
   auto* document =
       Document::CreateForTest(execution_context.GetExecutionContext());
-  auto* input =
-      MakeGarbageCollected<HTMLInputElement>(*document, CreateElementFlags());
+  auto* input = MakeGarbageCollected<HTMLInputElement>(*document);
   InputType* file_input = MakeGarbageCollected<FileInputType>(*input);
   auto* listener_change = MakeGarbageCollected<MockEventListener>();
   auto* listener_cancel = MakeGarbageCollected<MockEventListener>();
@@ -265,14 +297,16 @@ TEST(FileInputTypeTest, SetFilesFireCorrectEventsForSameFile) {
   };
 
   auto* const selection_1 = MakeGarbageCollected<FileList>();
-  selection_1->Append(MakeGarbageCollected<File>("/path/to/A.txt"));
+  selection_1->Append(MakeGarbageCollected<File>(
+      &execution_context.GetExecutionContext(), "/path/to/A.txt"));
   file_input->SetFilesAndDispatchEvents(selection_1);
   EXPECT_TRUE(listener_change->invoked);
   EXPECT_FALSE(listener_cancel->invoked);
 
   reset();
   auto* const selection_2 = MakeGarbageCollected<FileList>();
-  selection_2->Append(MakeGarbageCollected<File>("/path/to/A.txt"));
+  selection_2->Append(MakeGarbageCollected<File>(
+      &execution_context.GetExecutionContext(), "/path/to/A.txt"));
   file_input->SetFilesAndDispatchEvents(selection_2);
   EXPECT_FALSE(listener_change->invoked);
   EXPECT_TRUE(listener_cancel->invoked);
@@ -280,12 +314,12 @@ TEST(FileInputTypeTest, SetFilesFireCorrectEventsForSameFile) {
 
 // Tests selecting same files twice should fire cancel event second time.
 TEST(FileInputTypeTest, SetFilesFireCorrectEventsForSameFiles) {
+  test::TaskEnvironment task_environment;
   ScopedNullExecutionContext execution_context;
 
   auto* document =
       Document::CreateForTest(execution_context.GetExecutionContext());
-  auto* input =
-      MakeGarbageCollected<HTMLInputElement>(*document, CreateElementFlags());
+  auto* input = MakeGarbageCollected<HTMLInputElement>(*document);
   InputType* file_input = MakeGarbageCollected<FileInputType>(*input);
   auto* listener_change = MakeGarbageCollected<MockEventListener>();
   auto* listener_cancel = MakeGarbageCollected<MockEventListener>();
@@ -298,16 +332,20 @@ TEST(FileInputTypeTest, SetFilesFireCorrectEventsForSameFiles) {
   };
 
   auto* const selection_1 = MakeGarbageCollected<FileList>();
-  selection_1->Append(MakeGarbageCollected<File>("/path/to/A.txt"));
-  selection_1->Append(MakeGarbageCollected<File>("/path/to/B.txt"));
+  selection_1->Append(MakeGarbageCollected<File>(
+      &execution_context.GetExecutionContext(), "/path/to/A.txt"));
+  selection_1->Append(MakeGarbageCollected<File>(
+      &execution_context.GetExecutionContext(), "/path/to/B.txt"));
   file_input->SetFilesAndDispatchEvents(selection_1);
   EXPECT_TRUE(listener_change->invoked);
   EXPECT_FALSE(listener_cancel->invoked);
 
   reset();
   auto* const selection_2 = MakeGarbageCollected<FileList>();
-  selection_2->Append(MakeGarbageCollected<File>("/path/to/A.txt"));
-  selection_2->Append(MakeGarbageCollected<File>("/path/to/B.txt"));
+  selection_2->Append(MakeGarbageCollected<File>(
+      &execution_context.GetExecutionContext(), "/path/to/A.txt"));
+  selection_2->Append(MakeGarbageCollected<File>(
+      &execution_context.GetExecutionContext(), "/path/to/B.txt"));
   file_input->SetFilesAndDispatchEvents(selection_2);
   EXPECT_FALSE(listener_change->invoked);
   EXPECT_TRUE(listener_cancel->invoked);
@@ -316,12 +354,12 @@ TEST(FileInputTypeTest, SetFilesFireCorrectEventsForSameFiles) {
 // Tests selecting different file after first selection should fire change
 // event.
 TEST(FileInputTypeTest, SetFilesFireCorrectEventsForDifferentFile) {
+  test::TaskEnvironment task_environment;
   ScopedNullExecutionContext execution_context;
 
   auto* document =
       Document::CreateForTest(execution_context.GetExecutionContext());
-  auto* input =
-      MakeGarbageCollected<HTMLInputElement>(*document, CreateElementFlags());
+  auto* input = MakeGarbageCollected<HTMLInputElement>(*document);
   InputType* file_input = MakeGarbageCollected<FileInputType>(*input);
   auto* listener_change = MakeGarbageCollected<MockEventListener>();
   auto* listener_cancel = MakeGarbageCollected<MockEventListener>();
@@ -333,14 +371,16 @@ TEST(FileInputTypeTest, SetFilesFireCorrectEventsForDifferentFile) {
   };
 
   auto* const selection_1 = MakeGarbageCollected<FileList>();
-  selection_1->Append(MakeGarbageCollected<File>("/path/to/A.txt"));
+  selection_1->Append(MakeGarbageCollected<File>(
+      &execution_context.GetExecutionContext(), "/path/to/A.txt"));
   file_input->SetFilesAndDispatchEvents(selection_1);
   EXPECT_TRUE(listener_change->invoked);
   EXPECT_FALSE(listener_cancel->invoked);
 
   reset();
   auto* const selection_2 = MakeGarbageCollected<FileList>();
-  selection_2->Append(MakeGarbageCollected<File>("/path/to/B.txt"));
+  selection_2->Append(MakeGarbageCollected<File>(
+      &execution_context.GetExecutionContext(), "/path/to/B.txt"));
   file_input->SetFilesAndDispatchEvents(selection_2);
   EXPECT_TRUE(listener_change->invoked);
   EXPECT_FALSE(listener_cancel->invoked);
@@ -349,12 +389,12 @@ TEST(FileInputTypeTest, SetFilesFireCorrectEventsForDifferentFile) {
 // Tests selecting different files after first selection should fire change
 // event.
 TEST(FileInputTypeTest, SetFilesFireCorrectEventsForDifferentFiles) {
+  test::TaskEnvironment task_environment;
   ScopedNullExecutionContext execution_context;
 
   auto* document =
       Document::CreateForTest(execution_context.GetExecutionContext());
-  auto* input =
-      MakeGarbageCollected<HTMLInputElement>(*document, CreateElementFlags());
+  auto* input = MakeGarbageCollected<HTMLInputElement>(*document);
   InputType* file_input = MakeGarbageCollected<FileInputType>(*input);
   auto* listener_change = MakeGarbageCollected<MockEventListener>();
   auto* listener_cancel = MakeGarbageCollected<MockEventListener>();
@@ -367,15 +407,18 @@ TEST(FileInputTypeTest, SetFilesFireCorrectEventsForDifferentFiles) {
   };
 
   auto* const selection_1 = MakeGarbageCollected<FileList>();
-  selection_1->Append(MakeGarbageCollected<File>("/path/to/A.txt"));
-  selection_1->Append(MakeGarbageCollected<File>("/path/to/B.txt"));
+  selection_1->Append(MakeGarbageCollected<File>(
+      &execution_context.GetExecutionContext(), "/path/to/A.txt"));
+  selection_1->Append(MakeGarbageCollected<File>(
+      &execution_context.GetExecutionContext(), "/path/to/B.txt"));
   file_input->SetFilesAndDispatchEvents(selection_1);
   EXPECT_TRUE(listener_change->invoked);
   EXPECT_FALSE(listener_cancel->invoked);
 
   reset();
   auto* const selection_2 = MakeGarbageCollected<FileList>();
-  selection_2->Append(MakeGarbageCollected<File>("/path/to/A.txt"));
+  selection_2->Append(MakeGarbageCollected<File>(
+      &execution_context.GetExecutionContext(), "/path/to/A.txt"));
   file_input->SetFilesAndDispatchEvents(selection_2);
   EXPECT_TRUE(listener_change->invoked);
   EXPECT_FALSE(listener_cancel->invoked);
@@ -384,12 +427,12 @@ TEST(FileInputTypeTest, SetFilesFireCorrectEventsForDifferentFiles) {
 // Tests clearing selection (click cancel in file chooser) after selection
 // should fire change event.
 TEST(FileInputTypeTest, SetFilesFireCorrectEventsCancelWithSelection) {
+  test::TaskEnvironment task_environment;
   ScopedNullExecutionContext execution_context;
 
   auto* document =
       Document::CreateForTest(execution_context.GetExecutionContext());
-  auto* input =
-      MakeGarbageCollected<HTMLInputElement>(*document, CreateElementFlags());
+  auto* input = MakeGarbageCollected<HTMLInputElement>(*document);
   InputType* file_input = MakeGarbageCollected<FileInputType>(*input);
   auto* listener_change = MakeGarbageCollected<MockEventListener>();
   auto* listener_cancel = MakeGarbageCollected<MockEventListener>();
@@ -402,8 +445,10 @@ TEST(FileInputTypeTest, SetFilesFireCorrectEventsCancelWithSelection) {
   };
 
   auto* const selection_1 = MakeGarbageCollected<FileList>();
-  selection_1->Append(MakeGarbageCollected<File>("/path/to/A.txt"));
-  selection_1->Append(MakeGarbageCollected<File>("/path/to/B.txt"));
+  selection_1->Append(MakeGarbageCollected<File>(
+      &execution_context.GetExecutionContext(), "/path/to/A.txt"));
+  selection_1->Append(MakeGarbageCollected<File>(
+      &execution_context.GetExecutionContext(), "/path/to/B.txt"));
   file_input->SetFilesAndDispatchEvents(selection_1);
   EXPECT_TRUE(listener_change->invoked);
   EXPECT_FALSE(listener_cancel->invoked);
@@ -418,12 +463,12 @@ TEST(FileInputTypeTest, SetFilesFireCorrectEventsCancelWithSelection) {
 // Tests clearing selection (click cancel in file chooser) without selection
 // should fire cancel event.
 TEST(FileInputTypeTest, SetFilesFireCorrectEventsCancelWithoutSelection) {
+  test::TaskEnvironment task_environment;
   ScopedNullExecutionContext execution_context;
 
   auto* document =
       Document::CreateForTest(execution_context.GetExecutionContext());
-  auto* input =
-      MakeGarbageCollected<HTMLInputElement>(*document, CreateElementFlags());
+  auto* input = MakeGarbageCollected<HTMLInputElement>(*document);
   InputType* file_input = MakeGarbageCollected<FileInputType>(*input);
   auto* listener_change = MakeGarbageCollected<MockEventListener>();
   auto* listener_cancel = MakeGarbageCollected<MockEventListener>();

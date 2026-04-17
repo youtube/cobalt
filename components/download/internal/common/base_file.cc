@@ -2,17 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/download/public/common/base_file.h"
 
 #include <memory>
 #include <utility>
 
+#include "base/containers/heap_array.h"
 #include "base/files/file.h"
 #include "base/files/file_util.h"
 #include "base/format_macros.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/pickle.h"
 #include "base/strings/stringprintf.h"
@@ -79,12 +86,15 @@ void InitializeFile(base::File* file, const base::FilePath& file_path) {
 #endif  // BUILDFLAG(IS_ANDROID)
 
   // Use exclusive write to prevent another process from writing the file.
-  file->Initialize(file_path,
-                   base::File::FLAG_OPEN_ALWAYS | base::File::FLAG_WRITE |
-                       base::File::FLAG_READ |
-                       // Don't allow other processes to write to the file while
-                       // Chrome is writing (Windows-specific).
-                       base::File::FLAG_WIN_EXCLUSIVE_WRITE);
+  file->Initialize(
+      file_path,
+      base::File::FLAG_OPEN_ALWAYS | base::File::FLAG_WRITE |
+          base::File::FLAG_READ |
+          // Don't allow other processes to write to the file while
+          // Chrome is writing (Windows-specific).
+          base::File::FLAG_WIN_EXCLUSIVE_WRITE |
+          // Allow the file to be renamed or replaced (Windows-specific).
+          base::File::FLAG_WIN_SHARE_DELETE);
 }
 
 void DeleteFileWrapper(const base::FilePath& file_path) {
@@ -226,12 +236,12 @@ bool BaseFile::ValidateDataInFile(int64_t offset,
   if (data_len <= 0)
     return true;
 
-  std::unique_ptr<char[]> buffer(new char[data_len]);
-  int bytes_read = file_.Read(offset, buffer.get(), data_len);
+  auto buffer = base::HeapArray<char>::Uninit(data_len);
+  int bytes_read = file_.Read(offset, buffer.data(), buffer.size());
   if (bytes_read < 0 || static_cast<size_t>(bytes_read) < data_len)
     return false;
 
-  return memcmp(data, buffer.get(), data_len) == 0;
+  return memcmp(data, buffer.data(), buffer.size()) == 0;
 }
 
 DownloadInterruptReason BaseFile::Rename(const base::FilePath& new_path) {
@@ -598,11 +608,7 @@ GURL BaseFile::GetEffectiveAuthorityURL(const GURL& source_url,
 }
 
 void BaseFile::OnFileQuarantined(
-    bool connection_error,
     quarantine::mojom::QuarantineFileResult result) {
-  base::UmaHistogramBoolean("Download.QuarantineService.ConnectionError",
-                            connection_error);
-
   DCHECK(on_annotation_done_callback_);
   quarantine_service_.reset();
   std::move(on_annotation_done_callback_)
@@ -612,11 +618,10 @@ void BaseFile::OnFileQuarantined(
 void BaseFile::OnQuarantineServiceError(const GURL& source_url,
                                         const GURL& referrer_url) {
 #if BUILDFLAG(IS_WIN)
-  OnFileQuarantined(/*connection_error=*/true,
-                    quarantine::SetInternetZoneIdentifierDirectly(
-                        full_path_, source_url, referrer_url));
+  OnFileQuarantined(quarantine::SetInternetZoneIdentifierDirectly(
+      full_path_, source_url, referrer_url));
 #else   // !BUILDFLAG(IS_WIN)
-  CHECK(false) << "In-process quarantine service should not have failed.";
+  NOTREACHED() << "In-process quarantine service should not have failed.";
 #endif  // !BUILDFLAG(IS_WIN)
 }
 
@@ -624,6 +629,7 @@ void BaseFile::AnnotateWithSourceInformation(
     const std::string& client_guid,
     const GURL& source_url,
     const GURL& referrer_url,
+    const std::optional<url::Origin>& request_initiator,
     mojo::PendingRemote<quarantine::mojom::Quarantine> remote_quarantine,
     OnAnnotationDoneCallback on_annotation_done_callback) {
   GURL authority_url = GetEffectiveAuthorityURL(source_url, referrer_url);
@@ -648,9 +654,9 @@ void BaseFile::AnnotateWithSourceInformation(
         authority_url, referrer_url));
 
     quarantine_service_->QuarantineFile(
-        full_path_, authority_url, referrer_url, client_guid,
-        base::BindOnce(&BaseFile::OnFileQuarantined, weak_factory_.GetWeakPtr(),
-                       false));
+        full_path_, authority_url, referrer_url, request_initiator, client_guid,
+        base::BindOnce(&BaseFile::OnFileQuarantined,
+                       weak_factory_.GetWeakPtr()));
   }
 }
 

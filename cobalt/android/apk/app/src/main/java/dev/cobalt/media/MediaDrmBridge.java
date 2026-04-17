@@ -40,9 +40,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 /** A wrapper of the android MediaDrm class. */
 @JNINamespace("starboard")
@@ -498,11 +498,12 @@ public class MediaDrmBridge {
               byte[] sessionId,
               List<MediaDrm.KeyStatus> keyInformation,
               boolean hasNewUsableKey) {
-
             MediaDrmBridgeJni.get().onKeyStatusChange(
                 mNativeMediaDrmBridge,
                 sessionId,
-                keyInformation.toArray(new MediaDrm.KeyStatus[keyInformation.size()]));
+                keyInformation.stream()
+                    .map(keyStatus -> new KeyStatus(keyStatus.getKeyId(), keyStatus.getStatusCode()))
+                    .toArray(KeyStatus[]::new));
           }
         },
         null);
@@ -764,13 +765,12 @@ public class MediaDrmBridge {
   }
 
   @CalledByNative
-  void generateProvisionRequest() {
+  byte[] generateProvisionRequest() {
     assert mEnableAppProvisioning;
     MediaDrm.ProvisionRequest request = mMediaDrm.getProvisionRequest();
     Log.i(TAG, "start provisioning: request size=" + request.getData().length);
 
-    MediaDrmBridgeJni.get().onProvisioningRequestMessage(
-        mNativeMediaDrmBridge, request.getData());
+    return request.getData();
   }
 
   @CalledByNative
@@ -920,6 +920,27 @@ public class MediaDrmBridge {
     return mNativeMediaDrmBridge != INVALID_NATIVE_MEDIA_DRM_BRIDGE;
   }
 
+  /** A wrapper of the android MediaDrm.KeyStatus class to be used by JNI. */
+  public static class KeyStatus {
+    private final byte[] mKeyId;
+    private final int mStatusCode;
+
+    private KeyStatus(byte[] keyId, int statusCode) {
+      mKeyId = (keyId == null) ? null : keyId.clone();
+      mStatusCode = statusCode;
+    }
+
+    @CalledByNative("KeyStatus")
+    private byte[] getKeyId() {
+      return (mKeyId == null) ? null : mKeyId.clone();
+    }
+
+    @CalledByNative("KeyStatus")
+    private int getStatusCode() {
+      return mStatusCode;
+    }
+  }
+
   @NativeMethods
   interface Natives {
     void onSessionMessage(
@@ -929,13 +950,9 @@ public class MediaDrmBridge {
         int requestType,
         byte[] message);
 
-    void onProvisioningRequestMessage(
-        long nativeMediaDrmBridge,
-        byte[] message);
-
     void onKeyStatusChange(
         long nativeMediaDrmBridge,
         byte[] sessionId,
-        MediaDrm.KeyStatus[] keyInformation);
+        KeyStatus[] keyInformation);
   }
 }

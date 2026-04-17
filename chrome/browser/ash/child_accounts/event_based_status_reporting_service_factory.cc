@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ash/child_accounts/event_based_status_reporting_service_factory.h"
 
+#include <memory>
+
 #include "base/no_destructor.h"
 #include "chrome/browser/ash/app_list/arc/arc_app_list_prefs_factory.h"
 #include "chrome/browser/ash/child_accounts/child_status_reporting_service_factory.h"
@@ -33,9 +35,12 @@ EventBasedStatusReportingServiceFactory::
           "EventBasedStatusReportingServiceFactory",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
+              // TODO(crbug.com/40257657): Check if this service is needed in
               // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOriginalOnly)
               .Build()) {
   DependsOn(ChildStatusReportingServiceFactory::GetInstance());
   DependsOn(ArcAppListPrefsFactory::GetInstance());
@@ -45,9 +50,10 @@ EventBasedStatusReportingServiceFactory::
 EventBasedStatusReportingServiceFactory::
     ~EventBasedStatusReportingServiceFactory() = default;
 
-KeyedService* EventBasedStatusReportingServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+EventBasedStatusReportingServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new EventBasedStatusReportingService(context);
+  return std::make_unique<EventBasedStatusReportingService>(context);
 }
 
 }  // namespace ash

@@ -17,7 +17,6 @@
 #include "chromeos/ash/components/dbus/attestation/interface.pb.h"
 #include "chromeos/ash/components/dbus/constants/attestation_constants.h"
 #include "components/account_id/account_id.h"
-#include "url/gurl.h"
 
 class AccountId;
 
@@ -86,7 +85,7 @@ class PlatformVerificationFlow
   // purposes.  For normal operation the default implementation should be used.
   class Delegate {
    public:
-    virtual ~Delegate() {}
+    virtual ~Delegate() = default;
 
     // Returns true iff the device is in a mode that supports platform
     // verification. For example, platform verification is not supported in dev
@@ -233,10 +232,10 @@ class PlatformVerificationFlow
                                 AttestationStatus operation_status,
                                 const std::string& certificate_chain);
 
-  raw_ptr<AttestationFlow, ExperimentalAsh> attestation_flow_;
+  raw_ptr<AttestationFlow> attestation_flow_;
   std::unique_ptr<AttestationFlow> default_attestation_flow_;
-  const raw_ptr<AttestationClient, ExperimentalAsh> attestation_client_;
-  raw_ptr<Delegate, ExperimentalAsh> delegate_;
+  const raw_ptr<AttestationClient, DanglingUntriaged> attestation_client_;
+  raw_ptr<Delegate> delegate_;
   std::unique_ptr<Delegate> default_delegate_;
   base::TimeDelta timeout_delay_;
   std::set<std::string> renewals_in_progress_;

@@ -6,7 +6,6 @@
 
 #include <memory>
 
-#include "chrome/browser/ash/guest_os/public/guest_os_service_factory.h"
 #include "chrome/browser/ash/guest_os/public/guest_os_terminal_provider_registry.h"
 #include "chrome/browser/ash/guest_os/public/guest_os_wayland_server.h"
 
@@ -18,10 +17,6 @@ GuestOsService::GuestOsService(Profile* profile)
 
 GuestOsService::~GuestOsService() = default;
 
-GuestOsService* GuestOsService::GetForProfile(Profile* profile) {
-  return GuestOsServiceFactory::GetForProfile(profile);
-}
-
 GuestOsMountProviderRegistry* GuestOsService::MountProviderRegistry() {
   return &mount_provider_registry_;
 }
@@ -32,6 +27,10 @@ GuestOsTerminalProviderRegistry* GuestOsService::TerminalProviderRegistry() {
 
 GuestOsWaylandServer* GuestOsService::WaylandServer() {
   return wayland_server_.get();
+}
+
+GuestOsSkForwarder* GuestOsService::SkForwarder() {
+  return &guest_os_sk_forwarder_;
 }
 
 }  // namespace guest_os

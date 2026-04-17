@@ -4,14 +4,15 @@
 
 package org.chromium.chrome.browser.toolbar.menu_button;
 
+import static org.chromium.build.NullUtil.assertNonNull;
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.animation.Animator;
 import android.animation.AnimatorSet;
 import android.app.Activity;
 import android.content.res.ColorStateList;
 import android.content.res.Resources;
 import android.view.View;
-
-import androidx.annotation.Nullable;
 
 import org.chromium.base.Callback;
 import org.chromium.base.MathUtils;
@@ -20,6 +21,8 @@ import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.Supplier;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.browser_controls.BrowserStateBrowserControlsVisibilityDelegate;
 import org.chromium.chrome.browser.omnibox.OmniboxFocusReason;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
@@ -43,12 +46,13 @@ import org.chromium.ui.util.TokenHolder;
  * Mediator for the MenuButton. Listens for MenuButton state changes and drives corresponding
  * changes to the property model that backs the MenuButton view.
  */
+@NullMarked
 class MenuButtonMediator implements AppMenuObserver {
-    private Callback<AppMenuCoordinator> mAppMenuCoordinatorSupplierObserver;
+    private final Callback<AppMenuCoordinator> mAppMenuCoordinatorSupplierObserver;
     private @Nullable AppMenuPropertiesDelegate mAppMenuPropertiesDelegate;
-    private AppMenuButtonHelper mAppMenuButtonHelper;
-    private ObservableSupplierImpl<AppMenuButtonHelper> mAppMenuButtonHelperSupplier;
-    private AppMenuHandler mAppMenuHandler;
+    private @Nullable AppMenuButtonHelper mAppMenuButtonHelper;
+    private final ObservableSupplierImpl<AppMenuButtonHelper> mAppMenuButtonHelperSupplier;
+    private @Nullable AppMenuHandler mAppMenuHandler;
     private final BrowserStateBrowserControlsVisibilityDelegate mControlsVisibilityDelegate;
     private final SetFocusFunction mSetUrlBarFocusFunction;
     private final PropertyModel mPropertyModel;
@@ -56,47 +60,52 @@ class MenuButtonMediator implements AppMenuObserver {
     private final ThemeColorProvider mThemeColorProvider;
     private final Activity mActivity;
     private final KeyboardVisibilityDelegate mKeyboardDelegate;
-    private boolean mShouldShowAppUpdateBadge;
+    private final boolean mCanShowAppUpdateBadge;
     private final Supplier<Boolean> mIsActivityFinishingSupplier;
     private int mFullscreenMenuToken = TokenHolder.INVALID_TOKEN;
     private int mFullscreenHighlightToken = TokenHolder.INVALID_TOKEN;
     private final Supplier<Boolean> mIsInOverviewModeSupplier;
-    private boolean mSuppressAppMenuUpdateBadge;
-    private Resources mResources;
+    private final Resources mResources;
     private final OneshotSupplier<AppMenuCoordinator> mAppMenuCoordinatorSupplier;
     private final Supplier<MenuButtonState> mMenuButtonStateSupplier;
     private final Runnable mOnMenuButtonClicked;
+    private final TokenHolder mHideTokenHolder;
 
     private final int mUrlFocusTranslationX;
 
     /**
      * @param propertyModel Model to write property changes to.
-     * @param shouldShowAppUpdateBadge Whether the "update available" badge should ever be shown.
+     * @param canShowAppUpdateBadge Whether the "update available" badge can be shown.
      * @param isActivityFinishingSupplier Supplier for knowing if the embedding activity is in the
-     *         process of finishing or has already been destroyed.
+     *     process of finishing or has already been destroyed.
      * @param requestRenderRunnable Runnable that requests a re-rendering of the compositor view
-     *         containing the app menu button.
+     *     containing the app menu button.
      * @param themeColorProvider Provider of theme color changes.
      * @param isInOverviewModeSupplier Supplier of overview mode state.
      * @param controlsVisibilityDelegate Delegate for forcing persistent display of browser
-     *         controls.
+     *     controls.
      * @param setUrlBarFocusFunction Function that allows setting focus on the url bar.
      * @param appMenuCoordinatorSupplier Supplier for the AppMenuCoordinator, which owns all other
-     *         app menu MVC components.
+     *     app menu MVC components.
      * @param windowAndroid The WindowAndroid instance.
      * @param menuButtonStateSupplier Suplier of {@link MenuButtonState}.
      * @param onMenuButtonClicked Runnable to execute when menu button is clicked.
      */
-    MenuButtonMediator(PropertyModel propertyModel, boolean shouldShowAppUpdateBadge,
-            Supplier<Boolean> isActivityFinishingSupplier, Runnable requestRenderRunnable,
-            ThemeColorProvider themeColorProvider, Supplier<Boolean> isInOverviewModeSupplier,
+    MenuButtonMediator(
+            PropertyModel propertyModel,
+            boolean canShowAppUpdateBadge,
+            Supplier<Boolean> isActivityFinishingSupplier,
+            Runnable requestRenderRunnable,
+            ThemeColorProvider themeColorProvider,
+            Supplier<Boolean> isInOverviewModeSupplier,
             BrowserStateBrowserControlsVisibilityDelegate controlsVisibilityDelegate,
             SetFocusFunction setUrlBarFocusFunction,
             OneshotSupplier<AppMenuCoordinator> appMenuCoordinatorSupplier,
-            WindowAndroid windowAndroid, Supplier<MenuButtonState> menuButtonStateSupplier,
+            WindowAndroid windowAndroid,
+            Supplier<MenuButtonState> menuButtonStateSupplier,
             Runnable onMenuButtonClicked) {
         mPropertyModel = propertyModel;
-        mShouldShowAppUpdateBadge = shouldShowAppUpdateBadge;
+        mCanShowAppUpdateBadge = canShowAppUpdateBadge;
         mIsActivityFinishingSupplier = isActivityFinishingSupplier;
         mRequestRenderRunnable = requestRenderRunnable;
         mThemeColorProvider = themeColorProvider;
@@ -107,15 +116,20 @@ class MenuButtonMediator implements AppMenuObserver {
         mAppMenuCoordinatorSupplierObserver = this::onAppMenuInitialized;
         mAppMenuCoordinatorSupplier = appMenuCoordinatorSupplier;
         mAppMenuCoordinatorSupplier.onAvailable(mAppMenuCoordinatorSupplierObserver);
-        mActivity = windowAndroid.getActivity().get();
+        mActivity = assertNonNull(windowAndroid.getActivity().get());
         mResources = mActivity.getResources();
         mAppMenuButtonHelperSupplier = new ObservableSupplierImpl<>();
         mKeyboardDelegate = windowAndroid.getKeyboardDelegate();
         mMenuButtonStateSupplier = menuButtonStateSupplier;
         mOnMenuButtonClicked = onMenuButtonClicked;
+        mHideTokenHolder = new TokenHolder(this::updateMenuButtonVisibility);
 
         mUrlFocusTranslationX =
                 mResources.getDimensionPixelSize(R.dimen.toolbar_url_focus_translation_x);
+    }
+
+    private void updateMenuButtonVisibility() {
+        mPropertyModel.set(MenuButtonProperties.IS_VISIBLE, !mHideTokenHolder.hasTokens());
     }
 
     @Override
@@ -169,17 +183,31 @@ class MenuButtonMediator implements AppMenuObserver {
         mPropertyModel.set(MenuButtonProperties.IS_HIGHLIGHTING, isHighlighting);
     }
 
-    void setAppMenuUpdateBadgeSuppressed(boolean isSuppressed) {
-        mSuppressAppMenuUpdateBadge = isSuppressed;
-        if (isSuppressed) {
-            removeAppMenuUpdateBadge(false);
-        } else if (isUpdateAvailable() && mShouldShowAppUpdateBadge) {
-            showAppMenuUpdateBadge(false);
-        }
+    void setVisibility(boolean visible) {
+        if (mHideTokenHolder.hasTokens()) return;
+        mPropertyModel.set(MenuButtonProperties.IS_VISIBLE, visible);
     }
 
-    void setVisibility(boolean visible) {
-        mPropertyModel.set(MenuButtonProperties.IS_VISIBLE, visible);
+    /**
+     * Hides menu button persistently until all tokens are released.
+     *
+     * @param token previously acquired token.
+     * @return a new token that keeps menu button hidden.
+     */
+    int hideWithOldTokenRelease(int token) {
+        int newToken = mHideTokenHolder.acquireToken();
+        releaseHideToken(token);
+        return newToken;
+    }
+
+    /**
+     * Releases menu button hide token that might cause menu button to become visible if no more
+     * tokens are held.
+     *
+     * @param token previously acquired token.
+     */
+    void releaseHideToken(int token) {
+        mHideTokenHolder.releaseToken(token);
     }
 
     void updateReloadingState(boolean isLoading) {
@@ -196,13 +224,14 @@ class MenuButtonMediator implements AppMenuObserver {
 
     void destroy() {
         if (mAppMenuButtonHelper != null) {
+            assumeNonNull(mAppMenuHandler);
             mAppMenuHandler.removeObserver(this);
             mAppMenuButtonHelper = null;
         }
     }
 
     void updateStateChanged() {
-        if (mIsActivityFinishingSupplier.get() || !mShouldShowAppUpdateBadge) {
+        if (mIsActivityFinishingSupplier.get() || !mCanShowAppUpdateBadge) {
             return;
         }
 
@@ -215,9 +244,6 @@ class MenuButtonMediator implements AppMenuObserver {
     }
 
     private void showAppMenuUpdateBadge(boolean animate) {
-        if (mSuppressAppMenuUpdateBadge) {
-            return;
-        }
         MenuButtonState buttonState = mMenuButtonStateSupplier.get();
         assert buttonState != null : "No button state when trying to show the badge.";
         updateContentDescription(true, buttonState.menuContentDescription);
@@ -233,24 +259,30 @@ class MenuButtonMediator implements AppMenuObserver {
     }
 
     private void onTintChanged(
-            ColorStateList tintList, @BrandedColorScheme int brandedColorScheme) {
+            @Nullable ColorStateList tintList,
+            @Nullable ColorStateList activityFocusTintList,
+            @BrandedColorScheme int brandedColorScheme) {
         mPropertyModel.set(
-                MenuButtonProperties.THEME, new ThemeProperty(tintList, brandedColorScheme));
+                MenuButtonProperties.THEME,
+                new ThemeProperty(activityFocusTintList, brandedColorScheme));
     }
 
     /**
      * Sets the content description for the menu button.
+     *
      * @param isUpdateBadgeVisible Whether the update menu badge is visible.
      * @param badgeContentDescription Resource id of the string to show if the update badge is
-     *         visible.
+     *     visible.
      */
     private void updateContentDescription(
             boolean isUpdateBadgeVisible, int badgeContentDescription) {
         if (isUpdateBadgeVisible) {
-            mPropertyModel.set(MenuButtonProperties.CONTENT_DESCRIPTION,
+            mPropertyModel.set(
+                    MenuButtonProperties.CONTENT_DESCRIPTION,
                     mResources.getString(badgeContentDescription));
         } else {
-            mPropertyModel.set(MenuButtonProperties.CONTENT_DESCRIPTION,
+            mPropertyModel.set(
+                    MenuButtonProperties.CONTENT_DESCRIPTION,
                     mResources.getString(R.string.accessibility_toolbar_btn_menu));
         }
     }
@@ -268,7 +300,9 @@ class MenuButtonMediator implements AppMenuObserver {
         mAppMenuHandler.addObserver(this);
         mAppMenuButtonHelper = mAppMenuHandler.createAppMenuButtonHelper();
         mAppMenuButtonHelper.setOnAppMenuShownListener(
-                () -> { RecordUserAction.record("MobileToolbarShowMenu"); });
+                () -> {
+                    RecordUserAction.record("MobileToolbarShowMenu");
+                });
         mPropertyModel.set(MenuButtonProperties.APP_MENU_BUTTON_HELPER, mAppMenuButtonHelper);
 
         mAppMenuButtonHelperSupplier.set(mAppMenuButtonHelper);
@@ -299,10 +333,12 @@ class MenuButtonMediator implements AppMenuObserver {
         }
 
         AnimatorSet animatorSet = new AnimatorSet();
-        Animator translationAnimator = PropertyModelAnimatorFactory.ofFloat(
-                mPropertyModel, MenuButtonProperties.TRANSLATION_X, translationX);
-        Animator alphaAnimator = PropertyModelAnimatorFactory.ofFloat(
-                mPropertyModel, MenuButtonProperties.ALPHA, alpha);
+        Animator translationAnimator =
+                PropertyModelAnimatorFactory.ofFloat(
+                        mPropertyModel, MenuButtonProperties.TRANSLATION_X, translationX);
+        Animator alphaAnimator =
+                PropertyModelAnimatorFactory.ofFloat(
+                        mPropertyModel, MenuButtonProperties.ALPHA, alpha);
         animatorSet.playTogether(translationAnimator, alphaAnimator);
         return animatorSet;
     }

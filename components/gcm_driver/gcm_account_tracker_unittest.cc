@@ -12,7 +12,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
-#include "build/chromeos_buildflags.h"
 #include "components/gcm_driver/fake_gcm_driver.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "google_apis/gaia/google_service_auth_error.h"
@@ -38,7 +37,7 @@ GCMClient::AccountTokenInfo MakeAccountToken(const CoreAccountInfo& account) {
   GCMClient::AccountTokenInfo token_info;
   token_info.account_id = account.account_id;
 
-  // TODO(https://crbug.com/856170): This *should* be expected to be the email
+  // TODO(crbug.com/40582229): This *should* be expected to be the email
   // address for the given account, but there is a bug in AccountTracker that
   // means that |token_info.email| actually gets populated with the account ID
   // by the production code. Hence the test expectation has to match what the
@@ -103,8 +102,9 @@ class CustomFakeGCMDriver : public FakeGCMDriver {
   bool connected_;
   std::vector<GCMClient::AccountTokenInfo> accounts_;
   bool update_accounts_called_;
-  raw_ptr<GCMConnectionObserver> last_connection_observer_;
-  raw_ptr<GCMConnectionObserver> removed_connection_observer_;
+  raw_ptr<GCMConnectionObserver, DanglingUntriaged> last_connection_observer_;
+  raw_ptr<GCMConnectionObserver, DanglingUntriaged>
+      removed_connection_observer_;
   net::IPEndPoint ip_endpoint_;
   base::Time last_token_fetch_time_;
 };
@@ -224,6 +224,8 @@ CoreAccountInfo GCMAccountTrackerTest::SetPrimaryAccount(
   // setting of the primary account is done afterward to check that the flow
   // that ensues from the GoogleSigninSucceeded callback firing works as
   // expected.
+  // TODO(crbug.com/40067875): Delete account-tracking code, latest when
+  // ConsentLevel::kSync is cleaned up from the codebase.
   return identity_test_env_.MakePrimaryAccountAvailable(
       email, signin::ConsentLevel::kSync);
 }
@@ -344,7 +346,7 @@ TEST_F(GCMAccountTrackerTest, AccountRemoved) {
   VerifyAccountTokens(expected_accounts, driver()->accounts());
 }
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
 // Tests that clearing the primary account when having multiple accounts
 // does not crash the application.
 // Regression test for crbug.com/1234406
@@ -365,7 +367,7 @@ TEST_F(GCMAccountTrackerTest, AccountRemovedWithoutSyncConsentNoCrash) {
   ClearPrimaryAccount();
   EXPECT_TRUE(driver()->update_accounts_called());
 }
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 TEST_F(GCMAccountTrackerTest, GetTokenFailed) {
   CoreAccountInfo account1 = SetPrimaryAccount(kEmail1);

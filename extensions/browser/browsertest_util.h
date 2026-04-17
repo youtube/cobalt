@@ -7,7 +7,7 @@
 
 #include <string>
 
-#include "content/public/test/browser_test_utils.h"
+#include "extensions/common/extension_id.h"
 
 namespace base {
 class Value;
@@ -15,6 +15,7 @@ class Value;
 
 namespace content {
 class BrowserContext;
+class WebContents;
 }  // namespace content
 
 namespace extensions::browsertest_util {
@@ -26,36 +27,40 @@ enum class ScriptUserActivation {
   kDontActivate,
 };
 
-// Waits until |script| calls "chrome.test.sendScriptResult(result)",
-// where |result| is a serializable value, and returns |result|. Fails
-// the test and returns an empty base::Value if |extension_id| isn't
-// installed in |context| or doesn't have a background page, or if
-// executing the script fails. The argument |script_user_activation|
+// Waits until `script` calls "chrome.test.sendScriptResult(result)",
+// where `result` is a serializable value, and returns `result`. Fails
+// the test and returns an empty base::Value if `extension_id` isn't
+// installed in `context` or doesn't have a background page, or if
+// executing the script fails. The argument `script_user_activation`
 // determines if the script should be executed after a user activation.
 base::Value ExecuteScriptInBackgroundPage(
     content::BrowserContext* context,
-    const std::string& extension_id,
+    const ExtensionId& extension_id,
     const std::string& script,
     ScriptUserActivation script_user_activation =
         ScriptUserActivation::kDontActivate);
 
 // Same as ExecuteScriptInBackgroundPage, but doesn't wait for the script
-// to return a result. Fails the test and returns false if |extension_id|
-// isn't installed in |context| or doesn't have a background page, or if
-// executing the script fails.
-bool ExecuteScriptInBackgroundPageNoWait(content::BrowserContext* context,
-                                         const std::string& extension_id,
-                                         const std::string& script);
+// to return a result. Fails the test and returns false if `extension_id`
+// isn't installed in `context` or doesn't have a background page, or if
+// executing the script fails. The argument `script_user_activation`
+// determines if the script should be executed after a user activation.
+bool ExecuteScriptInBackgroundPageNoWait(
+    content::BrowserContext* context,
+    const ExtensionId& extension_id,
+    const std::string& script,
+    ScriptUserActivation script_user_activation =
+        ScriptUserActivation::kDontActivate);
 
-// Waits until |script| calls "window.domAutomationController.send(result)",
-// where |result| is a string, and returns |result|. Fails the test and returns
-// an empty string if |extension_id| isn't installed in |context| or doesn't
+// Waits until `script` calls "window.domAutomationController.send(result)",
+// where `result` is a string, and returns `result`. Fails the test and returns
+// an empty string if `extension_id` isn't installed in `context` or doesn't
 // have a background page, or if executing the script fails. The argument
-// |script_user_activation| determines if the script should be executed after a
+// `script_user_activation` determines if the script should be executed after a
 // user activation.
 std::string ExecuteScriptInBackgroundPageDeprecated(
     content::BrowserContext* context,
-    const std::string& extension_id,
+    const ExtensionId& extension_id,
     const std::string& script,
     ScriptUserActivation script_user_activation =
         ScriptUserActivation::kDontActivate);
@@ -64,7 +69,15 @@ std::string ExecuteScriptInBackgroundPageDeprecated(
 // given `extension_id` at global scope. The extension must be installed and
 // enabled.
 void StopServiceWorkerForExtensionGlobalScope(content::BrowserContext* context,
-                                              const std::string& extension_id);
+                                              const ExtensionId& extension_id);
+
+// Returns whether the given `web_contents` has the associated
+// `changed_title`. If the web contents has neither `changed_title`
+// nor `original_title `, adds a failure to the test (for an unexpected
+// title).
+bool DidChangeTitle(content::WebContents& web_contents,
+                    const std::u16string& original_title,
+                    const std::u16string& changed_title);
 
 }  // namespace extensions::browsertest_util
 

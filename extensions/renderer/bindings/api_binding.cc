@@ -5,10 +5,11 @@
 #include "extensions/renderer/bindings/api_binding.h"
 
 #include <algorithm>
+#include <string_view>
 
 #include "base/check.h"
 #include "base/functional/bind.h"
-#include "base/ranges/algorithm.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -64,8 +65,7 @@ std::string GetJSEnumEntryName(const std::string& original) {
 
 std::unique_ptr<APISignature> GetAPISignatureFromDictionary(
     const base::Value::Dict* dict,
-    BindingAccessChecker* access_checker,
-    const std::string& api_name) {
+    BindingAccessChecker* access_checker) {
   const base::Value* params = dict->Find("parameters");
   if (params && !params->is_list())
     params = nullptr;
@@ -75,8 +75,7 @@ std::unique_ptr<APISignature> GetAPISignatureFromDictionary(
   if (returns_async && !returns_async->is_dict())
     returns_async = nullptr;
 
-  return APISignature::CreateFromValues(*params, returns_async, access_checker,
-                                        api_name, false /*is_event_signature*/);
+  return APISignature::CreateFromValues(*params, returns_async, access_checker);
 }
 
 void RunAPIBindingHandlerCallback(
@@ -102,7 +101,7 @@ struct APIBinding::MethodData {
   // sendMessage).
   const std::string full_name;
   // The expected API signature.
-  const APISignature* signature;
+  raw_ptr<const APISignature> signature;
   // The callback used by the v8 function.
   APIBinding::HandlerCallback callback;
 };
@@ -160,7 +159,7 @@ struct APIBinding::EventData {
   // EventData is only accessed from the callbacks associated with the
   // APIBinding, and both the APIBinding and APIEventHandler are owned by the
   // same object (the APIBindingsSystem).
-  APIBinding* binding;
+  raw_ptr<APIBinding> binding;
 };
 
 struct APIBinding::CustomPropertyData {
@@ -179,7 +178,7 @@ struct APIBinding::CustomPropertyData {
   // chrome.storage.local.
   std::string property_name;
   // Values curried into this particular type from the schema.
-  const base::Value::List* property_values;
+  raw_ptr<const base::Value::List> property_values;
 
   CreateCustomType create_custom_type;
 };
@@ -220,8 +219,7 @@ APIBinding::APIBinding(const std::string& api_name,
       std::string full_name =
           base::StringPrintf("%s.%s", api_name_.c_str(), name->c_str());
 
-      auto signature =
-          GetAPISignatureFromDictionary(func_dict, access_checker, full_name);
+      auto signature = GetAPISignatureFromDictionary(func_dict, access_checker);
 
       methods_[*name] =
           std::make_unique<MethodData>(full_name, signature.get());
@@ -231,15 +229,14 @@ APIBinding::APIBinding(const std::string& api_name,
 
   if (type_definitions) {
     for (const auto& type : *type_definitions) {
-      const base::Value::Dict* type_dict = type.GetIfDict();
-      CHECK(type_dict);
-      const std::string* id = type_dict->FindString("id");
+      const base::Value::Dict& type_dict = type.GetDict();
+      const std::string* id = type_dict.FindString("id");
       CHECK(id);
-      auto argument_spec = std::make_unique<ArgumentSpec>(type);
+      auto argument_spec = std::make_unique<ArgumentSpec>(type_dict);
       const std::set<std::string>& enum_values = argument_spec->enum_values();
       if (!enum_values.empty()) {
         // Type names may be prefixed by the api name. If so, remove the prefix.
-        absl::optional<std::string> stripped_id;
+        std::optional<std::string> stripped_id;
         if (base::StartsWith(*id, api_name_, base::CompareCase::SENSITIVE))
           stripped_id =
               id->substr(api_name_.size() + 1);  // +1 for trailing '.'
@@ -254,8 +251,7 @@ APIBinding::APIBinding(const std::string& api_name,
       type_refs->AddSpec(*id, std::move(argument_spec));
       // Some types, like storage.StorageArea, have functions associated with
       // them. Cache the function signatures in the type map.
-      const base::Value::List* type_functions =
-          type_dict->FindList("functions");
+      const base::Value::List* type_functions = type_dict.FindList("functions");
       if (type_functions) {
         for (const auto& func : *type_functions) {
           const base::Value::Dict* func_dict = func.GetIfDict();
@@ -265,8 +261,8 @@ APIBinding::APIBinding(const std::string& api_name,
           std::string full_name =
               base::StringPrintf("%s.%s", id->c_str(), function_name->c_str());
 
-          auto signature = GetAPISignatureFromDictionary(
-              func_dict, access_checker, full_name);
+          auto signature =
+              GetAPISignatureFromDictionary(func_dict, access_checker);
 
           type_refs->AddTypeMethodSignature(full_name, std::move(signature));
         }
@@ -301,12 +297,12 @@ APIBinding::APIBinding(const std::string& api_name,
             options->FindBool("supportsFilters").value_or(false);
         supports_rules = options->FindBool("supportsRules").value_or(false);
         if (supports_rules) {
-          absl::optional<bool> supports_listeners =
+          std::optional<bool> supports_listeners =
               options->FindBool("supportsListeners");
           DCHECK(supports_listeners);
           DCHECK(!*supports_listeners)
               << "Events cannot support rules and listeners.";
-          auto get_values = [options](base::StringPiece name,
+          auto get_values = [options](std::string_view name,
                                       std::vector<std::string>* out_value) {
             const base::Value::List* list = options->FindList(name);
             CHECK(list);
@@ -319,15 +315,15 @@ APIBinding::APIBinding(const std::string& api_name,
           get_values("conditions", &rule_conditions);
         }
 
-        absl::optional<int> max_listeners_option =
+        std::optional<int> max_listeners_option =
             options->FindInt("maxListeners");
         if (max_listeners_option)
           max_listeners = *max_listeners_option;
-        absl::optional<bool> unmanaged = options->FindBool("unmanaged");
+        std::optional<bool> unmanaged = options->FindBool("unmanaged");
         if (unmanaged)
           notify_on_change = !*unmanaged;
 
-        absl::optional<bool> supports_lazy_listeners_value =
+        std::optional<bool> supports_lazy_listeners_value =
             options->FindBool("supportsLazyListeners");
         if (supports_lazy_listeners_value) {
           supports_lazy_listeners = *supports_lazy_listeners_value;
@@ -345,9 +341,9 @@ APIBinding::APIBinding(const std::string& api_name,
         // TODO(devlin): Track this down and CHECK(params).
         base::Value empty_params(base::Value::Type::LIST);
         std::unique_ptr<APISignature> event_signature =
-            APISignature::CreateFromValues(
-                params ? *params : empty_params, nullptr /*returns_async*/,
-                access_checker, *name, true /*is_event_signature*/);
+            APISignature::CreateFromValues(params ? *params : empty_params,
+                                           nullptr /*returns_async*/,
+                                           access_checker);
         DCHECK(!event_signature->has_async_return());
         type_refs_->AddEventSignature(full_name, std::move(event_signature));
       }
@@ -482,8 +478,9 @@ void APIBinding::DecorateTemplateWithProperties(
       auto is_this_platform = [&this_platform](const base::Value& platform) {
         return platform.is_string() && platform.GetString() == this_platform;
       };
-      if (base::ranges::none_of(*platforms, is_this_platform))
+      if (std::ranges::none_of(*platforms, is_this_platform)) {
         continue;
+      }
     }
 
     v8::Local<v8::String> v8_key = gin::StringToSymbol(isolate, item.first);
@@ -511,11 +508,11 @@ void APIBinding::DecorateTemplateWithProperties(
       continue;
     }
     if (*type == "integer") {
-      absl::optional<int> val = dict->FindInt(kValueKey);
+      std::optional<int> val = dict->FindInt(kValueKey);
       CHECK(val);
       object_template->Set(v8_key, v8::Integer::New(isolate, *val));
     } else if (*type == "boolean") {
-      absl::optional<bool> val = dict->FindBool(kValueKey);
+      std::optional<bool> val = dict->FindBool(kValueKey);
       CHECK(val);
       object_template->Set(v8_key, v8::Boolean::New(isolate, *val));
     } else if (*type == "string") {
@@ -537,18 +534,16 @@ void APIBinding::DecorateTemplateWithProperties(
 }
 
 // static
-bool APIBinding::enable_promise_support_for_testing = false;
-
-// static
 void APIBinding::GetEventObject(
     v8::Local<v8::Name> property,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Context> context;
-  if (!info.Holder()->GetCreationContext().ToLocal(&context) ||
-      !binding::IsContextValidOrThrowError(context))
+  if (!info.Holder()->GetCreationContext(isolate).ToLocal(&context) ||
+      !binding::IsContextValidOrThrowError(context)) {
     return;
+  }
 
   CHECK(info.Data()->IsExternal());
   auto* event_data =
@@ -579,9 +574,10 @@ void APIBinding::GetCustomPropertyObject(
   v8::Isolate* isolate = info.GetIsolate();
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Context> context;
-  if (!info.Holder()->GetCreationContext().ToLocal(&context) ||
-      !binding::IsContextValid(context))
+  if (!info.Holder()->GetCreationContext(isolate).ToLocal(&context) ||
+      !binding::IsContextValid(context)) {
     return;
+  }
 
   v8::Context::Scope context_scope(context);
   CHECK(info.Data()->IsExternal());
@@ -590,7 +586,7 @@ void APIBinding::GetCustomPropertyObject(
 
   v8::Local<v8::Object> property = property_data->create_custom_type.Run(
       isolate, property_data->type_name, property_data->property_name,
-      property_data->property_values);
+      property_data->property_values.get());
   if (property.IsEmpty())
     return;
 
@@ -614,7 +610,7 @@ void APIBinding::HandleCall(const std::string& name,
     return;
   }
 
-  std::vector<v8::Local<v8::Value>> argument_list = arguments->GetAll();
+  v8::LocalVector<v8::Value> argument_list = arguments->GetAll();
 
   bool invalid_invocation = false;
   v8::Local<v8::Function> custom_callback;

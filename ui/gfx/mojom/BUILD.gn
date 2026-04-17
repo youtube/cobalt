@@ -21,12 +21,12 @@ mojom("mojom") {
     "frame_data.mojom",
     "gpu_extra_info.mojom",
     "gpu_fence_handle.mojom",
-    "hdr_metadata.mojom",
     "hdr_static_metadata.mojom",
     "linear_gradient.mojom",
     "mask_filter_info.mojom",
     "overlay_priority_hint.mojom",
     "overlay_transform.mojom",
+    "overlay_type.mojom",
     "presentation_feedback.mojom",
     "rrect_f.mojom",
     "selection_bound.mojom",
@@ -40,14 +40,17 @@ mojom("mojom") {
   }
 
   public_deps = [
+    ":hdr_metadata",
     ":native_handle_types",
     "//mojo/public/mojom/base",
     "//skia/public/mojom",
     "//ui/gfx/geometry/mojom",
   ]
-  webui_module_path = "chrome://resources/mojo/ui/gfx/mojom"
 
   enabled_features = []
+  if (use_blink) {
+    enabled_features += [ "use_blink" ]
+  }
   if (ozone_platform_x11) {
     enabled_features += [ "enable_x11_params" ]
   }
@@ -72,10 +75,14 @@ mojom("mojom") {
           cpp = "::gfx::BufferPlane"
         },
         {
+          # TODO(crbug.com/40584691): Note that this is typemapped to the same
+          # type as the gfx.mojom.GpuMemoryBufferPlatformHandle *union*. This
+          # is intentional since the C++ GpuMemoryBufferHandle type is is a
+          # hybrid union+struct today. This can be cleaned up once the
+          # associated bug is fixed.
           mojom = "gfx.mojom.GpuMemoryBufferHandle"
           cpp = "::gfx::GpuMemoryBufferHandle"
           move_only = true
-          nullable_is_same_type = true
         },
         {
           mojom = "gfx.mojom.GpuMemoryBufferId"
@@ -103,6 +110,10 @@ mojom("mojom") {
     },
     {
       types = [
+        {
+          mojom = "gfx.mojom.ContentColorUsage"
+          cpp = "::gfx::ContentColorUsage"
+        },
         {
           mojom = "gfx.mojom.DisplayColorSpaces"
           cpp = "::gfx::DisplayColorSpaces"
@@ -239,21 +250,6 @@ mojom("mojom") {
     {
       types = [
         {
-          mojom = "gfx.mojom.ColorVolumeMetadata"
-          cpp = "::gfx::ColorVolumeMetadata"
-        },
-        {
-          mojom = "gfx.mojom.HDRMetadata"
-          cpp = "::gfx::HDRMetadata"
-        },
-      ]
-      traits_headers = [ "hdr_metadata_mojom_traits.h" ]
-      traits_sources = [ "hdr_metadata_mojom_traits.cc" ]
-      traits_public_deps = [ "//ui/gfx" ]
-    },
-    {
-      types = [
-        {
           mojom = "gfx.mojom.Hinting"
           cpp = "::gfx::FontRenderParams::Hinting"
         },
@@ -337,6 +333,16 @@ mojom("mojom") {
       traits_headers = [ "frame_data_mojom_traits.h" ]
       traits_public_deps = [ "//ui/gfx" ]
     },
+    {
+      types = [
+        {
+          mojom = "gfx.mojom.OverlayType"
+          cpp = "::gfx::OverlayType"
+        },
+      ]
+      traits_headers = [ "overlay_type_mojom_traits.h" ]
+      traits_public_deps = [ "//ui/gfx" ]
+    },
   ]
 
   if (use_blink) {
@@ -378,18 +384,35 @@ mojom("native_handle_types") {
   if (is_linux || is_chromeos || use_ozone) {
     enabled_features = [ "supports_native_pixmap" ]
   }
-  if (is_linux || is_chromeos) {
-    enabled_features += [ "is_linux_or_chromeos_ash" ]
-  }
   public_deps = [ "//mojo/public/mojom/base" ]
   generate_java = true
-  webui_module_path = "chrome://resources/mojo/ui/gfx/mojom"
 
   shared_cpp_typemap = {
     types = [
       {
+        mojom = "gfx.mojom.AHardwareBufferHandle"
+        cpp = "::base::android::ScopedHardwareBufferHandle"
+        move_only = true
+      },
+      {
+        mojom = "gfx.mojom.DXGIHandle"
+        cpp = "::gfx::DXGIHandle"
+        move_only = true
+      },
+      {
         mojom = "gfx.mojom.DXGIHandleToken"
         cpp = "::gfx::DXGIHandleToken"
+      },
+      {
+        # TODO(crbug.com/40584691): Note that this is typemapped to the same
+        # type as the gfx.mojom.GpuMemoryBufferHandle *struct*. This is
+        # intentional since the C++ GpuMemoryBufferHandle type is is a hybrid
+        # union+struct today. This can be cleaned up once the associated bug is
+        # fixed.
+        mojom = "gfx.mojom.GpuMemoryBufferPlatformHandle"
+        cpp = "::gfx::GpuMemoryBufferHandle"
+        move_only = true
+        nullable_is_same_type = true
       },
       {
         mojom = "gfx.mojom.NativePixmapHandle"
@@ -422,6 +445,11 @@ if (is_win) {
 mojom("test_interfaces") {
   sources = [ "traits_test_service.mojom" ]
 
+  enabled_features = []
+  if (use_blink) {
+    enabled_features += [ "use_blink" ]
+  }
+
   public_deps = [ ":mojom" ]
 }
 
@@ -438,6 +466,55 @@ component("native_handle_types_mojom_traits") {
     "//base",
     "//mojo/public/mojom/base",
     "//ui/gfx",
+  ]
+
+  frameworks = [
+    "CoreFoundation.framework",
+    "IOSurface.framework",
+  ]
+}
+
+mojom("hdr_metadata") {
+  generate_java = true
+
+  sources = [ "hdr_metadata.mojom" ]
+
+  public_deps = [
+    "//mojo/public/mojom/base",
+    "//skia/public/mojom",
+  ]
+
+  cpp_typemaps = [
+    {
+      types = [
+        {
+          mojom = "gfx.mojom.HdrMetadataCta861_3"
+          cpp = "::gfx::HdrMetadataCta861_3"
+        },
+        {
+          mojom = "gfx.mojom.HdrMetadataSmpteSt2086"
+          cpp = "::gfx::HdrMetadataSmpteSt2086"
+        },
+        {
+          mojom = "gfx.mojom.HdrMetadataNdwl"
+          cpp = "::gfx::HdrMetadataNdwl"
+        },
+        {
+          mojom = "gfx.mojom.HdrMetadataExtendedRange"
+          cpp = "::gfx::HdrMetadataExtendedRange"
+        },
+        {
+          mojom = "gfx.mojom.HdrMetadataAgtm"
+          cpp = "::gfx::HdrMetadataAgtm"
+        },
+        {
+          mojom = "gfx.mojom.HDRMetadata"
+          cpp = "::gfx::HDRMetadata"
+        },
+      ]
+      traits_headers = [ "hdr_metadata_mojom_traits.h" ]
+      traits_sources = [ "hdr_metadata_mojom_traits.cc" ]
+    },
   ]
 }
 
@@ -461,14 +538,11 @@ component("shared_mojom_traits") {
   public_deps = [
     ":mojom_shared",
     ":native_handle_types",
+    "//build:blink_buildflags",
     "//ui/gfx",
   ]
-  deps = [ "//skia/public/mojom" ]
-  if (use_ozone) {
-    public_deps += [ "//ui/ozone:buildflags" ]
-  }
-  frameworks = [
-    "CoreFoundation.framework",
-    "IOSurface.framework",
+  deps = [
+    "//skia/public/mojom",
+    "//ui/base:ozone_buildflags",
   ]
 }

@@ -7,12 +7,16 @@
 
 #include <memory>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
 #include "build/chromecast_buildflags.h"
 #include "components/viz/common/surfaces/surface_id.h"
+#include "media/base/key_system_info.h"
+#include "media/base/key_systems.h"
+#include "media/base/key_systems_support_registration.h"
 #include "media/base/media_player_logging_id.h"
 #include "media/base/renderer_factory_selector.h"
 #include "media/base/routing_token_callback.h"
@@ -33,13 +37,12 @@
 
 namespace blink {
 class BrowserInterfaceBrokerProxy;
-class ResourceFetchContext;
-class UrlIndex;
 class WebContentDecryptionModule;
 class WebEncryptedMediaClient;
 class WebEncryptedMediaClientImpl;
 class WebLocalFrame;
 class WebMediaPlayer;
+class WebMediaPlayerBuilder;
 class WebMediaPlayerClient;
 class WebMediaPlayerEncryptedMediaClient;
 }  // namespace blink
@@ -73,10 +76,6 @@ struct RenderFrameMediaPlaybackOptions;
 // Assist to RenderFrameImpl in creating various media clients.
 class MediaFactory {
  public:
-  // Helper function returning whether VideoSurfaceLayer should be enabled for
-  // MediaStreams.
-  static bool VideoSurfaceLayerEnabledForMS();
-
   // Create a MediaFactory to assist the |render_frame| with media tasks.
   // |request_routing_token_cb| bound to |render_frame| IPC functions for
   // obtaining overlay tokens.
@@ -98,7 +97,7 @@ class MediaFactory {
   // |encrypted_client| (otherwise null). |sink_id|, when not empty, identifies
   // the audio sink to use for this player (see HTMLMediaElement.sinkId).
   // |parent_frame_sink_id| identifies the local root widget's FrameSinkId.
-  blink::WebMediaPlayer* CreateMediaPlayer(
+  std::unique_ptr<blink::WebMediaPlayer> CreateMediaPlayer(
       const blink::WebMediaPlayerSource& source,
       blink::WebMediaPlayerClient* client,
       blink::MediaInspectorContext* inspector_context,
@@ -130,7 +129,7 @@ class MediaFactory {
       blink::WebURL url,
       const RenderFrameMediaPlaybackOptions& renderer_media_playback_options,
       media::DecoderFactory* decoder_factory,
-      std::unique_ptr<media::RemotePlaybackClientWrapper> client_wrapper,
+      media::RemotePlaybackClientWrapper* client_wrapper,
       base::WeakPtr<media::MediaObserver>* out_media_observer,
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
       int element_id, const std::string& max_video_capabilities);
@@ -138,7 +137,7 @@ class MediaFactory {
       int element_id);
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
-  blink::WebMediaPlayer* CreateWebMediaPlayerForMediaStream(
+  std::unique_ptr<blink::WebMediaPlayer> CreateWebMediaPlayerForMediaStream(
       blink::WebMediaPlayerClient* client,
       blink::MediaInspectorContext* inspector_context,
       const blink::WebString& sink_id,
@@ -157,15 +156,23 @@ class MediaFactory {
   media::mojom::RemoterFactory* GetRemoterFactory();
 #endif
 
+  // Initializes the key systems remote and receivers.
+  std::unique_ptr<media::KeySystemSupportRegistration> GetSupportedKeySystems(
+      media::GetSupportedKeySystemsCB cb);
+
+  media::KeySystems* GetKeySystems();
+
   media::CdmFactory* GetCdmFactory();
 
   media::mojom::InterfaceFactory* GetMediaInterfaceFactory();
 
   std::unique_ptr<media::MojoRendererFactory> CreateMojoRendererFactory();
 
+  const blink::BrowserInterfaceBrokerProxy& GetInterfaceBroker() const;
+
   // The render frame we're helping. RenderFrameImpl owns this factory, so the
   // pointer will always be valid.
-  RenderFrameImpl* render_frame_;
+  raw_ptr<RenderFrameImpl> render_frame_;
 
   // The media interface provider attached to this frame, lazily initialized.
   std::unique_ptr<MediaInterfaceFactory> media_interface_factory_;
@@ -173,22 +180,23 @@ class MediaFactory {
   // Injected callback for requesting overlay routing tokens.
   media::RequestRoutingTokenCallback request_routing_token_cb_;
 
-  // Handy pointer to RenderFrame's browser interface broker. Null until
-  // SetupMojo(). Lifetime matches that of the owning |render_frame_|. Will
-  // always be valid once assigned.
-  blink::BrowserInterfaceBrokerProxy* interface_broker_ = nullptr;
-
   // Manages play, pause notifications for WebMediaPlayer implementations; its
   // lifetime is tied to the RenderFrame via the RenderFrameObserver interface.
-  media::RendererWebMediaPlayerDelegate* media_player_delegate_ = nullptr;
+  raw_ptr<media::RendererWebMediaPlayerDelegate, DanglingUntriaged>
+      media_player_delegate_ = nullptr;
+
+  // The `KeySystems` to be used by `web_encrypted_media_client_`. This object
+  // must outlive `web_encrypted_media_client_` and `cdm_factory_` since they
+  // reference it.
+  std::unique_ptr<media::KeySystems> key_systems_;
 
   // The CDM and decoder factory attached to this frame, lazily initialized.
   std::unique_ptr<media::DefaultDecoderFactory> decoder_factory_;
   std::unique_ptr<media::CdmFactory> cdm_factory_;
 
-  // Media resource cache, lazily initialized.
-  std::unique_ptr<blink::ResourceFetchContext> fetch_context_;
-  std::unique_ptr<blink::UrlIndex> url_index_;
+  // `WebMediaPlayer` builder, that acts as a media resource cache, lazily
+  // initialized.
+  std::unique_ptr<blink::WebMediaPlayerBuilder> media_player_builder_;
 
   // EncryptedMediaClient attached to this frame; lazily initialized.
   std::unique_ptr<blink::WebEncryptedMediaClientImpl>

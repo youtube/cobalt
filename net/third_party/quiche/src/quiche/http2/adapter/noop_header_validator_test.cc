@@ -1,17 +1,16 @@
 #include "quiche/http2/adapter/noop_header_validator.h"
 
+#include <limits>
+#include <optional>
 #include <utility>
 #include <vector>
 
 #include "absl/strings/str_cat.h"
-#include "absl/types/optional.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace http2 {
 namespace adapter {
 namespace test {
-
-using ::testing::Optional;
 
 using Header = std::pair<absl::string_view, absl::string_view>;
 constexpr Header kSampleRequestPseudoheaders[] = {{":authority", "www.foo.com"},
@@ -457,35 +456,35 @@ TEST(NoopHeaderValidatorTest, ValidContentLength) {
   NoopHeaderValidator v;
 
   v.StartHeaderBlock();
-  EXPECT_EQ(v.content_length(), absl::nullopt);
+  EXPECT_EQ(v.content_length(), std::nullopt);
   EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("content-length", "41"));
-  EXPECT_EQ(v.content_length(), absl::nullopt);
+  EXPECT_EQ(v.content_length(), std::nullopt);
 
   v.StartHeaderBlock();
-  EXPECT_EQ(v.content_length(), absl::nullopt);
+  EXPECT_EQ(v.content_length(), std::nullopt);
   EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("content-length", "42"));
-  EXPECT_EQ(v.content_length(), absl::nullopt);
+  EXPECT_EQ(v.content_length(), std::nullopt);
 }
 
 TEST(NoopHeaderValidatorTest, InvalidContentLength) {
   NoopHeaderValidator v;
 
   v.StartHeaderBlock();
-  EXPECT_EQ(v.content_length(), absl::nullopt);
+  EXPECT_EQ(v.content_length(), std::nullopt);
   EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("content-length", ""));
-  EXPECT_EQ(v.content_length(), absl::nullopt);
+  EXPECT_EQ(v.content_length(), std::nullopt);
   EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("content-length", "nan"));
-  EXPECT_EQ(v.content_length(), absl::nullopt);
+  EXPECT_EQ(v.content_length(), std::nullopt);
   EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("content-length", "-42"));
-  EXPECT_EQ(v.content_length(), absl::nullopt);
+  EXPECT_EQ(v.content_length(), std::nullopt);
   EXPECT_EQ(NoopHeaderValidator::HEADER_OK,
             v.ValidateSingleHeader("content-length", "42"));
-  EXPECT_EQ(v.content_length(), absl::nullopt);
+  EXPECT_EQ(v.content_length(), std::nullopt);
 }
 
 TEST(NoopHeaderValidatorTest, TeHeader) {

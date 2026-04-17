@@ -9,6 +9,7 @@
 #include <va/va.h>
 
 #include <array>
+#include <optional>
 #include <utility>
 
 #include "base/files/scoped_file.h"
@@ -36,11 +37,9 @@
 #include "media/gpu/chromeos/libyuv_image_processor_backend.h"
 #include "media/gpu/chromeos/platform_video_frame_utils.h"
 #include "media/gpu/macros.h"
-#include "media/gpu/vaapi/va_surface.h"
 #include "media/gpu/vaapi/vaapi_image_decoder.h"
 #include "media/gpu/vaapi/vaapi_utils.h"
 #include "media/gpu/vaapi/vaapi_wrapper.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/gpu_memory_buffer.h"
@@ -177,11 +176,14 @@ void VaapiMjpegDecodeAccelerator::Decoder::Initialize(
     return;
   }
 
-  vpp_vaapi_wrapper_ = VaapiWrapper::Create(
-      VaapiWrapper::kVideoProcess, VAProfileNone,
-      EncryptionScheme::kUnencrypted,
-      base::BindRepeating(&ReportVaapiErrorToUMA,
-                          "Media.VaapiMjpegDecodeAccelerator.Vpp.VAAPIError"));
+  vpp_vaapi_wrapper_ =
+      VaapiWrapper::Create(
+          VaapiWrapper::kVideoProcess, VAProfileNone,
+          EncryptionScheme::kUnencrypted,
+          base::BindRepeating(
+              &ReportVaapiErrorToUMA,
+              "Media.VaapiMjpegDecodeAccelerator.Vpp.VAAPIError"))
+          .value_or(nullptr);
   if (!vpp_vaapi_wrapper_) {
     VLOGF(1) << "Failed initializing VAAPI for VPP";
     std::move(init_cb).Run(false);
@@ -231,8 +233,8 @@ void VaapiMjpegDecodeAccelerator::Decoder::DecodeFromDmaBufTask(
     error_cb_.Run(task_id, UNREADABLE_INPUT);
     return;
   }
-  base::span<const uint8_t> src_image =
-      base::make_span(static_cast<const uint8_t*>(src_addr), src_size);
+  base::span<const uint8_t> src_image(static_cast<const uint8_t*>(src_addr),
+                                      src_size);
 
   DecodeImpl(task_id, src_image, std::move(dst_frame));
 
@@ -365,10 +367,10 @@ void VaapiMjpegDecodeAccelerator::Decoder::CreateImageProcessor(
   DCHECK(dst_fourcc.has_value());
   const ImageProcessorBackend::PortConfig input_config(
       *src_fourcc, src_frame->coded_size(), src_frame->layout().planes(),
-      src_frame->visible_rect(), {src_frame->storage_type()});
+      src_frame->visible_rect(), src_frame->storage_type());
   const ImageProcessorBackend::PortConfig output_config(
       *dst_fourcc, dst_frame->coded_size(), dst_frame->layout().planes(),
-      dst_frame->visible_rect(), {dst_frame->storage_type()});
+      dst_frame->visible_rect(), dst_frame->storage_type());
   if (image_processor_ && image_processor_->input_config() == input_config &&
       image_processor_->output_config() == output_config) {
     return;
@@ -380,7 +382,6 @@ void VaapiMjpegDecodeAccelerator::Decoder::CreateImageProcessor(
   // Therefore, base::Unretained(this) is safe.
   image_processor_ = LibYUVImageProcessorBackend::CreateWithTaskRunner(
       input_config, output_config, ImageProcessorBackend::OutputMode::IMPORT,
-      VIDEO_ROTATION_0,
       base::BindRepeating(
           &VaapiMjpegDecodeAccelerator::Decoder::OnImageProcessorError,
           base::Unretained(this)),
@@ -404,9 +405,9 @@ bool VaapiMjpegDecodeAccelerator::Decoder::OutputPictureLibYuv(
   DCHECK(gfx::Rect(src_size).Contains(crop_rect));
 
   // Wrap |image| into VideoFrame.
-  std::vector<int32_t> strides(image->num_planes);
-  for (uint32_t i = 0; i < image->num_planes; ++i) {
-    if (!base::CheckedNumeric<uint32_t>(image->pitches[i])
+  std::vector<size_t> strides(image->num_planes);
+  for (size_t i = 0; i < image->num_planes; ++i) {
+    if (!base::CheckedNumeric<size_t>(image->pitches[i])
              .AssignIfValid(&strides[i])) {
       VLOGF(1) << "Invalid VAImage stride " << image->pitches[i]
                << " for plane " << i;
@@ -489,16 +490,12 @@ bool VaapiMjpegDecodeAccelerator::Decoder::OutputPictureVpp(
   }
 
   // Bind a VA surface to |video_frame|.
-  scoped_refptr<VASurface> output_surface =
+  const std::unique_ptr<ScopedVASurface> output_surface =
       vpp_vaapi_wrapper_->CreateVASurfaceForPixmap(std::move(pixmap));
   if (!output_surface) {
     VLOGF(1) << "Cannot create VA surface for output buffer";
     return false;
   }
-
-  scoped_refptr<VASurface> src_surface = base::MakeRefCounted<VASurface>(
-      surface->id(), surface->size(), surface->format(),
-      /*release_cb=*/base::DoNothing());
 
   // We should call vaSyncSurface() when passing surface between contexts, but
   // on Intel platform, we don't have to call vaSyncSurface() because the
@@ -511,8 +508,9 @@ bool VaapiMjpegDecodeAccelerator::Decoder::OutputPictureVpp(
     VLOGF(1) << "Cannot sync VPP input surface";
     return false;
   }
-  if (!vpp_vaapi_wrapper_->BlitSurface(*src_surface, *output_surface,
-                                       crop_rect)) {
+  if (!vpp_vaapi_wrapper_->BlitSurface(surface->id(), surface->size(),
+                                       output_surface->id(),
+                                       output_surface->size(), crop_rect)) {
     VLOGF(1) << "Cannot convert decoded image into output buffer";
     return false;
   }
@@ -548,7 +546,6 @@ void VaapiMjpegDecodeAccelerator::VideoFrameReady(int32_t task_id) {
 VaapiMjpegDecodeAccelerator::VaapiMjpegDecodeAccelerator(
     const scoped_refptr<base::SingleThreadTaskRunner>& io_task_runner)
     : io_task_runner_(io_task_runner),
-      client_(nullptr),
       weak_this_factory_(this) {
   DCHECK(io_task_runner_->BelongsToCurrentThread());
 }

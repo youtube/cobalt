@@ -6,16 +6,16 @@
 #define COMPONENTS_AUTOFILL_CONTENT_RENDERER_PREFILLED_VALUES_DETECTOR_H_
 
 #include <string>
+#include <string_view>
 
 #include "base/containers/span.h"
-#include "base/strings/string_piece.h"
 
 namespace autofill {
 
 // Returns a list of known username placeholders, all guaranteed to be lower
 // case.
 // This is only exposed for testing.
-base::span<const base::StringPiece> KnownUsernamePlaceholders();
+base::span<const std::string_view> KnownUsernamePlaceholders();
 
 // Checks if the prefilled value of the username element is one of the known
 // values possibly used as placeholders. The list of possible placeholder
@@ -29,7 +29,7 @@ base::span<const base::StringPiece> KnownUsernamePlaceholders();
 // https://www.example.com, there is a chance that the website prefills
 // the username field with "@example.com".
 //
-// TODO(crbug.com/832622): Remove this once a stable solution is in place.
+// TODO(crbug.com/41383074): Remove this once a stable solution is in place.
 bool PossiblePrefilledUsernameValue(const std::string& username_value,
                                     const std::string& possible_email_domain);
 

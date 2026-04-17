@@ -4,8 +4,8 @@
 
 package org.chromium.android_webview.devui.util;
 
-import org.chromium.android_webview.common.crash.CrashInfo;
-import org.chromium.android_webview.common.crash.CrashInfo.UploadState;
+import org.chromium.android_webview.nonembedded.crash.CrashInfo;
+import org.chromium.android_webview.nonembedded.crash.CrashInfo.UploadState;
 import org.chromium.components.minidump_uploader.CrashFileManager;
 
 import java.io.File;
@@ -18,11 +18,9 @@ import java.util.List;
  * number of trials of upload for that report.
  */
 public class UnuploadedFilesStateLoader extends CrashInfoLoader {
-    private CrashFileManager mCrashFileManager;
+    private final CrashFileManager mCrashFileManager;
 
-    /**
-     * @param crashDir the directory where WebView stores crash reports files.
-     */
+    /** @param crashDir the directory where WebView stores crash reports files. */
     public UnuploadedFilesStateLoader(CrashFileManager crashFileManager) {
         mCrashFileManager = crashFileManager;
     }

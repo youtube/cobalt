@@ -5,9 +5,10 @@
 #ifndef COMPONENTS_COMMERCE_CORE_SUBSCRIPTIONS_COMMERCE_SUBSCRIPTION_H_
 #define COMPONENTS_COMMERCE_CORE_SUBSCRIPTIONS_COMMERCE_SUBSCRIPTION_H_
 
-#include <string>
+#include <stdint.h>
 
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include <optional>
+#include <string>
 
 /**
  * To add a new SubscriptionType / IdentifierType / ManagementType:
@@ -60,7 +61,8 @@ enum class ManagementType {
 struct UserSeenOffer {
   UserSeenOffer(std::string offer_id,
                 long user_seen_price,
-                std::string country_code);
+                std::string country_code,
+                std::string locale);
   UserSeenOffer(const UserSeenOffer&);
   UserSeenOffer& operator=(const UserSeenOffer&);
   ~UserSeenOffer();
@@ -71,6 +73,8 @@ struct UserSeenOffer {
   long user_seen_price;
   // Country code of the offer.
   std::string country_code;
+  // Locale of the offer.
+  std::string locale;
 };
 
 extern const int64_t kUnknownSubscriptionTimestamp;
@@ -85,7 +89,7 @@ struct CommerceSubscription {
       std::string id,
       ManagementType management_type,
       int64_t timestamp = kUnknownSubscriptionTimestamp,
-      absl::optional<UserSeenOffer> user_seen_offer = absl::nullopt);
+      std::optional<UserSeenOffer> user_seen_offer = std::nullopt);
   CommerceSubscription(const CommerceSubscription&);
   CommerceSubscription& operator=(const CommerceSubscription&);
   ~CommerceSubscription();
@@ -98,7 +102,7 @@ struct CommerceSubscription {
   // successful creation on the server side, the valid timestamp will be passed
   // back to client side and then stored locally.
   int64_t timestamp;
-  absl::optional<UserSeenOffer> user_seen_offer;
+  std::optional<UserSeenOffer> user_seen_offer;
 };
 
 std::string SubscriptionTypeToString(SubscriptionType type);

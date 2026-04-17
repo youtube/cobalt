@@ -4,14 +4,16 @@
 
 package org.chromium.components.browser_ui.notifications.channels;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.app.NotificationChannel;
 import android.app.NotificationChannelGroup;
 import android.content.res.Resources;
 import android.media.AudioAttributes;
 import android.net.Uri;
-import android.os.Build;
 
-import androidx.annotation.RequiresApi;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.util.HashSet;
 import java.util.List;
@@ -19,12 +21,12 @@ import java.util.Set;
 
 /**
  * Contains the properties of all our pre-definable notification channels on Android O+. See also
- * {@link ChromeChannelDefinitions}. <br/>
- * <br/>
+ * {@link ChromeChannelDefinitions}. <br>
+ * <br>
  * See the README.md alongside ChromeChannelDefinitions.java for more information before adding or
  * changing any channels.
  */
-@RequiresApi(Build.VERSION_CODES.O)
+@NullMarked
 public abstract class ChannelDefinitions {
     /**
      * @return A set of all known channel group ids that can be used for {@link #getChannelGroup}.
@@ -47,7 +49,7 @@ public abstract class ChannelDefinitions {
     public Set<String> getStartupChannelGroupIds() {
         Set<String> groupIds = new HashSet<>();
         for (String id : getStartupChannelIds()) {
-            groupIds.add(getChannelFromId(id).mGroupId);
+            groupIds.add(assumeNonNull(getChannelFromId(id)).mGroupId);
         }
         return groupIds;
     }
@@ -59,12 +61,12 @@ public abstract class ChannelDefinitions {
     public abstract List<String> getLegacyChannelIds();
 
     public PredefinedChannelGroup getChannelGroupForChannel(PredefinedChannel channel) {
-        return getChannelGroup(channel.mGroupId);
+        return assumeNonNull(getChannelGroup(channel.mGroupId));
     }
 
-    public abstract PredefinedChannelGroup getChannelGroup(String groupId);
+    public abstract @Nullable PredefinedChannelGroup getChannelGroup(String groupId);
 
-    public abstract PredefinedChannel getChannelFromId(String channelId);
+    public abstract @Nullable PredefinedChannel getChannelFromId(String channelId);
 
     /**
      * @param channelId a channel ID which may or may not correlate to a PredefinedChannel.
@@ -90,26 +92,36 @@ public abstract class ChannelDefinitions {
         private final boolean mShowNotificationBadges;
         private final boolean mSuppressSound;
 
-        public static PredefinedChannel create(String id, int nameResId, int importance,
-                String groupId) {
-            return new PredefinedChannel(id, nameResId, importance, groupId,
-                    SHOW_NOTIFICATION_BADGES_DEFAULT, SUPPRESS_SOUND_DEFAULT);
+        public static PredefinedChannel create(
+                String id, int nameResId, int importance, String groupId) {
+            return new PredefinedChannel(
+                    id,
+                    nameResId,
+                    importance,
+                    groupId,
+                    SHOW_NOTIFICATION_BADGES_DEFAULT,
+                    SUPPRESS_SOUND_DEFAULT);
         }
 
-        public static PredefinedChannel createBadged(String id, int nameResId, int importance,
-                String groupId) {
-            return new PredefinedChannel(id, nameResId, importance, groupId,
-                    true, SUPPRESS_SOUND_DEFAULT);
+        public static PredefinedChannel createBadged(
+                String id, int nameResId, int importance, String groupId) {
+            return new PredefinedChannel(
+                    id, nameResId, importance, groupId, true, SUPPRESS_SOUND_DEFAULT);
         }
 
-        public static PredefinedChannel createSilenced(String id, int nameResId, int importance,
-                String groupId) {
-            return new PredefinedChannel(id, nameResId, importance, groupId,
-                    SHOW_NOTIFICATION_BADGES_DEFAULT, true);
+        public static PredefinedChannel createSilenced(
+                String id, int nameResId, int importance, String groupId) {
+            return new PredefinedChannel(
+                    id, nameResId, importance, groupId, SHOW_NOTIFICATION_BADGES_DEFAULT, true);
         }
 
-        private PredefinedChannel(String id, int nameResId, int importance, String groupId,
-                boolean showNotificationBadges, boolean suppressSound) {
+        private PredefinedChannel(
+                String id,
+                int nameResId,
+                int importance,
+                String groupId,
+                boolean showNotificationBadges,
+                boolean suppressSound) {
             this.mId = id;
             this.mNameResId = nameResId;
             this.mImportance = importance;
@@ -125,10 +137,11 @@ public abstract class ChannelDefinitions {
             channel.setShowBadge(mShowNotificationBadges);
 
             if (mSuppressSound) {
-                AudioAttributes attributes = new AudioAttributes.Builder()
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .setUsage(AudioAttributes.USAGE_NOTIFICATION)
-                        .build();
+                AudioAttributes attributes =
+                        new AudioAttributes.Builder()
+                                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                                .build();
 
                 // Passing a null sound causes no sound to be played.
                 Uri sound = null;

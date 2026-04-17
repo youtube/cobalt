@@ -6,14 +6,18 @@
 #define UI_VIEWS_CONTROLS_NATIVE_NATIVE_VIEW_HOST_H_
 
 #include <memory>
+#include <optional>
 
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/native_widget_types.h"
 #include "ui/views/view.h"
 
 namespace gfx {
 class RoundedCornersF;
 }
+
+namespace ui {
+class Layer;
+}  // namespace ui
 
 namespace views {
 namespace test {
@@ -31,9 +35,9 @@ extern const char kWidgetNativeViewHostKey[];
 // Under the hood, a platform-specific NativeViewHostWrapper implementation does
 // the platform-specific work of manipulating the underlying OS widget type.
 class VIEWS_EXPORT NativeViewHost : public View {
- public:
-  METADATA_HEADER(NativeViewHost);
+  METADATA_HEADER(NativeViewHost, View)
 
+ public:
   NativeViewHost();
 
   NativeViewHost(const NativeViewHost&) = delete;
@@ -58,13 +62,6 @@ class VIEWS_EXPORT NativeViewHost : public View {
   // or false if the platform doesn't support the operation. This method calls
   // SetCustomMask internally.
   bool SetCornerRadii(const gfx::RoundedCornersF& corner_radii);
-
-  // Sets the custom layer mask for clipping gfx::NativeView. Returns true on
-  // success or false if the platform doesn't support the operation.
-  // NB: This does not interact nicely with fast_resize.
-  // TODO(tluk): This is currently only being used to apply rounded corners in
-  // ash code. Migrate existing use to SetCornerRadii().
-  bool SetCustomMask(std::unique_ptr<ui::LayerOwner> mask);
 
   // Sets the height of the top region where the gfx::NativeView shouldn't be
   // targeted. This will be used when another view is covering there
@@ -104,10 +101,13 @@ class VIEWS_EXPORT NativeViewHost : public View {
 
   // Sets the desired background color for repainting when the view is clipped.
   // Defaults to transparent color if unset.
-  void SetBackgroundColorWhenClipped(absl::optional<SkColor> color);
+  void SetBackgroundColorWhenClipped(std::optional<SkColor> color);
+
+  // Returns the ui::Layer backing the attached gfx::NativeView.
+  ui::Layer* GetUILayer();
 
   // Overridden from View:
-  void Layout() override;
+  void Layout(PassKey) override;
   void OnPaint(gfx::Canvas* canvas) override;
   void VisibilityChanged(View* starting_from, bool is_visible) override;
   void OnFocus() override;
@@ -135,7 +135,7 @@ class VIEWS_EXPORT NativeViewHost : public View {
   void ClearFocus();
 
   // The attached native view. There is exactly one native_view_ attached.
-  gfx::NativeView native_view_ = nullptr;
+  gfx::NativeView native_view_ = gfx::NativeView();
 
   // A platform-specific wrapper that does the OS-level manipulation of the
   // attached gfx::NativeView.
@@ -150,7 +150,7 @@ class VIEWS_EXPORT NativeViewHost : public View {
   bool fast_resize_ = false;
 
   // The color to use for repainting the background when the view is clipped.
-  absl::optional<SkColor> background_color_when_clipped_;
+  std::optional<SkColor> background_color_when_clipped_;
 };
 
 }  // namespace views

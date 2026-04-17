@@ -13,9 +13,17 @@ bool StructTraits<
     blink::mojom::InterestGroupAdDataView,
     blink::InterestGroup::Ad>::Read(blink::mojom::InterestGroupAdDataView data,
                                     blink::InterestGroup::Ad* out) {
-  if (!data.ReadRenderUrl(&out->render_url) ||
+  if (!data.ReadRenderUrl(&out->render_url_) ||
       !data.ReadSizeGroup(&out->size_group) ||
-      !data.ReadMetadata(&out->metadata)) {
+      !data.ReadBuyerReportingId(&out->buyer_reporting_id) ||
+      !data.ReadBuyerAndSellerReportingId(
+          &out->buyer_and_seller_reporting_id) ||
+      !data.ReadSelectableBuyerAndSellerReportingIds(
+          &out->selectable_buyer_and_seller_reporting_ids) ||
+      !data.ReadMetadata(&out->metadata) ||
+      !data.ReadAdRenderId(&out->ad_render_id) ||
+      !data.ReadAllowedReportingOrigins(&out->allowed_reporting_origins) ||
+      !data.ReadCreativeScanningMetadata(&out->creative_scanning_metadata)) {
     return false;
   }
   return true;
@@ -25,10 +33,28 @@ bool StructTraits<blink::mojom::SellerCapabilitiesDataView,
                   blink::SellerCapabilitiesType>::
     Read(blink::mojom::SellerCapabilitiesDataView data,
          blink::SellerCapabilitiesType* out) {
-  if (data.allows_interest_group_counts())
+  if (data.allows_interest_group_counts()) {
     out->Put(blink::SellerCapabilities::kInterestGroupCounts);
-  if (data.allows_latency_stats())
+  }
+  if (data.allows_latency_stats()) {
     out->Put(blink::SellerCapabilities::kLatencyStats);
+  }
+  return true;
+}
+
+bool StructTraits<blink::mojom::AuctionServerRequestFlagsDataView,
+                  blink::AuctionServerRequestFlags>::
+    Read(blink::mojom::AuctionServerRequestFlagsDataView data,
+         blink::AuctionServerRequestFlags* out) {
+  if (data.omit_ads()) {
+    out->Put(blink::AuctionServerRequestFlagsEnum::kOmitAds);
+  }
+  if (data.include_full_ads()) {
+    out->Put(blink::AuctionServerRequestFlagsEnum::kIncludeFullAds);
+  }
+  if (data.omit_user_bidding_signals()) {
+    out->Put(blink::AuctionServerRequestFlagsEnum::kOmitUserBiddingSignals);
+  }
   return true;
 }
 
@@ -38,6 +64,10 @@ bool StructTraits<blink::mojom::InterestGroupDataView, blink::InterestGroup>::
   out->enable_bidding_signals_prioritization =
       data.enable_bidding_signals_prioritization();
   out->execution_mode = data.execution_mode();
+  out->trusted_bidding_signals_slot_size_mode =
+      data.trusted_bidding_signals_slot_size_mode();
+  out->max_trusted_bidding_signals_url_length =
+      data.max_trusted_bidding_signals_url_length();
   if (!data.ReadExpiry(&out->expiry) || !data.ReadOwner(&out->owner) ||
       !data.ReadName(&out->name) ||
       !data.ReadPriorityVector(&out->priority_vector) ||
@@ -49,10 +79,18 @@ bool StructTraits<blink::mojom::InterestGroupDataView, blink::InterestGroup>::
       !data.ReadUpdateUrl(&out->update_url) ||
       !data.ReadTrustedBiddingSignalsUrl(&out->trusted_bidding_signals_url) ||
       !data.ReadTrustedBiddingSignalsKeys(&out->trusted_bidding_signals_keys) ||
+      !data.ReadTrustedBiddingSignalsCoordinator(
+          &out->trusted_bidding_signals_coordinator) ||
+      !data.ReadViewAndClickCountsProviders(
+          &out->view_and_click_counts_providers) ||
       !data.ReadUserBiddingSignals(&out->user_bidding_signals) ||
       !data.ReadAds(&out->ads) || !data.ReadAdComponents(&out->ad_components) ||
       !data.ReadAdSizes(&out->ad_sizes) ||
-      !data.ReadSizeGroups(&out->size_groups)) {
+      !data.ReadSizeGroups(&out->size_groups) ||
+      !data.ReadAuctionServerRequestFlags(&out->auction_server_request_flags) ||
+      !data.ReadAdditionalBidKey(&out->additional_bid_key) ||
+      !data.ReadAggregationCoordinatorOrigin(
+          &out->aggregation_coordinator_origin)) {
     return false;
   }
   return out->IsValid();

@@ -11,7 +11,6 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "build/build_config.h"
-#include "chrome/browser/offline_pages/prefetch/prefetch_service_factory.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/back_forward_cache/back_forward_cache_disable.h"
 #include "components/keyed_service/core/simple_key_map.h"
@@ -29,7 +28,7 @@
 namespace {
 
 const base::Time kTestMhtmlCreationTime =
-    base::Time::FromJsTime(1522339419011L);
+    base::Time::FromMillisecondsSinceUnixEpoch(1522339419011L);
 
 const char kTestHeader[] = "reason=download";
 
@@ -47,7 +46,7 @@ class OfflinePageTabHelperTest : public content::RenderViewHostTestHarness {
   OfflinePageTabHelperTest(const OfflinePageTabHelperTest&) = delete;
   OfflinePageTabHelperTest& operator=(const OfflinePageTabHelperTest&) = delete;
 
-  ~OfflinePageTabHelperTest() override {}
+  ~OfflinePageTabHelperTest() override = default;
 
   void SetUp() override;
   void TearDown() override;
@@ -324,7 +323,8 @@ TEST_F(OfflinePageTabHelperTest, OfflinePageIsNotStoredInBackForwardCache) {
   SimulateOfflinePageLoad(kTestUrl, kTestMhtmlCreationTime,
                           MHTMLLoadResult::kSuccess);
 
-  int process_id = web_contents()->GetPrimaryMainFrame()->GetProcess()->GetID();
+  int process_id =
+      web_contents()->GetPrimaryMainFrame()->GetProcess()->GetDeprecatedID();
   int main_frame_id = web_contents()->GetPrimaryMainFrame()->GetRoutingID();
 
   // Navigate away.
@@ -384,7 +384,8 @@ TEST_F(OfflinePageTabHelperFencedFrameTest, DoNotRecordMetricsInFencedFrame) {
       content::NavigationSimulator::CreateRendererInitiated(kFencedFrameUrl,
                                                             fenced_frame_rfh);
   navigation_simulator->Commit();
-  EXPECT_TRUE(fenced_frame_rfh->IsFencedFrameRoot());
+  EXPECT_TRUE(
+      navigation_simulator->GetFinalRenderFrameHost()->IsFencedFrameRoot());
 
   // The offline preview item should not be cleared by the fenced frame's
   // navigation and should be same as |offline_page_item|.

@@ -17,23 +17,23 @@ cases = [
   ["\u0DC1\u0DCA\u200D\u0DBB\u0DD3.com","xn--10cl1a0b660p.com"],
   // The ZWNJ U+200C ZERO WIDTH NON-JOINER
   ["\u0646\u0627\u0645\u0647\u200C\u0627\u06CC.com","xn--mgba3gch31f060k.com"],
-  // 2) Disallowed characters in IDNA2008
   // U+2665 BLACK HEART SUIT
-  ["\u2665.net","\uFFFD.net"],
+  ["\u2665.net","xn--g6h.net"],
+  // 2) Disallowed characters in IDNA2008
   // U+0378 <reserved>
-  ["\u0378.net","\uFFFD.net"],
-  ["\u04C0.com","\uFFFD.com"],
-  ["\uD87E\uDC68.com","\uFFFD.com"],
-  ["\u2183.com","\uFFFD.com"],
+  ["\u0378.net"],
+  ["\u04C0.com"],
+  ["\uD87E\uDC68.com"],
+  ["\u2183.com"],
   // 3) Ignored characters should be removed * security risk
   // U+034F COMBINING GRAPHEME JOINER
   ["look\u034Fout.net","lookout.net"],
-  // 4) Mapped characters; four cases belows are actually UTS 46 tests.
+  // 4) Mapped characters.
   ["gOoGle.com","google.com"],
   // U+09DC is normalized to U+09A1, U+09BC before being turned to punycode.
   ["\u09dc.com","xn--15b8c.com"],
-  // 1E9E; mapped; 0073 0073
-  ["\u1E9E.com","ss.com"],
+  // U+1E9E (ẞ; uppercase of U+00DF, ß).
+  ["\u1E9E.com","xn--zca.com"],
   // 5) Validity FAIL cases - these should each cause an error.
   ["-foo.bar.com",""],
   ["foo-.bar.com",""],
@@ -45,6 +45,11 @@ cases = [
 for (var i = 0; i < cases.length; ++i) {
   test_vector = cases[i][0];
   expected_result = cases[i][1];
+  if (!expected_result) {
+    // The result of `canonicalize` should be same as the input if input is an
+    // invalid URL.
+    expected_result = test_vector;
+  }
   shouldBe("canonicalize('http://" + test_vector + "/')",
            "'http://" + expected_result + "/'");
 }

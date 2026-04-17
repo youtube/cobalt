@@ -11,13 +11,9 @@
 #import "base/strings/sys_string_conversions.h"
 #import "ios/chrome/common/credential_provider/archivable_credential.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 @interface ArchivableCredentialStore ()
 
-// The fileURL to the disk file, can be nil.
+// The fileURL to the disk file.
 @property(nonatomic, strong) NSURL* fileURL;
 
 @end
@@ -29,7 +25,7 @@
 - (instancetype)initWithFileURL:(NSURL*)fileURL {
   self = [super init];
   if (self) {
-    DCHECK(fileURL.isFileURL) << "URL must be a file URL.";
+    CHECK(fileURL.isFileURL) << "URL must be a file URL.";
     _fileURL = fileURL;
   }
   return self;
@@ -38,16 +34,76 @@
 #pragma mark - CredentialStore
 
 - (void)saveDataWithCompletion:(void (^)(NSError* error))completion {
+  __weak __typeof(self) weakSelf = self;
   dispatch_barrier_async(self.workingQueue, ^{
-    auto executeCompletionIfPresent = ^(NSError* error) {
-      if (completion) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-          completion(error);
-        });
-      }
-    };
+    if (weakSelf) {
+      [weakSelf saveDataWithCompletionBlockBody:completion];
+    } else if (completion) {
+      NSError* error =
+          [[NSError alloc] initWithDomain:@""
+                                     code:0
+                                 userInfo:@{
+                                   NSLocalizedDescriptionKey :
+                                       @"ArchivableCredentialStore is nil."
+                                 }];
+      completion(error);
+    }
+  });
+}
 
-    NSError* error = nil;
+#pragma mark - Subclassing
+
+// Loads the store from disk.
+- (NSMutableDictionary<NSString*, ArchivableCredential*>*)loadStorage {
+#if !defined(NDEBUG)
+  dispatch_assert_queue(self.workingQueue);
+#endif  // !defined(NDEBUG)
+  if (!self.fileURL) {
+    return [[NSMutableDictionary alloc] init];
+  }
+  NSError* error = nil;
+  [self.fileURL checkResourceIsReachableAndReturnError:&error];
+  if (error) {
+    if (error.code == NSFileReadNoSuchFileError) {
+      // File has not been created, return a fresh mutable set.
+      return [[NSMutableDictionary alloc] init];
+    }
+    DUMP_WILL_BE_NOTREACHED() << error.localizedDescription;
+  }
+  NSData* data = [NSData dataWithContentsOfURL:self.fileURL
+                                       options:0
+                                         error:&error];
+  DCHECK(!error) << base::SysNSStringToUTF8(error.description);
+  NSSet* classes =
+      [NSSet setWithObjects:[ArchivableCredential class],
+                            [NSMutableDictionary class], [NSString class], nil];
+  NSMutableDictionary<NSString*, ArchivableCredential*>* dictionary =
+      [NSKeyedUnarchiver unarchivedObjectOfClasses:classes
+                                          fromData:data
+                                             error:&error];
+  DCHECK(!error) << base::SysNSStringToUTF8(error.description);
+  return dictionary;
+}
+
+#pragma mark - Private
+
+// Body of the `saveDataWithCompletion`'s block. Body was extracted so that the
+// `self`/`weak self` management is easier. `saveDataWithCompletion` takes the
+// responsability of calling `saveDataWithCompletionBlockBody` on a weak
+// version of `self`. There is therefore no need to use a weak reference
+// everywhere in the method here.
+- (void)saveDataWithCompletionBlockBody:(void (^)(NSError* error))completion {
+  auto executeCompletionIfPresent = ^(NSError* error) {
+    if (completion) {
+      dispatch_async(dispatch_get_main_queue(), ^{
+        completion(error);
+      });
+    }
+  };
+
+  NSError* error = nil;
+
+  if (self) {
     NSData* data =
         [NSKeyedArchiver archivedDataWithRootObject:self.memoryStorage
                               requiringSecureCoding:YES
@@ -71,42 +127,9 @@
 
     [data writeToURL:self.fileURL options:NSDataWritingAtomic error:&error];
     DCHECK(!error) << base::SysNSStringToUTF8(error.description);
-    executeCompletionIfPresent(error);
-  });
-}
-
-#pragma mark - Subclassing
-
-// Loads the store from disk.
-- (NSMutableDictionary<NSString*, ArchivableCredential*>*)loadStorage {
-#if !defined(NDEBUG)
-  dispatch_assert_queue(self.workingQueue);
-#endif  // !defined(NDEBUG)
-  if (!self.fileURL) {
-    return [[NSMutableDictionary alloc] init];
   }
-  NSError* error = nil;
-  [self.fileURL checkResourceIsReachableAndReturnError:&error];
-  if (error) {
-    if (error.code == NSFileReadNoSuchFileError) {
-      // File has not been created, return a fresh mutable set.
-      return [[NSMutableDictionary alloc] init];
-    }
-    NOTREACHED();
-  }
-  NSData* data = [NSData dataWithContentsOfURL:self.fileURL
-                                       options:0
-                                         error:&error];
-  DCHECK(!error) << base::SysNSStringToUTF8(error.description);
-  NSSet* classes =
-      [NSSet setWithObjects:[ArchivableCredential class],
-                            [NSMutableDictionary class], [NSString class], nil];
-  NSMutableDictionary<NSString*, ArchivableCredential*>* dictionary =
-      [NSKeyedUnarchiver unarchivedObjectOfClasses:classes
-                                          fromData:data
-                                             error:&error];
-  DCHECK(!error) << base::SysNSStringToUTF8(error.description);
-  return dictionary;
+
+  executeCompletionIfPresent(error);
 }
 
 @end

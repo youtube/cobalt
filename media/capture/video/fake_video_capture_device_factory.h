@@ -11,12 +11,16 @@
 #include <utility>
 #include <vector>
 
+#include "build/build_config.h"
+#include "media/base/video_facing.h"
 #include "media/capture/video/fake_video_capture_device.h"
+#include "media/capture/video/video_capture_device_descriptor.h"
 #include "media/capture/video/video_capture_device_factory.h"
 
-namespace gpu {
-class GpuMemoryBufferSupport;
-}  // namespace gpu
+#if BUILDFLAG(IS_WIN)
+#include "base/win/windows_types.h"
+#include "media/base/win/dxgi_device_manager.h"
+#endif
 
 namespace media {
 
@@ -30,6 +34,7 @@ struct CAPTURE_EXPORT FakeVideoCaptureDeviceSettings {
   VideoCaptureFormats supported_formats;
   FakePhotoDeviceConfig photo_device_config;
   FakeVideoCaptureDevice::DisplayMediaType display_media_type;
+  std::optional<media::CameraAvailability> availability;
 };
 
 // Implementation of VideoCaptureDeviceFactory that creates fake devices
@@ -53,14 +58,12 @@ class CAPTURE_EXPORT FakeVideoCaptureDeviceFactory
   ~FakeVideoCaptureDeviceFactory() override;
 
   static std::unique_ptr<VideoCaptureDevice> CreateDeviceWithSettings(
-      const FakeVideoCaptureDeviceSettings& settings,
-      std::unique_ptr<gpu::GpuMemoryBufferSupport> gmb_support = nullptr);
+      const FakeVideoCaptureDeviceSettings& settings);
 
   static std::unique_ptr<VideoCaptureDevice> CreateDeviceWithDefaultResolutions(
       VideoPixelFormat pixel_format,
       FakeVideoCaptureDevice::DeliveryMode delivery_mode,
-      float frame_rate,
-      std::unique_ptr<gpu::GpuMemoryBufferSupport> gmb_support = nullptr);
+      float frame_rate);
 
   // Creates a device that reports OnError() when AllocateAndStart() is called.
   static std::unique_ptr<VideoCaptureDevice> CreateErrorDevice();
@@ -89,11 +92,21 @@ class CAPTURE_EXPORT FakeVideoCaptureDeviceFactory
     return static_cast<int>(devices_config_.size());
   }
 
+#if BUILDFLAG(IS_WIN)
+  void OnGpuInfoUpdate(const CHROME_LUID& luid) override;
+  scoped_refptr<DXGIDeviceManager> GetDxgiDeviceManager() override;
+#endif
+
  private:
   // Helper used in GetDevicesInfo().
   VideoCaptureFormats GetSupportedFormats(const std::string& device_id);
 
   std::vector<FakeVideoCaptureDeviceSettings> devices_config_;
+
+#if BUILDFLAG(IS_WIN)
+  scoped_refptr<DXGIDeviceManager> dxgi_device_manager_;
+  CHROME_LUID luid_ = {0, 0};
+#endif
 };
 
 }  // namespace media

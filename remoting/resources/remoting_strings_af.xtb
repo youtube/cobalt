@@ -4,7 +4,6 @@
 <translation id="1002108253973310084">'n Onversoenbare protokolweergawe is bespeur. Maak seker dat die jongste weergawe van die sagteware op albei rekenaars geïnstalleer is en probeer weer.</translation>
 <translation id="1008557486741366299">Nie nou nie</translation>
 <translation id="1201402288615127009">Volgende</translation>
-<translation id="1296511125400541222">Kopiereg 2023 Die Chromium-outeurs. Alle regte voorbehou.</translation>
 <translation id="1297009705180977556">Kon nie aan <ph name="HOSTNAME" /> koppel nie</translation>
 <translation id="1450760146488584666">Die voorwerp wat versoek is, bestaan nie.</translation>
 <translation id="1480046233931937785">Krediete</translation>
@@ -29,7 +28,7 @@ As "<ph name="SERVICE_SCRIPT_NAME" />" reeds gemerk is, moet jy dit ontmerk en d
 <translation id="2329392777730037872">Kon nie <ph name="URL" /> op die kliënt se toestel oopmaak nie.</translation>
 <translation id="2359808026110333948">Gaan voort</translation>
 <translation id="2366718077645204424">Kan nie die gasheer bereik nie. Dit is waarskynlik weens die opstelling van die netwerk wat jy gebruik.</translation>
-<translation id="2370754117186920852"><ph name="OPTIONAL_OFFLINE_REASON" />  Is <ph name="RELATIVE_TIMESTAMP" /> laas aanlyn gesien.</translation>
+<translation id="242591256144136845">Kopiereg 2025 Google LLC. Alle regte voorbehou.</translation>
 <translation id="2504109125669302160">Verleen "Toeganklikheid"-toestemming aan <ph name="PRODUCT_NAME" /></translation>
 <translation id="2509394361235492552">Gekoppel aan <ph name="HOSTNAME" /></translation>
 <translation id="2540992418118313681">Wil jy hierdie rekenaar deel sodat 'n ander gebruiker dit kan sien en beheer?</translation>
@@ -41,6 +40,7 @@ As "<ph name="SERVICE_SCRIPT_NAME" />" reeds gemerk is, moet jy dit ontmerk en d
 <translation id="2758123043070977469">Kon nie staaf nie. Probeer weer aanmeld.</translation>
 <translation id="2803375539583399270">Voer PIN in</translation>
 <translation id="2919669478609886916">Jy deel tans hierdie masjien met 'n ander gebruiker. Wil jy aanhou om te deel?</translation>
+<translation id="2929683002824598593">Deel toestel</translation>
 <translation id="2939145106548231838">Staaf om gasheer te wees</translation>
 <translation id="3027681561976217984">Raakmodus</translation>
 <translation id="3106379468611574572">Die afstandrekenaar reageer nie tans op verbindingversoeke nie. Verifeer of dit aanlyn is en probeer weer.</translation>
@@ -54,7 +54,6 @@ As "<ph name="SERVICE_SCRIPT_NAME" />" reeds gemerk is, moet jy dit ontmerk en d
 <translation id="3423542133075182604">Sekuriteitsleutelafstandproses</translation>
 <translation id="3581045510967524389">Kon nie aan die netwerk koppel nie. Maak asseblief seker of jou toestel aanlyn is.</translation>
 <translation id="3596628256176442606">Hierdie diens maak inkomende verbindings van Chromoting-kliënte af moontlik.</translation>
-<translation id="369442766917958684">Vanlyn.</translation>
 <translation id="3695446226812920698">Vind uit hoe</translation>
 <translation id="3776024066357219166">Jou Chrome-afstandwerkskermsessie is verby.</translation>
 <translation id="3858860766373142691">Naam</translation>
@@ -89,12 +88,12 @@ As "<ph name="SERVICE_SCRIPT_NAME" />" reeds gemerk is, moet jy dit ontmerk en d
 <translation id="4808503597364150972">Voer jou PIN vir <ph name="HOSTNAME" /> in.</translation>
 <translation id="4812684235631257312">Gasheer</translation>
 <translation id="4867841927763172006">Stuur PrtScn</translation>
-<translation id="4960795469833295568">Kopiereg 2023 Google LLC. Alle regte voorbehou.</translation>
 <translation id="4974476491460646149">Verbinding is gesluit vir <ph name="HOSTNAME" /></translation>
 <translation id="4985296110227979402">Jy moet jou rekenaar eers vir afstandtoegang opstel</translation>
 <translation id="4987330545941822761">Chrome-afstandskerm kan nie die blaaier bepaal om URL'e plaaslik oop te maak nie. Kies dit asseblief uit die lys hieronder.</translation>
 <translation id="5064360042339518108"><ph name="HOSTNAME" /> (vanlyn)</translation>
 <translation id="507204348399810022">Is jy seker jy wil afgeleë verbindings met <ph name="HOSTNAME" /> deaktiveer?</translation>
+<translation id="5095424396646120601">Omvalverslae</translation>
 <translation id="5170982930780719864">Ongeldige gasheer-ID.</translation>
 <translation id="5204575267916639804">Gereelde vrae</translation>
 <translation id="5222676887888702881">Meld af</translation>
@@ -107,7 +106,6 @@ As "<ph name="SERVICE_SCRIPT_NAME" />" reeds gemerk is, moet jy dit ontmerk en d
 <translation id="5601503069213153581">PIN</translation>
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="5708869785009007625">Jou werkskerm word tans met <ph name="USER" /> gedeel.</translation>
-<translation id="5750083143895808682">Aangemeld as <ph name="EMAIL_ADDRESS" />.</translation>
 <translation id="579702532610384533">Herkoppel</translation>
 <translation id="5810269635982033450">Skerm werk soos 'n stuurpaneel</translation>
 <translation id="5823554426827907568"><ph name="CLIENT_USERNAME" /> het toegang versoek om jou skerm te sien en jou sleutelbord en muis te beheer. Druk ''<ph name="IDS_SHARE_CONFIRM_DIALOG_DECLINE" />'' as jy nie hierdie versoek verwag nie. Anders kan jy ''<ph name="IDS_SHARE_CONFIRM_DIALOG_CONFIRM" />'' kies om die verbinding toe te laat wanneer jy gereed is.</translation>
@@ -121,10 +119,12 @@ As "<ph name="SERVICE_SCRIPT_NAME" />" reeds gemerk is, moet jy dit ontmerk en d
 <translation id="6178645564515549384">Toestelspesifieke boodskapgasheer vir afstandbystand</translation>
 <translation id="618120821413932081">Dateer afstandresolusie op om met venster ooreen te stem</translation>
 <translation id="6223301979382383752">Maak Skermopname-voorkeure oop</translation>
+<translation id="6252344563748670011"><ph name="CLIENT_USERNAME" /> het toegang versoek om jou skerm te sien en jou sleutelbord en muis te beheer. Wil jy jou toestel deel?</translation>
 <translation id="6284412385303060032">Gasheer wat op die konsolelogikaskerm loop, het afgeskakel om gordynmodus te steun deur oor te skakel na 'n gasheer wat in 'n spesifieke gebruiker se sessie loop.</translation>
 <translation id="6542902059648396432">Meld 'n probleem aan …</translation>
 <translation id="6583902294974160967">Steundiens</translation>
 <translation id="6612717000975622067">Stuur Ctrl-Alt-Del</translation>
+<translation id="6625262630437221505">{0,plural, =1{As jy nie optree nie, sal jou toestel outomaties oor # sekonde begin deel.}other{As jy nie optree nie, sal jou toestel outomaties oor # sekondes begin deel.}}</translation>
 <translation id="6654753848497929428">Deel</translation>
 <translation id="677755392401385740">Gasheer begin vir gebruiker: <ph name="HOST_USERNAME" />.</translation>
 <translation id="6902524959760471898">Helperprogram om 'n URL op die <ph name="PRODUCT_NAME" />-kliënt oop te maak</translation>
@@ -138,6 +138,7 @@ As "<ph name="SERVICE_SCRIPT_NAME" />" reeds gemerk is, moet jy dit ontmerk en d
 <translation id="7067321367069083429">Skerm werk soos 'n raakskerm</translation>
 <translation id="7116737094673640201">Welkom by Chrome-afstandwerkskerm</translation>
 <translation id="7144878232160441200">Probeer weer</translation>
+<translation id="7298392173540380852">Kopiereg 2025 Die Chromium-outeurs. Alle regte voorbehou.</translation>
 <translation id="7312846573060934304">Gasheer is vanlyn.</translation>
 <translation id="7319983568955948908">Hou op deel</translation>
 <translation id="7359298090707901886">Die gekose blaaier kan nie gebruik word om URL'e op die plaaslike masjien oop te maak nie.</translation>

@@ -18,6 +18,7 @@
 
 #include "perfetto/base/logging.h"
 #include "perfetto/protozero/proto_utils.h"
+#include "src/protozero/filtering/string_filter.h"
 
 namespace protozero {
 
@@ -68,29 +69,26 @@ inline std::pair<uint8_t*, uint32_t> AppendLenDelim(uint32_t field_id,
 }
 }  // namespace
 
-MessageFilter::MessageFilter() {
+MessageFilter::MessageFilter(Config config) : config_(std::move(config)) {
   // Push a state on the stack for the implicit root message.
   stack_.emplace_back();
 }
 
-MessageFilter::MessageFilter(const MessageFilter& other)
-    : root_msg_index_(other.root_msg_index_), filter_(other.filter_) {
-  stack_.emplace_back();
-}
+MessageFilter::MessageFilter() : MessageFilter(Config()) {}
 
 MessageFilter::~MessageFilter() = default;
 
-bool MessageFilter::LoadFilterBytecode(const void* filter_data, size_t len) {
+bool MessageFilter::Config::LoadFilterBytecode(const void* filter_data,
+                                               size_t len) {
   return filter_.Load(filter_data, len);
 }
 
-bool MessageFilter::SetFilterRoot(const uint32_t* field_ids,
-                                  size_t num_fields) {
+bool MessageFilter::Config::SetFilterRoot(
+    std::initializer_list<uint32_t> field_ids) {
   uint32_t root_msg_idx = 0;
-  for (const uint32_t* it = field_ids; it < field_ids + num_fields; ++it) {
-    uint32_t field_id = *it;
+  for (uint32_t field_id : field_ids) {
     auto res = filter_.Query(root_msg_idx, field_id);
-    if (!res.allowed || res.simple_field())
+    if (!res.allowed || !res.nested_msg_field())
       return false;
     root_msg_idx = res.nested_msg_index;
   }
@@ -122,7 +120,7 @@ MessageFilter::FilteredMessage MessageFilter::FilterMessageFragments(
   stack_[0].eat_next_bytes = UINT32_MAX;
   // stack_[1] is the actual root message.
   stack_[1].in_bytes_limit = total_len;
-  stack_[1].msg_index = root_msg_index_;
+  stack_[1].msg_index = config_.root_msg_index();
 
   // Process the input data and write the output.
   for (size_t slice_idx = 0; slice_idx < num_slices; ++slice_idx) {
@@ -154,18 +152,26 @@ void MessageFilter::FilterOneByte(uint8_t octet) {
   if (state->eat_next_bytes > 0) {
     // This is the case where the previous tokenizer_.Push() call returned a
     // length delimited message which is NOT a submessage (a string or a bytes
-    // field). We just want to consume it, and pass it through in output
+    // field). We just want to consume it, and pass it through/filter strings
     // if the field was allowed.
     --state->eat_next_bytes;
-    if (state->passthrough_eaten_bytes)
+    if (state->action == StackState::kPassthrough) {
       *(out_++) = octet;
+    } else if (state->action == StackState::kFilterString) {
+      *(out_++) = octet;
+      if (state->eat_next_bytes == 0) {
+        config_.string_filter().MaybeFilter(
+            reinterpret_cast<char*>(state->filter_string_ptr),
+            static_cast<size_t>(out_ - state->filter_string_ptr));
+      }
+    }
   } else {
     MessageTokenizer::Token token = tokenizer_.Push(octet);
     // |token| will not be valid() in most cases and this is WAI. When pushing
     // a varint field, only the last byte yields a token, all the other bytes
     // return an invalid token, they just update the internal tokenizer state.
     if (token.valid()) {
-      auto filter = filter_.Query(state->msg_index, token.field_id);
+      auto filter = config_.filter().Query(state->msg_index, token.field_id);
       switch (token.type) {
         case proto_utils::ProtoWireType::kVarInt:
           if (filter.allowed && filter.simple_field())
@@ -199,7 +205,8 @@ void MessageFilter::FilterOneByte(uint8_t octet) {
             return SetUnrecoverableErrorState();
           }
 
-          if (filter.allowed && !filter.simple_field() && submessage_len > 0) {
+          if (filter.allowed && filter.nested_msg_field() &&
+              submessage_len > 0) {
             // submessage_len == 0 is the edge case of a message with a 0-len
             // (but present) submessage. In this case, if allowed, we don't want
             // to push any further state (doing so would desync the FSM) but we
@@ -223,9 +230,16 @@ void MessageFilter::FilterOneByte(uint8_t octet) {
           } else {
             // A string or bytes field, or a 0 length submessage.
             state->eat_next_bytes = submessage_len;
-            state->passthrough_eaten_bytes = filter.allowed;
-            if (filter.allowed)
+            if (filter.allowed && filter.filter_string_field()) {
+              state->action = StackState::kFilterString;
               AppendLenDelim(token.field_id, submessage_len, &out_);
+              state->filter_string_ptr = out_;
+            } else if (filter.allowed) {
+              state->action = StackState::kPassthrough;
+              AppendLenDelim(token.field_id, submessage_len, &out_);
+            } else {
+              state->action = StackState::kDrop;
+            }
           }
           break;
       }  // switch(type)
@@ -234,7 +248,7 @@ void MessageFilter::FilterOneByte(uint8_t octet) {
         IncrementCurrentFieldUsage(token.field_id, filter.allowed);
       }
     }  // if (token.valid)
-  }    // if (eat_next_bytes == 0)
+  }  // if (eat_next_bytes == 0)
 
   ++state->in_bytes;
   while (state->in_bytes >= state->in_bytes_limit) {
@@ -277,7 +291,7 @@ void MessageFilter::SetUnrecoverableErrorState() {
   auto& state = stack_[0];
   state.eat_next_bytes = UINT32_MAX;
   state.in_bytes_limit = UINT32_MAX;
-  state.passthrough_eaten_bytes = false;
+  state.action = StackState::kDrop;
   out_ = out_buf_.get();  // Reset the write pointer.
 }
 

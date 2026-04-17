@@ -2,15 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ash/net/network_diagnostics/arc_ping_routine.h"
+
 #include <algorithm>
 #include <string>
 #include <utility>
 
-#include "ash/components/arc/session/arc_service_manager.h"
 #include "base/functional/bind.h"
 #include "base/task/single_thread_task_runner.h"
-#include "chrome/browser/ash/net/network_diagnostics/arc_ping_routine.h"
 #include "chrome/browser/ash/net/network_diagnostics/network_diagnostics_util.h"
+#include "chromeos/ash/experiences/arc/session/arc_service_manager.h"
 #include "chromeos/ash/services/network_config/in_process_instance.h"
 #include "chromeos/services/network_config/public/cpp/cros_network_config_util.h"
 
@@ -40,7 +41,8 @@ constexpr int kTimeoutGetManagedPropertiesSeconds = 180;
 
 }  // namespace
 
-ArcPingRoutine::ArcPingRoutine() {
+ArcPingRoutine::ArcPingRoutine(mojom::RoutineCallSource source)
+    : NetworkDiagnosticsRoutine(source) {
   set_verdict(mojom::RoutineVerdict::kNotRun);
   GetNetworkConfigService(
       remote_cros_network_config_.BindNewPipeAndPassReceiver());
@@ -164,7 +166,10 @@ void ArcPingRoutine::OnManagedPropertiesReceived(
   if (managed_properties && managed_properties->ip_configs.has_value() &&
       managed_properties->ip_configs->size() != 0) {
     for (const auto& ip_config : managed_properties->ip_configs.value()) {
-      if (ip_config->gateway.has_value()) {
+      // Link-local addresses are not reachable from ARC, so skip them here.
+      // TODO(b/277696397): Find a better signal.
+      if (ip_config->gateway.has_value() &&
+          !ip_config->gateway->starts_with("fe80::")) {
         const std::string& gateway = ip_config->gateway.value();
         if (managed_properties->guid == default_network_guid_) {
           default_network_gateway_ = gateway;

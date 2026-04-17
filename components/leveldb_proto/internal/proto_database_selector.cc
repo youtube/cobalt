@@ -474,7 +474,6 @@ void ProtoDatabaseSelector::AddTransaction(base::OnceClosure task) {
       break;
     case InitStatus::NOT_STARTED:
       NOTREACHED();
-      [[fallthrough]];
     case InitStatus::DONE:
       std::move(task).Run();
       break;

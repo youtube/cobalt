@@ -5,11 +5,12 @@
 #include "chrome/browser/ash/login/screens/update_screen.h"
 
 #include <memory>
+#include <optional>
 
-#include "ash/constants/ash_features.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
-#include "base/test/scoped_feature_list.h"
+#include "base/metrics/histogram_base.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_mock_time_message_loop_task_runner.h"
 #include "base/test/simple_test_tick_clock.h"
 #include "base/test/test_future.h"
@@ -21,22 +22,21 @@
 #include "chrome/browser/ash/login/test/oobe_base_test.h"
 #include "chrome/browser/ash/login/test/oobe_screen_waiter.h"
 #include "chrome/browser/ash/login/test/test_predicate_waiter.h"
-#include "chrome/browser/ash/login/ui/login_display_host.h"
 #include "chrome/browser/ash/login/version_updater/version_updater.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/ui/ash/login/login_display_host.h"
 #include "chrome/browser/ui/webui/ash/login/error_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/oobe_ui.h"
 #include "chrome/browser/ui/webui/ash/login/update_screen_handler.h"
 #include "chrome/common/pref_names.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/ash/components/dbus/update_engine/fake_update_engine_client.h"
 #include "chromeos/ash/components/network/network_connection_handler.h"
 #include "chromeos/ash/components/network/network_handler.h"
 #include "chromeos/dbus/power/fake_power_manager_client.h"
 #include "content/public/test/browser_test.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/l10n/l10n_util.h"
 
 namespace ash {
@@ -52,8 +52,8 @@ const test::UIPath kCellularPermissionBack = {"oobe-update",
 const test::UIPath kLowBatteryWarningMessage = {"oobe-update",
                                                 "battery-warning"};
 const test::UIPath kErrorMessage = {"error-message"};
-const test::UIPath kBetterUpdateCheckingForUpdatesDialog = {
-    "oobe-update", "checking-for-updates-dialog"};
+const test::UIPath kBetterUpdateCheckingForUpdatesDialog = {"oobe-update",
+                                                            "checking-update"};
 const test::UIPath kUpdateInProgressDialog = {"oobe-update",
                                               "update-in-progress-dialog"};
 const test::UIPath kRestartingDialog = {"oobe-update", "restarting-dialog"};
@@ -119,16 +119,7 @@ class UpdateScreenTest : public OobeBaseTest,
                          public LocalStateMixin::Delegate,
                          public ::testing::WithParamInterface<RegionToCodeMap> {
  public:
-  UpdateScreenTest() {
-    if (GetParam().is_opt_out_feature_enabled) {
-      feature_list_.InitAndEnableFeature(
-          features::kConsumerAutoUpdateToggleAllowed);
-    } else {
-      feature_list_.InitAndDisableFeature(
-          features::kConsumerAutoUpdateToggleAllowed);
-    }
-  }
-
+  UpdateScreenTest() = default;
   UpdateScreenTest(const UpdateScreenTest&) = delete;
   UpdateScreenTest& operator=(const UpdateScreenTest&) = delete;
 
@@ -203,13 +194,14 @@ class UpdateScreenTest : public OobeBaseTest,
   }
 
   void ShowUpdateScreen() {
+    WaitForOobeUI();
     WizardController::default_controller()->AdvanceToScreen(
         UpdateView::kScreenId);
     // When opt out option is not available we try to wait and don't show the
     // screen if the check for update happens fast enough. When we have an
     // opt out option we still need to show an additional step so we start
     // showing the spinner from the start.
-    if (GetParam().is_eu && features::IsConsumerAutoUpdateToggleAllowed()) {
+    if (GetParam().is_eu) {
       OobeScreenWaiter update_screen_waiter(UpdateView::kScreenId);
       update_screen_waiter.set_assert_next_screen();
       update_screen_waiter.Wait();
@@ -259,17 +251,17 @@ class UpdateScreenTest : public OobeBaseTest,
 
   NetworkPortalDetectorMixin network_portal_detector_{&mixin_host_};
 
-  raw_ptr<UpdateScreen, ExperimentalAsh> update_screen_ = nullptr;
+  raw_ptr<UpdateScreen, DanglingUntriaged> update_screen_ = nullptr;
   // Version updater - owned by `update_screen_`.
-  raw_ptr<VersionUpdater, ExperimentalAsh> version_updater_ = nullptr;
+  raw_ptr<VersionUpdater, DanglingUntriaged> version_updater_ = nullptr;
   // Error screen - owned by OobeUI.
-  raw_ptr<ErrorScreen, ExperimentalAsh> error_screen_ = nullptr;
+  raw_ptr<ErrorScreen, DanglingUntriaged> error_screen_ = nullptr;
 
   base::SimpleTestTickClock tick_clock_;
 
   base::HistogramTester histogram_tester_;
 
-  absl::optional<UpdateScreen::Result> last_screen_result_;
+  std::optional<UpdateScreen::Result> last_screen_result_;
 
  private:
   void HandleScreenExit(UpdateScreen::Result result) {
@@ -282,7 +274,6 @@ class UpdateScreenTest : public OobeBaseTest,
 
   base::OnceClosure screen_result_callback_;
 
-  base::test::ScopedFeatureList feature_list_;
   LocalStateMixin local_state_mixin_{&mixin_host_, this};
 };
 
@@ -290,7 +281,7 @@ IN_PROC_BROWSER_TEST_P(UpdateScreenTest, TestUpdateCheckDoneBeforeShow) {
   ShowUpdateScreen();
   // For this test, the show timer is expected not to fire - cancel it
   // immediately.
-  if (!GetParam().is_eu || !features::IsConsumerAutoUpdateToggleAllowed()) {
+  if (!GetParam().is_eu) {
     EXPECT_TRUE(update_screen_->GetShowTimerForTesting()->IsRunning());
     update_screen_->GetShowTimerForTesting()->Stop();
   }
@@ -309,7 +300,7 @@ IN_PROC_BROWSER_TEST_P(UpdateScreenTest, TestUpdateCheckDoneBeforeShow) {
   update_engine_client()->set_default_status(status);
   update_engine_client()->NotifyObserversThatStatusChanged(status);
 
-  if (GetParam().is_eu && features::IsConsumerAutoUpdateToggleAllowed()) {
+  if (GetParam().is_eu) {
     WaitForOptOutStepAndClickNext();
   } else {
     ASSERT_TRUE(last_screen_result_.has_value());
@@ -327,8 +318,9 @@ IN_PROC_BROWSER_TEST_P(UpdateScreenTest, TestUpdateCheckDoneBeforeShow) {
 
 IN_PROC_BROWSER_TEST_P(UpdateScreenTest, TestUpdateNotFoundAfterScreenShow) {
   ShowUpdateScreen();
-  if (!GetParam().is_eu || !features::IsConsumerAutoUpdateToggleAllowed())
+  if (!GetParam().is_eu) {
     EXPECT_TRUE(update_screen_->GetShowTimerForTesting()->IsRunning());
+  }
 
   update_engine::StatusResult status;
   status.set_current_operation(update_engine::Operation::IDLE);
@@ -340,8 +332,9 @@ IN_PROC_BROWSER_TEST_P(UpdateScreenTest, TestUpdateNotFoundAfterScreenShow) {
   update_engine_client()->NotifyObserversThatStatusChanged(status);
   tick_clock_.Advance(kTimeAdvanceMicroseconds200);
 
-  if (!GetParam().is_eu || !features::IsConsumerAutoUpdateToggleAllowed())
+  if (!GetParam().is_eu) {
     update_screen_->GetShowTimerForTesting()->FireNow();
+  }
 
   OobeScreenWaiter update_screen_waiter(UpdateView::kScreenId);
   update_screen_waiter.set_assert_next_screen();
@@ -358,7 +351,7 @@ IN_PROC_BROWSER_TEST_P(UpdateScreenTest, TestUpdateNotFoundAfterScreenShow) {
   update_engine_client()->set_default_status(status);
   update_engine_client()->NotifyObserversThatStatusChanged(status);
 
-  if (GetParam().is_eu && features::IsConsumerAutoUpdateToggleAllowed()) {
+  if (GetParam().is_eu) {
     WaitForOptOutStepAndClickNext();
   } else {
     ASSERT_TRUE(last_screen_result_.has_value());
@@ -384,8 +377,9 @@ IN_PROC_BROWSER_TEST_P(UpdateScreenTest, TestUpdateAvailable) {
   update_engine_client()->set_default_status(status);
   update_engine_client()->NotifyObserversThatStatusChanged(status);
 
-  if (!GetParam().is_eu || !features::IsConsumerAutoUpdateToggleAllowed())
+  if (!GetParam().is_eu) {
     update_screen_->GetShowTimerForTesting()->FireNow();
+  }
 
   OobeScreenWaiter update_screen_waiter(UpdateView::kScreenId);
   update_screen_waiter.set_assert_next_screen();
@@ -519,7 +513,7 @@ IN_PROC_BROWSER_TEST_P(UpdateScreenTest, TestErrorIssuingUpdateCheck) {
       UpdateEngineClient::UPDATE_RESULT_FAILED);
   ShowUpdateScreen();
 
-  if (GetParam().is_eu && features::IsConsumerAutoUpdateToggleAllowed()) {
+  if (GetParam().is_eu) {
     WaitForOptOutStepAndClickNext();
   } else {
     ASSERT_TRUE(last_screen_result_.has_value());
@@ -540,7 +534,7 @@ IN_PROC_BROWSER_TEST_P(UpdateScreenTest, TestErrorCheckingForUpdate) {
   update_engine_client()->set_default_status(status);
   version_updater_->UpdateStatusChangedForTesting(status);
 
-  if (GetParam().is_eu && features::IsConsumerAutoUpdateToggleAllowed()) {
+  if (GetParam().is_eu) {
     WaitForOptOutStepAndClickNext();
   } else {
     ASSERT_TRUE(last_screen_result_.has_value());
@@ -567,7 +561,7 @@ IN_PROC_BROWSER_TEST_P(UpdateScreenTest, TestErrorUpdating) {
   update_engine_client()->set_default_status(status);
   update_engine_client()->NotifyObserversThatStatusChanged(status);
 
-  if (GetParam().is_eu && features::IsConsumerAutoUpdateToggleAllowed()) {
+  if (GetParam().is_eu) {
     WaitForOptOutStepAndClickNext();
   } else {
     ASSERT_TRUE(last_screen_result_.has_value());
@@ -589,7 +583,7 @@ IN_PROC_BROWSER_TEST_P(UpdateScreenTest, TestTemporaryPortalNetwork) {
 
   // Change ethernet state to offline.
   network_portal_detector_.SimulateDefaultNetworkState(
-      NetworkPortalDetector::CAPTIVE_PORTAL_STATUS_PORTAL);
+      NetworkPortalDetectorMixin::NetworkStatus::kPortal);
 
   ShowUpdateScreen();
 
@@ -600,7 +594,7 @@ IN_PROC_BROWSER_TEST_P(UpdateScreenTest, TestTemporaryPortalNetwork) {
 
   // If network goes back online, the error message timer should be canceled.
   network_portal_detector_.SimulateDefaultNetworkState(
-      NetworkPortalDetector::CAPTIVE_PORTAL_STATUS_ONLINE);
+      NetworkPortalDetectorMixin::NetworkStatus::kOnline);
   EXPECT_FALSE(update_screen_->GetErrorMessageTimerForTesting()->IsRunning());
 
   update_engine::StatusResult status;
@@ -609,8 +603,9 @@ IN_PROC_BROWSER_TEST_P(UpdateScreenTest, TestTemporaryPortalNetwork) {
   update_engine_client()->NotifyObserversThatStatusChanged(status);
   tick_clock_.Advance(kTimeAdvanceSeconds10);
 
-  if (!GetParam().is_eu || !features::IsConsumerAutoUpdateToggleAllowed())
+  if (!GetParam().is_eu) {
     EXPECT_TRUE(update_screen_->GetShowTimerForTesting()->IsRunning());
+  }
 
   // Update available, but it is not critical in test.
   status.set_current_operation(update_engine::Operation::UPDATE_AVAILABLE);
@@ -627,7 +622,7 @@ IN_PROC_BROWSER_TEST_P(UpdateScreenTest, TestTemporaryPortalNetwork) {
   // As update is not critical in test if opt out option is available we proceed
   // to opt-out-info step instead.
   test::OobeJS().ExpectVisible("oobe-update");
-  if (!GetParam().is_eu || !features::IsConsumerAutoUpdateToggleAllowed()) {
+  if (!GetParam().is_eu) {
     test::OobeJS().ExpectVisiblePath(kBetterUpdateCheckingForUpdatesDialog);
   }
   test::OobeJS().ExpectHiddenPath(kCellularPermissionDialog);
@@ -637,7 +632,7 @@ IN_PROC_BROWSER_TEST_P(UpdateScreenTest, TestTemporaryPortalNetwork) {
   update_engine_client()->set_default_status(status);
   update_engine_client()->NotifyObserversThatStatusChanged(status);
 
-  if (GetParam().is_eu && features::IsConsumerAutoUpdateToggleAllowed()) {
+  if (GetParam().is_eu) {
     WaitForOptOutStepAndClickNext();
   } else {
     ASSERT_TRUE(last_screen_result_.has_value());
@@ -655,7 +650,7 @@ IN_PROC_BROWSER_TEST_P(UpdateScreenTest, TestTemporaryPortalNetwork) {
 IN_PROC_BROWSER_TEST_P(UpdateScreenTest, TestTwoOfflineNetworks) {
   // Change ethernet state to portal.
   network_portal_detector_.SimulateDefaultNetworkState(
-      NetworkPortalDetector::CAPTIVE_PORTAL_STATUS_PORTAL);
+      NetworkPortalDetectorMixin::NetworkStatus::kPortal);
   ShowUpdateScreen();
 
   WaitForDelayedErrorTimerToFire();
@@ -666,10 +661,9 @@ IN_PROC_BROWSER_TEST_P(UpdateScreenTest, TestTwoOfflineNetworks) {
   test::OobeJS().ExpectVisiblePath(
       {"error-message", "captive-portal-proxy-message-text"});
 
-  // Change active network to the wifi behind proxy.
   network_portal_detector_.SetDefaultNetwork(
       kStubWifiGuid, shill::kTypeWifi,
-      NetworkPortalDetector::CAPTIVE_PORTAL_STATUS_PROXY_AUTH_REQUIRED);
+      NetworkPortalDetectorMixin::NetworkStatus::kOffline);
 
   test::OobeJS().ExpectVisiblePath(
       {"error-message", "update-proxy-message-text"});
@@ -709,7 +703,7 @@ IN_PROC_BROWSER_TEST_P(UpdateScreenTest, TestVoidNetwork) {
 
 IN_PROC_BROWSER_TEST_P(UpdateScreenTest, TestAPReselection) {
   network_portal_detector_.SimulateDefaultNetworkState(
-      NetworkPortalDetector::CAPTIVE_PORTAL_STATUS_PORTAL);
+      NetworkPortalDetectorMixin::NetworkStatus::kPortal);
 
   ShowUpdateScreen();
 
@@ -720,7 +714,7 @@ IN_PROC_BROWSER_TEST_P(UpdateScreenTest, TestAPReselection) {
       false /* check_error_state */, ConnectCallbackMode::ON_COMPLETED);
 
   ASSERT_EQ(OOBE_SCREEN_UNKNOWN.AsId(), error_screen_->GetParentScreen());
-  if (!GetParam().is_eu || !features::IsConsumerAutoUpdateToggleAllowed()) {
+  if (!GetParam().is_eu) {
     EXPECT_TRUE(update_screen_->GetShowTimerForTesting()->IsRunning());
     update_screen_->GetShowTimerForTesting()->FireNow();
   }
@@ -843,9 +837,7 @@ IN_PROC_BROWSER_TEST_P(UpdateScreenTest, TestInitialLowBatteryStatus) {
   test::OobeJS().ExpectVisiblePath(kLowBatteryWarningMessage);
 }
 
-// TODO(crbug.com/1324627): Fix this test.
-IN_PROC_BROWSER_TEST_P(UpdateScreenTest,
-                       DISABLED_TestBatteryWarningDuringUpdateStages) {
+IN_PROC_BROWSER_TEST_P(UpdateScreenTest, TestBatteryWarningDuringUpdateStages) {
   base::ScopedMockTimeMessageLoopTaskRunner mocked_task_runner;
   SetTickClockAndDefaultDelaysForTesting(
       mocked_task_runner->GetMockTickClock());
@@ -959,9 +951,7 @@ IN_PROC_BROWSER_TEST_P(UpdateScreenTest,
   test::OobeJS().ExpectHiddenPath(kLowBatteryWarningMessage);
 }
 
-// TODO(crbug.com/1324627): Fix this test.
-IN_PROC_BROWSER_TEST_P(UpdateScreenTest,
-                       DISABLED_TestUpdateCompletedRebootNeeded) {
+IN_PROC_BROWSER_TEST_P(UpdateScreenTest, TestUpdateCompletedRebootNeeded) {
   base::ScopedMockTimeMessageLoopTaskRunner mocked_task_runner;
   SetTickClockAndDefaultDelaysForTesting(
       mocked_task_runner->GetMockTickClock());
@@ -987,15 +977,14 @@ IN_PROC_BROWSER_TEST_P(UpdateScreenTest,
   ASSERT_EQ(update_engine_client()->reboot_after_update_call_count(), 1);
 
   // Simulate the situation where reboot does not happen in time.
-  ASSERT_TRUE(version_updater_->GetRebootTimerForTesting()->IsRunning());
+  ASSERT_TRUE(version_updater_->get_reboot_timer_for_testing()->IsRunning());
   mocked_task_runner->FastForwardBy(kTimeDefaultWaiting);
 
   test::OobeJS().ExpectHiddenPath(kRestartingDialog);
   test::OobeJS().ExpectVisiblePath(kBetterUpdateCompletedDialog);
 }
 
-// TODO(crbug.com/1324627): Fix this test.
-IN_PROC_BROWSER_TEST_P(UpdateScreenTest, DISABLED_UpdateScreenSteps) {
+IN_PROC_BROWSER_TEST_P(UpdateScreenTest, UpdateScreenSteps) {
   base::ScopedMockTimeMessageLoopTaskRunner mocked_task_runner;
   SetTickClockAndDefaultDelaysForTesting(
       mocked_task_runner->GetMockTickClock());
@@ -1010,7 +999,7 @@ IN_PROC_BROWSER_TEST_P(UpdateScreenTest, DISABLED_UpdateScreenSteps) {
   update_engine_client()->set_default_status(status);
   update_engine_client()->NotifyObserversThatStatusChanged(status);
 
-  if (GetParam().is_eu && features::IsConsumerAutoUpdateToggleAllowed()) {
+  if (GetParam().is_eu) {
     test::OobeJS().ExpectVisiblePath(kBetterUpdateCheckingForUpdatesDialog);
   } else {
     test::OobeJS().ExpectHiddenPath(kBetterUpdateCheckingForUpdatesDialog);
@@ -1019,8 +1008,9 @@ IN_PROC_BROWSER_TEST_P(UpdateScreenTest, DISABLED_UpdateScreenSteps) {
   test::OobeJS().ExpectHiddenPath(kRestartingDialog);
   test::OobeJS().ExpectHiddenPath(kBetterUpdateCompletedDialog);
 
-  if (!GetParam().is_eu || !features::IsConsumerAutoUpdateToggleAllowed())
+  if (!GetParam().is_eu) {
     update_screen_->GetShowTimerForTesting()->FireNow();
+  }
 
   test::OobeJS().ExpectVisiblePath(kBetterUpdateCheckingForUpdatesDialog);
   test::OobeJS().ExpectHiddenPath(kUpdateInProgressDialog);
@@ -1087,7 +1077,7 @@ IN_PROC_BROWSER_TEST_P(UpdateScreenTest, DISABLED_UpdateScreenSteps) {
   ASSERT_EQ(update_engine_client()->reboot_after_update_call_count(), 1);
 
   // Simulate the situation where reboot does not happen in time.
-  ASSERT_TRUE(version_updater_->GetRebootTimerForTesting()->IsRunning());
+  ASSERT_TRUE(version_updater_->get_reboot_timer_for_testing()->IsRunning());
   mocked_task_runner->FastForwardBy(kTimeDefaultWaiting);
 
   test::OobeJS().ExpectHiddenPath(kBetterUpdateCheckingForUpdatesDialog);
@@ -1096,8 +1086,7 @@ IN_PROC_BROWSER_TEST_P(UpdateScreenTest, DISABLED_UpdateScreenSteps) {
   test::OobeJS().ExpectVisiblePath(kBetterUpdateCompletedDialog);
 }
 
-// TODO(crbug.com/1324627): Fix this test.
-IN_PROC_BROWSER_TEST_P(UpdateScreenTest, DISABLED_UpdateOverCellularShown) {
+IN_PROC_BROWSER_TEST_P(UpdateScreenTest, UpdateOverCellularShown) {
   base::ScopedMockTimeMessageLoopTaskRunner mocked_task_runner;
   SetTickClockAndDefaultDelaysForTesting(
       mocked_task_runner->GetMockTickClock());

@@ -7,15 +7,16 @@ package org.chromium.chrome.browser.toolbar;
 import android.content.Context;
 import android.content.res.ColorStateList;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 
 /**
- * {@link ThemeColorProvider} that blindly tracks whatever primary color it's set to.
- * It contains no actual tracking logic; to function properly, setPrimaryColor must be called each
- * time the color changes.
+ * {@link ThemeColorProvider} that tracks whatever primary color it's set to. It contains no actual
+ * tracking logic; to function properly, setPrimaryColor must be called each time the color changes.
  */
 @Deprecated
+@NullMarked
 class SettableThemeColorProvider extends ThemeColorProvider {
     /**
      * @param context The {@link Context} that is used to retrieve color related resources.
@@ -24,17 +25,13 @@ class SettableThemeColorProvider extends ThemeColorProvider {
         super(context);
     }
 
-    /**
-     * Sets the primary color to the specified value.
-     */
+    /** Sets the primary color to the specified value. */
     public void setPrimaryColor(int color, boolean shouldAnimate) {
         updatePrimaryColor(color, shouldAnimate);
     }
 
-    /**
-     * Sets the tint to the specified value.
-     */
+    /** Sets the tint to the specified value. */
     public void setTint(ColorStateList tint, @BrandedColorScheme int brandedColorScheme) {
-        updateTint(tint, brandedColorScheme);
+        updateTint(tint, tint, brandedColorScheme);
     }
 }

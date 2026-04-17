@@ -30,6 +30,21 @@ void PropertyRegistry::RemoveDeclaredProperties() {
   version_++;
 }
 
+void PropertyRegistry::AddRegistrationForInspector(
+    const AtomicString& name,
+    PropertyRegistration& registration) {
+  DCHECK(!IsInRegisteredPropertySet(name));
+  registered_properties_.Set(name, &registration);
+}
+
+void PropertyRegistry::RemoveRegistrationForInspector(
+    const AtomicString& name) {
+  if (!IsInRegisteredPropertySet(name)) {
+    return;
+  }
+  declared_properties_.erase(name);
+}
+
 const PropertyRegistration* PropertyRegistry::Registration(
     const AtomicString& name) const {
   // If a property is registered with both CSS.registerProperty and @property,
@@ -38,7 +53,7 @@ const PropertyRegistration* PropertyRegistry::Registration(
   // https://drafts.css-houdini.org/css-properties-values-api-1/#determining-registration
   auto it = registered_properties_.find(name);
   if (it != registered_properties_.end()) {
-    return it->value;
+    return it->value.Get();
   }
   it = declared_properties_.find(name);
   return it != declared_properties_.end() ? it->value : nullptr;

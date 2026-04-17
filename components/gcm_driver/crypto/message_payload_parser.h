@@ -7,9 +7,10 @@
 
 #include <stdint.h>
 
+#include <optional>
+#include <string_view>
+
 #include "base/check.h"
-#include "base/strings/string_piece.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace gcm {
 
@@ -35,7 +36,7 @@ enum class GCMDecryptionResult;
 // https://tools.ietf.org/html/draft-ietf-webpush-encryption-08#section-3.1
 class MessagePayloadParser {
  public:
-  explicit MessagePayloadParser(base::StringPiece message);
+  explicit MessagePayloadParser(std::string_view message);
 
   MessagePayloadParser(const MessagePayloadParser&) = delete;
   MessagePayloadParser& operator=(const MessagePayloadParser&) = delete;
@@ -84,7 +85,7 @@ class MessagePayloadParser {
 
  private:
   bool is_valid_ = false;
-  absl::optional<GCMDecryptionResult> failure_reason_;
+  std::optional<GCMDecryptionResult> failure_reason_;
 
   std::string salt_;
   uint32_t record_size_ = 0;

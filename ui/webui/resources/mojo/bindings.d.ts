@@ -36,13 +36,73 @@ declare global {
     RESULT_SHOULD_WAIT = 17,
   }
 
+  namespace Mojo {
+    // The following constants already belong to the `MojoResult` enum, but code
+    // already references these constants as Mojo.MOJO_RESULT_NAME. To preserve
+    // that functionality, redefine these as constants in the Mojo namespace
+    // here. This allows us to keep the `Mojo` a namespace (the alternative is a
+    // undefined const variable typed to &MojoResult with additional APIs, but
+    // this causes issues with clients using the bindings as externs only as
+    // calling the APIs results in 'Mojo is undefined' errors).
+    const RESULT_OK = MojoResult.RESULT_OK;
+    const RESULT_CANCELLED = MojoResult.RESULT_CANCELLED;
+    const RESULT_UNKNOWN = MojoResult.RESULT_UNKNOWN;
+    const RESULT_INVALID_ARGUMENT = MojoResult.RESULT_INVALID_ARGUMENT;
+    const RESULT_DEADLINE_EXCEEDED = MojoResult.RESULT_DEADLINE_EXCEEDED;
+    const RESULT_NOT_FOUND = MojoResult.RESULT_NOT_FOUND;
+    const RESULT_ALREADY_EXISTS = MojoResult.RESULT_ALREADY_EXISTS;
+    const RESULT_PERMISSION_DENIED = MojoResult.RESULT_PERMISSION_DENIED;
+    const RESULT_RESOURCE_EXHAUSTED = MojoResult.RESULT_RESOURCE_EXHAUSTED;
+    const RESULT_FAILED_PRECONDITION = MojoResult.RESULT_FAILED_PRECONDITION;
+    const RESULT_ABORTED = MojoResult.RESULT_ABORTED;
+    const RESULT_OUT_OF_RANGE = MojoResult.RESULT_OUT_OF_RANGE;
+    const RESULT_UNIMPLEMENTED = MojoResult.RESULT_UNIMPLEMENTED;
+    const RESULT_INTERNAL = MojoResult.RESULT_INTERNAL;
+    const RESULT_UNAVAILABLE = MojoResult.RESULT_UNAVAILABLE;
+    const RESULT_DATA_LOSS = MojoResult.RESULT_DATA_LOSS;
+    const RESULT_BUSY = MojoResult.RESULT_BUSY;
+    const RESULT_SHOULD_WAIT = MojoResult.RESULT_SHOULD_WAIT;
+  }
+
+  interface MojoHandleSignals {
+    readable?: boolean;
+    writable?: boolean;
+    peerClosed?: boolean;
+  }
+
+  type MojoWatchCallback = (result: MojoResult) => void;
+
+  interface MojoWatcher {
+    cancel(): MojoResult;
+  }
+
+  interface MojoReadMessageFlags {
+    mayDiscard: boolean;
+  }
+
+  interface MojoReadMessageResult {
+    result: MojoResult;
+    buffer: ArrayBuffer;
+    handles: MojoHandle[];
+  }
+
   interface MojoMapBufferResult {
     buffer: ArrayBuffer;
     result: MojoResult;
   }
 
   interface MojoHandle {
+    close(): void;
+    watch(signals: MojoHandleSignals, callback: MojoWatchCallback): MojoWatcher;
+    writeMessage(buffer: BufferSource, handles: MojoHandle[]): MojoResult;
+    readMessage(flags?: MojoReadMessageFlags): MojoReadMessageResult;
     mapBuffer(start: number, end: number): MojoMapBufferResult;
+  }
+
+  interface MojoCreateMessagePipeResult {
+    result: MojoResult;
+    handle0: MojoHandle;
+    handle1: MojoHandle;
   }
 
   interface MojoCreateSharedBufferResult {
@@ -50,9 +110,12 @@ declare global {
     result: MojoResult;
   }
 
-  const Mojo: typeof MojoResult&{
-    createSharedBuffer(numBytes: number): MojoCreateSharedBufferResult,
-  };
+  namespace Mojo {
+    function createMessagePipe(): MojoCreateMessagePipeResult;
+    function createSharedBuffer(numBytes: number): MojoCreateSharedBufferResult;
+    function bindInterface(
+        interfaceName: string, requestHandle: MojoHandle, scope?: string): void;
+  }
 
   interface MojoInterfaceRequestEvent {
     handle: MojoHandle;
@@ -72,6 +135,8 @@ export namespace mojo {
       interface Endpoint {}
 
       function getEndpointForReceiver(handle: MojoHandle|Endpoint): Endpoint;
+      function acceptBufferForTesting(endpoint: Endpoint, buffer: ArrayBuffer):
+          void;
 
       function bind(handle: Endpoint, name: string, scope: string): void;
 
@@ -98,8 +163,8 @@ export namespace mojo {
         getConnectionErrorEventRouter(): ConnectionErrorEventRouter;
         sendMessage(
             ordinal: number, paramStruct: mojo.internal.MojomType,
-            maybeResponseStruct: mojo.internal.MojomType|null,
-            args: any[]): Promise<any>;
+            maybeResponseStruct: mojo.internal.MojomType|null, args: any[],
+            useResultResponse: boolean): Promise<any>;
       }
 
       class InterfaceRemoteBaseWrapper<T> {
@@ -128,8 +193,8 @@ export namespace mojo {
         constructor(remoteType: RemoteType<T>);
         registerHandler(
             ordinal: number, paramStruct: mojo.internal.MojomType,
-            responseStruct: mojo.internal.MojomType|null,
-            handler: Function): void;
+            responseStruct: mojo.internal.MojomType|null, handler: Function,
+            useResultResponse: boolean): void;
         getConnectionErrorEventRouter(): ConnectionErrorEventRouter;
       }
 
@@ -139,9 +204,11 @@ export namespace mojo {
         bindNewPipeAndPassRemote(): T;
         associateAndPassRemote(): T;
         close(): void;
-        flushForTesting(): Promise<void>;
+        flush(): Promise<void>;
       }
     }
+
+    class Decoder {}
 
     interface MojomType {}
     class Bool implements MojomType {}
@@ -164,23 +231,63 @@ export namespace mojo {
         valueNullable: boolean): MojomType;
     function Enum(): MojomType;
 
-    interface StructFieldSpec {
+    interface NullableValueKindProperties {
+      isPrimary: boolean;
+      linkedValueFieldName?: string;
+      originalFieldName: string;
+    }
+
+    interface StructFieldSpec<StructType, FieldType> {
       name: string;
       packedOffset: number;
       packedBitOffset: number;
       type: MojomType;
-      defaultValue: any;
+      // defaultValue needs to be nullable because we need to have some sort
+      // of placeholder here. This field should never be used if the following
+      // "nullable" field is set to false.
+      defaultValue: FieldType|null;
       nullable: boolean;
       minVersion: number;
+      nullableValueKindProperties?: NullableValueKindProperties;
+      fieldGetter?: (value: StructType) => FieldType;
     }
 
-    function StructField(
-        name: string, packedOffset: number, packedBitOffset: number,
-        type: MojomType, defaultValue: any, nullable: boolean,
-        minVersion?: number): StructFieldSpec;
+    function createStructDeserializer(structMojomType: mojo.internal.MojomType):
+        (dataView: DataView) => {
+          [key: string]: any,
+        };
 
-    function Struct(
-        objectToBlessAsType: object, name: string, fields: StructFieldSpec[],
+
+    function StructField<StructType, FieldType>(
+        name: string, packedOffset: number, packedBitOffset: number,
+        type: MojomType, defaultValue: FieldType|null, nullable: boolean,
+        minVersion?: number,
+        nullableValueKindProperites?: NullableValueKindProperties,
+        fieldGetter?: (value: StructType) => FieldType |
+            null): StructFieldSpec<StructType, FieldType>;
+
+    function Struct<StructType>(
+        objectToBlessAsType: object, name: string,
+        fields: Array<StructFieldSpec<StructType, any>>,
+        versionData: number[][]): void;
+
+    class TypemapAdapter<MappedType, MojoType> {
+      constructor(
+          toMappedTypeFn: (mojoType: MojoType) => MappedType,
+      );
+    }
+
+    class MojoDataView<StructType> {
+      constructor(
+          decoder: mojo.internal.Decoder, version: number,
+          fieldSpecs: Array<mojo.internal.StructFieldSpec<StructType, any>>);
+    }
+
+    function TypemappedStruct<MappedType, MojoType>(
+        objectToBlessAsType: object, name: string,
+        dataViewType: MojoDataView<MappedType>,
+        adapter: TypemapAdapter<MappedType, MojoType>,
+        fields: Array<StructFieldSpec<MappedType, any>>,
         versionData: number[][]): void;
 
     interface UnionFieldSpec {
@@ -198,5 +305,11 @@ export namespace mojo {
     function InterfaceRequest(type: {name: string}): MojomType;
     function AssociatedInterfaceProxy(type: {name: string}): MojomType;
     function AssociatedInterfaceRequest(type: {name: string}): MojomType;
+    function decodeStructField(
+        decoder: Decoder, fieldSpec: StructFieldSpec<any, any>,
+        version: number): any;
+    function decodeStructNullableValueField(
+        decoder: Decoder, flagFieldSpec: StructFieldSpec<any, any>,
+        fieldSpecs: Array<StructFieldSpec<any, any>>, version: number): any;
   }
 }

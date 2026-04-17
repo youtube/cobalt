@@ -4,6 +4,8 @@
 
 #include "gin/arguments.h"
 
+#include <string_view>
+
 #include "base/functional/bind.h"
 #include "gin/converter.h"
 #include "gin/object_template_builder.h"
@@ -78,21 +80,23 @@ TEST_F(ArgumentsTest, TestGetAll) {
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Context> context = context_.Get(instance_->isolate());
 
-  using V8List = std::vector<v8::Local<v8::Value>>;
+  using V8List = v8::LocalVector<v8::Value>;
 
-  V8List list1 = {
-      gin::ConvertToV8(isolate, 1), gin::StringToV8(isolate, "some string"),
-      gin::ConvertToV8(isolate, std::vector<double>({2.0, 3.0})),
-  };
+  V8List list1(isolate,
+               {
+                   gin::ConvertToV8(isolate, 1),
+                   gin::StringToV8(isolate, "some string"),
+                   gin::ConvertToV8(isolate, std::vector<double>({2.0, 3.0})),
+               });
   bool called1 = false;
 
-  V8List list2 = {
-      gin::StringToV8(isolate, "some other string"),
-      gin::ConvertToV8(isolate, 42),
-  };
+  V8List list2(isolate, {
+                            gin::StringToV8(isolate, "some other string"),
+                            gin::ConvertToV8(isolate, 42),
+                        });
   bool called2 = false;
 
-  V8List list3;  // Empty list.
+  V8List list3(isolate);  // Empty list.
   bool called3 = false;
 
   auto check_arguments = [](V8List* expected, bool* called,
@@ -119,7 +123,7 @@ TEST_F(ArgumentsTest, TestGetAll) {
   v8::Local<v8::Object> object =
       object_template->NewInstance(context).ToLocalChecked();
 
-  auto do_check = [object, context](V8List& args, base::StringPiece key) {
+  auto do_check = [object, context](V8List& args, std::string_view key) {
     v8::Local<v8::Value> val;
     ASSERT_TRUE(
         object->Get(context, gin::StringToSymbol(context->GetIsolate(), key))

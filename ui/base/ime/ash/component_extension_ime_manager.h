@@ -7,6 +7,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 
 #include "base/component_export.h"
@@ -14,7 +15,9 @@
 #include "ui/base/ime/ash/component_extension_ime_manager_delegate.h"
 #include "ui/base/ime/ash/input_method_descriptor.h"
 
-class Profile;
+namespace content {
+class BrowserContext;
+}
 
 namespace ash {
 
@@ -28,6 +31,7 @@ struct COMPONENT_EXPORT(UI_BASE_IME_ASH) ComponentExtensionEngine {
   std::string indicator;
   std::vector<std::string> language_codes;  // e.g. "en".
   std::string layout;
+  std::optional<std::string> handwriting_language;
   GURL options_page_url;
   GURL input_view_url;
 };
@@ -37,8 +41,8 @@ struct COMPONENT_EXPORT(UI_BASE_IME_ASH) ComponentExtensionIME {
   ComponentExtensionIME();
   ComponentExtensionIME(const ComponentExtensionIME& other);
   ~ComponentExtensionIME();
-  std::string id;  // extension id.
-  std::string manifest;  // the contents of manifest.json
+  std::string id;           // extension id.
+  std::string manifest;     // the contents of manifest.json
   std::string description;  // description of extension.
   GURL options_page_url;
   base::FilePath path;
@@ -48,7 +52,7 @@ struct COMPONENT_EXPORT(UI_BASE_IME_ASH) ComponentExtensionIME {
 // This class manages component extension input method.
 class COMPONENT_EXPORT(UI_BASE_IME_ASH) ComponentExtensionIMEManager {
  public:
-  ComponentExtensionIMEManager(
+  explicit ComponentExtensionIMEManager(
       std::unique_ptr<ComponentExtensionIMEManagerDelegate> delegate);
 
   ComponentExtensionIMEManager(const ComponentExtensionIMEManager&) = delete;
@@ -64,7 +68,7 @@ class COMPONENT_EXPORT(UI_BASE_IME_ASH) ComponentExtensionIMEManager {
   // already loaded or there is not any IME extension found for the
   // |input_method_id|.
   bool LoadComponentExtensionIME(
-      Profile* profile,
+      content::BrowserContext* profile,
       const std::string& input_method_id,
       std::set<std::string>* extension_loaded = nullptr);
 
@@ -84,7 +88,7 @@ class COMPONENT_EXPORT(UI_BASE_IME_ASH) ComponentExtensionIMEManager {
 
  private:
   // Finds ComponentExtensionIME and EngineDescription associated with
-  // |input_method_id|. This function retruns true if it is found, otherwise
+  // |input_method_id|. This function returns true if it is found, otherwise
   // returns false. |out_extension| and |out_engine| can be nullptr.
   bool FindEngineEntry(const std::string& input_method_id,
                        ComponentExtensionIME* out_extension);

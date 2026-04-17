@@ -37,10 +37,11 @@ TEST_F(TextFinderManagerTest, SingleTextFinderTest) {
           [](std::pair<std::string, bool> text_found) { return; });
   const auto id = manager->CreateTextFinder(
       text_directive, std::move(finished_finding_callback));
+  EXPECT_TRUE(id.has_value());
   EXPECT_EQ(manager->Size(), 1u);
 
   // Remove text finder.
-  manager->RemoveTextFinder(id);
+  manager->RemoveTextFinder(id.value());
   EXPECT_EQ(manager->Size(), 0u);
 }
 
@@ -68,10 +69,12 @@ TEST_F(TextFinderManagerTest, MultiTextFindersTest) {
                 id_and_text_finder.second->GetTextDirective() == "def");
     if (id_and_text_finder.second->GetTextDirective() == "ab,cd") {
       // Found text
-      id_and_text_finder.second->DidFinishAttachment(rect_1);
+      id_and_text_finder.second->DidFinishAttachment(
+          rect_1, blink::mojom::AttachmentResult::kSuccess);
     } else {
       // Not found.
-      id_and_text_finder.second->DidFinishAttachment(rect_2);
+      id_and_text_finder.second->DidFinishAttachment(
+          rect_2, blink::mojom::AttachmentResult::kSelectorNotMatched);
     }
   }
 }

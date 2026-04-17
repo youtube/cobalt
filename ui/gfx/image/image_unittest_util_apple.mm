@@ -6,8 +6,8 @@
 
 #import <CoreGraphics/CoreGraphics.h>
 
+#include "base/apple/scoped_cftyperef.h"
 #include "base/bit_cast.h"
-#include "base/mac/scoped_cftyperef.h"
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_MAC)
@@ -34,25 +34,28 @@ SkColor GetPlatformImageColor(PlatformImage image, int x, int y) {
 #endif
 
   // Start by extracting the target pixel into a 1x1 CGImage.
-  base::ScopedCFTypeRef<CGImageRef> pixel_image(CGImageCreateWithImageInRect(
-      image_ref, target_pixel));
+  base::apple::ScopedCFTypeRef<CGImageRef> pixel_image(
+      CGImageCreateWithImageInRect(image_ref, target_pixel));
 
   // Draw that pixel into a 1x1 bitmap context.
-  base::ScopedCFTypeRef<CGColorSpaceRef> color_space(
+  base::apple::ScopedCFTypeRef<CGColorSpaceRef> color_space(
       CGColorSpaceCreateDeviceRGB());
-  base::ScopedCFTypeRef<CGContextRef> bitmap_context(CGBitmapContextCreate(
-      /*data=*/nullptr,
-      /*width=*/1,
-      /*height=*/1,
-      /*bitsPerComponent=*/8,
-      /*bytesPerRow=*/4, color_space,
-      kCGImageAlphaPremultipliedFirst |
-          static_cast<CGImageAlphaInfo>(kCGBitmapByteOrder32Host)));
-  CGContextDrawImage(bitmap_context, CGRectMake(0, 0, 1, 1), pixel_image);
+  base::apple::ScopedCFTypeRef<CGContextRef> bitmap_context(
+      CGBitmapContextCreate(
+          /*data=*/nullptr,
+          /*width=*/1,
+          /*height=*/1,
+          /*bitsPerComponent=*/8,
+          /*bytesPerRow=*/4, color_space.get(),
+          kCGImageAlphaPremultipliedFirst |
+              static_cast<CGImageAlphaInfo>(kCGBitmapByteOrder32Host)));
+  CGContextDrawImage(bitmap_context.get(), CGRectMake(0, 0, 1, 1),
+                     pixel_image.get());
 
   // The CGBitmapContext has the same memory layout as SkColor, so we can just
   // read an SkColor straight out of the context.
-  return *reinterpret_cast<SkColor*>(CGBitmapContextGetData(bitmap_context));
+  return *reinterpret_cast<SkColor*>(
+      CGBitmapContextGetData(bitmap_context.get()));
 }
 
 }  // namespace gfx::test

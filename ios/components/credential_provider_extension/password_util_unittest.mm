@@ -2,16 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 #import "ios/components/credential_provider_extension/password_util.h"
 
 #import <Foundation/Foundation.h>
 #import <Security/Security.h>
 
-#import "base/mac/scoped_cftyperef.h"
+#import "base/apple/scoped_cftyperef.h"
 #import "base/strings/sys_string_conversions.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
@@ -22,6 +18,10 @@ namespace credential_provider_extension {
 NSString* kCredentialKey1 = @"key1";
 NSString* kCredentialKey2 = @"key2";
 
+NSString* kAccountInfoEmail1 = @"peter.parker@gmail.com";
+NSString* kAccountInfoEmail2 = @"mary.jane@gmail.com";
+NSString* kAccountInfoGaia1 = @"123456789";
+NSString* kAccountInfoGaia2 = @"987654321";
 NSString* kCredentialPassword1 = @"pa55word1";
 NSString* kCredentialPassword2 = @"p4ssw0rd2";
 
@@ -42,7 +42,7 @@ void RemovePasswordForKey(NSString* key) {
 
 void AddPasswordForKey(NSString* key, NSString* password) {
   std::string utf8_password = base::SysNSStringToUTF8(password);
-  base::ScopedCFTypeRef<CFDataRef> data(CFDataCreate(
+  base::apple::ScopedCFTypeRef<CFDataRef> data(CFDataCreate(
       nullptr, reinterpret_cast<const UInt8*>(utf8_password.data()),
       utf8_password.size()));
 
@@ -64,7 +64,7 @@ void VerifyKeyNotFound(NSString* key) {
     (__bridge NSString*)kSecAttrAccount : KeyWithPrefix(key),
     (__bridge NSString*)kSecReturnData : @YES,
   };
-  base::ScopedCFTypeRef<CFTypeRef> cf_result;
+  base::apple::ScopedCFTypeRef<CFTypeRef> cf_result;
   OSStatus status = SecItemCopyMatching((__bridge CFDictionaryRef)query,
                                         cf_result.InitializeInto());
   ASSERT_EQ(errSecItemNotFound, status);
@@ -92,24 +92,24 @@ void PasswordUtilKeychainTest::TearDown() {
 TEST_F(PasswordUtilKeychainTest, CheckRestoreOfSavedPasswords) {
   AddPasswordForKey(kCredentialKey1, kCredentialPassword1);
   AddPasswordForKey(kCredentialKey2, kCredentialPassword2);
-  ASSERT_TRUE([PasswordWithKeychainIdentifier(KeyWithPrefix(kCredentialKey2))
-      isEqualToString:kCredentialPassword2]);
-  ASSERT_TRUE([PasswordWithKeychainIdentifier(KeyWithPrefix(kCredentialKey1))
-      isEqualToString:kCredentialPassword1]);
+  EXPECT_NSEQ(PasswordWithKeychainIdentifier(KeyWithPrefix(kCredentialKey2)),
+              kCredentialPassword2);
+  EXPECT_NSEQ(PasswordWithKeychainIdentifier(KeyWithPrefix(kCredentialKey1)),
+              kCredentialPassword1);
   RemovePasswordForKey(kCredentialKey1);
-  ASSERT_TRUE([PasswordWithKeychainIdentifier(KeyWithPrefix(kCredentialKey2))
-      isEqualToString:kCredentialPassword2]);
+  EXPECT_NSEQ(PasswordWithKeychainIdentifier(KeyWithPrefix(kCredentialKey2)),
+              kCredentialPassword2);
   RemovePasswordForKey(kCredentialKey2);
 }
 
 // Tests retrieval of saved passwords, using an empty string as arg.
 TEST_F(PasswordUtilKeychainTest, EmptyArgument) {
-  ASSERT_TRUE([PasswordWithKeychainIdentifier(@"") isEqualToString:@""]);
+  EXPECT_NSEQ(PasswordWithKeychainIdentifier(@""), nil);
 }
 
 // Tests retrieval of saved passwords, nil as arg.
 TEST_F(PasswordUtilKeychainTest, NilArgument) {
-  ASSERT_TRUE([PasswordWithKeychainIdentifier(nil) isEqualToString:@""]);
+  EXPECT_NSEQ(PasswordWithKeychainIdentifier(nil), nil);
 }
 
 // Tests storing passwords with StorePassword.
@@ -119,13 +119,13 @@ TEST_F(PasswordUtilKeychainTest, CheckSavingPasswords) {
   EXPECT_TRUE(StorePasswordInKeychain(kCredentialPassword2,
                                       KeyWithPrefix(kCredentialKey2)));
 
-  ASSERT_TRUE([PasswordWithKeychainIdentifier(KeyWithPrefix(kCredentialKey2))
-      isEqualToString:kCredentialPassword2]);
-  ASSERT_TRUE([PasswordWithKeychainIdentifier(KeyWithPrefix(kCredentialKey1))
-      isEqualToString:kCredentialPassword1]);
+  EXPECT_NSEQ(PasswordWithKeychainIdentifier(KeyWithPrefix(kCredentialKey2)),
+              kCredentialPassword2);
+  EXPECT_NSEQ(PasswordWithKeychainIdentifier(KeyWithPrefix(kCredentialKey1)),
+              kCredentialPassword1);
   RemovePasswordForKey(kCredentialKey1);
-  ASSERT_TRUE([PasswordWithKeychainIdentifier(KeyWithPrefix(kCredentialKey2))
-      isEqualToString:kCredentialPassword2]);
+  EXPECT_NSEQ(PasswordWithKeychainIdentifier(KeyWithPrefix(kCredentialKey2)),
+              kCredentialPassword2);
   RemovePasswordForKey(kCredentialKey2);
 }
 
@@ -134,4 +134,4 @@ TEST_F(PasswordUtilKeychainTest, StoreEmptyIdentifier) {
   EXPECT_FALSE(StorePasswordInKeychain(kCredentialPassword1, @""));
 }
 
-}  // credential_provider_extension
+}  // namespace credential_provider_extension

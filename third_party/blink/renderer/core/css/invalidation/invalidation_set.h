@@ -95,8 +95,6 @@ struct CORE_EXPORT InvalidationSetDeleter {
 // We avoid virtual functions to minimize space consumption.
 class CORE_EXPORT InvalidationSet
     : public WTF::RefCounted<InvalidationSet, InvalidationSetDeleter> {
-  USING_FAST_MALLOC_WITH_TYPE_NAME(blink::InvalidationSet);
-
  public:
   InvalidationSet(const InvalidationSet&) = delete;
   InvalidationSet& operator=(const InvalidationSet&) = delete;
@@ -116,8 +114,6 @@ class CORE_EXPORT InvalidationSet
   bool IsNthSiblingInvalidationSet() const {
     return GetType() == InvalidationType::kInvalidateNthSiblings;
   }
-
-  static void CacheTracingFlag();
 
   bool InvalidatesElement(Element&) const;
   bool InvalidatesTagName(Element&) const;
@@ -139,7 +135,10 @@ class CORE_EXPORT InvalidationSet
   void SetInvalidatesSelf() { invalidates_self_ = true; }
   bool InvalidatesSelf() const { return invalidates_self_; }
 
-  void SetInvalidatesNth() { invalidates_nth_ = true; }
+  void SetInvalidatesNth() {
+    DCHECK(!IsSelfInvalidationSet());
+    invalidates_nth_ = true;
+  }
   bool InvalidatesNth() const { return invalidates_nth_; }
 
   void SetTreeBoundaryCrossing() {
@@ -179,15 +178,21 @@ class CORE_EXPORT InvalidationSet
     return invalidation_flags_.InvalidatesParts();
   }
 
+  void SetInvalidatesTreeCounting() {
+    invalidation_flags_.SetInvalidatesTreeCounting(true);
+  }
+  bool InvalidatesTreeCounting() const {
+    return invalidation_flags_.InvalidatesTreeCounting();
+  }
+
   bool IsEmpty() const {
     return HasEmptyBackings() &&
            !invalidation_flags_.InvalidateCustomPseudo() &&
            !invalidation_flags_.InsertionPointCrossing() &&
            !invalidation_flags_.InvalidatesSlotted() &&
-           !invalidation_flags_.InvalidatesParts();
+           !invalidation_flags_.InvalidatesParts() &&
+           !invalidation_flags_.InvalidatesTreeCounting();
   }
-
-  bool IsAlive() const { return is_alive_; }
 
   void WriteIntoTrace(perfetto::TracedValue context) const;
 
@@ -210,6 +215,7 @@ class CORE_EXPORT InvalidationSet
   // Flags (omitted if false):
   //
   //  $ - Invalidates self.
+  //  N - Invalidates Nth sibling.
   //  W - Whole subtree invalid.
   //  C - Invalidates custom pseudo.
   //  T - Tree boundary crossing.
@@ -234,6 +240,20 @@ class CORE_EXPORT InvalidationSet
   // shadow-including descendants with part attributes.
   static InvalidationSet* PartInvalidationSet();
 
+  // Returns a singleton NthSiblingInvalidationSet which invalidates all
+  // siblings whose ComputedStyle depends on tree-counting functions such as
+  // sibling-count() and sibling-index(). It does so by setting
+  // invalidates_tree_counting_ along with invalidates_self_, making it
+  // equivalent to an imaginary ':nth-child(n):has-tree-counting-style'
+  // selector, where ':has-tree-counting-style' matches an element with a
+  // ComputedStyle that relies on the evaluation of tree-counting functions.
+  //
+  // This set is scheduled on ContainerNodes marked with
+  // ChildrenAffectedByForwardPositionalRules() or
+  // ChildrenAffectedByBackwardPositionalRules() when child elements are
+  // inserted, removed, or change target slot.
+  static InvalidationSet* TreeCountingInvalidationSet();
+
   enum class BackingType {
     kClasses,
     kIds,
@@ -248,7 +268,7 @@ class CORE_EXPORT InvalidationSet
 
   // Each BackingType has a corresponding bit in an instance of this class. A
   // set bit indicates that the Backing at that position is a HashSet. An unset
-  // bit indicates a StringImpl (which may be nullptr).
+  // bit indicates an AtomicString (which may be null).
   class BackingFlags {
    private:
     uint8_t bits_ = 0;
@@ -260,14 +280,14 @@ class CORE_EXPORT InvalidationSet
   // attributes to invalidate. However, since it's common for these hash sets
   // to contain only one element (with a total capacity of 8), we avoid creating
   // the actual HashSets until we have more than one item. If a set contains
-  // just one item, we store a pointer to a StringImpl instead, along with a
-  // bit indicating either StringImpl or HashSet.
+  // just one item, we store an AtomicString instead, along with a bit
+  // indicating either AtomicString or HashSet.
   //
   // The bits (see BackingFlags) associated with each Backing are stored on the
   // outside, to make sizeof(InvalidationSet) as small as possible.
   //
   // WARNING: Backings must be cleared manually in ~InvalidationSet, otherwise
-  //          a StringImpl or HashSet will leak.
+  //          an AtomicString or HashSet will leak.
   template <BackingType type>
   union Backing {
     using Flags = BackingFlags;
@@ -280,11 +300,11 @@ class CORE_EXPORT InvalidationSet
     }
 
     // Adds an AtomicString to the associated Backing. If the Backing is
-    // currently empty, we simply AddRef the StringImpl of the incoming
-    // AtomicString. If the Backing already has one item, we first "upgrade"
-    // to a HashSet, and add the AtomicString.
+    // currently empty, we simply copy the incoming AtomicString, which AddRefs
+    // the underlying StringImpl. If the Backing already has one item, we first
+    // "upgrade" to a HashSet, and add the AtomicString.
     void Add(Flags&, const AtomicString&);
-    // Clears the associated Backing. If the Backing is a String, it is
+    // Clears the associated Backing. If the Backing is an AtomicString, it is
     // destroyed. If the Backing is a HashSet, it is deleted.
     void Clear(Flags&);
     bool Contains(const Flags&, const AtomicString&) const;
@@ -292,7 +312,7 @@ class CORE_EXPORT InvalidationSet
     size_t Size(const Flags&) const;
     bool IsHashSet(const Flags& flags) const { return flags.bits_ & GetMask(); }
 
-    const String* GetString(const Flags& flags) const {
+    const AtomicString* GetString(const Flags& flags) const {
       return IsHashSet(flags) ? nullptr : &string_;
     }
     const HashSet<AtomicString>* GetHashSet(const Flags& flags) const {
@@ -300,12 +320,12 @@ class CORE_EXPORT InvalidationSet
     }
 
     // A simple forward iterator, which can either "iterate" over a single
-    // StringImpl, or act as a wrapper for HashSet<AtomicString>::iterator.
+    // AtomicString, or act as a wrapper for HashSet<AtomicString>::iterator.
     class Iterator {
      public:
       enum class Type { kString, kHashSet };
 
-      explicit Iterator(const String& string_impl)
+      explicit Iterator(const AtomicString& string_impl)
           : type_(Type::kString), string_(string_impl) {}
       explicit Iterator(HashSet<AtomicString>::iterator iterator)
           : type_(Type::kHashSet), hash_set_iterator_(iterator) {}
@@ -354,8 +374,8 @@ class CORE_EXPORT InvalidationSet
     Range Items(const Flags& flags) const {
       Iterator begin =
           IsHashSet(flags) ? Iterator(hash_set_->begin()) : Iterator(string_);
-      Iterator end = IsHashSet(flags) ? Iterator(hash_set_->end())
-                                      : Iterator(g_null_atom.Impl());
+      Iterator end =
+          IsHashSet(flags) ? Iterator(hash_set_->end()) : Iterator(g_null_atom);
       return Range(begin, end);
     }
 
@@ -364,7 +384,7 @@ class CORE_EXPORT InvalidationSet
     void SetIsString(Flags& flags) { flags.bits_ &= ~GetMask(); }
     void SetIsHashSet(Flags& flags) { flags.bits_ |= GetMask(); }
 
-    String string_{};
+    AtomicString string_{};
     HashSet<AtomicString>* hash_set_;
   };
 
@@ -372,8 +392,6 @@ class CORE_EXPORT InvalidationSet
   explicit InvalidationSet(InvalidationType);
 
   ~InvalidationSet() {
-    CHECK(is_alive_);
-    is_alive_ = false;
     ClearAllBackings();
   }
 
@@ -414,9 +432,9 @@ class CORE_EXPORT InvalidationSet
   }
 
   // Look for any class name on Element that is contained in |classes_|.
-  const String* FindAnyClass(Element&) const;
+  const AtomicString* FindAnyClass(Element&) const;
   // Look for any attribute on Element that is contained in |attributes_|.
-  const String* FindAnyAttribute(Element&) const;
+  const AtomicString* FindAnyAttribute(Element&) const;
 
   Backing<BackingType::kClasses> classes_;
   Backing<BackingType::kIds> ids_;
@@ -436,9 +454,6 @@ class CORE_EXPORT InvalidationSet
   // (unless we know for sure no child can be affected by a
   // selector of the :nth-child type).
   unsigned invalidates_nth_ : 1;
-
-  // If true, the instance is alive and can be used.
-  unsigned is_alive_ : 1;
 };
 
 class CORE_EXPORT DescendantInvalidationSet final : public InvalidationSet {
@@ -501,9 +516,12 @@ class CORE_EXPORT SiblingInvalidationSet : public InvalidationSet {
 
 // For invalidation of :nth-* selectors on dom mutations we use a sibling
 // invalidation set which is scheduled on the parent node of the DOM mutation
-// affected by the :nth-* selectors.
+// affected by the :nth-* selectors. Similarly, we use another
+// NthSiblingInvalidationSet for invalidating style for elements whose style
+// rely on tree-counting functions such as sibling-index(). See
+// InvalidationSet::TreeCountingInvalidationSet() for further documentation.
 //
-// During invalidation, the set is pushed into the SiblingData used for
+// During invalidation, such sets are pushed into the SiblingData used for
 // invalidating the direct children.
 //
 // Features are collected into this set as if the selectors were preceded by a
@@ -550,13 +568,13 @@ void InvalidationSet::Backing<type>::Add(InvalidationSet::BackingFlags& flags,
       return;
     }
     AtomicString atomic_string(std::move(string_));
-    string_.~String();
+    string_.~AtomicString();
     hash_set_ = new HashSet<AtomicString>();
     hash_set_->insert(atomic_string);
     hash_set_->insert(string);
     SetIsHashSet(flags);
   } else {
-    new (&string_) String(string.GetString());
+    new (&string_) AtomicString(string);
   }
 }
 
@@ -566,10 +584,10 @@ void InvalidationSet::Backing<type>::Clear(
   if (IsHashSet(flags)) {
     if (hash_set_) {
       delete hash_set_;
-      new (&string_) String;
+      new (&string_) AtomicString;
     }
   } else {
-    string_ = String();
+    string_ = AtomicString();
   }
   SetIsString(flags);
 }
@@ -596,7 +614,7 @@ size_t InvalidationSet::Backing<type>::Size(
   if (const HashSet<AtomicString>* set = GetHashSet(flags)) {
     return set->size();
   }
-  if (const String* string = GetString(flags)) {
+  if (GetString(flags)) {
     return 1;
   }
   return 0;

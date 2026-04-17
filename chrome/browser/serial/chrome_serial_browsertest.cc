@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <string_view>
+
 #include "base/command_line.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/scoped_feature_list.h"
@@ -48,6 +50,8 @@ class SerialTest : public InProcessBrowserTest {
     ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
   }
 
+  void TearDownOnMainThread() override { context_ = nullptr; }
+
   void TearDown() override {
     // Because SerialBlocklist is a singleton it must be cleared after tests run
     // to prevent leakage between tests.
@@ -55,7 +59,7 @@ class SerialTest : public InProcessBrowserTest {
     SerialBlocklist::Get().ResetToDefaultValuesForTesting();
   }
 
-  void SetDynamicBlocklist(base::StringPiece value) {
+  void SetDynamicBlocklist(std::string_view value) {
     feature_list_.Reset();
 
     std::map<std::string, std::string> parameters;
@@ -72,7 +76,7 @@ class SerialTest : public InProcessBrowserTest {
  private:
   base::test::ScopedFeatureList feature_list_;
   device::FakeSerialPortManager port_manager_;
-  raw_ptr<SerialChooserContext, DanglingUntriaged> context_;
+  raw_ptr<SerialChooserContext> context_ = nullptr;
 };
 
 IN_PROC_BROWSER_TEST_F(SerialTest, NavigateWithChooserCrossOrigin) {

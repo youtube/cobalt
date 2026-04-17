@@ -11,30 +11,32 @@
 import 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
 import 'chrome://resources/cr_elements/cr_input/cr_input.js';
-import 'chrome://resources/cr_elements/cr_fingerprint/cr_fingerprint_progress_arc.js';
+import 'chrome://resources/cr_elements/cr_spinner_style.css.js';
 import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
-import 'chrome://resources/polymer/v3_0/iron-icon/iron-icon.js';
+import 'chrome://resources/cr_elements/cr_page_selector/cr_page_selector.js';
+import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
 import 'chrome://resources/polymer/v3_0/iron-list/iron-list.js';
-import 'chrome://resources/polymer/v3_0/iron-pages/iron-pages.js';
-import 'chrome://resources/polymer/v3_0/paper-spinner/paper-spinner-lite.js';
 import '../settings_shared.css.js';
 import '../site_favicon.js';
 import '../i18n_setup.js';
+import './fingerprint_icons.html.js';
+import './fingerprint_progress_arc.js';
 
 import {getInstance as getAnnouncerInstance} from 'chrome://resources/cr_elements/cr_a11y_announcer/cr_a11y_announcer.js';
-import {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
-import {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
-import {CrFingerprintProgressArcElement} from 'chrome://resources/cr_elements/cr_fingerprint/cr_fingerprint_progress_arc.js';
-import {CrInputElement} from 'chrome://resources/cr_elements/cr_input/cr_input.js';
-import {assert, assertNotReached} from 'chrome://resources/js/assert_ts.js';
+import type {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
+import type {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
+import type {CrInputElement} from 'chrome://resources/cr_elements/cr_input/cr_input.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
 import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
-import {IronListElement} from 'chrome://resources/polymer/v3_0/iron-list/iron-list.js';
+import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
+import type {IronListElement} from 'chrome://resources/polymer/v3_0/iron-list/iron-list.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
+import type {FingerprintProgressArcElement} from './fingerprint_progress_arc.js';
 import {getTemplate} from './security_keys_bio_enroll_dialog.html.js';
-import {Ctap2Status, Enrollment, EnrollmentResponse, SampleResponse, SampleStatus, SecurityKeysBioEnrollProxy, SecurityKeysBioEnrollProxyImpl} from './security_keys_browser_proxy.js';
-import {SettingsSecurityKeysPinFieldElement} from './security_keys_pin_field.js';
+import type {Enrollment, EnrollmentResponse, SampleResponse, SecurityKeysBioEnrollProxy} from './security_keys_browser_proxy.js';
+import {Ctap2Status, SampleStatus, SecurityKeysBioEnrollProxyImpl} from './security_keys_browser_proxy.js';
+import type {SettingsSecurityKeysPinFieldElement} from './security_keys_pin_field.js';
 
 export enum BioEnrollDialogPage {
   INITIAL = 'initial',
@@ -48,7 +50,7 @@ export enum BioEnrollDialogPage {
 export interface SettingsSecurityKeysBioEnrollDialogElement {
   $: {
     addButton: HTMLElement,
-    arc: CrFingerprintProgressArcElement,
+    arc: FingerprintProgressArcElement,
     cancelButton: CrButtonElement,
     confirmButton: CrButtonElement,
     dialog: CrDialogElement,
@@ -106,21 +108,21 @@ export class SettingsSecurityKeysBioEnrollDialogElement extends
     };
   }
 
-  private cancelButtonDisabled_: boolean;
-  private cancelButtonVisible_: boolean;
-  private confirmButtonDisabled_: boolean;
-  private confirmButtonVisible_: boolean;
-  private confirmButtonLabel_: string;
-  private deleteInProgress_: boolean;
-  private dialogPage_: BioEnrollDialogPage;
-  private doneButtonVisible_: boolean;
-  private enrollments_: Enrollment[];
-  private minPinLength_: number;
-  private progressArcLabel_: string;
-  private recentEnrollmentName_: string;
-  private enrollmentNameError_: string|null;
-  private enrollmentNameMaxUtf8Length_: number;
-  private errorMsg_: string;
+  declare private cancelButtonDisabled_: boolean;
+  declare private cancelButtonVisible_: boolean;
+  declare private confirmButtonDisabled_: boolean;
+  declare private confirmButtonVisible_: boolean;
+  declare private confirmButtonLabel_: string;
+  declare private deleteInProgress_: boolean;
+  declare private dialogPage_: BioEnrollDialogPage;
+  declare private doneButtonVisible_: boolean;
+  declare private enrollments_: Enrollment[];
+  declare private minPinLength_: number;
+  declare private progressArcLabel_: string;
+  declare private recentEnrollmentName_: string;
+  declare private enrollmentNameError_: string|null;
+  declare private enrollmentNameMaxUtf8Length_: number;
+  declare private errorMsg_: string;
 
   private browserProxy_: SecurityKeysBioEnrollProxy =
       SecurityKeysBioEnrollProxyImpl.getInstance();
@@ -302,8 +304,8 @@ export class SettingsSecurityKeysBioEnrollDialogElement extends
         100 * (this.maxSamples_ - 1) / this.maxSamples_, 100, true);
 
     assert(response.enrollment);
-    this.recentEnrollmentId_ = response.enrollment!.id;
-    this.recentEnrollmentName_ = response.enrollment!.name;
+    this.recentEnrollmentId_ = response.enrollment.id;
+    this.recentEnrollmentName_ = response.enrollment.name;
     this.cancelButtonVisible_ = false;
     this.confirmButtonVisible_ = true;
     this.confirmButtonDisabled_ = false;
@@ -393,6 +395,9 @@ export class SettingsSecurityKeysBioEnrollDialogElement extends
     // Prevent this event from bubbling since it is unnecessarily triggering
     // the listener within settings-animated-pages.
     e.stopPropagation();
+
+    // Also asynchronously notify iron-list of the possible resize.
+    setTimeout(() => this.$.enrollmentList.notifyResize(), 0);
   }
 
   private deleteEnrollment_(event: {model: {index: number}}) {

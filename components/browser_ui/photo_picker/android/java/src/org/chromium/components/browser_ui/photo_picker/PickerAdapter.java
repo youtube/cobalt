@@ -4,6 +4,8 @@
 
 package org.chromium.components.browser_ui.photo_picker;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -12,12 +14,13 @@ import androidx.annotation.IntDef;
 import androidx.recyclerview.widget.RecyclerView.Adapter;
 import androidx.recyclerview.widget.RecyclerView.ViewHolder;
 
+import org.chromium.build.annotations.NullMarked;
+
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-/**
- * A data adapter for the Photo Picker.
- */
+/** A data adapter for the Photo Picker. */
+@NullMarked
 public class PickerAdapter extends Adapter<ViewHolder> {
     // The possible types of actions required during decoding.
     @IntDef({DecodeActions.NO_ACTION, DecodeActions.FROM_CACHE, DecodeActions.DECODE})
@@ -29,18 +32,17 @@ public class PickerAdapter extends Adapter<ViewHolder> {
     }
 
     // The category view to use to show the images.
-    private PickerCategoryView mCategoryView;
+    private final PickerCategoryView mCategoryView;
 
     // How many times the (high-res) cache was useful.
-    @DecodeActions
-    private int mCacheHits;
+    @DecodeActions private int mCacheHits;
 
     // How many times a decoding was requested.
-    @DecodeActions
-    private int mDecodeRequests;
+    @DecodeActions private int mDecodeRequests;
 
     /**
      * The PickerAdapter constructor.
+     *
      * @param categoryView The category view to use to show the images.
      */
     public PickerAdapter(PickerCategoryView categoryView) {
@@ -51,8 +53,9 @@ public class PickerAdapter extends Adapter<ViewHolder> {
 
     @Override
     public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        View itemView = LayoutInflater.from(parent.getContext())
-                                .inflate(R.layout.photo_picker_bitmap_view, parent, false);
+        View itemView =
+                LayoutInflater.from(parent.getContext())
+                        .inflate(R.layout.photo_picker_bitmap_view, parent, false);
         PickerBitmapView bitmapView = (PickerBitmapView) itemView;
         bitmapView.setCategoryView(mCategoryView);
         return new PickerBitmapViewHolder(bitmapView);
@@ -62,8 +65,7 @@ public class PickerAdapter extends Adapter<ViewHolder> {
     public void onBindViewHolder(ViewHolder holder, int position) {
         if (holder instanceof PickerBitmapViewHolder) {
             PickerBitmapViewHolder myHolder = (PickerBitmapViewHolder) holder;
-            @DecodeActions
-            int result = myHolder.displayItem(mCategoryView, position);
+            @DecodeActions int result = myHolder.displayItem(mCategoryView, position);
             if (result == DecodeActions.FROM_CACHE) {
                 mCacheHits++;
             } else if (result == DecodeActions.DECODE) {
@@ -74,6 +76,7 @@ public class PickerAdapter extends Adapter<ViewHolder> {
 
     @Override
     public int getItemCount() {
+        assumeNonNull(mCategoryView.getPickerBitmaps());
         return mCategoryView.getPickerBitmaps().size();
     }
 

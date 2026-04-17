@@ -53,7 +53,7 @@ const char kImageFetcherEventHistogramName[] = "ImageFetcher.Events";
 
 class ReducedModeImageFetcherTest : public testing::Test {
  public:
-  ReducedModeImageFetcherTest() {}
+  ReducedModeImageFetcherTest() = default;
 
   ReducedModeImageFetcherTest(const ReducedModeImageFetcherTest&) = delete;
   ReducedModeImageFetcherTest& operator=(const ReducedModeImageFetcherTest&) =
@@ -89,7 +89,7 @@ class ReducedModeImageFetcherTest : public testing::Test {
     // Use an initial request to start the cache up.
     image_cache_->SaveImage(kImageUrl.spec(), kImageData,
                             /* needs_transcoding */ false,
-                            /* expiration_interval */ absl::nullopt);
+                            /* expiration_interval */ std::nullopt);
     RunUntilIdle();
     db_->InitStatusCallback(leveldb_proto::Enums::InitStatus::kOK);
     image_cache_->DeleteImage(kImageUrl.spec());
@@ -139,7 +139,7 @@ class ReducedModeImageFetcherTest : public testing::Test {
   base::HistogramTester& histogram_tester() { return histogram_tester_; }
   FakeDB<CachedImageMetadataProto>* db() { return db_; }
 
-  MOCK_METHOD2(OnImageLoaded, void(bool, std::string));
+  MOCK_METHOD(void, OnImageLoaded, (bool, std::string), ());
 
  protected:
   GURL kImageUrl{"http://gstatic.img.com/foo.jpg"};
@@ -166,7 +166,7 @@ TEST_F(ReducedModeImageFetcherTest, FetchNeedsTranscodingImageFromCache) {
   // Save the image that needs transcoding in the database.
   image_cache()->SaveImage(kImageUrl.spec(), kImageData,
                            /* needs_transcoding */ true,
-                           /* expiration_interval */ absl::nullopt);
+                           /* expiration_interval */ std::nullopt);
   VerifyCacheHit();
 }
 
@@ -174,7 +174,7 @@ TEST_F(ReducedModeImageFetcherTest, FetchImageFromCache) {
   // Save the image that doesn't need transcoding in the database.
   image_cache()->SaveImage(kImageUrl.spec(), kImageData,
                            /* needs_transcoding */ false,
-                           /* expiration_interval */ absl::nullopt);
+                           /* expiration_interval */ std::nullopt);
   VerifyCacheHit();
 }
 

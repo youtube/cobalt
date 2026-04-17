@@ -4,17 +4,22 @@
 
 package org.chromium.components.infobars;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.view.View;
 import android.widget.TextView;
 
 import androidx.annotation.ColorRes;
-import androidx.annotation.Nullable;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.infobar.ActionType;
 import org.chromium.chrome.browser.infobar.InfoBarIdentifier;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -25,16 +30,11 @@ import org.chromium.ui.modelutil.PropertyModel;
  * Make sure to use setExpireOnNavigation(false) if you want an infobar to be sticky.
  */
 @JNINamespace("infobars")
+@NullMarked
 public abstract class InfoBar implements InfoBarInteractionHandler, InfoBarUiItem {
-    private static final String TAG = "InfoBar";
-
-    /**
-     * Interface for InfoBar to interact with its container.
-     */
+    /** Interface for InfoBar to interact with its container. */
     public interface Container {
-        /**
-         * @return True if the infobar is in front.
-         */
+        /** @return True if the infobar is in front. */
         boolean isFrontInfoBar(InfoBar infoBar);
 
         /**
@@ -43,19 +43,15 @@ public abstract class InfoBar implements InfoBarInteractionHandler, InfoBarUiIte
          */
         void removeInfoBar(InfoBar infoBar);
 
-        /**
-         * Notifies that an infobar's View ({@link InfoBar#getView}) has changed.
-         */
+        /** Notifies that an infobar's View ({@link InfoBar#getView}) has changed. */
         void notifyInfoBarViewChanged();
 
-        /**
-         * @return True if the container's destroy() method has been called.
-         */
+        /** @return True if the container's destroy() method has been called. */
         boolean isDestroyed();
     }
 
     private final int mIconDrawableId;
-    private final Bitmap mIconBitmap;
+    private final @Nullable Bitmap mIconBitmap;
     private final @ColorRes int mIconTintId;
     private final CharSequence mMessage;
 
@@ -73,13 +69,17 @@ public abstract class InfoBar implements InfoBarInteractionHandler, InfoBarUiIte
 
     /**
      * Constructor for regular infobars.
-     * @param iconDrawableId ID of the resource to use for the Icon.  If 0, no icon will be shown.
+     *
+     * @param iconDrawableId ID of the resource to use for the Icon. If 0, no icon will be shown.
      * @param iconTintId The {@link ColorRes} used as tint for the {@code iconDrawableId}.
      * @param message The message to show in the infobar.
-     * @param iconBitmap Icon to draw, in bitmap form.  Used mainly for generated icons.
+     * @param iconBitmap Icon to draw, in bitmap form. Used mainly for generated icons.
      */
     public InfoBar(
-            int iconDrawableId, @ColorRes int iconTintId, CharSequence message, Bitmap iconBitmap) {
+            int iconDrawableId,
+            @ColorRes int iconTintId,
+            CharSequence message,
+            @Nullable Bitmap iconBitmap) {
         mIconDrawableId = iconDrawableId;
         mIconBitmap = iconBitmap;
         mIconTintId = iconTintId;
@@ -101,9 +101,7 @@ public abstract class InfoBar implements InfoBarInteractionHandler, InfoBarUiIte
         mNativeInfoBarPtr = 0;
     }
 
-    /**
-     * Sets the Context used when creating the InfoBar.
-     */
+    /** Sets the Context used when creating the InfoBar. */
     public void setContext(Context context) {
         mContext = context;
     }
@@ -112,8 +110,7 @@ public abstract class InfoBar implements InfoBarInteractionHandler, InfoBarUiIte
      * @return The {@link Context} used to create the InfoBar. This will be null before the InfoBar
      *         is added to an {@link InfoBarContainer}, or after the InfoBar is closed.
      */
-    @Nullable
-    protected Context getContext() {
+    protected @Nullable Context getContext() {
         return mContext;
     }
 
@@ -125,13 +122,15 @@ public abstract class InfoBar implements InfoBarInteractionHandler, InfoBarUiIte
         assert mContext != null;
 
         if (usesCompactLayout()) {
-            InfoBarCompactLayout layout = new InfoBarCompactLayout(
-                    mContext, this, mIconDrawableId, mIconTintId, mIconBitmap);
+            InfoBarCompactLayout layout =
+                    new InfoBarCompactLayout(
+                            mContext, this, mIconDrawableId, mIconTintId, mIconBitmap);
             createCompactLayoutContent(layout);
             mView = layout;
         } else {
-            InfoBarLayout layout = new InfoBarLayout(
-                    mContext, this, mIconDrawableId, mIconTintId, mIconBitmap, mMessage);
+            InfoBarLayout layout =
+                    new InfoBarLayout(
+                            mContext, this, mIconDrawableId, mIconTintId, mIconBitmap, mMessage);
             createContent(layout);
             layout.onContentCreated();
             mView = layout;
@@ -140,9 +139,7 @@ public abstract class InfoBar implements InfoBarInteractionHandler, InfoBarUiIte
         return mView;
     }
 
-    /**
-     * @return The model for this infobar if one was created.
-     */
+    /** @return The model for this infobar if one was created. */
     @Nullable
     PropertyModel getModel() {
         return mModel;
@@ -175,14 +172,13 @@ public abstract class InfoBar implements InfoBarInteractionHandler, InfoBarUiIte
      */
     protected void replaceView(View newView) {
         mView = newView;
-        mContainer.notifyInfoBarViewChanged();
+        assumeNonNull(mContainer).notifyInfoBarViewChanged();
     }
 
-    /**
-     * Returns the View shown in this infobar. Only valid after createView() has been called.
-     */
+    /** Returns the View shown in this infobar. Only valid after createView() has been called. */
     @Override
     public View getView() {
+        assert mView != null;
         return mView;
     }
 
@@ -191,7 +187,7 @@ public abstract class InfoBar implements InfoBarInteractionHandler, InfoBarUiIte
      * Override this if the InfoBar doesn't have {@link R.id.infobar_message}. It is usually the
      * case when it is in CompactLayout.
      */
-    protected CharSequence getAccessibilityMessage(CharSequence defaultTitle) {
+    protected CharSequence getAccessibilityMessage(@Nullable CharSequence defaultTitle) {
         return defaultTitle == null ? "" : defaultTitle;
     }
 
@@ -208,8 +204,8 @@ public abstract class InfoBar implements InfoBarInteractionHandler, InfoBarUiIte
         if (title.length() > 0) {
             title = title + " ";
         }
-        // TODO(crbug/773717): Avoid string concatenation due to i18n.
-        return title + mContext.getString(R.string.bottom_bar_screen_position);
+        // TODO(crbug.com/41349249): Avoid string concatenation due to i18n.
+        return title + assumeNonNull(mContext).getString(R.string.bottom_bar_screen_position);
     }
 
     @Override
@@ -224,13 +220,12 @@ public abstract class InfoBar implements InfoBarInteractionHandler, InfoBarUiIte
         return InfoBarJni.get().getInfoBarIdentifier(mNativeInfoBarPtr, InfoBar.this);
     }
 
-    /**
-     * @return whether the infobar actually needed closing.
-     */
+    /** @return whether the infobar actually needed closing. */
     @CalledByNative
     private boolean closeInfoBar() {
         if (!mIsDismissed) {
             mIsDismissed = true;
+            assumeNonNull(mContainer);
             if (!mContainer.isDestroyed()) {
                 // If the container was destroyed, it's already been emptied of all its infobars.
                 onStartedHiding();
@@ -249,7 +244,7 @@ public abstract class InfoBar implements InfoBarInteractionHandler, InfoBarUiIte
      *         infobars).
      */
     public boolean isFrontInfoBar() {
-        return mContainer.isFrontInfoBar(this);
+        return assumeNonNull(mContainer).isFrontInfoBar(this);
     }
 
     /**
@@ -259,24 +254,21 @@ public abstract class InfoBar implements InfoBarInteractionHandler, InfoBarUiIte
     protected void onStartedHiding() {}
 
     /**
-     * Returns pointer to native InfoBarAndroid instance.
-     * TODO(crbug/1056346): The function is used in subclasses typically to get Tab reference. When
-     * Tab is modularized, replace this function with the one that returns Tab reference.
+     * Returns pointer to native InfoBarAndroid instance. TODO(crbug.com/40120294): The function is
+     * used in subclasses typically to get Tab reference. When Tab is modularized, replace this
+     * function with the one that returns Tab reference.
      */
     protected long getNativeInfoBarPtr() {
         return mNativeInfoBarPtr;
     }
 
-    /**
-     * Sets the Container that displays the InfoBar.
-     */
+    @Initializer
+    /* Sets the Container that displays the InfoBar. */
     public void setContainer(Container container) {
         mContainer = container;
     }
 
-    /**
-     * @return Whether or not this InfoBar is already dismissed (i.e. closed).
-     */
+    /** @return Whether or not this InfoBar is already dismissed (i.e. closed). */
     protected boolean isDismissed() {
         return mIsDismissed;
     }
@@ -322,12 +314,14 @@ public abstract class InfoBar implements InfoBarInteractionHandler, InfoBarUiIte
     }
 
     @InfoBarIdentifier
-
     @NativeMethods
     interface Natives {
         int getInfoBarIdentifier(long nativeInfoBarAndroid, InfoBar caller);
+
         void onLinkClicked(long nativeInfoBarAndroid, InfoBar caller);
+
         void onButtonClicked(long nativeInfoBarAndroid, InfoBar caller, int action);
+
         void onCloseButtonClicked(long nativeInfoBarAndroid, InfoBar caller);
     }
 }

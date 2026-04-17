@@ -13,8 +13,10 @@
 // limitations under the License.
 
 #include "base/base_paths.h"
+#include "base/check.h"
 #include "base/files/file_path.h"
 #include "base/logging.h"
+#include "build/build_config.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/system.h"
 
@@ -37,6 +39,28 @@ bool PathProviderStarboard(int key, FilePath* result) {
       DLOG(ERROR) << "FILE_EXE not defined.";
       return false;
     }
+
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+    // TODO: This will not work on device, we should decide if we want to leave
+    // it in or remove it and references to it.
+    case DIR_SRC_TEST_DATA_ROOT: {
+      FilePath test_data_path;
+      // On POSIX, unit tests execute two levels deep from the source root.
+      // For example:  out/{Debug|Release}/net_unittest
+      if (PathProviderStarboard(DIR_EXE, &test_data_path)) {
+#if BUILDFLAG(USE_EVERGREEN)
+        *result = test_data_path.DirName().DirName().DirName();
+#else
+        *result = test_data_path.DirName().DirName();
+#endif
+        return true;
+      }
+
+      DLOG(ERROR) << "Couldn't find your source root.  "
+                  << "Try running from your chromium/src directory.";
+      return false;
+    }
+#endif
 
     case base::DIR_EXE:
     case base::DIR_MODULE:

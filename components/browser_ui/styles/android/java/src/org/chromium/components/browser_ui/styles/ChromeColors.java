@@ -16,9 +16,10 @@ import androidx.appcompat.content.res.AppCompatResources;
 import com.google.android.material.color.MaterialColors;
 import com.google.android.material.elevation.ElevationOverlayProvider;
 
-/**
- * Provides common default colors for Chrome UI.
- */
+import org.chromium.build.annotations.NullMarked;
+
+/** Provides common default colors for Chrome UI. */
+@NullMarked
 public class ChromeColors {
     private static final String TAG = "ChromeColors";
 
@@ -31,8 +32,9 @@ public class ChromeColors {
      * @return The default theme color.
      */
     public static @ColorInt int getDefaultThemeColor(Context context, boolean isIncognito) {
-        return isIncognito ? context.getColor(R.color.toolbar_background_primary_dark)
-                           : MaterialColors.getColor(context, R.attr.colorSurface, TAG);
+        return isIncognito
+                ? context.getColor(R.color.toolbar_background_primary_dark)
+                : MaterialColors.getColor(context, R.attr.colorSurface, TAG);
     }
 
     /**
@@ -45,8 +47,9 @@ public class ChromeColors {
      * @return The primary background color.
      */
     public static @ColorInt int getPrimaryBackgroundColor(Context context, boolean isIncognito) {
-        return isIncognito ? context.getColor(R.color.default_bg_color_dark)
-                           : SemanticColorUtils.getDefaultBgColor(context);
+        return isIncognito
+                ? context.getColor(R.color.default_bg_color_dark)
+                : SemanticColorUtils.getDefaultBgColor(context);
     }
 
     /**
@@ -57,8 +60,9 @@ public class ChromeColors {
      * @return The large text primary style.
      */
     public static int getLargeTextPrimaryStyle(boolean forceLightTextColor) {
-        return forceLightTextColor ? R.style.TextAppearance_TextLarge_Primary_Baseline_Light
-                                   : R.style.TextAppearance_TextLarge_Primary;
+        return forceLightTextColor
+                ? R.style.TextAppearance_TextLarge_Primary_Baseline_Light
+                : R.style.TextAppearance_TextLarge_Primary;
     }
 
     /**
@@ -69,8 +73,9 @@ public class ChromeColors {
      * @return The medium text secondary style.
      */
     public static int getTextMediumThickSecondaryStyle(boolean isIncognito) {
-        return isIncognito ? R.style.TextAppearance_TextMediumThick_Secondary_Baseline_Light
-                           : R.style.TextAppearance_TextMediumThick_Secondary;
+        return isIncognito
+                ? R.style.TextAppearance_TextMediumThick_Secondary_Baseline_Light
+                : R.style.TextAppearance_TextMediumThick_Secondary;
     }
 
     /**
@@ -81,8 +86,9 @@ public class ChromeColors {
      * @return The {@link ColorRes} for the icon tint.
      */
     public static @ColorRes int getPrimaryIconTintRes(boolean isIncognito) {
-        return isIncognito ? R.color.default_icon_color_light_tint_list
-                           : R.color.default_icon_color_tint_list;
+        return isIncognito
+                ? R.color.default_icon_color_light_tint_list
+                : R.color.default_icon_color_tint_list;
     }
 
     /**
@@ -106,8 +112,9 @@ public class ChromeColors {
      * @return The {@link ColorRes} for the icon tint.
      */
     public static @ColorRes int getSecondaryIconTintRes(boolean forceLightIconTint) {
-        return forceLightIconTint ? R.color.default_icon_color_secondary_light_tint_list
-                                  : R.color.default_icon_color_secondary_tint_list;
+        return forceLightIconTint
+                ? R.color.default_icon_color_secondary_light_tint_list
+                : R.color.default_icon_color_secondary_tint_list;
     }
 
     /**
@@ -125,11 +132,29 @@ public class ChromeColors {
     }
 
     /**
+     * Get the default background color based on the incognito status.
+     *
+     * @param context The {@link Context} used to retrieve colors.
+     * @param isIncognito When true, returns the baseline dark tint color; otherwise returns
+     *     adaptive background color res.
+     * @return The {@link ColorRes} for the background.
+     */
+    public static @ColorInt int getDefaultBgColor(Context context, boolean isIncognito) {
+        if (isIncognito) {
+            return context.getColor(R.color.default_bg_color_dark);
+        }
+        return SemanticColorUtils.getDefaultBgColor(context);
+    }
+
+    /**
      * Calculates the surface color using theme colors.
+     *
      * @param context The {@link Context} used to retrieve attrs, colors, and dimens.
      * @param elevationDimen The dimen to look up the elevation level with.
      * @return the {@link ColorInt} for the background of a surface view.
+     * @deprecated Elevation based surface color is deprecated. See crbug.com/348667900.
      */
+    @Deprecated
     public static @ColorInt int getSurfaceColor(Context context, @DimenRes int elevationDimen) {
         float elevation = context.getResources().getDimension(elevationDimen);
         return getSurfaceColor(context, elevation);
@@ -137,12 +162,34 @@ public class ChromeColors {
 
     /**
      * Calculates the surface color using theme colors.
+     *
      * @param context The {@link Context} used to retrieve attrs and colors.
      * @param elevation The elevation in px.
      * @return the {@link ColorInt} for the background of a surface view.
+     * @deprecated Elevation based surface color is deprecated. See crbug.com/348667900.
      */
-    public static @ColorInt int getSurfaceColor(Context context, @Px float elevation) {
+    @Deprecated
+    private static @ColorInt int getSurfaceColor(Context context, @Px float elevation) {
         ElevationOverlayProvider elevationOverlayProvider = new ElevationOverlayProvider(context);
         return elevationOverlayProvider.compositeOverlayWithThemeSurfaceColorIfNeeded(elevation);
+    }
+
+    /**
+     * Returns the drag handlebar color.
+     *
+     * @param context The {@link Context} used to retrieve attrs, colors, and dimens.
+     * @return the {@link ColorInt} for the drag handle bar.
+     */
+    // LINT.IfChange(DragHandleBar)
+    public static @ColorInt int getDragHandleBarColor(Context context) {
+        return SemanticColorUtils.getColorSurfaceContainerHighest(context);
+    }
+    // LINT.ThenChange(//components/browser_ui/widget/android/java/res/drawable/drag_handlebar.xml)
+
+    /** {@return The {@link ColorInt} keyboard focus ring color} */
+    public static @ColorInt int getKeyboardFocusRingColor(Context context, boolean isIncognito) {
+        return isIncognito
+                ? context.getColor(R.color.baseline_neutral_90)
+                : SemanticColorUtils.getDefaultControlColorActive(context);
     }
 }

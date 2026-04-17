@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/page_load_metrics/observers/page_load_metrics_observer_test_harness.h"
 #include "components/page_load_metrics/browser/page_load_tracker.h"
 #include "components/page_load_metrics/common/test/page_load_metrics_test_util.h"
@@ -43,7 +42,7 @@ class SignedExchangePageLoadMetricsObserverTest
     base::HistogramTester::CountsMap empty_counts_map =
         tester()->histogram_tester().GetTotalCountsForPrefix(prefix);
     for (const auto& it : empty_counts_map) {
-      base::HistogramBase::Count count = it.second;
+      base::HistogramBase::Count32 count = it.second;
       EXPECT_EQ(0, count) << "Histogram \"" << it.first
                           << "\" should be empty.";
     }
@@ -57,7 +56,7 @@ class SignedExchangePageLoadMetricsObserverTest
   void InitializeTestPageLoadTiming(
       page_load_metrics::mojom::PageLoadTiming* timing) {
     page_load_metrics::InitPageLoadTimingForTest(timing);
-    timing->navigation_start = base::Time::FromDoubleT(1);
+    timing->navigation_start = base::Time::FromSecondsSinceUnixEpoch(1);
     timing->interactive_timing->first_input_delay = base::Milliseconds(50);
     // Use timestamps larger than 1000ms, so that they will not race with
     // background time in the WithSignedExchangeBackground test case.

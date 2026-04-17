@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/feature_list.h"
@@ -16,22 +17,21 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
+#include "base/hash/hash.h"
 #include "base/json/json_file_value_serializer.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/metrics/histogram.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "base/observer_list.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/default_clock.h"
 #include "base/values.h"
 #include "components/prefs/pref_filter.h"
-#include "components/prefs/prefs_features.h"
 
 // Result returned from internal read tasks.
 struct JsonPrefStore::ReadResult {
@@ -55,18 +55,19 @@ namespace {
 // Some extensions we'll tack on to copies of the Preferences files.
 const base::FilePath::CharType kBadExtension[] = FILE_PATH_LITERAL("bad");
 
+// Report a key that triggers a write into the Preferences files.
+void ReportKeyChangedToUMA(std::string_view key) {
+  // Truncate the sign bit. Even if the type is unsigned, UMA displays 32-bit
+  // negative numbers.
+  const uint32_t hash = base::PersistentHash(key) & 0x7FFFFFFF;
+  UMA_HISTOGRAM_SPARSE("Prefs.JSonStore.SetValueKey", hash);
+}
+
 bool BackupPrefsFile(const base::FilePath& path) {
   const base::FilePath bad = path.ReplaceExtension(kBadExtension);
   const bool bad_existed = base::PathExists(bad);
   base::Move(path, bad);
   return bad_existed;
-}
-
-bool PrefStoreBackgroundSerializationEnabledOrFeatureListUnavailable() {
-  // TODO(crbug.com/1364606#c12): Ensure that this is not invoked before
-  // FeatureList initialization.
-  return !base::FeatureList::GetInstance() ||
-         base::FeatureList::IsEnabled(kPrefStoreBackgroundSerialization);
 }
 
 PersistentPrefStore::PrefReadError HandleReadErrors(
@@ -126,22 +127,24 @@ const char* GetHistogramSuffix(const base::FilePath& path) {
   std::string spaceless_basename;
   base::ReplaceChars(path.BaseName().MaybeAsASCII(), " ", "_",
                      &spaceless_basename);
-  static constexpr std::array<const char*, 3> kAllowList{
-      "Secure_Preferences", "Preferences", "Local_State"};
-  const char* const* it = base::ranges::find(kAllowList, spaceless_basename);
+  // Entries here should be reflected in the ImportantFileClients variant in
+  // histograms.xml.
+  static constexpr std::array<const char*, 4> kAllowList{
+      "Secure_Preferences", "Preferences", "Local_State", "AccountPreferences"};
+  auto it = std::ranges::find(kAllowList, spaceless_basename);
   return it != kAllowList.end() ? *it : "";
 }
 
-absl::optional<std::string> DoSerialize(base::ValueView value,
-                                        const base::FilePath& path) {
+std::optional<std::string> DoSerialize(base::ValueView value,
+                                       const base::FilePath& path) {
   std::string output;
   if (!base::JSONWriter::Write(value, &output)) {
     // Failed to serialize prefs file. Backup the existing prefs file and
     // crash.
     BackupPrefsFile(path);
-    NOTREACHED_NORETURN() << "Failed to serialize preferences : " << path
-                          << "\nBacked up under "
-                          << path.ReplaceExtension(kBadExtension);
+    NOTREACHED() << "Failed to serialize preferences : " << path
+                 << "\nBacked up under "
+                 << path.ReplaceExtension(kBadExtension);
   }
   return output;
 }
@@ -168,7 +171,7 @@ JsonPrefStore::JsonPrefStore(
   DCHECK(!path_.empty());
 }
 
-bool JsonPrefStore::GetValue(base::StringPiece key,
+bool JsonPrefStore::GetValue(std::string_view key,
                              const base::Value** result) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
@@ -208,7 +211,7 @@ bool JsonPrefStore::IsInitializationComplete() const {
   return initialized_;
 }
 
-bool JsonPrefStore::GetMutableValue(const std::string& key,
+bool JsonPrefStore::GetMutableValue(std::string_view key,
                                     base::Value** result) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
@@ -221,7 +224,7 @@ bool JsonPrefStore::GetMutableValue(const std::string& key,
   return true;
 }
 
-void JsonPrefStore::SetValue(const std::string& key,
+void JsonPrefStore::SetValue(std::string_view key,
                              base::Value value,
                              uint32_t flags) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -230,10 +233,11 @@ void JsonPrefStore::SetValue(const std::string& key,
   if (!old_value || value != *old_value) {
     prefs_.SetByDottedPath(key, std::move(value));
     ReportValueChanged(key, flags);
+    ReportKeyChangedToUMA(key);
   }
 }
 
-void JsonPrefStore::SetValueSilently(const std::string& key,
+void JsonPrefStore::SetValueSilently(std::string_view key,
                                      base::Value value,
                                      uint32_t flags) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -242,10 +246,11 @@ void JsonPrefStore::SetValueSilently(const std::string& key,
   if (!old_value || value != *old_value) {
     prefs_.SetByDottedPath(key, std::move(value));
     ScheduleWrite(flags);
+    ReportKeyChangedToUMA(key);
   }
 }
 
-void JsonPrefStore::RemoveValue(const std::string& key, uint32_t flags) {
+void JsonPrefStore::RemoveValue(std::string_view key, uint32_t flags) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (prefs_.RemoveByDottedPath(key)) {
@@ -253,15 +258,14 @@ void JsonPrefStore::RemoveValue(const std::string& key, uint32_t flags) {
   }
 }
 
-void JsonPrefStore::RemoveValueSilently(const std::string& key,
-                                        uint32_t flags) {
+void JsonPrefStore::RemoveValueSilently(std::string_view key, uint32_t flags) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   prefs_.RemoveByDottedPath(key);
   ScheduleWrite(flags);
 }
 
-void JsonPrefStore::RemoveValuesByPrefixSilently(const std::string& prefix) {
+void JsonPrefStore::RemoveValuesByPrefixSilently(std::string_view prefix) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   RemoveValueSilently(prefix, /*flags*/ 0);
 }
@@ -290,12 +294,13 @@ void JsonPrefStore::ReadPrefsAsync(ReadErrorDelegate* error_delegate) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   initialized_ = false;
-  error_delegate_.reset(error_delegate);
+  error_delegate_.emplace(error_delegate);
 
   // Weakly binds the read task so that it doesn't kick in during shutdown.
   file_task_runner_->PostTaskAndReplyWithResult(
       FROM_HERE, base::BindOnce(&ReadPrefsFromDisk, path_),
-      base::BindOnce(&JsonPrefStore::OnFileRead, AsWeakPtr()));
+      base::BindOnce(&JsonPrefStore::OnFileRead,
+                     weak_ptr_factory_.GetWeakPtr()));
 }
 
 void JsonPrefStore::CommitPendingWrite(
@@ -331,7 +336,7 @@ void JsonPrefStore::SchedulePendingLossyWrites() {
     writer_.ScheduleWrite(this);
 }
 
-void JsonPrefStore::ReportValueChanged(const std::string& key, uint32_t flags) {
+void JsonPrefStore::ReportValueChanged(std::string_view key, uint32_t flags) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (pref_filter_)
@@ -402,7 +407,7 @@ void JsonPrefStore::RegisterOnNextSuccessfulWriteReply(
             &PostWriteCallback, base::OnceCallback<void(bool success)>(),
             base::BindOnce(
                 &JsonPrefStore::RunOrScheduleNextSuccessfulWriteCallback,
-                AsWeakPtr()),
+                weak_ptr_factory_.GetWeakPtr()),
             base::SequencedTaskRunner::GetCurrentDefault()));
   }
 }
@@ -419,7 +424,7 @@ void JsonPrefStore::RegisterOnNextWriteSynchronousCallbacks(
           &PostWriteCallback, std::move(callbacks.second),
           base::BindOnce(
               &JsonPrefStore::RunOrScheduleNextSuccessfulWriteCallback,
-              AsWeakPtr()),
+              weak_ptr_factory_.GetWeakPtr()),
           base::SequencedTaskRunner::GetCurrentDefault()));
 }
 
@@ -466,14 +471,14 @@ void JsonPrefStore::OnFileRead(std::unique_ptr<ReadResult> read_result) {
         // operation itself.
       case PREF_READ_ERROR_MAX_ENUM:
         NOTREACHED();
-        break;
     }
   }
 
   if (pref_filter_) {
     filtering_in_progress_ = true;
     PrefFilter::PostFilterOnLoadCallback post_filter_on_load_callback(
-        base::BindOnce(&JsonPrefStore::FinalizeFileRead, AsWeakPtr(),
+        base::BindOnce(&JsonPrefStore::FinalizeFileRead,
+                       weak_ptr_factory_.GetWeakPtr(),
                        initialization_successful));
     pref_filter_->FilterOnLoad(std::move(post_filter_on_load_callback),
                                std::move(unfiltered_prefs));
@@ -488,7 +493,7 @@ JsonPrefStore::~JsonPrefStore() {
   CommitPendingWrite();
 }
 
-absl::optional<std::string> JsonPrefStore::SerializeData() {
+std::optional<std::string> JsonPrefStore::SerializeData() {
   PerformPreserializationTasks();
   return DoSerialize(prefs_, path_);
 }
@@ -519,8 +524,10 @@ void JsonPrefStore::FinalizeFileRead(bool initialization_successful,
   if (schedule_write)
     ScheduleWrite(DEFAULT_PREF_WRITE_FLAGS);
 
-  if (error_delegate_ && read_error_ != PREF_READ_ERROR_NONE)
-    error_delegate_->OnError(read_error_);
+  if (error_delegate_.has_value() && error_delegate_.value() &&
+      read_error_ != PREF_READ_ERROR_NONE) {
+    error_delegate_.value()->OnError(read_error_);
+  }
 
   for (PrefStore::Observer& observer : observers_)
     observer.OnInitializationCompleted(true);
@@ -532,10 +539,13 @@ void JsonPrefStore::ScheduleWrite(uint32_t flags) {
   if (read_only_)
     return;
 
-  if (flags & LOSSY_PREF_WRITE_FLAG)
+  if (flags & LOSSY_PREF_WRITE_FLAG) {
     pending_lossy_write_ = true;
-  else if (PrefStoreBackgroundSerializationEnabledOrFeatureListUnavailable())
+  } else {
     writer_.ScheduleWriteWithBackgroundDataSerializer(this);
-  else
-    writer_.ScheduleWrite(this);
+  }
+}
+
+bool JsonPrefStore::HasReadErrorDelegate() const {
+  return error_delegate_.has_value();
 }

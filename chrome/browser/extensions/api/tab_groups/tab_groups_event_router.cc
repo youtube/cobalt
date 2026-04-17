@@ -8,17 +8,16 @@
 
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
-#include "chrome/browser/extensions/api/tab_groups/tab_groups_util.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/tabs/tab_group.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/tab_groups/tab_group_color.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tab_groups/tab_group_visual_data.h"
+#include "components/tabs/public/tab_group.h"
 
 namespace extensions {
 
@@ -33,6 +32,15 @@ void TabGroupsEventRouter::OnTabGroupChanged(const TabGroupChange& change) {
   switch (change.type) {
     case TabGroupChange::kCreated: {
       DispatchGroupCreated(change.group);
+      // Synthesize the initial kVisualsChanged notification while detaching and
+      // reattaching groups.
+      // TODO(crbug.com/398256328): Remove after fixing initial kVisualsChanged
+      // case.
+      if (change.GetCreateChange()->reason() ==
+          TabGroupChange::TabGroupCreationReason::
+              kInsertedFromAnotherTabstrip) {
+        DispatchGroupUpdated(change.group);
+      }
       break;
     }
     case TabGroupChange::kClosed: {
@@ -47,7 +55,6 @@ void TabGroupsEventRouter::OnTabGroupChanged(const TabGroupChange& change) {
       DispatchGroupUpdated(change.group);
       break;
     }
-    case TabGroupChange::kContentsChanged:
     case TabGroupChange::kEditorOpened:
       break;
   }
@@ -62,7 +69,7 @@ bool TabGroupsEventRouter::ShouldTrackBrowser(Browser* browser) {
 
 void TabGroupsEventRouter::DispatchGroupCreated(tab_groups::TabGroupId group) {
   auto args(api::tab_groups::OnCreated::Create(
-      *tab_groups_util::CreateTabGroupObject(group)));
+      *ExtensionTabUtil::CreateTabGroupObject(group)));
 
   DispatchEvent(events::TAB_GROUPS_ON_CREATED,
                 api::tab_groups::OnCreated::kEventName, std::move(args));
@@ -70,7 +77,7 @@ void TabGroupsEventRouter::DispatchGroupCreated(tab_groups::TabGroupId group) {
 
 void TabGroupsEventRouter::DispatchGroupRemoved(tab_groups::TabGroupId group) {
   auto args(api::tab_groups::OnRemoved::Create(
-      *tab_groups_util::CreateTabGroupObject(group)));
+      *ExtensionTabUtil::CreateTabGroupObject(group)));
 
   DispatchEvent(events::TAB_GROUPS_ON_REMOVED,
                 api::tab_groups::OnRemoved::kEventName, std::move(args));
@@ -78,7 +85,7 @@ void TabGroupsEventRouter::DispatchGroupRemoved(tab_groups::TabGroupId group) {
 
 void TabGroupsEventRouter::DispatchGroupMoved(tab_groups::TabGroupId group) {
   auto args(api::tab_groups::OnMoved::Create(
-      *tab_groups_util::CreateTabGroupObject(group)));
+      *ExtensionTabUtil::CreateTabGroupObject(group)));
 
   DispatchEvent(events::TAB_GROUPS_ON_MOVED,
                 api::tab_groups::OnMoved::kEventName, std::move(args));
@@ -86,7 +93,7 @@ void TabGroupsEventRouter::DispatchGroupMoved(tab_groups::TabGroupId group) {
 
 void TabGroupsEventRouter::DispatchGroupUpdated(tab_groups::TabGroupId group) {
   auto args(api::tab_groups::OnUpdated::Create(
-      *tab_groups_util::CreateTabGroupObject(group)));
+      *ExtensionTabUtil::CreateTabGroupObject(group)));
 
   DispatchEvent(events::TAB_GROUPS_ON_UPDATED,
                 api::tab_groups::OnUpdated::kEventName, std::move(args));

@@ -14,17 +14,24 @@ namespace blink {
 // Tests do not require that tasks can actually run, just that they can posted.
 class HeapTestingMockTaskRunner final : public v8::TaskRunner {
  public:
-  void PostTask(std::unique_ptr<v8::Task> task) override {}
-  void PostNonNestableTask(std::unique_ptr<v8::Task> task) override {}
-  void PostDelayedTask(std::unique_ptr<v8::Task> task,
-                       double delay_in_seconds) override {}
-  void PostNonNestableDelayedTask(std::unique_ptr<v8::Task> task,
-                                  double delay_in_seconds) override {}
-  void PostIdleTask(std::unique_ptr<v8::IdleTask> task) override {}
-
   bool IdleTasksEnabled() override { return false; }
   bool NonNestableTasksEnabled() const override { return false; }
   bool NonNestableDelayedTasksEnabled() const override { return false; }
+
+ private:
+  void PostTaskImpl(std::unique_ptr<v8::Task> task,
+                    const v8::SourceLocation& location) override {}
+  void PostNonNestableTaskImpl(std::unique_ptr<v8::Task> task,
+                               const v8::SourceLocation& location) override {}
+  void PostDelayedTaskImpl(std::unique_ptr<v8::Task> task,
+                           double delay_in_seconds,
+                           const v8::SourceLocation& location) override {}
+  void PostNonNestableDelayedTaskImpl(
+      std::unique_ptr<v8::Task> task,
+      double delay_in_seconds,
+      const v8::SourceLocation& location) override {}
+  void PostIdleTaskImpl(std::unique_ptr<v8::IdleTask> task,
+                        const v8::SourceLocation& location) override {}
 };
 
 class HeapTestingPlatformAdapter final : public v8::Platform {
@@ -47,30 +54,31 @@ class HeapTestingPlatformAdapter final : public v8::Platform {
     return platform_->NumberOfWorkerThreads();
   }
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
-      v8::Isolate* isolate) final {
+      v8::Isolate* isolate,
+      v8::TaskPriority priority) final {
     // Provides task runner that allows for incremental tasks even in detached
     // mode.
     return task_runner_;
   }
-  void CallOnWorkerThread(std::unique_ptr<v8::Task> task) final {
-    platform_->CallOnWorkerThread(std::move(task));
+  void PostTaskOnWorkerThreadImpl(v8::TaskPriority priority,
+                                  std::unique_ptr<v8::Task> task,
+                                  const v8::SourceLocation& location) final {
+    platform_->PostTaskOnWorkerThread(priority, std::move(task), location);
   }
-  void CallBlockingTaskOnWorkerThread(std::unique_ptr<v8::Task> task) final {
-    platform_->CallBlockingTaskOnWorkerThread(std::move(task));
-  }
-  void CallLowPriorityTaskOnWorkerThread(std::unique_ptr<v8::Task> task) final {
-    platform_->CallLowPriorityTaskOnWorkerThread(std::move(task));
-  }
-  void CallDelayedOnWorkerThread(std::unique_ptr<v8::Task> task,
-                                 double delay_in_seconds) final {
-    platform_->CallDelayedOnWorkerThread(std::move(task), delay_in_seconds);
+  void PostDelayedTaskOnWorkerThreadImpl(
+      v8::TaskPriority priority,
+      std::unique_ptr<v8::Task> task,
+      double delay_in_seconds,
+      const v8::SourceLocation& location) final {
+    platform_->PostDelayedTaskOnWorkerThread(priority, std::move(task), delay_in_seconds, location);
   }
   bool IdleTasksEnabled(v8::Isolate* isolate) final {
     return platform_->IdleTasksEnabled(isolate);
   }
-  std::unique_ptr<v8::JobHandle> CreateJob(
+  std::unique_ptr<v8::JobHandle> CreateJobImpl(
       v8::TaskPriority priority,
-      std::unique_ptr<v8::JobTask> job_task) final {
+      std::unique_ptr<v8::JobTask> job_task,
+      const v8::SourceLocation& location) final {
     return platform_->CreateJob(priority, std::move(job_task));
   }
   double MonotonicallyIncreasingTime() final {

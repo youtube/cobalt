@@ -1,7 +1,5 @@
 set noparent
-jam@chromium.org
-rockot@google.com
-tsepez@chromium.org
+file://mojo/OWNERS
 
 # New IPC message files require a security review to avoid introducing
 # new sandbox escapes.

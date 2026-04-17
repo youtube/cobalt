@@ -7,8 +7,11 @@
 #include <memory>
 #include <vector>
 
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
+#include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "content/browser/service_worker/service_worker_cache_writer.h"
@@ -31,24 +34,21 @@
 namespace content {
 
 // We chose this size because the AppCache uses this.
-const uint32_t ServiceWorkerUpdatedScriptLoader::kReadBufferSize = 32768;
+const size_t ServiceWorkerUpdatedScriptLoader::kReadBufferSize = 32768;
 
 // This is for debugging https://crbug.com/959627.
 // The purpose is to see where the IOBuffer comes from by checking |__vfptr|.
 class ServiceWorkerUpdatedScriptLoader::WrappedIOBuffer
     : public net::WrappedIOBuffer {
  public:
-  explicit WrappedIOBuffer(const char* data) : net::WrappedIOBuffer(data) {}
+  explicit WrappedIOBuffer(base::span<const char> data)
+      : net::WrappedIOBuffer(data) {}
 
  private:
   ~WrappedIOBuffer() override = default;
 
   // This is to make sure that the vtable is not merged with other classes.
-  virtual void dummy() {
-    // TODO(https://crbug.com/1312995): Change back to NOTREACHED() once the
-    // cause of the bug is identified.
-    CHECK(false);  // NOTREACHED
-  }
+  virtual void dummy() { NOTREACHED(); }
 };
 
 std::unique_ptr<ServiceWorkerUpdatedScriptLoader>
@@ -80,7 +80,7 @@ ServiceWorkerUpdatedScriptLoader::ServiceWorkerUpdatedScriptLoader(
       client_producer_watcher_(FROM_HERE,
                                mojo::SimpleWatcher::ArmingPolicy::MANUAL,
                                base::SequencedTaskRunner::GetCurrentDefault()),
-      request_start_(base::TimeTicks::Now()) {
+      request_start_time_(base::TimeTicks::Now()) {
 #if DCHECK_IS_ON()
   service_worker_loader_helpers::CheckVersionStatusBeforeWorkerScriptLoad(
       version_->status(), is_main_script_, version_->script_type());
@@ -136,10 +136,10 @@ void ServiceWorkerUpdatedScriptLoader::FollowRedirect(
     const std::vector<std::string>& removed_headers,
     const net::HttpRequestHeaders& modified_headers,
     const net::HttpRequestHeaders& modified_cors_exempt_headers,
-    const absl::optional<GURL>& new_url) {
+    const std::optional<GURL>& new_url) {
   // Resource requests for service worker scripts should not follow redirects.
   // See comments in OnReceiveRedirect().
-  CHECK(false);  // NOTREACHED
+  NOTREACHED();
 }
 
 void ServiceWorkerUpdatedScriptLoader::SetPriority(
@@ -149,41 +149,31 @@ void ServiceWorkerUpdatedScriptLoader::SetPriority(
     network_loader_->SetPriority(priority, intra_priority_value);
 }
 
-void ServiceWorkerUpdatedScriptLoader::PauseReadingBodyFromNet() {
-  if (network_loader_)
-    network_loader_->PauseReadingBodyFromNet();
-}
-
-void ServiceWorkerUpdatedScriptLoader::ResumeReadingBodyFromNet() {
-  if (network_loader_)
-    network_loader_->ResumeReadingBodyFromNet();
-}
-
 // URLLoaderClient for network loader ------------------------------------------
 
 void ServiceWorkerUpdatedScriptLoader::OnReceiveEarlyHints(
     network::mojom::EarlyHintsPtr early_hints) {
-  CHECK(false);  // NOTREACHED
+  NOTREACHED();
 }
 
 void ServiceWorkerUpdatedScriptLoader::OnReceiveResponse(
     network::mojom::URLResponseHeadPtr response_head,
     mojo::ScopedDataPipeConsumerHandle body,
-    absl::optional<mojo_base::BigBuffer> cached_metadata) {
-  CHECK(false);  // NOTREACHED
+    std::optional<mojo_base::BigBuffer> cached_metadata) {
+  NOTREACHED();
 }
 
 void ServiceWorkerUpdatedScriptLoader::OnReceiveRedirect(
     const net::RedirectInfo& redirect_info,
     network::mojom::URLResponseHeadPtr response_head) {
-  CHECK(false);  // NOTREACHED
+  NOTREACHED();
 }
 
 void ServiceWorkerUpdatedScriptLoader::OnUploadProgress(
     int64_t current_position,
     int64_t total_size,
     OnUploadProgressCallback ack_callback) {
-  CHECK(false);  // NOTREACHED
+  NOTREACHED();
 }
 
 void ServiceWorkerUpdatedScriptLoader::OnTransferSizeUpdated(
@@ -204,8 +194,7 @@ void ServiceWorkerUpdatedScriptLoader::OnComplete(
   CHECK_EQ(LoaderState::kLoadingBody, previous_state);
   switch (body_writer_state_) {
     case WriterState::kNotStarted:
-      CHECK(false) << "WriterState::kNotStarted";  // NOTREACHED
-      return;
+      NOTREACHED() << "WriterState::kNotStarted";
     case WriterState::kWriting:
       // Wait until it's written. OnNetworkDataAvailable() will call
       // CommitCompleted() after all data from |network_consumer_| is
@@ -216,7 +205,7 @@ void ServiceWorkerUpdatedScriptLoader::OnComplete(
                       std::string() /* status_message */);
       return;
   }
-  CHECK(false) << static_cast<int>(body_writer_state_);  // NOTREACHED
+  NOTREACHED() << static_cast<int>(body_writer_state_);
 }
 
 // End of URLLoaderClient ------------------------------------------------------
@@ -224,7 +213,7 @@ void ServiceWorkerUpdatedScriptLoader::OnComplete(
 int ServiceWorkerUpdatedScriptLoader::WillWriteResponseHead(
     const network::mojom::URLResponseHead& response_head) {
   auto client_response = response_head.Clone();
-  client_response->request_start = request_start_;
+  client_response->request_start = request_start_time_;
 
   if (is_main_script_) {
     version_->SetMainScriptResponse(
@@ -249,7 +238,7 @@ int ServiceWorkerUpdatedScriptLoader::WillWriteResponseHead(
 
   // Pass the consumer handle to the client.
   client_->OnReceiveResponse(std::move(client_response),
-                             std::move(client_consumer), absl::nullopt);
+                             std::move(client_consumer), std::nullopt);
 
   client_producer_watcher_.Watch(
       client_producer_.get(), MOJO_HANDLE_SIGNAL_WRITABLE,
@@ -275,12 +264,16 @@ void ServiceWorkerUpdatedScriptLoader::OnClientWritable(MojoResult) {
 
   // Cap the buffer size up to |kReadBufferSize|. The remaining will be written
   // next time.
-  uint32_t bytes_newly_sent =
-      std::min<uint32_t>(kReadBufferSize, data_length_ - bytes_sent_to_client_);
+  base::span<const uint8_t> bytes_to_send = data_to_send_->span();
+  bytes_to_send =
+      bytes_to_send.first(std::min(bytes_to_send.size(), data_length_));
+  bytes_to_send = bytes_to_send.subspan(bytes_sent_to_client_);
+  bytes_to_send = bytes_to_send.first(
+      std::min<size_t>(bytes_to_send.size(), kReadBufferSize));
 
-  MojoResult result =
-      client_producer_->WriteData(data_to_send_->data() + bytes_sent_to_client_,
-                                  &bytes_newly_sent, MOJO_WRITE_DATA_FLAG_NONE);
+  size_t actually_sent_bytes = 0;
+  MojoResult result = client_producer_->WriteData(
+      bytes_to_send, MOJO_WRITE_DATA_FLAG_NONE, actually_sent_bytes);
 
   if (result == MOJO_RESULT_SHOULD_WAIT) {
     // No data was written to |client_producer_| because the pipe was full.
@@ -297,7 +290,7 @@ void ServiceWorkerUpdatedScriptLoader::OnClientWritable(MojoResult) {
     return;
   }
 
-  bytes_sent_to_client_ += bytes_newly_sent;
+  bytes_sent_to_client_ += actually_sent_bytes;
   if (bytes_sent_to_client_ != data_length_) {
     // Not all data is sent. Send the rest in another task.
     client_producer_watcher_.ArmOrNotify();
@@ -314,7 +307,7 @@ int ServiceWorkerUpdatedScriptLoader::WillWriteData(
   CHECK(client_producer_);
 
   data_to_send_ = std::move(data);
-  data_length_ = length;
+  data_length_ = base::checked_cast<size_t>(length);
   bytes_sent_to_client_ = 0;
   write_observer_complete_callback_ = std::move(callback);
   client_producer_watcher_.ArmOrNotify();
@@ -366,36 +359,43 @@ void ServiceWorkerUpdatedScriptLoader::OnNetworkDataAvailable(MojoResult) {
   CHECK_EQ(WriterState::kWriting, body_writer_state_);
   CHECK(network_consumer_.is_valid());
   scoped_refptr<network::MojoToNetPendingBuffer> pending_buffer;
-  uint32_t bytes_available = 0;
   MojoResult result = network::MojoToNetPendingBuffer::BeginRead(
-      &network_consumer_, &pending_buffer, &bytes_available);
+      &network_consumer_, &pending_buffer);
   switch (result) {
-    case MOJO_RESULT_OK:
+    case MOJO_RESULT_OK: {
+      const uint32_t bytes_available = pending_buffer->size();
       WriteData(std::move(pending_buffer), bytes_available);
       return;
-    case MOJO_RESULT_FAILED_PRECONDITION:
+    }
+    case MOJO_RESULT_FAILED_PRECONDITION: {
       // Call WriteData() with null buffer to let the cache writer know that
       // body from the network reaches to the end.
       WriteData(/*pending_buffer=*/nullptr, /*bytes_available=*/0);
       return;
-    case MOJO_RESULT_SHOULD_WAIT:
+    }
+    case MOJO_RESULT_SHOULD_WAIT: {
       network_watcher_.ArmOrNotify();
       return;
+    }
   }
-  CHECK(false) << static_cast<int>(result);  // NOTREACHED
+  NOTREACHED() << static_cast<int>(result);
 }
 
 void ServiceWorkerUpdatedScriptLoader::WriteData(
     scoped_refptr<network::MojoToNetPendingBuffer> pending_buffer,
     uint32_t bytes_available) {
+  auto buffer = base::MakeRefCounted<WrappedIOBuffer>(UNSAFE_TODO(
+      base::span(pending_buffer ? pending_buffer->buffer() : nullptr,
+                 pending_buffer ? pending_buffer->size() : 0)));
+
   // Cap the buffer size up to |kReadBufferSize|. The remaining will be written
   // next time.
-  uint32_t bytes_written = std::min<uint32_t>(kReadBufferSize, bytes_available);
+  base::span<const uint8_t> bytes = buffer->span();
+  bytes = bytes.first(std::min(kReadBufferSize, size_t{bytes_available}));
 
-  auto buffer = base::MakeRefCounted<WrappedIOBuffer>(
-      pending_buffer ? pending_buffer->buffer() : nullptr);
+  size_t actually_written_bytes = 0;
   MojoResult result = client_producer_->WriteData(
-      buffer->data(), &bytes_written, MOJO_WRITE_DATA_FLAG_NONE);
+      bytes, MOJO_WRITE_DATA_FLAG_NONE, actually_written_bytes);
   switch (result) {
     case MOJO_RESULT_OK:
       break;
@@ -416,31 +416,30 @@ void ServiceWorkerUpdatedScriptLoader::WriteData(
       client_producer_watcher_.ArmOrNotify();
       return;
     default:
-      CHECK(false) << static_cast<int>(result);  // NOTREACHED
-      return;
+      NOTREACHED() << static_cast<int>(result);
   }
 
   // Write the buffer in the service worker script storage up to the size we
-  // successfully wrote to the data pipe (i.e., |bytes_written|).
-  // A null buffer and zero |bytes_written| are passed when this is the end of
-  // the body.
+  // successfully wrote to the data pipe (i.e., |actually_written_bytes|).  A
+  // null buffer and zero |actually_written_bytes| are passed when this is the
+  // end of the body.
   net::Error error = cache_writer_->MaybeWriteData(
-      buffer.get(), base::strict_cast<size_t>(bytes_written),
+      buffer.get(), actually_written_bytes,
       base::BindOnce(&ServiceWorkerUpdatedScriptLoader::OnWriteDataComplete,
                      weak_factory_.GetWeakPtr(), pending_buffer,
-                     bytes_written));
+                     actually_written_bytes));
   if (error == net::ERR_IO_PENDING) {
     // OnWriteDataComplete() will be called asynchronously.
     return;
   }
   // MaybeWriteData() doesn't run the callback if it finishes synchronously, so
   // explicitly call it here.
-  OnWriteDataComplete(std::move(pending_buffer), bytes_written, error);
+  OnWriteDataComplete(std::move(pending_buffer), actually_written_bytes, error);
 }
 
 void ServiceWorkerUpdatedScriptLoader::OnWriteDataComplete(
     scoped_refptr<network::MojoToNetPendingBuffer> pending_buffer,
-    uint32_t bytes_written,
+    size_t bytes_written,
     net::Error error) {
   CHECK_NE(net::ERR_IO_PENDING, error);
   if (error != net::OK) {
@@ -467,7 +466,7 @@ void ServiceWorkerUpdatedScriptLoader::OnWriteDataComplete(
   }
 
   CHECK(pending_buffer);
-  pending_buffer->CompleteRead(bytes_written);
+  pending_buffer->CompleteRead(base::checked_cast<uint32_t>(bytes_written));
   // Get the consumer handle from a previous read operation if we have one.
   network_consumer_ = pending_buffer->ReleaseHandle();
   network_watcher_.ArmOrNotify();

@@ -10,8 +10,9 @@
 
 #include "base/containers/flat_map.h"
 #include "base/gtest_prod_util.h"
+#include "base/memory/weak_ptr.h"
 #include "services/device/generic_sensor/platform_sensor.h"
-#include "services/device/generic_sensor/platform_sensor_provider_base.h"
+#include "services/device/generic_sensor/platform_sensor_provider.h"
 
 namespace device {
 
@@ -38,10 +39,9 @@ class PlatformSensorFusion : public PlatformSensor,
   // |callback| call: it can be either newly created object on success or
   // nullptr on failure.
   static void Create(
-      SensorReadingSharedBuffer* reading_buffer,
-      PlatformSensorProvider* provider,
+      base::WeakPtr<PlatformSensorProvider> provider,
       std::unique_ptr<PlatformSensorFusionAlgorithm> fusion_algorithm,
-      PlatformSensorProviderBase::CreateSensorCallback callback);
+      PlatformSensorProvider::CreateSensorCallback callback);
 
   PlatformSensorFusion(const PlatformSensorFusion&) = delete;
   PlatformSensorFusion& operator=(const PlatformSensorFusion&) = delete;
@@ -52,6 +52,7 @@ class PlatformSensorFusion : public PlatformSensor,
   bool CheckSensorConfiguration(
       const PlatformSensorConfiguration& configuration) override;
   double GetMaximumSupportedFrequency() override;
+  double GetMinimumSupportedFrequency() override;
 
   // PlatformSensor::Client:
   void OnSensorReadingChanged(mojom::SensorType type) override;
@@ -69,7 +70,7 @@ class PlatformSensorFusion : public PlatformSensor,
       base::flat_map<mojom::SensorType, scoped_refptr<PlatformSensor>>;
   PlatformSensorFusion(
       SensorReadingSharedBuffer* reading_buffer,
-      PlatformSensorProvider* provider,
+      base::WeakPtr<PlatformSensorProvider> provider,
       std::unique_ptr<PlatformSensorFusionAlgorithm> fusion_algorithm,
       SourcesMap sources);
   ~PlatformSensorFusion() override;

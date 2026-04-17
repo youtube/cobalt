@@ -6,6 +6,7 @@
 
 #include <cassert>
 
+#include "Config.h"
 #include "RecordInfo.h"
 #include "llvm/Support/ErrorHandling.h"
 
@@ -40,14 +41,12 @@ void CheckFieldsVisitor::AtMember(Member*) {
     if ((*it)->Kind() == Edge::kRoot)
       return;
   }
-  invalid_fields_.push_back(std::make_pair(current_, kMemberInUnmanaged));
+  bool is_ptr = Parent() && (Parent()->IsRawPtr() || Parent()->IsRefPtr());
+  invalid_fields_.push_back(std::make_pair(
+      current_, is_ptr ? kPtrToMemberInUnmanaged : kMemberInUnmanaged));
 }
 
 void CheckFieldsVisitor::AtWeakMember(WeakMember*) {
-  // TODO(sof): remove this once crbug.com/724418's change
-  // has safely been rolled out.
-  if (options_.enable_weak_members_in_unmanaged_classes)
-    return;
   AtMember(nullptr);
 }
 
@@ -59,19 +58,45 @@ void CheckFieldsVisitor::AtIterator(Iterator* edge) {
     invalid_fields_.push_back(std::make_pair(current_, kIteratorToGCManaged));
 }
 
-void CheckFieldsVisitor::AtValue(Value* edge) {
-  // TODO: what should we do to check unions?
-  if (edge->value()->record()->isUnion())
-    return;
+namespace {
 
-  if (!stack_allocated_host_ && edge->value()->IsStackAllocated()) {
+CheckFieldsVisitor::Error InvalidSmartPtr(Edge* ptr, bool is_gced) {
+  if (ptr->IsRefPtr()) {
+    return is_gced ? CheckFieldsVisitor::Error::kRefPtrToGCManaged
+                   : CheckFieldsVisitor::Error::kRefPtrToTraceable;
+  }
+  if (ptr->IsUniquePtr()) {
+    return is_gced ? CheckFieldsVisitor::Error::kUniquePtrToGCManaged
+                   : CheckFieldsVisitor::Error::kUniquePtrToTraceable;
+  }
+  llvm_unreachable("Unknown smart pointer kind");
+}
+
+}  // namespace
+
+void CheckFieldsVisitor::AtValue(Value* edge) {
+  RecordInfo* record = edge->value();
+
+  // TODO: what should we do to check unions?
+  if (record->record()->isUnion()) {
+    return;
+  }
+
+  // Don't allow unmanaged classes to contain traceable part-objects.
+  const bool child_is_part_object = record->IsNewDisallowed() && !Parent();
+  if (!managed_host_ && child_is_part_object && record->RequiresTraceMethod()) {
+    invalid_fields_.push_back(
+        std::make_pair(current_, kTraceablePartObjectInUnmanaged));
+    return;
+  }
+
+  if (!stack_allocated_host_ && record->IsStackAllocated() &&
+      !Config::IsStackAllocatedIgnoreAnnotated(current_->field())) {
     invalid_fields_.push_back(std::make_pair(current_, kPtrFromHeapToStack));
     return;
   }
 
-  if (!Parent() &&
-      edge->value()->IsGCDerived() &&
-      !edge->value()->IsGCMixin()) {
+  if (!Parent() && record->IsGCDerived() && !record->IsGCMixin()) {
     invalid_fields_.push_back(std::make_pair(current_, kGCDerivedPartObject));
     return;
   }
@@ -80,7 +105,9 @@ void CheckFieldsVisitor::AtValue(Value* edge) {
   // heap collections with Members are okay.
   if (stack_allocated_host_ && Parent() &&
       (Parent()->IsMember() || Parent()->IsWeakMember())) {
-    if (!GrandParent() || !GrandParent()->IsCollection()) {
+    if (!GrandParent() ||
+        (!GrandParent()->IsCollection() && !GrandParent()->IsRawPtr() &&
+         !GrandParent()->IsRefPtr())) {
       invalid_fields_.push_back(
           std::make_pair(current_, kMemberInStackAllocated));
       return;
@@ -104,33 +131,38 @@ void CheckFieldsVisitor::AtValue(Value* edge) {
     return;
   }
 
-  if (!Parent() || !edge->value()->IsGCAllocated())
+  if (!Parent() || (!edge->value()->IsGCAllocated() &&
+                    !edge->value()
+                         ->NeedsTracing(Edge::NeedsTracingOption::kRecursive)
+                         .IsNeeded())) {
     return;
+  }
 
-  // Disallow unique_ptr<T>, scoped_refptr<T>, WeakPtr<T>.
-  if (Parent()->IsUniquePtr() || Parent()->IsRefPtr()) {
+  // Disallow unique_ptr<T>, scoped_refptr<T>
+  if (Parent()->IsUniquePtr() ||
+      (Parent()->IsRefPtr() && (Parent()->Kind() == Edge::kStrong))) {
     invalid_fields_.push_back(std::make_pair(
-        current_, InvalidSmartPtr(Parent())));
+        current_, InvalidSmartPtr(Parent(), edge->value()->IsGCAllocated())));
     return;
   }
   if (Parent()->IsRawPtr() && !stack_allocated_host_) {
     RawPtr* rawPtr = static_cast<RawPtr*>(Parent());
-    Error error = rawPtr->HasReferenceType() ?
-        kReferencePtrToGCManaged : kRawPtrToGCManaged;
+    Error error = edge->value()->IsGCAllocated()
+                      ? (rawPtr->HasReferenceType() ? kReferencePtrToGCManaged
+                                                    : kRawPtrToGCManaged)
+                      : (rawPtr->HasReferenceType() ? kReferencePtrToTraceable
+                                                    : kRawPtrToTraceable);
     invalid_fields_.push_back(std::make_pair(current_, error));
   }
 }
 
 void CheckFieldsVisitor::AtCollection(Collection* edge) {
+  if (GrandParent() &&
+      (GrandParent()->IsRawPtr() || GrandParent()->IsRefPtr())) {
+    // Don't alert on pointers to unique_ptr. Alerting on the pointed unique_ptr
+    // should suffice.
+    return;
+  }
   if (edge->on_heap() && Parent() && Parent()->IsUniquePtr())
     invalid_fields_.push_back(std::make_pair(current_, kUniquePtrToGCManaged));
-}
-
-CheckFieldsVisitor::Error CheckFieldsVisitor::InvalidSmartPtr(Edge* ptr) {
-  if (ptr->IsRefPtr())
-    return ptr->Kind() == Edge::kStrong ? kRefPtrToGCManaged
-                                        : kWeakPtrToGCManaged;
-  if (ptr->IsUniquePtr())
-    return kUniquePtrToGCManaged;
-  llvm_unreachable("Unknown smart pointer kind");
 }

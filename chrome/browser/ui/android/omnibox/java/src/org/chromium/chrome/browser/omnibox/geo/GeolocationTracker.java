@@ -14,11 +14,11 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Process;
 
-import androidx.annotation.VisibleForTesting;
-
 import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.TraceEvent;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 /**
  * Keeps track of the device's location, allowing synchronous location requests.
@@ -26,11 +26,12 @@ import org.chromium.base.TraceEvent;
  * refreshLastKnownLocation() several seconds before a location is needed to maximize the chances
  * that the location is known.
  */
+@NullMarked
 class GeolocationTracker {
 
-    private static SelfCancelingListener sListener;
-    private static Location sNetworkLocationForTesting;
-    private static Location sGpsLocationForTesting;
+    private static @Nullable SelfCancelingListener sListener;
+    private static @Nullable Location sNetworkLocationForTesting;
+    private static @Nullable Location sGpsLocationForTesting;
     private static boolean sUseLocationForTesting;
     private static long sLocationAgeForTesting;
     private static boolean sUseLocationAgeForTesting;
@@ -40,7 +41,7 @@ class GeolocationTracker {
         // Length of time before the location request should be canceled. This timeout ensures the
         // device doesn't get stuck in an infinite loop trying and failing to get a location, which
         // would cause battery drain. See: http://crbug.com/309917
-        private static final int REQUEST_TIMEOUT_MS = 60 * 1000;  // 60 sec.
+        private static final int REQUEST_TIMEOUT_MS = 60 * 1000; // 60 sec.
 
         private final LocationManager mLocationManager;
         private final Handler mHandler;
@@ -51,17 +52,18 @@ class GeolocationTracker {
         private SelfCancelingListener(LocationManager manager) {
             mLocationManager = manager;
             mHandler = new Handler();
-            mCancelRunnable = new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        mLocationManager.removeUpdates(SelfCancelingListener.this);
-                    } catch (Exception e) {
-                        if (!mRegistrationFailed) throw e;
-                    }
-                    sListener = null;
-                }
-            };
+            mCancelRunnable =
+                    new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                mLocationManager.removeUpdates(SelfCancelingListener.this);
+                            } catch (Exception e) {
+                                if (!mRegistrationFailed) throw e;
+                            }
+                            sListener = null;
+                        }
+                    };
             mHandler.postDelayed(mCancelRunnable, REQUEST_TIMEOUT_MS);
         }
 
@@ -76,19 +78,19 @@ class GeolocationTracker {
         }
 
         @Override
-        public void onProviderDisabled(String provider) { }
+        public void onProviderDisabled(String provider) {}
 
         @Override
-        public void onProviderEnabled(String provider) { }
+        public void onProviderEnabled(String provider) {}
 
         @Override
-        public void onStatusChanged(String provider, int status, Bundle extras) { }
+        public void onStatusChanged(String provider, int status, Bundle extras) {}
     }
 
     /**
-     * Returns the age of location is milliseconds.
-     * Note: the age will be invalid if the system clock has been changed since the location was
-     * created. If the apparent age is negative, Long.MAX_VALUE will be returned.
+     * Returns the age of location is milliseconds. Note: the age will be invalid if the system
+     * clock has been changed since the location was created. If the apparent age is negative,
+     * Long.MAX_VALUE will be returned.
      */
     static long getLocationAge(Location location) {
         if (sUseLocationAgeForTesting) return sLocationAgeForTesting;
@@ -96,10 +98,8 @@ class GeolocationTracker {
         return age >= 0 ? age : Long.MAX_VALUE;
     }
 
-    /**
-     * Returns the last known location or null if none is available.
-     */
-    static Location getLastKnownLocation(Context context) {
+    /** Returns the last known location or null if none is available. */
+    static @Nullable Location getLastKnownLocation(Context context) {
         try (TraceEvent e = TraceEvent.scoped("GeolocationTracker.getLastKnownLocation")) {
             if (sUseLocationForTesting) {
                 return chooseLocation(sNetworkLocationForTesting, sGpsLocationForTesting);
@@ -126,7 +126,7 @@ class GeolocationTracker {
     /**
      * Requests an updated location if the last known location is older than maxAge milliseconds.
      *
-     * Note: this must be called only on the UI thread.
+     * <p>Note: this must be called only on the UI thread.
      */
     static void refreshLastKnownLocation(Context context, long maxAge) {
         ThreadUtils.assertOnUiThread();
@@ -156,7 +156,6 @@ class GeolocationTracker {
         }
     }
 
-    @VisibleForTesting
     static void setLocationForTesting(
             Location networkLocationForTesting, Location gpsLocationForTesting) {
         sNetworkLocationForTesting = networkLocationForTesting;
@@ -164,7 +163,6 @@ class GeolocationTracker {
         sUseLocationForTesting = true;
     }
 
-    @VisibleForTesting
     static void setLocationAgeForTesting(Long locationAgeForTesting) {
         if (locationAgeForTesting == null) {
             sUseLocationAgeForTesting = false;
@@ -176,11 +174,12 @@ class GeolocationTracker {
 
     private static boolean hasPermission(Context context, String permission) {
         return ApiCompatibilityUtils.checkPermission(
-                       context, permission, Process.myPid(), Process.myUid())
+                        context, permission, Process.myPid(), Process.myUid())
                 == PackageManager.PERMISSION_GRANTED;
     }
 
-    private static Location chooseLocation(Location networkLocation, Location gpsLocation) {
+    private static @Nullable Location chooseLocation(
+            @Nullable Location networkLocation, @Nullable Location gpsLocation) {
         if (gpsLocation == null) {
             return networkLocation;
         }

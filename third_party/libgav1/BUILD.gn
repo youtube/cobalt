@@ -3,9 +3,11 @@
 # found in the LICENSE file.
 
 import("//build/config/arm.gni")
+import("//testing/libfuzzer/fuzzer_test.gni")
 import("//third_party/libgav1/options.gni")
 
-config("public_libgav1_config") {
+# Public configuration exported to users of the libgav1_parser target.
+config("libgav1_public_config") {
   include_dirs = [
     "src",
     "src/src",
@@ -20,10 +22,16 @@ config("public_libgav1_config") {
     # Don't let libgav1 export any symbols. Otherwise the verify_order step on
     # macOS can fail since these exports end up in the final Chromium binary.
     "LIBGAV1_PUBLIC=",
+
+    # The following directive macro definition is set to treat some libgav1
+    # bitstream check results as warnings, so that the decoding job can be
+    # continued.
+    "CHROMIUM",
   ]
 }
 
-config("private_libgav1_config") {
+# Private configuration used in building libgav1.
+config("libgav1_config") {
   configs = []
 
   # dsp intrinsics will generate much better code when optimized for speed
@@ -42,9 +50,9 @@ if (use_libgav1_parser) {
   static_library("libgav1_parser") {
     configs -= [ "//build/config/compiler:chromium_code" ]
     configs += [ "//build/config/compiler:no_chromium_code" ]
-    configs += [ ":private_libgav1_config" ]
+    configs += [ ":libgav1_config" ]
 
-    public_configs = [ ":public_libgav1_config" ]
+    public_configs = [ ":libgav1_public_config" ]
 
     sources = [
       "//third_party/libgav1/src/src/buffer_pool.cc",
@@ -76,5 +84,24 @@ if (use_libgav1_parser) {
       "//third_party/libgav1/src/src/yuv_buffer.cc",
       "//third_party/libgav1/src/src/yuv_buffer.h",
     ]
+  }
+
+  fuzzer_test("libgav1_obu_parser_fuzzer") {
+    sources = [
+      "//third_party/libgav1/src/examples/file_reader.cc",
+      "//third_party/libgav1/src/examples/file_reader.h",
+      "//third_party/libgav1/src/examples/file_reader_constants.cc",
+      "//third_party/libgav1/src/examples/file_reader_constants.h",
+      "//third_party/libgav1/src/examples/file_reader_factory.cc",
+      "//third_party/libgav1/src/examples/file_reader_factory.h",
+      "//third_party/libgav1/src/examples/file_reader_interface.h",
+      "//third_party/libgav1/src/examples/ivf_parser.cc",
+      "//third_party/libgav1/src/examples/ivf_parser.h",
+      "//third_party/libgav1/src/examples/logging.h",
+      "//third_party/libgav1/src/tests/fuzzer/obu_parser_fuzzer.cc",
+    ]
+    deps = [ ":libgav1_parser" ]
+    defines = [ "LIBGAV1_EXAMPLES_ENABLE_LOGGING=0" ]
+    additional_configs = [ ":libgav1_config" ]
   }
 }

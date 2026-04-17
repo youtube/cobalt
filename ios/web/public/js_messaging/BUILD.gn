@@ -4,14 +4,15 @@
 
 import("//ios/web/public/js_messaging/compile_ts.gni")
 import("//ios/web/public/js_messaging/optimize_js.gni")
+import("//ios/web/public/js_messaging/optimize_ts.gni")
 
 source_set("js_messaging") {
   deps = [
-    "//base",
     "//ios/web/public/",
     "//url",
   ]
-  public_deps = [ "//third_party/abseil-cpp:absl" ]
+
+  public_deps = [ "//base" ]
 
   frameworks = [ "Foundation.framework" ]
 
@@ -21,12 +22,15 @@ source_set("js_messaging") {
     "script_message.h",
     "web_frame.h",
     "web_frame_user_data.h",
-    "web_frame_util.h",
     "web_frames_manager.h",
     "web_frames_manager_observer_bridge.h",
   ]
+}
 
-  configs += [ "//build/config/compiler:enable_arc" ]
+source_set("web_view_js_utils") {
+  frameworks = [ "Foundation.framework" ]
+
+  sources = [ "web_view_js_utils.h" ]
 }
 
 source_set("content_world_header") {
@@ -37,11 +41,19 @@ compile_ts("util_scripts") {
   sources = [ "resources/utils.ts" ]
 }
 
+compile_ts("error_reporting") {
+  sources = [ "resources/error_reporting.ts" ]
+
+  deps = [ ":util_scripts" ]
+}
+
 # `compile_ts` and `optimize_js` targets are defined separately here instead of
 # combined using `optimize_ts` because it allows `gcrweb` target's
 # compiled TypeScript to be used as a dependency by other TypeScript targets.
 compile_ts("gcrweb") {
   sources = [ "resources/gcrweb.ts" ]
+
+  deps = [ ":util_scripts" ]
 }
 
 optimize_js("gcrweb_js") {
@@ -49,6 +61,45 @@ optimize_js("gcrweb_js") {
   primary_script = _script[0]
   sources = _script
   output_name = "gcrweb"
+
+  deps = [ ":gcrweb" ]
+}
+
+source_set("unittests") {
+  testonly = true
+
+  deps = [
+    ":gcrweb_test_api",
+    ":util_test_api",
+    "//base",
+    "//base/test:test_support",
+    "//ios/web/public/test:javascript_test",
+    "//ios/web/public/test:util",
+    "//testing/gtest",
+    "//url",
+  ]
+
+  sources = [
+    "gcrweb_javascript_test.mm",
+    "utils_javascript_test.mm",
+  ]
+}
+
+optimize_ts("util_test_api") {
+  testonly = true
+
+  sources = [ "resources/utils_test_api.ts" ]
+
+  deps = [
+    ":gcrweb",
+    ":util_scripts",
+  ]
+}
+
+optimize_ts("gcrweb_test_api") {
+  testonly = true
+
+  sources = [ "resources/gcrweb_test_api.ts" ]
 
   deps = [ ":gcrweb" ]
 }

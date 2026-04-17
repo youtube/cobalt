@@ -5,8 +5,9 @@
 #ifndef IOS_WEB_PUBLIC_TEST_FAKES_FAKE_COOKIE_STORE_H_
 #define IOS_WEB_PUBLIC_TEST_FAKES_FAKE_COOKIE_STORE_H_
 
+#include <optional>
+
 #include "net/cookies/cookie_store.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace web {
 
@@ -29,8 +30,11 @@ class FakeCookieStore : public net::CookieStore {
       const GURL& source_url,
       const net::CookieOptions& options,
       SetCookiesCallback callback,
-      absl::optional<net::CookieAccessResult> cookie_access_result =
-          absl::nullopt) override;
+      std::optional<net::CookieAccessResult> cookie_access_result =
+          std::nullopt) override;
+  void SetUnsafeCanonicalCookieForTestAsync(
+      std::unique_ptr<net::CanonicalCookie> cookie,
+      SetCookiesCallback callback) override;
   void GetCookieListWithOptionsAsync(
       const GURL& url,
       const net::CookieOptions& options,
@@ -47,7 +51,7 @@ class FakeCookieStore : public net::CookieStore {
   void DeleteMatchingCookiesAsync(DeletePredicate predicate,
                                   DeleteCallback callback) override;
   void FlushStore(base::OnceClosure callback) override;
-  void SetCookieableSchemes(const std::vector<std::string>& schemes,
+  void SetCookieableSchemes(std::vector<std::string> schemes,
                             SetCookieableSchemesCallback callback) override;
   net::CookieChangeDispatcher& GetChangeDispatcher() override;
 

@@ -35,16 +35,15 @@ class CC_EXPORT SolidColorLayerImpl : public LayerImpl {
   ~SolidColorLayerImpl() override;
 
   // LayerImpl overrides.
+  mojom::LayerType GetLayerType() const override;
   std::unique_ptr<LayerImpl> CreateLayerImpl(
       LayerTreeImpl* tree_impl) const override;
-  void AppendQuads(viz::CompositorRenderPass* render_pass,
+  void AppendQuads(const AppendQuadsContext& context,
+                   viz::CompositorRenderPass* render_pass,
                    AppendQuadsData* append_quads_data) override;
 
  protected:
   SolidColorLayerImpl(LayerTreeImpl* tree_impl, int id);
-
- private:
-  const char* LayerTypeAsString() const override;
 };
 
 }  // namespace cc

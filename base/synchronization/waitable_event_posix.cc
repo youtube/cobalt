@@ -2,22 +2,28 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
+#include "base/synchronization/waitable_event.h"
+
 #include <stddef.h>
 
+#include <algorithm>
 #include <limits>
+#include <optional>
 #include <vector>
 
 #include "base/check_op.h"
-#include "base/memory/raw_ptr.h"
-#include "base/ranges/algorithm.h"
+#include "base/memory/stack_allocated.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
-#include "base/synchronization/waitable_event.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "base/time/time_override.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 // -----------------------------------------------------------------------------
 // A WaitableEvent on POSIX is implemented as a wait-list. Currently we don't
@@ -49,8 +55,6 @@ WaitableEvent::WaitableEvent(ResetPolicy reset_policy,
                              InitialState initial_state)
     : kernel_(new WaitableEventKernel(reset_policy, initial_state)) {}
 
-WaitableEvent::~WaitableEvent() = default;
-
 void WaitableEvent::Reset() {
   base::AutoLock locked(kernel_->lock_);
   kernel_->signaled_ = false;
@@ -59,8 +63,9 @@ void WaitableEvent::Reset() {
 void WaitableEvent::SignalImpl() {
   base::AutoLock locked(kernel_->lock_);
 
-  if (kernel_->signaled_)
+  if (kernel_->signaled_) {
     return;
+  }
 
   if (kernel_->manual_reset_) {
     SignalAll();
@@ -68,17 +73,19 @@ void WaitableEvent::SignalImpl() {
   } else {
     // In the case of auto reset, if no waiters were woken, we remain
     // signaled.
-    if (!SignalOne())
+    if (!SignalOne()) {
       kernel_->signaled_ = true;
+    }
   }
 }
 
-bool WaitableEvent::IsSignaled() {
+bool WaitableEvent::IsSignaled() const {
   base::AutoLock locked(kernel_->lock_);
 
   const bool result = kernel_->signaled_;
-  if (result && !kernel_->manual_reset_)
+  if (result && !kernel_->manual_reset_) {
     kernel_->signaled_ = false;
+  }
   return result;
 }
 
@@ -90,15 +97,17 @@ bool WaitableEvent::IsSignaled() {
 // variable and the fired flag in this object.
 // -----------------------------------------------------------------------------
 class SyncWaiter : public WaitableEvent::Waiter {
+  STACK_ALLOCATED();
+
  public:
-  SyncWaiter()
-      : fired_(false), signaling_event_(nullptr), lock_(), cv_(&lock_) {}
+  SyncWaiter() : cv_(&lock_) {}
 
   bool Fire(WaitableEvent* signaling_event) override {
     base::AutoLock locked(lock_);
 
-    if (fired_)
+    if (fired_) {
       return false;
+    }
 
     fired_ = true;
     signaling_event_ = signaling_event;
@@ -112,9 +121,7 @@ class SyncWaiter : public WaitableEvent::Waiter {
     return true;
   }
 
-  WaitableEvent* signaling_event() const {
-    return signaling_event_;
-  }
+  WaitableEvent* signaling_event() const { return signaling_event_; }
 
   // ---------------------------------------------------------------------------
   // These waiters are always stack allocated and don't delete themselves. Thus
@@ -125,30 +132,22 @@ class SyncWaiter : public WaitableEvent::Waiter {
   // ---------------------------------------------------------------------------
   // Called with lock held.
   // ---------------------------------------------------------------------------
-  bool fired() const {
-    return fired_;
-  }
+  bool fired() const { return fired_; }
 
   // ---------------------------------------------------------------------------
   // During a TimedWait, we need a way to make sure that an auto-reset
   // WaitableEvent doesn't think that this event has been signaled between
   // unlocking it and removing it from the wait-list. Called with lock held.
   // ---------------------------------------------------------------------------
-  void Disable() {
-    fired_ = true;
-  }
+  void Disable() { fired_ = true; }
 
-  base::Lock* lock() {
-    return &lock_;
-  }
+  base::Lock* lock() { return &lock_; }
 
-  base::ConditionVariable* cv() {
-    return &cv_;
-  }
+  base::ConditionVariable* cv() { return &cv_; }
 
  private:
-  bool fired_;
-  raw_ptr<WaitableEvent> signaling_event_;  // The WaitableEvent which woke us
+  bool fired_ = false;
+  WaitableEvent* signaling_event_ = nullptr;  // The WaitableEvent which woke us
   base::Lock lock_;
   base::ConditionVariable cv_;
 };
@@ -189,10 +188,11 @@ bool WaitableEvent::TimedWaitImpl(TimeDelta wait_delta) {
        remaining = end_time.is_max()
                        ? TimeDelta::Max()
                        : end_time - subtle::TimeTicksNowIgnoringOverride()) {
-    if (end_time.is_max())
+    if (end_time.is_max()) {
       sw.cv()->Wait();
-    else
+    } else {
       sw.cv()->TimedWait(remaining);
+    }
   }
 
   // Get the SyncWaiter signaled state before releasing the lock.
@@ -222,35 +222,33 @@ bool WaitableEvent::TimedWaitImpl(TimeDelta wait_delta) {
 // Synchronous waiting on multiple objects.
 
 static bool  // StrictWeakOrdering
-cmp_fst_addr(const std::pair<WaitableEvent*, unsigned> &a,
-             const std::pair<WaitableEvent*, unsigned> &b) {
+cmp_fst_addr(const std::pair<WaitableEvent*, unsigned>& a,
+             const std::pair<WaitableEvent*, unsigned>& b) {
   return a.first < b.first;
 }
 
 // static
 // NO_THREAD_SAFETY_ANALYSIS: Complex control flow.
-size_t WaitableEvent::WaitMany(WaitableEvent** raw_waitables,
-                               size_t count) NO_THREAD_SAFETY_ANALYSIS {
-  DCHECK(count) << "Cannot wait on no events";
-  internal::ScopedBlockingCallWithBaseSyncPrimitives scoped_blocking_call(
-      FROM_HERE, BlockingType::MAY_BLOCK);
+size_t WaitableEvent::WaitManyImpl(WaitableEvent** raw_waitables,
+                                   size_t count) NO_THREAD_SAFETY_ANALYSIS {
   // We need to acquire the locks in a globally consistent order. Thus we sort
   // the array of waitables by address. We actually sort a pairs so that we can
   // map back to the original index values later.
-  std::vector<std::pair<WaitableEvent*, size_t> > waitables;
+  std::vector<std::pair<WaitableEvent*, size_t>> waitables;
   waitables.reserve(count);
-  for (size_t i = 0; i < count; ++i)
-    waitables.push_back(std::make_pair(raw_waitables[i], i));
+  for (size_t i = 0; i < count; ++i) {
+    waitables.emplace_back(raw_waitables[i], i);
+  }
 
   DCHECK_EQ(count, waitables.size());
 
-  ranges::sort(waitables, cmp_fst_addr);
+  std::ranges::sort(waitables, cmp_fst_addr);
 
   // The set of waitables must be distinct. Since we have just sorted by
   // address, we can check this cheaply by comparing pairs of consecutive
   // elements.
   for (size_t i = 0; i < waitables.size() - 1; ++i) {
-    DCHECK(waitables[i].first != waitables[i+1].first);
+    DCHECK(waitables[i].first != waitables[i + 1].first);
   }
 
   SyncWaiter sw;
@@ -265,21 +263,22 @@ size_t WaitableEvent::WaitMany(WaitableEvent** raw_waitables,
   // At this point, we hold the locks on all the WaitableEvents and we have
   // enqueued our waiter in them all.
   sw.lock()->Acquire();
-    // Release the WaitableEvent locks in the reverse order
-    for (size_t i = 0; i < count; ++i) {
-      waitables[count - (1 + i)].first->kernel_->lock_.Release();
+  // Release the WaitableEvent locks in the reverse order
+  for (size_t i = 0; i < count; ++i) {
+    waitables[count - (1 + i)].first->kernel_->lock_.Release();
+  }
+
+  for (;;) {
+    if (sw.fired()) {
+      break;
     }
 
-    for (;;) {
-      if (sw.fired())
-        break;
-
-      sw.cv()->Wait();
-    }
+    sw.cv()->Wait();
+  }
   sw.lock()->Release();
 
   // The address of the WaitableEvent which fired is stored in the SyncWaiter.
-  WaitableEvent *const signaled_event = sw.signaling_event();
+  WaitableEvent* const signaled_event = sw.signaling_event();
   // This will store the index of the raw_waitables which fired.
   size_t signaled_index = 0;
 
@@ -288,10 +287,10 @@ size_t WaitableEvent::WaitMany(WaitableEvent** raw_waitables,
   for (size_t i = 0; i < count; ++i) {
     if (raw_waitables[i] != signaled_event) {
       raw_waitables[i]->kernel_->lock_.Acquire();
-        // There's no possible ABA issue with the address of the SyncWaiter here
-        // because it lives on the stack. Thus the tag value is just the pointer
-        // value again.
-        raw_waitables[i]->kernel_->Dequeue(&sw, &sw);
+      // There's no possible ABA issue with the address of the SyncWaiter here
+      // because it lives on the stack. Thus the tag value is just the pointer
+      // value again.
+      raw_waitables[i]->kernel_->Dequeue(&sw, &sw);
       raw_waitables[i]->kernel_->lock_.Release();
     } else {
       // By taking this lock here we ensure that |Signal| has completed by the
@@ -335,8 +334,9 @@ size_t WaitableEvent::EnqueueMany(std::pair<WaitableEvent*, size_t>* waitables,
   // No events signaled. All locks acquired. Enqueue the Waiter on all of them
   // and return.
   if (winner == count) {
-    for (size_t i = 0; i < count; ++i)
+    for (size_t i = 0; i < count; ++i) {
       waitables[i].first->Enqueue(waiter);
+    }
     return count;
   }
 
@@ -345,8 +345,9 @@ size_t WaitableEvent::EnqueueMany(std::pair<WaitableEvent*, size_t>* waitables,
   for (auto* w = waitables + count - 1; w >= waitables; --w) {
     auto& kernel = w->first->kernel_;
     if (w->second == winner) {
-      if (!kernel->manual_reset_)
+      if (!kernel->manual_reset_) {
         kernel->signaled_ = false;
+      }
     }
     kernel->lock_.Release();
   }
@@ -355,7 +356,6 @@ size_t WaitableEvent::EnqueueMany(std::pair<WaitableEvent*, size_t>* waitables,
 }
 
 // -----------------------------------------------------------------------------
-
 
 // -----------------------------------------------------------------------------
 // Private functions...
@@ -374,9 +374,10 @@ WaitableEvent::WaitableEventKernel::~WaitableEventKernel() = default;
 bool WaitableEvent::SignalAll() {
   bool signaled_at_least_one = false;
 
-  for (auto* i : kernel_->waiters_) {
-    if (i->Fire(this))
+  for (Waiter* i : kernel_->waiters_) {
+    if (i->Fire(this)) {
       signaled_at_least_one = true;
+    }
   }
 
   kernel_->waiters_.clear();
@@ -389,13 +390,15 @@ bool WaitableEvent::SignalAll() {
 // ---------------------------------------------------------------------------
 bool WaitableEvent::SignalOne() {
   for (;;) {
-    if (kernel_->waiters_.empty())
+    if (kernel_->waiters_.empty()) {
       return false;
+    }
 
     const bool r = (*kernel_->waiters_.begin())->Fire(this);
     kernel_->waiters_.pop_front();
-    if (r)
+    if (r) {
       return true;
+    }
   }
 }
 

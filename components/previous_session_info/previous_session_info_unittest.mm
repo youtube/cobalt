@@ -15,12 +15,7 @@
 #include "testing/gtest_mac.h"
 #include "testing/platform_test.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
-using previous_session_info_constants::
-    kPreviousSessionInfoConnectedSceneSessionIDs;
+using previous_session_info_constants::kPreviousSessionInfoInactiveTabCount;
 using previous_session_info_constants::kPreviousSessionInfoMemoryFootprint;
 using previous_session_info_constants::kPreviousSessionInfoOTRTabCount;
 using previous_session_info_constants::kPreviousSessionInfoParamsPrefix;
@@ -30,6 +25,7 @@ using previous_session_info_constants::kPreviousSessionInfoTabCount;
 namespace {
 
 const NSInteger kTabCount = 15;
+const NSInteger kInactiveTabCount = 30;
 
 // Key in the UserDefaults for a boolean value keeping track of memory warnings.
 NSString* const kDidSeeMemoryWarningShortlyBeforeTerminating =
@@ -356,52 +352,6 @@ TEST_F(PreviousSessionInfoTest, ResetSessionRestorationFlag) {
       terminatedDuringSessionRestoration]);
 }
 
-// Tests that AddSceneSessionID adds to User Defaults.
-TEST_F(PreviousSessionInfoTest, AddSceneSessionID) {
-  [PreviousSessionInfo resetSharedInstanceForTesting];
-  [[PreviousSessionInfo sharedInstance] addSceneSessionID:kTestSession1ID];
-  [[PreviousSessionInfo sharedInstance] addSceneSessionID:kTestSession2ID];
-  NSArray<NSString*>* sessionIDs = [NSUserDefaults.standardUserDefaults
-      stringArrayForKey:kPreviousSessionInfoConnectedSceneSessionIDs];
-  EXPECT_TRUE([sessionIDs containsObject:kTestSession1ID]);
-  EXPECT_TRUE([sessionIDs containsObject:kTestSession2ID]);
-  EXPECT_EQ(2U, [sessionIDs count]);
-}
-
-// Tests that RemoveSceneSessionID removes id from User Defaults.
-TEST_F(PreviousSessionInfoTest, RemoveSceneSessionID) {
-  [PreviousSessionInfo resetSharedInstanceForTesting];
-  [[PreviousSessionInfo sharedInstance] addSceneSessionID:kTestSession1ID];
-  [[PreviousSessionInfo sharedInstance] addSceneSessionID:kTestSession2ID];
-  [[PreviousSessionInfo sharedInstance] addSceneSessionID:kTestSession3ID];
-  NSArray<NSString*>* sessionIDs = [NSUserDefaults.standardUserDefaults
-      stringArrayForKey:kPreviousSessionInfoConnectedSceneSessionIDs];
-  ASSERT_EQ(3U, [sessionIDs count]);
-  [[PreviousSessionInfo sharedInstance] removeSceneSessionID:kTestSession3ID];
-  [[PreviousSessionInfo sharedInstance] removeSceneSessionID:kTestSession1ID];
-  sessionIDs = [NSUserDefaults.standardUserDefaults
-      stringArrayForKey:kPreviousSessionInfoConnectedSceneSessionIDs];
-  EXPECT_FALSE([sessionIDs containsObject:kTestSession3ID]);
-  EXPECT_FALSE([sessionIDs containsObject:kTestSession1ID]);
-  EXPECT_EQ(1U, [sessionIDs count]);
-}
-
-// Tests that resetConnectedSceneSessionIDs remove all session ids from User
-// Defaults.
-TEST_F(PreviousSessionInfoTest, resetConnectedSceneSessionIDs) {
-  [PreviousSessionInfo resetSharedInstanceForTesting];
-  [[PreviousSessionInfo sharedInstance] addSceneSessionID:kTestSession1ID];
-  [[PreviousSessionInfo sharedInstance] addSceneSessionID:kTestSession2ID];
-  [[PreviousSessionInfo sharedInstance] addSceneSessionID:kTestSession3ID];
-  NSArray<NSString*>* sessionIDs = [NSUserDefaults.standardUserDefaults
-      stringArrayForKey:kPreviousSessionInfoConnectedSceneSessionIDs];
-  ASSERT_EQ(3U, [sessionIDs count]);
-  [[PreviousSessionInfo sharedInstance] resetConnectedSceneSessionIDs];
-  sessionIDs = [NSUserDefaults.standardUserDefaults
-      stringArrayForKey:kPreviousSessionInfoConnectedSceneSessionIDs];
-  EXPECT_EQ(0U, [sessionIDs count]);
-}
-
 // Tests that scoped object returned from startSessionRestoration correctly
 // resets User Defaults.
 TEST_F(PreviousSessionInfoTest, ParallelSessionRestorations) {
@@ -632,6 +582,33 @@ TEST_F(PreviousSessionInfoTest, TabCountRecording) {
 
   EXPECT_NSEQ(@(kTabCount), [NSUserDefaults.standardUserDefaults
                                 objectForKey:kPreviousSessionInfoTabCount]);
+}
+
+// Tests inactiveTabCount property.
+TEST_F(PreviousSessionInfoTest, InactiveTabCount) {
+  [PreviousSessionInfo resetSharedInstanceForTesting];
+  [NSUserDefaults.standardUserDefaults
+      setInteger:kInactiveTabCount
+          forKey:kPreviousSessionInfoInactiveTabCount];
+
+  [[PreviousSessionInfo sharedInstance] beginRecordingCurrentSession];
+  EXPECT_EQ(kInactiveTabCount,
+            [PreviousSessionInfo sharedInstance].inactiveTabCount);
+}
+
+// Tests inactive tab count gets written to NSUserDefaults.
+TEST_F(PreviousSessionInfoTest, InactiveTabCountRecording) {
+  [PreviousSessionInfo resetSharedInstanceForTesting];
+  [NSUserDefaults.standardUserDefaults
+      removeObjectForKey:kPreviousSessionInfoInactiveTabCount];
+
+  [[PreviousSessionInfo sharedInstance] beginRecordingCurrentSession];
+  [[PreviousSessionInfo sharedInstance]
+      updateCurrentSessionInactiveTabCount:kInactiveTabCount];
+
+  EXPECT_NSEQ(@(kInactiveTabCount),
+              [NSUserDefaults.standardUserDefaults
+                  objectForKey:kPreviousSessionInfoInactiveTabCount]);
 }
 
 // Tests OTRTabCount property.

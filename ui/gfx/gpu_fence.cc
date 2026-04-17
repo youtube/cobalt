@@ -44,8 +44,8 @@ void GpuFence::Wait() {
 
 #if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   static const int kInfiniteSyncWaitTimeout = -1;
-  DCHECK_GE(fence_handle_.owned_fd.get(), 0);
-  if (sync_wait(fence_handle_.owned_fd.get(), kInfiniteSyncWaitTimeout) < 0) {
+  DCHECK_GE(fence_handle_.Peek(), 0);
+  if (sync_wait(fence_handle_.Peek(), kInfiniteSyncWaitTimeout) < 0) {
     LOG(FATAL) << "Failed while waiting for gpu fence fd";
   }
 #else
@@ -82,21 +82,20 @@ GpuFence::FenceStatus GpuFence::GetStatusChangeTime(int fd,
   }
   *time = base::TimeTicks() + base::Nanoseconds(timestamp_ns);
   return FenceStatus::kSignaled;
-#endif
+#else
   NOTREACHED();
-  return FenceStatus::kInvalid;
+#endif
 }
 
 base::TimeTicks GpuFence::GetMaxTimestamp() const {
-  base::TimeTicks timestamp;
 #if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
-  FenceStatus status =
-      GetStatusChangeTime(fence_handle_.owned_fd.get(), &timestamp);
+  base::TimeTicks timestamp;
+  FenceStatus status = GetStatusChangeTime(fence_handle_.Peek(), &timestamp);
   DCHECK_EQ(status, FenceStatus::kSignaled);
   return timestamp;
-#endif
+#else
   NOTREACHED();
-  return timestamp;
+#endif
 }
 
 }  // namespace gfx

@@ -3,10 +3,10 @@
 // found in the LICENSE file.
 
 [
-    Exposed=Window,
-    RuntimeEnabled=HTMLPopoverAttribute
+    Exposed=Window
 ] interface ToggleEvent : Event {
     constructor(DOMString type, optional ToggleEventInit eventInitDict = {});
     readonly attribute DOMString oldState;
     readonly attribute DOMString newState;
+    [RuntimeEnabled=ToggleEventSource] readonly attribute Element source;
 };

@@ -9,8 +9,16 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/scoped_observation.h"
 #include "base/values.h"
 #include "components/prefs/pref_change_registrar.h"
+#include "components/search_engines/reconciling_template_url_data_holder.h"
+#include "components/search_engines/search_engine_choice/search_engine_choice_service.h"
+#include "components/search_engines/template_url_prepopulate_data_resolver.h"
+
+namespace search_engines {
+class SearchEngineChoiceService;
+}
 
 namespace user_prefs {
 class PrefRegistrySyncable;
@@ -22,9 +30,18 @@ struct TemplateURLData;
 
 // DefaultSearchManager handles the loading and writing of the user's default
 // search engine selection to and from prefs.
-class DefaultSearchManager {
+class DefaultSearchManager
+    : public search_engines::SearchEngineChoiceService::Observer {
  public:
-  static const char kDefaultSearchProviderDataPrefName[];
+  // A dictionary to hold all data related to the Default Search Engine.
+  // Eventually, this should replace all the data stored in the
+  // default_search_provider.* prefs.
+  static constexpr char kDefaultSearchProviderDataPrefName[] =
+      "default_search_provider_data.template_url_data";
+
+  // A mirrored copy of the Default Search Engine data.
+  static constexpr char kMirroredDefaultSearchProviderDataPrefName[] =
+      "default_search_provider_data.mirrored_template_url_data";
 
   static const char kID[];
   static const char kShortName[];
@@ -46,8 +63,6 @@ class DefaultSearchManager {
   static const char kSearchURLPostParams[];
   static const char kSuggestionsURLPostParams[];
   static const char kImageURLPostParams[];
-  static const char kSideSearchParam[];
-  static const char kSideImageSearchParam[];
   static const char kImageSearchBrandingLabel[];
   static const char kSearchIntentParams[];
   static const char kImageTranslateSourceLanguageParamKey[];
@@ -62,18 +77,22 @@ class DefaultSearchManager {
 
   static const char kUsageCount[];
   static const char kAlternateURLs[];
-  static const char kCreatedByPolicy[];
+  static const char kPolicyOrigin[];
   static const char kDisabledByPolicy[];
   static const char kCreatedFromPlayAPI[];
+  static const char kFeaturedByPolicy[];
+  static const char kRequireShortcut[];
   static const char kPreconnectToSearchUrl[];
   static const char kPrefetchLikelyNavigations[];
   static const char kIsActive[];
   static const char kStarterPackId[];
   static const char kEnforcedByPolicy[];
 
+  static const char kDefaultSearchEngineMirroredMetric[];
+
   enum Source {
     // Default search engine chosen either from prepopulated engines set for
-    // current country or overriden from kSearchProviderOverrides preference.
+    // current country or overridden from kSearchProviderOverrides preference.
     FROM_FALLBACK = 0,
     // User selected engine.
     FROM_USER,
@@ -90,13 +109,16 @@ class DefaultSearchManager {
   using ObserverCallback =
       base::RepeatingCallback<void(const TemplateURLData*, Source)>;
 
-  DefaultSearchManager(PrefService* pref_service,
-                       const ObserverCallback& change_observer);
+  DefaultSearchManager(
+      PrefService* pref_service,
+      search_engines::SearchEngineChoiceService* search_engine_choice_service,
+      TemplateURLPrepopulateData::Resolver& prepopulate_data_resolver,
+      const ObserverCallback& change_observer);
 
   DefaultSearchManager(const DefaultSearchManager&) = delete;
   DefaultSearchManager& operator=(const DefaultSearchManager&) = delete;
 
-  ~DefaultSearchManager();
+  ~DefaultSearchManager() override;
 
   // Register prefs needed for tracking the default search provider.
   static void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
@@ -141,13 +163,9 @@ class DefaultSearchManager {
   void OnDefaultSearchPrefChanged();
 
   // Handles changes to kSearchProviderOverrides pref. Calls
-  // LoadPrepopulatedDefaultSearch() and NotifyObserver() if the effective DSE
+  // LoadPrepopulatedFallbackSearch() and NotifyObserver() if the effective DSE
   // might have changed.
   void OnOverridesPrefChanged();
-
-  // Updates |prefs_default_search_| with values from its corresponding
-  // pre-populated search provider record, if any.
-  void MergePrefsDataWithPrepopulated();
 
   // Reads default search provider data from |pref_service_|, updating
   // |prefs_default_search_|, |default_search_mandatory_by_policy_|, and
@@ -155,17 +173,32 @@ class DefaultSearchManager {
   // Invokes MergePrefsDataWithPrepopulated().
   void LoadDefaultSearchEngineFromPrefs();
 
+  // Reads guest search provider, which was previously saved for future guest
+  // session. Updates |saved_guest_search_|.
+  void LoadSavedGuestSearch();
+
   // Reads pre-populated search providers, which will be built-in or overridden
   // by kSearchProviderOverrides. Updates |fallback_default_search_|. Invoke
   // MergePrefsDataWithPrepopulated().
-  void LoadPrepopulatedDefaultSearch();
+  void LoadPrepopulatedFallbackSearch();
 
   // Invokes |change_observer_| if it is not NULL.
   void NotifyObserver();
 
-  raw_ptr<PrefService> pref_service_;
+  // search_engines::SearchEngineChoiceService::Observer
+  void OnSavedGuestSearchChanged() override;
+
+  const raw_ptr<PrefService> pref_service_;
+  const raw_ptr<search_engines::SearchEngineChoiceService>
+      search_engine_choice_service_ = nullptr;
+
   const ObserverCallback change_observer_;
   PrefChangeRegistrar pref_change_registrar_;
+  base::ScopedObservation<search_engines::SearchEngineChoiceService,
+                          search_engines::SearchEngineChoiceService::Observer>
+      search_engine_choice_service_observation_{this};
+
+  raw_ref<TemplateURLPrepopulateData::Resolver> prepopulate_data_resolver_;
 
   // Default search engine provided by pre-populated data or by the
   // |kSearchProviderOverrides| pref. This will be used when no other default
@@ -179,7 +212,11 @@ class DefaultSearchManager {
 
   // Default search engine provided by prefs (either user prefs or policy
   // prefs). This will be null if no value was set in the pref store.
-  std::unique_ptr<TemplateURLData> prefs_default_search_;
+  ReconcilingTemplateURLDataHolder prefs_default_search_;
+
+  // Default search engine provided by previous SearchEngineChoice in guest
+  // mode.
+  std::unique_ptr<TemplateURLData> saved_guest_search_;
 
   // True if the default search is currently enforced by policy.
   bool default_search_mandatory_by_policy_ = false;

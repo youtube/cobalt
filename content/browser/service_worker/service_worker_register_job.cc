@@ -12,18 +12,19 @@
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/devtools/devtools_throttle_handle.h"
 #include "content/browser/devtools/service_worker_devtools_manager.h"
-#include "content/browser/renderer_host/local_network_access_util.h"
+#include "content/browser/renderer_host/private_network_access_util.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/service_worker/embedded_worker_instance.h"
-#include "content/browser/service_worker/embedded_worker_status.h"
+#include "content/browser/service_worker/service_worker_client.h"
 #include "content/browser/service_worker/service_worker_consts.h"
-#include "content/browser/service_worker/service_worker_container_host.h"
 #include "content/browser/service_worker/service_worker_context_core.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
 #include "content/browser/service_worker/service_worker_job_coordinator.h"
@@ -39,6 +40,7 @@
 #include "net/base/net_errors.h"
 #include "services/network/public/cpp/ip_address_space_util.h"
 #include "services/network/public/mojom/client_security_state.mojom-forward.h"
+#include "third_party/blink/public/common/service_worker/embedded_worker_status.h"
 #include "third_party/blink/public/common/service_worker/service_worker_scope_match.h"
 #include "third_party/blink/public/common/service_worker/service_worker_type_converters.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_object.mojom.h"
@@ -229,7 +231,6 @@ void ServiceWorkerRegisterJob::SetPhase(Phase phase) {
   switch (phase) {
     case INITIAL:
       NOTREACHED();
-      break;
     case START:
       DCHECK(phase_ == INITIAL) << phase_;
       break;
@@ -508,7 +509,8 @@ void ServiceWorkerRegisterJob::StartScriptFetchForNewWorker(
               creator_policy_container_policies_.ip_address_space,
               DerivePrivateNetworkRequestPolicy(
                   creator_policy_container_policies_,
-                  PrivateNetworkRequestContext::kWorker)));
+                  PrivateNetworkRequestContext::kWorker),
+              creator_policy_container_policies_.document_isolation_policy));
 
   new_script_fetcher_ = std::make_unique<ServiceWorkerNewScriptFetcher>(
       *context_, version, std::move(loader_factory),
@@ -532,9 +534,17 @@ void ServiceWorkerRegisterJob::OnScriptFetchCompleted(
         version->script_cache_map()->main_script_status_message();
     if (message.empty())
       message = ServiceWorkerConsts::kServiceWorkerFetchScriptError;
-    Complete(version->DeduceStartWorkerFailureReason(
-                 blink::ServiceWorkerStatusCode::kErrorFailed),
-             message);
+    blink::ServiceWorkerStatusCode script_fetch_status_code =
+        version->DeduceStartWorkerFailureReason(
+            blink::ServiceWorkerStatusCode::kErrorFailed);
+    Complete(script_fetch_status_code, message);
+    if (script_fetch_status_code ==
+            blink::ServiceWorkerStatusCode::kErrorNetwork &&
+        version->scope().SchemeIs("chrome-extension")) {
+      base::UmaHistogramSparse(
+          "Extensions.ServiceWorkerBackground.WorkerScriptFetchNetError",
+          (int)version->GetMainScriptNetError());
+    }
     return;
   }
 
@@ -578,7 +588,7 @@ void ServiceWorkerRegisterJob::StartWorkerForUpdate(
   if (GetContentClient()
           ->browser()
           ->ShouldServiceWorkerInheritPolicyContainerFromCreator(script_url_)) {
-    new_version()->set_policy_container_host(
+    new_version()->SetPolicyContainerHost(
         base::MakeRefCounted<PolicyContainerHost>(
             std::move(creator_policy_container_policies_)));
   }
@@ -603,6 +613,7 @@ void ServiceWorkerRegisterJob::StartWorkerForUpdate(
 void ServiceWorkerRegisterJob::UpdateAndContinue() {
   SetPhase(UPDATE);
 
+  context_->NotifyWillCreateURLLoaderFactory(scope_);
   scoped_refptr<network::SharedURLLoaderFactory> loader_factory =
       context_->wrapper()->GetLoaderFactoryForUpdateCheck(
           scope_,
@@ -612,7 +623,8 @@ void ServiceWorkerRegisterJob::UpdateAndContinue() {
               creator_policy_container_policies_.ip_address_space,
               DerivePrivateNetworkRequestPolicy(
                   creator_policy_container_policies_,
-                  PrivateNetworkRequestContext::kWorker)));
+                  PrivateNetworkRequestContext::kWorker),
+              creator_policy_container_policies_.document_isolation_policy));
   if (!loader_factory) {
     // We can't continue with update checking appropriately without
     // |loader_factory|. Null |loader_factory| means that the storage partition
@@ -643,7 +655,7 @@ void ServiceWorkerRegisterJob::UpdateAndContinue() {
   int64_t script_resource_id =
       version_to_update->script_cache_map()->LookupResourceId(script_url_);
   DCHECK_NE(script_resource_id, blink::mojom::kInvalidServiceWorkerResourceId);
-  const absl::optional<std::string> script_sha256_chekcsum =
+  const std::optional<std::string> script_sha256_chekcsum =
       version_to_update->script_cache_map()->LookupSha256Checksum(script_url_);
 
   update_checker_ = std::make_unique<ServiceWorkerUpdateChecker>(
@@ -724,7 +736,8 @@ void ServiceWorkerRegisterJob::DispatchInstallEvent(
 
   DCHECK_EQ(ServiceWorkerVersion::INSTALLING, new_version()->status())
       << new_version()->status();
-  DCHECK_EQ(EmbeddedWorkerStatus::RUNNING, new_version()->running_status())
+  DCHECK_EQ(blink::EmbeddedWorkerStatus::kRunning,
+            new_version()->running_status())
       << "Worker stopped too soon after it was started.";
   int request_id = new_version()->StartRequest(
       ServiceWorkerMetrics::EventType::INSTALL,
@@ -834,14 +847,17 @@ void ServiceWorkerRegisterJob::CompleteInternal(
           new_version()->SetStartWorkerStatusCode(
               blink::ServiceWorkerStatusCode::kErrorExists);
         } else {
-          const char* error_prefix =
+          const char* const scope = scope_.spec().c_str();
+          const char* const script_url = script_url_.spec().c_str();
+          const std::string error_prefix =
               job_type_ == REGISTRATION_JOB
-                  ? ServiceWorkerConsts::kServiceWorkerRegisterErrorPrefix
-                  : ServiceWorkerConsts::kServiceWorkerUpdateErrorPrefix;
-          new_version()->ReportError(
-              status, base::StringPrintf(error_prefix, scope_.spec().c_str(),
-                                         script_url_.spec().c_str()) +
-                          status_message);
+                  ? base::StringPrintf(
+                        ServiceWorkerConsts::kServiceWorkerRegisterErrorPrefix,
+                        scope, script_url)
+                  : base::StringPrintf(
+                        ServiceWorkerConsts::kServiceWorkerUpdateErrorPrefix,
+                        scope, script_url);
+          new_version()->ReportError(status, error_prefix + status_message);
         }
         registration()->UnsetVersion(new_version());
         new_version()->Doom();
@@ -907,18 +923,16 @@ void ServiceWorkerRegisterJob::AddRegistrationToMatchingContainerHosts(
   // Include bfcached clients because they need to have the correct
   // information about the matching registrations if, e.g., claim() is called
   // while they are in bfcache or after they are restored from bfcache.
-  for (std::unique_ptr<ServiceWorkerContextCore::ContainerHostIterator> it =
-           context_->GetClientContainerHostIterator(
+  for (auto it =
+           context_->service_worker_client_owner().GetServiceWorkerClients(
                registration->key(), true /* include_reserved_clients */,
                true /* include_back_forward_cached_clients */);
-       !it->IsAtEnd(); it->Advance()) {
-    ServiceWorkerContainerHost* container_host = it->GetContainerHost();
-    DCHECK(container_host->IsContainerForClient());
-    if (!blink::ServiceWorkerScopeMatches(
-            registration->scope(), container_host->GetUrlForScopeMatch())) {
+       !it.IsAtEnd(); ++it) {
+    if (!blink::ServiceWorkerScopeMatches(registration->scope(),
+                                          it->GetUrlForScopeMatch())) {
       continue;
     }
-    container_host->AddMatchingRegistration(registration);
+    it->AddMatchingRegistration(registration);
   }
 }
 

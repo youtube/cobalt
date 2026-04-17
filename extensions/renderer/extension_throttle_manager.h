@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 
+#include "base/observer_list.h"
 #include "base/synchronization/lock.h"
 #include "extensions/renderer/extension_throttle_entry.h"
 #include "services/network/public/mojom/url_response_head.mojom-forward.h"
@@ -16,12 +17,15 @@
 
 namespace blink {
 class URLLoaderThrottle;
-class WebURLRequest;
 }  // namespace blink
 
 namespace net {
 struct RedirectInfo;
 }  // namespace net
+
+namespace network {
+struct ResourceRequest;
+}  // namespace network
 
 namespace extensions {
 
@@ -34,6 +38,10 @@ namespace extensions {
 // are registered, and does garbage collection from time to time in order to
 // clean out outdated entries. URL ID consists of lowercased scheme, host, port
 // and path. All URLs converted to the same ID will share the same entry.
+//
+// ExtensionThrottleManager can be destructed before ExtensionURLLoaderThrottle
+// even though it is an explicit constructor argument. In that case, the
+// throttle will have no effect (failing open).
 class ExtensionThrottleManager {
  public:
   ExtensionThrottleManager();
@@ -46,22 +54,22 @@ class ExtensionThrottleManager {
   // Creates a throttle which uses this class to prevent extensions from
   // requesting a URL too often, if such a throttle is needed.
   std::unique_ptr<blink::URLLoaderThrottle> MaybeCreateURLLoaderThrottle(
-      const blink::WebURLRequest& request);
+      const network::ResourceRequest& request);
 
-  // Determine if a request to |request_url| should be rejected.
+  // Determine if a request to `request_url` should be rejected.
   bool ShouldRejectRequest(const GURL& request_url);
 
-  // Determine if a redirect from the original |request_url| should be allowed
-  // to be redirected as specified by |redirect_info|.
+  // Determine if a redirect from the original `request_url` should be allowed
+  // to be redirected as specified by `redirect_info`.
   bool ShouldRejectRedirect(const GURL& request_url,
                             const net::RedirectInfo& redirect_info);
 
-  // Must be called when the |response_head| for a request has been received.
+  // Must be called when the `response_head` for a request has been received.
   void WillProcessResponse(
       const GURL& response_url,
       const network::mojom::URLResponseHead& response_head);
 
-  // Set the network status online state as specified in |is_online|.
+  // Set the network status online state as specified in `is_online`.
   void SetOnline(bool is_online);
 
   void SetBackoffPolicyForTests(
@@ -74,6 +82,26 @@ class ExtensionThrottleManager {
                              std::unique_ptr<ExtensionThrottleEntry> entry);
 
   int GetNumberOfEntriesForTests() const { return url_entries_.size(); }
+
+  // Observe extension throttle manager.
+  class ExtensionThrottleManagerObserver : public base::CheckedObserver {
+   public:
+    ExtensionThrottleManagerObserver() = default;
+
+    virtual void OnExtensionThrottleManagerDestruct(
+        ExtensionThrottleManager* manager) {}
+
+   protected:
+    ~ExtensionThrottleManagerObserver() override = default;
+  };
+
+  void AddObserver(ExtensionThrottleManagerObserver* observer) {
+    observers_.AddObserver(observer);
+  }
+
+  void RemoveObserver(ExtensionThrottleManagerObserver* observer) {
+    observers_.RemoveObserver(observer);
+  }
 
  protected:
   // Method that allows us to transform a URL into an ID that can be used in our
@@ -128,6 +156,9 @@ class ExtensionThrottleManager {
 
   // Used to synchronize all public methods.
   base::Lock lock_;
+
+  // Observers of `ExtensionThrottleManager`.
+  base::ObserverList<ExtensionThrottleManagerObserver> observers_;
 };
 
 }  // namespace extensions

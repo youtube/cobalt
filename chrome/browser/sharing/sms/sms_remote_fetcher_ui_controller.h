@@ -5,19 +5,18 @@
 #ifndef CHROME_BROWSER_SHARING_SMS_SMS_REMOTE_FETCHER_UI_CONTROLLER_H_
 #define CHROME_BROWSER_SHARING_SMS_SMS_REMOTE_FETCHER_UI_CONTROLLER_H_
 
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/weak_ptr.h"
-#include "chrome/browser/sharing/sharing_metrics.h"
-#include "chrome/browser/sharing/sharing_service.h"
 #include "chrome/browser/sharing/sharing_ui_controller.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
+#include "components/sharing_message/sharing_metrics.h"
+#include "components/sharing_message/sharing_service.h"
 #include "content/public/browser/web_contents_user_data.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "url/gurl.h"
 #include "url/origin.h"
 
 namespace content {
@@ -32,9 +31,9 @@ class SmsRemoteFetcherUiController
       public content::WebContentsUserData<SmsRemoteFetcherUiController> {
  public:
   using OnRemoteCallback =
-      base::OnceCallback<void(absl::optional<std::vector<url::Origin>>,
-                              absl::optional<std::string>,
-                              absl::optional<content::SmsFetchFailureType>)>;
+      base::OnceCallback<void(std::optional<std::vector<url::Origin>>,
+                              std::optional<std::string>,
+                              std::optional<content::SmsFetchFailureType>)>;
   static SmsRemoteFetcherUiController* GetOrCreateFromWebContents(
       content::WebContents* web_contents);
 
@@ -47,7 +46,7 @@ class SmsRemoteFetcherUiController
   PageActionIconType GetIconType() override;
   sync_pb::SharingSpecificFields::EnabledFeatures GetRequiredFeature()
       const override;
-  void OnDeviceChosen(const syncer::DeviceInfo& device) override;
+  void OnDeviceChosen(const SharingTargetDeviceInfo& device) override;
   void OnAppChosen(const SharingApp& app) override;
   std::u16string GetContentType() const override;
   const gfx::VectorIcon& GetVectorIcon() const override;
@@ -59,7 +58,7 @@ class SmsRemoteFetcherUiController
   void OnSmsRemoteFetchResponse(
       OnRemoteCallback callback,
       SharingSendMessageResult result,
-      std::unique_ptr<chrome_browser_sharing::ResponseMessage> response);
+      std::unique_ptr<components_sharing_message::ResponseMessage> response);
 
   base::OnceClosure FetchRemoteSms(const std::vector<url::Origin>& origin_list,
                                    OnRemoteCallback callback);

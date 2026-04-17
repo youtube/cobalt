@@ -19,18 +19,28 @@ limitations under the License.
 #include <unistd.h>
 #endif
 
-#include <memory>
+#include <stddef.h>
 
-#include "absl/strings/match.h"    // from @com_google_absl
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "absl/status/status.h"  // from @com_google_absl
+#include "absl/strings/match.h"  // from @com_google_absl
 #include "absl/strings/str_cat.h"  // from @com_google_absl
-#include "tensorflow/lite/builtin_ops.h"
-#include "tensorflow/lite/core/shims/cc/kernels/register.h"
-#include "tensorflow/lite/core/shims/cc/tools/verifier.h"
-#include "tensorflow/lite/stderr_reporter.h"
+#include "tensorflow/lite/c/c_api.h"
+#include "tensorflow/lite/core/api/error_reporter.h"
+#include "tensorflow/lite/core/api/op_resolver.h"
+#include "tensorflow/lite/interpreter_builder.h"
+#include "tensorflow/lite/model_builder.h"
+#include "tensorflow/lite/tools/verifier.h"
 #include "tensorflow_lite_support/cc/common.h"
 #include "tensorflow_lite_support/cc/port/configuration_proto_inc.h"
 #include "tensorflow_lite_support/cc/port/status_macros.h"
 #include "tensorflow_lite_support/cc/task/core/external_file_handler.h"
+#include "tensorflow_lite_support/cc/task/core/proto/external_file_proto_inc.h"
+#include "tensorflow_lite_support/metadata/cc/metadata_extractor.h"
 
 namespace tflite {
 namespace task {
@@ -42,10 +52,9 @@ using ::tflite::support::CreateStatusWithPayload;
 using ::tflite::support::InterpreterCreationResources;
 using ::tflite::support::TfLiteSupportStatus;
 
-bool TfLiteEngine::Verifier::Verify(const char* data,
-                                    int length,
+bool TfLiteEngine::Verifier::Verify(const char* data, int length,
                                     tflite::ErrorReporter* reporter) {
-  return tflite_shims::Verify(data, length, reporter);
+  return tflite::Verify(data, length, reporter);
 }
 
 TfLiteEngine::TfLiteEngine(std::unique_ptr<tflite::OpResolver> resolver)
@@ -74,10 +83,9 @@ std::vector<const TfLiteTensor*> TfLiteEngine::GetOutputs() {
 }
 
 void TfLiteEngine::VerifyAndBuildModelFromBuffer(
-    const char* buffer_data,
-    size_t buffer_size,
+    const char* buffer_data, size_t buffer_size,
     TfLiteVerifier* extra_verifier) {
-  model_ = tflite_shims::FlatBufferModel::VerifyAndBuildFromBuffer(
+  model_ = tflite::FlatBufferModel::VerifyAndBuildFromBuffer(
       buffer_data, buffer_size, extra_verifier, &error_reporter_);
 }
 
@@ -113,7 +121,7 @@ absl::Status TfLiteEngine::InitializeFromModelFileHandler(
     }
   }
 
-  ASSIGN_OR_RETURN(
+  TFLITE_ASSIGN_OR_RETURN(
       model_metadata_extractor_,
       tflite::metadata::ModelMetadataExtractor::CreateFromModelBuffer(
           buffer_data, buffer_size));
@@ -122,8 +130,7 @@ absl::Status TfLiteEngine::InitializeFromModelFileHandler(
 }
 
 absl::Status TfLiteEngine::BuildModelFromFlatBuffer(
-    const char* buffer_data,
-    size_t buffer_size,
+    const char* buffer_data, size_t buffer_size,
     const tflite::proto::ComputeSettings& compute_settings) {
   if (model_) {
     return CreateStatusWithPayload(StatusCode::kInternal,
@@ -131,7 +138,7 @@ absl::Status TfLiteEngine::BuildModelFromFlatBuffer(
   }
   external_file_ = std::make_unique<ExternalFile>();
   external_file_->set_file_content(std::string(buffer_data, buffer_size));
-  ASSIGN_OR_RETURN(
+  TFLITE_ASSIGN_OR_RETURN(
       model_file_handler_,
       ExternalFileHandler::CreateFromExternalFile(external_file_.get()));
   return InitializeFromModelFileHandler(compute_settings);
@@ -148,11 +155,31 @@ absl::Status TfLiteEngine::BuildModelFromFile(
     external_file_ = std::make_unique<ExternalFile>();
   }
   external_file_->set_file_name(file_name);
-  ASSIGN_OR_RETURN(
+  TFLITE_ASSIGN_OR_RETURN(
       model_file_handler_,
       ExternalFileHandler::CreateFromExternalFile(external_file_.get()));
   return InitializeFromModelFileHandler(compute_settings);
 }
+
+#ifdef _WIN32
+absl::Status TfLiteEngine::BuildModelFromFileHandle(
+    HANDLE file_handle,
+    const tflite::proto::ComputeSettings& compute_settings) {
+  if (model_) {
+    return CreateStatusWithPayload(StatusCode::kInternal,
+                                   "Model already built");
+  }
+  if (external_file_ == nullptr) {
+    external_file_ = std::make_unique<ExternalFile>();
+  }
+  external_file_->mutable_file_descriptor_meta()->set_handle(
+      reinterpret_cast<uint64_t>(file_handle));
+  TFLITE_ASSIGN_OR_RETURN(
+      model_file_handler_,
+      ExternalFileHandler::CreateFromExternalFile(external_file_.get()));
+  return InitializeFromModelFileHandler(compute_settings);
+}
+#endif
 
 absl::Status TfLiteEngine::BuildModelFromFileDescriptor(
     int file_descriptor,
@@ -165,7 +192,7 @@ absl::Status TfLiteEngine::BuildModelFromFileDescriptor(
     external_file_ = std::make_unique<ExternalFile>();
   }
   external_file_->mutable_file_descriptor_meta()->set_fd(file_descriptor);
-  ASSIGN_OR_RETURN(
+  TFLITE_ASSIGN_OR_RETURN(
       model_file_handler_,
       ExternalFileHandler::CreateFromExternalFile(external_file_.get()));
   return InitializeFromModelFileHandler(compute_settings);
@@ -178,7 +205,7 @@ absl::Status TfLiteEngine::BuildModelFromExternalFileProto(
     return CreateStatusWithPayload(StatusCode::kInternal,
                                    "Model already built");
   }
-  ASSIGN_OR_RETURN(model_file_handler_,
+  TFLITE_ASSIGN_OR_RETURN(model_file_handler_,
                    ExternalFileHandler::CreateFromExternalFile(external_file));
   return InitializeFromModelFileHandler(compute_settings);
 }
@@ -190,7 +217,7 @@ absl::Status TfLiteEngine::BuildModelFromExternalFileProto(
                                    "Model already built");
   }
   external_file_ = std::move(external_file);
-  ASSIGN_OR_RETURN(
+  TFLITE_ASSIGN_OR_RETURN(
       model_file_handler_,
       ExternalFileHandler::CreateFromExternalFile(external_file_.get()));
   // Dummy proto. InitializeFromModelFileHandler doesn't use this proto.
@@ -212,8 +239,7 @@ absl::Status TfLiteEngine::InitInterpreter(int num_threads) {
 // absl::Status TfLiteEngine::InitInterpreter(
 //    const tflite::proto::ComputeSettings& compute_settings)
 absl::Status TfLiteEngine::InitInterpreter(
-    const tflite::proto::ComputeSettings& compute_settings,
-    int num_threads) {
+    const tflite::proto::ComputeSettings& compute_settings, int num_threads) {
   ComputeSettings settings_copy = ComputeSettings(compute_settings);
   settings_copy.mutable_tflite_settings()
       ->mutable_cpu_settings()
@@ -233,7 +259,7 @@ absl::Status TfLiteEngine::InitInterpreter(
       [this](const InterpreterCreationResources& resources,
              std::unique_ptr<Interpreter, InterpreterDeleter>* interpreter_out)
       -> absl::Status {
-    tflite_shims::InterpreterBuilder interpreter_builder(*model_, *resolver_);
+    tflite::InterpreterBuilder interpreter_builder(*model_, *resolver_);
     resources.ApplyTo(&interpreter_builder);
     if (interpreter_builder(interpreter_out) != kTfLiteOk) {
       return CreateStatusWithPayload(

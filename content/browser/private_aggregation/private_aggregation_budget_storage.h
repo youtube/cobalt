@@ -16,6 +16,7 @@
 #include "content/common/content_export.h"
 
 namespace base {
+class ElapsedTimer;
 class FilePath;
 class SequencedTaskRunner;
 }  // namespace base
@@ -78,13 +79,11 @@ class CONTENT_EXPORT PrivateAggregationBudgetStorage {
   ~PrivateAggregationBudgetStorage();
 
   // The maximum time writes will be buffered before being committed to disk.
+  // Note that `Shutdown()` will flush pending writes to disk without delay.
   // This value was chosen to match TrustTokenDatabaseOwner.
-  // TODO(crbug.com/1328442): Consider adding a method to flush on destruction
-  // to ensure no writes are lost on shutdown. Note this would also require
-  // postponing `budgets_table_`'s destructor.
   static constexpr base::TimeDelta kFlushDelay = base::Seconds(2);
 
-  // TODO(crbug.com/1328439): Support data deletion.
+  // TODO(crbug.com/40226450): Support data deletion.
 
   sqlite_proto::KeyValueData<proto::PrivateAggregationBudgets>* budgets_data() {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -114,6 +113,7 @@ class CONTENT_EXPORT PrivateAggregationBudgetStorage {
       std::unique_ptr<PrivateAggregationBudgetStorage> owned_this,
       base::OnceCallback<void(std::unique_ptr<PrivateAggregationBudgetStorage>)>
           on_done_initializing,
+      base::ElapsedTimer elapsed_timer,
       bool was_successful);
 
   scoped_refptr<sqlite_proto::ProtoTableManager> table_manager_;

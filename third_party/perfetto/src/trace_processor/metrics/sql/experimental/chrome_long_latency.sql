@@ -20,7 +20,7 @@
 -- of an EventLatency slice, i.e. the timestamp of the frame presentation
 -- that reflects the event.
 DROP VIEW IF EXISTS long_eventlatency_slice;
-CREATE VIEW long_eventlatency_slice AS
+CREATE PERFETTO VIEW long_eventlatency_slice AS
 SELECT
   ts + dur AS ts,
   dur,
@@ -31,7 +31,7 @@ FROM slice WHERE name = 'EventLatency' AND dur > 100000000;
 
 -- Find the upid of the proccesses where the long latency occur.
 DROP VIEW IF EXISTS long_latency_with_upid;
-CREATE VIEW long_latency_with_upid AS
+CREATE PERFETTO VIEW long_latency_with_upid AS
 SELECT
   long_eventlatency_slice.ts,
   long_eventlatency_slice.event_type,
@@ -46,7 +46,7 @@ JOIN process_track
 -- If the process name represents a file's pathname, the path part will be
 -- removed from the display name of the process.
 DROP VIEW IF EXISTS long_latency_with_process_info;
-CREATE VIEW long_latency_with_process_info AS
+CREATE PERFETTO VIEW long_latency_with_process_info AS
 SELECT
   long_latency_with_upid.ts,
   GROUP_CONCAT(DISTINCT long_latency_with_upid.event_type) AS event_type,
@@ -63,39 +63,9 @@ JOIN process
   ON long_latency_with_upid.upid = process.upid
 GROUP BY ts, process.pid;
 
--- Create the derived event track for long latency.
--- All tracks generated from chrome_long_latency_event are
--- placed under a track group named 'Long Latency', whose summary
--- track is the first track ('All Processes') in chrome_long_latency_event.
--- Note that the 'All Processes' track is generated only when there are more
--- than one source of long latency events.
-DROP VIEW IF EXISTS chrome_long_latency_event;
-CREATE VIEW chrome_long_latency_event AS
-SELECT
-  'slice' AS track_type,
-  'All Processes' AS track_name,
-  ts,
-  0 AS dur,
-  event_type AS slice_name,
-  'Long Latency' AS group_name
-FROM long_latency_with_process_info
-WHERE (SELECT COUNT(DISTINCT process_id)
-                    FROM long_latency_with_process_info) > 1
-GROUP BY ts
-UNION ALL
-SELECT
-  'slice' AS track_type,
-  process_name || ' ' || process_id AS track_name,
-  ts,
-  0 AS dur,
-  event_type AS slice_name,
-  'Long Latency' AS group_name
-FROM long_latency_with_process_info
-GROUP BY ts;
-
 -- Create the long latency metric output.
 DROP VIEW IF EXISTS chrome_long_latency_output;
-CREATE VIEW chrome_long_latency_output AS
+CREATE PERFETTO VIEW chrome_long_latency_output AS
 SELECT ChromeLongLatency(
   'long_latency', (
     SELECT RepeatedField(

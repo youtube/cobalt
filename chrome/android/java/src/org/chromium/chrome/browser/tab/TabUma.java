@@ -6,22 +6,19 @@ package org.chromium.chrome.browser.tab;
 
 import android.os.SystemClock;
 
-import androidx.annotation.Nullable;
-
 import org.chromium.base.UserData;
 import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.chrome.browser.tab.state.CriticalPersistedTabData;
-import org.chromium.chrome.browser.tabmodel.TabModelSelector;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.net.NetError;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.url.GURL;
 
 /**
- * Centralizes UMA data collection for Tab management.
- * This will drive our memory optimization efforts, specially tab restoring and
- * eviction.
- * All calls must be made from the UI thread.
+ * Centralizes UMA data collection for Tab management. This will drive our memory optimization
+ * efforts, specially tab restoring and eviction. All calls must be made from the UI thread.
  */
+@NullMarked
 public class TabUma extends EmptyTabObserver implements UserData {
     private static final Class<TabUma> USER_DATA_KEY = TabUma.class;
 
@@ -38,9 +35,7 @@ public class TabUma extends EmptyTabObserver implements UserData {
     private static final int TAB_STATE_INITIAL = 0;
     private static final int TAB_STATE_ACTIVE = 1;
     private static final int TAB_STATE_INACTIVE = 2;
-    private static final int TAB_STATE_DETACHED = 3;
     private static final int TAB_STATE_CLOSED = 4;
-    private static final int TAB_STATE_MAX = TAB_STATE_CLOSED;
 
     // Counter of tab shows (as per onShow()) for all tabs.
     private static long sAllTabsShowCount;
@@ -53,17 +48,15 @@ public class TabUma extends EmptyTabObserver implements UserData {
     // Timestamp of the beginning of the current tab restore.
     private long mRestoreStartedAtMillis = -1;
 
-    private long mLastTabStateChangeMillis = -1;
     private int mLastTabState = TAB_STATE_INITIAL;
 
     /**
-     * Creates {@link TabUma} instance optionally. Creates one only when tab creation type
-     * is non-null.
+     * Creates {@link TabUma} instance optionally. Creates one only when tab creation type is
+     * non-null.
      */
     static void createForTab(Tab tab) {
         assert tab.getUserDataHost().getUserData(USER_DATA_KEY) == null;
-        @TabCreationState
-        Integer creationState = ((TabImpl) tab).getCreationState();
+        @TabCreationState Integer creationState = ((TabImpl) tab).getCreationState();
         if (creationState != null) {
             tab.getUserDataHost().setUserData(USER_DATA_KEY, new TabUma(tab, creationState));
         }
@@ -71,11 +64,11 @@ public class TabUma extends EmptyTabObserver implements UserData {
 
     /**
      * Constructs a new UMA tracker for a specific tab.
+     *
      * @param tab Tab this UMA tracker is created for.
      * @param creationState In what state the tab was created.
      */
     private TabUma(Tab tab, @TabCreationState int creationState) {
-        mLastTabStateChangeMillis = System.currentTimeMillis();
         mTabCreationState = creationState;
         switch (mTabCreationState) {
             case TabCreationState.LIVE_IN_FOREGROUND:
@@ -108,8 +101,6 @@ public class TabUma extends EmptyTabObserver implements UserData {
         if (mLastTabState == newState) {
             return;
         }
-        long now = System.currentTimeMillis();
-        mLastTabStateChangeMillis = now;
         mLastTabState = newState;
     }
 
@@ -117,7 +108,6 @@ public class TabUma extends EmptyTabObserver implements UserData {
 
     @Override
     public void onShown(Tab tab, @TabSelectionType int selectionType) {
-        long previousTimestampMillis = CriticalPersistedTabData.from(tab).getTimestampMillis();
         long now = SystemClock.elapsedRealtime();
 
         // Do not collect the tab switching data for the first switch to a tab after the cold start
@@ -130,8 +120,9 @@ public class TabUma extends EmptyTabObserver implements UserData {
 
         increaseTabShowCount();
         boolean isOnBrowserStartup = sAllTabsShowCount == 1;
-        boolean performsLazyLoad = mTabCreationState == TabCreationState.FROZEN_FOR_LAZY_LOAD
-                && mLastShownTimestamp == -1;
+        boolean performsLazyLoad =
+                mTabCreationState == TabCreationState.FROZEN_FOR_LAZY_LOAD
+                        && mLastShownTimestamp == -1;
 
         int status;
         if (mRestoreStartedAtMillis == -1 && !performsLazyLoad) {
@@ -166,11 +157,6 @@ public class TabUma extends EmptyTabObserver implements UserData {
         mLastShownTimestamp = now;
 
         updateTabState(TAB_STATE_ACTIVE);
-    }
-
-    private static TabModelSelector getTabModelSelector(Tab tab) {
-        TabImpl tabImpl = (TabImpl) tab;
-        return tabImpl.getActivity().getTabModelSelector();
     }
 
     @Override

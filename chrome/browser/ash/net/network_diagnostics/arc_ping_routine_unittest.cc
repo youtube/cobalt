@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ash/net/network_diagnostics/arc_ping_routine.h"
+
 #include <memory>
 
-#include "ash/components/arc/test/fake_net_instance.h"
-#include "chrome/browser/ash/net/network_diagnostics/arc_ping_routine.h"
 #include "chrome/browser/ash/net/network_diagnostics/network_diagnostics_test_helper.h"
+#include "chromeos/ash/experiences/arc/test/fake_net_instance.h"
 #include "net/dns/public/dns_protocol.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/cros_system_api/dbus/shill/dbus-constants.h"
@@ -56,7 +57,8 @@ class ArcPingRoutineTest : public NetworkDiagnosticsTestHelper {
     fake_net_instance_->set_ping_test_result(result);
 
     // Set up routine with fake NetworkInstance service.
-    arc_ping_routine_ = std::make_unique<ArcPingRoutine>();
+    arc_ping_routine_ = std::make_unique<ArcPingRoutine>(
+        mojom::RoutineCallSource::kDiagnosticsUI);
     arc_ping_routine_->set_net_instance_for_testing(fake_net_instance_.get());
   }
 

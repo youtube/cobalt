@@ -23,7 +23,7 @@
 #include "cbiditst.h"
 #include "cstring.h"
 #include <stdbool.h>
-/* the following include is needed for sprintf */
+/* the following include is needed for snprintf */
 #include <stdio.h>
 
 #define MAXLEN      MAX_STRING_LENGTH
@@ -1041,7 +1041,7 @@ testReorderArabicMathSymbols(void) {
 
 static void
 doTest(UBiDi *pBiDi, int testNumber, const BiDiTestData *test, int32_t lineStart, UBool countRunsFirst) {
-    const uint8_t *dirProps=test->text+lineStart;
+    const uint8_t *dirProps= (test->text == NULL) ? NULL : test->text+lineStart;
     const UBiDiLevel *levels=test->levels;
     const uint8_t *visualMap=test->visualMap;
     int32_t i, len=ubidi_getLength(pBiDi), logicalIndex, runCount = 0;
@@ -4489,7 +4489,7 @@ testStreaming(void) {
                 mismatch |= (UBool)(j >= nPortions ||
                            processedLen != testData[i].portionLens[levelIndex][j]);
 
-                sprintf(processedLenStr + j * 4, "%4d", processedLen);
+                snprintf(processedLenStr + j * 4, sizeof(processedLenStr) - j * 4, "%4d", processedLen);
                 srcLen -= processedLen, pSrc += processedLen;
             }
 

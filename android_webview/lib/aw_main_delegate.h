@@ -6,9 +6,11 @@
 #define ANDROID_WEBVIEW_LIB_AW_MAIN_DELEGATE_H_
 
 #include <memory>
+#include <variant>
 
 #include "android_webview/browser/aw_feature_list_creator.h"
 #include "android_webview/common/aw_content_client.h"
+#include "android_webview/common/gfx/aw_gr_context_options_provider.h"
 #include "components/memory_system/memory_system.h"
 #include "content/public/app/content_main_delegate.h"
 
@@ -26,6 +28,8 @@ class AwContentRendererClient;
 // this class runs per process, (browser and renderer) so when making changes
 // make sure to properly conditionalize for browser vs. renderer wherever
 // needed.
+//
+// Lifetime: Singleton
 class AwMainDelegate : public content::ContentMainDelegate {
  public:
   AwMainDelegate();
@@ -37,16 +41,16 @@ class AwMainDelegate : public content::ContentMainDelegate {
 
  private:
   // content::ContentMainDelegate implementation:
-  absl::optional<int> BasicStartupComplete() override;
+  std::optional<int> BasicStartupComplete() override;
   void PreSandboxStartup() override;
-  absl::variant<int, content::MainFunctionParams> RunProcess(
+  std::variant<int, content::MainFunctionParams> RunProcess(
       const std::string& process_type,
       content::MainFunctionParams main_function_params) override;
   void ProcessExiting(const std::string& process_type) override;
   bool ShouldCreateFeatureList(InvokedIn invoked_in) override;
   bool ShouldInitializeMojo(InvokedIn invoked_in) override;
   variations::VariationsIdsProvider* CreateVariationsIdsProvider() override;
-  absl::optional<int> PostEarlyInitialization(InvokedIn invoked_in) override;
+  std::optional<int> PostEarlyInitialization(InvokedIn invoked_in) override;
   content::ContentClient* CreateContentClient() override;
   content::ContentBrowserClient* CreateContentBrowserClient() override;
   content::ContentGpuClient* CreateContentGpuClient() override;
@@ -63,6 +67,7 @@ class AwMainDelegate : public content::ContentMainDelegate {
   std::unique_ptr<AwContentBrowserClient> content_browser_client_;
   std::unique_ptr<AwContentGpuClient> content_gpu_client_;
   std::unique_ptr<AwContentRendererClient> content_renderer_client_;
+  AwGrContextOptionsProvider aw_gr_context_options_provider_;
 
   memory_system::MemorySystem memory_system_;
 };

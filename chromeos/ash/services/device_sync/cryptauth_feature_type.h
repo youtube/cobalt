@@ -5,12 +5,12 @@
 #ifndef CHROMEOS_ASH_SERVICES_DEVICE_SYNC_CRYPTAUTH_FEATURE_TYPE_H_
 #define CHROMEOS_ASH_SERVICES_DEVICE_SYNC_CRYPTAUTH_FEATURE_TYPE_H_
 
+#include <optional>
 #include <ostream>
 #include <string>
 
 #include "base/containers/flat_set.h"
 #include "chromeos/ash/components/multidevice/software_feature.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash {
 
@@ -101,15 +101,16 @@ enum class CryptAuthFeatureType {
 const base::flat_set<CryptAuthFeatureType>& GetAllCryptAuthFeatureTypes();
 const base::flat_set<CryptAuthFeatureType>& GetSupportedCryptAuthFeatureTypes();
 const base::flat_set<CryptAuthFeatureType>& GetEnabledCryptAuthFeatureTypes();
-const base::flat_set<std::string>& GetAllCryptAuthFeatureTypeStrings();
+const base::flat_set<std::string_view>& GetAllCryptAuthFeatureTypeStrings();
 
 // Provides a unique mapping between each CryptAuthFeatureType enum value and
 // the corresponding string used in the protos and understood by CryptAuth.
 // CryptAuthFeatureTypeFromString returns null if |feature_type_string| does not
 // map to a known CryptAuthFeatureType.
-const char* CryptAuthFeatureTypeToString(CryptAuthFeatureType feature_type);
-absl::optional<CryptAuthFeatureType> CryptAuthFeatureTypeFromString(
-    const std::string& feature_type_string);
+std::string_view CryptAuthFeatureTypeToString(
+    CryptAuthFeatureType feature_type);
+std::optional<CryptAuthFeatureType> CryptAuthFeatureTypeFromString(
+    std::string_view feature_type_string);
 
 // Provides a unique mapping between a CryptAuthFeatureType and its
 // corresponding encoded hash value that CryptAuth sends in GCM messages.
@@ -119,7 +120,7 @@ absl::optional<CryptAuthFeatureType> CryptAuthFeatureTypeFromString(
 // CryptAuthFeatureTypeFromGcmHash returns null if |feature_type_hash| cannot be
 // mapped to a CryptAuthFeatureType.
 std::string CryptAuthFeatureTypeToGcmHash(CryptAuthFeatureType feature_type);
-absl::optional<CryptAuthFeatureType> CryptAuthFeatureTypeFromGcmHash(
+std::optional<CryptAuthFeatureType> CryptAuthFeatureTypeFromGcmHash(
     const std::string& feature_type_hash);
 
 // Provides a mapping between CryptAuthFeatureTypes and SoftwareFeatures.

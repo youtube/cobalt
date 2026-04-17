@@ -51,14 +51,14 @@ V8CSSNumberish* CSSMathClamp::upper() {
   return MakeGarbageCollected<V8CSSNumberish>(upper_);
 }
 
-absl::optional<CSSNumericSumValue> CSSMathClamp::SumValue() const {
+std::optional<CSSNumericSumValue> CSSMathClamp::SumValue() const {
   auto lower = lower_->SumValue();
 
   for (const auto& value : {lower_, value_, upper_}) {
     const auto child_sum = value->SumValue();
     if (!child_sum.has_value() || child_sum->terms.size() != 1 ||
         child_sum->terms[0].units != lower->terms[0].units) {
-      return absl::nullopt;
+      return std::nullopt;
     }
   }
 
@@ -96,7 +96,6 @@ CSSMathExpressionNode* CSSMathClamp::ToCalcExpressionNode() const {
       // TODO(crbug.com/983784): Remove this when all ToCalcExpressionNode()
       // overrides are implemented.
       NOTREACHED();
-      return nullptr;
     }
     operands.push_back(value->ToCalcExpressionNode());
   }

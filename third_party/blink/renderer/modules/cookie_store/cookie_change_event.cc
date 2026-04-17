@@ -90,7 +90,7 @@ CookieListItem* CookieChangeEvent::ToCookieListItem(
   list_item->setName(String::FromUTF8(canonical_cookie.Name()));
   list_item->setPath(String::FromUTF8(canonical_cookie.Path()));
 
-  list_item->setSecure(canonical_cookie.IsSecure());
+  list_item->setSecure(canonical_cookie.SecureAttribute());
   // Use effective same site if available, otherwise use same site.
   auto&& same_site = ToCookieListItemEffectiveSameSite(effective_same_site);
   if (same_site.IsNull())
@@ -109,7 +109,7 @@ CookieListItem* CookieChangeEvent::ToCookieListItem(
   if (!is_deleted) {
     list_item->setValue(String::FromUTF8(canonical_cookie.Value()));
     if (canonical_cookie.ExpiryDate().is_null()) {
-      list_item->setExpires(absl::nullopt);
+      list_item->setExpires(std::nullopt);
     } else {
       list_item->setExpires(
           ConvertTimeToDOMHighResTimeStamp(canonical_cookie.ExpiryDate()));
@@ -147,8 +147,11 @@ void CookieChangeEvent::ToEventInfo(
     }
 
     case ::network::mojom::CookieChangeCause::OVERWRITE:
+    case ::network::mojom::CookieChangeCause::INSERTED_NO_CHANGE_OVERWRITE:
       // A cookie overwrite causes an OVERWRITE (meaning the old cookie was
-      // deleted) and an INSERTED.
+      // deleted) and an INSERTED, unless the insertion resulted in a cookie
+      // with no observable difference. In that case, we do not dispatch any
+      // change events.
       break;
   }
 }

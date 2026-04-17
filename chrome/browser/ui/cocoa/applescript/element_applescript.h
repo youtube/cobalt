@@ -12,7 +12,7 @@
 @interface ElementAppleScript : NSObject
 
 @property(nonatomic, copy) NSString* uniqueID;
-@property(nonatomic, retain) NSObject* container;
+@property(nonatomic, strong) NSObject* container;
 @property(nonatomic, copy) NSString* containerProperty;
 
 // Calculates the object specifier by using the uniqueID, container and
@@ -26,4 +26,4 @@
 
 @end
 
-#endif// CHROME_BROWSER_UI_COCOA_APPLESCRIPT_ELEMENT_APPLESCRIPT_H_
+#endif  // CHROME_BROWSER_UI_COCOA_APPLESCRIPT_ELEMENT_APPLESCRIPT_H_

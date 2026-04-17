@@ -7,10 +7,10 @@
 #include "third_party/blink/renderer/bindings/core/v8/capture_source_location.h"
 #include "third_party/blink/renderer/bindings/core/v8/native_value_traits_impl.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
-#include "third_party/blink/renderer/bindings/core/v8/v8_css_style_declaration.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_dom_exception.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_element.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_set_return_value_for_core.h"
-#include "third_party/blink/renderer/core/css/css_style_declaration.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_throw_dom_exception.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/range.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
@@ -96,9 +96,13 @@ void ExceptionToRejectPromiseScope::ConvertExceptionToRejectPromise() {
   // As exceptions must always be created in the current realm, reject
   // promises must also be created in the current realm while regular promises
   // are created in the relevant realm of the context object.
-  ScriptState* script_state = ScriptState::ForCurrentRealm(info_);
-  V8SetReturnValue(
-      info_, ScriptPromise::Reject(script_state, exception_state_).V8Value());
+  //
+  // We don't know the type of the promise here - but given that we're only
+  // going to extract the v8::Value and discard the ScriptPromise, it
+  // doesn't matter what type we use.
+  bindings::V8SetReturnValue(
+      info_, ScriptPromise<IDLUndefined>::Reject(
+                 ScriptState::ForCurrentRealm(info_), try_catch_.Exception()));
 }
 
 namespace bindings {
@@ -121,8 +125,6 @@ void SetupIDLInterfaceTemplate(
   prototype_template->Set(
       v8::Symbol::GetToStringTag(isolate), class_string,
       static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontEnum));
-
-  instance_template->SetInternalFieldCount(kV8DefaultWrapperInternalFieldCount);
 }
 
 void SetupIDLNamespaceTemplate(
@@ -153,11 +155,9 @@ void SetupIDLObservableArrayBackingListTemplate(
     v8::Local<v8::FunctionTemplate> interface_template) {
   interface_template->SetClassName(
       V8AtomicString(isolate, wrapper_type_info->interface_name));
-
-  instance_template->SetInternalFieldCount(kV8DefaultWrapperInternalFieldCount);
 }
 
-void SetupIDLSyncIteratorTemplate(
+void SetupIDLIteratorTemplate(
     v8::Isolate* isolate,
     const WrapperTypeInfo* wrapper_type_info,
     v8::Local<v8::ObjectTemplate> instance_template,
@@ -165,12 +165,14 @@ void SetupIDLSyncIteratorTemplate(
     v8::Local<v8::FunctionTemplate> interface_template,
     v8::Intrinsic parent_intrinsic_prototype,
     const char* class_string) {
-  DCHECK(parent_intrinsic_prototype == v8::Intrinsic::kIteratorPrototype ||
+  DCHECK(parent_intrinsic_prototype == v8::Intrinsic::kAsyncIteratorPrototype ||
+         parent_intrinsic_prototype == v8::Intrinsic::kIteratorPrototype ||
          parent_intrinsic_prototype == v8::Intrinsic::kMapIteratorPrototype ||
          parent_intrinsic_prototype == v8::Intrinsic::kSetIteratorPrototype);
 
   v8::Local<v8::String> v8_class_string = V8String(isolate, class_string);
 
+  // https://webidl.spec.whatwg.org/#es-asynchronous-iterator-prototype-object
   // https://webidl.spec.whatwg.org/#es-iterator-prototype-object
   // https://webidl.spec.whatwg.org/#es-map-iterator
   // https://webidl.spec.whatwg.org/#es-set-iterator
@@ -195,25 +197,25 @@ void SetupIDLSyncIteratorTemplate(
   prototype_template->Set(
       v8::Symbol::GetToStringTag(isolate), v8_class_string,
       static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontEnum));
-
-  instance_template->SetInternalFieldCount(kV8DefaultWrapperInternalFieldCount);
 }
 
-absl::optional<size_t> FindIndexInEnumStringTable(
+std::optional<size_t> FindIndexInEnumStringTable(
     v8::Isolate* isolate,
     v8::Local<v8::Value> value,
     base::span<const char* const> enum_value_table,
     const char* enum_type_name,
     ExceptionState& exception_state) {
-  const String& str_value = NativeValueTraits<IDLString>::NativeValue(
-      isolate, value, exception_state);
-  if (UNLIKELY(exception_state.HadException()))
-    return absl::nullopt;
+  auto adapter = NativeValueTraits<IDLString>::NativeValue(isolate, value,
+                                                           exception_state);
+  const StringView& str_value = adapter;
+  if (exception_state.HadException()) [[unlikely]] {
+    return std::nullopt;
+  }
 
-  absl::optional<size_t> index =
+  std::optional<size_t> index =
       FindIndexInEnumStringTable(str_value, enum_value_table);
 
-  if (UNLIKELY(!index.has_value())) {
+  if (!index.has_value()) [[unlikely]] {
     exception_state.ThrowTypeError("The provided value '" + str_value +
                                    "' is not a valid enum value of type " +
                                    enum_type_name + ".");
@@ -221,28 +223,28 @@ absl::optional<size_t> FindIndexInEnumStringTable(
   return index;
 }
 
-absl::optional<size_t> FindIndexInEnumStringTable(
-    const String& str_value,
+std::optional<size_t> FindIndexInEnumStringTable(
+    const StringView& str_value,
     base::span<const char* const> enum_value_table) {
   for (size_t i = 0; i < enum_value_table.size(); ++i) {
-    if (Equal(str_value.Impl(), enum_value_table[i]))
+    // Avoid operator== because of the strlen inside a StringView construction.
+    if (WTF::EqualToCString(str_value, enum_value_table[i])) {
       return i;
+    }
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 void ReportInvalidEnumSetToAttribute(v8::Isolate* isolate,
                                      const String& value,
                                      const String& enum_type_name,
                                      ExceptionState& exception_state) {
-  ScriptState* script_state = ScriptState::From(isolate->GetCurrentContext());
+  ScriptState* script_state = ScriptState::ForCurrentRealm(isolate);
   ExecutionContext* execution_context = ExecutionContext::From(script_state);
 
-  exception_state.ThrowTypeError("The provided value '" + value +
-                                 "' is not a valid enum value of type " +
-                                 enum_type_name + ".");
-  String message = exception_state.Message();
-  exception_state.ClearException();
+  String message = "The provided value '" + value +
+                   "' is not a valid enum value of type " + enum_type_name +
+                   ".";
 
   execution_context->AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
       mojom::blink::ConsoleMessageSource::kJavaScript,
@@ -260,13 +262,12 @@ bool IsEsIterableObject(v8::Isolate* isolate,
 
   // step 9.1. Let method be ? GetMethod(V, @@iterator).
   // https://tc39.es/ecma262/#sec-getmethod
-  v8::TryCatch try_catch(isolate);
+  TryRethrowScope rethrow_scope(isolate, exception_state);
   v8::Local<v8::Value> iterator_key = v8::Symbol::GetIterator(isolate);
   v8::Local<v8::Value> iterator_value;
   if (!value.As<v8::Object>()
            ->Get(isolate->GetCurrentContext(), iterator_key)
            .ToLocal(&iterator_value)) {
-    exception_state.RethrowV8Exception(try_catch.Exception());
     return false;
   }
 
@@ -293,7 +294,7 @@ ExecutionContext* ExecutionContextFromV8Wrappable(const DOMParser* parser) {
   return parser->GetWindow();
 }
 
-v8::MaybeLocal<v8::Value> CreateNamedConstructorFunction(
+v8::MaybeLocal<v8::Value> CreateLegacyFactoryFunctionFunction(
     ScriptState* script_state,
     v8::FunctionCallback callback,
     const char* func_name,
@@ -321,13 +322,12 @@ v8::MaybeLocal<v8::Value> CreateNamedConstructorFunction(
             .As<v8::FunctionTemplate>();
     function_template->Inherit(interface_template);
     function_template->SetClassName(V8AtomicString(isolate, func_name));
-    function_template->InstanceTemplate()->SetInternalFieldCount(
-        kV8DefaultWrapperInternalFieldCount);
+    function_template->SetExceptionContext(v8::ExceptionContext::kConstructor);
     per_isolate_data->AddV8Template(world, callback_key, function_template);
   }
 
   v8::Local<v8::Context> context = script_state->GetContext();
-  V8PerContextData* per_context_data = V8PerContextData::From(context);
+  V8PerContextData* per_context_data = script_state->PerContextData();
   v8::Local<v8::Function> function;
   if (!function_template->GetFunction(context).ToLocal(&function)) {
     return v8::MaybeLocal<v8::Value>();
@@ -380,84 +380,11 @@ void InstallUnscopablePropertyNames(
 
 v8::Local<v8::Array> EnumerateIndexedProperties(v8::Isolate* isolate,
                                                 uint32_t length) {
-  Vector<v8::Local<v8::Value>> elements;
+  v8::LocalVector<v8::Value> elements(isolate);
   elements.reserve(length);
   for (uint32_t i = 0; i < length; ++i)
-    elements.UncheckedAppend(v8::Integer::New(isolate, i));
+    elements.push_back(v8::Integer::New(isolate, i));
   return v8::Array::New(isolate, elements.data(), elements.size());
-}
-
-void InstallCSSPropertyAttributes(
-    v8::Isolate* isolate,
-    const DOMWrapperWorld& world,
-    v8::Local<v8::Template> instance_template,
-    v8::Local<v8::Template> prototype_template,
-    v8::Local<v8::Template> interface_template,
-    v8::Local<v8::Signature> signature,
-    base::span<const char* const> css_property_names) {
-  const String kGetPrefix = "get ";
-  const String kSetPrefix = "set ";
-  for (const char* const property_name : css_property_names) {
-    v8::Local<v8::Value> v8_property_name = v8::External::New(
-        isolate,
-        const_cast<void*>(reinterpret_cast<const void*>(property_name)));
-    v8::Local<v8::FunctionTemplate> get_func = v8::FunctionTemplate::New(
-        isolate, CSSPropertyAttributeGet, v8_property_name, signature, 0,
-        v8::ConstructorBehavior::kThrow, v8::SideEffectType::kHasNoSideEffect);
-    v8::Local<v8::FunctionTemplate> set_func = v8::FunctionTemplate::New(
-        isolate, CSSPropertyAttributeSet, v8_property_name, signature, 1,
-        v8::ConstructorBehavior::kThrow, v8::SideEffectType::kHasSideEffect);
-    get_func->SetAcceptAnyReceiver(false);
-    set_func->SetAcceptAnyReceiver(false);
-    get_func->SetClassName(
-        V8AtomicString(isolate, String(kGetPrefix + property_name)));
-    set_func->SetClassName(
-        V8AtomicString(isolate, String(kSetPrefix + property_name)));
-    prototype_template->SetAccessorProperty(
-        V8AtomicString(isolate, property_name), get_func, set_func);
-  }
-}
-
-void CSSPropertyAttributeGet(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  CSSStyleDeclaration* blink_receiver =
-      V8CSSStyleDeclaration::ToWrappableUnsafe(info.This());
-  const char* property_name =
-      reinterpret_cast<const char*>(info.Data().As<v8::External>()->Value());
-  // TODO(andruud): AnonymousNamedGetter is not the best function.  Change the
-  // function to a more appropriate one.
-  auto&& return_value = blink_receiver->AnonymousNamedGetter(property_name);
-  bindings::V8SetReturnValue(info, return_value, info.GetIsolate(),
-                             bindings::V8ReturnValue::kNonNullable);
-}
-
-void CSSPropertyAttributeSet(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
-  const char* const class_like_name = "CSSStyleDeclaration";
-  const char* property_name =
-      reinterpret_cast<const char*>(info.Data().As<v8::External>()->Value());
-  ExceptionState exception_state(isolate, ExceptionState::kSetterContext,
-                                 class_like_name, property_name);
-
-  // [CEReactions]
-  CEReactionsScope ce_reactions_scope;
-
-  v8::Local<v8::Object> v8_receiver = info.This();
-  CSSStyleDeclaration* blink_receiver =
-      V8CSSStyleDeclaration::ToWrappableUnsafe(v8_receiver);
-  v8::Local<v8::Value> v8_property_value = info[0];
-  auto&& arg1_value = NativeValueTraits<IDLAny>::NativeValue(
-      isolate, v8_property_value, exception_state);
-  if (UNLIKELY(exception_state.HadException())) {
-    return;
-  }
-  v8::Local<v8::Context> receiver_context =
-      v8_receiver->GetCreationContextChecked();
-  ScriptState* receiver_script_state = ScriptState::From(receiver_context);
-  // TODO(andruud): AnonymousNamedSetter is not the best function.  Change the
-  // function to a more appropriate one.  It's better to pass |exception_state|
-  // as the implementation of AnonymousNamedSetter needs it.
-  blink_receiver->AnonymousNamedSetter(receiver_script_state, property_name,
-                                       arg1_value);
 }
 
 template <typename IDLType,
@@ -465,68 +392,66 @@ template <typename IDLType,
           void (Element::*MemFunc)(const QualifiedName&, ArgType)>
 void PerformAttributeSetCEReactionsReflect(
     const v8::FunctionCallbackInfo<v8::Value>& info,
-    const QualifiedName& content_attribute,
-    const char* interface_name,
-    const char* attribute_name) {
+    const QualifiedName& content_attribute) {
   v8::Isolate* isolate = info.GetIsolate();
-  ExceptionState exception_state(isolate, ExceptionState::kSetterContext,
-                                 interface_name, attribute_name);
-  if (UNLIKELY(info.Length() < 1)) {
-    exception_state.ThrowTypeError(
-        ExceptionMessages::NotEnoughArguments(1, info.Length()));
+  if (info.Length() < 1) [[unlikely]] {
+    V8ThrowException::ThrowTypeError(
+        isolate, ExceptionMessages::NotEnoughArguments(1, info.Length()));
     return;
   }
 
-  CEReactionsScope ce_reactions_scope;
+  CEReactionsScope ce_reactions_scope(isolate);
 
-  Element* blink_receiver = V8Element::ToWrappableUnsafe(info.This());
-  auto&& arg_value = NativeValueTraits<IDLType>::NativeValue(isolate, info[0],
-                                                             exception_state);
-  if (UNLIKELY(exception_state.HadException()))
+  Element* blink_receiver = V8Element::ToWrappableUnsafe(isolate, info.This());
+  auto&& arg_value = NativeValueTraits<IDLType>::NativeValue(
+      isolate, info[0], PassThroughException(isolate));
+  if (isolate->HasPendingException()) [[unlikely]] {
     return;
+  }
 
   (blink_receiver->*MemFunc)(content_attribute, arg_value);
 }
 
 void PerformAttributeSetCEReactionsReflectTypeBoolean(
     const v8::FunctionCallbackInfo<v8::Value>& info,
-    const QualifiedName& content_attribute,
-    const char* interface_name,
-    const char* attribute_name) {
+    const QualifiedName& content_attribute) {
   PerformAttributeSetCEReactionsReflect<IDLBoolean, bool,
                                         &Element::SetBooleanAttribute>(
-      info, content_attribute, interface_name, attribute_name);
+      info, content_attribute);
 }
 
 void PerformAttributeSetCEReactionsReflectTypeString(
     const v8::FunctionCallbackInfo<v8::Value>& info,
-    const QualifiedName& content_attribute,
-    const char* interface_name,
-    const char* attribute_name) {
+    const QualifiedName& content_attribute) {
   PerformAttributeSetCEReactionsReflect<IDLString, const AtomicString&,
                                         &Element::setAttribute>(
-      info, content_attribute, interface_name, attribute_name);
+      info, content_attribute);
 }
 
 void PerformAttributeSetCEReactionsReflectTypeStringLegacyNullToEmptyString(
     const v8::FunctionCallbackInfo<v8::Value>& info,
-    const QualifiedName& content_attribute,
-    const char* interface_name,
-    const char* attribute_name) {
-  PerformAttributeSetCEReactionsReflect<IDLStringTreatNullAsEmptyString,
+    const QualifiedName& content_attribute) {
+  PerformAttributeSetCEReactionsReflect<IDLStringLegacyNullToEmptyString,
                                         const AtomicString&,
                                         &Element::setAttribute>(
-      info, content_attribute, interface_name, attribute_name);
+      info, content_attribute);
 }
 
 void PerformAttributeSetCEReactionsReflectTypeStringOrNull(
     const v8::FunctionCallbackInfo<v8::Value>& info,
-    const QualifiedName& content_attribute,
-    const char* interface_name,
-    const char* attribute_name) {
+    const QualifiedName& content_attribute) {
   PerformAttributeSetCEReactionsReflect<
       IDLNullable<IDLString>, const AtomicString&, &Element::setAttribute>(
-      info, content_attribute, interface_name, attribute_name);
+      info, content_attribute);
+}
+
+CORE_EXPORT void CountWebDXFeature(v8::Isolate* isolate, WebDXFeature feature) {
+  v8::Local<v8::Context> current_context = isolate->GetCurrentContext();
+  ScriptState* current_script_state =
+      ScriptState::From(isolate, current_context);
+  ExecutionContext* current_execution_context =
+      ToExecutionContext(current_script_state);
+  UseCounter::CountWebDXFeature(current_execution_context, feature);
 }
 
 }  // namespace bindings

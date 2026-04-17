@@ -23,7 +23,7 @@ class {{export_attribute}} {{struct.name}} {
   template <typename... Args>
   static {{struct.name}}Ptr New(Args&&... args) {
     return {{struct.name}}Ptr(
-        absl::in_place, std::forward<Args>(args)...);
+        std::in_place, std::forward<Args>(args)...);
   }
 
   template <typename U>
@@ -68,6 +68,9 @@ class {{export_attribute}} {{struct.name}} {
   template <typename T, {{struct.name}}::EnableIfSame<T>* = nullptr>
   bool operator==(const T& rhs) const { return Equals(rhs); }
 
+  template <typename T, {{struct.name}}::EnableIfSame<T>* = nullptr>
+  bool operator!=(const T& rhs) const { return !operator==(rhs); }
+
 {%- if struct|is_hashable %}
   size_t Hash(size_t seed) const;
 {%- endif %}
@@ -76,6 +79,13 @@ class {{export_attribute}} {{struct.name}} {
         if for_blink else "std::vector<uint8_t>" %}
 
 {%- if not struct|contains_handles_or_interfaces %}
+
+  template <mojo::internal::SendValidation send_validation, typename UserType>
+  static {{serialization_result_type}} Serialize(UserType* input) {
+    return mojo::internal::SerializeImpl<
+        {{struct.name}}::DataView, {{serialization_result_type}}, send_validation>(input);
+  }
+
   template <typename UserType>
   static {{serialization_result_type}} Serialize(UserType* input) {
     return mojo::internal::SerializeImpl<
@@ -111,10 +121,10 @@ class {{export_attribute}} {{struct.name}} {
   }
 
   template <typename UserType>
-  static bool Deserialize(const {{serialization_result_type}}& input,
+  static bool Deserialize(base::span<const uint8_t> input,
                           UserType* output) {
     return {{struct.name}}::Deserialize(
-        input.size() == 0 ? nullptr : &input.front(), input.size(), output);
+        input.empty() ? nullptr : input.data(), input.size(), output);
   }
 
   template <typename UserType>

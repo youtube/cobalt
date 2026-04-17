@@ -11,7 +11,7 @@ class Profile;
 
 namespace base {
 template <typename T>
-struct DefaultSingletonTraits;
+class NoDestructor;
 }
 
 namespace device_signals {
@@ -27,13 +27,13 @@ class UserPermissionServiceFactory : public ProfileKeyedServiceFactory {
   static device_signals::UserPermissionService* GetForProfile(Profile* profile);
 
  private:
-  friend struct base::DefaultSingletonTraits<UserPermissionServiceFactory>;
+  friend base::NoDestructor<UserPermissionServiceFactory>;
 
   UserPermissionServiceFactory();
   ~UserPermissionServiceFactory() override;
 
   // BrowserContextKeyedServiceFactory implementation:
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
 };
 

@@ -18,6 +18,7 @@
 source_set("common_headers_only") {
   sources = [
     "log.h",
+    "string.h",
     "system_property.h",
   ]
 
@@ -37,6 +38,7 @@ static_library("common") {
     "//starboard/shared/media_session/playback_state.h",
     "allocator.cc",
     "allocator.h",
+    "bidirectional_fit_reuse_allocator.h",
     "check.h",
     "check_op.cc",
     "check_op.h",
@@ -49,6 +51,11 @@ static_library("common") {
     "device_type.h",
     "drm.cc",
     "drm.h",
+    "expected.h",
+    "experimental/media_buffer_pool.cc",
+    "experimental/media_buffer_pool.h",
+    "experimental/media_buffer_pool_bidirectional_reuse_allocator.h",
+    "experimental/media_buffer_pool_memory_allocator.h",
     "file.cc",
     "file.h",
     "fixed_no_free_allocator.cc",
@@ -63,6 +70,7 @@ static_library("common") {
     "metrics/stats_tracker.h",
     "murmurhash2.cc",
     "murmurhash2.h",
+    "pass_key.h",
     "paths.cc",
     "paths.h",
     "player.cc",
@@ -73,8 +81,11 @@ static_library("common") {
     "queue.h",
     "ref_counted.cc",
     "ref_counted.h",
+    "result.h",
     "reuse_allocator_base.cc",
     "reuse_allocator_base.h",
+    "scoped_timer.cc",
+    "scoped_timer.h",
     "semaphore.cc",
     "semaphore.h",
     "size.cc",
@@ -92,6 +103,10 @@ static_library("common") {
     "time.cc",
     "time.h",
   ]
+
+  if (!is_android) {
+    sources += [ "thread_platform_base.cc" ]
+  }
 }
 
 static_library("file_wrapper") {
@@ -106,13 +121,16 @@ static_library("file_wrapper") {
 source_set("common_test") {
   testonly = true
   sources = [
+    "bidirectional_fit_reuse_allocator_test.cc",
     "drm_test.cc",
+    "expected_test.cc",
     "fixed_no_free_allocator_test.cc",
     "log_unittest.cc",
     "media_test.cc",
     "memory_test.cc",
     "player_test.cc",
     "queue_test.cc",
+    "result_test.cc",
     "semaphore_test.cc",
     "size_test.cc",
     "starboard_common_time_test.cc",

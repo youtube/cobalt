@@ -13,12 +13,12 @@ found in the LICENSE file.
     android:layout_height="wrap_content"
     android:clickable="true"
     android:focusable="true"
-    android:background="@drawable/rectangle_surface_1" >
+    android:background="?attr/colorSurfaceContainerLow" >
 
     <org.chromium.components.browser_ui.widget.async_image.AsyncImageView
         android:id="@+id/thumbnail"
         android:layout_width="match_parent"
-        android:background="@color/modern_grey_300"
+        android:background="@color/baseline_neutral_70"
         android:scaleType="centerCrop"
         android:layout_gravity="center"
         android:adjustViewBounds="true"

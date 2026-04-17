@@ -10,8 +10,10 @@ import time
 from result_sink_util import ResultSinkClient
 
 _VALID_RESULT_COLLECTION_INIT_KWARGS = set(['test_results', 'crashed'])
-_VALID_TEST_RESULT_INIT_KWARGS = set(
-    ['attachments', 'duration', 'expected_status', 'test_log', 'test_loc'])
+_VALID_TEST_RESULT_INIT_KWARGS = set([
+    'attachments', 'duration', 'expected_status', 'test_log', 'test_loc',
+    'asan_failure_detected'
+])
 _VALID_TEST_STATUSES = set(['PASS', 'FAIL', 'CRASH', 'ABORT', 'SKIP'])
 
 
@@ -70,6 +72,8 @@ class TestResult(object):
       test_loc: (dict): This is used to report test location info to resultSink.
           data required in the dict can be found in
           https://source.chromium.org/chromium/infra/infra/+/main:go/src/go.chromium.org/luci/resultdb/proto/v1/test_metadata.proto;l=32;drc=37488404d1c8aa8fccca8caae4809ece08828bae
+      asan_failure_detected: (bool): Whether or not the string
+          "ERROR: AddressSanitizer" was found in the app side logs after a crash
     """
     _validate_kwargs(kwargs, _VALID_TEST_RESULT_INIT_KWARGS)
     assert isinstance(name, str), (
@@ -83,6 +87,7 @@ class TestResult(object):
     self.expected_status = kwargs.get('expected_status', TestStatus.PASS)
     self.test_log = kwargs.get('test_log', '')
     self.test_loc = kwargs.get('test_loc', None)
+    self.asan_failure_detected = kwargs.get('asan_failure_detected', False)
 
     # Use the var to avoid duplicate reporting.
     self._reported_to_result_sink = False
@@ -296,6 +301,12 @@ class ResultCollection(object):
     return self.tests_by_expression(lambda result: result.status == TestStatus.
                                     FAIL)
 
+  def asan_failed_tests(self):
+    """A set of test names with any failed status and an ASan failure detected
+    in the app side logs in the collection."""
+    return self.tests_by_expression(lambda result: result.status == TestStatus.
+                                    FAIL and result.asan_failure_detected)
+
   def flaky_tests(self):
     """A set of flaky test names in the collection."""
     return self.expected_tests().intersection(self.unexpected_tests())
@@ -340,7 +351,7 @@ class ResultCollection(object):
     num_failures_by_type = {}
     tests = OrderedDict()
     seen_names = set()
-    shard_index = shard_util.shard_index()
+    shard_index = shard_util.gtest_shard_index()
 
     for test_result in self._test_results:
       test_name = test_result.name

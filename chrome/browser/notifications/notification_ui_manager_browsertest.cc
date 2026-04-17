@@ -12,7 +12,6 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/notifications/notification_interactive_uitest_support.h"
 #include "chrome/browser/notifications/notification_ui_manager_impl.h"
@@ -59,8 +58,8 @@ class NotificationUIManagerBrowserTest : public InProcessBrowserTest {
       log_ += "Close_";
       log_ += (by_user ? "by_user_" : "programmatically_");
     }
-    void Click(const absl::optional<int>& button_index,
-               const absl::optional<std::u16string>& reply) override {
+    void Click(const std::optional<int>& button_index,
+               const std::optional<std::u16string>& reply) override {
       if (button_index) {
         log_ += "ButtonClick_";
         log_ += base::NumberToString(*button_index) + "_";
@@ -71,7 +70,7 @@ class NotificationUIManagerBrowserTest : public InProcessBrowserTest {
     const std::string& log() { return log_; }
 
    private:
-    ~TestDelegate() override {}
+    ~TestDelegate() override = default;
     std::string log_;
   };
 
@@ -187,9 +186,6 @@ IN_PROC_BROWSER_TEST_F(NotificationUIManagerBrowserTest,
   delegate2->Release();
 }
 
-// On Lacros, notifications don't keep the browser alive. Don't run this test on
-// Lacros.
-#if !BUILDFLAG(IS_CHROMEOS_LACROS)
 IN_PROC_BROWSER_TEST_F(NotificationUIManagerBrowserTest, VerifyKeepAlives) {
   EXPECT_FALSE(KeepAliveRegistry::GetInstance()->IsOriginRegistered(
       KeepAliveOrigin::NOTIFICATION));
@@ -219,4 +215,3 @@ IN_PROC_BROWSER_TEST_F(NotificationUIManagerBrowserTest, VerifyKeepAlives) {
   delegate->Release();
   delegate2->Release();
 }
-#endif  // !BUILDFLAG(IS_CHROMEOS_LACROS)

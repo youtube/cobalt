@@ -20,6 +20,8 @@
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/containers/heap_array.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
 #include "cobalt/testing/browser_tests/content_browser_test_utils.h"
@@ -27,11 +29,11 @@
 #include "content/browser/browsing_data/browsing_data_test_utils.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/network_service_instance.h"
+#include "content/public/browser/network_service_util.h"
 #include "content/public/browser/service_worker_context.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/storage_usage_info.h"
 #include "content/public/common/content_switches.h"
-#include "content/public/common/network_service_util.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/url_util.h"
 #include "net/test/embedded_test_server/http_response.h"
@@ -154,11 +156,12 @@ void SetResponseContent(const GURL& url,
     base::FilePath path(GetTestFilePath("browsing_data", value->c_str()));
     base::File file(path, base::File::FLAG_OPEN | base::File::FLAG_READ);
     EXPECT_TRUE(file.IsValid());
+
     int64_t length = file.GetLength();
     EXPECT_GE(length, 0);
-    std::unique_ptr<char[]> buffer(new char[length + 1]);
-    file.Read(0, buffer.get(), length);
-    buffer[length] = '\0';
+
+    auto buffer = base::HeapArray<uint8_t>::WithSize(length);
+    file.Read(0, buffer);
 
     if (path.Extension() == FILE_PATH_LITERAL(".js")) {
       response->set_content_type("application/javascript");
@@ -168,7 +171,7 @@ void SetResponseContent(const GURL& url,
       NOTREACHED();
     }
 
-    response->set_content(buffer.get());
+    response->set_content(base::as_string_view(buffer));
   }
 }
 

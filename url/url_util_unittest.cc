@@ -2,15 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "url/url_util.h"
 
 #include <stddef.h>
 
-#include "base/strings/string_piece.h"
+#include <optional>
+#include <string_view>
+
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest-message.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/third_party/mozilla/url_parse.h"
 #include "url/url_canon.h"
 #include "url/url_canon_stdstring.h"
@@ -27,6 +33,55 @@ class URLUtilTest : public testing::Test {
 
   ~URLUtilTest() override = default;
 
+ protected:
+  struct URLCase {
+    const std::string_view input;
+    const std::string_view expected;
+    bool expected_success;
+  };
+
+  struct ResolveRelativeCase {
+    const std::string_view base;
+    const std::string_view rel;
+    std::optional<std::string_view> expected;
+  };
+
+  void TestCanonicalize(const URLCase& url_case) {
+    std::string canonicalized;
+    StdStringCanonOutput output(&canonicalized);
+    Parsed parsed;
+    bool success =
+        Canonicalize(url_case.input.data(), url_case.input.size(),
+                     /*trim_path_end=*/false,
+                     /*charset_converter=*/nullptr, &output, &parsed);
+    output.Complete();
+    EXPECT_EQ(success, url_case.expected_success);
+    EXPECT_EQ(output.view(), url_case.expected);
+  }
+
+  void TestResolveRelative(const ResolveRelativeCase& test) {
+    SCOPED_TRACE(testing::Message()
+                 << "base: " << test.base << ", rel: " << test.rel);
+
+    Parsed base_parsed = ParseNonSpecialURL(test.base);
+
+    std::string resolved;
+    StdStringCanonOutput output(&resolved);
+
+    Parsed resolved_parsed;
+    bool valid = ResolveRelative(test.base.data(), test.base.size(),
+                                 base_parsed, test.rel.data(), test.rel.size(),
+                                 nullptr, &output, &resolved_parsed);
+    output.Complete();
+
+    if (valid) {
+      ASSERT_TRUE(test.expected);
+      EXPECT_EQ(resolved, *test.expected);
+    } else {
+      EXPECT_FALSE(test.expected);
+    }
+  }
+
  private:
   ScopedSchemeRegistryForTests scoped_registry_;
 };
@@ -36,8 +91,8 @@ TEST_F(URLUtilTest, FindAndCompareScheme) {
 
   // Simple case where the scheme is found and matches.
   const char kStr1[] = "http://www.com/";
-  EXPECT_TRUE(FindAndCompareScheme(
-      kStr1, static_cast<int>(strlen(kStr1)), "http", NULL));
+  EXPECT_TRUE(FindAndCompareScheme(kStr1, static_cast<int>(strlen(kStr1)),
+                                   "http", nullptr));
   EXPECT_TRUE(FindAndCompareScheme(
       kStr1, static_cast<int>(strlen(kStr1)), "http", &found_scheme));
   EXPECT_TRUE(found_scheme == Component(0, 4));
@@ -159,18 +214,22 @@ TEST_F(URLUtilTest, ReplaceComponents) {
   // Check that the following calls do not cause crash
   Replacements<char> replacements;
   replacements.SetRef("test", Component(0, 4));
-  ReplaceComponents(NULL, 0, parsed, replacements, NULL, &output, &new_parsed);
-  ReplaceComponents("", 0, parsed, replacements, NULL, &output, &new_parsed);
+  ReplaceComponents(nullptr, 0, parsed, replacements, nullptr, &output,
+                    &new_parsed);
+  ReplaceComponents("", 0, parsed, replacements, nullptr, &output, &new_parsed);
   replacements.ClearRef();
   replacements.SetHost("test", Component(0, 4));
-  ReplaceComponents(NULL, 0, parsed, replacements, NULL, &output, &new_parsed);
-  ReplaceComponents("", 0, parsed, replacements, NULL, &output, &new_parsed);
+  ReplaceComponents(nullptr, 0, parsed, replacements, nullptr, &output,
+                    &new_parsed);
+  ReplaceComponents("", 0, parsed, replacements, nullptr, &output, &new_parsed);
 
   replacements.ClearHost();
-  ReplaceComponents(NULL, 0, parsed, replacements, NULL, &output, &new_parsed);
-  ReplaceComponents("", 0, parsed, replacements, NULL, &output, &new_parsed);
-  ReplaceComponents(NULL, 0, parsed, replacements, NULL, &output, &new_parsed);
-  ReplaceComponents("", 0, parsed, replacements, NULL, &output, &new_parsed);
+  ReplaceComponents(nullptr, 0, parsed, replacements, nullptr, &output,
+                    &new_parsed);
+  ReplaceComponents("", 0, parsed, replacements, nullptr, &output, &new_parsed);
+  ReplaceComponents(nullptr, 0, parsed, replacements, nullptr, &output,
+                    &new_parsed);
+  ReplaceComponents("", 0, parsed, replacements, nullptr, &output, &new_parsed);
 }
 
 static std::string CheckReplaceScheme(const char* base_url,
@@ -178,7 +237,7 @@ static std::string CheckReplaceScheme(const char* base_url,
   // Make sure the input is canonicalized.
   RawCanonOutput<32> original;
   Parsed original_parsed;
-  Canonicalize(base_url, strlen(base_url), true, NULL, &original,
+  Canonicalize(base_url, strlen(base_url), true, nullptr, &original,
                &original_parsed);
 
   Replacements<char> replacements;
@@ -188,7 +247,7 @@ static std::string CheckReplaceScheme(const char* base_url,
   StdStringCanonOutput output(&output_string);
   Parsed output_parsed;
   ReplaceComponents(original.data(), original.length(), original_parsed,
-                    replacements, NULL, &output, &output_parsed);
+                    replacements, nullptr, &output, &output_parsed);
 
   output.Complete();
   return output_string;
@@ -247,20 +306,26 @@ TEST_F(URLUtilTest, DecodeURLEscapeSequences) {
       {"%70%71%72%73%74%75%76%77%78%79%7a%7B%7C%7D%7e%7f/",
        "pqrstuvwxyz{|}~\x7f/"},
       {"%e4%bd%a0%e5%a5%bd", "\xe4\xbd\xa0\xe5\xa5\xbd"},
+      // U+FFFF (Noncharacter) should not be replaced with U+FFFD (Replacement
+      // Character) (http://crbug.com/1416021)
+      {"%ef%bf%bf", "\xef\xbf\xbf"},
+      // U+FDD0 (Noncharacter)
+      {"%ef%b7%90", "\xef\xb7\x90"},
+      // U+FFFD (Replacement Character)
+      {"%ef%bf%bd", "\xef\xbf\xbd"},
   };
 
-  for (size_t i = 0; i < std::size(decode_cases); i++) {
-    const char* input = decode_cases[i].input;
+  for (const auto& decode_case : decode_cases) {
     RawCanonOutputT<char16_t> output;
-    DecodeURLEscapeSequences(input, strlen(input),
+    DecodeURLEscapeSequences(decode_case.input,
                              DecodeURLMode::kUTF8OrIsomorphic, &output);
-    EXPECT_EQ(decode_cases[i].output, base::UTF16ToUTF8(std::u16string(
-                                          output.data(), output.length())));
+    EXPECT_EQ(decode_case.output, base::UTF16ToUTF8(std::u16string(
+                                      output.data(), output.length())));
 
     RawCanonOutputT<char16_t> output_utf8;
-    DecodeURLEscapeSequences(input, strlen(input), DecodeURLMode::kUTF8,
+    DecodeURLEscapeSequences(decode_case.input, DecodeURLMode::kUTF8,
                              &output_utf8);
-    EXPECT_EQ(decode_cases[i].output,
+    EXPECT_EQ(decode_case.output,
               base::UTF16ToUTF8(
                   std::u16string(output_utf8.data(), output_utf8.length())));
   }
@@ -268,8 +333,7 @@ TEST_F(URLUtilTest, DecodeURLEscapeSequences) {
   // Our decode should decode %00
   const char zero_input[] = "%00";
   RawCanonOutputT<char16_t> zero_output;
-  DecodeURLEscapeSequences(zero_input, strlen(zero_input), DecodeURLMode::kUTF8,
-                           &zero_output);
+  DecodeURLEscapeSequences(zero_input, DecodeURLMode::kUTF8, &zero_output);
   EXPECT_NE("%00", base::UTF16ToUTF8(std::u16string(zero_output.data(),
                                                     zero_output.length())));
 
@@ -291,18 +355,17 @@ TEST_F(URLUtilTest, DecodeURLEscapeSequences) {
        {0xfffd, 0xfffd, 0}},
   };
 
-  for (const auto& test : utf8_decode_cases) {
-    const char* input = test.input;
+  for (const auto& utf8_decode_case : utf8_decode_cases) {
     RawCanonOutputT<char16_t> output_iso;
-    DecodeURLEscapeSequences(input, strlen(input),
+    DecodeURLEscapeSequences(utf8_decode_case.input,
                              DecodeURLMode::kUTF8OrIsomorphic, &output_iso);
-    EXPECT_EQ(std::u16string(test.expected_iso.data()),
+    EXPECT_EQ(std::u16string(utf8_decode_case.expected_iso.data()),
               std::u16string(output_iso.data(), output_iso.length()));
 
     RawCanonOutputT<char16_t> output_utf8;
-    DecodeURLEscapeSequences(input, strlen(input), DecodeURLMode::kUTF8,
+    DecodeURLEscapeSequences(utf8_decode_case.input, DecodeURLMode::kUTF8,
                              &output_utf8);
-    EXPECT_EQ(std::u16string(test.expected_utf8.data()),
+    EXPECT_EQ(std::u16string(utf8_decode_case.expected_utf8.data()),
               std::u16string(output_utf8.data(), output_utf8.length()));
   }
 }
@@ -331,123 +394,12 @@ TEST_F(URLUtilTest, TestEncodeURIComponent) {
      "pqrstuvwxyz%7B%7C%7D~%7F"},
   };
 
-  for (size_t i = 0; i < std::size(encode_cases); i++) {
-    const char* input = encode_cases[i].input;
+  for (const auto& encode_case : encode_cases) {
     RawCanonOutputT<char> buffer;
-    EncodeURIComponent(input, strlen(input), &buffer);
+    EncodeURIComponent(encode_case.input, &buffer);
     std::string output(buffer.data(), buffer.length());
-    EXPECT_EQ(encode_cases[i].output, output);
+    EXPECT_EQ(encode_case.output, output);
   }
-}
-
-TEST_F(URLUtilTest, TestResolveRelativeWithNonStandardBase) {
-  // This tests non-standard (in the sense that IsStandard() == false)
-  // hierarchical schemes.
-  struct ResolveRelativeCase {
-    const char* base;
-    const char* rel;
-    bool is_valid;
-    const char* out;
-  } resolve_non_standard_cases[] = {
-      // Resolving a relative path against a non-hierarchical URL should fail.
-      {"scheme:opaque_data", "/path", false, ""},
-      // Resolving a relative path against a non-standard authority-based base
-      // URL doesn't alter the authority section.
-      {"scheme://Authority/", "../path", true, "scheme://Authority/path"},
-      // A non-standard hierarchical base is resolved with path URL
-      // canonicalization rules.
-      {"data:/Blah:Blah/", "file.html", true, "data:/Blah:Blah/file.html"},
-      {"data:/Path/../part/part2", "file.html", true,
-       "data:/Path/../part/file.html"},
-      {"data://text/html,payload", "//user:pass@host:33////payload22", true,
-       "data://user:pass@host:33////payload22"},
-      // Path URL canonicalization rules also apply to non-standard authority-
-      // based URLs.
-      {"custom://Authority/", "file.html", true,
-       "custom://Authority/file.html"},
-      {"custom://Authority/", "other://Auth/", true, "other://Auth/"},
-      {"custom://Authority/", "../../file.html", true,
-       "custom://Authority/file.html"},
-      {"custom://Authority/path/", "file.html", true,
-       "custom://Authority/path/file.html"},
-      {"custom://Authority:NoCanon/path/", "file.html", true,
-       "custom://Authority:NoCanon/path/file.html"},
-      // It's still possible to get an invalid path URL.
-      {"custom://Invalid:!#Auth/", "file.html", false, ""},
-      // A path with an authority section gets canonicalized under standard URL
-      // rules, even though the base was non-standard.
-      {"content://content.Provider/", "//other.Provider", true,
-       "content://other.provider/"},
-
-      // Resolving an absolute URL doesn't cause canonicalization of the
-      // result.
-      {"about:blank", "custom://Authority", true, "custom://Authority"},
-      // Fragment URLs can be resolved against a non-standard base.
-      {"scheme://Authority/path", "#fragment", true,
-       "scheme://Authority/path#fragment"},
-      {"scheme://Authority/", "#fragment", true,
-       "scheme://Authority/#fragment"},
-      // Resolving should fail if the base URL is authority-based but is
-      // missing a path component (the '/' at the end).
-      {"scheme://Authority", "path", false, ""},
-      // Test resolving a fragment (only) against any kind of base-URL.
-      {"about:blank", "#id42", true, "about:blank#id42"},
-      {"about:blank", " #id42", true, "about:blank#id42"},
-      {"about:blank#oldfrag", "#newfrag", true, "about:blank#newfrag"},
-      {"about:blank", " #id:42", true, "about:blank#id:42"},
-      // A surprising side effect of allowing fragments to resolve against
-      // any URL scheme is we might break javascript: URLs by doing so...
-      {"javascript:alert('foo#bar')", "#badfrag", true,
-       "javascript:alert('foo#badfrag"},
-      // In this case, the backslashes will not be canonicalized because it's a
-      // non-standard URL, but they will be treated as a path separators,
-      // giving the base URL here a path of "\".
-      //
-      // The result here is somewhat arbitrary. One could argue it should be
-      // either "aaa://a\" or "aaa://a/" since the path is being replaced with
-      // the "current directory". But in the context of resolving on data URLs,
-      // adding the requested dot doesn't seem wrong either.
-      {"aaa://a\\", "aaa:.", true, "aaa://a\\."}};
-
-  for (size_t i = 0; i < std::size(resolve_non_standard_cases); i++) {
-    const ResolveRelativeCase& test_data = resolve_non_standard_cases[i];
-    Parsed base_parsed;
-    ParsePathURL(test_data.base, strlen(test_data.base), false, &base_parsed);
-
-    std::string resolved;
-    StdStringCanonOutput output(&resolved);
-    Parsed resolved_parsed;
-    bool valid = ResolveRelative(test_data.base, strlen(test_data.base),
-                                 base_parsed, test_data.rel,
-                                 strlen(test_data.rel), NULL, &output,
-                                 &resolved_parsed);
-    output.Complete();
-
-    EXPECT_EQ(test_data.is_valid, valid) << i;
-    if (test_data.is_valid && valid)
-      EXPECT_EQ(test_data.out, resolved) << i;
-  }
-}
-
-TEST_F(URLUtilTest, TestNoRefComponent) {
-  // The hash-mark must be ignored when mailto: scheme is parsed,
-  // even if the URL has a base and relative part.
-  const char* base = "mailto://to/";
-  const char* rel = "any#body";
-
-  Parsed base_parsed;
-  ParsePathURL(base, strlen(base), false, &base_parsed);
-
-  std::string resolved;
-  StdStringCanonOutput output(&resolved);
-  Parsed resolved_parsed;
-
-  bool valid = ResolveRelative(base, strlen(base),
-                               base_parsed, rel,
-                               strlen(rel), NULL, &output,
-                               &resolved_parsed);
-  EXPECT_TRUE(valid);
-  EXPECT_FALSE(resolved_parsed.ref.is_valid());
 }
 
 TEST_F(URLUtilTest, PotentiallyDanglingMarkup) {
@@ -480,15 +432,14 @@ TEST_F(URLUtilTest, PotentiallyDanglingMarkup) {
 
   for (const auto& test : cases) {
     SCOPED_TRACE(::testing::Message() << test.base << ", " << test.rel);
-    Parsed base_parsed;
-    ParseStandardURL(test.base, strlen(test.base), &base_parsed);
+    Parsed base_parsed = ParseStandardURL(test.base);
 
     std::string resolved;
     StdStringCanonOutput output(&resolved);
     Parsed resolved_parsed;
     bool valid =
         ResolveRelative(test.base, strlen(test.base), base_parsed, test.rel,
-                        strlen(test.rel), NULL, &output, &resolved_parsed);
+                        strlen(test.rel), nullptr, &output, &resolved_parsed);
     ASSERT_TRUE(valid);
     output.Complete();
 
@@ -581,8 +532,8 @@ TEST_F(URLUtilTest, TestDomainIs) {
 }
 
 namespace {
-absl::optional<std::string> CanonicalizeSpec(base::StringPiece spec,
-                                             bool trim_path_end) {
+std::optional<std::string> CanonicalizeSpec(std::string_view spec,
+                                            bool trim_path_end) {
   std::string canonicalized;
   StdStringCanonOutput output(&canonicalized);
   Parsed parsed;
@@ -600,10 +551,10 @@ absl::optional<std::string> CanonicalizeSpec(base::StringPiece spec,
 TEST_F(URLUtilTest, TestCanonicalizeWindowsPathWithLeadingNUL) {
   auto PrefixWithNUL = [](std::string&& s) -> std::string { return '\0' + s; };
   EXPECT_EQ(CanonicalizeSpec(PrefixWithNUL("w:"), /*trim_path_end=*/false),
-            absl::make_optional("file:///W:"));
+            std::make_optional("file:///W:"));
   EXPECT_EQ(CanonicalizeSpec(PrefixWithNUL("\\\\server\\share"),
                              /*trim_path_end=*/false),
-            absl::make_optional("file://server/share"));
+            std::make_optional("file://server/share"));
 }
 #endif
 
@@ -620,12 +571,211 @@ TEST_F(URLUtilTest, TestCanonicalizeIdempotencyWithLeadingControlCharacters) {
     for (bool trim_path_end : {false, true}) {
       SCOPED_TRACE(testing::Message() << "trim_path_end: " << trim_path_end);
 
-      absl::optional<std::string> canonicalized =
+      std::optional<std::string> canonicalized =
           CanonicalizeSpec(spec, trim_path_end);
       ASSERT_TRUE(canonicalized);
       EXPECT_EQ(canonicalized, CanonicalizeSpec(*canonicalized, trim_path_end));
     }
   }
+}
+
+TEST_F(URLUtilTest, TestHasInvalidURLEscapeSequences) {
+  struct TestCase {
+    const char* input;
+    bool is_invalid;
+  } cases[] = {
+      // Edge cases.
+      {"", false},
+      {"%", true},
+
+      // Single regular chars with no escaping are valid.
+      {"a", false},
+      {"g", false},
+      {"A", false},
+      {"G", false},
+      {":", false},
+      {"]", false},
+      {"\x00", false},      // ASCII 'NUL' char
+      {"\x01", false},      // ASCII 'SOH' char
+      {"\xC2\xA3", false},  // UTF-8 encoded '£'.
+
+      // Longer strings without escaping are valid.
+      {"Hello world", false},
+      {"Here: [%25] <-- a percent-encoded percent character.", false},
+
+      // Valid %-escaped sequences ('%' followed by two hex digits).
+      {"%00", false},
+      {"%20", false},
+      {"%02", false},
+      {"%ff", false},
+      {"%FF", false},
+      {"%0a", false},
+      {"%0A", false},
+      {"abc%FF", false},
+      {"%FFabc", false},
+      {"abc%FFabc", false},
+      {"hello %FF world", false},
+      {"%20hello%20world", false},
+      {"%25", false},
+      {"%25%25", false},
+      {"%250", false},
+      {"%259", false},
+      {"%25A", false},
+      {"%25F", false},
+      {"%0a:", false},
+
+      // '%' followed by a single character is never a valid sequence.
+      {"%%", true},
+      {"%2", true},
+      {"%a", true},
+      {"%A", true},
+      {"%g", true},
+      {"%G", true},
+      {"%:", true},
+      {"%[", true},
+      {"%F", true},
+      {"%\xC2\xA3", true},  //% followed by UTF-8 encoded '£'.
+
+      // String ends on a potential escape sequence but without two hex-digits
+      // is invalid.
+      {"abc%", true},
+      {"abc%%", true},
+      {"abc%%%", true},
+      {"abc%a", true},
+
+      // One hex and one non-hex digit is invalid.
+      {"%a:", true},
+      {"%:a", true},
+      {"%::", true},
+      {"%ag", true},
+      {"%ga", true},
+      {"%-1", true},
+      {"%1-", true},
+      {"%0\xC2\xA3", true},  // %0£.
+  };
+
+  for (TestCase test_case : cases) {
+    const char* input = test_case.input;
+    bool result = HasInvalidURLEscapeSequences(input);
+    EXPECT_EQ(test_case.is_invalid, result)
+        << "Invalid result for '" << input << "'";
+  }
+}
+
+TEST_F(URLUtilTest, TestResolveRelativeWithNonStandardBase) {
+  // This tests non-standard (in the sense that IsStandard() == false)
+  // hierarchical schemes.
+  struct ResolveRelativeCase {
+    const char* base;
+    const char* rel;
+    bool is_valid;
+    const char* out;
+  } resolve_non_standard_cases[] = {
+      // Resolving a relative path against a non-hierarchical URL should fail.
+      {"scheme:opaque_data", "/path", false, ""},
+      // Resolving a relative path against a non-standard authority-based base
+      // URL doesn't alter the authority section.
+      {"scheme://Authority/", "../path", true, "scheme://Authority/path"},
+      // A non-standard hierarchical base is resolved with path URL
+      // canonicalization rules.
+      {"data:/Blah:Blah/", "file.html", true, "data:/Blah:Blah/file.html"},
+      {"data:/Path/../part/part2", "file.html", true,
+       "data:/Path/../part/file.html"},
+      {"data://text/html,payload", "//user:pass@host:33////payload22", true,
+       "data://user:pass@host:33////payload22"},
+      // Path URL canonicalization rules also apply to non-standard authority-
+      // based URLs.
+      {"custom://Authority/", "file.html", true,
+       "custom://Authority/file.html"},
+      {"custom://Authority/", "other://Auth/", true, "other://Auth/"},
+      {"custom://Authority/", "../../file.html", true,
+       "custom://Authority/file.html"},
+      {"custom://Authority/path/", "file.html", true,
+       "custom://Authority/path/file.html"},
+      {"custom://Authority:NoCanon/path/", "file.html", true,
+       "custom://Authority:NoCanon/path/file.html"},
+      // A path with an authority section gets canonicalized under standard URL
+      // rules, even though the base was non-standard. Host case sensitivity
+      // should be preserved and trailing slash after a host soulld be removed.
+      {"content://content.Provider/", "//other.Provider", true,
+       "content://other.Provider"},
+      // Resolving an absolute URL doesn't cause canonicalization of the
+      // result.
+      {"about:blank", "custom://Authority", true, "custom://Authority"},
+      // Fragment URLs can be resolved against a non-standard base.
+      {"scheme://Authority/path", "#fragment", true,
+       "scheme://Authority/path#fragment"},
+      {"scheme://Authority/", "#fragment", true,
+       "scheme://Authority/#fragment"},
+      // Test resolving a fragment (only) against any kind of base-URL.
+      {"about:blank", "#id42", true, "about:blank#id42"},
+      {"about:blank", " #id42", true, "about:blank#id42"},
+      {"about:blank#oldfrag", "#newfrag", true, "about:blank#newfrag"},
+      {"about:blank", " #id:42", true, "about:blank#id:42"},
+      // A surprising side effect of allowing fragments to resolve against
+      // any URL scheme is we might break javascript: URLs by doing so...
+      {"javascript:alert('foo#bar')", "#badfrag", true,
+       "javascript:alert('foo#badfrag"},
+  };
+
+  for (const auto& test : resolve_non_standard_cases) {
+    SCOPED_TRACE(testing::Message()
+                 << "base: " << test.base << ", rel: " << test.rel);
+
+    Parsed base_parsed = ParseNonSpecialURL(test.base);
+    std::string resolved;
+    StdStringCanonOutput output(&resolved);
+    Parsed resolved_parsed;
+    bool valid =
+        ResolveRelative(test.base, strlen(test.base), base_parsed, test.rel,
+                        strlen(test.rel), nullptr, &output, &resolved_parsed);
+    output.Complete();
+
+    EXPECT_EQ(test.is_valid, valid);
+    if (test.is_valid && valid) {
+      EXPECT_EQ(test.out, resolved);
+    }
+  }
+}
+
+TEST_F(URLUtilTest, Cannolicalize) {
+  // Verify that the feature flag changes canonicalization behavior,
+  // focusing on key cases here as comprehesive testing is covered in other unit
+  // tests.
+  URLCase cases[] = {
+      {"git://host/..", "git://host/", true},
+      {"git:// /", "git:///", false},
+      {"git:/..", "git:/", true},
+      {"mailto:/..", "mailto:/", true},
+  };
+  for (const auto& i : cases) {
+    TestCanonicalize(i);
+  }
+}
+
+TEST_F(URLUtilTest, TestResolveRelativeWithNonSpecialBase) {
+  ResolveRelativeCase cases[] = {
+      {"scheme://Authority", "path", "scheme://Authority/path"},
+  };
+  for (const auto& i : cases) {
+    TestResolveRelative(i);
+  }
+}
+
+TEST_F(URLUtilTest, OpaqueNonSpecialScheme) {
+  // Ensure that the behavior of "android:" scheme URL is preserved, which is
+  // not URL Standard compliant.
+  //
+  // URL Standard-wise, "android://a b" is an invalid URL because the host part
+  // includes a space character, which is not allowed.
+  std::optional<std::string> res = CanonicalizeSpec("android://a b", false);
+  ASSERT_TRUE(res);
+  EXPECT_EQ(*res, "android://a b");
+
+  // Test a "git:" scheme URL for comparison.
+  res = CanonicalizeSpec("git://a b", false);
+  // This is correct behavior because "git://a b" is an invalid URL.
+  EXPECT_FALSE(res);
 }
 
 }  // namespace url

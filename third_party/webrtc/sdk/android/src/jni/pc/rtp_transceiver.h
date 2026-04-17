@@ -25,7 +25,7 @@ RtpTransceiverInit JavaToNativeRtpTransceiverInit(
 
 ScopedJavaLocalRef<jobject> NativeToJavaRtpTransceiver(
     JNIEnv* env,
-    rtc::scoped_refptr<RtpTransceiverInterface> transceiver);
+    scoped_refptr<RtpTransceiverInterface> transceiver);
 
 // This takes ownership of the of the `j_transceiver` and stores it as a global
 // reference. This calls the Java Transceiver's dispose() method with the dtor.

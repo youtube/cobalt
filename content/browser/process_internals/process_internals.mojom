@@ -24,6 +24,12 @@ struct ProcessCountInfo {
 struct SiteInstanceInfo {
   int32 id;
 
+  // ID of the SiteInstanceGroup this SiteInstance belongs to.
+  int32 site_instance_group_id;
+
+  // ID of the BrowsingInstance this SiteInstance belongs to.
+  int32 browsing_instance_id;
+
   // Boolean indicating whether the SiteInstance's process is locked to a
   // specific URL.
   bool locked;
@@ -43,6 +49,12 @@ struct SiteInstanceInfo {
 
   // Specifies whether this SiteInstance is for a <webview> guest.
   bool is_guest;
+
+  // Specifies whether this SiteInstance is for a PDF.
+  bool is_pdf;
+
+  // Specifies whether this SiteInstance has JavaScript optimizers enabled.
+  bool are_javascript_optimizers_enabled;
 
   // If this SiteInstance uses a non-default StoragePartition, this specifies a
   // string representation of that StoragePartition.
@@ -90,6 +102,9 @@ interface ProcessInternalsHandler {
 
   // Returns a string containing the currently active isolation modes.
   GetIsolationMode() => (string mode);
+
+  // Returns a string containing the currently active process per site mode.
+  GetProcessPerSiteMode() => (string mode);
 
   // Returns a list of user-triggered isolated origins, which are typically
   // saved when the user types a password into a corresponding site.  These

@@ -9,6 +9,8 @@
 #include "chrome/test/views/chrome_views_test_base.h"
 #include "content/public/test/test_renderer_host.h"
 #include "content/public/test/web_contents_tester.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 
 class ContentSettingBubbleContentsTest : public ChromeViewsTestBase {
@@ -29,13 +31,16 @@ class TestContentSettingBubbleModel : public ContentSettingBubbleModel {
 };
 
 class TestContentSettingBubbleContents : public ContentSettingBubbleContents {
+  METADATA_HEADER(TestContentSettingBubbleContents,
+                  ContentSettingBubbleContents)
+
  public:
   TestContentSettingBubbleContents(content::WebContents* web_contents,
                                    gfx::NativeView parent_window)
       : ContentSettingBubbleContents(
             std::make_unique<TestContentSettingBubbleModel>(web_contents),
             web_contents,
-            nullptr,
+            /*anchor_view=*/nullptr,
             views::BubbleBorder::TOP_LEFT) {
     set_parent_window(parent_window);
   }
@@ -43,16 +48,20 @@ class TestContentSettingBubbleContents : public ContentSettingBubbleContents {
   // ContentSettingBubbleContents:
   void OnBeforeBubbleWidgetInit(views::Widget::InitParams* params,
                                 views::Widget* widget) const override {
-    params->ownership = views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET;
+    params->ownership = views::Widget::InitParams::CLIENT_OWNS_WIDGET;
   }
 };
+
+BEGIN_METADATA(TestContentSettingBubbleContents)
+END_METADATA
 
 // Regression test for http://crbug.com/1050801 .
 TEST_F(ContentSettingBubbleContentsTest, NullDeref) {
   // This enables uses of TestWebContents.
   content::RenderViewHostTestEnabler test_render_host_factories;
 
-  std::unique_ptr<views::Widget> parent_widget = CreateTestWidget();
+  std::unique_ptr<views::Widget> parent_widget =
+      CreateTestWidget(views::Widget::InitParams::CLIENT_OWNS_WIDGET);
   parent_widget->Show();
 
   std::unique_ptr<content::WebContents> web_contents =

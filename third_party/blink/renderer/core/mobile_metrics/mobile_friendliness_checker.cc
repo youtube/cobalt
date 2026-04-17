@@ -5,10 +5,10 @@
 #include "third_party/blink/renderer/core/mobile_metrics/mobile_friendliness_checker.h"
 
 #include <cmath>
+#include <optional>
 
 #include "base/metrics/histogram_functions.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_get_root_node_options.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
@@ -23,15 +23,14 @@
 #include "third_party/blink/renderer/core/html/html_anchor_element.h"
 #include "third_party/blink/renderer/core/html/html_image_element.h"
 #include "third_party/blink/renderer/core/layout/adjust_for_absolute_zoom.h"
-#include "third_party/blink/renderer/core/layout/geometry/physical_offset.h"
 #include "third_party/blink/renderer/core/layout/geometry/physical_rect.h"
-#include "third_party/blink/renderer/core/layout/geometry/physical_size.h"
 #include "third_party/blink/renderer/core/layout/layout_image.h"
-#include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
 #include "third_party/blink/renderer/core/page/chrome_client.h"
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/core/page/viewport_description.h"
+#include "third_party/blink/renderer/platform/geometry/physical_offset.h"
+#include "third_party/blink/renderer/platform/geometry/physical_size.h"
 #include "third_party/blink/renderer/platform/graphics/paint/geometry_mapper.h"
 #include "third_party/blink/renderer/platform/graphics/paint/transform_paint_property_node.h"
 #include "third_party/blink/renderer/platform/heap/visitor.h"
@@ -101,6 +100,12 @@ void MobileFriendlinessChecker::NotifyPaintBegin() {
   DCHECK(frame_view_->GetFrame().Client()->IsLocalFrameClientImpl());
   DCHECK(frame_view_->GetFrame().IsOutermostMainFrame());
 
+  if (!frame_view_->GetLayoutView()
+           ->FirstFragment()
+           .HasLocalBorderBoxProperties()) {
+    return;
+  }
+
   ignore_beyond_viewport_scope_count_ =
       frame_view_->LayoutViewport()->MaximumScrollOffset().x() == 0 &&
       frame_view_->GetPage()
@@ -125,7 +130,7 @@ void MobileFriendlinessChecker::NotifyPaintBegin() {
     if (viewport.max_width.IsFixed()) {
       // Convert value from Blink space to device-independent pixels.
       viewport_hardcoded_width_ =
-          viewport.max_width.GetFloatValue() / viewport_scalar_;
+          viewport.max_width.Pixels() / viewport_scalar_;
     }
 
     if (viewport.zoom_is_explicit)
@@ -297,6 +302,8 @@ void MobileFriendlinessChecker::NotifyPaintReplaced(
 
 void MobileFriendlinessChecker::Trace(Visitor* visitor) const {
   visitor->Trace(frame_view_);
+  visitor->Trace(viewport_transform_);
+  visitor->Trace(previous_transform_);
 }
 
 }  // namespace blink

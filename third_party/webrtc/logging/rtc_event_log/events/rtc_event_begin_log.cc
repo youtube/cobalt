@@ -10,7 +10,17 @@
 
 #include "logging/rtc_event_log/events/rtc_event_begin_log.h"
 
+#include <cstdint>
+#include <string>
+#include <vector>
+
 #include "absl/strings/string_view.h"
+#include "api/array_view.h"
+#include "api/rtc_event_log/rtc_event.h"
+#include "api/units/timestamp.h"
+#include "logging/rtc_event_log/events/rtc_event_field_encoding.h"
+#include "logging/rtc_event_log/events/rtc_event_field_encoding_parser.h"
+#include "logging/rtc_event_log/events/rtc_event_log_parse_status.h"
 
 namespace webrtc {
 constexpr RtcEvent::Type RtcEventBeginLog::kType;
@@ -26,7 +36,7 @@ RtcEventBeginLog::RtcEventBeginLog(const RtcEventBeginLog& other)
 
 RtcEventBeginLog::~RtcEventBeginLog() = default;
 
-std::string RtcEventBeginLog::Encode(rtc::ArrayView<const RtcEvent*> batch) {
+std::string RtcEventBeginLog::Encode(ArrayView<const RtcEvent*> batch) {
   EventEncoder encoder(event_params_, batch);
 
   encoder.EncodeField(
@@ -45,12 +55,12 @@ RtcEventLogParseStatus RtcEventBeginLog::Parse(
   if (!status.ok())
     return status;
 
-  rtc::ArrayView<LoggedStartEvent> output_batch =
+  ArrayView<LoggedStartEvent> output_batch =
       ExtendLoggedBatch(output, parser.NumEventsInBatch());
 
   constexpr FieldParameters timestamp_params{
       "timestamp_ms", FieldParameters::kTimestampField, FieldType::kVarInt, 64};
-  RtcEventLogParseStatusOr<rtc::ArrayView<uint64_t>> result =
+  RtcEventLogParseStatusOr<ArrayView<uint64_t>> result =
       parser.ParseNumericField(timestamp_params);
   if (!result.ok())
     return result.status();

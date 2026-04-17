@@ -10,12 +10,10 @@
 #include <queue>
 #include <vector>
 
-#include "base/containers/queue.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "ui/display/manager/display_manager_export.h"
-#include "ui/display/types/display_configuration_params.h"
 #include "ui/display/types/display_constants.h"
 #include "ui/display/types/native_display_observer.h"
 #include "ui/gfx/geometry/point.h"
@@ -25,6 +23,8 @@ namespace display {
 class DisplayMode;
 class DisplaySnapshot;
 class NativeDisplayDelegate;
+
+struct DisplayConfigurationParams;
 
 struct DISPLAY_MANAGER_EXPORT DisplayConfigureRequest {
   DisplayConfigureRequest(DisplaySnapshot* display,
@@ -36,8 +36,12 @@ struct DISPLAY_MANAGER_EXPORT DisplayConfigureRequest {
                           const DisplayMode* mode,
                           const gfx::Point& origin);
 
-  raw_ptr<DisplaySnapshot, ExperimentalAsh> display;
-  raw_ptr<const DisplayMode, ExperimentalAsh> mode;
+  DisplayConfigureRequest(const DisplayConfigureRequest& other);
+
+  ~DisplayConfigureRequest();
+
+  raw_ptr<DisplaySnapshot> display;
+  std::unique_ptr<const DisplayMode> mode;
   gfx::Point origin;
   bool enable_vrr;
 };
@@ -68,16 +72,21 @@ using RequestAndStatusList = std::pair<const DisplayConfigureRequest*, bool>;
 class DISPLAY_MANAGER_EXPORT ConfigureDisplaysTask
     : public NativeDisplayObserver {
  public:
+  // Note: the enum values below match those of the ConfigureDisplaysTaskStatus
+  // histogram enum and should never change, or else it will make historical
+  // data of the affected metrics difficult to process.
   enum Status {
     // At least one of the displays failed to apply any mode it supports.
-    ERROR,
+    ERROR = 0,
 
     // The requested configuration was applied.
-    SUCCESS,
+    SUCCESS = 1,
 
     // At least one of the displays failed to apply the requested
     // configuration, but it managed to fall back to another mode.
-    PARTIAL_SUCCESS,
+    PARTIAL_SUCCESS = 2,
+
+    kMaxValue = PARTIAL_SUCCESS
   };
 
   using ResponseCallback = base::OnceCallback<void(Status)>;
@@ -105,8 +114,12 @@ class DISPLAY_MANAGER_EXPORT ConfigureDisplaysTask
     RequestToOriginalMode(DisplayConfigureRequest* request,
                           const DisplayMode* original_mode);
 
-    raw_ptr<DisplayConfigureRequest, ExperimentalAsh> request;
-    const raw_ptr<const DisplayMode, ExperimentalAsh> original_mode;
+    RequestToOriginalMode(const RequestToOriginalMode& other);
+
+    ~RequestToOriginalMode();
+
+    raw_ptr<DisplayConfigureRequest> request;
+    const std::unique_ptr<const DisplayMode> original_mode;
   };
   using PartitionedRequestsQueue =
       std::queue<std::vector<RequestToOriginalMode>>;
@@ -116,7 +129,9 @@ class DISPLAY_MANAGER_EXPORT ConfigureDisplaysTask
   // Upon failure, partitions the original request from Ash into smaller
   // requests where the displays are grouped by the physical connector they
   // connect to and initiates the retry sequence.
-  void OnFirstAttemptConfigured(bool config_success);
+  void OnFirstAttemptConfigured(
+      const std::vector<DisplayConfigurationParams>& request_results,
+      bool config_success);
 
   // Deals with the aftermath of a configuration retry, which attempts to
   // configure a subset of the displays grouped together by the physical
@@ -127,11 +142,15 @@ class DISPLAY_MANAGER_EXPORT ConfigureDisplaysTask
   // If any of the display groups entirely fail to modeset (i.e. exhaust all
   // available modes during retry), the configuration will fail as a whole, but
   // will continue to try to modeset the remaining display groups.
-  void OnRetryConfigured(bool config_success);
+  void OnRetryConfigured(
+      const std::vector<DisplayConfigurationParams>& request_results,
+      bool config_success);
 
   // Finalizes the configuration after a modeset attempt was made (as opposed to
   // test-modeset).
-  void OnConfigured(bool config_success);
+  void OnConfigured(
+      const std::vector<DisplayConfigurationParams>& request_results,
+      bool config_success);
 
   // Partition |requests_| by their base connector id (i.e. the physical
   // connector the displays are connected to) and populate the result in
@@ -144,7 +163,7 @@ class DISPLAY_MANAGER_EXPORT ConfigureDisplaysTask
   // requests). Return false if no request was downgraded.
   bool DowngradeDisplayRequestGroup();
 
-  raw_ptr<NativeDisplayDelegate, ExperimentalAsh> delegate_;  // Not owned.
+  raw_ptr<NativeDisplayDelegate> delegate_;  // Not owned.
 
   // Holds the next configuration request to attempt modeset.
   std::vector<DisplayConfigureRequest> requests_;

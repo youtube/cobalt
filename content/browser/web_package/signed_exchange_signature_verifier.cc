@@ -4,14 +4,15 @@
 
 #include "content/browser/web_package/signed_exchange_signature_verifier.h"
 
+#include <array>
 #include <string>
+#include <string_view>
 #include <vector>
 
-#include "base/big_endian.h"
 #include "base/containers/span.h"
 #include "base/format_macros.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/strings/string_piece.h"
+#include "base/numerics/byte_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/time/time.h"
@@ -53,17 +54,17 @@ constexpr uint8_t kMessageHeader[] =
 constexpr base::TimeDelta kOneWeek = base::Days(7);
 constexpr base::TimeDelta kFourWeeks = base::Days(4 * 7);
 
-absl::optional<crypto::SignatureVerifier::SignatureAlgorithm>
+std::optional<crypto::SignatureVerifier::SignatureAlgorithm>
 GetSignatureAlgorithm(scoped_refptr<net::X509Certificate> cert,
                       SignedExchangeDevToolsProxy* devtools_proxy) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("loading"), "GetSignatureAlgorithm");
-  base::StringPiece spki;
+  std::string_view spki;
   if (!net::asn1::ExtractSPKIFromDERCert(
           net::x509_util::CryptoBufferAsStringPiece(cert->cert_buffer()),
           &spki)) {
     signed_exchange_utils::ReportErrorAndTraceEvent(devtools_proxy,
                                                     "Failed to extract SPKI.");
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   CBS cbs;
@@ -72,7 +73,7 @@ GetSignatureAlgorithm(scoped_refptr<net::X509Certificate> cert,
   if (!pkey || CBS_len(&cbs) != 0) {
     signed_exchange_utils::ReportErrorAndTraceEvent(
         devtools_proxy, "Failed to parse public key.");
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   int pkey_id = EVP_PKEY_id(pkey.get());
@@ -82,7 +83,7 @@ GetSignatureAlgorithm(scoped_refptr<net::X509Certificate> cert,
         base::StringPrintf("Unsupported public key type: %d. Only ECDSA keys "
                            "on the secp256r1 curve are supported.",
                            pkey_id));
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   const EC_GROUP* group = EC_KEY_get0_group(EVP_PKEY_get0_EC_KEY(pkey.get()));
@@ -94,7 +95,7 @@ GetSignatureAlgorithm(scoped_refptr<net::X509Certificate> cert,
       base::StringPrintf("Unsupported EC group: %d. Only ECDSA keys on the "
                          "secp256r1 curve are supported.",
                          curve_name));
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 bool VerifySignature(base::span<const uint8_t> sig,
@@ -128,9 +129,8 @@ std::string HexDump(const std::vector<uint8_t>& msg) {
 }
 
 void AppendToBuf8BytesBigEndian(std::vector<uint8_t>* buf, uint64_t n) {
-  char encoded[8];
-  base::WriteBigEndian(encoded, n);
-  buf->insert(buf->end(), std::begin(encoded), std::end(encoded));
+  std::array<uint8_t, 8> encoded = base::U64ToBigEndian(n);
+  buf->insert(buf->end(), encoded.begin(), encoded.end());
 }
 
 std::vector<uint8_t> GenerateSignedMessage(
@@ -154,8 +154,7 @@ std::vector<uint8_t> GenerateSignedMessage(
   // format.
   message.push_back(32);
   const auto& cert_sha256 = envelope.signature().cert_sha256.value();
-  message.insert(message.end(), std::begin(cert_sha256.data),
-                 std::end(cert_sha256.data));
+  message.insert(message.end(), cert_sha256.begin(), cert_sha256.end());
 
   // Step 5.5. "The 8-byte big-endian encoding of the length in bytes of
   // validity-url, followed by the bytes of validity-url." [spec text]
@@ -291,16 +290,14 @@ SignedExchangeSignatureVerifier::Result SignedExchangeSignatureVerifier::Verify(
 
   auto message = GenerateSignedMessage(version, envelope);
 
-  absl::optional<crypto::SignatureVerifier::SignatureAlgorithm> algorithm =
+  std::optional<crypto::SignatureVerifier::SignatureAlgorithm> algorithm =
       GetSignatureAlgorithm(certificate, devtools_proxy);
   if (!algorithm)
     return Result::kErrUnsupportedCertType;
 
   const std::string& sig = envelope.signature().sig;
-  if (!VerifySignature(
-          base::make_span(reinterpret_cast<const uint8_t*>(sig.data()),
-                          sig.size()),
-          message, certificate, *algorithm, devtools_proxy)) {
+  if (!VerifySignature(base::as_byte_span(sig), message, certificate,
+                       *algorithm, devtools_proxy)) {
     signed_exchange_utils::ReportErrorAndTraceEvent(
         devtools_proxy, "Failed to verify signature \"sig\".");
     return Result::kErrSignatureVerificationFailed;

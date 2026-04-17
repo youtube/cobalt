@@ -6,39 +6,29 @@ import("//build/config/chromeos/ui_mode.gni")
 import("//printing/buildflags/buildflags.gni")
 import("//testing/test.gni")
 
+assert(enable_printing)
+
 source_set("lib") {
-  sources = []
+  sources = [
+    "printing_service.cc",
+    "printing_service.h",
+  ]
 
-  deps = []
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
-  public_deps = []
+  deps = [
+    "//components/discardable_memory/client",
+    "//content/public/child",
+    "//content/public/utility",
+    "//printing",
+  ]
 
-  if (enable_print_preview) {
-    sources = [
-      "pdf_nup_converter.cc",
-      "pdf_nup_converter.h",
-      "pdf_to_pwg_raster_converter.cc",
-      "pdf_to_pwg_raster_converter.h",
-      "printing_service.cc",
-      "printing_service.h",
-    ]
-
-    public_deps += [
-      "//base",
-      "//chrome/services/printing/public/mojom",
-      "//mojo/public/cpp/bindings",
-    ]
-
-    deps += [
-      "//build:chromeos_buildflags",
-      "//components/crash/core/common:crash_key",
-      "//components/pwg_encoder",
-      "//pdf",
-      "//printing",
-      "//printing/backend",
-      "//printing/mojom",
-    ]
-  }
+  public_deps = [
+    "//base",
+    "//chrome/services/printing/public/mojom",
+    "//mojo/public/cpp/bindings",
+    "//printing/buildflags",
+  ]
 
   if (is_chromeos) {
     sources += [
@@ -47,21 +37,6 @@ source_set("lib") {
     ]
 
     deps += [ "//pdf" ]
-  }
-
-  if (is_chromeos_ash) {
-    sources += [
-      "pdf_thumbnailer.cc",
-      "pdf_thumbnailer.h",
-    ]
-
-    deps += [
-      "//components/discardable_memory/client",
-      "//content/public/child",
-      "//content/public/utility",
-      "//pdf",
-      "//ui/gfx/codec",
-    ]
   }
 
   if (is_win) {
@@ -73,11 +48,26 @@ source_set("lib") {
     ]
 
     deps += [
-      "//components/discardable_memory/client",
-      "//content/public/child",
-      "//content/public/utility",
       "//skia",
       "//ui/gfx",
+    ]
+  }
+
+  if (enable_print_preview) {
+    sources += [
+      "pdf_nup_converter.cc",
+      "pdf_nup_converter.h",
+      "pdf_to_pwg_raster_converter.cc",
+      "pdf_to_pwg_raster_converter.h",
+    ]
+
+    deps += [
+      "//build:chromeos_buildflags",
+      "//components/crash/core/common:crash_key",
+      "//components/pwg_encoder",
+      "//pdf",
+      "//printing/backend",
+      "//printing/mojom",
     ]
   }
 
@@ -87,16 +77,9 @@ source_set("lib") {
       "print_backend_service_impl.h",
     ]
 
-    public_deps += [
-      "//base",
-      "//chrome/services/printing/public/mojom",
-      "//mojo/public/cpp/bindings",
-    ]
-
     deps += [
       "//chrome/common/printing",
       "//components/crash/core/common",
-      "//printing:printing_base",
       "//ui/gfx",
     ]
 
@@ -106,21 +89,5 @@ source_set("lib") {
         "//ui/linux:linux_ui_factory",
       ]
     }
-  }
-}
-
-if (is_chromeos_ash) {
-  assert(enable_print_preview)
-  source_set("pdf_thumbnailer_test") {
-    testonly = true
-    sources = [ "pdf_thumbnailer_unittest.cc" ]
-
-    deps = [
-      ":lib",
-      "//base/test:test_support",
-      "//build:chromeos_buildflags",
-      "//skia",
-      "//testing/gtest",
-    ]
   }
 }

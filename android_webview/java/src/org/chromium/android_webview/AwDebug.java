@@ -4,9 +4,9 @@
 
 package org.chromium.android_webview;
 
+import org.chromium.android_webview.common.Lifetime;
 import org.chromium.base.Log;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.UsedByReflection;
 
 import java.io.File;
@@ -14,11 +14,12 @@ import java.io.File;
 /**
  * Provides Android WebView debugging entrypoints.
  *
- * Methods in this class can be called from any thread, including threads created by
- * the client of WebView.
+ * <p>Methods in this class can be called from any thread, including threads created by the client
+ * of WebView.
  */
-@JNINamespace("android_webview")
+@Lifetime.Singleton
 @UsedByReflection("")
+@NullMarked
 public class AwDebug {
     private static final String TAG = "AwDebug";
 
@@ -32,14 +33,5 @@ public class AwDebug {
     public static boolean dumpWithoutCrashing(File dumpFile) {
         Log.e(TAG, "AwDebug.dumpWithoutCrashing is no longer supported.");
         return false;
-    }
-
-    public static void setSupportLibraryWebkitVersionCrashKey(String version) {
-        AwDebugJni.get().setSupportLibraryWebkitVersionCrashKey(version);
-    }
-
-    @NativeMethods
-    interface Natives {
-        void setSupportLibraryWebkitVersionCrashKey(String version);
     }
 }

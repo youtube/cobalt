@@ -81,3 +81,30 @@ WindowManagementSettings:
   - DefaultWindowPlacementSetting
   - WindowPlacementAllowedForUrls
   - WindowPlacementBlockedForUrls
+WebPrintingSettings:
+  caption: Web Printing settings
+  policies:
+  - DefaultWebPrintingSetting
+  - WebPrintingAllowedForUrls
+  - WebPrintingBlockedForUrls
+DirectSocketsSettings:
+  caption: Direct Sockets settings
+  policies:
+  - DefaultDirectSocketsSetting
+  - DirectSocketsAllowedForUrls
+  - DirectSocketsBlockedForUrls
+  - DefaultDirectSocketsPrivateNetworkAccessSetting
+  - DirectSocketsPrivateNetworkAccessAllowedForUrls
+  - DirectSocketsPrivateNetworkAccessBlockedForUrls
+ControlledFrameSettings:
+  caption: Controlled Frame settings
+  policies:
+  - DefaultControlledFrameSetting
+  - ControlledFrameAllowedForUrls
+  - ControlledFrameBlockedForUrls
+SmartCardConnectSettings:
+  caption: Smart Card Connect settings
+  policies:
+  - SmartCardConnectAllowedForUrls
+  - SmartCardConnectBlockedForUrls
+  - DefaultSmartCardConnectSetting

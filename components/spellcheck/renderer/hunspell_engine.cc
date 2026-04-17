@@ -5,12 +5,14 @@
 #include "components/spellcheck/renderer/hunspell_engine.h"
 
 #include <stddef.h>
+
 #include <algorithm>
 #include <iterator>
 #include <memory>
 #include <utility>
 
 #include "base/files/memory_mapped_file.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "components/spellcheck/common/spellcheck.mojom.h"
 #include "components/spellcheck/common/spellcheck_common.h"
@@ -64,15 +66,14 @@ void HunspellEngine::InitializeHunspell() {
   bdict_file_ = std::make_unique<base::MemoryMappedFile>();
 
   if (bdict_file_->Initialize(std::move(file_))) {
-    hunspell_ =
-        std::make_unique<Hunspell>(bdict_file_->data(), bdict_file_->length());
+    hunspell_ = std::make_unique<Hunspell>(bdict_file_->bytes());
   } else {
     NOTREACHED() << "Could not mmap spellchecker dictionary.";
   }
 }
 
 bool HunspellEngine::CheckSpelling(const std::u16string& word_to_check,
-                                   int tag) {
+                                   spellcheck::mojom::SpellCheckHost& host) {
   // Assume all words that cannot be checked are valid. Since Chrome can't
   // offer suggestions on them, either, there's no point in flagging them to
   // the user.
@@ -94,6 +95,7 @@ bool HunspellEngine::CheckSpelling(const std::u16string& word_to_check,
 
 void HunspellEngine::FillSuggestionList(
     const std::u16string& wrong_word,
+    spellcheck::mojom::SpellCheckHost& host,
     std::vector<std::u16string>* optional_suggestions) {
   std::string wrong_word_utf8(base::UTF16ToUTF8(wrong_word));
   if (wrong_word_utf8.length() > kMaxSuggestLen)
@@ -117,10 +119,11 @@ void HunspellEngine::FillSuggestionList(
 
 bool HunspellEngine::InitializeIfNeeded() {
   if (!initialized_ && !dictionary_requested_) {
-    mojo::Remote<spellcheck::mojom::SpellCheckHost> spell_check_host;
+    mojo::Remote<spellcheck::mojom::SpellCheckInitializationHost>
+        spell_check_init_host;
     embedder_provider_->GetInterface(
-        spell_check_host.BindNewPipeAndPassReceiver());
-    spell_check_host->RequestDictionary();
+        spell_check_init_host.BindNewPipeAndPassReceiver());
+    spell_check_init_host->RequestDictionary();
     dictionary_requested_ = true;
     return true;
   }

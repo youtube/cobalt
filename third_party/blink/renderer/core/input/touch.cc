@@ -41,20 +41,20 @@ gfx::Vector2dF ContentsOffset(LocalFrame* frame) {
   LocalFrameView* frame_view = frame->View();
   if (!frame_view)
     return gfx::Vector2dF();
-  float scale = 1.0f / frame->PageZoomFactor();
+  float scale = 1.0f / frame->LayoutZoomFactor();
   gfx::Vector2dF offset = frame_view->LayoutViewport()->GetScrollOffset();
   offset.Scale(scale);
   return offset;
 }
 
-LayoutPoint PageToAbsolute(LocalFrame* frame, const gfx::PointF& page_pos) {
-  float scale_factor = frame ? frame->PageZoomFactor() : 1.0f;
+PhysicalOffset PageToAbsolute(LocalFrame* frame, const gfx::PointF& page_pos) {
+  float scale_factor = frame ? frame->LayoutZoomFactor() : 1.0f;
   gfx::PointF converted_point = gfx::ScalePoint(page_pos, scale_factor);
 
   if (frame && frame->View())
     converted_point = frame->View()->DocumentToFrame(converted_point);
 
-  return LayoutPoint(converted_point);
+  return PhysicalOffset::FromPointFFloor(converted_point);
 }
 
 }  // namespace
@@ -85,7 +85,7 @@ Touch::Touch(EventTarget* target,
              const gfx::SizeF& radius,
              float rotation_angle,
              float force,
-             LayoutPoint absolute_location)
+             PhysicalOffset absolute_location)
     : target_(target),
       identifier_(identifier),
       client_pos_(client_pos),

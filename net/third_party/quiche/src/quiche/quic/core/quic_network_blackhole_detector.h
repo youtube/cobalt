@@ -5,9 +5,7 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_NETWORK_BLACKHOLE_DETECTOR_H_
 #define QUICHE_QUIC_CORE_QUIC_NETWORK_BLACKHOLE_DETECTOR_H_
 
-#include "quiche/quic/core/quic_alarm.h"
-#include "quiche/quic/core/quic_alarm_factory.h"
-#include "quiche/quic/core/quic_one_block_arena.h"
+#include "quiche/quic/core/quic_connection_alarms.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_flags.h"
@@ -24,9 +22,9 @@ class QuicNetworkBlackholeDetectorPeer;
 // degrading detection mode. After reporting path degrading detected, detector
 // switches to blackhole detection mode. So blackhole detection deadline must
 // be later than path degrading deadline.
-class QUIC_EXPORT_PRIVATE QuicNetworkBlackholeDetector {
+class QUICHE_EXPORT QuicNetworkBlackholeDetector {
  public:
-  class QUIC_EXPORT_PRIVATE Delegate {
+  class QUICHE_EXPORT Delegate {
    public:
     virtual ~Delegate() {}
 
@@ -40,9 +38,7 @@ class QUIC_EXPORT_PRIVATE QuicNetworkBlackholeDetector {
     virtual void OnPathMtuReductionDetected() = 0;
   };
 
-  QuicNetworkBlackholeDetector(Delegate* delegate, QuicConnectionArena* arena,
-                               QuicAlarmFactory* alarm_factory,
-                               QuicConnectionContext* context);
+  QuicNetworkBlackholeDetector(Delegate* delegate, QuicAlarmProxy alarm);
 
   // Called to stop all detections. If |permanent|, the alarm will be cancelled
   // permanently and future calls to RestartDetection will be no-op.
@@ -69,7 +65,7 @@ class QUIC_EXPORT_PRIVATE QuicNetworkBlackholeDetector {
   QuicTime GetLastDeadline() const;
 
   // Update alarm to the next deadline.
-  void UpdateAlarm() const;
+  void UpdateAlarm();
 
   Delegate* delegate_;  // Not owned.
 
@@ -83,7 +79,7 @@ class QUIC_EXPORT_PRIVATE QuicNetworkBlackholeDetector {
   // path mtu reduction detection is in progress.
   QuicTime path_mtu_reduction_deadline_ = QuicTime::Zero();
 
-  QuicArenaScopedPtr<QuicAlarm> alarm_;
+  QuicAlarmProxy alarm_;
 };
 
 }  // namespace quic

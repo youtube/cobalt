@@ -5,6 +5,7 @@
 #ifndef ASH_SYSTEM_NETWORK_NETWORK_LIST_VIEW_CONTROLLER_IMPL_H_
 #define ASH_SYSTEM_NETWORK_NETWORK_LIST_VIEW_CONTROLLER_IMPL_H_
 
+#include <optional>
 #include <string>
 
 #include "ash/ash_export.h"
@@ -12,6 +13,7 @@
 #include "ash/system/network/network_list_mobile_header_view.h"
 #include "ash/system/network/network_list_network_header_view.h"
 #include "ash/system/network/network_list_network_item_view.h"
+#include "ash/system/network/network_list_tether_hosts_header_view.h"
 #include "ash/system/network/network_list_view_controller.h"
 #include "ash/system/network/network_list_wifi_header_view.h"
 #include "ash/system/network/tray_network_state_observer.h"
@@ -22,11 +24,10 @@
 #include "base/memory/raw_ptr.h"
 #include "base/timer/timer.h"
 #include "chromeos/ash/services/bluetooth_config/public/mojom/cros_bluetooth_config.mojom.h"
+#include "chromeos/ash/services/multidevice_setup/public/mojom/multidevice_setup.mojom.h"
 #include "chromeos/services/network_config/public/mojom/cros_network_config.mojom.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "ui/views/controls/separator.h"
 
 namespace views {
 class ImageView;
@@ -42,6 +43,7 @@ class NetworkDetailedNetworkView;
 class ASH_EXPORT NetworkListViewControllerImpl
     : public TrayNetworkStateObserver,
       public NetworkListViewController,
+      public multidevice_setup::mojom::HostStatusObserver,
       public bluetooth_config::mojom::SystemPropertiesObserver {
  public:
   NetworkListViewControllerImpl(
@@ -52,7 +54,7 @@ class ASH_EXPORT NetworkListViewControllerImpl
   ~NetworkListViewControllerImpl() override;
 
  protected:
-  TrayNetworkStateModel* model() { return model_; }
+  TrayNetworkStateModel* model() const { return model_; }
 
   NetworkDetailedNetworkView* network_detailed_network_view() {
     return network_detailed_network_view_;
@@ -67,23 +69,30 @@ class ASH_EXPORT NetworkListViewControllerImpl
   enum class NetworkListViewControllerViewChildId {
     kConnectionWarning = 11,
     kConnectionWarningLabel = 12,
-    kMobileSeparator = 13,
-    kMobileStatusMessage = 14,
-    kMobileSectionHeader = 15,
-    kWifiSeparator = 16,
-    kWifiSectionHeader = 17,
-    kWifiStatusMessage = 18,
-    kConnectionWarningSystemIcon = 19,
-    kConnectionWarningManagedIcon = 20
+    kMobileStatusMessage = 13,
+    kMobileSectionHeader = 14,
+    kWifiSectionHeader = 15,
+    kWifiStatusMessage = 16,
+    kConnectionWarningSystemIcon = 17,
+    kConnectionWarningManagedIcon = 18,
+    kTetherHostsSectionHeader = 19,
+    kTetherHostsStatusMessage = 20
   };
 
   // Map of network guids and their corresponding list item views.
   using NetworkIdToViewMap =
-      base::flat_map<std::string, NetworkListNetworkItemView*>;
+      base::flat_map<std::string,
+                     raw_ptr<NetworkListNetworkItemView, CtnExperimental>>;
+
+  // multidevice_setup::mojom::HostStatusObserver:
+  void OnHostStatusChanged(
+      multidevice_setup::mojom::HostStatus host_status,
+      const std::optional<multidevice::RemoteDevice>& host_device) override;
 
   // TrayNetworkStateObserver:
   void ActiveNetworkStateChanged() override;
   void NetworkListChanged() override;
+  void DeviceStateListChanged() override;
   void GlobalPolicyChanged() override;
 
   // bluetooth_config::mojom::SystemPropertiesObserver:
@@ -105,18 +114,15 @@ class ASH_EXPORT NetworkListViewControllerImpl
           networks);
 
   // Adds a warning indicator if connected to a VPN, if the default network
-  // has a proxy installed or if the secure DNS template URIs contain user or
-  // device identifiers.
+  // has a proxy installed, if the secure DNS template URIs contain user/device
+  // identifiers or if DeviceReportXDREvents is enabled.
   size_t ShowConnectionWarningIfNetworkMonitored(size_t index);
 
   // Returns true if mobile data section should be added to view.
   bool ShouldMobileDataSectionBeShown();
 
-  // Creates if missing and adds a Mobile or Wifi separator to the view.
-  // Also reorders separator view in network list. A reference to the
-  // separator is captured in `*separator_view`.
-  size_t CreateSeparatorIfMissingAndReorder(size_t index,
-                                            views::Separator** separator_view);
+  // Returns true if tether hosts section should be added to view.
+  bool ShouldTetherHostsSectionBeShown();
 
   // Creates the wifi group header for wifi networks. If `is_known` is `true`,
   // it creates the "Known networks" header, which is the `known_header_`. If
@@ -124,8 +130,16 @@ class ASH_EXPORT NetworkListViewControllerImpl
   // `unknown_header_`.
   size_t CreateWifiGroupHeader(size_t index, const bool is_known);
 
-  // Creates and adds the join wifi entry at the bottom of the wifi networks.
-  size_t CreateJoinWifiEntry(size_t index);
+  // Creates and adds the "+ <network>" entry at the bottom of the wifi
+  // networks (for `NetworkType::kWiFi`) or mobile networks (for
+  // `NetworkType::kMobile`) based on the value of `type`.
+  // `plus_network_entry_ptr` is the pointer to the "+ <network>" entry, and
+  // `index` is increased by 1 to indicate the order of this view so that this
+  // view can be reordered later if necessary.
+  size_t CreateConfigureNetworkEntry(
+      raw_ptr<HoverHighlightView>* plus_network_entry_ptr,
+      NetworkType type,
+      size_t index);
 
   // Updates Mobile data section, updates add eSIM button states and
   // calls UpdateMobileToggleAndSetStatusMessage().
@@ -137,12 +151,18 @@ class ASH_EXPORT NetworkListViewControllerImpl
   // add an info message.
   void UpdateWifiSection();
 
+  // Updates the Tether Hosts section. This method creates a new header if one
+  // does not exist. If Bluetooth is disabled or Instant Hotspot is enabled with
+  // no nearby hosts, this method will display an error message.
+  void UpdateTetherHostsSection();
+
   // Updated mobile data toggle states and sets mobile data status message.
   void UpdateMobileToggleAndSetStatusMessage();
 
   // Creates an info label if missing and updates info label message.
-  void CreateInfoLabelIfMissingAndUpdate(int message_id,
-                                         TrayInfoLabel** info_label_ptr);
+  void CreateInfoLabelIfMissingAndUpdate(
+      int message_id,
+      raw_ptr<TrayInfoLabel>* info_label_ptr);
 
   // Creates a NetworkListNetworkItem if it does not exist else uses the
   // existing view, also reorders it in NetworkDetailedNetworkView scroll list.
@@ -153,9 +173,15 @@ class ASH_EXPORT NetworkListViewControllerImpl
           networks,
       NetworkIdToViewMap* previous_views);
 
+  // Generates the correct warning to display based on the management status of
+  // the network configurations and how privacy intrusive the network
+  // configurations are.
+  std::u16string GenerateLabelText();
+
   // Creates a view that indicates connections might be monitored if
-  // connected to a VPN, if the default network has a proxy installed or if the
-  // secure DNS template URIs contain identifiers.
+  // connected to a VPN, if the default network has a proxy installed, if the
+  // secure DNS template URIs contain identifiers or if DeviceReportXDREvents is
+  // enabled.
   void ShowConnectionWarning(bool show_managed_icon);
 
   // Hides a connection warning, if visible.
@@ -191,55 +217,68 @@ class ASH_EXPORT NetworkListViewControllerImpl
   // if the default network has a proxy configured or if a VPN is active.
   void MaybeShowConnectionWarningManagedIcon(bool using_proxy);
 
-  raw_ptr<TrayNetworkStateModel, ExperimentalAsh> model_;
+  // Whether to add eSim entry or not.
+  bool ShouldAddESimEntry() const;
+
+  raw_ptr<TrayNetworkStateModel> model_;
 
   mojo::Remote<bluetooth_config::mojom::CrosBluetoothConfig>
       remote_cros_bluetooth_config_;
   mojo::Receiver<bluetooth_config::mojom::SystemPropertiesObserver>
       cros_system_properties_observer_receiver_{this};
+  mojo::Remote<multidevice_setup::mojom::MultiDeviceSetup>
+      multidevice_setup_remote_;
+  mojo::Receiver<multidevice_setup::mojom::HostStatusObserver>
+      host_status_observer_receiver_{this};
 
   bluetooth_config::mojom::BluetoothSystemState bluetooth_system_state_ =
       bluetooth_config::mojom::BluetoothSystemState::kUnavailable;
 
-  TrayInfoLabel* mobile_status_message_ = nullptr;
-  NetworkListMobileHeaderView* mobile_header_view_ = nullptr;
-  views::Separator* mobile_separator_view_ = nullptr;
-  TriView* connection_warning_ = nullptr;
+  raw_ptr<TrayInfoLabel> mobile_status_message_ = nullptr;
+  raw_ptr<NetworkListMobileHeaderView> mobile_header_view_ = nullptr;
+  raw_ptr<TriView> connection_warning_ = nullptr;
 
   // Pointer to the icon displayed next to the connection warning message when
   // a proxy or a VPN is active. Owned by `connection_warning_`. If the network
   // is monitored by the admin, via policy, it displays the managed icon,
   // otherwise the system icon.
-  views::ImageView* connection_warning_icon_ = nullptr;
+  raw_ptr<views::ImageView> connection_warning_icon_ = nullptr;
   // Owned by `connection_warning_`.
-  raw_ptr<views::Label, DanglingUntriaged | ExperimentalAsh>
-      connection_warning_label_ = nullptr;
+  raw_ptr<views::Label> connection_warning_label_ = nullptr;
 
-  raw_ptr<NetworkListWifiHeaderView, ExperimentalAsh> wifi_header_view_ =
-      nullptr;
-  views::Separator* wifi_separator_view_ = nullptr;
-  TrayInfoLabel* wifi_status_message_ = nullptr;
+  raw_ptr<NetworkListWifiHeaderView> wifi_header_view_ = nullptr;
+  raw_ptr<TrayInfoLabel> wifi_status_message_ = nullptr;
+
+  raw_ptr<TrayInfoLabel> tether_hosts_status_message_ = nullptr;
+  raw_ptr<NetworkListTetherHostsHeaderView> tether_hosts_header_view_ = nullptr;
 
   // Owned by views hierarchy.
-  views::Label* known_header_ = nullptr;
-  views::Label* unknown_header_ = nullptr;
-  HoverHighlightView* join_wifi_entry_ = nullptr;
+  raw_ptr<views::Label> known_header_ = nullptr;
+  raw_ptr<views::Label> unknown_header_ = nullptr;
+  raw_ptr<HoverHighlightView> join_wifi_entry_ = nullptr;
+  raw_ptr<HoverHighlightView> add_esim_entry_ = nullptr;
+  raw_ptr<HoverHighlightView> set_up_cross_device_suite_entry_ = nullptr;
 
-  bool has_mobile_networks_;
+  bool has_cellular_networks_;
   bool has_wifi_networks_;
+  bool has_tether_networks_;
   bool is_mobile_network_enabled_;
   bool is_wifi_enabled_;
+  bool is_tether_enabled_;
   std::string connected_vpn_guid_;
 
-  // Can be nullopt while the managed properties of the network are being
-  // fetched via mojo. If one of `is_proxy_managed_` or `is_vpn_managed_` is
-  // true, the system icon shown next to the privacy warning is replaced by a
-  // managed icon.
-  absl::optional<bool> is_proxy_managed_;
-  absl::optional<bool> is_vpn_managed_;
+  // Indicates whether the proxy associated with the default network is
+  // managed.
+  bool is_proxy_managed_ = false;
+  // Indicates whether the proxy associated with `connected_vpn_guid_` is
+  // managed.
+  bool is_vpn_managed_ = false;
 
-  raw_ptr<NetworkDetailedNetworkView, ExperimentalAsh>
-      network_detailed_network_view_;
+  // Indicates whether the user has a phone which could be set up via the
+  // cross-device suite of features.
+  bool has_phone_eligible_for_setup_ = false;
+
+  raw_ptr<NetworkDetailedNetworkView> network_detailed_network_view_;
   NetworkIdToViewMap network_id_to_view_map_;
 
   // Timer for repeatedly requesting network scans with a delay between

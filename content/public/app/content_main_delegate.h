@@ -6,14 +6,15 @@
 #define CONTENT_PUBLIC_APP_CONTENT_MAIN_DELEGATE_H_
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
+#include "base/notreached.h"
 #include "build/build_config.h"
 #include "content/common/content_export.h"
 #include "content/public/common/main_function_params.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 
 namespace variations {
 class VariationsIdsProvider;
@@ -46,7 +47,7 @@ class CONTENT_EXPORT ContentMainDelegate {
   // the browser process and child processes; for more fine-grained process
   // types check the `switches::kProcessType` command-line switch.
   using InvokedIn =
-      absl::variant<InvokedInBrowserProcess, InvokedInChildProcess>;
+      std::variant<InvokedInBrowserProcess, InvokedInChildProcess>;
 
   virtual ~ContentMainDelegate() = default;
 
@@ -56,7 +57,7 @@ class CONTENT_EXPORT ContentMainDelegate {
   // embedder to do the things that must happen at the start. Most of its
   // startup code should be in the methods below, handling of early exit
   // command-line switches can wait until PreBrowserMain at the latest.
-  virtual absl::optional<int> BasicStartupComplete();
+  virtual std::optional<int> BasicStartupComplete();
 
   // This is where the embedder puts all of its startup code that needs to run
   // before the sandbox is engaged.
@@ -70,7 +71,7 @@ class CONTENT_EXPORT ContentMainDelegate {
   // |main_function_params| back to decline the request and kick-off the
   // default behavior or return a non-negative exit code to indicate it handled
   // the request.
-  virtual absl::variant<int, MainFunctionParams> RunProcess(
+  virtual std::variant<int, MainFunctionParams> RunProcess(
       const std::string& process_type,
       MainFunctionParams main_function_params);
 
@@ -93,7 +94,7 @@ class CONTENT_EXPORT ContentMainDelegate {
 
   // Fatal errors during initialization are reported by this function, so that
   // the embedder can implement graceful exit by displaying some message and
-  // returning initialization error code. Default behavior is CHECK(false).
+  // returning initialization error code. Default behavior is NOTREACHED().
   virtual int TerminateForFatalInitializationError();
 
   // Allows the embedder to prevent locking the scheme registry. The scheme
@@ -115,7 +116,7 @@ class CONTENT_EXPORT ContentMainDelegate {
   // BrowserMainParts, etc. are created). Return an error code if the process
   // should exit afterwards. This is the place for embedder to do the things
   // that can shortcut browser execution (i.e. command-line switches).
-  virtual absl::optional<int> PreBrowserMain();
+  virtual std::optional<int> PreBrowserMain();
 
   // Returns true if content should create field trials and initialize the
   // FeatureList instance for this process. Default implementation returns true.
@@ -136,6 +137,14 @@ class CONTENT_EXPORT ContentMainDelegate {
   // VariationsIdsProvider is a singleton.
   virtual variations::VariationsIdsProvider* CreateVariationsIdsProvider();
 
+  // Called when it's time to create a base::ThreadPoolInstance for the
+  // browser process. This is not exposed in ContentBrowserClient
+  // because it needs to happen before ContentBrowserClient is created.
+  //
+  // Note: The embedder must *not* start the created ThreadPoolInstance. That
+  // will be done by //content when appropriate.
+  virtual void CreateThreadPool(std::string_view name);
+
   // Allows the embedder to perform its own initialization after early content
   // initialization.
   //
@@ -152,7 +161,7 @@ class CONTENT_EXPORT ContentMainDelegate {
   // implementation must initialize the field trials and FeatureList before
   // returning from PostEarlyInitialization. Return an error code if the process
   // should exit afterwards.
-  virtual absl::optional<int> PostEarlyInitialization(InvokedIn invoked_in);
+  virtual std::optional<int> PostEarlyInitialization(InvokedIn invoked_in);
 
 #if BUILDFLAG(IS_WIN)
   // Allows the embedder to indicate that console control events (e.g., Ctrl-C,

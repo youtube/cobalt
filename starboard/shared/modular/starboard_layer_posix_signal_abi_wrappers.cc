@@ -273,7 +273,7 @@ int __abi_wrap_sigaction(int signum,
     return -1;
   }
 
-  struct sigaction platform_act {};
+  struct sigaction platform_act{};
   struct sigaction* platform_act_ptr = nullptr;
   if (act) {
     platform_act_ptr = &platform_act;

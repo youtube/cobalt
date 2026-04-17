@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/ios/device_util.h"
 
 #include <CommonCrypto/CommonDigest.h>
@@ -15,12 +20,13 @@
 
 #include <memory>
 
+#include "base/apple/scoped_cftyperef.h"
 #include "base/check.h"
-#include "base/mac/scoped_cftyperef.h"
 #include "base/numerics/safe_conversions.h"
-#include "base/strings/string_util.h"
+#include "base/posix/sysctl.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/sys_string_conversions.h"
+#include "base/system/sys_info.h"
 
 namespace {
 
@@ -46,28 +52,16 @@ NSString* GenerateClientId() {
   // generating a new one.
   if (!client_id || [client_id isEqualToString:kZeroUUID]) {
     client_id = [[[UIDevice currentDevice] identifierForVendor] UUIDString];
-    if ([client_id isEqualToString:kZeroUUID])
+    if ([client_id isEqualToString:kZeroUUID]) {
       client_id = base::SysUTF8ToNSString(ios::device_util::GetRandomId());
+    }
   }
   return client_id;
 }
 
 }  // namespace
 
-namespace ios {
-namespace device_util {
-
-std::string GetPlatform() {
-#if TARGET_OS_SIMULATOR
-  return getenv("SIMULATOR_MODEL_IDENTIFIER");
-#elif TARGET_OS_IPHONE
-  std::string platform;
-  size_t size = 0;
-  sysctlbyname("hw.machine", NULL, &size, NULL, 0);
-  sysctlbyname("hw.machine", base::WriteInto(&platform, size), &size, NULL, 0);
-  return platform;
-#endif
-}
+namespace ios::device_util {
 
 bool RamIsAtLeast512Mb() {
   // 512MB devices report anywhere from 502-504 MB, use 450 MB just to be safe.
@@ -112,13 +106,14 @@ std::string GetMacAddress(const std::string& interface_name) {
         // the length of the name, that is, |found_address_struct->sdl_nlen|.
         const unsigned char* found_address =
             reinterpret_cast<const unsigned char*>(
-                &found_address_struct->sdl_data[
-                    found_address_struct->sdl_nlen]);
+                &found_address_struct
+                     ->sdl_data[found_address_struct->sdl_nlen]);
 
         int found_address_length = found_address_struct->sdl_alen;
         for (int i = 0; i < found_address_length; ++i) {
-          if (i != 0)
+          if (i != 0) {
             mac_string.push_back(':');
+          }
           base::StringAppendF(&mac_string, "%02X", found_address[i]);
         }
         break;
@@ -130,11 +125,11 @@ std::string GetMacAddress(const std::string& interface_name) {
 }
 
 std::string GetRandomId() {
-  base::ScopedCFTypeRef<CFUUIDRef> uuid_object(
+  base::apple::ScopedCFTypeRef<CFUUIDRef> uuid_object(
       CFUUIDCreate(kCFAllocatorDefault));
-  base::ScopedCFTypeRef<CFStringRef> uuid_string(
-      CFUUIDCreateString(kCFAllocatorDefault, uuid_object));
-  return base::SysCFStringRefToUTF8(uuid_string);
+  base::apple::ScopedCFTypeRef<CFStringRef> uuid_string(
+      CFUUIDCreateString(kCFAllocatorDefault, uuid_object.get()));
+  return base::SysCFStringRefToUTF8(uuid_string.get());
 }
 
 std::string GetDeviceIdentifier(const char* salt) {
@@ -142,7 +137,8 @@ std::string GetDeviceIdentifier(const char* salt) {
 
   NSString* last_seen_hardware =
       [defaults stringForKey:kHardwareTypePreferenceKey];
-  NSString* current_hardware = base::SysUTF8ToNSString(GetPlatform());
+  NSString* current_hardware =
+      base::SysUTF8ToNSString(base::SysInfo::HardwareModelName());
   if (!last_seen_hardware) {
     last_seen_hardware = current_hardware;
     [defaults setObject:current_hardware forKey:kHardwareTypePreferenceKey];
@@ -178,12 +174,22 @@ std::string GetSaltedString(const std::string& in_string,
             hash);
   CFUUIDBytes* uuid_bytes = reinterpret_cast<CFUUIDBytes*>(hash);
 
-  base::ScopedCFTypeRef<CFUUIDRef> uuid_object(
+  base::apple::ScopedCFTypeRef<CFUUIDRef> uuid_object(
       CFUUIDCreateFromUUIDBytes(kCFAllocatorDefault, *uuid_bytes));
-  base::ScopedCFTypeRef<CFStringRef> device_id(
-      CFUUIDCreateString(kCFAllocatorDefault, uuid_object));
-  return base::SysCFStringRefToUTF8(device_id);
+  base::apple::ScopedCFTypeRef<CFStringRef> device_id(
+      CFUUIDCreateString(kCFAllocatorDefault, uuid_object.get()));
+  return base::SysCFStringRefToUTF8(device_id.get());
 }
 
-}  // namespace device_util
-}  // namespace ios
+base::expected<task_vm_info, kern_return_t> GetTaskVMInfo() {
+  task_vm_info task_vm_info_data = {0};
+  mach_msg_type_number_t count = TASK_VM_INFO_COUNT;
+  kern_return_t result =
+      task_info(mach_task_self(), TASK_VM_INFO,
+                reinterpret_cast<task_info_t>(&task_vm_info_data), &count);
+  if (result == KERN_SUCCESS) {
+    return task_vm_info_data;
+  }
+  return base::unexpected(result);
+}
+}  // namespace ios::device_util

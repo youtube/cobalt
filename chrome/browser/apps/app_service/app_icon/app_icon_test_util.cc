@@ -9,20 +9,21 @@
 #include "chrome/browser/apps/app_service/app_icon/app_icon_factory.h"
 #include "extensions/grit/extensions_browser_resources.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/base/layout.h"
+#include "ui/base/resource/resource_scale_factor.h"
+#include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/image/image_skia_rep.h"
 #include "ui/gfx/image/image_unittest_util.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/apps/app_service/app_launch_params.h"
 #include "chrome/test/base/testing_profile.h"
-#endif
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace apps {
 
 void EnsureRepresentationsLoaded(gfx::ImageSkia& output_image_skia) {
-  for (auto scale_factor : ui::GetSupportedResourceScaleFactors()) {
+  for (const auto scale_factor : ui::GetSupportedResourceScaleFactors()) {
     // Force the icon to be loaded.
     output_image_skia.GetRepresentation(
         ui::GetScaleForResourceScaleFactor(scale_factor));
@@ -32,8 +33,9 @@ void EnsureRepresentationsLoaded(gfx::ImageSkia& output_image_skia) {
 void LoadDefaultIcon(gfx::ImageSkia& output_image_skia, int resource_id) {
   base::RunLoop run_loop;
   apps::LoadIconFromResource(
+      /*profile=*/nullptr, /*app_id=*/std::nullopt,
       apps::IconType::kUncompressed, kSizeInDip, resource_id,
-      false /* is_placeholder_icon */, apps::IconEffects::kNone,
+      /*is_placeholder_icon=*/false, apps::IconEffects::kNone,
       base::BindOnce(
           [](gfx::ImageSkia* image, base::OnceClosure load_app_icon_callback,
              apps::IconValuePtr icon) {
@@ -53,7 +55,7 @@ void VerifyIcon(const gfx::ImageSkia& src, const gfx::ImageSkia& dst) {
       ui::GetSupportedResourceScaleFactors();
   ASSERT_EQ(2U, scale_factors.size());
 
-  for (auto& scale_factor : scale_factors) {
+  for (const auto scale_factor : scale_factors) {
     const float scale = ui::GetScaleForResourceScaleFactor(scale_factor);
     ASSERT_TRUE(src.HasRepresentation(scale));
     ASSERT_TRUE(dst.HasRepresentation(scale));
@@ -68,42 +70,43 @@ void VerifyCompressedIcon(const std::vector<uint8_t>& src_data,
   ASSERT_EQ(apps::IconType::kCompressed, icon.icon_type);
   ASSERT_FALSE(icon.is_placeholder_icon);
   ASSERT_FALSE(icon.compressed.empty());
-  ASSERT_EQ(src_data, icon.compressed);
-}
 
-SkBitmap CreateSquareIconBitmap(int size_px, SkColor solid_color) {
-  SkBitmap bitmap;
-  bitmap.allocN32Pixels(size_px, size_px);
-  bitmap.eraseColor(solid_color);
-  return bitmap;
+  // Decompress each PNG and make sure the contents are the same. Comparing the
+  // compressed bits directly is too strict, since there are many valid ways to
+  // represent the same image using different bits.
+  SkBitmap src_bitmap = gfx::PNGCodec::Decode(src_data);
+  SkBitmap icon_bitmap = gfx::PNGCodec::Decode(icon.compressed);
+  ASSERT_FALSE(src_bitmap.isNull());
+  ASSERT_FALSE(icon_bitmap.isNull());
+  ASSERT_TRUE(gfx::test::AreBitmapsEqual(src_bitmap, icon_bitmap));
 }
 
 gfx::ImageSkia CreateSquareIconImageSkia(int size_dp, SkColor solid_color) {
   gfx::ImageSkia image;
-  for (auto& scale_factor : ui::GetSupportedResourceScaleFactors()) {
+  for (const auto scale_factor : ui::GetSupportedResourceScaleFactors()) {
     int icon_size_in_px =
         gfx::ScaleToFlooredSize(gfx::Size(size_dp, size_dp), scale_factor)
             .width();
-    SkBitmap bitmap = CreateSquareIconBitmap(icon_size_in_px, solid_color);
+    SkBitmap bitmap = gfx::test::CreateBitmap(icon_size_in_px, solid_color);
     image.AddRepresentation(gfx::ImageSkiaRep(bitmap, scale_factor));
   }
   return image;
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 FakeIconLoader::FakeIconLoader(apps::AppServiceProxy* proxy) : proxy_(proxy) {}
 
 std::unique_ptr<apps::IconLoader::Releaser> FakeIconLoader::LoadIconFromIconKey(
-    apps::AppType app_type,
-    const std::string& app_id,
+    const std::string& id,
     const apps::IconKey& icon_key,
     apps::IconType icon_type,
     int32_t size_in_dip,
     bool allow_placeholder_icon,
     apps::LoadIconCallback callback) {
   if (proxy_) {
-    proxy_->ReadIconsForTesting(app_type, app_id, size_in_dip, icon_key,
-                                icon_type, std::move(callback));
+    proxy_->ReadIconsForTesting(proxy_->AppRegistryCache().GetAppType(id), id,
+                                size_in_dip, icon_key, icon_type,
+                                std::move(callback));
   }
   return nullptr;
 }
@@ -122,6 +125,6 @@ void FakePublisherForIconTest::GetCompressedIconData(
   apps::GetWebAppCompressedIconData(proxy()->profile(), app_id, size_in_dip,
                                     scale_factor, std::move(callback));
 }
-#endif
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace apps

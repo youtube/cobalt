@@ -18,10 +18,12 @@
 namespace media {
 
 struct FakeV4L2DeviceConfig {
-  FakeV4L2DeviceConfig(const VideoCaptureDeviceDescriptor& descriptor)
-      : descriptor(descriptor) {}
+  explicit FakeV4L2DeviceConfig(const VideoCaptureDeviceDescriptor& descriptor,
+                                uint32_t fmt = V4L2_PIX_FMT_YUV420)
+      : descriptor(descriptor), v4l2_pixel_format(fmt) {}
 
   const VideoCaptureDeviceDescriptor descriptor;
+  uint32_t v4l2_pixel_format;
 };
 
 // Implementation of V4L2CaptureDevice interface that allows configuring fake
@@ -47,10 +49,9 @@ class CAPTURE_EXPORT FakeV4L2Impl : public V4L2CaptureDevice {
   int munmap(void* start, size_t length) override;
   int poll(struct pollfd* ufds, unsigned int nfds, int timeout) override;
 
- protected:
+ private:
   ~FakeV4L2Impl() override;
 
- private:
   class OpenedDevice;
 
   base::Lock lock_;

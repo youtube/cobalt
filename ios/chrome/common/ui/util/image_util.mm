@@ -2,15 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#import <CoreImage/CoreImage.h>
-
 #import "ios/chrome/common/ui/util/image_util.h"
 
-#import "ui/gfx/image/resize_image_dimensions.h"
+#import <CoreImage/CoreImage.h>
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ui/gfx/image/resize_image_dimensions.h"
 
 UIImage* ResizeImage(UIImage* image,
                      CGSize targetSize,
@@ -28,17 +24,23 @@ UIImage* ResizeImage(UIImage* image,
   CalculateProjection([image size], targetSize, projectionMode,
                       revisedTargetSize, projectTo);
 
-  if (CGRectEqualToRect(projectTo, CGRectZero))
+  if (CGRectEqualToRect(projectTo, CGRectZero)) {
     return nil;
+  }
 
   // Resize photo. Use UIImage drawing methods because they respect
   // UIImageOrientation as opposed to CGContextDrawImage().
-  UIGraphicsBeginImageContextWithOptions(revisedTargetSize, opaque,
-                                         /* scale = */ 0);
-  [image drawInRect:projectTo];
-  UIImage* resizedPhoto = UIGraphicsGetImageFromCurrentImageContext();
-  UIGraphicsEndImageContext();
-  return resizedPhoto;
+  UIGraphicsImageRendererFormat* format =
+      [UIGraphicsImageRendererFormat preferredFormat];
+  format.opaque = opaque;
+
+  UIGraphicsImageRenderer* renderer =
+      [[UIGraphicsImageRenderer alloc] initWithSize:revisedTargetSize
+                                             format:format];
+
+  return [renderer imageWithActions:^(UIGraphicsImageRendererContext* context) {
+    [image drawInRect:projectTo];
+  }];
 }
 
 UIImage* ResizeImageForSearchByImage(UIImage* image) {
@@ -99,10 +101,12 @@ void CalculateProjection(CGSize originalSize,
                          CGRect& projectTo) {
   targetSize = desiredTargetSize;
   projectTo = CGRectZero;
-  if (originalSize.height < 1 || originalSize.width < 1)
+  if (originalSize.height < 1 || originalSize.width < 1) {
     return;
-  if (targetSize.height < 1 || targetSize.width < 1)
+  }
+  if (targetSize.height < 1 || targetSize.width < 1) {
     return;
+  }
 
   CGFloat aspectRatio = originalSize.width / originalSize.height;
   CGFloat targetAspectRatio = targetSize.width / targetSize.height;
@@ -166,16 +170,20 @@ void CalculateProjection(CGSize originalSize,
 UIImage* BlurredImageWithImage(UIImage* image, CGFloat blurRadius) {
   CIImage* inputImage = [CIImage imageWithCGImage:image.CGImage];
 
-  // Blur the UIImage with a CIFilter
-  CIFilter* filter = [CIFilter filterWithName:@"CIGaussianBlur"];
-  [filter setValue:inputImage forKey:kCIInputImageKey];
-  [filter setValue:[NSNumber numberWithFloat:blurRadius] forKey:@"inputRadius"];
+  // Extend the edges with a Affline Clamp filter.
+  CIFilter* clampFilter = [CIFilter filterWithName:@"CIAffineClamp"];
+  [clampFilter setDefaults];
+  [clampFilter setValue:inputImage forKey:kCIInputImageKey];
 
-  CIImage* outputImage = filter.outputImage;
-  CGFloat scale = 1 / image.scale;
-  outputImage = [outputImage
-      imageByApplyingTransform:CGAffineTransformMakeScale(scale, scale)];
-  UIImage* blurredImage = [UIImage imageWithCIImage:outputImage];
-  return
-      [blurredImage imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+  // Blur the UIImage with a Gaussian blur filter.
+  CIFilter* blurFilter = [CIFilter filterWithName:@"CIGaussianBlur"];
+  [blurFilter setValue:clampFilter.outputImage forKey:kCIInputImageKey];
+  [blurFilter setValue:[NSNumber numberWithFloat:blurRadius]
+                forKey:@"inputRadius"];
+
+  CIContext* context = [CIContext contextWithOptions:nil];
+  UIImage* blurredImage =
+      [UIImage imageWithCGImage:[context createCGImage:blurFilter.outputImage
+                                              fromRect:inputImage.extent]];
+  return blurredImage;
 }

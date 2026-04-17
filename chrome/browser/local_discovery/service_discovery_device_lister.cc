@@ -53,6 +53,13 @@ class ServiceDiscoveryDeviceListerImpl : public ServiceDiscoveryDeviceLister {
                         const std::string& service_name) {
     VLOG(1) << "OnServiceUpdated: service_type: " << service_type_
             << ", service_name: " << service_name << ", update: " << update;
+
+    if (update == ServiceWatcher::UPDATE_PERMISSION_REJECTED) {
+      resolvers_.clear();
+      delegate_->OnPermissionRejected();
+      return;
+    }
+
     if (update == ServiceWatcher::UPDATE_INVALIDATED) {
       resolvers_.clear();
       CreateServiceWatcher();
@@ -105,6 +112,7 @@ class ServiceDiscoveryDeviceListerImpl : public ServiceDiscoveryDeviceLister {
         base::BindRepeating(&ServiceDiscoveryDeviceListerImpl::OnServiceUpdated,
                             weak_factory_.GetWeakPtr()));
     service_watcher_->Start();
+    service_watcher_->SetActivelyRefreshServices(true);
   }
 
   const raw_ptr<Delegate> delegate_;

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/exo/data_offer.h"
 
 #include <fcntl.h>
@@ -9,9 +14,11 @@
 
 #include <memory>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "base/containers/flat_set.h"
+#include "base/containers/span.h"
 #include "base/files/file_util.h"
 #include "base/functional/callback_forward.h"
 #include "base/pickle.h"
@@ -24,6 +31,8 @@
 #include "components/exo/data_offer_delegate.h"
 #include "components/exo/test/exo_test_base.h"
 #include "components/exo/test/exo_test_data_exchange_delegate.h"
+#include "components/exo/test/test_data_offer_delegate.h"
+#include "components/exo/test/test_security_delegate.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/clipboard/clipboard.h"
@@ -37,49 +46,14 @@
 namespace exo {
 namespace {
 
+using test::TestDataOfferDelegate;
+
 class DataOfferTest : public test::ExoTestBase {
  public:
   void TearDown() override {
     ui::Clipboard::DestroyClipboardForCurrentThread();
     test::ExoTestBase::TearDown();
   }
-};
-
-class TestDataOfferDelegate : public DataOfferDelegate {
- public:
-  TestDataOfferDelegate() {}
-
-  TestDataOfferDelegate(const TestDataOfferDelegate&) = delete;
-  TestDataOfferDelegate& operator=(const TestDataOfferDelegate&) = delete;
-
-  // Called at the top of the data device's destructor, to give observers a
-  // chance to remove themselves.
-  void OnDataOfferDestroying(DataOffer* offer) override {}
-
-  // Called when |mime_type| is offered by the client.
-  void OnOffer(const std::string& mime_type) override {
-    mime_types_.insert(mime_type);
-  }
-
-  // Called when possible |source_actions| is offered by the client.
-  void OnSourceActions(
-      const base::flat_set<DndAction>& source_actions) override {
-    source_actions_ = source_actions;
-  }
-
-  // Called when current |action| is offered by the client.
-  void OnAction(DndAction dnd_action) override { dnd_action_ = dnd_action; }
-
-  const base::flat_set<std::string>& mime_types() const { return mime_types_; }
-  const base::flat_set<DndAction>& source_actions() const {
-    return source_actions_;
-  }
-  DndAction dnd_action() const { return dnd_action_; }
-
- private:
-  base::flat_set<std::string> mime_types_;
-  base::flat_set<DndAction> source_actions_;
-  DndAction dnd_action_ = DndAction::kNone;
 };
 
 class TestDataTransferPolicyController : ui::DataTransferPolicyController {
@@ -94,23 +68,27 @@ class TestDataTransferPolicyController : ui::DataTransferPolicyController {
 
  private:
   // ui::DataTransferPolicyController:
-  bool IsClipboardReadAllowed(const ui::DataTransferEndpoint* const data_src,
-                              const ui::DataTransferEndpoint* const data_dst,
-                              const absl::optional<size_t> size) override {
-    if (data_src)
+  bool IsClipboardReadAllowed(
+      base::optional_ref<const ui::DataTransferEndpoint> data_src,
+      base::optional_ref<const ui::DataTransferEndpoint> data_dst,
+      const std::optional<size_t> size) override {
+    if (data_src.has_value()) {
       last_src_type_ = data_src->type();
+    }
     last_dst_type_ = data_dst->type();
     return true;
   }
 
-  void PasteIfAllowed(const ui::DataTransferEndpoint* const data_src,
-                      const ui::DataTransferEndpoint* const data_dst,
-                      const absl::optional<size_t> size,
-                      content::RenderFrameHost* web_contents,
-                      base::OnceCallback<void(bool)> callback) override {}
+  void PasteIfAllowed(
+      base::optional_ref<const ui::DataTransferEndpoint> data_src,
+      base::optional_ref<const ui::DataTransferEndpoint> data_dst,
+      std::variant<size_t, std::vector<base::FilePath>> pasted_content,
+      content::RenderFrameHost* web_contents,
+      base::OnceCallback<void(bool)> callback) override {}
 
-  void DropIfAllowed(const ui::OSExchangeData* const drag_data,
-                     const ui::DataTransferEndpoint* const data_dst,
+  void DropIfAllowed(std::optional<ui::DataTransferEndpoint> data_src,
+                     std::optional<ui::DataTransferEndpoint> data_dst,
+                     std::optional<std::vector<ui::FileInfo>> filenames,
                      base::OnceClosure drop_cb) override {
     std::move(drop_cb).Run();
   }
@@ -121,31 +99,33 @@ class TestDataTransferPolicyController : ui::DataTransferPolicyController {
 
 bool ReadString(base::ScopedFD fd, std::string* out) {
   std::array<char, 128> buffer;
-  char* it = buffer.begin();
-  while (it != buffer.end()) {
-    int result = read(fd.get(), it, buffer.end() - it);
+  char* it = buffer.data();
+  char* end = it + buffer.size();
+  while (it != end) {
+    int result = read(fd.get(), it, end - it);
     PCHECK(-1 != result);
     if (result == 0)
       break;
     it += result;
   }
   *out = std::string(reinterpret_cast<char*>(buffer.data()),
-                     (it - buffer.begin()) / sizeof(char));
+                     (it - buffer.data()) / sizeof(char));
   return true;
 }
 
 bool ReadString16(base::ScopedFD fd, std::u16string* out) {
   std::array<char, 128> buffer;
-  char* it = buffer.begin();
-  while (it != buffer.end()) {
-    int result = read(fd.get(), it, buffer.end() - it);
+  char* it = buffer.data();
+  char* end = it + buffer.size();
+  while (it != it + buffer.size()) {
+    int result = read(fd.get(), it, end - it);
     PCHECK(-1 != result);
     if (result == 0)
       break;
     it += result;
   }
   *out = std::u16string(reinterpret_cast<char16_t*>(buffer.data()),
-                        (it - buffer.begin()) / sizeof(char16_t));
+                        (it - buffer.data()) / sizeof(char16_t));
   return true;
 }
 
@@ -245,8 +225,9 @@ TEST_F(DataOfferTest, SetPickleDropData) {
   pickle.WriteString("filesystem:chrome-extension://path/to/file1");
   pickle.WriteInt64(1000);   // file size
   pickle.WriteString("id");  // filesystem id
-  data.SetPickledData(
-      ui::ClipboardFormatType::GetType("chromium/x-file-system-files"), pickle);
+  data.SetPickledData(ui::ClipboardFormatType::CustomPlatformType(
+                          "chromium/x-file-system-files"),
+                      pickle);
   data_offer.SetDropData(&data_exchange_delegate, nullptr, data);
 
   EXPECT_EQ(1u, delegate.mime_types().size());
@@ -360,8 +341,9 @@ TEST_F(DataOfferTest, ReceiveUriListFromPickle_ReceiveBeforeUrlIsResolved) {
   pickle.WriteString("filesystem:chrome-extension://path/to/file1");
   pickle.WriteInt64(1000);   // file size
   pickle.WriteString("id");  // filesystem id
-  data.SetPickledData(
-      ui::ClipboardFormatType::GetType("chromium/x-file-system-files"), pickle);
+  data.SetPickledData(ui::ClipboardFormatType::CustomPlatformType(
+                          "chromium/x-file-system-files"),
+                      pickle);
   data_offer.SetDropData(&data_exchange_delegate, nullptr, data);
 
   base::ScopedFD read_pipe1;
@@ -379,7 +361,7 @@ TEST_F(DataOfferTest, ReceiveUriListFromPickle_ReceiveBeforeUrlIsResolved) {
   std::vector<GURL> urls;
   urls.push_back(
       GURL("content://org.chromium.arc.chromecontentprovider/path/to/file1"));
-  data_exchange_delegate.RunSendPickleCallback(urls);
+  delegate.GetSecurityDelegate()->RunSendPickleCallback(urls);
 
   std::string result1;
   ASSERT_TRUE(ReadString(std::move(read_pipe1), &result1));
@@ -404,8 +386,9 @@ TEST_F(DataOfferTest,
   pickle.WriteString("filesystem:chrome-extension://path/to/file1");
   pickle.WriteInt64(1000);   // file size
   pickle.WriteString("id");  // filesystem id
-  data.SetPickledData(
-      ui::ClipboardFormatType::GetType("chromium/x-file-system-files"), pickle);
+  data.SetPickledData(ui::ClipboardFormatType::CustomPlatformType(
+                          "chromium/x-file-system-files"),
+                      pickle);
   data_offer.SetDropData(&data_exchange_delegate, nullptr, data);
 
   base::ScopedFD read_pipe;
@@ -418,7 +401,7 @@ TEST_F(DataOfferTest,
   // Run callback with an empty URL.
   std::vector<GURL> urls;
   urls.push_back(GURL(""));
-  data_exchange_delegate.RunSendPickleCallback(urls);
+  delegate.GetSecurityDelegate()->RunSendPickleCallback(urls);
 
   std::u16string result;
   ASSERT_TRUE(ReadString16(std::move(read_pipe), &result));
@@ -490,62 +473,14 @@ TEST_F(DataOfferTest, SetClipboardDataPlainText) {
   EXPECT_EQ("Test data", base::UTF16ToUTF8(result16));
 }
 
-TEST_F(DataOfferTest, SetClipboardDataOfferDteToLacros) {
+TEST_F(DataOfferTest, SetClipboardDataHTML) {
   TestDataOfferDelegate delegate;
   DataOffer data_offer(&delegate);
 
   TestDataExchangeDelegate data_exchange_delegate;
-  data_exchange_delegate.set_endpoint_type(ui::EndpointType::kLacros);
   {
     ui::ScopedClipboardWriter writer(ui::ClipboardBuffer::kCopyPaste);
-    writer.SetDataSource(std::make_unique<ui::DataTransferEndpoint>(
-        (GURL("https://www.google.com"))));
-    writer.WriteText(u"Test data");
-  }
-
-  auto* window = CreateTestWindowInShellWithBounds(gfx::Rect());
-  data_offer.SetClipboardData(
-      &data_exchange_delegate, *ui::Clipboard::GetForCurrentThread(),
-      data_exchange_delegate.GetDataTransferEndpointType(window));
-
-  EXPECT_EQ(4u, delegate.mime_types().size());
-  EXPECT_EQ(1u, delegate.mime_types().count("text/plain;charset=utf-8"));
-  EXPECT_EQ(1u, delegate.mime_types().count("text/plain;charset=utf-16"));
-  EXPECT_EQ(1u, delegate.mime_types().count("UTF8_STRING"));
-  EXPECT_EQ(1u,
-            delegate.mime_types().count("chromium/x-data-transfer-endpoint"));
-
-  base::ScopedFD read_pipe;
-  base::ScopedFD write_pipe;
-
-  // Read as utf-8.
-  ASSERT_TRUE(base::CreatePipe(&read_pipe, &write_pipe));
-  data_offer.Receive("text/plain;charset=utf-8", std::move(write_pipe));
-  std::string text_result;
-  ASSERT_TRUE(ReadString(std::move(read_pipe), &text_result));
-  EXPECT_EQ("Test data", text_result);
-
-  // Retrieve encoded clipboard source data transfer endpoint.
-  ASSERT_TRUE(base::CreatePipe(&read_pipe, &write_pipe));
-  data_offer.Receive("chromium/x-data-transfer-endpoint",
-                     std::move(write_pipe));
-  std::string dte_json_result;
-  ASSERT_TRUE(ReadString(std::move(read_pipe), &dte_json_result));
-  EXPECT_EQ(R"({"endpoint_type":"url","url":"https://www.google.com/"})",
-            dte_json_result);
-}
-
-TEST_F(DataOfferTest, SetClipboardDataDoNotOfferDteToNonLacros) {
-  TestDataOfferDelegate delegate;
-  DataOffer data_offer(&delegate);
-
-  TestDataExchangeDelegate data_exchange_delegate;
-  data_exchange_delegate.set_endpoint_type(ui::EndpointType::kArc);
-  {
-    ui::ScopedClipboardWriter writer(ui::ClipboardBuffer::kCopyPaste);
-    writer.SetDataSource(std::make_unique<ui::DataTransferEndpoint>(
-        (GURL("https://www.google.com"))));
-    writer.WriteText(u"Test data");
+    writer.WriteHTML(u"Test data", "");
   }
 
   auto* window = CreateTestWindowInShellWithBounds(gfx::Rect());
@@ -554,217 +489,9 @@ TEST_F(DataOfferTest, SetClipboardDataDoNotOfferDteToNonLacros) {
       data_exchange_delegate.GetDataTransferEndpointType(window));
 
   EXPECT_EQ(3u, delegate.mime_types().size());
-  EXPECT_EQ(1u, delegate.mime_types().count("text/plain;charset=utf-8"));
-  EXPECT_EQ(1u, delegate.mime_types().count("text/plain;charset=utf-16"));
-  EXPECT_EQ(1u, delegate.mime_types().count("UTF8_STRING"));
-  EXPECT_EQ(0u,
-            delegate.mime_types().count("chromium/x-data-transfer-endpoint"));
-
-  base::ScopedFD read_pipe;
-  base::ScopedFD write_pipe;
-
-  // Read as utf-8.
-  ASSERT_TRUE(base::CreatePipe(&read_pipe, &write_pipe));
-  data_offer.Receive("text/plain;charset=utf-8", std::move(write_pipe));
-  std::string text_result;
-  ASSERT_TRUE(ReadString(std::move(read_pipe), &text_result));
-  EXPECT_EQ("Test data", text_result);
-
-  // Attempt to retrieve encoded clipboard source data transfer endpoint.
-  // Nothing should be returned.
-  ASSERT_TRUE(base::CreatePipe(&read_pipe, &write_pipe));
-  data_offer.Receive("chromium/x-data-transfer-endpoint",
-                     std::move(write_pipe));
-  std::string dte_json_result;
-  ASSERT_TRUE(ReadString(std::move(read_pipe), &dte_json_result));
-  EXPECT_EQ("", dte_json_result);
-}
-
-// See crbug.com/1339344
-TEST_F(DataOfferTest, SetClipboardDataOfferDteToLacrosSourceChanged) {
-  TestDataOfferDelegate delegate;
-  DataOffer data_offer(&delegate);
-
-  TestDataExchangeDelegate data_exchange_delegate;
-  data_exchange_delegate.set_endpoint_type(ui::EndpointType::kLacros);
-  {
-    ui::ScopedClipboardWriter writer(ui::ClipboardBuffer::kCopyPaste);
-    writer.SetDataSource(std::make_unique<ui::DataTransferEndpoint>(
-        (GURL("https://www.google.com"))));
-    writer.WriteText(u"Test data");
-  }
-
-  auto* window = CreateTestWindowInShellWithBounds(gfx::Rect());
-  data_offer.SetClipboardData(
-      &data_exchange_delegate, *ui::Clipboard::GetForCurrentThread(),
-      data_exchange_delegate.GetDataTransferEndpointType(window));
-
-  EXPECT_EQ(4u, delegate.mime_types().size());
-  EXPECT_EQ(1u, delegate.mime_types().count("text/plain;charset=utf-8"));
-  EXPECT_EQ(1u, delegate.mime_types().count("text/plain;charset=utf-16"));
-  EXPECT_EQ(1u, delegate.mime_types().count("UTF8_STRING"));
-  EXPECT_EQ(1u,
-            delegate.mime_types().count("chromium/x-data-transfer-endpoint"));
-
-  // Clipboard data changed
-  {
-    ui::ScopedClipboardWriter writer(ui::ClipboardBuffer::kCopyPaste);
-    writer.WriteText(u"Data changed with no source");
-  }
-
-  base::ScopedFD read_pipe;
-  base::ScopedFD write_pipe;
-
-  // Read as utf-8.
-  ASSERT_TRUE(base::CreatePipe(&read_pipe, &write_pipe));
-  data_offer.Receive("text/plain;charset=utf-8", std::move(write_pipe));
-  std::string text_result;
-  ASSERT_TRUE(ReadString(std::move(read_pipe), &text_result));
-  EXPECT_EQ("Data changed with no source", text_result);
-
-  // Retrieve encoded clipboard source data transfer endpoint.
-  ASSERT_TRUE(base::CreatePipe(&read_pipe, &write_pipe));
-#if DCHECK_IS_ON()
-  EXPECT_DEATH_IF_SUPPORTED(
-      data_offer.Receive("chromium/x-data-transfer-endpoint",
-                         std::move(write_pipe));
-      ,
-      "Check failed: data_src. Clipboard source DataTransferEndpoint has "
-      "changed after initial MIME advertising. If you see this please file a "
-      "bug and contact the chromeos-dlp team.");
-#else
-  data_offer.Receive("chromium/x-data-transfer-endpoint",
-                     std::move(write_pipe));
-  std::string dte_json_result;
-  ASSERT_TRUE(ReadString(std::move(read_pipe), &dte_json_result));
-  EXPECT_EQ("", dte_json_result);
-#endif
-}
-
-TEST_F(DataOfferTest, SetDropDataOfferDteToLacros) {
-  base::flat_set<DndAction> source_actions;
-  source_actions.insert(DndAction::kCopy);
-  source_actions.insert(DndAction::kMove);
-
-  ui::OSExchangeData data;
-  data.SetString(std::u16string(u"Test data"));
-  data.SetSource(std::make_unique<ui::DataTransferEndpoint>(
-      (GURL("https://www.google.com"))));
-
-  TestDataOfferDelegate delegate;
-  DataOffer data_offer(&delegate);
-
-  EXPECT_EQ(0u, delegate.mime_types().size());
-  EXPECT_EQ(0u, delegate.source_actions().size());
-  EXPECT_EQ(DndAction::kNone, delegate.dnd_action());
-
-  TestDataExchangeDelegate data_exchange_delegate;
-  data_exchange_delegate.set_endpoint_type(ui::EndpointType::kLacros);
-
-  data_offer.SetDropData(&data_exchange_delegate, nullptr, data);
-  data_offer.SetSourceActions(source_actions);
-  data_offer.SetActions(base::flat_set<DndAction>(), DndAction::kMove);
-
-  EXPECT_EQ(1u, delegate.mime_types().count("text/plain;charset=utf-8"));
-  EXPECT_EQ(1u, delegate.mime_types().count("text/plain;charset=utf-16"));
-  EXPECT_EQ(1u,
-            delegate.mime_types().count("chromium/x-data-transfer-endpoint"));
-  EXPECT_EQ(2u, delegate.source_actions().size());
-  EXPECT_EQ(1u, delegate.source_actions().count(DndAction::kCopy));
-  EXPECT_EQ(1u, delegate.source_actions().count(DndAction::kMove));
-  EXPECT_EQ(DndAction::kMove, delegate.dnd_action());
-
-  base::ScopedFD read_pipe;
-  base::ScopedFD write_pipe;
-
-  // Read as utf-8.
-  ASSERT_TRUE(base::CreatePipe(&read_pipe, &write_pipe));
-  data_offer.Receive("text/plain;charset=utf-8", std::move(write_pipe));
-  std::string text_result;
-  ASSERT_TRUE(ReadString(std::move(read_pipe), &text_result));
-  EXPECT_EQ("Test data", text_result);
-
-  // Retrieve encoded drag source data transfer endpoint.
-  ASSERT_TRUE(base::CreatePipe(&read_pipe, &write_pipe));
-  data_offer.Receive("chromium/x-data-transfer-endpoint",
-                     std::move(write_pipe));
-  std::string dte_json_result;
-  ASSERT_TRUE(ReadString(std::move(read_pipe), &dte_json_result));
-  EXPECT_EQ(R"({"endpoint_type":"url","url":"https://www.google.com/"})",
-            dte_json_result);
-}
-
-TEST_F(DataOfferTest, SetDropDataDoNotOfferDteToNonLacros) {
-  base::flat_set<DndAction> source_actions;
-  source_actions.insert(DndAction::kCopy);
-  source_actions.insert(DndAction::kMove);
-
-  ui::OSExchangeData data;
-  data.SetString(std::u16string(u"Test data"));
-  data.SetSource(std::make_unique<ui::DataTransferEndpoint>(
-      (GURL("https://www.google.com"))));
-
-  TestDataOfferDelegate delegate;
-  DataOffer data_offer(&delegate);
-
-  EXPECT_EQ(0u, delegate.mime_types().size());
-  EXPECT_EQ(0u, delegate.source_actions().size());
-  EXPECT_EQ(DndAction::kNone, delegate.dnd_action());
-
-  TestDataExchangeDelegate data_exchange_delegate;
-  data_exchange_delegate.set_endpoint_type(ui::EndpointType::kCrostini);
-
-  data_offer.SetDropData(&data_exchange_delegate, nullptr, data);
-  data_offer.SetSourceActions(source_actions);
-  data_offer.SetActions(base::flat_set<DndAction>(), DndAction::kMove);
-
-  EXPECT_EQ(1u, delegate.mime_types().count("text/plain;charset=utf-8"));
-  EXPECT_EQ(1u, delegate.mime_types().count("text/plain;charset=utf-16"));
-  EXPECT_EQ(0u,
-            delegate.mime_types().count("chromium/x-data-transfer-endpoint"));
-  EXPECT_EQ(2u, delegate.source_actions().size());
-  EXPECT_EQ(1u, delegate.source_actions().count(DndAction::kCopy));
-  EXPECT_EQ(1u, delegate.source_actions().count(DndAction::kMove));
-  EXPECT_EQ(DndAction::kMove, delegate.dnd_action());
-
-  base::ScopedFD read_pipe;
-  base::ScopedFD write_pipe;
-
-  // Read as utf-8.
-  ASSERT_TRUE(base::CreatePipe(&read_pipe, &write_pipe));
-  data_offer.Receive("text/plain;charset=utf-8", std::move(write_pipe));
-  std::string text_result;
-  ASSERT_TRUE(ReadString(std::move(read_pipe), &text_result));
-  EXPECT_EQ("Test data", text_result);
-
-  // Attempt to retrieve encoded drag source data transfer endpoint.
-  // Nothing should be returned.
-  ASSERT_TRUE(base::CreatePipe(&read_pipe, &write_pipe));
-  data_offer.Receive("chromium/x-data-transfer-endpoint",
-                     std::move(write_pipe));
-  std::string dte_json_result;
-  ASSERT_TRUE(ReadString(std::move(read_pipe), &dte_json_result));
-  EXPECT_EQ("", dte_json_result);
-}
-
-TEST_F(DataOfferTest, SetClipboardDataHTML) {
-  TestDataOfferDelegate delegate;
-  DataOffer data_offer(&delegate);
-
-  TestDataExchangeDelegate data_exchange_delegate;
-  {
-    ui::ScopedClipboardWriter writer(ui::ClipboardBuffer::kCopyPaste);
-    writer.WriteHTML(u"Test data", "", ui::ClipboardContentType::kSanitized);
-  }
-
-  auto* window = CreateTestWindowInShellWithBounds(gfx::Rect());
-  data_offer.SetClipboardData(
-      &data_exchange_delegate, *ui::Clipboard::GetForCurrentThread(),
-      data_exchange_delegate.GetDataTransferEndpointType(window));
-
-  EXPECT_EQ(2u, delegate.mime_types().size());
   EXPECT_EQ(1u, delegate.mime_types().count("text/html;charset=utf-8"));
   EXPECT_EQ(1u, delegate.mime_types().count("text/html;charset=utf-16"));
+  EXPECT_EQ(1u, delegate.mime_types().count("text/html"));
 
   base::ScopedFD read_pipe;
   base::ScopedFD write_pipe;
@@ -780,6 +507,11 @@ TEST_F(DataOfferTest, SetClipboardDataHTML) {
   std::u16string result16;
   ASSERT_TRUE(ReadString16(std::move(read_pipe), &result16));
   EXPECT_EQ("Test data", base::UTF16ToUTF8(result16));
+
+  ASSERT_TRUE(base::CreatePipe(&read_pipe, &write_pipe));
+  data_offer.Receive("text/html", std::move(write_pipe));
+  ASSERT_TRUE(ReadString(std::move(read_pipe), &result));
+  EXPECT_EQ("Test data", result);
 }
 
 TEST_F(DataOfferTest, SetClipboardDataRTF) {
@@ -846,10 +578,8 @@ TEST_F(DataOfferTest, SetClipboardDataImage) {
   data_offer.Receive("image/png", std::move(write_pipe2));
   task_environment()->RunUntilIdle();
   ASSERT_TRUE(ReadString(std::move(read_pipe), &result));
-  SkBitmap decoded;
-  ASSERT_TRUE(gfx::PNGCodec::Decode(
-      reinterpret_cast<const unsigned char*>(result.data()), result.size(),
-      &decoded));
+  SkBitmap decoded = gfx::PNGCodec::Decode(base::as_byte_span(result));
+  ASSERT_FALSE(decoded.isNull());
   EXPECT_TRUE(cc::MatchesBitmap(image, decoded, cc::ExactPixelComparator()));
   std::string good = result;
   ASSERT_TRUE(ReadString(std::move(read_pipe2), &result));
@@ -866,13 +596,10 @@ TEST_F(DataOfferTest, SetClipboardDataFilenames) {
   TestDataOfferDelegate delegate;
   DataOffer data_offer(&delegate);
 
-  base::Pickle pickle;
-  pickle.WriteString("file:///test/path");
   TestDataExchangeDelegate data_exchange_delegate;
   {
     ui::ScopedClipboardWriter writer(ui::ClipboardBuffer::kCopyPaste);
-    writer.WritePickledData(pickle,
-                            ui::ClipboardFormatType::WebCustomDataType());
+    writer.WriteFilenames("file:///test/path");
   }
 
   auto* window = CreateTestWindowInShellWithBounds(gfx::Rect());

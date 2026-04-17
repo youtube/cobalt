@@ -14,22 +14,26 @@ import android.os.Build;
 
 import androidx.annotation.RequiresApi;
 
+import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.ContextUtils;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.build.annotations.UsedByReflection;
 
-import java.net.InetAddress;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Class to evaluate PAC scripts.
+ * Class to evaluate PAC scripts. Its lifecycle is independent of
+ * any Renderer, Profile, or WebView instance.
  */
 @JNINamespace("android_webview")
 @RequiresApi(Build.VERSION_CODES.P)
 // TODO(amalova): remove UsedByReflection
 @UsedByReflection("Android")
 public class AwPacProcessor {
-    private long mNativePacProcessor;
+    private final long mNativePacProcessor;
     private Network mNetwork;
     private ConnectivityManager.NetworkCallback mNetworkCallback;
 
@@ -53,34 +57,35 @@ public class AwPacProcessor {
     }
 
     private void updateNetworkLinkAddress(Network network, LinkProperties linkProperties) {
-        if (network == null || linkProperties == null) {
-            setNetworkAndLinkAddresses(NETWORK_UNSPECIFIED, new String[0]);
-        } else {
-            String[] addresses = linkProperties.getLinkAddresses()
-                                         .stream()
-                                         .map(LinkAddress::getAddress)
-                                         .map(InetAddress::getHostAddress)
-                                         .toArray(String[] ::new);
-            setNetworkAndLinkAddresses(network.getNetworkHandle(), addresses);
+        long networkHandle = NETWORK_UNSPECIFIED;
+        ArrayList<String> addresses = new ArrayList<>();
+        if (network != null && linkProperties != null) {
+            networkHandle = network.getNetworkHandle();
+            for (LinkAddress addr : linkProperties.getLinkAddresses()) {
+                addresses.add(addr.getAddress().getHostAddress());
+            }
         }
+        setNetworkAndLinkAddresses(networkHandle, addresses);
     }
 
-    public void setNetworkAndLinkAddresses(long networkHandle, String[] addresses) {
-        AwPacProcessorJni.get().setNetworkAndLinkAddresses(
-                mNativePacProcessor, networkHandle, addresses);
+    public void setNetworkAndLinkAddresses(long networkHandle, List<String> addresses) {
+        AwPacProcessorJni.get()
+                .setNetworkAndLinkAddresses(mNativePacProcessor, networkHandle, addresses);
     }
 
     private void registerNetworkCallback() {
         if (mNetworkCallback != null) return;
 
-        mNetworkCallback = new ConnectivityManager.NetworkCallback() {
-            @Override
-            public void onLinkPropertiesChanged(Network network, LinkProperties linkProperties) {
-                if (network.equals(mNetwork)) {
-                    updateNetworkLinkAddress(network, linkProperties);
-                }
-            }
-        };
+        mNetworkCallback =
+                new ConnectivityManager.NetworkCallback() {
+                    @Override
+                    public void onLinkPropertiesChanged(
+                            Network network, LinkProperties linkProperties) {
+                        if (network.equals(mNetwork)) {
+                            updateNetworkLinkAddress(network, linkProperties);
+                        }
+                    }
+                };
         NetworkRequest.Builder builder = new NetworkRequest.Builder();
 
         getConnectivityManager().registerNetworkCallback(builder.build(), mNetworkCallback);
@@ -133,11 +138,21 @@ public class AwPacProcessor {
     @NativeMethods
     interface Natives {
         void initializeEnvironment();
+
         long createNativePacProcessor();
-        boolean setProxyScript(long nativeAwPacProcessor, AwPacProcessor caller, String script);
+
+        boolean setProxyScript(
+                long nativeAwPacProcessor,
+                AwPacProcessor caller,
+                @JniType("std::string") String script);
+
         String makeProxyRequest(long nativeAwPacProcessor, AwPacProcessor caller, String url);
+
         void destroyNative(long nativeAwPacProcessor, AwPacProcessor caller);
+
         void setNetworkAndLinkAddresses(
-                long nativeAwPacProcessor, long networkHandle, String[] adresses);
+                long nativeAwPacProcessor,
+                long networkHandle,
+                @JniType("std::vector<std::string>") List<String> addresses);
     }
 }

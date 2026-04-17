@@ -6,18 +6,20 @@
 #define ASH_CAPTURE_MODE_FAKE_CAMERA_DEVICE_H_
 
 #include <memory>
+#include <optional>
 
 #include "ash/ash_export.h"
 #include "base/containers/flat_map.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "media/capture/mojom/video_effects_manager.mojom.h"
 #include "media/capture/video/video_capture_device_info.h"
 #include "media/capture/video_capture_types.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "services/video_capture/public/mojom/video_frame_handler.mojom.h"
 #include "services/video_capture/public/mojom/video_source.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "services/video_effects/public/cpp/buildflags.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 
 namespace ash {
@@ -63,6 +65,16 @@ class ASH_EXPORT FakeCameraDevice
       mojo::PendingReceiver<video_capture::mojom::PushVideoStreamSubscription>
           subscription,
       CreatePushSubscriptionCallback callback) override;
+
+#if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
+  void RegisterVideoEffectsProcessor(
+      mojo::PendingRemote<video_effects::mojom::VideoEffectsProcessor> remote)
+      override;
+
+  void RegisterReadonlyVideoEffectsManager(
+      mojo::PendingRemote<media::mojom::ReadonlyVideoEffectsManager> remote)
+      override;
+#endif
 
   // video_capture::mojom::VideoFrameAccessHandler:
   void OnFinishedConsumingBuffer(int32_t buffer_id) override;
@@ -120,7 +132,7 @@ class ASH_EXPORT FakeCameraDevice
 
   // The current settings used to open this device. It's a nullopt until a
   // subscription is created to this device.
-  absl::optional<media::VideoCaptureParams> current_settings_;
+  std::optional<media::VideoCaptureParams> current_settings_;
 
   // Maps each buffer by its buffer ID.
   base::flat_map</*buffer_id=*/int, std::unique_ptr<Buffer>> buffer_pool_;

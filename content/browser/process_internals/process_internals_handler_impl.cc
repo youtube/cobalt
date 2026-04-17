@@ -5,11 +5,12 @@
 #include "content/browser/process_internals/process_internals_handler_impl.h"
 
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/strings/strcat.h"
-#include "base/strings/string_piece.h"
+#include "base/strings/stringprintf.h"
 #include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/process_internals/process_internals.mojom.h"
 #include "content/browser/process_lock.h"
@@ -41,11 +42,11 @@ using IsolatedOriginSource = ChildProcessSecurityPolicy::IsolatedOriginSource;
   frame_info->routing_id = frame->GetRoutingID();
   frame_info->agent_scheduling_group_id =
       frame->GetAgentSchedulingGroup().id_for_debugging();
-  frame_info->process_id = frame->GetProcess()->GetID();
+  frame_info->process_id = frame->GetProcess()->GetDeprecatedID();
   frame_info->last_committed_url =
       frame->GetLastCommittedURL().is_valid()
-          ? absl::make_optional(frame->GetLastCommittedURL())
-          : absl::nullopt;
+          ? std::make_optional(frame->GetLastCommittedURL())
+          : std::nullopt;
   frame_info->type = type;
 
   SiteInstanceImpl* site_instance =
@@ -56,11 +57,18 @@ using IsolatedOriginSource = ChildProcessSecurityPolicy::IsolatedOriginSource;
       site_instance->GetProcess()->GetProcessLock().is_locked_to_site();
   frame_info->site_instance->site_url =
       site_instance->HasSite()
-          ? absl::make_optional(site_instance->GetSiteInfo().site_url())
-          : absl::nullopt;
+          ? std::make_optional(site_instance->GetSiteInfo().site_url())
+          : std::nullopt;
   frame_info->site_instance->is_guest = site_instance->IsGuest();
+  frame_info->site_instance->is_pdf = site_instance->IsPdf();
   frame_info->site_instance->is_sandbox_for_iframes =
       site_instance->GetSiteInfo().is_sandboxed();
+  frame_info->site_instance->are_javascript_optimizers_enabled =
+      !site_instance->GetSiteInfo().are_v8_optimizations_disabled();
+  frame_info->site_instance->site_instance_group_id =
+      site_instance->group() ? site_instance->group()->GetId().value() : 0;
+  frame_info->site_instance->browsing_instance_id =
+      site_instance->GetBrowsingInstanceId().value();
 
   // If the SiteInstance has a non-default StoragePartition, include a basic
   // string representation of it.  Skip cases where the StoragePartition is
@@ -74,7 +82,7 @@ using IsolatedOriginSource = ChildProcessSecurityPolicy::IsolatedOriginSource;
                       partition.partition_name().c_str(),
                       partition.in_memory() ? "" : "?persist"});
     frame_info->site_instance->storage_partition =
-        absl::make_optional(partition_description);
+        std::make_optional(partition_description);
   }
 
   // Only send a process lock URL if it's different from the site URL.  In the
@@ -85,8 +93,8 @@ using IsolatedOriginSource = ChildProcessSecurityPolicy::IsolatedOriginSource;
                                   site_instance->GetSiteInfo().site_url();
   frame_info->site_instance->process_lock_url =
       should_show_lock_url
-          ? absl::make_optional(site_instance->GetSiteInfo().process_lock_url())
-          : absl::nullopt;
+          ? std::make_optional(site_instance->GetSiteInfo().process_lock_url())
+          : std::nullopt;
 
   frame_info->site_instance->requires_origin_keyed_process =
       site_instance->GetSiteInfo().requires_origin_keyed_process();
@@ -109,7 +117,7 @@ using IsolatedOriginSource = ChildProcessSecurityPolicy::IsolatedOriginSource;
 
   // Execute over all frames appending any frames encountered to the parent's
   // subframe data.
-  frame->ForEachRenderFrameHostWithAction(
+  frame->ForEachRenderFrameHostImplWithAction(
       [web_contents, outermost_frame = frame, type,
        &all_frame_info](RenderFrameHostImpl* rfh) {
         // We've already handled the outermost frame outside of this.
@@ -124,7 +132,7 @@ using IsolatedOriginSource = ChildProcessSecurityPolicy::IsolatedOriginSource;
         ::mojom::FrameInfoPtr frame_info =
             RenderFrameHostToFrameInfoNoTraverse(rfh, type);
         all_frame_info[rfh] = frame_info.get();
-        RenderFrameHostImpl* parent = rfh->GetParentOrOuterDocument();
+        RenderFrameHostImpl* parent = rfh->GetParentOrOuterDocumentOrEmbedder();
         DCHECK(base::Contains(all_frame_info, parent));
         all_frame_info[parent]->subframes.push_back(std::move(frame_info));
         return RenderFrameHost::FrameIterationAction::kContinue;
@@ -167,7 +175,6 @@ std::string IsolatedOriginSourceToString(IsolatedOriginSource source) {
       return "Web-triggered";
     default:
       NOTREACHED();
-      return "";
   }
 }
 
@@ -194,7 +201,7 @@ void ProcessInternalsHandlerImpl::GetProcessCountInfo(
 
 void ProcessInternalsHandlerImpl::GetIsolationMode(
     GetIsolationModeCallback callback) {
-  std::vector<base::StringPiece> modes;
+  std::vector<std::string_view> modes;
   if (SiteIsolationPolicy::UseDedicatedProcessesForAllSites())
     modes.push_back("Site Per Process");
   if (SiteIsolationPolicy::AreIsolatedOriginsEnabled())
@@ -212,6 +219,23 @@ void ProcessInternalsHandlerImpl::GetIsolationMode(
 
   std::move(callback).Run(modes.empty() ? "Disabled"
                                         : base::JoinString(modes, ", "));
+}
+
+void ProcessInternalsHandlerImpl::GetProcessPerSiteMode(
+    GetProcessPerSiteModeCallback callback) {
+  if (!GetContentClient()
+           ->browser()
+           ->ShouldAllowProcessPerSiteForMultipleMainFrames(browser_context_)) {
+    std::move(callback).Run("off (ContentClient policy)");
+    return;
+  }
+  if (!base::FeatureList::IsEnabled(
+          features::kProcessPerSiteUpToMainFrameThreshold)) {
+    std::move(callback).Run("off (feature setting)");
+    return;
+  }
+  std::move(callback).Run(base::StringPrintf(
+      "on (limit %d)", features::kProcessPerSiteMainFrameThreshold.Get()));
 }
 
 void ProcessInternalsHandlerImpl::GetUserTriggeredIsolatedOrigins(
@@ -297,7 +321,7 @@ void ProcessInternalsHandlerImpl::GetAllWebContentsInfo(
     }
 
     // Retrieve prerendering root frames.
-    web_contents->ForEachRenderFrameHost(
+    web_contents->ForEachRenderFrameHostImpl(
         [web_contents, &prerender_root_frames = info->prerender_root_frames](
             RenderFrameHostImpl* rfh) {
           CollectPrerenders(web_contents, rfh, prerender_root_frames);

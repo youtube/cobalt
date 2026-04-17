@@ -1,4 +1,4 @@
-// Copyright 2020 The Chromium Authors. All rights reserved.
+// Copyright 2020 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,11 +11,13 @@
 #include "base/files/file_util.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/services/speech/audio_source_fetcher_impl.h"
+#include "chrome/services/speech/soda_speech_recognizer_impl.h"
 #include "chrome/services/speech/speech_recognition_recognizer_impl.h"
 #include "media/mojo/mojom/speech_recognition.mojom.h"
 #include "media/mojo/mojom/speech_recognition_service.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
+#include "mojo/public/cpp/bindings/self_owned_receiver.h"
 
 namespace speech {
 
@@ -49,10 +51,23 @@ void SpeechRecognitionServiceImpl::BindSpeechRecognitionContext(
 void SpeechRecognitionServiceImpl::SetSodaPaths(
     const base::FilePath& binary_path,
     const base::flat_map<std::string, base::FilePath>& config_paths,
-    const std::string& primary_language_name) {
+    const std::string& default_live_caption_language) {
   binary_path_ = binary_path;
   config_paths_ = config_paths;
-  primary_language_name_ = primary_language_name;
+  default_live_caption_language_ = default_live_caption_language;
+}
+
+void SpeechRecognitionServiceImpl::SetSodaParams(
+    const bool mask_offensive_words) {
+  mask_offensive_words_ = mask_offensive_words;
+}
+
+void SpeechRecognitionServiceImpl::SetSodaConfigPaths(
+    const base::flat_map<std::string, base::FilePath>& config_paths) {
+  config_paths_ = config_paths;
+  for (Observer& observer : observers_) {
+    observer.OnLanguagePackInstalled(config_paths_);
+  }
 }
 
 void SpeechRecognitionServiceImpl::BindRecognizer(
@@ -60,28 +75,40 @@ void SpeechRecognitionServiceImpl::BindRecognizer(
     mojo::PendingRemote<media::mojom::SpeechRecognitionRecognizerClient> client,
     media::mojom::SpeechRecognitionOptionsPtr options,
     BindRecognizerCallback callback) {
-  // This is currently only used by LiveCaption and server side
-  // speech recognition is not available to it.
-  if (options->is_server_based ||
-      options->recognizer_client_type !=
-          media::mojom::RecognizerClientType::kLiveCaption) {
-    mojo::ReportBadMessage(kInvalidSpeechRecogntionOptions);
-    return;
+  if (CreateRecognizer(std::move(receiver), std::move(client),
+                       std::move(options))) {
+    std::move(callback).Run(
+        SpeechRecognitionRecognizerImpl::IsMultichannelSupported());
   }
+}
 
-  // Destroy the speech recognition service if the SODA files haven't been
-  // downloaded yet.
-  if (!FilePathsExist()) {
-    speech_recognition_contexts_.Clear();
-    receiver_.reset();
-    return;
+void SpeechRecognitionServiceImpl::BindWebSpeechRecognizer(
+    mojo::PendingReceiver<media::mojom::SpeechRecognitionSession>
+        session_receiver,
+    mojo::PendingRemote<media::mojom::SpeechRecognitionSessionClient>
+        session_client,
+    mojo::PendingReceiver<media::mojom::SpeechRecognitionAudioForwarder>
+        audio_forwarder,
+    int channel_count,
+    int sample_rate,
+    media::mojom::SpeechRecognitionOptionsPtr options,
+    bool continuous) {
+  mojo::PendingRemote<media::mojom::SpeechRecognitionRecognizer>
+      speech_recognition_recognizer;
+  mojo::PendingReceiver<media::mojom::SpeechRecognitionRecognizerClient>
+      speech_recognition_recognizer_client;
+
+  if (CreateRecognizer(
+          speech_recognition_recognizer.InitWithNewPipeAndPassReceiver(),
+          speech_recognition_recognizer_client.InitWithNewPipeAndPassRemote(),
+          std::move(options))) {
+    mojo::MakeSelfOwnedReceiver(
+        std::make_unique<SodaSpeechRecognizerImpl>(
+            continuous, sample_rate, std::move(speech_recognition_recognizer),
+            std::move(speech_recognition_recognizer_client),
+            std::move(session_client), std::move(audio_forwarder)),
+        std::move(session_receiver));
   }
-
-  SpeechRecognitionRecognizerImpl::Create(
-      std::move(receiver), std::move(client), std::move(options), binary_path_,
-      config_paths_, primary_language_name_);
-  std::move(callback).Run(
-      SpeechRecognitionRecognizerImpl::IsMultichannelSupported());
 }
 
 void SpeechRecognitionServiceImpl::BindAudioSourceFetcher(
@@ -106,15 +133,32 @@ void SpeechRecognitionServiceImpl::BindAudioSourceFetcher(
     receiver_.reset();
     return;
   }
+
+  auto recognizer = std::make_unique<SpeechRecognitionRecognizerImpl>(
+      std::move(client), std::move(options), binary_path_, config_paths_,
+      default_live_caption_language_, mask_offensive_words_,
+      weak_factory_.GetWeakPtr());
+
+// On Chrome OS, CrosSpeechRecognitionRecognizerImpl will create its own
+// CrosSodaClient.
+#if !BUILDFLAG(IS_CHROMEOS)
+  recognizer->CreateSodaClient(binary_path_);
+#endif
+
   const bool is_multi_channel_supported =
       SpeechRecognitionRecognizerImpl::IsMultichannelSupported();
-  AudioSourceFetcherImpl::Create(
-      std::move(fetcher_receiver),
-      std::make_unique<SpeechRecognitionRecognizerImpl>(
-          std::move(client), std::move(options), binary_path_, config_paths_,
-          primary_language_name_),
-      is_multi_channel_supported, is_server_based);
+  AudioSourceFetcherImpl::Create(std::move(fetcher_receiver),
+                                 std::move(recognizer),
+                                 is_multi_channel_supported, is_server_based);
   std::move(callback).Run(is_multi_channel_supported);
+}
+
+void SpeechRecognitionServiceImpl::AddObserver(Observer* observer) {
+  observers_.AddObserver(observer);
+}
+
+void SpeechRecognitionServiceImpl::RemoveObserver(Observer* observer) {
+  observers_.RemoveObserver(observer);
 }
 
 bool SpeechRecognitionServiceImpl::FilePathsExist() {
@@ -125,6 +169,38 @@ bool SpeechRecognitionServiceImpl::FilePathsExist() {
     if (!base::PathExists(config.second))
       return false;
   }
+
+  return true;
+}
+
+bool SpeechRecognitionServiceImpl::CreateRecognizer(
+    mojo::PendingReceiver<media::mojom::SpeechRecognitionRecognizer> receiver,
+    mojo::PendingRemote<media::mojom::SpeechRecognitionRecognizerClient> client,
+    media::mojom::SpeechRecognitionOptionsPtr options) {
+  // This is currently only used by Live Caption and server side
+  // speech recognition is not available to it.
+  if (options->is_server_based ||
+      options->recognizer_client_type !=
+          media::mojom::RecognizerClientType::kLiveCaption) {
+    mojo::ReportBadMessage(kInvalidSpeechRecogntionOptions);
+    return false;
+  }
+
+  // Destroy the speech recognition service if the SODA files haven't been
+  // downloaded yet.
+  if (!FilePathsExist()) {
+    speech_recognition_contexts_.Clear();
+    receiver_.reset();
+    return false;
+  }
+
+  auto language = options->language.has_value()
+                      ? options->language.value()
+                      : default_live_caption_language_;
+  SpeechRecognitionRecognizerImpl::Create(
+      std::move(receiver), std::move(client), std::move(options), binary_path_,
+      config_paths_, language, mask_offensive_words_,
+      weak_factory_.GetWeakPtr());
 
   return true;
 }

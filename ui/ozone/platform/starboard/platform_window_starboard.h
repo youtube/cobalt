@@ -15,12 +15,17 @@
 #ifndef UI_OZONE_PLATFORM_STARBOARD_PLATFORM_WINDOW_STARBOARD_H_
 #define UI_OZONE_PLATFORM_STARBOARD_PLATFORM_WINDOW_STARBOARD_H_
 
+#include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
+#include "build/build_config.h"
 #include "starboard/window.h"
 #include "ui/base/cursor/platform_cursor.h"
 #include "ui/events/platform/platform_event_dispatcher.h"
 #include "ui/ozone/platform/starboard/platform_event_observer_starboard.h"
 #include "ui/platform_window/platform_window_delegate.h"
 #include "ui/platform_window/stub/stub_window.h"
+
+#if BUILDFLAG(IS_COBALT)
 
 namespace ui {
 
@@ -70,6 +75,14 @@ class PlatformWindowStarboard : public PlatformWindow,
   bool ShouldUseNativeFrame() const override;
   void SetUseNativeFrame(bool use_native_frame) override;
 
+  using WindowCreatedCallback = base::RepeatingCallback<void(SbWindow)>;
+  static void SetWindowCreatedCallback(WindowCreatedCallback cb);
+  static void ClearWindowCreatedCallback();
+
+  using WindowDestroyedCallback = base::RepeatingCallback<void(SbWindow)>;
+  static void SetWindowDestroyedCallback(WindowDestroyedCallback cb);
+  static void ClearWindowDestroyedCallback();
+
   // ui::PlatformEventObserverStarboard interface.
   void ProcessWindowSizeChangedEvent(int width, int height) override;
   void ProcessFocusEvent(bool is_focused) override;
@@ -86,8 +99,9 @@ class PlatformWindowStarboard : public PlatformWindow,
     kInactive,
   };
 
-  SbWindow sb_window_;
+  SbWindow sb_window_ = kSbWindowInvalid;
   bool use_native_frame_ = false;
+  bool widget_available_ = false;
   gfx::Rect bounds_;
   raw_ptr<PlatformWindowDelegate> delegate_ = nullptr;
   ui::PlatformWindowState window_state_ = ui::PlatformWindowState::kUnknown;
@@ -95,5 +109,7 @@ class PlatformWindowStarboard : public PlatformWindow,
 };
 
 }  // namespace ui
+
+#endif  // BUILDFLAG(IS_COBALT)
 
 #endif  // UI_OZONE_PLATFORM_STARBOARD_PLATFORM_WINDOW_STARBOARD_H_

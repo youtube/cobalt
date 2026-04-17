@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_EXPERIMENTS_H_5_VCC_EXPERIMENTS_H_
-#define THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_EXPERIMENTS_H_5_VCC_EXPERIMENTS_H_
+#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_EXPERIMENTS_H_5_VCC_EXPERIMENTS_H_
+#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_EXPERIMENTS_H_5_VCC_EXPERIMENTS_H_
 
 #include "cobalt/browser/h5vcc_experiments/public/mojom/h5vcc_experiments.mojom-blink.h"
-
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_union_boolean_double_long_string.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_experiment_configuration.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_override_state.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
@@ -27,7 +29,6 @@
 namespace blink {
 
 class LocalDOMWindow;
-class ScriptPromiseResolver;
 class ScriptState;
 
 class MODULES_EXPORT H5vccExperiments final
@@ -41,19 +42,44 @@ class MODULES_EXPORT H5vccExperiments final
   void ContextDestroyed() override;
 
   // Web-exposed interface:
-  ScriptPromise setExperimentState(ScriptState*,
-                                   const ExperimentConfiguration*,
-                                   ExceptionState&);
-  ScriptPromise resetExperimentState(ScriptState*, ExceptionState&);
-  WTF::Vector<uint32_t> activeExperimentIds();
-  String getFeature(const String&);
+  ScriptPromise<IDLUndefined> setExperimentState(ScriptState*,
+                                                 const ExperimentConfiguration*,
+                                                 ExceptionState&);
+  ScriptPromise<IDLUndefined> resetExperimentState(ScriptState*,
+                                                   ExceptionState&);
+  ScriptPromise<V8OverrideState> getFeature(ScriptState*,
+                                            const String&,
+                                            ExceptionState&);
   const String& getFeatureParam(const String&);
+  ScriptPromise<IDLString> getActiveExperimentConfigData(ScriptState*,
+                                                         ExceptionState&);
+  ScriptPromise<IDLString> getLatestExperimentConfigHashData(ScriptState*,
+                                                             ExceptionState&);
+  ScriptPromise<IDLUndefined> setLatestExperimentConfigHashData(
+      ScriptState*,
+      const String&,
+      ExceptionState&);
+  ScriptPromise<IDLUndefined> setFinchParameters(
+      ScriptState*,
+      const HeapVector<
+          std::pair<WTF::String,
+                    Member<V8UnionBooleanOrDoubleOrLongOrString>>>&,
+      ExceptionState&);
 
   void Trace(Visitor*) const override;
 
  private:
-  void OnSetExperimentState(ScriptPromiseResolver*);
-  void OnResetExperimentState(ScriptPromiseResolver*);
+  void OnGetActiveExperimentConfigData(ScriptPromiseResolver<IDLString>*,
+                                       const String&);
+  void OnGetLatestExperimentConfigHashData(ScriptPromiseResolver<IDLString>*,
+                                           const String&);
+  void OnSetExperimentState(ScriptPromiseResolver<IDLUndefined>*);
+  void OnSetFinchParameters(ScriptPromiseResolver<IDLUndefined>*);
+  void OnSetLatestExperimentConfigHashData(
+      ScriptPromiseResolver<IDLUndefined>*);
+  void OnResetExperimentState(ScriptPromiseResolver<IDLUndefined>*);
+  void OnGetFeature(ScriptPromiseResolver<V8OverrideState>*,
+                    h5vcc_experiments::mojom::blink::OverrideState);
   void OnConnectionError();
   void EnsureReceiverIsBound();
   HeapMojoRemote<h5vcc_experiments::mojom::blink::H5vccExperiments>
@@ -61,12 +87,11 @@ class MODULES_EXPORT H5vccExperiments final
   // Holds promises associated with outstanding async remote_h5vcc_experiments_
   // requests so that they can be rejected in the case of a Mojo connection
   // error.
-  HeapHashSet<Member<ScriptPromiseResolver>> ongoing_requests_;
+  HeapHashSet<Member<ScriptPromiseResolverBase>> ongoing_requests_;
 
   String feature_param_value_;
-  WTF::Vector<uint32_t> active_experiment_ids_;
 };
 
 }  // namespace blink
 
-#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_EXPERIMENTS_H_5_VCC_EXPERIMENTS_H_
+#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_EXPERIMENTS_H_5_VCC_EXPERIMENTS_H_

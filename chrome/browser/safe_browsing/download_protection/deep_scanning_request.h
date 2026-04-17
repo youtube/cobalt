@@ -13,14 +13,20 @@
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
 #include "base/time/time.h"
+#include "base/types/optional_ref.h"
+#include "chrome/browser/download/download_item_warning_data.h"
+#include "chrome/browser/enterprise/connectors/analysis/content_analysis_info.h"
 #include "chrome/browser/enterprise/connectors/common.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/binary_upload_service.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/deep_scanning_utils.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/file_analysis_request.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/file_opening_job.h"
+#include "chrome/browser/safe_browsing/download_protection/deep_scanning_metadata.h"
 #include "chrome/browser/safe_browsing/download_protection/download_protection_util.h"
 #include "components/enterprise/common/proto/connectors.pb.h"
+#include "components/enterprise/obfuscation/core/download_obfuscator.h"
+#include "components/safe_browsing/core/common/proto/csd.pb.h"
 
 namespace download {
 class DownloadItem;
@@ -33,25 +39,10 @@ class DownloadRequestMaker;
 
 // This class encapsulates the process of uploading a file to Safe Browsing for
 // deep scanning and reporting the result.
-class DeepScanningRequest : public download::DownloadItem::Observer {
+// Deep scanning is not supported on Android.
+class DeepScanningRequest : public download::DownloadItem::Observer,
+                            public enterprise_connectors::ContentAnalysisInfo {
  public:
-  // Enum representing the trigger of the scan request.
-  // These values are persisted to logs. Entries should not be renumbered and
-  // numeric values should never be reused.
-  enum class DeepScanTrigger {
-    // The trigger is unknown.
-    TRIGGER_UNKNOWN = 0,
-
-    // The trigger is the prompt in the download shelf, shown for Advanced
-    // Protection or Enhanced Protection users.
-    TRIGGER_CONSUMER_PROMPT = 1,
-
-    // The trigger is the enterprise policy.
-    TRIGGER_POLICY = 2,
-
-    kMaxValue = TRIGGER_POLICY,
-  };
-
   // Enum representing the type of constructor that initiated scanning.
   // These values are persisted to logs. Entries should not be renumbered and
   // numeric values should never be reused.
@@ -69,37 +60,35 @@ class DeepScanningRequest : public download::DownloadItem::Observer {
    public:
     ~Observer() override = default;
 
-    // Called when the DeepScanningRequest chooses to display a modal dialog.
-    virtual void OnModalShown(DeepScanningRequest* request) {}
-
     // Called when the DeepScanningRequest finishes.
     virtual void OnFinish(DeepScanningRequest* request) {}
   };
 
   // Checks the current policies to determine whether files must be uploaded by
   // policy. Returns the settings to apply to this analysis if it should happen
-  // or absl::nullopt if no analysis should happen.
-  static absl::optional<enterprise_connectors::AnalysisSettings>
-  ShouldUploadBinary(download::DownloadItem* item);
+  // or std::nullopt if no analysis should happen.
+  static std::optional<enterprise_connectors::AnalysisSettings>
+  ShouldUploadBinary(const DeepScanningMetadata& metadata);
 
-  // Scan the given `item`, with the given `trigger`. The result of the scanning
-  // will be provided through `callback`. Take a references to the owning
-  // `download_service`.
-  DeepScanningRequest(download::DownloadItem* item,
-                      DeepScanTrigger trigger,
+  // Scan the given `metadata item`, with the given `trigger`. The result of the
+  // scanning will be provided through `callback`. Take a references to the
+  // owning `download_service`.
+  DeepScanningRequest(std::unique_ptr<DeepScanningMetadata> metadata,
+                      DownloadItemWarningData::DeepScanTrigger trigger,
                       DownloadCheckResult pre_scan_download_check_result,
                       CheckDownloadRepeatingCallback callback,
                       DownloadProtectionService* download_service,
-                      enterprise_connectors::AnalysisSettings settings);
+                      enterprise_connectors::AnalysisSettings settings,
+                      base::optional_ref<const std::string> password);
 
-  // Scan the given `item` that corresponds to a save package, with
+  // Scan the given `metadata item` that corresponds to a save package, with
   // `save_package_page` mapping every currently on-disk file part of that
   // package to their final target path. The result of the scanning is provided
   // through `callback` once every file has been scanned, and the given result
   // is the highest severity one. Takes a reference to the owning
   // `download_service`.
   DeepScanningRequest(
-      download::DownloadItem* item,
+      std::unique_ptr<DeepScanningMetadata> metadata,
       DownloadCheckResult pre_scan_download_check_result,
       CheckDownloadRepeatingCallback callback,
       DownloadProtectionService* download_service,
@@ -117,6 +106,21 @@ class DeepScanningRequest : public download::DownloadItem::Observer {
   // download::DownloadItem::Observer:
   void OnDownloadUpdated(download::DownloadItem* download) override;
   void OnDownloadDestroyed(download::DownloadItem* download) override;
+
+  // enterprise_connectors::ContentAnalysisInfo:
+  const enterprise_connectors::AnalysisSettings& settings() const override;
+  signin::IdentityManager* identity_manager() const override;
+  int user_action_requests_count() const override;
+  std::string tab_title() const override;
+  std::string user_action_id() const override;
+  std::string email() const override;
+  std::string url() const override;
+  const GURL& tab_url() const override;
+  enterprise_connectors::ContentAnalysisRequest::Reason reason() const override;
+  google::protobuf::RepeatedPtrField<::safe_browsing::ReferrerChainEntry>
+  referrer_chain() const override;
+  google::protobuf::RepeatedPtrField<std::string> frame_url_chain()
+      const override;
 
  private:
   // Starts the deep scanning request when there is a one-to-one mapping from
@@ -139,6 +143,14 @@ class DeepScanningRequest : public download::DownloadItem::Observer {
   void OnScanComplete(const base::FilePath& current_path,
                       BinaryUploadService::Result result,
                       enterprise_connectors::ContentAnalysisResponse response);
+  void OnConsumerScanComplete(
+      const base::FilePath& current_path,
+      BinaryUploadService::Result result,
+      enterprise_connectors::ContentAnalysisResponse response);
+  void OnEnterpriseScanComplete(
+      const base::FilePath& current_path,
+      BinaryUploadService::Result result,
+      enterprise_connectors::ContentAnalysisResponse response);
 
   // Called when a single file scanning request has completed. Calls
   // FinishRequest if it was the last required one.
@@ -148,12 +160,9 @@ class DeepScanningRequest : public download::DownloadItem::Observer {
   // notifying |download_service_|.
   void FinishRequest(DownloadCheckResult result);
 
-  // Called to attempt to show the modal dialog for scan failure. Returns
-  // whether the dialog was successfully shown.
-  bool MaybeShowDeepScanFailureModalDialog(base::OnceClosure accept_callback,
-                                           base::OnceClosure cancel_callback,
-                                           base::OnceClosure close_callback,
-                                           base::OnceClosure open_now_callback);
+  // Called to verify if `result` is considered as a failure and the scan should
+  // end early.
+  bool ShouldTerminateEarly(BinaryUploadService::Result result);
 
   // Called to open the download. This is triggered by the timeout modal dialog.
   void OpenDownload();
@@ -170,27 +179,52 @@ class DeepScanningRequest : public download::DownloadItem::Observer {
       const base::FilePath& current_path,
       std::unique_ptr<FileAnalysisRequest> deep_scan_request);
 
-  // Wrapper around OnDownloadRequestReady to facilitate opening files in
-  // parallel for save package scans.
-  void OnGotRequestData(const base::FilePath& final_path,
-                        const base::FilePath& current_path,
-                        std::unique_ptr<FileAnalysisRequest> request,
-                        BinaryUploadService::Result result,
-                        BinaryUploadService::Request::Data data);
+  // Callback invoked in `StartSingleFileScan` to check if `data` has been
+  // successfully fetched and ready for deep scanning if needed.
+  void OnGetFileRequestData(const base::FilePath& file_path,
+                            std::unique_ptr<FileAnalysisRequest> request,
+                            BinaryUploadService::Result result,
+                            BinaryUploadService::Request::Data data);
+
+  // Callback invoked in `StartSavePackageScan` to check if `data` of a file in
+  // package has been successfully fetched and ready for deep scanning if
+  // needed.
+  void OnGetPackageFileRequestData(const base::FilePath& final_path,
+                                   const base::FilePath& current_path,
+                                   std::unique_ptr<FileAnalysisRequest> request,
+                                   BinaryUploadService::Result result,
+                                   BinaryUploadService::Request::Data data);
 
   // Helper function to simplify checking if the report-only feature is set in
   // conjunction with the corresponding policy value.
   bool ReportOnlyScan();
 
   // Acknowledge the request's handling to the service provider.
-  void AcknowledgeRequest(EventResult event_result);
+  void AcknowledgeRequest(enterprise_connectors::EventResult event_result);
 
-  // The download item to scan. This is unowned, and could become nullptr if the
-  // download is destroyed.
-  raw_ptr<download::DownloadItem> item_;
+  bool IsEnterpriseTriggered() const;
+  bool IsConsumerTriggered() const;
+
+  // Callback for when deobfuscation of the file is completed.
+  void OnDeobfuscationComplete(
+      DownloadCheckResult download_result,
+      base::expected<void, enterprise_obfuscation::Error> result);
+
+  // Provides scan result to `callback_` and clean up.
+  void CallbackAndCleanup(DownloadCheckResult result);
+
+  // Metadata for the item being scanned. This is owned by `DeepScanningRequest`
+  // and provides an abstraction layer over different types of scan sources
+  // (download items, file system access writes).
+  std::unique_ptr<DeepScanningMetadata> metadata_;
+
+  // ScopedObservation to manage `DownloadItem` observation lifetime. Must be
+  // cleared before `metadata_` is.
+  std::unique_ptr<DeepScanningMetadata::DownloadScopedObservation>
+      download_observation_;
 
   // The reason for deep scanning.
-  DeepScanTrigger trigger_;
+  DownloadItemWarningData::DeepScanTrigger trigger_;
 
   // The callback to provide the scan result to.
   CheckDownloadRepeatingCallback callback_;
@@ -249,11 +283,20 @@ class DeepScanningRequest : public download::DownloadItem::Observer {
 
   // Cached callbacks to report scanning results until the final `event_result_`
   // is known. The callbacks in this list should be called in FinishRequest.
-  base::OnceCallbackList<void(EventResult result)> report_callbacks_;
+  base::OnceCallbackList<void(enterprise_connectors::EventResult result)>
+      report_callbacks_;
 
   // The request tokens of all the requests that make up the user action
   // represented by this ContentAnalysisDelegate instance.
   std::vector<std::string> request_tokens_;
+
+  // Password for the file, if it's an archive.
+  std::optional<std::string> password_;
+
+  // Reason the scanning took place. Used to populate enterprise requests to
+  // give more context on what user action lead to a scan.
+  enterprise_connectors::ContentAnalysisRequest::Reason reason_ =
+      enterprise_connectors::ContentAnalysisRequest::UNKNOWN;
 
   base::WeakPtrFactory<DeepScanningRequest> weak_ptr_factory_;
 };

@@ -3,12 +3,14 @@
 // found in the LICENSE file.
 
 package org.chromium.webapk.lib.common;
+import org.chromium.build.annotations.NullMarked;
 
 /** Contains utility methods which are used both by ShellAPK and by Chrome. */
+@NullMarked
 public class WebApkCommonUtils {
     /**
      * Returns name of "Runtime Dex" asset in Chrome APK based on version.
-     * @param version
+     *
      * @return Dex asset name.
      */
     public static String getRuntimeDexName(int version) {
@@ -28,7 +30,8 @@ public class WebApkCommonUtils {
      * WebAPK.
      */
     public static String generateSplashContentProviderUri(String webApkPackageName) {
-        return "content://" + generateSplashContentProviderAuthority(webApkPackageName)
+        return "content://"
+                + generateSplashContentProviderAuthority(webApkPackageName)
                 + "/cached_splash_image";
     }
 }

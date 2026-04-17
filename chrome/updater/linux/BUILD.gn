@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/linux/pkg_config.gni")
+import("//chrome/updater/branding.gni")
 import("//chrome/updater/zip.gni")
 
 # This target builds the updater executable and unittests.
@@ -13,18 +13,10 @@ group("linux") {
   ]
 }
 
-pkg_config("libcurl") {
-  packages = [ "libcurl" ]
-}
-
-pkg_config("libsystemd") {
-  packages = [ "libsystemd" ]
-}
-
 source_set("updater_executable") {
   sources = [ "main.cc" ]
   deps = [ "//chrome/updater:base" ]
-  public_configs = [ ":libsystemd" ]
+  libs = [ "systemd" ]
 }
 
 executable("updater") {
@@ -47,10 +39,12 @@ artifact_zip("updater_zip") {
     "$root_build_dir/updater",
     "$root_build_dir/updater_test",
     "$root_build_dir/qualification_app",
+    "$root_out_dir/LICENSE.${updater_product_full_name_dashed_lowercase}",
   ]
   deps = [
     ":updater",
     ":updater_test",
+    "//chrome/updater:updater_license",
     "//chrome/updater/test/qualification_app",
   ]
 }

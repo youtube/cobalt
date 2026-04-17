@@ -5,6 +5,7 @@
 #ifndef V8_INSPECTOR_V8_DEBUGGER_H_
 #define V8_INSPECTOR_V8_DEBUGGER_H_
 
+#include <deque>
 #include <list>
 #include <memory>
 #include <unordered_map>
@@ -31,11 +32,16 @@ class V8RuntimeAgentImpl;
 class V8StackTraceImpl;
 struct V8StackTraceId;
 
-enum class WrapMode {
-  kForceValue,
-  kNoPreview,
-  kWithPreview,
-  kGenerateWebDriverValue
+enum class WrapMode { kJson, kIdOnly, kPreview, kDeep };
+
+struct WrapSerializationOptions {
+  int maxDepth = v8::internal::kMaxInt;
+  v8::Global<v8::Object> additionalParameters;
+};
+
+struct WrapOptions {
+  WrapMode mode;
+  WrapSerializationOptions serializationOptions = {};
 };
 
 using protocol::Response;
@@ -134,6 +140,10 @@ class V8Debugger : public v8::debug::DebugDelegate,
   void setMaxAsyncTaskStacksForTest(int limit);
   void dumpAsyncTaskStacksStateForTest();
 
+  void asyncParentFor(int stackTraceId,
+                      std::shared_ptr<AsyncStackTrace>* asyncParent,
+                      V8StackTraceId* externalParent) const;
+
   internal::V8DebuggerId debuggerIdFor(int contextGroupId);
   std::shared_ptr<AsyncStackTrace> stackTraceFor(int contextGroupId,
                                                  const V8StackTraceId& id);
@@ -189,6 +199,7 @@ class V8Debugger : public v8::debug::DebugDelegate,
   void asyncTaskStartedForStepping(void* task);
   void asyncTaskFinishedForStepping(void* task);
   void asyncTaskCanceledForStepping(void* task);
+  void asyncStackTraceCaptured(int id);
 
   // v8::debug::DebugEventListener implementation.
   void AsyncEventOccurred(v8::debug::DebugAsyncActionType type, int id,
@@ -281,6 +292,13 @@ class V8Debugger : public v8::debug::DebugDelegate,
   std::vector<std::shared_ptr<AsyncStackTrace>> m_currentAsyncParent;
   std::vector<V8StackTraceId> m_currentExternalParent;
 
+  // Maps v8::StackTrace IDs to async parents.
+  using StackTraceToAsyncParent =
+      std::unordered_map<int, std::weak_ptr<AsyncStackTrace>>;
+  using StackTraceToExternalParent = std::deque<std::pair<int, V8StackTraceId>>;
+  StackTraceToAsyncParent m_asyncParents;
+  StackTraceToExternalParent m_externalParents;
+
   void collectOldAsyncStacksIfNeeded();
   // V8Debugger owns all the async stacks, while most of the other references
   // are weak, which allows to collect some stacks when there are too many.
@@ -301,9 +319,9 @@ class V8Debugger : public v8::debug::DebugDelegate,
   // See Debugger.stepInto for details.
   bool m_pauseOnAsyncCall = false;
 
-  using StackTraceIdToStackTrace =
+  using StoredStackTraces =
       std::unordered_map<uintptr_t, std::weak_ptr<AsyncStackTrace>>;
-  StackTraceIdToStackTrace m_storedStackTraces;
+  StoredStackTraces m_storedStackTraces;
   uintptr_t m_lastStackTraceId = 0;
 
   std::unordered_map<int, internal::V8DebuggerId> m_contextGroupIdToDebuggerId;
@@ -311,12 +329,6 @@ class V8Debugger : public v8::debug::DebugDelegate,
   std::unique_ptr<TerminateExecutionCallback> m_terminateExecutionCallback;
   v8::Global<v8::Context> m_terminateExecutionCallbackContext;
   bool m_terminateExecutionReported = true;
-
-  // Throwing conditional breakpoints for which we already have logged an error
-  // message to the console. The intention is to reduce console spam.
-  // Removing the breakpoint or a non-throwing evaluation of the breakpoint
-  // clears it out of the set.
-  std::unordered_set<v8::debug::BreakpointId> m_throwingConditionReported;
 };
 
 }  // namespace v8_inspector

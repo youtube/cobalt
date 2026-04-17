@@ -4,13 +4,15 @@
 
 package org.chromium.chrome.browser.app.feed;
 
+
 import android.os.SystemClock;
 
-import androidx.annotation.Nullable;
-
 import org.chromium.base.Callback;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.Tab.LoadUrlResult;
 import org.chromium.chrome.browser.tab.TabHidingType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.content_public.browser.LoadCommittedDetails;
@@ -25,11 +27,11 @@ import org.chromium.url.GURL;
  * Records stats related to a page visit, such as the time spent on the website, or if the user
  * comes back to the starting point. Use through {@link #record(Tab, Callback)}.
  */
+@NullMarked
 public class NavigationRecorder extends EmptyTabObserver {
     private final Callback<VisitData> mVisitEndCallback;
 
-    @Nullable
-    private final WebContentsObserver mWebContentsObserver;
+    private final @Nullable WebContentsObserver mWebContentsObserver;
 
     private long mStartTimeMs;
 
@@ -57,14 +59,16 @@ public class NavigationRecorder extends EmptyTabObserver {
             // trigger anyway, no need to care about the navigation stack.
             final NavigationController navController = webContents.getNavigationController();
             int startStackIndex = navController.getLastCommittedEntryIndex();
-            mWebContentsObserver = new WebContentsObserver() {
-                @Override
-                public void navigationEntryCommitted(LoadCommittedDetails details) {
-                    if (startStackIndex != navController.getLastCommittedEntryIndex()) return;
-                    endRecording(tab, tab.getUrl());
-                }
-            };
-            webContents.addObserver(mWebContentsObserver);
+            mWebContentsObserver =
+                    new WebContentsObserver(webContents) {
+                        @Override
+                        public void navigationEntryCommitted(LoadCommittedDetails details) {
+                            if (startStackIndex != navController.getLastCommittedEntryIndex()) {
+                                return;
+                            }
+                            endRecording(tab, tab.getUrl());
+                        }
+                    };
         } else {
             mWebContentsObserver = null;
         }
@@ -88,12 +92,16 @@ public class NavigationRecorder extends EmptyTabObserver {
     }
 
     @Override
-    public void onLoadUrl(Tab tab, LoadUrlParams params, int loadType) {
+    public void onLoadUrl(Tab tab, LoadUrlParams params, LoadUrlResult loadUrlResult) {
         // End recording if a new URL gets loaded e.g. after entering a new query in
         // the omnibox. This doesn't cover the navigate-back case so we also need to observe
         // changes to WebContent's navigation entries.
-        int transitionTypeMask = PageTransition.FROM_ADDRESS_BAR | PageTransition.HOME_PAGE
-                | PageTransition.CHAIN_START | PageTransition.CHAIN_END | PageTransition.FROM_API;
+        int transitionTypeMask =
+                PageTransition.FROM_ADDRESS_BAR
+                        | PageTransition.HOME_PAGE
+                        | PageTransition.CHAIN_START
+                        | PageTransition.CHAIN_END
+                        | PageTransition.FROM_API;
 
         if ((params.getTransitionType() & transitionTypeMask) != 0) endRecording(tab, null);
     }
@@ -101,8 +109,8 @@ public class NavigationRecorder extends EmptyTabObserver {
     private void endRecording(@Nullable Tab removeObserverFromTab, @Nullable GURL endUrl) {
         if (removeObserverFromTab != null) {
             removeObserverFromTab.removeObserver(this);
-            if (removeObserverFromTab.getWebContents() != null && mWebContentsObserver != null) {
-                removeObserverFromTab.getWebContents().removeObserver(mWebContentsObserver);
+            if (mWebContentsObserver != null) {
+                mWebContentsObserver.observe(null);
             }
         }
 
@@ -113,9 +121,9 @@ public class NavigationRecorder extends EmptyTabObserver {
     /** Plain holder for the data of a recorded visit. */
     public static class VisitData {
         public final long duration;
-        public final GURL endUrl;
+        public final @Nullable GURL endUrl;
 
-        public VisitData(long duration, GURL endUrl) {
+        public VisitData(long duration, @Nullable GURL endUrl) {
             this.duration = duration;
             this.endUrl = endUrl;
         }

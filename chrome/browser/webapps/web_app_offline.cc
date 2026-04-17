@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,13 +7,17 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "chrome/browser/web_applications/web_app_utils.h"
 #include "components/strings/grit/components_strings.h"
+#include "components/webapps/browser/web_app_error_page_constants.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "ui/base/l10n/l10n_util.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/web_applications/web_app_utils.h"
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 namespace {
 
@@ -104,7 +108,8 @@ content::mojom::AlternativeErrorPageOverrideInfoPtr GetOfflinePageInfo(
     content::BrowserContext* browser_context) {
   return ConstructWebAppErrorPage(
       url, render_frame_host, browser_context,
-      l10n_util::GetStringUTF16(IDS_ERRORPAGES_HEADING_YOU_ARE_OFFLINE));
+      l10n_util::GetStringUTF16(IDS_ERRORPAGES_HEADING_YOU_ARE_OFFLINE),
+      error_page::kOfflineIconId);
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 

@@ -10,12 +10,14 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <utility>
 
 #include "base/base64.h"
 #include "base/containers/contains.h"
+#include "base/containers/to_vector.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/logging.h"
@@ -23,7 +25,6 @@
 #include "base/memory/ref_counted.h"
 #include "base/observer_list.h"
 #include "base/rand_util.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_util.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
@@ -1164,7 +1165,7 @@ base::Value FakeBluetoothDeviceClient::GetBluetoothDevicesAsDictionaries()
 void FakeBluetoothDeviceClient::RemoveDevice(
     const dbus::ObjectPath& adapter_path,
     const dbus::ObjectPath& device_path) {
-  auto listiter = base::ranges::find(device_list_, device_path);
+  auto listiter = std::ranges::find(device_list_, device_path);
   if (listiter == device_list_.end())
     return;
 
@@ -1667,7 +1668,7 @@ void FakeBluetoothDeviceClient::UpdateServiceAndManufacturerData(
 
   // BlueZ caches all the previously received advertisements. To mimic BlueZ
   // caching behavior, merge the new data here with the existing data.
-  // TODO(crbug.com/707039): once the BlueZ caching behavior is changed, this
+  // TODO(crbug.com/41310506): once the BlueZ caching behavior is changed, this
   // needs to be updated as well.
 
   std::vector<std::string> merged_uuids = service_uuids;
@@ -1930,7 +1931,7 @@ void FakeBluetoothDeviceClient::RemoveAllDevices() {
 
 void FakeBluetoothDeviceClient::CreateTestDevice(
     const dbus::ObjectPath& adapter_path,
-    const absl::optional<std::string> name,
+    const std::optional<std::string> name,
     const std::string alias,
     const std::string device_address,
     const std::vector<std::string>& service_uuids,
@@ -1942,7 +1943,7 @@ void FakeBluetoothDeviceClient::CreateTestDevice(
   std::string id;
   do {
     // Construct an id that is valid according to the DBUS specification.
-    base::Base64Encode(base::RandBytesAsString(10), &id);
+    id = base::Base64Encode(base::RandBytesAsVector(10));
     base::RemoveChars(id, "+/=", &id);
     device_path = dbus::ObjectPath(adapter_path.value() + "/dev" + id);
   } while (base::Contains(device_list_, device_path));
@@ -1996,8 +1997,8 @@ void FakeBluetoothDeviceClient::CreateTestDevice(
 
 void FakeBluetoothDeviceClient::AddPrepareWriteRequest(
     const dbus::ObjectPath& object_path,
-    const std::vector<uint8_t>& value) {
-  prepare_write_requests_.emplace_back(object_path, value);
+    base::span<const uint8_t> value) {
+  prepare_write_requests_.emplace_back(object_path, base::ToVector(value));
 }
 
 }  // namespace bluez

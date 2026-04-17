@@ -17,7 +17,7 @@ struct ui::metadata::TypeConverter<TabStyle::TabColors>
     : ui::metadata::BaseTypeConverter<true> {
   static std::u16string ToString(
       ui::metadata::ArgType<TabStyle::TabColors> source_value);
-  static absl::optional<TabStyle::TabColors> FromString(
+  static std::optional<TabStyle::TabColors> FromString(
       const std::u16string& source_value);
   static ui::metadata::ValidStrings GetValidStrings();
 };
@@ -34,13 +34,12 @@ class TabStyleViews {
   // Factory function allows to experiment with different variations on tab
   // style at runtime or via flag.
   static std::unique_ptr<TabStyleViews> CreateForTab(Tab* tab);
-  static std::unique_ptr<TabStyleViews> Create();
 
   TabStyleViews();
   virtual ~TabStyleViews();
 
-  // Gets the specific |path_type| associated with the specific |tab|.
-  // If |force_active| is true, applies an active appearance on the tab (usually
+  // Gets the specific `path_type` associated with the specific `tab`.
+  // If `force_active` is true, applies an active appearance on the tab (usually
   // involving painting an optional stroke) even if the tab is not the active
   //  tab.
   virtual SkPath GetPath(TabStyle::PathType path_type,
@@ -65,13 +64,10 @@ class TabStyleViews {
   virtual TabActive GetApparentActiveState() const = 0;
 
   // Returns the current opacity of the "active" portion of the tab's state.
-  virtual float GetActiveOpacity() const = 0;
+  virtual float GetCurrentActiveOpacity() const = 0;
 
   // Derives and returns colors for the tab. See TabColors, above.
-  virtual TabStyle::TabColors CalculateColors() const = 0;
-
-  // Sets the center of the radial highlight in the hover animation.
-  virtual void SetHoverLocation(const gfx::Point& location) = 0;
+  virtual TabStyle::TabColors CalculateTargetColors() const = 0;
 
   // Shows the hover animation.
   virtual void ShowHover(TabStyle::ShowHoverStyle style) = 0;
@@ -81,14 +77,6 @@ class TabStyleViews {
 
   // Returns the progress (0 to 1) of the hover animation.
   virtual double GetHoverAnimationValue() const = 0;
-
-  // Returns the minimum possible width of a selected Tab. Selected tabs must
-  // always show a close button, and thus have a larger minimum size than
-  // unselected tabs.
-  int GetMinimumActiveWidth() const;
-
-  // Returns the minimum possible width of a single unselected Tab.
-  int GetMinimumInactiveWidth() const;
 
   const TabStyle* tab_style() const { return tab_style_; }
 

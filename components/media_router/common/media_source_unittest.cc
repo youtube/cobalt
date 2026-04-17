@@ -6,7 +6,11 @@
 
 #include <string>
 
+#include "base/test/scoped_feature_list.h"
+#include "build/build_config.h"
+#include "media/audio/audio_features.h"
 #include "media/base/audio_codecs.h"
+#include "media/base/media_switches.h"
 #include "media/base/video_codecs.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -148,6 +152,26 @@ TEST(MediaSourceTest, ForDesktopWithAudio) {
   EXPECT_FALSE(source.IsRemotePlaybackSource());
 }
 
+TEST(MediaSourceTest, ForUnchosenDesktop) {
+#if BUILDFLAG(IS_LINUX)
+  base::test::ScopedFeatureList scoped_features;
+  scoped_features.InitAndEnableFeature(media::kPulseaudioLoopbackForCast);
+#endif
+
+  auto source = MediaSource::ForUnchosenDesktop();
+  EXPECT_TRUE(source.IsDesktopMirroringSource());
+  EXPECT_FALSE(source.IsTabMirroringSource());
+  EXPECT_FALSE(source.IsCastPresentationUrl());
+  EXPECT_FALSE(source.IsDialSource());
+  EXPECT_FALSE(source.IsRemotePlaybackSource());
+
+  if (media::IsSystemLoopbackCaptureSupported()) {
+    EXPECT_TRUE(source.IsDesktopSourceWithAudio());
+  } else {
+    EXPECT_FALSE(source.IsDesktopSourceWithAudio());
+  }
+}
+
 TEST(MediaSourceTest, ForPresentationUrl) {
   constexpr char kPresentationUrl[] =
       "https://www.example.com/presentation.html";
@@ -162,7 +186,7 @@ TEST(MediaSourceTest, ForPresentationUrl) {
 
 TEST(MediaSourceTest, ForRemotePlayback) {
   constexpr char kRemotePlaybackUrl[] =
-      "remote-playback:media-session?tab_id=1&video_codec=vp8&audio_codec=aac";
+      "remote-playback:media-session?video_codec=vp8&audio_codec=aac&tab_id=1";
   auto source = MediaSource::ForRemotePlayback(1, media::VideoCodec::kVP8,
                                                media::AudioCodec::kAAC);
   EXPECT_EQ(kRemotePlaybackUrl, source.id());

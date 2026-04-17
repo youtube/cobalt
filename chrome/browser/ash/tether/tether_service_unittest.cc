@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "ash/constants/ash_features.h"
-#include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
@@ -19,7 +18,7 @@
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/prefs/browser_prefs.h"
 #include "chrome/browser/ui/ash/network/tether_notification_presenter.h"
-#include "chrome/common/pref_names.h"
+#include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/ash/components/dbus/shill/shill_device_client.h"
@@ -38,9 +37,6 @@
 #include "chromeos/ash/components/tether/fake_tether_host_fetcher.h"
 #include "chromeos/ash/components/tether/tether_component_impl.h"
 #include "chromeos/ash/components/tether/tether_host_fetcher_impl.h"
-#include "chromeos/ash/services/device_sync/cryptauth_device_manager.h"
-#include "chromeos/ash/services/device_sync/cryptauth_enroller.h"
-#include "chromeos/ash/services/device_sync/cryptauth_enrollment_manager.h"
 #include "chromeos/ash/services/device_sync/fake_cryptauth_enrollment_manager.h"
 #include "chromeos/ash/services/device_sync/fake_remote_device_provider.h"
 #include "chromeos/ash/services/device_sync/public/cpp/device_sync_client_impl.h"
@@ -56,7 +52,7 @@
 #include "chromeos/dbus/power_manager/suspend.pb.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
-#include "components/user_manager/scoped_user_manager.h"
+#include "components/user_manager/test_helper.h"
 #include "content/public/test/browser_task_environment.h"
 #include "device/bluetooth/bluetooth_adapter_factory.h"
 #include "device/bluetooth/test/mock_bluetooth_adapter.h"
@@ -73,20 +69,6 @@ using ::testing::Invoke;
 using ::testing::NiceMock;
 
 const char kTestUserPrivateKey[] = "kTestUserPrivateKey";
-const size_t kNumTestDevices = 5;
-
-multidevice::RemoteDeviceRefList CreateTestDevices() {
-  multidevice::RemoteDeviceRefList list;
-  for (size_t i = 0; i < kNumTestDevices; ++i) {
-    list.push_back(multidevice::RemoteDeviceRefBuilder()
-                       .SetSupportsMobileHotspot(true)
-                       .SetSoftwareFeatureState(
-                           multidevice::SoftwareFeature::kBetterTogetherHost,
-                           multidevice::SoftwareFeatureState::kSupported)
-                       .Build());
-  }
-  return list;
-}
 
 class TestTetherService : public TetherService {
  public:
@@ -96,16 +78,14 @@ class TestTetherService : public TetherService {
       device_sync::DeviceSyncClient* device_sync_client,
       secure_channel::SecureChannelClient* secure_channel_client,
       multidevice_setup::MultiDeviceSetupClient* multidevice_setup_client,
-      NetworkStateHandler* network_state_handler,
       session_manager::SessionManager* session_manager)
       : TetherService(profile,
                       power_manager_client,
                       device_sync_client,
                       secure_channel_client,
                       multidevice_setup_client,
-                      network_state_handler,
                       session_manager) {}
-  ~TestTetherService() override {}
+  ~TestTetherService() override = default;
 
   int updated_technology_state_count() {
     return updated_technology_state_count_;
@@ -138,7 +118,7 @@ class FakeTetherComponentWithDestructorCallback : public FakeTetherComponent {
 
 class TestTetherComponentFactory final : public TetherComponentImpl::Factory {
  public:
-  TestTetherComponentFactory() {}
+  TestTetherComponentFactory() = default;
 
   // Returns nullptr if no TetherComponent has been created or if the last one
   // that was created has already been deleted.
@@ -155,10 +135,8 @@ class TestTetherComponentFactory final : public TetherComponentImpl::Factory {
       GmsCoreNotificationsStateTrackerImpl*
           gms_core_notifications_state_tracker,
       PrefService* pref_service,
-      NetworkStateHandler* network_state_handler,
-      ManagedNetworkConfigurationHandler* managed_network_configuration_handler,
+      NetworkHandler* network_handler,
       NetworkConnect* network_connect,
-      NetworkConnectionHandler* network_connection_handler,
       scoped_refptr<device::BluetoothAdapter> adapter,
       session_manager::SessionManager* session_manager) override {
     active_tether_component_ =
@@ -181,8 +159,8 @@ class TestTetherComponentFactory final : public TetherComponentImpl::Factory {
     active_tether_component_ = nullptr;
   }
 
-  raw_ptr<FakeTetherComponentWithDestructorCallback, ExperimentalAsh>
-      active_tether_component_ = nullptr;
+  raw_ptr<FakeTetherComponentWithDestructorCallback> active_tether_component_ =
+      nullptr;
   bool was_tether_component_active_ = false;
   TetherComponent::ShutdownReason last_shutdown_reason_;
 };
@@ -195,7 +173,6 @@ class FakeRemoteDeviceProviderFactory
 
   // device_sync::RemoteDeviceProviderImpl::Factory:
   std::unique_ptr<device_sync::RemoteDeviceProvider> CreateInstance(
-      device_sync::CryptAuthDeviceManager* device_manager,
       device_sync::CryptAuthV2DeviceManager* v2_device_manager,
       const std::string& user_email,
       const std::string& user_private_key) override {
@@ -206,26 +183,26 @@ class FakeRemoteDeviceProviderFactory
 class FakeTetherHostFetcherFactory : public TetherHostFetcherImpl::Factory {
  public:
   FakeTetherHostFetcherFactory(
-      const multidevice::RemoteDeviceRefList& initial_devices)
-      : initial_devices_(initial_devices) {}
+      const multidevice::RemoteDeviceRef& initial_device)
+      : initial_device_(initial_device) {}
   virtual ~FakeTetherHostFetcherFactory() = default;
 
   FakeTetherHostFetcher* last_created() { return last_created_; }
 
-  void SetNoInitialDevices() { initial_devices_.clear(); }
+  void SetNoInitialDevices() { initial_device_ = std::nullopt; }
 
   // TetherHostFetcherImpl::Factory :
   std::unique_ptr<TetherHostFetcher> CreateInstance(
       device_sync::DeviceSyncClient* device_sync_client,
       multidevice_setup::MultiDeviceSetupClient* multidevice_setup_client)
       override {
-    last_created_ = new FakeTetherHostFetcher(initial_devices_);
+    last_created_ = new FakeTetherHostFetcher(initial_device_);
     return base::WrapUnique(last_created_.get());
   }
 
  private:
-  multidevice::RemoteDeviceRefList initial_devices_;
-  raw_ptr<FakeTetherHostFetcher, ExperimentalAsh> last_created_ = nullptr;
+  std::optional<multidevice::RemoteDeviceRef> initial_device_;
+  raw_ptr<FakeTetherHostFetcher, DanglingUntriaged> last_created_ = nullptr;
 };
 
 class FakeDeviceSyncClientImplFactory
@@ -282,7 +259,7 @@ class FakeMultiDeviceSetupClientImplFactory
   }
 
  private:
-  raw_ptr<multidevice_setup::FakeMultiDeviceSetupClient, ExperimentalAsh>
+  raw_ptr<multidevice_setup::FakeMultiDeviceSetupClient>
       fake_multidevice_setup_client_;
 };
 
@@ -294,8 +271,9 @@ class TetherServiceTest : public testing::Test {
   TetherServiceTest& operator=(const TetherServiceTest&) = delete;
 
  protected:
-  TetherServiceTest() : test_devices_(CreateTestDevices()) {}
-  ~TetherServiceTest() override {}
+  TetherServiceTest()
+      : test_device_(multidevice::CreateRemoteDeviceRefForTest()) {}
+  ~TetherServiceTest() override = default;
 
   void SetUp() override {
     fake_notification_presenter_ = nullptr;
@@ -306,9 +284,10 @@ class TetherServiceTest : public testing::Test {
     TestingProfile::Builder builder;
     profile_ = builder.Build();
 
-    fake_chrome_user_manager_ = new FakeChromeUserManager();
-    scoped_user_manager_ = std::make_unique<user_manager::ScopedUserManager>(
-        base::WrapUnique(fake_chrome_user_manager_.get()));
+    // TestingProfile creates FakeChromeUserManager, so it could be obtained
+    // from UserManager::Get().
+    fake_chrome_user_manager_ = static_cast<ash::FakeChromeUserManager*>(
+        user_manager::UserManager::Get());
 
     chromeos::PowerManagerClient::InitializeFake();
 
@@ -363,17 +342,12 @@ class TetherServiceTest : public testing::Test {
         fake_remote_device_provider_factory_.get());
 
     fake_tether_host_fetcher_factory_ =
-        base::WrapUnique(new FakeTetherHostFetcherFactory(test_devices_));
+        base::WrapUnique(new FakeTetherHostFetcherFactory(test_device_));
     TetherHostFetcherImpl::Factory::SetFactoryForTesting(
         fake_tether_host_fetcher_factory_.get());
-
-    TestingBrowserProcess::GetGlobal()->SetLocalState(&local_pref_service_);
-    RegisterLocalState(local_pref_service_.registry());
   }
 
   void TearDown() override {
-    TestingBrowserProcess::GetGlobal()->SetLocalState(nullptr);
-
     device_sync::DeviceSyncClientImpl::Factory::SetFactoryForTesting(nullptr);
     secure_channel::SecureChannelClientImpl::Factory::SetFactoryForTesting(
         nullptr);
@@ -401,11 +375,9 @@ class TetherServiceTest : public testing::Test {
   void SetPrimaryUserLoggedIn() {
     const AccountId account_id(
         AccountId::FromUserEmail(profile_->GetProfileUserName()));
-    const user_manager::User* user =
-        fake_chrome_user_manager_->AddPublicAccountUser(account_id);
-    fake_chrome_user_manager_->UserLoggedIn(account_id, user->username_hash(),
-                                            false /* browser_restart */,
-                                            false /* is_child */);
+    fake_chrome_user_manager_->AddPublicAccountUser(account_id);
+    fake_chrome_user_manager_->UserLoggedIn(
+        account_id, user_manager::TestHelper::GetFakeUsernameHash(account_id));
   }
 
   void CreateTetherService() {
@@ -416,8 +388,7 @@ class TetherServiceTest : public testing::Test {
     tether_service_ = base::WrapUnique(new TestTetherService(
         profile_.get(), chromeos::FakePowerManagerClient::Get(),
         fake_device_sync_client_.get(), fake_secure_channel_client_.get(),
-        fake_multidevice_setup_client_.get(), network_state_handler(),
-        nullptr /* session_manager */));
+        fake_multidevice_setup_client_.get(), nullptr /* session_manager */));
 
     fake_notification_presenter_ = new FakeNotificationPresenter();
     mock_timer_ = new base::MockOneShotTimer();
@@ -443,8 +414,9 @@ class TetherServiceTest : public testing::Test {
   }
 
   void ShutdownTetherService() {
-    if (tether_service_)
+    if (tether_service_) {
       tether_service_->Shutdown();
+    }
   }
 
   void SetTetherTechnologyStateEnabled(bool enabled) {
@@ -461,10 +433,29 @@ class TetherServiceTest : public testing::Test {
     base::RunLoop().RunUntilIdle();
   }
 
+  void SetTetherUserPrefState(bool enabled) {
+    fake_multidevice_setup_client_->InvokePendingSetFeatureEnabledStateCallback(
+        multidevice_setup::mojom::Feature::kInstantTethering,
+        enabled /* expected_enabled */, std::nullopt /* expected_auth_token */,
+        !enabled /* success */);
+    profile_->GetPrefs()->SetBoolean(
+        multidevice_setup::kInstantTetheringEnabledPrefName, enabled);
+    if (enabled) {
+      fake_multidevice_setup_client_->SetFeatureState(
+          multidevice_setup::mojom::Feature::kInstantTethering,
+          multidevice_setup::mojom::FeatureState::kEnabledByUser);
+    } else {
+      fake_multidevice_setup_client_->SetFeatureState(
+          multidevice_setup::mojom::Feature::kInstantTethering,
+          multidevice_setup::mojom::FeatureState::kDisabledByUser);
+    }
+  }
+
   void SetIsBluetoothPowered(bool powered) {
     is_adapter_powered_ = powered;
-    for (auto& observer : mock_adapter_->GetObservers())
+    for (auto& observer : mock_adapter_->GetObservers()) {
       observer.AdapterPoweredChanged(mock_adapter_.get(), powered);
+    }
   }
 
   void set_is_adapter_present(bool present) { is_adapter_present_ = present; }
@@ -516,13 +507,11 @@ class TetherServiceTest : public testing::Test {
     return NetworkHandler::Get()->network_state_handler();
   }
 
-  const multidevice::RemoteDeviceRefList test_devices_;
+  const multidevice::RemoteDeviceRef test_device_;
   const content::BrowserTaskEnvironment task_environment_;
 
   NetworkHandlerTestHelper network_handler_test_helper_;
-  std::unique_ptr<TestingProfile> profile_;
-  raw_ptr<FakeChromeUserManager, ExperimentalAsh> fake_chrome_user_manager_;
-  std::unique_ptr<user_manager::ScopedUserManager> scoped_user_manager_;
+  raw_ptr<FakeChromeUserManager, DanglingUntriaged> fake_chrome_user_manager_;
   std::unique_ptr<sync_preferences::TestingPrefServiceSyncable>
       test_pref_service_;
   std::unique_ptr<TestTetherComponentFactory> test_tether_component_factory_;
@@ -530,9 +519,9 @@ class TetherServiceTest : public testing::Test {
       fake_remote_device_provider_factory_;
   std::unique_ptr<FakeTetherHostFetcherFactory>
       fake_tether_host_fetcher_factory_;
-  raw_ptr<FakeNotificationPresenter, ExperimentalAsh>
+  raw_ptr<FakeNotificationPresenter, DanglingUntriaged>
       fake_notification_presenter_;
-  raw_ptr<base::MockOneShotTimer, ExperimentalAsh> mock_timer_;
+  raw_ptr<base::MockOneShotTimer, DanglingUntriaged> mock_timer_;
   std::unique_ptr<device_sync::FakeDeviceSyncClient> fake_device_sync_client_;
   std::unique_ptr<FakeDeviceSyncClientImplFactory>
       fake_device_sync_client_impl_factory_;
@@ -554,10 +543,11 @@ class TetherServiceTest : public testing::Test {
   bool is_adapter_powered_;
   bool shutdown_reason_verified_;
 
-  // PrefService which contains the browser process' local storage.
-  TestingPrefServiceSimple local_pref_service_;
+  ScopedTestingLocalState scoped_testing_local_state_{
+      TestingBrowserProcess::GetGlobal()};
 
   std::unique_ptr<TestTetherService> tether_service_;
+  std::unique_ptr<TestingProfile> profile_;
 
   base::HistogramTester histogram_tester_;
 };
@@ -578,8 +568,7 @@ TEST_F(TetherServiceTest, TestShutdown) {
   VerifyLastShutdownReason(TetherComponent::ShutdownReason::USER_LOGGED_OUT);
 }
 
-// TODO(https://crbug.com/893878): Fix disabled test.
-TEST_F(TetherServiceTest, DISABLED_TestAsyncTetherShutdown) {
+TEST_F(TetherServiceTest, TestAsyncTetherShutdown) {
   CreateTetherService();
 
   // Tether should be ENABLED, and there should be no AsyncShutdownTask.
@@ -595,6 +584,7 @@ TEST_F(TetherServiceTest, DISABLED_TestAsyncTetherShutdown) {
   // Disable the Tether preference. This should trigger the asynchrnous
   // shutdown.
   SetTetherTechnologyStateEnabled(false);
+  SetTetherUserPrefState(false);
 
   // Tether should be active, but shutting down.
   VerifyTetherActiveStatus(true /* expected_active */);
@@ -673,8 +663,8 @@ TEST_F(TetherServiceTest,
                 NetworkTypePattern::Tether()));
   VerifyTetherActiveStatus(false /* expected_active */);
 
-  fake_tether_host_fetcher_factory_->last_created()->set_tether_hosts(
-      test_devices_);
+  fake_tether_host_fetcher_factory_->last_created()->SetTetherHost(
+      test_device_);
   fake_multidevice_setup_client_->SetFeatureState(
       multidevice_setup::mojom::Feature::kInstantTethering,
       multidevice_setup::mojom::FeatureState::kEnabledByUser);
@@ -696,7 +686,8 @@ TEST_F(TetherServiceTest, TestMultiDeviceSetupClientLosesVerifiedHost) {
                 NetworkTypePattern::Tether()));
   VerifyTetherActiveStatus(true /* expected_active */);
 
-  fake_tether_host_fetcher_factory_->last_created()->set_tether_hosts({});
+  fake_tether_host_fetcher_factory_->last_created()->SetTetherHost(
+      std::nullopt);
   fake_multidevice_setup_client_->SetFeatureState(
       multidevice_setup::mojom::Feature::kInstantTethering,
       multidevice_setup::mojom::FeatureState::
@@ -983,9 +974,8 @@ TEST_F(TetherServiceTest, TestMetricsFalsePositives) {
                 NetworkTypePattern::Tether()));
   VerifyTetherActiveStatus(false /* expected_active */);
 
-  fake_tether_host_fetcher_factory_->last_created()->set_tether_hosts(
-      test_devices_);
-  fake_tether_host_fetcher_factory_->last_created()->NotifyTetherHostsUpdated();
+  fake_tether_host_fetcher_factory_->last_created()->SetTetherHost(
+      test_device_);
 
   EXPECT_EQ(NetworkStateHandler::TechnologyState::TECHNOLOGY_ENABLED,
             network_state_handler()->GetTechnologyState(
@@ -1054,8 +1044,7 @@ TEST_F(TetherServiceTest, TestIsBluetoothPowered) {
   VerifyLastShutdownReason(TetherComponent::ShutdownReason::BLUETOOTH_DISABLED);
 }
 
-// TODO(https://crbug.com/893878): Fix disabled test.
-TEST_F(TetherServiceTest, DISABLED_TestCellularIsUnavailable) {
+TEST_F(TetherServiceTest, TestCellularIsUnavailable) {
   manager_test()->RemoveTechnology(shill::kTypeCellular);
   ASSERT_EQ(NetworkStateHandler::TechnologyState::TECHNOLOGY_UNAVAILABLE,
             network_state_handler()->GetTechnologyState(
@@ -1064,6 +1053,7 @@ TEST_F(TetherServiceTest, DISABLED_TestCellularIsUnavailable) {
   CreateTetherService();
 
   SetTetherTechnologyStateEnabled(false);
+  SetTetherUserPrefState(false);
   EXPECT_EQ(NetworkStateHandler::TechnologyState::TECHNOLOGY_AVAILABLE,
             network_state_handler()->GetTechnologyState(
                 NetworkTypePattern::Tether()));
@@ -1071,6 +1061,7 @@ TEST_F(TetherServiceTest, DISABLED_TestCellularIsUnavailable) {
   VerifyLastShutdownReason(TetherComponent::ShutdownReason::PREF_DISABLED);
 
   SetTetherTechnologyStateEnabled(true);
+  SetTetherUserPrefState(true);
   EXPECT_EQ(NetworkStateHandler::TechnologyState::TECHNOLOGY_ENABLED,
             network_state_handler()->GetTechnologyState(
                 NetworkTypePattern::Tether()));
@@ -1080,12 +1071,12 @@ TEST_F(TetherServiceTest, DISABLED_TestCellularIsUnavailable) {
                                    2 /* expected_count */);
 }
 
-// TODO(https://crbug.com/893878): Fix disabled test.
-TEST_F(TetherServiceTest, DISABLED_TestCellularIsAvailable) {
-  // TODO (lesliewatkins): Investigate why cellular needs to be removed and
-  // re-added for NetworkStateHandler to return the correct TechnologyState.
-  manager_test()->RemoveTechnology(shill::kTypeCellular);
-  manager_test()->AddTechnology(shill::kTypeCellular, false);
+TEST_F(TetherServiceTest,
+       TestCellularIsAvailable_InstantHotspotRebrandDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      {} /* enabled_features */,
+      {features::kInstantHotspotRebrand} /* disabled_features */);
 
   CreateTetherService();
 
@@ -1096,13 +1087,19 @@ TEST_F(TetherServiceTest, DISABLED_TestCellularIsAvailable) {
                 NetworkTypePattern::Cellular()));
   VerifyTetherActiveStatus(false /* expected_active */);
 
+  // Tether disabled
   SetTetherTechnologyStateEnabled(false);
+  SetTetherUserPrefState(false);
   EXPECT_EQ(NetworkStateHandler::TechnologyState::TECHNOLOGY_UNAVAILABLE,
             network_state_handler()->GetTechnologyState(
                 NetworkTypePattern::Tether()));
   VerifyTetherActiveStatus(false /* expected_active */);
 
+  // Tether enabled
   SetTetherTechnologyStateEnabled(true);
+  SetTetherUserPrefState(true);
+  // If the Instant Hotspot Rebrand feature flag is disabled, enabling tether
+  // while cellular is disabled should NOT affect tether.
   EXPECT_EQ(NetworkStateHandler::TechnologyState::TECHNOLOGY_UNAVAILABLE,
             network_state_handler()->GetTechnologyState(
                 NetworkTypePattern::Tether()));
@@ -1115,13 +1112,16 @@ TEST_F(TetherServiceTest, DISABLED_TestCellularIsAvailable) {
                 NetworkTypePattern::Cellular()));
   VerifyTetherActiveStatus(true /* expected_active */);
 
+  // Tether enabled
   SetTetherTechnologyStateEnabled(false);
+  SetTetherUserPrefState(false);
   EXPECT_EQ(NetworkStateHandler::TechnologyState::TECHNOLOGY_AVAILABLE,
             network_state_handler()->GetTechnologyState(
                 NetworkTypePattern::Tether()));
   VerifyTetherActiveStatus(false /* expected_active */);
 
   SetTetherTechnologyStateEnabled(true);
+  SetTetherUserPrefState(true);
   EXPECT_EQ(NetworkStateHandler::TechnologyState::TECHNOLOGY_ENABLED,
             network_state_handler()->GetTechnologyState(
                 NetworkTypePattern::Tether()));
@@ -1133,6 +1133,71 @@ TEST_F(TetherServiceTest, DISABLED_TestCellularIsAvailable) {
       TetherService::TetherFeatureState::CELLULAR_DISABLED,
       2 /* expected_count */);
   VerifyLastShutdownReason(TetherComponent::ShutdownReason::CELLULAR_DISABLED);
+}
+
+TEST_F(TetherServiceTest,
+       TestCellularIsAvailable_InstantHotspotRebrandEnabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      {features::kInstantHotspotRebrand} /* enabled_features */,
+      {} /* disabled_features */);
+
+  CreateTetherService();
+
+  // Cellular disabled
+  SetCellularTechnologyStateEnabled(false);
+  ASSERT_EQ(NetworkStateHandler::TechnologyState::TECHNOLOGY_AVAILABLE,
+            network_state_handler()->GetTechnologyState(
+                NetworkTypePattern::Cellular()));
+  VerifyTetherActiveStatus(true /* expected_active */);
+
+  // Tether disabled
+  SetTetherTechnologyStateEnabled(false);
+  SetTetherUserPrefState(false);
+  EXPECT_EQ(NetworkStateHandler::TechnologyState::TECHNOLOGY_AVAILABLE,
+            network_state_handler()->GetTechnologyState(
+                NetworkTypePattern::Tether()));
+  VerifyTetherActiveStatus(false /* expected_active */);
+
+  // Tether enabled
+  SetTetherTechnologyStateEnabled(true);
+  SetTetherUserPrefState(true);
+  // If the Instant Hotspot Rebrand feature flag is enabled, enabling tether
+  // while cellular is disabled should affect tether.
+  EXPECT_EQ(NetworkStateHandler::TechnologyState::TECHNOLOGY_ENABLED,
+            network_state_handler()->GetTechnologyState(
+                NetworkTypePattern::Tether()));
+  VerifyTetherActiveStatus(true /* expected_active */);
+
+  // Cellular enabled
+  SetCellularTechnologyStateEnabled(true);
+  ASSERT_EQ(NetworkStateHandler::TechnologyState::TECHNOLOGY_ENABLED,
+            network_state_handler()->GetTechnologyState(
+                NetworkTypePattern::Cellular()));
+  VerifyTetherActiveStatus(true /* expected_active */);
+
+  // Tether enabled
+  SetTetherTechnologyStateEnabled(false);
+  SetTetherUserPrefState(false);
+  EXPECT_EQ(NetworkStateHandler::TechnologyState::TECHNOLOGY_AVAILABLE,
+            network_state_handler()->GetTechnologyState(
+                NetworkTypePattern::Tether()));
+  VerifyTetherActiveStatus(false /* expected_active */);
+
+  SetTetherTechnologyStateEnabled(true);
+  SetTetherUserPrefState(true);
+  EXPECT_EQ(NetworkStateHandler::TechnologyState::TECHNOLOGY_ENABLED,
+            network_state_handler()->GetTechnologyState(
+                NetworkTypePattern::Tether()));
+  VerifyTetherActiveStatus(true /* expected_active */);
+
+  SetCellularTechnologyStateEnabled(false);
+
+  VerifyTetherFeatureStateRecorded(
+      TetherService::TetherFeatureState::CELLULAR_DISABLED,
+      0 /* expected_count */);
+
+  VerifyLastShutdownReason(TetherComponent::ShutdownReason::PREF_DISABLED);
 }
 
 // TODO(https://crbug.com/893878): Fix disabled test.
@@ -1154,8 +1219,7 @@ TEST_F(TetherServiceTest, DISABLED_TestDisabled) {
       1 /* expected_count */);
 }
 
-// TODO(https://crbug.com/893878): Fix disabled test.
-TEST_F(TetherServiceTest, DISABLED_TestEnabled) {
+TEST_F(TetherServiceTest, TestEnabled) {
   CreateTetherService();
 
   EXPECT_EQ(NetworkStateHandler::TechnologyState::TECHNOLOGY_ENABLED,
@@ -1164,6 +1228,7 @@ TEST_F(TetherServiceTest, DISABLED_TestEnabled) {
   VerifyTetherActiveStatus(true /* expected_active */);
 
   SetTetherTechnologyStateEnabled(false);
+  SetTetherUserPrefState(false);
   EXPECT_EQ(NetworkStateHandler::TechnologyState::TECHNOLOGY_AVAILABLE,
             network_state_handler()->GetTechnologyState(
                 NetworkTypePattern::Tether()));
@@ -1175,6 +1240,7 @@ TEST_F(TetherServiceTest, DISABLED_TestEnabled) {
       1u /* expected_count */);
 
   SetTetherTechnologyStateEnabled(true);
+  SetTetherUserPrefState(true);
   EXPECT_EQ(NetworkStateHandler::TechnologyState::TECHNOLOGY_ENABLED,
             network_state_handler()->GetTechnologyState(
                 NetworkTypePattern::Tether()));
@@ -1259,15 +1325,7 @@ TEST_F(TetherServiceTest, TestUserPrefChangesViaTechnologyStateChange) {
   VerifyTetherActiveStatus(true /* expected_active */);
 
   SetTetherTechnologyStateEnabled(false);
-  fake_multidevice_setup_client_->InvokePendingSetFeatureEnabledStateCallback(
-      multidevice_setup::mojom::Feature::kInstantTethering,
-      false /* expected_enabled */, absl::nullopt /* expected_auth_token */,
-      true /* success */);
-  profile_->GetPrefs()->SetBoolean(
-      multidevice_setup::kInstantTetheringEnabledPrefName, false);
-  fake_multidevice_setup_client_->SetFeatureState(
-      multidevice_setup::mojom::Feature::kInstantTethering,
-      multidevice_setup::mojom::FeatureState::kDisabledByUser);
+  SetTetherUserPrefState(false);
   EXPECT_EQ(NetworkStateHandler::TechnologyState::TECHNOLOGY_AVAILABLE,
             network_state_handler()->GetTechnologyState(
                 NetworkTypePattern::Tether()));
@@ -1277,15 +1335,7 @@ TEST_F(TetherServiceTest, TestUserPrefChangesViaTechnologyStateChange) {
       1u /* expected_count */);
 
   SetTetherTechnologyStateEnabled(true);
-  fake_multidevice_setup_client_->InvokePendingSetFeatureEnabledStateCallback(
-      multidevice_setup::mojom::Feature::kInstantTethering,
-      true /* expected_enabled */, absl::nullopt /* expected_auth_token */,
-      false /* success */);
-  profile_->GetPrefs()->SetBoolean(
-      multidevice_setup::kInstantTetheringEnabledPrefName, true);
-  fake_multidevice_setup_client_->SetFeatureState(
-      multidevice_setup::mojom::Feature::kInstantTethering,
-      multidevice_setup::mojom::FeatureState::kEnabledByUser);
+  SetTetherUserPrefState(true);
   EXPECT_EQ(NetworkStateHandler::TechnologyState::TECHNOLOGY_ENABLED,
             network_state_handler()->GetTechnologyState(
                 NetworkTypePattern::Tether()));
@@ -1299,12 +1349,11 @@ TEST_F(TetherServiceTest, TestUserPrefChangesViaTechnologyStateChange) {
   VerifyLastShutdownReason(TetherComponent::ShutdownReason::PREF_DISABLED);
 }
 
-// TODO(https://crbug.com/893878): Fix disabled test.
 // Test against a past defect that made TetherService and NetworkStateHandler
 // repeatly update technology state after the other did so. TetherService should
 // only update technology state if NetworkStateHandler has provided a different
 // state than the user preference.
-TEST_F(TetherServiceTest, DISABLED_TestEnabledMultipleChanges) {
+TEST_F(TetherServiceTest, TestEnabledMultipleChanges) {
   CreateTetherService();
 
   // CreateTetherService calls RunUntilIdle() so UpdateTetherTechnologyState()
@@ -1315,6 +1364,7 @@ TEST_F(TetherServiceTest, DISABLED_TestEnabledMultipleChanges) {
   SetTetherTechnologyStateEnabled(false);
   SetTetherTechnologyStateEnabled(false);
   SetTetherTechnologyStateEnabled(false);
+  SetTetherUserPrefState(false);
 
   updated_technology_state_count++;
   EXPECT_EQ(updated_technology_state_count,
@@ -1323,6 +1373,7 @@ TEST_F(TetherServiceTest, DISABLED_TestEnabledMultipleChanges) {
   SetTetherTechnologyStateEnabled(true);
   SetTetherTechnologyStateEnabled(true);
   SetTetherTechnologyStateEnabled(true);
+  SetTetherUserPrefState(true);
 
   updated_technology_state_count++;
   EXPECT_EQ(updated_technology_state_count,

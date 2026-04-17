@@ -34,15 +34,12 @@ public final class CommandLineOverrideHelper {
     /** Param class to simplify #getFlagOverrides method signature */
     public static class CommandLineOverrideHelperParams {
         public CommandLineOverrideHelperParams(
-            boolean shouldSetJNIPrefix,
             boolean isOfficialBuild,
             String[] commandLineArgs) {
-            mShouldSetJNIPrefix = shouldSetJNIPrefix;
             mIsOfficialBuild = isOfficialBuild;
             mCommandLineArgs = commandLineArgs;
         }
 
-        private boolean mShouldSetJNIPrefix;
         private boolean mIsOfficialBuild;
         private String[] mCommandLineArgs;
     }
@@ -59,8 +56,6 @@ public final class CommandLineOverrideHelper {
         paramOverrides.add("--force-video-overlays");
         // Autoplay video with url.
         paramOverrides.add("--autoplay-policy=no-user-gesture-required");
-        // Remove below if Cobalt rebase to m120+.
-        paramOverrides.add("--user-level-memory-pressure-signal-params");
         // Disable rescaling Webpage.
         paramOverrides.add("--force-device-scale-factor=1");
         // Enable low end device mode.
@@ -105,17 +100,19 @@ public final class CommandLineOverrideHelper {
     public static StringJoiner getDefaultDisableFeatureOverridesList() {
         StringJoiner paramOverrides = new StringJoiner(",");
 
-        // Use SurfaceTexture for decode-to-texture mode.
-        paramOverrides.add("AImageReader");
+        // Disable BackupRefPtr and have shim allocator tracked by MemoryReclaimer.
+        paramOverrides.add("PartitionAllocBackupRefPtr");
+
+        // Disable AAudio to make the microphone use OpenSL ES.
+        // OpenSL ES supports seamless switching to virtual microphones like AtvRemote.
+        // For details, see http://b/478022126#comment6.
+        paramOverrides.add("UseAAudioInput");
 
         return paramOverrides;
     }
 
     public static StringJoiner getDefaultBlinkEnableFeatureOverridesList() {
         StringJoiner paramOverrides = new StringJoiner(",");
-
-        // Align with MSE spec for MediaSource.duration.
-        paramOverrides.add("MediaSourceNewAbortAndDuration");
 
         // Enable precise memory info so we can make accurate client-side
         // measurements.
@@ -138,10 +135,6 @@ public final class CommandLineOverrideHelper {
             getDefaultBlinkEnableFeatureOverridesList();
 
         if (params != null) {
-            if (params.mShouldSetJNIPrefix) {
-                // Helps Kimono build avoid package name conflict with cronet.
-                cliOverrides.add("--cobalt-jni-prefix");
-            }
             if (!params.mIsOfficialBuild) {
                 cliOverrides.add(
                   "--remote-allow-origins="

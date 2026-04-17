@@ -31,11 +31,14 @@ class RuntimeResourceOverlay {
 
   int max_video_buffer_budget() const { return max_video_buffer_budget_; }
 
+  bool supports_spherical_videos() const { return supports_spherical_videos_; }
+
  private:
   RuntimeResourceOverlay();
 
   int min_audio_sink_buffer_size_in_frames_;
   int max_video_buffer_budget_;
+  bool supports_spherical_videos_;
 };
 
 }  // namespace starboard

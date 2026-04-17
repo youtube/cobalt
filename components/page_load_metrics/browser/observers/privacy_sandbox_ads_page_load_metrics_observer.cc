@@ -4,6 +4,7 @@
 
 #include "components/page_load_metrics/browser/observers/privacy_sandbox_ads_page_load_metrics_observer.h"
 
+#include <optional>
 #include <vector>
 
 #include "base/metrics/histogram_functions.h"
@@ -14,7 +15,6 @@
 #include "components/page_load_metrics/browser/page_load_metrics_observer_delegate.h"
 #include "components/page_load_metrics/browser/page_load_metrics_observer_interface.h"
 #include "components/page_load_metrics/browser/page_load_metrics_util.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom.h"
 #include "third_party/blink/public/mojom/use_counter/use_counter_feature.mojom.h"
 
@@ -54,8 +54,11 @@ std::string PrivacySandboxAdsPageLoadMetricsObserver::GetHistogramName(
     case PrivacySandboxAdsApi::kFencedFrames:
       suffix = "FencedFrames";
       break;
-    case PrivacySandboxAdsApi::kFledge:
-      suffix = "Fledge";
+    case PrivacySandboxAdsApi::kProtectedAudienceRunAdAuction:
+      suffix = "ProtectedAudienceRunAdAuction";
+      break;
+    case PrivacySandboxAdsApi::kProtectedAudienceJoinAdInterestGroup:
+      suffix = "ProtectedAudienceJoinAdInterestGroup";
       break;
     case PrivacySandboxAdsApi::kPrivateAggregation:
       suffix = "PrivateAggregation";
@@ -143,17 +146,19 @@ void PrivacySandboxAdsPageLoadMetricsObserver::OnFeaturesUsageObserved(
       continue;
     }
 
-    absl::optional<PrivacySandboxAdsApi> api;
+    std::optional<PrivacySandboxAdsApi> api;
     switch (static_cast<WebFeature>(feature.value())) {
-      case WebFeature::kConversionAPIAll:
+      case WebFeature::kAttributionReportingAPIAll:
         api = PrivacySandboxAdsApi::kAttributionReporting;
         break;
       case WebFeature::kHTMLFencedFrameElement:
         api = PrivacySandboxAdsApi::kFencedFrames;
         break;
       case WebFeature::kV8Navigator_RunAdAuction_Method:
+        api = PrivacySandboxAdsApi::kProtectedAudienceRunAdAuction;
+        break;
       case WebFeature::kV8Navigator_JoinAdInterestGroup_Method:
-        api = PrivacySandboxAdsApi::kFledge;
+        api = PrivacySandboxAdsApi::kProtectedAudienceJoinAdInterestGroup;
         break;
       case WebFeature::kPrivateAggregationApiAll:
         api = PrivacySandboxAdsApi::kPrivateAggregation;

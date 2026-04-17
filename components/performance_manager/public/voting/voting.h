@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #ifndef COMPONENTS_PERFORMANCE_MANAGER_PUBLIC_VOTING_VOTING_H_
 #define COMPONENTS_PERFORMANCE_MANAGER_PUBLIC_VOTING_VOTING_H_
 
@@ -48,8 +53,7 @@
 #include "base/types/id_type.h"
 #include "base/types/pass_key.h"
 
-namespace performance_manager {
-namespace voting {
+namespace performance_manager::voting {
 
 // Contains a single vote. Specifically allows copying, etc, so as to be STL
 // container friendly.
@@ -72,7 +76,6 @@ class Vote final {
   const char* reason() const { return reason_; }
 
   bool operator==(const Vote& vote) const;
-  bool operator!=(const Vote& vote) const;
 
   // Returns true if the vote is valid. A valid vote must have a |reason_|.
   bool IsValid() const;
@@ -241,12 +244,6 @@ bool Vote<ContextType, VoteType, DefaultVote>::operator==(
 }
 
 template <typename ContextType, typename VoteType, VoteType DefaultVote>
-bool Vote<ContextType, VoteType, DefaultVote>::operator!=(
-    const Vote<ContextType, VoteType, DefaultVote>& vote) const {
-  return !(*this == vote);
-}
-
-template <typename ContextType, typename VoteType, VoteType DefaultVote>
 bool Vote<ContextType, VoteType, DefaultVote>::IsValid() const {
   return reason_;
 }
@@ -302,7 +299,7 @@ void VotingChannel<VoteImpl>::ChangeVote(const ContextType* context,
 #if DCHECK_IS_ON()
   // Ensure that a vote exists for this context.
   auto it = votes_.find(context);
-  DCHECK(it != votes_.end());
+  CHECK(it != votes_.end());
 
   // Ensure the vote was actually changed.
   DCHECK(new_vote != it->second);
@@ -403,7 +400,6 @@ void VotingChannelFactory<VoteImpl>::OnVotingChannelDestroyed(
   --voting_channels_outstanding_;
 }
 
-}  // namespace voting
-}  // namespace performance_manager
+}  // namespace performance_manager::voting
 
 #endif  // COMPONENTS_PERFORMANCE_MANAGER_PUBLIC_VOTING_VOTING_H_

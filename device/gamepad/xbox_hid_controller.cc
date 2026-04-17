@@ -20,7 +20,7 @@ XboxHidController::~XboxHidController() = default;
 
 // static
 bool XboxHidController::IsXboxHid(GamepadId gamepad_id) {
-  // TODO(crbug/1030841): Detect haptics functionality through HID usages
+  // TODO(crbug.com/40662063): Detect haptics functionality through HID usages
   // instead of relying on a hard-coded list of supported device IDs.
   // Bluetooth-connected Xbox One gamepads expose usages from the Physical
   // Interface Device usage page.
@@ -42,7 +42,11 @@ void XboxHidController::SetVibration(mojom::GamepadEffectParametersPtr params) {
   std::array<uint8_t, 9> control_report;
   control_report.fill(0);
   control_report[0] = 0x03;  // report ID
-  control_report[1] = 0x03;  // enable rumble motors, disable trigger haptics
+  control_report[1] = 0x0f;  // enable rumble motors, enable trigger haptics
+  control_report[2] =
+      static_cast<uint8_t>(params->left_trigger * kRumbleMagnitudeMax);
+  control_report[3] =
+      static_cast<uint8_t>(params->right_trigger * kRumbleMagnitudeMax);
   control_report[4] =
       static_cast<uint8_t>(params->strong_magnitude * kRumbleMagnitudeMax);
   control_report[5] =

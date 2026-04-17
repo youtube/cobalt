@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "fuchsia_web/webengine/test/web_engine_browser_test.h"
-
 #include <fuchsia/mediacodec/cpp/fidl_test_base.h>
 
+#include <optional>
+
 #include "base/files/file_path.h"
-#include "base/fuchsia/process_context.h"
 #include "base/fuchsia/scoped_service_binding.h"
 #include "base/fuchsia/test_component_context_for_process.h"
 #include "base/test/scoped_feature_list.h"
@@ -17,9 +16,8 @@
 #include "fuchsia_web/common/test/test_navigation_listener.h"
 #include "fuchsia_web/webengine/features.h"
 #include "fuchsia_web/webengine/test/test_data.h"
-#include "media/fuchsia/codec/fake_codec_factory.h"
+#include "fuchsia_web/webengine/test/web_engine_browser_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace {
 
@@ -62,28 +60,31 @@ class SoftwareOnlyDecodersDisabledTest : public MediaTest {
     MediaTest::SetUp();
   }
 
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+// SoftwareOnlyDecodersDisabledTest with fuchsia.mediacodec.CodecFactory
+// disconnected.
+class SoftwareOnlyDecodersDisabledAndHardwareDecoderFailureTest
+    : public SoftwareOnlyDecodersDisabledTest {
+ public:
+  SoftwareOnlyDecodersDisabledAndHardwareDecoderFailureTest() = default;
+  ~SoftwareOnlyDecodersDisabledAndHardwareDecoderFailureTest() override =
+      default;
+
+ protected:
+  // Removes the decoder service to cause calls to it to fail.
   void SetUpOnMainThread() override {
     component_context_.emplace(
         base::TestComponentContextForProcess::InitialState::kCloneAll);
-
-    // Fake the service of fuchsia::mediacodec::CodecFactory to get a supported
-    // video codec description when no GPU device is available, i.e. on an
-    // emulator.
     component_context_->additional_services()
         ->RemovePublicService<fuchsia::mediacodec::CodecFactory>();
-    component_context_->additional_services()->AddPublicService(
-        fidl::InterfaceRequestHandler<fuchsia::mediacodec::CodecFactory>(
-            [&](fidl::InterfaceRequest<fuchsia::mediacodec::CodecFactory>
-                    request) {
-              fake_codec_factory_.Bind(std::move(request));
-            }));
 
-    MediaTest::SetUpOnMainThread();
+    SoftwareOnlyDecodersDisabledTest::SetUpOnMainThread();
   }
 
-  absl::optional<base::TestComponentContextForProcess> component_context_;
-  media::FakeCodecFactory fake_codec_factory_;
-  base::test::ScopedFeatureList scoped_feature_list_;
+  // Used to disconnect fuchsia.mediacodec.CodecFactory.
+  std::optional<base::TestComponentContextForProcess> component_context_;
 };
 
 // Verify that a codec only supported by a software decoder is reported as
@@ -92,7 +93,7 @@ IN_PROC_BROWSER_TEST_F(SoftwareOnlyDecodersEnabledTest,
                        CanPlayTypeSoftwareOnlyCodecIsTrue) {
   const GURL kUrl(embedded_test_server()->GetURL(kCanPlaySoftwareOnlyCodecUrl));
 
-  // TODO(crbug.com/1200314): Refactor these tests to use FrameForTest and
+  // TODO(crbug.com/40761737): Refactor these tests to use FrameForTest and
   // possibly to simplify the calls below since some of the details are not
   // interesting to the individual tests. In particular, has_user_activation is
   // more relevant than specific LoadUrlParams.
@@ -180,8 +181,9 @@ IN_PROC_BROWSER_TEST_F(SoftwareOnlyDecodersDisabledTest,
 // kEnableSoftwareOnlyVideoCodecs is disabled and the hardware decoder fails.
 // Unlike the software-only codec, this codec loads because it is supposed to be
 // supported. It then plays because it falls back to the software decoder.
-IN_PROC_BROWSER_TEST_F(SoftwareOnlyDecodersDisabledTest,
-                       PlayHardwareAndSoftwareCodecFails) {
+IN_PROC_BROWSER_TEST_F(
+    SoftwareOnlyDecodersDisabledAndHardwareDecoderFailureTest,
+    PlayHardwareAndSoftwareCodecFails) {
   const GURL kUrl(
       embedded_test_server()->GetURL(kLoadHardwareAndSoftwareCodecUrl));
 
@@ -193,9 +195,6 @@ IN_PROC_BROWSER_TEST_F(SoftwareOnlyDecodersDisabledTest,
                                        kUrl.spec()));
 
   frame.navigation_listener().RunUntilUrlAndTitleEquals(kUrl, "loaded");
-  // Removes the decoder service to fail the additional calls.
-  component_context_->additional_services()
-      ->RemovePublicService<fuchsia::mediacodec::CodecFactory>();
   ExecuteJavaScript(frame.get(), "bear.play()");
 
   frame.navigation_listener().RunUntilUrlAndTitleEquals(kUrl, "playing");

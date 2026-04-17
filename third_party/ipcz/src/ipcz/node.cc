@@ -2,20 +2,27 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "ipcz/node.h"
 
+#include <optional>
 #include <utility>
 #include <vector>
 
 #include "ipcz/driver_memory.h"
+#include "ipcz/features.h"
 #include "ipcz/ipcz.h"
 #include "ipcz/link_side.h"
 #include "ipcz/node_connector.h"
 #include "ipcz/node_link.h"
 #include "ipcz/node_link_memory.h"
-#include "ipcz/portal.h"
 #include "ipcz/router.h"
 #include "third_party/abseil-cpp/absl/base/macros.h"
+#include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 #include "third_party/abseil-cpp/absl/container/inlined_vector.h"
 #include "third_party/abseil-cpp/absl/synchronization/mutex.h"
 #include "third_party/abseil-cpp/absl/types/span.h"
@@ -91,12 +98,11 @@ class Node::PendingIntroduction {
 
 Node::Node(Type type,
            const IpczDriver& driver,
-           IpczDriverHandle driver_node,
            const IpczCreateNodeOptions* options)
     : type_(type),
       driver_(driver),
-      driver_node_(driver_node),
-      options_(CopyOrUseDefaultOptions(options)) {
+      options_(CopyOrUseDefaultOptions(options)),
+      features_(Features::FromNodeOptions(options)) {
   if (type_ == Type::kBroker) {
     // Only brokers assign their own names.
     assigned_name_ = GenerateRandomName();
@@ -116,27 +122,31 @@ IpczResult Node::Close() {
 IpczResult Node::ConnectNode(IpczDriverHandle driver_transport,
                              IpczConnectNodeFlags flags,
                              absl::Span<IpczHandle> initial_portals) {
-  std::vector<Ref<Portal>> portals(initial_portals.size());
+  std::vector<Ref<Router>> routers(initial_portals.size());
   for (size_t i = 0; i < initial_portals.size(); ++i) {
-    auto portal =
-        MakeRefCounted<Portal>(WrapRefCounted(this), MakeRefCounted<Router>());
-    portals[i] = portal;
-    initial_portals[i] = Portal::ReleaseAsHandle(std::move(portal));
+    auto router = MakeRefCounted<Router>();
+    routers[i] = router;
+    initial_portals[i] = Router::ReleaseAsHandle(std::move(router));
   }
 
   auto transport =
       MakeRefCounted<DriverTransport>(DriverObject(driver_, driver_transport));
-  IpczResult result = NodeConnector::ConnectNode(WrapRefCounted(this),
-                                                 transport, flags, portals);
+  IpczResult result = NodeConnector::ConnectNode(
+      WrapRefCounted(this), transport, flags, routers,
+      [flags, node = WrapRefCounted(this)](Ref<NodeLink> link) {
+        // If we fail to connect to a broker and we're not a broker ourselves,
+        // we won't have luck communicating with anyone else either.
+        const bool is_remote_broker = flags & IPCZ_CONNECT_NODE_TO_BROKER;
+        const bool is_local_broker = node->type() == Type::kBroker;
+        if (!link && is_remote_broker && !is_local_broker) {
+          node->NotifyBrokerLinkDropped();
+        }
+      });
   if (result != IPCZ_RESULT_OK) {
-    // On failure the caller retains ownership of `driver_transport`. Release
-    // it here so it doesn't get closed when `transport` is destroyed.
-    transport->Release();
-
-    // Wipe out the initial portals we created, since they are invalid and
-    // effectively not returned to the caller on failure.
-    for (Ref<Portal>& portal : portals) {
-      Ref<Portal> doomed_portal = AdoptRef(portal.get());
+    // Wipe out the routers we created, since they are invalid and effectively
+    // not returned to the caller on failure.
+    for (Ref<Router>& router : routers) {
+      Ref<Router> doomed_router = AdoptRef(router.get());
     }
     return result;
   }
@@ -153,26 +163,28 @@ Ref<NodeLink> Node::GetBrokerLink() {
   return broker_link_;
 }
 
-void Node::SetAssignedName(const NodeName& name) {
-  absl::MutexLock lock(&mutex_);
-  ABSL_ASSERT(!assigned_name_.is_valid());
-  assigned_name_ = name;
-}
-
 bool Node::AddConnection(const NodeName& remote_node_name,
                          Connection connection) {
   std::vector<BrokerLinkCallback> callbacks;
   {
-    absl::ReleasableMutexLock lock(&mutex_);
-    auto [it, inserted] = connections_.insert({remote_node_name, connection});
-    if (!inserted) {
-      lock.Release();
+    absl::MutexLock lock(&mutex_);
+    for (;;) {
+      auto it = connections_.find(remote_node_name);
+      if (it == connections_.end()) {
+        break;
+      }
 
-      const OperationContext context{OperationContext::kTransportNotification};
-      connection.link->Deactivate(context);
-      return false;
+      // Assume that if we're getting a new connection to an already-known node,
+      // it must be because the application has explicitly initiated a new
+      // connection to the same node and it expects the previous connection to
+      // be replaced.
+      const Ref<NodeLink> link = it->second.link;
+      mutex_.Unlock();
+      DropConnection(*link);
+      mutex_.Lock();
     }
 
+    connections_.insert({remote_node_name, connection});
     const bool remote_is_broker =
         connection.link->remote_node_type() == Type::kBroker;
     const bool local_is_broker = type_ == Type::kBroker;
@@ -188,6 +200,7 @@ bool Node::AddConnection(const NodeName& remote_node_name,
       ABSL_ASSERT(!broker_link_);
       broker_link_ = connection.link;
       broker_link_callbacks_.swap(callbacks);
+      assigned_name_ = broker_link_->local_node_name();
     }
   }
 
@@ -197,11 +210,11 @@ bool Node::AddConnection(const NodeName& remote_node_name,
   return true;
 }
 
-absl::optional<Node::Connection> Node::GetConnection(const NodeName& name) {
+std::optional<Node::Connection> Node::GetConnection(const NodeName& name) {
   absl::MutexLock lock(&mutex_);
   auto it = connections_.find(name);
   if (it == connections_.end()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return it->second;
 }
@@ -225,7 +238,6 @@ NodeName Node::GenerateRandomName() const {
 
 void Node::SetAllocationDelegate(Ref<NodeLink> link) {
   absl::MutexLock lock(&mutex_);
-  ABSL_ASSERT(!allocation_delegate_link_);
   allocation_delegate_link_ = std::move(link);
 }
 
@@ -302,7 +314,7 @@ void Node::HandleIntroductionRequest(NodeLink& from_node_link,
            << " received introduction request for " << for_node.ToString()
            << " from " << requestor.ToString();
 
-  const absl::optional<Connection> target_connection = GetConnection(for_node);
+  const std::optional<Connection> target_connection = GetConnection(for_node);
   if (!target_connection) {
     // We are not familiar with the requested node. Attempt to establish our own
     // link to it first, then try again.
@@ -349,8 +361,8 @@ void Node::HandleIntroductionRequest(NodeLink& from_node_link,
   // network's broker. This introduction is therefore the other broker's
   // responsibility.
   msg::RequestIndirectIntroduction request;
-  request.params().source_node = from_node_link.remote_node_name();
-  request.params().target_node = target_connection->link->remote_node_name();
+  request.v0()->source_node = from_node_link.remote_node_name();
+  request.v0()->target_node = target_connection->link->remote_node_name();
   target_connection->broker->Transmit(request);
 }
 
@@ -359,6 +371,7 @@ void Node::AcceptIntroduction(NodeLink& from_node_link,
                               LinkSide side,
                               Node::Type remote_node_type,
                               uint32_t remote_protocol_version,
+                              const Features& remote_features,
                               Ref<DriverTransport> transport,
                               Ref<NodeLinkMemory> memory) {
   // NodeLink should never dispatch this method to a node if the introduction
@@ -373,7 +386,7 @@ void Node::AcceptIntroduction(NodeLink& from_node_link,
 
   Ref<NodeLink> new_link = NodeLink::CreateInactive(
       WrapRefCounted(this), side, local_name, name, remote_node_type,
-      remote_protocol_version, transport, memory);
+      remote_protocol_version, remote_features, transport, memory);
   ABSL_ASSERT(new_link);
 
   std::unique_ptr<PendingIntroduction> pending_introduction;
@@ -442,39 +455,38 @@ void Node::NotifyIntroductionFailed(NodeLink& from_broker,
 
 bool Node::RelayMessage(const NodeName& from_node, msg::RelayMessage& relay) {
   ABSL_ASSERT(type_ == Type::kBroker);
-  auto link = GetLink(relay.params().destination);
+  auto link = GetLink(relay.v0()->destination);
   if (!link) {
     return true;
   }
 
-  absl::Span<uint8_t> data = relay.GetArrayView<uint8_t>(relay.params().data);
+  absl::Span<uint8_t> data = relay.GetArrayView<uint8_t>(relay.v0()->data);
   msg::AcceptRelayedMessage accept;
-  accept.params().source = from_node;
-  accept.params().data = accept.AllocateArray<uint8_t>(data.size());
-  accept.params().padding = 0;
-  memcpy(accept.GetArrayData(accept.params().data), data.data(), data.size());
-  accept.params().driver_objects =
+  accept.v0()->source = from_node;
+  accept.v0()->data = accept.AllocateArray<uint8_t>(data.size());
+  accept.v0()->padding = 0;
+  memcpy(accept.GetArrayData(accept.v0()->data), data.data(), data.size());
+  accept.v0()->driver_objects =
       accept.AppendDriverObjects(relay.driver_objects());
   link->Transmit(accept);
   return true;
 }
 
 bool Node::AcceptRelayedMessage(msg::AcceptRelayedMessage& accept) {
-  if (auto link = GetLink(accept.params().source)) {
-    link->DispatchRelayedMessage(accept);
+  if (auto link = GetLink(accept.v0()->source)) {
+    return link->DispatchRelayedMessage(accept);
   }
   return true;
 }
 
-void Node::DropConnection(const OperationContext& context,
-                          const NodeName& name) {
+void Node::DropConnection(const NodeLink& connection_link) {
   Ref<NodeLink> link;
   std::vector<NodeName> pending_introductions;
   bool lost_broker = false;
   {
     absl::MutexLock lock(&mutex_);
-    auto it = connections_.find(name);
-    if (it == connections_.end()) {
+    auto it = connections_.find(connection_link.remote_node_name());
+    if (it == connections_.end() || it->second.link != &connection_link) {
       return;
     }
     link = std::move(it->second.link);
@@ -506,10 +518,10 @@ void Node::DropConnection(const OperationContext& context,
     }
   }
 
-  link->Deactivate(context);
+  link->Deactivate();
 
   if (lost_broker) {
-    CancelAllIntroductions();
+    NotifyBrokerLinkDropped();
   } else {
     for (auto& target : pending_introductions) {
       NotifyIntroductionFailed(*link, target);
@@ -540,7 +552,7 @@ bool Node::HandleIndirectIntroductionRequest(NodeLink& from_node_link,
   ABSL_ASSERT(from_node_link.remote_node_type() == Type::kBroker);
   ABSL_ASSERT(from_node_link.link_side().is_side_a());
 
-  absl::optional<Connection> connection_to_their_node =
+  std::optional<Connection> connection_to_their_node =
       GetConnection(their_node);
   if (!connection_to_their_node) {
     // We need to establish our own direct connection to `their_node` before we
@@ -552,7 +564,7 @@ bool Node::HandleIndirectIntroductionRequest(NodeLink& from_node_link,
         // If we could not get our own link to the identified node, then we
         // can't complete the introduction request. Notify our own node of the
         // failure in case they were awaiting such an introduction.
-        absl::optional<Connection> connection_to_our_node =
+        std::optional<Connection> connection_to_our_node =
             self->GetConnection(our_node);
         if (connection_to_our_node) {
           connection_to_our_node->link->RejectIntroduction(their_node);
@@ -565,7 +577,7 @@ bool Node::HandleIndirectIntroductionRequest(NodeLink& from_node_link,
     return true;
   }
 
-  absl::optional<Connection> connection_to_our_node = GetConnection(our_node);
+  std::optional<Connection> connection_to_our_node = GetConnection(our_node);
   if (!connection_to_our_node) {
     // We may have lost this connection for any number of reasons, but in any
     // case we can't fulfill the request.
@@ -580,17 +592,19 @@ bool Node::HandleIndirectIntroductionRequest(NodeLink& from_node_link,
 
 void Node::ShutDown() {
   ConnectionMap connections;
+  std::vector<BrokerLinkCallback> broker_link_callbacks;
   {
     absl::MutexLock lock(&mutex_);
     connections_.swap(connections);
     broker_link_.reset();
+    broker_link_callbacks.swap(broker_link_callbacks_);
     allocation_delegate_link_.reset();
     other_brokers_.clear();
+    assigned_name_ = {};
   }
 
-  const OperationContext context{OperationContext::kAPICall};
   for (const auto& entry : connections) {
-    entry.second.link->Deactivate(context);
+    entry.second.link->Deactivate();
   }
 
   CancelAllIntroductions();
@@ -622,21 +636,42 @@ void Node::IntroduceRemoteNodes(NodeLink& first, NodeLink& second) {
     }
   }
 
+  const absl::Cleanup remove_intro_key = [this, &key] {
+    absl::MutexLock lock(&mutex_);
+    in_progress_introductions_.erase(key);
+  };
+
   DriverMemoryWithMapping buffer = NodeLinkMemory::AllocateMemory(driver_);
+  if (!buffer.memory.is_valid()) {
+    return;
+  }
+
+  DriverMemory cloned_buffer = buffer.memory.Clone();
+  if (!cloned_buffer.is_valid()) {
+    return;
+  }
+
   auto [transport_for_first_node, transport_for_second_node] =
       DriverTransport::CreatePair(driver_, first.transport().get(),
                                   second.transport().get());
-  first.AcceptIntroduction(second_name, LinkSide::kA, second.remote_node_type(),
-                           second.remote_protocol_version(),
-                           std::move(transport_for_first_node),
-                           buffer.memory.Clone());
-  second.AcceptIntroduction(first_name, LinkSide::kB, first.remote_node_type(),
-                            first.remote_protocol_version(),
-                            std::move(transport_for_second_node),
-                            std::move(buffer.memory));
+  first.AcceptIntroduction(
+      second_name, LinkSide::kA, second.remote_node_type(),
+      second.remote_protocol_version(), second.remote_features(),
+      std::move(transport_for_first_node), std::move(cloned_buffer));
+  second.AcceptIntroduction(
+      first_name, LinkSide::kB, first.remote_node_type(),
+      first.remote_protocol_version(), first.remote_features(),
+      std::move(transport_for_second_node), std::move(buffer.memory));
+}
 
-  absl::MutexLock lock(&mutex_);
-  in_progress_introductions_.erase(key);
+void Node::NotifyBrokerLinkDropped() {
+  // Break all connections if the broker is lost. In practice we should only
+  // need to break connections which were introduced by the lost broker, but
+  // there's less risk of weird future inconsistencies if we just say that as
+  // a rule, primary broker disconnection serves as a sort of "reset" for a
+  // node. The node can be re-connected to a broker and continue operating
+  // normally from there.
+  ShutDown();
 }
 
 }  // namespace ipcz

@@ -28,7 +28,6 @@ sr_Latn{
                         other{"{0} ge sila"}
                     }
                 }
-                dnam{"ge sila"}
                 few{"{0} ge sila"}
                 gender{"feminine"}
                 one{"{0} ge sila"}
@@ -57,11 +56,6 @@ sr_Latn{
         angle{
             arc-minute{
                 case{
-                    accusative{
-                        few{"{0} lučna minuta"}
-                        one{"{0} lučni minut"}
-                        other{"{0} lučnih minuta"}
-                    }
                     genitive{
                         few{"{0} lučna minuta"}
                         one{"{0} lučnog minuta"}
@@ -105,11 +99,6 @@ sr_Latn{
             }
             degree{
                 case{
-                    accusative{
-                        few{"{0} stepena"}
-                        one{"{0} stepen"}
-                        other{"{0} stepeni"}
-                    }
                     genitive{
                         few{"{0} stepena"}
                         one{"{0} stepena"}
@@ -121,7 +110,6 @@ sr_Latn{
                         other{"{0} stepeni"}
                     }
                 }
-                dnam{"stepeni"}
                 few{"{0} stepena"}
                 gender{"inanimate"}
                 one{"{0} stepen"}
@@ -129,11 +117,6 @@ sr_Latn{
             }
             radian{
                 case{
-                    accusative{
-                        few{"{0} radijana"}
-                        one{"{0} radijan"}
-                        other{"{0} radijana"}
-                    }
                     genitive{
                         few{"{0} radijana"}
                         one{"{0} radijana"}
@@ -153,11 +136,6 @@ sr_Latn{
             }
             revolution{
                 case{
-                    accusative{
-                        few{"{0} obrtaja"}
-                        one{"{0} obrtaj"}
-                        other{"{0} obrtaja"}
-                    }
                     genitive{
                         few{"{0} obrtaja"}
                         one{"{0} obrtaja"}
@@ -178,24 +156,12 @@ sr_Latn{
         }
         area{
             acre{
-                dnam{"akeri"}
                 few{"{0} akera"}
                 one{"{0} aker"}
                 other{"{0} akera"}
             }
-            dunam{
-                dnam{"dunami"}
-                few{"{0} dunama"}
-                one{"{0} dunam"}
-                other{"{0} dunama"}
-            }
             hectare{
                 case{
-                    accusative{
-                        few{"{0} hektara"}
-                        one{"{0} hektar"}
-                        other{"{0} hektara"}
-                    }
                     genitive{
                         few{"{0} hektara"}
                         one{"{0} hektara"}
@@ -207,7 +173,6 @@ sr_Latn{
                         other{"{0} hektara"}
                     }
                 }
-                dnam{"hektari"}
                 few{"{0} hektara"}
                 gender{"inanimate"}
                 one{"{0} hektar"}
@@ -231,10 +196,8 @@ sr_Latn{
                 gender{"inanimate"}
                 one{"{0} kvadratni centimetar"}
                 other{"{0} kvadratnih centimetara"}
-                per{"{0}/cm²"}
             }
             square-foot{
-                dnam{"kvadratne stope"}
                 few{"{0} kvadratne stope"}
                 one{"{0} kvadratna stopa"}
                 other{"{0} kvadratnih stopa"}
@@ -244,7 +207,6 @@ sr_Latn{
                 few{"{0} kvadratna inča"}
                 one{"{0} kvadratni inč"}
                 other{"{0} kvadratnih inča"}
-                per{"{0}/in²"}
             }
             square-kilometer{
                 case{
@@ -259,7 +221,6 @@ sr_Latn{
                         other{"{0} kvadratnih kilometara"}
                     }
                 }
-                dnam{"kvadratni kilometri"}
                 few{"{0} kvadratna kilometra"}
                 gender{"inanimate"}
                 one{"{0} kvadratni kilometar"}
@@ -279,12 +240,10 @@ sr_Latn{
                         other{"{0} kvadratnih metara"}
                     }
                 }
-                dnam{"kvadratni metri"}
                 few{"{0} kvadratna metra"}
                 gender{"inanimate"}
                 one{"{0} kvadratni metar"}
                 other{"{0} kvadratnih metara"}
-                per{"{0}/m²"}
             }
             square-mile{
                 dnam{"kvadratne milje"}
@@ -316,7 +275,9 @@ sr_Latn{
             10p-2{"centi{0}"}
             10p-21{"zepto{0}"}
             10p-24{"jokto{0}"}
+            10p-27{"ronto{0}"}
             10p-3{"mili{0}"}
+            10p-30{"kvekto{0}"}
             10p-6{"mikro{0}"}
             10p-9{"nano{0}"}
             10p1{"deka{0}"}
@@ -326,10 +287,11 @@ sr_Latn{
             10p2{"hekto{0}"}
             10p21{"zeta{0}"}
             10p24{"jota{0}"}
+            10p27{"rona{0}"}
             10p3{"kilo{0}"}
+            10p30{"kveta{0}"}
             10p6{"mega{0}"}
             10p9{"giga{0}"}
-            per{"{0}/{1}"}
             power2{
                 few{
                     _{
@@ -386,18 +348,10 @@ sr_Latn{
                     }
                 }
                 dnam{"stavke"}
-                few{"{0} stavke"}
                 gender{"feminine"}
-                one{"{0} stavka"}
-                other{"{0} stavki"}
             }
             karat{
                 case{
-                    accusative{
-                        few{"{0} karata"}
-                        one{"{0} karat"}
-                        other{"{0} karata"}
-                    }
                     genitive{
                         few{"{0} karata"}
                         one{"{0} karata"}
@@ -442,11 +396,6 @@ sr_Latn{
             }
             mole{
                 case{
-                    accusative{
-                        few{"{0} mola"}
-                        one{"{0} mol"}
-                        other{"{0} mola"}
-                    }
                     genitive{
                         few{"{0} mola"}
                         one{"{0} mola"}
@@ -466,11 +415,6 @@ sr_Latn{
             }
             percent{
                 case{
-                    accusative{
-                        few{"{0} procenata"}
-                        one{"{0} procenat"}
-                        other{"{0} procenata"}
-                    }
                     genitive{
                         few{"{0} procenata"}
                         one{"{0} procenta"}
@@ -482,7 +426,6 @@ sr_Latn{
                         other{"{0} procenata"}
                     }
                 }
-                dnam{"procenat"}
                 few{"{0} procenata"}
                 gender{"inanimate"}
                 one{"{0} procenat"}
@@ -490,11 +433,6 @@ sr_Latn{
             }
             permille{
                 case{
-                    accusative{
-                        few{"{0} promila"}
-                        one{"{0} promil"}
-                        other{"{0} promila"}
-                    }
                     genitive{
                         few{"{0} promila"}
                         one{"{0} promila"}
@@ -506,7 +444,6 @@ sr_Latn{
                         other{"{0} promila"}
                     }
                 }
-                dnam{"promil"}
                 few{"{0} promila"}
                 gender{"inanimate"}
                 one{"{0} promil"}
@@ -537,10 +474,7 @@ sr_Latn{
                 other{"{0} čestica na milion"}
             }
             permyriad{
-                few{"{0}‱"}
                 gender{"inanimate"}
-                one{"{0}‱"}
-                other{"{0}‱"}
             }
         }
         consumption{
@@ -597,19 +531,10 @@ sr_Latn{
         }
         coordinate{
             dnam{"glavni pravac"}
-            east{"{0}I"}
-            north{"{0}S"}
-            south{"{0}J"}
-            west{"{0}Z"}
         }
         digital{
             bit{
                 case{
-                    accusative{
-                        few{"{0} bita"}
-                        one{"{0} bit"}
-                        other{"{0} bitova"}
-                    }
                     genitive{
                         few{"{0} bita"}
                         one{"{0} bita"}
@@ -629,11 +554,6 @@ sr_Latn{
             }
             byte{
                 case{
-                    accusative{
-                        few{"{0} bajta"}
-                        one{"{0} bajt"}
-                        other{"{0} bajtova"}
-                    }
                     genitive{
                         few{"{0} bajta"}
                         one{"{0} bajta"}
@@ -831,11 +751,6 @@ sr_Latn{
         duration{
             century{
                 case{
-                    accusative{
-                        few{"{0} veka"}
-                        one{"{0} vek"}
-                        other{"{0} vekova"}
-                    }
                     genitive{
                         few{"{0} veka"}
                         one{"{0} veka"}
@@ -855,11 +770,6 @@ sr_Latn{
             }
             day{
                 case{
-                    accusative{
-                        few{"{0} dana"}
-                        one{"{0} dan"}
-                        other{"{0} dana"}
-                    }
                     genitive{
                         few{"{0} dana"}
                         one{"{0} dana"}
@@ -872,10 +782,7 @@ sr_Latn{
                     }
                 }
                 dnam{"dani"}
-                few{"{0} dana"}
                 gender{"inanimate"}
-                one{"{0} dan"}
-                other{"{0} dana"}
                 per{"{0}/dnevno"}
             }
             decade{
@@ -904,11 +811,6 @@ sr_Latn{
             }
             hour{
                 case{
-                    accusative{
-                        few{"{0} sata"}
-                        one{"{0} sat"}
-                        other{"{0} sati"}
-                    }
                     genitive{
                         few{"{0} sata"}
                         one{"{0} sata"}
@@ -920,11 +822,7 @@ sr_Latn{
                         other{"{0} sati"}
                     }
                 }
-                dnam{"sati"}
-                few{"{0} sata"}
                 gender{"inanimate"}
-                one{"{0} sat"}
-                other{"{0} sati"}
                 per{"{0}/sat"}
             }
             microsecond{
@@ -972,11 +870,6 @@ sr_Latn{
             }
             minute{
                 case{
-                    accusative{
-                        few{"{0} minuta"}
-                        one{"{0} minut"}
-                        other{"{0} minuta"}
-                    }
                     genitive{
                         few{"{0} minuta"}
                         one{"{0} minuta"}
@@ -997,11 +890,6 @@ sr_Latn{
             }
             month{
                 case{
-                    accusative{
-                        few{"{0} meseca"}
-                        one{"{0} mesec"}
-                        other{"{0} meseci"}
-                    }
                     genitive{
                         few{"{0} meseca"}
                         one{"{0} meseca"}
@@ -1013,7 +901,6 @@ sr_Latn{
                         other{"{0} meseci"}
                     }
                 }
-                dnam{"meseci"}
                 few{"{0} meseca"}
                 gender{"inanimate"}
                 one{"{0} mesec"}
@@ -1046,11 +933,6 @@ sr_Latn{
             }
             quarter{
                 case{
-                    accusative{
-                        few{"{0} kvartala"}
-                        one{"{0} kvartal"}
-                        other{"{0} kvartala"}
-                    }
                     genitive{
                         few{"{0} kvartala"}
                         one{"{0} kvartala"}
@@ -1067,7 +949,6 @@ sr_Latn{
                 gender{"inanimate"}
                 one{"{0} kvartal"}
                 other{"{0} kvartala"}
-                per{"{0}/k"}
             }
             second{
                 case{
@@ -1148,11 +1029,6 @@ sr_Latn{
         electric{
             ampere{
                 case{
-                    accusative{
-                        few{"{0} ampera"}
-                        one{"{0} amper"}
-                        other{"{0} ampera"}
-                    }
                     genitive{
                         few{"{0} ampera"}
                         one{"{0} ampera"}
@@ -1191,11 +1067,6 @@ sr_Latn{
             }
             ohm{
                 case{
-                    accusative{
-                        few{"{0} oma"}
-                        one{"{0} om"}
-                        other{"{0} oma"}
-                    }
                     genitive{
                         few{"{0} oma"}
                         one{"{0} oma"}
@@ -1215,11 +1086,6 @@ sr_Latn{
             }
             volt{
                 case{
-                    accusative{
-                        few{"{0} volta"}
-                        one{"{0} volt"}
-                        other{"{0} volti"}
-                    }
                     genitive{
                         few{"{0} volta"}
                         one{"{0} volta"}
@@ -1280,11 +1146,6 @@ sr_Latn{
             }
             joule{
                 case{
-                    accusative{
-                        few{"{0} džula"}
-                        one{"{0} džul"}
-                        other{"{0} džula"}
-                    }
                     genitive{
                         few{"{0} džula"}
                         one{"{0} džula"}
@@ -1348,9 +1209,6 @@ sr_Latn{
             }
             therm-us{
                 dnam{"US therms"}
-                few{"{0} US therms"}
-                one{"{0} US therm"}
-                other{"{0} US therms"}
             }
         }
         force{
@@ -1359,11 +1217,6 @@ sr_Latn{
             }
             newton{
                 case{
-                    accusative{
-                        few{"{0} njutna"}
-                        one{"{0} njutn"}
-                        other{"{0} njutna"}
-                    }
                     genitive{
                         few{"{0} njutna"}
                         one{"{0} njutna"}
@@ -1410,11 +1263,6 @@ sr_Latn{
             }
             hertz{
                 case{
-                    accusative{
-                        few{"{0} herca"}
-                        one{"{0} herc"}
-                        other{"{0} herca"}
-                    }
                     genitive{
                         few{"{0} herca"}
                         one{"{0} herca"}
@@ -1473,21 +1321,25 @@ sr_Latn{
         }
         graphics{
             dot{
-                dnam{"tačka"}
-                few{"{0} tačke"}
-                one{"{0} tačka"}
-                other{"{0} tačaka"}
+                dnam{"tačke"}
+            }
+            dot-per-centimeter{
+                dnam{"tačke po centimetru"}
+                few{"{0} ppcm"}
+                one{"{0} tačka po centimetru"}
+                other{"{0} dpcm"}
+            }
+            dot-per-inch{
+                dnam{"tačke po inču"}
+                few{"{0} ppi"}
+                one{"{0} tačka po inču"}
+                other{"{0} dpi"}
             }
             em{
                 gender{"inanimate"}
             }
             megapixel{
                 case{
-                    accusative{
-                        few{"{0} megapiksela"}
-                        one{"{0} megapiksel"}
-                        other{"{0} megapiksela"}
-                    }
                     genitive{
                         few{"{0} megapiksela"}
                         one{"{0} megapiksela"}
@@ -1507,11 +1359,6 @@ sr_Latn{
             }
             pixel{
                 case{
-                    accusative{
-                        few{"{0} piksela"}
-                        one{"{0} piksel"}
-                        other{"{0} piksela"}
-                    }
                     genitive{
                         few{"{0} piksela"}
                         one{"{0} piksela"}
@@ -1523,6 +1370,7 @@ sr_Latn{
                         other{"{0} piksela"}
                     }
                 }
+                dnam{"pikseli"}
                 few{"{0} piksela"}
                 gender{"inanimate"}
                 one{"{0} piksel"}
@@ -1530,11 +1378,6 @@ sr_Latn{
             }
             pixel-per-centimeter{
                 case{
-                    accusative{
-                        few{"{0} piksela na centimetar"}
-                        one{"{0} piksel na centimetar"}
-                        other{"{0} piksela na centimetar"}
-                    }
                     genitive{
                         few{"{0} piksela na centimetar"}
                         one{"{0} piksela na centimetar"}
@@ -1546,10 +1389,17 @@ sr_Latn{
                         other{"{0} piksela na centimetar"}
                     }
                 }
+                dnam{"pikseli po centimetru"}
                 few{"{0} piksela na centimetar"}
                 gender{"inanimate"}
                 one{"{0} piksel na centimetar"}
                 other{"{0} piksela na centimetar"}
+            }
+            pixel-per-inch{
+                dnam{"pikseli po inču"}
+                few{"{0} piksela po inču"}
+                one{"{0} piksel po inču"}
+                other{"{0} piksela po inču"}
             }
         }
         length{
@@ -1561,11 +1411,6 @@ sr_Latn{
             }
             centimeter{
                 case{
-                    accusative{
-                        few{"{0} centimetra"}
-                        one{"{0} centimetar"}
-                        other{"{0} centimetara"}
-                    }
                     genitive{
                         few{"{0} centimetra"}
                         one{"{0} centimetra"}
@@ -1582,7 +1427,6 @@ sr_Latn{
                 gender{"inanimate"}
                 one{"{0} centimetar"}
                 other{"{0} centimetara"}
-                per{"{0}/cm"}
             }
             decimeter{
                 case{
@@ -1620,20 +1464,11 @@ sr_Latn{
                 few{"{0} stope"}
                 one{"{0} stopa"}
                 other{"{0} stopa"}
-                per{"{0}/ft"}
             }
             furlong{
-                dnam{"furlonzi"}
                 few{"{0} furlonga"}
                 one{"{0} furlong"}
                 other{"{0} furlonga"}
-            }
-            inch{
-                dnam{"inči"}
-                few{"{0} inča"}
-                one{"{0} inč"}
-                other{"{0} inča"}
-                per{"{0}/in"}
             }
             kilometer{
                 case{
@@ -1653,7 +1488,6 @@ sr_Latn{
                 gender{"inanimate"}
                 one{"{0} kilometar"}
                 other{"{0} kilometara"}
-                per{"{0}/km"}
             }
             light-year{
                 dnam{"svetlosne godine"}
@@ -1663,11 +1497,6 @@ sr_Latn{
             }
             meter{
                 case{
-                    accusative{
-                        few{"{0} metra"}
-                        one{"{0} metar"}
-                        other{"{0} metara"}
-                    }
                     genitive{
                         few{"{0} metra"}
                         one{"{0} metra"}
@@ -1684,7 +1513,6 @@ sr_Latn{
                 gender{"inanimate"}
                 one{"{0} metar"}
                 other{"{0} metara"}
-                per{"{0}/m"}
             }
             micrometer{
                 case{
@@ -1706,7 +1534,6 @@ sr_Latn{
                 other{"{0} mikrometara"}
             }
             mile{
-                dnam{"milje"}
                 few{"{0} milje"}
                 one{"{0} milja"}
                 other{"{0} milja"}
@@ -1780,7 +1607,6 @@ sr_Latn{
                 other{"{0} nautičkih milja"}
             }
             parsec{
-                dnam{"parseci"}
                 few{"{0} parseka"}
                 one{"{0} parsek"}
                 other{"{0} parseka"}
@@ -1798,17 +1624,10 @@ sr_Latn{
                         other{"{0} pikometara"}
                     }
                 }
-                dnam{"pikometri"}
                 few{"{0} pikometra"}
                 gender{"inanimate"}
                 one{"{0} pikometar"}
                 other{"{0} pikometara"}
-            }
-            point{
-                dnam{"pt"}
-                few{"{0} pt"}
-                one{"{0} pt"}
-                other{"{0} pt"}
             }
             solar-radius{
                 dnam{"sunčevi poluprečnici"}
@@ -1817,7 +1636,6 @@ sr_Latn{
                 other{"{0} sunčevih poluprečnika"}
             }
             yard{
-                dnam{"jardi"}
                 few{"{0} jarda"}
                 one{"{0} jard"}
                 other{"{0} jardi"}
@@ -1850,11 +1668,6 @@ sr_Latn{
             }
             lumen{
                 case{
-                    accusative{
-                        few{"{0} lumena"}
-                        one{"{0} lumen"}
-                        other{"{0} lumena"}
-                    }
                     genitive{
                         few{"{0} lumena"}
                         one{"{0} lumena"}
@@ -1874,11 +1687,6 @@ sr_Latn{
             }
             lux{
                 case{
-                    accusative{
-                        few{"{0} luksa"}
-                        one{"{0} luks"}
-                        other{"{0} luksa"}
-                    }
                     genitive{
                         few{"{0} luksa"}
                         one{"{0} luksa"}
@@ -1900,11 +1708,6 @@ sr_Latn{
         mass{
             carat{
                 case{
-                    accusative{
-                        few{"{0} karata"}
-                        one{"{0} karat"}
-                        other{"{0} karata"}
-                    }
                     genitive{
                         few{"{0} karata"}
                         one{"{0} karata"}
@@ -1916,7 +1719,6 @@ sr_Latn{
                         other{"{0} karata"}
                     }
                 }
-                dnam{"karati"}
                 few{"{0} karata"}
                 gender{"inanimate"}
                 one{"{0} karat"}
@@ -1935,18 +1737,12 @@ sr_Latn{
                 other{"{0} masa zemlje"}
             }
             grain{
-                dnam{"grejn"}
                 few{"{0} grejna"}
                 one{"{0} grejn"}
                 other{"{0} grejna"}
             }
             gram{
                 case{
-                    accusative{
-                        few{"{0} grama"}
-                        one{"{0} gram"}
-                        other{"{0} grama"}
-                    }
                     genitive{
                         few{"{0} grama"}
                         one{"{0} grama"}
@@ -1958,7 +1754,6 @@ sr_Latn{
                         other{"{0} grama"}
                     }
                 }
-                dnam{"grami"}
                 few{"{0} grama"}
                 gender{"inanimate"}
                 one{"{0} gram"}
@@ -1967,11 +1762,6 @@ sr_Latn{
             }
             kilogram{
                 case{
-                    accusative{
-                        few{"{0} kilograma"}
-                        one{"{0} kilogram"}
-                        other{"{0} kilograma"}
-                    }
                     genitive{
                         few{"{0} kilograma"}
                         one{"{0} kilograma"}
@@ -2119,15 +1909,20 @@ sr_Latn{
             }
             kilowatt{
                 case{
+                    accusative{
+                        few{"{0} kilovata"}
+                        one{"{0} kilovat"}
+                        other{"{0} kilovata"}
+                    }
                     genitive{
                         few{"{0} kilovata"}
                         one{"{0} kilovata"}
-                        other{"{0} kilovati"}
+                        other{"{0} kilovata"}
                     }
                     instrumental{
                         few{"{0} kilovata"}
                         one{"{0} kilovatom"}
-                        other{"{0} kilovati"}
+                        other{"{0} kilovata"}
                     }
                 }
                 dnam{"kilovati"}
@@ -2157,15 +1952,20 @@ sr_Latn{
             }
             milliwatt{
                 case{
+                    accusative{
+                        few{"{0} milivata"}
+                        one{"{0} milivat"}
+                        other{"{0} milivata"}
+                    }
                     genitive{
                         few{"{0} milivata"}
                         one{"{0} milivata"}
-                        other{"{0} milivati"}
+                        other{"{0} milivata"}
                     }
                     instrumental{
                         few{"{0} milivata"}
                         one{"{0} milivatom"}
-                        other{"{0} milivati"}
+                        other{"{0} milivata"}
                     }
                 }
                 dnam{"milivati"}
@@ -2176,11 +1976,6 @@ sr_Latn{
             }
             watt{
                 case{
-                    accusative{
-                        few{"{0} vata"}
-                        one{"{0} vat"}
-                        other{"{0} vati"}
-                    }
                     genitive{
                         few{"{0} vata"}
                         one{"{0} vata"}
@@ -2226,11 +2021,6 @@ sr_Latn{
             }
             bar{
                 case{
-                    accusative{
-                        few{"{0} bara"}
-                        one{"{0} bar"}
-                        other{"{0} bara"}
-                    }
                     genitive{
                         few{"{0} bara"}
                         one{"{0} bara"}
@@ -2338,11 +2128,6 @@ sr_Latn{
             }
             pascal{
                 case{
-                    accusative{
-                        few{"{0} paskala"}
-                        one{"{0} paskal"}
-                        other{"{0} paskala"}
-                    }
                     genitive{
                         few{"{0} paskala"}
                         one{"{0} paskala"}
@@ -2368,6 +2153,12 @@ sr_Latn{
             }
         }
         speed{
+            beaufort{
+                dnam{"Bofor"}
+                few{"B {0}"}
+                one{"Bofor {0}"}
+                other{"Bofor {0}"}
+            }
             kilometer-per-hour{
                 case{
                     genitive{
@@ -2406,14 +2197,12 @@ sr_Latn{
                         other{"{0} metara u sekundi"}
                     }
                 }
-                dnam{"metri u sekundi"}
                 few{"{0} metra u sekundi"}
                 gender{"inanimate"}
                 one{"{0} metar u sekundi"}
                 other{"{0} metara u sekundi"}
             }
             mile-per-hour{
-                dnam{"milje na sat"}
                 few{"{0} milje na sat"}
                 one{"{0} milja na sat"}
                 other{"{0} milja na sat"}
@@ -2422,11 +2211,6 @@ sr_Latn{
         temperature{
             celsius{
                 case{
-                    accusative{
-                        few{"{0} stepena Celzijusa"}
-                        one{"{0} stepen Celzijusa"}
-                        other{"{0} stepeni Celzijusa"}
-                    }
                     genitive{
                         few{"{0} stepena Celzijusa"}
                         one{"{0} stepena Celzijusa"}
@@ -2445,25 +2229,15 @@ sr_Latn{
                 other{"{0} stepeni Celzijusa"}
             }
             fahrenheit{
-                dnam{"stepeni Farenhajta"}
                 few{"{0} stepena Farenhajta"}
                 one{"{0} stepen Farenhajta"}
                 other{"{0} stepeni Farenhajta"}
             }
             generic{
-                dnam{"°"}
-                few{"{0}°"}
                 gender{"inanimate"}
-                one{"{0}°"}
-                other{"{0}°"}
             }
             kelvin{
                 case{
-                    accusative{
-                        few{"{0} kelvina"}
-                        one{"{0} kelvin"}
-                        other{"{0} kelvina"}
-                    }
                     genitive{
                         few{"{0} kelvina"}
                         one{"{0} kelvina"}
@@ -2565,7 +2339,6 @@ sr_Latn{
                 gender{"inanimate"}
                 one{"{0} kubni centimetar"}
                 other{"{0} kubnih centimetara"}
-                per{"{0}/cm³"}
             }
             cubic-foot{
                 dnam{"kubne stope"}
@@ -2616,7 +2389,6 @@ sr_Latn{
                 gender{"inanimate"}
                 one{"{0} kubni metar"}
                 other{"{0} kubnih metara"}
-                per{"{0}/m³"}
             }
             cubic-mile{
                 dnam{"kubne milje"}
@@ -2631,7 +2403,6 @@ sr_Latn{
                 other{"{0} kubnih jardi"}
             }
             cup{
-                dnam{"šolje"}
                 few{"{0} šolje"}
                 one{"{0} šolja"}
                 other{"{0} šolja"}
@@ -2692,16 +2463,9 @@ sr_Latn{
                 other{"{0} imperijskih desertnih kašičica"}
             }
             dram{
-                dnam{"dram tečnosti"}
                 few{"{0} drama tečnosti"}
                 one{"{0} dram tečnosti"}
                 other{"{0} drama tečnosti"}
-            }
-            drop{
-                dnam{"kap"}
-                few{"{0} kapi"}
-                one{"{0} kap"}
-                other{"{0} kapi"}
             }
             fluid-ounce{
                 dnam{"unce tečnosti"}
@@ -2748,19 +2512,8 @@ sr_Latn{
                 one{"{0} hektolitar"}
                 other{"{0} hektolitara"}
             }
-            jigger{
-                dnam{"džiger"}
-                few{"{0} džigera"}
-                one{"{0} džiger"}
-                other{"{0} džigera"}
-            }
             liter{
                 case{
-                    accusative{
-                        few{"{0} litra"}
-                        one{"{0} litar"}
-                        other{"{0} litara"}
-                    }
                     genitive{
                         few{"{0} litra"}
                         one{"{0} litra"}
@@ -2772,7 +2525,6 @@ sr_Latn{
                         other{"{0} litara"}
                     }
                 }
-                dnam{"litri"}
                 few{"{0} litra"}
                 gender{"inanimate"}
                 one{"{0} litar"}
@@ -2816,12 +2568,6 @@ sr_Latn{
                 gender{"inanimate"}
                 one{"{0} mililitar"}
                 other{"{0} mililitara"}
-            }
-            pinch{
-                dnam{"prstohvat"}
-                few{"{0} prstohvata"}
-                one{"{0} prstohvat"}
-                other{"{0} prstohvata"}
             }
             pint{
                 dnam{"pinte"}
@@ -2880,95 +2626,9 @@ sr_Latn{
         }
     }
     unitsNarrow{
-        acceleration{
-            g-force{
-                few{"{0} G"}
-                one{"{0} G"}
-                other{"{0} G"}
-            }
-        }
-        angle{
-            arc-minute{
-                few{"{0}′"}
-                one{"{0}′"}
-                other{"{0}′"}
-            }
-            arc-second{
-                few{"{0}″"}
-                one{"{0}″"}
-                other{"{0}″"}
-            }
-            degree{
-                few{"{0}°"}
-                one{"{0}°"}
-                other{"{0}°"}
-            }
-        }
-        area{
-            acre{
-                few{"{0} ac"}
-                one{"{0} ac"}
-                other{"{0} ac"}
-            }
-            hectare{
-                few{"{0} ha"}
-                one{"{0} ha"}
-                other{"{0} ha"}
-            }
-            square-foot{
-                few{"{0} ft²"}
-                one{"{0} ft²"}
-                other{"{0} ft²"}
-            }
-            square-kilometer{
-                few{"{0} km²"}
-                one{"{0} km²"}
-                other{"{0} km²"}
-            }
-            square-meter{
-                few{"{0} m²"}
-                one{"{0} m²"}
-                other{"{0} m²"}
-            }
-            square-mile{
-                few{"{0} mi²"}
-                one{"{0} mi²"}
-                other{"{0} mi²"}
-            }
-        }
-        compound{
-            per{"{0}/{1}"}
-            power2{
-                few{
-                    _{
-                        _{"{0}²"}
-                    }
-                }
-                one{
-                    _{
-                        _{"{0}²"}
-                    }
-                }
-                other{
-                    _{
-                        _{"{0}²"}
-                    }
-                }
-            }
-            times{"{0}⋅{1}"}
-        }
         concentr{
-            item{
-                dnam{"stavka"}
-                few{"{0} stavke"}
-                one{"{0} stavka"}
-                other{"{0} stavki"}
-            }
             percent{
                 dnam{"%"}
-                few{"{0}%"}
-                one{"{0}%"}
-                other{"{0}%"}
             }
         }
         consumption{
@@ -2985,13 +2645,6 @@ sr_Latn{
                 other{"{0} mpg Imp"}
             }
         }
-        coordinate{
-            dnam{"pravac"}
-            east{"{0}I"}
-            north{"{0}S"}
-            south{"{0}J"}
-            west{"{0}Z"}
-        }
         duration{
             day{
                 dnam{"d"}
@@ -3005,14 +2658,7 @@ sr_Latn{
                 one{"{0} č"}
                 other{"{0} č"}
             }
-            millisecond{
-                dnam{"ms"}
-                few{"{0} ms"}
-                one{"{0} ms"}
-                other{"{0} ms"}
-            }
             minute{
-                dnam{"min"}
                 few{"{0} m"}
                 one{"{0} m"}
                 other{"{0} m"}
@@ -3024,11 +2670,9 @@ sr_Latn{
                 other{"{0} m"}
             }
             quarter{
-                dnam{"kv"}
                 few{"{0} k"}
                 one{"{0} k"}
                 other{"{0} k"}
-                per{"{0}/k"}
             }
             second{
                 dnam{"s"}
@@ -3049,18 +2693,14 @@ sr_Latn{
                 other{"{0} g"}
             }
         }
-        length{
-            centimeter{
-                dnam{"cm"}
-                few{"{0} cm"}
-                one{"{0} cm"}
-                other{"{0} cm"}
+        energy{
+            electronvolt{
+                dnam{"eV"}
             }
-            foot{
-                dnam{"ft"}
-                few{"{0} ft"}
-                one{"{0} ft"}
-                other{"{0} ft"}
+        }
+        length{
+            furlong{
+                dnam{"furlong"}
             }
             inch{
                 dnam{"in"}
@@ -3068,38 +2708,15 @@ sr_Latn{
                 one{"{0} in"}
                 other{"{0} in"}
             }
-            kilometer{
-                dnam{"km"}
-                few{"{0} km"}
-                one{"{0} km"}
-                other{"{0} km"}
-            }
             light-year{
                 few{"{0} ly"}
                 one{"{0} ly"}
                 other{"{0} ly"}
             }
-            meter{
-                dnam{"m"}
-                few{"{0} m"}
-                one{"{0} m"}
-                other{"{0} m"}
-            }
             mile{
                 few{"{0} milje"}
                 one{"{0} milja"}
                 other{"{0} milja"}
-            }
-            millimeter{
-                dnam{"mm"}
-                few{"{0} mm"}
-                one{"{0} mm"}
-                other{"{0} mm"}
-            }
-            picometer{
-                few{"{0} pm"}
-                one{"{0} pm"}
-                other{"{0} pm"}
             }
             yard{
                 dnam{"yd"}
@@ -3111,25 +2728,11 @@ sr_Latn{
         mass{
             gram{
                 dnam{"g"}
-                few{"{0} g"}
-                one{"{0} g"}
-                other{"{0} g"}
-            }
-            kilogram{
-                dnam{"kg"}
-                few{"{0} kg"}
-                one{"{0} kg"}
-                other{"{0} kg"}
             }
             ounce{
                 few{"{0} unce"}
                 one{"{0} unca"}
                 other{"{0} unci"}
-            }
-            pound{
-                few{"{0} lb"}
-                one{"{0} lb"}
-                other{"{0} lb"}
             }
         }
         power{
@@ -3138,81 +2741,8 @@ sr_Latn{
                 one{"{0} ks"}
                 other{"{0} ks"}
             }
-            kilowatt{
-                few{"{0} kW"}
-                one{"{0} kW"}
-                other{"{0} kW"}
-            }
-            watt{
-                few{"{0} W"}
-                one{"{0} W"}
-                other{"{0} W"}
-            }
-        }
-        pressure{
-            hectopascal{
-                few{"{0} hPa"}
-                one{"{0} hPa"}
-                other{"{0} hPa"}
-            }
-            inch-ofhg{
-                few{"{0} inHg"}
-                one{"{0} inHg"}
-                other{"{0} inHg"}
-            }
-            millibar{
-                few{"{0} mbar"}
-                one{"{0} mbar"}
-                other{"{0} mbar"}
-            }
-        }
-        speed{
-            kilometer-per-hour{
-                dnam{"km/h"}
-                few{"{0} km/h"}
-                one{"{0} km/h"}
-                other{"{0} km/h"}
-            }
-            meter-per-second{
-                few{"{0} m/s"}
-                one{"{0} m/s"}
-                other{"{0} m/s"}
-            }
-            mile-per-hour{
-                few{"{0} mi/h"}
-                one{"{0} mi/h"}
-                other{"{0} mi/h"}
-            }
-        }
-        temperature{
-            celsius{
-                dnam{"°C"}
-                few{"{0}°C"}
-                one{"{0}°C"}
-                other{"{0}°C"}
-            }
-            fahrenheit{
-                few{"{0}°F"}
-                one{"{0}°F"}
-                other{"{0}°F"}
-            }
         }
         volume{
-            cubic-kilometer{
-                few{"{0} km³"}
-                one{"{0} km³"}
-                other{"{0} km³"}
-            }
-            cubic-mile{
-                few{"{0} mi³"}
-                one{"{0} mi³"}
-                other{"{0} mi³"}
-            }
-            dessert-spoon-imperial{
-                few{"{0} dstspn Imp"}
-                one{"{0} dstspn Imp"}
-                other{"{0}dsp-Imp"}
-            }
             fluid-ounce-imperial{
                 dnam{"Imp fl oz"}
                 few{"{0} fl oz Imp"}
@@ -3226,11 +2756,13 @@ sr_Latn{
                 other{"{0}/gal Imp"}
                 per{"{0}/gal Imp"}
             }
+            jigger{
+                few{"{0} džigera"}
+                one{"{0} džigera"}
+                other{"{0} džigera"}
+            }
             liter{
                 dnam{"l"}
-                few{"{0} l"}
-                one{"{0} l"}
-                other{"{0} l"}
             }
             pinch{
                 few{"{0} pn"}
@@ -3248,55 +2780,22 @@ sr_Latn{
         acceleration{
             g-force{
                 dnam{"ge sila"}
-                few{"{0} G"}
-                one{"{0} G"}
-                other{"{0} G"}
-            }
-            meter-per-square-second{
-                dnam{"m/s²"}
-                few{"{0} m/s²"}
-                one{"{0} m/s²"}
-                other{"{0} m/s²"}
             }
         }
         angle{
             arc-minute{
                 dnam{"lučni min"}
-                few{"{0}′"}
-                one{"{0}′"}
-                other{"{0}′"}
             }
             arc-second{
                 dnam{"lučne sek"}
-                few{"{0}″"}
-                one{"{0}″"}
-                other{"{0}″"}
             }
             degree{
                 dnam{"stepeni"}
-                few{"{0}°"}
-                one{"{0}°"}
-                other{"{0}°"}
-            }
-            radian{
-                dnam{"rad"}
-                few{"{0} rad"}
-                one{"{0} rad"}
-                other{"{0} rad"}
-            }
-            revolution{
-                dnam{"rev"}
-                few{"{0} rev"}
-                one{"{0} rev"}
-                other{"{0} rev"}
             }
         }
         area{
             acre{
                 dnam{"akeri"}
-                few{"{0} ac"}
-                one{"{0} ac"}
-                other{"{0} ac"}
             }
             dunam{
                 dnam{"dunami"}
@@ -3306,78 +2805,16 @@ sr_Latn{
             }
             hectare{
                 dnam{"hektari"}
-                few{"{0} ha"}
-                one{"{0} ha"}
-                other{"{0} ha"}
-            }
-            square-centimeter{
-                dnam{"cm²"}
-                few{"{0} cm²"}
-                one{"{0} cm²"}
-                other{"{0} cm²"}
-                per{"{0}/cm²"}
             }
             square-foot{
                 dnam{"kvadratne stope"}
-                few{"{0} ft²"}
-                one{"{0} ft²"}
-                other{"{0} ft²"}
-            }
-            square-inch{
-                dnam{"in²"}
-                few{"{0} in²"}
-                one{"{0} in²"}
-                other{"{0} in²"}
-                per{"{0}/in²"}
             }
             square-kilometer{
                 dnam{"kvadratni kilometri"}
-                few{"{0} km²"}
-                one{"{0} km²"}
-                other{"{0} km²"}
-                per{"{0}/km²"}
             }
             square-meter{
                 dnam{"kvadratni metri"}
-                few{"{0} m²"}
-                one{"{0} m²"}
-                other{"{0} m²"}
-                per{"{0}/m²"}
             }
-            square-mile{
-                dnam{"mi²"}
-                few{"{0} mi²"}
-                one{"{0} mi²"}
-                other{"{0} mi²"}
-                per{"{0}/mi²"}
-            }
-            square-yard{
-                dnam{"yd²"}
-                few{"{0} yd²"}
-                one{"{0} yd²"}
-                other{"{0} yd²"}
-            }
-        }
-        compound{
-            per{"{0}/{1}"}
-            power2{
-                few{
-                    _{
-                        _{"{0}²"}
-                    }
-                }
-                one{
-                    _{
-                        _{"{0}²"}
-                    }
-                }
-                other{
-                    _{
-                        _{"{0}²"}
-                    }
-                }
-            }
-            times{"{0}⋅{1}"}
         }
         concentr{
             item{
@@ -3386,41 +2823,11 @@ sr_Latn{
                 one{"{0} stavka"}
                 other{"{0} stavki"}
             }
-            karat{
-                dnam{"kt"}
-                few{"{0} kt"}
-                one{"{0} kt"}
-                other{"{0} kt"}
-            }
-            milligram-ofglucose-per-deciliter{
-                dnam{"mg/dL"}
-                few{"{0} mg/dL"}
-                one{"{0} mg/dL"}
-                other{"{0} mg/dL"}
-            }
-            millimole-per-liter{
-                dnam{"mmol/L"}
-                few{"{0} mmol/L"}
-                one{"{0} mmol/L"}
-                other{"{0} mmol/L"}
-            }
             percent{
                 dnam{"procenat"}
-                few{"{0}%"}
-                one{"{0}%"}
-                other{"{0}%"}
             }
             permille{
                 dnam{"promil"}
-                few{"{0}‰"}
-                one{"{0}‰"}
-                other{"{0}‰"}
-            }
-            permillion{
-                dnam{"ppm"}
-                few{"{0} ppm"}
-                one{"{0} ppm"}
-                other{"{0} ppm"}
             }
         }
         consumption{
@@ -3430,23 +2837,11 @@ sr_Latn{
                 one{"{0} L/100 km"}
                 other{"{0} L/100 km"}
             }
-            liter-per-kilometer{
-                dnam{"L/km"}
-                few{"{0} L/km"}
-                one{"{0} L/km"}
-                other{"{0} L/km"}
-            }
             mile-per-gallon{
                 dnam{"mpg"}
                 few{"{0} mpg"}
                 one{"{0} mpg"}
                 other{"{0} mpg"}
-            }
-            mile-per-gallon-imperial{
-                dnam{"mpg Imp."}
-                few{"{0} mpg Imp."}
-                one{"{0} mpg Imp."}
-                other{"{0} mpg Imp."}
             }
         }
         coordinate{
@@ -3468,60 +2863,6 @@ sr_Latn{
                 few{"{0} B"}
                 one{"{0} B"}
                 other{"{0} B"}
-            }
-            gigabit{
-                dnam{"Gb"}
-                few{"{0} Gb"}
-                one{"{0} Gb"}
-                other{"{0} Gb"}
-            }
-            gigabyte{
-                dnam{"GB"}
-                few{"{0} GB"}
-                one{"{0} GB"}
-                other{"{0} GB"}
-            }
-            kilobit{
-                dnam{"kb"}
-                few{"{0} kb"}
-                one{"{0} kb"}
-                other{"{0} kb"}
-            }
-            kilobyte{
-                dnam{"kB"}
-                few{"{0} kB"}
-                one{"{0} kB"}
-                other{"{0} kB"}
-            }
-            megabit{
-                dnam{"Mb"}
-                few{"{0} Mb"}
-                one{"{0} Mb"}
-                other{"{0} Mb"}
-            }
-            megabyte{
-                dnam{"MB"}
-                few{"{0} MB"}
-                one{"{0} MB"}
-                other{"{0} MB"}
-            }
-            petabyte{
-                dnam{"PB"}
-                few{"{0} PB"}
-                one{"{0} PB"}
-                other{"{0} PB"}
-            }
-            terabit{
-                dnam{"Tb"}
-                few{"{0} Tb"}
-                one{"{0} Tb"}
-                other{"{0} Tb"}
-            }
-            terabyte{
-                dnam{"TB"}
-                few{"{0} TB"}
-                one{"{0} TB"}
-                other{"{0} TB"}
             }
         }
         duration{
@@ -3551,18 +2892,6 @@ sr_Latn{
                 other{"{0} sati"}
                 per{"{0}/č"}
             }
-            microsecond{
-                dnam{"μs"}
-                few{"{0} μs"}
-                one{"{0} μs"}
-                other{"{0} μs"}
-            }
-            millisecond{
-                dnam{"ms"}
-                few{"{0} ms"}
-                one{"{0} ms"}
-                other{"{0} ms"}
-            }
             minute{
                 dnam{"min"}
                 few{"{0} min"}
@@ -3576,12 +2905,6 @@ sr_Latn{
                 one{"{0} mes."}
                 other{"{0} mes."}
                 per{"{0}/m"}
-            }
-            nanosecond{
-                dnam{"ns"}
-                few{"{0} ns"}
-                one{"{0} ns"}
-                other{"{0} ns"}
             }
             quarter{
                 dnam{"kv"}
@@ -3615,41 +2938,17 @@ sr_Latn{
         electric{
             ampere{
                 dnam{"A"}
-                few{"{0} A"}
-                one{"{0} A"}
-                other{"{0} A"}
-            }
-            milliampere{
-                dnam{"mA"}
-                few{"{0} mA"}
-                one{"{0} mA"}
-                other{"{0} mA"}
             }
             ohm{
                 dnam{"Ω"}
-                few{"{0} Ω"}
-                one{"{0} Ω"}
-                other{"{0} Ω"}
             }
             volt{
                 dnam{"V"}
-                few{"{0} V"}
-                one{"{0} V"}
-                other{"{0} V"}
             }
         }
         energy{
-            calorie{
-                dnam{"cal"}
-                few{"{0} cal"}
-                one{"{0} cal"}
-                other{"{0} cal"}
-            }
             electronvolt{
                 dnam{"elektronvolt"}
-                few{"{0} eV"}
-                one{"{0} eV"}
-                other{"{0} eV"}
             }
             foodcalorie{
                 dnam{"Cal"}
@@ -3659,30 +2958,8 @@ sr_Latn{
             }
             joule{
                 dnam{"J"}
-                few{"{0} J"}
-                one{"{0} J"}
-                other{"{0} J"}
-            }
-            kilocalorie{
-                dnam{"kcal"}
-                few{"{0} kcal"}
-                one{"{0} kcal"}
-                other{"{0} kcal"}
-            }
-            kilojoule{
-                dnam{"kJ"}
-                few{"{0} kJ"}
-                one{"{0} kJ"}
-                other{"{0} kJ"}
-            }
-            kilowatt-hour{
-                dnam{"kWh"}
-                few{"{0} kWh"}
-                one{"{0} kWh"}
-                other{"{0} kWh"}
             }
             therm-us{
-                dnam{"US therm"}
                 few{"{0} US therms"}
                 one{"{0} US therm"}
                 other{"{0} US therms"}
@@ -3691,32 +2968,6 @@ sr_Latn{
         force{
             newton{
                 dnam{"njutn"}
-            }
-        }
-        frequency{
-            gigahertz{
-                dnam{"GHz"}
-                few{"{0} GHz"}
-                one{"{0} GHz"}
-                other{"{0} GHz"}
-            }
-            hertz{
-                dnam{"Hz"}
-                few{"{0} Hz"}
-                one{"{0} Hz"}
-                other{"{0} Hz"}
-            }
-            kilohertz{
-                dnam{"kHz"}
-                few{"{0} kHz"}
-                one{"{0} kHz"}
-                other{"{0} kHz"}
-            }
-            megahertz{
-                dnam{"MHz"}
-                few{"{0} MHz"}
-                one{"{0} MHz"}
-                other{"{0} MHz"}
             }
         }
         graphics{
@@ -3738,36 +2989,6 @@ sr_Latn{
                 one{"{0} ppi"}
                 other{"{0} dpi"}
             }
-            em{
-                dnam{"em"}
-                few{"{0} em"}
-                one{"{0} em"}
-                other{"{0} em"}
-            }
-            megapixel{
-                dnam{"MP"}
-                few{"{0} MP"}
-                one{"{0} MP"}
-                other{"{0} MP"}
-            }
-            pixel{
-                dnam{"px"}
-                few{"{0} px"}
-                one{"{0} px"}
-                other{"{0} px"}
-            }
-            pixel-per-centimeter{
-                dnam{"ppcm"}
-                few{"{0} ppcm"}
-                one{"{0} ppcm"}
-                other{"{0} ppcm"}
-            }
-            pixel-per-inch{
-                dnam{"ppi"}
-                few{"{0} ppi"}
-                one{"{0} ppi"}
-                other{"{0} ppi"}
-            }
         }
         length{
             astronomical-unit{
@@ -3776,57 +2997,17 @@ sr_Latn{
                 one{"{0} aj"}
                 other{"{0} aj"}
             }
-            centimeter{
-                dnam{"cm"}
-                few{"{0} cm"}
-                one{"{0} cm"}
-                other{"{0} cm"}
-                per{"{0}/cm"}
-            }
-            decimeter{
-                dnam{"dm"}
-                few{"{0} dm"}
-                one{"{0} dm"}
-                other{"{0} dm"}
-            }
-            earth-radius{
-                dnam{"R⊕"}
-                few{"{0} R⊕"}
-                one{"{0} R⊕"}
-                other{"{0} R⊕"}
-            }
             fathom{
                 dnam{"hv"}
-                few{"{0} fth"}
-                one{"{0} fth"}
-                other{"{0} fth"}
-            }
-            foot{
-                dnam{"ft"}
-                few{"{0} ft"}
-                one{"{0} ft"}
-                other{"{0} ft"}
-                per{"{0}/ft"}
             }
             furlong{
                 dnam{"furlonzi"}
-                few{"{0} fur"}
-                one{"{0} fur"}
-                other{"{0} fur"}
             }
             inch{
                 dnam{"inči"}
                 few{"{0} inča"}
                 one{"{0} inč"}
                 other{"{0} inča"}
-                per{"{0}/in"}
-            }
-            kilometer{
-                dnam{"km"}
-                few{"{0} km"}
-                one{"{0} km"}
-                other{"{0} km"}
-                per{"{0}/km"}
             }
             light-year{
                 dnam{"svetlosne god."}
@@ -3836,64 +3017,15 @@ sr_Latn{
             }
             meter{
                 dnam{"m"}
-                few{"{0} m"}
-                one{"{0} m"}
-                other{"{0} m"}
-                per{"{0}/m"}
-            }
-            micrometer{
-                dnam{"μm"}
-                few{"{0} μm"}
-                one{"{0} μm"}
-                other{"{0} μm"}
             }
             mile{
                 dnam{"milje"}
-                few{"{0} mi"}
-                one{"{0} mi"}
-                other{"{0} mi"}
-            }
-            mile-scandinavian{
-                dnam{"smi"}
-                few{"{0} smi"}
-                one{"{0} smi"}
-                other{"{0} smi"}
-            }
-            millimeter{
-                dnam{"mm"}
-                few{"{0} mm"}
-                one{"{0} mm"}
-                other{"{0} mm"}
-            }
-            nanometer{
-                dnam{"nm"}
-                few{"{0} nm"}
-                one{"{0} nm"}
-                other{"{0} nm"}
-            }
-            nautical-mile{
-                dnam{"nmi"}
-                few{"{0} nmi"}
-                one{"{0} nmi"}
-                other{"{0} nmi"}
             }
             parsec{
                 dnam{"parseci"}
-                few{"{0} pc"}
-                one{"{0} pc"}
-                other{"{0} pc"}
             }
             picometer{
                 dnam{"pikometri"}
-                few{"{0} pm"}
-                one{"{0} pm"}
-                other{"{0} pm"}
-            }
-            point{
-                dnam{"pt"}
-                few{"{0} pt"}
-                one{"{0} pt"}
-                other{"{0} pt"}
             }
             yard{
                 dnam{"jardi"}
@@ -3902,297 +3034,59 @@ sr_Latn{
                 other{"{0} jrd"}
             }
         }
-        light{
-            lux{
-                dnam{"lx"}
-                few{"{0} lx"}
-                one{"{0} lx"}
-                other{"{0} lx"}
-            }
-        }
         mass{
             carat{
                 dnam{"karati"}
-                few{"{0} CD"}
-                one{"{0} CD"}
-                other{"{0} CD"}
             }
             grain{
                 dnam{"grejn"}
             }
             gram{
                 dnam{"grami"}
-                few{"{0} g"}
-                one{"{0} g"}
-                other{"{0} g"}
-                per{"{0}/g"}
-            }
-            kilogram{
-                dnam{"kg"}
-                few{"{0} kg"}
-                one{"{0} kg"}
-                other{"{0} kg"}
-                per{"{0}/kg"}
-            }
-            microgram{
-                dnam{"μg"}
-                few{"{0} μg"}
-                one{"{0} μg"}
-                other{"{0} μg"}
-            }
-            milligram{
-                dnam{"mg"}
-                few{"{0} mg"}
-                one{"{0} mg"}
-                other{"{0} mg"}
-            }
-            ounce{
-                dnam{"oz"}
-                few{"{0} oz"}
-                one{"{0} oz"}
-                other{"{0} oz"}
-                per{"{0}/oz"}
-            }
-            ounce-troy{
-                dnam{"oz t"}
-                few{"{0} oz t"}
-                one{"{0} oz t"}
-                other{"{0} oz t"}
-            }
-            pound{
-                dnam{"lb"}
-                few{"{0} lb"}
-                one{"{0} lb"}
-                other{"{0} lb"}
-                per{"{0}/lb"}
-            }
-            ton{
-                dnam{"tn"}
-                few{"{0} tn"}
-                one{"{0} tn"}
-                other{"{0} tn"}
-            }
-            tonne{
-                dnam{"t"}
-                few{"{0} t"}
-                one{"{0} t"}
-                other{"{0} t"}
             }
         }
         power{
-            gigawatt{
-                dnam{"GW"}
-                few{"{0} GW"}
-                one{"{0} GW"}
-                other{"{0} GW"}
-            }
-            horsepower{
-                dnam{"hp"}
-                few{"{0} hp"}
-                one{"{0} hp"}
-                other{"{0} hp"}
-            }
-            kilowatt{
-                dnam{"kW"}
-                few{"{0} kW"}
-                one{"{0} kW"}
-                other{"{0} kW"}
-            }
-            megawatt{
-                dnam{"MW"}
-                few{"{0} MW"}
-                one{"{0} MW"}
-                other{"{0} MW"}
-            }
-            milliwatt{
-                dnam{"mW"}
-                few{"{0} mW"}
-                one{"{0} mW"}
-                other{"{0} mW"}
-            }
             watt{
                 dnam{"W"}
-                few{"{0} W"}
-                one{"{0} W"}
-                other{"{0} W"}
-            }
-        }
-        pressure{
-            atmosphere{
-                dnam{"atm"}
-                few{"{0} atm"}
-                one{"{0} atm"}
-                other{"{0} atm"}
-            }
-            bar{
-                dnam{"bar"}
-                few{"{0} bar"}
-                one{"{0} bar"}
-                other{"{0} bar"}
-            }
-            hectopascal{
-                dnam{"hPa"}
-                few{"{0} hPa"}
-                one{"{0} hPa"}
-                other{"{0} hPa"}
-            }
-            inch-ofhg{
-                dnam{"inHg"}
-                few{"{0} inHg"}
-                one{"{0} inHg"}
-                other{"{0} inHg"}
-            }
-            millibar{
-                dnam{"mbar"}
-                few{"{0} mbar"}
-                one{"{0} mbar"}
-                other{"{0} mbar"}
-            }
-            millimeter-ofhg{
-                dnam{"mm Hg"}
-                few{"{0} mm Hg"}
-                one{"{0} mm Hg"}
-                other{"{0} mm Hg"}
-            }
-            pascal{
-                dnam{"Pa"}
-                few{"{0} Pa"}
-                one{"{0} Pa"}
-                other{"{0} Pa"}
-            }
-            pound-force-per-square-inch{
-                dnam{"psi"}
-                few{"{0} psi"}
-                one{"{0} psi"}
-                other{"{0} psi"}
             }
         }
         speed{
-            kilometer-per-hour{
-                dnam{"km/h"}
-                few{"{0} km/h"}
-                one{"{0} km/h"}
-                other{"{0} km/h"}
-            }
-            knot{
-                dnam{"kn"}
-                few{"{0} kn"}
-                one{"{0} kn"}
-                other{"{0} kn"}
+            beaufort{
+                dnam{"Bf"}
+                few{"B {0}"}
+                one{"B {0}"}
+                other{"B {0}"}
             }
             meter-per-second{
                 dnam{"metri u sekundi"}
-                few{"{0} m/s"}
-                one{"{0} m/s"}
-                other{"{0} m/s"}
             }
             mile-per-hour{
                 dnam{"milje na sat"}
-                few{"{0} mi/h"}
-                one{"{0} mi/h"}
-                other{"{0} mi/h"}
             }
         }
         temperature{
-            celsius{
-                dnam{"°C"}
-                few{"{0}°C"}
-                one{"{0}°C"}
-                other{"{0}°C"}
-            }
             fahrenheit{
                 dnam{"stepeni Farenhajta"}
-                few{"{0}°F"}
-                one{"{0}°F"}
-                other{"{0}°F"}
-            }
-            generic{
-                dnam{"°"}
-                few{"{0}°"}
-                one{"{0}°"}
-                other{"{0}°"}
-            }
-            kelvin{
-                dnam{"K"}
-                few{"{0} K"}
-                one{"{0} K"}
-                other{"{0} K"}
             }
         }
         volume{
-            acre-foot{
-                dnam{"ac ft"}
-                few{"{0} ac ft"}
-                one{"{0} ac ft"}
-                other{"{0} ac ft"}
-            }
-            centiliter{
-                dnam{"cL"}
-                few{"{0} cL"}
-                one{"{0} cL"}
-                other{"{0} cL"}
-            }
-            cubic-centimeter{
-                dnam{"cm³"}
-                few{"{0} cm³"}
-                one{"{0} cm³"}
-                other{"{0} cm³"}
-                per{"{0}/cm³"}
-            }
-            cubic-foot{
-                dnam{"ft³"}
-                few{"{0} ft³"}
-                one{"{0} ft³"}
-                other{"{0} ft³"}
-            }
-            cubic-inch{
-                dnam{"in³"}
-                few{"{0} in³"}
-                one{"{0} in³"}
-                other{"{0} in³"}
-            }
-            cubic-kilometer{
-                dnam{"km³"}
-                few{"{0} km³"}
-                one{"{0} km³"}
-                other{"{0} km³"}
-            }
-            cubic-meter{
-                dnam{"m³"}
-                few{"{0} m³"}
-                one{"{0} m³"}
-                other{"{0} m³"}
-                per{"{0}/m³"}
-            }
-            cubic-mile{
-                dnam{"mi³"}
-                few{"{0} mi³"}
-                one{"{0} mi³"}
-                other{"{0} mi³"}
-            }
-            cubic-yard{
-                dnam{"yd³"}
-                few{"{0} yd³"}
-                one{"{0} yd³"}
-                other{"{0} yd³"}
-            }
             cup{
                 dnam{"šolje"}
                 few{"{0} š."}
                 one{"{0} š."}
                 other{"{0} š."}
             }
-            cup-metric{
-                dnam{"mcup"}
-                few{"{0} mc"}
-                one{"{0} mc"}
-                other{"{0} mc"}
+            dessert-spoon{
+                dnam{"des. kaš."}
+                few{"{0} des. kaš."}
+                one{"{0} des. kaš."}
+                other{"{0} des. kaš."}
             }
-            deciliter{
-                dnam{"dL"}
-                few{"{0} dL"}
-                one{"{0} dL"}
-                other{"{0} dL"}
+            dessert-spoon-imperial{
+                dnam{"imp. des. kaš."}
+                few{"{0} imp. des. kaš."}
+                one{"{0} imp. des. kaš."}
+                other{"{0} imp. des. kaš."}
             }
             dram{
                 dnam{"dram tečnosti"}
@@ -4216,61 +3110,20 @@ sr_Latn{
                 other{"{0} gal"}
                 per{"{0}/gal"}
             }
-            gallon-imperial{
-                dnam{"Imp. gal"}
-                few{"{0} gal Imp."}
-                one{"{0} gal Imp."}
-                other{"{0} gal Imp."}
-                per{"{0}/gal Imp."}
-            }
-            hectoliter{
-                dnam{"hL"}
-                few{"{0} hL"}
-                one{"{0} hL"}
-                other{"{0} hL"}
-            }
             jigger{
                 dnam{"džiger"}
+                few{"{0} džigera"}
+                one{"{0} džiger"}
+                other{"{0} džigera"}
             }
             liter{
                 dnam{"litri"}
-                few{"{0} l"}
-                one{"{0} l"}
-                other{"{0} l"}
-                per{"{0}/l"}
-            }
-            megaliter{
-                dnam{"ML"}
-                few{"{0} ML"}
-                one{"{0} ML"}
-                other{"{0} ML"}
-            }
-            milliliter{
-                dnam{"mL"}
-                few{"{0} mL"}
-                one{"{0} mL"}
-                other{"{0} mL"}
             }
             pinch{
                 dnam{"prstohvat"}
-            }
-            pint{
-                dnam{"pt"}
-                few{"{0} pt"}
-                one{"{0} pt"}
-                other{"{0} pt"}
-            }
-            pint-metric{
-                dnam{"mpt"}
-                few{"{0} mpt"}
-                one{"{0} mpt"}
-                other{"{0} mpt"}
-            }
-            quart{
-                dnam{"qt"}
-                few{"{0} qt"}
-                one{"{0} qt"}
-                other{"{0} qt"}
+                few{"{0} prstohvata"}
+                one{"{0} prstohvat"}
+                other{"{0} prstohvata"}
             }
             tablespoon{
                 dnam{"kaš."}

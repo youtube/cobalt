@@ -85,14 +85,13 @@ bool SharedWorkerDevToolsAgentHost::Close() {
   return true;
 }
 
-bool SharedWorkerDevToolsAgentHost::AttachSession(DevToolsSession* session,
-                                                  bool acquire_wake_lock) {
+bool SharedWorkerDevToolsAgentHost::AttachSession(DevToolsSession* session) {
   session->CreateAndAddHandler<protocol::IOHandler>(GetIOContext());
   session->CreateAndAddHandler<protocol::InspectorHandler>();
   session->CreateAndAddHandler<protocol::NetworkHandler>(
       GetId(), devtools_worker_token_, GetIOContext(),
-      base::BindRepeating([] {}), session->GetClient()->MayReadLocalFiles());
-  // TODO(crbug.com/1143100): support pushing updated loader factories down to
+      base::BindRepeating([] {}), session->GetClient());
+  // TODO(crbug.com/40154954): support pushing updated loader factories down to
   // renderer.
   session->CreateAndAddHandler<protocol::FetchHandler>(
       GetIOContext(),
@@ -111,7 +110,8 @@ void SharedWorkerDevToolsAgentHost::DetachSession(DevToolsSession* session) {
 bool SharedWorkerDevToolsAgentHost::Matches(SharedWorkerHost* worker_host) {
   return instance_.Matches(worker_host->instance().url(),
                            worker_host->instance().name(),
-                           worker_host->instance().storage_key());
+                           worker_host->instance().storage_key(),
+                           worker_host->instance().same_site_cookies());
 }
 
 void SharedWorkerDevToolsAgentHost::WorkerReadyForInspection(
@@ -121,9 +121,9 @@ void SharedWorkerDevToolsAgentHost::WorkerReadyForInspection(
   DCHECK_EQ(WORKER_NOT_READY, state_);
   DCHECK(worker_host_);
   state_ = WORKER_READY;
-  GetRendererChannel()->SetRenderer(std::move(agent_remote),
-                                    std::move(agent_host_receiver),
-                                    worker_host_->GetProcessHost()->GetID());
+  GetRendererChannel()->SetRenderer(
+      std::move(agent_remote), std::move(agent_host_receiver),
+      worker_host_->GetProcessHost()->GetDeprecatedID());
   for (auto* inspector : protocol::InspectorHandler::ForAgentHost(this))
     inspector->TargetReloadedAfterCrash();
 }
@@ -150,7 +150,10 @@ void SharedWorkerDevToolsAgentHost::WorkerDestroyed() {
 DevToolsAgentHostImpl::NetworkLoaderFactoryParamsAndInfo
 SharedWorkerDevToolsAgentHost::CreateNetworkFactoryParamsForDevTools() {
   DCHECK(worker_host_);
-  return {GetStorageKey().origin(), net::SiteForCookies::FromUrl(GetURL()),
+  return {GetStorageKey().origin(),
+          instance_.DoesRequireCrossSiteRequestForCookies()
+              ? net::SiteForCookies()
+              : net::SiteForCookies::FromUrl(GetURL()),
           worker_host_->CreateNetworkFactoryParamsForSubresources()};
 }
 

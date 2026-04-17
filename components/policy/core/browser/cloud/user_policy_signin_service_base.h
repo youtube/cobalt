@@ -7,12 +7,15 @@
 
 #include <memory>
 #include <string>
+#include <variant>
 
 #include "base/callback_list.h"
+#include "base/cancelable_callback.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "base/time/time.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/policy/core/common/cloud/cloud_policy_client.h"
@@ -20,7 +23,6 @@
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "google_apis/gaia/core_account_id.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 
 class AccountId;
 class PrefService;
@@ -54,8 +56,10 @@ class POLICY_EXPORT UserPolicySigninServiceBase
   // The callback invoked once policy registration is complete. Passed
   // |dm_token| and |client_id| parameters are empty if policy registration
   // failed.
-  typedef base::OnceCallback<void(const std::string& dm_token,
-                                  const std::string& client_id)>
+  typedef base::OnceCallback<void(
+      const std::string& dm_token,
+      const std::string& client_id,
+      const std::vector<std::string>& user_affiliation_ids)>
       PolicyRegistrationCallback;
 
   // The callback invoked once policy fetch is complete. Passed boolean
@@ -66,7 +70,7 @@ class POLICY_EXPORT UserPolicySigninServiceBase
   UserPolicySigninServiceBase(
       PrefService* local_state,
       DeviceManagementService* device_management_service,
-      absl::variant<UserCloudPolicyManager*, ProfileCloudPolicyManager*>
+      std::variant<UserCloudPolicyManager*, ProfileCloudPolicyManager*>
           policy_manager,
       signin::IdentityManager* identity_manager,
       scoped_refptr<network::SharedURLLoaderFactory> system_url_loader_factory);
@@ -84,6 +88,7 @@ class POLICY_EXPORT UserPolicySigninServiceBase
       const AccountId& account_id,
       const std::string& dm_token,
       const std::string& client_id,
+      const std::vector<std::string>& user_affiliation_ids,
       scoped_refptr<network::SharedURLLoaderFactory> profile_url_loader_factory,
       PolicyFetchCallback callback);
 
@@ -92,8 +97,6 @@ class POLICY_EXPORT UserPolicySigninServiceBase
   void OnPolicyRefreshed(bool success) override;
 
   // CloudPolicyClient::Observer implementation:
-  void OnPolicyFetched(CloudPolicyClient* client) override;
-  void OnRegistrationStateChanged(CloudPolicyClient* client) override;
   void OnClientError(CloudPolicyClient* client) override;
 
   // KeyedService implementation:
@@ -116,13 +119,11 @@ class POLICY_EXPORT UserPolicySigninServiceBase
       const CoreAccountId& account_id,
       PolicyRegistrationCallback callback);
 
-  // Creates a CloudPolicyClient. Used in situations where
-  // callers want to create a DMToken without actually initializing the
-  // profile's policy infrastructure (for example, during signin when we
-  // want to check if the user's domain requires policy).
-  static std::unique_ptr<CloudPolicyClient> CreateCloudPolicyClient(
-      DeviceManagementService* device_management_service,
-      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory);
+  // Set CloudPolicyClient::DeviceDMTokenCallback for policy fetch request.
+  // Function is for testing purpose only to avoid setup affiliated id and
+  // dm token for both user and device.
+  void SetDeviceDMTokenCallbackForTesting(
+      CloudPolicyClient::DeviceDMTokenCallback callback);
 
  protected:
   // Invoked to initialize the cloud policy service for |account_id|, which is
@@ -154,9 +155,6 @@ class POLICY_EXPORT UserPolicySigninServiceBase
   // platforms for network efficiency.
   virtual void UpdateLastPolicyCheckTime();
 
-  // Gets the sign-in consent level required to perform registration.
-  virtual signin::ConsentLevel GetConsentLevelForRegistration();
-
   // Gets the delay before the next registration.
   virtual base::TimeDelta GetTryRegistrationDelay();
 
@@ -178,6 +176,13 @@ class POLICY_EXPORT UserPolicySigninServiceBase
   // device_management service.
   virtual void RegisterCloudPolicyService();
 
+  // Returns a callback that can be used to retrieve device dm token when user
+  // is affiliated.
+  virtual CloudPolicyClient::DeviceDMTokenCallback
+  GetDeviceDMTokenIfAffiliatedCallback();
+
+  virtual std::string GetProfileId() = 0;
+
   // Convenience helpers to get the associated CloudPolicyManager and
   // IdentityManager.
   CloudPolicyManager* policy_manager() { return policy_manager_; }
@@ -193,6 +198,9 @@ class POLICY_EXPORT UserPolicySigninServiceBase
     return system_url_loader_factory_;
   }
 
+  CloudPolicyClient::DeviceDMTokenCallback
+      device_dm_token_callback_for_testing_;
+
  private:
   // A getter for `policy_fetch_callbacks_` that constructs a new instance if
   // it's null.
@@ -202,6 +210,12 @@ class POLICY_EXPORT UserPolicySigninServiceBase
   // or NULL if |username| shouldn't register for policy management.
   std::unique_ptr<CloudPolicyClient> CreateClientForRegistrationOnly(
       const std::string& username);
+
+  // Returns a CloudPolicyClient for policy fetch, reporting and many other
+  // purposes. It attaches a callback to the client to retrieve device DM token
+  // which is uploaded for policy fetch request.
+  std::unique_ptr<CloudPolicyClient> CreateClientForNonRegistration(
+      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory);
 
   // Returns false if cloud policy is disabled or if the passed |email_address|
   // is definitely not from a hosted domain (according to the list in
@@ -240,6 +254,16 @@ class POLICY_EXPORT UserPolicySigninServiceBase
   // `RegisterForPolicyWithAccountId()`.
   std::unique_ptr<CloudPolicyClientRegistrationHelper>
       registration_helper_for_temporary_client_;
+
+  // Callback to start the delayed registration. Cancelled when the service is
+  // shut down.
+  base::CancelableOnceCallback<void()> registration_callback_;
+
+  base::ScopedObservation<CloudPolicyClient, CloudPolicyClient::Observer>
+      cloud_policy_client_observation_{this};
+
+  base::ScopedObservation<CloudPolicyService, CloudPolicyService::Observer>
+      cloud_policy_service_observation_{this};
 
   base::WeakPtrFactory<UserPolicySigninServiceBase> weak_factory_{this};
 

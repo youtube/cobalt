@@ -8,8 +8,10 @@
 #include <stdint.h>
 
 #include <memory>
+#include <string>
 
 #include "base/memory/raw_ptr.h"
+#include "ui/base/mojom/menu_source_type.mojom-shared.h"
 #include "ui/views/controls/menu/menu_runner_impl_interface.h"
 #include "ui/views/views_export.h"
 
@@ -42,9 +44,11 @@ class VIEWS_EXPORT MenuRunnerImplAdapter : public MenuRunnerImplInterface {
       MenuButtonController* button_controller,
       const gfx::Rect& bounds,
       MenuAnchorPosition anchor,
-      int32_t types,
+      ui::mojom::MenuSourceType source_type,
+      int32_t run_types,
       gfx::NativeView native_view_for_gestures,
-      absl::optional<gfx::RoundedCornersF> corners = absl::nullopt) override;
+      std::optional<gfx::RoundedCornersF> corners,
+      std::optional<std::string> show_menu_host_duration_histogram) override;
   void Cancel() override;
   base::TimeTicks GetClosingEventTime() const override;
 
@@ -52,7 +56,7 @@ class VIEWS_EXPORT MenuRunnerImplAdapter : public MenuRunnerImplInterface {
   ~MenuRunnerImplAdapter() override;
 
   std::unique_ptr<MenuModelAdapter> menu_model_adapter_;
-  raw_ptr<MenuRunnerImpl, DanglingUntriaged> impl_;
+  raw_ptr<MenuRunnerImpl> impl_;
 };
 
 }  // namespace internal

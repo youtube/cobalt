@@ -7,8 +7,9 @@ module page_load_metrics.mojom;
 import "ui/gfx/geometry/mojom/geometry.mojom";
 import "mojo/public/mojom/base/shared_memory.mojom";
 import "mojo/public/mojom/base/time.mojom";
+import
+  "third_party/blink/public/mojom/loader/javascript_framework_detection.mojom";
 import "services/network/public/mojom/request_priority.mojom";
-import "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom";
 import "third_party/blink/public/mojom/use_counter/use_counter_feature.mojom";
 
 // TimeDeltas below relative to navigation start.
@@ -20,15 +21,20 @@ struct DocumentTiming {
   mojo_base.mojom.TimeDelta? load_event_start;
 };
 
+struct LcpResourceLoadTimings {
+  // Time when the underlying LCP resource is requested.
+  mojo_base.mojom.TimeDelta? discovery_time;
+
+  // Time when the underlying LCP resource starts loading.
+  mojo_base.mojom.TimeDelta? load_start;
+
+  // Time when the underlying LCP resource finishes loading.
+  mojo_base.mojom.TimeDelta? load_end;
+};
+
 struct LargestContentfulPaintTiming {
   // Time when the page's largest image is painted.
   mojo_base.mojom.TimeDelta? largest_image_paint;
-
-  // Time when the page's largest image starts loading.
-  mojo_base.mojom.TimeDelta? largest_image_load_start;
-
-  // Time when the page's largest image finishes loading.
-  mojo_base.mojom.TimeDelta? largest_image_load_end;
 
   // Size of the largest image of the largest image paint, by
   // Size = Height * Width. Removed images are excluded.
@@ -40,6 +46,8 @@ struct LargestContentfulPaintTiming {
   // Size of the largest text of the largest text paint, by
   // Size = Height * Width. Removed text is excluded.
   uint64 largest_text_paint_size;
+
+  LcpResourceLoadTimings resource_load_timings;
 
   // These are packed blink::LargestContentfulPaintType enums, indicating
   // the largest LCP candidate's type characteristics.
@@ -53,7 +61,7 @@ struct LargestContentfulPaintTiming {
   // When the priority is not available or the LCP is a video,
   // `image_request_priority_valid` is false.
   // Otherwise, `image_request_priority_value` contains the priority.
-  // TODO(crbug.com/657632): Use an optional enum.
+  // TODO(crbug.com/40489779): Use an optional enum.
   bool image_request_priority_valid = false;
   network.mojom.RequestPriority image_request_priority_value;
 };
@@ -86,9 +94,6 @@ struct PaintTiming {
   // (Experimental) Time when first input or scroll is received, causing the
   // largest contentful paint algorithm to stop.
   mojo_base.mojom.TimeDelta? first_input_or_scroll_notified_timestamp;
-
-  // Time when the first paint happens after a portal activation.
-  mojo_base.mojom.TimeTicks? portal_activated_paint;
 };
 
 // TimeDeltas below represent durations of time during the page load.
@@ -137,23 +142,27 @@ struct InteractiveTiming {
   // The timestamp of the event whose delay is reported by GetFirstInputDelay().
   mojo_base.mojom.TimeDelta? first_input_timestamp;
 
-  // Queueing Time of the meaningful input event with longest delay. Meaningful
-  // input events are click, tap, key press, cancellable touchstart, or pointer
-  // down followed by a pointer up.
-  mojo_base.mojom.TimeDelta? longest_input_delay;
-
-  // The timestamp of the event whose delay is reported as longest_input_delay.
-  mojo_base.mojom.TimeDelta? longest_input_timestamp;
-
   // The latency between user input and display update for the first scroll after
   // a navigation.
   mojo_base.mojom.TimeDelta? first_scroll_delay;
 
   // The timestamp of the user's first scroll after a navigation.
   mojo_base.mojom.TimeDelta? first_scroll_timestamp;
+};
 
-  // The duration of event handlers processing the first input event.
-  mojo_base.mojom.TimeDelta? first_input_processing_time;
+struct CustomUserTimingMark {
+  // The mark name from performance.mark().
+  string mark_name;
+  // The startTime from performance.mark().
+  mojo_base.mojom.TimeDelta start_time;
+};
+
+struct DomainLookupTiming {
+  // Time that the domain lookup started relative to navigation start time.
+  mojo_base.mojom.TimeDelta? domain_lookup_start;
+
+  // Time that the domain lookup ended relative to navigation start time.
+  mojo_base.mojom.TimeDelta? domain_lookup_end;
 };
 
 // PageLoadTiming contains timing metrics associated with a page load. Many of
@@ -166,6 +175,14 @@ struct PageLoadTiming {
   // future.
   mojo_base.mojom.Time navigation_start;
 
+  // Time relative to navigation_start that the network connection is going to
+  // be established.
+  mojo_base.mojom.TimeDelta? connect_start;
+
+  // Time relative to navigation_start that the network connection was
+  // established.
+  mojo_base.mojom.TimeDelta? connect_end;
+
   // Time relative to navigation_start that the first byte of the response is
   // received.
   mojo_base.mojom.TimeDelta? response_start;
@@ -173,6 +190,7 @@ struct PageLoadTiming {
   InteractiveTiming interactive_timing;
   PaintTiming paint_timing;
   ParseTiming parse_timing;
+  DomainLookupTiming domain_lookup_timing;
 
   // List of back-forward cache timings, one for each time a page was restored
   // from the cache.
@@ -224,6 +242,9 @@ struct FrameMetadata {
   // is only populated for the main frame, for the first time
   // each rectangle is initially computed and for any subsequent changes.
   map<int32, gfx.mojom.Rect> main_frame_image_ad_rects;
+
+  // Detected versions of JavaScript frameworks in the page.
+  blink.mojom.JavaScriptFrameworkDetectionResult framework_detection_result;
 };
 
 struct SubresourceLoadMetrics {
@@ -234,16 +255,6 @@ struct SubresourceLoadMetrics {
   // Number of subresources loads that is responded by the service worker.
   // i.e. `respondWith` was called.
   uint32 number_of_subresource_loads_handled_by_service_worker;
-
-  // Whether a pervasive payload (aka subresource) was requested.
-  bool pervasive_payload_requested;
-
-  // Number of bytes fetched by the network for pervasive payloads on a page.
-  int64 pervasive_bytes_fetched;
-
-  // Total number of bytes fetched by the network. This value can be -1
-  // when the value is unknown or there is no data.
-  int64 total_bytes_fetched;
 
   // Metrics for service workers.
   ServiceWorkerSubresourceLoadMetrics? service_worker_subresource_load_metrics;
@@ -404,6 +415,50 @@ struct ServiceWorkerSubresourceLoadMetrics {
   // e.g. if there are two resources, and one is handed by the service worker,
   // and one did not, this flag will be true because one was network fallback.
   bool mock_fallback;
+
+  // True even if one dictionary sub resource is handled by a service worker.
+  // i.e. the service worker called `respondWith` to return the resource.
+  // e.g. if there are two resources, and one is handed by the service worker,
+  // and one did not, this flag will be true because one was handled.
+  bool dictionary_handled;
+  // True even if one dictionary sub resource caused a network fallback.
+  // i.e. the service worker did not call `respondWith`, and network fallback.
+  // e.g. if there are two resources, and one is handed by the service worker,
+  // and one did not, this flag will be true because one was network fallback.
+  bool dictionary_fallback;
+
+  // Total number of sub-resources which were matched to
+  // `RouterSourceEnum.cache` in ServiceWorker Static Routing API, from
+  // navigation start until onload event.
+  uint32 matched_cache_router_source_count = 0;
+
+  // Total number of sub-resources which were matched to
+  // `RouterSourceEnum.fetch-event` in ServiceWorker Static Routing API, from
+  // navigation start until onload event.
+  uint32 matched_fetch_event_router_source_count = 0;
+
+  // Total number of sub-resources which were matched to
+  // `RouterSourceEnum.network` in ServiceWorker Static Routing API, from
+  // navigation start until onload event.
+  uint32 matched_network_router_source_count = 0;
+
+  // Total number of sub-resources which were matched to the
+  // `RouterSourceEnum.race-network-and-fetch-handler` in ServiceWorker Static
+  // Routing API, from navigation start till onload event.
+  uint32 matched_race_network_and_fetch_router_source_count = 0;
+
+  // Total number of sub-resources which were matched to the
+  // `RouterSourceEnum.race-network-and-cache` in ServiceWorker Static
+  // Routing API, from navigation start till onload event.
+  uint32 matched_race_network_and_cache_router_source_count = 0;
+
+  // Total router evaluation time of ServiceWorker Static Routing API for
+  // sub-resources.
+  mojo_base.mojom.TimeDelta total_router_evaluation_time_for_subresources;
+
+  // Total cache lookup time of ServiceWorker Static Routing API for
+  // sub-resources.
+  mojo_base.mojom.TimeDelta total_cache_lookup_time_for_subresources;
 };
 
 // Enumeration of distinct cache types.
@@ -459,13 +514,6 @@ struct ResourceDataUpdate {
 
   // Whether this resource was fetched via proxy.
   bool proxy_used;
-
-  // Whether this resource completed loading, either by network or cache, before
-  // FCP in the frame it belongs to. This flag can be set to true at any point
-  // during a resource load. A more recent ResourceDataUpdate can have a
-  // different flag than the previous update. Once this is set to true, it will
-  // be true for all future updates.
-  bool completed_before_fcp;
 };
 
 // Timestamp and layout shift score of a layout shift.
@@ -496,49 +544,28 @@ struct CpuTiming {
 
 // Metrics about general input delay.
 struct InputTiming {
-  // The sum of all input delay.
-  mojo_base.mojom.TimeDelta total_input_delay;
-
-  // The sum of all adjusted input delay. We adjust each input delay by
-  // subtracting a small number, currently 50ms but subject to change in the
-  // future. And if the subtraction result is negative, we will use 0ms.
-  mojo_base.mojom.TimeDelta total_adjusted_input_delay;
-
-  // The number of input events, including click, tap, key press,
-  // cancellable touchstart, or pointer down followed by a pointer up.
-  uint64 num_input_events = 0;
 
   // The number of user interactions, including click, tap and key press.
   uint64 num_interactions = 0;
 
-  // Includes an array of max_event_duration which is the longest input event
-  // duration within a user interaction. The unit of duration is ms. Currently,
-  // we send this array to the browser process behind a Finch flag.
-  // TODO(crbug.com/1252179): Once the experiment is done, we could simplify
-  // this part.
+  // List of user interactions since last update.
+  // TODO(crbug.com/382949422): Remove the needless union wrapper.
   UserInteractionLatencies max_event_durations;
 };
 
 // Data for user interaction latencies which can be meausred in different ways.
-// Currently, the array user_interaction_latencies is sent behind a Finch flag.
-// If we don't send the array, the maximum value will be sent instead.
 union UserInteractionLatencies {
   array<UserInteractionLatency> user_interaction_latencies;
-  // The maximum value in user_interaction_latencies.
-  mojo_base.mojom.TimeDelta worst_interaction_latency;
 };
 
 // The latency and the type of a user interaction.
 struct UserInteractionLatency {
   mojo_base.mojom.TimeDelta interaction_latency;
-  UserInteractionType interaction_type;
-};
-
-// The type of a user interaction, including keyboard, click or tap and drag.
-enum UserInteractionType {
-  kKeyboard,
-  kTapOrClick,
-  kDrag,
+  // The one-based offset of the interaction in time-based order; 1 for the
+  // first interaction, 2 for the second, etc.
+  uint64 interaction_offset;
+  // The time the interaction occurred, relative to navigation start.
+  mojo_base.mojom.TimeTicks interaction_time;
 };
 
 // Sent from renderer to browser process when the PageLoadTiming for the
@@ -559,13 +586,26 @@ interface PageLoadMetrics {
                CpuTiming cpu_load_timing,
                InputTiming input_timing_delta,
                SubresourceLoadMetrics? subresource_load_metrics,
-               uint32 soft_navigation_count);
+               SoftNavigationMetrics soft_navigation_metrics);
 
   // Set up a shared memory used to transfer smoothness data from the renderer
-  // to the browser. The structure is defined in
-  // //cc/metrics/ukm_smoothness_data.h
-  SetUpSharedMemoryForSmoothness(
-      mojo_base.mojom.ReadOnlySharedMemoryRegion shared_memory);
+  // to the browser. The structures are defined in
+  // //cc/metrics/ukm_smoothness_data.h and
+  // //cc/metrics/ukm_dropped_frames_data.h
+  SetUpSharedMemoryForUkms(
+    mojo_base.mojom.ReadOnlySharedMemoryRegion smoothness_memory,
+    mojo_base.mojom.ReadOnlySharedMemoryRegion dropped_frames_memory);
+
+  // Called when performance entries are added via `performance.mark()` from the
+  // outermost main frame in renderer, except for the case when standard
+  // UserTiming marks `mark_fully_loaded`, `mark_fully_visible`, and
+  // `mark_interactive` occur. Unlike `UpdateTiming`, this calls are not
+  // buffered, and expects it always contains the user timing entry which is not
+  // sent yet before.
+  //
+  // `AddCustomUserTiming` should be used when the expected transport data size
+  // can be larger. Otherwise `UpdateTiming` is recommended.
+  AddCustomUserTiming(CustomUserTimingMark custom_user_timing);
 };
 
 // TimeDelta below relative to the navigation start of the navigation restoring
@@ -583,4 +623,26 @@ struct BackForwardCacheTiming {
   // or pointer down followed by a pointer up after the time when the page is
   // restored from the back-forward cache.
   mojo_base.mojom.TimeDelta? first_input_delay_after_back_forward_cache_restore;
+};
+
+// Metrics about soft navigation. See soft navigation at https://github.com/WICG/soft-navigations.
+// The metrics are to be added in a SoftNavigation Event which is parallel to
+// a PageLoad event.
+struct SoftNavigationMetrics {
+  // The number of soft navigations that occur during a page load.
+  uint64 count;
+
+  // The start time of a soft navigation. It is the time the user initializes
+  // the soft navigation. It is relative to navigation start.
+  mojo_base.mojom.TimeDelta start_time;
+
+  // The renderer side navigation id that increments when a soft navigation
+  // happens.
+  string navigation_id;
+
+  // The LargestContentfulPaint of a soft navigation, that is, the largest
+  // contentful paint that happened after a soft navigation is detected and
+  // before the next soft navigation is detected or page end.
+  // The timings are relative to the soft navigation start.
+  LargestContentfulPaintTiming largest_contentful_paint;
 };

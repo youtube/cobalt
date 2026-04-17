@@ -13,12 +13,15 @@ import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.util.Log;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.webapk.lib.common.WebApkConstants;
 import org.chromium.webapk.shell_apk.HostBrowserLauncher;
 import org.chromium.webapk.shell_apk.HostBrowserLauncherParams;
 import org.chromium.webapk.shell_apk.WebApkSharedPreferences;
 
 /** Contains methods for launching host browser where ShellAPK shows the splash screen. */
+@NullMarked
 public class H2OLauncher {
     private static final String TAG = "cr_H2OLauncher";
 
@@ -27,15 +30,15 @@ public class H2OLauncher {
             Context context, long deltaMs) {
         SharedPreferences sharedPrefs = WebApkSharedPreferences.getPrefs(context);
         long now = System.currentTimeMillis();
-        long lastRequestTimestamp = sharedPrefs.getLong(
-                WebApkSharedPreferences.PREF_REQUEST_HOST_BROWSER_RELAUNCH_TIMESTAMP, -1);
+        long lastRequestTimestamp =
+                sharedPrefs.getLong(
+                        WebApkSharedPreferences.PREF_REQUEST_HOST_BROWSER_RELAUNCH_TIMESTAMP, -1);
         return (now - lastRequestTimestamp) <= deltaMs;
     }
 
     /**
      * Changes which components are enabled.
      *
-     * @param context
      * @param enableComponent Component to enable.
      * @param disableComponent Component to disable.
      */
@@ -46,8 +49,10 @@ public class H2OLauncher {
 
         PackageManager pm = context.getPackageManager();
         // The state change takes seconds if we do not let PackageManager kill the ShellAPK.
-        pm.setComponentEnabledSetting(enableComponent,
-                PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP);
+        pm.setComponentEnabledSetting(
+                enableComponent,
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                PackageManager.DONT_KILL_APP);
         pm.setComponentEnabledSetting(
                 disableComponent, PackageManager.COMPONENT_ENABLED_STATE_DISABLED, 0);
     }
@@ -58,22 +63,29 @@ public class H2OLauncher {
 
         Bundle extraExtras = new Bundle();
         extraExtras.putBoolean(WebApkConstants.EXTRA_SPLASH_PROVIDED_BY_WEBAPK, true);
-        HostBrowserLauncher.launchBrowserInWebApkMode(splashActivity, params, extraExtras,
-                Intent.FLAG_ACTIVITY_NO_ANIMATION, true /* expectResult */);
+        HostBrowserLauncher.launchBrowserInWebApkModeIfSupported(
+                splashActivity,
+                params,
+                extraExtras,
+                Intent.FLAG_ACTIVITY_NO_ANIMATION,
+                /* expectResult= */ true);
     }
 
     /**
      * Launches the given component, passing extras from the given intent.
      *
-     * @param context
      * @param intentToCopy Intent whose extras should be copied.
      * @param selectedShareTargetActivity Class name of the share activity that the user selected.
      * @param launchTimeMs Timestamp of when WebAPK's initial activity was launched. -1 if the time
-     *                     is unknown.
+     *     is unknown.
      * @param launchComponent Component to launch.
      */
-    public static void copyIntentExtrasAndLaunch(Context context, Intent intentToCopy,
-            String selectedShareTargetActivity, long launchTimeMs, ComponentName launchComponent) {
+    public static void copyIntentExtrasAndLaunch(
+            Context context,
+            Intent intentToCopy,
+            @Nullable String selectedShareTargetActivity,
+            long launchTimeMs,
+            ComponentName launchComponent) {
         Intent intent = new Intent(Intent.ACTION_VIEW, intentToCopy.getData());
         intent.setComponent(launchComponent);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -85,7 +97,8 @@ public class H2OLauncher {
 
         // If the intent is a share, propagate which share target activity the user selected.
         if (selectedShareTargetActivity != null) {
-            intent.putExtra(WebApkConstants.EXTRA_WEBAPK_SELECTED_SHARE_TARGET_ACTIVITY_CLASS_NAME,
+            intent.putExtra(
+                    WebApkConstants.EXTRA_WEBAPK_SELECTED_SHARE_TARGET_ACTIVITY_CLASS_NAME,
                     selectedShareTargetActivity);
         }
 
@@ -107,7 +120,11 @@ public class H2OLauncher {
 
         Bundle extraExtras = new Bundle();
         extraExtras.putBoolean(WebApkConstants.EXTRA_RELAUNCH, true);
-        HostBrowserLauncher.launchBrowserInWebApkMode(activity, params, extraExtras,
-                Intent.FLAG_ACTIVITY_NEW_TASK, false /* expectResult */);
+        HostBrowserLauncher.launchBrowserInWebApkModeIfSupported(
+                activity,
+                params,
+                extraExtras,
+                Intent.FLAG_ACTIVITY_NEW_TASK,
+                /* expectResult= */ false);
     }
 }

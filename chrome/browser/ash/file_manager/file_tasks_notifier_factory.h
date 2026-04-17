@@ -24,9 +24,9 @@ class FileTasksNotifierFactory : public ProfileKeyedServiceFactory {
 
   static FileTasksNotifierFactory* GetInstance();
 
-  FileTasksNotifier* GetForProfile(Profile* profile);
+  static FileTasksNotifier* GetForProfile(Profile* profile);
 
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
 };
 

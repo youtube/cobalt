@@ -17,11 +17,13 @@ import androidx.test.filters.MediumTest;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.Shadows;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowLooper;
@@ -33,25 +35,21 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.Feature;
 
-/**
- * Tests for the {@link OmahaServiceStartDelayer}.
- */
+/** Tests for the {@link OmahaServiceStartDelayer}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 @Batch(Batch.UNIT_TESTS)
 public class OmahaServiceStartDelayerTest {
-    @Mock
-    private Activity mActivity;
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Mock private Activity mActivity;
 
-    @Spy
-    private Runnable mRunnable;
+    @Spy private Runnable mRunnable;
     private OmahaServiceStartDelayer mOmahaServiceStartDelayer;
     private ShadowPowerManager mShadowPowerManager;
 
     @Before
     public void setUp() throws Exception {
         Context appContext = ApplicationProvider.getApplicationContext();
-        MockitoAnnotations.initMocks(this);
         mShadowPowerManager =
                 Shadows.shadowOf((PowerManager) appContext.getSystemService(Context.POWER_SERVICE));
         mOmahaServiceStartDelayer = new OmahaServiceStartDelayer();
@@ -93,9 +91,7 @@ public class OmahaServiceStartDelayerTest {
         Assert.assertFalse(mOmahaServiceStartDelayer.hasRunnableController());
     }
 
-    /**
-     * Check if the runnable is posted and run while the screen is on.
-     */
+    /** Check if the runnable is posted and run while the screen is on. */
     @Test
     @MediumTest
     @Feature({"Omaha"})
@@ -108,9 +104,7 @@ public class OmahaServiceStartDelayerTest {
         verifyNoTaskScheduled();
     }
 
-    /**
-     * Check that the runnable gets posted and canceled when the app is sent to the background.
-     */
+    /** Check that the runnable gets posted and canceled when the app is sent to the background. */
     @Test
     @Feature({"Omaha"})
     public void testRunnableGetsCanceledWhenAppIsBackgrounded() {
@@ -148,9 +142,7 @@ public class OmahaServiceStartDelayerTest {
         verify(mRunnable, times(1)).run();
     }
 
-    /**
-     * Check that the runnable gets run only while the screen is on.
-     */
+    /** Check that the runnable gets run only while the screen is on. */
     @Test
     @Feature({"Omaha"})
     public void testRunnableGetsRunWhenScreenIsTurnedOn() {
@@ -174,9 +166,7 @@ public class OmahaServiceStartDelayerTest {
         verifyNoTaskScheduled();
     }
 
-    /**
-     * Check that the runnable is not executed while the screen is off, but app is in foreground.
-     */
+    /** Check that the runnable is not executed while the screen is off, but app is in foreground. */
     @Test
     @Feature({"Omaha"})
     public void testRunnableIsNotRunWhileScreenIsOff() {
@@ -192,9 +182,7 @@ public class OmahaServiceStartDelayerTest {
         verify(mRunnable, times(0)).run();
     }
 
-    /**
-     * Verify that the runnable is only executed once even if the public API contract is not upheld.
-     */
+    /** Verify that the runnable is only executed once even if the public API contract is not upheld. */
     @Test
     @MediumTest
     @Feature({"Omaha"})

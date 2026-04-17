@@ -10,9 +10,10 @@
 
 #include "modules/video_coding/timing/inter_frame_delay_variation_calculator.h"
 
+#include <cstdint>
 #include <limits>
+#include <optional>
 
-#include "absl/types/optional.h"
 #include "api/units/frequency.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
@@ -40,7 +41,7 @@ TEST(InterFrameDelayVariationCalculatorTest, OldRtpTimestamp) {
   InterFrameDelayVariationCalculator ifdv_calculator;
   EXPECT_THAT(ifdv_calculator.Calculate(180000, kStartTime),
               Optional(TimeDelta::Zero()));
-  EXPECT_THAT(ifdv_calculator.Calculate(90000, kStartTime), Eq(absl::nullopt));
+  EXPECT_THAT(ifdv_calculator.Calculate(90000, kStartTime), Eq(std::nullopt));
 }
 
 TEST(InterFrameDelayVariationCalculatorTest,
@@ -51,7 +52,7 @@ TEST(InterFrameDelayVariationCalculatorTest,
               Optional(TimeDelta::Zero()));
   // RTP has wrapped around backwards.
   rtp -= 3000;
-  EXPECT_THAT(ifdv_calculator.Calculate(rtp, kStartTime), Eq(absl::nullopt));
+  EXPECT_THAT(ifdv_calculator.Calculate(rtp, kStartTime), Eq(std::nullopt));
 }
 
 TEST(InterFrameDelayVariationCalculatorTest, CorrectDelayForFrames) {
@@ -184,7 +185,7 @@ TEST(InterFrameDelayVariationCalculatorTest,
   // Frame delay should be as normal, in this case simulated as 1ms late.
   clock.AdvanceTime(kFrameDelay);
   EXPECT_THAT(ifdv_calculator.Calculate(rtp, clock.CurrentTime()),
-              Eq(absl::nullopt));
+              Eq(std::nullopt));
 }
 
 }  // namespace webrtc

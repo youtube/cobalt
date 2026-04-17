@@ -23,7 +23,6 @@ cast_source_set("app") {
     "//chromecast/common:resource_delegate",
     "//chromecast/gpu",
     "//chromecast/renderer",
-    "//chromecast/utility",
     "//components/crash/core/common:crash_key",
     "//content/public/app",
     "//content/public/browser",
@@ -32,7 +31,7 @@ cast_source_set("app") {
   ]
 
   if (!is_fuchsia) {
-    # TODO(crbug.com/1226159): Complete crash reporting integration on Fuchsia.
+    # TODO(crbug.com/40188745): Complete crash reporting integration on Fuchsia.
     deps += [ "//components/crash/core/app" ]
   }
 }
@@ -69,7 +68,6 @@ cast_source_set("cast_crash_client") {
     deps += [
       "//chromecast/base:android_create_sys_info",
       "//chromecast/base:cast_version",
-      "//chromecast/browser:jni_headers",
     ]
   }
 }
@@ -89,7 +87,7 @@ cast_source_set("crash_uploader") {
       "//chromecast/base",
       "//chromecast/base:android_create_sys_info",
       "//chromecast/base:cast_version",
-      "//chromecast/browser:jni_headers",
+      "//chromecast/browser/android:crash_handler_jni_headers",
       "//components/crash/core/app",
       "//components/crash/core/common:crash_key",
       "//components/minidump_uploader",
@@ -151,13 +149,11 @@ grit("resources") {
   ]
 }
 
-grit("chromecast_settings") {
+grit_strings("chromecast_settings") {
   source = "//chromecast/app/resources/chromecast_settings.grd"
 
   outputs = [ "grit/chromecast_settings.h" ]
-  foreach(locale, cast_locales) {
-    outputs += [ "chromecast_settings_${locale}.pak" ]
-  }
+  locales = cast_locales
 
   deps = [ ":verify_cast_locales" ]
 }

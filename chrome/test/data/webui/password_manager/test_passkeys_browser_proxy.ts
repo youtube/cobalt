@@ -4,7 +4,7 @@
 
 /** @fileoverview Test implementation of PasskeysBrowserProxy. */
 
-import {PasskeysBrowserProxy} from 'chrome://password-manager/password_manager.js';
+import type {PasskeysBrowserProxy} from 'chrome://password-manager/password_manager.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 
 export class TestPasskeysBrowserProxy extends TestBrowserProxy implements
@@ -14,11 +14,16 @@ export class TestPasskeysBrowserProxy extends TestBrowserProxy implements
   constructor() {
     super([
       'passkeysHasPasskeys',
+      'passkeysManagePasskeys',
     ]);
   }
 
   hasPasskeys(): Promise<boolean> {
     this.methodCalled('passkeysHasPasskeys');
     return Promise.resolve(this.passkeysPresent);
+  }
+
+  managePasskeys(): void {
+    this.methodCalled('passkeysManagePasskeys');
   }
 }

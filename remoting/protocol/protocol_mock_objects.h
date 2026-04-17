@@ -9,6 +9,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/location.h"
@@ -16,6 +17,8 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/values.h"
 #include "net/base/ip_endpoint.h"
+#include "remoting/base/errors.h"
+#include "remoting/base/session_policies.h"
 #include "remoting/proto/internal.pb.h"
 #include "remoting/proto/video.pb.h"
 #include "remoting/protocol/authenticator.h"
@@ -28,6 +31,7 @@
 #include "remoting/protocol/pairing_registry.h"
 #include "remoting/protocol/session.h"
 #include "remoting/protocol/session_manager.h"
+#include "remoting/protocol/session_observer.h"
 #include "remoting/protocol/transport.h"
 #include "remoting/protocol/video_stub.h"
 #include "remoting/signaling/signaling_address.h"
@@ -45,9 +49,22 @@ class MockAuthenticator : public Authenticator {
 
   ~MockAuthenticator() override;
 
+  MOCK_METHOD(CredentialsType, credentials_type, (), (const, override));
+  MOCK_METHOD(const Authenticator&,
+              implementing_authenticator,
+              (),
+              (const, override));
+  MOCK_METHOD(const SessionPolicies*,
+              GetSessionPolicies,
+              (),
+              (const, override));
   MOCK_CONST_METHOD0(state, Authenticator::State());
   MOCK_CONST_METHOD0(started, bool());
   MOCK_CONST_METHOD0(rejection_reason, Authenticator::RejectionReason());
+  MOCK_METHOD(Authenticator::RejectionDetails,
+              rejection_details,
+              (),
+              (const, override));
   MOCK_CONST_METHOD0(GetAuthKey, const std::string&());
   MOCK_CONST_METHOD0(CreateChannelAuthenticatorPtr, ChannelAuthenticator*());
   MOCK_METHOD2(ProcessMessage,
@@ -62,6 +79,11 @@ class MockAuthenticator : public Authenticator {
 
   std::unique_ptr<jingle_xmpp::XmlElement> GetNextMessage() override {
     return base::WrapUnique(GetNextMessagePtr());
+  }
+
+  // Make this method public.
+  void NotifyStateChangeAfterAccepted() override {
+    Authenticator::NotifyStateChangeAfterAccepted();
   }
 };
 
@@ -78,7 +100,10 @@ class MockConnectionToClientEventHandler
   ~MockConnectionToClientEventHandler() override;
 
   MOCK_METHOD0(OnConnectionAuthenticating, void());
-  MOCK_METHOD0(OnConnectionAuthenticated, void());
+  MOCK_METHOD(void,
+              OnConnectionAuthenticated,
+              (const SessionPolicies*),
+              (override));
   MOCK_METHOD0(CreateMediaStreams, void());
   MOCK_METHOD0(OnConnectionChannelsConnected, void());
   MOCK_METHOD1(OnConnectionClosed, void(ErrorCode error));
@@ -161,6 +186,7 @@ class MockClientStub : public ClientStub {
   MOCK_METHOD1(DeliverHostMessage, void(const ExtensionMessage& message));
   MOCK_METHOD1(SetVideoLayout, void(const VideoLayout& layout));
   MOCK_METHOD1(SetTransportInfo, void(const TransportInfo& transport_info));
+  MOCK_METHOD1(SetActiveDisplay, void(const ActiveDisplay& active_display));
 
   // ClipboardStub mock implementation.
   MOCK_METHOD1(InjectClipboardEvent, void(const ClipboardEvent& event));
@@ -211,11 +237,17 @@ class MockSession : public Session {
   ~MockSession() override;
 
   MOCK_METHOD1(SetEventHandler, void(Session::EventHandler* event_handler));
-  MOCK_METHOD0(error, ErrorCode());
+  MOCK_METHOD(ErrorCode, error, (), (const, override));
   MOCK_METHOD1(SetTransport, void(Transport*));
   MOCK_METHOD0(jid, const std::string&());
   MOCK_METHOD0(config, const SessionConfig&());
-  MOCK_METHOD1(Close, void(ErrorCode error));
+  MOCK_METHOD(const Authenticator&, authenticator, (), (const, override));
+  MOCK_METHOD(void,
+              Close,
+              (ErrorCode error,
+               std::string_view error_details,
+               const SourceLocation& location),
+              (override));
   MOCK_METHOD1(AddPlugin, void(SessionPlugin* plugin));
 };
 
@@ -237,6 +269,9 @@ class MockSessionManager : public SessionManager {
   MOCK_METHOD0(Close, void());
   MOCK_METHOD1(set_authenticator_factory_ptr,
                void(AuthenticatorFactory* factory));
+  MOCK_METHOD(SessionObserver::Subscription,
+              AddSessionObserver,
+              (SessionObserver * observer));
   std::unique_ptr<Session> Connect(
       const SignalingAddress& peer_address,
       std::unique_ptr<Authenticator> authenticator) override {
@@ -246,6 +281,17 @@ class MockSessionManager : public SessionManager {
       std::unique_ptr<AuthenticatorFactory> authenticator_factory) override {
     set_authenticator_factory_ptr(authenticator_factory.release());
   }
+};
+
+class MockSessionObserver : public SessionObserver {
+ public:
+  MockSessionObserver();
+  ~MockSessionObserver() override;
+
+  MockSessionObserver(const MockSessionObserver&) = delete;
+  MockSessionObserver& operator=(const MockSessionObserver&) = delete;
+
+  MOCK_METHOD(void, OnSessionStateChange, (const Session&, Session::State));
 };
 
 // Simple delegate that caches information on paired clients in memory.

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/342213636): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "content/child/dwrite_font_proxy/dwrite_font_proxy_win.h"
 
 #include <stddef.h>
@@ -34,7 +39,7 @@ namespace {
 // input delay. It will not ship as-is, because it breaks some pages. Local
 // experiments show that accessing >20 fonts is typically done by fingerprinting
 // scripts.
-// TODO(https://crbug.com/1089390): Remove this feature when the experiment is
+// TODO(crbug.com/40133493): Remove this feature when the experiment is
 // complete. If the experiment shows a significant input delay improvement,
 // replace with a more refined mitigation for pages that access many fonts.
 BASE_FEATURE(kLimitFontFamilyNamesPerRenderer,
@@ -55,50 +60,6 @@ bool IsLastResortFontName(const std::u16string& font_name) {
       return true;
   }
   return false;
-}
-
-// This enum is used to define the buckets for an enumerated UMA histogram.
-// Hence,
-//   (a) existing enumerated constants should never be deleted or reordered, and
-//   (b) new constants should only be appended at the end of the enumeration.
-enum DirectWriteLoadFamilyResult {
-  LOAD_FAMILY_SUCCESS_SINGLE_FAMILY = 0,
-  LOAD_FAMILY_SUCCESS_MATCHED_FAMILY = 1,
-  LOAD_FAMILY_ERROR_MULTIPLE_FAMILIES = 2,
-  LOAD_FAMILY_ERROR_NO_FAMILIES = 3,
-  LOAD_FAMILY_ERROR_NO_COLLECTION = 4,
-
-  LOAD_FAMILY_MAX_VALUE
-};
-
-// This enum is used to define the buckets for an enumerated UMA histogram.
-// Hence,
-//   (a) existing enumerated constants should never be deleted or reordered, and
-//   (b) new constants should only be appended at the end of the enumeration.
-enum FontProxyError {
-  FIND_FAMILY_SEND_FAILED = 0,
-  GET_FAMILY_COUNT_SEND_FAILED = 1,
-  COLLECTION_KEY_INVALID = 2,
-  FAMILY_INDEX_OUT_OF_RANGE = 3,
-  GET_FONT_FILES_SEND_FAILED = 4,
-  MAPPED_FILE_FAILED = 5,
-  DUPLICATE_HANDLE_FAILED = 6,
-
-  FONT_PROXY_ERROR_MAX_VALUE
-};
-
-void LogLoadFamilyResult(DirectWriteLoadFamilyResult result) {
-  UMA_HISTOGRAM_ENUMERATION("DirectWrite.Fonts.Proxy.LoadFamilyResult", result,
-                            LOAD_FAMILY_MAX_VALUE);
-}
-
-void LogFamilyCount(uint32_t count) {
-  UMA_HISTOGRAM_COUNTS_1000("DirectWrite.Fonts.Proxy.FamilyCount", count);
-}
-
-void LogFontProxyError(FontProxyError error) {
-  UMA_HISTOGRAM_ENUMERATION("DirectWrite.Fonts.Proxy.FontProxyError", error,
-                            FONT_PROXY_ERROR_MAX_VALUE);
 }
 
 // Binds a DWriteFontProxy pending receiver. Must be invoked from the main
@@ -122,7 +83,7 @@ DWriteFontCollectionProxy::DWriteFontCollectionProxy() = default;
 
 DWriteFontCollectionProxy::~DWriteFontCollectionProxy() = default;
 
-// TODO(crbug.com/1256946): Confirm this is useful and remove it otherwise.
+// TODO(crbug.com/40200438): Confirm this is useful and remove it otherwise.
 void DWriteFontCollectionProxy::InitializePrewarmer() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
@@ -198,7 +159,7 @@ HRESULT DWriteFontCollectionProxy::FindFamilyName(
   TRACE_EVENT0("dwrite,fonts", "FontProxy::FindFamilyName");
 
   HRESULT hr = S_OK;
-  if (absl::optional<UINT32> family_index = FindFamilyIndex(family_name, &hr)) {
+  if (std::optional<UINT32> family_index = FindFamilyIndex(family_name, &hr)) {
     DCHECK_EQ(hr, S_OK);
     DCHECK(IsValidFamilyIndex(*family_index));
     *index = *family_index;
@@ -211,7 +172,7 @@ HRESULT DWriteFontCollectionProxy::FindFamilyName(
   return hr;
 }
 
-absl::optional<UINT32> DWriteFontCollectionProxy::FindFamilyIndex(
+std::optional<UINT32> DWriteFontCollectionProxy::FindFamilyIndex(
     const std::u16string& family_name,
     HRESULT* hresult_out) {
   DCHECK(!hresult_out || *hresult_out == S_OK);
@@ -221,13 +182,13 @@ absl::optional<UINT32> DWriteFontCollectionProxy::FindFamilyIndex(
     if (iter != family_names_.end()) {
       if (iter->second != kFamilyNotFound)
         return iter->second;
-      return absl::nullopt;
+      return std::nullopt;
     }
 
     if (base::FeatureList::IsEnabled(kLimitFontFamilyNamesPerRenderer) &&
         family_names_.size() > kFamilyNamesLimit &&
         !IsLastResortFontName(family_name)) {
-      return absl::nullopt;
+      return std::nullopt;
     }
   }
 
@@ -236,10 +197,9 @@ absl::optional<UINT32> DWriteFontCollectionProxy::FindFamilyIndex(
   // the lock protects the main thread in such case. crbug.com/1289576
   uint32_t family_index = 0;
   if (!GetFontProxy().FindFamily(family_name, &family_index)) {
-    LogFontProxyError(FIND_FAMILY_SEND_FAILED);
     if (hresult_out)
       *hresult_out = E_FAIL;
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   {
@@ -247,8 +207,9 @@ absl::optional<UINT32> DWriteFontCollectionProxy::FindFamilyIndex(
     DCHECK(family_names_.find(family_name) == family_names_.end() ||
            family_names_[family_name] == family_index);
     family_names_[family_name] = family_index;
-    if (UNLIKELY(family_index == kFamilyNotFound))
-      return absl::nullopt;
+    if (family_index == kFamilyNotFound) [[unlikely]] {
+      return std::nullopt;
+    }
     DCHECK(IsValidFamilyIndex(family_index));
 
     if (DWriteFontFamilyProxy* family =
@@ -259,14 +220,13 @@ absl::optional<UINT32> DWriteFontCollectionProxy::FindFamilyIndex(
 
     if (hresult_out)
       *hresult_out = E_FAIL;
-    return absl::nullopt;
+    return std::nullopt;
   }
 }
 
 DWriteFontFamilyProxy* DWriteFontCollectionProxy::FindFamily(
     const std::u16string& family_name) {
-  if (const absl::optional<UINT32> family_index =
-          FindFamilyIndex(family_name)) {
+  if (const std::optional<UINT32> family_index = FindFamilyIndex(family_name)) {
     if (DWriteFontFamilyProxy* family = GetFamily(*family_index))
       return family;
   }
@@ -280,8 +240,9 @@ void DWriteFontCollectionProxy::PrewarmFamily(
   if (!prewarm_task_runner_) {
     // |BindHostReceiverOnMainThread| requires |ChildThread::Get()|, but it may
     // not be available in some tests. Disable the prewarmer.
-    if (UNLIKELY(!ChildThread::Get()))
+    if (!ChildThread::Get()) [[unlikely]] {
       return;
+    }
     InitializePrewarmer();
   }
 
@@ -334,11 +295,9 @@ UINT32 DWriteFontCollectionProxy::GetFontFamilyCountLockRequired() {
 
   uint32_t family_count = 0;
   if (!GetFontProxy().GetFamilyCount(&family_count)) {
-    LogFontProxyError(GET_FAMILY_COUNT_SEND_FAILED);
     return 0;
   }
 
-  LogFamilyCount(family_count);
   family_count_ = family_count;
   return family_count;
 }
@@ -373,7 +332,6 @@ HRESULT DWriteFontCollectionProxy::CreateEnumeratorFromKey(
     UINT32 collection_key_size,
     IDWriteFontFileEnumerator** font_file_enumerator) {
   if (!collection_key || collection_key_size != sizeof(uint32_t)) {
-    LogFontProxyError(COLLECTION_KEY_INVALID);
     return E_INVALIDARG;
   }
 
@@ -391,7 +349,6 @@ HRESULT DWriteFontCollectionProxy::CreateEnumeratorFromKey(
     // ThreadPool).
     base::ScopedAllowBaseSyncPrimitives allow_sync;
     if (!GetFontProxy().GetFontFileHandles(*family_index, &file_handles)) {
-      LogFontProxyError(GET_FONT_FILES_SEND_FAILED);
       return E_FAIL;
     }
   }
@@ -710,9 +667,6 @@ const std::u16string& DWriteFontFamilyProxy::GetName() {
 }
 
 IDWriteFontFamily* DWriteFontFamilyProxy::LoadFamily() {
-  // The time needed to lock should be included in the reports. They metrics may
-  // include entries of almost zero time when |this| is already loaded though.
-  SCOPED_UMA_HISTOGRAM_TIMER("DirectWrite.Fonts.Proxy.LoadFamilyTime");
   TRACE_EVENT0("dwrite,fonts", "DWriteFontFamilyProxy::LoadFamily");
 
   base::AutoLock family_lock(family_lock_);
@@ -741,7 +695,6 @@ IDWriteFontFamily* DWriteFontFamilyProxy::LoadFamilyCoreLockRequired() {
 
   mswr::ComPtr<IDWriteFontCollection> collection;
   if (!proxy_collection_->LoadFamily(family_index_, &collection)) {
-    LogLoadFamilyResult(LOAD_FAMILY_ERROR_NO_COLLECTION);
     return nullptr;
   }
 
@@ -760,7 +713,6 @@ IDWriteFontFamily* DWriteFontFamilyProxy::LoadFamilyCoreLockRequired() {
         &found);
     if (SUCCEEDED(hr) && found) {
       hr = collection->GetFontFamily(family_index, &family_);
-      LogLoadFamilyResult(LOAD_FAMILY_SUCCESS_MATCHED_FAMILY);
       return SUCCEEDED(hr) ? family_.Get() : nullptr;
     }
   }
@@ -769,12 +721,8 @@ IDWriteFontFamily* DWriteFontFamilyProxy::LoadFamilyCoreLockRequired() {
 
   if (family_count == 0) {
     // This is really strange, we successfully loaded no fonts?!
-    LogLoadFamilyResult(LOAD_FAMILY_ERROR_NO_FAMILIES);
     return nullptr;
   }
-
-  LogLoadFamilyResult(family_count == 1 ? LOAD_FAMILY_SUCCESS_SINGLE_FAMILY
-                                        : LOAD_FAMILY_ERROR_MULTIPLE_FAMILIES);
 
   hr = collection->GetFontFamily(0, &family_);
   return SUCCEEDED(hr) ? family_.Get() : nullptr;
@@ -862,12 +810,10 @@ HRESULT FontFileStream::RuntimeClassInitialize(HANDLE handle) {
   if (!DuplicateHandle(GetCurrentProcess(), handle, GetCurrentProcess(),
                        &duplicate_handle, 0 /* dwDesiredAccess */,
                        false /* bInheritHandle */, DUPLICATE_SAME_ACCESS)) {
-    LogFontProxyError(DUPLICATE_HANDLE_FAILED);
     return E_FAIL;
   }
 
   if (!data_.Initialize(base::File(duplicate_handle))) {
-    LogFontProxyError(MAPPED_FILE_FAILED);
     return E_FAIL;
   }
   return S_OK;

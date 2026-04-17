@@ -27,7 +27,7 @@ struct MEDIA_EXPORT AudioDeviceDescription {
   // this device ID is passed to MakeAudioInputStream() the returned
   // AudioInputStream will be capturing audio currently being played on the
   // default playback device. At the moment this feature is supported only on
-  // some platforms. AudioInputStream::Intialize() will return an error on
+  // some platforms. AudioInputStream::Initialize() will return an error on
   // platforms that don't support it. GetInputStreamParameters() must be used
   // to get the parameters of the loopback device before creating a loopback
   // stream, otherwise stream initialization may fail.
@@ -38,17 +38,36 @@ struct MEDIA_EXPORT AudioDeviceDescription {
   static const char kLoopbackWithMuteDeviceId[];
 
   // Similar to |kLoopbackInputDeviceId|, but without audio from Chrome.
-  // Only supported on ChromeOS.
+  // Only supported on Windows, Mac and ChromeOS.
   static const char kLoopbackWithoutChromeId[];
 
-  // Returns true if |device_id| represents the default device.
-  static bool IsDefaultDevice(const std::string& device_id);
+  // Similar to |kLoopbackInputDeviceId|, but instead of capturing audio being
+  // played on the default playback device, audio from *all* audio devices will
+  // be captured.
+  static const char kLoopbackAllDevicesId[];
 
-  // Returns true if |device_id| represents the communications device.
-  static bool IsCommunicationsDevice(const std::string& device_id);
+  // Prefix of the device id for application loopback devices. The full device
+  // id is formatted as "applicationLoopback:<application id>"
+  static const char kApplicationLoopbackDeviceId[];
+
+  // TODO(b/338470954): Rename to IsVirtualDefaultDevice(...)
+  // Returns true if |device_id| represents the virtual default device.
+  static bool IsDefaultDevice(std::string_view device_id);
+
+  // TODO(b/338470954): Rename to IsVirtualCommunicationsDevice(...)
+  // Returns true if |device_id| represents the virtual communications device.
+  static bool IsCommunicationsDevice(std::string_view device_id);
 
   // Returns true if |device_id| represents a loopback audio capture device.
-  static bool IsLoopbackDevice(const std::string& device_id);
+  // Note that this will not work if |device_id| is hashed, which may be the
+  // case in the renderer.
+  static bool IsLoopbackDevice(std::string_view device_id);
+
+  // Returns true if |device_id| represents an application loopback audio
+  // capture device.
+  // Note that this will not work if |device_id| is hashed, which is the case in
+  // the Renderer.
+  static bool IsApplicationLoopbackDevice(std::string_view device_id);
 
   // If |device_id| is not empty, |session_id| should be ignored and the output
   // device should be selected basing on |device_id|.
@@ -57,7 +76,7 @@ struct MEDIA_EXPORT AudioDeviceDescription {
   // be used.
   static bool UseSessionIdToSelectDevice(
       const base::UnguessableToken& session_id,
-      const std::string& device_id);
+      std::string_view device_id);
 
   // The functions dealing with localization are not reliable in the audio
   // service, and should be avoided there.
@@ -66,7 +85,7 @@ struct MEDIA_EXPORT AudioDeviceDescription {
 
   // Returns a localized version of name of the generic "default" device that
   // includes the given |real_device_name|.
-  static std::string GetDefaultDeviceName(const std::string& real_device_name);
+  static std::string GetDefaultDeviceName(std::string_view real_device_name);
 
   // Returns the localized name of the generic default communications device.
   // This device is not supported on all platforms.
@@ -75,7 +94,7 @@ struct MEDIA_EXPORT AudioDeviceDescription {
   // Returns a localized version of name of the generic communications device
   // that includes the given |real_device_name|.
   static std::string GetCommunicationsDeviceName(
-      const std::string& real_device_name);
+      std::string_view real_device_name);
 
   // This prepends localized "Default" or "Communications" strings to
   // default and communications device names in |device_descriptions|, and
@@ -83,17 +102,29 @@ struct MEDIA_EXPORT AudioDeviceDescription {
   static void LocalizeDeviceDescriptions(
       std::vector<AudioDeviceDescription>* device_descriptions);
 
-  AudioDeviceDescription() = default;
-  AudioDeviceDescription(const AudioDeviceDescription& other) = default;
+  AudioDeviceDescription();
+  AudioDeviceDescription(const AudioDeviceDescription& other);
+  AudioDeviceDescription& operator=(const AudioDeviceDescription& other);
+  AudioDeviceDescription(AudioDeviceDescription&& other);
+  AudioDeviceDescription& operator=(AudioDeviceDescription&& other);
   AudioDeviceDescription(std::string device_name,
                          std::string unique_id,
-                         std::string group_id);
+                         std::string group_id,
+                         bool is_system_default = false,
+                         bool is_communications_device = false);
 
-  ~AudioDeviceDescription() = default;
+  ~AudioDeviceDescription();
 
-  std::string device_name;  // Friendly name of the device.
-  std::string unique_id;    // Unique identifier for the device.
-  std::string group_id;     // Group identifier.
+  bool operator==(const AudioDeviceDescription& other) const;
+
+  std::string device_name;         // Friendly name of the device.
+  std::string unique_id;           // Unique identifier for the device.
+  std::string group_id;            // Group identifier.
+  bool is_system_default = false;  // True if the device represented by this
+                                   // description is the system default.
+  bool is_communications_device =  // True if the device represented by this
+      false;                       // description is a communications device
+                                   // (only relevant on Windows).
 };
 
 typedef std::vector<AudioDeviceDescription> AudioDeviceDescriptions;

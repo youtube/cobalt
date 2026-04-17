@@ -13,6 +13,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
+#include "content/browser/media/media_devices_util.h"
 #include "content/browser/renderer_host/media/media_stream_manager.h"
 #include "content/common/content_export.h"
 #include "media/audio/audio_device_description.h"
@@ -54,16 +55,19 @@ class CONTENT_EXPORT AudioOutputAuthorizationHandler {
   AudioOutputAuthorizationHandler& operator=(
       const AudioOutputAuthorizationHandler&) = delete;
 
-  ~AudioOutputAuthorizationHandler();
+  // Make it virtual for testing purpose.
+  virtual ~AudioOutputAuthorizationHandler();
 
   // Checks authorization of the device with the hashed id |device_id| for the
   // given render frame id, or uses |session_id| for authorization. Looks up
   // device id (if |session_id| is used for device selection) and default
-  // device parameters. This function will always call |cb|.
-  void RequestDeviceAuthorization(int render_frame_id,
-                                  const base::UnguessableToken& session_id,
-                                  const std::string& device_id,
-                                  AuthorizationCompletedCallback cb) const;
+  // device parameters. This function will always call |cb|. Make it virtual
+  // for testing purpose.
+  virtual void RequestDeviceAuthorization(
+      int render_frame_id,
+      const base::UnguessableToken& session_id,
+      const std::string& device_id,
+      AuthorizationCompletedCallback cb) const;
 
   // Calling this method will make the checks for permission from the user
   // always return |override_value|.
@@ -91,15 +95,13 @@ class CONTENT_EXPORT AudioOutputAuthorizationHandler {
   void AccessChecked(std::unique_ptr<TraceScope> trace_scope,
                      AuthorizationCompletedCallback cb,
                      const std::string& device_id,
-                     std::string salt,
-                     url::Origin security_origin,
+                     MediaDeviceSaltAndOrigin salt_and_origin,
                      bool has_access) const;
 
   void TranslateDeviceID(std::unique_ptr<TraceScope> trace_scope,
                          AuthorizationCompletedCallback cb,
                          const std::string& device_id,
-                         const std::string& salt,
-                         const url::Origin& security_origin,
+                         const MediaDeviceSaltAndOrigin& salt_and_origin,
                          const MediaDeviceEnumeration& enumeration) const;
 
   void GetDeviceParameters(std::unique_ptr<TraceScope> trace_scope,
@@ -111,7 +113,7 @@ class CONTENT_EXPORT AudioOutputAuthorizationHandler {
       AuthorizationCompletedCallback cb,
       const std::string& device_id_for_renderer,
       const std::string& raw_device_id,
-      const absl::optional<media::AudioParameters>& params) const;
+      const std::optional<media::AudioParameters>& params) const;
 
   const raw_ptr<media::AudioSystem> audio_system_;
   const raw_ptr<MediaStreamManager> media_stream_manager_;

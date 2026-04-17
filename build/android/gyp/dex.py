@@ -23,42 +23,34 @@ import zip_helpers
 
 _DEX_XMX = '2G'  # Increase this when __final_dex OOMs.
 
-_IGNORE_WARNINGS = (
+DEFAULT_IGNORE_WARNINGS = (
     # Warning: Running R8 version main (build engineering), which cannot be
     # represented as a semantic version. Using an artificial version newer than
     # any known version for selecting Proguard configurations embedded under
     # META-INF/. This means that all rules with a '-upto-' qualifier will be
     # excluded and all rules with a -from- qualifier will be included.
     r'Running R8 version main',
-    # E.g. Triggers for weblayer_instrumentation_test_apk since both it and its
-    # apk_under_test have no shared_libraries.
-    # https://crbug.com/1364192 << To fix this in a better way.
-    r'Missing class org.chromium.build.NativeLibraries',
-    # Caused by internal protobuf package: https://crbug.com/1183971
-    r'referenced from: com.google.protobuf.GeneratedMessageLite$GeneratedExtension',  # pylint: disable=line-too-long
-    # Desugaring configs may occasionally not match types in our program. This
-    # may happen temporarily until we move over to the new desugared library
-    # json flags. See crbug.com/1302088 - this should be removed when this bug
-    # is fixed.
-    r'Warning: Specification conversion: The following',
-    # Caused by protobuf runtime using -identifiernamestring in a way that
-    # doesn't work with R8. Looks like:
-    # Rule matches the static final field `...`, which may have been inlined...
-    # com.google.protobuf.*GeneratedExtensionRegistryLite {
-    #   static java.lang.String CONTAINING_TYPE_*;
-    # }
-    r'GeneratedExtensionRegistryLite.CONTAINING_TYPE_',
-    # Relevant for R8 when optimizing an app that doesn't use protobuf.
-    r'Ignoring -shrinkunusedprotofields since the protobuf-lite runtime is',
-    # Ignore Unused Rule Warnings in third_party libraries.
-    r'/third_party/.*Proguard configuration rule does not match anything',
-    # Ignore Unused Rule Warnings for system classes (aapt2 generates these).
-    r'Proguard configuration rule does not match anything:.*class android\.',
-    # TODO(crbug.com/1303951): Don't ignore all such warnings.
-    r'Proguard configuration rule does not match anything:',
-    # TODO(agrieve): Remove once we update to U SDK.
-    r'OnBackAnimationCallback',
+    # https://issuetracker.google.com/327611582
+    r'The companion object Companion could not be found',
+    # https://crbug.com/408280256
+    r'MethodHandle.invoke',
 )
+
+_MERGE_SERVICE_ENTRIES = (
+    # Uses ServiceLoader to find all implementing classes, so multiple are
+    # expected.
+    'META-INF/services/androidx.appsearch.app.AppSearchDocumentClassMap',
+    'META-INF/services/kotlinx.coroutines.CoroutineExceptionHandler',
+    'META-INF/services/kotlinx.coroutines.internal.MainDispatcherFactory',
+)
+
+_IGNORE_SERVICE_ENTRIES = (
+    # ServiceLoader call is used only for ProtoBuf full (non-lite).
+    # BaseGeneratedExtensionRegistryLite$Loader conflicts with
+    # ChromeGeneratedExtensionRegistryLite$Loader.
+    'META-INF/services/com.google.protobuf.GeneratedExtensionRegistryLoader', )
+
+INTERFACE_DESUGARING_WARNINGS = (r'default or static interface methods', )
 
 _SKIPPED_CLASS_FILE_NAMES = (
     'module-info.class',  # Explicitly skipped by r8/utils/FileUtils#isClassFile
@@ -88,13 +80,6 @@ def _ParseArgs(args):
   parser.add_argument(
       '--incremental-dir',
       help='Path of directory to put intermediate dex files.')
-  parser.add_argument('--main-dex-rules-path',
-                      action='append',
-                      help='Path to main dex rules for multidex.')
-  parser.add_argument(
-      '--multi-dex',
-      action='store_true',
-      help='Allow multiple dex files within output.')
   parser.add_argument('--library',
                       action='store_true',
                       help='Allow numerous dex files within output.')
@@ -121,12 +106,9 @@ def _ParseArgs(args):
       '--classpath',
       action='append',
       help='GN-list of full classpath. Needed for --desugar')
-  parser.add_argument(
-      '--release',
-      action='store_true',
-      help='Run D8 in release mode. Release mode maximises main dex and '
-      'deletes non-essential line number information (vs debug which minimizes '
-      'main dex and keeps all line number information, and then some.')
+  parser.add_argument('--release',
+                      action='store_true',
+                      help='Run D8 in release mode.')
   parser.add_argument(
       '--min-api', help='Minimum Android API level compatibility.')
   parser.add_argument('--force-enable-assertions',
@@ -142,9 +124,6 @@ def _ParseArgs(args):
                       help='Use when filing D8 bugs to capture inputs.'
                       ' Stores inputs to d8inputs.zip')
   options = parser.parse_args(args)
-
-  if options.main_dex_rules_path and not options.multi_dex:
-    parser.error('--main-dex-rules-path is unused if multidex is not enabled')
 
   if options.force_enable_assertions and options.assertion_handler:
     parser.error('Cannot use both --force-enable-assertions and '
@@ -162,23 +141,20 @@ def _ParseArgs(args):
   return options
 
 
-def CreateStderrFilter(show_desugar_default_interface_warnings):
+def CreateStderrFilter(filters):
   def filter_stderr(output):
     # Set this when debugging R8 output.
     if os.environ.get('R8_SHOW_ALL_OUTPUT', '0') != '0':
       return output
 
-    warnings = re.split(r'^(?=Warning|Error)', output, flags=re.MULTILINE)
+    # All missing definitions are logged as a single warning, but start on a
+    # new line like "Missing class ...".
+    warnings = re.split(r'^(?=Warning|Error|Missing (?:class|field|method))',
+                        output,
+                        flags=re.MULTILINE)
     preamble, *warnings = warnings
 
-    patterns = list(_IGNORE_WARNINGS)
-
-    # Missing deps can happen for prebuilts that are missing transitive deps
-    # and have set enable_bytecode_checks=false.
-    if not show_desugar_default_interface_warnings:
-      patterns += ['default or static interface methods']
-
-    combined_pattern = '|'.join(re.escape(p) for p in patterns)
+    combined_pattern = '|'.join(filters)
     preamble = build_utils.FilterLines(preamble, combined_pattern)
 
     compiled_re = re.compile(combined_pattern, re.DOTALL)
@@ -193,7 +169,13 @@ def _RunD8(dex_cmd, input_paths, output_path, warnings_as_errors,
            show_desugar_default_interface_warnings):
   dex_cmd = dex_cmd + ['--output', output_path] + input_paths
 
-  stderr_filter = CreateStderrFilter(show_desugar_default_interface_warnings)
+  # Missing deps can happen for prebuilts that are missing transitive deps
+  # and have set enable_bytecode_checks=false.
+  filters = list(DEFAULT_IGNORE_WARNINGS)
+  if not show_desugar_default_interface_warnings:
+    filters += INTERFACE_DESUGARING_WARNINGS
+
+  stderr_filter = CreateStderrFilter(filters)
 
   is_debug = logging.getLogger().isEnabledFor(logging.DEBUG)
 
@@ -220,34 +202,82 @@ def _RunD8(dex_cmd, input_paths, output_path, warnings_as_errors,
       build_utils.CheckOutput(dex_cmd,
                               stderr_filter=stderr_filter,
                               fail_on_output=warnings_as_errors)
-    except Exception:
+    except Exception as e:
+      if isinstance(e, build_utils.CalledProcessError):
+        output = e.output  # pylint: disable=no-member
+        if "global synthetic for 'Record desugaring'" in output:
+          sys.stderr.write('Java records are not supported.\n')
+          sys.stderr.write(
+              'See https://chromium.googlesource.com/chromium/src/+/' +
+              'main/styleguide/java/java.md#Records\n')
+          sys.exit(1)
       if orig_dex_cmd is not dex_cmd:
         sys.stderr.write('Full command: ' + shlex.join(orig_dex_cmd) + '\n')
       raise
 
 
-def _ZipAligned(dex_files, output_path):
+def _ZipAligned(dex_files, output_path, services_map):
   """Creates a .dex.jar with 4-byte aligned files.
 
   Args:
     dex_files: List of dex files.
     output_path: The output file in which to write the zip.
+    services_map: map of path->data for META-INF/services
   """
   with zipfile.ZipFile(output_path, 'w') as z:
     for i, dex_file in enumerate(dex_files):
       name = 'classes{}.dex'.format(i + 1 if i > 0 else '')
       zip_helpers.add_to_zip_hermetic(z, name, src_path=dex_file, alignment=4)
+    for path, data in sorted(services_map.items()):
+      zip_helpers.add_to_zip_hermetic(z, path, data=data, alignment=4)
 
 
-def _CreateFinalDex(d8_inputs, output, tmp_dir, dex_cmd, options=None):
+def _CreateServicesMap(service_jars):
+  ret = {}
+  origins = {}
+  for jar_path in service_jars:
+    with zipfile.ZipFile(jar_path, 'r') as z:
+      for n in z.namelist():
+        if n.startswith('META-INF/services/') and not n.endswith('/'):
+          if n in _IGNORE_SERVICE_ENTRIES:
+            continue
+          old_lines = ret.get(n, '').splitlines()
+          new_lines = z.read(n).decode('utf8').splitlines()
+          old_lines.extend(l for l in new_lines if l not in old_lines)
+          data = '\n'.join(old_lines) + '\n'
+          if _MERGE_SERVICE_ENTRIES or ret.get(n, data) == data:
+            ret[n] = data
+            origins[n] = jar_path
+          else:
+            # We should arguably just concat the files here, but Chrome's own
+            # uses (via ServiceLoaderUtil) all assume only one entry.
+            raise Exception(f"""\
+Conflicting contents for: {n}
+{origins[n]}:
+{ret[n]}
+{jar_path}:
+{data}
+
+If this entry can be safely ignored (because the ServiceLoader.load() call is \
+never hit), update _IGNORE_SERVICE_ENTRIES in dex.py.
+
+If this service is meant to allow multiple implementations, update \
+_MERGE_SERVICE_ENTRIES in dex.py.
+""")
+  return ret
+
+
+def _CreateFinalDex(d8_inputs,
+                    output,
+                    tmp_dir,
+                    dex_cmd,
+                    options=None,
+                    service_jars=None):
   tmp_dex_output = os.path.join(tmp_dir, 'tmp_dex_output.zip')
   needs_dexing = not all(f.endswith('.dex') for f in d8_inputs)
   needs_dexmerge = output.endswith('.dex') or not (options and options.library)
+  services_map = _CreateServicesMap(service_jars or [])
   if needs_dexing or needs_dexmerge:
-    if options and options.main_dex_rules_path:
-      for main_dex_rule in options.main_dex_rules_path:
-        dex_cmd = dex_cmd + ['--main-dex-rules', main_dex_rule]
-
     tmp_dex_dir = os.path.join(tmp_dir, 'tmp_dex_dir')
     os.mkdir(tmp_dex_dir)
 
@@ -263,10 +293,10 @@ def _CreateFinalDex(d8_inputs, output, tmp_dir, dex_cmd, options=None):
         raise Exception('%d files created, expected 1' % len(dex_files))
       tmp_dex_output = dex_files[0]
     else:
-      _ZipAligned(sorted(dex_files), tmp_dex_output)
+      _ZipAligned(sorted(dex_files), tmp_dex_output, services_map)
   else:
     # Skip dexmerger. Just put all incrementals into the .jar individually.
-    _ZipAligned(sorted(d8_inputs), tmp_dex_output)
+    _ZipAligned(sorted(d8_inputs), tmp_dex_output, services_map)
     logging.debug('Quick-zipped %d files', len(d8_inputs))
 
   # The dex file is complete and can be moved out of tmp_dir.
@@ -274,15 +304,18 @@ def _CreateFinalDex(d8_inputs, output, tmp_dir, dex_cmd, options=None):
 
 
 def _IntermediateDexFilePathsFromInputJars(class_inputs, incremental_dir):
-  """Returns a list of all intermediate dex file paths."""
+  """Returns list of intermediate dex file paths, .jar files with services."""
   dex_files = []
+  service_jars = set()
   for jar in class_inputs:
     with zipfile.ZipFile(jar, 'r') as z:
       for subpath in z.namelist():
         if _IsClassFile(subpath):
           subpath = subpath[:-5] + 'dex'
           dex_files.append(os.path.join(incremental_dir, subpath))
-  return dex_files
+        elif subpath.startswith('META-INF/services/'):
+          service_jars.add(jar)
+  return dex_files, sorted(service_jars)
 
 
 def _DeleteStaleIncrementalDexFiles(dex_dir, dex_files):
@@ -306,7 +339,7 @@ def _ParseDesugarDeps(desugar_dependencies_file):
   org/chromium/base/task/TaskRunnerImpl.class
     <-  org/chromium/base/task/TaskRunner.class
   org/chromium/base/task/TaskRunnerImplJni$1.class
-    <-  obj/base/jni_java.turbine.jar:org/chromium/base/JniStaticTestMocker.class
+    <-  obj/base/jni_java.turbine.jar:org/jni_zero/JniStaticTestMocker.class
   org/chromium/base/task/TaskRunnerImplJni.class
     <-  org/chromium/base/task/TaskRunnerImpl$Natives.class
   """
@@ -413,7 +446,7 @@ def _CreateIntermediateDexFiles(changes, options, tmp_dir, dex_cmd):
     logging.debug('Dexed class files.')
 
 
-def _OnStaleMd5(changes, options, final_dex_inputs, dex_cmd):
+def _OnStaleMd5(changes, options, final_dex_inputs, service_jars, dex_cmd):
   logging.debug('_OnStaleMd5')
   with build_utils.TempDir() as tmp_dir:
     if options.incremental_dir:
@@ -425,8 +458,12 @@ def _OnStaleMd5(changes, options, final_dex_inputs, dex_cmd):
       logging.debug('Stale files deleted')
       _CreateIntermediateDexFiles(changes, options, tmp_dir, dex_cmd)
 
-    _CreateFinalDex(
-        final_dex_inputs, options.output, tmp_dir, dex_cmd, options=options)
+    _CreateFinalDex(final_dex_inputs,
+                    options.output,
+                    tmp_dir,
+                    dex_cmd,
+                    options=options,
+                    service_jars=service_jars)
 
 
 def MergeDexForIncrementalInstall(r8_jar_path, src_paths, dest_dex_jar,
@@ -439,7 +476,11 @@ def MergeDexForIncrementalInstall(r8_jar_path, src_paths, dest_dex_jar,
       min_api,
   ]
   with build_utils.TempDir() as tmp_dir:
-    _CreateFinalDex(src_paths, dest_dex_jar, tmp_dir, dex_cmd)
+    _CreateFinalDex(src_paths,
+                    dest_dex_jar,
+                    tmp_dir,
+                    dex_cmd,
+                    service_jars=src_paths)
 
 
 def main(args):
@@ -449,11 +490,10 @@ def main(args):
   options.class_inputs += options.class_inputs_filearg
   options.dex_inputs += options.dex_inputs_filearg
 
-  input_paths = options.class_inputs + options.dex_inputs
-  input_paths.append(options.r8_jar_path)
-  input_paths.append(options.custom_d8_jar_path)
-  if options.main_dex_rules_path:
-    input_paths.extend(options.main_dex_rules_path)
+  input_paths = ([
+      build_utils.JAVA_PATH_FOR_INPUTS, options.r8_jar_path,
+      options.custom_d8_jar_path
+  ] + options.class_inputs + options.dex_inputs)
 
   depfile_deps = options.class_inputs_filearg + options.dex_inputs_filearg
 
@@ -461,12 +501,14 @@ def main(args):
 
   track_subpaths_allowlist = []
   if options.incremental_dir:
-    final_dex_inputs = _IntermediateDexFilePathsFromInputJars(
+    final_dex_inputs, service_jars = _IntermediateDexFilePathsFromInputJars(
         options.class_inputs, options.incremental_dir)
     output_paths += final_dex_inputs
     track_subpaths_allowlist += options.class_inputs
   else:
     final_dex_inputs = list(options.class_inputs)
+    service_jars = final_dex_inputs
+  service_jars += options.dex_inputs
   final_dex_inputs += options.dex_inputs
 
   dex_cmd = build_utils.JavaCmd(xmx=_DEX_XMX)
@@ -507,8 +549,7 @@ def main(args):
     for path in options.classpath:
       dex_cmd += ['--classpath', path]
 
-  if options.classpath or options.main_dex_rules_path:
-    # --main-dex-rules requires bootclasspath.
+  if options.classpath:
     dex_cmd += ['--lib', build_utils.JAVA_HOME]
     for path in options.bootclasspath:
       dex_cmd += ['--lib', path]
@@ -524,7 +565,8 @@ def main(args):
   # The changes feature from md5_check allows us to only re-dex the class files
   # that have changed and the class files that need to be re-desugared by D8.
   md5_check.CallAndWriteDepfileIfStale(
-      lambda changes: _OnStaleMd5(changes, options, final_dex_inputs, dex_cmd),
+      lambda changes: _OnStaleMd5(changes, options, final_dex_inputs,
+                                  service_jars, dex_cmd),
       options,
       input_paths=input_paths,
       input_strings=dex_cmd + [str(bool(options.incremental_dir))],

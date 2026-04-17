@@ -80,9 +80,9 @@ String IdentifiersFactory::SubresourceRequestId(uint64_t identifier) {
 }
 
 // static
-String IdentifiersFactory::FrameId(Frame* frame) {
+const String& IdentifiersFactory::FrameId(Frame* frame) {
   // Note: this should be equal to GetFrameIdForTracing(frame).
-  return String(GetFrameIdForTracing(frame).data());
+  return GetFrameIdForTracing(frame);
 }
 
 // static
@@ -116,7 +116,7 @@ String IdentifiersFactory::IdFromToken(const base::UnguessableToken& token) {
 
 // static
 int IdentifiersFactory::IntIdForNode(Node* node) {
-  return static_cast<int>(DOMNodeIds::IdForNode(node));
+  return node->GetDomNodeId();
 }
 
 // static

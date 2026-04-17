@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/system.h"
+// clang-format on
 
 #include "starboard/linux/x64x11/system_get_property_impl.h"
 

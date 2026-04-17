@@ -2,16 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/services/ipp_parser/public/cpp/ipp_converter.h"
 
 #include <algorithm>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/containers/contains.h"
 #include "base/strings/strcat.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/values.h"
 #include "net/http/http_util.h"
@@ -59,18 +64,18 @@ ssize_t IppWrite(base::span<uint8_t>* dst, ipp_uchar_t* source, size_t bytes) {
 }
 
 // Returns a parsed HttpHeader on success, empty Optional on failure.
-absl::optional<HttpHeader> ParseHeader(base::StringPiece header) {
+std::optional<HttpHeader> ParseHeader(std::string_view header) {
   if (base::Contains(header, kCarriage)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // Parse key
   const size_t key_end_index = header.find(":");
   if (key_end_index == std::string::npos || key_end_index == 0) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
-  const base::StringPiece key = header.substr(0, key_end_index);
+  const std::string_view key = header.substr(0, key_end_index);
 
   // Parse value
   const size_t value_begin_index = key_end_index + 1;
@@ -79,13 +84,13 @@ absl::optional<HttpHeader> ParseHeader(base::StringPiece header) {
     return HttpHeader{std::string(key), ""};
   }
 
-  base::StringPiece value = header.substr(value_begin_index);
+  std::string_view value = header.substr(value_begin_index);
   value = net::HttpUtil::TrimLWS(value);
   return HttpHeader{std::string(key), std::string(value)};
 }
 
 // Converts |value_tag| to corresponding mojom type for marshalling.
-absl::optional<IppAttributeValue::Tag> ValueTagToType(const int value_tag) {
+std::optional<IppAttributeValue::Tag> ValueTagToType(const int value_tag) {
   switch (value_tag) {
     case IPP_TAG_BOOLEAN:
       return IppAttributeValue::Tag::kBools;
@@ -121,7 +126,7 @@ absl::optional<IppAttributeValue::Tag> ValueTagToType(const int value_tag) {
 
   // Fail to convert any unrecognized types.
   DVLOG(1) << "Failed to convert CUPS value tag, type " << value_tag;
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 std::vector<bool> IppGetBools(ipp_attribute_t* attr) {
@@ -136,7 +141,7 @@ std::vector<bool> IppGetBools(ipp_attribute_t* attr) {
   return ret;
 }
 
-absl::optional<std::vector<int>> IppGetInts(ipp_attribute_t* attr) {
+std::optional<std::vector<int>> IppGetInts(ipp_attribute_t* attr) {
   const size_t count = ippGetCount(attr);
 
   std::vector<int> ret;
@@ -144,14 +149,14 @@ absl::optional<std::vector<int>> IppGetInts(ipp_attribute_t* attr) {
   for (size_t i = 0; i < count; ++i) {
     int v = ippGetInteger(attr, i);
     if (!v) {
-      return absl::nullopt;
+      return std::nullopt;
     }
     ret.push_back(v);
   }
   return ret;
 }
 
-absl::optional<std::vector<std::string>> IppGetStrings(ipp_attribute_t* attr) {
+std::optional<std::vector<std::string>> IppGetStrings(ipp_attribute_t* attr) {
   const size_t count = ippGetCount(attr);
 
   std::vector<std::string> ret;
@@ -160,14 +165,14 @@ absl::optional<std::vector<std::string>> IppGetStrings(ipp_attribute_t* attr) {
     const char* v = ippGetString(
         attr, i, nullptr /* TODO(crbug.com/945409): figure out language */);
     if (!v) {
-      return absl::nullopt;
+      return std::nullopt;
     }
     ret.emplace_back(v);
   }
   return ret;
 }
 
-absl::optional<std::vector<std::vector<uint8_t>>> IppGetOctets(
+std::optional<std::vector<std::vector<uint8_t>>> IppGetOctets(
     ipp_attribute_t* attr) {
   const size_t count = ippGetCount(attr);
 
@@ -178,14 +183,14 @@ absl::optional<std::vector<std::vector<uint8_t>>> IppGetOctets(
     const uint8_t* v =
         static_cast<const uint8_t*>(ippGetOctetString(attr, i, &len));
     if (!v || len <= 0) {
-      return absl::nullopt;
+      return std::nullopt;
     }
     ret.emplace_back(v, v + len);
   }
   return ret;
 }
 
-absl::optional<std::vector<ipp_parser::mojom::ResolutionPtr>> IppGetResolutions(
+std::optional<std::vector<ipp_parser::mojom::ResolutionPtr>> IppGetResolutions(
     ipp_attribute_t* attr) {
   const size_t count = ippGetCount(attr);
 
@@ -199,7 +204,7 @@ absl::optional<std::vector<ipp_parser::mojom::ResolutionPtr>> IppGetResolutions(
     if (xres <= 0 || yres <= 0 || units != IPP_RES_PER_INCH) {
       LOG(ERROR) << "bad resolution: " << xres << ", " << yres << ", "
                  << int(units);
-      return absl::nullopt;
+      return std::nullopt;
     }
     ret.push_back(ipp_parser::mojom::Resolution(xres, yres).Clone());
   }
@@ -208,25 +213,25 @@ absl::optional<std::vector<ipp_parser::mojom::ResolutionPtr>> IppGetResolutions(
 
 }  // namespace
 
-absl::optional<std::vector<std::string>> ParseRequestLine(
-    base::StringPiece status_line) {
+std::optional<std::vector<std::string>> ParseRequestLine(
+    std::string_view status_line) {
   // Split |status_slice| into triple method-endpoint-httpversion
   std::vector<std::string> terms =
       base::SplitString(status_line, kStatusDelimiter, base::KEEP_WHITESPACE,
                         base::SPLIT_WANT_ALL);
 
   if (terms.size() != 3) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return terms;
 }
 
 // Implicit conversion is safe since the conversion preserves memory layout.
-absl::optional<std::vector<uint8_t>> BuildRequestLine(
-    base::StringPiece method,
-    base::StringPiece endpoint,
-    base::StringPiece http_version) {
+std::optional<std::vector<uint8_t>> BuildRequestLine(
+    std::string_view method,
+    std::string_view endpoint,
+    std::string_view http_version) {
   std::string status_line =
       base::StrCat({method, kStatusDelimiter, endpoint, kStatusDelimiter,
                     http_version, kCarriage});
@@ -234,8 +239,8 @@ absl::optional<std::vector<uint8_t>> BuildRequestLine(
   return std::vector<uint8_t>(status_line.begin(), status_line.end());
 }
 
-absl::optional<std::vector<HttpHeader>> ParseHeaders(
-    base::StringPiece headers_slice) {
+std::optional<std::vector<HttpHeader>> ParseHeaders(
+    std::string_view headers_slice) {
   auto raw_headers = base::SplitStringPieceUsingSubstr(
       headers_slice, kCarriage, base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
 
@@ -244,7 +249,7 @@ absl::optional<std::vector<HttpHeader>> ParseHeaders(
   for (auto raw_header : raw_headers) {
     auto header = ParseHeader(raw_header);
     if (!header) {
-      return absl::nullopt;
+      return std::nullopt;
     }
 
     ret.push_back(header.value());
@@ -253,7 +258,7 @@ absl::optional<std::vector<HttpHeader>> ParseHeaders(
   return ret;
 }
 
-absl::optional<std::vector<uint8_t>> BuildHeaders(
+std::optional<std::vector<uint8_t>> BuildHeaders(
     std::vector<HttpHeader> terms) {
   std::string headers;
   for (auto term : terms) {
@@ -287,12 +292,12 @@ printing::ScopedIppPtr ParseIppMessage(base::span<const uint8_t> ipp_slice) {
   return ipp;
 }
 
-absl::optional<std::vector<uint8_t>> BuildIppMessage(ipp_t* ipp) {
+std::optional<std::vector<uint8_t>> BuildIppMessage(ipp_t* ipp) {
   std::vector<uint8_t> request(ippLength(ipp));
 
   // Need to start in idle state for reading/writing.
   if (!ippSetState(ipp, IPP_STATE_IDLE)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // Casting IppWrite callback to correct internal CUPS type
@@ -304,33 +309,33 @@ absl::optional<std::vector<uint8_t>> BuildIppMessage(ipp_t* ipp) {
 
   if (ret == IPP_STATE_ERROR) {
     // Write failed
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return request;
 }
 
-absl::optional<std::vector<uint8_t>> BuildIppRequest(
-    base::StringPiece method,
-    base::StringPiece endpoint,
-    base::StringPiece http_version,
+std::optional<std::vector<uint8_t>> BuildIppRequest(
+    std::string_view method,
+    std::string_view endpoint,
+    std::string_view http_version,
     std::vector<HttpHeader> terms,
     ipp_t* ipp,
     std::vector<uint8_t> ipp_data) {
   // Build each subpart
   auto request_line_buffer = BuildRequestLine(method, endpoint, http_version);
   if (!request_line_buffer) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   auto headers_buffer = BuildHeaders(std::move(terms));
   if (!headers_buffer) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   auto ipp_message_buffer = BuildIppMessage(ipp);
   if (!ipp_message_buffer) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // Marshall request
@@ -350,10 +355,10 @@ absl::optional<std::vector<uint8_t>> BuildIppRequest(
 }
 
 // If no |ipp_data| is passed in, default to empty data portion.
-absl::optional<std::vector<uint8_t>> BuildIppRequest(
-    base::StringPiece method,
-    base::StringPiece endpoint,
-    base::StringPiece http_version,
+std::optional<std::vector<uint8_t>> BuildIppRequest(
+    std::string_view method,
+    std::string_view endpoint,
+    std::string_view http_version,
     std::vector<HttpHeader> terms,
     ipp_t* ipp) {
   return BuildIppRequest(method, endpoint, http_version, std::move(terms), ipp,
@@ -464,8 +469,9 @@ ipp_parser::mojom::IppMessagePtr ConvertIppToMojo(ipp_t* ipp) {
       }
     }
 
-    if (!attrptr->value)
+    if (!attrptr->value) {
       NOTREACHED();
+    }
 
     attributes.push_back(std::move(attrptr));
   }

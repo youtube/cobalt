@@ -9,8 +9,8 @@ import android.content.Context;
 import androidx.annotation.IntDef;
 
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.content_public.browser.WebContents;
-import org.chromium.ui.base.ViewAndroidDelegate.StylusWritingCursorHandler;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -24,6 +24,7 @@ import java.lang.annotation.RetentionPolicy;
  * {@link org.chromium.content_public.browser.StylusWritingHandler}, because content_public should
  * only contain functionality calling between the contents and the embedder.
  */
+@NullMarked
 public interface StylusApiOption {
     // This should be kept in sync with the definition |StylusHandwritingApi|
     // in tools/metrics/histograms/enums.xml.
@@ -44,12 +45,14 @@ public interface StylusApiOption {
 
     void onWebContentsChanged(Context context, WebContents webContents);
 
-    default void onWindowFocusChanged(Context context, boolean hasFocus) {}
+    /**
+     * This can be called as a result of window focus change event or stylus settings change event.
+     */
+    default void updateHandlerState(Context context, boolean hasFocus) {}
 
     /**
-     * @return Handler that implements showing hover cursor during stylus writing.
+     * @return the type of pointer icon that should be shown when hovering over editable elements
+     *     with a stylus.
      */
-    default StylusWritingCursorHandler getStylusWritingCursorHandler() {
-        return null;
-    }
+    int getStylusPointerIcon();
 }

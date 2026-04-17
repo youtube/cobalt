@@ -42,8 +42,8 @@
 #include <exception>
 #include <type_traits>
 #include <typeinfo>
+#include <vector>
 
-#include "base/bit_cast.h"
 #include "base/format_macros.h"
 #include "base/logging.h"
 #include "base/memory/free_deleter.h"
@@ -52,7 +52,6 @@
 #include "base/strings/sys_string_conversions.h"
 #include "build/build_config.h"
 #include "client/annotation.h"
-#include "client/simulate_crash_ios.h"
 
 namespace crashpad {
 
@@ -65,7 +64,7 @@ struct objc_typeinfo {
   Class cls_unremapped;
 };
 struct objc_exception {
-  id obj;
+  id __unsafe_unretained obj;
   objc_typeinfo tinfo;
 };
 
@@ -219,7 +218,7 @@ class ExceptionPreprocessorState {
   // preprocessor didn't catch anything, so pass the frames or just the context
   // to the exception_delegate.
   void FinalizeUncaughtNSException(id exception) {
-    if (last_exception() == exception &&
+    if (last_exception() == (__bridge void*)exception &&
         !last_handled_intermediate_dump_.empty() &&
         exception_delegate_->MoveIntermediateDumpAtPathToPending(
             last_handled_intermediate_dump_)) {
@@ -324,6 +323,20 @@ bool ModulePathMatchesSinkhole(const char* path, const char* sinkhole) {
 #endif
 }
 
+//! \brief Helper to release memory from calls to __cxa_allocate_exception.
+class ScopedException {
+ public:
+  explicit ScopedException(objc_exception* exception) : exception_(exception) {}
+
+  ScopedException(const ScopedException&) = delete;
+  ScopedException& operator=(const ScopedException&) = delete;
+
+  ~ScopedException() { __cxxabiv1::__cxa_free_exception(exception_); }
+
+ private:
+  objc_exception* exception_;  // weak
+};
+
 id ObjcExceptionPreprocessor(id exception) {
   // Some sinkholes don't use objc_exception_rethrow when they should, which
   // would otherwise prevent the exception_preprocessor from getting called
@@ -331,10 +344,10 @@ id ObjcExceptionPreprocessor(id exception) {
   // ignore it.
   ExceptionPreprocessorState* preprocessor_state =
       ExceptionPreprocessorState::Get();
-  if (preprocessor_state->last_exception() == exception) {
+  if (preprocessor_state->last_exception() == (__bridge void*)exception) {
     return preprocessor_state->MaybeCallNextPreprocessor(exception);
   }
-  preprocessor_state->set_last_exception(exception);
+  preprocessor_state->set_last_exception((__bridge void*)exception);
 
   static bool seen_first_exception;
 
@@ -384,6 +397,7 @@ id ObjcExceptionPreprocessor(id exception) {
   // From 10.15.0 objc4-779.1/runtime/objc-exception.mm objc_exception_throw.
   objc_exception* exception_objc = reinterpret_cast<objc_exception*>(
       __cxxabiv1::__cxa_allocate_exception(sizeof(objc_exception)));
+  ScopedException exception_objc_owner(exception_objc);
   exception_objc->obj = exception;
   exception_objc->tinfo.vtable = objc_ehtype_vtable + 2;
   exception_objc->tinfo.name = object_getClassName(exception);
@@ -537,7 +551,7 @@ id ObjcExceptionPreprocessor(id exception) {
           LoggingUnwStep(&cursor) > 0 &&
           unw_get_proc_info(&cursor, &caller_frame_info) == UNW_ESUCCESS) {
         auto uiwindowimp_lambda = [](IMP* max) {
-          IMP min = *max = base::bit_cast<IMP>(nullptr);
+          IMP min = *max = nullptr;
           unsigned int method_count = 0;
           std::unique_ptr<Method[], base::FreeDeleter> method_list(
               class_copyMethodList(NSClassFromString(@"UIWindow"),

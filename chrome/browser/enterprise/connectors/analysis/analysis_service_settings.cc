@@ -6,11 +6,13 @@
 
 #include "base/containers/contains.h"
 #include "base/strings/utf_string_conversions.h"
-#include "chrome/browser/enterprise/connectors/common.h"
-#include "chrome/browser/enterprise/connectors/service_provider_config.h"
+#include "build/build_config.h"
+#include "components/enterprise/buildflags/buildflags.h"
+#include "components/enterprise/connectors/core/common.h"
+#include "components/enterprise/connectors/core/service_provider_config.h"
 #include "components/url_matcher/url_util.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/enterprise/connectors/analysis/source_destination_matcher_ash.h"
 #endif
 
@@ -27,17 +29,17 @@ AnalysisServiceSettings::AnalysisServiceSettings(
   // an existing provider.
   const std::string* service_provider_name =
       settings_dict.FindString(kKeyServiceProvider);
-  if (service_provider_name) {
-    service_provider_name_ = *service_provider_name;
-    if (service_provider_config.count(service_provider_name_)) {
-      analysis_config_ =
-          service_provider_config.at(service_provider_name_).analysis;
-    }
-    if (!analysis_config_) {
-      DLOG(ERROR) << "No analysis config for corresponding service provider";
-      return;
-    }
-  } else {
+  if (!service_provider_name) {
+    return;
+  }
+
+  service_provider_name_ = *service_provider_name;
+  if (service_provider_config.count(service_provider_name_)) {
+    analysis_config_ =
+        service_provider_config.at(service_provider_name_).analysis;
+  }
+  if (!analysis_config_) {
+    DLOG(ERROR) << "No analysis config for corresponding service provider";
     return;
   }
 
@@ -45,7 +47,7 @@ AnalysisServiceSettings::AnalysisServiceSettings(
   // settings.*_pattern_settings. No enable patterns implies the settings are
   // invalid.
   matcher_ = std::make_unique<url_matcher::URLMatcher>();
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   source_destination_matcher_ = std::make_unique<SourceDestinationMatcherAsh>();
 #endif
   base::MatcherStringPattern::ID id(0);
@@ -67,7 +69,7 @@ AnalysisServiceSettings::AnalysisServiceSettings(
         } else if (url_list) {
           AddUrlPatternSettings(*dict, is_enable, &id);
         } else if (source_destination_list) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
           AddSourceDestinationSettings(*dict, is_enable, &id);
 #else
           DLOG(ERROR) << kKeySourceDestinationList
@@ -91,12 +93,18 @@ AnalysisServiceSettings::AnalysisServiceSettings(
       settings_dict.FindInt(kKeyBlockUntilVerdict).value_or(0)
           ? BlockUntilVerdict::kBlock
           : BlockUntilVerdict::kNoBlock;
+  // If fail-closed settings can't be found, the browser defaults to fail open
+  // to handle backward compatibility.
+  const std::string* default_action_ptr =
+      settings_dict.FindString(kKeyDefaultAction);
+  default_action_ = default_action_ptr && *default_action_ptr == "block"
+                        ? DefaultAction::kBlock
+                        : DefaultAction::kAllow;
+
   block_password_protected_files_ =
       settings_dict.FindBool(kKeyBlockPasswordProtected).value_or(false);
   block_large_files_ =
       settings_dict.FindBool(kKeyBlockLargeFiles).value_or(false);
-  block_unsupported_file_types_ =
-      settings_dict.FindBool(kKeyBlockUnsupportedFileTypes).value_or(false);
   minimum_data_size_ = settings_dict.FindInt(kKeyMinimumDataSize).value_or(100);
 
   const base::Value::List* custom_messages =
@@ -138,6 +146,7 @@ AnalysisServiceSettings::AnalysisServiceSettings(
     }
   }
 
+#if BUILDFLAG(ENTERPRISE_LOCAL_CONTENT_ANALYSIS)
 #if BUILDFLAG(IS_WIN)
   const char* verification_key = kKeyWindowsVerification;
 #elif BUILDFLAG(IS_MAC)
@@ -146,7 +155,6 @@ AnalysisServiceSettings::AnalysisServiceSettings(
   const char* verification_key = kKeyLinuxVerification;
 #endif
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
   const base::Value::Dict& dict = settings_value.GetDict();
   const base::Value::List* signatures =
       dict.FindListByDottedPath(verification_key);
@@ -160,7 +168,7 @@ AnalysisServiceSettings::AnalysisServiceSettings(
 }
 
 // static
-absl::optional<AnalysisServiceSettings::URLPatternSettings>
+std::optional<AnalysisServiceSettings::URLPatternSettings>
 AnalysisServiceSettings::GetPatternSettings(
     const PatternSettings& patterns,
     base::MatcherStringPattern::ID match) {
@@ -177,22 +185,24 @@ AnalysisServiceSettings::GetPatternSettings(
   if (next != patterns.end())
     return next->second;
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 AnalysisSettings AnalysisServiceSettings::GetAnalysisSettingsWithTags(
-    std::map<std::string, TagSettings> tags) const {
+    std::map<std::string, TagSettings> tags,
+    DataRegion data_region) const {
   DCHECK(IsValid());
 
   AnalysisSettings settings;
 
   settings.block_until_verdict = block_until_verdict_;
+  settings.default_action = default_action_;
   settings.block_password_protected_files = block_password_protected_files_;
   settings.block_large_files = block_large_files_;
-  settings.block_unsupported_file_types = block_unsupported_file_types_;
   if (is_cloud_analysis()) {
     CloudAnalysisSettings cloud_settings;
-    cloud_settings.analysis_url = GURL(analysis_config_->url);
+    cloud_settings.analysis_url =
+        GetRegionalizedEndpoint(analysis_config_->region_urls, data_region);
     // We assume all support_tags structs have the same max file size.
     cloud_settings.max_file_size =
         analysis_config_->supported_tags[0].max_file_size;
@@ -218,44 +228,46 @@ AnalysisSettings AnalysisServiceSettings::GetAnalysisSettingsWithTags(
   return settings;
 }
 
-absl::optional<AnalysisSettings> AnalysisServiceSettings::GetAnalysisSettings(
-    const GURL& url) const {
+std::optional<AnalysisSettings> AnalysisServiceSettings::GetAnalysisSettings(
+    const GURL& url,
+    DataRegion data_region) const {
   if (!IsValid())
-    return absl::nullopt;
+    return std::nullopt;
 
   DCHECK(matcher_);
   auto matches = matcher_->MatchURL(url);
   if (matches.empty())
-    return absl::nullopt;
+    return std::nullopt;
 
   auto tags = GetTags(matches);
   if (tags.empty())
-    return absl::nullopt;
+    return std::nullopt;
 
-  return GetAnalysisSettingsWithTags(std::move(tags));
+  return GetAnalysisSettingsWithTags(std::move(tags), data_region);
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-absl::optional<AnalysisSettings> AnalysisServiceSettings::GetAnalysisSettings(
+#if BUILDFLAG(IS_CHROMEOS)
+std::optional<AnalysisSettings> AnalysisServiceSettings::GetAnalysisSettings(
     content::BrowserContext* context,
     const storage::FileSystemURL& source_url,
-    const storage::FileSystemURL& destination_url) const {
+    const storage::FileSystemURL& destination_url,
+    DataRegion data_region) const {
   if (!IsValid())
-    return absl::nullopt;
+    return std::nullopt;
   DCHECK(source_destination_matcher_);
 
   auto matches =
       source_destination_matcher_->Match(context, source_url, destination_url);
   if (matches.empty())
-    return absl::nullopt;
+    return std::nullopt;
 
   auto tags = GetTags(matches);
   if (tags.empty())
-    return absl::nullopt;
+    return std::nullopt;
 
-  return GetAnalysisSettingsWithTags(std::move(tags));
+  return GetAnalysisSettingsWithTags(std::move(tags), data_region);
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 bool AnalysisServiceSettings::ShouldBlockUntilVerdict() const {
   if (!IsValid())
@@ -263,25 +275,32 @@ bool AnalysisServiceSettings::ShouldBlockUntilVerdict() const {
   return block_until_verdict_ == BlockUntilVerdict::kBlock;
 }
 
-absl::optional<std::u16string> AnalysisServiceSettings::GetCustomMessage(
+bool AnalysisServiceSettings::ShouldBlockByDefault() const {
+  if (!IsValid()) {
+    return false;
+  }
+  return default_action_ == DefaultAction::kBlock;
+}
+
+std::optional<std::u16string> AnalysisServiceSettings::GetCustomMessage(
     const std::string& tag) {
   const auto& element = tags_.find(tag);
 
   if (!IsValid() || element == tags_.end() ||
       element->second.custom_message.message.empty()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return element->second.custom_message.message;
 }
 
-absl::optional<GURL> AnalysisServiceSettings::GetLearnMoreUrl(
+std::optional<GURL> AnalysisServiceSettings::GetLearnMoreUrl(
     const std::string& tag) {
   const auto& element = tags_.find(tag);
 
   if (!IsValid() || element == tags_.end() ||
       element->second.custom_message.learn_more_url.is_empty()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return element->second.custom_message.learn_more_url;
@@ -332,7 +351,8 @@ void AnalysisServiceSettings::AddUrlPatternSettings(
     return;
   }
   base::MatcherStringPattern::ID previous_id = *id;
-  url_matcher::util::AddFilters(matcher_.get(), enabled, id, *url_list);
+  url_matcher::util::AddFiltersWithLimit(matcher_.get(), enabled, id,
+                                         *url_list);
 
   if (previous_id == *id) {
     // No rules were added, so don't save settings, as they would override other
@@ -346,7 +366,7 @@ void AnalysisServiceSettings::AddUrlPatternSettings(
     disabled_patterns_settings_[*id] = std::move(setting);
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 void AnalysisServiceSettings::AddSourceDestinationSettings(
     const base::Value::Dict& source_destination_settings_value,
     bool enabled,
@@ -396,7 +416,7 @@ void AnalysisServiceSettings::AddSourceDestinationSettings(
   else
     disabled_patterns_settings_[*id] = std::move(setting);
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 std::map<std::string, TagSettings> AnalysisServiceSettings::GetTags(
     const std::set<base::MatcherStringPattern::ID>& matches) const {

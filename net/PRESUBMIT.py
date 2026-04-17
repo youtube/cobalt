@@ -10,9 +10,6 @@ for more details about the presubmit API built into depot_tools.
 
 PRESUBMIT_VERSION = '2.0.0'
 
-USE_PYTHON3 = True
-
-
 def CheckChange(input_api, output_api):
     import sys
     old_sys_path = sys.path[:]
@@ -30,11 +27,6 @@ def CheckChange(input_api, output_api):
             output_api,
             'data/test_support_bundle_data',
             globroot='.')
-        results += presubmit_support.CheckBundleData(
-            input_api,
-            output_api,
-            'third_party/nist-pkits/test_bundle_data',
-            globroot='third_party/nist-pkits')
     finally:
         sys.path = old_sys_path
     return results

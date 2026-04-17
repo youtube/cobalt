@@ -19,8 +19,6 @@
 
 #include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/audio_decoder_passthrough.h"
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
@@ -74,47 +72,64 @@ int ParseAc3SyncframeAudioSampleCount(const uint8_t* buffer, int size) {
 
 }  // namespace
 
-AudioRendererPassthrough::AudioRendererPassthrough(
-    const AudioStreamInfo& audio_stream_info,
-    SbDrmSystem drm_system,
-    bool enable_flush_during_seek)
-    : audio_stream_info_(audio_stream_info) {
-  SB_DCHECK(audio_stream_info_.codec == kSbMediaAudioCodecAc3 ||
-            audio_stream_info_.codec == kSbMediaAudioCodecEac3);
+// static
+NonNullResult<std::unique_ptr<AudioRendererPassthrough>>
+AudioRendererPassthrough::Create(JobQueue* job_queue,
+                                 const AudioStreamInfo& audio_stream_info,
+                                 SbDrmSystem drm_system,
+                                 bool enable_flush_during_seek) {
+  std::unique_ptr<AudioDecoder> decoder;
   if (SbDrmSystemIsValid(drm_system)) {
     SB_LOG(INFO) << "Creating AudioDecoder as decryptor.";
-    auto audio_decoder = std::make_unique<MediaCodecAudioDecoder>(
-        audio_stream_info, drm_system, enable_flush_during_seek);
-    if (audio_decoder->is_valid()) {
-      decoder_.reset(audio_decoder.release());
+    auto result = MediaCodecAudioDecoder::Create(
+        job_queue, audio_stream_info, drm_system, enable_flush_during_seek);
+    if (result) {
+      decoder = std::move(result.value());
+    } else {
+      return Failure("Failed to create MediaCodecAudioDecoder: " +
+                     result.error());
     }
   } else {
     SB_LOG(INFO) << "Creating AudioDecoderPassthrough.";
-    decoder_.reset(
-        new AudioDecoderPassthrough(audio_stream_info_.samples_per_second));
+    decoder = std::make_unique<AudioDecoderPassthrough>(
+        audio_stream_info.samples_per_second);
   }
+
+  return std::make_unique<AudioRendererPassthrough>(
+      PassKey<AudioRendererPassthrough>(), job_queue, audio_stream_info,
+      std::move(decoder));
+}
+
+AudioRendererPassthrough::AudioRendererPassthrough(
+    PassKey<AudioRendererPassthrough>,
+    JobQueue* job_queue,
+    const AudioStreamInfo& audio_stream_info,
+    std::unique_ptr<AudioDecoder> decoder)
+    : JobOwner(job_queue),
+      audio_stream_info_(audio_stream_info),
+      decoder_(std::move(decoder)) {
+  SB_CHECK(decoder_);
+  SB_DCHECK(audio_stream_info_.codec == kSbMediaAudioCodecAc3 ||
+            audio_stream_info_.codec == kSbMediaAudioCodecEac3);
 }
 
 AudioRendererPassthrough::~AudioRendererPassthrough() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
-  if (is_valid()) {
-    SB_LOG(INFO) << "Force a seek to 0 to reset all states before destructing.";
-    Seek(0);
-  }
+  SB_LOG(INFO) << "Force a seek to 0 to reset all states before destructing.";
+  Seek(0);
 }
 
 void AudioRendererPassthrough::Initialize(const ErrorCB& error_cb,
                                           const PrerolledCB& prerolled_cb,
                                           const EndedCB& ended_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(error_cb);
   SB_DCHECK(prerolled_cb);
   SB_DCHECK(ended_cb);
   SB_DCHECK(!error_cb_);
   SB_DCHECK(!prerolled_cb_);
   SB_DCHECK(!ended_cb_);
-  SB_DCHECK(decoder_);
 
   error_cb_ = error_cb;
   prerolled_cb_ = prerolled_cb;
@@ -125,13 +140,13 @@ void AudioRendererPassthrough::Initialize(const ErrorCB& error_cb,
 }
 
 void AudioRendererPassthrough::WriteSamples(const InputBuffers& input_buffers) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK(can_accept_more_data_.load());
 
   if (!audio_track_thread_) {
-    audio_track_thread_.reset(
-        new JobThread("AudioPassthrough", 0, kSbThreadPriorityHigh));
+    audio_track_thread_ =
+        JobThread::Create("AudioPassthrough", kSbThreadPriorityHigh);
     audio_track_thread_->Schedule(std::bind(
         &AudioRendererPassthrough::CreateAudioTrackAndStartProcessing, this));
   }
@@ -144,7 +159,7 @@ void AudioRendererPassthrough::WriteSamples(const InputBuffers& input_buffers) {
 }
 
 void AudioRendererPassthrough::WriteEndOfStream() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (end_of_stream_written_) {
     SB_LOG(INFO) << "WriteEndOfStream() ignored as |end_of_stream_written_| is"
@@ -167,7 +182,7 @@ void AudioRendererPassthrough::WriteEndOfStream() {
 }
 
 void AudioRendererPassthrough::SetVolume(double volume) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (volume_ == volume) {
     SB_LOG(INFO) << "Volume already at " << volume;
@@ -181,19 +196,19 @@ void AudioRendererPassthrough::SetVolume(double volume) {
 }
 
 bool AudioRendererPassthrough::IsEndOfStreamWritten() const {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   return end_of_stream_written_;
 }
 
 bool AudioRendererPassthrough::IsEndOfStreamPlayed() const {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   return end_of_stream_played_.load();
 }
 
 bool AudioRendererPassthrough::CanAcceptMoreData() const {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   std::lock_guard scoped_lock(mutex_);
   return can_accept_more_data_.load() &&
@@ -201,7 +216,7 @@ bool AudioRendererPassthrough::CanAcceptMoreData() const {
 }
 
 void AudioRendererPassthrough::Play() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (!paused_) {
     SB_LOG(INFO) << "Already playing.";
@@ -215,7 +230,7 @@ void AudioRendererPassthrough::Play() {
 }
 
 void AudioRendererPassthrough::Pause() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (paused_) {
     SB_LOG(INFO) << "Already paused.";
@@ -229,7 +244,7 @@ void AudioRendererPassthrough::Pause() {
 }
 
 void AudioRendererPassthrough::SetPlaybackRate(double playback_rate) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (playback_rate > 0.0 && playback_rate != 1.0) {
     // TODO: Report unsupported playback rate as an error.
@@ -251,7 +266,7 @@ void AudioRendererPassthrough::SetPlaybackRate(double playback_rate) {
 }
 
 void AudioRendererPassthrough::Seek(int64_t seek_to_time) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   SB_LOG(INFO) << "Seek to " << seek_to_time;
 
@@ -262,6 +277,7 @@ void AudioRendererPassthrough::Seek(int64_t seek_to_time) {
     audio_track_thread_->ScheduleAndWait(
         std::bind(&AudioRendererPassthrough::FlushAudioTrackAndStopProcessing,
                   this, seek_to_time));
+    audio_track_thread_->Stop();
     // |seek_to_time_| is updated inside FlushAudioTrackAndStopProcessing(),
     // update the flag so we needn't set it again below.
     seek_to_time_set = true;

@@ -28,9 +28,7 @@ namespace blink {
 
 SVGFEMergeNodeElement::SVGFEMergeNodeElement(Document& document)
     : SVGElement(svg_names::kFEMergeNodeTag, document),
-      in1_(MakeGarbageCollected<SVGAnimatedString>(this, svg_names::kInAttr)) {
-  AddToPropertyMap(in1_);
-}
+      in1_(MakeGarbageCollected<SVGAnimatedString>(this, svg_names::kInAttr)) {}
 
 void SVGFEMergeNodeElement::Trace(Visitor* visitor) const {
   visitor->Trace(in1_);
@@ -40,12 +38,26 @@ void SVGFEMergeNodeElement::Trace(Visitor* visitor) const {
 void SVGFEMergeNodeElement::SvgAttributeChanged(
     const SvgAttributeChangedParams& params) {
   if (params.name == svg_names::kInAttr) {
-    SVGElement::InvalidationGuard invalidation_guard(this);
     InvalidateFilterPrimitiveParent(*this);
     return;
   }
 
   SVGElement::SvgAttributeChanged(params);
+}
+
+SVGAnimatedPropertyBase* SVGFEMergeNodeElement::PropertyFromAttribute(
+    const QualifiedName& attribute_name) const {
+  if (attribute_name == svg_names::kInAttr) {
+    return in1_.Get();
+  } else {
+    return SVGElement::PropertyFromAttribute(attribute_name);
+  }
+}
+
+void SVGFEMergeNodeElement::SynchronizeAllSVGAttributes() const {
+  SVGAnimatedPropertyBase* attrs[]{in1_.Get()};
+  SynchronizeListOfSVGAttributes(attrs);
+  SVGElement::SynchronizeAllSVGAttributes();
 }
 
 }  // namespace blink

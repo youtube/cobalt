@@ -4,12 +4,11 @@
 
 package org.chromium.chrome.browser.contextualsearch;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -19,35 +18,48 @@ import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
-import org.chromium.chrome.test.batch.BlankCTATabInitialStateRule;
+import org.chromium.chrome.test.transit.AutoResetCtaTransitTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 
 /**
- * Class responsible for testing the ContextualSearchRequest.
- * TODO(donnd): Switch to a pure-java test.
+ * Class responsible for testing the ContextualSearchRequest. TODO(donnd): Switch to a pure-java
+ * test.
  */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @Batch(Batch.PER_CLASS)
 public class ContextualSearchRequestTest {
-    @ClassRule
-    public static ChromeTabbedActivityTestRule sActivityTestRule =
-            new ChromeTabbedActivityTestRule();
-
     @Rule
-    public BlankCTATabInitialStateRule mInitialStateRule =
-            new BlankCTATabInitialStateRule(sActivityTestRule, false);
+    public AutoResetCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.fastAutoResetCtaActivityRule();
 
     ContextualSearchRequest mRequest;
     ContextualSearchRequest mNormalPriorityOnlyRequest;
 
     @Before
     public void setUp() throws Exception {
-        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
-            mRequest = new ContextualSearchRequest("barack obama", "barack", "", true, null, null);
-            mNormalPriorityOnlyRequest =
-                    new ContextualSearchRequest("woody allen", "allen", "", false, null, null);
-        });
+        InstrumentationRegistry.getInstrumentation()
+                .runOnMainSync(
+                        () -> {
+                            mRequest =
+                                    new ContextualSearchRequest(
+                                            mActivityTestRule.getProfile(false),
+                                            "barack obama",
+                                            "barack",
+                                            "",
+                                            true,
+                                            null,
+                                            null);
+                            mNormalPriorityOnlyRequest =
+                                    new ContextualSearchRequest(
+                                            mActivityTestRule.getProfile(false),
+                                            "woody allen",
+                                            "allen",
+                                            "",
+                                            false,
+                                            null,
+                                            null);
+                        });
     }
 
     @Test
@@ -86,12 +98,28 @@ public class ContextualSearchRequestTest {
     public void testServerProvidedUrls() {
         String serverUrlFull = "https://www.google.com/search?obama&ctxs=2";
         String serverUrlPreload = "https://www.google.com/s?obama&ctxs=2&pf=c&sns=1";
-        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
-            mRequest =
-                    new ContextualSearchRequest("", "", "", true, serverUrlFull, serverUrlPreload);
-            mNormalPriorityOnlyRequest =
-                    new ContextualSearchRequest("", "", "", false, serverUrlFull, null);
-        });
+        InstrumentationRegistry.getInstrumentation()
+                .runOnMainSync(
+                        () -> {
+                            mRequest =
+                                    new ContextualSearchRequest(
+                                            mActivityTestRule.getProfile(false),
+                                            "",
+                                            "",
+                                            "",
+                                            true,
+                                            serverUrlFull,
+                                            serverUrlPreload);
+                            mNormalPriorityOnlyRequest =
+                                    new ContextualSearchRequest(
+                                            mActivityTestRule.getProfile(false),
+                                            "",
+                                            "",
+                                            "",
+                                            false,
+                                            serverUrlFull,
+                                            null);
+                        });
         Assert.assertTrue(mRequest.isUsingLowPriority());
         Assert.assertEquals(serverUrlPreload, mRequest.getSearchUrl());
         mRequest.setNormalPriority();

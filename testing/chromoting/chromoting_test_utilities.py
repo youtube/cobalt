@@ -1,7 +1,6 @@
 # Copyright 2015 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-
 """Utility script to run tests on the Chromoting bot."""
 
 from __future__ import print_function
@@ -14,7 +13,8 @@ import shutil
 import socket
 import subprocess
 
-import psutil
+# vpython-provided modules.
+import psutil  # pylint: disable=import-error
 
 PROD_DIR_ID = '#PROD_DIR#'
 CRD_ID = 'chrome-remote-desktop'  # Used in a few file/folder names
@@ -50,7 +50,8 @@ def RunCommandInSubProcess(command):
   cmd_line = [command]
   try:
     print('Going to run:\n%s' % command)
-    results = subprocess.check_output(cmd_line, stderr=subprocess.STDOUT,
+    results = subprocess.check_output(cmd_line,
+                                      stderr=subprocess.STDOUT,
                                       shell=True)
   except subprocess.CalledProcessError as e:
     results = e.output
@@ -187,8 +188,8 @@ def SetupUserProfileDir(me2me_manifest_file, it2me_manifest_file,
   manifest_files = [me2me_manifest_file, it2me_manifest_file]
   for manifest_file in manifest_files:
     manifest_file_src = os.path.join(os.getcwd(), manifest_file)
-    manifest_file_dest = (
-        os.path.join(native_messaging_folder, os.path.basename(manifest_file)))
+    manifest_file_dest = (os.path.join(native_messaging_folder,
+                                       os.path.basename(manifest_file)))
     shutil.copyfile(manifest_file_src, manifest_file_dest)
 
 
@@ -206,8 +207,8 @@ def PrintHostLogContents(host_log_files=None):
     host_log_contents = ''
     for log_file in sorted(host_log_files):
       with open(log_file, 'r') as log:
-        host_log_contents += '\nHOST LOG %s\n CONTENTS:\n%s' % (
-            log_file, log.read())
+        host_log_contents += '\nHOST LOG %s\n CONTENTS:\n%s' % (log_file,
+                                                                log.read())
     print(host_log_contents)
 
 

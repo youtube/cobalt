@@ -19,7 +19,7 @@ namespace ui {
 
 EventType EventTypeFromNative(const PlatformEvent& native_event) {
   NOTIMPLEMENTED();
-  return ET_UNKNOWN;
+  return EventType::kUnknown;
 }
 
 int EventFlagsFromNative(const PlatformEvent& native_event) {
@@ -72,12 +72,20 @@ gfx::Vector2d GetMouseWheelTick120ths(const PlatformEvent& native_event) {
   return gfx::Vector2d();
 }
 
-PlatformEvent CopyNativeEvent(const PlatformEvent& event) {
-  NOTIMPLEMENTED() << "Don't know how to copy PlatformEvent for this platform";
-  return NULL;
+bool ShouldCopyPlatformEvents() {
+  NOTIMPLEMENTED();
+  return false;
 }
 
-void ReleaseCopiedNativeEvent(const PlatformEvent& event) {}
+PlatformEvent CreateInvalidPlatformEvent() {
+  NOTIMPLEMENTED();
+  return nullptr;
+}
+
+bool IsPlatformEventValid(const PlatformEvent& native_event) {
+  NOTIMPLEMENTED();
+  return false;
+}
 
 PointerDetails GetTouchPointerDetailsFromNative(
     const PlatformEvent& native_event) {

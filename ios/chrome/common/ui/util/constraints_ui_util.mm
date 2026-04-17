@@ -8,10 +8,6 @@
 
 #import "base/check.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 @implementation ComposedEdgeLayoutGuide
 - (NSLayoutXAxisAnchor*)leadingAnchor {
   return self.leadingAnchorProvider.leadingAnchor
@@ -128,6 +124,14 @@ void AddSameConstraintsWithInsets(id<EdgeLayoutGuideProvider> innerView,
       insets);
 }
 
+void AddSameConstraintsWithInset(id<EdgeLayoutGuideProvider> innerView,
+                                 id<EdgeLayoutGuideProvider> outerView,
+                                 CGFloat inset) {
+  AddSameConstraintsWithInsets(
+      innerView, outerView,
+      NSDirectionalEdgeInsets(inset, inset, inset, inset));
+}
+
 void PinToSafeArea(id<EdgeLayoutGuideProvider> innerView, UIView* outerView) {
   AddSameConstraints(innerView, outerView.safeAreaLayoutGuide);
 }
@@ -166,6 +170,17 @@ void AddSameConstraintsToSidesWithInsets(id<EdgeLayoutGuideProvider> innerView,
   }
 
   [NSLayoutConstraint activateConstraints:constraints];
+}
+
+void AddSizeConstraints(id<LayoutGuideProvider> view, CGSize size) {
+  [NSLayoutConstraint activateConstraints:@[
+    [view.widthAnchor constraintEqualToConstant:size.width],
+    [view.heightAnchor constraintEqualToConstant:size.height],
+  ]];
+}
+
+void AddSquareConstraints(id<LayoutGuideProvider> view, CGFloat edge) {
+  AddSizeConstraints(view, CGSize(edge, edge));
 }
 
 NSArray<NSLayoutConstraint*>* AddOptionalVerticalPadding(

@@ -5,6 +5,7 @@
 #ifndef CHROME_UPDATER_EXTERNAL_CONSTANTS_BUILDER_H_
 #define CHROME_UPDATER_EXTERNAL_CONSTANTS_BUILDER_H_
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -47,6 +48,9 @@ class ExternalConstantsBuilder {
   ExternalConstantsBuilder& SetDeviceManagementURL(const std::string& url);
   ExternalConstantsBuilder& ClearDeviceManagementURL();
 
+  ExternalConstantsBuilder& SetAppLogoURL(const std::string& url);
+  ExternalConstantsBuilder& ClearAppLogoURL();
+
   ExternalConstantsBuilder& SetUseCUP(bool use_cup);
   ExternalConstantsBuilder& ClearUseCUP();
 
@@ -61,12 +65,25 @@ class ExternalConstantsBuilder {
       crx_file::VerifierFormat crx_verifier_format);
   ExternalConstantsBuilder& ClearCrxVerifierFormat();
 
-  ExternalConstantsBuilder& SetGroupPolicies(
-      const base::Value::Dict& group_policies);
-  ExternalConstantsBuilder& ClearGroupPolicies();
+  ExternalConstantsBuilder& SetDictPolicies(
+      const base::Value::Dict& dict_policies);
+  ExternalConstantsBuilder& ClearDictPolicies();
 
   ExternalConstantsBuilder& SetOverinstallTimeout(
-      const base::TimeDelta& overinstall_timeout);
+      base::TimeDelta overinstall_timeout);
+  ExternalConstantsBuilder& ClearOverinstallTimeout();
+
+  ExternalConstantsBuilder& SetIdleCheckPeriod(
+      base::TimeDelta idle_check_period);
+  ExternalConstantsBuilder& ClearIdleCheckPeriod();
+
+  ExternalConstantsBuilder& SetMachineManaged(
+      std::optional<bool> is_managed_device);
+  ExternalConstantsBuilder& ClearMachineManaged();
+
+  ExternalConstantsBuilder& SetCecaConnectionTimeout(
+      base::TimeDelta ceca_connection_timeout);
+  ExternalConstantsBuilder& ClearCecaConnectionTimeout();
 
   // Write the external constants overrides file in the default location
   // with the values that have been previously set, replacing any file

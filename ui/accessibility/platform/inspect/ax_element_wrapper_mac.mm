@@ -4,50 +4,105 @@
 
 #include "ui/accessibility/platform/inspect/ax_element_wrapper_mac.h"
 
+#import <Accessibility/Accessibility.h>
+#include <CoreFoundation/CoreFoundation.h>
+#include <Foundation/Foundation.h>
+
 #include <ostream>
 
+#include "base/apple/bridging.h"
+#include "base/apple/foundation_util.h"
+#include "base/apple/scoped_cftyperef.h"
+#include "base/compiler_specific.h"
 #include "base/containers/fixed_flat_set.h"
 #include "base/debug/stack_trace.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
 #include "base/strings/pattern.h"
 #include "base/strings/sys_string_conversions.h"
+#include "ui/accessibility/platform/ax_platform_node_cocoa.h"
 #include "ui/accessibility/platform/ax_private_attributes_mac.h"
 
-// error: 'accessibilityAttributeNames' is deprecated: first deprecated in
-// macOS 10.10 - Use the NSAccessibility protocol methods instead (see
-// NSAccessibilityProtocols.h
+// TODO(https://crbug.com/406190900): Remove this deprecation pragma.
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 
-namespace ui {
+namespace {
 
-using base::SysNSStringToUTF8;
+// AXUIElementCopyAttributeValue("AXCustomContent") returns an NSData
+// that contains an NSDictionary in NSKeyedArchiver format.
+// This function unpacks the array of AXCustomContents contained within.
+NSArray<AXCustomContent*>* CustomContentFromArchive(NSData* archive_data) {
+  NSError* error = nil;
+  NSKeyedUnarchiver* unarchiver =
+      [[NSKeyedUnarchiver alloc] initForReadingFromData:archive_data
+                                                  error:&error];
+
+  if (error) {
+    return nil;
+  }
+
+  id contents = [unarchiver
+      decodeObjectOfClasses:
+          [NSSet setWithArray:@[ NSArray.class, AXCustomContent.class ]]
+                     forKey:NSKeyedArchiveRootObjectKey];
+
+  return base::apple::ObjCCast<NSArray>(contents);
+}
+
+}  // namespace
+
+namespace ui {
 
 constexpr char kUnsupportedObject[] =
     "Only AXUIElementRef and BrowserAccessibilityCocoa are supported.";
 
 // static
-bool AXElementWrapper::IsValidElement(const id node) {
+AXElementWrapper::AXType AXElementWrapper::TypeOf(id node) {
+  DCHECK(IsValidElement(node));
+  if (IsNSAccessibilityElement(node)) {
+    return AXType::kNSAccessibilityElement;
+  }
+  if (IsAXUIElement(node)) {
+    return AXType::kAXUIElement;
+  }
+  NOTREACHED() << "Unknown accessibility object type";
+}
+
+// static
+bool AXElementWrapper::IsValidElement(id node) {
   return AXElementWrapper(node).IsValidElement();
 }
 
-bool AXElementWrapper::IsNSAccessibilityElement(const id node) {
+// static
+bool AXElementWrapper::IsNSAccessibilityElement(id node) {
   return AXElementWrapper(node).IsNSAccessibilityElement();
 }
 
-bool AXElementWrapper::IsAXUIElement(const id node) {
+// static
+bool AXElementWrapper::IsAXUIElement(id node) {
   return AXElementWrapper(node).IsAXUIElement();
 }
 
-NSArray* AXElementWrapper::ChildrenOf(const id node) {
-  return AXElementWrapper(node).Children();
+// static
+std::vector<gfx::NativeViewAccessible> AXElementWrapper::ChildrenOf(
+    const gfx::NativeViewAccessible node) {
+  NSArray* children = AXElementWrapper(node.Get()).Children();
+  std::vector<gfx::NativeViewAccessible> result;
+  result.reserve(children.count);
+  for (id child in children) {
+    result.emplace_back(child);
+  }
+  return result;
 }
 
-// Returns DOM id of a given node (either AXUIElement or
-// BrowserAccessibilityCocoa).
-std::string AXElementWrapper::DOMIdOf(const id node) {
-  return AXElementWrapper(node).DOMId();
+// static
+std::string AXElementWrapper::DOMIdOf(gfx::NativeViewAccessible node) {
+  return AXElementWrapper(node.Get()).DOMId();
+}
+
+AXElementWrapper::AXElementWrapper(id node) : node_(node) {
+  CHECK(node);
 }
 
 bool AXElementWrapper::IsValidElement() const {
@@ -59,7 +114,7 @@ bool AXElementWrapper::IsNSAccessibilityElement() const {
 }
 
 bool AXElementWrapper::IsAXUIElement() const {
-  return CFGetTypeID(node_) == AXUIElementGetTypeID();
+  return CFGetTypeID((__bridge CFTypeRef)node_) == AXUIElementGetTypeID();
 }
 
 id AXElementWrapper::AsId() const {
@@ -67,27 +122,27 @@ id AXElementWrapper::AsId() const {
 }
 
 std::string AXElementWrapper::DOMId() const {
-  const id domid_value =
-      *GetAttributeValue(base::SysUTF8ToNSString("AXDOMIdentifier"));
+  id domid_value = *GetAttributeValue(@"AXDOMIdentifier");
   return base::SysNSStringToUTF8(static_cast<NSString*>(domid_value));
 }
 
 NSArray* AXElementWrapper::Children() const {
   if (IsNSAccessibilityElement())
-    return [node_ children];
+    return [node_ accessibilityChildren];
 
   if (IsAXUIElement()) {
-    CFTypeRef children_ref;
-    if ((AXUIElementCopyAttributeValue(static_cast<AXUIElementRef>(node_),
-                                       kAXChildrenAttribute, &children_ref)) ==
-        kAXErrorSuccess)
-      return static_cast<NSArray*>(children_ref);
+    base::apple::ScopedCFTypeRef<CFTypeRef> children_ref;
+    if ((AXUIElementCopyAttributeValue(
+            (__bridge AXUIElementRef)node_, kAXChildrenAttribute,
+            children_ref.InitializeInto())) == kAXErrorSuccess) {
+      return base::apple::CFToNSOwnershipCast(
+          (CFArrayRef)children_ref.release());
+    }
     return nil;
   }
 
   NOTREACHED()
       << "Only AXUIElementRef and BrowserAccessibilityCocoa are supported.";
-  return nil;
 }
 
 NSSize AXElementWrapper::Size() const {
@@ -98,15 +153,14 @@ NSSize AXElementWrapper::Size() const {
   if (!IsAXUIElement()) {
     NOTREACHED()
         << "Only AXUIElementRef and BrowserAccessibilityCocoa are supported.";
-    return NSMakeSize(0, 0);
   }
 
   id value = *GetAttributeValue(NSAccessibilitySizeAttribute);
-  if (value && CFGetTypeID(value) == AXValueGetTypeID()) {
-    AXValueType type = AXValueGetType(static_cast<AXValueRef>(value));
+  if (value && CFGetTypeID((__bridge CFTypeRef)value) == AXValueGetTypeID()) {
+    AXValueType type = AXValueGetType((__bridge AXValueRef)value);
     if (type == kAXValueCGSizeType) {
       NSSize size;
-      if (AXValueGetValue(static_cast<AXValueRef>(value), type, &size)) {
+      if (AXValueGetValue((__bridge AXValueRef)value, type, &size)) {
         return size;
       }
     }
@@ -119,73 +173,103 @@ NSPoint AXElementWrapper::Position() const {
     return [node_ accessibilityFrame].origin;
   }
 
-  if (!IsAXUIElement()) {
-    NOTREACHED()
-        << "Only AXUIElementRef and BrowserAccessibilityCocoa are supported.";
+  if (IsAXUIElement()) {
+    id value = *GetAttributeValue(NSAccessibilityPositionAttribute);
+    if (value && CFGetTypeID((__bridge CFTypeRef)value) == AXValueGetTypeID()) {
+      AXValueType type = AXValueGetType((__bridge AXValueRef)value);
+      if (type == kAXValueCGPointType) {
+        NSPoint point;
+        if (AXValueGetValue((__bridge AXValueRef)value, type, &point)) {
+          return point;
+        }
+      }
+    }
     return NSMakePoint(0, 0);
   }
 
-  id value = *GetAttributeValue(NSAccessibilityPositionAttribute);
-  if (value && CFGetTypeID(value) == AXValueGetTypeID()) {
-    AXValueType type = AXValueGetType(static_cast<AXValueRef>(value));
-    if (type == kAXValueCGPointType) {
-      NSPoint point;
-      if (AXValueGetValue(static_cast<AXValueRef>(value), type, &point)) {
-        return point;
-      }
-    }
-  }
-  return NSMakePoint(0, 0);
+  NOTREACHED()
+      << "Only AXUIElementRef and BrowserAccessibilityCocoa are supported.";
 }
 
 NSArray* AXElementWrapper::AttributeNames() const {
-  if (IsNSAccessibilityElement())
+  if (IsNSAccessibilityElement()) {
+    // The NSAccessibility protocol implementation in AXPlatformNodeCocoa no
+    // longer exposes old-style attributes. Instead, it provides the
+    // internalAccessibilityAttributeNames method for backward compatibility in
+    // testing.
+    if ([node_ isKindOfClass:[AXPlatformNodeCocoa class]]) {
+      return [node_ internalAccessibilityAttributeNames];
+    }
     return [node_ accessibilityAttributeNames];
+  }
 
   if (IsAXUIElement()) {
-    CFArrayRef attributes_ref;
+    base::apple::ScopedCFTypeRef<CFArrayRef> attributes_ref;
     AXError result = AXUIElementCopyAttributeNames(
-        static_cast<AXUIElementRef>(node_), &attributes_ref);
-    if (AXSuccess(result, "AXAttributeNamesOf"))
-      return static_cast<NSArray*>(attributes_ref);
+        (__bridge AXUIElementRef)node_, attributes_ref.InitializeInto());
+    if (AXSuccess(result, "AXAttributeNamesOf")) {
+      return base::apple::CFToNSOwnershipCast(attributes_ref.release());
+    }
     return nil;
   }
 
   NOTREACHED()
       << "Only AXUIElementRef and BrowserAccessibilityCocoa are supported.";
-  return nil;
 }
 
 NSArray* AXElementWrapper::ParameterizedAttributeNames() const {
-  if (IsNSAccessibilityElement())
+  if (IsNSAccessibilityElement()) {
+    // The NSAccessibility protocol implementation in AXPlatformNodeCocoa no
+    // longer exposes old-style parameterized attributes. Instead, it provides
+    // the internalAccessibilityParameterizedAttributeNames method for backward
+    // compatibility in testing.
+    if ([node_ isKindOfClass:[AXPlatformNodeCocoa class]]) {
+      return [node_ internalAccessibilityParameterizedAttributeNames];
+    }
     return [node_ accessibilityParameterizedAttributeNames];
+  }
 
   if (IsAXUIElement()) {
-    CFArrayRef attributes_ref;
+    base::apple::ScopedCFTypeRef<CFArrayRef> attributes_ref;
     AXError result = AXUIElementCopyParameterizedAttributeNames(
-        static_cast<AXUIElementRef>(node_), &attributes_ref);
-    if (AXSuccess(result, "AXParameterizedAttributeNamesOf"))
-      return static_cast<NSArray*>(attributes_ref);
+        (__bridge AXUIElementRef)node_, attributes_ref.InitializeInto());
+    if (AXSuccess(result, "AXParameterizedAttributeNamesOf")) {
+      return base::apple::CFToNSOwnershipCast(attributes_ref.release());
+    }
     return nil;
   }
 
   NOTREACHED()
       << "Only AXUIElementRef and BrowserAccessibilityCocoa are supported.";
-  return nil;
 }
 
 AXOptionalNSObject AXElementWrapper::GetAttributeValue(
     NSString* attribute) const {
-  if (IsNSAccessibilityElement())
+  if (IsNSAccessibilityElement()) {
     return AXOptionalNSObject([node_ accessibilityAttributeValue:attribute]);
+  }
 
   if (IsAXUIElement()) {
-    CFTypeRef value_ref;
+    base::apple::ScopedCFTypeRef<CFTypeRef> value_ref;
     AXError result = AXUIElementCopyAttributeValue(
-        static_cast<AXUIElementRef>(node_), static_cast<CFStringRef>(attribute),
-        &value_ref);
+        (__bridge AXUIElementRef)node_, (__bridge CFStringRef)attribute,
+        value_ref.InitializeInto());
+
+    // AXCustomContent returns an NSData which contains a NSKeyedArchiver,
+    // which cannot be easily understood. Convert to NSArray of AXCustomContent
+    // objects.
+    if ([attribute isEqualToString:@"AXCustomContent"] &&
+        result == kAXErrorSuccess &&
+        CFGetTypeID(value_ref.get()) == CFDataGetTypeID()) {
+      NSData* data = (__bridge NSData*)value_ref.get();
+      NSArray<AXCustomContent*>* custom_contents =
+          CustomContentFromArchive(data);
+
+      return AXOptionalNSObject(custom_contents);
+    }
+
     return ToOptional(
-        static_cast<id>(value_ref), result,
+        (__bridge id)value_ref.get(), result,
         "AXGetAttributeValue(" + base::SysNSStringToUTF8(attribute) + ")");
   }
 
@@ -200,22 +284,21 @@ AXOptionalNSObject AXElementWrapper::GetParameterizedAttributeValue(
                                                     forParameter:parameter]);
 
   if (IsAXUIElement()) {
-    // Convert NSValue parameter to CFTypeRef if needed.
-    CFTypeRef parameter_ref = static_cast<CFTypeRef>(parameter);
+    base::apple::ScopedCFTypeRef<CFTypeRef> parameter_ref(
+        CFBridgingRetain(parameter));
     if ([parameter isKindOfClass:[NSValue class]] &&
-        !strcmp([static_cast<NSValue*>(parameter) objCType],
-                @encode(NSRange))) {
-      NSRange range = [static_cast<NSValue*>(parameter) rangeValue];
-      parameter_ref = AXValueCreate(kAXValueTypeCFRange, &range);
+        !UNSAFE_TODO(strcmp([parameter objCType], @encode(NSRange)))) {
+      NSRange range = [parameter rangeValue];
+      parameter_ref.reset(AXValueCreate(kAXValueTypeCFRange, &range));
     }
 
     // Get value.
-    CFTypeRef value_ref;
+    base::apple::ScopedCFTypeRef<CFTypeRef> value_ref;
     AXError result = AXUIElementCopyParameterizedAttributeValue(
-        static_cast<AXUIElementRef>(node_), static_cast<CFStringRef>(attribute),
-        parameter_ref, &value_ref);
+        (__bridge AXUIElementRef)node_, (__bridge CFStringRef)attribute,
+        parameter_ref.get(), value_ref.InitializeInto());
 
-    return ToOptional(static_cast<id>(value_ref), result,
+    return ToOptional((__bridge id)value_ref.get(), result,
                       "GetParameterizedAttributeValue(" +
                           base::SysNSStringToUTF8(attribute) + ")");
   }
@@ -223,32 +306,35 @@ AXOptionalNSObject AXElementWrapper::GetParameterizedAttributeValue(
   return AXOptionalNSObject::Error(kUnsupportedObject);
 }
 
-absl::optional<id> AXElementWrapper::PerformSelector(
+std::optional<id> AXElementWrapper::PerformSelector(
     const std::string& selector_string) const {
   if (![node_ conformsToProtocol:@protocol(NSAccessibility)])
-    return absl::nullopt;
+    return std::nullopt;
 
   NSString* selector_nsstring = base::SysUTF8ToNSString(selector_string);
   SEL selector = NSSelectorFromString(selector_nsstring);
 
   if ([node_ respondsToSelector:selector])
     return [node_ valueForKey:selector_nsstring];
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-absl::optional<id> AXElementWrapper::PerformSelector(
+std::optional<id> AXElementWrapper::PerformSelector(
     const std::string& selector_string,
     const std::string& argument_string) const {
   if (![node_ conformsToProtocol:@protocol(NSAccessibility)])
-    return absl::nullopt;
+    return std::nullopt;
 
   SEL selector =
       NSSelectorFromString(base::SysUTF8ToNSString(selector_string + ":"));
   NSString* argument = base::SysUTF8ToNSString(argument_string);
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
   if ([node_ respondsToSelector:selector])
     return [node_ performSelector:selector withObject:argument];
-  return absl::nullopt;
+#pragma clang diagnostic pop
+  return std::nullopt;
 }
 
 void AXElementWrapper::SetAttributeValue(NSString* attribute, id value) const {
@@ -258,9 +344,9 @@ void AXElementWrapper::SetAttributeValue(NSString* attribute, id value) const {
   }
 
   if (IsAXUIElement()) {
-    AXUIElementSetAttributeValue(static_cast<AXUIElementRef>(node_),
-                                 static_cast<CFStringRef>(attribute),
-                                 static_cast<CFTypeRef>(value));
+    AXUIElementSetAttributeValue((__bridge AXUIElementRef)node_,
+                                 (__bridge CFStringRef)attribute,
+                                 (__bridge CFTypeRef)value);
     return;
   }
 
@@ -269,20 +355,29 @@ void AXElementWrapper::SetAttributeValue(NSString* attribute, id value) const {
 }
 
 NSArray* AXElementWrapper::ActionNames() const {
-  if (IsNSAccessibilityElement())
+  // The NSAccessibility protocol implementation in AXPlatformNodeCocoa no
+  // longer exposes old-style actions. Instead, it provides
+  // the internalAccessibilityActionNames method for backward
+  // compatibility in testing.
+  if (IsNSAccessibilityElement()) {
+    if ([node_ isKindOfClass:[AXPlatformNodeCocoa class]]) {
+      return [node_ internalAccessibilityActionNames];
+    }
     return [node_ accessibilityActionNames];
+  }
 
   if (IsAXUIElement()) {
-    CFArrayRef attributes_ref;
-    if ((AXUIElementCopyActionNames(static_cast<AXUIElementRef>(node_),
-                                    &attributes_ref)) == kAXErrorSuccess)
-      return static_cast<NSArray*>(attributes_ref);
+    base::apple::ScopedCFTypeRef<CFArrayRef> attributes_ref;
+    if ((AXUIElementCopyActionNames((__bridge AXUIElementRef)node_,
+                                    attributes_ref.InitializeInto())) ==
+        kAXErrorSuccess) {
+      return base::apple::CFToNSOwnershipCast(attributes_ref.release());
+    }
     return nil;
   }
 
   NOTREACHED()
       << "Only AXUIElementRef and BrowserAccessibilityCocoa are supported.";
-  return nil;
 }
 
 void AXElementWrapper::PerformAction(NSString* action) const {
@@ -292,8 +387,8 @@ void AXElementWrapper::PerformAction(NSString* action) const {
   }
 
   if (IsAXUIElement()) {
-    AXUIElementPerformAction(static_cast<AXUIElementRef>(node_),
-                             static_cast<CFStringRef>(action));
+    AXUIElementPerformAction((__bridge AXUIElementRef)node_,
+                             (__bridge CFStringRef)action);
     return;
   }
 
@@ -309,26 +404,51 @@ std::string AXElementWrapper::AXErrorMessage(AXError result,
 
   std::string error;
   switch (result) {
+    case kAXErrorAPIDisabled:
+      error = "API disabled; you may need to add terminal and/or this binary "
+              "to System Settings -> Privacy & Security -> Accessibility";
+      break;
+    case kAXErrorActionUnsupported:
+      error = "action unsupported";
+      break;
     case kAXErrorAttributeUnsupported:
       error = "attribute unsupported";
       break;
-    case kAXErrorParameterizedAttributeUnsupported:
-      error = "parameterized attribute unsupported";
+    case kAXErrorCannotComplete:
+      error = "cannot complete";
       break;
-    case kAXErrorNoValue:
-      error = "no value";
+    case kAXErrorFailure:
+      error = "failure";
       break;
     case kAXErrorIllegalArgument:
       error = "illegal argument";
       break;
     case kAXErrorInvalidUIElement:
-      error = "invalid UIElement";
+      error = "invalid UI element";
       break;
-    case kAXErrorCannotComplete:
-      error = "cannot complete";
+    case kAXErrorInvalidUIElementObserver:
+      error = "illegal UI element observer";
+      break;
+    case kAXErrorNoValue:
+      error = "no value";
+      break;
+    case kAXErrorNotEnoughPrecision:
+      error = "not enough precision";
       break;
     case kAXErrorNotImplemented:
       error = "not implemented";
+      break;
+    case kAXErrorNotificationAlreadyRegistered:
+      error = "notification already registered";
+      break;
+    case kAXErrorNotificationNotRegistered:
+      error = "notification not registered";
+      break;
+    case kAXErrorNotificationUnsupported:
+      error = "notification unsupported";
+      break;
+    case kAXErrorParameterizedAttributeUnsupported:
+      error = "parameterized attribute unsupported";
       break;
     default:
       error = "unknown error";
@@ -351,10 +471,14 @@ AXOptionalNSObject AXElementWrapper::ToOptional(
     id value,
     AXError result,
     const std::string& message) const {
-  if (result == kAXErrorSuccess)
-    return AXOptionalNSObject(value);
-
-  return AXOptionalNSObject::Error(AXErrorMessage(result, message));
+  switch (result) {
+    case kAXErrorSuccess:
+      return AXOptionalNSObject(value);
+    case kAXErrorNoValue:
+      return AXOptionalNSObject(nil);
+    default:
+      return AXOptionalNSObject::Error(AXErrorMessage(result, message));
+  }
 }
 
 }  // namespace ui

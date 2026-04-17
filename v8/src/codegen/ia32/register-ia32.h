@@ -41,13 +41,16 @@ namespace internal {
 #define SIMD128_REGISTERS DOUBLE_REGISTERS
 
 #define ALLOCATABLE_DOUBLE_REGISTERS(V) \
+  V(xmm0)                               \
   V(xmm1)                               \
   V(xmm2)                               \
   V(xmm3)                               \
   V(xmm4)                               \
   V(xmm5)                               \
-  V(xmm6)                               \
-  V(xmm7)
+  V(xmm6)
+
+#define C_CALL_CALLEE_SAVE_REGISTERS esi, edi, ebx
+#define C_CALL_CALLEE_SAVE_FP_REGISTERS
 
 enum RegisterCode {
 #define REGISTER_CODE(R) kRegCode_##R,
@@ -68,6 +71,13 @@ class Register : public RegisterBase<Register, kRegAfterLast> {
 ASSERT_TRIVIALLY_COPYABLE(Register);
 static_assert(sizeof(Register) <= sizeof(int),
               "Register can efficiently be passed by value");
+
+// Assign |source| value to |no_reg| and return the |source|'s previous value.
+inline Register ReassignRegister(Register& source) {
+  Register result = source;
+  source = Register::no_reg();
+  return result;
+}
 
 #define DEFINE_REGISTER(R) \
   constexpr Register R = Register::from_code(kRegCode_##R);
@@ -131,6 +141,8 @@ constexpr Register kJavaScriptCallArgCountRegister = eax;
 constexpr Register kJavaScriptCallCodeStartRegister = ecx;
 constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
 constexpr Register kJavaScriptCallNewTargetRegister = edx;
+// DispatchHandle is only needed for the sandbox which is not available on Ia32.
+constexpr Register kJavaScriptCallDispatchHandleRegister = no_reg;
 
 // The ExtraArg1Register not part of the real JS calling convention and is
 // mostly there to simplify consistent interface descriptor definitions across
@@ -140,12 +152,13 @@ constexpr Register kJavaScriptCallExtraArg1Register = ecx;
 constexpr Register kRuntimeCallFunctionRegister = edx;
 constexpr Register kRuntimeCallArgCountRegister = eax;
 constexpr Register kRuntimeCallArgvRegister = ecx;
-constexpr Register kWasmInstanceRegister = esi;
+constexpr Register kWasmImplicitArgRegister = esi;
 constexpr Register kWasmCompileLazyFuncIndexRegister = edi;
 
 constexpr Register kRootRegister = ebx;
 
-constexpr DoubleRegister kFPReturnRegister0 = xmm1;  // xmm0 isn't allocatable.
+constexpr DoubleRegister kFPReturnRegister0 = xmm0;
+constexpr DoubleRegister kScratchDoubleReg = xmm7;
 
 }  // namespace internal
 }  // namespace v8

@@ -40,18 +40,16 @@ bool SegmentationModelExecutor::Preprocess(
   return status.ok();
 }
 
-absl::optional<ModelProvider::Response> SegmentationModelExecutor::Postprocess(
+std::optional<ModelProvider::Response> SegmentationModelExecutor::Postprocess(
     const std::vector<const TfLiteTensor*>& output_tensors) {
   // The output must be a single tensor with float elements.
   DCHECK_EQ(1u, output_tensors.size());
   DCHECK_EQ(kTfLiteFloat32, output_tensors[0]->type);
-
   ModelProvider::Response data;
   absl::Status status =
       tflite::task::core::PopulateVector<float>(output_tensors[0], &data);
   if (!status.ok()) {
     NOTREACHED();
-    return absl::nullopt;
   }
   return data;
 }

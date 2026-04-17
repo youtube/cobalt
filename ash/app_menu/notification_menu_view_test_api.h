@@ -5,7 +5,7 @@
 #ifndef ASH_APP_MENU_NOTIFICATION_MENU_VIEW_TEST_API_H_
 #define ASH_APP_MENU_NOTIFICATION_MENU_VIEW_TEST_API_H_
 
-#include <string>
+#include <string_view>
 
 #include "base/memory/raw_ptr.h"
 
@@ -27,7 +27,7 @@ class NotificationMenuViewTestAPI {
   ~NotificationMenuViewTestAPI();
 
   // Returns the numeric string contained in the counter view.
-  std::u16string GetCounterViewContents() const;
+  std::u16string_view GetCounterViewContents() const;
 
   // Returns the number of NotificationItemViews.
   int GetItemViewCount() const;
@@ -36,7 +36,8 @@ class NotificationMenuViewTestAPI {
   NotificationOverflowView* GetOverflowView() const;
 
  private:
-  const raw_ptr<NotificationMenuView, ExperimentalAsh> notification_menu_view_;
+  const raw_ptr<NotificationMenuView, DanglingUntriaged>
+      notification_menu_view_;
 };
 
 }  // namespace ash

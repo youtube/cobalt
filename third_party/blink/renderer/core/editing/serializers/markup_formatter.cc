@@ -61,25 +61,22 @@ template <typename CharType>
 static inline void AppendCharactersReplacingEntitiesInternal(
     StringBuilder& result,
     const StringView& source,
-    CharType* text,
-    unsigned length,
-    const EntityDescription entity_maps[],
-    unsigned entity_maps_count,
+    base::span<const CharType> text,
+    base::span<const EntityDescription> entities,
     EntityMask entity_mask) {
-  unsigned position_after_last_entity = 0;
+  size_t position_after_last_entity = 0;
   // Avoid scanning the string in cases where the mask is empty, for example
-  // scripTag.innerHTML that use the kEntityMaskInCDATA mask.
+  // scriptTag.innerHTML that use the kEntityMaskInCDATA mask.
   if (entity_mask) {
-    for (unsigned i = 0; i < length; ++i) {
-      for (unsigned entity_index = 0; entity_index < entity_maps_count;
+    for (size_t i = 0; i < text.size(); ++i) {
+      const CharType c = text[i];
+      for (size_t entity_index = 0; entity_index < entities.size();
            ++entity_index) {
-        if (text[i] == entity_maps[entity_index].entity &&
-            entity_maps[entity_index].mask & entity_mask) {
-          result.Append(text + position_after_last_entity,
-                        i - position_after_last_entity);
-          const std::string& replacement = entity_maps[entity_index].reference;
-          result.Append(replacement.c_str(),
-                        base::checked_cast<unsigned>(replacement.length()));
+        const auto& entity = entities[entity_index];
+        if (c == entity.entity && entity.mask & entity_mask) {
+          result.Append(text.subspan(position_after_last_entity,
+                                     i - position_after_last_entity));
+          result.Append(base::as_byte_span(entity.reference));
           position_after_last_entity = i + 1;
           break;
         }
@@ -93,8 +90,7 @@ static inline void AppendCharactersReplacingEntitiesInternal(
     result.Append(source);
     return;
   }
-  result.Append(text + position_after_last_entity,
-                length - position_after_last_entity);
+  result.Append(text.subspan(position_after_last_entity));
 }
 
 void MarkupFormatter::AppendCharactersReplacingEntities(
@@ -121,10 +117,9 @@ void MarkupFormatter::AppendCharactersReplacingEntities(
       {'\r', carriage_return_reference, kEntityCarriageReturn},
   };
 
-  WTF::VisitCharacters(source, [&](const auto* chars, unsigned) {
-    AppendCharactersReplacingEntitiesInternal(
-        result, source, chars, source.length(), kEntityMaps,
-        std::size(kEntityMaps), entity_mask);
+  WTF::VisitCharacters(source, [&](auto chars) {
+    AppendCharactersReplacingEntitiesInternal(result, source, chars,
+                                              kEntityMaps, entity_mask);
   });
 }
 
@@ -159,7 +154,6 @@ void MarkupFormatter::AppendStartMarkup(StringBuilder& result,
   switch (node.getNodeType()) {
     case Node::kTextNode:
       NOTREACHED();
-      break;
     case Node::kCommentNode:
       AppendComment(result, To<Comment>(node).data());
       break;
@@ -178,13 +172,19 @@ void MarkupFormatter::AppendStartMarkup(StringBuilder& result,
       break;
     case Node::kElementNode:
       NOTREACHED();
+    case Node::kCdataSectionNode: {
+      auto& cdata = To<CDATASection>(node);
+      if (RuntimeEnabledFeatures::
+              SerializeCdataAsTextInHTMLDocumentsEnabled() &&
+          SerializeAsHTML()) {
+        AppendText(result, cdata);
+      } else {
+        AppendCDATASection(result, cdata.data());
+      }
       break;
-    case Node::kCdataSectionNode:
-      AppendCDATASection(result, To<CDATASection>(node).data());
-      break;
+    }
     case Node::kAttributeNode:
       NOTREACHED();
-      break;
   }
 }
 

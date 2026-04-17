@@ -7,6 +7,7 @@
 #include "base/no_destructor.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/webid/federated_identity_permission_context.h"
 
 // static
@@ -36,23 +37,28 @@ FederatedIdentityPermissionContextFactory::
     FederatedIdentityPermissionContextFactory()
     : ProfileKeyedServiceFactory(
           "FederatedIdentityPermissionContext",
-          ProfileSelections::BuildForRegularAndIncognito()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/40257657): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kOwnInstance)
+              .WithAshInternals(ProfileSelection::kNone)
+              .Build()) {
   DependsOn(HostContentSettingsMapFactory::GetInstance());
+  DependsOn(IdentityManagerFactory::GetInstance());
 }
 
 FederatedIdentityPermissionContextFactory::
     ~FederatedIdentityPermissionContextFactory() = default;
 
-KeyedService*
-FederatedIdentityPermissionContextFactory::BuildServiceInstanceFor(
-    content::BrowserContext* profile) const {
-  return new FederatedIdentityPermissionContext(profile);
+std::unique_ptr<KeyedService> FederatedIdentityPermissionContextFactory::
+    BuildServiceInstanceForBrowserContext(
+        content::BrowserContext* profile) const {
+  return std::make_unique<FederatedIdentityPermissionContext>(profile);
 }
 
-void FederatedIdentityPermissionContextFactory::BrowserContextShutdown(
-    content::BrowserContext* context) {
-  auto* federated_identity_permission_context =
-      GetForProfileIfExists(Profile::FromBrowserContext(context));
-  if (federated_identity_permission_context)
-    federated_identity_permission_context->FlushScheduledSaveSettingsCalls();
+bool FederatedIdentityPermissionContextFactory::
+    ServiceIsCreatedWithBrowserContext() const {
+  // So that we can observe the identity manager.
+  return true;
 }

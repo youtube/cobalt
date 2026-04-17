@@ -4,20 +4,26 @@
 
 package org.chromium.components.browser_ui.contacts_picker;
 
+import static org.chromium.build.NullUtil.assertNonNull;
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
+import android.os.Handler;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 
-import androidx.annotation.VisibleForTesting;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.task.AsyncTask;
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.util.BitmapCache;
 import org.chromium.components.browser_ui.util.ConversionUtils;
 import org.chromium.components.browser_ui.util.GlobalDiscardableReferencePool;
@@ -25,7 +31,7 @@ import org.chromium.components.browser_ui.widget.RoundedIconGenerator;
 import org.chromium.components.browser_ui.widget.selectable_list.SelectableListLayout;
 import org.chromium.components.browser_ui.widget.selectable_list.SelectableListToolbar;
 import org.chromium.components.browser_ui.widget.selectable_list.SelectionDelegate;
-import org.chromium.content.browser.contacts.ContactsPickerPropertiesRequested;
+import org.chromium.content.browser.contacts.ContactsPickerProperties;
 import org.chromium.content_public.browser.ContactsPicker;
 import org.chromium.content_public.browser.ContactsPickerListener;
 import org.chromium.ui.base.WindowAndroid;
@@ -39,14 +45,17 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * A class for keeping track of common data associated with showing contact details in
- * the contacts picker, for example the RecyclerView.
+ * A class for keeping track of common data associated with showing contact details in the contacts
+ * picker, for example the RecyclerView.
  */
+@NullMarked
 public class PickerCategoryView extends OptimizedFrameLayout
-        implements View.OnClickListener, RecyclerView.RecyclerListener,
-                   SelectionDelegate.SelectionObserver<ContactDetails>,
-                   SelectableListToolbar.SearchDelegate, TopView.SelectAllToggleCallback,
-                   CompressContactIconsWorkerTask.CompressContactIconsCallback {
+        implements View.OnClickListener,
+                RecyclerView.RecyclerListener,
+                SelectionDelegate.SelectionObserver<ContactDetails>,
+                SelectableListToolbar.SearchDelegate,
+                TopView.SelectAllToggleCallback,
+                CompressContactIconsWorkerTask.CompressContactIconsCallback {
     // These values are written to logs.  New enum values can be added, but existing
     // enums must never be renumbered or deleted and reused.
     private static final int ACTION_CANCEL = 0;
@@ -62,95 +71,102 @@ public class PickerCategoryView extends OptimizedFrameLayout
     private ContactsPickerDialog mDialog;
 
     // The view containing the RecyclerView and the toolbar, etc.
-    private SelectableListLayout<ContactDetails> mSelectableListLayout;
+    private final SelectableListLayout<ContactDetails> mSelectableListLayout;
 
     // The window for the main Activity.
-    private WindowAndroid mWindowAndroid;
+    private final WindowAndroid mWindowAndroid;
 
     // The callback to notify the listener of decisions reached in the picker.
     private ContactsPickerListener mListener;
 
     // The toolbar located at the top of the dialog.
-    private ContactsPickerToolbar mToolbar;
+    private final ContactsPickerToolbar mToolbar;
 
     // The RecyclerView showing the images.
-    private RecyclerView mRecyclerView;
+    private final RecyclerView mRecyclerView;
 
     // The view at the top (showing the explanation and Select All checkbox).
-    private TopView mTopView;
+    private @Nullable TopView mTopView;
 
     // The {@link PickerAdapter} for the RecyclerView.
-    private PickerAdapter mPickerAdapter;
+    private final PickerAdapter mPickerAdapter;
 
     // The layout manager for the RecyclerView.
-    private LinearLayoutManager mLayoutManager;
+    private final LinearLayoutManager mLayoutManager;
 
     // A helper class to draw the icon for each contact.
-    private RoundedIconGenerator mIconGenerator;
+    private final RoundedIconGenerator mIconGenerator;
 
     // The {@link SelectionDelegate} keeping track of which contacts are selected.
-    private SelectionDelegate<ContactDetails> mSelectionDelegate;
+    private final SelectionDelegate<ContactDetails> mSelectionDelegate;
 
     // A cache for contact images, lazily created.
-    private ContactsBitmapCache mBitmapCache;
+    private final ContactsBitmapCache mBitmapCache;
 
     // The search icon.
-    private ImageView mSearchButton;
+    private final ImageView mSearchButton;
 
     // Keeps track of the set of last selected contacts in the UI.
-    Set<ContactDetails> mPreviousSelection;
+    @Nullable Set<ContactDetails> mPreviousSelection;
 
     // The Done text button that confirms the selection choice.
-    private Button mDoneButton;
+    private final Button mDoneButton;
 
     // Whether the picker is in multi-selection mode.
-    private boolean mMultiSelectionAllowed;
+    private final boolean mMultiSelectionAllowed;
 
-    // Whether the contacts data returned includes names.
-    public final boolean includeNames;
+    // Whether the site is requesting names.
+    private final boolean mSiteWantsNames;
 
-    // Whether the contacts data returned includes emails.
-    public final boolean includeEmails;
+    // Whether the site is requesting emails.
+    private final boolean mSiteWantsEmails;
 
-    // Whether the contacts data returned includes telephone numbers.
-    public final boolean includeTel;
+    // Whether the site is requesting telephone numbers.
+    private final boolean mSiteWantsTel;
 
-    // Whether the contacts data returned includes addresses.
-    public final boolean includeAddresses;
+    // Whether the site is requesting addresses.
+    private final boolean mSiteWantsAddresses;
 
-    // Whether the contacts data returned includes icons.
-    public final boolean includeIcons;
+    // Whether the site is requesting icons.
+    private final boolean mSiteWantsIcons;
 
     /**
      * @param windowAndroid The Activity window the Contacts Picker is associated with.
      * @param adapter An uninitialized PickerAdapter for this dialog, which may contain
-     *         embedder-specific behaviors. The PickerCategoryView will initialized it.
+     *     embedder-specific behaviors. The PickerCategoryView will initialized it.
      * @param multiSelectionAllowed Whether the contacts picker should allow multiple items to be
-     *         selected.
+     *     selected.
      * @param shouldIncludeNames Whether to allow sharing of names of contacts.
      * @param shouldIncludeEmails Whether to allow sharing of contact emails.
      * @param shouldIncludeTel Whether to allow sharing of contact telephone numbers.
      * @param shouldIncludeAddresses Whether to allow sharing of contact (physical) addresses.
      * @param shouldIncludeIcons Whether to allow sharing of contact icons.
      * @param formattedOrigin The origin receiving the contact details, formatted for display in the
-     *         UI.
+     *     UI.
      * @param delegate A delegate listening for events from the toolbar.
      */
     @SuppressWarnings("unchecked") // mSelectableListLayout
-    public PickerCategoryView(WindowAndroid windowAndroid, PickerAdapter adapter,
-            boolean multiSelectionAllowed, boolean shouldIncludeNames, boolean shouldIncludeEmails,
-            boolean shouldIncludeTel, boolean shouldIncludeAddresses, boolean shouldIncludeIcons,
-            String formattedOrigin, ContactsPickerToolbar.ContactsToolbarDelegate delegate) {
-        super(windowAndroid.getContext().get(), null);
+    public PickerCategoryView(
+            WindowAndroid windowAndroid,
+            PickerAdapter adapter,
+            boolean multiSelectionAllowed,
+            boolean shouldIncludeNames,
+            boolean shouldIncludeEmails,
+            boolean shouldIncludeTel,
+            boolean shouldIncludeAddresses,
+            boolean shouldIncludeIcons,
+            String formattedOrigin,
+            ContactsPickerToolbar.ContactsToolbarDelegate delegate) {
+        super(assertNonNull(windowAndroid.getContext().get()), null);
 
         mWindowAndroid = windowAndroid;
         Context context = windowAndroid.getContext().get();
         mMultiSelectionAllowed = multiSelectionAllowed;
-        includeNames = shouldIncludeNames;
-        includeEmails = shouldIncludeEmails;
-        includeTel = shouldIncludeTel;
-        includeAddresses = shouldIncludeAddresses;
-        includeIcons = shouldIncludeIcons;
+        mSiteWantsNames = shouldIncludeNames;
+        mSiteWantsEmails = shouldIncludeEmails;
+        mSiteWantsTel = shouldIncludeTel;
+        mSiteWantsAddresses = shouldIncludeAddresses;
+        mSiteWantsIcons = shouldIncludeIcons;
 
         mSelectionDelegate = new SelectionDelegate<ContactDetails>();
         if (!multiSelectionAllowed) mSelectionDelegate.setSingleSelectionMode();
@@ -158,8 +174,14 @@ public class PickerCategoryView extends OptimizedFrameLayout
 
         Resources resources = context.getResources();
         int iconColor = context.getColor(R.color.default_favicon_background_color);
-        mIconGenerator = new RoundedIconGenerator(resources, ICON_SIZE_DP, ICON_SIZE_DP,
-                ICON_CORNER_RADIUS_DP, iconColor, ICON_TEXT_SIZE_DP);
+        mIconGenerator =
+                new RoundedIconGenerator(
+                        resources,
+                        ICON_SIZE_DP,
+                        ICON_SIZE_DP,
+                        ICON_CORNER_RADIUS_DP,
+                        iconColor,
+                        ICON_TEXT_SIZE_DP);
 
         View root = LayoutInflater.from(context).inflate(R.layout.contacts_picker_dialog, this);
         mSelectableListLayout =
@@ -169,24 +191,35 @@ public class PickerCategoryView extends OptimizedFrameLayout
         mPickerAdapter = adapter;
         mPickerAdapter.init(this, context, formattedOrigin);
         mRecyclerView = mSelectableListLayout.initializeRecyclerView(mPickerAdapter);
-        int titleId = multiSelectionAllowed ? R.string.contacts_picker_select_contacts
-                                            : R.string.contacts_picker_select_contact;
-        mToolbar = (ContactsPickerToolbar) mSelectableListLayout.initializeToolbar(
-                R.layout.contacts_picker_toolbar, mSelectionDelegate, titleId, 0, 0, null, false);
+        int titleId =
+                multiSelectionAllowed
+                        ? R.string.contacts_picker_select_contacts
+                        : R.string.contacts_picker_select_contact;
+        mToolbar =
+                (ContactsPickerToolbar)
+                        mSelectableListLayout.initializeToolbar(
+                                R.layout.contacts_picker_toolbar,
+                                mSelectionDelegate,
+                                titleId,
+                                0,
+                                0,
+                                null,
+                                false);
         mToolbar.setNavigationOnClickListener(this);
         mToolbar.initializeSearchView(this, R.string.contacts_picker_search, 0);
         mToolbar.setDelegate(delegate);
-        mPickerAdapter.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
-            @Override
-            public void onChanged() {
-                updateSelectionState();
-            }
-        });
+        mPickerAdapter.registerAdapterDataObserver(
+                new RecyclerView.AdapterDataObserver() {
+                    @Override
+                    public void onChanged() {
+                        updateSelectionState();
+                    }
+                });
         mSelectableListLayout.configureWideDisplayStyle();
 
-        mSearchButton = (ImageView) mToolbar.findViewById(R.id.search);
+        mSearchButton = mToolbar.findViewById(R.id.search);
         mSearchButton.setOnClickListener(this);
-        mDoneButton = (Button) mToolbar.findViewById(R.id.done);
+        mDoneButton = mToolbar.findViewById(R.id.done);
         mDoneButton.setOnClickListener(this);
 
         mLayoutManager = new LinearLayoutManager(context);
@@ -198,18 +231,43 @@ public class PickerCategoryView extends OptimizedFrameLayout
 
     /**
      * Initializes the PickerCategoryView object.
+     *
      * @param dialog The dialog showing us.
      * @param listener The listener who should be notified of actions.
      */
+    @Initializer
     public void initialize(ContactsPickerDialog dialog, ContactsPickerListener listener) {
         mDialog = dialog;
         mListener = listener;
 
-        mDialog.setOnCancelListener(dialog1
-                -> executeAction(
-                        ContactsPickerListener.ContactsPickerAction.CANCEL, null, ACTION_CANCEL));
+        mDialog.setOnCancelListener(
+                dialog1 ->
+                        executeAction(
+                                ContactsPickerListener.ContactsPickerAction.CANCEL,
+                                null,
+                                ACTION_CANCEL));
 
         mPickerAdapter.notifyDataSetChanged();
+    }
+
+    public boolean siteWantsNames() {
+        return mSiteWantsNames;
+    }
+
+    public boolean siteWantsEmails() {
+        return mSiteWantsEmails;
+    }
+
+    public boolean siteWantsTel() {
+        return mSiteWantsTel;
+    }
+
+    public boolean siteWantsAddresses() {
+        return mSiteWantsAddresses;
+    }
+
+    public boolean siteWantsIcons() {
+        return mSiteWantsIcons;
     }
 
     private void onStartSearch() {
@@ -241,13 +299,15 @@ public class PickerCategoryView extends OptimizedFrameLayout
             selection.add(item);
         }
         mToolbar.hideSearchView();
+        assumeNonNull(mPreviousSelection);
         for (ContactDetails item : mPreviousSelection) {
             selection.add(item);
         }
 
         // Post a runnable to update the selection so that the update occurs after the search fully
         // finishes, ensuring the number roll shows the right number.
-        getHandler().post(() -> mSelectionDelegate.setSelectedItems(selection));
+        Handler handler = assumeNonNull(getHandler());
+        handler.post(() -> mSelectionDelegate.setSelectedItems(selection));
     }
 
     @Override
@@ -286,14 +346,20 @@ public class PickerCategoryView extends OptimizedFrameLayout
             mSelectionDelegate.setSelectedItems(
                     new HashSet<ContactDetails>(mPickerAdapter.getAllContacts()));
             mListener.onContactsPickerUserAction(
-                    ContactsPickerListener.ContactsPickerAction.SELECT_ALL, /*contacts=*/null,
-                    /*percentageShared=*/0, /*propertiesRequested=*/0);
+                    ContactsPickerListener.ContactsPickerAction.SELECT_ALL,
+                    /* contacts= */ null,
+                    /* percentageShared= */ 0,
+                    /* propertiesSiteRequested= */ 0,
+                    /* propertiesUserRejected= */ 0);
         } else {
             mSelectionDelegate.setSelectedItems(new HashSet<ContactDetails>());
             mPreviousSelection = null;
             mListener.onContactsPickerUserAction(
-                    ContactsPickerListener.ContactsPickerAction.UNDO_SELECT_ALL, /*contacts=*/null,
-                    /*percentageShared=*/0, /*propertiesRequested=*/0);
+                    ContactsPickerListener.ContactsPickerAction.UNDO_SELECT_ALL,
+                    /* contacts= */ null,
+                    /* percentageShared= */ 0,
+                    /* propertiesSiteRequested= */ 0,
+                    /* propertiesUserRejected= */ 0);
         }
     }
 
@@ -325,7 +391,7 @@ public class PickerCategoryView extends OptimizedFrameLayout
         return mBitmapCache;
     }
 
-    ModalDialogManager getModalDialogManager() {
+    @Nullable ModalDialogManager getModalDialogManager() {
         return mWindowAndroid.getModalDialogManager();
     }
 
@@ -342,18 +408,16 @@ public class PickerCategoryView extends OptimizedFrameLayout
         mToolbar.setFilterChipsSelected(filterChipsSelected);
     }
 
-    /**
-     * Formats the selected contacts before notifying the listeners.
-     */
+    /** Formats the selected contacts before notifying the listeners. */
     private void prepareContactsSelected() {
         List<ContactDetails> selectedContacts = mSelectionDelegate.getSelectedItemsAsList();
         Collections.sort(selectedContacts);
 
-        if (includeIcons && PickerAdapter.includesIcons()) {
+        if (mSiteWantsIcons && PickerAdapter.includesIcons()) {
             // Fetch missing icons and compress them first.
+            Context context = assumeNonNull(mWindowAndroid.getContext().get());
             new CompressContactIconsWorkerTask(
-                    mWindowAndroid.getContext().get().getContentResolver(), mBitmapCache,
-                    selectedContacts, this)
+                            context.getContentResolver(), mBitmapCache, selectedContacts, this)
                     .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
             return;
         }
@@ -372,7 +436,7 @@ public class PickerCategoryView extends OptimizedFrameLayout
      * @param selected The property values that are currently selected.
      * @return The list of property values to share.
      */
-    private <T> List<T> getContactPropertyValues(
+    private <T> @Nullable List<T> getContactPropertyValues(
             boolean isIncluded, boolean isEnabled, List<T> selected) {
         if (!isIncluded) {
             // The property wasn't requested in the API so return null.
@@ -388,90 +452,149 @@ public class PickerCategoryView extends OptimizedFrameLayout
         return selected;
     }
 
-    /**
-     * Notifies any listeners that one or more contacts have been selected.
-     */
+    /** Notifies any listeners that one or more contacts have been selected. */
     private void notifyContactsSelected(List<ContactDetails> selectedContacts) {
         List<ContactsPickerListener.Contact> contacts = new ArrayList<>();
 
         for (ContactDetails contactDetails : selectedContacts) {
-            contacts.add(new ContactsPickerListener.Contact(
-                    getContactPropertyValues(includeNames, PickerAdapter.includesNames(),
-                            contactDetails.getDisplayNames()),
-                    getContactPropertyValues(includeEmails, PickerAdapter.includesEmails(),
-                            contactDetails.getEmails()),
-                    getContactPropertyValues(includeTel, PickerAdapter.includesTelephones(),
-                            contactDetails.getPhoneNumbers()),
-                    getContactPropertyValues(includeAddresses, PickerAdapter.includesAddresses(),
-                            contactDetails.getAddresses()),
-                    getContactPropertyValues(includeIcons, PickerAdapter.includesIcons(),
-                            contactDetails.getIcons())));
+            contacts.add(
+                    new ContactsPickerListener.Contact(
+                            getContactPropertyValues(
+                                    mSiteWantsNames,
+                                    PickerAdapter.includesNames(),
+                                    contactDetails.getDisplayNames()),
+                            getContactPropertyValues(
+                                    mSiteWantsEmails,
+                                    PickerAdapter.includesEmails(),
+                                    contactDetails.getEmails()),
+                            getContactPropertyValues(
+                                    mSiteWantsTel,
+                                    PickerAdapter.includesTelephones(),
+                                    contactDetails.getPhoneNumbers()),
+                            getContactPropertyValues(
+                                    mSiteWantsAddresses,
+                                    PickerAdapter.includesAddresses(),
+                                    contactDetails.getAddresses()),
+                            getContactPropertyValues(
+                                    mSiteWantsIcons,
+                                    PickerAdapter.includesIcons(),
+                                    contactDetails.getIcons())));
         }
 
-        executeAction(ContactsPickerListener.ContactsPickerAction.CONTACTS_SELECTED, contacts,
+        executeAction(
+                ContactsPickerListener.ContactsPickerAction.CONTACTS_SELECTED,
+                contacts,
                 ACTION_CONTACTS_SELECTED);
     }
 
     /**
      * Report back what the user selected in the dialog, report UMA and clean up.
+     *
      * @param action The action taken.
      * @param contacts The contacts that were selected (if any).
      * @param umaId The UMA value to record with the action.
      */
-    private void executeAction(@ContactsPickerListener.ContactsPickerAction int action,
-            List<ContactsPickerListener.Contact> contacts, int umaId) {
+    private void executeAction(
+            @ContactsPickerListener.ContactsPickerAction int action,
+            @Nullable List<ContactsPickerListener.Contact> contacts,
+            int umaId) {
         int selectCount = contacts != null ? contacts.size() : 0;
-        int contactCount = mPickerAdapter.getAllContacts().size();
+        int contactCount = assumeNonNull(mPickerAdapter.getAllContacts()).size();
         int percentageShared = contactCount > 0 ? (100 * selectCount) / contactCount : 0;
 
-        int propertiesRequested = ContactsPickerPropertiesRequested.PROPERTIES_NONE;
-        if (includeNames) propertiesRequested |= ContactsPickerPropertiesRequested.PROPERTIES_NAMES;
-        if (includeEmails) {
-            propertiesRequested |= ContactsPickerPropertiesRequested.PROPERTIES_EMAILS;
+        int propertiesSiteRequested = ContactsPickerProperties.PROPERTIES_NONE;
+        int propertiesUserRejected = ContactsPickerProperties.PROPERTIES_NONE;
+        if (mSiteWantsNames) {
+            propertiesSiteRequested |= ContactsPickerProperties.PROPERTIES_NAMES;
+            propertiesUserRejected |=
+                    (!PickerAdapter.includesNames()
+                            ? ContactsPickerProperties.PROPERTIES_NAMES
+                            : ContactsPickerProperties.PROPERTIES_NONE);
         }
-        if (includeTel) propertiesRequested |= ContactsPickerPropertiesRequested.PROPERTIES_TELS;
-        if (includeAddresses) {
-            propertiesRequested |= ContactsPickerPropertiesRequested.PROPERTIES_ADDRESSES;
+        if (mSiteWantsEmails) {
+            propertiesSiteRequested |= ContactsPickerProperties.PROPERTIES_EMAILS;
+            propertiesUserRejected |=
+                    (!PickerAdapter.includesEmails()
+                            ? ContactsPickerProperties.PROPERTIES_EMAILS
+                            : ContactsPickerProperties.PROPERTIES_NONE);
         }
-        if (includeIcons) {
-            propertiesRequested |= ContactsPickerPropertiesRequested.PROPERTIES_ICONS;
+        if (mSiteWantsTel) {
+            propertiesSiteRequested |= ContactsPickerProperties.PROPERTIES_TELS;
+            propertiesUserRejected |=
+                    (!PickerAdapter.includesTelephones()
+                            ? ContactsPickerProperties.PROPERTIES_TELS
+                            : ContactsPickerProperties.PROPERTIES_NONE);
+        }
+        if (mSiteWantsAddresses) {
+            propertiesSiteRequested |= ContactsPickerProperties.PROPERTIES_ADDRESSES;
+            propertiesUserRejected |=
+                    (!PickerAdapter.includesAddresses()
+                            ? ContactsPickerProperties.PROPERTIES_ADDRESSES
+                            : ContactsPickerProperties.PROPERTIES_NONE);
+        }
+        if (mSiteWantsIcons) {
+            propertiesSiteRequested |= ContactsPickerProperties.PROPERTIES_ICONS;
+            propertiesUserRejected |=
+                    (!PickerAdapter.includesIcons()
+                            ? ContactsPickerProperties.PROPERTIES_ICONS
+                            : ContactsPickerProperties.PROPERTIES_NONE);
         }
 
         mListener.onContactsPickerUserAction(
-                action, contacts, percentageShared, propertiesRequested);
+                action,
+                contacts,
+                percentageShared,
+                propertiesSiteRequested,
+                propertiesUserRejected);
         mDialog.dismiss();
         ContactsPicker.onContactsPickerDismissed();
         recordFinalUmaStats(
-                umaId, contactCount, selectCount, percentageShared, propertiesRequested);
+                umaId,
+                contactCount,
+                selectCount,
+                percentageShared,
+                propertiesSiteRequested,
+                propertiesUserRejected);
     }
 
     /**
      * Record UMA statistics (what action was taken in the dialog and other performance stats).
+     *
      * @param action The action the user took in the dialog.
      * @param contactCount The number of contacts in the contact list.
      * @param selectCount The number of contacts selected.
      * @param percentageShared The percentage shared (of the whole contact list).
      * @param propertiesRequested The properties (names/emails/tels) requested by the website.
+     * @param propertiesRejected The properties (names/emails/tels) rejected by the user.
      */
-    private void recordFinalUmaStats(int action, int contactCount, int selectCount,
-            int percentageShared, int propertiesRequested) {
+    private void recordFinalUmaStats(
+            int action,
+            int contactCount,
+            int selectCount,
+            int percentageShared,
+            int propertiesRequested,
+            int propertiesRejected) {
         RecordHistogram.recordEnumeratedHistogram(
                 "Android.ContactsPicker.DialogAction", action, ACTION_BOUNDARY);
         RecordHistogram.recordCount1MHistogram("Android.ContactsPicker.ContactCount", contactCount);
         RecordHistogram.recordCount1MHistogram("Android.ContactsPicker.SelectCount", selectCount);
         RecordHistogram.recordPercentageHistogram(
                 "Android.ContactsPicker.SelectPercentage", percentageShared);
-        RecordHistogram.recordEnumeratedHistogram("Android.ContactsPicker.PropertiesRequested",
-                propertiesRequested, ContactsPickerPropertiesRequested.PROPERTIES_BOUNDARY);
+        RecordHistogram.recordEnumeratedHistogram(
+                "Android.ContactsPicker.PropertiesRequested",
+                propertiesRequested,
+                ContactsPickerProperties.PROPERTIES_BOUNDARY);
+        RecordHistogram.recordEnumeratedHistogram(
+                "Android.ContactsPicker.PropertiesUserRejected",
+                propertiesRejected,
+                ContactsPickerProperties.PROPERTIES_BOUNDARY);
     }
 
-    @VisibleForTesting
     public SelectionDelegate<ContactDetails> getSelectionDelegateForTesting() {
         return mSelectionDelegate;
     }
 
-    @VisibleForTesting
-    public TopView getTopViewForTesting() {
+    public @Nullable TopView getTopViewForTesting() {
         return mTopView;
     }
 
@@ -486,17 +609,19 @@ public class PickerCategoryView extends OptimizedFrameLayout
             final long maxMemory =
                     ConversionUtils.bytesToKilobytes(Runtime.getRuntime().maxMemory());
             int iconCacheSizeKb = (int) (maxMemory / 8); // 1/8th of the available memory.
-            bitmapCache = new BitmapCache(GlobalDiscardableReferencePool.getReferencePool(),
-                    Math.min(iconCacheSizeKb, 5 * ConversionUtils.BYTES_PER_MEGABYTE));
+            bitmapCache =
+                    new BitmapCache(
+                            GlobalDiscardableReferencePool.getReferencePool(),
+                            Math.min(iconCacheSizeKb, 5 * ConversionUtils.BYTES_PER_MEGABYTE));
 
             noIconIds = new HashSet<>();
         }
 
-        public Bitmap getBitmap(String id) {
+        public @Nullable Bitmap getBitmap(String id) {
             return bitmapCache.getBitmap(id);
         }
 
-        public void putBitmap(String id, Bitmap icon) {
+        public void putBitmap(String id, @Nullable Bitmap icon) {
             if (icon == null) {
                 noIconIds.add(id);
             } else {

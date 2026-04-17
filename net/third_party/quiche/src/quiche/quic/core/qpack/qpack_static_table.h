@@ -7,9 +7,9 @@
 
 #include <vector>
 
+#include "quiche/http2/hpack/hpack_constants.h"
+#include "quiche/http2/hpack/hpack_static_table.h"
 #include "quiche/quic/platform/api/quic_export.h"
-#include "quiche/spdy/core/hpack/hpack_constants.h"
-#include "quiche/spdy/core/hpack/hpack_static_table.h"
 
 namespace quic {
 
@@ -17,14 +17,13 @@ using QpackStaticEntry = spdy::HpackStaticEntry;
 using QpackStaticTable = spdy::HpackStaticTable;
 
 // QPACK static table defined at
-// https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#static-table.
-QUIC_EXPORT_PRIVATE const std::vector<QpackStaticEntry>&
-QpackStaticTableVector();
+// https://rfc-editor.org/rfc/rfc9204.html#section-3.1.
+QUICHE_EXPORT const std::vector<QpackStaticEntry>& QpackStaticTableVector();
 
 // Returns a QpackStaticTable instance initialized with kQpackStaticTable.
 // The instance is read-only, has static lifetime, and is safe to share amoung
 // threads. This function is thread-safe.
-QUIC_EXPORT_PRIVATE const QpackStaticTable& ObtainQpackStaticTable();
+QUICHE_EXPORT const QpackStaticTable& ObtainQpackStaticTable();
 
 }  // namespace quic
 

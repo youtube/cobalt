@@ -5,13 +5,15 @@
 #ifndef SERVICES_NETWORK_PUBLIC_CPP_IP_ADDRESS_SPACE_UTIL_H_
 #define SERVICES_NETWORK_PUBLIC_CPP_IP_ADDRESS_SPACE_UTIL_H_
 
+#include <optional>
+#include <string_view>
 #include <vector>
 
 #include "base/component_export.h"
-#include "base/strings/string_piece_forward.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/stack_allocated.h"
 #include "services/network/public/mojom/ip_address_space.mojom-forward.h"
 #include "services/network/public/mojom/parsed_headers.mojom-forward.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class GURL;
 
@@ -26,7 +28,7 @@ struct TransportInfo;
 namespace network {
 
 // Returns a human-readable string representing `space`, suitable for logging.
-base::StringPiece COMPONENT_EXPORT(NETWORK_CPP)
+std::string_view COMPONENT_EXPORT(NETWORK_CPP)
     IPAddressSpaceToStringPiece(mojom::IPAddressSpace space);
 
 // Returns the `IPAddressSpace` to which `address` belongs.
@@ -74,21 +76,35 @@ bool COMPONENT_EXPORT(NETWORK_CPP)
     IsLessPublicAddressSpace(mojom::IPAddressSpace lhs,
                              mojom::IPAddressSpace rhs);
 
+// Returns whether `lhs` is less public than `rhs`, but collapses the private
+// and local address spaces into the same bucket.
+//
+// This comparator is compatible with std::less.
+//
+// Address spaces go from most public to least public in the following order:
+//
+//  - public and unknown (equivalent)
+//  - private and local (equivalent)
+//
+bool COMPONENT_EXPORT(NETWORK_CPP)
+    IsLessPublicAddressSpaceLNA(mojom::IPAddressSpace lhs,
+                                mojom::IPAddressSpace rhs);
+
 // Represents optional parameters of CalculateClientAddressSpace().
 // This is effectively a subset of network::mojom::URLResponseHead.
 // WARNING: This struct just keeps references to parameters and does not own
 // them nor make copy of them. Parameters must outlive this struct. For example,
 // passing net::IPEndPoint() as `remote_endpoint` is invalid.
 struct COMPONENT_EXPORT(NETWORK_CPP) CalculateClientAddressSpaceParams {
-  CalculateClientAddressSpaceParams(
-      const std::vector<GURL>& url_list_via_service_worker,
-      const mojom::ParsedHeadersPtr& parsed_headers,
-      const net::IPEndPoint& remote_endpoint);
+  STACK_ALLOCATED();
+
+ public:
   ~CalculateClientAddressSpaceParams();
 
-  const std::vector<GURL>& url_list_via_service_worker;
-  const mojom::ParsedHeadersPtr& parsed_headers;
-  const net::IPEndPoint& remote_endpoint;
+  const std::optional<mojom::IPAddressSpace>
+      client_address_space_inherited_from_service_worker;
+  const raw_ptr<const mojom::ParsedHeadersPtr> parsed_headers;
+  const raw_ptr<const net::IPEndPoint> remote_endpoint;
 };
 
 // Given a request URL and `params`, this function calculates the
@@ -107,7 +123,7 @@ struct COMPONENT_EXPORT(NETWORK_CPP) CalculateClientAddressSpaceParams {
 // See: https://wicg.github.io/cors-rfc1918/#address-space
 mojom::IPAddressSpace COMPONENT_EXPORT(NETWORK_CPP) CalculateClientAddressSpace(
     const GURL& url,
-    absl::optional<CalculateClientAddressSpaceParams> params);
+    std::optional<CalculateClientAddressSpaceParams> params);
 
 // Given a response URL and the IP endpoint the requested resource was fetched
 // from, this function calculates the IPAddressSpace of the requested resource.
@@ -120,6 +136,14 @@ mojom::IPAddressSpace COMPONENT_EXPORT(NETWORK_CPP) CalculateClientAddressSpace(
 mojom::IPAddressSpace COMPONENT_EXPORT(NETWORK_CPP)
     CalculateResourceAddressSpace(const GURL& url,
                                   const net::IPEndPoint& endpoint);
+
+// Return the IP address of the host if the host is a private IP address
+// literal, otherwise returns std::nullopt.
+std::optional<net::IPAddress> COMPONENT_EXPORT(NETWORK_CPP)
+    ParsePrivateIpFromUrl(const GURL& url);
+
+// Return true if the host of the URL is a .local domain as per RFC6762.
+bool COMPONENT_EXPORT(NETWORK_CPP) IsRFC6762LocalDomain(const GURL& url);
 
 }  // namespace network
 

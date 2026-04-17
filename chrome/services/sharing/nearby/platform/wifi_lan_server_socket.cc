@@ -12,13 +12,12 @@
 #include "base/task/thread_pool.h"
 #include "net/base/net_errors.h"
 
-namespace nearby {
-namespace chrome {
+namespace nearby::chrome {
 
 WifiLanServerSocket::ServerSocketParameters::ServerSocketParameters(
     const net::IPEndPoint& local_end_point,
     mojo::PendingRemote<network::mojom::TCPServerSocket> tcp_server_socket,
-    mojo::PendingRemote<sharing::mojom::FirewallHole> firewall_hole)
+    mojo::PendingRemote<::sharing::mojom::FirewallHole> firewall_hole)
     : local_end_point(local_end_point),
       tcp_server_socket(std::move(tcp_server_socket)),
       firewall_hole(std::move(firewall_hole)) {}
@@ -78,7 +77,7 @@ std::unique_ptr<api::WifiLanSocket> WifiLanServerSocket::Accept() {
   // still waiting; this would trigger a thread-restriction assert. Instead we
   // populate ConnectedSocketParameters in OnAccepted() and construct the
   // WifiLanSocket after the WaitableEvent is signaled.
-  absl::optional<WifiLanSocket::ConnectedSocketParameters>
+  std::optional<WifiLanSocket::ConnectedSocketParameters>
       connected_socket_parameters;
 
   task_runner_->PostTask(
@@ -94,7 +93,7 @@ std::unique_ptr<api::WifiLanSocket> WifiLanServerSocket::Accept() {
 }
 
 void WifiLanServerSocket::DoAccept(
-    absl::optional<WifiLanSocket::ConnectedSocketParameters>*
+    std::optional<WifiLanSocket::ConnectedSocketParameters>*
         connected_socket_parameters,
     base::WaitableEvent* accept_waitable_event) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
@@ -116,11 +115,11 @@ void WifiLanServerSocket::DoAccept(
 }
 
 void WifiLanServerSocket::OnAccepted(
-    absl::optional<WifiLanSocket::ConnectedSocketParameters>*
+    std::optional<WifiLanSocket::ConnectedSocketParameters>*
         connected_socket_parameters,
     base::WaitableEvent* accept_waitable_event,
     int32_t net_error,
-    const absl::optional<net::IPEndPoint>& remote_addr,
+    const std::optional<net::IPEndPoint>& remote_addr,
     mojo::PendingRemote<network::mojom::TCPConnectedSocket> connected_socket,
     mojo::ScopedDataPipeConsumerHandle receive_stream,
     mojo::ScopedDataPipeProducerHandle send_stream) {
@@ -236,5 +235,4 @@ void WifiLanServerSocket::OnFirewallHoleDisconnected() {
   Close();
 }
 
-}  // namespace chrome
-}  // namespace nearby
+}  // namespace nearby::chrome

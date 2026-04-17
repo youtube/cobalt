@@ -142,32 +142,32 @@ void FramebufferAttachment::attach(const Context *context,
 
 GLuint FramebufferAttachment::getRedSize() const
 {
-    return getSize().empty() ? 0 : getFormat().info->redBits;
+    return isSpecified() ? getFormat().info->redBits : 0;
 }
 
 GLuint FramebufferAttachment::getGreenSize() const
 {
-    return getSize().empty() ? 0 : getFormat().info->greenBits;
+    return isSpecified() ? getFormat().info->greenBits : 0;
 }
 
 GLuint FramebufferAttachment::getBlueSize() const
 {
-    return getSize().empty() ? 0 : getFormat().info->blueBits;
+    return isSpecified() ? getFormat().info->blueBits : 0;
 }
 
 GLuint FramebufferAttachment::getAlphaSize() const
 {
-    return getSize().empty() ? 0 : getFormat().info->alphaBits;
+    return isSpecified() ? getFormat().info->alphaBits : 0;
 }
 
 GLuint FramebufferAttachment::getDepthSize() const
 {
-    return getSize().empty() ? 0 : getFormat().info->depthBits;
+    return isSpecified() ? getFormat().info->depthBits : 0;
 }
 
 GLuint FramebufferAttachment::getStencilSize() const
 {
-    return getSize().empty() ? 0 : getFormat().info->stencilBits;
+    return isSpecified() ? getFormat().info->stencilBits : 0;
 }
 
 GLenum FramebufferAttachment::getComponentType() const
@@ -236,6 +236,11 @@ bool FramebufferAttachment::isRenderToTexture() const
 
 GLsizei FramebufferAttachment::getRenderToTextureSamples() const
 {
+    if (!isRenderToTexture())
+    {
+        return 0;
+    }
+
     ASSERT(mRenderToTextureSamples == kDefaultRenderToTextureSamples || mType == GL_TEXTURE);
 
     if (mType == GL_RENDERBUFFER)
@@ -293,7 +298,7 @@ InitState FramebufferAttachment::initState() const
                      : InitState::Initialized;
 }
 
-angle::Result FramebufferAttachment::initializeContents(const Context *context)
+angle::Result FramebufferAttachment::initializeContents(const Context *context) const
 {
     ASSERT(mResource);
     ANGLE_TRY(mResource->initializeContents(context, mTarget.binding(), mTarget.textureIndex()));

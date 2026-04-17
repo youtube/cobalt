@@ -4,25 +4,30 @@
 
 #include "third_party/blink/renderer/core/frame/policy_container.h"
 
+#include "services/network/public/cpp/integrity_policy.h"
 #include "services/network/public/mojom/content_security_policy.mojom-blink-forward.h"
 #include "services/network/public/mojom/cross_origin_embedder_policy.mojom-blink-forward.h"
 #include "services/network/public/mojom/ip_address_space.mojom-blink-forward.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/core/testing/mock_policy_container_host.h"
 #include "third_party/blink/renderer/platform/network/http_parsers.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 
 namespace blink {
 
 TEST(PolicyContainerTest, MembersAreSetDuringConstruction) {
+  test::TaskEnvironment task_environment;
   MockPolicyContainerHost host;
   auto policies = mojom::blink::PolicyContainerPolicies::New(
       network::CrossOriginEmbedderPolicy(
           network::mojom::blink::CrossOriginEmbedderPolicyValue::kNone),
+      network::IntegrityPolicy(), network::IntegrityPolicy(),
       network::mojom::blink::ReferrerPolicy::kNever,
       Vector<network::mojom::blink::ContentSecurityPolicyPtr>(),
       /*anonymous=*/false, network::mojom::WebSandboxFlags::kNone,
       network::mojom::blink::IPAddressSpace::kUnknown,
-      /*can_navigate_top_without_user_gesture=*/true);
+      /*can_navigate_top_without_user_gesture=*/true,
+      /*cross_origin_isolation_enabled_by_dip=*/false);
   PolicyContainer policy_container(host.BindNewEndpointAndPassDedicatedRemote(),
                                    std::move(policies));
 
@@ -31,15 +36,18 @@ TEST(PolicyContainerTest, MembersAreSetDuringConstruction) {
 }
 
 TEST(PolicyContainerTest, UpdateReferrerPolicyIsPropagated) {
+  test::TaskEnvironment task_environment;
   MockPolicyContainerHost host;
   auto policies = mojom::blink::PolicyContainerPolicies::New(
       network::CrossOriginEmbedderPolicy(
           network::mojom::blink::CrossOriginEmbedderPolicyValue::kNone),
+      network::IntegrityPolicy(), network::IntegrityPolicy(),
       network::mojom::blink::ReferrerPolicy::kAlways,
       Vector<network::mojom::blink::ContentSecurityPolicyPtr>(),
       /*anonymous=*/false, network::mojom::WebSandboxFlags::kNone,
       network::mojom::blink::IPAddressSpace::kUnknown,
-      /*can_navigate_top_without_user_gesture=*/true);
+      /*can_navigate_top_without_user_gesture=*/true,
+      /*cross_origin_isolation_enabled_by_dip=*/false);
   PolicyContainer policy_container(host.BindNewEndpointAndPassDedicatedRemote(),
                                    std::move(policies));
 
@@ -55,6 +63,7 @@ TEST(PolicyContainerTest, UpdateReferrerPolicyIsPropagated) {
 }
 
 TEST(PolicyContainerTest, AddContentSecurityPolicies) {
+  test::TaskEnvironment task_environment;
   MockPolicyContainerHost host;
   auto policies = mojom::blink::PolicyContainerPolicies::New();
   PolicyContainer policy_container(host.BindNewEndpointAndPassDedicatedRemote(),

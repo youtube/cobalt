@@ -9,6 +9,7 @@ import android.content.SharedPreferences;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.TimeUtils;
+import org.chromium.build.annotations.NullMarked;
 
 import java.util.Random;
 
@@ -17,30 +18,31 @@ import javax.annotation.concurrent.NotThreadSafe;
 /**
  * Manages a timer that implements exponential backoff for failed attempts.
  *
- * The first timer will fire after BASE_MILLISECONDS.  On a failure, the timer is changed to
- * (randomInteger[0, 2^failures) + 1) * BASE_MILLISECONDS.  MAX_MILLISECONDS is used to ensure that
+ * <p>The first timer will fire after BASE_MILLISECONDS. On a failure, the timer is changed to
+ * (randomInteger[0, 2^failures) + 1) * BASE_MILLISECONDS. MAX_MILLISECONDS is used to ensure that
  * you aren't waiting years for a timer to fire.
  *
- * The state is stored in shared preferences to ensure that they are kept after the device sleeps.
- * Because multiple ExponentialBackoffSchedulers can be used by different components,
- * the owning class must set the preference name.
+ * <p>The state is stored in shared preferences to ensure that they are kept after the device
+ * sleeps. Because multiple ExponentialBackoffSchedulers can be used by different components, the
+ * owning class must set the preference name.
  *
- * Timestamps are recorded in RTC to avoid situations where the phone is rebooted, messing up
- * any timestamps generated using elapsedRealtime().
+ * <p>Timestamps are recorded in RTC to avoid situations where the phone is rebooted, messing up any
+ * timestamps generated using elapsedRealtime().
  *
- * This class is not thread-safe because any two different classes could be accessing the same
+ * <p>This class is not thread-safe because any two different classes could be accessing the same
  * SharedPreferences.
  */
 @NotThreadSafe
+@NullMarked
 public class ExponentialBackoffScheduler {
-    // TODO(crbug.com/1131415): remove and use OmahaBase.TAG when OmahaBase.java is modularized.
+    // TODO(crbug.com/40150188): remove and use OmahaBase.TAG when OmahaBase.java is modularized.
     // Used in various org.chromium.chrome.browser.omaha files.
     static final String TAG = "omaha";
 
     private static final String PREFERENCE_DELAY = "delay";
     private static final String PREFERENCE_FAILED_ATTEMPTS = "backoffFailedAttempts";
 
-    private static Random sRandom = new Random();
+    private static final Random sRandom = new Random();
 
     private static final int MAX_EXPONENT = 10;
 
@@ -61,9 +63,7 @@ public class ExponentialBackoffScheduler {
         mMaxMilliseconds = maxMilliseconds;
     }
 
-    /**
-     * Calculates when the next event should occur, including delays due to failures.
-     */
+    /** Calculates when the next event should occur, including delays due to failures. */
     public long calculateNextTimestamp() {
         return generateRandomDelay() + getCurrentTime();
     }
@@ -84,9 +84,7 @@ public class ExponentialBackoffScheduler {
         preferences.edit().putInt(PREFERENCE_FAILED_ATTEMPTS, 0).apply();
     }
 
-    /**
-     * Returns a timestamp representing now, according to the backoff scheduler.
-     */
+    /** Returns a timestamp representing now, according to the backoff scheduler. */
     public long getCurrentTime() {
         return TimeUtils.currentTimeMillis();
     }
@@ -114,7 +112,7 @@ public class ExponentialBackoffScheduler {
             delay = Math.min(backoffCoefficient * mBaseMilliseconds, mMaxMilliseconds);
         }
 
-        // Save the delay for sanity checks.
+        // Save the delay for validation checks.
         SharedPreferences preferences = getSharedPreferences();
         preferences.edit().putLong(PREFERENCE_DELAY, delay).apply();
         return delay;
@@ -133,8 +131,9 @@ public class ExponentialBackoffScheduler {
     }
 
     private SharedPreferences getSharedPreferences() {
-        SharedPreferences preferences = ContextUtils.getApplicationContext().getSharedPreferences(
-                mPreferencePackage, Context.MODE_PRIVATE);
+        SharedPreferences preferences =
+                ContextUtils.getApplicationContext()
+                        .getSharedPreferences(mPreferencePackage, Context.MODE_PRIVATE);
         return preferences;
     }
 }

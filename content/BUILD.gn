@@ -66,6 +66,7 @@ content_shared_components = [
   "//content/public/child:child_sources",
   "//content/public/common:common_sources",
   "//content/public/gpu:gpu_sources",
+  "//content/public/renderer:render_frame_media_playback_options",
   "//content/public/renderer:renderer_sources",
   "//content/public/utility:utility_sources",
 ]
@@ -94,29 +95,15 @@ grit("content_resources") {
     "grit/content_resources_map.h",
     "content_resources.pak",
   ]
-  deps = [ "//components/ukm/debug:build_ts" ]
 
-  if (is_chromeos_ash) {
-    deps += [
+  if (is_chromeos) {
+    deps = [
       "//mojo/public/mojom/base:base_js__generator",
       "//ui/base/mojom:mojom_js__generator",
       "//url/mojom:url_mojom_gurl_js__generator",
       "//url/mojom:url_mojom_origin_js__generator",
     ]
   }
-}
-
-grit("dev_ui_content_resources") {
-  source = "dev_ui_content_resources.grd"
-
-  outputs = [
-    "grit/dev_ui_content_resources.h",
-    "dev_ui_content_resources.pak",
-  ]
-  deps = [
-    "//content/browser/resources/gpu:html_wrapper_files",
-    "//content/browser/resources/process:build_ts",
-  ]
 }
 
 # This target exists to "hold" the content_export header so we can do proper

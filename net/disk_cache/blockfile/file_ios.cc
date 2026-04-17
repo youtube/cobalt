@@ -11,8 +11,10 @@
 #include <utility>
 
 #include "base/check.h"
+#include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
+#include "base/memory/raw_ptr.h"
 #include "base/task/thread_pool.h"
 #include "net/base/net_errors.h"
 #include "net/disk_cache/blockfile/in_flight_io.h"
@@ -39,8 +41,8 @@ class FileBackgroundIO : public disk_cache::BackgroundIO {
   FileBackgroundIO(const FileBackgroundIO&) = delete;
   FileBackgroundIO& operator=(const FileBackgroundIO&) = delete;
 
-  disk_cache::FileIOCallback* callback() {
-    return callback_;
+  disk_cache::FileIOCallback* ReleaseCallback() {
+    return callback_.ExtractAsDangling();
   }
 
   disk_cache::File* file() {
@@ -58,10 +60,10 @@ class FileBackgroundIO : public disk_cache::BackgroundIO {
  private:
   ~FileBackgroundIO() override {}
 
-  disk_cache::FileIOCallback* callback_;
+  raw_ptr<disk_cache::FileIOCallback> callback_;
 
-  disk_cache::File* file_;
-  const void* buf_;
+  raw_ptr<disk_cache::File> file_;
+  raw_ptr<const void> buf_;
   size_t buf_len_;
   size_t offset_;
 };
@@ -98,7 +100,7 @@ class FileInFlightIO : public disk_cache::InFlightIO {
 
 // Runs on a worker thread.
 void FileBackgroundIO::Read() {
-  if (file_->Read(const_cast<void*>(buf_), buf_len_, offset_)) {
+  if (file_->Read(const_cast<void*>(buf_.get()), buf_len_, offset_)) {
     result_ = static_cast<int>(buf_len_);
   } else {
     result_ = net::ERR_CACHE_READ_FAILURE;
@@ -148,12 +150,18 @@ void FileInFlightIO::OnOperationComplete(disk_cache::BackgroundIO* operation,
                                          bool cancel) {
   FileBackgroundIO* op = static_cast<FileBackgroundIO*>(operation);
 
-  disk_cache::FileIOCallback* callback = op->callback();
   int bytes = operation->result();
 
   // Release the references acquired in PostRead / PostWrite.
   op->file()->Release();
-  callback->OnFileIOComplete(bytes);
+
+  // The callback may be be deleted by the `OnFileIOComplete` call below,
+  // and we also won't need it ourselves after this.
+  // TODO(morlovich): It may be better to refactor this so that the callback is
+  // just owned here; that would require splitting ChildDeleter to have rather
+  // than be one. See
+  // https://chromium-review.googlesource.com/c/chromium/src/+/6426561/2..3/net/disk_cache/blockfile/file_ios.cc#b45
+  op->ReleaseCallback()->OnFileIOComplete(bytes);
 }
 
 // A static object that will broker all async operations.
@@ -202,7 +210,8 @@ bool File::Read(void* buffer, size_t buffer_len, size_t offset) {
     return false;
   }
 
-  int ret = base_file_.Read(offset, static_cast<char*>(buffer), buffer_len);
+  int ret = UNSAFE_TODO(
+      base_file_.Read(offset, static_cast<char*>(buffer), buffer_len));
   return (static_cast<size_t>(ret) == buffer_len);
 }
 
@@ -213,8 +222,8 @@ bool File::Write(const void* buffer, size_t buffer_len, size_t offset) {
     return false;
   }
 
-  int ret = base_file_.Write(offset, static_cast<const char*>(buffer),
-                             buffer_len);
+  int ret = UNSAFE_TODO(
+      base_file_.Write(offset, static_cast<const char*>(buffer), buffer_len));
   return (static_cast<size_t>(ret) == buffer_len);
 }
 

@@ -79,9 +79,8 @@ class NearbyShareDialogUI : public ui::MojoWebUIController,
           receiver);
 
   // content::WebContentsDelegate:
-  bool HandleKeyboardEvent(
-      content::WebContents* source,
-      const content::NativeWebKeyboardEvent& event) override;
+  bool HandleKeyboardEvent(content::WebContents* source,
+                           const input::NativeWebKeyboardEvent& event) override;
   void WebContentsCreated(content::WebContents* source_contents,
                           int opener_render_process_id,
                           int opener_render_frame_id,
@@ -102,12 +101,12 @@ class NearbyShareDialogUI : public ui::MojoWebUIController,
   // A pointer to the Sharesheet controller is provided by
   // |NearbyShareAction::LaunchAction| when this WebUI controller is created. It
   // is used to close the Sharesheet in |HandleClose|.
-  raw_ptr<sharesheet::SharesheetController, ExperimentalAsh>
+  raw_ptr<sharesheet::SharesheetController, DanglingUntriaged>
       sharesheet_controller_ = nullptr;
 
   std::vector<std::unique_ptr<Attachment>> attachments_;
-  raw_ptr<NearbySharingService, ExperimentalAsh> nearby_service_;
-  raw_ptr<views::WebView, ExperimentalAsh> web_view_ = nullptr;
+  raw_ptr<NearbySharingService> nearby_service_;
+  raw_ptr<views::WebView> web_view_ = nullptr;
   views::UnhandledKeyboardEventHandler unhandled_keyboard_event_handler_;
   std::unique_ptr<ui::ColorChangeHandler> color_provider_handler_;
 

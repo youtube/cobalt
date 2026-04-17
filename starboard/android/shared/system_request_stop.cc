@@ -12,17 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/system.h"
+// clang-format on
 
-#include "base/android/jni_android.h"
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_state.h"
-
-using ::starboard::JniCallVoidMethodOrAbort;
-using ::starboard::JNIState;
+#include "starboard/common/log.h"
 
 void SbSystemRequestStop(int error_level) {
-  JNIEnv* env = base::android::AttachCurrentThread();
-  JniCallVoidMethodOrAbort(env, JNIState::GetStarboardBridge(), "requestStop",
-                           "(I)V", error_level);
+  // TODO: b/450024477 - Implement this method when AOSP is used.
+  SB_LOG(WARNING) << __func__ << "(error_level=" << error_level
+                  << ") is called, but it's ignored on Android";
 }

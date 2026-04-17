@@ -11,22 +11,30 @@
  */
 
 import '//resources/cr_elements/cr_shared_style.css.js';
-import '/shared/settings/controls/settings_dropdown_menu.js';
+import '//resources/cr_elements/cr_collapse/cr_collapse.js';
+import '../controls/settings_dropdown_menu.js';
 import '../controls/settings_toggle_button.js';
 import '../settings_shared.css.js';
 
 import {WebUiListenerMixin} from '//resources/cr_elements/web_ui_listener_mixin.js';
 import {PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {DropdownMenuOptionList} from '/shared/settings/controls/settings_dropdown_menu.js';
-import {PrefsMixin} from 'chrome://resources/cr_components/settings_prefs/prefs_mixin.js';
+import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
 
+import type {DropdownMenuOptionList} from '../controls/settings_dropdown_menu.js';
+import type {SettingsToggleButtonElement} from '../controls/settings_toggle_button.js';
 import {loadTimeData} from '../i18n_setup.js';
-import {LanguageHelper, LanguagesModel} from '../languages_page/languages_types.js';
+import type {LanguageHelper, LanguagesModel} from '../languages_page/languages_types.js';
 
 import {getTemplate} from './live_translate_section.html.js';
 
 const SettingsLiveTranslateElementBase =
     WebUiListenerMixin(PrefsMixin(PolymerElement));
+
+export interface SettingsLiveTranslateElement {
+  $: {
+    liveTranslateToggleButton: SettingsToggleButtonElement,
+  };
+}
 
 export class SettingsLiveTranslateElement extends
     SettingsLiveTranslateElementBase {
@@ -40,11 +48,6 @@ export class SettingsLiveTranslateElement extends
 
   static get properties() {
     return {
-      prefs: {
-        type: Object,
-        notify: true,
-      },
-
       /**
        * Read-only reference to the languages model provided by the
        * 'settings-languages' instance.
@@ -73,11 +76,11 @@ export class SettingsLiveTranslateElement extends
     };
   }
 
-  languages: LanguagesModel;
-  languageHelper: LanguageHelper;
-  private enableLiveTranslateSubtitle_: string;
-  private languageOptions_: DropdownMenuOptionList;
-  private translatableLanguages_: DropdownMenuOptionList;
+  declare languages: LanguagesModel;
+  declare languageHelper: LanguageHelper;
+  declare private enableLiveTranslateSubtitle_: string;
+  declare private languageOptions_: DropdownMenuOptionList;
+  declare private translatableLanguages_: DropdownMenuOptionList;
 
   override ready() {
     super.ready();
@@ -91,6 +94,12 @@ export class SettingsLiveTranslateElement extends
                 return {value: language.code, name: language.displayName};
               }) as DropdownMenuOptionList;
     });
+  }
+
+  private onLiveTranslateEnabledChange_() {
+    chrome.metricsPrivate.recordBoolean(
+        'Accessibility.LiveTranslate.EnableFromSettings',
+        this.$.liveTranslateToggleButton.checked);
   }
 }
 

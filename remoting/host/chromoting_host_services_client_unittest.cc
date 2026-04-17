@@ -19,6 +19,7 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/system/isolated_connection.h"
+#include "remoting/base/constants.h"
 #include "remoting/host/mojo_caller_security_checker.h"
 #include "remoting/host/mojom/chromoting_host_services.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -43,7 +44,7 @@ class ChromotingHostServicesClientTest : public testing::Test,
   void SetRemoteDisconnectCallback(base::OnceClosure callback);
 
   base::test::TaskEnvironment task_environment_;
-  raw_ptr<base::Environment> environment_;
+  raw_ptr<base::Environment, DanglingUntriaged> environment_;
   bool is_server_started_ = true;
   std::unique_ptr<ChromotingHostServicesClient> client_;
   mojo::ReceiverSet<mojom::ChromotingHostServices> host_services_receivers_;
@@ -51,8 +52,7 @@ class ChromotingHostServicesClientTest : public testing::Test,
       session_services_receivers_;
 
  private:
-  mojo::PendingRemote<mojom::ChromotingHostServices> ConnectToServer(
-      mojo::IsolatedConnection& connection);
+  mojo::PendingRemote<mojom::ChromotingHostServices> ConnectToServer();
 
   // Used to block the thread until a session services bind request is received.
   std::unique_ptr<base::RunLoop> session_services_bound_run_loop_;
@@ -85,11 +85,9 @@ void ChromotingHostServicesClientTest::SetChromeRemoteDesktopSessionEnvVar(
     bool is_crd_session) {
 #if BUILDFLAG(IS_LINUX)
   if (is_crd_session) {
-    environment_->SetVar(
-        ChromotingHostServicesClient::kChromeRemoteDesktopSessionEnvVar, "1");
+    environment_->SetVar(kChromeRemoteDesktopSessionEnvVar, "1");
   } else {
-    environment_->UnSetVar(
-        ChromotingHostServicesClient::kChromeRemoteDesktopSessionEnvVar);
+    environment_->UnSetVar(kChromeRemoteDesktopSessionEnvVar);
   }
 #endif
   // No-op on other platforms.
@@ -106,8 +104,7 @@ void ChromotingHostServicesClientTest::SetRemoteDisconnectCallback(
 }
 
 mojo::PendingRemote<mojom::ChromotingHostServices>
-ChromotingHostServicesClientTest::ConnectToServer(
-    mojo::IsolatedConnection& connection) {
+ChromotingHostServicesClientTest::ConnectToServer() {
   if (!is_server_started_) {
     return mojo::PendingRemote<mojom::ChromotingHostServices>();
   }

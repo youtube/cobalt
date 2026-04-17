@@ -7,16 +7,21 @@
 #include "quiche/quic/qbone/qbone_client.h"
 
 #include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "absl/strings/string_view.h"
+#include "absl/synchronization/mutex.h"
 #include "quiche/quic/core/io/quic_default_event_loop.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_default_connection_helper.h"
 #include "quiche/quic/core/quic_dispatcher.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_flags.h"
-#include "quiche/quic/platform/api/quic_mutex.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/platform/api/quic_test_loopback.h"
@@ -39,16 +44,7 @@ using ::testing::ElementsAre;
 ParsedQuicVersionVector GetTestParams() {
   ParsedQuicVersionVector test_versions;
   SetQuicReloadableFlag(quic_disable_version_q046, false);
-  // TODO(b/113130636): Make QBONE work with TLS.
-  for (const auto& version : CurrentSupportedVersionsWithQuicCrypto()) {
-    // QBONE requires MESSAGE frames
-    if (!version.SupportsMessageFrames()) {
-      continue;
-    }
-    test_versions.push_back(version);
-  }
-
-  return test_versions;
+  return CurrentSupportedVersionsWithQuicCrypto();
 }
 
 std::string TestPacketIn(const std::string& body) {
@@ -62,17 +58,17 @@ std::string TestPacketOut(const std::string& body) {
 class DataSavingQbonePacketWriter : public QbonePacketWriter {
  public:
   void WritePacketToNetwork(const char* packet, size_t size) override {
-    QuicWriterMutexLock lock(&mu_);
+    absl::WriterMutexLock lock(&mu_);
     data_.push_back(std::string(packet, size));
   }
 
   std::vector<std::string> data() {
-    QuicWriterMutexLock lock(&mu_);
+    absl::WriterMutexLock lock(&mu_);
     return data_;
   }
 
  private:
-  QuicMutex mu_;
+  absl::Mutex mu_;
   std::vector<std::string> data_;
 };
 
@@ -116,12 +112,13 @@ class QuicQboneDispatcher : public QuicDispatcher {
       QuicConnectionId id, const QuicSocketAddress& self_address,
       const QuicSocketAddress& peer_address, absl::string_view alpn,
       const ParsedQuicVersion& version,
-      const ParsedClientHello& /*parsed_chlo*/) override {
+      const ParsedClientHello& /*parsed_chlo*/,
+      ConnectionIdGeneratorInterface& connection_id_generator) override {
     QUICHE_CHECK_EQ(alpn, "qbone");
     QuicConnection* connection = new QuicConnection(
         id, self_address, peer_address, helper(), alarm_factory(), writer(),
         /* owns_writer= */ false, Perspective::IS_SERVER,
-        ParsedQuicVersionVector{version}, connection_id_generator());
+        ParsedQuicVersionVector{version}, connection_id_generator);
     // The connection owning wrapper owns the connection created.
     auto session = std::make_unique<ConnectionOwningQboneServerSession>(
         GetSupportedVersions(), connection, this, config(), crypto_config(),
@@ -219,8 +216,7 @@ TEST_P(QboneClientTest, SendDataFromClient) {
   std::unique_ptr<QuicEventLoop> event_loop =
       GetDefaultEventLoop()->Create(quic::QuicDefaultClock::Get());
   QboneTestClient client(
-      server_address,
-      QuicServerId("test.example.com", server_address.port(), false),
+      server_address, QuicServerId("test.example.com", server_address.port()),
       ParsedQuicVersionVector{GetParam()}, event_loop.get(),
       crypto_test_utils::ProofVerifierForTesting());
   ASSERT_TRUE(client.Initialize());

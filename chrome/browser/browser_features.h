@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// WARNING: do not add new entries here. If a feature is only used in one
+// translation unit it should be inlined in that translation unit. If a feature
+// is referenced in multiple places, it should be scoped to that module, e.g.
+// //chrome/browser/<foo_module>/features.h
+
 // This file defines the browser-specific base::FeatureList features that are
 // not shared with other process types.
 
@@ -10,47 +15,97 @@
 
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
+#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 
 namespace features {
 
+// WARNING: do not add new entries here. If a feature is only used in one
+// translation unit it should be inlined in that translation unit. If a feature
+// is referenced in multiple places, it should be scoped to that module, e.g.
+// //chrome/browser/<foo_module>/features.h
 // All features in alphabetical order. The features should be documented
 // alongside the definition of their values in the .cc file.
 
-BASE_DECLARE_FEATURE(kClosedTabCache);
+#if BUILDFLAG(IS_ANDROID)
+BASE_DECLARE_FEATURE(kAllowUnmutedAutoplayForTWA);
+#endif  // BUILDFLAG(IS_ANDROID)
+BASE_DECLARE_FEATURE(kAutocompleteActionPredictorConfidenceCutoff);
+BASE_DECLARE_FEATURE(kBookmarksTreeView);
+BASE_DECLARE_FEATURE(kBookmarkTriggerForPrerender2);
+BASE_DECLARE_FEATURE(kCertificateTransparencyAskBeforeEnabling);
+BASE_DECLARE_FEATURE(kCertVerificationNetworkTime);
+BASE_DECLARE_FEATURE(kClearUserDataUponProfileDestruction);
+
+#if BUILDFLAG(IS_LINUX)
+BASE_DECLARE_FEATURE(kDbusSecretPortal);
+BASE_DECLARE_FEATURE(kUseFreedesktopSecretKeyProvider);
+#endif
 
 BASE_DECLARE_FEATURE(kDestroyProfileOnBrowserClose);
 BASE_DECLARE_FEATURE(kDestroySystemProfiles);
-
-BASE_DECLARE_FEATURE(kDevToolsTabTarget);
-
-BASE_DECLARE_FEATURE(kKeepToolbarTexture);
-
-BASE_DECLARE_FEATURE(kNukeProfileBeforeCreateMultiAsync);
-
-BASE_DECLARE_FEATURE(kPromoBrowserCommands);
-extern const char kBrowserCommandIdParam[];
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-BASE_DECLARE_FEATURE(kQuickSettingsPWANotifications);
-#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
 BASE_DECLARE_FEATURE(kDoubleTapToZoomInTabletMode);
 #endif
 
-#if BUILDFLAG(IS_MAC)
-BASE_DECLARE_FEATURE(kEnableUniveralLinks);
-#endif
+BASE_DECLARE_FEATURE(kFlexOrgManagementDisclosure);
+BASE_DECLARE_FEATURE(kIncomingCallNotifications);
 
 #if !BUILDFLAG(IS_ANDROID)
-BASE_DECLARE_FEATURE(kCopyLinkToText);
 BASE_DECLARE_FEATURE(kMuteNotificationSnoozeAction);
 #endif
 
+BASE_DECLARE_FEATURE(kNetworkAnnotationMonitoring);
+BASE_DECLARE_FEATURE(kNewTabPageTriggerForPrerender2);
+// This parameter is used to set a time threshold for triggering onMouseHover
+// prerender. For example, if the value is 300, the New Tab Page prerender
+// will start after 300ms after mouseHover duration is over 300ms.
+const base::FeatureParam<int>
+    kNewTabPagePrerenderStartDelayOnMouseHoverByMiliSeconds{
+        &features::kNewTabPageTriggerForPrerender2,
+        "prerender_start_delay_on_mouse_hover_ms", 300};
+const base::FeatureParam<int>
+    kNewTabPagePreconnectStartDelayOnMouseHoverByMiliSeconds{
+        &features::kNewTabPageTriggerForPrerender2,
+        "preconnect_start_delay_on_mouse_hover_ms", 100};
+const base::FeatureParam<bool> kPrerenderNewTabPageOnMousePressedTrigger{
+    &features::kNewTabPageTriggerForPrerender2,
+    "prerender_new_tab_page_on_mouse_pressed_trigger", true};
+// The hover trigger is not enabled as we're aware that this negatively
+// affects other navigations like Omnibox search.
+const base::FeatureParam<bool> kPrerenderNewTabPageOnMouseHoverTrigger{
+    &features::kNewTabPageTriggerForPrerender2,
+    "prerender_new_tab_page_on_mouse_hover_trigger", false};
+
+#if BUILDFLAG(IS_ANDROID)
+BASE_DECLARE_FEATURE(kNotificationOneTapUnsubscribe);
+extern base::FeatureParam<bool>
+    kNotificationOneTapUnsubscribeUseServiceIntentParam;
+#endif
+
+BASE_DECLARE_FEATURE(kPromoBrowserCommands);
+extern const char kBrowserCommandIdParam[];
+
+#if !BUILDFLAG(IS_ANDROID)
+BASE_DECLARE_FEATURE(kReadAnythingPermanentAccessibility);
+#endif
+
+#if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
+BASE_DECLARE_FEATURE(kRegisterOsUpdateHandlerWin);
+BASE_DECLARE_FEATURE(kInstallPlatformExperienceHelperWin);
+#endif  // BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
+
+BASE_DECLARE_FEATURE(kRestartNetworkServiceUnsandboxedForFailedLaunch);
 BASE_DECLARE_FEATURE(kSandboxExternalProtocolBlocked);
 BASE_DECLARE_FEATURE(kSandboxExternalProtocolBlockedWarning);
+
+#if BUILDFLAG(IS_LINUX)
+BASE_DECLARE_FEATURE(kSecretPortalKeyProviderUseForEncryption);
+BASE_DECLARE_FEATURE(kUseFreedesktopSecretKeyProviderForEncryption);
+#endif
+
 BASE_DECLARE_FEATURE(kTriggerNetworkDataMigration);
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -59,66 +114,27 @@ BASE_DECLARE_FEATURE(kTabCaptureBlueBorderCrOS);
 
 BASE_DECLARE_FEATURE(kWebUsbDeviceDetection);
 
-#if BUILDFLAG(IS_ANDROID)
-BASE_DECLARE_FEATURE(kCertificateTransparencyAndroid);
-#endif
-
-BASE_DECLARE_FEATURE(kLargeFaviconFromGoogle);
-extern const base::FeatureParam<int> kLargeFaviconFromGoogleSizeInDip;
-
-BASE_DECLARE_FEATURE(kObserverBasedPostProfileInit);
-
-BASE_DECLARE_FEATURE(kRestartNetworkServiceUnsandboxedForFailedLaunch);
-
-BASE_DECLARE_FEATURE(kKeyPinningComponentUpdater);
-
 #if BUILDFLAG(IS_WIN)
-BASE_DECLARE_FEATURE(kAppBoundEncryptionMetrics);
-BASE_DECLARE_FEATURE(kLockProfileCookieDatabase);
+BASE_DECLARE_FEATURE(kBrowserDynamicCodeDisabled);
+
+BASE_DECLARE_FEATURE(kNoPreReadMainDll);
+BASE_DECLARE_FEATURE(kNoPreReadMainDllIfSsd);
+BASE_DECLARE_FEATURE(kNoPreReadMainDllStartup);
+extern const base::FeatureParam<base::TimeDelta>
+    kNoPreReadMainDllStartup_StartupDuration;
+BASE_DECLARE_FEATURE(kAutoDeElevate);
 #endif
 
-BASE_DECLARE_FEATURE(kFlexOrgManagementDisclosure);
+BASE_DECLARE_FEATURE(kReportPakFileIntegrity);
 
-BASE_DECLARE_FEATURE(kFedCmWithoutThirdPartyCookies);
+BASE_DECLARE_FEATURE(kRemovalOfIWAsFromTabCapture);
 
-BASE_DECLARE_FEATURE(kIncomingCallNotifications);
-
-// This flag is used for enabling Omnibox triggered prerendering. See
-// crbug.com/1166085 for more details of Omnibox triggered prerendering.
-BASE_DECLARE_FEATURE(kOmniboxTriggerForPrerender2);
-
-// This flag is used for enabling Bookmark triggered prerendering. See
-// crbug.com/1422819 for more details of Bookmark triggered prerendering.
-BASE_DECLARE_FEATURE(kBookmarkTriggerForPrerender2);
-
-// This flag controls whether to trigger prerendering when the default search
-// engine suggests to prerender a search result. It also enables
-// Prerender2-related features on the blink side. This flag takes effect only
-// when blink::features::Prerender2 is enabled.
-BASE_DECLARE_FEATURE(kSupportSearchSuggestionForPrerender2);
-enum class SearchSuggestionPrerenderImplementationType {
-  kUsePrefetch,
-  kIgnorePrefetch,
-};
-extern const base::FeatureParam<SearchSuggestionPrerenderImplementationType>
-    kSearchSuggestionPrerenderImplementationTypeParam;
-// Indicates whether to make search prefetch response shareable to prerender.
-// When allowing this, prerender can only copy the cache but cannot take over
-// the ownership.
-enum class SearchPreloadShareableCacheType {
-  kEnabled,
-  kDisabled,
-};
-
-extern const base::FeatureParam<SearchPreloadShareableCacheType>
-    kSearchPreloadShareableCacheTypeParam;
-
-// This is used to enable an experiment for modifying confidence cutoff of
-// prerender and preconnect for autocomplete action predictor.
-BASE_DECLARE_FEATURE(kAutocompleteActionPredictorConfidenceCutoff);
-
-BASE_DECLARE_FEATURE(kOmniboxTriggerForNoStatePrefetch);
-
+// WARNING: do not add new entries here. If a feature is only used in one
+// translation unit it should be inlined in that translation unit. If a
+// feature is referenced in multiple places, it should be scoped to that
+// module, e.g.
+// //chrome/browser/<foo_module>/features.h
+//
 }  // namespace features
 
 #endif  // CHROME_BROWSER_BROWSER_FEATURES_H_

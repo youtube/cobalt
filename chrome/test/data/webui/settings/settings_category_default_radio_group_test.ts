@@ -3,12 +3,14 @@
 // found in the LICENSE file.
 
 // clang-format off
-import {ContentSetting, ContentSettingProvider, ContentSettingsTypes, SettingsCategoryDefaultRadioGroupElement, SiteSettingsPrefsBrowserProxyImpl} from 'chrome://settings/lazy_load.js';
+import type {SettingsCategoryDefaultRadioGroupElement} from 'chrome://settings/lazy_load.js';
+import {ContentSetting, DefaultSettingSource, ContentSettingsTypes, SiteSettingsPrefsBrowserProxyImpl} from 'chrome://settings/lazy_load.js';
 import {assertEquals, assertNotEquals, assertTrue, assertFalse} from 'chrome://webui-test/chai_assert.js';
-import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
+import {eventToPromise, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {TestSiteSettingsPrefsBrowserProxy} from './test_site_settings_prefs_browser_proxy.js';
-import {createContentSettingTypeToValuePair, createDefaultContentSetting, createSiteSettingsPrefs, SiteSettingsPref} from './test_util.js';
+import type {SiteSettingsPref} from './test_util.js';
+import {createContentSettingTypeToValuePair, createDefaultContentSetting, createSiteSettingsPrefs} from './test_util.js';
 // clang-format on
 
 /** @fileoverview Suite of tests for settings-category-default-radio-group. */
@@ -31,6 +33,7 @@ suite('SettingsCategoryDefaultRadioGroup', function() {
     testElement =
         document.createElement('settings-category-default-radio-group');
     document.body.appendChild(testElement);
+    return microtasksFinished();
   });
 
   teardown(function() {
@@ -73,8 +76,8 @@ suite('SettingsCategoryDefaultRadioGroup', function() {
     proxy.reset();
     proxy.setPrefs(prefs);
     element.set('category', expectedCategory);
-
     let category = await proxy.whenCalled('getDefaultValueForContentType');
+    await microtasksFinished();
     let categoryEnabled = element.$.enabledRadioOption.checked;
     assertEquals(expectedCategory, category);
     assertEquals(expectedEnabled, categoryEnabled);
@@ -87,9 +90,15 @@ suite('SettingsCategoryDefaultRadioGroup', function() {
     element.shadowRoot!.querySelector<HTMLElement>(
                            oppositeRadioButton)!.click();
 
+    let whenChanged =
+        eventToPromise('change', element.$.settingsCategoryDefaultRadioGroup);
+    let selectedChangedEventPromise =
+        eventToPromise('selected-changed', element);
     let setting;
     [category, setting] =
         await proxy.whenCalled('setDefaultValueForContentType');
+    await whenChanged;
+    await selectedChangedEventPromise;
     assertEquals(expectedCategory, category);
     const oppositeSetting =
         expectedEnabled ? ContentSetting.BLOCK : expectedEnabledContentSetting;
@@ -103,9 +112,14 @@ suite('SettingsCategoryDefaultRadioGroup', function() {
     const initialRadioButton =
         expectedEnabled ? '#enabledRadioOption' : '#disabledRadioOption';
     element.shadowRoot!.querySelector<HTMLElement>(initialRadioButton)!.click();
+    whenChanged =
+        eventToPromise('change', element.$.settingsCategoryDefaultRadioGroup);
+    selectedChangedEventPromise = eventToPromise('selected-changed', element);
 
     [category, setting] =
         await proxy.whenCalled('setDefaultValueForContentType');
+    await whenChanged;
+    await selectedChangedEventPromise;
     assertEquals(expectedCategory, category);
     const initialSetting =
         expectedEnabled ? expectedEnabledContentSetting : ContentSetting.BLOCK;
@@ -156,7 +170,7 @@ suite('SettingsCategoryDefaultRadioGroup', function() {
         [createContentSettingTypeToValuePair(
             ContentSettingsTypes.GEOLOCATION, createDefaultContentSetting({
               setting: ContentSetting.BLOCK,
-              source: ContentSettingProvider.EXTENSION,
+              source: DefaultSettingSource.EXTENSION,
             }))],
         []);
     browserProxy.reset();
@@ -164,6 +178,8 @@ suite('SettingsCategoryDefaultRadioGroup', function() {
     testElement.category = ContentSettingsTypes.GEOLOCATION;
 
     await browserProxy.whenCalled('getDefaultValueForContentType');
+    // Wait for all the radio options to update checked/disabled.
+    await microtasksFinished();
     assertTrue(testElement.$.disabledRadioOption.checked);
     assertTrue(testElement.$.enabledRadioOption.disabled);
     assertTrue(testElement.$.disabledRadioOption.disabled);
@@ -173,7 +189,8 @@ suite('SettingsCategoryDefaultRadioGroup', function() {
         createPref(ContentSettingsTypes.GEOLOCATION, ContentSetting.ASK);
     browserProxy.setPrefs(enabledPref);
 
-    await flushTasks();
+    // Wait for all the radio options to update checked/disabled.
+    await microtasksFinished();
     assertTrue(testElement.$.enabledRadioOption.checked);
     assertFalse(testElement.$.enabledRadioOption.disabled);
     assertFalse(testElement.$.disabledRadioOption.disabled);

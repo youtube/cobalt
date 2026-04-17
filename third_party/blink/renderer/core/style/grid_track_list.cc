@@ -3,19 +3,16 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/core/style/grid_track_list.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 namespace blink {
 
 NGGridTrackRepeater::NGGridTrackRepeater(wtf_size_t repeat_index,
                                          wtf_size_t repeat_size,
                                          wtf_size_t repeat_count,
-                                         wtf_size_t line_name_indices_count,
                                          RepeatType repeat_type)
     : repeat_index(repeat_index),
       repeat_size(repeat_size),
       repeat_count(repeat_count),
-      line_name_indices_count(line_name_indices_count),
       repeat_type(repeat_type) {}
 
 String NGGridTrackRepeater::ToString() const {
@@ -24,8 +21,6 @@ String NGGridTrackRepeater::ToString() const {
   builder.AppendNumber<wtf_size_t>(repeat_index);
   builder.Append("], [RepeatSize: ");
   builder.AppendNumber<wtf_size_t>(repeat_size);
-  builder.Append("], [LineNameIndicesCount: ");
-  builder.AppendNumber<wtf_size_t>(line_name_indices_count);
   builder.Append("], [RepeatCount: ");
   switch (repeat_type) {
     case RepeatType::kNoRepeat:
@@ -68,11 +63,6 @@ wtf_size_t NGGridTrackList::RepeatIndex(wtf_size_t index) const {
 wtf_size_t NGGridTrackList::RepeatSize(wtf_size_t index) const {
   DCHECK_LT(index, RepeaterCount());
   return repeaters_[index].repeat_size;
-}
-
-wtf_size_t NGGridTrackList::LineNameIndicesCount(wtf_size_t index) const {
-  DCHECK_LT(index, RepeaterCount());
-  return repeaters_[index].line_name_indices_count;
 }
 
 NGGridTrackRepeater::RepeatType NGGridTrackList::RepeatType(
@@ -119,8 +109,7 @@ bool NGGridTrackList::AddRepeater(
     const Vector<GridTrackSize, 1>& repeater_track_sizes,
     NGGridTrackRepeater::RepeatType repeat_type,
     wtf_size_t repeat_count,
-    wtf_size_t repeat_number_of_lines,
-    wtf_size_t line_name_indices_count) {
+    wtf_size_t repeat_number_of_lines) {
   // Non-subgrid repeaters always have sizes associated with them, while
   // subgrids repeaters never do, as sizes will come from the parent grid.
   DCHECK(!IsSubgriddedAxis() || repeater_track_sizes.empty());
@@ -164,7 +153,7 @@ bool NGGridTrackList::AddRepeater(
   }
 
   repeaters_.emplace_back(repeater_track_sizes_.size(), repeat_size,
-                          repeat_count, line_name_indices_count, repeat_type);
+                          repeat_count, repeat_type);
   if (!IsSubgriddedAxis()) {
     repeater_track_sizes_.AppendVector(repeater_track_sizes);
   }
@@ -218,56 +207,6 @@ bool NGGridTrackList::operator==(const NGGridTrackList& other) const {
          repeater_track_sizes_ == other.repeater_track_sizes_ &&
          non_auto_repeat_line_count_ == other.non_auto_repeat_line_count_ &&
          axis_type_ == other.axis_type_;
-}
-
-GridTrackList::GridTrackList(const GridTrackList& other) {
-  AssignFrom(other);
-}
-
-GridTrackList::GridTrackList(const GridTrackSize& default_track_size) {
-  ng_track_list_.AddRepeater({default_track_size});
-  legacy_track_list_.push_back(default_track_size);
-}
-
-GridTrackList::GridTrackList(Vector<GridTrackSize, 1>& legacy_tracks)
-    : legacy_track_list_(std::move(legacy_tracks)) {
-  ng_track_list_.AddRepeater(legacy_track_list_);
-}
-
-Vector<GridTrackSize, 1>& GridTrackList::LegacyTrackList() {
-  return legacy_track_list_;
-}
-
-const Vector<GridTrackSize, 1>& GridTrackList::LegacyTrackList() const {
-  return legacy_track_list_;
-}
-
-NGGridTrackList& GridTrackList::NGTrackList() {
-  return ng_track_list_;
-}
-const NGGridTrackList& GridTrackList::NGTrackList() const {
-  return ng_track_list_;
-}
-
-void GridTrackList::SetNGGridTrackList(const NGGridTrackList& other) {
-  ng_track_list_ = other;
-}
-
-void GridTrackList::operator=(const GridTrackList& other) {
-  AssignFrom(other);
-}
-
-bool GridTrackList::operator==(const GridTrackList& other) const {
-  return ng_track_list_ == other.ng_track_list_;
-}
-
-bool GridTrackList::operator!=(const GridTrackList& other) const {
-  return !(*this == other);
-}
-
-void GridTrackList::AssignFrom(const GridTrackList& other) {
-  ng_track_list_ = other.ng_track_list_;
-  legacy_track_list_ = other.legacy_track_list_;
 }
 
 }  // namespace blink

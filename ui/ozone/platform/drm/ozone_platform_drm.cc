@@ -7,17 +7,18 @@
 #include <gbm.h>
 #include <stdlib.h>
 #include <xf86drm.h>
+
 #include <memory>
 #include <utility>
 
 #include "base/check.h"
 #include "base/command_line.h"
+#include "base/containers/flat_set.h"
 #include "base/functional/bind.h"
 #include "base/memory/weak_ptr.h"
 #include "base/notreached.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/platform_thread.h"
-#include "build/chromeos_buildflags.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "ui/base/buildflags.h"
@@ -27,6 +28,7 @@
 #include "ui/events/ozone/layout/keyboard_layout_engine_manager.h"
 #include "ui/gfx/linux/client_native_pixmap_dmabuf.h"
 #include "ui/gfx/native_widget_types.h"
+#include "ui/ozone/common/base_keyboard_hook.h"
 #include "ui/ozone/common/bitmap_cursor_factory.h"
 #include "ui/ozone/platform/drm/common/drm_util.h"
 #include "ui/ozone/platform/drm/gpu/drm_device_generator.h"
@@ -47,7 +49,6 @@
 #include "ui/ozone/platform/drm/mojom/drm_device.mojom.h"
 #include "ui/ozone/public/gpu_platform_support_host.h"
 #include "ui/ozone/public/ozone_platform.h"
-#include "ui/ozone/public/ozone_switches.h"
 #include "ui/ozone/public/platform_screen.h"
 #include "ui/platform_window/platform_window_init_properties.h"
 
@@ -58,7 +59,7 @@
 #include "ui/events/ozone/layout/stub/stub_keyboard_layout_engine.h"
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "ui/base/ime/ash/input_method_ash.h"
 #else
 #include "ui/base/ime/input_method_minimal.h"
@@ -85,10 +86,7 @@ class OzonePlatformDrm : public OzonePlatform {
     return event_factory_ozone_->input_controller();
   }
 
-  std::unique_ptr<PlatformScreen> CreateScreen() override {
-    NOTREACHED();
-    return nullptr;
-  }
+  std::unique_ptr<PlatformScreen> CreateScreen() override { NOTREACHED(); }
   void InitScreen(PlatformScreen* screen) override { NOTREACHED(); }
 
   GpuPlatformSupportHost* GetGpuPlatformSupportHost() override {
@@ -175,7 +173,7 @@ class OzonePlatformDrm : public OzonePlatform {
   std::unique_ptr<InputMethod> CreateInputMethod(
       ImeKeyEventDispatcher* ime_key_event_dispatcher,
       gfx::AcceleratedWidget) override {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     return std::make_unique<ash::InputMethodAsh>(ime_key_event_dispatcher);
 #else
     return std::make_unique<InputMethodMinimal>(ime_key_event_dispatcher);
@@ -187,6 +185,8 @@ class OzonePlatformDrm : public OzonePlatform {
     return gfx::ClientNativePixmapDmaBuf::IsConfigurationSupported(format,
                                                                    usage);
   }
+
+  bool IsWindowCompositingSupported() const override { return true; }
 
   bool InitializeUI(const InitParams& args) override {
     // Ozone drm can operate in two modes configured at runtime.
@@ -233,12 +233,6 @@ class OzonePlatformDrm : public OzonePlatform {
   }
 
   void InitializeGPU(const InitParams& args) override {
-    // Check if buffer bandwidth compression is disabled
-    if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-            switches::kDisableBufferBWCompression)) {
-      setenv("MINIGBM_DEBUG", "nocompression", 1);
-    }
-
     gpu_task_runner_ = base::SingleThreadTaskRunner::GetCurrentDefault();
 
     // NOTE: Can't start the thread here since this is called before sandbox
@@ -252,7 +246,7 @@ class OzonePlatformDrm : public OzonePlatform {
     host_properties_.supports_native_pixmaps = true;
 
     overlay_manager_ = std::make_unique<DrmOverlayManagerGpu>(
-        drm_thread_proxy_.get(),
+        drm_thread_proxy_.get(), args.handle_overlays_swap_failure,
         args.allow_sync_and_real_buffer_page_flip_testing);
 
     // If gpu is in a separate process, rest of the initialization happens after
@@ -301,6 +295,20 @@ class OzonePlatformDrm : public OzonePlatform {
 
     const bool block_for_drm_thread = false;
     StartDrmThread(block_for_drm_thread);
+  }
+
+  std::unique_ptr<PlatformKeyboardHook> CreateKeyboardHook(
+      PlatformKeyboardHookTypes type,
+      base::RepeatingCallback<void(KeyEvent* event)> callback,
+      std::optional<base::flat_set<DomCode>> dom_codes,
+      gfx::AcceleratedWidget accelerated_widget) override {
+    switch (type) {
+      case PlatformKeyboardHookTypes::kModifier:
+        return std::make_unique<BaseKeyboardHook>(std::move(dom_codes),
+                                                  std::move(callback));
+      case PlatformKeyboardHookTypes::kMedia:
+        return nullptr;
+    }
   }
 
  private:

@@ -5,7 +5,7 @@
 #include "chromeos/ash/components/sync_wifi/local_network_collector_impl.h"
 
 #include "base/barrier_closure.h"
-#include "base/guid.h"
+#include "base/uuid.h"
 #include "chromeos/ash/components/dbus/shill/shill_service_client.h"
 #include "chromeos/ash/components/network/network_event_log.h"
 #include "chromeos/ash/components/network/network_handler.h"
@@ -143,7 +143,7 @@ void LocalNetworkCollectorImpl::GetSyncableNetwork(const std::string& guid,
   }
 
   if (!network) {
-    std::move(callback).Run(absl::nullopt);
+    std::move(callback).Run(std::nullopt);
     return;
   }
 
@@ -153,7 +153,7 @@ void LocalNetworkCollectorImpl::GetSyncableNetwork(const std::string& guid,
   StartGetNetworkDetails(network, request_guid);
 }
 
-absl::optional<NetworkIdentifier>
+std::optional<NetworkIdentifier>
 LocalNetworkCollectorImpl::GetNetworkIdentifierFromGuid(
     const std::string& guid) {
   for (const network_config::mojom::NetworkStatePropertiesPtr& network :
@@ -162,7 +162,7 @@ LocalNetworkCollectorImpl::GetNetworkIdentifierFromGuid(
       return NetworkIdentifier::FromMojoNetwork(network);
     }
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 void LocalNetworkCollectorImpl::SetNetworkMetadataStore(
@@ -171,7 +171,7 @@ void LocalNetworkCollectorImpl::SetNetworkMetadataStore(
 }
 
 std::string LocalNetworkCollectorImpl::InitializeRequest() {
-  std::string request_guid = base::GenerateGUID();
+  std::string request_guid = base::Uuid::GenerateRandomV4().AsLowercaseString();
   request_guid_to_complete_protos_[request_guid] =
       std::vector<sync_pb::WifiConfigurationSpecifics>();
   request_guid_to_in_flight_networks_[request_guid] =
@@ -303,7 +303,7 @@ void LocalNetworkCollectorImpl::OnRequestFinished(
     std::vector<sync_pb::WifiConfigurationSpecifics>& list =
         request_guid_to_complete_protos_[request_guid];
     DCHECK(list.size() <= 1);
-    absl::optional<sync_pb::WifiConfigurationSpecifics> result;
+    std::optional<sync_pb::WifiConfigurationSpecifics> result;
     if (list.size() == 1) {
       result = list[0];
     }

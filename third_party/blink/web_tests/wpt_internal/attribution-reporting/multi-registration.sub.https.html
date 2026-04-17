@@ -4,11 +4,11 @@
 <script src="/common/get-host-info.sub.js"></script>
 <script src="/resources/testharness.js"></script>
 <script src="/resources/testharnessreport.js"></script>
-<script src="resources/helpers.js"></script>
+<script src="/attribution-reporting/resources/helpers.js"></script>
 <body>
 <script>
 attribution_reporting_promise_test(async t => {
-  const otherReportingOrigin = get_host_info().HTTPS_REMOTE_ORIGIN;
+  const otherReportingOrigin = get_host_info().HTTPS_NOTSAMESITE_ORIGIN;
 
   registerAttributionSrcByImg([
     createRedirectChain([

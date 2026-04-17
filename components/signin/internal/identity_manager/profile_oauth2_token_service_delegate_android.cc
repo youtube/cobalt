@@ -14,12 +14,15 @@
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
-#include "components/signin/public/android/jni_headers/ProfileOAuth2TokenServiceDelegate_jni.h"
 #include "components/signin/public/base/account_consistency_method.h"
+#include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "google_apis/gaia/gaia_auth_util.h"
 #include "google_apis/gaia/oauth2_access_token_fetcher.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/signin/public/android/jni_headers/ProfileOAuth2TokenServiceDelegate_jni.h"
 
 using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
@@ -86,7 +89,7 @@ AndroidAccessTokenFetcher::AndroidAccessTokenFetcher(
       request_was_cancelled_(false),
       weak_factory_(this) {}
 
-AndroidAccessTokenFetcher::~AndroidAccessTokenFetcher() {}
+AndroidAccessTokenFetcher::~AndroidAccessTokenFetcher() = default;
 
 void AndroidAccessTokenFetcher::Start(const std::string& client_id,
                                       const std::string& client_secret,
@@ -137,8 +140,9 @@ std::string AndroidAccessTokenFetcher::CombineScopes(
   std::string scope;
   for (std::vector<std::string>::const_iterator it = scopes.begin();
        it != scopes.end(); ++it) {
-    if (!scope.empty())
+    if (!scope.empty()) {
       scope += " ";
+    }
     scope += *it;
   }
   return scope;
@@ -158,13 +162,12 @@ ProfileOAuth2TokenServiceDelegateAndroid::
   JNIEnv* env = AttachCurrentThread();
   base::android::ScopedJavaLocalRef<jobject> local_java_ref =
       signin::Java_ProfileOAuth2TokenServiceDelegate_Constructor(
-          env, reinterpret_cast<intptr_t>(this),
-          account_tracker_service_->GetJavaObject());
+          env, reinterpret_cast<intptr_t>(this));
   java_ref_.Reset(env, local_java_ref.obj());
 }
 
 ProfileOAuth2TokenServiceDelegateAndroid::
-    ~ProfileOAuth2TokenServiceDelegateAndroid() {}
+    ~ProfileOAuth2TokenServiceDelegateAndroid() = default;
 
 ScopedJavaLocalRef<jobject>
 ProfileOAuth2TokenServiceDelegateAndroid::GetJavaObject() {
@@ -176,6 +179,12 @@ bool ProfileOAuth2TokenServiceDelegateAndroid::RefreshTokenIsAvailable(
   DVLOG(1)
       << "ProfileOAuth2TokenServiceDelegateAndroid::RefreshTokenIsAvailable"
       << " account= " << account_id;
+  if (base::FeatureList::IsEnabled(
+          switches::kMakeAccountsAvailableInIdentityManager)) {
+    std::vector<CoreAccountId> accounts = GetValidAccounts();
+    return base::Contains(accounts, account_id);
+  }
+
   std::string account_name = MapAccountIdToAccountName(account_id);
   if (account_name.empty()) {
     // This corresponds to the case when the account with id |account_id| is not
@@ -200,11 +209,12 @@ ProfileOAuth2TokenServiceDelegateAndroid::GetAccounts() const {
 }
 
 std::vector<CoreAccountId>
-ProfileOAuth2TokenServiceDelegateAndroid::GetValidAccounts() {
+ProfileOAuth2TokenServiceDelegateAndroid::GetValidAccounts() const {
   std::vector<CoreAccountId> ids;
   for (const CoreAccountId& id : GetAccounts()) {
-    if (ValidateAccountId(id))
+    if (ValidateAccountId(id)) {
       ids.emplace_back(id);
+    }
   }
   return ids;
 }
@@ -218,7 +228,8 @@ std::unique_ptr<OAuth2AccessTokenFetcher>
 ProfileOAuth2TokenServiceDelegateAndroid::CreateAccessTokenFetcher(
     const CoreAccountId& account_id,
     scoped_refptr<network::SharedURLLoaderFactory> url_factory,
-    OAuth2AccessTokenConsumer* consumer) {
+    OAuth2AccessTokenConsumer* consumer,
+    const std::string& token_binding_challenge) {
   DVLOG(1)
       << "ProfileOAuth2TokenServiceDelegateAndroid::CreateAccessTokenFetcher"
       << " account= " << account_id;
@@ -244,44 +255,34 @@ void ProfileOAuth2TokenServiceDelegateAndroid::OnAccessTokenInvalidated(
 }
 
 void ProfileOAuth2TokenServiceDelegateAndroid::
-    ReloadAllAccountsFromSystemWithPrimaryAccount(
-        const absl::optional<CoreAccountId>& primary_account_id) {
-  JNIEnv* env = AttachCurrentThread();
-
-  ScopedJavaLocalRef<jstring> j_account_id =
-      primary_account_id.has_value()
-          ? ConvertUTF8ToJavaString(env, primary_account_id->ToString())
-          : nullptr;
-  signin::
-      Java_ProfileOAuth2TokenServiceDelegate_seedAndReloadAccountsWithPrimaryAccount(
-          env, java_ref_, j_account_id);
-}
-
-void ProfileOAuth2TokenServiceDelegateAndroid::
-    ReloadAllAccountsWithPrimaryAccountAfterSeeding(
-        JNIEnv* env,
-        const base::android::JavaParamRef<jstring>& j_primary_account_id,
-        const base::android::JavaParamRef<jobjectArray>&
-            j_device_account_names) {
-  absl::optional<CoreAccountId> primary_account_id;
-  if (j_primary_account_id) {
-    primary_account_id = CoreAccountId::FromString(
-        ConvertJavaStringToUTF8(env, j_primary_account_id));
-  }
-  std::vector<std::string> device_account_names;
-  base::android::AppendJavaStringArrayToStringVector(
-      env, j_device_account_names, &device_account_names);
+    SeedAccountsThenReloadAllAccountsWithPrimaryAccount(
+        const std::vector<AccountInfo>& accounts,
+        const std::optional<CoreAccountId>& primary_account_id) {
+  // Seeds the accounts but doesn't remove the stale accounts from the
+  // AccountTrackerService yet. We first need to send OnRefreshTokenRevoked
+  // notifications for accounts being removed. Therefore we keep the accounts
+  // until the notifications have been processed.
+  account_tracker_service_->SeedAccountsInfo(
+      accounts, primary_account_id,
+      /*should_remove_stale_accounts=*/false);
   std::vector<CoreAccountId> account_ids;
-  for (const std::string& name : device_account_names) {
-    CoreAccountId id(MapAccountNameToAccountId(name));
-    if (!id.empty())
+  for (const auto& account : accounts) {
+    CoreAccountId id(account.account_id);
+    if (!id.empty()) {
       account_ids.push_back(std::move(id));
+    }
   }
+  // Fires the notification that refresh token has been revoked for signed out
+  // accounts
   UpdateAccountList(primary_account_id, GetValidAccounts(), account_ids);
+  // Seeds again, now removing stale accounts
+  account_tracker_service_->SeedAccountsInfo(
+      accounts, primary_account_id,
+      /*should_remove_stale_accounts=*/true);
 }
 
 void ProfileOAuth2TokenServiceDelegateAndroid::UpdateAccountList(
-    const absl::optional<CoreAccountId>& signed_in_account_id,
+    const std::optional<CoreAccountId>& signed_in_account_id,
     const std::vector<CoreAccountId>& prev_ids,
     const std::vector<CoreAccountId>& curr_ids) {
   DVLOG(1) << "ProfileOAuth2TokenServiceDelegateAndroid::UpdateAccountList:"
@@ -292,7 +293,7 @@ void ProfileOAuth2TokenServiceDelegateAndroid::UpdateAccountList(
            << " prev_ids=" << prev_ids.size()
            << " curr_ids=" << curr_ids.size();
   // Clear any auth errors so that client can retry to get access tokens.
-  ClearAuthError(absl::nullopt);
+  ClearAuthError(std::nullopt);
 
   std::vector<CoreAccountId> refreshed_ids;
   std::vector<CoreAccountId> revoked_ids;
@@ -305,39 +306,36 @@ void ProfileOAuth2TokenServiceDelegateAndroid::UpdateAccountList(
   // FireRefreshToken* methods.
   SetAccounts(keep_accounts ? curr_ids : std::vector<CoreAccountId>());
 
-  for (const CoreAccountId& refreshed_id : refreshed_ids)
+  for (const CoreAccountId& refreshed_id : refreshed_ids) {
     FireRefreshTokenAvailable(refreshed_id);
-  for (const CoreAccountId& revoked_id : revoked_ids)
+  }
+  for (const CoreAccountId& revoked_id : revoked_ids) {
     FireRefreshTokenRevoked(revoked_id);
+  }
   if (fire_refresh_token_loaded_ == RT_WAIT_FOR_VALIDATION) {
     fire_refresh_token_loaded_ = RT_LOADED;
     FireRefreshTokensLoaded();
   } else if (fire_refresh_token_loaded_ == RT_LOAD_NOT_START) {
     fire_refresh_token_loaded_ = RT_HAS_BEEN_VALIDATED;
   }
-
-  // Clear accounts that no longer exist on device from AccountTrackerService.
-  std::vector<AccountInfo> accounts_info =
-      account_tracker_service_->GetAccounts();
-  for (const AccountInfo& info : accounts_info) {
-    if (!base::Contains(curr_ids, info.account_id))
-      account_tracker_service_->RemoveAccount(info.account_id);
-  }
 }
 
 bool ProfileOAuth2TokenServiceDelegateAndroid::UpdateAccountList(
-    const absl::optional<CoreAccountId>& signed_in_id,
+    const std::optional<CoreAccountId>& signed_in_id,
     const std::vector<CoreAccountId>& prev_ids,
     const std::vector<CoreAccountId>& curr_ids,
     std::vector<CoreAccountId>* refreshed_ids,
     std::vector<CoreAccountId>* revoked_ids) {
   bool keep_accounts =
-      signed_in_id.has_value() && base::Contains(curr_ids, *signed_in_id);
+      base::FeatureList::IsEnabled(
+          switches::kMakeAccountsAvailableInIdentityManager) ||
+      (signed_in_id.has_value() && base::Contains(curr_ids, *signed_in_id));
   if (keep_accounts) {
     // Revoke token for ids that have been removed from the device.
     for (const CoreAccountId& prev_id : prev_ids) {
-      if (signed_in_id.has_value() && prev_id == *signed_in_id)
+      if (signed_in_id.has_value() && prev_id == *signed_in_id) {
         continue;
+      }
       if (!base::Contains(curr_ids, prev_id)) {
         DVLOG(1)
             << "ProfileOAuth2TokenServiceDelegateAndroid::UpdateAccountList:"
@@ -353,8 +351,9 @@ bool ProfileOAuth2TokenServiceDelegateAndroid::UpdateAccountList(
       refreshed_ids->push_back(*signed_in_id);
     }
     for (const CoreAccountId& curr_id : curr_ids) {
-      if (signed_in_id.has_value() && curr_id == *signed_in_id)
+      if (signed_in_id.has_value() && curr_id == *signed_in_id) {
         continue;
+      }
       DVLOG(1) << "ProfileOAuth2TokenServiceDelegateAndroid::UpdateAccountList:"
                << "refreshed=" << curr_id;
       refreshed_ids->push_back(curr_id);
@@ -367,8 +366,9 @@ bool ProfileOAuth2TokenServiceDelegateAndroid::UpdateAccountList(
       revoked_ids->push_back(*signed_in_id);
     }
     for (const CoreAccountId& prev_id : prev_ids) {
-      if (signed_in_id.has_value() && prev_id == *signed_in_id)
+      if (signed_in_id.has_value() && prev_id == *signed_in_id) {
         continue;
+      }
       DVLOG(1) << "ProfileOAuth2TokenServiceDelegateAndroid::UpdateAccountList:"
                << "revoked=" << prev_id;
       revoked_ids->push_back(prev_id);
@@ -387,7 +387,8 @@ void ProfileOAuth2TokenServiceDelegateAndroid::FireRefreshTokensLoaded() {
   ProfileOAuth2TokenServiceDelegate::FireRefreshTokensLoaded();
 }
 
-void ProfileOAuth2TokenServiceDelegateAndroid::RevokeAllCredentials() {
+void ProfileOAuth2TokenServiceDelegateAndroid::RevokeAllCredentialsInternal(
+    signin_metrics::SourceForRefreshTokenOperation source) {
   DVLOG(1) << "ProfileOAuth2TokenServiceDelegateAndroid::RevokeAllCredentials";
   ScopedBatchChange batch(this);
   std::vector<CoreAccountId> accounts_to_revoke = GetAccounts();
@@ -396,18 +397,22 @@ void ProfileOAuth2TokenServiceDelegateAndroid::RevokeAllCredentials() {
   // |FireRefreshTokenRevoked|.
   SetAccounts(std::vector<CoreAccountId>());
 
-  for (const CoreAccountId& account : accounts_to_revoke)
+  for (const CoreAccountId& account : accounts_to_revoke) {
     FireRefreshTokenRevoked(account);
+  }
 
-  JNIEnv* env = AttachCurrentThread();
-  signin::
-      Java_ProfileOAuth2TokenServiceDelegate_invalidateAccountsSeedingStatus(
-          env, java_ref_);
+  // We don't expose the list of accounts if the user is signed out, so it is
+  // safe to assume that the account list is empty here.
+  // TODO(crbug.com/40287987): Once we expose the list of accounts all the
+  // time, this assumption should be re-evaluated.
+  const std::vector<AccountInfo> empty_accounts_list =
+      std::vector<AccountInfo>();
+  SeedAccountsThenReloadAllAccountsWithPrimaryAccount(
+      std::vector<AccountInfo>(), std::nullopt);
 }
 
-void ProfileOAuth2TokenServiceDelegateAndroid::LoadCredentials(
-    const CoreAccountId& primary_account_id,
-    bool is_syncing) {
+void ProfileOAuth2TokenServiceDelegateAndroid::LoadCredentialsInternal(
+    const CoreAccountId& primary_account_id) {
   DCHECK_EQ(signin::LoadCredentialsState::LOAD_CREDENTIALS_NOT_STARTED,
             load_credentials_state());
   set_load_credentials_state(
@@ -450,28 +455,17 @@ void JNI_ProfileOAuth2TokenServiceDelegate_OnOAuth2TokenFetched(
     JNIEnv* env,
     const JavaParamRef<jstring>& authToken,
     const jlong expiration_time_secs,
-    jboolean isTransientError,
+    GoogleServiceAuthError& authError,
     jlong nativeCallback) {
   std::string token;
-  if (authToken)
+  if (authToken) {
     token = ConvertJavaStringToUTF8(env, authToken);
+  }
   std::unique_ptr<FetchOAuth2TokenCallback> heap_callback(
       reinterpret_cast<FetchOAuth2TokenCallback*>(nativeCallback));
-  GoogleServiceAuthError err = GoogleServiceAuthError::AuthErrorNone();
-  if (!authToken) {
-    err =
-        isTransientError
-            ? GoogleServiceAuthError(GoogleServiceAuthError::CONNECTION_FAILED)
-            : GoogleServiceAuthError::FromInvalidGaiaCredentialsReason(
-                  GoogleServiceAuthError::InvalidGaiaCredentialsReason::
-                      CREDENTIALS_REJECTED_BY_SERVER);
-  }
 
-  const base::Time expiration_time =
-      expiration_time_secs == 0
-          ? base::Time()
-          : base::Time::FromJavaTime(expiration_time_secs * 1000);
-
-  std::move(*heap_callback).Run(err, token, expiration_time);
+  std::move(*heap_callback)
+      .Run(authError, token,
+           base::Time::FromSecondsSinceUnixEpoch(expiration_time_secs));
 }
 }  // namespace signin

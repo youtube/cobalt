@@ -53,6 +53,7 @@ class BLINK_EXPORT WebElementCollection {
   }
 
   bool IsNull() const { return private_.IsNull(); }
+  explicit operator bool() const { return !IsNull(); }
 
   void Reset();
   void Assign(const WebElementCollection&);
@@ -67,7 +68,7 @@ class BLINK_EXPORT WebElementCollection {
 #endif
 
  private:
-  WebPrivatePtr<HTMLCollection> private_;
+  WebPrivatePtrForGC<HTMLCollection> private_;
   mutable unsigned current_;
 };
 

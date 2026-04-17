@@ -160,6 +160,10 @@ interface HandwritingRecognizer {
 };
 
 // Enum indicates the result of LoadHandwritingModel in mlservice.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// Keep this enum in sync with MachineLearningServiceHandwritingModelResultEvent
+// in tools/metrics/histograms/metadata/cros_ml/enums.xml.
 [Stable, Extensible]
 enum LoadHandwritingModelResult {
   OK = 0,
@@ -184,7 +188,7 @@ enum LoadHandwritingModelResult {
   // on the device. (checked in chrome)
   DLC_DOES_NOT_EXIST = 6,
 
-  // If the dlc is on the device, but InstallDlc returns an error.
+  // If the dlc is on the device, but Install returns an error.
   // (checked in chrome).
   DLC_INSTALL_ERROR = 7,
 

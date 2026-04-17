@@ -25,7 +25,6 @@ std::string EncSchemeToString(securemessage::EncScheme scheme) {
   }
 
   NOTREACHED();
-  return std::string();
 }
 
 // Converts signature type to a string representation used by EasyUnlock dbus
@@ -39,11 +38,9 @@ std::string SigSchemeToString(securemessage::SigScheme scheme) {
     case securemessage::RSA2048_SHA256:
       // RSA2048_SHA256 is not supported by the daemon.
       NOTREACHED();
-      return std::string();
   }
 
   NOTREACHED();
-  return std::string();
 }
 
 }  // namespace

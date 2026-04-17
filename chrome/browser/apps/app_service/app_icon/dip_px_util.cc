@@ -5,12 +5,12 @@
 #include "chrome/browser/apps/app_service/app_icon/dip_px_util.h"
 
 #include "base/check_op.h"
-#include "ui/base/layout.h"
+#include "ui/base/resource/resource_scale_factor.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
 #include "ui/gfx/geometry/size.h"
 
-// TODO(crbug.com/826982): plumb through enough information to use one of
+// TODO(crbug.com/40569217): plumb through enough information to use one of
 // Screen::GetDisplayNearest{Window/View/Point}. That way in multi-monitor
 // setups where one screen is hidpi and the other one isn't, we don't always do
 // the wrong thing.

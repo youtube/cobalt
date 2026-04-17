@@ -5,14 +5,20 @@
 #ifndef CHROME_BROWSER_ASH_ACCESSIBILITY_SPEECH_MONITOR_H_
 #define CHROME_BROWSER_ASH_ACCESSIBILITY_SPEECH_MONITOR_H_
 
-#include <chrono>
+#include <map>
+#include <optional>
 
 #include "base/containers/circular_deque.h"
+#include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
+#include "base/time/time.h"
 #include "content/public/browser/tts_platform.h"
-#include "content/public/test/test_utils.h"
 
 // TODO(katie): This may need to move into Content as part of the TTS refactor.
+
+namespace content {
+class MessageLoopRunner;
+}  // namespace content
 
 namespace ash {
 namespace test {
@@ -36,6 +42,48 @@ class SpeechMonitor : public content::TtsPlatform {
 
   virtual ~SpeechMonitor();
 
+  // Holds an expectation for utterances.
+  class Expectation {
+   public:
+    explicit Expectation(const std::string& text);
+    ~Expectation();
+    Expectation(const Expectation&);
+
+    // Sets to perform regular expression matching.
+    Expectation& AsPattern(bool enable = true) {
+      as_pattern_ = true;
+      return *this;
+    }
+
+    // Sets the expected locale for the given text.
+    Expectation& WithLocale(const std::string& locale) {
+      locale_ = locale;
+      return *this;
+    }
+
+    // Sets the unexpected utterances until this consumes the expectation.
+    Expectation& WithoutText(const std::vector<std::string>& text) {
+      disallowed_text_ = text;
+      return *this;
+    }
+
+    // Checks the given list of utterances matches this expectation.
+    // Returns the iterator that points the matched item in the given list.
+    // If not matched, returns the end() of the given list.
+    base::circular_deque<SpeechMonitorUtterance>::const_iterator Matches(
+        const base::circular_deque<SpeechMonitorUtterance>& queue) const;
+
+    std::string ToString() const;
+
+   private:
+    std::string OptionsToString() const;
+
+    std::string text_;
+    bool as_pattern_ = false;
+    std::optional<std::string> locale_;
+    std::vector<std::string> disallowed_text_;
+  };
+
   // Use these apis if you want to write an async test e.g.
   // sm_.ExpectSpeech("foo");
   // sm_.Call([this]() { DoSomething(); })
@@ -45,18 +93,25 @@ class SpeechMonitor : public content::TtsPlatform {
 #pragma clang diagnostic ignored "-Wpredefined-identifier-outside-function"
 
   // Adds an expectation of spoken text.
+  void ExpectSpeech(const Expectation& expectation,
+                    const base::Location& location = FROM_HERE);
   void ExpectSpeech(const std::string& text,
                     const base::Location& location = FROM_HERE);
   void ExpectSpeechPattern(const std::string& pattern,
                            const base::Location& location = FROM_HERE);
-  void ExpectSpeechPatternWithLocale(
-      const std::string& pattern,
-      const std::string& locale,
-      const base::Location& location = FROM_HERE);
   void ExpectNextSpeechIsNot(const std::string& text,
                              const base::Location& location = FROM_HERE);
   void ExpectNextSpeechIsNotPattern(const std::string& pattern,
                                     const base::Location& location = FROM_HERE);
+  void ExpectHadNoRepeatedSpeech(const base::Location& location = FROM_HERE);
+
+  // TTS parameters are harder to match against the entire spoken text, so the
+  // expectations here work a bit more loosely:
+  // * For matching text, use the methods above;
+  // * use this to check if some TTS parameters were set when a specific piece
+  // of text was being spoken.
+  std::optional<content::UtteranceContinuousParameters>
+  GetParamsForPreviouslySpokenTextPattern(const std::string& pattern);
 
   // Adds a call to be included in replay.
   void Call(std::function<void()> func,
@@ -67,8 +122,23 @@ class SpeechMonitor : public content::TtsPlatform {
   // Replays all expectations.
   void Replay();
 
+  // Finishes an in-progress utterance if `send_word_events_and_wait_to_finish`
+  // was set.
+  void FinishSpeech();
+
   // Delayed utterances.
-  double GetDelayForLastUtteranceMS();
+  base::TimeDelta GetDelayForLastUtterance() const {
+    return delay_for_last_utterance_;
+  }
+
+  // When set to `true`, SpeechMonitor will send `START` and `WORD` events for
+  // each utterance and will wait to send the `END` event until `FinishSpeech()`
+  // is called. When `false` (default), the user does not need to call
+  // `FinishSpeech()` explicitly. This should be called after word events are
+  // consumed and before `ExpectSpeech` and `Replay`.
+  void send_word_events_and_wait_to_finish(bool wait) {
+    send_word_events_and_wait_to_finish_ = wait;
+  }
 
   int stop_count() { return stop_count_; }
 
@@ -99,7 +169,6 @@ class SpeechMonitor : public content::TtsPlatform {
   void Shutdown() override;
   void FinalizeVoiceOrdering(std::vector<content::VoiceData>& voices) override;
   void RefreshVoices() override;
-  content::ExternalPlatformDelegate* GetExternalPlatformDelegate() override;
 
   void MaybeContinueReplay();
   void MaybePrintExpectations();
@@ -109,20 +178,20 @@ class SpeechMonitor : public content::TtsPlatform {
 
   std::string error_;
 
-  // Calculates the milliseconds elapsed since the last call to Speak().
-  double CalculateUtteranceDelayMS();
-
-  // Stores the milliseconds elapsed since the last call to Speak().
-  double delay_for_last_utterance_ms_;
+  // Stores the time elapsed since the last call to Speak().
+  base::TimeDelta delay_for_last_utterance_;
 
   // Stores the last time Speak() was called.
-  std::chrono::steady_clock::time_point time_of_last_utterance_;
+  base::TimeTicks time_of_last_utterance_;
 
   // Queue of expectations to be replayed.
   std::vector<ReplayArgs> replay_queue_;
 
   // Queue of expectations already satisfied.
   std::vector<std::string> replayed_queue_;
+
+  // List of parameters for a given text.
+  std::map<std::string, content::UtteranceContinuousParameters> text_params_;
 
   // Blocks this test when replaying expectations.
   scoped_refptr<content::MessageLoopRunner> replay_loop_runner_;
@@ -135,6 +204,15 @@ class SpeechMonitor : public content::TtsPlatform {
 
   // The number of times StopSpeaking() has been called.
   int stop_count_ = 0;
+
+  // Indicates if there were two consecutive utterances that match (i.e.
+  // repeated speech).
+  std::vector<std::string> repeated_speech_;
+
+  bool send_word_events_and_wait_to_finish_ = false;
+  std::string utterance_ = "";
+  int utterance_id_ = -1;
+  base::OnceCallback<void(bool)> on_speak_finished_;
 
   base::WeakPtrFactory<SpeechMonitor> weak_factory_{this};
 };

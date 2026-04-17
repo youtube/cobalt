@@ -11,6 +11,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -20,7 +21,6 @@
 #include "base/values.h"
 #include "net/base/host_port_pair.h"
 #include "net/cert/test_root_certs.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class GURL;
 
@@ -68,10 +68,6 @@ class BaseTestServer {
       // An RSA certificate with the keyUsage extension specifying that the key
       // is only for digital signatures.
       CERT_KEY_USAGE_RSA_DIGITAL_SIGNATURE,
-
-      // A certificate with invalid notBefore and notAfter times. Windows'
-      // certificate library will not parse this certificate.
-      CERT_BAD_VALIDITY,
 
       // A certificate that covers a number of test names. See [test_names] in
       // net/data/ssl/scripts/ee.cnf. More may be added by editing this list and
@@ -223,7 +219,7 @@ class BaseTestServer {
   // { argument-name: argument-value, ... }
   //
   // Returns nullopt if an invalid configuration is specified.
-  absl::optional<base::Value::Dict> GenerateArguments() const;
+  std::optional<base::Value::Dict> GenerateArguments() const;
 
  private:
   void Init(const std::string& host);

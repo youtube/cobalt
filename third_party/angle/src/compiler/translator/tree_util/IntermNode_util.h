@@ -10,6 +10,7 @@
 #define COMPILER_TRANSLATOR_INTERMNODEUTIL_H_
 
 #include "compiler/translator/IntermNode.h"
+#include "compiler/translator/Name.h"
 #include "compiler/translator/tree_util/FindFunction.h"
 
 namespace sh
@@ -34,7 +35,11 @@ TIntermConstantUnion *CreateIndexNode(int index);
 TIntermConstantUnion *CreateUIntNode(unsigned int value);
 TIntermConstantUnion *CreateBoolNode(bool value);
 
+// Create temporary variable of known type |type|.
 TVariable *CreateTempVariable(TSymbolTable *symbolTable, const TType *type);
+
+// Create temporary variable compatible with user-provide type |type|.
+// Possibly creates a new type. The qualifer of the new type of the new variable is |qualifier|.
 TVariable *CreateTempVariable(TSymbolTable *symbolTable, const TType *type, TQualifier qualifier);
 
 TIntermSymbol *CreateTempSymbolNode(const TVariable *tempVariable);
@@ -70,17 +75,43 @@ const TVariable *DeclareInterfaceBlock(TIntermBlock *root,
                                        const ImmutableString &blockTypeName,
                                        const ImmutableString &blockVariableName);
 
+// Creates a variable for a struct type.
+const TVariable &CreateStructTypeVariable(TSymbolTable &symbolTable, const TStructure &structure);
+
+// Creates a variable for a struct instance.
+const TVariable &CreateInstanceVariable(
+    TSymbolTable &symbolTable,
+    const TStructure &structure,
+    const Name &name,
+    TQualifier qualifier                              = TQualifier::EvqTemporary,
+    const angle::Span<const unsigned int> *arraySizes = nullptr);
+
+// Accesses a field for the given node with the given field name.
+// The node must be a struct instance.
+TIntermBinary &AccessField(const TVariable &structInstanceVar, const Name &field);
+
+// Accesses a field for the given node with the given field name.
+// The node must be a struct instance.
+TIntermBinary &AccessField(TIntermTyped &object, const Name &field);
+
+// Accesses a field for the given node by its field index.
+// The node must be a struct instance.
+TIntermBinary &AccessFieldByIndex(TIntermTyped &object, int index);
+
 // If the input node is nullptr, return nullptr.
 // If the input node is a block node, return it.
 // If the input node is not a block node, put it inside a block node and return that.
 TIntermBlock *EnsureBlock(TIntermNode *node);
 
+// If the input node is nullptr, return a new block.
+// If the input node is a block node, return it.
+// If the input node is not a block node, put it inside a block node and return that.
+TIntermBlock *EnsureLoopBodyBlock(TIntermNode *node);
+
 // Should be called from inside Compiler::compileTreeImpl() where the global level is in scope.
 TIntermSymbol *ReferenceGlobalVariable(const ImmutableString &name,
                                        const TSymbolTable &symbolTable);
 
-// Note: this can't access desktop GLSL built-ins. Those can only be accessed directly through
-// BuiltIn.h.
 TIntermSymbol *ReferenceBuiltInVariable(const ImmutableString &name,
                                         const TSymbolTable &symbolTable,
                                         int shaderVersion);
@@ -98,12 +129,10 @@ TIntermTyped *CreateBuiltInUnaryFunctionCallNode(const char *name,
                                                  const TSymbolTable &symbolTable,
                                                  int shaderVersion);
 
-int GetESSLOrGLSLVersion(ShShaderSpec spec, int esslVersion, int glslVersion);
-
-inline void GetSwizzleIndex(TVector<int> *indexOut) {}
+inline void GetSwizzleIndex(TVector<uint32_t> *indexOut) {}
 
 template <typename T, typename... ArgsT>
-void GetSwizzleIndex(TVector<int> *indexOut, T arg, ArgsT... args)
+void GetSwizzleIndex(TVector<uint32_t> *indexOut, T arg, ArgsT... args)
 {
     indexOut->push_back(arg);
     GetSwizzleIndex(indexOut, args...);
@@ -112,7 +141,7 @@ void GetSwizzleIndex(TVector<int> *indexOut, T arg, ArgsT... args)
 template <typename... ArgsT>
 TIntermSwizzle *CreateSwizzle(TIntermTyped *reference, ArgsT... args)
 {
-    TVector<int> swizzleIndex;
+    TVector<uint32_t> swizzleIndex;
     GetSwizzleIndex(&swizzleIndex, args...);
     return new TIntermSwizzle(reference, swizzleIndex);
 }

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <array>
+
 // This file looks like a unit test, but it contains benchmarks and test
 // utilities intended for manual evaluation of the scalers in
 // gl_helper*. These tests produce output in the form of files and printouts,
@@ -41,17 +43,17 @@ namespace gpu {
 
 namespace {
 
-GLHelper::ScalerQuality kQualities[] = {
+auto kQualities = std::to_array<GLHelper::ScalerQuality>({
     GLHelper::SCALER_QUALITY_BEST,
     GLHelper::SCALER_QUALITY_GOOD,
     GLHelper::SCALER_QUALITY_FAST,
-};
+});
 
-const char* const kQualityNames[] = {
+constexpr auto kQualityNames = std::to_array<const char*>({
     "best",
     "good",
     "fast",
-};
+});
 
 }  // namespace
 
@@ -59,14 +61,6 @@ class GLHelperBenchmark : public testing::Test {
  protected:
   void SetUp() override {
     ContextCreationAttribs attributes;
-    attributes.alpha_size = 8;
-    attributes.depth_size = 24;
-    attributes.red_size = 8;
-    attributes.green_size = 8;
-    attributes.blue_size = 8;
-    attributes.stencil_size = 8;
-    attributes.samples = 4;
-    attributes.sample_buffers = 1;
     attributes.bind_generates_resource = false;
     attributes.gpu_preference = gl::GpuPreference::kHighPerformance;
 
@@ -85,48 +79,41 @@ class GLHelperBenchmark : public testing::Test {
   void TearDown() override {
     helper_scaling_.reset(nullptr);
     helper_.reset(nullptr);
+    gl_ = nullptr;
     context_.reset(nullptr);
-  }
-
-  void LoadPngFileToSkBitmap(const base::FilePath& filename, SkBitmap* bitmap) {
-    std::string compressed;
-    base::ReadFileToString(base::MakeAbsoluteFilePath(filename), &compressed);
-    ASSERT_TRUE(compressed.size());
-    ASSERT_TRUE(gfx::PNGCodec::Decode(
-        reinterpret_cast<const unsigned char*>(compressed.data()),
-        compressed.size(), bitmap));
-  }
-
-  // Save the image to a png file. Used to create the initial test files.
-  void SaveToFile(SkBitmap* bitmap, const base::FilePath& filename) {
-    std::vector<unsigned char> compressed;
-    ASSERT_TRUE(gfx::PNGCodec::Encode(
-        static_cast<unsigned char*>(bitmap->getPixels()),
-        gfx::PNGCodec::FORMAT_BGRA,
-        gfx::Size(bitmap->width(), bitmap->height()),
-        static_cast<int>(bitmap->rowBytes()), true,
-        std::vector<gfx::PNGCodec::Comment>(), &compressed));
-    ASSERT_TRUE(compressed.size());
-    FILE* f = base::OpenFile(filename, "wb");
-    ASSERT_TRUE(f);
-    ASSERT_EQ(fwrite(&*compressed.begin(), 1, compressed.size(), f),
-              compressed.size());
-    base::CloseFile(f);
   }
 
   base::test::TaskEnvironment task_environment_;
   std::unique_ptr<GLInProcessContext> context_;
-  raw_ptr<gles2::GLES2Interface> gl_;
+  raw_ptr<gles2::GLES2Interface> gl_;  // This is owned by |context_|.
   std::unique_ptr<GLHelper> helper_;
   std::unique_ptr<GLHelperScaling> helper_scaling_;
   base::circular_deque<GLHelperScaling::ScaleOp> x_ops_, y_ops_;
 };
 
 TEST_F(GLHelperBenchmark, ScaleBenchmark) {
-  int output_sizes[] = {1920, 1080, 1249, 720,  // Output size on pixel
-                        256,  144};
-  int input_sizes[] = {3200, 2040, 2560, 1476,  // Pixel tab size
-                       1920, 1080, 1280, 720,  800, 480, 256, 144};
+  auto output_sizes = std::to_array<int>({
+      1920,
+      1080,
+      1249,
+      720,  // Output size on pixel
+      256,
+      144,
+  });
+  auto input_sizes = std::to_array<int>({
+      3200,
+      2040,
+      2560,
+      1476,  // Pixel tab size
+      1920,
+      1080,
+      1280,
+      720,
+      800,
+      480,
+      256,
+      144,
+  });
 
   for (size_t q = 0; q < std::size(kQualities); q++) {
     for (size_t outsize = 0; outsize < std::size(output_sizes); outsize += 2) {

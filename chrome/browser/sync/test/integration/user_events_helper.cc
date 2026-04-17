@@ -4,7 +4,8 @@
 
 #include "chrome/browser/sync/test/integration/user_events_helper.h"
 
-#include "base/ranges/algorithm.h"
+#include <algorithm>
+
 #include "chrome/browser/sync/test/integration/single_client_status_change_checker.h"
 #include "components/sync/test/fake_server.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -40,7 +41,7 @@ bool UserEventEqualityChecker::IsExitConditionSatisfied(std::ostream* os) {
   *os << "Waiting server side USER_EVENTS to match expected.";
 
   std::vector<SyncEntity> entities =
-      fake_server_->GetSyncEntitiesByModelType(syncer::USER_EVENTS);
+      fake_server_->GetSyncEntitiesByDataType(syncer::USER_EVENTS);
 
   // |entities.size()| is only going to grow, if |entities.size()| ever
   // becomes bigger then all hope is lost of passing, stop now.
@@ -60,7 +61,7 @@ bool UserEventEqualityChecker::IsExitConditionSatisfied(std::ostream* os) {
     UserEventSpecifics server_specifics = entity.specifics().user_event();
     // Find a matching event in our expectations. Same event time should mean
     // identical events, though there can be duplicates in some cases.
-    auto iter = base::ranges::find(
+    auto iter = std::ranges::find(
         remaining_expected_specifics, server_specifics.event_time_usec(),
         &sync_pb::UserEventSpecifics::event_time_usec);
     // We don't expect to encounter id matching events with different values,

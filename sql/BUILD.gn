@@ -2,8 +2,16 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//testing/libfuzzer/fuzzer_test.gni")
 import("//testing/test.gni")
+import("//tools/metrics/generate_allowlist_from_histograms_file.gni")
+
+generate_allowlist_from_histograms_file("sql_name_variants") {
+  namespace = "sql_metrics"
+  input_xml_file = "//tools/metrics/histograms/metadata/sql/histograms.xml"
+  output_file = "sql_name_variants.h"
+  tag = "variant"
+  allow_list_name = "DatabaseTag"
+}
 
 component("sql") {
   sources = [
@@ -19,30 +27,14 @@ component("sql") {
     "internal_api_token.h",
     "meta_table.cc",
     "meta_table.h",
-    "recover_module/btree.cc",
-    "recover_module/btree.h",
-    "recover_module/cursor.cc",
-    "recover_module/cursor.h",
-    "recover_module/integers.cc",
-    "recover_module/integers.h",
-    "recover_module/module.cc",
-    "recover_module/module.h",
-    "recover_module/pager.cc",
-    "recover_module/pager.h",
-    "recover_module/parsing.cc",
-    "recover_module/parsing.h",
-    "recover_module/payload.cc",
-    "recover_module/payload.h",
-    "recover_module/record.cc",
-    "recover_module/record.h",
-    "recover_module/table.cc",
-    "recover_module/table.h",
     "recovery.cc",
     "recovery.h",
     "sandboxed_vfs.cc",
     "sandboxed_vfs.h",
     "sandboxed_vfs_file.cc",
     "sandboxed_vfs_file.h",
+    "sandboxed_vfs_file_impl.cc",
+    "sandboxed_vfs_file_impl.h",
     "sql_features.cc",
     "sql_features.h",
     "sql_memory_dump_provider.cc",
@@ -61,13 +53,16 @@ component("sql") {
     "vfs_wrapper.h",
   ]
 
+  #sources += get_target_outputs(":sql_name_variants")
+
   defines = [ "IS_SQL_IMPL" ]
 
   deps = [
     "//base",
-    "//base/third_party/dynamic_annotations",
     "//third_party/sqlite",
   ]
+
+  public_deps = [ ":sql_name_variants" ]
 
   # For vfs_wrapper.cc time-machine exclusions.
   if (is_mac) {
@@ -114,15 +109,12 @@ test("sql_unittests") {
     "database_options_unittest.cc",
     "database_unittest.cc",
     "meta_table_unittest.cc",
-    "recover_module/module_unittest.cc",
     "recovery_unittest.cc",
     "sql_memory_dump_provider_unittest.cc",
     "sqlite_features_unittest.cc",
     "sqlite_result_code_unittest.cc",
     "statement_id_unittest.cc",
     "statement_unittest.cc",
-    "test/database_test_peer.cc",
-    "test/database_test_peer.h",
     "test/paths.cc",
     "test/paths.h",
     "test/run_all_unittests.cc",
@@ -147,11 +139,7 @@ test("sql_unittests") {
   ]
 }
 
-fuzzer_test("sql_recovery_fuzzer") {
-  sources = [ "recovery_fuzzer.cc" ]
-  deps = [
-    ":sql",
-    "//base",
-    "//base/test:test_support",
-  ]
+group("fuzzers") {
+  testonly = true
+  deps = [ "//sql/fuzzers:sql_recovery_lpm_fuzzer" ]
 }

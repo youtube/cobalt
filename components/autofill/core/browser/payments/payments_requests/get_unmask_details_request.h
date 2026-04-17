@@ -8,8 +8,8 @@
 #include <string>
 
 #include "base/functional/callback.h"
-#include "components/autofill/core/browser/autofill_client.h"
-#include "components/autofill/core/browser/payments/payments_client.h"
+#include "components/autofill/core/browser/payments/payments_autofill_client.h"
+#include "components/autofill/core/browser/payments/payments_request_details.h"
 #include "components/autofill/core/browser/payments/payments_requests/payments_request.h"
 
 namespace base {
@@ -21,8 +21,8 @@ namespace autofill::payments {
 class GetUnmaskDetailsRequest : public PaymentsRequest {
  public:
   GetUnmaskDetailsRequest(
-      base::OnceCallback<void(AutofillClient::PaymentsRpcResult,
-                              PaymentsClient::UnmaskDetails&)> callback,
+      base::OnceCallback<void(PaymentsAutofillClient::PaymentsRpcResult,
+                              UnmaskDetails&)> callback,
       const std::string& app_locale,
       const bool full_sync_enabled);
   GetUnmaskDetailsRequest(const GetUnmaskDetailsRequest&) = delete;
@@ -35,18 +35,19 @@ class GetUnmaskDetailsRequest : public PaymentsRequest {
   std::string GetRequestContent() override;
   void ParseResponse(const base::Value::Dict& response) override;
   bool IsResponseComplete() override;
-  void RespondToDelegate(AutofillClient::PaymentsRpcResult result) override;
+  void RespondToDelegate(
+      PaymentsAutofillClient::PaymentsRpcResult result) override;
 
  private:
-  base::OnceCallback<void(AutofillClient::PaymentsRpcResult,
-                          PaymentsClient::UnmaskDetails&)>
+  base::OnceCallback<void(PaymentsAutofillClient::PaymentsRpcResult,
+                          UnmaskDetails&)>
       callback_;
   std::string app_locale_;
   const bool full_sync_enabled_;
 
   // Suggested authentication method and other information to facilitate card
   // unmasking.
-  payments::PaymentsClient::UnmaskDetails unmask_details_;
+  payments::UnmaskDetails unmask_details_;
 };
 
 }  // namespace autofill::payments

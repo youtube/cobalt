@@ -5,16 +5,17 @@
 #include "chrome/services/ipp_parser/ipp_parser.h"
 
 #include <cups/ipp.h>
+
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/containers/flat_map.h"
-#include "chrome/services/cups_proxy/public/cpp/type_conversions.h"
 #include "chrome/services/ipp_parser/public/cpp/ipp_converter.h"
 #include "net/http/http_util.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ipp_parser {
 namespace {
@@ -31,7 +32,7 @@ void Fail(const std::string& error_log, IppParser::ParseIppCallback cb) {
 }
 
 // Returns the starting index of the request-line-delimiter, -1 on failure.
-int LocateEndOfRequestLine(base::StringPiece request) {
+int LocateEndOfRequestLine(std::string_view request) {
   auto end_of_request_line = request.find(kCarriage);
   if (end_of_request_line == std::string::npos) {
     return -1;
@@ -41,7 +42,7 @@ int LocateEndOfRequestLine(base::StringPiece request) {
 }
 
 // Returns the starting index of the first HTTP header, -1 on failure.
-int LocateStartOfHeaders(base::StringPiece request) {
+int LocateStartOfHeaders(std::string_view request) {
   auto idx = LocateEndOfRequestLine(request);
   if (idx < 0) {
     return -1;
@@ -53,8 +54,8 @@ int LocateStartOfHeaders(base::StringPiece request) {
 }
 
 // Returns the starting index of the end-of-headers-delimiter, -1 on failure.
-int LocateEndOfHeaders(base::StringPiece request) {
-  auto idx = net::HttpUtil::LocateEndOfHeaders(request.data(), request.size());
+int LocateEndOfHeaders(std::string_view request) {
+  auto idx = net::HttpUtil::LocateEndOfHeaders(base::as_byte_span(request));
   if (idx < 0) {
     return -1;
   }
@@ -67,9 +68,7 @@ int LocateEndOfHeaders(base::StringPiece request) {
 
 // Returns the starting index of the IPP metadata, -1 on failure.
 int LocateStartOfIppMetadata(base::span<const uint8_t> request) {
-  std::vector<char> char_buffer = ipp_converter::ConvertToCharBuffer(request);
-  return net::HttpUtil::LocateEndOfHeaders(char_buffer.data(),
-                                           char_buffer.size());
+  return net::HttpUtil::LocateEndOfHeaders(request);
 }
 
 bool SplitRequestMetadata(base::span<const uint8_t> request,
@@ -81,36 +80,36 @@ bool SplitRequestMetadata(base::span<const uint8_t> request,
   }
 
   *http_metadata =
-      ipp_converter::ConvertToString(request.first(start_of_ipp_metadata));
+      std::string(base::as_string_view(request.first(start_of_ipp_metadata)));
   *ipp_metadata = request.subspan(start_of_ipp_metadata);
   return true;
 }
 
-absl::optional<std::vector<std::string>> ExtractHttpRequestLine(
-    base::StringPiece request) {
+std::optional<std::vector<std::string>> ExtractHttpRequestLine(
+    std::string_view request) {
   size_t end_of_request_line = LocateEndOfRequestLine(request);
   if (end_of_request_line < 0) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
-  const base::StringPiece request_line_slice =
+  const std::string_view request_line_slice =
       request.substr(0, end_of_request_line);
   return ipp_converter::ParseRequestLine(request_line_slice);
 }
 
-absl::optional<std::vector<HttpHeader>> ExtractHttpHeaders(
-    base::StringPiece request) {
+std::optional<std::vector<HttpHeader>> ExtractHttpHeaders(
+    std::string_view request) {
   size_t start_of_headers = LocateStartOfHeaders(request);
   if (start_of_headers < 0) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   size_t end_of_headers = LocateEndOfHeaders(request);
   if (end_of_headers < 0) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
-  const base::StringPiece headers_slice =
+  const std::string_view headers_slice =
       request.substr(start_of_headers, end_of_headers - start_of_headers);
   return ipp_converter::ParseHeaders(headers_slice);
 }

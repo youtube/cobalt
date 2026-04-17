@@ -9,9 +9,12 @@
 
 #include "base/containers/span.h"
 
-@protocol ConnectionInformation;
 @class SceneState;
 @protocol StartupInformation;
+namespace feature_engagement {
+class Tracker;
+}
+class ProfileIOS;
 
 namespace metrics_mediator {
 // Key in the UserDefaults to store the date/time that the background fetch
@@ -48,8 +51,9 @@ void RecordWidgetUsage(base::span<const HistogramNameCountPair> histograms);
 - (void)updateMetricsStateBasedOnPrefsUserTriggered:(BOOL)isUserTriggered;
 // Logs the duration of the cold start startup. Does nothing if there isn't a
 // cold start.
-+ (void)logStartupDuration:(id<StartupInformation>)startupInformation
-     connectionInformation:(id<ConnectionInformation>)connectionInformation;
++ (void)logStartupDuration:(id<StartupInformation>)startupInformation;
+// Logs memory usage to UMA given a histogram name.
++ (void)logMemoryToUMA:(const std::string&)histogramName;
 // Creates a MetricKit extended launch task to track startup duration. This must
 // be called before the first scene becomes active.
 + (void)createStartupTrackingTask;
@@ -57,6 +61,8 @@ void RecordWidgetUsage(base::span<const HistogramNameCountPair> histograms);
 + (void)logLaunchMetricsWithStartupInformation:
             (id<StartupInformation>)startupInformation
                                connectedScenes:(NSArray<SceneState*>*)scenes;
+// Logs profile-specific metrics when a profile finishes loading.
++ (void)logProfileLoadMetrics:(ProfileIOS*)profile;
 // Logs in UserDefaults the current date with kAppEnteredBackgroundDateKey as
 // key.
 + (void)logDateInUserDefaults;
@@ -64,6 +70,7 @@ void RecordWidgetUsage(base::span<const HistogramNameCountPair> histograms);
 // for this session.
 + (void)applicationDidEnterBackground:(NSInteger)memoryWarningCount;
 
+- (void)notifyCredentialProviderWasUsed:(feature_engagement::Tracker*)tracker;
 @end
 
 #endif  // IOS_CHROME_APP_APPLICATION_DELEGATE_METRICS_MEDIATOR_H_

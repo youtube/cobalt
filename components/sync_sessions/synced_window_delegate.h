@@ -28,9 +28,6 @@ class SyncedWindowDelegate {
   // see Browser::tab_count
   virtual int GetTabCount() const = 0;
 
-  // see Browser::active_index
-  virtual int GetActiveIndex() const = 0;
-
   // see Browser::is_type_normal
   virtual bool IsTypeNormal() const = 0;
 
@@ -57,7 +54,7 @@ class SyncedWindowDelegate {
   virtual bool ShouldSync() const = 0;
 
  protected:
-  virtual ~SyncedWindowDelegate() {}
+  virtual ~SyncedWindowDelegate() = default;
 };
 
 }  // namespace sync_sessions

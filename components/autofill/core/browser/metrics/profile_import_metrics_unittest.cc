@@ -6,9 +6,9 @@
 
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
-#include "components/autofill/core/browser/autofill_test_utils.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics_test_base.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics_utils.h"
+#include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/common/autofill_clock.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -17,7 +17,6 @@ using ::base::Bucket;
 using ::base::BucketsAre;
 
 namespace autofill::autofill_metrics {
-
 namespace {
 
 using AddressImportRequirements = AddressProfileImportRequirementMetric;
@@ -50,8 +49,6 @@ void TestAddressProfileImportCountrySpecificFieldRequirements(
   // Test that the right bucket was populated.
   histogram_tester->ExpectBucketCount(histogram, metric, 1);
 }
-
-}  // namespace
 
 class AutofillProfileImportMetricsTest : public AutofillMetricsBaseTest,
                                          public testing::Test {
@@ -157,16 +154,14 @@ TEST_F(AutofillProfileImportMetricsTest,
       {AddressImportRequirements::kLine1RequirementFulfilled, true},
       {AddressImportRequirements::kLine1RequirementViolated, false},
       {AddressImportRequirements::kZipOrStateRequirementFulfilled, true},
-      {AddressImportRequirements::kZipOrStateRequirementViolated, false},
-      {AddressImportRequirements::kNameRequirementFulfilled, false},
-      {AddressImportRequirements::kNameRequirementViolated, false}};
+      {AddressImportRequirements::kZipOrStateRequirementViolated, false}};
 
   TestAddressProfileImportRequirements(&histogram_tester, expectations);
 
   // All country specific field requirements have been fulfilled.
   TestAddressProfileImportCountrySpecificFieldRequirements(
       &histogram_tester,
-      AddressProfileImportCountrySpecificFieldRequirementsMetric::ALL_GOOD);
+      AddressProfileImportCountrySpecificFieldRequirementsMetric::kAllGood);
 }
 
 // Test that the ProfileImportRequirements are counted correctly if only the
@@ -185,7 +180,7 @@ TEST_F(AutofillProfileImportMetricsTest,
                   {.role = ADDRESS_HOME_ZIP, .value = u"37373"},
                   {.role = ADDRESS_HOME_COUNTRY, .value = u"USA"}}});
 
-  std::vector<ServerFieldType> field_types = {
+  std::vector<FieldType> field_types = {
       NAME_FULL,           ADDRESS_HOME_LINE1,
       ADDRESS_HOME_CITY,   PHONE_HOME_CITY_AND_NUMBER,
       ADDRESS_HOME_STATE,  ADDRESS_HOME_ZIP,
@@ -223,9 +218,7 @@ TEST_F(AutofillProfileImportMetricsTest,
       {AddressImportRequirements::kLine1RequirementFulfilled, false},
       {AddressImportRequirements::kLine1RequirementViolated, true},
       {AddressImportRequirements::kZipOrStateRequirementFulfilled, true},
-      {AddressImportRequirements::kZipOrStateRequirementViolated, false},
-      {AddressImportRequirements::kNameRequirementFulfilled, false},
-      {AddressImportRequirements::kNameRequirementViolated, false}};
+      {AddressImportRequirements::kZipOrStateRequirementViolated, false}};
 
   TestAddressProfileImportRequirements(&histogram_tester, expectations);
 
@@ -233,7 +226,7 @@ TEST_F(AutofillProfileImportMetricsTest,
   TestAddressProfileImportCountrySpecificFieldRequirements(
       &histogram_tester,
       AddressProfileImportCountrySpecificFieldRequirementsMetric::
-          LINE1_REQUIREMENT_VIOLATED);
+          kLine1RequirementViolated);
 }
 
 // Test that the ProfileImportRequirements are all counted as fulfilled for a
@@ -253,7 +246,7 @@ TEST_F(AutofillProfileImportMetricsTest,
            {.role = ADDRESS_HOME_ZIP, .value = u"37373"},
            {.role = ADDRESS_HOME_COUNTRY, .value = u"Germany"}}});
 
-  std::vector<ServerFieldType> field_types = {
+  std::vector<FieldType> field_types = {
       NAME_FULL,           ADDRESS_HOME_LINE1,
       ADDRESS_HOME_CITY,   PHONE_HOME_CITY_AND_NUMBER,
       ADDRESS_HOME_STATE,  ADDRESS_HOME_ZIP,
@@ -291,15 +284,13 @@ TEST_F(AutofillProfileImportMetricsTest,
       {AddressImportRequirements::kLine1RequirementFulfilled, true},
       {AddressImportRequirements::kLine1RequirementViolated, false},
       {AddressImportRequirements::kZipOrStateRequirementFulfilled, true},
-      {AddressImportRequirements::kZipOrStateRequirementViolated, false},
-      {AddressImportRequirements::kNameRequirementFulfilled, false},
-      {AddressImportRequirements::kNameRequirementViolated, false}};
+      {AddressImportRequirements::kZipOrStateRequirementViolated, false}};
 
   TestAddressProfileImportRequirements(&histogram_tester, expectations);
   // All country specific field requirements have been fulfilled.
   TestAddressProfileImportCountrySpecificFieldRequirements(
       &histogram_tester,
-      AddressProfileImportCountrySpecificFieldRequirementsMetric::ALL_GOOD);
+      AddressProfileImportCountrySpecificFieldRequirementsMetric::kAllGood);
 }
 
 // Test that the ProfileImportRequirements are all counted as fulfilled for a
@@ -352,16 +343,14 @@ TEST_F(AutofillProfileImportMetricsTest,
       {AddressImportRequirements::kLine1RequirementFulfilled, true},
       {AddressImportRequirements::kLine1RequirementViolated, false},
       {AddressImportRequirements::kZipOrStateRequirementFulfilled, true},
-      {AddressImportRequirements::kZipOrStateRequirementViolated, false},
-      {AddressImportRequirements::kNameRequirementFulfilled, false},
-      {AddressImportRequirements::kNameRequirementViolated, false}};
+      {AddressImportRequirements::kZipOrStateRequirementViolated, false}};
 
   TestAddressProfileImportRequirements(&histogram_tester, expectations);
 
   // All country specific field requirements have been fulfilled.
   TestAddressProfileImportCountrySpecificFieldRequirements(
       &histogram_tester,
-      AddressProfileImportCountrySpecificFieldRequirementsMetric::ALL_GOOD);
+      AddressProfileImportCountrySpecificFieldRequirementsMetric::kAllGood);
 }
 
 // Test that the ProfileImportRequirements are all counted as fulfilled for a
@@ -382,15 +371,15 @@ TEST_F(AutofillProfileImportMetricsTest,
            {.role = EMAIL_ADDRESS, .value = u"test_noat_test.io"},
            {.role = EMAIL_ADDRESS, .value = u"not_test@test.io"}}});
 
-  std::vector<ServerFieldType> field_types = {NAME_FULL,
-                                              ADDRESS_HOME_LINE1,
-                                              ADDRESS_HOME_CITY,
-                                              PHONE_HOME_CITY_AND_NUMBER,
-                                              ADDRESS_HOME_STATE,
-                                              ADDRESS_HOME_ZIP,
-                                              ADDRESS_HOME_COUNTRY,
-                                              EMAIL_ADDRESS,
-                                              EMAIL_ADDRESS};
+  std::vector<FieldType> field_types = {NAME_FULL,
+                                        ADDRESS_HOME_LINE1,
+                                        ADDRESS_HOME_CITY,
+                                        PHONE_HOME_CITY_AND_NUMBER,
+                                        ADDRESS_HOME_STATE,
+                                        ADDRESS_HOME_ZIP,
+                                        ADDRESS_HOME_COUNTRY,
+                                        EMAIL_ADDRESS,
+                                        EMAIL_ADDRESS};
 
   autofill_manager().AddSeenForm(form, field_types);
   FillTestProfile(form);
@@ -423,16 +412,14 @@ TEST_F(AutofillProfileImportMetricsTest,
       {AddressImportRequirements::kLine1RequirementFulfilled, true},
       {AddressImportRequirements::kLine1RequirementViolated, false},
       {AddressImportRequirements::kZipOrStateRequirementFulfilled, true},
-      {AddressImportRequirements::kZipOrStateRequirementViolated, false},
-      {AddressImportRequirements::kNameRequirementFulfilled, false},
-      {AddressImportRequirements::kNameRequirementViolated, false}};
+      {AddressImportRequirements::kZipOrStateRequirementViolated, false}};
 
   TestAddressProfileImportRequirements(&histogram_tester, expectations);
 
   // All country specific field requirements have been fulfilled.
   TestAddressProfileImportCountrySpecificFieldRequirements(
       &histogram_tester,
-      AddressProfileImportCountrySpecificFieldRequirementsMetric::ALL_GOOD);
+      AddressProfileImportCountrySpecificFieldRequirementsMetric::kAllGood);
 }
 
 // Test the correct ProfileImportRequirements logging if multiple fields are
@@ -452,7 +439,7 @@ TEST_F(AutofillProfileImportMetricsTest,
            {.role = ADDRESS_HOME_ZIP, .value = u""},
            {.role = ADDRESS_HOME_COUNTRY, .value = u""}}});
 
-  std::vector<ServerFieldType> field_types = {
+  std::vector<FieldType> field_types = {
       NAME_FULL,           ADDRESS_HOME_LINE1,
       ADDRESS_HOME_CITY,   PHONE_HOME_CITY_AND_NUMBER,
       ADDRESS_HOME_STATE,  ADDRESS_HOME_ZIP,
@@ -490,9 +477,7 @@ TEST_F(AutofillProfileImportMetricsTest,
       {AddressImportRequirements::kLine1RequirementFulfilled, true},
       {AddressImportRequirements::kLine1RequirementViolated, false},
       {AddressImportRequirements::kZipOrStateRequirementFulfilled, true},
-      {AddressImportRequirements::kZipOrStateRequirementViolated, false},
-      {AddressImportRequirements::kNameRequirementFulfilled, false},
-      {AddressImportRequirements::kNameRequirementViolated, false}};
+      {AddressImportRequirements::kZipOrStateRequirementViolated, false}};
 
   TestAddressProfileImportRequirements(&histogram_tester, expectations);
 
@@ -500,60 +485,70 @@ TEST_F(AutofillProfileImportMetricsTest,
   TestAddressProfileImportCountrySpecificFieldRequirements(
       &histogram_tester,
       AddressProfileImportCountrySpecificFieldRequirementsMetric::
-          ZIP_STATE_CITY_REQUIREMENT_VIOLATED);
+          kZipStateCityRequirementViolated);
 }
 
-// Test that the ProfileImportRequirements are all counted as fulfilled, except
-// for the name requirement which was violated.
+// Tests that the user decision for importing a new profile is emitted for
+// non-ready users, i.e. for users saving their first profile.
 TEST_F(AutofillProfileImportMetricsTest,
-       ProfileImportRequirements_AllFulfilledButName) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      features::kAutofillRequireNameForProfileImport);
-  //  Set up our form data.
-  FormData form = GetAndAddSeenForm(
-      {.description_for_logging = "ProfileImportRequirements_AllButName",
-       .fields = {
-           {.role = NAME_FULL, .value = u""},
-           {.role = ADDRESS_HOME_LINE1, .value = u"3734 Elvis Presley Blvd."},
-           {.role = ADDRESS_HOME_CITY, .value = u"New York"},
-           {.role = PHONE_HOME_CITY_AND_NUMBER, .value = u"2345678901"},
-           {.role = ADDRESS_HOME_STATE, .value = u"CA"},
-           {.role = ADDRESS_HOME_ZIP, .value = u"37373"},
-           {.role = ADDRESS_HOME_COUNTRY, .value = u"USA"}}});
-  FillTestProfile(form);
+       EmitsNewProfileImportDecisionNonReady) {
+  const auto kExpectedDecision =
+      AutofillClient::AddressPromptUserDecision::kAccepted;
+  AutofillProfile import_candidate = test::GetFullProfile();
   base::HistogramTester histogram_tester;
-  SubmitForm(form);
-  std::vector<AddressProfileImportRequirementExpectations> expectations = {
-      {AddressImportRequirements::kStateValidRequirementFulfilled, true},
-      {AddressImportRequirements::kStateValidRequirementViolated, false},
-      {AddressImportRequirements::kEmailValidRequirementFulfilled, true},
-      {AddressImportRequirements::kEmailValidRequirementViolated, false},
-      {AddressImportRequirements::kZipValidRequirementFulfilled, true},
-      {AddressImportRequirements::kZipValidRequirementViolated, false},
-      {AddressImportRequirements::kEmailAddressUniqueRequirementFulfilled,
-       true},
-      {AddressImportRequirements::kEmailAddressUniqueRequirementViolated,
-       false},
-      {AddressImportRequirements::kNoInvalidFieldTypesRequirementFulfilled,
-       true},
-      {AddressImportRequirements::kNoInvalidFieldTypesRequirementViolated,
-       false},
-      {AddressImportRequirements::kCityRequirementFulfilled, true},
-      {AddressImportRequirements::kCityRequirementViolated, false},
-      {AddressImportRequirements::kZipRequirementFulfilled, true},
-      {AddressImportRequirements::kZipRequirementViolated, false},
-      {AddressImportRequirements::kStateRequirementFulfilled, true},
-      {AddressImportRequirements::kStateRequirementViolated, false},
-      {AddressImportRequirements::kOverallRequirementFulfilled, false},
-      {AddressImportRequirements::kOverallRequirementViolated, true},
-      {AddressImportRequirements::kLine1RequirementFulfilled, true},
-      {AddressImportRequirements::kLine1RequirementViolated, false},
-      {AddressImportRequirements::kZipOrStateRequirementFulfilled, true},
-      {AddressImportRequirements::kZipOrStateRequirementViolated, false},
-      {AddressImportRequirements::kNameRequirementFulfilled, false},
-      {AddressImportRequirements::kNameRequirementViolated, true}};
-  TestAddressProfileImportRequirements(&histogram_tester, expectations);
+  LogNewProfileImportDecision(kExpectedDecision, /*existing_profiles=*/{},
+                              import_candidate, "en-US");
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.ProfileImport.NewProfileDecision2.Aggregate", kExpectedDecision,
+      1);
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.ProfileImport.NewProfileDecision2.UserHasNoExistingProfiles",
+      kExpectedDecision, 1);
 }
 
+// Tests that the user decision for importing a new profile is emitted for ready
+// users who already have a similar (quasi-duplicate) profile saved.
+TEST_F(AutofillProfileImportMetricsTest,
+       EmitsNewProfileImportDecisionReadyAndQuasiDuplicate) {
+  const auto kExpectedDecision =
+      AutofillClient::AddressPromptUserDecision::kAccepted;
+  AutofillProfile existing_profile = test::GetFullProfile();
+  existing_profile.SetRawInfo(FieldType::NAME_FULL, u"First Last");
+  AutofillProfile import_candidate = test::GetFullProfile();
+  base::HistogramTester histogram_tester;
+  LogNewProfileImportDecision(kExpectedDecision, {&existing_profile},
+                              import_candidate, "en-US");
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.ProfileImport.NewProfileDecision2.Aggregate", kExpectedDecision,
+      1);
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.ProfileImport.NewProfileDecision2.UserHasExistingProfile",
+      kExpectedDecision, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.ProfileImport.NewProfileDecision2.UserHasQuasiDuplicateProfile",
+      kExpectedDecision, 1);
+}
+
+// Tests that the storage type where a new address is saved to is correctly
+// emitted.
+TEST_F(AutofillProfileImportMetricsTest, EmitsStorageNewProfileIsSavedTo) {
+  AutofillProfile import_candidate = test::GetFullProfile();
+  base::HistogramTester histogram_tester;
+
+  // Saved to local/syncable storage.
+  LogNewProfileStorageLocation(import_candidate);
+  histogram_tester.ExpectBucketCount(
+      "Autofill.ProfileImport.StorageNewAddressIsSavedTo",
+      AutofillProfile::RecordType::kLocalOrSyncable, 1);
+
+  import_candidate = import_candidate.ConvertToAccountProfile();
+
+  // Saved to account storage.
+  LogNewProfileStorageLocation(import_candidate);
+  histogram_tester.ExpectBucketCount(
+      "Autofill.ProfileImport.StorageNewAddressIsSavedTo",
+      AutofillProfile::RecordType::kAccount, 1);
+}
+
+}  // namespace
 }  // namespace autofill::autofill_metrics

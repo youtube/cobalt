@@ -71,10 +71,8 @@ MenuRunnerImplInterface* MenuRunnerImplInterface::Create(
 }
 #endif
 
-MenuRunnerImpl::MenuRunnerImpl(MenuItemView* menu)
-    : menu_(menu),
-
-      controller_(nullptr) {}
+MenuRunnerImpl::MenuRunnerImpl(std::unique_ptr<MenuItemView> menu)
+    : menu_(std::move(menu)) {}
 
 bool MenuRunnerImpl::IsRunning() const {
   return running_;
@@ -82,8 +80,9 @@ bool MenuRunnerImpl::IsRunning() const {
 
 void MenuRunnerImpl::Release() {
   if (running_) {
-    if (delete_after_run_)
+    if (delete_after_run_) {
       return;  // We already canceled.
+    }
 
     // The menu is running a nested run loop, we can't delete it now
     // otherwise the stack would be in a really bad state (many frames would
@@ -93,8 +92,9 @@ void MenuRunnerImpl::Release() {
 
     // Swap in a different delegate. That way we know the original MenuDelegate
     // won't be notified later on (when it's likely already been deleted).
-    if (!empty_delegate_.get())
+    if (!empty_delegate_.get()) {
       empty_delegate_ = std::make_unique<MenuDelegate>();
+    }
     menu_->set_delegate(empty_delegate_.get());
 
     // Verify that the MenuController is still active. It may have been
@@ -111,13 +111,16 @@ void MenuRunnerImpl::Release() {
   delete this;
 }
 
-void MenuRunnerImpl::RunMenuAt(Widget* parent,
-                               MenuButtonController* button_controller,
-                               const gfx::Rect& bounds,
-                               MenuAnchorPosition anchor,
-                               int32_t run_types,
-                               gfx::NativeView native_view_for_gestures,
-                               absl::optional<gfx::RoundedCornersF> corners) {
+void MenuRunnerImpl::RunMenuAt(
+    Widget* parent,
+    MenuButtonController* button_controller,
+    const gfx::Rect& bounds,
+    MenuAnchorPosition anchor,
+    ui::mojom::MenuSourceType source_type,
+    int32_t run_types,
+    gfx::NativeView native_view_for_gestures,
+    std::optional<gfx::RoundedCornersF> corners,
+    std::optional<std::string> show_menu_host_duration_histogram) {
   closing_event_time_ = base::TimeTicks();
   if (running_) {
     // Ignore requests to show the menu while it's already showing. MenuItemView
@@ -166,30 +169,43 @@ void MenuRunnerImpl::RunMenuAt(Widget* parent,
   DCHECK((run_types & MenuRunner::COMBOBOX) == 0 ||
          (run_types & MenuRunner::EDITABLE_COMBOBOX) == 0);
   using ComboboxType = MenuController::ComboboxType;
-  if (run_types & MenuRunner::COMBOBOX)
+  if (run_types & MenuRunner::COMBOBOX) {
     controller->set_combobox_type(ComboboxType::kReadonly);
-  else if (run_types & MenuRunner::EDITABLE_COMBOBOX)
+  } else if (run_types & MenuRunner::EDITABLE_COMBOBOX) {
     controller->set_combobox_type(ComboboxType::kEditable);
-  else
+  } else {
     controller->set_combobox_type(ComboboxType::kNone);
+  }
   controller->set_send_gesture_events_to_owner(
       (run_types & MenuRunner::SEND_GESTURE_EVENTS_TO_OWNER) != 0);
   controller->set_use_ash_system_ui_layout(
       (run_types & MenuRunner::USE_ASH_SYS_UI_LAYOUT) != 0);
   controller_ = controller->AsWeakPtr();
   menu_->set_controller(controller_.get());
-  menu_->PrepareForRun(owns_controller_, has_mnemonics,
+  menu_->PrepareForRun(has_mnemonics,
                        !for_drop_ && ShouldShowMnemonics(run_types));
+  if (show_menu_host_duration_histogram.has_value() &&
+      !show_menu_host_duration_histogram.value().empty()) {
+    controller->SetShowMenuHostDurationHistogram(
+        std::move(show_menu_host_duration_histogram));
+  }
 
-  controller->Run(parent, button_controller, menu_, bounds, anchor,
-                  (run_types & MenuRunner::CONTEXT_MENU) != 0,
+  MenuController::MenuType menu_type = MenuController::MenuType::kNormal;
+  if ((run_types & MenuRunner::MENU_ITEM_CONTEXT_MENU) != 0) {
+    menu_type = MenuController::MenuType::kMenuItemContextMenu;
+  } else if ((run_types & MenuRunner::CONTEXT_MENU) != 0) {
+    menu_type = MenuController::MenuType::kContextMenu;
+  }
+  controller->Run(parent, button_controller, menu_.get(), bounds, anchor,
+                  source_type, menu_type,
                   (run_types & MenuRunner::NESTED_DRAG) != 0,
                   native_view_for_gestures);
 }
 
 void MenuRunnerImpl::Cancel() {
-  if (running_)
+  if (running_) {
     controller_->Cancel(MenuController::ExitType::kAll);
+  }
 }
 
 base::TimeTicks MenuRunnerImpl::GetClosingEventTime() const {
@@ -203,11 +219,11 @@ void MenuRunnerImpl::OnMenuClosed(NotifyType type,
   if (controller_) {
     closing_event_time_ = controller_->closing_event_time();
     // Get a pointer to the parent widget before destroying the menu.
-    if (controller_->owner())
+    if (controller_->owner()) {
       parent_widget = controller_->owner()->GetWeakPtr();
+    }
   }
 
-  menu_->RemoveEmptyMenus();
   menu_->set_controller(nullptr);
 
   if (owns_controller_ && controller_) {
@@ -234,21 +250,23 @@ void MenuRunnerImpl::OnMenuClosed(NotifyType type,
                                            mouse_event_flags);
     }
     // Only notify the delegate if it did not delete this.
-    if (ref && type == NOTIFY_DELEGATE)
+    if (ref && type == NOTIFY_DELEGATE) {
       menu_->GetDelegate()->OnMenuClosed(menu);
+    }
   }
   FireFocusAfterMenuClose(parent_widget);
 }
 
 void MenuRunnerImpl::SiblingMenuCreated(MenuItemView* menu) {
-  if (menu != menu_ && sibling_menus_.count(menu) == 0)
+  if (menu != menu_.get() && sibling_menus_.count(menu) == 0) {
     sibling_menus_.insert(menu);
+  }
 }
 
 MenuRunnerImpl::~MenuRunnerImpl() {
-  delete menu_;
-  for (auto* sibling_menu : sibling_menus_)
+  for (MenuItemView* sibling_menu : sibling_menus_) {
     delete sibling_menu;
+  }
 }
 
 bool MenuRunnerImpl::ShouldShowMnemonics(int32_t run_types) {

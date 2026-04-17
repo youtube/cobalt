@@ -23,8 +23,13 @@ using extensions::mojom::APIPermissionID;
 constexpr APIPermissionInfo::InitInfo kPermissionsToRegister[] = {
     // Telemetry System Extension permissions.
     {APIPermissionID::kChromeOSAttachedDeviceInfo, "os.attached_device_info"},
+    {APIPermissionID::kChromeOSBluetoothPeripheralsInfo,
+     "os.bluetooth_peripherals_info"},
     {APIPermissionID::kChromeOSDiagnostics, "os.diagnostics"},
+    {APIPermissionID::kChromeOSDiagnosticsNetworkInfoForMlab,
+     "os.diagnostics.network_info_mlab"},
     {APIPermissionID::kChromeOSEvents, "os.events"},
+    {APIPermissionID::kChromeOSManagementAudio, "os.management.audio"},
     {APIPermissionID::kChromeOSTelemetry, "os.telemetry"},
     {APIPermissionID::kChromeOSTelemetrySerialNumber,
      "os.telemetry.serial_number"},

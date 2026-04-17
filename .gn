@@ -39,6 +39,12 @@ default_args = {
   # Don't include webrtc's builtin task queue implementation.
   rtc_link_task_queue_impl = false
 
+  # When building with Chromium, `webrtc::Location` is replaced by
+  # `base::Location`. Since WebRTC doesn't use `public_deps` (webrtc:8603), it
+  # would fail to propagate the dependency internally. Instead WebRTC let its
+  # embedders to define it globally for all of its targets.
+  rtc_common_public_deps = [ "//base" ]
+
   # Don't include the iLBC audio codec.
   # TODO(bugs.webrtc.org/8396): Once WebRTC gets rid of its internal
   # deps on codecs, we can remove this.
@@ -49,18 +55,26 @@ default_args = {
   crashpad_dependencies = "chromium"
 
   # Override ANGLE's Vulkan dependencies.
-  angle_vulkan_headers_dir = "//third_party/vulkan-deps/vulkan-headers/src"
-  angle_vulkan_loader_dir = "//third_party/vulkan-deps/vulkan-loader/src"
-  angle_vulkan_tools_dir = "//third_party/vulkan-deps/vulkan-tools/src"
+  angle_vulkan_headers_dir = "//third_party/vulkan-headers/src"
+  angle_vulkan_loader_dir = "//third_party/vulkan-loader/src"
+  angle_vulkan_tools_dir = "//third_party/vulkan-tools/src"
   angle_vulkan_validation_layers_dir =
-      "//third_party/vulkan-deps/vulkan-validation-layers/src"
+      "//third_party/vulkan-validation-layers/src"
+
+  # Override VMA's Vulkan dependencies.
+  vma_vulkan_headers_dir = "//third_party/vulkan-headers/src"
 
   # Overwrite default args declared in the Fuchsia sdk
   fuchsia_sdk_readelf_exec =
       "//third_party/llvm-build/Release+Asserts/bin/llvm-readelf"
-  fuchsia_target_api_level = 11
+
+  # Overwrite default args declared in the pdfium library
+  pdf_partition_alloc_dir = "//base/allocator/partition_allocator"
 
   devtools_visibility = [ "*" ]
+
+  clang_unsafe_buffers_paths = "//build/config/unsafe_buffers_paths.txt"
+  clang_warning_suppression_file = "//build/config/warning_suppression.txt"
 }
 
 # These are the targets to skip header checking by default. The files in targets
@@ -75,15 +89,9 @@ no_check_targets = [
   "//v8:cppgc_base",  # 1 error
   "//v8:v8_internal_headers",  # 11 errors
   "//v8:v8_libplatform",  # 2 errors
-
-  # After making partition_alloc a standalone library, remove partition_alloc
-  # target from the skip list, because partition_aloc will depend on its own
-  # base.
-  # partition alloc standalone library bug is https://crbug.com/1151236.
-  "//base/allocator/partition_allocator:partition_alloc",  # 292 errors
 ]
 
-# These are the list of GN files that run exec_script. This whitelist exists
+# These are the list of GN files that run exec_script. This allowlist exists
 # to force additional review for new uses of exec_script, which is strongly
 # discouraged.
 #
@@ -138,23 +146,17 @@ no_check_targets = [
 #      this situation much easier to create. if the build always lists the
 #      files and passes them to a script, it will always be correct.
 
-exec_script_whitelist =
-    build_dotfile_settings.exec_script_whitelist +
-    angle_dotfile_settings.exec_script_whitelist +
+exec_script_allowlist =
+    build_dotfile_settings.exec_script_allowlist +
+    angle_dotfile_settings.exec_script_allowlist +
     [
-      # Whitelist entries for //build should go into
+      # Allowlist entries for //build should go into
       # //build/dotfile_settings.gni instead, so that they can be shared
       # with other repos. The entries in this list should be only for files
       # in the Chromium repo outside of //build.
       "//build_overrides/build.gni",
 
-      "//chrome/android/webapk/shell_apk/prepare_upload_dir/BUILD.gn",
       "//chrome/version.gni",
-
-      # TODO(dgn): Layer violation but breaks the build otherwise, see
-      # https://crbug.com/474506.
-      "//clank/java/BUILD.gn",
-      "//clank/native/BUILD.gn",
 
       "//google_apis/BUILD.gn",
       "//printing/BUILD.gn",
@@ -169,7 +171,7 @@ exec_script_whitelist =
 
 # TODO(b/378960295): Try to remove the allowlisted files.
 import("//cobalt/build/configs/cobalt.gni")
-exec_script_whitelist += [
+exec_script_allowlist += [
   "//starboard/tools/BUILD.gn",
   "//starboard/build/config/sabi/BUILD.gn",
   "//starboard/build/platform_path.gni",

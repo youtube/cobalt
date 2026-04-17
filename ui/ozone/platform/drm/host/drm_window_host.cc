@@ -73,7 +73,6 @@ void DrmWindowHost::Close() {}
 
 bool DrmWindowHost::IsVisible() const {
   NOTREACHED();
-  return true;
 }
 
 void DrmWindowHost::PrepareForShutdown() {}
@@ -90,14 +89,13 @@ gfx::Rect DrmWindowHost::GetBoundsInPixels() const {
 }
 
 void DrmWindowHost::SetBoundsInDIP(const gfx::Rect& bounds) {
-  NOTREACHED();
   // No scaling at DRM level and should always use pixel bounds.
+  NOTREACHED();
 }
 
 gfx::Rect DrmWindowHost::GetBoundsInDIP() const {
   // No scaling at DRM level and should always use pixel bounds.
   NOTREACHED();
-  return bounds_;
 }
 
 void DrmWindowHost::SetTitle(const std::u16string& title) {}
@@ -162,7 +160,6 @@ void DrmWindowHost::SetRestoredBoundsInDIP(const gfx::Rect& bounds) {
 
 gfx::Rect DrmWindowHost::GetRestoredBoundsInDIP() const {
   NOTREACHED();
-  return gfx::Rect();
 }
 
 void DrmWindowHost::SetWindowIcons(const gfx::ImageSkia& window_icon,

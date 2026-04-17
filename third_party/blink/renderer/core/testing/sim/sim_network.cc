@@ -50,7 +50,9 @@ void SimNetwork::DidReceiveResponse(URLLoaderClient* client,
                                     const WebURLResponse& response) {
   auto it = requests_.find(response.CurrentRequestUrl().GetString());
   if (it == requests_.end()) {
-    client->DidReceiveResponse(response);
+    client->DidReceiveResponse(response,
+                               /*body=*/mojo::ScopedDataPipeConsumerHandle(),
+                               /*cached_metadata=*/std::nullopt);
     return;
   }
   DCHECK(it->value);
@@ -59,10 +61,9 @@ void SimNetwork::DidReceiveResponse(URLLoaderClient* client,
 }
 
 void SimNetwork::DidReceiveData(URLLoaderClient* client,
-                                const char* data,
-                                size_t data_length) {
+                                base::span<const char> data) {
   if (!current_request_)
-    client->DidReceiveData(data, data_length);
+    client->DidReceiveDataForTesting(data);
 }
 
 void SimNetwork::DidFail(URLLoaderClient* client,
@@ -86,7 +87,7 @@ void SimNetwork::DidFinishLoading(URLLoaderClient* client,
   if (!current_request_) {
     client->DidFinishLoading(finish_time, total_encoded_data_length,
                              total_encoded_body_length,
-                             total_decoded_body_length, false);
+                             total_decoded_body_length);
     return;
   }
   current_request_ = nullptr;

@@ -34,9 +34,21 @@ SKIPPED_PRESUBMIT_CHECKS = [
     "CheckChangeWasUploaded",
     "CheckLicense",
     "CheckOwners",
+    "CheckChangeHasBugFieldFromChange",
+    "CheckForCommitObjects",
+    # Currently ignores "NOLINT(build/header_guard)"
+    "CheckForIncludeGuards",
+    "CheckForTooLargeFiles",
+    # This should be re-enabled when we have a good way to run chromium
+    # precommits with local chromium PRESUBMIT.py files considered
+    "CheckLongLines",
     "CheckOwnersFormat",
     "CheckOwnersOnCommit",
     "CheckOwnersOnUpload",
+    "CheckPatchFormatted",
+    "CheckSecurityOwners",
+    # Prevents the "Tree state is: closed" errors
+    "CheckTreeIsOpen",
 ]
 
 # --- Monkey-patching to remove Gerrit dependencies ---
@@ -112,13 +124,15 @@ def main(argv: List[str]) -> int:
   repository_root = os.getcwd()
   changed_files = get_file_changes_for_presubmit(argv)
   change = presubmit_support.GitChange(
-      name="Pre-commit Change",
-      description="Files staged for commit.",
-      local_root=repository_root,
-      files=changed_files,
-      issue=None,
-      patchset=None,
-      author="fake@user.com")
+      "Pre-commit Change",
+      "Files staged for commit.",
+      repository_root,
+      changed_files,
+      None,
+      None,
+      "fake@user.com",
+      upstream="origin",
+      end_commit="HEAD")
 
   # --- Run the presubmit checks ---
   print(f"Running Chromium presubmit checks on {len(changed_files)} file(s)...")

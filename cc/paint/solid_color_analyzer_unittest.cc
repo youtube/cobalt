@@ -4,13 +4,15 @@
 
 #include "cc/paint/solid_color_analyzer.h"
 
+#include <array>
+#include <optional>
+
 #include "base/memory/ref_counted.h"
 #include "build/build_config.h"
 #include "cc/paint/display_item_list.h"
 #include "cc/paint/paint_filter.h"
 #include "cc/paint/record_paint_canvas.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 
 namespace cc {
@@ -39,7 +41,7 @@ class SolidColorAnalyzerTest : public testing::Test {
   RecordPaintCanvas canvas_;
 
  private:
-  absl::optional<SolidColorAnalyzer> analyzer_;
+  std::optional<SolidColorAnalyzer> analyzer_;
 };
 
 TEST_F(SolidColorAnalyzerTest, Empty) {
@@ -322,11 +324,12 @@ TEST_F(SolidColorAnalyzerTest, ClipRRectCoversCanvas) {
   PaintFlags flags;
   flags.setColor(SkColors::kWhite);
 
-  struct {
+  struct Cases {
     SkVector offset;
     SkVector offset_scale;
     bool expected;
-  } cases[] = {
+  };
+  auto cases = std::to_array<Cases>({
       // Not within bounding box of |rr|.
       {SkVector::Make(100, 100), SkVector::Make(100, 100), false},
 
@@ -361,7 +364,7 @@ TEST_F(SolidColorAnalyzerTest, ClipRRectCoversCanvas) {
 
       // In center
       {SkVector::Make(-100, -100), SkVector::Make(-100, -100), true},
-  };
+  });
 
   for (int case_scale = 0; case_scale < 2; ++case_scale) {
     bool scaled = case_scale > 0;

@@ -5,7 +5,6 @@
 #include <stddef.h>
 
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "cc/layers/content_layer_client.h"
 #include "cc/layers/picture_layer.h"
 #include "cc/paint/display_item_list.h"
@@ -72,7 +71,6 @@ class BlueYellowClient : public ContentLayerClient {
   explicit BlueYellowClient(const gfx::Size& size)
       : size_(size), blue_top_(true) {}
 
-  gfx::Rect PaintableRegion() const override { return gfx::Rect(size_); }
   scoped_refptr<DisplayItemList> PaintContentsToDisplayList() override {
     auto display_list = base::MakeRefCounted<DisplayItemList>();
 
@@ -95,7 +93,7 @@ class BlueYellowClient : public ContentLayerClient {
     flags.setColor(SkColorSetRGB(0xF2, 0xF2, 0x00));
     display_list->push<DrawRectOp>(gfx::RectToSkRect(yellow_rect), flags);
 
-    display_list->EndPaintOfUnpaired(PaintableRegion());
+    display_list->EndPaintOfUnpaired(gfx::Rect(size_));
     display_list->Finalize();
     return display_list;
   }
@@ -151,7 +149,6 @@ class PrimaryColorClient : public ContentLayerClient {
  public:
   explicit PrimaryColorClient(const gfx::Size& size) : size_(size) {}
 
-  gfx::Rect PaintableRegion() const override { return gfx::Rect(size_); }
   scoped_refptr<DisplayItemList> PaintContentsToDisplayList() override {
     // When painted, the DisplayItemList should produce blocks of red, green,
     // and blue to test primary color reproduction.
@@ -174,7 +171,7 @@ class PrimaryColorClient : public ContentLayerClient {
     flags.setColor(SK_ColorBLUE);
     display_list->push<DrawRectOp>(gfx::RectToSkRect(blue_rect), flags);
 
-    display_list->EndPaintOfUnpaired(PaintableRegion());
+    display_list->EndPaintOfUnpaired(gfx::Rect(size_));
     display_list->Finalize();
     return display_list;
   }
@@ -228,7 +225,10 @@ std::vector<RasterTestConfig> const kTestCases = {
     {viz::RendererType::kSkiaVk, TestRasterType::kGpu},
 #endif  // BUILDFLAG(ENABLE_VULKAN_BACKEND_TESTS)
 #if BUILDFLAG(ENABLE_SKIA_GRAPHITE_TESTS)
-    {viz::RendererType::kSkiaGraphite, TestRasterType::kGpu},
+    {viz::RendererType::kSkiaGraphiteDawn, TestRasterType::kGpu},
+#if BUILDFLAG(IS_IOS)
+    {viz::RendererType::kSkiaGraphiteMetal, TestRasterType::kGpu},
+#endif  // BUILDFLAG(IS_IOS)
 #endif  // BUILDFLAG(ENABLE_SKIA_GRAPHITE_TESTS)
 };
 
@@ -237,25 +237,31 @@ INSTANTIATE_TEST_SUITE_P(All,
                          ::testing::ValuesIn(kTestCases),
                          ::testing::PrintToStringParamName());
 
-#if BUILDFLAG(IS_CHROMEOS_ASH) || defined(MEMORY_SANITIZER) || \
+#if BUILDFLAG(IS_CHROMEOS) || defined(MEMORY_SANITIZER) || \
     defined(ADDRESS_SANITIZER)
-// TODO(crbug.com/1045521): Flakes on all slower bots.
+// TODO(crbug.com/40116070): Flakes on all slower bots.
 #define MAYBE_PartialRaster DISABLED_PartialRaster
 #else
 #define MAYBE_PartialRaster PartialRaster
 #endif
 TEST_P(LayerTreeHostTilesTestPartialInvalidation, MAYBE_PartialRaster) {
   use_partial_raster_ = true;
-  RunSingleThreadedPixelTest(
-      picture_layer_,
-      base::FilePath(FILE_PATH_LITERAL("blue_yellow_partial_flipped.png")));
+  base::FilePath expected_result =
+      base::FilePath(FILE_PATH_LITERAL("blue_yellow_partial_flipped.png"));
+  if (use_skia_graphite()) {
+    expected_result = expected_result.InsertBeforeExtensionASCII("_graphite");
+  }
+  RunSingleThreadedPixelTest(picture_layer_, expected_result);
 }
 #undef MAYBE_PartialRaster
 
 TEST_P(LayerTreeHostTilesTestPartialInvalidation, FullRaster) {
-  RunSingleThreadedPixelTest(
-      picture_layer_,
-      base::FilePath(FILE_PATH_LITERAL("blue_yellow_flipped.png")));
+  base::FilePath expected_result =
+      base::FilePath(FILE_PATH_LITERAL("blue_yellow_flipped.png"));
+  if (use_skia_graphite()) {
+    expected_result = expected_result.InsertBeforeExtensionASCII("_graphite");
+  }
+  RunSingleThreadedPixelTest(picture_layer_, expected_result);
 }
 
 std::vector<RasterTestConfig> const kTestCasesMultiThread = {
@@ -268,7 +274,10 @@ std::vector<RasterTestConfig> const kTestCasesMultiThread = {
     {viz::RendererType::kSkiaVk, TestRasterType::kGpu},
 #endif  // BUILDFLAG(ENABLE_VULKAN_BACKEND_TESTS)
 #if BUILDFLAG(ENABLE_SKIA_GRAPHITE_TESTS)
-    {viz::RendererType::kSkiaGraphite, TestRasterType::kGpu},
+    {viz::RendererType::kSkiaGraphiteDawn, TestRasterType::kGpu},
+#if BUILDFLAG(IS_IOS)
+    {viz::RendererType::kSkiaGraphiteMetal, TestRasterType::kGpu},
+#endif  // BUILDFLAG(IS_IOS)
 #endif  // BUILDFLAG(ENABLE_SKIA_GRAPHITE_TESTS)
 };
 
@@ -287,9 +296,9 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
 #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && defined(THREAD_SANITIZER)
 // Flaky on Linux TSAN. https://crbug.com/707711
 #define MAYBE_PartialRaster DISABLED_PartialRaster
-#elif BUILDFLAG(IS_CHROMEOS_ASH) || defined(MEMORY_SANITIZER) || \
+#elif BUILDFLAG(IS_CHROMEOS) || defined(MEMORY_SANITIZER) || \
     defined(ADDRESS_SANITIZER)
-// TODO(crbug.com/1045521): Flakes on all slower bots.
+// TODO(crbug.com/40116070): Flakes on all slower bots.
 #define MAYBE_PartialRaster DISABLED_PartialRaster
 #else
 #define MAYBE_PartialRaster PartialRaster
@@ -297,15 +306,22 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
 TEST_P(LayerTreeHostTilesTestPartialInvalidationMultiThread,
        MAYBE_PartialRaster) {
   use_partial_raster_ = true;
-  RunPixelTest(
-      picture_layer_,
-      base::FilePath(FILE_PATH_LITERAL("blue_yellow_partial_flipped.png")));
+  base::FilePath expected_result =
+      base::FilePath(FILE_PATH_LITERAL("blue_yellow_partial_flipped.png"));
+  if (use_skia_graphite()) {
+    expected_result = expected_result.InsertBeforeExtensionASCII("_graphite");
+  }
+  RunPixelTest(picture_layer_, expected_result);
 }
 #undef MAYBE_PartialRaster
 
 TEST_P(LayerTreeHostTilesTestPartialInvalidationMultiThread, FullRaster) {
-  RunPixelTest(picture_layer_,
-               base::FilePath(FILE_PATH_LITERAL("blue_yellow_flipped.png")));
+  base::FilePath expected_result =
+      base::FilePath(FILE_PATH_LITERAL("blue_yellow_flipped.png"));
+  if (use_skia_graphite()) {
+    expected_result = expected_result.InsertBeforeExtensionASCII("_graphite");
+  }
+  RunPixelTest(picture_layer_, expected_result);
 }
 
 INSTANTIATE_TEST_SUITE_P(All,
@@ -324,6 +340,9 @@ TEST_P(LayerTreeHostTilesTestRasterColorSpace, sRGB) {
 }
 
 TEST_P(LayerTreeHostTilesTestRasterColorSpace, GenericRGB) {
+#if BUILDFLAG(IS_IOS)
+  pixel_comparator_ = std::make_unique<FuzzyPixelOffByOneComparator>();
+#endif
   SetColorSpace(gfx::ColorSpace(gfx::ColorSpace::PrimaryID::APPLE_GENERIC_RGB,
                                 gfx::ColorSpace::TransferID::GAMMA18));
 
@@ -364,7 +383,7 @@ TEST_P(LayerTreeHostTilesTestRasterColorSpace, CustomColorSpace) {
 // This test doesn't work on Vulkan because on our hardware we can't render to
 // RGBA4444 format using either SwiftShader or native Vulkan. See
 // crbug.com/987278 for details.
-// TODO(crbug.com/1151490) : Re-enable after this is supported for OOPR.
+// TODO(crbug.com/40042400) : Re-enable after this is supported for OOPR.
 #if BUILDFLAG(ENABLE_GL_BACKEND_TESTS)
 class LayerTreeHostTilesTestPartialInvalidationLowBitDepth
     : public LayerTreeHostTilesTestPartialInvalidation {
@@ -372,7 +391,6 @@ class LayerTreeHostTilesTestPartialInvalidationLowBitDepth
   void InitializeSettings(LayerTreeSettings* settings) override {
     LayerTreeHostTilesPixelTest::InitializeSettings(settings);
     settings->use_rgba_4444 = true;
-    settings->unpremultiply_and_dither_low_bit_depth_tiles = true;
   }
 };
 

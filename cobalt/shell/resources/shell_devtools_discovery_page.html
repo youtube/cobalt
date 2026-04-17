@@ -14,12 +14,10 @@ function onLoad() {
 
 function onReady() {
   if(this.readyState == 4 && this.status == 200) {
-    if(this.response != null) {
+    if(this.response != null)
       var responseJSON = JSON.parse(this.response);
-      for (var i = 0; i < responseJSON.length; ++i) {
+      for (var i = 0; i < responseJSON.length; ++i)
         appendItem(responseJSON[i]);
-      }
-    }
   }
 }
 

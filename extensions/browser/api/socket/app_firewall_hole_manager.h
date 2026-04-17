@@ -9,10 +9,12 @@
 
 #include <map>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "chromeos/components/firewall_hole/firewall_hole.h"
 #include "extensions/browser/app_window/app_window_registry.h"
+#include "extensions/common/extension_id.h"
 
 namespace content {
 class BrowserContext;
@@ -29,7 +31,7 @@ class AppFirewallHole {
  public:
   ~AppFirewallHole();
 
-  const std::string& extension_id() const { return extension_id_; }
+  const ExtensionId& extension_id() const { return extension_id_; }
 
  private:
   friend class AppFirewallHoleManager;
@@ -37,7 +39,7 @@ class AppFirewallHole {
   AppFirewallHole(const base::WeakPtr<AppFirewallHoleManager>& manager,
                   chromeos::FirewallHole::PortType type,
                   uint16_t port,
-                  const std::string& extension_id);
+                  const ExtensionId& extension_id);
 
   void SetVisible(bool app_visible);
   void OnFirewallHoleOpened(
@@ -45,7 +47,7 @@ class AppFirewallHole {
 
   chromeos::FirewallHole::PortType type_;
   uint16_t port_;
-  std::string extension_id_;
+  ExtensionId extension_id_;
   bool app_visible_ = false;
 
   base::WeakPtr<AppFirewallHoleManager> manager_;
@@ -72,7 +74,7 @@ class AppFirewallHoleManager : public KeyedService,
   // currently visible.
   std::unique_ptr<AppFirewallHole> Open(chromeos::FirewallHole::PortType type,
                                         uint16_t port,
-                                        const std::string& extension_id);
+                                        const ExtensionId& extension_id);
 
   static void EnsureFactoryBuilt();
 
@@ -89,7 +91,8 @@ class AppFirewallHoleManager : public KeyedService,
   raw_ptr<content::BrowserContext> context_;
   base::ScopedObservation<AppWindowRegistry, AppWindowRegistry::Observer>
       observation_{this};
-  std::multimap<std::string, AppFirewallHole*> tracked_holes_;
+  std::multimap<ExtensionId, raw_ptr<AppFirewallHole, CtnExperimental>>
+      tracked_holes_;
 
   base::WeakPtrFactory<AppFirewallHoleManager> weak_factory_{this};
 };

@@ -7,16 +7,23 @@
 #include "base/check.h"
 #include "gpu/command_buffer/service/skia_utils.h"
 #include "gpu/vulkan/vulkan_image.h"
+#include "third_party/skia/include/core/SkColorSpace.h"
+#include "third_party/skia/include/gpu/ganesh/GrDirectContext.h"
+#include "third_party/skia/include/gpu/ganesh/SkImageGanesh.h"
+#include "third_party/skia/include/gpu/ganesh/vk/GrVkBackendSurface.h"
 
 namespace gpu {
 
-TextureHolderVk::TextureHolderVk(std::unique_ptr<VulkanImage> image)
+TextureHolderVk::TextureHolderVk(std::unique_ptr<VulkanImage> image,
+                                 const viz::SharedImageFormat& si_format,
+                                 const gfx::ColorSpace& color_space)
     : vulkan_image(std::move(image)) {
   gfx::Size size = vulkan_image->size();
-  GrVkImageInfo vk_image_info = CreateGrVkImageInfo(vulkan_image.get());
+  GrVkImageInfo vk_image_info =
+      CreateGrVkImageInfo(vulkan_image.get(), si_format, color_space);
   backend_texture =
-      GrBackendTexture(size.width(), size.height(), vk_image_info);
-  promise_texture = SkPromiseImageTexture::Make(backend_texture);
+      GrBackendTextures::MakeVk(size.width(), size.height(), vk_image_info);
+  promise_texture = GrPromiseImageTexture::Make(backend_texture);
 }
 
 TextureHolderVk::TextureHolderVk(TextureHolderVk&& other) = default;
@@ -25,9 +32,23 @@ TextureHolderVk::~TextureHolderVk() = default;
 
 GrVkImageInfo TextureHolderVk::GetGrVkImageInfo() const {
   GrVkImageInfo info;
-  bool result = backend_texture.getVkImageInfo(&info);
+  bool result = GrBackendTextures::GetVkImageInfo(backend_texture, &info);
   CHECK(result);
   return info;
+}
+
+bool TextureHolderVk::Readback(GrDirectContext* context,
+                               const SkPixmap& destination) {
+  CHECK(context);
+  auto sk_image = SkImages::BorrowTextureFrom(
+      context, backend_texture, kTopLeft_GrSurfaceOrigin,
+      destination.colorType(), SkAlphaType::kOpaque_SkAlphaType,
+      /*sk_color_space=*/nullptr);
+  if (!sk_image) {
+    return false;
+  }
+
+  return sk_image->readPixels(context, destination, 0, 0);
 }
 
 }  // namespace gpu

@@ -22,8 +22,6 @@ import org.chromium.ui.modelutil.MVCListAdapter;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
 
-import java.util.List;
-
 class TestAppMenuPropertiesDelegate implements AppMenuPropertiesDelegate {
     public final CallbackHelper menuDismissedCallback = new CallbackHelper();
     public final CallbackHelper footerInflatedCallback = new CallbackHelper();
@@ -37,15 +35,8 @@ class TestAppMenuPropertiesDelegate implements AppMenuPropertiesDelegate {
     @Override
     public void destroy() {}
 
-    @Nullable
     @Override
-    public List<CustomViewBinder> getCustomViewBinders() {
-        return null;
-    }
-
-    @Override
-    public ModelList getMenuItems(
-            CustomItemViewTypeProvider customItemViewTypeProvider, AppMenuHandler handler) {
+    public ModelList getMenuItems(AppMenuHandler handler) {
         ModelList modelList = new ModelList();
 
         PopupMenu popup = new PopupMenu(ContextUtils.getApplicationContext(), null);
@@ -68,18 +59,11 @@ class TestAppMenuPropertiesDelegate implements AppMenuPropertiesDelegate {
                         PropertyModel subModel = AppMenuUtil.menuItemToPropertyModel(subitem);
                         subList.add(new MVCListAdapter.ListItem(0, subModel));
                     }
-                    propertyModel.set(AppMenuItemProperties.SUBMENU, subList);
+                    propertyModel.set(AppMenuItemProperties.ADDITIONAL_ICONS, subList);
                 }
                 int menutype = AppMenuItemType.STANDARD;
                 if (item.getItemId() == R.id.icon_row_menu_id) {
-                    int viewCount = item.getSubMenu().size();
-                    if (viewCount == 3) {
-                        menutype = AppMenuItemType.THREE_BUTTON_ROW;
-                    } else if (viewCount == 4) {
-                        menutype = AppMenuItemType.FOUR_BUTTON_ROW;
-                    } else if (viewCount == 5) {
-                        menutype = AppMenuItemType.FIVE_BUTTON_ROW;
-                    }
+                    menutype = AppMenuItemType.BUTTON_ROW;
                 }
                 modelList.add(new MVCListAdapter.ListItem(menutype, propertyModel));
             }
@@ -95,14 +79,20 @@ class TestAppMenuPropertiesDelegate implements AppMenuPropertiesDelegate {
         menu.findItem(R.id.icon_row_menu_id).setVisible(enableAppIconRow);
         if (enableAppIconRow) {
             menu.findItem(R.id.icon_one)
-                    .setIcon(AppCompatResources.getDrawable(ContextUtils.getApplicationContext(),
-                            R.drawable.test_ic_arrow_forward_black_24dp));
+                    .setIcon(
+                            AppCompatResources.getDrawable(
+                                    ContextUtils.getApplicationContext(),
+                                    R.drawable.test_ic_arrow_forward_black_24dp));
             menu.findItem(R.id.icon_two)
-                    .setIcon(AppCompatResources.getDrawable(ContextUtils.getApplicationContext(),
-                            R.drawable.test_ic_arrow_forward_black_24dp));
+                    .setIcon(
+                            AppCompatResources.getDrawable(
+                                    ContextUtils.getApplicationContext(),
+                                    R.drawable.test_ic_arrow_forward_black_24dp));
             menu.findItem(R.id.icon_three)
-                    .setIcon(AppCompatResources.getDrawable(ContextUtils.getApplicationContext(),
-                            R.drawable.test_ic_arrow_forward_black_24dp));
+                    .setIcon(
+                            AppCompatResources.getDrawable(
+                                    ContextUtils.getApplicationContext(),
+                                    R.drawable.test_ic_arrow_forward_black_24dp));
             menu.findItem(R.id.icon_three).setEnabled(false);
         }
     }

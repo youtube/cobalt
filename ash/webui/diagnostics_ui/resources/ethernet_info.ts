@@ -5,12 +5,13 @@
 import './data_point.js';
 import './diagnostics_shared.css.js';
 
-import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/polymer/interfaces.js';
+import {I18nMixin} from 'chrome://resources/ash/common/cr_elements/i18n_mixin.js';
+import type {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/polymer/interfaces.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './ethernet_info.html.js';
-import {AuthenticationType, Network} from './network_health_provider.mojom-webui.js';
+import type {Network} from './network_health_provider.mojom-webui.js';
+import {AuthenticationType} from './network_health_provider.mojom-webui.js';
 
 /**
  * @fileoverview
@@ -21,8 +22,8 @@ import {AuthenticationType, Network} from './network_health_provider.mojom-webui
 const EthernetInfoElementBase = I18nMixin(PolymerElement);
 
 export class EthernetInfoElement extends EthernetInfoElementBase {
-  static get is(): string {
-    return 'ethernet-info';
+  static get is(): 'ethernet-info' {
+    return 'ethernet-info' as const;
   }
 
   static get template(): HTMLTemplateElement {
@@ -75,7 +76,7 @@ export class EthernetInfoElement extends EthernetInfoElementBase {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'ethernet-info': EthernetInfoElement;
+    [EthernetInfoElement.is]: EthernetInfoElement;
   }
 }
 

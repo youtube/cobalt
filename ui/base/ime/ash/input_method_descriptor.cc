@@ -4,6 +4,7 @@
 
 #include "ui/base/ime/ash/input_method_descriptor.h"
 
+#include <optional>
 #include <sstream>
 
 #include "base/check.h"
@@ -24,7 +25,8 @@ InputMethodDescriptor::InputMethodDescriptor(
     const std::vector<std::string>& language_codes,
     bool is_login_keyboard,
     const GURL& options_page_url,
-    const GURL& input_view_url)
+    const GURL& input_view_url,
+    const std::optional<std::string>& handwriting_language)
     : id_(id),
       name_(name),
       keyboard_layout_(keyboard_layout),
@@ -32,15 +34,17 @@ InputMethodDescriptor::InputMethodDescriptor(
       indicator_(indicator),
       is_login_keyboard_(is_login_keyboard),
       options_page_url_(options_page_url),
-      input_view_url_(input_view_url) {}
+      input_view_url_(input_view_url),
+      handwriting_language_(handwriting_language) {}
 
 InputMethodDescriptor::InputMethodDescriptor(
     const InputMethodDescriptor& other) = default;
 
 std::u16string InputMethodDescriptor::GetIndicator() const {
   // Return the empty string for ARC IMEs.
-  if (extension_ime_util::IsArcIME(id_))
+  if (extension_ime_util::IsArcIME(id_)) {
     return std::u16string();
+  }
 
   // If indicator is empty, use the first two character in its keyboard layout
   // or language code.

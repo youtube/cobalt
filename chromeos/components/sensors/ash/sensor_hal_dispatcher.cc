@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/time/time.h"
 #include "chromeos/ash/components/mojo_service_manager/connection.h"
@@ -86,21 +87,6 @@ SensorHalDispatcher::SensorHalDispatcher() : receiver_(this) {
   sensor_hal_clients_.set_disconnect_handler(
       base::BindRepeating(&SensorHalDispatcher::OnSensorHalClientDisconnect,
                           base::Unretained(this)));
-}
-
-base::UnguessableToken SensorHalDispatcher::GetTokenForTrustedClient() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  auto token = base::UnguessableToken::Create();
-  client_token_set_.insert(token);
-  return token;
-}
-
-bool SensorHalDispatcher::AuthenticateClient(
-    const base::UnguessableToken& token) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  return client_token_set_.find(token) != client_token_set_.end();
 }
 
 void SensorHalDispatcher::TryToEstablishMojoChannelByServiceManager() {

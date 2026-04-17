@@ -45,7 +45,7 @@ def main():
   sys.path.append(chrome_device_policy_pb2_path)
   # Make reload google library
   # which might be already loaded due to Google App Engine
-  # TODO(crbug.com/764314): find better solution how to import protobuf.
+  # TODO(crbug.com/41344096): find better solution how to import protobuf.
   import google.protobuf
   # Python 3 doesn't expose a global `reload`.
   if sys.version_info.major == 2:
@@ -62,7 +62,7 @@ def main():
       file.write('      case {proto_tag}:\n'
                  '        policies->clear_{name}();\n'
                  '        break;\n'
-                 .format(proto_tag=field.number, name=field.name))
+                 .format(proto_tag=field.number, name=field.name.lower()))
     file.write(file_footer);
   return 0
 

@@ -8,16 +8,15 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
-#include "base/feature_list.h"
 #include "base/time/time.h"
 #include "chrome/browser/metrics/perf/metric_collector.h"
 #include "chrome/browser/metrics/perf/perf_output.h"
 #include "chrome/browser/metrics/perf/random_selector.h"
 #include "third_party/metrics_proto/sampled_profile.pb.h"
 #include "third_party/metrics_proto/system_profile.pb.h"
-#include "third_party/re2/src/re2/stringpiece.h"
 
 namespace ash {
 class DebugDaemonClientProvider;
@@ -31,8 +30,6 @@ namespace metrics {
 
 struct CPUIdentity;
 class WindowedIncognitoObserver;
-
-BASE_DECLARE_FEATURE(kCWPCollectsETM);
 
 // Enables collection of perf events profile data. perf aka "perf events" is a
 // performance profiling infrastructure built into the linux kernel. For more
@@ -108,13 +105,14 @@ class PerfCollector : public internal::MetricCollector {
     kSomeZeroCPUFrequencies,
     kAllZeroCPUFrequencies,
     kSuccessOnRetry,
+    kNumCPUsMoreThanPossible,
     // Magic constant used by the histogram macros.
-    kMaxValue = kSuccessOnRetry,
+    kMaxValue = kNumCPUsMoreThanPossible,
   };
 
   // Extracts the |lacros_channel| and |lacros_version| from |lacros_path|.
   static bool LacrosChannelAndVersion(
-      re2::StringPiece lacros_path,
+      std::string_view lacros_path,
       metrics::SystemProfileProto_Channel& lacros_channel,
       std::string& lacros_version);
 

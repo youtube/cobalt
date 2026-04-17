@@ -19,8 +19,10 @@
 #include "url/gurl.h"
 
 namespace web {
+namespace proto {
+class NavigationItemStorage;
+}  // namespace proto
 
-class NavigationItemStorageBuilder;
 enum class NavigationInitiationType;
 
 // Implementation of NavigationItem.
@@ -30,8 +32,14 @@ class NavigationItemImpl : public web::NavigationItem {
   NavigationItemImpl();
   ~NavigationItemImpl() override;
 
-  // Explicit copy constructor since the super class is not copyable.
-  NavigationItemImpl(const NavigationItemImpl& item);
+  // Creates a NavigationItemImpl from serialized representation.
+  explicit NavigationItemImpl(const proto::NavigationItemStorage& storage);
+
+  // Serializes the NavigationItemImpl into `storage`.
+  void SerializeToProto(proto::NavigationItemStorage& storage) const;
+
+  // Clones the current object.
+  std::unique_ptr<NavigationItemImpl> Clone();
 
   // NavigationItem implementation:
   int GetUniqueID() const override;
@@ -56,6 +64,8 @@ class NavigationItemImpl : public web::NavigationItem {
   base::Time GetTimestamp() const override;
   void SetUserAgentType(UserAgentType type) override;
   UserAgentType GetUserAgentType() const override;
+  void SetSecurityScopedFileResource(NSData* data) override;
+  NSData* GetSecurityScopedFileResource() override;
   bool HasPostData() const override;
   HttpRequestHeaders* GetHttpRequestHeaders() const override;
   void AddHttpRequestHeaders(HttpRequestHeaders* additional_headers) override;
@@ -82,6 +92,10 @@ class NavigationItemImpl : public web::NavigationItem {
   // Whether or not to bypass serializing this item to session storage.  Set to
   // YES to skip saving this page (and therefore restoring this page).
   void SetShouldSkipSerialization(bool skip);
+
+  // Returns whether the page should be skipped when serializing. Will return
+  // true if `SetShouldSkipSerialization(YES)` was called but may return true
+  // in other circumstances (e.g. URL too long, ...).
   bool ShouldSkipSerialization() const;
 
   // Data submitted with a POST request, persisted for resubmits.
@@ -117,9 +131,9 @@ class NavigationItemImpl : public web::NavigationItem {
 #endif
 
  private:
-  // The NavigationManItemStorageBuilder functions require access to
-  // private variables of NavigationItemImpl.
-  friend NavigationItemStorageBuilder;
+  // Explicit copy constructor since the super class is not copyable.
+  // Used to implement Clone().
+  NavigationItemImpl(const NavigationItemImpl& item);
 
   const int unique_id_;
   GURL original_request_url_;
@@ -132,6 +146,7 @@ class NavigationItemImpl : public web::NavigationItem {
   SSLStatus ssl_;
   base::Time timestamp_;
   UserAgentType user_agent_type_ = UserAgentType::NONE;
+  NSData* security_scoped_file_resource_ = nil;
   NSMutableDictionary* http_request_headers_ = nil;
 
   NSString* serialized_state_object_ = nil;

@@ -19,14 +19,9 @@ struct InterceptFunctionInformation {
   bool finished_operation;
   const char* imported_from_module;
   const char* function_name;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #reinterpret-cast-trivial-type
+  // RAW_PTR_EXCLUSION: #reinterpret-cast-trivial-type
   RAW_PTR_EXCLUSION void* new_function;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #reinterpret-cast-trivial-type
   RAW_PTR_EXCLUSION void** old_function;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #reinterpret-cast-trivial-type
   RAW_PTR_EXCLUSION IMAGE_THUNK_DATA** iat_thunk;
   DWORD return_code;
 };
@@ -34,7 +29,6 @@ struct InterceptFunctionInformation {
 void* GetIATFunction(IMAGE_THUNK_DATA* iat_thunk) {
   if (!iat_thunk) {
     NOTREACHED();
-    return nullptr;
   }
 
   // Works around the 64 bit portability warning:
@@ -64,7 +58,6 @@ bool InterceptEnumCallback(const base::win::PEImage& image,
 
   if (!intercept_information) {
     NOTREACHED();
-    return false;
   }
 
   DCHECK(module);
@@ -120,13 +113,11 @@ DWORD InterceptImportedFunction(HMODULE module_handle,
   if (!module_handle || !imported_from_module || !function_name ||
       !new_function) {
     NOTREACHED();
-    return ERROR_INVALID_PARAMETER;
   }
 
   base::win::PEImage target_image(module_handle);
   if (!target_image.VerifyMagic()) {
     NOTREACHED();
-    return ERROR_INVALID_PARAMETER;
   }
 
   InterceptFunctionInformation intercept_information = {false,
@@ -162,14 +153,12 @@ DWORD RestoreImportedFunction(void* intercept_function,
                               IMAGE_THUNK_DATA* iat_thunk) {
   if (!intercept_function || !original_function || !iat_thunk) {
     NOTREACHED();
-    return ERROR_INVALID_PARAMETER;
   }
 
   if (GetIATFunction(iat_thunk) != intercept_function) {
     // Check if someone else has intercepted on top of us.
     // We cannot unpatch in this case, just raise a red flag.
     NOTREACHED();
-    return ERROR_INVALID_FUNCTION;
   }
 
   return internal::ModifyCode(&(iat_thunk->u1.Function), &original_function,
@@ -194,7 +183,6 @@ DWORD IATPatchFunction::Patch(const wchar_t* module,
   HMODULE module_handle = LoadLibraryW(module);
   if (!module_handle) {
     NOTREACHED();
-    return GetLastError();
   }
 
   DWORD error = PatchFromModule(module_handle, imported_from_module,
@@ -217,9 +205,10 @@ DWORD IATPatchFunction::PatchFromModule(HMODULE module,
   DCHECK_EQ(nullptr, intercept_function_);
   DCHECK(module);
 
-  DWORD error =
-      InterceptImportedFunction(module, imported_from_module, function_name,
-                                new_function, &original_function_, &iat_thunk_);
+  DWORD error = InterceptImportedFunction(
+      module, imported_from_module, function_name, new_function,
+      &original_function_.AsEphemeralRawAddr(),
+      &iat_thunk_.AsEphemeralRawAddr());
 
   if (NO_ERROR == error) {
     DCHECK_NE(original_function_, intercept_function_);
@@ -240,8 +229,9 @@ DWORD IATPatchFunction::Unpatch() {
   // patch. In this case its better to be hands off the intercept as
   // trying to unpatch again in the destructor of IATPatchFunction is
   // not going to be any safer
-  if (module_handle_)
+  if (module_handle_) {
     FreeLibrary(module_handle_);
+  }
   module_handle_ = nullptr;
   intercept_function_ = nullptr;
   original_function_ = nullptr;

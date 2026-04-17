@@ -6,8 +6,9 @@
 #define IOS_WEB_PUBLIC_WEBUI_WEB_UI_IOS_CONTROLLER_H_
 
 #include <string>
+#include <string_view>
 
-#include "base/strings/string_piece.h"
+#import "base/memory/raw_ptr.h"
 
 class GURL;
 
@@ -26,7 +27,7 @@ class WebUIIOSController {
   // Allows the controller to override handling all messages from the page.
   // Return true if the message handling was overridden.
   virtual bool OverrideHandleWebUIIOSMessage(const GURL& source_url,
-                                             base::StringPiece message);
+                                             std::string_view message);
 
   WebUIIOS* web_ui() const { return web_ui_; }
 
@@ -34,7 +35,7 @@ class WebUIIOSController {
   std::string GetHost() const { return host_; }
 
  private:
-  WebUIIOS* web_ui_;
+  raw_ptr<WebUIIOS> web_ui_;
   std::string host_;
 };
 

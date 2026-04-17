@@ -6,6 +6,7 @@
 
 #include <stdint.h>
 
+#include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/formats/mp4/box_definitions.h"
@@ -25,7 +26,7 @@ FFmpegH264ToAnnexBBitstreamConverter::~FFmpegH264ToAnnexBBitstreamConverter() =
 bool FFmpegH264ToAnnexBBitstreamConverter::ConvertPacket(AVPacket* packet) {
   std::unique_ptr<mp4::AVCDecoderConfigurationRecord> avc_config;
 
-  if (packet == NULL || !packet->data) {
+  if (packet == nullptr || !packet->data) {
     DVLOG(2) << __func__ << ": Null or empty packet";
     return false;
   }
@@ -35,7 +36,7 @@ bool FFmpegH264ToAnnexBBitstreamConverter::ConvertPacket(AVPacket* packet) {
     if (!stream_codec_parameters_->extradata ||
         stream_codec_parameters_->extradata_size <= 0) {
       DVLOG(2) << __func__ << ": Empty extra data";
-      return false;
+      return true;
     }
 
     avc_config = std::make_unique<mp4::AVCDecoderConfigurationRecord>();
@@ -79,6 +80,10 @@ bool FFmpegH264ToAnnexBBitstreamConverter::ConvertPacket(AVPacket* packet) {
     return false;
   }
 
+  // It is possible for the actual size to be smaller than the computed
+  // allocation size.
+  dest_packet.size = io_size;
+
   if (avc_config)
     configuration_processed_ = true;
 
@@ -86,7 +91,7 @@ bool FFmpegH264ToAnnexBBitstreamConverter::ConvertPacket(AVPacket* packet) {
   av_packet_unref(packet);
 
   // Finally, replace the values in the input packet.
-  memcpy(packet, &dest_packet, sizeof(*packet));
+  UNSAFE_TODO(memcpy(packet, &dest_packet, sizeof(*packet)));
   return true;
 }
 

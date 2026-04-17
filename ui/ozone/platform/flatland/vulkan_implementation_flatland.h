@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "base/memory/raw_ptr.h"
 #include "gpu/vulkan/vulkan_implementation.h"
 #include "gpu/vulkan/vulkan_instance.h"
 
@@ -42,12 +43,8 @@ class VulkanImplementationFlatland : public gpu::VulkanImplementation {
   std::unique_ptr<gfx::GpuFence> ExportVkFenceToGpuFence(
       VkDevice vk_device,
       VkFence vk_fence) override;
-  VkSemaphore CreateExternalSemaphore(VkDevice vk_device) override;
-  VkSemaphore ImportSemaphoreHandle(VkDevice vk_device,
-                                    gpu::SemaphoreHandle handle) override;
-  gpu::SemaphoreHandle GetSemaphoreHandle(VkDevice vk_device,
-                                          VkSemaphore vk_semaphore) override;
-  VkExternalMemoryHandleTypeFlagBits GetExternalImageHandleType() override;
+  VkExternalSemaphoreHandleTypeFlagBits GetExternalSemaphoreHandleType()
+      override;
   bool CanImportGpuMemoryBuffer(
       gpu::VulkanDeviceQueue* device_queue,
       gfx::GpuMemoryBufferType memory_buffer_type) override;
@@ -68,7 +65,7 @@ class VulkanImplementationFlatland : public gpu::VulkanImplementation {
       bool register_with_flatland_allocator) override;
 
  private:
-  FlatlandSysmemBufferManager* const flatland_sysmem_buffer_manager_;
+  const raw_ptr<FlatlandSysmemBufferManager> flatland_sysmem_buffer_manager_;
 
   gpu::VulkanInstance vulkan_instance_;
 };

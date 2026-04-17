@@ -5,7 +5,9 @@
 #include "chromeos/ash/components/attestation/attestation_flow.h"
 
 #include <algorithm>
+#include <optional>
 #include <utility>
+#include <variant>
 
 #include "base/check.h"
 #include "base/compiler_specific.h"
@@ -20,14 +22,13 @@
 #include "chromeos/ash/components/dbus/attestation/interface.pb.h"
 #include "chromeos/ash/components/dbus/constants/attestation_constants.h"
 #include "components/account_id/account_id.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash {
 namespace attestation {
 
 namespace {
 
-absl::optional<::attestation::CertificateProfile> ProfileToAttestationProtoEnum(
+std::optional<::attestation::CertificateProfile> ProfileToAttestationProtoEnum(
     AttestationCertificateProfile p) {
   switch (p) {
     case PROFILE_ENTERPRISE_MACHINE_CERTIFICATE:
@@ -43,6 +44,8 @@ absl::optional<::attestation::CertificateProfile> ProfileToAttestationProtoEnum(
       return ::attestation::CertificateProfile::SOFT_BIND_CERTIFICATE;
     case PROFILE_DEVICE_SETUP_CERTIFICATE:
       return ::attestation::CertificateProfile::DEVICE_SETUP_CERTIFICATE;
+    case PROFILE_DEVICE_TRUST_USER_CERTIFICATE:
+      return ::attestation::CertificateProfile::DEVICE_TRUST_USER_CERTIFICATE;
   }
   return {};
 }
@@ -74,6 +77,7 @@ AttestationKeyType AttestationFlow::GetKeyTypeForProfile(
     case PROFILE_ENTERPRISE_MACHINE_CERTIFICATE:
     case PROFILE_ENTERPRISE_ENROLLMENT_CERTIFICATE:
     case PROFILE_DEVICE_SETUP_CERTIFICATE:
+    case PROFILE_DEVICE_TRUST_USER_CERTIFICATE:
       return KEY_DEVICE;
     case PROFILE_ENTERPRISE_USER_CERTIFICATE:
     case PROFILE_CONTENT_PROTECTION_CERTIFICATE:
@@ -81,43 +85,47 @@ AttestationKeyType AttestationFlow::GetKeyTypeForProfile(
       return KEY_USER;
   }
   NOTREACHED();
-  return KEY_USER;
 }
 
-AttestationFlow::AttestationFlow(std::unique_ptr<ServerProxy> server_proxy)
+AttestationFlowLegacy::AttestationFlowLegacy(
+    std::unique_ptr<ServerProxy> server_proxy)
     : attestation_client_(AttestationClient::Get()),
       server_proxy_(std::move(server_proxy)),
       ready_timeout_(base::Seconds(kReadyTimeoutInSeconds)),
       retry_delay_(base::Milliseconds(kRetryDelayInMilliseconds)) {}
 
-AttestationFlow::~AttestationFlow() = default;
+AttestationFlowLegacy::~AttestationFlowLegacy() = default;
 
-void AttestationFlow::GetCertificate(
+void AttestationFlowLegacy::GetCertificate(
     AttestationCertificateProfile certificate_profile,
     const AccountId& account_id,
     const std::string& request_origin,
     bool force_new_key,
     ::attestation::KeyType key_crypto_type,
     const std::string& key_name,
-    const absl::optional<CertProfileSpecificData>& profile_specific_data,
+    const std::optional<CertProfileSpecificData>& profile_specific_data,
     CertificateCallback callback) {
   DCHECK(!key_name.empty());
 
-  EnrollCallback start_certificate_request = base::BindOnce(
-      &AttestationFlow::StartCertificateRequest, weak_factory_.GetWeakPtr(),
-      certificate_profile, account_id, request_origin, force_new_key,
-      key_crypto_type, key_name, profile_specific_data, std::move(callback));
+  EnrollCallback start_certificate_request =
+      base::BindOnce(&AttestationFlowLegacy::StartCertificateRequest,
+                     weak_factory_.GetWeakPtr(), certificate_profile,
+                     account_id, request_origin, force_new_key, key_crypto_type,
+                     key_name, profile_specific_data, std::move(callback));
 
   // If this device has not enrolled with the Privacy CA, we need to do that
   // first.  Once enrolled we can proceed with the certificate request.
+  ::attestation::GetStatusRequest status_request;
+  status_request.set_extended_status(true);
   attestation_client_->GetStatus(
-      ::attestation::GetStatusRequest(),
-      base::BindOnce(&AttestationFlow::OnEnrollmentCheckComplete,
-                     weak_factory_.GetWeakPtr(),
+      status_request,
+      base::BindOnce(&AttestationFlowLegacy::OnEnrollmentCheckComplete,
+                     weak_factory_.GetWeakPtr(), certificate_profile,
                      std::move(start_certificate_request)));
 }
 
-void AttestationFlow::OnEnrollmentCheckComplete(
+void AttestationFlowLegacy::OnEnrollmentCheckComplete(
+    AttestationCertificateProfile certificate_profile,
     EnrollCallback callback,
     const ::attestation::GetStatusReply& reply) {
   if (reply.status() != ::attestation::STATUS_SUCCESS) {
@@ -132,18 +140,28 @@ void AttestationFlow::OnEnrollmentCheckComplete(
     return;
   }
 
+  // The verified boot state is required for soft bind certificates.
+  if (certificate_profile ==
+          AttestationCertificateProfile::PROFILE_SOFT_BIND_CERTIFICATE &&
+      !reply.verified_boot()) {
+    LOG(ERROR) << "Attestation: Cannot create soft bind certificate without "
+                  "verified boot.";
+    std::move(callback).Run(EnrollState::kError);
+    return;
+  }
+
   // The device is not enrolled; check if it supports attestation.
   GetFeatures(std::move(callback));
 }
 
-void AttestationFlow::GetFeatures(EnrollCallback callback) {
+void AttestationFlowLegacy::GetFeatures(EnrollCallback callback) {
   attestation_client_->GetFeatures(
       ::attestation::GetFeaturesRequest(),
-      base::BindOnce(&AttestationFlow::OnGetFeaturesComplete,
+      base::BindOnce(&AttestationFlowLegacy::OnGetFeaturesComplete,
                      weak_factory_.GetWeakPtr(), std::move(callback)));
 }
 
-void AttestationFlow::OnGetFeaturesComplete(
+void AttestationFlowLegacy::OnGetFeaturesComplete(
     EnrollCallback callback,
     const ::attestation::GetFeaturesReply& reply) {
   if (reply.status() != ::attestation::STATUS_SUCCESS) {
@@ -162,16 +180,17 @@ void AttestationFlow::OnGetFeaturesComplete(
   }
 }
 
-void AttestationFlow::WaitForAttestationPrepared(base::TimeTicks end_time,
-                                                 EnrollCallback callback) {
+void AttestationFlowLegacy::WaitForAttestationPrepared(
+    base::TimeTicks end_time,
+    EnrollCallback callback) {
   ::attestation::GetEnrollmentPreparationsRequest request;
   attestation_client_->GetEnrollmentPreparations(
-      request, base::BindOnce(&AttestationFlow::OnPreparedCheckComplete,
+      request, base::BindOnce(&AttestationFlowLegacy::OnPreparedCheckComplete,
                               weak_factory_.GetWeakPtr(), end_time,
                               std::move(callback)));
 }
 
-void AttestationFlow::OnPreparedCheckComplete(
+void AttestationFlowLegacy::OnPreparedCheckComplete(
     base::TimeTicks end_time,
     EnrollCallback callback,
     const ::attestation::GetEnrollmentPreparationsReply& reply) {
@@ -181,7 +200,7 @@ void AttestationFlow::OnPreparedCheckComplete(
     request.set_aca_type(ToAcaType(server_proxy_->GetType()));
     AttestationClient::Get()->CreateEnrollRequest(
         request,
-        base::BindOnce(&AttestationFlow::SendEnrollRequestToPCA,
+        base::BindOnce(&AttestationFlowLegacy::SendEnrollRequestToPCA,
                        weak_factory_.GetWeakPtr(), std::move(callback)));
     return;
   }
@@ -191,7 +210,7 @@ void AttestationFlow::OnPreparedCheckComplete(
                  << " Retrying in " << retry_delay_ << ".";
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
         FROM_HERE,
-        base::BindOnce(&AttestationFlow::WaitForAttestationPrepared,
+        base::BindOnce(&AttestationFlowLegacy::WaitForAttestationPrepared,
                        weak_factory_.GetWeakPtr(), end_time,
                        std::move(callback)),
         retry_delay_);
@@ -202,7 +221,7 @@ void AttestationFlow::OnPreparedCheckComplete(
   std::move(callback).Run(EnrollState::kError);
 }
 
-void AttestationFlow::SendEnrollRequestToPCA(
+void AttestationFlowLegacy::SendEnrollRequestToPCA(
     EnrollCallback callback,
     const ::attestation::CreateEnrollRequestReply& reply) {
   if (reply.status() != ::attestation::STATUS_SUCCESS) {
@@ -215,13 +234,14 @@ void AttestationFlow::SendEnrollRequestToPCA(
   // Send the request to the Privacy CA.
   server_proxy_->SendEnrollRequest(
       reply.pca_request(),
-      base::BindOnce(&AttestationFlow::SendEnrollResponseToDaemon,
+      base::BindOnce(&AttestationFlowLegacy::SendEnrollResponseToDaemon,
                      weak_factory_.GetWeakPtr(), std::move(callback)));
 }
 
-void AttestationFlow::SendEnrollResponseToDaemon(EnrollCallback callback,
-                                                 bool success,
-                                                 const std::string& data) {
+void AttestationFlowLegacy::SendEnrollResponseToDaemon(
+    EnrollCallback callback,
+    bool success,
+    const std::string& data) {
   if (!success) {
     LOG(ERROR) << "Attestation: Enroll request failed.";
     std::move(callback).Run(EnrollState::kError);
@@ -233,11 +253,11 @@ void AttestationFlow::SendEnrollResponseToDaemon(EnrollCallback callback,
   request.set_pca_response(data);
   request.set_aca_type(ToAcaType(server_proxy_->GetType()));
   AttestationClient::Get()->FinishEnroll(
-      request, base::BindOnce(&AttestationFlow::OnEnrollComplete,
+      request, base::BindOnce(&AttestationFlowLegacy::OnEnrollComplete,
                               weak_factory_.GetWeakPtr(), std::move(callback)));
 }
 
-void AttestationFlow::OnEnrollComplete(
+void AttestationFlowLegacy::OnEnrollComplete(
     EnrollCallback callback,
     const ::attestation::FinishEnrollReply& reply) {
   if (reply.status() != ::attestation::STATUS_SUCCESS) {
@@ -250,14 +270,14 @@ void AttestationFlow::OnEnrollComplete(
   std::move(callback).Run(EnrollState::kEnrolled);
 }
 
-void AttestationFlow::StartCertificateRequest(
+void AttestationFlowLegacy::StartCertificateRequest(
     AttestationCertificateProfile certificate_profile,
     const AccountId& account_id,
     const std::string& request_origin,
     bool generate_new_key,
     ::attestation::KeyType key_crypto_type,
     const std::string& key_name,
-    const absl::optional<CertProfileSpecificData>& profile_specific_data,
+    const std::optional<CertProfileSpecificData>& profile_specific_data,
     CertificateCallback callback,
     EnrollState enroll_state) {
   switch (enroll_state) {
@@ -276,9 +296,8 @@ void AttestationFlow::StartCertificateRequest(
   AttestationKeyType key_type = GetKeyTypeForProfile(certificate_profile);
   if (generate_new_key) {
     // Get the attestation service to create a Privacy CA certificate request.
-    const absl::optional<::attestation::CertificateProfile>
-        attestation_profile =
-            ProfileToAttestationProtoEnum(certificate_profile);
+    const std::optional<::attestation::CertificateProfile> attestation_profile =
+        ProfileToAttestationProtoEnum(certificate_profile);
     if (!attestation_profile) {
       LOG(DFATAL) << "Attestation: Unrecognized profile type: "
                   << certificate_profile;
@@ -299,27 +318,28 @@ void AttestationFlow::StartCertificateRequest(
       DCHECK(profile_specific_data.has_value())
           << "profile_specific_data must be provided for "
              "DEVICE_SETUP_CERTIFICATE";
-      DCHECK(absl::holds_alternative<
+      DCHECK(std::holds_alternative<
              ::attestation::DeviceSetupCertificateRequestMetadata>(
           profile_specific_data.value()))
           << "profile_specific_data must be of type "
              "::attestation::DeviceSetupCertificateRequestMetadata";
 
       request.mutable_device_setup_certificate_request_metadata()->set_id(
-          absl::get<::attestation::DeviceSetupCertificateRequestMetadata>(
+          std::get<::attestation::DeviceSetupCertificateRequestMetadata>(
               profile_specific_data.value())
               .id());
       request.mutable_device_setup_certificate_request_metadata()
           ->set_content_binding(
-              absl::get<::attestation::DeviceSetupCertificateRequestMetadata>(
+              std::get<::attestation::DeviceSetupCertificateRequestMetadata>(
                   profile_specific_data.value())
                   .content_binding());
     }
 
     attestation_client_->CreateCertificateRequest(
-        request, base::BindOnce(&AttestationFlow::SendCertificateRequestToPCA,
-                                weak_factory_.GetWeakPtr(), key_type,
-                                account_id, key_name, std::move(callback)));
+        request,
+        base::BindOnce(&AttestationFlowLegacy::SendCertificateRequestToPCA,
+                       weak_factory_.GetWeakPtr(), key_type, account_id,
+                       key_name, std::move(callback)));
     return;
   }
 
@@ -330,20 +350,20 @@ void AttestationFlow::StartCertificateRequest(
   request.set_key_label(key_name);
   attestation_client_->GetKeyInfo(
       request,
-      base::BindOnce(&AttestationFlow::OnGetKeyInfoComplete,
+      base::BindOnce(&AttestationFlowLegacy::OnGetKeyInfoComplete,
                      weak_factory_.GetWeakPtr(), certificate_profile,
                      account_id, request_origin, key_crypto_type, key_name,
                      key_type, profile_specific_data, std::move(callback)));
 }
 
-void AttestationFlow::OnGetKeyInfoComplete(
+void AttestationFlowLegacy::OnGetKeyInfoComplete(
     AttestationCertificateProfile certificate_profile,
     const AccountId& account_id,
     const std::string& request_origin,
     ::attestation::KeyType key_crypto_type,
     const std::string& key_name,
     AttestationKeyType key_type,
-    const absl::optional<CertProfileSpecificData>& profile_specific_data,
+    const std::optional<CertProfileSpecificData>& profile_specific_data,
     CertificateCallback callback,
     const ::attestation::GetKeyInfoReply& reply) {
   // If the key already exists, return the existing certificate.
@@ -368,7 +388,7 @@ void AttestationFlow::OnGetKeyInfoComplete(
   std::move(callback).Run(ATTESTATION_UNSPECIFIED_FAILURE, "");
 }
 
-void AttestationFlow::SendCertificateRequestToPCA(
+void AttestationFlowLegacy::SendCertificateRequestToPCA(
     AttestationKeyType key_type,
     const AccountId& account_id,
     const std::string& key_name,
@@ -384,12 +404,12 @@ void AttestationFlow::SendCertificateRequestToPCA(
   // Send the request to the Privacy CA.
   server_proxy_->SendCertificateRequest(
       reply.pca_request(),
-      base::BindOnce(&AttestationFlow::SendCertificateResponseToDaemon,
+      base::BindOnce(&AttestationFlowLegacy::SendCertificateResponseToDaemon,
                      weak_factory_.GetWeakPtr(), key_type, account_id, key_name,
                      std::move(callback)));
 }
 
-void AttestationFlow::SendCertificateResponseToDaemon(
+void AttestationFlowLegacy::SendCertificateResponseToDaemon(
     AttestationKeyType key_type,
     const AccountId& account_id,
     const std::string& key_name,
@@ -409,11 +429,11 @@ void AttestationFlow::SendCertificateResponseToDaemon(
   request.set_key_label(key_name);
   request.set_pca_response(data);
   AttestationClient::Get()->FinishCertificateRequest(
-      request, base::BindOnce(&AttestationFlow::OnCertRequestFinished,
+      request, base::BindOnce(&AttestationFlowLegacy::OnCertRequestFinished,
                               weak_factory_.GetWeakPtr(), std::move(callback)));
 }
 
-void AttestationFlow::OnCertRequestFinished(
+void AttestationFlowLegacy::OnCertRequestFinished(
     CertificateCallback callback,
     const ::attestation::FinishCertificateRequestReply& reply) {
   if (reply.status() == ::attestation::STATUS_SUCCESS) {

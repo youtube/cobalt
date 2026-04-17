@@ -8,6 +8,11 @@
 
 #include <stddef.h>
 
+#include <cstdint>
+#include <string>
+#include <tuple>
+#include <utility>
+
 #include "absl/base/macros.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
@@ -27,9 +32,9 @@ class HpackVarintDecoderTest
       public ::testing::WithParamInterface<std::tuple<uint8_t, const char*>> {
  protected:
   HpackVarintDecoderTest()
-      : high_bits_(std::get<0>(GetParam())),
-        suffix_(absl::HexStringToBytes(std::get<1>(GetParam()))),
-        prefix_length_(0) {}
+      : high_bits_(std::get<0>(GetParam())), prefix_length_(0) {
+    QUICHE_CHECK(absl::HexStringToBytes(std::get<1>(GetParam()), &suffix_));
+  }
 
   void DecodeExpectSuccess(absl::string_view data, uint32_t prefix_length,
                            uint64_t expected_value) {
@@ -44,9 +49,10 @@ class HpackVarintDecoderTest
 
     // First validate that decoding is done and that we've advanced the cursor
     // the expected amount.
-    validator = ValidateDoneAndOffset(/* offset = */ data.size(), validator);
+    validator =
+        ValidateDoneAndOffset(/* offset = */ data.size(), std::move(validator));
 
-    EXPECT_TRUE(Decode(data, prefix_length, validator));
+    EXPECT_TRUE(Decode(data, prefix_length, std::move(validator)));
 
     EXPECT_EQ(expected_value, decoder_.value());
   }
@@ -58,7 +64,7 @@ class HpackVarintDecoderTest
       return AssertionSuccess();
     };
 
-    EXPECT_TRUE(Decode(data, prefix_length, validator));
+    EXPECT_TRUE(Decode(data, prefix_length, std::move(validator)));
   }
 
  private:
@@ -99,7 +105,7 @@ class HpackVarintDecoderTest
   // Bits of the first byte not part of the prefix.
   const uint8_t high_bits_;
   // Extra bytes appended to the input.
-  const std::string suffix_;
+  std::string suffix_;
 
   HpackVarintDecoder decoder_;
   uint8_t prefix_length_;
@@ -258,8 +264,9 @@ struct {
 
 TEST_P(HpackVarintDecoderTest, Success) {
   for (size_t i = 0; i < ABSL_ARRAYSIZE(kSuccessTestData); ++i) {
-    DecodeExpectSuccess(absl::HexStringToBytes(kSuccessTestData[i].data),
-                        kSuccessTestData[i].prefix_length,
+    std::string data_bytes;
+    ASSERT_TRUE(absl::HexStringToBytes(kSuccessTestData[i].data, &data_bytes));
+    DecodeExpectSuccess(data_bytes, kSuccessTestData[i].prefix_length,
                         kSuccessTestData[i].expected_value);
   }
 }
@@ -299,8 +306,9 @@ struct {
 
 TEST_P(HpackVarintDecoderTest, Error) {
   for (size_t i = 0; i < ABSL_ARRAYSIZE(kErrorTestData); ++i) {
-    DecodeExpectError(absl::HexStringToBytes(kErrorTestData[i].data),
-                      kErrorTestData[i].prefix_length);
+    std::string data_bytes;
+    ASSERT_TRUE(absl::HexStringToBytes(kErrorTestData[i].data, &data_bytes));
+    DecodeExpectError(data_bytes, kErrorTestData[i].prefix_length);
   }
 }
 

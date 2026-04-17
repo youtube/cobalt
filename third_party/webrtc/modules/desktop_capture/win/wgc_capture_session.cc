@@ -13,8 +13,6 @@
 #include <DispatcherQueue.h>
 #include <windows.graphics.capture.interop.h>
 #include <windows.graphics.directX.direct3d11.interop.h>
-#include <windows.graphics.h>
-#include <wrl/client.h>
 #include <wrl/event.h>
 
 #include <algorithm>
@@ -22,14 +20,16 @@
 #include <utility>
 #include <vector>
 
+#include "modules/desktop_capture/win/screen_capture_utils.h"
 #include "modules/desktop_capture/win/wgc_desktop_frame.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
 #include "rtc_base/win/create_direct3d_device.h"
 #include "rtc_base/win/get_activation_factory.h"
+#include "rtc_base/win/windows_version.h"
 #include "system_wrappers/include/metrics.h"
-#include "system_wrappers/include/sleep.h"
 
 using Microsoft::WRL::ComPtr;
 namespace WGC = ABI::Windows::Graphics::Capture;
@@ -75,7 +75,8 @@ enum class GetFrameResult {
   kGetContentSizeFailed = 9,
   kResizeMappedTextureFailed = 10,
   kRecreateFramePoolFailed = 11,
-  kMaxValue = kRecreateFramePoolFailed
+  kFramePoolEmpty = 12,
+  kMaxValue = kFramePoolEmpty
 };
 
 void RecordStartCaptureResult(StartCaptureResult error) {
@@ -90,14 +91,29 @@ void RecordGetFrameResult(GetFrameResult error) {
       static_cast<int>(error), static_cast<int>(GetFrameResult::kMaxValue));
 }
 
+bool SizeHasChanged(ABI::Windows::Graphics::SizeInt32 size_new,
+                    ABI::Windows::Graphics::SizeInt32 size_old) {
+  return (size_new.Height != size_old.Height ||
+          size_new.Width != size_old.Width);
+}
+
+bool DoesWgcSkipStaticFrames() {
+  return (webrtc::rtc_win::GetVersion() >=
+          webrtc::rtc_win::Version::VERSION_WIN11_24H2);
+}
+
 }  // namespace
 
-WgcCaptureSession::WgcCaptureSession(ComPtr<ID3D11Device> d3d11_device,
+WgcCaptureSession::WgcCaptureSession(intptr_t source_id,
+                                     ComPtr<ID3D11Device> d3d11_device,
                                      ComPtr<WGC::IGraphicsCaptureItem> item,
                                      ABI::Windows::Graphics::SizeInt32 size)
     : d3d11_device_(std::move(d3d11_device)),
       item_(std::move(item)),
-      size_(size) {}
+      size_(size),
+      source_id_(source_id) {
+  is_window_source_ = ::IsWindow(reinterpret_cast<HWND>(source_id_));
+}
 
 WgcCaptureSession::~WgcCaptureSession() {
   RemoveEventHandler();
@@ -181,6 +197,18 @@ HRESULT WgcCaptureSession::StartCapture(const DesktopCaptureOptions& options) {
     }
   }
 
+  // By default, the WGC capture API adds a yellow border around the captured
+  // window or display to indicate that a capture is in progress. The section
+  // below is an attempt to remove this yellow border to make the capture
+  // experience more inline with the DXGI capture path.
+  // This requires 10.0.20348.0 or later, which practically means Windows 11.
+  ComPtr<ABI::Windows::Graphics::Capture::IGraphicsCaptureSession3> session3;
+  if (SUCCEEDED(session_->QueryInterface(
+          ABI::Windows::Graphics::Capture::IID_IGraphicsCaptureSession3,
+          &session3))) {
+    session3->put_IsBorderRequired(options.wgc_require_border());
+  }
+
   allow_zero_hertz_ = options.allow_wgc_zero_hertz();
 
   hr = session_->StartCapture();
@@ -228,7 +256,7 @@ void WgcCaptureSession::EnsureFrame() {
   int sleep_count = 0;
   while (!queue_.current_frame() && sleep_count < max_sleep_count) {
     sleep_count++;
-    webrtc::SleepMs(sleep_time_ms);
+    Thread::SleepMs(sleep_time_ms);
     hr = ProcessFrame();
     if (FAILED(hr)) {
       RTC_DLOG(LS_WARNING) << "ProcessFrame failed during startup: " << hr;
@@ -238,10 +266,22 @@ void WgcCaptureSession::EnsureFrame() {
       << "Unable to process a valid frame even after trying 10 times.";
 }
 
-bool WgcCaptureSession::GetFrame(std::unique_ptr<DesktopFrame>* output_frame) {
+bool WgcCaptureSession::GetFrame(std::unique_ptr<DesktopFrame>* output_frame,
+                                 bool source_should_be_capturable) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
 
-  EnsureFrame();
+  if (item_closed_) {
+    RTC_LOG(LS_ERROR) << "The target source has been closed.";
+    RecordGetFrameResult(GetFrameResult::kItemClosed);
+    return false;
+  }
+
+  // Try to process the captured frame and wait some if needed. Avoid trying
+  // if we know that the source will not be capturable. This can happen e.g.
+  // when captured window is minimized and if EnsureFrame() was called in this
+  // state a large amount of kFrameDropped errors would be logged.
+  if (source_should_be_capturable)
+    EnsureFrame();
 
   // Return a NULL frame and false as `result` if we still don't have a valid
   // frame. This will lead to a DesktopCapturer::Result::ERROR_PERMANENT being
@@ -291,12 +331,6 @@ HRESULT WgcCaptureSession::CreateMappedTexture(
 HRESULT WgcCaptureSession::ProcessFrame() {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
 
-  if (item_closed_) {
-    RTC_LOG(LS_ERROR) << "The target source has been closed.";
-    RecordGetFrameResult(GetFrameResult::kItemClosed);
-    return E_ABORT;
-  }
-
   RTC_DCHECK(is_capture_started_);
 
   ComPtr<WGC::IDirect3D11CaptureFrame> capture_frame;
@@ -308,10 +342,15 @@ HRESULT WgcCaptureSession::ProcessFrame() {
   }
 
   if (!capture_frame) {
-    // Avoid logging errors until at least one valid frame has been captured.
-    if (queue_.current_frame()) {
-      RTC_DLOG(LS_WARNING) << "Frame pool was empty => kFrameDropped.";
+    if (!queue_.current_frame()) {
+      // The frame pool was empty and so is the external queue.
+      RTC_DLOG(LS_ERROR) << "Frame pool was empty => kFrameDropped.";
       RecordGetFrameResult(GetFrameResult::kFrameDropped);
+    } else {
+      // The frame pool was empty but there is still one old frame available in
+      // external the queue.
+      RTC_DLOG(LS_WARNING) << "Frame pool was empty => kFramePoolEmpty.";
+      RecordGetFrameResult(GetFrameResult::kFramePoolEmpty);
     }
     return E_FAIL;
   }
@@ -370,7 +409,7 @@ HRESULT WgcCaptureSession::ProcessFrame() {
   // If the size changed, we must resize `mapped_texture_` and `frame_pool_` to
   // fit the new size. This must be done before `CopySubresourceRegion` so that
   // the textures are the same size.
-  if (size_.Height != new_size.Height || size_.Width != new_size.Width) {
+  if (SizeHasChanged(new_size, size_)) {
     hr = CreateMappedTexture(texture_2D, new_size.Width, new_size.Height);
     if (FAILED(hr)) {
       RecordGetFrameResult(GetFrameResult::kResizeMappedTextureFailed);
@@ -426,17 +465,88 @@ HRESULT WgcCaptureSession::ProcessFrame() {
   }
 
   DesktopFrame* current_frame = queue_.current_frame();
+  DesktopFrame* previous_frame = queue_.previous_frame();
+
+  if (is_window_source_) {
+    // If the captured window moves to another screen, the HMONITOR associated
+    // with the captured window will change. Therefore, we need to get the value
+    // of HMONITOR per frame.
+    monitor_ = ::MonitorFromWindow(reinterpret_cast<HWND>(source_id_),
+                                   /*dwFlags=*/MONITOR_DEFAULTTONEAREST);
+  } else {
+    if (!monitor_.has_value()) {
+      HMONITOR monitor;
+      if (!GetHmonitorFromDeviceIndex(source_id_, &monitor)) {
+        RTC_LOG(LS_ERROR) << "Failed to get HMONITOR from device index.";
+        d3d_context->Unmap(mapped_texture_.Get(), 0);
+        return E_FAIL;
+      }
+      monitor_ = monitor;
+    }
+  }
+
+  // Captures the device scale factor of the monitor where the frame is captured
+  // from. This value is the same as the scale from windows settings. Valid
+  // values are some distinct numbers in the range of [1,5], for example,
+  // 1, 1.5, 2.5, etc.
+  DEVICE_SCALE_FACTOR device_scale_factor = DEVICE_SCALE_FACTOR_INVALID;
+  HRESULT scale_factor_hr =
+      GetScaleFactorForMonitor(monitor_.value(), &device_scale_factor);
+  RTC_LOG_IF(LS_ERROR, FAILED(scale_factor_hr))
+      << "Failed to get scale factor for monitor: " << scale_factor_hr;
+  if (device_scale_factor != DEVICE_SCALE_FACTOR_INVALID) {
+    current_frame->set_device_scale_factor(
+        static_cast<float>(device_scale_factor) / 100.0f);
+  }
+
+  // Will be set to true while copying the frame data to the `current_frame` if
+  // we can already determine that the content of the new frame differs from the
+  // previous. The idea is to get a low-complexity indication of if the content
+  // is static or not without performing a full/deep memory comparison when
+  // updating the damaged region.
+  // `DoesWgcSkipStaticFrames()`: `TryGetNextFrame()` returns a frame
+  // successfully only if there is a region that has changed. This means that
+  // we can skip the full memory comparison if the running OS is Windows 11
+  // 24H2 or later.
+  bool frame_content_has_changed = DoesWgcSkipStaticFrames();
+
+  // Check if the queue contains two frames whose content can be compared.
+  const bool frame_content_can_be_compared = FrameContentCanBeCompared();
 
   // Make a copy of the data pointed to by `map_info.pData` to the preallocated
-  // `current_frame` so we are free to unmap our texture.
+  // `current_frame` so we are free to unmap our texture. If possible, also
+  // perform a light-weight scan of the vertical line of pixels in the middle
+  // of the screen. A comparison is performed between two 32-bit pixels (RGBA);
+  // one from the current frame and one from the previous, and as soon as a
+  // difference is detected the scan stops and `frame_content_has_changed` is
+  // set to true.
   uint8_t* src_data = static_cast<uint8_t*>(map_info.pData);
-  current_frame->CopyPixelsFrom(src_data, current_frame->stride(),
-                                DesktopRect::MakeSize(current_frame->size()));
+  uint8_t* dst_data = current_frame->data();
+  uint8_t* prev_data =
+      frame_content_can_be_compared ? previous_frame->data() : nullptr;
+
+  const int width_in_bytes =
+      current_frame->size().width() * DesktopFrame::kBytesPerPixel;
+  RTC_DCHECK_GE(current_frame->stride(), width_in_bytes);
+  RTC_DCHECK_GE(map_info.RowPitch, width_in_bytes);
+  const int middle_pixel_offset =
+      (image_width / 2) * DesktopFrame::kBytesPerPixel;
+  for (int i = 0; i < image_height; i++) {
+    memcpy(dst_data, src_data, width_in_bytes);
+    if (prev_data && !frame_content_has_changed) {
+      uint8_t* previous_pixel = prev_data + middle_pixel_offset;
+      uint8_t* current_pixel = dst_data + middle_pixel_offset;
+      frame_content_has_changed =
+          memcmp(previous_pixel, current_pixel, DesktopFrame::kBytesPerPixel);
+      prev_data += current_frame->stride();
+    }
+    dst_data += current_frame->stride();
+    src_data += map_info.RowPitch;
+  }
 
   d3d_context->Unmap(mapped_texture_.Get(), 0);
 
   if (allow_zero_hertz()) {
-    DesktopFrame* previous_frame = queue_.previous_frame();
     if (previous_frame) {
       const int previous_frame_size =
           previous_frame->stride() * previous_frame->size().height();
@@ -444,15 +554,27 @@ HRESULT WgcCaptureSession::ProcessFrame() {
           current_frame->stride() * current_frame->size().height();
 
       // Compare the latest frame with the previous and check if the frames are
-      // equal (both contain the exact same pixel values).
+      // equal (both contain the exact same pixel values). Avoid full memory
+      // comparison if indication of a changed frame already exists from the
+      // stage above.
       if (current_frame_size == previous_frame_size) {
-        const bool frames_are_equal = !memcmp(
-            current_frame->data(), previous_frame->data(), current_frame_size);
-        if (!frames_are_equal) {
-          // TODO(https://crbug.com/1421242): If we had an API to report proper
-          // damage regions we should be doing AddRect() with a SetRect() call
-          // on a resize.
+        if (frame_content_has_changed) {
+          // Mark frame as damaged based on existing light-weight indicator.
+          // Avoids deep memcmp of complete frame and saves resources.
           damage_region_.SetRect(DesktopRect::MakeSize(current_frame->size()));
+        } else {
+          // Perform full memory comparison for all bytes between the current
+          // and the previous frames.
+          const bool frames_are_equal =
+              !memcmp(current_frame->data(), previous_frame->data(),
+                      current_frame_size);
+          if (!frames_are_equal) {
+            // TODO(https://crbug.com/1421242): If we had an API to report
+            // proper damage regions we should be doing AddRect() with a
+            // SetRect() call on a resize.
+            damage_region_.SetRect(
+                DesktopRect::MakeSize(current_frame->size()));
+          }
         }
       } else {
         // Mark resized frames as damaged.
@@ -491,6 +613,18 @@ void WgcCaptureSession::RemoveEventHandler() {
     if (FAILED(hr))
       RTC_LOG(LS_WARNING) << "Failed to remove Closed event handler: " << hr;
   }
+}
+
+bool WgcCaptureSession::FrameContentCanBeCompared() {
+  DesktopFrame* current_frame = queue_.current_frame();
+  DesktopFrame* previous_frame = queue_.previous_frame();
+  if (!current_frame || !previous_frame) {
+    return false;
+  }
+  if (current_frame->stride() != previous_frame->stride()) {
+    return false;
+  }
+  return current_frame->size().equals(previous_frame->size());
 }
 
 }  // namespace webrtc

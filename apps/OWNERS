@@ -1,8 +1,5 @@
 set noparent
-# Apps team members
-benwells@chromium.org
-tapted@chromium.org
 
-# Cleanups / renames
-dominickn@chromium.org
-mgiuca@chromium.org
+# Temporary owners until reorg is finished
+tbarzic@chromium.org
+skuhne@chromium.org

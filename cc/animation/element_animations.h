@@ -113,7 +113,7 @@ class CC_ANIMATION_EXPORT ElementAnimations
   // that have changed since the last update.
   void UpdateClientAnimationState();
 
-  // TODO(crbug.com/1176334): Animation targets should be attached to curves
+  // TODO(crbug.com/40747850): Animation targets should be attached to curves
   // when they're created and the concrete subclass is known. This function
   // exists as a stopgap: the animation machinery previously expected to
   // announce a target and then pass curves that would implicitly animate the
@@ -136,7 +136,7 @@ class CC_ANIMATION_EXPORT ElementAnimations
                               int target_property_id,
                               gfx::KeyframeModel* keyframe_model) override;
 
-  absl::optional<gfx::PointF> ScrollOffsetForAnimation() const;
+  std::optional<gfx::PointF> ScrollOffsetForAnimation() const;
 
   // Returns a map of target property to the ElementId for that property, for
   // KeyframeEffects associated with this ElementAnimations.

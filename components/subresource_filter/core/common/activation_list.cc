@@ -32,7 +32,6 @@ std::ostream& operator<<(std::ostream& os, const ActivationList& type) {
       break;
     default:
       NOTREACHED();
-      break;
   }
   return os;
 }

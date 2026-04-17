@@ -2,10 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/gpu/vaapi/test/shared_va_surface.h"
 
 #include "base/files/file_util.h"
 #include "base/hash/md5.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/types/pass_key.h"
 #include "media/base/video_types.h"
 #include "media/gpu/vaapi/test/macros.h"
 #include "media/gpu/vaapi/test/vaapi_device.h"
@@ -66,8 +73,7 @@ VAImageFormat GetImageFormat(unsigned int va_rt_format) {
     case VA_RT_FORMAT_YUV420_10:
       return kImageFormatP010;
     default:
-      LOG_ASSERT(false) << "Unknown VA format " << std::hex << va_rt_format;
-      return VAImageFormat{};
+      LOG(FATAL) << "Unknown VA format " << std::hex << va_rt_format;
   }
 }
 
@@ -100,7 +106,8 @@ uint16_t JoinUint8(uint8_t first, uint8_t second) {
 
 }  // namespace
 
-SharedVASurface::SharedVASurface(const VaapiDevice& va_device,
+SharedVASurface::SharedVASurface(base::PassKey<SharedVASurface>,
+                                 const VaapiDevice& va_device,
                                  VASurfaceID id,
                                  const gfx::Size& size,
                                  unsigned int format)
@@ -120,8 +127,9 @@ scoped_refptr<SharedVASurface> SharedVASurface::Create(
                        &surface_id, 1u, &attrib, 1u);
   VA_LOG_ASSERT(res, "vaCreateSurfaces");
   VLOG(1) << "created surface: " << surface_id;
-  return base::WrapRefCounted(
-      new SharedVASurface(va_device, surface_id, size, va_rt_format));
+  return base::MakeRefCounted<SharedVASurface>(base::PassKey<SharedVASurface>(),
+                                               va_device, surface_id, size,
+                                               va_rt_format);
 }
 
 SharedVASurface::~SharedVASurface() {
@@ -203,14 +211,12 @@ void SharedVASurface::SaveAsPNG(FetchPolicy fetch_policy,
   }
   LOG_ASSERT(convert_res == 0) << "Failed to convert to ARGB";
 
-  std::vector<unsigned char> image_buffer;
-  const bool result = gfx::PNGCodec::Encode(
+  std::optional<std::vector<uint8_t>> image_buffer = gfx::PNGCodec::Encode(
       argb_data.get(), gfx::PNGCodec::FORMAT_BGRA, size_, argb_stride,
-      true /* discard_transparency */, std::vector<gfx::PNGCodec::Comment>(),
-      &image_buffer);
-  LOG_ASSERT(result) << "Failed to encode to PNG";
+      true /* discard_transparency */, std::vector<gfx::PNGCodec::Comment>());
+  LOG_ASSERT(image_buffer.has_value()) << "Failed to encode to PNG";
 
-  LOG_ASSERT(base::WriteFile(base::FilePath(path), image_buffer));
+  LOG_ASSERT(base::WriteFile(base::FilePath(path), image_buffer.value()));
 
   // Clean up VA handles.
   VAStatus res = vaUnmapBuffer(va_device_->display(), image.buf);
@@ -279,7 +285,7 @@ std::string SharedVASurface::GetMD5Sum(FetchPolicy fetch_policy) const {
   VA_LOG_ASSERT(res, "vaDestroyImage");
 
   base::MD5Digest md5_digest;
-  base::MD5Sum(i420_data.data(), i420_data.size(), &md5_digest);
+  base::MD5Sum(i420_data, &md5_digest);
   return MD5DigestToBase16(md5_digest);
 }
 

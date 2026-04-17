@@ -14,7 +14,7 @@
 
 #include "snapshot/ios/thread_snapshot_ios_intermediate_dump.h"
 
-#include "base/mac/mach_logging.h"
+#include "base/apple/mach_logging.h"
 #include "snapshot/ios/intermediate_dump_reader_util.h"
 #include "snapshot/mac/cpu_context_mac.h"
 #include "util/ios/ios_intermediate_dump_data.h"
@@ -242,6 +242,7 @@ uint64_t ThreadSnapshotIOSIntermediateDump::ThreadSpecificDataAddress() const {
 
 std::vector<const MemorySnapshot*>
 ThreadSnapshotIOSIntermediateDump::ExtraMemory() const {
+  INITIALIZATION_STATE_DCHECK_VALID(initialized_);
   std::vector<const MemorySnapshot*> extra_memory;
   for (const auto& memory : extra_memory_) {
     extra_memory.push_back(memory.get());

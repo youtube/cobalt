@@ -3,9 +3,11 @@
 // found in the LICENSE file.
 
 // clang-format off
-import {assertNotReached} from 'chrome://resources/js/assert_ts.js';
-import {dedupingMixin, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {LifetimeBrowserProxy, LifetimeBrowserProxyImpl} from '/shared/settings/lifetime_browser_proxy.js';
+import {assertNotReached} from 'chrome://resources/js/assert.js';
+import type { PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {dedupingMixin} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import type {LifetimeBrowserProxy} from '/shared/settings/lifetime_browser_proxy.js';
+import { LifetimeBrowserProxyImpl} from '/shared/settings/lifetime_browser_proxy.js';
 // clang-format on
 
 export enum RestartType {
@@ -40,7 +42,7 @@ export const RelaunchMixin = dedupingMixin(
           };
         }
 
-        protected shouldShowRelaunchDialog: boolean;
+        declare protected shouldShowRelaunchDialog: boolean;
 
         constructor(...args: any[]) {
           super(...args);
@@ -62,9 +64,11 @@ export const RelaunchMixin = dedupingMixin(
         }
 
         // <if expr="not chromeos_ash">
-        private async performRestartForNonChromeOs_(restartType: RestartType) {
-          const shouldShowDialog = await this.lifetimeBrowserProxy_
-                                       .shouldShowRelaunchConfirmationDialog();
+        private async performRestartForNonChromeOs_(
+            restartType: RestartType, alwaysShowDialog: boolean) {
+          const shouldShowDialog =
+              await this.lifetimeBrowserProxy_
+                  .shouldShowRelaunchConfirmationDialog(alwaysShowDialog);
           if (!shouldShowDialog) {
             this.performRestartInternal_(restartType);
             return;
@@ -83,14 +87,21 @@ export const RelaunchMixin = dedupingMixin(
          * how to add the new <relaunch-confirmation-dialog> element in the DOM.
          *
          * @param restartType This specifies the type of restart to perform.
+         * @param alwaysShowDialog Always show a confirmation dialog before the
+         *     restart if this parameter is true. Otherwise, only when there is
+         *     an incognito window open.
          */
-        performRestart(restartType: RestartType) {
+        performRestart(restartType: RestartType, alwaysShowDialog?: boolean) {
+          if (alwaysShowDialog == null) {
+            alwaysShowDialog = false;
+          }
+
           // <if expr="chromeos_ash">
           this.performRestartInternal_(restartType);
           // </if>
 
           // <if expr="not chromeos_ash">
-          this.performRestartForNonChromeOs_(restartType);
+          this.performRestartForNonChromeOs_(restartType, alwaysShowDialog);
           // </if>
         }
       }
@@ -99,5 +110,5 @@ export const RelaunchMixin = dedupingMixin(
 
 
 export interface RelaunchMixinInterface {
-  performRestart(restartType: RestartType): void;
+  performRestart(restartType: RestartType, alwaysShowDialog?: boolean): void;
 }

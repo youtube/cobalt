@@ -11,6 +11,7 @@
 #include "base/functional/callback.h"
 #include "base/time/time.h"
 #include "base/values.h"
+#include "ios/web/public/js_messaging/web_frame.h"
 
 namespace web {
 
@@ -24,7 +25,7 @@ class WebFrameInternal {
   // world.
   virtual bool CallJavaScriptFunctionInContentWorld(
       const std::string& name,
-      const std::vector<base::Value>& parameters,
+      const base::Value::List& parameters,
       JavaScriptContentWorld* content_world) = 0;
 
   // Calls the JavaScript function in the same condition as
@@ -37,10 +38,20 @@ class WebFrameInternal {
   // `CanCallJavaScriptFunction` is false.
   virtual bool CallJavaScriptFunctionInContentWorld(
       const std::string& name,
-      const std::vector<base::Value>& parameters,
+      const base::Value::List& parameters,
       JavaScriptContentWorld* content_world,
       base::OnceCallback<void(const base::Value*)> callback,
       base::TimeDelta timeout) = 0;
+
+  // Use of this function is DISCOURAGED. Prefer the
+  // `CallJavaScriptFunctionInContentWorld` family of functions instead to keep
+  // the API clear and well defined.
+  // Executes `script` in `content_world`.
+  // See WebFrame::ExecuteJavaScript for details on `callback`.
+  virtual bool ExecuteJavaScriptInContentWorld(
+      const std::u16string& script,
+      JavaScriptContentWorld* content_world,
+      ExecuteJavaScriptCallbackWithError callback) = 0;
 };
 
 }  // namespace web

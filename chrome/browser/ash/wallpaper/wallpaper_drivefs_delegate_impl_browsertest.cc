@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ash/wallpaper/wallpaper_drivefs_delegate_impl.h"
 
 #include <memory>
@@ -38,23 +43,16 @@
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/gfx/codec/jpeg_codec.h"
 #include "ui/gfx/image/image_skia.h"
+#include "ui/gfx/image/image_unittest_util.h"
 
 namespace ash {
 
 namespace {
 
-gfx::ImageSkia CreateTestImage() {
-  SkBitmap bitmap;
-  bitmap.allocN32Pixels(16, 16);
-  bitmap.eraseColor(SK_ColorGREEN);
-  return gfx::ImageSkia::CreateFrom1xBitmap(bitmap);
-}
-
 scoped_refptr<base::RefCountedBytes> EncodeImage(const gfx::ImageSkia& image) {
-  auto output = base::MakeRefCounted<base::RefCountedBytes>();
-  SkBitmap bitmap = *(image.bitmap());
-  gfx::JPEGCodec::Encode(bitmap, /*quality=*/90, &(output)->data());
-  return output;
+  std::optional<std::vector<uint8_t>> data =
+      gfx::JPEGCodec::Encode(*(image.bitmap()), /*quality=*/90);
+  return base::MakeRefCounted<base::RefCountedBytes>(std::move(data).value());
 }
 
 WallpaperDriveFsDelegate* GetWallpaperDriveFsDelegate() {
@@ -71,9 +69,8 @@ void SaveTestWallpaperFile(const AccountId& account_id, base::FilePath target) {
   if (!base::DirectoryExists(target.DirName())) {
     ASSERT_TRUE(base::CreateDirectory(target.DirName()));
   }
-  auto data = EncodeImage(CreateTestImage());
-  ASSERT_TRUE(
-      base::WriteFile(target, base::make_span(data->front(), data->size())));
+  auto data = EncodeImage(gfx::test::CreateImageSkia(/*size=*/16));
+  ASSERT_TRUE(base::WriteFile(target, base::span(*data)));
 }
 
 }  // namespace

@@ -4,6 +4,7 @@
 
 #include "chromeos/ash/services/ime/public/mojom/mojom_traits.h"
 
+#include "base/strings/string_util.h"
 #include "chromeos/ash/services/ime/public/mojom/input_method_host.mojom-shared.h"
 
 namespace mojo {
@@ -18,6 +19,9 @@ using CompletionCandidateDataView =
 using AssistiveSuggestionMode = ash::ime::AssistiveSuggestionMode;
 using SuggestionMode = ash::ime::mojom::SuggestionMode;
 using SuggestionType = ash::ime::mojom::SuggestionType;
+using SuggestionsTextContextDataView =
+    ash::ime::mojom::SuggestionsTextContextDataView;
+using SuggestionsTextContext = ash::ime::SuggestionsTextContext;
 using SuggestionCandidateDataView =
     ash::ime::mojom::SuggestionCandidateDataView;
 using DecoderCompletionCandidate = ash::ime::DecoderCompletionCandidate;
@@ -105,21 +109,35 @@ bool EnumTraits<SuggestionType, AssistiveSuggestionType>::FromMojom(
 bool StructTraits<SuggestionCandidateDataView, AssistiveSuggestion>::Read(
     SuggestionCandidateDataView input,
     AssistiveSuggestion* output) {
-  if (!input.ReadMode(&output->mode))
+  if (!input.ReadMode(&output->mode)) {
     return false;
-  if (!input.ReadType(&output->type))
+  }
+  if (!input.ReadType(&output->type)) {
     return false;
-  if (!input.ReadText(&output->text))
+  }
+  if (!input.ReadText(&output->text)) {
     return false;
+  }
   output->confirmed_length = input.confirmed_length();
+  return true;
+}
+
+bool StructTraits<SuggestionsTextContextDataView, SuggestionsTextContext>::Read(
+    SuggestionsTextContextDataView input,
+    SuggestionsTextContext* output) {
+  if (!input.ReadLastNChars(&output->last_n_chars)) {
+    return false;
+  }
+  output->surrounding_text_length = input.surrounding_text_length();
   return true;
 }
 
 bool StructTraits<CompletionCandidateDataView, DecoderCompletionCandidate>::
     Read(CompletionCandidateDataView input,
          DecoderCompletionCandidate* output) {
-  if (!input.ReadText(&output->text))
+  if (!input.ReadText(&output->text)) {
     return false;
+  }
   output->score = input.normalized_score();
   return true;
 }
@@ -177,10 +195,12 @@ bool EnumTraits<AssistiveWindowTypeMojo, AssistiveWindowType>::FromMojom(
 bool StructTraits<AssistiveWindowDataView, AssistiveWindow>::Read(
     AssistiveWindowDataView input,
     AssistiveWindow* output) {
-  if (!input.ReadType(&output->type))
+  if (!input.ReadType(&output->type)) {
     return false;
-  if (!input.ReadCandidates(&output->candidates))
+  }
+  if (!input.ReadCandidates(&output->candidates)) {
     return false;
+  }
   return true;
 }
 
@@ -194,6 +214,8 @@ EnumTraits<AutocorrectSuggestionProviderMojo, AutocorrectSuggestionProvider>::
       return AutocorrectSuggestionProviderMojo::kUsEnglishDownloaded;
     case AutocorrectSuggestionProvider::kUsEnglish840:
       return AutocorrectSuggestionProviderMojo::kUsEnglish840;
+    case AutocorrectSuggestionProvider::kUsEnglish840V2:
+      return AutocorrectSuggestionProviderMojo::kUsEnglish840V2;
     default:
       return AutocorrectSuggestionProviderMojo::kUnknown;
   }
@@ -212,6 +234,9 @@ bool EnumTraits<AutocorrectSuggestionProviderMojo,
       return true;
     case AutocorrectSuggestionProviderMojo::kUsEnglish840:
       *output = AutocorrectSuggestionProvider::kUsEnglish840;
+      return true;
+    case AutocorrectSuggestionProviderMojo::kUsEnglish840V2:
+      *output = AutocorrectSuggestionProvider::kUsEnglish840V2;
       return true;
     default:
       *output = AutocorrectSuggestionProvider::kUnknown;

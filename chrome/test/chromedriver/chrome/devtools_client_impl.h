@@ -8,6 +8,7 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/functional/callback.h"
@@ -16,10 +17,11 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/values.h"
 #include "chrome/test/chromedriver/chrome/devtools_client.h"
-#include "chrome/test/chromedriver/net/sync_websocket_factory.h"
 #include "chrome/test/chromedriver/net/timeout.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "url/gurl.h"
+
+class DevToolsEventListener;
+class Status;
+class SyncWebSocket;
 
 namespace internal {
 
@@ -28,26 +30,7 @@ enum InspectorMessageType {
   kCommandResponseMessageType
 };
 
-struct InspectorEvent {
-  InspectorEvent();
-  ~InspectorEvent();
-  std::string method;
-  absl::optional<base::Value::Dict> params;
-};
-
-struct InspectorCommandResponse {
-  InspectorCommandResponse();
-  ~InspectorCommandResponse();
-  int id;
-  std::string error;
-  absl::optional<base::Value::Dict> result;
-};
-
 }  // namespace internal
-
-class DevToolsEventListener;
-class Status;
-class SyncWebSocket;
 
 // The next invariant means that the hierarchy must be flat,
 // we can have two levels of DevToolsClientImpl maximum.
@@ -58,25 +41,20 @@ class DevToolsClientImpl : public DevToolsClient {
   static const char kCdpTunnelChannel[];
   static const char kBidiChannelSuffix[];
 
-  // Postcondition: !IsNull()
-  // Postcondition: !IsConnected()
-  DevToolsClientImpl(const std::string& id,
-                     const std::string& session_id,
-                     const std::string& url,
-                     const SyncWebSocketFactory& factory);
-
   typedef base::RepeatingCallback<Status()> FrontendCloserFunc;
 
   // Postcondition: IsNull()
   // Postcondition: !IsConnected()
-  DevToolsClientImpl(const std::string& id, const std::string& session_id);
+  DevToolsClientImpl(const std::string& id,
+                     const std::string& session_id,
+                     bool is_tab = false);
 
   typedef base::RepeatingCallback<bool(const std::string&,
                                        int,
-                                       std::string*,
-                                       internal::InspectorMessageType*,
-                                       internal::InspectorEvent*,
-                                       internal::InspectorCommandResponse*)>
+                                       std::string&,
+                                       internal::InspectorMessageType&,
+                                       InspectorEvent&,
+                                       InspectorCommandResponse&)>
       ParserFunc;
 
   DevToolsClientImpl(const DevToolsClientImpl&) = delete;
@@ -85,18 +63,25 @@ class DevToolsClientImpl : public DevToolsClient {
   ~DevToolsClientImpl() override;
 
   void SetParserFuncForTesting(const ParserFunc& parser_func);
-  void SetFrontendCloserFunc(const FrontendCloserFunc& frontend_closer_func);
   // Make this DevToolsClient a child of 'parent'.
   // All the commands of the child are routed via the parent.
   // The parent demultiplexes the incoming events to the appropriate children.
-  // If the parent->IsConnected() this object changes its state to connected,
-  // it sets up the remote end and notifies the listeners about the connection.
   // Precondition: parent != nullptr
+  // Precondition: parent.IsConnected()
   // Precondition: IsNull()
   // The next precondition secures the class invariant about flat hierarchy
   // Precondition: parent->GetParentClient() == nullptr.
   // Postcondition: result.IsError() || !IsNull()
-  Status AttachTo(DevToolsClientImpl* parent);
+  // Postcondition: result.IsError() || IsConnected()
+  Status AttachTo(DevToolsClient* parent) override;
+
+  // Set the socket for communication with the remote end.
+  // All listeners are notified about the connection.
+  // Precondition: socket != nullptr
+  // Precondition: socket.IsConnected()
+  // Precondition: IsNull()
+  // Postcondition: result.IsError() || IsConnected()
+  Status SetSocket(std::unique_ptr<SyncWebSocket> socket);
 
   // Overridden from DevToolsClient:
   const std::string& GetId() override;
@@ -112,22 +97,20 @@ class DevToolsClientImpl : public DevToolsClient {
   // Precondition: IsMainPage()
   // Precondition: IsConnected()
   // Precondition: BiDi tunnel for CDP traffic is not set.
-  Status StartBidiServer(std::string bidi_mapper_script) override;
   Status StartBidiServer(std::string bidi_mapper_script,
-                         const Timeout& timeout);
+                         bool enable_unsafe_extension_debugging) override;
+  Status StartBidiServer(std::string bidi_mapper_script,
+                         const Timeout& timeout,
+                         bool enable_unsafe_extension_debugging);
   // If the object IsNull then it cannot be connected to the remote end.
   // Such an object needs to be attached to some !IsNull() parent first.
   // Postcondition: IsNull() == (socket == nullptr && parent == nullptr)
   bool IsNull() const override;
   bool IsConnected() const override;
   bool WasCrashed() override;
-  // Connect and configure the remote end.
-  // The children are also connected and their remote ends are configured.
-  // The listeners and the listeners of the children are notified appropriately.
-  // Does nothing if the connection is already established.
-  // Precondition: socket != nullptr
-  // Postcondition: result.IsError() || IsConnected()
-  Status Connect() override;
+  bool IsDialogOpen() const override;
+  bool AutoAcceptsBeforeunload() const override;
+  void SetAutoAcceptBeforeunload(bool value) override;
   Status PostBidiCommand(base::Value::Dict command) override;
   Status SendCommand(const std::string& method,
                      const base::Value::Dict& params) override;
@@ -161,14 +144,34 @@ class DevToolsClientImpl : public DevToolsClient {
   void SetDetached() override;
   void SetOwner(WebViewImpl* owner) override;
   WebViewImpl* GetOwner() const override;
-  DevToolsClient* GetRootClient() override;
   DevToolsClient* GetParentClient() const override;
   bool IsMainPage() const override;
+  bool IsTabTarget() const override;
   void SetMainPage(bool value);
-  int NextMessageId() const;
+  int NextMessageId() const override;
   // Return NextMessageId and immediately increment it
-  int AdvanceNextMessageId();
+  int AdvanceNextMessageId() override;
   void EnableEventTunnelingForTesting();
+
+  Status SendRaw(const std::string& message) override;
+  bool HasMessageForAnySession() const override;
+  void RegisterSessionHandler(const std::string& session_id,
+                              DevToolsClient* client) override;
+  void UnregisterSessionHandler(const std::string& session_id) override;
+  Status OnConnected() override;
+  Status ProcessEvent(InspectorEvent event) override;
+  Status ProcessCommandResponse(InspectorCommandResponse response) override;
+  Status ProcessNextMessage(int expected_id,
+                            bool log_timeout,
+                            const Timeout& timeout,
+                            DevToolsClient* caller) override;
+  Status HandleMessage(int expected_id,
+                       const std::string& message,
+                       DevToolsClient* caller);
+  Status GetDialogMessage(std::string& message) const override;
+  Status GetTypeOfDialog(std::string& type) const override;
+  Status HandleDialog(bool accept,
+                      const std::optional<std::string>& text) override;
 
  private:
   enum ResponseState {
@@ -188,7 +191,7 @@ class DevToolsClientImpl : public DevToolsClient {
 
     ResponseState state;
     std::string method;
-    internal::InspectorCommandResponse response;
+    InspectorCommandResponse response;
     Timeout command_timeout;
 
    private:
@@ -205,25 +208,15 @@ class DevToolsClientImpl : public DevToolsClient {
                              bool wait_for_response,
                              int client_command_id,
                              const Timeout* timeout);
-  Status ProcessNextMessage(int expected_id,
-                            bool log_timeout,
-                            const Timeout& timeout,
-                            DevToolsClientImpl* caller);
-  Status HandleMessage(int expected_id,
-                       const std::string& message,
-                       DevToolsClientImpl* caller);
-  Status ProcessEvent(const internal::InspectorEvent& event);
-  Status ProcessCommandResponse(
-      const internal::InspectorCommandResponse& response);
   Status EnsureListenersNotifiedOfConnect();
   Status EnsureListenersNotifiedOfEvent();
   Status EnsureListenersNotifiedOfCommandResponse();
-  void ResetListeners();
-  Status OnConnected();
   Status SetUpDevTools();
+  Status SetupTabTarget();
+  Status HandleDialogOpening(const base::Value::Dict& params);
+  Status HandleDialogClosed(const base::Value::Dict& params);
 
   std::unique_ptr<SyncWebSocket> socket_;
-  GURL url_;
   // WebViewImpl that owns this instance; nullptr for browser-wide DevTools.
   raw_ptr<WebViewImpl> owner_ = nullptr;
   const std::string session_id_;
@@ -231,26 +224,31 @@ class DevToolsClientImpl : public DevToolsClient {
   // parent_ / children_: it's a flat hierarchy - nesting is at most one level
   // deep. children_ holds child sessions - identified by their session id -
   // which send/receive messages via the socket_ of their parent.
-  raw_ptr<DevToolsClientImpl> parent_ = nullptr;
-  std::map<std::string, DevToolsClientImpl*> children_;
+  raw_ptr<DevToolsClient> parent_ = nullptr;
+  std::map<std::string, raw_ptr<DevToolsClient, CtnExperimental>> children_;
   bool crashed_ = false;
   bool detached_ = false;
   // For the top-level session, this is the target id.
   // For child sessions, it's the session id.
   const std::string id_;
-  FrontendCloserFunc frontend_closer_func_;
   ParserFunc parser_func_;
-  std::list<DevToolsEventListener*> listeners_;
-  std::list<DevToolsEventListener*> unnotified_connect_listeners_;
-  std::list<DevToolsEventListener*> unnotified_event_listeners_;
-  raw_ptr<const internal::InspectorEvent> unnotified_event_ = nullptr;
-  std::list<DevToolsEventListener*> unnotified_cmd_response_listeners_;
+  std::list<raw_ptr<DevToolsEventListener, CtnExperimental>> listeners_;
+  std::list<raw_ptr<DevToolsEventListener, CtnExperimental>>
+      unnotified_connect_listeners_;
+  std::list<raw_ptr<DevToolsEventListener, CtnExperimental>>
+      unnotified_event_listeners_;
+  raw_ptr<const InspectorEvent> unnotified_event_ = nullptr;
+  std::list<raw_ptr<DevToolsEventListener, CtnExperimental>>
+      unnotified_cmd_response_listeners_;
   scoped_refptr<ResponseInfo> unnotified_cmd_response_info_;
   std::map<int, scoped_refptr<ResponseInfo>> response_info_map_;
   int next_id_ = 1;  // The id identifying a particular request.
-  int stack_count_ = 0;
   bool is_main_page_ = false;
-  bool bidi_server_is_launched_ = false;
+  std::list<std::string> unhandled_dialog_queue_;
+  std::list<std::string> dialog_type_queue_;
+  std::string prompt_text_;
+  bool is_tab_ = false;
+  bool autoaccept_beforeunload_ = false;
   // Event tunneling is temporarily disabled in production.
   // It is enabled only by the unit tests
   // TODO(chromedriver:4181): Enable CDP event tunneling
@@ -262,10 +260,10 @@ namespace internal {
 
 bool ParseInspectorMessage(const std::string& message,
                            int expected_id,
-                           std::string* session_id,
-                           InspectorMessageType* type,
-                           InspectorEvent* event,
-                           InspectorCommandResponse* command_response);
+                           std::string& session_id,
+                           InspectorMessageType& type,
+                           InspectorEvent& event,
+                           InspectorCommandResponse& command_response);
 
 Status ParseInspectorError(const std::string& error_json);
 

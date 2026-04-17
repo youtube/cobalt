@@ -6,12 +6,10 @@ import("../../../../gni/angle.gni")
 vulkan_backend_sources = [
   "AllocatorHelperPool.cpp",
   "AllocatorHelperPool.h",
-  "AllocatorHelperRing.cpp",
-  "AllocatorHelperRing.h",
   "BufferVk.cpp",
   "BufferVk.h",
-  "CommandProcessor.cpp",
-  "CommandProcessor.h",
+  "CommandQueue.cpp",
+  "CommandQueue.h",
   "CompilerVk.cpp",
   "CompilerVk.h",
   "ContextVk.cpp",
@@ -49,10 +47,6 @@ vulkan_backend_sources = [
   "RenderTargetVk.h",
   "RenderbufferVk.cpp",
   "RenderbufferVk.h",
-  "RendererVk.cpp",
-  "RendererVk.h",
-  "ResourceVk.cpp",
-  "ResourceVk.h",
   "SamplerVk.cpp",
   "SamplerVk.h",
   "SecondaryCommandBuffer.cpp",
@@ -102,6 +96,12 @@ vulkan_backend_sources = [
   "vk_internal_shaders_autogen.cpp",
   "vk_internal_shaders_autogen.h",
   "vk_mandatory_format_support_table_autogen.cpp",
+  "vk_ref_counted_event.cpp",
+  "vk_ref_counted_event.h",
+  "vk_renderer.cpp",
+  "vk_renderer.h",
+  "vk_resource.cpp",
+  "vk_resource.h",
   "vk_utils.cpp",
   "vk_utils.h",
   "vk_wrapper.h",
@@ -128,6 +128,10 @@ if (angle_enable_cl) {
     "CLSamplerVk.cpp",
     "CLSamplerVk.h",
     "cl_types.h",
+    "clspv_utils.cpp",
+    "clspv_utils.h",
+    "vk_cl_utils.cpp",
+    "vk_cl_utils.h",
   ]
 }
 
@@ -138,23 +142,27 @@ if (angle_use_vulkan_null_display) {
   ]
 }
 
+vulkan_backend_dma_buf_sources = [
+  "linux/DeviceVkLinux.cpp",
+  "linux/DeviceVkLinux.h",
+  "linux/DisplayVkLinux.cpp",
+  "linux/DisplayVkLinux.h",
+  "linux/DisplayVkOffscreen.cpp",
+  "linux/DisplayVkOffscreen.h",
+  "linux/DmaBufImageSiblingVkLinux.cpp",
+  "linux/DmaBufImageSiblingVkLinux.h",
+  "linux/display/DisplayVkSimple.cpp",
+  "linux/display/DisplayVkSimple.h",
+  "linux/display/WindowSurfaceVkSimple.cpp",
+  "linux/display/WindowSurfaceVkSimple.h",
+  "linux/headless/DisplayVkHeadless.cpp",
+  "linux/headless/DisplayVkHeadless.h",
+  "linux/headless/WindowSurfaceVkHeadless.cpp",
+  "linux/headless/WindowSurfaceVkHeadless.h",
+]
+
 if (is_linux || is_chromeos) {
-  vulkan_backend_sources += [
-    "linux/DeviceVkLinux.cpp",
-    "linux/DeviceVkLinux.h",
-    "linux/DisplayVkLinux.cpp",
-    "linux/DisplayVkLinux.h",
-    "linux/DmaBufImageSiblingVkLinux.cpp",
-    "linux/DmaBufImageSiblingVkLinux.h",
-    "linux/display/DisplayVkSimple.cpp",
-    "linux/display/DisplayVkSimple.h",
-    "linux/display/WindowSurfaceVkSimple.cpp",
-    "linux/display/WindowSurfaceVkSimple.h",
-    "linux/headless/DisplayVkHeadless.cpp",
-    "linux/headless/DisplayVkHeadless.h",
-    "linux/headless/WindowSurfaceVkHeadless.cpp",
-    "linux/headless/WindowSurfaceVkHeadless.h",
-  ]
+  vulkan_backend_sources += vulkan_backend_dma_buf_sources
 }
 
 if (is_android) {
@@ -210,15 +218,6 @@ if (is_fuchsia) {
     "fuchsia/DisplayVkFuchsia.h",
     "fuchsia/WindowSurfaceVkFuchsia.cpp",
     "fuchsia/WindowSurfaceVkFuchsia.h",
-  ]
-}
-
-if (is_ggp) {
-  vulkan_backend_sources += [
-    "ggp/DisplayVkGGP.cpp",
-    "ggp/DisplayVkGGP.h",
-    "ggp/WindowSurfaceVkGGP.cpp",
-    "ggp/WindowSurfaceVkGGP.h",
   ]
 }
 

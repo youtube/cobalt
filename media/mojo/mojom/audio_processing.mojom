@@ -9,7 +9,7 @@ module media.mojom;
 // file.
 struct AudioProcessingStats {
 
-  // TODO(https://crbug.com/657632): Numeric values cannot be optional, so add
+  // TODO(crbug.com/40489779): Numeric values cannot be optional, so add
   // flags for each of them.
   bool has_echo_return_loss;
   double echo_return_loss;
@@ -25,12 +25,8 @@ struct AudioProcessingStats {
 struct AudioProcessingSettings {
   bool echo_cancellation;
   bool noise_suppression;
-  bool transient_noise_suppression;
   bool automatic_gain_control;
-  bool high_pass_filter;
   bool multi_channel_capture_processing;
-  bool stereo_mirroring;
-  bool force_apm_creation;
 };
 
 // This interface is hosted in the audio service and called from the renderer.

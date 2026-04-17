@@ -51,9 +51,7 @@ enum WebCryptoKeyUsage {
   kWebCryptoKeyUsageWrapKey = 1 << 5,
   kWebCryptoKeyUsageUnwrapKey = 1 << 6,
   kWebCryptoKeyUsageDeriveBits = 1 << 7,
-#if INSIDE_BLINK
   kEndOfWebCryptoKeyUsage,
-#endif
 };
 
 // A bitfield of WebCryptoKeyUsage
@@ -129,7 +127,7 @@ class BLINK_PLATFORM_EXPORT WebCryptoKey {
   void Assign(const WebCryptoKey& other);
   void Reset();
 
-  WebPrivatePtr<WebCryptoKeyPrivate> private_;
+  WebPrivatePtrForRefCounted<WebCryptoKeyPrivate> private_;
 };
 
 // Base class for the embedder to define its own opaque key handle. The lifetime

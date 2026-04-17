@@ -31,8 +31,8 @@ class H5vccExperiments;
 class H5vccMetrics;
 class H5vccSystem;
 class H5vccRuntime;
-class H5vccSystem;
-class LocalDOMWindow;
+class H5vccStorage;
+class H5vccSettings;
 class ScriptState;
 
 class MODULES_EXPORT H5vcc final : public ScriptWrappable,
@@ -58,6 +58,10 @@ class MODULES_EXPORT H5vcc final : public ScriptWrappable,
 
   H5vccRuntime* runtime() { return runtime_; }
 
+  H5vccStorage* storage() { return storage_; }
+
+  H5vccSettings* settings() { return settings_; }
+
   void Trace(Visitor*) const override;
 
  private:
@@ -67,6 +71,8 @@ class MODULES_EXPORT H5vcc final : public ScriptWrappable,
   Member<H5vccMetrics> metrics_;
   Member<H5vccSystem> system_;
   Member<H5vccRuntime> runtime_;
+  Member<H5vccStorage> storage_;
+  Member<H5vccSettings> settings_;
 };
 
 }  // namespace blink

@@ -18,8 +18,9 @@ namespace ash {
 // to build PhoneHubRecentAppButton implicitly contains the package name of the
 // same application.
 class ASH_EXPORT PhoneHubRecentAppButton : public views::ImageButton {
+  METADATA_HEADER(PhoneHubRecentAppButton, views::ImageButton)
+
  public:
-  METADATA_HEADER(PhoneHubRecentAppButton);
   PhoneHubRecentAppButton(const gfx::Image& icon,
                           const std::u16string& visible_app_name,
                           PressedCallback callback);
@@ -28,7 +29,8 @@ class ASH_EXPORT PhoneHubRecentAppButton : public views::ImageButton {
   PhoneHubRecentAppButton operator=(PhoneHubRecentAppButton&) = delete;
 
   // views::View:
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
 
   // views::ImageButton:
   void PaintButtonContents(gfx::Canvas* canvas) override;

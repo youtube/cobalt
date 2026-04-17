@@ -13,12 +13,12 @@
 
 #include <memory>
 
-#include "modules/audio_processing/include/audio_processing.h"
+#include "api/audio/audio_processing.h"
 #include "test/fuzzers/fuzz_data_helper.h"
 namespace webrtc {
 
 void FuzzAudioProcessing(test::FuzzDataHelper* fuzz_data,
-                         rtc::scoped_refptr<AudioProcessing> apm);
+                         scoped_refptr<AudioProcessing> apm);
 
 }  // namespace webrtc
 

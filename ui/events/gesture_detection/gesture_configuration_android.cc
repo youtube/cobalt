@@ -6,6 +6,7 @@
 
 #include "base/android/build_info.h"
 #include "base/memory/singleton.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/display/screen.h"
 #include "ui/gfx/android/view_configuration.h"
 
@@ -18,8 +19,8 @@ namespace {
 // gesture detection pipeline used a fixed value of 24 as the gesture bounds.
 // We relax that value somewhat, but not by much; there's a fairly small window
 // within which gesture bounds are useful for features like touch adjustment.
-const float kMinGestureBoundsLengthDips = 20.f;
-const float kMaxGestureBoundsLengthDips = 32.f;
+constexpr float kMinGestureBoundsLengthDips = 20.f;
+constexpr float kMaxGestureBoundsLengthDips = 32.f;
 
 class GestureConfigurationAndroid : public GestureConfiguration {
  public:
@@ -27,8 +28,7 @@ class GestureConfigurationAndroid : public GestureConfiguration {
   GestureConfigurationAndroid& operator=(const GestureConfigurationAndroid&) =
       delete;
 
-  ~GestureConfigurationAndroid() override {
-  }
+  ~GestureConfigurationAndroid() override = default;
 
   static GestureConfigurationAndroid* GetInstance() {
     return base::Singleton<GestureConfigurationAndroid>::get();
@@ -41,11 +41,8 @@ class GestureConfigurationAndroid : public GestureConfiguration {
     // TODO(jdduke): Enable this on Android M after the implicit conflict with
     // stylus selection is resolved.
     set_stylus_scale_enabled(false);
-#if defined(USE_AURA)
-    set_gesture_begin_end_types_enabled(true);
-#else
-    set_gesture_begin_end_types_enabled(false);
-#endif
+    set_gesture_begin_end_types_enabled(
+        base::FeatureList::IsEnabled(features::kEnableGestureBeginEndTypes));
     set_long_press_time_in_ms(ViewConfiguration::GetLongPressTimeoutInMs());
     set_max_distance_between_taps_for_double_tap(
         ViewConfiguration::GetDoubleTapSlopInDips());
@@ -75,7 +72,7 @@ class GestureConfigurationAndroid : public GestureConfiguration {
     // using the heuristic that it would be 100ms less than the long-press
     // provided this is not too close with show-press.
     //
-    // TODO(https://crbug.com/1294280): Replace this with platform-defined
+    // TODO(crbug.com/40820457): Replace this with platform-defined
     // timeout when available.
     set_short_press_time(base::Milliseconds(
         std::max(long_press_time_in_ms() - 100, long_press_time_in_ms() / 2)));

@@ -24,6 +24,7 @@
 #include "third_party/blink/renderer/platform/mediastream/media_stream_component.h"
 #include "third_party/blink/renderer/platform/peerconnection/rtc_stats.h"
 #include "third_party/blink/renderer/platform/testing/io_task_runner_testing_platform_support.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/webrtc/api/stats/rtc_stats_report.h"
 #include "third_party/webrtc/api/stats/rtcstats_objects.h"
 
@@ -37,8 +38,9 @@ class RTCRtpReceiverImplTest : public ::testing::Test {
     main_thread_ = blink::scheduler::GetSingleThreadTaskRunnerForTesting();
     track_map_ = base::MakeRefCounted<blink::WebRtcMediaStreamTrackAdapterMap>(
         dependency_factory_.Get(), main_thread_);
-    peer_connection_ = new rtc::RefCountedObject<blink::MockPeerConnectionImpl>(
-        dependency_factory_.Get(), nullptr);
+    peer_connection_ =
+        new webrtc::RefCountedObject<blink::MockPeerConnectionImpl>(
+            dependency_factory_.Get(), nullptr);
   }
 
   void TearDown() override {
@@ -62,7 +64,7 @@ class RTCRtpReceiverImplTest : public ::testing::Test {
 
   std::unique_ptr<RTCRtpReceiverImpl> CreateReceiver(
       scoped_refptr<webrtc::MediaStreamTrackInterface> webrtc_track,
-      bool encoded_insertable_streams = false) {
+      bool require_encoded_insertable_streams = false) {
     std::unique_ptr<blink::WebRtcMediaStreamTrackAdapterMap::AdapterRef>
         track_ref;
     base::RunLoop run_loop;
@@ -80,13 +82,14 @@ class RTCRtpReceiverImplTest : public ::testing::Test {
         mock_webrtc_receiver_.get(), std::move(track_ref), {});
     state.Initialize();
     return std::make_unique<RTCRtpReceiverImpl>(
-        peer_connection_, std::move(state), encoded_insertable_streams);
+        peer_connection_, std::move(state), require_encoded_insertable_streams,
+        /*decode_metronome=*/nullptr);
   }
 
   scoped_refptr<blink::TestWebRTCStatsReportObtainer> GetStats() {
     scoped_refptr<blink::TestWebRTCStatsReportObtainer> obtainer =
         base::MakeRefCounted<TestWebRTCStatsReportObtainer>();
-    receiver_->GetStats(obtainer->GetStatsCallbackWrapper(), {}, false);
+    receiver_->GetStats(obtainer->GetStatsCallbackWrapper());
     return obtainer;
   }
 
@@ -96,18 +99,19 @@ class RTCRtpReceiverImplTest : public ::testing::Test {
       std::unique_ptr<blink::WebRtcMediaStreamTrackAdapterMap::AdapterRef>*
           track_ref,
       base::RunLoop* run_loop) {
-    mock_webrtc_receiver_ = new rtc::RefCountedObject<MockRtpReceiver>();
+    mock_webrtc_receiver_ = new webrtc::RefCountedObject<MockRtpReceiver>();
     *track_ref = track_map_->GetOrCreateRemoteTrackAdapter(webrtc_track);
     run_loop->Quit();
   }
 
+  test::TaskEnvironment task_environment_;
   ScopedTestingPlatformSupport<IOTaskRunnerTestingPlatformSupport> platform_;
 
   Persistent<blink::MockPeerConnectionDependencyFactory> dependency_factory_;
   scoped_refptr<base::SingleThreadTaskRunner> main_thread_;
   scoped_refptr<blink::WebRtcMediaStreamTrackAdapterMap> track_map_;
-  rtc::scoped_refptr<blink::MockPeerConnectionImpl> peer_connection_;
-  rtc::scoped_refptr<MockRtpReceiver> mock_webrtc_receiver_;
+  webrtc::scoped_refptr<blink::MockPeerConnectionImpl> peer_connection_;
+  webrtc::scoped_refptr<MockRtpReceiver> mock_webrtc_receiver_;
   std::unique_ptr<RTCRtpReceiverImpl> receiver_;
 };
 
@@ -119,7 +123,8 @@ TEST_F(RTCRtpReceiverImplTest, CreateReceiver) {
   EXPECT_EQ(receiver_->Track()->Id().Utf8(), webrtc_track->id());
   EXPECT_EQ(receiver_->state().track_ref()->webrtc_track().get(),
             webrtc_track.get());
-  EXPECT_FALSE(receiver_->GetEncodedAudioStreamTransformer());
+
+  EXPECT_TRUE(receiver_->GetEncodedAudioStreamTransformer());
   EXPECT_FALSE(receiver_->GetEncodedVideoStreamTransformer());
 }
 
@@ -152,7 +157,7 @@ TEST_F(RTCRtpReceiverImplTest, GetStats) {
 
   // Make the mock return a blink version of the |webtc_report|. The mock does
   // not perform any stats filtering, we just set it to a dummy value.
-  rtc::scoped_refptr<webrtc::RTCStatsReport> webrtc_report =
+  webrtc::scoped_refptr<webrtc::RTCStatsReport> webrtc_report =
       webrtc::RTCStatsReport::Create(webrtc::Timestamp::Micros(0));
   webrtc_report->AddStats(std::make_unique<webrtc::RTCInboundRtpStreamStats>(
       "stats-id", webrtc::Timestamp::Micros(1234)));
@@ -164,19 +169,12 @@ TEST_F(RTCRtpReceiverImplTest, GetStats) {
   // Wait for the report, this performs the necessary run-loop.
   auto* report = obtainer->WaitForReport();
   EXPECT_TRUE(report);
-
-  // Verify dummy value.
-  EXPECT_EQ(report->Size(), 1u);
-  auto stats = report->GetStats(blink::WebString::FromUTF8("stats-id"));
-  EXPECT_TRUE(stats);
-  EXPECT_EQ(stats->TimestampMs(), 1.234);
 }
 
 TEST_F(RTCRtpReceiverImplTest, CreateReceiverWithInsertableStreams) {
   scoped_refptr<blink::MockWebRtcAudioTrack> webrtc_track =
       blink::MockWebRtcAudioTrack::Create("webrtc_track");
-  receiver_ = CreateReceiver(webrtc_track,
-                             /*encoded_insertable_streams=*/true);
+  receiver_ = CreateReceiver(webrtc_track, true);
   EXPECT_TRUE(receiver_->GetEncodedAudioStreamTransformer());
   // There should be no video transformer in audio receivers.
   EXPECT_FALSE(receiver_->GetEncodedVideoStreamTransformer());

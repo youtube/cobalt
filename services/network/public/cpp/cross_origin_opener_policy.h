@@ -5,11 +5,12 @@
 #ifndef SERVICES_NETWORK_PUBLIC_CPP_CROSS_ORIGIN_OPENER_POLICY_H_
 #define SERVICES_NETWORK_PUBLIC_CPP_CROSS_ORIGIN_OPENER_POLICY_H_
 
+#include <optional>
 #include <string>
 
 #include "base/component_export.h"
 #include "services/network/public/mojom/cross_origin_opener_policy.mojom-shared.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "url/origin.h"
 
 namespace network {
 struct CrossOriginEmbedderPolicy;
@@ -27,10 +28,10 @@ struct COMPONENT_EXPORT(NETWORK_CPP_BASE) CrossOriginOpenerPolicy final {
 
   mojom::CrossOriginOpenerPolicyValue value =
       mojom::CrossOriginOpenerPolicyValue::kUnsafeNone;
-  absl::optional<std::string> reporting_endpoint;
+  std::optional<std::string> reporting_endpoint;
   mojom::CrossOriginOpenerPolicyValue report_only_value =
       mojom::CrossOriginOpenerPolicyValue::kUnsafeNone;
-  absl::optional<std::string> report_only_reporting_endpoint;
+  std::optional<std::string> report_only_reporting_endpoint;
   mojom::CrossOriginOpenerPolicyValue soap_by_default_value =
       mojom::CrossOriginOpenerPolicyValue::kUnsafeNone;
 };

@@ -8,6 +8,7 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "base/strings/strcat.h"
+#include "base/strings/stringprintf.h"
 #include "chrome/browser/extensions/extension_api_unittest.h"
 #include "chromeos/ash/components/dbus/session_manager/fake_session_manager_client.h"
 #include "chromeos/ash/components/dbus/session_manager/session_manager_client.h"
@@ -36,7 +37,7 @@ constexpr char kCredentialsKeyPrefix[] = "credentials_";
 
 void LoginScreenStorageStoreSuccess(
     ash::FakeSessionManagerClient::LoginScreenStorageStoreCallback callback) {
-  std::move(callback).Run(/*error_message=*/absl::nullopt);
+  std::move(callback).Run(/*error_message=*/std::nullopt);
 }
 
 void LoginScreenStorageStoreError(
@@ -47,13 +48,13 @@ void LoginScreenStorageStoreError(
 void LoginScreenStorageRetrieveSuccess(
     ash::FakeSessionManagerClient::LoginScreenStorageRetrieveCallback
         callback) {
-  std::move(callback).Run(kData, /*error_message=*/absl::nullopt);
+  std::move(callback).Run(kData, /*error_message=*/std::nullopt);
 }
 
 void LoginScreenStorageRetrieveError(
     ash::FakeSessionManagerClient::LoginScreenStorageRetrieveCallback
         callback) {
-  std::move(callback).Run(/*data=*/absl::nullopt, kError);
+  std::move(callback).Run(/*data=*/std::nullopt, kError);
 }
 
 // A mock around FakeSessionManagerClient for tracking the D-Bus calls.
@@ -79,7 +80,7 @@ namespace extensions {
 
 class LoginScreenStorageApiUnittest : public ExtensionApiUnittest {
  public:
-  LoginScreenStorageApiUnittest() {}
+  LoginScreenStorageApiUnittest() = default;
 
   LoginScreenStorageApiUnittest(const LoginScreenStorageApiUnittest&) = delete;
   LoginScreenStorageApiUnittest& operator=(

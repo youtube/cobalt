@@ -14,23 +14,57 @@
 
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 
+#include "base/containers/fixed_flat_map.h"
 #include "base/logging.h"
+#include "base/task/single_thread_task_runner.h"
 #include "starboard/event.h"
 #include "starboard/input.h"
 #include "starboard/key.h"
 #include "starboard/log.h"
 #include "ui/events/event.h"
-
-#include "base/containers/fixed_flat_map.h"
-#include "base/task/single_thread_task_runner.h"
 #include "ui/events/keycodes/dom/dom_code.h"
 #include "ui/events/keycodes/dom/dom_key.h"
 #include "ui/events/keycodes/keyboard_code_conversion.h"
 #include "ui/events/keycodes/keyboard_code_conversion_starboard.h"
-
+#include "ui/events/pointer_details.h"
 #include "ui/events/types/event_type.h"
 
 namespace ui {
+
+namespace {
+
+std::unique_ptr<ui::Event> CreateTouchInputEvent(const SbEvent* event) {
+  CHECK(event) << "CreateTouchInputEvent: missing event";
+  CHECK(event->data) << "CreateTouchInputEvent: missing event data";
+  SbInputData* input_data = static_cast<SbInputData*>(event->data);
+  const SbInputData& data = *input_data;
+  ui::EventType event_type;
+  switch (data.type) {
+    case kSbInputEventTypePress:
+      event_type = ui::EventType::kTouchPressed;
+      break;
+    case kSbInputEventTypeUnpress:
+      event_type = ui::EventType::kTouchReleased;
+      break;
+    case kSbInputEventTypeMove:
+      event_type = ui::EventType::kTouchMoved;
+      break;
+    default:
+      NOTREACHED();
+  }
+  float pressure = data.pressure;
+  if (!std::isnan(pressure) && (event_type == ui::EventType::kTouchPressed ||
+                                event_type == ui::EventType::kTouchMoved)) {
+    pressure = std::max(pressure, 0.5f);
+  }
+  return std::make_unique<ui::TouchEvent>(
+      event_type, gfx::PointF(data.position.x, data.position.y), gfx::PointF{},
+      base::TimeTicks() + base::Microseconds(event->timestamp),
+      ui::PointerDetails(ui::EventPointerType::kTouch, data.device_id,
+                         data.size.x, data.size.y, pressure));
+}
+
+}  // namespace
 
 void DeliverEventHandler(std::unique_ptr<ui::Event> ui_event) {
   CHECK(ui::PlatformEventSource::GetInstance());
@@ -52,25 +86,6 @@ void PlatformEventSourceStarboard::HandleEvent(const SbEvent* event) {
 
   int64_t raw_timestamp = event->timestamp;
   SbInputEventType raw_type = input_data->type;
-
-  std::string type_name;
-  switch (input_data->type) {
-    case kSbInputEventTypeMove:
-      type_name = "kSbInputEventTypeMove";
-      break;
-    case kSbInputEventTypePress:
-      type_name = "kSbInputEventTypePress";
-      break;
-    case kSbInputEventTypeUnpress:
-      type_name = "kSbInputEventTypeUnpress";
-      break;
-    case kSbInputEventTypeWheel:
-      type_name = "kSbInputEventTypeWheel";
-      break;
-    case kSbInputEventTypeInput:
-      type_name = "kSbInputEventTypeInput";
-      break;
-  }
 
   std::unique_ptr<ui::Event> ui_event;
 
@@ -104,26 +119,26 @@ void PlatformEventSourceStarboard::HandleEvent(const SbEvent* event) {
 
     // Key press.
     ui::EventType event_type = raw_type == kSbInputEventTypePress
-                                   ? ui::EventType::ET_KEY_PRESSED
-                                   : ui::EventType::ET_KEY_RELEASED;
+                                   ? ui::EventType::kKeyPressed
+                                   : ui::EventType::kKeyReleased;
     ui_event = std::make_unique<ui::KeyEvent>(
         event_type, key_code, dom_code, flags, dom_key,
         /*time_stamp=*/
         base::TimeTicks() + base::Microseconds(raw_timestamp));
   } else if (input_data->device_type == kSbInputDeviceTypeMouse) {
-    ui::EventType event_type = ui::EventType::ET_UNKNOWN;
+    ui::EventType event_type = ui::EventType::kUnknown;
     switch (input_data->type) {
       case kSbInputEventTypeMove:
-        event_type = ui::EventType::ET_MOUSE_MOVED;
+        event_type = ui::EventType::kMouseMoved;
         break;
       case kSbInputEventTypePress:
-        event_type = ui::EventType::ET_MOUSE_PRESSED;
+        event_type = ui::EventType::kMousePressed;
         break;
       case kSbInputEventTypeUnpress:
-        event_type = ui::EventType::ET_MOUSE_RELEASED;
+        event_type = ui::EventType::kMouseReleased;
         break;
       case kSbInputEventTypeWheel:
-        event_type = ui::EventType::ET_MOUSEWHEEL;
+        event_type = ui::EventType::kMousewheel;
         break;
       case kSbInputEventTypeInput:
         break;
@@ -135,13 +150,16 @@ void PlatformEventSourceStarboard::HandleEvent(const SbEvent* event) {
 
     // Mouse wheel scrolls are separate from MouseEvent and will crash here. We
     // need to handle them properly.
-    if (event_type == ui::EventType::ET_MOUSEWHEEL) {
+    if (event_type == ui::EventType::kMousewheel) {
       return;
     }
     ui_event = std::make_unique<ui::MouseEvent>(
         event_type, gfx::PointF(input_data->position.x, input_data->position.y),
         gfx::PointF{}, base::TimeTicks() + base::Microseconds(raw_timestamp),
         flag, ui::EF_LEFT_MOUSE_BUTTON);
+  } else if (input_data->device_type == kSbInputDeviceTypeTouchScreen ||
+             input_data->device_type == kSbInputDeviceTypeTouchPad) {
+    ui_event = CreateTouchInputEvent(event);
   } else {
     return;
   }

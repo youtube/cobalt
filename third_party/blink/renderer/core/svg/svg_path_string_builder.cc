@@ -53,7 +53,7 @@ static void AppendPoint(StringBuilder& string_builder,
 }
 
 // TODO(fs): Centralized location for this (SVGPathSeg.h?)
-static const char kPathSegmentCharacter[] = {
+static const auto kPathSegmentCharacter = std::to_array<char>({
     0,    // PathSegUnknown
     'Z',  // PathSegClosePath
     'M',  // PathSegMoveToAbs
@@ -74,7 +74,7 @@ static const char kPathSegmentCharacter[] = {
     's',  // PathSegCurveToCubicSmoothRel
     'T',  // PathSegCurveToQuadraticSmoothAbs
     't',  // PathSegCurveToQuadraticSmoothRel
-};
+});
 
 void SVGPathStringBuilder::EmitSegment(const PathSegmentData& segment) {
   DCHECK_GT(segment.command, kPathSegUnknown);

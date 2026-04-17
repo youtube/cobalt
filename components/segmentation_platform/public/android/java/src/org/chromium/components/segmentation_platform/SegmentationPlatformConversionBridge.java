@@ -4,14 +4,15 @@
 
 package org.chromium.components.segmentation_platform;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.components.segmentation_platform.proto.SegmentationProto.SegmentId;
 
-/**
- * Provides JNI conversion methods for public data types provided by segmentation platform.
- */
+/** Provides JNI conversion methods for public data types provided by segmentation platform. */
 @JNINamespace("segmentation_platform")
+@NullMarked
 public class SegmentationPlatformConversionBridge {
     @CalledByNative
     private static SegmentSelectionResult createSegmentSelectionResult(
@@ -20,5 +21,11 @@ public class SegmentationPlatformConversionBridge {
         if (segment == null) segment = SegmentId.OPTIMIZATION_TARGET_UNKNOWN;
         Float optionalRank = hasRank ? rank : null;
         return new SegmentSelectionResult(isReady, segment, optionalRank);
+    }
+
+    @CalledByNative
+    private static ClassificationResult createClassificationResult(
+            int status, String[] orderedLabels, long requestId) {
+        return new ClassificationResult(status, orderedLabels, requestId);
     }
 }

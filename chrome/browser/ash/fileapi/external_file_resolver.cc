@@ -9,6 +9,7 @@
 #include "base/functional/bind.h"
 #include "chrome/browser/ash/file_manager/fileapi_util.h"
 #include "chrome/browser/ash/fileapi/external_file_url_util.h"
+#include "chrome/browser/ash/fileapi/file_system_backend.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "content/public/browser/browser_task_traits.h"
@@ -19,7 +20,6 @@
 #include "net/http/http_request_headers.h"
 #include "net/http/http_util.h"
 #include "storage/browser/file_system/file_stream_reader.h"
-#include "storage/browser/file_system/file_system_backend.h"
 #include "storage/browser/file_system/file_system_context.h"
 #include "storage/browser/file_system/isolated_context.h"
 #include "url/gurl.h"
@@ -139,12 +139,13 @@ void ExternalFileResolver::ProcessHeaders(
     const net::HttpRequestHeaders& headers) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
   // Read the range header if present.
-  std::string range_header;
-  if (headers.GetHeader(net::HttpRequestHeaders::kRange, &range_header)) {
+  std::optional<std::string> range_header =
+      headers.GetHeader(net::HttpRequestHeaders::kRange);
+  if (range_header) {
     // Currently this job only cares about the Range header, and only supports
     // single range requests.
     std::vector<net::HttpByteRange> ranges;
-    if (net::HttpUtil::ParseRangeHeader(range_header, &ranges) &&
+    if (net::HttpUtil::ParseRangeHeader(*range_header, &ranges) &&
         ranges.size() == 1) {
       byte_range_ = ranges[0];
     } else {
@@ -204,26 +205,11 @@ void ExternalFileResolver::OnHelperResultObtained(
   isolated_file_system_ = std::move(isolated_file_system);
   mime_type_ = mime_type;
 
-  // Check if the entry has a redirect URL.
   file_system_context_ = std::move(file_system_context);
-  file_system_context_->external_backend()->GetRedirectURLForContents(
-      isolated_file_system_.url,
-      base::BindOnce(&ExternalFileResolver::OnRedirectURLObtained,
-                     weak_ptr_factory_.GetWeakPtr()));
-}
-
-void ExternalFileResolver::OnRedirectURLObtained(const GURL& redirect_url) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
-  if (!redirect_url.is_empty()) {
-    std::move(redirect_callback_).Run(mime_type_, redirect_url);
-    return;
-  }
-
-  // If there's no redirect then we're serving the file from the file system.
   file_system_context_->operation_runner()->GetMetadata(
       isolated_file_system_.url,
-      storage::FileSystemOperation::GET_METADATA_FIELD_IS_DIRECTORY |
-          storage::FileSystemOperation::GET_METADATA_FIELD_SIZE,
+      {storage::FileSystemOperation::GetMetadataField::kIsDirectory,
+       storage::FileSystemOperation::GetMetadataField::kSize},
       base::BindOnce(&ExternalFileResolver::OnFileInfoObtained,
                      weak_ptr_factory_.GetWeakPtr()));
 }

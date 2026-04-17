@@ -14,6 +14,7 @@
 #include "third_party/blink/renderer/platform/loader/testing/bytes_consumer_test_reader.h"
 #include "third_party/blink/renderer/platform/loader/testing/replaying_bytes_consumer.h"
 #include "third_party/blink/renderer/platform/network/encoded_form_data.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
 
 namespace blink {
@@ -46,7 +47,7 @@ class FakeBlobBytesConsumer : public BytesConsumer {
       : blob_handle_(std::move(handle)) {}
   ~FakeBlobBytesConsumer() override {}
 
-  Result BeginRead(const char** buffer, size_t* available) override {
+  Result BeginRead(base::span<const char>& buffer) override {
     if (state_ == PublicState::kClosed)
       return Result::kDone;
     blob_handle_ = nullptr;
@@ -90,7 +91,7 @@ class FakeFormDataBytesConsumer : public BytesConsumer {
       : form_data_(std::move(form_data)) {}
   ~FakeFormDataBytesConsumer() override {}
 
-  Result BeginRead(const char** buffer, size_t* available) override {
+  Result BeginRead(base::span<const char>& buffer) override {
     if (state_ == PublicState::kClosed)
       return Result::kDone;
     form_data_ = nullptr;
@@ -177,12 +178,10 @@ TEST_F(BytesConsumerTeeTest, TwoPhaseRead) {
   auto result2 = (MakeGarbageCollected<BytesConsumerTestReader>(dest2))->Run();
 
   EXPECT_EQ(Result::kDone, result1.first);
-  EXPECT_EQ("hello, world",
-            BytesConsumerTestUtil::CharVectorToString(result1.second));
+  EXPECT_EQ("hello, world", String(result1.second));
   EXPECT_EQ(BytesConsumer::PublicState::kClosed, dest1->GetPublicState());
   EXPECT_EQ(Result::kDone, result2.first);
-  EXPECT_EQ("hello, world",
-            BytesConsumerTestUtil::CharVectorToString(result2.second));
+  EXPECT_EQ("hello, world", String(result2.second));
   EXPECT_EQ(BytesConsumer::PublicState::kClosed, dest2->GetPublicState());
   EXPECT_FALSE(src->IsCancelled());
 }
@@ -209,12 +208,10 @@ TEST_F(BytesConsumerTeeTest, TwoPhaseReadWithDataAndDone) {
   auto result2 = (MakeGarbageCollected<BytesConsumerTestReader>(dest2))->Run();
 
   EXPECT_EQ(Result::kDone, result1.first);
-  EXPECT_EQ("hello, world",
-            BytesConsumerTestUtil::CharVectorToString(result1.second));
+  EXPECT_EQ("hello, world", String(result1.second));
   EXPECT_EQ(BytesConsumer::PublicState::kClosed, dest1->GetPublicState());
   EXPECT_EQ(Result::kDone, result2.first);
-  EXPECT_EQ("hello, world",
-            BytesConsumerTestUtil::CharVectorToString(result2.second));
+  EXPECT_EQ("hello, world", String(result2.second));
   EXPECT_EQ(BytesConsumer::PublicState::kClosed, dest2->GetPublicState());
   EXPECT_FALSE(src->IsCancelled());
 }
@@ -311,8 +308,7 @@ TEST_F(BytesConsumerTeeTest, CancelShouldNotAffectTheOtherDestination) {
   EXPECT_EQ(BytesConsumer::PublicState::kClosed, dest1->GetPublicState());
   EXPECT_EQ(BytesConsumer::PublicState::kClosed, dest2->GetPublicState());
   EXPECT_EQ(Result::kDone, result2.first);
-  EXPECT_EQ("hello, world",
-            BytesConsumerTestUtil::CharVectorToString(result2.second));
+  EXPECT_EQ("hello, world", String(result2.second));
   EXPECT_FALSE(src->IsCancelled());
 }
 
@@ -421,10 +417,9 @@ TEST_F(BytesConsumerTeeTest, ConsumerCanBeErroredInTwoPhaseRead) {
       MakeGarbageCollected<BytesConsumerTestClient>();
   dest1->SetClient(client);
 
-  const char* buffer = nullptr;
-  size_t available = 0;
-  ASSERT_EQ(Result::kOk, dest1->BeginRead(&buffer, &available));
-  ASSERT_EQ(1u, available);
+  base::span<const char> buffer;
+  ASSERT_EQ(Result::kOk, dest1->BeginRead(buffer));
+  ASSERT_EQ(1u, buffer.size());
 
   EXPECT_EQ(BytesConsumer::PublicState::kReadableOrWaiting,
             dest1->GetPublicState());
@@ -435,7 +430,7 @@ TEST_F(BytesConsumerTeeTest, ConsumerCanBeErroredInTwoPhaseRead) {
   EXPECT_EQ(BytesConsumer::PublicState::kErrored, dest1->GetPublicState());
   EXPECT_EQ(num_on_state_change_called + 1, client->NumOnStateChangeCalled());
   EXPECT_EQ('a', buffer[0]);
-  EXPECT_EQ(Result::kOk, dest1->EndRead(available));
+  EXPECT_EQ(Result::kOk, dest1->EndRead(buffer.size()));
 }
 
 TEST_F(BytesConsumerTeeTest,
@@ -454,10 +449,9 @@ TEST_F(BytesConsumerTeeTest,
 
   dest1->SetClient(client);
 
-  const char* buffer = nullptr;
-  size_t available = 0;
-  ASSERT_EQ(Result::kOk, dest1->BeginRead(&buffer, &available));
-  ASSERT_EQ(1u, available);
+  base::span<const char> buffer;
+  ASSERT_EQ(Result::kOk, dest1->BeginRead(buffer));
+  ASSERT_EQ(1u, buffer.size());
   EXPECT_EQ('a', buffer[0]);
 
   EXPECT_EQ(BytesConsumer::PublicState::kReadableOrWaiting,
@@ -491,10 +485,9 @@ TEST_F(BytesConsumerTeeTest,
 
   dest1->SetClient(client);
 
-  const char* buffer = nullptr;
-  size_t available = 0;
-  ASSERT_EQ(Result::kOk, dest1->BeginRead(&buffer, &available));
-  ASSERT_EQ(1u, available);
+  base::span<const char> buffer;
+  ASSERT_EQ(Result::kOk, dest1->BeginRead(buffer));
+  ASSERT_EQ(1u, buffer.size());
   EXPECT_EQ('a', buffer[0]);
 
   test::RunPendingTasks();
@@ -504,7 +497,7 @@ TEST_F(BytesConsumerTeeTest,
   EXPECT_EQ(BytesConsumer::PublicState::kReadableOrWaiting,
             dest1->GetPublicState());
 
-  EXPECT_EQ(Result::kDone, dest1->BeginRead(&buffer, &available));
+  EXPECT_EQ(Result::kDone, dest1->BeginRead(buffer));
   EXPECT_EQ(0, client->NumOnStateChangeCalled());
   EXPECT_EQ(BytesConsumer::PublicState::kClosed, dest1->GetPublicState());
   test::RunPendingTasks();
@@ -513,21 +506,21 @@ TEST_F(BytesConsumerTeeTest,
 }
 
 TEST(BytesConusmerTest, ClosedBytesConsumer) {
+  test::TaskEnvironment task_environment;
   BytesConsumer* consumer = BytesConsumer::CreateClosed();
 
-  const char* buffer = nullptr;
-  size_t available = 0;
-  EXPECT_EQ(Result::kDone, consumer->BeginRead(&buffer, &available));
+  base::span<const char> buffer;
+  EXPECT_EQ(Result::kDone, consumer->BeginRead(buffer));
   EXPECT_EQ(BytesConsumer::PublicState::kClosed, consumer->GetPublicState());
 }
 
 TEST(BytesConusmerTest, ErroredBytesConsumer) {
+  test::TaskEnvironment task_environment;
   BytesConsumer::Error error("hello");
   BytesConsumer* consumer = BytesConsumer::CreateErrored(error);
 
-  const char* buffer = nullptr;
-  size_t available = 0;
-  EXPECT_EQ(Result::kError, consumer->BeginRead(&buffer, &available));
+  base::span<const char> buffer;
+  EXPECT_EQ(Result::kError, consumer->BeginRead(buffer));
   EXPECT_EQ(BytesConsumer::PublicState::kErrored, consumer->GetPublicState());
   EXPECT_EQ(error.Message(), consumer->GetError().Message());
 

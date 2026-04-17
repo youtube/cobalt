@@ -25,7 +25,7 @@ AddIceCandidateObserverJni::AddIceCandidateObserverJni(
     const JavaRef<jobject>& j_observer)
     : j_observer_global_(env, j_observer) {}
 
-void AddIceCandidateObserverJni::OnComplete(webrtc::RTCError error) {
+void AddIceCandidateObserverJni::OnComplete(RTCError error) {
   JNIEnv* env = AttachCurrentThreadIfNeeded();
   if (error.ok()) {
     Java_AddIceObserver_onAddSuccess(env, j_observer_global_);

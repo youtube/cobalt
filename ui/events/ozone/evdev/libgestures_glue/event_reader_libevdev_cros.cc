@@ -9,6 +9,7 @@
 #include <linux/input.h>
 #include <utility>
 
+#include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -146,6 +147,40 @@ void EventReaderLibevdevCros::ApplyDeviceSettings(
   haptic_feedback_enabled_ = touchpad_settings.haptic_feedback_enabled;
 }
 
+void EventReaderLibevdevCros::ReceivedKeyboardInput(
+    uint64_t key,
+    double timestamp_in_seconds) {
+  if (!IsSuspectedKeyboardImposter() || !IsValidKeyboardKeyPress(key)) {
+    return;
+  }
+
+  SetSuspectedKeyboardImposter(false);
+  received_valid_input_callback_.Run(this, timestamp_in_seconds);
+}
+
+void EventReaderLibevdevCros::ReceivedMouseInput(int rel_value,
+                                                 double timestamp_in_seconds) {
+  if (!IsSuspectedMouseImposter() || rel_value == 0) {
+    return;
+  }
+
+  SetSuspectedMouseImposter(false);
+  received_valid_input_callback_.Run(this, timestamp_in_seconds);
+}
+
+void EventReaderLibevdevCros::SetReceivedValidInputCallback(
+    ReceivedValidInputCallback callback) {
+  delegate_->SetReceivedValidKeyboardInputCallback(base::BindRepeating(
+      &EventReaderLibevdevCros::ReceivedKeyboardInput, base::Unretained(this)));
+  delegate_->SetReceivedValidMouseInputCallback(base::BindRepeating(
+      &EventReaderLibevdevCros::ReceivedMouseInput, base::Unretained(this)));
+  received_valid_input_callback_ = std::move(callback);
+}
+
+void EventReaderLibevdevCros::SetBlockModifiers(bool block_modifiers) {
+  delegate_->SetBlockModifiers(block_modifiers);
+}
+
 bool EventReaderLibevdevCros::HasCapsLockLed() const {
   return has_caps_lock_led_;
 }
@@ -156,6 +191,19 @@ bool EventReaderLibevdevCros::HasStylusSwitch() const {
 
 void EventReaderLibevdevCros::OnDisabled() {
   delegate_->OnLibEvdevCrosStopped(&evdev_, &evstate_);
+}
+
+std::ostream& EventReaderLibevdevCros::DescribeForLog(std::ostream& os) const {
+  os << "class=EventReaderLibevdevCros id=" << input_device_.id << std::endl
+     << " has_keyboard=" << has_keyboard_ << std::endl
+     << " has_mouse=" << has_mouse_ << std::endl
+     << " has_pointing_stick=" << has_pointing_stick_ << std::endl
+     << " HasHapticTouchpad=" << HasHapticTouchpad() << std::endl
+     << " CanHandleHapticFeedback=" << CanHandleHapticFeedback() << std::endl
+     << " has_caps_lock_led=" << has_caps_lock_led_ << std::endl
+     << " has_stylus_switch=" << has_stylus_switch_ << std::endl
+     << "base ";
+  return EventConverterEvdev::DescribeForLog(os);
 }
 
 // static

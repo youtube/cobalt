@@ -6,10 +6,6 @@
 
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 @implementation CredentialListHeaderView
 
 + (NSString*)reuseID {
@@ -17,7 +13,7 @@
 }
 
 - (instancetype)initWithReuseIdentifier:(NSString*)reuseIdentifier {
-  if (self = [super initWithReuseIdentifier:reuseIdentifier]) {
+  if ((self = [super initWithReuseIdentifier:reuseIdentifier])) {
     _headerTextLabel = [[UILabel alloc] init];
     _headerTextLabel.translatesAutoresizingMaskIntoConstraints = NO;
     _headerTextLabel.numberOfLines = 0;

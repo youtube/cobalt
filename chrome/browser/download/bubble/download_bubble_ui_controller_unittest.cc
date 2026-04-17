@@ -13,9 +13,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "chrome/browser/download/bubble/download_bubble_prefs.h"
 #include "chrome/browser/download/bubble/download_bubble_update_service.h"
-#include "chrome/browser/download/bubble/download_display.h"
 #include "chrome/browser/download/bubble/download_display_controller.h"
-#include "chrome/browser/download/bubble/download_icon_state.h"
 #include "chrome/browser/download/chrome_download_manager_delegate.h"
 #include "chrome/browser/download/download_core_service.h"
 #include "chrome/browser/download/download_core_service_factory.h"
@@ -25,6 +23,7 @@
 #include "chrome/browser/offline_items_collection/offline_content_aggregator_factory.h"
 #include "chrome/browser/profiles/profile_key.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/download/download_display.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/test/base/test_browser_window.h"
 #include "chrome/test/base/testing_browser_process.h"
@@ -53,7 +52,6 @@ using ::testing::SetArgPointee;
 using ::testing::StrictMock;
 using StrictMockDownloadItem = testing::StrictMock<download::MockDownloadItem>;
 using DownloadDangerType = download::DownloadDangerType;
-using DownloadIconState = download::DownloadIconState;
 using DownloadState = download::DownloadItem::DownloadState;
 using DownloadUIModelPtr = DownloadUIModel::DownloadUIModelPtr;
 using OfflineItemList =
@@ -99,6 +97,7 @@ class MockDownloadBubbleUpdateService : public DownloadBubbleUpdateService {
 
   bool GetAllModelsToDisplay(
       std::vector<DownloadUIModelPtr>& models,
+      const webapps::AppId* web_app_id,
       bool force_backfill_download_items = true) override {
     models.clear();
     int download_item_index = 0, offline_item_index = 0;
@@ -126,18 +125,17 @@ class MockDownloadBubbleUpdateService : public DownloadBubbleUpdateService {
 
   bool IsInitialized() const override { return true; }
 
-  MOCK_METHOD(DownloadDisplayController::ProgressInfo,
+  MOCK_METHOD(DownloadDisplay::ProgressInfo,
               GetProgressInfo,
-              (),
+              (const webapps::AppId*),
               (const override));
 
  private:
   raw_ptr<Profile> profile_;
   std::vector<ModelType> model_types_;
-  const raw_ref<const std::vector<std::unique_ptr<StrictMockDownloadItem>>,
-                ExperimentalAsh>
+  const raw_ref<const std::vector<std::unique_ptr<StrictMockDownloadItem>>>
       download_items_;
-  const raw_ref<const OfflineItemList, ExperimentalAsh> offline_items_;
+  const raw_ref<const OfflineItemList> offline_items_;
 };
 
 class DownloadBubbleUIControllerTest : public testing::Test {
@@ -264,6 +262,7 @@ class DownloadBubbleUIControllerTest : public testing::Test {
         .WillRepeatedly(Return(creation_type));
     EXPECT_CALL(item(index), IsPaused()).WillRepeatedly(Return(false));
     EXPECT_CALL(item(index), IsDangerous()).WillRepeatedly(Return(false));
+    EXPECT_CALL(item(index), IsInsecure()).WillRepeatedly(Return(false));
     // Functions called when checking ShouldShowDownloadStartedAnimation().
     EXPECT_CALL(item(index), IsSavePackageDownload())
         .WillRepeatedly(Return(false));
@@ -277,7 +276,7 @@ class DownloadBubbleUIControllerTest : public testing::Test {
     EXPECT_CALL(item(index), GetDangerType())
         .WillRepeatedly(
             Return(DownloadDangerType::DOWNLOAD_DANGER_TYPE_NOT_DANGEROUS));
-    std::vector<download::DownloadItem*> items;
+    std::vector<raw_ptr<download::DownloadItem, VectorExperimental>> items;
     for (size_t i = 0; i < items_.size(); ++i) {
       items.push_back(&item(i));
     }
@@ -300,13 +299,8 @@ class DownloadBubbleUIControllerTest : public testing::Test {
           DownloadDangerType::DOWNLOAD_DANGER_TYPE_NOT_DANGEROUS) {
     DCHECK_GT(items_.size(), static_cast<size_t>(item_index));
     EXPECT_CALL(item(item_index), GetState()).WillRepeatedly(Return(state));
-    if (state == DownloadState::COMPLETE) {
-      EXPECT_CALL(item(item_index), IsDone()).WillRepeatedly(Return(true));
-      DownloadPrefs::FromDownloadManager(&manager())
-          ->SetLastCompleteTime(base::Time::Now());
-    } else {
-      EXPECT_CALL(item(item_index), IsDone()).WillRepeatedly(Return(false));
-    }
+    EXPECT_CALL(item(item_index), IsDone())
+        .WillRepeatedly(Return(state == DownloadState::COMPLETE));
     EXPECT_CALL(item(item_index), IsDangerous())
         .WillRepeatedly(
             Return(danger_type !=
@@ -342,7 +336,7 @@ class DownloadBubbleUIControllerTest : public testing::Test {
       second_display_controller_;
   std::vector<std::unique_ptr<StrictMockDownloadItem>> items_;
   OfflineItemList offline_items_;
-  raw_ptr<NiceMock<content::MockDownloadManager>> manager_;
+  raw_ptr<NiceMock<content::MockDownloadManager>, DanglingUntriaged> manager_;
   TestingProfileManager testing_profile_manager_;
   std::unique_ptr<
       NiceMock<offline_items_collection::MockOfflineContentProvider>>
@@ -409,6 +403,7 @@ TEST_F(DownloadBubbleUIControllerTest, TransientDownloadShouldNotShow) {
   std::vector<DownloadUIModelPtr> models = controller().GetMainView();
   EXPECT_EQ(models.size(), 1ul);
   EXPECT_EQ(models[0]->GetContentId().id, ids[1]);
+  EXPECT_FALSE(controller().last_primary_view_was_partial());
 }
 
 TEST_F(DownloadBubbleUIControllerTest,
@@ -433,10 +428,16 @@ TEST_F(DownloadBubbleUIControllerTest,
       /*mime_type=*/"",
       download::DownloadItem::DownloadCreationType::TYPE_HISTORY_IMPORT);
   std::vector<DownloadUIModelPtr> partial_view = controller().GetPartialView();
-  ASSERT_EQ(partial_view.size(), 1u);
-  EXPECT_EQ(partial_view[0]->GetContentId().id, ids[1]);
+  if (download::IsDownloadBubblePartialViewEnabled(profile())) {
+    ASSERT_EQ(partial_view.size(), 1u);
+    EXPECT_EQ(partial_view[0]->GetContentId().id, ids[1]);
+    EXPECT_TRUE(controller().last_primary_view_was_partial());
+  } else {
+    EXPECT_EQ(partial_view.size(), 0u);
+  }
   std::vector<DownloadUIModelPtr> main_view = controller().GetMainView();
   EXPECT_EQ(main_view.size(), 2u);
+  EXPECT_FALSE(controller().last_primary_view_was_partial());
 }
 
 TEST_F(DownloadBubbleUIControllerTest,
@@ -446,15 +447,27 @@ TEST_F(DownloadBubbleUIControllerTest,
                    download::DownloadItem::IN_PROGRESS, ids[0]);
   InitOfflineItem(OfflineItemState::IN_PROGRESS, ids[1]);
 
-  EXPECT_EQ(controller().GetPartialView().size(), 2ul);
-  EXPECT_EQ(second_controller().GetPartialView().size(), 2ul);
+  if (download::IsDownloadBubblePartialViewEnabled(profile())) {
+    EXPECT_EQ(controller().GetPartialView().size(), 2ul);
+    EXPECT_TRUE(controller().last_primary_view_was_partial());
+    EXPECT_EQ(second_controller().GetPartialView().size(), 2ul);
+    EXPECT_TRUE(second_controller().last_primary_view_was_partial());
+  } else {
+    EXPECT_EQ(controller().GetPartialView().size(), 0ul);
+    EXPECT_EQ(second_controller().GetPartialView().size(), 0ul);
+  }
 
   UpdateDownloadItem(/*item_index=*/0, DownloadState::COMPLETE);
   UpdateOfflineItem(/*item_index=*/0, OfflineItemState::COMPLETE);
   EXPECT_EQ(controller().GetMainView().size(), 2ul);
+  EXPECT_FALSE(controller().last_primary_view_was_partial());
   // Download was removed from partial view because it is completed.
   EXPECT_EQ(controller().GetPartialView().size(), 0ul);
+  // The partial view wasn't actually shown, so this bit is not updated.
+  EXPECT_FALSE(controller().last_primary_view_was_partial());
   EXPECT_EQ(second_controller().GetPartialView().size(), 0ul);
+  EXPECT_EQ(second_controller().last_primary_view_was_partial(),
+            download::IsDownloadBubblePartialViewEnabled(profile()));
 }
 
 TEST_F(DownloadBubbleUIControllerTest,
@@ -464,12 +477,23 @@ TEST_F(DownloadBubbleUIControllerTest,
                    download::DownloadItem::IN_PROGRESS, ids[0]);
   InitOfflineItem(OfflineItemState::IN_PROGRESS, ids[1]);
 
-  EXPECT_EQ(controller().GetPartialView().size(), 2ul);
+  if (download::IsDownloadBubblePartialViewEnabled(profile())) {
+    EXPECT_EQ(controller().GetPartialView().size(), 2ul);
+    EXPECT_TRUE(controller().last_primary_view_was_partial());
+  } else {
+    EXPECT_EQ(controller().GetPartialView().size(), 0ul);
+  }
 
   // This does not remove the entries from the partial view because the items
   // are in progress.
   EXPECT_EQ(controller().GetMainView().size(), 2ul);
-  EXPECT_EQ(controller().GetPartialView().size(), 2ul);
+  EXPECT_FALSE(controller().last_primary_view_was_partial());
+  if (download::IsDownloadBubblePartialViewEnabled(profile())) {
+    EXPECT_EQ(controller().GetPartialView().size(), 2ul);
+    EXPECT_TRUE(controller().last_primary_view_was_partial());
+  } else {
+    EXPECT_EQ(controller().GetPartialView().size(), 0ul);
+  }
 }
 
 // Tests that no items are returned (i.e. no partial view will be shown) if it
@@ -482,7 +506,12 @@ TEST_F(DownloadBubbleUIControllerTest, NoItemsReturnedForPartialViewTooSoon) {
   EXPECT_CALL(display_controller(), OnNewItem(true)).Times(1);
   InitDownloadItem(FILE_PATH_LITERAL("/foo/bar1.pdf"),
                    download::DownloadItem::COMPLETE, ids[0]);
-  EXPECT_EQ(controller().GetPartialView().size(), 1u);
+  if (download::IsDownloadBubblePartialViewEnabled(profile())) {
+    EXPECT_EQ(controller().GetPartialView().size(), 1u);
+    EXPECT_TRUE(controller().last_primary_view_was_partial());
+  } else {
+    EXPECT_EQ(controller().GetPartialView().size(), 0u);
+  }
 
   // No items are returned for a partial view because it is too soon.
   task_environment_.FastForwardBy(base::Seconds(14));
@@ -490,38 +519,61 @@ TEST_F(DownloadBubbleUIControllerTest, NoItemsReturnedForPartialViewTooSoon) {
   InitDownloadItem(FILE_PATH_LITERAL("/foo/bar2.pdf"),
                    download::DownloadItem::COMPLETE, ids[1]);
   EXPECT_EQ(controller().GetPartialView().size(), 0u);
+  // The partial view wasn't actually shown, so this bit is not updated.
+  EXPECT_EQ(controller().last_primary_view_was_partial(),
+            download::IsDownloadBubblePartialViewEnabled(profile()));
 
   // Partial view can now be shown, and contains all the items.
   task_environment_.FastForwardBy(base::Seconds(1));
   EXPECT_CALL(display_controller(), OnNewItem(true)).Times(1);
   InitDownloadItem(FILE_PATH_LITERAL("/foo/bar3.pdf"),
                    download::DownloadItem::COMPLETE, ids[1]);
-  EXPECT_EQ(controller().GetPartialView().size(), 3u);
+  if (download::IsDownloadBubblePartialViewEnabled(profile())) {
+    EXPECT_EQ(controller().GetPartialView().size(), 3u);
+    EXPECT_TRUE(controller().last_primary_view_was_partial());
+  } else {
+    EXPECT_EQ(controller().GetPartialView().size(), 0u);
+  }
 
   // Showing the main view even before time is up should still work.
   task_environment_.FastForwardBy(base::Seconds(14));
   EXPECT_EQ(controller().GetPartialView().size(), 0u);
+  // The partial view wasn't actually shown, so this bit is not updated.
+  EXPECT_EQ(controller().last_primary_view_was_partial(),
+            download::IsDownloadBubblePartialViewEnabled(profile()));
   EXPECT_EQ(controller().GetMainView().size(), 3u);
+  EXPECT_FALSE(controller().last_primary_view_was_partial());
 
   // Main view resets the partial view time, so the partial view can now be
   // shown.
   EXPECT_CALL(display_controller(), OnNewItem(true)).Times(1);
   InitDownloadItem(FILE_PATH_LITERAL("/foo/bar4.pdf"),
                    download::DownloadItem::IN_PROGRESS, ids[3]);
-  EXPECT_EQ(controller().GetPartialView().size(), 1u);
+  if (download::IsDownloadBubblePartialViewEnabled(profile())) {
+    EXPECT_EQ(controller().GetPartialView().size(), 1u);
+    EXPECT_TRUE(controller().last_primary_view_was_partial());
+  } else {
+    EXPECT_EQ(controller().GetPartialView().size(), 0u);
+  }
 }
 
 // Tests that the partial view timer doesn't start if the partial view was
 // empty and thus not shown.
 TEST_F(DownloadBubbleUIControllerTest, EmptyPartialViewDoesNotPreventOpening) {
   EXPECT_EQ(controller().GetPartialView().size(), 0u);
+  EXPECT_FALSE(controller().last_primary_view_was_partial());
 
   EXPECT_CALL(display_controller(), OnNewItem(true)).Times(1);
   InitDownloadItem(FILE_PATH_LITERAL("/foo/bar2.pdf"),
                    download::DownloadItem::COMPLETE, "Download");
   // Partial view is returned despite previous call to GetPartialView less than
   // 15 seconds ago.
-  EXPECT_EQ(controller().GetPartialView().size(), 1u);
+  if (download::IsDownloadBubblePartialViewEnabled(profile())) {
+    EXPECT_EQ(controller().GetPartialView().size(), 1u);
+    EXPECT_TRUE(controller().last_primary_view_was_partial());
+  } else {
+    EXPECT_EQ(controller().GetPartialView().size(), 0u);
+  }
 }
 
 // Test that the preference suppresses the partial view.
@@ -533,9 +585,15 @@ TEST_F(DownloadBubbleUIControllerTest, PrefSuppressesPartialView) {
                    download::DownloadItem::COMPLETE, "Download");
 
   EXPECT_EQ(controller().GetPartialView().size(), 0u);
+  EXPECT_FALSE(controller().last_primary_view_was_partial());
 
   download::SetDownloadBubblePartialViewEnabled(profile(), true);
-  EXPECT_EQ(controller().GetPartialView().size(), 1u);
+  if (download::IsDownloadBubblePartialViewEnabled(profile())) {
+    EXPECT_EQ(controller().GetPartialView().size(), 1u);
+    EXPECT_TRUE(controller().last_primary_view_was_partial());
+  } else {
+    EXPECT_EQ(controller().GetPartialView().size(), 0u);
+  }
 }
 
 }  // namespace

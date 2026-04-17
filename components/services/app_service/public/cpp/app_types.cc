@@ -6,103 +6,156 @@
 
 namespace apps {
 
-APP_ENUM_TO_STRING(AppType,
-                   kUnknown,
-                   kArc,
-                   kBuiltIn,
-                   kCrostini,
-                   kChromeApp,
-                   kWeb,
-                   kMacOs,
-                   kPluginVm,
-                   kStandaloneBrowser,
-                   kRemote,
-                   kBorealis,
-                   kSystemWeb,
-                   kStandaloneBrowserChromeApp,
-                   kExtension,
-                   kStandaloneBrowserExtension,
-                   kBruschetta)
-APP_ENUM_TO_STRING(Readiness,
-                   kUnknown,
-                   kReady,
-                   kDisabledByBlocklist,
-                   kDisabledByPolicy,
-                   kDisabledByUser,
-                   kTerminated,
-                   kUninstalledByUser,
-                   kRemoved,
-                   kUninstalledByNonUser)
-APP_ENUM_TO_STRING(InstallReason,
-                   kUnknown,
-                   kSystem,
-                   kPolicy,
-                   kOem,
-                   kDefault,
-                   kSync,
-                   kUser,
-                   kSubApp,
-                   kKiosk,
-                   kCommandLine)
-APP_ENUM_TO_STRING(InstallSource,
-                   kUnknown,
-                   kSystem,
-                   kSync,
-                   kPlayStore,
-                   kChromeWebStore,
-                   kBrowser)
-APP_ENUM_TO_STRING(WindowMode, kUnknown, kWindow, kBrowser, kTabbedWindow)
-
-App::App(AppType app_type, const std::string& app_id)
-    : app_type(app_type), app_id(app_id) {}
-
-App::~App() = default;
-
-AppPtr App::Clone() const {
-  auto app = std::make_unique<App>(app_type, app_id);
-
-  app->readiness = readiness;
-  app->name = name;
-  app->short_name = short_name;
-  app->publisher_id = publisher_id;
-  app->description = description;
-  app->version = version;
-  app->additional_search_terms = additional_search_terms;
-
-  if (icon_key.has_value()) {
-    app->icon_key = std::move(*icon_key->Clone());
+std::ostream& operator<<(std::ostream& os, AppType v) {
+  switch (v) {
+    case AppType::kUnknown:
+      return os << "AppType::kUnknown";
+    case AppType::kArc:
+      return os << "AppType::kArc";
+    case AppType::kCrostini:
+      return os << "AppType::kCrostini";
+    case AppType::kChromeApp:
+      return os << "AppType::kChromeApp";
+    case AppType::kWeb:
+      return os << "AppType::kWeb";
+    case AppType::kPluginVm:
+      return os << "AppType::kPluginVm";
+    case AppType::kRemote:
+      return os << "AppType::kRemote";
+    case AppType::kBorealis:
+      return os << "AppType::kBorealis";
+    case AppType::kSystemWeb:
+      return os << "AppType::kSystemWeb";
+    case AppType::kExtension:
+      return os << "AppType::kExtension";
+    case AppType::kBruschetta:
+      return os << "AppType::kBruschetta";
   }
 
-  app->last_launch_time = last_launch_time;
-  app->install_time = install_time;
-  app->permissions = ClonePermissions(permissions);
-  app->install_reason = install_reason;
-  app->install_source = install_source;
-  app->policy_ids = policy_ids;
-  app->is_platform_app = is_platform_app;
-  app->recommendable = recommendable;
-  app->searchable = searchable;
-  app->show_in_launcher = show_in_launcher;
-  app->show_in_shelf = show_in_shelf;
-  app->show_in_search = show_in_search;
-  app->show_in_management = show_in_management;
-  app->handles_intents = handles_intents;
-  app->allow_uninstall = allow_uninstall;
-  app->has_badge = has_badge;
-  app->paused = paused;
-  app->intent_filters = CloneIntentFilters(intent_filters);
-  app->resize_locked = resize_locked;
-  app->window_mode = window_mode;
+  // Just in case, where the value comes from outside of the chrome code
+  // then casted without checks.
+  return os << "(unknown: " << static_cast<int>(v) << ")";
+}
 
-  if (run_on_os_login.has_value()) {
-    app->run_on_os_login = apps::RunOnOsLogin(run_on_os_login->login_mode,
-                                              run_on_os_login->is_managed);
+std::ostream& operator<<(std::ostream& os, PackageType v) {
+  switch (v) {
+    case PackageType::kUnknown:
+      return os << "PackageType::kUnknown";
+    case PackageType::kArc:
+      return os << "PackageType::kArc";
+    case PackageType::kBorealis:
+      return os << "PackageType::kBorealis";
+    case PackageType::kChromeApp:
+      return os << "PackageType::kChromeApp";
+    case PackageType::kGeForceNow:
+      return os << "PackageType::kGeForceNow";
+    case PackageType::kSystem:
+      return os << "PackageType::kSystem";
+    case PackageType::kWeb:
+      return os << "PackageType::kWeb";
+    case PackageType::kWebsite:
+      return os << "PackageType::kWebsite";
   }
 
-  app->app_size_in_bytes = app_size_in_bytes;
-  app->data_size_in_bytes = data_size_in_bytes;
+  // Just in case, where the value comes from outside of the chrome code
+  // then casted without checks.
+  return os << "(unknown: " << static_cast<int>(v) << ")";
+}
 
-  return app;
+std::ostream& operator<<(std::ostream& os, Readiness v) {
+  switch (v) {
+    case Readiness::kUnknown:
+      return os << "Readiness::kUnknown";
+    case Readiness::kReady:
+      return os << "Readiness::kReady";
+    case Readiness::kDisabledByBlocklist:
+      return os << "Readiness::KDisabledByBlocklist";
+    case Readiness::kDisabledByPolicy:
+      return os << "Readiness::kDisabledByPolicy";
+    case Readiness::kDisabledByUser:
+      return os << "Readiness::kDisabledByUser";
+    case Readiness::kTerminated:
+      return os << "Readiness::kTerminated";
+    case Readiness::kUninstalledByUser:
+      return os << "Readiness::kUninstalledByUser";
+    case Readiness::kRemoved:
+      return os << "Readiness::kRemoved";
+    case Readiness::kUninstalledByNonUser:
+      return os << "Readiness::kUninstalledByNonUser";
+    case Readiness::kDisabledByLocalSettings:
+      return os << "Readiness::kDisabledByLocalSettings";
+  }
+
+  // Just in case, where the value comes from outside of the chrome code
+  // then casted without checks.
+  return os << "(unknown: " << static_cast<int>(v) << ")";
+}
+
+std::ostream& operator<<(std::ostream& os, InstallReason v) {
+  switch (v) {
+    case InstallReason::kUnknown:
+      return os << "InstallReason::kUnknown";
+    case InstallReason::kSystem:
+      return os << "InstallReason::kSystem";
+    case InstallReason::kPolicy:
+      return os << "InstallReason::kPolicy";
+    case InstallReason::kOem:
+      return os << "InstallReason::kOem";
+    case InstallReason::kDefault:
+      return os << "InstallReason::kDefault";
+    case InstallReason::kSync:
+      return os << "InstallReason::kSync";
+    case InstallReason::kUser:
+      return os << "InstallReason::kUser";
+    case InstallReason::kSubApp:
+      return os << "InstallReason::SubApp";
+    case InstallReason::kKiosk:
+      return os << "InstallReason::kKiosk";
+    case InstallReason::kCommandLine:
+      return os << "InstallReason::kCommandLine";
+  }
+
+  // Just in case, where the value comes from outside of the chrome code
+  // then casted without checks.
+  return os << "(unknown: " << static_cast<int>(v) << ")";
+}
+
+std::ostream& operator<<(std::ostream& os, InstallSource v) {
+  switch (v) {
+    case InstallSource::kUnknown:
+      return os << "InstallSource::kUnknown";
+    case InstallSource::kSystem:
+      return os << "InstallSource::kSystem";
+    case InstallSource::kSync:
+      return os << "InstallSource::kSync";
+    case InstallSource::kPlayStore:
+      return os << "InstallSource::kPlayStore";
+    case InstallSource::kChromeWebStore:
+      return os << "InstallSource::kChromeWebStore";
+    case InstallSource::kBrowser:
+      return os << "InstallSource::kBrowser";
+  }
+
+  // Just in case, where the value comes from outside of the chrome code
+  // then casted without checks.
+  return os << "(unknown: " << static_cast<int>(v) << ")";
+}
+
+std::ostream& operator<<(std::ostream& os, WindowMode v) {
+  switch (v) {
+    case WindowMode::kUnknown:
+      return os << "WindowMode::kUnknown";
+    case WindowMode::kWindow:
+      return os << "WindowMode::kWindow";
+    case WindowMode::kBrowser:
+      return os << "WindowMode::kBrowser";
+    case WindowMode::kTabbedWindow:
+      return os << "WindowMode::kTabbedWindow";
+  }
+
+  // Just in case, where the value comes from outside of the chrome code
+  // then casted without checks.
+  return os << "(unknown: " << static_cast<int>(v) << ")";
 }
 
 ApplicationType ConvertAppTypeToProtoApplicationType(AppType app_type) {
@@ -111,34 +164,67 @@ ApplicationType ConvertAppTypeToProtoApplicationType(AppType app_type) {
       return ApplicationType::APPLICATION_TYPE_UNKNOWN;
     case AppType::kArc:
       return ApplicationType::APPLICATION_TYPE_ARC;
-    case AppType::kBuiltIn:
-      return ApplicationType::APPLICATION_TYPE_BUILT_IN;
     case AppType::kCrostini:
       return ApplicationType::APPLICATION_TYPE_CROSTINI;
     case AppType::kChromeApp:
       return ApplicationType::APPLICATION_TYPE_CHROME_APP;
     case AppType::kWeb:
       return ApplicationType::APPLICATION_TYPE_WEB;
-    case AppType::kMacOs:
-      return ApplicationType::APPLICATION_TYPE_MAC_OS;
     case AppType::kPluginVm:
       return ApplicationType::APPLICATION_TYPE_PLUGIN_VM;
-    case AppType::kStandaloneBrowser:
-      return ApplicationType::APPLICATION_TYPE_STANDALONE_BROWSER;
     case AppType::kRemote:
       return ApplicationType::APPLICATION_TYPE_REMOTE;
     case AppType::kBorealis:
       return ApplicationType::APPLICATION_TYPE_BOREALIS;
     case AppType::kSystemWeb:
       return ApplicationType::APPLICATION_TYPE_SYSTEM_WEB;
-    case AppType::kStandaloneBrowserChromeApp:
-      return ApplicationType::APPLICATION_TYPE_STANDALONE_BROWSER_CHROME_APP;
     case AppType::kExtension:
       return ApplicationType::APPLICATION_TYPE_EXTENSION;
-    case AppType::kStandaloneBrowserExtension:
-      return ApplicationType::APPLICATION_TYPE_STANDALONE_BROWSER_EXTENSION;
     case AppType::kBruschetta:
       return ApplicationType::APPLICATION_TYPE_BRUSCHETTA;
+  }
+}
+
+std::optional<AppType> ConvertPackageTypeToAppType(PackageType package_type) {
+  switch (package_type) {
+    case PackageType::kUnknown:
+      return AppType::kUnknown;
+    case PackageType::kArc:
+      return AppType::kArc;
+    case PackageType::kBorealis:
+      return AppType::kBorealis;
+    case PackageType::kChromeApp:
+      return AppType::kChromeApp;
+    case PackageType::kGeForceNow:
+      return std::nullopt;
+    case PackageType::kSystem:
+      return std::nullopt;
+    case PackageType::kWeb:
+      return AppType::kWeb;
+    case PackageType::kWebsite:
+      return std::nullopt;
+  }
+}
+
+std::optional<PackageType> ConvertAppTypeToPackageType(AppType app_type) {
+  switch (app_type) {
+    case AppType::kUnknown:
+      return PackageType::kUnknown;
+    case AppType::kArc:
+      return PackageType::kArc;
+    case AppType::kChromeApp:
+      return PackageType::kChromeApp;
+    case AppType::kWeb:
+      return PackageType::kWeb;
+    case AppType::kBorealis:
+      return PackageType::kBorealis;
+    case AppType::kBruschetta:
+    case AppType::kCrostini:
+    case AppType::kPluginVm:
+    case AppType::kRemote:
+    case AppType::kSystemWeb:
+    case AppType::kExtension:
+      return std::nullopt;
   }
 }
 

@@ -55,7 +55,7 @@ The source of truth for supported RPM-based distros is given in the
 From the earlier section "(Debian) Determine which packages are needed", we know
 that we need `libdbus-1-dev` and `libdbus-1-3`. Add these both to the
 `DEBIAN_PACKAGES` list in
-[`//build/linux/sysroot_scripts/sysroot-creator-sid.sh`](https://cs.chromium.org/chromium/src/build/linux/sysroot_scripts/sysroot-creator-sid.sh).
+[`//build/linux/sysroot_scripts/sysroot_creator.py`](https://cs.chromium.org/chromium/src/build/linux/sysroot_scripts/sysroot_creator.py).
 Building and uploading the sysroot images is detailed in [Linux sysroot
 images](https://chromium.googlesource.com/chromium/src.git/+/main/docs/sysroot.md).
 You may need to add additional dependent libraries for your new library.
@@ -180,7 +180,7 @@ file](https://goto.google.com/ynnzy).  For DBus, this will look like:
 
 In order for `MSAN` to work, you will likely need to add your library package to
 the instrumented libraries. To do this, add the library dev package to
-[`third_party/instrumented_libraries/BUILD.gn`](https://cs.chromium.org/chromium/src/third_party/instrumented_libraries/BUILD.gn):
+[`third_party/instrumented_libs/BUILD.gn`](https://cs.chromium.org/chromium/src/third_party/instrumented_libs/BUILD.gn):
 
 ```
   # This is the minimum you will need. Check other examples in this file if
@@ -191,8 +191,8 @@ the instrumented libraries. To do this, add the library dev package to
 ```
 
 Then add `:libdbus-1-3` to
-`//third_party/instrumented_libraries:locally_built`'s `deps`.
+`//third_party/instrumented_libs:locally_built`'s `deps`.
 
 See [Linux Instrumented
-Libraries](https://chromium.googlesource.com/chromium/src.git/+/main/docs/instrumented_libraries.md)
+Libraries](https://chromium.googlesource.com/chromium/src.git/+/main/docs/linux/instrumented_libraries.md)
 for instructions on building and uploading the instrumented libraries.

@@ -15,7 +15,6 @@
 #include "chrome/browser/ash/app_list/search/common/search_result_util.h"
 #include "chrome/browser/ash/app_list/search/common/string_util.h"
 #include "chrome/browser/ash/app_list/search/omnibox/omnibox_util.h"
-#include "chrome/browser/chromeos/launcher_search/search_util.h"
 #include "chromeos/ash/components/string_matching/tokenized_string.h"
 #include "chromeos/ash/components/string_matching/tokenized_string_match.h"
 #include "chromeos/crosapi/mojom/launcher_search.mojom.h"
@@ -84,13 +83,16 @@ OpenTabResult::~OpenTabResult() {
 void OpenTabResult::Open(int event_flags) {
   list_controller_->OpenURL(
       profile_, *search_result_->destination_url,
-      crosapi::PageTransitionToUiPageTransition(
-          search_result_->page_transition),
+      PageTransitionToUiPageTransition(search_result_->page_transition),
       ui::DispositionFromEventFlags(event_flags,
                                     WindowOpenDisposition::SWITCH_TO_TAB));
 }
 
-absl::optional<std::string> OpenTabResult::DriveId() const {
+std::optional<GURL> OpenTabResult::url() const {
+  return *search_result_->destination_url;
+}
+
+std::optional<std::string> OpenTabResult::DriveId() const {
   return drive_id_;
 }
 
@@ -121,7 +123,8 @@ void OpenTabResult::UpdateText() {
 void OpenTabResult::UpdateIcon() {
   // Use a favicon if one is available.
   if (!search_result_->favicon.isNull()) {
-    SetIcon(IconInfo(search_result_->favicon, kFaviconDimension));
+    SetIcon(IconInfo(ui::ImageModel::FromImageSkia(search_result_->favicon),
+                     kFaviconDimension));
     return;
   }
 
@@ -132,17 +135,17 @@ void OpenTabResult::UpdateIcon() {
 
 void OpenTabResult::SetGenericIcon() {
   uses_generic_icon_ = true;
-  SetIcon(
-      IconInfo(gfx::CreateVectorIcon(omnibox::kSwitchIcon, kSystemIconDimension,
-                                     GetGenericIconColor()),
-               kSystemIconDimension));
+  SetIcon(IconInfo(
+      ui::ImageModel::FromVectorIcon(
+          omnibox::kSwitchIcon, GetGenericIconColor(), kSystemIconDimension),
+      kSystemIconDimension));
 }
 
 void OpenTabResult::OnFaviconReceived(const gfx::ImageSkia& icon) {
   // By contract, this is never called with an empty `icon`.
   DCHECK(!icon.isNull());
   search_result_->favicon = icon;
-  SetIcon(IconInfo(icon, kFaviconDimension));
+  SetIcon(IconInfo(ui::ImageModel::FromImageSkia(icon), kFaviconDimension));
 }
 
 }  // namespace app_list

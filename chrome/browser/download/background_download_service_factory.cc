@@ -10,17 +10,15 @@
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/download/deferred_client_wrapper.h"
 #include "chrome/browser/download/download_manager_utils.h"
 #include "chrome/browser/download/simple_download_manager_coordinator_factory.h"
-#include "chrome/browser/net/system_network_context_manager.h"
 #include "chrome/browser/optimization_guide/prediction/prediction_model_download_client.h"
 #include "chrome/browser/profiles/incognito_helpers.h"
 #include "chrome/browser/profiles/profile.h"
@@ -35,6 +33,7 @@
 #include "components/download/public/background_service/blob_context_getter_factory.h"
 #include "components/download/public/background_service/clients.h"
 #include "components/download/public/background_service/features.h"
+#include "components/download/public/background_service/url_loader_factory_getter.h"
 #include "components/download/public/common/simple_download_manager_coordinator.h"
 #include "components/keyed_service/core/simple_dependency_manager.h"
 #include "components/leveldb_proto/public/proto_database_provider.h"
@@ -50,8 +49,7 @@
 #include "chrome/browser/download/android/service/download_task_scheduler.h"
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/bruschetta/bruschetta_download_client.h"
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ash/plugin_vm/plugin_vm_image_download_client.h"
 #endif
 
@@ -62,17 +60,12 @@ std::unique_ptr<download::Client> CreateBackgroundFetchDownloadClient(
   return std::make_unique<background_fetch::DownloadClient>(profile);
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 std::unique_ptr<download::Client> CreatePluginVmImageDownloadClient(
     Profile* profile) {
   return std::make_unique<plugin_vm::PluginVmImageDownloadClient>(profile);
 }
-
-std::unique_ptr<download::Client> CreateBruschettaDownloadClient(
-    Profile* profile) {
-  return std::make_unique<bruschetta::BruschettaDownloadClient>(profile);
-}
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 std::unique_ptr<download::Client>
 CreateOptimizationGuidePredictionModelDownloadClient(Profile* profile) {
@@ -114,12 +107,40 @@ class DownloadBlobContextGetterFactory
   raw_ptr<SimpleFactoryKey> key_;
 };
 
+void OnProfileCreated(download::URLLoaderFactoryGetterCallback callback,
+                      Profile* profile) {
+  DCHECK(callback);
+  std::move(callback).Run(profile->GetURLLoaderFactory());
+}
+
+class URLLoaderFactoryGetter : public download::URLLoaderFactoryGetter {
+ public:
+  explicit URLLoaderFactoryGetter(SimpleFactoryKey* key) : key_(key) {
+    DCHECK(key_);
+  }
+
+  URLLoaderFactoryGetter(const URLLoaderFactoryGetter&) = delete;
+  URLLoaderFactoryGetter& operator=(const URLLoaderFactoryGetter&) = delete;
+
+  ~URLLoaderFactoryGetter() override = default;
+
+ private:
+  void RetrieveURLLoaderFactory(
+      download::URLLoaderFactoryGetterCallback callback) override {
+    FullBrowserTransitionManager::Get()->RegisterCallbackOnProfileCreation(
+        key_, base::BindOnce(&OnProfileCreated, std::move(callback)));
+  }
+
+  raw_ptr<SimpleFactoryKey> key_;
+};
+
 }  // namespace
 
 // static
 BackgroundDownloadServiceFactory*
 BackgroundDownloadServiceFactory::GetInstance() {
-  return base::Singleton<BackgroundDownloadServiceFactory>::get();
+  static base::NoDestructor<BackgroundDownloadServiceFactory> instance;
+  return instance.get();
 }
 
 // static
@@ -149,19 +170,14 @@ BackgroundDownloadServiceFactory::BuildServiceInstanceFor(
       std::make_unique<download::DeferredClientWrapper>(
           base::BindOnce(&CreateBackgroundFetchDownloadClient), key)));
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   if (!key->IsOffTheRecord()) {
     clients->insert(std::make_pair(
         download::DownloadClient::PLUGIN_VM_IMAGE,
         std::make_unique<download::DeferredClientWrapper>(
             base::BindOnce(&CreatePluginVmImageDownloadClient), key)));
-
-    clients->insert(std::make_pair(
-        download::DownloadClient::BRUSCHETTA,
-        std::make_unique<download::DeferredClientWrapper>(
-            base::BindOnce(&CreateBruschettaDownloadClient), key)));
   }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
   if (optimization_guide::features::IsModelDownloadingEnabled() &&
       !key->IsOffTheRecord()) {
@@ -179,13 +195,11 @@ BackgroundDownloadServiceFactory::BuildServiceInstanceFor(
         std::make_unique<DownloadBlobContextGetterFactory>(key);
     scoped_refptr<base::SingleThreadTaskRunner> io_task_runner =
         content::GetIOThreadTaskRunner({});
-    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory =
-        SystemNetworkContextManager::GetInstance()->GetSharedURLLoaderFactory();
 
     return download::BuildInMemoryDownloadService(
         key, std::move(clients), content::GetNetworkConnectionTracker(),
         base::FilePath(), std::move(blob_context_getter_factory),
-        io_task_runner, url_loader_factory);
+        io_task_runner, std::make_unique<::URLLoaderFactoryGetter>(key));
   } else {
     // Build download service for normal profile.
     base::FilePath storage_dir;

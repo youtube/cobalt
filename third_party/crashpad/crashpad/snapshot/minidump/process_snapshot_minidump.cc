@@ -136,7 +136,6 @@ crashpad::ProcessID ProcessSnapshotMinidump::ProcessID() const {
 crashpad::ProcessID ProcessSnapshotMinidump::ParentProcessID() const {
   INITIALIZATION_STATE_DCHECK_VALID(initialized_);
   NOTREACHED();  // https://crashpad.chromium.org/bug/10
-  return 0;
 }
 
 void ProcessSnapshotMinidump::SnapshotTime(timeval* snapshot_time) const {
@@ -209,7 +208,6 @@ std::vector<UnloadedModuleSnapshot> ProcessSnapshotMinidump::UnloadedModules()
     const {
   INITIALIZATION_STATE_DCHECK_VALID(initialized_);
   NOTREACHED();  // https://crashpad.chromium.org/bug/10
-  return unloaded_modules_;
 }
 
 const ExceptionSnapshot* ProcessSnapshotMinidump::Exception() const {
@@ -230,7 +228,6 @@ std::vector<const MemoryMapRegionSnapshot*> ProcessSnapshotMinidump::MemoryMap()
 std::vector<HandleSnapshot> ProcessSnapshotMinidump::Handles() const {
   INITIALIZATION_STATE_DCHECK_VALID(initialized_);
   NOTREACHED();  // https://crashpad.chromium.org/bug/10
-  return std::vector<HandleSnapshot>();
 }
 
 std::vector<const MemorySnapshot*> ProcessSnapshotMinidump::ExtraMemory()
@@ -346,7 +343,7 @@ bool ProcessSnapshotMinidump::InitializeMiscInfo() {
   switch (stream_it->second->DataSize) {
     case sizeof(MINIDUMP_MISC_INFO_5):
     case sizeof(MINIDUMP_MISC_INFO_4):
-#if defined(WCHAR_T_IS_UTF16)
+#if defined(WCHAR_T_IS_16_BIT)
       full_version_ = base::WideToUTF8(info.BuildString);
 #else
       full_version_ = base::UTF16ToUTF8(info.BuildString);

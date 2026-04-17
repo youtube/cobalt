@@ -22,6 +22,7 @@
 #include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/check_op.h"
+#include "starboard/common/result.h"
 #include "starboard/common/size.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
@@ -67,50 +68,16 @@ struct DequeueOutputResult {
 };
 
 struct FrameSize {
-  Size texture_size;
+  Size display_size;
+  bool has_crop_values = false;
 
-  // Crop values can be set to -1 when they are not provided by the platform
-  jint crop_left = -1;
-  jint crop_top = -1;
-  jint crop_right = -1;
-  jint crop_bottom = -1;
-
-  bool has_crop_values() const {
-    return crop_left >= 0 && crop_top >= 0 && crop_right >= 0 &&
-           crop_bottom >= 0;
-  }
-
-  Size display_size() const {
-    if (has_crop_values()) {
-      return {crop_right - crop_left + 1, crop_bottom - crop_top + 1};
-    }
-
-    return texture_size;
-  }
-
-  void DCheckValid() const {
-    SB_DCHECK_GE(texture_size.width, 0);
-    SB_DCHECK_GE(texture_size.height, 0);
-
-    if (crop_left >= 0 || crop_top >= 0 || crop_right >= 0 ||
-        crop_bottom >= 0) {
-      // If there is at least one crop value set, all of them should be set.
-      SB_DCHECK_GE(crop_left, 0);
-      SB_DCHECK_GE(crop_top, 0);
-      SB_DCHECK_GE(crop_right, 0);
-      SB_DCHECK_GE(crop_bottom, 0);
-      SB_DCHECK(has_crop_values());
-      [[maybe_unused]] const Size size = display_size();
-      SB_DCHECK_GE(size.width, 0);
-      SB_DCHECK_GE(size.height, 0);
-    }
-  }
+  FrameSize();
+  FrameSize(int width, int height, bool has_crop_values);
 };
 
 std::ostream& operator<<(std::ostream& os, const FrameSize& size);
 
 struct AudioOutputFormatResult {
-  jint status;
   jint sample_rate;
   jint channel_count;
 };
@@ -146,22 +113,18 @@ class MediaCodecBridge {
       Handler* handler,
       jobject j_media_crypto);
 
-  // `max_width` and `max_height` can be set to positive values to specify the
-  // maximum resolutions the video can be adapted to.
-  // When they are not set, MediaCodecBridge will set them to the maximum
-  // resolutions the platform can decode.
-  // Both of them have to be set at the same time (i.e. we cannot set one of
-  // them without the other), which will be checked in the function.
-  static std::unique_ptr<MediaCodecBridge> CreateVideoMediaCodecBridge(
+  static NonNullResult<std::unique_ptr<MediaCodecBridge>>
+  CreateVideoMediaCodecBridge(
       SbMediaVideoCodec video_codec,
-      // `width_hint` and `height_hint` are used to create the Android video
-      // format, which don't have to be directly related to the resolution of
-      // the video.
-      int width_hint,
-      int height_hint,
+      // `frame_size_hint` is used to create the Android video format, which
+      // doesn't have to be directly related to the resolution of the video.
+      const Size& frame_size_hint,
       int fps,
-      std::optional<int> max_width,
-      std::optional<int> max_height,
+      // `max_frame_size` can be set to positive values to specify the maximum
+      // resolutions the video can be adapted to.  When they are not set,
+      // MediaCodecBridge will set them to the maximum resolutions the platform
+      // can decode.
+      const std::optional<Size>& max_frame_size,
       Handler* handler,
       jobject j_surface,
       jobject j_media_crypto,
@@ -170,8 +133,7 @@ class MediaCodecBridge {
       bool require_software_codec,
       int tunnel_mode_audio_session_id,
       bool force_big_endian_hdr_metadata,
-      int max_video_input_size,
-      std::string* error_message);
+      int max_video_input_size);
 
   ~MediaCodecBridge();
 
@@ -199,9 +161,8 @@ class MediaCodecBridge {
   void SetPlaybackRate(double playback_rate);
   bool Restart();
   jint Flush();
-  void Stop();
-  FrameSize GetOutputSize();
-  AudioOutputFormatResult GetAudioOutputFormat();
+  std::optional<FrameSize> GetOutputSize();
+  std::optional<AudioOutputFormatResult> GetAudioOutputFormat();
 
   void OnMediaCodecError(
       JNIEnv* env,
@@ -230,14 +191,6 @@ class MediaCodecBridge {
 
   Handler* const handler_;
   base::android::ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
-
-  // Profiling and allocation tracking has identified this area to be hot,
-  // and, capable of enough to cause GC times to raise high enough to impact
-  // playback.  We mitigate this by reusing these output objects between calls
-  // to |DequeueInputBuffer|, |DequeueOutputBuffer|, and
-  // |GetOutputDimensions|.
-  base::android::ScopedJavaGlobalRef<jobject>
-      j_reused_get_output_format_result_ = NULL;
 
   MediaCodecBridge(const MediaCodecBridge&) = delete;
   void operator=(const MediaCodecBridge&) = delete;

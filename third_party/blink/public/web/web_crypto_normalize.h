@@ -32,14 +32,12 @@
 #define THIRD_PARTY_BLINK_PUBLIC_WEB_WEB_CRYPTO_NORMALIZE_H_
 
 #include "third_party/blink/public/platform/web_common.h"
-
 #include "third_party/blink/public/platform/web_crypto_algorithm.h"
+#include "v8/include/v8-local-handle.h"
 
 namespace v8 {
 class Isolate;
 class Object;
-template <class T>
-class Local;
 }
 
 namespace blink {
@@ -58,8 +56,6 @@ class WebString;
 BLINK_EXPORT WebCryptoAlgorithm
 NormalizeCryptoAlgorithm(v8::Local<v8::Object>,
                          WebCryptoOperation,
-                         int* exception_code,
-                         WebString* error_details,
                          v8::Isolate*);
 
 }  // namespace blink

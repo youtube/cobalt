@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <linux/input.h>
 
+#include <algorithm>
 #include <vector>
 
 #include "ash/accelerators/accelerator_controller_impl.h"
@@ -17,6 +18,7 @@
 #include "ash/system/diagnostics/diagnostics_log_controller.h"
 #include "ash/system/diagnostics/keyboard_input_log.h"
 #include "ash/system/diagnostics/mojom/input.mojom.h"
+#include "ash/system/input_device_settings/input_device_settings_utils.h"
 #include "ash/webui/diagnostics_ui/backend/common/histogram_util.h"
 #include "ash/webui/diagnostics_ui/backend/input/event_watcher_factory.h"
 #include "ash/webui/diagnostics_ui/backend/input/input_data_event_watcher.h"
@@ -26,7 +28,7 @@
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
 #include "ash/wm/window_util.h"
 #include "base/logging.h"
-#include "base/ranges/algorithm.h"
+#include "base/strings/string_number_conversions.h"
 #include "chromeos/dbus/power/power_manager_client.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/display/screen.h"
@@ -151,6 +153,32 @@ void InputDataProvider::BindInterface(
 
 void InputDataProvider::GetConnectedDevices(
     GetConnectedDevicesCallback callback) {
+  bool has_internal_keyboard = false;
+  for (const ui::KeyboardDevice& keyboard :
+       ui::DeviceDataManager::GetInstance()->GetKeyboardDevices()) {
+    if (keyboard.type == ui::InputDeviceType::INPUT_DEVICE_INTERNAL &&
+        !IsSplitModifierKeyboard(keyboard.id)) {
+      has_internal_keyboard = true;
+      break;
+    }
+  }
+
+  // If there is an internal keyboard and keyboards_ size is zero (meaning the
+  // app hasn't added it yet but will), do not execute the callback, instead,
+  // save it to an internal variable and execute until the internal keyboard has
+  // been added.
+  if (has_internal_keyboard && keyboards_.empty()) {
+    get_connected_devices_callback_ =
+        base::BindOnce(&InputDataProvider::GetConnectedDevicesHelper,
+                       weak_factory_.GetWeakPtr(), std::move(callback));
+    return;
+  }
+
+  GetConnectedDevicesHelper(std::move(callback));
+}
+
+void InputDataProvider::GetConnectedDevicesHelper(
+    GetConnectedDevicesCallback callback) {
   std::vector<mojom::KeyboardInfoPtr> keyboard_vector;
   keyboard_vector.reserve(keyboards_.size());
   for (auto& keyboard_info : keyboards_) {
@@ -163,9 +191,9 @@ void InputDataProvider::GetConnectedDevices(
     touch_device_vector.push_back(touch_device_info.second.Clone());
   }
 
-  base::ranges::sort(keyboard_vector, std::less<>(), &mojom::KeyboardInfo::id);
-  base::ranges::sort(touch_device_vector, std::less<>(),
-                     &mojom::TouchDeviceInfo::id);
+  std::ranges::sort(keyboard_vector, std::less<>(), &mojom::KeyboardInfo::id);
+  std::ranges::sort(touch_device_vector, std::less<>(),
+                    &mojom::TouchDeviceInfo::id);
 
   std::move(callback).Run(std::move(keyboard_vector),
                           std::move(touch_device_vector));
@@ -228,7 +256,7 @@ void InputDataProvider::LidEventReceived(
 }
 
 void InputDataProvider::OnReceiveSwitchStates(
-    absl::optional<chromeos::PowerManagerClient::SwitchStates> switch_states) {
+    std::optional<chromeos::PowerManagerClient::SwitchStates> switch_states) {
   if (switch_states.has_value()) {
     LidEventReceived(switch_states->lid_state, /*time=*/{});
   }
@@ -558,8 +586,18 @@ void InputDataProvider::AddKeyboard(const InputDeviceInformation* device_info) {
 
   mojom::KeyboardInfoPtr keyboard =
       keyboard_helper_.ConstructKeyboard(device_info, aux_data.get());
+  const bool is_internal_keyboard =
+      keyboard->connection_type == mojom::ConnectionType::kInternal;
+  // Don't add keyboard if internal keyboard is a split modifier keyboard
+  // and the config for bottom left/right is unknown.
+  if (is_internal_keyboard &&
+      IsSplitModifierKeyboard(device_info->input_device.id) &&
+      (keyboard->bottom_left_layout == mojom::BottomLeftLayout::kUnknown ||
+        keyboard->bottom_right_layout == mojom::BottomRightLayout::kUnknown)) {
+      return;
+    }
   if (!features::IsExternalKeyboardInDiagnosticsAppEnabled() &&
-      keyboard->connection_type != mojom::ConnectionType::kInternal) {
+      !is_internal_keyboard) {
     return;
   }
   keyboards_[device_info->evdev_id] = std::move(keyboard);
@@ -577,6 +615,11 @@ void InputDataProvider::AddKeyboard(const InputDeviceInformation* device_info) {
 
   for (const auto& observer : connected_devices_observers_) {
     observer->OnKeyboardConnected(keyboards_[device_info->evdev_id]->Clone());
+  }
+
+  // Check if get_connected_devices_callback_ needs to be executed.
+  if (is_internal_keyboard && !get_connected_devices_callback_.is_null()) {
+    std::move(get_connected_devices_callback_).Run();
   }
 }
 

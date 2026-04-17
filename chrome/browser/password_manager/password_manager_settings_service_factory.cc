@@ -5,28 +5,33 @@
 #include "chrome/browser/password_manager/password_manager_settings_service_factory.h"
 
 #include "base/trace_event/trace_event.h"
-#include "chrome/browser/password_manager/password_manager_settings_service_impl.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sync/sync_service_factory.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/password_manager_settings_service.h"
+#include "components/password_manager/core/browser/password_manager_settings_service_impl.h"
 #include "components/password_manager/core/common/password_manager_features.h"
 #if BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/password_manager/android/password_manager_android_util.h"
 #include "chrome/browser/password_manager/android/password_manager_settings_service_android_impl.h"
+#include "chrome/browser/password_manager/android/password_manager_settings_service_android_migration_impl.h"
+#include "chrome/browser/password_manager/android/password_manager_util_bridge.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/prefs/pref_service.h"
 #endif
 
 // static
-PasswordManagerSettingsService*
+password_manager::PasswordManagerSettingsService*
 PasswordManagerSettingsServiceFactory::GetForProfile(Profile* profile) {
-  return static_cast<PasswordManagerSettingsService*>(
+  return static_cast<password_manager::PasswordManagerSettingsService*>(
       GetInstance()->GetServiceForBrowserContext(profile, true));
 }
 
 // static
 PasswordManagerSettingsServiceFactory*
 PasswordManagerSettingsServiceFactory::GetInstance() {
-  return base::Singleton<PasswordManagerSettingsServiceFactory>::get();
+  static base::NoDestructor<PasswordManagerSettingsServiceFactory> instance;
+  return instance.get();
 }
 
 PasswordManagerSettingsServiceFactory::PasswordManagerSettingsServiceFactory()
@@ -39,7 +44,15 @@ PasswordManagerSettingsServiceFactory::PasswordManagerSettingsServiceFactory()
           // used, but since this service is used to access settings which are
           // not specific to incognito the service can still be used as for the
           // regular profile.
-          ProfileSelections::BuildRedirectedInIncognito()) {
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kRedirectedToOriginal)
+              // TODO(crbug.com/40257657): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kRedirectedToOriginal)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kRedirectedToOriginal)
+              .Build()) {
 #if BUILDFLAG(IS_ANDROID)
   // The sync status is necessary on Android to decide which prefs to check.
   DependsOn(SyncServiceFactory::GetInstance());
@@ -49,21 +62,31 @@ PasswordManagerSettingsServiceFactory::PasswordManagerSettingsServiceFactory()
 PasswordManagerSettingsServiceFactory::
     ~PasswordManagerSettingsServiceFactory() = default;
 
-KeyedService* PasswordManagerSettingsServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+PasswordManagerSettingsServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   TRACE_EVENT0("passwords", "PasswordManagerSettingsServiceCreation");
   Profile* profile = Profile::FromBrowserContext(context);
 #if BUILDFLAG(IS_ANDROID)
-  if (password_manager::features::UsesUnifiedPasswordManagerUi()) {
-    return new PasswordManagerSettingsServiceAndroidImpl(
+  if (base::FeatureList::IsEnabled(
+          password_manager::features::kLoginDbDeprecationAndroid)) {
+    // For the first run after the feature is enabled, before the unmigrated
+    // passwords are exported, `IsPasswordManagerAvailable` can return false.
+    // However, password saving isn't possible in that run anyway.
+    if (password_manager_android_util::IsPasswordManagerAvailable(
+            profile->GetPrefs(),
+            std::make_unique<
+                password_manager_android_util::PasswordManagerUtilBridge>())) {
+      return std::make_unique<PasswordManagerSettingsServiceAndroidImpl>(
+          profile->GetPrefs(), SyncServiceFactory::GetForProfile(profile));
+    }
+    return nullptr;
+  }
+  if (password_manager_android_util::AreMinUpmRequirementsMet()) {
+    return std::make_unique<PasswordManagerSettingsServiceAndroidMigrationImpl>(
         profile->GetPrefs(), SyncServiceFactory::GetForProfile(profile));
   }
-  // Reset the migration pref in case the client is no longer in the enabled
-  // group.
-  profile->GetPrefs()->SetBoolean(
-      password_manager::prefs::kSettingsMigratedToUPM, false);
-  return new PasswordManagerSettingsServiceImpl(profile->GetPrefs());
-#else
-  return new PasswordManagerSettingsServiceImpl(profile->GetPrefs());
 #endif
+  return std::make_unique<password_manager::PasswordManagerSettingsServiceImpl>(
+      profile->GetPrefs());
 }

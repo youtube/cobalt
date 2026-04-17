@@ -11,6 +11,7 @@
 
 #include "base/containers/flat_set.h"
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/values.h"
 #include "extensions/renderer/bindings/argument_spec.h"
@@ -52,13 +53,13 @@ class APIBinding {
   using OnSilentRequest = base::RepeatingCallback<void(
       v8::Local<v8::Context>,
       const std::string& name,
-      const std::vector<v8::Local<v8::Value>>& arguments)>;
+      const v8::LocalVector<v8::Value>& arguments)>;
 
   // The callback type for handling an API call.
   using HandlerCallback = base::RepeatingCallback<void(gin::Arguments*)>;
 
   // The APITypeReferenceMap is required to outlive this object.
-  // |function_definitions|, |type_definitions| and |event_definitions|
+  // `function_definitions`, `type_definitions` and `event_definitions`
   // may be null if the API does not specify any of that category.
   APIBinding(const std::string& name,
              const base::Value::List* function_definitions,
@@ -83,19 +84,14 @@ class APIBinding {
 
   APIBindingHooks* hooks() { return binding_hooks_.get(); }
 
-  // Global bool to allow for testing of promise support.
-  // TODO(tjudkins): Replace this with a runtime determined condition gated on
-  // MV3.
-  static bool enable_promise_support_for_testing;
-
  private:
   // Initializes the object_template_ for this API. Called lazily when the
   // first instance is created.
   void InitializeTemplate(v8::Isolate* isolate);
 
-  // Decorates |object_template| with the properties specified by |properties|.
-  // |is_root| is used to determine whether to add the properties to
-  // |root_properties_|.
+  // Decorates `object_template` with the properties specified by `properties`.
+  // `is_root` is used to determine whether to add the properties to
+  // `root_properties_`.
   void DecorateTemplateWithProperties(
       v8::Isolate* isolate,
       v8::Local<v8::ObjectTemplate> object_template,
@@ -112,8 +108,8 @@ class APIBinding {
       v8::Local<v8::Name> property,
       const v8::PropertyCallbackInfo<v8::Value>& info);
 
-  // Handles calling of an API method with the given |name| on the given
-  // |thread| and matches the arguments against |signature|.
+  // Handles calling of an API method with the given `name` on the given
+  // `thread` and matches the arguments against `signature`.
   void HandleCall(const std::string& name,
                   const APISignature* signature,
                   gin::Arguments* args);
@@ -140,7 +136,7 @@ class APIBinding {
   std::map<std::string, std::vector<EnumEntry>> enums_;
 
   // The associated properties of the API, if any.
-  const base::Value::Dict* property_definitions_;
+  raw_ptr<const base::Value::Dict> property_definitions_;
   // The names of all the "root properties" added to the API; i.e., properties
   // exposed on the API object itself.
   base::flat_set<std::string> root_properties_;
@@ -154,18 +150,18 @@ class APIBinding {
   std::unique_ptr<APIBindingHooks> binding_hooks_;
 
   // The reference map for all known types; required to outlive this object.
-  APITypeReferenceMap* type_refs_;
+  raw_ptr<APITypeReferenceMap> type_refs_;
 
   // The associated request handler, shared between this and other bindings.
   // Required to outlive this object.
-  APIRequestHandler* request_handler_;
+  raw_ptr<APIRequestHandler, DanglingUntriaged> request_handler_;
 
   // The associated event handler, shared between this and other bindings.
   // Required to outlive this object.
-  APIEventHandler* event_handler_;
+  raw_ptr<APIEventHandler, DanglingUntriaged> event_handler_;
 
   // The associated access checker; required to outlive this object.
-  const BindingAccessChecker* const access_checker_;
+  const raw_ptr<const BindingAccessChecker, DanglingUntriaged> access_checker_;
 
   // The template for this API. Note: some methods may only be available in
   // certain contexts, but this template contains all methods. Those that are

@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.dom_distiller;
 
+import androidx.test.annotation.UiThreadTest;
 import androidx.test.filters.SmallTest;
 
 import com.google.common.util.concurrent.AtomicDouble;
@@ -15,15 +16,14 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.BaseJUnit4ClassRunner;
-import org.chromium.base.test.UiThreadTest;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.Feature;
-import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.test.ChromeBrowserTestRule;
 import org.chromium.components.dom_distiller.core.DistilledPagePrefs;
 import org.chromium.components.dom_distiller.core.DomDistillerService;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 import org.chromium.dom_distiller.mojom.FontFamily;
 import org.chromium.dom_distiller.mojom.Theme;
 
@@ -32,9 +32,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * Test class for {@link DistilledPagePrefs}.
- */
+/** Test class for {@link DistilledPagePrefs}. */
 @RunWith(BaseJUnit4ClassRunner.class)
 @Batch(Batch.PER_CLASS)
 public class DistilledPagePrefsTest {
@@ -60,12 +58,14 @@ public class DistilledPagePrefsTest {
     }
 
     private void getDistilledPagePrefs() {
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            // TODO (https://crbug.com/1063807):  Add incognito mode tests.
-            DomDistillerService domDistillerService =
-                    DomDistillerServiceFactory.getForProfile(Profile.getLastUsedRegularProfile());
-            mDistilledPagePrefs = domDistillerService.getDistilledPagePrefs();
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    // TODO (https://crbug.com/1063807):  Add incognito mode tests.
+                    DomDistillerService domDistillerService =
+                            DomDistillerServiceFactory.getForProfile(
+                                    ProfileManager.getLastUsedRegularProfile());
+                    mDistilledPagePrefs = domDistillerService.getDistilledPagePrefs();
+                });
     }
 
     @Test
@@ -244,11 +244,11 @@ public class DistilledPagePrefsTest {
 
     private static class TestingObserver implements DistilledPagePrefs.Observer {
         private final AtomicInteger mFontFamily = new AtomicInteger();
-        private Semaphore mFontFamilySemaphore = new Semaphore(0);
+        private final Semaphore mFontFamilySemaphore = new Semaphore(0);
         private final AtomicInteger mTheme = new AtomicInteger();
-        private Semaphore mThemeSemaphore = new Semaphore(0);
+        private final Semaphore mThemeSemaphore = new Semaphore(0);
         private final AtomicDouble mFontScaling = new AtomicDouble();
-        private Semaphore mFontScalingSemaphore = new Semaphore(0);
+        private final Semaphore mFontScalingSemaphore = new Semaphore(0);
 
         public TestingObserver() {}
 
@@ -257,7 +257,8 @@ public class DistilledPagePrefsTest {
         }
 
         public int getFontFamilyAfterWaiting() throws InterruptedException {
-            Assert.assertTrue("Did not receive an update for font family",
+            Assert.assertTrue(
+                    "Did not receive an update for font family",
                     mFontFamilySemaphore.tryAcquire(
                             SEMAPHORE_TIMEOUT_VALUE, SEMAPHORE_TIMEOUT_UNIT));
             return getFontFamily();
@@ -274,7 +275,8 @@ public class DistilledPagePrefsTest {
         }
 
         public int getThemeAfterWaiting() throws InterruptedException {
-            Assert.assertTrue("Did not receive an update for theme",
+            Assert.assertTrue(
+                    "Did not receive an update for theme",
                     mThemeSemaphore.tryAcquire(SEMAPHORE_TIMEOUT_VALUE, SEMAPHORE_TIMEOUT_UNIT));
             return getTheme();
         }
@@ -290,7 +292,8 @@ public class DistilledPagePrefsTest {
         }
 
         public float getFontScalingAfterWaiting() throws InterruptedException {
-            Assert.assertTrue("Did not receive an update for font scaling",
+            Assert.assertTrue(
+                    "Did not receive an update for font scaling",
                     mFontScalingSemaphore.tryAcquire(
                             SEMAPHORE_TIMEOUT_VALUE, SEMAPHORE_TIMEOUT_UNIT));
             return getFontScaling();
@@ -304,27 +307,27 @@ public class DistilledPagePrefsTest {
     }
 
     private void setFontFamily(final int font) {
-        TestThreadUtils.runOnUiThreadBlocking(() -> mDistilledPagePrefs.setFontFamily(font));
+        ThreadUtils.runOnUiThreadBlocking(() -> mDistilledPagePrefs.setFontFamily(font));
     }
 
     private void setTheme(final int theme) {
-        TestThreadUtils.runOnUiThreadBlocking(() -> mDistilledPagePrefs.setTheme(theme));
+        ThreadUtils.runOnUiThreadBlocking(() -> mDistilledPagePrefs.setTheme(theme));
     }
 
     private void setFontScaling(final float scaling) {
-        TestThreadUtils.runOnUiThreadBlocking(() -> mDistilledPagePrefs.setFontScaling(scaling));
+        ThreadUtils.runOnUiThreadBlocking(() -> mDistilledPagePrefs.setFontScaling(scaling));
     }
 
     private boolean removeObserver(TestingObserver testObserver) {
         AtomicBoolean wasRemoved = new AtomicBoolean();
-        TestThreadUtils.runOnUiThreadBlocking(
+        ThreadUtils.runOnUiThreadBlocking(
                 () -> wasRemoved.set(mDistilledPagePrefs.removeObserver(testObserver)));
         return wasRemoved.get();
     }
 
     private boolean addObserver(TestingObserver testObserver) {
         AtomicBoolean wasAdded = new AtomicBoolean();
-        TestThreadUtils.runOnUiThreadBlocking(
+        ThreadUtils.runOnUiThreadBlocking(
                 () -> wasAdded.set(mDistilledPagePrefs.addObserver(testObserver)));
         return wasAdded.get();
     }

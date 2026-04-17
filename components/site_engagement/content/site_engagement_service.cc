@@ -28,16 +28,20 @@
 #include "components/permissions/permissions_client.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
+#include "components/security_interstitials/content/security_interstitial_tab_helper.h"
 #include "components/site_engagement/content/engagement_type.h"
 #include "components/site_engagement/content/site_engagement_metrics.h"
 #include "components/site_engagement/content/site_engagement_observer.h"
 #include "components/site_engagement/content/site_engagement_score.h"
 #include "components/site_engagement/core/pref_names.h"
 #include "components/user_prefs/user_prefs.h"
+#include "components/webapps/browser/webapps_client.h"
+#include "components/webapps/common/web_app_id.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/url_constants.h"
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -74,20 +78,13 @@ class StoppedClock : public base::Clock {
   const base::Time time_;
 };
 
-// Helpers for fetching content settings for one type.
-ContentSettingsForOneType GetContentSettingsFromMap(HostContentSettingsMap* map,
-                                                    ContentSettingsType type) {
-  ContentSettingsForOneType content_settings;
-  map->GetSettingsForOneType(type, &content_settings);
-  return content_settings;
-}
-
+// Helper for fetching content settings for one type.
 ContentSettingsForOneType GetContentSettingsFromBrowserContext(
     content::BrowserContext* browser_context,
     ContentSettingsType type) {
-  return GetContentSettingsFromMap(
-      permissions::PermissionsClient::Get()->GetSettingsMap(browser_context),
-      type);
+  return permissions::PermissionsClient::Get()
+      ->GetSettingsMap(browser_context)
+      ->GetSettingsForOneType(type);
 }
 
 // Returns the combined list of origins which either have site engagement
@@ -98,7 +95,7 @@ std::set<GURL> GetEngagementOriginsFromContentSettings(
 
   // Fetch URLs of sites with engagement details stored.
   for (const auto& site :
-       GetContentSettingsFromMap(map, ContentSettingsType::SITE_ENGAGEMENT)) {
+       map->GetSettingsForOneType(ContentSettingsType::SITE_ENGAGEMENT)) {
     urls.insert(GURL(site.primary_pattern.ToString()));
   }
 
@@ -117,9 +114,26 @@ mojom::SiteEngagementDetails GetDetailsImpl(base::Clock* clock,
   return CreateEngagementScoreImpl(clock, origin, map).GetDetails();
 }
 
+bool IsUrlInUrlSet(const GURL& url,
+                   SiteEngagementService::URLSets::Type url_set) {
+  if ((url_set & SiteEngagementService::URLSets::HTTP) &&
+      url.SchemeIsHTTPOrHTTPS()) {
+    return true;
+  }
+
+  if ((url_set & SiteEngagementService::URLSets::WEB_UI) &&
+      (url.SchemeIs(content::kChromeUIScheme) ||
+       url.SchemeIs(content::kChromeUIUntrustedScheme))) {
+    return true;
+  }
+
+  return false;
+}
+
 std::vector<mojom::SiteEngagementDetails> GetAllDetailsImpl(
     base::Clock* clock,
-    HostContentSettingsMap* map) {
+    HostContentSettingsMap* map,
+    SiteEngagementService::URLSets::Type url_set) {
   std::set<GURL> origins = GetEngagementOriginsFromContentSettings(map);
 
   std::vector<mojom::SiteEngagementDetails> details;
@@ -128,7 +142,9 @@ std::vector<mojom::SiteEngagementDetails> GetAllDetailsImpl(
   for (const GURL& origin : origins) {
     if (!origin.is_valid())
       continue;
-    details.push_back(GetDetailsImpl(clock, origin, map));
+    if (IsUrlInUrlSet(origin, url_set)) {
+      details.push_back(GetDetailsImpl(clock, origin, map));
+    }
   }
 
   return details;
@@ -211,10 +227,11 @@ double SiteEngagementService::GetScoreFromSettings(
 std::vector<mojom::SiteEngagementDetails>
 SiteEngagementService::GetAllDetailsInBackground(
     base::Time now,
-    scoped_refptr<HostContentSettingsMap> map) {
+    scoped_refptr<HostContentSettingsMap> map,
+    URLSets::Type url_set) {
   StoppedClock clock(now);
   base::AssertLongCPUWorkAllowed();
-  return GetAllDetailsImpl(&clock, map.get());
+  return GetAllDetailsImpl(&clock, map.get(), url_set);
 }
 
 // static
@@ -238,7 +255,6 @@ bool SiteEngagementService::IsEngagementAtLeast(
       return score == SiteEngagementScore::kMaxPoints;
   }
   NOTREACHED();
-  return false;
 }
 
 SiteEngagementService::SiteEngagementService(content::BrowserContext* context)
@@ -268,24 +284,26 @@ blink::mojom::EngagementLevel SiteEngagementService::GetEngagementLevel(
   return CreateEngagementScore(url).GetEngagementLevel();
 }
 
-std::vector<mojom::SiteEngagementDetails> SiteEngagementService::GetAllDetails()
-    const {
+std::vector<mojom::SiteEngagementDetails> SiteEngagementService::GetAllDetails(
+    URLSets::Type url_set) const {
   if (IsLastEngagementStale())
     CleanupEngagementScores(true);
   return GetAllDetailsImpl(
       clock_,
-      permissions::PermissionsClient::Get()->GetSettingsMap(browser_context_));
+      permissions::PermissionsClient::Get()->GetSettingsMap(browser_context_),
+      url_set);
 }
 
 void SiteEngagementService::HandleNotificationInteraction(const GURL& url) {
   if (!ShouldRecordEngagement(url))
     return;
 
+  double old_score = GetScore(url);
   AddPoints(url, SiteEngagementScore::GetNotificationInteractionPoints());
 
   MaybeRecordMetrics();
   OnEngagementEvent(nullptr /* web_contents */, url,
-                    EngagementType::kNotificationInteraction);
+                    EngagementType::kNotificationInteraction, old_score);
 }
 
 bool SiteEngagementService::IsBootstrapped() const {
@@ -310,22 +328,27 @@ void SiteEngagementService::ResetBaseScoreForURL(const GURL& url,
 
 void SiteEngagementService::SetLastShortcutLaunchTime(
     content::WebContents* web_contents,
+#if !BUILDFLAG(IS_ANDROID)
+    const webapps::AppId& app_id,
+#endif
     const GURL& url) {
+  double old_score = GetScore(url);
+
   SiteEngagementScore score = CreateEngagementScore(url);
 
-  // Record the number of days since the last launch in UMA. If the user's clock
-  // has changed back in time, set this to 0.
   base::Time now = clock_->Now();
-  base::Time last_launch = score.last_shortcut_launch_time();
-  if (!last_launch.is_null()) {
-    SiteEngagementMetrics::RecordDaysSinceLastShortcutLaunch(
-        std::max(0, (now - last_launch).InDays()));
-  }
 
   score.set_last_shortcut_launch_time(now);
   score.Commit();
 
-  OnEngagementEvent(web_contents, url, EngagementType::kWebappShortcutLaunch);
+  std::optional<webapps::AppId> web_app_id;
+#if !BUILDFLAG(IS_ANDROID)
+  CHECK(!app_id.empty());
+  web_app_id = app_id;
+#endif
+
+  OnEngagementEvent(web_contents, url, EngagementType::kWebappShortcutLaunch,
+                    old_score, web_app_id);
 }
 
 double SiteEngagementService::GetScore(const GURL& url) const {
@@ -433,12 +456,12 @@ void SiteEngagementService::CleanupEngagementScores(
         // preferences. |rebase_time| is strictly in the past, so any score with
         // a last updated time in the future is caught by this branch.
         if (score.last_engagement_time() > rebase_time) {
-          score.set_last_engagement_time(now);
+          score.SetLastEngagementTime(now);
         } else if (score.last_engagement_time() > last_engagement_time) {
           // This score is newer than |last_engagement_time|, but older than
           // |rebase_time|. It should still be rebased with no offset as we
           // don't accurately know what the offset should be.
-          score.set_last_engagement_time(rebase_time);
+          score.SetLastEngagementTime(rebase_time);
         } else {
           // Work out the offset between this score's last engagement time and
           // the last time the service recorded any engagement. Set the score's
@@ -448,7 +471,7 @@ void SiteEngagementService::CleanupEngagementScores(
           base::TimeDelta offset =
               last_engagement_time - score.last_engagement_time();
           base::Time rebase_score_time = rebase_time - offset;
-          score.set_last_engagement_time(rebase_score_time);
+          score.SetLastEngagementTime(rebase_score_time);
         }
 
         if (score.last_engagement_time() > new_last_engagement_time)
@@ -502,7 +525,8 @@ void SiteEngagementService::MaybeRecordMetrics() {
       base::BindOnce(&GetAllDetailsInBackground, now,
                      base::WrapRefCounted(
                          permissions::PermissionsClient::Get()->GetSettingsMap(
-                             browser_context_))),
+                             browser_context_)),
+                     URLSets::HTTP),
       base::BindOnce(&SiteEngagementService::RecordMetrics,
                      weak_factory_.GetWeakPtr()));
 }
@@ -519,10 +543,7 @@ void SiteEngagementService::RecordMetrics(
   int total_origins = details.size();
 
   double total_engagement = 0;
-  int origins_with_max_engagement = 0;
   for (const auto& detail : details) {
-    if (detail.total_score == SiteEngagementScore::kMaxPoints)
-      ++origins_with_max_engagement;
     total_engagement += detail.total_score;
   }
 
@@ -530,18 +551,15 @@ void SiteEngagementService::RecordMetrics(
       (total_origins == 0 ? 0 : total_engagement / total_origins);
 
   SiteEngagementMetrics::RecordTotalOriginsEngaged(total_origins);
-  SiteEngagementMetrics::RecordTotalSiteEngagement(total_engagement);
   SiteEngagementMetrics::RecordMeanEngagement(mean_engagement);
   SiteEngagementMetrics::RecordMedianEngagement(
       GetMedianEngagementFromSortedDetails(details));
   SiteEngagementMetrics::RecordEngagementScores(details);
-
-  SiteEngagementMetrics::RecordOriginsWithMaxEngagement(
-      origins_with_max_engagement);
 }
 
 bool SiteEngagementService::ShouldRecordEngagement(const GURL& url) const {
-  return url.SchemeIsHTTPOrHTTPS();
+  return url.SchemeIsHTTPOrHTTPS() || url.SchemeIs(content::kChromeUIScheme) ||
+         url.SchemeIs(content::kChromeUIUntrustedScheme);
 }
 
 base::Time SiteEngagementService::GetLastEngagementTime() const {
@@ -595,13 +613,15 @@ void SiteEngagementService::HandleMediaPlaying(
   if (!ShouldRecordEngagement(url))
     return;
 
+  double old_score = GetScore(url);
   AddPoints(url, is_hidden ? SiteEngagementScore::GetHiddenMediaPoints()
                            : SiteEngagementScore::GetVisibleMediaPoints());
 
   MaybeRecordMetrics();
   OnEngagementEvent(
       web_contents, url,
-      is_hidden ? EngagementType::kMediaHidden : EngagementType::kMediaVisible);
+      is_hidden ? EngagementType::kMediaHidden : EngagementType::kMediaVisible,
+      old_score);
 }
 
 void SiteEngagementService::HandleNavigation(content::WebContents* web_contents,
@@ -610,10 +630,11 @@ void SiteEngagementService::HandleNavigation(content::WebContents* web_contents,
   if (!IsEngagementNavigation(transition) || !ShouldRecordEngagement(url))
     return;
 
+  double old_score = GetScore(url);
   AddPoints(url, SiteEngagementScore::GetNavigationPoints());
 
   MaybeRecordMetrics();
-  OnEngagementEvent(web_contents, url, EngagementType::kNavigation);
+  OnEngagementEvent(web_contents, url, EngagementType::kNavigation, old_score);
 }
 
 void SiteEngagementService::HandleUserInput(content::WebContents* web_contents,
@@ -622,21 +643,41 @@ void SiteEngagementService::HandleUserInput(content::WebContents* web_contents,
   if (!ShouldRecordEngagement(url))
     return;
 
+  security_interstitials::SecurityInterstitialTabHelper* helper =
+      security_interstitials::SecurityInterstitialTabHelper::FromWebContents(
+          web_contents);
+  if (helper && helper->IsDisplayingInterstitial()) {
+    return;
+  }
+
+  double old_score = GetScore(url);
   AddPoints(url, SiteEngagementScore::GetUserInputPoints());
 
   MaybeRecordMetrics();
-  OnEngagementEvent(web_contents, url, type);
+  OnEngagementEvent(web_contents, url, type, old_score);
 }
 
 void SiteEngagementService::OnEngagementEvent(
     content::WebContents* web_contents,
     const GURL& url,
-    EngagementType type) {
+    EngagementType type,
+    double old_score,
+    const std::optional<webapps::AppId>& app_id_override) {
   SiteEngagementMetrics::RecordEngagement(type);
+
+  std::optional<webapps::AppId> app_id = app_id_override;
+  if (!app_id && web_contents && webapps::WebappsClient::Get()) {
+    app_id =
+        webapps::WebappsClient::Get()->GetAppIdForWebContents(web_contents);
+  }
+  // TODO(crbug.com/358168777): Possibly look up the app_id from the url
+  // for the notification use-case, if the notification system doesn't have the
+  // app_id to provide to this system.
 
   double score = GetScore(url);
   for (SiteEngagementObserver& observer : observer_list_)
-    observer.OnEngagementEvent(web_contents, url, score, type);
+    observer.OnEngagementEvent(web_contents, url, score, old_score, type,
+                               app_id);
 }
 
 bool SiteEngagementService::IsLastEngagementStale() const {

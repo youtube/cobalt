@@ -6,10 +6,12 @@
 
 #include <inttypes.h>
 
+#include <algorithm>
 #include <string>
 
 #include "base/hash/md5.h"
-#include "base/ranges/algorithm.h"
+#include "base/memory/raw_ptr.h"
+#include "base/numerics/byte_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/threading/thread_checker.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
@@ -54,7 +56,7 @@ class MediaStreamTrackMetricsObserver {
   std::string track_id_;
 
   // Non-owning.
-  MediaStreamTrackMetrics* owner_;
+  raw_ptr<MediaStreamTrackMetrics> owner_;
   base::ThreadChecker thread_checker_;
 };
 
@@ -134,7 +136,7 @@ void MediaStreamTrackMetrics::RemoveTrack(Direction direction,
                                           Kind kind,
                                           const std::string& track_id) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  auto* it = base::ranges::find_if(
+  auto it = std::ranges::find_if(
       observers_,
       [&](const std::unique_ptr<MediaStreamTrackMetricsObserver>& observer) {
         return direction == observer->direction() && kind == observer->kind() &&
@@ -232,7 +234,7 @@ uint64_t MediaStreamTrackMetrics::MakeUniqueIdImpl(uint64_t pc_id,
   base::MD5Final(&digest, &ctx);
 
   static_assert(sizeof(digest.a) > sizeof(uint64_t), "need a bigger digest");
-  return *reinterpret_cast<uint64_t*>(digest.a);
+  return base::U64FromLittleEndian(base::span(digest.a).first<8u>());
 }
 
 uint64_t MediaStreamTrackMetrics::MakeUniqueId(const std::string& track_id,

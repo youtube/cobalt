@@ -8,9 +8,9 @@
 #include <stddef.h>
 
 #include <string>
+#include <string_view>
 #include <vector>
 
-#include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
 #include "net/websockets/websocket_extension.h"
 
@@ -32,9 +32,7 @@ class NET_EXPORT_PRIVATE WebSocketExtensionParser {
   //
   // Returns true if the method was successful (no syntax error was found).
   bool Parse(const char* data, size_t size);
-  bool Parse(const std::string& data) {
-    return Parse(data.data(), data.size());
-  }
+  bool Parse(std::string_view data) { return Parse(data.data(), data.size()); }
 
   // Returns the result of the last Parse() method call.
   const std::vector<WebSocketExtension>& extensions() const {
@@ -46,7 +44,7 @@ class NET_EXPORT_PRIVATE WebSocketExtensionParser {
   [[nodiscard]] bool ConsumeExtension(WebSocketExtension* extension);
   [[nodiscard]] bool ConsumeExtensionParameter(
       WebSocketExtension::Parameter* parameter);
-  [[nodiscard]] bool ConsumeToken(base::StringPiece* token);
+  [[nodiscard]] bool ConsumeToken(std::string_view* token);
   [[nodiscard]] bool ConsumeQuotedToken(std::string* token);
   void ConsumeSpaces();
   [[nodiscard]] bool Lookahead(char c);

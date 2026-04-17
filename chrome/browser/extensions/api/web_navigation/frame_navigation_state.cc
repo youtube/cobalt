@@ -5,6 +5,7 @@
 #include "chrome/browser/extensions/api/web_navigation/frame_navigation_state.h"
 
 #include "base/check.h"
+#include "base/containers/fixed_flat_set.h"
 #include "base/notreached.h"
 #include "chrome/common/url_constants.h"
 #include "content/public/browser/render_frame_host.h"
@@ -12,40 +13,39 @@
 
 namespace extensions {
 
-namespace {
-
-// URL schemes for which we'll send events.
-const char* const kValidSchemes[] = {
-    content::kChromeUIScheme,
-    url::kHttpScheme,
-    url::kHttpsScheme,
-    url::kFileScheme,
-    url::kFtpScheme,
-    url::kJavaScriptScheme,
-    url::kDataScheme,
-    url::kFileSystemScheme,
-};
-
-}  // namespace
 
 // static
 bool FrameNavigationState::allow_extension_scheme_ = false;
 
 DOCUMENT_USER_DATA_KEY_IMPL(FrameNavigationState);
 
-FrameNavigationState::FrameNavigationState(content::RenderFrameHost* rfh)
-    : content::DocumentUserData<FrameNavigationState>(rfh) {}
+FrameNavigationState::FrameNavigationState(
+    content::RenderFrameHost* render_frame_host)
+    : content::DocumentUserData<FrameNavigationState>(render_frame_host) {}
 FrameNavigationState::~FrameNavigationState() = default;
 
 // static
 bool FrameNavigationState::IsValidUrl(const GURL& url) {
-  for (const auto* valid_scheme : kValidSchemes) {
-    if (url.scheme() == valid_scheme)
-      return true;
-  }
-  // Allow about:blank and about:srcdoc.
-  if (url.IsAboutBlank() || url.IsAboutSrcdoc())
+  constexpr auto kValidSchemes = base::MakeFixedFlatSet<std::string_view>({
+      content::kChromeUIScheme,
+      url::kHttpScheme,
+      url::kHttpsScheme,
+      url::kFileScheme,
+      url::kFtpScheme,
+      url::kJavaScriptScheme,
+      url::kDataScheme,
+      url::kFileSystemScheme,
+  });
+
+  if (kValidSchemes.contains(url.scheme_piece())) {
     return true;
+  }
+
+  // Allow about:blank and about:srcdoc.
+  if (url.IsAboutBlank() || url.IsAboutSrcdoc()) {
+    return true;
+  }
+
   return allow_extension_scheme_ && url.scheme() == kExtensionScheme;
 }
 

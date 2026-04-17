@@ -37,39 +37,39 @@ class UrlCheckerDelegateImpl : public safe_browsing::UrlCheckerDelegate {
       const security_interstitials::UnsafeResource& resource,
       const std::string& method,
       const net::HttpRequestHeaders& headers,
-      bool is_main_frame,
       bool has_user_gesture) override;
   void StartObservingInteractionsForDelayedBlockingPageHelper(
-      const security_interstitials::UnsafeResource& resource,
-      bool is_main_frame) override;
-  void CheckLookupMechanismExperimentEligibility(
-      const security_interstitials::UnsafeResource& resource,
-      base::OnceCallback<void(bool)> callback,
-      scoped_refptr<base::SequencedTaskRunner> callback_task_runner) override;
-  void CheckExperimentEligibilityAndStartBlockingPage(
-      const security_interstitials::UnsafeResource& resource,
-      base::OnceCallback<void(bool)> callback,
-      scoped_refptr<base::SequencedTaskRunner> callback_task_runner) override;
+      const security_interstitials::UnsafeResource& resource) override;
   bool IsUrlAllowlisted(const GURL& url) override;
   void SetPolicyAllowlistDomains(
       const std::vector<std::string>& allowlist_domains) override;
-  bool ShouldSkipRequestCheck(const GURL& original_url,
-                              int frame_tree_node_id,
-                              int render_process_id,
-                              int render_frame_id,
-                              bool originated_from_service_worker) override;
+  bool ShouldSkipRequestCheck(
+      const GURL& original_url,
+      int frame_tree_node_id,
+      int render_process_id,
+      base::optional_ref<const base::UnguessableToken> render_frame_token,
+      bool originated_from_service_worker) override;
 
+#pragma mark - Unused on iOS
   // This function is unused on iOS, since iOS cannot use content/.
-  // TODO(crbug.com/1069047): Refactor SafeBrowsingUrlCheckerImpl and
+  // TODO(crbug.com/40683815): Refactor SafeBrowsingUrlCheckerImpl and
   // UrlCheckerDelegate to extract the functionality that can be shared across
   // platforms, and move methods used only by content/ to classes used only by
   // content/.
   void NotifySuspiciousSiteDetected(
       const base::RepeatingCallback<content::WebContents*()>&
           web_contents_getter) override;
+  void SendUrlRealTimeAndHashRealTimeDiscrepancyReport(
+      std::unique_ptr<safe_browsing::ClientSafeBrowsingReportRequest> report,
+      const base::RepeatingCallback<content::WebContents*()>&
+          web_contents_getter) override;
+#pragma mark - UrlCheckerDelegate
   const safe_browsing::SBThreatTypeSet& GetThreatTypes() override;
   safe_browsing::SafeBrowsingDatabaseManager* GetDatabaseManager() override;
   safe_browsing::BaseUIManager* GetUIManager() override;
+  bool AreBackgroundHashRealTimeSampleLookupsAllowed(
+      const base::RepeatingCallback<content::WebContents*()>&
+          web_contents_getter) override;
 
   scoped_refptr<safe_browsing::SafeBrowsingDatabaseManager> database_manager_;
   base::WeakPtr<SafeBrowsingClient> client_;

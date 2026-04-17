@@ -40,6 +40,45 @@ Config:
       description: Secret shared between child and parent devices.
       type: string
   type: object
+DataControlsCondition:
+  properties:
+    and:
+      items:
+        $ref: DataControlsCondition
+      type: array
+    destinations:
+      properties:
+        incognito:
+          type: boolean
+        os_clipboard:
+          type: boolean
+        other_profile:
+          type: boolean
+        urls:
+          items:
+            type: string
+          type: array
+      type: object
+    not:
+      $ref: DataControlsCondition
+    or:
+      items:
+        $ref: DataControlsCondition
+      type: array
+    sources:
+      properties:
+        incognito:
+          type: boolean
+        os_clipboard:
+          type: boolean
+        other_profile:
+          type: boolean
+        urls:
+          items:
+            type: string
+          type: array
+      type: object
+  type: object
 DayPercentagePair:
   description: Contains the number of days and the percentage of the fleet that should
     be updated after those days have passed.
@@ -232,11 +271,19 @@ TimeUsageLimitEntry:
 UsbDeviceId:
   properties:
     product_id:
+      maximum: 65535
+      minimum: 0
       type: integer
     vendor_id:
+      maximum: 65535
+      minimum: 0
       type: integer
+  required:
+  - product_id
+  - vendor_id
   type: object
 UsbDeviceIdInclusive:
+  description: Use UsbDeviceId in new code.
   properties:
     product_id:
       type: integer
@@ -262,18 +309,43 @@ WeekDay:
   - SUNDAY
   type: string
 WeeklyTime:
+  description: Use WeeklyTimeChecked in new code.
   properties:
     day_of_week:
       $ref: WeekDay
     time:
+      description: Milliseconds since midnight.
       type: integer
   type: object
 WeeklyTimeIntervals:
+  description: Use WeeklyTimeIntervalChecked in new code.
   properties:
     end:
       $ref: WeeklyTime
     start:
       $ref: WeeklyTime
+  type: object
+WeeklyTimeChecked:
+  properties:
+    day_of_week:
+      $ref: WeekDay
+    milliseconds_since_midnight:
+      minimum: 0
+      maximum: 86399999
+      type: integer
+  required:
+  - day_of_week
+  - milliseconds_since_midnight
+  type: object
+WeeklyTimeIntervalChecked:
+  properties:
+    start:
+      $ref: WeeklyTimeChecked
+    end:
+      $ref: WeeklyTimeChecked
+  required:
+  - start
+  - end
   type: object
 file_transfer_enable_disable_schema:
   items:

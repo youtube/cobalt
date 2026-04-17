@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ash/profiles/profile_helper.h"
 
+#include <algorithm>
 #include <memory>
 #include <set>
 #include <string>
@@ -11,14 +12,12 @@
 
 #include "ash/constants/ash_switches.h"
 #include "base/barrier_closure.h"
+#include "base/check_is_test.h"
 #include "base/command_line.h"
-#include "base/debug/dump_without_crashing.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/metrics/histogram_functions.h"
-#include "base/ranges/algorithm.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/system/sys_info.h"
 #include "base/threading/thread_restrictions.h"
@@ -26,10 +25,10 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/profiles/profile_types_ash.h"
 #include "chrome/common/chrome_constants.h"
 #include "chrome/common/chrome_switches.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
+#include "chromeos/ash/components/browser_context_helper/browser_context_types.h"
 #include "components/account_id/account_id.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
@@ -54,20 +53,15 @@ class ProfileHelperImpl : public ProfileHelper {
       const Profile* profile) const override;
   user_manager::User* GetUserByProfile(Profile* profile) const override;
 
-  void SetProfileToUserMappingForTesting(user_manager::User* user) override;
   void SetUserToProfileMappingForTesting(const user_manager::User* user,
                                          Profile* profile) override;
-  void RemoveUserFromListForTesting(const AccountId& account_id) override;
 
  private:
   std::unique_ptr<BrowserContextHelper> browser_context_helper_;
 
   // Used for testing by unit tests and FakeUserManager.
-  std::map<const user_manager::User*, Profile*> user_to_profile_for_testing_;
-
-  // When this list is not empty GetUserByProfile() will find user that has
-  // the same user_id as |profile|->GetProfileName().
-  user_manager::UserList user_list_for_testing_;
+  std::map<const user_manager::User*, raw_ptr<Profile, CtnExperimental>>
+      user_to_profile_for_testing_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -96,11 +90,6 @@ base::FilePath ProfileHelper::GetProfilePathByUserIdHash(
 }
 
 // static
-base::FilePath ProfileHelper::GetSigninProfileDir() {
-  return BrowserContextHelper::Get()->GetSigninBrowserContextPath();
-}
-
-// static
 Profile* ProfileHelper::GetSigninProfile() {
   return Profile::FromBrowserContext(
       BrowserContextHelper::Get()->DeprecatedGetOrCreateSigninBrowserContext());
@@ -121,22 +110,7 @@ base::FilePath ProfileHelper::GetUserProfileDir(
 
 // static
 bool ProfileHelper::IsSigninProfile(const Profile* profile) {
-  return ::IsSigninProfile(profile);
-}
-
-// static
-bool ProfileHelper::IsSigninProfileInitialized() {
-  return BrowserContextHelper::Get()->GetSigninBrowserContext();
-}
-
-// static
-bool ProfileHelper::IsLockScreenAppProfile(const Profile* profile) {
-  return ::IsLockScreenAppProfile(profile);
-}
-
-// static
-base::FilePath ProfileHelper::GetLockScreenAppProfilePath() {
-  return BrowserContextHelper::Get()->GetLockScreenAppBrowserContextPath();
+  return ash::IsSigninBrowserContext(const_cast<Profile*>(profile));
 }
 
 // static
@@ -152,7 +126,7 @@ Profile* ProfileHelper::GetLockScreenProfile() {
 
 // static
 bool ProfileHelper::IsLockScreenProfile(const Profile* profile) {
-  return ::IsLockScreenProfile(profile);
+  return ash::IsLockScreenBrowserContext(const_cast<Profile*>(profile));
 }
 
 // static
@@ -175,12 +149,12 @@ bool ProfileHelper::IsEphemeralUserProfile(const Profile* profile) {
 
 // static
 bool ProfileHelper::IsUserProfile(const Profile* profile) {
-  return ::IsUserProfile(profile);
+  return ash::IsUserBrowserContext(const_cast<Profile*>(profile));
 }
 
 // static
 bool ProfileHelper::IsUserProfilePath(const base::FilePath& profile_path) {
-  return ::IsUserProfilePath(profile_path);
+  return ash::IsUserBrowserContextBaseName(profile_path);
 }
 
 // static
@@ -202,7 +176,7 @@ ProfileHelperImpl::ProfileHelperImpl(
 ProfileHelperImpl::~ProfileHelperImpl() = default;
 
 Profile* ProfileHelperImpl::GetProfileByAccountId(const AccountId& account_id) {
-  // TODO(crbug.com/1325210): Remove test injection from here.
+  // TODO(crbug.com/40225390): Remove test injection from here.
   if (!user_to_profile_for_testing_.empty()) {
     const auto* user = user_manager::UserManager::Get()->FindUser(account_id);
     auto it = user_to_profile_for_testing_.find(user);
@@ -216,7 +190,7 @@ Profile* ProfileHelperImpl::GetProfileByAccountId(const AccountId& account_id) {
 }
 
 Profile* ProfileHelperImpl::GetProfileByUser(const user_manager::User* user) {
-  // TODO(crbug.com/1325210): Remove test injection from here.
+  // TODO(crbug.com/40225390): Remove test injection from here.
   if (!user_to_profile_for_testing_.empty()) {
     auto it = user_to_profile_for_testing_.find(user);
     if (it != user_to_profile_for_testing_.end()) {
@@ -235,16 +209,18 @@ const user_manager::User* ProfileHelperImpl::GetUserByProfile(
   }
 
   // This map is non-empty only in tests.
-  if (enable_profile_to_user_testing || !user_list_for_testing_.empty()) {
-    if (always_return_primary_user_for_testing)
-      return user_manager::UserManager::Get()->GetPrimaryUser();
+  if (enable_profile_to_user_testing) {
+    auto* user_manager = user_manager::UserManager::Get();
+    if (always_return_primary_user_for_testing) {
+      return user_manager->GetPrimaryUser();
+    }
 
+    // Walk through all users in UserManager.
     const std::string& user_name = profile->GetProfileUserName();
-    for (user_manager::UserList::const_iterator it =
-             user_list_for_testing_.begin();
-         it != user_list_for_testing_.end(); ++it) {
-      if ((*it)->GetAccountId().GetUserEmail() == user_name)
-        return *it;
+    for (user_manager::User* user : user_manager->GetPersistedUsers()) {
+      if (user->GetAccountId().GetUserEmail() == user_name) {
+        return user;
+      }
     }
 
     // In case of test setup we should always default to primary user.
@@ -276,23 +252,13 @@ const user_manager::User* ProfileHelperImpl::GetUserByProfile(
 
   // Many tests do not have their users registered with UserManager and
   // runs here. If |active_user_| matches |profile|, returns it.
-
-  // There's no guard that this is only for testing. Adding metrics here
-  // temporarily to make sure we can safely clean up the code.
-  // TODO(crbug.com/1325210): Remove the metrics together with the following
-  // code refactored.
-  if (base::SysInfo::IsRunningOnChromeOS()) {
-    base::UmaHistogramBoolean("Ash.BrowserContext.UnexpectedGetUserByProfile",
-                              true);
-    // Also taking the stack trace, so we can identify who's the caller on
-    // unexpected cases.
-    base::debug::DumpWithoutCrashing();
-  }
-
+  // This is expected happening only for testing.
+  CHECK_IS_TEST();
   const user_manager::User* active_user = user_manager->GetActiveUser();
   return active_user &&
-                 browser_context_helper_->GetBrowserContextPathByUserIdHash(
-                     active_user->username_hash()) == profile->GetPath()
+                 active_user->username_hash() ==
+                     ash::BrowserContextHelper::GetUserIdHashFromBrowserContext(
+                         const_cast<Profile*>(profile))
              ? active_user
              : nullptr;
 }
@@ -303,24 +269,11 @@ user_manager::User* ProfileHelperImpl::GetUserByProfile(
       GetUserByProfile(static_cast<const Profile*>(profile)));
 }
 
-void ProfileHelperImpl::SetProfileToUserMappingForTesting(
-    user_manager::User* user) {
-  user_list_for_testing_.push_back(user);
-}
-
 void ProfileHelperImpl::SetUserToProfileMappingForTesting(
     const user_manager::User* user,
     Profile* profile) {
   DCHECK(user);
   user_to_profile_for_testing_[user] = profile;
-}
-
-void ProfileHelperImpl::RemoveUserFromListForTesting(
-    const AccountId& account_id) {
-  auto it = base::ranges::find(user_list_for_testing_, account_id,
-                               &user_manager::User::GetAccountId);
-  if (it != user_list_for_testing_.end())
-    user_list_for_testing_.erase(it);
 }
 
 }  // namespace ash

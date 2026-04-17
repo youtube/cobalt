@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "net/socket/socks_client_socket.h"
 
 #include <memory>
@@ -52,14 +57,14 @@ class SOCKSClientSocketTest : public PlatformTest, public WithTaskEnvironment {
   void SetUp() override;
 
  protected:
+  std::unique_ptr<MockHostResolver> host_resolver_;
+  std::unique_ptr<SocketDataProvider> data_;
   std::unique_ptr<SOCKSClientSocket> user_sock_;
   AddressList address_list_;
   // Filled in by BuildMockSocket() and owned by its return value
   // (which |user_sock| is set to).
   raw_ptr<StreamSocket> tcp_sock_;
   TestCompletionCallback callback_;
-  std::unique_ptr<MockHostResolver> host_resolver_;
-  std::unique_ptr<SocketDataProvider> data_;
 };
 
 SOCKSClientSocketTest::SOCKSClientSocketTest()
@@ -137,8 +142,7 @@ TEST_F(SOCKSClientSocketTest, CompleteHandshake) {
     EXPECT_TRUE(
         LogContainsEndEvent(entries, -1, NetLogEventType::SOCKS_CONNECT));
 
-    scoped_refptr<IOBuffer> buffer =
-        base::MakeRefCounted<IOBuffer>(payload_write.size());
+    auto buffer = base::MakeRefCounted<IOBufferWithSize>(payload_write.size());
     memcpy(buffer->data(), payload_write.data(), payload_write.size());
     rv = user_sock_->Write(buffer.get(), payload_write.size(),
                            callback_.callback(), TRAFFIC_ANNOTATION_FOR_TESTS);
@@ -146,7 +150,7 @@ TEST_F(SOCKSClientSocketTest, CompleteHandshake) {
     rv = callback_.WaitForResult();
     EXPECT_EQ(static_cast<int>(payload_write.size()), rv);
 
-    buffer = base::MakeRefCounted<IOBuffer>(payload_read.size());
+    buffer = base::MakeRefCounted<IOBufferWithSize>(payload_read.size());
     if (use_read_if_ready) {
       rv = user_sock_->ReadIfReady(buffer.get(), payload_read.size(),
                                    callback_.callback());
@@ -192,7 +196,7 @@ TEST_F(SOCKSClientSocketTest, CancelPendingReadIfReady) {
   EXPECT_THAT(rv, IsOk());
   EXPECT_TRUE(user_sock_->IsConnected());
 
-  auto buffer = base::MakeRefCounted<IOBuffer>(payload_read.size());
+  auto buffer = base::MakeRefCounted<IOBufferWithSize>(payload_read.size());
   rv = user_sock_->ReadIfReady(buffer.get(), payload_read.size(),
                                callback_.callback());
   EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
@@ -396,6 +400,10 @@ TEST_F(SOCKSClientSocketTest, DisconnectWhileHostResolveInProgress) {
 
   EXPECT_FALSE(user_sock_->IsConnected());
   EXPECT_FALSE(user_sock_->IsConnectedAndIdle());
+
+  // Need to delete `user_sock_` before the HostResolver it references.
+  tcp_sock_ = nullptr;
+  user_sock_.reset();
 }
 
 // Tries to connect to an IPv6 IP.  Should fail, as SOCKS4 does not support
@@ -422,6 +430,10 @@ TEST_F(SOCKSClientSocketTest, NoIPv6RealResolver) {
 
   EXPECT_EQ(ERR_NAME_NOT_RESOLVED,
             callback_.GetResult(user_sock_->Connect(callback_.callback())));
+
+  // Need to delete `user_sock_` before the HostResolver it references.
+  tcp_sock_ = nullptr;
+  user_sock_.reset();
 }
 
 TEST_F(SOCKSClientSocketTest, Tag) {

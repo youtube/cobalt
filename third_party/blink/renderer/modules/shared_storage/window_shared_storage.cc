@@ -36,7 +36,7 @@ class WindowSharedStorageImpl final
   SharedStorage* GetOrCreate(LocalDOMWindow& fetching_scope) {
     if (!shared_storage_)
       shared_storage_ = MakeGarbageCollected<SharedStorage>();
-    return shared_storage_;
+    return shared_storage_.Get();
   }
 
   void Trace(Visitor* visitor) const override {
@@ -54,7 +54,9 @@ const char WindowSharedStorageImpl::kSupplementName[] =
 
 }  // namespace
 
-SharedStorage* WindowSharedStorage::sharedStorage(LocalDOMWindow& window) {
+SharedStorage* WindowSharedStorage::sharedStorage(
+    LocalDOMWindow& window,
+    ExceptionState& exception_state) {
   return WindowSharedStorageImpl::From(window).GetOrCreate(window);
 }
 

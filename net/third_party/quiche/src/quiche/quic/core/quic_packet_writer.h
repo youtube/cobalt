@@ -6,9 +6,9 @@
 #define QUICHE_QUIC_CORE_QUIC_PACKET_WRITER_H_
 
 #include <cstddef>
+#include <optional>
 #include <utility>
 
-#include "absl/types/optional.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
@@ -18,7 +18,11 @@ namespace quic {
 
 struct WriteResult;
 
-struct QUIC_EXPORT_PRIVATE PerPacketOptions {
+// This class allows a platform to pass instructions to an associated child of
+// QuicWriter without intervening QUIC code understanding anything about its
+// contents.
+class QUICHE_EXPORT PerPacketOptions {
+ public:
   virtual ~PerPacketOptions() {}
 
   // Returns a heap-allocated copy of |this|.
@@ -29,13 +33,18 @@ struct QUIC_EXPORT_PRIVATE PerPacketOptions {
   // This method is declared pure virtual in order to ensure the subclasses
   // would not forget to override it.
   virtual std::unique_ptr<PerPacketOptions> Clone() const = 0;
+};
 
+// The owner of QuicPacketWriter can pass control information via this struct.
+struct QUICHE_EXPORT QuicPacketWriterParams {
   // Specifies ideal release time delay for this packet.
   QuicTime::Delta release_time_delay = QuicTime::Delta::Zero();
   // Whether it is allowed to send this packet without |release_time_delay|.
   bool allow_burst = false;
   // ECN codepoint to use when sending this packet.
   QuicEcnCodepoint ecn_codepoint = ECN_NOT_ECT;
+  // IPv6 flow label in host byte order. Only the low 20 bits will be used.
+  uint32_t flow_label = 0;
 };
 
 // An interface between writers and the entity managing the
@@ -60,7 +69,7 @@ struct QUIC_EXPORT_PRIVATE PerPacketOptions {
 // 1. Call GetNextWriteLocation to get a pointer P into the internal buffer.
 // 2. Serialize the packet directly to P.
 // 3. Call WritePacket with P as the |buffer|.
-class QUIC_EXPORT_PRIVATE QuicPacketWriter {
+class QUICHE_EXPORT QuicPacketWriter {
  public:
   virtual ~QuicPacketWriter() {}
 
@@ -107,7 +116,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketWriter {
   virtual WriteResult WritePacket(const char* buffer, size_t buf_len,
                                   const QuicIpAddress& self_address,
                                   const QuicSocketAddress& peer_address,
-                                  PerPacketOptions* options) = 0;
+                                  PerPacketOptions* options,
+                                  const QuicPacketWriterParams& params) = 0;
 
   // Returns true if the network socket is not writable.
   virtual bool IsWriteBlocked() const = 0;
@@ -119,7 +129,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketWriter {
   // The error code used by the writer to indicate that the write failed due to
   // supplied packet being too big.  This is equivalent to returning
   // WRITE_STATUS_MSG_TOO_BIG as a status.
-  virtual absl::optional<int> MessageTooBigErrorCode() const = 0;
+  virtual std::optional<int> MessageTooBigErrorCode() const = 0;
 
   // Returns the maximum size of the packet which can be written using this
   // writer for the supplied peer address.  This size may actually exceed the
@@ -132,6 +142,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketWriter {
 
   // True=Batch mode. False=PassThrough mode.
   virtual bool IsBatchMode() const = 0;
+
+  // Returns true if the writer will mark ECN on packets it writes.
+  virtual bool SupportsEcn() const = 0;
 
   // PassThrough mode: Return {nullptr, nullptr}
   //

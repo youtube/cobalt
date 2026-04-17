@@ -29,8 +29,10 @@ class FrameSinkHolderTestApi {
 
   bool IsFirstFrameRequested() const;
 
+  bool IsObservingBeginFrameSource() const;
+
  private:
-  base::raw_ptr<FrameSinkHolder> frame_sink_holder_;
+  raw_ptr<FrameSinkHolder, AcrossTasksDanglingUntriaged> frame_sink_holder_;
 };
 
 }  // namespace ash

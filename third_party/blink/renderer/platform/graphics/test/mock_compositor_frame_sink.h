@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/memory/read_only_shared_memory_region.h"
+#include "components/viz/common/performance_hint_utils.h"
 #include "components/viz/common/quads/compositor_frame.h"
 #include "gpu/ipc/common/mailbox.mojom-blink.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -41,10 +42,11 @@ class MockCompositorFrameSink : public viz::mojom::blink::CompositorFrameSink {
   MOCK_METHOD1(SetNeedsBeginFrame, void(bool));
   MOCK_METHOD0(SetWantsAnimateOnlyBeginFrames, void(void));
   MOCK_METHOD0(SetWantsBeginFrameAcks, void(void));
+  MOCK_METHOD0(SetAutoNeedsBeginFrame, void(void));
   void SubmitCompositorFrame(
       const viz::LocalSurfaceId&,
       viz::CompositorFrame frame,
-      absl::optional<viz::HitTestRegionList> hit_test_region_list,
+      std::optional<viz::HitTestRegionList> hit_test_region_list,
       uint64_t) override {
     SubmitCompositorFrame_(&frame);
   }
@@ -52,7 +54,7 @@ class MockCompositorFrameSink : public viz::mojom::blink::CompositorFrameSink {
   void SubmitCompositorFrameSync(
       const viz::LocalSurfaceId&,
       viz::CompositorFrame frame,
-      absl::optional<viz::HitTestRegionList> hit_test_region_list,
+      std::optional<viz::HitTestRegionList> hit_test_region_list,
       uint64_t,
       SubmitCompositorFrameSyncCallback cb) override {
     SubmitCompositorFrameSync_(&frame);
@@ -60,15 +62,12 @@ class MockCompositorFrameSink : public viz::mojom::blink::CompositorFrameSink {
   }
   MOCK_METHOD1(SubmitCompositorFrameSync_, void(viz::CompositorFrame*));
   MOCK_METHOD1(DidNotProduceFrame, void(const viz::BeginFrameAck&));
-  MOCK_METHOD2(DidAllocateSharedBitmap,
-               void(base::ReadOnlySharedMemoryRegion, const gpu::Mailbox&));
-  MOCK_METHOD1(DidDeleteSharedBitmap, void(const gpu::Mailbox&));
   MOCK_METHOD1(SetPreferredFrameInterval, void(base::TimeDelta));
   MOCK_METHOD1(InitializeCompositorFrameSinkType,
                void(viz::mojom::CompositorFrameSinkType));
-  MOCK_METHOD1(BindLayerContext,
-               void(viz::mojom::blink::PendingLayerContextPtr));
-  MOCK_METHOD1(SetThreadIds, void(const WTF::Vector<int32_t>&));
+  MOCK_METHOD2(BindLayerContext,
+               void(viz::mojom::blink::PendingLayerContextPtr, bool));
+  MOCK_METHOD1(SetThreads, void(const WTF::Vector<viz::Thread>&));
 
  private:
   mojo::Receiver<viz::mojom::blink::CompositorFrameSink> receiver_{this};

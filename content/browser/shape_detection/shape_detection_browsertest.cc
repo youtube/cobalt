@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "base/command_line.h"
 #include "base/strings/string_tokenizer.h"
 #include "build/build_config.h"
@@ -23,9 +28,9 @@ const char kShapeDetectionTestHtml[] = "/media/shape_detection_test.html";
 struct TestParameters {
   const std::string detector_name;
   const std::string image_path;
-  const std::vector<std::vector<float>>& expected_bounding_boxes;
+  const std::vector<std::vector<float>> expected_bounding_boxes;
 } const kTestParameters[] = {
-    {"FaceDetector", "/blank.jpg", std::vector<std::vector<float>>{}},
+    {"FaceDetector", "/blank.jpg", {}},
     {"FaceDetector",
      "/single_face.jpg",
 #if BUILDFLAG(IS_ANDROID)
@@ -95,7 +100,7 @@ class ShapeDetectionBrowserTest
   }
 };
 
-// TODO(https://crbug.com/659138): Enable the test on other platforms.
+// TODO(crbug.com/41282827): Enable the test on other platforms.
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_MAC)
 #define MAYBE_DetectShapesInImage DetectShapesInImage
 #else

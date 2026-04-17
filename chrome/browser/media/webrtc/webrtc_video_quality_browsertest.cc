@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <stddef.h>
 
 #include "base/base64.h"
@@ -19,7 +24,6 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/media/webrtc/webrtc_browsertest_base.h"
 #include "chrome/browser/media/webrtc/webrtc_browsertest_common.h"
 #include "chrome/browser/media/webrtc/webrtc_browsertest_perf.h"
@@ -31,7 +35,6 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/infobars/content/content_infobar_manager.h"
 #include "components/infobars/core/infobar.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "media/base/media_switches.h"
@@ -232,7 +235,7 @@ class WebRtcVideoQualityBrowserTest : public WebRtcTestBase,
                  << output;
       return false;
     }
-    // TODO(http://crbug.com/1874811): Enable this and drop the printf above
+    // TODO(http://crbug.com/923564): Enable this and drop the printf above
     // when ready to switch to histogram sets.
     // if (!test::WriteCompareVideosOutputAsHistogram(test_label, output))
     //  return false;
@@ -311,14 +314,14 @@ class WebRtcVideoQualityBrowserTest : public WebRtcTestBase,
  private:
   base::FilePath GetSourceDir() {
     base::FilePath source_dir;
-    base::PathService::Get(base::DIR_SOURCE_ROOT, &source_dir);
+    base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &source_dir);
     return source_dir;
   }
 
   base::FilePath GetTestBinaryDir() {
     base::FilePath browser_dir;
     EXPECT_TRUE(
-        base::PathService::Get(base::DIR_GEN_TEST_DATA_ROOT, &browser_dir));
+        base::PathService::Get(base::DIR_OUT_TEST_DATA_ROOT, &browser_dir));
     return browser_dir;
   }
 
@@ -345,7 +348,7 @@ IN_PROC_BROWSER_TEST_P(WebRtcVideoQualityBrowserTest,
 
 // Flaky on windows and WebRTC's frame_analyzer doesn't build from a Chromium's
 // component build.
-// TODO(crbug.com/1008766): re-enable when flakiness is investigated, diagnosed
+// TODO(crbug.com/40100787): re-enable when flakiness is investigated, diagnosed
 // and resolved.
 #if BUILDFLAG(IS_WIN) || defined(COMPONENT_BUILD)
 #define MAYBE_MANUAL_TestVideoQualityVp9 DISABLED_MANUAL_TestVideoQualityVp9

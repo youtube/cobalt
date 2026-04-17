@@ -10,12 +10,14 @@
 
 #include "rtc_base/numerics/sample_counter.h"
 
+#include <cstdint>
 #include <limits>
+#include <optional>
 
 #include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_conversions.h"
 
-namespace rtc {
+namespace webrtc {
 
 SampleCounter::SampleCounter() = default;
 SampleCounter::~SampleCounter() = default;
@@ -31,6 +33,9 @@ void SampleCounter::Add(int sample) {
   if (!max_ || sample > *max_) {
     max_ = sample;
   }
+  if (!min_ || sample < *min_) {
+    min_ = sample;
+  }
 }
 
 void SampleCounter::Add(const SampleCounter& other) {
@@ -45,23 +50,29 @@ void SampleCounter::Add(const SampleCounter& other) {
   num_samples_ += other.num_samples_;
   if (other.max_ && (!max_ || *max_ < *other.max_))
     max_ = other.max_;
+  if (other.min_ && (!min_ || *min_ > *other.min_))
+    min_ = other.min_;
 }
 
-absl::optional<int> SampleCounter::Avg(int64_t min_required_samples) const {
+std::optional<int> SampleCounter::Avg(int64_t min_required_samples) const {
   RTC_DCHECK_GT(min_required_samples, 0);
   if (num_samples_ < min_required_samples)
-    return absl::nullopt;
-  return rtc::dchecked_cast<int>(sum_ / num_samples_);
+    return std::nullopt;
+  return dchecked_cast<int>(sum_ / num_samples_);
 }
 
-absl::optional<int> SampleCounter::Max() const {
+std::optional<int> SampleCounter::Max() const {
   return max_;
 }
 
-absl::optional<int64_t> SampleCounter::Sum(int64_t min_required_samples) const {
+std::optional<int> SampleCounter::Min() const {
+  return min_;
+}
+
+std::optional<int64_t> SampleCounter::Sum(int64_t min_required_samples) const {
   RTC_DCHECK_GT(min_required_samples, 0);
   if (num_samples_ < min_required_samples)
-    return absl::nullopt;
+    return std::nullopt;
   return sum_;
 }
 
@@ -76,11 +87,11 @@ void SampleCounter::Reset() {
 SampleCounterWithVariance::SampleCounterWithVariance() = default;
 SampleCounterWithVariance::~SampleCounterWithVariance() = default;
 
-absl::optional<int64_t> SampleCounterWithVariance::Variance(
+std::optional<int64_t> SampleCounterWithVariance::Variance(
     int64_t min_required_samples) const {
   RTC_DCHECK_GT(min_required_samples, 0);
   if (num_samples_ < min_required_samples)
-    return absl::nullopt;
+    return std::nullopt;
   // E[(x-mean)^2] = E[x^2] - mean^2
   int64_t mean = sum_ / num_samples_;
   return sum_squared_ / num_samples_ - mean * mean;
@@ -106,4 +117,4 @@ void SampleCounterWithVariance::Reset() {
   *this = {};
 }
 
-}  // namespace rtc
+}  // namespace webrtc

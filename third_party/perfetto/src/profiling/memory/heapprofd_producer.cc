@@ -37,6 +37,7 @@
 #include "perfetto/ext/tracing/core/basic_types.h"
 #include "perfetto/ext/tracing/core/trace_writer.h"
 #include "perfetto/ext/tracing/ipc/producer_ipc_client.h"
+#include "perfetto/tracing/buffer_exhausted_policy.h"
 #include "perfetto/tracing/core/data_source_config.h"
 #include "perfetto/tracing/core/data_source_descriptor.h"
 #include "perfetto/tracing/core/forward_decls.h"
@@ -175,7 +176,7 @@ bool HeapprofdConfigToClientConfiguration(
     // 0. The consumer of the sampling intervals in ClientConfiguration,
     // GetSamplingInterval in wire_protocol.h, uses 0 to signal a heap is
     // disabled, either because it isn't enabled (all_heaps is not set, and the
-    // heap isn't named), or because we explicitely set it here.
+    // heap isn't named), or because we explicitly set it here.
     heaps.insert(heaps.end(), exclude_heaps.cbegin(), exclude_heaps.cend());
     heap_intervals.insert(heap_intervals.end(), exclude_heaps.size(), 0u);
   }
@@ -209,9 +210,9 @@ HeapprofdProducer::HeapprofdProducer(HeapprofdMode mode,
     : task_runner_(task_runner),
       mode_(mode),
       exit_when_done_(exit_when_done),
-      unwinding_workers_(MakeUnwindingWorkers(this, kUnwinderThreads)),
       socket_delegate_(this),
-      weak_factory_(this) {
+      weak_factory_(this),
+      unwinding_workers_(MakeUnwindingWorkers(this, kUnwinderThreads)) {
   CheckDataSourceCpuTask();
   CheckDataSourceMemoryTask();
 }
@@ -346,7 +347,8 @@ void HeapprofdProducer::OnTracingSetup() {}
 
 void HeapprofdProducer::WriteRejectedConcurrentSession(BufferID buffer_id,
                                                        pid_t pid) {
-  auto trace_writer = endpoint_->CreateTraceWriter(buffer_id);
+  auto trace_writer =
+      endpoint_->CreateTraceWriter(buffer_id, BufferExhaustedPolicy::kStall);
   auto trace_packet = trace_writer->NewTracePacket();
   trace_packet->set_timestamp(
       static_cast<uint64_t>(base::GetBootTimeNs().count()));
@@ -385,8 +387,7 @@ void HeapprofdProducer::SetupDataSource(DataSourceInstanceID id,
   }
 
   if (data_sources_.find(id) != data_sources_.end()) {
-    PERFETTO_DFATAL_OR_ELOG(
-        "Received duplicated data source instance id: %" PRIu64, id);
+    PERFETTO_ELOG("Received duplicated data source instance id: %" PRIu64, id);
     return;
   }
 
@@ -427,7 +428,8 @@ void HeapprofdProducer::SetupDataSource(DataSourceInstanceID id,
   }
 
   auto buffer_id = static_cast<BufferID>(ds_config.target_buffer());
-  DataSource data_source(endpoint_->CreateTraceWriter(buffer_id));
+  DataSource data_source(
+      endpoint_->CreateTraceWriter(buffer_id, BufferExhaustedPolicy::kStall));
   data_source.id = id;
   auto& cli_config = data_source.client_configuration;
   if (!HeapprofdConfigToClientConfiguration(heapprofd_config, &cli_config))
@@ -519,16 +521,15 @@ void HeapprofdProducer::StartDataSource(DataSourceInstanceID id,
     // This is expected in child heapprofd, where we reject uninteresting data
     // sources in SetupDataSource.
     if (mode_ == HeapprofdMode::kCentral) {
-      PERFETTO_DFATAL_OR_ELOG(
-          "Received invalid data source instance to start: %" PRIu64, id);
+      PERFETTO_ELOG("Received invalid data source instance to start: %" PRIu64,
+                    id);
     }
     return;
   }
 
   DataSource& data_source = it->second;
   if (data_source.started) {
-    PERFETTO_DFATAL_OR_ELOG(
-        "Trying to start already started data-source: %" PRIu64, id);
+    PERFETTO_ELOG("Trying to start already started data-source: %" PRIu64, id);
     return;
   }
   const HeapprofdConfig& heapprofd_config = data_source.config;
@@ -568,8 +569,7 @@ void HeapprofdProducer::StopDataSource(DataSourceInstanceID id) {
   if (it == data_sources_.end()) {
     endpoint_->NotifyDataSourceStopped(id);
     if (mode_ == HeapprofdMode::kCentral)
-      PERFETTO_DFATAL_OR_ELOG(
-          "Trying to stop non existing data source: %" PRIu64, id);
+      PERFETTO_ELOG("Trying to stop non existing data source: %" PRIu64, id);
     return;
   }
 
@@ -765,15 +765,15 @@ void HeapprofdProducer::DumpAll() {
 
 void HeapprofdProducer::Flush(FlushRequestID flush_id,
                               const DataSourceInstanceID* ids,
-                              size_t num_ids) {
+                              size_t num_ids,
+                              FlushFlags) {
   size_t& flush_in_progress = flushes_in_progress_[flush_id];
   PERFETTO_DCHECK(flush_in_progress == 0);
   flush_in_progress = num_ids;
   for (size_t i = 0; i < num_ids; ++i) {
     auto it = data_sources_.find(ids[i]);
     if (it == data_sources_.end()) {
-      PERFETTO_DFATAL_OR_ELOG("Trying to flush unknown data-source %" PRIu64,
-                              ids[i]);
+      PERFETTO_ELOG("Trying to flush unknown data-source %" PRIu64, ids[i]);
       flush_in_progress--;
       continue;
     }
@@ -800,8 +800,7 @@ void HeapprofdProducer::Flush(FlushRequestID flush_id,
 void HeapprofdProducer::FinishDataSourceFlush(FlushRequestID flush_id) {
   auto it = flushes_in_progress_.find(flush_id);
   if (it == flushes_in_progress_.end()) {
-    PERFETTO_DFATAL_OR_ELOG("FinishDataSourceFlush id invalid: %" PRIu64,
-                            flush_id);
+    PERFETTO_ELOG("FinishDataSourceFlush id invalid: %" PRIu64, flush_id);
     return;
   }
   size_t& flush_in_progress = it->second;
@@ -814,7 +813,7 @@ void HeapprofdProducer::FinishDataSourceFlush(FlushRequestID flush_id) {
 void HeapprofdProducer::SocketDelegate::OnDisconnect(base::UnixSocket* self) {
   auto it = producer_->pending_processes_.find(self->peer_pid_linux());
   if (it == producer_->pending_processes_.end()) {
-    PERFETTO_DFATAL_OR_ELOG("Unexpected disconnect.");
+    PERFETTO_ELOG("Unexpected disconnect.");
     return;
   }
 
@@ -837,7 +836,7 @@ void HeapprofdProducer::SocketDelegate::OnDataAvailable(
     base::UnixSocket* self) {
   auto it = producer_->pending_processes_.find(self->peer_pid_linux());
   if (it == producer_->pending_processes_.end()) {
-    PERFETTO_DFATAL_OR_ELOG("Unexpected data.");
+    PERFETTO_ELOG("Unexpected data.");
     return;
   }
 
@@ -909,8 +908,7 @@ void HeapprofdProducer::SocketDelegate::OnDataAvailable(
         .PostHandoffSocket(std::move(handoff_data));
     producer_->pending_processes_.erase(it);
   } else if (fds[kHandshakeMaps] || fds[kHandshakeMem]) {
-    PERFETTO_DFATAL_OR_ELOG("%d: Received partial FDs.",
-                            self->peer_pid_linux());
+    PERFETTO_ELOG("%d: Received partial FDs.", self->peer_pid_linux());
     producer_->pending_processes_.erase(it);
   } else {
     PERFETTO_ELOG("%d: Received no FDs.", self->peer_pid_linux());
@@ -975,7 +973,7 @@ void HeapprofdProducer::HandleClientConnection(
 
   pid_t peer_pid = new_connection->peer_pid_linux();
   if (peer_pid != process.pid) {
-    PERFETTO_DFATAL_OR_ELOG("Invalid PID connected.");
+    PERFETTO_ELOG("Invalid PID connected.");
     return;
   }
 

@@ -16,8 +16,8 @@
 #include "components/site_engagement/content/engagement_type.h"
 #include "components/site_engagement/content/site_engagement_metrics.h"
 #include "components/site_engagement/content/site_engagement_observer.h"
+#include "components/webapps/common/web_app_id.h"
 #include "content/public/browser/navigation_controller.h"
-#include "content/public/browser/notification_types.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -105,8 +105,8 @@ class SiteEngagementHelperBrowserTest : public InProcessBrowserTest {
   content::test::PrerenderTestHelper prerender_helper_;
   net::test_server::EmbeddedTestServerHandle test_server_handle_;
   base::HistogramTester histogram_tester_;
-  raw_ptr<TestOneShotTimer, DanglingUntriaged> input_tracker_timer_;
-  raw_ptr<TestOneShotTimer, DanglingUntriaged> media_tracker_timer_;
+  raw_ptr<TestOneShotTimer, AcrossTasksDanglingUntriaged> input_tracker_timer_;
+  raw_ptr<TestOneShotTimer, AcrossTasksDanglingUntriaged> media_tracker_timer_;
 };
 
 // Tests if SiteEngagementHelper checks the primary main frame in the
@@ -129,7 +129,8 @@ IN_PROC_BROWSER_TEST_F(SiteEngagementHelperBrowserTest,
 
   // Loads a page in the prerender.
   auto prerender_url = embedded_test_server()->GetURL("/simple.html");
-  int host_id = prerender_helper()->AddPrerender(prerender_url);
+  content::FrameTreeNodeId host_id =
+      prerender_helper()->AddPrerender(prerender_url);
   content::test::PrerenderHostObserver host_observer(*web_contents(), host_id);
   // SiteEngagementMetrics::kEngagementTypeHistogram is not updated with the
   // prerendering.
@@ -150,7 +151,7 @@ IN_PROC_BROWSER_TEST_F(SiteEngagementHelperBrowserTest,
   // result, SiteEngagementMetrics::kEngagementTypeHistogram maintains a value
   // of 2 with the prerendering activation.
   //
-  // TODO(crbug.com/1166085): Add a test for browser-initiated/omnibox
+  // TODO(crbug.com/40164098): Add a test for browser-initiated/omnibox
   // navigations when available.
   histogram_tester()->ExpectTotalCount(
       SiteEngagementMetrics::kEngagementTypeHistogram, 2);
@@ -169,7 +170,9 @@ class ObserverTester : public SiteEngagementObserver {
   void OnEngagementEvent(content::WebContents* web_contents,
                          const GURL& url,
                          double score,
-                         EngagementType type) override {
+                         double old_score,
+                         EngagementType type,
+                         const std::optional<webapps::AppId>& app_id) override {
     last_updated_type_ = type;
     last_updated_url_ = url;
     if (type == type_waiting_) {
@@ -213,7 +216,8 @@ IN_PROC_BROWSER_TEST_F(SiteEngagementHelperBrowserTest,
   // Load a page in the prerender.
   GURL prerender_url =
       embedded_test_server()->GetURL("/media/unified_autoplay.html");
-  int host_id = prerender_helper()->AddPrerender(prerender_url);
+  content::FrameTreeNodeId host_id =
+      prerender_helper()->AddPrerender(prerender_url);
   content::test::PrerenderHostObserver host_observer(*web_contents(), host_id);
   content::RenderFrameHost* prerendered_frame_host =
       prerender_helper()->GetPrerenderedMainFrameHost(host_id);

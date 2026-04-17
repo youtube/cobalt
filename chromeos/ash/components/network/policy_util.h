@@ -5,6 +5,8 @@
 #ifndef CHROMEOS_ASH_COMPONENTS_NETWORK_POLICY_UTIL_H_
 #define CHROMEOS_ASH_COMPONENTS_NETWORK_POLICY_UTIL_H_
 
+#include <optional>
+#include <ostream>
 #include <string>
 
 #include "base/component_export.h"
@@ -15,6 +17,38 @@ namespace ash {
 struct NetworkProfile;
 
 namespace policy_util {
+
+// This class represents a cellular activation code and its corresponding type
+// and is used to simplify all cellular code related to enterprise policy.
+class COMPONENT_EXPORT(CHROMEOS_NETWORK) SmdxActivationCode {
+ public:
+  enum class Type {
+    SMDP = 0,
+    SMDS = 1,
+  };
+
+  SmdxActivationCode(Type type, std::string value);
+  SmdxActivationCode(SmdxActivationCode&& other);
+  SmdxActivationCode& operator=(SmdxActivationCode&& other);
+  SmdxActivationCode(const SmdxActivationCode&) = delete;
+  SmdxActivationCode& operator=(const SmdxActivationCode&) = delete;
+  ~SmdxActivationCode() = default;
+
+  // These functions return a string with information about this activation code
+  // that is safe for logging. The ToErrorString() function will include a
+  // sanitized version of the activation code value itself.
+  std::string ToString() const;
+  std::string ToErrorString() const;
+
+  Type type() const { return type_; }
+  const std::string& value() const { return value_; }
+
+ private:
+  std::string GetString(bool for_error_message) const;
+
+  Type type_;
+  std::string value_;
+};
 
 // This fake credential contains a random postfix which is extremely unlikely to
 // be used by any user. Used to determine saved but unknown credential
@@ -64,6 +98,10 @@ bool IsPolicyMatching(const base::Value::Dict& policy,
 // Returns if the given |onc_config| is Cellular type configuration.
 bool IsCellularPolicy(const base::Value::Dict& onc_config);
 
+// Returns true if `onc_config` has any field that is marked as "Recommended".
+COMPONENT_EXPORT(CHROMEOS_NETWORK)
+bool HasAnyRecommendedField(const base::Value::Dict& onc_config);
+
 // Returns the ICCID value from the given |onc_config|, returns nullptr if it
 // is not a Cellular type ONC or no ICCID field is found.
 const std::string* GetIccidFromONC(const base::Value::Dict& onc_config);
@@ -72,6 +110,30 @@ const std::string* GetIccidFromONC(const base::Value::Dict& onc_config);
 // NetworkConfiguration if it is a Cellular NetworkConfiguration.
 // If there is no SMDPAddress, returns nullptr.
 const std::string* GetSMDPAddressFromONC(const base::Value::Dict& onc_config);
+
+// This function returns the SM-DX activation code found in |onc_config|. If
+// both an SM-DP+ activation code and an SM-DS activation code are provided, or
+// if neither are provided, this function returns |std::nullopt|.
+COMPONENT_EXPORT(CHROMEOS_NETWORK)
+std::optional<SmdxActivationCode> GetSmdxActivationCodeFromONC(
+    const base::Value::Dict& onc_config);
+
+// When this is called, `AreEphemeralNetworkPoliciesEnabled()` will return true
+// until the process is restarted (or
+// ResetEphemeralNetworkPoliciesEnabledForTesting is called).
+COMPONENT_EXPORT(CHROMEOS_NETWORK)
+void SetEphemeralNetworkPoliciesEnabled();
+
+// Resets the effect of SetEphemeralNetworkPoliciesEnabled.
+// This is for unittests only - supporting this properly in production code
+// would be difficult (e.g. no DCHECKs that the feature is enabled in posted
+// tasks).
+COMPONENT_EXPORT(CHROMEOS_NETWORK)
+void ResetEphemeralNetworkPoliciesEnabledForTesting();
+
+// Returns true if ephemeral network policies are enabled.
+COMPONENT_EXPORT(CHROMEOS_NETWORK)
+bool AreEphemeralNetworkPoliciesEnabled();
 
 }  // namespace policy_util
 }  // namespace ash

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "mojo/public/cpp/base/logfont_win_mojom_traits.h"
 
 #include <tchar.h>
@@ -15,8 +20,8 @@ namespace mojo {
 base::span<const uint8_t>
 StructTraits<mojo_base::mojom::LOGFONTDataView, ::LOGFONT>::bytes(
     const ::LOGFONT& input) {
-  return base::make_span(reinterpret_cast<const uint8_t*>(&input),
-                         sizeof(::LOGFONT));
+  return base::span(reinterpret_cast<const uint8_t*>(&input),
+                    sizeof(::LOGFONT));
 }
 
 // static

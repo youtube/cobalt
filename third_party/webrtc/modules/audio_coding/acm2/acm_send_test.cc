@@ -13,17 +13,23 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <cstdint>
+#include <memory>
+#include <utility>
+
 #include "absl/strings/match.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "api/audio_codecs/audio_encoder.h"
-#include "api/audio_codecs/builtin_audio_decoder_factory.h"
+#include "api/audio_codecs/audio_format.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
+#include "api/environment/environment_factory.h"
 #include "modules/audio_coding/include/audio_coding_module.h"
+#include "modules/audio_coding/include/audio_coding_module_typedefs.h"
 #include "modules/audio_coding/neteq/tools/input_audio_file.h"
 #include "modules/audio_coding/neteq/tools/packet.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/string_encode.h"
-#include "test/gtest.h"
+#include "rtc_base/copy_on_write_buffer.h"
 
 namespace webrtc {
 namespace test {
@@ -32,7 +38,8 @@ AcmSendTestOldApi::AcmSendTestOldApi(InputAudioFile* audio_source,
                                      int source_rate_hz,
                                      int test_duration_ms)
     : clock_(0),
-      acm_(webrtc::AudioCodingModule::Create()),
+      env_(CreateEnvironment(&clock_)),
+      acm_(AudioCodingModule::Create()),
       audio_source_(audio_source),
       source_rate_hz_(source_rate_hz),
       input_block_size_samples_(
@@ -69,11 +76,11 @@ bool AcmSendTestOldApi::RegisterCodec(absl::string_view payload_name,
     }
     format.num_channels = 2;
   }
-  format.parameters["ptime"] = rtc::ToString(rtc::CheckedDivExact(
-      frame_size_samples, rtc::CheckedDivExact(clockrate_hz, 1000)));
+  format.parameters["ptime"] = absl::StrCat(
+      CheckedDivExact(frame_size_samples, CheckedDivExact(clockrate_hz, 1000)));
   auto factory = CreateBuiltinAudioEncoderFactory();
   acm_->SetEncoder(
-      factory->MakeAudioEncoder(payload_type, format, absl::nullopt));
+      factory->Create(env_, format, {.payload_type = payload_type}));
   codec_registered_ = true;
   input_frame_.num_channels_ = num_channels;
   RTC_DCHECK_LE(input_block_size_samples_ * input_frame_.num_channels_,
@@ -117,12 +124,13 @@ std::unique_ptr<Packet> AcmSendTestOldApi::NextPacket() {
 }
 
 // This method receives the callback from ACM when a new packet is produced.
-int32_t AcmSendTestOldApi::SendData(AudioFrameType frame_type,
-                                    uint8_t payload_type,
-                                    uint32_t timestamp,
-                                    const uint8_t* payload_data,
-                                    size_t payload_len_bytes,
-                                    int64_t absolute_capture_timestamp_ms) {
+int32_t AcmSendTestOldApi::SendData(
+    AudioFrameType frame_type,
+    uint8_t payload_type,
+    uint32_t timestamp,
+    const uint8_t* payload_data,
+    size_t payload_len_bytes,
+    int64_t /* absolute_capture_timestamp_ms */) {
   // Store the packet locally.
   frame_type_ = frame_type;
   payload_type_ = payload_type;
@@ -135,14 +143,13 @@ int32_t AcmSendTestOldApi::SendData(AudioFrameType frame_type,
 
 std::unique_ptr<Packet> AcmSendTestOldApi::CreatePacket() {
   const size_t kRtpHeaderSize = 12;
-  rtc::CopyOnWriteBuffer packet_buffer(last_payload_vec_.size() +
-                                       kRtpHeaderSize);
+  CopyOnWriteBuffer packet_buffer(last_payload_vec_.size() + kRtpHeaderSize);
   uint8_t* packet_memory = packet_buffer.MutableData();
   // Populate the header bytes.
   packet_memory[0] = 0x80;
   packet_memory[1] = static_cast<uint8_t>(payload_type_);
   packet_memory[2] = (sequence_number_ >> 8) & 0xFF;
-  packet_memory[3] = (sequence_number_)&0xFF;
+  packet_memory[3] = (sequence_number_) & 0xFF;
   packet_memory[4] = (timestamp_ >> 24) & 0xFF;
   packet_memory[5] = (timestamp_ >> 16) & 0xFF;
   packet_memory[6] = (timestamp_ >> 8) & 0xFF;

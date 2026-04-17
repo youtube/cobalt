@@ -4,22 +4,22 @@
 
 package org.chromium.chrome.browser.download.dialogs;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.download.DirectoryOption;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModel.ReadableObjectPropertyKey;
 
 import java.util.ArrayList;
 
-/**
- * Utility functions used in download dialogs.
- */
+/** Utility functions used in download dialogs. */
+@NullMarked
 public class DownloadDialogUtils {
     // The threshold to determine if a location suggestion is triggered.
     private static final double LOCATION_SUGGESTION_THRESHOLD = 0.05;
 
     /**
      * Returns a long value from property model, or a default value.
+     *
      * @param model The model that contains the data.
      * @param key The key of the data.
      * @param defaultValue The default value returned when the given property doesn't exist.
@@ -32,6 +32,7 @@ public class DownloadDialogUtils {
 
     /**
      * Returns whether the download location suggestion dialog should be prompted.
+     *
      * @param dirs The available directories.
      * @param defaultLocation The default download location.
      * @param totalBytes The download size.
@@ -48,18 +49,8 @@ public class DownloadDialogUtils {
             if (spaceLeft < LOCATION_SUGGESTION_THRESHOLD) continue;
             if (defaultLocation.equals(dir.location)) return false;
             shouldSuggestDownloadLocation = true;
-        }
-        return shouldSuggestDownloadLocation;
     }
-
-    /**
-     * Helper method which decide whether to show the Incognito warning message or not.
-     * @param isOffTheRecord Whether the profile is an off-the-record profile.
-     * @return Boolean indicating whether to show the Incognito warning message.
-     */
-    public static boolean shouldShowIncognitoWarning(boolean isOffTheRecord) {
-        return ChromeFeatureList.isEnabled(ChromeFeatureList.INCOGNITO_DOWNLOADS_WARNING)
-                && isOffTheRecord;
+        return shouldSuggestDownloadLocation;
     }
 
     private DownloadDialogUtils() {}

@@ -6,10 +6,11 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
-#include "chrome/android/chrome_jni_headers/AnnouncementNotificationManager_jni.h"
-#include "chrome/browser/profiles/profile.h"          // nogncheck
-#include "chrome/browser/profiles/profile_android.h"  // nogncheck
+#include "chrome/browser/profiles/profile.h"  // nogncheck
 #include "chrome/browser/updates/announcement_notification/announcement_notification_service_factory.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "chrome/android/chrome_jni_headers/AnnouncementNotificationManager_jni.h"
 
 AnnouncementNotificationDelegateAndroid::
     AnnouncementNotificationDelegateAndroid() = default;
@@ -20,8 +21,7 @@ AnnouncementNotificationDelegateAndroid::
 void AnnouncementNotificationDelegateAndroid::ShowNotification() {
   auto* env = base::android::AttachCurrentThread();
   GURL url = AnnouncementNotificationService::GetAnnouncementURL();
-  Java_AnnouncementNotificationManager_showNotification(
-      env, base::android::ConvertUTF8ToJavaString(env, url.spec()));
+  Java_AnnouncementNotificationManager_showNotification(env, url.spec());
 }
 
 bool AnnouncementNotificationDelegateAndroid::IsFirstRun() {

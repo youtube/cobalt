@@ -62,7 +62,9 @@ class QuotaTask {
 
   void Abort();
 
-  raw_ptr<QuotaTaskObserver, DanglingUntriaged> observer_;
+  raw_ptr<QuotaTaskObserver,
+          FlakyDanglingUntriaged | AcrossTasksDanglingUntriaged>
+      observer_;
   const scoped_refptr<base::SingleThreadTaskRunner> original_task_runner_;
   bool delete_scheduled_;
 };
@@ -77,7 +79,7 @@ class COMPONENT_EXPORT(STORAGE_BROWSER) QuotaTaskObserver {
   void RegisterTask(QuotaTask* task);
   void UnregisterTask(QuotaTask* task);
 
-  std::set<QuotaTask*> running_quota_tasks_;
+  std::set<raw_ptr<QuotaTask, SetExperimental>> running_quota_tasks_;
 };
 }
 

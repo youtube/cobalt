@@ -109,12 +109,12 @@ class MAYBE_SyncHttpBridgeTest : public testing::Test {
 };
 
 // An HttpBridge that doesn't actually make network requests and just calls
-// back with dummy response info.
+// back with fake response info.
 // TODO(tim): Instead of inheriting here we should inject a component
 // responsible for the MakeAsynchronousPost bit.
 class ShuntedHttpBridge : public HttpBridge {
  public:
-  // If |never_finishes| is true, the simulated request never actually
+  // If `never_finishes` is true, the simulated request never actually
   // returns.
   ShuntedHttpBridge(MAYBE_SyncHttpBridgeTest* test, bool never_finishes)
       : HttpBridge(kUserAgent,
@@ -126,8 +126,9 @@ class ShuntedHttpBridge : public HttpBridge {
  protected:
   void MakeAsynchronousPost() override {
     ASSERT_TRUE(test_->GetIOThreadTaskRunner()->BelongsToCurrentThread());
-    if (never_finishes_)
+    if (never_finishes_) {
       return;
+    }
 
     // We don't actually want to make a request for this test, so just callback
     // as if it completed.
@@ -142,11 +143,11 @@ class ShuntedHttpBridge : public HttpBridge {
   void CallOnURLFetchComplete() {
     ASSERT_TRUE(test_->GetIOThreadTaskRunner()->BelongsToCurrentThread());
 
-    // Set up a dummy content response.
+    // Set up a fake content response.
     OnURLLoadCompleteInternal(200, net::OK, GURL("http://www.google.com"),
                               std::make_unique<std::string>("success!"));
   }
-  raw_ptr<MAYBE_SyncHttpBridgeTest> test_;
+  const raw_ptr<MAYBE_SyncHttpBridgeTest> test_;
   bool never_finishes_;
 };
 

@@ -11,11 +11,11 @@
 
 #include <stdint.h>
 
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <vector>
 
-#include "absl/types/optional.h"
 #include "api/array_view.h"
 #include "net/dcsctp/packet/bounded_byte_reader.h"
 #include "net/dcsctp/packet/bounded_byte_writer.h"
@@ -33,11 +33,11 @@ namespace dcsctp {
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 constexpr int InvalidStreamIdentifierCause::kType;
 
-absl::optional<InvalidStreamIdentifierCause>
-InvalidStreamIdentifierCause::Parse(rtc::ArrayView<const uint8_t> data) {
-  absl::optional<BoundedByteReader<kHeaderSize>> reader = ParseTLV(data);
+std::optional<InvalidStreamIdentifierCause> InvalidStreamIdentifierCause::Parse(
+    webrtc::ArrayView<const uint8_t> data) {
+  std::optional<BoundedByteReader<kHeaderSize>> reader = ParseTLV(data);
   if (!reader.has_value()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   StreamID stream_id(reader->Load16<4>());
@@ -52,7 +52,7 @@ void InvalidStreamIdentifierCause::SerializeTo(
 }
 
 std::string InvalidStreamIdentifierCause::ToString() const {
-  rtc::StringBuilder sb;
+  webrtc::StringBuilder sb;
   sb << "Invalid Stream Identifier, stream_id=" << *stream_id_;
   return sb.Release();
 }

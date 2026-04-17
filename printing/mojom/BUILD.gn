@@ -8,6 +8,9 @@ import("//printing/buildflags/buildflags.gni")
 mojom("mojom") {
   sources = [ "print.mojom" ]
 
+  webui_module_path = "/"
+  generate_legacy_js_bindings = true
+
   cpp_typemaps = [
     {
       types = [
@@ -25,10 +28,6 @@ mojom("mojom") {
 
 if (enable_oop_printing) {
   mojom("printing_context") {
-    if (is_linux || is_chromeos) {
-      enabled_features = [ "is_linux_or_chromeos" ]
-    }
-
     sources = [ "printing_context.mojom" ]
 
     public_deps = [
@@ -36,6 +35,11 @@ if (enable_oop_printing) {
       "//mojo/public/mojom/base",
       "//ui/gfx/geometry/mojom",
     ]
+
+    enabled_features = []
+    if (enable_oop_printing_no_oop_basic_print_dialog) {
+      enabled_features += [ "enable_oop_printing_no_oop_basic_print_dialog" ]
+    }
 
     cpp_typemaps = [
       {
@@ -60,6 +64,7 @@ if (enable_oop_printing) {
         traits_sources = [ "printing_context_mojom_traits.cc" ]
         traits_headers = [ "printing_context_mojom_traits.h" ]
         traits_deps = [
+          "//base",
           "//mojo/public/mojom/base",
           "//printing",
           "//ui/gfx/geometry",

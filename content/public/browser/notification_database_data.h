@@ -6,11 +6,13 @@
 #define CONTENT_PUBLIC_BROWSER_NOTIFICATION_DATABASE_DATA_H_
 
 #include <stdint.h>
+
+#include <map>
+#include <optional>
 #include <string>
 
 #include "base/time/time.h"
 #include "content/common/content_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/notifications/notification_resources.h"
 #include "third_party/blink/public/common/notifications/platform_notification_data.h"
 #include "url/gurl.h"
@@ -21,7 +23,7 @@ namespace content {
 // database. Beyond the notification's own data, its id and attribution need
 // to be available for users of the database as well.
 // Note: There are extra properties being stored for UKM logging purposes.
-// TODO(https://crbug.com/842622): Add the UKM that will use these properties.
+// TODO(crbug.com/40576162): Add the UKM that will use these properties.
 struct CONTENT_EXPORT NotificationDatabaseData {
   NotificationDatabaseData();
   NotificationDatabaseData(const NotificationDatabaseData& other);
@@ -46,7 +48,7 @@ struct CONTENT_EXPORT NotificationDatabaseData {
   std::string notification_id;
 
   // Origin of the website this notification is associated with.
-  // TODO(https://crbug.com/1095896): Consider making |origin| a url::Origin
+  // TODO(crbug.com/40135949): Consider making |origin| a url::Origin
   // field.
   GURL origin;
 
@@ -62,7 +64,7 @@ struct CONTENT_EXPORT NotificationDatabaseData {
   // Notification resources to allow showing scheduled notifications. This is
   // only used to store resources in the NotificationDatabase and is not
   // deserialized when reading from the database.
-  absl::optional<blink::NotificationResources> notification_resources;
+  std::optional<blink::NotificationResources> notification_resources;
 
   // Boolean for if this current notification is replacing an existing
   // notification.
@@ -81,14 +83,14 @@ struct CONTENT_EXPORT NotificationDatabaseData {
 
   // Amount of time, in ms, between when the notification is shown and the
   // first click.
-  absl::optional<base::TimeDelta> time_until_first_click_millis;
+  std::optional<base::TimeDelta> time_until_first_click_millis;
 
   // Amount of time, in ms, between when the notification is shown and the
   // last click.
-  absl::optional<base::TimeDelta> time_until_last_click_millis;
+  std::optional<base::TimeDelta> time_until_last_click_millis;
 
   // Amount of time, in ms, between when the notification is shown and closed.
-  absl::optional<base::TimeDelta> time_until_close_millis;
+  std::optional<base::TimeDelta> time_until_close_millis;
 
   // Why the notification was closed.
   ClosedReason closed_reason = ClosedReason::UNKNOWN;
@@ -96,6 +98,9 @@ struct CONTENT_EXPORT NotificationDatabaseData {
   // Flag for notifications shown by the browser that should not be visible to
   // the origin when requesting a list of notifications.
   bool is_shown_by_browser = false;
+
+  // Serialized dictionary of notification metadata.
+  std::map<std::string, std::string> serialized_metadata;
 };
 
 }  // namespace content

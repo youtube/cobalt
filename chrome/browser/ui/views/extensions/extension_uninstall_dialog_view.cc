@@ -8,9 +8,11 @@
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/extensions/extension_uninstall_dialog.h"
+#include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/ui/views/extensions/extensions_dialogs_utils.h"
 #include "chrome/browser/ui/views/extensions/extensions_toolbar_container.h"
 #include "chrome/grit/generated_resources.h"
+#include "ui/base/interaction/element_identifier.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/gfx/image/image_skia_operations.h"
 #include "ui/views/controls/button/checkbox.h"
@@ -60,8 +62,9 @@ ExtensionUninstallDialogViews::ExtensionUninstallDialogViews(
     : extensions::ExtensionUninstallDialog(profile, parent, delegate) {}
 
 ExtensionUninstallDialogViews::~ExtensionUninstallDialogViews() {
-  if (dialog_model_)
+  if (dialog_model_) {
     dialog_model_->host()->Close();
+  }
   DCHECK(!dialog_model_);
 }
 
@@ -69,9 +72,10 @@ void ExtensionUninstallDialogViews::Show() {
   // TODO(pbos): Consider separating dialog model from views code.
   ui::DialogModel::Builder dialog_builder;
   dialog_builder.SetInternalName("ExtensionUninstallDialog")
-      .SetTitle(
-          l10n_util::GetStringFUTF16(IDS_EXTENSION_PROMPT_UNINSTALL_TITLE,
-                                     base::UTF8ToUTF16(extension()->name())))
+      .SetTitle(l10n_util::GetStringFUTF16(
+          IDS_EXTENSION_PROMPT_UNINSTALL_TITLE,
+          extensions::util::GetFixupExtensionNameForUIDisplay(
+              extension()->name())))
       .OverrideShowCloseButton(false)
       .SetDialogDestroyingCallback(
           base::BindOnce(&ExtensionUninstallDialogViews::DialogClosing,
@@ -84,24 +88,37 @@ void ExtensionUninstallDialogViews::Show() {
       .AddOkButton(
           base::BindOnce(&ExtensionUninstallDialogViews::DialogAccepted,
                          weak_ptr_factory_.GetWeakPtr()),
-          ui::DialogModelButton::Params().SetLabel(
-              l10n_util::GetStringUTF16(IDS_EXTENSION_PROMPT_UNINSTALL_BUTTON)))
+          ui::DialogModel::Button::Params()
+              .SetLabel(l10n_util::GetStringUTF16(
+                  IDS_EXTENSION_PROMPT_UNINSTALL_BUTTON))
+              .SetId(kOkButtonElementId))
       .AddCancelButton(
-          base::OnceClosure() /* Cancel is covered by WindowClosingCallback */);
+          base::DoNothing() /* Cancel is covered by WindowClosingCallback */,
+          ui::DialogModel::Button::Params().SetId(kCancelButtonElementId));
 
   if (triggering_extension()) {
     dialog_builder.AddParagraph(
         ui::DialogModelLabel(
             l10n_util::GetStringFUTF16(
                 IDS_EXTENSION_PROMPT_UNINSTALL_TRIGGERED_BY_EXTENSION,
-                base::UTF8ToUTF16(triggering_extension()->name())))
+                extensions::util::GetFixupExtensionNameForUIDisplay(
+                    triggering_extension()->name())))
             .set_is_secondary()
             .set_allow_character_break());
   }
 
   if (ShouldShowCheckbox()) {
+    std::u16string checkbox_label =
+        triggering_extension()
+            ? l10n_util::GetStringFUTF16(
+                  IDS_EXTENSION_PROMPT_UNINSTALL_REPORT_ABUSE_FROM_EXTENSION,
+                  extensions::util::GetFixupExtensionNameForUIDisplay(
+                      extension()->name()))
+            : l10n_util::GetStringUTF16(
+                  IDS_EXTENSION_PROMPT_UNINSTALL_REPORT_ABUSE);
+
     dialog_builder.AddCheckbox(kCheckboxId,
-                               ui::DialogModelLabel(GetCheckboxLabel()));
+                               ui::DialogModelLabel(checkbox_label));
   }
 
   std::unique_ptr<ui::DialogModel> dialog_model = dialog_builder.Build();
@@ -127,27 +144,25 @@ void ExtensionUninstallDialogViews::DialogAccepted() {
 }
 
 void ExtensionUninstallDialogViews::DialogClosing() {
-  if (!dialog_model_)
+  if (!dialog_model_) {
     return;
+  }
   dialog_model_ = nullptr;
   OnDialogClosed(CLOSE_ACTION_CANCELED);
 }
 
 }  // namespace
 
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(extensions::ExtensionUninstallDialog,
+                                      kCancelButtonElementId);
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(extensions::ExtensionUninstallDialog,
+                                      kOkButtonElementId);
+
 // static
 std::unique_ptr<extensions::ExtensionUninstallDialog>
 extensions::ExtensionUninstallDialog::Create(Profile* profile,
                                              gfx::NativeWindow parent,
                                              Delegate* delegate) {
-  return CreateViews(profile, parent, delegate);
-}
-
-// static
-std::unique_ptr<extensions::ExtensionUninstallDialog>
-extensions::ExtensionUninstallDialog::CreateViews(Profile* profile,
-                                                  gfx::NativeWindow parent,
-                                                  Delegate* delegate) {
   return std::make_unique<ExtensionUninstallDialogViews>(profile, parent,
                                                          delegate);
 }

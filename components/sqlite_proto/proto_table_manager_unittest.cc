@@ -9,12 +9,14 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/strings/strcat.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/protobuf_matchers.h"
 #include "base/test/task_environment.h"
 #include "components/sqlite_proto/key_value_data.h"
 #include "components/sqlite_proto/key_value_table.h"
 #include "components/sqlite_proto/test_proto.pb.h"
 #include "sql/database.h"
 #include "sql/meta_table.h"
+#include "sql/test/test_helpers.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -22,14 +24,7 @@ namespace sqlite_proto {
 
 namespace {
 
-MATCHER_P(EqualsProto,
-          message,
-          "Match a proto Message equal to the matcher's argument.") {
-  std::string expected_serialized, actual_serialized;
-  message.SerializeToString(&expected_serialized);
-  arg.SerializeToString(&actual_serialized);
-  return expected_serialized == actual_serialized;
-}
+using base::test::EqualsProto;
 
 constexpr char kTableName[] = "my_table";
 }  // namespace
@@ -43,7 +38,7 @@ TEST(ProtoTableTest, PutReinitializeAndGet) {
   // existing database state.
 
   base::test::TaskEnvironment env;
-  sql::Database db;
+  sql::Database db(sql::test::kTestTag);
   CHECK(db.OpenInMemory());
 
   auto manager = base::MakeRefCounted<ProtoTableManager>(
@@ -59,7 +54,7 @@ TEST(ProtoTableTest, PutReinitializeAndGet) {
 
   {
     KeyValueData<TestProto> data(manager, &table,
-                                 /*max_num_entries=*/absl::nullopt,
+                                 /*max_num_entries=*/std::nullopt,
                                  /*flush_delay=*/base::TimeDelta());
 
     // In these tests, we're using the current thread as the DB sequence.
@@ -77,7 +72,7 @@ TEST(ProtoTableTest, PutReinitializeAndGet) {
 
   {
     KeyValueData<TestProto> data(manager, &table,
-                                 /*max_num_entries=*/absl::nullopt,
+                                 /*max_num_entries=*/std::nullopt,
                                  /*flush_delay=*/base::TimeDelta());
 
     data.InitializeOnDBSequence();
@@ -100,7 +95,7 @@ TEST(ProtoTableTest, ReinitializingWithDifferentVersionClearsTables) {
   // existing database state.
 
   base::test::TaskEnvironment env;
-  sql::Database db;
+  sql::Database db(sql::test::kTestTag);
   CHECK(db.OpenInMemory());
 
   constexpr int kInitialVersion = 1;
@@ -118,7 +113,7 @@ TEST(ProtoTableTest, ReinitializingWithDifferentVersionClearsTables) {
 
   {
     KeyValueData<TestProto> data(manager, &table,
-                                 /*max_num_entries=*/absl::nullopt,
+                                 /*max_num_entries=*/std::nullopt,
                                  /*flush_delay=*/base::TimeDelta());
 
     // In these tests, we're using the current thread as the DB sequence.
@@ -136,7 +131,7 @@ TEST(ProtoTableTest, ReinitializingWithDifferentVersionClearsTables) {
 
   {
     KeyValueData<TestProto> data(manager, &table,
-                                 /*max_num_entries=*/absl::nullopt,
+                                 /*max_num_entries=*/std::nullopt,
                                  /*flush_delay=*/base::TimeDelta());
 
     data.InitializeOnDBSequence();
@@ -153,7 +148,7 @@ TEST(ProtoTableTest, InitializingWithoutWrittenVersionClearsTables) {
   // ProtoTableManager correctly clears the database.
 
   base::test::TaskEnvironment env;
-  sql::Database db;
+  sql::Database db(sql::test::kTestTag);
   CHECK(db.OpenInMemory());
 
   constexpr int kInitialVersion = 1;
@@ -171,7 +166,7 @@ TEST(ProtoTableTest, InitializingWithoutWrittenVersionClearsTables) {
 
   {
     KeyValueData<TestProto> data(manager, &table,
-                                 /*max_num_entries=*/absl::nullopt,
+                                 /*max_num_entries=*/std::nullopt,
                                  /*flush_delay=*/base::TimeDelta());
 
     // In these tests, we're using the current thread as the DB sequence.
@@ -192,7 +187,7 @@ TEST(ProtoTableTest, InitializingWithoutWrittenVersionClearsTables) {
 
   {
     KeyValueData<TestProto> data(manager, &table,
-                                 /*max_num_entries=*/absl::nullopt,
+                                 /*max_num_entries=*/std::nullopt,
                                  /*flush_delay=*/base::TimeDelta());
 
     data.InitializeOnDBSequence();
@@ -209,7 +204,7 @@ TEST(ProtoTableTest, LoadingUnexpectedlyLargeVersionClearsTables) {
   // correctly clears the database.
 
   base::test::TaskEnvironment env;
-  sql::Database db;
+  sql::Database db(sql::test::kTestTag);
   CHECK(db.OpenInMemory());
 
   constexpr int kInitialVersion = 1;
@@ -227,7 +222,7 @@ TEST(ProtoTableTest, LoadingUnexpectedlyLargeVersionClearsTables) {
 
   {
     KeyValueData<TestProto> data(manager, &table,
-                                 /*max_num_entries=*/absl::nullopt,
+                                 /*max_num_entries=*/std::nullopt,
                                  /*flush_delay=*/base::TimeDelta());
 
     // In these tests, we're using the current thread as the DB sequence.
@@ -258,7 +253,7 @@ TEST(ProtoTableTest, LoadingUnexpectedlyLargeVersionClearsTables) {
 
   {
     KeyValueData<TestProto> data(manager, &table,
-                                 /*max_num_entries=*/absl::nullopt,
+                                 /*max_num_entries=*/std::nullopt,
                                  /*flush_delay=*/base::TimeDelta());
 
     data.InitializeOnDBSequence();

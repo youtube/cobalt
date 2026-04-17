@@ -23,10 +23,9 @@
 #include "libANGLE/renderer/ContextImpl.h"
 #include "libANGLE/renderer/TextureImpl.h"
 #include "libANGLE/renderer/d3d/BufferD3D.h"
-#include "libANGLE/renderer/d3d/DeviceD3D.h"
 #include "libANGLE/renderer/d3d/DisplayD3D.h"
 #include "libANGLE/renderer/d3d/IndexDataManager.h"
-#include "libANGLE/renderer/d3d/ProgramD3D.h"
+#include "libANGLE/renderer/d3d/ProgramExecutableD3D.h"
 #include "libANGLE/renderer/d3d/SamplerD3D.h"
 #include "libANGLE/renderer/d3d/TextureD3D.h"
 
@@ -47,7 +46,8 @@ bool RendererD3D::skipDraw(const gl::State &glState, gl::PrimitiveMode drawMode)
 {
     if (drawMode == gl::PrimitiveMode::Points)
     {
-        bool usesPointSize = GetImplAs<ProgramD3D>(glState.getProgram())->usesPointSize();
+        bool usesPointSize =
+            GetImplAs<ProgramExecutableD3D>(glState.getProgramExecutable())->usesPointSize();
 
         // ProgramBinary assumes non-point rendering if gl_PointSize isn't written,
         // which affects varying interpolation. Since the value of gl_PointSize is
@@ -145,12 +145,6 @@ const ShPixelLocalStorageOptions &RendererD3D::getNativePixelLocalStorageOptions
 UniqueSerial RendererD3D::generateSerial()
 {
     return mSerialFactory.generate();
-}
-
-bool InstancedPointSpritesActive(ProgramD3D *programD3D, gl::PrimitiveMode mode)
-{
-    return programD3D->usesPointSize() && programD3D->usesInstancedPointSpriteEmulation() &&
-           mode == gl::PrimitiveMode::Points;
 }
 
 angle::Result RendererD3D::initRenderTarget(const gl::Context *context,

@@ -15,18 +15,10 @@ namespace ash::quick_pair {
 
 class FakeFastPairHandshake : public FastPairHandshake {
  public:
-  // TODO(b/265853116): Remove once old Handshake logic is removed and this
-  // constructor is no longer used for testing.
   FakeFastPairHandshake(
       scoped_refptr<device::BluetoothAdapter> adapter,
       scoped_refptr<Device> device,
       OnCompleteCallback on_complete,
-      std::unique_ptr<FastPairDataEncryptor> data_encryptor = nullptr,
-      std::unique_ptr<FastPairGattServiceClient> gatt_service_client = nullptr);
-
-  FakeFastPairHandshake(
-      scoped_refptr<device::BluetoothAdapter> adapter,
-      scoped_refptr<Device> device,
       std::unique_ptr<FastPairDataEncryptor> data_encryptor = nullptr,
       std::unique_ptr<FastPairGattServiceClient> gatt_service_client = nullptr);
 
@@ -38,10 +30,7 @@ class FakeFastPairHandshake : public FastPairHandshake {
                       OnCompleteCallbackNew on_success_callback) override;
   void Reset() override;
 
-  void InvokeCallback(absl::optional<PairFailure> failure = absl::nullopt);
-  void SetGattClientAndDataEncryptorForTesting(
-      std::unique_ptr<FastPairGattServiceClient> gatt_service_client,
-      std::unique_ptr<FastPairDataEncryptor> data_encryptor);
+  void InvokeCallback(std::optional<PairFailure> failure = std::nullopt);
 
   void set_completed_successfully(bool completed_successfully) {
     completed_successfully_ = completed_successfully;

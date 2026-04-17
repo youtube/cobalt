@@ -26,8 +26,10 @@
 #include "content/browser/download/save_types.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/download_manager_delegate.h"
+#include "content/public/browser/frame_tree_node_id.h"
 #include "content/public/browser/save_page_type.h"
 #include "content/public/common/referrer.h"
+#include "net/base/isolation_info.h"
 #include "net/base/net_errors.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "third_party/blink/public/mojom/frame/frame.mojom-forward.h"
@@ -62,9 +64,8 @@ class SavePackage;
 // saved. Each file is represented by a SaveItem, and all SaveItems are owned
 // by the SavePackage. SaveItems are created when a user initiates a page
 // saving job, and exist for the duration of one contents's life time.
-class CONTENT_EXPORT SavePackage
-    : public base::RefCountedThreadSafe<SavePackage>,
-      public base::SupportsWeakPtr<SavePackage> {
+class CONTENT_EXPORT SavePackage final
+    : public base::RefCountedThreadSafe<SavePackage> {
  public:
   enum WaitState {
     // State when created but not initialized.
@@ -154,12 +155,12 @@ class CONTENT_EXPORT SavePackage
   FRIEND_TEST_ALL_PREFIXES(SavePackageBrowserTest, DownloadItemDestroyed);
 
   // Map from SaveItem::id() (aka save_item_id) into a SaveItem.
-  using SaveItemIdMap = std::
-      unordered_map<SaveItemId, std::unique_ptr<SaveItem>, SaveItemId::Hasher>;
+  using SaveItemIdMap =
+      std::unordered_map<SaveItemId, std::unique_ptr<SaveItem>>;
 
   using FileNameSet = std::set<base::FilePath::StringType,
-                               bool (*)(base::FilePath::StringPieceType,
-                                        base::FilePath::StringPieceType)>;
+                               bool (*)(base::FilePath::StringViewType,
+                                        base::FilePath::StringViewType)>;
 
   using FileNameCountMap =
       std::unordered_map<base::FilePath::StringType, uint32_t>;
@@ -259,8 +260,8 @@ class CONTENT_EXPORT SavePackage
 
   // Helper for finding or creating a SaveItem with the given parameters.
   SaveItem* CreatePendingSaveItem(
-      int container_frame_tree_node_id,
-      int save_item_frame_tree_node_id,
+      FrameTreeNodeId container_frame_tree_node_id,
+      FrameTreeNodeId save_item_frame_tree_node_id,
       const GURL& url,
       const Referrer& referrer,
       SaveFileCreateInfo::SaveFileSource save_source);
@@ -268,19 +269,19 @@ class CONTENT_EXPORT SavePackage
   // Helper for finding a SaveItem with the given url, or falling back to
   // creating a SaveItem with the given parameters.
   void CreatePendingSaveItemDeduplicatingByUrl(
-      int container_frame_tree_node_id,
-      int save_item_frame_tree_node_id,
+      FrameTreeNodeId container_frame_tree_node_id,
+      FrameTreeNodeId save_item_frame_tree_node_id,
       const GURL& url,
       const Referrer& referrer,
       SaveFileCreateInfo::SaveFileSource save_source);
 
   // Helper to enqueue a savable resource reported by GetSavableResourceLinks.
-  void EnqueueSavableResource(int container_frame_tree_node_id,
+  void EnqueueSavableResource(FrameTreeNodeId container_frame_tree_node_id,
                               const GURL& url,
                               const Referrer& referrer);
   // Helper to enqueue a subframe reported by GetSavableResourceLinks.
-  void EnqueueFrame(int container_frame_tree_node_id,
-                    int frame_tree_node_id,
+  void EnqueueFrame(FrameTreeNodeId container_frame_tree_node_id,
+                    FrameTreeNodeId frame_tree_node_id,
                     const GURL& frame_original_url);
 
   // Helper tracking how many |number_of_frames_pending_response_| we have
@@ -332,8 +333,7 @@ class CONTENT_EXPORT SavePackage
       const base::FilePath& download_save_dir);
   void ContinueGetSaveInfo(bool can_save_as_complete,
                            const base::FilePath& suggested_path);
-  void OnPathPicked(const base::FilePath& final_name,
-                    SavePageType type,
+  void OnPathPicked(SavePackagePathPickedParams params,
                     SavePackageDownloadCreatedCallback cb);
 
   // The number of in process SaveItems.
@@ -372,20 +372,22 @@ class CONTENT_EXPORT SavePackage
   // and also to find SaveItems to associate with a containing frame.
   // Note that |url_to_save_item_| does NOT own SaveItems - they
   // remain owned by waiting_item_queue_, in_progress_items_, etc.
-  std::map<GURL, SaveItem*> url_to_save_item_;
+  std::map<GURL, raw_ptr<SaveItem, CtnExperimental>> url_to_save_item_;
 
   // Map used to route responses from a given a subframe (i.e.
   // GetSerializedHtmlWithLocalLinksResponse) to the right SaveItem.
   // Note that |frame_tree_node_id_to_save_item_| does NOT own SaveItems - they
   // remain owned by waiting_item_queue_, in_progress_items_, etc.
-  std::unordered_map<int, SaveItem*> frame_tree_node_id_to_save_item_;
+  std::unordered_map<FrameTreeNodeId, raw_ptr<SaveItem, CtnExperimental>>
+      frame_tree_node_id_to_save_item_;
 
   // Used to limit which local paths get exposed to which frames
   // (i.e. to prevent information disclosure to oop frames).
   // Note that |frame_tree_node_id_to_contained_save_items_| does NOT own
   // SaveItems - they remain owned by waiting_item_queue_, in_progress_items_,
   // etc.
-  std::unordered_map<int, std::vector<SaveItem*>>
+  std::unordered_map<FrameTreeNodeId,
+                     std::vector<raw_ptr<SaveItem, VectorExperimental>>>
       frame_tree_node_id_to_contained_save_items_;
 
   // Number of frames that we still need to get a response from.
@@ -395,16 +397,28 @@ class CONTENT_EXPORT SavePackage
   SaveItemIdMap saved_success_items_;
 
   // Non-owning pointer for handling file writing on the download sequence.
-  raw_ptr<SaveFileManager> file_manager_ = nullptr;
+  // This dangling raw_ptr occurred in:
+  // content_browsertests: SavePackageBrowserTest.Reload
+  // https://ci.chromium.org/ui/p/chromium/builders/try/linux-rel/1378285/test-results?q=ExactID%3Aninja%3A%2F%2Fcontent%2Ftest%3Acontent_browsertests%2FSavePackageBrowserTest.Reload+VHash%3Ad83661216aa0a42d
+  raw_ptr<SaveFileManager, FlakyDanglingUntriaged> file_manager_ = nullptr;
 
   // DownloadManager owns the download::DownloadItem and handles history and UI.
-  raw_ptr<DownloadManagerImpl> download_manager_ = nullptr;
-  raw_ptr<download::DownloadItemImpl> download_ = nullptr;
+  // These dangling raw_ptrs occurred in:
+  // content_browsertests: SavePackageBrowserTest.Reload
+  // chttps://ci.chromium.org/ui/p/chromium/builders/try/linux-rel/1430369/test-results?q=ExactID%3Aninja%3A%2F%2Fcontent%2Ftest%3Acontent_browsertests%2FSavePackageBrowserTest.Reload+VHash%3Ad83661216aa0a42d
+  raw_ptr<DownloadManagerImpl, FlakyDanglingUntriaged> download_manager_ =
+      nullptr;
+  raw_ptr<download::DownloadItemImpl, FlakyDanglingUntriaged> download_ =
+      nullptr;
 
   // The URL of the page the user wants to save.
   const GURL page_url_;
   base::FilePath saved_main_file_path_;
   base::FilePath saved_main_directory_path_;
+
+  // Isolation info for network state partitioning.
+  const net::IsolationInfo page_isolation_info_;
+  bool page_is_outermost_main_frame_;
 
   // The title of the page the user wants to save.
   const std::u16string title_;
@@ -429,6 +443,12 @@ class CONTENT_EXPORT SavePackage
   // Type about saving page as only-html or complete-html.
   SavePageType save_type_ = SAVE_PAGE_TYPE_UNKNOWN;
 
+#if BUILDFLAG(IS_MAC)
+  // A list of tags specified by the user to be set on the file upon the
+  // completion of it being written to disk.
+  std::vector<std::string> file_tags_;
+#endif
+
   // Number of all need to be saved resources.
   size_t all_save_items_count_ = 0;
 
@@ -448,6 +468,12 @@ class CONTENT_EXPORT SavePackage
   // UKM IDs for reporting.
   ukm::SourceId ukm_source_id_;
   uint64_t ukm_download_id_;
+
+  // Display name of the main file. If this is empty, the name will be
+  // inferred from `saved_main_file_path_`.
+  base::FilePath saved_main_file_display_name_;
+
+  base::WeakPtrFactory<SavePackage> weak_ptr_factory_{this};
 };
 
 }  // namespace content

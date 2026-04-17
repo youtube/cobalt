@@ -16,7 +16,6 @@
 
 #include "starboard/audio_sink.h"
 #include "starboard/configuration.h"
-#include "starboard/cpu_features.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
 #include "starboard/egl.h"
@@ -34,7 +33,6 @@
 #include "starboard/system.h"
 #include "starboard/thread.h"
 #include "starboard/time_zone.h"
-#include "starboard/types.h"
 #include "starboard/window.h"
 
 // This doesn't really belong here, but ensures that SB_COMPILE_ASSERT works in

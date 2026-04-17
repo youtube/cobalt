@@ -22,7 +22,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/extension_set.h"
 #include "ui/gl/gl_context.h"
-#include "ui/gl/gl_version_info.h"
 
 namespace gpu {
 
@@ -45,14 +44,6 @@ class GLClearFramebufferTest : public testing::TestWithParam<bool> {
     }
   }
 
-  bool IsApplicable() {
-    // The workaround doesn't use VAOs which would cause a failure on a core
-    // context and the hardware for each the workaround is necessary has a buggy
-    // VAO implementation. So we skip testing the workaround on core profiles.
-    return !GetParam() ||
-           !gl_.context()->GetVersionInfo()->is_desktop_core_profile;
-  }
-
   void InitDraw();
   void SetDrawColor(GLfloat r, GLfloat g, GLfloat b, GLfloat a);
   void SetDrawDepth(GLfloat depth);
@@ -63,7 +54,7 @@ class GLClearFramebufferTest : public testing::TestWithParam<bool> {
     gl_.Destroy();
   }
 
- private:
+ protected:
   GLManager gl_;
   GLuint color_handle_;
   GLuint depth_handle_;
@@ -118,10 +109,6 @@ INSTANTIATE_TEST_SUITE_P(GLClearFramebufferTestWithParam,
                          ::testing::Values(true, false));
 
 TEST_P(GLClearFramebufferTest, ClearColor) {
-  if (!IsApplicable()) {
-    return;
-  }
-
   glClearColor(1.0f, 0.5f, 0.25f, 0.5f);
   glClear(GL_COLOR_BUFFER_BIT);
 
@@ -132,10 +119,6 @@ TEST_P(GLClearFramebufferTest, ClearColor) {
 }
 
 TEST_P(GLClearFramebufferTest, ClearColorWithMask) {
-  if (!IsApplicable()) {
-    return;
-  }
-
   glColorMask(GL_TRUE, GL_FALSE, GL_FALSE, GL_FALSE);
   glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT);
@@ -149,10 +132,6 @@ TEST_P(GLClearFramebufferTest, ClearColorWithMask) {
 // crbug.com/434094
 #if !BUILDFLAG(IS_MAC)
 TEST_P(GLClearFramebufferTest, ClearColorWithScissor) {
-  if (!IsApplicable()) {
-    return;
-  }
-
   // TODO(jonahr): Test fails on Linux with ANGLE/passthrough
   // (crbug.com/1099770)
   gpu::GPUTestBotConfig bot_config;
@@ -181,9 +160,6 @@ TEST_P(GLClearFramebufferTest, ClearColorWithScissor) {
 #endif
 
 TEST_P(GLClearFramebufferTest, ClearDepthStencil) {
-  if (!IsApplicable()) {
-    return;
-  }
   // TODO(kainino): https://crbug.com/782317
   if (GPUTestBotConfig::CurrentConfigMatches("Intel")) {
     return;
@@ -242,7 +218,7 @@ TEST_P(GLClearFramebufferTest, SeparateFramebufferClear) {
   gfx::ExtensionSet extensions = gfx::MakeExtensionSet(extension_string);
   bool has_separate_framebuffer =
       gfx::HasExtension(extensions, "GL_CHROMIUM_framebuffer_multisample");
-  if (!IsApplicable() || !has_separate_framebuffer) {
+  if (!has_separate_framebuffer) {
     return;
   }
 
@@ -259,7 +235,7 @@ TEST_P(GLClearFramebufferTest, SeparateFramebufferClear) {
   glClearColor(1.f, 0.f, 0.f, 1.f);
   glClear(GL_COLOR_BUFFER_BIT);
 
-  glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+  gl_.BindOffscreenFramebuffer(GL_READ_FRAMEBUFFER);
   const uint8_t kRed[] = {255, 0, 0, 255};
   EXPECT_TRUE(GLTestHelper::CheckPixels(0, 0, 1, 1, 0, kRed, nullptr));
 
@@ -279,7 +255,7 @@ TEST_P(GLClearFramebufferTest, SeparateFramebufferClear) {
   glClearColor(0.f, 1.f, 0.f, 1.f);
   glClear(GL_COLOR_BUFFER_BIT);
 
-  glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+  gl_.BindOffscreenFramebuffer(GL_READ_FRAMEBUFFER);
   const uint8_t kGreen[] = {0, 255, 0, 255};
   EXPECT_TRUE(GLTestHelper::CheckPixels(3, 3, 1, 1, 0, kGreen, nullptr));
 }

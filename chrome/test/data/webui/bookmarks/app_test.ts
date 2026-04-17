@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {BookmarksApiProxyImpl, BookmarksAppElement, BookmarksItemElement, HIDE_FOCUS_RING_ATTRIBUTE, LOCAL_STORAGE_FOLDER_STATE_KEY, LOCAL_STORAGE_TREE_WIDTH_KEY} from 'chrome://bookmarks/bookmarks.js';
+import type {BookmarksAppElement} from 'chrome://bookmarks/bookmarks.js';
+import {BookmarksApiProxyImpl, HIDE_FOCUS_RING_ATTRIBUTE, LOCAL_STORAGE_FOLDER_STATE_KEY, LOCAL_STORAGE_TREE_WIDTH_KEY} from 'chrome://bookmarks/bookmarks.js';
 import {isMac} from 'chrome://resources/js/platform.js';
-import {getDeepActiveElement} from 'chrome://resources/js/util_ts.js';
-import {down, keyDownOn, pressAndReleaseKeyOn} from 'chrome://resources/polymer/v3_0/iron-test-helpers/mock-interactions.js';
-import {assertDeepEquals, assertEquals, assertNotEquals} from 'chrome://webui-test/chai_assert.js';
-import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
+import {getDeepActiveElement} from 'chrome://resources/js/util.js';
+import {assertDeepEquals, assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {keyDownOn, pressAndReleaseKeyOn} from 'chrome://webui-test/keyboard_mock_interactions.js';
+import {down} from 'chrome://webui-test/mouse_mock_interactions.js';
+import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {TestBookmarksApiProxy} from './test_bookmarks_api_proxy.js';
 import {TestStore} from './test_store.js';
@@ -43,7 +45,7 @@ suite('<bookmarks-app>', function() {
 
     app = document.createElement('bookmarks-app');
     replaceBody(app);
-    return flushTasks();
+    return microtasksFinished();
   });
 
   test('write and load closed folder state', async function() {
@@ -51,6 +53,7 @@ suite('<bookmarks-app>', function() {
     const folderOpenState = new Map(folderOpenStateList);
     store.data.folderOpenState = folderOpenState;
     store.notifyObservers();
+    await microtasksFinished();
 
     // Ensure closed folders are written to local storage.
     assertDeepEquals(
@@ -60,7 +63,7 @@ suite('<bookmarks-app>', function() {
     resetStore();
     app = document.createElement('bookmarks-app');
     replaceBody(app);
-    await flushTasks();
+    await microtasksFinished();
 
     // Ensure closed folders are read from local storage.
     assertDeepEquals(
@@ -70,7 +73,7 @@ suite('<bookmarks-app>', function() {
   test('write and load sidebar width', async function() {
     assertEquals(
         getComputedStyle(app.$.sidebar).width,
-        app.shadowRoot!.querySelector('bookmarks-toolbar')!.sidebarWidth);
+        app.shadowRoot.querySelector('bookmarks-toolbar')!.sidebarWidth);
 
     const sidebarWidth = '500px';
     app.$.sidebar.style.width = sidebarWidth;
@@ -80,38 +83,41 @@ suite('<bookmarks-app>', function() {
 
     app = document.createElement('bookmarks-app');
     replaceBody(app);
-    await flushTasks();
+    await microtasksFinished();
 
     assertEquals(sidebarWidth, app.$.sidebar.style.width);
   });
 
   test('focus ring hides and restores', async function() {
-    const list = app.shadowRoot!.querySelector('bookmarks-list');
-    await flushTasks();
-    const item = list!.root!.querySelectorAll('bookmarks-item')[0] as
-        BookmarksItemElement;
-    const getFocusAttribute = () => app.getAttribute(HIDE_FOCUS_RING_ATTRIBUTE);
+    const list = app.shadowRoot.querySelector('bookmarks-list');
+    assertTrue(!!list);
+    await microtasksFinished();
+    const item = list.shadowRoot.querySelectorAll('bookmarks-item')[0];
+    assertTrue(!!item);
+    const hasFocusAttribute = () => app.hasAttribute(HIDE_FOCUS_RING_ATTRIBUTE);
 
-    assertEquals(null, getFocusAttribute());
+    assertFalse(hasFocusAttribute());
 
     down(item);
-    assertEquals('', getFocusAttribute());
+    assertTrue(hasFocusAttribute());
 
     keyDownOn(item, 16, [], 'Shift');
-    assertEquals('', getFocusAttribute());
+    assertTrue(hasFocusAttribute());
 
     // This event is also captured by the bookmarks-list and propagation is
     // stopped. Regardless, it should clear the focus first.
     keyDownOn(item, 40, [], 'ArrowDown');
-    assertEquals(null, getFocusAttribute());
+    assertFalse(hasFocusAttribute());
   });
 
-  test('when find shortcut is invoked, focus on search input', () => {
-    const searchInput =
-        app.shadowRoot!.querySelector(
-                           'bookmarks-toolbar')!.searchField.getSearchInput();
+  test('when find shortcut is invoked, focus on search input', async () => {
+    const searchField =
+        app.shadowRoot.querySelector('bookmarks-toolbar')!.searchField;
+    const searchInput = searchField.getSearchInput();
+    searchInput.blur();
     assertNotEquals(searchInput, getDeepActiveElement());
     pressAndReleaseKeyOn(document.body, 0, isMac ? 'meta' : 'ctrl', 'f');
+    await searchField.updateComplete;
     assertEquals(searchInput, getDeepActiveElement());
   });
 });

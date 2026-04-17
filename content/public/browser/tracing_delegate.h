@@ -5,10 +5,9 @@
 #ifndef CONTENT_PUBLIC_BROWSER_TRACING_DELEGATE_H_
 #define CONTENT_PUBLIC_BROWSER_TRACING_DELEGATE_H_
 
-#include "base/functional/callback.h"
-#include "base/values.h"
+#include "base/functional/callback_forward.h"
+#include "build/build_config.h"
 #include "content/common/content_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace content {
 
@@ -18,23 +17,33 @@ class CONTENT_EXPORT TracingDelegate {
  public:
   virtual ~TracingDelegate() = default;
 
-  // This can be used to veto a particular background tracing scenario.
-  virtual bool IsAllowedToBeginBackgroundScenario(
-      const std::string& scenario_name,
-      bool requires_anonymized_data,
-      bool is_crash_scenario);
+  // Returns true if the tracing session is allowed to record.
+  virtual bool IsRecordingAllowed(bool requires_anonymized_data) const;
 
-  virtual bool IsAllowedToEndBackgroundScenario(
-      const std::string& scenario_name,
-      bool requires_anonymized_data,
-      bool is_crash_scenario);
+  // Specifies whether traces that aren't uploaded should still be saved.
+  virtual bool ShouldSaveUnuploadedTrace() const;
 
-  // Whether system-wide performance trace collection using the external system
-  // tracing service is enabled.
-  virtual bool IsSystemWideTracingEnabled();
+#if BUILDFLAG(IS_WIN)
+  // Runs `on_tracing_state` (asynchronously) with the current state of the
+  // Windows system tracing service for the running browser:
+  // - `service_supported`: true if the service is supported.
+  // - `service_enabled`: true if the service is enabled.
+  virtual void GetSystemTracingState(
+      base::OnceCallback<void(bool service_supported, bool service_enabled)>
+          on_tracing_state);
 
-  // Used to add any additional metadata to traces.
-  virtual absl::optional<base::Value::Dict> GenerateMetadataDict();
+  // Enables the Windows system tracing service and runs `on_complete` with
+  // the result of the operation. The user must pass a UAC prompt to enable the
+  // service.
+  virtual void EnableSystemTracing(
+      base::OnceCallback<void(bool success)> on_complete);
+
+  // Disables the Windows system tracing service and runs `on_complete` with
+  // the result of the operation. The user must pass a UAC prompt to disable the
+  // service.
+  virtual void DisableSystemTracing(
+      base::OnceCallback<void(bool success)> on_complete);
+#endif  // BUILDFLAG(IS_WIN)
 };
 
 }  // namespace content

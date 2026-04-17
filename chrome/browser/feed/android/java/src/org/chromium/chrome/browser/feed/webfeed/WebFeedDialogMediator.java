@@ -7,14 +7,15 @@ package org.chromium.chrome.browser.feed.webfeed;
 import android.view.View;
 
 import org.chromium.base.Callback;
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.ui.modaldialog.DialogDismissalCause;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogProperties;
 import org.chromium.ui.modelutil.PropertyModel;
 
-/**
- * Mediator class responsible for the logic of showing WebFeed dialogs.
- */
+/** Mediator class responsible for the logic of showing WebFeed dialogs. */
+@NullMarked
 class WebFeedDialogMediator {
     private final ModalDialogManager mDialogManager;
 
@@ -62,23 +63,28 @@ class WebFeedDialogMediator {
      * @param view The {@link View} to show.
      * @param dialogContents The {@link WebFeedDialogContents} containing the dialog contents.
      */
+    @Initializer
     void initialize(View view, WebFeedDialogContents dialogContents) {
         mHostDialogModel =
                 new PropertyModel.Builder(ModalDialogProperties.ALL_KEYS)
                         .with(ModalDialogProperties.CUSTOM_VIEW, view)
-                        .with(ModalDialogProperties.CONTROLLER,
+                        .with(
+                                ModalDialogProperties.CONTROLLER,
                                 new DialogClickHandler(dialogContents.mButtonClickCallback))
                         .with(ModalDialogProperties.CONTENT_DESCRIPTION, dialogContents.mTitle)
-                        .with(ModalDialogProperties.POSITIVE_BUTTON_TEXT,
+                        .with(
+                                ModalDialogProperties.POSITIVE_BUTTON_TEXT,
                                 dialogContents.mPrimaryButtonText)
-                        .with(ModalDialogProperties.NEGATIVE_BUTTON_TEXT,
+                        .with(
+                                ModalDialogProperties.NEGATIVE_BUTTON_TEXT,
                                 dialogContents.mSecondaryButtonText)
-                        .with(ModalDialogProperties.BUTTON_STYLES,
+                        .with(
+                                ModalDialogProperties.BUTTON_STYLES,
                                 dialogContents.mSecondaryButtonText != null
                                         ? ModalDialogProperties.ButtonStyles
-                                                  .PRIMARY_FILLED_NEGATIVE_OUTLINE
+                                                .PRIMARY_FILLED_NEGATIVE_OUTLINE
                                         : ModalDialogProperties.ButtonStyles
-                                                  .PRIMARY_OUTLINE_NEGATIVE_OUTLINE)
+                                                .PRIMARY_OUTLINE_NEGATIVE_OUTLINE)
                         .build();
     }
 

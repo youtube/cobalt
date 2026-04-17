@@ -39,7 +39,12 @@ struct ProposedCandidateKey {
 
 struct ProposedCandidateKeyHasher {
   std::size_t operator()(const ProposedCandidateKey& k) const {
-    return base::Hash(&k, sizeof(k));
+    // Assert that there is no padding - otherwise the bytes-based hash below
+    // may differ for otherwise equal objects.
+    static_assert(sizeof(ProposedCandidateKey) ==
+                  sizeof(decltype(k.strategy_id)) +
+                      sizeof(decltype(k.tracking_id)));
+    return base::FastHash(base::byte_span_from_ref(k));
   }
 };
 
@@ -55,14 +60,6 @@ class VIZ_SERVICE_EXPORT OverlayProposedCandidate {
   OverlayProposedCandidate& operator=(const OverlayProposedCandidate&);
 
   ~OverlayProposedCandidate();
-
-  // Returns the bounds of rounded display masks in target space that are
-  // associated with the `proposed_candidate`.
-  static std::array<
-      gfx::Rect,
-      TextureDrawQuad::RoundedDisplayMasksInfo::kMaxRoundedDisplayMasksCount>
-  GetRoundedDisplayMasksBounds(
-      const OverlayProposedCandidate& proposed_candidate);
 
   static ProposedCandidateKey ToProposeKey(
       const OverlayProposedCandidate& proposed);

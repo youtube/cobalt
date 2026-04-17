@@ -4,13 +4,13 @@
 
 #include "components/page_load_metrics/browser/observers/privacy_sandbox_ads_page_load_metrics_observer.h"
 
+#include <algorithm>
 #include <memory>
 #include <vector>
 
 #include "base/containers/enum_set.h"
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
-#include "base/ranges/algorithm.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/time/time.h"
 #include "components/page_load_metrics/browser/observers/page_load_metrics_observer_content_test_harness.h"
@@ -78,12 +78,13 @@ class PrivacySandboxAdsPageLoadMetricsObserverTest
     static const base::flat_map<PrivacySandboxAdsApi, std::vector<WebFeature>>
         kFeaturesMap = {
             {PrivacySandboxAdsApi::kAttributionReporting,
-             {WebFeature::kConversionAPIAll}},
+             {WebFeature::kAttributionReportingAPIAll}},
             {PrivacySandboxAdsApi::kFencedFrames,
              {WebFeature::kHTMLFencedFrameElement}},
-            {PrivacySandboxAdsApi::kFledge,
-             {WebFeature::kV8Navigator_RunAdAuction_Method,
-              WebFeature::kV8Navigator_JoinAdInterestGroup_Method}},
+            {PrivacySandboxAdsApi::kProtectedAudienceRunAdAuction,
+             {WebFeature::kV8Navigator_RunAdAuction_Method}},
+            {PrivacySandboxAdsApi::kProtectedAudienceJoinAdInterestGroup,
+             {WebFeature::kV8Navigator_JoinAdInterestGroup_Method}},
             {PrivacySandboxAdsApi::kPrivateAggregation,
              {WebFeature::kPrivateAggregationApiAll}},
             {PrivacySandboxAdsApi::kSharedStorage,
@@ -97,7 +98,7 @@ class PrivacySandboxAdsPageLoadMetricsObserverTest
     for (auto api :
          base::EnumSet<PrivacySandboxAdsApi, PrivacySandboxAdsApi::kMinValue,
                        PrivacySandboxAdsApi::kMaxValue>::All()) {
-      int expected_count = base::ranges::any_of(
+      int expected_count = std::ranges::any_of(
           kFeaturesMap.at(api), [&](WebFeature web_feature) {
             return web_features.contains(web_feature);
           });
@@ -145,7 +146,7 @@ class PrivacySandboxAdsPageLoadMetricsObserverTest
     timing.paint_timing->first_image_paint = base::Milliseconds(80);
     timing.paint_timing->first_contentful_paint = base::Milliseconds(100);
 
-    auto largest_contentful_paint = mojom::LargestContentfulPaintTiming::New();
+    auto largest_contentful_paint = CreateLargestContentfulPaintTiming();
     largest_contentful_paint->largest_image_paint = base::Milliseconds(100);
     largest_contentful_paint->largest_image_paint_size = 100;
     timing.paint_timing->largest_contentful_paint =
@@ -170,7 +171,7 @@ INSTANTIATE_TEST_SUITE_P(
         TestCase{
             .name = "all",
             .web_features =
-                {WebFeature::kConversionAPIAll,
+                {WebFeature::kAttributionReportingAPIAll,
                  WebFeature::kHTMLFencedFrameElement,
                  WebFeature::kV8Navigator_RunAdAuction_Method,
                  WebFeature::kV8Navigator_JoinAdInterestGroup_Method,

@@ -17,6 +17,7 @@
 
 #include <sched.h>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/lazy_initialization_public.h"
@@ -54,7 +55,7 @@ static inline bool EnsureInitialized(InitializedState* state) {
     } while (state->load(std::memory_order_acquire) !=
              INITIALIZED_STATE_INITIALIZED);
   } else {
-    SB_DCHECK(original == INITIALIZED_STATE_INITIALIZED)
+    SB_DCHECK_EQ(original, INITIALIZED_STATE_INITIALIZED)
         << "Unexpected original=" << original;
   }
 

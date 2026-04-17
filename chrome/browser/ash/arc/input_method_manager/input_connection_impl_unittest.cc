@@ -38,7 +38,6 @@ class DummyInputMethodEngineObserver
   void OnFocus(const std::string& engine_id,
                int context_id,
                const ash::TextInputMethod::InputContext& context) override {}
-  void OnTouch(ui::EventPointerType pointerType) override {}
   void OnBlur(const std::string& engine_id, int context_id) override {}
   void OnKeyEvent(
       const std::string& engine_id,
@@ -101,12 +100,12 @@ class TestIMEInputContextHandler : public ash::MockIMEInputContextHandler {
     ++send_key_event_call_count_;
   }
 
-  bool SetCompositionRange(
+  bool SetComposingRange(
       uint32_t before,
       uint32_t after,
       const std::vector<ui::ImeTextSpan>& text_spans) override {
-    ash::MockIMEInputContextHandler::SetCompositionRange(before, after,
-                                                         text_spans);
+    ash::MockIMEInputContextHandler::SetComposingRange(before, after,
+                                                       text_spans);
     composition_range_history_.push_back(std::make_tuple(before, after));
     return true;
   }
@@ -123,7 +122,7 @@ class TestIMEInputContextHandler : public ash::MockIMEInputContextHandler {
   }
 
  private:
-  const raw_ptr<ui::InputMethod, ExperimentalAsh> input_method_;
+  const raw_ptr<ui::InputMethod> input_method_;
 
   int send_key_event_call_count_ = 0;
   std::vector<std::tuple<int, int>> composition_range_history_;
@@ -245,7 +244,7 @@ TEST_F(InputConnectionImplTest, CommitText) {
   EXPECT_EQ(2u, sent_key_events.size());
   const ui::KeyEvent& last_sent_key_event = sent_key_events.back();
   EXPECT_EQ(ui::VKEY_RETURN, last_sent_key_event.key_code());
-  EXPECT_EQ(ui::ET_KEY_RELEASED, last_sent_key_event.type());
+  EXPECT_EQ(ui::EventType::kKeyReleased, last_sent_key_event.type());
 
   engine()->Blur();
 }
@@ -273,7 +272,7 @@ TEST_F(InputConnectionImplTest, FinishComposingText) {
   // If there is composing text, FinishComposingText() calls CommitText() with
   // the text.
   context_handler()->Reset();
-  connection->SetComposingText(u"composing", 0, absl::nullopt);
+  connection->SetComposingText(u"composing", 0, std::nullopt);
   client()->SetText("composing");
   client()->SetCompositionRange(gfx::Range(0, 9));
   EXPECT_EQ(0, context_handler()->commit_text_call_count());
@@ -294,7 +293,7 @@ TEST_F(InputConnectionImplTest, SetComposingText) {
   engine()->Focus(context());
 
   context_handler()->Reset();
-  connection->SetComposingText(text, 0, absl::nullopt);
+  connection->SetComposingText(text, 0, std::nullopt);
   EXPECT_EQ(1, context_handler()->update_preedit_text_call_count());
   EXPECT_EQ(
       text,
@@ -317,7 +316,7 @@ TEST_F(InputConnectionImplTest, SetComposingText) {
 
   // Selection range
   context_handler()->Reset();
-  connection->SetComposingText(text, 0, absl::make_optional<gfx::Range>(1, 3));
+  connection->SetComposingText(text, 0, std::make_optional<gfx::Range>(1, 3));
   EXPECT_EQ(1u, context_handler()
                     ->last_update_composition_arg()
                     .composition_text.selection.start());
@@ -349,7 +348,7 @@ TEST_F(InputConnectionImplTest, SendKeyEvent) {
   context_handler()->Reset();
 
   {
-    auto sent = std::make_unique<ui::KeyEvent>(ui::ET_KEY_PRESSED,
+    auto sent = std::make_unique<ui::KeyEvent>(ui::EventType::kKeyPressed,
                                                ui::VKEY_RETURN, ui::EF_NONE);
     connection->SendKeyEvent(std::move(sent));
     const std::vector<ui::KeyEvent>& sent_key_events =
@@ -359,7 +358,7 @@ TEST_F(InputConnectionImplTest, SendKeyEvent) {
     EXPECT_EQ(ui::VKEY_RETURN, received.key_code());
     EXPECT_EQ(ui::DomCode::ENTER, received.code());
     EXPECT_EQ("Enter", received.GetCodeString());
-    EXPECT_EQ(ui::ET_KEY_PRESSED, received.type());
+    EXPECT_EQ(ui::EventType::kKeyPressed, received.type());
     EXPECT_EQ(0, ui::EF_SHIFT_DOWN & received.flags());
     EXPECT_EQ(0, ui::EF_CONTROL_DOWN & received.flags());
     EXPECT_EQ(0, ui::EF_ALT_DOWN & received.flags());
@@ -368,7 +367,7 @@ TEST_F(InputConnectionImplTest, SendKeyEvent) {
 
   {
     auto sent = std::make_unique<ui::KeyEvent>(
-        ui::ET_KEY_RELEASED, ui::VKEY_A,
+        ui::EventType::kKeyReleased, ui::VKEY_A,
         ui::EF_SHIFT_DOWN | ui::EF_CONTROL_DOWN | ui::EF_ALT_DOWN |
             ui::EF_CAPS_LOCK_ON);
 
@@ -380,7 +379,7 @@ TEST_F(InputConnectionImplTest, SendKeyEvent) {
     EXPECT_EQ(ui::VKEY_A, received.key_code());
     EXPECT_EQ(ui::DomCode::US_A, received.code());
     EXPECT_EQ("KeyA", received.GetCodeString());
-    EXPECT_EQ(ui::ET_KEY_RELEASED, received.type());
+    EXPECT_EQ(ui::EventType::kKeyReleased, received.type());
     EXPECT_NE(0, ui::EF_SHIFT_DOWN & received.flags());
     EXPECT_NE(0, ui::EF_CONTROL_DOWN & received.flags());
     EXPECT_NE(0, ui::EF_ALT_DOWN & received.flags());
@@ -400,7 +399,7 @@ TEST_F(InputConnectionImplTest, SetCompositionRange) {
   // a[b|cd]e
   connection->SetCompositionRange(gfx::Range(1, 4));
   EXPECT_EQ(1u, context_handler()->composition_range_history().size());
-  EXPECT_EQ(std::make_tuple(1, 2),
+  EXPECT_EQ(std::make_tuple(1, 4),
             context_handler()->composition_range_history().back());
 
   engine()->Blur();
@@ -413,7 +412,7 @@ TEST_F(InputConnectionImplTest, InputContextHandlerIsNull) {
   connection->CommitText(u"text", 1);
   connection->DeleteSurroundingText(1, 1);
   connection->FinishComposingText();
-  connection->SetComposingText(u"text", 0, absl::nullopt);
+  connection->SetComposingText(u"text", 0, std::nullopt);
   connection->SetSelection(gfx::Range(2, 4));
   connection->GetTextInputState(true);
 }

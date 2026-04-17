@@ -15,11 +15,14 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "components/cloud_devices/common/cloud_device_description.h"
 #include "components/cloud_devices/common/printer_description.h"
 #include "printing/backend/print_backend.h"
 #include "printing/mojom/print.mojom.h"
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "printing/printing_features.h"
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace printer = cloud_devices::printer;
 
@@ -43,7 +46,6 @@ printer::DuplexType ToCloudDuplexType(printing::mojom::DuplexMode mode) {
     default:
       NOTREACHED();
   }
-  return printer::DuplexType::NO_DUPLEX;
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -61,26 +63,77 @@ printer::TypedValueVendorCapability::ValueType ToCloudValueType(
     default:
       NOTREACHED();
   }
-  return printer::TypedValueVendorCapability::ValueType::STRING;
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 printer::Media ConvertPaperToMedia(
     const printing::PrinterSemanticCapsAndDefaults::Paper& paper) {
-  gfx::Size paper_size = paper.size_um;
-  gfx::Rect paper_printable_area = paper.printable_area_um;
+  if (paper.SupportsCustomSize()) {
+    return printer::MediaBuilder()
+        .WithCustomName(paper.display_name(), paper.vendor_id())
+        .WithSizeAndDefaultPrintableArea(paper.size_um())
+        .WithMaxHeight(paper.max_height_um())
+        .Build();
+  }
+
+  gfx::Size paper_size = paper.size_um();
+  gfx::Rect paper_printable_area = paper.printable_area_um();
   // When converting to Media, the size and printable area should have a larger
   // height than width.
   if (paper_size.width() > paper_size.height()) {
+    // When swapping the printable_area, we can't simply transpose the rect
+    // since the margins may not be the same on all sides.  A visualization may
+    // help.  Suppose we have a page with width of 127000 and height of 76200.
+    // Additionally, the left margin is 1000, right margin is 700, bottom margin
+    // is 500, and top margin is 200.
+    //
+    //        +---------- 127000 ---------+
+    //        |        200                |
+    //      76200      +-----------+      |
+    //        |        |           |      |
+    //        |  1000  |           |  700 |
+    //        |        |           |      |
+    //        |        +-----------+      |
+    //        |         500               |
+    //        +---------------------------+
+    //
+    // After swapping the page size and printable area (rotating 90 degrees
+    // clockwise), this should be the resulting sizes:
+    //
+    //        +---- 76200 ---+
+    //        |              |
+    //        |      1000    |
+    //        |             127000
+    //        |    +-----+   |
+    //        |    |     |   |
+    //        |    |     |   |
+    //        |500 |     |200|
+    //        |    |     |   |
+    //        |    |     |   |
+    //        |    +-----+   |
+    //        |              |
+    //        |      700     |
+    //        +--------------+
+    //
+    // Namely, the new x value for the printable area is: the old printable area
+    // y value.  The new y value for the printable area is: (the old width) -
+    // (the old printable area width) - (the old printable areay x value).  Note
+    // that if the top/bottom margins are equal and the left/right margins are
+    // equal, then a simple transpose does indeed work.
+
+    // Rotate clockwise by 90 degrees.
+    int new_x = paper_printable_area.y();
+    int new_y = paper_size.width() - paper_printable_area.width() -
+                paper_printable_area.x();
+    paper_printable_area.SetRect(new_x, new_y, paper_printable_area.height(),
+                                 paper_printable_area.width());
     paper_size.SetSize(paper_size.height(), paper_size.width());
-    paper_printable_area.SetRect(
-        paper_printable_area.y(), paper_printable_area.x(),
-        paper_printable_area.height(), paper_printable_area.width());
   }
-  printer::Media new_media(paper.display_name, paper.vendor_id, paper_size,
-                           paper_printable_area);
-  new_media.MatchBySize();
-  return new_media;
+  return printer::MediaBuilder()
+      .WithSizeAndPrintableArea(paper_size, paper_printable_area)
+      .WithNameMaybeBasedOnSize(paper.display_name(), paper.vendor_id())
+      .WithBorderlessVariant(paper.has_borderless_variant())
+      .Build();
 }
 
 printer::MediaCapability GetMediaCapabilities(
@@ -90,10 +143,14 @@ printer::MediaCapability GetMediaCapabilities(
 
   const printing::PrinterSemanticCapsAndDefaults::Paper& default_paper =
       semantic_info.default_paper;
-  printer::Media default_media(default_paper.display_name,
-                               default_paper.vendor_id, default_paper.size_um,
-                               default_paper.printable_area_um);
-  default_media.MatchBySize();
+  printer::Media default_media =
+      printer::MediaBuilder()
+          .WithSizeAndPrintableArea(default_paper.size_um(),
+                                    default_paper.printable_area_um())
+          .WithNameMaybeBasedOnSize(default_paper.display_name(),
+                                    default_paper.vendor_id())
+          .WithBorderlessVariant(default_paper.has_borderless_variant())
+          .Build();
 
   for (const auto& paper : semantic_info.papers) {
     printer::Media new_media = ConvertPaperToMedia(paper);
@@ -122,6 +179,29 @@ printer::MediaCapability GetMediaCapabilities(
     media_capabilities.AddOption(new_media);
   }
   return media_capabilities;
+}
+
+printer::MediaTypeCapability GetMediaTypeCapabilities(
+    const printing::PrinterSemanticCapsAndDefaults& semantic_info) {
+  printer::MediaTypeCapability media_type_capabilities;
+
+  for (const auto& media_type : semantic_info.media_types) {
+    printer::MediaType new_media_type(media_type.vendor_id,
+                                      media_type.display_name);
+    if (!new_media_type.IsValid()) {
+      continue;
+    }
+
+    if (media_type_capabilities.Contains(new_media_type)) {
+      continue;
+    }
+
+    media_type_capabilities.AddDefaultOption(
+        new_media_type,
+        media_type.vendor_id == semantic_info.default_media_type.vendor_id);
+  }
+
+  return media_type_capabilities;
 }
 
 printer::DpiCapability GetDpiCapabilities(
@@ -180,13 +260,120 @@ printer::VendorCapabilities GetVendorCapabilities(
 
   return vendor_capabilities;
 }
+
+printer::FitToPageCapability GetFitToPageCapabilities(
+    const printing::PrinterSemanticCapsAndDefaults& semantic_info) {
+  auto ToFitToPageType = [](const printing::mojom::PrintScalingType& type) {
+    switch (type) {
+      case printing::mojom::PrintScalingType::kAuto:
+        return printer::FitToPageType::AUTO;
+      case printing::mojom::PrintScalingType::kAutoFit:
+        return printer::FitToPageType::AUTO_FIT;
+      case printing::mojom::PrintScalingType::kFit:
+        return printer::FitToPageType::FIT;
+      case printing::mojom::PrintScalingType::kFill:
+        return printer::FitToPageType::FILL;
+      case printing::mojom::PrintScalingType::kNone:
+        return printer::FitToPageType::NONE;
+      case printing::mojom::PrintScalingType::kUnknownPrintScalingType:
+        NOTREACHED();
+    }
+  };
+
+  printer::FitToPageCapability fit_to_page;
+  for (const auto& value : semantic_info.print_scaling_types) {
+    if (value == printing::mojom::PrintScalingType::kUnknownPrintScalingType) {
+      continue;
+    }
+    fit_to_page.AddOption(ToFitToPageType(value));
+  }
+
+  if (semantic_info.print_scaling_type_default !=
+      printing::mojom::PrintScalingType::kUnknownPrintScalingType) {
+    auto default_type =
+        ToFitToPageType(semantic_info.print_scaling_type_default);
+    // If default value is not among supported options, return empty options.
+    if (!fit_to_page.Contains(default_type)) {
+      return {};
+    }
+    fit_to_page.AddDefaultOption(default_type, true);
+  } else if (!fit_to_page.empty()) {
+    fit_to_page.AddDefaultOption(fit_to_page[0], true);
+  }
+
+  return fit_to_page;
+}
+
+// Helper that verifies if the margins are unique and stores them to the
+// supplied vector.
+void StoreMarginsUnique(const printing::PaperMargins& margins_um,
+                        std::vector<printer::Margins>& margins_storage) {
+  printer::Margins printer_margins(
+      margins_um.top_margin_um, margins_um.right_margin_um,
+      margins_um.bottom_margin_um, margins_um.left_margin_um);
+  if (!base::Contains(margins_storage, printer_margins)) {
+    margins_storage.emplace_back(std::move(printer_margins));
+  }
+}
+
+printer::MarginsCapability GetMarginsCapabilities(
+    const printing::PrinterSemanticCapsAndDefaults& semantic_info) {
+  std::optional<printer::Margins> default_margins = std::nullopt;
+  if (semantic_info.default_paper.supported_margins_um().has_value()) {
+    const auto& margins =
+        semantic_info.default_paper.supported_margins_um().value();
+    default_margins =
+        printer::Margins(margins.top_margin_um, margins.right_margin_um,
+                         margins.bottom_margin_um, margins.left_margin_um);
+  }
+
+  // Populate the `all_papers` with all the available papers.
+  printing::PrinterSemanticCapsAndDefaults::Papers all_papers;
+  all_papers.reserve(semantic_info.papers.size() +
+                     semantic_info.user_defined_papers.size());
+  all_papers.insert(all_papers.end(), semantic_info.papers.begin(),
+                    semantic_info.papers.end());
+  all_papers.insert(all_papers.end(), semantic_info.user_defined_papers.begin(),
+                    semantic_info.user_defined_papers.end());
+
+  // Stores all the available sets of margins from papers. This temporary
+  // container is used to avoid duplicates, which is then populated to the
+  // `margins_capabilites`.
+  std::vector<printer::Margins> available_margins_um;
+  for (const auto& paper : all_papers) {
+    if (!paper.supported_margins_um().has_value()) {
+      continue;
+    }
+    StoreMarginsUnique(paper.supported_margins_um().value(),
+                       available_margins_um);
+    if (paper.has_borderless_variant()) {
+      StoreMarginsUnique(printing::PaperMargins(), available_margins_um);
+    }
+  }
+
+  // Populate the `margins_capabilities` with the unique margins.
+  printer::MarginsCapability margins_capabilities;
+  bool default_margins_set = false;
+  for (const auto& margins : available_margins_um) {
+    if (!default_margins.has_value()) {
+      default_margins = margins;
+    }
+    margins_capabilities.AddDefaultOption(margins, default_margins == margins);
+    default_margins_set = default_margins_set || (default_margins == margins);
+  }
+  if (!default_margins_set && default_margins.has_value()) {
+    margins_capabilities.AddDefaultOption(default_margins.value(), true);
+  }
+  return margins_capabilities;
+}
+
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_WIN)
 printer::SelectVendorCapability GetPageOutputQualityCapabilities(
     const printing::PrinterSemanticCapsAndDefaults& semantic_info) {
   printer::SelectVendorCapability page_output_quality_capabilities;
-  const absl::optional<printing::PageOutputQuality>& page_output_quality =
+  const std::optional<printing::PageOutputQuality>& page_output_quality =
       semantic_info.page_output_quality;
   for (const auto& attribute : page_output_quality->qualities) {
     page_output_quality_capabilities.AddDefaultOption(
@@ -251,6 +438,14 @@ base::Value PrinterSemanticCapsAndDefaultsToCdd(
     media.SaveTo(&description);
   }
 
+  // Only create this capability if more than one media type is supported.
+  if (semantic_info.media_types.size() > 1) {
+    printer::MediaTypeCapability media_type =
+        GetMediaTypeCapabilities(semantic_info);
+    DCHECK(media_type.IsValid());
+    media_type.SaveTo(&description);
+  }
+
   if (!semantic_info.dpis.empty()) {
     printer::DpiCapability dpi = GetDpiCapabilities(semantic_info);
     DCHECK(dpi.IsValid());
@@ -272,6 +467,25 @@ base::Value PrinterSemanticCapsAndDefaultsToCdd(
     printer::VendorCapabilities vendor_capabilities =
         GetVendorCapabilities(semantic_info);
     vendor_capabilities.SaveTo(&description);
+  }
+
+  if (base::FeatureList::IsEnabled(
+          printing::features::kApiPrintingMarginsAndScale)) {
+    if (!semantic_info.print_scaling_types.empty()) {
+      printer::FitToPageCapability fit_to_page =
+          GetFitToPageCapabilities(semantic_info);
+      if (fit_to_page.IsValid()) {
+        fit_to_page.SaveTo(&description);
+      }
+    }
+
+    if (!semantic_info.papers.empty()) {
+      printer::MarginsCapability margins =
+          GetMarginsCapabilities(semantic_info);
+      if (margins.IsValid()) {
+        margins.SaveTo(&description);
+      }
+    }
   }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 

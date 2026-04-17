@@ -6,9 +6,11 @@
 #define CONTENT_BROWSER_DEVTOOLS_PROTOCOL_DEVTOOLS_DOWNLOAD_MANAGER_DELEGATE_H_
 
 #include <stdint.h>
+
 #include <string>
 
 #include "base/functional/callback_forward.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "content/public/browser/download_manager_delegate.h"
 
@@ -43,7 +45,7 @@ class DevToolsDownloadManagerDelegate
   // Takes over the |browser_Context|'s download manager.
   // When existing delegate is set, this proxy will use the original's
   // |GetNextId| function to ensure compatibility. It will also call its
-  // |Shutdown| method when sutting down and it will fallback to the original
+  // |Shutdown| method when shutting down and it will fallback to the original
   // delegate if it cannot find any DevToolsDownloadManagerHelper associated
   // with the download.
   static DevToolsDownloadManagerDelegate* GetOrCreateInstance(
@@ -67,7 +69,7 @@ class DevToolsDownloadManagerDelegate
   void Shutdown() override;
   bool DetermineDownloadTarget(
       download::DownloadItem* download,
-      content::DownloadTargetCallback* callback) override;
+      download::DownloadTargetCallback* callback) override;
   bool ShouldOpenDownload(
       download::DownloadItem* item,
       content::DownloadOpenDelayedCallback callback) override;
@@ -90,11 +92,11 @@ class DevToolsDownloadManagerDelegate
                                FilenameDeterminedCallback callback);
 
   void OnDownloadPathGenerated(uint32_t download_id,
-                               content::DownloadTargetCallback callback,
+                               download::DownloadTargetCallback callback,
                                const base::FilePath& suggested_path);
 
-  content::DownloadManager* download_manager_;
-  content::DownloadManagerDelegate* original_download_delegate_;
+  raw_ptr<content::DownloadManager> download_manager_;
+  raw_ptr<content::DownloadManagerDelegate> original_download_delegate_;
   DownloadBehavior download_behavior_ = DownloadBehavior::DEFAULT;
   std::string download_path_;
 };

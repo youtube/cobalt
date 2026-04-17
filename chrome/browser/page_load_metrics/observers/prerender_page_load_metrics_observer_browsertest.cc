@@ -2,23 +2,26 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "build/build_config.h"
+#include "components/page_load_metrics/browser/observers/prerender_page_load_metrics_observer.h"
 
 #include "base/containers/contains.h"
+#include "base/time/time.h"
 #include "chrome/browser/page_load_metrics/integration_tests/metric_integration_test.h"
 #include "chrome/browser/preloading/prerender/prerender_utils.h"
+#include "chrome/common/chrome_switches.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/page_load_metrics/browser/observers/core/uma_page_load_metrics_observer.h"
-#include "components/page_load_metrics/browser/observers/prerender_page_load_metrics_observer.h"
 #include "components/page_load_metrics/browser/page_load_metrics_test_waiter.h"
-#include "content/public/browser/prerender_trigger_type.h"
+#include "content/public/browser/preloading_trigger_type.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/prerender_test_util.h"
+#include "net/http/http_status_code.h"
 #include "net/test/embedded_test_server/controllable_http_response.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "testing/gmock/include/gmock/gmock.h"
-#include "third_party/blink/public/common/features.h"
+#include "ui/base/page_transition_types.h"
 
 using PrerenderPageLoad = ukm::builders::PrerenderPageLoad;
 using PageLoad = ukm::builders::PageLoad;
@@ -39,15 +42,11 @@ class PrerenderPageLoadMetricsObserverBrowserTest
       : prerender_helper_(base::BindRepeating(
             &PrerenderPageLoadMetricsObserverBrowserTest::web_contents,
             base::Unretained(this))) {
-    // TODO(crbug.com/1239281): Remove this once kPrerender2MainFrameNavigation
-    // is enabled by default.
-    scoped_feature_list_.InitAndEnableFeature(
-        blink::features::kPrerender2MainFrameNavigation);
   }
   ~PrerenderPageLoadMetricsObserverBrowserTest() override = default;
 
   void SetUp() override {
-    prerender_helper_.SetUp(embedded_test_server());
+    prerender_helper_.RegisterServerRequestMonitor(embedded_test_server());
     MetricIntegrationTest::SetUp();
   }
 
@@ -55,14 +54,15 @@ class PrerenderPageLoadMetricsObserverBrowserTest
   // by source URL.
   std::map<GURL, ukm::mojom::UkmEntryPtr> GetMergedUkmEntries(
       const std::string& entry_name) {
-    auto entries =
-        ukm_recorder().GetMergedEntriesByName(PrerenderPageLoad::kEntryName);
+    auto entries = ukm_recorder().GetMergedEntriesByName(entry_name);
     std::map<GURL, ukm::mojom::UkmEntryPtr> result;
     for (auto& kv : entries) {
       const ukm::mojom::UkmEntry* entry = kv.second.get();
       const ukm::UkmSource* source =
           ukm_recorder().GetSourceForSourceId(entry->source_id);
-      EXPECT_TRUE(source);
+      if (!source) {
+        continue;
+      }
       EXPECT_TRUE(source->url().is_valid());
       result.emplace(source->url(), std::move(kv.second));
     }
@@ -71,16 +71,9 @@ class PrerenderPageLoadMetricsObserverBrowserTest
 
  protected:
   void CheckFirstPaintMetrics(
-      content::PrerenderTriggerType trigger_type =
-          content::PrerenderTriggerType::kSpeculationRule,
+      content::PreloadingTriggerType trigger_type =
+          content::PreloadingTriggerType::kSpeculationRule,
       const std::string& embedder_suffix = "") {
-    histogram_tester().ExpectBucketCount(
-        internal::kPageLoadPrerenderObserverEvent,
-        internal::PageLoadPrerenderObserverEvent::kOnFirstPaintInPage, 1);
-    histogram_tester().ExpectBucketCount(
-        "PageLoad.Internal.Prerender2.ForegroundCheckResult.FirstPaint",
-        internal::PageLoadPrerenderForegroundCheckResult::kPassed, 1);
-
     // FirstPaint should be recorded in the prerender PageLoad, not in the
     // regular PageLoad.
     histogram_tester().ExpectTotalCount(
@@ -92,18 +85,9 @@ class PrerenderPageLoadMetricsObserverBrowserTest
   }
 
   void CheckFirstContentfulPaintMetrics(
-      content::PrerenderTriggerType trigger_type =
-          content::PrerenderTriggerType::kSpeculationRule,
+      content::PreloadingTriggerType trigger_type =
+          content::PreloadingTriggerType::kSpeculationRule,
       const std::string& embedder_suffix = "") {
-    histogram_tester().ExpectBucketCount(
-        internal::kPageLoadPrerenderObserverEvent,
-        internal::PageLoadPrerenderObserverEvent::kOnFirstContentfulPaintInPage,
-        1);
-    histogram_tester().ExpectBucketCount(
-        "PageLoad.Internal.Prerender2.ForegroundCheckResult."
-        "FirstContentfulPaint",
-        internal::PageLoadPrerenderForegroundCheckResult::kPassed, 1);
-
     // FirstContentfulPaint should be recorded in the prerender PageLoad, not in
     // the regular PageLoad.
     histogram_tester().ExpectTotalCount(
@@ -116,16 +100,9 @@ class PrerenderPageLoadMetricsObserverBrowserTest
   }
 
   void CheckFirstInputDelayMetrics(
-      content::PrerenderTriggerType trigger_type =
-          content::PrerenderTriggerType::kSpeculationRule,
+      content::PreloadingTriggerType trigger_type =
+          content::PreloadingTriggerType::kSpeculationRule,
       const std::string& embedder_suffix = "") {
-    histogram_tester().ExpectBucketCount(
-        internal::kPageLoadPrerenderObserverEvent,
-        internal::PageLoadPrerenderObserverEvent::kOnFirstInputInPage, 1);
-    histogram_tester().ExpectBucketCount(
-        "PageLoad.Internal.Prerender2.ForegroundCheckResult.FirstInputDelay",
-        internal::PageLoadPrerenderForegroundCheckResult::kPassed, 1);
-
     // FirstInputDelay should be recorded in the prerender PageLoad, not in the
     // regular PageLoad.
     histogram_tester().ExpectTotalCount(
@@ -137,21 +114,9 @@ class PrerenderPageLoadMetricsObserverBrowserTest
   }
 
   void CheckLargestContentfulPaintMetrics(
-      content::PrerenderTriggerType trigger_type =
-          content::PrerenderTriggerType::kSpeculationRule,
+      content::PreloadingTriggerType trigger_type =
+          content::PreloadingTriggerType::kSpeculationRule,
       const std::string& embedder_suffix = "") {
-    histogram_tester().ExpectBucketCount(
-        internal::kPageLoadPrerenderObserverEvent,
-        internal::PageLoadPrerenderObserverEvent::kOnComplete, 1);
-    histogram_tester().ExpectBucketCount(
-        internal::kPageLoadPrerenderObserverEvent,
-        internal::PageLoadPrerenderObserverEvent::kRecordSessionEndHistograms,
-        1);
-    histogram_tester().ExpectBucketCount(
-        "PageLoad.Internal.Prerender2.ForegroundCheckResult."
-        "LargestContentfulPaint",
-        internal::PageLoadPrerenderForegroundCheckResult::kPassed, 1);
-
     // LargestContentfulPaint should be recorded in the prerender PageLoad, not
     // in the regular PageLoad.
     histogram_tester().ExpectTotalCount(
@@ -163,40 +128,33 @@ class PrerenderPageLoadMetricsObserverBrowserTest
         internal::kHistogramLargestContentfulPaint, 0);
   }
 
-  void CheckResponsivenessMetrics(const GURL& url) {
-    histogram_tester().ExpectBucketCount(
-        internal::kPageLoadPrerenderObserverEvent,
-        internal::PageLoadPrerenderObserverEvent::
-            kRecordNormalizedResponsivenessMetrics,
-        1);
-
+  void CheckResponsivenessMetrics(const GURL& url, bool is_incognito = false) {
     std::vector<std::string> ukm_list = {
         "InteractiveTiming.WorstUserInteractionLatency.MaxEventDuration",
-        "InteractiveTiming.AverageUserInteractionLatencyOverBudget."
-        "MaxEventDuration",
         "InteractiveTiming.UserInteractionLatency.HighPercentile2."
         "MaxEventDuration",
         "InteractiveTiming.NumInteractions"};
 
     for (auto& ukm : ukm_list) {
       int count = 0;
-      for (auto* entry :
+      for (const ukm::mojom::UkmEntry* entry :
            ukm_recorder().GetEntriesByName(PrerenderPageLoad::kEntryName)) {
         auto* source = ukm_recorder().GetSourceForSourceId(entry->source_id);
-        if (!source)
+        if (!source) {
           continue;
-        if (source->url() != url)
+        }
+        if (source->url() != url) {
           continue;
-        if (!ukm_recorder().EntryHasMetric(entry, ukm.c_str()))
+        }
+        if (!ukm_recorder().EntryHasMetric(entry, ukm.c_str())) {
           continue;
+        }
         count++;
       }
       EXPECT_EQ(count, 1);
     }
 
     std::vector<std::string> uma_list = {
-        internal::
-            kHistogramPrerenderAverageUserInteractionLatencyOverBudgetMaxEventDuration,
         internal::kHistogramPrerenderNumInteractions,
         internal::
             kHistogramPrerenderUserInteractionLatencyHighPercentile2MaxEventDuration,
@@ -206,22 +164,18 @@ class PrerenderPageLoadMetricsObserverBrowserTest
     for (auto& uma : uma_list) {
       histogram_tester().ExpectTotalCount(uma, 1);
     }
+
+    histogram_tester().ExpectTotalCount(
+        internal::
+            kHistogramPrerenderUserInteractionLatencyHighPercentile2MaxEventDurationIncognito,
+        is_incognito ? 1 : 0);
   }
 
   content::test::PrerenderTestHelper prerender_helper_;
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-// TODO(crbug.com/1329881): Re-enable this test
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_Activate_SpeculationRule DISABLED_Activate_SpeculationRule
-#else
-#define MAYBE_Activate_SpeculationRule Activate_SpeculationRule
-#endif
 IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
-                       MAYBE_Activate_SpeculationRule) {
+                       Activate_SpeculationRule) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   // Navigate to an initial page.
@@ -232,10 +186,6 @@ IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
   GURL prerender_url = embedded_test_server()->GetURL("/title2.html");
   prerender_helper_.AddPrerender(prerender_url);
 
-  histogram_tester().ExpectBucketCount(
-      internal::kPageLoadPrerenderObserverEvent,
-      internal::PageLoadPrerenderObserverEvent::kOnPrerenderStart, 1);
-
   // Activate and wait for FCP.
   auto waiter = std::make_unique<page_load_metrics::PageLoadMetricsTestWaiter>(
       web_contents());
@@ -244,16 +194,10 @@ IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
   prerender_helper_.NavigatePrimaryPage(prerender_url);
   waiter->Wait();
 
-  histogram_tester().ExpectBucketCount(
-      page_load_metrics::internal::kPageLoadPrerender2VisibilityAtActivation,
-      page_load_metrics::internal::VisibilityAtActivation::kVisible, 1);
-  histogram_tester().ExpectBucketCount(
-      internal::kPageLoadPrerenderObserverEvent,
-      internal::PageLoadPrerenderObserverEvent::kDidActivatePrerenderedPage, 1);
   histogram_tester().ExpectTotalCount(
       prerender_helper_.GenerateHistogramName(
           internal::kHistogramPrerenderNavigationToActivation,
-          content::PrerenderTriggerType::kSpeculationRule, ""),
+          content::PreloadingTriggerType::kSpeculationRule, ""),
       1);
 
   // Expect only FP and FCP for prerender are recorded.
@@ -278,25 +222,21 @@ IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
   // Expect only LCP for prerender is recorded.
   CheckLargestContentfulPaintMetrics();
 
-  histogram_tester().ExpectBucketCount(
-      internal::kPageLoadPrerenderObserverEvent,
-      internal::PageLoadPrerenderObserverEvent::kRecordLayoutShiftScoreMetrics,
-      1);
   histogram_tester().ExpectTotalCount(
       prerender_helper_.GenerateHistogramName(
           internal::kHistogramPrerenderCumulativeShiftScore,
-          content::PrerenderTriggerType::kSpeculationRule, ""),
+          content::PreloadingTriggerType::kSpeculationRule, ""),
       1);
   histogram_tester().ExpectTotalCount(
       prerender_helper_.GenerateHistogramName(
           internal::kHistogramPrerenderCumulativeShiftScoreMainFrame,
-          content::PrerenderTriggerType::kSpeculationRule, ""),
+          content::PreloadingTriggerType::kSpeculationRule, ""),
       1);
   histogram_tester().ExpectTotalCount(
       prerender_helper_.GenerateHistogramName(
           internal::
               kHistogramPrerenderMaxCumulativeShiftScoreSessionWindowGap1000msMax5000ms2,
-          content::PrerenderTriggerType::kSpeculationRule, ""),
+          content::PreloadingTriggerType::kSpeculationRule, ""),
       1);
 
   auto entries = GetMergedUkmEntries(PrerenderPageLoad::kEntryName);
@@ -309,6 +249,9 @@ IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
       prerendered_page_entry, PrerenderPageLoad::kTriggeredPrerenderName));
   ukm_recorder().ExpectEntryMetric(prerendered_page_entry,
                                    PrerenderPageLoad::kWasPrerenderedName, 1);
+  ukm_recorder().ExpectEntryMetric(
+      prerendered_page_entry, PrerenderPageLoad::kNavigation_PageTransitionName,
+      ui::PAGE_TRANSITION_LINK);
   EXPECT_TRUE(ukm_recorder().EntryHasMetric(
       prerendered_page_entry,
       PrerenderPageLoad::kTiming_NavigationToActivationName));
@@ -370,10 +313,6 @@ IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
   GURL prerender_url = embedded_test_server()->GetURL("/title2.html");
   prerender_helper_.AddPrerender(prerender_url);
 
-  histogram_tester().ExpectBucketCount(
-      internal::kPageLoadPrerenderObserverEvent,
-      internal::PageLoadPrerenderObserverEvent::kOnPrerenderStart, 1);
-
   // Start an activation.
   prerender_helper_.NavigatePrimaryPage(prerender_url);
 
@@ -387,28 +326,19 @@ IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
   ASSERT_TRUE(
       ui_test_utils::NavigateToURL(browser(), GURL(url::kAboutBlankURL)));
 
-  // The visibility at activation should be visible as the page gets hidden
-  // after prerender activation starts.
-  histogram_tester().ExpectBucketCount(
-      page_load_metrics::internal::kPageLoadPrerender2VisibilityAtActivation,
-      page_load_metrics::internal::VisibilityAtActivation::kVisible, 1);
-
-  histogram_tester().ExpectBucketCount(
-      internal::kPageLoadPrerenderObserverEvent,
-      internal::PageLoadPrerenderObserverEvent::kOnComplete, 1);
-  histogram_tester().ExpectBucketCount(
-      internal::kPageLoadPrerenderObserverEvent,
-      internal::PageLoadPrerenderObserverEvent::kRecordSessionEndHistograms, 1);
-
   auto entries = GetMergedUkmEntries(PrerenderPageLoad::kEntryName);
   EXPECT_EQ(2u, entries.size());
 
   const ukm::mojom::UkmEntry* prerendered_page_entry =
       entries[prerender_url].get();
   ASSERT_TRUE(prerendered_page_entry);
-  // `WasPrerendered` exists since it's recorded when the activation starts.
+  // `WasPrerendered` and `PageTransition` exist since they're recorded when the
+  // activation starts.
   EXPECT_TRUE(ukm_recorder().EntryHasMetric(
       prerendered_page_entry, PrerenderPageLoad::kWasPrerenderedName));
+  ukm_recorder().ExpectEntryMetric(
+      prerendered_page_entry, PrerenderPageLoad::kNavigation_PageTransitionName,
+      ui::PAGE_TRANSITION_LINK);
 
   // LCP for prerender shouldn't be recorded since the page is in the
   // background.
@@ -419,19 +349,12 @@ IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
   histogram_tester().ExpectTotalCount(
       prerender_helper_.GenerateHistogramName(
           internal::kHistogramPrerenderActivationToLargestContentfulPaint2,
-          content::PrerenderTriggerType::kSpeculationRule, ""),
+          content::PreloadingTriggerType::kSpeculationRule, ""),
       0);
 }
 
-// TODO(crbug.com/1329881): Re-enable this test
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_Activate_Embedder_DirectURLInput \
-  DISABLED_Activate_Embedder_DirectURLInput
-#else
-#define MAYBE_Activate_Embedder_DirectURLInput Activate_Embedder_DirectURLInput
-#endif
 IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
-                       MAYBE_Activate_Embedder_DirectURLInput) {
+                       Activate_Embedder_DirectURLInput) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   GURL prerender_url = embedded_test_server()->GetURL("/title2.html");
@@ -440,7 +363,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
   // prerender host in the destruction of PrerenderHandle.
   std::unique_ptr<content::PrerenderHandle> prerender_handle =
       prerender_helper_.AddEmbedderTriggeredPrerenderAsync(
-          prerender_url, content::PrerenderTriggerType::kEmbedder,
+          prerender_url, content::PreloadingTriggerType::kEmbedder,
           prerender_utils::kDirectUrlInputMetricSuffix,
           ui::PageTransitionFromInt(ui::PAGE_TRANSITION_TYPED |
                                     ui::PAGE_TRANSITION_FROM_ADDRESS_BAR));
@@ -448,12 +371,9 @@ IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
 
   // Wait until the completion of prerendering navigation.
   prerender_helper_.WaitForPrerenderLoadCompletion(prerender_url);
-  int host_id = prerender_helper_.GetHostForUrl(prerender_url);
-  EXPECT_NE(host_id, content::RenderFrameHost::kNoFrameTreeNodeId);
-
-  histogram_tester().ExpectBucketCount(
-      internal::kPageLoadPrerenderObserverEvent,
-      internal::PageLoadPrerenderObserverEvent::kOnPrerenderStart, 1);
+  content::FrameTreeNodeId host_id =
+      prerender_helper_.GetHostForUrl(prerender_url);
+  EXPECT_TRUE(host_id);
 
   // Activate and wait for FCP.
   auto waiter = std::make_unique<page_load_metrics::PageLoadMetricsTestWaiter>(
@@ -461,31 +381,24 @@ IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
   waiter->AddPageExpectation(page_load_metrics::PageLoadMetricsTestWaiter::
                                  TimingField::kFirstContentfulPaint);
   // Simulate a browser-initiated navigation.
-  web_contents()->OpenURL(content::OpenURLParams(
-      prerender_url, content::Referrer(), WindowOpenDisposition::CURRENT_TAB,
+  prerender_helper_.NavigatePrimaryPageAsync(
+      prerender_url,
       ui::PageTransitionFromInt(ui::PAGE_TRANSITION_TYPED |
-                                ui::PAGE_TRANSITION_FROM_ADDRESS_BAR),
-      /*is_renderer_initiated=*/false));
+                                ui::PAGE_TRANSITION_FROM_ADDRESS_BAR));
   waiter->Wait();
 
-  histogram_tester().ExpectBucketCount(
-      page_load_metrics::internal::kPageLoadPrerender2VisibilityAtActivation,
-      page_load_metrics::internal::VisibilityAtActivation::kVisible, 1);
-  histogram_tester().ExpectBucketCount(
-      internal::kPageLoadPrerenderObserverEvent,
-      internal::PageLoadPrerenderObserverEvent::kDidActivatePrerenderedPage, 1);
   histogram_tester().ExpectTotalCount(
       prerender_helper_.GenerateHistogramName(
           internal::kHistogramPrerenderNavigationToActivation,
-          content::PrerenderTriggerType::kEmbedder,
+          content::PreloadingTriggerType::kEmbedder,
           prerender_utils::kDirectUrlInputMetricSuffix),
       1);
 
   // Expect only FP and FCP for prerender are recorded.
-  CheckFirstPaintMetrics(content::PrerenderTriggerType::kEmbedder,
+  CheckFirstPaintMetrics(content::PreloadingTriggerType::kEmbedder,
                          prerender_utils::kDirectUrlInputMetricSuffix);
   CheckFirstContentfulPaintMetrics(
-      content::PrerenderTriggerType::kEmbedder,
+      content::PreloadingTriggerType::kEmbedder,
       prerender_utils::kDirectUrlInputMetricSuffix);
 
   // Simulate mouse click and wait for FirstInputDelay.
@@ -496,7 +409,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
   waiter->Wait();
 
   // Expect only FID for prerender is recorded.
-  CheckFirstInputDelayMetrics(content::PrerenderTriggerType::kEmbedder,
+  CheckFirstInputDelayMetrics(content::PreloadingTriggerType::kEmbedder,
                               prerender_utils::kDirectUrlInputMetricSuffix);
 
   // Force navigation to another page, which should force logging of
@@ -506,34 +419,44 @@ IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
 
   // Expect only LCP for prerender is recorded.
   CheckLargestContentfulPaintMetrics(
-      content::PrerenderTriggerType::kEmbedder,
+      content::PreloadingTriggerType::kEmbedder,
       prerender_utils::kDirectUrlInputMetricSuffix);
 
-  histogram_tester().ExpectBucketCount(
-      internal::kPageLoadPrerenderObserverEvent,
-      internal::PageLoadPrerenderObserverEvent::kRecordLayoutShiftScoreMetrics,
-      1);
   histogram_tester().ExpectTotalCount(
       prerender_helper_.GenerateHistogramName(
           internal::kHistogramPrerenderCumulativeShiftScore,
-          content::PrerenderTriggerType::kEmbedder,
+          content::PreloadingTriggerType::kEmbedder,
           prerender_utils::kDirectUrlInputMetricSuffix),
       1);
   histogram_tester().ExpectTotalCount(
       prerender_helper_.GenerateHistogramName(
           internal::kHistogramPrerenderCumulativeShiftScoreMainFrame,
-          content::PrerenderTriggerType::kEmbedder,
+          content::PreloadingTriggerType::kEmbedder,
           prerender_utils::kDirectUrlInputMetricSuffix),
       1);
   histogram_tester().ExpectTotalCount(
       prerender_helper_.GenerateHistogramName(
           internal::
               kHistogramPrerenderMaxCumulativeShiftScoreSessionWindowGap1000msMax5000ms2,
-          content::PrerenderTriggerType::kEmbedder,
+          content::PreloadingTriggerType::kEmbedder,
           prerender_utils::kDirectUrlInputMetricSuffix),
       1);
 
   CheckResponsivenessMetrics(prerender_url);
+
+  auto entries = GetMergedUkmEntries(PrerenderPageLoad::kEntryName);
+  EXPECT_EQ(entries.size(), 1u);
+
+  const ukm::mojom::UkmEntry* prerendered_page_entry =
+      entries[prerender_url].get();
+  ASSERT_TRUE(prerendered_page_entry);
+  // `WasPrerendered` and `PageTransition` exist since they're recorded when the
+  // activation starts.
+  EXPECT_TRUE(ukm_recorder().EntryHasMetric(
+      prerendered_page_entry, PrerenderPageLoad::kWasPrerenderedName));
+  ukm_recorder().ExpectEntryMetric(
+      prerendered_page_entry, PrerenderPageLoad::kNavigation_PageTransitionName,
+      ui::PAGE_TRANSITION_TYPED | ui::PAGE_TRANSITION_FROM_ADDRESS_BAR);
 }
 
 IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
@@ -546,11 +469,8 @@ IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
 
   // Start a prerender.
   GURL prerender_url = embedded_test_server()->GetURL("/title2.html");
-  const int host_id = prerender_helper_.AddPrerender(prerender_url);
-
-  histogram_tester().ExpectBucketCount(
-      internal::kPageLoadPrerenderObserverEvent,
-      internal::PageLoadPrerenderObserverEvent::kOnPrerenderStart, 1);
+  const content::FrameTreeNodeId host_id =
+      prerender_helper_.AddPrerender(prerender_url);
 
   content::test::PrerenderHostObserver observer(*web_contents(), host_id);
   prerender_helper_.CancelPrerenderedPage(host_id);
@@ -561,26 +481,6 @@ IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
   ASSERT_TRUE(
       ui_test_utils::NavigateToURL(browser(), GURL(url::kAboutBlankURL)));
 
-  histogram_tester().ExpectTotalCount(
-      page_load_metrics::internal::kPageLoadPrerender2VisibilityAtActivation,
-      0);
-  histogram_tester().ExpectBucketCount(
-      internal::kPageLoadPrerenderObserverEvent,
-      internal::PageLoadPrerenderObserverEvent::kDidActivatePrerenderedPage, 0);
-  histogram_tester().ExpectBucketCount(
-      internal::kPageLoadPrerenderObserverEvent,
-      internal::PageLoadPrerenderObserverEvent::kOnFirstPaintInPage, 0);
-  histogram_tester().ExpectBucketCount(
-      internal::kPageLoadPrerenderObserverEvent,
-      internal::PageLoadPrerenderObserverEvent::kOnFirstContentfulPaintInPage,
-      0);
-  histogram_tester().ExpectBucketCount(
-      internal::kPageLoadPrerenderObserverEvent,
-      internal::PageLoadPrerenderObserverEvent::kOnComplete, 1);
-  histogram_tester().ExpectBucketCount(
-      internal::kPageLoadPrerenderObserverEvent,
-      internal::PageLoadPrerenderObserverEvent::kRecordSessionEndHistograms, 1);
-
   // As the prerender was cancelled, no prerendering metrics are recorded.
   EXPECT_EQ(0u, histogram_tester()
                     .GetTotalCountsForPrefix("PageLoad.Clients.Prerender.")
@@ -590,14 +490,8 @@ IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
   EXPECT_FALSE(base::Contains(entries, prerender_url));
 }
 
-// TODO(crbug.com/1329881): Re-enable this test
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_Redirection DISABLED_Redirection
-#else
-#define MAYBE_Redirection Redirection
-#endif
 IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
-                       MAYBE_Redirection) {
+                       Redirection) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   // Navigate to an initial page.
@@ -610,10 +504,6 @@ IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
                                                       redirected_url.spec());
   prerender_helper_.AddPrerender(prerender_url);
 
-  histogram_tester().ExpectBucketCount(
-      internal::kPageLoadPrerenderObserverEvent,
-      internal::PageLoadPrerenderObserverEvent::kOnPrerenderStart, 1);
-
   // Activate and wait for FCP.
   auto waiter = std::make_unique<page_load_metrics::PageLoadMetricsTestWaiter>(
       web_contents());
@@ -622,12 +512,6 @@ IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
   prerender_helper_.NavigatePrimaryPage(prerender_url);
   waiter->Wait();
 
-  histogram_tester().ExpectBucketCount(
-      page_load_metrics::internal::kPageLoadPrerender2VisibilityAtActivation,
-      page_load_metrics::internal::VisibilityAtActivation::kVisible, 1);
-  histogram_tester().ExpectBucketCount(
-      internal::kPageLoadPrerenderObserverEvent,
-      internal::PageLoadPrerenderObserverEvent::kDidActivatePrerenderedPage, 1);
   CheckFirstPaintMetrics();
   CheckFirstContentfulPaintMetrics();
 
@@ -685,11 +569,8 @@ IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
     registry_observer.WaitForTrigger(kPrerenderingUrl);
   }
 
-  histogram_tester().ExpectBucketCount(
-      internal::kPageLoadPrerenderObserverEvent,
-      internal::PageLoadPrerenderObserverEvent::kOnPrerenderStart, 1);
-
-  int host_id = prerender_helper_.GetHostForUrl(kPrerenderingUrl);
+  content::FrameTreeNodeId host_id =
+      prerender_helper_.GetHostForUrl(kPrerenderingUrl);
   content::test::PrerenderHostObserver prerender_observer(*web_contents(),
                                                           host_id);
   EXPECT_FALSE(prerender_observer.was_activated());
@@ -713,13 +594,6 @@ IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
   primary_page_manager.WaitForNavigationFinished();
   prerender_observer.WaitForActivation();
   waiter->Wait();
-
-  histogram_tester().ExpectBucketCount(
-      page_load_metrics::internal::kPageLoadPrerender2VisibilityAtActivation,
-      page_load_metrics::internal::VisibilityAtActivation::kVisible, 1);
-  histogram_tester().ExpectBucketCount(
-      internal::kPageLoadPrerenderObserverEvent,
-      internal::PageLoadPrerenderObserverEvent::kDidActivatePrerenderedPage, 1);
 
   // Force navigation to another page, which should force logging of metrics
   // persisted at the end of the page load lifetime.
@@ -794,8 +668,160 @@ IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
   histogram_tester().ExpectUniqueSample(
       prerender_helper_.GenerateHistogramName(
           "PageLoad.Internal.Prerender2.ActivatedPageLoaderStatus",
-          content::PrerenderTriggerType::kSpeculationRule, ""),
+          content::PreloadingTriggerType::kSpeculationRule, ""),
       net::Error::OK, 1);
+}
+
+IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
+                       DomLoadedBeforeActivation) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  // Navigate to an initial page.
+  auto initial_url = embedded_test_server()->GetURL("/empty.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), initial_url));
+
+  // Start a prerender.
+  GURL prerender_url = embedded_test_server()->GetURL("/title2.html");
+  prerender_helper_.AddPrerender(prerender_url);
+  prerender_helper_.WaitForPrerenderLoadCompletion(prerender_url);
+  content::test::PrerenderHostObserver observer(*web_contents(), prerender_url);
+  prerender_helper_.NavigatePrimaryPage(prerender_url);
+  // Flush metrics.
+  ASSERT_TRUE(
+      content::NavigateToURL(web_contents(), GURL(url::kAboutBlankURL)));
+
+  std::string dom_content_loaded_histogram_name =
+      prerender_helper_.GenerateHistogramName(
+          "PageLoad.Internal.Prerender2.DomContentLoadedToActivation3",
+          content::PreloadingTriggerType::kSpeculationRule, "");
+  std::string parse_start_histogram_name =
+      prerender_helper_.GenerateHistogramName(
+          "PageLoad.Internal.Prerender2.MainResourceParseStartToActivation",
+          content::PreloadingTriggerType::kSpeculationRule, "");
+  histogram_tester().ExpectTotalCount(dom_content_loaded_histogram_name, 1);
+  histogram_tester().ExpectTotalCount(parse_start_histogram_name, 1);
+  // We shift the duration by the 1 minute when recording the metric.
+  base::TimeDelta shifting_duration = base::Minutes(1);
+  EXPECT_GE(histogram_tester().GetTotalSum(dom_content_loaded_histogram_name),
+            shifting_duration.InMilliseconds());
+  EXPECT_GE(histogram_tester().GetTotalSum(parse_start_histogram_name),
+            shifting_duration.InMilliseconds());
+}
+
+IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
+                       DomLoadedAfterActivation) {
+  net::test_server::ControllableHttpResponse response(
+      embedded_test_server(), "/prerender/slow_layout.js");
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  // Navigate to an initial page.
+  auto initial_url = embedded_test_server()->GetURL("/empty.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), initial_url));
+
+  // Start a prerender.
+  GURL prerender_url = embedded_test_server()->GetURL(
+      "/prerender/defer_domcontent_loaded_till_activation.html");
+  content::test::PrerenderHostRegistryObserver registry_observer(
+      *web_contents());
+  prerender_helper_.AddPrerenderAsync(prerender_url);
+  registry_observer.WaitForTrigger(prerender_url);
+  response.WaitForRequest();
+  content::RenderFrameHost* rfh =
+      prerender_helper_.GetPrerenderedMainFrameHost(prerender_url);
+
+  // The prerendered page is not loaded yet.
+  ASSERT_TRUE(rfh);
+
+  // Cannot use base::test::RunUntil due to an weird bug on macOS. See
+  // http://crbug.com/360052666.
+  // Wait the page to execute the script by checking whether an element has been
+  // attached to the document by script. Otherwise, dom_content_loaded_called
+  // may not be defined yet.
+  while (true) {
+    const bool new_element_was_attached_by_js =
+        EvalJs(rfh,
+               "document.getElementById('script_execution_watcher') !== null;")
+            .ExtractBool();
+    if (new_element_was_attached_by_js) {
+      break;
+    }
+    base::RunLoop run_loop;
+    run_loop.RunUntilIdle();
+  }
+  ASSERT_EQ(false, EvalJs(rfh, "dom_content_loaded_called"));
+
+  // Activate the page, and then release the blocking script.
+  content::test::PrerenderHostObserver observer(*web_contents(), prerender_url);
+  auto waiter = std::make_unique<page_load_metrics::PageLoadMetricsTestWaiter>(
+      web_contents());
+  waiter->AddPageExpectation(
+      page_load_metrics::PageLoadMetricsTestWaiter::TimingField::kLoadEvent);
+  std::ignore = ExecJs(web_contents()->GetPrimaryMainFrame(),
+                       content::JsReplace("location = $1", prerender_url));
+  observer.WaitForActivation();
+  response.Send(net::HTTP_OK, "text/javascript", "");
+  response.Done();
+  waiter->Wait();
+
+  // Flush metrics.
+  ASSERT_TRUE(
+      content::NavigateToURL(web_contents(), GURL(url::kAboutBlankURL)));
+  std::string histogram_name = prerender_helper_.GenerateHistogramName(
+      "PageLoad.Internal.Prerender2.DomContentLoadedToActivation3",
+      content::PreloadingTriggerType::kSpeculationRule, "");
+  histogram_tester().ExpectTotalCount(histogram_name, 1);
+  // We shift the duration by the 1 minute when recording the metric.
+  base::TimeDelta shifting_duration = base::Minutes(1);
+  EXPECT_LE(histogram_tester().GetTotalSum(histogram_name),
+            shifting_duration.InMilliseconds());
+}
+
+IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
+                       ResponseBodyReceivedAfterActivation) {
+  net::test_server::ControllableHttpResponse response(embedded_test_server(),
+                                                      "/title2.html");
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  // Navigate to an initial page.
+  auto initial_url = embedded_test_server()->GetURL("/empty.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), initial_url));
+
+  // Start a prerender.
+  GURL prerender_url = embedded_test_server()->GetURL("/title2.html");
+  content::test::PrerenderHostRegistryObserver registry_observer(
+      *web_contents());
+  prerender_helper_.AddPrerenderAsync(prerender_url);
+  registry_observer.WaitForTrigger(prerender_url);
+  response.WaitForRequest();
+  response.Send(net::HTTP_OK, "text/html");
+
+  content::test::PrerenderHostObserver host_observer(*web_contents(),
+                                                     prerender_url);
+  auto waiter = std::make_unique<page_load_metrics::PageLoadMetricsTestWaiter>(
+      web_contents());
+  waiter->AddPageExpectation(
+      page_load_metrics::PageLoadMetricsTestWaiter::TimingField::kLoadEvent);
+
+  std::ignore = ExecJs(web_contents()->GetPrimaryMainFrame(),
+                       content::JsReplace("location = $1", prerender_url));
+  host_observer.WaitForActivation();
+
+  // Send the body after activation.
+  response.Send("<html>hello</html>");
+  response.Done();
+  waiter->Wait();
+
+  // Flush metrics.
+  ASSERT_TRUE(
+      content::NavigateToURL(web_contents(), GURL(url::kAboutBlankURL)));
+  std::string histogram_name = prerender_helper_.GenerateHistogramName(
+      "PageLoad.Internal.Prerender2.MainResourceParseStartToActivation",
+      content::PreloadingTriggerType::kSpeculationRule, "");
+  histogram_tester().ExpectTotalCount(histogram_name, 1);
+  // We shift the duration by the 1 minute when recording the metric.
+  base::TimeDelta shifting_duration = base::Minutes(1);
+  EXPECT_LE(histogram_tester().GetTotalSum(histogram_name),
+            shifting_duration.InMilliseconds());
 }
 
 IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
@@ -809,16 +835,11 @@ IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
   // Start a prerender and a main frame navigation in the prerendered page.
   GURL prerender_url = embedded_test_server()->GetURL("/title2.html");
   GURL navigation_url = embedded_test_server()->GetURL("/title3.html");
-  int host_id = prerender_helper_.AddPrerender(prerender_url);
+  content::FrameTreeNodeId host_id =
+      prerender_helper_.AddPrerender(prerender_url);
   prerender_helper_.WaitForPrerenderLoadCompletion(host_id);
   prerender_helper_.NavigatePrerenderedPage(host_id, navigation_url);
   prerender_helper_.WaitForPrerenderLoadCompletion(host_id);
-
-  // Expect that OnPrerenderStart is called twice for the initial prerender
-  // navigation and the main frame navigation in the prerendered page.
-  histogram_tester().ExpectBucketCount(
-      internal::kPageLoadPrerenderObserverEvent,
-      internal::PageLoadPrerenderObserverEvent::kOnPrerenderStart, 2);
 
   // Activate and wait for FCP.
   auto waiter = std::make_unique<page_load_metrics::PageLoadMetricsTestWaiter>(
@@ -828,26 +849,10 @@ IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
   prerender_helper_.NavigatePrimaryPage(prerender_url);
   waiter->Wait();
 
-  // "PageLoad.Internal.Prerender2.VisibilityAtActivation" is recorded only once
-  // when the activation is finished. It's not recorded for the initial
-  // prerendering navigation.
-  histogram_tester().ExpectBucketCount(
-      page_load_metrics::internal::kPageLoadPrerender2VisibilityAtActivation,
-      page_load_metrics::internal::VisibilityAtActivation::kVisible, 1);
-  histogram_tester().ExpectBucketCount(
-      page_load_metrics::internal::kPageLoadPrerender2VisibilityAtActivation,
-      page_load_metrics::internal::VisibilityAtActivation::kOccluded, 0);
-  histogram_tester().ExpectBucketCount(
-      page_load_metrics::internal::kPageLoadPrerender2VisibilityAtActivation,
-      page_load_metrics::internal::VisibilityAtActivation::kHidden, 0);
-
-  histogram_tester().ExpectBucketCount(
-      internal::kPageLoadPrerenderObserverEvent,
-      internal::PageLoadPrerenderObserverEvent::kDidActivatePrerenderedPage, 1);
   histogram_tester().ExpectTotalCount(
       prerender_helper_.GenerateHistogramName(
           internal::kHistogramPrerenderNavigationToActivation,
-          content::PrerenderTriggerType::kSpeculationRule, ""),
+          content::PreloadingTriggerType::kSpeculationRule, ""),
       1);
 
   // Expect only FP and FCP for prerender are recorded.
@@ -869,52 +874,33 @@ IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
   ASSERT_TRUE(
       ui_test_utils::NavigateToURL(browser(), GURL(url::kAboutBlankURL)));
 
-  // Expect only LCP for prerender is recorded.
-  // PrerenderPageLoadMetricsObserver::RecordSessionEndHistograms and OnComplete
-  // are called twice but LCP is recorded only once because the initial
-  // prerendered page is finished in the background.
-  histogram_tester().ExpectBucketCount(
-      internal::kPageLoadPrerenderObserverEvent,
-      internal::PageLoadPrerenderObserverEvent::kOnComplete, 2);
-  histogram_tester().ExpectBucketCount(
-      internal::kPageLoadPrerenderObserverEvent,
-      internal::PageLoadPrerenderObserverEvent::kRecordSessionEndHistograms, 2);
-  histogram_tester().ExpectBucketCount(
-      "PageLoad.Internal.Prerender2.ForegroundCheckResult."
-      "LargestContentfulPaint",
-      internal::PageLoadPrerenderForegroundCheckResult::kPassed, 1);
-
   // LargestContentfulPaint should be recorded in the prerender PageLoad, not
   // in the regular PageLoad.
   histogram_tester().ExpectTotalCount(
       prerender_helper_.GenerateHistogramName(
           internal::kHistogramPrerenderActivationToLargestContentfulPaint2,
-          content::PrerenderTriggerType::kSpeculationRule,
+          content::PreloadingTriggerType::kSpeculationRule,
           /*embedder_suffix=*/""),
       1);
   histogram_tester().ExpectTotalCount(
       internal::kHistogramLargestContentfulPaint, 0);
 
   // Expect CLS for prerender is recorded.
-  histogram_tester().ExpectBucketCount(
-      internal::kPageLoadPrerenderObserverEvent,
-      internal::PageLoadPrerenderObserverEvent::kRecordLayoutShiftScoreMetrics,
-      1);
   histogram_tester().ExpectTotalCount(
       prerender_helper_.GenerateHistogramName(
           internal::kHistogramPrerenderCumulativeShiftScore,
-          content::PrerenderTriggerType::kSpeculationRule, ""),
+          content::PreloadingTriggerType::kSpeculationRule, ""),
       1);
   histogram_tester().ExpectTotalCount(
       prerender_helper_.GenerateHistogramName(
           internal::kHistogramPrerenderCumulativeShiftScoreMainFrame,
-          content::PrerenderTriggerType::kSpeculationRule, ""),
+          content::PreloadingTriggerType::kSpeculationRule, ""),
       1);
   histogram_tester().ExpectTotalCount(
       prerender_helper_.GenerateHistogramName(
           internal::
               kHistogramPrerenderMaxCumulativeShiftScoreSessionWindowGap1000msMax5000ms2,
-          content::PrerenderTriggerType::kSpeculationRule, ""),
+          content::PreloadingTriggerType::kSpeculationRule, ""),
       1);
 
   // Verify that UKM records the URL (`navigation_url`) after the navigation,
@@ -970,4 +956,51 @@ IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverBrowserTest,
       PrerenderPageLoad::kTiming_ActivationToLargestContentfulPaintName));
 
   CheckResponsivenessMetrics(navigation_url);
+}
+
+class PrerenderPageLoadMetricsObserverIncognitoBrowserTest
+    : public PrerenderPageLoadMetricsObserverBrowserTest {
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    command_line->AppendSwitch(switches::kIncognito);
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(PrerenderPageLoadMetricsObserverIncognitoBrowserTest,
+                       MainFrameNavigationIncognito) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  // Navigate to an initial page.
+  auto initial_url = embedded_test_server()->GetURL("/empty.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), initial_url));
+
+  // Start a prerender and a main frame navigation in the prerendered page.
+  GURL prerender_url = embedded_test_server()->GetURL("/title2.html");
+  GURL navigation_url = embedded_test_server()->GetURL("/title3.html");
+  content::FrameTreeNodeId host_id =
+      prerender_helper_.AddPrerender(prerender_url);
+  prerender_helper_.WaitForPrerenderLoadCompletion(host_id);
+  prerender_helper_.NavigatePrerenderedPage(host_id, navigation_url);
+  prerender_helper_.WaitForPrerenderLoadCompletion(host_id);
+
+  // Activate and wait for FCP.
+  auto waiter = std::make_unique<page_load_metrics::PageLoadMetricsTestWaiter>(
+      web_contents());
+  waiter->AddPageExpectation(page_load_metrics::PageLoadMetricsTestWaiter::
+                                 TimingField::kFirstContentfulPaint);
+  prerender_helper_.NavigatePrimaryPage(prerender_url);
+  waiter->Wait();
+
+  // Simulate mouse click and wait for FirstInputDelay.
+  content::SimulateMouseClick(web_contents(), 0,
+                              blink::WebPointerProperties::Button::kLeft);
+  waiter->AddPageExpectation(page_load_metrics::PageLoadMetricsTestWaiter::
+                                 TimingField::kFirstInputDelay);
+  waiter->Wait();
+
+  // Force navigation to another page, which should force logging of histograms
+  // persisted at the end of the page load lifetime.
+  ASSERT_TRUE(
+      ui_test_utils::NavigateToURL(browser(), GURL(url::kAboutBlankURL)));
+
+  CheckResponsivenessMetrics(navigation_url, true);
 }

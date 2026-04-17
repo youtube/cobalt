@@ -13,8 +13,8 @@
 
 #include "third_party/blink/renderer/core/css/css_custom_ident_value.h"
 #include "third_party/blink/renderer/core/css/css_identifier_value.h"
+#include "third_party/blink/renderer/core/css/css_identifier_value_mappings.h"
 #include "third_party/blink/renderer/core/css/css_primitive_value.h"
-#include "third_party/blink/renderer/core/css/css_primitive_value_mappings.h"
 #include "third_party/blink/renderer/core/css/css_value_list.h"
 #include "third_party/blink/renderer/core/css/css_value_pair.h"
 #include "third_party/blink/renderer/core/css/properties/css_direction_aware_resolver.h"
@@ -78,20 +78,9 @@ const char* {{class_name}}::GetJSPropertyName() const {
 }
 
   {% if not is_alias %}
-  {% if property.visited_property %}
-const CSSProperty* {{class_name}}::GetVisitedProperty() const {
-  return &Get{{property.visited_property.property_id}}();
-}
-  {% endif %}
-  {% if property.unvisited_property %}
-const CSSProperty* {{class_name}}::GetUnvisitedProperty() const {
-  return &Get{{property.unvisited_property.property_id}}();
-}
-  {% endif %}
 
   {% if property.surrogate_for %}
-const CSSProperty* {{class_name}}::SurrogateFor(TextDirection direction,
-    blink::WritingMode writing_mode) const {
+const CSSProperty* {{class_name}}::SurrogateFor(WritingDirectionMode) const {
   return &GetCSSProperty{{property.surrogate_for.name.to_upper_camel_case()}}();
 }
   {% endif %}
@@ -100,15 +89,14 @@ const CSSProperty* {{class_name}}::SurrogateFor(TextDirection direction,
     {% set group_name = group.name.to_upper_camel_case() %}
     {% set resolver_name = group.resolver_name.to_upper_camel_case() %}
     {% if group.is_logical %}
-const CSSProperty* {{class_name}}::SurrogateFor(TextDirection direction,
-    blink::WritingMode writing_mode) const {
-  return &ResolveDirectionAwareProperty(direction, writing_mode);
+const CSSProperty* {{class_name}}::SurrogateFor(
+    WritingDirectionMode writing_direction) const {
+  return &ToPhysicalInternal(writing_direction);
 }
 
-const CSSProperty& {{class_name}}::ResolveDirectionAwareProperty(
-    TextDirection direction,
-    blink::WritingMode writing_mode) const {
-  return CSSDirectionAwareResolver::Resolve{{resolver_name}}(direction, writing_mode,
+const CSSProperty& {{class_name}}::ToPhysicalInternal(
+    WritingDirectionMode writing_direction) const {
+  return CSSDirectionAwareResolver::Resolve{{resolver_name}}(writing_direction,
       CSSDirectionAwareResolver::Physical{{group_name}}Mapping());
 }
 
@@ -120,6 +108,11 @@ bool {{class_name}}::IsInSameLogicalPropertyGroupWithDifferentMappingLogic(
 bool {{class_name}}::IsInSameLogicalPropertyGroupWithDifferentMappingLogic(
     CSSPropertyID id) const {
   return CSSDirectionAwareResolver::Logical{{group_name}}Mapping().Contains(id);
+}
+const CSSProperty& {{class_name}}::ToLogicalInternal(
+    WritingDirectionMode writing_direction) const {
+  return CSSDirectionAwareResolver::Resolve{{resolver_name}}(writing_direction,
+      CSSDirectionAwareResolver::Logical{{group_name}}Mapping());
 }
     {% endif %}
   {% endif %}

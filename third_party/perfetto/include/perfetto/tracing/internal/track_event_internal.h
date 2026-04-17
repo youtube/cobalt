@@ -83,6 +83,18 @@ class PERFETTO_EXPORT_COMPONENT TrackEventSessionObserver {
       const DataSourceBase::ClearIncrementalStateArgs&);
 };
 
+// A class that the embedder can store arbitrary data user data per thread.
+class PERFETTO_EXPORT_COMPONENT TrackEventTlsStateUserData {
+ public:
+  TrackEventTlsStateUserData() = default;
+  // Not clonable.
+  TrackEventTlsStateUserData(const TrackEventTlsStateUserData&) = delete;
+  TrackEventTlsStateUserData& operator=(const TrackEventTlsStateUserData&) =
+      delete;
+
+  virtual ~TrackEventTlsStateUserData();
+};
+
 namespace internal {
 class TrackEventCategoryRegistry;
 
@@ -104,6 +116,7 @@ struct TrackEventTlsState {
   bool filter_dynamic_event_names = false;
   uint64_t timestamp_unit_multiplier = 1;
   uint32_t default_clock;
+  std::map<const void*, std::unique_ptr<TrackEventTlsStateUserData>> user_data;
 };
 
 struct TrackEventIncrementalState {
@@ -206,7 +219,7 @@ class PERFETTO_EXPORT_COMPONENT TrackEventInternal {
   static perfetto::EventContext WriteEvent(
       TraceWriterBase*,
       TrackEventIncrementalState*,
-      const TrackEventTlsState& tls_state,
+      TrackEventTlsState& tls_state,
       const Category* category,
       perfetto::protos::pbzero::TrackEvent::Type,
       const TraceTimestamp& timestamp,
@@ -246,22 +259,42 @@ class PERFETTO_EXPORT_COMPONENT TrackEventInternal {
       TrackEventIncrementalState* incr_state,
       const TrackEventTlsState& tls_state,
       const TraceTimestamp& timestamp) {
-    auto it_and_inserted = incr_state->seen_tracks.insert(track.uuid);
-    if (PERFETTO_LIKELY(!it_and_inserted.second))
-      return;
-    WriteTrackDescriptor(track, trace_writer, incr_state, tls_state, timestamp);
+    uint64_t uuid = track.uuid;
+    if (uuid) {
+      auto it_and_inserted = incr_state->seen_tracks.insert(uuid);
+      if (PERFETTO_LIKELY(!it_and_inserted.second))
+        return;
+      uuid = WriteTrackDescriptor(track, trace_writer, incr_state, tls_state,
+                                  timestamp);
+    }
+    while (uuid) {
+      auto it_and_inserted = incr_state->seen_tracks.insert(uuid);
+      if (PERFETTO_LIKELY(!it_and_inserted.second))
+        return;
+      std::optional<TrackRegistry::TrackInfo> track_info =
+          TrackRegistry::Get()->FindTrackInfo(uuid);
+      if (!track_info) {
+        return;
+      }
+      TrackRegistry::WriteTrackDescriptor(
+          std::move(track_info->desc),
+          NewTracePacket(trace_writer, incr_state, tls_state, timestamp));
+      uuid = track_info->parent_uuid;
+    }
   }
 
   // Unconditionally write a track descriptor into the trace.
+  //
+  // Returns the parent track uuid.
   template <typename TrackType>
-  static void WriteTrackDescriptor(const TrackType& track,
-                                   TraceWriterBase* trace_writer,
-                                   TrackEventIncrementalState* incr_state,
-                                   const TrackEventTlsState& tls_state,
-                                   const TraceTimestamp& timestamp) {
+  static uint64_t WriteTrackDescriptor(const TrackType& track,
+                                       TraceWriterBase* trace_writer,
+                                       TrackEventIncrementalState* incr_state,
+                                       const TrackEventTlsState& tls_state,
+                                       const TraceTimestamp& timestamp) {
     ResetIncrementalStateIfRequired(trace_writer, incr_state, tls_state,
                                     timestamp);
-    TrackRegistry::Get()->SerializeTrack(
+    return TrackRegistry::Get()->SerializeTrack(
         track, NewTracePacket(trace_writer, incr_state, tls_state, timestamp));
   }
 

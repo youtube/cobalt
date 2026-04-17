@@ -14,6 +14,7 @@
 
 #include <sys/time.h>
 #include <time.h>
+
 #include "starboard/common/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -91,7 +92,7 @@ TEST(PosixTimeTest, GmtimeRConvertsTimeCorrectly) {
   // This value (1'722'468'779) can be obtained via `date -d "2024-07-31
   // 23:32:59 UTC" +%s`.
   const time_t kFixedTime = 1'722'468'779;
-  struct tm result_tm {};
+  struct tm result_tm{};
 
   struct tm* retval = gmtime_r(&kFixedTime, &result_tm);
   ASSERT_TRUE(retval != NULL)

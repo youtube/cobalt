@@ -26,7 +26,7 @@ executable("traced_probes") {
     "../../../include/perfetto/ext/traced",
   ]
   sources = [ "main.cc" ]
-  assert_no_deps = [ "//gn:protobuf_lite" ]
+  assert_no_deps = [ "../../../gn:protobuf_lite" ]
 }
 
 # Contains all the implementation but not the main() entry point. This target
@@ -60,6 +60,7 @@ source_set("probes_src") {
     "../../tracing/core",
     "../../tracing/ipc/producer",
     "android_game_intervention_list",
+    "android_kernel_wakelocks",
     "android_log",
     "android_system_property",
     "common",
@@ -74,8 +75,6 @@ source_set("probes_src") {
     "system_info",
   ]
   sources = [
-    "kmem_activity_trigger.cc",
-    "kmem_activity_trigger.h",
     "probes_producer.cc",
     "probes_producer.h",
   ]

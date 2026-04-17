@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "remoting/test/video_frame_writer.h"
 
 #include <stdint.h>
@@ -10,6 +15,7 @@
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/i18n/time_formatting.h"
 #include "base/logging.h"
 #include "base/strings/stringprintf.h"
 #include "third_party/webrtc/modules/desktop_capture/desktop_frame.h"
@@ -25,13 +31,9 @@ const base::FilePath::CharType kRemotingFolder[] =
 const base::FilePath::CharType kDumpFrameFolder[] =
     FILE_PATH_LITERAL("dumped_images");
 
-// Used to create a unique folder path.
-const char kDateAndTimeFormatString[] = "%d-%d-%d_%d-%d-%d";
-
 }  // namespace
 
-namespace remoting {
-namespace test {
+namespace remoting::test {
 
 VideoFrameWriter::VideoFrameWriter()
     : instance_creation_time_(base::Time::Now()),
@@ -41,20 +43,18 @@ VideoFrameWriter::~VideoFrameWriter() = default;
 
 void VideoFrameWriter::WriteFrameToPath(const webrtc::DesktopFrame& frame,
                                         const base::FilePath& image_path) {
-  unsigned char* frame_data = reinterpret_cast<unsigned char*>(frame.data());
-  std::vector<unsigned char> png_encoded_data;
+  uint8_t* frame_data = reinterpret_cast<unsigned char*>(frame.data());
 
-  if (!gfx::PNGCodec::Encode(
-          frame_data, gfx::PNGCodec::FORMAT_BGRA,
-          gfx::Size(frame.size().width(), frame.size().height()),
-          frame.stride(), true, std::vector<gfx::PNGCodec::Comment>(),
-          &png_encoded_data)) {
+  std::optional<std::vector<uint8_t>> png_encoded_data = gfx::PNGCodec::Encode(
+      frame_data, gfx::PNGCodec::FORMAT_BGRA,
+      gfx::Size(frame.size().width(), frame.size().height()), frame.stride(),
+      true, std::vector<gfx::PNGCodec::Comment>());
+  if (!png_encoded_data) {
     LOG(WARNING) << "Failed to encode frame to PNG file";
     return;
   }
 
-  // Dump contents (unsigned chars) to a file as a sequence of chars.
-  if (!base::WriteFile(image_path, png_encoded_data)) {
+  if (!base::WriteFile(image_path, png_encoded_data.value())) {
     LOG(WARNING) << "Failed to write frame to disk";
   }
 }
@@ -114,18 +114,8 @@ void VideoFrameWriter::HighlightRectInFrame(webrtc::DesktopFrame* frame,
 
 base::FilePath VideoFrameWriter::AppendCreationDateAndTime(
     const base::FilePath& file_path) {
-  base::Time::Exploded exploded_time;
-  instance_creation_time_.LocalExplode(&exploded_time);
-
-  int year = exploded_time.year;
-  int month = exploded_time.month;
-  int day = exploded_time.day_of_month;
-  int hour = exploded_time.hour;
-  int minute = exploded_time.minute;
-  int second = exploded_time.second;
-
-  return file_path.AppendASCII(base::StringPrintf(
-      kDateAndTimeFormatString, year, month, day, hour, minute, second));
+  return file_path.AppendASCII(base::UnlocalizedTimeFormatWithPattern(
+      instance_creation_time_, "y-M-d_H-m-s"));
 }
 
 bool VideoFrameWriter::CreateDirectoryIfNotExists(
@@ -148,5 +138,4 @@ void VideoFrameWriter::ShiftPixelColor(webrtc::DesktopFrame* frame,
   frame_pos[0] = frame_pos[0] + shift_amount;
 }
 
-}  // namespace test
-}  // namespace remoting
+}  // namespace remoting::test

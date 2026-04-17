@@ -10,10 +10,24 @@
 
 #include "modules/video_coding/rtp_vp8_ref_finder.h"
 
+#include <cstdint>
+#include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
+#include "api/array_view.h"
+#include "api/rtp_packet_infos.h"
+#include "api/video/encoded_frame.h"
+#include "api/video/encoded_image.h"
+#include "api/video/video_codec_type.h"
+#include "api/video/video_content_type.h"
+#include "api/video/video_frame_type.h"
+#include "api/video/video_rotation.h"
+#include "api/video/video_timing.h"
 #include "modules/rtp_rtcp/source/frame_object.h"
+#include "modules/rtp_rtcp/source/rtp_video_header.h"
+#include "modules/video_coding/codecs/vp8/include/vp8_globals.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -30,7 +44,7 @@ namespace {
 MATCHER_P2(HasIdAndRefs, id, refs, "") {
   return Matches(Eq(id))(arg->Id()) &&
          Matches(UnorderedElementsAreArray(refs))(
-             rtc::ArrayView<int64_t>(arg->references, arg->num_references));
+             ArrayView<int64_t>(arg->references, arg->num_references));
 }
 
 Matcher<const std::vector<std::unique_ptr<EncodedFrame>>&>
@@ -92,7 +106,8 @@ class Frame {
         kVideoRotation_0,
         VideoContentType::UNSPECIFIED,
         video_header,
-        /*color_space=*/absl::nullopt,
+        /*color_space=*/std::nullopt,
+        /*frame_instrumentation_data=*/std::nullopt,
         RtpPacketInfos(),
         EncodedImageBuffer::Create(/*size=*/0));
     // clang-format on
@@ -100,9 +115,9 @@ class Frame {
 
  private:
   bool is_keyframe_ = false;
-  absl::optional<int> picture_id_;
-  absl::optional<int> temporal_id_;
-  absl::optional<int> tl0_idx_;
+  std::optional<int> picture_id_;
+  std::optional<int> temporal_id_;
+  std::optional<int> tl0_idx_;
   bool sync = false;
 };
 

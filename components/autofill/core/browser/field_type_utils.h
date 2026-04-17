@@ -25,14 +25,23 @@ size_t NumberOfPossibleFieldTypesInGroup(const AutofillField& field,
 // Returns true if the type of `field` is a possible type.
 bool TypeOfFieldIsPossibleType(const AutofillField& field);
 
-// Returns true whenever type is ADDRESS_HOME_STREET_NAME or
-// ADDRESS_HOME_HOUSE_NUMBER.
-// TODO(crbug/1410438): Remove when cleaning up feature
-// `kAutofillStreetNameOrHouseNumberPrecedenceOverAutocomplete`.
-bool IsStreetNameOrHouseNumberType(const ServerFieldType type);
-
 // Returns true if `type` is address-related.
-bool IsAddressType(const AutofillType& type);
+bool IsAddressType(FieldType type);
+
+// Returns 0-based index of an address line type, which is X-1 for
+// ADDRESS_HOME_LINEX. Expects only ADDRESS_HOME_LINE(1|2|3) types.
+size_t AddressLineIndex(FieldType type);
+
+// Returns whether the expiration year should be filled with two or four
+// digits.
+size_t DetermineExpirationYearLength(FieldType assumed_field_type);
+
+// Returns true if `type` is alternative name related.
+bool IsAlternativeNameType(FieldType type);
+
+// A tag type is a type that doesn't provide complete information about a field
+// on its own, and that instead needs a second type to complement its meaning.
+bool IsTagType(FieldType type);
 
 }  // namespace autofill
 

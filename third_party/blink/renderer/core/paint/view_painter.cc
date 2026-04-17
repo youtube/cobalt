@@ -10,10 +10,13 @@
 #include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/layout/layout_box.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
-#include "third_party/blink/renderer/core/paint/background_image_geometry.h"
+#include "third_party/blink/renderer/core/layout/pagination_utils.h"
+#include "third_party/blink/renderer/core/layout/physical_box_fragment.h"
+#include "third_party/blink/renderer/core/paint/box_background_paint_context.h"
 #include "third_party/blink/renderer/core/paint/box_decoration_data.h"
 #include "third_party/blink/renderer/core/paint/box_model_object_painter.h"
 #include "third_party/blink/renderer/core/paint/box_painter.h"
+#include "third_party/blink/renderer/core/paint/object_painter.h"
 #include "third_party/blink/renderer/core/paint/paint_auto_dark_mode.h"
 #include "third_party/blink/renderer/core/paint/paint_info.h"
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
@@ -36,11 +39,13 @@ void ViewPainter::PaintRootGroup(const PaintInfo& paint_info,
                                  const Document& document,
                                  const DisplayItemClient& client,
                                  const PropertyTreeStateOrAlias& state) {
-  if (!layout_view_.GetFrameView()->ShouldPaintBaseBackgroundColor())
+  const LayoutView& layout_view = GetLayoutView();
+  if (!layout_view.GetFrameView()->ShouldPaintBaseBackgroundColor()) {
     return;
+  }
 
   Color base_background_color =
-      layout_view_.GetFrameView()->BaseBackgroundColor();
+      layout_view.GetFrameView()->BaseBackgroundColor();
   if (document.Printing() && base_background_color == Color::kWhite) {
     // Leave a transparent background, assuming the paper or the PDF viewer
     // background is white by default. This allows further customization of the
@@ -63,80 +68,96 @@ void ViewPainter::PaintRootGroup(const PaintInfo& paint_info,
                              pixel_snapped_background_rect);
     context.FillRect(
         pixel_snapped_background_rect, base_background_color,
-        PaintAutoDarkMode(layout_view_.StyleRef(),
+        PaintAutoDarkMode(box_fragment_.Style(),
                           DarkModeFilter::ElementRole::kBackground),
         should_clear_canvas ? SkBlendMode::kSrc : SkBlendMode::kSrcOver);
   }
 }
 
 void ViewPainter::PaintBoxDecorationBackground(const PaintInfo& paint_info) {
-  if (layout_view_.StyleRef().Visibility() != EVisibility::kVisible)
+  if (box_fragment_.Style().Visibility() != EVisibility::kVisible) {
     return;
+  }
 
-  bool has_hit_test_data = layout_view_.HasEffectiveAllowedTouchAction() ||
-                           layout_view_.InsideBlockingWheelEventHandler();
+  if (box_fragment_.IsPaginatedRoot()) {
+    // When paginated, the background is painted for each individual page. The
+    // @page background is painted for the kPageContainer. The root view
+    // fragment itself paints no background.
+    return;
+  }
+
+  const LayoutView& layout_view = GetLayoutView();
   bool painting_background_in_contents_space =
       paint_info.IsPaintingBackgroundInContentsSpace();
+  bool paints_hit_test_data =
+      painting_background_in_contents_space ||
+      ObjectPainter(layout_view).ShouldRecordSpecialHitTestData(paint_info);
 
-  Element* element = DynamicTo<Element>(layout_view_.GetNode());
-  bool has_region_capture_data = element && element->GetRegionCaptureCropId();
+  Element* element = DynamicTo<Element>(layout_view.GetNode());
+  bool paints_region_capture_data =
+      element && element->GetRegionCaptureCropId() &&
+      // TODO(wangxianzhu): This is to avoid the side-effect of
+      // HitTestOpaqueness on region capture data. Verify if the side-effect
+      // really matters.
+      !(painting_background_in_contents_space &&
+        paint_info.ShouldSkipBackground());
   bool paints_scroll_hit_test =
       !painting_background_in_contents_space &&
-      layout_view_.FirstFragment().PaintProperties()->Scroll();
-  bool is_represented_via_pseudo_elements = [this]() {
-    if (auto* transition = ViewTransitionUtils::GetActiveTransition(
-            layout_view_.GetDocument())) {
-      return transition->IsRepresentedViaPseudoElements(layout_view_);
+      layout_view.FirstFragment().PaintProperties()->Scroll();
+  bool is_represented_via_pseudo_elements = [&layout_view]() {
+    if (auto* transition =
+            ViewTransitionUtils::GetTransition(layout_view.GetDocument())) {
+      return transition->IsRepresentedViaPseudoElements(layout_view);
     }
     return false;
   }();
-  if (!layout_view_.HasBoxDecorationBackground() && !has_hit_test_data &&
-      !paints_scroll_hit_test && !has_region_capture_data &&
+  if (!layout_view.HasBoxDecorationBackground() && !paints_hit_test_data &&
+      !paints_scroll_hit_test && !paints_region_capture_data &&
       !is_represented_via_pseudo_elements) {
     return;
   }
 
   // The background rect always includes at least the visible content size.
-  PhysicalRect background_rect(layout_view_.BackgroundRect());
+  PhysicalRect background_rect(BackgroundRect());
 
-  const Document& document = layout_view_.GetDocument();
+  const Document& document = layout_view.GetDocument();
 
   // When printing or painting a preview, paint the entire unclipped scrolling
   // content area.
   if (document.IsPrintingOrPaintingPreview() ||
-      !layout_view_.GetFrameView()->GetFrame().ClipsContent()) {
-    background_rect.Unite(layout_view_.DocumentRect());
+      !layout_view.GetFrameView()->GetFrame().ClipsContent()) {
+    background_rect.Unite(layout_view.DocumentRect());
   }
 
-  const DisplayItemClient* background_client = &layout_view_;
+  const DisplayItemClient* background_client = &layout_view;
 
   if (painting_background_in_contents_space) {
-    // Layout overflow, combined with the visible content size.
-    auto document_rect = layout_view_.DocumentRect();
+    // Scrollable overflow, combined with the visible content size.
+    auto document_rect = layout_view.DocumentRect();
     // DocumentRect is relative to ScrollOrigin. Add ScrollOrigin to let it be
     // in the space of ContentsProperties(). See ScrollTranslation in
     // object_paint_properties.h for details.
-    document_rect.Move(PhysicalOffset(layout_view_.ScrollOrigin()));
+    document_rect.Move(PhysicalOffset(layout_view.ScrollOrigin()));
     background_rect.Unite(document_rect);
-    background_client = &layout_view_.GetScrollableArea()
+    background_client = &layout_view.GetScrollableArea()
                              ->GetScrollingBackgroundDisplayItemClient();
   }
 
   gfx::Rect pixel_snapped_background_rect = ToPixelSnappedRect(background_rect);
 
   auto root_element_background_painting_state =
-      layout_view_.FirstFragment().ContentsProperties();
+      layout_view.FirstFragment().ContentsProperties();
 
-  absl::optional<ScopedPaintChunkProperties> scoped_properties;
+  std::optional<ScopedPaintChunkProperties> scoped_properties;
 
   bool painted_separate_backdrop = false;
   bool painted_separate_effect = false;
 
   bool should_apply_root_background_behavior =
-      document.IsHTMLDocument() || document.IsXHTMLDocument();
+      ShouldApplyRootBackgroundBehavior(document);
 
   bool should_paint_background = !paint_info.ShouldSkipBackground() &&
-                                 (layout_view_.HasBoxDecorationBackground() ||
+                                 (layout_view.HasBoxDecorationBackground() ||
                                   is_represented_via_pseudo_elements);
 
   LayoutObject* root_object = nullptr;
@@ -175,7 +196,7 @@ void ViewPainter::PaintBoxDecorationBackground(const PaintInfo& paint_info) {
       root_element_background_painting_state = document_element_state;
       PaintRootGroup(paint_info, pixel_snapped_background_rect, document,
                      *background_client,
-                     layout_view_.FirstFragment().ContentsProperties());
+                     layout_view.FirstFragment().ContentsProperties());
       painted_separate_backdrop = true;
     }
   }
@@ -193,15 +214,14 @@ void ViewPainter::PaintBoxDecorationBackground(const PaintInfo& paint_info) {
                           *background_client, painted_separate_backdrop,
                           painted_separate_effect);
   }
-  if (has_hit_test_data) {
-    BoxPainter(layout_view_)
-        .RecordHitTestData(paint_info,
-                           PhysicalRect(pixel_snapped_background_rect),
+  if (paints_hit_test_data) {
+    ObjectPainter(layout_view)
+        .RecordHitTestData(paint_info, pixel_snapped_background_rect,
                            *background_client);
   }
 
-  if (has_region_capture_data) {
-    BoxPainter(layout_view_)
+  if (paints_region_capture_data) {
+    BoxPainter(layout_view)
         .RecordRegionCaptureData(paint_info,
                                  PhysicalRect(pixel_snapped_background_rect),
                                  *background_client);
@@ -212,8 +232,14 @@ void ViewPainter::PaintBoxDecorationBackground(const PaintInfo& paint_info) {
   // if this were immediately before the non-scrolling background.
   if (paints_scroll_hit_test) {
     DCHECK(!painting_background_in_contents_space);
-    BoxPainter(layout_view_)
-        .RecordScrollHitTestData(paint_info, *background_client);
+
+    // The root never fragments. In paged media page fragments are inserted
+    // under the LayoutView, but the LayoutView itself never fragments.
+    DCHECK(!layout_view.IsFragmented());
+
+    BoxPainter(layout_view)
+        .RecordScrollHitTestData(paint_info, *background_client,
+                                 &layout_view.FirstFragment());
   }
 }
 
@@ -248,10 +274,13 @@ void ViewPainter::PaintRootElementGroup(
                            DisplayItem::kDocumentBackground,
                            pixel_snapped_background_rect);
 
-  const Document& document = layout_view_.GetDocument();
-  const LocalFrameView& frame_view = *layout_view_.GetFrameView();
-  bool paints_base_background = frame_view.ShouldPaintBaseBackgroundColor() &&
-                                (frame_view.BaseBackgroundColor().Alpha() > 0);
+  const LayoutView& layout_view = GetLayoutView();
+  const Document& document = layout_view.GetDocument();
+  const LocalFrameView& frame_view = *layout_view.GetFrameView();
+  const ComputedStyle& style = box_fragment_.Style();
+  bool paints_base_background =
+      frame_view.ShouldPaintBaseBackgroundColor() &&
+      !frame_view.BaseBackgroundColor().IsFullyTransparent();
   Color base_background_color =
       paints_base_background ? frame_view.BaseBackgroundColor() : Color();
   if (document.Printing() && base_background_color == Color::kWhite) {
@@ -263,8 +292,7 @@ void ViewPainter::PaintRootElementGroup(
   }
 
   Color root_element_background_color =
-      layout_view_.StyleRef().VisitedDependentColor(
-          GetCSSPropertyBackgroundColor());
+      style.VisitedDependentColor(GetCSSPropertyBackgroundColor());
 
   const LayoutObject* root_object =
       document.documentElement() ? document.documentElement()->GetLayoutObject()
@@ -272,8 +300,8 @@ void ViewPainter::PaintRootElementGroup(
 
   // Special handling for print economy mode.
   bool force_background_to_white =
-      BoxModelObjectPainter::ShouldForceWhiteBackgroundForPrintEconomy(
-          document, layout_view_.StyleRef());
+      BoxModelObjectPainter::ShouldForceWhiteBackgroundForPrintEconomy(document,
+                                                                       style);
   if (force_background_to_white) {
     // Leave a transparent background, assuming the paper or the PDF viewer
     // background is white by default. This allows further customization of the
@@ -281,8 +309,8 @@ void ViewPainter::PaintRootElementGroup(
     return;
   }
 
-  AutoDarkMode auto_dark_mode(PaintAutoDarkMode(
-      layout_view_.StyleRef(), DarkModeFilter::ElementRole::kBackground));
+  AutoDarkMode auto_dark_mode(
+      PaintAutoDarkMode(style, DarkModeFilter::ElementRole::kBackground));
 
   // Compute the enclosing rect of the view, in root element space.
   //
@@ -299,11 +327,11 @@ void ViewPainter::PaintRootElementGroup(
   if (!root_object || !root_object->IsBox()) {
     background_renderable = false;
   } else {
-    const auto& view_contents_state =
-        layout_view_.FirstFragment().ContentsProperties();
-    if (view_contents_state != background_paint_state) {
+    const auto& view_contents_transform =
+        layout_view.FirstFragment().ContentsTransform();
+    if (&view_contents_transform != &background_paint_state.Transform()) {
       GeometryMapper::SourceToDestinationRect(
-          view_contents_state.Transform(), background_paint_state.Transform(),
+          view_contents_transform, background_paint_state.Transform(),
           paint_rect);
       if (paint_rect.IsEmpty())
         background_renderable = false;
@@ -313,6 +341,14 @@ void ViewPainter::PaintRootElementGroup(
       background_image_offset = PhysicalOffset(paint_rect.origin());
     } else {
       background_image_offset = -root_object->FirstFragment().PaintOffset();
+      background_image_offset += PhysicalOffset(paint_rect.origin());
+    }
+
+    if (box_fragment_.GetBoxType() == PhysicalFragment::kPageContainer) {
+      // Background image origin is at the border box edge. A page container
+      // fragment covers the entire page box. Add the offset to the page border
+      // box fragment, to get past the margins.
+      background_image_offset -= GetPageBorderBoxLink(box_fragment_).offset;
     }
   }
 
@@ -323,7 +359,7 @@ void ViewPainter::PaintRootElementGroup(
 
   if (!background_renderable) {
     if (!painted_separate_backdrop) {
-      if (base_background_color.Alpha()) {
+      if (!base_background_color.IsFullyTransparent()) {
         context.FillRect(
             pixel_snapped_background_rect, base_background_color,
             auto_dark_mode,
@@ -340,9 +376,9 @@ void ViewPainter::PaintRootElementGroup(
 
   BoxPainterBase::FillLayerOcclusionOutputList reversed_paint_list;
   bool should_draw_background_in_separate_buffer =
-      BoxModelObjectPainter(layout_view_)
-          .CalculateFillLayerOcclusionCulling(
-              reversed_paint_list, layout_view_.StyleRef().BackgroundLayers());
+      BoxModelObjectPainter(layout_view)
+          .CalculateFillLayerOcclusionCulling(reversed_paint_list,
+                                              style.BackgroundLayers());
   DCHECK(reversed_paint_list.size());
 
   if (painted_separate_effect) {
@@ -350,13 +386,15 @@ void ViewPainter::PaintRootElementGroup(
   } else {
     // If the root background color is opaque, isolation group can be skipped
     // because the canvas will be cleared by root background color.
-    if (!root_element_background_color.HasAlpha())
+    if (root_element_background_color.IsOpaque()) {
       should_draw_background_in_separate_buffer = false;
+    }
 
     // We are going to clear the canvas with transparent pixels, isolation group
     // can be skipped.
-    if (!base_background_color.Alpha() && should_clear_canvas)
+    if (base_background_color.IsFullyTransparent() && should_clear_canvas) {
       should_draw_background_in_separate_buffer = false;
+    }
   }
 
   // Only use BeginLayer if not only we should draw in a separate buffer, but
@@ -365,7 +403,7 @@ void ViewPainter::PaintRootElementGroup(
   // mode. An extra BeginLayer will result in incorrect blend isolation if
   // it is added on top of any effect on the root element.
   if (should_draw_background_in_separate_buffer && !painted_separate_effect) {
-    if (base_background_color.Alpha()) {
+    if (!base_background_color.IsFullyTransparent()) {
       context.FillRect(
           paint_rect, base_background_color, auto_dark_mode,
           should_clear_canvas ? SkBlendMode::kSrc : SkBlendMode::kSrcOver);
@@ -381,7 +419,7 @@ void ViewPainter::PaintRootElementGroup(
   if (combined_background_color != frame_view.BaseBackgroundColor())
     context.GetPaintController().SetFirstPainted();
 
-  if (combined_background_color.Alpha()) {
+  if (!combined_background_color.IsFullyTransparent()) {
     context.FillRect(
         paint_rect, combined_background_color, auto_dark_mode,
         (should_draw_background_in_separate_buffer || should_clear_canvas)
@@ -392,17 +430,32 @@ void ViewPainter::PaintRootElementGroup(
     context.FillRect(paint_rect, Color(), auto_dark_mode, SkBlendMode::kClear);
   }
 
-  BackgroundImageGeometry geometry(layout_view_, background_image_offset);
-  BoxModelObjectPainter box_model_painter(layout_view_);
+  BoxBackgroundPaintContext bg_paint_context(layout_view, &box_fragment_,
+                                             background_image_offset);
+  BoxModelObjectPainter box_model_painter(layout_view);
   for (const auto* fill_layer : base::Reversed(reversed_paint_list)) {
-    DCHECK(fill_layer->Clip() == EFillBox::kBorder);
     box_model_painter.PaintFillLayer(paint_info, Color(), *fill_layer,
                                      PhysicalRect(paint_rect),
-                                     kBackgroundBleedNone, geometry);
+                                     kBackgroundBleedNone, bg_paint_context);
   }
 
   if (should_draw_background_in_separate_buffer && !painted_separate_effect)
     context.EndLayer();
+}
+
+const LayoutView& ViewPainter::GetLayoutView() const {
+  return *box_fragment_.GetLayoutObject()->View();
+}
+
+PhysicalRect ViewPainter::BackgroundRect() const {
+  if (box_fragment_.GetBoxType() == PhysicalFragment::kPageContainer) {
+    return box_fragment_.LocalRect();
+  }
+  return GetLayoutView().BackgroundRect();
+}
+
+bool ViewPainter::ShouldApplyRootBackgroundBehavior(const Document& document) {
+  return document.IsHTMLDocument() || document.IsXHTMLDocument();
 }
 
 }  // namespace blink

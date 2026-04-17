@@ -12,6 +12,7 @@
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
+#include "chrome/browser/enterprise/connectors/analysis/content_analysis_info.h"
 #include "chrome/browser/enterprise/connectors/common.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/binary_upload_service.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/deep_scanning_utils.h"
@@ -31,17 +32,11 @@ namespace enterprise_connectors {
 // reported.
 class RequestHandlerBase {
  public:
-  RequestHandlerBase(
-      safe_browsing::BinaryUploadService* upload_service,
-      Profile* profile,
-      const enterprise_connectors::AnalysisSettings& analysis_settings,
-      GURL url,
-      const std::string& source,
-      const std::string& destination,
-      const std::string& user_action_id,
-      const std::string& tab_title,
-      uint64_t user_action_requests_count,
-      safe_browsing::DeepScanAccessPoint access_point);
+  RequestHandlerBase(ContentAnalysisInfo* content_analysis_info,
+                     safe_browsing::BinaryUploadService* upload_service,
+                     Profile* profile,
+                     GURL url,
+                     safe_browsing::DeepScanAccessPoint access_point);
 
   virtual ~RequestHandlerBase();
 
@@ -59,7 +54,7 @@ class RequestHandlerBase {
   // expected to send one or more reports corresponding to the data that was
   // allowed to be transferred by the user.
   virtual void ReportWarningBypass(
-      absl::optional<std::u16string> user_justification) = 0;
+      std::optional<std::u16string> user_justification) = 0;
 
   // After all file requests have been processed, this call can be used to
   // retrieve any final actions stored internally.  There should one for
@@ -76,24 +71,13 @@ class RequestHandlerBase {
   virtual bool UploadDataImpl() = 0;
 
  protected:
-  // Adds required fields to `request` before sending it to the binary upload
-  // service.
-  void PrepareRequest(enterprise_connectors::AnalysisConnector connector,
-                      safe_browsing::BinaryUploadService::Request* request);
-
   // Returns the BinaryUploadService used to upload content for deep scanning.
   safe_browsing::BinaryUploadService* GetBinaryUploadService();
 
+  raw_ptr<ContentAnalysisInfo> content_analysis_info_ = nullptr;
   base::WeakPtr<safe_browsing::BinaryUploadService> upload_service_ = nullptr;
-  base::raw_ptr<Profile> profile_ = nullptr;
-  const raw_ref<const enterprise_connectors::AnalysisSettings>
-      analysis_settings_;
+  raw_ptr<Profile> profile_ = nullptr;
   GURL url_;
-  std::string source_;
-  std::string destination_;
-  std::string user_action_id_;
-  std::string tab_title_;
-  uint64_t user_action_requests_count_;
   safe_browsing::DeepScanAccessPoint access_point_;
 
   // A mapping of request tokens (corresponding to one user action) to their Ack

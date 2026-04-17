@@ -13,14 +13,14 @@
 #include "build/build_config.h"
 #include "chrome/browser/ash/login/lock/screen_locker_tester.h"
 #include "chrome/browser/ash/login/quick_unlock/quick_unlock_utils.h"
-#include "chrome/browser/ash/login/ui/user_adding_screen.h"
 #include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/ui/ash/login/user_adding_screen.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
-#include "chrome/browser/ui/exclusive_access/exclusive_access_test.h"
 #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "chrome/test/base/ui_test_utils.h"
 #include "chromeos/ash/components/dbus/biod/fake_biod_client.h"
 #include "chromeos/ash/components/dbus/session_manager/fake_session_manager_client.h"
 #include "components/prefs/pref_service.h"
@@ -112,9 +112,7 @@ IN_PROC_BROWSER_TEST_F(ScreenLockerTest, TestBadThenGoodPassword) {
 }
 
 // Test how locking the screen affects an active fullscreen window.
-// TODO(crbug.com/1364698): Fix flakiness on ASAN builder.
-// TODO(crbug.com/1385852): Fix flakiness in general.
-IN_PROC_BROWSER_TEST_F(ScreenLockerTest, DISABLED_TestFullscreenExit) {
+IN_PROC_BROWSER_TEST_F(ScreenLockerTest, TestFullscreenExit) {
   // 1) If the active browser window is in fullscreen and the fullscreen window
   // does not have all the pixels (e.g. the shelf is auto hidden instead of
   // hidden), locking the screen should exit fullscreen. The shelf is
@@ -123,12 +121,7 @@ IN_PROC_BROWSER_TEST_F(ScreenLockerTest, DISABLED_TestFullscreenExit) {
   BrowserWindow* browser_window = browser()->window();
   auto* window_state = WindowState::Get(browser_window->GetNativeWindow());
   {
-    FullscreenNotificationObserver fullscreen_waiter(browser());
-    browser()
-        ->exclusive_access_manager()
-        ->fullscreen_controller()
-        ->ToggleBrowserFullscreenMode();
-    fullscreen_waiter.Wait();
+    ui_test_utils::ToggleFullscreenModeAndWait(browser());
     EXPECT_TRUE(browser_window->IsFullscreen());
     EXPECT_FALSE(window_state->GetHideShelfWhenFullscreen());
     EXPECT_FALSE(tester.IsLocked());
@@ -153,14 +146,14 @@ IN_PROC_BROWSER_TEST_F(ScreenLockerTest, DISABLED_TestFullscreenExit) {
   // fullscreen. The fullscreen window has all of the pixels when in tab
   // fullscreen.
   {
-    FullscreenNotificationObserver fullscreen_waiter(browser());
     content::WebContents* web_contents =
         browser()->tab_strip_model()->GetActiveWebContents();
+    ui_test_utils::FullscreenWaiter waiter(browser(), {.tab_fullscreen = true});
     browser()
         ->exclusive_access_manager()
         ->fullscreen_controller()
         ->EnterFullscreenModeForTab(web_contents->GetPrimaryMainFrame());
-    fullscreen_waiter.Wait();
+    waiter.Wait();
     EXPECT_TRUE(browser_window->IsFullscreen());
     EXPECT_TRUE(window_state->GetHideShelfWhenFullscreen());
     EXPECT_FALSE(tester.IsLocked());

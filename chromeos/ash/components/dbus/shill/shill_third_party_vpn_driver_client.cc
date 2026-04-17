@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chromeos/ash/components/dbus/shill/shill_third_party_vpn_driver_client.h"
 
 #include <stddef.h>
@@ -10,6 +15,7 @@
 #include <map>
 #include <set>
 
+#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
@@ -95,11 +101,11 @@ class ShillThirdPartyVpnDriverClientImpl
 
    private:
     ShillClientHelper helper_;
-    raw_ptr<ShillThirdPartyVpnObserver, ExperimentalAsh> observer_;
+    raw_ptr<ShillThirdPartyVpnObserver> observer_;
 
     base::WeakPtrFactory<HelperInfo> weak_ptr_factory_{this};
   };
-  using HelperMap = std::map<std::string, HelperInfo*>;
+  using HelperMap = std::map<std::string, raw_ptr<HelperInfo, CtnExperimental>>;
 
   static void OnPacketReceived(base::WeakPtr<HelperInfo> helper_info,
                                dbus::Signal* signal);
@@ -124,7 +130,7 @@ class ShillThirdPartyVpnDriverClientImpl
   // Deletes the helper object corresponding to |object_path|.
   void DeleteHelper(const dbus::ObjectPath& object_path);
 
-  raw_ptr<dbus::Bus, ExperimentalAsh> bus_;
+  raw_ptr<dbus::Bus> bus_;
   HelperMap helpers_;
   std::set<std::string> valid_keys_;
 };
@@ -218,7 +224,7 @@ void ShillThirdPartyVpnDriverClientImpl::SetParameters(
   dbus::MessageWriter array_writer(nullptr);
   writer.OpenArray("{ss}", &array_writer);
   for (auto it : parameters) {
-    if (valid_keys_.find(it.first) == valid_keys_.end()) {
+    if (!base::Contains(valid_keys_, it.first)) {
       LOG(WARNING) << "Unknown key " << it.first;
       continue;
     }
@@ -262,8 +268,7 @@ void ShillThirdPartyVpnDriverClientImpl::SendPacket(
   dbus::MessageWriter writer(&method_call);
   static_assert(sizeof(uint8_t) == sizeof(char),
                 "Can't reinterpret ip_packet if char is not 8 bit large.");
-  writer.AppendArrayOfBytes(reinterpret_cast<const uint8_t*>(ip_packet.data()),
-                            ip_packet.size());
+  writer.AppendArrayOfBytes(base::as_byte_span(ip_packet));
   GetHelper(object_path_value)
       ->CallVoidMethodWithErrorCallback(&method_call, std::move(callback),
                                         std::move(error_callback));

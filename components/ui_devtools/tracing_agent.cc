@@ -9,9 +9,12 @@
 #include <unordered_set>
 #include <vector>
 
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/process/process.h"
+#include "base/strings/cstring_view.h"
 #include "base/timer/timer.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/traced_value.h"
@@ -239,9 +242,9 @@ class TracingAgent::PerfettoTracingSession
   }
 
   // mojo::DataPipeDrainer::Client implementation:
-  void OnDataAvailable(const void* data, size_t num_bytes) override {
-    auto data_string = std::make_unique<std::string>(
-        reinterpret_cast<const char*>(data), num_bytes);
+  void OnDataAvailable(base::span<const uint8_t> data) override {
+    auto data_string =
+        std::make_unique<std::string>(base::as_string_view(data));
     endpoint_->ReceiveTraceChunk(std::move(data_string));
   }
 
@@ -274,7 +277,7 @@ class TracingAgent::PerfettoTracingSession
   mojo::Remote<tracing::mojom::TracingSessionHost> tracing_session_host_;
 
   mojo::Remote<tracing::mojom::ConsumerHost> consumer_host_;
-  ConnectorDelegate* connector_;
+  raw_ptr<ConnectorDelegate> connector_;
 
   std::string agent_label_;
   base::OnceClosure on_recording_enabled_callback_;
@@ -326,8 +329,9 @@ void TracingAgent::OnTraceDataCollected(
   const size_t messageSuffixSize = 10;
   message.reserve(message.size() + valid_trace_fragment.size() +
                   messageSuffixSize - trace_data_buffer_state_.offset);
-  message.append(valid_trace_fragment.c_str() +
-                 trace_data_buffer_state_.offset);
+  message.append(base::cstring_view(valid_trace_fragment)
+                     .substr(trace_data_buffer_state_.offset)
+                     .data());
   message += "] } }";
   frontend()->sendRawNotification(
       std::make_unique<TracingNotification>(std::move(message)));
@@ -348,17 +352,16 @@ void TracingAgent::OnTraceComplete() {
   frontend()->tracingComplete(data_loss);
 }
 
-void TracingAgent::start(
-    protocol::Maybe<std::string> categories,
-    protocol::Maybe<std::string> options,
-    protocol::Maybe<double> buffer_usage_reporting_interval,
-    std::unique_ptr<StartCallback> callback) {
+void TracingAgent::start(std::optional<std::string> categories,
+                         std::optional<std::string> options,
+                         std::optional<double> buffer_usage_reporting_interval,
+                         std::unique_ptr<StartCallback> callback) {
   if (g_any_agent_tracing) {
     callback->sendFailure(Response::ServerError("Tracing is already started"));
     return;
   }
 
-  if (!categories.isJust() && !options.isJust()) {
+  if (!categories.has_value() && !options.has_value()) {
     callback->sendFailure(
         Response::InvalidParams("categories+options should be specified."));
     return;
@@ -366,7 +369,7 @@ void TracingAgent::start(
 
   did_initiate_recording_ = true;
   buffer_usage_reporting_interval_ =
-      buffer_usage_reporting_interval.fromMaybe(0);
+      buffer_usage_reporting_interval.value_or(0);
 
   // Since we want minimum changes to the devtools frontend, enable the
   // tracing categories for ui_devtools here.
@@ -375,7 +378,7 @@ void TracingAgent::start(
       "timeline.frame,views,latency,toplevel,"
       "benchmark,cc,viz,input,latency,gpu,rail,viz,ui";
   trace_config_ = base::trace_event::TraceConfig(ui_devtools_categories,
-                                                 options.fromMaybe(""));
+                                                 options.value_or(""));
   StartTracing(std::move(callback));
 }
 

@@ -30,13 +30,16 @@ class COMPONENT_EXPORT(GLOBAL_MEDIA_CONTROLS) MediaItemUIObserverSet
   void OnMediaItemUISizeChanged() override;
   void OnMediaItemUIMetadataChanged() override;
   void OnMediaItemUIActionsChanged() override;
-  void OnMediaItemUIClicked(const std::string& id) override;
+  void OnMediaItemUIClicked(const std::string& id,
+                            bool activate_original_media) override;
   void OnMediaItemUIDismissed(const std::string& id) override;
   void OnMediaItemUIDestroyed(const std::string& id) override;
+  void OnMediaItemUIShowDevices(const std::string& id) override;
 
  private:
   const raw_ptr<MediaItemUIObserver> owner_;
-  std::map<std::string, MediaItemUI*> observed_item_uis_;
+  std::map<std::string, raw_ptr<MediaItemUI, CtnExperimental>>
+      observed_item_uis_;
 };
 
 }  // namespace global_media_controls

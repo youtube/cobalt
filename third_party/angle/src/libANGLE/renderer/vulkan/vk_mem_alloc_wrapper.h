@@ -23,25 +23,31 @@ namespace vma
 typedef VkFlags VirtualBlockCreateFlags;
 typedef enum VirtualBlockCreateFlagBits
 {
-    GENERAL = 0x0000000,
+    GENERAL = 0x00000000,
     LINEAR  = 0x00000001,
-    BUDDY   = 0x00000002
 } VirtualBlockCreateFlagBits;
 
 typedef struct StatInfo
 {
-    // Number of VkDeviceMemory Vulkan memory blocks allocated.
-    uint32_t blockCount;
-    // Number of VmaAllocation allocation objects allocated.
-    uint32_t allocationCount;
-    // Number of free ranges of memory between allocations.
+    struct BasicInfo
+    {
+        // Number of VkDeviceMemory Vulkan memory blocks allocated.
+        uint32_t blockCount;
+        // Number of VmaAllocation allocation objects allocated.
+        uint32_t allocationCount;
+        VkDeviceSize blockBytes;
+        VkDeviceSize allocationBytes;
+    } basicInfo;
+    /// Number of free ranges of memory between allocations.
     uint32_t unusedRangeCount;
-    // Total number of bytes occupied by all allocations.
-    VkDeviceSize usedBytes;
-    // Total number of bytes occupied by unused ranges.
-    VkDeviceSize unusedBytes;
-    VkDeviceSize allocationSizeMin, allocationSizeAvg, allocationSizeMax;
-    VkDeviceSize unusedRangeSizeMin, unusedRangeSizeAvg, unusedRangeSizeMax;
+    /// Smallest allocation size. `VK_WHOLE_SIZE` if there are 0 allocations.
+    VkDeviceSize allocationSizeMin;
+    /// Largest allocation size. 0 if there are 0 allocations.
+    VkDeviceSize allocationSizeMax;
+    /// Smallest empty range size. `VK_WHOLE_SIZE` if there are 0 empty ranges.
+    VkDeviceSize unusedRangeSizeMin;
+    /// Largest empty range size. 0 if there are 0 empty ranges.
+    VkDeviceSize unusedRangeSizeMax;
 } StatInfo;
 
 VkResult InitAllocator(VkPhysicalDevice physicalDevice,
@@ -52,15 +58,6 @@ VkResult InitAllocator(VkPhysicalDevice physicalDevice,
                        VmaAllocator *pAllocator);
 
 void DestroyAllocator(VmaAllocator allocator);
-
-VkResult CreatePool(VmaAllocator allocator,
-                    uint32_t memoryTypeIndex,
-#if ANGLE_VMA_VERSION < 3000000
-                    bool buddyAlgorithm,
-#endif  // ANGLE_VMA_VERSION < 3000000
-                    VkDeviceSize blockSize,
-                    VmaPool *pPool);
-void DestroyPool(VmaAllocator allocator, VmaPool pool);
 
 void FreeMemory(VmaAllocator allocator, VmaAllocation allocation);
 
@@ -77,6 +74,7 @@ VkResult AllocateAndBindMemoryForImage(VmaAllocator allocator,
                                        VkImage *pImage,
                                        VkMemoryPropertyFlags requiredFlags,
                                        VkMemoryPropertyFlags preferredFlags,
+                                       uint32_t memoryTypeBits,
                                        bool allocateDedicatedMemory,
                                        VmaAllocation *pAllocationOut,
                                        uint32_t *pMemoryTypeIndexOut,
@@ -88,6 +86,13 @@ VkResult FindMemoryTypeIndexForBufferInfo(VmaAllocator allocator,
                                           VkMemoryPropertyFlags preferredFlags,
                                           bool persistentlyMappedBuffers,
                                           uint32_t *pMemoryTypeIndexOut);
+
+VkResult FindMemoryTypeIndexForImageInfo(VmaAllocator allocator,
+                                         const VkImageCreateInfo *pImageCreateInfo,
+                                         VkMemoryPropertyFlags requiredFlags,
+                                         VkMemoryPropertyFlags preferredFlags,
+                                         bool allocateDedicatedMemory,
+                                         uint32_t *pMemoryTypeIndexOut);
 
 void GetMemoryTypeProperties(VmaAllocator allocator,
                              uint32_t memoryTypeIndex,

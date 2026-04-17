@@ -7,11 +7,12 @@
 #include <memory>
 
 #include "ash/public/cpp/shell_window_ids.h"
+#include "ash/utility/wm_util.h"
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/ui/ash/ash_util.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/browser/view_type_utils.h"
 #include "extensions/common/mojom/view_type.mojom.h"
+#include "ui/accessibility/accessibility_features.h"
 #include "ui/compositor/layer.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
@@ -44,13 +45,13 @@ class AccessibilityPanel::AccessibilityPanelWebContentsObserver
   }
 
  private:
-  raw_ptr<AccessibilityPanel, ExperimentalAsh> panel_;
+  raw_ptr<AccessibilityPanel> panel_;
 };
 
 AccessibilityPanel::AccessibilityPanel(content::BrowserContext* browser_context,
-                                       std::string content_url,
-                                       std::string widget_name) {
-  SetOwnedByWidget(true);
+                                       const std::string& content_url,
+                                       const std::string& widget_name) {
+  SetOwnedByWidget(OwnedByWidgetPassKey());
 
   views::WebView* web_view = new views::WebView(browser_context);
   web_contents_ = web_view->GetWebContents();
@@ -58,13 +59,19 @@ AccessibilityPanel::AccessibilityPanel(content::BrowserContext* browser_context,
       std::make_unique<AccessibilityPanelWebContentsObserver>(web_contents_,
                                                               this);
   web_contents_->SetDelegate(this);
-  extensions::SetViewType(web_contents_,
-                          extensions::mojom::ViewType::kComponent);
+  if (::features::IsAccessibilityManifestV3EnabledForChromeVox()) {
+    extensions::SetViewType(web_contents_,
+                            extensions::mojom::ViewType::kExtensionPopup);
+  } else {
+    extensions::SetViewType(web_contents_,
+                            extensions::mojom::ViewType::kComponent);
+  }
   web_view->LoadInitialURL(GURL(content_url));
   web_view_ = web_view;
 
   widget_ = new views::Widget();
   views::Widget::InitParams params(
+      views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET,
       views::Widget::InitParams::TYPE_WINDOW_FRAMELESS);
   // Placing the panel in the accessibility panel container allows ash to manage
   // both the window bounds and display work area.

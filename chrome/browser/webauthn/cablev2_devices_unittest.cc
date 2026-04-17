@@ -2,21 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/webauthn/cablev2_devices.h"
+
+#include <algorithm>
 #include <memory>
 #include <vector>
 
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
-#include "chrome/browser/webauthn/cablev2_devices.h"
 #include "chrome/test/base/testing_profile.h"
-#include "components/sync/base/model_type.h"
+#include "components/prefs/pref_service.h"
+#include "components/prefs/scoped_user_pref_update.h"
+#include "components/sync/base/data_type.h"
 #include "components/sync/protocol/sync_enums.pb.h"
 #include "components/sync_device_info/device_info.h"
 #include "content/public/test/browser_task_environment.h"
 #include "device/fido/cable/cable_discovery_data.h"
+#include "device/fido/cable/v2_constants.h"
 #include "device/fido/cable/v2_handshake.h"
 #include "device/fido/features.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -186,11 +189,13 @@ TEST_F(CableV2DevicesProfileTest, InitiallyEmpty) {
 
 std::unique_ptr<Pairing> PairingWithAllFields() {
   auto ret = std::make_unique<Pairing>();
+  ret->tunnel_server_domain = device::cablev2::tunnelserver::KnownDomainID(1);
   ret->contact_id = {1, 2, 3, 4, 5};
   ret->id = {6, 7, 8, 9, 10};
   ret->secret = {11, 12, 13, 14, 15};
   ret->peer_public_key_x962 = {16, 17, 18, 19, 20};
   ret->name = "Pairing";
+  ret->from_new_implementation = true;
   return ret;
 }
 
@@ -206,12 +211,14 @@ TEST_F(CableV2DevicesProfileTest, StoreAndFetch) {
 
   std::unique_ptr<Pairing> expected = PairingWithAllFields();
   const Pairing* const found = known_devices->linked_devices[0].get();
+  EXPECT_EQ(found->tunnel_server_domain, expected->tunnel_server_domain);
   EXPECT_EQ(found->contact_id, expected->contact_id);
   EXPECT_EQ(found->id, expected->id);
   EXPECT_EQ(found->secret, expected->secret);
   EXPECT_EQ(found->peer_public_key_x962, expected->peer_public_key_x962);
   EXPECT_EQ(found->name, expected->name);
   EXPECT_EQ(found->from_sync_deviceinfo, expected->from_sync_deviceinfo);
+  EXPECT_EQ(found->from_new_implementation, expected->from_new_implementation);
 }
 
 TEST_F(CableV2DevicesProfileTest, Delete) {
@@ -261,6 +268,41 @@ TEST_F(CableV2DevicesProfileTest, NameCollision) {
             known_devices->linked_devices.end(),
             [](auto&& a, auto&& b) -> bool { return a->name < b->name; });
   EXPECT_EQ(known_devices->linked_devices[3]->name, "collision (3)");
+}
+
+TEST_F(CableV2DevicesProfileTest, NameOverride) {
+  // A pairing from the old implementation can be overridden, by name, by the
+  // new implementation.
+  for (const bool old_impl_first : {true, false}) {
+    TestingProfile profile;
+    std::unique_ptr<Pairing> old_pairing = LinkedDevice("name", kPubKey1);
+    std::unique_ptr<Pairing> new_pairing = LinkedDevice("name", kPubKey2);
+    old_pairing->from_new_implementation = false;
+    new_pairing->from_new_implementation = true;
+
+    if (old_impl_first) {
+      cablev2::AddPairing(&profile, std::move(old_pairing));
+    }
+    cablev2::AddPairing(&profile, std::move(new_pairing));
+    if (!old_impl_first) {
+      cablev2::AddPairing(&profile, std::move(old_pairing));
+    }
+
+    std::unique_ptr<KnownDevices> known_devices =
+        KnownDevices::FromProfile(&profile);
+
+    EXPECT_EQ(known_devices->synced_devices.size(), 0u);
+
+    if (old_impl_first) {
+      ASSERT_EQ(known_devices->linked_devices.size(), 1u);
+      EXPECT_EQ(known_devices->linked_devices[0]->peer_public_key_x962[0],
+                kPubKey2);
+    } else {
+      ASSERT_EQ(known_devices->linked_devices.size(), 2u);
+      EXPECT_NE(known_devices->linked_devices[0]->name,
+                known_devices->linked_devices[1]->name);
+    }
+  }
 }
 
 TEST_F(CableV2DevicesProfileTest, Rename) {
@@ -334,6 +376,37 @@ TEST_F(CableV2DevicesProfileTest, UpdateLinkCollidingName) {
   EXPECT_EQ(known_devices->linked_devices[1]->name, "two (1)");
 }
 
+TEST_F(CableV2DevicesProfileTest, InvalidTunnelServerDomain) {
+  TestingProfile profile;
+  std::unique_ptr<Pairing> pairing = PairingWithAllFields();
+  pairing->tunnel_server_domain =
+      device::cablev2::tunnelserver::KnownDomainID(42);
+  cablev2::AddPairing(&profile, std::move(pairing));
+  std::unique_ptr<KnownDevices> known_devices =
+      KnownDevices::FromProfile(&profile);
+  EXPECT_TRUE(known_devices->linked_devices.empty());
+}
+
+TEST_F(CableV2DevicesProfileTest, MissingTunnelServerDomain) {
+  TestingProfile profile;
+  std::unique_ptr<Pairing> pairing = PairingWithAllFields();
+  cablev2::AddPairing(&profile, std::move(pairing));
+
+  {
+    ScopedListPrefUpdate update(profile.GetPrefs(),
+                                "webauthn.cablev2_pairings");
+    for (base::Value& val : *update) {
+      val.GetDict().Remove("encoded_tunnel_server");
+    }
+  }
+
+  std::unique_ptr<KnownDevices> known_devices =
+      KnownDevices::FromProfile(&profile);
+  ASSERT_EQ(known_devices->linked_devices.size(), 1u);
+  EXPECT_EQ(known_devices->linked_devices.at(0)->tunnel_server_domain,
+            device::cablev2::kTunnelServer);
+}
+
 struct TestDeviceInfoConfig {
   bool omit_paask_info = false;
   uint32_t id = device::cablev2::sync::IDNow();
@@ -343,14 +416,14 @@ struct TestDeviceInfoConfig {
 syncer::DeviceInfo TestDeviceInfo(const TestDeviceInfoConfig& config) {
   syncer::DeviceInfo::PhoneAsASecurityKeyInfo paask_info;
   paask_info.contact_id = std::vector<uint8_t>({1, 2, 3});
-  base::ranges::fill(paask_info.peer_public_key_x962, 0);
+  std::ranges::fill(paask_info.peer_public_key_x962, 0);
   paask_info.peer_public_key_x962[0] = 1;
-  base::ranges::fill(paask_info.secret, 0);
+  std::ranges::fill(paask_info.secret, 0);
   paask_info.secret[0] = 2;
   paask_info.id = config.id;
   paask_info.tunnel_server_domain = config.tunnel_server_domain;
 
-  absl::optional<syncer::DeviceInfo::PhoneAsASecurityKeyInfo> paask_info_opt;
+  std::optional<syncer::DeviceInfo::PhoneAsASecurityKeyInfo> paask_info_opt;
   if (!config.omit_paask_info) {
     paask_info_opt = paask_info;
   }
@@ -369,9 +442,14 @@ syncer::DeviceInfo TestDeviceInfo(const TestDeviceInfoConfig& config) {
       /*full_hardware_class=*/"full_hardware_class",
       /*last_updated_timestamp=*/base::Time::Now(),
       /*pulse_interval=*/base::TimeDelta(),
-      /*send_tab_to_self_receiving_enabled=*/false,
-      /*sharing_info=*/absl::nullopt, paask_info_opt,
-      /*fcm_registration_token=*/"fcm_token", syncer::ModelTypeSet());
+      /*send_tab_to_self_receiving_enabled=*/
+      false,
+      /*send_tab_to_self_receiving_type=*/
+      sync_pb::
+          SyncEnums_SendTabReceivingType_SEND_TAB_RECEIVING_TYPE_CHROME_OR_UNSPECIFIED,
+      /*sharing_info=*/std::nullopt, paask_info_opt,
+      /*fcm_registration_token=*/"fcm_token", syncer::DataTypeSet(),
+      /*floating_workspace_last_signin_timestamp=*/base::Time::Now());
 }
 
 TEST(CableV2FromSyncInfoTest, Basic) {

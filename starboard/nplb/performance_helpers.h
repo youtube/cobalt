@@ -15,9 +15,11 @@
 #ifndef STARBOARD_NPLB_PERFORMANCE_HELPERS_H_
 #define STARBOARD_NPLB_PERFORMANCE_HELPERS_H_
 
+#include <cstddef>
+#include <cstdint>
+
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {

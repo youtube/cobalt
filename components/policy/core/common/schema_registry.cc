@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "components/policy/core/common/schema_registry.h"
 
 #include "base/check_op.h"
@@ -11,9 +12,9 @@
 
 namespace policy {
 
-SchemaRegistry::Observer::~Observer() {}
+SchemaRegistry::Observer::~Observer() = default;
 
-SchemaRegistry::InternalObserver::~InternalObserver() {}
+SchemaRegistry::InternalObserver::~InternalObserver() = default;
 
 SchemaRegistry::SchemaRegistry() : schema_map_(new SchemaMap) {
   for (int i = 0; i < POLICY_DOMAIN_SIZE; ++i)
@@ -132,7 +133,7 @@ CombinedSchemaRegistry::CombinedSchemaRegistry()
   SetAllDomainsReady();
 }
 
-CombinedSchemaRegistry::~CombinedSchemaRegistry() {}
+CombinedSchemaRegistry::~CombinedSchemaRegistry() = default;
 
 void CombinedSchemaRegistry::Track(SchemaRegistry* registry) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);

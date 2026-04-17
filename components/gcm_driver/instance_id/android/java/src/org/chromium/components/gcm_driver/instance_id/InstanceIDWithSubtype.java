@@ -13,6 +13,8 @@ import androidx.annotation.VisibleForTesting;
 import com.google.android.gms.iid.InstanceID;
 
 import org.chromium.base.ContextUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -22,22 +24,21 @@ import java.util.Map;
  * InstanceID wrapper that allows multiple InstanceIDs to be created, depending
  * on the provided subtype. Only for platforms-within-platforms like browsers.
  */
+@NullMarked
 public class InstanceIDWithSubtype {
     // Must match the private InstanceID.OPTION_SUBTYPE, which is guaranteed to not change.
     private static final String OPTION_SUBTYPE = "subtype";
 
     private final InstanceID mInstanceID;
 
-    /**
-     * Cached instances. May be accessed from multiple threads; synchronize on sSubtypeInstancesLock
-     */
+    /** Cached instances. May be accessed from multiple threads; synchronize on sSubtypeInstancesLock */
     @VisibleForTesting
     protected static final Map<String, InstanceIDWithSubtype> sSubtypeInstances = new HashMap<>();
+
     protected static final Object sSubtypeInstancesLock = new Object();
 
     /** Fake subclasses can set this so getInstance creates instances of them. */
-    @VisibleForTesting
-    protected static FakeFactory sFakeFactoryForTesting;
+    @VisibleForTesting protected static @Nullable FakeFactory sFakeFactoryForTesting;
 
     protected InstanceIDWithSubtype(InstanceID instanceID) {
         mInstanceID = instanceID;

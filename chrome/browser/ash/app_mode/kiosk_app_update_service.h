@@ -9,6 +9,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/singleton.h"
+#include "base/scoped_observation.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/ash/app_mode/kiosk_app_manager_observer.h"
 #include "chrome/browser/ash/system/automatic_reboot_manager_observer.h"
@@ -20,6 +21,7 @@ class Profile;
 
 namespace extensions {
 class Extension;
+class ExtensionUpdater;
 }
 
 namespace ash {
@@ -57,7 +59,7 @@ class KioskAppUpdateService : public KeyedService,
   void Shutdown() override;
 
   // extensions::UpdateObserver overrides:
-  void OnAppUpdateAvailable(const extensions::Extension* extension) override;
+  void OnAppUpdateAvailable(const extensions::Extension& extension) override;
   void OnChromeUpdateAvailable() override {}
 
   // system::AutomaticRebootManagerObserver overrides:
@@ -67,21 +69,25 @@ class KioskAppUpdateService : public KeyedService,
   // KioskAppManagerObserver overrides:
   void OnKioskAppCacheUpdated(const std::string& app_id) override;
 
-  raw_ptr<Profile, ExperimentalAsh> profile_;
+  raw_ptr<Profile> profile_;
   std::string app_id_;
 
   // After we detect an upgrade we start a one-short timer to force restart.
   base::OneShotTimer restart_timer_;
 
-  raw_ptr<system::AutomaticRebootManager, ExperimentalAsh>
+  raw_ptr<system::AutomaticRebootManager>
       automatic_reboot_manager_;  // Not owned.
+
+  base::ScopedObservation<extensions::ExtensionUpdater,
+                          extensions::UpdateObserver>
+      update_observation_{this};
 };
 
 // Singleton that owns all KioskAppUpdateServices and associates them with
 // profiles.
 class KioskAppUpdateServiceFactory : public ProfileKeyedServiceFactory {
  public:
-  // Returns the KioskAppUpdateService for |profile|, creating it if it is not
+  // Returns the KioskAppUpdateService for `profile`, creating it if it is not
   // yet created.
   static KioskAppUpdateService* GetForProfile(Profile* profile);
 
@@ -95,7 +101,7 @@ class KioskAppUpdateServiceFactory : public ProfileKeyedServiceFactory {
   ~KioskAppUpdateServiceFactory() override;
 
   // BrowserContextKeyedServiceFactory overrides:
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* profile) const override;
 };
 

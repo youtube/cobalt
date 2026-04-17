@@ -5,6 +5,7 @@
 #include "components/metrics/net/net_metrics_log_uploader.h"
 
 #include <memory>
+#include <string_view>
 
 #include "base/base64.h"
 #include "base/functional/bind.h"
@@ -50,8 +51,9 @@ class NetMetricsLogUploaderTest : public testing::Test {
         base::BindRepeating(
             &NetMetricsLogUploaderTest::OnUploadCompleteReuseUploader,
             base::Unretained(this)));
-    uploader_->UploadLog("initial_dummy_data", "initial_dummy_hash",
-                         "initial_dummy_signature", reporting_info);
+    uploader_->UploadLog("initial_dummy_data", LogMetadata(),
+                         "initial_dummy_hash", "initial_dummy_signature",
+                         reporting_info);
   }
 
   void CreateUploaderAndUploadToSecureURL(const std::string& url) {
@@ -61,8 +63,8 @@ class NetMetricsLogUploaderTest : public testing::Test {
         MetricsLogUploader::UMA,
         base::BindRepeating(&NetMetricsLogUploaderTest::DummyOnUploadComplete,
                             base::Unretained(this)));
-    uploader_->UploadLog("dummy_data", "dummy_hash", "dummy_signature",
-                         dummy_reporting_info);
+    uploader_->UploadLog("dummy_data", LogMetadata(), "dummy_hash",
+                         "dummy_signature", dummy_reporting_info);
   }
 
   void CreateUploaderAndUploadToInsecureURL() {
@@ -75,16 +77,17 @@ class NetMetricsLogUploaderTest : public testing::Test {
     std::string compressed_message;
     // Compress the data since the encryption code expects a compressed log,
     // and tries to decompress it before encrypting it.
-    compression::GzipCompress("dummy_data", &compressed_message);
-    uploader_->UploadLog(compressed_message, "dummy_hash", "dummy_signature",
-                         dummy_reporting_info);
+    compression::GzipCompress(base::span_from_cstring("dummy_data"),
+                              &compressed_message);
+    uploader_->UploadLog(compressed_message, LogMetadata(), "dummy_hash",
+                         "dummy_signature", dummy_reporting_info);
   }
 
   void DummyOnUploadComplete(int response_code,
                              int error_code,
                              bool was_https,
                              bool force_discard,
-                             base::StringPiece force_discard_reason) {
+                             std::string_view force_discard_reason) {
     log_was_force_discarded_ = force_discard;
   }
 
@@ -92,13 +95,13 @@ class NetMetricsLogUploaderTest : public testing::Test {
                                      int error_code,
                                      bool was_https,
                                      bool force_discard,
-                                     base::StringPiece force_discard_reason) {
+                                     std::string_view force_discard_reason) {
     ++on_upload_complete_count_;
     if (on_upload_complete_count_ == 1) {
       ReportingInfo reporting_info;
       reporting_info.set_attempt_count(20);
-      uploader_->UploadLog("dummy_data", "dummy_hash", "dummy_signature",
-                           reporting_info);
+      uploader_->UploadLog("dummy_data", LogMetadata(), "dummy_hash",
+                           "dummy_signature", reporting_info);
     }
     log_was_force_discarded_ = force_discard;
   }
@@ -137,12 +140,10 @@ class NetMetricsLogUploaderTest : public testing::Test {
 
 void CheckReportingInfoHeader(net::HttpRequestHeaders headers,
                               int expected_attempt_count) {
-  std::string reporting_info_base64;
-  EXPECT_TRUE(
-      headers.GetHeader("X-Chrome-UMA-ReportingInfo", &reporting_info_base64));
   std::string reporting_info_string;
-  EXPECT_TRUE(
-      base::Base64Decode(reporting_info_base64, &reporting_info_string));
+  EXPECT_TRUE(base::Base64Decode(
+      headers.GetHeader("X-Chrome-UMA-ReportingInfo").value(),
+      &reporting_info_string));
   ReportingInfo reporting_info;
   EXPECT_TRUE(reporting_info.ParseFromString(reporting_info_string));
   EXPECT_EQ(reporting_info.attempt_count(), expected_attempt_count);

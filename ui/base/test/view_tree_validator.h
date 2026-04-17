@@ -5,27 +5,28 @@
 #ifndef UI_BASE_TEST_VIEW_TREE_VALIDATOR_H_
 #define UI_BASE_TEST_VIEW_TREE_VALIDATOR_H_
 
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include <optional>
+#include <string>
 
 @class NSView;
 
 namespace ui {
 
 struct ViewTreeProblemDetails {
-  enum ProblemType {
+  enum class ProblemType {
     // |view_a| (the child view) is not entirely contained within the bounds of
     // |view_b| (the parent view).
-    VIEW_OUTSIDE_PARENT,
+    kViewOutsideParent,
 
     // |view_a| and |view_b|, neither of which is an ancestor of the other,
     // overlap each other, and at least one of |view_a| or |view_b| has
     // localizable text (is an NSControl or NSText).
-    VIEWS_OVERLAP,
+    kViewsOverlap,
   };
 
   ProblemType type;
-  NSView* view_a;
-  NSView* view_b;
+  NSView* __strong view_a;
+  NSView* __strong view_b;
 
   std::string ToString();
 };
@@ -33,7 +34,7 @@ struct ViewTreeProblemDetails {
 // Validates the view tree rooted at |root|. If at least one problem is found,
 // returns a |ViewTreeProblemDetails| as described above; if not, returns an
 // empty option.
-absl::optional<ViewTreeProblemDetails> ValidateViewTree(NSView* root);
+std::optional<ViewTreeProblemDetails> ValidateViewTree(NSView* root);
 
 }  // namespace ui
 

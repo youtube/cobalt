@@ -5,12 +5,13 @@
 #include "device/fido/mac/authenticator.h"
 
 #include <algorithm>
+#include <optional>
 
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
-#include "base/strings/string_piece.h"
+#include "base/no_destructor.h"
 #import "base/task/sequenced_task_runner.h"
 #include "base/task/sequenced_task_runner.h"
 #include "components/device_event_log/device_event_log.h"
@@ -26,7 +27,6 @@
 #include "device/fido/mac/make_credential_operation.h"
 #include "device/fido/mac/util.h"
 #include "device/fido/public_key_credential_user_entity.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace device::fido::mac {
 
@@ -56,7 +56,7 @@ void TouchIdAuthenticator::GetPlatformCredentialInfoForRequest(
     const CtapGetAssertionRequest& request,
     const CtapGetAssertionOptions& options,
     GetPlatformCredentialInfoForRequestCallback callback) {
-  absl::optional<std::list<Credential>> credentials =
+  std::optional<std::list<Credential>> credentials =
       request.allow_list.empty()
           ? credential_store_.FindResidentCredentials(request.rp_id)
           : credential_store_.FindCredentialsFromCredentialDescriptorList(
@@ -69,18 +69,15 @@ void TouchIdAuthenticator::GetPlatformCredentialInfoForRequest(
     return;
   }
   std::vector<DiscoverableCredentialMetadata> result;
-  if (base::FeatureList::IsEnabled(
-          kWebAuthnMacPlatformAuthenticatorOptionalUv) ||
-      request.allow_list.empty()) {
-    // With `kWebAuthnMacPlatformAuthenticatorOptionalUv`, always report the
-    // list of credentials, because the UI will show a confirmation prompt for
-    // one randomly chosen credential and run through the same pre-select flow
-    // as for empty allow lists.
-    for (const auto& credential : *credentials) {
-      result.emplace_back(
-          AuthenticatorType::kTouchID, request.rp_id, credential.credential_id,
-          credential.metadata.ToPublicKeyCredentialUserEntity());
-    }
+  // With `kWebAuthnMacPlatformAuthenticatorOptionalUv`, always report the
+  // list of credentials, because the UI will show a confirmation prompt for
+  // one randomly chosen credential and run through the same pre-select flow
+  // as for empty allow lists.
+  for (const auto& credential : *credentials) {
+    result.emplace_back(AuthenticatorType::kTouchID, request.rp_id,
+                        credential.credential_id,
+                        credential.metadata.ToPublicKeyCredentialUserEntity(),
+                        /*provider_name=*/std::nullopt);
   }
   std::move(callback).Run(
       std::move(result),
@@ -125,7 +122,7 @@ std::string TouchIdAuthenticator::GetId() const {
   return "TouchIdAuthenticator";
 }
 
-absl::optional<FidoTransportProtocol>
+std::optional<FidoTransportProtocol>
 TouchIdAuthenticator::AuthenticatorTransport() const {
   return FidoTransportProtocol::kInternal;
 }
@@ -146,13 +143,15 @@ AuthenticatorSupportedOptions TouchIdAuthenticatorOptions() {
 }  // namespace
 
 const AuthenticatorSupportedOptions& TouchIdAuthenticator::Options() const {
-  static const AuthenticatorSupportedOptions options =
-      TouchIdAuthenticatorOptions();
-  return options;
+  static const base::NoDestructor<AuthenticatorSupportedOptions> options(
+      TouchIdAuthenticatorOptions());
+  return *options;
 }
 
 void TouchIdAuthenticator::GetTouch(base::OnceClosure callback) {
-  NOTREACHED();
+  // If at any point request processing wants to collect a "touch" from this
+  // authenticator, pretend that happens immediately because UI interaction
+  // already happened to trigger this authenticator.
   std::move(callback).Run();
 }
 

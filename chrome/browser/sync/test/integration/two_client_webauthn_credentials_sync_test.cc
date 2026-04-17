@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/test/scoped_feature_list.h"
+#include "base/location.h"
 #include "chrome/browser/sync/test/integration/multi_client_status_change_checker.h"
 #include "chrome/browser/sync/test/integration/sync_datatype_helper.h"
 #include "chrome/browser/sync/test/integration/sync_integration_test_util.h"
@@ -10,7 +10,6 @@
 #include "chrome/browser/sync/test/integration/sync_test.h"
 #include "chrome/browser/sync/test/integration/webauthn_credentials_helper.h"
 #include "chrome/browser/ui/browser.h"
-#include "components/sync/base/features.h"
 #include "components/sync/protocol/entity_specifics.pb.h"
 #include "components/sync/protocol/webauthn_credential_specifics.pb.h"
 #include "components/webauthn/core/browser/passkey_model.h"
@@ -27,21 +26,20 @@ class TwoClientWebAuthnCredentialsSyncTest : public SyncTest {
  public:
   TwoClientWebAuthnCredentialsSyncTest() : SyncTest(TWO_CLIENT) {}
   ~TwoClientWebAuthnCredentialsSyncTest() override = default;
-
-  base::test::ScopedFeatureList scoped_feature_list_{
-      syncer::kSyncWebauthnCredentials};
 };
 
 IN_PROC_BROWSER_TEST_F(TwoClientWebAuthnCredentialsSyncTest,
                        E2E_ENABLED(AddAndDelete)) {
+  ResetSyncForPrimaryAccount();
   ASSERT_TRUE(SetupSync()) << "SetupSync() failed.";
 
-  PasskeyModel& model0 = GetModel(0);
+  webauthn::PasskeyModel& model0 = GetModel(0);
   EXPECT_EQ(model0.GetAllSyncIds().size(), 0u);
-  const std::string sync_id0 = model0.AddNewPasskeyForTesting(NewPasskey());
+  sync_pb::WebauthnCredentialSpecifics passkey0 = NewPasskey();
+  const std::string sync_id0 = model0.AddNewPasskeyForTesting(passkey0);
   EXPECT_EQ(model0.GetAllSyncIds().size(), 1u);
 
-  PasskeyModel& model1 = GetModel(1);
+  webauthn::PasskeyModel& model1 = GetModel(1);
   ASSERT_TRUE(AwaitAllModelsMatch());
   EXPECT_EQ(model1.GetAllSyncIds().size(), 1u);
 
@@ -49,7 +47,7 @@ IN_PROC_BROWSER_TEST_F(TwoClientWebAuthnCredentialsSyncTest,
   ASSERT_TRUE(AwaitAllModelsMatch());
   EXPECT_EQ(model1.GetAllSyncIds().size(), 2u);
 
-  ASSERT_TRUE(model1.DeletePasskeyForTesting(sync_id0));
+  ASSERT_TRUE(model1.DeletePasskey(passkey0.credential_id(), FROM_HERE));
   ASSERT_TRUE(AwaitAllModelsMatch());
   EXPECT_EQ(model1.GetAllSyncIds().size(), 1u);
 }

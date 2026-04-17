@@ -112,20 +112,19 @@ First, partners should set `sb_is_evergreen_compatible = true` in the platform's
 platforms that are maintained by Google and used to build Cobalt core.)
 
 Second, in the platform's `toolchain/BUILD.gn` file partners should copy their
-"target" toolchain to add a "native_target" toolchain that is identical except
-that it sets `is_starboard = false` and `is_native_target_build = true`.
+"starboard" toolchain to add a "native_target" toolchain that is identical
+except that it sets `is_starboard = false`.
 
 For example:
 
 ```none
-gcc_toolchain("target") {
+gcc_toolchain("starboard") {
   ...
 }
 
 gcc_toolchain("native_target") {
   ...
   is_starboard = false
-  is_native_target_build = true
 }
 ```
 
@@ -176,7 +175,7 @@ copy, targeted for a specific architecture, ABI, and Starboard version.
 Note: `sb_api_version` defaults to the latest supported Starboard version in the
 current branch.
 
-The partner port of Starboard is built with the partner's "target" toolchain and
+The partner port of Starboard is built with the partner's "starboard" toolchain and
 is linked into the `loader_app`, which knows how to dynamically load
 `libcobalt.lz4`. And the `crashpad_handler` binary is built with the partner's
 "native_target" toolchain. For example:
@@ -273,7 +272,7 @@ directory tree,
 we would use the following command to run NPLB:
 
 ```sh
-.../elf_loader_sandbox --evergreen_library=app/nplb/lib/libnplb.so
+.../elf_loader_sandbox --evergreen_library=app/nplb/content/libnplb.so
                        --evergreen_content=app/nplb/content
 ```
 
@@ -506,7 +505,8 @@ Image required for all slot configurations:
 │           │   └── libcobalt.lz4 <--(System image version of Cobalt Core)
 │           └── manifest.json
 └── loader_app <--(Cobalt launcher binary)
-└── crashpad_handler <--(Cobalt crash handler)
+└── native_target
+    ├── crashpad_handler <--(Cobalt crash handler)
 ```
 
 Structure for `kSbSystemPathStorageDirectory` used for future Cobalt Evergreen

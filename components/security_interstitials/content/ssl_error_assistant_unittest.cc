@@ -97,8 +97,7 @@ class SSLErrorAssistantTest : public content::RenderViewHostTestHarness {
                                        const std::string& match_result) {
     net::CertificateList certs =
         net::X509Certificate::CreateCertificateListFromBytes(
-            base::as_bytes(base::make_span(cert)),
-            net::X509Certificate::FORMAT_AUTO);
+            base::as_byte_span(cert), net::X509Certificate::FORMAT_AUTO);
     ASSERT_FALSE(certs.empty());
     EXPECT_EQ(match_result,
               error_assistant()->MatchKnownMITMSoftware(certs[0]));
@@ -109,7 +108,7 @@ class SSLErrorAssistantTest : public content::RenderViewHostTestHarness {
     embedded_test_server_ = std::make_unique<net::EmbeddedTestServer>();
   }
 
-  ~SSLErrorAssistantTest() override {}
+  ~SSLErrorAssistantTest() override = default;
 
   SSLErrorAssistant* error_assistant() const { return error_assistant_.get(); }
 
@@ -254,7 +253,7 @@ TEST_F(SSLErrorAssistantTest, DynamicInterstitialListMatch) {
 
   error_assistant()->SetErrorAssistantProto(std::move(config_proto));
 
-  absl::optional<DynamicInterstitialInfo> dynamic_interstitial =
+  std::optional<DynamicInterstitialInfo> dynamic_interstitial =
       error_assistant()->MatchDynamicInterstitial(ssl_info());
   ASSERT_TRUE(dynamic_interstitial);
   EXPECT_EQ(chrome_browser_ssl::DynamicInterstitial::INTERSTITIAL_PAGE_SSL,
@@ -300,7 +299,7 @@ TEST_F(SSLErrorAssistantTest, DynamicInterstitialListComplexRegexMatch) {
 
   error_assistant()->SetErrorAssistantProto(std::move(config_proto));
 
-  absl::optional<DynamicInterstitialInfo> dynamic_interstitial =
+  std::optional<DynamicInterstitialInfo> dynamic_interstitial =
       error_assistant()->MatchDynamicInterstitial(ssl_info());
   ASSERT_TRUE(dynamic_interstitial);
   EXPECT_EQ(chrome_browser_ssl::DynamicInterstitial::INTERSTITIAL_PAGE_SSL,
@@ -344,7 +343,7 @@ TEST_F(SSLErrorAssistantTest, DynamicInterstitialListMatchUnknownCertError) {
 
   error_assistant()->SetErrorAssistantProto(std::move(config_proto));
 
-  absl::optional<DynamicInterstitialInfo> dynamic_interstitial =
+  std::optional<DynamicInterstitialInfo> dynamic_interstitial =
       error_assistant()->MatchDynamicInterstitial(ssl_info());
   EXPECT_TRUE(dynamic_interstitial);
   EXPECT_EQ(chrome_browser_ssl::DynamicInterstitial::INTERSTITIAL_PAGE_SSL,
@@ -389,7 +388,7 @@ TEST_F(SSLErrorAssistantTest, DynamicInterstitialListNoCommonName) {
 
   error_assistant()->SetErrorAssistantProto(std::move(config_proto));
 
-  absl::optional<DynamicInterstitialInfo> dynamic_interstitial =
+  std::optional<DynamicInterstitialInfo> dynamic_interstitial =
       error_assistant()->MatchDynamicInterstitial(ssl_info());
   ASSERT_TRUE(dynamic_interstitial);
   EXPECT_EQ(chrome_browser_ssl::DynamicInterstitial::INTERSTITIAL_PAGE_SSL,
@@ -434,7 +433,7 @@ TEST_F(SSLErrorAssistantTest, DynamicInterstitialListNoOrganizationRegex) {
 
   error_assistant()->SetErrorAssistantProto(std::move(config_proto));
 
-  absl::optional<DynamicInterstitialInfo> dynamic_interstitial =
+  std::optional<DynamicInterstitialInfo> dynamic_interstitial =
       error_assistant()->MatchDynamicInterstitial(ssl_info());
   ASSERT_TRUE(dynamic_interstitial);
   EXPECT_EQ(chrome_browser_ssl::DynamicInterstitial::INTERSTITIAL_PAGE_SSL,
@@ -475,7 +474,7 @@ TEST_F(SSLErrorAssistantTest, DynamicInterstitialListNoCertHashes) {
 
   error_assistant()->SetErrorAssistantProto(std::move(config_proto));
 
-  absl::optional<DynamicInterstitialInfo> dynamic_interstitial =
+  std::optional<DynamicInterstitialInfo> dynamic_interstitial =
       error_assistant()->MatchDynamicInterstitial(ssl_info());
   ASSERT_TRUE(dynamic_interstitial);
   EXPECT_EQ(chrome_browser_ssl::DynamicInterstitial::INTERSTITIAL_PAGE_SSL,
@@ -500,7 +499,7 @@ TEST_F(SSLErrorAssistantTest, DynamicInterstitialListMatchBlank) {
 
   error_assistant()->SetErrorAssistantProto(std::move(config_proto));
 
-  absl::optional<DynamicInterstitialInfo> dynamic_interstitial =
+  std::optional<DynamicInterstitialInfo> dynamic_interstitial =
       error_assistant()->MatchDynamicInterstitial(ssl_info());
   ASSERT_TRUE(dynamic_interstitial);
   EXPECT_EQ(chrome_browser_ssl::DynamicInterstitial::INTERSTITIAL_PAGE_SSL,

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -53,8 +58,10 @@ double clamp(double min, double max, double value) {
 
 std::string ToUpperString(const std::string& str) {
   std::string ret;
-  for (uint32_t i = 0; i < str.size(); i++)
-    ret.push_back(static_cast<char>(toupper(str[i])));
+  ret.reserve(str.size());
+  std::transform(str.cbegin(), str.cend(), std::back_inserter(ret), [](char c) {
+    return (c < 'a' || c > 'z') ? c : (c + 'A' - 'a');
+  });
   return ret;
 }
 

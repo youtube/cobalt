@@ -4,10 +4,14 @@
 
 #include "components/update_client/net/network_impl.h"
 
+#include <memory>
 #include <utility>
 
 #include "base/check.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
+#include "base/memory/weak_ptr.h"
 #include "base/numerics/safe_conversions.h"
 #include "components/update_client/net/network_chromium.h"
 #include "net/base/load_flags.h"
@@ -17,7 +21,6 @@
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
-#include "services/network/public/cpp/simple_url_loader_throttle.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "url/gurl.h"
 
@@ -68,8 +71,9 @@ std::string GetStringHeader(const network::SimpleURLLoader* simple_url_loader,
   CHECK(simple_url_loader);
 
   const auto* response_info = simple_url_loader->ResponseInfo();
-  if (!response_info || !response_info->headers)
+  if (!response_info || !response_info->headers) {
     return {};
+  }
 
   std::string header_value;
   return response_info->headers->EnumerateHeader(nullptr, header_name,
@@ -85,8 +89,9 @@ int64_t GetInt64Header(const network::SimpleURLLoader* simple_url_loader,
   CHECK(simple_url_loader);
 
   const auto* response_info = simple_url_loader->ResponseInfo();
-  if (!response_info || !response_info->headers)
+  if (!response_info || !response_info->headers) {
     return -1;
+  }
 
   return response_info->headers->GetInt64HeaderValue(header_name);
 }
@@ -110,54 +115,56 @@ void NetworkFetcherImpl::PostRequest(
     ResponseStartedCallback response_started_callback,
     ProgressCallback progress_callback,
     PostRequestCompleteCallback post_request_complete_callback) {
-  CHECK(!simple_url_loader_);
   auto resource_request = std::make_unique<network::ResourceRequest>();
   resource_request->url = url;
   resource_request->method = "POST";
   resource_request->load_flags = net::LOAD_DISABLE_CACHE;
   resource_request->credentials_mode = network::mojom::CredentialsMode::kOmit;
-  for (const auto& header : post_additional_headers)
-    resource_request->headers.SetHeader(header.first, header.second);
-  simple_url_loader_ = network::SimpleURLLoader::Create(
-      std::move(resource_request), traffic_annotation);
-  if (network::SimpleURLLoaderThrottle::IsBatchingEnabled(traffic_annotation))
-    simple_url_loader_->SetAllowBatching();
-  simple_url_loader_->SetRetryOptions(
+  for (const auto& [name, value] : post_additional_headers) {
+    resource_request->headers.SetHeader(name, value);
+  }
+  std::unique_ptr<network::SimpleURLLoader> simple_url_loader =
+      network::SimpleURLLoader::Create(std::move(resource_request),
+                                       traffic_annotation);
+  simple_url_loader->SetRetryOptions(
       kMaxRetriesOnNetworkChange,
       network::SimpleURLLoader::RETRY_ON_NETWORK_CHANGE);
   // The `Content-Type` header set by |AttachStringForUpload| overwrites any
   // `Content-Type` header present in the |ResourceRequest| above.
-  simple_url_loader_->AttachStringForUpload(post_data, content_type);
-  simple_url_loader_->SetOnResponseStartedCallback(base::BindOnce(
-      &NetworkFetcherImpl::OnResponseStartedCallback, base::Unretained(this),
-      std::move(response_started_callback)));
-  simple_url_loader_->SetOnDownloadProgressCallback(base::BindRepeating(
-      &NetworkFetcherImpl::OnProgressCallback, base::Unretained(this),
+  simple_url_loader->AttachStringForUpload(post_data, content_type);
+  simple_url_loader->SetOnResponseStartedCallback(base::BindOnce(
+      &NetworkFetcherImpl::OnResponseStartedCallback,
+      weak_ptr_factory_.GetWeakPtr(), std::move(response_started_callback)));
+  simple_url_loader->SetOnDownloadProgressCallback(base::BindRepeating(
+      &NetworkFetcherImpl::OnProgressCallback, weak_ptr_factory_.GetWeakPtr(),
       std::move(progress_callback)));
-  constexpr size_t kMaxResponseSize = 1024 * 1024;
-  simple_url_loader_->DownloadToString(
+  static constexpr size_t kMaxResponseSize = 1024 * 1024;
+  simple_url_loader->DownloadToString(
       shared_url_network_factory_.get(),
       base::BindOnce(
-          [](const network::SimpleURLLoader* simple_url_loader,
+          [](std::unique_ptr<network::SimpleURLLoader> simple_url_loader,
              PostRequestCompleteCallback post_request_complete_callback,
-             std::unique_ptr<std::string> response_body) {
+             std::optional<std::string> response_body) {
             std::move(post_request_complete_callback)
                 .Run(std::move(response_body), simple_url_loader->NetError(),
-                     GetStringHeader(simple_url_loader, kHeaderEtag),
-                     GetStringHeader(simple_url_loader, kHeaderXCupServerProof),
-                     GetInt64Header(simple_url_loader, kHeaderXRetryAfter));
+                     GetStringHeader(simple_url_loader.get(), kHeaderEtag),
+                     GetStringHeader(simple_url_loader.get(),
+                                     kHeaderXCupServerProof),
+                     GetStringHeader(simple_url_loader.get(), kHeaderCookie),
+                     GetInt64Header(simple_url_loader.get(),
+                                    kHeaderXRetryAfter));
           },
-          simple_url_loader_.get(), std::move(post_request_complete_callback)),
+          std::move(simple_url_loader),
+          std::move(post_request_complete_callback)),
       kMaxResponseSize);
 }
 
-void NetworkFetcherImpl::DownloadToFile(
+base::OnceClosure NetworkFetcherImpl::DownloadToFile(
     const GURL& url,
     const base::FilePath& file_path,
     ResponseStartedCallback response_started_callback,
     ProgressCallback progress_callback,
     DownloadToFileCompleteCallback download_to_file_complete_callback) {
-  CHECK(!simple_url_loader_);
   auto resource_request = std::make_unique<network::ResourceRequest>();
   resource_request->url = url;
   resource_request->method = "GET";
@@ -168,31 +175,33 @@ void NetworkFetcherImpl::DownloadToFile(
   } else {
     resource_request->site_for_cookies = net::SiteForCookies::FromUrl(url);
   }
-  simple_url_loader_ = network::SimpleURLLoader::Create(
-      std::move(resource_request), traffic_annotation);
-  simple_url_loader_->SetRetryOptions(
+  std::unique_ptr<network::SimpleURLLoader> simple_url_loader =
+      network::SimpleURLLoader::Create(std::move(resource_request),
+                                       traffic_annotation);
+  simple_url_loader->SetRetryOptions(
       kMaxRetriesOnNetworkChange,
       network::SimpleURLLoader::RetryMode::RETRY_ON_NETWORK_CHANGE);
-  simple_url_loader_->SetAllowPartialResults(true);
-  simple_url_loader_->SetOnResponseStartedCallback(base::BindOnce(
-      &NetworkFetcherImpl::OnResponseStartedCallback, base::Unretained(this),
-      std::move(response_started_callback)));
-  simple_url_loader_->SetOnDownloadProgressCallback(base::BindRepeating(
-      &NetworkFetcherImpl::OnProgressCallback, base::Unretained(this),
+  simple_url_loader->SetAllowPartialResults(true);
+  simple_url_loader->SetOnResponseStartedCallback(base::BindOnce(
+      &NetworkFetcherImpl::OnResponseStartedCallback,
+      weak_ptr_factory_.GetWeakPtr(), std::move(response_started_callback)));
+  simple_url_loader->SetOnDownloadProgressCallback(base::BindRepeating(
+      &NetworkFetcherImpl::OnProgressCallback, weak_ptr_factory_.GetWeakPtr(),
       std::move(progress_callback)));
-  simple_url_loader_->DownloadToFile(
+  simple_url_loader->DownloadToFile(
       shared_url_network_factory_.get(),
       base::BindOnce(
-          [](const network::SimpleURLLoader* simple_url_loader,
+          [](std::unique_ptr<network::SimpleURLLoader> simple_url_loader,
              DownloadToFileCompleteCallback download_to_file_complete_callback,
              base::FilePath file_path) {
             std::move(download_to_file_complete_callback)
                 .Run(simple_url_loader->NetError(),
                      simple_url_loader->GetContentSize());
           },
-          simple_url_loader_.get(),
+          std::move(simple_url_loader),
           std::move(download_to_file_complete_callback)),
       file_path);
+  return base::DoNothing();
 }
 
 void NetworkFetcherImpl::OnResponseStartedCallback(

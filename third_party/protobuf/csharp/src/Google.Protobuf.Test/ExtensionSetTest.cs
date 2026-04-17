@@ -1,4 +1,15 @@
-﻿using Google.Protobuf.TestProtos.Proto2;
+#region Copyright notice and license
+// Protocol Buffers - Google's data interchange format
+// Copyright 2015 Google Inc.  All rights reserved.
+//
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file or at
+// https://developers.google.com/open-source/licenses/bsd
+#endregion
+
+using System;
+using System.Collections;
+using Google.Protobuf.TestProtos.Proto2;
 using NUnit.Framework;
 
 using static Google.Protobuf.TestProtos.Proto2.UnittestExtensions;
@@ -70,13 +81,72 @@ namespace Google.Protobuf
             message.SetExtension(OptionalStringExtension, "abcd");
 
             var input = new CodedInputStream(message.ToByteArray());
-            input.ExtensionRegistry = new ExtensionRegistry() { OptionalStringExtension };
+            input.ExtensionRegistry = new ExtensionRegistry { OptionalStringExtension };
             input.ReadTag(); // TryMergeFieldFrom expects that a tag was just read and will inspect the LastTag value
 
             ExtensionSet<TestAllExtensions> extensionSet = null;
             // test the legacy overload of TryMergeFieldFrom that takes a CodedInputStream
             Assert.IsTrue(ExtensionSet.TryMergeFieldFrom(ref extensionSet, input));
             Assert.AreEqual("abcd", ExtensionSet.Get(ref extensionSet, OptionalStringExtension));
+        }
+
+        [Test]
+        public void GetSingle()
+        {
+            var extensionValue = new TestAllTypes.Types.NestedMessage() { Bb = 42 };
+            var untypedExtension = new Extension<TestAllExtensions, object>(OptionalNestedMessageExtension.FieldNumber, codec: null);
+            var wrongTypedExtension = new Extension<TestAllExtensions, TestAllTypes>(OptionalNestedMessageExtension.FieldNumber, codec: null);
+
+            var message = new TestAllExtensions();
+
+            var value1 = message.GetExtension(untypedExtension);
+            Assert.IsNull(value1);
+
+            message.SetExtension(OptionalNestedMessageExtension, extensionValue);
+            var value2 = message.GetExtension(untypedExtension);
+            Assert.IsNotNull(value2);
+
+            var valueBytes = ((IMessage)value2).ToByteArray();
+            var parsedValue = TestProtos.Proto2.TestAllTypes.Types.NestedMessage.Parser.ParseFrom(valueBytes);
+            Assert.AreEqual(extensionValue, parsedValue);
+
+            var ex = Assert.Throws<InvalidOperationException>(() => message.GetExtension(wrongTypedExtension));
+
+            var fullAssemblyName = typeof(TestAllTypes).Assembly.FullName;
+            var expectedMessage = $"The stored extension value has a type of 'Google.Protobuf.TestProtos.Proto2.TestAllTypes+Types+NestedMessage, {fullAssemblyName}'. " +
+                $"This a different from the requested type of 'Google.Protobuf.TestProtos.Proto2.TestAllTypes, {fullAssemblyName}'.";
+            Assert.AreEqual(expectedMessage, ex.Message);
+        }
+
+        [Test]
+        public void GetRepeated()
+        {
+            var extensionValue = new TestAllTypes.Types.NestedMessage() { Bb = 42 };
+            var untypedExtension = new Extension<TestAllExtensions, IList>(RepeatedNestedMessageExtension.FieldNumber, codec: null);
+            var wrongTypedExtension = new RepeatedExtension<TestAllExtensions, TestAllTypes>(RepeatedNestedMessageExtension.FieldNumber, codec: null);
+
+            var message = new TestAllExtensions();
+
+            var value1 = message.GetExtension(untypedExtension);
+            Assert.IsNull(value1);
+
+            var repeatedField = message.GetOrInitializeExtension<TestAllTypes.Types.NestedMessage>(RepeatedNestedMessageExtension);
+            repeatedField.Add(extensionValue);
+
+            var value2 = message.GetExtension(untypedExtension);
+            Assert.IsNotNull(value2);
+            Assert.AreEqual(1, value2.Count);
+
+            var valueBytes = ((IMessage)value2[0]).ToByteArray();
+            var parsedValue = TestProtos.Proto2.TestAllTypes.Types.NestedMessage.Parser.ParseFrom(valueBytes);
+            Assert.AreEqual(extensionValue, parsedValue);
+
+            var ex = Assert.Throws<InvalidOperationException>(() => message.GetExtension(wrongTypedExtension));
+
+            var fullAssemblyName = typeof(TestAllTypes).Assembly.FullName;
+            var expectedMessage = $"The stored extension value has a type of 'Google.Protobuf.TestProtos.Proto2.TestAllTypes+Types+NestedMessage, {fullAssemblyName}'. " +
+                $"This a different from the requested type of 'Google.Protobuf.TestProtos.Proto2.TestAllTypes, {fullAssemblyName}'.";
+            Assert.AreEqual(expectedMessage, ex.Message);
         }
 
         [Test]

@@ -11,6 +11,7 @@
 #include <memory>
 
 #include "base/component_export.h"
+#include "base/containers/span.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/sequence_checker.h"
@@ -78,12 +79,9 @@ class COMPONENT_EXPORT(STORAGE_BROWSER) FileSystemUsageCache {
 
   base::File* GetFile(const base::FilePath& file_path);
 
-  bool ReadBytes(const base::FilePath& file_path,
-                 char* buffer,
-                 int64_t buffer_size);
+  bool ReadBytes(const base::FilePath& file_path, base::span<uint8_t> buffer);
   bool WriteBytes(const base::FilePath& file_path,
-                  const char* buffer,
-                  int64_t buffer_size);
+                  base::span<const uint8_t> buffer);
   bool FlushFile(const base::FilePath& file_path);
   void ScheduleCloseTimer();
 
@@ -97,7 +95,7 @@ class COMPONENT_EXPORT(STORAGE_BROWSER) FileSystemUsageCache {
 
   // Incognito usages are kept in memory and are not written to disk.
   bool is_incognito_;
-  // TODO(https://crbug.com/955905): Stop using base::FilePath as the key in
+  // TODO(crbug.com/41454722): Stop using base::FilePath as the key in
   // this API as the paths are not necessarily actual on-disk locations.
   std::map<base::FilePath, std::vector<uint8_t>> incognito_usages_;
 

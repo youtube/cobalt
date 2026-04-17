@@ -64,7 +64,7 @@ class CastMirroringServiceHost final : public MirroringServiceHost,
              mojo::PendingRemote<mojom::CastMessageChannel> outbound_channel,
              mojo::PendingReceiver<mojom::CastMessageChannel> inbound_channel,
              const std::string& sink_name) override;
-  absl::optional<int> GetTabSourceId() const override;
+  std::optional<content::FrameTreeNodeId> GetTabSourceId() const override;
 
   void GetMirroringStats(
       base::OnceCallback<void(const base::Value)> json_stats_cb) override;
@@ -88,6 +88,9 @@ class CastMirroringServiceHost final : public MirroringServiceHost,
   void BindGpu(mojo::PendingReceiver<viz::mojom::Gpu> receiver) override;
   void GetVideoCaptureHost(
       mojo::PendingReceiver<media::mojom::VideoCaptureHost> receiver) override;
+  void GetVideoEncoderMetricsProvider(
+      mojo::PendingReceiver<media::mojom::VideoEncoderMetricsProvider> receiver)
+      override;
   void GetNetworkContext(
       mojo::PendingReceiver<network::mojom::NetworkContext> receiver) override;
   void CreateAudioStream(
@@ -119,7 +122,10 @@ class CastMirroringServiceHost final : public MirroringServiceHost,
   // indicator icon on the tabstrip.
   void ShowTabSharingUI(const blink::mojom::StreamDevices& devices);
 
-  void SwitchMirroringSourceTab(const content::DesktopMediaID& media_id);
+  // `captured_surface_control_active` is ignored because CSC is not supported
+  // for mirroring. It is only here to make the callback's signature line up.
+  void SwitchMirroringSourceTab(const content::DesktopMediaID& media_id,
+                                bool captured_surface_control_active);
 
   // Records metrics about the usage of Tab Switcher UI, and resets data members
   // used for metrics collection.
@@ -176,14 +182,12 @@ class CastMirroringServiceHost final : public MirroringServiceHost,
   // of |media_stream_ui_|.
   std::unique_ptr<content::MediaStreamUI> media_stream_ui_;
 
-  std::unique_ptr<OffscreenTab> offscreen_tab_;
-
   const bool tab_switching_ui_enabled_;
 
   // Represents the number of times a tab was switched during an active
   // mirroring session using tab switcher UI bar. Mainly used for metrics
   // collecting.
-  absl::optional<int> tab_switching_count_;
+  std::optional<int> tab_switching_count_;
 
   std::u16string sink_name_;
 
@@ -194,6 +198,12 @@ class CastMirroringServiceHost final : public MirroringServiceHost,
       video_capture_host_;
   base::UnguessableToken ignored_token_ = base::UnguessableToken::Create();
   const media::VideoCaptureParams ignored_params_;
+
+  // Notes on order: `offscreen_tab_` needs to be defined after
+  // `video_capture_host_`. This guarantees that during class destruction
+  // `video_capture_host_` gets destroyed before the captured WebContents (i.e
+  // `offscreen_tab_`).
+  std::unique_ptr<OffscreenTab> offscreen_tab_;
 
   // Used for calls supplied to `media_stream_ui_`, mainly to handle callbacks
   // for TabSharingUIViews. Invalidated every time a new UI is created.

@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.download.home.list.holder;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
 import android.view.LayoutInflater;
@@ -17,6 +19,8 @@ import androidx.appcompat.content.res.AppCompatResources;
 import androidx.core.graphics.drawable.RoundedBitmapDrawable;
 import androidx.core.graphics.drawable.RoundedBitmapDrawableFactory;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.download.home.list.ListItem;
 import org.chromium.chrome.browser.download.home.list.UiUtils;
 import org.chromium.chrome.browser.download.internal.R;
@@ -24,8 +28,9 @@ import org.chromium.components.offline_items_collection.OfflineItemVisuals;
 import org.chromium.ui.modelutil.PropertyModel;
 
 /**
- *  A {@link RecyclerView.ViewHolder} specifically meant to display a generic {@code OfflineItem}.
+ * A {@link RecyclerView.ViewHolder} specifically meant to display a generic {@code OfflineItem}.
  */
+@NullMarked
 public class GenericViewHolder extends OfflineItemViewHolder {
     private final TextView mTitle;
     private final TextView mCaption;
@@ -34,8 +39,9 @@ public class GenericViewHolder extends OfflineItemViewHolder {
 
     /** Creates a new {@link GenericViewHolder} instance. */
     public static GenericViewHolder create(ViewGroup parent) {
-        View view = LayoutInflater.from(parent.getContext())
-                            .inflate(R.layout.download_manager_generic_item, null);
+        View view =
+                LayoutInflater.from(parent.getContext())
+                        .inflate(R.layout.download_manager_generic_item, null);
         return new GenericViewHolder(view);
     }
 
@@ -54,17 +60,17 @@ public class GenericViewHolder extends OfflineItemViewHolder {
         super.bind(properties, item);
         ListItem.OfflineItemListItem offlineItem = (ListItem.OfflineItemListItem) item;
 
-        mTitle.setText(offlineItem.item.title);
+        mTitle.setText(UiUtils.formatGenericItemTitle(offlineItem.item));
         mCaption.setText(UiUtils.generateGenericCaption(offlineItem.item));
 
         // Build invalid icon.
-        @DrawableRes
-        int iconId = UiUtils.getIconForItem(offlineItem.item);
+        @DrawableRes int iconId = UiUtils.getIconForItem(offlineItem.item);
         if (iconId != mGenericIconId) {
             mGenericIconId = iconId;
 
-            Drawable drawable = org.chromium.ui.UiUtils.getTintedDrawable(
-                    itemView.getContext(), iconId, R.color.default_icon_color_tint_list);
+            Drawable drawable =
+                    org.chromium.ui.UiUtils.getTintedDrawable(
+                            itemView.getContext(), iconId, R.color.default_icon_color_tint_list);
 
             mThumbnail.setUnavailableDrawable(drawable);
             mThumbnail.setWaitingDrawable(drawable);
@@ -76,13 +82,15 @@ public class GenericViewHolder extends OfflineItemViewHolder {
     }
 
     @Override
-    protected Drawable onThumbnailRetrieved(OfflineItemVisuals visuals) {
+    protected @Nullable Drawable onThumbnailRetrieved(@Nullable OfflineItemVisuals visuals) {
         boolean hasThumbnail = visuals != null && visuals.icon != null;
         updateThumbnailBackground(hasThumbnail);
 
         RoundedBitmapDrawable drawable = null;
         if (hasThumbnail) {
-            drawable = RoundedBitmapDrawableFactory.create(itemView.getResources(), visuals.icon);
+            drawable =
+                    RoundedBitmapDrawableFactory.create(
+                            itemView.getResources(), assumeNonNull(visuals).icon);
             drawable.setCircular(true);
         }
         return drawable;
@@ -93,8 +101,9 @@ public class GenericViewHolder extends OfflineItemViewHolder {
             mThumbnail.setBackground(null);
         } else if (mThumbnail.getBackground() == null) {
             Resources resources = itemView.getResources();
-            Drawable background = AppCompatResources.getDrawable(
-                    itemView.getContext(), R.drawable.list_item_icon_modern_bg);
+            Drawable background =
+                    AppCompatResources.getDrawable(
+                            itemView.getContext(), R.drawable.list_item_icon_modern_bg);
             background.setLevel(resources.getInteger(R.integer.list_item_level_default));
             mThumbnail.setBackground(background);
         }

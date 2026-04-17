@@ -9,10 +9,11 @@
 
 #include <string>
 
-#include "ash/components/arc/metrics/arc_metrics_constants.h"
 #include "base/memory/raw_ptr.h"
+#include "base/scoped_observation.h"
 #include "chrome/browser/ash/app_list/arc/arc_app_list_prefs.h"
 #include "chrome/browser/ash/app_list/arc/arc_app_utils.h"
+#include "chromeos/ash/experiences/arc/metrics/arc_metrics_constants.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/services/app_service/public/cpp/app_registry_cache.h"
 #include "components/services/app_service/public/cpp/app_types.h"
@@ -46,6 +47,7 @@ class ArcAppLauncher : public ArcAppListPrefs::Observer,
                        const ArcAppListPrefs::AppInfo& app_info) override;
   void OnAppStatesChanged(const std::string& app_id,
                           const ArcAppListPrefs::AppInfo& app_info) override;
+  void OnArcAppListPrefsDestroyed() override;
 
   // apps::AppRegistryCache::Observer overrides:
   void OnAppUpdate(const apps::AppUpdate& update) override;
@@ -58,7 +60,7 @@ class ArcAppLauncher : public ArcAppListPrefs::Observer,
                       apps::Readiness readiness);
 
   // Unowned pointer.
-  raw_ptr<content::BrowserContext, ExperimentalAsh> context_;
+  raw_ptr<content::BrowserContext> context_;
   // ARC app id.
   const std::string app_id_;
   // Optional intent to launch the app. If not set then app is started default
@@ -74,6 +76,13 @@ class ArcAppLauncher : public ArcAppListPrefs::Observer,
   bool app_launched_ = false;
   // Enum that indicates what type of metric to record to UMA on launch.
   apps::LaunchSource launch_source_;
+
+  base::ScopedObservation<apps::AppRegistryCache,
+                          apps::AppRegistryCache::Observer>
+      app_registry_cache_observer_{this};
+
+  base::ScopedObservation<ArcAppListPrefs, ArcAppListPrefs::Observer>
+      arc_app_list_prefs_observer_{this};
 };
 
 #endif  // CHROME_BROWSER_ASH_APP_LIST_ARC_ARC_APP_LAUNCHER_H_

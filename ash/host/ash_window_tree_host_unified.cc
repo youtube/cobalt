@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "ash/host/ash_window_tree_host_unified.h"
-#include "base/memory/raw_ptr.h"
 
+#include <algorithm>
 #include <memory>
 #include <tuple>
 #include <utility>
@@ -13,8 +13,9 @@
 #include "ash/host/root_window_transformer.h"
 #include "base/check.h"
 #include "base/containers/contains.h"
+#include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
-#include "base/ranges/algorithm.h"
+#include "base/types/cxx23_to_underlying.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_event_dispatcher.h"
 #include "ui/aura/window_targeter.h"
@@ -44,8 +45,7 @@ class UnifiedEventTargeter : public aura::WindowTargeter {
     if (root == src_root_ && !event->target()) {
       return root;
     } else {
-      NOTREACHED() << "event type:" << event->type();
-      return aura::WindowTargeter::FindTargetForEvent(root, event);
+      NOTREACHED() << "event type:" << base::to_underlying(event->type());
     }
   }
   ui::EventSink* GetNewEventSinkForEvent(const ui::EventTarget* current_root,
@@ -64,9 +64,9 @@ class UnifiedEventTargeter : public aura::WindowTargeter {
   }
 
  private:
-  raw_ptr<aura::Window, ExperimentalAsh> src_root_;
-  raw_ptr<aura::Window, ExperimentalAsh> dst_root_;
-  raw_ptr<AshWindowTreeHostDelegate, ExperimentalAsh> delegate_;  // Not owned.
+  raw_ptr<aura::Window> src_root_;
+  raw_ptr<aura::Window> dst_root_;
+  raw_ptr<AshWindowTreeHostDelegate> delegate_;  // Not owned.
 };
 
 AshWindowTreeHostUnified::AshWindowTreeHostUnified(
@@ -79,18 +79,22 @@ AshWindowTreeHostUnified::AshWindowTreeHostUnified(
           compositor_memory_limit_mb) {
   ui::StubWindow* stub_window = static_cast<ui::StubWindow*>(platform_window());
   stub_window->InitDelegate(this, true);
+  // TODO(b/356098565): Remove the log once the issue is fixed.
+  LOG(ERROR) << "Creating Unified Desktop bounds=" << initial_bounds.ToString();
 }
 
 AshWindowTreeHostUnified::~AshWindowTreeHostUnified() {
-  for (auto* ash_host : mirroring_hosts_)
+  for (ash::AshWindowTreeHost* ash_host : mirroring_hosts_) {
     ash_host->AsWindowTreeHost()->window()->RemoveObserver(this);
+  }
 }
 
 void AshWindowTreeHostUnified::PrepareForShutdown() {
   AshWindowTreeHostPlatform::PrepareForShutdown();
 
-  for (auto* host : mirroring_hosts_)
+  for (ash::AshWindowTreeHost* host : mirroring_hosts_) {
     host->PrepareForShutdown();
+  }
 }
 
 void AshWindowTreeHostUnified::RegisterMirroringHost(
@@ -109,18 +113,21 @@ void AshWindowTreeHostUnified::RegisterMirroringHost(
 void AshWindowTreeHostUnified::UpdateCursorConfig() {}
 
 void AshWindowTreeHostUnified::ClearCursorConfig() {
-  for (auto* host : mirroring_hosts_)
+  for (ash::AshWindowTreeHost* host : mirroring_hosts_) {
     host->ClearCursorConfig();
+  }
 }
 
 void AshWindowTreeHostUnified::SetCursorNative(gfx::NativeCursor cursor) {
-  for (auto* host : mirroring_hosts_)
+  for (ash::AshWindowTreeHost* host : mirroring_hosts_) {
     host->AsWindowTreeHost()->SetCursor(cursor);
+  }
 }
 
 void AshWindowTreeHostUnified::OnCursorVisibilityChangedNative(bool show) {
-  for (auto* host : mirroring_hosts_)
+  for (ash::AshWindowTreeHost* host : mirroring_hosts_) {
     host->AsWindowTreeHost()->OnCursorVisibilityChanged(show);
+  }
 }
 
 void AshWindowTreeHostUnified::OnBoundsChanged(const BoundsChange& change) {
@@ -129,10 +136,10 @@ void AshWindowTreeHostUnified::OnBoundsChanged(const BoundsChange& change) {
 }
 
 void AshWindowTreeHostUnified::OnWindowDestroying(aura::Window* window) {
-  auto iter = base::ranges::find(
-      mirroring_hosts_, window, [](AshWindowTreeHost* ash_host) {
-        return ash_host->AsWindowTreeHost()->window();
-      });
+  auto iter = std::ranges::find(mirroring_hosts_, window,
+                                [](AshWindowTreeHost* ash_host) {
+                                  return ash_host->AsWindowTreeHost()->window();
+                                });
   DCHECK(iter != mirroring_hosts_.end());
   window->RemoveObserver(this);
   mirroring_hosts_.erase(iter);

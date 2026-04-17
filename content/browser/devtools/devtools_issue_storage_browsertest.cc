@@ -199,7 +199,8 @@ class DevToolsIssueStorageWithPrerenderBrowserTest
             base::Unretained(this))) {}
 
   void SetUp() override {
-    prerender_test_helper().SetUp(embedded_test_server());
+    prerender_test_helper().RegisterServerRequestMonitor(
+        embedded_test_server());
     DevToolsIssueStorageBrowserTest::SetUp();
   }
 
@@ -222,7 +223,7 @@ IN_PROC_BROWSER_TEST_F(DevToolsIssueStorageWithPrerenderBrowserTest,
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
 
   // 2) Prerender |prerender_url|.
-  int host_id = prerender_test_helper().AddPrerender(prerender_url);
+  FrameTreeNodeId host_id = prerender_test_helper().AddPrerender(prerender_url);
   RenderFrameHostImpl* prerender_rfh = static_cast<RenderFrameHostImpl*>(
       prerender_test_helper().GetPrerenderedMainFrameHost(host_id));
 

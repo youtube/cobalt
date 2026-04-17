@@ -5,13 +5,15 @@
 #ifndef V8_OBJECTS_STRING_FORWARDING_TABLE_INL_H_
 #define V8_OBJECTS_STRING_FORWARDING_TABLE_INL_H_
 
+#include "src/objects/string-forwarding-table.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/base/atomicops.h"
 #include "src/common/globals.h"
 #include "src/heap/safepoint.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/slots.h"
-#include "src/objects/string-forwarding-table.h"
 #include "src/objects/string-inl.h"
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -21,23 +23,23 @@ namespace internal {
 
 class StringForwardingTable::Record final {
  public:
-  String original_string(PtrComprCageBase cage_base) const {
-    return String::cast(OriginalStringObject(cage_base));
+  Tagged<String> original_string(PtrComprCageBase cage_base) const {
+    return Cast<String>(OriginalStringObject(cage_base));
   }
 
-  String forward_string(PtrComprCageBase cage_base) const {
-    return String::cast(ForwardStringObjectOrHash(cage_base));
+  Tagged<String> forward_string(PtrComprCageBase cage_base) const {
+    return Cast<String>(ForwardStringObjectOrHash(cage_base));
   }
 
   inline uint32_t raw_hash(PtrComprCageBase cage_base) const;
   inline v8::String::ExternalStringResourceBase* external_resource(
       bool* is_one_byte) const;
 
-  Object OriginalStringObject(PtrComprCageBase cage_base) const {
+  Tagged<Object> OriginalStringObject(PtrComprCageBase cage_base) const {
     return OriginalStringSlot().Acquire_Load(cage_base);
   }
 
-  Object ForwardStringObjectOrHash(PtrComprCageBase cage_base) const {
+  Tagged<Object> ForwardStringObjectOrHash(PtrComprCageBase cage_base) const {
     return ForwardStringOrHashSlot().Acquire_Load(cage_base);
   }
 
@@ -45,11 +47,11 @@ class StringForwardingTable::Record final {
     return base::AsAtomicPointer::Acquire_Load(&external_resource_);
   }
 
-  void set_original_string(Object object) {
+  void set_original_string(Tagged<Object> object) {
     OriginalStringSlot().Release_Store(object);
   }
 
-  void set_forward_string(Object object) {
+  void set_forward_string(Tagged<Object> object) {
     ForwardStringOrHashSlot().Release_Store(object);
   }
 
@@ -60,8 +62,8 @@ class StringForwardingTable::Record final {
     base::AsAtomicPointer::Release_Store(&external_resource_, address);
   }
 
-  inline void SetInternalized(String string, String forward_to);
-  inline void SetExternal(String string,
+  inline void SetInternalized(Tagged<String> string, Tagged<String> forward_to);
+  inline void SetExternal(Tagged<String> string,
                           v8::String::ExternalStringResourceBase*,
                           bool is_one_byte, uint32_t raw_hash);
   inline bool TryUpdateExternalResource(
@@ -71,7 +73,8 @@ class StringForwardingTable::Record final {
   // Dispose the external resource if the original string has transitioned
   // to an external string and the resource used for the transition is different
   // than the one in the record.
-  inline void DisposeUnusedExternalResource(String original_string);
+  inline void DisposeUnusedExternalResource(Isolate* isolate,
+                                            Tagged<String> original_string);
 
  private:
   OffHeapObjectSlot OriginalStringSlot() const {
@@ -127,10 +130,10 @@ class StringForwardingTable::Record final {
 
 uint32_t StringForwardingTable::Record::raw_hash(
     PtrComprCageBase cage_base) const {
-  Object hash_or_string = ForwardStringObjectOrHash(cage_base);
+  Tagged<Object> hash_or_string = ForwardStringObjectOrHash(cage_base);
   uint32_t raw_hash;
-  if (hash_or_string.IsHeapObject()) {
-    raw_hash = String::cast(hash_or_string).RawHash();
+  if (IsHeapObject(hash_or_string)) {
+    raw_hash = Cast<String>(hash_or_string)->RawHash();
   } else {
     raw_hash = static_cast<uint32_t>(hash_or_string.ptr());
   }
@@ -166,15 +169,15 @@ void StringForwardingTable::Record::set_external_resource(
   set_external_resource(address);
 }
 
-void StringForwardingTable::Record::SetInternalized(String string,
-                                                    String forward_to) {
+void StringForwardingTable::Record::SetInternalized(Tagged<String> string,
+                                                    Tagged<String> forward_to) {
   set_original_string(string);
   set_forward_string(forward_to);
   set_external_resource(kNullExternalPointer);
 }
 
 void StringForwardingTable::Record::SetExternal(
-    String string, v8::String::ExternalStringResourceBase* resource,
+    Tagged<String> string, v8::String::ExternalStringResourceBase* resource,
     bool is_one_byte, uint32_t raw_hash) {
   set_original_string(string);
   set_raw_hash_if_empty(raw_hash);
@@ -208,18 +211,17 @@ void StringForwardingTable::Record::DisposeExternalResource() {
 }
 
 void StringForwardingTable::Record::DisposeUnusedExternalResource(
-    String original) {
+    Isolate* isolate, Tagged<String> original) {
 #ifdef DEBUG
-  String stored_original =
-      original_string(GetIsolateFromWritableObject(original));
-  if (stored_original.IsThinString()) {
-    stored_original = ThinString::cast(stored_original).actual();
+  Tagged<String> stored_original = original_string(isolate);
+  if (IsThinString(stored_original)) {
+    stored_original = Cast<ThinString>(stored_original)->actual();
   }
   DCHECK_EQ(original, stored_original);
 #endif
-  if (!original.IsExternalString()) return;
+  if (!IsExternalString(original)) return;
   Address original_resource =
-      ExternalString::cast(original).resource_as_address();
+      Cast<ExternalString>(original)->resource_as_address();
   bool is_one_byte;
   auto resource = external_resource(&is_one_byte);
   if (resource != nullptr &&

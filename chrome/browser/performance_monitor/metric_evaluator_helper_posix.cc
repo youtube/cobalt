@@ -11,9 +11,8 @@ namespace performance_monitor {
 MetricEvaluatorsHelperPosix::MetricEvaluatorsHelperPosix() = default;
 MetricEvaluatorsHelperPosix::~MetricEvaluatorsHelperPosix() = default;
 
-absl::optional<int> MetricEvaluatorsHelperPosix::GetFreePhysicalMemoryMb() {
+std::optional<int> MetricEvaluatorsHelperPosix::GetFreePhysicalMemoryMb() {
   NOTREACHED();
-  return absl::nullopt;
 }
 
 }  // namespace performance_monitor

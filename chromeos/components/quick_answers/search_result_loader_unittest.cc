@@ -40,7 +40,9 @@ constexpr char kValidResponse[] = R"()]}'
             "valueAndUnit": {
               "rawText": "9.055 inches"
             }
-          }
+          },
+          "category": "Length",
+          "sourceAmount": 23
         }
       }
     ]
@@ -70,7 +72,7 @@ class SearchResultLoaderTest : public testing::Test {
   void TearDown() override { loader_.reset(); }
 
  protected:
-  base::test::SingleThreadTaskEnvironment task_environment_;
+  base::test::TaskEnvironment task_environment_;
   std::unique_ptr<SearchResultLoader> loader_;
   std::unique_ptr<MockResultLoaderDelegate> mock_delegate_;
   data_decoder::test::InProcessDataDecoder in_process_data_decoder_;
@@ -91,7 +93,7 @@ TEST_F(SearchResultLoaderTest, Success) {
           });
   EXPECT_CALL(*mock_delegate_, OnNetworkError()).Times(0);
 
-  fake_quick_answers_state_.SetConsentStatus(
+  fake_quick_answers_state_.AsyncSetConsentStatus(
       quick_answers::prefs::ConsentStatus::kAccepted);
   loader_->Fetch(PreprocessRequest(IntentInfo("23cm", IntentType::kUnknown)));
 
@@ -110,7 +112,7 @@ TEST_F(SearchResultLoaderTest, NetworkError) {
   EXPECT_CALL(*mock_delegate_, OnNetworkError());
   EXPECT_CALL(*mock_delegate_, OnQuickAnswerReceived(testing::_)).Times(0);
 
-  fake_quick_answers_state_.SetConsentStatus(
+  fake_quick_answers_state_.AsyncSetConsentStatus(
       quick_answers::prefs::ConsentStatus::kAccepted);
   loader_->Fetch(PreprocessRequest(IntentInfo("23cm", IntentType::kUnknown)));
 
@@ -125,7 +127,7 @@ TEST_F(SearchResultLoaderTest, EmptyResponse) {
   EXPECT_CALL(*mock_delegate_, OnQuickAnswerReceived(testing::Eq(nullptr)));
   EXPECT_CALL(*mock_delegate_, OnNetworkError()).Times(0);
 
-  fake_quick_answers_state_.SetConsentStatus(
+  fake_quick_answers_state_.AsyncSetConsentStatus(
       quick_answers::prefs::ConsentStatus::kAccepted);
   loader_->Fetch(PreprocessRequest(IntentInfo("23cm", IntentType::kUnknown)));
 

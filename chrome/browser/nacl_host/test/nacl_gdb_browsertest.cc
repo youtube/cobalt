@@ -15,21 +15,12 @@
 #include "components/nacl/common/nacl_switches.h"
 #include "content/public/test/browser_test.h"
 
-#if BUILDFLAG(IS_WIN)
-#include "base/win/windows_version.h"
-#endif
-
 static const base::FilePath::CharType kMockNaClGdb[] =
-#if BUILDFLAG(IS_WIN)
-    FILE_PATH_LITERAL("mock_nacl_gdb.exe");
-#else
     FILE_PATH_LITERAL("mock_nacl_gdb");
-#endif
 
 class NaClGdbTest : public PPAPINaClNewlibTest {
  public:
-  NaClGdbTest() {
-  }
+  NaClGdbTest() = default;
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
     PPAPINaClNewlibTest::SetUpCommandLine(command_line);
@@ -46,17 +37,6 @@ class NaClGdbTest : public PPAPINaClNewlibTest {
     base::FilePath mock_nacl_gdb_file;
     std::unique_ptr<base::Environment> env(base::Environment::Create());
     std::string content;
-    // TODO(halyavin): Make this test work on Windows 32-bit. Currently this
-    // is not possible because NaCl doesn't work without sandbox since 1Gb of
-    // space is not reserved. We can't reserve 1Gb of space because
-    // base::LaunchProcess doesn't support creating suspended processes. We need
-    // to either add suspended process support to base::LaunchProcess or use
-    // Win API.
-#if BUILDFLAG(IS_WIN)
-    if (base::win::OSInfo::GetInstance()->IsWowDisabled()) {
-      return;
-    }
-#endif
     base::ScopedAllowBlockingForTesting allow_blocking;
     EXPECT_TRUE(base::CreateTemporaryFile(&mock_nacl_gdb_file));
     env->SetVar("MOCK_NACL_GDB", mock_nacl_gdb_file.AsUTF8Unsafe());

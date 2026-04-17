@@ -5,6 +5,7 @@
 #ifndef CONTENT_BROWSER_DEVTOOLS_PROTOCOL_DOM_HANDLER_H_
 #define CONTENT_BROWSER_DEVTOOLS_PROTOCOL_DOM_HANDLER_H_
 
+#include "base/memory/raw_ptr.h"
 #include "content/browser/devtools/protocol/devtools_domain_handler.h"
 #include "content/browser/devtools/protocol/dom.h"
 
@@ -31,12 +32,12 @@ class DOMHandler : public DevToolsDomainHandler,
 
   Response SetFileInputFiles(
       std::unique_ptr<protocol::Array<std::string>> files,
-      Maybe<DOM::NodeId> node_id,
-      Maybe<DOM::BackendNodeId> backend_node_id,
-      Maybe<String> in_object_id) override;
+      std::optional<DOM::NodeId> node_id,
+      std::optional<DOM::BackendNodeId> backend_node_id,
+      std::optional<String> in_object_id) override;
 
  private:
-  RenderFrameHostImpl* host_;
+  raw_ptr<RenderFrameHostImpl> host_;
   bool allow_file_access_;
 };
 

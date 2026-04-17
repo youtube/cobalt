@@ -6,19 +6,20 @@
 
 #include <algorithm>
 
+#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "chromeos/ash/components/multidevice/logging/logging.h"
 #include "chromeos/ash/components/tether/active_host.h"
 #include "chromeos/ash/components/tether/persistent_host_scan_cache.h"
-#include "chromeos/ash/components/tether/timer_factory.h"
+#include "chromeos/ash/components/timer_factory/timer_factory.h"
 
 namespace ash {
 
 namespace tether {
 
 TopLevelHostScanCache::TopLevelHostScanCache(
-    std::unique_ptr<TimerFactory> timer_factory,
+    std::unique_ptr<ash::timer_factory::TimerFactory> timer_factory,
     ActiveHost* active_host,
     HostScanCache* network_host_scan_cache,
     PersistentHostScanCache* persistent_host_scan_cache)
@@ -126,8 +127,7 @@ bool TopLevelHostScanCache::ExistsInCache(
   bool exists_in_persistent_cache =
       persistent_host_scan_cache_->ExistsInCache(tether_network_guid);
   bool exists_in_timer_map =
-      tether_guid_to_timer_map_.find(tether_network_guid) !=
-      tether_guid_to_timer_map_.end();
+      base::Contains(tether_guid_to_timer_map_, tether_network_guid);
 
   // The caches are expected to remain in sync.
   DCHECK(exists_in_network_cache == exists_in_persistent_cache &&

@@ -9,6 +9,8 @@
 #include <vector>
 
 #include "base/containers/contains.h"
+#include "base/containers/map_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_delta_serialization.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/sample_vector.h"
@@ -47,7 +49,8 @@ class HistogramFlattenerDeltaRecorder : public HistogramFlattener {
     CHECK(!Contains(recorded_delta_histogram_sum_, histogram.histogram_name()));
     // Keep pointer to snapshot for testing. This really isn't ideal but the
     // snapshot-manager keeps the snapshot alive until it's "forgotten".
-    recorded_delta_histogram_sum_[histogram.histogram_name()] = snapshot.sum();
+    InsertOrAssign(recorded_delta_histogram_sum_, histogram.histogram_name(),
+                   snapshot.sum());
   }
 
   void Reset() {
@@ -55,7 +58,8 @@ class HistogramFlattenerDeltaRecorder : public HistogramFlattener {
     recorded_delta_histogram_sum_.clear();
   }
 
-  std::vector<const HistogramBase*>& GetRecordedDeltaHistograms() {
+  std::vector<raw_ptr<const HistogramBase, VectorExperimental>>&
+  GetRecordedDeltaHistograms() {
     return recorded_delta_histograms_;
   }
 
@@ -65,8 +69,9 @@ class HistogramFlattenerDeltaRecorder : public HistogramFlattener {
   }
 
  private:
-  std::vector<const HistogramBase*> recorded_delta_histograms_;
-  std::map<std::string, int64_t> recorded_delta_histogram_sum_;
+  std::vector<raw_ptr<const HistogramBase, VectorExperimental>>
+      recorded_delta_histograms_;
+  std::map<std::string, int64_t, std::less<>> recorded_delta_histogram_sum_;
 };
 
 class HistogramSnapshotManagerTest : public testing::Test {
@@ -97,8 +102,9 @@ TEST_F(HistogramSnapshotManagerTest, PrepareDeltasNoFlagsFilter) {
       /*required_flags=*/HistogramBase::kNoFlags, &histogram_snapshot_manager_);
 
   // Verify that the snapshots were recorded.
-  const std::vector<const HistogramBase*>& histograms =
-      histogram_flattener_delta_recorder_.GetRecordedDeltaHistograms();
+  const std::vector<raw_ptr<const HistogramBase, VectorExperimental>>&
+      histograms =
+          histogram_flattener_delta_recorder_.GetRecordedDeltaHistograms();
   ASSERT_EQ(2U, histograms.size());
   ASSERT_EQ(kHistogramName, histograms[0]->histogram_name());
   EXPECT_EQ(GetRecordedDeltaHistogramSum(kHistogramName), 1);
@@ -121,8 +127,9 @@ TEST_F(HistogramSnapshotManagerTest, PrepareDeltasUmaHistogramFlagFilter) {
       &histogram_snapshot_manager_);
 
   // Verify that the snapshots were recorded.
-  const std::vector<const HistogramBase*>& histograms =
-      histogram_flattener_delta_recorder_.GetRecordedDeltaHistograms();
+  const std::vector<raw_ptr<const HistogramBase, VectorExperimental>>&
+      histograms =
+          histogram_flattener_delta_recorder_.GetRecordedDeltaHistograms();
   ASSERT_EQ(2U, histograms.size());
   ASSERT_EQ(kHistogramName, histograms[0]->histogram_name());
   EXPECT_EQ(GetRecordedDeltaHistogramSum(kHistogramName), 1);
@@ -145,106 +152,14 @@ TEST_F(HistogramSnapshotManagerTest,
       &histogram_snapshot_manager_);
 
   // Verify that only the stability histogram was snapshotted and recorded.
-  const std::vector<const HistogramBase*>& histograms =
-      histogram_flattener_delta_recorder_.GetRecordedDeltaHistograms();
+  const std::vector<raw_ptr<const HistogramBase, VectorExperimental>>&
+      histograms =
+          histogram_flattener_delta_recorder_.GetRecordedDeltaHistograms();
   ASSERT_EQ(1U, histograms.size());
   ASSERT_EQ(kStabilityHistogramName, histograms[0]->histogram_name());
   EXPECT_EQ(GetRecordedDeltaHistogramSum(kStabilityHistogramName), 1);
 
   // The samples should have been marked as logged.
-  EXPECT_EQ(histograms[0]->SnapshotUnloggedSamples()->TotalCount(), 0);
-}
-
-TEST_F(HistogramSnapshotManagerTest, SnapshotUnloggedSamplesNoFlagsFilter) {
-  // kNoFlags filter should record all histograms.
-  base::UmaHistogramBoolean(kHistogramName, true);
-  UmaStabilityHistogramBoolean(kStabilityHistogramName, true);
-
-  StatisticsRecorder::SnapshotUnloggedSamples(
-      /*required_flags=*/HistogramBase::kNoFlags, &histogram_snapshot_manager_);
-
-  // Verify that the snapshots were recorded.
-  const std::vector<const HistogramBase*>& histograms =
-      histogram_flattener_delta_recorder_.GetRecordedDeltaHistograms();
-  ASSERT_EQ(2U, histograms.size());
-  ASSERT_EQ(kHistogramName, histograms[0]->histogram_name());
-  EXPECT_EQ(GetRecordedDeltaHistogramSum(kHistogramName), 1);
-  ASSERT_EQ(kStabilityHistogramName, histograms[1]->histogram_name());
-  EXPECT_EQ(GetRecordedDeltaHistogramSum(kStabilityHistogramName), 1);
-
-  // The samples should NOT have been marked as logged.
-  std::unique_ptr<HistogramSamples> samples =
-      histograms[0]->SnapshotUnloggedSamples();
-  EXPECT_EQ(samples->TotalCount(), 1);
-  EXPECT_EQ(samples->sum(), 1);
-  samples = histograms[1]->SnapshotUnloggedSamples();
-  EXPECT_EQ(samples->TotalCount(), 1);
-  EXPECT_EQ(samples->sum(), 1);
-
-  // Mark the samples as logged and verify that they are correctly marked as so.
-  histogram_snapshot_manager_.MarkUnloggedSamplesAsLogged();
-  EXPECT_EQ(histograms[0]->SnapshotUnloggedSamples()->TotalCount(), 0);
-  EXPECT_EQ(histograms[1]->SnapshotUnloggedSamples()->TotalCount(), 0);
-}
-
-TEST_F(HistogramSnapshotManagerTest,
-       SnapshotUnloggedSamplesUmaHistogramFlagFilter) {
-  // Note that kUmaStabilityHistogramFlag includes kUmaTargetedHistogramFlag.
-  base::UmaHistogramBoolean(kHistogramName, true);
-  UmaStabilityHistogramBoolean(kStabilityHistogramName, true);
-
-  StatisticsRecorder::SnapshotUnloggedSamples(
-      /*required_flags=*/HistogramBase::kUmaTargetedHistogramFlag,
-      &histogram_snapshot_manager_);
-
-  // Verify that the snapshots were recorded.
-  const std::vector<const HistogramBase*>& histograms =
-      histogram_flattener_delta_recorder_.GetRecordedDeltaHistograms();
-  ASSERT_EQ(2U, histograms.size());
-  ASSERT_EQ(kHistogramName, histograms[0]->histogram_name());
-  EXPECT_EQ(GetRecordedDeltaHistogramSum(kHistogramName), 1);
-  ASSERT_EQ(kStabilityHistogramName, histograms[1]->histogram_name());
-  EXPECT_EQ(GetRecordedDeltaHistogramSum(kStabilityHistogramName), 1);
-
-  // The samples should NOT have been marked as logged.
-  std::unique_ptr<HistogramSamples> samples =
-      histograms[0]->SnapshotUnloggedSamples();
-  EXPECT_EQ(samples->TotalCount(), 1);
-  EXPECT_EQ(samples->sum(), 1);
-  samples = histograms[1]->SnapshotUnloggedSamples();
-  EXPECT_EQ(samples->TotalCount(), 1);
-  EXPECT_EQ(samples->sum(), 1);
-
-  // Mark the samples as logged and verify that they are correctly marked as so.
-  histogram_snapshot_manager_.MarkUnloggedSamplesAsLogged();
-  EXPECT_EQ(histograms[0]->SnapshotUnloggedSamples()->TotalCount(), 0);
-  EXPECT_EQ(histograms[1]->SnapshotUnloggedSamples()->TotalCount(), 0);
-}
-
-TEST_F(HistogramSnapshotManagerTest,
-       SnapshotUnloggedSamplesUmaStabilityHistogramFlagFilter) {
-  base::UmaHistogramBoolean(kHistogramName, true);
-  UmaStabilityHistogramBoolean(kStabilityHistogramName, true);
-
-  StatisticsRecorder::SnapshotUnloggedSamples(
-      /*required_flags=*/HistogramBase::kUmaStabilityHistogramFlag,
-      &histogram_snapshot_manager_);
-
-  // Verify that only the stability histogram was snapshotted and recorded.
-  const std::vector<const HistogramBase*>& histograms =
-      histogram_flattener_delta_recorder_.GetRecordedDeltaHistograms();
-  ASSERT_EQ(1U, histograms.size());
-  ASSERT_EQ(kStabilityHistogramName, histograms[0]->histogram_name());
-  EXPECT_EQ(GetRecordedDeltaHistogramSum(kStabilityHistogramName), 1);
-
-  // The samples should NOT have been marked as logged.
-  std::unique_ptr<HistogramSamples> samples =
-      histograms[0]->SnapshotUnloggedSamples();
-  EXPECT_EQ(samples->TotalCount(), 1);
-  EXPECT_EQ(samples->sum(), 1);
-
-  // Mark the samples as logged and verify that they are correctly marked as so.
-  histogram_snapshot_manager_.MarkUnloggedSamplesAsLogged();
   EXPECT_EQ(histograms[0]->SnapshotUnloggedSamples()->TotalCount(), 0);
 }
 

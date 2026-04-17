@@ -3,10 +3,13 @@
 // found in the LICENSE file.
 #include "components/permissions/permission_actions_history.h"
 
+#include <algorithm>
+#include <optional>
+#include <string_view>
+#include <vector>
+
 #include "base/containers/adapters.h"
 #include "base/json/values_util.h"
-#include "base/ranges/algorithm.h"
-#include "base/strings/string_piece.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
@@ -15,9 +18,6 @@
 #include "components/permissions/request_type.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-
-#include <vector>
 
 namespace permissions {
 namespace {
@@ -63,7 +63,7 @@ PermissionActionsHistory::GetHistory(const base::Time& begin,
                             permission_actions.end());
   }
 
-  base::ranges::sort(
+  std::ranges::sort(
       matching_actions, {},
       [](const PermissionActionsHistory::Entry& entry) { return entry.time; });
   return matching_actions;
@@ -84,7 +84,7 @@ void PermissionActionsHistory::RecordAction(
   ScopedDictPrefUpdate update(pref_service_, prefs::kPermissionActions);
   base::Value::Dict& update_dict = update.Get();
 
-  const base::StringPiece permission_path(PermissionKeyForRequestType(type));
+  const std::string_view permission_path(PermissionKeyForRequestType(type));
 
   if (!update_dict.FindListByDottedPath(permission_path)) {
     update_dict.SetByDottedPath(permission_path, base::Value::List());
@@ -97,7 +97,7 @@ void PermissionActionsHistory::RecordAction(
   // Discard permission actions older than |kPermissionActionMaxAge|.
   const base::Time cutoff = base::Time::Now() - kPermissionActionMaxAge;
   permission_actions->EraseIf([cutoff](const base::Value& entry) {
-    const absl::optional<base::Time> timestamp = base::ValueToTime(
+    const std::optional<base::Time> timestamp = base::ValueToTime(
         entry.GetDict().Find(kPermissionActionEntryTimestampKey));
     return !timestamp || *timestamp < cutoff;
   });
@@ -126,7 +126,7 @@ void PermissionActionsHistory::ClearHistory(const base::Time& delete_begin,
   for (auto permission_entry : update.Get()) {
     permission_entry.second.GetList().EraseIf([delete_begin,
                                                delete_end](const auto& entry) {
-      const absl::optional<base::Time> timestamp = base::ValueToTime(
+      const std::optional<base::Time> timestamp = base::ValueToTime(
           entry.GetDict().Find(kPermissionActionEntryTimestampKey));
       return (!timestamp ||
               (*timestamp >= delete_begin && *timestamp < delete_end));
@@ -151,7 +151,7 @@ PermissionActionsHistory::GetHistoryInternal(const base::Time& begin,
 
   for (const auto& entry : *permission_actions) {
     const base::Value::Dict& entry_dict = entry.GetDict();
-    const absl::optional<base::Time> timestamp =
+    const std::optional<base::Time> timestamp =
         base::ValueToTime(entry_dict.Find(kPermissionActionEntryTimestampKey));
 
     if (timestamp < begin)
@@ -160,7 +160,7 @@ PermissionActionsHistory::GetHistoryInternal(const base::Time& begin,
     if (entry_filter != EntryFilter::WANT_ALL_PROMPTS) {
       // If we want either the Loud or Quiet UI actions but don't have this
       // info due to legacy reasons we ignore the entry.
-      const absl::optional<int> prompt_disposition_int =
+      const std::optional<int> prompt_disposition_int =
           entry_dict.FindInt(kPermissionActionEntryPromptDispositionKey);
       if (!prompt_disposition_int)
         continue;
@@ -200,6 +200,7 @@ void PermissionActionsHistory::FillInActionCounts(
         counts->denies++;
         break;
       case PermissionAction::GRANTED:
+      case PermissionAction::GRANTED_ONCE:
         counts->grants++;
         break;
       case PermissionAction::DISMISSED:

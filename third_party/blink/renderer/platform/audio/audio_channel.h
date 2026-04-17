@@ -30,6 +30,9 @@
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_AUDIO_AUDIO_CHANNEL_H_
 
 #include <memory>
+
+#include "base/compiler_specific.h"
+#include "base/memory/raw_ptr.h"
 #include "base/numerics/checked_math.h"
 #include "third_party/blink/renderer/platform/audio/audio_array.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
@@ -39,7 +42,7 @@ namespace blink {
 // An AudioChannel represents a buffer of non-interleaved floating-point audio
 // samples.
 // The PCM samples are normally assumed to be in a nominal range -1.0 -> +1.0
-class PLATFORM_EXPORT AudioChannel {
+class PLATFORM_EXPORT AudioChannel final {
  public:
   // Memory can be externally referenced, or can be internally allocated with an
   // AudioFloatArray.
@@ -76,11 +79,11 @@ class PLATFORM_EXPORT AudioChannel {
   // Direct access to PCM sample data. Non-const accessor clears silent flag.
   float* MutableData() {
     ClearSilentFlag();
-    return raw_pointer_ ? raw_pointer_ : mem_buffer_->Data();
+    return raw_pointer_ ? raw_pointer_.get() : mem_buffer_->Data();
   }
 
   const float* Data() const {
-    return raw_pointer_ ? raw_pointer_ : mem_buffer_->Data();
+    return raw_pointer_ ? raw_pointer_.get() : mem_buffer_->Data();
   }
 
   // Zeroes out all sample values in buffer.
@@ -94,8 +97,8 @@ class PLATFORM_EXPORT AudioChannel {
     if (mem_buffer_.get()) {
       mem_buffer_->Zero();
     } else {
-      memset(raw_pointer_, 0,
-             base::CheckMul(sizeof(float), length_).ValueOrDie());
+      UNSAFE_TODO(memset(raw_pointer_, 0,
+                         base::CheckMul(sizeof(float), length_).ValueOrDie()));
     }
   }
 
@@ -124,7 +127,7 @@ class PLATFORM_EXPORT AudioChannel {
  private:
   uint32_t length_;
 
-  float* raw_pointer_;
+  raw_ptr<float, DanglingUntriaged> raw_pointer_;
   std::unique_ptr<AudioFloatArray> mem_buffer_;
   bool silent_;
 };

@@ -9,7 +9,6 @@
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/browsing_topics/browsing_topics_internals_page_handler.h"
-#include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/browsing_topics_internals_resources.h"
 #include "chrome/grit/browsing_topics_internals_resources_map.h"
@@ -19,6 +18,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "ui/webui/webui_util.h"
 
 namespace {
 
@@ -101,9 +101,7 @@ BrowsingTopicsInternalsUI::BrowsingTopicsInternalsUI(content::WebUI* web_ui)
   AddTopicsConsentStrings(source, Profile::FromWebUI(web_ui));
 
   webui::SetupWebUIDataSource(
-      source,
-      base::make_span(kBrowsingTopicsInternalsResources,
-                      kBrowsingTopicsInternalsResourcesSize),
+      source, kBrowsingTopicsInternalsResources,
       IDR_BROWSING_TOPICS_INTERNALS_BROWSING_TOPICS_INTERNALS_HTML);
 }
 

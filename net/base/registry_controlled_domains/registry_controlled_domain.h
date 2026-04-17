@@ -115,11 +115,13 @@
 
 #include <stddef.h>
 
+#include <cstdint>
+#include <optional>
 #include <string>
+#include <string_view>
 
-#include "base/strings/string_piece.h"
+#include "base/containers/span.h"
 #include "net/base/net_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class GURL;
 
@@ -190,8 +192,14 @@ NET_EXPORT std::string GetDomainAndRegistry(const url::Origin& origin,
 // Like the GURL / Origin versions, but takes a host (which is canonicalized
 // internally). Prefer either the GURL or Origin variants instead of this one
 // to avoid needing to re-canonicalize the host.
-NET_EXPORT std::string GetDomainAndRegistry(base::StringPiece host,
+NET_EXPORT std::string GetDomainAndRegistry(std::string_view host,
                                             PrivateRegistryFilter filter);
+
+// Same as above, but returns a StringPiece that is backed by the supplied
+// url::Origin.
+NET_EXPORT std::string_view GetDomainAndRegistryAsStringPiece(
+    const url::Origin& origin,
+    PrivateRegistryFilter filter);
 
 // These convenience functions return true if the two GURLs or Origins both have
 // hosts and one of the following is true:
@@ -200,14 +208,15 @@ NET_EXPORT std::string GetDomainAndRegistry(base::StringPiece host,
 //   URLs.  Note that this means the trailing dot, if any, must match too.
 // Effectively, callers can use this function to check whether the input URLs
 // represent hosts "on the same site".
-NET_EXPORT bool SameDomainOrHost(const GURL& gurl1, const GURL& gurl2,
+NET_EXPORT bool SameDomainOrHost(const GURL& gurl1,
+                                 const GURL& gurl2,
                                  PrivateRegistryFilter filter);
 NET_EXPORT bool SameDomainOrHost(const url::Origin& origin1,
                                  const url::Origin& origin2,
                                  PrivateRegistryFilter filter);
 // Note: this returns false if |origin2| is not set.
 NET_EXPORT bool SameDomainOrHost(const url::Origin& origin1,
-                                 const absl::optional<url::Origin>& origin2,
+                                 const std::optional<url::Origin>& origin2,
                                  PrivateRegistryFilter filter);
 NET_EXPORT bool SameDomainOrHost(const GURL& gurl,
                                  const url::Origin& origin,
@@ -245,9 +254,17 @@ NET_EXPORT size_t GetRegistryLength(const GURL& gurl,
 // host names like "*.google.com" as long as it has a valid registry-controlled
 // portion (see PermissiveGetHostRegistryLength for particulars).
 NET_EXPORT bool HostHasRegistryControlledDomain(
-    base::StringPiece host,
+    std::string_view host,
     UnknownRegistryFilter unknown_filter,
     PrivateRegistryFilter private_filter);
+
+// Returns true if the given host name is a registry identifier. The name should
+// be already canonicalized, and not an IP address. This returns true for
+// registries specified by wildcard rules as well as non-wildcard rules. For
+// example, if there is a wildcard rule of "foo.bar", then "a.foo.bar" is
+// considered a registry identifier.
+NET_EXPORT bool HostIsRegistryIdentifier(std::string_view canon_host,
+                                         PrivateRegistryFilter private_filter);
 
 // Like GetRegistryLength, but takes a previously-canonicalized host instead of
 // a GURL. Prefer the GURL version or HasRegistryControlledDomain to eliminate
@@ -255,7 +272,7 @@ NET_EXPORT bool HostHasRegistryControlledDomain(
 //
 // If you have a non-canonical host name, use the "Permissive" version instead.
 NET_EXPORT size_t
-GetCanonicalHostRegistryLength(base::StringPiece canon_host,
+GetCanonicalHostRegistryLength(std::string_view canon_host,
                                UnknownRegistryFilter unknown_filter,
                                PrivateRegistryFilter private_filter);
 
@@ -285,23 +302,22 @@ GetCanonicalHostRegistryLength(base::StringPiece canon_host,
 // return std::string::npos like GetRegistryLength() for empty input, but
 // because invalid portions are skipped, it won't return npos in any other case.
 NET_EXPORT size_t
-PermissiveGetHostRegistryLength(base::StringPiece host,
+PermissiveGetHostRegistryLength(std::string_view host,
                                 UnknownRegistryFilter unknown_filter,
                                 PrivateRegistryFilter private_filter);
 NET_EXPORT size_t
-PermissiveGetHostRegistryLength(base::StringPiece16 host,
+PermissiveGetHostRegistryLength(std::u16string_view host,
                                 UnknownRegistryFilter unknown_filter,
                                 PrivateRegistryFilter private_filter);
 
-typedef const struct DomainRule* (*FindDomainPtr)(const char *, unsigned int);
+typedef const struct DomainRule* (*FindDomainPtr)(const char*, unsigned int);
 
 // Used for unit tests. Uses default domains.
 NET_EXPORT_PRIVATE void ResetFindDomainGraphForTesting();
 
 // Used for unit tests, so that a frozen list of domains is used.
 NET_EXPORT_PRIVATE void SetFindDomainGraphForTesting(
-    const unsigned char* domains,
-    size_t length);
+    base::span<const uint8_t> domains);
 
 }  // namespace net::registry_controlled_domains
 

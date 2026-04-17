@@ -4,8 +4,9 @@
 
 #include "chrome/browser/ui/views/sharing_hub/sharing_hub_icon_view.h"
 
+#include "base/check.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
+#include "build/buildflag.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_pedal_implementations.h"
@@ -20,6 +21,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/strings/grit/ui_strings.h"
+#include "ui/views/accessibility/view_accessibility.h"
 
 namespace sharing_hub {
 
@@ -60,8 +62,7 @@ SharingHubIconView::SharingHubIconView(
   SetLabel(
       l10n_util::GetStringUTF16(IDS_BROWSER_SHARING_OMNIBOX_SENDING_LABEL));
   SetUpForInOutAnimation();
-  SetAccessibilityProperties(
-      /*role*/ absl::nullopt,
+  GetViewAccessibility().SetName(
       l10n_util::GetStringUTF16(IDS_SHARING_HUB_TOOLTIP));
 }
 
@@ -73,8 +74,13 @@ views::BubbleDialogDelegate* SharingHubIconView::GetBubble() const {
     return nullptr;
   }
 
+#if BUILDFLAG(IS_CHROMEOS)
+  CHECK(!controller->sharing_hub_bubble_view());
+  return nullptr;
+#else
   return static_cast<SharingHubBubbleViewImpl*>(
       controller->sharing_hub_bubble_view());
+#endif
 }
 
 void SharingHubIconView::UpdateImpl() {
@@ -125,11 +131,11 @@ void SharingHubIconView::MaybeAnimateSendingToast() {
 
   if (controller && controller->show_message()) {
     controller->set_show_message(false);
-    AnimateIn(absl::nullopt);
+    AnimateIn(std::nullopt);
   }
 }
 
-BEGIN_METADATA(SharingHubIconView, PageActionIconView)
+BEGIN_METADATA(SharingHubIconView)
 END_METADATA
 
 }  // namespace sharing_hub

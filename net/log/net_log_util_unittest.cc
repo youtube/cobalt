@@ -4,15 +4,16 @@
 
 #include "net/log/net_log_util.h"
 
+#include <algorithm>
 #include <set>
+#include <string_view>
 #include <vector>
 
 #include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/field_trial.h"
-#include "base/ranges/algorithm.h"
-#include "base/strings/string_piece.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/values.h"
@@ -22,6 +23,7 @@
 #include "net/dns/public/doh_provider_entry.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_transaction.h"
+#include "net/http/mock_http_cache.h"
 #include "net/log/net_log_source.h"
 #include "net/log/net_log_with_source.h"
 #include "net/log/test_net_log.h"
@@ -29,6 +31,7 @@
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_builder.h"
 #include "net/url_request/url_request_test_util.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -38,6 +41,13 @@ namespace {
 // Make sure GetNetConstants doesn't crash.
 TEST(NetLogUtil, GetNetConstants) {
   base::Value constants(GetNetConstants());
+}
+
+TEST(NetLogUtil, GetNetConstantsOkInNetError) {
+  base::Value constants(GetNetConstants());
+  std::optional<int> ok_value =
+      constants.GetDict().FindDict("netError")->FindInt("net::OK");
+  EXPECT_THAT(ok_value, testing::Optional(0));
 }
 
 // Make sure GetNetInfo doesn't crash when called on contexts with and without
@@ -55,9 +65,9 @@ TEST(NetLogUtil, GetNetInfo) {
   EXPECT_GT(net_info_without_cache.size(), 0u);
 
   // Force creation of a cache backend, and get NetInfo again.
-  disk_cache::Backend* backend = nullptr;
-  EXPECT_EQ(OK, context->http_transaction_factory()->GetCache()->GetBackend(
-                    &backend, TestCompletionCallback().callback()));
+  auto [rv, _] = context->http_transaction_factory()->GetCache()->GetBackend(
+      TestGetBackendCompletionCallback().callback());
+  EXPECT_EQ(OK, rv);
   EXPECT_TRUE(http_cache->GetCurrentBackend());
   base::Value::Dict net_info_with_cache = GetNetInfo(context.get());
   EXPECT_GT(net_info_with_cache.size(), 0u);
@@ -94,25 +104,25 @@ TEST(NetLogUtil, GetNetInfoIncludesFieldTrials) {
 // Demonstrate that disabling a provider causes it to be added to the list of
 // disabled DoH providers.
 //
-// TODO(https://crbug.com/1306495) Stop using the real DoH provider list.
+// TODO(crbug.com/40218379) Stop using the real DoH provider list.
 TEST(NetLogUtil, GetNetInfoIncludesDisabledDohProviders) {
-  constexpr base::StringPiece kArbitraryProvider = "Google";
+  constexpr std::string_view kArbitraryProvider = "Google";
   base::test::TaskEnvironment task_environment;
 
   for (bool provider_enabled : {false, true}) {
     // Get the DoH provider entry.
     auto provider_list = net::DohProviderEntry::GetList();
-    auto provider_it = base::ranges::find(provider_list, kArbitraryProvider,
-                                          &net::DohProviderEntry::provider);
+    auto provider_it = std::ranges::find(provider_list, kArbitraryProvider,
+                                         &net::DohProviderEntry::provider);
     CHECK(provider_it != provider_list.end());
     const DohProviderEntry& provider_entry = **provider_it;
 
     // Enable or disable the provider's feature according to `provider_enabled`.
     base::test::ScopedFeatureList scoped_feature_list;
-    scoped_feature_list.InitWithFeatureState(provider_entry.feature,
+    scoped_feature_list.InitWithFeatureState(provider_entry.feature.get(),
                                              provider_enabled);
     EXPECT_EQ(provider_enabled,
-              base::FeatureList::IsEnabled(provider_entry.feature));
+              base::FeatureList::IsEnabled(provider_entry.feature.get()));
 
     // Verify that the provider is present in the list of disabled providers iff
     // we disabled it.

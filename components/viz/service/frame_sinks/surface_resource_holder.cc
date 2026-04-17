@@ -4,10 +4,14 @@
 
 #include "components/viz/service/frame_sinks/surface_resource_holder.h"
 
+#include <utility>
+
 #include "base/check.h"
 #include "components/viz/service/frame_sinks/surface_resource_holder_client.h"
 
 namespace viz {
+
+ReservedResourceDelegate::~ReservedResourceDelegate() = default;
 
 SurfaceResourceHolder::SurfaceResourceHolder(
     SurfaceResourceHolderClient* client)
@@ -22,6 +26,13 @@ void SurfaceResourceHolder::Reset() {
 void SurfaceResourceHolder::ReceiveFromChild(
     const std::vector<TransferableResource>& resources) {
   for (const auto& resource : resources) {
+    // We don't handle reserved resources here. CompositorFrames from clients
+    // can never contain reserved ResourceIds, but viz may handle resources
+    // of its own (e.g. see `SurfaceAnimationManager`), so skip them here.
+    if (resource.id >= kVizReservedRangeStartId) {
+      continue;
+    }
+
     ResourceRefs& ref = resource_id_info_map_[resource.id];
     ref.refs_holding_resource_alive++;
     ref.refs_received_from_child++;

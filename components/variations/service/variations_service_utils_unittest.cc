@@ -13,7 +13,7 @@ using VariationsServiceUtilsTest = ::testing::Test;
 
 // Verifies that the seed expiration status is correctly computed based on its
 // fetch time and the binary build time.
-TEST_F(VariationsServiceUtilsTest, HasSeedExpiredSinceTime) {
+TEST(VariationsServiceUtilsTest, HasSeedExpiredSinceTime) {
   base::Time now = base::Time::Now();
   struct {
     const base::Time fetch_time;
@@ -36,5 +36,4 @@ TEST_F(VariationsServiceUtilsTest, HasSeedExpiredSinceTime) {
               test.expired);
   }
 }
-
 }  // namespace variations

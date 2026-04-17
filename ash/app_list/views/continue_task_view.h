@@ -11,7 +11,8 @@
 #include "ash/app_list/model/search/search_result_observer.h"
 #include "ash/ash_export.h"
 #include "base/memory/raw_ptr.h"
-#include "ui/base/models/simple_menu_model.h"
+#include "ui/base/mojom/menu_source_type.mojom-forward.h"
+#include "ui/menus/simple_menu_model.h"
 #include "ui/views/context_menu_controller.h"
 #include "ui/views/controls/button/button.h"
 
@@ -38,6 +39,8 @@ class ASH_EXPORT ContinueTaskView : public views::Button,
                                     public views::ContextMenuController,
                                     public ui::SimpleMenuModel::Delegate,
                                     public SearchResultObserver {
+  METADATA_HEADER(ContinueTaskView, views::Button)
+
  public:
   // The type of result for the task.
   // These values are used for metrics and should not be changed.
@@ -45,10 +48,10 @@ class ASH_EXPORT ContinueTaskView : public views::Button,
     kLocalFile = 0,
     kDriveFile = 1,
     kUnknown = 2,
-    kMaxValue = kUnknown,
+    kHelpApp = 3,
+    kDesksAdminTemplate = 4,
+    kMaxValue = kDesksAdminTemplate,
   };
-
-  METADATA_HEADER(ContinueTaskView);
 
   ContinueTaskView(AppListViewDelegate* view_delegate, bool tablet_mode);
   ContinueTaskView(const ContinueTaskView&) = delete;
@@ -56,7 +59,8 @@ class ASH_EXPORT ContinueTaskView : public views::Button,
   ~ContinueTaskView() override;
 
   // views::View:
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
   gfx::Size GetMinimumSize() const override;
   gfx::Size GetMaximumSize() const override;
   void OnThemeChanged() override;
@@ -90,9 +94,10 @@ class ASH_EXPORT ContinueTaskView : public views::Button,
   void OnButtonPressed(const ui::Event& event);
 
   // views::ContextMenuController:
-  void ShowContextMenuForViewImpl(views::View* source,
-                                  const gfx::Point& point,
-                                  ui::MenuSourceType source_type) override;
+  void ShowContextMenuForViewImpl(
+      views::View* source,
+      const gfx::Point& point,
+      ui::mojom::MenuSourceType source_type) override;
 
   // Opens the search result related to the view.
   void OpenResult(int event_flags);
@@ -110,13 +115,13 @@ class ASH_EXPORT ContinueTaskView : public views::Button,
   void LogMetricsOnResultRemoved();
 
   // The index of this view within a |SearchResultContainerView| that holds it.
-  absl::optional<int> index_in_container_;
+  std::optional<int> index_in_container_;
 
-  const raw_ptr<AppListViewDelegate, ExperimentalAsh> view_delegate_;
-  raw_ptr<views::Label, ExperimentalAsh> title_ = nullptr;
-  raw_ptr<views::Label, ExperimentalAsh> subtitle_ = nullptr;
-  raw_ptr<views::ImageView, ExperimentalAsh> icon_ = nullptr;
-  raw_ptr<SearchResult, ExperimentalAsh> result_ =
+  const raw_ptr<AppListViewDelegate> view_delegate_;
+  raw_ptr<views::Label> title_ = nullptr;
+  raw_ptr<views::Label> subtitle_ = nullptr;
+  raw_ptr<views::ImageView> icon_ = nullptr;
+  raw_ptr<SearchResult> result_ =
       nullptr;  // Owned by SearchModel::SearchResults.
 
   std::unique_ptr<ui::SimpleMenuModel> context_menu_model_;

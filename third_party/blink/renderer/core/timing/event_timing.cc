@@ -4,8 +4,9 @@
 
 #include "third_party/blink/renderer/core/timing/event_timing.h"
 
+#include <optional>
+
 #include "base/time/tick_clock.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/events/keyboard_event.h"
 #include "third_party/blink/renderer/core/events/pointer_event.h"
@@ -15,6 +16,7 @@
 #include "third_party/blink/renderer/core/loader/interactive_detector.h"
 #include "third_party/blink/renderer/core/timing/dom_window_performance.h"
 #include "third_party/blink/renderer/core/timing/performance_event_timing.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
 namespace {
@@ -46,11 +48,11 @@ bool ShouldReportForEventTiming(WindowPerformance* performance) {
 
 EventTiming::EventTiming(base::TimeTicks processing_start,
                          WindowPerformance* performance,
-                         const Event& event)
-    : processing_start_(processing_start),
-      performance_(performance),
-      event_(&event) {
-  performance_->SetCurrentEventTimingEvent(&event);
+                         const Event& event,
+                         EventTarget* hit_test_target)
+    : performance_(performance), event_(&event) {
+  performance_->EventTimingProcessingStart(event, processing_start,
+                                           hit_test_target);
 }
 
 // static
@@ -78,8 +80,11 @@ bool EventTiming::IsEventTypeForEventTiming(const Event& event) {
   // events that are considered continuous: event types for which the user agent
   // may have timer-based dispatch under certain conditions. These are excluded
   // since EventCounts cannot be used to properly computed percentiles on those.
-  // See spec: https://wicg.github.io/event-timing/#sec-events-exposed
-  return event.isTrusted() &&
+  // See spec: https://wicg.github.io/event-timing/#sec-events-exposed.
+  // Needs to be kept in sync with WebInputEvent::IsWebInteractionEvent(),
+  // except non-raw web input event types, for example kCompositionend.
+  return (event.isTrusted() ||
+          event.type() == event_type_names::kCompositionend) &&
          (IsA<MouseEvent>(event) || IsA<PointerEvent>(event) ||
           IsA<TouchEvent>(event) || IsA<KeyboardEvent>(event) ||
           IsA<WheelEvent>(event) || event.IsInputEvent() ||
@@ -93,33 +98,49 @@ bool EventTiming::IsEventTypeForEventTiming(const Event& event) {
 }
 
 // static
-std::unique_ptr<EventTiming> EventTiming::Create(LocalDOMWindow* window,
-                                                 const Event& event) {
+std::optional<EventTiming> EventTiming::TryCreate(
+    LocalDOMWindow* window,
+    const Event& event,
+    EventTarget* hit_test_target) {
   auto* performance = DOMWindowPerformance::performance(*window);
-  if (!performance || !event.isTrusted() ||
-      (!IsEventTypeForEventTiming(event) &&
-       event.type() != event_type_names::kPointermove))
-    return nullptr;
+  if (!performance || !IsEventTypeForEventTiming(event)) {
+    return std::nullopt;
+  }
 
   // Most events track their performance in EventDispatcher::Dispatch but
   // some event types which can be filtered are tracked at the point
   // where they may be filtered. This condition check ensures we don't create
   // two EventTiming objects for the same Event.
   if (performance->GetCurrentEventTimingEvent() == &event)
-    return nullptr;
+    return std::nullopt;
 
-  bool should_report_for_event_timing = ShouldReportForEventTiming(performance);
-  bool should_log_event = ShouldLogEvent(event);
+  if (!RuntimeEnabledFeatures::
+          ContinueEventTimingRecordingWhenBufferIsFullEnabled()) {
+    bool should_report_for_event_timing =
+        ShouldReportForEventTiming(performance);
 
-  if (!should_report_for_event_timing && !should_log_event)
-    return nullptr;
+    bool should_log_event = ShouldLogEvent(event);
+
+    if (!should_report_for_event_timing && !should_log_event) {
+      return std::nullopt;
+    }
+
+    base::TimeTicks processing_start = Now();
+    HandleInputDelay(window, event, processing_start);
+
+    if (!should_report_for_event_timing && !should_log_event) {
+      return std::nullopt;
+    }
+    return EventTiming(processing_start, performance, event, hit_test_target);
+  }
 
   base::TimeTicks processing_start = Now();
+
+  // TODO(mmocny): Move this out of ::TryCreate and into the Constructor,
+  // or even further in window_performance / responsiveness_metrics
   HandleInputDelay(window, event, processing_start);
-  return should_report_for_event_timing
-             ? std::make_unique<EventTiming>(processing_start, performance,
-                                             event)
-             : nullptr;
+
+  return EventTiming(processing_start, performance, event, hit_test_target);
 }
 
 // static
@@ -128,13 +149,10 @@ void EventTiming::SetTickClockForTesting(const base::TickClock* clock) {
 }
 
 EventTiming::~EventTiming() {
-  // Register Event Timing for the event.
-  const PointerEvent* pointer_event = DynamicTo<PointerEvent>(event_.Get());
-  base::TimeTicks event_timestamp =
-      pointer_event ? pointer_event->OldestPlatformTimeStamp()
-                    : event_->PlatformTimeStamp();
-  performance_->RegisterEventTiming(*event_, event_timestamp, processing_start_,
-                                    Now());
+  // event_ might potentially be null if this is std::move()-ed.
+  if (event_) {
+    performance_->EventTimingProcessingEnd(*event_, Now());
+  }
 }
 
 }  // namespace blink

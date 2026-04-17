@@ -4,28 +4,34 @@
 
 #include "ash/system/time/calendar_month_view.h"
 
-#include "ash/constants/ash_features.h"
 #include "ash/public/cpp/ash_typography.h"
 #include "ash/shell.h"
 #include "ash/strings/grit/ash_strings.h"
 #include "ash/style/ash_color_provider.h"
+#include "ash/style/typography.h"
 #include "ash/system/model/system_tray_model.h"
 #include "ash/system/time/calendar_metrics.h"
 #include "ash/system/time/calendar_model.h"
 #include "ash/system/time/calendar_utils.h"
 #include "ash/system/time/calendar_view_controller.h"
+#include "ash/system/time/date_helper.h"
 #include "base/check.h"
-#include "base/containers/contains.h"
+#include "base/debug/crash_logging.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
+#include "chromeos/ash/components/settings/timezone_settings.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/chromeos/styles/cros_tokens_color_mappings.h"
+#include "ui/color/color_provider.h"
 #include "ui/compositor/layer.h"
 #include "ui/events/event.h"
 #include "ui/gfx/canvas.h"
+#include "ui/gfx/geometry/insets_f.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/layout/table_layout.h"
@@ -39,12 +45,21 @@ constexpr int kBorderLineThickness = 2;
 
 // The radius used to draw the border.
 constexpr float kBorderRadius = 21.f;
+constexpr float kBorderRadiusGlanceables = 19.f;
 
-// The default radius used to draw rounded today's circle.
-constexpr float kTodayRoundedRadius = 22.f;
+// The radius used to draw "today's" date cell view border and background.
+constexpr float kTodayBorderRadius = 100.f;
 
-// The radius used to draw rounded today's circle when focused.
-constexpr float kTodayFocusedRoundedRadius = 18.f;
+// The insets used to draw "today's" date cell view.
+constexpr float kTodayRoundedBackgroundHorizontalInset = 8.f;
+constexpr float kTodayRoundedBackgroundVerticalInset = 0.f;
+constexpr float kTodayRoundedBackgroundHorizontalFocusedInset =
+    kTodayRoundedBackgroundHorizontalInset + kBorderLineThickness + 2.f;
+constexpr float kTodayRoundedBackgroundVerticalFocusedInset =
+    kTodayRoundedBackgroundVerticalInset + kBorderLineThickness + 2.f;
+
+// For Glanceables: The horizontal inset used to draw "today's" date cell view.
+constexpr float kTodayRoundedBackgroundHorizontalInsetGlanceables = 9.f;
 
 // Radius of the small dot displayed on a CalendarDateCellView if events are
 // present for that day.
@@ -52,6 +67,11 @@ constexpr float kEventsPresentRoundedRadius = 1.f;
 
 // The gap padding between the date and the indicator.
 constexpr int kGapBetweenDateAndIndicator = 1;
+
+// The insets within the date cell.
+constexpr int kDateCellVerticalPaddingGlanceables = 10;
+constexpr auto kDateCellInsetsGlanceables =
+    gfx::Insets::VH(kDateCellVerticalPaddingGlanceables, 16);
 
 // Move to the next day. Both the column and the current date are moved to the
 // next one.
@@ -79,6 +99,7 @@ CalendarDateCellView::CalendarDateCellView(
     base::Time date,
     base::TimeDelta time_difference,
     bool is_grayed_out_date,
+    bool should_fetch_calendar_data,
     int row_index,
     bool is_fetched)
     : views::LabelButton(
@@ -89,21 +110,31 @@ CalendarDateCellView::CalendarDateCellView(
           CONTEXT_CALENDAR_DATE),
       date_(date),
       grayed_out_(is_grayed_out_date),
+      should_fetch_calendar_data_(should_fetch_calendar_data),
       row_index_(row_index),
       is_fetched_(is_fetched),
       is_today_(calendar_utils::IsToday(date)),
       time_difference_(time_difference),
       calendar_view_controller_(calendar_view_controller) {
   SetHorizontalAlignment(gfx::ALIGN_CENTER);
-  SetBorder(views::CreateEmptyBorder(calendar_utils::kDateCellInsets));
+  SetBorder(views::CreateEmptyBorder(
+      features::AreAnyGlanceablesTimeManagementViewsEnabled()
+          ? kDateCellInsetsGlanceables
+          : calendar_utils::kDateCellInsets));
   label()->SetElideBehavior(gfx::NO_ELIDE);
   label()->SetSubpixelRenderingEnabled(false);
-
+  if (is_today_) {
+    TypographyProvider::Get()->StyleLabel(TypographyToken::kCrosButton1,
+                                          *label());
+  } else {
+    TypographyProvider::Get()->StyleLabel(TypographyToken::kCrosBody1,
+                                          *label());
+  }
   views::FocusRing::Remove(this);
 
   DisableFocus();
   if (!grayed_out_) {
-    if (calendar_utils::ShouldFetchEvents() && is_fetched_) {
+    if (should_fetch_calendar_data_ && is_fetched_) {
       UpdateFetchStatus(true);
     }
 
@@ -120,16 +151,8 @@ void CalendarDateCellView::OnThemeChanged() {
   views::View::OnThemeChanged();
 
   // Gray-out the date that is not in the current month.
-  if (features::IsCalendarJellyEnabled()) {
-    SetEnabledTextColors(
-        grayed_out_
-            ? GetColorProvider()->GetColor(cros_tokens::kCrosSysDisabled)
-            : GetColorProvider()->GetColor(
-                  cros_tokens::kCrosSysOnPrimaryContainer));
-  } else {
-    SetEnabledTextColors(grayed_out_ ? calendar_utils::GetDisabledTextColor()
-                                     : calendar_utils::GetPrimaryTextColor());
-  }
+  SetEnabledTextColors(grayed_out_ ? cros_tokens::kCrosSysOnSurfaceVariant
+                                   : cros_tokens::kCrosSysOnSurface);
 }
 
 // Draws the background for this date. Note that this includes not only the
@@ -141,45 +164,72 @@ void CalendarDateCellView::OnPaintBackground(gfx::Canvas* canvas) {
     return;
   }
 
-  const AshColorProvider* color_provider = AshColorProvider::Get();
-  const SkColor bg_color =
-      features::IsCalendarJellyEnabled()
-          ? GetColorProvider()->GetColor(cros_tokens::kCrosSysPrimaryContainer)
-          : color_provider->GetControlsLayerColor(
-                AshColorProvider::ControlsLayerType::
-                    kControlBackgroundColorActive);
-  const SkColor border_color =
-      features::IsCalendarJellyEnabled()
-          ? GetColorProvider()->GetColor(cros_tokens::kCrosSysPrimaryContainer)
-          : color_provider->GetControlsLayerColor(
-                AshColorProvider::ControlsLayerType::kFocusRingColor);
-
   const gfx::Rect content = GetContentsBounds();
-  const gfx::Point center(
-      (content.width() + calendar_utils::kDateHorizontalPadding * 2) / 2,
-      (content.height() + calendar_utils::kDateVerticalPadding * 2) / 2);
+  const gfx::SizeF local_bounds = gfx::SizeF(GetLocalBounds().size());
 
-  if (views::View::HasFocus() ||
-      (features::IsCalendarJellyEnabled() && is_selected_)) {
-    cc::PaintFlags highlight_border;
-    highlight_border.setColor(border_color);
-    highlight_border.setAntiAlias(true);
-    highlight_border.setStyle(cc::PaintFlags::kStroke_Style);
-    highlight_border.setStrokeWidth(kBorderLineThickness);
+  const SkColor border_color =
+      GetColorProvider()->GetColor(cros_tokens::kCrosSysFocusRing);
+  cc::PaintFlags highlight_border;
+  highlight_border.setColor(border_color);
+  highlight_border.setAntiAlias(true);
+  highlight_border.setStyle(cc::PaintFlags::kStroke_Style);
+  highlight_border.setStrokeWidth(kBorderLineThickness);
 
-    canvas->DrawCircle(center, kBorderRadius, highlight_border);
-  }
-
+  const bool is_for_glanceables =
+      features::AreAnyGlanceablesTimeManagementViewsEnabled();
   if (is_today_) {
+    gfx::RectF background_rect(local_bounds);
+
+    const SkColor bg_color = GetColorProvider()->GetColor(
+        cros_tokens::kCrosSysSystemPrimaryContainer);
     cc::PaintFlags highlight_background;
     highlight_background.setColor(bg_color);
     highlight_background.setStyle(cc::PaintFlags::kFill_Style);
     highlight_background.setAntiAlias(true);
 
-    canvas->DrawCircle(center,
-                       views::View::HasFocus() ? kTodayFocusedRoundedRadius
-                                               : kTodayRoundedRadius,
-                       highlight_background);
+    // If the today view is focused, we draw a border around the background
+    // and inset the background a couple of pixels to leave 2dp of space
+    // between.
+    // Else we just draw the background full size with no border.
+    if (views::View::HasFocus()) {
+      gfx::RectF border_rect(local_bounds);
+      const int half_stroke_thickness = kBorderLineThickness / 2;
+      border_rect.Inset(gfx::InsetsF::VH(
+          half_stroke_thickness,
+          is_for_glanceables ? kTodayRoundedBackgroundHorizontalInsetGlanceables
+                             : kTodayRoundedBackgroundHorizontalInset));
+      canvas->DrawRoundRect(border_rect, kTodayBorderRadius, highlight_border);
+
+      background_rect.Inset(
+          gfx::InsetsF::VH(kTodayRoundedBackgroundVerticalFocusedInset,
+                           kTodayRoundedBackgroundHorizontalFocusedInset));
+      canvas->DrawRoundRect(background_rect, kTodayBorderRadius,
+                            highlight_background);
+
+      return;
+    }
+
+    background_rect.Inset(
+        gfx::InsetsF::VH(kTodayRoundedBackgroundVerticalInset,
+                         kTodayRoundedBackgroundHorizontalInset));
+    canvas->DrawRoundRect(background_rect, kTodayBorderRadius,
+                          highlight_background);
+
+    return;
+  }
+
+  // If !today and view is focused or selected, draw a circle around the view.
+  if (views::View::HasFocus() || is_selected_) {
+    const gfx::Point center(
+        (content.width() + calendar_utils::kDateHorizontalPadding * 2) / 2,
+        (content.height() + (is_for_glanceables
+                                 ? kDateCellVerticalPaddingGlanceables
+                                 : calendar_utils::kDateVerticalPadding) *
+                                2) /
+            2);
+    canvas->DrawCircle(
+        center, is_for_glanceables ? kBorderRadiusGlanceables : kBorderRadius,
+        highlight_border);
   }
 }
 
@@ -191,7 +241,7 @@ void CalendarDateCellView::OnSelectedDateUpdated() {
     is_selected_ = is_selected;
     SchedulePaint();
     if (!is_selected_) {
-      SetAccessibleName(tool_tip_);
+      GetViewAccessibility().SetName(tool_tip_);
       return;
     }
     // Sets accessible label. E.g. Calendar, week of July 16th 2021, [selected
@@ -202,7 +252,7 @@ void CalendarDateCellView::OnSelectedDateUpdated() {
     base::Time first_day_of_week =
         date_ - base::Days(date_exploded.day_of_week);
 
-    SetAccessibleName(l10n_util::GetStringFUTF16(
+    GetViewAccessibility().SetName(l10n_util::GetStringFUTF16(
         IDS_ASH_CALENDAR_SELECTED_DATE_CELL_ACCESSIBLE_DESCRIPTION,
         calendar_utils::GetMonthDayYear(first_day_of_week),
         calendar_utils::GetDayOfMonth(date_)));
@@ -232,7 +282,7 @@ void CalendarDateCellView::DisableFocus() {
 
 void CalendarDateCellView::SetTooltipAndAccessibleName() {
   std::u16string formatted_date = calendar_utils::GetMonthDayYearWeek(date_);
-  if (!calendar_utils::ShouldFetchEvents()) {
+  if (!should_fetch_calendar_data_) {
     tool_tip_ = formatted_date;
   } else {
     if (is_fetched_) {
@@ -248,7 +298,7 @@ void CalendarDateCellView::SetTooltipAndAccessibleName() {
     }
   }
   SetTooltipText(tool_tip_);
-  SetAccessibleName(tool_tip_);
+  GetViewAccessibility().SetName(tool_tip_);
 }
 
 void CalendarDateCellView::UpdateFetchStatus(bool is_fetched) {
@@ -258,7 +308,7 @@ void CalendarDateCellView::UpdateFetchStatus(bool is_fetched) {
     return;
   }
 
-  if (!calendar_utils::ShouldFetchEvents()) {
+  if (!should_fetch_calendar_data_) {
     SetTooltipAndAccessibleName();
     return;
   }
@@ -290,7 +340,7 @@ void CalendarDateCellView::UpdateFetchStatus(bool is_fetched) {
 }
 
 void CalendarDateCellView::SetFirstOnFocusedAccessibilityLabel() {
-  SetAccessibleName(l10n_util::GetStringFUTF16(
+  GetViewAccessibility().SetName(l10n_util::GetStringFUTF16(
       IDS_ASH_CALENDAR_DATE_CELL_ON_FOCUS_ACCESSIBLE_DESCRIPTION, tool_tip_));
 }
 
@@ -300,26 +350,14 @@ void CalendarDateCellView::PaintButtonContents(gfx::Canvas* canvas) {
     return;
   }
 
-  if (!features::IsCalendarJellyEnabled()) {
-    const AshColorProvider* color_provider = AshColorProvider::Get();
-    if (is_today_) {
-      const SkColor text_color = color_provider->GetContentLayerColor(
-          AshColorProvider::ContentLayerType::kButtonLabelColorPrimary);
-      SetEnabledTextColors(text_color);
-    } else if (is_selected_) {
-      SetEnabledTextColors(color_provider->GetContentLayerColor(
-          AshColorProvider::ContentLayerType::kIconColorProminent));
-    } else {
-      SkColor text_color = grayed_out_ ? calendar_utils::GetSecondaryTextColor()
-                                       : calendar_utils::GetPrimaryTextColor();
-      SetEnabledTextColors(text_color);
-    }
-  }
+  SetEnabledTextColors(is_today_ ? cros_tokens::kCrosSysSystemOnPrimaryContainer
+                                 : cros_tokens::kCrosSysOnSurface);
   MaybeDrawEventsIndicator(canvas);
 }
 
 void CalendarDateCellView::OnDateCellActivated(const ui::Event& event) {
-  if (grayed_out_ || !calendar_utils::ShouldFetchEvents()) {
+  if (grayed_out_ || !should_fetch_calendar_data_ ||
+      !calendar_view_controller_->is_date_cell_clickable()) {
     return;
   }
 
@@ -333,16 +371,20 @@ void CalendarDateCellView::OnDateCellActivated(const ui::Event& event) {
 
 gfx::Point CalendarDateCellView::GetEventsPresentIndicatorCenterPosition() {
   const gfx::Rect content = GetContentsBounds();
+  const int horizontal_padding = calendar_utils::kDateHorizontalPadding;
+  const int vertical_padding =
+      features::AreAnyGlanceablesTimeManagementViewsEnabled()
+          ? kDateCellVerticalPaddingGlanceables
+          : calendar_utils::kDateVerticalPadding;
   return gfx::Point(
-      (content.width() + calendar_utils::kDateHorizontalPadding * 2) / 2,
-      content.height() + calendar_utils::kDateVerticalPadding +
-          kGapBetweenDateAndIndicator);
+      (content.width() + horizontal_padding * 2) / 2,
+      content.height() + vertical_padding + kGapBetweenDateAndIndicator);
 }
 
 void CalendarDateCellView::MaybeDrawEventsIndicator(gfx::Canvas* canvas) {
   // Not drawing the event dot if it's a grayed out cell or the user is not in
   // an active session (without a vilid user account id).
-  if (grayed_out_ || !calendar_utils::ShouldFetchEvents()) {
+  if (grayed_out_ || !should_fetch_calendar_data_) {
     return;
   }
 
@@ -350,14 +392,10 @@ void CalendarDateCellView::MaybeDrawEventsIndicator(gfx::Canvas* canvas) {
     return;
   }
 
-  const SkColor jelly_color =
-      GetColorProvider()->GetColor(cros_tokens::kCrosSysOnPrimaryContainer);
-  const SkColor indicator_color =
-      features::IsCalendarJellyEnabled() ? jelly_color
-      : is_today_ ? AshColorProvider::Get()->GetBaseLayerColor(
-                        AshColorProvider::BaseLayerType::kTransparent90)
-                  : AshColorProvider::Get()->GetControlsLayerColor(
-                        AshColorProvider::ControlsLayerType::kFocusRingColor);
+  const auto* color_provider = GetColorProvider();
+  const SkColor indicator_color = color_provider->GetColor(
+      is_today_ ? cros_tokens::kCrosSysSystemOnPrimaryContainer
+                : cros_tokens::kCrosSysOnSurface);
 
   const float indicator_radius = is_selected_ ? kEventsPresentRoundedRadius * 2
                                               : kEventsPresentRoundedRadius;
@@ -375,6 +413,8 @@ CalendarMonthView::CalendarMonthView(
     const base::Time first_day_of_month,
     CalendarViewController* calendar_view_controller)
     : calendar_view_controller_(calendar_view_controller),
+      calendar_list_model_(
+          Shell::Get()->system_tray_model()->calendar_list_model()),
       calendar_model_(Shell::Get()->system_tray_model()->calendar_model()) {
   views::TableLayout* layout =
       SetLayoutManager(std::make_unique<views::TableLayout>());
@@ -400,13 +440,27 @@ CalendarMonthView::CalendarMonthView(
   base::Time::Exploded current_date_exploded =
       calendar_utils::GetExplodedUTC(current_date_local);
 
-  // Fetch events for the month.
   fetch_month_ = first_day_of_month_local.UTCMidnight();
-  FetchEvents(fetch_month_);
+
+  if (calendar_utils::IsMultiCalendarEnabled()) {
+    // Set up the Calendar List Model observer to trigger an event fetch only
+    // after the calendar list fetch is completed.
+    scoped_calendar_list_model_observer_.Observe(calendar_list_model_.get());
+
+    // If the month view has been created after a successful calendar list
+    // fetch, this will trigger an event list fetch immediately. Otherwise,
+    // events will be fetched during `OnCalendarListFetchComplete`.
+    calendar_model_->MaybeFetchEvents(fetch_month_);
+  } else {
+    FetchEvents(fetch_month_);
+  }
+
   bool has_fetched_data =
       calendar_view_controller_->IsSuccessfullyFetched(fetch_month_);
+  const bool should_fetch_calendar_data =
+      calendar_utils::ShouldFetchCalendarData();
 
-  // TODO(https://crbug.com/1236276): Extract the following 3 parts (while
+  // TODO(crbug.com/40192677): Extract the following 3 parts (while
   // loops) into a method.
   int column = 0;
   int safe_index = 0;
@@ -415,12 +469,13 @@ CalendarMonthView::CalendarMonthView(
          (first_day_of_month_exploded.month - 1) % 12) {
     AddDateCellToLayout(current_date, column,
                         /*is_in_current_month=*/false, /*row_index=*/0,
-                        /*is_fetched=*/has_fetched_data);
+                        /*is_fetched=*/has_fetched_data,
+                        should_fetch_calendar_data);
     MoveToNextDay(column, current_date, current_date_local,
                   current_date_exploded);
     ++safe_index;
     if (safe_index == calendar_utils::kDateInOneWeek) {
-      NOTREACHED()
+      DUMP_WILL_BE_NOTREACHED()
           << "Should not render more than 7 days as the grayed out cells.";
       break;
     }
@@ -437,7 +492,8 @@ CalendarMonthView::CalendarMonthView(
     auto* cell = AddDateCellToLayout(current_date, column,
                                      /*is_in_current_month=*/true,
                                      /*row_index=*/row_number - 1,
-                                     /*is_fetched=*/has_fetched_data);
+                                     /*is_fetched=*/has_fetched_data,
+                                     should_fetch_calendar_data);
     // Add the first non-grayed-out cell of the row to the `focused_cells_`.
     if (column == 0 || current_date_exploded.day_of_month == 1) {
       focused_cells_.push_back(cell);
@@ -459,7 +515,6 @@ CalendarMonthView::CalendarMonthView(
     ++safe_index;
     if (safe_index == 32) {
       NOTREACHED() << "Should not render more than 31 days in a month.";
-      break;
     }
   }
 
@@ -478,39 +533,24 @@ CalendarMonthView::CalendarMonthView(
     UpdateIsFetchedAndRepaint(updated_has_fetched_data);
   }
 
-  if (calendar_utils::GetDayOfWeekInt(current_date) == 1) {
+  // Adds the remaining days from the next month to complete the last row.
+  auto gray_out_days = 8 - calendar_utils::GetDayOfWeekInt(current_date);
+
+  // If the last row is already complete (all days are from the next month), no
+  // action is needed.
+  if (gray_out_days == 7) {
     return;
   }
 
-  // Adds the first several days from the next month if the last day is not the
-  // end day of this week. The end date of the last row should be 6 day's away
-  // from the first day of this week. Adds `kDurationForAdjustingDST` hours to
-  // cover the case 25 hours in a day due to daylight saving.
-  base::Time end_of_the_last_row_local =
-      calendar_utils::GetFirstDayOfWeekLocalMidnight(current_date) +
-      base::Days(6) + calendar_utils::kDurationForAdjustingDST +
-      time_difference;
-  base::Time::Exploded end_of_row_exploded =
-      calendar_utils::GetExplodedUTC(end_of_the_last_row_local);
-
-  safe_index = 0;
-  // Gray-out dates in the last row, which are from the next month.
-  while (current_date_exploded.day_of_month <=
-         end_of_row_exploded.day_of_month) {
-    // Next column is generated.
+  // Add the remaining days from the next month as grayed-out cells.
+  for (int rendered_days = 0; rendered_days < gray_out_days; rendered_days++) {
     AddDateCellToLayout(current_date, column,
                         /*is_in_current_month=*/false,
                         /*row_index=*/row_number,
-                        /*is_fetched=*/has_fetched_data);
+                        /*is_fetched=*/has_fetched_data,
+                        should_fetch_calendar_data);
     MoveToNextDay(column, current_date, current_date_local,
                   current_date_exploded);
-
-    ++safe_index;
-    if (safe_index == calendar_utils::kDateInOneWeek) {
-      NOTREACHED()
-          << "Should not render more than 7 days as the gray out cells.";
-      break;
-    }
   }
 }
 
@@ -530,15 +570,27 @@ CalendarMonthView::~CalendarMonthView() {
   }
 }
 
+void CalendarMonthView::OnCalendarListFetchComplete() {
+  // When the Calendar gets opened and the first 5 month views are created,
+  // the calendar list is usually not yet ready when FetchEvents gets called in
+  // the constructor.
+  // Therefore, the first month views call FetchEvents when the calendar list
+  // model signals that the fetch is complete. Any month views created after
+  // the calendar list is ready will fetch events immediately during the
+  // constructor instead.
+  if (calendar_utils::IsMultiCalendarEnabled()) {
+    calendar_model_->FetchEvents(fetch_month_);
+  }
+}
+
 void CalendarMonthView::OnEventsFetched(
     const CalendarModel::FetchingStatus status,
-    const base::Time start_time,
-    const google_apis::calendar::EventList* events) {
+    const base::Time start_time) {
   if (status == CalendarModel::kSuccess && start_time == fetch_month_) {
     UpdateIsFetchedAndRepaint(true);
   }
 
-  if (!events || events->items().size() == 0) {
+  if (!(calendar_model_->MonthHasEvents(start_time))) {
     return;
   }
 
@@ -551,30 +603,34 @@ void CalendarMonthView::OnEventsFetched(
 }
 
 void CalendarMonthView::EnableFocus() {
-  for (auto* cell : children()) {
+  for (views::View* cell : children()) {
     static_cast<CalendarDateCellView*>(cell)->EnableFocus();
   }
 }
 
 void CalendarMonthView::DisableFocus() {
-  for (auto* cell : children()) {
+  for (views::View* cell : children()) {
     static_cast<CalendarDateCellView*>(cell)->DisableFocus();
   }
 }
 
 void CalendarMonthView::UpdateIsFetchedAndRepaint(bool updated_is_fetched) {
-  for (auto* cell : children()) {
+  for (views::View* cell : children()) {
     static_cast<CalendarDateCellView*>(cell)->UpdateFetchStatus(
         updated_is_fetched);
   }
 }
+
+BEGIN_METADATA(CalendarMonthView)
+END_METADATA
 
 CalendarDateCellView* CalendarMonthView::AddDateCellToLayout(
     base::Time current_date,
     int column,
     bool is_in_current_month,
     int row_index,
-    bool is_fetched) {
+    bool is_fetched,
+    bool should_fetch_calendar_data) {
   auto* layout_manager = static_cast<views::TableLayout*>(GetLayoutManager());
   if (column == 0) {
     layout_manager->AddRows(1, views::TableLayout::kFixedSize);
@@ -582,7 +638,8 @@ CalendarDateCellView* CalendarMonthView::AddDateCellToLayout(
   return AddChildView(std::make_unique<CalendarDateCellView>(
       calendar_view_controller_, current_date,
       calendar_utils::GetTimeDifference(current_date),
-      /*is_grayed_out_date=*/!is_in_current_month, /*row_index=*/row_index,
+      /*is_grayed_out_date=*/!is_in_current_month, should_fetch_calendar_data,
+      /*row_index=*/row_index,
       /*is_fetched=*/is_fetched));
 }
 
@@ -590,7 +647,7 @@ void CalendarMonthView::FetchEvents(const base::Time& month) {
   calendar_model_->FetchEvents(month);
 }
 
-BEGIN_METADATA(CalendarDateCellView, views::View)
+BEGIN_METADATA(CalendarDateCellView)
 END_METADATA
 
 }  // namespace ash

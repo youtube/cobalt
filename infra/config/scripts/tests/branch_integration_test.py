@@ -54,35 +54,89 @@ class BranchIntegrationTest(unittest.TestCase):
             "project_title": "Chromium MXX",
             "ref": "refs/branch-heads/YYYY",
             "chrome_project": "chrome-mXX",
+            "dawn_ref": "refs/heads/chromium/YYYY",
             "is_main": false,
             "platforms": {
                 "android": {
                     "description": "beta/stable",
-                    "sheriff_rotation": "chrome_browser_release"
+                    "gardener_rotation": "chrome_browser_release"
                 },
                 "cros": {
                     "description": "beta/stable",
-                    "sheriff_rotation": "chrome_browser_release"
+                    "gardener_rotation": "chrome_browser_release"
                 },
                 "fuchsia": {
                     "description": "beta/stable",
-                    "sheriff_rotation": "chrome_browser_release"
+                    "gardener_rotation": "chrome_browser_release"
                 },
                 "ios": {
                     "description": "beta/stable",
-                    "sheriff_rotation": "chrome_browser_release"
+                    "gardener_rotation": "chrome_browser_release"
                 },
                 "linux": {
                     "description": "beta/stable",
-                    "sheriff_rotation": "chrome_browser_release"
+                    "gardener_rotation": "chrome_browser_release"
                 },
                 "mac": {
                     "description": "beta/stable",
-                    "sheriff_rotation": "chrome_browser_release"
+                    "gardener_rotation": "chrome_browser_release"
                 },
                 "windows": {
                     "description": "beta/stable",
-                    "sheriff_rotation": "chrome_browser_release"
+                    "gardener_rotation": "chrome_browser_release"
+                }
+            }
+        }
+        """))
+
+  def test_initialize_test_config_rewrites_settings_json(self):
+    result = self._execute_branch_py([
+        'initialize', '--milestone', 'XX', '--branch', 'YYYY', '--test-config'
+    ])
+    self.assertEqual(result.returncode, 0,
+                     (f'subprocess failed\n***COMMAND***\n{result.args}\n'
+                      f'***STDERR***\n{result.stderr}\n'))
+
+    with open(self._settings_json) as f:
+      settings = f.read()
+    self.assertEqual(
+        settings,
+        textwrap.dedent("""\
+        {
+            "project": "chromium",
+            "project_title": "Chromium MXX",
+            "ref": "refs/branch-heads/YYYY",
+            "chrome_project": "chrome",
+            "dawn_ref": "refs/heads/chromium/YYYY",
+            "is_main": false,
+            "platforms": {
+                "android": {
+                    "description": "beta/stable",
+                    "gardener_rotation": "chrome_browser_release"
+                },
+                "cros": {
+                    "description": "beta/stable",
+                    "gardener_rotation": "chrome_browser_release"
+                },
+                "fuchsia": {
+                    "description": "beta/stable",
+                    "gardener_rotation": "chrome_browser_release"
+                },
+                "ios": {
+                    "description": "beta/stable",
+                    "gardener_rotation": "chrome_browser_release"
+                },
+                "linux": {
+                    "description": "beta/stable",
+                    "gardener_rotation": "chrome_browser_release"
+                },
+                "mac": {
+                    "description": "beta/stable",
+                    "gardener_rotation": "chrome_browser_release"
+                },
+                "windows": {
+                    "description": "beta/stable",
+                    "gardener_rotation": "chrome_browser_release"
                 }
             }
         }
@@ -130,7 +184,7 @@ class BranchIntegrationTest(unittest.TestCase):
             }
             """))
 
-  def test_enable_platform_with_sheriff_rotation_rewrites_settings_json(self):
+  def test_enable_platform_with_gardener_rotation_rewrites_settings_json(self):
     with open(self._settings_json, 'w') as f:
       settings = {
           "project": "chromium-mXX",
@@ -145,8 +199,8 @@ class BranchIntegrationTest(unittest.TestCase):
         'fake-platform',
         '--description',
         'fake-description',
-        '--sheriff-rotation',
-        'fake-sheriff-rotation',
+        '--gardener-rotation',
+        'fake-gardener-rotation',
     ])
     self.assertEqual(result.returncode, 0,
                      (f'subprocess failed\n***COMMAND***\n{result.args}\n'
@@ -165,7 +219,7 @@ class BranchIntegrationTest(unittest.TestCase):
                 "platforms": {
                     "fake-platform": {
                         "description": "fake-description",
-                        "sheriff_rotation": "fake-sheriff-rotation"
+                        "gardener_rotation": "fake-gardener-rotation"
                     }
                 }
             }

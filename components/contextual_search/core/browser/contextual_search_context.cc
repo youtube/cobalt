@@ -4,7 +4,7 @@
 
 #include "components/contextual_search/core/browser/contextual_search_context.h"
 
-#include "components/translate/core/common/translate_constants.h"
+#include "components/language_detection/core/constants.h"
 #include "components/translate/core/language_detection/language_detection_util.h"
 
 ContextualSearchContext::ContextualSearchContext() = default;
@@ -20,7 +20,7 @@ void ContextualSearchContext::SetResolveProperties(
 
 void ContextualSearchContext::AdjustSelection(int start_adjust,
                                               int end_adjust) {
-  // TODO(crbug.com/1343955): These values should be sanitized and should be
+  // TODO(crbug.com/40060256): These values should be sanitized and should be
   // sanitized closer to where they are received from the renderer process.
   DCHECK(start_offset_ + start_adjust >= 0);
   DCHECK(start_offset_ + start_adjust <=
@@ -50,6 +50,10 @@ std::string ContextualSearchContext::DetectLanguage() const {
   return language;
 }
 
+base::WeakPtr<ContextualSearchContext> ContextualSearchContext::AsWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
+}
+
 std::string ContextualSearchContext::GetReliableLanguage(
     const std::u16string& contents) const {
   std::string model_detected_language;
@@ -60,8 +64,10 @@ std::string ContextualSearchContext::GetReliableLanguage(
       /*html_lang=*/std::string(), contents, &model_detected_language,
       &is_model_reliable, model_reliability_score);
   // Make sure we return an empty string when unreliable or an unknown result.
-  if (!is_model_reliable || language == translate::kUnknownLanguageCode)
+  if (!is_model_reliable ||
+      language == language_detection::kUnknownLanguageCode) {
     language = "";
+  }
   return language;
 }
 

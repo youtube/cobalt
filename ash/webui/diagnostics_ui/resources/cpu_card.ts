@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://resources/cr_elements/icons.html.js';
+import 'chrome://resources/ash/common/cr_elements/icons.html.js';
 import 'chrome://resources/polymer/v3_0/iron-icon/iron-icon.js';
 import './data_point.js';
 import './diagnostics_card.js';
@@ -10,17 +10,19 @@ import './diagnostics_shared.css.js';
 import './icons.html.js';
 import './realtime_cpu_chart.js';
 import './routine_section.js';
-import './strings.m.js';
+import '/strings.m.js';
 
+import {I18nMixin} from 'chrome://resources/ash/common/cr_elements/i18n_mixin.js';
 import {loadTimeData} from 'chrome://resources/ash/common/load_time_data.m.js';
-import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/polymer/interfaces.js';
+import type {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/polymer/interfaces.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './cpu_card.html.js';
+import {convertKibToMib} from './diagnostics_utils.js';
 import {getSystemDataProvider} from './mojo_interface_provider.js';
 import {TestSuiteStatus} from './routine_list_executor.js';
-import {CpuUsage, CpuUsageObserverReceiver, SystemDataProviderInterface, SystemInfo} from './system_data_provider.mojom-webui.js';
+import type {CpuUsage, MemoryUsage, SystemDataProviderInterface, SystemInfo} from './system_data_provider.mojom-webui.js';
+import {CpuUsageObserverReceiver, MemoryUsageObserverReceiver} from './system_data_provider.mojom-webui.js';
 import {RoutineType} from './system_routine_controller.mojom-webui.js';
 
 /**
@@ -78,13 +80,16 @@ export class CpuCardElement extends CpuCardElementBase {
   private routines: RoutineType[];
   private cpuUsage: CpuUsage;
   private cpuChipInfo: string;
+  private memoryUsage: MemoryUsage;
   private systemDataProvider: SystemDataProviderInterface =
       getSystemDataProvider();
   private cpuUsageObserverReceiver: CpuUsageObserverReceiver|null = null;
+  private memoryUsageObserverReceiver: MemoryUsageObserverReceiver|null = null;
 
   constructor() {
     super();
     this.observeCpuUsage();
+    this.observeMemoryUsage();
     this.fetchSystemInfo();
   }
 
@@ -94,6 +99,24 @@ export class CpuCardElement extends CpuCardElementBase {
     if (this.cpuUsageObserverReceiver) {
       this.cpuUsageObserverReceiver.$.close();
     }
+
+    if (this.memoryUsageObserverReceiver) {
+      this.memoryUsageObserverReceiver.$.close();
+    }
+  }
+
+  private observeMemoryUsage(): void {
+    this.memoryUsageObserverReceiver = new MemoryUsageObserverReceiver(this);
+
+    this.systemDataProvider.observeMemoryUsage(
+        this.memoryUsageObserverReceiver.$.bindNewPipeAndPassRemote());
+  }
+
+  /**
+   * Implements MemoryUsageObserver.onMemoryUsageUpdated()
+   */
+  onMemoryUsageUpdated(memoryUsage: MemoryUsage): void {
+    this.memoryUsage = memoryUsage;
   }
 
   /** @private */
@@ -142,7 +165,7 @@ export class CpuCardElement extends CpuCardElementBase {
   }
 
   private convertKhzToGhz(num: number): string {
-    return (num / 1000000).toFixed(2);
+    return (num / 1000000).toFixed(3);
   }
 
   protected getCurrentCpuSpeed(): string {
@@ -154,6 +177,12 @@ export class CpuCardElement extends CpuCardElementBase {
   protected getEstimateRuntimeInMinutes(): number {
     // Each routine runs for a minute
     return this.routines.length;
+  }
+
+  protected getRunTestsAdditionalMessage(): string {
+    return convertKibToMib(this.memoryUsage.availableMemoryKib) >= 625 ?
+        '' :
+        loadTimeData.getString('notEnoughAvailableMemoryCpuMessage');
   }
 }
 

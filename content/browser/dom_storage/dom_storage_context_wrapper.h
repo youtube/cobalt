@@ -6,6 +6,7 @@
 #define CONTENT_BROWSER_DOM_STORAGE_DOM_STORAGE_CONTEXT_WRAPPER_H_
 
 #include <map>
+#include <optional>
 #include <string>
 
 #include "base/memory/memory_pressure_listener.h"
@@ -16,6 +17,7 @@
 #include "base/thread_annotations.h"
 #include "base/threading/sequence_bound.h"
 #include "components/services/storage/public/mojom/local_storage_control.mojom.h"
+#include "components/services/storage/public/mojom/partition.mojom.h"
 #include "components/services/storage/public/mojom/session_storage_control.mojom.h"
 #include "components/services/storage/public/mojom/storage_usage_info.mojom.h"
 #include "content/browser/child_process_security_policy_impl.h"
@@ -25,7 +27,6 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "storage/browser/quota/storage_policy_observer.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
 #include "third_party/blink/public/mojom/dom_storage/session_storage_namespace.mojom.h"
 #include "third_party/blink/public/mojom/dom_storage/storage_area.mojom.h"
@@ -81,15 +82,19 @@ class CONTENT_EXPORT DOMStorageContextWrapper
   storage::mojom::SessionStorageControl* GetSessionStorageControl();
   storage::mojom::LocalStorageControl* GetLocalStorageControl();
 
+  void PerformLocalStorageCleanup(base::OnceClosure callback);
+  void PerformSessionStorageCleanup(base::OnceClosure callback);
+
+  using GetSessionStorageUsageCallback =
+      base::OnceCallback<void(const std::vector<SessionStorageUsageInfo>&)>;
+  void GetSessionStorageUsage(GetSessionStorageUsageCallback callback);
+
   // DOMStorageContext implementation.
   void GetLocalStorageUsage(GetLocalStorageUsageCallback callback) override;
-  void GetSessionStorageUsage(GetSessionStorageUsageCallback callback) override;
   void DeleteLocalStorage(const blink::StorageKey& storage_key,
                           base::OnceClosure callback) override;
-  void PerformLocalStorageCleanup(base::OnceClosure callback) override;
   void DeleteSessionStorage(const SessionStorageUsageInfo& usage_info,
                             base::OnceClosure callback) override;
-  void PerformSessionStorageCleanup(base::OnceClosure callback) override;
   scoped_refptr<SessionStorageNamespace> RecreateSessionStorage(
       const std::string& namespace_id) override;
   void StartScavengingUnusedSessionStorage() override;
@@ -107,7 +112,7 @@ class CONTENT_EXPORT DOMStorageContextWrapper
 
   void OpenLocalStorage(
       const blink::StorageKey& storage_key,
-      absl::optional<blink::LocalFrameToken> local_frame_token,
+      std::optional<blink::LocalFrameToken> local_frame_token,
       mojo::PendingReceiver<blink::mojom::StorageArea> receiver,
       ChildProcessSecurityPolicyImpl::Handle security_policy_handle,
       mojo::ReportBadMessageCallback bad_message_callback);
@@ -117,7 +122,7 @@ class CONTENT_EXPORT DOMStorageContextWrapper
       mojo::PendingReceiver<blink::mojom::SessionStorageNamespace> receiver);
   void BindStorageArea(
       const blink::StorageKey& storage_key,
-      absl::optional<blink::LocalFrameToken> local_frame_token,
+      std::optional<blink::LocalFrameToken> local_frame_token,
       const std::string& namespace_id,
       mojo::PendingReceiver<blink::mojom::StorageArea> receiver,
       ChildProcessSecurityPolicyImpl::Handle security_policy_handle,
@@ -137,6 +142,10 @@ class CONTENT_EXPORT DOMStorageContextWrapper
 
   void MaybeBindSessionStorageControl();
   void MaybeBindLocalStorageControl();
+#if BUILDFLAG(IS_MAC)
+  void MaybeBindLocalStorageControlAndReportLifecycle(
+      storage::mojom::LocalStorageLifecycle lifecycle);
+#endif  // BUILDFLAG(IS_MAC)
   scoped_refptr<SessionStorageNamespaceImpl> MaybeGetExistingNamespace(
       const std::string& namespace_id) const;
 
@@ -165,7 +174,7 @@ class CONTENT_EXPORT DOMStorageContextWrapper
   bool IsRequestValid(
       const StorageType type,
       const blink::StorageKey& storage_key,
-      absl::optional<blink::LocalFrameToken> local_frame_token,
+      std::optional<blink::LocalFrameToken> local_frame_token,
       ChildProcessSecurityPolicyImpl::Handle security_policy_handle,
       mojo::ReportBadMessageCallback bad_message_callback);
 
@@ -179,8 +188,8 @@ class CONTENT_EXPORT DOMStorageContextWrapper
   // Profile wasn't destructed. This map allows the restored session to re-use
   // the SessionStorageNamespaceImpl objects that are still alive thanks to the
   // sessions component.
-  std::map<std::string, SessionStorageNamespaceImpl*> alive_namespaces_
-      GUARDED_BY(alive_namespaces_lock_);
+  std::map<std::string, raw_ptr<SessionStorageNamespaceImpl, CtnExperimental>>
+      alive_namespaces_ GUARDED_BY(alive_namespaces_lock_);
   mutable base::Lock alive_namespaces_lock_;
 
   // Unowned reference to our owning partition. This is always valid until it's
@@ -196,7 +205,7 @@ class CONTENT_EXPORT DOMStorageContextWrapper
   mojo::Remote<storage::mojom::SessionStorageControl> session_storage_control_;
   mojo::Remote<storage::mojom::LocalStorageControl> local_storage_control_;
 
-  absl::optional<storage::StoragePolicyObserver> storage_policy_observer_;
+  std::optional<storage::StoragePolicyObserver> storage_policy_observer_;
 };
 
 }  // namespace content

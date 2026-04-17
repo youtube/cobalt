@@ -31,7 +31,6 @@ struct GPU_EXPORT EnumTraits<gpu::mojom::GpuPeakMemoryAllocationSource,
     }
     NOTREACHED() << "Invalid GpuPeakMemoryAllocationSource:"
                  << static_cast<int>(gpu_peak_memory_allocation_source);
-    return gpu::mojom::GpuPeakMemoryAllocationSource::UNKNOWN;
   }
 
   static bool FromMojom(gpu::mojom::GpuPeakMemoryAllocationSource input,
@@ -54,7 +53,6 @@ struct GPU_EXPORT EnumTraits<gpu::mojom::GpuPeakMemoryAllocationSource,
         return true;
     }
     NOTREACHED() << "Invalid GpuPeakMemoryAllocationSource: " << input;
-    return false;
   }
 };
 

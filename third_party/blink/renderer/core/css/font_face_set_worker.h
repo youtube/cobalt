@@ -31,9 +31,7 @@ class CORE_EXPORT FontFaceSetWorker final
   FontFaceSetWorker& operator=(const FontFaceSetWorker&) = delete;
   ~FontFaceSetWorker() override;
 
-  ScriptPromise ready(ScriptState*) override;
-
-  AtomicString status() const override;
+  ScriptPromise<FontFaceSet> ready(ScriptState*) override;
 
   WorkerGlobalScope* GetWorker() const;
 
@@ -63,7 +61,7 @@ class CORE_EXPORT FontFaceSetWorker final
     return GetFontSelector()->GetFontFaceCache()->CssConnectedFontFaces();
   }
 
-  bool ResolveFontStyle(const String&, Font&) override;
+  const Font* ResolveFontStyle(const String&) override;
 
  private:
   void FireDoneEventIfPossible() override;

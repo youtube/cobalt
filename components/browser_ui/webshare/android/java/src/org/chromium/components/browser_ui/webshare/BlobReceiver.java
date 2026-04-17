@@ -4,11 +4,15 @@
 
 package org.chromium.components.browser_ui.webshare;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import org.chromium.base.Callback;
 import org.chromium.base.Log;
 import org.chromium.base.StreamUtil;
 import org.chromium.blink.mojom.Blob;
 import org.chromium.blink.mojom.BlobReaderClient;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.mojo.system.Core;
 import org.chromium.mojo.system.DataPipe;
 import org.chromium.mojo.system.MojoException;
@@ -22,9 +26,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 
-/**
- * Receives a blob over mojom and writes it to the stream.
- */
+/** Receives a blob over mojom and writes it to the stream. */
+@NullMarked
 public class BlobReceiver implements BlobReaderClient {
     private static final String TAG = "share";
     private static final int CHUNK_SIZE = 64 * 1024;
@@ -32,11 +35,11 @@ public class BlobReceiver implements BlobReaderClient {
 
     private final ByteBuffer mBuffer;
     private final OutputStream mOutputStream;
-    private long mMaximumContentSize;
+    private final long mMaximumContentSize;
     private long mExpectedContentSize;
     private long mReceivedContentSize;
-    private DataPipe.ConsumerHandle mConsumerHandle;
-    private Callback<Integer> mCallback;
+    private DataPipe.@Nullable ConsumerHandle mConsumerHandle;
+    private @Nullable Callback<Integer> mCallback;
 
     /**
      * Constructs a BlobReceiver.
@@ -94,17 +97,21 @@ public class BlobReceiver implements BlobReaderClient {
         }
 
         Watcher watcher = CoreImpl.getInstance().getWatcher();
-        watcher.start(mConsumerHandle, Core.HandleSignals.READABLE, new Watcher.Callback() {
-            @Override
-            public void onResult(int result) {
-                if (mCallback == null) return;
-                if (result == MojoResult.OK) {
-                    read();
-                } else {
-                    reportError(result, "Watcher reported error.");
-                }
-            }
-        });
+        assumeNonNull(mConsumerHandle);
+        watcher.start(
+                mConsumerHandle,
+                Core.HandleSignals.READABLE,
+                new Watcher.Callback() {
+                    @Override
+                    public void onResult(int result) {
+                        if (mCallback == null) return;
+                        if (result == MojoResult.OK) {
+                            read();
+                        } else {
+                            reportError(result, "Watcher reported error.");
+                        }
+                    }
+                });
     }
 
     // BlobReaderClient
@@ -117,6 +124,7 @@ public class BlobReceiver implements BlobReaderClient {
     private void read() {
         try {
             while (true) {
+                assumeNonNull(mConsumerHandle);
                 ResultAnd<Integer> result =
                         mConsumerHandle.readData(mBuffer, DataPipe.ReadFlags.NONE);
 
@@ -161,6 +169,7 @@ public class BlobReceiver implements BlobReaderClient {
             reportError(MojoResult.CANCELLED, "Failed to close stream.");
             return;
         }
+        assumeNonNull(mCallback);
         mCallback.onResult(MojoResult.OK);
         mCallback = null;
     }
@@ -171,6 +180,8 @@ public class BlobReceiver implements BlobReaderClient {
         }
         Log.w(TAG, message);
         StreamUtil.closeQuietly(mOutputStream);
+
+        assumeNonNull(mCallback);
         mCallback.onResult(result);
         mCallback = null;
     }

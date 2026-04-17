@@ -61,7 +61,8 @@ class LocalSessionEventHandlerImpl : public LocalSessionEventHandler {
   // changes).
   LocalSessionEventHandlerImpl(Delegate* delegate,
                                SyncSessionsClient* sessions_client,
-                               SyncedSessionTracker* session_tracker);
+                               SyncedSessionTracker* session_tracker,
+                               bool is_new_session);
 
   LocalSessionEventHandlerImpl(const LocalSessionEventHandlerImpl&) = delete;
   LocalSessionEventHandlerImpl& operator=(const LocalSessionEventHandlerImpl&) =
@@ -72,17 +73,20 @@ class LocalSessionEventHandlerImpl : public LocalSessionEventHandler {
   // LocalSessionEventHandler implementation.
   void OnSessionRestoreComplete() override;
   void OnLocalTabModified(SyncedTabDelegate* modified_tab) override;
+  void OnLocalTabClosed() override;
 
   // Returns tab specifics from |tab_delegate|. Exposed publicly for testing.
   sync_pb::SessionTab GetTabSpecificsFromDelegateForTest(
-      const SyncedTabDelegate& tab_delegate) const;
+      SyncedTabDelegate& tab_delegate) const;
 
  private:
   enum ReloadTabsOption { RELOAD_TABS, DONT_RELOAD_TABS };
 
   void CleanupLocalTabs(WriteBatch* batch);
 
-  void AssociateWindows(ReloadTabsOption option, WriteBatch* batch);
+  void AssociateWindows(ReloadTabsOption option,
+                        WriteBatch* batch,
+                        bool is_session_restore);
 
   // Loads and reassociates the local tab referenced in |tab|.
   // |batch| must not be null. This function will append necessary
@@ -91,11 +95,10 @@ class LocalSessionEventHandlerImpl : public LocalSessionEventHandler {
 
   // Set |session_tab| from |tab_delegate|.
   sync_pb::SessionTab GetTabSpecificsFromDelegate(
-      const SyncedTabDelegate& tab_delegate) const;
+      SyncedTabDelegate& tab_delegate) const;
 
-  // Update |tab_specifics| with the corresponding task ids.
-  static void WriteTasksIntoSpecifics(sync_pb::SessionTab* tab_specifics,
-                                      SyncedTabDelegate* tab_delegate);
+  bool AssociatePlaceholderTab(std::unique_ptr<SyncedTabDelegate> snapshot,
+                               WriteBatch* batch);
 
   // Injected dependencies (not owned).
   const raw_ptr<Delegate> delegate_;

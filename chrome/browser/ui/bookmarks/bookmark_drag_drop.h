@@ -19,7 +19,6 @@ class Profile;
 
 namespace bookmarks {
 class BookmarkNode;
-struct BookmarkNodeData;
 }
 
 namespace content {
@@ -42,15 +41,17 @@ using DoBookmarkDragCallback =
                             int operation)>;
 
 struct BookmarkDragParams {
-  BookmarkDragParams(std::vector<const bookmarks::BookmarkNode*> nodes,
-                     int drag_node_index,
-                     content::WebContents* web_contents,
-                     ui::mojom::DragEventSource source,
-                     gfx::Point start_point);
+  BookmarkDragParams(
+      std::vector<raw_ptr<const bookmarks::BookmarkNode, VectorExperimental>>
+          nodes,
+      int drag_node_index,
+      content::WebContents* web_contents,
+      ui::mojom::DragEventSource source,
+      gfx::Point start_point);
   ~BookmarkDragParams();
 
   // The bookmark nodes to be dragged.
-  std::vector<const bookmarks::BookmarkNode*> nodes;
+  std::vector<raw_ptr<const bookmarks::BookmarkNode, VectorExperimental>> nodes;
 
   // The index of the main dragged node.
   int drag_node_index;
@@ -65,23 +66,22 @@ struct BookmarkDragParams {
   gfx::Point start_point;
 };
 
+// LINT.IfChange(BookmarkReorderDropTarget)
+enum class BookmarkReorderDropTarget {
+  kBookmarkBarView = 0,
+  kBookmarkManagerAPI = 1,
+  kBookmarkMenu = 2,
+  kBookmarkSidePanel = 3,
+  kMaxValue = kBookmarkSidePanel,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/bookmarks/enums.xml:BookmarkReorderDropTarget)
+
 // Starts the process of dragging a folder of bookmarks.
 void DragBookmarks(Profile* profile, const BookmarkDragParams& params);
 
 void DragBookmarksForTest(Profile* profile,
                           const BookmarkDragParams& params,
                           DoBookmarkDragCallback do_drag_callback);
-
-// Drops the bookmark nodes that are in |data| onto |parent_node| at |index|.
-// |copy| indicates the source operation: if true then the bookmarks in |data|
-// are copied, otherwise they are moved if they belong to the same |profile|.
-// Returns the drop type used.
-ui::mojom::DragOperation DropBookmarks(
-    Profile* profile,
-    const bookmarks::BookmarkNodeData& data,
-    const bookmarks::BookmarkNode* parent_node,
-    size_t index,
-    bool copy);
 
 }  // namespace chrome
 

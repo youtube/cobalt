@@ -4,6 +4,7 @@
 
 #include "components/policy/core/common/android/policy_converter.h"
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <utility>
@@ -12,20 +13,19 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/check_op.h"
-#include "base/feature_list.h"
 #include "base/json/json_reader.h"
 #include "base/notreached.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/values.h"
-#include "components/policy/android/jni_headers/PolicyConverter_jni.h"
-#include "components/policy/core/common/features.h"
 #include "components/policy/core/common/policy_bundle.h"
 #include "components/policy/core/common/policy_map.h"
 #include "components/policy/core/common/policy_namespace.h"
 #include "components/policy/core/common/policy_types.h"
 #include "components/policy/core/common/schema.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/policy/android/jni_headers/PolicyConverter_jni.h"
 
 using base::android::ConvertJavaStringToUTF8;
 using base::android::JavaRef;
@@ -39,14 +39,14 @@ namespace {
 // "foo,bar" and "foo, bar" are equivalent. This is best effort and intended to
 // cover common cases applicable to the majority of policies. Use JSON encoding
 // to handle corner cases not covered by this.
-absl::optional<base::Value> SplitCommaSeparatedList(
+std::optional<base::Value> SplitCommaSeparatedList(
     const std::string& str_value) {
   DCHECK(!str_value.empty());
 
   base::Value::List as_list;
   std::vector<std::string> items_as_vector = base::SplitString(
       str_value, ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-  base::ranges::for_each(items_as_vector, [&as_list](const std::string& item) {
+  std::ranges::for_each(items_as_vector, [&as_list](const std::string& item) {
     as_list.Append(base::Value(item));
   });
   return base::Value(std::move(as_list));
@@ -127,7 +127,7 @@ base::Value::List PolicyConverter::ConvertJavaStringArrayToListValue(
 }
 
 // static
-absl::optional<base::Value> PolicyConverter::ConvertValueToSchema(
+std::optional<base::Value> PolicyConverter::ConvertValueToSchema(
     base::Value value,
     const Schema& schema) {
   if (!schema.valid())
@@ -182,7 +182,6 @@ absl::optional<base::Value> PolicyConverter::ConvertValueToSchema(
     // Binary is not a valid schema type.
     case base::Value::Type::BINARY: {
       NOTREACHED();
-      return base::Value();
     }
 
     // Complex types have to be deserialized from JSON.
@@ -192,9 +191,9 @@ absl::optional<base::Value> PolicyConverter::ConvertValueToSchema(
         // Do not try to convert empty string to list/dictionaries, since most
         // likely the value was not simply not set by the UEM.
         if (str_value.empty()) {
-          return absl::nullopt;
+          return std::nullopt;
         }
-        absl::optional<base::Value> decoded_value = base::JSONReader::Read(
+        std::optional<base::Value> decoded_value = base::JSONReader::Read(
             str_value, base::JSONParserOptions::JSON_ALLOW_TRAILING_COMMAS);
         if (decoded_value) {
           return decoded_value;
@@ -209,25 +208,18 @@ absl::optional<base::Value> PolicyConverter::ConvertValueToSchema(
         // Do not try to convert empty string to list/dictionaries, since most
         // likely the value was not simply not set by the UEM.
         if (str_value.empty()) {
-          return absl::nullopt;
+          return std::nullopt;
         }
-        absl::optional<base::Value> decoded_value = base::JSONReader::Read(
+        std::optional<base::Value> decoded_value = base::JSONReader::Read(
             str_value, base::JSONParserOptions::JSON_ALLOW_TRAILING_COMMAS);
-        if (decoded_value) {
-          return decoded_value;
-        }
-        if (base::FeatureList::IsEnabled(
-                ::policy::features::
-                    kListPoliciesAcceptCommaSeparatedStringsAndroid)) {
-          return SplitCommaSeparatedList(str_value);
-        }
+        return decoded_value ? std::move(decoded_value)
+                             : SplitCommaSeparatedList(str_value);
       }
       return value;
     }
   }
 
   NOTREACHED();
-  return absl::nullopt;
 }
 
 void PolicyConverter::SetPolicyValueForTesting(const std::string& key,
@@ -239,7 +231,7 @@ void PolicyConverter::SetPolicyValue(const std::string& key,
                                      base::Value value) {
   const Schema schema = policy_schema_->GetKnownProperty(key);
   const PolicyNamespace ns(POLICY_DOMAIN_CHROME, std::string());
-  absl::optional<base::Value> converted_value =
+  std::optional<base::Value> converted_value =
       ConvertValueToSchema(std::move(value), schema);
   if (converted_value) {
     // Do not set list/dictionary policies that are sent as empty strings from

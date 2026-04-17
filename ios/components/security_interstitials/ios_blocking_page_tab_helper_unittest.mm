@@ -4,15 +4,12 @@
 
 #import "ios/components/security_interstitials/ios_blocking_page_tab_helper.h"
 
+#import "base/memory/raw_ptr.h"
 #import "ios/components/security_interstitials/ios_security_interstitial_page.h"
 #import "ios/web/public/test/fakes/fake_navigation_context.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
 #import "testing/platform_test.h"
 #import "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace security_interstitials {
 
@@ -28,8 +25,9 @@ class TestInterstitialPage : public IOSSecurityInterstitialPage {
         destroyed_tracker_(destroyed_tracker) {}
 
   ~TestInterstitialPage() override {
-    if (destroyed_tracker_)
+    if (destroyed_tracker_) {
       *destroyed_tracker_ = true;
+    }
   }
 
  private:
@@ -38,7 +36,7 @@ class TestInterstitialPage : public IOSSecurityInterstitialPage {
   void PopulateInterstitialStrings(
       base::Value::Dict& load_time_data) const override {}
 
-  bool* destroyed_tracker_ = nullptr;
+  raw_ptr<bool> destroyed_tracker_ = nullptr;
 };
 
 class IOSBlockingPageTabHelperTest : public PlatformTest {

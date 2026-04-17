@@ -6,13 +6,14 @@
 
 // PixmapSurfaceGLX.cpp: GLX implementation of egl::Surface for Pixmaps
 
-#include "libANGLE/renderer/gl/glx/PixmapSurfaceGLX.h"
-
 #include "common/debug.h"
 #include "libANGLE/Display.h"
 #include "libANGLE/Surface.h"
+
 #include "libANGLE/renderer/gl/glx/DisplayGLX.h"
+
 #include "libANGLE/renderer/gl/glx/FunctionsGLX.h"
+#include "libANGLE/renderer/gl/glx/PixmapSurfaceGLX.h"
 #include "libANGLE/renderer/gl/glx/glx_utils.h"
 
 #include <iostream>
@@ -104,8 +105,8 @@ egl::Error PixmapSurfaceGLX::initialize(const egl::Display *display)
                                   &borderWidth, &depth);
         if (!status)
         {
-            return egl::EglBadSurface() << "XGetGeometry query failed on pixmap surface: "
-                                        << x11::XErrorToString(mDisplay, status);
+            return egl::Error(EGL_BAD_SURFACE, "XGetGeometry query failed on pixmap surface: " +
+                                                   x11::XErrorToString(mDisplay, status));
         }
     }
 
@@ -128,7 +129,7 @@ egl::Error PixmapSurfaceGLX::initialize(const egl::Display *display)
     mGLXPixmap = mGLX.createPixmap(mFBConfig, mXPixmap, pixmapAttribs.data());
     if (!mGLXPixmap)
     {
-        return egl::EglBadAlloc() << "Failed to create a native GLX pixmap.";
+        return egl::Error(EGL_BAD_ALLOC, "Failed to create a native GLX pixmap.");
     }
 
     XFlush(mDisplay);
@@ -142,7 +143,7 @@ egl::Error PixmapSurfaceGLX::makeCurrent(const gl::Context *context)
     return egl::NoError();
 }
 
-egl::Error PixmapSurfaceGLX::swap(const gl::Context *context)
+egl::Error PixmapSurfaceGLX::swap(const gl::Context *context, SurfaceSwapFeedback *feedback)
 {
     UNREACHABLE();
     return egl::NoError();
@@ -179,7 +180,7 @@ egl::Error PixmapSurfaceGLX::releaseTexImage(const gl::Context *context, EGLint 
     return egl::NoError();
 }
 
-void PixmapSurfaceGLX::setSwapInterval(EGLint interval) {}
+void PixmapSurfaceGLX::setSwapInterval(const egl::Display *display, EGLint interval) {}
 
 EGLint PixmapSurfaceGLX::getWidth() const
 {

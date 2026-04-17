@@ -6,7 +6,7 @@
 // the Chromium repo. This file should be updated first, before syncing in the
 // other repos.
 
-// Next MinVersion: 20
+// Next MinVersion: 26
 
 module ash.ime.mojom;
 
@@ -25,7 +25,7 @@ enum KeyEventType {
 // If a key is not listed here, then it means that the Chrome OS first-party
 // IMEs do not handle it and it is safe for the OS to handle the key itself.
 //
-// Next ordinal: 18
+// Next ordinal: 42
 [Stable, Extensible, RenamedFrom="chromeos.ime.mojom.NamedDomKey"]
 enum NamedDomKey {
   [Default] kOther = 0,
@@ -61,6 +61,21 @@ enum NamedDomKey {
   [MinVersion=16] kF10 = 27,
   [MinVersion=16] kF11 = 28,
   [MinVersion=16] kF12 = 29,
+  // Chrome action keys (top row keys)
+  [MinVersion=23] kBrowserBack = 30,
+  [MinVersion=23] kBrowserForward = 31,
+  [MinVersion=23] kBrowserRefresh = 32,
+  // ZoomToggle corresponds to the "full screen" action.
+  [MinVersion=23] kZoomToggle = 33,
+  // LaunchMyComputer corresponds to "Show all open windows" action.
+  [MinVersion=23] kLaunchMyComputer = 34,
+  [MinVersion=23] kBrightnessDown = 35,
+  [MinVersion=23] kBrightnessUp = 36,
+  [MinVersion=23] kAudioVolumeMute = 37,
+  [MinVersion=23] kAudioVolumeDown = 38,
+  [MinVersion=23] kAudioVolumeUp = 39,
+  [MinVersion=24] kDelete = 40,
+  [MinVersion=25] kNumLock = 41,
 };
 
 // Represents a key pressed by the user, taking into account aspects like
@@ -70,7 +85,7 @@ enum NamedDomKey {
 // NamedDomKey for special keys (e.g. Shift), as specified by:
 // https://www.w3.org/TR/uievents/#dom-keyboardevent-key
 //
-// TODO(crbug.com/1261313): Note that this type must be marked [Extensible] in
+// TODO(crbug.com/40202148): Note that this type must be marked [Extensible] in
 // all deployed versions before new ordinals can be introduced, and [Extensible]
 // requires specifying a [Default] field.
 //
@@ -304,7 +319,7 @@ struct InputFieldInfo {
 
 // Next ordinal: 8
 //
-// TODO(crbug.com/1261313): Note that this type must be marked [Extensible] in
+// TODO(crbug.com/40202148): Note that this type must be marked [Extensible] in
 // all deployed versions before new ordinals can be introduced, and [Extensible]
 // requires specifying a [Default] field.
 [Stable, Extensible, RenamedFrom="chromeos.ime.mojom.InputMethodSettings"]
@@ -394,11 +409,87 @@ struct PinyinSettings {
   [MinVersion=6] bool default_to_full_width_punctuation@6;
 };
 
-// Next ordinal: 1
+// JapaneseSettings are preference values for the Japanese engine as stored
+// in PrefService. The value names closely match how they are defined in prefs.
+// Next ordinal: 14
 [Stable]
 struct JapaneseSettings {
-  JapaneseConfig japanese_config@0;
-  // TODO(b/232341104): Add the Japanese user dictionary here.
+  [Stable, Extensible]
+  enum InputMode {
+    [Default] kUnspecified = 0,
+    kRomaji = 1,
+    kKana = 2,
+  };
+
+  [Stable, Extensible]
+  enum PunctuationStyle {
+    [Default] kUnspecified = 0,
+    kKutenTouten = 1,
+    kCommaPeriod = 2,
+    kKutenPeriod = 3,
+    kCommaTouten = 4,
+  };
+
+  [Stable, Extensible]
+  enum SymbolStyle {
+    [Default] kUnspecified = 0,
+    kCornerBracketMiddleDot = 1,
+    kSquareBracketSlash = 2,
+    kCornerBracketSlash = 3,
+    kSquareBracketMiddleDot = 4,
+  };
+
+  [Stable, Extensible]
+  enum SpaceInputStyle {
+    [Default] kUnspecified = 0,
+    kInputMode = 1,
+    kFullWidth = 2,
+    kHalfWidth = 3,
+  };
+
+  [Stable, Extensible]
+  enum SelectionShortcut {
+    [Default] kUnspecified = 0,
+    kDigits123456789 = 1,
+    kAsdfghjkl = 2,
+    kNoShortcut = 3,
+  };
+
+  [Stable, Extensible]
+  enum KeymapStyle {
+    [Default] kUnspecified = 0,
+    kCustom = 1,
+    kAtok = 2,
+    kMsime = 3,
+    kKotoeri = 4,
+    kMobile = 5,
+    kChromeos = 6,
+  };
+
+  [Stable, Extensible]
+  enum ShiftKeyModeStyle {
+    [Default] kUnspecified = 0,
+    kOff = 1,
+    kAlphanumeric = 2,
+    kKatakana = 3,
+  };
+
+  // This is a legacy field that is no longer used.
+  JpUnusedStruct? unused@0;
+
+  [MinVersion=22] InputMode input_mode@1;
+  [MinVersion=22] PunctuationStyle punctuation_style@2;
+  [MinVersion=22] SymbolStyle symbol_style@3;
+  [MinVersion=22] SpaceInputStyle space_input_style@4;
+  [MinVersion=22] SelectionShortcut selection_shortcut@5;
+  [MinVersion=22] KeymapStyle keymap_style@6;
+  [MinVersion=22] bool automatically_switch_to_halfwidth@7;
+  [MinVersion=22] ShiftKeyModeStyle shift_key_mode_style@8;
+  [MinVersion=22] bool use_input_history@9;
+  [MinVersion=22] bool use_system_dictionary@10;
+  [MinVersion=22] uint32 number_of_suggestions@11;
+  [MinVersion=22] bool disable_personalized_suggestions@12;
+  [MinVersion=22] bool unused2@13;
 };
 
 // Next ordinal: 3
@@ -444,7 +535,7 @@ struct ZhuyinSettings {
 };
 
 // Next ordinal: 2
-// TODO(crbug.com/1261313): Note that this type must be marked [Extensible] in
+// TODO(crbug.com/40202148): Note that this type must be marked [Extensible] in
 // all deployed versions before new ordinals can be introduced, and [Extensible]
 // requires specifying a [Default] field.
 // TODO(b/217279530): Consider removing this or unifying it with
@@ -541,13 +632,14 @@ enum AssistiveWindowType {
   kLongpressDiacriticsSuggestion = 6,
 };
 
-// Next ordinal: 4
+// Next ordinal: 5
 [Stable, Extensible]
 enum AutocorrectSuggestionProvider {
   [Default] kUnknown = 0,
   kUsEnglishPrebundled = 1,
   kUsEnglishDownloaded = 2,
   kUsEnglish840 = 3,
+  [MinVersion=21] kUsEnglish840V2 = 4,
 };
 
 // Next ordinal: 1
@@ -629,7 +721,7 @@ interface InputMethod {
 
 // Settings for Vietnamese Telex input method.
 //
-// Next ordinal: 4
+// Next ordinal: 5
 [Stable]
 struct VietnameseTelexSettings {
   // Allow flexible diacritic assignment.
@@ -644,11 +736,14 @@ struct VietnameseTelexSettings {
 
   // Type the horn modifier trigger to get u-horn.
   bool enable_w_for_u_horn_shortcut@3;
+
+  // Show an underline for the text under composition mode.
+  [MinVersion=20] bool show_underline_for_composition_text@4;
 };
 
 // Settings for Vietnamese VNI input method.
 //
-// Next ordinal: 3
+// Next ordinal: 4
 [Stable]
 struct VietnameseVniSettings {
   // Allow flexible diacritic assignment.
@@ -660,5 +755,8 @@ struct VietnameseVniSettings {
 
   // When a horn modifier is applied to "uo", it will add horns to both u and o.
   bool enable_insert_double_horn_on_uo@2;
+
+  // Show an underline for the text under composition mode.
+  [MinVersion=20] bool show_underline_for_composition_text@3;
 };
 

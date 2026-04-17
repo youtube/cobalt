@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ash/video_conference/video_conference_app_service_client.h"
 
+#include <variant>
+
 #include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
 #include "base/containers/contains.h"
@@ -12,19 +14,46 @@
 #include "base/unguessable_token.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_ash.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
+#include "chrome/browser/apps/app_service/metrics/app_platform_metrics.h"
 #include "chrome/browser/ash/crosapi/crosapi_ash.h"
 #include "chrome/browser/ash/crosapi/crosapi_manager.h"
 #include "chrome/browser/ash/video_conference/video_conference_manager_ash.h"
+#include "chrome/browser/chromeos/video_conference/video_conference_ukm_helper.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "components/services/app_service/public/cpp/app_capability_access_cache_wrapper.h"
 #include "components/services/app_service/public/cpp/app_registry_cache.h"
 #include "components/services/app_service/public/cpp/app_types.h"
 #include "components/user_manager/user_manager.h"
+#include "services/metrics/public/cpp/ukm_recorder.h"
 
 namespace ash {
 namespace {
+using video_conference::VideoConferenceUkmHelper;
+
 VideoConferenceAppServiceClient* g_client_instance = nullptr;
+
+crosapi::mojom::VideoConferenceAppType ToVideoConferenceAppType(
+    apps::AppType app_type) {
+  switch (app_type) {
+    case apps::AppType::kArc:
+      return crosapi::mojom::VideoConferenceAppType::kArcApp;
+    case apps::AppType::kChromeApp:
+      return crosapi::mojom::VideoConferenceAppType::kChromeApp;
+    case apps::AppType::kWeb:
+      return crosapi::mojom::VideoConferenceAppType::kWebApp;
+    case apps::AppType::kExtension:
+      return crosapi::mojom::VideoConferenceAppType::kChromeExtension;
+    default:
+      return crosapi::mojom::VideoConferenceAppType::kAppServiceUnknown;
+  }
+}
+
+bool IsPermissionAsked(const apps::PermissionPtr& permission) {
+  return std::holds_alternative<apps::TriState>(permission->value) &&
+         std::get<apps::TriState>(permission->value) == apps::TriState::kAsk;
+}
+
 }  // namespace
 
 VideoConferenceAppServiceClient::VideoConferenceAppServiceClient()
@@ -78,7 +107,9 @@ void VideoConferenceAppServiceClient::GetMediaApps(
         /*is_capturing_camera=*/app_state.is_capturing_camera,
         /*is_capturing_microphone=*/app_state.is_capturing_microphone,
         /*is_capturing_screen=*/false,
-        /*title=*/base::UTF8ToUTF16(app_name), /*url=*/absl::nullopt));
+        /*title=*/base::UTF8ToUTF16(app_name),
+        /*url=*/std::nullopt,
+        /*app_type=*/ToVideoConferenceAppType(GetAppType(app_id))));
   }
 
   std::move(callback).Run(std::move(apps));
@@ -106,7 +137,8 @@ void VideoConferenceAppServiceClient::ReturnToApp(
     return;
   }
 
-  for (auto* instance : instance_registry_->GetInstances(app_id)) {
+  for (const apps::Instance* instance :
+       instance_registry_->GetInstances(app_id)) {
     // This is required in unit tests to reactivate an app.
     instance->Window()->Show();
     // This is required in virtual desktop to reactivate an arc++ app.
@@ -133,6 +165,8 @@ void VideoConferenceAppServiceClient::SetSystemMediaDeviceStatus(
       return;
   }
 }
+
+void VideoConferenceAppServiceClient::StopAllScreenShare() {}
 
 void VideoConferenceAppServiceClient::OnCapabilityAccessUpdate(
     const apps::CapabilityAccessUpdate& update) {
@@ -166,29 +200,23 @@ void VideoConferenceAppServiceClient::OnCapabilityAccessUpdate(
   AppState& state = GetOrAddAppState(app_id);
   const std::string app_name = GetAppName(app_id);
 
+  auto& ukm_hepler = id_to_ukm_hepler_[app_id];
+
   if (update.CameraChanged()) {
     state.is_capturing_camera = is_capturing_camera;
-
-    if (is_capturing_camera && camera_system_disabled_) {
-      crosapi::CrosapiManager::Get()
-          ->crosapi_ash()
-          ->video_conference_manager_ash()
-          ->NotifyDeviceUsedWhileDisabled(
-              crosapi::mojom::VideoConferenceMediaDevice::kCamera,
-              base::UTF8ToUTF16(app_name), base::DoNothingAs<void(bool)>());
+    if (ukm_hepler) {
+      ukm_hepler->RegisterCapturingUpdate(
+          video_conference::VideoConferenceMediaType::kCamera,
+          is_capturing_camera);
     }
   }
 
   if (update.MicrophoneChanged()) {
     state.is_capturing_microphone = is_capturing_microphone;
-
-    if (is_capturing_microphone && microphone_system_disabled_) {
-      crosapi::CrosapiManager::Get()
-          ->crosapi_ash()
-          ->video_conference_manager_ash()
-          ->NotifyDeviceUsedWhileDisabled(
-              crosapi::mojom::VideoConferenceMediaDevice::kMicrophone,
-              base::UTF8ToUTF16(app_name), base::DoNothingAs<void(bool)>());
+    if (ukm_hepler) {
+      ukm_hepler->RegisterCapturingUpdate(
+          video_conference::VideoConferenceMediaType::kMicrophone,
+          is_capturing_microphone);
     }
   }
 
@@ -202,6 +230,28 @@ void VideoConferenceAppServiceClient::OnCapabilityAccessUpdate(
   }
 
   HandleMediaUsageUpdate();
+
+  // This will be an AnchoredNudge, which is only visible if the tray is
+  // visible; so we have to call this after HandleMediaUsageUpdate.
+  if (update.CameraChanged() && is_capturing_camera &&
+      camera_system_disabled_) {
+    crosapi::CrosapiManager::Get()
+        ->crosapi_ash()
+        ->video_conference_manager_ash()
+        ->NotifyDeviceUsedWhileDisabled(
+            crosapi::mojom::VideoConferenceMediaDevice::kCamera,
+            base::UTF8ToUTF16(app_name), base::DoNothingAs<void(bool)>());
+  }
+
+  if (update.MicrophoneChanged() && is_capturing_microphone &&
+      microphone_system_disabled_) {
+    crosapi::CrosapiManager::Get()
+        ->crosapi_ash()
+        ->video_conference_manager_ash()
+        ->NotifyDeviceUsedWhileDisabled(
+            crosapi::mojom::VideoConferenceMediaDevice::kMicrophone,
+            base::UTF8ToUTF16(app_name), base::DoNothingAs<void(bool)>());
+  }
 }
 
 void VideoConferenceAppServiceClient::OnAppCapabilityAccessCacheWillBeDestroyed(
@@ -295,15 +345,23 @@ VideoConferenceAppServiceClient::VideoConferencePermissions
 VideoConferenceAppServiceClient::GetAppPermission(const AppIdString& app_id) {
   VideoConferencePermissions permissions;
 
-  app_registry_->ForOneApp(app_id, [&permissions](
-                                       const apps::AppUpdate& update) {
+  const bool is_arc_app = GetAppType(app_id) == apps::AppType::kArc;
+
+  app_registry_->ForOneApp(app_id, [&permissions,
+                                    is_arc_app](const apps::AppUpdate& update) {
     for (const auto& permission : update.Permissions()) {
+      // For Arc++ Apps, kAsk means "Only for this time".
+      const bool is_temporarily_enabled =
+          is_arc_app && IsPermissionAsked(permission);
+
+      const bool is_currently_enabled =
+          permission->IsPermissionEnabled() || is_temporarily_enabled;
+
       if (permission->permission_type == apps::PermissionType::kCamera) {
-        permissions.has_camera_permission = permission->IsPermissionEnabled();
+        permissions.has_camera_permission = is_currently_enabled;
       }
       if (permission->permission_type == apps::PermissionType::kMicrophone) {
-        permissions.has_microphone_permission =
-            permission->IsPermissionEnabled();
+        permissions.has_microphone_permission = is_currently_enabled;
       }
     }
   });
@@ -324,6 +382,20 @@ VideoConferenceAppServiceClient::GetOrAddAppState(const std::string& app_id) {
   if (!base::Contains(id_to_app_state_, app_id)) {
     id_to_app_state_[app_id] = AppState{base::UnguessableToken::Create(),
                                         base::Time::Now(), false, false};
+
+    if (test_ukm_recorder_) {
+      // In testing environment, using TestUkmRecorder and test SourceID.
+      id_to_ukm_hepler_[app_id] = std::make_unique<VideoConferenceUkmHelper>(
+          test_ukm_recorder_, test_ukm_recorder_->GetNewSourceID());
+    } else {
+      // In real environment, using real UkmRecorder and real SourceID.
+      const auto source_id = apps::AppPlatformMetrics::GetSourceId(
+          ProfileManager::GetActiveUserProfile(), app_id);
+      if (source_id != ukm::kInvalidSourceId) {
+        id_to_ukm_hepler_[app_id] = std::make_unique<VideoConferenceUkmHelper>(
+            ukm::UkmRecorder::Get(), source_id);
+      }
+    }
   }
   return id_to_app_state_[app_id];
 }
@@ -335,6 +407,7 @@ void VideoConferenceAppServiceClient::MaybeRemoveApp(
   // (2) in an extreme case, the instance_registry_ is reset.
   if (!instance_registry_ || !instance_registry_->ContainsAppId(app_id)) {
     id_to_app_state_.erase(app_id);
+    id_to_ukm_hepler_.erase(app_id);
     HandleMediaUsageUpdate();
   }
 }

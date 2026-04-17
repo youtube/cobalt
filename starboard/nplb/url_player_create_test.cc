@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <vector>
+
 #include "starboard/decode_target.h"
 #include "starboard/player.h"
 
 #if SB_HAS(PLAYER_WITH_URL)
-#include "internal/starboard/shared/uikit/url_player.h"
+#include "starboard/shared/uikit/url_player.h"
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
 #include "starboard/window.h"

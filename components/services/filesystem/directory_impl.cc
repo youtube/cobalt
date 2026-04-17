@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/services/filesystem/directory_impl.h"
 
 #include <memory>
@@ -9,6 +14,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/containers/heap_array.h"
 #include "base/files/file.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
@@ -23,27 +29,30 @@ DirectoryImpl::DirectoryImpl(base::FilePath directory_path,
                              scoped_refptr<SharedTempDir> temp_dir)
     : directory_path_(directory_path), temp_dir_(std::move(temp_dir)) {}
 
-DirectoryImpl::~DirectoryImpl() {}
+DirectoryImpl::~DirectoryImpl() = default;
 
 void DirectoryImpl::Read(ReadCallback callback) {
   std::vector<mojom::DirectoryEntryPtr> entries;
   base::FileEnumerator directory_enumerator(
       directory_path_, false,
       base::FileEnumerator::DIRECTORIES | base::FileEnumerator::FILES);
-  for (base::FilePath name = directory_enumerator.Next(); !name.empty();
-       name = directory_enumerator.Next()) {
+  for (base::FilePath path = directory_enumerator.Next(); !path.empty();
+       path = directory_enumerator.Next()) {
     base::FileEnumerator::FileInfo info = directory_enumerator.GetInfo();
     mojom::DirectoryEntryPtr entry = mojom::DirectoryEntry::New();
     entry->type = info.IsDirectory() ? mojom::FsFileType::DIRECTORY
                                      : mojom::FsFileType::REGULAR_FILE;
-    entry->name = info.GetName();
+    auto name = base::SafeBaseName::Create(path);
+    CHECK(name) << path;
+    entry->name = *name;
+    entry->display_name = info.GetName().AsUTF8Unsafe();
+
     entries.push_back(std::move(entry));
   }
 
-  std::move(callback).Run(base::File::Error::FILE_OK,
-                          entries.empty()
-                              ? absl::nullopt
-                              : absl::make_optional(std::move(entries)));
+  std::move(callback).Run(
+      base::File::Error::FILE_OK,
+      entries.empty() ? std::nullopt : std::make_optional(std::move(entries)));
 }
 
 // TODO(erg): Consider adding an implementation of Stat()/Touch() to the
@@ -288,10 +297,11 @@ void DirectoryImpl::ReadEntireFile(const std::string& raw_path,
 
   std::vector<uint8_t> contents;
   const int kBufferSize = 1 << 16;
-  std::unique_ptr<char[]> buf(new char[kBufferSize]);
+  auto buf = base::HeapArray<char>::Uninit(kBufferSize);
   int len;
-  while ((len = base_file.ReadAtCurrentPos(buf.get(), kBufferSize)) > 0)
-    contents.insert(contents.end(), buf.get(), buf.get() + len);
+  while ((len = base_file.ReadAtCurrentPos(buf.data(), kBufferSize)) > 0) {
+    contents.insert(contents.end(), buf.data(), buf.data() + len);
+  }
 
   std::move(callback).Run(base::File::Error::FILE_OK, contents);
 }

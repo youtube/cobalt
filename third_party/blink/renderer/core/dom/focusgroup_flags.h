@@ -14,24 +14,16 @@ class Element;
 
 namespace focusgroup {
 
-enum FocusgroupFlags : uint16_t {
+enum FocusgroupFlags : uint8_t {
   kNone = 0,
   kExtend = 1 << 0,
-  kHorizontal = 1 << 1,
-  kVertical = 1 << 2,
+  kInline = 1 << 1,
+  kBlock = 1 << 2,
   kGrid = 1 << 3,
-  kWrapHorizontally = 1 << 4,
-  kWrapVertically = 1 << 5,
+  kWrapInline = 1 << 4,
+  kWrapBlock = 1 << 5,
   kRowFlow = 1 << 6,
   kColFlow = 1 << 7,
-  kForCSSToggleCheckbox = 1 << 8,
-  kForCSSToggleListboxItem = 1 << 9,
-  kForCSSToggleRadioItem = 1 << 10,
-  kForCSSToggleTab = 1 << 11,
-  kForCSSToggleTreeItem = 1 << 12,
-
-  // union of the above kForCSSToggle*
-  kCSSToggleRestrictions = (1 << 13) - (1 << 8),
 };
 
 inline constexpr FocusgroupFlags operator&(FocusgroupFlags a,

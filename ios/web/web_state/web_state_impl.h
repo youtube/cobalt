@@ -6,25 +6,29 @@
 #define IOS_WEB_WEB_STATE_WEB_STATE_IMPL_H_
 
 #import <Foundation/Foundation.h>
+#import <stddef.h>
+#import <stdint.h>
 
-#include <stddef.h>
-#include <stdint.h>
+#import <map>
+#import <memory>
+#import <optional>
+#import <string>
+#import <string_view>
+#import <vector>
 
-#include <map>
-#include <memory>
-#include <string>
-#include <vector>
-
-#include "base/memory/weak_ptr.h"
-#include "base/observer_list.h"
-#include "base/time/time.h"
-#include "base/values.h"
+#import "base/memory/weak_ptr.h"
+#import "base/observer_list.h"
+#import "base/sequence_checker.h"
+#import "base/time/time.h"
+#import "base/values.h"
 #import "ios/web/navigation/navigation_manager_delegate.h"
 #import "ios/web/navigation/navigation_manager_impl.h"
+#import "ios/web/public/navigation/form_warning_type.h"
 #import "ios/web/public/navigation/web_state_policy_decider.h"
 #import "ios/web/public/web_state.h"
 #import "ios/web/public/web_state_delegate.h"
-#include "url/gurl.h"
+#import "url/gurl.h"
+#import "url/origin.h"
 
 @class CRWSessionStorage;
 @class CRWWebController;
@@ -59,11 +63,34 @@ class WebFramesManagerImpl;
 //    writing them out for session saves.
 class WebStateImpl final : public WebState {
  public:
+  // Empty structure used to mark the constructor used to implement Clone.
+  struct CloneFrom {};
+
+  // Forward-declaration of the two internal classes used to implement
+  // the "unrealized" state of the WebState. See the documentation at
+  // //docs/ios/unrealized_web_state.md for more details.
+  class RealizedWebState;
+  class SerializedData;
+
   // Constructor for WebStateImpls created for new sessions.
   explicit WebStateImpl(const CreateParams& params);
 
   // Constructor for WebStateImpls created for deserialized sessions
-  WebStateImpl(const CreateParams& params, CRWSessionStorage* session_storage);
+  WebStateImpl(const CreateParams& params,
+               CRWSessionStorage* session_storage,
+               NativeSessionFetcher session_fetcher);
+
+  // Constructor for WebStateImpls created for deserialized sessions. The
+  // callbacks are used to load the complete serialized data from disk when
+  // the WebState transition to the realized state.
+  WebStateImpl(BrowserState* browser_state,
+               WebStateID unique_identifier,
+               proto::WebStateMetadataStorage metadata,
+               WebStateStorageLoader storage_loader,
+               NativeSessionFetcher session_fetcher);
+
+  // Constructor for cloned WebStateImpl.
+  WebStateImpl(CloneFrom, const RealizedWebState& pimpl);
 
   WebStateImpl(const WebStateImpl&) = delete;
   WebStateImpl& operator=(const WebStateImpl&) = delete;
@@ -117,8 +144,7 @@ class WebStateImpl final : public WebState {
 
   // Notifies web state observers when any of the web state's permission has
   // changed.
-  void OnStateChangedForPermission(Permission permission)
-      API_AVAILABLE(ios(15.0));
+  void OnStateChangedForPermission(Permission permission);
 
   // Returns the NavigationManager for this WebState.
   NavigationManagerImpl& GetNavigationManagerImpl();
@@ -146,7 +172,7 @@ class WebStateImpl final : public WebState {
   // Forwards the parameters to the current web ui page controller. Called when
   // a message is received from the web ui JavaScript via `chrome.send` API.
   void HandleWebUIMessage(const GURL& source_url,
-                          base::StringPiece message,
+                          std::string_view message,
                           const base::Value::List& args);
 
   // Explicitly sets the MIME type, overwriting any MIME type that was set by
@@ -203,24 +229,25 @@ class WebStateImpl final : public WebState {
   void SendChangeLoadProgress(double progress);
 
   // Notifies the delegate that a Form Repost dialog needs to be presented.
-  void ShowRepostFormWarningDialog(base::OnceCallback<void(bool)> callback);
+  void ShowRepostFormWarningDialog(FormWarningType warning_type,
+                                   base::OnceCallback<void(bool)> callback);
 
   // Notifies the delegate that a JavaScript alert dialog needs to be presented.
-  void RunJavaScriptAlertDialog(const GURL& origin_url,
+  void RunJavaScriptAlertDialog(const url::Origin& origin,
                                 NSString* message_text,
                                 base::OnceClosure callback);
 
   // Notifies the delegate that a JavaScript confirmation dialog needs to be
   // presented.
   void RunJavaScriptConfirmDialog(
-      const GURL& origin_url,
+      const url::Origin& origin,
       NSString* message_text,
       base::OnceCallback<void(bool success)> callback);
 
   // Notifies the delegate that a JavaScript prompt dialog needs to be
   // presented.
   void RunJavaScriptPromptDialog(
-      const GURL& origin_url,
+      const url::Origin& origin,
       NSString* message_text,
       NSString* default_prompt_text,
       base::OnceCallback<void(NSString* user_input)> callback);
@@ -255,16 +282,20 @@ class WebStateImpl final : public WebState {
   // Removes all current web frames.
   void RemoveAllWebFrames();
 
-  // Requests the user's permission to access requested `permissions`.
-  typedef void (^PermissionDecisionHandler)(WKPermissionDecision decision)
-      API_AVAILABLE(ios(15.0));
+  // Requests the user's permission to access requested `permissions` on
+  // top-level `origin`.
+  typedef void (^PermissionDecisionHandler)(WKPermissionDecision decision);
   void RequestPermissionsWithDecisionHandler(NSArray<NSNumber*>* permissions,
-                                             PermissionDecisionHandler handler)
-      API_AVAILABLE(ios(15.0));
+                                             const GURL& origin,
+                                             PermissionDecisionHandler handler);
 
   // WebState:
+  void SerializeToProto(proto::WebStateStorage& storage) const final;
+  void SerializeMetadataToProto(
+      proto::WebStateMetadataStorage& storage) const final;
   WebStateDelegate* GetDelegate() final;
   void SetDelegate(WebStateDelegate* delegate) final;
+  std::unique_ptr<WebState> Clone() const final;
   bool IsRealized() const final;
   WebState* ForceRealized() final;
   bool IsWebUsageEnabled() const final;
@@ -281,11 +312,10 @@ class WebStateImpl final : public WebState {
   base::WeakPtr<WebState> GetWeakPtr() final;
   void OpenURL(const WebState::OpenURLParams& params) final;
   void LoadSimulatedRequest(const GURL& url,
-                            NSString* response_html_string) final
-      API_AVAILABLE(ios(15.0));
+                            NSString* response_html_string) final;
   void LoadSimulatedRequest(const GURL& url,
                             NSData* response_data,
-                            NSString* mime_type) final API_AVAILABLE(ios(15.0));
+                            NSString* mime_type) final;
   void Stop() final;
   const NavigationManager* GetNavigationManager() const final;
   NavigationManager* GetNavigationManager() final;
@@ -294,11 +324,11 @@ class WebStateImpl final : public WebState {
   const SessionCertificatePolicyCache* GetSessionCertificatePolicyCache()
       const final;
   SessionCertificatePolicyCache* GetSessionCertificatePolicyCache() final;
-  CRWSessionStorage* BuildSessionStorage() final;
+  CRWSessionStorage* BuildSessionStorage() const final;
   void LoadData(NSData* data, NSString* mime_type, const GURL& url) final;
   void ExecuteUserJavaScript(NSString* javaScript) final;
   NSString* GetStableIdentifier() const final;
-  SessionID GetUniqueIdentifier() const final;
+  WebStateID GetUniqueIdentifier() const final;
   const std::string& GetContentsMimeType() const final;
   bool ContentIsHTML() const final;
   const std::u16string& GetTitle() const final;
@@ -314,14 +344,14 @@ class WebStateImpl final : public WebState {
   int GetNavigationItemCount() const final;
   const GURL& GetVisibleURL() const final;
   const GURL& GetLastCommittedURL() const final;
-  GURL GetCurrentURL(URLVerificationTrustLevel* trust_level) const final;
+  std::optional<GURL> GetLastCommittedURLIfTrusted() const final;
   id<CRWWebViewProxy> GetWebViewProxy() const final;
   void DidChangeVisibleSecurityState() final;
   InterfaceBinder* GetInterfaceBinderForMainFrame() final;
   bool HasOpener() const final;
   void SetHasOpener(bool has_opener) final;
   bool CanTakeSnapshot() const final;
-  void TakeSnapshot(const gfx::RectF& rect, SnapshotCallback callback) final;
+  void TakeSnapshot(const CGRect rect, SnapshotCallback callback) final;
   void CreateFullPagePdf(base::OnceCallback<void(NSData*)> callback) final;
   void CloseMediaPresentations() final;
   void AddObserver(WebStateObserver* observer) final;
@@ -329,21 +359,20 @@ class WebStateImpl final : public WebState {
   void CloseWebState() final;
   bool SetSessionStateData(NSData* data) final;
   NSData* SessionStateData() final;
-  PermissionState GetStateForPermission(Permission permission) const final
-      API_AVAILABLE(ios(15.0));
-  void SetStateForPermission(PermissionState state, Permission permission) final
-      API_AVAILABLE(ios(15.0));
-  NSDictionary<NSNumber*, NSNumber*>* GetStatesForAllPermissions() const final
-      API_AVAILABLE(ios(15.0));
+  PermissionState GetStateForPermission(Permission permission) const final;
+  void SetStateForPermission(PermissionState state,
+                             Permission permission) final;
+  NSDictionary<NSNumber*, NSNumber*>* GetStatesForAllPermissions() const final;
   void DownloadCurrentPage(NSString* destination_file,
                            id<CRWWebViewDownloadDelegate> delegate,
-                           void (^handler)(id<CRWWebViewDownload>)) final
-      API_AVAILABLE(ios(14.5));
+                           void (^handler)(id<CRWWebViewDownload>)) final;
   bool IsFindInteractionSupported() final;
   bool IsFindInteractionEnabled() final;
   void SetFindInteractionEnabled(bool enabled) final;
   id<CRWFindInteraction> GetFindInteraction() final API_AVAILABLE(ios(16));
   id GetActivityItem() final API_AVAILABLE(ios(16.4));
+  UIColor* GetThemeColor() final;
+  UIColor* GetUnderPageBackgroundColor() final;
 
  protected:
   // WebState:
@@ -351,12 +380,6 @@ class WebStateImpl final : public WebState {
   void RemovePolicyDecider(WebStatePolicyDecider* decider) final;
 
  private:
-  // Forward-declaration of the two internal classes used to implement
-  // the "unrealized" state of the WebState. See the documentation at
-  // //docs/ios/unrealized_web_state.md for more details.
-  class RealizedWebState;
-  class SerializedData;
-
   // Type aliases for the various ObserverList map used by WebStateImpl (reused
   // by the RealizedWebState class).
   using WebStateObserverList = base::ObserverList<WebStateObserver, true>;
@@ -368,6 +391,17 @@ class WebStateImpl final : public WebState {
   // then return a pointer to the RealizedWebState. Safe to call if the
   // WebState is already realized.
   RealizedWebState* RealizedState();
+
+  // Add a marker used to ensure casting a WebState to WebStateImpl is a
+  // safe operation (if this marker is not present, the cast is invalid).
+  void AddWebStateImplMarker();
+
+  // Send global creation event. Needs to be the last method called in
+  // the constructor.
+  void SendGlobalCreationEvent();
+
+  // WebState is sequence-affine.
+  SEQUENCE_CHECKER(sequence_checker_);
 
   // Stores whether the web state is currently being destroyed. This is not
   // stored in RealizedWebState/SerializedData as a WebState can be destroyed
@@ -392,10 +426,9 @@ class WebStateImpl final : public WebState {
   WebStatePolicyDeciderList policy_deciders_;
 
   // The instances of the two internal classes used to implement the
-  // "unrealized" state of the WebState. One important invariant is
-  // that except at all point either `pimpl_` or `saved_` is valid
-  // and not null (except right at the end of the destructor or at
-  // the beginning of the constructor).
+  // "unrealized" state of the WebState. One important invariant is that at all
+  // point either `pimpl_` or `saved_` is valid and not null (except right at
+  // the end of the destructor or at the beginning of the constructor).
   std::unique_ptr<RealizedWebState> pimpl_;
   std::unique_ptr<SerializedData> saved_;
 

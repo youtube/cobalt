@@ -7,7 +7,9 @@ package org.chromium.chrome.browser.xsurface;
 import android.view.View;
 
 import androidx.annotation.IntDef;
-import androidx.annotation.Nullable;
+
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -18,12 +20,20 @@ import java.util.List;
  *
  * Interface to provide chromium calling points for an external surface.
  */
+@NullMarked
 public interface SurfaceActionsHandler {
     String KEY = "GeneralActions";
 
-    @IntDef({OpenMode.UNKNOWN, OpenMode.SAME_TAB, OpenMode.NEW_TAB, OpenMode.INCOGNITO_TAB,
-            OpenMode.DOWNLOAD_LINK, OpenMode.READ_LATER, OpenMode.THANK_CREATOR,
-            OpenMode.NEW_TAB_IN_GROUP})
+    @IntDef({
+        OpenMode.UNKNOWN,
+        OpenMode.SAME_TAB,
+        OpenMode.NEW_TAB,
+        OpenMode.INCOGNITO_TAB,
+        OpenMode.DOWNLOAD_LINK,
+        OpenMode.READ_LATER,
+        OpenMode.THANK_CREATOR,
+        OpenMode.NEW_TAB_IN_GROUP
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface OpenMode {
         int UNKNOWN = 0;
@@ -43,36 +53,32 @@ public interface SurfaceActionsHandler {
         int NEW_TAB_IN_GROUP = 7;
     }
 
-    /**
-     * Options for entry points to the single web feed.
-     */
-    @IntDef({OpenWebFeedEntryPoint.OTHER, OpenWebFeedEntryPoint.ATTRIBUTION,
-            OpenWebFeedEntryPoint.RECOMMENDATION, OpenWebFeedEntryPoint.GROUP_HEADER,
-            OpenWebFeedEntryPoint.MAX_VALUE})
+    /** Options for entry points to the single web feed. */
+    @IntDef({
+        OpenWebFeedEntryPoint.OTHER,
+        OpenWebFeedEntryPoint.ATTRIBUTION,
+        OpenWebFeedEntryPoint.RECOMMENDATION,
+        OpenWebFeedEntryPoint.GROUP_HEADER,
+        OpenWebFeedEntryPoint.MAX_VALUE
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface OpenWebFeedEntryPoint {
-        /**
-         * Other
-         */
+        /** Other */
         int OTHER = 0;
-        /**
-         * Feed Attribution
-         */
+
+        /** Feed Attribution */
         int ATTRIBUTION = 1;
-        /**
-         * Feed Recommendation
-         */
+
+        /** Feed Recommendation */
         int RECOMMENDATION = 2;
-        /**
-         * Group Header
-         */
+
+        /** Group Header */
         int GROUP_HEADER = 3;
+
         int MAX_VALUE = GROUP_HEADER;
     }
 
-    /**
-     * Options when opening URLs with openUrl().
-     */
+    /** Options when opening URLs with openUrl(). */
     interface OpenUrlOptions {
         /**
          * The WebFeed associated with this navigation, for use with shouldShowWebFeedAccelerator(),
@@ -81,17 +87,19 @@ public interface SurfaceActionsHandler {
         default String webFeedName() {
             return "";
         }
+
         /** Whether to show the Web Feed accelerator on the page after navigation. */
         default boolean shouldShowWebFeedAccelerator() {
             return false;
         }
+
         /** Returns the title. Currently used only for READ_LATER. */
         default String getTitle() {
             return "";
         }
+
         /** The View from which the user tap originated. May be null.*/
-        @Nullable
-        default View actionSourceView() {
+        default @Nullable View actionSourceView() {
             return null;
         }
     }
@@ -127,14 +135,13 @@ public interface SurfaceActionsHandler {
 
     /**
      * Notifies the host app that url with broadTopicMids and entityMids was clicked.
+     *
      * @param url The URL that the user clicked on
      * @param entityMids Sorted list (most relevant to least) of entity MIDs that correspond to the
-     *         clicked URL
-     * @param contentCategoryMediaType MediaType expresses the primary media format of the content
-     * @param cardCategory Expresses the category of the clicked card
-     * TODO(tbansal): Remove the first method once the callers have been updated.
+     *     clicked URL
      */
     default void updateUserProfileOnLinkClick(String url, List<Long> entityMids) {}
+
     default void updateUserProfileOnLinkClick(
             String url, List<Long> entityMids, long contentCategoryMediaType, long cardCategory) {}
 
@@ -166,8 +173,7 @@ public interface SurfaceActionsHandler {
         }
 
         /** The callback to be informed of completion, or null. */
-        @Nullable
-        default WebFeedFollowUpdate.Callback callback() {
+        default WebFeedFollowUpdate.@Nullable Callback callback() {
             return null;
         }
 
@@ -177,9 +183,7 @@ public interface SurfaceActionsHandler {
         }
     }
 
-    /**
-     * Attempts to follow or unfollow a WebFeed.
-     */
+    /** Attempts to follow or unfollow a WebFeed. */
     default void updateWebFeedFollowState(WebFeedFollowUpdate update) {}
 
     /**
@@ -193,13 +197,22 @@ public interface SurfaceActionsHandler {
 
     /**
      * Opens a specific WebFeed by name with a specific entrypoint.
+     *
      * @param webFeedName the relevant web feed name.
      * @param entryPoint the entry point used to launch the feed.
      */
     default void openWebFeed(String webFeedName, @OpenWebFeedEntryPoint int entryPoint) {}
 
-    /** Requests that a sync consent prompt be shown. */
+    /**
+     * Requests that sign-in flow be started.
+     *
+     * @deprecated Use startSigninFlow() instead.
+     */
+    @Deprecated
     default void showSyncConsentPrompt() {}
+
+    /** Requests that sign-in flow be started. */
+    default void startSigninFlow() {}
 
     /** Requests that a sign-in interstitial bottom sheet be shown. */
     default void showSignInInterstitial() {}

@@ -4,16 +4,15 @@
 
 #include "chrome/browser/ui/ash/shelf/app_service/app_service_app_window_crostini_tracker.h"
 
-#include "ash/components/arc/arc_util.h"
 #include "ash/public/cpp/multi_user_window_manager.h"
 #include "ash/public/cpp/shelf_model.h"
 #include "ash/public/cpp/window_properties.h"
+#include "ash/wm/window_state.h"
 #include "base/containers/flat_tree.h"
 #include "base/time/time.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/ash/borealis/borealis_window_manager.h"
-#include "chrome/browser/ash/crosapi/browser_util.h"
 #include "chrome/browser/ash/crostini/crostini_features.h"
 #include "chrome/browser/ash/crostini/crostini_force_close_watcher.h"
 #include "chrome/browser/ash/crostini/crostini_util.h"
@@ -32,6 +31,8 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/common/chrome_features.h"
+#include "chromeos/ash/components/borealis/borealis_util.h"
+#include "chromeos/ash/experiences/arc/arc_util.h"
 #include "components/exo/permission.h"
 #include "components/exo/shell_surface_util.h"
 #include "components/user_manager/user_manager.h"
@@ -75,9 +76,8 @@ void MoveWindowFromOldDisplayToNewDisplay(aura::Window* window,
 bool ShouldSkipWindow(aura::Window* window) {
   return wm::GetTransientParent(window) ||
          arc::GetWindowTaskOrSessionId(window).has_value() ||
-         crosapi::browser_util::IsLacrosWindow(window) ||
          plugin_vm::IsPluginVmAppWindow(window) ||
-         borealis::BorealisWindowManager::IsBorealisWindow(window);
+         ash::borealis::IsBorealisWindow(window);
 }
 
 }  // namespace
@@ -92,13 +92,15 @@ AppServiceAppWindowCrostiniTracker::~AppServiceAppWindowCrostiniTracker() =
 void AppServiceAppWindowCrostiniTracker::OnWindowVisibilityChanged(
     aura::Window* window,
     const std::string& shelf_app_id) {
-  if (ShouldSkipWindow(window))
+  if (ShouldSkipWindow(window)) {
     return;
+  }
 
   // Handle browser windows.
   Browser* browser = chrome::FindBrowserWithWindow(window);
-  if (browser)
+  if (browser) {
     return;
+  }
 
   // Currently Crostini can only be used from the primary profile. In the
   // future, this may be replaced by some way of matching the container that
@@ -113,8 +115,9 @@ void AppServiceAppWindowCrostiniTracker::OnWindowVisibilityChanged(
   const std::string& crostini_shelf_app_id = guest_os::GetGuestOsShelfAppId(
       primary_account_profile, exo::GetShellApplicationId(window),
       exo::GetShellStartupId(window));
-  if (crostini_shelf_app_id.empty())
+  if (crostini_shelf_app_id.empty()) {
     return;
+  }
 
   auto* registry_service =
       guest_os::GuestOsRegistryServiceFactory::GetForProfile(
@@ -125,7 +128,7 @@ void AppServiceAppWindowCrostiniTracker::OnWindowVisibilityChanged(
   // app's name, but this may be null in the case of apps with no associated
   // launcher entry (i.e. no .desktop file), in which case the app's name is
   // unknown.
-  absl::optional<guest_os::GuestOsRegistryService::Registration> registration =
+  std::optional<guest_os::GuestOsRegistryService::Registration> registration =
       registry_service->GetRegistration(shelf_app_id);
   RegisterCrostiniWindowForForceClose(
       window, registration.has_value() ? registration->Name() : "");
@@ -154,20 +157,31 @@ void AppServiceAppWindowCrostiniTracker::OnWindowVisibilityChanged(
 
   // Move the Crostini app window to the right display if necessary.
   int64_t display_id = crostini_app_display_.GetDisplayIdForAppId(shelf_app_id);
-  if (display_id == display::kInvalidDisplayId)
-    return;
-
-  display::Display new_display;
-  if (!display::Screen::GetScreen()->GetDisplayWithDisplayId(display_id,
-                                                             &new_display)) {
+  if (display_id == display::kInvalidDisplayId) {
     return;
   }
 
-  display::Display old_display =
+  display::Display registered_display;
+  if (!display::Screen::GetScreen()->GetDisplayWithDisplayId(
+          display_id, &registered_display)) {
+    return;
+  }
+
+  display::Display current_display =
       display::Screen::GetScreen()->GetDisplayNearestWindow(window);
 
-  if (new_display != old_display)
-    MoveWindowFromOldDisplayToNewDisplay(window, old_display, new_display);
+  if (registered_display != current_display) {
+    auto* state = ash::WindowState::Get(window);
+    // 'window' is about to unminimize.
+    if (state && !state->IsMinimized()) {
+      MoveWindowFromOldDisplayToNewDisplay(window, current_display,
+                                           registered_display);
+      // 'window' is about to minimize. Therefore we take this opportunity to
+      // re-register it to the current display it is shown upon.
+    } else {
+      crostini_app_display_.Register(shelf_app_id, current_display.id());
+    }
+  }
 }
 
 void AppServiceAppWindowCrostiniTracker::OnWindowDestroying(
@@ -181,13 +195,15 @@ void AppServiceAppWindowCrostiniTracker::OnAppLaunchRequested(
   crostini_app_display_.Register(app_id, display_id);
   // Remove the old permissions and add a permission for every window the app
   // currently has open.
-  for (aura::Window* window : activation_permissions_)
+  for (aura::Window* window : activation_permissions_) {
     exo::RevokePermissionToActivate(window);
+  }
   activation_permissions_.clear();
   ash::ShelfModel* model = app_service_controller_->owner()->shelf_model();
   int index = model->ItemIndexByAppID(app_id);
-  if (index >= static_cast<int>(model->items().size()) || index < 0)
+  if (index >= static_cast<int>(model->items().size()) || index < 0) {
     return;
+  }
 
   AppWindowShelfItemController* item_controller =
       model->GetAppWindowShelfItemController(model->items()[index].id);
@@ -195,8 +211,9 @@ void AppServiceAppWindowCrostiniTracker::OnAppLaunchRequested(
   // Apps run for the first time won't have a launcher controller yet, return
   // early because they won't have windows either so permissions aren't
   // necessary.
-  if (!item_controller)
+  if (!item_controller) {
     return;
+  }
   for (AppWindowBase* app_window : item_controller->windows()) {
     exo::GrantPermissionToActivate(app_window->GetNativeWindow(),
                                    kSelfActivationTimeout);
@@ -206,13 +223,15 @@ void AppServiceAppWindowCrostiniTracker::OnAppLaunchRequested(
 
 std::string AppServiceAppWindowCrostiniTracker::GetShelfAppId(
     aura::Window* window) const {
-  if (ShouldSkipWindow(window))
+  if (ShouldSkipWindow(window)) {
     return std::string();
+  }
 
   // Handle browser windows.
   Browser* browser = chrome::FindBrowserWithWindow(window);
-  if (browser)
+  if (browser) {
     return std::string();
+  }
 
   // Currently Crostini can only be used from the primary profile. In the
   // future, this may be replaced by some way of matching the container that
@@ -233,8 +252,9 @@ std::string AppServiceAppWindowCrostiniTracker::GetShelfAppId(
   // InstanceRegistry, call MaybeModifyInstance to check the saved app id and
   // the expected shelf_app_id, and if they are not consistent, modify the app
   // id to use `shelf_app_id`.
-  if (!shelf_app_id.empty())
+  if (!shelf_app_id.empty()) {
     MaybeModifyInstance(primary_account_profile, window, shelf_app_id);
+  }
   return shelf_app_id;
 }
 
@@ -242,8 +262,9 @@ void AppServiceAppWindowCrostiniTracker::RegisterCrostiniWindowForForceClose(
     aura::Window* window,
     const std::string& app_name) {
   exo::ShellSurfaceBase* surface = exo::GetShellSurfaceBaseForWindow(window);
-  if (!surface)
+  if (!surface) {
     return;
+  }
   crostini::ForceCloseWatcher::Watch(
       std::make_unique<crostini::ShellSurfaceForceCloseDelegate>(surface,
                                                                  app_name));
@@ -257,8 +278,9 @@ void AppServiceAppWindowCrostiniTracker::MaybeModifyInstance(
   DCHECK(proxy);
   auto& instance_registry = proxy->InstanceRegistry();
   std::string old_app_id = instance_registry.GetShelfId(window).app_id;
-  if (old_app_id.empty() || app_id == old_app_id)
+  if (old_app_id.empty() || app_id == old_app_id) {
     return;
+  }
 
   auto* app_service_instance_helper =
       app_service_controller_->app_service_instance_helper();

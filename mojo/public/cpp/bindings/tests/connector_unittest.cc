@@ -2,17 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "mojo/public/cpp/bindings/connector.h"
 
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include <array>
 #include <utility>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/task_environment.h"
@@ -84,7 +91,9 @@ class ReentrantMessageAccumulator : public MessageAccumulator {
   int number_of_calls() { return number_of_calls_; }
 
  private:
-  raw_ptr<Connector> connector_;
+  // RAW_PTR_EXCLUSION: |Connector| was added to raw_ptr unsupported type for
+  // performance reasons. See raw_ptr.h for more info.
+  RAW_PTR_EXCLUSION Connector* connector_ = nullptr;
   int number_of_calls_;
 };
 
@@ -196,7 +205,7 @@ TEST_F(ConnectorTest, Basic_TwoMessages) {
   Connector connector1(std::move(handle1_), Connector::SINGLE_THREADED_SEND,
                        base::SingleThreadTaskRunner::GetCurrentDefault());
 
-  const char* kText[] = {"hello", "world"};
+  auto kText = std::to_array<const char*>({"hello", "world"});
   for (size_t i = 0; i < std::size(kText); ++i) {
     Message message = CreateMessage(kText[i]);
     connector0.Accept(&message);
@@ -228,7 +237,7 @@ TEST_F(ConnectorTest, Basic_TwoMessages_Synchronous) {
   Connector connector1(std::move(handle1_), Connector::SINGLE_THREADED_SEND,
                        base::SingleThreadTaskRunner::GetCurrentDefault());
 
-  const char* kText[] = {"hello", "world"};
+  auto kText = std::to_array<const char*>({"hello", "world"});
   for (size_t i = 0; i < std::size(kText); ++i) {
     Message message = CreateMessage(kText[i]);
     connector0.Accept(&message);
@@ -378,7 +387,7 @@ TEST_F(ConnectorTest, WaitForIncomingMessageWithReentrancy) {
   Connector connector1(std::move(handle1_), Connector::SINGLE_THREADED_SEND,
                        base::SingleThreadTaskRunner::GetCurrentDefault());
 
-  const char* kText[] = {"hello", "world"};
+  auto kText = std::to_array<const char*>({"hello", "world"});
   for (size_t i = 0; i < std::size(kText); ++i) {
     Message message = CreateMessage(kText[i]);
     connector0.Accept(&message);

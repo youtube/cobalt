@@ -5,15 +5,16 @@
 import './data_point.js';
 import './diagnostics_shared.css.js';
 
+import {I18nMixin} from 'chrome://resources/ash/common/cr_elements/i18n_mixin.js';
 import {loadTimeData} from 'chrome://resources/ash/common/load_time_data.m.js';
-import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {assertNotReached} from 'chrome://resources/js/assert_ts.js';
-import {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/polymer/interfaces.js';
+import {assertNotReached} from 'chrome://resources/js/assert.js';
+import type {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/polymer/interfaces.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getSignalStrength} from './diagnostics_utils.js';
 import {convertFrequencyToChannel} from './frequency_channel_utils.js';
-import {Network, SecurityType} from './network_health_provider.mojom-webui.js';
+import type {Network} from './network_health_provider.mojom-webui.js';
+import {SecurityType} from './network_health_provider.mojom-webui.js';
 import {getTemplate} from './wifi_info.html.js';
 
 
@@ -27,8 +28,8 @@ const WifiInfoElementBase = I18nMixin(PolymerElement);
 
 
 export class WifiInfoElement extends WifiInfoElementBase {
-  static get is(): string {
-    return 'wifi-info';
+  static get is(): 'wifi-info' {
+    return 'wifi-info' as const;
   }
 
   static get template(): HTMLTemplateElement {
@@ -107,7 +108,7 @@ export class WifiInfoElement extends WifiInfoElementBase {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'wifi-info': WifiInfoElement;
+    [WifiInfoElement.is]: WifiInfoElement;
   }
 }
 

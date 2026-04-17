@@ -8,29 +8,22 @@ testing against GLES 2, GLES 3, EGL, and GLES 3.1 (on supported platforms).
 ## How to build dEQP
 
 You should have dEQP as a target if you followed the [DevSetup](DevSetup.md)
-instructions. Current targets:
+instructions. Some of the current targets are:
 
-  * `angle_deqp_gles2_tests` for GLES 2.0 tests
-  * `angle_deqp_gles2_no_gtest` for GLES 2.0 tests without google test suite
-  * `angle_deqp_gles3_tests` for GLES 3.0 tests
-  * `angle_deqp_gles3_no_gtest` for GLES 3.0 tests without google test suite
   * `angle_deqp_egl_tests` for EGL 1.x tests
-  * `angle_deqp_egl_no_gtest` for EGL 1.x tests without google test suite
-  * `angle_deqp_gles31_tests` for GLES 3.1 tests (currently very experimental)
-  * `angle_deqp_gles31_no_gtest` for GLES 3.1 tests (currently very experimental) without google test suite
+  * `angle_deqp_gles2_tests` for GLES 2.0 tests
+  * `angle_deqp_gles3_tests` for GLES 3.0 tests
+  * `angle_deqp_gles31_tests` for GLES 3.1 tests
 
 ## How to use dEQP
 
 Note:
-To run an individual test, use the `--deqp-case` flag on any of the `no_gtest` targets.
-It supports simple wildcard support. For example: `--deqp-case=dEQP-
-GLES2.functional.shaders.linkage.*`.
-The `gtest` targets support wildcards via the `--gtest_filter` argument,
-but have different test names.
+To run an individual test, use the `--gtest_filter` argument.
+It supports simple wildcards. For example: `--gtest_filter=dEQP-GLES2.functional.shaders.linkage.*`.
 
-The tests lists are sourced from the Android CTS masters in
-`third_party/VK-GL-CTS/src/android/cts/master`. See `gles2-master.txt`,
-`gles3-master.txt`, `gles31-master.txt` and `egl-master.txt`.
+The tests lists are sourced from the Android CTS mains in
+`third_party/VK-GL-CTS/src/android/cts/main`. See `gles2-main.txt`,
+`gles3-main.txt`, `gles31-main.txt` and `egl-main.txt`.
 
 If you're running a full test suite, it might take very long time. Running in
 Debug is only useful to isolate and fix particular failures, Release will give
@@ -38,7 +31,7 @@ a better sense of total passing rate.
 
 ### Choosing a Renderer
 
-By default ANGLE tests with D3D11 on Windows, GLES on mobile and Desktop GL otherwise.
+By default ANGLE tests with Vulkan, except on Apple platforms where OpenGL is used.
 To specify the exact platform for ANGLE + dEQP, use the arguments:
 
   * `--deqp-egl-display-type=angle-d3d11` for D3D11 (highest available feature level)

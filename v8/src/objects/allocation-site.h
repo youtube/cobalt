@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_ALLOCATION_SITE_H_
 #define V8_OBJECTS_ALLOCATION_SITE_H_
 
+#include <atomic>
+
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
 
@@ -18,12 +20,9 @@ enum InstanceType : uint16_t;
 
 #include "torque-generated/src/objects/allocation-site-tq.inc"
 
-class AllocationSite : public Struct {
+V8_OBJECT class AllocationSite : public HeapObjectLayout {
  public:
-  NEVER_READ_ONLY_SPACE
   static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
-  static const double kPretenureRatio;
-  static const int kPretenureMinimumCreated = 100;
 
   // Values for pretenure decision field.
   enum PretenureDecision {
@@ -37,29 +36,33 @@ class AllocationSite : public Struct {
 
   const char* PretenureDecisionName(PretenureDecision decision);
 
-  // Contains either a Smi-encoded bitfield or a boilerplate. If it's a Smi the
-  // AllocationSite is for a constructed Array.
-  DECL_ACCESSORS(transition_info_or_boilerplate, Object)
-  DECL_RELEASE_ACQUIRE_ACCESSORS(transition_info_or_boilerplate, Object)
-  DECL_GETTER(boilerplate, JSObject)
-  DECL_RELEASE_ACQUIRE_ACCESSORS(boilerplate, JSObject)
-  DECL_INT_ACCESSORS(transition_info)
+  inline Tagged<UnionOf<Smi, JSObject>> transition_info_or_boilerplate() const;
+
+  inline Tagged<JSObject> boilerplate() const;
+  inline Tagged<JSObject> boilerplate(AcquireLoadTag tag) const;
+  inline void set_boilerplate(Tagged<JSObject> value, ReleaseStoreTag,
+                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int transition_info() const;
+  inline void set_transition_info(int value);
 
   // nested_site threads a list of sites that represent nested literals
   // walked in a particular order. So [[1, 2], 1, 2] will have one
   // nested_site, but [[1, 2], 3, [4]] will have a list of two.
-  DECL_ACCESSORS(nested_site, Object)
+  inline Tagged<UnionOf<Smi, AllocationSite>> nested_site() const;
+  inline void set_nested_site(Tagged<UnionOf<Smi, AllocationSite>> value,
+                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Bitfield containing pretenuring information.
-  DECL_RELAXED_INT32_ACCESSORS(pretenure_data)
+  inline int32_t pretenure_data(RelaxedLoadTag) const;
+  inline void set_pretenure_data(int32_t value, RelaxedStoreTag);
 
-  DECL_INT32_ACCESSORS(pretenure_create_count)
-  DECL_ACCESSORS(dependent_code, DependentCode)
+  inline int32_t pretenure_create_count() const;
+  inline void set_pretenure_create_count(int32_t value);
 
-  // heap->allocation_site_list() points to the last AllocationSite which form
-  // a linked list through the weak_next property. The GC might remove elements
-  // from the list by updateing weak_next.
-  DECL_ACCESSORS(weak_next, Object)
+  inline Tagged<DependentCode> dependent_code() const;
+  inline void set_dependent_code(Tagged<DependentCode> value,
+                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline void Initialize();
 
@@ -80,9 +83,8 @@ class AllocationSite : public Struct {
   using DeoptDependentCodeBit = base::BitField<bool, 29, 1>;
   static_assert(PretenureDecisionBits::kMax >= kLastPretenureDecisionValue);
 
-  // Increments the mementos found counter and returns true when the first
-  // memento was found for a given allocation site.
-  inline bool IncrementMementoFoundCount(int increment = 1);
+  // Increments the mementos found counter and returns the new count.
+  inline int IncrementMementoFoundCount(int increment = 1);
 
   inline void IncrementMementoCreateCount();
 
@@ -133,60 +135,76 @@ class AllocationSite : public Struct {
 
   template <AllocationSiteUpdateMode update_or_check =
                 AllocationSiteUpdateMode::kUpdate>
-  static bool DigestTransitionFeedback(Handle<AllocationSite> site,
+  static bool DigestTransitionFeedback(Isolate* isolate,
+                                       DirectHandle<AllocationSite> site,
                                        ElementsKind to_kind);
 
   DECL_PRINTER(AllocationSite)
   DECL_VERIFIER(AllocationSite)
 
-  DECL_CAST(AllocationSite)
   static inline bool ShouldTrack(ElementsKind boilerplate_elements_kind);
   static bool ShouldTrack(ElementsKind from, ElementsKind to);
   static inline bool CanTrack(InstanceType type);
-
-  // Layout description.
-  // AllocationSite has to start with TransitionInfoOrboilerPlateOffset
-  // and end with WeakNext field.
-  #define ALLOCATION_SITE_FIELDS(V)                     \
-    V(kStartOffset, 0)                                  \
-    V(kTransitionInfoOrBoilerplateOffset, kTaggedSize)  \
-    V(kNestedSiteOffset, kTaggedSize)                   \
-    V(kDependentCodeOffset, kTaggedSize)                \
-    V(kCommonPointerFieldEndOffset, 0)                  \
-    V(kPretenureDataOffset, kInt32Size)                 \
-    V(kPretenureCreateCountOffset, kInt32Size)          \
-    /* Size of AllocationSite without WeakNext field */ \
-    V(kSizeWithoutWeakNext, 0)                          \
-    V(kWeakNextOffset, kTaggedSize)                     \
-    /* Size of AllocationSite with WeakNext field */    \
-    V(kSizeWithWeakNext, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, ALLOCATION_SITE_FIELDS)
-  #undef ALLOCATION_SITE_FIELDS
 
   class BodyDescriptor;
 
  private:
   inline bool PretenuringDecisionMade() const;
 
-  OBJECT_CONSTRUCTORS(AllocationSite, Struct);
-};
+ private:
+  friend class CodeStubAssembler;
+  friend class ArrayBuiltinsAssembler;
+  friend class ObjectBuiltinsAssembler;
+  friend class V8HeapExplorer;
 
-class AllocationMemento
-    : public TorqueGeneratedAllocationMemento<AllocationMemento, Struct> {
+  // Contains either a Smi-encoded bitfield or a boilerplate. If it's a Smi the
+  // AllocationSite is for a constructed Array.
+  TaggedMember<UnionOf<Smi, JSObject>> transition_info_or_boilerplate_;
+  TaggedMember<UnionOf<Smi, AllocationSite>> nested_site_;
+  TaggedMember<DependentCode> dependent_code_;
+  std::atomic<int32_t> pretenure_data_;
+  int32_t pretenure_create_count_;
+} V8_OBJECT_END;
+
+V8_OBJECT class AllocationSiteWithWeakNext : public AllocationSite {
  public:
-  DECL_ACCESSORS(allocation_site, Object)
+  // heap->allocation_site_list() points to the last AllocationSite which form
+  // a linked list through the weak_next property. The GC might remove elements
+  // from the list by updating weak_next.
+  inline Tagged<UnionOf<Undefined, AllocationSiteWithWeakNext>> weak_next()
+      const;
+  inline void set_weak_next(
+      Tagged<UnionOf<Undefined, AllocationSiteWithWeakNext>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+ private:
+  friend class CodeStubAssembler;
+  friend class AllocationSite::BodyDescriptor;
+  template <typename T>
+  friend struct WeakListVisitor;
+  friend class V8HeapExplorer;
+
+  TaggedMember<UnionOf<Undefined, AllocationSiteWithWeakNext>> weak_next_;
+} V8_OBJECT_END;
+
+V8_OBJECT class AllocationMemento : public StructLayout {
+ public:
+  inline void set_allocation_site(Tagged<AllocationSite> value,
+                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline bool IsValid() const;
-  inline AllocationSite GetAllocationSite() const;
+  inline Tagged<AllocationSite> GetAllocationSite() const;
   inline Address GetAllocationSiteUnchecked() const;
 
   DECL_PRINTER(AllocationMemento)
+  DECL_VERIFIER(AllocationMemento)
 
-  using BodyDescriptor = StructBodyDescriptor;
+ private:
+  friend class CodeStubAssembler;
+  friend class TorqueGeneratedAllocationMementoAsserts;
 
-  TQ_OBJECT_CONSTRUCTORS(AllocationMemento)
-};
+  TaggedMember<AllocationSite> allocation_site_;
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

@@ -22,7 +22,7 @@
 namespace base {
 namespace starboard {
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS_TVOS) || BUILDFLAG(IS_STARBOARD)
 
 using SbSysInfoTest = PlatformTest;
 
@@ -45,8 +45,14 @@ TEST_F(SbSysInfoTest, Brand) {
   std::string brand_str = SbSysInfo::Brand();
   EXPECT_NE(brand_str, "");
 }
+#endif
 
-#endif  // BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
+TEST_F(SbSysInfoTest, OSFriendlyName) {
+  std::string os_name_str = SbSysInfo::OSFriendlyName();
+  EXPECT_NE(os_name_str, "");
+}
+#endif
 
 }  // namespace starboard
 }  // namespace base

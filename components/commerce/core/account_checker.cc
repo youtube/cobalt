@@ -3,8 +3,11 @@
 // found in the LICENSE file.
 
 #include "components/commerce/core/account_checker.h"
+
 #include "base/json/json_writer.h"
+#include "base/time/time.h"
 #include "base/values.h"
+#include "components/commerce/core/commerce_constants.h"
 #include "components/commerce/core/commerce_feature_list.h"
 #include "components/commerce/core/pref_names.h"
 #include "components/endpoint_fetcher/endpoint_fetcher.h"
@@ -13,16 +16,20 @@
 #include "components/signin/public/identity_manager/account_capabilities.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
-#include "components/sync/base/model_type.h"
-#include "components/sync/driver/sync_service_utils.h"
+#include "components/sync/base/features.h"
+#include "components/sync/service/sync_service_utils.h"
+#include "components/sync/service/sync_user_settings.h"
 #include "components/unified_consent/url_keyed_data_collection_consent_helper.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/data_decoder/public/cpp/data_decoder.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 
+using endpoint_fetcher::EndpointFetcher;
+using endpoint_fetcher::EndpointResponse;
+
 namespace {
 
-const int64_t kTimeoutMs = 10000;
+constexpr base::TimeDelta kTimeout = base::Milliseconds(10000);
 const char kPriceTrackEmailPref[] = "price_track_email";
 const char kPreferencesKey[] = "preferences";
 
@@ -30,31 +37,25 @@ const char kPreferencesKey[] = "preferences";
 
 namespace commerce {
 
-const char kOAuthScope[] = "https://www.googleapis.com/auth/chromememex";
-const char kOAuthName[] = "chromememex_svc";
-const char kGetHttpMethod[] = "GET";
-const char kPostHttpMethod[] = "POST";
-const char kContentType[] = "application/json; charset=UTF-8";
-const char kEmptyPostData[] = "";
 const char kNotificationsPrefUrl[] =
     "https://memex-pa.googleapis.com/v1/notifications/preferences";
 
 AccountChecker::AccountChecker(
+    std::string country,
+    std::string locale,
     PrefService* pref_service,
     signin::IdentityManager* identity_manager,
     syncer::SyncService* sync_service,
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory)
-    : pref_service_(pref_service),
+    : country_(country),
+      locale_(locale),
+      pref_service_(pref_service),
       identity_manager_(identity_manager),
       sync_service_(sync_service),
       url_loader_factory_(url_loader_factory),
       weak_ptr_factory_(this) {
-  if (identity_manager) {
-    FetchWaaStatus();
-    scoped_identity_manager_observation_.Observe(identity_manager);
-  }
-  // TODO(crbug.com/1366165): Avoid pushing the fetched pref value to the server
-  // again.
+  // TODO(crbug.com/40239641): Avoid pushing the fetched pref value to the
+  // server again.
   if (pref_service) {
     pref_change_registrar_ = std::make_unique<PrefChangeRegistrar>();
     pref_change_registrar_->Init(pref_service);
@@ -68,17 +69,32 @@ AccountChecker::AccountChecker(
 AccountChecker::~AccountChecker() = default;
 
 bool AccountChecker::IsSignedIn() {
+  if (base::FeatureList::IsEnabled(
+          syncer::kReplaceSyncPromosWithSignInPromos)) {
+    return identity_manager_ &&
+           identity_manager_->HasPrimaryAccount(signin::ConsentLevel::kSignin);
+  }
+  // The feature is not enabled, fallback to old behavior.
+  // TODO(crbug.com/40067058): Delete ConsentLevel::kSync usage once
+  // kReplaceSyncPromosWithSignInPromos is launched on all platforms. See
+  // ConsentLevel::kSync documentation for details.
   return identity_manager_ &&
          identity_manager_->HasPrimaryAccount(signin::ConsentLevel::kSync);
 }
 
-bool AccountChecker::IsSyncingBookmarks() {
-  // Treat both ACTIVE and INITIALIZING as valid sync states for bookmarks as
-  // long as the sync feature is enabled.
-  return sync_service_ && sync_service_->IsSyncFeatureActive() &&
-         syncer::GetUploadToGoogleState(sync_service_,
-                                        syncer::ModelType::BOOKMARKS) !=
-             syncer::UploadState::NOT_ACTIVE;
+bool AccountChecker::IsSyncTypeEnabled(syncer::UserSelectableType type) {
+  return sync_service_ && sync_service_->GetUserSettings() &&
+         sync_service_->GetUserSettings()->GetSelectedTypes().Has(type);
+}
+
+bool AccountChecker::IsSyncAvailable() {
+  return sync_service_ &&
+         sync_service_->GetTransportState() !=
+             syncer::SyncService::TransportState::DISABLED &&
+         sync_service_->GetTransportState() !=
+             syncer::SyncService::TransportState::PAUSED &&
+         sync_service_->GetTransportState() !=
+             syncer::SyncService::TransportState::PENDING_DESIRED_CONFIGURATION;
 }
 
 bool AccountChecker::IsAnonymizedUrlDataCollectionEnabled() {
@@ -86,11 +102,6 @@ bool AccountChecker::IsAnonymizedUrlDataCollectionEnabled() {
          unified_consent::UrlKeyedDataCollectionConsentHelper::
              NewAnonymizedDataCollectionConsentHelper(pref_service_)
                  ->IsEnabled();
-}
-
-bool AccountChecker::IsWebAndAppActivityEnabled() {
-  return pref_service_ &&
-         pref_service_->GetBoolean(kWebAndAppActivityEnabledForShopping);
 }
 
 bool AccountChecker::IsSubjectToParentalControls() {
@@ -108,84 +119,31 @@ bool AccountChecker::IsSubjectToParentalControls() {
          signin::Tribool::kTrue;
 }
 
-void AccountChecker::OnPrimaryAccountChanged(
-    const signin::PrimaryAccountChangeEvent& event_details) {
-  FetchWaaStatus();
-}
-
-void AccountChecker::FetchWaaStatus() {
-  // For now we need to update users' consent status on web and app activity.
-  if (!IsSignedIn()) {
-    return;
+bool AccountChecker::CanUseModelExecutionFeatures() {
+  if (!identity_manager_) {
+    return false;
   }
-  // TODO(crbug.com/1311754): These parameters (url, oauth_scope, etc.) are
-  // copied from web_history_service.cc directly, it works now but we should
-  // figure out a better way to keep these parameters in sync.
-  const char waa_oauth_name[] = "web_history";
-  const char waa_query_url[] =
-      "https://history.google.com/history/api/lookup?client=web_app";
-  const char waa_oauth_scope[] = "https://www.googleapis.com/auth/chromesync";
-  const char waa_content_type[] = "application/json; charset=UTF-8";
-  const char waa_get_method[] = "GET";
-  const int64_t waa_timeout_ms = 30000;
-  const char waa_post_data[] = "";
-  net::NetworkTrafficAnnotationTag traffic_annotation =
-      net::DefineNetworkTrafficAnnotation("chrome_commerce_waa_fetcher",
-                                          R"(
-        semantics {
-          sender: "Chrome Shopping"
-          description:
-            "Check whether Web & App Activity is paused in My Google Activity."
-            "If it is paused, some Chrome Shopping features such as Price "
-            "Tracking Notifications become disabled."
-          trigger:
-            "On account checker initialization or every time after the user "
-            "changes their primary account."
-          data:
-            "The request includes an OAuth2 token authenticating the user. The "
-            "response includes a boolean indicating whether the feature is "
-            "enabled."
-          destination: GOOGLE_OWNED_SERVICE
-        }
-        policy {
-          cookies_allowed: NO
-          setting:
-            "This fetch is only enabled for signed-in users. There's no "
-            "direct Chromium's setting to disable this, but users can manage "
-            "their preferences by visiting myactivity.google.com."
-          chrome_policy {
-            BrowserSignin {
-              policy_options {mode: MANDATORY}
-              BrowserSignin: 0
-            }
-          }
-        })");
-  auto endpoint_fetcher = CreateEndpointFetcher(
-      waa_oauth_name, GURL(waa_query_url), waa_get_method, waa_content_type,
-      std::vector<std::string>{waa_oauth_scope}, waa_timeout_ms, waa_post_data,
-      traffic_annotation);
-  endpoint_fetcher.get()->Fetch(base::BindOnce(
-      &AccountChecker::HandleFetchWaaResponse, weak_ptr_factory_.GetWeakPtr(),
-      std::move(endpoint_fetcher)));
+
+  AccountCapabilities capabilities =
+      identity_manager_
+          ->FindExtendedAccountInfo(identity_manager_->GetPrimaryAccountInfo(
+              signin::ConsentLevel::kSignin))
+          .capabilities;
+
+  return capabilities.can_use_model_execution_features() ==
+         signin::Tribool::kTrue;
 }
 
-void AccountChecker::HandleFetchWaaResponse(
-    std::unique_ptr<EndpointFetcher> endpoint_fetcher,
-    std::unique_ptr<EndpointResponse> responses) {
-  data_decoder::DataDecoder::ParseJsonIsolated(
-      responses->response, base::BindOnce(&AccountChecker::OnFetchWaaJsonParsed,
-                                          weak_ptr_factory_.GetWeakPtr()));
+std::string AccountChecker::GetCountry() {
+  return country_;
 }
 
-void AccountChecker::OnFetchWaaJsonParsed(
-    data_decoder::DataDecoder::ValueOrError result) {
-  if (pref_service_ && result.has_value() && result->is_dict()) {
-    const char waa_response_key[] = "history_recording_enabled";
-    if (auto waa_enabled = result->GetDict().FindBool(waa_response_key)) {
-      pref_service_->SetBoolean(kWebAndAppActivityEnabledForShopping,
-                                *waa_enabled);
-    }
-  }
+std::string AccountChecker::GetLocale() {
+  return locale_;
+}
+
+PrefService* AccountChecker::GetPrefs() {
+  return pref_service_.get();
 }
 
 void AccountChecker::FetchPriceEmailPref() {
@@ -215,19 +173,19 @@ void AccountChecker::FetchPriceEmailPref() {
         policy {
           cookies_allowed: NO
           setting:
-            "This fetch is only enabled for users with Sync turned on. "
-            "There's no direct Chromium's setting to disable this, but users "
-            "can manage their preferences in Chrome settings."
+            "This fetch is only enabled for signed-in users. There's no "
+            "direct Chromium's setting to disable this, but users can manage "
+            "their preferences by visiting myactivity.google.com."
           chrome_policy {
-            SyncDisabled {
+            BrowserSignin {
               policy_options {mode: MANDATORY}
-              SyncDisabled: true
+              BrowserSignin: 0
             }
           }
         })");
   auto endpoint_fetcher = CreateEndpointFetcher(
       kOAuthName, GURL(kNotificationsPrefUrl), kGetHttpMethod, kContentType,
-      std::vector<std::string>{kOAuthScope}, kTimeoutMs, kEmptyPostData,
+      std::vector<std::string>{kOAuthScope}, kTimeout, kEmptyPostData,
       traffic_annotation);
   endpoint_fetcher.get()->Fetch(base::BindOnce(
       &AccountChecker::HandleFetchPriceEmailPrefResponse,
@@ -251,7 +209,7 @@ void AccountChecker::OnFetchPriceEmailPrefJsonParsed(
   if (pref_service_ && is_waiting_for_pref_fetch_completion_ &&
       result.has_value() && result->is_dict()) {
     if (auto* preferences_map = result->GetDict().FindDict(kPreferencesKey)) {
-      if (absl::optional<bool> price_email_pref =
+      if (std::optional<bool> price_email_pref =
               preferences_map->FindBool(kPriceTrackEmailPref)) {
         // Only set the pref value when necessary since it could affect
         // PrefService::Preference::IsDefaultValue().
@@ -309,19 +267,19 @@ void AccountChecker::OnPriceEmailPrefChanged() {
         policy {
           cookies_allowed: NO
           setting:
-            "This request is only enabled for users with Sync turned on. "
-            "There's no direct Chromium's setting to disable this, but users "
-            "can manage their preferences in Chrome settings."
+            "This fetch is only enabled for signed-in users. There's no "
+            "direct Chromium's setting to disable this, but users can manage "
+            "their preferences by visiting myactivity.google.com."
           chrome_policy {
-            SyncDisabled {
+            BrowserSignin {
               policy_options {mode: MANDATORY}
-              SyncDisabled: true
+              BrowserSignin: 0
             }
           }
         })");
   auto endpoint_fetcher = CreateEndpointFetcher(
       kOAuthName, GURL(kNotificationsPrefUrl), kPostHttpMethod, kContentType,
-      std::vector<std::string>{kOAuthScope}, kTimeoutMs, post_data,
+      std::vector<std::string>{kOAuthScope}, kTimeout, post_data,
       traffic_annotation);
   endpoint_fetcher.get()->Fetch(base::BindOnce(
       &AccountChecker::HandleSendPriceEmailPrefResponse,
@@ -358,12 +316,20 @@ std::unique_ptr<EndpointFetcher> AccountChecker::CreateEndpointFetcher(
     const std::string& http_method,
     const std::string& content_type,
     const std::vector<std::string>& scopes,
-    int64_t timeout_ms,
+    const base::TimeDelta& timeout,
     const std::string& post_data,
     const net::NetworkTrafficAnnotationTag& annotation_tag) {
+  // TODO(crbug.com/40067058): Delete ConsentLevel::kSync usage once
+  // kReplaceSyncPromosWithSignInPromos is launched on all platforms. See
+  // ConsentLevel::kSync documentation for details.
+  signin::ConsentLevel consent_level =
+      base::FeatureList::IsEnabled(syncer::kReplaceSyncPromosWithSignInPromos)
+          ? signin::ConsentLevel::kSignin
+          : signin::ConsentLevel::kSync;
   return std::make_unique<EndpointFetcher>(
       url_loader_factory_, oauth_consumer_name, url, http_method, content_type,
-      scopes, timeout_ms, post_data, annotation_tag, identity_manager_);
+      scopes, timeout, post_data, annotation_tag, identity_manager_,
+      consent_level);
 }
 
 }  // namespace commerce

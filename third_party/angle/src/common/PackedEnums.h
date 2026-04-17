@@ -239,6 +239,7 @@ TextureType ImageTypeToTextureType(GLenum imageType);
 
 bool IsMultisampled(gl::TextureType type);
 bool IsArrayTextureType(gl::TextureType type);
+bool IsLayeredTextureType(gl::TextureType type);
 
 bool IsStaticBufferUsage(BufferUsage useage);
 
@@ -784,12 +785,6 @@ typename std::enable_if<IsResourceIDType<T>::value, bool>::type operator<(const 
 template <typename ResourceIDType>
 GLuint GetIDValue(ResourceIDType id);
 
-template <>
-inline GLuint GetIDValue(GLuint id)
-{
-    return id;
-}
-
 template <typename ResourceIDType>
 inline GLuint GetIDValue(ResourceIDType id)
 {
@@ -858,6 +853,14 @@ operator==(const T &lhs, const T &rhs)
 {
     return lhs.value == rhs.value;
 }
+
+template <typename T>
+typename std::enable_if<IsResourceIDType<T>::value && !std::is_same<T, gl::ContextID>::value,
+                        bool>::type
+operator<(const T &lhs, const T &rhs)
+{
+    return lhs.value < rhs.value;
+}
 }  // namespace egl
 
 #undef ANGLE_DEFINE_ID_TYPE
@@ -921,6 +924,27 @@ PackParam(FromT from)
             typename std::remove_const<typename std::remove_pointer<FromT>::type>::type>::value,
         "Data types are different");
     return reinterpret_cast<EnumT>(from);
+}
+
+// Optimized specialization to avoid function call in common cases
+template <>
+ANGLE_INLINE typename gl::BufferBinding PackParam<gl::BufferBinding>(GLenum from)
+{
+    if (ANGLE_LIKELY(from == GL_ARRAY_BUFFER))
+    {
+        return gl::BufferBinding::Array;
+    }
+    if (ANGLE_LIKELY(from == GL_ELEMENT_ARRAY_BUFFER))
+    {
+        return gl::BufferBinding::ElementArray;
+    }
+    if (ANGLE_LIKELY(from == GL_UNIFORM_BUFFER))
+    {
+        return gl::BufferBinding::Uniform;
+    }
+
+    // Fall back to the default implementation
+    return FromGLenum<gl::BufferBinding>(from);
 }
 }  // namespace gl
 

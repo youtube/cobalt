@@ -58,15 +58,16 @@ class CORE_EXPORT ColorChooserUIController
   // ColorChooser functions:
   void SetSelectedColor(const Color&) final;
   void EndChooser() override;
-  AXObject* RootAXObject() override;
+  AXObject* RootAXObject(Element* popup_owner) override;
+  bool IsPickerVisible() const override;
 
   // mojom::blink::ColorChooserClient functions:
   void DidChooseColor(uint32_t color) final;
 
  protected:
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
   void OpenColorChooser();
-#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_MAC)
+#endif
   HeapMojoRemote<mojom::blink::ColorChooser> chooser_;
   Member<blink::ColorChooserClient> client_;
 

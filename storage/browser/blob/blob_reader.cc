@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "storage/browser/blob/blob_reader.h"
 
 #include <stddef.h>
@@ -44,19 +49,19 @@ bool IsFileType(BlobDataItem::Type type) {
 int ConvertBlobErrorToNetError(BlobStatus reason) {
   switch (reason) {
     case BlobStatus::ERR_INVALID_CONSTRUCTION_ARGUMENTS:
-      return net::ERR_FAILED;
+      return net::ERR_BLOB_INVALID_CONSTRUCTION_ARGUMENTS;
     case BlobStatus::ERR_OUT_OF_MEMORY:
-      return net::ERR_OUT_OF_MEMORY;
+      return net::ERR_BLOB_OUT_OF_MEMORY;
     case BlobStatus::ERR_FILE_WRITE_FAILED:
-      return net::ERR_FILE_NO_SPACE;
+      return net::ERR_BLOB_FILE_WRITE_FAILED;
     case BlobStatus::ERR_SOURCE_DIED_IN_TRANSIT:
-      return net::ERR_UNEXPECTED;
+      return net::ERR_BLOB_SOURCE_DIED_IN_TRANSIT;
     case BlobStatus::ERR_BLOB_DEREFERENCED_WHILE_BUILDING:
-      return net::ERR_UNEXPECTED;
+      return net::ERR_BLOB_DEREFERENCED_WHILE_BUILDING;
     case BlobStatus::ERR_REFERENCED_BLOB_BROKEN:
-      return net::ERR_INVALID_HANDLE;
+      return net::ERR_BLOB_REFERENCED_BLOB_BROKEN;
     case BlobStatus::ERR_REFERENCED_FILE_UNAVAILABLE:
-      return net::ERR_INVALID_HANDLE;
+      return net::ERR_BLOB_REFERENCED_FILE_UNAVAILABLE;
     case BlobStatus::DONE:
     case BlobStatus::PENDING_QUOTA:
     case BlobStatus::PENDING_TRANSPORT:
@@ -65,7 +70,6 @@ int ConvertBlobErrorToNetError(BlobStatus reason) {
       NOTREACHED();
   }
   NOTREACHED();
-  return net::ERR_FAILED;
 }
 }  // namespace
 
@@ -73,7 +77,7 @@ BlobReader::FileStreamReaderProvider::~FileStreamReaderProvider() = default;
 
 BlobReader::BlobReader(const BlobDataHandle* blob_handle)
     : file_task_runner_(base::ThreadPool::CreateTaskRunner(
-          {base::MayBlock(), base::TaskPriority::USER_VISIBLE})),
+          {base::MayBlock(), base::TaskPriority::USER_BLOCKING})),
       net_error_(net::OK) {
   if (blob_handle) {
     if (blob_handle->IsBroken()) {
@@ -137,7 +141,7 @@ void BlobReader::ReadSideData(StatusCallback done) {
                      std::move(done), side_data_size));
 }
 
-absl::optional<mojo_base::BigBuffer> BlobReader::TakeSideData() {
+std::optional<mojo_base::BigBuffer> BlobReader::TakeSideData() {
   return std::move(side_data_);
 }
 
@@ -510,7 +514,6 @@ BlobReader::Status BlobReader::ReadItem() {
     return ReadReadableDataHandle(item, bytes_to_read);
   if (!IsFileType(item.type())) {
     NOTREACHED();
-    return ReportError(net::ERR_UNEXPECTED);
   }
   FileStreamReader* const reader =
       GetOrCreateFileReaderAtIndex(current_item_index_);
@@ -752,7 +755,6 @@ std::unique_ptr<FileStreamReader> BlobReader::CreateFileStreamReader(
   }
 
   NOTREACHED();
-  return nullptr;
 }
 
 void BlobReader::SetFileReaderAtIndex(

@@ -23,20 +23,14 @@ BASE_FEATURE(kEnableExactMatchForNonLatinLocale,
 BASE_FEATURE(kForceShowContinueSection,
              "ForceShowContinueSection",
              base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kSearchResultInlineIcon,
-             "SearchResultInlineIcon",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE(kQuickActionShowBubbleLauncher,
-             "QuickActionShowBubbleLauncher",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kDynamicSearchUpdateAnimation,
              "DynamicSearchUpdateAnimation",
              base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kLauncherPlayStoreSearch,
              "LauncherPlayStoreSearch",
              base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE(kDragAndDropRefactor,
-             "AppListDragAndDropRefactor",
+BASE_FEATURE(kAppsCollections,
+             "AppsCollections",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsAppReinstallZeroStateEnabled() {
@@ -49,15 +43,6 @@ bool IsExactMatchForNonLatinLocaleEnabled() {
 
 bool IsAppListLaunchRecordingEnabled() {
   return base::FeatureList::IsEnabled(kEnableAppListLaunchRecording);
-}
-
-bool IsSearchResultInlineIconEnabled() {
-  // Inline Icons are only supported for categorical search.
-  return base::FeatureList::IsEnabled(kSearchResultInlineIcon);
-}
-
-bool IsQuickActionShowBubbleLauncherEnabled() {
-  return base::FeatureList::IsEnabled(kQuickActionShowBubbleLauncher);
 }
 
 bool IsDynamicSearchUpdateAnimationEnabled() {
@@ -79,8 +64,18 @@ bool IsLauncherPlayStoreSearchEnabled() {
   return base::FeatureList::IsEnabled(kLauncherPlayStoreSearch);
 }
 
-bool IsDragAndDropRefactorEnabled() {
-  return base::FeatureList::IsEnabled(kDragAndDropRefactor);
+bool IsAppsCollectionsEnabled() {
+  return base::FeatureList::IsEnabled(kAppsCollections);
+}
+
+bool IsAppsCollectionsEnabledCounterfactually() {
+  return IsAppsCollectionsEnabled() &&
+         kAppsCollectionsEnabledCounterfactually.Get();
+}
+
+bool IsAppsCollectionsEnabledWithModifiedOrder() {
+  return IsAppsCollectionsEnabled() &&
+         kAppsCollectionsEnabledWithModifiedOrder.Get();
 }
 
 }  // namespace app_list_features

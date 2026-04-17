@@ -7,6 +7,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <utility>
@@ -21,7 +22,6 @@
 #include "base/observer_list.h"
 #include "base/sequence_checker.h"
 #include "components/account_manager_core/account.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class OAuth2AccessTokenFetcher;
 class OAuth2AccessTokenConsumer;
@@ -42,14 +42,6 @@ namespace account_manager {
 
 class COMPONENT_EXPORT(ACCOUNT_MANAGER_CORE) AccountManager {
  public:
-  // A dummy token stored against Active Directory accounts in Account Manager.
-  // Accounts stored in Account Manager must have a token associated with them.
-  // Active Directory accounts use Kerberos tickets for authentication, which is
-  // handled by a different infrastructure. Hence, we need a dummy token to
-  // store Active Directory accounts in Account Manager.
-  // See |AccountManager::UpsertToken|.
-  static const char kActiveDirectoryDummyToken[];
-
   // A special token that is guaranteed to cheaply fail all network requests
   // performed using it.
   // Note that it neither marks an account in Account Manager as invalid, nor
@@ -57,8 +49,6 @@ class COMPONENT_EXPORT(ACCOUNT_MANAGER_CORE) AccountManager {
   // imported from elsewhere (Chrome content area or ARC++) and their tokens are
   // not yet known, but at the same time, these accounts need to be surfaced on
   // the UI.
-  // Do not use this token for Active Directory accounts,
-  // |kActiveDirectoryDummyToken| is meant for that.
   // See |AccountManager::UpsertToken|.
   static const char* const kInvalidToken;
 
@@ -172,9 +162,8 @@ class COMPONENT_EXPORT(ACCOUNT_MANAGER_CORE) AccountManager {
 
   // Updates or inserts an account. `raw_email` is the raw, un-canonicalized
   // email id for `account_key`. `raw_email` must not be empty. Use
-  // `AccountManager::kActiveDirectoryDummyToken` as the `token` for Active
-  // Directory accounts, and `AccountManager::kInvalidToken` for Gaia accounts
-  // with unknown tokens.
+  // `AccountManager::kInvalidToken` as the `token` for Gaia accounts with
+  //  unknown tokens.
   // Note: This API is idempotent.
   void UpsertAccount(const ::account_manager::AccountKey& account_key,
                      const std::string& raw_email,
@@ -208,8 +197,7 @@ class COMPONENT_EXPORT(ACCOUNT_MANAGER_CORE) AccountManager {
   // Returns |true| if an LST is available for |account_key|. Note that
   // "availability" does not guarantee "validity", i.e. this method will return
   // true for LSTs that have expired / been invalidated.
-  // Note: Always returns false for Active Directory accounts.
-  // Note: This method will return |false| if |AccountManager| has not been
+  // Note: This method will return `false` if `AccountManager` has not been
   // initialized yet.
   bool IsTokenAvailable(const ::account_manager::AccountKey& account_key) const;
 
@@ -226,6 +214,18 @@ class COMPONENT_EXPORT(ACCOUNT_MANAGER_CORE) AccountManager {
       base::OnceCallback<
           void(const std::vector<std::pair<::account_manager::Account, bool>>&)>
           callback);
+
+  // Returns the Base16 encoded SHA1 hash for the token stored against
+  // `account_key`. This hash is meant only for debugging purposes and is not
+  // meant be used as a cryptographically secure hash. Do not persist this
+  // outside the user's cryptohome.
+  // Returns an empty string if `account_key` is not available in
+  // `AccountManager`.
+  // TODO(http://b/297484217): Remove this API.
+  void GetTokenHash(const ::account_manager::AccountKey& account_key,
+                    base::OnceCallback<void(const std::string&)> callback);
+
+  base::WeakPtr<AccountManager> GetWeakPtr();
 
  private:
   enum InitializationState {
@@ -328,7 +328,7 @@ class COMPONENT_EXPORT(ACCOUNT_MANAGER_CORE) AccountManager {
   // Returns the refresh token for `account_key`, if present. `account_key` must
   // be a Gaia account. Assumes that `AccountManager` initialization
   // (`init_state_`) is complete.
-  absl::optional<std::string> GetRefreshToken(
+  std::optional<std::string> GetRefreshToken(
       const ::account_manager::AccountKey& account_key);
 
   // Returns `url_loader_factory_`. Assumes that `AccountManager` initialization

@@ -11,7 +11,7 @@ class Profile;
 
 namespace base {
 template <typename T>
-struct DefaultSingletonTraits;
+class NoDestructor;
 }
 
 namespace device_signals {
@@ -27,13 +27,13 @@ class SignalsAggregatorFactory : public ProfileKeyedServiceFactory {
   static device_signals::SignalsAggregator* GetForProfile(Profile* profile);
 
  private:
-  friend struct base::DefaultSingletonTraits<SignalsAggregatorFactory>;
+  friend base::NoDestructor<SignalsAggregatorFactory>;
 
   SignalsAggregatorFactory();
   ~SignalsAggregatorFactory() override;
 
   // BrowserContextKeyedServiceFactory implementation:
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
 };
 

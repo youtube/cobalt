@@ -1,4 +1,4 @@
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
   const {page, session, dp} = await testRunner.startBlank(
       `Tests that cross-origin embedder policy (COEP) related blocking for worker sources is reported correctly.`);
 
@@ -42,7 +42,8 @@
     dp.Network.onRequestWillBeSent(event => record(event.params.requestId, {requestWillBeSent: event.params})),
     await Promise.all([
       dp.Network.enable(),
-      dp.Page.enable()
+      dp.Page.enable(),
+      dp.Runtime.runIfWaitingForDebugger(),
     ]);
   }
 

@@ -30,26 +30,24 @@ class QuicServerSessionBasePeer;
 class QuicSimpleServerSessionPeer;
 }  // namespace test
 
-class QUIC_EXPORT_PRIVATE QuicServerSessionBase : public QuicSpdySession {
+class QUICHE_EXPORT QuicServerSessionBase : public QuicSpdySession {
  public:
   // Does not take ownership of |connection|. |crypto_config| must outlive the
   // session. |helper| must outlive any created crypto streams.
-  QuicServerSessionBase(const QuicConfig& config,
-                        const ParsedQuicVersionVector& supported_versions,
-                        QuicConnection* connection,
-                        QuicSession::Visitor* visitor,
-                        QuicCryptoServerStreamBase::Helper* helper,
-                        const QuicCryptoServerConfig* crypto_config,
-                        QuicCompressedCertsCache* compressed_certs_cache);
+  QuicServerSessionBase(
+      const QuicConfig& config,
+      const ParsedQuicVersionVector& supported_versions,
+      QuicConnection* connection, QuicSession::Visitor* visitor,
+      QuicCryptoServerStreamBase::Helper* helper,
+      const QuicCryptoServerConfig* crypto_config,
+      QuicCompressedCertsCache* compressed_certs_cache,
+      QuicPriorityType priority_type = QuicPriorityType::kHttp);
   QuicServerSessionBase(const QuicServerSessionBase&) = delete;
   QuicServerSessionBase& operator=(const QuicServerSessionBase&) = delete;
 
   // Override the base class to cancel any ongoing asychronous crypto.
   void OnConnectionClosed(const QuicConnectionCloseFrame& frame,
                           ConnectionCloseSource source) override;
-
-  // Override to send bandwidth estimate.
-  void OnBandwidthUpdateTimeout() override;
 
   // Sends a server config update to the client, containing new bandwidth
   // estimate.
@@ -75,17 +73,13 @@ class QUIC_EXPORT_PRIVATE QuicServerSessionBase : public QuicSpdySession {
 
   QuicSSLConfig GetSSLConfig() const override;
 
-  bool enable_sending_bandwidth_estimate_when_network_idle() const {
-    return enable_sending_bandwidth_estimate_when_network_idle_;
-  }
-
  protected:
   // QuicSession methods(override them with return type of QuicSpdyStream*):
   QuicCryptoServerStreamBase* GetMutableCryptoStream() override;
 
   const QuicCryptoServerStreamBase* GetCryptoStream() const override;
 
-  absl::optional<CachedNetworkParameters> GenerateCachedNetworkParameters()
+  std::optional<CachedNetworkParameters> GenerateCachedNetworkParameters()
       const override;
 
   // If an outgoing stream can be created, return true.
@@ -152,8 +146,6 @@ class QUIC_EXPORT_PRIVATE QuicServerSessionBase : public QuicSpdySession {
   // should go away once we fix http://b//27897982
   int32_t BandwidthToCachedParameterBytesPerSecond(
       const QuicBandwidth& bandwidth) const;
-
-  bool enable_sending_bandwidth_estimate_when_network_idle_ = false;
 };
 
 }  // namespace quic

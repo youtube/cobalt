@@ -24,4 +24,12 @@ source_set("crash_annotator") {
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
   ]
+
+  if (is_starboard) {
+    sources += [ "crash_annotator_impl_starboard.cc" ]
+    deps += [ "//starboard:starboard_headers_only" ]
+  } else if (is_ios) {
+    sources += [ "crash_annotator_impl_tvos.cc" ]
+    deps += [ "//cobalt/browser:cobalt_crash_annotations" ]
+  }
 }

@@ -4,10 +4,10 @@
 
 #include "ash/style/harmonized_colors.h"
 
+#include <algorithm>
 #include <functional>
 #include <utility>
 
-#include "base/ranges/algorithm.h"
 #include "third_party/material_color_utilities/src/cpp/palettes/tones.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/chromeos/styles/cros_tokens_color_mappings.h"
@@ -55,19 +55,6 @@ const base::flat_map<int, HarmonizedSeeds> MakeMap() {
   }
   return base::flat_map<int, HarmonizedSeeds>(base::sorted_unique_t(),
                                               std::move(storage));
-}
-
-// Returns the hue angle for `seed_color`.
-int HueAngle(SkColor seed_color) {
-  SkScalar hsv[3];
-  SkColorToHSV(seed_color, hsv);
-
-  // Hue is in degrees.
-  int hue_angle = static_cast<int>(hsv[0]);
-  DCHECK_LE(hue_angle, 360);
-  DCHECK_GE(hue_angle, 0);
-
-  return hue_angle;
 }
 
 // Mappings of tones to ColorId as they comprise the tonal palette.
@@ -149,8 +136,21 @@ void InsertIntoMixer(ui::ColorMixer& mixer,
 
 }  // namespace
 
+// Returns the hue angle for `seed_color`.
+int HueAngle(SkColor seed_color) {
+  SkScalar hsv[3];
+  SkColorToHSV(seed_color, hsv);
+
+  // Hue is in degrees.
+  int hue_angle = static_cast<int>(hsv[0]);
+  DCHECK_LE(hue_angle, 360);
+  DCHECK_GE(hue_angle, 0);
+
+  return hue_angle;
+}
+
 void AddHarmonizedColors(ui::ColorMixer& mixer,
-                         const ui::ColorProviderManager::Key& key) {
+                         const ui::ColorProviderKey& key) {
   // Zip the arrays into a map indexed by the angle lower bound.
   static const base::flat_map<int, HarmonizedSeeds> kSeedMap = MakeMap();
 

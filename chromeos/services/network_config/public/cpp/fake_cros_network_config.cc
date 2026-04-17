@@ -60,8 +60,27 @@ void FakeCrosNetworkConfig::GetVpnProviders(GetVpnProvidersCallback callback) {
 }
 
 void FakeCrosNetworkConfig::CreateCustomApn(const std::string& network_guid,
-                                            mojom::ApnPropertiesPtr apn) {
-  custom_apns_.push_back(std::move(apn));
+                                            mojom::ApnPropertiesPtr apn,
+                                            CreateCustomApnCallback callback) {
+  pending_create_custom_apn_callbacks_.push(
+      std::make_pair(std::move(callback), std::move(apn)));
+}
+
+void FakeCrosNetworkConfig::CreateExclusivelyEnabledCustomApn(
+    const std::string& network_guid,
+    mojom::ApnPropertiesPtr apn,
+    CreateExclusivelyEnabledCustomApnCallback callback) {
+  pending_create_exclusively_enabled_custom_apn_callbacks_.push(
+      std::make_pair(std::move(callback), std::move(apn)));
+}
+
+void FakeCrosNetworkConfig::InvokePendingCreateCustomApnCallback(bool success) {
+  if (success) {
+    custom_apns_.push_back(
+        std::move(pending_create_custom_apn_callbacks_.front().second));
+  }
+  std::move(pending_create_custom_apn_callbacks_.front().first).Run(success);
+  pending_create_custom_apn_callbacks_.pop();
 }
 
 void FakeCrosNetworkConfig::SetDeviceProperties(
@@ -74,10 +93,14 @@ void FakeCrosNetworkConfig::SetDeviceProperties(
 }
 
 void FakeCrosNetworkConfig::SetGlobalPolicy(
-    bool allow_only_policy_cellular_networks) {
+    bool allow_only_policy_cellular_networks,
+    bool dns_queries_monitored,
+    bool report_xdr_events_enabled) {
   global_policy_ = mojom::GlobalPolicy::New();
   global_policy_->allow_only_policy_cellular_networks =
       allow_only_policy_cellular_networks;
+  global_policy_->dns_queries_monitored = dns_queries_monitored;
+  global_policy_->report_xdr_events_enabled = report_xdr_events_enabled;
   for (auto& observer : observers_) {
     observer->OnPoliciesApplied(/*userhash=*/std::string());
   }
@@ -151,6 +174,15 @@ void FakeCrosNetworkConfig::ClearNetworksAndDevices() {
   for (auto& observer : observers_) {
     observer->OnDeviceStateListChanged();
     observer->OnActiveNetworksChanged({});
+  }
+  base::RunLoop().RunUntilIdle();
+}
+
+void FakeCrosNetworkConfig::RemoveNthNetworks(size_t index) {
+  DCHECK(index < visible_networks_.size() && index >= 0);
+  visible_networks_.erase(visible_networks_.begin() + index);
+  for (auto& observer : observers_) {
+    observer->OnDeviceStateListChanged();
   }
   base::RunLoop().RunUntilIdle();
 }

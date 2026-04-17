@@ -9,14 +9,17 @@
 
 #include <limits>
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/component_export.h"
+#include "base/feature_list.h"
 #include "base/functional/callback_forward.h"
 #include "services/network/public/cpp/url_loader_completion_status.h"
+#include "services/network/public/mojom/url_loader.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom-forward.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class GURL;
 
@@ -44,10 +47,12 @@ class URLLoaderFactory;
 
 namespace network {
 
-class SimpleURLLoaderStreamConsumer;
-class SimpleURLLoaderThrottle;
+COMPONENT_EXPORT(NETWORK_CPP)
+BASE_DECLARE_FEATURE(kSimpleURLLoaderUseReadAndDiscardBodyOption);
 
-// Creates and wraps a URLLoader, and runs it to completion. It's recommended
+class SimpleURLLoaderStreamConsumer;
+
+// Wraps a URLLoader and runs it to completion. It's recommended
 // that consumers use this class instead of URLLoader directly, due to the
 // complexity of the API.
 //
@@ -57,6 +62,13 @@ class SimpleURLLoaderThrottle;
 // that was passed it.
 //
 // Each SimpleURLLoader can only be used for a single request.
+//
+// The SimpleURLLoader can be set up to either start a request or adopt an in-
+// progress request, depending on the Create method used. The methods to attach
+// an upload body or allow retries do not work for SimpleURLLoaders set up with
+// in-progress requests. Methods to monitor the request (except its upload
+// progress) or time it out work for all SimplerURLLoaders, regardless of
+// whether they started or adopted a request.
 //
 // By default SimpleURLLoader will not return the response body for non-2xx
 // HTTP codes. See SetAllowHttpErrorResults() for details.
@@ -98,8 +110,10 @@ class COMPONENT_EXPORT(NETWORK_CPP) SimpleURLLoader {
   // like HTTP_OK, which could happen if there's an interruption before the
   // full response body is received. It is safe to delete the SimpleURLLoader
   // during the callback.
-  using BodyAsStringCallback =
+  using BodyAsStringCallbackDeprecated =
       base::OnceCallback<void(std::unique_ptr<std::string> response_body)>;
+  using BodyAsStringCallback =
+      base::OnceCallback<void(std::optional<std::string> response_body)>;
 
   // Callback used when ignoring the response body. |headers| are the received
   // HTTP headers, or nullptr if none were received. It is safe to delete the
@@ -150,6 +164,18 @@ class COMPONENT_EXPORT(NETWORK_CPP) SimpleURLLoader {
       const net::NetworkTrafficAnnotationTag& annotation_tag,
       base::Location created_from = base::Location::Current());
 
+  // Creates a SimpleURLLoader that adopts an in-progress load from
+  // `url_loader_client_endpoints`. The `url_loader_client_endpoints` must
+  // not yet have been bound and read from. The endpoints will be bound when one
+  // of the Download methods is called. The `original_url` is needed here so
+  // that it can be provided to GetFinalURL() and to callbacks that take the url
+  // as a parameter. See class-level comments for information on which methods
+  // may not be called on SimpleURLLoaders created this way.
+  static std::unique_ptr<SimpleURLLoader> Create(
+      GURL original_url,
+      network::mojom::URLLoaderClientEndpointsPtr url_loader_client_endpoints,
+      base::Location created_from = base::Location::Current());
+
   // The TickClock to use to configure a timer that tracks if |timeout_duration|
   // has been reached or not. This can be removed once https://crbug.com/905412
   // is completed. When null, the timer falls back to base::TimeTicks::Now().
@@ -173,6 +199,10 @@ class COMPONENT_EXPORT(NETWORK_CPP) SimpleURLLoader {
   // invoked on completion. Deleting the SimpleURLLoader before the callback is
   // invoked will result in cancelling the request, and the callback will not be
   // called.
+  virtual void DownloadToString(
+      mojom::URLLoaderFactory* url_loader_factory,
+      BodyAsStringCallbackDeprecated body_as_string_callback,
+      size_t max_body_size) = 0;
   virtual void DownloadToString(mojom::URLLoaderFactory* url_loader_factory,
                                 BodyAsStringCallback body_as_string_callback,
                                 size_t max_body_size) = 0;
@@ -182,6 +212,9 @@ class COMPONENT_EXPORT(NETWORK_CPP) SimpleURLLoader {
   // exceeded. It's recommended consumers use one of the other download methods
   // instead (DownloadToString if the body is expected to be of reasonable
   // length, or DownloadToFile otherwise).
+  virtual void DownloadToStringOfUnboundedSizeUntilCrashAndDie(
+      mojom::URLLoaderFactory* url_loader_factory,
+      BodyAsStringCallbackDeprecated body_as_string_callback) = 0;
   virtual void DownloadToStringOfUnboundedSizeUntilCrashAndDie(
       mojom::URLLoaderFactory* url_loader_factory,
       BodyAsStringCallback body_as_string_callback) = 0;
@@ -207,18 +240,26 @@ class COMPONENT_EXPORT(NETWORK_CPP) SimpleURLLoader {
   // If the SimpleURLLoader is destroyed before it has invoked the callback, the
   // downloaded file will be deleted asynchronously and the callback will not be
   // invoked, regardless of other settings.
-  virtual void DownloadToFile(
+  void DownloadToFile(
       mojom::URLLoaderFactory* url_loader_factory,
       DownloadToFileCompleteCallback download_to_file_complete_callback,
       const base::FilePath& file_path,
-      int64_t max_body_size = std::numeric_limits<int64_t>::max()) = 0;
+      int64_t max_body_size = std::numeric_limits<int64_t>::max()) {
+    DownloadToFileInternal(url_loader_factory,
+                           std::move(download_to_file_complete_callback),
+                           file_path, max_body_size);
+  }
 
   // Same as DownloadToFile, but creates a temporary file instead of taking a
   // FilePath.
-  virtual void DownloadToTempFile(
+  void DownloadToTempFile(
       mojom::URLLoaderFactory* url_loader_factory,
       DownloadToFileCompleteCallback download_to_file_complete_callback,
-      int64_t max_body_size = std::numeric_limits<int64_t>::max()) = 0;
+      int64_t max_body_size = std::numeric_limits<int64_t>::max()) {
+    DownloadToTempFileInternal(url_loader_factory,
+                               std::move(download_to_file_complete_callback),
+                               max_body_size);
+  }
 
   // SimpleURLLoader will stream the response body to
   // SimpleURLLoaderStreamConsumer on the current thread. Destroying the
@@ -288,17 +329,27 @@ class COMPONENT_EXPORT(NETWORK_CPP) SimpleURLLoader {
   // Attaches the specified string as the upload body. Depending on the length
   // of the string, the string may be copied to the URLLoader, or may be
   // streamed to it from the current process. May only be called once, and only
-  // if ResourceRequest passed to the constructor had a null |request_body|.
+  // if a ResourceRequest was passed to the constructor and it had a null
+  // |request_body|.
   //
   // |content_type| will overwrite any Content-Type header in the
   // ResourceRequest passed to Create().
   //
-  // TODO(mmenke): This currently always requires a copy. Update DataElement not
-  // to require this.
-  virtual void AttachStringForUpload(
-      const std::string& upload_data,
-      const std::string& upload_content_type) = 0;
-  virtual void AttachStringForUpload(const std::string& upload_data) = 0;
+  // Short strings will be copied and then passed across processes. Long strings
+  // if passed by value will be stored in-process and then streamed to the other
+  // process.
+  //
+  // This number of overloads is rather unfortunate, but base::optional_ref
+  // doesn't allow implicit conversions.
+  virtual void AttachStringForUpload(std::string_view upload_data,
+                                     std::string_view upload_content_type) = 0;
+  virtual void AttachStringForUpload(std::string_view upload_data) = 0;
+  virtual void AttachStringForUpload(const char* upload_data,
+                                     std::string_view upload_content_type) = 0;
+  virtual void AttachStringForUpload(const char* upload_data) = 0;
+  virtual void AttachStringForUpload(std::string&& upload_data,
+                                     std::string_view upload_content_type) = 0;
+  virtual void AttachStringForUpload(std::string&& upload_data) = 0;
 
   // Helper method to attach a file for upload, so the consumer won't need to
   // open the file itself off-thread. May only be called once, and only if the
@@ -309,17 +360,20 @@ class COMPONENT_EXPORT(NETWORK_CPP) SimpleURLLoader {
   //
   // |content_type| will overwrite any Content-Type header in the
   // ResourceRequest passed to Create().
-  virtual void AttachFileForUpload(
+  void AttachFileForUpload(
       const base::FilePath& upload_file_path,
-      const std::string& upload_content_type,
+      std::string_view upload_content_type,
       uint64_t offset = 0,
-      uint64_t length = std::numeric_limits<uint64_t>::max()) = 0;
-  virtual void AttachFileForUpload(const base::FilePath& upload_file_path,
-                                   uint64_t offset,
-                                   uint64_t length) = 0;
-  void AttachFileForUpload(const base::FilePath& upload_file_path) {
-    AttachFileForUpload(upload_file_path, 0,
-                        std::numeric_limits<uint64_t>::max());
+      uint64_t length = std::numeric_limits<uint64_t>::max()) {
+    AttachFileForUploadInternal(upload_file_path, upload_content_type, offset,
+                                length);
+  }
+  void AttachFileForUpload(
+      const base::FilePath& upload_file_path,
+      uint64_t offset = 0,
+      uint64_t length = std::numeric_limits<uint64_t>::max()) {
+    AttachFileForUploadInternal(
+        upload_file_path, /*upload_content_type*/ std::nullopt, offset, length);
   }
 
   // Sets the when to try and the max number of times to retry a request, if
@@ -338,6 +392,10 @@ class COMPONENT_EXPORT(NETWORK_CPP) SimpleURLLoader {
   //
   // Cannot retry requests with an upload body that contains a data pipe that
   // was added to the ResourceRequest passed to Create() by the consumer.
+  //
+  // Cannot retry requests that were started prior to the creation of the
+  // SimpleURLLoader (i.e. it was created with an URLLoaderClientEndpointsPtr
+  // instead of a ResourceRequest).
   virtual void SetRetryOptions(int max_retries, int retry_mode) = 0;
 
   // Sets options for URLLoaderFactory::CreateLoaderAndStart. See
@@ -352,29 +410,29 @@ class COMPONENT_EXPORT(NETWORK_CPP) SimpleURLLoader {
 
   // The amount of time to wait before giving up on a given network request and
   // considering it an error. If not set, then the request is allowed to take
-  // as much time as it wants.
+  // as much time as it wants. The timeout represents how long the URLLoader
+  // will wait for a response after a Download method is called, even if this
+  // class adopted an in-progress request.
   virtual void SetTimeoutDuration(base::TimeDelta timeout_duration) = 0;
-
-  // Allows this SimpleURLLoader to be batched when sending a network request
-  // impacts on battery consumption. This should be called before the request
-  // is started.
-  // NOTE: This is for an experimental use. Please contact bashi@chromium.org
-  // before starting using this function.
-  virtual void SetAllowBatching() = 0;
 
   // Returns the net::Error representing the final status of the request. May
   // only be called once the loader has informed the caller of completion.
   virtual int NetError() const = 0;
 
   // The URLResponseHead for the request. Will be nullptr if ResponseInfo
-  // was never received. May only be called once the loader has informed the
-  // caller of completion.
+  // was never received or if `TakeResponseInfo()` has been called. May only be
+  // called once the loader has informed the caller of completion.
   virtual const mojom::URLResponseHead* ResponseInfo() const = 0;
+
+  // The URLResponseHead for the request. Ownership is transferred to the
+  // caller. Will be nullptr if ResponseInfo was never received. May only be
+  // called once the loader has informed the caller of completion.
+  virtual mojom::URLResponseHeadPtr TakeResponseInfo() = 0;
 
   // The URLLoaderCompletionStatus for the request. Will be nullopt if the
   // response never completed. May only be called once the loader has informed
   // the caller of completion.
-  virtual const absl::optional<URLLoaderCompletionStatus>& CompletionStatus()
+  virtual const std::optional<URLLoaderCompletionStatus>& CompletionStatus()
       const = 0;
 
   // Returns the URL that this loader is processing. May only be called once the
@@ -401,10 +459,26 @@ class COMPONENT_EXPORT(NETWORK_CPP) SimpleURLLoader {
   // Returns the number of times retry has been attempted.
   virtual int GetNumRetries() const = 0;
 
-  virtual SimpleURLLoaderThrottle* GetThrottleForTesting() = 0;
+  // Returns a weak reference to this loader.
+  virtual base::WeakPtr<const SimpleURLLoader> GetWeakPtr() const = 0;
 
  protected:
   SimpleURLLoader();
+
+  virtual void AttachFileForUploadInternal(
+      const base::FilePath& upload_file_path,
+      std::optional<std::string_view> upload_content_type,
+      uint64_t offset,
+      uint64_t length) = 0;
+  virtual void DownloadToFileInternal(
+      mojom::URLLoaderFactory* url_loader_factory,
+      DownloadToFileCompleteCallback download_to_file_complete_callback,
+      const base::FilePath& file_path,
+      int64_t max_body_size) = 0;
+  virtual void DownloadToTempFileInternal(
+      mojom::URLLoaderFactory* url_loader_factory,
+      DownloadToFileCompleteCallback download_to_file_complete_callback,
+      int64_t max_body_size) = 0;
 };
 
 }  // namespace network

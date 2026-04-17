@@ -6,7 +6,7 @@
 #define UI_BASE_PREDICTION_ONE_EURO_FILTER_H_
 
 #include "base/component_export.h"
-#include "third_party/one_euro_filter/src/one_euro_filter.h"
+#include "third_party/one_euro_filter/src/OneEuroFilter.h"
 #include "ui/base/prediction/input_filter.h"
 
 namespace ui {
@@ -29,23 +29,22 @@ class COMPONENT_EXPORT(UI_BASE_PREDICTION) OneEuroFilter : public InputFilter {
 
   const char* GetName() const override;
 
-  InputFilter* Clone() override;
-
-  void Reset() override;
-
   // Default parameters values for the filter
   static constexpr double kDefaultFrequency = 60;
-  static constexpr double kDefaultMincutoff = 1.0;
-  static constexpr double kDefaultBeta = 0.001;
   static constexpr double kDefaultDcutoff = 1.0;
+  // kDefaultMincutoff & kDefaultBeta were chosen with experiment in
+  // March/May 2023, metrics you should consider tuning this is
+  // Event.Jank.PredictorJankyFramePercentage and related metrics.
+  static constexpr double kDefaultMincutoff = 4.7;
+  static constexpr double kDefaultBeta = 0.01;
 
   // Names of the fieldtrials used to tune the filter
   static constexpr char kParamBeta[] = "beta";
   static constexpr char kParamMincutoff[] = "mincutoff";
 
  private:
-  std::unique_ptr<one_euro_filter::OneEuroFilter> x_filter_;
-  std::unique_ptr<one_euro_filter::OneEuroFilter> y_filter_;
+  std::unique_ptr<::OneEuroFilter> x_filter_;
+  std::unique_ptr<::OneEuroFilter> y_filter_;
 };
 
 }  // namespace ui

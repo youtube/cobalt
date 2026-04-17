@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.ui.autofill;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.ReadableIntPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.ReadableObjectPropertyKey;
@@ -12,6 +13,7 @@ import org.chromium.ui.modelutil.PropertyModel.WritableObjectPropertyKey;
 
 import java.util.Optional;
 
+@NullMarked
 class OtpVerificationDialogProperties {
     /** Interface for the mediator to be notified of view actions. */
     interface ViewDelegate {
@@ -21,9 +23,8 @@ class OtpVerificationDialogProperties {
          * @param s The current text in the edit text field.
          */
         void onTextChanged(CharSequence s);
-        /**
-         * Notifies the mediator that the resend link was clicked.
-         */
+
+        /** Notifies the mediator that the resend link was clicked. */
         void onResendLinkClicked();
     }
 
@@ -57,6 +58,13 @@ class OtpVerificationDialogProperties {
     static final WritableBooleanPropertyKey SHOW_PROGRESS_BAR_OVERLAY =
             new WritableBooleanPropertyKey();
 
-    static final PropertyKey[] ALL_KEYS = {OTP_LENGTH, EDIT_TEXT, EDIT_TEXT_HINT, VIEW_DELEGATE,
-            OTP_ERROR_MESSAGE, SHOW_CONFIRMATION, SHOW_PROGRESS_BAR_OVERLAY};
+    static final PropertyKey[] ALL_KEYS = {
+        OTP_LENGTH,
+        EDIT_TEXT,
+        EDIT_TEXT_HINT,
+        VIEW_DELEGATE,
+        OTP_ERROR_MESSAGE,
+        SHOW_CONFIRMATION,
+        SHOW_PROGRESS_BAR_OVERLAY
+    };
 }

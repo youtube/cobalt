@@ -6,14 +6,23 @@ package org.chromium.chrome.browser.base;
 
 import androidx.annotation.IntDef;
 
+import org.chromium.build.annotations.NullMarked;
+
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 /** Histogram enum to monitor DexFixer. */
-@IntDef({DexFixerReason.STAT_FAILED, DexFixerReason.FAILED_TO_RUN, DexFixerReason.NOT_NEEDED,
-        DexFixerReason.O_MR1_AFTER_UPDATE, DexFixerReason.O_MR1_CORRUPTED,
-        DexFixerReason.O_MR1_IO_EXCEPTION, DexFixerReason.NOT_READABLE})
+@IntDef({
+    DexFixerReason.STAT_FAILED,
+    DexFixerReason.FAILED_TO_RUN,
+    DexFixerReason.NOT_NEEDED,
+    DexFixerReason.O_MR1_AFTER_UPDATE,
+    DexFixerReason.O_MR1_CORRUPTED,
+    DexFixerReason.O_MR1_IO_EXCEPTION,
+    DexFixerReason.NOT_READABLE
+})
 @Retention(RetentionPolicy.SOURCE)
+@NullMarked
 public @interface DexFixerReason {
     // These values are persisted to logs. Entries should not be renumbered and
     // numeric values should never be reused.

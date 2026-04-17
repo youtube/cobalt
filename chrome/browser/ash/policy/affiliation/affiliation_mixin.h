@@ -39,11 +39,6 @@ class AffiliationMixin final : public InProcessBrowserTestMixin {
   // Returns the account id of the user.
   AccountId account_id() const { return account_id_; }
 
-  // Sets if the user is an Active Directory user. False by default. Needs to be
-  // called before SetUp to have an effect (e.g., directly after mixin
-  // construction).
-  void SetIsForActiveDirectory(bool is_for_active_directory);
-
   // Sets if the user is affiliated with the device. True by default. Needs to
   // be called before SetUp to have an effect (e.g., directly after mixin
   // construction).
@@ -58,10 +53,8 @@ class AffiliationMixin final : public InProcessBrowserTestMixin {
  private:
   AffiliationTestHelper GetAffiliationTestHelper() const;
 
-  const raw_ptr<DevicePolicyCrosTestHelper, ExperimentalAsh>
-      policy_test_helper_;
+  const raw_ptr<DevicePolicyCrosTestHelper> policy_test_helper_;
   bool affiliated_ = true;
-  bool is_for_active_directory_ = false;
   AccountId account_id_;
   std::unique_ptr<UserPolicyBuilder> user_policy_;
 };

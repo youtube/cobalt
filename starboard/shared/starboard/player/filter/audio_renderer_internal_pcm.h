@@ -16,6 +16,8 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_PCM_H_
 
 #include <atomic>
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -37,7 +39,6 @@
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
-#include "starboard/types.h"
 
 // Uncomment the following statement to log the media time stats with deviation
 // when GetCurrentMediaTime() is called.
@@ -62,7 +63,8 @@ class AudioRendererPcm : public AudioRenderer,
   //    longer accept more data.
   // |min_frames_per_append| is the min number of frames that the audio renderer
   // tries to append to the sink buffer at once.
-  AudioRendererPcm(std::unique_ptr<AudioDecoder> decoder,
+  AudioRendererPcm(JobQueue* job_queue,
+                   std::unique_ptr<AudioDecoder> decoder,
                    std::unique_ptr<AudioRendererSink> audio_renderer_sink,
                    const AudioStreamInfo& audio_stream_info,
                    int max_cached_frames,
@@ -177,7 +179,7 @@ class AudioRendererPcm : public AudioRenderer,
   // and can thus avoid doing a full reset.
   bool first_input_written_ = false;
 
-  std::unique_ptr<AudioRendererSink> audio_renderer_sink_;
+  const std::unique_ptr<AudioRendererSink> audio_renderer_sink_;
   bool is_eos_reached_on_sink_thread_ = false;
   bool is_playing_on_sink_thread_ = false;
   int64_t frames_in_buffer_on_sink_thread_ = 0;

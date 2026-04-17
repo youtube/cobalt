@@ -6,23 +6,17 @@
 #define UI_BASE_L10N_L10N_UTIL_WIN_H_
 
 #include <windows.h>
+
 #include <string>
 #include <vector>
 
 #include "base/component_export.h"
 
+namespace gfx::win {
+struct FontAdjustment;
+}
+
 namespace l10n_util {
-
-// Returns the locale-dependent extended window styles.
-// This function is used for adding locale-dependent extended window styles
-// (e.g. WS_EX_LAYOUTRTL, WS_EX_RTLREADING, etc.) when creating a window.
-// Callers should OR this value into their extended style value when creating
-// a window.
-COMPONENT_EXPORT(UI_BASE) int GetExtendedStyles();
-
-// TODO(xji):
-// This is a temporary name, it will eventually replace GetExtendedStyles
-COMPONENT_EXPORT(UI_BASE) DWORD GetExtendedTooltipStyles();
 
 // Give an HWND, this function sets the WS_EX_LAYOUTRTL extended style for the
 // underlying window. When this style is set, the UI for the window is going to
@@ -30,18 +24,12 @@ COMPONENT_EXPORT(UI_BASE) DWORD GetExtendedTooltipStyles();
 // such as Hebrew.
 COMPONENT_EXPORT(UI_BASE) void HWNDSetRTLLayout(HWND hwnd);
 
-// See http://blogs.msdn.com/oldnewthing/archive/2005/09/15/467598.aspx
-// and  http://blogs.msdn.com/oldnewthing/archive/2006/06/26/647365.aspx
-// as to why we need these three functions.
+// See https://devblogs.microsoft.com/oldnewthing/20050915-23/?p=34173
+// and https://devblogs.microsoft.com/oldnewthing/20060626-11/?p=30743 as to why
+// we need these next three functions.
 
-// Return true if the default font (we get from Windows) is not suitable
-// to use in the UI of the current UI (e.g. Malayalam, Bengali). If
-// override_font_family and font_size_scaler are not null, they'll be
-// filled with the font family name and the size scaler.  The output
-// parameters are not modified if the return value is false.
 COMPONENT_EXPORT(UI_BASE)
-bool NeedOverrideDefaultUIFont(std::wstring* override_font_family,
-                               double* font_size_scaler);
+void AdjustUiFont(gfx::win::FontAdjustment& font_adjustment);
 
 // Allow processes to override the configured locale with the user's Windows UI
 // languages.  This function should generally be called once early in

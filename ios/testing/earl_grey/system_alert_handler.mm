@@ -9,10 +9,6 @@
 #import "ios/testing/earl_grey/earl_grey_test.h"
 #import "ios/testing/system_alert_handler.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 @implementation SystemAlertHandlerImpl
 
 - (void)handleSystemAlertIfVisible {
@@ -34,7 +30,7 @@
       // EG2 framework.
       // If it does throw, handle the system alert in @catch.
       // If it doesn’t throw, accept it here.
-      // TODO(crbug.com/1073542): Style guide does not allow throwing
+      // TODO(crbug.com/40127610): Style guide does not allow throwing
       // exceptions.
       [EarlGrey SystemAlertType];
 

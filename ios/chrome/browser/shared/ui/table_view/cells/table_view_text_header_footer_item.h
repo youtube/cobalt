@@ -26,7 +26,7 @@
 @interface TableViewTextHeaderFooterItem : TableViewHeaderFooterItem
 
 // The text that represents the section's headline.
-@property(nonatomic, readwrite, strong) NSString* text;
+@property(nonatomic, readwrite, copy) NSString* text;
 
 // The list of URLs used to open when text with a link attribute is tapped.
 // Asserts that the number of urls given corresponds to the link attributes in
@@ -37,6 +37,10 @@
 // The subtitle text string.
 @property(nonatomic, copy) NSString* subtitle;
 
+// If true, aligns the header/footer with the section items by ensure that there
+// are leading/trailing margins. By default, this is false.
+@property(nonatomic, assign) BOOL forceIndents;
+
 @end
 
 // TableViewTextHeaderFooterView is a clone of the
@@ -44,21 +48,25 @@
 // title, above the link text.
 @interface TableViewTextHeaderFooterView : UITableViewHeaderFooterView
 
-// The UILabel containing the text stored in `text`.
-//@property(nonatomic, readonly, strong) UILabel* textLabel;
-
-// UITextView corresponding to `subtitle` from the item.
-@property(nonatomic, readonly, strong) UITextView* subtitleLabel;
-
 // Delegate to notify when the link is tapped.
 @property(nonatomic, weak) id<TableViewTextHeaderFooterItemDelegate> delegate;
 
 // The URLs to open when text with a link attribute is tapped.
 @property(nonatomic, strong) NSArray<CrURL*>* URLs;
 
-// Sets the `text` displayed by this cell. If the `text` contains a link, the
-// link is appropriately colored.
+// Sets the `title` displayed by this cell.
+- (void)setTitle:(NSString*)title;
+
+// Sets the `subtitle` displayed by this cell with a default coloring.
 - (void)setSubtitle:(NSString*)subtitle;
+
+// Sets the `subtitle` displayed by this cell with a `color`. If the `subtitle`
+// contains a link, the link has its own color.
+- (void)setSubtitle:(NSString*)subtitle withColor:(UIColor*)color;
+
+// If forceIndents is YES, activates the constraint to align the header/footer
+// with section items.
+- (void)setForceIndents:(BOOL)forceIndents;
 
 @end
 

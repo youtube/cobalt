@@ -6,18 +6,19 @@ package org.chromium.chrome.browser.download.home.list.mutator;
 
 import android.util.Pair;
 
+import org.chromium.build.annotations.NullMarked;
+
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Maintains the pagination info for the group cards to be shown.
- */
+/** Maintains the pagination info for the group cards to be shown. */
+@NullMarked
 public class CardPaginator {
     private static final int ITEM_COUNT_PER_PAGE = 3;
 
     // Maintains the current page count for each card. The cards are keyed by date and domain.
-    private Map<Pair<Date, String>, Integer> mPageCountForCard = new HashMap<>();
+    private final Map<Pair<Date, String>, Integer> mPageCountForCard = new HashMap<>();
 
     /**
      * Called to load one more page for the given card.
@@ -53,16 +54,15 @@ public class CardPaginator {
         return ITEM_COUNT_PER_PAGE;
     }
 
-    /**
-     * Called to reset the item count on the card.
-     */
+    /** Called to reset the item count on the card. */
     public void reset() {
         mPageCountForCard.clear();
     }
 
     /** @return The number of pages currently being displayed. Default is 1.*/
     private int getCurrentPageCount(Pair<Date, String> dateAndDomain) {
-        return mPageCountForCard.containsKey(dateAndDomain) ? mPageCountForCard.get(dateAndDomain)
-                                                            : 1;
+        return mPageCountForCard.containsKey(dateAndDomain)
+                ? mPageCountForCard.get(dateAndDomain)
+                : 1;
     }
 }

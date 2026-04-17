@@ -28,9 +28,7 @@ import java.util.ArrayList;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- *  An Instrumentation that runs tests based on NativeTest.
- */
+/** An Instrumentation that runs tests based on NativeTest. */
 public class NativeTestInstrumentationTestRunner extends Instrumentation {
     private static final String EXTRA_NATIVE_TEST_ACTIVITY =
             "org.chromium.native_test.NativeTestInstrumentationTestRunner.NativeTestActivity";
@@ -51,12 +49,12 @@ public class NativeTestInstrumentationTestRunner extends Instrumentation {
     // Default to no size limit.
     private static final int DEFAULT_SHARD_SIZE_LIMIT = 0;
 
-    private Handler mHandler = new Handler();
-    private Bundle mLogBundle = new Bundle();
-    private SparseArray<ShardMonitor> mMonitors = new SparseArray<ShardMonitor>();
+    private final Handler mHandler = new Handler();
+    private final Bundle mLogBundle = new Bundle();
+    private final SparseArray<ShardMonitor> mMonitors = new SparseArray<ShardMonitor>();
     private String mNativeTestActivity;
     private TestStatusReceiver mReceiver;
-    private Queue<String> mShards = new ArrayDeque<String>();
+    private final Queue<String> mShards = new ArrayDeque<String>();
     private long mShardNanoTimeout = DEFAULT_SHARD_NANO_TIMEOUT;
     private int mShardSizeLimit = DEFAULT_SHARD_SIZE_LIMIT;
     private File mStdoutFile;
@@ -64,12 +62,12 @@ public class NativeTestInstrumentationTestRunner extends Instrumentation {
 
     @Override
     public void onCreate(Bundle arguments) {
-        Context context = getContext();
         mTransparentArguments = new Bundle(arguments);
 
         mNativeTestActivity = arguments.getString(EXTRA_NATIVE_TEST_ACTIVITY);
         if (mNativeTestActivity == null) {
-            Log.e(TAG,
+            Log.e(
+                    TAG,
                     "Unable to find org.chromium.native_test.NativeUnitTestActivity extra on "
                             + "NativeTestInstrumentationTestRunner launch intent.");
             finish(Activity.RESULT_CANCELED, new Bundle());
@@ -90,8 +88,9 @@ public class NativeTestInstrumentationTestRunner extends Instrumentation {
             mStdoutFile = new File(stdoutFile);
         } else {
             try {
-                mStdoutFile = File.createTempFile(
-                        ".temp_stdout_", ".txt", Environment.getExternalStorageDirectory());
+                mStdoutFile =
+                        File.createTempFile(
+                                ".temp_stdout_", ".txt", Environment.getExternalStorageDirectory());
                 Log.i(TAG, "stdout file created: " + mStdoutFile.getAbsolutePath());
             } catch (IOException e) {
                 Log.e(TAG, "Unable to create temporary stdout file.", e);
@@ -145,34 +144,38 @@ public class NativeTestInstrumentationTestRunner extends Instrumentation {
 
         mReceiver = new TestStatusReceiver();
         mReceiver.register(getContext());
-        mReceiver.registerCallback(new TestStatusReceiver.TestRunCallback() {
-            @Override
-            public void testRunStarted(int pid) {
-                if (pid != Process.myPid()) {
-                    ShardMonitor m = new ShardMonitor(pid, System.nanoTime() + mShardNanoTimeout);
-                    mMonitors.put(pid, m);
-                    mHandler.post(m);
-                }
-            }
+        mReceiver.registerCallback(
+                new TestStatusReceiver.TestRunCallback() {
+                    @Override
+                    public void testRunStarted(int pid) {
+                        if (pid != Process.myPid()) {
+                            ShardMonitor m =
+                                    new ShardMonitor(pid, System.nanoTime() + mShardNanoTimeout);
+                            mMonitors.put(pid, m);
+                            mHandler.post(m);
+                        }
+                    }
 
-            @Override
-            public void testRunFinished(int pid) {
-                ShardMonitor m = mMonitors.get(pid);
-                if (m != null) {
-                    m.stopped();
-                    mMonitors.remove(pid);
-                }
-                mHandler.post(new ShardEnder(pid));
-            }
+                    @Override
+                    public void testRunFinished(int pid) {
+                        ShardMonitor m = mMonitors.get(pid);
+                        if (m != null) {
+                            m.stopped();
+                            mMonitors.remove(pid);
+                        }
+                        mHandler.post(new ShardEnder(pid));
+                    }
 
-            @Override
-            public void uncaughtException(int pid, String stackTrace) {
-                mLogBundle.putString(Instrumentation.REPORT_KEY_STREAMRESULT,
-                        String.format("Uncaught exception in test process (pid: %d)%n%s%n", pid,
-                                stackTrace));
-                sendStatus(0, mLogBundle);
-            }
-        });
+                    @Override
+                    public void uncaughtException(int pid, String stackTrace) {
+                        mLogBundle.putString(
+                                Instrumentation.REPORT_KEY_STREAMRESULT,
+                                String.format(
+                                        "Uncaught exception in test process (pid: %d)%n%s%n",
+                                        pid, stackTrace));
+                        sendStatus(0, mLogBundle);
+                    }
+                });
 
         mHandler.post(new ShardStarter());
     }
@@ -181,9 +184,9 @@ public class NativeTestInstrumentationTestRunner extends Instrumentation {
     private class ShardMonitor implements Runnable {
         private static final int MONITOR_FREQUENCY_MS = 1000;
 
-        private long mExpirationNanoTime;
-        private int mPid;
-        private AtomicBoolean mStopped;
+        private final long mExpirationNanoTime;
+        private final int mPid;
+        private final AtomicBoolean mStopped;
 
         public ShardMonitor(int pid, long expirationNanoTime) {
             mPid = pid;
@@ -240,9 +243,7 @@ public class NativeTestInstrumentationTestRunner extends Instrumentation {
         return i;
     }
 
-    /**
-     * Starts the NativeTest Activity.
-     */
+    /** Starts the NativeTest Activity. */
     private class ShardStarter implements Runnable {
         @Override
         public void run() {
@@ -253,7 +254,7 @@ public class NativeTestInstrumentationTestRunner extends Instrumentation {
     private class ShardEnder implements Runnable {
         private static final int WAIT_FOR_DEATH_MILLIS = 10;
 
-        private int mPid;
+        private final int mPid;
 
         public ShardEnder(int pid) {
             mPid = pid;

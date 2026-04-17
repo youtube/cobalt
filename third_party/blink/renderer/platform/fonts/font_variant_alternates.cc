@@ -63,7 +63,7 @@ scoped_refptr<FontVariantAlternates> FontVariantAlternates::Clone(
   return new_object;
 }
 
-bool FontVariantAlternates::IsNormal() {
+bool FontVariantAlternates::IsNormal() const {
   return !stylistic_ && !historical_forms_ && !swash_ && !ornaments_ &&
          !annotation_ && styleset_.empty() && character_variant_.empty();
 }
@@ -119,10 +119,8 @@ scoped_refptr<FontVariantAlternates> FontVariantAlternates::Resolve(
     Vector<uint32_t> swash_resolved = resolve_swash(*swash_);
     if (!swash_resolved.empty()) {
       CHECK_EQ(swash_resolved.size(), 1u);
-      auto pair = std::make_pair(kSwshTag, swash_resolved[0]);
-      clone->resolved_features_.push_back(pair);
-      pair = std::make_pair(kCswhTag, swash_resolved[0]);
-      clone->resolved_features_.push_back(pair);
+      clone->resolved_features_.emplace_back(kSwshTag, swash_resolved[0]);
+      clone->resolved_features_.emplace_back(kCswhTag, swash_resolved[0]);
     }
   }
 
@@ -130,8 +128,7 @@ scoped_refptr<FontVariantAlternates> FontVariantAlternates::Resolve(
     Vector<uint32_t> ornaments_resolved = resolve_ornaments(*ornaments_);
     if (!ornaments_resolved.empty()) {
       CHECK_EQ(ornaments_resolved.size(), 1u);
-      auto pair = std::make_pair(kOrnmTag, ornaments_resolved[0]);
-      clone->resolved_features_.push_back(pair);
+      clone->resolved_features_.emplace_back(kOrnmTag, ornaments_resolved[0]);
     }
   }
 
@@ -139,8 +136,7 @@ scoped_refptr<FontVariantAlternates> FontVariantAlternates::Resolve(
     Vector<uint32_t> annotation_resolved = resolve_annotation(*annotation_);
     if (!annotation_resolved.empty()) {
       CHECK_EQ(annotation_resolved.size(), 1u);
-      auto pair = std::make_pair(kNaltTag, annotation_resolved[0]);
-      clone->resolved_features_.push_back(pair);
+      clone->resolved_features_.emplace_back(kNaltTag, annotation_resolved[0]);
     }
   }
 
@@ -148,19 +144,17 @@ scoped_refptr<FontVariantAlternates> FontVariantAlternates::Resolve(
     Vector<uint32_t> stylistic_resolved = resolve_stylistic(*stylistic_);
     if (!stylistic_resolved.empty()) {
       CHECK_EQ(stylistic_resolved.size(), 1u);
-      auto pair = std::make_pair(kSaltTag, stylistic_resolved[0]);
-      clone->resolved_features_.push_back(pair);
+      clone->resolved_features_.emplace_back(kSaltTag, stylistic_resolved[0]);
     }
   }
 
   if (!styleset_.empty()) {
-    for (auto styleset_alias : styleset_) {
+    for (const AtomicString& styleset_alias : styleset_) {
       Vector<uint32_t> styleset_resolved = resolve_styleset(styleset_alias);
       if (!styleset_resolved.empty()) {
         for (auto styleset_entry : styleset_resolved) {
           if (styleset_entry <= kMaxTag) {
-            auto pair = std::make_pair(ssTag(styleset_entry), 1u);
-            clone->resolved_features_.push_back(pair);
+            clone->resolved_features_.emplace_back(ssTag(styleset_entry), 1u);
           }
         }
       }
@@ -168,7 +162,7 @@ scoped_refptr<FontVariantAlternates> FontVariantAlternates::Resolve(
   }
 
   if (!character_variant_.empty()) {
-    for (auto character_variant_alias : character_variant_) {
+    for (const AtomicString& character_variant_alias : character_variant_) {
       Vector<uint32_t> character_variant_resolved =
           resolve_character_variant(character_variant_alias);
       if (!character_variant_resolved.empty() &&
@@ -178,17 +172,15 @@ scoped_refptr<FontVariantAlternates> FontVariantAlternates::Resolve(
           feature_value = character_variant_resolved[1];
         }
         if (character_variant_resolved[0] <= kMaxTag) {
-          auto pair = std::make_pair(cvTag(character_variant_resolved[0]),
-                                     feature_value);
-          clone->resolved_features_.push_back(pair);
+          clone->resolved_features_.emplace_back(
+              cvTag(character_variant_resolved[0]), feature_value);
         }
       }
     }
   }
 
   if (historical_forms_) {
-    auto pair = std::make_pair(kHistTag, 1u);
-    clone->resolved_features_.push_back(pair);
+    clone->resolved_features_.emplace_back(kHistTag, 1u);
   }
 
 #if DCHECK_IS_ON()

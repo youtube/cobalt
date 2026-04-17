@@ -25,9 +25,6 @@
 
 // --- System Header Configuration -------------------------------------------
 
-// Any system headers listed here that are not provided by the platform will be
-// emulated in starboard/types.h.
-
 // Whether the current platform provides the standard header sys/types.h.
 #define SB_HAS_SYS_TYPES_H 1
 
@@ -45,12 +42,5 @@
 // Chrome has an exclusion for iOS here, we should too when we support iOS.
 #define SB_IS_WCHAR_T_UNSIGNED 1
 #endif
-
-// --- Media Configuration ---------------------------------------------------
-
-// The path of video_dmp_writer.h. Defined here to avoid errors building on
-// platforms that do not include the video_dmp library.
-#define SB_PLAYER_DMP_WRITER_INCLUDE_PATH \
-  "starboard/shared/starboard/player/video_dmp_writer.h"
 
 #endif  // STARBOARD_LINUX_SHARED_CONFIGURATION_PUBLIC_H_

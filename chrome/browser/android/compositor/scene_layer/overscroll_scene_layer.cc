@@ -4,9 +4,11 @@
 
 #include "chrome/browser/android/compositor/scene_layer/overscroll_scene_layer.h"
 
-#include "chrome/android/chrome_jni_headers/OverscrollSceneLayer_jni.h"
 #include "ui/android/resources/resource_manager_impl.h"
 #include "ui/android/window_android.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "chrome/android/chrome_jni_headers/OverscrollSceneLayer_jni.h"
 
 using base::android::JavaParamRef;
 
@@ -36,8 +38,9 @@ void OverscrollSceneLayer::Prepare(JNIEnv* env,
   start_pos_ = gfx::Vector2dF(start_x, start_y);
   const gfx::SizeF viewport_size(width, height);
 
-  if (!glow_effect_)
+  if (!glow_effect_) {
     return;
+  }
 
   // |OverscrollGlow| activates glow effect only when content is bigger than
   // viewport. Make it bigger by 1.f.
@@ -54,8 +57,9 @@ jboolean OverscrollSceneLayer::Update(
     jfloat accumulated_overscroll_x,
     jfloat delta_x) {
   if (!resource_manager_) {
-    if (jresource_manager.is_null())
+    if (jresource_manager.is_null()) {
       return false;
+    }
     resource_manager_ =
         ui::ResourceManagerImpl::FromJavaObject(jresource_manager);
   }
@@ -71,8 +75,9 @@ jboolean OverscrollSceneLayer::Update(
 }
 
 void OverscrollSceneLayer::OnAnimate(base::TimeTicks frame_time) {
-  if (glow_effect_ && glow_effect_->Animate(frame_time, layer().get()))
+  if (glow_effect_ && glow_effect_->Animate(frame_time, layer().get())) {
     window_->SetNeedsAnimate();
+  }
 }
 
 void OverscrollSceneLayer::OnAttachCompositor() {
@@ -88,8 +93,9 @@ void OverscrollSceneLayer::SetContentTree(
     const JavaParamRef<jobject>& jobj,
     const JavaParamRef<jobject>& jcontent_tree) {
   SceneLayer* content_tree = FromJavaObject(env, jcontent_tree);
-  if (!content_tree || !content_tree->layer())
+  if (!content_tree || !content_tree->layer()) {
     return;
+  }
 
   if (!content_tree->layer()->parent() ||
       (content_tree->layer()->parent()->id() != layer()->id())) {

@@ -10,6 +10,7 @@
 #include <cups/cups.h>
 
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -82,6 +83,34 @@ struct COMPONENT_EXPORT(PRINT_BACKEND) PrinterInfo {
   // MIME types for supported formats.
   std::vector<std::string> document_formats;
 
+  // document-format-default
+  // MIME type for default format.
+  std::string document_format_default;
+
+  // document-format-preferred
+  // MIME type for preferred format.
+  std::string document_format_preferred;
+
+  // urf-supported
+  // A collection of supported URF printing modes.
+  std::vector<std::string> urf_supported;
+
+  // pdf-version-supported
+  // A collection of supported PDF versions.
+  std::vector<std::string> pdf_versions;
+
+  // ipp-features-supported
+  // A collection of supported IPP features.
+  std::vector<std::string> ipp_features;
+
+  // mopria-certified
+  // Mopria certification level of the printer.
+  std::string mopria_certified;
+
+  // printer-kind
+  // A collection of supported printing categories.
+  std::vector<std::string> printer_kind;
+
   // ipp-versions-supported
   // A collection of supported IPP protocol versions.
   std::vector<base::Version> ipp_versions;
@@ -101,7 +130,7 @@ enum JobCompletionState {
 };
 
 // Converts a JobStateReason to the exact string returned by CUPS.
-const base::StringPiece COMPONENT_EXPORT(PRINT_BACKEND)
+const std::string_view COMPONENT_EXPORT(PRINT_BACKEND)
     ToJobStateReasonString(CupsJob::JobStateReason stateReason);
 
 // Returns the uri for printer with `id` as served by CUPS. Assumes that `id` is

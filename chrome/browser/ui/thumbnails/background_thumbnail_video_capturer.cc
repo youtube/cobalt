@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/thumbnails/background_thumbnail_video_capturer.h"
 
 #include <stdint.h>
+
 #include <utility>
 
 #include "base/metrics/histogram_macros.h"
@@ -28,24 +29,27 @@ BackgroundThumbnailVideoCapturer::BackgroundThumbnailVideoCapturer(
 }
 
 BackgroundThumbnailVideoCapturer::~BackgroundThumbnailVideoCapturer() {
-  if (video_capturer_)
+  if (video_capturer_) {
     Stop();
+  }
 }
 
 void BackgroundThumbnailVideoCapturer::Start(
     const ThumbnailCaptureInfo& capture_info) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (video_capturer_)
+  if (video_capturer_) {
     return;
+  }
 
   content::RenderWidgetHostView* const source_view =
       contents_->GetPrimaryMainFrame()
           ->GetRenderViewHost()
           ->GetWidget()
           ->GetView();
-  if (!source_view)
+  if (!source_view) {
     return;
+  }
 
   capture_info_ = capture_info;
 
@@ -76,8 +80,9 @@ void BackgroundThumbnailVideoCapturer::Start(
 void BackgroundThumbnailVideoCapturer::Stop() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (!video_capturer_)
+  if (!video_capturer_) {
     return;
+  }
 
   video_capturer_->Stop();
   video_capturer_.reset();
@@ -97,7 +102,6 @@ void BackgroundThumbnailVideoCapturer::OnFrameCaptured(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   CHECK(video_capturer_);
-  const base::TimeTicks time_of_call = base::TimeTicks::Now();
 
   mojo::Remote<::viz::mojom::FrameSinkVideoConsumerFrameCallbacks>
       callbacks_remote(std::move(callbacks));
@@ -124,14 +128,7 @@ void BackgroundThumbnailVideoCapturer::OnFrameCaptured(
     DLOG(ERROR) << "Shared memory size was less than expected.";
     return;
   }
-  if (!info->color_space) {
-    DLOG(ERROR) << "Missing mandatory color space info.";
-    return;
-  }
 
-  if (num_received_frames_ == 0)
-    UMA_HISTOGRAM_TIMES("Tab.Preview.TimeToFirstUsableFrameAfterStartCapture",
-                        time_of_call - start_time_);
   TRACE_EVENT_INSTANT1("ui", "Tab.Preview.VideoCaptureFrameReceived",
                        TRACE_EVENT_SCOPE_THREAD, "frame_number",
                        num_received_frames_);
@@ -174,9 +171,9 @@ void BackgroundThumbnailVideoCapturer::OnFrameCaptured(
   frame.installPixels(
       SkImageInfo::MakeN32(bitmap_size.width(), bitmap_size.height(),
                            kPremul_SkAlphaType,
-                           info->color_space->ToSkColorSpace()),
+                           info->color_space.ToSkColorSpace()),
       pixels,
-      media::VideoFrame::RowBytes(media::VideoFrame::kARGBPlane,
+      media::VideoFrame::RowBytes(media::VideoFrame::Plane::kARGB,
                                   info->pixel_format, info->coded_size.width()),
       [](void* addr, void* context) {
         delete static_cast<FramePinner*>(context);
@@ -193,8 +190,8 @@ void BackgroundThumbnailVideoCapturer::OnFrameCaptured(
   got_frame_callback_.Run(cropped_frame, frame_id);
 }
 
-void BackgroundThumbnailVideoCapturer::OnNewCropVersion(uint32_t crop_version) {
-}
+void BackgroundThumbnailVideoCapturer::OnNewSubCaptureTargetVersion(
+    uint32_t sub_capture_target_version) {}
 
 void BackgroundThumbnailVideoCapturer::OnFrameWithEmptyRegionCapture() {}
 

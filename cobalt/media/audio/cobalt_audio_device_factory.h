@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_AUDIO_COBALT_AUDIO_DEVICE_FACTORY_H
-#define COBALT_MEDIA_AUDIO_COBALT_AUDIO_DEVICE_FACTORY_H
+#ifndef COBALT_MEDIA_AUDIO_COBALT_AUDIO_DEVICE_FACTORY_H_
+#define COBALT_MEDIA_AUDIO_COBALT_AUDIO_DEVICE_FACTORY_H_
 
 #include "media/base/media_export.h"
 #include "third_party/blink/public/web/modules/media/audio/audio_device_factory.h"
@@ -38,4 +38,4 @@ class MEDIA_EXPORT CobaltAudioDeviceFactory final
 
 }  // namespace media
 
-#endif  // COBALT_MEDIA_AUDIO_COBALT_AUDIO_DEVICE_FACTORY_H
+#endif  // COBALT_MEDIA_AUDIO_COBALT_AUDIO_DEVICE_FACTORY_H_

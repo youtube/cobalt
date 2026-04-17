@@ -44,7 +44,7 @@ class NET_EXPORT NetworkErrorLoggingService {
  public:
   class PersistentNelStore;
 
-  // Every (NIK, origin) pair can have at most one policy.
+  // Every (NAK, origin) pair can have at most one policy.
   struct NET_EXPORT NelPolicyKey {
     NelPolicyKey();
     NelPolicyKey(const NetworkAnonymizationKey& network_anonymization_key,
@@ -56,7 +56,7 @@ class NET_EXPORT NetworkErrorLoggingService {
     bool operator==(const NelPolicyKey& other) const;
     bool operator!=(const NelPolicyKey& other) const;
 
-    // The NIK of the request this policy was received from. This will be used
+    // The NAK of the request this policy was received from. This will be used
     // for any requests uploading reports according to this policy. (Not
     // included in the report itself.)
     NetworkAnonymizationKey network_anonymization_key;
@@ -77,7 +77,7 @@ class NET_EXPORT NetworkErrorLoggingService {
 
     bool operator<(const WildcardNelPolicyKey& other) const;
 
-    // The NIK of the request this policy was received from. This will be used
+    // The NAK of the request this policy was received from. This will be used
     // for any requests uploading reports according to this policy. (Not
     // included in the report itself.)
     NetworkAnonymizationKey network_anonymization_key;
@@ -116,6 +116,9 @@ class NET_EXPORT NetworkErrorLoggingService {
   struct NET_EXPORT RequestDetails {
     RequestDetails();
     RequestDetails(const RequestDetails& other);
+    RequestDetails(RequestDetails&& other);
+    RequestDetails& operator=(const RequestDetails& other);
+    RequestDetails& operator=(RequestDetails&& other);
     ~RequestDetails();
 
     // NetworkAnonymizationKey of the request triggering the error. Not included
@@ -146,6 +149,10 @@ class NET_EXPORT NetworkErrorLoggingService {
   struct NET_EXPORT SignedExchangeReportDetails {
     SignedExchangeReportDetails();
     SignedExchangeReportDetails(const SignedExchangeReportDetails& other);
+    SignedExchangeReportDetails(SignedExchangeReportDetails&& other);
+    SignedExchangeReportDetails& operator=(
+        const SignedExchangeReportDetails& other);
+    SignedExchangeReportDetails& operator=(SignedExchangeReportDetails&& other);
     ~SignedExchangeReportDetails();
 
     // NetworkAnonymizationKey of the request triggering the error. Not included
@@ -282,12 +289,16 @@ class NET_EXPORT NetworkErrorLoggingService {
   // Used to display information about NEL policies on the NetLog Reporting tab.
   virtual base::Value StatusAsValue() const;
 
-  // Gets the (NIK, origin) keys of all currently stored policies, including
+  // Gets the (NAK, origin) keys of all currently stored policies, including
   // expired ones.
   virtual std::set<NelPolicyKey> GetPolicyKeysForTesting();
 
   virtual PersistentNelStore* GetPersistentNelStoreForTesting();
   virtual ReportingService* GetReportingServiceForTesting();
+
+  // Loads a specified list of Nel policies and marks the service as
+  // initialized.
+  virtual void LoadPoliciesForTesting(std::vector<NelPolicy> policies);
 
  protected:
   NetworkErrorLoggingService();

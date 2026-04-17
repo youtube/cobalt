@@ -16,6 +16,7 @@
 // numeric values should never be reused.
 //
 // Keep this in sync with ProfileKeepAliveOrigin in enums.xml.
+// LINT.IfChange
 enum class ProfileKeepAliveOrigin {
   // When a Profile gets created by ProfileManager, it initially has this type
   // of keep-alive. This ensures that the Profile has a refcount >=1, at least
@@ -110,13 +111,11 @@ enum class ProfileKeepAliveOrigin {
   // An extension .crx is being installed.
   kCrxInstaller = 24,
 
-  // The ProfilePickerView dialog is visible. This normally refers to the System
-  // Profile, but may be a different one in Lacros.
+  // The ProfilePickerView dialog is visible. This refers to the System Profile.
   kProfilePickerView = 25,
 
-  // The frontend view for Commander exists (even if it's not visible). It
-  // renders to a WebUI, so we can't just destroy it whenever we want.
-  kCommanderFrontend = 26,
+  // DEPRECATED
+  // kCommanderFrontend = 26,
 
   // UI bubble that may outlive the Browser, especially on Mac.
   kDiceWebSigninInterceptionBubble = 27,
@@ -125,18 +124,15 @@ enum class ProfileKeepAliveOrigin {
   // something to show after the profile is destroyed. macOS-specific.
   kHistoryMenuBridge = 28,
 
-  // Protect Lacros Main Profile from being destroyed. Value expected to be set
-  // for main profile and never removed. Lacros main profile shouldn't be
-  // destroyed.
-  kLacrosMainProfile = 29,
+  // DEPRECATED
+  // kLacrosMainProfile = 29,
 
   // This profile is being created, and the SAML flow needs to be completed to
   // finish signin in the user's account.
   kProfileCreationSamlFlow = 30,
 
-  // Used when DriveFS on ChromeOS wants to connect to an extension in Lacros.
-  // This keeps the profile alive while the connection is active.
-  kDriveFsNativeMessageHostLacros = 31,
+  // DEPRECATED
+  // kDriveFsNativeMessageHostLacros = 31,
 
   // Used during the deletion process for the respective profile. Avoids the
   // profile from being randomly unloaded. Useful to keep an ephemeral profile
@@ -144,8 +140,42 @@ enum class ProfileKeepAliveOrigin {
   // alive.
   kProfileDeletionProcess = 32,
 
-  kMaxValue = kProfileDeletionProcess,
+  // Used when displaying the statistics for a profile in the Profile Picker,
+  // when deleting this profile.
+  kProfileStatistics = 33,
+
+  // Used during installation of an Isolated Web App.
+  kIsolatedWebAppInstall = 34,
+
+  // Used during update of an Isolated Web App.
+  kIsolatedWebAppUpdate = 35,
+
+  // A web app is being uninstalled.
+  kWebAppUninstall = 36,
+
+  // Used during ForceUnregistration of OsIntegrationManger's sub managers.
+  kOsIntegrationForceUnregistration = 37,
+
+  // Used for remote debugging to keep a profile alive when all pages are
+  // closed.
+  kRemoteDebugging = 38,
+
+  // Used by Headless Command Processor to retain the profile used by the
+  // command handler, which does not belong to any window.
+  kHeadlessCommand = 39,
+
+  // Used by glic to ensure that the profile associated with the glic view is
+  // not destroyed while visible.
+  kGlicView = 40,
+
+  // Used by the `ProfilePickerGlicFlowController` to ensure the loaded profile
+  // is not destroyed before opening the `GlicView` instead of relying on
+  // `kWaitingForFirstBrowserWindow`.
+  kWaitingForGlicView = 41,
+
+  kMaxValue = kWaitingForGlicView,
 };
+// LINT.ThenChange(/tools/metrics/histograms/metadata/profile/enums.xml)
 
 std::ostream& operator<<(std::ostream& out,
                          const ProfileKeepAliveOrigin& origin);

@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/http/http_encoder.h"
 
+#include <string>
+
 #include "absl/base/macros.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -90,6 +92,33 @@ TEST(HttpEncoderTest, SerializePriorityUpdateFrame) {
   quiche::test::CompareCharArraysWithHexError(
       "PRIORITY_UPDATE", frame2.data(), frame2.length(),
       reinterpret_cast<char*>(output2), ABSL_ARRAYSIZE(output2));
+}
+
+TEST(HttpEncoderTest, SerializeEmptyOriginFrame) {
+  OriginFrame frame;
+  uint8_t expected[] = {0x0C,   // type (ACCEPT_CH)
+                        0x00};  // length
+
+  std::string output = HttpEncoder::SerializeOriginFrame(frame);
+  quiche::test::CompareCharArraysWithHexError(
+      "ORIGIN", output.data(), output.length(),
+      reinterpret_cast<char*>(expected), ABSL_ARRAYSIZE(expected));
+}
+
+TEST(HttpEncoderTest, SerializeOriginFrame) {
+  OriginFrame frame;
+  frame.origins = {"foo", "bar"};
+  uint8_t expected[] = {0x0C,                // type (ORIGIN)
+                        0x0A,                // length
+                        0x00, 0x003,         // length of origin
+                        0x66, 0x6f,  0x6f,   // origin "foo"
+                        0x00, 0x003,         // length of origin
+                        0x62, 0x61,  0x72};  // origin "bar"
+
+  std::string output = HttpEncoder::SerializeOriginFrame(frame);
+  quiche::test::CompareCharArraysWithHexError(
+      "ORIGIN", output.data(), output.length(),
+      reinterpret_cast<char*>(expected), ABSL_ARRAYSIZE(expected));
 }
 
 TEST(HttpEncoderTest, SerializeAcceptChFrame) {

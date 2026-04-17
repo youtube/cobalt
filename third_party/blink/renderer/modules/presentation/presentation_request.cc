@@ -6,11 +6,9 @@
 
 #include <memory>
 
+#include "base/containers/to_vector.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_capture_latency.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_presentation_source.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_union_presentationsource_usvstring.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
@@ -18,8 +16,6 @@
 #include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/loader/mixed_content_checker.h"
 #include "third_party/blink/renderer/modules/event_target_modules.h"
-#include "third_party/blink/renderer/modules/presentation/presentation_availability.h"
-#include "third_party/blink/renderer/modules/presentation/presentation_availability_callbacks.h"
 #include "third_party/blink/renderer/modules/presentation/presentation_availability_state.h"
 #include "third_party/blink/renderer/modules/presentation/presentation_connection.h"
 #include "third_party/blink/renderer/modules/presentation/presentation_connection_callbacks.h"
@@ -31,56 +27,10 @@
 namespace blink {
 
 namespace {
-
 bool IsKnownProtocolForPresentationUrl(const KURL& url) {
   return url.ProtocolIsInHTTPFamily() || url.ProtocolIs("cast") ||
          url.ProtocolIs("cast-dial");
 }
-
-int GetPlayoutDelay(const PresentationSource& source) {
-  if (!source.hasLatencyHint() || !source.latencyHint()) {
-    return 400;
-  }
-  switch (source.latencyHint()->AsEnum()) {
-    case V8CaptureLatency::Enum::kLow:
-      return 200;
-    case V8CaptureLatency::Enum::kDefault:
-      return 400;
-    case V8CaptureLatency::Enum::kHigh:
-      return 800;
-  }
-}
-
-KURL CreateMirroringUrl(const PresentationSource& source) {
-  int capture_audio = !source.hasAudioPlayback() || !source.audioPlayback() ||
-                              (source.audioPlayback()->AsEnum() ==
-                               V8AudioPlaybackDestination::Enum::kReceiver)
-                          ? 1
-                          : 0;
-  int playout_delay = GetPlayoutDelay(source);
-  // TODO(crbug.com/1267372): Instead of converting a mirroring source into a
-  // URL with a hardcoded Cast receiver app ID, pass the source object directly
-  // to the embedder.
-  return KURL(
-      String::Format("cast:0F5096E8?streamingCaptureAudio=%d&"
-                     "streamingTargetPlayoutDelayMillis=%d",
-                     capture_audio, playout_delay));
-}
-
-KURL CreateUrlFromSource(const ExecutionContext& execution_context,
-                         const PresentationSource& source) {
-  if (!source.hasType()) {
-    return KURL();
-  }
-  switch (source.type().AsEnum()) {
-    case V8PresentationSourceType::Enum::kUrl:
-      return source.hasUrl() ? KURL(execution_context.Url(), source.url())
-                             : KURL();
-    case V8PresentationSourceType::Enum::kMirroring:
-      return CreateMirroringUrl(source);
-  }
-}
-
 }  // anonymous namespace
 
 // static
@@ -88,15 +38,15 @@ PresentationRequest* PresentationRequest::Create(
     ExecutionContext* execution_context,
     const String& url,
     ExceptionState& exception_state) {
-  HeapVector<Member<V8UnionPresentationSourceOrUSVString>> urls(1);
-  urls[0] = MakeGarbageCollected<V8UnionPresentationSourceOrUSVString>(url);
+  Vector<String> urls(1);
+  urls[0] = url;
   return Create(execution_context, urls, exception_state);
 }
 
 // static
 PresentationRequest* PresentationRequest::Create(
     ExecutionContext* execution_context,
-    const HeapVector<Member<V8UnionPresentationSourceOrUSVString>>& sources,
+    const Vector<String>& urls,
     ExceptionState& exception_state) {
   if (execution_context->IsSandboxed(
           network::mojom::blink::WebSandboxFlags::kPresentationController)) {
@@ -111,29 +61,8 @@ PresentationRequest* PresentationRequest::Create(
   }
 
   Vector<KURL> parsed_urls;
-  for (const auto& source : sources) {
-    if (source->IsPresentationSource()) {
-      if (!RuntimeEnabledFeatures::SiteInitiatedMirroringEnabled()) {
-        exception_state.ThrowDOMException(
-            DOMExceptionCode::kNotSupportedError,
-            "You must pass in valid URL strings.");
-        return nullptr;
-      }
-      const KURL source_url = CreateUrlFromSource(
-          *execution_context, *source->GetAsPresentationSource());
-      if (!source_url.IsValid()) {
-        exception_state.ThrowDOMException(
-            DOMExceptionCode::kNotSupportedError,
-            "You must pass in valid presentation sources.");
-        return nullptr;
-      }
-      parsed_urls.push_back(source_url);
-      continue;
-    }
-    DCHECK(source->IsUSVString());
-    const String& url = source->GetAsUSVString();
+  for (const auto& url : urls) {
     const KURL& parsed_url = KURL(execution_context->Url(), url);
-
     if (!parsed_url.IsValid()) {
       exception_state.ThrowDOMException(
           DOMExceptionCode::kSyntaxError,
@@ -150,8 +79,9 @@ PresentationRequest* PresentationRequest::Create(
       return nullptr;
     }
 
-    if (IsKnownProtocolForPresentationUrl(parsed_url))
+    if (IsKnownProtocolForPresentationUrl(parsed_url)) {
       parsed_urls.push_back(parsed_url);
+    }
   }
 
   if (parsed_urls.empty()) {
@@ -176,8 +106,7 @@ ExecutionContext* PresentationRequest::GetExecutionContext() const {
 void PresentationRequest::AddedEventListener(
     const AtomicString& event_type,
     RegisteredEventListener& registered_listener) {
-  EventTargetWithInlineData::AddedEventListener(event_type,
-                                                registered_listener);
+  EventTarget::AddedEventListener(event_type, registered_listener);
   if (event_type == event_type_names::kConnectionavailable) {
     UseCounter::Count(
         GetExecutionContext(),
@@ -188,24 +117,21 @@ void PresentationRequest::AddedEventListener(
 bool PresentationRequest::HasPendingActivity() const {
   // Prevents garbage collecting of this object when not hold by another
   // object but still has listeners registered.
-  if (!GetExecutionContext())
+  if (!GetExecutionContext()) {
     return false;
+  }
 
-  if (HasEventListeners())
-    return true;
-
-  return availability_property_ &&
-         availability_property_->GetState() ==
-             PresentationAvailabilityProperty::kPending;
+  return HasEventListeners();
 }
 
-ScriptPromise PresentationRequest::start(ScriptState* script_state,
-                                         ExceptionState& exception_state) {
+ScriptPromise<PresentationConnection> PresentationRequest::start(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
   if (!script_state->ContextIsValid()) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
         "The PresentationRequest is no longer associated to a frame.");
-    return ScriptPromise();
+    return EmptyPromise();
   }
 
   LocalDOMWindow* window = LocalDOMWindow::From(script_state);
@@ -214,12 +140,13 @@ ScriptPromise PresentationRequest::start(ScriptState* script_state,
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidAccessError,
         "PresentationRequest::start() requires user gesture.");
-    return ScriptPromise();
+    return EmptyPromise();
   }
 
   PresentationController* controller = PresentationController::From(*window);
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
-      script_state, exception_state.GetContext());
+  auto* resolver =
+      MakeGarbageCollected<ScriptPromiseResolver<PresentationConnection>>(
+          script_state, exception_state.GetContext());
 
   controller->GetPresentationService()->StartPresentation(
       urls_,
@@ -229,23 +156,25 @@ ScriptPromise PresentationRequest::start(ScriptState* script_state,
   return resolver->Promise();
 }
 
-ScriptPromise PresentationRequest::reconnect(ScriptState* script_state,
-                                             const String& id,
-                                             ExceptionState& exception_state) {
+ScriptPromise<PresentationConnection> PresentationRequest::reconnect(
+    ScriptState* script_state,
+    const String& id,
+    ExceptionState& exception_state) {
   PresentationController* controller =
       PresentationController::FromContext(GetExecutionContext());
   if (!controller) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
         "The PresentationRequest is no longer associated to a frame.");
-    return ScriptPromise();
+    return EmptyPromise();
   }
 
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
-      script_state, exception_state.GetContext());
+  auto* resolver =
+      MakeGarbageCollected<ScriptPromiseResolver<PresentationConnection>>(
+          script_state, exception_state.GetContext());
 
   ControllerPresentationConnection* existing_connection =
-      controller->FindExistingConnection(urls_, id);
+      controller->FindExistingConnection(base::ToVector(urls_, ToWebURL), id);
   if (existing_connection) {
     controller->GetPresentationService()->ReconnectPresentation(
         urls_, id,
@@ -263,7 +192,7 @@ ScriptPromise PresentationRequest::reconnect(ScriptState* script_state,
   return resolver->Promise();
 }
 
-ScriptPromise PresentationRequest::getAvailability(
+ScriptPromise<PresentationAvailability> PresentationRequest::getAvailability(
     ScriptState* script_state,
     ExceptionState& exception_state) {
   PresentationController* controller =
@@ -272,19 +201,39 @@ ScriptPromise PresentationRequest::getAvailability(
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
         "The PresentationRequest is no longer associated to a frame.");
-    return ScriptPromise();
+    return EmptyPromise();
   }
 
-  if (!availability_property_) {
-    availability_property_ =
-        MakeGarbageCollected<PresentationAvailabilityProperty>(
-            ExecutionContext::From(script_state));
-
-    controller->GetAvailabilityState()->RequestAvailability(
-        urls_, MakeGarbageCollected<PresentationAvailabilityCallbacks>(
-                   availability_property_, urls_));
+  auto* resolver =
+      MakeGarbageCollected<ScriptPromiseResolver<PresentationAvailability>>(
+          script_state, exception_state.GetContext());
+  auto screen_availability =
+      controller->GetAvailabilityState()->GetScreenAvailability(urls_);
+  // Reject Promise if screen availability is unsupported for all URLs.
+  if (screen_availability == mojom::blink::ScreenAvailability::DISABLED) {
+    resolver->RejectWithDOMException(
+        DOMExceptionCode::kNotSupportedError,
+        PresentationAvailability::kNotSupportedErrorInfo);
+    return resolver->Promise();
   }
-  return availability_property_->Promise(script_state->World());
+
+  // Create availability object the first time getAvailability() is called.
+  if (!availability_) {
+    availability_ = PresentationAvailability::Take(
+        resolver->GetExecutionContext(), urls_,
+        screen_availability == mojom::blink::ScreenAvailability::AVAILABLE);
+  }
+
+  if (screen_availability != mojom::blink::ScreenAvailability::UNKNOWN) {
+    // Resolve Promise with availability object if screen availability is known.
+    resolver->Resolve(availability_);
+  } else {
+    // Start request for screen availability if it is unknown.
+    controller->GetAvailabilityState()->RequestAvailability(availability_);
+    availability_->AddResolver(resolver);
+  }
+
+  return resolver->Promise();
 }
 
 const Vector<KURL>& PresentationRequest::Urls() const {
@@ -292,9 +241,9 @@ const Vector<KURL>& PresentationRequest::Urls() const {
 }
 
 void PresentationRequest::Trace(Visitor* visitor) const {
-  visitor->Trace(availability_property_);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
   ExecutionContextClient::Trace(visitor);
+  visitor->Trace(availability_);
 }
 
 PresentationRequest::PresentationRequest(ExecutionContext* execution_context,

@@ -93,7 +93,6 @@ bool SyncMessage::ReadSyncHeader(const Message& msg, SyncHeader* header) {
   bool result = iter.ReadInt(&header->message_id);
   if (!result) {
     NOTREACHED();
-    return false;
   }
 
   return true;

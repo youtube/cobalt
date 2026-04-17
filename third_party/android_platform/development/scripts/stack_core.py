@@ -16,7 +16,6 @@
 
 """stack symbolizes native crash dumps."""
 
-import itertools
 import logging
 import multiprocessing
 import os
@@ -24,6 +23,7 @@ import re
 import struct
 import subprocess
 import sys
+import tempfile
 import time
 import zipfile
 
@@ -31,35 +31,38 @@ import symbol
 
 from pylib import constants
 
-UNKNOWN = '<unknown>'
-HEAP = '[heap]'
-STACK = '[stack]'
 _DEFAULT_JOBS=8
 _CHUNK_SIZE = 1000
 
 _FALLBACK_SO = 'libmonochrome.so'
 
+_LIB_UNSTRIPPED = 'lib.unstripped'
+
+_LLVM_READELF = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir,
+                             os.pardir, os.pardir, 'third_party', 'llvm-build',
+                             'Release+Asserts', 'bin', 'llvm-readelf')
+
 # pylint: disable=line-too-long
 
-_ABI_LINE = re.compile('ABI: \'(?P<abi>[a-z0-9A-Z]+)\'')
-_PROCESS_INFO_LINE = re.compile('(pid: [0-9]+, tid: [0-9]+.*)')
+_ABI_LINE = re.compile(r'ABI: \'(?P<abi>[a-z0-9A-Z]+)\'')
+_PROCESS_INFO_LINE = re.compile(r'(pid: [0-9]+, tid: [0-9]+.*)')
 # Same as above, but used to extract the pid.
-_PROCESS_INFO_PID = re.compile('pid: ([0-9]+)')
-_SIGNAL_LINE = re.compile('(signal [0-9]+ \(.*\).*)')
-_REGISTER_LINE = re.compile('(([ ]*[0-9a-z]{2} [0-9a-f]{8}){4})')
-_THREAD_LINE = re.compile('(.*)(\-\-\- ){15}\-\-\-')
-_DALVIK_JNI_THREAD_LINE = re.compile("(\".*\" prio=[0-9]+ tid=[0-9]+ NATIVE.*)")
-_DALVIK_NATIVE_THREAD_LINE = re.compile("(\".*\" sysTid=[0-9]+ nice=[0-9]+.*)")
-_JAVA_STDERR_LINE = re.compile("([0-9]+)\s+[0-9]+\s+.\s+System.err:\s*(.+)")
+_PROCESS_INFO_PID = re.compile(r'pid: ([0-9]+)')
+_SIGNAL_LINE = re.compile(r'(signal [0-9]+ \(.*\).*)')
+_REGISTER_LINE = re.compile(r'(([ ]*[0-9a-z]{2} [0-9a-f]{8}){4})')
+_THREAD_LINE = re.compile(r'(.*)(\-\-\- ){15}\-\-\-')
+_DALVIK_JNI_THREAD_LINE = re.compile(r"(\".*\" prio=[0-9]+ tid=[0-9]+ NATIVE.*)")
+_DALVIK_NATIVE_THREAD_LINE = re.compile(r"(\".*\" sysTid=[0-9]+ nice=[0-9]+.*)")
+_JAVA_STDERR_LINE = re.compile(r"([0-9]+)\s+[0-9]+\s+.\s+System.err:\s*(.+)")
 _MISC_HEADER = re.compile(
-    '(?:Tombstone written to:|Abort message:|Revision:|Build fingerprint:).*')
+    r'(?:Tombstone written to:|Abort message:|Revision:|Build fingerprint:).*')
 # A header used by tooling to mark a line that should be considered useful.
 # e.g. build/android/pylib/symbols/expensive_line_transformer.py
-_GENERIC_USEFUL_LOG_HEADER = re.compile('Generic useful log header: .*')
+_GENERIC_USEFUL_LOG_HEADER = re.compile(r'Generic useful log header: .*')
 
 # Matches LOG(FATAL) lines, like the following example:
 #   [FATAL:source_file.cc(33)] Check failed: !instances_.empty()
-_LOG_FATAL_LINE = re.compile('(\[FATAL\:.*\].*)$')
+_LOG_FATAL_LINE = re.compile(r'(\[FATAL\:.*\].*)$')
 
 # Note that both trace and value line matching allow for variable amounts of
 # whitespace (e.g. \t). This is because the we want to allow for the stack
@@ -73,7 +76,7 @@ _LOG_FATAL_LINE = re.compile('(\[FATAL\:.*\].*)$')
 #   03-25 00:51:05.520 I/DEBUG ( 65): #00 pc 001cf42e /data/data/com.my.project/lib/libmyproject.so
 # Please note the spacing differences.
 _TRACE_LINE = re.compile(
-    '(.*)\#(?P<frame>[0-9]+)[ \t]+(..)[ \t]+(0x)?(?P<address>[0-9a-f]{0,16})[ \t]+(?P<lib>[^\r\n \t]*)(?P<symbol_present> \((?P<symbol_name>.*)\))?'
+    r'(.*)\#(?P<frame>[0-9]+)[ \t]+(..)[ \t]+(0x)?(?P<address>[0-9a-f]{0,16})[ \t]+(?P<lib>[^\r\n \t]*)(?P<symbol_present> \((?P<symbol_name>.*)\))?'
 )
 
 # Matches lines emitted by src/base/debug/stack_trace_android.cc, like:
@@ -90,7 +93,7 @@ _DEBUG_TRACE_LINE = re.compile(r'(.*)#(?P<frame>[0-9]+) 0x[0-9a-f]{8,16} '
 #   03-25 00:51:05.530 I/DEBUG ( 65): bea4170c 8018e4e9 /data/data/com.my.project/lib/libmyproject.so
 # Again, note the spacing differences.
 _VALUE_LINE = re.compile(
-    '(.*)([0-9a-f]{8,16})[ \t]+([0-9a-f]{8,16})[ \t]+([^\r\n \t]*)( \((.*)\))?')
+    r'(.*)([0-9a-f]{8,16})[ \t]+([0-9a-f]{8,16})[ \t]+([^\r\n \t]*)( \((.*)\))?')
 # Lines from 'code around' sections of the output will be matched before
 # value lines because otheriwse the 'code around' sections will be confused as
 # value lines.
@@ -98,17 +101,27 @@ _VALUE_LINE = re.compile(
 # Examples include:
 #   801cf40c ffffc4cc 00b2f2c5 00b2f1c7 00c1e1a8
 #   03-25 00:51:05.530 I/DEBUG ( 65): 801cf40c ffffc4cc 00b2f2c5 00b2f1c7 00c1e1a8
-_CODE_LINE = re.compile('(.*)[ \t]*[a-f0-9]{8,16}[ \t]*[a-f0-9]{8,16}' +
-                        '[ \t]*[a-f0-9]{8,16}[ \t]*[a-f0-9]{8,16}' +
-                        '[ \t]*[a-f0-9]{8,16}[ \t]*[ \r\n]')
+_CODE_LINE = re.compile(r'(.*)[ \t]*[a-f0-9]{8,16}[ \t]*[a-f0-9]{8,16}' +
+                        r'[ \t]*[a-f0-9]{8,16}[ \t]*[a-f0-9]{8,16}' +
+                        r'[ \t]*[a-f0-9]{8,16}[ \t]*[ \r\n]')
 
 # This pattern is used to find shared library offset in APK.
 # Example:
 #    (offset 0x568000)
-_SHARED_LIB_OFFSET_IN_APK = re.compile(' \(offset 0x(?P<offset>[0-9a-f]{0,16})\)')
+_SHARED_LIB_OFFSET_IN_APK = re.compile(r' \(offset 0x(?P<offset>[0-9a-f]{0,16})\)')
 
 # pylint: enable=line-too-long
 
+def _BuildIdFromElf(elf_path):
+  """Returns the Build ID for the given binary."""
+  args = [_LLVM_READELF, '-n', elf_path]
+  stdout = subprocess.check_output(args, encoding='ascii')
+  match = re.search(r'Build ID: (\w+)', stdout)
+  if not match:
+    log.warning('Build ID not found in %s' % elf_path)
+    # Return different values for different libs when ID not found.
+    return 'Build ID not found %s' % elf_path
+  return match.group(1)
 
 def PrintTraceLines(trace_lines):
   """Print back trace."""
@@ -188,23 +201,19 @@ def StreamingConvertTrace(_, load_vaddrs, more_info, fallback_so_file,
         print('Symbolizing stack using ABI=' + arch)
         symbol.ARCH = arch
     ResolveCrashSymbol(list(useful_lines), more_info, llvm_symbolizer)
+    if flush:
+      sys.stdout.flush()
 
   preprocessor = PreProcessLog(load_vaddrs, apks_directory)
   for line in iter(sys.stdin.readline, b''):
     if not line: # EOF
       break
-    if pass_through:
-      sys.stdout.write(line)
-      if flush:
-        sys.stdout.flush()
     maybe_line, maybe_so_dir = preprocessor([line])
     useful_lines.extend(maybe_line)
     so_dirs.extend(maybe_so_dir)
     if in_stack:
       if not maybe_line:
         ConvertStreamingChunk()
-        if flush:
-          sys.stdout.flush()
         so_dirs = []
         useful_lines = []
         in_stack = False
@@ -212,6 +221,10 @@ def StreamingConvertTrace(_, load_vaddrs, more_info, fallback_so_file,
       if _TRACE_LINE.match(line) or _DEBUG_TRACE_LINE.match(line) or \
           _VALUE_LINE.match(line) or _CODE_LINE.match(line):
         in_stack = True
+    if pass_through:
+      sys.stdout.write(line)
+      if flush:
+        sys.stdout.flush()
   if in_stack:
     ConvertStreamingChunk()
 
@@ -456,7 +469,6 @@ def ResolveCrashSymbol(lines, more_info, llvm_symbolizer):
       frame, code_addr, area, _, symbol_name = match.group(
           'frame', 'address', 'lib', 'symbol_present', 'symbol_name')
       frame = int(frame)
-      logging.debug('Found trace line: %s' % line.strip())
 
       if frame <= last_frame and (trace_lines or value_lines):
         java_lines = []
@@ -469,45 +481,67 @@ def ResolveCrashSymbol(lines, more_info, llvm_symbolizer):
         pid = -1
       last_frame = frame
 
-      if area in (UNKNOWN, HEAP, STACK):
-        trace_lines.append((code_addr, '', area))
+      if not symbol_name:
+        symbol_name = ''
+
+      if not area.endswith('.so'):
+        logging.debug('Library is not a .so file. path=%s', area)
+        trace_lines.append((code_addr, symbol_name, area))
       else:
-        logging.debug('Identified lib: %s' % area)
+        logging.debug('Identified lib: %s', area)
         # If a calls b which further calls c and c is inlined to b, we want to
         # display "a -> b -> c" in the stack trace instead of just "a -> c"
         library = os.path.join(symbol.SYMBOLS_DIR,
                                symbol.TranslateLibPath(area))
-        info = llvm_symbolizer.GetSymbolInformation(library, int(code_addr,16))
-        logging.debug('symbol information: %s' % info)
-        nest_count = len(info) - 1
-        for source_symbol, source_location in info:
-          if nest_count > 0:
-            nest_count = nest_count - 1
-            trace_lines.append(('v------>', source_symbol, source_location))
-          elif '<UNKNOWN>' in source_symbol and symbol_name:
-            # If the symbolizer couldn't find a symbol name, but the trace had
-            # one, use what the trace had.
-            trace_lines.append((code_addr, symbol_name, source_location))
-          else:
-            trace_lines.append((code_addr,
-                                source_symbol,
-                                source_location))
+        if not llvm_symbolizer.IsValidTarget(library):
+          # The library was not found in SYMBOLS_DIR, it is probably a system
+          # library.
+          logging.debug('Library is not a valid target. path=%s', library)
+          trace_lines.append((code_addr, symbol_name, area))
+        else:
+          info = llvm_symbolizer.GetSymbolInformation(library,
+                                                      int(code_addr,16))
+          logging.debug('symbol information: %s', info)
+          nest_count = len(info) - 1
+          for source_symbol, source_location in info:
+            if nest_count > 0:
+              nest_count = nest_count - 1
+              trace_lines.append(('v------>', source_symbol, source_location))
+            elif '<UNKNOWN>' in source_symbol and symbol_name:
+              # If the symbolizer couldn't find a symbol name, but the trace had
+              # one, use what the trace had.
+              trace_lines.append((code_addr, symbol_name, source_location))
+            else:
+              trace_lines.append((code_addr,
+                                  source_symbol,
+                                  source_location))
 
     match = _VALUE_LINE.match(line)
     if match:
+      logging.debug('Found value line: %s', line.strip())
       (_, addr, value, area, _, symbol_name) = match.groups()
-      if area == UNKNOWN or area == HEAP or area == STACK or not area:
-        value_lines.append((addr, value, '', area))
+      if not symbol_name:
+        symbol_name = ''
+      if not area.endswith('.so'):
+        logging.debug('Library is not a .so file. path=%s', area)
+        value_lines.append((addr, value, symbol_name, area))
       else:
         library = os.path.join(symbol.SYMBOLS_DIR,
                                symbol.TranslateLibPath(area))
-        info = llvm_symbolizer.GetSymbolInformation(library, int(value,16))
-        source_symbol, source_location = info.pop()
+        if not llvm_symbolizer.IsValidTarget(library):
+          # The library was not found in SYMBOLS_DIR, it is probably a system
+          # library.
+          logging.debug('Library is not a valid target. path=%s', library)
+          value_lines.append((addr, value, symbol_name, area))
+        else:
+          info = llvm_symbolizer.GetSymbolInformation(library, int(value,16))
+          logging.debug('symbol information: %s', info)
+          source_symbol, source_location = info.pop()
 
-        value_lines.append((addr,
-                            value,
-                            source_symbol,
-                            source_location))
+          value_lines.append((addr,
+                              value,
+                              source_symbol,
+                              source_location))
 
   java_lines = []
   if pid != -1 and pid in java_stderr_by_pid:
@@ -532,7 +566,7 @@ def GetUncompressedSharedLibraryFromAPK(apkname, offset):
   FILE_NAME_LEN_OFFSET = 26
   FILE_NAME_OFFSET = 30
   soname = ""
-  sosize = 0
+  so_build_id = ''
   try:
     with zipfile.ZipFile(apkname, 'r') as apk:
       for infoList in apk.infolist():
@@ -548,31 +582,38 @@ def GetUncompressedSharedLibraryFromAPK(apkname, offset):
             f.seek(file_offset)
             if offset == file_offset and f.read(4) == b"\x7fELF":
               soname = infoList.filename.replace('crazy.', '')
-              sosize = infoList.file_size
+              with tempfile.TemporaryDirectory() as tmp_dir:
+                extracted_so_file = apk.extract(infoList.filename, tmp_dir)
+                so_build_id = _BuildIdFromElf(extracted_so_file)
               break
   except zipfile.BadZipfile:
     logging.warning("Ignorning bad zip file %s", apkname)
-    return "", 0
-  return soname, sosize
+    return "", ""
+  return soname, so_build_id
 
 
-def _GetSharedLibraryInHost(soname, sosize, dirs):
-  """Find a shared library by name in a list of directories.
+def _GetSharedLibraryInHost(soname, so_build_id, dirs):
+  """Find a shared library in a list of directories.
+
+  Match by name and build ID with the unstripped libraries under
+  the build output dir.
 
   Args:
     soname: library name (e.g. libfoo.so)
-    sosize: library file size to match.
+    so_build_id: build ID of the library file
     dirs: list of directories to look for the corresponding file.
   Returns:
     host library path if found, or None
   """
+  so_basename = os.path.basename(soname)
   for d in dirs:
-    host_so_file = os.path.join(d, os.path.basename(soname))
-    if not os.path.isfile(host_so_file):
+    host_so_file = os.path.join(d, so_basename)
+    unstripped_so_file = os.path.join(d, _LIB_UNSTRIPPED, so_basename)
+    if not os.path.isfile(unstripped_so_file):
       continue
-    if os.path.getsize(host_so_file) != sosize:
+    if _BuildIdFromElf(unstripped_so_file) != so_build_id:
       continue
-    logging.debug("%s match to the one in APK" % host_so_file)
+    logging.debug("%s match to the one in APK", host_so_file)
     return host_so_file
 
 
@@ -625,15 +666,15 @@ def _FindSharedLibraryFromAPKs(output_directory, apks_directory, offset):
 
   shared_libraries = []
   for apk in apks:
-    soname, sosize = GetUncompressedSharedLibraryFromAPK(apk, offset)
+    soname, so_build_id = GetUncompressedSharedLibraryFromAPK(apk, offset)
     if soname == "":
       continue
     dirs = [output_directory] + [
         os.path.join(output_directory, x)
         for x in os.listdir(output_directory)
-        if os.path.exists(os.path.join(output_directory, x, 'lib.unstripped'))
+        if os.path.exists(os.path.join(output_directory, x, _LIB_UNSTRIPPED))
     ]
-    host_so_file = _GetSharedLibraryInHost(soname, sosize, dirs)
+    host_so_file = _GetSharedLibraryInHost(soname, so_build_id, dirs)
     if host_so_file:
       shared_libraries += [(soname, host_so_file)]
   # If there are more than one libraries found, it means detecting

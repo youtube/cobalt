@@ -76,7 +76,7 @@ class FakeStreamActionObserver : public mojom::StreamActionObserver {
 
  private:
   size_t num_stream_action_state_calls_ = 0;
-  raw_ptr<TaskRunner, ExperimentalAsh> task_runner_;
+  raw_ptr<TaskRunner> task_runner_;
   mojo::Receiver<mojom::StreamActionObserver> receiver_;
 };
 
@@ -97,6 +97,8 @@ class EcheStreamStatusChangeHandlerTest : public testing::Test {
         std::make_unique<eche_app::EcheConnectionStatusHandler>();
     apps_launch_info_provider_ = std::make_unique<AppsLaunchInfoProvider>(
         connection_status_handler_.get());
+    apps_launch_info_provider_->SetAppLaunchInfo(
+        mojom::AppStreamLaunchEntryPoint::APPS_LIST);
     handler_ = std::make_unique<EcheStreamStatusChangeHandler>(
         apps_launch_info_provider_.get(), connection_status_handler_.get());
     handler_->AddObserver(&fake_observer_);

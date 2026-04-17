@@ -31,7 +31,7 @@ class SessionStorageManager : public KeyedService,
  public:
   struct ValueChange {
     ValueChange(std::string key,
-                absl::optional<base::Value> old_value,
+                std::optional<base::Value> old_value,
                 base::Value* new_value);
     ~ValueChange();
     ValueChange(const ValueChange& other) = delete;
@@ -40,11 +40,11 @@ class SessionStorageManager : public KeyedService,
 
     std::string key;
 
-    absl::optional<base::Value> old_value;
+    std::optional<base::Value> old_value;
 
     // Owned by the SessionStorageManager. Caller cannot rely on it after any
     // subsequent calls to SessionStorageManager methods.
-    raw_ptr<const base::Value> new_value;
+    raw_ptr<const base::Value, DanglingUntriaged> new_value;
   };
 
   SessionStorageManager(size_t quota_bytes_per_extension,
@@ -59,6 +59,10 @@ class SessionStorageManager : public KeyedService,
 
   // Retrieves the factory instance for the SessionStorageManager.
   static BrowserContextKeyedServiceFactory* GetFactory();
+
+  // Returns a vector with all keys found in storage for the given
+  // `extension_id`.
+  std::vector<std::string> GetKeys(const ExtensionId& extension_id) const;
 
   // Returns the value for the given `extension_id` and `key`, or null if none
   // exists.
@@ -77,12 +81,13 @@ class SessionStorageManager : public KeyedService,
       const ExtensionId& extension_id) const;
 
   // Stores multiple `values` for an `extension_id`. If storing the values
-  // succeeds, returns true and populates `changes` with the inserted values. Is
+  // succeeds, returns true and populates `changes` with the inserted values. If
   // storing the values fails (e.g. due to going over quota), returns false and
-  // leaves `changes` untouched.
+  // leaves `changes` untouched, storing an error in `error`.
   bool Set(const ExtensionId& extension_id,
            std::map<std::string, base::Value> values,
-           std::vector<ValueChange>& changes);
+           std::vector<ValueChange>& changes,
+           std::string* error);
 
   // Removes multiple `keys` for an `extension_id`. Populates `changes` with the
   // removed values.
@@ -132,6 +137,9 @@ class SessionStorageManager : public KeyedService,
     explicit ExtensionStorage(size_t quota_bytes);
     ~ExtensionStorage();
 
+    // Returns a vector with keys found in storage.
+    std::vector<std::string> GetKeys() const;
+
     // Returns a map with keys and values found in storage.
     std::map<std::string, const base::Value*> Get(
         const std::vector<std::string>& keys) const;
@@ -140,9 +148,11 @@ class SessionStorageManager : public KeyedService,
     std::map<std::string, const base::Value*> GetAll() const;
 
     // Stores the input values in the values map, and updates the changes list
-    // if a change occurs.
+    // if a change occurs. If storing fails, returns false and populates
+    // `error`.
     bool Set(std::map<std::string, base::Value> input_values,
-             std::vector<ValueChange>& changes);
+             std::vector<ValueChange>& changes,
+             std::string* error);
 
     // Removes multiple keys from the storage.
     void Remove(const std::vector<std::string>& keys,

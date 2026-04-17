@@ -8,4 +8,10 @@ namespace blink {
 
 const int kMinimumWindowSize = 100;
 
+// TODO(b/307160156, b/307182741); Investigate where else is the window size
+// limited to be able to drop this even more until 9 instead 29.
+const int kMinimumBorderlessWindowSize = 29;
+
+const base::TimeDelta kNewContentRenderingDelay = base::Seconds(4);
+
 }  // namespace blink

@@ -12,11 +12,11 @@
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/extensions/api/braille_display_private/braille_controller.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/profiles/profile_manager.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ash/accessibility/accessibility_manager.h"
 #include "chrome/browser/ash/login/lock/screen_locker.h"
+#include "extensions/browser/extensions_browser_client.h"
 #endif
 
 namespace OnDisplayStateChanged =
@@ -48,8 +48,7 @@ BrailleDisplayPrivateAPI::BrailleDisplayPrivateAPI(
     : profile_(Profile::FromBrowserContext(context)),
       event_delegate_(new DefaultEventDelegate(this, profile_)) {}
 
-BrailleDisplayPrivateAPI::~BrailleDisplayPrivateAPI() {
-}
+BrailleDisplayPrivateAPI::~BrailleDisplayPrivateAPI() = default;
 
 void BrailleDisplayPrivateAPI::Shutdown() {
   event_delegate_.reset();
@@ -76,8 +75,9 @@ void BrailleDisplayPrivateAPI::OnBrailleDisplayStateChanged(
 
 void BrailleDisplayPrivateAPI::OnBrailleKeyEvent(const KeyEvent& key_event) {
   // Key events only go to extensions of the active profile.
-  if (!IsProfileActive())
+  if (!IsProfileActive()) {
     return;
+  }
   std::unique_ptr<Event> event(
       new Event(events::BRAILLE_DISPLAY_PRIVATE_ON_KEY_EVENT,
                 OnKeyEvent::kEventName, OnKeyEvent::Create(key_event)));
@@ -85,12 +85,9 @@ void BrailleDisplayPrivateAPI::OnBrailleKeyEvent(const KeyEvent& key_event) {
 }
 
 bool BrailleDisplayPrivateAPI::IsProfileActive() {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  // Since we are creating one instance per profile / user, we should be fine
-  // comparing against the active user. That said - if we ever change that,
-  // this code will need to be changed.
-  return profile_->IsSameOrParent(ProfileManager::GetActiveUserProfile());
-#else  // !BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
+  return extensions::ExtensionsBrowserClient::Get()->IsActiveContext(profile_);
+#else  // !BUILDFLAG(IS_CHROMEOS)
   return true;
 #endif
 }
@@ -103,8 +100,9 @@ void BrailleDisplayPrivateAPI::SetEventDelegateForTest(
 void BrailleDisplayPrivateAPI::OnListenerAdded(
     const EventListenerInfo& details) {
   BrailleController* braille_controller = BrailleController::GetInstance();
-  if (!scoped_observation_.IsObservingSource(braille_controller))
+  if (!scoped_observation_.IsObservingSource(braille_controller)) {
     scoped_observation_.Observe(braille_controller);
+  }
 }
 
 void BrailleDisplayPrivateAPI::OnListenerRemoved(
@@ -140,57 +138,64 @@ bool BrailleDisplayPrivateAPI::DefaultEventDelegate::HasListener() {
 }
 
 namespace api {
-bool BrailleDisplayPrivateGetDisplayStateFunction::Prepare() {
-  return true;
+
+ExtensionFunction::ResponseAction
+BrailleDisplayPrivateGetDisplayStateFunction::Run() {
+  auto get_display_state_on_io = []() {
+    return BrailleController::GetInstance()->GetDisplayState()->ToValue();
+  };
+  bool did_post_task =
+      content::GetIOThreadTaskRunner({})->PostTaskAndReplyWithResult(
+          FROM_HERE, base::BindOnce(get_display_state_on_io),
+          base::BindOnce(
+              &BrailleDisplayPrivateGetDisplayStateFunction::ReplyWithState,
+              this));
+  DCHECK(did_post_task);
+  return RespondLater();
 }
 
-void BrailleDisplayPrivateGetDisplayStateFunction::Work() {
-  SetResult(base::Value(
-      BrailleController::GetInstance()->GetDisplayState()->ToValue()));
-}
-
-bool BrailleDisplayPrivateGetDisplayStateFunction::Respond() {
-  return true;
+void BrailleDisplayPrivateGetDisplayStateFunction::ReplyWithState(
+    base::Value::Dict state) {
+  Respond(WithArguments(std::move(state)));
 }
 
 BrailleDisplayPrivateWriteDotsFunction::
-BrailleDisplayPrivateWriteDotsFunction() {
-}
+    BrailleDisplayPrivateWriteDotsFunction() = default;
 
 BrailleDisplayPrivateWriteDotsFunction::
-~BrailleDisplayPrivateWriteDotsFunction() {
-}
+    ~BrailleDisplayPrivateWriteDotsFunction() = default;
 
-bool BrailleDisplayPrivateWriteDotsFunction::Prepare() {
+ExtensionFunction::ResponseAction
+BrailleDisplayPrivateWriteDotsFunction::Run() {
   params_ = WriteDots::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params_);
-  EXTENSION_FUNCTION_VALIDATE(
-      params_->cells.size() >=
-      static_cast<size_t>(params_->columns * params_->rows));
-  return true;
+
+  bool did_post_task = content::GetIOThreadTaskRunner({})->PostTaskAndReply(
+      FROM_HERE,
+      base::BindOnce(&BrailleDisplayPrivateWriteDotsFunction::WriteDotsOnIO,
+                     this),
+      base::BindOnce(&BrailleDisplayPrivateWriteDotsFunction::Respond, this,
+                     NoArguments()));
+  DCHECK(did_post_task);
+  return RespondLater();
 }
 
-void BrailleDisplayPrivateWriteDotsFunction::Work() {
+void BrailleDisplayPrivateWriteDotsFunction::WriteDotsOnIO() {
   BrailleController::GetInstance()->WriteDots(params_->cells, params_->columns,
                                               params_->rows);
 }
 
-bool BrailleDisplayPrivateWriteDotsFunction::Respond() {
-  return true;
-}
-
 ExtensionFunction::ResponseAction
 BrailleDisplayPrivateUpdateBluetoothBrailleDisplayAddressFunction::Run() {
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
-  NOTREACHED();
-  return RespondNow(Error("Unsupported on this platform."));
-#else
+#if BUILDFLAG(IS_CHROMEOS)
   EXTENSION_FUNCTION_VALIDATE(args().size() >= 1);
   EXTENSION_FUNCTION_VALIDATE(args()[0].is_string());
   const std::string& address = args()[0].GetString();
   ash::AccessibilityManager::Get()->UpdateBluetoothBrailleDisplayAddress(
       address);
   return RespondNow(NoArguments());
+#else
+  NOTREACHED();
 #endif
 }
 

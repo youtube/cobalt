@@ -4,12 +4,10 @@
 
 #import "ios/components/credential_provider_extension/password_spec_fetcher.h"
 
+#import <string_view>
+
 #import "base/base64.h"
 #import "components/autofill/core/browser/proto/password_requirements.pb.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 using autofill::DomainSuggestions;
 using autofill::PasswordRequirementsSpec;
@@ -32,7 +30,7 @@ NSString* const kAltQueryValue = @"proto";
 // Timeout for the spec fetching request.
 const NSTimeInterval kPasswordSpecTimeout = 10;
 
-}
+}  // namespace
 
 @interface PasswordSpecFetcher ()
 
@@ -114,8 +112,8 @@ const NSTimeInterval kPasswordSpecTimeout = 10;
 
   // Parse the proto and execute completion.
   std::string decoded;
-  const base::StringPiece encoded_bytes(static_cast<const char*>([data bytes]),
-                                        [data length]);
+  const std::string_view encoded_bytes(static_cast<const char*>([data bytes]),
+                                       [data length]);
   if (base::Base64Decode(encoded_bytes, &decoded)) {
     DomainSuggestions suggestions;
     suggestions.ParseFromString(decoded);

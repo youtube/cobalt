@@ -13,30 +13,30 @@ namespace v8 {
 namespace internal {
 
 MaglevSafepointTable::MaglevSafepointTable(Isolate* isolate, Address pc,
-                                           Code code)
-    : MaglevSafepointTable(code.InstructionStart(isolate, pc),
-                           code.safepoint_table_address()) {
-  DCHECK(code.is_maglevved());
+                                           Tagged<Code> code)
+    : MaglevSafepointTable(code->InstructionStart(isolate, pc),
+                           code->safepoint_table_address()) {
+  DCHECK(code->is_maglevved());
 }
 
 MaglevSafepointTable::MaglevSafepointTable(Isolate* isolate, Address pc,
-                                           GcSafeCode code)
-    : MaglevSafepointTable(code.InstructionStart(isolate, pc),
-                           code.safepoint_table_address()) {
-  DCHECK(code.is_maglevved());
+                                           Tagged<GcSafeCode> code)
+    : MaglevSafepointTable(code->InstructionStart(isolate, pc),
+                           code->safepoint_table_address()) {
+  DCHECK(code->is_maglevved());
 }
 
 MaglevSafepointTable::MaglevSafepointTable(Address instruction_start,
                                            Address safepoint_table_address)
     : instruction_start_(instruction_start),
       safepoint_table_address_(safepoint_table_address),
+      stack_slots_(base::Memory<SafepointTableStackSlotsField_t>(
+          safepoint_table_address + kStackSlotsOffset)),
       length_(base::Memory<int>(safepoint_table_address + kLengthOffset)),
       entry_configuration_(base::Memory<uint32_t>(safepoint_table_address +
                                                   kEntryConfigurationOffset)),
       num_tagged_slots_(base::Memory<uint32_t>(safepoint_table_address +
-                                               kNumTaggedSlotsOffset)),
-      num_untagged_slots_(base::Memory<uint32_t>(safepoint_table_address +
-                                                 kNumUntaggedSlotsOffset)) {}
+                                               kNumTaggedSlotsOffset)) {}
 
 int MaglevSafepointTable::find_return_pc(int pc_offset) {
   for (int i = 0; i < length(); i++) {
@@ -73,34 +73,34 @@ MaglevSafepointEntry MaglevSafepointTable::FindEntry(Address pc) const {
   // This allows us to elide emitting entries for trivial calls.
   int deopt_index = MaglevSafepointEntry::kNoDeoptIndex;
   int trampoline_pc = MaglevSafepointEntry::kNoTrampolinePC;
-  uint8_t num_pushed_registers = 0;
+  uint8_t num_extra_spill_slots = 0;
   int tagged_register_indexes = 0;
 
   return MaglevSafepointEntry(pc_offset, deopt_index, num_tagged_slots_,
-                              num_untagged_slots_, num_pushed_registers,
-                              tagged_register_indexes, trampoline_pc);
+                              num_extra_spill_slots, tagged_register_indexes,
+                              trampoline_pc);
 }
 
 // static
 MaglevSafepointEntry MaglevSafepointTable::FindEntry(Isolate* isolate,
-                                                     GcSafeCode code,
+                                                     Tagged<GcSafeCode> code,
                                                      Address pc) {
   MaglevSafepointTable table(isolate, pc, code);
   return table.FindEntry(pc);
 }
 
 void MaglevSafepointTable::Print(std::ostream& os) const {
-  os << "Safepoints (entries = " << length_ << ", byte size = " << byte_size()
-     << ", tagged slots = " << num_tagged_slots_
-     << ", untagged slots = " << num_untagged_slots_ << ")\n";
+  os << "Safepoints (stack slots = " << stack_slots_
+     << ", entries = " << length_ << ", byte size = " << byte_size()
+     << ", tagged slots = " << num_tagged_slots_ << ")\n";
 
   for (int index = 0; index < length_; index++) {
     MaglevSafepointEntry entry = GetEntry(index);
     os << reinterpret_cast<const void*>(instruction_start_ + entry.pc()) << " "
        << std::setw(6) << std::hex << entry.pc() << std::dec;
 
-    os << "  num pushed registers: "
-       << static_cast<int>(entry.num_pushed_registers());
+    os << "  num extra spill slots: "
+       << static_cast<int>(entry.num_extra_spill_slots());
 
     if (entry.tagged_register_indexes() != 0) {
       os << "  registers: ";
@@ -142,7 +142,7 @@ int MaglevSafepointTableBuilder::UpdateDeoptimizationInfo(int pc,
   return index;
 }
 
-void MaglevSafepointTableBuilder::Emit(Assembler* assembler) {
+void MaglevSafepointTableBuilder::Emit(Assembler* assembler, int stack_slots) {
 #ifdef DEBUG
   int last_pc = -1;
   int last_trampoline = -1;
@@ -217,17 +217,17 @@ void MaglevSafepointTableBuilder::Emit(Assembler* assembler) {
       MaglevSafepointTable::DeoptIndexSizeField::encode(deopt_index_size);
 
   // Emit the table header.
-  static_assert(MaglevSafepointTable::kLengthOffset == 0 * kIntSize);
+  static_assert(MaglevSafepointTable::kStackSlotsOffset == 0 * kIntSize);
+  static_assert(MaglevSafepointTable::kLengthOffset == 1 * kIntSize);
   static_assert(MaglevSafepointTable::kEntryConfigurationOffset ==
-                1 * kIntSize);
-  static_assert(MaglevSafepointTable::kNumTaggedSlotsOffset == 2 * kIntSize);
-  static_assert(MaglevSafepointTable::kNumUntaggedSlotsOffset == 3 * kIntSize);
+                2 * kIntSize);
+  static_assert(MaglevSafepointTable::kNumTaggedSlotsOffset == 3 * kIntSize);
   static_assert(MaglevSafepointTable::kHeaderSize == 4 * kIntSize);
   int length = static_cast<int>(entries_.size());
+  assembler->dd(stack_slots);
   assembler->dd(length);
   assembler->dd(entry_configuration);
   assembler->dd(num_tagged_slots_);
-  assembler->dd(num_untagged_slots_);
 
   auto emit_bytes = [assembler](int value, int bytes) {
     DCHECK_LE(0, value);
@@ -245,7 +245,7 @@ void MaglevSafepointTableBuilder::Emit(Assembler* assembler) {
       emit_bytes(entry.deopt_index + 1, deopt_index_size);
       emit_bytes(entry.trampoline + 1, pc_size);
     }
-    assembler->db(entry.num_pushed_registers);
+    assembler->db(entry.num_extra_spill_slots);
     emit_bytes(entry.tagged_register_indexes, register_indexes_size);
   }
 }

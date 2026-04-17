@@ -38,20 +38,18 @@ extern const char kConnectMessage[];
 // Connect message parameters.
 extern const char kUserName[];
 extern const char kAuthServiceWithToken[];
+extern const char kAccessToken[];
+extern const char kSignalingAccessToken[];
+extern const char kApiAccessToken[];
 extern const char kLocalJid[];
 extern const char kDirectoryBotJidValue[];
 extern const char kIsEnterpriseAdminUser[];
-extern const char kSuppressUserDialogs[];
-extern const char kSuppressNotifications[];
-extern const char kCurtainLocalUserSession[];
-extern const char kTerminateUponInput[];
-extern const char kAllowTroubleshootingTools[];
-extern const char kAllowReconnections[];
-extern const char kAllowFileTransfer[];
 extern const char kUseElevatedHost[];
 extern const char kUseSignalingProxy[];
 extern const char kIceConfig[];
 extern const char kAuthorizedHelper[];
+extern const char kUseCorpSessionAuthz[];
+extern const char kIsCorpUser[];
 // Response sent back to the client after the Connect message has been handled.
 extern const char kConnectResponse[];
 
@@ -108,6 +106,19 @@ extern const char kNatPolicyChangedMessageRelayEnabled[];
 
 // Sent from the host when there is a problem reading the local policy.
 extern const char kPolicyErrorMessage[];
+
+// Sent from the website to notify that the OAuth access tokens have changed.
+extern const char kUpdateAccessTokensMessage[];
+
+// Keys used for storing and retrieving params used for reconnectable sessions.
+extern const char kSessionParamsDict[];
+extern const char kEnterpriseParamsDict[];
+extern const char kReconnectParamsDict[];
+extern const char kReconnectSupportId[];
+extern const char kReconnectHostSecret[];
+extern const char kReconnectPrivateKey[];
+extern const char kReconnectFtlDeviceId[];
+extern const char kReconnectClientFtlAddress[];
 
 }  // namespace remoting
 

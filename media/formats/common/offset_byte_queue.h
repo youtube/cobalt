@@ -7,6 +7,8 @@
 
 #include <stdint.h>
 
+#include "base/containers/span.h"
+#include "base/memory/raw_ptr.h"
 #include "media/base/byte_queue.h"
 #include "media/base/media_export.h"
 
@@ -27,7 +29,7 @@ class MEDIA_EXPORT OffsetByteQueue {
 
   // These work like their underlying ByteQueue counterparts.
   void Reset();
-  [[nodiscard]] bool Push(const uint8_t* buf, int size);
+  [[nodiscard]] bool Push(base::span<const uint8_t> buf);
   void Peek(const uint8_t** buf, int* size);
   void Pop(int count);
 
@@ -59,7 +61,9 @@ class MEDIA_EXPORT OffsetByteQueue {
   void Sync();
 
   ByteQueue queue_;
-  const uint8_t* buf_;
+  // Dangling when executing EsParserAdtsTest.NoInitialPts on linux, mac,
+  // windows and cros
+  raw_ptr<const uint8_t, AllowPtrArithmetic | DanglingUntriaged> buf_;
   int size_;
   int64_t head_;
 };

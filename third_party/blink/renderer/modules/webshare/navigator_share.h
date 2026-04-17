@@ -30,7 +30,7 @@ class MODULES_EXPORT NavigatorShare final
  public:
   static const char kSupplementName[];
 
-  NavigatorShare() : Supplement(nullptr) {}
+  NavigatorShare(Navigator& navigator) : Supplement(navigator) {}
   ~NavigatorShare() = default;
 
   // Gets, or creates, NavigatorShare supplement on Navigator.
@@ -40,11 +40,13 @@ class MODULES_EXPORT NavigatorShare final
   // Navigator partial interface
   bool canShare(ScriptState*, const ShareData*);
   static bool canShare(ScriptState*, Navigator&, const ShareData*);
-  ScriptPromise share(ScriptState*, const ShareData*, ExceptionState&);
-  static ScriptPromise share(ScriptState*,
-                             Navigator&,
-                             const ShareData*,
-                             ExceptionState&);
+  ScriptPromise<IDLUndefined> share(ScriptState*,
+                                    const ShareData*,
+                                    ExceptionState&);
+  static ScriptPromise<IDLUndefined> share(ScriptState*,
+                                           Navigator&,
+                                           const ShareData*,
+                                           ExceptionState&);
 
   void Trace(Visitor*) const override;
 

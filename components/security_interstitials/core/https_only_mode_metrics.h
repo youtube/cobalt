@@ -36,6 +36,10 @@ extern const char kSiteEngagementHeuristicAccumulatedHostCountHistogram[];
 // Recorded at the time of navigation when HFM upgrades trigger.
 extern const char kSiteEngagementHeuristicEnforcementDurationHistogram[];
 
+// Histogram that records why HTTPS-First Mode interstitial was shown. Only one
+// reason is recorded per interstitial.
+extern const char kInterstitialReasonHistogram[];
+
 // Recorded by HTTPS-First Mode and HTTPS-Upgrade logic when a navigation is
 // upgraded, or is eligible to be upgraded but wasn't.
 //
@@ -51,9 +55,9 @@ enum class Event {
   // Navigation failed after being upgraded to HTTPS.
   kUpgradeFailed = 2,
 
-  // kUpgradeCertError, kUpgradeNetError, and kUpgradeTimedOut are subsets of
-  // kUpgradeFailed. kUpgradeFailed should also be recorded whenever these
-  // events are recorded.
+  // kUpgradeCertError, kUpgradeNetError, kUpgradeTimedOut, and
+  // kUpgradeRedirectLoop are subsets of kUpgradeFailed. kUpgradeFailed should
+  // also be recorded whenever these events are recorded.
 
   // Navigation failed due to a cert error.
   kUpgradeCertError = 3,
@@ -69,7 +73,10 @@ enum class Event {
   // Mode nor HTTPS Upgrading were enabled.
   kUpgradeNotAttempted = 7,
 
-  kMaxValue = kUpgradeNotAttempted,
+  // Upgrade failed due to encountering a redirect loop and failing early.
+  kUpgradeRedirectLoop = 8,
+
+  kMaxValue = kUpgradeRedirectLoop,
 };
 
 // Recorded by HTTPS-Upgrade logic when each step in a navigation request is
@@ -95,8 +102,7 @@ enum class NavigationRequestSecurityLevel {
   // due to HSTS.
   kHstsUpgraded = 3,
 
-  // Request was for localhost, and thus no network
-  // due to HSTS.
+  // Request was for localhost, and thus nothing is exposed to the network.
   kLocalhost = 4,
 
   // Request was for an insecure (HTTP) resource, but was internally redirected
@@ -111,11 +117,29 @@ enum class NavigationRequestSecurityLevel {
   kAllowlisted = 7,
 
   // Request was insecure (HTTP), but was to a hostname that isn't globally
-  // unique (e.g. a bare RFC1918 IP address, single-label or .local hostname).
+  // unique (e.g. a bare RFC1918 IP address, or .test or .local hostname).
   // This bucket is recorded IN ADDITION to kInsecure/kAllowlisted.
   kNonUniqueHostname = 8,
 
-  kMaxValue = kNonUniqueHostname,
+  // Request was insecure (HTTP), but was to a URL that was fully typed (as
+  // opposed to autocompleted) that included an explicit http scheme.
+  kExplicitHttpScheme = 9,
+
+  // Request was for a captive portal login page.
+  kCaptivePortalLogin = 10,
+
+  // Request was for a single-label hostname.
+  kSingleLabelHostname = 11,
+
+  // Request was for a URL with non-default ports.
+  kNonDefaultPorts = 12,
+
+  // The hostname was in the HTTPS-enforcement list because of the HFM+SE
+  // heuristic. Recorded regardless of whether there was a fallback navigation
+  // or an interstitial. Not recorded if the hostname is allowlisted.
+  kHttpsEnforcedOnHostname = 13,
+
+  kMaxValue = kHttpsEnforcedOnHostname,
 };
 
 // Recorded by the Site Engagement Heuristic logic, recording whether HFM should
@@ -139,13 +163,32 @@ enum class SiteEngagementHeuristicState {
 
 // Stores the parameters to decide whether to show an interstitial for the
 // current site.
+// TODO(crbug.com/40937027): Consider making this a variant used to track which
+// specific feature is being applied to simplify code reasoning elsewhere.
 struct HttpInterstitialState {
   // Whether HTTPS-First Mode is enabled using the global UI toggle.
   bool enabled_by_pref = false;
 
+  // Whether HTTPS-First Mode is enabled because the navigation is in Incognito
+  // (when HFM-in-Incognito is enabled).
+  bool enabled_by_incognito = false;
+
   // Whether HTTPS-First Mode is enabled for the current site due to the
   // site engagement heuristic.
   bool enabled_by_engagement_heuristic = false;
+
+  // Whether HTTPS-First Mode is enabled because the user is in the Advanced
+  // Protection program.
+  bool enabled_by_advanced_protection = false;
+
+  // Whether HTTPS-First Mode is enabled because the user's browsing pattern
+  // is typically secure, i.e. they mainly visit HTTPS sites.
+  bool enabled_by_typically_secure_browsing = false;
+
+  // Whether HTTPS-First Mode is enabled in a balanced mode, which attempts to
+  // warn when HTTPS can be expected to succeed, but not when it will likely
+  // fail (e.g. to non-unique hostnames).
+  bool enabled_in_balanced_mode = false;
 };
 
 // Helper to record an HTTPS-First Mode navigation event.
@@ -169,6 +212,57 @@ void RecordSiteEngagementHeuristicCurrentHostCounts(size_t current_count,
 
 void RecordSiteEngagementHeuristicEnforcementDuration(
     base::TimeDelta enforcement_duration);
+
+// Recorded by the HTTPS-First Mode logic when showing the HTTPS-First Mode
+// interstitial. Only one reason is recorded even though multiple flags may be
+// true for the given navigation (e.g. Site Engagement + Advanced Protection).
+//
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused. Values may be added to offer greater
+// specificity in the future. Keep in sync with HttpsFirstModeInterstitialReason
+// in security/enums.xml.
+enum class InterstitialReason {
+  kUnknown = 0,
+  // The interstitial was shown because the user enabled the UI pref.
+  kPref = 1,
+  // The interstitial was shown because the user is enrolled in Advanced
+  // Protection, which enables HTTPS-First Mode.
+  kAdvancedProtection = 2,
+  // The interstitial was shown because of the Site Engagement heuristic.
+  kSiteEngagementHeuristic = 3,
+  // The interstitial was shown because of the Typically Secure User heuristic.
+  kTypicallySecureUserHeuristic = 4,
+  // The interstitial was shown because of HTTPS-First Mode in Incognito.
+  kIncognito = 5,
+  // The interstitial was shown because of HTTPS-First Balance Mode.
+  kBalanced = 6,
+
+  kMaxValue = kBalanced,
+};
+
+void RecordInterstitialReason(const HttpInterstitialState& interstitial_state);
+
+// Used for UKM. There is only a single BlockingResult per navigation.
+enum class BlockingResult {
+  kUnknown = 0,
+  // An insecure HTTP request was intercepted.
+  kInsecureRequest = 1,
+  // An insecure HTTP request was permitted because no variant of
+  // Ask-Before-HTTP prevented the navigation.
+  kInsecureRequestPermitted = 2,
+  // An insecure HTTP request was permitted because a user had previously
+  // proceeded through a warning on this origin.
+  kInsecureRequestAllowlisted = 3,
+  // An insecure HTTP request caused a warning to show, and the user proceeded
+  // through the warning.
+  kInterstitialProceed = 4,
+  // An insecure HTTP request caused a warning to show, and the user cancelled
+  // the navigation.
+  kInterstitialDontProceed = 5,
+  // Append new items to the end of the list above; do not modify or replace
+  // existing values. Comment out obsolete items.
+  kMaxValue = kInterstitialDontProceed,
+};
 
 }  // namespace security_interstitials::https_only_mode
 

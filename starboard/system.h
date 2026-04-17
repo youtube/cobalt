@@ -20,9 +20,12 @@
 #ifndef STARBOARD_SYSTEM_H_
 #define STARBOARD_SYSTEM_H_
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
 #include "starboard/configuration.h"
 #include "starboard/export.h"
-#include "starboard/types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -66,6 +69,10 @@ typedef enum SbSystemPathId {
   // The directory should be used only for storing the updates.
   // See starboard/doc/evergreen/cobalt_evergreen_overview.md
   kSbSystemPathStorageDirectory,
+
+  // Path to the directory for permanent files. Used for cookies and
+  // localStorage.
+  kSbSystemPathFilesDirectory,
 } SbSystemPathId;
 
 // System properties that can be queried for. Many of these are used in

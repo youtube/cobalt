@@ -6,13 +6,13 @@
 #define COMPONENTS_SESSIONS_CORE_BASE_SESSION_SERVICE_COMMANDS_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "components/sessions/core/serialized_user_agent_override.h"
 #include "components/sessions/core/session_command.h"
 #include "components/sessions/core/session_id.h"
 #include "components/sessions/core/sessions_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace sessions {
 class SessionCommand;
@@ -59,6 +59,11 @@ std::unique_ptr<SessionCommand> CreateAddExtraDataCommand(
     const std::string& key,
     const std::string& data);
 
+// Creates a SessionCommand storing the platform session id.
+std::unique_ptr<SessionCommand> CreateSetPlatformSessionIdCommand(
+    SessionCommand::id_type command_id,
+    const std::string& platform_session_id);
+
 // Converts a SessionCommand previously created by
 // CreateUpdateTabNavigationCommand into a
 // SerializedNavigationEntry. Returns true on success. If
@@ -82,7 +87,7 @@ bool RestoreSetTabUserAgentOverrideCommand2(
     const SessionCommand& command,
     SessionID* tab_id,
     std::string* user_agent_override,
-    absl::optional<std::string>* opaque_ua_metadata_override);
+    std::optional<std::string>* opaque_ua_metadata_override);
 
 // Backwards compatible version that restores versions that didn't have
 // structured user agent override.
@@ -108,6 +113,11 @@ bool RestoreAddExtraDataCommand(const SessionCommand& command,
                                 SessionID* session_id,
                                 std::string* key,
                                 std::string* data);
+
+// Extracts a SessionCommand as previously created by
+// CreateSetPlatformSessionIdCommand into platform_session_id.
+bool RestoreSetPlatformSessionIdCommand(const SessionCommand& command,
+                                        std::string* platform_session_id);
 
 }  // namespace sessions
 

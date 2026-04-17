@@ -37,8 +37,8 @@ class StaleCookieErrorCause : public Parameter,
   explicit StaleCookieErrorCause(uint32_t staleness_us)
       : staleness_us_(staleness_us) {}
 
-  static absl::optional<StaleCookieErrorCause> Parse(
-      rtc::ArrayView<const uint8_t> data);
+  static std::optional<StaleCookieErrorCause> Parse(
+      webrtc::ArrayView<const uint8_t> data);
 
   void SerializeTo(std::vector<uint8_t>& out) const override;
   std::string ToString() const override;

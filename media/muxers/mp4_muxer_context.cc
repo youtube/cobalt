@@ -4,6 +4,7 @@
 
 #include "media/muxers/mp4_muxer_context.h"
 
+#include "media/formats/mp4/writable_box_definitions.h"
 #include "media/muxers/output_position_tracker.h"
 
 namespace media {
@@ -16,38 +17,27 @@ Mp4MuxerContext::~Mp4MuxerContext() = default;
 
 // Track will be created and inserted to vector whatever arrives at
 // Muxer.
-absl::optional<size_t> Mp4MuxerContext::GetVideoIndex() const {
-  return video_index_;
+
+void Mp4MuxerContext::SetVideoTrack(Track track) {
+  CHECK(!video_track_.has_value());
+  CHECK_NE(track.timescale, 0u);
+
+  video_track_ = track;
 }
 
-void Mp4MuxerContext::SetVideoIndex(size_t index) {
-  CHECK(!video_index_.has_value());
-  video_index_ = index;
+void Mp4MuxerContext::SetAudioTrack(Track track) {
+  CHECK(!audio_track_.has_value());
+  CHECK_NE(track.timescale, 0u);
+
+  audio_track_ = track;
 }
 
-absl::optional<size_t> Mp4MuxerContext::GetAudioIndex() const {
-  return audio_index_;
+std::optional<Mp4MuxerContext::Track> Mp4MuxerContext::GetVideoTrack() const {
+  return video_track_;
 }
 
-void Mp4MuxerContext::SetAudioIndex(size_t index) {
-  CHECK(!audio_index_.has_value());
-  audio_index_ = index;
-}
-
-void Mp4MuxerContext::SetCurrentFragmentMoofOffset(size_t offset) {
-  moof_offset_in_fragment_ = offset;
-}
-
-size_t Mp4MuxerContext::GetCurrentFragmentMoofOffset() const {
-  return moof_offset_in_fragment_.value();
-}
-
-void Mp4MuxerContext::SetCurrentFragmentMdatOffset(size_t offset) {
-  mdat_offset_in_fragment_ = offset;
-}
-
-size_t Mp4MuxerContext::GetCurrentFragmentMdatOffset() const {
-  return mdat_offset_in_fragment_.value();
+std::optional<Mp4MuxerContext::Track> Mp4MuxerContext::GetAudioTrack() const {
+  return audio_track_;
 }
 
 OutputPositionTracker& Mp4MuxerContext::GetOutputPositionTracker() const {

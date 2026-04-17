@@ -10,11 +10,13 @@
 
 #include "ash/ash_export.h"
 #include "ash/system/phonehub/phone_hub_content_view.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "chromeos/ash/components/phonehub/app_stream_launcher_data_model.h"
 #include "chromeos/ash/components/phonehub/notification.h"
 #include "chromeos/ash/components/phonehub/recent_app_click_observer.h"
 #include "chromeos/ash/components/phonehub/recent_apps_interaction_handler.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/gfx/vector_icon_types.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/view.h"
@@ -33,6 +35,7 @@ class PhoneHubManager;
 class ASH_EXPORT AppStreamLauncherView
     : public PhoneHubContentView,
       public phonehub::AppStreamLauncherDataModel::Observer {
+  METADATA_HEADER(AppStreamLauncherView, PhoneHubContentView)
  public:
   explicit AppStreamLauncherView(phonehub::PhoneHubManager* phone_hub_manager);
   ~AppStreamLauncherView() override;
@@ -40,7 +43,6 @@ class ASH_EXPORT AppStreamLauncherView
   // views::View:
   void ChildPreferredSizeChanged(View* child) override;
   void ChildVisibilityChanged(View* child) override;
-  const char* GetClassName() const override;
 
   // PhoneHubContentView:
   phone_hub_metrics::Screen GetScreenForMetrics() const override;
@@ -67,8 +69,7 @@ class ASH_EXPORT AppStreamLauncherView
       views::Button::PressedCallback callback,
       const gfx::VectorIcon& icon,
       int message_id);
-  void AppIconActivated(phonehub::Notification::AppMetadata app,
-                        const ui::Event& event);
+  void AppIconActivated(phonehub::Notification::AppMetadata app);
 
   // Update the UI based on the information in the data model.
   void UpdateFromDataModel();
@@ -81,11 +82,11 @@ class ASH_EXPORT AppStreamLauncherView
   void CreateGridView(
       const std::vector<phonehub::Notification::AppMetadata>* apps_list);
 
-  raw_ptr<views::Button, ExperimentalAsh> arrow_back_button_ = nullptr;
-  raw_ptr<phonehub::PhoneHubManager, ExperimentalAsh> phone_hub_manager_;
+  raw_ptr<views::Button, DanglingUntriaged> arrow_back_button_ = nullptr;
+  raw_ptr<phonehub::PhoneHubManager> phone_hub_manager_;
 
   // Contains all the apps
-  raw_ptr<views::View, ExperimentalAsh> items_container_;
+  raw_ptr<views::View, DanglingUntriaged> items_container_;
 
   base::WeakPtrFactory<AppStreamLauncherView> weak_factory_{this};
 };

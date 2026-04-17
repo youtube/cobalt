@@ -7,7 +7,6 @@
 #include <string>
 #include <vector>
 
-#include "base/auto_reset.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_macros.h"
@@ -24,26 +23,14 @@
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/shell_dialogs/selected_file_info.h"
 
 #if BUILDFLAG(IS_WIN)
 #endif
 
 namespace {
 
-// The following are not used on Android due to the |SelectFileDialog| being
-// unused.
 #if !BUILDFLAG(IS_ANDROID)
-const base::FilePath::CharType kFileExtension[] = FILE_PATH_LITERAL("csv");
-
-// Returns the file extensions corresponding to supported formats.
-// Inner vector indicates equivalent extensions. For example:
-//   { { "html", "htm" }, { "csv" } }
-std::vector<std::vector<base::FilePath::StringType>>
-GetSupportedFileExtensions() {
-  return std::vector<std::vector<base::FilePath::StringType>>(
-      1, std::vector<base::FilePath::StringType>(1, kFileExtension));
-}
-
 // The default directory and filename when importing and exporting passwords.
 base::FilePath GetDefaultFilepathForPasswordFile(
     const base::FilePath::StringType& default_extension) {
@@ -58,7 +45,7 @@ base::FilePath GetDefaultFilepathForPasswordFile(
 #endif
   return default_path.Append(file_name).AddExtension(default_extension);
 }
-#endif
+#endif  // !IS_ANDROID
 
 }  // namespace
 
@@ -70,11 +57,18 @@ PasswordManagerPorter::PasswordManagerPorter(
       presenter_(presenter),
       on_export_progress_callback_(on_export_progress_callback) {}
 
-PasswordManagerPorter::~PasswordManagerPorter() = default;
+PasswordManagerPorter::~PasswordManagerPorter() {
+  // There may be open file selection dialogs. We need to let them know that we
+  // have gone away so that they do not attempt to call us back.
+  if (select_file_dialog_) {
+    select_file_dialog_->ListenerDestroyed();
+  }
+}
 
-bool PasswordManagerPorter::Export(content::WebContents* web_contents) {
+bool PasswordManagerPorter::Export(
+    base::WeakPtr<content::WebContents> web_contents) {
   if (exporter_ && exporter_->GetProgressStatus() ==
-                       password_manager::ExportProgressStatus::IN_PROGRESS) {
+                       password_manager::ExportProgressStatus::kInProgress) {
     return false;
   }
 
@@ -88,21 +82,21 @@ bool PasswordManagerPorter::Export(content::WebContents* web_contents) {
 
   // Start serialising while the user selects a file.
   exporter_->PreparePasswordsForExport();
-  PresentFileSelector(web_contents,
-                      PasswordManagerPorter::Type::PASSWORD_EXPORT);
+  PresentExportFileSelector(web_contents.get());
 
   return true;
 }
 
 void PasswordManagerPorter::CancelExport() {
-  if (exporter_)
+  if (exporter_) {
     exporter_->Cancel();
+  }
 }
 
 password_manager::ExportProgressStatus
 PasswordManagerPorter::GetExportProgressStatus() {
   return exporter_ ? exporter_->GetProgressStatus()
-                   : password_manager::ExportProgressStatus::NOT_STARTED;
+                   : password_manager::ExportProgressStatus::kNotStarted;
 }
 
 void PasswordManagerPorter::SetExporterForTesting(
@@ -134,8 +128,7 @@ void PasswordManagerPorter::Import(
   import_results_callback_ = std::move(results_callback);
   to_store_ = to_store;
 
-  PresentFileSelector(web_contents,
-                      PasswordManagerPorter::Type::PASSWORD_IMPORT);
+  PresentImportFileSelector(web_contents);
 }
 
 void PasswordManagerPorter::ContinueImport(
@@ -188,81 +181,100 @@ void PasswordManagerPorter::SetImporterForTesting(
   importer_ = std::move(importer);
 }
 
-void PasswordManagerPorter::PresentFileSelector(
-    content::WebContents* web_contents,
-    Type type) {
+PasswordManagerPorter::ImportFileSelectListener::ImportFileSelectListener(
+    PasswordManagerPorter* owner)
+    : owner_(owner) {}
+
+PasswordManagerPorter::ImportFileSelectListener::~ImportFileSelectListener() =
+    default;
+
+void PasswordManagerPorter::ImportFileSelectListener::FileSelected(
+    const ui::SelectedFileInfo& file,
+    int /* index */) {
+  owner_->ImportPasswordsFromPath(file.path());
+  owner_->select_file_dialog_.reset();
+}
+
+void PasswordManagerPorter::ImportFileSelectListener::FileSelectionCanceled() {
+  if (owner_->import_results_callback_) {
+    password_manager::ImportResults results;
+    results.status = password_manager::ImportResults::Status::DISMISSED;
+    std::move(owner_->import_results_callback_).Run(results);
+  }
+  owner_->select_file_dialog_.reset();
+}
+
+PasswordManagerPorter::ExportFileSelectListener::ExportFileSelectListener(
+    PasswordManagerPorter* owner)
+    : owner_(owner) {}
+
+PasswordManagerPorter::ExportFileSelectListener::~ExportFileSelectListener() =
+    default;
+
+void PasswordManagerPorter::ExportFileSelectListener::FileSelected(
+    const ui::SelectedFileInfo& file,
+    int /* index */) {
+  owner_->ExportPasswordsToPath(file.path());
+  owner_->select_file_dialog_.reset();
+}
+
+void PasswordManagerPorter::ExportFileSelectListener::FileSelectionCanceled() {
+  owner_->exporter_->Cancel();
+  owner_->select_file_dialog_.reset();
+}
+
+#if !BUILDFLAG(IS_ANDROID)
+static ui::SelectFileDialog::FileTypeInfo FileTypeInfoForImportExport() {
+  ui::SelectFileDialog::FileTypeInfo info{{FILE_PATH_LITERAL("csv")}};
+  info.include_all_files = true;
+  return info;
+}
+#endif
+
+void PasswordManagerPorter::PresentImportFileSelector(
+    content::WebContents* web_contents) {
 // This method should never be called on Android (as there is no file selector),
 // and the relevant IDS constants are not present for Android.
 #if !BUILDFLAG(IS_ANDROID)
   // Early return if the select file dialog is already active.
-  if (select_file_dialog_)
+  if (select_file_dialog_) {
     return;
-
-  DCHECK(web_contents);
-
-  // Get the default file extension for password files.
-  ui::SelectFileDialog::FileTypeInfo file_type_info;
-  file_type_info.extensions = GetSupportedFileExtensions();
-  DCHECK(!file_type_info.extensions.empty());
-  DCHECK(!file_type_info.extensions[0].empty());
-  file_type_info.include_all_files = true;
-
-  // Present the file selector dialogue.
-  select_file_dialog_ = ui::SelectFileDialog::Create(
-      this, std::make_unique<ChromeSelectFilePolicy>(web_contents));
-
-  ui::SelectFileDialog::Type file_selector_mode =
-      ui::SelectFileDialog::SELECT_NONE;
-  unsigned title = 0;
-  switch (type) {
-    case PASSWORD_IMPORT:
-      file_selector_mode = ui::SelectFileDialog::SELECT_OPEN_FILE;
-      title = IDS_PASSWORD_MANAGER_IMPORT_DIALOG_TITLE;
-      break;
-    case PASSWORD_EXPORT:
-      file_selector_mode = ui::SelectFileDialog::SELECT_SAVEAS_FILE;
-      title = IDS_PASSWORD_MANAGER_EXPORT_DIALOG_TITLE;
-      break;
   }
-  // Check that a valid action has been chosen.
-  DCHECK(file_selector_mode);
-  DCHECK(title);
+
+  ui::SelectFileDialog::FileTypeInfo info = FileTypeInfoForImportExport();
+  select_file_dialog_ = ui::SelectFileDialog::Create(
+      &import_listener_,
+      std::make_unique<ChromeSelectFilePolicy>(web_contents));
 
   select_file_dialog_->SelectFile(
-      file_selector_mode, l10n_util::GetStringUTF16(title),
-      GetDefaultFilepathForPasswordFile(file_type_info.extensions[0][0]),
-      &file_type_info, 1, file_type_info.extensions[0][0],
-      web_contents->GetTopLevelNativeWindow(), reinterpret_cast<void*>(type));
+      ui::SelectFileDialog::SELECT_OPEN_FILE,
+      l10n_util::GetStringUTF16(IDS_PASSWORD_MANAGER_IMPORT_DIALOG_TITLE),
+      GetDefaultFilepathForPasswordFile(info.extensions[0][0]), &info, 1,
+      info.extensions[0][0], web_contents->GetTopLevelNativeWindow());
 #endif
 }
 
-void PasswordManagerPorter::FileSelected(const base::FilePath& path,
-                                         int index,
-                                         void* params) {
-  switch (reinterpret_cast<uintptr_t>(params)) {
-    case PASSWORD_IMPORT:
-      ImportPasswordsFromPath(path);
-      break;
-    case PASSWORD_EXPORT:
-      ExportPasswordsToPath(path);
-      break;
+void PasswordManagerPorter::PresentExportFileSelector(
+    content::WebContents* web_contents) {
+// This method should never be called on Android (as there is no file selector),
+// and the relevant IDS constants are not present for Android.
+#if !BUILDFLAG(IS_ANDROID)
+  // Early return if the select file dialog is already active.
+  if (select_file_dialog_) {
+    return;
   }
 
-  select_file_dialog_.reset();
-}
+  ui::SelectFileDialog::FileTypeInfo info = FileTypeInfoForImportExport();
+  select_file_dialog_ = ui::SelectFileDialog::Create(
+      &export_listener_,
+      std::make_unique<ChromeSelectFilePolicy>(web_contents));
 
-void PasswordManagerPorter::FileSelectionCanceled(void* params) {
-  if (reinterpret_cast<uintptr_t>(params) == PASSWORD_EXPORT) {
-    exporter_->Cancel();
-  }
-
-  if (!import_results_callback_.is_null()) {
-    password_manager::ImportResults results;
-    results.status = password_manager::ImportResults::Status::DISMISSED;
-    std::move(import_results_callback_).Run(results);
-  }
-
-  select_file_dialog_.reset();
+  select_file_dialog_->SelectFile(
+      ui::SelectFileDialog::SELECT_SAVEAS_FILE,
+      l10n_util::GetStringUTF16(IDS_PASSWORD_MANAGER_EXPORT_DIALOG_TITLE),
+      GetDefaultFilepathForPasswordFile(info.extensions[0][0]), &info, 1,
+      info.extensions[0][0], web_contents->GetTopLevelNativeWindow(), nullptr);
+#endif
 }
 
 void PasswordManagerPorter::ExportPasswordsToPath(const base::FilePath& path) {

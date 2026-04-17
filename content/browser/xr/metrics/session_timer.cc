@@ -8,10 +8,18 @@
 
 namespace content {
 
-SessionTimer::SessionTimer() = default;
+SessionTimer::SessionTimer(size_t trace_id) : trace_id_(trace_id) {}
 
 SessionTimer::~SessionTimer() {
   StopSession();
+}
+
+size_t SessionTimer::GetTraceId() {
+  return trace_id_;
+}
+
+base::Time SessionTimer::GetStartTime() {
+  return start_time_;
 }
 
 void SessionTimer::StartSession() {
@@ -28,15 +36,15 @@ void SessionTimer::StopSession() {
   // Calculate the duration of the session.
   base::TimeDelta session_duration = base::Time::Now() - start_time_;
   if (!session_duration.is_zero()) {
-    // TODO(https://crbug.com/1056930): Consider renaming the timers to
+    // TODO(crbug.com/40677123): Consider renaming the timers to
     // something that indicates both that these also record AR, and that these
     // are no longer "suffixed" histograms.
     base::UmaHistogramCustomTimes("VRSessionTime.WebVR", session_duration,
                                   base::TimeDelta(), base::Hours(5), 100);
   }
 
-  // Clear out start time.
   start_time_ = base::Time();
+  trace_id_ = 0;
 }
 
 }  // namespace content

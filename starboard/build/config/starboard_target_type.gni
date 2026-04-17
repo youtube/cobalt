@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/config/os_definitions.gni")
 declare_args() {
   starboard_target_type = ""
   if (is_android) {

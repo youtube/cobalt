@@ -2,8 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
+#include "content/public/browser/site_isolation_policy.h"
+
 #include "base/command_line.h"
 #include "base/feature_list.h"
+#include "base/test/scoped_amount_of_physical_memory_override.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "chrome/browser/chrome_content_browser_client.h"
@@ -11,20 +19,25 @@
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/chrome_test_utils.h"
+#include "chrome/test/base/platform_browser_test.h"
 #include "components/policy/core/browser/browser_policy_connector.h"
 #include "components/policy/core/common/mock_configuration_policy_provider.h"
 #include "components/policy/policy_constants.h"
 #include "components/prefs/pref_service.h"
+#include "components/site_isolation/site_isolation_policy.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/child_process_security_policy.h"
 #include "content/public/browser/site_instance.h"
-#include "content/public/browser/site_isolation_policy.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_utils.h"
 #include "url/gurl.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/safe_browsing/android/advanced_protection_status_manager_test_util.h"
+#endif
 
 class SiteIsolationPolicyBrowserTest : public PlatformBrowserTest {
  public:
@@ -53,8 +66,9 @@ class SiteIsolationPolicyBrowserTest : public PlatformBrowserTest {
 
   void CheckIsolatedOriginExpectations(Expectations* expectations,
                                        size_t count) {
-    if (!content::AreAllSitesIsolatedForTesting())
+    if (!content::AreAllSitesIsolatedForTesting()) {
       CheckExpectations(expectations, count);
+    }
 
     auto* policy = content::ChildProcessSecurityPolicy::GetInstance();
     for (size_t i = 0; i < count; ++i) {
@@ -265,7 +279,25 @@ IN_PROC_BROWSER_TEST_F(SitePerProcessPolicyBrowserTestFieldTrialTest, Simple) {
 }
 #endif
 
-IN_PROC_BROWSER_TEST_F(SiteIsolationPolicyBrowserTest, NoPolicyNoTrialsFlags) {
+#if BUILDFLAG(IS_ANDROID)
+namespace {
+bool CheckUseDedicatedProcessesForAllSitesWithAndroidState(
+    bool is_under_advanced_protection,
+    uint64_t ram_kb) {
+  safe_browsing::SetAdvancedProtectionStateForTesting(
+      is_under_advanced_protection);
+  ChromeContentBrowserClient::DisableAdvancedProtectionCachingForTests();
+
+  base::test::ScopedAmountOfPhysicalMemoryOverride memory_override(ram_kb);
+  site_isolation::SiteIsolationPolicy::
+      SetDisallowMemoryThresholdCachingForTesting(true);
+  return content::SiteIsolationPolicy::UseDedicatedProcessesForAllSites();
+}
+}  // anonymous namespace
+#endif  // BUILDFLAG(IS_ANDROID)
+
+IN_PROC_BROWSER_TEST_F(SiteIsolationPolicyBrowserTest,
+                       NoPolicyNoTrialsFlags_NoAdvancedProtection_HighRam) {
   // The switch to disable Site Isolation should be missing by default (i.e.
   // without an explicit enterprise policy).
   EXPECT_FALSE(base::CommandLine::ForCurrentProcess()->HasSwitch(
@@ -273,9 +305,41 @@ IN_PROC_BROWSER_TEST_F(SiteIsolationPolicyBrowserTest, NoPolicyNoTrialsFlags) {
 #if BUILDFLAG(IS_ANDROID)
   EXPECT_FALSE(base::CommandLine::ForCurrentProcess()->HasSwitch(
       switches::kDisableSiteIsolationForPolicy));
-  EXPECT_EQ(content::SiteIsolationPolicy::UseDedicatedProcessesForAllSites(),
+  EXPECT_EQ(CheckUseDedicatedProcessesForAllSitesWithAndroidState(
+                /*is_under_advanced_protection=*/false,
+                /*ram_kb=*/8000),
             base::FeatureList::IsEnabled(features::kSitePerProcess));
 #else
   EXPECT_TRUE(content::SiteIsolationPolicy::UseDedicatedProcessesForAllSites());
 #endif  // BUILDFLAG(IS_ANDROID)
 }
+
+#if BUILDFLAG(IS_ANDROID)
+IN_PROC_BROWSER_TEST_F(SiteIsolationPolicyBrowserTest,
+                       NoPolicy_AdvancedProtection_HighRam) {
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  EXPECT_FALSE(command_line->HasSwitch(switches::kDisableSiteIsolation));
+  EXPECT_FALSE(
+      command_line->HasSwitch(switches::kDisableSiteIsolationForPolicy));
+  EXPECT_TRUE(CheckUseDedicatedProcessesForAllSitesWithAndroidState(
+      /*is_under_advanced_protection=*/true,
+      /*ram_kb=*/8000));
+}
+
+IN_PROC_BROWSER_TEST_F(SiteIsolationPolicyBrowserTest,
+                       NoPolicy_AdvancedProtection_LowRam) {
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  // Skip this test if the --site-per-process switch is present (e.g. on Site
+  // Isolation Android chromium.fyi bot).
+  if (command_line->HasSwitch(switches::kSitePerProcess)) {
+    return;
+  }
+
+  EXPECT_FALSE(command_line->HasSwitch(switches::kDisableSiteIsolation));
+  EXPECT_FALSE(
+      command_line->HasSwitch(switches::kDisableSiteIsolationForPolicy));
+  EXPECT_FALSE(CheckUseDedicatedProcessesForAllSitesWithAndroidState(
+      /*is_under_advanced_protection=*/true,
+      /*ram_kb=*/1000));
+}
+#endif

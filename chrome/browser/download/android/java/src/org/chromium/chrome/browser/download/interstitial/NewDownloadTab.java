@@ -7,23 +7,28 @@ package org.chromium.chrome.browser.download.interstitial;
 import static org.chromium.chrome.browser.tab.TabViewProvider.Type.NEW_DOWNLOAD_TAB;
 
 import android.app.Activity;
+import android.content.Context;
 import android.text.TextUtils;
 import android.view.View;
 
-import androidx.annotation.Nullable;
+import androidx.annotation.ColorInt;
 
 import org.chromium.base.UnownedUserData;
 import org.chromium.base.UserData;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabViewProvider;
+import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.url.GURL;
 
 /** Represents the page shown when a CCT is created to download a file. */
-public class NewDownloadTab
-        extends EmptyTabObserver implements UserData, UnownedUserData, TabViewProvider {
+@NullMarked
+public class NewDownloadTab extends EmptyTabObserver
+        implements UserData, UnownedUserData, TabViewProvider {
     private static final Class<NewDownloadTab> USER_DATA_KEY = NewDownloadTab.class;
 
     private final Tab mTab;
@@ -41,8 +46,10 @@ public class NewDownloadTab
         assert tab.isInitialized();
         NewDownloadTab newDownloadTab = get(tab);
         if (newDownloadTab == null) {
-            newDownloadTab = tab.getUserDataHost().setUserData(
-                    USER_DATA_KEY, new NewDownloadTab(tab, coordinator, activity));
+            newDownloadTab =
+                    tab.getUserDataHost()
+                            .setUserData(
+                                    USER_DATA_KEY, new NewDownloadTab(tab, coordinator, activity));
         }
         return newDownloadTab;
     }
@@ -65,7 +72,7 @@ public class NewDownloadTab
      * @param tab The parent tab containing the NewDownloadTab.
      * @return The NewDownloadTab attached to the parent tab.
      */
-    private static NewDownloadTab get(Tab tab) {
+    private static @Nullable NewDownloadTab get(Tab tab) {
         return tab.getUserDataHost().getUserData(USER_DATA_KEY);
     }
 
@@ -126,6 +133,11 @@ public class NewDownloadTab
     @Override
     public View getView() {
         return mCoordinator.getView();
+    }
+
+    @Override
+    public @ColorInt int getBackgroundColor(Context context) {
+        return SemanticColorUtils.getDefaultBgColor(context);
     }
 
     @Override

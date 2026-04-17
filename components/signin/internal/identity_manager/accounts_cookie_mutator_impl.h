@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_SIGNIN_INTERNAL_IDENTITY_MANAGER_ACCOUNTS_COOKIE_MUTATOR_IMPL_H_
 #define COMPONENTS_SIGNIN_INTERNAL_IDENTITY_MANAGER_ACCOUNTS_COOKIE_MUTATOR_IMPL_H_
 
+#include <memory>
 #include <string>
 
 #include "base/functional/callback_forward.h"
@@ -39,17 +40,6 @@ class AccountsCookieMutatorImpl : public AccountsCookieMutator {
 
   ~AccountsCookieMutatorImpl() override;
 
-  void AddAccountToCookie(
-      const CoreAccountId& account_id,
-      gaia::GaiaSource source,
-      AddAccountToCookieCompletedCallback completion_callback) override;
-
-  void AddAccountToCookieWithToken(
-      const CoreAccountId& account_id,
-      const std::string& access_token,
-      gaia::GaiaSource source,
-      AddAccountToCookieCompletedCallback completion_callback) override;
-
   void SetAccountsInCookie(
       const MultiloginParameters& parameters,
       gaia::GaiaSource source,
@@ -73,12 +63,13 @@ class AccountsCookieMutatorImpl : public AccountsCookieMutator {
       gaia::GaiaSource source,
       LogOutFromCookieCompletedCallback completion_callback) override;
 
-  void RemoveLoggedOutAccountByGaiaId(const std::string& gaia_id) override;
+  void RemoveLoggedOutAccountByGaiaId(const GaiaId& gaia_id) override;
 
  private:
   class MultiloginHelperWrapper : public SetAccountsInCookieTask {
    public:
-    MultiloginHelperWrapper(std::unique_ptr<OAuthMultiloginHelper> helper);
+    explicit MultiloginHelperWrapper(
+        std::unique_ptr<OAuthMultiloginHelper> helper);
     ~MultiloginHelperWrapper() override;
 
    private:
@@ -86,10 +77,9 @@ class AccountsCookieMutatorImpl : public AccountsCookieMutator {
   };
 
   raw_ptr<SigninClient> signin_client_;
-  raw_ptr<ProfileOAuth2TokenService, DanglingUntriaged> token_service_;
-  raw_ptr<GaiaCookieManagerService, DanglingUntriaged>
-      gaia_cookie_manager_service_;
-  raw_ptr<AccountTrackerService, DanglingUntriaged> account_tracker_service_;
+  raw_ptr<ProfileOAuth2TokenService> token_service_;
+  raw_ptr<GaiaCookieManagerService> gaia_cookie_manager_service_;
+  raw_ptr<AccountTrackerService> account_tracker_service_;
 };
 
 }  // namespace signin

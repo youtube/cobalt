@@ -10,10 +10,6 @@ mojom_component("mojom") {
   macro_prefix = "TRACING_MOJOM"
   enabled_features = []
 
-  if (is_linux || is_chromeos) {
-    enabled_features += [ "is_linux_or_chromeos" ]
-  }
-
   sources = [
     "background_tracing_agent.mojom",
     "system_tracing_service.mojom",
@@ -86,6 +82,7 @@ mojom_component("mojom") {
           "//third_party/perfetto/include/perfetto/tracing/core/data_source_config.h",
           "//third_party/perfetto/include/perfetto/tracing/core/data_source_descriptor.h",
           "//third_party/perfetto/include/perfetto/tracing/core/chrome_config.h",
+          "//third_party/perfetto/protos/perfetto/config/interceptor_config.gen.h",
           "//third_party/perfetto/include/perfetto/tracing/core/trace_config.h",
         ]
         traits_private_headers = [
@@ -93,13 +90,17 @@ mojom_component("mojom") {
           "commit_data_request_mojom_traits.h",
           "data_source_config_mojom_traits.h",
           "data_source_descriptor_mojom_traits.h",
+          "interceptor_config_mojom_traits.h",
+          "console_config_mojom_traits.h",
           "trace_config_mojom_traits.h",
         ]
         traits_sources = [
           "chrome_config_mojom_traits.cc",
           "commit_data_request_mojom_traits.cc",
+          "console_config_mojom_traits.cc",
           "data_source_config_mojom_traits.cc",
           "data_source_descriptor_mojom_traits.cc",
+          "interceptor_config_mojom_traits.cc",
           "trace_config_mojom_traits.cc",
         ]
         traits_public_deps = [ "//third_party/perfetto:libperfetto" ]

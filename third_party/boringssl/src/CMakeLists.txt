@@ -1,4 +1,18 @@
-cmake_minimum_required(VERSION 3.10)
+# Copyright 2014 The BoringSSL Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+cmake_minimum_required(VERSION 3.16)
 
 # Defer enabling C and CXX languages.
 project(BoringSSL NONE)
@@ -15,48 +29,24 @@ if(WIN32)
   set(CMAKE_GENERATOR_CC cl)
 endif()
 
-include(sources.cmake)
 include(cmake/go.cmake)
 include(cmake/paths.cmake)
-include(cmake/perlasm.cmake)
+include(gen/sources.cmake)
 
 enable_language(C)
 enable_language(CXX)
 
+# TODO(crbug,com/389897612): Register tests with CTest. For now, we include this
+# only to pick up the standard |BUILD_TESTING| option.
+include(CTest)
 include(GNUInstallDirs)
 
-# CMake versions before 3.14 do not have default destination values. Executable
-# and library targets that use a default destination should include this
-# variable.
-if(CMAKE_VERSION VERSION_LESS "3.14")
-  set(INSTALL_DESTINATION_DEFAULT
-      ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-      LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-      RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-endif()
-
-# Wrap the CMake install function so we can disable it.
 set(INSTALL_ENABLED 1)
-function(install_if_enabled)
-  if(INSTALL_ENABLED)
-    install(${ARGV})
-  endif()
-endfunction()
-
-if(ANDROID)
-  # Android-NDK CMake files reconfigure the path and so Perl won't be found.
-  # However, ninja will still find them in $PATH if we just name them.
-  if(NOT PERL_EXECUTABLE)
-    set(PERL_EXECUTABLE "perl")
-  endif()
-else()
-  find_package(Perl REQUIRED)
-endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT CMAKE_CROSSCOMPILING)
   find_package(PkgConfig QUIET)
   if (PkgConfig_FOUND)
-    pkg_check_modules(LIBUNWIND libunwind-generic)
+    pkg_check_modules(LIBUNWIND libunwind-generic>=1.3.0)
     if(LIBUNWIND_FOUND)
       add_definitions(-DBORINGSSL_HAVE_LIBUNWIND)
     else()
@@ -65,14 +55,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT CMAKE_CROSSCOMPILING)
   else()
     message("pkgconfig not found. Disabling unwind tests.")
   endif()
-endif()
-
-if(USE_CUSTOM_LIBCXX)
-  set(BORINGSSL_ALLOW_CXX_RUNTIME 1)
-endif()
-
-if(BORINGSSL_ALLOW_CXX_RUNTIME)
-  add_definitions(-DBORINGSSL_ALLOW_CXX_RUNTIME)
 endif()
 
 string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
@@ -94,6 +76,7 @@ foreach(VAR CMAKE_C_FLAGS CMAKE_CXX_FLAGS CMAKE_ASM_FLAGS)
 endforeach()
 
 if(BORINGSSL_PREFIX AND BORINGSSL_PREFIX_SYMBOLS)
+  require_go()
   add_definitions(-DBORINGSSL_PREFIX=${BORINGSSL_PREFIX})
   # CMake automatically connects include_directories to the NASM command-line,
   # but not add_definitions.
@@ -131,7 +114,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
   set(EMSCRIPTEN 1)
 endif()
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -139,7 +122,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 if(CMAKE_COMPILER_IS_GNUCXX OR CLANG)
   # Note clang-cl is odd and sets both CLANG and MSVC. We base our configuration
   # primarily on our normal Clang one.
-  set(C_CXX_FLAGS "-Werror -Wformat=2 -Wsign-compare -Wmissing-field-initializers -Wwrite-strings -Wvla -Wshadow -Wtype-limits")
+  set(C_CXX_FLAGS "-fno-strict-aliasing -Werror -Wformat=2 -Wsign-compare -Wwrite-strings -Wvla -Wshadow -Wtype-limits -Wmissing-field-initializers")
   if(MSVC)
     # clang-cl sets different default warnings than clang. It also treats -Wall
     # as -Weverything, to match MSVC. Instead -W3 is the alias for -Wall.
@@ -157,7 +140,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CLANG)
   endif()
 
   if(CLANG)
-    set(C_CXX_FLAGS "${C_CXX_FLAGS} -Wnewline-eof -fcolor-diagnostics")
+    set(C_CXX_FLAGS "${C_CXX_FLAGS} -Wnewline-eof -Wextra-semi -fcolor-diagnostics")
   else()
     # GCC (at least 4.8.4) has a bug where it'll find unreachable free() calls
     # and declare that the code is trying to free a stack pointer.
@@ -174,6 +157,26 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CLANG)
     set(C_CXX_FLAGS "${C_CXX_FLAGS} -Wstring-concatenation")
   endif()
 
+  # Clang 12's -Wframe-larger-than reportedly does not work in clang-cl. See
+  # https://crbug.com/boringssl/709. Clang 13 includes the following fix, which
+  # may be related. Speculatively gate on Clang 13. That corresponds to
+  # AppleClang 13.1.6.
+  # https://github.com/llvm/llvm-project/commit/6aaf4fa2885600b0e31042071ad06f78218ab0f2
+  if((CMAKE_C_COMPILER_ID STREQUAL "Clang" AND
+      CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "13.0.0") OR
+     (CMAKE_C_COMPILER_ID STREQUAL "AppleClang" AND
+      CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "13.1.6"))
+    set(C_CXX_FLAGS "${C_CXX_FLAGS} -Wframe-larger-than=25344")
+  endif()
+
+  # -Wctad-maybe-unsupported was added in Clang 10, which is AppleClang 12.0.0.
+  if((CMAKE_C_COMPILER_ID STREQUAL "Clang" AND
+      CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "10.0.0") OR
+     (CMAKE_C_COMPILER_ID STREQUAL "AppleClang" AND
+      CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "12.0.0"))
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wctad-maybe-unsupported")
+  endif()
+
   if(CLANG OR CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "7.0.0")
     set(C_CXX_FLAGS "${C_CXX_FLAGS} -Wimplicit-fallthrough")
   endif()
@@ -183,11 +186,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CLANG)
   endif()
 
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${C_CXX_FLAGS} -Wmissing-prototypes -Wold-style-definition -Wstrict-prototypes")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${C_CXX_FLAGS} -Wmissing-declarations")
-
-  if(NOT MSVC AND NOT BORINGSSL_ALLOW_CXX_RUNTIME)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
-  endif()
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${C_CXX_FLAGS} -Wmissing-declarations -Wnon-virtual-dtor")
 
   # In GCC, -Wmissing-declarations is the C++ spelling of -Wmissing-prototypes
   # and using the wrong one is an error. In Clang, -Wmissing-prototypes is the
@@ -203,20 +202,21 @@ elseif(MSVC)
   set(MSVC_DISABLED_WARNINGS_LIST
       "C4100" # 'exarg' : unreferenced formal parameter
       "C4127" # conditional expression is constant
-      # C4204 and C4221 are C89-only restrictions which were dropped in C99, but
-      # VS2017 warns about it. They can be removed when we require VS2019.
-      "C4204" # nonstandard extension used: non-constant aggregate initializer
-      "C4221" # nonstandard extension used : 'identifier' : cannot be
-              # initialized using address of automatic variable
       "C4244" # 'function' : conversion from 'int' to 'uint8_t',
               # possible loss of data
       "C4267" # conversion from 'size_t' to 'int', possible loss of data
+      "C4702" # unreachable code; MSVC's warning is too aggressive. See
+              # https://crbug.com/385161043
       "C4706" # assignment within conditional expression
       )
   string(REPLACE "C" " -wd" MSVC_DISABLED_WARNINGS_STR
                             ${MSVC_DISABLED_WARNINGS_LIST})
   set(CMAKE_C_FLAGS   "-utf-8 -W4 -WX ${MSVC_DISABLED_WARNINGS_STR}")
-  set(CMAKE_CXX_FLAGS "-utf-8 -W4 -WX ${MSVC_DISABLED_WARNINGS_STR}")
+  # Without /Zc:__cplusplus, MSVC does not define the right value for
+  # __cplusplus. See https://devblogs.microsoft.com/cppblog/msvc-now-correctly-reports-__cplusplus/
+  # If this becomes too problematic for downstream code, we can look at
+  # _MSVC_LANG.
+  set(CMAKE_CXX_FLAGS "-utf-8 -W4 -WX ${MSVC_DISABLED_WARNINGS_STR} -Zc:__cplusplus")
 endif()
 
 if(WIN32)
@@ -244,13 +244,8 @@ if(FUZZ)
     message(FATAL_ERROR "You need Clang ≥ 6.0.0")
   endif()
 
-  add_definitions(-DBORINGSSL_UNSAFE_DETERMINISTIC_MODE)
-  set(RUNNER_ARGS "-deterministic")
-
-  if(NOT NO_FUZZER_MODE)
-    add_definitions(-DBORINGSSL_UNSAFE_FUZZER_MODE)
-    set(RUNNER_ARGS ${RUNNER_ARGS} "-fuzzer" "-shim-config" "fuzzer_mode.json")
-  endif()
+  add_definitions(-DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
+  set(RUNNER_ARGS "-deterministic" "-fuzzer" "-shim-config" "fuzzer_mode.json")
 
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address,fuzzer-no-link -fsanitize-coverage=edge,indirect-calls")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address,fuzzer-no-link -fsanitize-coverage=edge,indirect-calls")
@@ -337,6 +332,7 @@ if(GCOV)
 endif()
 
 if(FIPS)
+  require_go()
   add_definitions(-DBORINGSSL_FIPS)
   if(FIPS_BREAK_TEST)
     add_definitions("-DBORINGSSL_FIPS_BREAK_${FIPS_BREAK_TEST}=1")
@@ -365,8 +361,6 @@ endif()
 
 if(CONSTANT_TIME_VALIDATION)
   add_definitions(-DBORINGSSL_CONSTANT_TIME_VALIDATION)
-  # Asserts will often test secret data.
-  add_definitions(-DNDEBUG)
 endif()
 
 if(MALLOC_FAILURE_TESTING)
@@ -385,7 +379,9 @@ if(FIPS_DELOCATE OR NOT OPENSSL_NO_ASM)
     set(CMAKE_ASM_NASM_FLAGS "${CMAKE_ASM_NASM_FLAGS} -gcv8")
   else()
     enable_language(ASM)
-    set(OPENSSL_ASM TRUE)
+    if (NOT OPENSSL_NO_ASM)
+      set(OPENSSL_ASM TRUE)
+    endif()
     # Work around https://gitlab.kitware.com/cmake/cmake/-/issues/20771 in older
     # CMake versions.
     if(APPLE AND CMAKE_VERSION VERSION_LESS 3.19)
@@ -467,12 +463,15 @@ if(USE_CUSTOM_LIBCXX)
     libcxx PRIVATE
     -D_LIBCPP_BUILDING_LIBRARY
     -DLIBCXX_BUILDING_LIBCXXABI
+    -DLIBC_NAMESPACE=bssl_llvm_libc
   )
+  # LLVM libc++ depends on some shared headers from LLVM libc.
+  target_include_directories(libcxx PRIVATE util/bot/llvm-libc)
   set_target_properties(
     libcxx libcxxabi PROPERTIES
     COMPILE_FLAGS "-Wno-missing-prototypes -Wno-implicit-fallthrough"
-    # libc++ and libc++abi must be built in C++20 mode.
-    CXX_STANDARD 20
+    # libc++ and libc++abi must be built in C++23 mode.
+    CXX_STANDARD 23
     CXX_STANDARD_REQUIRED TRUE
   )
   # libc++abi depends on libc++ internal headers.
@@ -480,49 +479,247 @@ if(USE_CUSTOM_LIBCXX)
   target_link_libraries(libcxx libcxxabi)
 endif()
 
-# Add minimal googletest targets. The provided one has many side-effects, and
-# googletest has a very straightforward build.
-add_library(boringssl_gtest third_party/googletest/src/gtest-all.cc)
-if(USE_CUSTOM_LIBCXX)
-  target_link_libraries(boringssl_gtest libcxx)
-endif()
-target_include_directories(
+if(BUILD_TESTING)
+  # Add minimal googletest targets. The provided one has many side-effects, and
+  # googletest has a very straightforward build.
+  add_library(
     boringssl_gtest
-    PUBLIC third_party/googletest/include
-    PRIVATE third_party/googletest
+    third_party/googletest/googlemock/src/gmock-all.cc
+    third_party/googletest/googletest/src/gtest-all.cc
+  )
+  if(USE_CUSTOM_LIBCXX)
+    target_link_libraries(boringssl_gtest libcxx)
+  endif()
+  target_include_directories(
+      boringssl_gtest
+      PUBLIC
+      third_party/googletest/googlemock/include
+      third_party/googletest/googletest/include
+      PRIVATE
+      third_party/googletest/googlemock
+      third_party/googletest/googletest
+  )
+
+  # Declare a dummy target to build all unit tests. Test targets should inject
+  # themselves as dependencies next to the target definition.
+  add_custom_target(all_tests)
+
+  add_subdirectory(ssl/test)
+endif()
+
+if(OPENSSL_ASM)
+  set(CRYPTO_SOURCES_ASM_USED ${CRYPTO_SOURCES_ASM})
+  set(BCM_SOURCES_ASM_USED ${BCM_SOURCES_ASM})
+  set(TEST_SUPPORT_SOURCES_ASM_USED ${TEST_SUPPORT_SOURCES_ASM})
+elseif(OPENSSL_NASM)
+  set(CRYPTO_SOURCES_ASM_USED ${CRYPTO_SOURCES_NASM})
+  set(BCM_SOURCES_ASM_USED ${BCM_SOURCES_NASM})
+  set(TEST_SUPPORT_SOURCES_ASM_USED ${TEST_SUPPORT_SOURCES_NASM})
+endif()
+
+if(FIPS_DELOCATE AND FIPS_SHARED)
+  message(FATAL_ERROR "Can't set both delocate and shared mode for FIPS build")
+endif()
+
+# OSS-Fuzz relies on BORINGSSL_ALLOW_CXX_RUNTIME because -fno-rtti and
+# -fsanitize=vptr are incompatible.
+set(NO_CXX_RUNTIME_FLAGS)
+if(NOT MSVC AND NOT BORINGSSL_ALLOW_CXX_RUNTIME)
+  # Without -fno-exceptions, use of std::unique_ptr emits a call to
+  # std::terminate.
+  set(NO_CXX_RUNTIME_FLAGS -fno-exceptions -fno-rtti)
+endif()
+
+if(FIPS_DELOCATE)
+  add_library(bcm_c_generated_asm STATIC ${BCM_SOURCES})
+  # The C++ code in libcrypto shouldn't depend on libstdc++.
+  target_compile_options(bcm_c_generated_asm PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${NO_CXX_RUNTIME_FLAGS}> "-S")
+  add_dependencies(bcm_c_generated_asm boringssl_prefix_symbols)
+  target_include_directories(bcm_c_generated_asm PRIVATE ${PROJECT_SOURCE_DIR}/include)
+  set_target_properties(bcm_c_generated_asm PROPERTIES POSITION_INDEPENDENT_CODE ON)
+  if(CLANG)
+    # Clang warns when passing both -c (from CMake) and -S.
+    target_compile_options(bcm_c_generated_asm PRIVATE "-Wno-unused-command-line-argument")
+  endif()
+  if(CFI)
+    # Delocate needs real assembly code so we need to disable CFI and LTO in the FIPS module.
+    target_compile_options(bcm_c_generated_asm PRIVATE "-fno-lto" "-fno-sanitize=cfi")
+  endif()
+
+  set(TARGET_FLAG "")
+  if(CMAKE_ASM_COMPILER_TARGET)
+    set(TARGET_FLAG "--target=${CMAKE_ASM_COMPILER_TARGET}")
+  endif()
+
+  go_executable(delocate boringssl.googlesource.com/boringssl.git/util/fipstools/delocate)
+  add_custom_command(
+    OUTPUT bcm-delocated.S
+    COMMAND ${CMAKE_CURRENT_BINARY_DIR}/delocate
+            -a $<TARGET_FILE:bcm_c_generated_asm>
+            -o ${CMAKE_CURRENT_BINARY_DIR}/bcm-delocated.S
+            -cc ${CMAKE_ASM_COMPILER}
+            -cc-flags "${TARGET_FLAG} ${CMAKE_ASM_FLAGS}"
+            ${BCM_SOURCES_ASM_USED}
+            ${CRYPTO_HEADERS}
+    DEPENDS bcm_c_generated_asm
+            delocate
+            ${BCM_SOURCES_ASM_USED}
+            ${CRYPTO_HEADERS}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  add_library(bcm_hashunset STATIC bcm-delocated.S)
+  set_target_properties(bcm_hashunset PROPERTIES POSITION_INDEPENDENT_CODE ON)
+  set_target_properties(bcm_hashunset PROPERTIES LINKER_LANGUAGE C)
+
+  go_executable(inject_hash
+                boringssl.googlesource.com/boringssl.git/util/fipstools/inject_hash)
+  add_custom_command(
+    OUTPUT bcm.o
+    COMMAND ./inject_hash -o bcm.o -in-archive $<TARGET_FILE:bcm_hashunset>
+    DEPENDS bcm_hashunset inject_hash
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  )
+  set(CRYPTO_FIPS_OBJECTS bcm.o)
+elseif(FIPS_SHARED)
+  if(NOT BUILD_SHARED_LIBS)
+    message(FATAL_ERROR "FIPS_SHARED set but not BUILD_SHARED_LIBS")
+  endif()
+
+  add_library(bcm_library STATIC ${BCM_SOURCES} ${BCM_SOURCES_ASM_USED})
+  # The C++ code in libcrypto shouldn't depend on libstdc++.
+  target_compile_options(bcm_library PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${NO_CXX_RUNTIME_FLAGS}>)
+  add_dependencies(bcm_library boringssl_prefix_symbols)
+  target_include_directories(bcm_library PRIVATE ${PROJECT_SOURCE_DIR}/include)
+
+  add_custom_command(
+    OUTPUT bcm.o
+    COMMAND ${CMAKE_LINKER} -r -T ${CMAKE_CURRENT_SOURCE_DIR}/crypto/fipsmodule/fips_shared.lds -o bcm.o --whole-archive $<TARGET_FILE:bcm_library>
+    DEPENDS bcm_library crypto/fipsmodule/fips_shared.lds
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  )
+  set(CRYPTO_FIPS_OBJECTS bcm.o)
+else()
+  add_library(fipsmodule OBJECT ${BCM_SOURCES} ${BCM_SOURCES_ASM_USED})
+  # The C++ code in libcrypto shouldn't depend on libstdc++.
+  target_compile_options(fipsmodule PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${NO_CXX_RUNTIME_FLAGS}>)
+  add_dependencies(fipsmodule boringssl_prefix_symbols)
+  target_include_directories(fipsmodule PRIVATE ${PROJECT_SOURCE_DIR}/include)
+  set(CRYPTO_FIPS_OBJECTS $<TARGET_OBJECTS:fipsmodule>)
+endif()
+
+add_library(crypto ${CRYPTO_SOURCES} ${CRYPTO_FIPS_OBJECTS} ${CRYPTO_SOURCES_ASM_USED})
+  # The C++ code in libcrypto shouldn't depend on libstdc++.
+target_compile_options(crypto PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${NO_CXX_RUNTIME_FLAGS}>)
+target_include_directories(crypto PUBLIC
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
 )
+set_property(TARGET crypto PROPERTY EXPORT_NAME Crypto)
 
-# Declare a dummy target to build all unit tests. Test targets should inject
-# themselves as dependencies next to the target definition.
-add_custom_target(all_tests)
+if(FIPS_SHARED)
+  # Rewrite libcrypto.so to inject the correct module hash value. This assumes
+  # UNIX-style library naming, but we only support FIPS mode on Linux anyway.
+  add_custom_command(
+    TARGET crypto POST_BUILD
+    COMMAND ${GO_EXECUTABLE} run
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/fipstools/inject_hash/inject_hash.go
+    -o libcrypto.so -in-object libcrypto.so
+    # The DEPENDS argument to a POST_BUILD rule appears to be ignored. Thus
+    # go_executable isn't used (as it doesn't get built), but we list this
+    # dependency anyway in case it starts working in some CMake version.
+    DEPENDS util/fipstools/inject_hash/inject_hash.go
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  )
+endif()
 
-# On Windows, CRYPTO_TEST_DATA is too long to fit in command-line limits.
-# TODO(davidben): CMake 3.12 has a list(JOIN) command. Use that when we've
-# updated the minimum version.
-set(EMBED_TEST_DATA_ARGS "")
-foreach(arg ${CRYPTO_TEST_DATA})
-  set(EMBED_TEST_DATA_ARGS "${EMBED_TEST_DATA_ARGS}${arg}\n")
-endforeach()
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/embed_test_data_args.txt"
-     "${EMBED_TEST_DATA_ARGS}")
+add_dependencies(crypto boringssl_prefix_symbols)
+if(WIN32)
+  target_link_libraries(crypto ws2_32)
+endif()
 
-add_custom_command(
-  OUTPUT crypto_test_data.cc
-  COMMAND ${GO_EXECUTABLE} run util/embed_test_data.go -file-list
-          "${CMAKE_CURRENT_BINARY_DIR}/embed_test_data_args.txt" >
-          "${CMAKE_CURRENT_BINARY_DIR}/crypto_test_data.cc"
-  DEPENDS util/embed_test_data.go ${CRYPTO_TEST_DATA}
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+# CMAKE_SYSTEM_NAME is "Generic" for embedded OSes:
+# https://cmake.org/cmake/help/book/mastering-cmake/chapter/Cross%20Compiling%20With%20CMake.html#toolchain-files
+#
+# For now we assume embedded OSes do not have threads. Additionally, the Threads
+# package does not work with Android, but Android does not require any extra
+# parameters to link pthreads.
+if(NOT CMAKE_SYSTEM_NAME MATCHES "^(Generic|Android)$")
+  find_package(Threads REQUIRED)
+  target_link_libraries(crypto Threads::Threads)
+endif()
 
-add_library(crypto_test_data OBJECT crypto_test_data.cc)
+# Every target depends on crypto, so we add libcxx as a dependency here to
+# simplify injecting it everywhere.
+if(USE_CUSTOM_LIBCXX)
+  target_link_libraries(crypto libcxx)
+endif()
 
-add_subdirectory(crypto)
-add_subdirectory(ssl)
-add_subdirectory(ssl/test)
-add_subdirectory(tool)
-add_subdirectory(util/fipstools)
-add_subdirectory(util/fipstools/acvp/modulewrapper)
-add_subdirectory(decrepit)
+add_library(ssl ${SSL_SOURCES})
+# Although libssl also provides headers that require an include directory, the
+# flag is already specified by libcrypto, so we omit target_include_directories
+# here.
+set_property(TARGET ssl PROPERTY EXPORT_NAME SSL)
+target_link_libraries(ssl crypto)
+
+add_library(decrepit ${DECREPIT_SOURCES})
+target_link_libraries(decrepit ssl crypto)
+
+if(APPLE)
+  set(PKI_CXX_FLAGS "-fno-aligned-new")
+endif()
+add_library(pki ${PKI_SOURCES})
+target_link_libraries(pki crypto)
+target_compile_options(pki PRIVATE ${PKI_CXX_FLAGS})
+
+if(BUILD_TESTING)
+  add_library(test_support_lib STATIC
+              ${TEST_SUPPORT_SOURCES} ${TEST_SUPPORT_SOURCES_ASM_USED})
+  if(LIBUNWIND_FOUND)
+    target_compile_options(test_support_lib PRIVATE ${LIBUNWIND_CFLAGS_OTHER})
+    target_include_directories(test_support_lib PRIVATE ${LIBUNWIND_INCLUDE_DIRS})
+    target_link_libraries(test_support_lib ${LIBUNWIND_LDFLAGS})
+  endif()
+  if(WIN32)
+    target_link_libraries(test_support_lib dbghelp)
+  endif()
+  target_link_libraries(test_support_lib boringssl_gtest crypto)
+
+  # urandom_test is a separate binary because it needs to be able to observe the
+  # PRNG initialisation, which means that it can't have other tests running before
+  # it does.
+  add_executable(urandom_test ${URANDOM_TEST_SOURCES})
+  target_link_libraries(urandom_test test_support_lib boringssl_gtest crypto)
+  add_dependencies(all_tests urandom_test)
+
+  add_executable(crypto_test ${CRYPTO_TEST_SOURCES})
+  target_link_libraries(crypto_test test_support_lib boringssl_gtest crypto)
+  add_dependencies(all_tests crypto_test)
+
+  add_executable(ssl_test ${SSL_TEST_SOURCES})
+  target_link_libraries(ssl_test test_support_lib boringssl_gtest ssl crypto)
+  add_dependencies(all_tests ssl_test)
+  add_executable(decrepit_test ${DECREPIT_TEST_SOURCES})
+  target_link_libraries(decrepit_test test_support_lib boringssl_gtest
+                        decrepit ssl crypto)
+  add_dependencies(all_tests decrepit_test)
+
+  add_executable(pki_test ${PKI_TEST_SOURCES})
+  target_link_libraries(pki_test test_support_lib boringssl_gtest pki crypto)
+  target_compile_options(pki_test PRIVATE ${PKI_CXX_FLAGS})
+  add_dependencies(all_tests pki_test)
+
+  add_executable(test_fips util/fipstools/test_fips.cc)
+  target_link_libraries(test_fips crypto)
+endif()
+
+if(FIPS)
+  add_executable(modulewrapper ${MODULEWRAPPER_SOURCES})
+  target_link_libraries(modulewrapper crypto)
+endif()
+
+add_executable(bssl ${BSSL_SOURCES})
+target_link_libraries(bssl ssl crypto)
 
 if(FUZZ)
   if(LIBFUZZER_FROM_DEPS)
@@ -530,7 +727,10 @@ if(FUZZ)
     add_library(Fuzzer STATIC ${LIBFUZZER_SOURCES})
     # libFuzzer does not pass our aggressive warnings. It also must be built
     # without -fsanitize-coverage options or clang crashes.
-    set_target_properties(Fuzzer PROPERTIES COMPILE_FLAGS "-Wno-shadow -Wno-format-nonliteral -Wno-missing-prototypes -fsanitize-coverage=0")
+    set_target_properties(
+      Fuzzer PROPERTIES
+      COMPILE_FLAGS "-Wno-shadow -Wno-format-nonliteral -Wno-missing-prototypes -fsanitize-coverage=0"
+    )
   endif()
 
   add_subdirectory(fuzz)
@@ -549,54 +749,67 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   set(HANDSHAKER_ARGS "-handshaker-path" $<TARGET_FILE:handshaker>)
 endif()
 
-if(FIPS)
-  add_custom_target(
-    acvp_tests
-    COMMAND ${GO_EXECUTABLE} build -o ${CMAKE_CURRENT_BINARY_DIR}/acvptool
-            boringssl.googlesource.com/boringssl/util/fipstools/acvp/acvptool
-    COMMAND ${GO_EXECUTABLE} build -o ${CMAKE_CURRENT_BINARY_DIR}/testmodulewrapper
-            boringssl.googlesource.com/boringssl/util/fipstools/acvp/acvptool/testmodulewrapper
-    COMMAND cd util/fipstools/acvp/acvptool/test &&
-            ${GO_EXECUTABLE} run check_expected.go
-            -tool ${CMAKE_CURRENT_BINARY_DIR}/acvptool
-            -module-wrappers modulewrapper:$<TARGET_FILE:modulewrapper>,testmodulewrapper:${CMAKE_CURRENT_BINARY_DIR}/testmodulewrapper
-            -tests tests.json
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    DEPENDS modulewrapper
-    USES_TERMINAL)
+if(BUILD_TESTING)
+  if(FIPS)
+    add_custom_target(
+      acvp_tests
+      COMMAND ${GO_EXECUTABLE} build -o ${CMAKE_CURRENT_BINARY_DIR}/acvptool
+              boringssl.googlesource.com/boringssl.git/util/fipstools/acvp/acvptool
+      COMMAND ${GO_EXECUTABLE} build -o ${CMAKE_CURRENT_BINARY_DIR}/testmodulewrapper
+              boringssl.googlesource.com/boringssl.git/util/fipstools/acvp/acvptool/testmodulewrapper
+      COMMAND cd util/fipstools/acvp/acvptool/test &&
+              ${GO_EXECUTABLE} run check_expected.go
+              -tool ${CMAKE_CURRENT_BINARY_DIR}/acvptool
+              -module-wrappers modulewrapper:$<TARGET_FILE:modulewrapper>,testmodulewrapper:${CMAKE_CURRENT_BINARY_DIR}/testmodulewrapper
+              -tests tests.json
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+      DEPENDS modulewrapper
+      USES_TERMINAL)
 
-  add_custom_target(
-    fips_specific_tests_if_any
-    DEPENDS acvp_tests
-  )
-else()
-  add_custom_target(fips_specific_tests_if_any)
+    add_custom_target(
+      fips_specific_tests_if_any
+      DEPENDS acvp_tests
+    )
+  else()
+    add_custom_target(fips_specific_tests_if_any)
+  endif()
+
+  file(STRINGS util/go_tests.txt GO_TESTS)
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+              util/go_tests.txt)
+
+  if(GO_EXECUTABLE)
+    add_custom_target(
+        run_tests
+        COMMAND ${CMAKE_COMMAND} -E echo "Running Go tests"
+        COMMAND ${GO_EXECUTABLE} test ${GO_TESTS}
+        COMMAND ${CMAKE_COMMAND} -E echo
+        COMMAND ${CMAKE_COMMAND} -E echo "Running unit tests"
+        COMMAND ${GO_EXECUTABLE} run util/all_tests.go -build-dir
+                ${CMAKE_CURRENT_BINARY_DIR}
+        COMMAND ${CMAKE_COMMAND} -E echo
+        COMMAND ${CMAKE_COMMAND} -E echo "Running SSL tests"
+        COMMAND cd ssl/test/runner &&
+                ${GO_EXECUTABLE} test -shim-path $<TARGET_FILE:bssl_shim>
+                  ${HANDSHAKER_ARGS} ${RUNNER_ARGS}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        DEPENDS all_tests bssl_shim handshaker fips_specific_tests_if_any
+        USES_TERMINAL)
+  else()
+    add_custom_target(
+        run_tests
+        COMMAND ${CMAKE_COMMAND} -E echo "Running tests requires Go"
+        COMMAND ${CMAKE_COMMAND} -E false)
+  endif()
 endif()
 
-# Read util/go_tests.txt into a CMake variable.
-file(READ util/go_tests.txt GO_TESTS)
-string(REPLACE "\n" ";" GO_TESTS "${GO_TESTS}")
-list(REMOVE_ITEM GO_TESTS "")
-set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
-             util/go_tests.txt)
-
-add_custom_target(
-    run_tests
-    COMMAND ${GO_EXECUTABLE} test ${GO_TESTS}
-    COMMAND ${GO_EXECUTABLE} run util/all_tests.go -build-dir
-            ${CMAKE_CURRENT_BINARY_DIR}
-    COMMAND cd ssl/test/runner &&
-            ${GO_EXECUTABLE} test -shim-path $<TARGET_FILE:bssl_shim>
-              ${HANDSHAKER_ARGS} ${RUNNER_ARGS}
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    DEPENDS all_tests bssl_shim handshaker fips_specific_tests_if_any
-    USES_TERMINAL)
-
-install_if_enabled(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-
-install_if_enabled(EXPORT OpenSSLTargets
-  FILE OpenSSLTargets.cmake
-  NAMESPACE OpenSSL::
-  DESTINATION lib/cmake/OpenSSL
-)
-install_if_enabled(FILES cmake/OpenSSLConfig.cmake DESTINATION lib/cmake/OpenSSL)
+if(INSTALL_ENABLED)
+  install(TARGETS crypto ssl EXPORT OpenSSLTargets)
+  install(TARGETS bssl)
+  install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+  install(EXPORT OpenSSLTargets
+          FILE OpenSSLTargets.cmake
+          NAMESPACE OpenSSL::
+          DESTINATION lib/cmake/OpenSSL)
+  install(FILES cmake/OpenSSLConfig.cmake DESTINATION lib/cmake/OpenSSL)
+endif()

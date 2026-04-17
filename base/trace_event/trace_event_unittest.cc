@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/trace_event/trace_event.h"
 
 #include <inttypes.h>
@@ -9,6 +14,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
 #include <cstdlib>
 #include <limits>
 #include <map>
@@ -19,7 +25,6 @@
 
 #include "base/at_exit.h"
 #include "base/command_line.h"
-#include "base/containers/cxx20_erase_vector.h"
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
@@ -43,10 +48,7 @@
 #include "build/build_config.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 #include "third_party/perfetto/protos/perfetto/config/chrome/chrome_config.gen.h"  // nogncheck
-#endif
 
 namespace base::trace_event {
 
@@ -72,14 +74,10 @@ constexpr const char kRecordAllCategoryFilter[] = "*";
 constexpr const char kAllCategory[] = "test_all";
 
 bool IsCategoryEnabled(const char* name) {
-#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
   bool result;
   perfetto::DynamicCategory dynamic_category(name);
   TRACE_EVENT_CATEGORY_GROUP_ENABLED(dynamic_category, &result);
   return result;
-#else
-  return *TraceLog::GetInstance()->GetCategoryGroupEnabled(name);
-#endif
 }
 
 class TraceEventTestFixture : public testing::Test {
@@ -97,22 +95,17 @@ class TraceEventTestFixture : public testing::Test {
                                            const char* key,
                                            const char* value);
   void DropTracedMetadataRecords();
-  bool FindMatchingValue(const char* key,
-                         const char* value);
-  bool FindNonMatchingValue(const char* key,
-                            const char* value);
+  bool FindMatchingValue(const char* key, const char* value);
+  bool FindNonMatchingValue(const char* key, const char* value);
   void Clear() {
     trace_parsed_ = Value::List();
     json_output_.json_output.clear();
   }
 
-  void BeginTrace() {
-    BeginSpecificTrace("*");
-  }
+  void BeginTrace() { BeginSpecificTrace("*"); }
 
   void BeginSpecificTrace(const std::string& filter) {
-    TraceLog::GetInstance()->SetEnabled(TraceConfig(filter, ""),
-                                        TraceLog::RECORDING_MODE);
+    TraceLog::GetInstance()->SetEnabled(TraceConfig(filter, ""));
   }
 
   void CancelTrace() {
@@ -155,7 +148,7 @@ class TraceEventTestFixture : public testing::Test {
   }
 
   void EndTraceAndFlushAsync(WaitableEvent* flush_complete_event) {
-    TraceLog::GetInstance()->SetDisabled(TraceLog::RECORDING_MODE);
+    TraceLog::GetInstance()->SetDisabled();
     TraceLog::GetInstance()->Flush(base::BindRepeating(
         &TraceEventTestFixture::OnTraceDataCollected,
         base::Unretained(static_cast<TraceEventTestFixture*>(this)),
@@ -174,8 +167,9 @@ class TraceEventTestFixture : public testing::Test {
     num_flush_callbacks_ = 0;
   }
   void TearDown() override {
-    if (TraceLog::GetInstance())
+    if (TraceLog::GetInstance()) {
       EXPECT_FALSE(TraceLog::GetInstance()->IsEnabled());
+    }
     PlatformThread::SetName(old_thread_name_);
     // We want our singleton torn down after each test.
     TraceLog::ResetForTesting();
@@ -199,16 +193,16 @@ void TraceEventTestFixture::OnTraceDataCollected(
     bool has_more_events) {
   num_flush_callbacks_++;
   if (num_flush_callbacks_ > 1) {
-    EXPECT_FALSE(events_str->data().empty());
+    EXPECT_FALSE(events_str->as_string().empty());
   }
   AutoLock lock(lock_);
   json_output_.json_output.clear();
   trace_buffer_.Start();
-  trace_buffer_.AddFragment(events_str->data());
+  trace_buffer_.AddFragment(events_str->as_string());
   trace_buffer_.Finish();
 
-  absl::optional<Value> root = base::JSONReader::Read(
-      json_output_.json_output, JSON_PARSE_RFC | JSON_ALLOW_CONTROL_CHARS);
+  std::optional<Value> root =
+      base::JSONReader::Read(json_output_.json_output, JSON_PARSE_RFC);
 
   if (!root.has_value()) {
     LOG(ERROR) << json_output_.json_output;
@@ -219,11 +213,13 @@ void TraceEventTestFixture::OnTraceDataCollected(
 
   // Move items into our aggregate collection
   trace_parsed_.reserve(trace_parsed_.size() + root_list.size());
-  for (auto& value : root_list)
+  for (auto& value : root_list) {
     trace_parsed_.Append(std::move(value));
+  }
 
-  if (!has_more_events)
+  if (!has_more_events) {
     flush_complete_event->Signal();
+  }
 }
 
 static bool CompareJsonValues(const std::string& lhs,
@@ -242,13 +238,15 @@ static bool IsKeyValueInDict(const JsonKeyValue* key_value,
                              const Value::Dict* dict) {
   const std::string* value_str = dict->FindStringByDottedPath(key_value->key);
   if (value_str &&
-      CompareJsonValues(*value_str, key_value->value, key_value->op))
+      CompareJsonValues(*value_str, key_value->value, key_value->op)) {
     return true;
+  }
 
   // Recurse to test arguments
   const Value::Dict* args_dict = dict->FindDictByDottedPath("args");
-  if (args_dict)
+  if (args_dict) {
     return IsKeyValueInDict(key_value, args_dict);
+  }
 
   return false;
 }
@@ -326,14 +324,17 @@ bool TraceEventTestFixture::FindNonMatchingValue(const char* key,
 
 bool IsStringInDict(const char* string_to_match, const Value::Dict* dict) {
   for (const auto pair : *dict) {
-    if (pair.first.find(string_to_match) != std::string::npos)
+    if (pair.first.find(string_to_match) != std::string::npos) {
       return true;
+    }
 
-    if (!pair.second.is_string())
+    if (!pair.second.is_string()) {
       continue;
+    }
 
-    if (pair.second.GetString().find(string_to_match) != std::string::npos)
+    if (pair.second.GetString().find(string_to_match) != std::string::npos) {
       return true;
+    }
   }
 
   // Recurse to test arguments
@@ -368,24 +369,6 @@ const Value::Dict* FindTraceEntry(
   }
   return nullptr;
 }
-
-#if !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
-std::vector<const Value::Dict*> FindTraceEntries(
-    const Value::List& trace_parsed,
-    const char* string_to_match) {
-  std::vector<const Value::Dict*> hits;
-  for (const Value& value : trace_parsed) {
-    if (!value.is_dict()) {
-      continue;
-    }
-
-    if (IsStringInDict(string_to_match, &value.GetDict())) {
-      hits.push_back(&value.GetDict());
-    }
-  }
-  return hits;
-}
-#endif  // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 
 constexpr const char kControlCharacters[] = "test_\001\002\003\n\r";
 
@@ -473,8 +456,8 @@ void TraceWithAllMacroVariants(WaitableEvent* task_complete_event) {
     TRACE_EVENT_OBJECT_DELETED_WITH_ID("test_all", "tracked object 3",
                                        TRACE_ID_WITH_SCOPE("scope", 0x42));
 
-    TRACE_EVENT1(kControlCharacters, kControlCharacters,
-                 kControlCharacters, kControlCharacters);
+    TRACE_EVENT1(kControlCharacters, kControlCharacters, kControlCharacters,
+                 kControlCharacters);
 
     TRACE_EVENT_ASYNC_BEGIN0("test_all", "async default process scope", 0x1000);
     TRACE_EVENT_ASYNC_BEGIN0("test_all", "async local id",
@@ -486,22 +469,23 @@ void TraceWithAllMacroVariants(WaitableEvent* task_complete_event) {
         TRACE_ID_WITH_SCOPE("scope string", TRACE_ID_GLOBAL(0x4000)));
   }  // Scope close causes TRACE_EVENT0 etc to send their END events.
 
-  if (task_complete_event)
+  if (task_complete_event) {
     task_complete_event->Signal();
+  }
 }
 
 void ValidateAllTraceMacrosCreatedData(const Value::List& trace_parsed) {
   const Value::Dict* item = nullptr;
 
-#define EXPECT_FIND_(string) \
-    item = FindTraceEntry(trace_parsed, string); \
-    EXPECT_TRUE(item);
-#define EXPECT_NOT_FIND_(string) \
-    item = FindTraceEntry(trace_parsed, string); \
-    EXPECT_FALSE(item);
+#define EXPECT_FIND_(string)                   \
+  item = FindTraceEntry(trace_parsed, string); \
+  EXPECT_TRUE(item);
+#define EXPECT_NOT_FIND_(string)               \
+  item = FindTraceEntry(trace_parsed, string); \
+  EXPECT_FALSE(item);
 #define EXPECT_SUB_FIND_(string) \
-    if (item) \
-      EXPECT_TRUE(IsStringInDict(string, item));
+  if (item)                      \
+    EXPECT_TRUE(IsStringInDict(string, item));
 
   EXPECT_FIND_("TRACE_EVENT0 call");
   {
@@ -568,25 +552,6 @@ void ValidateAllTraceMacrosCreatedData(const Value::List& trace_parsed) {
   EXPECT_SUB_FIND_("step_begin2");
   EXPECT_SUB_FIND_("name1");
   EXPECT_SUB_FIND_("value1");
-
-  // Perfetto doesn't have separate begin and end events.
-#if !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
-  EXPECT_FIND_("TRACE_EVENT_ASYNC_END0 call");
-  EXPECT_SUB_FIND_("id");
-  EXPECT_SUB_FIND_(kAsyncIdStr);
-  EXPECT_FIND_("TRACE_EVENT_ASYNC_END1 call");
-  EXPECT_SUB_FIND_("id");
-  EXPECT_SUB_FIND_(kAsyncIdStr);
-  EXPECT_SUB_FIND_("name1");
-  EXPECT_SUB_FIND_("value1");
-  EXPECT_FIND_("TRACE_EVENT_ASYNC_END2 call");
-  EXPECT_SUB_FIND_("id");
-  EXPECT_SUB_FIND_(kAsyncIdStr);
-  EXPECT_SUB_FIND_("name1");
-  EXPECT_SUB_FIND_("value1");
-  EXPECT_SUB_FIND_("name2");
-  EXPECT_SUB_FIND_("value2");
-#endif  // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 
   EXPECT_FIND_("TRACE_COUNTER1 call");
   {
@@ -696,11 +661,7 @@ void ValidateAllTraceMacrosCreatedData(const Value::List& trace_parsed) {
 
   EXPECT_FIND_("tracked object 3");
   {
-#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
     auto* id_hash = "0x6a31ee0fa7951e05";
-#else
-    auto* id_hash = "0x42";
-#endif
     EXPECT_EQ(*item->FindString("ph"), "N");
     EXPECT_EQ(*item->FindString("scope"), "scope");
     EXPECT_EQ(*item->FindString("id"), id_hash);
@@ -740,11 +701,7 @@ void ValidateAllTraceMacrosCreatedData(const Value::List& trace_parsed) {
   {
     EXPECT_EQ(*item->FindString("ph"), "S");
 
-#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
     const char kIdPath[] = "id";
-#else
-    const char kIdPath[] = "id2.global";
-#endif
     EXPECT_EQ(*item->FindStringByDottedPath(kIdPath), "0x3000");
   }
 
@@ -752,24 +709,17 @@ void ValidateAllTraceMacrosCreatedData(const Value::List& trace_parsed) {
   {
     EXPECT_EQ(*item->FindString("ph"), "S");
 
-#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
     const char kIdPath[] = "id";
-#else
-    const char kIdPath[] = "id2.global";
-#endif
     EXPECT_EQ(*item->FindStringByDottedPath(kIdPath), "0x4000");
 
-#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
     const char kExpectedScope[] = "test_all:scope string";
-#else
-    const char kExpectedScope[] = "scope string";
-#endif
 
     EXPECT_EQ(*item->FindStringByDottedPath("scope"), kExpectedScope);
   }
 }
 
-void TraceManyInstantEvents(int thread_id, int num_events,
+void TraceManyInstantEvents(int thread_id,
+                            int num_events,
                             WaitableEvent* task_complete_event) {
   for (int i = 0; i < num_events; i++) {
     TRACE_EVENT_INSTANT2("test_all", "multi thread event",
@@ -777,8 +727,9 @@ void TraceManyInstantEvents(int thread_id, int num_events,
                          i);
   }
 
-  if (task_complete_event)
+  if (task_complete_event) {
     task_complete_event->Signal();
+  }
 }
 
 void ValidateInstantEventPresentOnEveryThread(const Value::List& trace_parsed,
@@ -793,11 +744,12 @@ void ValidateInstantEventPresentOnEveryThread(const Value::List& trace_parsed,
     }
 
     const std::string* name = dict->FindString("name");
-    if (!name || *name != "multi thread event")
+    if (!name || *name != "multi thread event") {
       continue;
+    }
 
-    absl::optional<int> maybe_thread = dict->FindIntByDottedPath("args.thread");
-    absl::optional<int> maybe_event = dict->FindIntByDottedPath("args.event");
+    std::optional<int> maybe_thread = dict->FindIntByDottedPath("args.thread");
+    std::optional<int> maybe_event = dict->FindIntByDottedPath("args.event");
 
     EXPECT_TRUE(maybe_thread.has_value());
     EXPECT_TRUE(maybe_event.has_value());
@@ -826,8 +778,8 @@ void CheckTraceDefaultCategoryFilters(const TraceLog& trace_log) {
 
 // Simple Test for emitting data and validating it was received.
 TEST_F(TraceEventTestFixture, DataCaptured) {
-  TraceLog::GetInstance()->SetEnabled(TraceConfig(kRecordAllCategoryFilter, ""),
-                                      TraceLog::RECORDING_MODE);
+  TraceLog::GetInstance()->SetEnabled(
+      TraceConfig(kRecordAllCategoryFilter, ""));
 
   TraceWithAllMacroVariants(nullptr);
 
@@ -839,8 +791,8 @@ TEST_F(TraceEventTestFixture, DataCaptured) {
 // Emit some events and validate that only empty strings are received
 // if we tell Flush() to discard events.
 TEST_F(TraceEventTestFixture, DataDiscarded) {
-  TraceLog::GetInstance()->SetEnabled(TraceConfig(kRecordAllCategoryFilter, ""),
-                                      TraceLog::RECORDING_MODE);
+  TraceLog::GetInstance()->SetEnabled(
+      TraceConfig(kRecordAllCategoryFilter, ""));
 
   TraceWithAllMacroVariants(nullptr);
 
@@ -849,8 +801,7 @@ TEST_F(TraceEventTestFixture, DataDiscarded) {
   EXPECT_TRUE(trace_parsed_.empty());
 }
 
-class MockEnabledStateChangedObserver :
-      public TraceLog::EnabledStateObserver {
+class MockEnabledStateChangedObserver : public TraceLog::EnabledStateObserver {
  public:
   MOCK_METHOD0(OnTraceLogEnabled, void());
   MOCK_METHOD0(OnTraceLogDisabled, void());
@@ -860,10 +811,9 @@ TEST_F(TraceEventTestFixture, EnabledObserverFiresOnEnable) {
   MockEnabledStateChangedObserver observer;
   TraceLog::GetInstance()->AddEnabledStateObserver(&observer);
 
-  EXPECT_CALL(observer, OnTraceLogEnabled())
-      .Times(1);
-  TraceLog::GetInstance()->SetEnabled(TraceConfig(kRecordAllCategoryFilter, ""),
-                                      TraceLog::RECORDING_MODE);
+  EXPECT_CALL(observer, OnTraceLogEnabled()).Times(1);
+  TraceLog::GetInstance()->SetEnabled(
+      TraceConfig(kRecordAllCategoryFilter, ""));
   testing::Mock::VerifyAndClear(&observer);
   EXPECT_TRUE(TraceLog::GetInstance()->IsEnabled());
 
@@ -871,61 +821,15 @@ TEST_F(TraceEventTestFixture, EnabledObserverFiresOnEnable) {
   TraceLog::GetInstance()->RemoveEnabledStateObserver(&observer);
   TraceLog::GetInstance()->SetDisabled();
 }
-
-// Nested TraceLog enabling isn't supported by Perfetto.
-#if !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
-TEST_F(TraceEventTestFixture, EnabledObserverDoesntFireOnSecondEnable) {
-  TraceLog::GetInstance()->SetEnabled(TraceConfig(kRecordAllCategoryFilter, ""),
-                                      TraceLog::RECORDING_MODE);
-
-  testing::StrictMock<MockEnabledStateChangedObserver> observer;
-  TraceLog::GetInstance()->AddEnabledStateObserver(&observer);
-
-  EXPECT_CALL(observer, OnTraceLogEnabled())
-      .Times(0);
-  EXPECT_CALL(observer, OnTraceLogDisabled())
-      .Times(0);
-  TraceLog::GetInstance()->SetEnabled(TraceConfig(kRecordAllCategoryFilter, ""),
-                                      TraceLog::RECORDING_MODE);
-  testing::Mock::VerifyAndClear(&observer);
-  EXPECT_TRUE(TraceLog::GetInstance()->IsEnabled());
-
-  // Cleanup.
-  TraceLog::GetInstance()->RemoveEnabledStateObserver(&observer);
-  TraceLog::GetInstance()->SetDisabled();
-  TraceLog::GetInstance()->SetDisabled();
-}
-
-TEST_F(TraceEventTestFixture, EnabledObserverFiresOnFirstDisable) {
-  TraceConfig tc_inc_all("*", "");
-  TraceLog::GetInstance()->SetEnabled(tc_inc_all, TraceLog::RECORDING_MODE);
-  TraceLog::GetInstance()->SetEnabled(tc_inc_all, TraceLog::RECORDING_MODE);
-
-  testing::StrictMock<MockEnabledStateChangedObserver> observer;
-  TraceLog::GetInstance()->AddEnabledStateObserver(&observer);
-
-  EXPECT_CALL(observer, OnTraceLogEnabled())
-      .Times(0);
-  EXPECT_CALL(observer, OnTraceLogDisabled())
-      .Times(1);
-  TraceLog::GetInstance()->SetDisabled();
-  testing::Mock::VerifyAndClear(&observer);
-
-  // Cleanup.
-  TraceLog::GetInstance()->RemoveEnabledStateObserver(&observer);
-  TraceLog::GetInstance()->SetDisabled();
-}
-#endif  // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 
 TEST_F(TraceEventTestFixture, EnabledObserverFiresOnDisable) {
-  TraceLog::GetInstance()->SetEnabled(TraceConfig(kRecordAllCategoryFilter, ""),
-                                      TraceLog::RECORDING_MODE);
+  TraceLog::GetInstance()->SetEnabled(
+      TraceConfig(kRecordAllCategoryFilter, ""));
 
   MockEnabledStateChangedObserver observer;
   TraceLog::GetInstance()->AddEnabledStateObserver(&observer);
 
-  EXPECT_CALL(observer, OnTraceLogDisabled())
-      .Times(1);
+  EXPECT_CALL(observer, OnTraceLogDisabled()).Times(1);
   TraceLog::GetInstance()->SetDisabled();
   testing::Mock::VerifyAndClear(&observer);
 
@@ -938,13 +842,13 @@ TEST_F(TraceEventTestFixture, EnabledObserverOwnedByTraceLog) {
   EXPECT_CALL(*observer, OnTraceLogEnabled()).Times(1);
   EXPECT_CALL(*observer, OnTraceLogDisabled()).Times(1);
   TraceLog::GetInstance()->AddOwnedEnabledStateObserver(std::move(observer));
-  TraceLog::GetInstance()->SetEnabled(TraceConfig(kRecordAllCategoryFilter, ""),
-                                      TraceLog::RECORDING_MODE);
+  TraceLog::GetInstance()->SetEnabled(
+      TraceConfig(kRecordAllCategoryFilter, ""));
   TraceLog::GetInstance()->SetDisabled();
   TraceLog::ResetForTesting();
   // These notifications won't be sent.
-  TraceLog::GetInstance()->SetEnabled(TraceConfig(kRecordAllCategoryFilter, ""),
-                                      TraceLog::RECORDING_MODE);
+  TraceLog::GetInstance()->SetEnabled(
+      TraceConfig(kRecordAllCategoryFilter, ""));
   TraceLog::GetInstance()->SetDisabled();
 }
 
@@ -969,8 +873,8 @@ TEST_F(TraceEventTestFixture, ObserversFireAfterStateChange) {
   AfterStateChangeEnabledStateObserver observer;
   TraceLog::GetInstance()->AddEnabledStateObserver(&observer);
 
-  TraceLog::GetInstance()->SetEnabled(TraceConfig(kRecordAllCategoryFilter, ""),
-                                      TraceLog::RECORDING_MODE);
+  TraceLog::GetInstance()->SetEnabled(
+      TraceConfig(kRecordAllCategoryFilter, ""));
   EXPECT_TRUE(TraceLog::GetInstance()->IsEnabled());
 
   TraceLog::GetInstance()->SetDisabled();
@@ -980,8 +884,7 @@ TEST_F(TraceEventTestFixture, ObserversFireAfterStateChange) {
 }
 
 // Tests that a state observer can remove itself during a callback.
-class SelfRemovingEnabledStateObserver
-    : public TraceLog::EnabledStateObserver {
+class SelfRemovingEnabledStateObserver : public TraceLog::EnabledStateObserver {
  public:
   SelfRemovingEnabledStateObserver() = default;
   ~SelfRemovingEnabledStateObserver() override = default;
@@ -1003,8 +906,8 @@ TEST_F(TraceEventTestFixture, DISABLED_SelfRemovingObserver) {
   TraceLog::GetInstance()->AddEnabledStateObserver(&observer);
   EXPECT_EQ(1u, TraceLog::GetInstance()->GetObserverCountForTest());
 
-  TraceLog::GetInstance()->SetEnabled(TraceConfig(kRecordAllCategoryFilter, ""),
-                                      TraceLog::RECORDING_MODE);
+  TraceLog::GetInstance()->SetEnabled(
+      TraceConfig(kRecordAllCategoryFilter, ""));
   TraceLog::GetInstance()->SetDisabled();
   // The observer removed itself on disable.
   EXPECT_EQ(0u, TraceLog::GetInstance()->GetObserverCountForTest());
@@ -1018,8 +921,8 @@ bool IsNewTrace() {
 
 TEST_F(TraceEventTestFixture, NewTraceRecording) {
   ASSERT_FALSE(IsNewTrace());
-  TraceLog::GetInstance()->SetEnabled(TraceConfig(kRecordAllCategoryFilter, ""),
-                                      TraceLog::RECORDING_MODE);
+  TraceLog::GetInstance()->SetEnabled(
+      TraceConfig(kRecordAllCategoryFilter, ""));
   // First call to IsNewTrace() should succeed. But, the second shouldn't.
   ASSERT_TRUE(IsNewTrace());
   ASSERT_FALSE(IsNewTrace());
@@ -1030,97 +933,13 @@ TEST_F(TraceEventTestFixture, NewTraceRecording) {
 
   // Start another trace. IsNewTrace() should become true again, briefly, as
   // before.
-  TraceLog::GetInstance()->SetEnabled(TraceConfig(kRecordAllCategoryFilter, ""),
-                                      TraceLog::RECORDING_MODE);
+  TraceLog::GetInstance()->SetEnabled(
+      TraceConfig(kRecordAllCategoryFilter, ""));
   ASSERT_TRUE(IsNewTrace());
   ASSERT_FALSE(IsNewTrace());
 
   // Cleanup.
   EndTraceAndFlush();
-}
-
-// This test is not meaningful with Perfetto's deferred flushing behavior.
-#if !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
-TEST_F(TraceEventTestFixture, TestTraceFlush) {
-  size_t min_traces = 1;
-  size_t max_traces = 1;
-  do {
-    max_traces *= 2;
-    TraceLog::GetInstance()->SetEnabled(TraceConfig(),
-                                        TraceLog::RECORDING_MODE);
-    for (size_t i = 0; i < max_traces; i++) {
-      TRACE_EVENT_INSTANT0("test_x", "y", TRACE_EVENT_SCOPE_THREAD);
-    }
-    EndTraceAndFlush();
-  } while (num_flush_callbacks_ < 2);
-
-  while (min_traces + 50 <  max_traces) {
-    size_t traces = (min_traces + max_traces) / 2;
-    TraceLog::GetInstance()->SetEnabled(TraceConfig(),
-                                        TraceLog::RECORDING_MODE);
-    for (size_t i = 0; i < traces; i++) {
-      TRACE_EVENT_INSTANT0("test_x", "y", TRACE_EVENT_SCOPE_THREAD);
-    }
-    EndTraceAndFlush();
-    if (num_flush_callbacks_ < 2) {
-      min_traces = traces - 10;
-    } else {
-      max_traces = traces + 10;
-    }
-  }
-
-  for (size_t traces = min_traces; traces < max_traces; traces++) {
-    TraceLog::GetInstance()->SetEnabled(TraceConfig(),
-                                        TraceLog::RECORDING_MODE);
-    for (size_t i = 0; i < traces; i++) {
-      TRACE_EVENT_INSTANT0("test_x", "y", TRACE_EVENT_SCOPE_THREAD);
-    }
-    EndTraceAndFlush();
-  }
-}
-#endif  // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
-
-TEST_F(TraceEventTestFixture, AddMetadataEvent) {
-  int num_calls = 0;
-
-  class Convertable : public ConvertableToTraceFormat {
-   public:
-    explicit Convertable(int* num_calls) : num_calls_(num_calls) {}
-    ~Convertable() override = default;
-    void AppendAsTraceFormat(std::string* out) const override {
-      (*num_calls_)++;
-      out->append("\"metadata_value\"");
-    }
-
-   private:
-    raw_ptr<int> num_calls_;
-  };
-
-  std::unique_ptr<ConvertableToTraceFormat> conv1(new Convertable(&num_calls));
-  std::unique_ptr<Convertable> conv2(new Convertable(&num_calls));
-
-  BeginTrace();
-  TRACE_EVENT_API_ADD_METADATA_EVENT(
-      TraceLog::GetCategoryGroupEnabled("__metadata"), "metadata_event_1",
-      "metadata_arg_name", std::move(conv1));
-  TRACE_EVENT_API_ADD_METADATA_EVENT(
-      TraceLog::GetCategoryGroupEnabled("__metadata"), "metadata_event_2",
-      "metadata_arg_name", std::move(conv2));
-  // |AppendAsTraceFormat| should only be called on flush, not when the event
-  // is added.
-  ASSERT_EQ(0, num_calls);
-  EndTraceAndFlush();
-  ASSERT_EQ(2, num_calls);
-  EXPECT_TRUE(FindNamePhaseKeyValue("metadata_event_1", "M",
-                                    "metadata_arg_name", "metadata_value"));
-  EXPECT_TRUE(FindNamePhaseKeyValue("metadata_event_2", "M",
-                                    "metadata_arg_name", "metadata_value"));
-
-  // The metadata event should only be adde to the current trace. In this new
-  // trace, the event should not appear.
-  BeginTrace();
-  EndTraceAndFlush();
-  ASSERT_EQ(2, num_calls);
 }
 
 // Test that categories work.
@@ -1134,8 +953,7 @@ TEST_F(TraceEventTestFixture, Categories) {
   // Include nonexistent category -> no events
   Clear();
   included_categories.clear();
-  TraceLog::GetInstance()->SetEnabled(TraceConfig("not_found823564786", ""),
-                                      TraceLog::RECORDING_MODE);
+  TraceLog::GetInstance()->SetEnabled(TraceConfig("not_found823564786", ""));
   TRACE_EVENT_INSTANT0("cat1", "name", TRACE_EVENT_SCOPE_THREAD);
   TRACE_EVENT_INSTANT0("cat2", "name", TRACE_EVENT_SCOPE_THREAD);
   EndTraceAndFlush();
@@ -1145,8 +963,7 @@ TEST_F(TraceEventTestFixture, Categories) {
   // Include existent category -> only events of that category
   Clear();
   included_categories.clear();
-  TraceLog::GetInstance()->SetEnabled(TraceConfig("test_inc", ""),
-                                      TraceLog::RECORDING_MODE);
+  TraceLog::GetInstance()->SetEnabled(TraceConfig("test_inc", ""));
   TRACE_EVENT_INSTANT0("test_inc", "name", TRACE_EVENT_SCOPE_THREAD);
   TRACE_EVENT_INSTANT0("test_inc2", "name", TRACE_EVENT_SCOPE_THREAD);
   EndTraceAndFlush();
@@ -1157,8 +974,7 @@ TEST_F(TraceEventTestFixture, Categories) {
   // Include existent wildcard -> all categories matching wildcard
   Clear();
   included_categories.clear();
-  TraceLog::GetInstance()->SetEnabled(TraceConfig("test_inc_wildcard_*", ""),
-                                      TraceLog::RECORDING_MODE);
+  TraceLog::GetInstance()->SetEnabled(TraceConfig("test_inc_wildcard_*", ""));
   TRACE_EVENT_INSTANT0("test_inc_wildcard_abc", "included",
                        TRACE_EVENT_SCOPE_THREAD);
   TRACE_EVENT_INSTANT0("test_inc_wildcard_", "included",
@@ -1182,8 +998,7 @@ TEST_F(TraceEventTestFixture, Categories) {
 
   // Exclude nonexistent category -> all events
   Clear();
-  TraceLog::GetInstance()->SetEnabled(TraceConfig("-not_found823564786", ""),
-                                      TraceLog::RECORDING_MODE);
+  TraceLog::GetInstance()->SetEnabled(TraceConfig("-not_found823564786", ""));
   TRACE_EVENT_INSTANT0("cat1", "name", TRACE_EVENT_SCOPE_THREAD);
   TRACE_EVENT_INSTANT0("cat2", "name", TRACE_EVENT_SCOPE_THREAD);
   TRACE_EVENT_INSTANT0("category1,category2", "name", TRACE_EVENT_SCOPE_THREAD);
@@ -1194,8 +1009,7 @@ TEST_F(TraceEventTestFixture, Categories) {
 
   // Exclude existent category -> only events of other categories
   Clear();
-  TraceLog::GetInstance()->SetEnabled(TraceConfig("-test_inc", ""),
-                                      TraceLog::RECORDING_MODE);
+  TraceLog::GetInstance()->SetEnabled(TraceConfig("-test_inc", ""));
   TRACE_EVENT_INSTANT0("test_inc", "name", TRACE_EVENT_SCOPE_THREAD);
   TRACE_EVENT_INSTANT0("test_inc2", "name", TRACE_EVENT_SCOPE_THREAD);
   TRACE_EVENT_INSTANT0("test_inc2,test_inc", "name", TRACE_EVENT_SCOPE_THREAD);
@@ -1205,23 +1019,7 @@ TEST_F(TraceEventTestFixture, Categories) {
   EXPECT_FALSE(FindMatchingValue("cat", "test_inc"));
   EXPECT_TRUE(FindMatchingValue("cat", "test_inc2,test_inc"));
   EXPECT_TRUE(FindMatchingValue("cat", "test_inc,test_inc2"));
-
-  // Exclude existent wildcard -> all categories not matching wildcard
-  Clear();
-  TraceLog::GetInstance()->SetEnabled(TraceConfig("-test_inc_wildcard_*", ""),
-                                      TraceLog::RECORDING_MODE);
-  TRACE_EVENT_INSTANT0("test_inc_wildcard_abc", "not_inc",
-                       TRACE_EVENT_SCOPE_THREAD);
-  TRACE_EVENT_INSTANT0("test_inc_wildcard_", "not_inc",
-                       TRACE_EVENT_SCOPE_THREAD);
-  TRACE_EVENT_INSTANT0("cat1", "included", TRACE_EVENT_SCOPE_THREAD);
-  TRACE_EVENT_INSTANT0("cat2", "included", TRACE_EVENT_SCOPE_THREAD);
-  EndTraceAndFlush();
-  EXPECT_TRUE(FindMatchingValue("cat", "cat1"));
-  EXPECT_TRUE(FindMatchingValue("cat", "cat2"));
-  EXPECT_FALSE(FindMatchingValue("name", "not_inc"));
 }
-
 
 // Test ASYNC_BEGIN/END events
 TEST_F(TraceEventTestFixture, AsyncBeginEndEvents) {
@@ -1289,65 +1087,6 @@ TEST_F(TraceEventTestFixture, AsyncBeginEndPointerNotMangled) {
   EXPECT_STREQ(async_begin_id_str.c_str(), async_end_id_str.c_str());
 }
 
-// Test that static strings are not copied.
-TEST_F(TraceEventTestFixture, StaticStringVsString) {
-  TraceLog* tracer = TraceLog::GetInstance();
-  // Make sure old events are flushed:
-  EXPECT_EQ(0u, tracer->GetStatus().event_count);
-  const unsigned char* category_group_enabled =
-      TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED("base");
-
-  {
-    BeginTrace();
-    // Test that string arguments are copied.
-    [[maybe_unused]] TraceEventHandle handle1 =
-        trace_event_internal::AddTraceEvent(
-            TRACE_EVENT_PHASE_INSTANT, category_group_enabled, "name1",
-            trace_event_internal::kGlobalScope, trace_event_internal::kNoId, 0,
-            trace_event_internal::kNoId, "arg1", std::string("argval"), "arg2",
-            std::string("argval"));
-    // Test that static TRACE_STR_COPY string arguments are copied.
-    [[maybe_unused]] TraceEventHandle handle2 =
-        trace_event_internal::AddTraceEvent(
-            TRACE_EVENT_PHASE_INSTANT, category_group_enabled, "name2",
-            trace_event_internal::kGlobalScope, trace_event_internal::kNoId, 0,
-            trace_event_internal::kNoId, "arg1", TRACE_STR_COPY("argval"),
-            "arg2", TRACE_STR_COPY("argval"));
-#if !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
-    EXPECT_GT(tracer->GetStatus().event_count, 1u);
-    const TraceEvent* event1 = tracer->GetEventByHandle(handle1);
-    const TraceEvent* event2 = tracer->GetEventByHandle(handle2);
-    ASSERT_TRUE(event1);
-    ASSERT_TRUE(event2);
-    EXPECT_STREQ("name1", event1->name());
-    EXPECT_STREQ("name2", event2->name());
-    EXPECT_FALSE(event1->parameter_copy_storage().empty());
-    EXPECT_FALSE(event2->parameter_copy_storage().empty());
-    EXPECT_GT(event1->parameter_copy_storage().size(), 0u);
-    EXPECT_GT(event2->parameter_copy_storage().size(), 0u);
-#endif  // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
-    EndTraceAndFlush();
-  }
-
-  {
-    BeginTrace();
-    // Test that static literal string arguments are not copied.
-    [[maybe_unused]] TraceEventHandle handle1 =
-        trace_event_internal::AddTraceEvent(
-            TRACE_EVENT_PHASE_INSTANT, category_group_enabled, "name1",
-            trace_event_internal::kGlobalScope, trace_event_internal::kNoId, 0,
-            trace_event_internal::kNoId, "arg1", "argval", "arg2", "argval");
-#if !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
-    EXPECT_GT(tracer->GetStatus().event_count, 1u);
-    const TraceEvent* event1 = tracer->GetEventByHandle(handle1);
-    ASSERT_TRUE(event1);
-    EXPECT_STREQ("name1", event1->name());
-    EXPECT_TRUE(event1->parameter_copy_storage().empty());
-#endif
-    EndTraceAndFlush();
-  }
-}
-
 // Test that data sent from other threads is gathered
 TEST_F(TraceEventTestFixture, DataCapturedOnThread) {
   BeginTrace();
@@ -1373,8 +1112,8 @@ TEST_F(TraceEventTestFixture, DataCapturedManyThreads) {
 
   const int num_threads = 4;
   const int num_events = 4000;
-  Thread* threads[num_threads];
-  WaitableEvent* task_complete_events[num_threads];
+  std::array<Thread*, num_threads> threads;
+  std::array<WaitableEvent*, num_threads> task_complete_events;
   for (int i = 0; i < num_threads; i++) {
     threads[i] = new Thread(StringPrintf("Thread %d", i));
     task_complete_events[i] =
@@ -1398,8 +1137,8 @@ TEST_F(TraceEventTestFixture, DataCapturedManyThreads) {
   }
 
   EndTraceAndFlushInThreadWithMessageLoop();
-  ValidateInstantEventPresentOnEveryThread(trace_parsed_,
-                                           num_threads, num_events);
+  ValidateInstantEventPresentOnEveryThread(trace_parsed_, num_threads,
+                                           num_events);
 
   // Let the other half of the threads end after flush.
   for (int i = num_threads / 2; i < num_threads; i++) {
@@ -1408,80 +1147,6 @@ TEST_F(TraceEventTestFixture, DataCapturedManyThreads) {
     delete task_complete_events[i];
   }
 }
-
-// Test that thread and process names show up in the trace.
-// In SDK build, thread names are not tracked inside //base. Instead, there's
-// a special TrackNameRecorder component in //services that is tested in
-// services_unittests.
-// TODO(khokhlov): Verify if we need thread name support for unit-test tracing.
-#if !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
-TEST_F(TraceEventTestFixture, ThreadNames) {
-  // Create threads before we enable tracing to make sure
-  // that tracelog still captures them.
-  const int kNumThreads = 4;
-  const int kNumEvents = 10;
-  Thread* threads[kNumThreads];
-  PlatformThreadId thread_ids[kNumThreads];
-  for (int i = 0; i < kNumThreads; i++)
-    threads[i] = new Thread(StringPrintf("Thread %d", i));
-
-  // Enable tracing.
-  BeginTrace();
-
-  // Now run some trace code on these threads.
-  WaitableEvent* task_complete_events[kNumThreads];
-  for (int i = 0; i < kNumThreads; i++) {
-    task_complete_events[i] =
-        new WaitableEvent(WaitableEvent::ResetPolicy::AUTOMATIC,
-                          WaitableEvent::InitialState::NOT_SIGNALED);
-    threads[i]->Start();
-    thread_ids[i] = threads[i]->GetThreadId();
-    threads[i]->task_runner()->PostTask(
-        FROM_HERE, base::BindOnce(&TraceManyInstantEvents, i, kNumEvents,
-                                  task_complete_events[i]));
-  }
-  for (auto* event : task_complete_events) {
-    event->Wait();
-  }
-
-  // Shut things down.
-  for (int i = 0; i < kNumThreads; i++) {
-    threads[i]->Stop();
-    delete threads[i];
-    delete task_complete_events[i];
-  }
-
-  EndTraceAndFlush();
-
-  // Make sure we get thread name metadata.
-  // Note, the test suite may have created a ton of threads.
-  // So, we'll have thread names for threads we didn't create.
-  std::vector<const Value::Dict*> items =
-      FindTraceEntries(trace_parsed_, "thread_name");
-  for (const Value::Dict* item : items) {
-    ASSERT_TRUE(item);
-
-    absl::optional<int> maybe_tid = item->FindInt("tid");
-    EXPECT_TRUE(maybe_tid.has_value());
-
-    // See if this thread name is one of the threads we just created
-    for (int j = 0; j < kNumThreads; j++) {
-      if (static_cast<int>(thread_ids[j]) != maybe_tid.value())
-        continue;
-
-      EXPECT_EQ(*item->FindString("ph"), "M");
-      EXPECT_EQ(*item->FindInt("pid"),
-                static_cast<int>(base::GetCurrentProcId()));
-
-      // If the thread name changes or the tid gets reused, the name will be
-      // a comma-separated list of thread names, so look for a substring.
-      std::string expected_name = StringPrintf("Thread %d", j);
-      const std::string* name = item->FindStringByDottedPath("args.name");
-      EXPECT_TRUE(name && name->find(expected_name) != std::string::npos);
-    }
-  }
-}
-#endif  // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 
 // Test that the disabled trace categories are included/excluded from the
 // trace output correctly.
@@ -1530,29 +1195,6 @@ TEST_F(TraceEventTestFixture, DisabledCategories) {
     EXPECT_FIND_("test_other_included,disabled-by-default-cc");
   }
 }
-
-// Perfetto always traces all macro arguments immediately.
-#if !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
-TEST_F(TraceEventTestFixture, NormallyNoDeepCopy) {
-  // Test that the TRACE_EVENT macros do not deep-copy their string. If they
-  // do so it may indicate a performance regression, but more-over it would
-  // make the DEEP_COPY overloads redundant.
-  std::string name_string("event name");
-
-  BeginTrace();
-  TRACE_EVENT_INSTANT0("category", name_string.c_str(),
-                       TRACE_EVENT_SCOPE_THREAD);
-
-  // Modify the string in place (a wholesale reassignment may leave the old
-  // string intact on the heap).
-  name_string[0] = '@';
-
-  EndTraceAndFlush();
-
-  EXPECT_FALSE(FindTraceEntry(trace_parsed_, "event name"));
-  EXPECT_TRUE(FindTraceEntry(trace_parsed_, name_string.c_str()));
-}
-#endif  // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 
 TEST_F(TraceEventTestFixture, DeepCopy) {
   static const char kOriginalName[] = "name1";
@@ -1626,94 +1268,33 @@ TEST_F(TraceEventTestFixture, TracingIsLazy) {
 TEST_F(TraceEventTestFixture, TraceEnableDisable) {
   TraceLog* trace_log = TraceLog::GetInstance();
   TraceConfig tc_inc_all("*", "");
-  trace_log->SetEnabled(tc_inc_all, TraceLog::RECORDING_MODE);
+  trace_log->SetEnabled(tc_inc_all);
   EXPECT_TRUE(trace_log->IsEnabled());
   trace_log->SetDisabled();
   EXPECT_FALSE(trace_log->IsEnabled());
 
-  trace_log->SetEnabled(tc_inc_all, TraceLog::RECORDING_MODE);
+  trace_log->SetEnabled(tc_inc_all);
   EXPECT_TRUE(trace_log->IsEnabled());
-// Nested enable isn't supported by Perfetto.
-#if !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
-  trace_log->SetEnabled(TraceConfig(), TraceLog::RECORDING_MODE);
-  EXPECT_TRUE(trace_log->IsEnabled());
-  trace_log->SetDisabled();
-  EXPECT_FALSE(trace_log->IsEnabled());
-#endif  // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
   trace_log->SetDisabled();
   EXPECT_FALSE(trace_log->IsEnabled());
 }
-
-// Nested enable isn't supported by Perfetto.
-#if !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
-TEST_F(TraceEventTestFixture, TraceCategoriesAfterNestedEnable) {
-  TraceLog* trace_log = TraceLog::GetInstance();
-  trace_log->SetEnabled(TraceConfig("foo,bar", ""), TraceLog::RECORDING_MODE);
-  EXPECT_TRUE(*trace_log->GetCategoryGroupEnabled("foo"));
-  EXPECT_TRUE(*trace_log->GetCategoryGroupEnabled("bar"));
-  EXPECT_FALSE(*trace_log->GetCategoryGroupEnabled("baz"));
-  trace_log->SetEnabled(TraceConfig("foo2", ""), TraceLog::RECORDING_MODE);
-  EXPECT_TRUE(*trace_log->GetCategoryGroupEnabled("foo2"));
-  EXPECT_FALSE(*trace_log->GetCategoryGroupEnabled("baz"));
-  // The "" becomes the default category set when applied.
-  trace_log->SetEnabled(TraceConfig(), TraceLog::RECORDING_MODE);
-  EXPECT_TRUE(*trace_log->GetCategoryGroupEnabled("foo"));
-  EXPECT_TRUE(*trace_log->GetCategoryGroupEnabled("baz"));
-  EXPECT_STREQ(
-    "",
-    trace_log->GetCurrentTraceConfig().ToCategoryFilterString().c_str());
-  trace_log->SetDisabled();
-  trace_log->SetDisabled();
-  trace_log->SetDisabled();
-  EXPECT_FALSE(*trace_log->GetCategoryGroupEnabled("foo"));
-  EXPECT_FALSE(*trace_log->GetCategoryGroupEnabled("baz"));
-
-  trace_log->SetEnabled(TraceConfig("-foo,-bar", ""), TraceLog::RECORDING_MODE);
-  EXPECT_FALSE(*trace_log->GetCategoryGroupEnabled("foo"));
-  EXPECT_TRUE(*trace_log->GetCategoryGroupEnabled("baz"));
-  trace_log->SetEnabled(TraceConfig("moo", ""), TraceLog::RECORDING_MODE);
-  EXPECT_TRUE(*trace_log->GetCategoryGroupEnabled("baz"));
-  EXPECT_TRUE(*trace_log->GetCategoryGroupEnabled("moo"));
-  EXPECT_FALSE(*trace_log->GetCategoryGroupEnabled("foo"));
-  EXPECT_STREQ(
-    "-foo,-bar",
-    trace_log->GetCurrentTraceConfig().ToCategoryFilterString().c_str());
-  trace_log->SetDisabled();
-  trace_log->SetDisabled();
-
-  // Make sure disabled categories aren't cleared if we set in the second.
-  trace_log->SetEnabled(TraceConfig("disabled-by-default-cc,foo", ""),
-                        TraceLog::RECORDING_MODE);
-  EXPECT_FALSE(*trace_log->GetCategoryGroupEnabled("bar"));
-  trace_log->SetEnabled(TraceConfig("disabled-by-default-gpu", ""),
-                        TraceLog::RECORDING_MODE);
-  EXPECT_TRUE(*trace_log->GetCategoryGroupEnabled("disabled-by-default-cc"));
-  EXPECT_TRUE(*trace_log->GetCategoryGroupEnabled("disabled-by-default-gpu"));
-  EXPECT_TRUE(*trace_log->GetCategoryGroupEnabled("bar"));
-  EXPECT_STREQ(
-    "disabled-by-default-cc,disabled-by-default-gpu",
-    trace_log->GetCurrentTraceConfig().ToCategoryFilterString().c_str());
-  trace_log->SetDisabled();
-  trace_log->SetDisabled();
-}
-#endif  // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 
 TEST_F(TraceEventTestFixture, TraceWithDefaultCategoryFilters) {
   TraceLog* trace_log = TraceLog::GetInstance();
 
-  trace_log->SetEnabled(TraceConfig(), TraceLog::RECORDING_MODE);
+  trace_log->SetEnabled(TraceConfig());
   CheckTraceDefaultCategoryFilters(*trace_log);
   trace_log->SetDisabled();
 
-  trace_log->SetEnabled(TraceConfig("", ""), TraceLog::RECORDING_MODE);
+  trace_log->SetEnabled(TraceConfig("", ""));
   CheckTraceDefaultCategoryFilters(*trace_log);
   trace_log->SetDisabled();
 
-  trace_log->SetEnabled(TraceConfig("*", ""), TraceLog::RECORDING_MODE);
+  trace_log->SetEnabled(TraceConfig("*", ""));
   CheckTraceDefaultCategoryFilters(*trace_log);
   trace_log->SetDisabled();
 
-  trace_log->SetEnabled(TraceConfig(""), TraceLog::RECORDING_MODE);
+  trace_log->SetEnabled(TraceConfig(""));
   CheckTraceDefaultCategoryFilters(*trace_log);
   trace_log->SetDisabled();
 }
@@ -1721,8 +1302,7 @@ TEST_F(TraceEventTestFixture, TraceWithDefaultCategoryFilters) {
 TEST_F(TraceEventTestFixture, TraceWithDisabledByDefaultCategoryFilters) {
   TraceLog* trace_log = TraceLog::GetInstance();
 
-  trace_log->SetEnabled(TraceConfig("foo,disabled-by-default-foo", ""),
-                        TraceLog::RECORDING_MODE);
+  trace_log->SetEnabled(TraceConfig("foo,disabled-by-default-foo", ""));
   EXPECT_TRUE(IsCategoryEnabled("foo"));
   EXPECT_TRUE(IsCategoryEnabled("disabled-by-default-foo"));
   EXPECT_FALSE(IsCategoryEnabled("bar"));
@@ -1731,8 +1311,7 @@ TEST_F(TraceEventTestFixture, TraceWithDisabledByDefaultCategoryFilters) {
 
   // Enabling only the disabled-by-default-* category means the default ones
   // are also enabled.
-  trace_log->SetEnabled(TraceConfig("disabled-by-default-foo", ""),
-                        TraceLog::RECORDING_MODE);
+  trace_log->SetEnabled(TraceConfig("disabled-by-default-foo", ""));
   EXPECT_TRUE(IsCategoryEnabled("disabled-by-default-foo"));
   EXPECT_TRUE(IsCategoryEnabled("foo"));
   EXPECT_TRUE(IsCategoryEnabled("bar"));
@@ -1752,9 +1331,15 @@ class MyData : public ConvertableToTraceFormat {
   }
 };
 
-TEST_F(TraceEventTestFixture, ConvertableTypes) {
-  TraceLog::GetInstance()->SetEnabled(TraceConfig(kRecordAllCategoryFilter, ""),
-                                      TraceLog::RECORDING_MODE);
+// crbug.com/325641473: Flaky on Mac due to missing last event.
+#if BUILDFLAG(IS_APPLE)
+#define MAYBE_ConvertableTypes DISABLED_ConvertableTypes
+#else
+#define MAYBE_ConvertableTypes ConvertableTypes
+#endif
+TEST_F(TraceEventTestFixture, MAYBE_ConvertableTypes) {
+  TraceLog::GetInstance()->SetEnabled(
+      TraceConfig(kRecordAllCategoryFilter, ""));
 
   {
     std::unique_ptr<ConvertableToTraceFormat> data(new MyData());
@@ -1845,9 +1430,15 @@ TEST_F(TraceEventTestFixture, ConvertableTypes) {
   ASSERT_TRUE(convertable_dict);
 }
 
-TEST_F(TraceEventTestFixture, PrimitiveArgs) {
-  TraceLog::GetInstance()->SetEnabled(TraceConfig(kRecordAllCategoryFilter, ""),
-                                      TraceLog::RECORDING_MODE);
+// crbug.com/325641473: Flaky on Mac due to missing last event.
+#if BUILDFLAG(IS_APPLE)
+#define MAYBE_PrimitiveArgs DISABLED_PrimitiveArgs
+#else
+#define MAYBE_PrimitiveArgs PrimitiveArgs
+#endif
+TEST_F(TraceEventTestFixture, MAYBE_PrimitiveArgs) {
+  TraceLog::GetInstance()->SetEnabled(
+      TraceConfig(kRecordAllCategoryFilter, ""));
 
   {
     TRACE_EVENT1("foo", "event1", "int_one", 1);
@@ -1984,8 +1575,8 @@ TEST_F(TraceEventTestFixture, PrimitiveArgs) {
 }
 
 TEST_F(TraceEventTestFixture, NameIsEscaped) {
-  TraceLog::GetInstance()->SetEnabled(TraceConfig(kRecordAllCategoryFilter, ""),
-                                      TraceLog::RECORDING_MODE);
+  TraceLog::GetInstance()->SetEnabled(
+      TraceConfig(kRecordAllCategoryFilter, ""));
   TRACE_EVENT0("category", "name\\with\\backspaces");
   EndTraceAndFlush();
 
@@ -1993,345 +1584,10 @@ TEST_F(TraceEventTestFixture, NameIsEscaped) {
   EXPECT_TRUE(FindMatchingValue("name", "name\\with\\backspaces"));
 }
 
-// Runtime args filtering is not supported by Perfetto.
-#if !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
-namespace {
-
-bool IsArgNameAllowed(const char* arg_name) {
-  return base::MatchPattern(arg_name, "granular_arg_allowed");
-}
-
-bool IsTraceEventArgsAllowlisted(const char* category_group_name,
-                                 const char* event_name,
-                                 ArgumentNameFilterPredicate* arg_filter) {
-  if (base::MatchPattern(category_group_name, "toplevel") &&
-      base::MatchPattern(event_name, "*")) {
-    return true;
-  }
-
-  if (base::MatchPattern(category_group_name, "benchmark") &&
-      base::MatchPattern(event_name, "granularly_allowed")) {
-    *arg_filter = base::BindRepeating(&IsArgNameAllowed);
-    return true;
-  }
-
-  return false;
-}
-
-}  // namespace
-
-TEST_F(TraceEventTestFixture, ArgsAllowlisting) {
-  TraceLog::GetInstance()->SetArgumentFilterPredicate(
-      base::BindRepeating(&IsTraceEventArgsAllowlisted));
-
-  TraceLog::GetInstance()->SetEnabled(
-    TraceConfig(kRecordAllCategoryFilter, "enable-argument-filter"),
-    TraceLog::RECORDING_MODE);
-
-  TRACE_EVENT1("toplevel", "event1", "int_one", 1);
-  TRACE_EVENT1("Testing", "event2", "int_two", 1);
-
-  TRACE_EVENT2("benchmark", "granularly_allowed", "granular_arg_allowed",
-               "allowed_value", "granular_arg_disallowed", "disallowed_value");
-
-  EndTraceAndFlush();
-
-  const Value::Dict* args_dict = nullptr;
-  const Value::Dict* dict = nullptr;
-
-  dict = FindNamePhase("event1", "X");
-  ASSERT_TRUE(dict);
-  args_dict = dict->FindDict("args");
-  ASSERT_TRUE(args_dict);
-  EXPECT_EQ(*args_dict->FindInt("int_one"), 1);
-  EXPECT_FALSE(args_dict->FindInt("int_two"));
-
-  dict = FindNamePhase("event2", "X");
-  ASSERT_TRUE(dict);
-  EXPECT_EQ(*dict->FindString("args"), "__stripped__");
-
-  dict = FindNamePhase("granularly_allowed", "X");
-  ASSERT_TRUE(dict);
-  args_dict = dict->FindDict("args");
-  ASSERT_TRUE(args_dict);
-
-  EXPECT_EQ(*args_dict->FindString("granular_arg_allowed"), "allowed_value");
-
-  EXPECT_EQ(*args_dict->FindString("granular_arg_disallowed"), "__stripped__");
-}
-#endif  // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
-
-// TraceBuffer isn't used with Perfetto.
-#if !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
-TEST_F(TraceEventTestFixture, TraceBufferVectorReportFull) {
-  TraceLog* trace_log = TraceLog::GetInstance();
-  trace_log->SetEnabled(
-      TraceConfig(kRecordAllCategoryFilter, ""), TraceLog::RECORDING_MODE);
-  trace_log->logged_events_.reset(
-      TraceBuffer::CreateTraceBufferVectorOfSize(100));
-  do {
-    TRACE_EVENT_BEGIN_WITH_ID_TID_AND_TIMESTAMP0("test_all", "with_timestamp",
-                                                 0, 0, TimeTicks::Now());
-    TRACE_EVENT_END_WITH_ID_TID_AND_TIMESTAMP0("test_all", "with_timestamp", 0,
-                                               0, TimeTicks::Now());
-  } while (!trace_log->BufferIsFull());
-
-  EndTraceAndFlush();
-
-  const Value::Dict* trace_full_metadata = nullptr;
-
-  trace_full_metadata = FindTraceEntry(trace_parsed_,
-                                       "overflowed_at_ts");
-
-  EXPECT_TRUE(trace_full_metadata);
-  EXPECT_EQ(*trace_full_metadata->FindString("ph"), "M");
-  absl::optional<double> maybe_buffer_limit_reached_timestamp =
-      trace_full_metadata->FindDoubleByDottedPath("args.overflowed_at_ts");
-
-  EXPECT_EQ(*maybe_buffer_limit_reached_timestamp,
-            static_cast<double>(
-                trace_log->buffer_limit_reached_timestamp_.ToInternalValue()));
-
-  // Test that buffer_limit_reached_timestamp's value is between the timestamp
-  // of the last trace event and current time.
-  DropTracedMetadataRecords();
-  ASSERT_TRUE(!trace_parsed_.empty());
-  const Value& last_trace_event = trace_parsed_.back();
-  EXPECT_TRUE(last_trace_event.is_dict());
-  absl::optional<double> maybe_last_trace_event_timestamp =
-      last_trace_event.GetDict().FindDouble("ts");
-  EXPECT_TRUE(maybe_last_trace_event_timestamp.has_value());
-  EXPECT_LE(maybe_last_trace_event_timestamp.value(),
-            maybe_buffer_limit_reached_timestamp.value());
-  EXPECT_LE(maybe_buffer_limit_reached_timestamp.value(),
-            trace_log->OffsetNow().ToInternalValue());
-}
-
-TEST_F(TraceEventTestFixture, TraceBufferRingBufferGetReturnChunk) {
-  TraceLog::GetInstance()->SetEnabled(
-      TraceConfig(kRecordAllCategoryFilter, RECORD_CONTINUOUSLY),
-      TraceLog::RECORDING_MODE);
-  TraceBuffer* buffer = TraceLog::GetInstance()->trace_buffer();
-  size_t capacity = buffer->Capacity();
-  size_t num_chunks = capacity / TraceBufferChunk::kTraceBufferChunkSize;
-  uint32_t last_seq = 0;
-  size_t chunk_index;
-  EXPECT_EQ(0u, buffer->Size());
-
-  std::unique_ptr<TraceBufferChunk* []> chunks(
-      new TraceBufferChunk*[num_chunks]);
-  for (size_t i = 0; i < num_chunks; ++i) {
-    chunks[i] = buffer->GetChunk(&chunk_index).release();
-    EXPECT_TRUE(chunks[i]);
-    EXPECT_EQ(i, chunk_index);
-    EXPECT_GT(chunks[i]->seq(), last_seq);
-    EXPECT_EQ((i + 1) * TraceBufferChunk::kTraceBufferChunkSize,
-              buffer->Size());
-    last_seq = chunks[i]->seq();
-  }
-
-  // Ring buffer is never full.
-  EXPECT_FALSE(buffer->IsFull());
-
-  // Return all chunks in original order.
-  for (size_t i = 0; i < num_chunks; ++i)
-    buffer->ReturnChunk(i, std::unique_ptr<TraceBufferChunk>(chunks[i]));
-
-  // Should recycle the chunks in the returned order.
-  for (size_t i = 0; i < num_chunks; ++i) {
-    chunks[i] = buffer->GetChunk(&chunk_index).release();
-    EXPECT_TRUE(chunks[i]);
-    EXPECT_EQ(i, chunk_index);
-    EXPECT_GT(chunks[i]->seq(), last_seq);
-    last_seq = chunks[i]->seq();
-  }
-
-  // Return all chunks in reverse order.
-  for (size_t i = 0; i < num_chunks; ++i) {
-    buffer->ReturnChunk(num_chunks - i - 1, std::unique_ptr<TraceBufferChunk>(
-                                                chunks[num_chunks - i - 1]));
-  }
-
-  // Should recycle the chunks in the returned order.
-  for (size_t i = 0; i < num_chunks; ++i) {
-    chunks[i] = buffer->GetChunk(&chunk_index).release();
-    EXPECT_TRUE(chunks[i]);
-    EXPECT_EQ(num_chunks - i - 1, chunk_index);
-    EXPECT_GT(chunks[i]->seq(), last_seq);
-    last_seq = chunks[i]->seq();
-  }
-
-  for (size_t i = 0; i < num_chunks; ++i)
-    buffer->ReturnChunk(i, std::unique_ptr<TraceBufferChunk>(chunks[i]));
-
-  TraceLog::GetInstance()->SetDisabled();
-}
-
-TEST_F(TraceEventTestFixture, TraceBufferRingBufferHalfIteration) {
-  TraceLog::GetInstance()->SetEnabled(
-      TraceConfig(kRecordAllCategoryFilter, RECORD_CONTINUOUSLY),
-      TraceLog::RECORDING_MODE);
-  TraceBuffer* buffer = TraceLog::GetInstance()->trace_buffer();
-  size_t capacity = buffer->Capacity();
-  size_t num_chunks = capacity / TraceBufferChunk::kTraceBufferChunkSize;
-  size_t chunk_index;
-  EXPECT_EQ(0u, buffer->Size());
-  EXPECT_FALSE(buffer->NextChunk());
-
-  size_t half_chunks = num_chunks / 2;
-  std::unique_ptr<TraceBufferChunk* []> chunks(
-      new TraceBufferChunk*[half_chunks]);
-
-  for (size_t i = 0; i < half_chunks; ++i) {
-    chunks[i] = buffer->GetChunk(&chunk_index).release();
-    EXPECT_TRUE(chunks[i]);
-    EXPECT_EQ(i, chunk_index);
-  }
-  for (size_t i = 0; i < half_chunks; ++i)
-    buffer->ReturnChunk(i, std::unique_ptr<TraceBufferChunk>(chunks[i]));
-
-  for (size_t i = 0; i < half_chunks; ++i)
-    EXPECT_EQ(chunks[i], buffer->NextChunk());
-  EXPECT_FALSE(buffer->NextChunk());
-  TraceLog::GetInstance()->SetDisabled();
-}
-
-TEST_F(TraceEventTestFixture, TraceBufferRingBufferFullIteration) {
-  TraceLog::GetInstance()->SetEnabled(
-      TraceConfig(kRecordAllCategoryFilter, RECORD_CONTINUOUSLY),
-      TraceLog::RECORDING_MODE);
-  TraceBuffer* buffer = TraceLog::GetInstance()->trace_buffer();
-  size_t capacity = buffer->Capacity();
-  size_t num_chunks = capacity / TraceBufferChunk::kTraceBufferChunkSize;
-  size_t chunk_index;
-  EXPECT_EQ(0u, buffer->Size());
-  EXPECT_FALSE(buffer->NextChunk());
-
-  std::unique_ptr<TraceBufferChunk* []> chunks(
-      new TraceBufferChunk*[num_chunks]);
-
-  for (size_t i = 0; i < num_chunks; ++i) {
-    chunks[i] = buffer->GetChunk(&chunk_index).release();
-    EXPECT_TRUE(chunks[i]);
-    EXPECT_EQ(i, chunk_index);
-  }
-  for (size_t i = 0; i < num_chunks; ++i)
-    buffer->ReturnChunk(i, std::unique_ptr<TraceBufferChunk>(chunks[i]));
-
-  for (size_t i = 0; i < num_chunks; ++i)
-    EXPECT_TRUE(chunks[i] == buffer->NextChunk());
-  EXPECT_FALSE(buffer->NextChunk());
-  TraceLog::GetInstance()->SetDisabled();
-}
-
-TEST_F(TraceEventTestFixture, TraceRecordAsMuchAsPossibleMode) {
-  TraceLog::GetInstance()->SetEnabled(
-    TraceConfig(kRecordAllCategoryFilter, RECORD_AS_MUCH_AS_POSSIBLE),
-    TraceLog::RECORDING_MODE);
-  TraceBuffer* buffer = TraceLog::GetInstance()->trace_buffer();
-  EXPECT_EQ(512000000UL, buffer->Capacity());
-  TraceLog::GetInstance()->SetDisabled();
-}
-
-TEST_F(TraceEventTestFixture, ConfigTraceBufferLimit) {
-  const size_t kLimit = 2048;
-  TraceConfig config(kRecordAllCategoryFilter, RECORD_UNTIL_FULL);
-  config.SetTraceBufferSizeInEvents(kLimit);
-  TraceLog::GetInstance()->SetEnabled(config, TraceLog::RECORDING_MODE);
-  TraceBuffer* buffer = TraceLog::GetInstance()->trace_buffer();
-  EXPECT_EQ(kLimit, buffer->Capacity());
-  TraceLog::GetInstance()->SetDisabled();
-}
-#endif  // BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
-
 void BlockUntilStopped(WaitableEvent* task_start_event,
                        WaitableEvent* task_stop_event) {
   task_start_event->Signal();
   task_stop_event->Wait();
-}
-
-TEST_F(TraceEventTestFixture, SetCurrentThreadBlocksMessageLoopBeforeTracing) {
-  BeginTrace();
-
-  Thread thread("1");
-  WaitableEvent task_complete_event(WaitableEvent::ResetPolicy::AUTOMATIC,
-                                    WaitableEvent::InitialState::NOT_SIGNALED);
-  thread.Start();
-  thread.task_runner()->PostTask(
-      FROM_HERE, BindOnce(&TraceLog::SetCurrentThreadBlocksMessageLoop,
-                          Unretained(TraceLog::GetInstance())));
-
-  thread.task_runner()->PostTask(
-      FROM_HERE, BindOnce(&TraceWithAllMacroVariants, &task_complete_event));
-  task_complete_event.Wait();
-
-  WaitableEvent task_start_event(WaitableEvent::ResetPolicy::AUTOMATIC,
-                                 WaitableEvent::InitialState::NOT_SIGNALED);
-  WaitableEvent task_stop_event(WaitableEvent::ResetPolicy::AUTOMATIC,
-                                WaitableEvent::InitialState::NOT_SIGNALED);
-  thread.task_runner()->PostTask(
-      FROM_HERE,
-      BindOnce(&BlockUntilStopped, &task_start_event, &task_stop_event));
-  task_start_event.Wait();
-
-  EndTraceAndFlush();
-  ValidateAllTraceMacrosCreatedData(trace_parsed_);
-
-  task_stop_event.Signal();
-  thread.Stop();
-}
-
-TEST_F(TraceEventTestFixture, ConvertTraceConfigToInternalOptions) {
-  TraceLog* trace_log = TraceLog::GetInstance();
-  EXPECT_EQ(TraceLog::kInternalRecordUntilFull,
-            trace_log->GetInternalOptionsFromTraceConfig(
-                TraceConfig(kRecordAllCategoryFilter, RECORD_UNTIL_FULL)));
-
-  EXPECT_EQ(TraceLog::kInternalRecordContinuously,
-            trace_log->GetInternalOptionsFromTraceConfig(
-                TraceConfig(kRecordAllCategoryFilter, RECORD_CONTINUOUSLY)));
-
-  EXPECT_EQ(TraceLog::kInternalEchoToConsole,
-            trace_log->GetInternalOptionsFromTraceConfig(
-                TraceConfig(kRecordAllCategoryFilter, ECHO_TO_CONSOLE)));
-
-  EXPECT_EQ(TraceLog::kInternalEchoToConsole,
-            trace_log->GetInternalOptionsFromTraceConfig(
-                TraceConfig("*", "trace-to-console,enable-systrace")));
-}
-
-void SetBlockingFlagAndBlockUntilStopped(WaitableEvent* task_start_event,
-                                         WaitableEvent* task_stop_event) {
-  TraceLog::GetInstance()->SetCurrentThreadBlocksMessageLoop();
-  BlockUntilStopped(task_start_event, task_stop_event);
-}
-
-TEST_F(TraceEventTestFixture, SetCurrentThreadBlocksMessageLoopAfterTracing) {
-  BeginTrace();
-
-  Thread thread("1");
-  WaitableEvent task_complete_event(WaitableEvent::ResetPolicy::AUTOMATIC,
-                                    WaitableEvent::InitialState::NOT_SIGNALED);
-  thread.Start();
-
-  thread.task_runner()->PostTask(
-      FROM_HERE, BindOnce(&TraceWithAllMacroVariants, &task_complete_event));
-  task_complete_event.Wait();
-
-  WaitableEvent task_start_event(WaitableEvent::ResetPolicy::AUTOMATIC,
-                                 WaitableEvent::InitialState::NOT_SIGNALED);
-  WaitableEvent task_stop_event(WaitableEvent::ResetPolicy::AUTOMATIC,
-                                WaitableEvent::InitialState::NOT_SIGNALED);
-  thread.task_runner()->PostTask(FROM_HERE,
-                                 BindOnce(&SetBlockingFlagAndBlockUntilStopped,
-                                          &task_start_event, &task_stop_event));
-  task_start_event.Wait();
-
-  EndTraceAndFlush();
-  ValidateAllTraceMacrosCreatedData(trace_parsed_);
-
-  task_stop_event.Signal();
-  thread.Stop();
 }
 
 TEST_F(TraceEventTestFixture, ThreadOnceBlocking) {
@@ -2382,10 +1638,14 @@ TEST_F(TraceEventTestFixture, ThreadOnceBlocking) {
 }
 
 std::string* g_log_buffer = nullptr;
-bool MockLogMessageHandler(int, const char*, int, size_t,
+bool MockLogMessageHandler(int,
+                           const char*,
+                           int,
+                           size_t,
                            const std::string& str) {
-  if (!g_log_buffer)
+  if (!g_log_buffer) {
     g_log_buffer = new std::string();
+  }
   g_log_buffer->append(str);
   return false;
 }
@@ -2396,8 +1656,7 @@ TEST_F(TraceEventTestFixture, EchoToConsole) {
   logging::SetLogMessageHandler(MockLogMessageHandler);
 
   TraceLog::GetInstance()->SetEnabled(
-      TraceConfig(kRecordAllCategoryFilter, ECHO_TO_CONSOLE),
-      TraceLog::RECORDING_MODE);
+      TraceConfig(kRecordAllCategoryFilter, ECHO_TO_CONSOLE));
   TRACE_EVENT_BEGIN0("test_a", "begin_end");
   {
     TRACE_EVENT0("test_b", "duration");
@@ -2406,26 +1665,16 @@ TEST_F(TraceEventTestFixture, EchoToConsole) {
   TRACE_EVENT_INSTANT0("test_c", "instant", TRACE_EVENT_SCOPE_GLOBAL);
   TRACE_EVENT_END0("test_a", "begin_end");
 
-  // Perfetto's console interceptor outputs directly to the console and has test
-  // coverage upstream.
-#if !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
-  EXPECT_NE(std::string::npos, g_log_buffer->find("begin_end[test_a]\x1b"));
-  EXPECT_NE(std::string::npos, g_log_buffer->find("| duration[test_b]\x1b"));
-  EXPECT_NE(std::string::npos,
-            g_log_buffer->find("| | duration1[test_b1]\x1b"));
-  EXPECT_NE(std::string::npos, g_log_buffer->find("| | duration1[test_b1] ("));
-  EXPECT_NE(std::string::npos, g_log_buffer->find("| duration[test_b] ("));
-  EXPECT_NE(std::string::npos, g_log_buffer->find("| instant[test_c]\x1b"));
-  EXPECT_NE(std::string::npos, g_log_buffer->find("begin_end[test_a] ("));
-#endif  // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
-
   EndTraceAndFlush();
   delete g_log_buffer;
   logging::SetLogMessageHandler(old_log_message_handler);
   g_log_buffer = nullptr;
 }
 
-bool LogMessageHandlerWithTraceEvent(int, const char*, int, size_t,
+bool LogMessageHandlerWithTraceEvent(int,
+                                     const char*,
+                                     int,
+                                     size_t,
                                      const std::string&) {
   TRACE_EVENT0("log", "trace_event");
   return false;
@@ -2437,8 +1686,7 @@ TEST_F(TraceEventTestFixture, EchoToConsoleTraceEventRecursion) {
   logging::SetLogMessageHandler(LogMessageHandlerWithTraceEvent);
 
   TraceLog::GetInstance()->SetEnabled(
-      TraceConfig(kRecordAllCategoryFilter, ECHO_TO_CONSOLE),
-      TraceLog::RECORDING_MODE);
+      TraceConfig(kRecordAllCategoryFilter, ECHO_TO_CONSOLE));
   {
     // This should not cause deadlock or infinite recursion.
     TRACE_EVENT0("test_b", "duration");
@@ -2448,40 +1696,6 @@ TEST_F(TraceEventTestFixture, EchoToConsoleTraceEventRecursion) {
   logging::SetLogMessageHandler(old_log_message_handler);
 }
 
-// Perfetto doesn't support overriding the time offset.
-#if !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
-TEST_F(TraceEventTestFixture, TimeOffset) {
-  BeginTrace();
-  // Let TraceLog timer start from 0.
-  TimeDelta time_offset = TimeTicks::Now() - TimeTicks();
-  TraceLog::GetInstance()->SetTimeOffset(time_offset);
-
-  {
-    TRACE_EVENT0("test_all", "duration1");
-    TRACE_EVENT0("test_all", "duration2");
-  }
-  TRACE_EVENT_BEGIN_WITH_ID_TID_AND_TIMESTAMP0("test_all", "with_timestamp", 0,
-                                               0, TimeTicks::Now());
-  TRACE_EVENT_END_WITH_ID_TID_AND_TIMESTAMP0("test_all", "with_timestamp", 0, 0,
-                                             TimeTicks::Now());
-
-  EndTraceAndFlush();
-  DropTracedMetadataRecords();
-
-  double end_time = static_cast<double>(
-      (TimeTicks::Now() - time_offset).ToInternalValue());
-  double last_timestamp = 0;
-  for (const Value& item : trace_parsed_) {
-    EXPECT_TRUE(item.is_dict());
-    absl::optional<double> timestamp = item.GetDict().FindDouble("ts");
-    EXPECT_TRUE(timestamp.has_value());
-    EXPECT_GE(timestamp.value(), last_timestamp);
-    EXPECT_LE(timestamp.value(), end_time);
-    last_timestamp = timestamp.value();
-  }
-}
-#endif  // !BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
-
 TEST_F(TraceEventTestFixture, ClockSyncEventsAreAlwaysAddedToTrace) {
   BeginSpecificTrace("-*");
   TRACE_EVENT_CLOCK_SYNC_RECEIVER(1);
@@ -2490,8 +1704,8 @@ TEST_F(TraceEventTestFixture, ClockSyncEventsAreAlwaysAddedToTrace) {
 }
 
 TEST_F(TraceEventTestFixture, ContextLambda) {
-  TraceLog::GetInstance()->SetEnabled(TraceConfig(kRecordAllCategoryFilter, ""),
-                                      TraceLog::RECORDING_MODE);
+  TraceLog::GetInstance()->SetEnabled(
+      TraceConfig(kRecordAllCategoryFilter, ""));
 
   {
     TRACE_EVENT1("cat", "Name", "arg", [&](perfetto::TracedValue ctx) {
@@ -2506,15 +1720,9 @@ TEST_F(TraceEventTestFixture, ContextLambda) {
   const Value::Dict* args_dict = dict->FindDict("args");
   ASSERT_TRUE(args_dict);
 
-#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
   EXPECT_EQ(*args_dict->FindString("arg"), "foobar");
-#else
-  // Pre-client-lib, these types of TracedValues can't be serialized to JSON.
-  EXPECT_EQ(*args_dict->FindString("arg"), "Unsupported (crbug.com/1225176)");
-#endif
 }
 
-#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 class ConfigObserver : public TraceLog::EnabledStateObserver {
  public:
   ConfigObserver() = default;
@@ -2559,6 +1767,5 @@ TEST_F(TraceEventTestFixture, GetCurrentTraceConfig) {
 
   EXPECT_EQ(actual_config.ToString(), observer.observed_config.ToString());
 }
-#endif  // BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 
 }  // namespace base::trace_event

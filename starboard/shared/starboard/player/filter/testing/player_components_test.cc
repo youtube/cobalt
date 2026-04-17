@@ -26,6 +26,7 @@
 #include "starboard/common/time.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
 #include "starboard/shared/starboard/player/job_queue.h"
@@ -83,34 +84,35 @@ class PlayerComponentsTest
 
     unique_ptr<PlayerComponents::Factory> factory =
         PlayerComponents::Factory::Create();
-    string error_message;
     if (audio_reader_ && video_reader_) {
       CreationParameters creation_parameters(
           audio_reader_->audio_stream_info(),
           video_reader_->video_stream_info(), kDummyPlayer, output_mode_,
-          max_video_input_size_,
-          fake_graphics_context_provider_.decoder_target_provider());
+          max_video_input_size_, ExperimentalFeatures{}, dummy_surface_view_,
+          fake_graphics_context_provider_.decoder_target_provider(),
+          &job_queue_);
       ASSERT_EQ(creation_parameters.max_video_input_size(),
                 max_video_input_size_);
       player_components_ =
-          factory->CreateComponents(creation_parameters, &error_message);
+          factory->CreateComponents(creation_parameters).value();
     } else if (audio_reader_) {
       // Audio only
-      CreationParameters creation_parameters(
-          audio_reader_->audio_stream_info());
+      CreationParameters creation_parameters(audio_reader_->audio_stream_info(),
+                                             &job_queue_);
       player_components_ =
-          factory->CreateComponents(creation_parameters, &error_message);
+          factory->CreateComponents(creation_parameters).value();
     } else {
       // Video only
       ASSERT_TRUE(video_reader_);
       CreationParameters creation_parameters(
           video_reader_->video_stream_info(), kDummyPlayer, output_mode_,
-          max_video_input_size_,
-          fake_graphics_context_provider_.decoder_target_provider());
+          max_video_input_size_, ExperimentalFeatures{}, dummy_surface_view_,
+          fake_graphics_context_provider_.decoder_target_provider(),
+          &job_queue_);
       ASSERT_EQ(creation_parameters.max_video_input_size(),
                 max_video_input_size_);
       player_components_ =
-          factory->CreateComponents(creation_parameters, &error_message);
+          factory->CreateComponents(creation_parameters).value();
     }
     ASSERT_TRUE(player_components_);
 
@@ -476,6 +478,7 @@ class PlayerComponentsTest
   const std::string video_filename_;
   const SbPlayerOutputMode output_mode_;
   const int max_video_input_size_;
+  void* dummy_surface_view_ = nullptr;
   JobQueue job_queue_;
   FakeGraphicsContextProvider fake_graphics_context_provider_;
   unique_ptr<VideoDmpReader> audio_reader_;
@@ -725,9 +728,8 @@ vector<PlayerComponentsTestParam> GetSupportedCreationParameters() {
           CreateParam(audio_files[j], video_params[i], max_video_input_size));
     }
   }
-  SB_DCHECK(supported_parameters.size() < 50)
-      << "There're " << supported_parameters.size()
-      << " tests added. It may take too long time to run and result in timeout";
+  SB_DCHECK_LT(supported_parameters.size(), 50)
+      << "Running the tests may take too long and result in a timeout.";
 
   for (size_t i = 0; i < audio_files.size(); i++) {
     if (PlayerComponents::Factory::OutputModeSupported(

@@ -4,14 +4,14 @@
 
 #import "ui/base/cocoa/touch_bar_util.h"
 
-#include "base/mac/foundation_util.h"
+#include "base/apple/foundation_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 #import "ui/base/test/cocoa_helper.h"
 
 namespace {
 
-const char kTestChromeBundleId[] = "test.bundleid";
+constexpr char kTestChromeBundleId[] = "test.bundleid";
 
 NSString* const kTestTouchBarId = @"test-touch-bar";
 
@@ -21,11 +21,11 @@ NSString* const kTestTouchBarItemId = @"TEST-ITEM";
 
 class TouchBarUtilTest : public ui::CocoaTest {
  public:
-  TouchBarUtilTest() {}
+  TouchBarUtilTest() = default;
 };
 
 TEST_F(TouchBarUtilTest, TouchBarIdentifiers) {
-  base::mac::SetBaseBundleID(kTestChromeBundleId);
+  base::apple::SetBaseBundleIDOverride(kTestChromeBundleId);
   EXPECT_TRUE([ui::GetTouchBarId(kTestTouchBarId)
       isEqualToString:@"test.bundleid.test-touch-bar"]);
   EXPECT_TRUE([ui::GetTouchBarItemId(kTestTouchBarId, kTestTouchBarItemId)

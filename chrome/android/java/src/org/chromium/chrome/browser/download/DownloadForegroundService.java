@@ -5,12 +5,14 @@
 package org.chromium.chrome.browser.download;
 
 import org.chromium.build.annotations.IdentifierNameString;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.base.SplitCompatService;
 
 /** See {@link DownloadForegroundServiceImpl}. */
+@NullMarked
 public class DownloadForegroundService extends SplitCompatService {
-    @IdentifierNameString
-    private static String sImplClassName =
+    @SuppressWarnings("FieldCanBeFinal") // @IdentifierNameString requires non-final
+    private static @IdentifierNameString String sImplClassName =
             "org.chromium.chrome.browser.download.DownloadForegroundServiceImpl";
 
     public DownloadForegroundService() {

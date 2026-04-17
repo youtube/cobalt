@@ -8,13 +8,17 @@
 #include "base/types/optional_util.h"
 #include "cc/paint/paint_op_buffer.h"
 #include "components/viz/common/resources/resource_sizes.h"
+#include "components/viz/common/resources/shared_image_format_utils.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "gpu/command_buffer/service/shared_context_state.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
 #include "gpu/command_buffer/service/skia_utils.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkColorSpace.h"
-#include "third_party/skia/include/core/SkPromiseImageTexture.h"
+#include "third_party/skia/include/gpu/GpuTypes.h"
+#include "third_party/skia/include/gpu/ganesh/GrDirectContext.h"
+#include "third_party/skia/include/gpu/ganesh/SkSurfaceGanesh.h"
+#include "third_party/skia/include/private/chromium/GrPromiseImageTexture.h"
 
 namespace gpu {
 
@@ -31,7 +35,7 @@ class RawDrawImageBacking::RasterRawDrawImageRepresentation
       scoped_refptr<SharedContextState> context_state,
       int final_msaa_count,
       const SkSurfaceProps& surface_props,
-      const absl::optional<SkColor4f>& clear_color,
+      const std::optional<SkColor4f>& clear_color,
       bool visible) override {
     return raw_draw_backing()->BeginRasterWriteAccess(
         std::move(context_state), final_msaa_count, surface_props, clear_color,
@@ -43,7 +47,7 @@ class RawDrawImageBacking::RasterRawDrawImageRepresentation
   }
 
   cc::PaintOpBuffer* BeginReadAccess(
-      absl::optional<SkColor4f>& clear_color) override {
+      std::optional<SkColor4f>& clear_color) override {
     return raw_draw_backing()->BeginRasterReadAccess(clear_color);
   }
 
@@ -72,25 +76,25 @@ class RawDrawImageBacking::SkiaRawDrawImageRepresentation
       const gfx::Rect& update_rect,
       std::vector<GrBackendSemaphore>* begin_semaphores,
       std::vector<GrBackendSemaphore>* end_semaphores,
-      std::unique_ptr<GrBackendSurfaceMutableState>* end_state) override {
+      std::unique_ptr<skgpu::MutableTextureState>* end_state) override {
     NOTIMPLEMENTED();
     return {};
   }
 
-  std::vector<sk_sp<SkPromiseImageTexture>> BeginWriteAccess(
+  std::vector<sk_sp<GrPromiseImageTexture>> BeginWriteAccess(
       std::vector<GrBackendSemaphore>* begin_semaphores,
       std::vector<GrBackendSemaphore>* end_semaphores,
-      std::unique_ptr<GrBackendSurfaceMutableState>* end_state) override {
+      std::unique_ptr<skgpu::MutableTextureState>* end_state) override {
     NOTIMPLEMENTED();
     return {};
   }
 
   void EndWriteAccess() override { NOTIMPLEMENTED(); }
 
-  std::vector<sk_sp<SkPromiseImageTexture>> BeginReadAccess(
+  std::vector<sk_sp<GrPromiseImageTexture>> BeginReadAccess(
       std::vector<GrBackendSemaphore>* begin_semaphores,
       std::vector<GrBackendSemaphore>* end_semaphores,
-      std::unique_ptr<GrBackendSurfaceMutableState>* end_state) override {
+      std::unique_ptr<skgpu::MutableTextureState>* end_state) override {
     auto promise_texture = raw_draw_backing()->BeginSkiaReadAccess();
     if (!promise_texture)
       return {};
@@ -111,7 +115,8 @@ RawDrawImageBacking::RawDrawImageBacking(const Mailbox& mailbox,
                                          const gfx::ColorSpace& color_space,
                                          GrSurfaceOrigin surface_origin,
                                          SkAlphaType alpha_type,
-                                         uint32_t usage)
+                                         gpu::SharedImageUsageSet usage,
+                                         std::string debug_label)
     : ClearTrackingSharedImageBacking(mailbox,
                                       format,
                                       size,
@@ -119,6 +124,7 @@ RawDrawImageBacking::RawDrawImageBacking(const Mailbox& mailbox,
                                       surface_origin,
                                       alpha_type,
                                       usage,
+                                      std::move(debug_label),
                                       /*estimated_size=*/0,
                                       /*is_thread_safe=*/true) {}
 
@@ -184,26 +190,26 @@ bool RawDrawImageBacking::CreateBackendTextureAndFlushPaintOps(bool flush) {
   if (context_state_->context_lost())
     return false;
 
-  auto sk_color = viz::ToClosestSkColorType(
-      /*gpu_compositing=*/true, format());
+  auto sk_color = viz::ToClosestSkColorType(format());
   const std::string label =
       "RawDrawImageBacking" + CreateLabelForSharedImageUsage(usage());
-  backend_texture_ = context_state_->gr_context()->createBackendTexture(
-      size().width(), size().height(), sk_color, GrMipMapped::kNo,
+  GrDirectContext* direct_context = context_state_->gr_context();
+  CHECK(direct_context);
+  backend_texture_ = direct_context->createBackendTexture(
+      size().width(), size().height(), sk_color, skgpu::Mipmapped::kNo,
       GrRenderable::kYes, GrProtected::kNo, label);
   if (!backend_texture_.isValid()) {
     DLOG(ERROR) << "createBackendTexture() failed with SkColorType:"
                 << sk_color;
     return false;
   }
-  promise_texture_ = SkPromiseImageTexture::Make(backend_texture_);
+  promise_texture_ = GrPromiseImageTexture::Make(backend_texture_);
 
-  auto surface = SkSurface::MakeFromBackendTexture(
-      context_state_->gr_context(), backend_texture_, surface_origin(),
-      final_msaa_count_, sk_color, color_space().ToSkColorSpace(),
-      &surface_props_);
+  auto surface = SkSurfaces::WrapBackendTexture(
+      direct_context, backend_texture_, surface_origin(), final_msaa_count_,
+      sk_color, color_space().ToSkColorSpace(), &surface_props_);
   if (!surface) {
-    DLOG(ERROR) << "SkSurface::MakeFromBackendTexture() failed! SkColorType:"
+    DLOG(ERROR) << "SkSurfaces::WrapBackendTexture() failed! SkColorType:"
                 << sk_color;
     DestroyBackendTexture();
     return false;
@@ -218,14 +224,14 @@ bool RawDrawImageBacking::CreateBackendTextureAndFlushPaintOps(bool flush) {
   }
 
   if (flush) {
-    surface->flush();
+    direct_context->flush(surface.get());
   } else {
     // For a MSAA SkSurface, if gr_context->flush() is called, all draws on the
     // SkSurface will be flush into a temp MSAA buffer, but the it will not
     // resolved the temp MSAA buffer to the wrapped backend texture.
     // So call resolveMSAA() to insert resolve op in surface's command stream,
     // and when gr_context->flush() is call, the surface will be resolved.
-    surface->resolveMSAA();
+    SkSurfaces::ResolveMSAA(surface);
   }
 
   UpdateEstimatedSize(format().EstimatedSizeInBytes(size()));
@@ -247,7 +253,7 @@ cc::PaintOpBuffer* RawDrawImageBacking::BeginRasterWriteAccess(
     scoped_refptr<SharedContextState> context_state,
     int final_msaa_count,
     const SkSurfaceProps& surface_props,
-    const absl::optional<SkColor4f>& clear_color,
+    const std::optional<SkColor4f>& clear_color,
     bool visible) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   AutoLock auto_lock(this);
@@ -296,7 +302,7 @@ void RawDrawImageBacking::EndRasterWriteAccess(base::OnceClosure callback) {
   // janky scrolling for some page which SVG images are heavily used.
   // Workaround the problem by return nullptr here, and then SkiaRenderer will
   // fallback to using |backing_texture_|.
-  // TODO(crbug.com/1292068): only cache raster results for the SaveLayerOp
+  // TODO(crbug.com/40212988): only cache raster results for the SaveLayerOp
   // covered area.
   if (visible_ && paint_op_buffer_->has_save_layer_ops()) {
     // If the raster task priority is high, we will execute paint ops
@@ -312,7 +318,7 @@ void RawDrawImageBacking::EndRasterWriteAccess(base::OnceClosure callback) {
 }
 
 cc::PaintOpBuffer* RawDrawImageBacking::BeginRasterReadAccess(
-    absl::optional<SkColor4f>& clear_color) {
+    std::optional<SkColor4f>& clear_color) {
   // paint ops will be read on compositor thread, so do not check thread with
   // DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   AutoLock auto_lock(this);
@@ -333,7 +339,7 @@ cc::PaintOpBuffer* RawDrawImageBacking::BeginRasterReadAccess(
   // janky scrolling for some page which SVG images are heavily used.
   // Workaround the problem by return nullptr here, and then SkiaRenderer will
   // fallback to using |backing_texture_|.
-  // TODO(crbug.com/1292068): only cache raster results for the SaveLayerOp
+  // TODO(crbug.com/40212988): only cache raster results for the SaveLayerOp
   // covered area.
   if (paint_op_buffer_ && paint_op_buffer_->has_save_layer_ops())
     return nullptr;
@@ -348,7 +354,7 @@ cc::PaintOpBuffer* RawDrawImageBacking::BeginRasterReadAccess(
   return base::OptionalToPtr(paint_op_buffer_);
 }
 
-sk_sp<SkPromiseImageTexture> RawDrawImageBacking::BeginSkiaReadAccess() {
+sk_sp<GrPromiseImageTexture> RawDrawImageBacking::BeginSkiaReadAccess() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   AutoLock auto_lock(this);
   if (!backend_texture_.isValid() &&

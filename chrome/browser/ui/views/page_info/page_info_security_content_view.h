@@ -10,12 +10,15 @@
 #include "chrome/browser/ui/views/controls/rich_hover_button.h"
 #include "chrome/browser/ui/views/page_info/security_information_view.h"
 #include "components/page_info/page_info_ui.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/view.h"
 
 // The view that contains `SecurityInformationView` and a certificate button.
 // It is used as a content of the security subpage or is directly integrated in
 // the main page if connection isn't secure.
 class PageInfoSecurityContentView : public views::View, public PageInfoUI {
+  METADATA_HEADER(PageInfoSecurityContentView, views::View)
+
  public:
   // `is_standalone_page` is true, when this view is used as a content view of
   // a subpage and this view becomes current UI for `PageInfo` by calling
@@ -42,10 +45,13 @@ class PageInfoSecurityContentView : public views::View, public PageInfoUI {
   // The views that shows the status of the site's identity check.
   raw_ptr<SecurityInformationView> security_view_ = nullptr;
 
+  // The view that shows the QWAC status of the site, if it is a 1-QWAC.
+  raw_ptr<SecurityInformationView> one_qwac_view_ = nullptr;
+
   // The certificate provided by the site, if one exists.
   scoped_refptr<net::X509Certificate> certificate_;
 
-  // TODO(crbug.com/1188101): Add plumbing to check this in tests or rewrite
+  // TODO(crbug.com/40754666): Add plumbing to check this in tests or rewrite
   // tests not use it.
   PageInfoUI::SecurityDescriptionType security_description_type_ =
       PageInfoUI::SecurityDescriptionType::CONNECTION;

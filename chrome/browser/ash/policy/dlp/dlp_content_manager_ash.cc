@@ -9,28 +9,31 @@
 #include <vector>
 
 #include "ash/public/cpp/privacy_screen_dlp_helper.h"
+#include "ash/shell.h"
 #include "base/check.h"
-#include "base/containers/contains.h"
-#include "base/containers/cxx20_erase.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/weak_ptr.h"
 #include "base/notreached.h"
 #include "base/task/single_thread_task_runner.h"
+#include "chrome/browser/ash/policy/dlp/window_util.h"
 #include "chrome/browser/chromeos/policy/dlp/dialogs/dlp_warn_notifier.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_confidential_contents.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_content_restriction_set.h"
-#include "chrome/browser/chromeos/policy/dlp/dlp_histogram_helper.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_notification_helper.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_rules_manager.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_rules_manager_factory.h"
+#include "chrome/browser/enterprise/data_controls/dlp_reporting_manager.h"
 #include "chrome/browser/ui/ash/capture_mode/chrome_capture_mode_delegate.h"
+#include "components/enterprise/data_controls/core/browser/dlp_histogram_helper.h"
+#include "components/exo/shell_surface_util.h"
 #include "components/exo/surface.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/visibility.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/browser/guest_view/mime_handler_view/mime_handler_view_guest.h"
+#include "mojo/public/cpp/bindings/receiver_set.h"
 #include "ui/aura/window.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/skia_conversions.h"
@@ -70,7 +73,7 @@ void InterruptVideoRecording() {
 bool IsAnyChildVisible(aura::Window* window) {
   if (window->GetOcclusionState() == aura::Window::OcclusionState::VISIBLE)
     return true;
-  for (auto* child : window->children()) {
+  for (aura::Window* child : window->children()) {
     if (IsAnyChildVisible(child))
       return true;
   }
@@ -83,7 +86,7 @@ aura::Window* FindSurface(aura::Window* window) {
     return nullptr;
   if (exo::Surface::AsSurface(window))
     return window;
-  for (auto* child : window->children()) {
+  for (aura::Window* child : window->children()) {
     auto* found_window = FindSurface(child);
     if (found_window)
       return found_window;
@@ -132,16 +135,18 @@ void DlpContentManagerAsh::CheckScreenshotRestriction(
     MaybeReportEvent(info.restriction_info,
                      DlpRulesManager::Restriction::kScreenshot);
   }
-  DlpBooleanHistogram(dlp::kScreenshotBlockedUMA,
-                      IsBlocked(info.restriction_info));
-  DlpBooleanHistogram(dlp::kScreenshotWarnedUMA, IsWarn(info.restriction_info));
-  CheckScreenCaptureRestriction(info, std::move(callback));
+  data_controls::DlpBooleanHistogram(data_controls::dlp::kScreenshotBlockedUMA,
+                                     IsBlocked(info.restriction_info));
+  data_controls::DlpBooleanHistogram(data_controls::dlp::kScreenshotWarnedUMA,
+                                     IsWarn(info.restriction_info));
+  CheckScreenCaptureRestriction(info, /*shutting_down=*/false,
+                                std::move(callback));
 }
 
 void DlpContentManagerAsh::CheckScreenShareRestriction(
     const content::DesktopMediaID& media_id,
     const std::u16string& application_title,
-    OnDlpRestrictionCheckedCallback callback) {
+    WarningCallback callback) {
   ConfidentialContentsInfo info = GetScreenShareConfidentialContentsInfo(
       media_id, GetWebContentsFromMediaId(media_id));
   ProcessScreenShareRestriction(application_title, info, std::move(callback));
@@ -183,8 +188,9 @@ void DlpContentManagerAsh::CheckStoppedVideoCapture(
   }
   // If some confidential content was shown during the recording, but not
   // before, warn the user before saving the file.
-  DlpBooleanHistogram(dlp::kScreenshotWarnedUMA,
-                      running_video_capture_info_->had_warning_restriction);
+  data_controls::DlpBooleanHistogram(
+      data_controls::dlp::kScreenshotWarnedUMA,
+      running_video_capture_info_->had_warning_restriction);
   if (!running_video_capture_info_->confidential_contents.IsEmpty()) {
     const GURL& url =
         running_video_capture_info_->confidential_contents.GetContents()
@@ -206,7 +212,8 @@ void DlpContentManagerAsh::CheckStoppedVideoCapture(
                        std::move(reporting_callback).Then(std::move(callback))),
         running_video_capture_info_->confidential_contents);
   } else {
-    DlpBooleanHistogram(dlp::kScreenshotWarnSilentProceededUMA, true);
+    data_controls::DlpBooleanHistogram(
+        data_controls::dlp::kScreenshotWarnSilentProceededUMA, true);
     std::move(callback).Run(/*proceed=*/true);
   }
 
@@ -232,6 +239,7 @@ void DlpContentManagerAsh::OnImageCapture(const ScreenshotArea& area) {
 }
 
 void DlpContentManagerAsh::CheckCaptureModeInitRestriction(
+    bool shutting_down,
     ash::OnCaptureModeDlpRestrictionChecked callback) {
   const ConfidentialContentsInfo info =
       GetConfidentialContentsOnScreen(DlpContentRestriction::kScreenshot);
@@ -241,11 +249,13 @@ void DlpContentManagerAsh::CheckCaptureModeInitRestriction(
                      DlpRulesManager::Restriction::kScreenshot);
   }
 
-  DlpBooleanHistogram(dlp::kCaptureModeInitBlockedUMA,
-                      IsBlocked(info.restriction_info));
-  DlpBooleanHistogram(dlp::kCaptureModeInitWarnedUMA,
-                      IsWarn(info.restriction_info));
-  CheckScreenCaptureRestriction(info, std::move(callback));
+  data_controls::DlpBooleanHistogram(
+      data_controls::dlp::kCaptureModeInitBlockedUMA,
+      IsBlocked(info.restriction_info));
+  data_controls::DlpBooleanHistogram(
+      data_controls::dlp::kCaptureModeInitWarnedUMA,
+      IsWarn(info.restriction_info));
+  CheckScreenCaptureRestriction(info, shutting_down, std::move(callback));
 }
 
 void DlpContentManagerAsh::OnScreenShareStarted(
@@ -270,24 +280,85 @@ void DlpContentManagerAsh::OnScreenShareStopped(
   RemoveScreenShare(label, media_id);
 }
 
+// TODO(b/308912502): migrate from mojo crosapi to wayland IPC. The current
+// implementation depends on the client keeping the connection for its whole
+// lifetime.
 void DlpContentManagerAsh::OnWindowRestrictionChanged(
-    aura::Window* window,
+    mojo::ReceiverId receiver_id,
+    const std::string& window_id,
     const DlpContentRestrictionSet& restrictions) {
-  confidential_windows_[window] = restrictions;
-  window_observers_[window] = std::make_unique<DlpWindowObserver>(window, this);
-  auto* surface = FindSurface(window);
-  if (surface) {
-    surface_observers_[window] =
-        std::make_unique<DlpWindowObserver>(surface, this);
+  aura::Window* window = ash::GetShellSurfaceWindow(window_id);
+  if (window) {
+    pending_restrictions_.erase(window_id);
+    confidential_windows_[window] = restrictions;
+    window_observers_[window] =
+        std::make_unique<DlpWindowObserver>(window, this);
+    aura::Window* surface = FindSurface(window);
+    if (surface) {
+      surface_observers_[window] =
+          std::make_unique<DlpWindowObserver>(surface, this);
+    }
+    MaybeChangeOnScreenRestrictions();
+  } else {
+    if (restrictions.IsEmpty()) {
+      pending_restrictions_.erase(window_id);
+      auto iter = pending_restrictions_owner_.find(receiver_id);
+      if (iter != pending_restrictions_owner_.end()) {
+        iter->second.erase(window_id);
+        if (iter->second.empty()) {
+          pending_restrictions_owner_.erase(iter);
+        }
+      }
+    } else {
+      pending_restrictions_.insert({window_id, {receiver_id, restrictions}});
+      auto [iter, is_new] =
+          pending_restrictions_owner_.try_emplace(receiver_id);
+      iter->second.insert(window_id);
+    }
   }
-  MaybeChangeOnScreenRestrictions();
+}
+
+void DlpContentManagerAsh::OnWindowActivated(
+    wm::ActivationChangeObserver::ActivationReason reason,
+    aura::Window* gained_active,
+    aura::Window* lost_active) {
+  if (!gained_active) {
+    return;
+  }
+  const std::string* application_id = exo::GetShellApplicationId(gained_active);
+  if (!application_id) {
+    return;
+  }
+  auto iter = pending_restrictions_.find(*application_id);
+  if (iter != pending_restrictions_.end()) {
+    auto [receiver_id, restrictions] =
+        pending_restrictions_.extract(iter).mapped();
+    OnWindowRestrictionChanged(receiver_id, *application_id, restrictions);
+  }
+}
+
+void DlpContentManagerAsh::CleanPendingRestrictions(
+    mojo::ReceiverId receiver_id) {
+  auto iter = pending_restrictions_owner_.find(receiver_id);
+  if (iter == pending_restrictions_owner_.end()) {
+    return;
+  }
+  for (const auto& window_id : iter->second) {
+    pending_restrictions_.erase(window_id);
+  }
+  pending_restrictions_owner_.erase(iter);
 }
 
 DlpContentManagerAsh::VideoCaptureInfo::VideoCaptureInfo(
     const ScreenshotArea& area)
     : area(area) {}
 
-DlpContentManagerAsh::DlpContentManagerAsh() = default;
+DlpContentManagerAsh::DlpContentManagerAsh() {
+  if (ash::Shell::HasInstance() && ash::Shell::Get()->activation_client()) {
+    window_activation_observation_.Observe(
+        ash::Shell::Get()->activation_client());
+  }
+}
 
 DlpContentManagerAsh::~DlpContentManagerAsh() = default;
 
@@ -367,7 +438,8 @@ void DlpContentManagerAsh::OnScreenRestrictionsChanged(
           DlpContentRestriction::kPrivacyScreen);
 
   if (added_restriction_info.level == DlpRulesManager::Level::kBlock) {
-    DlpBooleanHistogram(dlp::kPrivacyScreenEnforcedUMA, true);
+    data_controls::DlpBooleanHistogram(
+        data_controls::dlp::kPrivacyScreenEnforcedUMA, true);
     privacy_screen_helper->SetEnforced(true);
   }
 
@@ -390,7 +462,8 @@ void DlpContentManagerAsh::MaybeRemovePrivacyScreenEnforcement() const {
   if (GetOnScreenPresentRestrictions().GetRestrictionLevel(
           DlpContentRestriction::kPrivacyScreen) !=
       DlpRulesManager::Level::kBlock) {
-    DlpBooleanHistogram(dlp::kPrivacyScreenEnforcedUMA, false);
+    data_controls::DlpBooleanHistogram(
+        data_controls::dlp::kPrivacyScreenEnforcedUMA, false);
     ash::PrivacyScreenDlpHelper::Get()->SetEnforced(false);
   }
 }
@@ -652,7 +725,8 @@ void DlpContentManagerAsh::CheckRunningVideoCapture() {
   }
 
   if (IsBlocked(info.restriction_info)) {
-    DlpBooleanHistogram(dlp::kVideoCaptureInterruptedUMA, true);
+    data_controls::DlpBooleanHistogram(
+        data_controls::dlp::kVideoCaptureInterruptedUMA, true);
     InterruptVideoRecording();
     running_video_capture_info_.reset();
     return;
@@ -678,8 +752,14 @@ base::TimeDelta DlpContentManagerAsh::GetPrivacyScreenOffDelayForTesting() {
 
 void DlpContentManagerAsh::CheckScreenCaptureRestriction(
     ConfidentialContentsInfo info,
+    bool shutting_down,
     ash::OnCaptureModeDlpRestrictionChecked callback) {
   if (IsBlocked(info.restriction_info)) {
+    // TODO(296534642): Remove once proper tooling is added.
+    LOG(WARNING) << "Screenshot blocked due to following URL(s) visible:";
+    for (const auto& content : info.confidential_contents.GetContents()) {
+      LOG(WARNING) << content.url;
+    }
     ShowDlpScreenCaptureDisabledNotification();
     std::move(callback).Run(false);
     return;
@@ -691,13 +771,23 @@ void DlpContentManagerAsh::CheckScreenCaptureRestriction(
                           DlpRulesManager::Restriction::kScreenshot);
     if (info.confidential_contents.IsEmpty()) {
       // The user already allowed all the visible content.
-      DlpBooleanHistogram(dlp::kScreenshotWarnSilentProceededUMA, true);
+      data_controls::DlpBooleanHistogram(
+          data_controls::dlp::kScreenshotWarnSilentProceededUMA, true);
       std::move(callback).Run(true);
       return;
     }
 
     ReportWarningEvent(info.restriction_info.url,
                        DlpRulesManager::Restriction::kScreenshot);
+
+    // If the device has requested shutdown, we should not show a warning
+    // dialog, and instead return `false`.
+    if (shutting_down) {
+      data_controls::DlpBooleanHistogram(
+          data_controls::dlp::kScreenshotWarnShutdownOverrideUMA, true);
+      std::move(callback).Run(false);
+      return;
+    }
 
     // base::Unretained(this) is safe here because DlpContentManagerAsh is
     // initialized as a singleton that's always available in the system.

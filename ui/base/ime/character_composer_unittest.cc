@@ -2,11 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/base/ime/character_composer.h"
 
 #include <stdint.h>
 
 #include <memory>
+#include <string>
 
 #include "base/containers/contains.h"
 #include "base/strings/utf_string_conversions.h"
@@ -26,6 +32,7 @@ namespace ui {
 
 namespace {
 
+const char16_t kAcute = 0x00B4;
 const char16_t kCombiningGrave = 0x0300;
 const char16_t kCombiningAcute = 0x0301;
 const char16_t kCombiningCircumflex = 0x0302;
@@ -34,29 +41,34 @@ const char16_t kCombiningHorn = 0x031B;
 }  // namespace
 
 class CharacterComposerTest : public testing::Test {
+ public:
+  CharacterComposerTest() {
+    character_composer_ = std::make_unique<CharacterComposer>();
+  }
+
  protected:
   // Returns a |KeyEvent| for a dead key press.
   KeyEvent* DeadKeyPress(char16_t combining_character) const {
-    KeyEvent* event =
-        new KeyEvent(ET_KEY_PRESSED, VKEY_UNKNOWN, DomCode::NONE, EF_NONE,
-                     DomKey::DeadKeyFromCombiningCharacter(combining_character),
-                     EventTimeForNow());
+    KeyEvent* event = new KeyEvent(
+        EventType::kKeyPressed, VKEY_UNKNOWN, DomCode::NONE, EF_NONE,
+        DomKey::DeadKeyFromCombiningCharacter(combining_character),
+        EventTimeForNow());
     return event;
   }
 
   // Expects key is filtered and no character is composed.
   void ExpectDeadKeyFiltered(char16_t combining_character) {
     std::unique_ptr<KeyEvent> event(DeadKeyPress(combining_character));
-    EXPECT_TRUE(character_composer_.FilterKeyPress(*event));
-    EXPECT_TRUE(character_composer_.composed_character().empty());
+    EXPECT_TRUE(character_composer_->FilterKeyPress(*event));
+    EXPECT_TRUE(character_composer_->composed_character().empty());
   }
 
   // Expects key is filtered and the given character is composed.
   void ExpectDeadKeyComposed(char16_t combining_character,
                              const std::u16string& expected_character) {
     std::unique_ptr<KeyEvent> event(DeadKeyPress(combining_character));
-    EXPECT_TRUE(character_composer_.FilterKeyPress(*event));
-    EXPECT_EQ(expected_character, character_composer_.composed_character());
+    EXPECT_TRUE(character_composer_->FilterKeyPress(*event));
+    EXPECT_EQ(expected_character, character_composer_->composed_character());
   }
 
   // Returns a |KeyEvent| for a Compose key press.
@@ -64,15 +76,15 @@ class CharacterComposerTest : public testing::Test {
     // Which physical key is used as the Compose key can usually be configured
     // and should therefore be irrelevant.
     return std::make_unique<KeyEvent>(
-        ET_KEY_PRESSED, KeyboardCode::VKEY_COMPOSE, DomCode::ALT_RIGHT, EF_NONE,
-        DomKey::COMPOSE, EventTimeForNow());
+        EventType::kKeyPressed, KeyboardCode::VKEY_COMPOSE, DomCode::ALT_RIGHT,
+        EF_NONE, DomKey::COMPOSE, EventTimeForNow());
   }
 
   // Expects key is filtered and no character is composed.
   void ExpectComposeKeyFiltered() {
     auto event = ComposeKeyPress();
-    EXPECT_TRUE(character_composer_.FilterKeyPress(*event));
-    EXPECT_TRUE(character_composer_.composed_character().empty());
+    EXPECT_TRUE(character_composer_->FilterKeyPress(*event));
+    EXPECT_TRUE(character_composer_->composed_character().empty());
   }
 
   // Returns a |KeyEvent| for a character key press.
@@ -80,7 +92,7 @@ class CharacterComposerTest : public testing::Test {
                                             DomCode code,
                                             int flags,
                                             char16_t character) const {
-    return std::make_unique<KeyEvent>(ET_KEY_PRESSED, vkey, code, flags,
+    return std::make_unique<KeyEvent>(EventType::kKeyPressed, vkey, code, flags,
                                       DomKey::FromCharacter(character),
                                       EventTimeForNow());
   }
@@ -91,8 +103,8 @@ class CharacterComposerTest : public testing::Test {
                                    int flags,
                                    char16_t character) {
     auto event = UnicodeKeyPress(vkey, code, flags, character);
-    EXPECT_FALSE(character_composer_.FilterKeyPress(*event));
-    EXPECT_TRUE(character_composer_.composed_character().empty());
+    EXPECT_FALSE(character_composer_->FilterKeyPress(*event));
+    EXPECT_TRUE(character_composer_->composed_character().empty());
   }
 
   // Expects key is filtered and no character is composed.
@@ -101,8 +113,8 @@ class CharacterComposerTest : public testing::Test {
                                 int flags,
                                 char16_t character) {
     auto event = UnicodeKeyPress(vkey, code, flags, character);
-    EXPECT_TRUE(character_composer_.FilterKeyPress(*event));
-    EXPECT_TRUE(character_composer_.composed_character().empty());
+    EXPECT_TRUE(character_composer_->FilterKeyPress(*event));
+    EXPECT_TRUE(character_composer_->composed_character().empty());
   }
 
   // Expects key is filtered and the given character is composed.
@@ -112,15 +124,17 @@ class CharacterComposerTest : public testing::Test {
                                 char16_t character,
                                 const std::u16string& expected_character) {
     auto event = UnicodeKeyPress(vkey, code, flags, character);
-    EXPECT_TRUE(character_composer_.FilterKeyPress(*event));
-    EXPECT_EQ(expected_character, character_composer_.composed_character());
+    EXPECT_TRUE(character_composer_->FilterKeyPress(*event));
+    EXPECT_EQ(expected_character, character_composer_->composed_character());
   }
 
-  CharacterComposer character_composer_;
+  // Use `unique_ptr` because we need to reconstruct `CharacterComposer` in some
+  // tests.
+  std::unique_ptr<CharacterComposer> character_composer_;
 };
 
 TEST_F(CharacterComposerTest, InitialState) {
-  EXPECT_TRUE(character_composer_.composed_character().empty());
+  EXPECT_TRUE(character_composer_->composed_character().empty());
 }
 
 TEST_F(CharacterComposerTest, NormalKeyIsNotFiltered) {
@@ -284,48 +298,78 @@ TEST_F(CharacterComposerTest, ComposedCharacterIsClearedAfterReset) {
   ExpectDeadKeyFiltered(kCombiningAcute);
   ExpectUnicodeKeyComposed(VKEY_A, DomCode::US_A, EF_NONE, 'a',
                            std::u16string(1, 0x00E1));
-  character_composer_.Reset();
-  EXPECT_TRUE(character_composer_.composed_character().empty());
+  character_composer_->Reset();
+  EXPECT_TRUE(character_composer_->composed_character().empty());
 
   ExpectComposeKeyFiltered();
   ExpectUnicodeKeyFiltered(VKEY_OEM_7, DomCode::QUOTE, 0, '\'');
   ExpectUnicodeKeyComposed(VKEY_A, DomCode::US_A, EF_NONE, 'a',
                            std::u16string(1, 0x00E1));
-  character_composer_.Reset();
-  EXPECT_TRUE(character_composer_.composed_character().empty());
+  character_composer_->Reset();
+  EXPECT_TRUE(character_composer_->composed_character().empty());
 }
 
 TEST_F(CharacterComposerTest, CompositionStateIsClearedAfterReset) {
   // Even though sequence ['dead acute', 'a'] will compose 'a with acute',
   // no character is composed here because of reset.
   ExpectDeadKeyFiltered(kCombiningAcute);
-  character_composer_.Reset();
+  character_composer_->Reset();
   ExpectUnicodeKeyNotFiltered(VKEY_A, DomCode::US_A, EF_NONE, 'a');
 
   ExpectComposeKeyFiltered();
   ExpectUnicodeKeyFiltered(VKEY_OEM_7, DomCode::QUOTE, 0, '\'');
-  character_composer_.Reset();
+  character_composer_->Reset();
   ExpectUnicodeKeyNotFiltered(VKEY_A, DomCode::US_A, EF_NONE, 'a');
 }
 
-TEST_F(CharacterComposerTest, KeySequenceCompositionPreedit) {
+TEST_F(CharacterComposerTest, KeySequenceCompositionPreeditDisabled) {
   // LATIN SMALL LETTER A WITH ACUTE
-  // preedit_string() is always empty in key sequence composition mode.
+  // preedit_string() is by default always empty in key sequence composition
+  // mode.
   ExpectDeadKeyFiltered(kCombiningAcute);
-  EXPECT_TRUE(character_composer_.preedit_string().empty());
+  EXPECT_TRUE(character_composer_->preedit_string().empty());
   ExpectUnicodeKeyComposed(VKEY_A, DomCode::US_A, EF_NONE, 'a',
                            std::u16string(1, 0x00E1));
-  EXPECT_TRUE(character_composer_.preedit_string().empty());
+  EXPECT_TRUE(character_composer_->preedit_string().empty());
 
   // LATIN SMALL LETTER A WITH ACUTE (via Compose key)
-  // preedit_string() is always empty in key sequence composition mode.
+  // preedit_string() is by default always empty in key sequence composition
+  // mode.
   ExpectComposeKeyFiltered();
-  EXPECT_TRUE(character_composer_.preedit_string().empty());
+  EXPECT_TRUE(character_composer_->preedit_string().empty());
   ExpectUnicodeKeyFiltered(VKEY_OEM_7, DomCode::QUOTE, 0, '\'');
-  EXPECT_TRUE(character_composer_.preedit_string().empty());
+  EXPECT_TRUE(character_composer_->preedit_string().empty());
   ExpectUnicodeKeyComposed(VKEY_A, DomCode::US_A, EF_NONE, 'a',
                            std::u16string(1, 0x00E1));
-  EXPECT_TRUE(character_composer_.preedit_string().empty());
+  EXPECT_TRUE(character_composer_->preedit_string().empty());
+}
+
+TEST_F(CharacterComposerTest, KeySequenceCompositionPreeditEnabled) {
+  // Same test instructions as for KeySequenceCompositionPreeditDisabled, but
+  // adjusted expectations.
+
+  // Reconstruct to enable preedit string in sequence mode.
+  character_composer_.reset(new CharacterComposer(
+      CharacterComposer::PreeditStringMode::kAlwaysEnabled));
+
+  // LATIN SMALL LETTER A WITH ACUTE
+  ExpectDeadKeyFiltered(kCombiningAcute);
+  // The preedit string should be the non-combining variant of the dead key.
+  EXPECT_EQ(character_composer_->preedit_string(), std::u16string(1, kAcute));
+  ExpectUnicodeKeyComposed(VKEY_A, DomCode::US_A, EF_NONE, 'a',
+                           std::u16string(1, 0x00E1));
+  EXPECT_TRUE(character_composer_->preedit_string().empty());
+
+  // LATIN SMALL LETTER A WITH ACUTE (via Compose key)
+  ExpectComposeKeyFiltered();
+  EXPECT_EQ(
+      character_composer_->preedit_string(),
+      std::u16string(1, CharacterComposer::kPreeditStringComposeKeySymbol));
+  ExpectUnicodeKeyFiltered(VKEY_OEM_7, DomCode::QUOTE, 0, '\'');
+  EXPECT_EQ(character_composer_->preedit_string(), u"'");
+  ExpectUnicodeKeyComposed(VKEY_A, DomCode::US_A, EF_NONE, 'a',
+                           std::u16string(1, 0x00E1));
+  EXPECT_TRUE(character_composer_->preedit_string().empty());
 }
 
 // Verify the structure of the primary |TreeComposeChecker| table.
@@ -411,46 +455,45 @@ TEST_F(CharacterComposerTest, HexadecimalComposition) {
   ExpectUnicodeKeyFiltered(VKEY_9, DomCode::DIGIT9, EF_NONE, '9');
   ExpectUnicodeKeyComposed(
       VKEY_RETURN, DomCode::ENTER, EF_NONE, '\r',
-      std::u16string(kMusicalKeyboard,
-                     kMusicalKeyboard + std::size(kMusicalKeyboard)));
+      std::u16string(std::begin(kMusicalKeyboard), std::end(kMusicalKeyboard)));
 }
 
 TEST_F(CharacterComposerTest, HexadecimalCompositionPreedit) {
   // HIRAGANA LETTER A (U+3042)
   ExpectUnicodeKeyFiltered(VKEY_U, DomCode::US_U,
                            EF_SHIFT_DOWN | EF_CONTROL_DOWN, 'U');
-  EXPECT_EQ(u"u", character_composer_.preedit_string());
+  EXPECT_EQ(u"u", character_composer_->preedit_string());
   ExpectUnicodeKeyFiltered(VKEY_3, DomCode::DIGIT3, 0, '3');
-  EXPECT_EQ(u"u3", character_composer_.preedit_string());
+  EXPECT_EQ(u"u3", character_composer_->preedit_string());
   ExpectUnicodeKeyFiltered(VKEY_0, DomCode::DIGIT0, 0, '0');
-  EXPECT_EQ(u"u30", character_composer_.preedit_string());
+  EXPECT_EQ(u"u30", character_composer_->preedit_string());
   ExpectUnicodeKeyFiltered(VKEY_4, DomCode::DIGIT4, 0, '4');
-  EXPECT_EQ(u"u304", character_composer_.preedit_string());
+  EXPECT_EQ(u"u304", character_composer_->preedit_string());
   ExpectUnicodeKeyFiltered(VKEY_A, DomCode::US_A, 0, 'a');
-  EXPECT_EQ(u"u304a", character_composer_.preedit_string());
+  EXPECT_EQ(u"u304a", character_composer_->preedit_string());
   ExpectUnicodeKeyFiltered(VKEY_BACK, DomCode::BACKSPACE, EF_NONE, '\b');
-  EXPECT_EQ(u"u304", character_composer_.preedit_string());
+  EXPECT_EQ(u"u304", character_composer_->preedit_string());
   ExpectUnicodeKeyFiltered(VKEY_2, DomCode::DIGIT2, EF_NONE, '2');
   ExpectUnicodeKeyComposed(VKEY_RETURN, DomCode::ENTER, EF_NONE, '\r',
                            std::u16string(1, 0x3042));
-  EXPECT_EQ(u"", character_composer_.preedit_string());
+  EXPECT_EQ(u"", character_composer_->preedit_string());
 
   // Sequence with an ignored character ('x') and Escape.
   ExpectUnicodeKeyFiltered(VKEY_U, DomCode::US_U,
                            EF_SHIFT_DOWN | EF_CONTROL_DOWN, 'U');
-  EXPECT_EQ(u"u", character_composer_.preedit_string());
+  EXPECT_EQ(u"u", character_composer_->preedit_string());
   ExpectUnicodeKeyFiltered(VKEY_3, DomCode::DIGIT3, 0, '3');
-  EXPECT_EQ(u"u3", character_composer_.preedit_string());
+  EXPECT_EQ(u"u3", character_composer_->preedit_string());
   ExpectUnicodeKeyFiltered(VKEY_0, DomCode::DIGIT0, 0, '0');
-  EXPECT_EQ(u"u30", character_composer_.preedit_string());
+  EXPECT_EQ(u"u30", character_composer_->preedit_string());
   ExpectUnicodeKeyFiltered(VKEY_X, DomCode::US_X, 0, 'x');
-  EXPECT_EQ(u"u30", character_composer_.preedit_string());
+  EXPECT_EQ(u"u30", character_composer_->preedit_string());
   ExpectUnicodeKeyFiltered(VKEY_4, DomCode::DIGIT4, 0, '4');
-  EXPECT_EQ(u"u304", character_composer_.preedit_string());
+  EXPECT_EQ(u"u304", character_composer_->preedit_string());
   ExpectUnicodeKeyFiltered(VKEY_2, DomCode::DIGIT2, 0, '2');
-  EXPECT_EQ(u"u3042", character_composer_.preedit_string());
+  EXPECT_EQ(u"u3042", character_composer_->preedit_string());
   ExpectUnicodeKeyFiltered(VKEY_ESCAPE, DomCode::ESCAPE, EF_NONE, 0x1B);
-  EXPECT_EQ(u"", character_composer_.preedit_string());
+  EXPECT_EQ(u"", character_composer_->preedit_string());
 }
 
 TEST_F(CharacterComposerTest, HexadecimalCompositionWithNonHexKey) {
@@ -459,7 +502,7 @@ TEST_F(CharacterComposerTest, HexadecimalCompositionWithNonHexKey) {
                            EF_SHIFT_DOWN | EF_CONTROL_DOWN, 0x15);
   ExpectUnicodeKeyFiltered(VKEY_X, DomCode::US_X, 0, 'x');
   ExpectUnicodeKeyFiltered(VKEY_SPACE, DomCode::SPACE, EF_NONE, ' ');
-  EXPECT_TRUE(character_composer_.composed_character().empty());
+  EXPECT_TRUE(character_composer_->composed_character().empty());
 
   // HIRAGANA LETTER A (U+3042) with a sequence [3, 0, x, 4, 2].
   ExpectUnicodeKeyFiltered(VKEY_U, DomCode::US_U,
@@ -547,40 +590,40 @@ TEST_F(CharacterComposerTest,
   const int kControlShift = EF_CONTROL_DOWN | EF_SHIFT_DOWN;
   // HIRAGANA LETTER A (U+3042)
   ExpectUnicodeKeyFiltered(ui::VKEY_U, DomCode::US_U, kControlShift, 0x15);
-  EXPECT_EQ(u"u", character_composer_.preedit_string());
+  EXPECT_EQ(u"u", character_composer_->preedit_string());
   ExpectUnicodeKeyFiltered(ui::VKEY_3, DomCode::DIGIT3, kControlShift, '#');
-  EXPECT_EQ(u"u3", character_composer_.preedit_string());
+  EXPECT_EQ(u"u3", character_composer_->preedit_string());
   ExpectUnicodeKeyFiltered(ui::VKEY_0, DomCode::DIGIT0, kControlShift, ')');
-  EXPECT_EQ(u"u30", character_composer_.preedit_string());
+  EXPECT_EQ(u"u30", character_composer_->preedit_string());
   ExpectUnicodeKeyFiltered(ui::VKEY_4, DomCode::DIGIT4, kControlShift, '$');
-  EXPECT_EQ(u"u304", character_composer_.preedit_string());
+  EXPECT_EQ(u"u304", character_composer_->preedit_string());
   ExpectUnicodeKeyFiltered(ui::VKEY_A, DomCode::US_A, kControlShift, 0x01);
-  EXPECT_EQ(u"u304a", character_composer_.preedit_string());
+  EXPECT_EQ(u"u304a", character_composer_->preedit_string());
   ExpectUnicodeKeyFiltered(ui::VKEY_BACK, DomCode::BACKSPACE, kControlShift,
                            '\b');
-  EXPECT_EQ(u"u304", character_composer_.preedit_string());
+  EXPECT_EQ(u"u304", character_composer_->preedit_string());
   ExpectUnicodeKeyFiltered(ui::VKEY_2, DomCode::DIGIT2, kControlShift, 0);
-  EXPECT_EQ(u"u3042", character_composer_.preedit_string());
+  EXPECT_EQ(u"u3042", character_composer_->preedit_string());
   ExpectUnicodeKeyComposed(VKEY_RETURN, DomCode::ENTER, kControlShift, '\r',
                            std::u16string(1, 0x3042));
-  EXPECT_EQ(u"", character_composer_.preedit_string());
+  EXPECT_EQ(u"", character_composer_->preedit_string());
 
   // Sequence with an ignored character (control + shift + 'x') and Escape.
   ExpectUnicodeKeyFiltered(ui::VKEY_U, DomCode::US_U, kControlShift, 'U');
-  EXPECT_EQ(u"u", character_composer_.preedit_string());
+  EXPECT_EQ(u"u", character_composer_->preedit_string());
   ExpectUnicodeKeyFiltered(ui::VKEY_3, DomCode::DIGIT3, kControlShift, '#');
-  EXPECT_EQ(u"u3", character_composer_.preedit_string());
+  EXPECT_EQ(u"u3", character_composer_->preedit_string());
   ExpectUnicodeKeyFiltered(ui::VKEY_0, DomCode::DIGIT0, kControlShift, ')');
-  EXPECT_EQ(u"u30", character_composer_.preedit_string());
+  EXPECT_EQ(u"u30", character_composer_->preedit_string());
   ExpectUnicodeKeyFiltered(ui::VKEY_X, DomCode::US_X, kControlShift, 'X');
-  EXPECT_EQ(u"u30", character_composer_.preedit_string());
+  EXPECT_EQ(u"u30", character_composer_->preedit_string());
   ExpectUnicodeKeyFiltered(ui::VKEY_4, DomCode::DIGIT4, kControlShift, '$');
-  EXPECT_EQ(u"u304", character_composer_.preedit_string());
+  EXPECT_EQ(u"u304", character_composer_->preedit_string());
   ExpectUnicodeKeyFiltered(ui::VKEY_2, DomCode::DIGIT2, kControlShift, 0);
-  EXPECT_EQ(u"u3042", character_composer_.preedit_string());
+  EXPECT_EQ(u"u3042", character_composer_->preedit_string());
   ExpectUnicodeKeyFiltered(ui::VKEY_ESCAPE, DomCode::ESCAPE, kControlShift,
                            0x1B);
-  EXPECT_EQ(u"", character_composer_.preedit_string());
+  EXPECT_EQ(u"", character_composer_->preedit_string());
 }
 
 TEST_F(CharacterComposerTest, InvalidHexadecimalSequence) {

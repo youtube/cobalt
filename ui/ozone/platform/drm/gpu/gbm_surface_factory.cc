@@ -13,6 +13,7 @@
 #include "base/containers/contains.h"
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
@@ -47,7 +48,7 @@
 #define VK_STRUCTURE_TYPE_DMA_BUF_IMAGE_CREATE_INFO_INTEL 1024
 typedef struct VkDmaBufImageCreateInfo_ {
   VkStructureType sType;
-  raw_ptr<const void, ExperimentalAsh> pNext;
+  raw_ptr<const void> pNext;
   int fd;
   VkFormat format;
   VkExtent3D extent;
@@ -118,9 +119,13 @@ class GLOzoneEGLGbm : public GLOzoneEGL {
 
   ~GLOzoneEGLGbm() override = default;
 
-  bool CanImportNativePixmap() override {
-    return gl::GLSurfaceEGL::GetGLDisplayEGL()
-        ->ext->b_EGL_EXT_image_dma_buf_import;
+  bool CanImportNativePixmap(gfx::BufferFormat format) override {
+    if (!gl::GLSurfaceEGL::GetGLDisplayEGL()
+             ->ext->b_EGL_EXT_image_dma_buf_import) {
+      return false;
+    }
+
+    return NativePixmapEGLBinding::IsBufferFormatSupported(format);
   }
 
   std::unique_ptr<NativePixmapGLBinding> ImportNativePixmap(
@@ -194,8 +199,8 @@ class GLOzoneEGLGbm : public GLOzoneEGL {
   }
 
  private:
-  raw_ptr<GbmSurfaceFactory, ExperimentalAsh> surface_factory_;
-  raw_ptr<DrmThreadProxy, ExperimentalAsh> drm_thread_proxy_;
+  raw_ptr<GbmSurfaceFactory> surface_factory_;
+  raw_ptr<DrmThreadProxy> drm_thread_proxy_;
   gl::EGLDisplayPlatform native_display_;
 };
 
@@ -278,7 +283,7 @@ GbmSurfaceless* GbmSurfaceFactory::GetSurface(
     gfx::AcceleratedWidget widget) const {
   DCHECK(thread_checker_.CalledOnValidThread());
   auto it = widget_to_surface_map_.find(widget);
-  DCHECK(it != widget_to_surface_map_.end());
+  CHECK(it != widget_to_surface_map_.end());
   return it->second;
 }
 
@@ -286,7 +291,6 @@ std::vector<gl::GLImplementationParts>
 GbmSurfaceFactory::GetAllowedGLImplementations() {
   DCHECK(thread_checker_.CalledOnValidThread());
   return std::vector<gl::GLImplementationParts>{
-      gl::GLImplementationParts(gl::kGLImplementationEGLGLES2),
       gl::GLImplementationParts(gl::kGLImplementationEGLANGLE),
       gl::GLImplementationParts(gl::ANGLEImplementation::kSwiftShader)};
 }
@@ -308,7 +312,7 @@ GbmSurfaceFactory::CreateVulkanImplementation(bool use_swiftshader,
                                               bool allow_protected_memory) {
   DCHECK(!use_swiftshader)
       << "Vulkan Swiftshader is not supported on this platform.";
-  return std::make_unique<VulkanImplementationGbm>();
+  return std::make_unique<VulkanImplementationGbm>(allow_protected_memory);
 }
 
 scoped_refptr<gfx::NativePixmap> GbmSurfaceFactory::CreateNativePixmapForVulkan(
@@ -394,7 +398,7 @@ scoped_refptr<gfx::NativePixmap> GbmSurfaceFactory::CreateNativePixmap(
     gfx::Size size,
     gfx::BufferFormat format,
     gfx::BufferUsage usage,
-    absl::optional<gfx::Size> framebuffer_size) {
+    std::optional<gfx::Size> framebuffer_size) {
   if (framebuffer_size &&
       !gfx::Rect(size).Contains(gfx::Rect(*framebuffer_size))) {
     return nullptr;
@@ -473,6 +477,15 @@ GbmSurfaceFactory::CreateNativePixmapForProtectedBufferHandle(
   // existing mappings.
   return CreateNativePixmapFromHandleInternal(widget, size, format,
                                               std::move(handle));
+}
+
+bool GbmSurfaceFactory::SupportsDrmModifiersFilter() const {
+  return true;
+}
+
+void GbmSurfaceFactory::SetDrmModifiersFilter(
+    std::unique_ptr<DrmModifiersFilter> filter) {
+  drm_thread_proxy_->SetDrmModifiersFilter(std::move(filter));
 }
 
 void GbmSurfaceFactory::SetGetProtectedNativePixmapDelegate(

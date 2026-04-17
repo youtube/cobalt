@@ -21,7 +21,6 @@
 #include "cc/trees/effect_node.h"
 #include "cc/trees/layer_tree_impl.h"
 #include "components/viz/common/display/renderer_settings.h"
-#include "components/viz/common/features.h"
 #include "components/viz/common/frame_sinks/copy_output_request.h"
 #include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "components/viz/common/gpu/raster_context_provider.h"
@@ -31,7 +30,12 @@
 #include "components/viz/test/paths.h"
 #include "components/viz/test/test_gpu_service_holder.h"
 #include "components/viz/test/test_in_process_context_provider.h"
-#include "gpu/command_buffer/client/gles2_implementation.h"
+#include "skia/buildflags.h"
+
+#if BUILDFLAG(SKIA_USE_DAWN)
+#include "third_party/dawn/include/dawn/dawn_proc.h"
+#include "third_party/dawn/include/dawn/native/DawnNative.h"  // nogncheck
+#endif
 
 using gpu::gles2::GLES2Interface;
 
@@ -44,7 +48,8 @@ TestRasterType GetDefaultRasterType(viz::RendererType renderer_type) {
     case viz::RendererType::kSoftware:
       return TestRasterType::kBitmap;
     case viz::RendererType::kSkiaVk:
-    case viz::RendererType::kSkiaGraphite:
+    case viz::RendererType::kSkiaGraphiteDawn:
+    case viz::RendererType::kSkiaGraphiteMetal:
       return TestRasterType::kGpu;
     default:
       return TestRasterType::kOneCopy;
@@ -58,7 +63,11 @@ LayerTreePixelTest::LayerTreePixelTest(viz::RendererType renderer_type)
       raster_type_(GetDefaultRasterType(renderer_type)),
       pixel_comparator_(
           std::make_unique<AlphaDiscardingExactPixelComparator>()),
-      pending_texture_mailbox_callbacks_(0) {}
+      pending_texture_mailbox_callbacks_(0) {
+#if BUILDFLAG(SKIA_USE_DAWN)
+  dawnProcSetProcs(&dawn::native::GetProcs());
+#endif
+}
 
 LayerTreePixelTest::~LayerTreePixelTest() = default;
 
@@ -66,14 +75,16 @@ std::unique_ptr<TestLayerTreeFrameSink>
 LayerTreePixelTest::CreateLayerTreeFrameSink(
     const viz::RendererSettings& renderer_settings,
     double refresh_rate,
-    scoped_refptr<viz::ContextProvider>,
+    scoped_refptr<viz::RasterContextProvider>,
     scoped_refptr<viz::RasterContextProvider>) {
   scoped_refptr<viz::TestInProcessContextProvider> compositor_context_provider;
   scoped_refptr<viz::TestInProcessContextProvider> worker_context_provider;
+  gpu::SharedImageInterface* shared_image_interface = nullptr;
+
   if (!use_software_renderer()) {
     compositor_context_provider =
         base::MakeRefCounted<viz::TestInProcessContextProvider>(
-            viz::TestContextType::kGLES2, /*support_locking=*/false);
+            viz::TestContextType::kSoftwareRaster, /*support_locking=*/false);
 
     viz::TestContextType worker_ri_type;
     switch (raster_type()) {
@@ -89,6 +100,7 @@ LayerTreePixelTest::CreateLayerTreeFrameSink(
       case TestRasterType::kBitmap:
         NOTREACHED();
     }
+
     worker_context_provider =
         base::MakeRefCounted<viz::TestInProcessContextProvider>(
             worker_ri_type, /*support_locking=*/true);
@@ -105,9 +117,17 @@ LayerTreePixelTest::CreateLayerTreeFrameSink(
     }
     DCHECK_EQ(result, gpu::ContextResult::kSuccess);
   } else {
+    context_provider_sw_ =
+        base::MakeRefCounted<viz::TestInProcessContextProvider>(
+            viz::TestContextType::kSoftwareRaster, /*support_locking=*/false);
+    gpu::ContextResult result = context_provider_sw_->BindToCurrentSequence();
+    DCHECK_EQ(result, gpu::ContextResult::kSuccess);
+
+    shared_image_interface = context_provider_sw_->SharedImageInterface();
     max_texture_size_ =
         layer_tree_host()->GetSettings().max_render_buffer_bounds_for_sw;
   }
+
   static constexpr bool disable_display_vsync = false;
   bool synchronous_composite =
       !HasImplThread() &&
@@ -118,7 +138,7 @@ LayerTreePixelTest::CreateLayerTreeFrameSink(
   test_settings.dont_round_texture_sizes_for_pixel_tests = true;
   auto delegating_output_surface = std::make_unique<TestLayerTreeFrameSink>(
       compositor_context_provider, worker_context_provider,
-      gpu_memory_buffer_manager(), test_settings, &debug_settings_,
+      shared_image_interface, test_settings, &debug_settings_,
       task_runner_provider(), synchronous_composite, disable_display_vsync,
       refresh_rate);
   delegating_output_surface->SetEnlargePassTextureAmount(
@@ -135,9 +155,8 @@ void LayerTreePixelTest::DrawLayersOnThread(LayerTreeHostImpl* host_impl) {
         worker_context_provider);
     EXPECT_EQ(use_accelerated_raster(),
               worker_context_provider->ContextCapabilities().gpu_rasterization);
-    EXPECT_EQ(
-        raster_type() == TestRasterType::kGpu,
-        worker_context_provider->ContextCapabilities().supports_oop_raster);
+    EXPECT_EQ(raster_type() == TestRasterType::kGpu,
+              worker_context_provider->ContextCapabilities().gpu_rasterization);
   } else {
     EXPECT_EQ(TestRasterType::kBitmap, raster_type());
   }
@@ -205,11 +224,6 @@ void LayerTreePixelTest::BeginTest() {
   } else {
     layer_tree_host()->property_trees()->effect_tree_mutable().AddCopyRequest(
         target->effect_tree_index(), CreateCopyOutputRequest());
-    layer_tree_host()
-        ->property_trees()
-        ->effect_tree_mutable()
-        .Node(target->effect_tree_index())
-        ->has_copy_request = true;
   }
   PostSetNeedsCommitToMainThread();
 }

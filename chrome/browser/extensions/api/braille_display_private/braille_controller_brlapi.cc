@@ -81,8 +81,7 @@ void BrailleControllerImpl::TryLoadLibBrlApi() {
   static const char* const kSupportedVersion = "libbrlapi.so.0.8";
 
   if (!libbrlapi_loader_.Load(kSupportedVersion)) {
-    LOG(WARNING) << "Couldn't load libbrlapi(" << kSupportedVersion << ": "
-                 << strerror(errno);
+    PLOG(WARNING) << "Couldn't load libbrlapi(" << kSupportedVersion << ")";
   }
 }
 
@@ -124,8 +123,9 @@ void BrailleControllerImpl::WriteDots(const std::vector<uint8_t>& cells,
     unsigned int row_limit = std::min(rows, cells_rows);
     unsigned int col_limit = std::min(columns, cells_cols);
     for (unsigned int row = 0; row < row_limit; row++) {
-      for (unsigned int col = 0; col < col_limit; col++) {
-        sized_cells[row * columns + col] = cells[row * cells_cols + col];
+      for (unsigned int col = 0;
+           col < col_limit && (row * columns + col) < cells.size(); col++) {
+        sized_cells[row * columns + col] = cells[row * columns + col];
       }
     }
 

@@ -44,10 +44,6 @@ def get_capabilities(**kwargs):
     tags = kwargs["sauce_tags"]
     tunnel_id = kwargs["sauce_tunnel_id"]
     prerun_script = {
-        "MicrosoftEdge": {
-            "executable": "sauce-storage:edge-prerun.bat",
-            "background": False,
-        },
         "safari": {
             "executable": "sauce-storage:safari-prerun.sh",
             "background": False,
@@ -226,7 +222,7 @@ class SauceBrowser(Browser):
     init_timeout = 300
 
     def __init__(self, logger, sauce_config, **kwargs):
-        Browser.__init__(self, logger)
+        super().__init__(logger, **kwargs)
         self.sauce_config = sauce_config
 
     def start(self, **kwargs):
@@ -235,6 +231,7 @@ class SauceBrowser(Browser):
     def stop(self, force=False):
         pass
 
+    @property
     def pid(self):
         return None
 

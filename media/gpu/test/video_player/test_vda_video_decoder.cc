@@ -4,32 +4,35 @@
 
 #include "media/gpu/test/video_player/test_vda_video_decoder.h"
 
-#include <utility>
-#include <vector>
-
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
+
+#include <utility>
+#include <vector>
 
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
+#include "components/viz/common/resources/shared_image_format.h"
+#include "gpu/config/gpu_preferences.h"
 #include "media/base/media_log.h"
 #include "media/base/video_frame.h"
 #include "media/base/video_util.h"
 #include "media/base/waiting.h"
 #include "media/gpu/gpu_video_decode_accelerator_factory.h"
 #include "media/gpu/macros.h"
-#include "media/gpu/test/video.h"
 #include "media/gpu/test/video_player/frame_renderer_dummy.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
+// These includes are used for non-ChromeOS platforms as well.
+// TODO(crbug.com/414455717): Consider renaming them.
 #include "media/gpu/chromeos/platform_video_frame_utils.h"
 #include "media/gpu/chromeos/vd_video_decode_accelerator.h"
 #include "media/gpu/chromeos/video_decoder_pipeline.h"
-#endif  // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#endif
 
 namespace media {
 namespace test {
@@ -49,10 +52,12 @@ TestVDAVideoDecoder::TestVDAVideoDecoder(
       on_provide_picture_buffers_cb_(std::move(on_provide_picture_buffers_cb)),
       target_color_space_(target_color_space),
       frame_renderer_(frame_renderer),
-#if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+// TODO(crbug.com/414430336): Consider restricting to IS_CHROMEOS.
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
       linear_output_(linear_output),
-#endif  // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
-      decode_start_timestamps_(kTimestampCacheSize) {
+#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
+      decode_start_timestamps_(kTimestampCacheSize),
+      test_sii_(base::MakeRefCounted<gpu::TestSharedImageInterface>()) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(vda_wrapper_sequence_checker_);
 
   vda_wrapper_task_runner_ = base::SingleThreadTaskRunner::GetCurrentDefault();
@@ -90,20 +95,9 @@ void TestVDAVideoDecoder::Initialize(const VideoDecoderConfig& config,
 
   output_cb_ = output_cb;
 
-  // Create decoder factory.
-  std::unique_ptr<GpuVideoDecodeAcceleratorFactory> decoder_factory;
-  GpuVideoDecodeGLClient gl_client;
-  decoder_factory = GpuVideoDecodeAcceleratorFactory::Create(gl_client);
-
-  if (!decoder_factory) {
-    ASSERT_TRUE(decoder_) << "Failed to create VideoDecodeAccelerator factory";
-    std::move(init_cb).Run(DecoderStatus::Codes::kFailed);
-    return;
-  }
-
   // Create Decoder.
   VideoDecodeAccelerator::Config vda_config(config.profile());
-  vda_config.output_mode = VideoDecodeAccelerator::Config::OutputMode::IMPORT;
+  vda_config.output_mode = VideoDecodeAccelerator::Config::OutputMode::kImport;
   vda_config.encryption_scheme = config.encryption_scheme();
   vda_config.is_deferred_initialization_allowed = false;
   vda_config.initial_expected_coded_size = config.coded_size();
@@ -111,20 +105,19 @@ void TestVDAVideoDecoder::Initialize(const VideoDecoderConfig& config,
   vda_config.target_color_space = target_color_space_;
   vda_config.hdr_metadata = config.hdr_metadata();
 
-  gpu::GpuDriverBugWorkarounds gpu_driver_bug_workarounds;
-  gpu::GpuPreferences gpu_preferences;
   if (use_vd_vda_) {
-#if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+// TODO(crbug.com/414430336): Consider restricting to IS_CHROMEOS.
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
     DVLOGF(2) << "Use VdVideoDecodeAccelerator";
     vda_config.is_deferred_initialization_allowed = true;
     decoder_ = media::VdVideoDecodeAccelerator::Create(
-        base::BindRepeating(&media::VideoDecoderPipeline::Create), this,
-        vda_config, false, base::SequencedTaskRunner::GetCurrentDefault());
-#endif  // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+        base::BindRepeating(&media::VideoDecoderPipeline::CreateForARC), this,
+        vda_config, base::SequencedTaskRunner::GetCurrentDefault());
+#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
   } else {
     DVLOGF(2) << "Use original VDA";
-    decoder_ = decoder_factory->CreateVDA(
-        this, vda_config, gpu_driver_bug_workarounds, gpu_preferences);
+    decoder_ = GpuVideoDecodeAcceleratorFactory::CreateVDA(
+        this, vda_config, gpu::GpuPreferences());
   }
 
   if (!decoder_) {
@@ -189,24 +182,12 @@ int TestVDAVideoDecoder::GetMaxDecodeRequests() const {
   return 4;
 }
 
-void TestVDAVideoDecoder::ProvidePictureBuffers(
-    uint32_t requested_num_of_buffers,
-    VideoPixelFormat format,
-    uint32_t textures_per_buffer,
-    const gfx::Size& dimensions,
-    uint32_t texture_target) {
-  NOTIMPLEMENTED() << "VDA must call ProvidePictureBuffersWithVisibleRect()";
-}
-
 void TestVDAVideoDecoder::ProvidePictureBuffersWithVisibleRect(
     uint32_t requested_num_of_buffers,
     VideoPixelFormat format,
-    uint32_t textures_per_buffer,
     const gfx::Size& dimensions,
-    const gfx::Rect& visible_rect,
-    uint32_t texture_target) {
+    const gfx::Rect& visible_rect) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(vda_wrapper_sequence_checker_);
-  ASSERT_EQ(textures_per_buffer, 1u);
   DVLOGF(4) << "Requested " << requested_num_of_buffers
             << " picture buffers with size " << dimensions.width() << "x"
             << dimensions.height();
@@ -220,39 +201,36 @@ void TestVDAVideoDecoder::ProvidePictureBuffersWithVisibleRect(
   // Create a set of DMABuf-backed video frames.
   std::vector<PictureBuffer> picture_buffers;
   for (uint32_t i = 0; i < requested_num_of_buffers; ++i) {
-    picture_buffers.emplace_back(GetNextPictureBufferId(), dimensions);
+    picture_buffers.emplace_back(GetNextPictureBufferId());
   }
 
   decoder_->AssignPictureBuffers(picture_buffers);
 
+// TODO(crbug.com/414430336): Consider restricting to IS_CHROMEOS.
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
   // Create a video frame for each of the picture buffers and provide memory
   // handles to the video frame's data to the decoder.
   for (const PictureBuffer& picture_buffer : picture_buffers) {
-    scoped_refptr<VideoFrame> video_frame;
-
-#if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
-    video_frame = CreateGpuMemoryBufferVideoFrame(
+    scoped_refptr<VideoFrame> video_frame = CreateMappableVideoFrame(
         format, dimensions, visible_rect, visible_rect.size(),
         base::TimeDelta(),
         linear_output_ ? gfx::BufferUsage::SCANOUT_CPU_READ_WRITE
-                       : gfx::BufferUsage::SCANOUT_VDA_WRITE);
-#endif  // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+                       : gfx::BufferUsage::SCANOUT_VDA_WRITE,
+        test_sii_.get());
 
     ASSERT_TRUE(video_frame) << "Failed to create video frame";
     video_frames_.emplace(picture_buffer.id(), video_frame);
-    gfx::GpuMemoryBufferHandle handle;
 
-#if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
-    handle = CreateGpuMemoryBufferHandle(video_frame.get());
-    DCHECK(!handle.is_null());
-#else
-    NOTREACHED();
-#endif  // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+    gfx::GpuMemoryBufferHandle handle =
+        CreateGpuMemoryBufferHandle(video_frame.get());
 
     ASSERT_TRUE(!handle.is_null()) << "Failed to create GPU memory handle";
     decoder_->ImportBufferForPicture(picture_buffer.id(), format,
                                      std::move(handle));
   }
+#else
+  FAIL();
+#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 }
 
 void TestVDAVideoDecoder::DismissPictureBuffer(int32_t picture_buffer_id) {
@@ -283,23 +261,11 @@ void TestVDAVideoDecoder::PictureReady(const Picture& picture) {
   // Wrap the video frame in another frame that calls ReusePictureBufferTask()
   // upon destruction. When the renderer and video frame processors are done
   // using the video frame, the associated picture buffer will automatically be
-  // flagged for reuse. WrapVideoFrame() is not supported for texture-based
-  // video frames (see http://crbug/362521) so we work around this by creating a
-  // new video frame using the same mailbox.
+  // flagged for reuse.
   if (!picture.visible_rect().IsEmpty()) {
-    if (!video_frame->HasTextures()) {
-      wrapped_video_frame = VideoFrame::WrapVideoFrame(
-          video_frame, video_frame->format(), picture.visible_rect(),
-          picture.visible_rect().size());
-    } else {
-      gpu::MailboxHolder mailbox_holders[media::VideoFrame::kMaxPlanes];
-      mailbox_holders[0] = video_frame->mailbox_holder(0);
-      wrapped_video_frame = VideoFrame::WrapNativeTextures(
-          video_frame->format(), mailbox_holders,
-          VideoFrame::ReleaseMailboxCB(), video_frame->coded_size(),
-          picture.visible_rect(), picture.visible_rect().size(),
-          video_frame->timestamp());
-    }
+    wrapped_video_frame = VideoFrame::WrapVideoFrame(
+        video_frame, video_frame->format(), picture.visible_rect(),
+        picture.visible_rect().size());
   } else {
     // This occurs in bitstream buffer in webrtc scenario. WrapNativeTexture()
     // fails if visible_rect() is empty. Although the client of
@@ -330,7 +296,7 @@ void TestVDAVideoDecoder::PictureReady(const Picture& picture) {
 
 // static
 void TestVDAVideoDecoder::ReusePictureBufferThunk(
-    absl::optional<base::WeakPtr<TestVDAVideoDecoder>> vda_video_decoder,
+    std::optional<base::WeakPtr<TestVDAVideoDecoder>> vda_video_decoder,
     scoped_refptr<base::SequencedTaskRunner> task_runner,
     int32_t picture_buffer_id) {
   DCHECK(vda_video_decoder);

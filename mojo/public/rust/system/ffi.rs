@@ -14,15 +14,11 @@
 //!
 //! [1] https://github.com/domokit/mojo
 //!
-//! TODO(https://crbug.com/1274864):
+//! TODO(crbug.com/40206847):
 //! * Remove references to the now-nonexistent mojo Github
 
-pub mod raw_ffi {
-    #![allow(dead_code)]
-    #![allow(non_upper_case_globals)]
-    #![allow(non_camel_case_types)]
-    #![allow(non_snake_case)]
-    include!(env!("BINDGEN_RS_FILE"));
+chromium::import! {
+  pub "//mojo/public/rust:mojo_c_system_binding" as raw_ffi;
 }
 
 pub mod types {

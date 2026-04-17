@@ -25,6 +25,7 @@
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/android/shared/media_decoder.h"
+#include "starboard/common/pass_key.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
@@ -40,9 +41,19 @@ class MediaCodecAudioDecoder : public AudioDecoder,
                                public MediaCodecDecoder::Host,
                                private JobQueue::JobOwner {
  public:
-  MediaCodecAudioDecoder(const AudioStreamInfo& audio_stream_info,
+  static NonNullResult<std::unique_ptr<MediaCodecAudioDecoder>> Create(
+      JobQueue* job_queue,
+      const AudioStreamInfo& audio_stream_info,
+      SbDrmSystem drm_system,
+      bool enable_flush_during_seek);
+
+  MediaCodecAudioDecoder(PassKey<MediaCodecAudioDecoder>,
+                         JobQueue* job_queue,
+                         const AudioStreamInfo& audio_stream_info,
                          SbDrmSystem drm_system,
-                         bool enable_flush_during_seek);
+                         bool enable_flush_during_seek,
+                         std::string* error_message);
+
   ~MediaCodecAudioDecoder() override;
 
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
@@ -52,14 +63,12 @@ class MediaCodecAudioDecoder : public AudioDecoder,
   scoped_refptr<DecodedAudio> Read(int* samples_per_second) override;
   void Reset() override;
 
-  bool is_valid() const { return media_decoder_ != NULL; }
-
  private:
   // The maximum amount of work that can exist in the union of |decoded_audios_|
   // and |media_decoder_->GetNumberOfPendingTasks()|.
   static const int kMaxPendingWorkSize = 64;
 
-  bool InitializeCodec();
+  Result<void> InitializeCodec();
   void ProcessOutputBuffer(MediaCodecBridge* media_codec_bridge,
                            const DequeueOutputResult& output) override;
   void OnEndOfStreamWritten(MediaCodecBridge* media_codec_bridge) override {}

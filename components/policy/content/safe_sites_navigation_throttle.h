@@ -5,47 +5,42 @@
 #ifndef COMPONENTS_POLICY_CONTENT_SAFE_SITES_NAVIGATION_THROTTLE_H_
 #define COMPONENTS_POLICY_CONTENT_SAFE_SITES_NAVIGATION_THROTTLE_H_
 
+#include <optional>
+#include <string_view>
+
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/strings/string_piece_forward.h"
+#include "components/policy/content/proceed_until_response_navigation_throttle.h"
 #include "content/public/browser/navigation_throttle.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class SafeSearchService;
 
 namespace content {
 class BrowserContext;
-class NavigationHandle;
+class NavigationThrottleRegistry;
 }  // namespace content
 
 // SafeSitesNavigationThrottle provides a simple way to block a navigation
 // based on the Safe Search API. The URL is checked against the Safe Search API.
 // The check may be asynchronous if the result hasn't been cached yet.
 // This class does not check the SafeSitesFilterBehavior policy.
-class SafeSitesNavigationThrottle : public content::NavigationThrottle {
+class SafeSitesNavigationThrottle
+    : public ProceedUntilResponseNavigationThrottle::Client {
  public:
-  // Called when the SafeSearch result is available after being deferred.
-  // if !|is_safe|, |cancel_result| contains the result to pass to
-  // CancelDeferredNavigation(). Other NavigationThrottles using this object
-  // must handle resolving deferred navigation themselves due to checks in
-  // NavigationThrottleRunner.
-  using DeferredResultCallback =
-      base::RepeatingCallback<void(bool is_safe,
-                                   ThrottleCheckResult cancel_result)>;
-
-  SafeSitesNavigationThrottle(content::NavigationHandle* navigation_handle,
-                              content::BrowserContext* context);
-  SafeSitesNavigationThrottle(content::NavigationHandle* navigation_handle,
+  SafeSitesNavigationThrottle(content::NavigationThrottleRegistry& registry,
                               content::BrowserContext* context,
-                              DeferredResultCallback deferred_result_callback);
-  SafeSitesNavigationThrottle(content::NavigationHandle* navigation_handle,
-                              content::BrowserContext* context,
-                              base::StringPiece safe_sites_error_page_content);
+                              std::optional<std::string_view>
+                                  safe_sites_error_page_content = std::nullopt);
   SafeSitesNavigationThrottle(const SafeSitesNavigationThrottle&) = delete;
   SafeSitesNavigationThrottle& operator=(const SafeSitesNavigationThrottle&) =
       delete;
   ~SafeSitesNavigationThrottle() override;
+
+  // ProceedUntilResponseNavigationThrottle::Client overrides.
+  void SetDeferredResultCallback(
+      const ProceedUntilResponseNavigationThrottle::DeferredResultCallback&
+          deferred_result_callback) override;
 
   // NavigationThrottle overrides.
   ThrottleCheckResult WillStartRequest() override;
@@ -57,18 +52,20 @@ class SafeSitesNavigationThrottle : public content::NavigationThrottle {
   void CheckSafeSearchCallback(bool is_safe);
 
   // The default implementation DeferredResultCallback.
-  void OnDeferredResult(bool is_safe, ThrottleCheckResult cancel_result);
+  void OnDeferredResult(bool proceed,
+                        std::optional<ThrottleCheckResult> result);
 
   // Creates the result to be returned when navigation is canceled.
   ThrottleCheckResult CreateCancelResult() const;
 
-  raw_ptr<SafeSearchService> safe_seach_service_;
+  raw_ptr<SafeSearchService, DanglingUntriaged> safe_search_service_;
 
-  const DeferredResultCallback deferred_result_callback_;
+  ProceedUntilResponseNavigationThrottle::DeferredResultCallback
+      deferred_result_callback_;
 
   // HTML to be displayed when navigation is canceled by the Safe Sites filter.
   // If null, a default error page will be displayed.
-  const absl::optional<std::string> safe_sites_error_page_content_;
+  const std::optional<std::string> safe_sites_error_page_content_;
 
   // Whether the request was deferred in order to check the Safe Search API.
   bool deferred_ = false;

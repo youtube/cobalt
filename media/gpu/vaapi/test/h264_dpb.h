@@ -11,7 +11,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "media/gpu/vaapi/test/shared_va_surface.h"
-#include "media/video/h264_parser.h"
+#include "media/parsers/h264_parser.h"
 #include "ui/gfx/geometry/rect.h"
 
 namespace media::vaapi_test {
@@ -22,6 +22,8 @@ namespace media::vaapi_test {
 // compressed slice data buffers memory.
 class H264Picture : public base::RefCountedThreadSafe<H264Picture> {
  public:
+  REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE();
+
   using Vector = std::vector<scoped_refptr<H264Picture>>;
 
   enum Field {

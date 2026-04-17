@@ -8,6 +8,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
+#include "net/base/filename_util.h"
 #include "net/base/mime_util.h"
 #include "third_party/blink/public/mojom/choosers/file_chooser.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -69,6 +70,15 @@ std::unique_ptr<ui::SelectFileDialog::FileTypeInfo> GetFileTypesFromAcceptType(
 }
 
 }  // namespace
+
+struct ShellFileSelectHelper::ActiveDirectoryEnumeration {
+  explicit ActiveDirectoryEnumeration(const base::FilePath& path)
+      : path_(path) {}
+
+  std::unique_ptr<net::DirectoryLister> lister_;
+  const base::FilePath path_;
+  std::vector<base::FilePath> results_;
+};
 
 // static
 void ShellFileSelectHelper::RunFileChooser(
@@ -160,35 +170,74 @@ void ShellFileSelectHelper::RunFileChooserEnd() {
   Release();
 }
 
-void ShellFileSelectHelper::FileSelected(const base::FilePath& path,
-                                         int index,
-                                         void* params) {
-  FileSelectedWithExtraInfo(ui::SelectedFileInfo(path, path), index, params);
-}
-
-void ShellFileSelectHelper::FileSelectedWithExtraInfo(
-    const ui::SelectedFileInfo& file,
-    int index,
-    void* params) {
+void ShellFileSelectHelper::FileSelected(const ui::SelectedFileInfo& file,
+                                         int index) {
+  if (dialog_type_ == ui::SelectFileDialog::SELECT_UPLOAD_FOLDER) {
+    StartNewEnumeration(file.local_path);
+    return;
+  }
   ConvertToFileChooserFileInfoList({file});
 }
 
 void ShellFileSelectHelper::MultiFilesSelected(
-    const std::vector<base::FilePath>& files,
-    void* params) {
-  std::vector<ui::SelectedFileInfo> selected_files =
-      ui::FilePathListToSelectedFileInfoList(files);
-
-  MultiFilesSelectedWithExtraInfo(selected_files, params);
-}
-
-void ShellFileSelectHelper::MultiFilesSelectedWithExtraInfo(
-    const std::vector<ui::SelectedFileInfo>& files,
-    void* params) {
+    const std::vector<ui::SelectedFileInfo>& files) {
   ConvertToFileChooserFileInfoList(files);
 }
 
-void ShellFileSelectHelper::FileSelectionCanceled(void* params) {
+void ShellFileSelectHelper::FileSelectionCanceled() {
+  RunFileChooserEnd();
+}
+
+void ShellFileSelectHelper::StartNewEnumeration(const base::FilePath& path) {
+  base_dir_ = path;
+  auto entry = std::make_unique<ActiveDirectoryEnumeration>(path);
+  entry->lister_ = base::WrapUnique(new net::DirectoryLister(
+      path, net::DirectoryLister::NO_SORT_RECURSIVE, this));
+  entry->lister_->Start();
+  directory_enumeration_ = std::move(entry);
+}
+
+void ShellFileSelectHelper::OnListFile(
+    const net::DirectoryLister::DirectoryListerData& data) {
+  // Directory upload only cares about files.
+  if (data.info.IsDirectory()) {
+    return;
+  }
+
+  directory_enumeration_->results_.push_back(data.path);
+}
+
+void ShellFileSelectHelper::OnListDone(int error) {
+  if (!web_contents_) {
+    // Web contents was destroyed under us (probably by closing the tab). We
+    // must notify |listener_| and release our reference to
+    // ourself. RunFileChooserEnd() performs this.
+    RunFileChooserEnd();
+    return;
+  }
+
+  // This entry needs to be cleaned up when this function is done.
+  std::unique_ptr<ActiveDirectoryEnumeration> entry =
+      std::move(directory_enumeration_);
+  if (error) {
+    FileSelectionCanceled();
+    return;
+  }
+
+  std::vector<ui::SelectedFileInfo> selected_files =
+      ui::FilePathListToSelectedFileInfoList(entry->results_);
+
+  std::vector<blink::mojom::FileChooserFileInfoPtr> chooser_files;
+  for (const auto& file_path : entry->results_) {
+    chooser_files.push_back(blink::mojom::FileChooserFileInfo::NewNativeFile(
+        blink::mojom::NativeFileInfo::New(file_path, std::u16string(),
+                                          std::vector<std::u16string>())));
+  }
+
+  listener_->FileSelected(std::move(chooser_files), base_dir_,
+                          blink::mojom::FileChooserParams::Mode::kUploadFolder);
+  listener_.reset();
+  // No members should be accessed from here on.
   RunFileChooserEnd();
 }
 
@@ -203,8 +252,8 @@ void ShellFileSelectHelper::ConvertToFileChooserFileInfoList(
   for (const auto& file : files) {
     chooser_files.push_back(blink::mojom::FileChooserFileInfo::NewNativeFile(
         blink::mojom::NativeFileInfo::New(
-            file.local_path,
-            base::FilePath(file.display_name).AsUTF16Unsafe())));
+            file.local_path, base::FilePath(file.display_name).AsUTF16Unsafe(),
+            std::vector<std::u16string>())));
   }
 
   listener_->FileSelected(std::move(chooser_files), base::FilePath(),

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <stdint.h>
@@ -17,6 +22,12 @@ class GLBGRAMipMapTest : public testing::Test {
  protected:
   void SetUp() override { gl_.Initialize(GLManager::Options()); }
   void TearDown() override { gl_.Destroy(); }
+  bool ShouldSkipBGRA() const {
+    return !gl_.decoder()
+                ->GetFeatureInfo()
+                ->feature_flags()
+                .ext_texture_format_bgra8888;
+  }
   GLManager gl_;
 };
 
@@ -27,6 +38,10 @@ class GLBGRAMipMapTest : public testing::Test {
 // GL_BGRA. For example, Mesa+Intel does not support mipmapping on textures
 // that use the GL_BGRA internal format. This test verifies a workaround.
 TEST_F(GLBGRAMipMapTest, GenerateMipmapsSucceeds) {
+  if (ShouldSkipBGRA()) {
+    return;
+  }
+
   static const int kWidth = 100;
   static const int kHeight = 50;
 

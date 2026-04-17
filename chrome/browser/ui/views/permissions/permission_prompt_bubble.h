@@ -5,8 +5,8 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_PERMISSIONS_PERMISSION_PROMPT_BUBBLE_H_
 #define CHROME_BROWSER_UI_VIEWS_PERMISSIONS_PERMISSION_PROMPT_BUBBLE_H_
 
-#include "chip_controller.h"
-#include "chrome/browser/ui/views/permissions/permission_prompt_bubble_view.h"
+#include "chrome/browser/ui/views/permissions/chip/chip_controller.h"
+#include "chrome/browser/ui/views/permissions/permission_prompt_bubble_base_view.h"
 #include "chrome/browser/ui/views/permissions/permission_prompt_desktop.h"
 #include "content/public/browser/web_contents_observer.h"
 
@@ -37,13 +37,17 @@ class PermissionPromptBubble : public PermissionPromptDesktop,
   bool UpdateAnchor() override;
   permissions::PermissionPromptDisposition GetPromptDisposition()
       const override;
+  std::optional<gfx::Rect> GetViewBoundsInScreen() const override;
 
   views::Widget* GetPromptBubbleWidgetForTesting() override;
 
  private:
-  // The popup bubble. Not owned by this class; it will delete itself when a
-  // decision is made.
-  raw_ptr<PermissionPromptBubbleView> prompt_bubble_ = nullptr;
+  PermissionPromptBubbleBaseView* GetPromptBubble();
+  const PermissionPromptBubbleBaseView* GetPromptBubble() const;
+
+  // The popup bubble tracker. We use a tracker because the bubble is not owned
+  // by this class; it will delete itself when a decision is made.
+  views::ViewTracker prompt_bubble_tracker_;
 
   base::TimeTicks permission_requested_time_;
 

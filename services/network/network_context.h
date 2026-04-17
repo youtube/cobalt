@@ -9,6 +9,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <utility>
@@ -25,7 +26,7 @@
 #include "base/types/pass_key.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
+#include "components/ip_protection/common/ip_protection_core.h"
 #include "mojo/public/cpp/base/big_buffer.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -34,6 +35,7 @@
 #include "mojo/public/cpp/bindings/remote_set.h"
 #include "mojo/public/cpp/bindings/unique_receiver_set.h"
 #include "net/base/network_isolation_key.h"
+#include "net/base/reconnect_notifier.h"
 #include "net/cert/cert_verifier.h"
 #include "net/cert/cert_verify_result.h"
 #include "net/cookies/cookie_setting_override.h"
@@ -42,7 +44,9 @@
 #include "net/first_party_sets/first_party_set_metadata.h"
 #include "net/http/http_auth_preferences.h"
 #include "net/net_buildflags.h"
-#include "services/network/cache_transparency_settings.h"
+#include "net/reporting/reporting_target_type.h"
+#include "net/storage_access_api/status.h"
+#include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/network/cors/preflight_controller.h"
 #include "services/network/first_party_sets/first_party_sets_access_delegate.h"
 #include "services/network/http_cache_data_counter.h"
@@ -53,11 +57,13 @@
 #include "services/network/public/cpp/network_service_buildflags.h"
 #include "services/network/public/cpp/transferable_directory.h"
 #include "services/network/public/mojom/clear_data_filter.mojom-forward.h"
+#include "services/network/public/mojom/connection_change_observer_client.mojom.h"
 #include "services/network/public/mojom/cookie_access_observer.mojom.h"
 #include "services/network/public/mojom/cookie_manager.mojom-shared.h"
 #include "services/network/public/mojom/host_resolver.mojom.h"
 #include "services/network/public/mojom/network_context.mojom-forward.h"
 #include "services/network/public/mojom/network_context.mojom.h"
+#include "services/network/public/mojom/network_context_client.mojom.h"
 #include "services/network/public/mojom/network_service.mojom-forward.h"
 #include "services/network/public/mojom/proxy_lookup_client.mojom.h"
 #include "services/network/public/mojom/proxy_resolving_socket.mojom.h"
@@ -65,15 +71,13 @@
 #include "services/network/public/mojom/restricted_udp_socket.mojom.h"
 #include "services/network/public/mojom/tcp_socket.mojom.h"
 #include "services/network/public/mojom/udp_socket.mojom.h"
-#include "services/network/restricted_cookie_manager.h"
-
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
 #include "services/network/public/mojom/websocket.mojom.h"
 #include "services/network/resource_scheduler/resource_scheduler.h"
+#include "services/network/restricted_cookie_manager.h"
 #include "services/network/socket_factory.h"
 #include "services/network/url_request_context_owner.h"
 #include "services/network/web_bundle/web_bundle_manager.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(ENABLE_REPORTING)
 #include "net/reporting/reporting_cache_observer.h"
@@ -93,7 +97,6 @@ class CertVerifier;
 class HostPortPair;
 class IsolationInfo;
 class NetworkAnonymizationKey;
-class ReportSender;
 class StaticHttpUserAgentSettings;
 class URLRequestContext;
 class URLRequestContextBuilder;
@@ -101,7 +104,6 @@ class URLRequestContextBuilder;
 
 namespace certificate_transparency {
 class ChromeRequireCTDelegate;
-class ChromeCTPolicyEnforcer;
 }  // namespace certificate_transparency
 
 namespace domain_reliability {
@@ -113,29 +115,28 @@ class URLMatcher;
 }
 
 namespace network {
-class CertVerifierWithTrustAnchors;
 class CookieManager;
 class HostResolver;
 class MdnsResponderManager;
 class MojoBackendFileOperationsFactory;
 class NetworkService;
-class NetworkServiceMemoryCache;
 class NetworkServiceNetworkDelegate;
-class NetworkServiceProxyDelegate;
 class P2PSocketManager;
 class PendingTrustTokenStore;
+class PrefetchCache;
+class PrefetchMatchingURLLoaderFactory;
 class ProxyLookupRequest;
 class ResourceSchedulerClient;
 class SCTAuditingHandler;
+class SQLiteTrustTokenPersister;
 class SessionCleanupCookieStore;
 class SharedDictionaryManager;
-class SQLiteTrustTokenPersister;
+class SharedResourceChecker;
 class WebSocketFactory;
 class WebTransport;
+class DeviceBoundSessionManager;
 
-namespace cors {
-class CorsURLLoaderFactory;
-}  // namespace cors
+struct ResourceRequest;
 
 // A NetworkContext creates and manages access to a URLRequestContext.
 //
@@ -196,7 +197,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
 
   net::URLRequestContext* url_request_context() { return url_request_context_; }
 
-  NetworkService* network_service() { return network_service_; }
+  NetworkService* network_service() const { return network_service_; }
 
   mojom::NetworkContextClient* client() {
     return client_.is_bound() ? client_.get() : nullptr;
@@ -205,6 +206,10 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   ResourceScheduler* resource_scheduler() { return resource_scheduler_.get(); }
 
   CookieManager* cookie_manager() { return cookie_manager_.get(); }
+
+  ip_protection::IpProtectionCore* ip_protection_core() {
+    return ip_protection_core_.get();
+  }
 
   const base::flat_set<std::string>* cors_exempt_header_list() const {
     return &cors_exempt_header_list_;
@@ -215,8 +220,9 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   }
 
 #if BUILDFLAG(IS_ANDROID)
-  base::android::ApplicationStatusListener* app_status_listener() const {
-    return app_status_listener_.get();
+  const std::vector<std::unique_ptr<base::android::ApplicationStatusListener>>&
+  app_status_listeners() const {
+    return app_status_listeners_;
   }
 #endif
 
@@ -258,6 +264,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
       const url::Origin& origin,
       const net::IsolationInfo& isolation_info,
       const net::CookieSettingOverrides& cookie_setting_overrides,
+      const net::CookieSettingOverrides& devtools_cookie_setting_overrides,
       mojo::PendingRemote<mojom::CookieAccessObserver> observer) override;
   void GetTrustTokenQueryAnswerer(
       mojo::PendingReceiver<mojom::TrustTokenQueryAnswerer> receiver,
@@ -268,10 +275,14 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
       ClearTrustTokenSessionOnlyDataCallback callback) override;
   void GetStoredTrustTokenCounts(
       GetStoredTrustTokenCountsCallback callback) override;
+  void GetPrivateStateTokenRedemptionRecords(
+      GetPrivateStateTokenRedemptionRecordsCallback callback) override;
   void DeleteStoredTrustTokens(
       const url::Origin& issuer,
       DeleteStoredTrustTokensCallback callback) override;
   void SetBlockTrustTokens(bool block) override;
+  void SetTrackingProtectionContentSetting(
+      const ContentSettingsForOneType& settings) override;
   void ClearNetworkingHistoryBetween(
       base::Time start_time,
       base::Time end_time,
@@ -286,12 +297,15 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   void NotifyExternalCacheHit(const GURL& url,
                               const std::string& http_method,
                               const net::NetworkIsolationKey& key,
-                              bool is_subframe_document_resource,
                               bool include_credentials) override;
+  void ClearCorsPreflightCache(
+      mojom::ClearDataFilterPtr filter,
+      ClearCorsPreflightCacheCallback callback) override;
   void ClearHostCache(mojom::ClearDataFilterPtr filter,
                       ClearHostCacheCallback callback) override;
   void ClearHttpAuthCache(base::Time start_time,
                           base::Time end_time,
+                          mojom::ClearDataFilterPtr filter,
                           ClearHttpAuthCacheCallback callback) override;
   void ClearReportingCacheReports(
       mojom::ClearDataFilterPtr filter,
@@ -311,10 +325,6 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
                             mojom::NetworkConditionsPtr conditions) override;
   void SetAcceptLanguage(const std::string& new_accept_language) override;
   void SetEnableReferrers(bool enable_referrers) override;
-#if BUILDFLAG(IS_CHROMEOS)
-  void UpdateAdditionalCertificates(
-      mojom::AdditionalCertificatesPtr additional_certificates) override;
-#endif
 #if BUILDFLAG(IS_CT_SUPPORTED)
   void SetCTPolicy(mojom::CTPolicyPtr ct_policy) override;
   void MaybeEnqueueSCTReport(
@@ -322,11 +332,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
       const net::X509Certificate* validated_certificate_chain,
       const net::SignedCertificateTimestampAndStatusList&
           signed_certificate_timestamps);
-  void SetCTLogListAlwaysTimelyForTesting() override;
   void SetSCTAuditingMode(mojom::SCTAuditingMode mode) override;
-  void OnCTLogListUpdated(
-      const std::vector<network::mojom::CTLogInfoPtr>& log_list,
-      base::Time update_time);
   SCTAuditingHandler* sct_auditing_handler() {
     return sct_auditing_handler_.get();
   }
@@ -352,7 +358,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
       mojo::PendingReceiver<mojom::TCPServerSocket> receiver,
       CreateTCPServerSocketCallback callback) override;
   void CreateTCPConnectedSocket(
-      const absl::optional<net::IPEndPoint>& local_addr,
+      const std::optional<net::IPEndPoint>& local_addr,
       const net::AddressList& remote_addr_list,
       mojom::TCPConnectedSocketOptionsPtr tcp_connected_socket_options,
       const net::MutableNetworkTrafficAnnotationTag& traffic_annotation,
@@ -378,6 +384,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
       const GURL& url,
       const std::vector<std::string>& requested_protocols,
       const net::SiteForCookies& site_for_cookies,
+      net::StorageAccessApiStatus storage_access_api_status,
       const net::IsolationInfo& isolation_info,
       std::vector<mojom::HttpHeaderPtr> additional_headers,
       int32_t process_id,
@@ -389,7 +396,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
           url_loader_network_observer,
       mojo::PendingRemote<mojom::WebSocketAuthenticationHandler> auth_handler,
       mojo::PendingRemote<mojom::TrustedHeaderClient> header_client,
-      const absl::optional<base::UnguessableToken>& throttling_profile_id)
+      const std::optional<base::UnguessableToken>& throttling_profile_id)
       override;
   void CreateWebTransport(
       const GURL& url,
@@ -406,20 +413,25 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
       mojom::ResolveHostParametersPtr optional_parameters,
       mojo::PendingRemote<mojom::ResolveHostClient> response_client) override;
   void CreateHostResolver(
-      const absl::optional<net::DnsConfigOverrides>& config_overrides,
+      const std::optional<net::DnsConfigOverrides>& config_overrides,
       mojo::PendingReceiver<mojom::HostResolver> receiver) override;
+  void VerifyCert(const scoped_refptr<net::X509Certificate>& certificate,
+                  const net::HostPortPair& host_port,
+                  const std::string& ocsp_result,
+                  const std::string& sct_list,
+                  VerifyCertCallback callback) override;
   void VerifyCertForSignedExchange(
       const scoped_refptr<net::X509Certificate>& certificate,
-      const GURL& url,
-      const net::NetworkAnonymizationKey& network_anonymization_key,
+      const net::HostPortPair& host_port,
       const std::string& ocsp_result,
       const std::string& sct_list,
-      VerifyCertForSignedExchangeCallback callback) override;
+      VerifyCertCallback callback) override;
   void AddHSTS(const std::string& host,
                base::Time expiry,
                bool include_subdomains,
                AddHSTSCallback callback) override;
   void IsHSTSActiveForHost(const std::string& host,
+                           bool is_top_level_nav,
                            IsHSTSActiveForHostCallback callback) override;
   void GetHSTSState(const std::string& domain,
                     GetHSTSStateCallback callback) override;
@@ -442,8 +454,12 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   void PreconnectSockets(
       uint32_t num_streams,
       const GURL& url,
-      bool allow_credentials,
-      const net::NetworkAnonymizationKey& network_anonymization_key) override;
+      mojom::CredentialsMode credentials_mode,
+      const net::NetworkAnonymizationKey& network_anonymization_key,
+      const net::MutableNetworkTrafficAnnotationTag& traffic_annotation,
+      const std::optional<net::ConnectionKeepAliveConfig>& keepalive_config,
+      mojo::PendingRemote<mojom::ConnectionChangeObserverClient>
+          connection_change_observer_client) override;
 #if BUILDFLAG(IS_P2P_ENABLED)
   void CreateP2PSocketManager(
       const net::NetworkAnonymizationKey& network_anonymization_key,
@@ -460,16 +476,21 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
       const url::Origin& origin,
       const net::IsolationInfo& isolation_info,
       const base::flat_map<std::string, std::string>& endpoints) override;
+  void SetEnterpriseReportingEndpoints(
+      const base::flat_map<std::string, GURL>& endpoints) override;
   void SendReportsAndRemoveSource(
       const base::UnguessableToken& reporting_source) override;
   void QueueReport(
       const std::string& type,
       const std::string& group,
       const GURL& url,
-      const absl::optional<base::UnguessableToken>& reporting_source,
+      const std::optional<base::UnguessableToken>& reporting_source,
       const net::NetworkAnonymizationKey& network_anonymization_key,
-      const absl::optional<std::string>& user_agent,
       base::Value::Dict body) override;
+  void QueueEnterpriseReport(const std::string& type,
+                             const std::string& group,
+                             const GURL& url,
+                             base::Value::Dict body) override;
   void QueueSignedExchangeReport(
       mojom::SignedExchangeReportPtr report,
       const net::NetworkAnonymizationKey& network_anonymization_key) override;
@@ -498,13 +519,68 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
       const GURL& url,
       const net::NetworkAnonymizationKey& network_anonymization_key,
       LookupServerBasicAuthCredentialsCallback callback) override;
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   void LookupProxyAuthCredentials(
       const net::ProxyServer& proxy_server,
       const std::string& auth_scheme,
       const std::string& realm,
       LookupProxyAuthCredentialsCallback callback) override;
 #endif
+  void SetSharedDictionaryCacheMaxSize(uint64_t cache_max_size) override;
+  void ClearSharedDictionaryCache(
+      base::Time start_time,
+      base::Time end_time,
+      mojom::ClearDataFilterPtr filter,
+      ClearSharedDictionaryCacheCallback callback) override;
+  void ClearSharedDictionaryCacheForIsolationKey(
+      const net::SharedDictionaryIsolationKey& isolation_key,
+      ClearSharedDictionaryCacheForIsolationKeyCallback callback) override;
+  void GetSharedDictionaryUsageInfo(
+      GetSharedDictionaryUsageInfoCallback callback) override;
+  void GetSharedDictionaryInfo(
+      const net::SharedDictionaryIsolationKey& isolation_key,
+      GetSharedDictionaryInfoCallback callback) override;
+  void GetSharedDictionaryOriginsBetween(
+      base::Time start_time,
+      base::Time end_time,
+      GetSharedDictionaryOriginsBetweenCallback callback) override;
+  void PreloadSharedDictionaryInfoForDocument(
+      const std::vector<GURL>& urls,
+      mojo::PendingReceiver<mojom::PreloadedSharedDictionaryInfoHandle>
+          preload_handle) override;
+  void HasPreloadedSharedDictionaryInfoForTesting(
+      HasPreloadedSharedDictionaryInfoForTestingCallback callback) override;
+  void ResourceSchedulerClientVisibilityChanged(
+      const base::UnguessableToken& client_token,
+      bool visible) override;
+  void FlushCachedClientCertIfNeeded(
+      const net::HostPortPair& host,
+      const scoped_refptr<net::X509Certificate>& certificate) override;
+  void FlushMatchingCachedClientCert(
+      const scoped_refptr<net::X509Certificate>& certificate) override;
+  void SetCookieDeprecationLabel(
+      const std::optional<std::string>& label) override;
+  void RevokeNetworkForNonces(const std::vector<base::UnguessableToken>& nonces,
+                              RevokeNetworkForNoncesCallback callback) override;
+  void ClearNonces(const std::vector<base::UnguessableToken>& nonces) override;
+  void ExemptUrlFromNetworkRevocationForNonce(
+      const GURL& exempted_url,
+      const base::UnguessableToken& nonce,
+      ExemptUrlFromNetworkRevocationForNonceCallback callback) override;
+  void Prefetch(int32_t request_id,
+                uint32_t options,
+                const ResourceRequest& request,
+                const net::MutableNetworkTrafficAnnotationTag&
+                    traffic_annotation) override;
+
+  void GetBoundNetworkForTesting(
+      GetBoundNetworkForTestingCallback callback) override;
+
+  void GetDeviceBoundSessionManager(
+      mojo::PendingReceiver<network::mojom::DeviceBoundSessionManager>
+          device_bound_session_manager) override;
+
+  void SetTLS13EarlyDataEnabled(bool enabled);
 
   // Destroys |request| when a proxy lookup completes.
   void OnProxyLookupComplete(ProxyLookupRequest* proxy_lookup_request);
@@ -514,7 +590,8 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
 
   // Destroys the specified factory. Called by the factory itself when it has
   // no open pipes.
-  void DestroyURLLoaderFactory(cors::CorsURLLoaderFactory* url_loader_factory);
+  void DestroyURLLoaderFactory(
+      PrefetchMatchingURLLoaderFactory* url_loader_factory);
 
   // Removes |transport| and destroys it.
   void Remove(WebTransport* transport);
@@ -568,11 +645,20 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
 
   const net::HttpAuthPreferences* GetHttpAuthPreferences() const;
 
+  // Remove the `observer` from `connection_change_observers_`.
+  void RemoveConnectionChangeObserver(
+      const net::ConnectionChangeNotifier::Observer* observer);
+
   size_t NumOpenWebTransports() const;
 
   size_t num_url_loader_factories_for_testing() const {
     return url_loader_factories_.size();
   }
+
+  // Returns whether all URLLoaderFactories owned by `this` are bound to
+  // `bound_network`.
+  bool AllURLLoaderFactoriesAreBoundToNetworkForTesting(
+      net::handles::NetworkHandle bound_network) const;
 
   // Maintains Trust Tokens protocol state
   // (https://github.com/WICG/trust-token-api). Used by URLLoader to check
@@ -594,8 +680,9 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
     return shared_dictionary_manager_.get();
   }
 
-  // May return null if the in-memory cache is disabled.
-  NetworkServiceMemoryCache* GetMemoryCache();
+  SharedResourceChecker* GetSharedResourceChecker() {
+    return shared_resource_checker_.get();
+  }
 
   // Returns the current same-origin-policy exceptions.  For more details see
   // network::mojom::NetworkContextParams::cors_origin_access_list and
@@ -604,8 +691,8 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
     return cors_origin_access_list_;
   }
 
-  bool require_network_isolation_key() const {
-    return require_network_isolation_key_;
+  bool require_network_anonymization_key() const {
+    return require_network_anonymization_key_;
   }
 
   bool acam_preflight_spec_conformant() const {
@@ -632,17 +719,43 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
       const std::vector<net::ReportingEndpoint>& endpoints) override;
 #endif  // BUILDFLAG(ENABLE_REPORTING)
 
-  const CacheTransparencySettings* cache_transparency_settings() const {
-    return &cache_transparency_settings_;
-  }
+  // Checks whether network access for the partition nonce `nonce` and url
+  // `url` is allowed. See `network_revocation_nonces_` and
+  // `network_revocation_exemptions_`.
+  bool IsNetworkForNonceAndUrlAllowed(const base::UnguessableToken& nonce,
+                                      const GURL& url) const;
 
  private:
+  class NetworkContextHttpAuthPreferences : public net::HttpAuthPreferences {
+   public:
+    explicit NetworkContextHttpAuthPreferences(NetworkService* network_service);
+    ~NetworkContextHttpAuthPreferences() override;
+#if BUILDFLAG(IS_LINUX)
+    bool AllowGssapiLibraryLoad() const override;
+#endif  // BUILDFLAG(IS_LINUX)
+   private:
+    const raw_ptr<NetworkService> network_service_;
+  };
+
+  enum class CTVerificationMode {
+    // Use specific to signed exchange logic
+    // that requires certificate transparency compliance.
+    kSignedExchange,
+    // Use default certificate transparency verification logic
+    // like in TLS.
+    kTlsCertificate
+  };
+
+  // To be called back from CookieManager on settings change.
+  void OnCookieManagerSettingsChanged();
+
   URLRequestContextOwner MakeURLRequestContext(
       mojo::PendingRemote<mojom::URLLoaderFactory>
           url_loader_factory_for_cert_net_fetcher,
       scoped_refptr<SessionCleanupCookieStore>,
       OnURLRequestContextBuilderConfiguredCallback
-          on_url_request_context_builder_configured);
+          on_url_request_context_builder_configured,
+      net::handles::NetworkHandle bound_network);
   scoped_refptr<SessionCleanupCookieStore> MakeSessionCleanupCookieStore()
       const;
 
@@ -673,10 +786,11 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
       const url::Origin& origin,
       const net::IsolationInfo& isolation_info,
       const net::CookieSettingOverrides& cookie_setting_overrides,
+      const net::CookieSettingOverrides& devtools_cookie_setting_overrides,
       mojo::PendingRemote<mojom::CookieAccessObserver> cookie_observer,
       net::FirstPartySetMetadata first_party_set_metadata);
 
-  GURL GetHSTSRedirect(const GURL& original_url);
+  GURL GetHSTSRedirectForPreconnect(const GURL& original_url);
 
 #if BUILDFLAG(IS_P2P_ENABLED)
   void DestroySocketManager(P2PSocketManager* socket_manager);
@@ -685,27 +799,15 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   void CanUploadDomainReliability(const url::Origin& origin,
                                   base::OnceCallback<void(bool)> callback);
 
-  void OnVerifyCertForSignedExchangeComplete(uint64_t cert_verify_id,
-                                             int result);
+  void VerifyCertInternal(
+      const scoped_refptr<net::X509Certificate>& certificate,
+      const net::HostPortPair& host_port,
+      const std::string& ocsp_result,
+      const std::string& sct_list,
+      CTVerificationMode ct_verification_mode,
+      VerifyCertCallback callback);
 
-#if BUILDFLAG(IS_CHROMEOS)
-  void TrustAnchorUsed();
-#endif
-
-#if BUILDFLAG(IS_CT_SUPPORTED)
-  // Checks the Certificate Transparency policy compliance for a given
-  // certificate and SCTs in `cert_verify_result`, and updates
-  // `cert_verify_result.cert_status` and
-  // `cert_verify_result.policy_compliance`. Returns net::OK or
-  // net::ERR_CERTIFICATE_TRANSPARENCY_REQUIRED.
-  // TODO(crbug.com/828447): This code is more-or-less duplicated in
-  // SSLClientSocket and QUIC. Fold this into some CertVerifier-shaped class
-  // in //net.
-  int CheckCTComplianceForSignedExchange(
-      net::CertVerifyResult& cert_verify_result,
-      const net::X509Certificate& certificate,
-      const net::HostPortPair& host_port_pair);
-#endif  // BUILDFLAG(IS_CT_SUPPORTED)
+  void OnVerifyCertComplete(uint64_t cert_verify_id, int result);
 
 #if BUILDFLAG(IS_DIRECTORY_TRANSFER_REQUIRED)
   void EnsureMounted(network::TransferableDirectory* directory);
@@ -723,11 +825,38 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   bool IsAllowedToUseAllHttpAuthSchemes(
       const url::SchemeHostPort& scheme_host_port);
 
+  void InitializePrefetchURLLoaderFactory();
+
+  void QueueReportInternal(
+      const std::string& type,
+      const std::string& group,
+      const GURL& url,
+      const std::optional<base::UnguessableToken>& reporting_source,
+      const net::NetworkAnonymizationKey& network_anonymization_key,
+      base::Value::Dict body,
+      net::ReportingTargetType target_type);
+
   const raw_ptr<NetworkService> network_service_;
 
   mojo::Remote<mojom::NetworkContextClient> client_;
 
   std::unique_ptr<ResourceScheduler> resource_scheduler_;
+
+  // The IpProtectionCore for this context, used to coordinate proxying
+  // protected requests. `url_request_context_owner_` indirectly holds
+  // a pointer to and must be defined after `ip_protection_core_`.
+  std::unique_ptr<ip_protection::IpProtectionCore> ip_protection_core_;
+
+  // Used only when network::features::kCompressionDictionaryTransportBackend is
+  // enabled.
+  // Note: `url_request_context_owner_` indirectly holds a pointer to
+  // `shared_dictionary_manager_` via URLRequestContext and HttpCache and
+  // SharedDictionaryNetworkTransactionFactory. So `url_request_context_owner_`
+  // needs to be defined after `shared_dictionary_manager_`.
+  std::unique_ptr<SharedDictionaryManager> shared_dictionary_manager_;
+
+  std::unique_ptr<domain_reliability::DomainReliabilityMonitor>
+      domain_reliability_monitor_;
 
   // Holds owning pointer to |url_request_context_|. Will contain a nullptr for
   // |url_request_context| when the NetworkContextImpl doesn't own its own
@@ -747,12 +876,21 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
 
   mojom::NetworkContextParamsPtr params_;
 
+  // These must be below the URLRequestContext, so they're destroyed before it
+  // is.
+  // These should also be above receiver_ so the bindings are destroyed prior to
+  // the callbacks themselves.
+  std::vector<std::unique_ptr<HttpCacheDataRemover>> http_cache_data_removers_;
+  std::vector<std::unique_ptr<HttpCacheDataCounter>> http_cache_data_counters_;
+  std::set<std::unique_ptr<ProxyLookupRequest>, base::UniquePtrComparator>
+      proxy_lookup_requests_;
+
   // If non-null, called when the mojo pipe for the NetworkContext is closed.
   OnConnectionCloseCallback on_connection_close_callback_;
 
 #if BUILDFLAG(IS_ANDROID)
-  std::unique_ptr<base::android::ApplicationStatusListener>
-      app_status_listener_;
+  std::vector<std::unique_ptr<base::android::ApplicationStatusListener>>
+      app_status_listeners_;
 #endif
 
   mojo::Receiver<mojom::NetworkContext> receiver_;
@@ -779,16 +917,9 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   // PrivacySandboxSettings service.
   bool block_trust_tokens_ = false;
 
-#if !BUILDFLAG(IS_IOS)
+#if BUILDFLAG(ENABLE_WEBSOCKETS)
   std::unique_ptr<WebSocketFactory> websocket_factory_;
-#endif  // !BUILDFLAG(IS_IOS)
-
-  // These must be below the URLRequestContext, so they're destroyed before it
-  // is.
-  std::vector<std::unique_ptr<HttpCacheDataRemover>> http_cache_data_removers_;
-  std::vector<std::unique_ptr<HttpCacheDataCounter>> http_cache_data_counters_;
-  std::set<std::unique_ptr<ProxyLookupRequest>, base::UniquePtrComparator>
-      proxy_lookup_requests_;
+#endif  // BUILDFLAG(ENABLE_WEBSOCKETS)
 
   std::set<std::unique_ptr<WebTransport>, base::UniquePtrComparator>
       web_transports_;
@@ -816,30 +947,15 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
            base::UniquePtrComparator>
       restricted_cookie_managers_;
 
-  ResourceScheduler::ClientId current_resource_scheduler_client_id_{0};
-
   // Owned by the URLRequestContext
   raw_ptr<net::StaticHttpUserAgentSettings> user_agent_settings_ = nullptr;
 
-  // Pointed to by the TransportSecurityState (owned by the
-  // URLRequestContext), and must be disconnected from it before it's destroyed.
-  std::unique_ptr<net::ReportSender> certificate_report_sender_;
-
 #if BUILDFLAG(IS_CT_SUPPORTED)
-  std::unique_ptr<certificate_transparency::ChromeRequireCTDelegate>
+  scoped_refptr<certificate_transparency::ChromeRequireCTDelegate>
       require_ct_delegate_;
-
-  // Owned by the URLRequestContext.
-  raw_ptr<certificate_transparency::ChromeCTPolicyEnforcer>
-      ct_policy_enforcer_ = nullptr;
 
   std::unique_ptr<SCTAuditingHandler> sct_auditing_handler_;
 #endif  // BUILDFLAG(IS_CT_SUPPORTED)
-
-#if BUILDFLAG(IS_CHROMEOS)
-  raw_ptr<CertVerifierWithTrustAnchors> cert_verifier_with_trust_anchors_ =
-      nullptr;
-#endif
 
 #if BUILDFLAG(IS_DIRECTORY_TRANSFER_REQUIRED)
   // Contains a list of closures that, when run, will dismount the shared
@@ -849,17 +965,11 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
 
   // Created on-demand. Null if unused.
   std::unique_ptr<HostResolver> internal_host_resolver_;
-  // Map values set to non-null only if that HostResolver has its own private
-  // internal net::HostResolver.
-  std::map<std::unique_ptr<HostResolver>,
-           std::unique_ptr<net::HostResolver>,
-           base::UniquePtrComparator>
+  std::set<std::unique_ptr<HostResolver>, base::UniquePtrComparator>
       host_resolvers_;
   std::unique_ptr<net::HostResolver::ProbeRequest> doh_probes_request_;
 
-  raw_ptr<NetworkServiceProxyDelegate> proxy_delegate_ = nullptr;
-
-  // Used for Signed Exchange certificate verification.
+  // Used for certificate verification.
   uint64_t next_cert_verify_id_ = 0;
   struct PendingCertVerify {
     PendingCertVerify();
@@ -869,12 +979,9 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
     // So |result| must be written before |request|.
     std::unique_ptr<net::CertVerifyResult> result;
     std::unique_ptr<net::CertVerifier::Request> request;
-    VerifyCertForSignedExchangeCallback callback;
+    VerifyCertCallback callback;
     scoped_refptr<net::X509Certificate> certificate;
-    GURL url;
-    net::NetworkAnonymizationKey network_anonymization_key;
-    std::string ocsp_result;
-    std::string sct_list;
+    net::HostPortPair host_port;
   };
   std::map<uint64_t, std::unique_ptr<PendingCertVerify>>
       cert_verifier_requests_;
@@ -892,21 +999,16 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   std::unique_ptr<NetworkQualitiesPrefDelegate>
       network_qualities_pref_delegate_;
 
-  std::unique_ptr<domain_reliability::DomainReliabilityMonitor>
-      domain_reliability_monitor_;
-
   // Each network context holds its own HttpAuthPreferences.
   // The dynamic preferences of |NetworkService| and the static
   // preferences from |NetworkContext| would be merged to
   // `http_auth_merged_preferences_` which would then be used to create
   // HttpAuthHandle via |NetworkContext::CreateHttpAuthHandlerFactory|.
-  net::HttpAuthPreferences http_auth_merged_preferences_;
+  NetworkContextHttpAuthPreferences http_auth_merged_preferences_;
 
   // Each network context holds its own WebBundleManager, which
   // manages the lifetiem of a WebBundleURLLoaderFactory object.
   WebBundleManager web_bundle_manager_;
-
-  std::unique_ptr<NetworkServiceMemoryCache> memory_cache_;
 
   // The ohttp_handler_ needs to be destroyed before cookie_manager_, since it
   // depends on it indirectly through this context.
@@ -915,11 +1017,19 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   // Whether all external consumers are expected to provide a non-empty
   // NetworkAnonymizationKey with all requests. When set, enabled a variety of
   // DCHECKs on APIs used by external callers.
-  bool require_network_isolation_key_ = false;
+  bool require_network_anonymization_key_ = false;
 
   // Whether Access-Control-Allow-Methods matching in CORS preflight is done
   // according to the spec.
   bool acam_preflight_spec_conformant_ = true;
+
+  // True once the destructor has been called. Used to guard against re-entrant
+  // calls to DestroyURLLoaderFactory().
+  bool is_destructing_ = false;
+
+  // True if the Prefetch() method is enabled.
+  // TODO(ricea): Remove this when it is enabled by default.
+  const bool prefetch_enabled_;
 
   // Indicating whether
   // https://fetch.spec.whatwg.org/#cors-non-wildcard-request-header-name is
@@ -929,27 +1039,55 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
 
   // CorsURLLoaderFactory assumes that fields owned by the NetworkContext always
   // live longer than the factory.  Therefore we want the factories to be
-  // destroyed before other fields above.  In particular:
-  // - This must be below |url_request_context_| so that the URLRequestContext
-  //   outlives all the URLLoaderFactories and URLLoaders that depend on it;
-  //   for the same reason, it must also be below |network_context_|.
-  // - This must be below |loader_count_per_process_| that is touched by
-  //   CorsURLLoaderFactory::DestroyURLLoader (see also
-  //   https://crbug.com/1174943).
-  std::set<std::unique_ptr<cors::CorsURLLoaderFactory>,
+  // destroyed before other fields above.  This is accomplished by explicitly
+  // clearing `url_loader_factories_` in the destructor.
+  std::set<std::unique_ptr<PrefetchMatchingURLLoaderFactory>,
            base::UniquePtrComparator>
       url_loader_factories_;
+
+  // Keep track of the existing `ConnectionChangeNotifiers`. These will be later
+  // passed on to the corresponding session pools so that we can notify the
+  // observers about reconnect events.
+  std::set<std::unique_ptr<net::ConnectionChangeNotifier::Observer>,
+           base::UniquePtrComparator>
+      connection_change_observers_;
 
   std::unique_ptr<url_matcher::URLMatcher> url_matcher_;
 
   scoped_refptr<MojoBackendFileOperationsFactory>
       http_cache_file_operations_factory_;
 
-  const CacheTransparencySettings cache_transparency_settings_;
+  // A data structure that tracks partition nonces whose network requests
+  // should be blocked, for fenced frames network revocation.
+  // https://github.com/WICG/fenced-frame/blob/master/explainer/fenced_frames_with_local_unpartitioned_data_access.md#revoking-network-access
+  // New nonces are inserted by `RevokeNetworkForNonce`,
+  // and membership is checked with `IsNetworkForNonceAndUrlAllowed`.
+  std::set<base::UnguessableToken> network_revocation_nonces_;
 
-  // Used only when blink::features::kCompressionDictionaryTransportBackend is
-  // enabled.
-  std::unique_ptr<SharedDictionaryManager> shared_dictionary_manager_;
+  // A data structure that tracks urls that should be exempted from network
+  // revocation, to facilitate testing.
+  // New urls are inserted by
+  // `ExemptUrlFromNetworkRevocationForNonce`
+  // and membership is checked with `IsNetworkForNonceAndUrlAllowed`.
+  std::map<base::UnguessableToken, std::set<GURL>>
+      network_revocation_exemptions_;
+
+  // An LRU cache for in-progress prefetches. Created on first use.
+  std::unique_ptr<PrefetchCache> prefetch_cache_;
+
+  // The URLLoaderFactory to use for prefetches. Created on first use.
+  mojo::Remote<mojom::URLLoaderFactory> prefetch_url_loader_factory_remote_;
+
+  // Manager for device bound sessions.
+  std::unique_ptr<DeviceBoundSessionManager> device_bound_session_manager_;
+
+  // Used only when network::features::kCacheSharingForPervasiveScripts is
+  // enabled to determine if a given request is for a well-known
+  // pervasive script.
+  // See https://chromestatus.com/feature/5202380930678784
+  // This needs to be ordered after cookie_manager_ as it maintains a reference
+  // to the cookie settings object from cookie_manager_.
+  std::unique_ptr<SharedResourceChecker> shared_resource_checker_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 

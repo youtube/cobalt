@@ -391,7 +391,7 @@ public class VideoFrameBufferTest {
     final List<Integer> pixelDiffs = getPixelDiffs(bufferA, bufferB);
     long sse = 0;
     for (int pixelDiff : pixelDiffs) {
-      sse += pixelDiff * pixelDiff;
+      sse += pixelDiff * ((long) pixelDiff);
     }
     return sseToPsnr(sse, pixelDiffs.size());
   }
@@ -460,7 +460,7 @@ public class VideoFrameBufferTest {
 
   @Test
   @SmallTest
-  /** Test calling toI420() and comparing pixel content against I420 reference. */
+  // Test calling toI420() and comparing pixel content against I420 reference.
   public void testToI420() {
     final VideoFrame.I420Buffer referenceI420Buffer = createTestI420Buffer();
     final VideoFrame.Buffer bufferToTest = createBufferToTest(referenceI420Buffer);
@@ -476,7 +476,7 @@ public class VideoFrameBufferTest {
 
   @Test
   @SmallTest
-  /** Pure 2x scaling with no cropping. */
+  // Pure 2x scaling with no cropping.
   public void testScale2x() {
     testCropAndScale(0 /* cropX= */, 0 /* cropY= */, /* cropWidth= */ 16, /* cropHeight= */ 16,
         /* scaleWidth= */ 8, /* scaleHeight= */ 8);
@@ -484,7 +484,7 @@ public class VideoFrameBufferTest {
 
   @Test
   @SmallTest
-  /** Test cropping only X direction, with no scaling. */
+  // Test cropping only X direction, with no scaling.
   public void testCropX() {
     testCropAndScale(8 /* cropX= */, 0 /* cropY= */, /* cropWidth= */ 8, /* cropHeight= */ 16,
         /* scaleWidth= */ 8, /* scaleHeight= */ 16);
@@ -492,7 +492,7 @@ public class VideoFrameBufferTest {
 
   @Test
   @SmallTest
-  /** Test cropping only Y direction, with no scaling. */
+  // Test cropping only Y direction, with no scaling.
   public void testCropY() {
     testCropAndScale(0 /* cropX= */, 8 /* cropY= */, /* cropWidth= */ 16, /* cropHeight= */ 8,
         /* scaleWidth= */ 16, /* scaleHeight= */ 8);
@@ -500,7 +500,7 @@ public class VideoFrameBufferTest {
 
   @Test
   @SmallTest
-  /** Test center crop, with no scaling. */
+  // Test center crop, with no scaling.
   public void testCenterCrop() {
     testCropAndScale(4 /* cropX= */, 4 /* cropY= */, /* cropWidth= */ 8, /* cropHeight= */ 8,
         /* scaleWidth= */ 8, /* scaleHeight= */ 8);
@@ -508,7 +508,7 @@ public class VideoFrameBufferTest {
 
   @Test
   @SmallTest
-  /** Test non-center crop for right bottom corner, with no scaling. */
+  // Test non-center crop for right bottom corner, with no scaling.
   public void testRightBottomCornerCrop() {
     testCropAndScale(8 /* cropX= */, 8 /* cropY= */, /* cropWidth= */ 8, /* cropHeight= */ 8,
         /* scaleWidth= */ 8, /* scaleHeight= */ 8);
@@ -516,7 +516,7 @@ public class VideoFrameBufferTest {
 
   @Test
   @SmallTest
-  /** Test combined cropping and scaling. */
+  // Test combined cropping and scaling.
   public void testCropAndScale() {
     testCropAndScale(4 /* cropX= */, 4 /* cropY= */, /* cropWidth= */ 12, /* cropHeight= */ 12,
         /* scaleWidth= */ 8, /* scaleHeight= */ 8);

@@ -2,10 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "gpu/command_buffer/service/gpu_tracer.h"
 
 #include <stddef.h>
 #include <stdint.h>
+
+#include <array>
 
 #include "base/functional/bind.h"
 #include "base/location.h"
@@ -25,11 +28,11 @@
 namespace gpu {
 namespace gles2 {
 
-constexpr const char* kGpuTraceSourceNames[] = {
+constexpr auto kGpuTraceSourceNames = std::to_array<const char*>({
     "TraceCHROMIUM",  // kTraceCHROMIUM,
     "TraceCmd",       // kTraceDecoder,
     "Disjoint",       // kTraceDisjoint, // Used internally.
-};
+});
 static_assert(NUM_TRACER_SOURCES == std::size(kGpuTraceSourceNames),
               "Trace source names must match enumeration.");
 
@@ -180,7 +183,8 @@ GPUTracer::GPUTracer(DecoderContext* decoder, bool context_is_gl)
     disjoint_time_ = gpu_timing_client_->GetCurrentCPUTime();
   } else {
     can_trace_dev_ = false;
-    // TODO(crbug.com/1018725): GPUTiming should support backends other than GL.
+    // TODO(crbug.com/40655549): GPUTiming should support backends other than
+    // GL.
     gpu_timing_client_ = nullptr;
   }
   outputter_ = decoder_->outputter();
@@ -330,7 +334,10 @@ void GPUTracer::ProcessTraces() {
     }
   }
 
-  DCHECK(GL_NO_ERROR == glGetError());
+  // When `can_trace_dev_` is false, there might be no current context and
+  // calling `glGetError()` might lead to a crash. To avoid that, skip calling
+  // the function in that case.
+  DCHECK(!can_trace_dev_ || GL_NO_ERROR == glGetError());
 }
 
 bool GPUTracer::IsTracing() {

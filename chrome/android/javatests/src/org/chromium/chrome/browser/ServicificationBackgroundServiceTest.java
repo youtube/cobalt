@@ -18,7 +18,6 @@ import org.junit.runner.RunWith;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
-import org.chromium.base.StrictModeContext;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Restriction;
@@ -42,19 +41,19 @@ public final class ServicificationBackgroundServiceTest {
     private File mSpareFile;
 
     /**
-     The size of the persistent/shared memory to store histograms. It should be consistent with
-     the |kAllocSize| in persistent_histograms.cc.
+     * The size of the persistent/shared memory to store histograms. It should be consistent with
+     * the |kAllocSize| in persistent_histograms.cc.
      */
     private static final int ALLOC_SIZE = 4 << 20; // 4 MiB
 
     private static final String APP_CHROME_DIR = "app_chrome";
     private static final String SPARE_FILE_NAME = "BrowserMetrics-spare.pma";
-    private static final String TAG = "ServicificationStartupTest";
+    private static final String TAG = "ServicifiStartupTest";
 
     @Before
     public void setUp() {
         mServicificationBackgroundService =
-                new ServicificationBackgroundService(true /*supportsMinimalBrowser*/);
+                new ServicificationBackgroundService(/* supportsMinimalBrowser= */ true);
     }
 
     @After
@@ -65,8 +64,10 @@ public final class ServicificationBackgroundServiceTest {
     // Creates the memory-mapped file which is used to persist histograms data before native is
     // loaded.
     private void createBrowserMetricsSpareFile() {
-        File appChromeDir = new File(
-                ContextUtils.getApplicationContext().getApplicationInfo().dataDir, APP_CHROME_DIR);
+        File appChromeDir =
+                new File(
+                        ContextUtils.getApplicationContext().getApplicationInfo().dataDir,
+                        APP_CHROME_DIR);
         if (!appChromeDir.exists()) appChromeDir.mkdir();
 
         mSpareFile = new File(appChromeDir + File.separator + SPARE_FILE_NAME);
@@ -77,31 +78,29 @@ public final class ServicificationBackgroundServiceTest {
             return;
         }
 
-        try (StrictModeContext ignored = StrictModeContext.allowDiskWrites()) {
-            try {
-                mMappedSpareFile = new RandomAccessFile(mSpareFile, "rw");
+        try {
+            mMappedSpareFile = new RandomAccessFile(mSpareFile, "rw");
 
-                MappedByteBuffer mappedByteBuffer = mMappedSpareFile.getChannel().map(
-                        FileChannel.MapMode.READ_WRITE, 0, ALLOC_SIZE);
+            MappedByteBuffer mappedByteBuffer =
+                    mMappedSpareFile
+                            .getChannel()
+                            .map(FileChannel.MapMode.READ_WRITE, 0, ALLOC_SIZE);
 
-                mappedByteBuffer.put(0, (byte) 0);
-                mappedByteBuffer.force();
-                Assert.assertTrue(Byte.compare(mappedByteBuffer.get(0), (byte) 0) == 0);
-            } catch (Exception e) {
-                Log.d(TAG, "Fail to create memory-mapped file: %s", SPARE_FILE_NAME);
-            }
+            mappedByteBuffer.put(0, (byte) 0);
+            mappedByteBuffer.force();
+            Assert.assertTrue(Byte.compare(mappedByteBuffer.get(0), (byte) 0) == 0);
+        } catch (Exception e) {
+            Log.d(TAG, "Fail to create memory-mapped file: %s", SPARE_FILE_NAME);
         }
     }
 
     private void closeBrowserMetricsSpareFile() {
         if (mMappedSpareFile == null) return;
 
-        try (StrictModeContext ignored = StrictModeContext.allowDiskWrites()) {
-            try {
-                mMappedSpareFile.close();
-            } catch (IOException e) {
-                Log.d(TAG, "Fail to close memory-mapped file: %s", SPARE_FILE_NAME);
-            }
+        try {
+            mMappedSpareFile.close();
+        } catch (IOException e) {
+            Log.d(TAG, "Fail to close memory-mapped file: %s", SPARE_FILE_NAME);
         }
     }
 
@@ -115,7 +114,12 @@ public final class ServicificationBackgroundServiceTest {
     @Test
     @LargeTest
     @Feature({"ServicificationStartup"})
-    @CommandLineFlags.Add({"force-fieldtrials=*Foo/Bar", "enable-features=UMABackgroundSessions"})
+    @CommandLineFlags.Add({
+        "force-fieldtrials=*Foo/Bar",
+        "enable-features=UMABackgroundSessions",
+        // TODO(crbug.com/40285326): This fails with the field trial testing config.
+        "disable-field-trial-config"
+    })
     @Restriction({Restriction.RESTRICTION_TYPE_NON_LOW_END_DEVICE}) // crbug.com/1096833
     // Verifies that the memory-mapped file for persistent histogram data exists and contains a
     // valid SystemProfile. This test isn't run on low end devices which use local memory for

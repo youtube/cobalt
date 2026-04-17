@@ -12,47 +12,98 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import asyncio
+import concurrent.futures
+import google.auth
+import google.auth.transport.requests
 import json
-import httplib2
-import os
+import jwt
 import logging
-import threading
+import os
+import requests
+import time
 
+from base64 import b64encode, b64decode
 from datetime import datetime
-from oauth2client.client import GoogleCredentials
-from config import PROJECT
 
-tls = threading.local()
+from config import PROJECT, GITHUB_REPO, GITHUB_APP_ID, GITHUB_APP_INSTALLATION_ID
+
+# Thread pool for making http requests asynchronosly.
+thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=8)
 
 # Caller has to initialize this
 SCOPES = []
+cached_gerrit_creds = None
+cached_oauth2_creds = None
+
+GITHUB_API_URL = 'https://api.github.com'
 
 
 class ConcurrentModificationError(Exception):
   pass
 
 
-def get_gerrit_credentials():
-  '''Retrieve the credentials used to authenticate Gerrit requests
-
-  Returns a tuple (user, gitcookie). These fields are obtained from the Gerrit
-  'New HTTP password' page which generates a .gitcookie file and stored in the
-  project datastore.
-  user: typically looks like git-user.gmail.com.
-  gitcookie: is the password after the = token.
-  '''
-  body = {'query': {'kind': [{'name': 'GerritAuth'}]}}
-  res = req(
-      'POST',
-      'https://datastore.googleapis.com/v1/projects/%s:runQuery' % PROJECT,
-      body=body)
-  auth = res['batch']['entityResults'][0]['entity']['properties']
-  user = auth['user']['stringValue']
-  gitcookie = auth['gitcookie']['stringValue']
-  return user, gitcookie
+def get_access_token():
+  """Returns the access token for the current service account"""
+  global cached_oauth2_creds
+  creds = cached_oauth2_creds
+  if creds is None or not creds.valid or creds.expired:
+    creds, _project = google.auth.default(scopes=SCOPES)
+    request = google.auth.transport.requests.Request()
+    creds.refresh(request)
+    cached_oauth2_creds = creds
+  return creds.token
 
 
-def req(method, uri, body=None, req_etag=False, etag=None, gerrit=False):
+def get_secret(secret_id):
+  """Retrieves a secret stored in the Cloud Secrets API"""
+  access_token = get_access_token()
+  url = f'https://secretmanager.googleapis.com/v1/projects/{PROJECT}/secrets/{secret_id}/versions/latest:access'
+  headers = {'Authorization': f'Bearer {access_token}'}
+  response = requests.get(url, headers=headers)
+  response.raise_for_status()
+  return b64decode(response.json()['payload']['data'])
+
+
+def get_github_installation_token():
+  gh_private_key = get_secret('perfetto_ci_github_private_key')
+  now = int(time.time())
+  payload = {
+      'iat': now,
+      'exp': now + (10 * 60),  # JWT valid for 10 minutes
+      'iss': GITHUB_APP_ID
+  }
+  jwt_token = jwt.encode(payload, gh_private_key, algorithm='RS256')
+  url = f'{GITHUB_API_URL}/app/installations/{GITHUB_APP_INSTALLATION_ID}/access_tokens'
+  headers = {
+      'Authorization': f'Bearer {jwt_token}',
+      'Accept': 'application/vnd.github.v3+json'
+  }
+  response = requests.post(url, headers=headers)
+  response.raise_for_status()
+  return response.json()['token']
+
+
+def get_github_registration_token():
+  inst_token = get_github_installation_token()
+  url = f'{GITHUB_API_URL}/repos/{GITHUB_REPO}/actions/runners/registration-token'
+  headers = {
+      'Authorization': f'token {inst_token}',
+      'Accept': 'application/vnd.github.v3+json'
+  }
+  response = requests.post(url, headers=headers)
+  response.raise_for_status()
+  return response.json()['token']
+
+
+async def req_async(method, url, body=None):
+  loop = asyncio.get_running_loop()
+  # run_in_executor cannot take kwargs, we need to stick with order.
+  return await loop.run_in_executor(thread_pool, req, method, url, body, False,
+                                    None)
+
+
+def req(method, url, body=None, req_etag=False, etag=None):
   '''Helper function to handle authenticated HTTP requests.
 
   Cloud API and Gerrit require two different types of authentication and as
@@ -62,39 +113,29 @@ def req(method, uri, body=None, req_etag=False, etag=None, gerrit=False):
   these connections won't be recycled for too long.
   '''
   hdr = {'Content-Type': 'application/json; charset=UTF-8'}
-  tls_key = 'gerrit_http' if gerrit else 'oauth2_http'
-  if hasattr(tls, tls_key):
-    http = getattr(tls, tls_key)
-  else:
-    http = httplib2.Http()
-    setattr(tls, tls_key, http)
-    if gerrit:
-      http.add_credentials(*get_gerrit_credentials())
-    elif SCOPES:
-      creds = GoogleCredentials.get_application_default().create_scoped(SCOPES)
-      creds.authorize(http)
-
+  if SCOPES:
+    auth_header = 'Bearer ' + get_access_token()
+  logging.debug('%s %s', method, url)
+  hdr['Authorization'] = auth_header
   if req_etag:
     hdr['X-Firebase-ETag'] = 'true'
   if etag:
     hdr['if-match'] = etag
   body = None if body is None else json.dumps(body)
-  logging.debug('%s %s', method, uri)
-  resp, res = http.request(uri, method=method, headers=hdr, body=body)
-  if resp.status == 200:
-    res = res[4:] if gerrit else res  # Strip Gerrit XSSI projection chars.
-    return (json.loads(res), resp['etag']) if req_etag else json.loads(res)
-  elif resp.status == 412:
+  resp = requests.request(method, url, headers=hdr, data=body, timeout=60)
+  res = resp.content.decode('utf-8')
+  resp_etag = resp.headers.get('etag')
+  if resp.status_code == 200:
+    res = json.loads(res)
+    return (res, resp_etag) if req_etag else res
+  elif resp.status_code == 412:
     raise ConcurrentModificationError()
   else:
-    delattr(tls, tls_key)
     raise Exception(resp, res)
 
 
 # Datetime functions to deal with the fact that Javascript expects a trailing
 # 'Z' (Z == 'Zulu' == UTC) for timestamps.
-
-
 def parse_iso_time(time_str):
   return datetime.strptime(time_str, r'%Y-%m-%dT%H:%M:%SZ')
 
@@ -103,8 +144,15 @@ def utc_now_iso(utcnow=None):
   return (utcnow or datetime.utcnow()).strftime(r'%Y-%m-%dT%H:%M:%SZ')
 
 
+def defer(coro):
+  loop = asyncio.get_event_loop()
+  task = loop.create_task(coro)
+  task.set_name(coro.cr_code.co_name)
+  return task
+
+
 def init_logging():
   logging.basicConfig(
-      format='%(asctime)s %(levelname)-8s %(message)s',
+      format='%(levelname)-8s %(asctime)s %(message)s',
       level=logging.DEBUG if os.getenv('VERBOSE') else logging.INFO,
       datefmt=r'%Y-%m-%d %H:%M:%S')

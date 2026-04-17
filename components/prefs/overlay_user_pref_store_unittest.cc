@@ -39,7 +39,7 @@ class OverlayUserPrefStoreTest : public testing::Test {
     overlay_->RegisterPersistentPref(shared_key);
   }
 
-  ~OverlayUserPrefStoreTest() override {}
+  ~OverlayUserPrefStoreTest() override = default;
 
   base::test::TaskEnvironment task_environment_;
   scoped_refptr<TestingPrefStore> underlay_;
@@ -241,6 +241,15 @@ TEST_F(OverlayUserPrefStoreTest, GetValues) {
 
 TEST_F(OverlayUserPrefStoreTest, CommitPendingWriteWithCallback) {
   TestCommitPendingWriteWithCallback(overlay_.get(), &task_environment_);
+}
+
+TEST_F(OverlayUserPrefStoreTest, HasReadErrorDelegate) {
+  ASSERT_FALSE(underlay_->HasReadErrorDelegate());
+  EXPECT_FALSE(overlay_->HasReadErrorDelegate());
+
+  underlay_->ReadPrefsAsync(nullptr);
+  ASSERT_TRUE(underlay_->HasReadErrorDelegate());
+  EXPECT_TRUE(overlay_->HasReadErrorDelegate());
 }
 
 }  // namespace base

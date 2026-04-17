@@ -8,7 +8,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 
 namespace ash {
 
@@ -24,7 +24,7 @@ class ShutdownPolicyHandler {
     virtual void OnShutdownPolicyChanged(bool reboot_on_shutdown) = 0;
 
    protected:
-    virtual ~Delegate() {}
+    virtual ~Delegate() = default;
   };
 
   ShutdownPolicyHandler(CrosSettings* cros_settings, Delegate* delegate);
@@ -39,9 +39,9 @@ class ShutdownPolicyHandler {
   void NotifyDelegateWithShutdownPolicy();
 
  private:
-  raw_ptr<CrosSettings, ExperimentalAsh> cros_settings_;
+  raw_ptr<CrosSettings> cros_settings_;
 
-  raw_ptr<Delegate, ExperimentalAsh> delegate_;
+  raw_ptr<Delegate> delegate_;
 
   base::CallbackListSubscription shutdown_policy_subscription_;
 

@@ -4,8 +4,11 @@
 
 #include "ash/app_list/views/app_list_main_view.h"
 
+#include <algorithm>
+#include <list>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "ash/app_list/app_list_model_provider.h"
 #include "ash/app_list/model/app_list_test_model.h"
@@ -20,11 +23,12 @@
 #include "ash/app_list/views/page_switcher.h"
 #include "ash/app_list/views/paged_apps_grid_view.h"
 #include "ash/app_list/views/search_box_view.h"
+#include "ash/public/cpp/app_list/app_list_features.h"
 #include "ash/shell.h"
 #include "ash/test/ash_test_base.h"
-#include "ash/wm/tablet_mode/tablet_mode_controller.h"
+#include "ash/wm/tablet_mode/tablet_mode_controller_test_api.h"
 #include "base/memory/raw_ptr.h"
-#include "base/ranges/algorithm.h"
+#include "base/test/bind.h"
 #include "ui/compositor/layer.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/events/keycodes/keyboard_codes_posix.h"
@@ -38,7 +42,7 @@ namespace ash {
 
 class AppListMainViewTest : public AshTestBase {
  public:
-  AppListMainViewTest() = default;
+  AppListMainViewTest() {}
   AppListMainViewTest(const AppListMainViewTest& other) = delete;
   AppListMainViewTest& operator=(const AppListMainViewTest& other) = delete;
   ~AppListMainViewTest() override = default;
@@ -50,7 +54,7 @@ class AppListMainViewTest : public AshTestBase {
     // Create and show the app list in fullscreen apps grid state.
     // Tablet mode uses a fullscreen AppListMainView.
     auto* helper = GetAppListTestHelper();
-    Shell::Get()->tablet_mode_controller()->SetEnabledForTest(true);
+    ash::TabletModeControllerTestApi().EnterTabletMode();
     app_list_view_ = helper->GetAppListView();
   }
 
@@ -63,7 +67,7 @@ class AppListMainViewTest : public AshTestBase {
                                             const gfx::Point& point) {
     const auto& entries = grid_view->view_model()->entries();
     const auto iter =
-        base::ranges::find_if(entries, [&point](const auto& entry) {
+        std::ranges::find_if(entries, [&point](const auto& entry) {
           return entry.view->bounds().Contains(point);
         });
     return iter == entries.end() ? nullptr
@@ -71,36 +75,14 @@ class AppListMainViewTest : public AshTestBase {
   }
 
   // |point| is in |grid_view|'s coordinates.
-  AppListItemView* SimulateInitiateDrag(AppsGridView* grid_view,
-                                        const gfx::Point& point) {
-    AppListItemView* view = GetItemViewAtPointInGrid(grid_view, point);
-    DCHECK(view);
-
+  void SimulateUpdateDragInGridView(AppsGridView* grid_view,
+                                    AppListItemView* drag_view,
+                                    const gfx::Point& point) {
     // NOTE: Assumes that the app list view window bounds match the root window
     // bounds.
     gfx::Point root_window_point = point;
-    views::View::ConvertPointToWidget(grid_view, &root_window_point);
-
-    view->InitiateDrag(point, root_window_point);
-    return view;
-  }
-
-  // |point| is in |grid_view|'s coordinates.
-  void SimulateUpdateDrag(AppsGridView* grid_view,
-                          AppsGridView::Pointer pointer,
-                          AppListItemView* drag_view,
-                          const gfx::Point& point) {
-    DCHECK(drag_view);
-
-    // NOTE: Assumes that the app list view window bounds match the root window
-    // bounds.
-    gfx::Point root_window_point = point;
-    views::View::ConvertPointToWidget(grid_view, &root_window_point);
-
-    ui::MouseEvent drag_event(ui::ET_MOUSE_DRAGGED, point, root_window_point,
-                              ui::EventTimeForNow(), 0, 0);
-
-    grid_view->UpdateDragFromItem(pointer, drag_event);
+    views::View::ConvertPointToScreen(grid_view, &root_window_point);
+    GetEventGenerator()->MoveMouseTo(root_window_point);
   }
 
   AppListMainView* main_view() { return app_list_view_->app_list_main_view(); }
@@ -156,45 +138,56 @@ class AppListMainViewTest : public AshTestBase {
     return folder_item_view;
   }
 
-  AppListItemView* StartDragForReparent(int index_in_folder) {
-    // Start to drag the item in folder.
+  AppListItemView* StartDragOnItemInFolderAt(int index_in_folder) {
+    DCHECK(GetAppListTestHelper()->IsInFolderView());
     views::View* item_view = GetFolderViewModel()->view_at(index_in_folder);
-    AppListItemView* dragged = SimulateInitiateDrag(
+
+    AppListItemView* view = GetItemViewAtPointInGrid(
         GetFolderGridView(), item_view->bounds().CenterPoint());
-    EXPECT_EQ(item_view, dragged);
+    DCHECK(view);
+    EXPECT_EQ(view, item_view);
+
+    GetEventGenerator()->MoveMouseTo(
+        view->GetIconBoundsInScreen().CenterPoint());
+    GetEventGenerator()->PressLeftButton();
+    EXPECT_TRUE(view->FireMouseDragTimerForTest());
+    return view;
+  }
+
+  AppListItemView* DragItemOutsideFolder(AppListItemView* item_view) {
+    DCHECK(GetAppListTestHelper()->IsInFolderView());
+    // Drag the item completely outside the folder bounds.
+    GetEventGenerator()->MoveMouseTo(
+        GetFolderGridView()->GetBoundsInScreen().bottom_right());
+    GetEventGenerator()->MoveMouseBy(10, 10);
+
+    // Generate OnDragExit/OnDragEnter
+    GetEventGenerator()->MoveMouseTo(
+        GetRootGridView()->GetBoundsInScreen().CenterPoint());
+
+    // The drag and drop refactor, expects the folder grid view to end drag once
+    // the dragged view exits the host.
+    EXPECT_FALSE(GetFolderView()->GetVisible());
+    EXPECT_TRUE(GetRootGridView()->has_dragged_item());
+    EXPECT_FALSE(GetFolderGridView()->has_dragged_item());
+    return item_view;
+  }
+
+  void RunInitialReparentChecks() {
     EXPECT_TRUE(GetRootGridView()->GetVisible());
     EXPECT_TRUE(GetFolderView()->GetVisible());
-
-    // Drag the item completely outside the folder bounds.
-    gfx::Point drag_target = gfx::Point(-(item_view->width() + 1) / 2,
-                                        -(item_view->height() + 1) / 2);
-    // Two update drags needed to actually drag the view. The first changes
-    // state and the 2nd one actually moves the view. The 2nd call can be
-    // removed when UpdateDrag is fixed.
-    SimulateUpdateDrag(GetFolderGridView(), AppsGridView::MOUSE, dragged,
-                       drag_target);
-    SimulateUpdateDrag(GetFolderGridView(), AppsGridView::MOUSE, dragged,
-                       drag_target);
-
-    // Fire reparent timer, which should start when the item exits the folder
-    // bounds. The timer closes the folder view.
-    EXPECT_TRUE(GetFolderGridView()->FireFolderItemReparentTimerForTest());
-
-    // Note: the folder item is expected to remain visible so it keeps getting
-    // drag events, but it should become completely transparent.
-    EXPECT_TRUE(GetFolderView()->GetVisible());
-    EXPECT_EQ(0.0f, GetFolderGridView()->layer()->opacity());
-    return dragged;
+    EXPECT_FALSE(GetRootGridView()->has_dragged_item());
+    EXPECT_TRUE(GetFolderGridView()->has_dragged_item());
   }
 
   void ClickButton(views::Button* button) {
     views::test::ButtonTestApi(button).NotifyClick(ui::MouseEvent(
-        ui::ET_MOUSE_PRESSED, gfx::Point(), gfx::Point(), base::TimeTicks(),
-        ui::EF_LEFT_MOUSE_BUTTON, ui::EF_LEFT_MOUSE_BUTTON));
+        ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
+        base::TimeTicks(), ui::EF_LEFT_MOUSE_BUTTON, ui::EF_LEFT_MOUSE_BUTTON));
   }
 
  protected:
-  raw_ptr<AppListView, ExperimentalAsh> app_list_view_ =
+  raw_ptr<AppListView, DanglingUntriaged> app_list_view_ =
       nullptr;  // Owned by native widget.
 };
 
@@ -202,7 +195,8 @@ class AppListMainViewTest : public AshTestBase {
 TEST_F(AppListMainViewTest, CloseButtonInvisibleAfterCloseButtonClicked) {
   PressAndReleaseKey(ui::VKEY_A);
   ClickButton(search_box_view()->close_button());
-  EXPECT_FALSE(search_box_view()->close_button()->GetVisible());
+  EXPECT_FALSE(
+      search_box_view()->filter_and_close_button_container()->GetVisible());
 }
 
 // Tests that the search box becomes empty after close button is clicked.
@@ -261,16 +255,24 @@ TEST_F(AppListMainViewTest, DragReparentItemOntoPageSwitcher) {
   EXPECT_EQ(1u, GetFolderViewModel()->view_size());
   EXPECT_EQ(kNumApps + 1, GetRootViewModel()->view_size());
 
-  AppListItemView* dragged = StartDragForReparent(0);
+  AppListItemView* dragged = StartDragOnItemInFolderAt(0);
 
-  // Drag the reparent item to the page switcher.
-  gfx::Point point = GetPageSwitcherView()->GetLocalBounds().CenterPoint();
-  views::View::ConvertPointToTarget(GetPageSwitcherView(), GetFolderGridView(),
-                                    &point);
-  SimulateUpdateDrag(GetFolderGridView(), AppsGridView::MOUSE, dragged, point);
-
-  // Drop it.
-  GetFolderGridView()->EndDrag(false);
+  auto* generator = GetEventGenerator();
+  std::list<base::OnceClosure> tasks;
+  tasks.push_back(
+      base::BindLambdaForTesting([&]() { RunInitialReparentChecks(); }));
+  tasks.push_back(
+      base::BindLambdaForTesting([&]() { DragItemOutsideFolder(dragged); }));
+  tasks.push_back(base::BindLambdaForTesting([&]() {
+    // Drag the reparent item to the page switcher.
+    gfx::Point point = GetPageSwitcherView()->GetLocalBounds().CenterPoint();
+    views::View::ConvertPointToTarget(GetPageSwitcherView(),
+                                      GetFolderGridView(), &point);
+    SimulateUpdateDragInGridView(GetFolderGridView(), dragged, point);
+  }));
+  tasks.push_back(
+      base::BindLambdaForTesting([&]() { generator->ReleaseLeftButton(); }));
+  MaybeRunDragAndDropSequenceForAppList(&tasks, /*is_touch=*/false);
 
   // The folder should not be destroyed.
   EXPECT_EQ(kNumApps + 1, GetRootViewModel()->view_size());
@@ -282,23 +284,33 @@ TEST_F(AppListMainViewTest, DragReparentItemOntoPageSwitcher) {
 
 // Test that an interrupted drag while reparenting an item from a folder, when
 // canceled via the root grid, correctly forwards the cancelation to the drag
-// ocurring from the folder.
+// occurring from the folder.
 TEST_F(AppListMainViewTest, MouseDragItemOutOfFolderWithCancel) {
   CreateAndOpenSingleItemFolder();
-  AppListItemView* dragged = StartDragForReparent(0);
+  AppListItemView* dragged = StartDragOnItemInFolderAt(0);
 
-  // Now add an item to the model, not in any folder, e.g., as if by Sync.
-  EXPECT_TRUE(GetRootGridView()->has_dragged_item());
-  EXPECT_TRUE(GetFolderGridView()->has_dragged_item());
-  GetTestModel()->CreateAndAddItem("Extra");
-
-  // The drag operation should get canceled.
-  EXPECT_FALSE(GetRootGridView()->has_dragged_item());
-  EXPECT_FALSE(GetFolderGridView()->has_dragged_item());
+  std::list<base::OnceClosure> tasks;
+  tasks.push_back(
+      base::BindLambdaForTesting([&]() { RunInitialReparentChecks(); }));
+  tasks.push_back(
+      base::BindLambdaForTesting([&]() { DragItemOutsideFolder(dragged); }));
+  tasks.push_back(base::BindLambdaForTesting([&]() {
+    // Now add an item to the model, not in any folder, e.g., as if by Sync.
+    GetTestModel()->CreateAndAddItem("Extra");
+    // The drag operation is canceled.
+    EXPECT_FALSE(GetRootGridView()->has_dragged_item());
+    EXPECT_FALSE(GetFolderGridView()->has_dragged_item());
+  }));
+  tasks.push_back(base::BindLambdaForTesting([&]() {
+    // Required by the drag and drop controller to end the loop, since the
+    // action does not cancel the drag sequence.
+    GetEventGenerator()->ReleaseLeftButton();
+  }));
+  MaybeRunDragAndDropSequenceForAppList(&tasks, /*is_touch=*/false);
 
   // Additional mouse move operations should be ignored.
   gfx::Point point(1, 1);
-  SimulateUpdateDrag(GetFolderGridView(), AppsGridView::MOUSE, dragged, point);
+  SimulateUpdateDragInGridView(GetFolderGridView(), dragged, point);
   EXPECT_FALSE(GetRootGridView()->has_dragged_item());
   EXPECT_FALSE(GetFolderGridView()->has_dragged_item());
 }
@@ -318,12 +330,21 @@ TEST_F(AppListMainViewTest, ReparentSingleItemOntoSelf) {
   views::View::ConvertPointToTarget(GetRootGridView(), GetFolderGridView(),
                                     &drag_point);
 
-  AppListItemView* dragged = StartDragForReparent(0);
+  AppListItemView* dragged = StartDragOnItemInFolderAt(0);
 
-  // Drag the reparent item back into its folder.
-  SimulateUpdateDrag(GetFolderGridView(), AppsGridView::MOUSE, dragged,
-                     drag_point);
-  GetFolderGridView()->EndDrag(false);
+  auto* generator = GetEventGenerator();
+  std::list<base::OnceClosure> tasks;
+  tasks.push_back(
+      base::BindLambdaForTesting([&]() { RunInitialReparentChecks(); }));
+  tasks.push_back(
+      base::BindLambdaForTesting([&]() { DragItemOutsideFolder(dragged); }));
+  tasks.push_back(base::BindLambdaForTesting([&]() {
+    // Drag the reparent item back into its folder.
+    SimulateUpdateDragInGridView(GetFolderGridView(), dragged, drag_point);
+  }));
+  tasks.push_back(
+      base::BindLambdaForTesting([&]() { generator->ReleaseLeftButton(); }));
+  MaybeRunDragAndDropSequenceForAppList(&tasks, /*is_touch=*/false);
 
   // The app list model should remain unchanged.
   EXPECT_EQ(2u, GetRootViewModel()->view_size());

@@ -7,6 +7,7 @@
 #include <stddef.h>
 
 #include <algorithm>
+#include <array>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -202,10 +203,13 @@ TEST(SandboxOriginDatabaseTest, DatabaseRecoveryTest) {
   EXPECT_FALSE(base::PathExists(kFSDir));
   EXPECT_TRUE(base::CreateDirectory(kFSDir));
 
-  const std::string kOrigins[] = {
-      "foo.example.com",  "bar.example.com",  "baz.example.com",
-      "hoge.example.com", "fuga.example.com",
-  };
+  const auto kOrigins = std::to_array<std::string>({
+      "foo.example.com",
+      "bar.example.com",
+      "baz.example.com",
+      "hoge.example.com",
+      "fuga.example.com",
+  });
 
   auto database = std::make_unique<SandboxOriginDatabase>(kFSDir, nullptr);
   for (size_t i = 0; i < std::size(kOrigins); ++i) {

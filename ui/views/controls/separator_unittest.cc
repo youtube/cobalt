@@ -35,7 +35,7 @@ class SeparatorTest : public ViewsTestBase {
   void ExpectDrawAtLeastOnePixel(float image_scale);
 
   std::unique_ptr<Widget> widget_;
-  raw_ptr<Separator> separator_;
+  raw_ptr<Separator> separator_ = nullptr;
 
   SkColor expected_foreground_color_ = gfx::kPlaceholderColor;
 
@@ -50,13 +50,14 @@ const gfx::Size SeparatorTest::kTestImageSize{24, 24};
 
 void SeparatorTest::SetUp() {
   ViewsTestBase::SetUp();
-  widget_ = CreateTestWidget();
+  widget_ = CreateTestWidget(Widget::InitParams::CLIENT_OWNS_WIDGET);
   separator_ = widget_->SetContentsView(std::make_unique<Separator>());
   expected_foreground_color_ =
       widget_->GetColorProvider()->GetColor(kForegroundColorId);
 }
 
 void SeparatorTest::TearDown() {
+  separator_ = nullptr;
   widget_.reset();
   ViewsTestBase::TearDown();
 }
@@ -81,7 +82,7 @@ TEST_F(SeparatorTest, GetPreferredSize_VerticalOrientation) {
   // Orientation is vertical by default.
   constexpr int kLength = 8;
   separator_->SetPreferredLength(kLength);
-  EXPECT_EQ(separator_->GetPreferredSize(),
+  EXPECT_EQ(separator_->GetPreferredSize({}),
             gfx::Size(Separator::kThickness, kLength));
 }
 
@@ -89,7 +90,7 @@ TEST_F(SeparatorTest, GetPreferredSize_HorizontalOrientation) {
   constexpr int kLength = 8;
   separator_->SetOrientation(Separator::Orientation::kHorizontal);
   separator_->SetPreferredLength(kLength);
-  EXPECT_EQ(separator_->GetPreferredSize(),
+  EXPECT_EQ(separator_->GetPreferredSize({}),
             gfx::Size(kLength, Separator::kThickness));
 }
 
@@ -335,6 +336,19 @@ TEST_F(SeparatorTest, Paint_MinimumSize_Scale125) {
   EXPECT_EQ(kBackgroundColor, painted.getColor(7, 6));
   EXPECT_EQ(kBackgroundColor, painted.getColor(7, 8));
   EXPECT_EQ(kBackgroundColor, painted.getColor(8, 7));
+}
+
+TEST_F(SeparatorTest, Paint_BorderRadius) {
+  separator_->SetSize({10, 10});
+  separator_->SetBorderRadius(10);
+  separator_->SetColorId(kForegroundColorId);
+
+  SkBitmap painted = PaintToCanvas(1.0f);
+  EXPECT_EQ(kBackgroundColor, painted.getColor(0, 0));
+  EXPECT_EQ(kBackgroundColor, painted.getColor(0, 9));
+  EXPECT_EQ(kBackgroundColor, painted.getColor(9, 9));
+  EXPECT_EQ(kBackgroundColor, painted.getColor(9, 0));
+  EXPECT_EQ(expected_foreground_color_, painted.getColor(5, 5));
 }
 
 }  // namespace views

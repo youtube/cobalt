@@ -9,11 +9,17 @@
 #include "base/logging.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/extensions/extension_management.h"
+#include "chrome/browser/extensions/managed_installation_mode.h"
+#include "chrome/grit/generated_resources.h"
 #include "extensions/common/constants.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/manifest.h"
 #include "extensions/strings/grit/extensions_strings.h"
 #include "ui/base/l10n/l10n_util.h"
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+#include "chrome/browser/extensions/manifest_v2_experiment_manager.h"
+#endif
 
 namespace extensions {
 
@@ -35,7 +41,7 @@ bool AdminPolicyIsModifiable(const Extension* source_extension,
   // extensions even though it is a component extension, because it doesn't
   // need this capability and it can open up interesting attacks if it's
   // leveraged via bookmarklets or devtools.
-  // TODO(crbug.com/1365660): This protection should be expanded by also
+  // TODO(crbug.com/40239460): This protection should be expanded by also
   // blocking bookmarklets on the Webstore Origin through checks on the Blink
   // side.
   const bool is_webstore_hosted_app =
@@ -65,11 +71,11 @@ bool AdminPolicyIsModifiable(const Extension* source_extension,
 }  // namespace
 
 StandardManagementPolicyProvider::StandardManagementPolicyProvider(
-    ExtensionManagement* settings)
-    : settings_(settings) {}
+    ExtensionManagement* settings,
+    Profile* profile)
+    : profile_(profile), settings_(settings) {}
 
-StandardManagementPolicyProvider::~StandardManagementPolicyProvider() {
-}
+StandardManagementPolicyProvider::~StandardManagementPolicyProvider() = default;
 
 std::string
     StandardManagementPolicyProvider::GetDebugPolicyProviderName() const {
@@ -121,10 +127,10 @@ bool StandardManagementPolicyProvider::UserMayLoad(
       NOTREACHED();
   }
 
-  ExtensionManagement::InstallationMode installation_mode =
+  ManagedInstallationMode installation_mode =
       settings_->GetInstallationMode(extension);
-  if (installation_mode == ExtensionManagement::INSTALLATION_BLOCKED ||
-      installation_mode == ExtensionManagement::INSTALLATION_REMOVED) {
+  if (installation_mode == ManagedInstallationMode::kBlocked ||
+      installation_mode == ManagedInstallationMode::kRemoved) {
     return ReturnLoadError(extension, error);
   }
 
@@ -143,14 +149,26 @@ bool StandardManagementPolicyProvider::UserMayLoad(
 bool StandardManagementPolicyProvider::UserMayInstall(
     const Extension* extension,
     std::u16string* error) const {
-  ExtensionManagement::InstallationMode installation_mode =
+  ManagedInstallationMode installation_mode =
       settings_->GetInstallationMode(extension);
 
   // Force-installed extensions cannot be overwritten manually.
   if (!Manifest::IsPolicyLocation(extension->location()) &&
-      installation_mode == ExtensionManagement::INSTALLATION_FORCED) {
+      installation_mode == ManagedInstallationMode::kForced) {
     return ReturnLoadError(extension, error);
   }
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  // Check if the extension would be force-disabled once it's installed. If it
+  // would, block the new installation.
+  auto* mv2_experiment_manager = ManifestV2ExperimentManager::Get(profile_);
+  if (mv2_experiment_manager &&
+      mv2_experiment_manager->ShouldBlockExtensionEnable(*extension)) {
+    *error =
+        l10n_util::GetStringUTF16(IDS_EXTENSIONS_CANT_INSTALL_MV2_EXTENSION);
+    return false;
+  }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
   return UserMayLoad(extension, error);
 }
@@ -176,33 +194,63 @@ bool StandardManagementPolicyProvider::MustRemainEnabled(
 
 bool StandardManagementPolicyProvider::MustRemainDisabled(
     const Extension* extension,
-    disable_reason::DisableReason* reason,
-    std::u16string* error) const {
+    disable_reason::DisableReason* reason) const {
   std::string required_version;
   if (!settings_->CheckMinimumVersion(extension, &required_version)) {
-    if (reason)
+    if (reason) {
       *reason = disable_reason::DISABLE_UPDATE_REQUIRED_BY_POLICY;
-    if (error) {
-      *error = l10n_util::GetStringFUTF16(
-          IDS_EXTENSION_DISABLED_UPDATE_REQUIRED_BY_POLICY,
-          base::UTF8ToUTF16(extension->name()),
-          base::ASCIIToUTF16(required_version));
     }
     return true;
   }
+
+  if (!settings_->IsAllowedByUnpublishedAvailabilityPolicy(extension)) {
+    if (reason) {
+      *reason = disable_reason::DISABLE_PUBLISHED_IN_STORE_REQUIRED_BY_POLICY;
+    }
+    return true;
+  }
+
+  if (!settings_->IsAllowedByUnpackedDeveloperModePolicy(*extension)) {
+    if (reason) {
+      *reason = disable_reason::DISABLE_UNSUPPORTED_DEVELOPER_EXTENSION;
+    }
+    return true;
+  }
+
+  if (settings_->ShouldBlockForceInstalledOffstoreExtension(*extension)) {
+    if (reason) {
+      *reason = disable_reason::DISABLE_NOT_VERIFIED;
+    }
+    return true;
+  }
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  // Note: `mv2_experiment_manager` may be null for certain types of profiles
+  // (such as the sign-in profile). We can ignore this check in this case, since
+  // users can't install extensions in these profiles.
+  auto* mv2_experiment_manager = ManifestV2ExperimentManager::Get(profile_);
+  if (mv2_experiment_manager &&
+      mv2_experiment_manager->ShouldBlockExtensionEnable(*extension)) {
+    if (reason) {
+      *reason = disable_reason::DISABLE_UNSUPPORTED_MANIFEST_VERSION;
+    }
+
+    return true;
+  }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+
   return false;
 }
 
 bool StandardManagementPolicyProvider::MustRemainInstalled(
     const Extension* extension,
     std::u16string* error) const {
-  ExtensionManagement::InstallationMode mode =
-      settings_->GetInstallationMode(extension);
+  ManagedInstallationMode mode = settings_->GetInstallationMode(extension);
   // Disallow removing of recommended extension, to avoid re-install it
   // again while policy is reload. But disabling of recommended extension is
   // allowed.
-  if (mode == ExtensionManagement::INSTALLATION_FORCED ||
-      mode == ExtensionManagement::INSTALLATION_RECOMMENDED) {
+  if (mode == ManagedInstallationMode::kForced ||
+      mode == ManagedInstallationMode::kRecommended) {
     if (error) {
       *error = l10n_util::GetStringFUTF16(
           IDS_EXTENSION_CANT_UNINSTALL_POLICY_REQUIRED,
@@ -219,7 +267,7 @@ bool StandardManagementPolicyProvider::ShouldForceUninstall(
   if (UserMayLoad(extension, error))
     return false;
   if (settings_->GetInstallationMode(extension) ==
-      ExtensionManagement::INSTALLATION_REMOVED) {
+      ManagedInstallationMode::kRemoved) {
     return true;
   }
   return false;

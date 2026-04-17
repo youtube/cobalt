@@ -1,13 +1,52 @@
 #include "quiche/http2/adapter/callback_visitor.h"
 
+#include <cstring>
+
 #include "absl/strings/escaping.h"
 #include "quiche/http2/adapter/http2_util.h"
+#include "quiche/http2/adapter/nghttp2.h"
 #include "quiche/http2/adapter/nghttp2_util.h"
 #include "quiche/common/quiche_endian.h"
 
 // This visitor implementation needs visibility into the
 // nghttp2_session_callbacks type. There's no public header, so we'll redefine
 // the struct here.
+#ifdef NGHTTP2_16
+namespace {
+using FunctionPtr = void (*)(void);
+}  // namespace
+
+struct nghttp2_session_callbacks {
+  nghttp2_send_callback send_callback;
+  FunctionPtr send_callback2;
+  nghttp2_recv_callback recv_callback;
+  FunctionPtr recv_callback2;
+  nghttp2_on_frame_recv_callback on_frame_recv_callback;
+  nghttp2_on_invalid_frame_recv_callback on_invalid_frame_recv_callback;
+  nghttp2_on_data_chunk_recv_callback on_data_chunk_recv_callback;
+  nghttp2_before_frame_send_callback before_frame_send_callback;
+  nghttp2_on_frame_send_callback on_frame_send_callback;
+  nghttp2_on_frame_not_send_callback on_frame_not_send_callback;
+  nghttp2_on_stream_close_callback on_stream_close_callback;
+  nghttp2_on_begin_headers_callback on_begin_headers_callback;
+  nghttp2_on_header_callback on_header_callback;
+  nghttp2_on_header_callback2 on_header_callback2;
+  nghttp2_on_invalid_header_callback on_invalid_header_callback;
+  nghttp2_on_invalid_header_callback2 on_invalid_header_callback2;
+  nghttp2_select_padding_callback select_padding_callback;
+  FunctionPtr select_padding_callback2;
+  nghttp2_data_source_read_length_callback read_length_callback;
+  FunctionPtr read_length_callback2;
+  nghttp2_on_begin_frame_callback on_begin_frame_callback;
+  nghttp2_send_data_callback send_data_callback;
+  nghttp2_pack_extension_callback pack_extension_callback;
+  FunctionPtr pack_extension_callback2;
+  nghttp2_unpack_extension_callback unpack_extension_callback;
+  nghttp2_on_extension_chunk_recv_callback on_extension_chunk_recv_callback;
+  nghttp2_error_callback error_callback;
+  nghttp2_error_callback2 error_callback2;
+};
+#else
 struct nghttp2_session_callbacks {
   nghttp2_send_callback send_callback;
   nghttp2_recv_callback recv_callback;
@@ -33,9 +72,12 @@ struct nghttp2_session_callbacks {
   nghttp2_error_callback error_callback;
   nghttp2_error_callback2 error_callback2;
 };
+#endif
 
 namespace http2 {
 namespace adapter {
+
+using OnHeaderResult = ::http2::adapter::Http2VisitorInterface::OnHeaderResult;
 
 CallbackVisitor::CallbackVisitor(Perspective perspective,
                                  const nghttp2_session_callbacks& callbacks,
@@ -67,6 +109,22 @@ int64_t CallbackVisitor::OnReadyToSend(absl::string_view serialized) {
   } else {
     return kSendError;
   }
+}
+
+Http2VisitorInterface::DataFrameHeaderInfo
+CallbackVisitor::OnReadyToSendDataForStream(Http2StreamId /*stream_id*/,
+                                            size_t /*max_length*/) {
+  QUICHE_LOG(FATAL)
+      << "Not implemented; should not be used with nghttp2 callbacks.";
+  return {};
+}
+
+bool CallbackVisitor::SendDataFrame(Http2StreamId /*stream_id*/,
+                                    absl::string_view /*frame_header*/,
+                                    size_t /*payload_bytes*/) {
+  QUICHE_LOG(FATAL)
+      << "Not implemented; should not be used with nghttp2 callbacks.";
+  return false;
 }
 
 void CallbackVisitor::OnConnectionError(ConnectionError /*error*/) {
@@ -151,27 +209,31 @@ void CallbackVisitor::OnSettingsAck() {
 
 bool CallbackVisitor::OnBeginHeadersForStream(Http2StreamId stream_id) {
   auto it = GetStreamInfo(stream_id);
-  if (it->second.received_headers) {
-    // At least one headers frame has already been received.
-    QUICHE_VLOG(1)
-        << "Headers already received for stream " << stream_id
-        << ", these are trailers or headers following a 100 response";
+  if (it == stream_map_.end()) {
     current_frame_.headers.cat = NGHTTP2_HCAT_HEADERS;
   } else {
-    switch (perspective_) {
-      case Perspective::kClient:
-        QUICHE_VLOG(1) << "First headers at the client for stream " << stream_id
-                       << "; these are response headers";
-        current_frame_.headers.cat = NGHTTP2_HCAT_RESPONSE;
-        break;
-      case Perspective::kServer:
-        QUICHE_VLOG(1) << "First headers at the server for stream " << stream_id
-                       << "; these are request headers";
-        current_frame_.headers.cat = NGHTTP2_HCAT_REQUEST;
-        break;
+    if (it->second.received_headers) {
+      // At least one headers frame has already been received.
+      QUICHE_VLOG(1)
+          << "Headers already received for stream " << stream_id
+          << ", these are trailers or headers following a 100 response";
+      current_frame_.headers.cat = NGHTTP2_HCAT_HEADERS;
+    } else {
+      switch (perspective_) {
+        case Perspective::kClient:
+          QUICHE_VLOG(1) << "First headers at the client for stream "
+                         << stream_id << "; these are response headers";
+          current_frame_.headers.cat = NGHTTP2_HCAT_RESPONSE;
+          break;
+        case Perspective::kServer:
+          QUICHE_VLOG(1) << "First headers at the server for stream "
+                         << stream_id << "; these are request headers";
+          current_frame_.headers.cat = NGHTTP2_HCAT_REQUEST;
+          break;
+      }
     }
+    it->second.received_headers = true;
   }
-  it->second.received_headers = true;
   if (callbacks_->on_begin_headers_callback) {
     const int result = callbacks_->on_begin_headers_callback(
         nullptr, &current_frame_, user_data_);
@@ -180,8 +242,9 @@ bool CallbackVisitor::OnBeginHeadersForStream(Http2StreamId stream_id) {
   return true;
 }
 
-Http2VisitorInterface::OnHeaderResult CallbackVisitor::OnHeaderForStream(
-    Http2StreamId stream_id, absl::string_view name, absl::string_view value) {
+OnHeaderResult CallbackVisitor::OnHeaderForStream(Http2StreamId stream_id,
+                                                  absl::string_view name,
+                                                  absl::string_view value) {
   QUICHE_VLOG(2) << "OnHeaderForStream(stream_id=" << stream_id << ", name=["
                  << absl::CEscape(name) << "], value=[" << absl::CEscape(value)
                  << "])";
@@ -191,15 +254,15 @@ Http2VisitorInterface::OnHeaderResult CallbackVisitor::OnHeaderForStream(
         ToUint8Ptr(value.data()), value.size(), NGHTTP2_NV_FLAG_NONE,
         user_data_);
     if (result == 0) {
-      return HEADER_OK;
+      return OnHeaderResult::HEADER_OK;
     } else if (result == NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE) {
-      return HEADER_RST_STREAM;
+      return OnHeaderResult::HEADER_RST_STREAM;
     } else {
       // Assume NGHTTP2_ERR_CALLBACK_FAILURE.
-      return HEADER_CONNECTION_ERROR;
+      return OnHeaderResult::HEADER_CONNECTION_ERROR;
     }
   }
-  return HEADER_OK;
+  return OnHeaderResult::HEADER_OK;
 }
 
 bool CallbackVisitor::OnEndHeadersForStream(Http2StreamId stream_id) {
@@ -214,7 +277,6 @@ bool CallbackVisitor::OnEndHeadersForStream(Http2StreamId stream_id) {
 
 bool CallbackVisitor::OnDataPaddingLength(Http2StreamId /*stream_id*/,
                                           size_t padding_length) {
-  QUICHE_DCHECK_GE(remaining_data_, padding_length);
   current_frame_.data.padlen = padding_length;
   remaining_data_ -= padding_length;
   if (remaining_data_ == 0 &&
@@ -409,12 +471,16 @@ int CallbackVisitor::OnBeforeFrameSent(uint8_t frame_type,
                  << ", flags=" << int(flags) << ")";
   if (callbacks_->before_frame_send_callback) {
     nghttp2_frame frame;
+    bool before_sent_headers = true;
     auto it = GetStreamInfo(stream_id);
+    if (it != stream_map_.end()) {
+      before_sent_headers = it->second.before_sent_headers;
+      it->second.before_sent_headers = true;
+    }
     // The implementation of the before_frame_send_callback doesn't look at the
     // error code, so for now it's populated with 0.
     PopulateFrame(frame, frame_type, stream_id, length, flags, /*error_code=*/0,
-                  it->second.before_sent_headers);
-    it->second.before_sent_headers = true;
+                  before_sent_headers);
     return callbacks_->before_frame_send_callback(nullptr, &frame, user_data_);
   }
   return 0;
@@ -429,10 +495,14 @@ int CallbackVisitor::OnFrameSent(uint8_t frame_type, Http2StreamId stream_id,
                  << ")";
   if (callbacks_->on_frame_send_callback) {
     nghttp2_frame frame;
+    bool sent_headers = true;
     auto it = GetStreamInfo(stream_id);
+    if (it != stream_map_.end()) {
+      sent_headers = it->second.sent_headers;
+      it->second.sent_headers = true;
+    }
     PopulateFrame(frame, frame_type, stream_id, length, flags, error_code,
-                  it->second.sent_headers);
-    it->second.sent_headers = true;
+                  sent_headers);
     return callbacks_->on_frame_send_callback(nullptr, &frame, user_data_);
   }
   return 0;
@@ -471,7 +541,11 @@ bool CallbackVisitor::OnMetadataForStream(Http2StreamId stream_id,
 }
 
 bool CallbackVisitor::OnMetadataEndForStream(Http2StreamId stream_id) {
-  QUICHE_LOG_IF(DFATAL, current_frame_.hd.flags != kMetadataEndFlag);
+  if ((current_frame_.hd.flags & kMetadataEndFlag) == 0) {
+    QUICHE_VLOG(1) << "Expected kMetadataEndFlag during call to "
+                   << "OnMetadataEndForStream!";
+    return true;
+  }
   QUICHE_VLOG(1) << "OnMetadataEndForStream(stream_id=" << stream_id << ")";
   if (callbacks_->unpack_extension_callback) {
     void* payload;
@@ -487,6 +561,12 @@ bool CallbackVisitor::OnMetadataEndForStream(Http2StreamId stream_id) {
   return true;
 }
 
+std::pair<int64_t, bool> CallbackVisitor::PackMetadataForStream(
+    Http2StreamId /*stream_id*/, uint8_t* /*dest*/, size_t /*dest_len*/) {
+  QUICHE_LOG(DFATAL) << "Unimplemented.";
+  return {-1, false};
+}
+
 void CallbackVisitor::OnErrorDebug(absl::string_view message) {
   QUICHE_VLOG(1) << "OnErrorDebug(message=[" << absl::CEscape(message) << "])";
   if (callbacks_->error_callback2) {
@@ -498,9 +578,10 @@ void CallbackVisitor::OnErrorDebug(absl::string_view message) {
 CallbackVisitor::StreamInfoMap::iterator CallbackVisitor::GetStreamInfo(
     Http2StreamId stream_id) {
   auto it = stream_map_.find(stream_id);
-  if (it == stream_map_.end()) {
+  if (it == stream_map_.end() && stream_id > stream_id_watermark_) {
     auto p = stream_map_.insert({stream_id, {}});
     it = p.first;
+    stream_id_watermark_ = stream_id;
   }
   return it;
 }

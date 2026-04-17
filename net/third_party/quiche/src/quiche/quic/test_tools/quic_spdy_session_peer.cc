@@ -4,6 +4,9 @@
 
 #include "quiche/quic/test_tools/quic_spdy_session_peer.h"
 
+#include <utility>
+
+
 #include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/qpack/qpack_receive_stream.h"
 #include "quiche/quic/core/quic_utils.h"
@@ -46,7 +49,7 @@ void QuicSpdySessionPeer::SetMaxInboundHeaderListSize(
 
 // static
 size_t QuicSpdySessionPeer::WriteHeadersOnHeadersStream(
-    QuicSpdySession* session, QuicStreamId id, spdy::Http2HeaderBlock headers,
+    QuicSpdySession* session, QuicStreamId id, quiche::HttpHeaderBlock headers,
     bool fin, const spdy::SpdyStreamPrecedence& precedence,
     quiche::QuicheReferenceCountedPointer<QuicAckListenerInterface>
         ack_listener) {
@@ -111,8 +114,8 @@ HttpDatagramSupport QuicSpdySessionPeer::LocalHttpDatagramSupport(
 // static
 void QuicSpdySessionPeer::EnableWebTransport(QuicSpdySession* session) {
   QUICHE_DCHECK(session->WillNegotiateWebTransport());
-  SetHttpDatagramSupport(session, HttpDatagramSupport::kDraft04);
-  session->peer_supports_webtransport_ = true;
+  SetHttpDatagramSupport(session, HttpDatagramSupport::kRfc);
+  session->peer_web_transport_versions_ = kDefaultSupportedWebTransportVersions;
 }
 
 }  // namespace test

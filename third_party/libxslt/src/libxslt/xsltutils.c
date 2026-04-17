@@ -305,6 +305,66 @@ error:
     return(-1);
 }
 
+/**
+ * xsltGetUTF8CharZ:
+ * @utf:  a sequence of UTF-8 encoded bytes
+ * @len:  a pointer to @bytes len
+ *
+ * Read one UTF8 Char from a null-terminated string.
+ *
+ * Returns the char value or -1 in case of error and update @len with the
+ *        number of bytes used
+ */
+int
+xsltGetUTF8CharZ(const unsigned char *utf, int *len) {
+    unsigned int c;
+
+    if (utf == NULL)
+	goto error;
+    if (len == NULL)
+	goto error;
+
+    c = utf[0];
+    if (c & 0x80) {
+	if ((utf[1] & 0xc0) != 0x80)
+	    goto error;
+	if ((c & 0xe0) == 0xe0) {
+	    if ((utf[2] & 0xc0) != 0x80)
+		goto error;
+	    if ((c & 0xf0) == 0xf0) {
+		if ((c & 0xf8) != 0xf0 || (utf[3] & 0xc0) != 0x80)
+		    goto error;
+		*len = 4;
+		/* 4-byte code */
+		c = (utf[0] & 0x7) << 18;
+		c |= (utf[1] & 0x3f) << 12;
+		c |= (utf[2] & 0x3f) << 6;
+		c |= utf[3] & 0x3f;
+	    } else {
+	      /* 3-byte code */
+		*len = 3;
+		c = (utf[0] & 0xf) << 12;
+		c |= (utf[1] & 0x3f) << 6;
+		c |= utf[2] & 0x3f;
+	    }
+	} else {
+	  /* 2-byte code */
+	    *len = 2;
+	    c = (utf[0] & 0x1f) << 6;
+	    c |= utf[1] & 0x3f;
+	}
+    } else {
+	/* 1-byte code */
+	*len = 1;
+    }
+    return(c);
+
+error:
+    if (len != NULL)
+	*len = 0;
+    return(-1);
+}
+
 #ifdef XSLT_REFACTORED
 
 /**
@@ -1005,8 +1065,8 @@ xsltComputeSortResultInternal(xsltTransformContextPtr ctxt, xmlNodePtr sort,
 	return(NULL);
     }
 
-    oldNode = ctxt->node;
     oldInst = ctxt->inst;
+    oldNode = ctxt->xpathCtxt->node;
     oldPos = ctxt->xpathCtxt->proximityPosition;
     oldSize = ctxt->xpathCtxt->contextSize;
     oldNsNr = ctxt->xpathCtxt->nsNr;
@@ -1077,8 +1137,8 @@ xsltComputeSortResultInternal(xsltTransformContextPtr ctxt, xmlNodePtr sort,
 	    results[i] = NULL;
 	}
     }
-    ctxt->node = oldNode;
     ctxt->inst = oldInst;
+    ctxt->xpathCtxt->node = oldNode;
     ctxt->xpathCtxt->contextSize = oldSize;
     ctxt->xpathCtxt->proximityPosition = oldPos;
     ctxt->xpathCtxt->nsNr = oldNsNr;
@@ -1432,7 +1492,7 @@ xsltSetCtxtSortFunc(xsltTransformContextPtr ctxt, xsltSortFunc handler) {
  * @ctxt:  an XSLT transform context
  * @newLocale:  locale constructor
  * @freeLocale:  locale destructor
- * @genSortKey  sort key generator
+ * @genSortKey:  sort key generator
  *
  * Set the locale handlers.
  */
@@ -1690,13 +1750,12 @@ xsltSaveResultToFilename(const char *URL, xmlDocPtr result,
 
     XSLT_GET_IMPORT_PTR(encoding, style, encoding)
     if (encoding != NULL) {
-	xmlCharEncodingHandlerPtr encoder;
+	xmlCharEncodingHandlerPtr encoder = NULL;
 
-	encoder = xmlFindCharEncodingHandler((char *)encoding);
-	if ((encoder != NULL) &&
-	    (xmlStrEqual((const xmlChar *)encoder->name,
-			 (const xmlChar *) "UTF-8")))
-	    encoder = NULL;
+        /* Don't use UTF-8 dummy encoder */
+        if ((xmlStrcasecmp(encoding, BAD_CAST "UTF-8") != 0) &&
+            (xmlStrcasecmp(encoding, BAD_CAST "UTF8") != 0))
+	    encoder = xmlFindCharEncodingHandler((char *) encoding);
 	buf = xmlOutputBufferCreateFilename(URL, encoder, compression);
     } else {
 	buf = xmlOutputBufferCreateFilename(URL, NULL, compression);
@@ -1733,13 +1792,12 @@ xsltSaveResultToFile(FILE *file, xmlDocPtr result, xsltStylesheetPtr style) {
 
     XSLT_GET_IMPORT_PTR(encoding, style, encoding)
     if (encoding != NULL) {
-	xmlCharEncodingHandlerPtr encoder;
+	xmlCharEncodingHandlerPtr encoder = NULL;
 
-	encoder = xmlFindCharEncodingHandler((char *)encoding);
-	if ((encoder != NULL) &&
-	    (xmlStrEqual((const xmlChar *)encoder->name,
-			 (const xmlChar *) "UTF-8")))
-	    encoder = NULL;
+        /* Don't use UTF-8 dummy encoder */
+        if ((xmlStrcasecmp(encoding, BAD_CAST "UTF-8") != 0) &&
+            (xmlStrcasecmp(encoding, BAD_CAST "UTF8") != 0))
+	    encoder = xmlFindCharEncodingHandler((char *) encoding);
 	buf = xmlOutputBufferCreateFile(file, encoder);
     } else {
 	buf = xmlOutputBufferCreateFile(file, NULL);
@@ -1777,13 +1835,12 @@ xsltSaveResultToFd(int fd, xmlDocPtr result, xsltStylesheetPtr style) {
 
     XSLT_GET_IMPORT_PTR(encoding, style, encoding)
     if (encoding != NULL) {
-	xmlCharEncodingHandlerPtr encoder;
+	xmlCharEncodingHandlerPtr encoder = NULL;
 
-	encoder = xmlFindCharEncodingHandler((char *)encoding);
-	if ((encoder != NULL) &&
-	    (xmlStrEqual((const xmlChar *)encoder->name,
-			 (const xmlChar *) "UTF-8")))
-	    encoder = NULL;
+        /* Don't use UTF-8 dummy encoder */
+        if ((xmlStrcasecmp(encoding, BAD_CAST "UTF-8") != 0) &&
+            (xmlStrcasecmp(encoding, BAD_CAST "UTF8") != 0))
+	    encoder = xmlFindCharEncodingHandler((char *) encoding);
 	buf = xmlOutputBufferCreateFd(fd, encoder);
     } else {
 	buf = xmlOutputBufferCreateFd(fd, NULL);
@@ -1820,16 +1877,13 @@ xsltSaveResultToString(xmlChar **doc_txt_ptr, int * doc_txt_len,
 
     XSLT_GET_IMPORT_PTR(encoding, style, encoding)
     if (encoding != NULL) {
-	xmlCharEncodingHandlerPtr encoder;
+	xmlCharEncodingHandlerPtr encoder = NULL;
 
-	encoder = xmlFindCharEncodingHandler((char *)encoding);
-	if ((encoder != NULL) &&
-	    (xmlStrEqual((const xmlChar *)encoder->name,
-			 (const xmlChar *) "UTF-8")))
-	    encoder = NULL;
+        /* Don't use UTF-8 dummy encoder */
+        if ((xmlStrcasecmp(encoding, BAD_CAST "UTF-8") != 0) &&
+            (xmlStrcasecmp(encoding, BAD_CAST "UTF8") != 0))
+	    encoder = xmlFindCharEncodingHandler((char *) encoding);
 	buf = xmlAllocOutputBuffer(encoder);
-        if (buf == NULL)
-            xmlCharEncCloseFunc(encoder);
     } else {
 	buf = xmlAllocOutputBuffer(NULL);
     }
@@ -1866,26 +1920,26 @@ xsltSaveResultToString(xmlChar **doc_txt_ptr, int * doc_txt_len,
 int
 xsltGetSourceNodeFlags(xmlNodePtr node) {
     /*
-     * Squeeze the bit flags into the upper bits of
+     * Squeeze the bit flags into the upper 4 bits of
      *
-     * - 'int properties' member in struct _xmlDoc
-     * - 'xmlAttributeType atype' member in struct _xmlAttr
+     * - 'unsigned int extra' member in struct _xmlDoc
+     * - 'unsigned int extra' member in struct _xmlAttr
      * - 'unsigned short extra' member in struct _xmlNode
      */
     switch (node->type) {
         case XML_DOCUMENT_NODE:
         case XML_HTML_DOCUMENT_NODE:
-            return ((xmlDocPtr) node)->properties >> 27;
+            return ((xmlDocPtr) node)->extra >> XSLT_SOURCE_NODE_SHIFT;
 
         case XML_ATTRIBUTE_NODE:
-            return ((xmlAttrPtr) node)->atype >> 27;
+            return ((xmlAttrPtr) node)->extra >> XSLT_SOURCE_NODE_SHIFT;
 
         case XML_ELEMENT_NODE:
         case XML_TEXT_NODE:
         case XML_CDATA_SECTION_NODE:
         case XML_PI_NODE:
         case XML_COMMENT_NODE:
-            return node->extra >> 12;
+            return node->extra >> XSLT_SOURCE_NODE_SHIFT;
 
         default:
             return 0;
@@ -1910,11 +1964,13 @@ xsltSetSourceNodeFlags(xsltTransformContextPtr ctxt, xmlNodePtr node,
     switch (node->type) {
         case XML_DOCUMENT_NODE:
         case XML_HTML_DOCUMENT_NODE:
-            ((xmlDocPtr) node)->properties |= flags << 27;
+            ((xmlDocPtr) node)->extra |=
+                ((unsigned) flags << XSLT_SOURCE_NODE_SHIFT);
             return 0;
 
         case XML_ATTRIBUTE_NODE:
-            ((xmlAttrPtr) node)->atype |= flags << 27;
+            ((xmlAttrPtr) node)->extra |=
+                ((unsigned) flags << XSLT_SOURCE_NODE_SHIFT);
             return 0;
 
         case XML_ELEMENT_NODE:
@@ -1922,7 +1978,7 @@ xsltSetSourceNodeFlags(xsltTransformContextPtr ctxt, xmlNodePtr node,
         case XML_CDATA_SECTION_NODE:
         case XML_PI_NODE:
         case XML_COMMENT_NODE:
-            node->extra |= flags << 12;
+            node->extra |= ((unsigned) flags << XSLT_SOURCE_NODE_SHIFT);
             return 0;
 
         default:
@@ -1944,11 +2000,13 @@ xsltClearSourceNodeFlags(xmlNodePtr node, int flags) {
     switch (node->type) {
         case XML_DOCUMENT_NODE:
         case XML_HTML_DOCUMENT_NODE:
-            ((xmlDocPtr) node)->properties &= ~(flags << 27);
+            ((xmlDocPtr) node)->extra &=
+                ~((unsigned) flags << XSLT_SOURCE_NODE_SHIFT);
             return 0;
 
         case XML_ATTRIBUTE_NODE:
-            ((xmlAttrPtr) node)->atype &= ~(flags << 27);
+            ((xmlAttrPtr) node)->extra &=
+                ~((unsigned) flags << XSLT_SOURCE_NODE_SHIFT);
             return 0;
 
         case XML_ELEMENT_NODE:
@@ -1956,7 +2014,104 @@ xsltClearSourceNodeFlags(xmlNodePtr node, int flags) {
         case XML_CDATA_SECTION_NODE:
         case XML_PI_NODE:
         case XML_COMMENT_NODE:
-            node->extra &= ~(flags << 12);
+            node->extra &= ~((unsigned) flags << XSLT_SOURCE_NODE_SHIFT);
+            return 0;
+
+        default:
+            return -1;
+    }
+}
+
+/**
+ * xsltGetSourceNodeValue:
+ * @node:  Node from source document
+ *
+ * Returns the associated 28 bit unsigned value for a source node,
+ * or 0 if node does not have an associated value.
+ */
+int
+xsltGetSourceNodeValue(xmlNodePtr node) {
+    switch (node->type) {
+        case XML_DOCUMENT_NODE:
+        case XML_HTML_DOCUMENT_NODE:
+            return (((xmlDocPtr) node)->extra & XSLT_SOURCE_NODE_VALUE_MASK);
+
+        case XML_ATTRIBUTE_NODE:
+            return (((xmlAttrPtr) node)->extra & XSLT_SOURCE_NODE_VALUE_MASK);
+
+        case XML_ELEMENT_NODE:
+        case XML_TEXT_NODE:
+        case XML_CDATA_SECTION_NODE:
+        case XML_PI_NODE:
+        case XML_COMMENT_NODE:
+            return (node->extra & XSLT_SOURCE_NODE_VALUE_MASK);
+
+        default:
+            return 0;
+    }
+}
+
+/**
+ * xsltSetSourceNodeValue:
+ * @node:  Node from source document
+ * @value:  28 bit unsigned value to associate with the node.
+ *
+ * Returns 0 on success, -1 on error.
+ */
+int
+xsltSetSourceNodeValue(xmlNodePtr node, int value) {
+    switch (node->type) {
+        case XML_DOCUMENT_NODE:
+        case XML_HTML_DOCUMENT_NODE:
+            ((xmlDocPtr) node)->extra &= ~XSLT_SOURCE_NODE_VALUE_MASK;
+            ((xmlDocPtr) node)->extra |= (value & XSLT_SOURCE_NODE_VALUE_MASK);
+            return 0;
+
+        case XML_ATTRIBUTE_NODE:
+            ((xmlAttrPtr) node)->extra &= ~XSLT_SOURCE_NODE_VALUE_MASK;
+            ((xmlAttrPtr) node)->extra |= (value & XSLT_SOURCE_NODE_VALUE_MASK);
+            return 0;
+
+        case XML_ELEMENT_NODE:
+        case XML_TEXT_NODE:
+        case XML_CDATA_SECTION_NODE:
+        case XML_PI_NODE:
+        case XML_COMMENT_NODE:
+            node->extra &= ~XSLT_SOURCE_NODE_VALUE_MASK;
+            node->extra |= (value & XSLT_SOURCE_NODE_VALUE_MASK);
+            return 0;
+
+        default:
+            return -1;
+    }
+}
+
+/**
+ * xsltClearSourceNodeFlags:
+ * @node:  Node from source document
+ *
+ * Clears all associated extra data for a node.
+ *
+ * Returns 0 on success, -1 on error.
+ */
+int
+xsltClearSourceNodeExtraData(xmlNodePtr node) {
+    switch (node->type) {
+        case XML_DOCUMENT_NODE:
+        case XML_HTML_DOCUMENT_NODE:
+            ((xmlDocPtr) node)->extra = 0;
+            return 0;
+
+        case XML_ATTRIBUTE_NODE:
+            ((xmlAttrPtr) node)->extra = 0;
+            return 0;
+
+        case XML_ELEMENT_NODE:
+        case XML_TEXT_NODE:
+        case XML_CDATA_SECTION_NODE:
+        case XML_PI_NODE:
+        case XML_COMMENT_NODE:
+            node->extra = 0;
             return 0;
 
         default:
@@ -2668,4 +2823,3 @@ xslDropCall(void)
 }
 
 #endif /* WITH_DEBUGGER */
-

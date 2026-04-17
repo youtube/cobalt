@@ -35,12 +35,6 @@ WorkerGlobalScope* FontFaceSetWorker::GetWorker() const {
   return To<WorkerGlobalScope>(GetExecutionContext());
 }
 
-AtomicString FontFaceSetWorker::status() const {
-  DEFINE_STATIC_LOCAL(AtomicString, loading, ("loading"));
-  DEFINE_STATIC_LOCAL(AtomicString, loaded, ("loaded"));
-  return is_loading_ ? loading : loaded;
-}
-
 void FontFaceSetWorker::BeginFontLoading(FontFace* font_face) {
   AddToLoadingFonts(font_face);
 }
@@ -55,7 +49,7 @@ void FontFaceSetWorker::NotifyError(FontFace* font_face) {
   RemoveFromLoadingFonts(font_face);
 }
 
-ScriptPromise FontFaceSetWorker::ready(ScriptState* script_state) {
+ScriptPromise<FontFaceSet> FontFaceSetWorker::ready(ScriptState* script_state) {
   return ready_->Promise(script_state->World());
 }
 
@@ -70,35 +64,30 @@ void FontFaceSetWorker::FireDoneEventIfPossible() {
   FireDoneEvent();
 }
 
-bool FontFaceSetWorker::ResolveFontStyle(const String& font_string,
-                                         Font& font) {
+const Font* FontFaceSetWorker::ResolveFontStyle(const String& font_string) {
   if (font_string.empty()) {
-    return false;
+    return nullptr;
   }
 
   // Interpret fontString in the same way as the 'font' attribute of
   // CanvasRenderingContext2D.
   auto* parsed_style = CSSParser::ParseFont(font_string, GetExecutionContext());
   if (!parsed_style) {
-    return false;
+    return nullptr;
   }
 
-  FontFamily font_family;
-  font_family.SetFamily(
-      FontFaceSet::kDefaultFontFamily,
-      FontFamily::InferredTypeFor(FontFaceSet::kDefaultFontFamily));
-
   FontDescription default_font_description;
-  default_font_description.SetFamily(font_family);
+  default_font_description.SetFamily(FontFamily(
+      FontFaceSet::DefaultFontFamily(),
+      FontFamily::InferredTypeFor(FontFaceSet::DefaultFontFamily())));
   default_font_description.SetSpecifiedSize(FontFaceSet::kDefaultFontSize);
   default_font_description.SetComputedSize(FontFaceSet::kDefaultFontSize);
 
   FontDescription description = FontStyleResolver::ComputeFont(
       *parsed_style, GetWorker()->GetFontSelector());
 
-  font = Font(description, GetWorker()->GetFontSelector());
-
-  return true;
+  return MakeGarbageCollected<Font>(description,
+                                    GetWorker()->GetFontSelector());
 }
 
 FontFaceSetWorker* FontFaceSetWorker::From(WorkerGlobalScope& worker) {

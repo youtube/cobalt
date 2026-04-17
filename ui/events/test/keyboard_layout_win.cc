@@ -35,7 +35,6 @@ PlatformKeyboardLayout GetPlatformKeyboardLayout(KeyboardLayout layout) {
   }
 
   NOTREACHED();
-  return 0;
 }
 
 PlatformKeyboardLayout ScopedKeyboardLayout::GetActiveLayout() {

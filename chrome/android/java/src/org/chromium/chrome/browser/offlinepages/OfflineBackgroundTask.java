@@ -27,8 +27,7 @@ public class OfflineBackgroundTask extends NativeBackgroundTask {
     private static final String TAG = "OfflineBkgrndTask";
 
     @Override
-    @StartBeforeNativeResult
-    protected int onStartTaskBeforeNativeLoaded(
+    protected @StartBeforeNativeResult int onStartTaskBeforeNativeLoaded(
             Context context, TaskParameters taskParameters, TaskFinishedCallback callback) {
         assert taskParameters.getTaskId() == TaskIds.OFFLINE_PAGES_BACKGROUND_JOB_ID;
 
@@ -44,17 +43,22 @@ public class OfflineBackgroundTask extends NativeBackgroundTask {
             Context context, TaskParameters taskParameters, TaskFinishedCallback callback) {
         assert taskParameters.getTaskId() == TaskIds.OFFLINE_PAGES_BACKGROUND_JOB_ID;
 
-        if (!startScheduledProcessing(BackgroundSchedulerProcessor.getInstance(), context,
-                    taskParameters.getExtras(), wrapCallback(callback))) {
+        if (!startScheduledProcessing(
+                BackgroundSchedulerProcessor.getInstance(),
+                context,
+                taskParameters.getExtras(),
+                wrapCallback(callback))) {
             callback.taskFinished(true);
             return;
         }
 
         // Set up backup scheduled task in case processing is killed before RequestCoordinator
         // has a chance to reschedule base on remaining work.
-        BackgroundScheduler.getInstance().scheduleBackup(
-                TaskExtrasPacker.unpackTriggerConditionsFromBundle(taskParameters.getExtras()),
-                DateUtils.MINUTE_IN_MILLIS * 5);
+        BackgroundScheduler.getInstance()
+                .scheduleBackup(
+                        TaskExtrasPacker.unpackTriggerConditionsFromBundle(
+                                taskParameters.getExtras()),
+                        DateUtils.MINUTE_IN_MILLIS * 5);
     }
 
     @Override
@@ -87,19 +91,24 @@ public class OfflineBackgroundTask extends NativeBackgroundTask {
      * conditions and should be used together with {@link #checkConditions} to ensure that it
      * performs the tasks only when it is supposed to.
      *
-     * @returns Whether processing will be carried out and completion will be indicated through a
+     * @return Whether processing will be carried out and completion will be indicated through a
      *     callback.
      */
     @VisibleForTesting
-    static boolean startScheduledProcessing(BackgroundSchedulerProcessor bridge, Context context,
-            PersistableBundle taskExtras, Callback<Boolean> callback) {
+    static boolean startScheduledProcessing(
+            BackgroundSchedulerProcessor bridge,
+            Context context,
+            PersistableBundle taskExtras,
+            Callback<Boolean> callback) {
         // Gather UMA data to measure how often the user's machine is amenable to background
         // loading when we wake to do a task.
         DeviceConditions deviceConditions = DeviceConditions.getCurrent(context);
         return bridge.startScheduledProcessing(deviceConditions, callback);
     }
 
-    /** @returns Whether conditions for running the tasks are met. */
+    /**
+     * @return Whether conditions for running the tasks are met.
+     */
     @VisibleForTesting
     static boolean checkConditions(Context context, PersistableBundle taskExtras) {
         TriggerConditions triggerConditions =
@@ -124,7 +133,7 @@ public class OfflineBackgroundTask extends NativeBackgroundTask {
             DeviceConditions deviceConditions, TriggerConditions triggerConditions) {
         return deviceConditions.isPowerConnected()
                 || (deviceConditions.getBatteryPercentage()
-                           >= triggerConditions.getMinimumBatteryPercentage());
+                        >= triggerConditions.getMinimumBatteryPercentage());
     }
 
     /** Whether there are no visible activities when on Svelte. */

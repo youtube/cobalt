@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/thread.h"
+// clang-format on
 
 #include <sched.h>
 #include <sys/resource.h>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
 
@@ -46,14 +49,14 @@ void SetIdleScheduler() {
   struct sched_param thread_sched_param;
   thread_sched_param.sched_priority = 0;
   int result = sched_setscheduler(0, SCHED_IDLE, &thread_sched_param);
-  SB_CHECK(result == 0) << kSchedulerErrorMessage;
+  SB_CHECK_EQ(result, 0) << kSchedulerErrorMessage;
 }
 
 void SetOtherScheduler() {
   struct sched_param thread_sched_param;
   thread_sched_param.sched_priority = 0;
   int result = sched_setscheduler(0, SCHED_OTHER, &thread_sched_param);
-  SB_CHECK(result == 0) << kSchedulerErrorMessage;
+  SB_CHECK_EQ(result, 0) << kSchedulerErrorMessage;
 }
 
 // Here |priority| is a number >= 0, where the higher the number, the
@@ -94,7 +97,7 @@ void SetRoundRobinScheduler(int priority) {
   thread_sched_param.sched_priority = std::min(
       min_priority + priority, static_cast<int>(rlimit_rtprio.rlim_cur));
   int result = sched_setscheduler(0, SCHED_RR, &thread_sched_param);
-  SB_CHECK(result == 0) << kSchedulerErrorMessage;
+  SB_CHECK_EQ(result, 0) << kSchedulerErrorMessage;
 }
 
 }  // namespace

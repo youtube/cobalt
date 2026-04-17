@@ -12,12 +12,14 @@ import android.view.LayoutInflater;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.tab_ui.R;
 
 /**
- * Contains pricing information relating to a shopping offer website.  Currently only
- * supports displaying the old and new price of the offer when a price drop is detected.
+ * Contains pricing information relating to a shopping offer website. Currently only supports
+ * displaying the old and new price of the offer when a price drop is detected.
  */
+@NullMarked
 public class PriceCardView extends FrameLayout {
     private TextView mPriceInfoBox;
     private TextView mPreviousPriceInfoBox;
@@ -26,9 +28,7 @@ public class PriceCardView extends FrameLayout {
         super(context, attrs);
     }
 
-    /**
-     * Sets the current price string and previous price string when a price drop is detected
-     */
+    /** Sets the current price string and previous price string when a price drop is detected */
     public void setPriceStrings(String priceString, String previousPriceString) {
         assert !TextUtils.isEmpty(priceString) && !TextUtils.isEmpty(previousPriceString);
         mPriceInfoBox.setText(priceString);
@@ -39,8 +39,8 @@ public class PriceCardView extends FrameLayout {
     protected void onFinishInflate() {
         super.onFinishInflate();
         LayoutInflater.from(getContext()).inflate(R.layout.price_card, this);
-        mPriceInfoBox = (TextView) findViewById(R.id.current_price);
-        mPreviousPriceInfoBox = (TextView) findViewById(R.id.previous_price);
+        mPriceInfoBox = findViewById(R.id.current_price);
+        mPreviousPriceInfoBox = findViewById(R.id.previous_price);
         mPreviousPriceInfoBox.setPaintFlags(
                 mPreviousPriceInfoBox.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
         mPriceInfoBox.setTextColor(getContext().getColor(R.color.price_drop_annotation_text_green));

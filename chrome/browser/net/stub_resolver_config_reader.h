@@ -5,20 +5,19 @@
 #ifndef CHROME_BROWSER_NET_STUB_RESOLVER_CONFIG_READER_H_
 #define CHROME_BROWSER_NET_STUB_RESOLVER_CONFIG_READER_H_
 
+#include <memory>
+#include <optional>
 #include <string>
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "build/build_config.h"
+#include "chrome/browser/net/dns_over_https_config_source.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "services/network/public/mojom/host_resolver.mojom-forward.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-
-#if BUILDFLAG(IS_ANDROID)
-#include "base/memory/weak_ptr.h"
-#endif
 
 class PrefRegistrySimple;
 class PrefService;
@@ -70,13 +69,6 @@ class StubResolverConfigReader {
   // Returns true if there are parental controls detected on the device.
   virtual bool ShouldDisableDohForParentalControls();
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  // If the URI templates for the DNS-over-HTTPS resolver contain user or device
-  // identifiers (which are hashed before being used), this method returns the
-  // plain text version of the URI templates. Otherwise returns nullopt.
-  absl::optional<std::string> GetDohWithIdentifiersDisplayServers();
-#endif
-
 #if BUILDFLAG(IS_ANDROID)
   // Updates the android owned state and network service if the device/prfile is
   // owned.
@@ -88,6 +80,12 @@ class StubResolverConfigReader {
     parental_controls_testing_override_ = parental_controls_override;
   }
 
+  // Overrides the default implementation for the class which monitors
+  // DNS-over-HTTPS config changes. If `doh_source` is a null pointer, it clears
+  // the override and resets to the default behaviour.
+  void SetOverrideDnsOverHttpsConfigSource(
+      std::unique_ptr<DnsOverHttpsConfigSource> doh_source);
+
  private:
   void OnParentalControlsDelayTimer();
 
@@ -97,6 +95,14 @@ class StubResolverConfigReader {
       bool force_check_parental_controls_for_automatic_mode,
       bool record_metrics,
       bool update_network_service);
+
+  // Returns the current config source for DNS-over-HTTPS settings. If
+  // `SetOverrideDnsOverHttpsConfigSource` was called with a non-null value, it
+  // returns the override config source; otherwise it returns the default
+  // implementation.
+  const DnsOverHttpsConfigSource* GetDnsOverHttpsConfigSource() const;
+
+  bool GetHappyEyeballsV3Enabled() const;
 
   const raw_ptr<PrefService> local_state_;
 
@@ -108,7 +114,10 @@ class StubResolverConfigReader {
   // expiration of the delay timer or because of a forced check.
   bool parental_controls_checked_ = false;
 
-  absl::optional<bool> parental_controls_testing_override_;
+  std::optional<bool> parental_controls_testing_override_;
+
+  std::unique_ptr<DnsOverHttpsConfigSource> default_doh_source_;
+  std::unique_ptr<DnsOverHttpsConfigSource> override_doh_source_;
 
   // This object lives on the UI thread, but it's possible for it to be created
   // before BrowserMainLoop::CreateThreads() is called which would cause a
@@ -121,9 +130,9 @@ class StubResolverConfigReader {
 #if BUILDFLAG(IS_ANDROID)
   // Whether or not an Android device or profile is owned.
   // A nullopt indicates this value has not been determined yet.
-  absl::optional<bool> android_has_owner_ = absl::nullopt;
-  base::WeakPtrFactory<StubResolverConfigReader> weak_factory_{this};
+  std::optional<bool> android_has_owner_ = std::nullopt;
 #endif
+  base::WeakPtrFactory<StubResolverConfigReader> weak_factory_{this};
 };
 
 #endif  // CHROME_BROWSER_NET_STUB_RESOLVER_CONFIG_READER_H_

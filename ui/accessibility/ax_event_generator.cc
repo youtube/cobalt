@@ -133,7 +133,7 @@ AXEventGenerator::Iterator& AXEventGenerator::Iterator::operator++() {
   if (map_iter_ == map_end_iter_)
     return *this;
 
-  DCHECK(set_iter_ != map_iter_->second.end());
+  CHECK(set_iter_ != map_iter_->second.end());
   set_iter_++;
 
   // The map pointed to by |map_end_iter_| may contain empty sets of events in
@@ -159,7 +159,7 @@ AXEventGenerator::Iterator AXEventGenerator::Iterator::operator++(int) {
 
 AXEventGenerator::TargetedEvent AXEventGenerator::Iterator::operator*() const {
   DCHECK(map_iter_ != map_end_iter_);
-  DCHECK(set_iter_ != map_iter_->second.end());
+  CHECK(set_iter_ != map_iter_->second.end());
   return AXEventGenerator::TargetedEvent(map_iter_->first, *set_iter_);
 }
 
@@ -168,11 +168,6 @@ bool operator==(const AXEventGenerator::Iterator& lhs,
   if (lhs.map_iter_ == lhs.map_end_iter_ && rhs.map_iter_ == rhs.map_end_iter_)
     return true;
   return lhs.map_iter_ == rhs.map_iter_ && lhs.set_iter_ == rhs.set_iter_;
-}
-
-bool operator!=(const AXEventGenerator::Iterator& lhs,
-                const AXEventGenerator::Iterator& rhs) {
-  return !(lhs == rhs);
 }
 
 void swap(AXEventGenerator::Iterator& lhs, AXEventGenerator::Iterator& rhs) {
@@ -279,6 +274,22 @@ void AXEventGenerator::AddEvent(AXNode* node, AXEventGenerator::Event event) {
                       tree_->event_data()->event_intents);
 }
 
+void AXEventGenerator::RegisterEventOnNode(Event event_type, AXNodeID node_id) {
+  registered_event_to_node_ids_[event_type].insert(node_id);
+}
+
+void AXEventGenerator::UnregisterEventOnNode(Event event_type,
+                                             AXNodeID node_id) {
+  auto it = registered_event_to_node_ids_.find(event_type);
+  if (it == registered_event_to_node_ids_.end()) {
+    return;
+  }
+  registered_event_to_node_ids_[event_type].erase(node_id);
+  if (registered_event_to_node_ids_[event_type].empty()) {
+    registered_event_to_node_ids_.erase(event_type);
+  }
+}
+
 void AXEventGenerator::OnIgnoredWillChange(
     AXTree* tree,
     AXNode* node,
@@ -303,18 +314,56 @@ void AXEventGenerator::OnNodeDataChanged(AXTree* tree,
   if (!node)
     return;
 
-  // Fire CHILDREN_CHANGED events when the list of children updates.
+  // We can't rely on `AttributeChanged` methods since ARIA notifications may be
+  // posted more than once with the same announcement and properties.
+  // Each `AriaNotification` is discarded once it's serialized, so we can simply
+  // check if there's notification data; it won't persist across updates.
+  //
+  // TODO(crbug.com/330589205): Remove all of this when we develop a better way
+  // to send single-use data attached to events. DO NOT replicate this pattern,
+  // as this method is not intended to check for attribute changes.
+  if (new_node_data.HasStringListAttribute(
+          ax::mojom::StringListAttribute::kAriaNotificationAnnouncements)) {
+    AddEvent(node, Event::ARIA_NOTIFICATIONS_POSTED);
+  }
+
   // Internally we store inline text box nodes as children of a static text
   // node or a line break node, which enables us to determine character bounds
   // and line layout. We don't expose those to platform APIs, though, so
   // suppress CHILDREN_CHANGED events on static text nodes.
-  if (new_node_data.child_ids != old_node_data.child_ids && !node->IsText()) {
-    if (node->IsIgnored()) {
-      AXNode* unignored_parent = node->GetUnignoredParent();
-      if (unignored_parent)
-        AddEvent(unignored_parent, Event::CHILDREN_CHANGED);
-      return;
-    }
+  if (node->IsText()) {
+    return;
+  }
+
+  bool was_ignored = old_node_data.IsIgnored();
+  bool is_ignored = new_node_data.IsIgnored();
+
+  if (was_ignored != is_ignored) {
+    // The ignored state is changing, which cause the current node to be added
+    // or removed to the unignored ancestor. Therefore, a children changed event
+    // must be fired on the unignored ancestor. The node data may not have
+    // changed in this case, because the ignored state can change based on
+    // focus, which is in tree data. Therefore, firing Event::CHILDREN_CHANGED
+    // when ignored changes is is handled in OnIgnoredChanged().
+    return;
+  }
+
+  if (new_node_data.child_ids == old_node_data.child_ids) {
+    // If the child ids remained the same, then children changed doesn't need to
+    // be fired.
+    return;
+  }
+
+  if (is_ignored) {
+    // Node remained ignored. If its child ids changed, that means
+    // the unignored parent's children changed.
+    AXNode* unignored_parent = node->GetUnignoredParent();
+    DUMP_WILL_BE_CHECK(unignored_parent)
+        << "The root cannot be ignored, so an unignored parent is always "
+           "found.";
+    AddEvent(unignored_parent, Event::CHILDREN_CHANGED);
+  } else {
+    // Node remained unignored. Fire a children changed event on it.
     AddEvent(node, Event::CHILDREN_CHANGED);
   }
 }
@@ -324,16 +373,20 @@ void AXEventGenerator::OnRoleChanged(AXTree* tree,
                                      ax::mojom::Role old_role,
                                      ax::mojom::Role new_role) {
   DCHECK_EQ(tree_, tree);
-  AddEvent(node, Event::ROLE_CHANGED);
+  AddEvent(node, ui::IsAlert(new_role) ? Event::ALERT : Event::ROLE_CHANGED);
 }
 
 void AXEventGenerator::OnIgnoredChanged(AXTree* tree,
                                         AXNode* node,
                                         bool is_ignored_new_value) {
   DCHECK_EQ(tree_, tree);
+
   AXNode* unignored_parent = node->GetUnignoredParent();
-  if (unignored_parent)
-    AddEvent(unignored_parent, Event::CHILDREN_CHANGED);
+  DUMP_WILL_BE_CHECK(unignored_parent)
+      << "The root cannot be ignored, so an unignored parent is always "
+         "found.";
+  AddEvent(unignored_parent, Event::CHILDREN_CHANGED);
+
   AddEvent(node, Event::IGNORED_CHANGED);
   if (!is_ignored_new_value)
     AddEvent(node, Event::SUBTREE_CREATED);
@@ -415,6 +468,10 @@ void AXEventGenerator::OnStateChanged(AXTree* tree,
     case ax::mojom::State::kAutofillAvailable:
       AddEvent(node, Event::AUTOFILL_AVAILABILITY_CHANGED);
       break;
+    case ax::mojom::State::kHorizontal:
+    case ax::mojom::State::kVertical:
+      AddEvent(node, Event::ORIENTATION_CHANGED);
+      break;
     default:
       break;
   }
@@ -438,13 +495,14 @@ void AXEventGenerator::OnStringAttributeChanged(AXTree* tree,
       AddEvent(node, Event::CHECKED_STATE_DESCRIPTION_CHANGED);
       break;
     case ax::mojom::StringAttribute::kClassName:
-      AddEvent(node, Event::CLASS_NAME_CHANGED);
       break;
     case ax::mojom::StringAttribute::kDescription:
       AddEvent(node, Event::DESCRIPTION_CHANGED);
       break;
     case ax::mojom::StringAttribute::kFontFamily:
-      AddEvent(node, Event::TEXT_ATTRIBUTE_CHANGED);
+      if (node->HasState(ax::mojom::State::kRichlyEditable)) {
+        AddEvent(node, Event::TEXT_ATTRIBUTE_CHANGED);
+      }
       break;
     case ax::mojom::StringAttribute::kImageAnnotation:
       // The image annotation is reported as part of the accessible name.
@@ -506,7 +564,6 @@ void AXEventGenerator::OnStringAttributeChanged(AXTree* tree,
       }
       break;
     default:
-      AddEvent(node, Event::OTHER_ATTRIBUTE_CHANGED);
       break;
   }
 }
@@ -533,9 +590,6 @@ void AXEventGenerator::OnIntAttributeChanged(AXTree* tree,
       break;
     case ax::mojom::IntAttribute::kAriaCurrentState:
       AddEvent(node, Event::ARIA_CURRENT_CHANGED);
-      break;
-    case ax::mojom::IntAttribute::kDropeffect:
-      AddEvent(node, Event::DROPEFFECT_CHANGED);
       break;
     case ax::mojom::IntAttribute::kHasPopup:
       AddEvent(node, Event::HASPOPUP_CHANGED);
@@ -597,18 +651,21 @@ void AXEventGenerator::OnIntAttributeChanged(AXTree* tree,
     case ax::mojom::IntAttribute::kTextOverlineStyle:
     case ax::mojom::IntAttribute::kTextStrikethroughStyle:
     case ax::mojom::IntAttribute::kTextUnderlineStyle:
-      AddEvent(node, Event::TEXT_ATTRIBUTE_CHANGED);
+      if (node->HasState(ax::mojom::State::kRichlyEditable)) {
+        AddEvent(node, Event::TEXT_ATTRIBUTE_CHANGED);
+      }
       break;
     case ax::mojom::IntAttribute::kTextAlign:
       // Alignment is exposed as an object attribute because it cannot apply to
       // a substring. However, for some platforms (e.g. ATK), alignment is a
       // text attribute. Therefore fire both events to ensure platforms get the
       // expected notifications.
-      AddEvent(node, Event::ATK_TEXT_OBJECT_ATTRIBUTE_CHANGED);
-      AddEvent(node, Event::OBJECT_ATTRIBUTE_CHANGED);
+      if (node->HasState(ax::mojom::State::kRichlyEditable)) {
+        AddEvent(node, Event::ATK_TEXT_OBJECT_ATTRIBUTE_CHANGED);
+        AddEvent(node, Event::OBJECT_ATTRIBUTE_CHANGED);
+      }
       break;
     default:
-      AddEvent(node, Event::OTHER_ATTRIBUTE_CHANGED);
       break;
   }
 }
@@ -635,18 +692,21 @@ void AXEventGenerator::OnFloatAttributeChanged(AXTree* tree,
       break;
     case ax::mojom::FloatAttribute::kFontSize:
     case ax::mojom::FloatAttribute::kFontWeight:
-      AddEvent(node, Event::TEXT_ATTRIBUTE_CHANGED);
+      if (node->HasState(ax::mojom::State::kRichlyEditable)) {
+        AddEvent(node, Event::TEXT_ATTRIBUTE_CHANGED);
+      }
       break;
     case ax::mojom::FloatAttribute::kTextIndent:
       // Indentation is exposed as an object attribute because it cannot apply
       // to a substring. However, for some platforms (e.g. ATK), alignment is a
       // text attribute. Therefore fire both events to ensure platforms get the
       // expected notifications.
-      AddEvent(node, Event::ATK_TEXT_OBJECT_ATTRIBUTE_CHANGED);
-      AddEvent(node, Event::OBJECT_ATTRIBUTE_CHANGED);
+      if (node->HasState(ax::mojom::State::kRichlyEditable)) {
+        AddEvent(node, Event::ATK_TEXT_OBJECT_ATTRIBUTE_CHANGED);
+        AddEvent(node, Event::OBJECT_ATTRIBUTE_CHANGED);
+      }
       break;
     default:
-      AddEvent(node, Event::OTHER_ATTRIBUTE_CHANGED);
       break;
   }
 }
@@ -665,9 +725,6 @@ void AXEventGenerator::OnBoolAttributeChanged(AXTree* tree,
       if (!new_value)
         AddEvent(node, Event::LAYOUT_INVALIDATED);
       break;
-    case ax::mojom::BoolAttribute::kGrabbed:
-      AddEvent(node, Event::GRABBED_CHANGED);
-      break;
     case ax::mojom::BoolAttribute::kLiveAtomic:
       AddEvent(node, Event::ATOMIC_CHANGED);
       break;
@@ -683,7 +740,6 @@ void AXEventGenerator::OnBoolAttributeChanged(AXTree* tree,
       break;
     }
     default:
-      AddEvent(node, Event::OTHER_ATTRIBUTE_CHANGED);
       break;
   }
 }
@@ -728,7 +784,7 @@ void AXEventGenerator::OnIntListAttributeChanged(
       // adjust the node we fire that event on here.
       if (AXNode* text_field = node->GetTextFieldAncestor()) {
         AddEvent(text_field, Event::TEXT_ATTRIBUTE_CHANGED);
-      } else {
+      } else if (node->HasState(ax::mojom::State::kRichlyEditable)) {
         AddEvent(node, Event::TEXT_ATTRIBUTE_CHANGED);
       }
       break;
@@ -736,7 +792,6 @@ void AXEventGenerator::OnIntListAttributeChanged(
       AddEvent(node, Event::CARET_BOUNDS_CHANGED);
       break;
     default:
-      AddEvent(node, Event::OTHER_ATTRIBUTE_CHANGED);
       break;
   }
 }
@@ -832,6 +887,13 @@ void AXEventGenerator::OnAtomicUpdateFinished(
       continue;
     }
 
+    if (change.node->GetBoolAttribute(ax::mojom::BoolAttribute::kSelected) &&
+        (change.type == SUBTREE_CREATED || change.type == NODE_CREATED)) {
+      OnBoolAttributeChanged(tree, change.node,
+                             ax::mojom::BoolAttribute::kSelected,
+                             /*new_value*/ true);
+    }
+
     if (IsAlert(change.node->GetRole()))
       AddEvent(change.node, Event::ALERT);
     else if (change.node->data().IsActiveLiveRegionRoot())
@@ -911,17 +973,21 @@ void AXEventGenerator::FireActiveDescendantEvents() {
 }
 
 bool CanContributeToValueOfTextfield(AXNode* target_node) {
-  // TODO(accessibility) Changes to inline text boxes should be redundant with
-  // changes in their parent static text containers. We should probably return
-  // false for those in order to save on performance.
+  // Inline textboxes contribute the same text as their static text ancestors,
+  // and their redundant contributions can be ignored to improve performance.
+  if (target_node->GetRole() == ax::mojom::Role::kInlineTextBox) {
+    return false;
+  }
 
   // Text and line breaks contribute.
-  if (ui::IsText(target_node->GetRole()))
+  if (IsText(target_node->GetRole())) {
     return true;
+  }
 
   // Non-text leaf nodes contribute, e.g. images.
-  if (target_node->GetChildCount() == 0)
+  if (target_node->GetChildCount() == 0) {
     return true;
+  }
 
   return false;
 }
@@ -942,6 +1008,22 @@ void AXEventGenerator::FireValueInTextFieldChangedEventIfNecessary(
 
 void AXEventGenerator::FireRelationSourceEvents(AXTree* tree,
                                                 AXNode* target_node) {
+  auto it = registered_event_to_node_ids_.find(Event::RELATED_NODE_CHANGED);
+  if (it == registered_event_to_node_ids_.end()) {
+    return;
+  }
+
+  AXNode* registered_node = target_node;
+  while (registered_node) {
+    if (it->second.contains(registered_node->id())) {
+      break;
+    }
+    registered_node = registered_node->parent();
+  }
+  if (!registered_node) {
+    return;
+  }
+
   AXNodeID target_id = target_node->id();
   std::set<AXNode*> source_nodes;
   auto callback = [&](const auto& entry) {
@@ -950,7 +1032,7 @@ void AXEventGenerator::FireRelationSourceEvents(AXTree* tree,
     if (sources_it == target_to_sources.end())
       return;
 
-    base::ranges::for_each(sources_it->second, [&](AXNodeID source_id) {
+    std::ranges::for_each(sources_it->second, [&](AXNodeID source_id) {
       AXNode* source_node = tree->GetFromId(source_id);
 
       if (!source_node || source_nodes.count(source_node) > 0)
@@ -964,8 +1046,8 @@ void AXEventGenerator::FireRelationSourceEvents(AXTree* tree,
     });
   };
 
-  base::ranges::for_each(tree->int_reverse_relations(), callback);
-  base::ranges::for_each(tree->intlist_reverse_relations(), [&](auto& entry) {
+  std::ranges::for_each(tree->int_reverse_relations(), callback);
+  std::ranges::for_each(tree->intlist_reverse_relations(), [&](auto& entry) {
     // Explicitly exclude relationships for which an additional event on the
     // source node would cause extra noise. For example, kRadioGroupIds
     // forms relations among all radio buttons and serves little value for
@@ -1101,15 +1183,6 @@ void AXEventGenerator::PostprocessEvents() {
       RemoveEventsDueToIgnoredChanged(&node_events);
     }
 
-    // When the selected option in an expanded select element changes, the
-    // foreground and background colors change. But we don't want to treat
-    // those as text attribute changes. This can also happen when a widget
-    // such as a button becomes enabled/disabled.
-    if (HasEvent(node_events, Event::SELECTED_CHANGED) ||
-        HasEvent(node_events, Event::ENABLED_CHANGED)) {
-      RemoveEvent(&node_events, Event::TEXT_ATTRIBUTE_CHANGED);
-    }
-
     AXNode* parent = node->GetUnignoredParent();
 
     // Don't fire text attribute changed on this node if its immediate parent
@@ -1227,6 +1300,8 @@ const char* ToString(AXEventGenerator::Event event) {
       return "alert";
     case AXEventGenerator::Event::ARIA_CURRENT_CHANGED:
       return "ariaCurrentChanged";
+    case AXEventGenerator::Event::ARIA_NOTIFICATIONS_POSTED:
+      return "ariaNotificationsPosted";
     case AXEventGenerator::Event::ATK_TEXT_OBJECT_ATTRIBUTE_CHANGED:
       return "atkTextObjectAttributeChanged";
     case AXEventGenerator::Event::ATOMIC_CHANGED:
@@ -1245,8 +1320,6 @@ const char* ToString(AXEventGenerator::Event event) {
       return "checkedStateDescriptionChanged";
     case AXEventGenerator::Event::CHILDREN_CHANGED:
       return "childrenChanged";
-    case AXEventGenerator::Event::CLASS_NAME_CHANGED:
-      return "classNameChanged";
     case AXEventGenerator::Event::COLLAPSED:
       return "collapsed";
     case AXEventGenerator::Event::CONTROLS_CHANGED:
@@ -1261,9 +1334,7 @@ const char* ToString(AXEventGenerator::Event event) {
       return "documentSelectionChanged";
     case AXEventGenerator::Event::DOCUMENT_TITLE_CHANGED:
       return "documentTitleChanged";
-    case AXEventGenerator::Event::DROPEFFECT_CHANGED:
-      return "dropeffectChanged";
-    case ui::AXEventGenerator::Event::EDITABLE_TEXT_CHANGED:
+    case AXEventGenerator::Event::EDITABLE_TEXT_CHANGED:
       return "editableTextChanged";
     case AXEventGenerator::Event::ENABLED_CHANGED:
       return "enabledChanged";
@@ -1275,13 +1346,11 @@ const char* ToString(AXEventGenerator::Event event) {
       return "flowFromChanged";
     case AXEventGenerator::Event::FLOW_TO_CHANGED:
       return "flowToChanged";
-    case AXEventGenerator::Event::GRABBED_CHANGED:
-      return "grabbedChanged";
     case AXEventGenerator::Event::HASPOPUP_CHANGED:
       return "haspopupChanged";
     case AXEventGenerator::Event::HIERARCHICAL_LEVEL_CHANGED:
       return "hierarchicalLevelChanged";
-    case ui::AXEventGenerator::Event::IGNORED_CHANGED:
+    case AXEventGenerator::Event::IGNORED_CHANGED:
       return "ignoredChanged";
     case AXEventGenerator::Event::IMAGE_ANNOTATION_CHANGED:
       return "imageAnnotationChanged";
@@ -1307,9 +1376,9 @@ const char* ToString(AXEventGenerator::Event event) {
       return "liveStatusChanged";
     case AXEventGenerator::Event::MENU_ITEM_SELECTED:
       return "menuItemSelected";
-    case ui::AXEventGenerator::Event::MENU_POPUP_END:
+    case AXEventGenerator::Event::MENU_POPUP_END:
       return "menuPopupEnd";
-    case ui::AXEventGenerator::Event::MENU_POPUP_START:
+    case AXEventGenerator::Event::MENU_POPUP_START:
       return "menuPopupStart";
     case AXEventGenerator::Event::MULTILINE_STATE_CHANGED:
       return "multilineStateChanged";
@@ -1319,14 +1388,12 @@ const char* ToString(AXEventGenerator::Event event) {
       return "nameChanged";
     case AXEventGenerator::Event::OBJECT_ATTRIBUTE_CHANGED:
       return "objectAttributeChanged";
-    case AXEventGenerator::Event::OTHER_ATTRIBUTE_CHANGED:
-      return "otherAttributeChanged";
+    case AXEventGenerator::Event::ORIENTATION_CHANGED:
+      return "orientationChanged";
     case AXEventGenerator::Event::PARENT_CHANGED:
       return "parentChanged";
     case AXEventGenerator::Event::PLACEHOLDER_CHANGED:
       return "placeholderChanged";
-    case AXEventGenerator::Event::PORTAL_ACTIVATED:
-      return "portalActivated";
     case AXEventGenerator::Event::POSITION_IN_SET_CHANGED:
       return "positionInSetChanged";
     case AXEventGenerator::Event::RANGE_VALUE_CHANGED:
@@ -1407,9 +1474,7 @@ AXEventGenerator::Event ParseGeneratedEvent(const char* attribute) {
   if (MaybeParseGeneratedEvent(attribute, &event))
     return event;
 
-  LOG(ERROR) << "Could not parse: " << attribute;
-  NOTREACHED();
-  return AXEventGenerator::Event::NONE;
+  NOTREACHED() << "Could not parse: " << attribute;
 }
 
 }  // namespace ui

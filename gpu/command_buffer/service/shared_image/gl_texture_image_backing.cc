@@ -9,32 +9,224 @@
 #include <string>
 #include <utility>
 
+#include "base/debug/crash_logging.h"
+#include "base/debug/dump_without_crashing.h"
 #include "build/build_config.h"
+#include "components/viz/common/resources/shared_image_format_utils.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
+#include "gpu/command_buffer/service/context_state.h"
 #include "gpu/command_buffer/service/gles2_cmd_decoder.h"
 #include "gpu/command_buffer/service/shared_context_state.h"
-#include "gpu/command_buffer/service/shared_image/gl_texture_common_representations.h"
-#include "gpu/command_buffer/service/shared_image/gl_texture_image_backing_helper.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_backing.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_factory.h"
-#include "gpu/command_buffer/service/shared_image/shared_image_format_utils.h"
+#include "gpu/command_buffer/service/shared_image/shared_image_format_service_utils.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
 #include "gpu/command_buffer/service/skia_utils.h"
-#include "third_party/skia/include/core/SkPromiseImageTexture.h"
+#include "third_party/skia/include/core/SkColorSpace.h"
+#include "third_party/skia/include/gpu/ganesh/SkSurfaceGanesh.h"
+#include "third_party/skia/include/private/chromium/GrPromiseImageTexture.h"
 #include "ui/gfx/color_space.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gl/buildflags.h"
+#include "ui/gl/gl_context.h"
 #include "ui/gl/scoped_make_current.h"
 
+#if BUILDFLAG(USE_DAWN)
+#include "gpu/command_buffer/service/shared_image/dawn_fallback_image_representation.h"
+#endif
+
+#if BUILDFLAG(USE_DAWN) && BUILDFLAG(DAWN_ENABLE_BACKEND_OPENGLES)
+#include "gpu/command_buffer/service/shared_image/dawn_gl_texture_representation.h"
+#endif
+
+#if BUILDFLAG(IS_WIN)
+#include "gpu/command_buffer/service/shared_image/d3d_image_representation.h"
+#endif
+
 namespace gpu {
+
+namespace {
+
+// Representation of a GLTextureImageBacking as a GL Texture.
+class GLTextureImageRepresentationImpl : public GLTextureImageRepresentation {
+ public:
+  GLTextureImageRepresentationImpl(
+      SharedImageManager* manager,
+      SharedImageBacking* backing,
+      MemoryTypeTracker* tracker,
+      std::vector<raw_ptr<gles2::Texture>> textures)
+      : GLTextureImageRepresentation(manager, backing, tracker),
+        textures_(std::move(textures)) {
+    DCHECK_EQ(textures_.size(), NumPlanesExpected());
+  }
+
+  ~GLTextureImageRepresentationImpl() override = default;
+
+ private:
+  // GLTextureImageRepresentation:
+  gles2::Texture* GetTexture(int plane_index) override {
+    DCHECK(format().IsValidPlaneIndex(plane_index));
+    return textures_[plane_index];
+  }
+  bool BeginAccess(GLenum mode) override { return true; }
+  void EndAccess() override {}
+
+  std::vector<raw_ptr<gles2::Texture>> textures_;
+};
+
+// Representation of a GLTextureImageBacking as a GLTexturePassthrough.
+class GLTexturePassthroughImageRepresentationImpl
+    : public GLTexturePassthroughImageRepresentation {
+ public:
+  GLTexturePassthroughImageRepresentationImpl(
+      SharedImageManager* manager,
+      SharedImageBacking* backing,
+      MemoryTypeTracker* tracker,
+      std::vector<scoped_refptr<gles2::TexturePassthrough>> textures)
+      : GLTexturePassthroughImageRepresentation(manager, backing, tracker),
+        textures_(std::move(textures)) {
+    DCHECK_EQ(textures_.size(), NumPlanesExpected());
+  }
+
+  ~GLTexturePassthroughImageRepresentationImpl() override = default;
+
+ private:
+  // GLTexturePassthroughImageRepresentation:
+  const scoped_refptr<gles2::TexturePassthrough>& GetTexturePassthrough(
+      int plane_index) override {
+    DCHECK(format().IsValidPlaneIndex(plane_index));
+    return textures_[plane_index];
+  }
+  bool BeginAccess(GLenum mode) override { return true; }
+  void EndAccess() override {}
+
+  std::vector<scoped_refptr<gles2::TexturePassthrough>> textures_;
+};
+
+// Skia representation.
+class SkiaGaneshImageRepresentationImpl : public SkiaGaneshImageRepresentation {
+ public:
+  SkiaGaneshImageRepresentationImpl(
+      SharedImageManager* manager,
+      SharedImageBacking* backing,
+      scoped_refptr<SharedContextState> context_state,
+      std::vector<sk_sp<GrPromiseImageTexture>> promise_textures,
+      MemoryTypeTracker* tracker)
+      : SkiaGaneshImageRepresentation(context_state->gr_context(),
+                                      manager,
+                                      backing,
+                                      tracker),
+        context_state_(std::move(context_state)),
+        promise_textures_(std::move(promise_textures)) {
+    DCHECK_EQ(promise_textures_.size(), NumPlanesExpected());
+#if DCHECK_IS_ON()
+    if (context_state_->GrContextIsGL()) {
+      context_ = gl::GLContext::GetCurrent();
+    }
+#endif
+  }
+  ~SkiaGaneshImageRepresentationImpl() override {
+    DCHECK(write_surfaces_.empty());
+  }
+
+ private:
+  // SkiaImageRepresentation:
+  std::vector<sk_sp<SkSurface>> BeginWriteAccess(
+      int final_msaa_count,
+      const SkSurfaceProps& surface_props,
+      const gfx::Rect& update_rect,
+      std::vector<GrBackendSemaphore>* begin_semaphores,
+      std::vector<GrBackendSemaphore>* end_semaphores,
+      std::unique_ptr<skgpu::MutableTextureState>* end_state) override {
+    CheckContext();
+
+    if (!write_surfaces_.empty()) {
+      // Write access is already in progress.
+      return {};
+    }
+
+    for (int plane = 0; plane < format().NumberOfPlanes(); ++plane) {
+      SkColorType sk_color_type = viz::ToClosestSkColorType(format(), plane);
+      // Gray is not a renderable single channel format, but alpha is.
+      if (sk_color_type == kGray_8_SkColorType) {
+        sk_color_type = kAlpha_8_SkColorType;
+      }
+      auto surface = SkSurfaces::WrapBackendTexture(
+          context_state_->gr_context(),
+          promise_textures_[plane]->backendTexture(), surface_origin(),
+          final_msaa_count, sk_color_type,
+          backing()->color_space().GetAsFullRangeRGB().ToSkColorSpace(),
+          &surface_props);
+      if (!surface) {
+        write_surfaces_.clear();
+        return {};
+      }
+      write_surfaces_.push_back(std::move(surface));
+    }
+
+    return write_surfaces_;
+  }
+
+  std::vector<sk_sp<GrPromiseImageTexture>> BeginWriteAccess(
+      std::vector<GrBackendSemaphore>* begin_semaphores,
+      std::vector<GrBackendSemaphore>* end_semaphore,
+      std::unique_ptr<skgpu::MutableTextureState>* end_state) override {
+    CheckContext();
+
+    return promise_textures_;
+  }
+
+  void EndWriteAccess() override {
+    if (!write_surfaces_.empty()) {
+#if DCHECK_IS_ON()
+      for (auto& write_surface : write_surfaces_) {
+        DCHECK(write_surface->unique());
+      }
+      CheckContext();
+#endif
+      write_surfaces_.clear();
+    }
+  }
+  std::vector<sk_sp<GrPromiseImageTexture>> BeginReadAccess(
+      std::vector<GrBackendSemaphore>* begin_semaphores,
+      std::vector<GrBackendSemaphore>* end_semaphores,
+      std::unique_ptr<skgpu::MutableTextureState>* end_state) override {
+    CheckContext();
+    return promise_textures_;
+  }
+
+  void EndReadAccess() override {}
+
+  bool SupportsMultipleConcurrentReadAccess() override { return true; }
+
+  void CheckContext() {
+#if DCHECK_IS_ON()
+    if (!context_state_->context_lost() && context_) {
+      DCHECK(gl::GLContext::GetCurrent() == context_);
+    }
+#endif
+  }
+
+  scoped_refptr<SharedContextState> context_state_;
+  std::vector<sk_sp<GrPromiseImageTexture>> promise_textures_;
+  std::vector<sk_sp<SkSurface>> write_surfaces_;
+#if DCHECK_IS_ON()
+  raw_ptr<gl::GLContext> context_ = nullptr;
+#endif
+};
+
+}  // namespace
 
 ///////////////////////////////////////////////////////////////////////////////
 // GLTextureImageBacking
 
 bool GLTextureImageBacking::SupportsPixelReadbackWithFormat(
     viz::SharedImageFormat format) {
+  // NOTE: Using MultiPlaneFormats is okay here are this is only used with
+  // SharedMemory GMBs which correspond to specific multiplanar formats.
   return (format == viz::MultiPlaneFormat::kNV12 ||
           format == viz::MultiPlaneFormat::kYV12 ||
+          format == viz::MultiPlaneFormat::kI420 ||
           format == viz::SinglePlaneFormat::kRGBA_8888 ||
           format == viz::SinglePlaneFormat::kBGRA_8888 ||
           format == viz::SinglePlaneFormat::kR_8 ||
@@ -45,8 +237,11 @@ bool GLTextureImageBacking::SupportsPixelReadbackWithFormat(
 
 bool GLTextureImageBacking::SupportsPixelUploadWithFormat(
     viz::SharedImageFormat format) {
+  // NOTE: Using MultiPlaneFormats is okay here are this is only used with
+  // SharedMemory GMBs which correspond to specific multiplanar formats.
   return (format == viz::MultiPlaneFormat::kNV12 ||
           format == viz::MultiPlaneFormat::kYV12 ||
+          format == viz::MultiPlaneFormat::kI420 ||
           format == viz::SinglePlaneFormat::kRGBA_8888 ||
           format == viz::SinglePlaneFormat::kRGBA_4444 ||
           format == viz::SinglePlaneFormat::kBGRA_8888 ||
@@ -67,7 +262,8 @@ GLTextureImageBacking::GLTextureImageBacking(const Mailbox& mailbox,
                                              const gfx::ColorSpace& color_space,
                                              GrSurfaceOrigin surface_origin,
                                              SkAlphaType alpha_type,
-                                             uint32_t usage,
+                                             SharedImageUsageSet usage,
+                                             std::string debug_label,
                                              bool is_passthrough)
     : ClearTrackingSharedImageBacking(mailbox,
                                       format,
@@ -76,6 +272,7 @@ GLTextureImageBacking::GLTextureImageBacking(const Mailbox& mailbox,
                                       surface_origin,
                                       alpha_type,
                                       usage,
+                                      std::move(debug_label),
                                       format.EstimatedSizeInBytes(size),
                                       /*is_thread_safe=*/false),
       is_passthrough_(is_passthrough) {
@@ -162,8 +359,8 @@ GLTextureImageBacking::ProduceGLTexture(SharedImageManager* manager,
     gl_textures.push_back(texture.texture());
   }
 
-  return std::make_unique<GLTextureGLCommonRepresentation>(
-      manager, this, nullptr, tracker, std::move(gl_textures));
+  return std::make_unique<GLTextureImageRepresentationImpl>(
+      manager, this, tracker, std::move(gl_textures));
 }
 
 std::unique_ptr<GLTexturePassthroughImageRepresentation>
@@ -175,24 +372,52 @@ GLTextureImageBacking::ProduceGLTexturePassthrough(SharedImageManager* manager,
     gl_textures.push_back(texture.passthrough_texture());
   }
 
-  return std::make_unique<GLTexturePassthroughGLCommonRepresentation>(
-      manager, this, nullptr, tracker, std::move(gl_textures));
+  return std::make_unique<GLTexturePassthroughImageRepresentationImpl>(
+      manager, this, tracker, std::move(gl_textures));
 }
 
 std::unique_ptr<DawnImageRepresentation> GLTextureImageBacking::ProduceDawn(
     SharedImageManager* manager,
     MemoryTypeTracker* tracker,
-    WGPUDevice device,
-    WGPUBackendType backend_type,
-    std::vector<WGPUTextureFormat> view_formats) {
+    const wgpu::Device& device,
+    wgpu::BackendType backend_type,
+    std::vector<wgpu::TextureFormat> view_formats,
+    scoped_refptr<SharedContextState> context_state) {
   if (!factory()) {
     DLOG(ERROR) << "No SharedImageFactory to create a dawn representation.";
     return nullptr;
   }
 
-  return GLTextureImageBackingHelper::ProduceDawnCommon(
-      factory(), manager, tracker, device, backend_type,
-      std::move(view_formats), this, IsPassthrough());
+#if BUILDFLAG(USE_DAWN) && BUILDFLAG(DAWN_ENABLE_BACKEND_OPENGLES)
+  if (backend_type == wgpu::BackendType::OpenGLES) {
+    std::unique_ptr<GLTextureImageRepresentationBase> image;
+    if (IsPassthrough()) {
+      image = ProduceGLTexturePassthrough(manager, tracker);
+    } else {
+      image = ProduceGLTexture(manager, tracker);
+    }
+    auto result = std::make_unique<DawnGLTextureRepresentation>(
+        std::move(image), manager, this, tracker, device,
+        std::move(view_formats));
+    return result;
+  }
+#endif
+
+  // TODO (crbug.com/1434885) - Delete this code path if it's not used.
+  // Otherwise optimize this path with a GPU copy.
+  SCOPED_CRASH_KEY_STRING256("", "GLSharedImage_DebugLabel", debug_label());
+  SCOPED_CRASH_KEY_STRING32("", "GLSharedImage_Usage",
+                            base::NumberToString(uint32_t(usage())));
+  base::debug::DumpWithoutCrashing();
+
+#if BUILDFLAG(USE_DAWN)
+  // This is a slow path with a GPU<=>CPU<=>GPU copy.
+  return std::make_unique<DawnFallbackImageRepresentation>(
+      manager, this, tracker, device, ToDawnFormat(format()),
+      std::move(view_formats));
+#else
+  return nullptr;
+#endif
 }
 
 std::unique_ptr<SkiaGaneshImageRepresentation>
@@ -207,24 +432,34 @@ GLTextureImageBacking::ProduceSkiaGanesh(
     }
   }
 
-  return std::make_unique<SkiaGLCommonRepresentation>(
-      manager, this, nullptr, std::move(context_state),
-      cached_promise_textures_, tracker);
+  return std::make_unique<SkiaGaneshImageRepresentationImpl>(
+      manager, this, std::move(context_state), cached_promise_textures_,
+      tracker);
+}
+
+std::unique_ptr<VideoImageRepresentation> GLTextureImageBacking::ProduceVideo(
+    SharedImageManager* manager,
+    MemoryTypeTracker* tracker,
+    VideoDevice device) {
+#if BUILDFLAG(IS_WIN)
+  DCHECK_EQ(textures_.size(), 1u);
+  DCHECK(device);
+
+  return D3D11VideoImageCopyRepresentation::CreateFromGL(
+      textures_[0].GetServiceId(), debug_label(), device.Get(), manager, this,
+      tracker);
+#else
+  return nullptr;
+#endif
 }
 
 void GLTextureImageBacking::InitializeGLTexture(
     const std::vector<GLCommonImageBackingFactory::FormatInfo>& format_info,
     base::span<const uint8_t> pixel_data,
     gl::ProgressReporter* progress_reporter,
-    bool framebuffer_attachment_angle,
-    std::string debug_label_from_client) {
-  // If the extension does not exist, pass an empty debug label to avoid
-  // subsequent crashes.
-  std::string debug_label;
-  if (gl::g_current_gl_driver->ext.b_GL_KHR_debug) {
-    debug_label = "GLSharedImage_" + debug_label_from_client;
-  }
-
+    bool framebuffer_attachment_angle) {
+  const std::string debug_label =
+      "GLSharedImage_" + SharedImageBacking::debug_label();
   int num_planes = format().NumberOfPlanes();
   textures_.reserve(num_planes);
   for (int plane = 0; plane < num_planes; ++plane) {

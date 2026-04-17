@@ -8,25 +8,27 @@
 #include "ash/public/mojom/accelerator_info.mojom-shared.h"
 #include "ash/webui/shortcut_customization_ui/backend/search/fake_search_data.h"
 #include "ash/webui/shortcut_customization_ui/backend/search/search.mojom.h"
-#include "ash/webui/shortcut_customization_ui/backend/search/search_concept.h"
 #include "ui/base/accelerators/accelerator.h"
 
 namespace ash::shortcut_ui::fake_search_data {
 
-ash::mojom::AcceleratorInfoPtr CreateFakeStandardAcceleratorInfo() {
+ash::mojom::AcceleratorInfoPtr CreateFakeStandardAcceleratorInfo(
+    ash::mojom::AcceleratorState state) {
   return ash::mojom::AcceleratorInfo::New(
       /*type=*/ash::mojom::AcceleratorType::kDefault,
-      /*state=*/ash::mojom::AcceleratorState::kEnabled,
+      /*state=*/state,
       /*locked=*/true,
+      /*accelerator_locked=*/false,
       /*layout_properties=*/
       ash::mojom::LayoutStyleProperties::NewStandardAccelerator(
-          ash::mojom::StandardAcceleratorProperties::New(ui::Accelerator(),
-                                                         u"FakeKey")));
+          ash::mojom::StandardAcceleratorProperties::New(
+              ui::Accelerator(), u"FakeKey", std::nullopt)));
 }
 
-std::vector<ash::mojom::AcceleratorInfoPtr> CreateFakeAcceleratorInfoList() {
+std::vector<ash::mojom::AcceleratorInfoPtr> CreateFakeAcceleratorInfoList(
+    ash::mojom::AcceleratorState state) {
   std::vector<ash::mojom::AcceleratorInfoPtr> accelerator_info_list;
-  accelerator_info_list.push_back(CreateFakeStandardAcceleratorInfo());
+  accelerator_info_list.push_back(CreateFakeStandardAcceleratorInfo(state));
   return accelerator_info_list;
 }
 

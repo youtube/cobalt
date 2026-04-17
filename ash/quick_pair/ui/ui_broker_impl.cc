@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "ash/constants/ash_features.h"
 #include "ash/quick_pair/common/device.h"
 #include "ash/quick_pair/common/protocol.h"
 #include "ash/quick_pair/ui/actions.h"
@@ -42,7 +43,6 @@ void UIBrokerImpl::ShowDiscovery(scoped_refptr<Device> device) {
       break;
     case Protocol::kFastPairRetroactive:
       NOTREACHED();
-      break;
   }
 }
 
@@ -84,21 +84,41 @@ void UIBrokerImpl::ShowAssociateAccount(scoped_refptr<Device> device) {
       break;
     case Protocol::kFastPairSubsequent:
       NOTREACHED();
-      break;
   }
 }
 
-void UIBrokerImpl::ShowCompanionApp(scoped_refptr<Device> device) {
+void UIBrokerImpl::ShowInstallCompanionApp(scoped_refptr<Device> device) {
+  CHECK(features::IsFastPairPwaCompanionEnabled());
+
   switch (device->protocol()) {
     case Protocol::kFastPairInitial:
     case Protocol::kFastPairRetroactive:
     case Protocol::kFastPairSubsequent:
-      fast_pair_presenter_->ShowCompanionApp(
+      fast_pair_presenter_->ShowInstallCompanionApp(
           device,
           base::BindRepeating(&UIBrokerImpl::NotifyCompanionAppAction,
                               weak_pointer_factory_.GetWeakPtr(), device));
       break;
   }
+}
+
+void UIBrokerImpl::ShowLaunchCompanionApp(scoped_refptr<Device> device) {
+  CHECK(features::IsFastPairPwaCompanionEnabled());
+
+  switch (device->protocol()) {
+    case Protocol::kFastPairInitial:
+    case Protocol::kFastPairRetroactive:
+    case Protocol::kFastPairSubsequent:
+      fast_pair_presenter_->ShowLaunchCompanionApp(
+          device,
+          base::BindRepeating(&UIBrokerImpl::NotifyCompanionAppAction,
+                              weak_pointer_factory_.GetWeakPtr(), device));
+      break;
+  }
+}
+
+void UIBrokerImpl::ShowPasskey(std::u16string device_name, uint32_t passkey) {
+  fast_pair_presenter_->ShowPasskey(device_name, passkey);
 }
 
 void UIBrokerImpl::RemoveNotifications() {

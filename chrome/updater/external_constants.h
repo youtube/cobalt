@@ -5,6 +5,7 @@
 #ifndef CHROME_UPDATER_EXTERNAL_CONSTANTS_H_
 #define CHROME_UPDATER_EXTERNAL_CONSTANTS_H_
 
+#include <optional>
 #include <vector>
 
 #include "base/memory/ref_counted.h"
@@ -41,6 +42,9 @@ class ExternalConstants : public base::RefCountedThreadSafe<ExternalConstants> {
   // The URL to fetch device management policies.
   virtual GURL DeviceManagementURL() const = 0;
 
+  // The URL for the app logos.
+  virtual GURL AppLogoURL() const = 0;
+
   // True if client update protocol signing of update checks is enabled.
   virtual bool UseCUP() const = 0;
 
@@ -54,11 +58,20 @@ class ExternalConstants : public base::RefCountedThreadSafe<ExternalConstants> {
   // CRX format verification requirements.
   virtual crx_file::VerifierFormat CrxVerifierFormat() const = 0;
 
-  // Overrides for the `GroupPolicyManager`.
-  virtual base::Value::Dict GroupPolicies() const = 0;
+  // Policies for the `PolicyManager` surfaced by external constants.
+  virtual base::Value::Dict DictPolicies() const = 0;
 
   // Overrides the overinstall timeout.
   virtual base::TimeDelta OverinstallTimeout() const = 0;
+
+  // Overrides the idleness check period.
+  virtual base::TimeDelta IdleCheckPeriod() const = 0;
+
+  // Overrides machine management state.
+  virtual std::optional<bool> IsMachineManaged() const = 0;
+
+  // The maximum time allowed to establish a connection to CECA.
+  virtual base::TimeDelta CecaConnectionTimeout() const = 0;
 
  protected:
   friend class base::RefCountedThreadSafe<ExternalConstants>;
@@ -68,10 +81,6 @@ class ExternalConstants : public base::RefCountedThreadSafe<ExternalConstants> {
 
 // Sets up an external constants chain of responsibility. May block.
 scoped_refptr<ExternalConstants> CreateExternalConstants();
-
-// Sets up an external constants provider yielding only default values.
-// Intended only for testing of other constants providers.
-scoped_refptr<ExternalConstants> CreateDefaultExternalConstantsForTesting();
 
 }  // namespace updater
 

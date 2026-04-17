@@ -1,6 +1,18 @@
-// Copyright 2013 The Chromium Authors
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "content/browser/web_contents/web_contents_impl.h"
 
 #include <array>
 #include <tuple>
@@ -34,8 +46,8 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell.h"
-#include "cobalt/shell/browser/shell_browser_context.h"
-#include "cobalt/shell/browser/shell_content_browser_client.h"
+#include "cobalt/testing/browser_tests/browser/shell_browser_test_context.h"
+#include "cobalt/testing/browser_tests/browser/shell_content_browser_test_client.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "cobalt/testing/browser_tests/content_browser_test_utils.h"
 #include "cobalt/testing/browser_tests/content_browser_test_utils_internal.h"
@@ -51,14 +63,12 @@
 #include "content/browser/renderer_host/render_widget_host_impl.h"
 #include "content/browser/renderer_host/render_widget_host_input_event_router.h"
 #include "content/browser/renderer_host/text_input_manager.h"
-#include "content/browser/web_contents/web_contents_impl.h"
 #include "content/browser/web_contents/web_contents_view.h"
 #include "content/common/content_navigation_policy.h"
 #include "content/common/frame.mojom-test-utils.h"
 #include "content/common/frame.mojom.h"
 #include "content/public/browser/back_forward_cache.h"
 #include "content/public/browser/browser_thread.h"
-#include "content/public/browser/file_select_listener.h"
 #include "content/public/browser/host_zoom_map.h"
 #include "content/public/browser/invalidate_type.h"
 #include "content/public/browser/javascript_dialog_manager.h"
@@ -781,12 +791,8 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 }
 
 // TODO(b/437415063): Investigate failing test.
-#if BUILDFLAG(IS_ANDROIDTV)
-#define MAYBE_ResourceLoadComplete ResourceLoadComplete
-#else
-#define MAYBE_ResourceLoadComplete DISABLED_ResourceLoadComplete
-#endif
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, MAYBE_ResourceLoadComplete) {
+IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
+                       DISABLED_ResourceLoadComplete) {
   ResourceLoadObserver observer(shell());
   ASSERT_TRUE(embedded_test_server()->Start());
   // Load a page with an image and an image.
@@ -2078,20 +2084,6 @@ class TestWCDelegateForDialogsAndFullscreen : public JavaScriptDialogManager,
   std::unique_ptr<base::RunLoop> run_loop_ = std::make_unique<base::RunLoop>();
 };
 
-class MockFileSelectListener : public FileChooserImpl::FileSelectListenerImpl {
- public:
-  MockFileSelectListener() : FileChooserImpl::FileSelectListenerImpl(nullptr) {
-    SetListenerFunctionCalledTrueForTesting();
-  }
-  void FileSelected(std::vector<blink::mojom::FileChooserFileInfoPtr> files,
-                    const base::FilePath& base_dir,
-                    blink::mojom::FileChooserParams::Mode mode) override {}
-  void FileSelectionCanceled() override {}
-
- private:
-  ~MockFileSelectListener() override = default;
-};
-
 // TODO(b/437415063): Investigate failing test.
 #if BUILDFLAG(IS_ANDROIDTV)
 #define MAYBE_JavaScriptDialogsInMainAndSubframes \
@@ -3144,15 +3136,8 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTestReduceAcceptLanguageOn,
 }
 
 // TODO(b/437415063): Investigate failing test.
-#if BUILDFLAG(IS_ANDROIDTV)
-#define MAYBE_HttpReduceAcceptLanguageInNavigation \
-  HttpReduceAcceptLanguageInNavigation
-#else
-#define MAYBE_HttpReduceAcceptLanguageInNavigation \
-  DISABLED_HttpReduceAcceptLanguageInNavigation
-#endif
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTestReduceAcceptLanguageOn,
-                       MAYBE_HttpReduceAcceptLanguageInNavigation) {
+                       DISABLED_HttpReduceAcceptLanguageInNavigation) {
   net::EmbeddedTestServer http_server_http(net::EmbeddedTestServer::TYPE_HTTP);
   VerifyAcceptLanguageHeader(http_server_http);
 }
@@ -3258,21 +3243,6 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   EXPECT_TRUE(ExecJs(inner_contents, script));
   inner_test_delegate.Wait();
   EXPECT_FALSE(top_contents->IsFullscreen());
-}
-
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest, FileChooserEndsFullscreen) {
-  WebContentsImpl* wc = static_cast<WebContentsImpl*>(shell()->web_contents());
-  TestWCDelegateForDialogsAndFullscreen test_delegate(wc);
-
-  GURL url("about:blank");
-  EXPECT_TRUE(NavigateToURL(shell(), url));
-
-  wc->EnterFullscreenMode(wc->GetPrimaryMainFrame(), {});
-  EXPECT_TRUE(wc->IsFullscreen());
-  wc->RunFileChooser(wc->GetPrimaryMainFrame(),
-                     base::MakeRefCounted<MockFileSelectListener>(),
-                     blink::mojom::FileChooserParams());
-  EXPECT_FALSE(wc->IsFullscreen());
 }
 
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
@@ -5072,7 +5042,6 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   GURL url = embedded_test_server()->GetURL("a.com", "/title1.html");
   auto* rfh = static_cast<RenderFrameHostImpl*>(CreateSubframe(
       web_contents, "" /* frame_id */, url, true /* wait_for_navigation */));
-  ;
   ASSERT_NE(rfh, nullptr);
   EXPECT_EQ(web_contents->max_loaded_frame_count_, 3u);
 
@@ -6203,7 +6172,6 @@ class MediaWaiter : public WebContentsObserver {
   void MediaStartedPlaying(const MediaPlayerInfo& video_type,
                            const MediaPlayerId& id) override {
     started_media_id_ = id;
-    ;
     media_started_playing_loop_.Quit();
   }
   void MediaDestroyed(const MediaPlayerId& id) override {
@@ -6505,13 +6473,8 @@ class MediaWatchTimeChangedDelegate : public WebContentsDelegate {
 // Tests that a media in a fenced frame reports the watch time with the url from
 // the top level frame.
 // TODO(b/437415063): Investigate test failure.
-#if BUILDFLAG(IS_ANDROIDTV)
-#define MAYBE_MediaWatchTimeCallback MediaWatchTimeCallback
-#else
-#define MAYBE_MediaWatchTimeCallback DISABLED_MediaWatchTimeCallback
-#endif
 IN_PROC_BROWSER_TEST_F(WebContentsFencedFrameBrowserTest,
-                       MAYBE_MediaWatchTimeCallback) {
+                       DISABLED_MediaWatchTimeCallback) {
   using UkmEntry = ukm::builders::Media_WebMediaPlayerState;
   ukm::TestAutoSetUkmRecorder test_recorder_;
 

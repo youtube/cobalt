@@ -6,6 +6,7 @@
 
 #include <set>
 #include <sstream>
+#include <string_view>
 #include <vector>
 
 #include "base/containers/contains.h"
@@ -14,7 +15,6 @@
 #include "base/logging.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
@@ -29,7 +29,7 @@ namespace net::transport_security_state {
 
 namespace {
 
-bool IsImportantWordInCertificateName(base::StringPiece name) {
+bool IsImportantWordInCertificateName(std::string_view name) {
   const char* const important_words[] = {"Universal", "Global", "EV", "G1",
                                          "G2",        "G3",     "G4", "G5"};
   for (auto* important_word : important_words) {
@@ -42,7 +42,7 @@ bool IsImportantWordInCertificateName(base::StringPiece name) {
 
 // Strips all characters not matched by the RegEx [A-Za-z0-9_] from |name| and
 // returns the result.
-std::string FilterName(base::StringPiece name) {
+std::string FilterName(std::string_view name) {
   std::string filtered;
   for (const char& character : name) {
     if ((character >= '0' && character <= '9') ||
@@ -56,20 +56,20 @@ std::string FilterName(base::StringPiece name) {
 
 // Returns true if |pin_name| is a reasonable match for the certificate name
 // |name|.
-bool MatchCertificateName(base::StringPiece name, base::StringPiece pin_name) {
-  std::vector<base::StringPiece> words = base::SplitStringPiece(
+bool MatchCertificateName(std::string_view name, std::string_view pin_name) {
+  std::vector<std::string_view> words = base::SplitStringPiece(
       name, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   if (words.empty()) {
     LOG(ERROR) << "No words in certificate name for pin " << pin_name;
     return false;
   }
-  base::StringPiece first_word = words[0];
+  std::string_view first_word = words[0];
 
-  if (base::EndsWith(first_word, ",")) {
+  if (first_word.ends_with(",")) {
     first_word = first_word.substr(0, first_word.size() - 1);
   }
 
-  if (base::StartsWith(first_word, "*.")) {
+  if (first_word.starts_with("*.")) {
     first_word = first_word.substr(2, first_word.size() - 2);
   }
 
@@ -98,7 +98,7 @@ bool MatchCertificateName(base::StringPiece name, base::StringPiece pin_name) {
   }
 
   for (size_t i = 0; i < words.size(); ++i) {
-    base::StringPiece word = words[i];
+    std::string_view word = words[i];
     if (word == "Class" && (i + 1) < words.size()) {
       std::string class_name = base::StrCat({word, words[i + 1]});
 
@@ -133,7 +133,7 @@ bool MatchCertificateName(base::StringPiece name, base::StringPiece pin_name) {
 
 // Returns true iff |candidate| is not empty, the first character is in the
 // range A-Z, and the remaining characters are in the ranges a-Z, 0-9, or '_'.
-bool IsValidName(base::StringPiece candidate) {
+bool IsValidName(std::string_view candidate) {
   if (candidate.empty() || candidate[0] < 'A' || candidate[0] > 'Z') {
     return false;
   }
@@ -178,10 +178,10 @@ static constexpr char kPolicyJSONKey[] = "policy";
 
 }  // namespace
 
-bool ParseCertificatesFile(base::StringPiece certs_input,
+bool ParseCertificatesFile(std::string_view certs_input,
                            Pinsets* pinsets,
                            base::Time* timestamp) {
-  if (certs_input.find("\r\n") != base::StringPiece::npos) {
+  if (certs_input.find("\r\n") != std::string_view::npos) {
     LOG(ERROR) << "CRLF line-endings found in the pins file. All files must "
                   "use LF (unix style) line-endings.";
     return false;
@@ -197,7 +197,7 @@ bool ParseCertificatesFile(base::StringPiece certs_input,
   bssl::UniquePtr<X509> certificate;
   SPKIHash hash;
 
-  for (base::StringPiece line : SplitStringPiece(
+  for (std::string_view line : SplitStringPiece(
            certs_input, "\n", base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL)) {
     if (!line.empty() && line[0] == '#') {
       continue;
@@ -313,12 +313,12 @@ bool ParseCertificatesFile(base::StringPiece certs_input,
   return true;
 }
 
-bool ParseJSON(base::StringPiece hsts_json,
-               base::StringPiece pins_json,
+bool ParseJSON(std::string_view hsts_json,
+               std::string_view pins_json,
                TransportSecurityStateEntries* entries,
                Pinsets* pinsets) {
   static constexpr auto valid_hsts_keys =
-      base::MakeFixedFlatSet<base::StringPiece>({
+      base::MakeFixedFlatSet<std::string_view>({
           kNameJSONKey,
           kPolicyJSONKey,
           kIncludeSubdomainsJSONKey,
@@ -327,7 +327,7 @@ bool ParseJSON(base::StringPiece hsts_json,
       });
 
   static constexpr auto valid_pins_keys =
-      base::MakeFixedFlatSet<base::StringPiece>({
+      base::MakeFixedFlatSet<std::string_view>({
           kNameJSONKey,
           kIncludeSubdomainsJSONKey,
           kPinsJSONKey,
@@ -339,20 +339,17 @@ bool ParseJSON(base::StringPiece hsts_json,
       "test",        "public-suffix", "google",      "custom",
       "bulk-legacy", "bulk-18-weeks", "bulk-1-year", "public-suffix-requested"};
 
-  absl::optional<base::Value> hsts_value = base::JSONReader::Read(hsts_json);
-  if (!hsts_value.has_value() || !hsts_value->is_dict()) {
+  std::optional<base::Value::Dict> hsts_dict =
+      base::JSONReader::ReadDict(hsts_json);
+  if (!hsts_dict) {
     LOG(ERROR) << "Could not parse the input HSTS JSON file";
     return false;
   }
 
-  absl::optional<base::Value> pins_value = base::JSONReader::Read(pins_json);
-  if (!pins_value.has_value()) {
-    LOG(ERROR) << "Could not parse the input pins JSON file";
-    return false;
-  }
-  base::Value::Dict* pins_dict = pins_value->GetIfDict();
+  std::optional<base::Value::Dict> pins_dict =
+      base::JSONReader::ReadDict(pins_json);
   if (!pins_dict) {
-    LOG(ERROR) << "Input pins JSON file does not contain a dictionary";
+    LOG(ERROR) << "Could not parse the input pins JSON file";
     return false;
   }
 
@@ -404,13 +401,13 @@ bool ParseJSON(base::StringPiece hsts_json,
       return false;
     }
 
-    pins_map[*maybe_hostname] = std::make_pair(
-        *maybe_pinset,
-        parsed->FindBool(kIncludeSubdomainsJSONKey).value_or(false));
+    pins_map[*maybe_hostname] =
+        std::pair(*maybe_pinset,
+                  parsed->FindBool(kIncludeSubdomainsJSONKey).value_or(false));
   }
 
   const base::Value::List* preload_entries_list =
-      hsts_value->GetDict().FindList("entries");
+      hsts_dict->FindList("entries");
   if (!preload_entries_list) {
     LOG(ERROR) << "Could not parse the entries in the input HSTS JSON";
     return false;

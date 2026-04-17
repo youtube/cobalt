@@ -13,33 +13,39 @@
 
 namespace views {
 
-AnimationDelegateViews::AnimationDelegateViews(View* view) : view_(view) {
-  if (view)
+AnimationDelegateViews::AnimationDelegateViews(View* view,
+                                               const base::Location& location)
+    : view_(view), location_(location) {
+  if (view) {
     scoped_observation_.Observe(view);
+  }
 }
 
 AnimationDelegateViews::~AnimationDelegateViews() {
   // Reset the delegate so that we don't attempt to notify our observer from
   // the destructor.
-  if (container_)
+  if (container_) {
     container_->set_observer(nullptr);
+  }
 }
 
 void AnimationDelegateViews::AnimationContainerWasSet(
     gfx::AnimationContainer* container) {
-  if (container_ == container)
+  if (container_ == container) {
     return;
+  }
 
-  if (container_)
+  if (container_) {
     container_->set_observer(nullptr);
+  }
 
   container_ = container;
   container_->set_observer(this);
-  UpdateAnimationRunner(FROM_HERE);
+  UpdateAnimationRunner(location_);
 }
 
 void AnimationDelegateViews::OnViewAddedToWidget(View* observed_view) {
-  UpdateAnimationRunner(FROM_HERE);
+  UpdateAnimationRunner(location_);
 }
 
 void AnimationDelegateViews::OnViewRemovedFromWidget(View* observed_view) {
@@ -50,7 +56,7 @@ void AnimationDelegateViews::OnViewIsDeleting(View* observed_view) {
   DCHECK(scoped_observation_.IsObservingSource(view_.get()));
   scoped_observation_.Reset();
   view_ = nullptr;
-  UpdateAnimationRunner(FROM_HERE);
+  UpdateAnimationRunner(location_);
 }
 
 void AnimationDelegateViews::AnimationContainerShuttingDown(
@@ -71,8 +77,9 @@ void AnimationDelegateViews::UpdateAnimationRunner(
     return;
   }
 
-  if (!container_ || container_->has_custom_animation_runner())
+  if (!container_ || container_->has_custom_animation_runner()) {
     return;
+  }
 
   auto compositor_animation_runner =
       std::make_unique<CompositorAnimationRunner>(view_->GetWidget(), location);
@@ -85,10 +92,11 @@ void AnimationDelegateViews::ClearAnimationRunner() {
   // we need to release it before `container_` actually releases the memory it
   // points to.
   compositor_animation_runner_ = nullptr;
-  // TODO(https://crbug.com/960621): make sure the container has a correct
+  // TODO(crbug.com/41457352): make sure the container has a correct
   // compositor-assisted runner.
-  if (container_)
+  if (container_) {
     container_->SetAnimationRunner(nullptr);
+  }
 }
 
 }  // namespace views

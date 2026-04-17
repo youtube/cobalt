@@ -4,62 +4,101 @@
 
 package org.chromium.chrome.browser.toolbar;
 
+import android.os.Build;
+import android.os.Build.VERSION;
+import android.os.Build.VERSION_CODES;
+import android.text.TextUtils;
+
+import org.chromium.base.DeviceInfo;
+import org.chromium.base.ResettersForTesting;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
-import org.chromium.chrome.browser.flags.MutableFlagWithSafeDefault;
+import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderUtils;
+
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Set;
 
 /** Utility class for toolbar code interacting with features and params. */
+@NullMarked
 public final class ToolbarFeatures {
-    // The ablation experiment turns off toolbar scrolling off the screen. Initially this also
-    // turned off captures, which are unnecessary when the toolbar cannot scroll off. But this param
-    // allows half of this work to still be done, allowing measurement of both halves when compared
-    // to the original ablation and controls.
-    private static final MutableFlagWithSafeDefault sToolbarScrollAblation =
-            new MutableFlagWithSafeDefault(
-                    ChromeFeatureList.TOOLBAR_SCROLL_ABLATION_ANDROID, false);
-    private static final String ALLOW_CAPTURES = "allow_captures";
+    private static @Nullable Boolean sHeaderCustomizationDisallowedForOem;
+    private static @Nullable Boolean sHeaderCustomizationAllowedForOem;
 
-    private static final MutableFlagWithSafeDefault sSuppressionFlag =
-            new MutableFlagWithSafeDefault(ChromeFeatureList.SUPPRESS_TOOLBAR_CAPTURES, false);
-    private static final MutableFlagWithSafeDefault sRecordSuppressionMetrics =
-            new MutableFlagWithSafeDefault(ChromeFeatureList.RECORD_SUPPRESSION_METRICS, true);
-    private static final MutableFlagWithSafeDefault sDelayTransitionsForAnimation =
-            new MutableFlagWithSafeDefault(ChromeFeatureList.DELAY_TRANSITIONS_FOR_ANIMATION, true);
+    private static @Nullable Boolean sTabStripLayoutOptimizationEnabledForTesting;
 
     /** Private constructor to avoid instantiation. */
     private ToolbarFeatures() {}
 
-    /** Returns whether captures should be blocked as part of the ablation experiment. */
-    public static boolean shouldBlockCapturesForAblation() {
-        // Not in ablation or pre-native, allow captures like normal.
-        if (!sToolbarScrollAblation.isEnabled()) {
-            return false;
-        }
-
-        // Ablation is enabled, follow the param.
-        return !ChromeFeatureList.getFieldTrialParamByFeatureAsBoolean(
-                ChromeFeatureList.TOOLBAR_SCROLL_ABLATION_ANDROID, ALLOW_CAPTURES, false);
-    }
-
-    public static boolean shouldSuppressCaptures() {
-        return sSuppressionFlag.isEnabled();
-    }
-
-    /**
-     * Returns whether the layout system will delay transitions between start/done hiding/showing
-     * for Android view animations or not. When this is delayed, the toolbar code will try to
-     * always draw itself from Android views during these transitions, to avoid letting the captured
-     * bitmap leak through during transitions. With suppression enabled, the captured bitmap is less
-     * reliable during these transitions.
-     */
-    public static boolean shouldDelayTransitionsForAnimation() {
-        return sDelayTransitionsForAnimation.isEnabled();
-    }
     /**
      * Returns whether to record metrics from suppression experiment. This allows an arm of
      * suppression to run without the overhead from reporting any extra metrics in Java. Using a
      * feature instead of a param to utilize Java side caching.
      */
     public static boolean shouldRecordSuppressionMetrics() {
-        return sRecordSuppressionMetrics.isEnabled();
+        return ChromeFeatureList.sRecordSuppressionMetrics.isEnabled();
+    }
+
+    /** Returns if we are using optimized window layout for tab strip. */
+    public static boolean isTabStripWindowLayoutOptimizationEnabled(
+            boolean isTablet, boolean isDefaultDisplay) {
+        if (sTabStripLayoutOptimizationEnabledForTesting != null) {
+            return sTabStripLayoutOptimizationEnabledForTesting;
+        }
+        if (DeviceInfo.isAutomotive()) {
+            return false;
+        }
+
+        // Determine if app header customization will be supported on an external display.
+        if (!AppHeaderUtils.shouldAllowHeaderCustomizationOnNonDefaultDisplay()
+                && !isDefaultDisplay) {
+            return false;
+        }
+
+        // Determine if app header customization will be ignored on specific OEMs.
+        if (sHeaderCustomizationDisallowedForOem == null) {
+            Set<String> customHeadersOemDenylist = new HashSet<>();
+            String denylistStr =
+                    ChromeFeatureList.sTabStripLayoutOptimizationOemDenylist.getValue();
+            if (!TextUtils.isEmpty(denylistStr)) {
+                Collections.addAll(customHeadersOemDenylist, denylistStr.split(","));
+            }
+            sHeaderCustomizationDisallowedForOem =
+                    !customHeadersOemDenylist.isEmpty()
+                            && customHeadersOemDenylist.contains(
+                                    Build.MANUFACTURER.toLowerCase(Locale.US));
+        }
+        if (sHeaderCustomizationDisallowedForOem) {
+            return false;
+        }
+
+        // Determine if app header customization will be allowed for specific OEMs.
+        if (sHeaderCustomizationAllowedForOem == null) {
+            Set<String> customHeadersOemAllowlist = new HashSet<>();
+            String allowlistStr =
+                    ChromeFeatureList.sTabStripLayoutOptimizationOemAllowlist.getValue();
+            if (!TextUtils.isEmpty(allowlistStr)) {
+                Collections.addAll(customHeadersOemAllowlist, allowlistStr.split(","));
+            }
+            sHeaderCustomizationAllowedForOem =
+                    customHeadersOemAllowlist.isEmpty()
+                            || customHeadersOemAllowlist.contains(
+                                    Build.MANUFACTURER.toLowerCase(Locale.US));
+        }
+        if (!sHeaderCustomizationAllowedForOem) {
+            return false;
+        }
+
+        return ChromeFeatureList.sTabStripLayoutOptimization.isEnabled()
+                && isTablet
+                && VERSION.SDK_INT >= VERSION_CODES.R;
+    }
+
+    /** Set the return value for {@link #isTabStripWindowLayoutOptimizationEnabled(boolean)}. */
+    public static void setIsTabStripLayoutOptimizationEnabledForTesting(boolean enabled) {
+        sTabStripLayoutOptimizationEnabledForTesting = enabled;
+        ResettersForTesting.register(() -> sTabStripLayoutOptimizationEnabledForTesting = null);
     }
 }

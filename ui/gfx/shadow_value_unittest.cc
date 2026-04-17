@@ -2,9 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/354829279): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/gfx/shadow_value.h"
 
 #include <stddef.h>
+
+#include <array>
 
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/geometry/insets.h"
@@ -13,11 +20,12 @@
 namespace gfx {
 
 TEST(ShadowValueTest, GetMargin) {
-  constexpr struct TestCase {
+  struct TestCase {
     Insets expected_margin;
     size_t shadow_count;
     ShadowValue shadows[2];
-  } kTestCases[] = {
+  };
+  constexpr auto kTestCases = std::to_array<TestCase>({
       {
           Insets(),
           0,
@@ -60,7 +68,7 @@ TEST(ShadowValueTest, GetMargin) {
               {gfx::Vector2d(2, 3), 4, 0},
           },
       },
-  };
+  });
 
   for (size_t i = 0; i < std::size(kTestCases); ++i) {
     Insets margin = ShadowValue::GetMargin(

@@ -8,17 +8,18 @@ import android.content.Context;
 import android.view.accessibility.CaptioningManager;
 
 import org.chromium.base.ContextUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.util.Locale;
 
-/**
- * Implementation of SystemCaptioningBridge that uses CaptioningManager.
- */
-public class CaptioningBridge
-        extends CaptioningManager.CaptioningChangeListener implements SystemCaptioningBridge {
+/** Implementation of SystemCaptioningBridge that uses CaptioningManager. */
+@NullMarked
+public class CaptioningBridge extends CaptioningManager.CaptioningChangeListener
+        implements SystemCaptioningBridge {
     private final CaptioningChangeDelegate mCaptioningChangeDelegate;
     private final CaptioningManager mCaptioningManager;
-    private static CaptioningBridge sInstance;
+    private static @Nullable CaptioningBridge sInstance;
 
     public static CaptioningBridge getInstance() {
         if (sInstance == null) {
@@ -30,8 +31,9 @@ public class CaptioningBridge
     private CaptioningBridge() {
         mCaptioningChangeDelegate = new CaptioningChangeDelegate();
         mCaptioningManager =
-                (CaptioningManager) ContextUtils.getApplicationContext().getSystemService(
-                        Context.CAPTIONING_SERVICE);
+                (CaptioningManager)
+                        ContextUtils.getApplicationContext()
+                                .getSystemService(Context.CAPTIONING_SERVICE);
     }
 
     @Override
@@ -45,7 +47,7 @@ public class CaptioningBridge
     }
 
     @Override
-    public void onLocaleChanged(Locale locale) {
+    public void onLocaleChanged(@Nullable Locale locale) {
         mCaptioningChangeDelegate.onLocaleChanged(locale);
     }
 
@@ -55,9 +57,7 @@ public class CaptioningBridge
         mCaptioningChangeDelegate.onUserStyleChanged(captioningStyle);
     }
 
-    /**
-     * Force-sync the current closed caption settings to the delegate
-     */
+    /** Force-sync the current closed caption settings to the delegate */
     private void syncToDelegate() {
         mCaptioningChangeDelegate.onEnabledChanged(mCaptioningManager.isEnabled());
         mCaptioningChangeDelegate.onFontScaleChanged(mCaptioningManager.getFontScale());

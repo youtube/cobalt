@@ -247,7 +247,7 @@ class EnterpriseReportingPrivateEnqueueRecordFunction
   ExtensionFunction::ResponseAction Run() override;
 
   bool TryParseParams(
-      absl::optional<api::enterprise_reporting_private::EnqueueRecord::Params>
+      std::optional<api::enterprise_reporting_private::EnqueueRecord::Params>
           params,
       ::reporting::Record& record,
       ::reporting::Priority& priority);
@@ -379,6 +379,26 @@ class EnterpriseReportingPrivateGetHotfixesFunction : public ExtensionFunction {
 };
 
 #endif  // BUILDFLAG(IS_WIN)
+
+class EnterpriseReportingPrivateReportDataMaskingEventFunction
+    : public ExtensionFunction {
+ public:
+  DECLARE_EXTENSION_FUNCTION(
+      "enterprise.reportingPrivate.reportDataMaskingEvent",
+      ENTERPRISEREPORTINGPRIVATE_REPORTDATAMASKINGEVENT)
+
+  EnterpriseReportingPrivateReportDataMaskingEventFunction();
+  EnterpriseReportingPrivateReportDataMaskingEventFunction(
+      const EnterpriseReportingPrivateReportDataMaskingEventFunction&) = delete;
+  EnterpriseReportingPrivateReportDataMaskingEventFunction& operator=(
+      const EnterpriseReportingPrivateReportDataMaskingEventFunction&) = delete;
+
+ private:
+  ~EnterpriseReportingPrivateReportDataMaskingEventFunction() override;
+
+  // ExtensionFunction:
+  ExtensionFunction::ResponseAction Run() override;
+};
 
 }  // namespace extensions
 

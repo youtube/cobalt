@@ -1,5 +1,5 @@
 {
   "failing_tests": [
-    "HeapDeathTest*"
+    "HeapDeathTest.*"
   ]
 }

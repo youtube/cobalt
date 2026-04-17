@@ -4,6 +4,7 @@
 
 syntax = "proto2";
 
+import "components/reporting/proto/synced/session_affiliated_user.proto";
 import "components/services/app_service/public/protos/app_types.proto";
 
 option optimize_for = LITE_RUNTIME;
@@ -35,6 +36,9 @@ enum HttpsLatencyProblem {
 }
 
 // Data that describe the result of the https latency diagnostics routine.
+// Default checking rate: 10 mins.
+// Policy: ReportDeviceNetworkStatus
+// Policy default: true
 message HttpsLatencyRoutineData {
   // Https latency routine verdict.
   optional RoutineVerdict verdict = 1;
@@ -46,6 +50,10 @@ message HttpsLatencyRoutineData {
 }
 
 // Data describing observed network bandwidth
+// Default checking rate: 60 mins.
+// Checking rate policy: ReportDeviceNetworkTelemetryCollectionRateMs
+// Policy: ReportDeviceNetworkStatus
+// Policy default: true
 message BandwidthData {
   // Download speed in kbps
   optional int64 download_speed_kbps = 1;
@@ -81,6 +89,11 @@ enum NetworkType {
 }
 
 // A single network telemetry data collected at a specific point of time.
+// Contained inside the `NetworksTelemetry` message.
+// Default checking rate: 60 mins.
+// Checking rate policy: ReportDeviceNetworkTelemetryCollectionRateMs,
+// Policy: ReportDeviceNetworkStatus
+// Policy default: true
 message NetworkTelemetry {
   // Unique identifier of the network.
   optional string guid = 1;
@@ -114,9 +127,22 @@ message NetworkTelemetry {
   optional bool power_management_enabled = 14;
   // Signal strength for wireless networks in dBm.
   optional int32 signal_strength_dbm = 15;
+
+  // IPv6 addresses assigned to this network.
+  repeated string ipv6_address = 16;
+  // The gateway IPv6 for this interface, if any.
+  optional string ipv6_gateway = 17;
+  // Is the network metered or not.
+  optional bool is_metered = 18;
+  // Link reported max download speed.
+  optional int32 link_down_speed_kbps = 19;
 }
 
 // Message describing the NETWORK_CONNECTION_STATE_CHANGE event.
+// Policy: ReportDeviceNetworkStatus
+// Policy default: true
+// Triggered by an event, not collected periodically or once per boot.
+// Triggered when there is a network state change from one stage to another one.
 message NetworkConnectionStateChangeEventData {
   // Unique identifier of the network.
   optional string guid = 1;
@@ -126,6 +152,12 @@ message NetworkConnectionStateChangeEventData {
 
 // Message describing the WIFI_SIGNAL_STRENGTH_LOW and
 // WIFI_SIGNAL_STRENGTH_RECOVERED events.
+// Policy: ReportDeviceNetworkStatus
+// Policy default: true
+// Triggered by an event, not collected periodically or once per boot.
+// Triggered when the signal of the WiFi network drops below the
+// dbm threshold of -70 or if the signal was low and it improves
+// above the threshold we also report it.
 message SignalStrengthEventData {
   // Unique identifier of the network.
   optional string guid = 1;
@@ -133,7 +165,11 @@ message SignalStrengthEventData {
   optional int32 signal_strength_dbm = 2;
 }
 
-// Configured networks telemetry data.
+// Configured networks telemetry data. This is umbrella networks telemetry proto
+// containing multiple network telemetry types, for the specific network
+// telemetry take a look at the NetworkTelemetry message. Each of the internal
+// messages have separate collection/reporting rates. Policy:
+// ReportDeviceNetworkStatus Policy default: true
 message NetworksTelemetry {
   // List of each network telemetry.
   repeated NetworkTelemetry network_telemetry = 1;
@@ -171,12 +207,18 @@ enum ThunderboltSecurityLevel {
   THUNDERBOLT_SECURITY_NO_PCIE_LEVEL = 6;
 }
 
+// Collected once per boot.
+// Policy: ReportDeviceSecurityStatus
+// Policy default: false
 message ThunderboltInfo {
   optional ThunderboltSecurityLevel security_level = 1;
 }
 
-// currently we are only reporting bus device info for thunderbolt, though we
+// Currently we are only reporting bus device info for thunderbolt, though we
 // will certainly add more in the future.
+// Collected once per boot.
+// Policy: ReportDeviceSecurityStatus
+// Policy default: false
 message BusDeviceInfo {
   repeated ThunderboltInfo thunderbolt_info = 1;
 }
@@ -205,6 +247,9 @@ enum MemoryEncryptionAlgorithm {
   MEMORY_ENCRYPTION_ALGORITHM_AES_XTS_256 = 3;
 }
 
+// Collected once per boot.
+// Policy: ReportDeviceMemoryInfo
+// Policy default: false
 message TotalMemoryEncryptionInfo {
   // The state of memory encryption on the device.
   optional MemoryEncryptionState encryption_state = 1;
@@ -216,6 +261,9 @@ message TotalMemoryEncryptionInfo {
   optional MemoryEncryptionAlgorithm encryption_algorithm = 4;
 }
 
+// Collected once per boot.
+// Policy: ReportDeviceMemoryInfo
+// Policy default: false
 message MemoryInfo {
   // TME info for the device.
   optional TotalMemoryEncryptionInfo tme_info = 1;
@@ -261,11 +309,17 @@ message NetworkInterface {
 }
 
 // Networks info data.
+// Collected once per boot.
+// Policy: ReportDeviceNetworkStatus
+// Policy default: true
 message NetworksInfo {
   repeated NetworkInterface network_interfaces = 1;
 }
 
 // Touch screens info data.
+// Collected once per boot.
+// Policy: ReportDeviceGraphicsStatus
+// Policy default: false
 message TouchScreenInfo {
   // The touchpad library name used by the input stack.
   optional string library_name = 1;
@@ -284,12 +338,18 @@ message TouchScreenDevice {
 }
 
 // Information about ePrivacy Screens
+// Collected once per boot.
+// Policy: ReportDeviceGraphicsStatus
+// Policy default: false
 message PrivacyScreenInfo {
   // If ePrivacy Screen is supported on the device.
   optional bool supported = 1;
 }
 
 // Information about the displays.
+// Collected once per boot.
+// Policy: ReportDeviceGraphicsStatus
+// Policy default: false
 message DisplayInfo {
   // Info on all the screens the device has.
   repeated DisplayDevice display_device = 1;
@@ -311,6 +371,10 @@ message DisplayDevice {
   optional int32 model_id = 6;
   // Year of manufacture.
   optional int32 manufacture_year = 7;
+  // 32 bits serial number.
+  optional uint32 serial_number = 8;
+  // EDID version.
+  optional string edid_version = 9;
 }
 
 // Information about keylocker. This is supported on Intel CPUs.
@@ -321,6 +385,9 @@ message KeylockerInfo {
   optional bool configured = 2;
 }
 
+// Collected once per boot.
+// Policy: ReportDeviceCpuInfo
+// Policy default: false
 message CpuInfo {
   // Information about keylocker for the devices CPUs.
   optional KeylockerInfo keylocker_info = 1;
@@ -346,6 +413,10 @@ message InfoData {
 }
 
 // Audio telemetry data recorded intermittently
+// Default checking rate: 15 mins.
+// Checking rate policy: ReportDeviceAudioStatusCheckingRateMs
+// Policy: ReportDeviceAudioStatus
+// Policy default: true
 message AudioTelemetry {
   // Is active output device mute or not.
   optional bool output_mute = 1;
@@ -362,6 +433,9 @@ message AudioTelemetry {
 }
 
 // Boot Performance telemetry data
+// Collected once per boot
+// Policy: ReportDeviceBootMode
+// Policy default: true
 message BootPerformanceTelemetry {
   // Total time when to boot up.
   optional int64 boot_up_seconds = 1;
@@ -376,6 +450,10 @@ message BootPerformanceTelemetry {
 }
 
 // Data tracking user status information
+// Default checking rate: 15 mins.
+// Checking rate policy: DeviceActivityHeartbeatCollectionRateMs
+// Policy: DeviceActivityHeartbeatEnabled
+// Policy default: false
 message UserStatusTelemetry {
   enum DeviceActivityState {
     DEVICE_ACTIVITY_STATE_UNKNOWN = 0;
@@ -388,6 +466,10 @@ message UserStatusTelemetry {
   optional DeviceActivityState device_activity_state = 1;
 }
 
+// Displays telemetry data
+// Default checking rate: 3 hrs.
+// Policy: ReportDeviceGraphicsStatus
+// Policy default: false
 message DisplaysTelemetry {
   // Status of all the displays.
   repeated DisplayStatus display_status = 1;
@@ -404,6 +486,76 @@ message DisplayStatus {
   optional int64 refresh_rate = 4;
   // Internal or external display.
   optional bool is_internal = 5;
+}
+
+// Deliberately left empty as there is no payload for Heartbeat messages.
+// It just implicitly indicates that the sender is still alive.
+// Default checking rate: 2 mins.
+// Policy: HeartbeatEnabled
+// Policy default: false
+message KioskHeartbeatTelemetry {
+  // No payload
+}
+
+// A message describing a single attention span of a person for the Kiosk
+// Vision telemetry report.
+message KioskVisionView {
+  // Start time of this view. In seconds since epoch.
+  optional int64 start_time_sec = 1;
+  // End time of this view. In seconds.
+  optional int64 end_time_sec = 2;
+}
+
+// A message describing the attention of one person for the Kiosk Vision
+// telemetry report.
+message KioskVisionAudience {
+  // The start date when this person was first detected.
+  // In seconds since epoch.
+  optional int64 presence_start_date_sec = 1;
+  // The end date when this person was no longer detected.
+  // In seconds since epoch.
+  optional int64 presence_end_date_sec = 2;
+  // The view information of this person.
+  // Repeated, as a person can view multiple times.
+  repeated KioskVisionView views = 3;
+}
+
+// A message to report Kiosk Vision's audience data.
+message KioskVisionTelemetry {
+  // Start date of this aggregate report. In seconds since epoch.
+  optional int64 start_date_sec = 1;
+  // End date of this aggregate report. In seconds since epoch.
+  optional int64 end_date_sec = 2;
+  // Number of persons that left in the time frame of this aggregate
+  // report and looked at the sign.
+  optional int32 view_count = 3;
+  // Number of persons that left in the time frame of this aggregate
+  // report and didn't look at the sign.
+  optional int32 pass_count = 4;
+  // Audience information. Only information from people that are no
+  // longer detected is transmitted. This also means that the
+  // audience information includes older data.
+  repeated KioskVisionAudience audience = 5;
+}
+
+// A message to report the current state and potential errors of the
+// KioskVision framework to the telemetry api.
+message KioskVisionStatusReport {
+  enum KioskVisionState {
+    // Kiosk vision is functioning normally.
+    KIOSK_VISION_STATE_ACTIVE = 0;
+    // An unknown error has occurred.
+    KIOSK_VISION_STATE_UNKNOWN_ERROR = 1;
+    // The KioskVision framework could not detect a camera.
+    KIOSK_VISION_STATE_CAMERA_NOT_FOUND = 2;
+  }
+  optional KioskVisionState state = 1;
+
+  // Time stamp of this status report (seconds since epoch).
+  optional int64 time_stamp_sec = 2;
+
+  // Time stamp of the last status change (seconds since epoch).
+  optional int64 state_change_time_stamp_sec = 3;
 }
 
 // Data that can change over time, collected and reported every specific period
@@ -431,8 +583,23 @@ message TelemetryData {
   optional DisplaysTelemetry displays_telemetry = 6;
   // App telemetry data.
   optional AppTelemetry app_telemetry = 7;
+  // Fatal crash data.
+  optional FatalCrashTelemetry fatal_crash_telemetry = 9;
+  // Runtime counter data.
+  optional RuntimeCountersTelemetry runtime_counters_telemetry = 10;
+  // Website telemetry data.
+  optional WebsiteTelemetry website_telemetry = 11;
+  // Kiosk Heartbeats as telemetry data.
+  optional KioskHeartbeatTelemetry heartbeat_telemetry = 12;
+  // Kiosk Vision telemetry data.
+  optional KioskVisionTelemetry kiosk_vision_telemetry = 13;
+  // Kiosk Vision status data.
+  optional KioskVisionStatusReport kiosk_vision_status = 14;
 }
 
+// Type of event metric being reported.
+// This must be kept in sync with //tools/metrics/histograms/enums.xml's
+// EnterpriseCloudReportingMetricEventType in the Chromium repo.
 enum MetricEventType {
   EVENT_TYPE_UNSPECIFIED = 0;
   NETWORK_HTTPS_LATENCY_CHANGE = 1;
@@ -446,11 +613,19 @@ enum MetricEventType {
   WIFI_SIGNAL_STRENGTH_RECOVERED = 14;
   NETWORK_STATE_CHANGE = 15;
   VPN_CONNECTION_STATE_CHANGE = 16;
+  FATAL_CRASH = 17;
+  URL_OPENED = 18;
+  URL_CLOSED = 19;
+  KIOSK_HEARTBEAT = 20;
+  EXTERNAL_DISPLAY_CONNECTED = 21;
+  EXTERNAL_DISPLAY_DISCONNECTED = 22;
 
   reserved 2, 3, 10, 11, 12;
 }
 
 // App telemetry data.
+// Policy: ReportAppInventory
+// Policy default: false
 message AppTelemetry {
   oneof app_metric_data {
     // App installation data.
@@ -467,6 +642,11 @@ message AppTelemetry {
 }
 
 // App installation data.
+// Policy: ReportAppInventory
+// Policy default: false
+// Triggered by an event, not collected periodically or once per boot.
+// Triggered when an Chrome app, extension or progressive web app is launched.
+// Depends on the policy.
 message AppInstallData {
   // App installation source.
   optional apps.ApplicationInstallSource app_install_source = 1;
@@ -481,6 +661,11 @@ message AppInstallData {
 }
 
 // App launch data.
+// Policy: ReportAppInventory
+// Policy default: false
+// Triggered by an event, not collected periodically or once per boot.
+// Triggered when an Chrome app, extension or progressive web app is launched.
+// Depends on the policy.
 message AppLaunchData {
   // App launch source.
   optional apps.ApplicationLaunchSource app_launch_source = 1;
@@ -491,6 +676,10 @@ message AppLaunchData {
 }
 
 // App usage data.
+// Default checking rate: 15 mins.
+// Policy: ReportAppInventory
+// Policy default: false
+// Minimum usage time threshold for app usage reporting: 1 millisecond.
 message AppUsageData {
   message AppUsage {
     // App foreground running time (in milliseconds).
@@ -510,6 +699,11 @@ message AppUsageData {
 }
 
 // App uninstall data.
+// Policy: ReportAppInventory
+// Policy default: false
+// Triggered by an event, not collected periodically or once per boot.
+// Triggered when an Chrome app, extension or progressive web app is
+// uninstalled. Depends on the policy.
 message AppUninstallData {
   // App uninstall source.
   optional apps.ApplicationUninstallSource app_uninstall_source = 1;
@@ -519,10 +713,82 @@ message AppUninstallData {
   optional apps.ApplicationType app_type = 3;
 }
 
+// Website telemetry data.
+// Policy: ReportWebsiteActivityAllowlist
+// Policy default: false
+message WebsiteTelemetry {
+  oneof website_metric_data {
+    // Website opened data.
+    WebsiteOpenedData website_opened_data = 1;
+    // Website closed data.
+    WebsiteClosedData website_closed_data = 2;
+    // Website usage data.
+    WebsiteUsageData website_usage_data = 3;
+  }
+}
+
+// Website opened data.
+// Policy: ReportWebsiteActivityAllowlist
+// Policy default: false
+// Triggered by an event, not collected periodically or once per boot.
+// Triggered if the website is in the allowlist of the policy and when
+// that website is opened.
+message WebsiteOpenedData {
+  // Website URL.
+  optional string url = 1;
+  // Render process host id.
+  optional int32 render_process_host_id = 2;
+  // Render frame routing id.
+  optional int32 render_frame_routing_id = 3;
+}
+
+// Website closed data.
+// Policy: ReportWebsiteActivityAllowlist
+// Policy default: false
+// Triggered by an event, not collected periodically or once per boot.
+// Triggered if the website is in the allowlist of the policy and when
+// that website is closed.
+message WebsiteClosedData {
+  // Website URL.
+  optional string url = 1;
+  // Render process host id.
+  optional int32 render_process_host_id = 2;
+  // Render frame routing id.
+  optional int32 render_frame_routing_id = 3;
+}
+
+// Website usage data.
+// Default checking rate: 15 mins.
+// Policy: ReportWebsiteActivityAllowlist
+// Policy default: false
+// Minimum usage time threshold for app usage reporting: 1 millisecond.
+message WebsiteUsageData {
+  message WebsiteUsage {
+    // Website URL.
+    optional string url = 1;
+    // Website foreground running time (in milliseconds).
+    optional int64 running_time_ms = 2;
+  }
+
+  // Usage data that includes other website metadata.
+  repeated WebsiteUsage website_usage = 3;
+}
+
+// Peripherals data.
+// Triggered by an event, not collected periodically or once per boot.
+// Policy: ReportDevicePeripherals
+// Policy default: false
+// Triggering mechanisms:
+// 1. A USB device is added or removed from the device during an affiliated user
+// session. We send the added/removed event, and then send a separate event
+// containing a list of USBs currently connected to the device.
+// 2. An affiliated user logs in. We send a list of USBs connected to the
+// device.
 message PeripheralsTelemetry {
   repeated UsbTelemetry usb_telemetry = 1;
 }
 
+// Usb data.
 message UsbTelemetry {
   // Vendor name
   optional string vendor = 1;
@@ -545,8 +811,118 @@ message UsbTelemetry {
   optional string firmware_version = 8;
 }
 
+// Fatal crash data.
+// Policy: ReportDeviceCrashReportInfo
+// Policy default: false
+// Triggered by an event, not collected periodically or once per boot.
+// Triggered by fatal crashes in the embedded controller, kernel, or Chrome.
+// Crash severity is generally assigned in the associated crash collector in
+// src/platform2/crash-reporter, however for Chrome crashes, our definition of a
+// fatal crash is a crash that is "user disruptive". The following types of
+// Chrome crashes are user disruptive:
+// 1. Crashes or hangs in the browser process (except if they occur during
+// shutdown)
+// 2. Crashes in the renderer, utility, or extension process that are
+// assigned a severity of ERROR.
+//
+// The code for determining if a Chrome crash is user
+// disruptive is in crash-reporter/crash_sender_util.cc
+message FatalCrashTelemetry {
+  enum CrashType {
+    // Unknown crashes.
+    CRASH_TYPE_UNSPECIFIED = 0;
+    // Kernel crashes.
+    CRASH_TYPE_KERNEL = 1;
+    // EC crashes.
+    CRASH_TYPE_EMBEDDED_CONTROLLER = 2;
+    // Chrome crashes.
+    CRASH_TYPE_CHROME = 3;
+  }
+  // The session types follow user_manager::UserType. The server side will
+  // translate to the types described below.
+  enum SessionType {
+    // Including when a crash occurs on the login screen.
+    SESSION_TYPE_UNSPECIFIED = 0;
+    // When presenting to the admin, the following will be SIGNED_IN_USER
+    SESSION_TYPE_REGULAR = 1;
+    SESSION_TYPE_CHILD = 2;
+
+    // When presenting to the admin, the following will be KIOSK
+    SESSION_TYPE_KIOSK_APP = 3;
+    SESSION_TYPE_ARC_KIOSK_APP = 4;
+    SESSION_TYPE_WEB_KIOSK_APP = 5;
+
+    // When presenting to the admin, the following will be MANAGED_GUEST
+    SESSION_TYPE_GUEST = 6;
+    SESSION_TYPE_PUBLIC_ACCOUNT = 7;
+
+    // When presenting to the admin, the following will be ACTIVE_DIRECTORY
+    SESSION_TYPE_ACTIVE_DIRECTORY = 8;
+
+    // When presenting to the admin, the following will be KIOSK
+    SESSION_TYPE_KIOSK_IWA = 9;
+  }
+  // required
+  optional CrashType type = 1;
+  // required
+  optional SessionType session_type = 2;
+  // required
+  optional int64 timestamp_us = 3;
+  // Absent if not signed in or the user is not affiliated. Currently only
+  // contains user email.
+  optional SessionAffiliatedUser affiliated_user = 4;
+  // Absent if the crash has not been uploaded by crash_sender yet.
+  optional string crash_report_id = 5;
+  // required
+  optional string local_id = 6;
+  // If crash report ID is available, has this event been reported without ID
+  // once before?
+  // The optionality of crash_report_id is not sufficient because we need to
+  // distinguish the two cases: (a) A crash is reported for the first time with
+  // a crash report ID and (b) a crash is reported for the first time without a
+  // crash report ID and only has a crash report ID when it is reported for the
+  // second time.
+  optional bool been_reported_without_crash_report_id = 7;
+  // Event based log upload ID that contains the logs related to the crash
+  // event. This Id will be used in the server to connect the uploaded log file
+  // to the specific crash event.
+  optional string event_based_log_id = 8;
+}
+
+// Runtime counters retrieved from CPU. Currently the runtime counters telemetry
+// is only supported by Intel vPro PSR on Gen 14+.
+// Default checking rate: 1 day.
+// Checking rate policy: DeviceReportRuntimeCountersCheckingRateMs
+// Policy: DeviceReportRuntimeCounters
+// Policy default: false
+message RuntimeCountersTelemetry {
+  // All fields below are currently required since Intel vPro is the only
+  // supported source, but we reserve the possibility that absence of a field
+  // implies that it is unavailable on the device in the future.
+
+  // Hardly any of the following fields can be beyond the size of int32.
+  // However, we use int64 because: (a) healthD retrieves uint32 integers from
+  // the hardware, and therefore using int32 here risks overflow. (b) Server
+  // side requires signed integers and therefore uint32 is not an option.
+
+  // Total lifetime runtime. Currently always S0 runtime from Intel vPro PSR.
+  optional int64 uptime_runtime_seconds = 1;
+  // Number of times that the device has entered into the sleep state. Currently
+  // obtained via the PSR, count from S0->S3. As of Oct 2023, this number is
+  // expected to be always zero as ChromeOS devices do not use this state.
+  optional int64 counter_enter_sleep = 2;
+  // Number of times that the device has entered into the hibernation state.
+  // Currently obtained via the PSR, count from S0->S4. As of Oct 2023, this
+  // number is expected to be always zero, unless the ChromeOS device is
+  // equipped with Intel KeyLocker.
+  optional int64 counter_enter_hibernation = 3;
+  // Number of times that the device has entered into the power-off state.
+  // Currently obtained via the PSR, count from S0->S5.
+  optional int64 counter_enter_poweroff = 4;
+}
+
 // Indicates one of the following conditions occurred on the device, data
-// associated with the event will be reported as TelemetryData.
+// associated with the event will be reported as `TelemetryData`.
 // IMPORTANT: DO NOT add any additional fields to `EventData`.
 message EventData {
   optional MetricEventType type = 1;
@@ -561,11 +937,17 @@ message MetricData {
 
   oneof metric_type {
     // Info data collected.
+    // All of this is collected once per boot unless specified otherwise.
     InfoData info_data = 2;
     // Telemetry data collected.
+    // The collection of this data varies, check each message, some of the
+    // messages are collected when an event is detected, if that is the case you
+    // should also expect the `EventData` to be populated with the appropriate
+    // enum.
     TelemetryData telemetry_data = 3;
   }
 
-  // Event data collected.
+  // Event data collected. This is just an enum, if there is data related to
+  // this event is should be present in `TelemetryData`.
   optional EventData event_data = 4;
 }

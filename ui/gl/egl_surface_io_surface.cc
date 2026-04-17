@@ -4,6 +4,7 @@
 
 #include "ui/gl/egl_surface_io_surface.h"
 
+#include "base/check_op.h"
 #include "base/logging.h"
 #include "base/notreached.h"
 #include "ui/gfx/buffer_format_util.h"
@@ -46,8 +47,9 @@ InternalFormatType BufferFormatToInternalFormatType(BufferFormat format) {
     case BufferFormat::RGBX_8888:
       return {GL_RGB, GL_UNSIGNED_BYTE};
     case BufferFormat::BGRA_8888:
-    case BufferFormat::RGBA_8888:
       return {GL_BGRA_EXT, GL_UNSIGNED_BYTE};
+    case BufferFormat::RGBA_8888:
+      return {GL_RGBA, GL_UNSIGNED_BYTE};
     case BufferFormat::RGBA_F16:
       return {GL_RGBA, GL_HALF_FLOAT};
     case BufferFormat::BGRA_1010102:
@@ -129,7 +131,7 @@ bool ScopedEGLSurfaceIOSurface::ValidateTarget(unsigned target) const {
         return false;
       }
       break;
-    case GL_TEXTURE_RECTANGLE_ARB:
+    case GL_TEXTURE_RECTANGLE_ANGLE:
       if (texture_target_ != EGL_TEXTURE_RECTANGLE_ANGLE) {
         LOG(ERROR) << "eglBindTexImage requires RECTANGLE, got: " << target;
         return false;

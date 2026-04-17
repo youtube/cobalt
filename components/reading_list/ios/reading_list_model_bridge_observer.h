@@ -7,6 +7,7 @@
 
 #import <Foundation/Foundation.h>
 
+#include "base/memory/raw_ptr.h"
 #include "components/reading_list/core/reading_list_model_observer.h"
 
 // Protocol duplicating all Reading List Model Observer methods in Objective-C.
@@ -21,9 +22,6 @@
 
 - (void)readingListModel:(const ReadingListModel*)model
          willRemoveEntry:(const GURL&)url;
-
-- (void)readingListModel:(const ReadingListModel*)model
-           willMoveEntry:(const GURL&)url;
 
 - (void)readingListModel:(const ReadingListModel*)model
             willAddEntry:(const ReadingListEntry&)entry;
@@ -68,8 +66,6 @@ class ReadingListModelBridge : public ReadingListModelObserver {
   void ReadingListModelBeingDeleted(const ReadingListModel* model) override;
   void ReadingListWillRemoveEntry(const ReadingListModel* model,
                                   const GURL& url) override;
-  void ReadingListWillMoveEntry(const ReadingListModel* model,
-                                const GURL& url) override;
   void ReadingListWillAddEntry(const ReadingListModel* model,
                                const ReadingListEntry& entry) override;
   void ReadingListDidAddEntry(const ReadingListModel* model,
@@ -83,7 +79,7 @@ class ReadingListModelBridge : public ReadingListModelObserver {
 
   __unsafe_unretained id<ReadingListModelBridgeObserver> observer_;
 
-  ReadingListModel* model_;  // weak
+  raw_ptr<ReadingListModel> model_;  // weak
 };
 
 #endif  // COMPONENTS_READING_LIST_IOS_READING_LIST_MODEL_BRIDGE_OBSERVER_H_

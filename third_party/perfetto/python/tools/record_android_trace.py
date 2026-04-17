@@ -21,6 +21,7 @@ import http.server
 import os
 import re
 import shutil
+import signal
 import socketserver
 import subprocess
 import sys
@@ -64,18 +65,23 @@ class ANSI:
 class HttpHandler(http.server.SimpleHTTPRequestHandler):
 
   def end_headers(self):
-    self.send_header('Access-Control-Allow-Origin', '*')
-    return super().end_headers()
+    self.send_header('Access-Control-Allow-Origin', self.server.allow_origin)
+    self.send_header('Cache-Control', 'no-cache')
+    super().end_headers()
 
   def do_GET(self):
-    self.server.last_request = self.path
-    return super().do_GET()
+    if self.path != '/' + self.server.expected_fname:
+      self.send_error(404, "File not found")
+      return
+
+    self.server.fname_get_completed = True
+    super().do_GET()
 
   def do_POST(self):
     self.send_error(404, "File not found")
 
 
-def main():
+def setup_arguments():
   atexit.register(kill_all_subprocs_on_exit)
   default_out_dir_str = '~/traces/'
   default_out_dir = os.path.expanduser(default_out_dir_str)
@@ -95,8 +101,14 @@ def main():
   help = 'Output file or directory (default: %s)' % default_out_dir_str
   parser.add_argument('-o', '--out', default=default_out_dir, help=help)
 
-  help = 'Don\'t open in the browser'
+  help = 'Don\'t open or serve the trace'
   parser.add_argument('-n', '--no-open', action='store_true', help=help)
+
+  help = 'Don\'t open in browser, but still serve trace (good for remote use)'
+  parser.add_argument('--no-open-browser', action='store_true', help=help)
+
+  help = 'The web address used to open trace files'
+  parser.add_argument('--origin', default='https://ui.perfetto.dev', help=help)
 
   help = 'Force the use of the sideloaded binaries rather than system daemons'
   parser.add_argument('--sideload', action='store_true', help=help)
@@ -104,6 +116,9 @@ def main():
   help = ('Sideload the given binary rather than downloading it. ' +
           'Implies --sideload')
   parser.add_argument('--sideload-path', default=None, help=help)
+
+  help = 'Ignores any tracing guardrails which might be used'
+  parser.add_argument('--no-guardrails', action='store_true', help=help)
 
   help = 'Don\'t run `adb root` run as user (only when sideloading)'
   parser.add_argument('-u', '--user', action='store_true', help=help)
@@ -148,6 +163,17 @@ def main():
   help = 'Can be generated with https://ui.perfetto.dev/#!/record'
   grp.add_argument('-c', '--config', default=None, help=help)
 
+  help = 'Parse input from --config as binary proto (default: parse as text)'
+  grp.add_argument('--bin', action='store_true', help=help)
+
+  help = ('Pass the trace through the trace reporter API. Only works when '
+          'using the full trace config (-c) with the reporter package name '
+          "'android.perfetto.cts.reporter' and the reporter class name "
+          "'android.perfetto.cts.reporter.PerfettoReportService' with the "
+          'reporter installed on the device (see '
+          'tools/install_test_reporter_app.py).')
+  grp.add_argument('--reporter-api', action='store_true', help=help)
+
   args = parser.parse_args()
   args.sideload = args.sideload or args.sideload_path is not None
 
@@ -179,6 +205,27 @@ def main():
          'Did you mean to pass -c / --config ?'), ANSI.RED)
     sys.exit(1)
 
+  if args.reporter_api and not args.config:
+    prt('Must pass --config when using --reporter-api', ANSI.RED)
+    parser.print_help()
+    sys.exit(1)
+
+  return args
+
+
+class SignalException(Exception):
+  pass
+
+
+def signal_handler(sig, frame):
+  raise SignalException('Received signal ' + str(sig))
+
+
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
+
+
+def start_trace(args, print_log=True):
   perfetto_cmd = 'perfetto'
   device_dir = '/data/misc/perfetto-traces/'
 
@@ -220,7 +267,22 @@ def main():
   fname = '%s-%s.pftrace' % (tstamp, os.urandom(3).hex())
   device_file = device_dir + fname
 
-  cmd = [perfetto_cmd, '--background', '--txt', '-o', device_file]
+  cmd = [perfetto_cmd, '--background']
+  if not args.bin:
+    cmd.append('--txt')
+
+  if args.no_guardrails:
+    cmd.append('--no-guardrails')
+
+  if args.reporter_api:
+    # Remove all old reporter files to avoid polluting the file we will extract
+    # later.
+    adb('shell',
+        'rm /sdcard/Android/data/android.perfetto.cts.reporter/files/*').wait()
+    cmd.append('--upload')
+  else:
+    cmd.extend(['-o', device_file])
+
   on_device_config = None
   on_host_config = None
   if args.config is not None:
@@ -251,9 +313,6 @@ def main():
       cmd += ['--app', '\'' + app + '\'']
     cmd += args.events
 
-  # Perfetto will error out with a proper message if both a config file and
-  # short options are specified. No need to replicate that logic.
-
   # Work out the output file or directory.
   if args.out.endswith('/') or os.path.isdir(args.out):
     host_dir = args.out
@@ -268,7 +327,8 @@ def main():
     shutil.os.makedirs(host_dir)
 
   with open(on_host_config or os.devnull, 'rb') as f:
-    print('Running ' + ' '.join(cmd))
+    if print_log:
+      print('Running ' + ' '.join(cmd))
     proc = adb('shell', *cmd, stdin=f, stdout=subprocess.PIPE)
     proc_out = proc.communicate()[0].decode().strip()
     if on_device_config is not None:
@@ -291,8 +351,11 @@ def main():
     sys.exit(1)
 
   prt('Trace started. Press CTRL+C to stop', ANSI.BLACK + ANSI.BG_BLUE)
-  logcat = adb('logcat', '-v', 'brief', '-s', 'perfetto', '-b', 'main', '-T',
-               '1')
+  log_level = "-v"
+  if not print_log:
+    log_level = "-e"
+  logcat = adb('logcat', log_level, 'brief', '-s', 'perfetto', '-b', 'main',
+               '-T', '1')
 
   ctrl_c_count = 0
   adb_failure_count = 0
@@ -323,24 +386,48 @@ def main():
         prt('Too many unrecoverable ADB failures, bailing out', ANSI.RED)
         sys.exit(1)
       time.sleep(2)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, SignalException):
       sig = 'TERM' if ctrl_c_count == 0 else 'KILL'
       ctrl_c_count += 1
-      prt('Stopping the trace (SIG%s)' % sig, ANSI.BLACK + ANSI.BG_YELLOW)
+      if print_log:
+        prt('Stopping the trace (SIG%s)' % sig, ANSI.BLACK + ANSI.BG_YELLOW)
       adb('shell', 'kill -%s %s' % (sig, bg_pid)).wait()
 
   logcat.kill()
   logcat.wait()
 
-  prt('\n')
-  prt('Pulling into %s' % host_file, ANSI.BOLD)
+  if args.reporter_api:
+    if print_log:
+      prt('Waiting a few seconds to allow reporter to copy trace')
+    time.sleep(5)
+
+    ret = adb(
+        'shell',
+        'cp /sdcard/Android/data/android.perfetto.cts.reporter/files/* ' +
+        device_file).wait()
+    if ret != 0:
+      prt('Failed to extract reporter trace', ANSI.RED)
+      sys.exit(1)
+
+  if print_log:
+    prt('\n')
+    prt('Pulling into %s' % host_file, ANSI.BOLD)
   adb('pull', device_file, host_file).wait()
   adb('shell', 'rm -f ' + device_file).wait()
 
   if not args.no_open:
-    prt('\n')
-    prt('Opening the trace (%s) in the browser' % host_file)
-    open_trace_in_browser(host_file)
+    if print_log:
+      prt('\n')
+      prt('Opening the trace (%s) in the browser' % host_file)
+    open_browser = not args.no_open_browser
+    open_trace_in_browser(host_file, open_browser, args.origin)
+
+  return host_file
+
+
+def main():
+  args = setup_arguments()
+  start_trace(args)
 
 
 def prt(msg, colors=ANSI.END):
@@ -368,28 +455,36 @@ def find_adb():
     sys.exit(1)
 
 
-def open_trace_in_browser(path):
+def open_trace_in_browser(path, open_browser, origin):
   # We reuse the HTTP+RPC port because it's the only one allowed by the CSP.
   PORT = 9001
+  path = os.path.abspath(path)
   os.chdir(os.path.dirname(path))
   fname = os.path.basename(path)
   socketserver.TCPServer.allow_reuse_address = True
   with socketserver.TCPServer(('127.0.0.1', PORT), HttpHandler) as httpd:
-    webbrowser.open_new_tab(
-        'https://ui.perfetto.dev/#!/?url=http://127.0.0.1:%d/%s' %
-        (PORT, fname))
-    while httpd.__dict__.get('last_request') != '/' + fname:
+    address = f'{origin}/#!/?url=http://127.0.0.1:{PORT}/{fname}&referrer=record_android_trace'
+    if open_browser:
+      webbrowser.open_new_tab(address)
+    else:
+      print(f'Open URL in browser: {address}')
+
+    httpd.expected_fname = fname
+    httpd.fname_get_completed = None
+    httpd.allow_origin = origin
+    while httpd.fname_get_completed is None:
       httpd.handle_request()
 
 
-def adb(*args, stdin=devnull, stdout=None):
+def adb(*args, stdin=devnull, stdout=None, stderr=None):
   cmd = [adb_path, *args]
   setpgrp = None
   if os.name != 'nt':
     # On Linux/Mac, start a new process group so all child processes are killed
     # on exit. Unsupported on Windows.
     setpgrp = lambda: os.setpgrp()
-  proc = subprocess.Popen(cmd, stdin=stdin, stdout=stdout, preexec_fn=setpgrp)
+  proc = subprocess.Popen(
+      cmd, stdin=stdin, stdout=stdout, stderr=stderr, preexec_fn=setpgrp)
   procs.append(proc)
   return proc
 

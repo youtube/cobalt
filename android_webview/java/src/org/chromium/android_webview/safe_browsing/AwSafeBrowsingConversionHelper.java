@@ -8,12 +8,14 @@ import android.os.Build;
 import android.webkit.WebViewClient;
 
 import org.chromium.base.ContextUtils;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.components.safe_browsing.SBThreatType;
 
 /**
  * This is a helper class to map native SafeBrowsingActions and SAFE_BROWSING_THREATs to the
  * constants in WebViewClient.
  */
+@NullMarked
 public final class AwSafeBrowsingConversionHelper {
     // These values are used for UMA. Entries should not be renumbered and
     // numeric values should never be reused. The BOUNDARY constant should be
@@ -22,19 +24,24 @@ public final class AwSafeBrowsingConversionHelper {
     /** The resource was blocked for an unknown reason. */
     public static final int SAFE_BROWSING_THREAT_UNKNOWN =
             WebViewClient.SAFE_BROWSING_THREAT_UNKNOWN;
+
     /** The resource was blocked because it contains malware. */
     public static final int SAFE_BROWSING_THREAT_MALWARE =
             WebViewClient.SAFE_BROWSING_THREAT_MALWARE;
+
     /** The resource was blocked because it contains deceptive content. */
     public static final int SAFE_BROWSING_THREAT_PHISHING =
             WebViewClient.SAFE_BROWSING_THREAT_PHISHING;
+
     /** The resource was blocked because it contains unwanted software. */
     public static final int SAFE_BROWSING_THREAT_UNWANTED_SOFTWARE =
             WebViewClient.SAFE_BROWSING_THREAT_UNWANTED_SOFTWARE;
+
     /** The resource was blocked because it may trick the user into a billing agreement. */
     // TODO(ntfschr): replace this with the named constant when we roll the Q SDK
     // (http://crbug.com/887186).
     public static final int SAFE_BROWSING_THREAT_BILLING = 4;
+
     /** Boundary for Safe Browsing Threat values, used for UMA recording. */
     public static final int SAFE_BROWSING_THREAT_BOUNDARY = 5;
 

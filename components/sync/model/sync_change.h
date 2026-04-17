@@ -17,7 +17,7 @@ namespace syncer {
 // A SyncChange object reflects a change to a sync entity (unit of sync data),
 // which can be either a delete, add, or an update. Specifically, it is used
 // in the SyncableService API, as opposed to the analogous class EntityChange
-// used in the more modern equivalent ModelTypeSyncBridge API.
+// used in the more modern equivalent DataTypeSyncBridge API.
 //
 // Note: it is safe and cheap to pass these by value or make copies, as they do
 // not create deep copies of their internal data.
@@ -29,10 +29,10 @@ class SyncChange {
     ACTION_DELETE,
   };
 
-  // Returns a string representation of |change_type|.
+  // Returns a string representation of `change_type`.
   static std::string ChangeTypeToString(SyncChangeType change_type);
 
-  // Create a new change with the specified sync data. |sync_data| must be
+  // Create a new change with the specified sync data. `sync_data` must be
   // valid.
   SyncChange(const base::Location& from_here,
              SyncChangeType change_type,

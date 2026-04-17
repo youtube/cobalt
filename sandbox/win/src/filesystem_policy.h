@@ -25,7 +25,7 @@ class FileSystemPolicy {
   // 'semantics' is the desired semantics for the open or create.
   // 'policy' is the policy generator to which the rules are going to be added.
   static bool GenerateRules(const wchar_t* name,
-                            Semantics semantics,
+                            FileSemantics semantics,
                             LowLevelPolicy* policy);
 
   // Performs the desired policy action on a create request with an
@@ -92,10 +92,6 @@ class FileSystemPolicy {
                                        IO_STATUS_BLOCK* io_block,
                                        NTSTATUS* nt_status);
 };
-
-// Expands the path and check if it's a reparse point. Returns false if the path
-// cannot be trusted.
-bool PreProcessName(std::wstring* path);
 
 // Corrects global paths to have a correctly escaped NT prefix at the
 // beginning. If the name has no NT prefix (either normal or escaped)

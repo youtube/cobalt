@@ -4,15 +4,23 @@
 
 #include "quiche/quic/load_balancer/load_balancer_encoder.h"
 
+#include <cstdint>
+#include <cstring>
+#include <optional>
+
+#include "absl/cleanup/cleanup.h"
 #include "absl/numeric/int128.h"
+#include "absl/strings/string_view.h"
+#include "absl/types/span.h"
+#include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/quic_connection_id.h"
-#include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_data_writer.h"
-#include "quiche/quic/core/quic_packet_number.h"
-#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/load_balancer/load_balancer_config.h"
+#include "quiche/quic/load_balancer/load_balancer_server_id.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/common/quiche_endian.h"
 
 namespace quic {
 
@@ -44,7 +52,7 @@ bool WriteUint128(const absl::uint128 in, uint8_t size, QuicDataWriter &out) {
 
 }  // namespace
 
-absl::optional<LoadBalancerEncoder> LoadBalancerEncoder::Create(
+std::optional<LoadBalancerEncoder> LoadBalancerEncoder::Create(
     QuicRandom &random, LoadBalancerEncoderVisitorInterface *const visitor,
     const bool len_self_encoded, const uint8_t unroutable_connection_id_len) {
   if (unroutable_connection_id_len == 0 ||
@@ -53,7 +61,7 @@ absl::optional<LoadBalancerEncoder> LoadBalancerEncoder::Create(
     QUIC_BUG(quic_bug_435375038_01)
         << "Invalid unroutable_connection_id_len = "
         << static_cast<int>(unroutable_connection_id_len);
-    return absl::optional<LoadBalancerEncoder>();
+    return std::optional<LoadBalancerEncoder>();
   }
   return LoadBalancerEncoder(random, visitor, len_self_encoded,
                              unroutable_connection_id_len);
@@ -100,9 +108,14 @@ void LoadBalancerEncoder::DeleteConfig() {
 }
 
 QuicConnectionId LoadBalancerEncoder::GenerateConnectionId() {
+  absl::Cleanup cleanup = [&] {
+    if (num_nonces_left_ == 0) {
+      DeleteConfig();
+    }
+  };
   uint8_t config_id = config_.has_value() ? config_->config_id()
                                           : kLoadBalancerUnroutableConfigId;
-  uint8_t shifted_config_id = config_id << 6;
+  uint8_t shifted_config_id = config_id << kConnectionIdLengthBits;
   uint8_t length = connection_id_lengths_[config_id];
   if (config_.has_value() != server_id_.has_value()) {
     QUIC_BUG(quic_bug_435375038_04)
@@ -120,9 +133,9 @@ QuicConnectionId LoadBalancerEncoder::GenerateConnectionId() {
   if (!config_.has_value()) {
     return MakeUnroutableConnectionId(first_byte);
   }
-  QuicConnectionId id;
-  id.set_length(length);
-  QuicDataWriter writer(length, id.mutable_data(), quiche::HOST_BYTE_ORDER);
+  uint8_t result[kQuicMaxConnectionIdWithLengthPrefixLength];
+  QuicDataWriter writer(length, reinterpret_cast<char *>(result),
+                        quiche::HOST_BYTE_ORDER);
   writer.WriteUInt8(first_byte);
   absl::uint128 next_nonce =
       (seed_ + num_nonces_left_--) % NumberOfNonces(config_->nonce_len());
@@ -130,49 +143,45 @@ QuicConnectionId LoadBalancerEncoder::GenerateConnectionId() {
   if (!WriteUint128(next_nonce, config_->nonce_len(), writer)) {
     return QuicConnectionId();
   }
-  uint8_t *block_start = reinterpret_cast<uint8_t *>(writer.data() + 1);
   if (!config_->IsEncrypted()) {
     // Fill the nonce field with a hash of the Connection ID to avoid the nonce
     // visibly increasing by one. This would allow observers to correlate
     // connection IDs as being sequential and likely from the same connection,
     // not just the same server.
-    absl::uint128 nonce_hash =
-        QuicUtils::FNV1a_128_Hash(absl::string_view(writer.data(), length));
-    QuicDataWriter rewriter(config_->nonce_len(),
-                            id.mutable_data() + config_->server_id_len() + 1,
-                            quiche::HOST_BYTE_ORDER);
-    if (!WriteUint128(nonce_hash, config_->nonce_len(), rewriter)) {
+    absl::uint128 nonce_hash = QuicUtils::FNV1a_128_Hash(absl::string_view(
+        reinterpret_cast<char *>(result), config_->total_len()));
+    const uint64_t lo = absl::Uint128Low64(nonce_hash);
+    if (config_->nonce_len() <= sizeof(uint64_t)) {
+      memcpy(&result[1 + config_->server_id_len()], &lo, config_->nonce_len());
+      return QuicConnectionId(reinterpret_cast<char *>(result),
+                              config_->total_len());
+    }
+    memcpy(&result[1 + config_->server_id_len()], &lo, sizeof(uint64_t));
+    const uint64_t hi = absl::Uint128High64(nonce_hash);
+    memcpy(&result[1 + config_->server_id_len() + sizeof(uint64_t)], &hi,
+           config_->nonce_len() - sizeof(uint64_t));
+    return QuicConnectionId(reinterpret_cast<char *>(result),
+                            config_->total_len());
+  }
+  if (config_->plaintext_len() == kLoadBalancerBlockSize) {
+    if (!config_->BlockEncrypt(&result[1], &result[1])) {
       return QuicConnectionId();
     }
-  } else if (config_->plaintext_len() == kLoadBalancerBlockSize) {
-    // Use one encryption pass.
-    if (!config_->BlockEncrypt(block_start, block_start)) {
-      QUIC_LOG(ERROR) << "Block encryption failed";
-      return QuicConnectionId();
-    }
-  } else {
-    for (uint8_t i = 1; i <= kNumLoadBalancerCryptoPasses; i++) {
-      if (!config_->EncryptionPass(absl::Span<uint8_t>(block_start, length - 1),
-                                   i)) {
-        QUIC_LOG(ERROR) << "Block encryption failed";
-        return QuicConnectionId();
-      }
-    }
+    return (QuicConnectionId(reinterpret_cast<char *>(result),
+                             config_->total_len()));
   }
-  if (num_nonces_left_ == 0) {
-    DeleteConfig();
-  }
-  return id;
+  return config_->FourPassEncrypt(
+      absl::Span<uint8_t>(result, config_->total_len()));
 }
 
-absl::optional<QuicConnectionId> LoadBalancerEncoder::GenerateNextConnectionId(
+std::optional<QuicConnectionId> LoadBalancerEncoder::GenerateNextConnectionId(
     [[maybe_unused]] const QuicConnectionId &original) {
   // Do not allow new connection IDs if linkable.
-  return (IsEncoding() && !IsEncrypted()) ? absl::optional<QuicConnectionId>()
+  return (IsEncoding() && !IsEncrypted()) ? std::optional<QuicConnectionId>()
                                           : GenerateConnectionId();
 }
 
-absl::optional<QuicConnectionId> LoadBalancerEncoder::MaybeReplaceConnectionId(
+std::optional<QuicConnectionId> LoadBalancerEncoder::MaybeReplaceConnectionId(
     const QuicConnectionId &original, const ParsedQuicVersion &version) {
   // Pre-IETF versions of QUIC can respond poorly to new connection IDs issued
   // during the handshake.
@@ -180,7 +189,7 @@ absl::optional<QuicConnectionId> LoadBalancerEncoder::MaybeReplaceConnectionId(
                               ? config_->total_len()
                               : connection_id_lengths_[kNumLoadBalancerConfigs];
   return (!version.HasIetfQuicFrames() && original.length() == needed_length)
-             ? absl::optional<QuicConnectionId>()
+             ? std::optional<QuicConnectionId>()
              : GenerateConnectionId();
 }
 
@@ -188,15 +197,17 @@ uint8_t LoadBalancerEncoder::ConnectionIdLength(uint8_t first_byte) const {
   if (len_self_encoded()) {
     return (first_byte &= kLoadBalancerLengthMask) + 1;
   }
-  return connection_id_lengths_[first_byte >> 6];
+  return connection_id_lengths_[first_byte >> kConnectionIdLengthBits];
 }
 
 QuicConnectionId LoadBalancerEncoder::MakeUnroutableConnectionId(
     uint8_t first_byte) {
   QuicConnectionId id;
-  id.set_length(connection_id_lengths_[kLoadBalancerUnroutableConfigId]);
+  uint8_t target_length =
+      connection_id_lengths_[kLoadBalancerUnroutableConfigId];
+  id.set_length(target_length);
   id.mutable_data()[0] = first_byte;
-  random_.RandBytes(&id.mutable_data()[1], connection_id_lengths_[3] - 1);
+  random_.RandBytes(&id.mutable_data()[1], target_length - 1);
   return id;
 }
 

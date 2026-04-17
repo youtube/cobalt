@@ -8,12 +8,16 @@
 #include <map>
 #include <memory>
 
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "components/payments/content/payment_app_factory.h"
 #include "components/webdata/common/web_data_service_consumer.h"
 
 namespace payments {
 
+#if BUILDFLAG(IS_ANDROID)
+class BrowserBoundKeyStore;
+#endif  // BUILDFLAG(IS_ANDROID)
 struct SecurePaymentConfirmationCredential;
 
 class SecurePaymentConfirmationAppFactory : public PaymentAppFactory,
@@ -29,6 +33,11 @@ class SecurePaymentConfirmationAppFactory : public PaymentAppFactory,
 
   // PaymentAppFactory:
   void Create(base::WeakPtr<Delegate> delegate) override;
+
+#if BUILDFLAG(IS_ANDROID)
+  void SetBrowserBoundKeyStoreForTesting(
+      scoped_refptr<BrowserBoundKeyStore> key_store);
+#endif  // BUILDFLAG(IS_ANDROID)
 
  private:
   struct Request;
@@ -58,23 +67,18 @@ class SecurePaymentConfirmationAppFactory : public PaymentAppFactory,
       std::vector<std::unique_ptr<SecurePaymentConfirmationCredential>>
           credentials);
 
-  void OnAppIcon(
-      std::unique_ptr<SecurePaymentConfirmationCredential> credential,
+  void OnRetrievedBrowserBoundKeyId(
       std::unique_ptr<Request> request,
-      const SkBitmap& icon);
+      std::optional<std::vector<uint8_t>> maybe_browser_bound_key_id);
 
-  // Called after downloading the icon whose URL was passed into PaymentRequest
-  // API.
-  void DidDownloadIcon(
-      std::unique_ptr<SecurePaymentConfirmationCredential> credential,
-      std::unique_ptr<Request> request,
-      int request_id,
-      int unused_http_status_code,
-      const GURL& unused_image_url,
-      const std::vector<SkBitmap>& bitmaps,
-      const std::vector<gfx::Size>& unused_sizes);
+  // Called once all icons are downloaded and their respective SkBitmaps have
+  // been set into the Request.
+  void DidDownloadAllIcons(std::unique_ptr<Request> request);
 
   std::map<WebDataServiceBase::Handle, std::unique_ptr<Request>> requests_;
+#if BUILDFLAG(IS_ANDROID)
+  scoped_refptr<BrowserBoundKeyStore> browser_bound_key_store_for_testing_;
+#endif  // BUILDFLAG(IS_ANDROID)
   base::WeakPtrFactory<SecurePaymentConfirmationAppFactory> weak_ptr_factory_{
       this};
 };

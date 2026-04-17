@@ -14,6 +14,9 @@
 #include "base/memory/weak_ptr.h"
 #include "components/safe_browsing/core/browser/db/util.h"
 #include "extensions/browser/blocklist_state.h"
+#include "extensions/buildflags/buildflags.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 namespace network {
 class SharedURLLoaderFactory;
@@ -25,7 +28,7 @@ class TestBlocklistStateFetcher;
 
 class BlocklistStateFetcher {
  public:
-  typedef base::OnceCallback<void(BlocklistState)> RequestCallback;
+  using RequestCallback = base::OnceCallback<void(BlocklistState)>;
 
   BlocklistStateFetcher();
 
@@ -50,7 +53,7 @@ class BlocklistStateFetcher {
 
  private:
   friend class TestBlocklistStateFetcher;
-  typedef std::multimap<std::string, RequestCallback> CallbackMultiMap;
+  using CallbackMultiMap = std::multimap<std::string, RequestCallback>;
 
   GURL RequestUrl() const;
 

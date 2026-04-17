@@ -40,7 +40,6 @@ void ScopedAccessPermissionMap::EraseAccessPermission(int32_t buffer_id) {
   auto it = scoped_access_permissions_by_buffer_id_.find(buffer_id);
   if (it == scoped_access_permissions_by_buffer_id_.end()) {
     NOTREACHED();
-    return;
   }
   scoped_access_permissions_by_buffer_id_.erase(it);
 }

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/ntlm/ntlm_buffer_writer.h"
 
 #include <string.h>
@@ -104,7 +109,7 @@ bool NtlmBufferWriter::WriteAvPair(const AvPair& pair) {
 }
 
 bool NtlmBufferWriter::WriteUtf8String(const std::string& str) {
-  return WriteBytes(base::as_bytes(base::make_span(str)));
+  return WriteBytes(base::as_byte_span(str));
 }
 
 bool NtlmBufferWriter::WriteUtf16AsUtf8String(const std::u16string& str) {

@@ -13,16 +13,22 @@
 // limitations under the License.
 
 #include <pthread.h>
+#include <stdio.h>
 #include <sys/stat.h>
 
+#include <string>
 #include <vector>
 
 #include "cobalt/version.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
+#include "starboard/common/paths.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/crashpad_wrapper/annotations.h"
+#include "starboard/crashpad_wrapper/wrapper.h"
 #include "starboard/elf_loader/elf_loader.h"
 #include "starboard/elf_loader/elf_loader_constants.h"
 #include "starboard/elf_loader/evergreen_info.h"
@@ -32,14 +38,11 @@
 #include "starboard/loader_app/app_key.h"
 #include "starboard/loader_app/loader_app_switches.h"
 #include "starboard/loader_app/memory_tracker_thread.h"
+#include "starboard/loader_app/read_evergreen_version.h"
 #include "starboard/loader_app/record_loader_app_status.h"
 #include "starboard/loader_app/reset_evergreen_update.h"
 #include "starboard/loader_app/slot_management.h"
 #include "starboard/loader_app/system_get_extension_shim.h"
-
-#include "starboard/common/check_op.h"
-#include "starboard/crashpad_wrapper/annotations.h"
-#include "starboard/crashpad_wrapper/wrapper.h"
 
 namespace {
 
@@ -51,6 +54,9 @@ const char kSystemImageLibraryPath[] = "app/cobalt/lib/libcobalt.so";
 
 // Relative path to the compressed Cobalt's system image library.
 const char kSystemImageCompressedLibraryPath[] = "app/cobalt/lib/libcobalt.lz4";
+
+// Relative path to Cobalt's system image manifest.json.
+const char kSystemImageManifestPath[] = "app/cobalt/manifest.json";
 
 // Cobalt default URL.
 const char kCobaltDefaultUrl[] = "https://www.youtube.com/tv";
@@ -89,6 +95,26 @@ bool GetContentDir(std::string* content) {
   return true;
 }
 
+void InsertVersionAnnotationFromManifest(const std::string& content_dir) {
+  std::vector<char> manifest_path(kSbFileMaxPath);
+  snprintf(manifest_path.data(), kSbFileMaxPath, "%s%s%s", content_dir.c_str(),
+           kSbFileSepString, kSystemImageManifestPath);
+
+  std::vector<char> version(loader_app::kMaxEgVersionSize);
+  if (!loader_app::ReadEvergreenVersion(manifest_path, version.data(),
+                                        loader_app::kMaxEgVersionSize)) {
+    SB_LOG(WARNING)
+        << "Failed to read the Evergreen version for the system image, not "
+        << "adding to Crashpad";
+    return;
+  }
+
+  if (!crashpad::InsertCrashpadAnnotation(crashpad::kCrashpadVersionKey,
+                                          version.data())) {
+    SB_LOG(WARNING) << "Failed to add ver annotation to Crashpad";
+  }
+}
+
 void LoadLibraryAndInitialize(const std::string& alternative_content_path,
                               bool use_memory_mapped_file) {
   std::string content_dir;
@@ -104,6 +130,9 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
   } else {
     content_path = alternative_content_path.c_str();
   }
+
+  InsertVersionAnnotationFromManifest(content_dir);
+
   std::string library_path = content_dir;
   library_path += kSbFileSepString;
 
@@ -187,6 +216,18 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
                << reinterpret_cast<void*>(g_sb_event_func);
 }
 
+void InstallCrashpadHandler(const std::string& evergreen_content_path) {
+  std::string ca_certificates_path =
+      evergreen_content_path.empty()
+          ? starboard::GetCACertificatesPath()
+          : starboard::GetCACertificatesPath(evergreen_content_path);
+  if (ca_certificates_path.empty()) {
+    SB_LOG(ERROR) << "Failed to get CA certificates path";
+  }
+
+  crashpad::InstallCrashpadHandler(ca_certificates_path);
+}
+
 }  // namespace
 
 void SbEventHandle(const SbEvent* event) {
@@ -256,6 +297,9 @@ void SbEventHandle(const SbEvent* event) {
         memory_tracker_thread.Start();
       }
     }
+
+    InstallCrashpadHandler(
+        command_line.GetSwitchValue(elf_loader::kEvergreenContent));
 
     if (is_evergreen_lite) {
       loader_app::RecordSlotSelectionStatus(SlotSelectionStatus::kEGLite);

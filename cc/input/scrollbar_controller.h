@@ -6,6 +6,7 @@
 #define CC_INPUT_SCROLLBAR_CONTROLLER_H_
 
 #include <memory>
+#include <optional>
 
 #include "base/cancelable_callback.h"
 #include "base/gtest_prod_util.h"
@@ -16,7 +17,6 @@
 #include "cc/input/scrollbar.h"
 #include "cc/layers/layer_impl.h"
 #include "cc/layers/painted_scrollbar_layer_impl.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 // High level documentation:
 // https://source.chromium.org/chromium/chromium/src/+/main:cc/input/README.md
@@ -157,39 +157,37 @@ class CC_EXPORT ScrollbarController {
   ScrollbarLayerImplBase* ScrollbarLayer() const;
   void WillBeginImplFrame();
   void ResetState();
-  PointerResultType HitTest(const gfx::PointF position_in_widget) const;
+  const ScrollbarLayerImplBase* HitTest(
+      const gfx::PointF position_in_widget) const;
 
  private:
-  FRIEND_TEST_ALL_PREFIXES(ScrollUnifiedLayerTreeHostImplTest,
-                           ThumbDragAfterJumpClick);
-  FRIEND_TEST_ALL_PREFIXES(ScrollUnifiedLayerTreeHostImplTest,
+  FRIEND_TEST_ALL_PREFIXES(LayerTreeHostImplTest, ThumbDragAfterJumpClick);
+  FRIEND_TEST_ALL_PREFIXES(LayerTreeHostImplTest,
                            AbortAnimatedScrollBeforeStartingAutoscroll);
-  FRIEND_TEST_ALL_PREFIXES(ScrollUnifiedLayerTreeHostImplTest,
-                           AutoscrollOnDeletedScrollbar);
-  FRIEND_TEST_ALL_PREFIXES(ScrollUnifiedLayerTreeHostImplTest,
-                           ScrollOnLargeThumb);
+  FRIEND_TEST_ALL_PREFIXES(LayerTreeHostImplTest, AutoscrollOnDeletedScrollbar);
+  FRIEND_TEST_ALL_PREFIXES(LayerTreeHostImplTest, ScrollOnLargeThumb);
 
   // "Autoscroll" here means the continuous scrolling that occurs when the
   // pointer is held down on a hit-testable area of the scrollbar such as an
   // arrows of the track itself.
-  enum class AutoScrollDirection { AUTOSCROLL_FORWARD, AUTOSCROLL_BACKWARD };
+  enum class AutoScrollDirection { kAutoscrollForward, kAutoscrollBackward };
 
   enum class AutoScrollStatus {
     // For when the 250ms delay before an autoscroll starts animating has not
     // yet elapsed
-    AUTOSCROLL_WAITING,
+    kAutoscrollWaiting,
     // For when the delay has elapsed, but the autoscroll cannot animate for
     // some reason (the scrollbar being unregistered)
-    AUTOSCROLL_READY,
+    kAutoscrollReady,
     // For when the autoscroll is animating
-    AUTOSCROLL_SCROLLING
+    kAutoscrollScrolling
   };
 
   struct CC_EXPORT AutoScrollState {
-    // Can only be either AUTOSCROLL_FORWARD or AUTOSCROLL_BACKWARD.
-    AutoScrollDirection direction = AutoScrollDirection::AUTOSCROLL_FORWARD;
+    // Can only be either kAutoscrollForward or kAutoscrollBackward.
+    AutoScrollDirection direction = AutoScrollDirection::kAutoscrollForward;
 
-    AutoScrollStatus status = AutoScrollStatus::AUTOSCROLL_WAITING;
+    AutoScrollStatus status = AutoScrollStatus::kAutoscrollWaiting;
 
     // Stores the autoscroll velocity. The sign is used to set the "direction".
     float velocity = 0.f;
@@ -307,9 +305,6 @@ class CC_EXPORT ScrollbarController {
 
   float GetViewportLength() const;
 
-  // Returns the pixel distance for a percent-based scroll of the scrollbar
-  float GetScrollDistanceForPercentBasedScroll() const;
-
   // Returns the page scale factor (i.e. pinch zoom factor). This is relevant
   // for root viewport scrollbar scrolling.
   float GetPageScaleFactorForScroll() const;
@@ -325,15 +320,15 @@ class CC_EXPORT ScrollbarController {
   gfx::PointF last_known_pointer_position_;
 
   // Set only while interacting with the scrollbar (eg: drag, click etc).
-  absl::optional<CapturedScrollbarMetadata> captured_scrollbar_metadata_;
+  std::optional<CapturedScrollbarMetadata> captured_scrollbar_metadata_;
 
   // Holds information pertaining to autoscrolling. This member is empty if and
   // only if an autoscroll is *not* in progress or scheduled
-  absl::optional<AutoScrollState> autoscroll_state_;
+  std::optional<AutoScrollState> autoscroll_state_;
 
   // Holds information pertaining to thumb drags. Useful while making decisions
   // about thumb anchoring/snapping.
-  absl::optional<DragState> drag_state_;
+  std::optional<DragState> drag_state_;
 
   // Used to track if a GSU was processed for the current frame or not. Without
   // this, thumb drag will appear jittery. The reason this happens is because

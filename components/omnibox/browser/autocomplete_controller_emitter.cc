@@ -4,65 +4,13 @@
 
 #include "autocomplete_controller_emitter.h"
 
-#include "base/observer_list.h"
 #include "build/build_config.h"
-
-#if !BUILDFLAG(IS_IOS)
-#include "base/memory/singleton.h"
-#include "components/keyed_service/content/browser_context_dependency_manager.h"
-#include "components/keyed_service/content/browser_context_keyed_service_factory.h"
-#endif  // !BUILDFLAG(IS_IOS)
-
-namespace {
-
-#if !BUILDFLAG(IS_IOS)
-class AutocompleteControllerEmitterFactory
-    : public BrowserContextKeyedServiceFactory {
- public:
-  static AutocompleteControllerEmitter* GetForBrowserContext(
-      content::BrowserContext* context) {
-    return static_cast<AutocompleteControllerEmitter*>(
-        GetInstance()->GetServiceForBrowserContext(context, true));
-  }
-
-  static AutocompleteControllerEmitterFactory* GetInstance() {
-    return base::Singleton<AutocompleteControllerEmitterFactory>::get();
-  }
-
-  AutocompleteControllerEmitterFactory()
-      : BrowserContextKeyedServiceFactory(
-            "AutocompleteControllerEmitter",
-            BrowserContextDependencyManager::GetInstance()) {}
-
- private:
-  // BrowserContextKeyedServiceFactory overrides
-
-  KeyedService* BuildServiceInstanceFor(
-      content::BrowserContext* context) const override {
-    return new AutocompleteControllerEmitter();
-  }
-
-  content::BrowserContext* GetBrowserContextToUse(
-      content::BrowserContext* context) const override {
-    return context;
-  }
-};
-#endif  // !BUILDFLAG(IS_IOS)
-
-}  // namespace
+#include "components/omnibox/browser/autocomplete_controller.h"
+#include "components/omnibox/browser/autocomplete_input.h"
+#include "components/omnibox/browser/autocomplete_result.h"
 
 AutocompleteControllerEmitter::AutocompleteControllerEmitter() = default;
 AutocompleteControllerEmitter::~AutocompleteControllerEmitter() = default;
-
-#if !BUILDFLAG(IS_IOS)
-// static
-AutocompleteControllerEmitter*
-AutocompleteControllerEmitter::GetForBrowserContext(
-    content::BrowserContext* browser_context) {
-  return AutocompleteControllerEmitterFactory::GetForBrowserContext(
-      browser_context);
-}
-#endif  // !BUILDFLAG(IS_IOS)
 
 void AutocompleteControllerEmitter::AddObserver(
     AutocompleteController::Observer* observer) {
@@ -89,9 +37,9 @@ void AutocompleteControllerEmitter::OnResultChanged(
   }
 }
 
-#if !BUILDFLAG(IS_IOS)
-// static
-void AutocompleteControllerEmitter::EnsureFactoryBuilt() {
-  AutocompleteControllerEmitterFactory::GetInstance();
+void AutocompleteControllerEmitter::OnMlScored(
+    AutocompleteController* controller,
+    const AutocompleteResult& result) {
+  for (auto& observer : observers_)
+    observer.OnMlScored(controller, result);
 }
-#endif  // !BUILDFLAG(IS_IOS)

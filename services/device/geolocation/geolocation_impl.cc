@@ -7,14 +7,26 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/metrics/histogram_functions.h"
 #include "services/device/geolocation/geolocation_context.h"
 #include "services/device/public/cpp/geolocation/geoposition.h"
 
 namespace device {
 
+namespace {
+void RecordUmaGeolocationImplClientId(mojom::GeolocationClientId client_id) {
+  base::UmaHistogramEnumeration("Geolocation.GeolocationImpl.ClientId",
+                                client_id);
+}
+}  // namespace
+
 GeolocationImpl::GeolocationImpl(mojo::PendingReceiver<Geolocation> receiver,
+                                 const GURL& requesting_url,
+                                 mojom::GeolocationClientId client_id,
                                  GeolocationContext* context)
     : receiver_(this, std::move(receiver)),
+      url_(requesting_url),
+      client_id_(client_id),
       context_(context),
       high_accuracy_(false) {
   DCHECK(context_);
@@ -56,7 +68,7 @@ void GeolocationImpl::StartListeningForUpdates() {
           high_accuracy_);
 }
 
-void GeolocationImpl::SetHighAccuracy(bool high_accuracy) {
+void GeolocationImpl::SetHighAccuracyHint(bool high_accuracy) {
   high_accuracy_ = high_accuracy;
 
   if (position_override_) {
@@ -79,6 +91,7 @@ void GeolocationImpl::QueryNextPosition(QueryNextPositionCallback callback) {
   if (current_result_) {
     ReportCurrentPosition();
   }
+  RecordUmaGeolocationImplClientId(client_id_);
 }
 
 void GeolocationImpl::SetOverride(const mojom::GeopositionResult& result) {
@@ -106,6 +119,17 @@ void GeolocationImpl::SetOverride(const mojom::GeopositionResult& result) {
 void GeolocationImpl::ClearOverride() {
   position_override_.reset();
   StartListeningForUpdates();
+}
+
+void GeolocationImpl::OnPermissionRevoked() {
+  if (!position_callback_.is_null()) {
+    std::move(position_callback_)
+        .Run(mojom::GeopositionResult::NewError(mojom::GeopositionError::New(
+            mojom::GeopositionErrorCode::kPermissionDenied,
+            /*error_message=*/"User denied Geolocation",
+            /*error_technical=*/"")));
+  }
+  position_callback_.Reset();
 }
 
 void GeolocationImpl::OnConnectionError() {

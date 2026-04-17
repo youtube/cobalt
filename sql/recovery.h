@@ -7,12 +7,13 @@
 
 #include <stddef.h>
 
-#include <memory>
+#include <string>
 
 #include "base/component_export.h"
 #include "base/memory/raw_ptr.h"
 #include "sql/database.h"
 #include "sql/internal_api_token.h"
+#include "sql/sqlite_result_code_values.h"
 
 namespace base {
 class FilePath;
@@ -20,190 +21,173 @@ class FilePath;
 
 namespace sql {
 
-// Recovery module for sql/.  The basic idea is to create a fresh database and
-// populate it with the recovered contents of the original database.  If
-// recovery is successful, the recovered database is backed up over the original
-// database.  If recovery is not successful, the original database is razed.  In
-// either case, the original handle is poisoned so that operations on the stack
-// do not accidentally disrupt the restored data.
+// Recovery module for sql/. Please see the `RecoverIfPossible()` method for how
+// to use this class.
 //
-// RecoverDatabase() automates this, including recoverying the schema of from
-// the suspect database.  If a database requires special handling, such as
-// recovering between different schema, or tables requiring post-processing,
-// then the module can be used manually like:
+// This module is capable of recovering databases which the legacy recovery
+// module could not recover. These include:
+//   - tables with the WITHOUT ROWID optimization
+//   - databases which use Write-Ahead Log (i.e. WAL mode)
+//     - NOTE: as WAL mode is still experimental (see https://crbug.com/1416213)
+//       recovery should not be attempted on WAL databases for now.
 //
-// {
-//   std::unique_ptr<sql::Recovery> r =
-//       sql::Recovery::Begin(orig_db, orig_db_path);
-//   if (r) {
-//     // Create the schema to recover to.  On failure, clear the
-//     // database.
-//     if (!r.db()->Execute(kCreateSchemaSql)) {
-//       sql::Recovery::Unrecoverable(std::move(r));
-//       return;
-//     }
-//
-//     // Recover data in "mytable".
-//     size_t rows_recovered = 0;
-//     if (!r.AutoRecoverTable("mytable", 0, &rows_recovered)) {
-//       sql::Recovery::Unrecoverable(std::move(r));
-//       return;
-//     }
-//
-//     // Manually cleanup additional constraints.
-//     if (!r.db()->Execute(kCleanupSql)) {
-//       sql::Recovery::Unrecoverable(std::move(r));
-//       return;
-//     }
-//
-//     // Commit the recovered data to the original database file.
-//     sql::Recovery::Recovered(std::move(r));
-//   }
-// }
-//
-// If Recovered() is not called, then RazeAndPoison() is called on
-// orig_db.
-
+// Uses SQLite's recovery extension: https://www.sqlite.org/recovery.html
 class COMPONENT_EXPORT(SQL) Recovery {
  public:
+  enum class Strategy {
+    // Razes the database if it could not be recovered.
+    kRecoverOrRaze,
+
+    // Razes the database if it could not be recovered, or if a valid meta table
+    // with a version value could not be determined from the recovered database.
+    // Use this strategy if your client makes assertions about the version of
+    // the database schema.
+    kRecoverWithMetaVersionOrRaze,
+
+    // TODO(crbug.com/40061775): Consider exposing a way to keep around a
+    // successfully-recovered, but unsuccessfully-restored database if needed.
+  };
+
+  // These values are persisted to logs. Entries should not be renumbered
+  // and numeric values should never be reused.
+  enum class Result {
+    // Outcome not yet known. This value should never be logged.
+    kUnknown = 0,
+
+    // Successfully completed the full database recovery process.
+    kSuccess = 1,
+
+    // Failed to initialize and configure the sqlite3_recover object.
+    kFailedRecoveryInit = 2,
+
+    // Failed to run recovery with the sqlite3_recover object.
+    kFailedRecoveryRun = 3,
+
+    // The database was successfully recovered to a backup, but we could not
+    // open the newly-recovered database in order to copy it to the original
+    // database.
+    kFailedToOpenRecoveredDatabase = 4,
+
+    // The database was successfully recovered to a backup, but a meta table
+    // could not be found in the recovered database.
+    // Only valid when using Strategy::kRecoverWithMetaVersionOrRaze.
+    kFailedMetaTableDoesNotExist = 5,
+
+    // The database was successfully recovered to a backup, but the meta table
+    // could not be initialized.
+    // Only valid when using Strategy::kRecoverWithMetaVersionOrRaze.
+    kFailedMetaTableInit = 6,
+
+    // The database was successfully recovered to a backup, but a valid
+    // (meaning, positive) version number could not be read from the meta table.
+    // Only valid when using Strategy::kRecoverWithMetaVersionOrRaze.
+    kFailedMetaTableVersionWasInvalid = 7,
+
+    // Failed to initialize and configure the sqlite3_backup object.
+    kFailedBackupInit = 8,
+
+    // Failed to run backup with the sqlite3_backup object.
+    kFailedBackupRun = 9,
+    kMaxValue = kFailedBackupRun,
+  };
+
+  // Returns true if `RecoverDatabase()` can plausibly fix `database` given this
+  // `extended_error`. This does not guarantee that `RecoverDatabase()` will
+  // successfully recover the database.
+  //
+  // Note that even if this method returns true, the database's error callback
+  // must be reset before recovery can be attempted.
+  [[nodiscard]] static bool ShouldAttemptRecovery(Database* database,
+                                                  int extended_error);
+
+  // Use `RecoverIfPossible()` below rather than using this method directly.
+  //
+  // Attempts to recover `database`, and razes the database if it could not be
+  // recovered according to `strategy`. After attempting recovery, the database
+  // can be re-opened and assumed to be free of corruption.
+  //
+  // Use Database::set_histogram_tag() to log UMA for recovery results specific
+  // to the given feature database.
+  //
+  // It is not considered an error if some or all of the data cannot be
+  // recovered due to database corruption, so it is possible that some records
+  // could not be salvaged from the corrupted database.
+  // TODO(crbug.com/40061775): Support the lost-and-found table if the
+  // need arises to try to restore all these records.
+  //
+  // It is illegal to attempt recovery if:
+  //   - `database` is null,
+  //   - `database` is not open,
+  //   - `database` is an in-memory or temporary database, or
+  //   - `database` has an error callback set
+  //
+  // During the recovery process, `database` is poisoned so that operations on
+  // the stack do not accidentally disrupt the restored data.
+  //
+  // Returns a SQLite error code specifying whether the database was
+  // successfully recovered.
+  [[nodiscard]] static SqliteResultCode RecoverDatabase(Database* database,
+                                                        Strategy strategy);
+
+  // Similar to `RecoverDatabase()` above, but with a couple key differences:
+  //   - Can be called without first checking `ShouldAttemptRecovery()`.
+  //   - `database`'s error callback will be reset if recovery is attempted.
+  //   - Must only be called from within a database error callback.
+  //
+  // Recommended usage from within a database error callback:
+  //
+  //  // Attempt to recover the database, if recovery is possible.
+  //  if (sql::Recovery::RecoverIfPossible(
+  //          &db, extended_error,
+  //          sql::Recovery::Strategy::kRecoverWithMetaVersionOrRaze)) {
+  //    // Recovery was attempted. The database handle has been poisoned and the
+  //    // error callback has been reset.
+  //
+  //    // ...
+  //  }
+  //
+  [[nodiscard]] static bool RecoverIfPossible(Database* database,
+                                              int extended_error,
+                                              Strategy strategy);
+
   Recovery(const Recovery&) = delete;
   Recovery& operator=(const Recovery&) = delete;
-  ~Recovery();
-
-  // Begin the recovery process by opening a temporary database handle
-  // and attach the existing database to it at "corrupt".  To prevent
-  // deadlock, all transactions on |database| are rolled back.
-  //
-  // Returns nullptr in case of failure, with no cleanup done on the
-  // original database (except for breaking the transactions).  The
-  // caller should Raze() or otherwise cleanup as appropriate.
-  //
-  // TODO(shess): Later versions of SQLite allow extracting the path
-  // from the database.
-  // TODO(shess): Allow specifying the connection point?
-  [[nodiscard]] static std::unique_ptr<Recovery> Begin(
-      Database* database,
-      const base::FilePath& db_path);
-
-  // Mark recovery completed by replicating the recovery database over
-  // the original database, then closing the recovery database.  The
-  // original database handle is poisoned, causing future calls
-  // against it to fail.
-  //
-  // If Recovered() is not called, the destructor will call
-  // Unrecoverable().
-  //
-  // TODO(shess): At this time, this function can fail while leaving
-  // the original database intact.  Figure out which failure cases
-  // should go to RazeAndPoison() instead.
-  [[nodiscard]] static bool Recovered(std::unique_ptr<Recovery> r);
-
-  // Indicate that the database is unrecoverable.  The original
-  // database is razed, and the handle poisoned.
-  static void Unrecoverable(std::unique_ptr<Recovery> r);
-
-  // When initially developing recovery code, sometimes the possible
-  // database states are not well-understood without further
-  // diagnostics.  Abandon recovery but do not raze the original
-  // database.
-  // NOTE(shess): Only call this when adding recovery support.  In the
-  // steady state, all databases should progress to recovered or razed.
-  static void Rollback(std::unique_ptr<Recovery> r);
-
-  // Handle to the temporary recovery database.
-  sql::Database* db() { return &recover_db_; }
-
-  // Attempt to recover the named table from the corrupt database into
-  // the recovery database using a temporary recover virtual table.
-  // The virtual table schema is derived from the named table's schema
-  // in database [main].  Data is copied using INSERT OR IGNORE, so
-  // duplicates are dropped.
-  //
-  // If the source table has fewer columns than the target, the target
-  // DEFAULT value will be used for those columns.
-  //
-  // Returns true if all operations succeeded, with the number of rows
-  // recovered in |*rows_recovered|.
-  //
-  // NOTE(shess): Due to a flaw in the recovery virtual table, at this
-  // time this code injects the DEFAULT value of the target table in
-  // locations where the recovery table returns nullptr.  This is not
-  // entirely correct, because it happens both when there is a short
-  // row (correct) but also where there is an actual NULL value
-  // (incorrect).
-  //
-  // TODO(shess): Flag for INSERT OR REPLACE vs IGNORE.
-  // TODO(shess): Handle extended table names.
-  bool AutoRecoverTable(const char* table_name, size_t* rows_recovered);
-
-  // Setup a recover virtual table at temp.recover_meta, reading from
-  // corrupt.meta.  Returns true if created.
-  // TODO(shess): Perhaps integrate into Begin().
-  // TODO(shess): Add helpers to fetch additional items from the meta
-  // table as needed.
-  bool SetupMeta();
-
-  // Fetch the version number from temp.recover_meta.  Returns false
-  // if the query fails, or if there is no version row.  Otherwise
-  // returns true, with the version in |*version_number|.
-  //
-  // Only valid to call after successful SetupMeta().
-  bool GetMetaVersionNumber(int* version_number);
-
-  // Attempt to recover the database by creating a new database with schema from
-  // |db|, then copying over as much data as possible.  If successful, the
-  // recovery handle is returned to allow the caller to make additional changes,
-  // such as validating constraints not expressed in the schema.
-  //
-  // In case of SQLITE_NOTADB, the database is deemed unrecoverable and deleted.
-  [[nodiscard]] static std::unique_ptr<Recovery> BeginRecoverDatabase(
-      Database* db,
-      const base::FilePath& db_path);
-
-  // Call BeginRecoverDatabase() to recover the database, then commit the
-  // changes using Recovered().  After this call, the |db| handle will be
-  // poisoned (though technically remaining open) so that future calls will
-  // return errors until the handle is re-opened.
-  static void RecoverDatabase(Database* db, const base::FilePath& db_path);
-
-  // Variant on RecoverDatabase() which requires that the database have a valid
-  // meta table with a version value.  The meta version value is used by some
-  // clients to make assertions about the database schema.  If this information
-  // cannot be determined, the database is considered unrecoverable.
-  static void RecoverDatabaseWithMetaVersion(Database* db,
-                                             const base::FilePath& db_path);
-
-  // Returns true for SQLite errors which RecoverDatabase() can plausibly fix.
-  // This does not guarantee that RecoverDatabase() will successfully recover
-  // the database.
-  static bool ShouldRecover(int extended_error);
-
-  // Enables the "recover" SQLite extension for a database connection.
-  //
-  // Returns a SQLite error code.
-  static int EnableRecoveryExtension(Database* db, InternalApiToken);
 
  private:
-  explicit Recovery(Database* database);
+  Recovery(Database* database, Strategy strategy);
+  ~Recovery();
 
-  // Setup the recovery database handle for Begin().  Returns false in
-  // case anything failed.
-  [[nodiscard]] bool Init(const base::FilePath& db_path);
+  // Entry point.
+  SqliteResultCode RecoverAndReplaceDatabase();
 
-  // Copy the recovered database over the original database.
-  [[nodiscard]] bool Backup();
+  // Use SQLite's corruption recovery module to store the recovered content in
+  // `recover_db_`. See https://www.sqlite.org/recovery.html
+  SqliteResultCode AttemptToRecoverDatabaseToBackup();
 
-  // Close the recovery database, and poison the original handle.
-  // |raze| controls whether the original database is razed or just
-  // poisoned.
-  enum Disposition {
-    RAZE_AND_POISON,
-    POISON,
-  };
-  void Shutdown(Disposition raze);
+  bool RecoveredDbHasValidMetaTable();
+
+  // Use SQLite's Online Backup API to replace the original database with
+  // `recover_db_`. See https://www.sqlite.org/backup.html
+  SqliteResultCode ReplaceOriginalWithRecoveredDb();
+
+  void SetRecoverySucceeded();
+  void SetRecoveryFailed(Result failure_result, SqliteResultCode result_code);
+
+  const Strategy strategy_;
+
+  // If non-empty, UMA will be logged with the result of the recovery for this
+  // specific database.
+  std::string database_uma_name_;
+
+  // Result of the recovery. This value must be set to something other than
+  // `kUnknown` before this object is destroyed.
+  Result result_ = Result::kUnknown;
+  SqliteResultCode sqlite_result_code_ = SqliteResultCode::kOk;
 
   raw_ptr<Database> db_;  // Original Database connection.
-  Database recover_db_;  // Recovery Database connection.
+  Database recover_db_;   // Recovery Database connection.
+
+  base::FilePath recovery_database_path_;
 };
 
 }  // namespace sql

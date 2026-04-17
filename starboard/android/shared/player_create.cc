@@ -12,18 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/player.h"
+// clang-format on
+
 #include <string>
 #include <utility>
 
-#include "starboard/player.h"
-
 #include "starboard/android/shared/video_max_video_input_size.h"
+#include "starboard/android/shared/video_surface_view.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
+#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
@@ -186,7 +190,8 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
     // Check the availability of the video window. As we only support one main
     // player, and sub players are in decode to texture mode on Android, a
     // single video window should be enough.
-    if (!starboard::VideoSurfaceHolder::IsVideoSurfaceAvailable()) {
+    if (!starboard::VideoSurfaceHolder::IsVideoSurfaceAvailable() &&
+        !starboard::GetSurfaceViewForCurrentThread()) {
       SB_LOG(ERROR) << "Video surface is not available now.";
       player_error_func(kSbPlayerInvalid, context, kSbPlayerErrorDecode,
                         "Video surface is not available now");
@@ -199,24 +204,18 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
           creation_param, provider);
   handler->SetMaxVideoInputSize(
       starboard::GetMaxVideoInputSizeForCurrentThread());
-  SbPlayer player = starboard::SbPlayerPrivateImpl::CreateInstance(
+  handler->SetExperimentalFeatures(
+      starboard::GetExperimentalFeaturesForCurrentThread());
+  handler->SetVideoSurfaceView(starboard::GetSurfaceViewForCurrentThread());
+
+  auto player = std::make_unique<starboard::SbPlayerPrivateImpl>(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
       player_status_func, player_error_func, context, std::move(handler));
-
-  if (SbPlayerIsValid(player)) {
-    if (creation_param->output_mode != kSbPlayerOutputModeDecodeToTexture) {
-      // TODO: accomplish this through more direct means.
-      // Set the bounds to initialize the VideoSurfaceView. The initial values
-      // don't matter.
-      SbPlayerSetBounds(player, 0, 0, 0, 0, 0);
-    }
-    return player;
+  if (creation_param->output_mode != kSbPlayerOutputModeDecodeToTexture) {
+    // TODO: accomplish this through more direct means.
+    // Set the bounds to initialize the VideoSurfaceView. The initial values
+    // don't matter.
+    SbPlayerSetBounds(player.get(), 0, 0, 0, 0, 0);
   }
-
-  SB_LOG(ERROR)
-      << "Invalid player returned by SbPlayerPrivateImpl::CreateInstance().";
-  player_error_func(
-      kSbPlayerInvalid, context, kSbPlayerErrorDecode,
-      "Invalid player returned by SbPlayerPrivateImpl::CreateInstance()");
-  return kSbPlayerInvalid;
+  return player.release();
 }

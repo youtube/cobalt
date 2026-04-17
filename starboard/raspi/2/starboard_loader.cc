@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/event.h"
-
 #include <dlfcn.h>
+
 #include <iostream>
+
 #include "starboard/event.h"
 
 int main(int argc, char** argv) {

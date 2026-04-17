@@ -124,7 +124,7 @@ AudioAU::AudioAU(uint64_t offset,
       parser_(parser) {}
 
 bool AudioAU::Read(DataSourceReader* reader, DecoderBuffer* buffer) {
-  DCHECK_LE(size_ + prepend_size_, buffer->data_size());
+  DCHECK_LE(size_ + prepend_size_, buffer->size());
   if (!ReadBytes(offset_, size_, buffer->writable_data() + prepend_size_,
                  reader)) {
     return false;
@@ -202,9 +202,9 @@ VideoAU::VideoAU(uint64_t offset,
 }
 
 bool VideoAU::Read(DataSourceReader* reader, DecoderBuffer* buffer) {
-  size_t au_left = size_;                 // bytes left in the AU
-  uint64_t au_offset = offset_;           // offset to read in the reader
-  size_t buf_left = buffer->data_size();  // bytes left in the buffer
+  size_t au_left = size_;            // bytes left in the AU
+  uint64_t au_offset = offset_;      // offset to read in the reader
+  size_t buf_left = buffer->size();  // bytes left in the buffer
   // The current write position in the buffer
   int64_t decoder_buffer_offset = prepend_size_;
 

@@ -18,14 +18,52 @@ syntax = "proto2";
 
 package perfetto.protos;
 
-// Next id: 26.
+// Next id: 34
 message FtraceConfig {
+  // Ftrace events to record, example: "sched/sched_switch".
   repeated string ftrace_events = 1;
+
+  message KprobeEvent {
+    enum KprobeType {
+      KPROBE_TYPE_UNKNOWN = 0;
+      KPROBE_TYPE_KPROBE = 1;
+      KPROBE_TYPE_KRETPROBE = 2;
+      KPROBE_TYPE_BOTH = 3;
+    }
+    // Kernel function name to attach to, for example "fuse_file_write_iter"
+    optional string probe = 1;
+    optional KprobeType type = 2;
+  }
+
+  // Ftrace events to record, specific for kprobes and kretprobes
+  repeated KprobeEvent kprobe_events = 30;
+
+  // Android-specific event categories:
   repeated string atrace_categories = 2;
   repeated string atrace_apps = 3;
-  // *Per-CPU* buffer size.
+  // Some processes can emit data through atrace or through the perfetto SDK via
+  // the "track_event" data source. For these categories, the SDK will be
+  // preferred, if possible, for this config.
+  repeated string atrace_categories_prefer_sdk = 28;
+
+  // Size of each per-cpu kernel ftrace ring buffer.
+  // Not guaranteed if there are multiple concurrent tracing sessions, as the
+  // buffers cannot be resized without pausing recording in the kernel.
   optional uint32 buffer_size_kb = 10;
+
+  // If set, specifies how often the tracing daemon reads from the kernel ring
+  // buffer. Not guaranteed if there are multiple concurrent tracing sessions.
+  // Leave unset unless you're fine-tuning a local config.
   optional uint32 drain_period_ms = 11;
+
+  // If set, the tracing daemon will read kernel ring buffers as soon as
+  // they're filled past this percentage of occupancy. In other words, a value
+  // of 50 means that a read pass is triggered as soon as any per-cpu buffer is
+  // half-full. Not guaranteed if there are multiple concurrent tracing
+  // sessions.
+  // Currently does nothing on Linux kernels below v6.9.
+  // Introduced in: perfetto v48.
+  optional uint32 drain_buffer_percent = 29;
 
   // Configuration for compact encoding of scheduler events. When enabled (and
   // recording the relevant ftrace events), specific high-volume events are
@@ -33,6 +71,10 @@ message FtraceConfig {
   message CompactSchedConfig {
     // If true, and sched_switch or sched_waking ftrace events are enabled,
     // record those events in the compact format.
+    //
+    // If the field is unset, the default is:
+    // * perfetto v42.0+: enabled
+    // * before: disabled
     optional bool enabled = 1;
   }
   optional CompactSchedConfig compact_sched = 12;
@@ -112,6 +154,12 @@ message FtraceConfig {
   // For more context: go/rss-stat-throttled.
   optional bool throttle_rss_stat = 15;
 
+  // If true, use self-describing proto messages when writing events not known
+  // at compile time (aka generic events). Each event bundle will have a set of
+  // serialised proto descriptors for events within that bundle.
+  // Added in: perfetto v50.
+  optional bool denser_generic_event_encoding = 32;
+
   // If true, avoid enabling events that aren't statically known by
   // traced_probes. Otherwise, the default is to emit such events as
   // GenericFtraceEvent protos.
@@ -121,9 +169,12 @@ message FtraceConfig {
   // Introduced in: Android T.
   optional bool disable_generic_events = 16;
 
-  // The list of syscalls that should be recorded by sys_{enter,exit} ftrace
-  // events. When empty, all syscalls are recorded. If neither sys_{enter,exit}
-  // are enabled, this setting has no effect. Example: ["sys_read", "sys_open"].
+  // The subset of syscalls to record. To record all syscalls, leave this unset
+  // and add "ftrace_events: raw_syscalls/sys_{enter,exit}" to the config.
+  // * before perfetto v43, requires the config to also enable
+  //   raw_syscalls/sys_{enter,exit}.
+  // * perfetto v43+ does the right thing if you set only this field.
+  // Example: ["sys_read", "sys_open"].
   // Introduced in: Android U.
   repeated string syscall_events = 18;
 
@@ -177,7 +228,6 @@ message FtraceConfig {
   // * Introduced in: Android U.
   optional bool use_monotonic_raw_clock = 24;
 
-  // Caution: under development as of 2023/03/01.
   // If |instance_name| is not empty, then attempt to use that tracefs instance
   // for event recording. Normally, this means
   // `/sys/kernel/tracing/instances/$instance_name`.
@@ -190,6 +240,41 @@ message FtraceConfig {
   // at the time of writing:
   //  * ftrace_events
   //  * buffer_size_kb
-  // TODO(b/249050813): reword comment once instance support is stable.
   optional string instance_name = 25;
+
+  // If true, |buffer_size_kb| is interpreted as a lower bound, allowing the
+  // implementation to choose a bigger buffer size.
+  //
+  // Most configs for perfetto v43+ should simply leave both fields unset.
+  //
+  // If you need a config compatible with a range of perfetto builds and you
+  // used to set a non-default buffer_size_kb, consider setting both fields.
+  // Example:
+  //   buffer_size_kb: 4096
+  //   buffer_size_lower_bound: true
+  // On older builds, the per-cpu buffers will be exactly 4 MB.
+  // On v43+, buffers will be at least 4 MB.
+  // In both cases, neither is guaranteed if there are other concurrent
+  // perfetto ftrace sessions, as the buffers cannot be resized without pausing
+  // the recording in the kernel.
+  // Introduced in: perfetto v43.
+  optional bool buffer_size_lower_bound = 27;
+
+  // For perfetto developer use. If true and on a debuggable android build,
+  // serialise raw tracing pages that the implementation cannot parse.
+  optional bool debug_ftrace_abi = 31;
+
+  // Previously drain_buffer_percent, perfetto v43-v47.
+  reserved 26;
+
+  // If |enable_function_graph| is true, only trace the specified
+  // number of calls down the stack. Sets the max_graph_depth value
+  // in sys/kernel/tracing/
+  //
+  // Only respected for the first tracing session that enables
+  // function_graph tracing.
+  //
+  // Introduced in: perfetto v51.
+  // Supported on: Android 25Q3+.
+  optional uint32 function_graph_max_depth = 33;
 }

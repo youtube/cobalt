@@ -4,15 +4,14 @@
 
 #include "chrome/browser/ash/file_manager/restore_to_destination_io_task.h"
 
+#include <optional>
 #include <utility>
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/task/sequenced_task_runner.h"
-#include "chrome/browser/ash/file_manager/io_task_util.h"
 #include "chrome/browser/ash/file_manager/path_util.h"
 #include "chrome/browser/ash/file_manager/trash_info_validator.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace file_manager::io_task {
 
@@ -50,7 +49,7 @@ RestoreToDestinationIOTask::RestoreToDestinationIOTask(
   progress_.total_bytes = 0;
 
   for (const auto& url : file_urls) {
-    progress_.sources.emplace_back(url, absl::nullopt);
+    progress_.sources.emplace_back(url, std::nullopt);
   }
 }
 
@@ -68,8 +67,7 @@ void RestoreToDestinationIOTask::Execute(
   }
 
   progress_.state = State::kInProgress;
-  validator_ =
-      std::make_unique<trash::TrashInfoValidator>(profile_, base_path_);
+  validator_ = std::make_unique<trash::TrashInfoValidator>(profile_);
   validator_->SetDisconnectHandler(
       base::BindOnce(&RestoreToDestinationIOTask::Complete,
                      weak_ptr_factory_.GetWeakPtr(), State::kError));
@@ -137,7 +135,10 @@ void RestoreToDestinationIOTask::OnTrashInfoParsed(
         OperationType::kMove, std::move(source_urls_),
         std::move(destination_file_names_), progress_.GetDestinationFolder(),
         profile_, file_system_context_);
-
+    // Set the same ID so that anything trying to pause/resume/cancel the move
+    // task would pause/resume/cancel `this`, which will pass it on to the move
+    // task.
+    move_io_task_->SetTaskID(progress_.task_id);
     // The existing callbacks need to be intercepted to ensure the IOTask
     // progress that is propagated is sent from the `RestoreToDestinationIOTask`
     // instead of the underlying `CopyOrMoveIOTask`.
@@ -208,6 +209,13 @@ base::FilePath RestoreToDestinationIOTask::MakeRelativeFromBasePath(
   return base::FilePath(relative_path);
 }
 
+void RestoreToDestinationIOTask::Pause(PauseParams params) {
+  if (move_io_task_) {
+    // Delegate Pause to the underlying `move_io_task_`.
+    move_io_task_->Pause(std::move(params));
+  }
+}
+
 void RestoreToDestinationIOTask::Resume(ResumeParams params) {
   if (move_io_task_) {
     // Delegate Resume to the underlying `move_io_task_`.
@@ -221,6 +229,13 @@ void RestoreToDestinationIOTask::Cancel() {
     // Delegate Cancel to the underlying `move_io_task_`.
     move_io_task_->Cancel();
   }
+}
+
+CopyOrMoveIOTask* RestoreToDestinationIOTask::GetMoveTaskForTesting() {
+  if (move_io_task_) {
+    return move_io_task_.get();
+  }
+  return nullptr;
 }
 
 }  // namespace file_manager::io_task

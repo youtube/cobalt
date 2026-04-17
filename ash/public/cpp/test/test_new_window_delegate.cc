@@ -32,31 +32,14 @@ void TestNewWindowDelegate::OpenCrosh() {}
 void TestNewWindowDelegate::OpenDiagnostics() {}
 void TestNewWindowDelegate::OpenGetHelp() {}
 void TestNewWindowDelegate::RestoreTab() {}
-void TestNewWindowDelegate::ShowKeyboardShortcutViewer() {}
 void TestNewWindowDelegate::ShowShortcutCustomizationApp() {}
 void TestNewWindowDelegate::ShowTaskManager() {}
 void TestNewWindowDelegate::OpenFeedbackPage(
     FeedbackSource source,
     const std::string& description_template) {}
 void TestNewWindowDelegate::OpenPersonalizationHub() {}
-
-TestNewWindowDelegateProvider::TestNewWindowDelegateProvider(
-    std::unique_ptr<TestNewWindowDelegate> delegate)
-    : ash_(std::move(delegate)) {}
-
-TestNewWindowDelegateProvider::TestNewWindowDelegateProvider(
-    std::unique_ptr<TestNewWindowDelegate> ash,
-    std::unique_ptr<TestNewWindowDelegate> lacros)
-    : ash_(std::move(ash)), lacros_(std::move(lacros)) {}
-
-TestNewWindowDelegateProvider::~TestNewWindowDelegateProvider() = default;
-
-NewWindowDelegate* TestNewWindowDelegateProvider::GetInstance() {
-  return ash_.get();
-}
-
-NewWindowDelegate* TestNewWindowDelegateProvider::GetPrimary() {
-  return lacros_ ? lacros_.get() : ash_.get();
-}
+void TestNewWindowDelegate::OpenCaptivePortalSignin(const GURL& url) {}
+void TestNewWindowDelegate::OpenFile(const base::FilePath& file_path) {}
+void TestNewWindowDelegate::ToggleGeminiApp() {}
 
 }  // namespace ash

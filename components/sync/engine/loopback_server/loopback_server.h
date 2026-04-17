@@ -9,6 +9,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -18,13 +19,13 @@
 #include "base/memory/raw_ptr.h"
 #include "base/sequence_checker.h"
 #include "base/values.h"
-#include "components/sync/base/model_type.h"
+#include "components/sync/base/data_type.h"
 #include "components/sync/engine/loopback_server/loopback_server_entity.h"
 #include "components/sync/protocol/sync.pb.h"
 #include "net/http/http_status_code.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace sync_pb {
+class DeletionOrigin;
 class LoopbackServerProto;
 class EntitySpecifics;
 class SyncEntity;
@@ -44,23 +45,20 @@ class LoopbackServer : public base::ImportantFileWriter::DataSerializer {
     virtual ~ObserverForTests() = default;
 
     // Called after the server has processed a successful commit. The types
-    // updated as part of the commit are passed in |committed_model_types|.
-    virtual void OnCommit(const std::string& committer_invalidator_client_id,
-                          syncer::ModelTypeSet committed_model_types) = 0;
+    // updated as part of the commit are passed in `committed_data_types`.
+    virtual void OnCommit(syncer::DataTypeSet committed_data_types) = 0;
 
-    // Called when a page URL is committed to server-side history. This can
-    // happen either via the HISTORY data type, or (while HISTORY is not yet
-    // rolled out) via SESSIONS when the user has enabled "history sync" in the
-    // settings UI (which is detected by verifying if TYPED_URLS is an enabled
-    // type, as part of the commit request).
-    virtual void OnHistoryCommit(const std::string& url) = 0;
+    // Called when a committed tombstone includes a deletion origin.
+    virtual void OnCommittedDeletionOrigin(
+        syncer::DataType type,
+        const sync_pb::DeletionOrigin& deletion_origin) = 0;
   };
 
   explicit LoopbackServer(const base::FilePath& persistent_file);
   ~LoopbackServer() override;
 
-  // Handles a /command POST (with the given |message|) to the server.
-  // |response| must not be null.
+  // Handles a /command POST (with the given `message`) to the server.
+  // `response` must not be null.
   net::HttpStatusCode HandleCommand(
       const sync_pb::ClientToServerMessage& message,
       sync_pb::ClientToServerResponse* response);
@@ -77,8 +75,8 @@ class LoopbackServer : public base::ImportantFileWriter::DataSerializer {
     bag_of_chips_ = bag_of_chips;
   }
 
-  void TriggerMigrationForTesting(ModelTypeSet model_types) {
-    for (const ModelType type : model_types) {
+  void TriggerMigrationForTesting(DataTypeSet data_types) {
+    for (const DataType type : data_types) {
       ++migration_versions_[type];
     }
   }
@@ -89,8 +87,8 @@ class LoopbackServer : public base::ImportantFileWriter::DataSerializer {
 
   void AddNewKeystoreKeyForTesting();
 
-  void SetThrottledTypesForTesting(ModelTypeSet model_types) {
-    throttled_types_ = model_types;
+  void SetThrottledTypesForTesting(DataTypeSet data_types) {
+    throttled_types_ = data_types;
   }
 
  private:
@@ -104,8 +102,10 @@ class LoopbackServer : public base::ImportantFileWriter::DataSerializer {
       base::RepeatingCallback<sync_pb::CommitResponse::ResponseType(
           const LoopbackServerEntity& entity)>;
 
+  void FlushToDisk();
+
   // ImportantFileWriter::DataSerializer:
-  absl::optional<std::string> SerializeData() override;
+  std::optional<std::string> SerializeData() override;
 
   // Gets LoopbackServer ready for syncing.
   void Init();
@@ -115,85 +115,85 @@ class LoopbackServer : public base::ImportantFileWriter::DataSerializer {
                                const std::string& store_birthday,
                                const std::string& invalidator_client_id,
                                sync_pb::GetUpdatesResponse* response,
-                               std::vector<ModelType>* datatypes_to_migrate);
+                               std::vector<DataType>* datatypes_to_migrate);
 
   // Processes a Commit call.
   bool HandleCommitRequest(const sync_pb::CommitMessage& message,
                            const std::string& invalidator_client_id,
                            sync_pb::CommitResponse* response,
-                           ModelTypeSet* throttled_datatypes_in_request);
+                           DataTypeSet* throttled_datatypes_in_request);
 
   void ClearServerData();
 
-  void DeleteAllEntitiesForModelType(ModelType model_type);
+  void DeleteAllEntitiesForDataType(DataType data_type);
 
   // Creates and saves a permanent folder for Bookmarks (e.g., Bookmark Bar).
   bool CreatePermanentBookmarkFolder(const std::string& server_tag,
                                      const std::string& name);
 
-  // Inserts the default permanent items in |entities_|.
+  // Inserts the default permanent items in `entities_`.
   bool CreateDefaultPermanentItems();
 
   // Returns generated key which may contain any bytes (not necessarily UTF-8).
   std::vector<uint8_t> GenerateNewKeystoreKey() const;
 
-  // Saves a |entity| to |entities_|.
+  // Saves a `entity` to `entities_`.
   void SaveEntity(std::unique_ptr<LoopbackServerEntity> entity);
 
   // Commits a client-side SyncEntity to the server as a LoopbackServerEntity.
-  // The client that sent the commit is identified via |client_guid|. The
-  // parent ID string present in |client_entity| should be ignored in favor
-  // of |parent_id|. If the commit is successful, the entity's server ID string
-  // is returned and a new LoopbackServerEntity is saved in |entities_|.
+  // The client that sent the commit is identified via `client_guid`. The
+  // parent ID string present in `client_entity` should be ignored in favor
+  // of `parent_id`. If the commit is successful, the entity's server ID string
+  // is returned and a new LoopbackServerEntity is saved in `entities_`.
   std::string CommitEntity(
       const sync_pb::SyncEntity& client_entity,
       sync_pb::CommitResponse_EntryResponse* entry_response,
       const std::string& client_guid,
       const std::string& parent_id);
 
-  // Populates |entry_response| based on the stored entity identified by
-  // |entity_id|. It is assumed that the entity identified by |entity_id| has
+  // Populates `entry_response` based on the stored entity identified by
+  // `entity_id`. It is assumed that the entity identified by `entity_id` has
   // already been stored using SaveEntity.
   void BuildEntryResponseForSuccessfulCommit(
       const std::string& entity_id,
       sync_pb::CommitResponse_EntryResponse* entry_response);
 
-  // Determines whether the SyncEntity with id_string |id| is a child of an
-  // entity with id_string |potential_parent_id|.
+  // Determines whether the SyncEntity with id_string `id` is a child of an
+  // entity with id_string `potential_parent_id`.
   bool IsChild(const std::string& id, const std::string& potential_parent_id);
 
   // Creates and saves tombstones for all children of the entity with the given
-  // |parent_id|. A tombstone is not created for the entity itself.
+  // `parent_id`. A tombstone is not created for the entity itself.
   void DeleteChildren(const std::string& parent_id);
 
-  // Updates the |entity| to a new version and increments the version counter
+  // Updates the `entity` to a new version and increments the version counter
   // that the server uses to assign versions.
   void UpdateEntityVersion(LoopbackServerEntity* entity);
 
   // Returns the store birthday.
   std::string GetStoreBirthday() const;
 
-  // Returns all entities stored by the server of the given |model_type|.
+  // Returns all entities stored by the server of the given `data_type`.
   // Permanent entities are excluded. This method is only used in tests.
-  std::vector<sync_pb::SyncEntity> GetSyncEntitiesByModelType(
-      syncer::ModelType model_type);
+  std::vector<sync_pb::SyncEntity> GetSyncEntitiesByDataType(
+      syncer::DataType data_type);
 
-  // Returns a list of permanent entities of the given |model_type|. This method
+  // Returns a list of permanent entities of the given `data_type`. This method
   // is only used in tests.
-  std::vector<sync_pb::SyncEntity> GetPermanentSyncEntitiesByModelType(
-      syncer::ModelType model_type);
+  std::vector<sync_pb::SyncEntity> GetPermanentSyncEntitiesByDataType(
+      syncer::DataType data_type);
 
   // Creates a `base::Value::Dict` representation of all entities present in the
   // server. The dictionary keys are the strings generated by
-  // ModelTypeToDebugString and the values are Value::Lists containing
+  // DataTypeToDebugString and the values are Value::Lists containing
   // StringValue versions of entity names. Permanent entities are excluded. Used
   // by test to verify the contents of the server state.
   base::Value::Dict GetEntitiesAsDictForTesting();
 
-  // Modifies the entity on the server with the given |id|. The entity's
-  // EntitySpecifics are replaced with |updated_specifics| and its version is
-  // updated to n+1. If the given |id| does not exist or the ModelType of
-  // |updated_specifics| does not match the entity, false is returned.
+  // Modifies the entity on the server with the given `id`. The entity's
+  // EntitySpecifics are replaced with `updated_specifics` and its version is
+  // updated to n+1. If the given `id` does not exist or the DataType of
+  // `updated_specifics` does not match the entity, false is returned.
   // Otherwise, true is returned to represent a successful modification.
   //
   // This method sometimes updates entity data beyond EntitySpecifics. For
@@ -217,10 +217,10 @@ class LoopbackServer : public base::ImportantFileWriter::DataSerializer {
   // This method is only used in tests.
   void OverrideResponseType(ResponseTypeProvider response_type_override);
 
-  // Serializes the server state to |proto|.
+  // Serializes the server state to `proto`.
   void SerializeState(sync_pb::LoopbackServerProto* proto) const;
 
-  // Populates the server state from |proto|. Returns true iff successful.
+  // Populates the server state from `proto`. Returns true iff successful.
   bool DeSerializeState(const sync_pb::LoopbackServerProto& proto);
 
   // Schedules committing state to disk at some later time. Repeat calls are
@@ -236,19 +236,19 @@ class LoopbackServer : public base::ImportantFileWriter::DataSerializer {
     observer_for_tests_ = observer;
   }
 
-  bool strong_consistency_model_enabled_;
+  bool strong_consistency_model_enabled_ = false;
 
   // This is the last version number assigned to an entity. The next entity will
   // have a version number of version_ + 1.
-  int64_t version_;
+  int64_t version_ = 0;
 
-  int64_t store_birthday_;
+  int64_t store_birthday_ = 0;
 
-  ModelTypeSet throttled_types_;
+  DataTypeSet throttled_types_;
 
-  absl::optional<sync_pb::ChipBag> bag_of_chips_;
+  std::optional<sync_pb::ChipBag> bag_of_chips_;
 
-  std::map<ModelType, int> migration_versions_;
+  std::map<DataType, int> migration_versions_;
 
   int max_get_updates_batch_size_ = 1000000;
 
@@ -256,7 +256,7 @@ class LoopbackServer : public base::ImportantFileWriter::DataSerializer {
   std::vector<std::vector<uint8_t>> keystore_keys_;
 
   // The file used to store the local sync data.
-  base::FilePath persistent_file_;
+  const base::FilePath persistent_file_;
 
   // Used to limit the rate of file rewrites due to updates.
   base::ImportantFileWriter writer_;
@@ -265,7 +265,7 @@ class LoopbackServer : public base::ImportantFileWriter::DataSerializer {
   SEQUENCE_CHECKER(sequence_checker_);
 
   // Used to observe the completion of commit messages for the sake of testing.
-  raw_ptr<ObserverForTests> observer_for_tests_;
+  raw_ptr<ObserverForTests> observer_for_tests_ = nullptr;
 
   // Response type override callback used in tests.
   ResponseTypeProvider response_type_override_;

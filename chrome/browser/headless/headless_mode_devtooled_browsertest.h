@@ -42,7 +42,7 @@ class HeadlessModeDevTooledBrowserTest : public HeadlessModeBrowserTest,
 
   // Notify that an asynchronous test is complete and the test runner should
   // exit.
-  void FinishAsyncTest();
+  virtual void FinishAsyncTest();
 
   // Run an asynchronous test in a nested run loop. The caller should call
   // FinishAsyncTest() to notify that the test should finish.
@@ -85,4 +85,4 @@ class HeadlessModeDevTooledBrowserTest : public HeadlessModeBrowserTest,
 
 }  // namespace headless
 
-#endif  // CHROME_BROWSER_HEADLESS_TEST_HEADLESS_MODEVTOOLED_DE_BROWSERTEST_H_
+#endif  // CHROME_BROWSER_HEADLESS_HEADLESS_MODE_DEVTOOLED_BROWSERTEST_H_

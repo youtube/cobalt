@@ -14,26 +14,16 @@
 #include "net/log/net_log.h"
 #include "net/log/net_log_event_type.h"
 
-#if BUILDFLAG(IS_ANDROID)
-#include "base/android/build_info.h"
-#endif
-
 namespace net {
 
 namespace {
 
 // Returns a human readable integer from a handles::NetworkHandle.
 int HumanReadableNetworkHandle(handles::NetworkHandle network) {
-#if BUILDFLAG(IS_ANDROID)
   // On Marshmallow, demunge the NetID to undo munging done in java
   // Network.getNetworkHandle() by shifting away 0xfacade from
   // http://androidxref.com/6.0.1_r10/xref/frameworks/base/core/java/android/net/Network.java#385
-  if (base::android::BuildInfo::GetInstance()->sdk_int() >=
-      base::android::SDK_VERSION_MARSHMALLOW) {
-    return network >> 32;
-  }
-#endif
-  return network;
+  return network >> 32;
 }
 
 // Return a dictionary of values that provide information about a
@@ -60,20 +50,17 @@ base::Value::Dict NetworkSpecificNetLogParams(handles::NetworkHandle network) {
   return dict;
 }
 
-void NetLogNetworkSpecific(NetLog* net_log,
+void NetLogNetworkSpecific(NetLogWithSource& net_log,
                            NetLogEventType type,
                            handles::NetworkHandle network) {
-  if (!net_log)
-    return;
-
-  net_log->AddGlobalEntry(type,
+  net_log.AddEvent(type,
                           [&] { return NetworkSpecificNetLogParams(network); });
 }
 
 }  // namespace
 
 LoggingNetworkChangeObserver::LoggingNetworkChangeObserver(NetLog* net_log)
-    : net_log_(net_log) {
+    : net_log_(NetLogWithSource::Make(net_log, NetLogSourceType::NETWORK_CHANGE_NOTIFIER)) {
   NetworkChangeNotifier::AddIPAddressObserver(this);
   NetworkChangeNotifier::AddConnectionTypeObserver(this);
   NetworkChangeNotifier::AddNetworkChangeObserver(this);
@@ -92,30 +79,30 @@ LoggingNetworkChangeObserver::~LoggingNetworkChangeObserver() {
 void LoggingNetworkChangeObserver::OnIPAddressChanged() {
   VLOG(1) << "Observed a change to the network IP addresses";
 
-  net_log_->AddGlobalEntry(NetLogEventType::NETWORK_IP_ADDRESSES_CHANGED);
+  net_log_.AddEvent(NetLogEventType::NETWORK_IP_ADDRESSES_CHANGED);
 }
 
 void LoggingNetworkChangeObserver::OnConnectionTypeChanged(
     NetworkChangeNotifier::ConnectionType type) {
-  std::string type_as_string =
+  std::string_view type_as_string =
       NetworkChangeNotifier::ConnectionTypeToString(type);
 
   VLOG(1) << "Observed a change to network connectivity state "
           << type_as_string;
 
-  net_log_->AddGlobalEntryWithStringParams(
+  net_log_.AddEventWithStringParams(
       NetLogEventType::NETWORK_CONNECTIVITY_CHANGED, "new_connection_type",
       type_as_string);
 }
 
 void LoggingNetworkChangeObserver::OnNetworkChanged(
     NetworkChangeNotifier::ConnectionType type) {
-  std::string type_as_string =
+  std::string_view type_as_string =
       NetworkChangeNotifier::ConnectionTypeToString(type);
 
   VLOG(1) << "Observed a network change to state " << type_as_string;
 
-  net_log_->AddGlobalEntryWithStringParams(
+  net_log_.AddEventWithStringParams(
       NetLogEventType::NETWORK_CHANGED, "new_connection_type", type_as_string);
 }
 

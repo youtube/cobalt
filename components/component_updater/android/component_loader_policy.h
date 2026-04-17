@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -19,7 +20,6 @@
 #include "base/sequence_checker.h"
 #include "base/values.h"
 #include "components/component_updater/android/component_loader_policy_forward.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 class Version;
@@ -42,6 +42,15 @@ enum class ComponentLoadResult {
   kInvalidVersion = 6,
   kMaxValue = kInvalidVersion,
 };
+
+inline constexpr char kManifestFileName[] = "manifest.json";
+inline constexpr char kMetadataFileName[] = "aw_extra_component_metadata.json";
+
+inline constexpr char kMetadataFileCohortIdKey[] = "cohortId";
+
+inline constexpr char kComponentsCrashKeyName[] = "crx-components";
+inline constexpr char kCohortHashCrashKeyName[] =
+    "crx-components-cohort-hashes";
 
 // Components should use `AndroidComponentLoaderPolicy` by defining a class that
 // implements the members of `ComponentLoaderPolicy`, and then registering a
@@ -137,8 +146,10 @@ class AndroidComponentLoaderPolicy {
 
   std::string GetComponentId() const;
 
-  void NotifyNewVersion(base::flat_map<std::string, base::ScopedFD>& fd_map,
-                        absl::optional<base::Value::Dict> manifest);
+  void NotifyNewVersion(
+      base::flat_map<std::string, base::ScopedFD>& fd_map,
+      std::pair<std::optional<base::Value::Dict>,
+                std::optional<base::Value::Dict>> component_files);
 
   void ComponentLoadFailedInternal(ComponentLoadResult error);
 

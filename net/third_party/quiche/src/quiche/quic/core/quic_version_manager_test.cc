@@ -18,28 +18,25 @@ namespace {
 class QuicVersionManagerTest : public QuicTest {};
 
 TEST_F(QuicVersionManagerTest, QuicVersionManager) {
-  static_assert(SupportedVersions().size() == 6u,
+  static_assert(SupportedVersions().size() == 4u,
                 "Supported versions out of sync");
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
     QuicEnableVersion(version);
   }
-  QuicDisableVersion(ParsedQuicVersion::V2Draft08());
+  QuicDisableVersion(ParsedQuicVersion::RFCv2());
   QuicDisableVersion(ParsedQuicVersion::RFCv1());
   QuicDisableVersion(ParsedQuicVersion::Draft29());
   QuicVersionManager manager(AllSupportedVersions());
 
   ParsedQuicVersionVector expected_parsed_versions;
-  expected_parsed_versions.push_back(ParsedQuicVersion::Q050());
   expected_parsed_versions.push_back(ParsedQuicVersion::Q046());
-  expected_parsed_versions.push_back(ParsedQuicVersion::Q043());
 
   EXPECT_EQ(expected_parsed_versions, manager.GetSupportedVersions());
 
   EXPECT_EQ(FilterSupportedVersions(AllSupportedVersions()),
             manager.GetSupportedVersions());
   EXPECT_TRUE(manager.GetSupportedVersionsWithOnlyHttp3().empty());
-  EXPECT_THAT(manager.GetSupportedAlpns(),
-              ElementsAre("h3-Q050", "h3-Q046", "h3-Q043"));
+  EXPECT_THAT(manager.GetSupportedAlpns(), ElementsAre("h3-Q046"));
 
   QuicEnableVersion(ParsedQuicVersion::Draft29());
   expected_parsed_versions.insert(expected_parsed_versions.begin(),
@@ -50,8 +47,7 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
   EXPECT_EQ(1u, manager.GetSupportedVersionsWithOnlyHttp3().size());
   EXPECT_EQ(CurrentSupportedHttp3Versions(),
             manager.GetSupportedVersionsWithOnlyHttp3());
-  EXPECT_THAT(manager.GetSupportedAlpns(),
-              ElementsAre("h3-29", "h3-Q050", "h3-Q046", "h3-Q043"));
+  EXPECT_THAT(manager.GetSupportedAlpns(), ElementsAre("h3-29", "h3-Q046"));
 
   QuicEnableVersion(ParsedQuicVersion::RFCv1());
   expected_parsed_versions.insert(expected_parsed_versions.begin(),
@@ -63,11 +59,11 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
   EXPECT_EQ(CurrentSupportedHttp3Versions(),
             manager.GetSupportedVersionsWithOnlyHttp3());
   EXPECT_THAT(manager.GetSupportedAlpns(),
-              ElementsAre("h3", "h3-29", "h3-Q050", "h3-Q046", "h3-Q043"));
+              ElementsAre("h3", "h3-29", "h3-Q046"));
 
-  QuicEnableVersion(ParsedQuicVersion::V2Draft08());
+  QuicEnableVersion(ParsedQuicVersion::RFCv2());
   expected_parsed_versions.insert(expected_parsed_versions.begin(),
-                                  ParsedQuicVersion::V2Draft08());
+                                  ParsedQuicVersion::RFCv2());
   EXPECT_EQ(expected_parsed_versions, manager.GetSupportedVersions());
   EXPECT_EQ(FilterSupportedVersions(AllSupportedVersions()),
             manager.GetSupportedVersions());
@@ -75,7 +71,7 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
   EXPECT_EQ(CurrentSupportedHttp3Versions(),
             manager.GetSupportedVersionsWithOnlyHttp3());
   EXPECT_THAT(manager.GetSupportedAlpns(),
-              ElementsAre("h3", "h3-29", "h3-Q050", "h3-Q046", "h3-Q043"));
+              ElementsAre("h3", "h3-29", "h3-Q046"));
 }
 
 }  // namespace

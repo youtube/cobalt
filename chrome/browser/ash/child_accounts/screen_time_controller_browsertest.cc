@@ -21,13 +21,11 @@
 #include "chrome/browser/ash/login/test/logged_in_user_mixin.h"
 #include "chrome/browser/ash/policy/core/user_policy_test_helper.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/mixin_based_in_process_browser_test.h"
 #include "components/prefs/pref_service.h"
 #include "components/session_manager/core/session_manager.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -100,7 +98,7 @@ class ScreenTimeControllerTest : public MixinBasedInProcessBrowserTest {
     const user_manager::UserManager* const user_manager =
         user_manager::UserManager::Get();
     EXPECT_EQ(user_manager->GetActiveUser()->GetType(),
-              user_manager::USER_TYPE_CHILD);
+              user_manager::UserType::kChild);
     child_profile_ =
         ProfileHelper::Get()->GetProfileByUser(user_manager->GetActiveUser());
 
@@ -142,16 +140,12 @@ class ScreenTimeControllerTest : public MixinBasedInProcessBrowserTest {
 
   scoped_refptr<base::TestMockTimeTaskRunner> task_runner_;
 
-  raw_ptr<Profile, ExperimentalAsh> child_profile_ = nullptr;
+  raw_ptr<Profile, DanglingUntriaged> child_profile_ = nullptr;
 
  private:
-  LoggedInUserMixin logged_in_user_mixin_{&mixin_host_,
-                                          LoggedInUserMixin::LogInType::kChild,
-                                          embedded_test_server(),
-                                          this,
-                                          true /*should_launch_browser*/,
-                                          absl::nullopt /*account_id*/,
-                                          false /*include_initial_user*/};
+  LoggedInUserMixin logged_in_user_mixin_{
+      &mixin_host_, /*test_base=*/this, embedded_test_server(),
+      LoggedInUserMixin::LogInType::kChild, /*include_initial_user=*/false};
 };
 
 // Tests a simple lock override.
@@ -434,13 +428,8 @@ IN_PROC_BROWSER_TEST_F(ScreenTimeControllerTest, UnlockDailyLimitWithDuration) {
 }
 
 // Tests the default time window limit.
-// TODO(crbug.com/1358216): Flaky on Linux
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_ASH)
-#define MAYBE_DefaultBedtime DISABLED_DefaultBedtime
-#else
-#define MAYBE_DefaultBedtime DefaultBedtime
-#endif
-IN_PROC_BROWSER_TEST_F(ScreenTimeControllerTest, MAYBE_DefaultBedtime) {
+// TODO(crbug.com/1358216): Flaky
+IN_PROC_BROWSER_TEST_F(ScreenTimeControllerTest, DISABLED_DefaultBedtime) {
   LogInChildAndSetupClockWithTime("1 Jan 2018 10:00:00 GMT");
   ScreenLockerTester().Lock();
 
@@ -719,7 +708,8 @@ IN_PROC_BROWSER_TEST_F(ScreenTimeControllerTest,
 }
 
 // Tests if call the observers for usage time limit warning.
-IN_PROC_BROWSER_TEST_F(ScreenTimeControllerTest, CallObservers) {
+// TODO(crbug.com/334160972): Flaky on CrOS.
+IN_PROC_BROWSER_TEST_F(ScreenTimeControllerTest, DISABLED_CallObservers) {
   LogInChildAndSetupClockWithTime("1 Jan 2018 10:00:00 PST");
 
   system::TimezoneSettings::GetInstance()->SetTimezoneFromID(u"PST");

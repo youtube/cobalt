@@ -23,14 +23,14 @@ WebGLContextAttributes* ToWebGLContextAttributes(
 // Platform API.
 Platform::ContextAttributes ToPlatformContextAttributes(
     const CanvasContextCreationAttributesCore&,
-    Platform::ContextType context_type,
-    bool support_own_offscreen_surface);
+    Platform::ContextType context_type);
 
 // Turns the powerPreference context creation attribute into the
 // gl::GpuPreference enum which is sent along with GPU switching
 // notifications. This must not return the kDefault constant, but
 // choose either the low-power or high-performance GPU.
-gl::GpuPreference PowerPreferenceToGpuPreference(String power_preference);
+gl::GpuPreference PowerPreferenceToGpuPreference(
+    CanvasContextCreationAttributesCore::PowerPreference power_preference);
 
 }  // namespace blink
 

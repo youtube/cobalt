@@ -10,8 +10,10 @@
 #include <limits>
 
 #include "base/base64url.h"
-#include "base/big_endian.h"
 #include "base/containers/contains.h"
+#include "base/containers/span.h"
+#include "base/containers/span_reader.h"
+#include "base/containers/span_writer.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/memory/ptr_util.h"
@@ -62,15 +64,14 @@ const char* const kV3Features[] = {
 
 std::unique_ptr<WireMessage> DeserializeJsonMessageBody(
     const std::string& serialized_message_body) {
-  absl::optional<base::Value> body_value =
-      base::JSONReader::Read(serialized_message_body);
-  if (!body_value || !body_value->is_dict()) {
+  std::optional<base::Value::Dict> body_value =
+      base::JSONReader::ReadDict(serialized_message_body);
+  if (!body_value) {
     PA_LOG(WARNING) << "Unable to parse message as JSON.";
     return nullptr;
   }
 
-  const base::Value::Dict& body = body_value->GetDict();
-  const std::string* payload_base64 = body.FindString(kPayloadKey);
+  const std::string* payload_base64 = body_value->FindString(kPayloadKey);
   if (!payload_base64) {
     // Legacy case: Message without a payload.
     return base::WrapUnique(new WireMessage(serialized_message_body));
@@ -89,7 +90,7 @@ std::unique_ptr<WireMessage> DeserializeJsonMessageBody(
     return nullptr;
   }
 
-  const std::string* feature = body.FindString(kFeatureKey);
+  const std::string* feature = body_value->FindString(kFeatureKey);
   if (!feature || feature->empty()) {
     return base::WrapUnique(new WireMessage(payload, kDefaultFeature));
   }
@@ -116,15 +117,14 @@ std::unique_ptr<WireMessage> DeserializeV3OrV4Message(
   // Reads the expected body size, starting after the protocol message portion
   // of the header. Because this value is received over the network, we must
   // convert from big endian to host byte order.
-  base::BigEndianReader reader(
-      reinterpret_cast<const uint8_t*>(serialized_message.data()) +
-          kNumBytesInHeaderProtocolVersion,
-      serialized_message.size() - kNumBytesInHeaderProtocolVersion);
+  auto reader =
+      base::SpanReader(base::as_byte_span(serialized_message)
+                           .subspan(kNumBytesInHeaderProtocolVersion));
 
   size_t expected_message_length;
   if (is_v3) {
     uint16_t body_length;
-    if (!reader.ReadU16(&body_length)) {
+    if (!reader.ReadU16BigEndian(body_length)) {
       PA_LOG(ERROR) << "Failed to read v3 message length.";
       *is_incomplete_message = true;
       return nullptr;
@@ -132,7 +132,7 @@ std::unique_ptr<WireMessage> DeserializeV3OrV4Message(
     expected_message_length = kHeaderSize + body_length;
   } else {
     uint32_t body_length;
-    if (!reader.ReadU32(&body_length)) {
+    if (!reader.ReadU32BigEndian(body_length)) {
       PA_LOG(ERROR) << "Failed to read v4 message length.";
       *is_incomplete_message = true;
       return nullptr;
@@ -224,13 +224,13 @@ std::string WireMessage::Serialize() const {
       (use_v3_encoding ? kV3NumBytesInHeaderSize : kV4NumBytesInHeaderSize);
 
   std::string header_string(kHeaderSize, 0);
-  base::BigEndianWriter writer(&header_string[0], kHeaderSize);
+  base::SpanWriter writer(base::as_writable_byte_span(header_string));
   if (use_v3_encoding) {
-    writer.WriteU8(kV3HeaderVersion);
-    writer.WriteU16(static_cast<uint16_t>(body_size));
+    writer.WriteU8BigEndian(kV3HeaderVersion);
+    writer.WriteU16BigEndian(static_cast<uint16_t>(body_size));
   } else {
-    writer.WriteU8(kV4HeaderVersion);
-    writer.WriteU32(static_cast<uint32_t>(body_size));
+    writer.WriteU8BigEndian(kV4HeaderVersion);
+    writer.WriteU32BigEndian(static_cast<uint32_t>(body_size));
   }
 
   return header_string + json_body;

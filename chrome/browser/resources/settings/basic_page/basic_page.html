@@ -1,4 +1,4 @@
-    <style include="cr-shared-style settings-page-styles cr-hidden-style iron-flex">
+    <style include="cr-shared-style settings-page-styles cr-hidden-style">
       :host([is-subpage-animating]) {
         /* Prevent an unwanted horizontal scrollbar when transitioning back from
          * a sub-page. */
@@ -8,9 +8,19 @@
       :host(:not([in-search-mode])) settings-section:not([active]) {
         display: none;
       }
+
+      settings-section[section="aiInfoCard"] {
+        --cr-card-shadow: none;
+      }
+
+      @media (forced-colors: active) {
+        settings-section[section="aiInfoCard"] {
+          --cr-border-hcm: none;
+        }
+      }
     </style>
-    <template is="dom-if" if="[[showBasicPage_(
-        currentRoute_, inSearchMode, hasExpandedSection_)]]">
+    <template is="dom-if" if="[[showBasicPage_(currentRoute_, inSearchMode)]]"
+        restamp>
       <div id="basicPage">
         <template is="dom-if" if="[[showResetProfileBanner_]]" restamp>
           <settings-reset-profile-banner on-close="onResetProfileBannerClosed_">
@@ -23,6 +33,25 @@
                 page-visibility="[[pageVisibility]]">
             </settings-people-page>
           </settings-section>
+        </template>
+        <template is="dom-if" if="[[showAiPage_(pageVisibility.ai)]]" restamp>
+          <settings-section section="aiInfoCard" nest-under-section="ai">
+            <settings-ai-info-card></settings-ai-info-card>
+          </settings-section>
+<if expr="enable_glic">
+          <template is="dom-if" if="[[showGlicSection_]]" restamp>
+            <settings-section page-title="$i18n{glicSectionTitle}"
+                nest-under-section="ai" section="glicSection">
+              <settings-glic-page prefs="{{prefs}}"></settings-glic-page>
+            </settings-section>
+          </template>
+</if>
+          <template is="dom-if" if="[[showAiPageAiFeatureSection_]]" restamp>
+            <settings-section page-title="$i18n{aiInnovationsPageTitle}"
+                section="ai">
+              <settings-ai-page prefs="{{prefs}}"></settings-ai-page>
+            </settings-section>
+          </template>
         </template>
         <template is="dom-if" if="[[showPage_(pageVisibility.autofill)]]"
             restamp>
@@ -38,13 +67,15 @@
               prefs="{{prefs}}">
           </settings-privacy-guide-promo>
         </settings-section>
-        <template is="dom-if" if="[[showPage_(pageVisibility.safetyCheck)]]"
+        <!--  TODO(crbug.com/40267370): Add a test to basic_page_test.ts
+        to check that settings-safety-hub-entry-point is not visible
+        in the guest mode. -->
+        <template is="dom-if" if="[[showPage_(pageVisibility.safetyHub)]]"
             restamp>
-          <settings-section page-title="$i18n{safetyCheckSectionTitle}"
-              section="safetyCheck" nest-under-section="privacy"
-              id="safetyCheckSettingsSection">
-            <settings-safety-check-page prefs="{{prefs}}">
-            </settings-safety-check-page>
+          <settings-section page-title="$i18n{safetyHub}"
+              section="safetyHubEntryPoint" nest-under-section="privacy"
+              id="safetyHubEntryPointSection">
+            <settings-safety-hub-entry-point></settings-safety-hub-entry-point>
           </settings-section>
         </template>
         <template is="dom-if" if="[[showPage_(pageVisibility.privacy)]]"
@@ -57,30 +88,49 @@
           </settings-section>
         </template>
         <template is="dom-if"
-            if="[[showPerformancePage_(pageVisibility.performance)]]"
+            if="[[showPage_(pageVisibility.performance)]]"
             restamp>
-          <settings-section page-title="$i18n{performancePageTitle}"
+          <settings-section page-title="$i18n{generalPageTitle}"
+              section="performance" id="performanceSettingsSection"
 <if expr="_google_chrome">
               show-send-feedback-button
-              on-send-feedback="onSendHighEfficiencyFeedbackClick_"
+              on-send-feedback="onSendPerformanceFeedbackClick_"
 </if>
-              section="performance" id="performanceSettingsSection">
+              >
             <settings-performance-page prefs="{{prefs}}">
             </settings-performance-page>
           </settings-section>
-        </template>
-        <template is="dom-if"
-            if="[[showBatteryPage_(pageVisibility.performance)]]"
-            restamp>
+          <settings-section page-title="$i18n{memoryPageTitle}"
+              section="memory" nest-under-section="performance"
+              id="memorySettingsSection"
+<if expr="_google_chrome">
+              show-send-feedback-button
+              on-send-feedback="onSendMemorySaverFeedbackClick_"
+</if>
+              >
+            <settings-memory-page prefs="{{prefs}}">
+            </settings-memory-page>
+          </settings-section>
           <settings-section page-title="$i18n{batteryPageTitle}"
               section="battery" nest-under-section="performance"
+              id="batterySettingsSection" hidden="[[!showBatterySettings_]]"
 <if expr="_google_chrome">
               show-send-feedback-button
               on-send-feedback="onSendBatterySaverFeedbackClick_"
 </if>
-              id="batterySettingsSection" hidden="[[!showBatterySettings_]]">
+              >
             <settings-battery-page prefs="{{prefs}}">
             </settings-battery-page>
+          </settings-section>
+          <settings-section page-title="$i18n{speedPageTitle}"
+              section="speed" nest-under-section="performance"
+              id="speedSettingsSection"
+<if expr="_google_chrome">
+              show-send-feedback-button
+              on-send-feedback="onSendSpeedFeedbackClick_"
+</if>
+              >
+            <settings-speed-page prefs="{{prefs}}"></settings-speed-page>
           </settings-section>
         </template>
         <template is="dom-if" if="[[showPage_(pageVisibility.appearance)]]"
@@ -118,9 +168,7 @@
         if="[[showAdvancedSettings_(pageVisibility.advancedSettings)]]">
       <settings-idle-load id="advancedPageTemplate">
         <template>
-          <div id="advancedPage" hidden$="[[!showAdvancedPage_(
-              currentRoute_, inSearchMode, hasExpandedSection_,
-              advancedToggleExpanded)]]">
+          <div id="advancedPage">
             <template is="dom-if" if="[[showPage_(pageVisibility.languages)]]"
                 restamp>
 <if expr="not chromeos_ash">
@@ -162,16 +210,13 @@
                 </settings-spell-check-page>
               </settings-section>
             </template>
-            <template is="dom-if"
-                if="[[enableDesktopDetailedLanguageSettings_]]" restamp>
-              <settings-section page-title="$i18n{translatePageTitle}"
-                  section="translate" nest-under-section="languages">
-                <settings-translate-page prefs="{{prefs}}"
-                    languages="{{languages}}"
-                    language-helper="{{languageHelper}}">
-                </settings-translate-page>
-              </settings-section>
-            </template>
+            <settings-section page-title="$i18n{translatePageTitle}"
+                section="translate" nest-under-section="languages">
+              <settings-translate-page prefs="{{prefs}}"
+                  languages="{{languages}}"
+                  language-helper="{{languageHelper}}">
+              </settings-translate-page>
+            </settings-section>
 </if>
             <template is="dom-if" if="[[showPage_(pageVisibility.downloads)]]"
                 restamp>
@@ -201,19 +246,9 @@
                 restamp>
               <settings-section page-title="$i18n{resetPageTitle}"
                   section="reset">
-                <settings-reset-page prefs="{{prefs}}"></settings-reset-page>
+                <settings-reset-page></settings-reset-page>
               </settings-section>
             </template>
-<if expr="_google_chrome">
-            <template is="dom-if"
-                if="[[showGetMostChrome_(pageVisibility.getMostChrome)]]"
-                restamp>
-              <settings-section page-title="$i18n{getTheMostOutOfChrome}"
-                  section="getMostChrome" no-search>
-                <settings-get-most-chrome-page></settings-get-most-chrome-page>
-              </settings-section>
-            </template>
-</if>
           </div>
         </template>
       </settings-idle-load>

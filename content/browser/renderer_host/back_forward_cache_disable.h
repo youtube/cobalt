@@ -26,7 +26,7 @@ class CONTENT_EXPORT BackForwardCacheDisable {
     kWebAuthenticationAPI = 3,
     kFileChooser = 4,
     kSerial = 5,
-    kFileSystemAccess = 6,
+    // kFileSystemAccess = 6, Removed. See https://crbug.com/1259861.
     kMediaDevicesDispatcherHost = 7,
     kWebBluetooth = 8,
     kWebUSB = 9,
@@ -39,9 +39,12 @@ class CONTENT_EXPORT BackForwardCacheDisable {
 
     // kMediaPlay = 12, Removed after allowing media play (crbug.com/1246240).
 
-    // TODO(crbug.com/1271450): Screen readers do not recognize a navigation
+    // TODO(crbug.com/40805561): Screen readers do not recognize a navigation
     // when the page is served from bfcache.
-    kScreenReader = 13,
+    kExtendedProperties = 13,
+
+    // Documents that are cleared for discard should not be BFCached.
+    kDiscarded = 14,
 
     // New reasons should be accompanied by a comment as to why BackForwardCache
     // cannot be used in this case and a link to a bug to fix that if it is

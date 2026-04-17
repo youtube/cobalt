@@ -16,12 +16,13 @@
 #define STARBOARD_COMMON_FLAT_MAP_H_
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <utility>
 #include <vector>
 
 #include "starboard/common/log.h"
-#include "starboard/types.h"
 
 namespace starboard {
 namespace flat_map_detail {

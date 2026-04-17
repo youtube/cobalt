@@ -9,10 +9,6 @@
 #import "base/numerics/safe_conversions.h"
 #import "ios/chrome/browser/shared/ui/list_model/list_item.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 NSString* const kListModelCollapsedKey = @"ChromeListModelCollapsedSections";
 
 namespace {
@@ -332,7 +328,6 @@ typedef NSMutableArray<ListItem*> SectionItems;
     }
   }
   NOTREACHED();
-  return nil;
 }
 
 #pragma mark Data sourcing
@@ -444,7 +439,7 @@ typedef NSMutableArray<ListItem*> SectionItems;
 
 @end
 
-// TODO(crbug.com/419346): Store in the browser state preference or in
+// TODO(crbug.com/41134911): Store in the profile preference or in
 // UISceneSession.unserInfo instead of NSUserDefaults.
 @implementation ListModelCollapsedMediator
 

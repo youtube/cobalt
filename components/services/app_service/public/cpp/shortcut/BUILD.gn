@@ -11,23 +11,35 @@ component("shortcut") {
     "shortcut.h",
     "shortcut_registry_cache.cc",
     "shortcut_registry_cache.h",
+    "shortcut_update.cc",
+    "shortcut_update.h",
   ]
 
   defines = [ "IS_SHORTCUT_IMPL" ]
 
   deps = [
     "//base",
+    "//components/app_constants:app_constants",
+    "//components/crx_file",
+    "//components/services/app_service/public/cpp:app_types",
     "//components/services/app_service/public/cpp:macros",
+    "//third_party/abseil-cpp:absl",
   ]
 }
 
 source_set("unit_tests") {
   testonly = true
 
-  sources = [ "shortcut_registry_cache_unittest.cc" ]
+  sources = [
+    "shortcut_registry_cache_unittest.cc",
+    "shortcut_unittest.cc",
+    "shortcut_update_unittest.cc",
+  ]
 
   deps = [
     ":shortcut",
+    "//base",
+    "//components/services/app_service/public/cpp:app_types",
     "//testing/gtest",
   ]
 }

@@ -85,7 +85,8 @@ void AudioRendererSinkImpl::Start(
     RenderCallback* render_callback) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(!HasStarted());
-  SB_DCHECK(channels > 0 && channels <= SbAudioSinkGetMaxChannels());
+  SB_DCHECK_GT(channels, 0);
+  SB_DCHECK_LE(channels, SbAudioSinkGetMaxChannels());
   SB_DCHECK_GT(sampling_frequency_hz, 0);
   SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(audio_sample_type));
   SB_DCHECK(

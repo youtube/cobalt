@@ -174,7 +174,7 @@ class MseTrackBuffer {
 
   // Pointer to the stream associated with this track. The stream is not owned
   // by |this|.
-  const raw_ptr<ChunkDemuxerStream> stream_;
+  const raw_ptr<ChunkDemuxerStream, DanglingUntriaged> stream_;
 
   // Queue of processed frames that have not yet been appended to |stream_|.
   // EnqueueProcessedFrame() adds to this queue, and FlushProcessedFrames()
@@ -427,10 +427,8 @@ bool FrameProcessor::ProcessFrames(
   // 1. For each coded frame in the media segment run the following steps:
   for (const auto& frame : frames) {
     // Skip any 0-byte audio or video buffers, since they cannot produce any
-    // valid decode output (and are rejected by FFmpeg A/V decode.) Retain
-    // 0-byte text buffers because their |side_data| just might be useful, and
-    // we don't feed them to FFmpeg later.
-    if (!frame->data_size() && frame->type() != DemuxerStream::TEXT) {
+    // valid decode output (and are rejected by FFmpeg A/V decode.)
+    if (!frame->size()) {
       LIMITED_MEDIA_LOG(DEBUG, media_log_, num_skipped_empty_frame_warnings_,
                         kMaxSkippedEmptyFrameWarnings)
           << "Discarding empty audio or video coded frame, PTS="
@@ -566,14 +564,15 @@ void FrameProcessor::OnPossibleAudioConfigUpdate(
   sample_duration_ =
       base::Seconds(1.0 / current_audio_config_.samples_per_second());
   has_dependent_audio_frames_ =
-      current_audio_config_.profile() == AudioCodecProfile::kXHE_AAC;
+      current_audio_config_.profile() == AudioCodecProfile::kXHE_AAC ||
+      current_audio_config_.codec() == AudioCodec::kDTSXP2;
   last_audio_pts_for_nonkeyframe_monotonicity_check_ = kNoTimestamp;
 }
 
 MseTrackBuffer* FrameProcessor::FindTrack(StreamParser::TrackId id) {
   auto itr = track_buffers_.find(id);
   if (itr == track_buffers_.end())
-    return NULL;
+    return nullptr;
 
   return itr->second.get();
 }
@@ -643,6 +642,10 @@ bool FrameProcessor::HandlePartialAppendWindowTrimming(
         (audio_preroll_buffer_->timestamp() +
          audio_preroll_buffer_->duration() - buffer->timestamp())
             .InMicroseconds();
+    // The only value that can't be converted with std::abs.
+    if (delta == std::numeric_limits<int64_t>::min()) {
+      return false;
+    }
     if (std::abs(delta) < sample_duration_.InMicroseconds() &&
         audio_preroll_buffer_->timestamp() <= buffer->timestamp()) {
       DVLOG(1) << "Attaching audio preroll buffer ["
@@ -1184,9 +1187,6 @@ bool FrameProcessor::ProcessFrame(scoped_refptr<StreamParserBuffer> frame,
 
     return true;
   }
-
-  NOTREACHED();
-  return false;
 }
 
 }  // namespace media

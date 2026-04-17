@@ -12,6 +12,7 @@
 
 #include "base/containers/flat_map.h"
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
@@ -124,12 +125,12 @@ class MEDIA_EXPORT StreamProcessorHelper {
 
   // Sets buffer collection tocken to use for input buffers.
   void SetInputBufferCollectionToken(
-      fuchsia::sysmem::BufferCollectionTokenPtr token);
+      fuchsia::sysmem2::BufferCollectionTokenPtr token);
 
   // Provide output BufferCollectionToken to finish StreamProcessor buffer
   // setup flow. Should be called only after AllocateOutputBuffers.
   void CompleteOutputBuffersAllocation(
-      fuchsia::sysmem::BufferCollectionTokenPtr token);
+      fuchsia::sysmem2::BufferCollectionTokenPtr token);
 
   // Closes the current stream and starts a new one. After that all packets
   // passed to Process() will be sent with a new |stream_lifetime_ordinal|
@@ -172,7 +173,7 @@ class MEDIA_EXPORT StreamProcessorHelper {
   fuchsia::media::StreamBufferConstraints output_buffer_constraints_;
 
   fuchsia::media::StreamProcessorPtr processor_;
-  Client* const client_;
+  const raw_ptr<Client> client_;
 
   // FIDL interfaces are thread-affine (see crbug.com/1012875).
   THREAD_CHECKER(thread_checker_);

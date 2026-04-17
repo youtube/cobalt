@@ -2,10 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <GLES2/gl2extchromium.h>
 #include <stdint.h>
+
+#include <array>
 
 #include "gpu/command_buffer/tests/gl_manager.h"
 #include "gpu/command_buffer/tests/gl_test_utils.h"
@@ -20,7 +27,7 @@ static const uint16_t kGreenMask = 0x07E0;
 static const uint16_t kBlueMask = 0x001F;
 
 // Color palette in 565 format.
-static const uint16_t kPalette[] = {
+static const auto kPalette = std::to_array<uint16_t>({
     kGreenMask | kBlueMask,  // Cyan.
     kBlueMask | kRedMask,    // Magenta.
     kRedMask | kGreenMask,   // Yellow.
@@ -29,9 +36,11 @@ static const uint16_t kPalette[] = {
     kGreenMask,              // Green.
     kBlueMask,               // Blue.
     0xFFFF,                  // White.
-};
+});
 static const unsigned kBlockSize = 4;
-static const unsigned kPaletteSize = sizeof(kPalette) / sizeof(kPalette[0]);
+static const unsigned kPaletteSize =
+    (kPalette.size() * sizeof(decltype(kPalette)::value_type)) /
+    sizeof(kPalette[0]);
 static const unsigned kTextureWidth = kBlockSize * kPaletteSize;
 static const unsigned kTextureHeight = kBlockSize;
 
@@ -47,7 +56,6 @@ static const char* extension(GLenum format) {
     default:
       NOTREACHED();
   }
-  return nullptr;
 }
 
 // Index that chooses the given colors (color_0 and color_1),
@@ -182,9 +190,9 @@ class CompressedTextureTest : public ::testing::TestWithParam<GLenum> {
       case GL_COMPRESSED_RGBA_S3TC_DXT1_EXT: return LoadTextureDXT1(true);
       case GL_COMPRESSED_RGBA_S3TC_DXT3_EXT: return LoadTextureDXT3();
       case GL_COMPRESSED_RGBA_S3TC_DXT5_EXT: return LoadTextureDXT5();
-      default: NOTREACHED();
+      default:
+        NOTREACHED();
     }
-    return 0;
   }
 
  private:

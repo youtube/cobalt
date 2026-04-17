@@ -4,20 +4,23 @@
 
 #include "third_party/blink/renderer/core/origin_trials/origin_trial_context.h"
 
+#include <algorithm>
 #include <memory>
+#include <string_view>
 #include <vector>
 
 #include "base/containers/span.h"
-#include "base/ranges/algorithm.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
+#include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-blink.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/origin_trials/origin_trials.h"
 #include "third_party/blink/public/common/origin_trials/trial_token.h"
 #include "third_party/blink/public/common/origin_trials/trial_token_result.h"
 #include "third_party/blink/public/common/origin_trials/trial_token_validator.h"
-#include "third_party/blink/public/mojom/permissions_policy/permissions_policy.mojom-blink.h"
+#include "third_party/blink/public/mojom/origin_trials/origin_trial_feature.mojom-shared.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
@@ -29,8 +32,7 @@
 #include "third_party/blink/renderer/core/permissions_policy/permissions_policy_parser.h"
 #include "third_party/blink/renderer/core/testing/dummy_page_holder.h"
 #include "third_party/blink/renderer/core/testing/null_execution_context.h"
-#include "third_party/blink/renderer/platform/testing/histogram_tester.h"
-#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
@@ -44,16 +46,12 @@ const char kFrobulateThirdPartyTrialName[] = "FrobulateThirdParty";
 const char kFrobulateNavigationTrialName[] = "FrobulateNavigation";
 const char kFrobulateDeprecationTrialName[] = "FrobulateDeprecation";
 const char kFrobulateBrowserReadWriteTrialName[] = "FrobulateBrowserReadWrite";
-const char kPortalsTrialName[] = "Portals";
 const char kFrobulateEnabledOrigin[] = "https://www.example.com";
 const char kFrobulateEnabledOriginInsecure[] = "http://www.example.com";
 const char kUnrelatedSecureOrigin[] = "https://other.example.com";
 
 // The tokens expire in 2033.
 const base::Time kBaseTokenExpiryTime = base::Time::FromTimeT(2000000000);
-
-// Names of UMA histograms
-const char kResultHistogram[] = "OriginTrials.ValidationResult";
 
 // Trial token placeholder for mocked calls to validator
 const char kTokenPlaceholder[] = "The token contents are not used";
@@ -76,7 +74,7 @@ class MockTokenValidator : public TrialTokenValidator {
     const OriginInfo origin;
     Vector<OriginInfo> third_party_origin_info;
     const base::Time current_time;
-    ValidationParams(base::StringPiece token_param,
+    ValidationParams(std::string_view token_param,
                      const OriginInfo& origin_info,
                      base::span<const OriginInfo> scripts,
                      base::Time time)
@@ -91,7 +89,7 @@ class MockTokenValidator : public TrialTokenValidator {
   ~MockTokenValidator() override = default;
 
   TrialTokenResult ValidateTokenAndTrialWithOriginInfo(
-      base::StringPiece token,
+      std::string_view token,
       const OriginInfo& origin,
       base::span<const OriginInfo> third_party_origin_info,
       base::Time current_time) const override {
@@ -125,8 +123,7 @@ class OriginTrialContextTest : public testing::Test {
  protected:
   OriginTrialContextTest()
       : token_validator_(new MockTokenValidator()),
-        execution_context_(MakeGarbageCollected<NullExecutionContext>()),
-        histogram_tester_(new HistogramTester()) {
+        execution_context_(MakeGarbageCollected<NullExecutionContext>()) {
     execution_context_->GetOriginTrialContext()
         ->SetTrialTokenValidatorForTesting(
             std::unique_ptr<MockTokenValidator>(token_validator_));
@@ -169,59 +166,40 @@ class OriginTrialContextTest : public testing::Test {
         kTokenPlaceholder, external_origins);
   }
 
-  bool IsFeatureEnabled(OriginTrialFeature feature) {
+  bool IsFeatureEnabled(mojom::blink::OriginTrialFeature feature) {
     return execution_context_->GetOriginTrialContext()->IsFeatureEnabled(
         feature);
   }
 
-  base::Time GetFeatureExpiry(OriginTrialFeature feature) {
+  base::Time GetFeatureExpiry(mojom::blink::OriginTrialFeature feature) {
     return execution_context_->GetOriginTrialContext()->GetFeatureExpiry(
         feature);
   }
 
-  std::unique_ptr<Vector<OriginTrialFeature>> GetEnabledNavigationFeatures() {
+  std::unique_ptr<Vector<mojom::blink::OriginTrialFeature>>
+  GetEnabledNavigationFeatures() {
     return execution_context_->GetOriginTrialContext()
         ->GetEnabledNavigationFeatures();
   }
 
-  HashMap<OriginTrialFeature, Vector<String>> GetFeatureToTokens() {
+  HashMap<mojom::blink::OriginTrialFeature, Vector<String>>
+  GetFeatureToTokens() {
     return execution_context_->GetOriginTrialContext()
         ->GetFeatureToTokensForTesting();
   }
 
-  bool ActivateNavigationFeature(OriginTrialFeature feature) {
+  bool ActivateNavigationFeature(mojom::blink::OriginTrialFeature feature) {
     execution_context_->GetOriginTrialContext()
         ->ActivateNavigationFeaturesFromInitiator({feature});
     return execution_context_->GetOriginTrialContext()
         ->IsNavigationFeatureActivated(feature);
   }
 
-  void ExpectStatusCount(OriginTrialTokenStatus status, int count) {
-    histogram_tester_->ExpectBucketCount(kResultHistogram,
-                                         static_cast<int>(status), count);
-  }
-
-  void ExpectStatusTotalMetric(int total) {
-    histogram_tester_->ExpectTotalCount(kResultHistogram, total);
-  }
-
  protected:
+  test::TaskEnvironment task_environment_;
   MockTokenValidator* token_validator_;
   Persistent<NullExecutionContext> execution_context_;
-  std::unique_ptr<HistogramTester> histogram_tester_;
 };
-
-// Check that validation status gets logged to the histogram
-// on both success and failure
-TEST_F(OriginTrialContextTest, ValidationStatusLoggedInHistogram) {
-  UpdateSecurityOrigin(kFrobulateEnabledOrigin);
-  AddTokenWithResponse(kFrobulateTrialName, OriginTrialTokenStatus::kSuccess);
-  AddTokenWithResponse(kUnknownTrialName,
-                       OriginTrialTokenStatus::kUnknownTrial);
-  ExpectStatusCount(OriginTrialTokenStatus::kSuccess, 1);
-  ExpectStatusCount(OriginTrialTokenStatus::kUnknownTrial, 1);
-  ExpectStatusTotalMetric(2);
-}
 
 // Test that we're passing correct information to the validator
 TEST_F(OriginTrialContextTest, ValidatorGetsCorrectInfo) {
@@ -281,7 +259,7 @@ TEST_F(OriginTrialContextTest, ValidatorGetsCorrectSecurityInfoThirdParty) {
   EXPECT_TRUE(validation_params[0].origin.is_secure);
 
   EXPECT_EQ(2ul, validation_params[0].third_party_origin_info.size());
-  TrialTokenValidator::OriginInfo* unrelated_info = base::ranges::find_if(
+  auto unrelated_info = std::ranges::find_if(
       validation_params[0].third_party_origin_info,
       [](const TrialTokenValidator::OriginInfo& item) {
         return item.origin.IsSameOriginWith(GURL(kUnrelatedSecureOrigin));
@@ -289,12 +267,12 @@ TEST_F(OriginTrialContextTest, ValidatorGetsCorrectSecurityInfoThirdParty) {
   ASSERT_NE(validation_params[0].third_party_origin_info.end(), unrelated_info);
   EXPECT_TRUE(unrelated_info->is_secure);
 
-  TrialTokenValidator::OriginInfo* insecure_origin_info =
-      base::ranges::find_if(validation_params[0].third_party_origin_info,
-                            [](const TrialTokenValidator::OriginInfo& item) {
-                              return item.origin.IsSameOriginWith(
-                                  GURL(kFrobulateEnabledOriginInsecure));
-                            });
+  auto insecure_origin_info =
+      std::ranges::find_if(validation_params[0].third_party_origin_info,
+                           [](const TrialTokenValidator::OriginInfo& item) {
+                             return item.origin.IsSameOriginWith(
+                                 GURL(kFrobulateEnabledOriginInsecure));
+                           });
   ASSERT_NE(validation_params[0].third_party_origin_info.end(),
             insecure_origin_info);
   EXPECT_FALSE(insecure_origin_info->is_secure);
@@ -307,7 +285,7 @@ TEST_F(OriginTrialContextTest, EnabledNonExistingTrial) {
   AddTokenWithResponse(kFrobulateTrialName, OriginTrialTokenStatus::kSuccess);
 
   bool is_non_existing_feature_enabled =
-      IsFeatureEnabled(OriginTrialFeature::kNonExisting);
+      IsFeatureEnabled(mojom::blink::OriginTrialFeature::kNonExisting);
   EXPECT_FALSE(is_non_existing_feature_enabled);
 }
 
@@ -316,8 +294,8 @@ TEST_F(OriginTrialContextTest, EnabledSecureRegisteredOrigin) {
   UpdateSecurityOrigin(kFrobulateEnabledOrigin);
 
   AddTokenWithResponse(kFrobulateTrialName, OriginTrialTokenStatus::kSuccess);
-  bool is_origin_enabled =
-      IsFeatureEnabled(OriginTrialFeature::kOriginTrialsSampleAPI);
+  bool is_origin_enabled = IsFeatureEnabled(
+      mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPI);
   EXPECT_TRUE(is_origin_enabled);
 
   // kOriginTrialsSampleAPI is not a navigation feature, so shouldn't be
@@ -334,8 +312,8 @@ TEST_F(OriginTrialContextTest, ThirdPartyTrialWithThirdPartyTokenEnabled) {
   AddTokenForThirdPartyOriginsWithResponse(kFrobulateThirdPartyTrialName,
                                            OriginTrialTokenStatus::kSuccess,
                                            {kFrobulateEnabledOrigin});
-  bool is_origin_enabled =
-      IsFeatureEnabled(OriginTrialFeature::kOriginTrialsSampleAPIThirdParty);
+  bool is_origin_enabled = IsFeatureEnabled(
+      mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPIThirdParty);
   EXPECT_TRUE(is_origin_enabled);
 }
 
@@ -345,8 +323,8 @@ TEST_F(OriginTrialContextTest, InvalidTokenResponseFromPlatform) {
   AddTokenWithResponse(kFrobulateTrialName,
                        OriginTrialTokenStatus::kInvalidSignature);
 
-  bool is_origin_enabled =
-      IsFeatureEnabled(OriginTrialFeature::kOriginTrialsSampleAPI);
+  bool is_origin_enabled = IsFeatureEnabled(
+      mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPI);
   EXPECT_FALSE(is_origin_enabled);
 }
 
@@ -354,7 +332,8 @@ TEST_F(OriginTrialContextTest, InvalidTokenResponseFromPlatform) {
 TEST_F(OriginTrialContextTest, FeatureNotEnableOnInsecureOrigin) {
   UpdateSecurityOrigin(kFrobulateEnabledOriginInsecure);
   AddTokenWithResponse(kFrobulateTrialName, OriginTrialTokenStatus::kInsecure);
-  EXPECT_FALSE(IsFeatureEnabled(OriginTrialFeature::kOriginTrialsSampleAPI));
+  EXPECT_FALSE(IsFeatureEnabled(
+      mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPI));
 }
 
 // Features should not be enabled on insecure third-party origins
@@ -363,8 +342,8 @@ TEST_F(OriginTrialContextTest, FeatureNotEnableOnInsecureThirdPartyOrigin) {
   AddTokenForThirdPartyOriginsWithResponse(kFrobulateThirdPartyTrialName,
                                            OriginTrialTokenStatus::kInsecure,
                                            {kFrobulateEnabledOriginInsecure});
-  EXPECT_FALSE(
-      IsFeatureEnabled(OriginTrialFeature::kOriginTrialsSampleAPIThirdParty));
+  EXPECT_FALSE(IsFeatureEnabled(
+      mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPIThirdParty));
 }
 
 TEST_F(OriginTrialContextTest, ParseHeaderValue) {
@@ -432,14 +411,14 @@ TEST_F(OriginTrialContextTest, PermissionsPolicy) {
   OriginTrialContext* context = window->GetOriginTrialContext();
 
   // Enable the sample origin trial API ("Frobulate").
-  context->AddFeature(OriginTrialFeature::kOriginTrialsSampleAPI);
-  EXPECT_TRUE(
-      context->IsFeatureEnabled(OriginTrialFeature::kOriginTrialsSampleAPI));
+  context->AddFeature(mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPI);
+  EXPECT_TRUE(context->IsFeatureEnabled(
+      mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPI));
 
   // Make a mock feature name map with "frobulate".
   FeatureNameMap feature_map;
   feature_map.Set("frobulate",
-                  mojom::blink::PermissionsPolicyFeature::kFrobulate);
+                  network::mojom::PermissionsPolicyFeature::kFrobulate);
 
   // Attempt to parse the "frobulate" permissions policy. This will only work if
   // the permissions policy is successfully enabled via the origin trial.
@@ -447,12 +426,12 @@ TEST_F(OriginTrialContextTest, PermissionsPolicy) {
       SecurityOrigin::CreateFromString(kFrobulateEnabledOrigin);
 
   PolicyParserMessageBuffer logger;
-  ParsedPermissionsPolicy result;
+  network::ParsedPermissionsPolicy result;
   result = PermissionsPolicyParser::ParsePermissionsPolicyForTest(
       "frobulate=*", security_origin, nullptr, logger, feature_map, window);
   EXPECT_TRUE(logger.GetMessages().empty());
   ASSERT_EQ(1u, result.size());
-  EXPECT_EQ(mojom::blink::PermissionsPolicyFeature::kFrobulate,
+  EXPECT_EQ(network::mojom::PermissionsPolicyFeature::kFrobulate,
             result[0].feature);
 }
 
@@ -460,21 +439,22 @@ TEST_F(OriginTrialContextTest, GetEnabledNavigationFeatures) {
   UpdateSecurityOrigin(kFrobulateEnabledOrigin);
   AddTokenWithResponse(kFrobulateNavigationTrialName,
                        OriginTrialTokenStatus::kSuccess);
-  EXPECT_TRUE(
-      IsFeatureEnabled(OriginTrialFeature::kOriginTrialsSampleAPINavigation));
+  EXPECT_TRUE(IsFeatureEnabled(
+      mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPINavigation));
 
   auto enabled_navigation_features = GetEnabledNavigationFeatures();
   ASSERT_NE(nullptr, enabled_navigation_features.get());
-  EXPECT_EQ(WTF::Vector<OriginTrialFeature>(
-                {OriginTrialFeature::kOriginTrialsSampleAPINavigation}),
-            *enabled_navigation_features.get());
+  EXPECT_EQ(
+      WTF::Vector<mojom::blink::OriginTrialFeature>(
+          {mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPINavigation}),
+      *enabled_navigation_features.get());
 }
 
 TEST_F(OriginTrialContextTest, ActivateNavigationFeature) {
   EXPECT_TRUE(ActivateNavigationFeature(
-      OriginTrialFeature::kOriginTrialsSampleAPINavigation));
-  EXPECT_FALSE(
-      ActivateNavigationFeature(OriginTrialFeature::kOriginTrialsSampleAPI));
+      mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPINavigation));
+  EXPECT_FALSE(ActivateNavigationFeature(
+      mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPI));
 }
 
 TEST_F(OriginTrialContextTest, GetTokenExpiryTimeIgnoresIrrelevantTokens) {
@@ -482,23 +462,28 @@ TEST_F(OriginTrialContextTest, GetTokenExpiryTimeIgnoresIrrelevantTokens) {
 
   // A non-success response shouldn't affect Frobulate's expiry time.
   AddTokenWithResponse(kUnknownTrialName, OriginTrialTokenStatus::kMalformed);
-  EXPECT_FALSE(IsFeatureEnabled(OriginTrialFeature::kOriginTrialsSampleAPI));
+  EXPECT_FALSE(IsFeatureEnabled(
+      mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPI));
   EXPECT_EQ(base::Time(),
-            GetFeatureExpiry(OriginTrialFeature::kOriginTrialsSampleAPI));
+            GetFeatureExpiry(
+                mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPI));
 
   // A different trial shouldn't affect Frobulate's expiry time.
   AddTokenWithResponse(kFrobulateDeprecationTrialName,
                        OriginTrialTokenStatus::kSuccess);
-  EXPECT_TRUE(
-      IsFeatureEnabled(OriginTrialFeature::kOriginTrialsSampleAPIDeprecation));
+  EXPECT_TRUE(IsFeatureEnabled(
+      mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPIDeprecation));
   EXPECT_EQ(base::Time(),
-            GetFeatureExpiry(OriginTrialFeature::kOriginTrialsSampleAPI));
+            GetFeatureExpiry(
+                mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPI));
 
   // A valid trial should update the expiry time.
   AddTokenWithResponse(kFrobulateTrialName, OriginTrialTokenStatus::kSuccess);
-  EXPECT_TRUE(IsFeatureEnabled(OriginTrialFeature::kOriginTrialsSampleAPI));
+  EXPECT_TRUE(IsFeatureEnabled(
+      mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPI));
   EXPECT_EQ(kBaseTokenExpiryTime,
-            GetFeatureExpiry(OriginTrialFeature::kOriginTrialsSampleAPI));
+            GetFeatureExpiry(
+                mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPI));
 }
 
 TEST_F(OriginTrialContextTest, LastExpiryForFeatureIsUsed) {
@@ -513,27 +498,33 @@ TEST_F(OriginTrialContextTest, LastExpiryForFeatureIsUsed) {
       .feature = kFrobulateTrialName,
       .expiry = plusone,
   });
-  EXPECT_TRUE(IsFeatureEnabled(OriginTrialFeature::kOriginTrialsSampleAPI));
+  EXPECT_TRUE(IsFeatureEnabled(
+      mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPI));
   EXPECT_EQ(plusone,
-            GetFeatureExpiry(OriginTrialFeature::kOriginTrialsSampleAPI));
+            GetFeatureExpiry(
+                mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPI));
 
   AddTokenWithResponse({
       .status = OriginTrialTokenStatus::kSuccess,
       .feature = kFrobulateTrialName,
       .expiry = plusthree,
   });
-  EXPECT_TRUE(IsFeatureEnabled(OriginTrialFeature::kOriginTrialsSampleAPI));
+  EXPECT_TRUE(IsFeatureEnabled(
+      mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPI));
   EXPECT_EQ(plusthree,
-            GetFeatureExpiry(OriginTrialFeature::kOriginTrialsSampleAPI));
+            GetFeatureExpiry(
+                mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPI));
 
   AddTokenWithResponse({
       .status = OriginTrialTokenStatus::kSuccess,
       .feature = kFrobulateTrialName,
       .expiry = plustwo,
   });
-  EXPECT_TRUE(IsFeatureEnabled(OriginTrialFeature::kOriginTrialsSampleAPI));
+  EXPECT_TRUE(IsFeatureEnabled(
+      mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPI));
   EXPECT_EQ(plusthree,
-            GetFeatureExpiry(OriginTrialFeature::kOriginTrialsSampleAPI));
+            GetFeatureExpiry(
+                mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPI));
 }
 
 TEST_F(OriginTrialContextTest, ImpliedFeatureExpiryTimesAreUpdated) {
@@ -545,9 +536,12 @@ TEST_F(OriginTrialContextTest, ImpliedFeatureExpiryTimesAreUpdated) {
       .feature = kFrobulateTrialName,
       .expiry = plusone,
   });
-  EXPECT_TRUE(IsFeatureEnabled(OriginTrialFeature::kOriginTrialsSampleAPI));
-  EXPECT_EQ(plusone, GetFeatureExpiry(
-                         OriginTrialFeature::kOriginTrialsSampleAPIImplied));
+  EXPECT_TRUE(IsFeatureEnabled(
+      mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPI));
+  EXPECT_EQ(
+      plusone,
+      GetFeatureExpiry(
+          mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPIImplied));
 }
 
 TEST_F(OriginTrialContextTest, SettingFeatureUpdatesDocumentSettings) {
@@ -561,8 +555,9 @@ TEST_F(OriginTrialContextTest, SettingFeatureUpdatesDocumentSettings) {
   page_holder->GetDocument().GetSettings()->SetForceDarkModeEnabled(false);
 
   // Enable a settings-based origin trial API ("AutoDarkMode").
-  context->AddFeature(OriginTrialFeature::kAutoDarkMode);
-  EXPECT_TRUE(context->IsFeatureEnabled(OriginTrialFeature::kAutoDarkMode));
+  context->AddFeature(mojom::blink::OriginTrialFeature::kAutoDarkMode);
+  EXPECT_TRUE(context->IsFeatureEnabled(
+      mojom::blink::OriginTrialFeature::kAutoDarkMode));
 
   // Expect the AutoDarkMode setting to have been enabled.
   EXPECT_TRUE(
@@ -581,14 +576,15 @@ TEST_F(OriginTrialContextTest, AddedFeaturesAreMappedToTokens) {
   AddTokenWithResponse(kFrobulateBrowserReadWriteTrialName,
                        OriginTrialTokenStatus::kSuccess);
   // Ensure that FrobulateBrowserReadWrite is enabled.
-  EXPECT_TRUE(IsFeatureEnabled(
-      OriginTrialFeature::kOriginTrialsSampleAPIBrowserReadWrite));
+  EXPECT_TRUE(IsFeatureEnabled(mojom::blink::OriginTrialFeature::
+                                   kOriginTrialsSampleAPIBrowserReadWrite));
   EXPECT_TRUE(GetFeatureToTokens().Contains(
-      OriginTrialFeature::kOriginTrialsSampleAPIBrowserReadWrite));
+      mojom::blink::OriginTrialFeature::
+          kOriginTrialsSampleAPIBrowserReadWrite));
   // Ensure that the corresponding token is stored.
   Vector<String> expected_tokens({kTokenPlaceholder});
-  EXPECT_EQ(GetFeatureToTokens().at(
-                OriginTrialFeature::kOriginTrialsSampleAPIBrowserReadWrite),
+  EXPECT_EQ(GetFeatureToTokens().at(mojom::blink::OriginTrialFeature::
+                                        kOriginTrialsSampleAPIBrowserReadWrite),
             expected_tokens);
 }
 
@@ -637,20 +633,28 @@ class OriginTrialContextDevtoolsTest : public OriginTrialContextTest {
 };
 
 TEST_F(OriginTrialContextDevtoolsTest, DependentFeatureNotEnabled) {
+  // This tests that for features which are tied together by
+  // `OriginTrialContext::CanEnableTrialFromName()`, disabling the base feature
+  // will disable the origin trial. If you delete the following trial or
+  // `base::Feature`, update these to another case that appears inside
+  // `OriginTrialContext::CanEnableTrialFromName()`.
+  static constexpr char kTrialName[] = "SoftNavigationHeuristics";
+  const base::Feature& feature = blink::features::kSoftNavigationDetection;
+  auto ot_feature = mojom::blink::OriginTrialFeature::kSoftNavigationHeuristics;
+
   UpdateSecurityOrigin(kFrobulateEnabledOrigin);
 
   base::test::ScopedFeatureList feature_list_;
-  feature_list_.InitAndDisableFeature(blink::features::kPortals);
+  feature_list_.InitAndDisableFeature(feature);
 
-  AddTokenWithResponse(kPortalsTrialName, OriginTrialTokenStatus::kSuccess);
+  AddTokenWithResponse(kTrialName, OriginTrialTokenStatus::kSuccess);
 
-  EXPECT_FALSE(IsFeatureEnabled(OriginTrialFeature::kPortals));
+  EXPECT_FALSE(IsFeatureEnabled(ot_feature));
   HashMap<String, OriginTrialResult> origin_trial_results =
       GetOriginTrialResultsForDevtools();
   EXPECT_EQ(origin_trial_results.size(), 1u);
   ExpectTrialResultContains(
-      origin_trial_results, kPortalsTrialName,
-      OriginTrialStatus::kTrialNotAllowed,
+      origin_trial_results, kTrialName, OriginTrialStatus::kTrialNotAllowed,
       {{OriginTrialTokenStatus::kSuccess, /* token_parsable */ true}});
 }
 
@@ -660,7 +664,8 @@ TEST_F(OriginTrialContextDevtoolsTest, TrialNameNotRecognized) {
   AddTokenWithResponse(kUnknownTrialName,
                        OriginTrialTokenStatus::kUnknownTrial);
 
-  EXPECT_FALSE(IsFeatureEnabled(OriginTrialFeature::kOriginTrialsSampleAPI));
+  EXPECT_FALSE(IsFeatureEnabled(
+      mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPI));
 
   HashMap<String, OriginTrialResult> origin_trial_results =
       GetOriginTrialResultsForDevtools();
@@ -677,7 +682,8 @@ TEST_F(OriginTrialContextDevtoolsTest, NoValidToken) {
 
   AddTokenWithResponse(kFrobulateTrialName, OriginTrialTokenStatus::kExpired);
 
-  EXPECT_FALSE(IsFeatureEnabled(OriginTrialFeature::kOriginTrialsSampleAPI));
+  EXPECT_FALSE(IsFeatureEnabled(
+      mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPI));
 
   HashMap<String, OriginTrialResult> origin_trial_results =
       GetOriginTrialResultsForDevtools();
@@ -695,7 +701,8 @@ TEST_F(OriginTrialContextDevtoolsTest, NoValidToken) {
   AddTokenWithResponse(kFrobulateTrialName, OriginTrialTokenStatus::kSuccess);
 
   // Receiving valid token should change feature status to kEnabled.
-  EXPECT_TRUE(IsFeatureEnabled(OriginTrialFeature::kOriginTrialsSampleAPI));
+  EXPECT_TRUE(IsFeatureEnabled(
+      mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPI));
   origin_trial_results = GetOriginTrialResultsForDevtools();
   EXPECT_EQ(origin_trial_results.size(), 1u);
   ExpectTrialResultContains(
@@ -714,7 +721,8 @@ TEST_F(OriginTrialContextDevtoolsTest, Enabled) {
 
   // Receiving valid token when feature is enabled should set feature status
   // to kEnabled.
-  EXPECT_TRUE(IsFeatureEnabled(OriginTrialFeature::kOriginTrialsSampleAPI));
+  EXPECT_TRUE(IsFeatureEnabled(
+      mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPI));
   HashMap<String, OriginTrialResult> origin_trial_results =
       GetOriginTrialResultsForDevtools();
   EXPECT_EQ(origin_trial_results.size(), 1u);
@@ -727,7 +735,8 @@ TEST_F(OriginTrialContextDevtoolsTest, Enabled) {
 
   // Receiving invalid token when a valid token already exists should
   // not change feature status.
-  EXPECT_TRUE(IsFeatureEnabled(OriginTrialFeature::kOriginTrialsSampleAPI));
+  EXPECT_TRUE(IsFeatureEnabled(
+      mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPI));
   origin_trial_results = GetOriginTrialResultsForDevtools();
   EXPECT_EQ(origin_trial_results.size(), 1u);
   ExpectTrialResultContains(
@@ -744,7 +753,8 @@ TEST_F(OriginTrialContextDevtoolsTest, UnparsableToken) {
 
   AddTokenWithResponse(kFrobulateTrialName, OriginTrialTokenStatus::kMalformed);
 
-  EXPECT_FALSE(IsFeatureEnabled(OriginTrialFeature::kOriginTrialsSampleAPI));
+  EXPECT_FALSE(IsFeatureEnabled(
+      mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPI));
   HashMap<String, OriginTrialResult> origin_trial_results =
       GetOriginTrialResultsForDevtools();
   EXPECT_EQ(origin_trial_results.size(), 1u);
@@ -758,7 +768,8 @@ TEST_F(OriginTrialContextDevtoolsTest, InsecureOrigin) {
   UpdateSecurityOrigin(kFrobulateEnabledOriginInsecure);
   AddTokenWithResponse(kFrobulateTrialName, OriginTrialTokenStatus::kInsecure);
 
-  EXPECT_FALSE(IsFeatureEnabled(OriginTrialFeature::kOriginTrialsSampleAPI));
+  EXPECT_FALSE(IsFeatureEnabled(
+      mojom::blink::OriginTrialFeature::kOriginTrialsSampleAPI));
 
   HashMap<String, OriginTrialResult> origin_trial_results =
       GetOriginTrialResultsForDevtools();

@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <memory>
 
-#include "base/containers/cxx20_erase.h"
 #include "base/containers/flat_set.h"
 #include "base/rand_util.h"
 #include "base/time/time.h"
@@ -45,10 +44,6 @@ bool PrivacyBudgetUkmEntryFilter::FilterEntry(
     const auto surface =
         blink::IdentifiableSurface::FromMetricHash(metric.first);
     const blink::IdentifiableToken token = metric.second;
-
-    // Update the Reid surface storage map.
-    identifiability_study_state_->MaybeStoreValueForComputingReidScore(surface,
-                                                                       token);
 
     if (!blink::IdentifiabilityStudySettings::Get()->ShouldSampleSurface(
             surface))

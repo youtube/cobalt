@@ -62,8 +62,7 @@ base::FilePath GetOmahaPolicyFilePath() {
     return base::FilePath();
   }
 
-  std::string encoded_omaha_policy_type;
-  base::Base64Encode(kOmahaPolicyType, &encoded_omaha_policy_type);
+  std::string encoded_omaha_policy_type = base::Base64Encode(kOmahaPolicyType);
   policy_dir = policy_dir.Append(GetInstallParentDirectoryName())
                    .AppendASCII(kOmahaPoliciesDirName)
                    .AppendASCII(encoded_omaha_policy_type);
@@ -157,7 +156,7 @@ DevicePoliciesManager** DevicePoliciesManager::GetInstanceStorage() {
   return &instance_storage;
 }
 
-DevicePoliciesManager::DevicePoliciesManager() {}
+DevicePoliciesManager::DevicePoliciesManager() = default;
 
 DevicePoliciesManager::~DevicePoliciesManager() = default;
 

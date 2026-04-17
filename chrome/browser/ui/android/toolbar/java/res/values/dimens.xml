@@ -5,30 +5,30 @@ Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 -->
 
-<resources>
-    <dimen name="toolbar_tab_count_text_size_1_digit">12dp</dimen>
-    <dimen name="toolbar_tab_count_text_size_2_digit">10dp</dimen>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <dimen name="toolbar_tab_count_text_size_1_digit">11dp</dimen>
+    <dimen name="toolbar_tab_count_text_size_2_digit">9dp</dimen>
 
     <!-- Tab Strip Dimensions -->
     <dimen name="tab_strip_height">0dp</dimen>
+    <dimen name="tab_strip_reserved_top_padding">0dp</dimen>
 
-    <!-- Negative vertical inset added to the search box bounds when modern is enabled. 4dp is added
-         to both the top and bottom bounds to bring the 48dp modern_toolbar_background_size to 56dp
-         (matches toolbar_height_no_shadow). -->
-    <dimen name="ntp_search_box_bounds_vertical_inset_modern">-4dp</dimen>
-
-    <!-- Toolbar Tablet - padding of the optional button when menu button is present -->
-    <dimen name="toolbar_tablet_optional_button_padding">12dp</dimen>
+    <dimen name="ntp_search_box_height">64dp</dimen>
 
     <!-- Toolbar Phone - Optional toolbar button dimensions -->
     <!-- Padding of button's background, only visible when showing a contextual action. -->
-    <dimen name="toolbar_phone_optional_button_background_start_padding">12dp</dimen>
+    <dimen name="toolbar_phone_optional_button_background_padding">6dp</dimen>
     <dimen name="toolbar_phone_optional_button_background_vertical_padding">8dp</dimen>
     <!-- Padding of optional button, used to adjust button's icon within its clickable area. -->
-    <dimen name="toolbar_phone_optional_button_foreground_start_padding">20dp</dimen>
+    <dimen name="toolbar_phone_optional_button_foreground_start_padding">14dp</dimen>
     <dimen name="toolbar_phone_optional_button_foreground_vertical_padding">16dp</dimen>
     <!-- Maximum width of optional button when expanded into an action chip. -->
     <dimen name="toolbar_phone_optional_button_action_chip_max_width">175dp</dimen>
+    <!-- Width of optional toolbar button when not expanded into an action chip -->
+    <dimen name="toolbar_phone_optional_button_collapsed_state_width">52dp</dimen>
+    <dimen name="toolbar_phone_optional_button_expanded_state_extra_width">12dp</dimen>
+
+    <dimen name="mini_origin_bar_height">28dp</dimen>
 
     <!-- Home Button Menu dimensions-->
     <dimen name="home_button_list_menu_width">222dp</dimen>
@@ -39,20 +39,13 @@ found in the LICENSE file.
     <dimen name="bottom_controls_height">@dimen/min_touch_target_size</dimen>
 
     <!-- Custom Menu dimensions -->
-    <dimen name="tab_switcher_menu_width">222dp</dimen>
+    <dimen name="tab_switcher_menu_width">250dp</dimen>
     <dimen name="tab_switcher_menu_vertical_padding">8dp</dimen>
     <dimen name="adaptive_button_menu_vertical_padding">8dp</dimen>
 
     <!-- Custom Tabs dimensions -->
     <dimen name="toolbar_icon_height">24dp</dimen>
-
-    <!-- Start surface toolbar dimensions -->
-    <dimen name="start_surface_toolbar_button_padding_to_edge">16dp</dimen>
-    <dimen name="start_surface_fake_search_box_top_margin">24dp</dimen>
-    <dimen name="identity_disc_button_margin_start">8dp</dimen>
-    <!-- The total height of the logo shown in Start surface content. This is
-    calculated by |ntp_logo_height + ntp_logo_margin_top + ntp_logo_margin_bottom|. -->
-    <dimen name="start_surface_content_logo_height">149dp</dimen>
+    <dimen name="toolbar_icon_default_width">@dimen/toolbar_icon_height</dimen>
 
     <!-- Navigation history popup dimensions -->
     <dimen name="navigation_popup_width">312dp</dimen>
@@ -60,7 +53,30 @@ found in the LICENSE file.
     <dimen name="navigation_popup_default_padding">16dp</dimen>
     <dimen name="navigation_popup_top_padding">8dp</dimen>
     <dimen name="navigation_popup_favicon_bg_size">36dp</dimen>
+    <dimen name="navigation_popup_tablet_min_width">200dp</dimen>
+    <dimen name="navigation_popup_tablet_max_width">500dp</dimen>
+    <dimen name="navigation_popup_tablet_width_margin">48dp</dimen>
 
     <!-- Padding between rightmost button and strip end -->
     <dimen name="button_end_padding">8dp</dimen>
+
+    <!-- Toolbar long-press menu -->
+    <!-- Defines how much the omnibox and the long-press menu should overlap.-->
+    <dimen name="omnibox_longpress_menu_overlap">2dp</dimen>
+    <!-- The total desired padding is 16dp. Since list_menu_item_horizontal_padding is 12dp,
+     we add an extra 4dp (16dp - 12dp) to achieve the target padding. -->
+    <dimen name="omnibox_longpress_menu_addtional_horizontal_padding">4dp</dimen>
+
+    <!-- Padding of optional phone button, used to adjust button's icon within its clickable area. -->
+    <dimen name="optional_toolbar_phone_button_with_error_badge_padding_bottom">12dp</dimen>
+
+    <!-- Padding of optional tablet button, used to adjust button's icon within its clickable area. -->
+    <dimen name="optional_toolbar_tablet_button_padding_start">0dp</dimen>
+    <dimen name="optional_toolbar_tablet_button_padding_top">0dp</dimen>
+    <dimen name="optional_toolbar_tablet_button_with_error_badge_padding_start">4dp</dimen>
+    <dimen name="optional_toolbar_tablet_button_with_error_badge_padding_top">4dp</dimen>
+
+    <!-- Extension Action Button Menu dimensions -->
+    <dimen name="extension_action_button_list_menu_width" tools:ignore="UnusedResources">300dp</dimen>
+
 </resources>

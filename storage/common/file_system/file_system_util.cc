@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "storage/common/file_system/file_system_util.h"
 
 #include <stddef.h>
@@ -223,8 +228,6 @@ GURL GetFileSystemRootURI(const GURL& origin_url, FileSystemType type) {
     default:
       NOTREACHED();
   }
-  NOTREACHED();
-  return GURL();
 }
 
 std::string GetFileSystemName(const GURL& origin_url, FileSystemType type) {
@@ -248,8 +251,6 @@ std::string GetFileSystemTypeString(FileSystemType type) {
       return "Test";
     case kFileSystemTypeLocal:
       return "Local";
-    case kFileSystemTypeRestrictedLocal:
-      return "RestrictedLocal";
     case kFileSystemTypeDragged:
       return "Dragged";
     case kFileSystemTypeLocalMedia:
@@ -280,12 +281,10 @@ std::string GetFileSystemTypeString(FileSystemType type) {
     case kFileSystemInternalTypeEnumStart:
     case kFileSystemInternalTypeEnumEnd:
       NOTREACHED();
-      [[fallthrough]];
     case kFileSystemTypeUnknown:
       return "Unknown";
   }
   NOTREACHED();
-  return std::string();
 }
 
 std::string FilePathToString(const base::FilePath& file_path) {
@@ -306,7 +305,7 @@ base::FilePath StringToFilePath(const std::string& file_path_string) {
 #endif
 }
 
-bool GetFileSystemPublicType(const std::string type_string,
+bool GetFileSystemPublicType(const std::string& type_string,
                              blink::WebFileSystemType* type) {
   DCHECK(type);
   if (type_string == "Temporary") {
@@ -326,7 +325,6 @@ bool GetFileSystemPublicType(const std::string type_string,
     return true;
   }
   NOTREACHED();
-  return false;
 }
 
 std::string GetIsolatedFileSystemName(const GURL& origin_url,
@@ -369,10 +367,8 @@ bool CrackIsolatedFileSystemName(const std::string& filesystem_name,
 
 bool ValidateIsolatedFileSystemId(const std::string& filesystem_id) {
   const size_t kExpectedFileSystemIdSize = 32;
-  if (filesystem_id.size() != kExpectedFileSystemIdSize)
-    return false;
-  const std::string kExpectedChars("ABCDEF0123456789");
-  return base::ContainsOnlyChars(filesystem_id, kExpectedChars);
+  return (filesystem_id.size() == kExpectedFileSystemIdSize) &&
+         base::ContainsOnlyChars(filesystem_id, "ABCDEF0123456789");
 }
 
 std::string GetIsolatedFileSystemRootURIString(
@@ -417,6 +413,8 @@ base::File::Error NetErrorToFileError(int error) {
       return base::File::FILE_ERROR_NOT_FOUND;
     case net::ERR_ACCESS_DENIED:
       return base::File::FILE_ERROR_ACCESS_DENIED;
+    case net::ERR_INSUFFICIENT_RESOURCES:
+      return base::File::FILE_ERROR_TOO_MANY_OPENED;
     case net::ERR_OUT_OF_MEMORY:
       return base::File::FILE_ERROR_NO_MEMORY;
     case net::ERR_FILE_NO_SPACE:

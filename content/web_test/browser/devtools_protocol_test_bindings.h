@@ -20,7 +20,7 @@ class DevToolsFrontendHost;
 class DevToolsProtocolTestBindings : public WebContentsObserver,
                                      public DevToolsAgentHostClient {
  public:
-  explicit DevToolsProtocolTestBindings(WebContents* devtools);
+  explicit DevToolsProtocolTestBindings(WebContents* devtools, std::string log);
 
   DevToolsProtocolTestBindings(const DevToolsProtocolTestBindings&) = delete;
   DevToolsProtocolTestBindings& operator=(const DevToolsProtocolTestBindings&) =
@@ -40,14 +40,25 @@ class DevToolsProtocolTestBindings : public WebContentsObserver,
   void ReadyToCommitNavigation(NavigationHandle* navigation_handle) override;
   void WebContentsDestroyed() override;
 
+  void ParseLog(std::string_view log);
+  void HandleMessagesFromLog(std::string_view protocol_message_string);
   void HandleMessageFromTest(base::Value::Dict message);
 
   scoped_refptr<DevToolsAgentHost> agent_host_;
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_FUCHSIA)
   // DevToolsFrontendHost does not exist on Android and iOS, but we also don't
   // run web tests natively on Android.
   std::unique_ptr<DevToolsFrontendHost> frontend_host_;
 #endif
+  // Log of protocol messages, used to script the bindings behavior.
+  std::vector<base::Value::Dict> log_;
+  // The index of the next message in the log.
+  size_t log_pos_ = 0;
+  // If true, the binding is using the log instead of sending real messages.
+  // The log is enabled if a non-empty log is provided via the constructor.
+  bool log_enabled_ = false;
+  // Whether CDP has access to unsafe operations.
+  bool allow_unsafe_operations_ = true;
 };
 
 }  // namespace content

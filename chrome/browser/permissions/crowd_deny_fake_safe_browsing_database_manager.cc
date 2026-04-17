@@ -11,8 +11,7 @@
 CrowdDenyFakeSafeBrowsingDatabaseManager::
     CrowdDenyFakeSafeBrowsingDatabaseManager()
     : safe_browsing::TestSafeBrowsingDatabaseManager(
-          content::GetUIThreadTaskRunner({}),
-          content::GetIOThreadTaskRunner({})) {}
+          content::GetUIThreadTaskRunner({})) {}
 
 void CrowdDenyFakeSafeBrowsingDatabaseManager::SetSimulatedMetadataForUrl(
     const GURL& url,
@@ -51,9 +50,6 @@ bool CrowdDenyFakeSafeBrowsingDatabaseManager::CancelApiCheck(Client* client) {
   return true;
 }
 
-bool CrowdDenyFakeSafeBrowsingDatabaseManager::ChecksAreAlwaysAsync() const {
-  return false;
-}
 safe_browsing::ThreatMetadata
 CrowdDenyFakeSafeBrowsingDatabaseManager::GetSimulatedMetadataOrSafe(
     const GURL& url) {

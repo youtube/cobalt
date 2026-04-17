@@ -24,18 +24,26 @@
 #include "third_party/blink/renderer/core/loader/resource/image_resource.h"
 
 #include <stdint.h>
+
 #include <algorithm>
 #include <memory>
 #include <utility>
+#include <variant>
 
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/task/single_thread_task_runner.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/loader/referrer_utils.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/core/loader/resource/image_resource_content.h"
 #include "third_party/blink/renderer/core/loader/resource/image_resource_info.h"
+#include "third_party/blink/renderer/platform/graphics/bitmap_image.h"
+#include "third_party/blink/renderer/platform/graphics/image.h"
 #include "third_party/blink/renderer/platform/instrumentation/instance_counters.h"
 #include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
 #include "third_party/blink/renderer/platform/loader/fetch/fetch_initiator_type_names.h"
@@ -47,6 +55,7 @@
 #include "third_party/blink/renderer/platform/loader/fetch/resource_loader.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_loader_options.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_loading_log.h"
+#include "third_party/blink/renderer/platform/loader/fetch/resource_status.h"
 #include "third_party/blink/renderer/platform/loader/fetch/unique_identifier.h"
 #include "third_party/blink/renderer/platform/network/http_parsers.h"
 #include "third_party/blink/renderer/platform/network/network_utils.h"
@@ -55,7 +64,7 @@
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/blink/renderer/platform/wtf/shared_buffer.h"
 #include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
-
+#include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
 #include "v8/include/v8.h"
 
 namespace blink {
@@ -66,6 +75,82 @@ namespace {
 // been updated (in seconds). This effectively throttles invalidations that
 // result from new data arriving for this image.
 constexpr auto kFlushDelay = base::Seconds(1);
+
+wtf_size_t FindTransparentPlaceholderIndex(const KURL& image_url) {
+  CHECK(IsMainThread());
+  DEFINE_THREAD_SAFE_STATIC_LOCAL(
+      Vector<String>, known_transparent_urls,
+      ({"data:image/gif;base64,R0lGODlhAQABAIAAAP///////"
+        "yH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==",
+        "data:image/gif;base64,R0lGODlhAQABAID/"
+        "AMDAwAAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="}));
+  return known_transparent_urls.Find(image_url);
+}
+
+scoped_refptr<SharedBuffer> GetDataForTransparentPlaceholderImageIndex(
+    wtf_size_t index) {
+  CHECK(index >= 0 && index < 2);
+  CHECK(IsMainThread());
+  DEFINE_THREAD_SAFE_STATIC_LOCAL(
+      Vector<scoped_refptr<SharedBuffer>>, known_transparent_encoded_gifs,
+      ({SharedBuffer::Create(base::span_from_cstring(
+            "\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff"
+            "\xff\xff\xff\x21\xf9\x04\x01\x0a\x00\x01\x00\x2c\x00\x00\x00\x00"
+            "\x01\x00\x01\x00\x00\x02\x02\x4c\x01\x00\x3b")),
+        SharedBuffer::Create(base::span_from_cstring(
+            "\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\xff\x00\xc0\xc0\xc0"
+            "\x00\x00\x00\x21\xf9\x04\x01\x00\x00\x00\x00\x2c\x00\x00\x00\x00"
+            "\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00\x3b"))}));
+  return known_transparent_encoded_gifs[index];
+}
+
+void MarkKnownTransparentPlaceholderResourceRequestIfNeeded(
+    ResourceRequest& resource_request) {
+  const KURL& url = resource_request.Url();
+  if (url.ProtocolIsData()) {
+    wtf_size_t index = FindTransparentPlaceholderIndex(url);
+    if (index != kNotFound) {
+      resource_request.SetKnownTransparentPlaceholderImageIndex(index);
+    }
+  }
+}
+
+ImageResource* CreateResourceForTransparentPlaceholderImage(
+    const ResourceRequest& request,
+    const ResourceLoaderOptions& options) {
+  const wtf_size_t index = request.GetKnownTransparentPlaceholderImageIndex();
+  CHECK_NE(index, kNotFound);
+  CHECK(index >= 0 && index < 2);
+  scoped_refptr<SharedBuffer> data =
+      GetDataForTransparentPlaceholderImageIndex(index);
+  CHECK(data->size());
+
+  scoped_refptr<Image> image = BitmapImage::Create();
+  image->SetData(data, true);
+  auto* image_content = ImageResourceContent::CreateLoaded(image);
+  auto* resource =
+      MakeGarbageCollected<ImageResource>(request, options, image_content);
+
+  // The below code is the same as in `network_utils::ParseDataURL()`.
+  ResourceResponse response;
+  response.SetHttpStatusCode(200);
+  response.SetHttpStatusText(AtomicString("OK"));
+  response.SetCurrentRequestUrl(request.Url());
+  response.SetExpectedContentLength(data->size());
+  response.SetTextEncodingName(g_empty_atom);
+  response.SetMimeType(AtomicString("image/gif"));
+  response.AddHttpHeaderField(http_names::kContentType, response.MimeType());
+
+  // The below code is the same as in
+  // `ResourceFetcher::CreateResourceForStaticData()`.
+  resource->ResponseReceived(response);
+  resource->SetDataBufferingPolicy(kBufferData);
+  resource->SetResourceBuffer(data);
+  resource->SetCacheIdentifier(MemoryCache::DefaultCacheIdentifier());
+  resource->SetStatus(ResourceStatus::kCached);
+
+  return resource;
+}
 
 }  // namespace
 
@@ -84,9 +169,18 @@ class ImageResource::ImageResourceInfoImpl final
 
  private:
   const KURL& Url() const override { return resource_->Url(); }
+  base::TimeTicks LoadEnd() const override {
+    if (ResourceLoadTiming* load_timing =
+            resource_->GetResponse().GetResourceLoadTiming()) {
+      return load_timing->ResponseEnd();
+    }
+    return base::TimeTicks();
+  }
+
   base::TimeTicks LoadResponseEnd() const override {
     return resource_->LoadResponseEnd();
   }
+
   base::TimeTicks LoadStart() const override {
     if (ResourceLoadTiming* load_timing =
             resource_->GetResponse().GetResourceLoadTiming()) {
@@ -94,6 +188,15 @@ class ImageResource::ImageResourceInfoImpl final
     }
     return base::TimeTicks();
   }
+
+  base::TimeTicks DiscoveryTime() const override {
+    if (ResourceLoadTiming* load_timing =
+            resource_->GetResponse().GetResourceLoadTiming()) {
+      return load_timing->DiscoveryTime();
+    }
+    return base::TimeTicks();
+  }
+
   const ResourceResponse& GetResponse() const override {
     return resource_->GetResponse();
   }
@@ -109,10 +212,10 @@ class ImageResource::ImageResourceInfoImpl final
   bool HasCacheControlNoStoreHeader() const override {
     return resource_->HasCacheControlNoStoreHeader();
   }
-  absl::optional<ResourceError> GetResourceError() const override {
+  std::optional<ResourceError> GetResourceError() const override {
     if (resource_->LoadFailedOrCanceled())
       return resource_->GetResourceError();
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   void SetDecodedSize(size_t size) override { resource_->SetDecodedSize(size); }
@@ -124,10 +227,9 @@ class ImageResource::ImageResourceInfoImpl final
   }
   void EmulateLoadStartedForInspector(
       ResourceFetcher* fetcher,
-      const KURL& url,
       const AtomicString& initiator_name) override {
     fetcher->EmulateLoadStartedForInspector(
-        resource_.Get(), url, mojom::blink::RequestContextType::IMAGE,
+        resource_.Get(), mojom::blink::RequestContextType::IMAGE,
         network::mojom::RequestDestination::kImage, initiator_name);
   }
 
@@ -149,14 +251,14 @@ class ImageResource::ImageResourceInfoImpl final
     return &resource_->Options().unsupported_image_mime_types->data;
   }
 
-  absl::optional<WebURLRequest::Priority> RequestPriority() const override {
+  std::optional<WebURLRequest::Priority> RequestPriority() const override {
     auto priority = resource_->GetResourceRequest().Priority();
     if (priority == WebURLRequest::Priority::kUnresolved) {
       // This can happen for image documents (e.g. when `<iframe
       // src="title.png">` is the LCP), because the `ImageResource` isn't
       // associated with `ResourceLoader` in such cases. For now, consider the
       // priority not available for such cases by returning nullopt.
-      return absl::nullopt;
+      return std::nullopt;
     }
     return priority;
   }
@@ -168,11 +270,14 @@ class ImageResource::ImageResourceFactory : public NonTextResourceFactory {
   STACK_ALLOCATED();
 
  public:
-  explicit ImageResourceFactory()
-      : NonTextResourceFactory(ResourceType::kImage) {}
+  ImageResourceFactory() : NonTextResourceFactory(ResourceType::kImage) {}
 
   Resource* Create(const ResourceRequest& request,
                    const ResourceLoaderOptions& options) const override {
+    if (request.GetKnownTransparentPlaceholderImageIndex() != kNotFound) {
+      return CreateResourceForTransparentPlaceholderImage(request, options);
+    }
+
     return MakeGarbageCollected<ImageResource>(
         request, options, ImageResourceContent::CreateNotStarted());
   }
@@ -180,6 +285,9 @@ class ImageResource::ImageResourceFactory : public NonTextResourceFactory {
 
 ImageResource* ImageResource::Fetch(FetchParameters& params,
                                     ResourceFetcher* fetcher) {
+  MarkKnownTransparentPlaceholderResourceRequestIfNeeded(
+      params.MutableResourceRequest());
+
   if (params.GetResourceRequest().GetRequestContext() ==
       mojom::blink::RequestContextType::UNSPECIFIED) {
     params.SetRequestContext(mojom::blink::RequestContextType::IMAGE);
@@ -196,8 +304,6 @@ ImageResource* ImageResource::Fetch(FetchParameters& params,
 
   auto* resource = To<ImageResource>(
       fetcher->RequestResource(params, ImageResourceFactory(), nullptr));
-
-  resource->GetContent()->SetDiscoveryTime(params.DiscoveryTime());
 
   // If the fetch originated from user agent CSS we should mark it as a user
   // agent resource.
@@ -218,10 +324,11 @@ bool ImageResource::CanUseCacheValidator() const {
   return Resource::CanUseCacheValidator();
 }
 
-ImageResource* ImageResource::Create(
-    const ResourceRequest& request,
-    scoped_refptr<const DOMWrapperWorld> world) {
-  ResourceLoaderOptions options(std::move(world));
+// TODO(crbug.com/41496436): Rename this to `CreateForImageDocument`,
+// or remove ImageDocument dependency to this function.
+ImageResource* ImageResource::Create(const ResourceRequest& request,
+                                     const DOMWrapperWorld* world) {
+  ResourceLoaderOptions options(world);
   return MakeGarbageCollected<ImageResource>(
       request, options, ImageResourceContent::CreateNotStarted());
 }
@@ -235,8 +342,11 @@ ImageResource* ImageResource::CreateForTest(const KURL& url) {
   request.SetReferrerPolicy(ReferrerUtils::MojoReferrerPolicyResolveDefault(
       request.GetReferrerPolicy()));
   request.SetPriority(WebURLRequest::Priority::kLow);
+  MarkKnownTransparentPlaceholderResourceRequestIfNeeded(request);
 
-  return Create(request, nullptr);
+  ImageResourceFactory factory;
+  return To<ImageResource>(
+      factory.Create(request, ResourceLoaderOptions(/* world=*/nullptr)));
 }
 
 ImageResource::ImageResource(const ResourceRequest& resource_request,
@@ -244,6 +354,7 @@ ImageResource::ImageResource(const ResourceRequest& resource_request,
                              ImageResourceContent* content)
     : Resource(resource_request, ResourceType::kImage, options),
       content_(content) {
+  DCHECK(content_);
   DCHECK(GetContent());
   RESOURCE_LOADING_DVLOG(1)
       << "MakeGarbageCollected<ImageResource>(ResourceRequest) " << this;
@@ -253,6 +364,8 @@ ImageResource::ImageResource(const ResourceRequest& resource_request,
 
 ImageResource::~ImageResource() {
   RESOURCE_LOADING_DVLOG(1) << "~ImageResource " << this;
+
+  external_memory_accounter_.Clear(v8::Isolate::GetCurrent());
 
   if (is_referenced_from_ua_stylesheet_)
     InstanceCounters::DecrementCounter(InstanceCounters::kUACSSResourceCounter);
@@ -290,16 +403,15 @@ void ImageResource::DestroyDecodedDataForFailedRevalidation() {
   // revalidation response.
   UpdateImage(nullptr, ImageResourceContent::kClearAndUpdateImage, false);
   SetDecodedSize(0);
+  external_memory_accounter_.Clear(v8::Isolate::GetCurrent());
 }
 
 void ImageResource::DestroyDecodedDataIfPossible() {
   GetContent()->DestroyDecodedData();
-  if (GetContent()->HasImage() && !IsUnusedPreload() &&
-      GetContent()->IsRefetchableDataFromDiskCache()) {
-    UMA_HISTOGRAM_MEMORY_KB(
-        "Memory.Renderer.EstimatedDroppableEncodedSize",
-        base::saturated_cast<base::Histogram::Sample>(EncodedSize() / 1024));
-  }
+}
+
+ResourceStatus ImageResource::GetContentStatus() const {
+  return GetContent()->GetContentStatus();
 }
 
 void ImageResource::AllClientsAndObserversRemoved() {
@@ -323,12 +435,17 @@ scoped_refptr<const SharedBuffer> ImageResource::ResourceBuffer() const {
   return GetContent()->ResourceBuffer();
 }
 
-void ImageResource::AppendData(const char* data, size_t length) {
-  v8::Isolate::GetCurrent()->AdjustAmountOfExternalAllocatedMemory(length);
+void ImageResource::AppendData(
+    std::variant<SegmentedBuffer, base::span<const char>> data) {
+  // We don't have a BackgroundResponseProcessor for ImageResources. So this
+  // method must be called with a `span<const char>` data.
+  CHECK(std::holds_alternative<base::span<const char>>(data));
+  base::span<const char> span = std::get<base::span<const char>>(data);
+  external_memory_accounter_.Increase(v8::Isolate::GetCurrent(), span.size());
   if (multipart_parser_) {
-    multipart_parser_->AppendData(data, base::checked_cast<wtf_size_t>(length));
+    multipart_parser_->AppendData(span);
   } else {
-    Resource::AppendData(data, length);
+    Resource::AppendData(span);
 
     // Update the image immediately if needed.
     //
@@ -383,6 +500,7 @@ void ImageResource::DecodeError(bool all_data_received) {
 
   ClearData();
   SetEncodedSize(0);
+  external_memory_accounter_.Clear(v8::Isolate::GetCurrent());
   if (!ErrorOccurred())
     SetStatus(ResourceStatus::kDecodeError);
 
@@ -395,7 +513,7 @@ void ImageResource::DecodeError(bool all_data_received) {
     // Observers are notified via ImageResource::finish().
     // TODO(hiroshige): Do not call didFinishLoading() directly.
     Loader()->AbortResponseBodyLoading();
-    Loader()->DidFinishLoading(base::TimeTicks::Now(), size, size, size, false);
+    Loader()->DidFinishLoading(base::TimeTicks::Now(), size, size, size);
   } else {
     auto result = GetContent()->UpdateImage(
         nullptr, GetStatus(),
@@ -444,6 +562,7 @@ void ImageResource::FinishAsError(const ResourceError& error,
   // TODO(hiroshige): Move setEncodedSize() call to Resource::error() if it
   // is really needed, or remove it otherwise.
   SetEncodedSize(0);
+  external_memory_accounter_.Clear(v8::Isolate::GetCurrent());
   is_during_finish_as_error_ = true;
   Resource::FinishAsError(error, task_runner);
   is_during_finish_as_error_ = false;
@@ -469,6 +588,21 @@ void ImageResource::ResponseReceived(const ResourceResponse& response) {
   // (e.g. a 304) with a partial set of updated headers that were folded into
   // the cached response.
   Resource::ResponseReceived(response);
+}
+
+void ImageResource::UpdateResourceInfoFromObservers() {
+  GetContent()->UpdateResourceInfoFromObservers();
+}
+
+std::pair<ResourcePriority, ResourcePriority>
+ImageResource::PriorityFromObservers() const {
+  return GetContent()->PriorityFromObservers();
+}
+
+bool ImageResource::IsAboveSpeculativeDecodeSizeThreshold() const {
+  // Images with too few pixels will not be speculatively decoded.
+  return GetContent()->MaxSize().GetCheckedArea().ValueOrDefault(0) >=
+         kSpeculativeDecodeMinImageSize;
 }
 
 void ImageResource::OnePartInMultipartReceived(
@@ -503,9 +637,9 @@ void ImageResource::OnePartInMultipartReceived(
   }
 }
 
-void ImageResource::MultipartDataReceived(const char* bytes, size_t size) {
+void ImageResource::MultipartDataReceived(base::span<const uint8_t> bytes) {
   DCHECK(multipart_parser_);
-  Resource::AppendData(bytes, size);
+  Resource::AppendData(base::as_chars(bytes));
 }
 
 bool ImageResource::IsAccessAllowed(
@@ -519,16 +653,11 @@ bool ImageResource::IsAccessAllowed(
 }
 
 ImageResourceContent* ImageResource::GetContent() {
-  return content_;
+  return content_.Get();
 }
 
 const ImageResourceContent* ImageResource::GetContent() const {
-  return content_;
-}
-
-std::pair<ResourcePriority, ResourcePriority>
-ImageResource::PriorityFromObservers() {
-  return GetContent()->PriorityFromObservers();
+  return content_.Get();
 }
 
 void ImageResource::UpdateImage(

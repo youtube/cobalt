@@ -11,10 +11,12 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/web_applications/web_app.h"
-#include "chrome/browser/web_applications/web_app_id.h"
+#include "chrome/browser/web_applications/web_app_constants.h"
 #include "chrome/browser/web_applications/web_app_install_utils.h"
+#include "chrome/browser/web_applications/web_app_management_type.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/common/chrome_features.h"
+#include "components/webapps/common/web_app_id.h"
 #include "third_party/blink/public/common/features.h"
 #include "ui/gfx/skia_util.h"
 
@@ -56,6 +58,8 @@ std::ostream& operator<<(std::ostream& os, ManifestUpdateResult result) {
       return os << "kAppIsIsolatedWebApp";
     case ManifestUpdateResult::kCancelledDueToMainFrameNavigation:
       return os << "kCancelledDueToMainFrameNavigation";
+    case ManifestUpdateResult::kShortcutIgnoresManifest:
+      return os << "kkShortcutIgnoresManifest";
   }
 }
 
@@ -67,6 +71,8 @@ std::ostream& operator<<(std::ostream& os, ManifestUpdateCheckStage stage) {
       return os << "kDownloadingNewManifestData";
     case ManifestUpdateCheckStage::kLoadingExistingManifestData:
       return os << "kLoadingExistingManifestData";
+    case ManifestUpdateCheckStage::kDownloadingChangedIconUrlBitmaps:
+      return os << "kDownloadingChangedIconUrlBitmaps";
     case ManifestUpdateCheckStage::kComparingManifestData:
       return os << "kComparingManifestData";
     case ManifestUpdateCheckStage::kResolvingIdentityChanges:
@@ -114,7 +120,6 @@ ManifestUpdateResult FinalResultFromManifestUpdateCheckResult(
       // The manifest needs to be applied before the overall update process is
       // considered complete.
       NOTREACHED();
-      return ManifestUpdateResult::kAppUpdated;
     case ManifestUpdateCheckResult::kAppUpToDate:
       return ManifestUpdateResult::kAppUpToDate;
     case ManifestUpdateCheckResult::kAppIdentityUpdateRejectedAndUninstalled:
@@ -130,7 +135,7 @@ ManifestUpdateResult FinalResultFromManifestUpdateCheckResult(
   }
 }
 
-absl::optional<AppIconIdentityChange> CompareIdentityIconBitmaps(
+std::optional<AppIconIdentityChange> CompareIdentityIconBitmaps(
     const IconBitmaps& existing_app_icon_bitmaps,
     const IconBitmaps& new_app_icon_bitmaps) {
   for (IconPurpose purpose : kIconPurposes) {
@@ -158,12 +163,12 @@ absl::optional<AppIconIdentityChange> CompareIdentityIconBitmaps(
       }
     }
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 void RecordIconDownloadMetrics(IconsDownloadedResult result,
                                DownloadedIconsHttpResults icons_http_results) {
-  // TODO(crbug.com/1238622): Report `result` and `icons_http_results` in
+  // TODO(crbug.com/40193545): Report `result` and `icons_http_results` in
   // internals.
   base::UmaHistogramEnumeration("WebApp.Icon.DownloadedResultOnUpdate", result);
   RecordDownloadedIconHttpStatusCodes(
@@ -185,7 +190,8 @@ bool CanWebAppSilentlyUpdateIdentity(const WebApp& web_app) {
   // WebAppChromeOsData::oem_installed will be migrated to
   // WebAppManagement::kOem eventually.
   return web_app.IsPreinstalledApp() || web_app.IsKioskInstalledApp() ||
-         web_app.GetSources().test(WebAppManagement::kOem);
+         web_app.GetSources().HasAny(
+             {WebAppManagement::kOem, WebAppManagement::kApsDefault});
 }
 
 bool CanShowIdentityUpdateConfirmationDialog(const WebAppRegistrar& registrar,
@@ -199,15 +205,8 @@ bool CanShowIdentityUpdateConfirmationDialog(const WebAppRegistrar& registrar,
   // Shortcut apps may immediately trigger the identity updating if the user
   // has overridden the title of the app, see: https://crbug.com/1366600
   // Don't show the update prompt for shortcut apps and always revert.
-  // Also, ideally we should just use IsShortcutApp here instead of checking the
-  // install source, but as per https://crbug.com/1368592 there is a bug with
-  // that where it returns the wrong thing for Shortcut apps that specify
-  // `scope`.
-  bool is_shortcut_app =
-      registrar.IsShortcutApp(web_app.app_id()) ||
-      registrar.GetLatestAppInstallSource(web_app.app_id()) ==
-          webapps::WebappInstallSource::MENU_CREATE_SHORTCUT;
-  if (is_shortcut_app) {
+  if (registrar.GetLatestAppInstallSource(web_app.app_id()) ==
+      webapps::WebappInstallSource::MENU_CREATE_SHORTCUT) {
     return false;
   }
 
@@ -227,12 +226,12 @@ ManifestDataChanges GetManifestDataChanges(
     const WebAppInstallInfo& new_install_info) {
   ManifestDataChanges result;
 
-  // TODO(crbug.com/1259777): Check whether translations have been updated.
+  // TODO(crbug.com/40201597): Check whether translations have been updated.
   result.app_name_changed =
       new_install_info.title !=
       base::UTF8ToUTF16(existing_web_app.untranslated_name());
 
-  // TODO(crbug.com/1409710): Run these bitmap comparisons off the UI thread.
+  // TODO(crbug.com/40254036): Run these bitmap comparisons off the UI thread.
   if (existing_app_icon_bitmaps) {
     result.app_icon_identity_change = CompareIdentityIconBitmaps(
         *existing_app_icon_bitmaps, new_install_info.icon_bitmaps);
@@ -245,10 +244,10 @@ ManifestDataChanges GetManifestDataChanges(
        *existing_app_icon_bitmaps != new_install_info.icon_bitmaps);
 
   result.other_fields_changed = [&] {
-    if (existing_web_app.manifest_id() != new_install_info.manifest_id) {
+    if (existing_web_app.manifest_id() != new_install_info.manifest_id()) {
       return true;
     }
-    if (existing_web_app.start_url() != new_install_info.start_url) {
+    if (existing_web_app.start_url() != new_install_info.start_url()) {
       return true;
     }
     if (existing_web_app.theme_color() != new_install_info.theme_color) {
@@ -273,9 +272,6 @@ ManifestDataChanges GetManifestDataChanges(
     }
     if (existing_web_app.protocol_handlers() !=
         new_install_info.protocol_handlers) {
-      return true;
-    }
-    if (existing_web_app.url_handlers() != new_install_info.url_handlers) {
       return true;
     }
     if (base::FeatureList::IsEnabled(
@@ -321,9 +317,23 @@ ManifestDataChanges GetManifestDataChanges(
             new_install_info.shortcuts_menu_icon_bitmaps) {
       return true;
     }
-    // TODO(crbug.com/897314): Check changes to tab_strip field once
-    // icons are stored.
-    // TODO(crbug.com/926083): Check more manifest fields.
+    if (existing_web_app.scope_extensions() !=
+        new_install_info.scope_extensions) {
+      return true;
+    }
+    if (new_install_info.validated_scope_extensions.has_value() &&
+        existing_web_app.validated_scope_extensions() !=
+            new_install_info.validated_scope_extensions.value()) {
+      return true;
+    }
+    if (existing_web_app.tab_strip() != new_install_info.tab_strip) {
+      return true;
+    }
+    if (existing_web_app.related_applications() !=
+        new_install_info.related_applications) {
+      return true;
+    }
+    // TODO(crbug.com/40611449): Check more manifest fields.
     return false;
   }();
 
@@ -342,11 +352,11 @@ void RecordIdentityConfirmationMetrics(
     kAppNameAndIconChanging = 5,
     // Values 6 through 15 (inclusive) are reserved for Android (icon mask/app
     // short name).
-    kLastAndroidSpecificValue = 15,
+    kLastAndroidSpecificValue = 29,
 
     // Add any new values above this one, and update kMaxValue to the highest
     // enumerator value.
-    kMaxValue = 15
+    kMaxValue = kLastAndroidSpecificValue,
   };
 
   AppIdentityDisplayMetric app_id_changes = [&] {

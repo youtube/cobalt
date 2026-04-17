@@ -15,6 +15,7 @@
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/i18n/time_formatting.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
@@ -161,20 +162,15 @@ bool CreateUniqueFilename(int max_path_component_length,
        uniquifier <= DownloadPathReservationTracker::kMaxUniqueFiles + 1;
        ++uniquifier) {
     // Append uniquifier.
-    std::string suffix(base::StringPrintf(" (%d)", uniquifier));
-
-    // After we've tried all the unique numeric indices, make one attempt using
-    // the timestamp.
-    if (uniquifier > DownloadPathReservationTracker::kMaxUniqueFiles) {
-      // Generate an ISO8601 compliant local timestamp suffix that avoids
-      // reserved characters that are forbidden on some OSes like Windows.
-      base::Time::Exploded exploded;
-      download_start_time.LocalExplode(&exploded);
-      suffix = base::StringPrintf(
-          " - %04d-%02d-%02dT%02d%02d%02d.%03d", exploded.year, exploded.month,
-          exploded.day_of_month, exploded.hour, exploded.minute,
-          exploded.second, exploded.millisecond);
-    }
+    std::string suffix =
+        (uniquifier > DownloadPathReservationTracker::kMaxUniqueFiles)
+            ? base::UnlocalizedTimeFormatWithPattern(
+                  download_start_time,
+                  // ISO8601-compliant local timestamp suffix that avoids
+                  // reserved characters that are forbidden on some OSes like
+                  // Windows.
+                  " - yyyy-MM-dd'T'HHmmss.SSS")
+            : base::StringPrintf(" (%d)", uniquifier);
 
     base::FilePath path_to_check(*path);
     // If the name length limit is available (max_length != -1), and the
@@ -252,7 +248,6 @@ PathValidationResult ResolveReservationConflicts(
       return PathValidationResult::CONFLICT;
   }
   NOTREACHED();
-  return PathValidationResult::SUCCESS;
 }
 
 // Verify that |target_path| can be written to and also resolve any conflicts if
@@ -486,9 +481,6 @@ void DownloadItemObserver::OnDownloadUpdated(DownloadItem* download) {
 void DownloadItemObserver::OnDownloadDestroyed(DownloadItem* download) {
   // Items should be COMPLETE/INTERRUPTED/CANCELLED before being destroyed.
   NOTREACHED();
-  DownloadPathReservationTracker::GetTaskRunner()->PostTask(
-      FROM_HERE, base::BindOnce(&RevokeReservation,
-                                reinterpret_cast<ReservationKey>(download)));
 }
 
 // static

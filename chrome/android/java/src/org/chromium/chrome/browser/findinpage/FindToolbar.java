@@ -13,11 +13,9 @@ import android.graphics.Rect;
 import android.os.Handler;
 import android.os.Vibrator;
 import android.provider.Settings;
-import android.text.Editable;
 import android.text.InputType;
 import android.text.Selection;
 import android.text.TextUtils;
-import android.text.TextWatcher;
 import android.util.AttributeSet;
 import android.view.ActionMode;
 import android.view.Gravity;
@@ -35,12 +33,11 @@ import androidx.annotation.VisibleForTesting;
 import androidx.core.view.accessibility.AccessibilityEventCompat;
 import androidx.core.view.inputmethod.EditorInfoCompat;
 
-import org.chromium.base.BuildInfo;
+import org.chromium.base.Callback;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.back_press.BackPressManager;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabObserver;
@@ -48,7 +45,6 @@ import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
-import org.chromium.chrome.browser.tabmodel.TabModelSelectorObserver;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 import org.chromium.components.browser_ui.widget.text.VerticallyFixedEditText;
@@ -57,6 +53,7 @@ import org.chromium.components.find_in_page.FindMatchRectsDetails;
 import org.chromium.components.find_in_page.FindNotificationDetails;
 import org.chromium.components.find_in_page.FindResultBar;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.text.EmptyTextWatcher;
 import org.chromium.url.GURL;
 
 import java.lang.annotation.Retention;
@@ -64,12 +61,12 @@ import java.lang.annotation.RetentionPolicy;
 
 /** A toolbar providing find in page functionality. */
 public class FindToolbar extends LinearLayout implements BackPressHandler {
-    private static final String TAG = "FindInPage";
-
-    private static final long ACCESSIBLE_ANNOUNCEMENT_DELAY_MILLIS = 500;
-
-    @IntDef({FindLocationBarState.SHOWN, FindLocationBarState.SHOWING, FindLocationBarState.HIDDEN,
-            FindLocationBarState.HIDING})
+    @IntDef({
+        FindLocationBarState.SHOWN,
+        FindLocationBarState.SHOWING,
+        FindLocationBarState.HIDDEN,
+        FindLocationBarState.HIDING
+    })
     @Retention(RetentionPolicy.SOURCE)
     private @interface FindLocationBarState {
         int SHOWN = 0;
@@ -77,6 +74,12 @@ public class FindToolbar extends LinearLayout implements BackPressHandler {
         int HIDDEN = 2;
         int HIDING = 3;
     }
+
+    private final ObservableSupplierImpl<Boolean> mBackPressStateSupplier =
+            new ObservableSupplierImpl<>();
+    private final Callback<TabModel> mCurrentTabModelObserver = this::onTabModelSelected;
+    private final TabModelObserver mTabModelObserver;
+    private final TabObserver mTabObserver;
 
     // Toolbar UI
     private TextView mFindStatus;
@@ -89,10 +92,8 @@ public class FindToolbar extends LinearLayout implements BackPressHandler {
     private FindResultBar mResultBar;
 
     private TabModelSelector mTabModelSelector;
-    private final TabModelSelectorObserver mTabModelSelectorObserver;
-    private final TabModelObserver mTabModelObserver;
     private Tab mCurrentTab;
-    private final TabObserver mTabObserver;
+    private TabModel mCurrentTabModel;
     private WindowAndroid mWindowAndroid;
     private FindInPageBridge mFindInPageBridge;
     private FindToolbarObserver mObserver;
@@ -106,27 +107,18 @@ public class FindToolbar extends LinearLayout implements BackPressHandler {
     /** Whether the search key should trigger a new search. */
     private boolean mSearchKeyShouldTriggerSearch;
 
-    @FindLocationBarState
-    private int mCurrentState = FindLocationBarState.HIDDEN;
-    @FindLocationBarState
-    private int mDesiredState = FindLocationBarState.HIDDEN;
+    private @FindLocationBarState int mCurrentState = FindLocationBarState.HIDDEN;
+    private @FindLocationBarState int mDesiredState = FindLocationBarState.HIDDEN;
 
-    private Handler mHandler = new Handler();
-    private Runnable mAccessibleAnnouncementRunnable;
-    private boolean mAccessibilityDidActivateResult;
-    private final ObservableSupplierImpl<Boolean> mBackPressStateSupplier =
-            new ObservableSupplierImpl<>();
+    private final Handler mHandler = new Handler();
 
     /** Subclasses EditText in order to intercept BACK key presses. */
     @SuppressLint("Instantiatable")
-    static class FindQuery extends VerticallyFixedEditText implements OnKeyListener {
+    static class FindQuery extends VerticallyFixedEditText {
         private FindToolbar mFindToolbar;
 
         public FindQuery(Context context, AttributeSet attrs) {
             super(context, attrs);
-            if (!BackPressManager.isEnabled() && !BuildInfo.isAtLeastT()) {
-                setOnKeyListener(this);
-            }
         }
 
         void setFindToolbar(FindToolbar findToolbar) {
@@ -134,30 +126,15 @@ public class FindToolbar extends LinearLayout implements BackPressHandler {
         }
 
         @Override
-        @SuppressLint("GestureBackNavigation")
-        public boolean onKey(View v, int keyCode, KeyEvent event) {
-            if (keyCode == KeyEvent.KEYCODE_BACK) {
-                if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
-                    // Tell the framework to start tracking this event.
-                    getKeyDispatcherState().startTracking(event, this);
-                    return true;
-                } else if (event.getAction() == KeyEvent.ACTION_UP) {
-                    getKeyDispatcherState().handleUpEvent(event);
-                    if (event.isTracking() && !event.isCanceled()) {
-                        BackPressManager.record(Type.FIND_TOOLBAR);
-                        mFindToolbar.deactivate();
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
-
-        @Override
         public boolean onKeyDown(int keyCode, KeyEvent event) {
-            if (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_F3
+            if (keyCode == KeyEvent.KEYCODE_ENTER
+                    || keyCode == KeyEvent.KEYCODE_F3
                     || (keyCode == KeyEvent.KEYCODE_G && event.isCtrlPressed())) {
                 mFindToolbar.hideKeyboardAndStartFinding(!event.isShiftPressed());
+                return true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_ESCAPE && event.hasNoModifiers()) {
+                mFindToolbar.deactivate();
                 return true;
             }
             return super.onKeyDown(keyCode, event);
@@ -209,60 +186,55 @@ public class FindToolbar extends LinearLayout implements BackPressHandler {
     public FindToolbar(Context context, AttributeSet attrs) {
         super(context, attrs);
 
-        mTabObserver = new EmptyTabObserver() {
-            @Override
-            public void onActivityAttachmentChanged(Tab tab, @Nullable WindowAndroid window) {
-                if (window == null && getVisibility() == View.VISIBLE) {
-                    deactivate(/* clearSelection= */ true);
-                }
-            }
+        mTabObserver =
+                new EmptyTabObserver() {
+                    @Override
+                    public void onActivityAttachmentChanged(
+                            Tab tab, @Nullable WindowAndroid window) {
+                        if (window == null && getVisibility() == View.VISIBLE) {
+                            deactivate(/* clearSelection= */ true);
+                        }
+                    }
 
-            @Override
-            public void onPageLoadStarted(Tab tab, GURL url) {
-                deactivate();
-            }
+                    @Override
+                    public void onPageLoadStarted(Tab tab, GURL url) {
+                        deactivate();
+                    }
 
-            @Override
-            public void onContentChanged(Tab tab) {
-                deactivate();
-            }
+                    @Override
+                    public void onContentChanged(Tab tab) {
+                        deactivate();
+                    }
 
-            @Override
-            public void onClosingStateChanged(Tab tab, boolean closing) {
-                if (closing) deactivate();
-            }
+                    @Override
+                    public void onClosingStateChanged(Tab tab, boolean closing) {
+                        if (closing) deactivate();
+                    }
 
-            @Override
-            public void onFindResultAvailable(FindNotificationDetails result) {
-                onFindResult(result);
-            }
+                    @Override
+                    public void onFindResultAvailable(FindNotificationDetails result) {
+                        onFindResult(result);
+                    }
 
-            @Override
-            public void onFindMatchRectsAvailable(FindMatchRectsDetails result) {
-                onFindMatchRects(result);
-            }
-        };
+                    @Override
+                    public void onFindMatchRectsAvailable(FindMatchRectsDetails result) {
+                        onFindMatchRects(result);
+                    }
+                };
 
-        mTabModelSelectorObserver = new TabModelSelectorObserver() {
-            @Override
-            public void onTabModelSelected(TabModel newModel, TabModel oldModel) {
-                deactivate();
-                updateVisualsForTabModel(isIncognito());
-            }
-        };
+        mTabModelObserver =
+                new TabModelObserver() {
+                    @Override
+                    public void didSelectTab(Tab tab, @TabSelectionType int type, int lastId) {
+                        if (tab != mCurrentTab) deactivate();
+                    }
 
-        mTabModelObserver = new TabModelObserver() {
-            @Override
-            public void didSelectTab(Tab tab, @TabSelectionType int type, int lastId) {
-                deactivate();
-            }
-
-            @Override
-            public void tabRemoved(Tab tab) {
-                if (tab != mCurrentTab) return;
-                deactivate();
-            }
-        };
+                    @Override
+                    public void tabRemoved(Tab tab) {
+                        if (tab != mCurrentTab) return;
+                        deactivate();
+                    }
+                };
     }
 
     @Override
@@ -272,108 +244,105 @@ public class FindToolbar extends LinearLayout implements BackPressHandler {
         setOrientation(HORIZONTAL);
         setGravity(Gravity.CENTER_VERTICAL);
 
-        mFindQuery = (FindQuery) findViewById(R.id.find_query);
+        mFindQuery = findViewById(R.id.find_query);
         mFindQuery.setFindToolbar(this);
         mFindQuery.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_FILTER);
         mFindQuery.setSelectAllOnFocus(true);
-        mFindQuery.setOnFocusChangeListener(new View.OnFocusChangeListener() {
-            @Override
-            public void onFocusChange(View v, boolean hasFocus) {
-                mAccessibilityDidActivateResult = false;
-                if (!hasFocus) {
-                    if (mFindQuery.getText().length() > 0) {
-                        mSearchKeyShouldTriggerSearch = true;
+        mFindQuery.setOnFocusChangeListener(
+                new View.OnFocusChangeListener() {
+                    @Override
+                    public void onFocusChange(View v, boolean hasFocus) {
+                        if (!hasFocus) {
+                            if (mFindQuery.getText().length() > 0) {
+                                mSearchKeyShouldTriggerSearch = true;
+                            }
+                            mWindowAndroid.getKeyboardDelegate().hideKeyboard(mFindQuery);
+                        }
                     }
-                    mWindowAndroid.getKeyboardDelegate().hideKeyboard(mFindQuery);
-                }
-            }
-        });
-        mFindQuery.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                if (mFindInPageBridge == null) return;
+                });
+        mFindQuery.addTextChangedListener(
+                new EmptyTextWatcher() {
+                    @Override
+                    public void onTextChanged(CharSequence s, int start, int before, int count) {
+                        if (mFindInPageBridge == null) return;
 
-                mAccessibilityDidActivateResult = false;
+                        if (mSettingFindTextProgrammatically) return;
 
-                if (mSettingFindTextProgrammatically) return;
+                        // If we're called during onRestoreInstanceState() the current
+                        // view won't have been set yet. TODO(husky): Find a better fix.
+                        assert mCurrentTab != null;
+                        assert mCurrentTab.getWebContents() != null;
+                        if (mCurrentTab.getWebContents() == null) return;
 
-                // If we're called during onRestoreInstanceState() the current
-                // view won't have been set yet. TODO(husky): Find a better fix.
-                assert mCurrentTab != null;
-                assert mCurrentTab.getWebContents() != null;
-                if (mCurrentTab.getWebContents() == null) return;
+                        if (s.length() > 0) {
+                            // Don't clearResults() as that would cause flicker.
+                            // Just wait until onFindResultReceived updates it.
+                            mSearchKeyShouldTriggerSearch = false;
+                            mFindInPageBridge.startFinding(s.toString(), true, false);
+                        } else {
+                            clearResults();
+                            mFindInPageBridge.stopFinding(true);
+                            setPrevNextEnabled(false);
+                        }
 
-                if (s.length() > 0) {
-                    // Don't clearResults() as that would cause flicker.
-                    // Just wait until onFindResultReceived updates it.
-                    mSearchKeyShouldTriggerSearch = false;
-                    mFindInPageBridge.startFinding(s.toString(), true, false);
-                } else {
-                    clearResults();
-                    mFindInPageBridge.stopFinding(true);
-                    setPrevNextEnabled(false);
-                }
+                        if (!isIncognito()) {
+                            mLastUserSearch = s.toString();
+                        }
+                    }
+                });
+        mFindQuery.setOnEditorActionListener(
+                new TextView.OnEditorActionListener() {
+                    @Override
+                    public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
+                        if (event != null && event.getAction() == KeyEvent.ACTION_UP) return false;
 
-                if (!isIncognito()) {
-                    mLastUserSearch = s.toString();
-                }
-            }
+                        if (mFindInPageBridge == null) return false;
 
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                        // Only trigger a new find if the text was set programmatically.
+                        // Otherwise just revisit the current active match.
+                        if (mSearchKeyShouldTriggerSearch) {
+                            mSearchKeyShouldTriggerSearch = false;
+                            hideKeyboardAndStartFinding(true);
+                        } else {
+                            mWindowAndroid.getKeyboardDelegate().hideKeyboard(mFindQuery);
+                            mFindInPageBridge.activateFindInPageResultForAccessibility();
+                        }
+                        return true;
+                    }
+                });
 
-            @Override
-            public void afterTextChanged(Editable s) {}
-        });
-        mFindQuery.setOnEditorActionListener(new TextView.OnEditorActionListener() {
-            @Override
-            public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
-                if (event != null && event.getAction() == KeyEvent.ACTION_UP) return false;
-
-                if (mFindInPageBridge == null) return false;
-
-                // Only trigger a new find if the text was set programmatically.
-                // Otherwise just revisit the current active match.
-                if (mSearchKeyShouldTriggerSearch) {
-                    mSearchKeyShouldTriggerSearch = false;
-                    hideKeyboardAndStartFinding(true);
-                } else {
-                    mWindowAndroid.getKeyboardDelegate().hideKeyboard(mFindQuery);
-                    mFindInPageBridge.activateFindInPageResultForAccessibility();
-                    mAccessibilityDidActivateResult = true;
-                }
-                return true;
-            }
-        });
-
-        mFindStatus = (TextView) findViewById(R.id.find_status);
+        mFindStatus = findViewById(R.id.find_status);
         setStatus("", false);
+        mFindStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
 
         mFindPrevButton = findViewById(R.id.find_prev_button);
-        mFindPrevButton.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                hideKeyboardAndStartFinding(false);
-            }
-        });
+        mFindPrevButton.setOnClickListener(
+                new OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        hideKeyboardAndStartFinding(false);
+                    }
+                });
 
         mFindNextButton = findViewById(R.id.find_next_button);
-        mFindNextButton.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                hideKeyboardAndStartFinding(true);
-            }
-        });
+        mFindNextButton.setOnClickListener(
+                new OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        hideKeyboardAndStartFinding(true);
+                    }
+                });
 
         setPrevNextEnabled(false);
 
         mCloseFindButton = findViewById(R.id.close_find_button);
-        mCloseFindButton.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                deactivate();
-            }
-        });
+        mCloseFindButton.setOnClickListener(
+                new OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        deactivate();
+                    }
+                });
 
         mDivider = findViewById(R.id.find_separator);
     }
@@ -403,7 +372,6 @@ public class FindToolbar extends LinearLayout implements BackPressHandler {
         mWindowAndroid.getKeyboardDelegate().hideKeyboard(mFindQuery);
         mFindInPageBridge.startFinding(findQuery, forward, false);
         mFindInPageBridge.activateFindInPageResultForAccessibility();
-        mAccessibilityDidActivateResult = true;
     }
 
     private boolean mShowKeyboardOnceWindowIsFocused;
@@ -419,22 +387,26 @@ public class FindToolbar extends LinearLayout implements BackPressHandler {
             // from the options menu, but we still need to use postDelayed with
             // a zero wait time to delay until all the side-effects are complete
             // (e.g. becoming the target of the Input Method).
-            mHandler.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    showKeyboard();
+            mHandler.postDelayed(
+                    new Runnable() {
+                        @Override
+                        public void run() {
+                            showKeyboard();
 
-                    // This is also a great time to set accessibility focus to the query box -
-                    // this also fails if we don't wait until the window regains focus.
-                    // Sending a HOVER_ENTER event before the ACCESSIBILITY_FOCUSED event
-                    // is a widely-used hack to force TalkBack to move accessibility focus
-                    // to a view, which is discouraged in general but reasonable in this case.
-                    mFindQuery.sendAccessibilityEvent(
-                            AccessibilityEventCompat.TYPE_VIEW_HOVER_ENTER);
-                    mFindQuery.sendAccessibilityEvent(
-                            AccessibilityEventCompat.TYPE_VIEW_ACCESSIBILITY_FOCUSED);
-                }
-            }, 0);
+                            // This is also a great time to set accessibility focus to the query box
+                            // -
+                            // this also fails if we don't wait until the window regains focus.
+                            // Sending a HOVER_ENTER event before the ACCESSIBILITY_FOCUSED event
+                            // is a widely-used hack to force TalkBack to move accessibility focus
+                            // to a view, which is discouraged in general but reasonable in this
+                            // case.
+                            mFindQuery.sendAccessibilityEvent(
+                                    AccessibilityEventCompat.TYPE_VIEW_HOVER_ENTER);
+                            mFindQuery.sendAccessibilityEvent(
+                                    AccessibilityEventCompat.TYPE_VIEW_ACCESSIBILITY_FOCUSED);
+                        }
+                    },
+                    0);
         }
     }
 
@@ -493,26 +465,33 @@ public class FindToolbar extends LinearLayout implements BackPressHandler {
         // active match (while counting the matches), as in b/4147049. In such
         // cases it looks less broken to show 0 instead of -1 (as desktop does).
         Context context = getContext();
-        String text = context.getResources().getString(R.string.find_in_page_count,
-                Math.max(result.activeMatchOrdinal, 0), result.numberOfMatches);
+        String text =
+                context.getString(
+                        R.string.find_in_page_count,
+                        Math.max(result.activeMatchOrdinal, 0),
+                        result.numberOfMatches);
         setStatus(text, result.numberOfMatches == 0);
 
         setPrevNextEnabled(result.numberOfMatches > 0);
 
         // The accessible version will be something like "Result 1 of 9".
-        String accessibleText = getAccessibleStatusText(
-                Math.max(result.activeMatchOrdinal, 0), result.numberOfMatches);
+        String accessibleText =
+                getAccessibleStatusText(
+                        Math.max(result.activeMatchOrdinal, 0), result.numberOfMatches);
         mFindStatus.setContentDescription(accessibleText);
-        announceStatusForAccessibility(accessibleText);
 
         // Vibrate when no results are found, unless you're just deleting chars.
-        if (result.numberOfMatches == 0 && result.finalUpdate
-                && !mFindInPageBridge.getPreviousFindText().startsWith(
-                        mFindQuery.getText().toString())) {
+        if (result.numberOfMatches == 0
+                && result.finalUpdate
+                && !mFindInPageBridge
+                        .getPreviousFindText()
+                        .startsWith(mFindQuery.getText().toString())) {
             final boolean hapticFeedbackEnabled =
-                    Settings.System.getInt(context.getContentResolver(),
-                            Settings.System.HAPTIC_FEEDBACK_ENABLED, 1)
-                    == 1;
+                    Settings.System.getInt(
+                                    context.getContentResolver(),
+                                    Settings.System.HAPTIC_FEEDBACK_ENABLED,
+                                    1)
+                            == 1;
             if (hapticFeedbackEnabled) {
                 Vibrator v = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
                 final long noResultsVibrateDurationMs = 50;
@@ -524,31 +503,9 @@ public class FindToolbar extends LinearLayout implements BackPressHandler {
     private String getAccessibleStatusText(int activeMatchOrdinal, int numberOfMatches) {
         Context context = getContext();
         return (numberOfMatches > 0)
-                ? context.getResources().getString(
+                ? context.getString(
                         R.string.accessible_find_in_page_count, activeMatchOrdinal, numberOfMatches)
-                : context.getResources().getString(R.string.accessible_find_in_page_no_results);
-    }
-
-    private void announceStatusForAccessibility(final String announcementText) {
-        // Don't announce if the user has already activated a result by pressing Enter/Search
-        // or clicking on the Next/Previous buttons.
-        if (mAccessibilityDidActivateResult) return;
-
-        // Delay the announcement briefly, and if any additional announcements come in,
-        // have them preempt the previous queued one. That makes for a better user experience
-        // than speaking instantly as you're typing and constantly interrupting itself.
-
-        if (mAccessibleAnnouncementRunnable != null) {
-            mHandler.removeCallbacks(mAccessibleAnnouncementRunnable);
-        }
-
-        mAccessibleAnnouncementRunnable = new Runnable() {
-            @Override
-            public void run() {
-                mFindQuery.announceForAccessibility(announcementText);
-            }
-        };
-        mHandler.postDelayed(mAccessibleAnnouncementRunnable, ACCESSIBLE_ANNOUNCEMENT_DELAY_MILLIS);
+                : context.getString(R.string.accessible_find_in_page_no_results);
     }
 
     /** The find toolbar's container must provide access to its TabModel. */
@@ -557,9 +514,7 @@ public class FindToolbar extends LinearLayout implements BackPressHandler {
         updateVisualsForTabModel(isIncognito());
     }
 
-    /**
-     * Sets the WindowAndroid in which the find toolbar will be shown. Needed for animations.
-     */
+    /** Sets the WindowAndroid in which the find toolbar will be shown. Needed for animations. */
     public void setWindowAndroid(WindowAndroid windowAndroid) {
         mWindowAndroid = windowAndroid;
     }
@@ -580,19 +535,16 @@ public class FindToolbar extends LinearLayout implements BackPressHandler {
         mFindQuery.setCustomSelectionActionModeCallback(callback);
     }
 
-    /**
-     * Sets the observer to be notified of changes to the find toolbar.
-     */
+    /** Sets the observer to be notified of changes to the find toolbar. */
     protected void setObserver(FindToolbarObserver observer) {
         mObserver = observer;
     }
 
-    /**
-     * Checks to see if a WebContents is available to hook into.
-     */
+    /** Checks to see if a WebContents is available to hook into. */
     protected boolean isWebContentAvailable() {
         Tab currentTab = mTabModelSelector.getCurrentTab();
-        return currentTab != null && currentTab.getWebContents() != null
+        return currentTab != null
+                && currentTab.getWebContents() != null
                 && !currentTab.isNativePage();
     }
 
@@ -615,11 +567,10 @@ public class FindToolbar extends LinearLayout implements BackPressHandler {
         handleActivate();
     }
 
-    /**
-     * Logic for handling the activation of the find toolbar.
-     */
+    /** Logic for handling the activation of the find toolbar. */
     protected void handleActivate() {
-        mTabModelSelector.addObserver(mTabModelSelectorObserver);
+        mTabModelSelector.getCurrentTabModelSupplier().addObserver(mCurrentTabModelObserver);
+        mCurrentTabModel = mTabModelSelector.getCurrentModel();
         for (TabModel model : mTabModelSelector.getModels()) {
             model.addObserver(mTabModelObserver);
         }
@@ -657,13 +608,11 @@ public class FindToolbar extends LinearLayout implements BackPressHandler {
         handleDeactivation(clearSelection);
     }
 
-    /**
-     * Logic for handling deactivating the find toolbar.
-     */
+    /** Logic for handling deactivating the find toolbar. */
     protected void handleDeactivation(boolean clearSelection) {
         setResultsBarVisibility(false);
 
-        mTabModelSelector.removeObserver(mTabModelSelectorObserver);
+        mTabModelSelector.getCurrentTabModelSupplier().removeObserver(mCurrentTabModelObserver);
         for (TabModel model : mTabModelSelector.getModels()) {
             model.removeObserver(mTabModelObserver);
         }
@@ -679,6 +628,7 @@ public class FindToolbar extends LinearLayout implements BackPressHandler {
         mFindInPageBridge.destroy();
         mFindInPageBridge = null;
         mCurrentTab = null;
+        mCurrentTabModel = null;
 
         setCurrentState(FindLocationBarState.HIDDEN);
     }
@@ -714,9 +664,7 @@ public class FindToolbar extends LinearLayout implements BackPressHandler {
         return mCurrentState == FindLocationBarState.SHOWN;
     }
 
-    /**
-     * Requests focus for the query input field and shows the keyboard.
-     */
+    /** Requests focus for the query input field and shows the keyboard. */
     public void requestQueryFocus() {
         mFindQuery.requestFocus();
         showKeyboard();
@@ -740,17 +688,13 @@ public class FindToolbar extends LinearLayout implements BackPressHandler {
         return mResultBar;
     }
 
-    /**
-     * Returns whether an animation to show/hide the FindToolbar is currently running.
-     */
+    /** Returns whether an animation to show/hide the FindToolbar is currently running. */
     @VisibleForTesting
     public boolean isAnimating() {
         return false;
     }
 
-    /**
-     * Restores the last text searched in this tab, or the global last search.
-     */
+    /** Restores the last text searched in this tab, or the global last search. */
     private void initializeFindText() {
         assert mFindInPageBridge != null;
 
@@ -783,12 +727,18 @@ public class FindToolbar extends LinearLayout implements BackPressHandler {
     }
 
     private void setResultsBarVisibility(boolean visibility) {
-        if (visibility && mResultBar == null && mCurrentTab != null
+        if (visibility
+                && mResultBar == null
+                && mCurrentTab != null
                 && mCurrentTab.getWebContents() != null) {
             assert mFindInPageBridge != null;
 
-            mResultBar = new FindResultBar(
-                    getContext(), mCurrentTab.getContentView(), mWindowAndroid, mFindInPageBridge);
+            mResultBar =
+                    new FindResultBar(
+                            getContext(),
+                            mCurrentTab.getContentView(),
+                            mWindowAndroid,
+                            mFindInPageBridge);
         } else if (!visibility) {
             if (mResultBar != null) {
                 mResultBar.dismiss();
@@ -810,8 +760,9 @@ public class FindToolbar extends LinearLayout implements BackPressHandler {
      * @return          The color of the status text.
      */
     protected int getStatusColor(boolean failed, boolean incognito) {
-        return failed ? getContext().getColor(R.color.find_in_page_failed_results_status_color)
-                      : SemanticColorUtils.getDefaultTextColorSecondary(getContext());
+        return failed
+                ? getContext().getColor(R.color.find_in_page_failed_results_status_color)
+                : SemanticColorUtils.getDefaultTextColorSecondary(getContext());
     }
 
     protected void setPrevNextEnabled(boolean enable) {
@@ -834,6 +785,13 @@ public class FindToolbar extends LinearLayout implements BackPressHandler {
             return;
         }
         mWindowAndroid.getKeyboardDelegate().showKeyboard(mFindQuery);
+    }
+
+    private void onTabModelSelected(@Nullable TabModel newModel) {
+        if (mCurrentTabModel == newModel) return;
+
+        deactivate();
+        updateVisualsForTabModel(isIncognito());
     }
 
     protected boolean isIncognito() {

@@ -4,8 +4,12 @@
 
 #include "third_party/blink/renderer/modules/imagecapture/image_capture_frame_grabber.h"
 
+#include "base/compiler_specific.h"
+#include "base/synchronization/lock.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/thread_annotations.h"
+#include "base/time/time.h"
 #include "cc/paint/skia_paint_canvas.h"
 #include "media/base/video_frame.h"
 #include "media/base/video_types.h"
@@ -14,11 +18,14 @@
 #include "skia/ext/platform_canvas.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/core/imagebitmap/image_bitmap.h"
+#include "third_party/blink/renderer/platform/graphics/unaccelerated_static_bitmap_image.h"
 #include "third_party/blink/renderer/platform/graphics/video_frame_image_util.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_component.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_source.h"
+#include "third_party/blink/renderer/platform/scheduler/public/post_cancellable_task.h"
 #include "third_party/blink/renderer/platform/scheduler/public/post_cross_thread_task.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_copier_base.h"
+#include "third_party/blink/renderer/platform/wtf/cross_thread_copier_std.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/blink/renderer/platform/wtf/thread_safe_ref_counted.h"
@@ -29,31 +36,23 @@
 
 namespace WTF {
 // Template specialization of [1], needed to be able to pass callbacks
-// that have ScopedWebCallbacks paramaters across threads.
+// that have ScopedPromiseResolver parameters across threads.
 //
 // [1] third_party/blink/renderer/platform/wtf/cross_thread_copier.h.
 template <typename T>
-struct CrossThreadCopier<blink::ScopedWebCallbacks<T>>
-    : public CrossThreadCopierPassThrough<blink::ScopedWebCallbacks<T>> {
+struct CrossThreadCopier<blink::ScopedPromiseResolver<T>>
+    : public CrossThreadCopierPassThrough<blink::ScopedPromiseResolver<T>> {
   STATIC_ONLY(CrossThreadCopier);
-  using Type = blink::ScopedWebCallbacks<T>;
-  static blink::ScopedWebCallbacks<T> Copy(
-      blink::ScopedWebCallbacks<T> pointer) {
-    return pointer;
+  using Type = blink::ScopedPromiseResolver<T>;
+  static blink::ScopedPromiseResolver<T> Copy(
+      blink::ScopedPromiseResolver<T> value) {
+    return value;
   }
 };
 
 }  // namespace WTF
 
 namespace blink {
-
-namespace {
-
-void OnError(std::unique_ptr<ImageCaptureGrabFrameCallbacks> callbacks) {
-  callbacks->OnError();
-}
-
-}  // anonymous namespace
 
 // Ref-counted class to receive a single VideoFrame on IO thread, convert it and
 // send it to |task_runner|, where this class is created and destroyed.
@@ -62,20 +61,23 @@ class ImageCaptureFrameGrabber::SingleShotFrameHandler
  public:
   using SkImageDeliverCB = WTF::CrossThreadOnceFunction<void(sk_sp<SkImage>)>;
 
-  explicit SingleShotFrameHandler(SkImageDeliverCB deliver_cb)
-      : deliver_cb_(std::move(deliver_cb)) {
+  explicit SingleShotFrameHandler(
+      SkImageDeliverCB deliver_cb,
+      scoped_refptr<base::SingleThreadTaskRunner> task_runner)
+      : deliver_cb_(std::move(deliver_cb)),
+        task_runner_(std::move(task_runner)) {
     DCHECK(deliver_cb_);
   }
 
   SingleShotFrameHandler(const SingleShotFrameHandler&) = delete;
   SingleShotFrameHandler& operator=(const SingleShotFrameHandler&) = delete;
 
+  ~SingleShotFrameHandler();
+
   // Receives a |frame| and converts its pixels into a SkImage via an internal
   // PaintSurface and SkPixmap. Alpha channel, if any, is copied.
   void OnVideoFrameOnIOThread(
-      scoped_refptr<base::SingleThreadTaskRunner> task_runner,
       scoped_refptr<media::VideoFrame> frame,
-      std::vector<scoped_refptr<media::VideoFrame>> scaled_frames,
       base::TimeTicks current_time);
 
  private:
@@ -85,21 +87,32 @@ class ImageCaptureFrameGrabber::SingleShotFrameHandler
   void ConvertAndDeliverFrame(SkImageDeliverCB callback,
                               scoped_refptr<media::VideoFrame> frame);
 
+  base::Lock lock_;
   // Null once the initial frame has been queued for delivery.
-  SkImageDeliverCB deliver_cb_;
+  SkImageDeliverCB deliver_cb_ GUARDED_BY(lock_);
+  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 };
 
+ImageCaptureFrameGrabber::SingleShotFrameHandler::~SingleShotFrameHandler() {
+  base::AutoLock locker(lock_);
+  if (deliver_cb_) {
+    // Reject the promise if no frame was received.
+    // Post to `task_runner_` to ensure the promise is always rejected on the
+    // main thread.
+    PostCrossThreadTask(*task_runner_, FROM_HERE,
+                        CrossThreadBindOnce(std::move(deliver_cb_), nullptr));
+  }
+}
+
 void ImageCaptureFrameGrabber::SingleShotFrameHandler::OnVideoFrameOnIOThread(
-    scoped_refptr<base::SingleThreadTaskRunner> task_runner,
     scoped_refptr<media::VideoFrame> frame,
-    std::vector<scoped_refptr<media::VideoFrame>> /*scaled_frames*/,
     base::TimeTicks /*current_time*/) {
+  base::AutoLock locker(lock_);
   if (!deliver_cb_)
     return;
 
-  // Scaled video frames are not used by ImageCaptureFrameGrabber.
   PostCrossThreadTask(
-      *task_runner, FROM_HERE,
+      *task_runner_, FROM_HERE,
       CrossThreadBindOnce(&SingleShotFrameHandler::ConvertAndDeliverFrame,
                           base::WrapRefCounted(this), std::move(deliver_cb_),
                           std::move(frame)));
@@ -126,7 +139,7 @@ void ImageCaptureFrameGrabber::SingleShotFrameHandler::ConvertAndDeliverFrame(
       SkImageInfo::MakeN32(display_size.width(), display_size.height(), alpha);
 
   SkSurfaceProps props = skia::LegacyDisplayGlobals::GetSkSurfaceProps();
-  sk_sp<SkSurface> surface = SkSurface::MakeRaster(info, &props);
+  sk_sp<SkSurface> surface = SkSurfaces::Raster(info, &props);
   DCHECK(surface);
 
   // If a frame is GPU backed, we need to use PaintCanvasVideoRenderer to read
@@ -134,7 +147,7 @@ void ImageCaptureFrameGrabber::SingleShotFrameHandler::ConvertAndDeliverFrame(
   const bool is_readable = frame->format() == media::PIXEL_FORMAT_I420 ||
                            frame->format() == media::PIXEL_FORMAT_I420A ||
                            (frame->format() == media::PIXEL_FORMAT_NV12 &&
-                            frame->HasGpuMemoryBuffer());
+                            frame->HasMappableGpuBuffer());
   if (!is_readable) {
     cc::SkiaPaintCanvas canvas(surface->getCanvas());
     cc::PaintFlags paint_flags;
@@ -168,25 +181,25 @@ void ImageCaptureFrameGrabber::SingleShotFrameHandler::ConvertAndDeliverFrame(
 
   if (frame->storage_type() == media::VideoFrame::STORAGE_GPU_MEMORY_BUFFER) {
     DCHECK_EQ(frame->format(), media::PIXEL_FORMAT_NV12);
-    auto* gmb = frame->GetGpuMemoryBuffer();
-    if (!gmb->Map()) {
-      DLOG(ERROR) << "Error mapping GpuMemoryBuffer video frame";
+    auto scoped_mapping = frame->MapGMBOrSharedImage();
+    if (!scoped_mapping) {
+      DLOG(ERROR) << "Failed to get the mapped memory.";
       std::move(callback).Run(sk_sp<SkImage>());
       return;
     }
 
     // NV12 is the only supported pixel format at the moment.
     DCHECK_EQ(frame->format(), media::PIXEL_FORMAT_NV12);
-    int y_stride = gmb->stride(0);
-    int uv_stride = gmb->stride(1);
-    const uint8_t* y_plane =
-        (static_cast<uint8_t*>(gmb->memory(0)) + frame->visible_rect().x() +
-         (frame->visible_rect().y() * y_stride));
+    int y_stride = static_cast<int>(scoped_mapping->Stride(0));
+    int uv_stride = static_cast<int>(scoped_mapping->Stride(1));
+    const uint8_t* y_plane = UNSAFE_TODO(
+        (static_cast<uint8_t*>(scoped_mapping->Memory(0)) +
+         frame->visible_rect().x() + (frame->visible_rect().y() * y_stride)));
     // UV plane of NV12 has 2-byte pixel width, with half chroma subsampling
     // both horizontally and vertically.
-    const uint8_t* uv_plane = (static_cast<uint8_t*>(gmb->memory(1)) +
-                               ((frame->visible_rect().x() * 2) / 2) +
-                               ((frame->visible_rect().y() / 2) * uv_stride));
+    const uint8_t* uv_plane = UNSAFE_TODO(
+        scoped_mapping->Memory(1) + ((frame->visible_rect().x() * 2) / 2) +
+        ((frame->visible_rect().y() / 2) * uv_stride));
 
     if (need_rotate) {
       // Transform to I420 first to be later on rotated.
@@ -196,13 +209,13 @@ void ImageCaptureFrameGrabber::SingleShotFrameHandler::ConvertAndDeliverFrame(
 
       libyuv::NV12ToI420(
           y_plane, y_stride, uv_plane, uv_stride,
-          i420_frame->GetWritableVisibleData(media::VideoFrame::kYPlane),
-          i420_frame->stride(media::VideoFrame::kYPlane),
-          i420_frame->GetWritableVisibleData(media::VideoFrame::kUPlane),
-          i420_frame->stride(media::VideoFrame::kUPlane),
-          i420_frame->GetWritableVisibleData(media::VideoFrame::kVPlane),
-          i420_frame->stride(media::VideoFrame::kVPlane), original_size.width(),
-          original_size.height());
+          i420_frame->GetWritableVisibleData(media::VideoFrame::Plane::kY),
+          i420_frame->stride(media::VideoFrame::Plane::kY),
+          i420_frame->GetWritableVisibleData(media::VideoFrame::Plane::kU),
+          i420_frame->stride(media::VideoFrame::Plane::kU),
+          i420_frame->GetWritableVisibleData(media::VideoFrame::Plane::kV),
+          i420_frame->stride(media::VideoFrame::Plane::kV),
+          original_size.width(), original_size.height());
     } else {
       switch (destination_pixel_format) {
         case libyuv::FOURCC_ABGR:
@@ -219,8 +232,6 @@ void ImageCaptureFrameGrabber::SingleShotFrameHandler::ConvertAndDeliverFrame(
           NOTREACHED();
       }
     }
-
-    gmb->Unmap();
   } else {
     DCHECK(frame->format() == media::PIXEL_FORMAT_I420 ||
            frame->format() == media::PIXEL_FORMAT_I420A);
@@ -248,29 +259,29 @@ void ImageCaptureFrameGrabber::SingleShotFrameHandler::ConvertAndDeliverFrame(
       }();
 
       libyuv::I420Rotate(
-          i420_frame->visible_data(media::VideoFrame::kYPlane),
-          i420_frame->stride(media::VideoFrame::kYPlane),
-          i420_frame->visible_data(media::VideoFrame::kUPlane),
-          i420_frame->stride(media::VideoFrame::kUPlane),
-          i420_frame->visible_data(media::VideoFrame::kVPlane),
-          i420_frame->stride(media::VideoFrame::kVPlane),
-          rotated_frame->GetWritableVisibleData(media::VideoFrame::kYPlane),
-          rotated_frame->stride(media::VideoFrame::kYPlane),
-          rotated_frame->GetWritableVisibleData(media::VideoFrame::kUPlane),
-          rotated_frame->stride(media::VideoFrame::kUPlane),
-          rotated_frame->GetWritableVisibleData(media::VideoFrame::kVPlane),
-          rotated_frame->stride(media::VideoFrame::kVPlane),
+          i420_frame->visible_data(media::VideoFrame::Plane::kY),
+          i420_frame->stride(media::VideoFrame::Plane::kY),
+          i420_frame->visible_data(media::VideoFrame::Plane::kU),
+          i420_frame->stride(media::VideoFrame::Plane::kU),
+          i420_frame->visible_data(media::VideoFrame::Plane::kV),
+          i420_frame->stride(media::VideoFrame::Plane::kV),
+          rotated_frame->GetWritableVisibleData(media::VideoFrame::Plane::kY),
+          rotated_frame->stride(media::VideoFrame::Plane::kY),
+          rotated_frame->GetWritableVisibleData(media::VideoFrame::Plane::kU),
+          rotated_frame->stride(media::VideoFrame::Plane::kU),
+          rotated_frame->GetWritableVisibleData(media::VideoFrame::Plane::kV),
+          rotated_frame->stride(media::VideoFrame::Plane::kV),
           original_size.width(), original_size.height(), libyuv_rotate);
       i420_frame = std::move(rotated_frame);
     }
 
     libyuv::ConvertFromI420(
-        i420_frame->visible_data(media::VideoFrame::kYPlane),
-        i420_frame->stride(media::VideoFrame::kYPlane),
-        i420_frame->visible_data(media::VideoFrame::kUPlane),
-        i420_frame->stride(media::VideoFrame::kUPlane),
-        i420_frame->visible_data(media::VideoFrame::kVPlane),
-        i420_frame->stride(media::VideoFrame::kVPlane), destination_plane,
+        i420_frame->visible_data(media::VideoFrame::Plane::kY),
+        i420_frame->stride(media::VideoFrame::Plane::kY),
+        i420_frame->visible_data(media::VideoFrame::Plane::kU),
+        i420_frame->stride(media::VideoFrame::Plane::kU),
+        i420_frame->visible_data(media::VideoFrame::Plane::kV),
+        i420_frame->stride(media::VideoFrame::Plane::kV), destination_plane,
         destination_stride, destination_width, destination_height,
         destination_pixel_format);
 
@@ -278,8 +289,8 @@ void ImageCaptureFrameGrabber::SingleShotFrameHandler::ConvertAndDeliverFrame(
       DCHECK(!info.isOpaque());
       // This function copies any plane into the alpha channel of an ARGB image.
       libyuv::ARGBCopyYToAlpha(
-          i420_frame->visible_data(media::VideoFrame::kAPlane),
-          i420_frame->stride(media::VideoFrame::kAPlane), destination_plane,
+          i420_frame->visible_data(media::VideoFrame::Plane::kA),
+          i420_frame->stride(media::VideoFrame::Plane::kA), destination_plane,
           destination_stride, destination_width, destination_height);
     }
   }
@@ -287,32 +298,35 @@ void ImageCaptureFrameGrabber::SingleShotFrameHandler::ConvertAndDeliverFrame(
   std::move(callback).Run(surface->makeImageSnapshot());
 }
 
-ImageCaptureFrameGrabber::ImageCaptureFrameGrabber()
-    : frame_grab_in_progress_(false) {}
-
 ImageCaptureFrameGrabber::~ImageCaptureFrameGrabber() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 }
 
 void ImageCaptureFrameGrabber::GrabFrame(
     MediaStreamComponent* component,
-    std::unique_ptr<ImageCaptureGrabFrameCallbacks> callbacks,
-    scoped_refptr<base::SingleThreadTaskRunner> task_runner) {
+    ScriptPromiseResolver<ImageBitmap>* resolver,
+    scoped_refptr<base::SingleThreadTaskRunner> task_runner,
+    base::TimeDelta timeout) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  DCHECK(!!callbacks);
+  DCHECK(resolver);
 
   DCHECK(component && component->GetPlatformTrack());
   DCHECK_EQ(MediaStreamSource::kTypeVideo, component->GetSourceType());
 
   if (frame_grab_in_progress_) {
     // Reject grabFrame()s too close back to back.
-    callbacks->OnError();
+    resolver->Reject();
     return;
   }
 
-  auto scoped_callbacks = MakeScopedWebCallbacks(
-      std::move(callbacks),
-      base::BindPostTask(task_runner, WTF::BindOnce(&OnError)));
+  ScopedPromiseResolver<ImageBitmap> scoped_resolver(
+      resolver,
+      base::BindPostTask(
+          task_runner,
+          WTF::BindOnce(
+              [](Persistent<ScriptPromiseResolver<ImageBitmap>> resolver) {
+                resolver->Reject();
+              })));
 
   // A SingleShotFrameHandler is bound and given to the Track to guarantee that
   // only one VideoFrame is converted and delivered to OnSkImage(), otherwise
@@ -320,29 +334,52 @@ void ImageCaptureFrameGrabber::GrabFrame(
   // is being processed, which might be further held up if UI is busy, see
   // https://crbug.com/623042.
   frame_grab_in_progress_ = true;
+
+  // Fail the grabFrame request if no frame is received for some time to prevent
+  // the promise from hanging indefinitely if no frame is ever produced.
+  timeout_task_handle_ = PostDelayedCancellableTask(
+      *task_runner, FROM_HERE,
+      WTF::BindOnce(&ImageCaptureFrameGrabber::OnTimeout,
+                    weak_factory_.GetWeakPtr()),
+      timeout);
+
   MediaStreamVideoSink::ConnectToTrack(
       WebMediaStreamTrack(component),
       ConvertToBaseRepeatingCallback(CrossThreadBindRepeating(
           &SingleShotFrameHandler::OnVideoFrameOnIOThread,
-          base::MakeRefCounted<SingleShotFrameHandler>(CrossThreadBindOnce(
-              &ImageCaptureFrameGrabber::OnSkImage, weak_factory_.GetWeakPtr(),
-              std::move(scoped_callbacks))),
-          std::move(task_runner))),
+          base::MakeRefCounted<SingleShotFrameHandler>(
+              CrossThreadBindOnce(&ImageCaptureFrameGrabber::OnSkImage,
+                                  weak_factory_.GetWeakPtr(),
+                                  std::move(scoped_resolver)),
+              std::move(task_runner)))),
       MediaStreamVideoSink::IsSecure::kNo,
       MediaStreamVideoSink::UsesAlpha::kDefault);
 }
 
 void ImageCaptureFrameGrabber::OnSkImage(
-    ScopedWebCallbacks<ImageCaptureGrabFrameCallbacks> callbacks,
+    ScopedPromiseResolver<ImageBitmap> resolver,
     sk_sp<SkImage> image) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
+  timeout_task_handle_.Cancel();
   MediaStreamVideoSink::DisconnectFromTrack();
   frame_grab_in_progress_ = false;
-  if (image)
-    callbacks.PassCallbacks()->OnSuccess(image);
-  else
-    callbacks.PassCallbacks()->OnError();
+
+  if (image) {
+    resolver.TakeResolver()->Resolve(MakeGarbageCollected<ImageBitmap>(
+        UnacceleratedStaticBitmapImage::Create(std::move(image))));
+  } else {
+    resolver.TakeResolver()->Reject();
+  }
+}
+
+void ImageCaptureFrameGrabber::OnTimeout() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  if (frame_grab_in_progress_) {
+    MediaStreamVideoSink::DisconnectFromTrack();
+    frame_grab_in_progress_ = false;
+  }
 }
 
 }  // namespace blink

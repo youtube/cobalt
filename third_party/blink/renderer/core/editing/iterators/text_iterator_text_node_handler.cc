@@ -5,36 +5,15 @@
 #include "third_party/blink/renderer/core/editing/iterators/text_iterator_text_node_handler.h"
 
 #include <algorithm>
-#include "third_party/blink/renderer/core/dom/node_computed_style.h"
 #include "third_party/blink/renderer/core/editing/ephemeral_range.h"
 #include "third_party/blink/renderer/core/editing/iterators/text_iterator_text_state.h"
+#include "third_party/blink/renderer/core/layout/inline/offset_mapping.h"
 #include "third_party/blink/renderer/core/layout/layout_text.h"
 #include "third_party/blink/renderer/core/layout/layout_text_fragment.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/ng_offset_mapping.h"
 
 namespace blink {
 
 namespace {
-
-// A magic value for infinity, used to indicate that text emission should
-// proceed till the end of the text node. Can be removed when we can handle text
-// length differences due to text-transform correctly.
-const unsigned kMaxOffset = std::numeric_limits<unsigned>::max();
-
-// Resolves kMaxOffset to an actual number. Should simply return |dom_length|
-// when we can handle text-transform correctly.
-unsigned CalculateMaxOffset(const Text& text) {
-  DCHECK(text.GetLayoutObject());
-  unsigned dom_length = text.data().length();
-  unsigned layout_length;
-  if (const LayoutTextFragment* fragment =
-          DynamicTo<LayoutTextFragment>(text.GetLayoutObject())) {
-    layout_length = fragment->Start() + fragment->FragmentLength();
-  } else {
-    layout_length = text.GetLayoutObject()->TextLength();
-  }
-  return std::min(dom_length, layout_length);
-}
 
 bool ShouldSkipInvisibleTextAt(const Text& text,
                                unsigned offset,
@@ -49,6 +28,30 @@ bool ShouldSkipInvisibleTextAt(const Text& text,
   return layout_object->Style()->Visibility() != EVisibility::kVisible;
 }
 
+String TextIgnoringCSSTextTransforms(const LayoutText& layout_text,
+                                     const OffsetMappingUnit& unit) {
+  // LayoutTextFragment represents text substring of the element that is split
+  // because of first-letter css. In that case, OriginalText() returns only a
+  // portion of the text. Use CompleteText() instead to get all text from the
+  // associated DOM node.
+  String text = layout_text.IsTextFragment()
+                    ? To<LayoutTextFragment>(layout_text).CompleteText()
+                    : layout_text.OriginalText();
+  text = text.Substring(unit.DOMStart(), unit.DOMEnd() - unit.DOMStart());
+  // Per the white space processing spec
+  // https://drafts.csswg.org/css-text-3/#white-space-processing,
+  // collapsed spaces should be ignored completely and this is assured since
+  // |ComputeTextAndOffsetsForEmission| is not called for kCollapsed unit.
+  // Preserved whitespaces can be represented as-is.
+  // Non-preserved newline or tab characters should be converted into a space
+  // to reflect what the user sees on the screen
+  if (!layout_text.StyleRef().ShouldPreserveBreaks()) {
+    text.Replace(kNewlineCharacter, kSpaceCharacter);
+    text.Replace(kTabulationCharacter, kSpaceCharacter);
+  }
+  return text;
+}
+
 struct StringAndOffsetRange {
   String string;
   unsigned start;
@@ -56,20 +59,30 @@ struct StringAndOffsetRange {
 };
 
 StringAndOffsetRange ComputeTextAndOffsetsForEmission(
-    const NGOffsetMapping& mapping,
-    const NGOffsetMappingUnit& unit,
+    const OffsetMapping& mapping,
+    const OffsetMappingUnit& unit,
     const TextIteratorBehavior& behavior) {
   StringAndOffsetRange result{mapping.GetText(), unit.TextContentStart(),
                               unit.TextContentEnd()};
 
+  // This is ensured because |unit.GetLayoutObject()| must be the
+  // LayoutObject for TextIteratorTextNodeHandler's |text_node_|.
+  DCHECK(IsA<LayoutText>(unit.GetLayoutObject()));
+  const LayoutText& layout_text = To<LayoutText>(unit.GetLayoutObject());
+
+  // |TextIgnoringCSSTextTransforms| gets |layout_text.OriginalText()|
+  // which is not masked. This should not be allowed when
+  // |-webkit-text-security| property is set.
+  if (behavior.IgnoresCSSTextTransforms() && layout_text.HasTextTransform() &&
+      !layout_text.IsSecure()) {
+    result.string = TextIgnoringCSSTextTransforms(layout_text, unit);
+    result.start = 0;
+    result.end = result.string.length();
+  }
+
   if (behavior.EmitsOriginalText()) {
-    // This is ensured because |unit.GetLayoutObject()| must be the
-    // LayoutObject for TextIteratorTextNodeHandler's |text_node_|.
-    DCHECK(IsA<LayoutText>(unit.GetLayoutObject()));
-    result.string =
-        To<LayoutText>(unit.GetLayoutObject())
-            .OriginalText()
-            .Substring(unit.DOMStart(), unit.DOMEnd() - unit.DOMStart());
+    result.string = layout_text.OriginalText().Substring(
+        unit.DOMStart(), unit.DOMEnd() - unit.DOMStart());
     result.start = 0;
     result.end = result.string.length();
   }
@@ -109,7 +122,7 @@ void TextIteratorTextNodeHandler::HandleTextNodeWithLayoutNG() {
 
     // We may go through multiple mappings, which happens when there is
     // ::first-letter and blockifying style.
-    auto* mapping = NGOffsetMapping::ForceGetFor(range_to_emit.StartPosition());
+    auto* mapping = OffsetMapping::ForceGetFor(range_to_emit.StartPosition());
     if (!mapping) {
       offset_ = end_offset_;
       return;
@@ -149,7 +162,7 @@ void TextIteratorTextNodeHandler::HandleTextNodeWithLayoutNG() {
     // Bail if |offset_| isn't advanced; Otherwise we enter a dead loop.
     // However, this shouldn't happen and should be fixed once reached.
     if (offset_ == initial_offset) {
-      NOTREACHED();
+      DUMP_WILL_BE_NOTREACHED();
       offset_ = end_offset_;
       return;
     }
@@ -169,17 +182,14 @@ void TextIteratorTextNodeHandler::HandleTextNodeInRange(const Text* node,
   end_offset_ = end_offset;
   mapping_units_.clear();
 
-  const NGOffsetMapping* const mapping =
-      NGOffsetMapping::ForceGetFor(Position(node, offset_));
-  if (UNLIKELY(!mapping)) {
-    NOTREACHED() << "We have LayoutText outside LayoutBlockFlow " << text_node_;
+  const OffsetMapping* const mapping =
+      OffsetMapping::ForceGetFor(Position(node, offset_));
+  if (!mapping) [[unlikely]] {
+    DUMP_WILL_BE_NOTREACHED()
+        << "We have LayoutText outside LayoutBlockFlow " << text_node_;
     return;
   }
 
-  // Restore end offset from magic value.
-  if (end_offset_ == kMaxOffset) {
-    end_offset_ = CalculateMaxOffset(*node);
-  }
   mapping_units_ = mapping->GetMappingUnitsForDOMRange(
       EphemeralRange(Position(node, offset_), Position(node, end_offset_)));
   mapping_units_index_ = 0;
@@ -189,7 +199,7 @@ void TextIteratorTextNodeHandler::HandleTextNodeInRange(const Text* node,
 void TextIteratorTextNodeHandler::HandleTextNodeStartFrom(
     const Text* node,
     unsigned start_offset) {
-  HandleTextNodeInRange(node, start_offset, kMaxOffset);
+  HandleTextNodeInRange(node, start_offset, node->data().length());
 }
 
 void TextIteratorTextNodeHandler::HandleTextNodeEndAt(const Text* node,

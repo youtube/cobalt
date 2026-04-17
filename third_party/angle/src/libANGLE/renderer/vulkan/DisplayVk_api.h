@@ -38,6 +38,9 @@ DisplayImpl *CreateVulkanSimpleDisplay(const egl::DisplayState &state);
 
 bool IsVulkanHeadlessDisplayAvailable();
 DisplayImpl *CreateVulkanHeadlessDisplay(const egl::DisplayState &state);
+
+bool IsVulkanOffscreenDisplayAvailable();
+DisplayImpl *CreateVulkanOffscreenDisplay(const egl::DisplayState &state);
 #endif  // defined(ANGLE_PLATFORM_LINUX)
 
 #if defined(ANGLE_PLATFORM_ANDROID)
@@ -49,11 +52,6 @@ DisplayImpl *CreateVulkanAndroidDisplay(const egl::DisplayState &state);
 bool IsVulkanFuchsiaDisplayAvailable();
 DisplayImpl *CreateVulkanFuchsiaDisplay(const egl::DisplayState &state);
 #endif  // defined(ANGLE_PLATFORM_FUCHSIA)
-
-#if defined(ANGLE_PLATFORM_GGP)
-bool IsVulkanGGPDisplayAvailable();
-DisplayImpl *CreateVulkanGGPDisplay(const egl::DisplayState &state);
-#endif  // defined(ANGLE_PLATFORM_GGP)
 
 #if defined(ANGLE_PLATFORM_APPLE)
 bool IsVulkanMacDisplayAvailable();

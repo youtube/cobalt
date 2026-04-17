@@ -11,6 +11,7 @@
 #include "third_party/blink/renderer/core/input_type_names.h"
 #include "third_party/blink/renderer/modules/media_controls/media_controls_impl.h"
 #include "third_party/blink/renderer/platform/text/platform_locale.h"
+#include "ui/strings/grit/ax_strings.h"
 
 namespace blink {
 
@@ -24,7 +25,7 @@ MediaControlOverflowMenuButtonElement::MediaControlOverflowMenuButtonElement(
   setAttribute(html_names::kTitleAttr,
                WTF::AtomicString(
                    GetLocale().QueryString(IDS_AX_MEDIA_OVERFLOW_BUTTON_HELP)));
-  setAttribute(html_names::kAriaHaspopupAttr, "menu");
+  setAttribute(html_names::kAriaHaspopupAttr, AtomicString("menu"));
   SetShadowPseudoId(AtomicString("-internal-media-controls-overflow-button"));
   SetIsWanted(false);
 }

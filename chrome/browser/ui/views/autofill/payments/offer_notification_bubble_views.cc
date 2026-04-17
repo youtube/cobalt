@@ -7,33 +7,46 @@
 #include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/ui/views/accessibility/theme_tracking_non_accessible_image_view.h"
+#include "chrome/browser/ui/views/autofill/autofill_location_bar_bubble.h"
 #include "chrome/browser/ui/views/autofill/payments/payments_view_util.h"
 #include "chrome/browser/ui/views/autofill/payments/promo_code_label_button.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/chrome_typography.h"
+#include "chrome/browser/ui/views/controls/page_switcher_view.h"
+#include "chrome/browser/ui/views/controls/subpage_view.h"
 #include "chrome/grit/theme_resources.h"
-#include "components/autofill/core/browser/data_model/autofill_offer_data.h"
-#include "components/autofill/core/browser/data_model/credit_card.h"
+#include "components/autofill/core/browser/data_model/payments/autofill_offer_data.h"
+#include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/strings/grit/components_strings.h"
+#include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "ui/base/clipboard/clipboard_buffer.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/gfx/geometry/insets.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/bubble/bubble_frame_view.h"
 #include "ui/views/controls/styled_label.h"
+#include "ui/views/interaction/element_tracker_views.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/box_layout_view.h"
+#include "ui/views/layout/fill_layout.h"
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/layout/layout_types.h"
 
 namespace autofill {
+DEFINE_ELEMENT_IDENTIFIER_VALUE(kOfferNotificationBubbleElementId);
 
 OfferNotificationBubbleViews::OfferNotificationBubbleViews(
     views::View* anchor_view,
     content::WebContents* web_contents,
     OfferNotificationBubbleController* controller)
-    : LocationBarBubbleDelegateView(anchor_view, web_contents),
+    : AutofillLocationBarBubble(anchor_view,
+                                web_contents,
+                                /*autosize=*/true),
       controller_(controller) {
   DCHECK(controller);
   SetShowCloseButton(true);
@@ -41,6 +54,7 @@ OfferNotificationBubbleViews::OfferNotificationBubbleViews(
       views::DISTANCE_BUBBLE_PREFERRED_WIDTH));
   set_margins(ChromeLayoutProvider::Get()->GetDialogInsetsForContentType(
       views::DialogContentType::kText, views::DialogContentType::kText));
+  SetProperty(views::kElementIdentifierKey, kOfferNotificationBubbleElementId);
 }
 
 OfferNotificationBubbleViews::~OfferNotificationBubbleViews() {
@@ -51,7 +65,7 @@ void OfferNotificationBubbleViews::Hide() {
   CloseBubble();
   if (controller_) {
     controller_->OnBubbleClosed(
-        GetPaymentsBubbleClosedReasonFromWidget(GetWidget()));
+        GetPaymentsUiClosedReasonFromWidget(GetWidget()));
   }
   controller_ = nullptr;
 }
@@ -62,43 +76,20 @@ void OfferNotificationBubbleViews::Init() {
       InitWithCardLinkedOfferContent();
       return;
     case AutofillOfferData::OfferType::GPAY_PROMO_CODE_OFFER:
-      if (base::FeatureList::IsEnabled(
-              features::kAutofillFillMerchantPromoCodeFields)) {
-        InitWithGPayPromoCodeOfferContent();
-      } else {
-        InitWithFreeListingCouponOfferContent();
-      }
-      return;
-    case AutofillOfferData::OfferType::FREE_LISTING_COUPON_OFFER:
-      InitWithFreeListingCouponOfferContent();
+      InitWithGPayPromoCodeOfferContent();
       return;
     case AutofillOfferData::OfferType::UNKNOWN:
-      NOTREACHED_NORETURN();
+      NOTREACHED();
   }
 }
 
 void OfferNotificationBubbleViews::AddedToWidget() {
-  GetBubbleFrameView()->SetTitleView(
-      std::make_unique<TitleWithIconAndSeparatorView>(
-          GetWindowTitle(), TitleWithIconAndSeparatorView::Icon::GOOGLE_G));
+  const AutofillOfferData* offer = controller_->GetOffer();
+  CHECK(offer);
 
-  // Set the header image for free listing coupon notification bubble.
-  // If the promo code field autofill feature is off, we also need to add this
-  // image for GPay promo code offer because we are showing the free listing
-  // coupon bubble in this case.
-  if (controller_->GetOffer()->IsFreeListingCouponOffer() ||
-      (!base::FeatureList::IsEnabled(
-           features::kAutofillFillMerchantPromoCodeFields) &&
-       controller_->GetOffer()->IsGPayPromoCodeOffer())) {
-    ui::ResourceBundle& bundle = ui::ResourceBundle::GetSharedInstance();
-    auto* autofill_offers_banner =
-        bundle.GetImageSkiaNamed(IDR_AUTOFILL_OFFERS);
-    auto image_view = std::make_unique<ThemeTrackingNonAccessibleImageView>(
-        *autofill_offers_banner, *autofill_offers_banner,
-        base::BindRepeating(&views::BubbleDialogDelegate::GetBackgroundColor,
-                            base::Unretained(this)));
-    GetBubbleFrameView()->SetHeaderView(std::move(image_view));
-  }
+  GetBubbleFrameView()->SetTitleView(
+      std::make_unique<TitleWithIconAfterLabelView>(
+          GetWindowTitle(), TitleWithIconAfterLabelView::Icon::GOOGLE_G));
 }
 
 std::u16string OfferNotificationBubbleViews::GetWindowTitle() const {
@@ -108,23 +99,24 @@ std::u16string OfferNotificationBubbleViews::GetWindowTitle() const {
 void OfferNotificationBubbleViews::WindowClosing() {
   if (controller_) {
     controller_->OnBubbleClosed(
-        GetPaymentsBubbleClosedReasonFromWidget(GetWidget()));
+        GetPaymentsUiClosedReasonFromWidget(GetWidget()));
     controller_ = nullptr;
   }
 }
 
 void OfferNotificationBubbleViews::OnWidgetDestroying(views::Widget* widget) {
   LocationBarBubbleDelegateView::OnWidgetDestroying(widget);
-  if (!widget->IsClosed())
+  if (!widget->IsClosed()) {
     return;
+  }
   DCHECK_NE(widget->closed_reason(),
             views::Widget::ClosedReason::kCancelButtonClicked);
 }
 
 void OfferNotificationBubbleViews::InitWithCardLinkedOfferContent() {
   // Card-linked offers have a positive CTA button:
-  SetButtons(ui::DIALOG_BUTTON_OK);
-  SetButtonLabel(ui::DIALOG_BUTTON_OK, controller_->GetOkButtonLabel());
+  SetButtons(static_cast<int>(ui::mojom::DialogButton::kOk));
+  SetButtonLabel(ui::mojom::DialogButton::kOk, controller_->GetOkButtonLabel());
 
   // Create bubble content:
   views::FlexLayout* layout =
@@ -133,49 +125,15 @@ void OfferNotificationBubbleViews::InitWithCardLinkedOfferContent() {
   auto* explanatory_message = AddChildView(std::make_unique<views::Label>(
       l10n_util::GetStringFUTF16(
           IDS_AUTOFILL_OFFERS_REMINDER_DESCRIPTION_TEXT,
-          controller_->GetLinkedCard()
-              ->CardIdentifierStringForAutofillDisplay()),
+          controller_->GetLinkedCard()->CardNameAndLastFourDigits()),
       views::style::CONTEXT_DIALOG_BODY_TEXT, views::style::STYLE_SECONDARY));
   explanatory_message->SetHorizontalAlignment(gfx::ALIGN_LEFT);
   explanatory_message->SetMultiLine(true);
 }
 
-void OfferNotificationBubbleViews::InitWithFreeListingCouponOfferContent() {
-  // Promo code offers have no CTA buttons:
-  SetButtons(ui::DIALOG_BUTTON_NONE);
-
-  // Create bubble content:
-  auto* layout = SetLayoutManager(std::make_unique<views::BoxLayout>(
-      views::BoxLayout::Orientation::kVertical, gfx::Insets(),
-      ChromeLayoutProvider::Get()->GetDistanceMetric(
-          views::DISTANCE_UNRELATED_CONTROL_VERTICAL)));
-  layout->set_cross_axis_alignment(
-      views::BoxLayout::CrossAxisAlignment::kCenter);
-
-  const AutofillOfferData* offer = controller_->GetOffer();
-  DCHECK(offer);
-  DCHECK(!offer->GetPromoCode().empty());
-
-  promo_code_label_button_ =
-      AddChildView(std::make_unique<PromoCodeLabelButton>(
-          base::BindRepeating(
-              &OfferNotificationBubbleViews::OnPromoCodeButtonClicked,
-              base::Unretained(this)),
-          base::ASCIIToUTF16(offer->GetPromoCode())));
-
-  if (!offer->GetDisplayStrings().value_prop_text.empty()) {
-    auto* promo_code_value_prop = AddChildView(std::make_unique<views::Label>(
-        base::ASCIIToUTF16(offer->GetDisplayStrings().value_prop_text),
-        views::style::CONTEXT_DIALOG_BODY_TEXT, views::style::STYLE_SECONDARY));
-    promo_code_value_prop->SetHorizontalAlignment(gfx::ALIGN_LEFT);
-    promo_code_value_prop->SetMultiLine(true);
-  }
-  UpdateButtonTooltipsAndAccessibleNames();
-}
-
 void OfferNotificationBubbleViews::InitWithGPayPromoCodeOfferContent() {
   // Promo code offers have no CTA buttons:
-  SetButtons(ui::DIALOG_BUTTON_NONE);
+  SetButtons(static_cast<int>(ui::mojom::DialogButton::kNone));
 
   // Create bubble content:
   auto* layout = SetLayoutManager(std::make_unique<views::BoxLayout>());
@@ -224,32 +182,18 @@ void OfferNotificationBubbleViews::InitWithGPayPromoCodeOfferContent() {
   }
 }
 
-void OfferNotificationBubbleViews::OnPromoCodeButtonClicked() {
-  // Copy clicked promo code to clipboard.
-  ui::ScopedClipboardWriter(ui::ClipboardBuffer::kCopyPaste)
-      .WriteText(base::ASCIIToUTF16(controller_->GetOffer()->GetPromoCode()));
-
-  // Update controller and tooltip.
-  controller_->OnPromoCodeButtonClicked();
-  UpdateButtonTooltipsAndAccessibleNames();
-}
-
 void OfferNotificationBubbleViews::OnPromoCodeSeeDetailsClicked() {
   DCHECK(controller_->GetOffer()->GetOfferDetailsUrl().is_valid());
-  web_contents()->OpenURL(content::OpenURLParams(
-      GURL(controller_->GetOffer()->GetOfferDetailsUrl()), content::Referrer(),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB, ui::PAGE_TRANSITION_LINK,
-      /*is_renderer_initiated=*/false));
+  web_contents()->OpenURL(
+      content::OpenURLParams(
+          GURL(controller_->GetOffer()->GetOfferDetailsUrl()),
+          content::Referrer(), WindowOpenDisposition::NEW_FOREGROUND_TAB,
+          ui::PAGE_TRANSITION_LINK,
+          /*is_renderer_initiated=*/false),
+      /*navigation_handle_callback=*/{});
 }
 
-void OfferNotificationBubbleViews::UpdateButtonTooltipsAndAccessibleNames() {
-  if (!promo_code_label_button_)
-    return;
-
-  std::u16string tooltip = controller_->GetPromoCodeButtonTooltip();
-  promo_code_label_button_->SetTooltipText(tooltip);
-  promo_code_label_button_->SetAccessibleName(
-      base::StrCat({promo_code_label_button_->GetText(), u" ", tooltip}));
-}
+BEGIN_METADATA(OfferNotificationBubbleViews)
+END_METADATA
 
 }  // namespace autofill

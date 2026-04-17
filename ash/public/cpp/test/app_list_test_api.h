@@ -6,6 +6,7 @@
 #define ASH_PUBLIC_CPP_TEST_APP_LIST_TEST_API_H_
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "ash/ash_export.h"
@@ -30,8 +31,10 @@ class EventGenerator;
 namespace ash {
 class AppsGridView;
 class AppListModel;
+class ContinueTaskView;
 class PaginationModel;
 class AppListItemView;
+class SearchResultListView;
 
 // Accesses ash data for app list view testing.
 class ASH_EXPORT AppListTestApi {
@@ -65,7 +68,7 @@ class ASH_EXPORT AppListTestApi {
   bool HasApp(const std::string& app_id);
 
   // Returns the name displayed in the launcher for the provided app list item.
-  std::u16string GetAppListItemViewName(const std::string& item_id);
+  std::u16string_view GetAppListItemViewName(const std::string& item_id);
 
   // Returns the top level item view specified by `item_id`.
   AppListItemView* GetTopLevelItemViewFromId(const std::string& item_id);
@@ -173,12 +176,17 @@ class ASH_EXPORT AppListTestApi {
   // Returns the recent app item item specified by `index`.
   views::View* GetRecentAppAt(int index);
 
+  std::vector<ContinueTaskView*> GetContinueTaskViews();
+
   // Returns the list of app IDs shown in recent apps view, in order they appear
   // in the  UI.
   std::vector<std::string> GetRecentAppIds();
 
   // Updates launcher search box content, and triggers search.
   void SimulateSearch(const std::u16string& query);
+
+  // Returns the top visible search result list view.
+  SearchResultListView* GetTopVisibleSearchResultListView();
 
   // App list sort related methods ---------------------------------------------
 

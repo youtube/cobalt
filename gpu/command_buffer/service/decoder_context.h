@@ -8,15 +8,13 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <string>
-
+#include "base/functional/callback.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "build/build_config.h"
 #include "gpu/command_buffer/common/capabilities.h"
 #include "gpu/command_buffer/common/constants.h"
 #include "gpu/command_buffer/common/context_result.h"
-#include "gpu/command_buffer/service/abstract_texture.h"
 #include "gpu/command_buffer/service/async_api_interface.h"
 #include "gpu/command_buffer/service/gl_context_virtual_delegate.h"
 #include "gpu/gpu_gles2_export.h"
@@ -24,7 +22,6 @@
 
 namespace gl {
 class GLContext;
-class GLImage;
 class GLSurface;
 }  // namespace gl
 
@@ -78,6 +75,8 @@ class GPU_GLES2_EXPORT DecoderContext : public AsyncAPIInterface,
 
   virtual Capabilities GetCapabilities() = 0;
 
+  virtual GLCapabilities GetGLCapabilities() = 0;
+
   virtual const gles2::FeatureInfo* GetFeatureInfo() const = 0;
 
   // Gets the associated GLContext.
@@ -110,6 +109,9 @@ class GPU_GLES2_EXPORT DecoderContext : public AsyncAPIInterface,
   // invalid, the callback must be called immediately.
   virtual void SetQueryCallback(unsigned int query_client_id,
                                 base::OnceClosure callback) = 0;
+
+  // Cancel and clear all in progress Callbacks.
+  virtual void CancelAllQueries() = 0;
 
   // Gets the GpuFenceManager for this context.
   virtual gles2::GpuFenceManager* GetGpuFenceManager() = 0;
@@ -148,20 +150,6 @@ class GPU_GLES2_EXPORT DecoderContext : public AsyncAPIInterface,
                             unsigned type,
                             const gfx::Rect& cleared_rect) = 0;
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE)
-  // Attaches |image| to the texture referred to by |client_texture_id|, marking
-  // the image as needing on-demand binding by the decoder.
-  virtual void AttachImageToTextureWithDecoderBinding(
-      uint32_t client_texture_id,
-      uint32_t texture_target,
-      gl::GLImage* image) = 0;
-#elif !BUILDFLAG(IS_ANDROID)
-  // Attaches |image| to the texture referred to by |client_texture_id|, marking
-  // the image as not needing on-demand binding by the decoder.
-  virtual void AttachImageToTextureWithClientBinding(uint32_t client_texture_id,
-                                                     uint32_t texture_target,
-                                                     gl::GLImage* image) = 0;
-#endif
   virtual base::WeakPtr<DecoderContext> AsWeakPtr() = 0;
 
   //
@@ -170,17 +158,6 @@ class GPU_GLES2_EXPORT DecoderContext : public AsyncAPIInterface,
   //
   virtual gles2::ContextGroup* GetContextGroup() = 0;
   virtual gles2::ErrorState* GetErrorState() = 0;
-#if !BUILDFLAG(IS_ANDROID)
-  virtual std::unique_ptr<gpu::gles2::AbstractTexture> CreateAbstractTexture(
-      unsigned /* GLenum */ target,
-      unsigned /* GLenum */ internal_format,
-      int /* GLsizei */ width,
-      int /* GLsizei */ height,
-      int /* GLsizei */ depth,
-      int /* GLint */ border,
-      unsigned /* GLenum */ format,
-      unsigned /* GLenum */ type) = 0;
-#endif
 
   //
   // Methods required by Texture.

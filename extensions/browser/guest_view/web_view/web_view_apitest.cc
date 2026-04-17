@@ -19,6 +19,7 @@
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "components/guest_view/browser/guest_view_base.h"
+#include "components/guest_view/browser/guest_view_histogram_value.h"
 #include "components/guest_view/browser/guest_view_manager.h"
 #include "components/guest_view/browser/guest_view_manager_delegate.h"
 #include "components/guest_view/browser/guest_view_manager_factory.h"
@@ -31,6 +32,7 @@
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test_utils.h"
+#include "content/public/test/context_menu_interceptor.h"
 #include "content/public/test/hit_test_region_observer.h"
 #include "content/public/test/mock_client_hints_controller_delegate.h"
 #include "content/public/test/no_renderer_crashes_assertion.h"
@@ -224,9 +226,7 @@ class RenderWidgetHostVisibilityObserver
 
 namespace extensions {
 
-WebViewAPITest::WebViewAPITest() {
-  GuestViewManager::set_factory_for_testing(&factory_);
-}
+WebViewAPITest::WebViewAPITest() = default;
 
 void WebViewAPITest::LaunchApp(const std::string& app_location) {
   base::ScopedAllowBlockingForTesting allow_blocking;
@@ -260,16 +260,16 @@ void WebViewAPITest::RunTest(const std::string& test_name,
   if (ad_hoc_framework) {
     ExtensionTestMessageListener done_listener("TEST_PASSED");
     done_listener.set_failure_message("TEST_FAILED");
-    ASSERT_TRUE(content::ExecuteScript(
-        embedder_web_contents_.get(),
-        base::StringPrintf("runTest('%s')", test_name.c_str())))
+    ASSERT_TRUE(
+        content::ExecJs(embedder_web_contents_.get(),
+                        base::StringPrintf("runTest('%s')", test_name.c_str())))
         << "Unable to start test.";
     ASSERT_TRUE(done_listener.WaitUntilSatisfied());
   } else {
     ResultCatcher catcher;
-    ASSERT_TRUE(content::ExecuteScript(
-        embedder_web_contents_.get(),
-        base::StringPrintf("runTest('%s')", test_name.c_str())))
+    ASSERT_TRUE(
+        content::ExecJs(embedder_web_contents_.get(),
+                        base::StringPrintf("runTest('%s')", test_name.c_str())))
         << "Unable to start test.";
     ASSERT_TRUE(catcher.GetNextResult()) << catcher.message();
   }
@@ -333,10 +333,9 @@ void WebViewAPITest::TearDownOnMainThread() {
 }
 
 void WebViewAPITest::SendMessageToEmbedder(const std::string& message) {
-  EXPECT_TRUE(
-      content::ExecuteScript(
-          GetEmbedderWebContents(),
-          base::StringPrintf("onAppCommand('%s');", message.c_str())));
+  EXPECT_TRUE(content::ExecJs(
+      GetEmbedderWebContents(),
+      base::StringPrintf("onAppCommand('%s');", message.c_str())));
 }
 
 content::WebContents* WebViewAPITest::GetEmbedderWebContents() {
@@ -348,18 +347,8 @@ content::WebContents* WebViewAPITest::GetEmbedderWebContents() {
 TestGuestViewManager* WebViewAPITest::GetGuestViewManager() {
   content::BrowserContext* context =
       ShellContentBrowserClient::Get()->GetBrowserContext();
-  TestGuestViewManager* manager = static_cast<TestGuestViewManager*>(
-      TestGuestViewManager::FromBrowserContext(context));
-  // Test code may access the TestGuestViewManager before it would be created
-  // during creation of the first guest.
-  if (!manager) {
-    manager =
-        static_cast<TestGuestViewManager*>(GuestViewManager::CreateWithDelegate(
-            context,
-            ExtensionsAPIClient::Get()->CreateGuestViewManagerDelegate(
-                context)));
-  }
-  return manager;
+  return factory_.GetOrCreateTestGuestViewManager(
+      context, ExtensionsAPIClient::Get()->CreateGuestViewManagerDelegate());
 }
 
 void WebViewDPIAPITest::SetUp() {
@@ -371,6 +360,10 @@ void WebViewDPIAPITest::SetUp() {
 
 // This test verifies that hiding the embedder also hides the guest.
 IN_PROC_BROWSER_TEST_F(WebViewAPITest, EmbedderVisibilityChanged) {
+  // In this test, we also sanity-check that guest view metrics are being
+  // recorded.
+  base::HistogramTester histogram_tester;
+
   LaunchApp("web_view/visibility_changed");
 
   base::RunLoop run_loop;
@@ -384,6 +377,12 @@ IN_PROC_BROWSER_TEST_F(WebViewAPITest, EmbedderVisibilityChanged) {
   SendMessageToEmbedder("hide-embedder");
   if (!observer.hidden_observed())
     run_loop.Run();
+
+  // We should have created a webview, and should not have records for any other
+  // guest view type (`ExpectUniqueSample` guarantees both of these).
+  histogram_tester.ExpectUniqueSample(
+      "GuestView.GuestViewCreated",
+      guest_view::GuestViewHistogramValue::kWebView, 1);
 }
 
 // Test for http://crbug.com/419611.
@@ -525,20 +524,21 @@ IN_PROC_BROWSER_TEST_F(WebViewAPITest, TestContextMenu) {
   auto* guest_view = GetGuestViewManager()->WaitForSingleGuestViewCreated();
   ASSERT_TRUE(guest_view);
 
-  auto* guest_rfh = guest_view->GetGuestMainFrame();
-  content::WaitForHitTestData(guest_rfh);
+  auto* guest_render_frame_host = guest_view->GetGuestMainFrame();
+  content::WaitForHitTestData(guest_render_frame_host);
 
   // Create a ContextMenuInterceptor to intercept the ShowContextMenu event
   // before RenderFrameHost receives.
   auto context_menu_interceptor =
-      std::make_unique<content::ContextMenuInterceptor>(guest_rfh);
+      std::make_unique<content::ContextMenuInterceptor>(
+          guest_render_frame_host);
 
   // Trigger the context menu. AppShell doesn't show a context menu; this is
   // just a sanity check that nothing breaks.
   content::WebContents* embedder_web_contents = GetEmbedderWebContents();
 
   content::RenderWidgetHostView* guest_rwhv =
-      guest_rfh->GetRenderWidgetHost()->GetView();
+      guest_render_frame_host->GetRenderWidgetHost()->GetView();
   gfx::Point guest_context_menu_position(5, 5);
   gfx::Point root_context_menu_position =
       guest_rwhv->TransformPointToRootCoordSpace(guest_context_menu_position);
@@ -784,14 +784,11 @@ IN_PROC_BROWSER_TEST_F(WebViewAPITest, TestRemoveWebviewOnExit) {
   // Launch the app and wait until it's ready to load a test.
   LaunchApp("web_view/apitest");
 
-  GURL::Replacements replace_host;
-  replace_host.SetHostStr("localhost");
-
   // Run the test and wait until the guest is available and has finished
   // loading.
   ExtensionTestMessageListener guest_loaded_listener("guest-loaded");
-  EXPECT_TRUE(content::ExecuteScript(embedder_web_contents_.get(),
-                                     "runTest('testRemoveWebviewOnExit')"));
+  EXPECT_TRUE(content::ExecJs(embedder_web_contents_.get(),
+                              "runTest('testRemoveWebviewOnExit')"));
 
   auto* guest_view = GetGuestViewManager()->WaitForSingleGuestViewCreated();
   EXPECT_TRUE(guest_view);
@@ -799,8 +796,8 @@ IN_PROC_BROWSER_TEST_F(WebViewAPITest, TestRemoveWebviewOnExit) {
   ASSERT_TRUE(guest_loaded_listener.WaitUntilSatisfied());
 
   // Tell the embedder to kill the guest.
-  EXPECT_TRUE(content::ExecuteScript(embedder_web_contents_.get(),
-                                     "removeWebviewOnExitDoCrash()"));
+  EXPECT_TRUE(content::ExecJs(embedder_web_contents_.get(),
+                              "removeWebviewOnExitDoCrash()"));
 
   // Wait until the guest is destroyed.
   GetGuestViewManager()->WaitForLastGuestDeleted();

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/shared/starboard/get_home_directory.h"
+
 #include <pwd.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -20,16 +22,14 @@
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
-#include "starboard/shared/starboard/get_home_directory.h"
 
-namespace starboard::shared::starboard {
+namespace starboard {
 
 using ::base::android::ScopedJavaGlobalRef;
-using ::starboard::g_app_files_dir;
 
 bool GetHomeDirectory(char* out_path, int path_size) {
   int len = ::starboard::strlcpy(out_path, g_app_files_dir, path_size);
   return len < path_size;
 }
 
-}  // namespace starboard::shared::starboard
+}  // namespace starboard

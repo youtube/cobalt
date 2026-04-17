@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <algorithm>
 
 #include "base/check_op.h"
@@ -10,6 +15,7 @@
 #include "skia/ext/convolver_SSE2.h"
 #include "skia/ext/convolver_mips_dspr2.h"
 #include "skia/ext/convolver_neon.h"
+#include "skia/ext/convolver_LSX.h"
 #include "third_party/skia/include/core/SkSize.h"
 #include "third_party/skia/include/core/SkTypes.h"
 
@@ -144,7 +150,7 @@ void ConvolveHorizontally(const unsigned char* src_data,
     const unsigned char* row_to_filter = &src_data[filter_offset * 4];
 
     // Apply the filter to the row to get the destination pixel in |accum|.
-    int accum[4] = {0};
+    int accum[4] = {};
     for (int filter_x = 0; filter_x < filter_length; filter_x++) {
       ConvolutionFilter1D::Fixed cur_filter = filter_values[filter_x];
       accum[0] += cur_filter * row_to_filter[filter_x * 4 + 0];
@@ -191,7 +197,7 @@ void ConvolveVertically(const ConvolutionFilter1D::Fixed* filter_values,
     int byte_offset = out_x * 4;
 
     // Apply the filter to one column of pixels.
-    int accum[4] = {0};
+    int accum[4] = {};
     for (int filter_y = 0; filter_y < filter_length; filter_y++) {
       ConvolutionFilter1D::Fixed cur_filter = filter_values[filter_y];
       accum[0] += cur_filter * source_data_rows[filter_y][byte_offset + 0];
@@ -376,6 +382,11 @@ void SetupSIMD(ConvolveProcs *procs) {
   procs->convolve_vertically = &ConvolveVertically_Neon;
   procs->convolve_4rows_horizontally = &Convolve4RowsHorizontally_Neon;
   procs->convolve_horizontally = &ConvolveHorizontally_Neon;
+#elif defined SIMD_LSX
+  procs->extra_horizontal_reads = 3;
+  procs->convolve_vertically = &ConvolveVertically_LSX;
+  procs->convolve_4rows_horizontally = &Convolve4RowsHorizontally_LSX;
+  procs->convolve_horizontally = &ConvolveHorizontally_LSX;
 #endif
 }
 
@@ -535,7 +546,6 @@ void SingleChannelConvolveX1D(const unsigned char* source_data,
 
   if (filter_values == NULL || image_size.width() < filter_size) {
     NOTREACHED();
-    return;
   }
 
   int centrepoint = filter_length / 2;
@@ -619,7 +629,6 @@ void SingleChannelConvolveY1D(const unsigned char* source_data,
 
   if (filter_values == NULL || image_size.height() < filter_size) {
     NOTREACHED();
-    return;
   }
 
   int centrepoint = filter_length / 2;

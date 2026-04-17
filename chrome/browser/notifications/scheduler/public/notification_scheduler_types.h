@@ -6,9 +6,8 @@
 #define CHROME_BROWSER_NOTIFICATIONS_SCHEDULER_PUBLIC_NOTIFICATION_SCHEDULER_TYPES_H_
 
 #include <map>
+#include <optional>
 #include <string>
-
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace notifications {
 
@@ -35,9 +34,9 @@ enum class SchedulerClientType {
   kPrefetch = 3,
   // Reading list weekly notification.
   kReadingList = 4,
-  // Feature guide specific notifications.
-  kFeatureGuide = 5,
-  kMaxValue = kFeatureGuide
+  // Feature guide specific notifications. (Deprecated)
+  kDeprecatedFeatureGuide = 5,
+  kMaxValue = kDeprecatedFeatureGuide
 };
 
 // The type of user feedback from a displayed notification.
@@ -139,7 +138,7 @@ struct UserActionData {
   std::map<std::string, std::string> custom_data;
 
   // The button click info, only available when the user clicked a button.
-  absl::optional<ButtonClickInfo> button_click_info;
+  std::optional<ButtonClickInfo> button_click_info;
 };
 
 // Categorizes type of notification icons.

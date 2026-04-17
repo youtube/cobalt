@@ -19,7 +19,7 @@ Animator::Animator(v8::Isolate* isolate,
                    v8::Local<v8::Value> instance,
                    const String& name,
                    WorkletAnimationOptions options,
-                   const Vector<absl::optional<base::TimeDelta>>& local_times,
+                   const Vector<std::optional<base::TimeDelta>>& local_times,
                    const Vector<Timing>& timings,
                    const Vector<Timing::NormalizedTiming>& normalized_timings)
     : definition_(definition),
@@ -105,10 +105,9 @@ v8::Local<v8::Value> Animator::State(v8::Isolate* isolate,
   v8::Local<v8::Value> instance = instance_.Get(isolate);
   DCHECK(!IsUndefinedOrNull(instance));
 
-  v8::TryCatch try_catch(isolate);
+  TryRethrowScope rethrow_scope(isolate, exception_state);
   v8::Maybe<ScriptValue> state = definition_->StateFunction()->Invoke(instance);
-  if (try_catch.HasCaught()) {
-    exception_state.RethrowV8Exception(try_catch.Exception());
+  if (rethrow_scope.HasCaught()) {
     return v8::Undefined(isolate);
   }
   return state.ToChecked().V8Value();

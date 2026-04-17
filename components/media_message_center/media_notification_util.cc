@@ -141,8 +141,8 @@ const gfx::VectorIcon* GetVectorIconForMediaAction(MediaSessionAction action) {
     case MediaSessionAction::kSetMute:
     case MediaSessionAction::kPreviousSlide:
     case MediaSessionAction::kNextSlide:
+    case MediaSessionAction::kEnterAutoPictureInPicture:
       NOTREACHED();
-      break;
   }
 
   return nullptr;
@@ -187,8 +187,8 @@ const std::u16string GetAccessibleNameForMediaAction(
     case MediaSessionAction::kSetMute:
     case MediaSessionAction::kPreviousSlide:
     case MediaSessionAction::kNextSlide:
+    case MediaSessionAction::kEnterAutoPictureInPicture:
       NOTREACHED();
-      break;
   }
 
   return std::u16string();

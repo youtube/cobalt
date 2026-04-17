@@ -6,6 +6,7 @@
 
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
+#include "base/logging.h"
 #include "chrome/browser/extensions/api/image_writer_private/error_constants.h"
 #include "content/public/browser/browser_thread.h"
 
@@ -24,7 +25,7 @@ WriteFromFileOperation::WriteFromFileOperation(
   image_path_ = user_file_path;
 }
 
-WriteFromFileOperation::~WriteFromFileOperation() {}
+WriteFromFileOperation::~WriteFromFileOperation() = default;
 
 void WriteFromFileOperation::StartImpl() {
   DCHECK(IsRunningInCorrectSequence());

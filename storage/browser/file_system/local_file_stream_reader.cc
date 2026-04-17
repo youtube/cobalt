@@ -18,6 +18,7 @@
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_runner.h"
+#include "base/types/expected_macros.h"
 #include "base/types/pass_key.h"
 #include "components/file_access/scoped_file_access.h"
 #include "components/file_access/scoped_file_access_delegate.h"
@@ -112,9 +113,7 @@ void LocalFileStreamReader::Open(net::CompletionOnceCallback callback) {
     return;
   }
 
-  // TODO(b/265908846): Replace with getting access through a
-  // callback.
-  file_access::ScopedFileAccessDelegate::RequestFilesAccessForSystemIO(
+  file_access::ScopedFileAccessDelegate::RequestDefaultFilesAccessIO(
       {file_path_}, std::move(open_cb));
 }
 
@@ -157,6 +156,11 @@ void LocalFileStreamReader::DidOpenFileStream(
     int result) {
   if (result != net::OK) {
     std::move(callback_).Run(result);
+    return;
+  }
+  // Avoid seek if possible since it fails on android for virtual content-uris.
+  if (initial_offset_ == 0) {
+    std::move(callback_).Run(net::OK);
     return;
   }
   result = stream_impl_->Seek(
@@ -205,10 +209,7 @@ void LocalFileStreamReader::DidGetFileInfoForGetLength(
     net::Int64CompletionOnceCallback callback,
     base::FileErrorOr<base::File::Info> result) {
   std::move(callback).Run([&]() -> int64_t {
-    if (!result.has_value()) {
-      return net::FileErrorToNetError(result.error());
-    }
-    const auto& file_info = result.value();
+    ASSIGN_OR_RETURN(const auto& file_info, result, net::FileErrorToNetError);
     if (file_info.is_directory) {
       return net::ERR_FILE_NOT_FOUND;
     }

@@ -6,5 +6,8 @@
 
 [
   RuntimeEnabled=MachineLearningNeuralNetwork,
-  Exposed=(Window, DedicatedWorker)
-] interface MLOperand {};
+  Exposed=(Window, Worker)
+] interface MLOperand {
+  readonly attribute MLOperandDataType dataType;
+  readonly attribute FrozenArray<unsigned long> shape;
+};

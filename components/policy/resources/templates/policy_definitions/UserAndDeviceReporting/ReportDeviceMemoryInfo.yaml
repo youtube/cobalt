@@ -15,14 +15,13 @@ items:
 - caption: Disable device memory info reporting
   value: false
 owners:
-- cros-reporting-team@google.com
+- cros-reporting-eng@google.com
 - lbaraz@chromium.org
 schema:
   type: boolean
-supported_chrome_os_management:
-- google_cloud
 supported_on:
 - chrome_os:83-
 tags:
 - admin-sharing
 type: main
+generate_device_proto: False

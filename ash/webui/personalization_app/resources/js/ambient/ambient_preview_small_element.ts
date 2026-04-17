@@ -8,30 +8,30 @@
  * Currently used on the ambient settings page.
  */
 
-import 'chrome://resources/cr_elements/cr_auto_img/cr_auto_img.js';
-import 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import 'chrome://resources/ash/common/personalization/common.css.js';
+import 'chrome://resources/ash/common/personalization/cros_button_style.css.js';
+import 'chrome://resources/ash/common/cr_elements/cr_auto_img/cr_auto_img.js';
 import 'chrome://resources/polymer/v3_0/paper-spinner/paper-spinner-lite.js';
+import 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import './ambient_zero_state_svg_element.js';
-import '../../css/common.css.js';
-import '../../css/cros_button_style.css.js';
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 
 import {AmbientUiVisibility} from '../../personalization_app.mojom-webui.js';
-import {isAmbientModeAllowed, isScreenSaverPreviewEnabled} from '../load_time_booleans.js';
+import {isAmbientModeAllowed} from '../load_time_booleans.js';
 
 import {startScreenSaverPreview} from './ambient_controller.js';
 import {getAmbientProvider} from './ambient_interface_provider.js';
 import {AmbientPreviewBase} from './ambient_preview_base.js';
 import {getTemplate} from './ambient_preview_small_element.html.js';
 
-export interface AmbientPreviewSmall {
+export interface AmbientPreviewSmallElement {
   $: {
     container: HTMLDivElement,
   };
 }
 
-export class AmbientPreviewSmall extends AmbientPreviewBase {
+export class AmbientPreviewSmallElement extends AmbientPreviewBase {
   static get is() {
     return 'ambient-preview-small';
   }
@@ -50,18 +50,11 @@ export class AmbientPreviewSmall extends AmbientPreviewBase {
         type: Number,
         value: null,
       },
-      isScreenSaverPreviewEnabled_: {
-        type: Boolean,
-        value() {
-          return isScreenSaverPreviewEnabled();
-        },
-      },
     };
   }
 
   private screenSaverPreviewActive_: boolean;
   private ambientUiVisibility_: AmbientUiVisibility|null;
-  private isScreenSaverPreviewEnabled_: boolean;
 
   override connectedCallback() {
     assert(
@@ -105,4 +98,5 @@ export class AmbientPreviewSmall extends AmbientPreviewBase {
   }
 }
 
-customElements.define(AmbientPreviewSmall.is, AmbientPreviewSmall);
+customElements.define(
+    AmbientPreviewSmallElement.is, AmbientPreviewSmallElement);

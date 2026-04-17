@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "ash/webui/common/trusted_types_util.h"
 #include "base/system/sys_info.h"
 #include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
@@ -25,8 +26,7 @@ void CreateAndAddDeviceEmulatorUIDataSource(content::WebUI* web_ui) {
   content::WebUIDataSource* html = content::WebUIDataSource::CreateAndAdd(
       web_ui->GetWebContents()->GetBrowserContext(),
       chrome::kChromeUIDeviceEmulatorHost);
-
-  html->DisableTrustedTypesCSP();
+  ash::EnableTrustedTypesCSP(html);
 
   // Add resources.
   html->AddResourcePath("audio_settings.js",
@@ -59,6 +59,6 @@ DeviceEmulatorUI::DeviceEmulatorUI(content::WebUI* web_ui)
   CreateAndAddDeviceEmulatorUIDataSource(web_ui);
 }
 
-DeviceEmulatorUI::~DeviceEmulatorUI() {}
+DeviceEmulatorUI::~DeviceEmulatorUI() = default;
 
 }  // namespace ash

@@ -10,9 +10,9 @@
 #include <ostream>
 
 #include "base/dcheck_is_on.h"
-#include "base/logging.h"
 #include "third_party/blink/renderer/core/editing/forward.h"
 #include "third_party/blink/renderer/core/editing/text_affinity.h"
+#include "third_party/blink/renderer/modules/accessibility/ax_object_cache_impl.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
@@ -24,6 +24,7 @@ class AXObject;
 class ContainerNode;
 class Document;
 class Node;
+class OffsetMapping;
 
 // When converting to a DOM position from an |AXPosition| or vice versa, and the
 // corresponding position is invalid, doesn't exist, or is inside an ignored
@@ -76,11 +77,13 @@ class MODULES_EXPORT AXPosition final {
           AXPositionAdjustmentBehavior::kMoveRight);
   static const AXPosition FromPosition(
       const Position&,
+      const AXObjectCacheImpl& ax_object_cache,
       const TextAffinity = TextAffinity::kDownstream,
       const AXPositionAdjustmentBehavior =
           AXPositionAdjustmentBehavior::kMoveRight);
   static const AXPosition FromPosition(
       const PositionWithAffinity&,
+      const AXObjectCacheImpl& ax_object_cache,
       const AXPositionAdjustmentBehavior =
           AXPositionAdjustmentBehavior::kMoveRight);
 
@@ -168,7 +171,43 @@ class MODULES_EXPORT AXPosition final {
       const Document& document,
       const Node& child_node,
       const ContainerNode* container_node,
-      const AXPositionAdjustmentBehavior adjustment_behavior);
+      const AXPositionAdjustmentBehavior adjustment_behavior,
+      const AXObjectCacheImpl& ax_object_cache);
+
+  // Returns true if `character` is not included in the accessible text.
+  // Ignored characters include zero-width space and isolate characters.
+  static bool IsIgnoredCharacter(UChar character);
+
+  // Returns the number of characters before `content_offset` that are ignored.
+  // OffsetMappingUnits have offsets based on characters that we may exclude
+  // from the text we expose to assistive technologies, such as:
+  // * break opportunities inserted after preliminary whitespace in elements
+  //   with `style= "whitespace: pre-wrap;"`
+  // * isolate characters inserted in the content of SVG `text` and tspan`
+  //   elements when `x` coordinates are specified.
+  // Examples:
+  // <div contenteditable="true" style="white-space: pre-wrap;">   Bar</div>
+  // * Number of characters in the accessible text: 6 ("   Bar")
+  // * Number of characters in the content: 7
+  //
+  // <text x="0 10 20 30 40 50 60 70 80 90 100 110"
+  //       y="20">Hel<tspan>lo </tspan><tspan>world</tspan>!</text>
+  // * Number of characters in the accessible text: 12 ("Hello world!")
+  // * Number of characters in the content: 36
+  //
+  // The location of these ignored characters can be identified by checking
+  // the OffsetMapping for non-contiguous units. For instance, in the case of
+  // the SVG text, the "H" has a content range of 1-2, the "e" next to it a
+  // content range of 4-5.
+  //
+  // Note that `<wbr>`, whose zero-width-space character is also ignored, does
+  // have a mapping unit and corresponding node. As a result, its character
+  // would not be included in the count returned here. Because it has a node,
+  // we are already associating its offsets with the ignored accessible object.
+  int GetLeadingIgnoredCharacterCount(const OffsetMapping* mapping,
+                                      const Node* node,
+                                      int container_offset,
+                                      int content_offset) const;
 
   // The |AXObject| in which the position is present.
   // Only valid during a single document lifecycle hence no need to maintain a

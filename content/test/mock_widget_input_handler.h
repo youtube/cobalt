@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "build/build_config.h"
+#include "cc/input/browser_controls_offset_tag_modifications.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/mojom/input/input_handler.mojom.h"
@@ -178,8 +179,7 @@ class MockWidgetInputHandler : public blink::mojom::WidgetInputHandler {
                       const ui::LatencyInfo& latency_info,
                       blink::mojom::InputEventResultState state,
                       blink::mojom::DidOverscrollParamsPtr overscroll,
-                      blink::mojom::TouchActionOptionalPtr touch_action,
-                      blink::mojom::ScrollResultDataPtr scroll_result_data);
+                      blink::mojom::TouchActionOptionalPtr touch_action);
 
     // Return if the callback is set.
     bool HasCallback() const;
@@ -277,9 +277,14 @@ class MockWidgetInputHandler : public blink::mojom::WidgetInputHandler {
   void GetFrameWidgetInputHandler(
       mojo::PendingAssociatedReceiver<blink::mojom::FrameWidgetInputHandler>
           interface_request) override;
-  void UpdateBrowserControlsState(cc::BrowserControlsState constraints,
-                                  cc::BrowserControlsState current,
-                                  bool animate) override;
+  void UpdateBrowserControlsState(
+      cc::BrowserControlsState constraints,
+      cc::BrowserControlsState current,
+      bool animate,
+      const std::optional<cc::BrowserControlsOffsetTagModifications>&
+          offset_tag_modifications) override;
+
+  void FlushReceiverForTesting();
 
   using MessageVector = std::vector<std::unique_ptr<DispatchedMessage>>;
   MessageVector GetAndResetDispatchedMessages();

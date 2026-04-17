@@ -14,6 +14,7 @@
 #include "base/functional/callback.h"
 #include "base/time/time.h"
 #include "content/common/content_export.h"
+#include "content/public/browser/frame_tree_node_id.h"
 #include "url/gurl.h"
 
 namespace base {
@@ -22,9 +23,9 @@ class Clock;
 
 namespace content {
 
-class NavigationEntry;
 class BrowserContext;
 class SiteInstance;
+class StoragePartition;
 class WebContents;
 struct GlobalRenderFrameHostId;
 
@@ -61,9 +62,14 @@ class HostZoomMap {
 
   typedef std::vector<ZoomLevelChange> ZoomLevelVector;
 
-  // Extracts the URL from NavigationEntry, substituting the error page
-  // URL in the event that the error page is showing.
-  CONTENT_EXPORT static GURL GetURLFromEntry(NavigationEntry* entry);
+  // Gets the last committed URL for the RenderFrameHost, or
+  // kUnreachableWebDataURL if it's on an error page.
+  CONTENT_EXPORT static GURL GetURLForRenderFrameHost(
+      GlobalRenderFrameHostId rfh_id);
+
+  // Gets the last committed URL for the WebContent's primary main frame
+  // RenderFrameHost, or kUnreachableWebDataURL if it's on an error page.
+  CONTENT_EXPORT static GURL GetURLForWebContents(WebContents* web_contents);
 
   CONTENT_EXPORT static HostZoomMap* GetDefaultForBrowserContext(
       BrowserContext* browser_context);
@@ -78,13 +84,22 @@ class HostZoomMap {
   // HostZoomMap.
   CONTENT_EXPORT static HostZoomMap* GetForWebContents(WebContents* contents);
 
+  // Returns the HostZoomMap associated with this StoragePartition.
+  CONTENT_EXPORT static HostZoomMap* GetForStoragePartition(
+      StoragePartition* storage_partition);
+
   // Returns the current zoom level for the specified WebContents. May be
   // temporary or host-specific.
   CONTENT_EXPORT static double GetZoomLevel(WebContents* web_contents);
+  CONTENT_EXPORT static double GetZoomLevel(WebContents* web_contents,
+                                            GlobalRenderFrameHostId rfh_id);
 
   // Sets the current zoom level for the specified WebContents. The level may
   // be temporary or host-specific depending on the particular WebContents.
   CONTENT_EXPORT static void SetZoomLevel(WebContents* web_contents,
+                                          double level);
+  CONTENT_EXPORT static void SetZoomLevel(WebContents* web_contents,
+                                          GlobalRenderFrameHostId rfh_id,
                                           double level);
 
   // Send an IPC to refresh any displayed error page's zoom levels. Needs to
@@ -187,13 +202,39 @@ class HostZoomMap {
   virtual void SetDefaultZoomLevelPrefCallback(
       DefaultZoomChangedCallback callback) = 0;
 
-  // TODO(crbug.com/1424904): Make an Android-specific impl of host_zoom_map, or
+  // TODO(crbug.com/40898422): Make an Android-specific impl of host_zoom_map,
+  // or
   //                          combine method with GetZoomLevelForHostAndScheme.
-  virtual double GetZoomLevelForHostAndScheme(
+  virtual double GetZoomLevelForHostAndSchemeAndroid(
       const std::string& scheme,
-      const std::string& host,
-      bool is_overriding_user_agent) = 0;
+      const std::string& host) = 0;
 #endif
+
+  // Accessors for preview
+  //
+  // Zoom levels for preview are isolated from normal ones, stored to memory
+  // only in a session and not persisted to prefs.
+  //
+  // See also `PreviewZoomController`.
+  //
+  // In long-term, we are planning to persist zoom levels for preview as same as
+  // normal ones. An option is adding HostZoomMapImpl::is_for_preview_ and
+  // another instance of HostZoomMapImpl to StoragePartition via
+  // HostZoomLevelContext. In short-term, we tihs is not appropriate and we
+  // tentatively use HostZoomMapImpl.
+  //
+  // TODO(b:315313138): Revisit here and redesign it.
+  virtual double GetZoomLevelForPreviewAndHost(const std::string& host) = 0;
+  virtual void SetZoomLevelForPreviewAndHost(const std::string& host,
+                                             double level) = 0;
+
+  // Allows lookup and setting of ZoomLevel for the content currently displayed
+  // in the indicated FrameTreeNode. `ftn_id` must refer to a RenderFrameHost
+  // local-root.
+  // WJM: make this comment better.
+  virtual void SetIndependentZoomForFrameTreeNode(WebContents* web_contents,
+                                                  FrameTreeNodeId ftn_id) = 0;
+  virtual void ClearIndependentZoomForFrameTreeNode(FrameTreeNodeId ftn_id) = 0;
 
  protected:
   virtual ~HostZoomMap() {}

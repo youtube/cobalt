@@ -84,7 +84,7 @@ void DamageBuffer(struct wl_client* client,
 }
 
 void SetAcquireFence(wl_client* client, wl_resource* resource, int32_t fd) {
-  // TODO(crbug.com/1211240): Implement this.
+  // TODO(crbug.com/40182819): Implement this.
   NOTIMPLEMENTED();
 }
 
@@ -134,8 +134,6 @@ MockSurface::~MockSurface() {
     wl_resource_destroy(blending_->resource());
   if (prioritized_surface_ && prioritized_surface_->resource())
     wl_resource_destroy(prioritized_surface_->resource());
-  if (augmented_surface_ && augmented_surface_->resource())
-    wl_resource_destroy(augmented_surface_->resource());
 }
 
 MockSurface* MockSurface::FromResource(wl_resource* resource) {
@@ -219,11 +217,11 @@ void MockSurface::ReleaseBufferFenced(wl_resource* buffer,
                                       gfx::GpuFenceHandle release_fence) {
   DCHECK(buffer);
   auto iter = linux_buffer_releases_.find(buffer);
-  DCHECK(iter != linux_buffer_releases_.end());
-  auto* linux_buffer_release = iter->second;
+  CHECK(iter != linux_buffer_releases_.end());
+  auto* linux_buffer_release = iter->second.get();
   if (!release_fence.is_null()) {
-    zwp_linux_buffer_release_v1_send_fenced_release(
-        linux_buffer_release, release_fence.owned_fd.get());
+    zwp_linux_buffer_release_v1_send_fenced_release(linux_buffer_release,
+                                                    release_fence.Peek());
   } else {
     zwp_linux_buffer_release_v1_send_immediate_release(linux_buffer_release);
   }

@@ -5,13 +5,9 @@
 #import "ios/chrome/app/chrome_overlay_window.h"
 
 #import "base/check.h"
-#import "ios/chrome/browser/crash_report/crash_keys_helper.h"
-#import "ios/chrome/browser/metrics/user_interface_style_recorder.h"
+#import "ios/chrome/browser/crash_report/model/crash_keys_helper.h"
+#import "ios/chrome/browser/metrics/model/user_interface_style_recorder.h"
 #import "ui/base/device_form_factor.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 @interface ChromeOverlayWindow ()
 @property(nonatomic, strong)
@@ -32,6 +28,13 @@
     [self updateCrashKeys];
     _userInterfaceStyleRecorder = [[UserInterfaceStyleRecorder alloc]
         initWithUserInterfaceStyle:self.traitCollection.userInterfaceStyle];
+    if (@available(iOS 17, *)) {
+      NSArray<UITrait>* traits = @[
+        UITraitHorizontalSizeClass.class, UITraitUserInterfaceStyle.class
+      ];
+      [self registerForTraitChanges:traits
+                         withAction:@selector(updateCrashKeys)];
+    }
   }
   return self;
 }
@@ -60,19 +63,14 @@
 
 #pragma mark - UITraitEnvironment
 
+#if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
 - (void)traitCollectionDidChange:(UITraitCollection*)previousTraitCollection {
   [super traitCollectionDidChange:previousTraitCollection];
-  if (previousTraitCollection.horizontalSizeClass !=
-      self.traitCollection.horizontalSizeClass) {
-    [self updateCrashKeys];
-  }
-  if ([self.traitCollection
-          hasDifferentColorAppearanceComparedToTraitCollection:
-              previousTraitCollection]) {
-    [self.userInterfaceStyleRecorder
-        userInterfaceStyleDidChange:self.traitCollection.userInterfaceStyle];
+  if (@available(iOS 17, *)) {
+    return;
   }
   [self updateCrashKeys];
 }
+#endif
 
 @end

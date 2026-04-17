@@ -25,7 +25,6 @@ ash::cros_healthd::mojom::CpuArchitectureEnum EnumTraits<
   }
 
   NOTREACHED();
-  return ash::cros_healthd::mojom::CpuArchitectureEnum::kUnknown;
 }
 
 bool EnumTraits<ash::cros_healthd::mojom::CpuArchitectureEnum,
@@ -48,7 +47,6 @@ bool EnumTraits<ash::cros_healthd::mojom::CpuArchitectureEnum,
   }
 
   NOTREACHED();
-  return false;
 }
 
 }  // namespace mojo

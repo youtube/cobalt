@@ -26,6 +26,7 @@
 #include "components/safe_browsing/core/browser/verdict_cache_manager.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/safe_browsing/core/common/utils.h"
+#include "components/signin/public/identity_manager/identity_manager.h"
 #include "google_apis/google_api_keys.h"
 #include "net/base/url_util.h"
 
@@ -47,14 +48,15 @@ bool IsSecuritySensitiveVerdict(
     LoginReputationClientResponse::VerdictType verdict_type) {
   switch (verdict_type) {
     case LoginReputationClientResponse::SAFE:
+    // UNSPECIFIED is not considered sensitive because it is the default verdict
+    // if no ping is sent (e.g. timeout, allowlist hit).
+    case LoginReputationClientResponse::VERDICT_TYPE_UNSPECIFIED:
       return false;
     case LoginReputationClientResponse::LOW_REPUTATION:
     case LoginReputationClientResponse::PHISHING:
-    case LoginReputationClientResponse::VERDICT_TYPE_UNSPECIFIED:
       return true;
   }
   NOTREACHED() << "Unexpected verdict_type: " << verdict_type;
-  return false;
 }
 
 // Log security sensitive event if required.
@@ -100,7 +102,7 @@ PasswordProtectionServiceBase::~PasswordProtectionServiceBase() {
 
 // static
 bool PasswordProtectionServiceBase::CanGetReputationOfURL(const GURL& url) {
-  if (VerdictCacheManager::has_artificial_unsafe_url()) {
+  if (VerdictCacheManager::has_artificial_cached_url()) {
     return true;
   }
   if (!safe_browsing::CanGetReputationOfUrl(url)) {
@@ -154,13 +156,6 @@ bool PasswordProtectionServiceBase::CanSendPing(
           CanGetReputationOfURL(main_frame_url));
 }
 
-bool PasswordProtectionServiceBase::
-    IsSyncingGMAILPasswordWithSignedInProtectionEnabled(
-        ReusedPasswordAccountType password_type) const {
-  return password_type.account_type() == ReusedPasswordAccountType::GMAIL &&
-         password_type.is_account_syncing();
-}
-
 void PasswordProtectionServiceBase::RequestFinished(
     PasswordProtectionRequest* request,
     RequestOutcome outcome,
@@ -168,9 +163,7 @@ void PasswordProtectionServiceBase::RequestFinished(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(request);
 
-#if !BUILDFLAG(IS_ANDROID)
   bool warning_shown = false;
-#endif
   if (response) {
     ReusedPasswordAccountType password_type =
         GetPasswordProtectionReusedPasswordAccountType(request->password_type(),
@@ -178,15 +171,6 @@ void PasswordProtectionServiceBase::RequestFinished(
     if (outcome != RequestOutcome::RESPONSE_ALREADY_CACHED) {
       CacheVerdict(request->main_frame_url(), request->trigger_type(),
                    password_type, *response, base::Time::Now());
-    }
-
-    // If it's password alert mode and a Gsuite/enterprise account, we do not
-    // show a modal warning.
-    if (outcome == RequestOutcome::PASSWORD_ALERT_MODE &&
-        (password_type.account_type() == ReusedPasswordAccountType::GSUITE ||
-         password_type.account_type() ==
-             ReusedPasswordAccountType::NON_GAIA_ENTERPRISE)) {
-      return;
     }
 
     if (ShouldShowModalWarning(request->trigger_type(), password_type,
@@ -197,9 +181,7 @@ void PasswordProtectionServiceBase::RequestFinished(
       ShowModalWarning(request, response->verdict_type(),
                        response->verdict_token(), password_type);
       request->set_is_modal_warning_showing(true);
-#if !BUILDFLAG(IS_ANDROID)
       warning_shown = true;
-#endif
     }
   }
 
@@ -215,12 +197,10 @@ void PasswordProtectionServiceBase::RequestFinished(
     // If verdict declares a security sensitive event, log accordingly.
     MaybeRecordSecuritySensitiveEvent(metrics_collector_, verdict);
 
-// Disabled on Android, because enterprise reporting extension is not supported.
-#if !BUILDFLAG(IS_ANDROID)
     MaybeReportPasswordReuseDetected(
-        request, request->username(), request->password_type(),
+        request->main_frame_url(), request->username(),
+        request->password_type(),
         verdict == LoginReputationClientResponse::PHISHING, warning_shown);
-#endif
 
     // Persist a bit in CompromisedCredentials table when saved password is
     // reused on a phishing or low reputation site.
@@ -282,7 +262,7 @@ int PasswordProtectionServiceBase::GetRequestTimeoutInMS() {
   return kRequestTimeoutMs;
 }
 
-void PasswordProtectionServiceBase::OnURLsDeleted(
+void PasswordProtectionServiceBase::OnHistoryDeletions(
     history::HistoryService* history_service,
     const history::DeletionInfo& deletion_info) {
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
@@ -324,7 +304,6 @@ PasswordProtectionServiceBase::GetPasswordProtectionReusedPasswordType(
       break;
   }
   NOTREACHED();
-  return PasswordReuseEvent::REUSED_PASSWORD_TYPE_UNKNOWN;
 }
 
 ReusedPasswordAccountType
@@ -343,27 +322,28 @@ PasswordProtectionServiceBase::GetPasswordProtectionReusedPasswordAccountType(
       return reused_password_account_type;
     case PasswordType::PRIMARY_ACCOUNT_PASSWORD: {
       reused_password_account_type.set_is_account_syncing(
-          IsPrimaryAccountSyncing());
+          IsPrimaryAccountSyncingHistory());
       if (!IsPrimaryAccountSignedIn()) {
         reused_password_account_type.set_account_type(
             ReusedPasswordAccountType::UNKNOWN);
         return reused_password_account_type;
       }
       reused_password_account_type.set_account_type(
-          IsAccountGmail(username) ? ReusedPasswordAccountType::GMAIL
-                                   : ReusedPasswordAccountType::GSUITE);
+          IsAccountConsumer(username) ? ReusedPasswordAccountType::GMAIL
+                                      : ReusedPasswordAccountType::GSUITE);
       return reused_password_account_type;
     }
     case PasswordType::OTHER_GAIA_PASSWORD: {
       AccountInfo account_info = GetAccountInfoForUsername(username);
-      if (account_info.account_id.empty()) {
+      if (account_info.account_id.empty() ||
+          account_info.hosted_domain.empty()) {
         reused_password_account_type.set_account_type(
             ReusedPasswordAccountType::UNKNOWN);
         return reused_password_account_type;
       }
       reused_password_account_type.set_account_type(
-          IsAccountGmail(username) ? ReusedPasswordAccountType::GMAIL
-                                   : ReusedPasswordAccountType::GSUITE);
+          IsAccountConsumer(username) ? ReusedPasswordAccountType::GMAIL
+                                      : ReusedPasswordAccountType::GSUITE);
       return reused_password_account_type;
     }
     case PasswordType::PASSWORD_TYPE_UNKNOWN:
@@ -373,7 +353,6 @@ PasswordProtectionServiceBase::GetPasswordProtectionReusedPasswordAccountType(
       return reused_password_account_type;
   }
   NOTREACHED();
-  return reused_password_account_type;
 }
 
 // static
@@ -412,7 +391,6 @@ bool PasswordProtectionServiceBase::IsSupportedPasswordTypeForPinging(
       return false;
   }
   NOTREACHED();
-  return false;
 }
 
 bool PasswordProtectionServiceBase::IsSupportedPasswordTypeForModalWarning(
@@ -423,7 +401,7 @@ bool PasswordProtectionServiceBase::IsSupportedPasswordTypeForModalWarning(
 // Currently password reuse warnings are only supported for saved passwords
 // and GAIA passwords on Android.
 #if BUILDFLAG(IS_ANDROID)
-  return IsSyncingGMAILPasswordWithSignedInProtectionEnabled(password_type);
+  return password_type.account_type() == ReusedPasswordAccountType::GMAIL;
 #else
   if (password_type.account_type() ==
       ReusedPasswordAccountType::NON_GAIA_ENTERPRISE)

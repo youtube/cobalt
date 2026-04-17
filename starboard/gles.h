@@ -32,10 +32,12 @@
 #ifndef STARBOARD_GLES_H_
 #define STARBOARD_GLES_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include "starboard/configuration.h"
 #include "starboard/export.h"
 #include "starboard/log.h"
-#include "starboard/types.h"
 
 #ifdef __cplusplus
 extern "C" {

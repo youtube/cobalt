@@ -11,6 +11,7 @@
 #include "extensions/browser/extension_prefs_factory.h"
 #include "extensions/browser/extension_registry_factory.h"
 #include "extensions/browser/extensions_browser_client.h"
+#include "extensions/browser/process_manager_factory.h"
 
 using content::BrowserContext;
 
@@ -33,21 +34,27 @@ EventRouterFactory::EventRouterFactory()
           BrowserContextDependencyManager::GetInstance()) {
   DependsOn(ExtensionRegistryFactory::GetInstance());
   DependsOn(ExtensionPrefsFactory::GetInstance());
+  DependsOn(ProcessManagerFactory::GetInstance());
 }
 
 EventRouterFactory::~EventRouterFactory() {
 }
 
-KeyedService* EventRouterFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+EventRouterFactory::BuildServiceInstanceForBrowserContext(
     BrowserContext* context) const {
-  return new EventRouter(context, ExtensionPrefs::Get(context));
+  return std::make_unique<EventRouter>(context, ExtensionPrefs::Get(context));
 }
 
 BrowserContext* EventRouterFactory::GetBrowserContextToUse(
     BrowserContext* context) const {
   // Redirected in incognito.
-  return ExtensionsBrowserClient::Get()->GetRedirectedContextInIncognito(
-      context, /*force_guest_profile=*/true, /*force_system_profile=*/false);
+  return ExtensionsBrowserClient::Get()->GetContextRedirectedToOriginal(
+      context);
+}
+
+bool EventRouterFactory::ServiceIsNULLWhileTesting() const {
+  return true;
 }
 
 }  // namespace extensions

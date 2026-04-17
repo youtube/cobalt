@@ -23,12 +23,11 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 
-import androidx.annotation.VisibleForTesting;
-
-import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
 import org.chromium.components.browser_ui.widget.AlwaysDismissedDialog;
-import org.chromium.components.browser_ui.widget.animation.Interpolators;
+import org.chromium.ui.UiUtils;
+import org.chromium.ui.interpolators.Interpolators;
 import org.chromium.ui.util.ColorUtils;
 
 import java.util.ArrayList;
@@ -39,14 +38,15 @@ import java.util.Collection;
  * dialog/CCT or an alert dialog on top of it. FLAG_DIM_BEHIND is not being used because it causes
  * the web contents of a payment handler CCT to also dim on some versions of Android (e.g., Nougat).
  *
- * Note: Do not use this class outside of the payments.ui package!
- * TODO(crbug.com/806868): Revert the visibility to package default again when it is no longer used
- * by Autofill Assistant.
+ * <p>Note: Do not use this class outside of the payments.ui package!
+ * TODO(crbug.com/40560343): Revert the visibility to package default again when it is no longer
+ * used by Autofill Assistant.
+ * Revert the visibility to package default again when it is no longer used by Autofill Assistant.
  */
 /* package */ class DimmingDialog {
     /**
      * Length of the animation to either show the UI or expand it to full height. Note that click of
-     * 'Pay' button in PaymentRequestUI is not accepted until the animation is done, so this
+     * 'Pay' button in PaymentRequestUi is not accepted until the animation is done, so this
      * duration also serves the function of preventing the user from accidentally double-clicking on
      * the screen when triggering payment and thus authorizing unwanted transaction.
      */
@@ -61,9 +61,7 @@ import java.util.Collection;
     private OnDismissListener mDismissListener;
     private boolean mIsAnimatingDisappearance;
 
-    /**
-     * Listener for the dismissal of the DimmingDialog.
-     */
+    /** Listener for the dismissal of the DimmingDialog. */
     public interface OnDismissListener {
         /** Called when the UI is dismissed. */
         void onDismiss();
@@ -82,11 +80,15 @@ import java.util.Collection;
         // requires exploration of how interactions would work when the dialog can be sent back and
         // forth between the peeking and expanded state.
         mFullContainer = new FrameLayout(activity);
-        mFullContainer.setBackgroundColor(
-                activity.getResources().getColor(R.color.modal_dialog_scrim_color));
-        mDialog = new AlwaysDismissedDialog(activity, R.style.DimmingDialog);
+        mFullContainer.setBackgroundColor(activity.getColor(R.color.modal_dialog_scrim_color));
+        mDialog =
+                new AlwaysDismissedDialog(
+                        activity,
+                        R.style.DimmingDialog,
+                        EdgeToEdgeUtils.isEdgeToEdgeEverywhereEnabled());
         mDialog.setOnDismissListener((v) -> notifyListenerDialogDismissed());
-        mDialog.addContentView(mFullContainer,
+        mDialog.addContentView(
+                mFullContainer,
                 new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         Window dialogWindow = mDialog.getWindow();
         dialogWindow.setGravity(Gravity.CENTER);
@@ -104,7 +106,8 @@ import java.util.Collection;
      */
     /* package */ static void setVisibleStatusBarIconColor(Window window) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
-        ApiCompatibilityUtils.setStatusBarIconColor(window.getDecorView().getRootView(),
+        UiUtils.setStatusBarIconColor(
+                window.getDecorView().getRootView(),
                 !ColorUtils.shouldUseLightForegroundOnBackground(window.getStatusBarColor()));
     }
 
@@ -161,8 +164,11 @@ import java.util.Collection;
         // Animate the bottom sheet going away.
         new DisappearingAnimator(false);
 
-        int floatingDialogWidth = DimmingDialog.computeMaxWidth(mFullContainer.getContext(),
-                mFullContainer.getMeasuredWidth(), mFullContainer.getMeasuredHeight());
+        int floatingDialogWidth =
+                DimmingDialog.computeMaxWidth(
+                        mFullContainer.getContext(),
+                        mFullContainer.getMeasuredWidth(),
+                        mFullContainer.getMeasuredHeight());
         FrameLayout.LayoutParams overlayParams =
                 new FrameLayout.LayoutParams(floatingDialogWidth, LayoutParams.WRAP_CONTENT);
         overlayParams.gravity = Gravity.CENTER;
@@ -200,12 +206,24 @@ import java.util.Collection;
      */
     private class FadeInAnimator extends AnimatorListenerAdapter implements OnLayoutChangeListener {
         @Override
-        public void onLayoutChange(View v, int left, int top, int right, int bottom, int oldLeft,
-                int oldTop, int oldRight, int oldBottom) {
+        public void onLayoutChange(
+                View v,
+                int left,
+                int top,
+                int right,
+                int bottom,
+                int oldLeft,
+                int oldTop,
+                int oldRight,
+                int oldBottom) {
             mFullContainer.getChildAt(0).removeOnLayoutChangeListener(this);
 
-            Animator scrimFader = ObjectAnimator.ofInt(mFullContainer.getBackground(),
-                    AnimatorProperties.DRAWABLE_ALPHA_PROPERTY, 0, 255);
+            Animator scrimFader =
+                    ObjectAnimator.ofInt(
+                            mFullContainer.getBackground(),
+                            AnimatorProperties.DRAWABLE_ALPHA_PROPERTY,
+                            0,
+                            255);
             Animator alphaAnimator = ObjectAnimator.ofFloat(mFullContainer, View.ALPHA, 0f, 1f);
 
             AnimatorSet alphaSet = new AnimatorSet();
@@ -230,14 +248,19 @@ import java.util.Collection;
                 // Sheet fader.
                 animators.add(ObjectAnimator.ofFloat(child, View.ALPHA, child.getAlpha(), 0f));
                 // Sheet translator.
-                animators.add(ObjectAnimator.ofFloat(
-                        child, View.TRANSLATION_Y, 0f, mAnimatorTranslation));
+                animators.add(
+                        ObjectAnimator.ofFloat(
+                                child, View.TRANSLATION_Y, 0f, mAnimatorTranslation));
             }
 
             if (mIsDialogClosing) {
                 // Scrim fader.
-                animators.add(ObjectAnimator.ofInt(mFullContainer.getBackground(),
-                        AnimatorProperties.DRAWABLE_ALPHA_PROPERTY, 127, 0));
+                animators.add(
+                        ObjectAnimator.ofInt(
+                                mFullContainer.getBackground(),
+                                AnimatorProperties.DRAWABLE_ALPHA_PROPERTY,
+                                127,
+                                0));
             }
 
             if (animators.isEmpty()) return;
@@ -263,14 +286,11 @@ import java.util.Collection;
         }
     }
 
-    @VisibleForTesting
     public Dialog getDialogForTest() {
         return mDialog;
     }
 
-    /**
-     * Force the Dialog window to refresh its visual state.
-     */
+    /** Force the Dialog window to refresh its visual state. */
     /* package */ void refresh() {
         mDialog.getWindow().setAttributes(mDialog.getWindow().getAttributes());
     }

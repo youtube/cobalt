@@ -10,7 +10,7 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/build_info.h"
-#endif  // BUILDFLAG(IS_ANDROID)
+#endif
 
 namespace metrics {
 
@@ -21,15 +21,16 @@ void FormFactorMetricsProvider::ProvideSystemProfileMetrics(
 
 SystemProfileProto::Hardware::FormFactor
 FormFactorMetricsProvider::GetFormFactor() const {
+// Temporary workaround to report foldable for UMA without affecting
+// other form factors. This will be removed and replaced with a long-term
+// solution in DeviceFormFactor::GetDeviceFormFactor() after conducting an
+// audit of form factor usage or exposing ui_mode.
+// VariationsServiceClient::GetCurrentFormFactor() also needs to be updated.
 #if BUILDFLAG(IS_ANDROID)
-  // TODO(crbug.com/1300338): Move the TV form factor logic to
-  // ui/base/device_form_factor_android.cc.
-  if (base::android::BuildInfo::GetInstance()->is_tv())
-    return SystemProfileProto::Hardware::FORM_FACTOR_TV;
-  if (base::android::BuildInfo::GetInstance()->is_automotive()) {
-    return SystemProfileProto::Hardware::FORM_FACTOR_AUTOMOTIVE;
+  if (base::android::BuildInfo::GetInstance()->is_foldable()) {
+    return SystemProfileProto::Hardware::FORM_FACTOR_FOLDABLE;
   }
-#endif  // BUILDFLAG(IS_ANDROID)
+#endif
 
 #if BUILDFLAG(PLATFORM_CFM)
   return SystemProfileProto::Hardware::FORM_FACTOR_MEET_DEVICE;
@@ -41,6 +42,12 @@ FormFactorMetricsProvider::GetFormFactor() const {
       return SystemProfileProto::Hardware::FORM_FACTOR_PHONE;
     case ui::DEVICE_FORM_FACTOR_TABLET:
       return SystemProfileProto::Hardware::FORM_FACTOR_TABLET;
+    case ui::DEVICE_FORM_FACTOR_TV:
+      return SystemProfileProto::Hardware::FORM_FACTOR_TV;
+    case ui::DEVICE_FORM_FACTOR_AUTOMOTIVE:
+      return SystemProfileProto::Hardware::FORM_FACTOR_AUTOMOTIVE;
+    case ui::DEVICE_FORM_FACTOR_FOLDABLE:
+      return SystemProfileProto::Hardware::FORM_FACTOR_FOLDABLE;
     default:
       return SystemProfileProto::Hardware::FORM_FACTOR_UNKNOWN;
   }

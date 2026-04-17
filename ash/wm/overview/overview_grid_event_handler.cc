@@ -7,8 +7,8 @@
 #include "ash/app_list/app_list_controller_impl.h"
 #include "ash/root_window_controller.h"
 #include "ash/shell.h"
-#include "ash/wallpaper/wallpaper_view.h"
-#include "ash/wallpaper/wallpaper_widget_controller.h"
+#include "ash/wallpaper/views/wallpaper_view.h"
+#include "ash/wallpaper/views/wallpaper_widget_controller.h"
 #include "ash/wm/gestures/wm_fling_handler.h"
 #include "ash/wm/overview/overview_controller.h"
 #include "ash/wm/overview/overview_grid.h"
@@ -62,17 +62,18 @@ void OverviewGridEventHandler::OnMouseEvent(ui::MouseEvent* event) {
   // case, so just exit overview. Note that this is done here instead of on
   // release like usual, because pressing the mouse while dragging sends out a
   // ui::GESTURE_END_EVENT which may cause a bad state.
-  if (event->type() == ui::ET_MOUSE_PRESSED &&
+  if (event->type() == ui::EventType::kMousePressed &&
       !overview_session_->CanProcessEvent()) {
-    Shell::Get()->overview_controller()->EndOverview(
+    OverviewController::Get()->EndOverview(
         OverviewEndAction::kClickingOutsideWindowsInOverview);
     event->StopPropagation();
     event->SetHandled();
     return;
   }
 
-  if (event->type() == ui::ET_MOUSE_RELEASED)
+  if (event->type() == ui::EventType::kMouseReleased) {
     HandleClickOrTap(event);
+  }
 }
 
 void OverviewGridEventHandler::OnGestureEvent(ui::GestureEvent* event) {
@@ -84,39 +85,38 @@ void OverviewGridEventHandler::OnGestureEvent(ui::GestureEvent* event) {
 
   // TODO(crbug.com/1341128): Enable context menu via long-press in library page
   // `SavedDeskLibraryView` will take over gesture event if it's active. When
-  // it's `ET_GESTURE_TAP`, here it does not set event to handled, and thus
-  // `HandleClickOrTap()` would be executed from
+  // it's `EventType::kGestureTap`, here it does not set event to handled, and
+  // thus `HandleClickOrTap()` would be executed from
   // `SavedDeskLibraryView::OnLocatedEvent()`.
-  if (grid_->IsShowingSavedDeskLibrary())
+  if (grid_->IsShowingSavedDeskLibrary()) {
     return;
+  }
+
+  if (event->type() == ui::EventType::kGestureTap) {
+    HandleClickOrTap(event);
+    return;
+  }
+
+  // The following events are for scrolling the overview scroll layout, which is
+  // tablet only.
+  if (!display::Screen::GetScreen()->InTabletMode()) {
+    return;
+  }
 
   switch (event->type()) {
-    case ui::ET_GESTURE_TAP: {
-      HandleClickOrTap(event);
-      break;
-    }
-    case ui::ET_SCROLL_FLING_START: {
-      if (!ShouldUseTabletModeGridLayout())
-        return;
-
+    case ui::EventType::kScrollFlingStart: {
       HandleFlingScroll(event);
       event->SetHandled();
       break;
     }
-    case ui::ET_GESTURE_SCROLL_BEGIN: {
-      if (!ShouldUseTabletModeGridLayout())
-        return;
-
+    case ui::EventType::kGestureScrollBegin: {
       scroll_offset_x_cumulative_ = 0.f;
       OnFlingEnd();
       grid_->StartScroll();
       event->SetHandled();
       break;
     }
-    case ui::ET_GESTURE_SCROLL_UPDATE: {
-      if (!ShouldUseTabletModeGridLayout())
-        return;
-
+    case ui::EventType::kGestureScrollUpdate: {
       // Only forward the scrolls to grid once they have exceeded the threshold.
       const float scroll_offset_x = event->details().scroll_x();
       scroll_offset_x_cumulative_ += scroll_offset_x;
@@ -127,10 +127,7 @@ void OverviewGridEventHandler::OnGestureEvent(ui::GestureEvent* event) {
       event->SetHandled();
       break;
     }
-    case ui::ET_GESTURE_SCROLL_END: {
-      if (!ShouldUseTabletModeGridLayout())
-        return;
-
+    case ui::EventType::kGestureScrollEnd: {
       grid_->EndScroll();
       event->SetHandled();
       break;
@@ -152,7 +149,7 @@ void OverviewGridEventHandler::HandleClickOrTap(ui::Event* event) {
     return;
   }
 
-  if (Shell::Get()->tablet_mode_controller()->InTabletMode()) {
+  if (display::Screen::GetScreen()->InTabletMode()) {
     aura::Window* window = static_cast<views::View*>(event->target())
                                ->GetWidget()
                                ->GetNativeWindow();
@@ -166,7 +163,7 @@ void OverviewGridEventHandler::HandleClickOrTap(ui::Event* event) {
       Shell::Get()->app_list_controller()->GoHome(display_id);
     }
   } else {
-    Shell::Get()->overview_controller()->EndOverview(
+    OverviewController::Get()->EndOverview(
         OverviewEndAction::kClickingOutsideWindowsInOverview);
   }
   event->StopPropagation();

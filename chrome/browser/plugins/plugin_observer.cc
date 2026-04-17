@@ -8,7 +8,6 @@
 
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
-#include "base/metrics/histogram_macros.h"
 #include "build/build_config.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/browser_process.h"
@@ -90,11 +89,9 @@ void PluginObserver::PluginCrashed(const base::FilePath& plugin_path,
   if (is_running) {
     infobar_text = l10n_util::GetStringFUTF16(IDS_PLUGIN_DISCONNECTED_PROMPT,
                                               plugin_name);
-    UMA_HISTOGRAM_COUNTS_1M("Plugin.ShowDisconnectedInfobar", 1);
   } else {
     infobar_text = l10n_util::GetStringFUTF16(IDS_PLUGIN_CRASHED_PROMPT,
                                               plugin_name);
-    UMA_HISTOGRAM_COUNTS_1M("Plugin.ShowCrashedInfobar", 1);
   }
 #else
   // Calling the POSIX version of base::GetTerminationStatus() may affect other
@@ -103,7 +100,6 @@ void PluginObserver::PluginCrashed(const base::FilePath& plugin_path,
   // disconnections from crashes.
   infobar_text = l10n_util::GetStringFUTF16(IDS_PLUGIN_CRASHED_PROMPT,
                                             plugin_name);
-  UMA_HISTOGRAM_COUNTS_1M("Plugin.ShowCrashedInfobar", 1);
 #endif
 
   ReloadPluginInfoBarDelegate::Create(
@@ -171,7 +167,10 @@ void PluginObserver::OpenPDF(const GURL& url) {
         })");
   std::unique_ptr<download::DownloadUrlParameters> params =
       std::make_unique<download::DownloadUrlParameters>(
-          url, render_frame_host->GetRenderViewHost()->GetProcess()->GetID(),
+          url,
+          render_frame_host->GetRenderViewHost()
+              ->GetProcess()
+              ->GetDeprecatedID(),
           render_frame_host->GetRoutingID(), traffic_annotation);
   params->set_referrer(referrer.url);
   params->set_referrer_policy(

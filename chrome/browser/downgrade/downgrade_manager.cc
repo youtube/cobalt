@@ -4,7 +4,10 @@
 
 #include "chrome/browser/downgrade/downgrade_manager.h"
 
+#include <algorithm>
 #include <iterator>
+#include <optional>
+#include <string_view>
 #include <utility>
 
 #include "base/command_line.h"
@@ -16,7 +19,6 @@
 #include "base/functional/callback.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/syslog_logging.h"
@@ -35,7 +37,6 @@
 #include "components/version_info/version_info.h"
 #include "components/version_info/version_info_values.h"
 #include "content/public/browser/browser_thread.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "chrome/installer/util/install_util.h"
@@ -56,7 +57,7 @@ void MoveUserData(const base::FilePath& source, const base::FilePath& target) {
   auto exclusion_predicate =
       base::BindRepeating([](const base::FilePath& name) -> bool {
         // TODO(ydago): Share constants instead of hardcoding values here.
-        static constexpr base::FilePath::StringPieceType kFilesToKeep[] = {
+        static constexpr base::FilePath::StringViewType kFilesToKeep[] = {
             FILE_PATH_LITERAL("browsermetrics"),
             FILE_PATH_LITERAL("crashpad"),
             FILE_PATH_LITERAL("first run"),
@@ -68,7 +69,7 @@ void MoveUserData(const base::FilePath& source, const base::FilePath& target) {
         // Don't try to move the dir into which everything is being moved.
         if (name.FinalExtension() == kDowngradeDeleteSuffix)
           return true;
-        return base::ranges::any_of(kFilesToKeep, [&name](const auto& keep) {
+        return std::ranges::any_of(kFilesToKeep, [&name](const auto& keep) {
           return base::EqualsCaseInsensitiveASCII(name.value(), keep);
         });
       });
@@ -171,17 +172,24 @@ bool DowngradeManager::PrepareUserDataDirectoryForCurrentVersion(
   DCHECK_EQ(type_, Type::kNone);
   DCHECK(!user_data_dir.empty());
 
+  auto& command_line = *base::CommandLine::ForCurrentProcess();
+  // Ensure extensions are repaired only the first time the browser starts
+  // after a downgrade.
+  if (command_line.HasSwitch(switches::kRepairAllValidExtensions)) {
+    command_line.RemoveSwitch(switches::kRepairAllValidExtensions);
+  }
   // Do not attempt migration if this process is the product of a relaunch from
   // a previous in which migration was attempted/performed.
-  auto& command_line = *base::CommandLine::ForCurrentProcess();
   if (command_line.HasSwitch(switches::kUserDataMigrated)) {
     // Strip the switch from the command line so that it does not propagate to
     // any subsequent relaunches.
     command_line.RemoveSwitch(switches::kUserDataMigrated);
+    // Ensure all extensions are repaired.
+    command_line.AppendSwitch(switches::kRepairAllValidExtensions);
     return false;
   }
 
-  absl::optional<base::Version> last_version = GetLastVersion(user_data_dir);
+  std::optional<base::Version> last_version = GetLastVersion(user_data_dir);
   if (!last_version)
     return false;
 
@@ -195,7 +203,6 @@ bool DowngradeManager::PrepareUserDataDirectoryForCurrentVersion(
 
     type_ = GetDowngradeType(user_data_dir, current_version, *last_version);
     DCHECK(type_ == Type::kAdministrativeWipe || type_ == Type::kUnsupported);
-    base::UmaHistogramEnumeration("Downgrade.Type", type_);
     return type_ == Type::kAdministrativeWipe;
   }
 
@@ -205,8 +212,6 @@ bool DowngradeManager::PrepareUserDataDirectoryForCurrentVersion(
   if (current_version < *last_version) {
     type_ = GetDowngradeTypeWithSnapshot(user_data_dir, current_version,
                                          *last_version);
-    if (type_ != Type::kNone)
-      base::UmaHistogramEnumeration("Downgrade.Type", type_);
 
     return type_ == Type::kAdministrativeWipe ||
            type_ == Type::kSnapshotRestore;
@@ -215,7 +220,7 @@ bool DowngradeManager::PrepareUserDataDirectoryForCurrentVersion(
   auto current_milestone = current_version.components()[0];
   int max_number_of_snapshots = g_browser_process->local_state()->GetInteger(
       prefs::kUserDataSnapshotRetentionLimit);
-  absl::optional<uint32_t> purge_milestone;
+  std::optional<uint32_t> purge_milestone;
   if (current_milestone == last_version->components()[0]) {
     // Mid-milestone snapshots are only taken on canary installs.
     if (chrome::GetChannel() != version_info::Channel::CANARY)
@@ -234,7 +239,7 @@ bool DowngradeManager::PrepareUserDataDirectoryForCurrentVersion(
 void DowngradeManager::UpdateLastVersion(const base::FilePath& user_data_dir) {
   DCHECK(!user_data_dir.empty());
   DCHECK_NE(type_, Type::kAdministrativeWipe);
-  const base::StringPiece version(PRODUCT_VERSION);
+  const std::string_view version(PRODUCT_VERSION);
   base::WriteFile(GetLastVersionFile(user_data_dir), version);
 }
 

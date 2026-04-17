@@ -4,23 +4,20 @@
 
 package org.chromium.mojo.system;
 
-/**
- * Exception for the core mojo API.
- */
+import org.chromium.build.annotations.NullMarked;
+
+/** Exception for the core mojo API. */
+@NullMarked
 public class MojoException extends RuntimeException {
 
     private final int mCode;
 
-    /**
-     * Constructor.
-     */
+    /** Constructor. */
     public MojoException(int code) {
         mCode = code;
     }
 
-    /**
-     * Constructor.
-     */
+    /** Constructor. */
     public MojoException(Throwable cause) {
         super(cause);
         mCode = MojoResult.UNKNOWN;

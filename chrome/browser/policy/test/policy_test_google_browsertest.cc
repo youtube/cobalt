@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <map>
+#include <optional>
 #include <string>
 
 #include "base/command_line.h"
@@ -24,15 +25,15 @@
 #include "net/http/http_request_headers.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_request.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace policy {
 
 void CheckYouTubeRestricted(int youtube_restrict_mode,
                             const net::HttpRequestHeaders& headers) {
-  std::string header;
-  headers.GetHeader(safe_search_api::kYouTubeRestrictHeaderName, &header);
+  std::string header =
+      headers.GetHeader(safe_search_api::kYouTubeRestrictHeaderName)
+          .value_or(std::string());
   if (youtube_restrict_mode == safe_search_api::YOUTUBE_RESTRICT_OFF) {
     EXPECT_TRUE(header.empty());
   } else if (youtube_restrict_mode ==
@@ -51,9 +52,8 @@ void CheckAllowedDomainsHeader(const std::string& allowed_domain,
     return;
   }
 
-  std::string header;
-  headers.GetHeader(safe_search_api::kGoogleAppsAllowedDomains, &header);
-  EXPECT_EQ(header, allowed_domain);
+  EXPECT_EQ(headers.GetHeader(safe_search_api::kGoogleAppsAllowedDomains),
+            allowed_domain);
 }
 
 class PolicyTestGoogle : public SafeSearchPolicyTest,
@@ -116,16 +116,16 @@ class PolicyTestGoogle : public SafeSearchPolicyTest,
   net::EmbeddedTestServer https_server_;
   base::Lock lock_;
   std::map<std::string, net::HttpRequestHeaders> urls_requested_;
-  raw_ptr<Browser, DanglingUntriaged> incognito_browser_ = nullptr;
+  raw_ptr<Browser, AcrossTasksDanglingUntriaged> incognito_browser_ = nullptr;
 };
 
 INSTANTIATE_TEST_SUITE_P(, PolicyTestGoogle, ::testing::Bool());
 
 IN_PROC_BROWSER_TEST_P(PolicyTestGoogle, ForceGoogleSafeSearch) {
-  ApplySafeSearchPolicy(absl::nullopt,  // ForceSafeSearch (legacy)
+  ApplySafeSearchPolicy(std::nullopt,  // ForceSafeSearch (legacy)
                         base::Value(true),
-                        absl::nullopt,   // ForceYouTubeSafetyMode (legacy)
-                        absl::nullopt);  // ForceYouTubeRestrict
+                        std::nullopt,   // ForceYouTubeSafetyMode (legacy)
+                        std::nullopt);  // ForceYouTubeRestrict
 
   GURL url = https_server()->GetURL("www.google.com",
                                     "/server-redirect?http://google.com/");
@@ -138,9 +138,9 @@ IN_PROC_BROWSER_TEST_P(PolicyTestGoogle, ForceYouTubeRestrict) {
   for (int youtube_restrict_mode = safe_search_api::YOUTUBE_RESTRICT_OFF;
        youtube_restrict_mode < safe_search_api::YOUTUBE_RESTRICT_COUNT;
        ++youtube_restrict_mode) {
-    ApplySafeSearchPolicy(absl::nullopt,  // ForceSafeSearch (legacy)
-                          absl::nullopt,  // ForceGoogleSafeSearch
-                          absl::nullopt,  // ForceYouTubeSafetyMode (legacy)
+    ApplySafeSearchPolicy(std::nullopt,  // ForceSafeSearch (legacy)
+                          std::nullopt,  // ForceGoogleSafeSearch
+                          std::nullopt,  // ForceYouTubeSafetyMode (legacy)
                           base::Value(youtube_restrict_mode));
     {
       // First check frame requests.
@@ -162,9 +162,9 @@ IN_PROC_BROWSER_TEST_P(PolicyTestGoogle, ForceYouTubeRestrict) {
     if (youtube_restrict_mode != safe_search_api::YOUTUBE_RESTRICT_OFF) {
       // If a restriction is active, disable it while the page is open to check
       // that renderer rules are properly updated when a renderer is running.
-      ApplySafeSearchPolicy(absl::nullopt,  // ForceSafeSearch (legacy)
-                            absl::nullopt,  // ForceGoogleSafeSearch
-                            absl::nullopt,  // ForceYouTubeSafetyMode (legacy)
+      ApplySafeSearchPolicy(std::nullopt,  // ForceSafeSearch (legacy)
+                            std::nullopt,  // ForceGoogleSafeSearch
+                            std::nullopt,  // ForceYouTubeSafetyMode (legacy)
                             base::Value(safe_search_api::YOUTUBE_RESTRICT_OFF));
       FetchSubresource(GetBrowser()->tab_strip_model()->GetActiveWebContents(),
                        youtube_script);

@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,6 +16,9 @@ enum ChromeWidgetSublevel {
   kSublevelHoverable = 1,
   // Security bubble, e.g. permission prompt bubble.
   kSublevelSecurity = 1,
+  // Glic widget, positioned higher to avoid placing it between bubbles/popups
+  // and their associated page or tab.
+  kSublevelGlic = 2,
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_CHROME_WIDGET_SUBLEVEL_H_

@@ -28,12 +28,12 @@
 #include <tuple>
 
 #include "build/build_config.h"
-#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/common/privacy_budget/identifiability_metric_builder.h"
 #include "third_party/blink/public/common/privacy_budget/identifiability_study_settings.h"
 #include "third_party/blink/public/common/privacy_budget/identifiable_token.h"
 #include "third_party/blink/public/common/privacy_budget/identifiable_token_builder.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_speech_synthesis_error_event_init.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_speech_synthesis_event_init.h"
@@ -358,7 +358,7 @@ SpeechSynthesisUtterance* SpeechSynthesis::CurrentSpeechUtterance() const {
   if (utterance_queue_.empty())
     return nullptr;
 
-  return utterance_queue_.front();
+  return utterance_queue_.front().Get();
 }
 
 ExecutionContext* SpeechSynthesis::GetExecutionContext() const {
@@ -371,7 +371,7 @@ void SpeechSynthesis::Trace(Visitor* visitor) const {
   visitor->Trace(voice_list_);
   visitor->Trace(utterance_queue_);
   Supplement<LocalDOMWindow>::Trace(visitor);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
   SpeechSynthesisBase::Trace(visitor);
 }
 

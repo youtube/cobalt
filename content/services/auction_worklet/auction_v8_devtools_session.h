@@ -41,6 +41,8 @@ class AuctionV8DevToolsSession : public blink::mojom::DevToolsSession,
   // identified with `context_group_id`, sending responses` and notifications
   // back via `host`.
   //
+  // Assumes `v8_helper` will own `this` and `debug_command_queue` both.
+  //
   // The actual mojo pipe for the DevToolsSession itself is expected to be
   // connected externally.
   //
@@ -52,7 +54,7 @@ class AuctionV8DevToolsSession : public blink::mojom::DevToolsSession,
   //
   AuctionV8DevToolsSession(
       AuctionV8Helper* v8_helper,
-      DebugCommandQueue* debug_command_queue,
+      scoped_refptr<DebugCommandQueue> debug_command_queue,
       int context_group_id,
       const std::string& session_id,
       bool client_expects_binary_responses,
@@ -84,6 +86,7 @@ class AuctionV8DevToolsSession : public blink::mojom::DevToolsSession,
   void DispatchProtocolCommand(int32_t call_id,
                                const std::string& method,
                                base::span<const uint8_t> message) override;
+  void UnpauseAndTerminate() override;
 
   // V8Inspector::Channel implementation:
   void sendResponse(

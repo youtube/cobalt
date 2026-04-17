@@ -7,33 +7,63 @@
 #include <algorithm>
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "base/functional/bind.h"
+#include "base/scoped_observation.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "components/browsing_data/core/pref_names.h"
-#include "components/password_manager/core/browser/password_manager_util.h"
-#include "components/password_manager/core/browser/password_store_change.h"
-#include "components/password_manager/core/browser/password_store_interface.h"
-#include "components/sync/driver/sync_service.h"
+#include "components/password_manager/core/browser/features/password_features.h"
+#include "components/password_manager/core/browser/password_manager_client.h"
+#include "components/password_manager/core/browser/password_store/password_store_change.h"
+#include "components/password_manager/core/browser/password_store/password_store_interface.h"
+#include "components/password_manager/core/browser/password_sync_util.h"
+#include "components/sync/base/user_selectable_type.h"
+#include "components/sync/service/sync_service.h"
+#include "components/sync/service/sync_user_settings.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "url/gurl.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "components/password_manager/core/browser/split_stores_and_local_upm.h"
+#endif  // BUILDFLAG(IS_ANDROID)
 
 namespace browsing_data {
 namespace {
 
-bool IsPasswordSyncEnabled(const syncer::SyncService* sync_service) {
-  if (!sync_service)
+// This predicate is only about passwords in the profile store.
+bool IsProfilePasswordSyncEnabled(PrefService* pref_service,
+                                  const syncer::SyncService* sync_service) {
+#if BUILDFLAG(IS_ANDROID)
+  // After login db deprecation there won't be any more users syncing passwords
+  // from the profile store. All users will have split stores.
+  if (base::FeatureList::IsEnabled(
+          password_manager::features::kLoginDbDeprecationAndroid)) {
     return false;
-  switch (password_manager_util::GetPasswordSyncState(sync_service)) {
-    case password_manager::SyncState::kNotSyncing:
-    case password_manager::SyncState::kAccountPasswordsActiveNormalEncryption:
-    case password_manager::SyncState::
-        kAccountPasswordsActiveWithCustomPassphrase:
-      return false;
-    case password_manager::SyncState::kSyncingNormalEncryption:
-    case password_manager::SyncState::kSyncingWithCustomPassphrase:
-      return true;
   }
+
+  // If UsesSplitStoresAndUPMForLocal() is true, the profile store is never
+  // synced, only the account store is.
+  if (password_manager::UsesSplitStoresAndUPMForLocal(pref_service)) {
+    return false;
+  }
+
+  // TODO(crbug.com/344640768): The IsGmsCoreUpdateRequired() check isn't
+  // perfect, it causes the string to say "synced" in cases when it shouldn't.
+  if (password_manager::IsGmsCoreUpdateRequired(pref_service, sync_service)) {
+    return false;
+  }
+
+  return sync_service &&
+         sync_service->GetUserSettings()->GetSelectedTypes().Has(
+             syncer::UserSelectableType::kPasswords);
+#else
+  // TODO(crbug.com/40067058): Clean this up once Sync-the-feature is gone on
+  // all platforms.
+  return password_manager::sync_util::IsSyncFeatureEnabledIncludingPasswords(
+      sync_service);
+#endif
 }
 
 }  // namespace
@@ -82,6 +112,10 @@ class PasswordStoreFetcher
   int num_passwords_ = 0;
   std::vector<std::string> domain_examples_;
 
+  base::ScopedObservation<password_manager::PasswordStoreInterface,
+                          password_manager::PasswordStoreInterface::Observer>
+      password_store_interface_observation_{this};
+
   base::WeakPtrFactory<PasswordStoreFetcher> weak_ptr_factory_{this};
 };
 
@@ -90,13 +124,10 @@ PasswordStoreFetcher::PasswordStoreFetcher(
     base::RepeatingClosure logins_changed_closure)
     : store_(store), logins_changed_closure_(logins_changed_closure) {
   if (store_)
-    store_->AddObserver(this);
+    password_store_interface_observation_.Observe(store_.get());
 }
 
-PasswordStoreFetcher::~PasswordStoreFetcher() {
-  if (store_)
-    store_->RemoveObserver(this);
-}
+PasswordStoreFetcher::~PasswordStoreFetcher() = default;
 
 void PasswordStoreFetcher::OnLoginsChanged(
     password_manager::PasswordStoreInterface* /*store*/,
@@ -129,13 +160,11 @@ void PasswordStoreFetcher::OnGetPasswordStoreResults(
     std::vector<std::unique_ptr<password_manager::PasswordForm>> results) {
   domain_examples_.clear();
 
-  results.erase(
-      std::remove_if(
-          results.begin(), results.end(),
-          [this](const std::unique_ptr<password_manager::PasswordForm>& form) {
-            return (form->date_created < start_ || form->date_created >= end_);
-          }),
-      results.end());
+  std::erase_if(
+      results,
+      [this](const std::unique_ptr<password_manager::PasswordForm>& form) {
+        return (form->date_created < start_ || form->date_created >= end_);
+      });
   num_passwords_ = results.size();
   std::sort(results.begin(), results.end(),
             [](const std::unique_ptr<password_manager::PasswordForm>& a,
@@ -192,16 +221,16 @@ PasswordsCounter::PasswordsResult::~PasswordsResult() = default;
 PasswordsCounter::PasswordsCounter(
     scoped_refptr<password_manager::PasswordStoreInterface> profile_store,
     scoped_refptr<password_manager::PasswordStoreInterface> account_store,
+    PrefService* pref_service,
     syncer::SyncService* sync_service)
-    : sync_tracker_(this, sync_service) {
+    : sync_tracker_(this, sync_service), pref_service_(pref_service) {
   profile_store_fetcher_ = std::make_unique<PasswordStoreFetcher>(
       profile_store,
       base::BindRepeating(&PasswordsCounter::Restart, base::Unretained(this))),
   account_store_fetcher_ = std::make_unique<PasswordStoreFetcher>(
       account_store,
       base::BindRepeating(&PasswordsCounter::Restart, base::Unretained(this)));
-  DCHECK(profile_store);
-  // |account_store| may be null.
+  // |profile_store| and |account_store| may be null.
 }
 
 PasswordsCounter::~PasswordsCounter() = default;
@@ -222,7 +251,8 @@ const std::vector<std::string>& PasswordsCounter::account_domain_examples() {
 }
 
 void PasswordsCounter::OnInitialized() {
-  sync_tracker_.OnInitialized(base::BindRepeating(&IsPasswordSyncEnabled));
+  sync_tracker_.OnInitialized(
+      base::BindRepeating(&IsProfilePasswordSyncEnabled, pref_service_));
 }
 
 const char* PasswordsCounter::GetPrefName() const {
@@ -230,13 +260,14 @@ const char* PasswordsCounter::GetPrefName() const {
 }
 
 void PasswordsCounter::Count() {
+  weak_ptr_factory_.InvalidateWeakPtrs();
   remaining_tasks_ = 2;
-  profile_store_fetcher_->Fetch(
-      GetPeriodStart(), GetPeriodEnd(),
-      base::BindOnce(&PasswordsCounter::OnFetchDone, base::Unretained(this)));
-  account_store_fetcher_->Fetch(
-      GetPeriodStart(), GetPeriodEnd(),
-      base::BindOnce(&PasswordsCounter::OnFetchDone, base::Unretained(this)));
+  profile_store_fetcher_->Fetch(GetPeriodStart(), GetPeriodEnd(),
+                                base::BindOnce(&PasswordsCounter::OnFetchDone,
+                                               weak_ptr_factory_.GetWeakPtr()));
+  account_store_fetcher_->Fetch(GetPeriodStart(), GetPeriodEnd(),
+                                base::BindOnce(&PasswordsCounter::OnFetchDone,
+                                               weak_ptr_factory_.GetWeakPtr()));
 }
 
 void PasswordsCounter::OnPasswordsFetchDone() {
@@ -245,15 +276,15 @@ void PasswordsCounter::OnPasswordsFetchDone() {
 
 std::unique_ptr<PasswordsCounter::PasswordsResult>
 PasswordsCounter::MakeResult() {
-  DCHECK(!(is_sync_active() && num_account_passwords() > 0));
   return std::make_unique<PasswordsCounter::PasswordsResult>(
       this, num_passwords(), num_account_passwords(), is_sync_active(),
       domain_examples(), account_domain_examples());
 }
 
 void PasswordsCounter::OnFetchDone() {
-  if (--remaining_tasks_ == 0)
+  if (--remaining_tasks_ == 0) {
     OnPasswordsFetchDone();
+  }
 }
 
 }  // namespace browsing_data

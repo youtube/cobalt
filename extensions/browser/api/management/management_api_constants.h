@@ -16,6 +16,7 @@ extern const char kDisabledReasonPermissionsIncrease[];
 // Error messages.
 extern const char kExtensionCreateError[];
 extern const char kGestureNeededForEscalationError[];
+extern const char kGestureNeededForMV2DeprecationReEnableError[];
 extern const char kGestureNeededForUninstallError[];
 extern const char kManifestParseError[];
 extern const char kNoExtensionError[];
@@ -40,10 +41,6 @@ extern const char kInstallReplacementWebAppInvalidWebAppError[];
 extern const char kInstallReplacementWebAppInvalidContextError[];
 extern const char kInstallReplacementWebAppNotFromWebstoreError[];
 extern const char kGestureNeededForInstallReplacementWebAppError[];
-extern const char kGestureNeededForInstallReplacementAndroidAppError[];
-extern const char kInstallReplacementAndroidAppCannotInstallApp[];
-extern const char kInstallReplacementAndroidAppInvalidContextError[];
-extern const char kInstallReplacementAndroidAppNotFromWebstoreError[];
 extern const char kParentPermissionFailedError[];
 extern const char kChromeAppsDeprecated[];
 

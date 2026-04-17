@@ -62,7 +62,8 @@ DecodedAudio::DecodedAudio(int channels,
   SB_DCHECK_GT(channels_, 0);
   SB_DCHECK_GE(size_in_bytes_, 0);
   // TODO(b/275199195): Enable the SB_DCHECK below.
-  // SB_DCHECK(size_in_bytes_ % (GetBytesPerSample(sample_type_) * channels_) ==
+  // SB_DCHECK_EQ(size_in_bytes_ % (GetBytesPerSample(sample_type_) *
+  // channels_),
   //           0);
 }
 
@@ -81,8 +82,8 @@ DecodedAudio::DecodedAudio(int channels,
       size_in_bytes_(size_in_bytes) {
   SB_DCHECK_GT(channels_, 0);
   SB_DCHECK_GE(size_in_bytes_, 0);
-  SB_DCHECK(size_in_bytes_ % (GetBytesPerSample(sample_type_) * channels_) ==
-            0);
+  SB_DCHECK_EQ(size_in_bytes_ % (GetBytesPerSample(sample_type_) * channels_),
+               0);
 }
 
 int DecodedAudio::frames() const {
@@ -150,8 +151,16 @@ void DecodedAudio::AdjustForDiscardedDurations(
     int sample_rate,
     int64_t discarded_duration_from_front,
     int64_t discarded_duration_from_back) {
-  SB_DCHECK_GE(discarded_duration_from_front, 0);
-  SB_DCHECK_GE(discarded_duration_from_back, 0);
+  if (discarded_duration_from_front < 0) {
+    SB_LOG(WARNING) << "discarded_duration_from_front is negative with value "
+                    << discarded_duration_from_front << ". Setting to 0.";
+    discarded_duration_from_front = 0;
+  }
+  if (discarded_duration_from_back < 0) {
+    SB_LOG(WARNING) << "discarded_duration_from_back is negative with value "
+                    << discarded_duration_from_back << ". Setting to 0.";
+    discarded_duration_from_back = 0;
+  }
   SB_DCHECK_EQ(storage_type(), kSbMediaAudioFrameStorageTypeInterleaved);
 
   if (discarded_duration_from_front == 0 && discarded_duration_from_back == 0) {

@@ -9,6 +9,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.TextView;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.download.home.filter.OfflineItemFilterSource;
 import org.chromium.chrome.browser.download.internal.R;
 import org.chromium.ui.modelutil.PropertyKey;
@@ -16,16 +17,17 @@ import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModel.WritableObjectPropertyKey;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 
-/**
- * The coordinator responsible for creating the storage summary view in download home.
- */
+/** The coordinator responsible for creating the storage summary view in download home. */
+@NullMarked
 public class StorageCoordinator {
     private final PropertyModel mModel = new PropertyModel(StorageProperties.ALL_KEYS);
     private final TextView mView;
 
     public StorageCoordinator(Context context, OfflineItemFilterSource filterSource) {
-        mView = (TextView) LayoutInflater.from(context).inflate(
-                R.layout.download_storage_summary, null);
+        mView =
+                (TextView)
+                        LayoutInflater.from(context)
+                                .inflate(R.layout.download_storage_summary, null);
         PropertyModelChangeProcessor.create(mModel, mView, this::bind);
         new StorageSummaryProvider(context, this::onStorageInfoUpdated, filterSource);
     }

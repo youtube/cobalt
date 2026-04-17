@@ -7,15 +7,29 @@
 
 #include <stdint.h>
 
+#include "base/compiler_specific.h"
+#include "base/component_export.h"
+#include "base/memory/raw_ptr_exclusion.h"
+#include "build/blink_buildflags.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
-#include "ui/gfx/gfx_export.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/scoped_java_ref.h"
-#elif BUILDFLAG(IS_MAC)
+#endif
+
+#if BUILDFLAG(IS_APPLE)
+#include "base/apple/owned_objc.h"
+#endif
+
+#if BUILDFLAG(IS_MAC)
 #include <string>
-#elif BUILDFLAG(IS_WIN)
+#endif
+
+#if BUILDFLAG(IS_IOS)
+#include <variant>
+#endif
+
+#if BUILDFLAG(IS_WIN)
 #include "base/win/windows_types.h"
 #endif
 
@@ -39,6 +53,13 @@
 // The name 'View' here meshes with macOS where the UI elements are called
 // 'views' and with our Chrome UI code where the elements are also called
 // 'views'.
+//
+// TODO(https://crbug.com/40267204): Both gfx::NativeEvent and ui::PlatformEvent
+// are typedefs for native event types on different platforms, but they're
+// slightly different and used in different places. They should be merged.
+//
+// TODO(https://crbug.com/40157665): gfx::NativeCursor is ui::Cursor in Aura;
+// perhaps remove gfx::NativeCursor and use ui::Cursor everywhere?
 
 #if defined(USE_AURA)
 namespace aura {
@@ -58,35 +79,17 @@ enum class CursorType;
 struct IAccessible;
 #elif BUILDFLAG(IS_IOS)
 #ifdef __OBJC__
-struct objc_object;
-@class UIEvent;
 @class UIImage;
-@class UIView;
-@class UIWindow;
-@class UITextField;
 #else
-class UIEvent;
 class UIImage;
-class UIView;
-class UIWindow;
-class UITextField;
 #endif  // __OBJC__
 #elif BUILDFLAG(IS_MAC)
 #ifdef __OBJC__
-@class NSCursor;
-@class NSEvent;
 @class NSImage;
 @class NSView;
 @class NSWindow;
-@class NSTextField;
 #else
-struct objc_object;
-class NSCursor;
-class NSEvent;
 class NSImage;
-class NSView;
-class NSWindow;
-class NSTextField;
 #endif  // __OBJC__
 #endif
 
@@ -99,9 +102,7 @@ class ViewAndroid;
 #endif
 class SkBitmap;
 
-// TODO(crbug.com/1052397): Revisit the macro expression once build flag switch
-// of lacros-chrome is complete.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_LINUX)
 extern "C" {
 struct _AtkObject;
 using AtkObject = struct _AtkObject;
@@ -115,92 +116,69 @@ using NativeCursor = ui::Cursor;
 using NativeView = aura::Window*;
 using NativeWindow = aura::Window*;
 using NativeEvent = ui::Event*;
-constexpr NativeView kNullNativeView = nullptr;
-constexpr NativeWindow kNullNativeWindow = nullptr;
 #elif BUILDFLAG(IS_IOS)
 using NativeCursor = void*;
-using NativeView = UIView*;
-using NativeWindow = UIWindow*;
-using NativeEvent = UIEvent*;
-constexpr NativeView kNullNativeView = nullptr;
-constexpr NativeWindow kNullNativeWindow = nullptr;
+using NativeView = base::apple::WeakUIView;
+using NativeWindow = base::apple::WeakUIWindow;
+#if BUILDFLAG(USE_BLINK)
+#if BUILDFLAG(IS_IOS_TVOS)
+using NativeEvent =
+    std::variant<base::apple::OwnedUIEvent, base::apple::OwnedUIPress>;
+#else
+using NativeEvent =
+    std::variant<base::apple::OwnedUIEvent, base::apple::OwnedBEKeyEntry>;
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+#else
+using NativeEvent = base::apple::OwnedUIEvent;
+#endif  // BUILDFLAG(USE_BLINK)
 #elif BUILDFLAG(IS_MAC)
-using NativeCursor = NSCursor*;
-using NativeEvent = NSEvent*;
+using NativeCursor = base::apple::OwnedNSCursor;
+using NativeEvent = base::apple::OwnedNSEvent;
 // NativeViews and NativeWindows on macOS are not necessarily in the same
 // process as the NSViews and NSWindows that they represent. Require an explicit
 // function call (GetNativeNSView or GetNativeNSWindow) to retrieve the
-// underlying NSView or NSWindow <https://crbug.com/893719>. These are wrapper
-// classes only and do not maintain any ownership, thus the __unsafe_unretained.
-class GFX_EXPORT NativeView {
+// underlying NSView or NSWindow <https://crbug.com/40597366>.
+class COMPONENT_EXPORT(GFX) NativeView : public base::apple::WeakNSView {
  public:
-  constexpr NativeView() = default;
-  // TODO(ccameron): Make this constructor explicit.
-  constexpr NativeView(__unsafe_unretained NSView* ns_view)
-      : ns_view_(ns_view) {}
-
+  NativeView();
+#ifdef __OBJC__
+  explicit NativeView(NSView* ns_view);
   // This function name is verbose (that is, not just GetNSView) so that it
   // is easily grep-able.
-  NSView* GetNativeNSView() const { return ns_view_; }
-
-  explicit operator bool() const { return ns_view_ != nullptr; }
-  bool operator==(const NativeView& other) const {
-    return ns_view_ == other.ns_view_;
-  }
-  bool operator!=(const NativeView& other) const {
-    return ns_view_ != other.ns_view_;
-  }
-  bool operator<(const NativeView& other) const {
-    return ns_view_ < other.ns_view_;
-  }
+  NSView* GetNativeNSView() const;
+  // This is the base class's getter; please use the explicit GetNativeNSView()
+  // from this class instead.
+  NSView* Get() const = delete;
+#endif  // __OBJC__
   std::string ToString() const;
-
- private:
-#if defined(__has_feature) && __has_feature(objc_arc)
-  __unsafe_unretained NSView* ns_view_ = nullptr;
-#else
-  NSView* ns_view_ = nullptr;
-#endif
 };
-class GFX_EXPORT NativeWindow {
+class COMPONENT_EXPORT(GFX) NativeWindow : public base::apple::WeakNSWindow {
  public:
-  constexpr NativeWindow() = default;
-  // TODO(ccameron): Make this constructor explicit.
-  constexpr NativeWindow(__unsafe_unretained NSWindow* ns_window)
-      : ns_window_(ns_window) {}
-
+  NativeWindow();
+#ifdef __OBJC__
+  explicit NativeWindow(NSWindow* ns_window);
   // This function name is verbose (that is, not just GetNSWindow) so that it
   // is easily grep-able.
-  NSWindow* GetNativeNSWindow() const { return ns_window_; }
-
-  explicit operator bool() const { return ns_window_ != nullptr; }
-  bool operator==(const NativeWindow& other) const {
-    return ns_window_ == other.ns_window_;
-  }
-  bool operator!=(const NativeWindow& other) const {
-    return ns_window_ != other.ns_window_;
-  }
-  bool operator<(const NativeWindow& other) const {
-    return ns_window_ < other.ns_window_;
-  }
+  NSWindow* GetNativeNSWindow() const;
+  // This is the base class's getter; please use the explicit
+  // GetNativeNSWindow() from this class instead.
+  NSWindow* Get() const = delete;
+#endif  // __OBJC__
+  // This is needed to put NativeWindow into maps. This is kinda safe because to
+  // construct the NativeWindow to be the search key, the window has to be alive
+  // and thus the weak pointer hasn't gone away, but it's still not ideal.
+  // TODO(avi): Remove this and `pointer_bits_`.
+  bool operator<(const NativeWindow& other) const;
   std::string ToString() const;
 
  private:
-#if defined(__has_feature) && __has_feature(objc_arc)
-  __unsafe_unretained NSWindow* ns_window_ = nullptr;
-#else
-  NSWindow* ns_window_ = nullptr;
-#endif
+  uintptr_t pointer_bits_ = 0;
 };
-constexpr NativeView kNullNativeView = NativeView(nullptr);
-constexpr NativeWindow kNullNativeWindow = NativeWindow(nullptr);
 #elif BUILDFLAG(IS_ANDROID)
 using NativeCursor = void*;
 using NativeView = ui::ViewAndroid*;
 using NativeWindow = ui::WindowAndroid*;
 using NativeEvent = base::android::ScopedJavaGlobalRef<jobject>;
-constexpr NativeView kNullNativeView = nullptr;
-constexpr NativeWindow kNullNativeWindow = nullptr;
 #else
 #error Unknown build environment.
 #endif
@@ -208,35 +186,19 @@ constexpr NativeWindow kNullNativeWindow = nullptr;
 #if BUILDFLAG(IS_WIN)
 using NativeViewAccessible = IAccessible*;
 #elif BUILDFLAG(IS_IOS)
-#ifdef __OBJC__
-using NativeViewAccessible = id;
-#else
-using NativeViewAccessible = struct objc_object*;
-#endif
+// UIAccessibility is an informal protocol on NSObject, so make accessible
+// objects owned NSObjects. Do not use as a general object wrapper.
+using NativeViewAccessible = base::apple::OwnedNSObject;
 #elif BUILDFLAG(IS_MAC)
-#ifdef __OBJC__
-using NativeViewAccessible = id;
-#else
-using NativeViewAccessible = struct objc_object*;
-#endif
-// TODO(crbug.com/1052397): Revisit the macro expression once build flag switch
-// of lacros-chrome is complete.
-#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
-// Linux doesn't have a native font type.
+using NativeViewAccessible = base::apple::OwnedNSAccessibility;
+#elif BUILDFLAG(IS_LINUX)
+// Linux doesn't have a native accessibility type.
 using NativeViewAccessible = AtkObject*;
 #else
 // Android, Chrome OS, etc.
 using UnimplementedNativeViewAccessible =
     struct _UnimplementedNativeViewAccessible;
 using NativeViewAccessible = UnimplementedNativeViewAccessible*;
-#endif
-
-// A constant value to indicate that gfx::NativeCursor refers to no cursor.
-#if defined(USE_AURA)
-const ui::mojom::CursorType kNullCursor =
-    static_cast<ui::mojom::CursorType>(-1);
-#else
-const gfx::NativeCursor kNullCursor = static_cast<gfx::NativeCursor>(nullptr);
 #endif
 
 // Note: for test_shell we're packing a pointer into the NativeViewId. So, if
@@ -251,14 +213,14 @@ using NativeViewId = intptr_t;
 using AcceleratedWidget = HWND;
 constexpr AcceleratedWidget kNullAcceleratedWidget = nullptr;
 #elif BUILDFLAG(IS_IOS)
-using AcceleratedWidget = UIView*;
+using AcceleratedWidget = uint64_t;
 constexpr AcceleratedWidget kNullAcceleratedWidget = 0;
 #elif BUILDFLAG(IS_MAC)
 using AcceleratedWidget = uint64_t;
 constexpr AcceleratedWidget kNullAcceleratedWidget = 0;
 #elif BUILDFLAG(IS_ANDROID)
 using AcceleratedWidget = ANativeWindow*;
-constexpr AcceleratedWidget kNullAcceleratedWidget = 0;
+constexpr AcceleratedWidget kNullAcceleratedWidget = nullptr;
 #elif BUILDFLAG(IS_OZONE)
 using AcceleratedWidget = uint32_t;
 constexpr AcceleratedWidget kNullAcceleratedWidget = 0;

@@ -11,6 +11,7 @@
 #include "include/libplatform/libplatform.h"
 #include "include/v8-array-buffer.h"
 #include "include/v8-context.h"
+#include "include/v8-cppgc.h"
 #include "include/v8-extension.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-object.h"
@@ -21,6 +22,7 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/handles/handles.h"
 #include "src/heap/parked-scope.h"
+#include "src/logging/log.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/zone/accounting-allocator.h"
@@ -74,7 +76,10 @@ enum CountersMode { kNoCounters, kEnableCounters };
 // all client Isolates.
 class IsolateWrapper final {
  public:
-  explicit IsolateWrapper(CountersMode counters_mode);
+  // `use_statically_set_cpp_heap` exists to avoid TSAN issues, see the comment
+  // on `cpp_heap_`.
+  explicit IsolateWrapper(CountersMode counters_mode,
+                          bool use_statically_set_cpp_heap = true);
 
   ~IsolateWrapper();
   IsolateWrapper(const IsolateWrapper&) = delete;
@@ -85,10 +90,45 @@ class IsolateWrapper final {
     return reinterpret_cast<i::Isolate*>(isolate_);
   }
 
+  static void set_cpp_heap_for_next_isolate(std::unique_ptr<CppHeap> cpp_heap) {
+    cpp_heap_ = std::move(cpp_heap);
+  }
+
  private:
   std::unique_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator_;
   std::unique_ptr<CounterMap> counter_map_;
   v8::Isolate* isolate_;
+
+  // `cpp_heap_` is a side channel to pass a custom CppHeap to isolate creation.
+  // Ideally it could be passes as a parameter to the constructor, but with the
+  // MixIn design pattern, that's not possible. Using a static variable as a
+  // side channel causes problems with TSAN, however, when multiple
+  // IsolateWrapper are used at the same time in different threads. The
+  // parameter `use_statically_set_cpp_heap` of the constructor solves the TSAN
+  // issue by providing a way to avoid using `cpp_heap_`.
+  static std::unique_ptr<CppHeap> cpp_heap_;
+};
+
+class IsolateWithContextWrapper final {
+ public:
+  IsolateWithContextWrapper()
+      : isolate_wrapper_(kNoCounters, false),
+        isolate_scope_(isolate_wrapper_.isolate()),
+        handle_scope_(isolate_wrapper_.isolate()),
+        context_(v8::Context::New(isolate_wrapper_.isolate())),
+        context_scope_(context_) {}
+
+  v8::Isolate* v8_isolate() const { return isolate_wrapper_.isolate(); }
+  i::Isolate* isolate() const {
+    return reinterpret_cast<i::Isolate*>(v8_isolate());
+  }
+
+ private:
+  IsolateWrapper isolate_wrapper_;
+  v8::Isolate::Scope isolate_scope_;
+  v8::HandleScope handle_scope_;
+  v8::Local<v8::Context> context_;
+  v8::Context::Scope context_scope_;
 };
 
 //
@@ -131,7 +171,7 @@ class WithIsolateScopeMixin : public TMixin {
     return reinterpret_cast<v8::internal::Isolate*>(this->v8_isolate());
   }
 
-  i::Handle<i::String> MakeName(const char* str, int suffix) {
+  i::DirectHandle<i::String> MakeName(const char* str, int suffix) {
     v8::base::EmbeddedVector<char, 128> buffer;
     v8::base::SNPrintF(buffer, "%s%d", str, suffix);
     return MakeString(buffer.begin());
@@ -179,34 +219,22 @@ class WithIsolateScopeMixin : public TMixin {
                                   Local<String> origin_url,
                                   bool is_shared_cross_origin) {
     Isolate* isolate = Isolate::GetCurrent();
-    ScriptOrigin origin(isolate, origin_url, 0, 0, is_shared_cross_origin);
+    ScriptOrigin origin(origin_url, 0, 0, is_shared_cross_origin);
     ScriptCompiler::Source script_source(source, origin);
     return ScriptCompiler::Compile(isolate->GetCurrentContext(), &script_source)
         .ToLocalChecked();
   }
 
-  // By default, the GC methods do not scan the stack conservatively.
-  void CollectGarbage(i::AllocationSpace space, i::Isolate* isolate = nullptr) {
+  void InvokeMajorGC(i::Isolate* isolate = nullptr) {
     i::Isolate* iso = isolate ? isolate : i_isolate();
-    iso->heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
+    iso->heap()->CollectGarbage(i::OLD_SPACE,
+                                i::GarbageCollectionReason::kTesting);
   }
 
-  void CollectAllGarbage(i::Isolate* isolate = nullptr) {
+  void InvokeMinorGC(i::Isolate* isolate = nullptr) {
     i::Isolate* iso = isolate ? isolate : i_isolate();
-    iso->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
-                                   i::GarbageCollectionReason::kTesting);
-  }
-
-  void CollectAllAvailableGarbage(i::Isolate* isolate = nullptr) {
-    i::Isolate* iso = isolate ? isolate : i_isolate();
-    iso->heap()->CollectAllAvailableGarbage(
-        i::GarbageCollectionReason::kTesting);
-  }
-
-  void PreciseCollectAllGarbage(i::Isolate* isolate = nullptr) {
-    i::Isolate* iso = isolate ? isolate : i_isolate();
-    iso->heap()->PreciseCollectAllGarbage(i::Heap::kNoGCFlags,
-                                          i::GarbageCollectionReason::kTesting);
+    iso->heap()->CollectGarbage(i::NEW_SPACE,
+                                i::GarbageCollectionReason::kTesting);
   }
 
   v8::Local<v8::String> NewString(const char* string) {
@@ -246,13 +274,20 @@ class WithIsolateScopeMixin : public TMixin {
 template <typename TMixin>
 class WithContextMixin : public TMixin {
  public:
-  WithContextMixin()
-      : context_(Context::New(this->v8_isolate())), context_scope_(context_) {}
+  WithContextMixin() {
+    v8::Local<v8::Context> context = Context::New(this->v8_isolate());
+    context->Enter();
+    context_.Reset(this->v8_isolate(), context);
+  }
+  ~WithContextMixin() {
+    context_.Get(this->v8_isolate())->Exit();
+    context_.Reset();
+  }
   WithContextMixin(const WithContextMixin&) = delete;
   WithContextMixin& operator=(const WithContextMixin&) = delete;
 
-  const Local<Context>& context() const { return v8_context(); }
-  const Local<Context>& v8_context() const { return context_; }
+  Local<Context> context() const { return v8_context(); }
+  Local<Context> v8_context() const { return context_.Get(this->v8_isolate()); }
 
   void SetGlobalProperty(const char* name, v8::Local<v8::Value> value) {
     CHECK(v8_context()
@@ -262,8 +297,7 @@ class WithContextMixin : public TMixin {
   }
 
  private:
-  v8::Local<v8::Context> context_;
-  v8::Context::Scope context_scope_;
+  v8::Global<v8::Context> context_;
 };
 
 using TestWithPlatform =       //
@@ -371,13 +405,13 @@ class WithInternalIsolateMixin : public TMixin {
   Factory* factory() const { return isolate()->factory(); }
   Isolate* isolate() const { return TMixin::i_isolate(); }
 
-  Handle<NativeContext> native_context() const {
+  DirectHandle<NativeContext> native_context() const {
     return isolate()->native_context();
   }
 
   template <typename T = Object>
   Handle<T> RunJS(const char* source) {
-    return Handle<T>::cast(RunJSInternal(source));
+    return Cast<T>(RunJSInternal(source));
   }
 
   Handle<Object> RunJSInternal(const char* source) {
@@ -385,8 +419,8 @@ class WithInternalIsolateMixin : public TMixin {
   }
 
   template <typename T = Object>
-  Handle<T> RunJS(::v8::String::ExternalOneByteStringResource* source) {
-    return Handle<T>::cast(RunJSInternal(source));
+  DirectHandle<T> RunJS(::v8::String::ExternalOneByteStringResource* source) {
+    return Cast<T>(RunJSInternal(source));
   }
 
   Handle<Object> RunJSInternal(
@@ -500,22 +534,12 @@ class V8_NODISCARD SaveFlags {
 };
 
 // For GTest.
-inline void PrintTo(Object o, ::std::ostream* os) {
+inline void PrintTo(Tagged<Object> o, ::std::ostream* os) {
   *os << reinterpret_cast<void*>(o.ptr());
 }
-inline void PrintTo(Smi o, ::std::ostream* os) {
+inline void PrintTo(Tagged<Smi> o, ::std::ostream* os) {
   *os << reinterpret_cast<void*>(o.ptr());
 }
-
-// ManualGCScope allows for disabling GC heuristics. This is useful for tests
-// that want to check specific corner cases around GC.
-//
-// The scope will finalize any ongoing GC on the provided Isolate.
-class V8_NODISCARD ManualGCScope final : private SaveFlags {
- public:
-  explicit ManualGCScope(i::Isolate* isolate);
-  ~ManualGCScope() = default;
-};
 
 static inline uint16_t* AsciiToTwoByteString(const char* source) {
   size_t array_length = strlen(source) + 1;
@@ -526,9 +550,9 @@ static inline uint16_t* AsciiToTwoByteString(const char* source) {
 
 class TestTransitionsAccessor : public TransitionsAccessor {
  public:
-  TestTransitionsAccessor(Isolate* isolate, Map map)
+  TestTransitionsAccessor(Isolate* isolate, Tagged<Map> map)
       : TransitionsAccessor(isolate, map) {}
-  TestTransitionsAccessor(Isolate* isolate, Handle<Map> map)
+  TestTransitionsAccessor(Isolate* isolate, DirectHandle<Map> map)
       : TransitionsAccessor(isolate, *map) {}
 
   // Expose internals for tests.
@@ -541,7 +565,9 @@ class TestTransitionsAccessor : public TransitionsAccessor {
 
   int Capacity() { return TransitionsAccessor::Capacity(); }
 
-  TransitionArray transitions() { return TransitionsAccessor::transitions(); }
+  Tagged<TransitionArray> transitions() {
+    return TransitionsAccessor::transitions();
+  }
 };
 
 // Helper class that allows to write tests in a slot size independent manner.
@@ -559,7 +585,7 @@ class FeedbackVectorHelper {
     }
   }
 
-  Handle<FeedbackVector> vector() { return vector_; }
+  DirectHandle<FeedbackVector> vector() { return vector_; }
 
   // Returns slot identifier by numerical index.
   FeedbackSlot slot(int index) const { return slots_[index]; }
@@ -577,17 +603,28 @@ Handle<FeedbackVector> NewFeedbackVector(Isolate* isolate, Spec* spec) {
   return FeedbackVector::NewForTesting(isolate, spec);
 }
 
-class ParkingThread : public v8::base::Thread {
+class FakeCodeEventLogger : public i::CodeEventLogger {
  public:
-  explicit ParkingThread(const Options& options) : v8::base::Thread(options) {}
+  explicit FakeCodeEventLogger(i::Isolate* isolate)
+      : CodeEventLogger(isolate) {}
 
-  void ParkedJoin(const ParkedScope& scope) {
-    USE(scope);
-    Join();
-  }
+  void CodeMoveEvent(i::Tagged<i::InstructionStream> from,
+                     i::Tagged<i::InstructionStream> to) override {}
+  void BytecodeMoveEvent(i::Tagged<i::BytecodeArray> from,
+                         i::Tagged<i::BytecodeArray> to) override {}
+  void CodeDisableOptEvent(
+      i::DirectHandle<i::AbstractCode> code,
+      i::DirectHandle<i::SharedFunctionInfo> shared) override {}
 
  private:
-  using v8::base::Thread::Join;
+  void LogRecordedBuffer(
+      i::Tagged<i::AbstractCode> code,
+      i::MaybeDirectHandle<i::SharedFunctionInfo> maybe_shared,
+      const char* name, size_t length) override {}
+#if V8_ENABLE_WEBASSEMBLY
+  void LogRecordedBuffer(const i::wasm::WasmCode* code, const char* name,
+                         size_t length) override {}
+#endif  // V8_ENABLE_WEBASSEMBLY
 };
 
 #ifdef V8_CC_GNU
@@ -610,18 +647,15 @@ class ParkingThread : public v8::base::Thread {
 #elif V8_HOST_ARCH_MIPS64
 #define GET_STACK_POINTER_TO(sp_addr) \
   __asm__ __volatile__("sd $sp, %0" : "=g"(sp_addr))
+#elif V8_OS_ZOS
+#define GET_STACK_POINTER_TO(sp_addr) \
+  __asm__ __volatile__(" stg 15,%0" : "=m"(sp_addr))
 #elif defined(__s390x__) || defined(_ARCH_S390X)
 #define GET_STACK_POINTER_TO(sp_addr) \
   __asm__ __volatile__("stg %%r15, %0" : "=m"(sp_addr))
-#elif defined(__s390__) || defined(_ARCH_S390)
-#define GET_STACK_POINTER_TO(sp_addr) \
-  __asm__ __volatile__("st 15, %0" : "=m"(sp_addr))
 #elif defined(__PPC64__) || defined(_ARCH_PPC64)
 #define GET_STACK_POINTER_TO(sp_addr) \
   __asm__ __volatile__("std 1, %0" : "=m"(sp_addr))
-#elif defined(__PPC__) || defined(_ARCH_PPC)
-#define GET_STACK_POINTER_TO(sp_addr) \
-  __asm__ __volatile__("stw 1, %0" : "=m"(sp_addr))
 #elif V8_TARGET_ARCH_RISCV64
 #define GET_STACK_POINTER_TO(sp_addr) \
   __asm__ __volatile__("add %0, sp, x0" : "=r"(sp_addr))

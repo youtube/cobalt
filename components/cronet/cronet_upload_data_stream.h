@@ -52,8 +52,8 @@ class CronetUploadDataStream : public net::UploadDataStream {
     virtual void OnUploadDataStreamDestroyed() = 0;
 
    protected:
-    Delegate() {}
-    virtual ~Delegate() {}
+    Delegate() = default;
+    virtual ~Delegate() = default;
   };
 
   CronetUploadDataStream(Delegate* delegate, int64_t size);
@@ -103,7 +103,7 @@ class CronetUploadDataStream : public net::UploadDataStream {
   // Set to false when a read starts, true when a rewind completes.
   bool at_front_of_stream_;
 
-  const raw_ptr<Delegate> delegate_;
+  const raw_ptr<Delegate, DanglingUntriaged> delegate_;
 
   // Vends pointers on the network thread, though created on a client thread.
   base::WeakPtrFactory<CronetUploadDataStream> weak_factory_{this};

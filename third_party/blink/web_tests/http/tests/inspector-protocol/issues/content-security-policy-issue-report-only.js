@@ -1,4 +1,4 @@
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
     const {page, session, dp} = await testRunner.startBlank(
       `Verifies multiple CSP issues in report-only mode.\n`);
 
@@ -8,6 +8,9 @@
 
     const issues = new Array();
     dp.Audits.onIssueAdded(issue => {
+      if (!issue.params.issue.details.contentSecurityPolicyIssueDetails) {
+        return;
+      }
       issues.push(issue);
       if (issues.length == 3) {
         issues.sort((a, b) => {

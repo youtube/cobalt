@@ -4,88 +4,82 @@
 
 #include "components/app_restore/window_info.h"
 
-#include "base/strings/stringprintf.h"
-#include "base/strings/utf_string_conversions.h"
+#include <sstream>
+
+#include "base/values.h"
+#include "ui/base/mojom/window_show_state.mojom.h"
 
 namespace app_restore {
 
 namespace {
 
-std::string ToPrefixedString(absl::optional<int32_t> val,
-                             const std::string& prefix) {
-  return prefix + base::StringPrintf(": %d \n", val ? *val : -1);
+std::string WindowStateTypeToString(
+    std::optional<chromeos::WindowStateType> val) {
+  if (!val) {
+    return std::string();
+  }
+  std::stringstream stream;
+  stream << *val;
+  return stream.str();
 }
 
-std::string ToPrefixedString(absl::optional<gfx::Rect> val,
-                             const std::string& prefix) {
-  return prefix + ": " + (val ? *val : gfx::Rect()).ToString() + " \n";
-}
-
-std::string ToPrefixedString(absl::optional<chromeos::WindowStateType> val,
-                             const std::string& prefix) {
-  absl::optional<int> new_val =
-      val ? absl::make_optional(static_cast<int>(*val)) : absl::nullopt;
-  return ToPrefixedString(new_val, prefix);
-}
-
-std::string ToPrefixedString(absl::optional<ui::WindowShowState> val,
-                             const std::string& prefix) {
-  absl::optional<int> new_val =
-      val ? absl::make_optional(static_cast<int>(*val)) : absl::nullopt;
-  return ToPrefixedString(new_val, prefix);
-}
-
-std::string ToPrefixedString(absl::optional<std::u16string> val,
-                             const std::string& prefix) {
-  return prefix + ": " + base::UTF16ToASCII(val.value_or(u""));
-}
-
-std::string ToPrefixedString(base::Uuid val, const std::string& prefix) {
-  return prefix + ": " +
-         (val.is_valid() ? val : base::Uuid()).AsLowercaseString();
+std::string WindowShowStateToString(
+    std::optional<ui::mojom::WindowShowState> val) {
+  if (!val) {
+    return std::string();
+  }
+  return WindowStateTypeToString(chromeos::ToWindowStateType(*val));
 }
 
 }  // namespace
 
-WindowInfo::ArcExtraInfo::ArcExtraInfo() = default;
-WindowInfo::ArcExtraInfo::ArcExtraInfo(const WindowInfo::ArcExtraInfo&) =
+BrowserExtraInfo::BrowserExtraInfo() = default;
+
+BrowserExtraInfo::BrowserExtraInfo(BrowserExtraInfo&& other) = default;
+
+BrowserExtraInfo::BrowserExtraInfo(const BrowserExtraInfo&) = default;
+
+BrowserExtraInfo& BrowserExtraInfo::operator=(BrowserExtraInfo&& other) =
     default;
-WindowInfo::ArcExtraInfo& WindowInfo::ArcExtraInfo::operator=(
-    const WindowInfo::ArcExtraInfo&) = default;
-WindowInfo::ArcExtraInfo::~ArcExtraInfo() = default;
+
+BrowserExtraInfo& BrowserExtraInfo::operator=(const BrowserExtraInfo&) =
+    default;
+
+BrowserExtraInfo::~BrowserExtraInfo() = default;
+
+bool BrowserExtraInfo::operator==(const BrowserExtraInfo& other) const =
+    default;
 
 WindowInfo::WindowInfo() = default;
+
+WindowInfo::WindowInfo(WindowInfo&& other) = default;
+
+WindowInfo::WindowInfo(const WindowInfo&) = default;
+
+WindowInfo& WindowInfo::operator=(WindowInfo&& other) = default;
+
+WindowInfo& WindowInfo::operator=(const WindowInfo&) = default;
+
 WindowInfo::~WindowInfo() = default;
 
-WindowInfo* WindowInfo::Clone() {
-  WindowInfo* new_window_info = new WindowInfo();
-
-  new_window_info->window = window;
-  new_window_info->activation_index = activation_index;
-  new_window_info->desk_id = desk_id;
-  new_window_info->desk_guid = desk_guid;
-  new_window_info->current_bounds = current_bounds;
-  new_window_info->window_state_type = window_state_type;
-  new_window_info->pre_minimized_show_state_type =
-      pre_minimized_show_state_type;
-  new_window_info->snap_percentage = snap_percentage;
-  new_window_info->display_id = display_id;
-  new_window_info->app_title = app_title;
-  new_window_info->arc_extra_info = arc_extra_info;
-  return new_window_info;
-}
+bool WindowInfo::operator==(const WindowInfo& other) const = default;
 
 std::string WindowInfo::ToString() const {
-  return ToPrefixedString(activation_index, "Activation index") +
-         ToPrefixedString(desk_id, "Desk") +
-         ToPrefixedString(desk_guid, "Desk guid") +
-         ToPrefixedString(current_bounds, "Current bounds") +
-         ToPrefixedString(window_state_type, "Window state") +
-         ToPrefixedString(pre_minimized_show_state_type,
-                          "Pre minimized show state") +
-         ToPrefixedString(snap_percentage, "Snap percentage") +
-         ToPrefixedString(display_id, "Display id") +
-         ToPrefixedString(app_title, "App Title");
+  auto root = base::Value::Dict().Set(
+      "Window Info",
+      base::Value::Dict()
+          .Set("Activation index", activation_index.value_or(-1))
+          .Set("Desk", desk_id.value_or(-1))
+          .Set("Desk guid", desk_guid.AsLowercaseString())
+          .Set("Current bounds",
+               current_bounds.value_or(gfx::Rect()).ToString())
+          .Set("Window state type", WindowStateTypeToString(window_state_type))
+          .Set("Pre minimized show state",
+               WindowShowStateToString(pre_minimized_show_state_type))
+          .Set("Snap percentage", static_cast<int>(snap_percentage.value_or(0)))
+          .Set("Display id", static_cast<int>(display_id.value_or(-1)))
+          .Set("App title", app_title.value_or(std::u16string())));
+  return root.DebugString();
 }
 
 }  // namespace app_restore

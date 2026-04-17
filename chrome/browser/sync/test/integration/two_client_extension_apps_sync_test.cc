@@ -3,13 +3,13 @@
 // found in the LICENSE file.
 
 #include <stddef.h>
+
 #include <memory>
 #include <utility>
 
 #include "base/functional/bind.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chrome/browser/extensions/extension_sync_data.h"
 #include "chrome/browser/extensions/extension_sync_service.h"
 #include "chrome/browser/extensions/launch_util.h"
@@ -25,14 +25,16 @@
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/common/extensions/manifest_handlers/app_launch_info.h"
+#include "components/sync/base/features.h"
 #include "components/sync/model/string_ordinal.h"
-#include "content/public/browser/notification_service.h"
+#include "components/sync/service/sync_service_impl.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_utils.h"
 #include "extensions/browser/app_sorting.h"
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_system.h"
+#include "extensions/browser/launch_util.h"
 #include "extensions/browser/test_extension_registry_observer.h"
 #include "extensions/common/constants.h"
 
@@ -196,9 +198,7 @@ IN_PROC_BROWSER_TEST_F(TwoClientExtensionAppsSyncTest,
   ASSERT_TRUE(AppsMatchChecker().Wait());
 }
 
-// TODO(https://crbug.com/1265969): Change back to E2E_ENABLED when flakiness is
-// fixed.
-IN_PROC_BROWSER_TEST_F(TwoClientExtensionAppsSyncTest, E2E_ONLY(Merge)) {
+IN_PROC_BROWSER_TEST_F(TwoClientExtensionAppsSyncTest, E2E_ENABLED(Merge)) {
   ResetSyncForPrimaryAccount();
   ASSERT_TRUE(SetupSync());
   ASSERT_TRUE(AppsMatchChecker().Wait());
@@ -397,8 +397,8 @@ IN_PROC_BROWSER_TEST_F(TwoClientExtensionAppsSyncTest,
   web_app::ScopedTestingPreinstalledAppData preinstalled_app_data;
   {
     const GURL kStartUrl = GURL("https://www.example.com/start_url");
-    const web_app::AppId kWebAppId =
-        web_app::GenerateAppId(absl::nullopt, kStartUrl);
+    const webapps::AppId kWebAppId =
+        web_app::GenerateAppId(std::nullopt, kStartUrl);
     web_app::ExternalInstallOptions options(
         GURL("https://www.example.com/install_url"),
         web_app::mojom::UserDisplayMode::kStandalone,
@@ -408,9 +408,9 @@ IN_PROC_BROWSER_TEST_F(TwoClientExtensionAppsSyncTest,
     options.only_use_app_info_factory = true;
     options.app_info_factory = base::BindRepeating(
         [](GURL start_url) {
-          auto info = std::make_unique<WebAppInstallInfo>();
+          auto info = web_app::WebAppInstallInfo::CreateWithStartUrlForTesting(
+              start_url);
           info->title = u"Test app";
-          info->start_url = start_url;
           return info;
         },
         kStartUrl);

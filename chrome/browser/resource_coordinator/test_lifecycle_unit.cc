@@ -10,20 +10,14 @@
 namespace resource_coordinator {
 
 TestLifecycleUnit::TestLifecycleUnit(base::TimeTicks last_focused_time,
-                                     base::ProcessHandle process_handle,
                                      bool can_discard)
-    : LifecycleUnitBase(nullptr, content::Visibility::VISIBLE, nullptr),
-      last_focused_time_(last_focused_time),
-      process_handle_(process_handle),
+    : LifecycleUnitBase(nullptr),
+      last_focused_time_ticks_(last_focused_time),
       sort_key_(last_focused_time),
       can_discard_(can_discard) {}
 
-TestLifecycleUnit::TestLifecycleUnit(content::Visibility visibility,
-                                     UsageClock* usage_clock)
-    : LifecycleUnitBase(nullptr, visibility, usage_clock) {}
-
 TestLifecycleUnit::TestLifecycleUnit(LifecycleUnitSourceBase* source)
-    : LifecycleUnitBase(source, content::Visibility::VISIBLE, nullptr) {}
+    : LifecycleUnitBase(source) {}
 
 TestLifecycleUnit::~TestLifecycleUnit() {
   OnLifecycleUnitDestroyed();
@@ -33,24 +27,16 @@ TabLifecycleUnitExternal* TestLifecycleUnit::AsTabLifecycleUnitExternal() {
   return nullptr;
 }
 
-std::u16string TestLifecycleUnit::GetTitle() const {
-  return title_;
+base::TimeTicks TestLifecycleUnit::GetLastFocusedTimeTicks() const {
+  return last_focused_time_ticks_;
 }
 
-base::TimeTicks TestLifecycleUnit::GetLastFocusedTime() const {
+base::Time TestLifecycleUnit::GetLastFocusedTime() const {
   return last_focused_time_;
-}
-
-base::ProcessHandle TestLifecycleUnit::GetProcessHandle() const {
-  return process_handle_;
 }
 
 LifecycleUnit::SortKey TestLifecycleUnit::GetSortKey() const {
   return sort_key_;
-}
-
-content::Visibility TestLifecycleUnit::GetVisibility() const {
-  return content::Visibility::VISIBLE;
 }
 
 mojom::LifecycleUnitLoadingState TestLifecycleUnit::GetLoadingState() const {
@@ -61,12 +47,11 @@ bool TestLifecycleUnit::Load() {
   return false;
 }
 
-int TestLifecycleUnit::GetEstimatedMemoryFreedOnDiscardKB() const {
-  return 0;
-}
-
 bool TestLifecycleUnit::CanDiscard(mojom::LifecycleUnitDiscardReason reason,
                                    DecisionDetails* decision_details) const {
+  if (failure_reason_) {
+    decision_details->AddReason(*failure_reason_);
+  }
   return can_discard_;
 }
 
@@ -76,7 +61,7 @@ bool TestLifecycleUnit::Discard(LifecycleUnitDiscardReason discard_reason,
 }
 
 LifecycleUnitDiscardReason TestLifecycleUnit::GetDiscardReason() const {
-  return mojom::LifecycleUnitDiscardReason::EXTERNAL;
+  return discard_reason_;
 }
 
 void ExpectCanDiscardTrue(const LifecycleUnit* lifecycle_unit,

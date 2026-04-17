@@ -48,87 +48,49 @@ promise_test(async t => {
   const senderReader = await setupLoopbackWithCodecAndGetReader(t, 'VP8');
   const result = await senderReader.read();
   const metadata = result.value.getMetadata();
-  const clone = result.value.clone();
-  metadata['contributingSources'] = [13];
-  assert_throws_dom('InvalidModificationError', () => clone.setMetadata(metadata), "For field \"contributingSources\",");
-}, "setMetadata() does not allow changes to contributingSources without a flag");
+  const clone = structuredClone(result.value);
+  metadata.frameId = 2;
+  metadata.dependencies = [1];
+  clone.setMetadata(metadata);
+ }, "setMetadata() does allow changes to frameId and dependencies without a flag");
 
 promise_test(async t => {
   const senderReader = await setupLoopbackWithCodecAndGetReader(t, 'VP8');
   const result = await senderReader.read();
   const field_values = {
-    'decodeTargetIndications':['required'],
-    'dependencies':[1],
-    'frameId':2,
-    'frameType':'delta',
     'height':600,
-    'isLastFrameInPicture':false,
     'payloadType':17,
-    'simulcastIdx':3,
     'spatialIndex':4,
     'synchronizationSource':17,
     'temporalIndex':5,
+    'contributingSources' : [13],
     'width':800
   }
   for (const field in field_values) {
     const metadata = result.value.getMetadata();
-    const clone = result.value.clone();
+    const clone = structuredClone(result.value);
     metadata[field] = field_values[field];
     assert_throws_dom('InvalidModificationError', () => clone.setMetadata(metadata), "For field \"" + field + "\",");
   }
-  const codec_specific_field_values_vp8 = {
-    'beginningOfPartition':true,
-    'keyIdx':-2,
-    'layerSync':true,
-    'nonReference':true,
-    'partitionId':1,
-    'pictureId':17,
-    'temporalIdx':127,
-    'tl0PicIdx':-3
-  }
-  for (const field in codec_specific_field_values_vp8) {
-    const metadata = result.value.getMetadata();
-    const clone = result.value.clone();
-    metadata.codecSpecifics[field] = codec_specific_field_values_vp8[field];
-    assert_throws_dom('InvalidModificationError', () => clone.setMetadata(metadata), "For field \"codecSpecifics." + field + "\",");
-  }
-}, "setMetadata() does not allow changes to fields other than contributingSources without a flag");
+}, "setMetadata() does not allow changes to fields without a flag");
 
 promise_test(async t => {
   const senderReader = await setupLoopbackWithCodecAndGetReader(t, 'VP8');
   const result = await senderReader.read();
   const field_values = {
     'contributingSources':[13],
-    'decodeTargetIndications':['required'],
     'dependencies':[1],
     'frameId':2,
-    'frameType':'delta',
     'height':600,
-    'isLastFrameInPicture':false,
-    'simulcastIdx':3,
     'spatialIndex':4,
     'synchronizationSource':1234567,
     'temporalIndex':5,
     'width':800
-    // TODO(https://crbug.com/webrtc/14709): Support setting payloadType
-  }
-  const codec_specific_field_values_vp8 = {
-    'beginningOfPartition':true,
-    'keyIdx':-2,
-    'layerSync':true,
-    'nonReference':true,
-    'partitionId':1,
-    'pictureId':17,
-    'temporalIdx':127,
-    'tl0PicIdx':-3
   }
   const metadata = result.value.getMetadata();
-  const clone = result.value.clone();
+  const clone = structuredClone(result.value);
   for (const field in field_values) {
     metadata[field] = field_values[field];
-  }
-  for (const field in codec_specific_field_values_vp8) {
-    metadata.codecSpecifics[field] = codec_specific_field_values_vp8[field];
   }
   clone.setMetadata(metadata);
   const cloneMetadata = clone.getMetadata();
@@ -139,9 +101,6 @@ promise_test(async t => {
       assert_equals(cloneMetadata[field], field_values[field], field);
     }
   }
-  for (const field in codec_specific_field_values_vp8) {
-    assert_equals(cloneMetadata.codecSpecifics[field], codec_specific_field_values_vp8[field], field);
-  }
 }, "setMetadata() allows changes when AllowRTCEncodedVideoFrameSetMetadataAllFields is enabled");
 
 promise_test(async t => {
@@ -150,32 +109,24 @@ promise_test(async t => {
   const originalFrame = result.value;
 
   const metadata = originalFrame.getMetadata();
-  const cloneFrame = originalFrame.clone();
+  const cloneFrame = structuredClone(originalFrame);
 
   metadata.frameId = undefined;
-
-  cloneFrame.setMetadata(metadata);
-}, "setMetadata() allows metadata with no generic dependency descriptor - ie no frameId");
+  metadata.dependencies = [1];
+  assert_throws_dom('InvalidModificationError', () => cloneFrame.setMetadata(metadata), "frameID missing, but has dependencies in RTCEncodedVideoFrameMetadata.");
+}, "setMetadata() does not allow metadata with dependencies but no frameId");
 
 promise_test(async t => {
-  const {senderStreams, receiverStreams} =
-    await setupLoopbackWithCodedAndGetStreams(t, 'VP8');
+  const senderReader = await setupLoopbackWithCodecAndGetReader(t, 'VP8');
+  const result = await senderReader.read();
+  const originalFrame = result.value;
 
-  let csrcs = [123, 321, 456, 654];
+  const metadata = originalFrame.getMetadata();
+  const cloneFrame = structuredClone(originalFrame);
 
-  const receiverReaderPromise = receiverStreams.readable.getReader().read();
+  metadata.frameId = 2;
+  metadata.dependencies = undefined;
 
-  // Modify the CSRCs on a sent frame.
-  let sendFrame = (await senderStreams.readable.getReader().read()).value;
-  const metadata = sendFrame.getMetadata();
-  metadata.contributingSources = csrcs;
-  sendFrame.setMetadata(metadata);
-  await senderStreams.writable.getWriter().write(sendFrame);
-
-  // Assert the received frame has the modified CSRCs
-  const receivedFrame = (await receiverReaderPromise).value;
-
-  assert_array_equals(receivedFrame.getMetadata().contributingSources, csrcs,
-                        "First modified CSRCS match");
-}, "modified csrcs are propagated over a PeerConnection");
+  cloneFrame.setMetadata(metadata);
+}, "setMetadata() does allow metadata with no dependencies but a frameId");
 </script>

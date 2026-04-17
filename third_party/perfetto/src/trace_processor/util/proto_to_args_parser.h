@@ -17,15 +17,24 @@
 #ifndef SRC_TRACE_PROCESSOR_UTIL_PROTO_TO_ARGS_PARSER_H_
 #define SRC_TRACE_PROCESSOR_UTIL_PROTO_TO_ARGS_PARSER_H_
 
+#include <cstddef>
+#include <cstdint>
 #include <functional>
+#include <optional>
+#include <string>
+#include <type_traits>
+#include <unordered_map>
+#include <vector>
 
 #include "perfetto/base/status.h"
 #include "perfetto/protozero/field.h"
-#include "protos/perfetto/trace/interned_data/interned_data.pbzero.h"
+#include "perfetto/protozero/proto_utils.h"
 #include "src/trace_processor/util/descriptors.h"
+#include "src/trace_processor/util/interned_message_view.h"
 
-namespace perfetto {
-namespace trace_processor {
+#include "protos/perfetto/trace/interned_data/interned_data.pbzero.h"
+
+namespace perfetto::trace_processor {
 
 // TODO(altimin): Move InternedMessageView into trace_processor/util.
 class InternedMessageView;
@@ -67,7 +76,7 @@ class ProtoToArgsParser {
 
   struct Key {
     Key(const std::string& flat_key, const std::string& key);
-    Key(const std::string& key);
+    explicit Key(const std::string& key);
     Key();
     ~Key();
 
@@ -85,8 +94,14 @@ class ProtoToArgsParser {
                            const protozero::ConstChars& value) = 0;
     virtual void AddString(const Key& key, const std::string& value) = 0;
     virtual void AddDouble(const Key& key, double value) = 0;
-    virtual void AddPointer(const Key& key, const void* value) = 0;
+    virtual void AddPointer(const Key& key, uint64_t value) = 0;
     virtual void AddBoolean(const Key& key, bool value) = 0;
+    virtual void AddBytes(const Key& key, const protozero::ConstBytes& value) {
+      // In the absence of a better implementation default to showing
+      // bytes as string with the size:
+      std::string msg = "<bytes size=" + std::to_string(value.size) + ">";
+      AddString(key, msg);
+    }
     // Returns whether an entry was added or not.
     virtual bool AddJson(const Key& key,
                          const protozero::ConstChars& value) = 0;
@@ -117,6 +132,8 @@ class ProtoToArgsParser {
           typename FieldMetadata::cpp_field_type>();
     }
 
+    virtual bool ShouldAddDefaultArg(const Key&) { return true; }
+
    protected:
     virtual InternedMessageView* GetInternedMessageView(uint32_t field_id,
                                                         uint64_t iid) = 0;
@@ -137,22 +154,19 @@ class ProtoToArgsParser {
   // |type| must be the fully qualified name, but with a '.' added to the
   // beginning. I.E. ".perfetto.protos.TrackEvent". And must match one of the
   // descriptors already added through |AddProtoFileDescriptor|.
-  //
-  // IMPORTANT: currently bytes fields are not supported.
-  //
-  // TODO(b/145578432): Add support for byte fields.
   base::Status ParseMessage(const protozero::ConstBytes& cb,
                             const std::string& type,
-                            const std::vector<uint16_t>* allowed_fields,
+                            const std::vector<uint32_t>* allowed_fields,
                             Delegate& delegate,
-                            int* unknown_extensions = nullptr);
+                            int* unknown_extensions = nullptr,
+                            bool add_defaults = false);
 
   // This class is responsible for resetting the current key prefix to the old
   // value when deleted or reset.
   struct ScopedNestedKeyContext {
    public:
     ~ScopedNestedKeyContext();
-    ScopedNestedKeyContext(ScopedNestedKeyContext&&);
+    ScopedNestedKeyContext(ScopedNestedKeyContext&&) noexcept;
     ScopedNestedKeyContext(const ScopedNestedKeyContext&) = delete;
     ScopedNestedKeyContext& operator=(const ScopedNestedKeyContext&) = delete;
 
@@ -165,7 +179,7 @@ class ProtoToArgsParser {
    private:
     friend class ProtoToArgsParser;
 
-    ScopedNestedKeyContext(Key& old_value);
+    explicit ScopedNestedKeyContext(Key& old_value);
 
     struct ScopedStringAppender;
 
@@ -247,14 +261,16 @@ class ProtoToArgsParser {
                           int repeated_field_number,
                           protozero::Field field,
                           Delegate& delegate,
-                          int* unknown_extensions);
+                          int* unknown_extensions,
+                          bool add_defaults);
 
   base::Status ParsePackedField(
       const FieldDescriptor& field_descriptor,
       std::unordered_map<size_t, int>& repeated_field_index,
       protozero::Field field,
       Delegate& delegate,
-      int* unknown_extensions);
+      int* unknown_extensions,
+      bool add_defaults);
 
   std::optional<base::Status> MaybeApplyOverrideForField(
       const protozero::Field&,
@@ -267,17 +283,25 @@ class ProtoToArgsParser {
       Delegate& delegate);
 
   // A type override can call |key.RemoveFieldSuffix()| if it wants to exclude
-  // the overriden field's name from the parsed args' keys.
+  // the overridden field's name from the parsed args' keys.
   base::Status ParseMessageInternal(ScopedNestedKeyContext& key,
                                     const protozero::ConstBytes& cb,
                                     const std::string& type,
-                                    const std::vector<uint16_t>* fields,
+                                    const std::vector<uint32_t>* fields,
                                     Delegate& delegate,
-                                    int* unknown_extensions);
+                                    int* unknown_extensions,
+                                    bool add_defaults = false);
 
-  base::Status ParseSimpleField(const FieldDescriptor& desciptor,
+  base::Status ParseSimpleField(const FieldDescriptor& descriptor,
                                 const protozero::Field& field,
                                 Delegate& delegate);
+
+  base::Status AddDefault(const FieldDescriptor& descriptor,
+                          Delegate& delegate);
+
+  base::Status AddEnum(const FieldDescriptor& descriptor,
+                       int32_t value,
+                       Delegate& delegate);
 
   std::unordered_map<std::string, ParsingOverrideForField> field_overrides_;
   std::unordered_map<std::string, ParsingOverrideForType> type_overrides_;
@@ -286,7 +310,6 @@ class ProtoToArgsParser {
 };
 
 }  // namespace util
-}  // namespace trace_processor
-}  // namespace perfetto
+}  // namespace perfetto::trace_processor
 
 #endif  // SRC_TRACE_PROCESSOR_UTIL_PROTO_TO_ARGS_PARSER_H_

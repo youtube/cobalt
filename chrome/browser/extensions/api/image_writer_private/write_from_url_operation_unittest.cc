@@ -6,6 +6,8 @@
 
 #include <utility>
 
+#include "base/containers/heap_array.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
 #include "chrome/browser/extensions/api/image_writer_private/error_constants.h"
@@ -15,6 +17,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/test/url_loader_interceptor.h"
+#include "crypto/obsolete/md5.h"
 
 namespace extensions {
 namespace image_writer {
@@ -180,13 +183,11 @@ TEST_F(ImageWriterWriteFromUrlOperationTest, DownloadFile) {
                                              &download_target_path));
   operation->SetImagePath(download_target_path);
 
-  EXPECT_CALL(
-      manager_,
-      OnProgress(kDummyExtensionId, image_writer_api::STAGE_DOWNLOAD, 0))
+  EXPECT_CALL(manager_, OnProgress(kDummyExtensionId,
+                                   image_writer_api::Stage::kDownload, 0))
       .Times(AnyNumber());
-  EXPECT_CALL(
-      manager_,
-      OnProgress(kDummyExtensionId, image_writer_api::STAGE_DOWNLOAD, 100))
+  EXPECT_CALL(manager_, OnProgress(kDummyExtensionId,
+                                   image_writer_api::Stage::kDownload, 100))
       .Times(AnyNumber());
 
   operation->Download(runloop.QuitClosure());
@@ -202,27 +203,24 @@ TEST_F(ImageWriterWriteFromUrlOperationTest, DownloadFile) {
 }
 
 TEST_F(ImageWriterWriteFromUrlOperationTest, VerifyFile) {
-  std::unique_ptr<char[]> data_buffer(new char[kTestFileSize]);
-  base::ReadFile(test_utils_.GetImagePath(), data_buffer.get(), kTestFileSize);
-  base::MD5Digest expected_digest;
-  base::MD5Sum(data_buffer.get(), kTestFileSize, &expected_digest);
-  std::string expected_hash = base::MD5DigestToBase16(expected_digest);
+  auto buffer = base::HeapArray<uint8_t>::Uninit(kTestFileSize);
+  base::ReadFile(test_utils_.GetImagePath(), buffer);
+  std::string expected_hash = base::ToLowerASCII(
+      base::HexEncode(crypto::obsolete::Md5::HashForTesting(buffer.as_span())));
 
   scoped_refptr<WriteFromUrlOperationForTest> operation =
       CreateOperation(GURL(""), expected_hash);
 
-  EXPECT_CALL(
-      manager_,
-      OnProgress(kDummyExtensionId, image_writer_api::STAGE_VERIFYDOWNLOAD, _))
+  EXPECT_CALL(manager_, OnProgress(kDummyExtensionId,
+                                   image_writer_api::Stage::kVerifyDownload, _))
       .Times(AtLeast(1));
-  EXPECT_CALL(
-      manager_,
-      OnProgress(kDummyExtensionId, image_writer_api::STAGE_VERIFYDOWNLOAD, 0))
+  EXPECT_CALL(manager_, OnProgress(kDummyExtensionId,
+                                   image_writer_api::Stage::kVerifyDownload, 0))
       .Times(AtLeast(1));
   EXPECT_CALL(manager_,
               OnProgress(kDummyExtensionId,
-                         image_writer_api::STAGE_VERIFYDOWNLOAD,
-                         100)).Times(AtLeast(1));
+                         image_writer_api::Stage::kVerifyDownload, 100))
+      .Times(AtLeast(1));
 
   operation->SetImagePath(test_utils_.GetImagePath());
   {

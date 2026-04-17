@@ -16,6 +16,7 @@ import org.junit.runner.RunWith;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.browser.omaha.MockRequestGenerator.DeviceType;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
@@ -25,10 +26,9 @@ import org.chromium.chrome.browser.uid.UniqueIdentificationGeneratorFactory;
 import org.chromium.chrome.test.util.browser.signin.AccountManagerTestRule;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 
-/**
- * Unit tests for the RequestGenerator class.
- */
+/** Unit tests for the RequestGenerator class. */
 @RunWith(BaseRobolectricTestRunner.class)
+@Batch(Batch.UNIT_TESTS)
 @Config(manifest = Config.NONE)
 public class RequestGeneratorTest {
     private static final String INSTALL_SOURCE = "install_source";
@@ -56,9 +56,7 @@ public class RequestGeneratorTest {
         checkInstallAge(currentTimestamp, installTimestamp, installing, expectedAge);
     }
 
-    /**
-     * Checks whether the install age function is behaving according to spec.
-     */
+    /** Checks whether the install age function is behaving according to spec. */
     void checkInstallAge(
             long currentTimestamp, long installTimestamp, boolean installing, long expectedAge) {
         long actualAge =
@@ -76,8 +74,9 @@ public class RequestGeneratorTest {
         new MockRequestGenerator(DeviceType.HANDSET);
 
         // Verify the identification generator exists and is of the correct type.
-        UniqueIdentificationGenerator instance = UniqueIdentificationGeneratorFactory.getInstance(
-                SettingsSecureBasedIdentificationGenerator.GENERATOR_ID);
+        UniqueIdentificationGenerator instance =
+                UniqueIdentificationGeneratorFactory.getInstance(
+                        SettingsSecureBasedIdentificationGenerator.GENERATOR_ID);
         Assert.assertTrue(instance instanceof SettingsSecureBasedIdentificationGenerator);
     }
 
@@ -105,9 +104,7 @@ public class RequestGeneratorTest {
         createAndCheckXML(DeviceType.TABLET, false);
     }
 
-    /**
-     * Checks that the XML is being created properly.
-     */
+    /** Checks that the XML is being created properly. */
     private RequestGenerator createAndCheckXML(DeviceType deviceType, boolean sendInstallEvent) {
         IdentityServicesProvider.setInstanceForTests(mock(IdentityServicesProvider.class));
         when(IdentityServicesProvider.get().getIdentityManager(any()))
@@ -128,7 +125,7 @@ public class RequestGeneratorTest {
             RequestData data = new RequestData(sendInstallEvent, 0, requestId, INSTALL_SOURCE);
             xml = generator.generateXML(sessionId, version, installAge, dateLastActive, data);
         } catch (RequestFailureException e) {
-            Assert.fail("XML generation failed.");
+            throw new AssertionError("XML generation failed.", e);
         }
 
         checkForAttributeAndValue(xml, "request", "sessionid", "{" + sessionId + "}");
@@ -148,15 +145,18 @@ public class RequestGeneratorTest {
             checkForAttributeAndValue(xml, "event", "eventresult", "1");
             Assert.assertFalse(
                     "Ping and install event are mutually exclusive", checkForTag(xml, "ping"));
-            Assert.assertFalse("Update check and install event are mutually exclusive",
+            Assert.assertFalse(
+                    "Update check and install event are mutually exclusive",
                     checkForTag(xml, "updatecheck"));
         } else {
-            Assert.assertFalse("Update check and install event are mutually exclusive",
+            Assert.assertFalse(
+                    "Update check and install event are mutually exclusive",
                     checkForTag(xml, "event"));
             checkForAttributeAndValue(xml, "ping", "active", "1");
             checkForAttributeAndValue(xml, "ping", "rd", String.valueOf(dateLastActive));
             checkForAttributeAndValue(xml, "ping", "ad", String.valueOf(dateLastActive));
-            Assert.assertTrue("Update check and install event are mutually exclusive",
+            Assert.assertTrue(
+                    "Update check and install event are mutually exclusive",
                     checkForTag(xml, "updatecheck"));
         }
 
@@ -174,6 +174,7 @@ public class RequestGeneratorTest {
         Assert.assertTrue("Couldn't find tag '" + tag + "'", finder.isTagFound());
         Assert.assertEquals(
                 "Bad value found for tag '" + tag + "' and attribute '" + attribute + "'",
-                expectedValue, finder.getValue());
+                expectedValue,
+                finder.getValue());
     }
 }

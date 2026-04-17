@@ -6,13 +6,17 @@ package org.chromium.device.power_save_blocker;
 
 import android.view.View;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.lang.ref.WeakReference;
 import java.util.WeakHashMap;
 
 @JNINamespace("device")
+@NullMarked
 class PowerSaveBlocker {
     // Counter associated to a view to know how many PowerSaveBlocker are
     // currently registered. Using WeakHashMap to prevent leaks in Android WebView.
@@ -20,7 +24,7 @@ class PowerSaveBlocker {
             new WeakHashMap<View, Integer>();
 
     // WeakReference to prevent leaks in Android WebView.
-    private WeakReference<View> mKeepScreenOnView;
+    private @Nullable WeakReference<View> mKeepScreenOnView;
 
     @CalledByNative
     private static PowerSaveBlocker create() {

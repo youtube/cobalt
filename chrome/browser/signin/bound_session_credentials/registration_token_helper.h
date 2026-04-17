@@ -5,77 +5,135 @@
 #ifndef CHROME_BROWSER_SIGNIN_BOUND_SESSION_CREDENTIALS_REGISTRATION_TOKEN_HELPER_H_
 #define CHROME_BROWSER_SIGNIN_BOUND_SESSION_CREDENTIALS_REGISTRATION_TOKEN_HELPER_H_
 
+#include <optional>
 #include <string>
+#include <string_view>
+#include <variant>
 
+#include "base/containers/span.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
-#include "base/strings/string_piece_forward.h"
+#include "base/types/expected.h"
 #include "components/unexportable_keys/service_error.h"
 #include "components/unexportable_keys/unexportable_key_id.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "crypto/signature_verifier.h"
 #include "url/gurl.h"
+
+namespace base {
+class Time;
+}
 
 namespace unexportable_keys {
 class UnexportableKeyService;
-}
+class UnexportableKeyLoader;
+}  // namespace unexportable_keys
 
-// Helper class for generating a new binding key and a registration token to
-// bind the key on the server.
+// Helper class for generating registration tokens to bind the key on the
+// server.
 //
-// To use this class, simply create its instance and invoke `Start()` method.
-// The helper will return the result asynchronously through `callback`.
+// A single instance can be used to generate multiple registration tokens for
+// the same binding key. To use different binding keys, create multiple class
+// instances.
 //
-// This class is intended for one time use and must be destroyed after
-// `callback` is called.
+// TODO(alexilin): support a timeout aborting the token generation if it takes
+// too long.
 class RegistrationTokenHelper {
  public:
+  // Initialization parameter indicating which binding key should be used for
+  // registration token generation.
+  using KeyInitParam = std::variant<
+      // A list of acceptable signature algorithms to generate a new binding
+      // key.
+      std::vector<crypto::SignatureVerifier::SignatureAlgorithm>,
+      // Wrapped binding key to reuse an existing binding key.
+      std::vector<uint8_t>>;
+
+  // The result of the registration token generation.
   struct Result {
     unexportable_keys::UnexportableKeyId binding_key_id;
+    std::vector<uint8_t> wrapped_binding_key;
     std::string registration_token;
+
+    Result(unexportable_keys::UnexportableKeyId binding_key_id,
+           std::vector<uint8_t> wrapped_binding_key,
+           std::string registration_token);
+
+    Result(const Result&) = delete;
+    Result& operator=(const Result&) = delete;
+    Result(Result&& other);
+    Result& operator=(Result&& other);
+
+    ~Result();
   };
 
+  // Public for testing.
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  // LINT.IfChange(Error)
+  enum class Error {
+    kNone = 0,
+    kLoadReusedKeyFailure = 1,
+    kGenerateNewKeyFailure = 2,
+    kCreateAssertionFailure = 3,
+    kSignAssertionFailure = 4,
+    kAppendSignatureFailure = 5,
+    kMaxValue = kAppendSignatureFailure
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/signin/enums.xml:BoundSessionCredentialsRegistrationTokenResult)
+
   // `unexportable_key_service` must outlive `this`.
-  // Invokes `callback` with a `Result` containing a new binding key ID and a
-  // corresponding registration token on success. Otherwise, invokes `callback`
-  // with `absl::nullopt`.
-  // TODO(alexilin): support timeout.
-  explicit RegistrationTokenHelper(
+  RegistrationTokenHelper(
       unexportable_keys::UnexportableKeyService& unexportable_key_service,
-      base::StringPiece client_id,
-      base::StringPiece auth_code,
-      const GURL& registration_url,
-      base::OnceCallback<void(absl::optional<Result>)> callback);
+      KeyInitParam key_init_param);
 
   RegistrationTokenHelper(const RegistrationTokenHelper&) = delete;
   RegistrationTokenHelper& operator=(const RegistrationTokenHelper&) = delete;
 
   virtual ~RegistrationTokenHelper();
 
-  // virtual for testing.
-  virtual void Start();
+  // Invokes `callback` with a `Result` containing a new binding key ID and a
+  // corresponding registration token on success. Otherwise, invokes `callback`
+  // with `std::nullopt`.
+  // Virtual for testing.
+  virtual void GenerateForSessionBinding(
+      std::string_view challenge,
+      const GURL& registration_url,
+      base::OnceCallback<void(std::optional<Result>)> callback);
+  virtual void GenerateForTokenBinding(
+      std::string_view client_id,
+      std::string_view auth_code,
+      const GURL& registration_url,
+      base::OnceCallback<void(std::optional<Result>)> callback);
 
  private:
-  // Callback for `GenerateSigningKeySlowlyAsync()`.
-  void OnKeyGenerated(
+  using HeaderAndPayloadGenerator =
+      base::RepeatingCallback<std::optional<std::string>(
+          crypto::SignatureVerifier::SignatureAlgorithm,
+          base::span<const uint8_t>,
+          base::Time)>;
+
+  void CreateKeyLoaderIfNeeded();
+  void SignHeaderAndPayload(
+      HeaderAndPayloadGenerator header_and_payload_generator,
+      base::OnceCallback<void(base::expected<Result, Error>)> callback,
       unexportable_keys::ServiceErrorOr<unexportable_keys::UnexportableKeyId>
-          result);
+          binding_key);
+  void CreateRegistrationToken(
+      std::string_view header_and_payload,
+      unexportable_keys::UnexportableKeyId binding_key,
+      base::OnceCallback<void(base::expected<Result, Error>)> callback,
+      unexportable_keys::ServiceErrorOr<std::vector<uint8_t>> signature);
+  static void RecordResultAndInvokeCallback(
+      std::string_view result_histogram_name,
+      base::OnceCallback<void(std::optional<Result>)> callback,
+      base::expected<Result, Error> result_or_error);
 
-  // Callback for `SignSlowlyAsync()`.
-  void OnDataSigned(
-      unexportable_keys::ServiceErrorOr<std::vector<uint8_t>> result);
-
-  const base::raw_ref<unexportable_keys::UnexportableKeyService>
+  const raw_ref<unexportable_keys::UnexportableKeyService>
       unexportable_key_service_;
-  const std::string client_id_;
-  const std::string auth_code_;
-  const GURL registration_url_;
-  base::OnceCallback<void(absl::optional<Result>)> callback_;
+  const KeyInitParam key_init_param_;
 
-  bool started_ = false;
-  unexportable_keys::UnexportableKeyId key_id_;
-  std::string header_and_payload_;
-
+  std::unique_ptr<unexportable_keys::UnexportableKeyLoader> key_loader_;
   base::WeakPtrFactory<RegistrationTokenHelper> weak_ptr_factory_{this};
 };
 

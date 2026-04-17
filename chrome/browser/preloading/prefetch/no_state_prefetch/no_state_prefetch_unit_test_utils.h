@@ -9,7 +9,6 @@
 #include <memory>
 
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/preloading/prefetch/no_state_prefetch/chrome_no_state_prefetch_manager_delegate.h"
 #include "components/no_state_prefetch/browser/no_state_prefetch_contents.h"
 #include "components/no_state_prefetch/browser/no_state_prefetch_manager.h"
 #include "content/public/browser/preloading_data.h"
@@ -25,7 +24,7 @@ class FakeNoStatePrefetchContents : public NoStatePrefetchContents {
       UnitTestNoStatePrefetchManager* test_no_state_prefetch_manager,
       const GURL& url,
       Origin origin,
-      const absl::optional<url::Origin>& initiator_origin,
+      const std::optional<url::Origin>& initiator_origin,
       FinalStatus expected_final_status);
 
   ~FakeNoStatePrefetchContents() override;
@@ -37,8 +36,8 @@ class FakeNoStatePrefetchContents : public NoStatePrefetchContents {
 
   FinalStatus expected_final_status() const { return expected_final_status_; }
 
-  bool prerendering_has_been_cancelled() const {
-    return NoStatePrefetchContents::prerendering_has_been_cancelled();
+  bool prefetching_has_been_cancelled() const {
+    return NoStatePrefetchContents::prefetching_has_been_cancelled();
   }
 
  private:
@@ -74,7 +73,7 @@ class UnitTestNoStatePrefetchManager : public NoStatePrefetchManager {
 
   FakeNoStatePrefetchContents* CreateNextNoStatePrefetchContents(
       const GURL& url,
-      const absl::optional<url::Origin>& initiator_origin,
+      const std::optional<url::Origin>& initiator_origin,
       Origin origin,
       FinalStatus expected_final_status);
 
@@ -111,13 +110,14 @@ class UnitTestNoStatePrefetchManager : public NoStatePrefetchManager {
   std::unique_ptr<NoStatePrefetchContents> CreateNoStatePrefetchContents(
       const GURL& url,
       const content::Referrer& referrer,
-      const absl::optional<url::Origin>& initiator_origin,
+      const std::optional<url::Origin>& initiator_origin,
       Origin origin) override;
 
   // Maintain a map from route pairs to NoStatePrefetchContents for
   // GetNoStatePrefetchContentsForRoute.
   using NoStatePrefetchContentsMap =
-      std::map<std::pair<int, int>, NoStatePrefetchContents*>;
+      std::map<std::pair<int, int>,
+               raw_ptr<NoStatePrefetchContents, CtnExperimental>>;
   NoStatePrefetchContentsMap no_state_prefetch_contents_map_;
 
   std::unique_ptr<NoStatePrefetchContents> next_no_state_prefetch_contents_;

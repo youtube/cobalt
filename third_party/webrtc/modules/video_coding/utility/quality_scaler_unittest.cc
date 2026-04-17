@@ -13,12 +13,13 @@
 #include <memory>
 #include <string>
 
+#include "api/field_trials_view.h"
 #include "api/units/time_delta.h"
-#include "rtc_base/checks.h"
+#include "api/video_codecs/video_encoder.h"
 #include "rtc_base/event.h"
 #include "rtc_base/task_queue_for_test.h"
-#include "test/field_trial.h"
 #include "test/gtest.h"
+#include "test/scoped_key_value_config.h"
 
 namespace webrtc {
 namespace {
@@ -44,7 +45,7 @@ class FakeQpUsageHandler : public QualityScalerQpUsageHandlerInterface {
     event.Set();
   }
 
-  rtc::Event event;
+  Event event;
   int adapt_up_events_ = 0;
   int adapt_down_events_ = 0;
 };
@@ -53,8 +54,9 @@ class FakeQpUsageHandler : public QualityScalerQpUsageHandlerInterface {
 class QualityScalerUnderTest : public QualityScaler {
  public:
   explicit QualityScalerUnderTest(QualityScalerQpUsageHandlerInterface* handler,
-                                  VideoEncoder::QpThresholds thresholds)
-      : QualityScaler(handler, thresholds, 5) {}
+                                  VideoEncoder::QpThresholds thresholds,
+                                  const FieldTrialsView& field_trials)
+      : QualityScaler(handler, thresholds, field_trials, 5) {}
 };
 
 class QualityScalerTest : public ::testing::Test,
@@ -74,7 +76,8 @@ class QualityScalerTest : public ::testing::Test,
         handler_(std::make_unique<FakeQpUsageHandler>()) {
     task_queue_.SendTask([this] {
       qs_ = std::unique_ptr<QualityScaler>(new QualityScalerUnderTest(
-          handler_.get(), VideoEncoder::QpThresholds(kLowQp, kHighQp)));
+          handler_.get(), VideoEncoder::QpThresholds(kLowQp, kHighQp),
+          scoped_field_trial_));
     });
   }
 
@@ -104,7 +107,7 @@ class QualityScalerTest : public ::testing::Test,
     }
   }
 
-  test::ScopedFieldTrials scoped_field_trial_;
+  test::ScopedKeyValueConfig scoped_field_trial_;
   TaskQueueForTest task_queue_;
   std::unique_ptr<QualityScaler> qs_;
   std::unique_ptr<FakeQpUsageHandler> handler_;

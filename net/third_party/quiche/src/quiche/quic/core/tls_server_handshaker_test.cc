@@ -4,7 +4,9 @@
 
 #include "quiche/quic/core/tls_server_handshaker.h"
 
+#include <algorithm>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -40,6 +42,7 @@ class QuicStream;
 }  // namespace quic
 
 using testing::_;
+using testing::HasSubstr;
 using testing::NiceMock;
 using testing::Return;
 
@@ -76,6 +79,9 @@ std::vector<TestParams> GetTestParams() {
 
 class TestTlsServerHandshaker : public TlsServerHandshaker {
  public:
+  static constexpr TransportParameters::TransportParameterId
+      kFailHandshakeParam{0xFFEACA};
+
   TestTlsServerHandshaker(QuicSession* session,
                           const QuicCryptoServerConfig* crypto_config)
       : TlsServerHandshaker(session, crypto_config),
@@ -130,6 +136,11 @@ class TestTlsServerHandshaker : public TlsServerHandshaker {
                                                 out_alert, std::move(callback));
   }
 
+  bool ProcessAdditionalTransportParameters(
+      const TransportParameters& params) override {
+    return !params.custom_parameters.contains(kFailHandshakeParam);
+  }
+
  private:
   std::unique_ptr<ProofSourceHandle> RealMaybeCreateProofSourceHandle() {
     return TlsServerHandshaker::MaybeCreateProofSourceHandle();
@@ -168,7 +179,7 @@ class TlsServerHandshakerTest : public QuicTestWithParam<TestParams> {
   TlsServerHandshakerTest()
       : server_compressed_certs_cache_(
             QuicCompressedCertsCache::kQuicCompressedCertsCacheSize),
-        server_id_(kServerHostname, kServerPort, false),
+        server_id_(kServerHostname, kServerPort),
         supported_versions_({GetParam().version}) {
     SetQuicFlag(quic_disable_server_tls_resumption,
                 GetParam().disable_resumption);
@@ -499,6 +510,8 @@ TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncSelectCertFailure) {
   // Check that the server didn't send any handshake messages, because it failed
   // to handshake.
   EXPECT_EQ(moved_messages_counts_.second, 0u);
+  EXPECT_EQ(server_handshaker_->extra_error_details(),
+            "select_cert_error: proof_source_handle async failure");
 }
 
 TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncSelectCertAndSignature) {
@@ -622,7 +635,7 @@ TEST_P(TlsServerHandshakerTest, HostnameForCertSelectionAndComputeSignature) {
   // Client uses upper case letters in hostname. It is considered valid by
   // QuicHostnameUtils::IsValidSNI, but it should be normalized for cert
   // selection.
-  server_id_ = QuicServerId("tEsT.EXAMPLE.CoM", kServerPort, false);
+  server_id_ = QuicServerId("tEsT.EXAMPLE.CoM", kServerPort);
   InitializeServerWithFakeProofSourceHandle();
   server_handshaker_->SetupProofSourceHandle(
       /*select_cert_action=*/FakeProofSourceHandle::Action::DELEGATE_SYNC,
@@ -688,13 +701,14 @@ TEST_P(TlsServerHandshakerTest, ClientSendingBadALPN) {
   EXPECT_CALL(*client_session_, GetAlpnsToOffer())
       .WillOnce(Return(std::vector<std::string>({kTestBadClientAlpn})));
 
-  EXPECT_CALL(*server_connection_,
-              CloseConnection(QUIC_HANDSHAKE_FAILED,
-                              static_cast<QuicIetfTransportErrorCodes>(
-                                  CRYPTO_ERROR_FIRST + 120),
-                              "TLS handshake failure (ENCRYPTION_INITIAL) 120: "
-                              "no application protocol",
-                              _));
+  EXPECT_CALL(
+      *server_connection_,
+      CloseConnection(
+          QUIC_HANDSHAKE_FAILED,
+          static_cast<QuicIetfTransportErrorCodes>(CRYPTO_ERROR_FIRST + 120),
+          HasSubstr("TLS handshake failure (ENCRYPTION_INITIAL) 120: "
+                    "no application protocol"),
+          _));
 
   AdvanceHandshakeWithFakeClient();
 
@@ -727,11 +741,9 @@ TEST_P(TlsServerHandshakerTest, CustomALPNNegotiation) {
 }
 
 TEST_P(TlsServerHandshakerTest, RejectInvalidSNI) {
-  server_id_ = QuicServerId("invalid!.example.com", kServerPort, false);
+  SetQuicFlag(quic_client_allow_invalid_sni_for_test, true);
+  server_id_ = QuicServerId("invalid!.example.com", kServerPort);
   InitializeFakeClient();
-  static_cast<TlsClientHandshaker*>(
-      QuicCryptoClientStreamPeer::GetHandshaker(client_stream()))
-      ->AllowInvalidSNIForTests();
 
   // Run the handshake and expect it to fail.
   AdvanceHandshakeWithFakeClient();
@@ -797,16 +809,16 @@ TEST_P(TlsServerHandshakerTest, ResumptionWithPlaceholderTicket) {
   EXPECT_FALSE(server_stream()->IsResumption());
   EXPECT_FALSE(server_stream()->ResumptionAttempted());
 
-  // Now do another handshake. It should end up with a full handshake because
-  // the placeholder ticket is undecryptable.
+  // Now do another handshake. It should end up with a full handshake. When the
+  // placeholder ticket is enabled, it will be undecryptable. When it is
+  // disabled, newer BoringSSL servers will skip sending a ticket altogether, so
+  // the client will not even attempt resumption.
   InitializeServer();
   InitializeFakeClient();
   CompleteCryptoHandshake();
   ExpectHandshakeSuccessful();
   EXPECT_FALSE(client_stream()->IsResumption());
   EXPECT_FALSE(server_stream()->IsResumption());
-  EXPECT_NE(server_stream()->ResumptionAttempted(),
-            GetParam().disable_resumption);
 }
 
 TEST_P(TlsServerHandshakerTest, AdvanceHandshakeDuringAsyncDecryptCallback) {
@@ -1161,6 +1173,98 @@ TEST_P(TlsServerHandshakerTest, CloseConnectionBeforeSelectCert) {
   EXPECT_TRUE(server_handshaker_->fake_proof_source_handle()
                   ->all_select_cert_args()
                   .empty());
+}
+
+TEST_P(TlsServerHandshakerTest, FailUponCustomTranportParam) {
+  client_session_->config()->custom_transport_parameters_to_send().emplace(
+      TestTlsServerHandshaker::kFailHandshakeParam,
+      "Fail handshake upon seeing this.");
+
+  InitializeServerWithFakeProofSourceHandle();
+  server_handshaker_->SetupProofSourceHandle(
+      /*select_cert_action=*/FakeProofSourceHandle::Action::DELEGATE_ASYNC,
+      /*compute_signature_action=*/FakeProofSourceHandle::Action::
+          DELEGATE_SYNC);
+  EXPECT_CALL(
+      *server_connection_,
+      CloseConnection(QUIC_HANDSHAKE_FAILED,
+                      "Failed to process additional transport parameters", _));
+
+  // Start handshake.
+  AdvanceHandshakeWithFakeClient();
+}
+
+TEST_P(TlsServerHandshakerTest, SuccessWithCustomTranportParam) {
+  client_session_->config()->custom_transport_parameters_to_send().emplace(
+      TransportParameters::TransportParameterId{0xFFEADD},
+      "Continue upon seeing this.");
+
+  InitializeServerWithFakeProofSourceHandle();
+  server_handshaker_->SetupProofSourceHandle(
+      /*select_cert_action=*/FakeProofSourceHandle::Action::DELEGATE_ASYNC,
+      /*compute_signature_action=*/FakeProofSourceHandle::Action::
+          DELEGATE_SYNC);
+  EXPECT_CALL(*server_connection_, CloseConnection(_, _, _)).Times(0);
+
+  // Start handshake.
+  AdvanceHandshakeWithFakeClient();
+  ASSERT_TRUE(
+      server_handshaker_->fake_proof_source_handle()->HasPendingOperation());
+  server_handshaker_->fake_proof_source_handle()->CompletePendingOperation();
+
+  CompleteCryptoHandshake();
+
+  ExpectHandshakeSuccessful();
+}
+
+TEST_P(TlsServerHandshakerTest, EnableMLKEM) {
+  server_crypto_config_->set_preferred_groups({SSL_GROUP_X25519_MLKEM768});
+  client_crypto_config_->set_preferred_groups(
+      {SSL_GROUP_X25519_MLKEM768, SSL_GROUP_X25519, SSL_GROUP_SECP256R1,
+       SSL_GROUP_SECP384R1});
+
+  InitializeServer();
+  InitializeFakeClient();
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+  EXPECT_EQ(PROTOCOL_TLS1_3, server_stream()->handshake_protocol());
+  EXPECT_EQ(SSL_GROUP_X25519_MLKEM768,
+            SSL_get_group_id(server_stream()->GetSsl()));
+}
+
+TEST_P(TlsServerHandshakerTest, AlpsUseNewCodepoint) {
+  const struct {
+    bool client_use_alps_new_codepoint;
+  } tests[] = {
+      // The intent of this test is to demonstrate different combinations of
+      // ALPS codepoint settings works well.
+      {true},
+      {false},
+  };
+  for (size_t i = 0; i < ABSL_ARRAYSIZE(tests); i++) {
+    SCOPED_TRACE(absl::StrCat("Test #", i));
+    const auto& test = tests[i];
+    client_crypto_config_->set_alps_use_new_codepoint(
+        test.client_use_alps_new_codepoint);
+
+    ASSERT_TRUE(SetupClientCert());
+    InitializeFakeClient();
+
+    InitializeServerWithFakeProofSourceHandle();
+    server_handshaker_->SetupProofSourceHandle(
+        /*select_cert_action=*/FakeProofSourceHandle::Action::DELEGATE_SYNC,
+        /*compute_signature_action=*/FakeProofSourceHandle::Action::
+            DELEGATE_SYNC);
+
+    // Start handshake.
+    AdvanceHandshakeWithFakeClient();
+    EXPECT_EQ(test.client_use_alps_new_codepoint,
+              server_handshaker_->UseAlpsNewCodepoint());
+
+    CompleteCryptoHandshake();
+    ExpectHandshakeSuccessful();
+    EXPECT_EQ(PROTOCOL_TLS1_3, server_stream()->handshake_protocol());
+  }
 }
 
 }  // namespace

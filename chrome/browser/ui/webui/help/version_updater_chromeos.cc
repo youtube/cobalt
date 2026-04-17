@@ -5,18 +5,20 @@
 #include "chrome/browser/ui/webui/help/version_updater_chromeos.h"
 
 #include <cmath>
+#include <memory>
 #include <optional>
 #include <string>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/ptr_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "chrome/browser/ash/login/startup_utils.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
 #include "chrome/browser/ash/ownership/owner_settings_service_ash.h"
 #include "chrome/browser/ash/ownership/owner_settings_service_ash_factory.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/ui/webui/help/help_utils_chromeos.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/ash/components/dbus/update_engine/update_engine_client.h"
@@ -24,11 +26,12 @@
 #include "chromeos/ash/components/network/network_state.h"
 #include "chromeos/ash/components/network/network_state_handler.h"
 #include "chromeos/ash/components/network/network_type_pattern.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "chromeos/dbus/power/power_manager_client.h"
 #include "chromeos/strings/grit/chromeos_strings.h"
+#include "components/policy/core/common/management/management_service.h"
 #include "content/public/browser/web_contents.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/cros_system_api/dbus/service_constants.h"
 #include "ui/base/l10n/l10n_util.h"
 
@@ -53,8 +56,9 @@ const bool kDefaultAutoUpdateDisabled = false;
 NetworkStatus GetNetworkStatus(bool interactive,
                                const ash::NetworkState* network,
                                bool metered) {
-  if (!network || !network->IsConnectedState())  // Offline state.
+  if (!network || !network->IsConnectedState()) {  // Offline state.
     return NETWORK_STATUS_OFFLINE;
+  }
 
   if (metered &&
       !help_utils_chromeos::IsUpdateOverCellularAllowed(interactive)) {
@@ -67,8 +71,9 @@ NetworkStatus GetNetworkStatus(bool interactive,
 bool IsAutoUpdateDisabled() {
   bool update_disabled = kDefaultAutoUpdateDisabled;
   ash::CrosSettings* settings = ash::CrosSettings::Get();
-  if (!settings)
+  if (!settings) {
     return update_disabled;
+  }
   const base::Value* update_disabled_value =
       settings->GetPref(ash::kUpdateDisabled);
   if (update_disabled_value) {
@@ -82,18 +87,21 @@ std::u16string GetConnectionTypeAsUTF16(const ash::NetworkState* network,
                                         bool metered) {
   const std::string type = network->type();
   if (ash::NetworkTypePattern::WiFi().MatchesType(type)) {
-    if (metered)
+    if (metered) {
       return l10n_util::GetStringUTF16(IDS_NETWORK_TYPE_METERED_WIFI);
+    }
     return l10n_util::GetStringUTF16(IDS_NETWORK_TYPE_WIFI);
   }
-  if (ash::NetworkTypePattern::Ethernet().MatchesType(type))
+  if (ash::NetworkTypePattern::Ethernet().MatchesType(type)) {
     return l10n_util::GetStringUTF16(IDS_NETWORK_TYPE_ETHERNET);
-  if (ash::NetworkTypePattern::Mobile().MatchesType(type))
+  }
+  if (ash::NetworkTypePattern::Mobile().MatchesType(type)) {
     return l10n_util::GetStringUTF16(IDS_NETWORK_TYPE_MOBILE_DATA);
-  if (ash::NetworkTypePattern::VPN().MatchesType(type))
+  }
+  if (ash::NetworkTypePattern::VPN().MatchesType(type)) {
     return l10n_util::GetStringUTF16(IDS_NETWORK_TYPE_VPN);
+  }
   NOTREACHED();
-  return std::u16string();
 }
 
 // Returns whether an update is allowed. If not, it calls the callback with
@@ -132,32 +140,35 @@ bool EnsureCanUpdate(bool interactive,
 
 }  // namespace
 
-VersionUpdater* VersionUpdater::Create(content::WebContents* web_contents) {
-  return new VersionUpdaterCros(web_contents);
+std::unique_ptr<VersionUpdater> VersionUpdater::Create(
+    content::WebContents* web_contents) {
+  return base::WrapUnique(new VersionUpdaterCros(web_contents));
 }
 
 void VersionUpdaterCros::GetUpdateStatus(StatusCallback callback) {
   callback_ = std::move(callback);
 
   // User is not actively checking for updates.
-  if (!EnsureCanUpdate(false /* interactive */, callback_))
+  if (!EnsureCanUpdate(false /* interactive */, callback_)) {
     return;
+  }
 
   UpdateEngineClient* update_engine_client = UpdateEngineClient::Get();
-  if (!update_engine_client->HasObserver(this))
+  if (!update_engine_client->HasObserver(this)) {
     update_engine_client->AddObserver(this);
+  }
 
   this->UpdateStatusChanged(update_engine_client->GetLastStatus());
 }
 
-void VersionUpdaterCros::ApplyDeferredUpdate() {
+void VersionUpdaterCros::ApplyDeferredUpdateAdvanced() {
   UpdateEngineClient* update_engine_client = UpdateEngineClient::Get();
 
   DCHECK(update_engine_client->GetLastStatus().current_operation() ==
          update_engine::Operation::UPDATED_BUT_DEFERRED);
 
-  update_engine_client->ApplyDeferredUpdate(/*shutdown_after_update=*/false,
-                                            base::DoNothing());
+  update_engine_client->ApplyDeferredUpdateAdvanced(
+      /*shutdown_after_update=*/false, base::DoNothing());
 }
 
 void VersionUpdaterCros::CheckForUpdate(StatusCallback callback,
@@ -165,12 +176,14 @@ void VersionUpdaterCros::CheckForUpdate(StatusCallback callback,
   callback_ = std::move(callback);
 
   // User is actively checking for updates.
-  if (!EnsureCanUpdate(true /* interactive */, callback_))
+  if (!EnsureCanUpdate(true /* interactive */, callback_)) {
     return;
+  }
 
   UpdateEngineClient* update_engine_client = UpdateEngineClient::Get();
-  if (!update_engine_client->HasObserver(this))
+  if (!update_engine_client->HasObserver(this)) {
     update_engine_client->AddObserver(this);
+  }
 
   if (update_engine_client->GetLastStatus().current_operation() !=
       update_engine::Operation::IDLE) {
@@ -195,8 +208,9 @@ void VersionUpdaterCros::SetChannel(const std::string& channel,
                 context_)
           : nullptr;
   // For local owner set the field in the policy blob.
-  if (service)
+  if (service) {
     service->SetString(ash::kReleaseChannel, channel);
+  }
   UpdateEngineClient::Get()->SetChannel(channel, is_powerwash_allowed);
 }
 
@@ -218,7 +232,7 @@ void VersionUpdaterCros::OnSetUpdateOverCellularOneTimePermission(
     // One time permission is set successfully, so we can proceed to update.
     CheckForUpdate(callback_, VersionUpdater::PromoteCallback());
   } else {
-    // TODO(https://crbug.com/927452): invoke callback to signal about page to
+    // TODO(crbug.com/40612027): invoke callback to signal about page to
     // show appropriate error message.
     LOG(ERROR) << "Error setting update over cellular one time permission.";
     callback_.Run(VersionUpdater::FAILED, 0, false, false, std::string(), 0,
@@ -268,7 +282,7 @@ void VersionUpdaterCros::IsFeatureEnabled(const std::string& feature,
 }
 
 void VersionUpdaterCros::OnIsFeatureEnabled(IsFeatureEnabledCallback callback,
-                                            absl::optional<bool> enabled) {
+                                            std::optional<bool> enabled) {
   std::move(callback).Run(std::move(enabled));
 }
 
@@ -287,16 +301,26 @@ VersionUpdaterCros::~VersionUpdaterCros() {
 
 void VersionUpdaterCros::UpdateStatusChanged(
     const update_engine::StatusResult& status) {
+  // If the status change is for an installation (e.g. DLCs), then this status
+  // has nothing to with an OS update.
+  if (status.is_install()) {
+    // Invoke the callback to signal a terminal state when the update engine is
+    // handling non-OS update operations (e.g. installations) in flight. In this
+    // case, the device can be considered up-to-date.
+    // Note: It is safe to set the last operation to IDLE provided that the
+    // update engine actually returns to an idle state, allowing the user to
+    // check for updates again.
+    // TODO(crbug.com/393412165) Consider more robust approaches in this case.
+    last_operation_ = update_engine::Operation::IDLE;
+    callback_.Run(UPDATED, 0, false, false, std::string(), 0, std::u16string());
+    return;
+  }
+
   Status my_status = UPDATED;
   int progress = 0;
   std::string version = status.new_version();
   int64_t size = status.new_size();
   std::u16string message;
-
-  // If the status change is for an installation, this means that DLCs are being
-  // installed and has nothing to with the OS. Ignore this status change.
-  if (status.is_install())
-    return;
 
   // If the updater is currently idle, just show the last operation (unless it
   // was previously checking for an update -- in that case, the system is
@@ -323,7 +347,16 @@ void VersionUpdaterCros::UpdateStatusChanged(
       if (status.last_attempt_error() ==
           static_cast<int32_t>(
               update_engine::ErrorCode::kOmahaUpdateIgnoredPerPolicy)) {
-        my_status = DISABLED_BY_ADMIN;
+        if (policy::ManagementServiceFactory::GetForPlatform()->IsManaged()) {
+          my_status = DISABLED_BY_ADMIN;
+        } else {
+          // Handle the special case where after a consumer rollback,
+          // updating to the previously installed version just rolledback from
+          // is disallowed.
+          // TODO(b/277962165) Update the platform side to expose a more
+          // specific error code for this case.
+          my_status = UPDATE_TO_ROLLBACK_VERSION_DISALLOWED;
+        }
       } else if (status.last_attempt_error() ==
                  static_cast<int32_t>(
                      update_engine::ErrorCode::kOmahaErrorInHTTPResponse)) {
@@ -387,6 +420,7 @@ void VersionUpdaterCros::OnUpdateCheck(
     UpdateEngineClient::UpdateCheckResult result) {
   // If version updating is not implemented, this binary is the most up-to-date
   // possible with respect to automatic updating.
-  if (result == UpdateEngineClient::UPDATE_RESULT_NOTIMPLEMENTED)
+  if (result == UpdateEngineClient::UPDATE_RESULT_NOTIMPLEMENTED) {
     callback_.Run(UPDATED, 0, false, false, std::string(), 0, std::u16string());
+  }
 }

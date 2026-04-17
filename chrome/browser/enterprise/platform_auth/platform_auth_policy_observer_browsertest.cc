@@ -6,9 +6,7 @@
 
 #include <vector>
 
-#include "base/test/scoped_feature_list.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/enterprise/platform_auth/platform_auth_features.h"
 #include "chrome/browser/enterprise/platform_auth/platform_auth_provider_manager.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
@@ -23,10 +21,17 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/origin.h"
 
+#if BUILDFLAG(IS_MAC)
+#include "base/test/scoped_feature_list.h"
+#include "chrome/browser/enterprise/browser_management/management_service_factory.h"
+#include "chrome/browser/enterprise/platform_auth/platform_auth_features.h"
+#include "components/policy/core/common/management/management_service.h"
+#include "components/policy/core/common/management/scoped_management_service_override_for_testing.h"
+#endif  //  BUILDFLAG(IS_MAC)
+
 class PlatformAuthPolicyObserverTest : public InProcessBrowserTest {
  public:
   void SetUp() override {
-    scoped_feature_list_.InitAndEnableFeature(enterprise_auth::kCloudApAuth);
     policy_provider_.SetDefaultReturns(
         /*is_initialization_complete_return=*/true,
         /*is_first_policy_load_complete_return=*/true);
@@ -38,20 +43,27 @@ class PlatformAuthPolicyObserverTest : public InProcessBrowserTest {
  protected:
   PlatformAuthPolicyObserverTest() = default;
 
-  absl::optional<PlatformAuthPolicyObserver> platform_auth_policy_observer_;
-  base::test::ScopedFeatureList scoped_feature_list_;
+  std::optional<PlatformAuthPolicyObserver> platform_auth_policy_observer_;
   testing::NiceMock<policy::MockConfigurationPolicyProvider> policy_provider_;
+#if BUILDFLAG(IS_MAC)
+  base::test::ScopedFeatureList feature_list_{
+      enterprise_auth::kEnableExtensibleEnterpriseSSO};
+  policy::ScopedManagementServiceOverrideForTesting platform_management_{
+      policy::ManagementServiceFactory::GetForPlatform(),
+      policy::EnterpriseManagementAuthority::COMPUTER_LOCAL};
+#endif  //  BUILDFLAG(IS_MAC)
 };
 
+#if BUILDFLAG(IS_WIN)
 IN_PROC_BROWSER_TEST_F(PlatformAuthPolicyObserverTest, EnableThenDisable) {
-  auto& manager = enterprise_auth::PlatformAuthProviderManager::GetInstance();
-  // The manager should be disabled by default since the policy is disabled.
-  ASSERT_FALSE(manager.IsEnabled());
-
   // Initialize the policy handler.
   PrefService* prefs = g_browser_process->local_state();
   if (prefs)
     platform_auth_policy_observer_.emplace(prefs);
+
+  auto& manager = enterprise_auth::PlatformAuthProviderManager::GetInstance();
+  // The manager should be disabled by default since the policy is disabled.
+  ASSERT_FALSE(manager.IsEnabled());
 
   EXPECT_EQ(/*Disabled*/ 0, prefs->GetInteger(prefs::kCloudApAuthEnabled));
   EXPECT_FALSE(prefs->IsManagedPreference(prefs::kCloudApAuthEnabled));
@@ -85,14 +97,14 @@ IN_PROC_BROWSER_TEST_F(PlatformAuthPolicyObserverTest, EnableThenDisable) {
 }
 
 IN_PROC_BROWSER_TEST_F(PlatformAuthPolicyObserverTest, EnableThenUnset) {
-  auto& manager = enterprise_auth::PlatformAuthProviderManager::GetInstance();
-  // The manager should be disabled by default since the policy is disabled.
-  ASSERT_FALSE(manager.IsEnabled());
-
   // Initialize the policy handler.
   PrefService* prefs = g_browser_process->local_state();
   if (prefs)
     platform_auth_policy_observer_.emplace(prefs);
+
+  auto& manager = enterprise_auth::PlatformAuthProviderManager::GetInstance();
+  // The manager should be disabled by default since the policy is disabled.
+  ASSERT_FALSE(manager.IsEnabled());
 
   EXPECT_EQ(/*Disabled*/ 0, prefs->GetInteger(prefs::kCloudApAuthEnabled));
   EXPECT_FALSE(prefs->IsManagedPreference(prefs::kCloudApAuthEnabled));
@@ -122,48 +134,121 @@ IN_PROC_BROWSER_TEST_F(PlatformAuthPolicyObserverTest, EnableThenUnset) {
 
   platform_auth_policy_observer_.reset();
 }
+#elif BUILDFLAG(IS_MAC)
 
-class PlatformAuthPolicyObserverFeatureDisabledTest
-    : public PlatformAuthPolicyObserverTest {
- public:
-  void SetUp() override {
-    scoped_feature_list_.InitAndDisableFeature(enterprise_auth::kCloudApAuth);
-    policy_provider_.SetDefaultReturns(
-        /*is_initialization_complete_return=*/true,
-        /*is_first_policy_load_complete_return=*/true);
-    policy::BrowserPolicyConnector::SetPolicyProviderForTesting(
-        &policy_provider_);
-    InProcessBrowserTest::SetUp();
-  }
-
- protected:
-  PlatformAuthPolicyObserverFeatureDisabledTest() = default;
-};
-
-IN_PROC_BROWSER_TEST_F(PlatformAuthPolicyObserverFeatureDisabledTest,
-                       PolicyEnabled) {
-  auto& manager = enterprise_auth::PlatformAuthProviderManager::GetInstance();
-
+IN_PROC_BROWSER_TEST_F(PlatformAuthPolicyObserverTest, DisableThenEnable) {
   // Initialize the policy handler.
   PrefService* prefs = g_browser_process->local_state();
-  if (prefs)
+  if (prefs) {
     platform_auth_policy_observer_.emplace(prefs);
+  }
+  auto& manager = enterprise_auth::PlatformAuthProviderManager::GetInstance();
+  // The manager should be enabled by default since the policy is enabled.
+  ASSERT_TRUE(manager.IsEnabled());
 
-  EXPECT_EQ(/*Disabled*/ 0, prefs->GetInteger(prefs::kCloudApAuthEnabled));
-  EXPECT_FALSE(prefs->IsManagedPreference(prefs::kCloudApAuthEnabled));
+  EXPECT_EQ(/*Enabled*/ 1,
+            prefs->GetInteger(prefs::kExtensibleEnterpriseSSOEnabled));
+  EXPECT_FALSE(
+      prefs->IsManagedPreference(prefs::kExtensibleEnterpriseSSOEnabled));
 
-  // Enable the policy.
+  // Disable the policy.
   policy::PolicyMap policies;
-  policies.Set(policy::key::kCloudAPAuthEnabled, policy::POLICY_LEVEL_MANDATORY,
-               policy::POLICY_SCOPE_MACHINE, policy::POLICY_SOURCE_CLOUD,
-               base::Value(1), nullptr);
+  base::Value extensibleEnterpriseSSOBlocklistValues(base::Value::Type::LIST);
+  extensibleEnterpriseSSOBlocklistValues.GetList().Append("all");
+  policies.Set(policy::key::kExtensibleEnterpriseSSOBlocklist,
+               policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_MACHINE,
+               policy::POLICY_SOURCE_CLOUD,
+               std::move(extensibleEnterpriseSSOBlocklistValues), nullptr);
   policy_provider_.UpdateChromePolicy(policies);
 
-  EXPECT_EQ(/*Enabled*/ 1, prefs->GetInteger(prefs::kCloudApAuthEnabled));
-  EXPECT_TRUE(prefs->IsManagedPreference(prefs::kCloudApAuthEnabled));
+  EXPECT_EQ(/*Disabled*/ 0,
+            prefs->GetInteger(prefs::kExtensibleEnterpriseSSOEnabled));
+  EXPECT_TRUE(
+      prefs->IsManagedPreference(prefs::kExtensibleEnterpriseSSOEnabled));
 
-  // The manager should still be disabled because the feature is disabled.
+  // The manager should now be disabled.
+  ASSERT_FALSE(manager.IsEnabled());
+
+  // Enable the policy.
+  policies.Set(policy::key::kExtensibleEnterpriseSSOBlocklist,
+               policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_MACHINE,
+               policy::POLICY_SOURCE_CLOUD,
+               base::Value(base::Value::Type::LIST), nullptr);
+  policy_provider_.UpdateChromePolicy(policies);
+
+  EXPECT_EQ(/*Enabled*/ 1,
+            prefs->GetInteger(prefs::kExtensibleEnterpriseSSOEnabled));
+  EXPECT_TRUE(
+      prefs->IsManagedPreference(prefs::kExtensibleEnterpriseSSOEnabled));
+
+  // The manager should now be enabled.
+  ASSERT_TRUE(manager.IsEnabled());
+
+  platform_auth_policy_observer_.reset();
+}
+
+IN_PROC_BROWSER_TEST_F(PlatformAuthPolicyObserverTest, DisableThenUnset) {
+  // Initialize the policy handler.
+  PrefService* prefs = g_browser_process->local_state();
+  if (prefs) {
+    platform_auth_policy_observer_.emplace(prefs);
+  }
+  auto& manager = enterprise_auth::PlatformAuthProviderManager::GetInstance();
+  // The manager should be enabled by default since the policy is enabled.
+  ASSERT_TRUE(manager.IsEnabled());
+
+  EXPECT_EQ(/*Enabled*/ 1,
+            prefs->GetInteger(prefs::kExtensibleEnterpriseSSOEnabled));
+  EXPECT_FALSE(
+      prefs->IsManagedPreference(prefs::kExtensibleEnterpriseSSOEnabled));
+
+  // Disable the policy.
+  policy::PolicyMap policies;
+  base::Value extensibleEnterpriseSSOBlocklistValues(base::Value::Type::LIST);
+  extensibleEnterpriseSSOBlocklistValues.GetList().Append("all");
+  policies.Set(policy::key::kExtensibleEnterpriseSSOBlocklist,
+               policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_MACHINE,
+               policy::POLICY_SOURCE_CLOUD,
+               std::move(extensibleEnterpriseSSOBlocklistValues), nullptr);
+  policy_provider_.UpdateChromePolicy(policies);
+
+  EXPECT_EQ(/*Disabled*/ 0,
+            prefs->GetInteger(prefs::kExtensibleEnterpriseSSOEnabled));
+  EXPECT_TRUE(
+      prefs->IsManagedPreference(prefs::kExtensibleEnterpriseSSOEnabled));
+
+  // The manager should now be disabled.
+  ASSERT_FALSE(manager.IsEnabled());
+
+  // Unset the policy.
+  policies.Erase(policy::key::kExtensibleEnterpriseSSOBlocklist);
+  policy_provider_.UpdateChromePolicy(policies);
+
+  EXPECT_EQ(/*Enabled*/ 1,
+            prefs->GetInteger(prefs::kExtensibleEnterpriseSSOEnabled));
+  EXPECT_FALSE(
+      prefs->IsManagedPreference(prefs::kExtensibleEnterpriseSSOEnabled));
+
+  // The manager should now be disabled.
+  ASSERT_TRUE(manager.IsEnabled());
+
+  platform_auth_policy_observer_.reset();
+}
+
+IN_PROC_BROWSER_TEST_F(PlatformAuthPolicyObserverTest, UnmanagedDevice) {
+  policy::ScopedManagementServiceOverrideForTesting platform_management(
+      policy::ManagementServiceFactory::GetForPlatform(),
+      policy::EnterpriseManagementAuthority::NONE);
+  // Initialize the policy handler.
+  PrefService* prefs = g_browser_process->local_state();
+  if (prefs) {
+    platform_auth_policy_observer_.emplace(prefs);
+  }
+  auto& manager = enterprise_auth::PlatformAuthProviderManager::GetInstance();
+  // The manager should be disabled by default since we are on an unmanaged
+  // device.
   ASSERT_FALSE(manager.IsEnabled());
 
   platform_auth_policy_observer_.reset();
 }
+#endif  //  BUILDFLAG(IS_WIN)

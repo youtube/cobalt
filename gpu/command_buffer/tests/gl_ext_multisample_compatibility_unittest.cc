@@ -2,13 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <GLES2/gl2extchromium.h>
 #include <stdint.h>
 
+#include <array>
 #include <memory>
 
+#include "base/containers/contains.h"
 #include "build/build_config.h"
 #include "gpu/command_buffer/tests/gl_manager.h"
 #include "gpu/command_buffer/tests/gl_test_utils.h"
@@ -45,11 +52,28 @@ class EXTMultisampleCompatibilityTest : public testing::Test {
     GLuint vbo = 0;
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    static float vertices[] = {
-        1.0f,  1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, 1.0f, -1.0f,
-        -1.0f, 1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f, 1.0f, 1.0f,
-    };
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    static auto vertices = std::to_array<float>({
+        1.0f,
+        1.0f,
+        -1.0f,
+        1.0f,
+        -1.0f,
+        -1.0f,
+        -1.0f,
+        1.0f,
+        -1.0f,
+        -1.0f,
+        1.0f,
+        -1.0f,
+        -1.0f,
+        -1.0f,
+        1.0f,
+        -1.0f,
+        1.0f,
+        1.0f,
+    });
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(vertices[0]),
+                 vertices.data(), GL_STATIC_DRAW);
     glEnableVertexAttribArray(position_loc);
     glVertexAttribPointer(position_loc, 2, GL_FLOAT, GL_FALSE, 0, 0);
 
@@ -150,7 +174,7 @@ TEST_F(EXTMultisampleCompatibilityTest, DrawAndResolve) {
     return;
   }
 
-  // TODO(crbug.com/1144270) Fails on Mac Mini 8.1
+  // TODO(crbug.com/40728740) Fails on Mac Mini 8.1
   if (GPUTestBotConfig::CurrentConfigMatches("Mac Intel 0x3e9b"))
     return;
 
@@ -162,7 +186,7 @@ TEST_F(EXTMultisampleCompatibilityTest, DrawAndResolve) {
   // values. These might be due to different MSAA sample counts causing
   // different samples to hit.  Other option is driver bugs. Just test that
   // disabling multisample causes a difference.
-  std::unique_ptr<uint8_t[]> results[3];
+  std::array<std::unique_ptr<uint8_t[]>, 3> results;
   const GLint kResultSize = kWidth * kHeight * 4;
   for (int pass = 0; pass < 3; pass++) {
     PrepareForDraw();
@@ -205,9 +229,10 @@ TEST_F(EXTMultisampleCompatibilityTest, DrawAlphaOneAndResolve) {
   // TODO: Figure out why this fails on NVIDIA Shield. crbug.com/700060.
   std::string renderer(gl_.context()->GetGLRenderer());
   std::string version(gl_.context()->GetGLVersion());
-  if (renderer.find("NVIDIA Tegra") != std::string::npos &&
-      version.find("OpenGL ES 3.2 NVIDIA 361.00") != std::string::npos)
+  if (base::Contains(renderer, "NVIDIA Tegra") &&
+      base::Contains(version, "OpenGL ES 3.2 NVIDIA 361.00")) {
     return;
+  }
 #endif
 
   // SAMPLE_ALPHA_TO_ONE is specified to transform alpha values of
@@ -223,7 +248,7 @@ TEST_F(EXTMultisampleCompatibilityTest, DrawAlphaOneAndResolve) {
   // even approximate sample values is not that easy.  Thus, just test
   // representative positions which have fractional pixels, inspecting that
   // normal rendering is different to SAMPLE_ALPHA_TO_ONE rendering.
-  std::unique_ptr<uint8_t[]> results[3];
+  std::array<std::unique_ptr<uint8_t[]>, 3> results;
   const GLint kResultSize = kWidth * kHeight * 4;
 
   for (int pass = 0; pass < 3; ++pass) {

@@ -5,10 +5,11 @@
 package org.chromium.chrome.browser.toolbar.menu_button;
 
 import android.content.res.ColorStateList;
-
-import androidx.annotation.NonNull;
+import android.view.View.OnKeyListener;
 
 import org.chromium.base.supplier.Supplier;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuButtonHelper;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.ui.modelutil.PropertyKey;
@@ -16,13 +17,14 @@ import org.chromium.ui.modelutil.PropertyModel.WritableBooleanPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableFloatPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableObjectPropertyKey;
 
+@NullMarked
 class MenuButtonProperties {
     static class ThemeProperty {
-        @NonNull
-        public ColorStateList mColorStateList;
+        public @Nullable ColorStateList mColorStateList;
         public @BrandedColorScheme int mBrandedColorScheme;
 
-        public ThemeProperty(@NonNull ColorStateList colorStateList,
+        public ThemeProperty(
+                @Nullable ColorStateList colorStateList,
                 @BrandedColorScheme int brandedColorScheme) {
             mColorStateList = colorStateList;
             mBrandedColorScheme = brandedColorScheme;
@@ -55,8 +57,21 @@ class MenuButtonProperties {
     public static final WritableObjectPropertyKey<ThemeProperty> THEME =
             new WritableObjectPropertyKey<>(true);
     public static final WritableFloatPropertyKey TRANSLATION_X = new WritableFloatPropertyKey();
+    public static final WritableObjectPropertyKey<OnKeyListener> ON_KEY_LISTENER =
+            new WritableObjectPropertyKey<>();
 
-    public static final PropertyKey[] ALL_KEYS = new PropertyKey[] {ALPHA, APP_MENU_BUTTON_HELPER,
-            CONTENT_DESCRIPTION, IS_CLICKABLE, IS_HIGHLIGHTING, IS_VISIBLE, STATE_SUPPLIER,
-            SHOW_UPDATE_BADGE, THEME, TRANSLATION_X};
+    public static final PropertyKey[] ALL_KEYS =
+            new PropertyKey[] {
+                ALPHA,
+                APP_MENU_BUTTON_HELPER,
+                CONTENT_DESCRIPTION,
+                IS_CLICKABLE,
+                IS_HIGHLIGHTING,
+                IS_VISIBLE,
+                STATE_SUPPLIER,
+                SHOW_UPDATE_BADGE,
+                THEME,
+                TRANSLATION_X,
+                ON_KEY_LISTENER
+            };
 }

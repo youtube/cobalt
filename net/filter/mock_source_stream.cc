@@ -2,22 +2,31 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/filter/mock_source_stream.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "base/check_op.h"
 #include "net/base/io_buffer.h"
+#include "net/filter/source_stream_type.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
 
-MockSourceStream::MockSourceStream() : SourceStream(SourceStream::TYPE_NONE) {}
+MockSourceStream::MockSourceStream() : SourceStream(SourceStreamType::kNone) {}
 
 MockSourceStream::~MockSourceStream() {
   DCHECK(!awaiting_completion_);
-  // All data should have been consumed.
-  EXPECT_TRUE(results_.empty());
+  if (expect_all_input_consumed_) {
+    // All data should have been consumed.
+    EXPECT_TRUE(results_.empty());
+  }
 }
 
 int MockSourceStream::Read(IOBuffer* dest_buffer,
@@ -40,7 +49,7 @@ int MockSourceStream::Read(IOBuffer* dest_buffer,
   }
 
   results_.pop();
-  memcpy(dest_buffer->data(), r.data, r.len);
+  std::copy(r.data, r.data + r.len, dest_buffer->data());
   return r.error == OK ? r.len : r.error;
 }
 
@@ -94,7 +103,7 @@ void MockSourceStream::CompleteNextRead() {
   DCHECK_EQ(ASYNC, r.mode);
   results_.pop();
   DCHECK_GE(dest_buffer_size_, r.len);
-  memcpy(dest_buffer_->data(), r.data, r.len);
+  std::copy(r.data, r.data + r.len, dest_buffer_->data());
   dest_buffer_ = nullptr;
   std::move(callback_).Run(r.error == OK ? r.len : r.error);
 }

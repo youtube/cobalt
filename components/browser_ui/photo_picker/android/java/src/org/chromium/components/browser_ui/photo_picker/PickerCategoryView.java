@@ -4,6 +4,8 @@
 
 package org.chromium.components.browser_ui.photo_picker;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -31,6 +33,9 @@ import androidx.recyclerview.widget.RecyclerView;
 import org.chromium.base.DiscardableReferencePool.DiscardableReference;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.task.AsyncTask;
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.util.ConversionUtils;
 import org.chromium.components.browser_ui.util.GlobalDiscardableReferencePool;
 import org.chromium.components.browser_ui.widget.selectable_list.SelectableListLayout;
@@ -46,13 +51,16 @@ import java.util.HashSet;
 import java.util.List;
 
 /**
- * A class for keeping track of common data associated with showing photos in
- * the photo picker, for example the RecyclerView and the bitmap caches.
+ * A class for keeping track of common data associated with showing photos in the photo picker, for
+ * example the RecyclerView and the bitmap caches.
  */
+@NullMarked
 public class PickerCategoryView extends RelativeLayout
-        implements FileEnumWorkerTask.FilesEnumeratedCallback, RecyclerView.RecyclerListener,
-                   DecoderServiceHost.DecoderStatusCallback, View.OnClickListener,
-                   SelectionDelegate.SelectionObserver<PickerBitmap> {
+        implements FileEnumWorkerTask.FilesEnumeratedCallback,
+                RecyclerView.RecyclerListener,
+                DecoderServiceHost.DecoderStatusCallback,
+                View.OnClickListener,
+                SelectionDelegate.SelectionObserver<PickerBitmap> {
     // These values are written to logs.  New enum values can be added, but existing
     // enums must never be renumbered or deleted and reused.
     private static final int ACTION_CANCEL = 0;
@@ -68,14 +76,18 @@ public class PickerCategoryView extends RelativeLayout
     public static class Thumbnail {
         public List<Bitmap> bitmaps;
         public Boolean fullWidth;
-        public String videoDuration;
+        public @Nullable String videoDuration;
 
         // The calculated ratio of the originals for the bitmaps above, were they to be shown
         // un-cropped. NOTE: The |bitmaps| above may already have been cropped and as such might
         // have a different ratio.
         public float ratioOriginal;
 
-        Thumbnail(List<Bitmap> bitmaps, String videoDuration, Boolean fullWidth, float ratio) {
+        Thumbnail(
+                List<Bitmap> bitmaps,
+                @Nullable String videoDuration,
+                Boolean fullWidth,
+                float ratio) {
             this.bitmaps = bitmaps;
             this.videoDuration = videoDuration;
             this.fullWidth = fullWidth;
@@ -84,63 +96,63 @@ public class PickerCategoryView extends RelativeLayout
     }
 
     // The dialog that owns us.
-    private PhotoPickerDialog mDialog;
+    private @Nullable PhotoPickerDialog mDialog;
 
     // The view containing the RecyclerView and the toolbar, etc.
-    private SelectableListLayout<PickerBitmap> mSelectableListLayout;
+    private final SelectableListLayout<PickerBitmap> mSelectableListLayout;
 
     // The {@link WindowAndroid} for the hosting WebContents.
-    private WindowAndroid mWindowAndroid;
+    private final WindowAndroid mWindowAndroid;
 
     // The ContentResolver to use to retrieve image metadata from disk.
-    private ContentResolver mContentResolver;
+    private final ContentResolver mContentResolver;
 
     // The list of images on disk, sorted by last-modified first.
-    private List<PickerBitmap> mPickerBitmaps;
+    private @Nullable List<PickerBitmap> mPickerBitmaps;
 
     // True if multi-selection is allowed in the picker.
-    private boolean mMultiSelectionAllowed;
+    private final boolean mMultiSelectionAllowed;
 
     // The callback to notify the listener of decisions reached in the picker.
     private PhotoPickerListener mListener;
 
     // The host class for the decoding service.
-    private DecoderServiceHost mDecoderServiceHost;
+    private @Nullable DecoderServiceHost mDecoderServiceHost;
 
     // The RecyclerView showing the images.
-    private RecyclerView mRecyclerView;
+    private final RecyclerView mRecyclerView;
 
     // The {@link PickerAdapter} for the RecyclerView.
-    private PickerAdapter mPickerAdapter;
+    private final PickerAdapter mPickerAdapter;
 
     // The layout manager for the RecyclerView.
-    private GridLayoutManager mLayoutManager;
+    private final GridLayoutManager mLayoutManager;
 
     // The decoration to use for the RecyclerView.
     private GridSpacingItemDecoration mSpacingDecoration;
 
     // The {@link SelectionDelegate} keeping track of which images are selected.
-    private SelectionDelegate<PickerBitmap> mSelectionDelegate;
+    private final SelectionDelegate<PickerBitmap> mSelectionDelegate;
 
     // A low-resolution cache for thumbnails, lazily created. Helpful for cache misses from the
     // high-resolution cache to avoid showing gray squares (we show pixelated versions instead until
     // image can be loaded off disk, which is much less jarring).
-    private DiscardableReference<LruCache<String, Thumbnail>> mLowResThumbnails;
+    private @Nullable DiscardableReference<LruCache<String, Thumbnail>> mLowResThumbnails;
 
     // A high-resolution cache for thumbnails, lazily created.
-    private DiscardableReference<LruCache<String, Thumbnail>> mHighResThumbnails;
+    private @Nullable DiscardableReference<LruCache<String, Thumbnail>> mHighResThumbnails;
 
     // A cache for full-screen versions of images, lazily created.
-    private DiscardableReference<LruCache<String, Thumbnail>> mFullScreenBitmaps;
+    private @Nullable DiscardableReference<LruCache<String, Thumbnail>> mFullScreenBitmaps;
 
     // The size of the low-res cache.
-    private int mCacheSizeLarge;
+    private final int mCacheSizeLarge;
 
     // The size of the high-res cache.
-    private int mCacheSizeSmall;
+    private final int mCacheSizeSmall;
 
     // The size of the full-screen cache.
-    private int mCacheSizeFullScreen;
+    private final int mCacheSizeFullScreen;
 
     // Whether we are in magnifying mode (one image per column).
     private boolean mMagnifyingMode;
@@ -161,14 +173,11 @@ public class PickerCategoryView extends RelativeLayout
     // The width of the bitmaps.
     private int mImageWidth;
 
-    // The height of the bitmaps.
-    private int mImageHeight;
-
     // The height of the special tiles.
     private int mSpecialTileHeight;
 
     // A worker task for asynchronously enumerating files off the main thread.
-    private FileEnumWorkerTask mWorkerTask;
+    private @Nullable FileEnumWorkerTask mWorkerTask;
 
     // The timestamp for the start of the enumeration of files on disk.
     private long mEnumStartTime;
@@ -180,26 +189,30 @@ public class PickerCategoryView extends RelativeLayout
     private List<String> mMimeTypes;
 
     // A list of files to use for testing (instead of reading files on disk).
-    private static List<PickerBitmap> sTestFiles;
+    private static @Nullable List<PickerBitmap> sTestFiles;
 
     // The Video Player.
     private final PickerVideoPlayer mVideoPlayer;
 
     // The Zoom (floating action) button.
-    private ImageView mZoom;
+    private final ImageView mZoom;
 
     /**
      * @param windowAndroid The window of the {@link WebContents} that requested the photo
-     *         selection.
+     *     selection.
      * @param contentResolver The ContentResolver to use to retrieve image metadata from disk.
      * @param multiSelectionAllowed Whether to allow the user to select more than one image.
      */
     @SuppressWarnings("unchecked") // mSelectableListLayout
-    public PickerCategoryView(WindowAndroid windowAndroid, ContentResolver contentResolver,
-            boolean multiSelectionAllowed, PhotoPickerToolbar.PhotoPickerToolbarDelegate delegate) {
+    public PickerCategoryView(
+            WindowAndroid windowAndroid,
+            ContentResolver contentResolver,
+            boolean multiSelectionAllowed,
+            PhotoPickerToolbar.PhotoPickerToolbarDelegate delegate) {
         super(windowAndroid.getContext().get());
         mWindowAndroid = windowAndroid;
         Context context = mWindowAndroid.getContext().get();
+        assumeNonNull(context);
         mContentResolver = contentResolver;
         mMultiSelectionAllowed = multiSelectionAllowed;
 
@@ -216,13 +229,23 @@ public class PickerCategoryView extends RelativeLayout
 
         mPickerAdapter = new PickerAdapter(this);
         mRecyclerView = mSelectableListLayout.initializeRecyclerView(mPickerAdapter);
-        int titleId = multiSelectionAllowed ? R.string.photo_picker_select_images
-                                            : R.string.photo_picker_select_image;
-        PhotoPickerToolbar toolbar = (PhotoPickerToolbar) mSelectableListLayout.initializeToolbar(
-                R.layout.photo_picker_toolbar, mSelectionDelegate, titleId, 0, 0, null, false);
+        int titleId =
+                multiSelectionAllowed
+                        ? R.string.photo_picker_select_images
+                        : R.string.photo_picker_select_image;
+        PhotoPickerToolbar toolbar =
+                (PhotoPickerToolbar)
+                        mSelectableListLayout.initializeToolbar(
+                                R.layout.photo_picker_toolbar,
+                                mSelectionDelegate,
+                                titleId,
+                                0,
+                                0,
+                                null,
+                                false);
         toolbar.setNavigationOnClickListener(this);
         toolbar.setDelegate(delegate);
-        Button doneButton = (Button) toolbar.findViewById(R.id.done);
+        Button doneButton = toolbar.findViewById(R.id.done);
         doneButton.setOnClickListener(this);
         mVideoPlayer = findViewById(R.id.playback_container);
         mZoom = findViewById(R.id.zoom);
@@ -262,9 +285,7 @@ public class PickerCategoryView extends RelativeLayout
         }
     }
 
-    /**
-     * Severs the connection to the decoding utility process and cancels any outstanding requests.
-     */
+    /** Severs the connection to the decoding utility process and cancels any outstanding requests. */
     public void onDialogDismissed() {
         if (mWorkerTask != null) {
             mWorkerTask.cancel(true);
@@ -281,6 +302,7 @@ public class PickerCategoryView extends RelativeLayout
 
     /**
      * Start playback of a video in an overlay above the photo picker.
+     *
      * @param uri The uri of the video to start playing.
      */
     public void startVideoPlaybackAsync(Uri uri) {
@@ -291,6 +313,7 @@ public class PickerCategoryView extends RelativeLayout
     /**
      * Ends video playback (if a video is playing) and closes the video player. Aborts if the video
      * playback container is not showing.
+     *
      * @return true if a video container was showing, false otherwise.
      */
     public boolean closeVideoPlayer() {
@@ -299,10 +322,12 @@ public class PickerCategoryView extends RelativeLayout
 
     /**
      * Initializes the PickerCategoryView object.
+     *
      * @param dialog The dialog showing us.
      * @param listener The listener who should be notified of actions.
      * @param mimeTypes A list of mime types to show in the dialog.
      */
+    @Initializer
     public void initialize(
             PhotoPickerDialog dialog, PhotoPickerListener listener, List<String> mimeTypes) {
         mDialog = dialog;
@@ -311,25 +336,27 @@ public class PickerCategoryView extends RelativeLayout
 
         enumerateBitmaps();
 
-        mDialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
-            @Override
-            public void onCancel(DialogInterface dialog) {
-                executeAction(PhotoPickerListener.PhotoPickerAction.CANCEL, null, ACTION_CANCEL);
-            }
-        });
+        mDialog.setOnCancelListener(
+                new DialogInterface.OnCancelListener() {
+                    @Override
+                    public void onCancel(DialogInterface dialog) {
+                        executeAction(
+                                PhotoPickerListener.PhotoPickerAction.CANCEL, null, ACTION_CANCEL);
+                    }
+                });
     }
 
     // FileEnumWorkerTask.FilesEnumeratedCallback:
 
     @Override
-    public void filesEnumeratedCallback(List<PickerBitmap> files) {
+    public void filesEnumeratedCallback(@Nullable List<PickerBitmap> files) {
         if (files == null) {
             return;
         }
 
         // Calculate the rate of files enumerated per tenth of a second.
         long elapsedTimeMs = SystemClock.elapsedRealtime() - mEnumStartTime;
-        int rate = (int) (100 * files.size() / elapsedTimeMs);
+        int rate = (int) (100L * files.size() / elapsedTimeMs);
         RecordHistogram.recordTimesHistogram("Android.PhotoPicker.EnumerationTime", elapsedTimeMs);
         RecordHistogram.recordCustomCountHistogram(
                 "Android.PhotoPicker.EnumeratedFiles", files.size(), 1, 10000, 50);
@@ -357,6 +384,7 @@ public class PickerCategoryView extends RelativeLayout
         PickerBitmapViewHolder bitmapHolder = (PickerBitmapViewHolder) holder;
         String filePath = bitmapHolder.getFilePath();
         if (filePath != null) {
+            assumeNonNull(getDecoderServiceHost());
             getDecoderServiceHost().cancelDecodeImage(filePath);
         }
     }
@@ -387,10 +415,7 @@ public class PickerCategoryView extends RelativeLayout
         }
     }
 
-    /**
-     * Start loading of bitmaps, once files have been enumerated and service is
-     * ready to decode.
-     */
+    /** Start loading of bitmaps, once files have been enumerated and service is ready to decode. */
     private void processBitmaps() {
         if (mServiceReady && mPickerBitmaps != null) {
             mPickerAdapter.notifyDataSetChanged();
@@ -409,6 +434,7 @@ public class PickerCategoryView extends RelativeLayout
         mMagnifyingMode = !mMagnifyingMode;
 
         Context context = mWindowAndroid.getContext().get();
+        assumeNonNull(context);
         if (mMagnifyingMode) {
             mZoom.setImageResource(R.drawable.zoom_out);
             mZoom.setContentDescription(
@@ -428,27 +454,29 @@ public class PickerCategoryView extends RelativeLayout
         mZoomSwitchingInEffect = true;
 
         ChangeBounds transition = new ChangeBounds();
-        transition.addListener(new Transition.TransitionListener() {
-            @Override
-            public void onTransitionStart(Transition transition) {}
+        transition.addListener(
+                new Transition.TransitionListener() {
+                    @Override
+                    public void onTransitionStart(Transition transition) {}
 
-            @Override
-            public void onTransitionEnd(Transition transition) {
-                mZoomSwitchingInEffect = false;
+                    @Override
+                    public void onTransitionEnd(Transition transition) {
+                        mZoomSwitchingInEffect = false;
 
-                // Redo selection when switching between modes to make it obvious what got selected.
-                mSelectionDelegate.setSelectedItems(selectedItems);
-            }
+                        // Redo selection when switching between modes to make it obvious what got
+                        // selected.
+                        mSelectionDelegate.setSelectedItems(selectedItems);
+                    }
 
-            @Override
-            public void onTransitionCancel(Transition transition) {}
+                    @Override
+                    public void onTransitionCancel(Transition transition) {}
 
-            @Override
-            public void onTransitionPause(Transition transition) {}
+                    @Override
+                    public void onTransitionPause(Transition transition) {}
 
-            @Override
-            public void onTransitionResume(Transition transition) {}
-        });
+                    @Override
+                    public void onTransitionResume(Transition transition) {}
+                });
 
         TransitionManager.beginDelayedTransition(mRecyclerView, transition);
 
@@ -479,62 +507,60 @@ public class PickerCategoryView extends RelativeLayout
         return mSelectionDelegate;
     }
 
-    public List<PickerBitmap> getPickerBitmaps() {
+    public @Nullable List<PickerBitmap> getPickerBitmaps() {
         return mPickerBitmaps;
     }
 
-    public DecoderServiceHost getDecoderServiceHost() {
+    public @Nullable DecoderServiceHost getDecoderServiceHost() {
         return mDecoderServiceHost;
     }
 
     public LruCache<String, Thumbnail> getLowResThumbnails() {
         if (mLowResThumbnails == null || mLowResThumbnails.get() == null) {
-            mLowResThumbnails = GlobalDiscardableReferencePool.getReferencePool().put(
-                    new LruCache<String, Thumbnail>(mCacheSizeSmall));
+            mLowResThumbnails =
+                    GlobalDiscardableReferencePool.getReferencePool()
+                            .put(new LruCache<String, Thumbnail>(mCacheSizeSmall));
         }
-        return mLowResThumbnails.get();
+        return assumeNonNull(mLowResThumbnails.get());
     }
 
     public LruCache<String, Thumbnail> getHighResThumbnails() {
         if (mHighResThumbnails == null || mHighResThumbnails.get() == null) {
-            mHighResThumbnails = GlobalDiscardableReferencePool.getReferencePool().put(
-                    new LruCache<String, Thumbnail>(mCacheSizeLarge));
+            mHighResThumbnails =
+                    GlobalDiscardableReferencePool.getReferencePool()
+                            .put(new LruCache<String, Thumbnail>(mCacheSizeLarge));
         }
-        return mHighResThumbnails.get();
+        return assumeNonNull(mHighResThumbnails.get());
     }
 
     public LruCache<String, Thumbnail> getFullScreenBitmaps() {
         if (mFullScreenBitmaps == null || mFullScreenBitmaps.get() == null) {
-            mFullScreenBitmaps = GlobalDiscardableReferencePool.getReferencePool().put(
-                    new LruCache<String, Thumbnail>(mCacheSizeFullScreen));
+            mFullScreenBitmaps =
+                    GlobalDiscardableReferencePool.getReferencePool()
+                            .put(new LruCache<String, Thumbnail>(mCacheSizeFullScreen));
         }
-        return mFullScreenBitmaps.get();
+        return assumeNonNull(mFullScreenBitmaps.get());
     }
 
     public boolean isMultiSelectAllowed() {
         return mMultiSelectionAllowed;
     }
 
-    /**
-     * Notifies the listener that the user selected to launch the gallery.
-     */
+    /** Notifies the listener that the user selected to launch the gallery. */
     public void showGallery() {
         executeAction(PhotoPickerListener.PhotoPickerAction.LAUNCH_GALLERY, null, ACTION_BROWSE);
     }
 
-    /**
-     * Notifies the listener that the user selected to launch the camera intent.
-     */
+    /** Notifies the listener that the user selected to launch the camera intent. */
     public void showCamera() {
         executeAction(PhotoPickerListener.PhotoPickerAction.LAUNCH_CAMERA, null, ACTION_NEW_PHOTO);
     }
 
-    /**
-     * Calculates image size and how many columns can fit on-screen.
-     */
+    /** Calculates image size and how many columns can fit on-screen. */
     private void calculateGridMetrics() {
         DisplayMetrics displayMetrics = new DisplayMetrics();
         Context context = mWindowAndroid.getContext().get();
+        assumeNonNull(context);
         WindowManager windowManager =
                 (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
         windowManager.getDefaultDisplay().getMetrics(displayMetrics);
@@ -542,14 +568,13 @@ public class PickerCategoryView extends RelativeLayout
         int width = displayMetrics.widthPixels;
         int minSize =
                 context.getResources().getDimensionPixelSize(R.dimen.photo_picker_tile_min_size);
-        mPadding = mMagnifyingMode
-                ? 0
-                : context.getResources().getDimensionPixelSize(R.dimen.photo_picker_tile_gap);
+        mPadding =
+                mMagnifyingMode
+                        ? 0
+                        : context.getResources()
+                                .getDimensionPixelSize(R.dimen.photo_picker_tile_gap);
         mColumns = mMagnifyingMode ? 1 : Math.max(1, (width - mPadding) / (minSize + mPadding));
-        mImageWidth = (width - mPadding * (mColumns + 1)) / (mColumns);
-        mImageHeight = mMagnifyingMode
-                ? displayMetrics.heightPixels - findViewById(R.id.action_bar_bg).getHeight()
-                : mImageWidth;
+        mImageWidth = (width - mPadding * (mColumns + 1)) / mColumns;
         if (!mMagnifyingMode) mSpecialTileHeight = mImageWidth;
 
         // Make sure columns and padding are either both even or both odd.
@@ -558,9 +583,7 @@ public class PickerCategoryView extends RelativeLayout
         }
     }
 
-    /**
-     * Asynchronously enumerates bitmaps on disk.
-     */
+    /** Asynchronously enumerates bitmaps on disk. */
     private void enumerateBitmaps() {
         if (sTestFiles != null) {
             filesEnumeratedCallback(sTestFiles);
@@ -572,20 +595,24 @@ public class PickerCategoryView extends RelativeLayout
         }
 
         mEnumStartTime = SystemClock.elapsedRealtime();
-        mWorkerTask = new FileEnumWorkerTask(mWindowAndroid, this,
-                new MimeTypeFilter(mMimeTypes, true), mMimeTypes, mContentResolver);
+        mWorkerTask =
+                new FileEnumWorkerTask(
+                        mWindowAndroid,
+                        this,
+                        new MimeTypeFilter(mMimeTypes, true),
+                        mMimeTypes,
+                        mContentResolver);
         mWorkerTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
-    /**
-     * Notifies any listeners that one or more photos have been selected.
-     */
+    /** Notifies any listeners that one or more photos have been selected. */
     private void notifyPhotosSelected() {
         List<PickerBitmap> selectedFiles = mSelectionDelegate.getSelectedItemsAsList();
         Collections.sort(selectedFiles);
         Uri[] photos = new Uri[selectedFiles.size()];
         int i = 0;
         for (PickerBitmap bitmap : selectedFiles) {
+            assumeNonNull(bitmap.getUri());
             photos[i++] = bitmap.getUri();
         }
 
@@ -593,15 +620,13 @@ public class PickerCategoryView extends RelativeLayout
                 PhotoPickerListener.PhotoPickerAction.PHOTOS_SELECTED, photos, ACTION_PHOTO_PICKED);
     }
 
-    /**
-     * A class for implementing grid spacing between items.
-     */
+    /** A class for implementing grid spacing between items. */
     private class GridSpacingItemDecoration extends RecyclerView.ItemDecoration {
         // The number of spans to account for.
-        private int mSpanCount;
+        private final int mSpanCount;
 
         // The amount of spacing to use.
-        private int mSpacing;
+        private final int mSpacing;
 
         public GridSpacingItemDecoration(int spanCount, int spacing) {
             mSpanCount = spanCount;
@@ -640,12 +665,13 @@ public class PickerCategoryView extends RelativeLayout
 
     /**
      * Report back what the user selected in the dialog, report UMA and clean up.
+     *
      * @param action The action taken.
      * @param photos The photos that were selected (if any).
      * @param umaId The UMA value to record with the action.
      */
     private void executeAction(
-            @PhotoPickerListener.PhotoPickerAction int action, Uri[] photos, int umaId) {
+            @PhotoPickerListener.PhotoPickerAction int action, Uri @Nullable [] photos, int umaId) {
         mListener.onPhotoPickerUserAction(action, photos);
         if (mDialog != null) mDialog.dismiss();
         recordFinalUmaStats(umaId);
@@ -653,6 +679,7 @@ public class PickerCategoryView extends RelativeLayout
 
     /**
      * Record UMA statistics (what action was taken in the dialog and other performance stats).
+     *
      * @param action The action the user took in the dialog.
      */
     private void recordFinalUmaStats(int action) {
@@ -670,12 +697,10 @@ public class PickerCategoryView extends RelativeLayout
         sTestFiles = new ArrayList<>(testFiles);
     }
 
-    @VisibleForTesting
     public SelectionDelegate<PickerBitmap> getSelectionDelegateForTesting() {
         return mSelectionDelegate;
     }
 
-    @VisibleForTesting
     public PickerVideoPlayer getVideoPlayerForTesting() {
         return mVideoPlayer;
     }

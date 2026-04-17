@@ -4,14 +4,14 @@
 
 #include "net/disk_cache/blockfile/stats.h"
 
+#include <algorithm>
+#include <array>
+#include <bit>
+#include <cstdint>
+
 #include "base/check.h"
+#include "base/containers/span.h"
 #include "base/format_macros.h"
-#include "base/metrics/bucket_ranges.h"
-#include "base/metrics/histogram.h"
-#include "base/metrics/histogram_samples.h"
-#include "base/metrics/sample_vector.h"
-#include "base/metrics/statistics_recorder.h"
-#include "base/notreached.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 
@@ -21,53 +21,23 @@ const int32_t kDiskSignature = 0xF01427E0;
 
 struct OnDiskStats {
   int32_t signature;
-  int size;
+  uint32_t size;
   int data_sizes[disk_cache::Stats::kDataSizesLength];
   int64_t counters[disk_cache::Stats::MAX_COUNTER];
 };
 static_assert(sizeof(OnDiskStats) < 512, "needs more than 2 blocks");
 
-// Returns the "floor" (as opposed to "ceiling") of log base 2 of number.
-int LogBase2(int32_t number) {
-  unsigned int value = static_cast<unsigned int>(number);
-  const unsigned int mask[] = {0x2, 0xC, 0xF0, 0xFF00, 0xFFFF0000};
-  const unsigned int s[] = {1, 2, 4, 8, 16};
-
-  unsigned int result = 0;
-  for (int i = 4; i >= 0; i--) {
-    if (value & mask[i]) {
-      value >>= s[i];
-      result |= s[i];
-    }
-  }
-  return static_cast<int>(result);
-}
-
 // WARNING: Add new stats only at the end, or change LoadStats().
-const char* const kCounterNames[] = {
-  "Open miss",
-  "Open hit",
-  "Create miss",
-  "Create hit",
-  "Resurrect hit",
-  "Create error",
-  "Trim entry",
-  "Doom entry",
-  "Doom cache",
-  "Invalid entry",
-  "Open entries",
-  "Max entries",
-  "Timer",
-  "Read data",
-  "Write data",
-  "Open rankings",
-  "Get rankings",
-  "Fatal error",
-  "Last report",
-  "Last report timer",
-  "Doom recent entries",
-  "unused"
-};
+constexpr auto kCounterNames = std::to_array<const char*>({
+    "Open miss",     "Open hit",          "Create miss",
+    "Create hit",    "Resurrect hit",     "Create error",
+    "Trim entry",    "Doom entry",        "Doom cache",
+    "Invalid entry", "Open entries",      "Max entries",
+    "Timer",         "Read data",         "Write data",
+    "Open rankings", "Get rankings",      "Fatal error",
+    "Last report",   "Last report timer", "Doom recent entries",
+    "unused",
+});
 static_assert(std::size(kCounterNames) == disk_cache::Stats::MAX_COUNTER,
               "update the names");
 
@@ -81,12 +51,12 @@ bool VerifyStats(OnDiskStats* stats) {
 
   // We don't want to discard the whole cache every time we have one extra
   // counter; we keep old data if we can.
-  if (static_cast<unsigned int>(stats->size) > sizeof(*stats)) {
-    memset(stats, 0, sizeof(*stats));
+  auto stats_bytes = base::byte_span_from_ref(*stats);
+  if (stats->size > sizeof(*stats)) {
+    std::ranges::fill(stats_bytes, 0);
     stats->signature = kDiskSignature;
-  } else if (static_cast<unsigned int>(stats->size) != sizeof(*stats)) {
-    size_t delta = sizeof(*stats) - static_cast<unsigned int>(stats->size);
-    memset(reinterpret_cast<char*>(stats) + stats->size, 0, delta);
+  } else if (stats->size < sizeof(*stats)) {
+    std::ranges::fill(stats_bytes.subspan(stats->size), 0);
     stats->size = sizeof(*stats);
   }
 
@@ -97,35 +67,40 @@ Stats::Stats() = default;
 
 Stats::~Stats() = default;
 
-bool Stats::Init(void* data, int num_bytes, Addr address) {
+bool Stats::Init(base::span<uint8_t> data, Addr address) {
   OnDiskStats local_stats;
   OnDiskStats* stats = &local_stats;
-  if (!num_bytes) {
-    memset(stats, 0, sizeof(local_stats));
+  auto local_stats_bytes = base::byte_span_from_ref(local_stats);
+  if (data.empty()) {
+    std::ranges::fill(local_stats_bytes, 0);
     local_stats.signature = kDiskSignature;
     local_stats.size = sizeof(local_stats);
-  } else if (num_bytes >= static_cast<int>(sizeof(*stats))) {
-    stats = reinterpret_cast<OnDiskStats*>(data);
+  } else if (data.size() >= sizeof(*stats)) {
+    stats = reinterpret_cast<OnDiskStats*>(data.data());
     if (!VerifyStats(stats)) {
-      memset(&local_stats, 0, sizeof(local_stats));
-      if (memcmp(stats, &local_stats, sizeof(local_stats))) {
-        return false;
-      } else {
+      std::ranges::fill(local_stats_bytes, 0);
+      if (base::byte_span_from_ref(*stats).first(sizeof(local_stats)) ==
+          local_stats_bytes) {
         // The storage is empty which means that SerializeStats() was never
         // called on the last run. Just re-initialize everything.
         local_stats.signature = kDiskSignature;
         local_stats.size = sizeof(local_stats);
         stats = &local_stats;
+      } else {
+        return false;
       }
     }
   } else {
+    // Too few bytes.
     return false;
   }
 
   storage_addr_ = address;
 
-  memcpy(data_sizes_, stats->data_sizes, sizeof(data_sizes_));
-  memcpy(counters_, stats->counters, sizeof(counters_));
+  base::as_writable_byte_span(data_sizes_)
+      .copy_from_nonoverlapping(base::as_byte_span(stats->data_sizes));
+  base::as_writable_byte_span(counters_).copy_from_nonoverlapping(
+      base::as_byte_span(stats->counters));
 
   // Clean up old value.
   SetCounter(UNUSED, 0);
@@ -199,14 +174,6 @@ void Stats::GetItems(StatsItems* items) {
   }
 }
 
-int Stats::GetHitRatio() const {
-  return GetRatio(OPEN_HIT, OPEN_MISS);
-}
-
-int Stats::GetResurrectRatio() const {
-  return GetRatio(RESURRECT_HIT, CREATE_HIT);
-}
-
 void Stats::ResetRatios() {
   SetCounter(OPEN_HIT, 0);
   SetCounter(OPEN_MISS, 0);
@@ -224,21 +191,26 @@ int Stats::GetLargeEntriesSize() {
   return total;
 }
 
-int Stats::SerializeStats(void* data, int num_bytes, Addr* address) {
-  OnDiskStats* stats = reinterpret_cast<OnDiskStats*>(data);
-  if (num_bytes < static_cast<int>(sizeof(*stats)))
+int Stats::SerializeStats(base::span<uint8_t> data, Addr* address) {
+  if (data.size() < sizeof(OnDiskStats)) {
     return 0;
+  }
+  OnDiskStats* stats = reinterpret_cast<OnDiskStats*>(data.data());
 
   stats->signature = kDiskSignature;
   stats->size = sizeof(*stats);
-  memcpy(stats->data_sizes, data_sizes_, sizeof(data_sizes_));
-  memcpy(stats->counters, counters_, sizeof(counters_));
+
+  base::as_writable_byte_span(stats->data_sizes)
+      .copy_from_nonoverlapping(base::as_byte_span(data_sizes_));
+  base::as_writable_byte_span(stats->counters)
+      .copy_from_nonoverlapping(base::as_byte_span(counters_));
 
   *address = storage_addr_;
   return sizeof(*stats);
 }
 
 int Stats::GetBucketRange(size_t i) const {
+  CHECK_LE(i, static_cast<size_t>(kDataSizesLength));
   if (i < 2)
     return static_cast<int>(1024 * i);
 
@@ -249,10 +221,6 @@ int Stats::GetBucketRange(size_t i) const {
     return static_cast<int>(4096 * (i - 11)) + 20 * 1024;
 
   int n = 64 * 1024;
-  if (i > static_cast<size_t>(kDataSizesLength)) {
-    NOTREACHED();
-    i = kDataSizesLength;
-  }
 
   i -= 17;
   n <<= i;
@@ -293,7 +261,7 @@ int Stats::GetStatsBucket(int32_t size) {
     return (size - 20 * 1024) / 4096 + 11;
 
   // From this point on, use a logarithmic scale.
-  int result =  LogBase2(size) + 1;
+  int result = std::bit_width<uint32_t>(size);
 
   static_assert(kDataSizesLength > 16, "update the scale");
   if (result >= kDataSizesLength)

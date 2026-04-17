@@ -6,9 +6,11 @@
 #define UI_BASE_RESOURCE_RESOURCE_DATA_DLL_WIN_H_
 
 #include <windows.h>
+
 #include <stdint.h>
 
 #include <memory>
+#include <string_view>
 #include <vector>
 
 #include "ui/base/resource/resource_handle.h"
@@ -26,8 +28,8 @@ class ResourceDataDLL : public ResourceHandle {
 
   // ResourceHandle implementation:
   bool HasResource(uint16_t resource_id) const override;
-  bool GetStringPiece(uint16_t resource_id,
-                      base::StringPiece* data) const override;
+  std::optional<std::string_view> GetStringView(
+      uint16_t resource_id) const override;
   base::RefCountedStaticMemory* GetStaticMemory(
       uint16_t resource_id) const override;
   TextEncodingType GetTextEncodingType() const override;

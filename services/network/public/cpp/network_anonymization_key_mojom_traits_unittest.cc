@@ -4,19 +4,21 @@
 
 #include "services/network/public/cpp/network_anonymization_key_mojom_traits.h"
 
+#include <optional>
+
 #include "base/test/scoped_feature_list.h"
 #include "base/unguessable_token.h"
 #include "mojo/public/cpp/test_support/test_utils.h"
 #include "net/base/features.h"
+#include "net/base/network_isolation_partition.h"
 #include "services/network/public/mojom/network_anonymization_key.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
 namespace mojo {
 
-// TODO(crbug.com/1371667): Test is failing.
+// TODO(crbug.com/40870601): Test is failing.
 TEST(NetworkAnonymizationKeyMojomTraitsTest,
      SerializeAndDeserializeDoubleKeyWithCrossSiteFlag) {
   base::UnguessableToken token = base::UnguessableToken::Create();
@@ -26,6 +28,13 @@ TEST(NetworkAnonymizationKeyMojomTraitsTest,
       net::NetworkAnonymizationKey::CreateFromParts(
           net::SchemefulSite(GURL("http://a.test/")), /*is_cross_site=*/true,
           token),
+      net::NetworkAnonymizationKey::CreateFromParts(
+          net::SchemefulSite(GURL("http://a.test/")), /*is_cross_site=*/true,
+          /*nonce=*/std::nullopt,
+          net::NetworkIsolationPartition::kProtectedAudienceSellerWorklet),
+      net::NetworkAnonymizationKey::CreateFromParts(
+          net::SchemefulSite(GURL("http://a.test/")), /*is_cross_site=*/true,
+          /*nonce=*/std::nullopt, net::NetworkIsolationPartition::kGeneral),
       net::NetworkAnonymizationKey::CreateCrossSite(
           net::SchemefulSite(GURL("http://a.test/"))),
   };

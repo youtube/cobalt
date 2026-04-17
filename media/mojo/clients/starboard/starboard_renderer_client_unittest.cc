@@ -51,8 +51,7 @@ class FakeMojomRenderer : public mojom::Renderer {
 
   void Initialize(
       mojo::PendingAssociatedRemote<mojom::RendererClient>,
-      absl::optional<std::vector<mojo::PendingRemote<mojom::DemuxerStream>>>,
-      mojom::MediaUrlParamsPtr,
+      std::optional<std::vector<mojo::PendingRemote<mojom::DemuxerStream>>>,
       InitializeCallback cb) override {
     std::move(cb).Run(true);
   }
@@ -63,6 +62,7 @@ class FakeMojomRenderer : public mojom::Renderer {
   MOCK_METHOD2(SetCdm,
                void(const absl::optional<base::UnguessableToken>&,
                     SetCdmCallback));
+  void SetLatencyHint(std::optional<::base::TimeDelta> latency_hint) override {}
 };
 
 class FakeStarboardRendererExtension
@@ -72,7 +72,7 @@ class FakeStarboardRendererExtension
   ~FakeStarboardRendererExtension() override = default;
 
   MOCK_METHOD1(GetCurrentVideoFrame, void(GetCurrentVideoFrameCallback cb));
-  MOCK_METHOD1(OnVideoGeometryChange, void(const gfx::Rect&));
+  void OnSbWindowHandleReady(uint64_t sb_window_handle) override {}
 #if BUILDFLAG(IS_ANDROID)
   MOCK_METHOD1(OnOverlayInfoChanged, void(const OverlayInfo& overlay_info));
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -155,7 +155,8 @@ class StarboardRendererClientTest : public ::testing::Test {
         &mock_video_renderer_sink_,
         std::move(starboard_renderer_extensions_remote),
         std::move(client_extension_receiver),
-        /*bind_host_receiver_callback=*/base::DoNothing(),
+        /*get_sb_window_handle_callback=*/
+        base::BindRepeating([]() -> uint64_t { return 0; }),
         with_gpu_factories ? mock_gpu_factories_.get() : nullptr
 #if BUILDFLAG(IS_ANDROID)
         ,
@@ -165,7 +166,6 @@ class StarboardRendererClientTest : public ::testing::Test {
   }
 
   base::test::SingleThreadTaskEnvironment task_environment_;
-  std::unique_ptr<StarboardRendererClient> starboard_renderer_client_;
   MockMediaLog media_log_;
   MockVideoRendererSink mock_video_renderer_sink_;
   std::unique_ptr<NiceMock<MockGpuVideoAcceleratorFactories>>
@@ -173,6 +173,7 @@ class StarboardRendererClientTest : public ::testing::Test {
   NiceMock<MockRendererClientStarboard> renderer_client_;
   base::MockOnceCallback<void(PipelineStatus)> renderer_init_cb_;
   std::unique_ptr<FakeMediaResource> media_resource_;
+  std::unique_ptr<StarboardRendererClient> starboard_renderer_client_;
 };
 
 TEST_F(StarboardRendererClientTest, CreateAndDestroy) {

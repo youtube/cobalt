@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Basic generate bid script that offers a bid of 1 using the first ad's
-// `renderUrl` and, if present, the first adComponent's `renderUrl`.
+// `renderURL` and, if present, the first adComponent's `renderURL`.
 function generateBid(interestGroup, auctionSignals, perBuyerSignals,
   trustedBiddingSignals, browserSignals) {
   const ad = interestGroup.ads[0];
@@ -16,12 +16,12 @@ function generateBid(interestGroup, auctionSignals, perBuyerSignals,
   let result = {
     'ad': ad,
     'bid': 1,
-    'render': { url: ad.renderUrl, width: "100sw", height: "50px" },
+    'render': { url: ad.renderURL, width: "100sw", height: "50sh" },
     'allowComponentAuction': allowComponentAuction
   };
   if (interestGroup.adComponents && interestGroup.adComponents[0])
     result.adComponents = [{
-      url: interestGroup.adComponents[0].renderUrl,
+      url: interestGroup.adComponents[0].renderURL,
       width: "50px",
       height: "25px"
     }];
@@ -37,7 +37,7 @@ function reportWin(auctionSignals, perBuyerSignals, sellerSignals,
       '/echoall?report_win_beacon'
   });
   if (typeof privateAggregation !== 'undefined') {
-    privateAggregation.reportContributionForEvent(
+    privateAggregation.contributeToHistogramOnEvent(
       'auctionwinner', { bucket: 3n, value: 5 });
   }
 }

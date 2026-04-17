@@ -10,6 +10,7 @@
 
 #include "modules/desktop_capture/linux/wayland/egl_dmabuf.h"
 
+#include <EGL/eglext.h>
 #include <asm/ioctl.h>
 #include <dlfcn.h>
 #include <fcntl.h>
@@ -19,8 +20,9 @@
 #include <unistd.h>
 #include <xf86drm.h>
 
+#include <optional>
+
 #include "absl/memory/memory.h"
-#include "absl/types/optional.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/sanitizer.h"
@@ -369,7 +371,7 @@ EglDmaBuf::EglDmaBuf() {
     RTC_LOG(LS_ERROR) << "Failed to obtain default EGL display: "
                       << FormatEGLError(EglGetError()) << "\n"
                       << "Defaulting to using first available render node";
-    absl::optional<std::string> render_node = GetRenderNode();
+    std::optional<std::string> render_node = GetRenderNode();
     if (!render_node) {
       return;
     }
@@ -496,7 +498,7 @@ bool EglDmaBuf::GetClientExtensions(EGLDisplay dpy, EGLint name) {
   }
 
   std::vector<absl::string_view> client_extensions =
-      rtc::split(client_extensions_cstring, ' ');
+      webrtc::split(client_extensions_cstring, ' ');
   for (const auto& extension : client_extensions) {
     egl_.extensions.push_back(std::string(extension));
   }
@@ -724,19 +726,19 @@ std::vector<uint64_t> EglDmaBuf::QueryDmaBufModifiers(uint32_t format) {
   return modifiers;
 }
 
-absl::optional<std::string> EglDmaBuf::GetRenderNode() {
+std::optional<std::string> EglDmaBuf::GetRenderNode() {
   int max_devices = drmGetDevices2(0, nullptr, 0);
   if (max_devices <= 0) {
     RTC_LOG(LS_ERROR) << "drmGetDevices2() has not found any devices (errno="
                       << -max_devices << ")";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   std::vector<drmDevicePtr> devices(max_devices);
   int ret = drmGetDevices2(0, devices.data(), max_devices);
   if (ret < 0) {
     RTC_LOG(LS_ERROR) << "drmGetDevices2() returned an error " << ret;
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   std::string render_node;

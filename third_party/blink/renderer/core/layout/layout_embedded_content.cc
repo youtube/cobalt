@@ -35,12 +35,13 @@
 #include "third_party/blink/renderer/core/html/fenced_frame/html_fenced_frame_element.h"
 #include "third_party/blink/renderer/core/html/html_frame_element_base.h"
 #include "third_party/blink/renderer/core/html/html_plugin_element.h"
-#include "third_party/blink/renderer/core/layout/geometry/physical_offset.h"
+#include "third_party/blink/renderer/core/layout/hit_test_location.h"
 #include "third_party/blink/renderer/core/layout/hit_test_result.h"
 #include "third_party/blink/renderer/core/layout/layout_replaced.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
 #include "third_party/blink/renderer/core/paint/embedded_content_painter.h"
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
+#include "third_party/blink/renderer/platform/geometry/physical_offset.h"
 #include "third_party/blink/renderer/platform/transforms/affine_transform.h"
 #include "ui/gfx/geometry/point_conversions.h"
 #include "ui/gfx/geometry/point_f.h"
@@ -55,9 +56,6 @@ LayoutEmbeddedContent::LayoutEmbeddedContent(HTMLFrameOwnerElement* element)
 
 void LayoutEmbeddedContent::WillBeDestroyed() {
   NOT_DESTROYED();
-  if (AXObjectCache* cache = GetDocument().ExistingAXObjectCache())
-    cache->Remove(this);
-
   if (auto* frame_owner = GetFrameOwnerElement())
     frame_owner->SetEmbeddedContentView(nullptr);
 
@@ -95,16 +93,33 @@ EmbeddedContentView* LayoutEmbeddedContent::GetEmbeddedContentView() const {
   return nullptr;
 }
 
-const absl::optional<PhysicalSize> LayoutEmbeddedContent::FrozenFrameSize()
+const std::optional<PhysicalSize> LayoutEmbeddedContent::FrozenFrameSize()
     const {
+  NOT_DESTROYED();
   // The `<fencedframe>` element can freeze the child frame size when navigated.
   if (const auto* fenced_frame = DynamicTo<HTMLFencedFrameElement>(GetNode()))
     return fenced_frame->FrozenFrameSize();
 
-  return absl::nullopt;
+  return std::nullopt;
+}
+
+PhysicalNaturalSizingInfo LayoutEmbeddedContent::GetNaturalDimensions() const {
+  NOT_DESTROYED();
+  if (RuntimeEnabledFeatures::
+          LayoutReplacedReturnExplicitDefaultNaturalSizeEnabled()) {
+    // 300x150, no aspect ratio. (Should probably be none.)
+    PhysicalSize natural_size{LayoutUnit(kDefaultWidth),
+                              LayoutUnit(kDefaultHeight)};
+    natural_size.Scale(StyleRef().EffectiveZoom());
+    PhysicalNaturalSizingInfo sizing_info;
+    sizing_info.size = natural_size;
+    return sizing_info;
+  }
+  return PhysicalNaturalSizingInfo::None();
 }
 
 AffineTransform LayoutEmbeddedContent::EmbeddedContentTransform() const {
+  NOT_DESTROYED();
   auto frozen_size = FrozenFrameSize();
   if (!frozen_size || frozen_size->IsEmpty()) {
     const PhysicalOffset content_box_offset = PhysicalContentBoxOffset();
@@ -122,6 +137,7 @@ AffineTransform LayoutEmbeddedContent::EmbeddedContentTransform() const {
 
 PhysicalOffset LayoutEmbeddedContent::EmbeddedContentFromBorderBox(
     const PhysicalOffset& offset) const {
+  NOT_DESTROYED();
   gfx::PointF point(offset);
   return PhysicalOffset::FromPointFRound(
       EmbeddedContentTransform().Inverse().MapPoint(point));
@@ -129,11 +145,13 @@ PhysicalOffset LayoutEmbeddedContent::EmbeddedContentFromBorderBox(
 
 gfx::PointF LayoutEmbeddedContent::EmbeddedContentFromBorderBox(
     const gfx::PointF& point) const {
+  NOT_DESTROYED();
   return EmbeddedContentTransform().Inverse().MapPoint(point);
 }
 
 PhysicalOffset LayoutEmbeddedContent::BorderBoxFromEmbeddedContent(
     const PhysicalOffset& offset) const {
+  NOT_DESTROYED();
   gfx::PointF point(offset);
   return PhysicalOffset::FromPointFRound(
       EmbeddedContentTransform().MapPoint(point));
@@ -141,6 +159,7 @@ PhysicalOffset LayoutEmbeddedContent::BorderBoxFromEmbeddedContent(
 
 gfx::Rect LayoutEmbeddedContent::BorderBoxFromEmbeddedContent(
     const gfx::Rect& rect) const {
+  NOT_DESTROYED();
   return EmbeddedContentTransform().MapRect(rect);
 }
 
@@ -167,6 +186,18 @@ bool LayoutEmbeddedContent::PointOverResizer(
         ToRoundedPoint(location.Point() - accumulated_offset), resizer_type);
   }
   return false;
+}
+
+void LayoutEmbeddedContent::PropagateZoomFactor(double zoom_factor) {
+  NOT_DESTROYED();
+  if (GetDocument().StandardizedBrowserZoomEnabled()) {
+    const auto* fenced_frame = DynamicTo<HTMLFencedFrameElement>(GetNode());
+    if (!fenced_frame) {
+      if (auto* embedded_content_view = GetEmbeddedContentView()) {
+        embedded_content_view->ZoomFactorChanged(zoom_factor);
+      }
+    }
+  }
 }
 
 bool LayoutEmbeddedContent::NodeAtPointOverEmbeddedContentView(
@@ -301,8 +332,13 @@ void LayoutEmbeddedContent::StyleDidChange(StyleDifference diff,
   if (!frame_owner)
     return;
 
-  if (old_style && new_style.UsedColorScheme() != old_style->UsedColorScheme())
+  if (old_style &&
+      new_style.UsedColorScheme() != old_style->UsedColorScheme()) {
     frame_owner->SetColorScheme(new_style.UsedColorScheme());
+  }
+  if (!old_style || new_style.EffectiveZoom() != old_style->EffectiveZoom()) {
+    PropagateZoomFactor(new_style.EffectiveZoom());
+  }
 
   if (old_style &&
       new_style.VisibleToHitTesting() == old_style->VisibleToHitTesting()) {
@@ -311,12 +347,6 @@ void LayoutEmbeddedContent::StyleDidChange(StyleDifference diff,
 
   if (auto* frame = frame_owner->ContentFrame())
     frame->UpdateVisibleToHitTesting();
-}
-
-void LayoutEmbeddedContent::UpdateLayout() {
-  NOT_DESTROYED();
-  DCHECK(NeedsLayout());
-  ClearNeedsLayout();
 }
 
 void LayoutEmbeddedContent::PaintReplaced(
@@ -340,10 +370,9 @@ CursorDirective LayoutEmbeddedContent::GetCursor(const PhysicalOffset& point,
 }
 
 PhysicalRect LayoutEmbeddedContent::ReplacedContentRectFrom(
-    const LayoutSize size,
-    const NGPhysicalBoxStrut& border_padding) const {
+    const PhysicalRect& base_content_rect) const {
   NOT_DESTROYED();
-  PhysicalRect content_rect = PhysicalContentBoxRectFrom(size, border_padding);
+  PhysicalRect content_rect = base_content_rect;
 
   // IFrames set as the root scroller should get their size from their parent.
   // When scrolling starts so as to hide the URL bar, IFRAME wouldn't resize to
@@ -355,15 +384,14 @@ PhysicalRect LayoutEmbeddedContent::ReplacedContentRectFrom(
     content_rect.size = View()->ViewRect().size;
   }
 
-  if (const absl::optional<PhysicalSize> frozen_size = FrozenFrameSize()) {
+  if (const std::optional<PhysicalSize> frozen_size = FrozenFrameSize()) {
     // TODO(kojii): Setting the `offset` to non-zero values breaks
     // hit-testing/inputs. Even different size is suspicious, as the input
     // system forwards mouse events to the child frame even when the mouse is
     // outside of the child frame. Revisit this when the input system supports
     // different |ReplacedContentRect| from |PhysicalContentBoxRect|.
-    LayoutSize frozen_layout_size = frozen_size->ToLayoutSize();
-    content_rect =
-        ComputeReplacedContentRect(size, border_padding, &frozen_layout_size);
+    content_rect = ComputeReplacedContentRect(
+        base_content_rect, PhysicalNaturalSizingInfo::MakeFixed(*frozen_size));
   }
 
   // We don't propagate sub-pixel into sub-frame layout, in other words, the
@@ -379,13 +407,17 @@ void LayoutEmbeddedContent::UpdateOnEmbeddedContentViewChange() {
     return;
 
   if (EmbeddedContentView* embedded_content_view = GetEmbeddedContentView()) {
-    if (!NeedsLayout())
+    if (!NeedsLayout()) {
       UpdateGeometry(*embedded_content_view);
-
-    if (StyleRef().Visibility() != EVisibility::kVisible)
-      embedded_content_view->Hide();
-    else
-      embedded_content_view->Show();
+    }
+    if (Style()) {
+      PropagateZoomFactor(StyleRef().EffectiveZoom());
+      if (StyleRef().Visibility() != EVisibility::kVisible) {
+        embedded_content_view->Hide();
+      } else {
+        embedded_content_view->Show();
+      }
+    }
   }
 
   // One of the reasons of the following is that the layout tree in the new

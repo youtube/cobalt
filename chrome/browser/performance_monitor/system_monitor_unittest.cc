@@ -22,7 +22,7 @@ const int kFakeFreePhysMemoryMb = 42;
 
 class MockMetricsMonitorObserver : public SystemObserver {
  public:
-  ~MockMetricsMonitorObserver() override {}
+  ~MockMetricsMonitorObserver() override = default;
   MOCK_METHOD1(OnFreePhysicalMemoryMbSample, void(int free_phys_memory_mb));
   MOCK_METHOD1(OnSystemMetricsStruct,
                void(const base::SystemMetrics& system_metrics));
@@ -39,7 +39,7 @@ class TestMetricEvaluatorsHelper : public MetricEvaluatorsHelper {
 
   ~TestMetricEvaluatorsHelper() override = default;
 
-  absl::optional<int> GetFreePhysicalMemoryMb() override {
+  std::optional<int> GetFreePhysicalMemoryMb() override {
     return kFakeFreePhysMemoryMb;
   }
 };

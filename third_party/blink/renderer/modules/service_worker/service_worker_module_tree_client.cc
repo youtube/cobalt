@@ -41,6 +41,7 @@ void ServiceWorkerModuleTreeClient::NotifyModuleTreeLoadFinished(
 
   // With top-level await: https://github.com/w3c/ServiceWorker/pull/1444
   if (!module_script->HasEmptyRecord()) {
+    v8::HandleScope scope(script_state_->GetIsolate());
     v8::Local<v8::Module> record = module_script->V8Module();
     if (record->GetStatus() >= v8::Module::kInstantiated &&
         record->IsGraphAsync()) {
@@ -61,7 +62,7 @@ void ServiceWorkerModuleTreeClient::NotifyModuleTreeLoadFinished(
   // the algorithm's asynchronous completion, with script being the asynchronous
   // completion value."
   worker_global_scope->WorkerScriptFetchFinished(
-      *module_script, absl::nullopt /* v8_inspector::V8StackTraceId */);
+      *module_script, std::nullopt /* v8_inspector::V8StackTraceId */);
 }
 
 void ServiceWorkerModuleTreeClient::Trace(Visitor* visitor) const {

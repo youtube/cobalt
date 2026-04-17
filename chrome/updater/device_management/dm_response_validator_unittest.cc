@@ -8,11 +8,11 @@
 #include <memory>
 #include <utility>
 
-#include "chrome/updater/device_management/dm_cached_policy_info.h"
+#include "chrome/enterprise_companion/device_management_storage/dm_storage.h"
 #include "chrome/updater/device_management/dm_message.h"
 #include "chrome/updater/device_management/dm_policy_builder_for_testing.h"
 #include "chrome/updater/protos/omaha_settings.pb.h"
-#include "chrome/updater/util/unittest_util.h"
+#include "chrome/updater/test/unit_test_util.h"
 #include "components/policy/proto/device_management_backend.pb.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -22,7 +22,8 @@ namespace edm = ::wireless_android_enterprise_devicemanagement;
 
 class DMResponseValidatorTests : public ::testing::Test {
  protected:
-  void GetCachedInfoWithPublicKey(CachedPolicyInfo& cached_info) const;
+  void GetCachedInfoWithPublicKey(
+      device_management_storage::CachedPolicyInfo& cached_info) const;
 
   std::unique_ptr<::enterprise_management::DeviceManagementResponse>
   GetDMResponseWithOmahaPolicy(
@@ -30,7 +31,7 @@ class DMResponseValidatorTests : public ::testing::Test {
 };
 
 void DMResponseValidatorTests::GetCachedInfoWithPublicKey(
-    CachedPolicyInfo& cached_info) const {
+    device_management_storage::CachedPolicyInfo& cached_info) const {
   std::unique_ptr<::enterprise_management::DeviceManagementResponse>
       dm_response = GetDefaultTestingPolicyFetchDMResponse(
           /*first_request=*/true, /*rotate_to_new_key=*/false,
@@ -50,7 +51,9 @@ DMResponseValidatorTests::GetDMResponseWithOmahaPolicy(
     const edm::OmahaSettingsClientProto& omaha_settings) const {
   std::unique_ptr<DMPolicyBuilderForTesting> policy_builder =
       DMPolicyBuilderForTesting::CreateInstanceWithOptions(
-          true, true, DMPolicyBuilderForTesting::SigningOption::kSignNormally);
+          /*first_request=*/true, /*rotate_to_new_key=*/true,
+          DMPolicyBuilderForTesting::SigningOption::kSignNormally,
+          "test-dm-token", "test-device-id");
   DMPolicyMap policy_map;
   policy_map.emplace(kGoogleUpdatePolicyType,
                      omaha_settings.SerializeAsString());
@@ -67,8 +70,8 @@ TEST_F(DMResponseValidatorTests, ValidationOKWithoutPublicKey) {
   const ::enterprise_management::PolicyFetchResponse& response =
       dm_response->policy_response().responses(0);
 
-  DMResponseValidator validator(CachedPolicyInfo(), "test-dm-token",
-                                "test-device-id");
+  DMResponseValidator validator(device_management_storage::CachedPolicyInfo(),
+                                "test-dm-token", "test-device-id");
   PolicyValidationResult validation_result;
   EXPECT_TRUE(validator.ValidatePolicyResponse(response, validation_result));
   EXPECT_EQ(validation_result.status,
@@ -78,7 +81,7 @@ TEST_F(DMResponseValidatorTests, ValidationOKWithoutPublicKey) {
 
 TEST_F(DMResponseValidatorTests, ValidationOKWithPublicKey) {
   // Cached info should be created before parsing next policy response.
-  CachedPolicyInfo cached_info;
+  device_management_storage::CachedPolicyInfo cached_info;
   GetCachedInfoWithPublicKey(cached_info);
 
   std::unique_ptr<::enterprise_management::DeviceManagementResponse>
@@ -108,11 +111,11 @@ TEST_F(DMResponseValidatorTests, UnexpectedDMToken) {
   const ::enterprise_management::PolicyFetchResponse& response =
       dm_response->policy_response().responses(0);
 
-  DMResponseValidator validator(CachedPolicyInfo(), "wrong-dm-token",
-                                "test-device-id");
+  DMResponseValidator validator(device_management_storage::CachedPolicyInfo(),
+                                "wrong-dm-token", "test-device-id");
   PolicyValidationResult validation_result;
   EXPECT_FALSE(validator.ValidatePolicyResponse(response, validation_result));
-  EXPECT_TRUE(validation_result.policy_type.empty());
+  EXPECT_EQ(validation_result.policy_type, "google/machine-level-omaha");
   EXPECT_EQ(validation_result.status,
             PolicyValidationResult::Status::kValidationBadDMToken);
   EXPECT_TRUE(validation_result.issues.empty());
@@ -128,11 +131,11 @@ TEST_F(DMResponseValidatorTests, UnexpectedDeviceID) {
   const ::enterprise_management::PolicyFetchResponse& response =
       dm_response->policy_response().responses(0);
 
-  DMResponseValidator validator(CachedPolicyInfo(), "test-dm-token",
-                                "unexpected-device-id");
+  DMResponseValidator validator(device_management_storage::CachedPolicyInfo(),
+                                "test-dm-token", "unexpected-device-id");
   PolicyValidationResult validation_result;
   EXPECT_FALSE(validator.ValidatePolicyResponse(response, validation_result));
-  EXPECT_TRUE(validation_result.policy_type.empty());
+  EXPECT_EQ(validation_result.policy_type, "google/machine-level-omaha");
   EXPECT_EQ(validation_result.status,
             PolicyValidationResult::Status::kValidationBadDeviceID);
   EXPECT_TRUE(validation_result.issues.empty());
@@ -150,11 +153,11 @@ TEST_F(DMResponseValidatorTests, NoCachedPublicKey) {
   const ::enterprise_management::PolicyFetchResponse& response =
       dm_response->policy_response().responses(0);
 
-  DMResponseValidator validator(CachedPolicyInfo(), "test-dm-token",
-                                "test-device-id");
+  DMResponseValidator validator(device_management_storage::CachedPolicyInfo(),
+                                "test-dm-token", "test-device-id");
   PolicyValidationResult validation_result;
   EXPECT_FALSE(validator.ValidatePolicyResponse(response, validation_result));
-  EXPECT_TRUE(validation_result.policy_type.empty());
+  EXPECT_EQ(validation_result.policy_type, "google/machine-level-omaha");
   EXPECT_EQ(validation_result.status,
             PolicyValidationResult::Status::kValidationBadSignature);
   EXPECT_TRUE(validation_result.issues.empty());
@@ -162,7 +165,7 @@ TEST_F(DMResponseValidatorTests, NoCachedPublicKey) {
 
 TEST_F(DMResponseValidatorTests, BadSignedPublicKey) {
   // Cached info should be created before parsing next policy response.
-  CachedPolicyInfo cached_info;
+  device_management_storage::CachedPolicyInfo cached_info;
   GetCachedInfoWithPublicKey(cached_info);
 
   // Validation should fail if the public key is not signed properly.
@@ -178,7 +181,7 @@ TEST_F(DMResponseValidatorTests, BadSignedPublicKey) {
   DMResponseValidator validator(cached_info, "test-dm-token", "test-device-id");
   PolicyValidationResult validation_result;
   EXPECT_FALSE(validator.ValidatePolicyResponse(response, validation_result));
-  EXPECT_TRUE(validation_result.policy_type.empty());
+  EXPECT_EQ(validation_result.policy_type, "google/machine-level-omaha");
   EXPECT_EQ(
       validation_result.status,
       PolicyValidationResult::Status::kValidationBadKeyVerificationSignature);
@@ -196,8 +199,8 @@ TEST_F(DMResponseValidatorTests, BadSignedPolicyData) {
   const ::enterprise_management::PolicyFetchResponse& response =
       dm_response->policy_response().responses(0);
 
-  DMResponseValidator validator(CachedPolicyInfo(), "test-dm-token",
-                                "test-device-id");
+  DMResponseValidator validator(device_management_storage::CachedPolicyInfo(),
+                                "test-dm-token", "test-device-id");
   PolicyValidationResult validation_result;
   EXPECT_FALSE(validator.ValidatePolicyResponse(response, validation_result));
   EXPECT_EQ(validation_result.status,
@@ -216,7 +219,7 @@ TEST_F(DMResponseValidatorTests, OmahaPolicyWithBadValues) {
   omaha_settings.set_proxy_mode("weird_proxy_mode");
   omaha_settings.set_proxy_server("unexpected_proxy");
   omaha_settings.set_proxy_pac_url("foo.c/proxy.pa");
-  omaha_settings.set_install_default(edm::INSTALL_DISABLED);
+  omaha_settings.set_install_default(edm::INSTALL_DEFAULT_DISABLED);
   omaha_settings.set_update_default(edm::MANUAL_UPDATES_ONLY);
 
   edm::ApplicationSettings app;
@@ -236,8 +239,8 @@ TEST_F(DMResponseValidatorTests, OmahaPolicyWithBadValues) {
   const ::enterprise_management::PolicyFetchResponse& response =
       dm_response->policy_response().responses(0);
 
-  DMResponseValidator validator(CachedPolicyInfo(), "test-dm-token",
-                                "test-device-id");
+  DMResponseValidator validator(device_management_storage::CachedPolicyInfo(),
+                                "test-dm-token", "test-device-id");
   PolicyValidationResult validation_result;
   EXPECT_FALSE(validator.ValidatePolicyResponse(response, validation_result));
   EXPECT_EQ(validation_result.policy_type, kGoogleUpdatePolicyType);
@@ -275,7 +278,7 @@ TEST_F(DMResponseValidatorTests, OmahaPolicyWithBadValues) {
             "Value out of range(0 - 960): 1000");
   EXPECT_EQ(validation_result.issues[5].policy_name, "proxy_mode");
   EXPECT_EQ(validation_result.issues[5].severity,
-            PolicyValueValidationIssue::Severity::kError);
+            PolicyValueValidationIssue::Severity::kWarning);
   EXPECT_EQ(validation_result.issues[5].message,
             "Unrecognized proxy mode: weird_proxy_mode");
   EXPECT_EQ(validation_result.issues[6].policy_name, "proxy_server");

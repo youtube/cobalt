@@ -5,12 +5,16 @@
 #ifndef UI_OZONE_PLATFORM_WAYLAND_COMMON_WAYLAND_UTIL_H_
 #define UI_OZONE_PLATFORM_WAYLAND_COMMON_WAYLAND_UTIL_H_
 
+#include <variant>
 #include <vector>
 
 #include "base/containers/flat_map.h"
 #include "base/files/scoped_file.h"
 #include "base/functional/callback.h"
+#include "base/functional/callback_forward.h"
+#include "base/time/time.h"
 #include "third_party/skia/include/core/SkColor.h"
+#include "ui/events/platform_event.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/overlay_transform.h"
@@ -111,6 +115,26 @@ void SkColorToWlArray(const SkColor& color, wl_array& array);
 
 // Converts SkColor4f into wl_array.
 void SkColorToWlArray(const SkColor4f& color, wl_array& array);
+
+// Converts `milliseconds`, which is server dependent, to base::TimeTicks.
+base::TimeTicks EventMillisecondsToTimeTicks(uint32_t milliseconds);
+
+// A scale less than 1 can cause borders to not be rendered properly. So this
+// ensures the scale is at least 1.
+float ClampScale(float scale);
+
+// Common event dispatch handler for wayland drag sessions. Returns true if the
+// platform event was handled and event propagation should stop.
+// `start_drag_ack_received` should be true if the server has acknowledged the
+// client's start_drag request. `cancel_drag_cb` may be run if the drag session
+// needs to be cancelled by the client.
+bool MaybeHandlePlatformEventForDrag(const ui::PlatformEvent& event,
+                                     bool start_drag_ack_received,
+                                     base::OnceClosure cancel_drag_cb);
+bool EventShouldCancelDrag(const ui::PlatformEvent& event);
+
+// Logs connection state to UMA.
+void RecordConnectionMetrics(wl_display* display);
 
 }  // namespace wl
 

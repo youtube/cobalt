@@ -18,13 +18,14 @@
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/memory.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/base/overflowing-math.h"
-#include "src/base/safe_conversions.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/base/vector.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/machine-type.h"
 #include "src/common/globals.h"
+#include "src/compiler/opcodes.h"
 #include "src/flags/flags.h"
 #include "src/utils/utils.h"
 #include "src/wasm/compilation-environment.h"
@@ -49,35 +50,32 @@ namespace {
 using Shuffle = std::array<int8_t, kSimd128Size>;
 
 // For signed integral types, use base::AddWithWraparound.
-template <typename T, typename = typename std::enable_if<
-                          std::is_floating_point<T>::value>::type>
+template <typename T, typename = std::enable_if_t<std::is_floating_point_v<T>>>
 T Add(T a, T b) {
   return a + b;
 }
 
 // For signed integral types, use base::SubWithWraparound.
-template <typename T, typename = typename std::enable_if<
-                          std::is_floating_point<T>::value>::type>
+template <typename T, typename = std::enable_if_t<std::is_floating_point_v<T>>>
 T Sub(T a, T b) {
   return a - b;
 }
 
 // For signed integral types, use base::MulWithWraparound.
-template <typename T, typename = typename std::enable_if<
-                          std::is_floating_point<T>::value>::type>
+template <typename T, typename = std::enable_if_t<std::is_floating_point_v<T>>>
 T Mul(T a, T b) {
   return a * b;
 }
 
 template <typename T>
 T UnsignedMinimum(T a, T b) {
-  using UnsignedT = typename std::make_unsigned<T>::type;
+  using UnsignedT = std::make_unsigned_t<T>;
   return static_cast<UnsignedT>(a) <= static_cast<UnsignedT>(b) ? a : b;
 }
 
 template <typename T>
 T UnsignedMaximum(T a, T b) {
-  using UnsignedT = typename std::make_unsigned<T>::type;
+  using UnsignedT = std::make_unsigned_t<T>;
   return static_cast<UnsignedT>(a) >= static_cast<UnsignedT>(b) ? a : b;
 }
 
@@ -173,37 +171,37 @@ int64_t GreaterEqual(double a, double b) {
 
 template <typename T>
 T UnsignedLess(T a, T b) {
-  using UnsignedT = typename std::make_unsigned<T>::type;
+  using UnsignedT = std::make_unsigned_t<T>;
   return static_cast<UnsignedT>(a) < static_cast<UnsignedT>(b) ? -1 : 0;
 }
 
 template <typename T>
 T UnsignedLessEqual(T a, T b) {
-  using UnsignedT = typename std::make_unsigned<T>::type;
+  using UnsignedT = std::make_unsigned_t<T>;
   return static_cast<UnsignedT>(a) <= static_cast<UnsignedT>(b) ? -1 : 0;
 }
 
 template <typename T>
 T UnsignedGreater(T a, T b) {
-  using UnsignedT = typename std::make_unsigned<T>::type;
+  using UnsignedT = std::make_unsigned_t<T>;
   return static_cast<UnsignedT>(a) > static_cast<UnsignedT>(b) ? -1 : 0;
 }
 
 template <typename T>
 T UnsignedGreaterEqual(T a, T b) {
-  using UnsignedT = typename std::make_unsigned<T>::type;
+  using UnsignedT = std::make_unsigned_t<T>;
   return static_cast<UnsignedT>(a) >= static_cast<UnsignedT>(b) ? -1 : 0;
 }
 
 template <typename T>
 T LogicalShiftLeft(T a, int shift) {
-  using UnsignedT = typename std::make_unsigned<T>::type;
+  using UnsignedT = std::make_unsigned_t<T>;
   return static_cast<UnsignedT>(a) << (shift % (sizeof(T) * 8));
 }
 
 template <typename T>
 T LogicalShiftRight(T a, int shift) {
-  using UnsignedT = typename std::make_unsigned<T>::type;
+  using UnsignedT = std::make_unsigned_t<T>;
   return static_cast<UnsignedT>(a) >> (shift % (sizeof(T) * 8));
 }
 
@@ -218,6 +216,35 @@ template <typename T>
 T Abs(T a) {
   return std::abs(a);
 }
+
+template <typename T>
+T BitwiseNot(T a) {
+  return ~a;
+}
+
+template <typename T>
+T BitwiseAnd(T a, T b) {
+  return a & b;
+}
+
+template <typename T>
+T BitwiseOr(T a, T b) {
+  return a | b;
+}
+template <typename T>
+T BitwiseXor(T a, T b) {
+  return a ^ b;
+}
+template <typename T>
+T BitwiseAndNot(T a, T b) {
+  return a & (~b);
+}
+
+template <typename T>
+T BitwiseSelect(T a, T b, T c) {
+  return (a & c) | (b & ~c);
+}
+
 }  // namespace
 
 #define WASM_SIMD_CHECK_LANE_S(TYPE, value, LANE_TYPE, lane_value, lane_index) \
@@ -257,7 +284,7 @@ WASM_EXEC_TEST(F32x4Splat) {
   WasmRunner<int32_t, float> r(execution_tier);
   // Set up a global to hold output vector.
   float* g = r.builder().AddGlobal<float>(kWasmS128);
-  byte param1 = 0;
+  uint8_t param1 = 0;
   r.Build({WASM_GLOBAL_SET(0, WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(param1))),
            WASM_ONE});
 
@@ -280,7 +307,7 @@ WASM_EXEC_TEST(F32x4ReplaceLane) {
   // Set up a global to hold input/output vector.
   float* g = r.builder().AddGlobal<float>(kWasmS128);
   // Build function to replace each lane with its (FP) index.
-  byte temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
   r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_F32x4_SPLAT(WASM_F32(3.14159f))),
            WASM_LOCAL_SET(temp1, WASM_SIMD_F32x4_REPLACE_LANE(
                                      0, WASM_LOCAL_GET(temp1), WASM_F32(0.0f))),
@@ -305,8 +332,8 @@ WASM_EXEC_TEST(F32x4ConvertI32x4) {
   float* g0 = r.builder().AddGlobal<float>(kWasmS128);
   float* g1 = r.builder().AddGlobal<float>(kWasmS128);
   // Build fn to splat test value, perform conversions, and write the results.
-  byte value = 0;
-  byte temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t value = 0;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
   r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(value))),
            WASM_GLOBAL_SET(0, WASM_SIMD_UNOP(kExprF32x4SConvertI32x4,
                                              WASM_LOCAL_GET(temp1))),
@@ -337,12 +364,12 @@ void RunF128CompareOpConstImmTest(
     ScalarType* g2 = r.builder().template AddGlobal<ScalarType>(kWasmS128);
     // Build fn to splat test values, perform compare op on both sides, and
     // write the result.
-    byte value = 0;
-    byte temp = r.AllocateLocal(kWasmS128);
+    uint8_t value = 0;
+    uint8_t temp = r.AllocateLocal(kWasmS128);
     uint8_t const_buffer[kSimd128Size];
     for (size_t i = 0; i < kSimd128Size / sizeof(FloatType); i++) {
       WriteLittleEndianValue<FloatType>(
-          base::bit_cast<FloatType*>(&const_buffer[0]) + i, x);
+          reinterpret_cast<FloatType*>(&const_buffer[0]) + i, x);
     }
     r.Build(
         {WASM_LOCAL_SET(temp,
@@ -456,9 +483,9 @@ void RunShiftAddTestSequence(TestExecutionTier execution_tier,
   // globals to store results for left and right cases
   ScalarType* g1 = r.builder().template AddGlobal<ScalarType>(kWasmS128);
   ScalarType* g2 = r.builder().template AddGlobal<ScalarType>(kWasmS128);
-  byte param = 0;
-  byte temp1 = r.AllocateLocal(kWasmS128);
-  byte temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t param = 0;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
   auto expected_fn = [shift_fn](ScalarType x, ScalarType y, uint32_t imm) {
     return base::AddWithWraparound(x, shift_fn(y, imm));
   };
@@ -522,7 +549,7 @@ WASM_EXEC_TEST(I64x2Splat) {
   WasmRunner<int32_t, int64_t> r(execution_tier);
   // Set up a global to hold output vector.
   int64_t* g = r.builder().AddGlobal<int64_t>(kWasmS128);
-  byte param1 = 0;
+  uint8_t param1 = 0;
   r.Build({WASM_GLOBAL_SET(0, WASM_SIMD_I64x2_SPLAT(WASM_LOCAL_GET(param1))),
            WASM_ONE});
 
@@ -553,7 +580,7 @@ WASM_EXEC_TEST(I64x2ReplaceLane) {
   // Set up a global to hold input/output vector.
   int64_t* g = r.builder().AddGlobal<int64_t>(kWasmS128);
   // Build function to replace each lane with its index.
-  byte temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
   r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_I64x2_SPLAT(WASM_I64V(-1))),
            WASM_LOCAL_SET(temp1, WASM_SIMD_I64x2_REPLACE_LANE(
                                      0, WASM_LOCAL_GET(temp1), WASM_I64V(0))),
@@ -644,12 +671,12 @@ void RunICompareOpConstImmTest(TestExecutionTier execution_tier,
     ScalarType* g2 = r.builder().template AddGlobal<ScalarType>(kWasmS128);
     // Build fn to splat test values, perform compare op on both sides, and
     // write the result.
-    byte value = 0;
-    byte temp = r.AllocateLocal(kWasmS128);
+    uint8_t value = 0;
+    uint8_t temp = r.AllocateLocal(kWasmS128);
     uint8_t const_buffer[kSimd128Size];
     for (size_t i = 0; i < kSimd128Size / sizeof(ScalarType); i++) {
       WriteLittleEndianValue<ScalarType>(
-          base::bit_cast<ScalarType*>(&const_buffer[0]) + i, x);
+          reinterpret_cast<ScalarType*>(&const_buffer[0]) + i, x);
     }
     r.Build(
         {WASM_LOCAL_SET(temp,
@@ -708,7 +735,7 @@ WASM_EXEC_TEST(F64x2Splat) {
   WasmRunner<int32_t, double> r(execution_tier);
   // Set up a global to hold output vector.
   double* g = r.builder().AddGlobal<double>(kWasmS128);
-  byte param1 = 0;
+  uint8_t param1 = 0;
   r.Build({WASM_GLOBAL_SET(0, WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(param1))),
            WASM_ONE});
 
@@ -728,9 +755,9 @@ WASM_EXEC_TEST(F64x2Splat) {
 
 WASM_EXEC_TEST(F64x2ExtractLane) {
   WasmRunner<double, double> r(execution_tier);
-  byte param1 = 0;
-  byte temp1 = r.AllocateLocal(kWasmF64);
-  byte temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t param1 = 0;
+  uint8_t temp1 = r.AllocateLocal(kWasmF64);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
   r.Build({WASM_LOCAL_SET(
                temp1, WASM_SIMD_F64x2_EXTRACT_LANE(
                           0, WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(param1)))),
@@ -753,7 +780,7 @@ WASM_EXEC_TEST(F64x2ReplaceLane) {
   double* g0 = r.builder().AddGlobal<double>(kWasmS128);
   double* g1 = r.builder().AddGlobal<double>(kWasmS128);
   // Build function to replace each lane with its (FP) index.
-  byte temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
   r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_F64x2_SPLAT(WASM_F64(1e100))),
            // Replace lane 0.
            WASM_GLOBAL_SET(0, WASM_SIMD_F64x2_REPLACE_LANE(
@@ -1062,7 +1089,7 @@ WASM_EXEC_TEST(I32x4Splat) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
   // Set up a global to hold output vector.
   int32_t* g = r.builder().AddGlobal<int32_t>(kWasmS128);
-  byte param1 = 0;
+  uint8_t param1 = 0;
   r.Build({WASM_GLOBAL_SET(0, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(param1))),
            WASM_ONE});
 
@@ -1081,7 +1108,7 @@ WASM_EXEC_TEST(I32x4ReplaceLane) {
   // Set up a global to hold input/output vector.
   int32_t* g = r.builder().AddGlobal<int32_t>(kWasmS128);
   // Build function to replace each lane with its index.
-  byte temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
   r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_I32x4_SPLAT(WASM_I32V(-1))),
            WASM_LOCAL_SET(temp1, WASM_SIMD_I32x4_REPLACE_LANE(
                                      0, WASM_LOCAL_GET(temp1), WASM_I32V(0))),
@@ -1103,7 +1130,7 @@ WASM_EXEC_TEST(I16x8Splat) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
   // Set up a global to hold output vector.
   int16_t* g = r.builder().AddGlobal<int16_t>(kWasmS128);
-  byte param1 = 0;
+  uint8_t param1 = 0;
   r.Build({WASM_GLOBAL_SET(0, WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(param1))),
            WASM_ONE});
 
@@ -1116,7 +1143,7 @@ WASM_EXEC_TEST(I16x8Splat) {
     }
   }
 
-  // Test values that do not fit in a int16.
+  // Test values that do not fit in an int16.
   FOR_INT32_INPUTS(x) {
     r.Call(x);
     int16_t expected = truncate_to_int16(x);
@@ -1132,7 +1159,7 @@ WASM_EXEC_TEST(I16x8ReplaceLane) {
   // Set up a global to hold input/output vector.
   int16_t* g = r.builder().AddGlobal<int16_t>(kWasmS128);
   // Build function to replace each lane with its index.
-  byte temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
   r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_I16x8_SPLAT(WASM_I32V(-1))),
            WASM_LOCAL_SET(temp1, WASM_SIMD_I16x8_REPLACE_LANE(
                                      0, WASM_LOCAL_GET(temp1), WASM_I32V(0))),
@@ -1160,7 +1187,7 @@ WASM_EXEC_TEST(I16x8ReplaceLane) {
 
 WASM_EXEC_TEST(I8x16BitMask) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
-  byte value1 = r.AllocateLocal(kWasmS128);
+  uint8_t value1 = r.AllocateLocal(kWasmS128);
 
   r.Build(
       {WASM_LOCAL_SET(value1, WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(0))),
@@ -1180,7 +1207,7 @@ WASM_EXEC_TEST(I8x16BitMask) {
 
 WASM_EXEC_TEST(I16x8BitMask) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
-  byte value1 = r.AllocateLocal(kWasmS128);
+  uint8_t value1 = r.AllocateLocal(kWasmS128);
 
   r.Build(
       {WASM_LOCAL_SET(value1, WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(0))),
@@ -1200,7 +1227,7 @@ WASM_EXEC_TEST(I16x8BitMask) {
 
 WASM_EXEC_TEST(I32x4BitMask) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
-  byte value1 = r.AllocateLocal(kWasmS128);
+  uint8_t value1 = r.AllocateLocal(kWasmS128);
 
   r.Build(
       {WASM_LOCAL_SET(value1, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(0))),
@@ -1220,7 +1247,7 @@ WASM_EXEC_TEST(I32x4BitMask) {
 
 WASM_EXEC_TEST(I64x2BitMask) {
   WasmRunner<int32_t, int64_t> r(execution_tier);
-  byte value1 = r.AllocateLocal(kWasmS128);
+  uint8_t value1 = r.AllocateLocal(kWasmS128);
 
   r.Build(
       {WASM_LOCAL_SET(value1, WASM_SIMD_I64x2_SPLAT(WASM_LOCAL_GET(0))),
@@ -1240,7 +1267,7 @@ WASM_EXEC_TEST(I8x16Splat) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
   // Set up a global to hold output vector.
   int8_t* g = r.builder().AddGlobal<int8_t>(kWasmS128);
-  byte param1 = 0;
+  uint8_t param1 = 0;
   r.Build({WASM_GLOBAL_SET(0, WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(param1))),
            WASM_ONE});
 
@@ -1253,7 +1280,7 @@ WASM_EXEC_TEST(I8x16Splat) {
     }
   }
 
-  // Test values that do not fit in a int16.
+  // Test values that do not fit in an int16.
   FOR_INT16_INPUTS(x) {
     r.Call(x);
     int8_t expected = truncate_to_int8(x);
@@ -1269,7 +1296,7 @@ WASM_EXEC_TEST(I8x16ReplaceLane) {
   // Set up a global to hold input/output vector.
   int8_t* g = r.builder().AddGlobal<int8_t>(kWasmS128);
   // Build function to replace each lane with its index.
-  byte temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
   r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_I8x16_SPLAT(WASM_I32V(-1))),
            WASM_LOCAL_SET(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
                                      0, WASM_LOCAL_GET(temp1), WASM_I32V(0))),
@@ -1332,8 +1359,8 @@ WASM_EXEC_TEST(I32x4ConvertF32x4) {
   int32_t* g0 = r.builder().AddGlobal<int32_t>(kWasmS128);
   int32_t* g1 = r.builder().AddGlobal<int32_t>(kWasmS128);
   // Build fn to splat test value, perform conversions, and write the results.
-  byte value = 0;
-  byte temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t value = 0;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
   r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(value))),
            WASM_GLOBAL_SET(0, WASM_SIMD_UNOP(kExprI32x4SConvertF32x4,
                                              WASM_LOCAL_GET(temp1))),
@@ -1362,8 +1389,8 @@ WASM_EXEC_TEST(I32x4ConvertI16x8) {
   int32_t* g2 = r.builder().AddGlobal<int32_t>(kWasmS128);
   int32_t* g3 = r.builder().AddGlobal<int32_t>(kWasmS128);
   // Build fn to splat test value, perform conversions, and write the results.
-  byte value = 0;
-  byte temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t value = 0;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
   r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(value))),
            WASM_GLOBAL_SET(0, WASM_SIMD_UNOP(kExprI32x4SConvertI16x8High,
                                              WASM_LOCAL_GET(temp1))),
@@ -1397,8 +1424,8 @@ WASM_EXEC_TEST(I64x2ConvertI32x4) {
   uint64_t* g2 = r.builder().AddGlobal<uint64_t>(kWasmS128);
   uint64_t* g3 = r.builder().AddGlobal<uint64_t>(kWasmS128);
   // Build fn to splat test value, perform conversions, and write the results.
-  byte value = 0;
-  byte temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t value = 0;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
   r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(value))),
            WASM_GLOBAL_SET(0, WASM_SIMD_UNOP(kExprI64x2SConvertI32x4High,
                                              WASM_LOCAL_GET(temp1))),
@@ -1539,12 +1566,12 @@ void RunS128ConstBinOpTest(TestExecutionTier execution_tier,
     ScalarType* g = r.builder().template AddGlobal<ScalarType>(kWasmS128);
     // Build a function to splat one argument into a local,
     // and execute the op with a const as the second argument
-    byte value = 0;
-    byte temp = r.AllocateLocal(kWasmS128);
+    uint8_t value = 0;
+    uint8_t temp = r.AllocateLocal(kWasmS128);
     uint8_t const_buffer[16];
     for (size_t i = 0; i < kSimd128Size / sizeof(ScalarType); i++) {
       WriteLittleEndianValue<ScalarType>(
-          base::bit_cast<ScalarType*>(&const_buffer[0]) + i, x);
+          reinterpret_cast<ScalarType*>(&const_buffer[0]) + i, x);
     }
     switch (const_side) {
       case kConstLeft:
@@ -1724,8 +1751,8 @@ WASM_EXEC_TEST(I16x8ConvertI8x16) {
   int16_t* g2 = r.builder().AddGlobal<int16_t>(kWasmS128);
   int16_t* g3 = r.builder().AddGlobal<int16_t>(kWasmS128);
   // Build fn to splat test value, perform conversions, and write the results.
-  byte value = 0;
-  byte temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t value = 0;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
   r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(value))),
            WASM_GLOBAL_SET(0, WASM_SIMD_UNOP(kExprI16x8SConvertI8x16High,
                                              WASM_LOCAL_GET(temp1))),
@@ -1757,8 +1784,8 @@ WASM_EXEC_TEST(I16x8ConvertI32x4) {
   int16_t* g0 = r.builder().AddGlobal<int16_t>(kWasmS128);
   int16_t* g1 = r.builder().AddGlobal<int16_t>(kWasmS128);
   // Build fn to splat test value, perform conversions, and write the results.
-  byte value = 0;
-  byte temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t value = 0;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
   r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(value))),
            WASM_GLOBAL_SET(0, WASM_SIMD_BINOP(kExprI16x8SConvertI32x4,
                                               WASM_LOCAL_GET(temp1),
@@ -2091,9 +2118,9 @@ EXTMUL_ADD_OPTIMIZATION_TEST(int16_t, I16x8, int32_t, I32x4)
 WASM_EXEC_TEST(I32x4DotI16x8S) {
   WasmRunner<int32_t, int16_t, int16_t> r(execution_tier);
   int32_t* g = r.builder().template AddGlobal<int32_t>(kWasmS128);
-  byte value1 = 0, value2 = 1;
-  byte temp1 = r.AllocateLocal(kWasmS128);
-  byte temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t value1 = 0, value2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
   r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(value1))),
            WASM_LOCAL_SET(temp2, WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(value2))),
            WASM_GLOBAL_SET(
@@ -2149,8 +2176,8 @@ WASM_EXEC_TEST(I8x16Popcnt) {
   // Global to hold output.
   int8_t* g = r.builder().AddGlobal<int8_t>(kWasmS128);
   // Build fn to splat test value, perform unop, and write the result.
-  byte value = 0;
-  byte temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t value = 0;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
   r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(value))),
            WASM_GLOBAL_SET(
                0, WASM_SIMD_UNOP(kExprI8x16Popcnt, WASM_LOCAL_GET(temp1))),
@@ -2172,8 +2199,8 @@ WASM_EXEC_TEST(I8x16ConvertI16x8) {
   int8_t* g_s = r.builder().AddGlobal<int8_t>(kWasmS128);
   uint8_t* g_u = r.builder().AddGlobal<uint8_t>(kWasmS128);
   // Build fn to splat test value, perform conversions, and write the results.
-  byte value = 0;
-  byte temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t value = 0;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
   r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(value))),
            WASM_GLOBAL_SET(0, WASM_SIMD_BINOP(kExprI8x16SConvertI16x8,
                                               WASM_LOCAL_GET(temp1),
@@ -2340,12 +2367,12 @@ WASM_EXEC_TEST(I8x16ShiftAdd) {
 #define WASM_SIMD_SELECT_TEST(format)                                       \
   WASM_EXEC_TEST(S##format##Select) {                                       \
     WasmRunner<int32_t, int32_t, int32_t> r(execution_tier);                \
-    byte val1 = 0;                                                          \
-    byte val2 = 1;                                                          \
-    byte src1 = r.AllocateLocal(kWasmS128);                                 \
-    byte src2 = r.AllocateLocal(kWasmS128);                                 \
-    byte zero = r.AllocateLocal(kWasmS128);                                 \
-    byte mask = r.AllocateLocal(kWasmS128);                                 \
+    uint8_t val1 = 0;                                                       \
+    uint8_t val2 = 1;                                                       \
+    uint8_t src1 = r.AllocateLocal(kWasmS128);                              \
+    uint8_t src2 = r.AllocateLocal(kWasmS128);                              \
+    uint8_t zero = r.AllocateLocal(kWasmS128);                              \
+    uint8_t mask = r.AllocateLocal(kWasmS128);                              \
     r.Build(                                                                \
         {WASM_LOCAL_SET(src1,                                               \
                         WASM_SIMD_I##format##_SPLAT(WASM_LOCAL_GET(val1))), \
@@ -2379,13 +2406,13 @@ WASM_SIMD_SELECT_TEST(8x16)
 #define WASM_SIMD_NON_CANONICAL_SELECT_TEST(format)                          \
   WASM_EXEC_TEST(S##format##NonCanonicalSelect) {                            \
     WasmRunner<int32_t, int32_t, int32_t, int32_t> r(execution_tier);        \
-    byte val1 = 0;                                                           \
-    byte val2 = 1;                                                           \
-    byte combined = 2;                                                       \
-    byte src1 = r.AllocateLocal(kWasmS128);                                  \
-    byte src2 = r.AllocateLocal(kWasmS128);                                  \
-    byte zero = r.AllocateLocal(kWasmS128);                                  \
-    byte mask = r.AllocateLocal(kWasmS128);                                  \
+    uint8_t val1 = 0;                                                        \
+    uint8_t val2 = 1;                                                        \
+    uint8_t combined = 2;                                                    \
+    uint8_t src1 = r.AllocateLocal(kWasmS128);                               \
+    uint8_t src2 = r.AllocateLocal(kWasmS128);                               \
+    uint8_t zero = r.AllocateLocal(kWasmS128);                               \
+    uint8_t mask = r.AllocateLocal(kWasmS128);                               \
     r.Build(                                                                 \
         {WASM_LOCAL_SET(src1,                                                \
                         WASM_SIMD_I##format##_SPLAT(WASM_LOCAL_GET(val1))),  \
@@ -2466,6 +2493,8 @@ void RunShuffleOpTest(TestExecutionTier execution_tier, WasmOpcode simd_op,
 
 #define SHUFFLE_LIST(V)  \
   V(S128Identity)        \
+  V(S64x2UnzipLeft)      \
+  V(S64x2UnzipRight)     \
   V(S32x4Dup)            \
   V(S32x4ZipLeft)        \
   V(S32x4ZipRight)       \
@@ -2473,8 +2502,12 @@ void RunShuffleOpTest(TestExecutionTier execution_tier, WasmOpcode simd_op,
   V(S32x4UnzipRight)     \
   V(S32x4TransposeLeft)  \
   V(S32x4TransposeRight) \
+  V(S32x4OneLaneSwizzle) \
+  V(S32x4Reverse)        \
   V(S32x2Reverse)        \
   V(S32x4Irregular)      \
+  V(S32x4DupAndCopyOne)  \
+  V(S32x4DupAndCopyTwo)  \
   V(S32x4Rotate)         \
   V(S16x8Dup)            \
   V(S16x8ZipLeft)        \
@@ -2510,6 +2543,10 @@ using ShuffleMap = std::map<ShuffleKey, const Shuffle>;
 ShuffleMap test_shuffles = {
     {kS128Identity,
      {{16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31}}},
+    {kS64x2UnzipLeft,
+     {{0, 1, 2, 3, 4, 5, 6, 7, 16, 17, 18, 19, 20, 21, 22, 23}}},
+    {kS64x2UnzipRight,
+     {{8, 9, 10, 11, 12, 13, 14, 15, 24, 25, 26, 27, 28, 29, 30, 31}}},
     {kS32x4Dup,
      {{16, 17, 18, 19, 16, 17, 18, 19, 16, 17, 18, 19, 16, 17, 18, 19}}},
     {kS32x4ZipLeft, {{0, 1, 2, 3, 16, 17, 18, 19, 4, 5, 6, 7, 20, 21, 22, 23}}},
@@ -2523,10 +2560,18 @@ ShuffleMap test_shuffles = {
      {{0, 1, 2, 3, 16, 17, 18, 19, 8, 9, 10, 11, 24, 25, 26, 27}}},
     {kS32x4TransposeRight,
      {{4, 5, 6, 7, 20, 21, 22, 23, 12, 13, 14, 15, 28, 29, 30, 31}}},
+    {kS32x4OneLaneSwizzle,  // swizzle only
+     {{15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 7, 6, 5, 4}}},
+    {kS32x4Reverse,  // swizzle only
+     {{3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12}}},
     {kS32x2Reverse,  // swizzle only
      {{4, 5, 6, 7, 0, 1, 2, 3, 12, 13, 14, 15, 8, 9, 10, 11}}},
     {kS32x4Irregular,
      {{0, 1, 2, 3, 16, 17, 18, 19, 16, 17, 18, 19, 20, 21, 22, 23}}},
+    {kS32x4DupAndCopyOne,  // swizzle only
+     {{0, 1, 2, 3, 0, 1, 2, 3, 12, 13, 14, 15, 8, 9, 10, 11}}},
+    {kS32x4DupAndCopyTwo,
+     {{16, 17, 18, 19, 16, 17, 18, 19, 16, 17, 18, 19, 0, 1, 2, 3}}},
     {kS32x4Rotate, {{4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3}}},
     {kS16x8Dup,
      {{18, 19, 18, 19, 18, 19, 18, 19, 18, 19, 18, 19, 18, 19, 18, 19}}},
@@ -2764,18 +2809,18 @@ WASM_EXEC_TEST(I8x16ShuffleFuzz) {
   }
 }
 
-void AppendShuffle(const Shuffle& shuffle, std::vector<byte>* buffer) {
-  byte opcode[] = {WASM_SIMD_OP(kExprI8x16Shuffle)};
+void AppendShuffle(const Shuffle& shuffle, std::vector<uint8_t>* buffer) {
+  uint8_t opcode[] = {WASM_SIMD_OP(kExprI8x16Shuffle)};
   for (size_t i = 0; i < arraysize(opcode); ++i) buffer->push_back(opcode[i]);
   for (size_t i = 0; i < kSimd128Size; ++i) buffer->push_back((shuffle[i]));
 }
 
 void BuildShuffle(const std::vector<Shuffle>& shuffles,
-                  std::vector<byte>* buffer) {
+                  std::vector<uint8_t>* buffer) {
   // Perform the leaf shuffles on globals 0 and 1.
   size_t row_index = (shuffles.size() - 1) / 2;
   for (size_t i = row_index; i < shuffles.size(); ++i) {
-    byte operands[] = {WASM_GLOBAL_GET(0), WASM_GLOBAL_GET(1)};
+    uint8_t operands[] = {WASM_GLOBAL_GET(0), WASM_GLOBAL_GET(1)};
     for (size_t j = 0; j < arraysize(operands); ++j)
       buffer->push_back(operands[j]);
     AppendShuffle(shuffles[i], buffer);
@@ -2787,12 +2832,12 @@ void BuildShuffle(const std::vector<Shuffle>& shuffles,
     }
     row_index /= 2;
   } while (row_index != 0);
-  byte epilog[] = {kExprGlobalSet, static_cast<byte>(0), WASM_ONE};
+  uint8_t epilog[] = {kExprGlobalSet, static_cast<uint8_t>(0), WASM_ONE};
   for (size_t j = 0; j < arraysize(epilog); ++j) buffer->push_back(epilog[j]);
 }
 
 void RunWasmCode(TestExecutionTier execution_tier,
-                 const std::vector<byte>& code,
+                 const std::vector<uint8_t>& code,
                  std::array<int8_t, kSimd128Size>* result) {
   WasmRunner<int32_t> r(execution_tier);
   // Set up two test patterns as globals, e.g. [0, 1, 2, 3] and [4, 5, 6, 7].
@@ -2816,9 +2861,9 @@ void RunWasmCode(TestExecutionTier execution_tier,
   WASM_EXEC_TEST(ReductionTest##lanes) {                                      \
     WasmRunner<int32_t> r(execution_tier);                                    \
     if (lanes == 2) return;                                                   \
-    byte zero = r.AllocateLocal(kWasmS128);                                   \
-    byte one_one = r.AllocateLocal(kWasmS128);                                \
-    byte reduced = r.AllocateLocal(kWasmI32);                                 \
+    uint8_t zero = r.AllocateLocal(kWasmS128);                                \
+    uint8_t one_one = r.AllocateLocal(kWasmS128);                             \
+    uint8_t reduced = r.AllocateLocal(kWasmI32);                              \
     r.Build(                                                                  \
         {WASM_LOCAL_SET(zero, WASM_SIMD_I##format##_SPLAT(int_type(0))),      \
          WASM_LOCAL_SET(                                                      \
@@ -3135,49 +3180,6 @@ WASM_EXEC_TEST(SimdF32x4SetGlobal) {
   CHECK_EQ(GetScalar(global, 3), 65.0f);
 }
 
-WASM_EXEC_TEST(F32x4AddRevec) {
-  WasmRunner<float, int32_t, int32_t> r(execution_tier);
-  float* memory =
-      r.builder().AddMemoryElems<float>(kWasmPageSize / sizeof(float));
-  byte param1 = 0;
-  byte param2 = 1;
-  byte temp1 = r.AllocateLocal(kWasmS128);
-  byte temp2 = r.AllocateLocal(kWasmS128);
-  byte temp3 = r.AllocateLocal(kWasmS128);
-  byte temp4 = r.AllocateLocal(kWasmS128);
-  byte temp5 = r.AllocateLocal(kWasmF32);
-  byte temp6 = r.AllocateLocal(kWasmF32);
-  constexpr byte offset = 16;
-
-  // Multiple a vector of F32x8 with a constant and store the result to another
-  // array
-  r.Build(
-      {WASM_LOCAL_SET(temp1, WASM_SIMD_F32x4_SPLAT(WASM_F32(10.0f))),
-       WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
-       WASM_LOCAL_SET(temp3,
-                      WASM_SIMD_BINOP(kExprF32x4Add, WASM_LOCAL_GET(temp1),
-                                      WASM_LOCAL_GET(temp2))),
-       WASM_LOCAL_SET(
-           temp2, WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_LOCAL_GET(param1))),
-       WASM_LOCAL_SET(temp4,
-                      WASM_SIMD_BINOP(kExprF32x4Add, WASM_LOCAL_GET(temp1),
-                                      WASM_LOCAL_GET(temp2))),
-       WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp3)),
-       WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
-                                  WASM_LOCAL_GET(temp4)),
-       WASM_LOCAL_SET(temp5,
-                      WASM_SIMD_F32x4_EXTRACT_LANE(
-                          1, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param2)))),
-       WASM_LOCAL_SET(temp6, WASM_SIMD_F32x4_EXTRACT_LANE(
-                                 2, WASM_SIMD_LOAD_MEM_OFFSET(
-                                        offset, WASM_LOCAL_GET(param2)))),
-       WASM_BINOP(kExprF32Add, WASM_LOCAL_GET(temp5), WASM_LOCAL_GET(temp6))});
-
-  r.builder().WriteMemory(&memory[1], 1.0f);
-  r.builder().WriteMemory(&memory[6], 2.0f);
-  CHECK_EQ(23.0f, r.Call(0, 32));
-}
-
 WASM_EXEC_TEST(SimdLoadStoreLoad) {
   {
     WasmRunner<int32_t> r(execution_tier);
@@ -3229,8 +3231,8 @@ WASM_EXEC_TEST(SimdLoadStoreLoadMemargOffset) {
     WasmRunner<int32_t> r(execution_tier);
     int32_t* memory =
         r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
-    constexpr byte offset_1 = 4;
-    constexpr byte offset_2 = 8;
+    constexpr uint8_t offset_1 = 4;
+    constexpr uint8_t offset_2 = 8;
     // Load from memory at offset_1, store to offset_2, load from offset_2, and
     // extract first lane. We use non-zero memarg offsets to test offset
     // decoding.
@@ -3358,7 +3360,7 @@ void RunLoadExtendTest(TestExecutionTier execution_tier, WasmOpcode op) {
   constexpr int lanes_t = 16 / sizeof(T);
   constexpr int mem_index = 16;  // Load from mem index 16 (bytes).
   // Load extends always load 64 bits, so alignment values can be from 0 to 3.
-  for (byte alignment = 0; alignment <= 3; alignment++) {
+  for (uint8_t alignment = 0; alignment <= 3; alignment++) {
     WasmRunner<int32_t> r(execution_tier);
     S* memory = r.builder().AddMemoryElems<S>(kWasmPageSize / sizeof(S));
     T* global = r.builder().AddGlobal<T>(kWasmS128);
@@ -3383,7 +3385,7 @@ void RunLoadExtendTest(TestExecutionTier execution_tier, WasmOpcode op) {
     WasmRunner<int32_t> r(execution_tier);
     S* memory = r.builder().AddMemoryElems<S>(kWasmPageSize / sizeof(S));
     T* global = r.builder().AddGlobal<T>(kWasmS128);
-    constexpr byte offset = sizeof(S);
+    constexpr uint8_t offset = sizeof(S);
     r.Build(
         {WASM_GLOBAL_SET(0, WASM_SIMD_LOAD_OP_OFFSET(op, WASM_ZERO, offset)),
          WASM_ONE});
@@ -3464,7 +3466,7 @@ void RunLoadZeroTest(TestExecutionTier execution_tier, WasmOpcode op) {
 
   // Check all supported alignments.
   constexpr int max_alignment = base::bits::CountTrailingZeros(sizeof(S));
-  for (byte alignment = 0; alignment <= max_alignment; alignment++) {
+  for (uint8_t alignment = 0; alignment <= max_alignment; alignment++) {
     WasmRunner<int32_t> r(execution_tier);
     std::tie(memory, global) = initialize_builder(&r);
 
@@ -3526,20 +3528,20 @@ WASM_EXEC_TEST(S128Load64Zero) {
 template <typename T>
 void RunLoadLaneTest(TestExecutionTier execution_tier, WasmOpcode load_op,
                      WasmOpcode splat_op) {
-  byte const_op = static_cast<byte>(
+  uint8_t const_op = static_cast<uint8_t>(
       splat_op == kExprI64x2Splat ? kExprI64Const : kExprI32Const);
 
-  constexpr byte lanes_s = kSimd128Size / sizeof(T);
+  constexpr uint8_t lanes_s = kSimd128Size / sizeof(T);
   constexpr int mem_index = 16;  // Load from mem index 16 (bytes).
-  constexpr byte splat_value = 33;
+  constexpr uint8_t splat_value = 33;
   T sentinel = T{-1};
 
   T* memory;
   T* global;
 
   auto build_fn = [=, &memory, &global](WasmRunner<int32_t>& r, int mem_index,
-                                        byte lane, byte alignment,
-                                        byte offset) {
+                                        uint8_t lane, uint8_t alignment,
+                                        uint8_t offset) {
     memory = r.builder().AddMemoryElems<T>(kWasmPageSize / sizeof(T));
     global = r.builder().AddGlobal<T>(kWasmS128);
     r.builder().WriteMemory(&memory[lanes_s], sentinel);
@@ -3552,13 +3554,13 @@ void RunLoadLaneTest(TestExecutionTier execution_tier, WasmOpcode load_op,
 
   auto check_results = [=](T* global, int sentinel_lane = 0) {
     // Only one lane is loaded, the rest of the lanes are unchanged.
-    for (byte i = 0; i < lanes_s; i++) {
+    for (uint8_t i = 0; i < lanes_s; i++) {
       T expected = i == sentinel_lane ? sentinel : static_cast<T>(splat_value);
       CHECK_EQ(expected, LANE(global, i));
     }
   };
 
-  for (byte lane_index = 0; lane_index < lanes_s; ++lane_index) {
+  for (uint8_t lane_index = 0; lane_index < lanes_s; ++lane_index) {
     WasmRunner<int32_t> r(execution_tier);
     build_fn(r, mem_index, lane_index, /*alignment=*/0, /*offset=*/0);
     r.Call();
@@ -3567,7 +3569,7 @@ void RunLoadLaneTest(TestExecutionTier execution_tier, WasmOpcode load_op,
 
   // Check all possible alignments.
   constexpr int max_alignment = base::bits::CountTrailingZeros(sizeof(T));
-  for (byte alignment = 0; alignment <= max_alignment; ++alignment) {
+  for (uint8_t alignment = 0; alignment <= max_alignment; ++alignment) {
     WasmRunner<int32_t> r(execution_tier);
     build_fn(r, mem_index, /*lane=*/0, alignment, /*offset=*/0);
     r.Call();
@@ -3624,16 +3626,17 @@ WASM_EXEC_TEST(S128Load64Lane) {
 template <typename T>
 void RunStoreLaneTest(TestExecutionTier execution_tier, WasmOpcode store_op,
                       WasmOpcode splat_op) {
-  constexpr byte lanes = kSimd128Size / sizeof(T);
+  constexpr uint8_t lanes = kSimd128Size / sizeof(T);
   constexpr int mem_index = 16;  // Store to mem index 16 (bytes).
-  constexpr byte splat_value = 33;
-  byte const_op = static_cast<byte>(
+  constexpr uint8_t splat_value = 33;
+  uint8_t const_op = static_cast<uint8_t>(
       splat_op == kExprI64x2Splat ? kExprI64Const : kExprI32Const);
 
   T* memory;  // Will be set by build_fn.
 
   auto build_fn = [=, &memory](WasmRunner<int32_t>& r, int mem_index,
-                               byte lane_index, byte alignment, byte offset) {
+                               uint8_t lane_index, uint8_t alignment,
+                               uint8_t offset) {
     memory = r.builder().AddMemoryElems<T>(kWasmPageSize / sizeof(T));
     // Splat splat_value, then only Store and replace a single lane.
     r.Build({WASM_I32V(mem_index), const_op, splat_value,
@@ -3643,18 +3646,18 @@ void RunStoreLaneTest(TestExecutionTier execution_tier, WasmOpcode store_op,
   };
 
   auto check_results = [=](WasmRunner<int32_t>& r, T* memory) {
-    for (byte i = 0; i < lanes; i++) {
+    for (uint8_t i = 0; i < lanes; i++) {
       CHECK_EQ(0, r.builder().ReadMemory(&memory[i]));
     }
 
     CHECK_EQ(splat_value, r.builder().ReadMemory(&memory[lanes]));
 
-    for (byte i = lanes + 1; i < lanes * 2; i++) {
+    for (uint8_t i = lanes + 1; i < lanes * 2; i++) {
       CHECK_EQ(0, r.builder().ReadMemory(&memory[i]));
     }
   };
 
-  for (byte lane_index = 0; lane_index < lanes; lane_index++) {
+  for (uint8_t lane_index = 0; lane_index < lanes; lane_index++) {
     WasmRunner<int32_t> r(execution_tier);
     build_fn(r, mem_index, lane_index, ZERO_ALIGNMENT, ZERO_OFFSET);
     r.Call();
@@ -3663,7 +3666,7 @@ void RunStoreLaneTest(TestExecutionTier execution_tier, WasmOpcode store_op,
 
   // Check all possible alignments.
   constexpr int max_alignment = base::bits::CountTrailingZeros(sizeof(T));
-  for (byte alignment = 0; alignment <= max_alignment; ++alignment) {
+  for (uint8_t alignment = 0; alignment <= max_alignment; ++alignment) {
     WasmRunner<int32_t> r(execution_tier);
     build_fn(r, mem_index, /*lane_index=*/0, alignment, ZERO_OFFSET);
     r.Call();
@@ -3718,7 +3721,7 @@ WASM_EXEC_TEST(S128Store64Lane) {
   WASM_EXEC_TEST(S##format##AnyTrue) {                                         \
     WasmRunner<int32_t, param_type> r(execution_tier);                         \
     if (lanes == 2) return;                                                    \
-    byte simd = r.AllocateLocal(kWasmS128);                                    \
+    uint8_t simd = r.AllocateLocal(kWasmS128);                                 \
     r.Build(                                                                   \
         {WASM_LOCAL_SET(simd, WASM_SIMD_I##format##_SPLAT(WASM_LOCAL_GET(0))), \
          WASM_SIMD_UNOP(kExprV128AnyTrue, WASM_LOCAL_GET(simd))});             \
@@ -3735,7 +3738,7 @@ WASM_SIMD_ANYTRUE_TEST(8x16, 16, 0xff, int32_t)
 // 0.0 and -0.0 will be different in an anytrue (IEEE753 says they are equals).
 WASM_EXEC_TEST(V128AnytrueWithNegativeZero) {
   WasmRunner<int32_t, int64_t> r(execution_tier);
-  byte simd = r.AllocateLocal(kWasmS128);
+  uint8_t simd = r.AllocateLocal(kWasmS128);
   r.Build({WASM_LOCAL_SET(simd, WASM_SIMD_I64x2_SPLAT(WASM_LOCAL_GET(0))),
            WASM_SIMD_UNOP(kExprV128AnyTrue, WASM_LOCAL_GET(simd))});
   CHECK_EQ(1, r.Call(0x8000000000000000));
@@ -3746,7 +3749,7 @@ WASM_EXEC_TEST(V128AnytrueWithNegativeZero) {
   WASM_EXEC_TEST(I##format##AllTrue) {                                         \
     WasmRunner<int32_t, param_type> r(execution_tier);                         \
     if (lanes == 2) return;                                                    \
-    byte simd = r.AllocateLocal(kWasmS128);                                    \
+    uint8_t simd = r.AllocateLocal(kWasmS128);                                 \
     r.Build(                                                                   \
         {WASM_LOCAL_SET(simd, WASM_SIMD_I##format##_SPLAT(WASM_LOCAL_GET(0))), \
          WASM_SIMD_UNOP(kExprI##format##AllTrue, WASM_LOCAL_GET(simd))});      \
@@ -3761,7 +3764,7 @@ WASM_SIMD_ALLTRUE_TEST(8x16, 16, 0xff, int32_t)
 
 WASM_EXEC_TEST(BitSelect) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
-  byte simd = r.AllocateLocal(kWasmS128);
+  uint8_t simd = r.AllocateLocal(kWasmS128);
   r.Build({WASM_LOCAL_SET(
                simd, WASM_SIMD_SELECT(
                          32x4, WASM_SIMD_I32x4_SPLAT(WASM_I32V(0x01020304)),
@@ -3774,7 +3777,7 @@ WASM_EXEC_TEST(BitSelect) {
 void RunSimdConstTest(TestExecutionTier execution_tier,
                       const std::array<uint8_t, kSimd128Size>& expected) {
   WasmRunner<uint32_t> r(execution_tier);
-  byte temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
   uint8_t* src0 = r.builder().AddGlobal<uint8_t>(kWasmS128);
   r.Build({WASM_GLOBAL_SET(temp1, WASM_SIMD_CONSTANT(expected)), WASM_ONE});
   CHECK_EQ(1, r.Call());
@@ -3854,7 +3857,7 @@ WASM_EXEC_TEST(I16x8GtUMixed) {
 WASM_EXEC_TEST(I16x8ExtractLaneU_I8x16Splat) {
   // Test that we are correctly signed/unsigned extending when extracting.
   WasmRunner<int32_t, int32_t> r(execution_tier);
-  byte simd_val = r.AllocateLocal(kWasmS128);
+  uint8_t simd_val = r.AllocateLocal(kWasmS128);
   r.Build({WASM_LOCAL_SET(simd_val, WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(0))),
            WASM_SIMD_I16x8_EXTRACT_LANE_U(0, WASM_LOCAL_GET(simd_val))});
   CHECK_EQ(0xfafa, r.Call(0xfa));
@@ -3954,8 +3957,8 @@ WASM_EXEC_TEST(AddExtAddPairwiseI32LeftUnsigned) {
 WASM_EXEC_TEST(Regress_12237) {
   WasmRunner<int32_t, int64_t> r(execution_tier);
   int64_t* g = r.builder().AddGlobal<int64_t>(kWasmS128);
-  byte value = 0;
-  byte temp = r.AllocateLocal(kWasmS128);
+  uint8_t value = 0;
+  uint8_t temp = r.AllocateLocal(kWasmS128);
   int64_t local = 123;
   r.Build({WASM_LOCAL_SET(
                temp, WASM_SIMD_OPN(kExprI64x2Splat, WASM_LOCAL_GET(value))),
@@ -3975,8 +3978,8 @@ WASM_EXEC_TEST(Regress_12237) {
 #define WASM_EXTRACT_I16x8_TEST(Sign, Type)                                  \
   WASM_EXEC_TEST(I16X8ExtractLane##Sign) {                                   \
     WasmRunner<int32_t, int32_t> r(execution_tier);                          \
-    byte int_val = r.AllocateLocal(kWasmI32);                                \
-    byte simd_val = r.AllocateLocal(kWasmS128);                              \
+    uint8_t int_val = r.AllocateLocal(kWasmI32);                             \
+    uint8_t simd_val = r.AllocateLocal(kWasmS128);                           \
     r.Build({WASM_LOCAL_SET(simd_val,                                        \
                             WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(int_val))), \
              WASM_SIMD_CHECK_LANE_U(I16x8, simd_val, I32, int_val, 0),       \
@@ -3992,8 +3995,8 @@ WASM_EXTRACT_I16x8_TEST(S, UINT16) WASM_EXTRACT_I16x8_TEST(I, INT16)
 #define WASM_EXTRACT_I8x16_TEST(Sign, Type)                                  \
   WASM_EXEC_TEST(I8x16ExtractLane##Sign) {                                   \
     WasmRunner<int32_t, int32_t> r(execution_tier);                          \
-    byte int_val = r.AllocateLocal(kWasmI32);                                \
-    byte simd_val = r.AllocateLocal(kWasmS128);                              \
+    uint8_t int_val = r.AllocateLocal(kWasmI32);                             \
+    uint8_t simd_val = r.AllocateLocal(kWasmS128);                           \
     r.Build({WASM_LOCAL_SET(simd_val,                                        \
                             WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(int_val))), \
              WASM_SIMD_CHECK_LANE_U(I8x16, simd_val, I32, int_val, 1),       \
@@ -4009,6 +4012,3141 @@ WASM_EXTRACT_I16x8_TEST(S, UINT16) WASM_EXTRACT_I16x8_TEST(I, INT16)
   }
     WASM_EXTRACT_I8x16_TEST(S, UINT8) WASM_EXTRACT_I8x16_TEST(I, INT8)
 #undef WASM_EXTRACT_I8x16_TEST
+
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+
+void RunSimd256ConstTest(const std::array<uint8_t, kSimd128Size>& expected) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  uint8_t* memory = r.builder().AddMemoryElems<uint8_t>(32);
+  uint8_t param1 = 0;
+  constexpr uint8_t offset = 16;
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                      compiler::turboshaft::Opcode::kSimd256Constant>);
+    BUILD_AND_CHECK_REVEC_NODE(
+        r, compiler::IrOpcode::kS256Const,
+        WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param1),
+                            WASM_SIMD_CONSTANT(expected)),
+        WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param1),
+                                   WASM_SIMD_CONSTANT(expected)),
+        WASM_ONE);
+  }
+  CHECK_EQ(1, r.Call(0));
+  for (size_t i = 0; i < expected.size(); i++) {
+    CHECK_EQ(memory[i], expected[i]);
+    CHECK_EQ(memory[i + 16], expected[i]);
+  }
+}
+
+TEST(RunWasmTurbofan_S256Const) {
+  // All zeroes
+  std::array<uint8_t, kSimd128Size> expected = {0};
+  RunSimd256ConstTest(expected);
+
+  // All ones
+  for (int i = 0; i < kSimd128Size; i++) {
+    expected[i] = 0xff;
+  }
+  RunSimd256ConstTest(expected);
+
+  // Test for generic constant
+  for (int i = 0; i < kSimd128Size; i++) {
+    expected[i] = i;
+  }
+  RunSimd256ConstTest(expected);
+
+  // Keep the first 4 lanes as 0, set the remaining ones.
+  for (int i = 0; i < 4; i++) {
+    expected[i] = 0;
+  }
+  for (int i = 4; i < kSimd128Size; i++) {
+    expected[i] = i;
+  }
+  RunSimd256ConstTest(expected);
+
+  // Check sign extension logic used to pack int32s into int64.
+  expected = {0};
+  // Set the top bit of lane 3 (top bit of first int32), the rest can be 0.
+  expected[3] = 0x80;
+  RunSimd256ConstTest(expected);
+}
+
+TEST(RunWasmTurbofan_ExtractF128) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int64_t, int32_t, int32_t, int32_t> r(
+      TestExecutionTier::kTurbofan);
+  int64_t* memory = r.builder().AddMemoryElems<int64_t>(12);
+  // Add two 256 bit vectors a and b, store the result in c and return the sum
+  // of all the int64 elements in c:
+  //   simd128 *a,*b,*c,*d;
+  //   *c = *a + *b;
+  //   *(c+1) = *(a+1) + *(b+1);
+  //   *d = *c + *(c+1);
+  //   return LANE(d, 0) + LANE(d,1);
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t param3 = 2;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                      compiler::turboshaft::Opcode::kSimd256Extract128Lane>);
+    BUILD_AND_CHECK_REVEC_NODE(
+        r, compiler::IrOpcode::kI64x4Add,
+        WASM_LOCAL_SET(
+            temp1, WASM_SIMD_BINOP(kExprI64x2Add,
+                                   WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1)),
+                                   WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param2)))),
+        WASM_LOCAL_SET(
+            temp2,
+            WASM_SIMD_BINOP(
+                kExprI64x2Add,
+                WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_LOCAL_GET(param1)),
+                WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_LOCAL_GET(param2)))),
+        WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param3), WASM_LOCAL_GET(temp1)),
+        WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param3),
+                                   WASM_LOCAL_GET(temp2)),
+        WASM_LOCAL_SET(temp3,
+                       WASM_SIMD_BINOP(kExprI64x2Add, WASM_LOCAL_GET(temp1),
+                                       WASM_LOCAL_GET(temp2))),
+        WASM_I64_ADD(WASM_SIMD_I64x2_EXTRACT_LANE(0, WASM_LOCAL_GET(temp3)),
+                     WASM_SIMD_I64x2_EXTRACT_LANE(1, WASM_LOCAL_GET(temp3))));
+  }
+  for (int64_t x : compiler::ValueHelper::GetVector<int64_t>()) {
+    for (int64_t y : compiler::ValueHelper::GetVector<int64_t>()) {
+      for (int i = 0; i < 4; i++) {
+        r.builder().WriteMemory(&memory[i], x);
+        r.builder().WriteMemory(&memory[i + 4], y);
+      }
+      int64_t expected = base::AddWithWraparound(x, y);
+      CHECK_EQ(r.Call(0, 32, 64), expected * 4);
+      for (int i = 0; i < 4; i++) {
+        CHECK_EQ(expected, memory[i + 8]);
+      }
+    }
+  }
+}
+
+TEST(RunWasmTurbofan_F32x8Abs) {
+  RunF32x8UnOpRevecTest(kExprF32x4Abs, std::abs, compiler::IrOpcode::kF32x8Abs);
+}
+
+TEST(RunWasmTurbofan_F32x8Neg) {
+  RunF32x8UnOpRevecTest(kExprF32x4Neg, Negate, compiler::IrOpcode::kF32x8Neg);
+}
+
+TEST(RunWasmTurbofan_F32x8Sqrt) {
+  RunF32x8UnOpRevecTest(kExprF32x4Sqrt, std::sqrt,
+                        compiler::IrOpcode::kF32x8Sqrt);
+}
+
+TEST(RunWasmTurbofan_F32x8Min) {
+  RunF32x8BinOpRevecTest(kExprF32x4Min, JSMin, compiler::IrOpcode::kF32x8Min);
+}
+
+TEST(RunWasmTurbofan_F32x8Max) {
+  RunF32x8BinOpRevecTest(kExprF32x4Max, JSMax, compiler::IrOpcode::kF32x8Max);
+}
+
+TEST(RunWasmTurbofan_F32x8Pmin) {
+  RunF32x8BinOpRevecTest(kExprF32x4Pmin, Minimum,
+                         compiler::IrOpcode::kF32x8Pmin);
+}
+
+TEST(RunWasmTurbofan_F32x8Pmax) {
+  RunF32x8BinOpRevecTest(kExprF32x4Pmax, Maximum,
+                         compiler::IrOpcode::kF32x8Pmax);
+}
+
+TEST(RunWasmTurbofan_I64x4Shl) {
+  RunI64x4ShiftOpRevecTest(kExprI64x2Shl, LogicalShiftLeft,
+                           compiler::IrOpcode::kI64x4Shl);
+}
+
+TEST(RunWasmTurbofan_I64x4ShrU) {
+  RunI64x4ShiftOpRevecTest(kExprI64x2ShrU, LogicalShiftRight,
+                           compiler::IrOpcode::kI64x4ShrU);
+}
+
+TEST(RunWasmTurbofan_I64x4Ne) {
+  RunI64x4BinOpRevecTest(kExprI64x2Ne, NotEqual, compiler::IrOpcode::kI64x4Ne);
+}
+
+TEST(RunWasmTurbofan_I64x4GeS) {
+  RunI64x4BinOpRevecTest(kExprI64x2GeS, GreaterEqual,
+                         compiler::IrOpcode::kI64x4GeS);
+}
+
+TEST(RunWasmTurbofan_F64x4Abs) {
+  RunF64x4UnOpRevecTest(kExprF64x2Abs, std::abs, compiler::IrOpcode::kF64x4Abs);
+}
+
+TEST(RunWasmTurbofan_F64x4Neg) {
+  RunF64x4UnOpRevecTest(kExprF64x2Neg, Negate, compiler::IrOpcode::kF64x4Neg);
+}
+
+TEST(RunWasmTurbofan_F64x4Sqrt) {
+  RunF64x4UnOpRevecTest(kExprF64x2Sqrt, std::sqrt,
+                        compiler::IrOpcode::kF64x4Sqrt);
+}
+
+TEST(RunWasmTurbofan_F64x4Min) {
+  RunF64x4BinOpRevecTest(kExprF64x2Min, JSMin, compiler::IrOpcode::kF64x4Min);
+}
+
+TEST(RunWasmTurbofan_F64x4Max) {
+  RunF64x4BinOpRevecTest(kExprF64x2Max, JSMax, compiler::IrOpcode::kF64x4Max);
+}
+
+TEST(RunWasmTurbofan_F64x4Pmin) {
+  RunF64x4BinOpRevecTest(kExprF64x2Pmin, Minimum,
+                         compiler::IrOpcode::kF64x4Pmin);
+}
+
+TEST(RunWasmTurbofan_F64x4Pmax) {
+  RunF64x4BinOpRevecTest(kExprF64x2Pmax, Maximum,
+                         compiler::IrOpcode::kF64x4Pmax);
+}
+
+TEST(RunWasmTurbofan_I32x8SConvertF32x8) {
+  RunI32x8ConvertF32x8RevecTest<int32_t>(
+      kExprI32x4SConvertF32x4, ConvertToInt,
+      compiler::IrOpcode::kI32x8SConvertF32x8);
+}
+
+TEST(RunWasmTurbofan_I32x8UConvertF32x8) {
+  RunI32x8ConvertF32x8RevecTest<uint32_t>(
+      kExprI32x4UConvertF32x4, ConvertToInt,
+      compiler::IrOpcode::kI32x8UConvertF32x8);
+}
+
+TEST(RunWasmTurbofan_F32x8SConvertI32x8) {
+  RunF32x8ConvertI32x8RevecTest<int32_t>(
+      kExprF32x4SConvertI32x4, compiler::IrOpcode::kF32x8SConvertI32x8);
+}
+
+TEST(RunWasmTurbofan_F32x8UConvertI32x8) {
+  RunF32x8ConvertI32x8RevecTest<uint32_t>(
+      kExprF32x4UConvertI32x4, compiler::IrOpcode::kF32x8UConvertI32x8);
+}
+
+TEST(RunWasmTurbofan_I64x4SConvertI32x4) {
+  RunIntSignExtensionRevecTest<int32_t, int64_t>(
+      kExprI64x2SConvertI32x4Low, kExprI64x2SConvertI32x4High, kExprI32x4Splat,
+      compiler::IrOpcode::kI64x4SConvertI32x4);
+}
+
+TEST(RunWasmTurbofan_I64x4UConvertI32x4) {
+  RunIntSignExtensionRevecTest<uint32_t, uint64_t>(
+      kExprI64x2UConvertI32x4Low, kExprI64x2UConvertI32x4High, kExprI32x4Splat,
+      compiler::IrOpcode::kI64x4UConvertI32x4);
+}
+
+TEST(RunWasmTurbofan_I32x8SConvertI16x8) {
+  RunIntSignExtensionRevecTest<int16_t, int32_t>(
+      kExprI32x4SConvertI16x8Low, kExprI32x4SConvertI16x8High, kExprI16x8Splat,
+      compiler::IrOpcode::kI32x8SConvertI16x8);
+}
+
+TEST(RunWasmTurbofan_I32x8UConvertI16x8) {
+  RunIntSignExtensionRevecTest<uint16_t, uint32_t>(
+      kExprI32x4UConvertI16x8Low, kExprI32x4UConvertI16x8High, kExprI16x8Splat,
+      compiler::IrOpcode::kI32x8UConvertI16x8);
+}
+
+TEST(RunWasmTurbofan_I16x16SConvertI8x16) {
+  RunIntSignExtensionRevecTest<int8_t, int16_t>(
+      kExprI16x8SConvertI8x16Low, kExprI16x8SConvertI8x16High, kExprI8x16Splat,
+      compiler::IrOpcode::kI16x16SConvertI8x16);
+}
+
+TEST(RunWasmTurbofan_I16x16UConvertI8x16) {
+  RunIntSignExtensionRevecTest<uint8_t, uint16_t>(
+      kExprI16x8UConvertI8x16Low, kExprI16x8UConvertI8x16High, kExprI8x16Splat,
+      compiler::IrOpcode::kI16x16UConvertI8x16);
+}
+
+TEST(RunWasmTurbofan_I32x8Neg) {
+  RunI32x8UnOpRevecTest(kExprI32x4Neg, base::NegateWithWraparound,
+                        compiler::IrOpcode::kI32x8Neg);
+}
+
+TEST(RunWasmTurbofan_I32x8Abs) {
+  RunI32x8UnOpRevecTest(kExprI32x4Abs, std::abs, compiler::IrOpcode::kI32x8Abs);
+}
+
+template <typename Narrow, typename Wide>
+void RunExtAddPairwiseRevecTest(WasmOpcode ext_add_pairwise) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  // [intput1(128bit)|intput2(128bit)|output(256bit)]
+  Narrow* memory =
+      r.builder().AddMemoryElems<Narrow>(kSimd128Size / sizeof(Narrow) * 4);
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                      compiler::turboshaft::Opcode::kSimd256Unary>);
+    r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_UNOP(ext_add_pairwise,
+                                                  WASM_SIMD_LOAD_MEM(
+                                                      WASM_LOCAL_GET(param1)))),
+             WASM_LOCAL_SET(
+                 temp2, WASM_SIMD_UNOP(ext_add_pairwise,
+                                       WASM_SIMD_LOAD_MEM_OFFSET(
+                                           offset, WASM_LOCAL_GET(param1)))),
+             WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp1)),
+             WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                        WASM_LOCAL_GET(temp2)),
+             WASM_ONE});
+  }
+  for (Narrow x : compiler::ValueHelper::GetVector<Narrow>()) {
+    for (int i = 0; i < static_cast<int>(kSimd128Size / sizeof(Narrow) * 2);
+         i++) {
+      r.builder().WriteMemory(&memory[i], x);
+    }
+    r.Call(0, 32);
+    Wide expected = AddLong<Wide>(x, x);
+    for (int i = 0; i < static_cast<int>(kSimd128Size / sizeof(Wide) * 2);
+         i++) {
+      CHECK_EQ(memcmp((const void*)&expected,
+                      &memory[kSimd128Size / sizeof(Narrow) * 2 + i * 2], 2),
+               0);
+    }
+  }
+}
+
+TEST(RunWasmTurbofan_I16x16ExtAddPairwiseI8x32S) {
+  RunExtAddPairwiseRevecTest<int8_t, int16_t>(kExprI16x8ExtAddPairwiseI8x16S);
+}
+
+TEST(RunWasmTurbofan_I16x16ExtAddPairwiseI8x32U) {
+  RunExtAddPairwiseRevecTest<uint8_t, uint16_t>(kExprI16x8ExtAddPairwiseI8x16U);
+}
+
+TEST(RunWasmTurbofan_I32x8ExtAddPairwiseI16x16S) {
+  RunExtAddPairwiseRevecTest<int16_t, int32_t>(kExprI32x4ExtAddPairwiseI16x8S);
+}
+
+TEST(RunWasmTurbofan_I32x8ExtAddPairwiseI16x16U) {
+  RunExtAddPairwiseRevecTest<uint16_t, uint32_t>(
+      kExprI32x4ExtAddPairwiseI16x8U);
+}
+
+TEST(RunWasmTurbofan_S256Not) {
+  RunI32x8UnOpRevecTest(kExprS128Not, BitwiseNot, compiler::IrOpcode::kS256Not);
+}
+
+TEST(RunWasmTurbofan_S256And) {
+  RunI32x8BinOpRevecTest(kExprS128And, BitwiseAnd,
+                         compiler::IrOpcode::kS256And);
+}
+
+TEST(RunWasmTurbofan_S256Or) {
+  RunI32x8BinOpRevecTest(kExprS128Or, BitwiseOr, compiler::IrOpcode::kS256Or);
+}
+
+TEST(RunWasmTurbofan_S256Xor) {
+  RunI32x8BinOpRevecTest(kExprS128Xor, BitwiseXor,
+                         compiler::IrOpcode::kS256Xor);
+}
+
+TEST(RunWasmTurbofan_S256AndNot) {
+  RunI32x8BinOpRevecTest(kExprS128AndNot, BitwiseAndNot,
+                         compiler::IrOpcode::kS256AndNot);
+}
+
+TEST(RunWasmTurbofan_S256Select) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t, int32_t, int32_t, int32_t> r(
+      TestExecutionTier::kTurbofan);
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(32);
+  // Build fn perform bitwise selection on two 256 bit vectors a and b, mask c,
+  // store the result in d:
+  //   simd128 *a,*b,*c,*d;
+  //   *d = select(*a, *b, *c);
+  //   *(d+1) = select(*(a+1), *(b+1), *(c+1))
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t param3 = 2;
+  uint8_t param4 = 3;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(),
+        TSSimd256VerifyScope::VerifyHaveOpWithKind<
+            compiler::turboshaft::Simd256TernaryOp,
+            compiler::turboshaft::Simd256TernaryOp::Kind::kS256Select>);
+    BUILD_AND_CHECK_REVEC_NODE(
+        r, compiler::IrOpcode::kS256Select,
+        WASM_LOCAL_SET(
+            temp1,
+            WASM_SIMD_SELECT(32x4, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1)),
+                             WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param2)),
+                             WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param3)))),
+        WASM_LOCAL_SET(
+            temp2,
+            WASM_SIMD_SELECT(
+                32x4, WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_LOCAL_GET(param1)),
+                WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_LOCAL_GET(param2)),
+                WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_LOCAL_GET(param3)))),
+        WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param4), WASM_LOCAL_GET(temp1)),
+        WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param4),
+                                   WASM_LOCAL_GET(temp2)),
+        WASM_ONE);
+  }
+  for (auto x : compiler::ValueHelper::GetVector<int32_t>()) {
+    for (auto y : compiler::ValueHelper::GetVector<int32_t>()) {
+      for (auto z : compiler::ValueHelper::GetVector<int32_t>()) {
+        for (int i = 0; i < 4; i++) {
+          r.builder().WriteMemory(&memory[i], x);
+          r.builder().WriteMemory(&memory[i + 4], x);
+          r.builder().WriteMemory(&memory[i + 8], y);
+          r.builder().WriteMemory(&memory[i + 12], y);
+          r.builder().WriteMemory(&memory[i + 16], z);
+          r.builder().WriteMemory(&memory[i + 20], z);
+        }
+        CHECK_EQ(1, r.Call(0, 32, 64, 96));
+        int32_t expected = BitwiseSelect(x, y, z);
+        for (int i = 0; i < 4; i++) {
+          CHECK_EQ(expected, memory[i + 24]);
+          CHECK_EQ(expected, memory[i + 28]);
+        }
+      }
+    }
+  }
+}
+
+TEST(RunWasmTurbofan_I32x8Ne) {
+  RunI32x8BinOpRevecTest(kExprI32x4Ne, NotEqual, compiler::IrOpcode::kI32x8Ne);
+}
+
+TEST(RunWasmTurbofan_I32x8GtU) {
+  RunI32x8BinOpRevecTest<uint32_t>(kExprI32x4GtU, UnsignedGreater,
+                                   compiler::IrOpcode::kI32x8GtU);
+}
+
+TEST(RunWasmTurbofan_I32x8GeS) {
+  RunI32x8BinOpRevecTest(kExprI32x4GeS, GreaterEqual,
+                         compiler::IrOpcode::kI32x8GeS);
+}
+
+TEST(RunWasmTurbofan_I32x8GeU) {
+  RunI32x8BinOpRevecTest<uint32_t>(kExprI32x4GeU, UnsignedGreaterEqual,
+                                   compiler::IrOpcode::kI32x8GeU);
+}
+
+TEST(RunWasmTurbofan_I32x8Shl) {
+  RunI32x8ShiftOpRevecTest(kExprI32x4Shl, LogicalShiftLeft,
+                           compiler::IrOpcode::kI32x8Shl);
+}
+
+TEST(RunWasmTurbofan_I32x8ShrS) {
+  RunI32x8ShiftOpRevecTest(kExprI32x4ShrS, ArithmeticShiftRight,
+                           compiler::IrOpcode::kI32x8ShrS);
+}
+
+TEST(RunWasmTurbofan_I32x8ShrU) {
+  RunI32x8ShiftOpRevecTest(kExprI32x4ShrU, LogicalShiftRight,
+                           compiler::IrOpcode::kI32x8ShrU);
+}
+
+TEST(RunWasmTurbofan_I16x16Neg) {
+  RunI16x16UnOpRevecTest(kExprI16x8Neg, base::NegateWithWraparound,
+                         compiler::IrOpcode::kI16x16Neg);
+}
+
+TEST(RunWasmTurbofan_I16x16Abs) {
+  RunI16x16UnOpRevecTest(kExprI16x8Abs, Abs, compiler::IrOpcode::kI16x16Abs);
+}
+
+TEST(RunWasmTurbofan_I16x16AddSatS) {
+  RunI16x16BinOpRevecTest<int16_t>(kExprI16x8AddSatS, SaturateAdd,
+                                   compiler::IrOpcode::kI16x16AddSatS);
+}
+
+TEST(RunWasmTurbofan_I16x16SubSatS) {
+  RunI16x16BinOpRevecTest<int16_t>(kExprI16x8SubSatS, SaturateSub,
+                                   compiler::IrOpcode::kI16x16SubSatS);
+}
+
+TEST(RunWasmTurbofan_I16x16AddSatU) {
+  RunI16x16BinOpRevecTest<uint16_t>(kExprI16x8AddSatU, SaturateAdd,
+                                    compiler::IrOpcode::kI16x16AddSatU);
+}
+
+TEST(RunWasmTurbofan_I16x16SubSatU) {
+  RunI16x16BinOpRevecTest<uint16_t>(kExprI16x8SubSatU, SaturateSub,
+                                    compiler::IrOpcode::kI16x16SubSatU);
+}
+
+TEST(WasmTurbofan_I16x16Ne) {
+  RunI16x16BinOpRevecTest(kExprI16x8Ne, NotEqual,
+                          compiler::IrOpcode::kI16x16Ne);
+}
+
+TEST(WasmTurbofan_I16x16GtU) {
+  RunI16x16BinOpRevecTest<uint16_t>(kExprI16x8GtU, UnsignedGreater,
+                                    compiler::IrOpcode::kI16x16GtU);
+}
+
+TEST(WasmTurbofan_I16x16GeS) {
+  RunI16x16BinOpRevecTest(kExprI16x8GeS, GreaterEqual,
+                          compiler::IrOpcode::kI16x16GeS);
+}
+
+TEST(WasmTurbofan_I16x16GeU) {
+  RunI16x16BinOpRevecTest<uint16_t>(kExprI16x8GeU, UnsignedGreaterEqual,
+                                    compiler::IrOpcode::kI16x16GeU);
+}
+
+template <typename S, typename T, typename OpType = T (*)(S, S)>
+void RunExtMulRevecTest(WasmOpcode opcode_low, WasmOpcode opcode_high,
+                        OpType expected_op,
+                        compiler::IrOpcode::Value revec_opcode) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  static_assert(sizeof(T) == 2 * sizeof(S),
+                "the element size of dst vector must be twice of src vector in "
+                "extended integer multiplication");
+  WasmRunner<int32_t, int32_t, int32_t, int32_t> r(
+      TestExecutionTier::kTurbofan);
+  uint32_t count = 4 * kSimd128Size / sizeof(S);
+  S* memory = r.builder().AddMemoryElems<S>(count);
+  // Build fn perform extmul on two 128 bit vectors a and b, store the result in
+  // c:
+  //   simd128 *a,*b,*c;
+  //   *c = *a op_low *b;
+  //   *(c+1) = *a op_high *b;
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t param3 = 2;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+  uint8_t temp4 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                      compiler::turboshaft::Opcode::kSimd256Binop>);
+    BUILD_AND_CHECK_REVEC_NODE(
+        r, revec_opcode,
+        WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+        WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param2))),
+        WASM_LOCAL_SET(temp3, WASM_SIMD_BINOP(opcode_low, WASM_LOCAL_GET(temp1),
+                                              WASM_LOCAL_GET(temp2))),
+        WASM_LOCAL_SET(temp4,
+                       WASM_SIMD_BINOP(opcode_high, WASM_LOCAL_GET(temp1),
+                                       WASM_LOCAL_GET(temp2))),
+        WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param3), WASM_LOCAL_GET(temp3)),
+        WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param3),
+                                   WASM_LOCAL_GET(temp4)),
+        WASM_ONE);
+  }
+
+  constexpr uint32_t lanes = kSimd128Size / sizeof(S);
+  for (S x : compiler::ValueHelper::GetVector<S>()) {
+    for (S y : compiler::ValueHelper::GetVector<S>()) {
+      for (uint32_t i = 0; i < lanes; i++) {
+        r.builder().WriteMemory(&memory[i], x);
+        r.builder().WriteMemory(&memory[i + lanes], y);
+      }
+      r.Call(0, 16, 32);
+      T expected = expected_op(x, y);
+      T* output = reinterpret_cast<T*>(memory + lanes * 2);
+      for (uint32_t i = 0; i < lanes; i++) {
+        CHECK_EQ(expected, output[i]);
+      }
+    }
+  }
+}
+
+TEST(RunWasmTurbofan_I16x16ExtMulI8x16S) {
+  RunExtMulRevecTest<int8_t, int16_t>(kExprI16x8ExtMulLowI8x16S,
+                                      kExprI16x8ExtMulHighI8x16S, MultiplyLong,
+                                      compiler::IrOpcode::kI16x16ExtMulI8x16S);
+}
+
+TEST(RunWasmTurbofan_I16x16ExtMulI8x16U) {
+  RunExtMulRevecTest<uint8_t, uint16_t>(
+      kExprI16x8ExtMulLowI8x16U, kExprI16x8ExtMulHighI8x16U, MultiplyLong,
+      compiler::IrOpcode::kI16x16ExtMulI8x16U);
+}
+
+TEST(RunWasmTurbofan_I32x8ExtMulI16x8S) {
+  RunExtMulRevecTest<int16_t, int32_t>(kExprI32x4ExtMulLowI16x8S,
+                                       kExprI32x4ExtMulHighI16x8S, MultiplyLong,
+                                       compiler::IrOpcode::kI32x8ExtMulI16x8S);
+}
+
+TEST(RunWasmTurbofan_I32x8ExtMulI16x8U) {
+  RunExtMulRevecTest<uint16_t, uint32_t>(
+      kExprI32x4ExtMulLowI16x8U, kExprI32x4ExtMulHighI16x8U, MultiplyLong,
+      compiler::IrOpcode::kI32x8ExtMulI16x8U);
+}
+
+TEST(RunWasmTurbofan_I64x4ExtMulI32x4S) {
+  RunExtMulRevecTest<int32_t, int64_t>(kExprI64x2ExtMulLowI32x4S,
+                                       kExprI64x2ExtMulHighI32x4S, MultiplyLong,
+                                       compiler::IrOpcode::kI64x4ExtMulI32x4S);
+}
+
+TEST(RunWasmTurbofan_I64x4ExtMulI32x4U) {
+  RunExtMulRevecTest<uint32_t, uint64_t>(
+      kExprI64x2ExtMulLowI32x4U, kExprI64x2ExtMulHighI32x4U, MultiplyLong,
+      compiler::IrOpcode::kI64x4ExtMulI32x4U);
+}
+
+TEST(RunWasmTurbofan_I16x16Shl) {
+  RunI16x16ShiftOpRevecTest(kExprI16x8Shl, LogicalShiftLeft,
+                            compiler::IrOpcode::kI16x16Shl);
+}
+
+TEST(RunWasmTurbofan_I16x16ShrS) {
+  RunI16x16ShiftOpRevecTest(kExprI16x8ShrS, ArithmeticShiftRight,
+                            compiler::IrOpcode::kI16x16ShrS);
+}
+
+TEST(RunWasmTurbofan_I16x16ShrU) {
+  RunI16x16ShiftOpRevecTest(kExprI16x8ShrU, LogicalShiftRight,
+                            compiler::IrOpcode::kI16x16ShrU);
+}
+
+TEST(RunWasmTurbofan_I8x32Neg) {
+  RunI8x32UnOpRevecTest(kExprI8x16Neg, base::NegateWithWraparound,
+                        compiler::IrOpcode::kI8x32Neg);
+}
+
+TEST(RunWasmTurbofan_I8x32Abs) {
+  RunI8x32UnOpRevecTest(kExprI8x16Abs, Abs, compiler::IrOpcode::kI8x32Abs);
+}
+
+TEST(RunWasmTurbofan_I8x32AddSatS) {
+  RunI8x32BinOpRevecTest<int8_t>(kExprI8x16AddSatS, SaturateAdd,
+                                 compiler::IrOpcode::kI8x32AddSatS);
+}
+
+TEST(RunWasmTurbofan_I8x32SubSatS) {
+  RunI8x32BinOpRevecTest<int8_t>(kExprI8x16SubSatS, SaturateSub,
+                                 compiler::IrOpcode::kI8x32SubSatS);
+}
+
+TEST(RunWasmTurbofan_I8x32AddSatU) {
+  RunI8x32BinOpRevecTest<uint8_t>(kExprI8x16AddSatU, SaturateAdd,
+                                  compiler::IrOpcode::kI8x32AddSatU);
+}
+
+TEST(RunWasmTurbofan_I8x32SubSatU) {
+  RunI8x32BinOpRevecTest<uint8_t>(kExprI8x16SubSatU, SaturateSub,
+                                  compiler::IrOpcode::kI8x32SubSatU);
+}
+
+TEST(RunWasmTurbofan_I8x32Ne) {
+  RunI8x32BinOpRevecTest(kExprI8x16Ne, NotEqual, compiler::IrOpcode::kI8x32Ne);
+}
+
+TEST(RunWasmTurbofan_I8x32GtU) {
+  RunI8x32BinOpRevecTest<uint8_t>(kExprI8x16GtU, UnsignedGreater,
+                                  compiler::IrOpcode::kI8x32GtU);
+}
+
+TEST(RunWasmTurbofan_I8x32GeS) {
+  RunI8x32BinOpRevecTest(kExprI8x16GeS, GreaterEqual,
+                         compiler::IrOpcode::kI8x32GeS);
+}
+
+TEST(RunWasmTurbofan_I8x32GeU) {
+  RunI8x32BinOpRevecTest<uint8_t>(kExprI8x16GeU, UnsignedGreaterEqual,
+                                  compiler::IrOpcode::kI8x32GeU);
+}
+
+TEST(RunWasmTurbofan_F32x4AddRevec) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<float, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  float* memory =
+      r.builder().AddMemoryElems<float>(kWasmPageSize / sizeof(float));
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+  uint8_t temp4 = r.AllocateLocal(kWasmS128);
+  uint8_t temp5 = r.AllocateLocal(kWasmF32);
+  uint8_t temp6 = r.AllocateLocal(kWasmF32);
+  constexpr uint8_t offset = 16;
+
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpWithKind<
+                      compiler::turboshaft::Simd256BinopOp,
+                      compiler::turboshaft::Simd256BinopOp::Kind::kF32x8Add>);
+    // Add a F32x8 vector by a constant vector and store the result to memory.
+    r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_F32x4_SPLAT(WASM_F32(10.0f))),
+             WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+             WASM_LOCAL_SET(
+                 temp3, WASM_SIMD_BINOP(kExprF32x4Add, WASM_LOCAL_GET(temp1),
+                                        WASM_LOCAL_GET(temp2))),
+             WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM_OFFSET(
+                                       offset, WASM_LOCAL_GET(param1))),
+             WASM_LOCAL_SET(
+                 temp4, WASM_SIMD_BINOP(kExprF32x4Add, WASM_LOCAL_GET(temp1),
+                                        WASM_LOCAL_GET(temp2))),
+             WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp3)),
+             WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                        WASM_LOCAL_GET(temp4)),
+             WASM_LOCAL_SET(temp5,
+                            WASM_SIMD_F32x4_EXTRACT_LANE(
+                                1, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param2)))),
+             WASM_LOCAL_SET(temp6, WASM_SIMD_F32x4_EXTRACT_LANE(
+                                       2, WASM_SIMD_LOAD_MEM_OFFSET(
+                                              offset, WASM_LOCAL_GET(param2)))),
+             WASM_BINOP(kExprF32Add, WASM_LOCAL_GET(temp5),
+                        WASM_LOCAL_GET(temp6))});
+  }
+  r.builder().WriteMemory(&memory[1], 1.0f);
+  r.builder().WriteMemory(&memory[6], 2.0f);
+  CHECK_EQ(23.0f, r.Call(0, 32));
+}
+
+TEST(RunWasmTurbofan_LoadStoreExtractRevec) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<float, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  float* memory =
+      r.builder().AddMemoryElems<float>(kWasmPageSize / sizeof(float));
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmF32);
+  uint8_t temp4 = r.AllocateLocal(kWasmF32);
+  constexpr uint8_t offset = 16;
+  {
+    TSSimd256VerifyScope ts_scope(r.zone());
+    // Load a F32x8 vector, calculate the Abs and store the result to memory.
+    r.Build(
+        {WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+         WASM_LOCAL_SET(
+             temp2, WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_LOCAL_GET(param1))),
+         WASM_SIMD_STORE_MEM(
+             WASM_LOCAL_GET(param2),
+             WASM_SIMD_UNOP(kExprF32x4Abs, WASM_LOCAL_GET(temp1))),
+         WASM_SIMD_STORE_MEM_OFFSET(
+             offset, WASM_LOCAL_GET(param2),
+             WASM_SIMD_UNOP(kExprF32x4Abs, WASM_LOCAL_GET(temp2))),
+         WASM_LOCAL_SET(temp3,
+                        WASM_SIMD_F32x4_EXTRACT_LANE(
+                            1, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param2)))),
+         WASM_LOCAL_SET(temp4, WASM_SIMD_F32x4_EXTRACT_LANE(
+                                   2, WASM_SIMD_LOAD_MEM_OFFSET(
+                                          offset, WASM_LOCAL_GET(param2)))),
+         WASM_BINOP(kExprF32Add,
+                    WASM_BINOP(kExprF32Add, WASM_LOCAL_GET(temp3),
+                               WASM_LOCAL_GET(temp4)),
+                    WASM_SIMD_F32x4_EXTRACT_LANE(2, WASM_LOCAL_GET(temp2)))});
+  }
+  r.builder().WriteMemory(&memory[1], -1.0f);
+  r.builder().WriteMemory(&memory[6], 2.0f);
+  CHECK_EQ(5.0f, r.Call(0, 32));
+}
+
+#ifdef V8_TARGET_ARCH_X64
+TEST(RunWasmTurbofan_LoadStoreExtract2Revec) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<float, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  float* memory =
+      r.builder().AddMemoryElems<float>(kWasmPageSize / sizeof(float));
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmF32);
+  constexpr uint8_t offset = 16;
+  {
+    TSSimd256VerifyScope ts_scope(r.zone());
+    // Load two F32x4 vectors, calculate the Abs and store to memory. Sum up the
+    // two F32x4 vectors from both temp and memory. Revectorization still
+    // succeeds as we can omit the lane 0 extract on x64.
+    r.Build(
+        {WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+         WASM_LOCAL_SET(
+             temp2, WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_LOCAL_GET(param1))),
+         WASM_SIMD_STORE_MEM(
+             WASM_LOCAL_GET(param2),
+             WASM_SIMD_UNOP(kExprF32x4Abs, WASM_LOCAL_GET(temp1))),
+         WASM_SIMD_STORE_MEM_OFFSET(
+             offset, WASM_LOCAL_GET(param2),
+             WASM_SIMD_UNOP(kExprF32x4Abs, WASM_LOCAL_GET(temp2))),
+         WASM_LOCAL_SET(
+             temp3,
+             WASM_BINOP(kExprF32Add,
+                        WASM_SIMD_F32x4_EXTRACT_LANE(
+                            1, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param2))),
+                        WASM_SIMD_F32x4_EXTRACT_LANE(
+                            1, WASM_SIMD_LOAD_MEM_OFFSET(
+                                   offset, WASM_LOCAL_GET(param2))))),
+         WASM_BINOP(kExprF32Add, WASM_LOCAL_GET(temp3),
+                    WASM_SIMD_F32x4_EXTRACT_LANE(
+                        1, WASM_SIMD_BINOP(kExprF32x4Add, WASM_LOCAL_GET(temp1),
+                                           WASM_LOCAL_GET(temp2))))});
+  }
+  r.builder().WriteMemory(&memory[1], 1.0f);
+  r.builder().WriteMemory(&memory[5], -2.0f);
+  CHECK_EQ(2.0f, r.Call(0, 32));
+}
+
+TEST(RunWasmTurbofan_ExtractCallParameterRevec) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<float, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  float* memory =
+      r.builder().AddMemoryElems<float>(kWasmPageSize / sizeof(float));
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+  uint8_t temp4 = r.AllocateLocal(kWasmS128);
+  uint8_t temp5 = r.AllocateLocal(kWasmF32);
+  uint8_t temp6 = r.AllocateLocal(kWasmF32);
+  constexpr uint8_t offset = 16;
+
+  // Build the callee function.
+  ValueType param_types[2] = {kWasmF32, kWasmS128};
+  FunctionSig sig(1, 1, param_types);
+  WasmFunctionCompiler& t = r.NewFunction(&sig);
+  t.Build({WASM_SIMD_F32x4_EXTRACT_LANE(1, WASM_LOCAL_GET(0))});
+
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpWithKind<
+                      compiler::turboshaft::Simd256BinopOp,
+                      compiler::turboshaft::Simd256BinopOp::Kind::kF32x8Add>);
+    // Add a F32x8 vector by a constant vector and store the result to memory.
+    // Call a wasm function using the Simd128 result in temp3 as a parameter.
+    // Revectorization still succeeds even we omit the lane 0 extract on x64.
+    r.Build(
+        {WASM_LOCAL_SET(temp1, WASM_SIMD_F32x4_SPLAT(WASM_F32(10.0f))),
+         WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+         WASM_LOCAL_SET(temp3,
+                        WASM_SIMD_BINOP(kExprF32x4Add, WASM_LOCAL_GET(temp1),
+                                        WASM_LOCAL_GET(temp2))),
+         WASM_LOCAL_SET(
+             temp2, WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_LOCAL_GET(param1))),
+         WASM_LOCAL_SET(temp4,
+                        WASM_SIMD_BINOP(kExprF32x4Add, WASM_LOCAL_GET(temp1),
+                                        WASM_LOCAL_GET(temp2))),
+         WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp3)),
+         WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                    WASM_LOCAL_GET(temp4)),
+         WASM_LOCAL_SET(temp5,
+                        WASM_SIMD_F32x4_EXTRACT_LANE(
+                            1, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param2)))),
+         WASM_LOCAL_SET(temp6, WASM_SIMD_F32x4_EXTRACT_LANE(
+                                   2, WASM_SIMD_LOAD_MEM_OFFSET(
+                                          offset, WASM_LOCAL_GET(param2)))),
+         WASM_LOCAL_SET(temp5, WASM_BINOP(kExprF32Add, WASM_LOCAL_GET(temp5),
+                                          WASM_LOCAL_GET(temp6))),
+         WASM_BINOP(
+             kExprF32Add, WASM_LOCAL_GET(temp5),
+             WASM_CALL_FUNCTION(t.function_index(), WASM_LOCAL_GET(temp3)))});
+  }
+  r.builder().WriteMemory(&memory[1], 1.0f);
+  r.builder().WriteMemory(&memory[6], 2.0f);
+  CHECK_EQ(34.0f, r.Call(0, 32));
+}
+
+TEST(RunWasmTurbofan_LoadStoreOOBRevec) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  float* memory =
+      r.builder().AddMemoryElems<float>(kWasmPageSize / sizeof(float));
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+  {
+    TSSimd256VerifyScope ts_scope(r.zone());
+    // Load a F32x8 vectori, calculate the Abs and store the result to memory.
+    r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+             WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM_OFFSET(
+                                       offset, WASM_LOCAL_GET(param1))),
+             WASM_SIMD_STORE_MEM(
+                 WASM_LOCAL_GET(param2),
+                 WASM_SIMD_UNOP(kExprF32x4Abs, WASM_LOCAL_GET(temp1))),
+             WASM_SIMD_STORE_MEM_OFFSET(
+                 offset, WASM_LOCAL_GET(param2),
+                 WASM_SIMD_UNOP(kExprF32x4Abs, WASM_LOCAL_GET(temp2))),
+             WASM_ONE});
+  }
+  r.builder().WriteMemory(&memory[1], -1.0f);
+  r.builder().WriteMemory(&memory[6], 2.0f);
+  CHECK_TRAP(r.Call(0, kWasmPageSize - 16));
+  CHECK_EQ(1.0f,
+           r.builder().ReadMemory(&memory[kWasmPageSize / sizeof(float) - 3]));
+}
+#endif  // V8_TARGET_ARCH_X64
+
+TEST(RunWasmTurbofan_ReversedLoadStoreExtractRevec) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<float, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  float* memory =
+      r.builder().AddMemoryElems<float>(kWasmPageSize / sizeof(float));
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmF32);
+  uint8_t temp4 = r.AllocateLocal(kWasmF32);
+  constexpr uint8_t offset = 16;
+  {
+    TSSimd256VerifyScope ts_scope(r.zone());
+    // Load a F32x8 vector and store the result to memory in the order from the
+    // high 128-bit address.
+    r.Build(
+        {WASM_LOCAL_SET(
+             temp1, WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_LOCAL_GET(param1))),
+         WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+         WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                    WASM_LOCAL_GET(temp1)),
+         WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp2)),
+         WASM_LOCAL_SET(temp3,
+                        WASM_SIMD_F32x4_EXTRACT_LANE(
+                            1, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param2)))),
+         WASM_LOCAL_SET(temp4, WASM_SIMD_F32x4_EXTRACT_LANE(
+                                   2, WASM_SIMD_LOAD_MEM_OFFSET(
+                                          offset, WASM_LOCAL_GET(param2)))),
+         WASM_BINOP(kExprF32Add,
+                    WASM_BINOP(kExprF32Add, WASM_LOCAL_GET(temp3),
+                               WASM_LOCAL_GET(temp4)),
+                    WASM_SIMD_F32x4_EXTRACT_LANE(1, WASM_LOCAL_GET(temp2)))});
+  }
+  r.builder().WriteMemory(&memory[1], 1.0f);
+  r.builder().WriteMemory(&memory[6], 2.0f);
+  CHECK_EQ(4.0f, r.Call(0, 32));
+}
+
+TEST(RunWasmTurbofan_ReturnUseSimd128Revec) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<float, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  float* memory =
+      r.builder().AddMemoryElems<float>(kWasmPageSize / sizeof(float));
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmF32);
+  constexpr uint8_t offset = 16;
+
+  // Build the callee function.
+  ValueType param_types[3] = {kWasmS128, kWasmI32, kWasmI32};
+  FunctionSig sig(1, 2, param_types);
+  WasmFunctionCompiler& t = r.NewFunction(&sig);
+  uint8_t temp3 = t.AllocateLocal(kWasmS128);
+  uint8_t temp4 = t.AllocateLocal(kWasmS128);
+
+  TSSimd256VerifyScope ts_scope(r.zone());
+  {
+    // Load a F32x8 vector, calculate the Abs and store the result to memory.
+    // Return the partial Simd128 result.
+    t.Build({WASM_LOCAL_SET(temp3, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+             WASM_LOCAL_SET(temp4, WASM_SIMD_LOAD_MEM_OFFSET(
+                                       offset, WASM_LOCAL_GET(param1))),
+             WASM_SIMD_STORE_MEM(
+                 WASM_LOCAL_GET(param2),
+                 WASM_SIMD_UNOP(kExprF32x4Abs, WASM_LOCAL_GET(temp3))),
+             WASM_SIMD_STORE_MEM_OFFSET(
+                 offset, WASM_LOCAL_GET(param2),
+                 WASM_SIMD_UNOP(kExprF32x4Abs, WASM_LOCAL_GET(temp4))),
+             WASM_LOCAL_GET(temp4)});
+  }
+
+  r.Build({WASM_LOCAL_SET(temp1, WASM_CALL_FUNCTION(t.function_index(),
+                                                    WASM_LOCAL_GET(param1),
+                                                    WASM_LOCAL_GET(param2))),
+           WASM_LOCAL_SET(temp2,
+                          WASM_SIMD_F32x4_EXTRACT_LANE(
+                              1, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param2)))),
+           WASM_BINOP(kExprF32Add, WASM_LOCAL_GET(temp2),
+                      WASM_SIMD_F32x4_EXTRACT_LANE(2, WASM_LOCAL_GET(temp1)))});
+
+  r.builder().WriteMemory(&memory[1], -1.0f);
+  r.builder().WriteMemory(&memory[6], 2.0f);
+  CHECK_EQ(3.0f, r.Call(0, 32));
+}
+
+TEST(RunWasmTurbofan_F32x4ShuffleForSplatRevec) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<float, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  float* memory =
+      r.builder().AddMemoryElems<float>(kWasmPageSize / sizeof(float));
+  constexpr Shuffle splat_shuffle = {8, 9, 10, 11, 8, 9, 10, 11,
+                                     8, 9, 10, 11, 8, 9, 10, 11};
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+  uint8_t temp4 = r.AllocateLocal(kWasmS128);
+  uint8_t temp5 = r.AllocateLocal(kWasmF32);
+  uint8_t temp6 = r.AllocateLocal(kWasmF32);
+  constexpr uint8_t offset = 16;
+  {
+    TSSimd256VerifyScope ts_scope(r.zone());
+    // Add a F32x8 vector to a splat shuffle vector and store the result to
+    // memory.
+    r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+             WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param2))),
+             WASM_LOCAL_SET(temp3,
+                            WASM_SIMD_I8x16_SHUFFLE_OP(
+                                kExprI8x16Shuffle, splat_shuffle,
+                                WASM_LOCAL_GET(temp2), WASM_LOCAL_GET(temp2))),
+             WASM_LOCAL_SET(
+                 temp4, WASM_SIMD_BINOP(kExprF32x4Add, WASM_LOCAL_GET(temp1),
+                                        WASM_LOCAL_GET(temp3))),
+             WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM_OFFSET(
+                                       offset, WASM_LOCAL_GET(param1))),
+             WASM_LOCAL_SET(
+                 temp2, WASM_SIMD_BINOP(kExprF32x4Add, WASM_LOCAL_GET(temp1),
+                                        WASM_LOCAL_GET(temp3))),
+             WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp4)),
+             WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                        WASM_LOCAL_GET(temp2)),
+             WASM_LOCAL_SET(temp5,
+                            WASM_SIMD_F32x4_EXTRACT_LANE(
+                                0, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param2)))),
+             WASM_LOCAL_SET(temp6, WASM_SIMD_F32x4_EXTRACT_LANE(
+                                       3, WASM_SIMD_LOAD_MEM_OFFSET(
+                                              offset, WASM_LOCAL_GET(param2)))),
+             WASM_BINOP(kExprF32Add, WASM_LOCAL_GET(temp5),
+                        WASM_LOCAL_GET(temp6))});
+  }
+  r.builder().WriteMemory(&memory[0], 1.0f);
+  r.builder().WriteMemory(&memory[7], 2.0f);
+  r.builder().WriteMemory(&memory[10], 10.0f);
+  CHECK_EQ(23.0f, r.Call(0, 32));
+}
+
+TEST(RunWasmTurbofan_I32x4ShuffleSplatRevec) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  int32_t* memory =
+      r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
+  constexpr Shuffle shuffle = {4,  5,  6,  7,  0, 1, 2,  3,
+                               12, 13, 14, 15, 8, 9, 10, 11};
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+  uint8_t temp4 = r.AllocateLocal(kWasmS128);
+  uint8_t temp5 = r.AllocateLocal(kWasmI32);
+  uint8_t temp6 = r.AllocateLocal(kWasmI32);
+  constexpr uint8_t offset = 16;
+  {
+    TSSimd256VerifyScope ts_scope(r.zone());
+    // Add a F32x8 vector to a splat shuffle vector and store the result to
+    // memory.
+    r.Build({WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+             WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param2))),
+             WASM_LOCAL_SET(
+                 temp3, WASM_SIMD_I8x16_SHUFFLE_OP(kExprI8x16Shuffle, shuffle,
+                                                   WASM_LOCAL_GET(temp2),
+                                                   WASM_LOCAL_GET(temp2))),
+             WASM_LOCAL_SET(
+                 temp4, WASM_SIMD_BINOP(kExprI32x4Add, WASM_LOCAL_GET(temp1),
+                                        WASM_LOCAL_GET(temp3))),
+             WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM_OFFSET(
+                                       offset, WASM_LOCAL_GET(param1))),
+             WASM_LOCAL_SET(
+                 temp2, WASM_SIMD_BINOP(kExprI32x4Add, WASM_LOCAL_GET(temp1),
+                                        WASM_LOCAL_GET(temp3))),
+             WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp4)),
+             WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                        WASM_LOCAL_GET(temp2)),
+             WASM_LOCAL_SET(temp5,
+                            WASM_SIMD_I32x4_EXTRACT_LANE(
+                                0, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param2)))),
+             WASM_LOCAL_SET(temp6, WASM_SIMD_I32x4_EXTRACT_LANE(
+                                       3, WASM_SIMD_LOAD_MEM_OFFSET(
+                                              offset, WASM_LOCAL_GET(param2)))),
+             WASM_BINOP(kExprI32Add, WASM_LOCAL_GET(temp5),
+                        WASM_LOCAL_GET(temp6))});
+  }
+  r.builder().WriteMemory(&memory[0], 1);
+  r.builder().WriteMemory(&memory[7], 2);
+  r.builder().WriteMemory(&memory[9], 10);
+  r.builder().WriteMemory(&memory[10], 10);
+  CHECK_EQ(23, r.Call(0, 32));
+}
+
+TEST(RunWasmTurbofan_ShuffleVpshufd) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(16);
+  // I32x4, shuffle=[1,2,3,0]
+  constexpr std::array<int8_t, 16> shuffle = {4,  5,  6,  7,  8, 9, 10, 11,
+                                              12, 13, 14, 15, 0, 1, 2,  3};
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                      compiler::turboshaft::Opcode::kSimd256Shufd>);
+
+    BUILD_AND_CHECK_REVEC_NODE(
+        r, compiler::IrOpcode::kI8x32Shuffle,
+        WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM(WASM_ZERO)),
+        WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM_OFFSET(16, WASM_ZERO)),
+
+        WASM_SIMD_STORE_MEM_OFFSET(
+            16 * 2, WASM_ZERO,
+            WASM_SIMD_I8x16_SHUFFLE_OP(kExprI8x16Shuffle, shuffle,
+                                       WASM_LOCAL_GET(temp1),
+                                       WASM_LOCAL_GET(temp1))),
+        WASM_SIMD_STORE_MEM_OFFSET(
+            16 * 3, WASM_ZERO,
+            WASM_SIMD_I8x16_SHUFFLE_OP(kExprI8x16Shuffle, shuffle,
+                                       WASM_LOCAL_GET(temp2),
+                                       WASM_LOCAL_GET(temp2))),
+        WASM_ONE);
+  }
+  std::pair<std::vector<int>, std::vector<int>> test_case = {
+      {1, 2, 3, 4, 5, 6, 7, 8}, {2, 3, 4, 1, 6, 7, 8, 5}};
+
+  auto input = test_case.first;
+  auto expected_output = test_case.second;
+
+  for (int i = 0; i < 8; ++i) {
+    r.builder().WriteMemory(&memory[i], input[i]);
+  }
+
+  r.Call();
+
+  for (int i = 0; i < 8; ++i) {
+    CHECK_EQ(expected_output[i], r.builder().ReadMemory(&memory[i + 8]));
+  }
+}
+
+TEST(RunWasmTurbofan_I8x32ShuffleShufps) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(24);
+  constexpr std::array<int8_t, 16> shuffle = {0,  1,  2,  3,  8,  9,  10, 11,
+                                              16, 17, 18, 19, 24, 25, 26, 27};
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+  uint8_t temp4 = r.AllocateLocal(kWasmS128);
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                      compiler::turboshaft::Opcode::kSimd256Shufps>);
+    r.Build(
+        {WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM(WASM_ZERO)),
+         WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM_OFFSET(16, WASM_ZERO)),
+         WASM_LOCAL_SET(temp3, WASM_SIMD_LOAD_MEM_OFFSET(16 * 2, WASM_ZERO)),
+         WASM_LOCAL_SET(temp4, WASM_SIMD_LOAD_MEM_OFFSET(16 * 3, WASM_ZERO)),
+
+         WASM_SIMD_STORE_MEM_OFFSET(
+             16 * 4, WASM_ZERO,
+             WASM_SIMD_I8x16_SHUFFLE_OP(kExprI8x16Shuffle, shuffle,
+                                        WASM_LOCAL_GET(temp1),
+                                        WASM_LOCAL_GET(temp3))),
+         WASM_SIMD_STORE_MEM_OFFSET(
+             16 * 5, WASM_ZERO,
+             WASM_SIMD_I8x16_SHUFFLE_OP(kExprI8x16Shuffle, shuffle,
+                                        WASM_LOCAL_GET(temp2),
+                                        WASM_LOCAL_GET(temp4))),
+         WASM_ONE});
+  }
+  std::vector<std::pair<std::vector<int>, std::vector<int>>> test_cases = {
+      {{{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+        {0, 2, 8, 10, 4, 6, 12, 14}}}};
+
+  for (auto pair : test_cases) {
+    auto input = pair.first;
+    auto expected_output = pair.second;
+    for (int i = 0; i < 16; ++i) {
+      r.builder().WriteMemory(&memory[i], input[i]);
+    }
+    r.Call();
+    for (int i = 0; i < 8; ++i) {
+      CHECK_EQ(expected_output[i], r.builder().ReadMemory(&memory[i + 16]));
+    }
+  }
+}
+
+TEST(RunWasmTurbofan_I8x32ShuffleS32x8UnpackLow) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(24);
+  // shuffle32x4 [0,4,1,5]
+  constexpr std::array<int8_t, 16> shuffle = {0, 1, 2, 3, 16, 17, 18, 19,
+                                              4, 5, 6, 7, 20, 21, 22, 23};
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+  uint8_t temp4 = r.AllocateLocal(kWasmS128);
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                      compiler::turboshaft::Opcode::kSimd256Unpack>);
+
+    r.Build(
+        {WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM(WASM_ZERO)),
+         WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM_OFFSET(16, WASM_ZERO)),
+         WASM_LOCAL_SET(temp3, WASM_SIMD_LOAD_MEM_OFFSET(16 * 2, WASM_ZERO)),
+         WASM_LOCAL_SET(temp4, WASM_SIMD_LOAD_MEM_OFFSET(16 * 3, WASM_ZERO)),
+
+         WASM_SIMD_STORE_MEM_OFFSET(
+             16 * 4, WASM_ZERO,
+             WASM_SIMD_I8x16_SHUFFLE_OP(kExprI8x16Shuffle, shuffle,
+                                        WASM_LOCAL_GET(temp1),
+                                        WASM_LOCAL_GET(temp3))),
+         WASM_SIMD_STORE_MEM_OFFSET(
+             16 * 5, WASM_ZERO,
+             WASM_SIMD_I8x16_SHUFFLE_OP(kExprI8x16Shuffle, shuffle,
+                                        WASM_LOCAL_GET(temp2),
+                                        WASM_LOCAL_GET(temp4))),
+         WASM_ONE});
+  }
+  std::vector<std::pair<std::vector<int>, std::vector<int>>> test_cases = {
+      {{{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+        {0, 8, 1, 9, 4, 12, 5, 13}}}};
+
+  for (auto pair : test_cases) {
+    auto input = pair.first;
+    auto expected_output = pair.second;
+    for (int i = 0; i < 16; ++i) {
+      r.builder().WriteMemory(&memory[i], input[i]);
+    }
+    r.Call();
+    for (int i = 0; i < 8; ++i) {
+      CHECK_EQ(expected_output[i], r.builder().ReadMemory(&memory[i + 16]));
+    }
+  }
+}
+
+TEST(RunWasmTurbofan_I8x32ShuffleS32x8UnpackHigh) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(24);
+  // shuffle32x4 [2,6,3,7]
+  constexpr std::array<int8_t, 16> shuffle = {8,  9,  10, 11, 24, 25, 26, 27,
+                                              12, 13, 14, 15, 28, 29, 30, 31};
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+  uint8_t temp4 = r.AllocateLocal(kWasmS128);
+
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                      compiler::turboshaft::Opcode::kSimd256Unpack>);
+    r.Build(
+        {WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM(WASM_ZERO)),
+         WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM_OFFSET(16, WASM_ZERO)),
+         WASM_LOCAL_SET(temp3, WASM_SIMD_LOAD_MEM_OFFSET(16 * 2, WASM_ZERO)),
+         WASM_LOCAL_SET(temp4, WASM_SIMD_LOAD_MEM_OFFSET(16 * 3, WASM_ZERO)),
+
+         WASM_SIMD_STORE_MEM_OFFSET(
+             16 * 4, WASM_ZERO,
+             WASM_SIMD_I8x16_SHUFFLE_OP(kExprI8x16Shuffle, shuffle,
+                                        WASM_LOCAL_GET(temp1),
+                                        WASM_LOCAL_GET(temp3))),
+         WASM_SIMD_STORE_MEM_OFFSET(
+             16 * 5, WASM_ZERO,
+             WASM_SIMD_I8x16_SHUFFLE_OP(kExprI8x16Shuffle, shuffle,
+                                        WASM_LOCAL_GET(temp2),
+                                        WASM_LOCAL_GET(temp4))),
+         WASM_ONE});
+  }
+  std::vector<std::pair<std::vector<int>, std::vector<int>>> test_cases = {
+      {{{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+        {2, 10, 3, 11, 6, 14, 7, 15}}}};
+
+  for (auto pair : test_cases) {
+    auto input = pair.first;
+    auto expected_output = pair.second;
+    for (int i = 0; i < 16; ++i) {
+      r.builder().WriteMemory(&memory[i], input[i]);
+    }
+    r.Call();
+    for (int i = 0; i < 8; ++i) {
+      CHECK_EQ(expected_output[i], r.builder().ReadMemory(&memory[i + 16]));
+    }
+  }
+}
+
+TEST(RunWasmTurbofan_ShuffleToS256Load8x8U) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int8_t> r(TestExecutionTier::kTurbofan);
+  int8_t* memory = r.builder().AddMemoryElems<int8_t>(40);
+
+  constexpr std::array<int8_t, 16> shuffle0 = {16, 1, 2,  3,  17, 5,  6,  7,
+                                               18, 9, 10, 11, 19, 13, 14, 15};
+  constexpr std::array<int8_t, 16> shuffle1 = {4, 17, 18, 19, 5, 21, 22, 23,
+                                               6, 25, 26, 27, 7, 29, 30, 31};
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  std::array<uint8_t, kSimd128Size> all_zero = {0};
+
+  {
+    auto verify_s256load8x8u = [](const compiler::turboshaft::Graph& graph) {
+      for (const compiler::turboshaft::Operation& op : graph.AllOperations()) {
+        if (const compiler::turboshaft::Simd256LoadTransformOp* load_op =
+                op.TryCast<compiler::turboshaft::Simd256LoadTransformOp>()) {
+          if (load_op->transform_kind ==
+              compiler::turboshaft::Simd256LoadTransformOp::TransformKind::
+                  k8x8U) {
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+
+    TSSimd256VerifyScope ts_scope(r.zone(), verify_s256load8x8u);
+    r.Build({WASM_LOCAL_SET(temp1,
+                            WASM_SIMD_LOAD_OP(kExprS128Load64Zero, WASM_ZERO)),
+             WASM_SIMD_STORE_MEM_OFFSET(
+                 8, WASM_ZERO,
+                 WASM_SIMD_I8x16_SHUFFLE_OP(kExprI8x16Shuffle, shuffle0,
+                                            WASM_SIMD_CONSTANT(all_zero),
+                                            WASM_LOCAL_GET(temp1))),
+             WASM_SIMD_STORE_MEM_OFFSET(
+                 24, WASM_ZERO,
+                 WASM_SIMD_I8x16_SHUFFLE_OP(kExprI8x16Shuffle, shuffle1,
+                                            WASM_LOCAL_GET(temp1),
+                                            WASM_SIMD_CONSTANT(all_zero))),
+             WASM_ONE});
+  }
+  std::pair<std::vector<int8_t>, std::vector<int32_t>> test_case = {
+      {0, 1, 2, 3, 4, 5, 6, -1}, {0, 1, 2, 3, 4, 5, 6, 255}};
+  auto input = test_case.first;
+  auto expected_output = test_case.second;
+  for (int i = 0; i < 8; ++i) {
+    r.builder().WriteMemory(&memory[i], input[i]);
+  }
+  r.Call();
+  int32_t* memory_int32_t = reinterpret_cast<int32_t*>(memory);
+  for (int i = 0; i < 8; ++i) {
+    CHECK_EQ(expected_output[i],
+             r.builder().ReadMemory(&memory_int32_t[i + 2]));
+  }
+}
+
+template <typename T, bool use_memory64 = false>
+void RunLoadSplatRevecTest(WasmOpcode op, WasmOpcode bin_op,
+                           compiler::IrOpcode::Value revec_opcode,
+                           T (*expected_op)(T, T)) {
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  constexpr int lanes = 16 / sizeof(T);
+  constexpr int mem_index = 64;  // LoadSplat from mem index 64 (bytes).
+  constexpr uint8_t offset = 16;
+
+  using index_type = std::conditional_t<use_memory64, int64_t, int32_t>;
+  wasm::AddressType address_type =
+      use_memory64 ? wasm::AddressType::kI64 : wasm::AddressType::kI32;
+  T* memory = nullptr;
+#define BUILD_LOADSPLAT(TYPE)                                                  \
+  memory = r.builder().template AddMemoryElems<T>(kWasmPageSize / sizeof(T),   \
+                                                  address_type);               \
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);                                  \
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);                                  \
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);                                  \
+                                                                               \
+  BUILD_AND_CHECK_REVEC_NODE(                                                  \
+      r, revec_opcode,                                                         \
+      WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_OP(op, WASM_LOCAL_GET(0))),         \
+      WASM_LOCAL_SET(temp2,                                                    \
+                     WASM_SIMD_BINOP(bin_op, WASM_SIMD_LOAD_MEM(TYPE(0)),      \
+                                     WASM_LOCAL_GET(temp1))),                  \
+      WASM_LOCAL_SET(                                                          \
+          temp3,                                                               \
+          WASM_SIMD_BINOP(bin_op, WASM_SIMD_LOAD_MEM_OFFSET(offset, TYPE(0)),  \
+                          WASM_LOCAL_GET(temp1))),                             \
+                                                                               \
+      /* Store the result to the 32-th byte, which is 2*lanes-th element (size \
+         T) of memory */                                                       \
+      WASM_SIMD_STORE_MEM(TYPE(32), WASM_LOCAL_GET(temp2)),                    \
+      WASM_SIMD_STORE_MEM_OFFSET(offset, TYPE(32), WASM_LOCAL_GET(temp3)),     \
+      WASM_ONE);                                                               \
+                                                                               \
+  r.builder().WriteMemory(&memory[1], T(1));                                   \
+  r.builder().WriteMemory(&memory[lanes + 1], T(1));
+
+  {
+    WasmRunner<int32_t, index_type> r(TestExecutionTier::kTurbofan);
+    TSSimd256VerifyScope ts_scope(r.zone());
+    if (use_memory64) {
+      BUILD_LOADSPLAT(WASM_I64V)
+    } else {
+      BUILD_LOADSPLAT(WASM_I32V)
+    }
+
+    for (T x : compiler::ValueHelper::GetVector<T>()) {
+      // 64-th byte in memory is 4*lanes-th element (size T) of memory.
+      r.builder().WriteMemory(&memory[4 * lanes], x);
+      r.Call(mem_index);
+      T expected = expected_op(1, x);
+      CHECK_EQ(expected, memory[2 * lanes + 1]);
+      CHECK_EQ(expected, memory[3 * lanes + 1]);
+    }
+  }
+
+  // Test for OOB.
+  {
+    WasmRunner<int32_t, index_type> r(TestExecutionTier::kTurbofan);
+    TSSimd256VerifyScope ts_scope(r.zone());
+    if (use_memory64) {
+      BUILD_LOADSPLAT(WASM_I64V)
+    } else {
+      BUILD_LOADSPLAT(WASM_I32V)
+    }
+
+    // Load splats load sizeof(T) bytes.
+    for (uint32_t load_offset = kWasmPageSize - (sizeof(T) - 1);
+         load_offset < kWasmPageSize; ++load_offset) {
+      CHECK_TRAP(r.Call(load_offset));
+    }
+  }
+#undef BUILD_LOADSPLAT
+}
+
+TEST(RunWasmTurbofan_S256Load8Splat) {
+  RunLoadSplatRevecTest<int8_t>(kExprS128Load8Splat, kExprI8x16Add,
+                                compiler::IrOpcode::kI8x32Add,
+                                base::AddWithWraparound);
+}
+
+TEST(RunWasmTurbofan_S256Load16Splat) {
+  RunLoadSplatRevecTest<int16_t>(kExprS128Load16Splat, kExprI16x8Add,
+                                 compiler::IrOpcode::kI16x16Add,
+                                 base::AddWithWraparound);
+}
+
+TEST(RunWasmTurbofan_S256Load32Splat) {
+  RunLoadSplatRevecTest<int32_t>(kExprS128Load32Splat, kExprI32x4Add,
+                                 compiler::IrOpcode::kI32x8Add,
+                                 base::AddWithWraparound);
+}
+
+TEST(RunWasmTurbofan_S256Load64Splat) {
+  RunLoadSplatRevecTest<int64_t>(kExprS128Load64Splat, kExprI64x2Add,
+                                 compiler::IrOpcode::kI64x4Add,
+                                 base::AddWithWraparound);
+}
+
+TEST(RunWasmTurbofan_S256Load8SplatMemory64) {
+  RunLoadSplatRevecTest<int8_t, true>(kExprS128Load8Splat, kExprI8x16Add,
+                                      compiler::IrOpcode::kI8x32Add,
+                                      base::AddWithWraparound);
+}
+
+TEST(RunWasmTurbofan_S256Load16SplatMemory64) {
+  RunLoadSplatRevecTest<int16_t, true>(kExprS128Load16Splat, kExprI16x8Add,
+                                       compiler::IrOpcode::kI16x16Add,
+                                       base::AddWithWraparound);
+}
+
+TEST(RunWasmTurbofan_S256Load32SplatMemory64) {
+  RunLoadSplatRevecTest<int32_t, true>(kExprS128Load32Splat, kExprI32x4Add,
+                                       compiler::IrOpcode::kI32x8Add,
+                                       base::AddWithWraparound);
+}
+
+TEST(RunWasmTurbofan_S256Load64SplatMemory64) {
+  RunLoadSplatRevecTest<int64_t, true>(kExprS128Load64Splat, kExprI64x2Add,
+                                       compiler::IrOpcode::kI64x4Add,
+                                       base::AddWithWraparound);
+}
+
+template <typename S, typename T>
+void RunLoadExtendRevecTest(WasmOpcode op) {
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  static_assert(sizeof(S) < sizeof(T),
+                "load extend should go from smaller to larger type");
+  constexpr int lanes_s = 16 / sizeof(S);
+  constexpr int lanes_t = 16 / sizeof(T);
+  constexpr uint8_t offset_s = 8;  // Load extend accesses 8 bytes value.
+  constexpr uint8_t offset = 16;
+  constexpr int mem_index = 0;  // Load from mem index 0 (bytes).
+
+#define BUILD_LOADEXTEND(get_op, index)                                      \
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);                                \
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);                                \
+                                                                             \
+  BUILD_AND_CHECK_REVEC_NODE(                                                \
+      r, compiler::IrOpcode::kStore,                                         \
+      WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_OP(op, get_op(index))),           \
+      WASM_LOCAL_SET(temp2,                                                  \
+                     WASM_SIMD_LOAD_OP_OFFSET(op, get_op(index), offset_s)), \
+                                                                             \
+      /* Store the result to the 16-th byte, which is lanes-th element (size \
+         S) of memory. */                                                    \
+      WASM_SIMD_STORE_MEM(WASM_I32V(16), WASM_LOCAL_GET(temp1)),             \
+      WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_I32V(16),                      \
+                                 WASM_LOCAL_GET(temp2)),                     \
+      WASM_ONE);
+
+  {
+    WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+    TSSimd256VerifyScope ts_scope(r.zone());
+    S* memory = r.builder().AddMemoryElems<S>(kWasmPageSize / sizeof(S));
+    BUILD_LOADEXTEND(WASM_I32V, mem_index)
+
+    for (S x : compiler::ValueHelper::GetVector<S>()) {
+      for (int i = 0; i < lanes_s; i++) {
+        r.builder().WriteMemory(&memory[i], x);
+      }
+      r.Call();
+      for (int i = 0; i < 2 * lanes_t; i++) {
+        CHECK_EQ(static_cast<T>(x), reinterpret_cast<T*>(&memory[lanes_s])[i]);
+      }
+    }
+  }
+
+  // Test for OOB.
+  {
+    WasmRunner<int32_t, uint32_t> r(TestExecutionTier::kTurbofan);
+    TSSimd256VerifyScope ts_scope(r.zone());
+    r.builder().AddMemoryElems<S>(kWasmPageSize / sizeof(S));
+    BUILD_LOADEXTEND(WASM_LOCAL_GET, 0)
+
+    // Load extends load 8 bytes, so should trap from -7.
+    for (uint32_t load_offset = kWasmPageSize - 7; load_offset < kWasmPageSize;
+         ++load_offset) {
+      CHECK_TRAP(r.Call(load_offset));
+    }
+  }
+}
+
+TEST(S128Load8x8U) {
+  RunLoadExtendRevecTest<uint8_t, uint16_t>(kExprS128Load8x8U);
+}
+
+TEST(S128Load8x8S) {
+  RunLoadExtendRevecTest<int8_t, int16_t>(kExprS128Load8x8S);
+}
+
+TEST(S128Load16x4U) {
+  RunLoadExtendRevecTest<uint16_t, uint32_t>(kExprS128Load16x4U);
+}
+
+TEST(S128Load16x4S) {
+  RunLoadExtendRevecTest<int16_t, int32_t>(kExprS128Load16x4S);
+}
+
+TEST(S128Load32x2U) {
+  RunLoadExtendRevecTest<uint32_t, uint64_t>(kExprS128Load32x2U);
+}
+
+TEST(S128Load32x2S) {
+  RunLoadExtendRevecTest<int32_t, int64_t>(kExprS128Load32x2S);
+}
+
+TEST(RunWasmTurbofan_I8x32Splat) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int8_t> r(TestExecutionTier::kTurbofan);
+  int8_t* memory = r.builder().AddMemoryElems<int8_t>(32);
+  int8_t param1 = 0;
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpWithKind<
+                      compiler::turboshaft::Simd256SplatOp,
+                      compiler::turboshaft::Simd256SplatOp::Kind::kI8x32>);
+    r.Build({WASM_SIMD_STORE_MEM(WASM_ZERO,
+                                 WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(param1))),
+             WASM_SIMD_STORE_MEM_OFFSET(
+                 16, WASM_ZERO, WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(param1))),
+             WASM_ONE});
+  }
+  FOR_INT8_INPUTS(x) {
+    r.Call(x);
+    for (int i = 0; i < 32; ++i) {
+      CHECK_EQ(x, r.builder().ReadMemory(&memory[i]));
+    }
+  }
+}
+
+TEST(RunWasmTurbofan_I16x16Splat) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int16_t> r(TestExecutionTier::kTurbofan);
+  int16_t* memory = r.builder().AddMemoryElems<int16_t>(16);
+  int16_t param1 = 0;
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpWithKind<
+                      compiler::turboshaft::Simd256SplatOp,
+                      compiler::turboshaft::Simd256SplatOp::Kind::kI16x16>);
+    r.Build({WASM_SIMD_STORE_MEM(WASM_ZERO,
+                                 WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(param1))),
+             WASM_SIMD_STORE_MEM_OFFSET(
+                 16, WASM_ZERO, WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(param1))),
+             WASM_ONE});
+  }
+  FOR_INT16_INPUTS(x) {
+    r.Call(x);
+    for (int i = 0; i < 16; ++i) {
+      CHECK_EQ(x, r.builder().ReadMemory(&memory[i]));
+    }
+  }
+}
+
+TEST(RunWasmTurbofan_I32x8Splat) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(8);
+  int32_t param1 = 0;
+
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpWithKind<
+                      compiler::turboshaft::Simd256SplatOp,
+                      compiler::turboshaft::Simd256SplatOp::Kind::kI32x8>);
+    r.Build({WASM_SIMD_STORE_MEM(WASM_ZERO,
+                                 WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(param1))),
+             WASM_SIMD_STORE_MEM_OFFSET(
+                 16, WASM_ZERO, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(param1))),
+             WASM_ONE});
+  }
+
+  FOR_INT32_INPUTS(x) {
+    r.Call(x);
+    for (int i = 0; i < 8; ++i) {
+      CHECK_EQ(x, r.builder().ReadMemory(&memory[i]));
+    }
+  }
+}
+
+TEST(RunWasmTurbofan_I32x8SplatConst) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(8);
+  constexpr int32_t x = 5;
+
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpWithKind<
+                      compiler::turboshaft::Simd256SplatOp,
+                      compiler::turboshaft::Simd256SplatOp::Kind::kI32x8>);
+    r.Build(
+        {WASM_SIMD_STORE_MEM(WASM_ZERO, WASM_SIMD_I32x4_SPLAT(WASM_I32V(x))),
+         WASM_SIMD_STORE_MEM_OFFSET(16, WASM_ZERO,
+                                    WASM_SIMD_I32x4_SPLAT(WASM_I32V(x))),
+         WASM_ONE});
+  }
+
+  r.Call();
+  for (int i = 0; i < 8; ++i) {
+    CHECK_EQ(x, r.builder().ReadMemory(&memory[i]));
+  }
+}
+
+TEST(RunWasmTurbofan_I64x4Splat) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int64_t> r(TestExecutionTier::kTurbofan);
+  int64_t* memory = r.builder().AddMemoryElems<int64_t>(4);
+  int64_t param1 = 0;
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpWithKind<
+                      compiler::turboshaft::Simd256SplatOp,
+                      compiler::turboshaft::Simd256SplatOp::Kind::kI64x4>);
+    r.Build({WASM_SIMD_STORE_MEM(WASM_ZERO,
+                                 WASM_SIMD_I64x2_SPLAT(WASM_LOCAL_GET(param1))),
+             WASM_SIMD_STORE_MEM_OFFSET(
+                 16, WASM_ZERO, WASM_SIMD_I64x2_SPLAT(WASM_LOCAL_GET(param1))),
+             WASM_ONE});
+  }
+
+  FOR_INT64_INPUTS(x) {
+    r.Call(x);
+    for (int i = 0; i < 4; ++i) {
+      CHECK_EQ(x, r.builder().ReadMemory(&memory[i]));
+    }
+  }
+}
+
+TEST(RunWasmTurbofan_F32x8Splat) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, float> r(TestExecutionTier::kTurbofan);
+  float* memory = r.builder().AddMemoryElems<float>(8);
+  float param1 = 0;
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpWithKind<
+                      compiler::turboshaft::Simd256SplatOp,
+                      compiler::turboshaft::Simd256SplatOp::Kind::kF32x8>);
+    r.Build({WASM_SIMD_STORE_MEM(WASM_ZERO,
+                                 WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(param1))),
+             WASM_SIMD_STORE_MEM_OFFSET(
+                 16, WASM_ZERO, WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(param1))),
+             WASM_ONE});
+  }
+
+  FOR_FLOAT32_INPUTS(x) {
+    r.Call(x);
+    for (int i = 0; i < 8; ++i) {
+      if (std::isnan(x)) {
+        CHECK(std::isnan(r.builder().ReadMemory(&memory[i])));
+      } else {
+        CHECK_EQ(x, r.builder().ReadMemory(&memory[i]));
+      }
+    }
+  }
+}
+
+TEST(RunWasmTurbofan_F64x4Splat) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, double> r(TestExecutionTier::kTurbofan);
+  double* memory = r.builder().AddMemoryElems<double>(4);
+  double param1 = 0;
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpWithKind<
+                      compiler::turboshaft::Simd256SplatOp,
+                      compiler::turboshaft::Simd256SplatOp::Kind::kF64x4>);
+    r.Build({WASM_SIMD_STORE_MEM(WASM_ZERO,
+                                 WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(param1))),
+             WASM_SIMD_STORE_MEM_OFFSET(
+                 16, WASM_ZERO, WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(param1))),
+             WASM_ONE});
+  }
+
+  FOR_FLOAT64_INPUTS(x) {
+    r.Call(x);
+    for (int i = 0; i < 4; ++i) {
+      if (std::isnan(x)) {
+        CHECK(std::isnan(r.builder().ReadMemory(&memory[i])));
+      } else {
+        CHECK_EQ(x, r.builder().ReadMemory(&memory[i]));
+      }
+    }
+  }
+}
+
+TEST(RunWasmTurbofan_Phi) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  constexpr int32_t iteration = 8;
+  constexpr uint32_t lanes = kSimd128Size / sizeof(int32_t);
+  constexpr int32_t count = 2 * iteration * lanes;
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(count);
+  // Build fn perform add on 128 bit vectors a, store the result in b:
+  // int32_t func(simd128* a, simd128* b) {
+  //   simd128 sum1 = sum2 = 0;
+  //   for (int i = 0; i < 8; i++) {
+  //     sum1 += *a;
+  //     sum2 += *(a+1);
+  //     a += 2;
+  //   }
+  //   *b = sum1;
+  //   *(b+1) = sum2;
+  // }
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t index = r.AllocateLocal(kWasmI32);
+  uint8_t sum1 = r.AllocateLocal(kWasmS128);
+  uint8_t sum2 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+  {
+    TSSimd256VerifyScope ts_scope(r.zone());
+    BUILD_AND_CHECK_REVEC_NODE(
+        r, compiler::IrOpcode::kPhi, WASM_LOCAL_SET(index, WASM_I32V(0)),
+        WASM_LOCAL_SET(sum1, WASM_SIMD_I32x4_SPLAT(WASM_I32V(0))),
+        WASM_LOCAL_SET(sum2, WASM_LOCAL_GET(sum1)),
+        WASM_LOOP(
+            WASM_LOCAL_SET(
+                sum1,
+                WASM_SIMD_BINOP(kExprI32x4Add, WASM_LOCAL_GET(sum1),
+                                WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1)))),
+            WASM_LOCAL_SET(
+                sum2, WASM_SIMD_BINOP(kExprI32x4Add, WASM_LOCAL_GET(sum2),
+                                      WASM_SIMD_LOAD_MEM_OFFSET(
+                                          offset, WASM_LOCAL_GET(param1)))),
+            WASM_IF(WASM_I32_LTS(WASM_INC_LOCAL(index), WASM_I32V(iteration)),
+                    WASM_BR(1))),
+        WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(sum1)),
+        WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                   WASM_LOCAL_GET(sum2)),
+        WASM_ONE);
+  }
+  for (int32_t x : compiler::ValueHelper::GetVector<int32_t>()) {
+    for (int32_t y : compiler::ValueHelper::GetVector<int32_t>()) {
+      for (int32_t i = 0; i < iteration; i++) {
+        for (uint32_t j = 0; j < lanes; j++) {
+          r.builder().WriteMemory(&memory[i * 2 * lanes + j], x);
+          r.builder().WriteMemory(&memory[i * 2 * lanes + j + lanes], y);
+        }
+      }
+      r.Call(0, iteration * 2 * kSimd128Size);
+      int32_t* output = reinterpret_cast<int32_t*>(memory + count);
+      for (uint32_t i = 0; i < lanes; i++) {
+        CHECK_EQ(x * iteration, output[i]);
+        CHECK_EQ(y * iteration, output[i + lanes]);
+      }
+    }
+  }
+}
+
+TEST(RunWasmTurbofan_ForcePackIdenticalLoad) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(16);
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                      compiler::turboshaft::Opcode::kSimdPack128To256>);
+    // Load from [0:15], the two loads are indentical.
+    r.Build({WASM_LOCAL_SET(temp3, WASM_SIMD_LOAD_MEM(WASM_ZERO)),
+             WASM_LOCAL_SET(
+                 temp1, WASM_SIMD_UNOP(kExprI32x4Abs,
+                                       WASM_SIMD_UNOP(kExprS128Not,
+                                                      WASM_LOCAL_GET(temp3)))),
+             WASM_LOCAL_SET(
+                 temp2, WASM_SIMD_UNOP(kExprI32x4Abs,
+                                       WASM_SIMD_UNOP(kExprS128Not,
+                                                      WASM_LOCAL_GET(temp3)))),
+
+             WASM_SIMD_STORE_MEM_OFFSET(16, WASM_ZERO, WASM_LOCAL_GET(temp1)),
+             WASM_SIMD_STORE_MEM_OFFSET(32, WASM_ZERO, WASM_LOCAL_GET(temp2)),
+
+             WASM_ONE});
+  }
+  FOR_INT32_INPUTS(x) {
+    r.builder().WriteMemory(&memory[1], x);
+    r.builder().WriteMemory(&memory[13], x);
+    r.Call();
+    int32_t expected = std::abs(~x);
+    CHECK_EQ(expected, memory[5]);
+    CHECK_EQ(expected, memory[9]);
+  }
+}
+
+TEST(RunWasmTurbofan_ForcePackLoadsAtSameAddr) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(16);
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                      compiler::turboshaft::Opcode::kSimdPack128To256>);
+    // Load from [0:15], the two loads are identical.
+    r.Build({WASM_LOCAL_SET(
+                 temp1,
+                 WASM_SIMD_UNOP(kExprI32x4Abs,
+                                WASM_SIMD_UNOP(kExprS128Not,
+                                               WASM_SIMD_LOAD_MEM(WASM_ZERO)))),
+             WASM_LOCAL_SET(
+                 temp2,
+                 WASM_SIMD_UNOP(kExprI32x4Abs,
+                                WASM_SIMD_UNOP(kExprS128Not,
+                                               WASM_SIMD_LOAD_MEM(WASM_ZERO)))),
+
+             WASM_SIMD_STORE_MEM_OFFSET(16, WASM_ZERO, WASM_LOCAL_GET(temp1)),
+             WASM_SIMD_STORE_MEM_OFFSET(32, WASM_ZERO, WASM_LOCAL_GET(temp2)),
+
+             WASM_ONE});
+  }
+  FOR_INT32_INPUTS(x) {
+    r.builder().WriteMemory(&memory[1], x);
+    r.builder().WriteMemory(&memory[13], x);
+    r.Call();
+    int32_t expected = std::abs(~x);
+    CHECK_EQ(expected, memory[5]);
+    CHECK_EQ(expected, memory[9]);
+  }
+}
+
+TEST(RunWasmTurbofan_ForcePackInContinuousLoad) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(16);
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                      compiler::turboshaft::Opcode::kSimdPack128To256>);
+    // Load from [0:15] and [48:63] which are incontinuous, calculate the data
+    // by Not and Abs and stores the results to [16:31] and [32:47] which are
+    // continuous. By force-packing the incontinuous loads, we still revectorize
+    // all the operations.
+    //   simd128 *a,*b;
+    //   simd128 temp1 = abs(!(*a));
+    //   simd128 temp2 = abs(!(*(a + 3)));
+    //   *b = temp1;
+    //   *(b+1) = temp2;
+    r.Build({WASM_LOCAL_SET(
+                 temp1,
+                 WASM_SIMD_UNOP(kExprI32x4Abs,
+                                WASM_SIMD_UNOP(kExprS128Not,
+                                               WASM_SIMD_LOAD_MEM(WASM_ZERO)))),
+             WASM_LOCAL_SET(
+                 temp2, WASM_SIMD_UNOP(kExprI32x4Abs,
+                                       WASM_SIMD_UNOP(kExprS128Not,
+                                                      WASM_SIMD_LOAD_MEM_OFFSET(
+                                                          48, WASM_ZERO)))),
+
+             WASM_SIMD_STORE_MEM_OFFSET(16, WASM_ZERO, WASM_LOCAL_GET(temp1)),
+             WASM_SIMD_STORE_MEM_OFFSET(32, WASM_ZERO, WASM_LOCAL_GET(temp2)),
+
+             WASM_ONE});
+  }
+  FOR_INT32_INPUTS(x) {
+    r.builder().WriteMemory(&memory[1], x);
+    r.builder().WriteMemory(&memory[13], 2 * x);
+    r.Call();
+    CHECK_EQ(std::abs(~x), memory[5]);
+    CHECK_EQ(std::abs(~(2 * x)), memory[9]);
+  }
+}
+
+TEST(RunWasmTurbofan_ForcePackIncontinuousLoadsReversed) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(16);
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                      compiler::turboshaft::Opcode::kSimdPack128To256>);
+    // Loads from [48:63] and [0:15] which are incontinuous, calculate the data
+    // by Not and Abs and stores the results in reversed order to [16:31] and
+    // [32:47] which are continuous. By force-packing the incontinuous loads, we
+    // still revectorize all the operations.
+    //   simd128 *a,*b;
+    //   simd128 temp1 = abs(!(*(a + 3)));
+    //   simd128 temp2 = abs(!(*a));
+    //   *b = temp2;
+    //   *(b+1) = temp1;
+    r.Build({WASM_LOCAL_SET(
+                 temp1, WASM_SIMD_UNOP(kExprI32x4Abs,
+                                       WASM_SIMD_UNOP(kExprS128Not,
+                                                      WASM_SIMD_LOAD_MEM_OFFSET(
+                                                          48, WASM_ZERO)))),
+             WASM_LOCAL_SET(
+                 temp2,
+                 WASM_SIMD_UNOP(kExprI32x4Abs,
+                                WASM_SIMD_UNOP(kExprS128Not,
+                                               WASM_SIMD_LOAD_MEM(WASM_ZERO)))),
+             WASM_SIMD_STORE_MEM_OFFSET(16, WASM_ZERO, WASM_LOCAL_GET(temp2)),
+             WASM_SIMD_STORE_MEM_OFFSET(32, WASM_ZERO, WASM_LOCAL_GET(temp1)),
+             WASM_ONE});
+  }
+  FOR_INT32_INPUTS(x) {
+    r.builder().WriteMemory(&memory[1], x);
+    r.builder().WriteMemory(&memory[14], 2 * x);
+    r.Call();
+    CHECK_EQ(std::abs(~x), memory[5]);
+    CHECK_EQ(std::abs(~(2 * x)), memory[10]);
+  }
+}
+
+TEST(RunWasmTurbofan_RevecReduce) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int64_t, int32_t> r(TestExecutionTier::kTurbofan);
+  uint32_t count = 8;
+  int64_t* memory = r.builder().AddMemoryElems<int64_t>(count);
+  // Build fn perform sum up 128 bit vectors a, return the result:
+  // int64_t sum(simd128* a) {
+  //   simd128 sum128 = a[0] + a[1] + a[2] + a[3];
+  //   return LANE(sum128, 0) + LANE(sum128, 1);
+  // }
+  uint8_t param1 = 0;
+  uint8_t sum1 = r.AllocateLocal(kWasmS128);
+  uint8_t sum2 = r.AllocateLocal(kWasmS128);
+  uint8_t sum = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+  {
+    TSSimd256VerifyScope ts_scope(r.zone());
+    r.Build(
+        {WASM_LOCAL_SET(
+             sum1, WASM_SIMD_BINOP(kExprI64x2Add,
+                                   WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1)),
+                                   WASM_SIMD_LOAD_MEM_OFFSET(
+                                       offset * 2, WASM_LOCAL_GET(param1)))),
+         WASM_LOCAL_SET(
+             sum2, WASM_SIMD_BINOP(kExprI64x2Add,
+                                   WASM_SIMD_LOAD_MEM_OFFSET(
+                                       offset, WASM_LOCAL_GET(param1)),
+                                   WASM_SIMD_LOAD_MEM_OFFSET(
+                                       offset * 3, WASM_LOCAL_GET(param1)))),
+         WASM_LOCAL_SET(sum,
+                        WASM_SIMD_BINOP(kExprI64x2Add, WASM_LOCAL_GET(sum1),
+                                        WASM_LOCAL_GET(sum2))),
+         WASM_I64_ADD(WASM_SIMD_I64x2_EXTRACT_LANE(0, WASM_LOCAL_GET(sum)),
+                      WASM_SIMD_I64x2_EXTRACT_LANE(1, WASM_LOCAL_GET(sum)))});
+  }
+  for (int64_t x : compiler::ValueHelper::GetVector<int64_t>()) {
+    for (uint32_t i = 0; i < count; i++) {
+      r.builder().WriteMemory(&memory[i], x);
+    }
+    int64_t expected = count * x;
+    CHECK_EQ(r.Call(0), expected);
+  }
+}
+
+TEST(RunWasmTurbofan_ForcePackLoadSplat) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  // Use Load32Splat for the force packing test.
+
+  WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(10);
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                      compiler::turboshaft::Opcode::kSimdPack128To256>);
+    r.Build({WASM_LOCAL_SET(
+                 temp1, WASM_SIMD_UNOP(kExprI32x4Abs,
+                                       WASM_SIMD_UNOP(kExprS128Not,
+                                                      WASM_SIMD_LOAD_OP(
+                                                          kExprS128Load32Splat,
+                                                          WASM_ZERO)))),
+             WASM_LOCAL_SET(
+                 temp2, WASM_SIMD_UNOP(kExprI32x4Abs,
+                                       WASM_SIMD_UNOP(kExprS128Not,
+                                                      WASM_SIMD_LOAD_OP_OFFSET(
+                                                          kExprS128Load32Splat,
+                                                          WASM_ZERO, 4)))),
+
+             WASM_SIMD_STORE_MEM_OFFSET(8, WASM_ZERO, WASM_LOCAL_GET(temp1)),
+             WASM_SIMD_STORE_MEM_OFFSET(24, WASM_ZERO, WASM_LOCAL_GET(temp2)),
+
+             WASM_ONE});
+  }
+
+  FOR_INT32_INPUTS(x) {
+    FOR_INT32_INPUTS(y) {
+      r.builder().WriteMemory(&memory[0], x);
+      r.builder().WriteMemory(&memory[1], y);
+      r.Call();
+      int expected_x = std::abs(~x);
+      int expected_y = std::abs(~y);
+      for (int i = 0; i < 4; ++i) {
+        CHECK_EQ(expected_x, memory[i + 2]);
+        CHECK_EQ(expected_y, memory[i + 6]);
+      }
+    }
+  }
+}
+
+TEST(RunWasmTurbofan_ForcePackLoadExtend) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  // Use load32x2_s for the force packing test.
+  {
+    // Test ForcePackType::kSplat
+    WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+    int32_t* memory = r.builder().AddMemoryElems<int32_t>(10);
+    uint8_t temp1 = r.AllocateLocal(kWasmS128);
+    uint8_t temp2 = r.AllocateLocal(kWasmS128);
+    {
+      TSSimd256VerifyScope ts_scope(
+          r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                        compiler::turboshaft::Opcode::kSimdPack128To256>);
+      r.Build(
+          {WASM_LOCAL_SET(
+               temp1, WASM_SIMD_SHIFT_OP(
+                          kExprI64x2Shl,
+                          WASM_SIMD_UNOP(
+                              kExprS128Not,
+                              WASM_SIMD_LOAD_OP(kExprS128Load32x2S, WASM_ZERO)),
+                          WASM_I32V(1))),
+           WASM_LOCAL_SET(
+               temp2, WASM_SIMD_SHIFT_OP(
+                          kExprI64x2Shl,
+                          WASM_SIMD_UNOP(
+                              kExprS128Not,
+                              WASM_SIMD_LOAD_OP(kExprS128Load32x2S, WASM_ZERO)),
+                          WASM_I32V(1))),
+
+           WASM_SIMD_STORE_MEM_OFFSET(8, WASM_ZERO, WASM_LOCAL_GET(temp1)),
+           WASM_SIMD_STORE_MEM_OFFSET(24, WASM_ZERO, WASM_LOCAL_GET(temp2)),
+
+           WASM_ONE});
+    }
+
+    FOR_INT32_INPUTS(x) {
+      FOR_INT32_INPUTS(y) {
+        r.builder().WriteMemory(&memory[0], x);
+        r.builder().WriteMemory(&memory[1], y);
+        r.Call();
+        const int64_t expected_x =
+            LogicalShiftLeft(~static_cast<int64_t>(x), 1);
+        const int64_t expected_y =
+            LogicalShiftLeft(~static_cast<int64_t>(y), 1);
+        const int64_t* const output_mem =
+            reinterpret_cast<const int64_t*>(&memory[2]);
+        for (int i = 0; i < 2; ++i) {
+          const int64_t actual_x = output_mem[i * 2];
+          const int64_t actual_y = output_mem[i * 2 + 1];
+          CHECK_EQ(expected_x, actual_x);
+          CHECK_EQ(expected_y, actual_y);
+        }
+      }
+    }
+  }
+
+  {
+    // Test ForcePackType::kGeneral
+    WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+    int32_t* memory = r.builder().AddMemoryElems<int32_t>(12);
+    uint8_t temp1 = r.AllocateLocal(kWasmS128);
+    uint8_t temp2 = r.AllocateLocal(kWasmS128);
+    {
+      // incontinuous load32x2_s
+      TSSimd256VerifyScope ts_scope(
+          r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                        compiler::turboshaft::Opcode::kSimdPack128To256>);
+      r.Build(
+          {WASM_LOCAL_SET(
+               temp1, WASM_SIMD_SHIFT_OP(
+                          kExprI64x2ShrU,
+                          WASM_SIMD_UNOP(
+                              kExprS128Not,
+                              WASM_SIMD_LOAD_OP(kExprS128Load32x2S, WASM_ZERO)),
+                          WASM_I32V(1))),
+           WASM_LOCAL_SET(
+               temp2, WASM_SIMD_SHIFT_OP(
+                          kExprI64x2ShrU,
+                          WASM_SIMD_UNOP(kExprS128Not, WASM_SIMD_LOAD_OP_OFFSET(
+                                                           kExprS128Load32x2S,
+                                                           WASM_ZERO, 40)),
+                          WASM_I32V(1))),
+
+           WASM_SIMD_STORE_MEM_OFFSET(8, WASM_ZERO, WASM_LOCAL_GET(temp1)),
+           WASM_SIMD_STORE_MEM_OFFSET(24, WASM_ZERO, WASM_LOCAL_GET(temp2)),
+
+           WASM_ONE});
+    }
+    FOR_INT32_INPUTS(a) {
+      FOR_INT32_INPUTS(b) {
+        // Don't loop over setting c and d, because an O(n^4) test takes too
+        // much time.
+        int32_t c = a + b;
+        int32_t d = a - b;
+        r.builder().WriteMemory(&memory[0], a);
+        r.builder().WriteMemory(&memory[1], b);
+        r.builder().WriteMemory(&memory[10], c);
+        r.builder().WriteMemory(&memory[11], d);
+        r.Call();
+        const int64_t expected_a =
+            LogicalShiftRight(~static_cast<int64_t>(a), 1);
+        const int64_t expected_b =
+            LogicalShiftRight(~static_cast<int64_t>(b), 1);
+        const int64_t expected_c =
+            LogicalShiftRight(~static_cast<int64_t>(c), 1);
+        const int64_t expected_d =
+            LogicalShiftRight(~static_cast<int64_t>(d), 1);
+        const int64_t* const output_mem =
+            reinterpret_cast<const int64_t*>(&memory[2]);
+        const int64_t actual_a = output_mem[0];
+        const int64_t actual_b = output_mem[1];
+        const int64_t actual_c = output_mem[2];
+        const int64_t actual_d = output_mem[3];
+        CHECK_EQ(expected_a, actual_a);
+        CHECK_EQ(expected_b, actual_b);
+        CHECK_EQ(expected_c, actual_c);
+        CHECK_EQ(expected_d, actual_d);
+      }
+    }
+  }
+}
+
+TEST(RunWasmTurbofan_ForcePackI16x16ConvertI8x16) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  int8_t* memory = r.builder().AddMemoryElems<int8_t>(48);
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                      compiler::turboshaft::Opcode::kSimdPack128To256>);
+    r.Build({WASM_LOCAL_SET(temp3, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+             WASM_LOCAL_SET(
+                 temp1,
+                 WASM_SIMD_UNOP(
+                     kExprI16x8Neg,
+                     WASM_SIMD_UNOP(kExprS128Not,
+                                    WASM_SIMD_UNOP(kExprI16x8SConvertI8x16Low,
+                                                   WASM_LOCAL_GET(temp3))))),
+             WASM_LOCAL_SET(
+                 temp2,
+                 WASM_SIMD_UNOP(
+                     kExprI16x8Neg,
+                     WASM_SIMD_UNOP(kExprS128Not,
+                                    WASM_SIMD_UNOP(kExprI16x8SConvertI8x16Low,
+                                                   WASM_LOCAL_GET(temp3))))),
+             WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp1)),
+             WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                        WASM_LOCAL_GET(temp2)),
+             WASM_ONE});
+  }
+  FOR_INT8_INPUTS(x) {
+    for (int i = 0; i < 16; i++) {
+      r.builder().WriteMemory(&memory[i], x);
+    }
+    r.Call(0, 16);
+    int16_t expected_signed = -(~static_cast<int16_t>(x));
+    int16_t* out_memory = reinterpret_cast<int16_t*>(memory);
+    for (int i = 0; i < 8; i++) {
+      CHECK_EQ(expected_signed, out_memory[8 + i]);
+      CHECK_EQ(expected_signed, out_memory[16 + i]);
+    }
+  }
+}
+
+TEST(RunWasmTurbofan_ForcePackI16x16ConvertI8x16ExpectFail) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  r.builder().AddMemoryElems<int8_t>(48);
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(),
+        TSSimd256VerifyScope::VerifyHaveOpcode<
+            compiler::turboshaft::Opcode::kSimdPack128To256>,
+        ExpectedResult::kFail);
+    // ExprI16x8SConvertI8x16Low use the result of another
+    // ExprI16x8SConvertI8x16Low so the force pack should fail.
+    r.Build({WASM_LOCAL_SET(temp3, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+             WASM_LOCAL_SET(
+                 temp1,
+                 WASM_SIMD_UNOP(
+                     kExprI16x8Neg,
+                     WASM_SIMD_UNOP(kExprS128Not,
+                                    WASM_SIMD_UNOP(kExprI16x8SConvertI8x16Low,
+                                                   WASM_LOCAL_GET(temp3))))),
+             WASM_LOCAL_SET(
+                 temp2,
+                 WASM_SIMD_UNOP(
+                     kExprI16x8Neg,
+                     WASM_SIMD_UNOP(kExprS128Not,
+                                    WASM_SIMD_UNOP(kExprI16x8SConvertI8x16Low,
+                                                   WASM_LOCAL_GET(temp1))))),
+             WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp1)),
+             WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                        WASM_LOCAL_GET(temp2)),
+             WASM_ONE});
+  }
+}
+
+TEST(RunWasmTurbofan_ForcePackInternalI16x16ConvertI8x16) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  int8_t* memory = r.builder().AddMemoryElems<int8_t>(64);
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+
+  // Load a i16x8 vector from memory, convert it to i8x16, and add the result
+  // back to the original vector. This means that kExprI16x8SConvertI8x16Low
+  // will be in an internal packed node, whose inputs are also packed nodes. In
+  // this case we should properly handle the inputs by Simd256Extract128Lane.
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+  uint8_t temp4 = r.AllocateLocal(kWasmS128);
+  uint8_t temp5 = r.AllocateLocal(kWasmS128);
+  uint8_t temp6 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                      compiler::turboshaft::Opcode::kSimdPack128To256>);
+    r.Build(
+        {WASM_LOCAL_SET(temp3, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+         WASM_LOCAL_SET(
+             temp4, WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_LOCAL_GET(param1))),
+         WASM_LOCAL_SET(
+             temp1, WASM_SIMD_UNOP(kExprI16x8Neg,
+                                   WASM_SIMD_UNOP(kExprI16x8SConvertI8x16Low,
+                                                  WASM_LOCAL_GET(temp3)))),
+         WASM_LOCAL_SET(
+             temp2, WASM_SIMD_UNOP(kExprI16x8Neg,
+                                   WASM_SIMD_UNOP(kExprI16x8SConvertI8x16Low,
+                                                  WASM_LOCAL_GET(temp3)))),
+         WASM_LOCAL_SET(temp5,
+                        WASM_SIMD_BINOP(kExprI16x8Add, WASM_LOCAL_GET(temp1),
+                                        WASM_LOCAL_GET(temp3))),
+         WASM_LOCAL_SET(temp6,
+                        WASM_SIMD_BINOP(kExprI16x8Add, WASM_LOCAL_GET(temp2),
+                                        WASM_LOCAL_GET(temp4))),
+         WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp5)),
+         WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                    WASM_LOCAL_GET(temp6)),
+         WASM_ONE});
+  }
+  FOR_INT8_INPUTS(x) {
+    for (int i = 0; i < 16; i++) {
+      r.builder().WriteMemory(&memory[i], x);
+      r.builder().WriteMemory(&memory[i + 16], x);
+    }
+    r.Call(0, 32);
+    int16_t extended_x = static_cast<int16_t>(x);
+    int16_t expected_signed =
+        -extended_x + ((extended_x << 8) + (extended_x & 0xFF));
+    int16_t* out_memory = reinterpret_cast<int16_t*>(memory);
+    for (int i = 0; i < 8; i++) {
+      CHECK_EQ(expected_signed, out_memory[16 + i]);
+      CHECK_EQ(expected_signed, out_memory[24 + i]);
+    }
+  }
+}
+
+TEST(RunWasmTurbofan_ForcePackLoadZero) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  // Use load32_zero for the force packing test.
+  {
+    // Test ForcePackType::kSplat
+    WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+    int32_t* memory = r.builder().AddMemoryElems<int32_t>(9);
+    uint8_t temp1 = r.AllocateLocal(kWasmS128);
+    uint8_t temp2 = r.AllocateLocal(kWasmS128);
+    {
+      TSSimd256VerifyScope ts_scope(
+          r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                        compiler::turboshaft::Opcode::kSimdPack128To256>);
+      r.Build({WASM_LOCAL_SET(
+                   temp1, WASM_SIMD_UNOP(kExprS128Not,
+                                         WASM_SIMD_LOAD_OP(kExprS128Load32Zero,
+                                                           WASM_ZERO))),
+               WASM_LOCAL_SET(
+                   temp2, WASM_SIMD_UNOP(kExprS128Not,
+                                         WASM_SIMD_LOAD_OP(kExprS128Load32Zero,
+                                                           WASM_ZERO))),
+
+               WASM_SIMD_STORE_MEM_OFFSET(20, WASM_ZERO, WASM_LOCAL_GET(temp2)),
+               WASM_SIMD_STORE_MEM_OFFSET(4, WASM_ZERO, WASM_LOCAL_GET(temp1)),
+
+               WASM_ONE});
+    }
+
+    FOR_INT32_INPUTS(a) {
+      int32_t expected_a = ~a;
+      constexpr int32_t expected_padding = ~0;
+      r.builder().WriteMemory(&memory[0], a);
+      r.Call();
+      CHECK_EQ(memory[1], expected_a);
+      CHECK_EQ(memory[2], expected_padding);
+      CHECK_EQ(memory[3], expected_padding);
+      CHECK_EQ(memory[4], expected_padding);
+      CHECK_EQ(memory[5], expected_a);
+      CHECK_EQ(memory[6], expected_padding);
+      CHECK_EQ(memory[7], expected_padding);
+      CHECK_EQ(memory[8], expected_padding);
+    }
+  }
+
+  {
+    // Test ForcePackType::kGeneral
+    WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+    int32_t* memory = r.builder().AddMemoryElems<int32_t>(10);
+    uint8_t temp1 = r.AllocateLocal(kWasmS128);
+    uint8_t temp2 = r.AllocateLocal(kWasmS128);
+    {
+      TSSimd256VerifyScope ts_scope(
+          r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                        compiler::turboshaft::Opcode::kSimdPack128To256>);
+      r.Build({WASM_LOCAL_SET(
+                   temp1, WASM_SIMD_UNOP(kExprS128Not,
+                                         WASM_SIMD_LOAD_OP(kExprS128Load32Zero,
+                                                           WASM_ZERO))),
+               WASM_LOCAL_SET(
+                   temp2, WASM_SIMD_UNOP(kExprS128Not, WASM_SIMD_LOAD_OP_OFFSET(
+                                                           kExprS128Load32Zero,
+                                                           WASM_ZERO, 4))),
+
+               WASM_SIMD_STORE_MEM_OFFSET(24, WASM_ZERO, WASM_LOCAL_GET(temp2)),
+               WASM_SIMD_STORE_MEM_OFFSET(8, WASM_ZERO, WASM_LOCAL_GET(temp1)),
+
+               WASM_ONE});
+    }
+
+    FOR_INT32_INPUTS(x) {
+      FOR_INT32_INPUTS(y) {
+        r.builder().WriteMemory(&memory[0], x);
+        r.builder().WriteMemory(&memory[1], y);
+        r.Call();
+        int expected_x = ~x;
+        int expected_y = ~y;
+        constexpr int32_t expected_padding = ~0;
+        CHECK_EQ(memory[2], expected_x);
+        CHECK_EQ(memory[3], expected_padding);
+        CHECK_EQ(memory[4], expected_padding);
+        CHECK_EQ(memory[5], expected_padding);
+        CHECK_EQ(memory[6], expected_y);
+        CHECK_EQ(memory[7], expected_padding);
+        CHECK_EQ(memory[8], expected_padding);
+        CHECK_EQ(memory[8], expected_padding);
+      }
+    }
+  }
+}
+
+template <bool inputs_swapped = false>
+void RunForcePackF32x4ReplaceLaneIntersectTest() {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  float* memory = r.builder().AddMemoryElems<float>(16);
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+  uint8_t temp4 = r.AllocateLocal(kWasmS128);
+  uint8_t temp5 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+  uint8_t add1, add2, add3, add4;
+  if constexpr (inputs_swapped) {
+    add1 = temp3;
+    add2 = temp2;
+    add3 = temp4;
+    add4 = temp3;
+  } else {
+    add1 = temp2;
+    add2 = temp3;
+    add3 = temp3;
+    add4 = temp4;
+  }
+
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                      compiler::turboshaft::Opcode::kSimdPack128To256>);
+    // Test force-packing two f32x4 replace_lanes(2, 3) or (3, 4) in
+    // ForcePackNode, and intersected replace_lanes(3, 4) or (2, 3) in
+    // IntersectPackNode. Reduce the ForcePackNode and IntersectPackNode in
+    // different order.
+    r.Build(
+        {WASM_LOCAL_SET(temp1, WASM_SIMD_F32x4_SPLAT(WASM_F32(3.14f))),
+         WASM_LOCAL_SET(temp2, WASM_SIMD_F32x4_REPLACE_LANE(
+                                   0, WASM_LOCAL_GET(temp1), WASM_F32(0.0f))),
+         WASM_LOCAL_SET(temp3, WASM_SIMD_F32x4_REPLACE_LANE(
+                                   1, WASM_LOCAL_GET(temp1), WASM_F32(1.0f))),
+         WASM_LOCAL_SET(temp4, WASM_SIMD_F32x4_REPLACE_LANE(
+                                   2, WASM_LOCAL_GET(temp1), WASM_F32(2.0f))),
+         WASM_LOCAL_SET(
+             temp5,
+             WASM_SIMD_BINOP(
+                 kExprF32x4Mul, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1)),
+                 WASM_SIMD_BINOP(kExprF32x4Add, WASM_LOCAL_GET(add1),
+                                 WASM_LOCAL_GET(add2)))),
+         WASM_LOCAL_SET(
+             temp4,
+             WASM_SIMD_BINOP(
+                 kExprF32x4Mul,
+                 WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_LOCAL_GET(param1)),
+                 WASM_SIMD_BINOP(kExprF32x4Add, WASM_LOCAL_GET(add3),
+                                 WASM_LOCAL_GET(add4)))),
+         WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp5)),
+         WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                    WASM_LOCAL_GET(temp4)),
+         WASM_ONE});
+  }
+
+  for (int i = 0; i < 8; i++) {
+    r.builder().WriteMemory(&memory[i], 2.0f);
+  }
+  r.Call(0, 32);
+  CHECK_EQ(Mul(Add(3.14f, 0.0f), 2.0f), memory[8]);
+  CHECK_EQ(Mul(Add(3.14f, 1.0f), 2.0f), memory[9]);
+  CHECK_EQ(Mul(Add(3.14f, 1.0f), 2.0f), memory[13]);
+  CHECK_EQ(Mul(Add(3.14f, 2.0f), 2.0f), memory[14]);
+}
+
+TEST(RunWasmTurbofan_ForcePackF32x4ReplaceLaneIntersect1) {
+  RunForcePackF32x4ReplaceLaneIntersectTest<false>();
+}
+
+TEST(RunWasmTurbofan_ForcePackF32x4ReplaceLaneIntersect2) {
+  RunForcePackF32x4ReplaceLaneIntersectTest<true>();
+}
+
+TEST(RunWasmTurbofan_IntersectPackNodeMerge1) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  float* memory = r.builder().AddMemoryElems<float>(24);
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+  uint8_t temp4 = r.AllocateLocal(kWasmS128);
+  uint8_t temp5 = r.AllocateLocal(kWasmS128);
+  uint8_t temp6 = r.AllocateLocal(kWasmS128);
+  uint8_t temp7 = r.AllocateLocal(kWasmS128);
+  uint8_t temp8 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+  // Build an SLPTree with default, ForcePackNode and IntersectPackNode. Build
+  // another SLPTree that will merge with the default and IntersectPackNode.
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                      compiler::turboshaft::Opcode::kSimdPack128To256>);
+    r.Build(
+        {WASM_LOCAL_SET(temp1, WASM_SIMD_F32x4_SPLAT(WASM_F32(3.14f))),
+         WASM_LOCAL_SET(temp2, WASM_SIMD_F32x4_REPLACE_LANE(
+                                   0, WASM_LOCAL_GET(temp1), WASM_F32(0.0f))),
+         WASM_LOCAL_SET(temp3, WASM_SIMD_F32x4_REPLACE_LANE(
+                                   1, WASM_LOCAL_GET(temp1), WASM_F32(1.0f))),
+         WASM_LOCAL_SET(temp4, WASM_SIMD_F32x4_REPLACE_LANE(
+                                   2, WASM_LOCAL_GET(temp1), WASM_F32(2.0f))),
+         WASM_LOCAL_SET(temp5, WASM_SIMD_LOAD_MEM(WASM_ZERO)),
+         WASM_LOCAL_SET(temp6, WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_ZERO)),
+         WASM_LOCAL_SET(
+             temp7, WASM_SIMD_BINOP(
+                        kExprF32x4Add, WASM_LOCAL_GET(temp5),
+                        WASM_SIMD_BINOP(kExprF32x4Add, WASM_LOCAL_GET(temp2),
+                                        WASM_LOCAL_GET(temp3)))),
+         WASM_LOCAL_SET(
+             temp8, WASM_SIMD_BINOP(
+                        kExprF32x4Add, WASM_LOCAL_GET(temp6),
+                        WASM_SIMD_BINOP(kExprF32x4Add, WASM_LOCAL_GET(temp3),
+                                        WASM_LOCAL_GET(temp4)))),
+         WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param1), WASM_LOCAL_GET(temp7)),
+         WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param1),
+                                    WASM_LOCAL_GET(temp8)),
+         WASM_LOCAL_SET(
+             temp7, WASM_SIMD_BINOP(
+                        kExprF32x4Add, WASM_LOCAL_GET(temp5),
+                        WASM_SIMD_BINOP(kExprF32x4Add, WASM_LOCAL_GET(temp2),
+                                        WASM_LOCAL_GET(temp3)))),
+         WASM_LOCAL_SET(
+             temp8, WASM_SIMD_BINOP(
+                        kExprF32x4Add, WASM_LOCAL_GET(temp6),
+                        WASM_SIMD_BINOP(kExprF32x4Add, WASM_LOCAL_GET(temp4),
+                                        WASM_LOCAL_GET(temp4)))),
+         WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp7)),
+         WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                    WASM_LOCAL_GET(temp8)),
+         WASM_ONE});
+  }
+  for (int i = 0; i < 8; i++) {
+    r.builder().WriteMemory(&memory[i], 2.0f);
+  }
+
+  r.Call(32, 64);
+  CHECK_EQ(Add(Add(3.14f, 0.0f), 2.0f), memory[8]);
+  CHECK_EQ(Add(Add(3.14f, 1.0f), 2.0f), memory[9]);
+  CHECK_EQ(Add(Add(3.14f, 1.0f), 2.0f), memory[13]);
+  CHECK_EQ(Add(Add(3.14f, 2.0f), 2.0f), memory[14]);
+  CHECK_EQ(Add(Add(3.14f, 0.0f), 2.0f), memory[16]);
+  CHECK_EQ(Add(Add(3.14f, 1.0f), 2.0f), memory[17]);
+  CHECK_EQ(Add(Add(2.0f, 2.0f), 2.0f), memory[22]);
+}
+
+TEST(RunWasmTurbofan_IntersectPackNodeMerge2) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  float* memory = r.builder().AddMemoryElems<float>(24);
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+  uint8_t temp4 = r.AllocateLocal(kWasmS128);
+  uint8_t temp5 = r.AllocateLocal(kWasmS128);
+  uint8_t temp6 = r.AllocateLocal(kWasmS128);
+  uint8_t temp7 = r.AllocateLocal(kWasmS128);
+  uint8_t temp8 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+  // Build an SLPTree with default, ForcePackNode(2, 3) and IntersectPackNode(3,
+  // 4). Build another SLPTree that will create new IntersectPackNode(1, 3) and
+  // (4, 4) and expand the existing revetorizable_intersect_node map entries.
+  // This test will ensure no missing IntersectPackNode after the merge.
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                      compiler::turboshaft::Opcode::kSimdPack128To256>);
+    r.Build(
+        {WASM_LOCAL_SET(temp1, WASM_SIMD_F32x4_SPLAT(WASM_F32(3.14f))),
+         WASM_LOCAL_SET(temp2, WASM_SIMD_F32x4_REPLACE_LANE(
+                                   0, WASM_LOCAL_GET(temp1), WASM_F32(0.0f))),
+         WASM_LOCAL_SET(temp3, WASM_SIMD_F32x4_REPLACE_LANE(
+                                   1, WASM_LOCAL_GET(temp1), WASM_F32(1.0f))),
+         WASM_LOCAL_SET(temp4, WASM_SIMD_F32x4_REPLACE_LANE(
+                                   2, WASM_LOCAL_GET(temp1), WASM_F32(2.0f))),
+         WASM_LOCAL_SET(temp5, WASM_SIMD_LOAD_MEM(WASM_ZERO)),
+         WASM_LOCAL_SET(temp6, WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_ZERO)),
+         WASM_LOCAL_SET(
+             temp7, WASM_SIMD_BINOP(
+                        kExprF32x4Add, WASM_LOCAL_GET(temp5),
+                        WASM_SIMD_BINOP(kExprF32x4Add, WASM_LOCAL_GET(temp2),
+                                        WASM_LOCAL_GET(temp3)))),
+         WASM_LOCAL_SET(
+             temp8, WASM_SIMD_BINOP(
+                        kExprF32x4Add, WASM_LOCAL_GET(temp6),
+                        WASM_SIMD_BINOP(kExprF32x4Add, WASM_LOCAL_GET(temp3),
+                                        WASM_LOCAL_GET(temp4)))),
+         WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param1), WASM_LOCAL_GET(temp7)),
+         WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param1),
+                                    WASM_LOCAL_GET(temp8)),
+         WASM_LOCAL_SET(temp1, WASM_SIMD_F32x4_REPLACE_LANE(
+                                   3, WASM_LOCAL_GET(temp1), WASM_F32(3.0f))),
+         WASM_LOCAL_SET(
+             temp7, WASM_SIMD_BINOP(
+                        kExprF32x4Add, WASM_LOCAL_GET(temp5),
+                        WASM_SIMD_BINOP(kExprF32x4Add, WASM_LOCAL_GET(temp1),
+                                        WASM_LOCAL_GET(temp4)))),
+         WASM_LOCAL_SET(
+             temp8, WASM_SIMD_BINOP(
+                        kExprF32x4Add, WASM_LOCAL_GET(temp6),
+                        WASM_SIMD_BINOP(kExprF32x4Add, WASM_LOCAL_GET(temp3),
+                                        WASM_LOCAL_GET(temp4)))),
+         WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp7)),
+         WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                    WASM_LOCAL_GET(temp8)),
+         WASM_ONE});
+  }
+  for (int i = 0; i < 8; i++) {
+    r.builder().WriteMemory(&memory[i], 2.0f);
+  }
+
+  r.Call(32, 64);
+  CHECK_EQ(Add(Add(3.14f, 0.0f), 2.0f), memory[8]);
+  CHECK_EQ(Add(Add(3.14f, 1.0f), 2.0f), memory[9]);
+  CHECK_EQ(Add(Add(3.14f, 1.0f), 2.0f), memory[13]);
+  CHECK_EQ(Add(Add(3.14f, 2.0f), 2.0f), memory[14]);
+  CHECK_EQ(Add(Add(3.14f, 2.0f), 2.0f), memory[18]);
+  CHECK_EQ(Add(Add(3.14f, 3.0f), 2.0f), memory[19]);
+  CHECK_EQ(Add(Add(3.14f, 1.0f), 2.0f), memory[21]);
+  CHECK_EQ(Add(Add(3.14f, 2.0f), 2.0f), memory[22]);
+}
+
+TEST(RunWasmTurbofan_ForcePackExtractInputsTest) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  float* memory = r.builder().AddMemoryElems<float>(20);
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+  uint8_t temp4 = r.AllocateLocal(kWasmS128);
+  uint8_t temp5 = r.AllocateLocal(kWasmS128);
+  uint8_t temp6 = r.AllocateLocal(kWasmS128);
+  uint8_t temp7 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+
+  uint8_t c[kSimd128Size];
+  for (size_t i = 0; i < kSimd128Size / sizeof(float); i++) {
+    WriteLittleEndianValue<float>(reinterpret_cast<float*>(c) + i, 0.1f);
+  }
+
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                      compiler::turboshaft::Opcode::kSimdPack128To256>);
+    // Test force-packing two f32x4 replace_lanes(2, 6), while input of node 6:
+    // node 5 will also be packed and emit additional Extract128 node due to
+    // used by unpacked nodes.
+    r.Build(
+        {WASM_LOCAL_SET(temp1, WASM_SIMD_F32x4_SPLAT(WASM_F32(3.14f))),
+         WASM_LOCAL_SET(temp2, WASM_SIMD_F32x4_REPLACE_LANE(
+                                   0, WASM_LOCAL_GET(temp1), WASM_F32(0.0f))),
+         WASM_LOCAL_SET(temp3, WASM_SIMD_CONSTANT(c)),
+         WASM_LOCAL_SET(
+             temp4,
+             WASM_SIMD_BINOP(
+                 kExprF32x4Mul, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1)),
+                 WASM_SIMD_BINOP(kExprF32x4Add, WASM_LOCAL_GET(temp3),
+                                 WASM_LOCAL_GET(temp2)))),
+         WASM_LOCAL_SET(temp5, WASM_SIMD_CONSTANT(c)),
+         WASM_LOCAL_SET(temp6, WASM_SIMD_F32x4_REPLACE_LANE(
+                                   2, WASM_LOCAL_GET(temp5), WASM_F32(2.0f))),
+         WASM_LOCAL_SET(
+             temp7,
+             WASM_SIMD_BINOP(
+                 kExprF32x4Mul,
+                 WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_LOCAL_GET(param1)),
+                 WASM_SIMD_BINOP(kExprF32x4Add, WASM_LOCAL_GET(temp5),
+                                 WASM_LOCAL_GET(temp6)))),
+         WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp4)),
+         WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                    WASM_LOCAL_GET(temp7)),
+         WASM_SIMD_STORE_MEM_OFFSET(offset * 2, WASM_LOCAL_GET(param2),
+                                    WASM_LOCAL_GET(temp5)),
+         WASM_ONE});
+  }
+
+  for (int i = 0; i < 8; i++) {
+    r.builder().WriteMemory(&memory[i], 2.0f);
+  }
+  r.Call(0, 32);
+  CHECK_EQ(Mul(Add(0.0f, 0.1f), 2.0f), memory[8]);
+  CHECK_EQ(Mul(Add(3.14f, 0.1f), 2.0f), memory[9]);
+  CHECK_EQ(Mul(Add(0.1f, 0.1f), 2.0f), memory[13]);
+  CHECK_EQ(Mul(Add(2.0f, 0.1f), 2.0f), memory[14]);
+  CHECK_EQ(0.1f, memory[16]);
+}
+
+TEST(RunWasmTurbofan_RevecCommutativeOp) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t, int32_t, int32_t> r(
+      TestExecutionTier::kTurbofan);
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(16);
+  // Add int variable a to each element of 256 bit vectors b, store the result
+  // in c
+  //   int32_t a,
+  //   simd128 *b,*c;
+  //   *c = splat(a) + *b;
+  //   *(c+1) = *(b+1) + splat(a);
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t param3 = 2;
+
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpWithKind<
+                      compiler::turboshaft::Simd256BinopOp,
+                      compiler::turboshaft::Simd256BinopOp::Kind::kI32x8Add>);
+    r.Build(
+        {WASM_LOCAL_SET(temp1, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(param1))),
+         WASM_LOCAL_SET(temp2, WASM_SIMD_BINOP(
+                                   kExprI32x4Add, WASM_LOCAL_GET(temp1),
+                                   WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param2)))),
+         WASM_LOCAL_SET(temp3,
+                        WASM_SIMD_BINOP(kExprI32x4Add,
+                                        WASM_SIMD_LOAD_MEM_OFFSET(
+                                            offset, WASM_LOCAL_GET(param2)),
+                                        WASM_LOCAL_GET(temp1))),
+         WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param3), WASM_LOCAL_GET(temp2)),
+         WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param3),
+                                    WASM_LOCAL_GET(temp3)),
+         WASM_ONE});
+  }
+
+  for (int32_t x : compiler::ValueHelper::GetVector<int32_t>()) {
+    for (int32_t y : compiler::ValueHelper::GetVector<int32_t>()) {
+      for (int i = 0; i < 8; i++) {
+        r.builder().WriteMemory(&memory[i], y);
+      }
+      int64_t expected = base::AddWithWraparound(x, y);
+      CHECK_EQ(r.Call(x, 0, 32), 1);
+      for (int i = 0; i < 8; i++) {
+        CHECK_EQ(expected, memory[i + 8]);
+      }
+    }
+  }
+}
+
+TEST(RunWasmTurbofan_I16x16SConvertI32x8) {
+  RunIntToIntNarrowingRevecTest<int32_t, int16_t>(
+      kExprI16x8SConvertI32x4, compiler::IrOpcode::kI16x16SConvertI32x8);
+}
+
+TEST(RunWasmTurbofan_I16x16UConvertI32x8) {
+  RunIntToIntNarrowingRevecTest<int32_t, uint16_t>(
+      kExprI16x8UConvertI32x4, compiler::IrOpcode::kI16x16UConvertI32x8);
+}
+
+TEST(RunWasmTurbofan_I8x32SConvertI16x16) {
+  RunIntToIntNarrowingRevecTest<int16_t, int8_t>(
+      kExprI8x16SConvertI16x8, compiler::IrOpcode::kI8x32SConvertI16x16);
+}
+
+TEST(RunWasmTurbofan_I8x32UConvertI16x16) {
+  RunIntToIntNarrowingRevecTest<int16_t, uint8_t>(
+      kExprI8x16UConvertI16x8, compiler::IrOpcode::kI8x32UConvertI16x16);
+}
+
+#define RunExtendIntToF32x4RevecTest(format, sign, convert_opcode,             \
+                                     convert_sign, param_type, extract_type,   \
+                                     convert_type)                             \
+  TEST(RunWasmTurbofan_Extend##format##sign##ConvertF32x8##convert_sign) {     \
+    EXPERIMENTAL_FLAG_SCOPE(revectorize);                                      \
+    if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2))     \
+      return;                                                                  \
+    WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);     \
+    param_type* memory =                                                       \
+        r.builder().AddMemoryElems<param_type>(48 / sizeof(param_type));       \
+    uint8_t param1 = 0;                                                        \
+    uint8_t param2 = 1;                                                        \
+    uint8_t input = r.AllocateLocal(kWasmS128);                                \
+    uint8_t output1 = r.AllocateLocal(kWasmS128);                              \
+    uint8_t output2 = r.AllocateLocal(kWasmS128);                              \
+    constexpr uint8_t offset = 16;                                             \
+    {                                                                          \
+      TSSimd256VerifyScope ts_scope(                                           \
+          r.zone(), TSSimd256VerifyScope::VerifyHaveOpWithKind<                \
+                        compiler::turboshaft::Simd256UnaryOp,                  \
+                        compiler::turboshaft::Simd256UnaryOp::Kind::           \
+                            kF32x8##convert_sign##ConvertI32x8>);              \
+      r.Build(                                                                 \
+          {WASM_LOCAL_SET(input, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),  \
+           WASM_LOCAL_SET(                                                     \
+               output1,                                                        \
+               WASM_SIMD_F32x4_SPLAT(WASM_UNOP(                                \
+                   convert_opcode, WASM_SIMD_##format##_EXTRACT_LANE##sign(    \
+                                       0, WASM_LOCAL_GET(input))))),           \
+           WASM_LOCAL_SET(                                                     \
+               output1, WASM_SIMD_F32x4_REPLACE_LANE(                          \
+                            1, WASM_LOCAL_GET(output1),                        \
+                            WASM_UNOP(convert_opcode,                          \
+                                      WASM_SIMD_##format##_EXTRACT_LANE##sign( \
+                                          1, WASM_LOCAL_GET(input))))),        \
+           WASM_LOCAL_SET(                                                     \
+               output1, WASM_SIMD_F32x4_REPLACE_LANE(                          \
+                            2, WASM_LOCAL_GET(output1),                        \
+                            WASM_UNOP(convert_opcode,                          \
+                                      WASM_SIMD_##format##_EXTRACT_LANE##sign( \
+                                          2, WASM_LOCAL_GET(input))))),        \
+           WASM_LOCAL_SET(                                                     \
+               output1, WASM_SIMD_F32x4_REPLACE_LANE(                          \
+                            3, WASM_LOCAL_GET(output1),                        \
+                            WASM_UNOP(convert_opcode,                          \
+                                      WASM_SIMD_##format##_EXTRACT_LANE##sign( \
+                                          3, WASM_LOCAL_GET(input))))),        \
+           WASM_LOCAL_SET(                                                     \
+               output2,                                                        \
+               WASM_SIMD_F32x4_SPLAT(WASM_UNOP(                                \
+                   convert_opcode, WASM_SIMD_##format##_EXTRACT_LANE##sign(    \
+                                       4, WASM_LOCAL_GET(input))))),           \
+           WASM_LOCAL_SET(                                                     \
+               output2, WASM_SIMD_F32x4_REPLACE_LANE(                          \
+                            1, WASM_LOCAL_GET(output2),                        \
+                            WASM_UNOP(convert_opcode,                          \
+                                      WASM_SIMD_##format##_EXTRACT_LANE##sign( \
+                                          5, WASM_LOCAL_GET(input))))),        \
+           WASM_LOCAL_SET(                                                     \
+               output2, WASM_SIMD_F32x4_REPLACE_LANE(                          \
+                            2, WASM_LOCAL_GET(output2),                        \
+                            WASM_UNOP(convert_opcode,                          \
+                                      WASM_SIMD_##format##_EXTRACT_LANE##sign( \
+                                          6, WASM_LOCAL_GET(input))))),        \
+           WASM_LOCAL_SET(                                                     \
+               output2, WASM_SIMD_F32x4_REPLACE_LANE(                          \
+                            3, WASM_LOCAL_GET(output2),                        \
+                            WASM_UNOP(convert_opcode,                          \
+                                      WASM_SIMD_##format##_EXTRACT_LANE##sign( \
+                                          7, WASM_LOCAL_GET(input))))),        \
+           WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2),                         \
+                               WASM_LOCAL_GET(output1)),                       \
+           WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),          \
+                                      WASM_LOCAL_GET(output2)),                \
+           WASM_ONE});                                                         \
+    }                                                                          \
+                                                                               \
+    constexpr uint32_t lanes = kSimd128Size / sizeof(param_type);              \
+    auto values = compiler::ValueHelper::GetVector<param_type>();              \
+    float* output = reinterpret_cast<float*>(memory + lanes);                  \
+    for (uint32_t i = 0; i + lanes <= values.size(); i++) {                    \
+      for (uint32_t j = 0; j < lanes; j++) {                                   \
+        r.builder().WriteMemory(&memory[j], values[i + j]);                    \
+      }                                                                        \
+      r.Call(0, 16);                                                           \
+                                                                               \
+      /* Only lane0 to lane7 are processed*/                                   \
+      for (uint32_t j = 0; j < 7; j++) {                                       \
+        float expected = static_cast<float>(static_cast<convert_type>(         \
+            static_cast<extract_type>(values[i + j])));                        \
+        CHECK_EQ(output[j], expected);                                         \
+      }                                                                        \
+    }                                                                          \
+  }
+
+// clang-format off
+RunExtendIntToF32x4RevecTest(I8x16, _U, kExprF32UConvertI32, U, uint8_t,
+                           uint32_t, uint32_t)
+
+RunExtendIntToF32x4RevecTest(I8x16, _U, kExprF32SConvertI32, S, uint8_t,
+                           uint32_t, int32_t)
+
+RunExtendIntToF32x4RevecTest(I8x16, , kExprF32UConvertI32, U, int8_t,
+                           int32_t, uint32_t)
+
+RunExtendIntToF32x4RevecTest(I8x16, , kExprF32SConvertI32, S, int8_t,
+                           int32_t, int32_t)
+
+RunExtendIntToF32x4RevecTest(I16x8, _U, kExprF32UConvertI32, U, uint16_t,
+                           uint32_t, uint32_t)
+
+RunExtendIntToF32x4RevecTest(I16x8, _U, kExprF32SConvertI32, S, uint16_t,
+                           uint32_t, int32_t)
+
+RunExtendIntToF32x4RevecTest(I16x8, , kExprF32UConvertI32, U, int16_t,
+                           int32_t, uint32_t)
+
+RunExtendIntToF32x4RevecTest(I16x8, , kExprF32SConvertI32, S, int16_t,
+                           int32_t, int32_t)
+// clang-format on
+
+#undef RunExtendIntToF32x4RevecTest
+
+TEST(RunWasmTurbofan_ChangeIndexFromI32ToI64ExpectFail) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  int32_t* memory =
+      r.builder().AddMemoryElems<int32_t>(8, wasm::AddressType::kI64);
+  int32_t param1 = 0;
+  constexpr int32_t offset = 16;
+  {
+    TSSimd256VerifyScope ts_scope(r.zone(),
+                                  TSSimd256VerifyScope::VerifyHaveAnySimd256Op,
+                                  ExpectedResult::kFail);
+    r.Build({WASM_SIMD_STORE_MEM(WASM_ZERO64,
+                                 WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(param1))),
+             WASM_SIMD_STORE_MEM_OFFSET(
+                 offset, WASM_I64_SCONVERT_I32(WASM_ZERO),
+                 WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(param1))),
+             WASM_ONE});
+  }
+
+  FOR_INT32_INPUTS(x) {
+    r.Call(x);
+    for (int i = 0; i < 8; ++i) {
+      CHECK_EQ(x, r.builder().ReadMemory(&memory[i]));
+    }
+  }
+}
+
+// Two splat have same constant value, may be revectorized.
+TEST(RunWasmTurbofan_ConstSplatRevec) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+
+  int32_t* memory;
+  auto build_and_check_results = [&memory](WasmRunner<int32_t>& r, int32_t x,
+                                           int32_t y, uint8_t offset,
+                                           enum ExpectedResult expect) {
+    memory = r.builder().AddMemoryElems<int32_t>(12);
+    {
+      TSSimd256VerifyScope ts_scope(
+          r.zone(),
+          TSSimd256VerifyScope::VerifyHaveOpWithKind<
+              compiler::turboshaft::Simd256SplatOp,
+              compiler::turboshaft::Simd256SplatOp::Kind::kI32x8>,
+          expect);
+
+      r.Build(
+          {WASM_SIMD_STORE_MEM(WASM_ZERO, WASM_SIMD_I32x4_SPLAT(WASM_I32V(x))),
+           WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_ZERO,
+                                      WASM_SIMD_I32x4_SPLAT(WASM_I32V(y))),
+           WASM_ONE});
+    }
+    r.Call();
+    for (int i = 0; i < 4; ++i) {
+      CHECK_EQ(x, r.builder().ReadMemory(&memory[i]));
+      CHECK_EQ(y,
+               r.builder().ReadMemory(&memory[i + offset / sizeof(int32_t)]));
+    }
+  };
+
+  {
+    // Splat from same constant(1)
+    WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+    build_and_check_results(r, 1, 1, 16, ExpectedResult::kPass);
+  }
+
+  {
+    // Splat from different constant(0 and 1)
+    WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+    build_and_check_results(r, 0, 1, 16, ExpectedResult::kFail);
+  }
+
+  {
+    // Non-continuous store
+    WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+    build_and_check_results(r, 1, 1, 32, ExpectedResult::kFail);
+  }
+}
+
+// Two Splat from different value, not constant
+TEST(RunWasmTurbofan_I32x4SplatRevecExpectFail) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(8);
+  int32_t param1 = 0;
+  int32_t param2 = 1;
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(),
+        TSSimd256VerifyScope::VerifyHaveOpWithKind<
+            compiler::turboshaft::Simd256SplatOp,
+            compiler::turboshaft::Simd256SplatOp::Kind::kI32x8>,
+        ExpectedResult::kFail);
+
+    r.Build({WASM_SIMD_STORE_MEM(WASM_ZERO,
+                                 WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(param1))),
+             WASM_SIMD_STORE_MEM_OFFSET(
+                 16, WASM_ZERO, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(param2))),
+             WASM_ONE});
+  }
+
+  FOR_INT32_INPUTS(x) {
+    FOR_INT32_INPUTS(y) {
+      r.Call(x, y);
+      for (int i = 0; i < 4; ++i) {
+        CHECK_EQ(x, r.builder().ReadMemory(&memory[i]));
+        CHECK_EQ(y, r.builder().ReadMemory(&memory[i + 4]));
+      }
+    }
+  }
+}
+
+// Can't merge different opcode, I32x4Splat(i32) and S128Const
+TEST(RunWasmTurbofan_DifferentOpcodeRevecExpectFail) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int8_t> r(TestExecutionTier::kTurbofan);
+  int8_t* memory = r.builder().AddMemoryElems<int8_t>(32);
+  int8_t param1 = 0;
+  std::array<uint8_t, kSimd128Size> expected = {0};
+  // Test for generic constant
+  for (int i = 0; i < kSimd128Size; i++) {
+    expected[i] = i;
+  }
+
+  {
+    TSSimd256VerifyScope ts_scope(r.zone(),
+                                  TSSimd256VerifyScope::VerifyHaveAnySimd256Op,
+                                  ExpectedResult::kFail);
+    r.Build({WASM_SIMD_STORE_MEM(WASM_ZERO, WASM_SIMD_CONSTANT(expected)),
+             WASM_SIMD_STORE_MEM_OFFSET(
+                 16, WASM_ZERO, WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(param1))),
+             WASM_ONE});
+  }
+  FOR_INT8_INPUTS(x) {
+    r.Call(x);
+    for (int i = 0; i < kSimd128Size; ++i) {
+      CHECK_EQ(expected[i], r.builder().ReadMemory(&memory[i]));
+      CHECK_EQ(x, r.builder().ReadMemory(&memory[i + 16]));
+    }
+  }
+}
+
+// Signed overflow in offset + index.
+TEST(RunWasmTurbofan_OffsetAddIndexOverflowRevecExpectFail) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+  uint32_t mem_size =
+      static_cast<uint32_t>(max_mem32_pages() * 0.6 * kWasmPageSize);
+  uint8_t* memory = r.builder().AddMemory(mem_size);
+  // int32_t(index) + 32 will overflow.
+  constexpr uint32_t index = 2147483646;
+  // Avoid OOB.
+  if (index + 48 >= mem_size) {
+    return;
+  }
+
+  {
+    TSSimd256VerifyScope ts_scope(r.zone(),
+                                  TSSimd256VerifyScope::VerifyHaveAnySimd256Op,
+                                  ExpectedResult::kFail);
+
+    uint8_t temp1 = r.AllocateLocal(kWasmS128);
+    uint8_t temp2 = r.AllocateLocal(kWasmS128);
+    r.Build(
+        {WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_MEM_OFFSET(16, WASM_I32V(index))),
+         WASM_LOCAL_SET(temp2, WASM_SIMD_LOAD_MEM_OFFSET(32, WASM_I32V(index))),
+         WASM_SIMD_STORE_MEM(
+             WASM_ZERO, WASM_SIMD_UNOP(kExprS128Not, WASM_LOCAL_GET(temp1))),
+         WASM_SIMD_STORE_MEM_OFFSET(
+             16, WASM_ZERO,
+             WASM_SIMD_UNOP(kExprS128Not, WASM_LOCAL_GET(temp2))),
+         WASM_ONE});
+  }
+
+  for (uint32_t i = 0; i < kSimd128Size * 2; ++i) {
+    memory[i + 16 + index] = i;
+  }
+  r.Call();
+  for (uint32_t i = 0; i < kSimd128Size * 2; ++i) {
+    CHECK_EQ(~memory[16 + index + i] & 0xFF, memory[i]);
+  }
+}
+
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 #undef WASM_SIMD_CHECK_LANE_S
 #undef WASM_SIMD_CHECK_LANE_U

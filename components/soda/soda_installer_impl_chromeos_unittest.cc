@@ -4,8 +4,11 @@
 
 #include "components/soda/soda_installer_impl_chromeos.h"
 
+#include <algorithm>
+
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
+#include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
@@ -14,6 +17,7 @@
 #include "components/live_caption/pref_names.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/soda/pref_names.h"
+#include "components/soda/soda_features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -47,16 +51,13 @@ class SodaInstallerImplChromeOSTest : public testing::Test {
         ash::prefs::kProjectorCreationFlowLanguage, kUsEnglishLocale);
     pref_service_->registry()->RegisterStringPref(
         prefs::kLiveCaptionLanguageCode, kUsEnglishLocale);
-
-    ash::DlcserviceClient::InitializeFake();
-    fake_dlcservice_client_ =
-        static_cast<ash::FakeDlcserviceClient*>(ash::DlcserviceClient::Get());
+    pref_service_->registry()->RegisterStringPref(
+        ash::prefs::kClassManagementToolsAvailabilitySetting, std::string());
   }
 
   void TearDown() override {
     soda_installer_impl_.reset();
     pref_service_.reset();
-    ash::DlcserviceClient::Shutdown();
   }
 
   SodaInstallerImplChromeOS* GetInstance() {
@@ -90,7 +91,7 @@ class SodaInstallerImplChromeOSTest : public testing::Test {
   void RunUntilIdle() { task_environment_.RunUntilIdle(); }
 
   void SetInstallError() {
-    fake_dlcservice_client_->set_install_error(dlcservice::kErrorNeedReboot);
+    fake_dlcservice_client_.set_install_error(dlcservice::kErrorNeedReboot);
   }
 
   void SetUninstallTimer() {
@@ -121,12 +122,13 @@ class SodaInstallerImplChromeOSTest : public testing::Test {
     soda_installer_impl_->soda_installer_initialized_ = initialized;
   }
 
+  std::unique_ptr<SodaInstallerImplChromeOS> soda_installer_impl_;
+
  private:
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
-  std::unique_ptr<SodaInstallerImplChromeOS> soda_installer_impl_;
   std::unique_ptr<TestingPrefServiceSimple> pref_service_;
-  raw_ptr<ash::FakeDlcserviceClient, ExperimentalAsh> fake_dlcservice_client_;
+  ash::FakeDlcserviceClient fake_dlcservice_client_;
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
@@ -156,6 +158,71 @@ TEST_F(SodaInstallerImplChromeOSTest, IsDownloading) {
   ASSERT_TRUE(IsSodaDownloading());
   RunUntilIdle();
   ASSERT_FALSE(IsSodaDownloading());
+}
+
+TEST_F(SodaInstallerImplChromeOSTest, SubSetCorrect) {
+  std::vector<std::string> actual_langs =
+      GetInstance()->GetAvailableLanguages();
+  auto expected_livecaption_langs =
+      GetInstance()->GetLiveCaptionEnabledLanguages();
+  EXPECT_THAT(expected_livecaption_langs, ::testing::IsSubsetOf(actual_langs));
+}
+
+TEST_F(SodaInstallerImplChromeOSTest, ConchAddOns) {
+  base::test::ScopedFeatureList scoped_feature_list_internal;
+  scoped_feature_list_internal.InitWithFeatures(
+      {::speech::kCrosSodaConchLanguages,
+       ::speech::kFeatureManagementCrosSodaConchLanguages},
+      {});
+  auto expected_livecaption_langs =
+      GetInstance()->GetLiveCaptionEnabledLanguages();
+  EXPECT_THAT(expected_livecaption_langs,
+              ::testing::IsSupersetOf({"da-DK", "nb-NO", "nl-NL", "sv-SE"}));
+}
+
+TEST_F(SodaInstallerImplChromeOSTest, ConchInLiveCaptionFullList) {
+  base::test::ScopedFeatureList scoped_feature_list_internal;
+  scoped_feature_list_internal.InitWithFeatures(
+      {::speech::kCrosSodaConchLanguages, ::speech::kCrosExpandSodaLanguages,
+       ::speech::kFeatureManagementCrosSodaConchLanguages},
+      {});
+  soda_installer_impl_.reset();
+  soda_installer_impl_ = std::make_unique<SodaInstallerImplChromeOS>();
+  std::vector<std::string> enabled_and_available_languages;
+  std::vector<base::Value::Dict> available_language_packs;
+  {
+    auto enabled_languages = GetInstance()->GetLiveCaptionEnabledLanguages();
+    auto available_languages = GetInstance()->GetAvailableLanguages();
+    auto available_languages_set = std::unordered_set<std::string>(
+        available_languages.begin(), available_languages.end());
+    for (const auto& enabled_language : enabled_languages) {
+      if (available_languages_set.find(enabled_language) !=
+          available_languages_set.end()) {
+        enabled_and_available_languages.push_back(enabled_language);
+      }
+    }
+  }
+  EXPECT_THAT(enabled_and_available_languages,
+              ::testing::IsSupersetOf({"da-DK", "nb-NO", "nl-NL", "sv-SE"}));
+}
+
+TEST_F(SodaInstallerImplChromeOSTest, MultipleLangsAvailableInExperiment) {
+  base::test::ScopedFeatureList scoped_feature_list_internal;
+  std::map<std::string, std::string> params;
+  params.insert({"available_languages",
+                 "it-IT:libsoda-chickenface,ja-JP:libsoda-moo,de-IT:"
+                 "incorrectprefix,wr-on:libsoda-wrong-language,de-DE:"});
+  scoped_feature_list_internal.InitAndEnableFeatureWithParameters(
+      ::speech::kCrosExpandSodaLanguages, params);
+  // explicit delete first to make the single instance enforcement happy.
+  soda_installer_impl_.reset();
+  soda_installer_impl_ = std::make_unique<SodaInstallerImplChromeOS>();
+  std::vector<std::string> actual_langs =
+      GetInstance()->GetAvailableLanguages();
+  EXPECT_THAT(actual_langs,
+              ::testing::IsSupersetOf({"ja-JP", "it-IT", "en-US"}));
+  EXPECT_TRUE(std::find(actual_langs.begin(), actual_langs.end(), "de-DE") ==
+              actual_langs.end());
 }
 
 TEST_F(SodaInstallerImplChromeOSTest, IsAnyLanguagePackInstalled) {

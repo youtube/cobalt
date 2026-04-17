@@ -54,8 +54,9 @@ _FUNCTION_INFO = {
     'impl_func': False,
     'internal': True,
     'data_transfer_methods': ['shm'],
-    'cmd_args': 'uint32_t commands_shm_id, '
-                'uint32_t commands_shm_offset, uint32_t size',
+    'cmd_args': 'uint32_t trace_id_high, uint32_t trace_id_low, '
+                'uint32_t commands_shm_id, uint32_t commands_shm_offset, '
+                'uint32_t size',
     'size_args': {
       'commands': 'size * sizeof(char)',
     },
@@ -65,13 +66,27 @@ _FUNCTION_INFO = {
     'client_test': False,
     'internal': True,
     'cmd_args': 'GLuint device_id, GLuint device_generation, GLuint id, '
-                'GLuint generation, GLuint usage, MailboxFlags flags, '
+                'GLuint generation, uint64_t usage, '
+                'uint64_t internal_usage, MailboxFlags flags, '
                 'GLuint view_format_count, GLuint count, '
                 'const GLuint* mailbox_and_view_formats',
     'type': 'PUTn',
     'count': 1,
   },
+  'AssociateMailboxForBuffer': {
+    'impl_func': False,
+    'client_test': False,
+    'internal': True,
+    'cmd_args': 'GLuint device_id, GLuint device_generation, GLuint id, '
+                'GLuint generation, uint64_t usage, const GLuint* mailbox',
+    'type': 'PUT',
+    'count': 4,
+  },
   'DissociateMailbox': {
+    'impl_func': False,
+    'client_test': False,
+  },
+   'DissociateMailboxForBuffer': {
     'impl_func': False,
     'client_test': False,
   },
@@ -107,7 +122,8 @@ def main(argv):
 
   # This script lives under src/gpu/command_buffer.
   script_dir = os.path.dirname(os.path.abspath(__file__))
-  assert script_dir.endswith(os.path.normpath("src/gpu/command_buffer"))
+  assert script_dir.endswith((os.path.normpath("src/gpu/command_buffer"),
+                              os.path.normpath("chromium/gpu/command_buffer")))
   # os.path.join doesn't do the right thing with relative paths.
   chromium_root_dir = os.path.abspath(script_dir + "/../..")
 

@@ -11,6 +11,7 @@
 #include "third_party/blink/renderer/core/testing/null_execution_context.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 
 namespace blink {
 
@@ -67,7 +68,7 @@ class StyleTraversalRootTest : public testing::Test {
   void SetUp() final {
     document_ =
         Document::CreateForTest(execution_context_.GetExecutionContext());
-    elements_ = MakeGarbageCollected<HeapVector<Member<Element>, 7>>();
+    elements_ = MakeGarbageCollected<GCedHeapVector<Member<Element>, 7>>();
     for (size_t i = 0; i < kElementCount; i++) {
       elements_->push_back(GetDocument().CreateRawElement(html_names::kDivTag));
     }
@@ -89,12 +90,13 @@ class StyleTraversalRootTest : public testing::Test {
     //     `-- div#g
   }
   Document& GetDocument() { return *document_; }
-  Element* DivElement(ElementIndex index) { return elements_->at(index); }
+  Element* DivElement(ElementIndex index) { return elements_->at(index).Get(); }
 
  private:
+  test::TaskEnvironment task_environment_;
   ScopedNullExecutionContext execution_context_;
   Persistent<Document> document_;
-  Persistent<HeapVector<Member<Element>, 7>> elements_;
+  Persistent<GCedHeapVector<Member<Element>, 7>> elements_;
 };
 
 TEST_F(StyleTraversalRootTest, Update_SingleRoot) {

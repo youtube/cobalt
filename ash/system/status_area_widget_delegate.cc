@@ -4,12 +4,16 @@
 
 #include "ash/system/status_area_widget_delegate.h"
 
-#include "ash/focus_cycler.h"
+#include <algorithm>
+
+#include "ash/focus/focus_cycler.h"
 #include "ash/login/ui/lock_screen.h"
 #include "ash/public/cpp/ash_view_ids.h"
 #include "ash/public/cpp/login_screen.h"
+#include "ash/public/cpp/shelf_config.h"
 #include "ash/public/cpp/shell_window_ids.h"
 #include "ash/root_window_controller.h"
+#include "ash/session/session_controller_impl.h"
 #include "ash/shelf/shelf.h"
 #include "ash/shelf/shelf_layout_manager.h"
 #include "ash/shelf/shelf_widget.h"
@@ -19,7 +23,7 @@
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
 #include "base/containers/adapters.h"
 #include "base/memory/raw_ptr.h"
-#include "base/ranges/algorithm.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/scoped_layer_animation_settings.h"
 #include "ui/gfx/animation/tween.h"
@@ -36,7 +40,9 @@ namespace ash {
 namespace {
 
 constexpr int kPaddingBetweenTrayItems = 8;
+constexpr int kPaddingBetweenTrayItemsTabletMode = 6;
 constexpr int kPaddingBetweenPrimaryTraySetItems = kPaddingBetweenTrayItems - 4;
+constexpr int kPaddingBetweenPrimaryTraySetItemsInApp = -4;
 
 class StatusAreaWidgetDelegateAnimationSettings
     : public ui::ScopedLayerAnimationSettings {
@@ -81,15 +87,33 @@ class OverflowGradientBackground : public views::Background {
   }
 
  private:
-  raw_ptr<Shelf, ExperimentalAsh> shelf_;
+  raw_ptr<Shelf> shelf_;
 };
+
+int PaddingBetweenTrayItems(const bool is_in_primary_tray_set) {
+  if (is_in_primary_tray_set) {
+    // In in-app mode, a negative padding is set. This is because it is set to 6
+    // in `TrayContainer`, and this is easier then rewriting TrayContainer to
+    // react to `ShelfLayoutManager` state changes. See https://b/310272268.
+    return (ShelfConfig::Get()->in_tablet_mode() &&
+            ShelfConfig::Get()->is_in_app())
+               ? kPaddingBetweenPrimaryTraySetItemsInApp
+               : kPaddingBetweenPrimaryTraySetItems;
+  }
+
+  if (ShelfConfig::Get()->in_tablet_mode()) {
+    return kPaddingBetweenTrayItemsTabletMode;
+  }
+
+  return kPaddingBetweenTrayItems;
+}
 
 }  // namespace
 
 StatusAreaWidgetDelegate::StatusAreaWidgetDelegate(Shelf* shelf)
-    : shelf_(shelf), focus_cycler_for_testing_(nullptr) {
+    : shelf_(shelf) {
   DCHECK(shelf_);
-  SetOwnedByWidget(true);
+  SetOwnedByWidget(OwnedByWidgetPassKey());
 
   // Allow the launcher to surrender the focus to another window upon
   // navigation completion by the user.
@@ -99,11 +123,6 @@ StatusAreaWidgetDelegate::StatusAreaWidgetDelegate(Shelf* shelf)
 }
 
 StatusAreaWidgetDelegate::~StatusAreaWidgetDelegate() = default;
-
-void StatusAreaWidgetDelegate::SetFocusCyclerForTesting(
-    const FocusCycler* focus_cycler) {
-  focus_cycler_for_testing_ = focus_cycler;
-}
 
 bool StatusAreaWidgetDelegate::ShouldFocusOut(bool reverse) {
   views::View* focused_view = GetFocusManager()->GetFocusedView();
@@ -131,29 +150,30 @@ void StatusAreaWidgetDelegate::Shutdown() {
   RemoveAllChildViews();
 }
 
-void StatusAreaWidgetDelegate::GetAccessibleNodeData(
-    ui::AXNodeData* node_data) {
-  AccessiblePaneView::GetAccessibleNodeData(node_data);
+void StatusAreaWidgetDelegate::UpdateAccessiblePreviousAndNextFocus() {
+  if (Shell::Get()->session_controller()->is_chrome_terminating()) {
+    return;
+  }
+
   // If OOBE dialog is visible it should be the next accessible widget,
   // otherwise it should be LockScreen.
   if (!!LoginScreen::Get()->GetLoginWindowWidget() &&
       LoginScreen::Get()->GetLoginWindowWidget()->IsVisible()) {
-    GetViewAccessibility().OverrideNextFocus(
+    GetViewAccessibility().SetNextFocus(
         LoginScreen::Get()->GetLoginWindowWidget());
   } else if (LockScreen::HasInstance()) {
-    GetViewAccessibility().OverrideNextFocus(LockScreen::Get()->widget());
+    GetViewAccessibility().SetNextFocus(LockScreen::Get()->widget());
+  } else {
+    GetViewAccessibility().SetNextFocus(nullptr);
   }
+
   Shelf* shelf = Shelf::ForWindow(GetWidget()->GetNativeWindow());
-  GetViewAccessibility().OverridePreviousFocus(shelf->shelf_widget());
+  GetViewAccessibility().SetPreviousFocus(shelf->shelf_widget());
 }
 
 views::View* StatusAreaWidgetDelegate::GetDefaultFocusableChild() {
   return default_last_focusable_child_ ? GetLastFocusableChild()
                                        : GetFirstFocusableChild();
-}
-
-const char* StatusAreaWidgetDelegate::GetClassName() const {
-  return "ash/StatusAreaWidgetDelegate";
 }
 
 views::Widget* StatusAreaWidgetDelegate::GetWidget() {
@@ -185,19 +205,17 @@ void StatusAreaWidgetDelegate::OnGestureEvent(ui::GestureEvent* event) {
 bool StatusAreaWidgetDelegate::CanActivate() const {
   // We don't want mouse clicks to activate us, but we need to allow
   // activation when the user is using the keyboard (FocusCycler).
-  const FocusCycler* focus_cycler = focus_cycler_for_testing_
-                                        ? focus_cycler_for_testing_.get()
-                                        : Shell::Get()->focus_cycler();
+  const FocusCycler* focus_cycler = Shell::Get()->focus_cycler();
   return focus_cycler->widget_activating() == GetWidget();
 }
 
 void StatusAreaWidgetDelegate::CalculateTargetBounds() {
   const auto it =
-      base::ranges::find(base::Reversed(children()), true, &View::GetVisible);
+      std::ranges::find(base::Reversed(children()), true, &View::GetVisible);
   const View* last_visible_child = it == children().crend() ? nullptr : *it;
 
   // Set the border for each child, with a different border for the edge child.
-  for (auto* child : children()) {
+  for (views::View* child : children()) {
     if (!child->GetVisible())
       continue;
     SetBorderOnChild(child, last_visible_child == child);
@@ -219,9 +237,9 @@ gfx::Rect StatusAreaWidgetDelegate::GetTargetBounds() const {
 void StatusAreaWidgetDelegate::UpdateLayout(bool animate) {
   if (animate) {
     StatusAreaWidgetDelegateAnimationSettings settings(layer());
-    Layout();
+    DeprecatedLayoutImmediately();
   } else {
-    Layout();
+    DeprecatedLayoutImmediately();
   }
 }
 
@@ -251,6 +269,8 @@ void StatusAreaWidgetDelegate::ChildVisibilityChanged(View* child) {
 
 void StatusAreaWidgetDelegate::SetBorderOnChild(views::View* child,
                                                 bool is_child_on_edge) {
+  // TODO(https://b/310272268): Setting padding both here and in `TrayContainer`
+  // is a bit confusing. This is fragile, and we should rewrite this.
   const int vertical_padding =
       (ShelfConfig::Get()->shelf_size() - kTrayItemSize) / 2;
 
@@ -260,8 +280,7 @@ void StatusAreaWidgetDelegate::SetBorderOnChild(views::View* child,
   int bottom_edge = vertical_padding;
 
   // Add some extra space so that borders don't overlap. This padding between
-  // items also takes care of padding at the edge of the shelf (unless hotseat
-  // is enabled).
+  // items also takes care of padding at the edge of the shelf.
   int right_edge;
   if (is_child_on_edge) {
     right_edge = ShelfConfig::Get()->control_button_edge_spacing(
@@ -274,8 +293,7 @@ void StatusAreaWidgetDelegate::SetBorderOnChild(views::View* child,
         child->GetID() == VIEW_ID_SA_DATE_TRAY ||
         child->GetID() == VIEW_ID_SA_NOTIFICATION_TRAY;
 
-    right_edge = is_in_primary_tray_set ? kPaddingBetweenPrimaryTraySetItems
-                                        : kPaddingBetweenTrayItems;
+    right_edge = PaddingBetweenTrayItems(is_in_primary_tray_set);
   }
 
   // Swap edges if alignment is not horizontal (bottom-to-top).
@@ -290,7 +308,10 @@ void StatusAreaWidgetDelegate::SetBorderOnChild(views::View* child,
   // Layout on |child| needs to be updated based on new border value before
   // displaying; otherwise |child| will be showing with old border size.
   // Fix for crbug.com/623438.
-  child->Layout();
+  child->DeprecatedLayoutImmediately();
 }
+
+BEGIN_METADATA(StatusAreaWidgetDelegate)
+END_METADATA
 
 }  // namespace ash

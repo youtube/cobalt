@@ -1,3 +1,4 @@
+# schema: https://chromium.googlesource.com/infra/luci/luci-go/+/HEAD/lucicfg/buildifier/lucicfgfmtrc.proto
 rules {
     path: "subprojects"
     path: "dev/subprojects"
@@ -32,13 +33,17 @@ rules {
         # Builders
         arg: "description_html"
         arg: "executable"
+        arg: "parent"
         arg: "schedule"
         arg: "triggered_by"
         arg: "triggering_policy"
         arg: "builder_group"
         arg: "builder_spec"
         arg: "mirrors"
-        arg: "try_settings"
+        arg: "builder_config_settings"
+        arg: "gn_args"
+        arg: "targets"
+        arg: "targets_settings"
         arg: "pool"
         arg: "builderless"
         arg: "cores"
@@ -46,9 +51,10 @@ rules {
         arg: "cpu"
         arg: "ssd"
         arg: "free_space"
-        arg: "disallow_gce"
-        arg: "sheriff_rotations"
+        arg: "gce"
+        arg: "gardener_rotations"
         arg: "tree_closing"
+        arg: "tree_closing_notifiers"
         arg: "console_view_entry"
         arg: "main_console_view"
         arg: "cq_mirrors_console_view"
@@ -87,19 +93,67 @@ rules {
         arg: "executable_suffix"
         arg: "skip_usage_check"
 
-        # mixin/variant
+        # variant
         arg: "enabled"
         arg: "identifier"
+
+        # variant/mixin
+        arg: "generate_pyl_entry"
         arg: "description"
+
+        # tests
+        arg: "test"
+        arg: "results_handler"
+        arg: "is_android_webview"
+        arg: "telemetry_test_name"
+        arg: "mixins"
+        arg: "remove_mixins"
+
+        # bundles
+        arg: "additional_compile_targets"
+        arg: "targets"
+        # Specially handle the ordering for mixins in bundles so that it doesn't
+        # impact the order in tests
+        arg: "targets.bundle.mixins"
+        arg: "per_test_modifications"
+
+        # mixin/variant/test common fields
         arg: "args"
         arg: "precommit_args"
+        arg: "android_args"
+        arg: "chromeos_args"
+        arg: "desktop_args"
+        arg: "lacros_args"
         arg: "linux_args"
         arg: "mac_args"
+        arg: "win_args"
         arg: "win64_args"
+        arg: "ci_only"
+        arg: "swarming"
+        arg: "android_swarming"
+        arg: "chromeos_swarming"
+        arg: "merge"
+        arg: "resultdb"
+        arg: "skylab"
+        arg: "experiment_percentage"
 
         # swarming
+        arg: "targets.swarming.shards"
         arg: "dimensions"
         arg: "optional_dimensions"
+        arg: "expiration_sec"
+        arg: "hard_timeout_sec"
+        arg: "io_timeout_sec"
+
+        # "skylab"
+        arg: "tast_expr"
+        arg: "test_level_retries"
+        arg: "targets.skylab.shards"
+        arg: "timeout_sec"
+
+        # resultdb
+        arg: "enable"
+        arg: "result_format"
 
         # cipd_package
         arg: "package"

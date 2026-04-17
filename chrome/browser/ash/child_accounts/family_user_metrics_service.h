@@ -17,10 +17,6 @@
 class PrefRegistrySimple;
 class PrefService;
 
-namespace base {
-class Time;
-}  // namespace base
-
 namespace content {
 class BrowserContext;
 }  // namespace content
@@ -58,7 +54,7 @@ class FamilyUserMetricsService : public KeyedService {
   // Helper function to check if a new day has arrived.
   void CheckForNewDay();
 
-  const raw_ptr<PrefService, ExperimentalAsh> pref_service_;
+  const raw_ptr<PrefService> pref_service_;
 
   // A periodic timer that checks if a new day has arrived.
   base::RepeatingTimer timer_;

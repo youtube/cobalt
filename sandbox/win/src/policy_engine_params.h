@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef SANDBOX_WIN_SRC_POLICY_ENGINE_PARAMS_H_
 #define SANDBOX_WIN_SRC_POLICY_ENGINE_PARAMS_H_
 
@@ -55,9 +60,6 @@ namespace sandbox {
 //  have each 1) the address of the parameter 2) a numeric id that encodes the
 //  original C++ type. This allows the policy to treat any set of supported
 //  argument types uniformily and with some type safety.
-//
-//  TODO(cpu): support not fully implemented yet for unicode string and will
-//  probably add other types as well.
 class ParameterSet {
  public:
   ParameterSet() : real_type_(INVALID_TYPE), address_(nullptr) {}
@@ -116,12 +118,13 @@ class ParameterSet {
 // in ParameterSetEx with a template function ParamPickerMake to do the
 // parameter type deduction.
 
-// Base template class. Not implemented so using unsupported types should
-// fail to compile.
+// Base template class. Fails to compile to force use of implemented wrappers.
 template <typename T>
 class ParameterSetEx : public ParameterSet {
  public:
-  explicit ParameterSetEx(const void* address);
+  explicit ParameterSetEx(const void* address) {
+    static_assert(false, "Type not supported.");
+  }
 };
 
 template <>
@@ -157,13 +160,6 @@ class ParameterSetEx<uint32_t> : public ParameterSet {
  public:
   explicit ParameterSetEx(const void* address)
       : ParameterSet(UINT32_TYPE, address) {}
-};
-
-template <>
-class ParameterSetEx<UNICODE_STRING> : public ParameterSet {
- public:
-  explicit ParameterSetEx(const void* address)
-      : ParameterSet(UNISTR_TYPE, address) {}
 };
 
 template <typename T>

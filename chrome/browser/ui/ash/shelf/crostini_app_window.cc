@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/ui/ash/shelf/crostini_app_window.h"
-#include "base/memory/raw_ptr.h"
 
+#include "base/memory/raw_ptr.h"
 #include "chrome/browser/ash/app_list/app_service/app_service_app_icon_loader.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/app_icon_loader_delegate.h"
@@ -38,10 +38,14 @@ class CrostiniAppWindow::IconLoader : public AppServiceAppIconLoader,
   ~IconLoader() override = default;
 
   // AppIconLoaderDelegate:
-  void OnAppImageUpdated(const std::string& app_id,
-                         const gfx::ImageSkia& image) override {
-    if (!widget_ || !widget_->widget_delegate())
+  void OnAppImageUpdated(
+      const std::string& app_id,
+      const gfx::ImageSkia& image,
+      bool is_placeholder_icon,
+      const std::optional<gfx::ImageSkia>& badge_image) override {
+    if (!widget_ || !widget_->widget_delegate()) {
       return;
+    }
 
     if (mode_ == Mode::kWindowIcon) {
       widget_->widget_delegate()->SetIcon(ui::ImageModel::FromImageSkia(image));
@@ -53,7 +57,7 @@ class CrostiniAppWindow::IconLoader : public AppServiceAppIconLoader,
 
  private:
   const Mode mode_;
-  const raw_ptr<views::Widget, ExperimentalAsh> widget_;
+  const raw_ptr<views::Widget> widget_;
 };
 
 CrostiniAppWindow::CrostiniAppWindow(Profile* profile,

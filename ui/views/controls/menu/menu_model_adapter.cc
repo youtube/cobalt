@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "base/check.h"
+#include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/models/menu_model.h"
@@ -20,10 +21,6 @@
 
 namespace views {
 
-MenuModelAdapter::MenuModelAdapter(ui::MenuModel* menu_model)
-    : MenuModelAdapter(menu_model, base::RepeatingClosure() /*null callback*/) {
-}
-
 MenuModelAdapter::MenuModelAdapter(
     ui::MenuModel* menu_model,
     base::RepeatingClosure on_menu_closed_callback)
@@ -31,28 +28,32 @@ MenuModelAdapter::MenuModelAdapter(
       triggerable_event_flags_(ui::EF_LEFT_MOUSE_BUTTON |
                                ui::EF_RIGHT_MOUSE_BUTTON),
       on_menu_closed_callback_(std::move(on_menu_closed_callback)) {
-  DCHECK(menu_model);
+  CHECK(menu_model);
+  // MenuModel does not allow changing from one non-null delegate to another.
   menu_model_->SetMenuModelDelegate(nullptr);
   menu_model_->SetMenuModelDelegate(this);
 }
 
 MenuModelAdapter::~MenuModelAdapter() {
-  if (menu_model_)
+  if (menu_model_) {
     menu_model_->SetMenuModelDelegate(nullptr);
+  }
 }
 
 void MenuModelAdapter::BuildMenu(MenuItemView* menu) {
   DCHECK(menu);
 
   // Clear the menu.
-  if (menu->HasSubmenu())
+  if (menu->HasSubmenu()) {
     menu->RemoveAllMenuItems();
+  }
 
   // Leave entries in the map if the menu is being shown.  This
   // allows the map to find the menu model of submenus being closed
   // so ui::MenuModel::MenuClosed() can be called.
-  if (!menu->GetMenuController())
+  if (!menu->GetMenuController()) {
     menu_map_.clear();
+  }
   menu_map_[menu] = menu_model_;
 
   // Repopulate the menu.
@@ -60,10 +61,26 @@ void MenuModelAdapter::BuildMenu(MenuItemView* menu) {
   menu->ChildrenChanged();
 }
 
-MenuItemView* MenuModelAdapter::CreateMenu() {
-  menu_ = new MenuItemView(this);
-  BuildMenu(menu_);
-  return menu_;
+std::unique_ptr<MenuItemView> MenuModelAdapter::CreateMenu() {
+  auto menu = std::make_unique<MenuItemView>(/*delegate=*/this);
+  menu_ = menu.get();
+  BuildMenu(menu.get());
+  return menu;
+}
+
+std::optional<SkColor> MenuModelAdapter::GetLabelColor(int command_id) const {
+  // Use STYLE_PRIMARY for title item. This aligns with 3-dot menu title style.
+  return command_id == ui::MenuModel::kTitleId
+             ? std::make_optional(
+                   menu_->GetSubmenu()->GetColorProvider()->GetColor(
+                       views::TypographyProvider::Get().GetColorId(
+                           views::style::CONTEXT_MENU,
+                           views::style::STYLE_PRIMARY)))
+             : std::nullopt;
+}
+
+bool MenuModelAdapter::IsTearingDown() const {
+  return !menu_model_;
 }
 
 // Static.
@@ -72,8 +89,8 @@ MenuItemView* MenuModelAdapter::AddMenuItemFromModelAt(ui::MenuModel* model,
                                                        MenuItemView* menu,
                                                        size_t menu_index,
                                                        int item_id) {
-  absl::optional<MenuItemView::Type> type;
-  ui::MenuModel::ItemType menu_type = model->GetTypeAt(model_index);
+  std::optional<MenuItemView::Type> type;
+  const auto menu_type = model->GetTypeAt(model_index);
   switch (menu_type) {
     case ui::MenuModel::TYPE_TITLE:
       type = MenuItemView::Type::kTitle;
@@ -109,9 +126,9 @@ MenuItemView* MenuModelAdapter::AddMenuItemFromModelAt(ui::MenuModel* model,
                                model->GetSeparatorTypeAt(model_index));
   }
 
-  ui::ImageModel icon = model->GetIconAt(model_index);
-  ui::ImageModel minor_icon = model->GetMinorIconAt(model_index);
-  auto* menu_item_view = menu->AddMenuItemAt(
+  const ui::ImageModel icon = model->GetIconAt(model_index);
+  const ui::ImageModel minor_icon = model->GetMinorIconAt(model_index);
+  auto* const menu_item_view = menu->AddMenuItemAt(
       menu_index, item_id, model->GetLabelAt(model_index),
       model->GetSecondaryLabelAt(model_index),
       model->GetMinorTextAt(model_index), minor_icon, icon, *type,
@@ -119,16 +136,21 @@ MenuItemView* MenuModelAdapter::AddMenuItemFromModelAt(ui::MenuModel* model,
       model->GetForegroundColorId(model_index),
       model->GetSelectedBackgroundColorId(model_index));
 
-  if (model->IsAlertedAt(model_index))
+  if (model->IsAlertedAt(model_index)) {
     menu_item_view->SetAlerted();
+  }
   menu_item_view->set_is_new(model->IsNewFeatureAt(model_index));
   menu_item_view->set_may_have_mnemonics(
       model->MayHaveMnemonicsAt(model_index));
-  menu_item_view->SetAccessibleName(model->GetAccessibleNameAt(model_index));
+  if (const std::u16string acc_name = model->GetAccessibleNameAt(model_index);
+      !acc_name.empty()) {
+    menu_item_view->GetViewAccessibility().SetName(acc_name);
+  }
   const ui::ElementIdentifier element_id =
       model->GetElementIdentifierAt(model_index);
-  if (element_id)
+  if (element_id) {
     menu_item_view->SetProperty(kElementIdentifierKey, element_id);
+  }
 
   return menu_item_view;
 }
@@ -168,9 +190,15 @@ void MenuModelAdapter::ExecuteCommand(int id, int mouse_event_flags) {
 
 bool MenuModelAdapter::IsTriggerableEvent(MenuItemView* source,
                                           const ui::Event& e) {
-  return e.type() == ui::ET_GESTURE_TAP ||
-         e.type() == ui::ET_GESTURE_TAP_DOWN ||
-         (e.IsMouseEvent() && (triggerable_event_flags_ & e.flags()) != 0);
+  // By default, a sub-menu is not triggerable.
+  // Subclass can override this behavior.
+  if (source->GetType() == MenuItemView::Type::kSubMenu) {
+    return false;
+  }
+
+  return e.type() == ui::EventType::kGestureTap ||
+         e.type() == ui::EventType::kGestureTapDown ||
+         (e.IsMouseEvent() && (triggerable_event_flags_ & e.flags()));
 }
 
 bool MenuModelAdapter::GetAccelerator(int id,
@@ -192,9 +220,10 @@ const gfx::FontList* MenuModelAdapter::GetLabelFontList(int id) const {
   ui::MenuModel* model = menu_model_;
   size_t index = 0;
   if (ui::MenuModel::GetModelAndIndexForCommandId(id, &model, &index)) {
-    const gfx::FontList* font_list = model->GetLabelFontListAt(index);
-    if (font_list)
+    if (const gfx::FontList* const font_list =
+            model->GetLabelFontListAt(index)) {
       return font_list;
+    }
   }
 
   // This line may be reached for the empty menu item.
@@ -224,29 +253,42 @@ bool MenuModelAdapter::IsItemChecked(int id) const {
 
 void MenuModelAdapter::WillShowMenu(MenuItemView* menu) {
   // Look up the menu model for this menu.
-  const std::map<MenuItemView*, ui::MenuModel*>::const_iterator map_iterator =
-      menu_map_.find(menu);
+  const std::map<MenuItemView*,
+                 raw_ptr<ui::MenuModel, CtnExperimental>>::const_iterator
+      map_iterator = menu_map_.find(menu);
   CHECK(map_iterator != menu_map_.end());
   map_iterator->second->MenuWillShow();
 }
 
 void MenuModelAdapter::WillHideMenu(MenuItemView* menu) {
   // Look up the menu model for this menu.
-  const std::map<MenuItemView*, ui::MenuModel*>::const_iterator map_iterator =
-      menu_map_.find(menu);
+  const std::map<MenuItemView*,
+                 raw_ptr<ui::MenuModel, CtnExperimental>>::const_iterator
+      map_iterator = menu_map_.find(menu);
   CHECK(map_iterator != menu_map_.end());
   map_iterator->second->MenuWillClose();
 }
 
 void MenuModelAdapter::OnMenuClosed(MenuItemView* menu) {
-  if (!on_menu_closed_callback_.is_null())
+  if (!on_menu_closed_callback_.is_null()) {
     on_menu_closed_callback_.Run();
+  }
 }
 
 // MenuModelDelegate overrides:
+void MenuModelAdapter::OnIconChanged(int command_id) {
+  ui::MenuModel* model = menu_model_;
+  size_t index;
+  menu_model_->GetModelAndIndexForCommandId(command_id, &model, &index);
+  views::MenuItemView* item = menu_->GetMenuItemByID(command_id);
+  CHECK(item);
+  item->SetIcon(model->GetIconAt(index));
+}
+
 void MenuModelAdapter::OnMenuStructureChanged() {
-  if (menu_)
+  if (menu_) {
     BuildMenu(menu_);
+  }
 }
 
 void MenuModelAdapter::OnMenuClearingDelegate() {
@@ -256,36 +298,34 @@ void MenuModelAdapter::OnMenuClearingDelegate() {
 // MenuModelAdapter, private:
 
 void MenuModelAdapter::BuildMenuImpl(MenuItemView* menu, ui::MenuModel* model) {
-  DCHECK(menu);
-  DCHECK(model);
-  bool has_icons = model->HasIcons();
+  CHECK(menu);
+  CHECK(model);
   const size_t item_count = model->GetItemCount();
   for (size_t i = 0; i < item_count; ++i) {
-    MenuItemView* item = AppendMenuItem(menu, model, i);
-    if (item) {
-      // Enabled state should be ignored for titles as they are non-interactive.
-      if (model->GetTypeAt(i) == ui::MenuModel::TYPE_TITLE)
-        item->SetEnabled(false);
-      else
-        item->SetEnabled(model->IsEnabledAt(i));
-      item->SetVisible(model->IsVisibleAt(i));
+    MenuItemView* const item = AppendMenuItem(menu, model, i);
+    const auto type = model->GetTypeAt(i);
+    const bool is_submenu = type == ui::MenuModel::TYPE_SUBMENU ||
+                            type == ui::MenuModel::TYPE_ACTIONABLE_SUBMENU;
+    if (!item) {
+      CHECK(!is_submenu);
+      continue;
     }
 
-    if (model->GetTypeAt(i) == ui::MenuModel::TYPE_SUBMENU ||
-        model->GetTypeAt(i) == ui::MenuModel::TYPE_ACTIONABLE_SUBMENU) {
-      DCHECK(item);
-      DCHECK(item->GetType() == MenuItemView::Type::kSubMenu ||
-             item->GetType() == MenuItemView::Type::kActionableSubMenu);
-      ui::MenuModel* submodel = model->GetSubmenuModelAt(i);
-      DCHECK(submodel);
-      BuildMenuImpl(item, submodel);
-      has_icons = has_icons || item->has_icons();
+    // Enabled state should be ignored for titles as they are non-interactive.
+    item->SetEnabled(type != ui::MenuModel::TYPE_TITLE &&
+                     model->IsEnabledAt(i));
+    item->SetVisible(model->IsVisibleAt(i));
 
+    if (is_submenu) {
+      const auto item_type = item->GetType();
+      CHECK(item_type == MenuItemView::Type::kSubMenu ||
+            item_type == MenuItemView::Type::kActionableSubMenu);
+      ui::MenuModel* const submodel = model->GetSubmenuModelAt(i);
+      CHECK(submodel);
+      BuildMenuImpl(item, submodel);
       menu_map_[item] = submodel;
     }
   }
-
-  menu->set_has_icons(has_icons);
 }
 
 }  // namespace views

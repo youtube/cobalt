@@ -2,13 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/formats/mp2t/es_parser_adts.h"
 
 #include <stddef.h>
 
+#include <optional>
 #include <vector>
 
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/string_number_conversions.h"
 #include "media/base/audio_timestamp_helper.h"
 #include "media/base/bit_reader.h"
@@ -20,7 +27,6 @@
 #include "media/formats/common/offset_byte_queue.h"
 #include "media/formats/mp2t/mp2t_common.h"
 #include "media/formats/mpeg/adts_constants.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
 
@@ -47,7 +53,7 @@ namespace mp2t {
 
 struct EsParserAdts::AdtsFrame {
   // Pointer to the ES data.
-  const uint8_t* data;
+  raw_ptr<const uint8_t> data;
 
   // Frame size;
   int size;
@@ -93,7 +99,7 @@ bool EsParserAdts::LookForAdtsFrame(AdtsFrame* adts_frame) {
     }
 
     es_queue_->Pop(offset);
-    es_queue_->Peek(&adts_frame->data, &es_size);
+    es_queue_->Peek(&adts_frame->data.AsEphemeralRawAddr(), &es_size);
     adts_frame->queue_offset = es_queue_->head();
     adts_frame->size = frame_size;
     adts_frame->header_size = header_size;
@@ -177,7 +183,7 @@ bool EsParserAdts::ParseFromEsQueue() {
     if (current_timing_desc.pts != kNoTimestamp)
       audio_timestamp_helper_->SetBaseTimestamp(current_timing_desc.pts);
 
-    if (audio_timestamp_helper_->base_timestamp() == kNoTimestamp) {
+    if (!audio_timestamp_helper_->base_timestamp()) {
       DVLOG(1) << "Skipping audio frame with unknown timestamp";
       SkipAdtsFrame(adts_frame);
       continue;
@@ -191,10 +197,11 @@ bool EsParserAdts::ParseFromEsQueue() {
 
     // TODO(wolenetz/acolwell): Validate and use a common cross-parser TrackId
     // type and allow multiple audio tracks. See https://crbug.com/341581.
+    auto adts_frame_span = base::span(
+        adts_frame.data.get(), base::checked_cast<size_t>(adts_frame.size));
     scoped_refptr<StreamParserBuffer> stream_parser_buffer =
-        StreamParserBuffer::CopyFrom(adts_frame.data, adts_frame.size,
-                                     is_key_frame, DemuxerStream::AUDIO,
-                                     kMp2tAudioTrackId);
+        StreamParserBuffer::CopyFrom(adts_frame_span, is_key_frame,
+                                     DemuxerStream::AUDIO, kMp2tAudioTrackId);
     stream_parser_buffer->set_timestamp(current_pts);
     stream_parser_buffer->SetDecodeTimestamp(
         DecodeTimestamp::FromPresentationTime(current_pts));
@@ -270,8 +277,7 @@ bool EsParserAdts::UpdateAudioConfiguration(const uint8_t* adts_header,
     // sample rate to compute audio timestamps and durations correctly.
 
     // Reset the timestamp helper to use a new time scale.
-    if (audio_timestamp_helper_ &&
-        audio_timestamp_helper_->base_timestamp() != kNoTimestamp) {
+    if (audio_timestamp_helper_ && audio_timestamp_helper_->base_timestamp()) {
       base::TimeDelta base_timestamp = audio_timestamp_helper_->GetTimestamp();
       audio_timestamp_helper_.reset(new AudioTimestampHelper(orig_sample_rate));
       audio_timestamp_helper_->SetBaseTimestamp(base_timestamp);

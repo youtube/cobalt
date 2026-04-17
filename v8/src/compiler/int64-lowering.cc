@@ -4,15 +4,14 @@
 
 #include "src/compiler/int64-lowering.h"
 
-#include "src/base/v8-fallthrough.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/diamond.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/compiler/wasm-call-descriptors.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/wasm/wasm-engine.h"
@@ -27,7 +26,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-Int64Lowering::Int64Lowering(Graph* graph, MachineOperatorBuilder* machine,
+Int64Lowering::Int64Lowering(TFGraph* graph, MachineOperatorBuilder* machine,
                              CommonOperatorBuilder* common,
                              SimplifiedOperatorBuilder* simplified, Zone* zone,
                              Signature<MachineRepresentation>* signature)
@@ -43,7 +42,7 @@ Int64Lowering::Int64Lowering(Graph* graph, MachineOperatorBuilder* machine,
       placeholder_(graph->NewNode(common->Dead())) {
   DCHECK_NOT_NULL(graph);
   DCHECK_NOT_NULL(graph->end());
-  replacements_ = zone->NewArray<Replacement>(graph->NodeCount());
+  replacements_ = zone->AllocateArray<Replacement>(graph->NodeCount());
   memset(replacements_, 0, sizeof(Replacement) * graph->NodeCount());
 }
 
@@ -55,9 +54,10 @@ void Int64Lowering::LowerGraph() {
     NodeState& top = stack_.back();
     if (top.input_index == top.node->InputCount()) {
       // All inputs of top have already been lowered, now lower top.
+      Node* node = top.node;
       stack_.pop_back();
-      state_[top.node->id()] = State::kVisited;
-      LowerNode(top.node);
+      state_[node->id()] = State::kVisited;
+      LowerNode(node);
     } else {
       // Push the next input onto the stack.
       Node* input = top.node->InputAt(top.input_index++);
@@ -671,7 +671,7 @@ void Int64Lowering::LowerNode(Node* node) {
     }
     case IrOpcode::kWord64RolLowerable:
       DCHECK(machine()->Word32Rol().IsSupported());
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case IrOpcode::kWord64RorLowerable: {
       DCHECK_EQ(3, node->InputCount());
       Node* input = node->InputAt(0);
@@ -1109,8 +1109,8 @@ void Int64Lowering::PreparePhiReplacement(Node* phi) {
     // input nodes do not exist yet, so we use a placeholder node to pass the
     // graph verifier.
     int value_count = phi->op()->ValueInputCount();
-    Node** inputs_low = zone()->NewArray<Node*>(value_count + 1);
-    Node** inputs_high = zone()->NewArray<Node*>(value_count + 1);
+    Node** inputs_low = zone()->AllocateArray<Node*>(value_count + 1);
+    Node** inputs_high = zone()->AllocateArray<Node*>(value_count + 1);
     for (int i = 0; i < value_count; i++) {
       inputs_low[i] = placeholder_;
       inputs_high[i] = placeholder_;

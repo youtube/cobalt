@@ -10,7 +10,6 @@
 #include "base/metrics/user_metrics.h"
 #include "base/strings/string_split.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
@@ -22,16 +21,16 @@
 #include "content/public/browser/web_contents.h"
 #include "media/base/media_switches.h"
 #include "net/base/url_util.h"
-#include "third_party/blink/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include <utility>
 
 #include "ash/constants/ash_switches.h"
 #include "base/metrics/histogram_macros.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
-#include "chromeos/dbus/constants/dbus_switches.h"  // nogncheck
+#include "chromeos/dbus/constants/dbus_switches.h"
 #include "components/permissions/permission_request.h"
 #include "components/permissions/permission_uma_util.h"
 #include "components/permissions/request_type.h"
@@ -49,11 +48,10 @@ ProtectedMediaIdentifierPermissionContext::
     : PermissionContextBase(
           browser_context,
           ContentSettingsType::PROTECTED_MEDIA_IDENTIFIER,
-          blink::mojom::PermissionsPolicyFeature::kEncryptedMedia) {}
+          network::mojom::PermissionsPolicyFeature::kEncryptedMedia) {}
 
 ProtectedMediaIdentifierPermissionContext::
-    ~ProtectedMediaIdentifierPermissionContext() {
-}
+    ~ProtectedMediaIdentifierPermissionContext() = default;
 
 ContentSetting
 ProtectedMediaIdentifierPermissionContext::GetPermissionStatusInternal(
@@ -64,7 +62,8 @@ ProtectedMediaIdentifierPermissionContext::GetPermissionStatusInternal(
            << embedding_origin.spec() << ")";
 
   if (!requesting_origin.is_valid() || !embedding_origin.is_valid() ||
-      !IsProtectedMediaIdentifierEnabled()) {
+      !IsProtectedMediaIdentifierEnabled(
+          Profile::FromBrowserContext(browser_context()))) {
     return CONTENT_SETTING_BLOCK;
   }
 
@@ -124,37 +123,40 @@ void ProtectedMediaIdentifierPermissionContext::UpdateTabContext(
 
 // TODO(xhwang): We should consolidate the "protected content" related pref
 // across platforms.
+// static
 bool ProtectedMediaIdentifierPermissionContext::
-    IsProtectedMediaIdentifierEnabled() const {
-#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_WIN)
-  Profile* profile = Profile::FromBrowserContext(browser_context());
+    IsProtectedMediaIdentifierEnabled(Profile* profile) {
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
   // Identifier is not allowed in incognito or guest mode.
-  if (profile->IsOffTheRecord() || profile->IsGuestSession()) {
+  if (profile != nullptr &&
+      (profile->IsOffTheRecord() || profile->IsGuestSession())) {
     DVLOG(1) << "Protected media identifier disabled in incognito or guest "
                 "mode.";
     return false;
   }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(chromeos::switches::kSystemDevMode) &&
-      !command_line->HasSwitch(ash::switches::kAllowRAInDevMode)) {
+      !command_line->HasSwitch(switches::kAllowRAInDevMode)) {
     DVLOG(1) << "Protected media identifier disabled in dev mode.";
     return false;
   }
 
   // This could be disabled by the device policy or by a switch in content
   // settings.
-  bool enabled_for_device = false;
+  bool attestation_enabled = true;
   if (!ash::CrosSettings::Get()->GetBoolean(
-          ash::kAttestationForContentProtectionEnabled, &enabled_for_device) ||
-      !enabled_for_device) {
+          ash::kAttestationForContentProtectionEnabled, &attestation_enabled)) {
+    attestation_enabled = false;
+  }
+  if (!attestation_enabled) {
     DVLOG(1) << "Protected media identifier disabled by the user or by device "
                 "policy.";
     return false;
   }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_WIN)
+#endif  // BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
 
   return true;
 }

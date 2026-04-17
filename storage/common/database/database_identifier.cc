@@ -2,18 +2,27 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "storage/common/database/database_identifier.h"
 
 #include <stddef.h>
 
+#include <string>
+
+#include "base/containers/contains.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
+#include "url/gurl.h"
+#include "url/origin.h"
 #include "url/url_canon.h"
 
 namespace storage {
 
 namespace {
-
 
 // If the passed string is of the form "[1::2:3]", returns "[1__2_3]".
 std::string EscapeIPv6Hostname(const std::string& hostname) {
@@ -40,46 +49,38 @@ std::string UnescapeIPv6Hostname(const std::string& hostname) {
   return copy;
 }
 
-}  // namespace
-
-// static
-std::string GetIdentifierFromOrigin(const GURL& origin) {
-  return DatabaseIdentifier::CreateFromOrigin(origin).ToString();
-}
-
-// static
-std::string GetIdentifierFromOrigin(const url::Origin& origin) {
-  return DatabaseIdentifier::CreateFromOrigin(origin).ToString();
-}
-
-// static
-url::Origin GetOriginFromIdentifier(const std::string& identifier) {
-  return url::Origin::Create(DatabaseIdentifier::Parse(identifier).ToOrigin());
-}
-
-// static
-GURL GetOriginURLFromIdentifier(const std::string& identifier) {
-  return DatabaseIdentifier::Parse(identifier).ToOrigin();
-}
-
-// static
-bool IsValidOriginIdentifier(const std::string& identifier) {
-  return GetOriginURLFromIdentifier(identifier).is_valid();
-}
-
 static bool SchemeIsUnique(const std::string& scheme) {
   return scheme == "about" || scheme == "data" || scheme == "javascript";
 }
 
+class DatabaseIdentifier {
+ public:
+  static const DatabaseIdentifier UniqueFileIdentifier();
+  static DatabaseIdentifier CreateFromOrigin(const GURL& origin);
+  static DatabaseIdentifier Parse(const std::string& identifier);
+  ~DatabaseIdentifier();
+
+  std::string ToString() const;
+  GURL ToOrigin() const;
+
+ private:
+  DatabaseIdentifier();
+  DatabaseIdentifier(const std::string& scheme,
+                     const std::string& hostname,
+                     int port,
+                     bool is_unique,
+                     bool is_file);
+
+  std::string scheme_;
+  std::string hostname_;
+  int port_;
+  bool is_unique_;
+  bool is_file_;
+};
+
 // static
 const DatabaseIdentifier DatabaseIdentifier::UniqueFileIdentifier() {
   return DatabaseIdentifier("", "", 0, true, true);
-}
-
-// static
-DatabaseIdentifier DatabaseIdentifier::CreateFromOrigin(
-    const url::Origin& origin) {
-  return CreateFromOrigin(origin.GetURL());
 }
 
 // static
@@ -112,8 +113,9 @@ DatabaseIdentifier DatabaseIdentifier::CreateFromOrigin(const GURL& origin) {
 DatabaseIdentifier DatabaseIdentifier::Parse(const std::string& identifier) {
   if (!base::IsStringASCII(identifier))
     return DatabaseIdentifier();
-  if (identifier.find("..") != std::string::npos)
+  if (base::Contains(identifier, "..")) {
     return DatabaseIdentifier();
+  }
   static const char kForbidden[] = {'\\', '/', ':', '\0'};
   if (identifier.find_first_of(kForbidden, 0, std::size(kForbidden)) !=
       std::string::npos) {
@@ -152,13 +154,16 @@ DatabaseIdentifier DatabaseIdentifier::Parse(const std::string& identifier) {
 
   GURL url(scheme + "://" + hostname + "/");
 
-  if (!url.IsStandard())
-    hostname.clear();
-
   // If a url doesn't parse cleanly or doesn't round trip, reject it.
-  if (!url.is_valid() || url.scheme() != scheme || url.host() != hostname)
+  if (!url.is_valid() || url.scheme() != scheme || url.host() != hostname) {
     return DatabaseIdentifier();
-
+  }
+  // Clear hostname for a non-special URL. This behavior existed before
+  // non-special URLs are properly supported, and we're keeping this for
+  // compatibility reasons.
+  if (!url.IsStandard()) {
+    hostname.clear();
+  }
   return DatabaseIdentifier(scheme, hostname, port, false /* unique */, false);
 }
 
@@ -199,6 +204,33 @@ GURL DatabaseIdentifier::ToOrigin() const {
   if (port_ == 0)
     return GURL(scheme_ + "://" + hostname_);
   return GURL(scheme_ + "://" + hostname_ + ":" + base::NumberToString(port_));
+}
+
+}  // namespace
+
+// static
+std::string GetIdentifierFromOrigin(const GURL& origin) {
+  return DatabaseIdentifier::CreateFromOrigin(origin).ToString();
+}
+
+// static
+std::string GetIdentifierFromOrigin(const url::Origin& origin) {
+  return GetIdentifierFromOrigin(origin.GetURL());
+}
+
+// static
+url::Origin GetOriginFromIdentifier(const std::string& identifier) {
+  return url::Origin::Create(DatabaseIdentifier::Parse(identifier).ToOrigin());
+}
+
+// static
+GURL GetOriginURLFromIdentifier(const std::string& identifier) {
+  return DatabaseIdentifier::Parse(identifier).ToOrigin();
+}
+
+// static
+bool IsValidOriginIdentifier(const std::string& identifier) {
+  return GetOriginURLFromIdentifier(identifier).is_valid();
 }
 
 }  // namespace storage

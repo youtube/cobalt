@@ -4,7 +4,7 @@
 
 // Use the <code>chrome.systemLog</code> API to record Chrome system logs from
 // extensions.
-[platforms=("chromeos", "lacros"),
+[platforms=("chromeos"),
  implemented_in="chrome/browser/chromeos/extensions/system_log/system_log_api.h"]
 namespace systemLog {
   callback VoidCallback = void ();
@@ -19,7 +19,8 @@ namespace systemLog {
     // Adds a new log record.
     // |options|: The logging options.
     // |callback|: A callback to invoke once the log has been added.
-    [supportsPromises] static void add(MessageOptions options,
-                                       optional VoidCallback callback);
+    static void add(
+        MessageOptions options,
+        optional VoidCallback callback);
   };
 };

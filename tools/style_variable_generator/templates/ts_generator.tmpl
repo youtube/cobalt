@@ -60,6 +60,15 @@ const UNTYPED_CSS = window ? `
 ` : '';
 
 const TYPOGRAPHY_CSS = window ? `
+{%- if font_faces %}
+  /* font faces */
+{%- for _, value in font_faces.items() %}
+  @font-face {
+    font-family: "{{value.family}}";
+    src: local("{{value.local_src}}");
+  }
+{%- endfor %}
+{% endif %}
 {%- if font_families or typefaces %}
   /* font families */
 {%-   for name, value in font_families.items() %}
@@ -79,11 +88,14 @@ const TYPOGRAPHY_CSS = window ? `
 ` : '';
 
 const LEGACY_MAPPINGS_CSS = window ? `
-{%- if legacy_mappings %}
-{%-   for name, value in legacy_mappings.items() %}
-  {{name | to_css_var_name_unscoped}}: {{value | process_simple_ref}};
-{%    endfor -%}
-{% endif -%}
+{%- for name, color in legacy_mappings[Modes.DEFAULT].items() %}
+{%-   if needs_rgb_variant(color) %}
+    {{name | to_css_var_name_unscoped}}-rgb: {{color | css_color_rgb}};
+{%-   endif %}
+    {{name | to_css_var_name_unscoped}}: {{css_color_var(name, color, mode, True)}};
+    {{name | to_css_var_name_unscoped}}-light: {{css_color_var(name, color, Modes.LIGHT, True)}};
+    {{name | to_css_var_name_unscoped}}-dark: {{css_color_var(name, color, Modes.DARK, True)}};
+{%  endfor -%}
 ` : '';
 
 /**
@@ -124,6 +136,9 @@ export function getColorsCSS(options?: GetColorsCSSOptions) {
       @media (prefers-color-scheme: dark) {
         html:not(body), :host {
           ${DARK_MODE_OVERRIDES_CSS}
+{%-       if useDynamicColors == 'true' %}
+          ${LEGACY_MAPPINGS_CSS}
+{%-       endif %}
         }
         :host([inverted-colors]) {
           ${DEFAULT_CSS}
@@ -153,7 +168,7 @@ export const {{name | to_ts_var_name}} = css`var({{name | to_css_var_name}})`;
 {%- endif -%}
 {%- if font_families or typefaces %}
 {%-   for name, value in font_families.items() %}
-export const {{name | to_ts_var_name}} = css`var({{name | to_css_var_name}}-font)`;
+export const {{name | to_ts_var_name}} = css`var({{name | to_css_var_name}})`;
 {%-     endfor %}
 {%-   for name, typeface in typefaces.items() %}
 export const {{name | to_ts_var_name}}_FONT = css`var({{name | to_css_var_name}}-font)`;

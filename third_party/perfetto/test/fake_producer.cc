@@ -26,6 +26,7 @@
 #include "perfetto/ext/tracing/core/shared_memory_arbiter.h"
 #include "perfetto/ext/tracing/core/trace_packet.h"
 #include "perfetto/ext/tracing/core/trace_writer.h"
+#include "perfetto/tracing/buffer_exhausted_policy.h"
 #include "perfetto/tracing/core/data_source_config.h"
 #include "src/ipc/client_impl.h"
 #include "src/tracing/ipc/producer/producer_ipc_client_impl.h"
@@ -96,7 +97,8 @@ void FakeProducer::StartDataSource(DataSourceInstanceID,
   } else {
     // Common case: Start tracing now.
     trace_writer_ = endpoint_->CreateTraceWriter(
-        static_cast<BufferID>(source_config.target_buffer()));
+        static_cast<BufferID>(source_config.target_buffer()),
+        BufferExhaustedPolicy::kStall);
     SetupFromConfig(source_config.for_testing());
   }
   if (source_config.for_testing().send_batch_on_register()) {
@@ -160,7 +162,8 @@ void FakeProducer::OnTracingSetup() {}
 
 void FakeProducer::Flush(FlushRequestID flush_request_id,
                          const DataSourceInstanceID*,
-                         size_t num_data_sources) {
+                         size_t num_data_sources,
+                         FlushFlags) {
   PERFETTO_DCHECK(num_data_sources > 0);
   if (trace_writer_)
     trace_writer_->Flush();

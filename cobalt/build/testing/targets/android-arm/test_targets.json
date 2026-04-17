@@ -3,6 +3,7 @@
   "test_targets": [
     "base:base_perftests",
     "base:base_unittests",
+    "cobalt/testing/browser_tests:cobalt_browsertests",
     "cobalt:cobalt_unittests",
     "media:media_unittests",
     "media/midi:midi_unittests",
@@ -12,6 +13,7 @@
     "skia:skia_unittests",
     "sql:sql_unittests",
     "starboard/nplb:nplb",
+    "starboard/android/shared:starboard_platform_tests",
     "third_party/blink/renderer/controller:blink_unittests",
     "third_party/blink/renderer/platform:blink_platform_perftests",
     "third_party/blink/renderer/platform:blink_platform_unittests",
@@ -29,6 +31,7 @@
   "executables": [
     "out/android-arm_devel/base_perftests_apk/base_perftests-debug.apk",
     "out/android-arm_devel/base_unittests_apk/base_unittests-debug.apk",
+    "out/android-arm_devel/cobalt_browsertests_apk/cobalt_browsertests-debug.apk",
     "out/android-arm_devel/cobalt_unittests_apk/cobalt_unittests-debug.apk",
     "out/android-arm_devel/media_unittests_apk/media_unittests-debug.apk",
     "out/android-arm_devel/midi_unittests_apk/midi_unittests-debug.apk",
@@ -38,6 +41,7 @@
     "out/android-arm_devel/skia_unittests_apk/skia_unittests-debug.apk",
     "out/android-arm_devel/sql_unittests_apk/sql_unittests-debug.apk",
     "out/android-arm_devel/nplb_apk/nplb-debug.apk",
+    "out/android-arm_devel/starboard_platform_tests_apk/starboard_platform_tests-debug.apk",
     "out/android-arm_devel/blink_unittests_apk/blink_unittests-debug.apk",
     "out/android-arm_devel/blink_platform_perftests_apk/blink_platform_perftests-debug.apk",
     "out/android-arm_devel/blink_platform_unittests_apk/blink_platform_unittests-debug.apk",

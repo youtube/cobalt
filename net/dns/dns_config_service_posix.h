@@ -5,17 +5,17 @@
 #ifndef NET_DNS_DNS_CONFIG_SERVICE_POSIX_H_
 #define NET_DNS_DNS_CONFIG_SERVICE_POSIX_H_
 
-#include <sys/types.h>
 #include <netinet/in.h>
 #include <resolv.h>
+#include <sys/types.h>
 
 #include <memory>
+#include <optional>
 
 #include "base/compiler_specific.h"
 #include "base/gtest_prod_util.h"
 #include "net/base/net_export.h"
 #include "net/dns/dns_config_service.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 struct DnsConfig;
@@ -59,7 +59,7 @@ class NET_EXPORT_PRIVATE DnsConfigServicePosix : public DnsConfigService {
 };
 
 // Returns nullopt iff a valid config could not be determined.
-absl::optional<DnsConfig> NET_EXPORT_PRIVATE
+std::optional<DnsConfig> NET_EXPORT_PRIVATE
 ConvertResStateToDnsConfig(const struct __res_state& res);
 
 }  // namespace internal

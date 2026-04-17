@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/test/spawned_test_server/local_test_server.h"
 
 #include <windows.h>
@@ -97,9 +102,9 @@ bool LocalTestServer::LaunchPython(
   SetPythonPathInEnvironment(python_path, &launch_options.environment);
 
   // Set CWD to source root.
-  if (!base::PathService::Get(base::DIR_SOURCE_ROOT,
+  if (!base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT,
                               &launch_options.current_directory)) {
-    LOG(ERROR) << "Failed to get DIR_SOURCE_ROOT";
+    LOG(ERROR) << "Failed to get DIR_SRC_TEST_DATA_ROOT";
     return false;
   }
 

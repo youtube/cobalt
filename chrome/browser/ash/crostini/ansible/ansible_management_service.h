@@ -65,8 +65,6 @@ class AnsibleManagementService : public KeyedService,
         bool interactive) {}
   };
 
-  static AnsibleManagementService* GetForProfile(Profile* profile);
-
   explicit AnsibleManagementService(Profile* profile);
 
   AnsibleManagementService(const AnsibleManagementService&) = delete;
@@ -125,21 +123,21 @@ class AnsibleManagementService : public KeyedService,
   void ApplyAnsiblePlaybook(const guest_os::GuestId& container_id);
   void OnApplyAnsiblePlaybook(
       const guest_os::GuestId& container_id,
-      absl::optional<vm_tools::cicerone::ApplyAnsiblePlaybookResponse>
-          response);
+      std::optional<vm_tools::cicerone::ApplyAnsiblePlaybookResponse> response);
 
   // Helper function that runs relevant callback and notifies observers.
   void OnConfigurationFinished(const guest_os::GuestId& container_id,
                                bool success);
 
-  raw_ptr<Profile, ExperimentalAsh> profile_;
+  raw_ptr<Profile> profile_;
   base::ObserverList<Observer> observers_;
   std::map<guest_os::GuestId, std::unique_ptr<AnsibleConfiguration>>
       configuration_tasks_;
 
   // We don't really need to know about these, but keeping them so we can access
   // for testing purposes.
-  std::map<guest_os::GuestId, views::Widget*> ui_elements_;
+  std::map<guest_os::GuestId, raw_ptr<views::Widget, CtnExperimental>>
+      ui_elements_;
 
   base::WeakPtrFactory<AnsibleManagementService> weak_ptr_factory_;
 };

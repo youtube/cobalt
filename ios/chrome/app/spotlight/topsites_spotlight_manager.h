@@ -7,7 +7,7 @@
 
 #import "ios/chrome/app/spotlight/base_spotlight_manager.h"
 
-class ChromeBrowserState;
+class ProfileIOS;
 
 // This spotlight manager handles indexing of sites shown on the NTP. Because of
 // privacy concerns, only sites shown on the NTP are indexed; therefore, this
@@ -17,15 +17,13 @@ class ChromeBrowserState;
 
 @interface TopSitesSpotlightManager : BaseSpotlightManager
 
-+ (TopSitesSpotlightManager*)topSitesSpotlightManagerWithBrowserState:
-    (ChromeBrowserState*)browserState;
++ (TopSitesSpotlightManager*)topSitesSpotlightManagerWithProfile:
+    (ProfileIOS*)profile;
+
+- (instancetype)init NS_UNAVAILABLE;
 
 // Reindexes all top sites, batching reindexes by 1 second.
 - (void)reindexTopSites;
-
-// Called before the instance is deallocated. This method should be overridden
-// by the subclasses and de-activate the instance.
-- (void)shutdown;
 
 @end
 

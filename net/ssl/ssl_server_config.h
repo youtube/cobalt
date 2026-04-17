@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -16,7 +17,6 @@
 #include "net/base/net_export.h"
 #include "net/socket/next_proto.h"
 #include "net/ssl/ssl_config.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
 
 namespace net {
@@ -63,12 +63,12 @@ struct NET_EXPORT SSLServerConfig {
   // cipher_suite_for_testing, if set, causes the server to only support the
   // specified cipher suite in TLS 1.2 and below. This should only be used in
   // unit tests.
-  absl::optional<uint16_t> cipher_suite_for_testing;
+  std::optional<uint16_t> cipher_suite_for_testing;
 
   // signature_algorithm_for_testing, if set, causes the server to only support
   // the specified signature algorithm in TLS 1.2 and below. This should only be
   // used in unit tests.
-  absl::optional<uint16_t> signature_algorithm_for_testing;
+  std::optional<uint16_t> signature_algorithm_for_testing;
 
   // curves_for_testing, if not empty, specifies the list of NID values (e.g.
   // NID_X25519) to configure as supported curves for the TLS connection.
@@ -89,6 +89,10 @@ struct NET_EXPORT SSLServerConfig {
   // This field is meaningful only if client certificates are requested.
   // If a verifier is not provided then all certificates are accepted.
   raw_ptr<ClientCertVerifier> client_cert_verifier = nullptr;
+
+  // If set, causes the server to support the specified client certificate
+  // signature algorithms.
+  std::vector<uint16_t> client_cert_signature_algorithms;
 
   // The list of application level protocols supported with ALPN (Application
   // Layer Protocol Negotiation), in decreasing order of preference.  Protocols
@@ -114,7 +118,7 @@ struct NET_EXPORT SSLServerConfig {
 
   // If specified, causes the specified alert to be sent immediately after the
   // handshake.
-  absl::optional<uint8_t> alert_after_handshake_for_testing;
+  std::optional<uint8_t> alert_after_handshake_for_testing;
 
   // This is a workaround for BoringSSL's scopers not being copyable. See
   // https://crbug.com/boringssl/431.

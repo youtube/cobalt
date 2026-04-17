@@ -17,12 +17,7 @@
 
 #include "starboard/shared/internal_only.h"
 
-// RDK build on CI still defines GetHomeDirectory in the legacy
-// `starboard::shared::starboard` namespace. See:
-// https://source.corp.google.com/h/lbshell-internal/cobalt_src/+/25.lts.1+:starboard/contrib/rdk/src/third_party/starboard/rdk/shared/get_home_directory.cc;l=1?q=rdk%2Fshared%2Fget_home_directory.cc
-// TODO: b/441955897 - Remove this nested namespace once RDK build on CI is
-// updated.
-namespace starboard::shared::starboard {
+namespace starboard {
 
 // A platform implementation of getting the home directory. A return value of
 // false indicates that the platform doesn't have a concept of a home directory
@@ -30,6 +25,6 @@ namespace starboard::shared::starboard {
 // appropriate system paths that may normally be stored under a home directory.
 bool GetHomeDirectory(char* out_path, int path_size);
 
-}  // namespace starboard::shared::starboard
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_GET_HOME_DIRECTORY_H_

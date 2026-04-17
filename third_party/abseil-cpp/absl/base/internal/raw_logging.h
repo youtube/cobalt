@@ -108,6 +108,7 @@
 #define ABSL_RAW_LOG_INTERNAL_WARNING ::absl::LogSeverity::kWarning
 #define ABSL_RAW_LOG_INTERNAL_ERROR ::absl::LogSeverity::kError
 #define ABSL_RAW_LOG_INTERNAL_FATAL ::absl::LogSeverity::kFatal
+#define ABSL_RAW_LOG_INTERNAL_DFATAL ::absl::kLogDebugFatal
 #define ABSL_RAW_LOG_INTERNAL_LEVEL(severity) \
   ::absl::NormalizeLogSeverity(severity)
 
@@ -115,6 +116,7 @@
 #define ABSL_RAW_LOG_INTERNAL_MAYBE_UNREACHABLE_WARNING
 #define ABSL_RAW_LOG_INTERNAL_MAYBE_UNREACHABLE_ERROR
 #define ABSL_RAW_LOG_INTERNAL_MAYBE_UNREACHABLE_FATAL ABSL_UNREACHABLE()
+#define ABSL_RAW_LOG_INTERNAL_MAYBE_UNREACHABLE_DFATAL
 #define ABSL_RAW_LOG_INTERNAL_MAYBE_UNREACHABLE_LEVEL(severity)
 
 namespace absl {
@@ -129,8 +131,8 @@ void RawLog(absl::LogSeverity severity, const char* file, int line,
             const char* format, ...) ABSL_PRINTF_ATTRIBUTE(4, 5);
 
 // Writes the provided buffer directly to stderr, in a signal-safe, low-level
-// manner.
-void AsyncSignalSafeWriteToStderr(const char* s, size_t len);
+// manner.  Preserves errno.
+void AsyncSignalSafeWriteError(const char* s, size_t len);
 
 // compile-time function to get the "base" filename, that is, the part of
 // a filename after the last "/" or "\" path separator.  The search starts at

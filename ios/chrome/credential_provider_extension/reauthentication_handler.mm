@@ -10,10 +10,6 @@
 #import "ios/chrome/common/app_group/app_group_constants.h"
 #import "ios/chrome/common/ui/reauthentication/reauthentication_module.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 @implementation ReauthenticationHandler {
   // Module containing the reauthentication mechanism used accessing passwords.
   __weak id<ReauthenticationProtocol> _weakReauthenticationModule;
@@ -29,14 +25,21 @@
   return self;
 }
 
-- (void)verifyUserWithCompletionHandler:
-            (void (^)(ReauthenticationResult))completionHandler
-        presentReminderOnViewController:(UIViewController*)viewController {
+- (void)verifyUserToAccessPasskeys:(BOOL)forPasskeys
+              withCompletionHandler:
+                  (void (^)(ReauthenticationResult))completionHandler
+    presentReminderOnViewController:(UIViewController*)viewController {
+  NSString* localizedReason =
+      forPasskeys
+          ? NSLocalizedString(
+                @"IDS_IOS_CREDENTIAL_PROVIDER_SCREENLOCK_REASON_PASSKEYS",
+                @"Access passkeys…")
+          : NSLocalizedString(
+                @"IDS_IOS_CREDENTIAL_PROVIDER_SCREENLOCK_REASON_PASSWORDS",
+                @"Accessing passwords…");
   if ([_weakReauthenticationModule canAttemptReauth]) {
     [_weakReauthenticationModule
-        attemptReauthWithLocalizedReason:
-            NSLocalizedString(@"IDS_IOS_CREDENTIAL_PROVIDER_SCREENLOCK_REASON",
-                              @"Access Passwords...")
+        attemptReauthWithLocalizedReason:localizedReason
                     canReusePreviousAuth:YES
                                  handler:completionHandler];
   } else {
@@ -87,6 +90,10 @@
   [viewController presentViewController:alertController
                                animated:YES
                              completion:nil];
+}
+
+- (BOOL)canAttemptReauthWithBiometrics {
+  return [_weakReauthenticationModule canAttemptReauthWithBiometrics];
 }
 
 #pragma mark - Private

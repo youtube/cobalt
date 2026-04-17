@@ -11,22 +11,16 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/uuid.h"
-#include "chrome/browser/ash/arc/arc_optin_uma.h"
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
-#include "chrome/browser/ash/settings/device_settings_service.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/enterprise/util/managed_browser_utils.h"
 #include "chrome/browser/net/system_network_context_manager.h"
-#include "chromeos/ash/components/install_attributes/install_attributes.h"
-#include "components/account_id/account_id.h"
 #include "components/policy/core/common/cloud/device_management_service.h"
 #include "components/policy/core/common/cloud/dm_auth.h"
 #include "components/policy/core/common/cloud/dmserver_job_configurations.h"
 #include "google_apis/gaia/gaia_auth_util.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
-#include "url/gurl.h"
 
 namespace policy {
 
@@ -34,46 +28,66 @@ namespace {
 
 namespace em = ::enterprise_management;
 
-AccountStatusCheckFetcher::AccountStatus ParseStatus(
+AccountStatus::Type ParseAccountStatusType(
     const em::CheckUserAccountResponse& response,
     const std::string& email) {
   if (!response.has_user_account_type()) {
-    return AccountStatusCheckFetcher::AccountStatus::kUnknown;
+    return AccountStatus::Type::kUnknown;
   }
   if (response.user_account_type() ==
       em::CheckUserAccountResponse::UNKNOWN_USER_ACCOUNT_TYPE) {
-    return AccountStatusCheckFetcher::AccountStatus::kUnknown;
+    return AccountStatus::Type::kUnknown;
   }
   if (response.user_account_type() == em::CheckUserAccountResponse::CONSUMER) {
     const std::string domain = gaia::ExtractDomainName(email);
-    if (chrome::enterprise_util::IsKnownConsumerDomain(domain)) {
-      return AccountStatusCheckFetcher::AccountStatus::
-          kConsumerWithConsumerDomain;
+    if (enterprise_util::IsKnownConsumerDomain(domain)) {
+      return AccountStatus::Type::kConsumerWithConsumerDomain;
     }
-    return AccountStatusCheckFetcher::AccountStatus::
-        kConsumerWithBusinessDomain;
+    return AccountStatus::Type::kConsumerWithBusinessDomain;
   }
   if (response.user_account_type() == em::CheckUserAccountResponse::DASHER) {
-    return AccountStatusCheckFetcher::AccountStatus::kDasher;
+    return AccountStatus::Type::kDasher;
   }
 
   if (response.user_account_type() == em::CheckUserAccountResponse::NOT_EXIST) {
     if (!response.has_domain_verified()) {
-      return AccountStatusCheckFetcher::AccountStatus::kUnknown;
+      return AccountStatus::Type::kUnknown;
     }
     if (response.domain_verified()) {
-      return AccountStatusCheckFetcher::AccountStatus::
-          kOrganisationalAccountVerified;
+      return AccountStatus::Type::kOrganisationalAccountVerified;
     }
-    return AccountStatusCheckFetcher::AccountStatus::
-        kOrganisationalAccountUnverified;
+    return AccountStatus::Type::kOrganisationalAccountUnverified;
   }
-  return AccountStatusCheckFetcher::AccountStatus::kUnknown;
+  return AccountStatus::Type::kUnknown;
 }
 
-void RecordAccountStatusCheckResult(
-    AccountStatusCheckFetcher::AccountStatus value) {
+EnrollmentNudgePolicyFetchResult ParseEnrollmentNudgePolicy(
+    const em::CheckUserAccountResponse& response) {
+  if (!response.has_enrollment_nudge_type()) {
+    return EnrollmentNudgePolicyFetchResult::kNoPolicyInResponse;
+  }
+  switch (response.enrollment_nudge_type()) {
+    case em::CheckUserAccountResponse::UNKNOWN_ENROLLMENT_NUDGE_TYPE:
+      return EnrollmentNudgePolicyFetchResult::kUnknown;
+    case em::CheckUserAccountResponse::NONE:
+      return EnrollmentNudgePolicyFetchResult::kAllowConsumerSignIn;
+    case em::CheckUserAccountResponse::ENROLLMENT_REQUIRED:
+      return EnrollmentNudgePolicyFetchResult::kEnrollmentRequired;
+  }
+  LOG(ERROR)
+      << "Unexpected enrollment nudge policy value received from DM server: "
+      << static_cast<int>(response.enrollment_nudge_type());
+  return EnrollmentNudgePolicyFetchResult::kUnknown;
+}
+
+void RecordAccountStatusCheckResult(AccountStatus::Type value) {
   base::UmaHistogramEnumeration("Enterprise.AccountStatusCheckResult", value);
+}
+
+void RecordEnrollmentNudgePolicyFetchResult(
+    EnrollmentNudgePolicyFetchResult value) {
+  base::UmaHistogramEnumeration("Enterprise.EnrollmentNudge.PolicyFetchResult",
+                                value);
 }
 
 }  // namespace
@@ -99,16 +113,18 @@ AccountStatusCheckFetcher::AccountStatusCheckFetcher(
 
 AccountStatusCheckFetcher::~AccountStatusCheckFetcher() = default;
 
-void AccountStatusCheckFetcher::Fetch(FetchCallback callback) {
-  DCHECK(!callback_);
-  DCHECK(callback);
+void AccountStatusCheckFetcher::Fetch(FetchCallback callback,
+                                      bool fetch_enrollment_nudge_policy) {
+  CHECK(!callback_);
+  CHECK(callback);
   callback_ = std::move(callback);
+  is_fetching_enrollment_nudge_policy_ = fetch_enrollment_nudge_policy;
   std::unique_ptr<DMServerJobConfiguration> config =
       std::make_unique<DMServerJobConfiguration>(
           service_,
           DeviceManagementService::JobConfiguration::TYPE_CHECK_USER_ACCOUNT,
           random_device_id_, /*critical=*/false, DMAuth::NoAuth(),
-          /*oauth_token=*/absl::nullopt, url_loader_factory_,
+          /*oauth_token=*/std::nullopt, url_loader_factory_,
           base::BindOnce(
               &AccountStatusCheckFetcher::OnAccountStatusCheckReceived,
               weak_ptr_factory_.GetWeakPtr()));
@@ -116,12 +132,13 @@ void AccountStatusCheckFetcher::Fetch(FetchCallback callback) {
   em::CheckUserAccountRequest* request =
       config->request()->mutable_check_user_account_request();
   request->set_user_email(email_);
+  request->set_enrollment_nudge_request(fetch_enrollment_nudge_policy);
   fetch_request_job_ = service_->CreateJob(std::move(config));
 }
 
 void AccountStatusCheckFetcher::OnAccountStatusCheckReceived(
     DMServerJobResult result) {
-  // TODO(crbug.com/1271134): Logging as "WARNING" to make sure it's preserved
+  // TODO(crbug.com/40805389): Logging as "WARNING" to make sure it's preserved
   // in the logs.
   LOG(WARNING) << "Account check response received. DM Status: "
                << result.dm_status;
@@ -129,6 +146,8 @@ void AccountStatusCheckFetcher::OnAccountStatusCheckReceived(
   fetch_request_job_.reset();
   std::string user_id;
   bool fetch_succeeded = false;
+  AccountStatus account_status = {.type = AccountStatus::Type::kUnknown,
+                                  .enrollment_required = false};
   switch (result.dm_status) {
     case DM_STATUS_SUCCESS: {
       if (!result.response.has_check_user_account_response()) {
@@ -138,9 +157,33 @@ void AccountStatusCheckFetcher::OnAccountStatusCheckReceived(
 
       // Fetch has succeeded.
       fetch_succeeded = true;
-      result_ =
-          ParseStatus(result.response.check_user_account_response(), email_);
-      RecordAccountStatusCheckResult(result_);
+      const em::CheckUserAccountResponse& response =
+          result.response.check_user_account_response();
+      const EnrollmentNudgePolicyFetchResult enrollment_nudge_policy =
+          ParseEnrollmentNudgePolicy(response);
+      account_status = {
+          .type = ParseAccountStatusType(response, email_),
+          .enrollment_required =
+              enrollment_nudge_policy ==
+              EnrollmentNudgePolicyFetchResult::kEnrollmentRequired};
+
+      if (is_fetching_enrollment_nudge_policy_) {
+        RecordEnrollmentNudgePolicyFetchResult(enrollment_nudge_policy);
+      } else {
+        // This call records UMA which is intended to reflect the account status
+        // checks in enrollment flow. Enrollment nudge use-cases should not
+        // affect it.
+        RecordAccountStatusCheckResult(account_status.type);
+      }
+
+      if (account_status.enrollment_required &&
+          account_status.type != AccountStatus::Type::kDasher) {
+        LOG(ERROR)
+            << "Unexpected response from DM Server: Enrollment Nudge policy is "
+               "set to require enrollment for a non-Dasher account.";
+        account_status.enrollment_required = false;
+      }
+
       break;
     }
     default: {  // All other error cases
@@ -148,7 +191,7 @@ void AccountStatusCheckFetcher::OnAccountStatusCheckReceived(
       break;
     }
   }
-  std::move(callback_).Run(fetch_succeeded, result_);
+  std::move(callback_).Run(fetch_succeeded, account_status);
 }
 
 }  // namespace policy

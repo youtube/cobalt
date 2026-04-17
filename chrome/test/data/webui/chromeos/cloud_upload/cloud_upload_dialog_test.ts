@@ -4,21 +4,25 @@
 
 import 'chrome://cloud-upload/cloud_upload_dialog.js';
 
-import {DialogPage, UserAction} from 'chrome://cloud-upload/cloud_upload.mojom-webui.js';
+import {UserAction} from 'chrome://cloud-upload/cloud_upload.mojom-webui.js';
 import {CloudUploadBrowserProxy} from 'chrome://cloud-upload/cloud_upload_browser_proxy.js';
-import {CloudUploadElement} from 'chrome://cloud-upload/cloud_upload_dialog.js';
+import type {CloudUploadElement} from 'chrome://cloud-upload/cloud_upload_dialog.js';
 import {OfficePwaInstallPageElement} from 'chrome://cloud-upload/office_pwa_install_page.js';
-import {OneDriveUploadPageElement} from 'chrome://cloud-upload/one_drive_upload_page.js';
-import {SetupCancelDialogElement} from 'chrome://cloud-upload/setup_cancel_dialog.js';
+import {OfficeSetupCompletePageElement} from 'chrome://cloud-upload/office_setup_complete_page.js';
+import type {SetupCancelDialogElement} from 'chrome://cloud-upload/setup_cancel_dialog.js';
 import {SignInPageElement} from 'chrome://cloud-upload/sign_in_page.js';
 import {WelcomePageElement} from 'chrome://cloud-upload/welcome_page.js';
+import {assert} from 'chrome://resources/js/assert.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {whenCheck} from 'chrome://webui-test/test_util.js';
 
-import {CloudUploadTestBrowserProxy, ProxyOptions} from './cloud_upload_test_browser_proxy.js';
+import type {ProxyOptions} from './cloud_upload_test_browser_proxy.js';
+import {CloudUploadTestBrowserProxy} from './cloud_upload_test_browser_proxy.js';
 
 suite('<cloud-upload>', () => {
   /* Holds the <cloud-upload> app. */
-  let container: HTMLDivElement;
+  let container: HTMLElement;
   /* The <cloud-upload> app. */
   let cloudUploadApp: CloudUploadElement;
   /* The BrowserProxy element to make assertions on when mojo methods are
@@ -29,9 +33,49 @@ suite('<cloud-upload>', () => {
     testProxy = new CloudUploadTestBrowserProxy(options);
     CloudUploadBrowserProxy.setInstance(testProxy);
 
+    // Setup fake strings.
+    loadTimeData.resetForTesting({
+      'cancel': 'Cancel',
+      'close': 'Close',
+      'open': 'Open',
+      'install': 'Install',
+      'installing': 'Installing',
+      'installed': 'Installed',
+      'connectToOneDriveTitle': 'Connect to OneDrive',
+      'connectToOneDriveSignInFlowBodyText':
+          'Connect to OneDrive body in Sign in',
+      'connectToOneDriveBodyText': 'Connect to OneDrive body',
+      'cantConnectOneDrive': 'Can not connect',
+      'connectOneDrive': 'Connect',
+      'oneDriveConnectedTitle': 'Connected',
+      'oneDriveConnectedBodyText': 'Connected Body',
+      'animationPlayText': 'Play',
+      'animationPauseText': 'Pause',
+      'fileHandlerTitle': 'Test title',
+      'word': 'Word',
+      'excel': 'Excel',
+      'powerPoint': 'PowerPoint',
+      'googleDocs': 'Google Docs',
+      'googleSheets': 'Google Sheets',
+      'googleSlides': 'Google Slides',
+      'microsoft365': 'Microsoft 365',
+      'otherApps': 'Other apps',
+      'googleDriveStorage': 'Google Drive as storage',
+      'oneDriveStorage': 'OneDrive as storage',
+      'installPWATitle': 'Install PWA title',
+      'installPWABodyText': 'Install PWA body',
+      'welcomeBodyText': 'Welcome text for test. &lt;a href="#"&gt;&lt;/a&gt;',
+      'welcomeGetStarted': 'Get started',
+      'welcomeInstallOdfs': 'Connect to Microsoft OneDrive',
+      'welcomeInstallOfficeWebApp': 'Install Microsoft 365',
+      'welcomeMoveFiles':
+          'Files will move to OneDrive when opening in Microsoft 365',
+      'welcomeSetUp': 'Set up',
+      'welcomeTitle': 'Set up Microsoft 365 to open files',
+    });
+
     // Creates and attaches the <cloud-upload> element to the DOM tree.
-    cloudUploadApp =
-        document.createElement('cloud-upload') as CloudUploadElement;
+    cloudUploadApp = document.createElement('cloud-upload');
     container.appendChild(cloudUploadApp);
     await cloudUploadApp.initPromise;
   }
@@ -72,8 +116,9 @@ suite('<cloud-upload>', () => {
     assertTrue(cloudUploadApp.currentPage instanceof SignInPageElement);
   }
 
-  function checkIsOneDriveUploadPage(): void {
-    assertTrue(cloudUploadApp.currentPage instanceof OneDriveUploadPageElement);
+  function checkIsOfficeSetupCompletePage(): void {
+    assertTrue(
+        cloudUploadApp.currentPage instanceof OfficeSetupCompletePageElement);
   }
 
   async function waitForNextPage(): Promise<void> {
@@ -128,7 +173,9 @@ suite('<cloud-upload>', () => {
    * the <cloud-upload> component.
    */
   teardown(() => {
-    container.innerHTML = '';
+    loadTimeData.resetForTesting();
+    assert(window.trustedTypes);
+    container.innerHTML = window.trustedTypes.emptyHTML;
     testProxy.handler.reset();
   });
 
@@ -140,11 +187,15 @@ suite('<cloud-upload>', () => {
     const officeWebAppInstalled = false;
     const odfsMounted = false;
     await setUp({
-      fileName: 'file.docx',
+      fileNames: ['file.docx'],
       officeWebAppInstalled,
       installOfficeWebAppResult: true,
       odfsMounted,
-      dialogPage: DialogPage.kOneDriveSetup,
+      dialogSpecificArgs: {
+        oneDriveSetupDialogArgs: {
+          setOfficeAsDefaultHandler: true,
+        },
+      },
     });
 
     // Go to the OneDrive upload page.
@@ -152,7 +203,7 @@ suite('<cloud-upload>', () => {
     await doPWAInstallPage();
     await doSignInPage();
 
-    checkIsOneDriveUploadPage();
+    checkIsOfficeSetupCompletePage();
   });
 
   /**
@@ -163,10 +214,15 @@ suite('<cloud-upload>', () => {
     const officeWebAppInstalled = false;
     const odfsMounted = false;
     await setUp({
+      fileNames: [],
       officeWebAppInstalled,
       installOfficeWebAppResult: true,
       odfsMounted,
-      dialogPage: DialogPage.kOneDriveSetup,
+      dialogSpecificArgs: {
+        oneDriveSetupDialogArgs: {
+          setOfficeAsDefaultHandler: true,
+        },
+      },
     });
 
     // Go to the OneDrive upload page.
@@ -174,7 +230,7 @@ suite('<cloud-upload>', () => {
     await doPWAInstallPage();
     await doSignInPage();
 
-    checkIsOneDriveUploadPage();
+    checkIsOfficeSetupCompletePage();
   });
 
   /**
@@ -185,16 +241,21 @@ suite('<cloud-upload>', () => {
     const officeWebAppInstalled = true;
     const odfsMounted = false;
     await setUp({
+      fileNames: ['file.docx'],
       officeWebAppInstalled,
       installOfficeWebAppResult: true,
       odfsMounted,
-      dialogPage: DialogPage.kOneDriveSetup,
+      dialogSpecificArgs: {
+        oneDriveSetupDialogArgs: {
+          setOfficeAsDefaultHandler: true,
+        },
+      },
     });
 
     await doWelcomePage(officeWebAppInstalled, odfsMounted);
     await doSignInPage();
 
-    checkIsOneDriveUploadPage();
+    checkIsOfficeSetupCompletePage();
   });
 
   /**
@@ -204,17 +265,21 @@ suite('<cloud-upload>', () => {
     const officeWebAppInstalled = false;
     const odfsMounted = true;
     await setUp({
-      fileName: 'file.docx',
+      fileNames: ['file.docx'],
       officeWebAppInstalled,
       installOfficeWebAppResult: true,
       odfsMounted,
-      dialogPage: DialogPage.kOneDriveSetup,
+      dialogSpecificArgs: {
+        oneDriveSetupDialogArgs: {
+          setOfficeAsDefaultHandler: true,
+        },
+      },
     });
 
     await doWelcomePage(officeWebAppInstalled, odfsMounted);
     await doPWAInstallPage();
 
-    checkIsOneDriveUploadPage();
+    checkIsOfficeSetupCompletePage();
   });
 
   /**
@@ -228,15 +293,76 @@ suite('<cloud-upload>', () => {
         const officeWebAppInstalled = true;
         const odfsMounted = true;
         await setUp({
+          fileNames: ['file.docx'],
           officeWebAppInstalled,
           installOfficeWebAppResult: true,
           odfsMounted,
-          dialogPage: DialogPage.kOneDriveSetup,
+          dialogSpecificArgs: {
+            oneDriveSetupDialogArgs: {
+              setOfficeAsDefaultHandler: true,
+            },
+          },
         });
 
         await doWelcomePage(officeWebAppInstalled, odfsMounted);
 
-        checkIsOneDriveUploadPage();
+        checkIsOfficeSetupCompletePage();
+      });
+
+  /**
+   * Tests that when the Office PWA is already installed and ODFS is already
+   * mounted, but there is no file to upload. If Office file handlers still need
+   * to be set (first time setup), the welcome page should not be skipped, as
+   * opposed to the Office PWA install page and the sign in page.
+   */
+  test(
+      'Set up Office with PWA already installed, already signed in, no file' +
+          ' to upload',
+      async () => {
+        const officeWebAppInstalled = true;
+        const odfsMounted = true;
+        await setUp({
+          fileNames: [],
+          officeWebAppInstalled,
+          installOfficeWebAppResult: true,
+          odfsMounted,
+          dialogSpecificArgs: {
+            oneDriveSetupDialogArgs: {
+              setOfficeAsDefaultHandler: true,
+            },
+          },
+        });
+
+        await doWelcomePage(officeWebAppInstalled, odfsMounted);
+
+        checkIsOfficeSetupCompletePage();
+      });
+
+  /**
+   * Tests that when the Office PWA is already installed and ODFS is already
+   * mounted, but there is no file to upload. If file handlers have already been
+   * set, the welcome page should be skipped, as well as the Office PWA install
+   * page and the sign in page.
+   */
+  test(
+      'Set up Office with PWA already installed, already signed in, no file' +
+          ' to upload, file handlers already set',
+      async () => {
+        const officeWebAppInstalled = true;
+        const odfsMounted = true;
+        await setUp({
+          fileNames: [],
+          officeWebAppInstalled,
+          installOfficeWebAppResult: true,
+          odfsMounted,
+          dialogSpecificArgs: {
+            oneDriveSetupDialogArgs: {
+              setOfficeAsDefaultHandler: false,
+            },
+          },
+        });
+
+        checkIsOfficeSetupCompletePage();
       });
 
   /**
@@ -247,11 +373,15 @@ suite('<cloud-upload>', () => {
     const officeWebAppInstalled = false;
     const odfsMounted = false;
     await setUp({
-      fileName: 'file.docx',
+      fileNames: ['file.docx'],
       officeWebAppInstalled,
       installOfficeWebAppResult: true,
       odfsMounted,
-      dialogPage: DialogPage.kOneDriveSetup,
+      dialogSpecificArgs: {
+        oneDriveSetupDialogArgs: {
+          setOfficeAsDefaultHandler: true,
+        },
+      },
     });
     await doWelcomePage(officeWebAppInstalled, odfsMounted);
 
@@ -261,7 +391,7 @@ suite('<cloud-upload>', () => {
     await doPWAInstallPage();
     await doSignInPage();
 
-    checkIsOneDriveUploadPage();
+    checkIsOfficeSetupCompletePage();
     cloudUploadApp.$('.action-button').click();
     await testProxy.handler.whenCalled('respondWithUserActionAndClose');
     assertEquals(
@@ -273,17 +403,22 @@ suite('<cloud-upload>', () => {
 
   /**
    * Tests that the cancel button should show the cancel dialog on each page
-   * except the last page.
+   * except the last page, when there is no cancel button.
    */
-  [1, 2, 3].forEach(
+  [1, 2, 3, 4].forEach(
       page => test(`Close button on page ${page}`, async () => {
         const officeWebAppInstalled = false;
         const odfsMounted = false;
         await setUp({
+          fileNames: ['file.docx'],
           officeWebAppInstalled,
           installOfficeWebAppResult: true,
           odfsMounted,
-          dialogPage: DialogPage.kOneDriveSetup,
+          dialogSpecificArgs: {
+            oneDriveSetupDialogArgs: {
+              setOfficeAsDefaultHandler: true,
+            },
+          },
         });
 
         // Go to the specified page.
@@ -294,21 +429,97 @@ suite('<cloud-upload>', () => {
           await doPWAInstallPage();
         }
 
-        // Bring up the cancel dialog and dismiss it.
+        if (page > 3) {
+          await doSignInPage();
+          // No cancel button should be shown on the last page.
+          assertEquals(cloudUploadApp.$('.cancel-button'), null);
+          return;
+        }
+
+        // Bring up the cancel dialog with a Cancel click.
         cloudUploadApp.$('.cancel-button').click();
         const cancelDialog =
-            cloudUploadApp.$<SetupCancelDialogElement>('setup-cancel-dialog')!;
+            cloudUploadApp.$<SetupCancelDialogElement>('setup-cancel-dialog');
         assertTrue(cancelDialog.open);
+
+        // Dismiss the cancel dialog with a Continue click.
         cancelDialog.$('.action-button').click();
         assertFalse(cancelDialog.open);
 
-        // Bring up the cancel dialog and cancel setup.
+        // Bring up the cancel dialog with a Cancel click.
         cloudUploadApp.$('.cancel-button').click();
         assertTrue(cancelDialog.open);
         assertEquals(
             0, testProxy.handler.getCallCount('respondWithUserActionAndClose'));
 
+        // Cancel setup with Cancel click.
         cancelDialog.$('.cancel-button').click();
+        await testProxy.handler.whenCalled('respondWithUserActionAndClose');
+        assertEquals(
+            1, testProxy.handler.getCallCount('respondWithUserActionAndClose'));
+        assertDeepEquals(
+            [UserAction.kCancel],
+            testProxy.handler.getArgs('respondWithUserActionAndClose'));
+      }));
+
+  /**
+   * Tests that an Escape keydown should show the cancel dialog on each page
+   * except the last page, where the setup is cancelled directly.
+   */
+  [1, 2, 3, 4].forEach(
+      page => test(`Escape on page ${page}`, async () => {
+        const officeWebAppInstalled = false;
+        const odfsMounted = false;
+        await setUp({
+          fileNames: ['file.docx'],
+          officeWebAppInstalled,
+          installOfficeWebAppResult: true,
+          odfsMounted,
+          dialogSpecificArgs: {
+            oneDriveSetupDialogArgs: {
+              setOfficeAsDefaultHandler: true,
+            },
+          },
+        });
+
+        // Go to the specified page.
+        if (page > 1) {
+          await doWelcomePage(officeWebAppInstalled, odfsMounted);
+        }
+        if (page > 2) {
+          await doPWAInstallPage();
+        }
+
+        const cancelDialog =
+            cloudUploadApp.$<SetupCancelDialogElement>('setup-cancel-dialog');
+
+        if (page > 3) {
+          await doSignInPage();
+          // Escape on the last page should not bring up the cancel dialog, but
+          // it instead directly cancels the setup.
+          document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
+          await whenCheck(cancelDialog, () => !cancelDialog.open);
+        } else {
+          // Bring up the cancel dialog with an Escape keydown.
+          document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
+          await whenCheck(cancelDialog, () => cancelDialog.open);
+
+          // Dismiss the cancel dialog with an Escape keydown.
+          document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
+          await whenCheck(cancelDialog, () => !cancelDialog.open);
+
+          // Bring up the cancel dialog with an Escape keydown.
+          document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
+          await whenCheck(cancelDialog, () => cancelDialog.open);
+          assertEquals(
+              0,
+              testProxy.handler.getCallCount('respondWithUserActionAndClose'));
+
+          // Cancel setup with Cancel click.
+          cancelDialog.$('.cancel-button').click();
+        }
+
+        // Check the setup was cancelled.
         await testProxy.handler.whenCalled('respondWithUserActionAndClose');
         assertEquals(
             1, testProxy.handler.getCallCount('respondWithUserActionAndClose'));
@@ -328,16 +539,20 @@ suite('<cloud-upload>', () => {
         const officeWebAppInstalled = false;
         const odfsMounted = true;
         await setUp({
+          fileNames: ['file.docx'],
           officeWebAppInstalled,
           installOfficeWebAppResult: true,
           odfsMounted,
-          dialogPage: DialogPage.kOneDriveSetup,
-          firstTimeSetup: true,
+          dialogSpecificArgs: {
+            oneDriveSetupDialogArgs: {
+              setOfficeAsDefaultHandler: true,
+            },
+          },
         });
         // Go to the OneDrive upload page.
         await doWelcomePage(officeWebAppInstalled, odfsMounted);
         await doPWAInstallPage();
-        checkIsOneDriveUploadPage();
+        checkIsOfficeSetupCompletePage();
 
         // Click the open file button.
         cloudUploadApp.$('.action-button').click();
@@ -357,16 +572,20 @@ suite('<cloud-upload>', () => {
         const officeWebAppInstalled = false;
         const odfsMounted = true;
         await setUp({
+          fileNames: ['file.docx'],
           officeWebAppInstalled,
           installOfficeWebAppResult: true,
           odfsMounted,
-          dialogPage: DialogPage.kOneDriveSetup,
-          firstTimeSetup: false,
+          dialogSpecificArgs: {
+            oneDriveSetupDialogArgs: {
+              setOfficeAsDefaultHandler: false,
+            },
+          },
         });
         // Go to the OneDrive upload page.
         await doWelcomePage(officeWebAppInstalled, odfsMounted);
         await doPWAInstallPage();
-        checkIsOneDriveUploadPage();
+        checkIsOfficeSetupCompletePage();
 
         // Click the open file button.
         cloudUploadApp.$('.action-button').click();

@@ -14,14 +14,15 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/platform_thread.h"
+#include "chrome/browser/policy/messaging_layer/storage_selector/storage_selector.h"
 #include "chrome/browser/policy/messaging_layer/upload/network_condition_service.h"
 #include "chrome/browser/policy/messaging_layer/upload/upload_client.h"
 #include "chrome/browser/policy/messaging_layer/upload/upload_provider.h"
+#include "chrome/browser/policy/messaging_layer/util/upload_declarations.h"
 #include "chromeos/ash/components/dbus/services/cros_dbus_service.h"
 #include "chromeos/dbus/missive/missive_client.h"
 #include "components/reporting/proto/synced/record.pb.h"
 #include "components/reporting/resources/resource_manager.h"
-#include "components/reporting/storage_selector/storage_selector.h"
 #include "dbus/exported_object.h"
 #include "dbus/message.h"
 
@@ -45,7 +46,6 @@ class EncryptedReportingServiceProvider
       const EncryptedReportingServiceProvider& other) = delete;
   ~EncryptedReportingServiceProvider() override;
 
-  // Returns true if the current thread is on the origin thread.
   // CrosDBusService::ServiceProviderInterface overrides:
   void Start(scoped_refptr<dbus::ExportedObject> exported_object) override;
 
@@ -62,10 +62,12 @@ class EncryptedReportingServiceProvider
                   bool success);
 
   // Callbacks referring to MissivedClient.
-  static ::reporting::UploadClient::ReportSuccessfulUploadCallback
+  static ::reporting::ReportSuccessfulUploadCallback
   GetReportSuccessUploadCallback();
-  static ::reporting::UploadClient::EncryptionKeyAttachedCallback
+  static ::reporting::EncryptionKeyAttachedCallback
   GetEncryptionKeyAttachedCallback();
+  static ::reporting::UpdateConfigInMissiveCallback
+  GetUpdateConfigInMissiveCallback();
 
   // Returns true if called on the origin thread.
   bool OnOriginThread() const;

@@ -15,9 +15,9 @@
 #include "base/functional/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/scoped_path_override.h"
+#include "base/test/task_environment.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/services/util_win/util_win_impl.h"
-#include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
@@ -55,17 +55,18 @@ class CrashingUtilWinImpl : public chrome::mojom::UtilWin {
   }
   void GetAntiVirusProducts(bool report_full_names,
                             GetAntiVirusProductsCallback callback) override {}
+  void GetTpmIdentifier(GetTpmIdentifierCallback callback) override {}
 
   mojo::Receiver<chrome::mojom::UtilWin> receiver_;
 };
 
 base::FilePath GetKernel32DllFilePath() {
   std::unique_ptr<base::Environment> env = base::Environment::Create();
-  std::string sysroot;
-  EXPECT_TRUE(env->GetVar("SYSTEMROOT", &sysroot));
+  std::optional<std::string> sysroot = env->GetVar("SYSTEMROOT");
+  EXPECT_TRUE(sysroot.has_value());
 
-  base::FilePath path =
-      base::FilePath::FromUTF8Unsafe(sysroot).Append(L"system32\\kernel32.dll");
+  base::FilePath path = base::FilePath::FromUTF8Unsafe(sysroot.value())
+                            .Append(L"system32\\kernel32.dll");
 
   return path;
 }
@@ -130,11 +131,7 @@ class ModuleInspectorTest : public testing::Test {
 
   void ClearInspectedModules() { inspected_modules_.clear(); }
 
-  // A BrowserTaskEnvironment is required instead of a TaskEnvironment
-  // because of AfterStartupTaskUtils (DCHECK for BrowserThread::UI).
-  //
-  // Must be before the ModuleInspector.
-  content::BrowserTaskEnvironment task_environment_;
+  base::test::TaskEnvironment task_environment_;
 
   // Holds a test UtilWin service implementation.
   std::unique_ptr<chrome::mojom::UtilWin> util_win_impl_;
@@ -163,11 +160,16 @@ class ModuleInspectorTest : public testing::Test {
 
 }  // namespace
 
-TEST_F(ModuleInspectorTest, OneModule) {
+TEST_F(ModuleInspectorTest, StartInspection) {
   auto module_inspector = CreateModuleInspector();
 
   module_inspector->AddModule({GetKernel32DllFilePath(), 0, 0});
+  RunUntilIdle();
 
+  // Modules are not inspected until StartInspection() is called.
+  ASSERT_EQ(0u, inspected_modules().size());
+
+  module_inspector->StartInspection();
   RunUntilIdle();
 
   ASSERT_EQ(1u, inspected_modules().size());
@@ -181,6 +183,7 @@ TEST_F(ModuleInspectorTest, MultipleModules) {
   };
 
   auto module_inspector = CreateModuleInspector();
+  module_inspector->StartInspection();
 
   for (const auto& module : kTestCases)
     module_inspector->AddModule(module);
@@ -191,9 +194,6 @@ TEST_F(ModuleInspectorTest, MultipleModules) {
 }
 
 TEST_F(ModuleInspectorTest, InspectionResultsCache) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(kInspectionResultsCache);
-
   base::ScopedTempDir scoped_temp_dir;
   ASSERT_TRUE(scoped_temp_dir.CreateUniqueTempDir());
 
@@ -210,6 +210,7 @@ TEST_F(ModuleInspectorTest, InspectionResultsCache) {
       CreateInspectionResultsCacheWithEntry(module_key, inspection_result));
 
   auto module_inspector = CreateModuleInspector();
+  module_inspector->StartInspection();
 
   module_inspector->AddModule(module_key);
 
@@ -223,12 +224,9 @@ TEST_F(ModuleInspectorTest, InspectionResultsCache) {
   ASSERT_EQ(inspected_modules()[0].basename, inspection_result.basename);
 }
 
-// Tests that when OnModuleDatabaseIdle() notificate is received, the cache is
+// Tests that when OnModuleDatabaseIdle() notification is received, the cache is
 // flushed to disk.
 TEST_F(ModuleInspectorTest, InspectionResultsCache_OnModuleDatabaseIdle) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(kInspectionResultsCache);
-
   base::ScopedTempDir scoped_temp_dir;
   ASSERT_TRUE(scoped_temp_dir.CreateUniqueTempDir());
 
@@ -236,6 +234,7 @@ TEST_F(ModuleInspectorTest, InspectionResultsCache_OnModuleDatabaseIdle) {
       chrome::DIR_USER_DATA, scoped_temp_dir.GetPath());
 
   auto module_inspector = CreateModuleInspector();
+  module_inspector->StartInspection();
 
   ModuleInfoKey module_key(GetKernel32DllFilePath(), 0, 0);
   module_inspector->AddModule(module_key);
@@ -264,9 +263,6 @@ TEST_F(ModuleInspectorTest, InspectionResultsCache_OnModuleDatabaseIdle) {
 // Tests that when the timer expires before the OnModuleDatabaseIdle()
 // notification, the cache is flushed to disk.
 TEST_F(ModuleInspectorTest, InspectionResultsCache_TimerExpired) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(kInspectionResultsCache);
-
   base::ScopedTempDir scoped_temp_dir;
   ASSERT_TRUE(scoped_temp_dir.CreateUniqueTempDir());
 
@@ -274,6 +270,7 @@ TEST_F(ModuleInspectorTest, InspectionResultsCache_TimerExpired) {
       chrome::DIR_USER_DATA, scoped_temp_dir.GetPath());
 
   auto module_inspector = CreateModuleInspector();
+  module_inspector->StartInspection();
 
   ModuleInfoKey module_key(GetKernel32DllFilePath(), 0, 0);
   module_inspector->AddModule(module_key);
@@ -300,6 +297,7 @@ TEST_F(ModuleInspectorTest, InspectionResultsCache_TimerExpired) {
 
 TEST_F(ModuleInspectorTest, MojoConnectionError) {
   auto module_inspector = CreateModuleInspectorWithCrashingUtilWin();
+  module_inspector->StartInspection();
   EXPECT_NE(0,
             module_inspector->get_connection_error_retry_count_for_testing());
 
@@ -322,9 +320,6 @@ TEST_F(ModuleInspectorTest, MojoConnectionError) {
 // the connection error handler.
 // Regression test for https://crbug.com/1213241.
 TEST_F(ModuleInspectorTest, WaitingOnCacheConnectionError) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(kInspectionResultsCache);
-
   base::ScopedTempDir scoped_temp_dir;
   ASSERT_TRUE(scoped_temp_dir.CreateUniqueTempDir());
 
@@ -341,6 +336,7 @@ TEST_F(ModuleInspectorTest, WaitingOnCacheConnectionError) {
       CreateInspectionResultsCacheWithEntry(module_key, inspection_result));
 
   auto module_inspector = CreateModuleInspector();
+  module_inspector->StartInspection();
 
   // Inspect a module not in the cache to ensure the UtilWin service is started.
   module_inspector->AddModule(ModuleInfoKey(base::FilePath(), 0, 0));

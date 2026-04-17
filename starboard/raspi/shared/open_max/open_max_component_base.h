@@ -27,6 +27,7 @@
 #include <mutex>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/internal_only.h"
 
@@ -66,7 +67,7 @@ class OpenMaxComponentBase {
   void GetInputPortParam(ParamType* param) const {
     param->nPortIndex = input_port_;
     OMX_ERRORTYPE error = OMX_GetParameter(handle_, ParamType::Index, param);
-    SB_DCHECK(error == OMX_ErrorNone)
+    SB_DCHECK_EQ(error, OMX_ErrorNone)
         << std::hex << "OMX_GetParameter(" << ParamType::Index
         << ") failed with error " << error;
   }
@@ -75,7 +76,7 @@ class OpenMaxComponentBase {
   void GetOutputPortParam(ParamType* param) const {
     param->nPortIndex = output_port_;
     OMX_ERRORTYPE error = OMX_GetParameter(handle_, ParamType::Index, param);
-    SB_DCHECK(error == OMX_ErrorNone)
+    SB_DCHECK_EQ(error, OMX_ErrorNone)
         << std::hex << "OMX_GetParameter(" << ParamType::Index
         << ") failed with error " << error;
   }
@@ -84,7 +85,7 @@ class OpenMaxComponentBase {
   void SetPortParam(const ParamType& param) const {
     OMX_ERRORTYPE error = OMX_SetParameter(handle_, ParamType::Index,
                                            const_cast<ParamType*>(&param));
-    SB_DCHECK(error == OMX_ErrorNone)
+    SB_DCHECK_EQ(error, OMX_ErrorNone)
         << std::hex << "OMX_SetParameter(" << ParamType::Index
         << ") failed with error " << error;
   }

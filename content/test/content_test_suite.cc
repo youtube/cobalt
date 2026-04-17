@@ -9,9 +9,9 @@
 #include "base/command_line.h"
 #include "build/build_config.h"
 #include "content/browser/webui/content_web_ui_configs.h"
+#include "content/public/browser/network_service_util.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_paths.h"
-#include "content/public/common/network_service_util.h"
 #include "gpu/ipc/test_gpu_thread_holder.h"
 #include "media/base/media.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -23,7 +23,7 @@
 #endif
 
 #if BUILDFLAG(IS_MAC)
-#include "base/mac/scoped_nsautorelease_pool.h"
+#include "base/apple/scoped_nsautorelease_pool.h"
 #include "base/test/mock_chrome_application_mac.h"
 #endif
 
@@ -36,9 +36,16 @@ ContentTestSuite::ContentTestSuite(int argc, char** argv)
 ContentTestSuite::~ContentTestSuite() = default;
 
 void ContentTestSuite::Initialize() {
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  bool is_child_process = command_line->HasSwitch(switches::kTestChildProcess);
 #if BUILDFLAG(IS_MAC)
-  base::mac::ScopedNSAutoreleasePool autorelease_pool;
-  mock_cr_app::RegisterMockCrApp();
+  base::apple::ScopedNSAutoreleasePool autorelease_pool;
+  // Initializing `NSApplication` before applying the sandbox profile in child
+  // processes opens XPC connections that should be disallowed. We don't want or
+  // need `NSApplication` in sandboxed processes anyway, so skip initializing.
+  if (!is_child_process) {
+    mock_cr_app::RegisterMockCrApp();
+  }
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -47,7 +54,7 @@ void ContentTestSuite::Initialize() {
 
   InitializeResourceBundle();
 
-  ForceInProcessNetworkService(true);
+  ForceInProcessNetworkService();
 
   ContentTestSuiteBase::Initialize();
   {
@@ -60,8 +67,6 @@ void ContentTestSuite::Initialize() {
   media::InitializeMediaLibrary();
   // When running in a child process for Mac sandbox tests, the sandbox exists
   // to initialize GL, so don't do it here.
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  bool is_child_process = command_line->HasSwitch(switches::kTestChildProcess);
   if (!is_child_process) {
     gl::GLDisplay* display =
         gl::GLSurfaceTestSupport::InitializeNoExtensionsOneOff();

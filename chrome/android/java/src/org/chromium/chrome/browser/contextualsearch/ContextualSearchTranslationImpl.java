@@ -8,21 +8,21 @@ import android.text.TextUtils;
 
 import androidx.annotation.Nullable;
 
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.translate.TranslateBridge;
 
 import java.util.List;
 
-/**
- * Controls how Translation triggering is handled for the {@link ContextualSearchManager}.
- */
+/** Controls how Translation triggering is handled for the {@link ContextualSearchManager}. */
 public class ContextualSearchTranslationImpl implements ContextualSearchTranslation {
     private final TranslateBridgeWrapper mTranslateBridgeWrapper;
+
     /**
      * Creates a {@link ContextualSearchTranslation} for updating {@link ContextualSearchRequest}s
      * for translation.
      */
-    public ContextualSearchTranslationImpl() {
-        mTranslateBridgeWrapper = new TranslateBridgeWrapper();
+    public ContextualSearchTranslationImpl(Profile profile) {
+        mTranslateBridgeWrapper = new TranslateBridgeWrapper(profile);
     }
 
     /** Constructor useful for testing, uses the given {@link TranslateBridgeWrapper}. */
@@ -72,20 +72,26 @@ public class ContextualSearchTranslationImpl implements ContextualSearchTranslat
      * mocked for testing.
      */
     static class TranslateBridgeWrapper {
+        private final Profile mProfile;
+
+        public TranslateBridgeWrapper(Profile profile) {
+            mProfile = profile;
+        }
+
         /**
          * @return The best target language based on what the Translate Service knows about the
-         *         user.
+         *     user.
          */
         public String getTargetLanguage() {
-            return TranslateBridge.getTargetLanguage();
+            return TranslateBridge.getTargetLanguage(mProfile);
         }
 
         /**
          * @return The {@link List} of languages the user has set to never translate, in
-         *         alphabetical order.
+         *     alphabetical order.
          */
         public List<String> getNeverTranslateLanguages() {
-            return TranslateBridge.getNeverTranslateLanguages();
+            return TranslateBridge.getNeverTranslateLanguages(mProfile);
         }
     }
 }

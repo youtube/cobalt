@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/viz/test/test_raster_interface.h"
 
 #include <limits>
@@ -98,7 +103,11 @@ gpu::SyncToken TestRasterInterface::ScheduleImageDecode(
 GLuint TestRasterInterface::CreateAndConsumeForGpuRaster(
     const gpu::Mailbox& mailbox) {
   NOTREACHED();
-  return 0;
+}
+
+GLuint TestRasterInterface::CreateAndConsumeForGpuRaster(
+    const scoped_refptr<gpu::ClientSharedImage>& shared_image) {
+  NOTREACHED();
 }
 
 void TestRasterInterface::DeleteGpuRasterTexture(GLuint texture) {
@@ -132,7 +141,6 @@ void TestRasterInterface::UnlockDiscardableTextureCHROMIUM(GLuint texture) {
 
 bool TestRasterInterface::LockDiscardableTextureCHROMIUM(GLuint texture) {
   NOTREACHED();
-  return false;
 }
 
 void TestRasterInterface::GenSyncTokenCHROMIUM(GLbyte* sync_token) {
@@ -186,4 +194,26 @@ void TestRasterInterface::ShallowFlushCHROMIUM() {
     test_support_->CallAllSyncPointCallbacks();
 }
 
+void TestRasterInterface::set_supports_gpu_memory_buffer_format(
+    gfx::BufferFormat format,
+    bool support) {
+  if (support) {
+    caps_.gpu_memory_buffer_formats.Put(format);
+  } else {
+    caps_.gpu_memory_buffer_formats.Remove(format);
+  }
+}
+
+bool TestRasterInterface::ReadbackImagePixels(
+    const gpu::Mailbox& source_mailbox,
+    const SkImageInfo& dst_info,
+    GLuint dst_row_bytes,
+    int src_x,
+    int src_y,
+    int plane_index,
+    void* dst_pixels) {
+  auto size = dst_info.computeByteSize(dst_row_bytes);
+  memset(dst_pixels, 0, size);
+  return true;
+}
 }  // namespace viz

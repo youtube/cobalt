@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/crypto/client_proof_source.h"
 
+#include <string>
+
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/test_certificates.h"
@@ -56,7 +58,7 @@ CertificatePrivateKey EmptyPrivateKey() {
 #define VERIFY_CERT_AND_KEY_MATCHES(lhs, rhs) \
   do {                                        \
     SCOPED_TRACE(testing::Message());         \
-    VerifyCertAndKeyMatches(lhs, rhs);        \
+    VerifyCertAndKeyMatches(lhs.get(), rhs);  \
   } while (0)
 
 void VerifyCertAndKeyMatches(const ClientProofSource::CertAndKey* lhs,
@@ -178,36 +180,29 @@ TEST(DefaultClientProofSource, FullWildcardAndDefault) {
 
 TEST(DefaultClientProofSource, EmptyCerts) {
   DefaultClientProofSource proof_source;
-  bool ok;
-  EXPECT_QUIC_BUG(
-      ok = proof_source.AddCertAndKey({"*"}, NullCertChain(), TestPrivateKey()),
-      "Certificate chain is empty");
-  ASSERT_FALSE(ok);
-
-  EXPECT_QUIC_BUG(ok = proof_source.AddCertAndKey({"*"}, EmptyCertChain(),
-                                                  TestPrivateKey()),
+  EXPECT_QUIC_BUG(ASSERT_FALSE(proof_source.AddCertAndKey(
+                      {"*"}, NullCertChain(), TestPrivateKey())),
                   "Certificate chain is empty");
-  ASSERT_FALSE(ok);
+
+  EXPECT_QUIC_BUG(ASSERT_FALSE(proof_source.AddCertAndKey(
+                      {"*"}, EmptyCertChain(), TestPrivateKey())),
+                  "Certificate chain is empty");
   EXPECT_EQ(proof_source.GetCertAndKey("*"), nullptr);
 }
 
 TEST(DefaultClientProofSource, BadCerts) {
   DefaultClientProofSource proof_source;
-  bool ok;
-  EXPECT_QUIC_BUG(
-      ok = proof_source.AddCertAndKey({"*"}, BadCertChain(), TestPrivateKey()),
-      "Unabled to parse leaf certificate");
-  ASSERT_FALSE(ok);
+  EXPECT_QUIC_BUG(ASSERT_FALSE(proof_source.AddCertAndKey({"*"}, BadCertChain(),
+                                                          TestPrivateKey())),
+                  "Unabled to parse leaf certificate");
   EXPECT_EQ(proof_source.GetCertAndKey("*"), nullptr);
 }
 
 TEST(DefaultClientProofSource, KeyMismatch) {
   DefaultClientProofSource proof_source;
-  bool ok;
-  EXPECT_QUIC_BUG(ok = proof_source.AddCertAndKey(
-                      {"www.google.com"}, TestCertChain(), EmptyPrivateKey()),
+  EXPECT_QUIC_BUG(ASSERT_FALSE(proof_source.AddCertAndKey(
+                      {"www.google.com"}, TestCertChain(), EmptyPrivateKey())),
                   "Private key does not match the leaf certificate");
-  ASSERT_FALSE(ok);
   EXPECT_EQ(proof_source.GetCertAndKey("*"), nullptr);
 }
 

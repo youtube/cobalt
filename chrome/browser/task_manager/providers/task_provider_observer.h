@@ -5,8 +5,8 @@
 #ifndef CHROME_BROWSER_TASK_MANAGER_PROVIDERS_TASK_PROVIDER_OBSERVER_H_
 #define CHROME_BROWSER_TASK_MANAGER_PROVIDERS_TASK_PROVIDER_OBSERVER_H_
 
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/task_manager/providers/task.h"
+#include "chrome/browser/task_manager/task_manager_observer.h"
 
 namespace task_manager {
 
@@ -30,13 +30,9 @@ class TaskProviderObserver {
   // is only for tasks representing renderer processes.
   virtual void TaskUnresponsive(Task* task) {}
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // This notifies of the event that the TaskIdsList maintained by
   // GetTaskIdsList() should be invalidated.
-  // Note: Lacros tasks are sorted by lacros task manager and sent to ash in
-  // the sorted order each time lacros task data is pulled to ash. Ash task
-  // manager needs to be notified to invalidate its sorted task id list if
-  // lacros tasks changes the sorting order.
   virtual void TaskIdsListToBeInvalidated() {}
 #endif
 };

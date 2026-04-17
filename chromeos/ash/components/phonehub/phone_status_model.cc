@@ -6,8 +6,7 @@
 
 #include "chromeos/ash/components/multidevice/logging/logging.h"
 
-namespace ash {
-namespace phonehub {
+namespace ash::phonehub {
 
 bool PhoneStatusModel::MobileConnectionMetadata::operator==(
     const MobileConnectionMetadata& other) const {
@@ -22,7 +21,7 @@ bool PhoneStatusModel::MobileConnectionMetadata::operator!=(
 
 PhoneStatusModel::PhoneStatusModel(
     MobileStatus mobile_status,
-    const absl::optional<MobileConnectionMetadata>& mobile_connection_metadata,
+    const std::optional<MobileConnectionMetadata>& mobile_connection_metadata,
     ChargingState charging_state,
     BatterySaverState battery_saver_state,
     uint32_t battery_percentage)
@@ -159,5 +158,4 @@ std::ostream& operator<<(
   return stream;
 }
 
-}  // namespace phonehub
-}  // namespace ash
+}  // namespace ash::phonehub

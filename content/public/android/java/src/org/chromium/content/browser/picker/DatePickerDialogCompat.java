@@ -9,16 +9,20 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.widget.DatePicker;
 
+import org.chromium.build.annotations.NullMarked;
+
 /**
  * The behavior of the DatePickerDialog changed after JellyBean so it now calls
  * OndateSetListener.onDateSet() even when the dialog is dismissed (e.g. back button, tap
  * outside). This class will call the listener instead of the DatePickerDialog only when the
  * BUTTON_POSITIVE has been clicked.
  */
+@NullMarked
 class DatePickerDialogCompat extends DatePickerDialog {
     private final OnDateSetListener mCallBack;
 
-    public DatePickerDialogCompat(Context context,
+    public DatePickerDialogCompat(
+            Context context,
             OnDateSetListener callBack,
             int year,
             int monthOfYear,
@@ -37,8 +41,11 @@ class DatePickerDialogCompat extends DatePickerDialog {
         if (which == BUTTON_POSITIVE && mCallBack != null) {
             DatePicker datePicker = getDatePicker();
             datePicker.clearFocus();
-            mCallBack.onDateSet(datePicker, datePicker.getYear(),
-                    datePicker.getMonth(), datePicker.getDayOfMonth());
+            mCallBack.onDateSet(
+                    datePicker,
+                    datePicker.getYear(),
+                    datePicker.getMonth(),
+                    datePicker.getDayOfMonth());
         }
     }
 

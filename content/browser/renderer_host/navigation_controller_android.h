@@ -70,7 +70,7 @@ class CONTENT_EXPORT NavigationControllerAndroid {
   void GoToNavigationIndex(JNIEnv* env,
                            const base::android::JavaParamRef<jobject>& obj,
                            jint index);
-  base::android::ScopedJavaGlobalRef<jobject> LoadUrl(
+  base::android::ScopedJavaLocalRef<jobject> LoadUrl(
       JNIEnv* env,
       const base::android::JavaParamRef<jobject>& obj,
       const base::android::JavaParamRef<jstring>& url,
@@ -82,7 +82,7 @@ class CONTENT_EXPORT NavigationControllerAndroid {
       const base::android::JavaParamRef<jstring>& extra_headers,
       const base::android::JavaParamRef<jobject>& j_post_data,
       const base::android::JavaParamRef<jstring>& base_url_for_data_url,
-      const base::android::JavaParamRef<jstring>& virtual_url_for_data_url,
+      const base::android::JavaParamRef<jstring>& virtual_url_for_special_cases,
       const base::android::JavaParamRef<jstring>& data_url_as_string,
       jboolean can_load_local_resources,
       jboolean is_renderer_initiated,
@@ -90,8 +90,11 @@ class CONTENT_EXPORT NavigationControllerAndroid {
       const base::android::JavaParamRef<jobject>& j_initiator_origin,
       jboolean has_user_gesture,
       jboolean should_clear_history_list,
+      const base::android::JavaParamRef<jobject>&
+          j_additional_navigation_params,
       jlong input_start,
-      jlong navigation_ui_data_ptr);
+      jlong navigation_ui_data_ptr,
+      jboolean is_pdf);
   void ClearSslPreferences(
       JNIEnv* env,
       const base::android::JavaParamRef<jobject>& /* obj */);
@@ -143,10 +146,9 @@ class CONTENT_EXPORT NavigationControllerAndroid {
                          jint index,
                          const base::android::JavaParamRef<jstring>& jkey,
                          const base::android::JavaParamRef<jstring>& jvalue);
-  jboolean IsEntryMarkedToBeSkipped(
-      JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& obj,
-      jint index);
+  void CopyStateFrom(JNIEnv* env,
+                     jlong source_navigation_controller_ptr,
+                     jboolean needs_reload);
 
  private:
   void SetUseDesktopUserAgentInternal(bool enabled,

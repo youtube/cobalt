@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/shared/starboard/player/filter/audio_channel_layout_mixer.h"
+// clang-format on
 
 #include <limits>
 #include <vector>
@@ -79,7 +81,8 @@ const float kQuadToFivePointOneMatrix[] = {
 
 // 2 -> 1
 const float kStereoToMonoMatrix[] = {
-    0.5f, 0.5f,  // output = 0.5 * (input.L + input.R)
+    0.5f,
+    0.5f,  // output = 0.5 * (input.L + input.R)
 };
 
 // 4 -> 1
@@ -191,8 +194,8 @@ void StoreInterleavedSamplesOfFrame(const SampleType* samples,
       dest_buffer[frame_index * (*destination)->channels() + channel_index] =
           samples[channel_index];
     } else {
-      SB_DCHECK((*destination)->storage_type() ==
-                kSbMediaAudioFrameStorageTypePlanar);
+      SB_DCHECK_EQ((*destination)->storage_type(),
+                   kSbMediaAudioFrameStorageTypePlanar);
       dest_buffer[channel_index * (*destination)->frames() + frame_index] =
           samples[channel_index];
     }

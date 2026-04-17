@@ -30,7 +30,7 @@ namespace mojo {
 //        wrapper type, or the following alternatives:
 //        - string:
 //          Value or reference of any type that has a StringTraits defined.
-//          Supported by default: base::StringPiece, std::string,
+//          Supported by default: std::string_view, std::string,
 //          WTF::String (in blink).
 //
 //        - array:
@@ -49,7 +49,7 @@ namespace mojo {
 //          Value of any type that has an EnumTraits defined.
 //
 //      For any nullable string/struct/array/map/union field you could also
-//      return value or reference of absl::optional<T>, if T has the right
+//      return value or reference of std::optional<T>, if T has the right
 //      *Traits defined.
 //
 //      During serialization, getters for all fields are called exactly once. It
@@ -143,9 +143,15 @@ namespace mojo {
 //
 template <typename DataViewType, typename T>
 struct StructTraits {
-  static_assert(internal::AlwaysFalse<T>::value,
-                "Cannot find the mojo::StructTraits specialization. Did you "
-                "forget to include the corresponding header file?");
+  static_assert(
+      internal::AlwaysFalse<T>::value,
+      "Cannot find the mojo::StructTraits specialization. Did you confirm "
+      "that:"
+      "  * the corresponding header file is included in your build file"
+      "    typemap?"
+      "  * the mojom::StructTraits specialization you've created is defined"
+      "    *exactly* the same as the mojom::StructTraits specialization"
+      "    specified in this stack trace?");
 };
 
 }  // namespace mojo

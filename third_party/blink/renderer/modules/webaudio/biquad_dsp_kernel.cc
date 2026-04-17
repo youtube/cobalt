@@ -23,6 +23,11 @@
  * DAMAGE.
  */
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "third_party/blink/renderer/modules/webaudio/biquad_dsp_kernel.h"
 
 #include <limits.h>
@@ -31,33 +36,88 @@
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
+#ifdef __SSE2__
+#include <immintrin.h>
+#elif defined(__ARM_NEON__)
+#include <arm_neon.h>
+#endif
+
 namespace blink {
 
 namespace {
 
 bool HasConstantValues(float* values, int frames_to_process) {
-  // TODO(rtoy): Use SIMD to optimize this.  This would speed up
-  // processing by a factor of 4 because we can process 4 floats at a
-  // time.
-  float value = values[0];
+  // Load the initial value
+  const float value = values[0];
+  // This initialization ensures that we correctly handle the first frame and
+  // start the processing from the second frame onwards, effectively excluding
+  // the first frame from the subsequent comparisons in the non-SIMD paths
+  // it guarantees that we don't redundantly compare the first frame again
+  // during the loop execution.
+  int processed_frames = 1;
 
-  for (int k = 1; k < frames_to_process; ++k) {
-    if (values[k] != value) {
+#if defined(__SSE2__)
+  // Process 4 floats at a time using SIMD
+  __m128 value_vec = _mm_set1_ps(value);
+  // Start at 0 for byte alignment
+  for (processed_frames = 0; processed_frames < frames_to_process - 3;
+       processed_frames += 4) {
+    // Load 4 floats from memory
+    __m128 input_vec = _mm_loadu_ps(&values[processed_frames]);
+    // Compare the 4 floats with the value
+    __m128 cmp_vec = _mm_cmpneq_ps(input_vec, value_vec);
+    // Check if any of the floats are not equal to the value
+    if (_mm_movemask_ps(cmp_vec) != 0) {
       return false;
     }
   }
-
+#elif defined(__ARM_NEON__)
+  // Process 4 floats at a time using SIMD
+  float32x4_t value_vec = vdupq_n_f32(value);
+  // Start at 0 for byte alignment
+  for (processed_frames = 0; processed_frames < frames_to_process - 3;
+       processed_frames += 4) {
+    // Load 4 floats from memory
+    float32x4_t input_vec = vld1q_f32(&values[processed_frames]);
+    // Compare the 4 floats with the value
+    uint32x4_t cmp_vec = vceqq_f32(input_vec, value_vec);
+    // Accumulate the elements of the cmp_vec vector using bitwise AND
+    uint32x2_t cmp_reduced_32 =
+        vand_u32(vget_low_u32(cmp_vec), vget_high_u32(cmp_vec));
+    // Check if any of the floats are not equal to the value
+    if (vget_lane_u32(vpmin_u32(cmp_reduced_32, cmp_reduced_32), 0) == 0) {
+      return false;
+    }
+  }
+#endif
+  // Fallback implementation without SIMD optimization
+  while (processed_frames < frames_to_process) {
+    if (values[processed_frames] != value) {
+      return false;
+    }
+    processed_frames++;
+  }
   return true;
 }
 
 }  // namespace
 
+bool BiquadDSPKernel::HasConstantValuesForTesting(float* values,
+                                                  int frames_to_process) {
+  return HasConstantValues(values, frames_to_process);
+}
+
 void BiquadDSPKernel::UpdateCoefficientsIfNecessary(int frames_to_process) {
   if (GetBiquadProcessor()->FilterCoefficientsDirty()) {
-    float cutoff_frequency[RenderQuantumFrames()];
-    float q[RenderQuantumFrames()];
-    float gain[RenderQuantumFrames()];
-    float detune[RenderQuantumFrames()];  // in Cents
+    // TODO(crbug.com/40637820): Eventually, the render quantum size will no
+    // longer be hardcoded as 128. At that point, we'll need to switch from
+    // stack allocation to heap allocation.
+    constexpr unsigned render_quantum_frames_expected = 128;
+    CHECK_EQ(RenderQuantumFrames(), render_quantum_frames_expected);
+    float cutoff_frequency[render_quantum_frames_expected];
+    float q[render_quantum_frames_expected];
+    float gain[render_quantum_frames_expected];
+    float detune[render_quantum_frames_expected];  // in Cents
 
     SECURITY_CHECK(static_cast<unsigned>(frames_to_process) <=
                    RenderQuantumFrames());
@@ -65,13 +125,14 @@ void BiquadDSPKernel::UpdateCoefficientsIfNecessary(int frames_to_process) {
     if (GetBiquadProcessor()->HasSampleAccurateValues() &&
         GetBiquadProcessor()->IsAudioRate()) {
       GetBiquadProcessor()->Parameter1().CalculateSampleAccurateValues(
-          cutoff_frequency, frames_to_process);
+          base::span(cutoff_frequency)
+              .first(static_cast<size_t>(frames_to_process)));
       GetBiquadProcessor()->Parameter2().CalculateSampleAccurateValues(
-          q, frames_to_process);
+          base::span(q).first(static_cast<size_t>(frames_to_process)));
       GetBiquadProcessor()->Parameter3().CalculateSampleAccurateValues(
-          gain, frames_to_process);
+          base::span(gain).first(static_cast<size_t>(frames_to_process)));
       GetBiquadProcessor()->Parameter4().CalculateSampleAccurateValues(
-          detune, frames_to_process);
+          base::span(detune).first(static_cast<size_t>(frames_to_process)));
 
       // If all the values are actually constant for this render (or the
       // automation rate is "k-rate" for all of the AudioParams), we don't need
@@ -155,11 +216,10 @@ void BiquadDSPKernel::UpdateCoefficients(int number_of_frames,
 }
 
 void BiquadDSPKernel::UpdateTailTime(int coef_index) {
-  // A reasonable upper limit for the tail time.  While it's easy to
-  // create biquad filters whose tail time can be much larger than
-  // this, limit the maximum to this value so that we don't keep such
-  // nodes alive "forever".
-  // TODO: What is a reasonable upper limit?
+  // TODO(crbug.com/1447095): A reasonable upper limit for the tail time.  While
+  // it's easy to create biquad filters whose tail time can be much larger than
+  // this, limit the maximum to this value so that we don't keep such nodes
+  // alive "forever". Investigate if we can adjust this to a smaller value.
   constexpr double kMaxTailTime = 30.0;
 
   double sample_rate = SampleRate();

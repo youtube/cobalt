@@ -15,7 +15,6 @@
 
 namespace net {
 class CertVerifier;
-class CTPolicyEnforcer;
 class DrainableIOBuffer;
 class GrowableIOBuffer;
 class SSLClientContext;
@@ -86,7 +85,6 @@ class SslHmacChannelAuthenticator : public ChannelAuthenticator {
     // Used in the CLIENT mode only.
     std::unique_ptr<net::TransportSecurityState> transport_security_state;
     std::unique_ptr<net::CertVerifier> cert_verifier;
-    std::unique_ptr<net::CTPolicyEnforcer> ct_policy_enforcer;
     std::unique_ptr<net::SSLClientContext> client_context;
   };
 
@@ -103,7 +101,7 @@ class SslHmacChannelAuthenticator : public ChannelAuthenticator {
   void ReadAuthenticationBytes();
   void OnAuthBytesRead(int result);
   bool HandleAuthBytesRead(int result);
-  bool VerifyAuthBytes(const std::string& received_auth_bytes);
+  bool VerifyAuthBytes(base::span<const uint8_t> bytes);
 
   void CheckDone(bool* callback_called);
   void NotifyError(int error);

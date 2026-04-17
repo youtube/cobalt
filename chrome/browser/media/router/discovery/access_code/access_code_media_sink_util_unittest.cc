@@ -104,9 +104,12 @@ TEST_F(AccessCodeMediaSinkUtilTest, MissingPort) {
   media_router::MediaSinkInternal expected_sink_internal;
   media_router::CastSinkExtraData expected_extra_data;
 
-  expected_extra_data.capabilities =
-      cast_channel::VIDEO_OUT | cast_channel::VIDEO_IN |
-      cast_channel::AUDIO_OUT | cast_channel::AUDIO_IN | cast_channel::DEV_MODE;
+  expected_extra_data.capabilities = {
+      cast_channel::CastDeviceCapability::kVideoOut,
+      cast_channel::CastDeviceCapability::kVideoIn,
+      cast_channel::CastDeviceCapability::kAudioOut,
+      cast_channel::CastDeviceCapability::kAudioIn,
+      cast_channel::CastDeviceCapability::kDevMode};
   net::IPAddress expected_ip;
 
   // Must use equality to bypass `warn_unused_result`.
@@ -128,7 +131,7 @@ TEST_F(AccessCodeMediaSinkUtilTest, MissingPort) {
   expected_sink_internal.set_sink(expected_sink);
   expected_sink_internal.set_cast_data(expected_extra_data);
 
-  std::pair<absl::optional<MediaSinkInternal>, CreateCastMediaSinkResult>
+  std::pair<std::optional<MediaSinkInternal>, CreateCastMediaSinkResult>
       constructed_pair = CreateAccessCodeMediaSink(discovery_device_proto);
 
   EXPECT_EQ(constructed_pair.second, CreateCastMediaSinkResult::kOk);
@@ -157,9 +160,12 @@ TEST_F(AccessCodeMediaSinkUtilTest, MediaSinkCreatedCorrectly) {
   media_router::MediaSinkInternal expected_sink_internal;
   media_router::CastSinkExtraData expected_extra_data;
 
-  expected_extra_data.capabilities =
-      cast_channel::VIDEO_OUT | cast_channel::VIDEO_IN |
-      cast_channel::AUDIO_OUT | cast_channel::AUDIO_IN | cast_channel::DEV_MODE;
+  expected_extra_data.capabilities = {
+      cast_channel::CastDeviceCapability::kVideoOut,
+      cast_channel::CastDeviceCapability::kVideoIn,
+      cast_channel::CastDeviceCapability::kAudioOut,
+      cast_channel::CastDeviceCapability::kAudioIn,
+      cast_channel::CastDeviceCapability::kDevMode};
   net::IPAddress expected_ip;
 
   // Must use equality to bypass `warn_unused_result`.
@@ -180,7 +186,7 @@ TEST_F(AccessCodeMediaSinkUtilTest, MediaSinkCreatedCorrectly) {
   expected_sink_internal.set_sink(expected_sink);
   expected_sink_internal.set_cast_data(expected_extra_data);
 
-  std::pair<absl::optional<MediaSinkInternal>, CreateCastMediaSinkResult>
+  std::pair<std::optional<MediaSinkInternal>, CreateCastMediaSinkResult>
       constructed_pair = CreateAccessCodeMediaSink(discovery_device_proto);
 
   EXPECT_EQ(constructed_pair.second, CreateCastMediaSinkResult::kOk);
@@ -197,9 +203,10 @@ TEST_F(AccessCodeMediaSinkUtilTest, ParsedMediaSinkInternalEqualToOriginal) {
       CastDiscoveryType::kAccessCodeRememberedDevice;
   cast_sink.set_cast_data(cast_sink_data);
 
-  auto value_dict =
-      std::move(*CreateValueDictFromMediaSinkInternal(cast_sink).GetIfDict());
-  EXPECT_EQ(ParseValueDictIntoMediaSinkInternal(value_dict).value(), cast_sink);
+  EXPECT_EQ(ParseValueDictIntoMediaSinkInternal(
+                CreateValueDictFromMediaSinkInternal(cast_sink))
+                .value(),
+            cast_sink);
 }
 
 TEST_F(AccessCodeMediaSinkUtilTest, AddSinkResultMetricsHelper) {
@@ -243,11 +250,9 @@ TEST_F(AccessCodeMediaSinkUtilTest, GetIPEndPointFromValueDict) {
   cast_sink_data.discovery_type =
       CastDiscoveryType::kAccessCodeRememberedDevice;
   cast_sink.set_cast_data(cast_sink_data);
-
-  auto value_dict =
-      std::move(*CreateValueDictFromMediaSinkInternal(cast_sink).GetIfDict());
-
-  EXPECT_EQ(GetIPEndPointFromValueDict(value_dict).value(),
+  EXPECT_EQ(GetIPEndPointFromValueDict(
+                CreateValueDictFromMediaSinkInternal(cast_sink))
+                .value(),
             cast_sink.cast_data().ip_endpoint);
 }
 

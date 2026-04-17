@@ -100,7 +100,7 @@ std::string NetworkTestHelperBase::ConfigureService(
     const std::string& shill_json_string) {
   last_created_service_path_.clear();
 
-  absl::optional<base::Value::Dict> shill_json_dict =
+  std::optional<base::Value::Dict> shill_json_dict =
       chromeos::onc::ReadDictionaryFromJson(shill_json_string);
   if (!shill_json_dict.has_value()) {
     LOG(ERROR) << "Error parsing json: " << shill_json_string;
@@ -140,7 +140,7 @@ void NetworkTestHelperBase::ConfigureCallback(const dbus::ObjectPath& result) {
   last_created_service_path_ = result.value();
 }
 
-absl::optional<double> NetworkTestHelperBase::GetServiceDoubleProperty(
+std::optional<double> NetworkTestHelperBase::GetServiceDoubleProperty(
     const std::string& service_path,
     const std::string& key) {
   const base::Value::Dict* properties =
@@ -148,7 +148,7 @@ absl::optional<double> NetworkTestHelperBase::GetServiceDoubleProperty(
   if (properties) {
     return properties->FindDouble(key);
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 std::string NetworkTestHelperBase::GetServiceStringProperty(
@@ -162,6 +162,20 @@ std::string NetworkTestHelperBase::GetServiceStringProperty(
       return *result;
   }
   return std::string();
+}
+
+std::optional<base::Value::List> NetworkTestHelperBase::GetServiceListProperty(
+    const std::string& service_path,
+    const std::string& key) {
+  const base::Value::Dict* properties =
+      service_test_->GetServiceProperties(service_path);
+  if (properties) {
+    const base::Value::List* result = properties->FindList(key);
+    if (result) {
+      return result->Clone();
+    }
+  }
+  return std::nullopt;
 }
 
 void NetworkTestHelperBase::SetServiceProperty(const std::string& service_path,

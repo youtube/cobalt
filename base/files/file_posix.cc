@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/files/file.h"
 
 // The only 32-bit platform that uses this file is Android. On Android APIs
@@ -18,16 +23,22 @@
 
 static_assert(sizeof(base::stat_wrapper_t::st_size) >= 8);
 
+#include <atomic>
+#include <optional>
+
 #include "base/check_op.h"
+#include "base/feature_list.h"
+#include "base/metrics/field_trial_params.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "build/build_config.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_ANDROID)
+#include "base/android/content_uri_utils.h"
 #include "base/os_compat_android.h"
 #endif
 
@@ -39,6 +50,28 @@ static_assert(File::FROM_BEGIN == SEEK_SET && File::FROM_CURRENT == SEEK_CUR &&
               "whence mapping must match the system headers");
 
 namespace {
+
+#if BUILDFLAG(IS_APPLE)
+// When enabled, `F_FULLFSYNC` is not used in `File::Flush`. Instead,
+// `F_BARRIERFSYNC` or `flush()` is used (depending on the
+// "MacEfficientFileFlushUseBarrier" param). See
+// https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/fsync.2.html
+BASE_FEATURE(kMacEfficientFileFlush,
+             "MacEfficientFileFlush",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+const FeatureParam<bool> kMacEfficientFileFlushUseBarrier{
+    &kMacEfficientFileFlush, "MacEfficientFileFlushUseBarrier", true};
+
+enum class MacFileFlushMechanism {
+  kFlush,
+  kFullFsync,
+  kBarrierFsync,
+};
+
+std::atomic<MacFileFlushMechanism> g_mac_file_flush_mechanism{
+    MacFileFlushMechanism::kFullFsync};
+#endif  // BUILDFLAG(IS_APPLE)
 
 // NaCl doesn't provide the following system calls, so either simulate them or
 // wrap them in order to minimize the number of #ifdef's in this file.
@@ -63,21 +96,25 @@ int CallFutimes(PlatformFile file, const struct timeval times[2]) {
   // http://pubs.opengroup.org/onlinepubs/9699919799/
 
   timespec ts_times[2];
-  ts_times[0].tv_sec  = times[0].tv_sec;
+  ts_times[0].tv_sec = times[0].tv_sec;
   ts_times[0].tv_nsec = times[0].tv_usec * 1000;
-  ts_times[1].tv_sec  = times[1].tv_sec;
+  ts_times[1].tv_sec = times[1].tv_sec;
   ts_times[1].tv_nsec = times[1].tv_usec * 1000;
 
   return futimens(file, ts_times);
 #else
+#pragma clang diagnostic push  // Can be removed once Cronet's min-sdk is >= 26.
+#pragma clang diagnostic ignored "-Wunguarded-availability"
   return futimes(file, times);
+#pragma clang diagnostic pop
 #endif
 }
 
 #if !BUILDFLAG(IS_FUCHSIA)
-short FcntlFlockType(absl::optional<File::LockMode> mode) {
-  if (!mode.has_value())
+short FcntlFlockType(std::optional<File::LockMode> mode) {
+  if (!mode.has_value()) {
     return F_UNLCK;
+  }
   switch (mode.value()) {
     case File::LockMode::kShared:
       return F_RDLCK;
@@ -88,14 +125,15 @@ short FcntlFlockType(absl::optional<File::LockMode> mode) {
 }
 
 File::Error CallFcntlFlock(PlatformFile file,
-                           absl::optional<File::LockMode> mode) {
+                           std::optional<File::LockMode> mode) {
   struct flock lock;
   lock.l_type = FcntlFlockType(std::move(mode));
   lock.l_whence = SEEK_SET;
   lock.l_start = 0;
   lock.l_len = 0;  // Lock entire file.
-  if (HANDLE_EINTR(fcntl(file, F_SETLK, &lock)) == -1)
+  if (HANDLE_EINTR(fcntl(file, F_SETLK, &lock)) == -1) {
     return File::GetLastFileError();
+  }
   return File::FILE_OK;
 }
 #endif
@@ -120,11 +158,22 @@ int CallFutimes(PlatformFile file, const struct timeval times[2]) {
 }
 
 File::Error CallFcntlFlock(PlatformFile file,
-                           absl::optional<File::LockMode> mode) {
+                           std::optional<File::LockMode> mode) {
   NOTIMPLEMENTED();  // NaCl doesn't implement flock struct.
   return File::FILE_ERROR_INVALID_OPERATION;
 }
 #endif  // BUILDFLAG(IS_NACL)
+
+#if BUILDFLAG(IS_ANDROID)
+bool GetContentUriInfo(const base::FilePath& path, File::Info* info) {
+  FileEnumerator::FileInfo file_info;
+  bool result = internal::ContentUriGetFileInfo(path, &file_info);
+  if (result) {
+    info->FromStat(file_info.stat());
+  }
+  return result;
+}
+#endif
 
 }  // namespace
 
@@ -203,11 +252,17 @@ PlatformFile File::TakePlatformFile() {
 }
 
 void File::Close() {
-  if (!IsValid())
+  if (!IsValid()) {
     return;
+  }
 
   SCOPED_FILE_TRACE("Close");
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
+#if BUILDFLAG(IS_ANDROID)
+  if (java_parcel_file_descriptor_) {
+    internal::ContentUriClose(java_parcel_file_descriptor_);
+  }
+#endif
   file_.reset();
 }
 
@@ -231,8 +286,9 @@ int64_t File::Seek(Whence whence, int64_t offset) {
 int File::Read(int64_t offset, char* data, int size) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
   DCHECK(IsValid());
-  if (size < 0 || !IsValueInRangeForNumericType<off_t>(offset + size - 1))
+  if (size < 0 || !IsValueInRangeForNumericType<off_t>(offset + size - 1)) {
     return -1;
+  }
 
   SCOPED_FILE_TRACE_WITH_SIZE("Read", size);
 
@@ -242,8 +298,9 @@ int File::Read(int64_t offset, char* data, int size) {
     rv = HANDLE_EINTR(pread(file_.get(), data + bytes_read,
                             static_cast<size_t>(size - bytes_read),
                             static_cast<off_t>(offset + bytes_read)));
-    if (rv <= 0)
+    if (rv <= 0) {
       break;
+    }
 
     bytes_read += rv;
   } while (bytes_read < size);
@@ -254,8 +311,9 @@ int File::Read(int64_t offset, char* data, int size) {
 int File::ReadAtCurrentPos(char* data, int size) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
   DCHECK(IsValid());
-  if (size < 0)
+  if (size < 0) {
     return -1;
+  }
 
   SCOPED_FILE_TRACE_WITH_SIZE("ReadAtCurrentPos", size);
 
@@ -264,8 +322,9 @@ int File::ReadAtCurrentPos(char* data, int size) {
   do {
     rv = HANDLE_EINTR(read(file_.get(), data + bytes_read,
                            static_cast<size_t>(size - bytes_read)));
-    if (rv <= 0)
+    if (rv <= 0) {
       break;
+    }
 
     bytes_read += rv;
   } while (bytes_read < size);
@@ -276,8 +335,9 @@ int File::ReadAtCurrentPos(char* data, int size) {
 int File::ReadNoBestEffort(int64_t offset, char* data, int size) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
   DCHECK(IsValid());
-  if (size < 0 || !IsValueInRangeForNumericType<off_t>(offset))
+  if (size < 0 || !IsValueInRangeForNumericType<off_t>(offset)) {
     return -1;
+  }
 
   SCOPED_FILE_TRACE_WITH_SIZE("ReadNoBestEffort", size);
   return checked_cast<int>(
@@ -288,8 +348,9 @@ int File::ReadNoBestEffort(int64_t offset, char* data, int size) {
 int File::ReadAtCurrentPosNoBestEffort(char* data, int size) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
   DCHECK(IsValid());
-  if (size < 0)
+  if (size < 0) {
     return -1;
+  }
 
   SCOPED_FILE_TRACE_WITH_SIZE("ReadAtCurrentPosNoBestEffort", size);
   return checked_cast<int>(
@@ -299,12 +360,14 @@ int File::ReadAtCurrentPosNoBestEffort(char* data, int size) {
 int File::Write(int64_t offset, const char* data, int size) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
 
-  if (IsOpenAppend(file_.get()))
+  if (IsOpenAppend(file_.get())) {
     return WriteAtCurrentPos(data, size);
+  }
 
   DCHECK(IsValid());
-  if (size < 0)
+  if (size < 0) {
     return -1;
+  }
 
   SCOPED_FILE_TRACE_WITH_SIZE("Write", size);
 
@@ -324,8 +387,9 @@ int File::Write(int64_t offset, const char* data, int size) {
                              static_cast<size_t>(size - bytes_written),
                              offset + bytes_written));
 #endif
-    if (rv <= 0)
+    if (rv <= 0) {
       break;
+    }
 
     bytes_written += rv;
   } while (bytes_written < size);
@@ -336,8 +400,9 @@ int File::Write(int64_t offset, const char* data, int size) {
 int File::WriteAtCurrentPos(const char* data, int size) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
   DCHECK(IsValid());
-  if (size < 0)
+  if (size < 0) {
     return -1;
+  }
 
   SCOPED_FILE_TRACE_WITH_SIZE("WriteAtCurrentPos", size);
 
@@ -346,8 +411,9 @@ int File::WriteAtCurrentPos(const char* data, int size) {
   do {
     rv = HANDLE_EINTR(write(file_.get(), data + bytes_written,
                             static_cast<size_t>(size - bytes_written)));
-    if (rv <= 0)
+    if (rv <= 0) {
       break;
+    }
 
     bytes_written += rv;
   } while (bytes_written < size);
@@ -358,24 +424,26 @@ int File::WriteAtCurrentPos(const char* data, int size) {
 int File::WriteAtCurrentPosNoBestEffort(const char* data, int size) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
   DCHECK(IsValid());
-  if (size < 0)
+  if (size < 0) {
     return -1;
+  }
 
   SCOPED_FILE_TRACE_WITH_SIZE("WriteAtCurrentPosNoBestEffort", size);
   return checked_cast<int>(
       HANDLE_EINTR(write(file_.get(), data, static_cast<size_t>(size))));
 }
 
-int64_t File::GetLength() {
+int64_t File::GetLength() const {
   DCHECK(IsValid());
 
   SCOPED_FILE_TRACE("GetLength");
 
-  stat_wrapper_t file_info;
-  if (Fstat(file_.get(), &file_info))
+  Info info;
+  if (!GetInfo(&info)) {
     return -1;
+  }
 
-  return file_info.st_size;
+  return info.size;
 }
 
 bool File::SetLength(int64_t length) {
@@ -399,17 +467,36 @@ bool File::SetTimes(Time last_access_time, Time last_modified_time) {
   return !CallFutimes(file_.get(), times);
 }
 
-bool File::GetInfo(Info* info) {
+bool File::GetInfo(Info* info) const {
   DCHECK(IsValid());
 
   SCOPED_FILE_TRACE("GetInfo");
 
   stat_wrapper_t file_info;
-  if (Fstat(file_.get(), &file_info))
-    return false;
-
-  info->FromStat(file_info);
-  return true;
+  bool success = (Fstat(file_.get(), &file_info) == 0);
+  if (success) {
+    info->FromStat(file_info);
+  }
+#if BUILDFLAG(IS_ANDROID)
+  if (path_.IsContentUri()) {
+    // Content-URIs may represent files on the local disk, or may be virtual
+    // files backed by a ContentProvider which may or may not use FUSE to back
+    // the FDs.
+    //
+    // For Document URIs, always use ContentUriGetFileInfo() since it will
+    // succeed by using the Java API DocumentFile, which can provide
+    // last-modified where FUSE cannot. FUSE always returns the current-time
+    // which is problematic because Blobs are registered with an
+    // expected-last-modified, and will fail if it changes by the time a client
+    // accesses it.
+    //
+    // For other Content-URIS, if fstat() succeeded with a non-zero size, then
+    // use the result, otherwise try via the Java APIs.
+    return (success && info->size > 0 && !internal::IsDocumentUri(path_)) ||
+           GetContentUriInfo(path_, info);
+  }
+#endif
+  return success;
 }
 
 #if !BUILDFLAG(IS_FUCHSIA)
@@ -420,22 +507,40 @@ File::Error File::Lock(File::LockMode mode) {
 
 File::Error File::Unlock() {
   SCOPED_FILE_TRACE("Unlock");
-  return CallFcntlFlock(file_.get(), absl::optional<File::LockMode>());
+  return CallFcntlFlock(file_.get(), std::optional<File::LockMode>());
 }
 #endif
 
 File File::Duplicate() const {
-  if (!IsValid())
+  if (!IsValid()) {
     return File();
+  }
 
   SCOPED_FILE_TRACE("Duplicate");
 
   ScopedPlatformFile other_fd(HANDLE_EINTR(dup(GetPlatformFile())));
-  if (!other_fd.is_valid())
+  if (!other_fd.is_valid()) {
     return File(File::GetLastFileError());
+  }
 
   return File(std::move(other_fd), async());
 }
+
+#if BUILDFLAG(IS_APPLE)
+void File::InitializeFeatures() {
+  if (FeatureList::IsEnabled(kMacEfficientFileFlush)) {
+    // "relaxed" because there is no dependency between these memory operations
+    // and other memory operations.
+    if (kMacEfficientFileFlushUseBarrier.Get()) {
+      g_mac_file_flush_mechanism.store(MacFileFlushMechanism::kBarrierFsync,
+                                       std::memory_order_relaxed);
+    } else {
+      g_mac_file_flush_mechanism.store(MacFileFlushMechanism::kFlush,
+                                       std::memory_order_relaxed);
+    }
+  }
+}
+#endif  // BUILDFLAG(IS_APPLE)
 
 // Static.
 File::Error File::OSErrorToFileError(int saved_errno) {
@@ -480,8 +585,9 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
   DCHECK(!IsValid());
 
   int open_flags = 0;
-  if (flags & FLAG_CREATE)
+  if (flags & FLAG_CREATE) {
     open_flags = O_CREAT | O_EXCL;
+  }
 
   created_ = false;
 
@@ -499,9 +605,6 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
 
   if (!open_flags && !(flags & FLAG_OPEN) && !(flags & FLAG_OPEN_ALWAYS)) {
     NOTREACHED();
-    errno = EOPNOTSUPP;
-    error_details_ = FILE_ERROR_FAILED;
-    return;
   }
 
   if (flags & FLAG_WRITE && flags & FLAG_READ) {
@@ -516,13 +619,15 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
     NOTREACHED();
   }
 
-  if (flags & FLAG_TERMINAL_DEVICE)
+  if (flags & FLAG_TERMINAL_DEVICE) {
     open_flags |= O_NOCTTY | O_NDELAY;
+  }
 
-  if (flags & FLAG_APPEND && flags & FLAG_READ)
+  if (flags & FLAG_APPEND && flags & FLAG_READ) {
     open_flags |= O_APPEND | O_RDWR;
-  else if (flags & FLAG_APPEND)
+  } else if (flags & FLAG_APPEND) {
     open_flags |= O_APPEND | O_WRONLY;
+  }
 
   static_assert(O_RDONLY == 0, "O_RDONLY must equal zero");
 
@@ -531,14 +636,34 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
   mode |= S_IRGRP | S_IROTH;
 #endif
 
+#if BUILDFLAG(IS_ANDROID)
+  if (path.IsContentUri()) {
+    java_parcel_file_descriptor_ = internal::OpenContentUri(path, flags);
+    int fd = internal::ContentUriGetFd(java_parcel_file_descriptor_);
+    if (fd < 0) {
+      error_details_ = FILE_ERROR_FAILED;
+      return;
+    }
+
+    // Save path for any call to GetInfo().
+    path_ = path;
+    created_ = (flags & (FLAG_CREATE_ALWAYS | FLAG_CREATE));
+    async_ = (flags & FLAG_ASYNC);
+    error_details_ = FILE_OK;
+    file_.reset(fd);
+    return;
+  }
+#endif
+
   int descriptor = HANDLE_EINTR(open(path.value().c_str(), open_flags, mode));
 
   if (flags & FLAG_OPEN_ALWAYS) {
     if (descriptor < 0) {
       open_flags |= O_CREAT;
       descriptor = HANDLE_EINTR(open(path.value().c_str(), open_flags, mode));
-      if (descriptor >= 0)
+      if (descriptor >= 0) {
         created_ = true;
+      }
     }
   }
 
@@ -547,11 +672,13 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
     return;
   }
 
-  if (flags & (FLAG_CREATE_ALWAYS | FLAG_CREATE))
+  if (flags & (FLAG_CREATE_ALWAYS | FLAG_CREATE)) {
     created_ = true;
+  }
 
-  if (flags & FLAG_DELETE_ON_CLOSE)
+  if (flags & FLAG_DELETE_ON_CLOSE) {
     unlink(path.value().c_str());
+  }
 
   async_ = ((flags & FLAG_ASYNC) == FLAG_ASYNC);
   error_details_ = FILE_OK;
@@ -574,18 +701,41 @@ bool File::Flush() {
   // On macOS and iOS, fsync() is guaranteed to send the file's data to the
   // underlying storage device, but may return before the device actually writes
   // the data to the medium. When used by database systems, this may result in
-  // unexpected data loss.
-  // https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/fsync.2.html
-  if (!HANDLE_EINTR(fcntl(file_.get(), F_FULLFSYNC)))
-    return true;
-
-  // Some filesystms do not support fcntl(F_FULLFSYNC). We handle these cases by
-  // falling back to fsync(). Unfortunately, lack of F_FULLFSYNC support results
-  // in various error codes, so we cannot use the error code as a definitive
-  // indicator that F_FULLFSYNC was not supported. So, if fcntl() errors out for
-  // any reason, we may end up making an unnecessary system call.
+  // unexpected data loss. Depending on experiment state, this function may use
+  // F_BARRIERFSYNC or F_FULLFSYNC to provide stronger guarantees than fsync().
   //
-  // See the CL description at https://crrev.com/c/1400159 for details.
+  // See documentation:
+  // https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/fsync.2.html
+  //
+  // "relaxed" because there is no dependency between this memory operation and
+  // other memory operations.
+  switch (g_mac_file_flush_mechanism.load(std::memory_order_relaxed)) {
+    case MacFileFlushMechanism::kBarrierFsync: {
+      if (!HANDLE_EINTR(fcntl(file_.get(), F_BARRIERFSYNC))) {
+        return true;
+      }
+      // Fall back to `fsync()` in case of failure.
+      break;
+    }
+    case MacFileFlushMechanism::kFullFsync: {
+      if (!HANDLE_EINTR(fcntl(file_.get(), F_FULLFSYNC))) {
+        return true;
+      }
+      // Fall back to `fsync()` in case of failure.
+      break;
+    }
+    case MacFileFlushMechanism::kFlush: {
+      // Fall back to `fsync()`.
+      break;
+    }
+  }
+
+  // `fsync()` if `F_BARRIERFSYNC` or `F_FULLFSYNC` failed, or if the mechanism
+  // is `kFlush`. Some file systems do not support `F_FULLFSYNC` /
+  // `F_BARRIERFSYNC` but we cannot use the error code as a definitive indicator
+  // that it's the case, so we'll keep trying `F_FULLFSYNC` / `F_BARRIERFSYNC`
+  // for every call to this method when it's the case. See the CL description at
+  // https://crrev.com/c/1400159 for details.
   return !HANDLE_EINTR(fsync(file_.get()));
 #else
   return !HANDLE_EINTR(fsync(file_.get()));
@@ -602,17 +752,43 @@ File::Error File::GetLastFileError() {
   return base::File::OSErrorToFileError(errno);
 }
 
-int File::Stat(const char* path, stat_wrapper_t* sb) {
+int File::Stat(const FilePath& path, stat_wrapper_t* sb) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
-  return stat(path, sb);
+#if BUILDFLAG(IS_ANDROID)
+  if (path.IsContentUri()) {
+    // Attempt to open the file and call GetInfo(), otherwise call Java code
+    // with the path which is required for dirs.
+    File file(path, base::File::FLAG_OPEN | base::File::FLAG_READ);
+    Info info;
+    if ((file.IsValid() && file.GetInfo(&info)) ||
+        GetContentUriInfo(path, &info)) {
+      memset(sb, 0, sizeof(*sb));
+      sb->st_mode = info.is_directory ? S_IFDIR : S_IFREG;
+      sb->st_size = info.size;
+      sb->st_mtime = info.last_modified.ToTimeT();
+      // Time internally is stored as microseconds since windows epoch, so first
+      // get subsecond time, and then convert to nanos. Do not subtract
+      // Time::UnixEpoch() (which is a little bigger than 2^53), or convert to
+      // nanos (multiply by 10^3 which is just under 2^10) prior to doing
+      // modulo as these can cause overflow / clamping at [-2^63, 2^63) which
+      // will corrupt the result.
+      sb->st_mtime_nsec =
+          (info.last_modified.ToDeltaSinceWindowsEpoch().InMicroseconds() %
+           Time::kMicrosecondsPerSecond) *
+          Time::kNanosecondsPerMicrosecond;
+      return 0;
+    }
+  }
+#endif
+  return stat(path.value().c_str(), sb);
 }
 int File::Fstat(int fd, stat_wrapper_t* sb) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
   return fstat(fd, sb);
 }
-int File::Lstat(const char* path, stat_wrapper_t* sb) {
+int File::Lstat(const FilePath& path, stat_wrapper_t* sb) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
-  return lstat(path, sb);
+  return lstat(path.value().c_str(), sb);
 }
 
 }  // namespace base

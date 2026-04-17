@@ -7,7 +7,6 @@
 #include "base/notreached.h"
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "ui/events/event.h"
 #include "ui/gfx/geometry/rect.h"
 
@@ -27,6 +26,10 @@ DummyTextInputClient::DummyTextInputClient(TextInputType text_input_type,
       autocorrect_enabled_(true) {}
 
 DummyTextInputClient::~DummyTextInputClient() {
+}
+
+base::WeakPtr<ui::TextInputClient> DummyTextInputClient::AsWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 void DummyTextInputClient::SetCompositionText(
@@ -81,6 +84,19 @@ gfx::Rect DummyTextInputClient::GetSelectionBoundingBox() const {
   NOTIMPLEMENTED_LOG_ONCE();
   return gfx::Rect();
 }
+
+#if BUILDFLAG(IS_WIN)
+std::optional<gfx::Rect> DummyTextInputClient::GetProximateCharacterBounds(
+    const gfx::Range& range) const {
+  return std::nullopt;
+}
+
+std::optional<size_t> DummyTextInputClient::GetProximateCharacterIndexFromPoint(
+    const gfx::Point& screen_point_in_dips,
+    IndexFromPointFlags flags) const {
+  return std::nullopt;
+}
+#endif  // BUILDFLAG(IS_WIN)
 
 bool DummyTextInputClient::GetCompositionCharacterBounds(
     size_t index,
@@ -183,14 +199,14 @@ bool DummyTextInputClient::SetAutocorrectRange(
   return autocorrect_enabled_;
 }
 
-absl::optional<GrammarFragment>
+std::optional<GrammarFragment>
 DummyTextInputClient::GetGrammarFragmentAtCursor() const {
   for (const auto& fragment : grammar_fragments_) {
     if (fragment.range.Contains(cursor_range_)) {
       return fragment;
     }
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 bool DummyTextInputClient::ClearGrammarFragments(const gfx::Range& range) {
@@ -208,8 +224,8 @@ bool DummyTextInputClient::AddGrammarFragments(
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
 void DummyTextInputClient::GetActiveTextInputControlLayoutBounds(
-    absl::optional<gfx::Rect>* control_bounds,
-    absl::optional<gfx::Rect>* selection_bounds) {}
+    std::optional<gfx::Rect>* control_bounds,
+    std::optional<gfx::Rect>* selection_bounds) {}
 #endif
 
 #if BUILDFLAG(IS_WIN)

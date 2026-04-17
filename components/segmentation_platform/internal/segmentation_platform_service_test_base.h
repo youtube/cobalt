@@ -32,6 +32,7 @@ extern const char kTestSegmentationKey1[];
 extern const char kTestSegmentationKey2[];
 extern const char kTestSegmentationKey3[];
 extern const char kTestSegmentationKey4[];
+extern const char kTestProfileId[];
 
 // Wrapper around SegmentationPlatformServiceImpl for testing. Holds and manages
 // a single platform instance.
@@ -64,9 +65,12 @@ class SegmentationPlatformServiceTestBase {
   std::map<std::string, proto::SignalData> signal_db_entries_;
   std::map<std::string, proto::SignalStorageConfigs>
       segment_storage_config_db_entries_;
-  raw_ptr<leveldb_proto::test::FakeDB<proto::SegmentInfo>> segment_db_;
-  raw_ptr<leveldb_proto::test::FakeDB<proto::SignalData>> signal_db_;
-  raw_ptr<leveldb_proto::test::FakeDB<proto::SignalStorageConfigs>>
+  raw_ptr<leveldb_proto::test::FakeDB<proto::SegmentInfo>, DanglingUntriaged>
+      segment_db_;
+  raw_ptr<leveldb_proto::test::FakeDB<proto::SignalData>, DanglingUntriaged>
+      signal_db_;
+  raw_ptr<leveldb_proto::test::FakeDB<proto::SignalStorageConfigs>,
+          DanglingUntriaged>
       segment_storage_config_db_;
   TestModelProviderFactory::Data model_provider_data_;
   TestingPrefServiceSimple pref_service_;

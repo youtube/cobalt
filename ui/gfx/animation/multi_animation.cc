@@ -82,7 +82,6 @@ const MultiAnimation::Part& MultiAnimation::GetPart(base::TimeDelta* time,
     *time -= parts_[i].length;
   }
   NOTREACHED();
-  return parts_[0];
 }
 
 }  // namespace gfx

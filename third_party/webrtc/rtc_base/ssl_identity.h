@@ -20,20 +20,19 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "rtc_base/ssl_certificate.h"
 #include "rtc_base/system/rtc_export.h"
 
-namespace rtc {
-
-class SSLCertChain;
-class SSLCertificate;
+namespace webrtc {
 
 // KT_LAST is intended for vector declarations and loops over all key types;
 // it does not represent any key type in itself.
 // KT_DEFAULT is used as the default KeyType for KeyParams.
 enum KeyType { KT_RSA, KT_ECDSA, KT_LAST, KT_DEFAULT = KT_ECDSA };
 
-static const int kRsaDefaultModSize = 1024;
+static const int kRsaDefaultModSize = 2048;
 static const int kRsaDefaultExponent = 0x10001;  // = 2^16+1 = 65537
+// TODO(bugs.webrtc.org/364338811): raise the bar to 2048 bits.
 static const int kRsaMinModSize = 1024;
 static const int kRsaMaxModSize = 8192;
 
@@ -81,11 +80,6 @@ class RTC_EXPORT KeyParams {
     ECCurve curve;
   } params_;
 };
-
-// TODO(hbos): Remove once rtc::KeyType (to be modified) and
-// blink::WebRTCKeyType (to be landed) match. By using this function in Chromium
-// appropriately we can change KeyType enum -> class without breaking Chromium.
-KeyType IntKeyTypeFamilyToKeyType(int key_type_family);
 
 // Parameters for generating a certificate. If `common_name` is non-empty, it
 // will be used for the certificate's subject and issuer name, otherwise a
@@ -169,6 +163,35 @@ extern const char kPemTypeCertificate[];
 extern const char kPemTypeRsaPrivateKey[];
 extern const char kPemTypeEcPrivateKey[];
 
+}  //  namespace webrtc
+
+// Re-export symbols from the webrtc namespace for backwards compatibility.
+// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
+#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
+namespace rtc {
+using ::webrtc::ASN1TimeToSec;
+using ::webrtc::EC_LAST;
+using ::webrtc::EC_NIST_P256;
+using ::webrtc::ECCurve;
+using ::webrtc::kCertificateWindowInSeconds;
+using ::webrtc::kDefaultCertificateLifetimeInSeconds;
+using ::webrtc::KeyParams;
+using ::webrtc::KeyType;
+using ::webrtc::kPemTypeCertificate;
+using ::webrtc::kPemTypeEcPrivateKey;
+using ::webrtc::kPemTypeRsaPrivateKey;
+using ::webrtc::kRsaDefaultExponent;
+using ::webrtc::kRsaDefaultModSize;
+using ::webrtc::kRsaMaxModSize;
+using ::webrtc::kRsaMinModSize;
+using ::webrtc::KT_DEFAULT;
+using ::webrtc::KT_ECDSA;
+using ::webrtc::KT_LAST;
+using ::webrtc::KT_RSA;
+using ::webrtc::RSAParams;
+using ::webrtc::SSLIdentity;
+using ::webrtc::SSLIdentityParams;
 }  // namespace rtc
+#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_SSL_IDENTITY_H_

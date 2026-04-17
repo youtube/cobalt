@@ -6,6 +6,7 @@
 #define CONTENT_BROWSER_MEDIA_SESSION_MOCK_MEDIA_SESSION_PLAYER_OBSERVER_H_
 
 #include <stddef.h>
+
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
@@ -13,6 +14,7 @@
 #include "content/browser/media/session/media_session_player_observer.h"
 #include "content/public/browser/global_routing_id.h"
 #include "media/audio/audio_device_description.h"
+#include "media/base/picture_in_picture_events_info.h"
 #include "services/media_session/public/cpp/media_position.h"
 
 namespace content {
@@ -35,26 +37,34 @@ class MockMediaSessionPlayerObserver : public MediaSessionPlayerObserver {
   void OnSeekTo(int player_id, base::TimeDelta seek_time) override;
   void OnSetVolumeMultiplier(int player_id, double volume_multiplier) override;
   void OnEnterPictureInPicture(int player_id) override;
-  void OnExitPictureInPicture(int player_id) override;
   void OnSetAudioSinkId(int player_id,
                         const std::string& raw_device_id) override;
   void OnSetMute(int player_id, bool mute) override;
   void OnRequestMediaRemoting(int player_id) override;
-  absl::optional<media_session::MediaPosition> GetPosition(
+  void OnRequestVisibility(
+      int player_id,
+      RequestVisibilityCallback request_visibility_callback) override;
+  std::optional<media_session::MediaPosition> GetPosition(
       int player_id) const override;
   bool IsPictureInPictureAvailable(int player_id) const override;
+  bool HasSufficientlyVisibleVideo(int player_id) const override;
   RenderFrameHost* render_frame_host() const override;
   bool HasAudio(int player_id) const override;
   bool HasVideo(int player_id) const override;
+  bool IsPaused(int player_id) const override;
   std::string GetAudioOutputSinkId(int player_id) const override;
   bool SupportsAudioOutputDeviceSwitching(int player_id) const override;
   media::MediaContentType GetMediaContentType() const override;
+  void OnAutoPictureInPictureInfoChanged(
+      int player_id,
+      const media::PictureInPictureEventsInfo::AutoPipInfo&
+          auto_picture_in_picture_info) override;
 
   void SetMediaContentType(media::MediaContentType media_content_type);
 
   // Simulate that a new player started.
   // Returns the player_id.
-  int StartNewPlayer();
+  int StartNewPlayer(bool is_playing = true);
 
   // Returns whether |player_id| is playing.
   bool IsPlaying(size_t player_id);
@@ -71,6 +81,14 @@ class MockMediaSessionPlayerObserver : public MediaSessionPlayerObserver {
   // Set the position for |player_id|.
   void SetPosition(size_t player_id, media_session::MediaPosition& position);
 
+  // Set |has_sufficiently_visible_video| for |player_id|.
+  void SetHasSufficientlyVisibleVideo(size_t player_id,
+                                      bool has_sufficiently_visible_video);
+
+  // Simulate picture in picture availability for |player_id|.
+  void SetIsPictureInPictureAvailable(size_t player_id,
+                                      bool is_picture_in_picture_available);
+
   int received_suspend_calls() const;
   int received_resume_calls() const;
   int received_seek_forward_calls() const;
@@ -79,6 +97,8 @@ class MockMediaSessionPlayerObserver : public MediaSessionPlayerObserver {
   int received_enter_picture_in_picture_calls() const;
   int received_exit_picture_in_picture_calls() const;
   int received_set_audio_sink_id_calls() const;
+  int received_request_visibility_calls() const;
+  int received_auto_picture_in_picture_info_changed_calls() const;
 
  private:
   // Internal representation of the players to keep track of their statuses.
@@ -91,18 +111,22 @@ class MockMediaSessionPlayerObserver : public MediaSessionPlayerObserver {
 
     bool is_playing_;
     double volume_multiplier_;
-    absl::optional<media_session::MediaPosition> position_;
+    std::optional<media_session::MediaPosition> position_;
     bool is_in_picture_in_picture_;
     std::string audio_sink_id_ =
         media::AudioDeviceDescription::kDefaultDeviceId;
     bool supports_device_switching_ = true;
+    bool has_sufficiently_visible_video_ = false;
+    media::PictureInPictureEventsInfo::AutoPipInfo
+        auto_picture_in_picture_info_;
+    bool is_picture_in_picture_available_ = false;
   };
 
   // Basic representation of the players. The position in the vector is the
   // player_id. The value of the vector is the playing status and volume.
   std::vector<MockPlayer> players_;
 
-  absl::optional<GlobalRenderFrameHostId> render_frame_host_global_id_;
+  std::optional<GlobalRenderFrameHostId> render_frame_host_global_id_;
 
   int received_resume_calls_ = 0;
   int received_suspend_calls_ = 0;
@@ -112,6 +136,8 @@ class MockMediaSessionPlayerObserver : public MediaSessionPlayerObserver {
   int received_enter_picture_in_picture_calls_ = 0;
   int received_exit_picture_in_picture_calls_ = 0;
   int received_set_audio_sink_id_calls_ = 0;
+  int received_request_visibility_calls_ = 0;
+  int received_auto_picture_in_picture_info_changed_calls_ = 0;
 
   media::MediaContentType media_content_type_;
 };

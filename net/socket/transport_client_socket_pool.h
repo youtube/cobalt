@@ -11,6 +11,7 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <utility>
@@ -29,7 +30,7 @@
 #include "net/base/net_export.h"
 #include "net/base/network_change_notifier.h"
 #include "net/base/priority_queue.h"
-#include "net/base/proxy_server.h"
+#include "net/base/proxy_chain.h"
 #include "net/base/request_priority.h"
 #include "net/log/net_log_with_source.h"
 #include "net/socket/client_socket_handle.h"
@@ -39,7 +40,6 @@
 #include "net/socket/socket_tag.h"
 #include "net/socket/ssl_client_socket.h"
 #include "net/socket/stream_socket.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 
@@ -94,12 +94,13 @@ class NET_EXPORT_PRIVATE TransportClientSocketPool
         ClientSocketHandle* handle,
         CompletionOnceCallback callback,
         const ProxyAuthCallback& proxy_auth_callback,
+        bool fail_if_alias_requires_proxy_override,
         RequestPriority priority,
         const SocketTag& socket_tag,
         RespectLimits respect_limits,
         Flags flags,
         scoped_refptr<SocketParams> socket_params,
-        const absl::optional<NetworkTrafficAnnotationTag>& proxy_annotation_tag,
+        const std::optional<NetworkTrafficAnnotationTag>& proxy_annotation_tag,
         const NetLogWithSource& net_log);
 
     Request(const Request&) = delete;
@@ -112,12 +113,15 @@ class NET_EXPORT_PRIVATE TransportClientSocketPool
     const ProxyAuthCallback& proxy_auth_callback() const {
       return proxy_auth_callback_;
     }
+    bool fail_if_alias_requires_proxy_override() const {
+      return fail_if_alias_requires_proxy_override_;
+    }
     RequestPriority priority() const { return priority_; }
     void set_priority(RequestPriority priority) { priority_ = priority; }
     RespectLimits respect_limits() const { return respect_limits_; }
     Flags flags() const { return flags_; }
     SocketParams* socket_params() const { return socket_params_.get(); }
-    const absl::optional<NetworkTrafficAnnotationTag>& proxy_annotation_tag()
+    const std::optional<NetworkTrafficAnnotationTag>& proxy_annotation_tag()
         const {
       return proxy_annotation_tag_;
     }
@@ -137,11 +141,12 @@ class NET_EXPORT_PRIVATE TransportClientSocketPool
     const raw_ptr<ClientSocketHandle> handle_;
     CompletionOnceCallback callback_;
     const ProxyAuthCallback proxy_auth_callback_;
+    bool fail_if_alias_requires_proxy_override_;
     RequestPriority priority_;
     const RespectLimits respect_limits_;
     const Flags flags_;
     const scoped_refptr<SocketParams> socket_params_;
-    const absl::optional<NetworkTrafficAnnotationTag> proxy_annotation_tag_;
+    const std::optional<NetworkTrafficAnnotationTag> proxy_annotation_tag_;
     const NetLogWithSource net_log_;
     const SocketTag socket_tag_;
     raw_ptr<ConnectJob> job_ = nullptr;
@@ -151,7 +156,7 @@ class NET_EXPORT_PRIVATE TransportClientSocketPool
       int max_sockets,
       int max_sockets_per_group,
       base::TimeDelta unused_idle_socket_timeout,
-      const ProxyServer& proxy_server,
+      const ProxyChain& proxy_chain,
       bool is_for_websockets,
       const CommonConnectJobParams* common_connect_job_params,
       bool cleanup_on_ip_address_change = true);
@@ -170,7 +175,7 @@ class NET_EXPORT_PRIVATE TransportClientSocketPool
       int max_sockets_per_group,
       base::TimeDelta unused_idle_socket_timeout,
       base::TimeDelta used_idle_socket_timeout,
-      const ProxyServer& proxy_server,
+      const ProxyChain& proxy_chain_,
       bool is_for_websockets,
       const CommonConnectJobParams* common_connect_job_params,
       std::unique_ptr<ConnectJobFactory> connect_job_factory,
@@ -191,19 +196,21 @@ class NET_EXPORT_PRIVATE TransportClientSocketPool
   int RequestSocket(
       const GroupId& group_id,
       scoped_refptr<SocketParams> params,
-      const absl::optional<NetworkTrafficAnnotationTag>& proxy_annotation_tag,
+      const std::optional<NetworkTrafficAnnotationTag>& proxy_annotation_tag,
       RequestPriority priority,
       const SocketTag& socket_tag,
       RespectLimits respect_limits,
       ClientSocketHandle* handle,
       CompletionOnceCallback callback,
       const ProxyAuthCallback& proxy_auth_callback,
+      bool fail_if_alias_requires_proxy_override,
       const NetLogWithSource& net_log) override;
   int RequestSockets(
       const GroupId& group_id,
       scoped_refptr<SocketParams> params,
-      const absl::optional<NetworkTrafficAnnotationTag>& proxy_annotation_tag,
+      const std::optional<NetworkTrafficAnnotationTag>& proxy_annotation_tag,
       int num_sockets,
+      bool fail_if_alias_requires_proxy_override,
       CompletionOnceCallback callback,
       const NetLogWithSource& net_log) override;
   void SetPriority(const GroupId& group_id,
@@ -265,7 +272,8 @@ class NET_EXPORT_PRIVATE TransportClientSocketPool
   // SSLClientContext::Observer methods.
   void OnSSLConfigChanged(
       SSLClientContext::SSLConfigChangeType change_type) override;
-  void OnSSLConfigForServerChanged(const HostPortPair& server) override;
+  void OnSSLConfigForServersChanged(
+      const base::flat_set<HostPortPair>& servers) override;
 
  private:
   // Entry for a persistent socket which became idle at time |start_time|.
@@ -336,6 +344,8 @@ class NET_EXPORT_PRIVATE TransportClientSocketPool
                           HttpAuthController* auth_controller,
                           base::OnceClosure restart_with_auth_callback,
                           ConnectJob* job) override;
+    Error OnDestinationDnsAliasesResolved(const std::set<std::string>& aliases,
+                                          ConnectJob* job) override;
 
     bool IsEmpty() const {
       return active_socket_count_ == 0 && idle_sockets_.empty() &&
@@ -428,8 +438,8 @@ class NET_EXPORT_PRIVATE TransportClientSocketPool
     const Request* BindRequestToConnectJob(ConnectJob* connect_job);
 
     // Finds the request, if any, bound to |connect_job|, and returns the
-    // BoundRequest or absl::nullopt if there was none.
-    absl::optional<BoundRequest> FindAndRemoveBoundRequestForConnectJob(
+    // BoundRequest or std::nullopt if there was none.
+    std::optional<BoundRequest> FindAndRemoveBoundRequestForConnectJob(
         ConnectJob* connect_job);
 
     // Finds the bound request, if any, corresponding to |client_socket_handle|
@@ -442,6 +452,13 @@ class NET_EXPORT_PRIVATE TransportClientSocketPool
     // must refer to a request currently present in the group.  If |priority|
     // is the same as the current priority of the request, this is a no-op.
     void SetPriority(ClientSocketHandle* handle, RequestPriority priority);
+
+    // Disables failing for requests in the group when an alias
+    // returned during DNS host resolution requires a proxy override, by setting
+    // `fail_if_alias_requires_proxy_override_` to false. If any request does
+    // not require the override , this method will be called, ensuring the group
+    // reflects the condition of all requests
+    void DisableFailIfAliasRequiresProxyOverride();
 
     void IncrementActiveSocketCount() { active_socket_count_++; }
     void DecrementActiveSocketCount() { active_socket_count_--; }
@@ -462,6 +479,9 @@ class NET_EXPORT_PRIVATE TransportClientSocketPool
       return never_assigned_job_count_;
     }
     int64_t generation() const { return generation_; }
+    bool fail_if_alias_requires_proxy_override() {
+      return fail_if_alias_requires_proxy_override_;
+    }
 
    private:
     // Returns the iterator's unbound request after removing it from
@@ -539,7 +559,7 @@ class NET_EXPORT_PRIVATE TransportClientSocketPool
                     // pointer of each element of |jobs_| stored either in
                     // |unassigned_jobs_|, or as the associated |job_| of an
                     // element of |unbound_requests_|.
-    std::list<ConnectJob*> unassigned_jobs_;
+    std::list<raw_ptr<ConnectJob, CtnExperimental>> unassigned_jobs_;
     RequestQueue unbound_requests_;
     int active_socket_count_ = 0;  // number of active sockets used by clients
     // A timer for when to start the backup job.
@@ -557,9 +577,17 @@ class NET_EXPORT_PRIVATE TransportClientSocketPool
     // but as that only happens once there are no outstanding sockets or
     // requests associated with the group, that's harmless.
     int64_t generation_ = 0;
+
+    // Bool that indicates whether all requests in the group should fail with
+    // the net error `ERR_PROXY_REQUIRED` if CNAME cloaking is detected.
+    // Initialized to `true` by default, assuming that all requests will require
+    // a proxy override unless proven otherwise. This ensures that the group is
+    // only marked as `false` if any request explicitly does not require the
+    // override.
+    bool fail_if_alias_requires_proxy_override_ = true;
   };
 
-  using GroupMap = std::map<GroupId, Group*>;
+  using GroupMap = std::map<GroupId, raw_ptr<Group, CtnExperimental>>;
 
   struct CallbackResultPair {
     CallbackResultPair();
@@ -580,7 +608,7 @@ class NET_EXPORT_PRIVATE TransportClientSocketPool
       int max_sockets_per_group,
       base::TimeDelta unused_idle_socket_timeout,
       base::TimeDelta used_idle_socket_timeout,
-      const ProxyServer& proxy_server,
+      const ProxyChain& proxy_chain,
       bool is_for_websockets,
       const CommonConnectJobParams* common_connect_job_params,
       bool cleanup_on_ip_address_change,
@@ -636,7 +664,8 @@ class NET_EXPORT_PRIVATE TransportClientSocketPool
                                  const base::TimeTicks& now,
                                  const char* net_log_reason_utf8);
 
-  Group* GetOrCreateGroup(const GroupId& group_id);
+  Group* GetOrCreateGroup(const GroupId& group_id,
+                          bool disable_fail_if_alias_require_proxy_override);
   void RemoveGroup(const GroupId& group_id);
   GroupMap::iterator RemoveGroup(GroupMap::iterator it);
 
@@ -733,6 +762,9 @@ class NET_EXPORT_PRIVATE TransportClientSocketPool
                         HttpAuthController* auth_controller,
                         base::OnceClosure restart_with_auth_callback,
                         ConnectJob* job);
+  Error OnDestinationDnsAliasesResolved(Group* group,
+                                        const std::set<std::string>& aliases,
+                                        ConnectJob* job);
 
   // Invokes the user callback for |handle|.  By the time this task has run,
   // it's possible that the request has been cancelled, so |handle| may not
@@ -785,7 +817,7 @@ class NET_EXPORT_PRIVATE TransportClientSocketPool
   const base::TimeDelta unused_idle_socket_timeout_;
   const base::TimeDelta used_idle_socket_timeout_;
 
-  const ProxyServer proxy_server_;
+  const ProxyChain proxy_chain_;
 
   const bool cleanup_on_ip_address_change_;
 
@@ -794,7 +826,7 @@ class NET_EXPORT_PRIVATE TransportClientSocketPool
 
   // Pools that create connections through |this|.  |this| will try to close
   // their idle sockets when it stalls.  Must be empty on destruction.
-  std::set<HigherLayeredPool*> higher_pools_;
+  std::set<raw_ptr<HigherLayeredPool, SetExperimental>> higher_pools_;
 
   const raw_ptr<SSLClientContext> ssl_client_context_;
 

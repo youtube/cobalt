@@ -1012,6 +1012,10 @@ static void VerifyTranslation(void) {
                         log_knownIssue("cldrbug:15355", "ks_Deva day names use chars not in exemplars")) {
                     end = 0;
                 }
+                if (uprv_strncmp(currLoc,"kxv",3) == 0 &&  // Unnecessarily also skips kxv_Orya/kxv_Telu, that is ok for now
+                        log_knownIssue("CLDR-17203", "Some day names in kxv(_Deva)? use chars not in exemplars")) {
+                    end = 0;
+                }
 
                 for (idx = 0; idx < end; idx++) {
                     const UChar *fromBundleStr = ures_getStringByIndex(resArray, idx, &langSize, &errorCode);
@@ -1047,6 +1051,10 @@ static void VerifyTranslation(void) {
                 }
                 if (uprv_strncmp(currLoc,"ks_Deva",7) == 0 && 
                         log_knownIssue("cldrbug:15355", "ks_Deva month names use chars not in exemplars")) {
+                    end = 0;
+                }
+                if (uprv_strncmp(currLoc,"kxv",3) == 0 &&  // Unnecessarily also skips kxv_Orya/kxv_Telu, that is ok for now
+                        log_knownIssue("CLDR-17203", "Some month names in kxv(_Deva)? use chars not in exemplars")) {
                     end = 0;
                 }
 
@@ -1357,6 +1365,14 @@ static void TestCoverage(void){
         if (U_FAILURE(status)){
             log_err("ulocdata_getDelimiter error with type %d", types[i]);
         }
+    }
+
+    // ICU-22149: Cover this code path even if the lang bundle is not present
+    UErrorCode localStatus = U_ZERO_ERROR;
+    UChar pattern[20];
+    ulocdata_getLocaleDisplayPattern(uld, pattern, 20, &localStatus);
+    if (U_FAILURE(localStatus) && localStatus != U_MISSING_RESOURCE_ERROR) {
+        log_err("ulocdata_getLocaleDisplayPattern coverage error %s", u_errorName(localStatus));
     }
 
     sub = ulocdata_getNoSubstitute(uld);

@@ -15,26 +15,43 @@
 #ifndef COBALT_BROWSER_COBALT_WEB_CONTENTS_OBSERVER_H_
 #define COBALT_BROWSER_COBALT_WEB_CONTENTS_OBSERVER_H_
 
-#include "cobalt/shell/browser/shell_content_browser_client.h"
+#include "base/memory/weak_ptr.h"
+#include "base/timer/timer.h"
 #include "content/public/browser/web_contents_observer.h"
-
-#include "components/js_injection/browser/js_communication_host.h"
 
 namespace cobalt {
 
+// This class is used to observe WebContents lifecycles within
+// CobaltContentBrowserClient. Its primary purpose is to dispatch web events.
+// Most WebContentsObserver functionalities should be implemented in
+// cobalt/shell/browser/shell.{h,cc} instead. This class should only contain
+// logic essential for the browser client's core responsibilities.
 class CobaltWebContentsObserver : public content::WebContentsObserver {
  public:
   CobaltWebContentsObserver(content::WebContents* web_contents);
 
-  void PrimaryMainDocumentElementAvailable() override;
+  CobaltWebContentsObserver(const CobaltWebContentsObserver&) = delete;
+  CobaltWebContentsObserver& operator=(const CobaltWebContentsObserver&) =
+      delete;
+
+  ~CobaltWebContentsObserver() override;
+
+ public:
+  void DidStartNavigation(
+      content::NavigationHandle* navigation_handle) override;
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
-  void DidStopLoading() override;
+  virtual void RaisePlatformError();
+
+ protected:
+  void SetTimerForTestInternal(std::unique_ptr<base::OneShotTimer> timer);
 
  private:
-  void RegisterInjectedJavaScript();
-
-  std::unique_ptr<js_injection::JsCommunicationHost> js_communication_host_;
+  std::unique_ptr<base::OneShotTimer> timeout_timer_;
+  base::WeakPtrFactory<CobaltWebContentsObserver> weak_factory_{this};
+#if BUILDFLAG(IS_ANDROIDTV)
+  int platform_error_raised_count_ = 0;
+#endif  // BUILDFLAG(IS_ANDROIDTV)
 };
 
 }  // namespace cobalt

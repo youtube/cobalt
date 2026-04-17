@@ -10,8 +10,5 @@
 partial interface Document {
     [Measure] readonly attribute boolean pictureInPictureEnabled;
 
-    [CallWith=ScriptState, RaisesException, Measure, NewObject] Promise<void> exitPictureInPicture();
-
-    // TODO(crbug.com/656517): Define this attribute in DocumentOrShadowRoot.
-    [Measure] readonly attribute HTMLVideoElement? pictureInPictureElement;
+    [CallWith=ScriptState, RaisesException, Measure, NewObject] Promise<undefined> exitPictureInPicture();
 };

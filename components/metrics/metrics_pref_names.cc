@@ -47,6 +47,16 @@ const char kMetricsInitialLogs[] = "user_experience_metrics.initial_logs2";
 const char kMetricsInitialLogsMetadata[] =
     "user_experience_metrics.unsent_log_metadata.initial_logs";
 
+// A serialized representation of a base::UnguessableToken, used for randomizing
+// limited entropy field trials.
+const char kMetricsLimitedEntropyRandomizationSource[] =
+    "user_experience_metrics.limited_entropy_randomization_source";
+
+// A counter tracking the most recently used finalized log record id. Increment
+// this value by one (1) for each finalized log.
+const char kMetricsLogFinalizedRecordId[] =
+    "user_experience_metrics.log_finalized_record_id";
+
 // A counter tracking the most recently used log record id. Increment this value
 // by one (1) for each newly created log.
 const char kMetricsLogRecordId[] = "user_experience_metrics.log_record_id";
@@ -132,6 +142,16 @@ const char kFirstClonedResetTimestamp[] = "cloned_install.first_timestamp";
 // The last timestamp the client is reset due to cloned install. This will be
 // updated every time we reset the client due to cloned install.
 const char kLastClonedResetTimestamp[] = "cloned_install.last_timestamp";
+
+// The start of the latest session during which the install was detected as
+// cloned. Not to be mixed up with the metrics ID reset moment recorded in
+// `kLastClonedResetTimestamp`, which requires a restart after the clone
+// detection. This one is intended as a reference point to check whether some
+// other event happened on the original machine or on the clone. This will be
+// updated every time a cloned install is detected, and cleared alongside the
+// other `cloned_install` prefs on UMA opt-out.
+const char kSessionStartTimestampForLastClonedDetection[] =
+    "cloned_install.session_start_last_detection_timestamp";
 
 // A time stamp at which time the browser was known to be alive. Used to
 // evaluate whether the browser crash was due to a whole system crash.

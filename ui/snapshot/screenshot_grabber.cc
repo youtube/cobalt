@@ -65,10 +65,9 @@ class ScreenshotGrabber::ScopedCursorHider {
 };
 #endif
 
-ScreenshotGrabber::ScreenshotGrabber() {}
+ScreenshotGrabber::ScreenshotGrabber() = default;
 
-ScreenshotGrabber::~ScreenshotGrabber() {
-}
+ScreenshotGrabber::~ScreenshotGrabber() = default;
 
 void ScreenshotGrabber::TakeScreenshot(gfx::NativeWindow window,
                                        const gfx::Rect& rect,
@@ -88,9 +87,9 @@ void ScreenshotGrabber::TakeScreenshot(gfx::NativeWindow window,
 
   cursor_hider_ = ScopedCursorHider::Create(aura_window->GetRootWindow());
 #endif
-  ui::GrabWindowSnapshotAsyncPNG(
+  ui::GrabWindowSnapshotAsPNG(
       window, rect,
-      base::BindOnce(&ScreenshotGrabber::GrabWindowSnapshotAsyncCallback,
+      base::BindOnce(&ScreenshotGrabber::GrabSnapshotImageCallback,
                      factory_.GetWeakPtr(), window_identifier, is_partial,
                      std::move(callback)));
 }
@@ -101,7 +100,7 @@ bool ScreenshotGrabber::CanTakeScreenshot() {
              base::Milliseconds(kScreenshotMinimumIntervalInMS);
 }
 
-void ScreenshotGrabber::GrabWindowSnapshotAsyncCallback(
+void ScreenshotGrabber::GrabSnapshotImageCallback(
     const std::string& window_identifier,
     bool is_partial,
     ScreenshotCallback callback,

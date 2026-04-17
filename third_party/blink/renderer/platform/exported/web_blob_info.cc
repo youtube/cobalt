@@ -23,7 +23,7 @@ WebBlobInfo::WebBlobInfo(const WebString& uuid,
 WebBlobInfo::WebBlobInfo(const WebString& uuid,
                          const WebString& file_name,
                          const WebString& type,
-                         const absl::optional<base::Time>& last_modified,
+                         const std::optional<base::Time>& last_modified,
                          uint64_t size,
                          CrossVariantMojoRemote<mojom::BlobInterfaceBase> blob)
     : WebBlobInfo(BlobDataHandle::Create(
@@ -38,15 +38,16 @@ WebBlobInfo::WebBlobInfo(const WebString& uuid,
 WebBlobInfo WebBlobInfo::BlobForTesting(const WebString& uuid,
                                         const WebString& type,
                                         uint64_t size) {
-  return WebBlobInfo(uuid, type, size, mojo::NullRemote());
+  return WebBlobInfo(BlobDataHandle::CreateForTesting(uuid, type, size));
 }
 
 // static
 WebBlobInfo WebBlobInfo::FileForTesting(const WebString& uuid,
                                         const WebString& file_name,
                                         const WebString& type) {
-  return WebBlobInfo(uuid, file_name, type, absl::nullopt,
-                     std::numeric_limits<uint64_t>::max(), mojo::NullRemote());
+  return WebBlobInfo(BlobDataHandle::CreateForTesting(
+                         uuid, type, std::numeric_limits<uint64_t>::max()),
+                     file_name, std::nullopt);
 }
 
 WebBlobInfo::~WebBlobInfo() {
@@ -71,7 +72,7 @@ WebBlobInfo::WebBlobInfo(scoped_refptr<BlobDataHandle> handle)
 
 WebBlobInfo::WebBlobInfo(scoped_refptr<BlobDataHandle> handle,
                          const WebString& file_name,
-                         const absl::optional<base::Time>& last_modified)
+                         const std::optional<base::Time>& last_modified)
     : WebBlobInfo(handle,
                   file_name,
                   handle->GetType(),
@@ -90,7 +91,7 @@ WebBlobInfo::WebBlobInfo(scoped_refptr<BlobDataHandle> handle,
 WebBlobInfo::WebBlobInfo(scoped_refptr<BlobDataHandle> handle,
                          const WebString& file_name,
                          const WebString& type,
-                         const absl::optional<base::Time>& last_modified,
+                         const std::optional<base::Time>& last_modified,
                          uint64_t size)
     : is_file_(true),
       uuid_(handle->Uuid()),

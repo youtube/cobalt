@@ -14,6 +14,7 @@
 #include "build/build_config.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/shell/browser/shell_speech_recognition_manager_delegate.h"
+#include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "services/network/public/mojom/network_context.mojom-forward.h"
 
 class PrefService;
@@ -25,10 +26,10 @@ class BluetoothDelegateImpl;
 #endif
 
 namespace content {
+class NavigationThrottleRegistry;
 class ShellBrowserContext;
 class ShellBrowserMainParts;
 
-std::string GetShellUserAgent();
 std::string GetShellLanguage();
 blink::UserAgentMetadata GetShellUserAgentMetadata();
 
@@ -59,7 +60,9 @@ class ShellContentBrowserClient : public ContentBrowserClient {
       BrowserContext* browser_context,
       const base::RepeatingCallback<WebContents*()>& wc_getter,
       NavigationUIData* navigation_ui_data,
-      int frame_tree_node_id) override;
+      FrameTreeNodeId frame_tree_node_id,
+      std::optional<int64_t> navigation_id) override;
+  bool AreIsolatedWebAppsEnabled(BrowserContext* browser_context) override;
   void AppendExtraCommandLineSwitches(base::CommandLine* command_line,
                                       int child_process_id) override;
   std::string GetAcceptLangs(BrowserContext* context) override;
@@ -68,31 +71,52 @@ class ShellContentBrowserClient : public ContentBrowserClient {
       WebContents* web_contents) override;
   bool IsIsolatedContextAllowedForUrl(BrowserContext* browser_context,
                                       const GURL& lock_url) override;
-  bool IsSharedStorageAllowed(content::BrowserContext* browser_context,
-                              content::RenderFrameHost* rfh,
-                              const url::Origin& top_frame_origin,
-                              const url::Origin& accessing_origin) override;
+  bool IsSharedStorageAllowed(
+      content::BrowserContext* browser_context,
+      content::RenderFrameHost* rfh,
+      const url::Origin& top_frame_origin,
+      const url::Origin& accessing_origin,
+      std::string* out_debug_message,
+      bool* out_block_is_site_setting_specific) override;
   bool IsSharedStorageSelectURLAllowed(
       content::BrowserContext* browser_context,
       const url::Origin& top_frame_origin,
-      const url::Origin& accessing_origin) override;
+      const url::Origin& accessing_origin,
+      std::string* out_debug_message,
+      bool* out_block_is_site_setting_specific) override;
+  bool IsFencedStorageReadAllowed(content::BrowserContext* browser_context,
+                                  content::RenderFrameHost* rfh,
+                                  const url::Origin& top_frame_origin,
+                                  const url::Origin& accessing_origin) override;
+  bool IsCookieDeprecationLabelAllowed(
+      content::BrowserContext* browser_context) override;
+  bool IsCookieDeprecationLabelAllowedForContext(
+      content::BrowserContext* browser_context,
+      const url::Origin& top_frame_origin,
+      const url::Origin& context_origin) override;
   GeneratedCodeCacheSettings GetGeneratedCodeCacheSettings(
       content::BrowserContext* context) override;
   base::OnceClosure SelectClientCertificate(
+      BrowserContext* browser_context,
+      int process_id,
       WebContents* web_contents,
       net::SSLCertRequestInfo* cert_request_info,
       net::ClientCertIdentityList client_certs,
       std::unique_ptr<ClientCertificateDelegate> delegate) override;
   SpeechRecognitionManagerDelegate* CreateSpeechRecognitionManagerDelegate()
       override;
-  void OverrideWebkitPrefs(WebContents* web_contents,
-                           blink::web_pref::WebPreferences* prefs) override;
+  void OverrideWebPreferences(WebContents* web_contents,
+                              SiteInstance& main_frame_site,
+                              blink::web_pref::WebPreferences* prefs) override;
   std::unique_ptr<content::DevToolsManagerDelegate>
   CreateDevToolsManagerDelegate() override;
   void ExposeInterfacesToRenderer(
       service_manager::BinderRegistry* registry,
       blink::AssociatedInterfaceRegistry* associated_registry,
       RenderProcessHost* render_process_host) override;
+  void ExposeInterfacesToChild(
+      mojo::BinderMapWithContext<content::BrowserChildProcessHost*>* map)
+      override;
   mojo::Remote<::media::mojom::MediaService> RunSecondaryMediaService()
       override;
   void RegisterBrowserInterfaceBindersForFrame(
@@ -101,28 +125,31 @@ class ShellContentBrowserClient : public ContentBrowserClient {
   void OpenURL(SiteInstance* site_instance,
                const OpenURLParams& params,
                base::OnceCallback<void(WebContents*)> callback) override;
-  std::vector<std::unique_ptr<NavigationThrottle>> CreateThrottlesForNavigation(
-      NavigationHandle* navigation_handle) override;
+  void CreateThrottlesForNavigation(
+      NavigationThrottleRegistry& registry) override;
   std::unique_ptr<LoginDelegate> CreateLoginDelegate(
       const net::AuthChallengeInfo& auth_info,
       content::WebContents* web_contents,
+      content::BrowserContext* browser_context,
       const content::GlobalRequestID& request_id,
-      bool is_main_frame,
+      bool is_request_for_primary_main_frame_navigation,
+      bool is_request_for_navigation,
       const GURL& url,
       scoped_refptr<net::HttpResponseHeaders> response_headers,
       bool first_auth_attempt,
-      LoginAuthRequiredCallback auth_required_callback) override;
+      GuestPageHolder* guest,
+      LoginDelegate::LoginAuthRequiredCallback auth_required_callback) override;
   base::Value::Dict GetNetLogConstants() override;
   base::FilePath GetSandboxedStorageServiceDataDirectory() override;
   base::FilePath GetFirstPartySetsDirectory() override;
+  std::optional<base::FilePath> GetLocalTracesDirectory() override;
   std::string GetUserAgent() override;
-  std::string GetFullUserAgent() override;
-  std::string GetReducedUserAgent() override;
   blink::UserAgentMetadata GetUserAgentMetadata() override;
   void OverrideURLLoaderFactoryParams(
       BrowserContext* browser_context,
       const url::Origin& origin,
       bool is_for_isolated_world,
+      bool is_for_service_worker,
       network::mojom::URLLoaderFactoryParams* factory_params) override;
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   void GetAdditionalMappedFilesForChildProcess(
@@ -131,7 +158,10 @@ class ShellContentBrowserClient : public ContentBrowserClient {
       content::PosixFileDescriptorInfo* mappings) override;
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
-  device::GeolocationManager* GetGeolocationManager() override;
+  device::GeolocationSystemPermissionManager*
+  GetGeolocationSystemPermissionManager() override;
+  void OnNetworkServiceCreated(
+      network::mojom::NetworkService* network_service) override;
   void ConfigureNetworkContextParams(
       BrowserContext* context,
       bool in_memory,
@@ -147,13 +177,13 @@ class ShellContentBrowserClient : public ContentBrowserClient {
   void GetHyphenationDictionary(
       base::OnceCallback<void(const base::FilePath&)>) override;
   bool HasErrorPage(int http_status_code) override;
+  void OnWebContentsCreated(WebContents* web_contents) override;
 
   // Turns on features via permissions policy for Isolated App
   // Web Platform Tests.
-  absl::optional<blink::ParsedPermissionsPolicy>
-  GetPermissionsPolicyForIsolatedWebApp(
-      content::BrowserContext* browser_context,
-      const url::Origin& app_origin) override;
+  std::optional<network::ParsedPermissionsPolicy>
+  GetPermissionsPolicyForIsolatedWebApp(WebContents* web_contents,
+                                        const url::Origin& app_origin) override;
 
   void CreateFeatureListAndFieldTrials();
 
@@ -174,21 +204,22 @@ class ShellContentBrowserClient : public ContentBrowserClient {
         std::move(select_client_certificate_callback);
   }
   void set_login_request_callback(
-      base::OnceCallback<void(bool is_primary_main_frame)>
-          login_request_callback) {
+      base::OnceCallback<void(bool is_primary_main_frame_navigation,
+                              bool is_navigation)> login_request_callback) {
     login_request_callback_ = std::move(login_request_callback);
   }
   void set_url_loader_factory_params_callback(
       base::RepeatingCallback<void(
           const network::mojom::URLLoaderFactoryParams*,
           const url::Origin&,
-          bool is_for_isolated_world)> url_loader_factory_params_callback) {
+          bool is_for_isolated_world,
+          bool is_for_service_worker)> url_loader_factory_params_callback) {
     url_loader_factory_params_callback_ =
         std::move(url_loader_factory_params_callback);
   }
   void set_create_throttles_for_navigation_callback(
-      base::RepeatingCallback<std::vector<std::unique_ptr<NavigationThrottle>>(
-          NavigationHandle*)> create_throttles_for_navigation_callback) {
+      base::RepeatingCallback<void(NavigationThrottleRegistry&)>
+          create_throttles_for_navigation_callback) {
     create_throttles_for_navigation_callback_ =
         create_throttles_for_navigation_callback;
   }
@@ -198,6 +229,11 @@ class ShellContentBrowserClient : public ContentBrowserClient {
           callback) {
     override_web_preferences_callback_ = std::move(callback);
   }
+
+#if BUILDFLAG(IS_IOS)
+  bool IsJITEnabled();
+  void SetJITEnabled(bool value);
+#endif
 
  protected:
   // Call this if CreateBrowserMainParts() is overridden in a subclass.
@@ -227,13 +263,15 @@ class ShellContentBrowserClient : public ContentBrowserClient {
   static bool allow_any_cors_exempt_header_for_browser_;
 
   SelectClientCertificateCallback select_client_certificate_callback_;
-  base::OnceCallback<void(bool is_main_frame)> login_request_callback_;
+  base::OnceCallback<void(bool is_primary_main_frame_navigation,
+                          bool is_navigation)>
+      login_request_callback_;
   base::RepeatingCallback<void(const network::mojom::URLLoaderFactoryParams*,
                                const url::Origin&,
-                               bool is_for_isolated_world)>
+                               bool is_for_isolated_world,
+                               bool is_for_service_worker)>
       url_loader_factory_params_callback_;
-  base::RepeatingCallback<std::vector<std::unique_ptr<NavigationThrottle>>(
-      NavigationHandle*)>
+  base::RepeatingCallback<void(NavigationThrottleRegistry&)>
       create_throttles_for_navigation_callback_;
   base::RepeatingCallback<void(blink::web_pref::WebPreferences*)>
       override_web_preferences_callback_;

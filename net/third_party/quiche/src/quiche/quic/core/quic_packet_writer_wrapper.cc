@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/quic_packet_writer_wrapper.h"
 
+#include <optional>
+
 #include "quiche/quic/core/quic_types.h"
 
 namespace quic {
@@ -14,9 +16,14 @@ QuicPacketWriterWrapper::~QuicPacketWriterWrapper() { unset_writer(); }
 
 WriteResult QuicPacketWriterWrapper::WritePacket(
     const char* buffer, size_t buf_len, const QuicIpAddress& self_address,
-    const QuicSocketAddress& peer_address, PerPacketOptions* options) {
-  return writer_->WritePacket(buffer, buf_len, self_address, peer_address,
-                              options);
+    const QuicSocketAddress& peer_address, PerPacketOptions* options,
+    const QuicPacketWriterParams& params) {
+  const WriteResult result = writer_->WritePacket(
+      buffer, buf_len, self_address, peer_address, options, params);
+  if (on_write_done_ != nullptr) {
+    on_write_done_(buf_len, result);
+  }
+  return result;
 }
 
 bool QuicPacketWriterWrapper::IsWriteBlocked() const {
@@ -25,7 +32,7 @@ bool QuicPacketWriterWrapper::IsWriteBlocked() const {
 
 void QuicPacketWriterWrapper::SetWritable() { writer_->SetWritable(); }
 
-absl::optional<int> QuicPacketWriterWrapper::MessageTooBigErrorCode() const {
+std::optional<int> QuicPacketWriterWrapper::MessageTooBigErrorCode() const {
   return writer_->MessageTooBigErrorCode();
 }
 

@@ -6,16 +6,26 @@
 import 'chrome://resources/cr_elements/cr_checkbox/cr_checkbox.js';
 
 import {getTrustedHTML} from 'chrome://resources/js/static_types.js';
-import {CrCheckboxElement} from 'chrome://resources/cr_elements/cr_checkbox/cr_checkbox.js';
-import {keyDownOn, keyUpOn, pressAndReleaseKeyOn} from 'chrome://resources/polymer/v3_0/iron-test-helpers/mock-interactions.js';
-import {assertEquals, assertFalse, assertTrue, assertLT, assertGT} from 'chrome://webui-test/chai_assert.js';
+import type {CrCheckboxElement} from 'chrome://resources/cr_elements/cr_checkbox/cr_checkbox.js';
+import {keyDownOn, keyUpOn, pressAndReleaseKeyOn} from 'chrome://webui-test/keyboard_mock_interactions.js';
+import {assertDeepEquals, assertEquals, assertFalse, assertTrue, assertLT, assertGT} from 'chrome://webui-test/chai_assert.js';
 import {eventToPromise} from 'chrome://webui-test/test_util.js';
-
+import {html, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+// <if expr="is_win">
+import {assertNotEquals} from 'chrome://webui-test/chai_assert.js';
+import {microtasksFinished} from 'chrome://webui-test/test_util.js';
+// </if>
 // clang-format on
 
 suite('cr-checkbox', function() {
   let checkbox: CrCheckboxElement;
   let innerCheckbox: HTMLElement;
+
+  function waitOneCycle(): Promise<void> {
+    return new Promise(res => {
+      window.setTimeout(() => res());
+    });
+  }
 
   setup(function() {
     document.body.innerHTML = getTrustedHTML`
@@ -27,8 +37,10 @@ suite('cr-checkbox', function() {
     `;
 
     checkbox = document.querySelector('cr-checkbox')!;
-    innerCheckbox =
-        checkbox.shadowRoot!.querySelector('#checkbox')! as HTMLElement;
+    const innerBox =
+        checkbox.shadowRoot.querySelector<HTMLElement>('#checkbox');
+    assertTrue(!!innerBox);
+    innerCheckbox = innerBox;
     assertNotChecked();
   });
 
@@ -62,7 +74,7 @@ suite('cr-checkbox', function() {
   }
 
   function triggerKeyPressEvent(keyName: string, element?: HTMLElement) {
-    pressAndReleaseKeyOn(element || innerCheckbox, 0, undefined, keyName);
+    pressAndReleaseKeyOn(element || innerCheckbox, 0, [], keyName);
   }
 
   // Test that the control is checked when the user taps on it (no movement
@@ -80,7 +92,7 @@ suite('cr-checkbox', function() {
 
   // Test that the control is checked when the |checked| attribute is
   // programmatically changed.
-  test('ToggleByAttribute', done => {
+  test('ToggleByAttribute', async () => {
     eventToPromise('change', checkbox).then(function() {
       // Should not fire 'change' event when state is changed programmatically.
       // Only user interaction should result in 'change' event.
@@ -88,13 +100,15 @@ suite('cr-checkbox', function() {
     });
 
     checkbox.checked = true;
+    await checkbox.updateComplete;
     assertChecked();
 
     checkbox.checked = false;
+    await checkbox.updateComplete;
     assertNotChecked();
 
     // Wait 1 cycle to make sure change-event was not fired.
-    setTimeout(done);
+    return waitOneCycle();
   });
 
   test('Toggle checkbox button click', async () => {
@@ -112,10 +126,30 @@ suite('cr-checkbox', function() {
     assertChecked();
   });
 
+  // <if expr="is_win">
+  test('Clicking checkbox clicks host', async () => {
+    let changeCount = 0;
+    checkbox.addEventListener('change', () => {
+      changeCount++;
+    });
+
+    const whenHostClicked = eventToPromise('click', checkbox);
+    const whenInnerCheckboxClicked = eventToPromise('click', innerCheckbox);
+    innerCheckbox.click();
+    const innerCheckboxClick = await whenInnerCheckboxClicked;
+    assertTrue(innerCheckboxClick.defaultPrevented);
+    const hostClick = await whenHostClicked;
+    await microtasksFinished();
+    assertNotEquals(innerCheckboxClick, hostClick);
+    assertEquals(1, changeCount);
+  });
+  // </if>
+
   // Test that the control is not affected by user interaction when disabled.
-  test('ToggleWhenDisabled', function(done) {
+  test('ToggleWhenDisabled', async () => {
     assertNotDisabled();
     checkbox.disabled = true;
+    await checkbox.updateComplete;
     assertDisabled();
 
     eventToPromise('change', checkbox).then(function() {
@@ -123,22 +157,27 @@ suite('cr-checkbox', function() {
     });
 
     checkbox.click();
+    await checkbox.updateComplete;
     assertNotChecked();
+
     innerCheckbox.click();
+    await checkbox.updateComplete;
     assertNotChecked();
+
     triggerKeyPressEvent('Enter');
+    await checkbox.updateComplete;
     assertNotChecked();
+
     triggerKeyPressEvent(' ');
+    await checkbox.updateComplete;
     assertNotChecked();
 
     // Wait 1 cycle to make sure change-event was not fired.
-    setTimeout(done);
+    return waitOneCycle();
   });
 
   test('LabelDisplay_NoLabel', function() {
-    const labelContainer =
-        checkbox.shadowRoot!.querySelector<HTMLElement>('#label-container');
-    assertTrue(!!labelContainer);
+    const labelContainer = checkbox.$.labelContainer;
 
     // Test that there's actually a label that's more than just the padding.
     assertGT(labelContainer.offsetWidth, 20);
@@ -150,9 +189,7 @@ suite('cr-checkbox', function() {
   test('LabelDisplay_LabelFirst', () => {
     let checkboxRect = checkbox.$.checkbox.getBoundingClientRect();
 
-    const labelContainer =
-        checkbox.shadowRoot!.querySelector<HTMLElement>('#label-container');
-    assertTrue(!!labelContainer);
+    const labelContainer = checkbox.$.labelContainer;
     let labelContainerRect = labelContainer.getBoundingClientRect();
 
     assertLT(checkboxRect.left, labelContainerRect.left);
@@ -163,32 +200,36 @@ suite('cr-checkbox', function() {
     assertGT(checkboxRect.left, labelContainerRect.left);
   });
 
-  test('ClickedOnLinkDoesNotToggleCheckbox', function(done) {
-    eventToPromise('change', checkbox).then(function() {
+  test('ClickedOnLinkDoesNotToggleCheckbox', async () => {
+    eventToPromise('change', checkbox).then(() => {
       assertFalse(true);
     });
 
     assertNotChecked();
     const link = document.querySelector('a')!;
     link.click();
+    await checkbox.updateComplete;
     assertNotChecked();
 
     triggerKeyPressEvent('Enter', link);
+    await checkbox.updateComplete;
     assertNotChecked();
 
     // Wait 1 cycle to make sure change-event was not fired.
-    setTimeout(done);
+    return waitOneCycle();
   });
 
-  test('space key down does not toggle', () => {
+  test('space key down does not toggle', async () => {
     assertNotChecked();
-    keyDownOn(innerCheckbox, 0, undefined, ' ');
+    keyDownOn(innerCheckbox, 0, [], ' ');
+    await checkbox.updateComplete;
     assertNotChecked();
   });
 
-  test('space key up toggles', () => {
+  test('space key up toggles', async () => {
     assertNotChecked();
-    keyUpOn(innerCheckbox, 0, undefined, ' ');
+    keyUpOn(innerCheckbox, 0, [], ' ');
+    await checkbox.updateComplete;
     assertChecked();
   });
 
@@ -198,8 +239,7 @@ suite('cr-checkbox', function() {
     `;
 
     checkbox = document.querySelector('cr-checkbox')!;
-    innerCheckbox =
-        checkbox.shadowRoot!.querySelector('#checkbox')! as HTMLElement;
+    innerCheckbox = checkbox.$.checkbox;
 
     // Should not override tabindex if it is initialized.
     assertEquals(-1, checkbox.tabIndex);
@@ -213,8 +253,7 @@ suite('cr-checkbox', function() {
     `;
 
     checkbox = document.querySelector('cr-checkbox')!;
-    innerCheckbox =
-        checkbox.shadowRoot!.querySelector('#checkbox')! as HTMLElement;
+    innerCheckbox = checkbox.$.checkbox;
 
     // Initializing with disabled should make tabindex="-1".
     assertEquals(-1, checkbox.tabIndex);
@@ -230,5 +269,60 @@ suite('cr-checkbox', function() {
     assertEquals(0, checkbox.tabIndex);
     assertFalse(checkbox.hasAttribute('tabindex'));
     assertEquals('0', innerCheckbox.getAttribute('tabindex'));
+  });
+
+  // Test that 2-way bindings with Polymer parent elements are updated before
+  // the 'change' event is fired.
+  test('TwoWayBindingWithPolymerParent', function(done) {
+    class TestElement extends PolymerElement {
+      static get is() {
+        return 'test-element';
+      }
+
+      static get template() {
+        return html`
+          <cr-checkbox checked="{{parentChecked}}"
+              on-change="onChange"
+              on-checked-changed="onCheckedChanged">
+          </cr-checkbox>`;
+      }
+
+      static get properties() {
+        return {
+          parentChecked: {
+            type: Boolean,
+            value: false,
+          },
+        };
+      }
+
+      declare parentChecked: boolean;
+      private events_: string[] = [];
+
+      onCheckedChanged(e: CustomEvent<{value: boolean}>) {
+        assertEquals(this.events_.length === 0 ? false : true, e.detail.value);
+        this.events_.push(e.type);
+      }
+
+      onChange(e: CustomEvent<boolean>) {
+        assertTrue(e.detail);
+        assertEquals(e.detail, element.parentChecked);
+        this.events_.push(e.type);
+
+        assertDeepEquals(
+            ['checked-changed', 'checked-changed', 'change'], this.events_);
+        done();
+      }
+    }
+
+    customElements.define(TestElement.is, TestElement);
+
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    const element = document.createElement('test-element') as TestElement;
+    document.body.appendChild(element);
+
+    const checkbox = element.shadowRoot!.querySelector('cr-checkbox');
+    assertTrue(!!checkbox);
+    checkbox.click();
   });
 });

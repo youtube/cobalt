@@ -5,9 +5,9 @@
 // This file demonstrates how a chrome:// page can communicate with its
 // embedded chrome-untrusted:// child page.
 
-import {ChildUntrustedPageRemote, ParentTrustedPage, ParentTrustedPagePendingReceiver, ParentTrustedPageReceiver} from '/ash/webui/sample_system_web_app_ui/mojom/sample_system_web_app_shared_ui.mojom-webui.js';
-
 import {callbackRouter} from './page_handler.js';
+import type {ChildUntrustedPageRemote, ParentTrustedPage, ParentTrustedPagePendingReceiver} from './sample_system_web_app_shared_ui.mojom-webui.js';
+import {ParentTrustedPageReceiver} from './sample_system_web_app_shared_ui.mojom-webui.js';
 
 /**
  * Implements ParentTrustedPage interface to handle requests from the child
@@ -23,14 +23,14 @@ class ParentTrustedPageImpl implements ParentTrustedPage {
     this.receiver_.$.bindHandle(pendingReceiver.handle);
   }
 
-  async doSomethingForChild(task: string) {
+  doSomethingForChild(task: string) {
     document.querySelector<HTMLDivElement>('#child-task')!.innerText = task;
 
     // Mojo interface's JS implementation should return an Object, even if the
     // method only has one return value.
     //
     // Each field should match their return value name defined in .mojom file.
-    return {resp: 'Task done'};
+    return Promise.resolve({resp: 'Task done'});
   }
 }
 

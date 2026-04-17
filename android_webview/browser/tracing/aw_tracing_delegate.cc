@@ -13,100 +13,26 @@
 #include "components/tracing/common/background_tracing_utils.h"
 #include "components/tracing/common/pref_names.h"
 #include "components/version_info/version_info.h"
-#include "content/public/browser/background_tracing_config.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 
 namespace android_webview {
 
-bool IsBackgroundTracingCommandLine() {
-  auto tracing_mode = tracing::GetBackgroundTracingSetupMode();
-  if (tracing_mode == tracing::BackgroundTracingSetupMode::kFromConfigFile ||
-      tracing_mode ==
-          tracing::BackgroundTracingSetupMode::kFromFieldTrialLocalOutput) {
-    return true;
-  }
-  return false;
-}
-
-AwTracingDelegate::AwTracingDelegate() {}
-AwTracingDelegate::~AwTracingDelegate() {}
+AwTracingDelegate::AwTracingDelegate()
+    : state_manager_(tracing::BackgroundTracingStateManager::CreateInstance(
+          AwBrowserProcess::GetInstance()->local_state())) {}
+AwTracingDelegate::AwTracingDelegate(
+    std::unique_ptr<tracing::BackgroundTracingStateManager> state_manager)
+    : state_manager_(std::move(state_manager)) {}
+AwTracingDelegate::~AwTracingDelegate() = default;
 
 // static
 void AwTracingDelegate::RegisterPrefs(PrefRegistrySimple* registry) {
   registry->RegisterDictionaryPref(tracing::kBackgroundTracingSessionState);
 }
 
-bool AwTracingDelegate::IsAllowedToBeginBackgroundScenario(
-    const std::string& scenario_name,
-    bool requires_anonymized_data,
-    bool is_crash_scenario) {
-  // If the background tracing is specified on the command-line, we allow
-  // any scenario to be traced and uploaded.
-  if (IsBackgroundTracingCommandLine())
-    return true;
-
-  // We call Initialize() only when a tracing scenario tries to start, and
-  // unless this happens we never save state. In particular, if the background
-  // tracing experiment is disabled, Initialize() will never be called, and we
-  // will thus not save state. This means that when we save the background
-  // tracing session state for one session, and then later read the state in a
-  // future session, there might have been sessions between these two where
-  // tracing was disabled. Therefore, the return value of
-  // DidLastSessionEndUnexpectedly() might not be for the directly preceding
-  // session, but instead it is the previous session where tracing was enabled.
-  tracing::BackgroundTracingStateManager& state =
-      tracing::BackgroundTracingStateManager::GetInstance();
-  state.Initialize(AwBrowserProcess::GetInstance()->local_state());
-
-  // Don't start a new trace if the previous trace did not end.
-  if (state.DidLastSessionEndUnexpectedly()) {
-    tracing::RecordDisallowedMetric(
-        tracing::TracingFinalizationDisallowedReason::
-            kLastTracingSessionDidNotEnd);
-    return false;
-  }
-
-  // Check the trace limit both when starting and ending a scenario
-  // because there is no point starting a trace that can't be uploaded.
-  if (state.DidRecentlyUploadForScenario(scenario_name)) {
-    tracing::RecordDisallowedMetric(
-        tracing::TracingFinalizationDisallowedReason::kTraceUploadedRecently);
-    return false;
-  }
-
-  state.NotifyTracingStarted();
+bool AwTracingDelegate::IsRecordingAllowed(
+    bool requires_anonymized_data) const {
   return true;
-}
-
-bool AwTracingDelegate::IsAllowedToEndBackgroundScenario(
-    const std::string& scenario_name,
-    bool requires_anonymized_data,
-    bool is_crash_scenario) {
-  // If the background tracing is specified on the command-line, we allow
-  // any scenario to be traced and uploaded.
-  if (IsBackgroundTracingCommandLine())
-    return true;
-
-  tracing::BackgroundTracingStateManager& state =
-      tracing::BackgroundTracingStateManager::GetInstance();
-  state.NotifyFinalizationStarted();
-
-  // Check the trace limit both when starting and ending a scenario
-  // because there is no point starting a trace that can't be uploaded.
-  if (state.DidRecentlyUploadForScenario(scenario_name)) {
-    tracing::RecordDisallowedMetric(
-        tracing::TracingFinalizationDisallowedReason::kTraceUploadedRecently);
-    return false;
-  }
-
-  state.OnScenarioUploaded(scenario_name);
-  return true;
-}
-
-absl::optional<base::Value::Dict> AwTracingDelegate::GenerateMetadataDict() {
-  base::Value::Dict metadata_dict;
-  metadata_dict.Set("revision", version_info::GetLastChange());
-  return metadata_dict;
 }
 
 }  // namespace android_webview

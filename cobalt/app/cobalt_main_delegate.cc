@@ -14,60 +14,101 @@
 
 #include "cobalt/app/cobalt_main_delegate.h"
 
+#include <memory>
+#include <optional>
+#include <utility>
+#include <variant>
+
+#include "base/check_op.h"
+#include "base/command_line.h"
 #include "base/process/current_process.h"
 #include "base/threading/hang_watcher.h"
-#include "base/trace_event/trace_log.h"
+#include "build/buildflag.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
+#include "cobalt/common/cobalt_thread_checker.h"
+#include "cobalt/shell/app/shell_main_delegate.h"
+#include "cobalt/utility/cobalt_content_utility_client.h"
+#include "content/public/browser/browser_main_runner.h"
+#include "content/public/browser/content_browser_client.h"
+#include "content/public/common/main_function_params.h"
+#include "content/public/gpu/content_gpu_client.h"
+#include "content/public/renderer/content_renderer_client.h"
+
+#if BUILDFLAG(IS_ANDROIDTV)
+#include "cobalt/browser/hang_watcher_delegate_impl.h"
+#endif
+#include "cobalt/app/cobalt_crash_reporter_client.h"
 #include "cobalt/gpu/cobalt_content_gpu_client.h"
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
+#include "components/crash/core/app/crashpad.h"
 #include "components/memory_system/initializer.h"
 #include "components/memory_system/parameters.h"
-#include "content/common/content_constants_internal.h"
 #include "content/public/app/initialize_mojo_core.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
 
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
+#include "base/base_switches.h"
+#include "v8/include/v8-wasm-trap-handler-posix.h"
+#endif
 namespace cobalt {
 
-CobaltMainDelegate::CobaltMainDelegate(bool is_content_browsertests)
-    : content::ShellMainDelegate(is_content_browsertests) {}
+CobaltMainDelegate::CobaltMainDelegate(
+    absl::optional<int64_t> startup_timestamp,
+    const char* initial_deep_link,
+    bool is_content_browsertests,
+    bool is_visible)
+    : content::ShellMainDelegate(),
+      startup_timestamp_(startup_timestamp),
+      is_visible_(is_visible),
+      deep_link_(initial_deep_link ? initial_deep_link : "") {
+  is_content_browsertests_ = is_content_browsertests;
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+}
 
-CobaltMainDelegate::~CobaltMainDelegate() {}
+CobaltMainDelegate::~CobaltMainDelegate() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+}
 
-absl::optional<int> CobaltMainDelegate::BasicStartupComplete() {
+std::optional<int> CobaltMainDelegate::BasicStartupComplete() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
   cl->AppendSwitch(switches::kEnableAggressiveDOMStorageFlushing);
   cl->AppendSwitch(switches::kDisableGpuShaderDiskCache);
-  cl->AppendSwitch("cobalt-custom-should-disable-http-caching");
   return content::ShellMainDelegate::BasicStartupComplete();
 }
 
 content::ContentBrowserClient*
 CobaltMainDelegate::CreateContentBrowserClient() {
-  browser_client_ = std::make_unique<CobaltContentBrowserClient>();
+  browser_client_ = std::make_unique<CobaltContentBrowserClient>(
+      startup_timestamp_, deep_link_, is_visible_);
   return browser_client_.get();
 }
 
 content::ContentGpuClient* CobaltMainDelegate::CreateContentGpuClient() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   gpu_client_ = std::make_unique<CobaltContentGpuClient>();
   return gpu_client_.get();
 }
 
 content::ContentRendererClient*
 CobaltMainDelegate::CreateContentRendererClient() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   renderer_client_ = std::make_unique<CobaltContentRendererClient>();
   return renderer_client_.get();
 }
 
 content::ContentUtilityClient*
 CobaltMainDelegate::CreateContentUtilityClient() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   utility_client_ = std::make_unique<CobaltContentUtilityClient>();
   return utility_client_.get();
 }
 
-absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
+std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
     InvokedIn invoked_in) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   content::RenderFrameHost::AllowInjectingJavaScript();
 
   if (!ShouldCreateFeatureList(invoked_in)) {
@@ -78,7 +119,16 @@ absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
     content::InitializeMojoCore();
   }
 
+#if BUILDFLAG(IS_ANDROIDTV)
+  // This delegate is for reading the flag value.
+  cobalt::browser::CobaltHangWatcherDelegate::Initialize();
+#endif
+
   InitializeHangWatcher();
+
+  const std::string process_type =
+      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+          switches::kProcessType);
 
   // ShellMainDelegate has GWP-ASan as well as Profiling Client disabled.
   // Consequently, we provide no parameters for these two. The memory_system
@@ -94,15 +144,17 @@ absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
       .SetDispatcherParameters(memory_system::DispatcherParameters::
                                    PoissonAllocationSamplerInclusion::kEnforce,
                                memory_system::DispatcherParameters::
-                                   AllocationTraceRecorderInclusion::kIgnore)
+                                   AllocationTraceRecorderInclusion::kIgnore,
+                               process_type)
       .Initialize(memory_system_);
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
+std::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
     const std::string& process_type,
     content::MainFunctionParams main_function_params) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // For non-browser process, return and have the caller run the main loop.
   if (!process_type.empty()) {
     return std::move(main_function_params);
@@ -110,8 +162,6 @@ absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
 
   base::CurrentProcess::GetInstance().SetProcessType(
       base::CurrentProcessType::PROCESS_BROWSER);
-  base::trace_event::TraceLog::GetInstance()->SetProcessSortIndex(
-      content::kTraceEventBrowserProcessSortIndex);
 
   main_runner_ = content::BrowserMainRunner::Create();
 
@@ -129,11 +179,40 @@ absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
   return 0;
 }
 
+void CobaltMainDelegate::PreSandboxStartup() {
+#if BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_IOS_TVOS)
+  const bool initialize_crashpad = true;
+#else
+  const bool initialize_crashpad =
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kEnableCrashReporter);
+#endif  // BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_IOS_TVOS)
+
+  if (initialize_crashpad) {
+    const std::string process_type =
+        base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+            switches::kProcessType);
+    CobaltCrashReporterClient::Create();
+    if (process_type != switches::kZygoteProcess) {
+      crash_reporter::InitializeCrashpad(process_type.empty(), process_type);
+      crash_reporter::SetUploadConsent(true);
+#if BUILDFLAG(IS_LINUX)
+      crash_reporter::SetFirstChanceExceptionHandler(
+          v8::TryHandleWebAssemblyTrapPosix);
+#endif
+    }
+  }
+
+  ShellMainDelegate::PreSandboxStartup();
+}
+
 void CobaltMainDelegate::Shutdown() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   main_runner_->Shutdown();
 }
 
 void CobaltMainDelegate::InitializeHangWatcher() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   const base::CommandLine* const command_line =
       base::CommandLine::ForCurrentProcess();
   std::string process_type =
@@ -153,7 +232,9 @@ void CobaltMainDelegate::InitializeHangWatcher() {
   } else {
     hang_watcher_process_type = base::HangWatcher::ProcessType::kUnknownProcess;
   }
+  const bool emit_crashes = false;
 
-  base::HangWatcher::InitializeOnMainThread(hang_watcher_process_type);
+  base::HangWatcher::InitializeOnMainThread(hang_watcher_process_type,
+                                            emit_crashes);
 }
 }  // namespace cobalt

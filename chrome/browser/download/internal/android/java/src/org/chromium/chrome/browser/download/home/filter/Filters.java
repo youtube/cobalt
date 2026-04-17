@@ -8,6 +8,7 @@ import android.text.TextUtils;
 
 import androidx.annotation.IntDef;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.offline_items_collection.OfflineItem;
 import org.chromium.components.offline_items_collection.OfflineItemFilter;
@@ -16,6 +17,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 /** Helper containing a list of Downloads Home filter types and conversion methods. */
+@NullMarked
 public class Filters {
     // These statics are used for UMA logging. Please update the AndroidDownloadFilterType enum in
     // histograms.xml if these change.
@@ -26,8 +28,16 @@ public class Filters {
      * As you add or remove entries from this list, please also update
      * ListUtils#FILTER_TYPE_ORDER_LIST to specify what order the sections should appear in.
      */
-    @IntDef({FilterType.NONE, FilterType.SITES, FilterType.VIDEOS, FilterType.MUSIC,
-            FilterType.IMAGES, FilterType.DOCUMENT, FilterType.OTHER, FilterType.PREFETCHED})
+    @IntDef({
+        FilterType.NONE,
+        FilterType.SITES,
+        FilterType.VIDEOS,
+        FilterType.MUSIC,
+        FilterType.IMAGES,
+        FilterType.DOCUMENT,
+        FilterType.OTHER,
+        FilterType.PREFETCHED
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface FilterType {
         int NONE = 0;
@@ -72,8 +82,8 @@ public class Filters {
                 return FilterType.MUSIC;
             case OfflineItemFilter.IMAGE:
                 return FilterType.IMAGES;
-            // case OfflineItemFilter.OTHER
-            // case OfflineItemFilter.DOCUMENT
+                // case OfflineItemFilter.OTHER
+                // case OfflineItemFilter.DOCUMENT
             default:
                 return FilterType.OTHER;
         }
@@ -84,8 +94,9 @@ public class Filters {
      * @see DownloadFilter#getUrlForFilter(int)
      */
     public static String toUrl(@FilterType int filter) {
-        return filter == FilterType.NONE ? UrlConstants.DOWNLOADS_URL
-                                         : UrlConstants.DOWNLOADS_FILTER_URL + filter;
+        return filter == FilterType.NONE
+                ? UrlConstants.DOWNLOADS_URL
+                : UrlConstants.DOWNLOADS_FILTER_URL + filter;
     }
 
     /**
@@ -97,8 +108,7 @@ public class Filters {
             return FilterType.NONE;
         }
 
-        @FilterType
-        int filter = FilterType.NONE;
+        @FilterType int filter = FilterType.NONE;
         try {
             filter = Integer.parseInt(url.substring(UrlConstants.DOWNLOADS_FILTER_URL.length()));
             if (filter < 0 || filter >= FilterType.NUM_ENTRIES) filter = FilterType.NONE;

@@ -17,6 +17,7 @@ TextFinder::TextFinder(
     FinishedCallback callback,
     AgentDisconnectHandler agent_disconnect_handler)
     : text_directive_(text_directive), receiver_(this) {
+  DCHECK(!text_directive.empty());
   InitializeAndBindToAnnotationAgent(agent_container, std::move(callback));
   SetAgentDisconnectHandler(std::move(agent_disconnect_handler));
 }
@@ -36,15 +37,19 @@ void TextFinder::InitializeAndBindToAnnotationAgent(
   // Create an annotation agent for text finder, and bind to it.
   agent_container->CreateAgent(
       receiver_.BindNewPipeAndPassRemote(), agent_.BindNewPipeAndPassReceiver(),
-      blink::mojom::AnnotationType::kTextFinder, text_directive_);
+      blink::mojom::AnnotationType::kTextFinder,
+      blink::mojom::Selector::NewSerializedSelector(text_directive_),
+      /*search_range_start_node_id=*/std::nullopt);
 }
 
 void TextFinder::SetAgentDisconnectHandler(AgentDisconnectHandler handler) {
   agent_.set_disconnect_handler(std::move(handler));
 }
 
-void TextFinder::DidFinishAttachment(const gfx::Rect& rect) {
-  is_found_ = !rect.IsEmpty();
+void TextFinder::DidFinishAttachment(
+    const gfx::Rect& rect,
+    blink::mojom::AttachmentResult attachment_result) {
+  is_found_ = attachment_result == blink::mojom::AttachmentResult::kSuccess;
 
   if (did_finish_callback_) {
     std::move(did_finish_callback_)

@@ -35,7 +35,7 @@ class MockDiskMountManager : public DiskMountManager {
   MOCK_METHOD(const DiskMountManager::Disks&, disks, (), (const, override));
   MOCK_METHOD(const Disk*,
               FindDiskBySourcePath,
-              (const std::string&),
+              (std::string_view),
               (const, override));
   MOCK_METHOD(const DiskMountManager::MountPoints&,
               mount_points,
@@ -59,7 +59,10 @@ class MockDiskMountManager : public DiskMountManager {
               UnmountPath,
               (const std::string&, DiskMountManager::UnmountPathCallback),
               (override));
-  MOCK_METHOD(void, RemountAllRemovableDrives, (MountAccessMode), (override));
+  MOCK_METHOD(void,
+              RemountRemovableDrive,
+              (const Disk&, MountAccessMode),
+              (override));
   MOCK_METHOD(void,
               FormatMountedDevice,
               (const std::string&, FormatFileSystemType, const std::string&),
@@ -78,12 +81,6 @@ class MockDiskMountManager : public DiskMountManager {
                DiskMountManager::UnmountDeviceRecursivelyCallbackType),
               (override));
 
-  // Invokes fake device insert events.
-  void NotifyDeviceInsertEvents();
-
-  // Invokes fake device remove events.
-  void NotifyDeviceRemoveEvents();
-
   // Invokes specified mount event.
   void NotifyMountEvent(MountEvent event,
                         MountError error_code,
@@ -92,8 +89,7 @@ class MockDiskMountManager : public DiskMountManager {
   // Sets up default results for mock methods.
   void SetupDefaultReplies();
 
-  // Creates a fake disk entry for the mounted device.
-  void CreateDiskEntryForMountDevice(std::unique_ptr<Disk> disk);
+  bool AddDiskForTest(std::unique_ptr<Disk> disk) override;
 
   // Creates a fake disk entry for the mounted device.
   void CreateDiskEntryForMountDevice(
@@ -116,26 +112,13 @@ class MockDiskMountManager : public DiskMountManager {
       const DiskMountManager::MountPoint& mount_info);
 
  private:
-  // Is used to implement AddObserver.
-  void AddObserverInternal(DiskMountManager::Observer* observer);
-
-  // Is used to implement RemoveObserver.
-  void RemoveObserverInternal(DiskMountManager::Observer* observer);
-
   // Is used to implement disks.
   const DiskMountManager::Disks& disksInternal() const { return disks_; }
 
   const DiskMountManager::MountPoints& mountPointsInternal() const;
 
   // Returns Disk object associated with the |source_path| or NULL on failure.
-  const Disk* FindDiskBySourcePathInternal(
-      const std::string& source_path) const;
-
-  // Notifies observers about device status update.
-  void NotifyDeviceChanged(DeviceEvent event, const std::string& path);
-
-  // Notifies observers about disk status update.
-  void NotifyDiskChanged(DiskEvent event, const Disk* disk);
+  const Disk* FindDiskBySourcePathInternal(std::string_view source_path) const;
 
   // The list of observers.
   base::ObserverList<DiskMountManager::Observer> observers_;

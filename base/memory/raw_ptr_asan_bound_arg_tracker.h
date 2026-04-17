@@ -1,25 +1,25 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_MEMORY_RAW_PTR_ASAN_BOUND_ARG_TRACKER_H_
 #define BASE_MEMORY_RAW_PTR_ASAN_BOUND_ARG_TRACKER_H_
 
-#include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
+#include "partition_alloc/buildflags.h"
 
-#if BUILDFLAG(USE_ASAN_BACKUP_REF_PTR)
+#if PA_BUILDFLAG(USE_ASAN_BACKUP_REF_PTR)
 #include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <vector>
 
 #include "base/base_export.h"
-#include "base/containers/stack_container.h"
 #include "base/memory/raw_ptr.h"
+#include "third_party/abseil-cpp/absl/container/inlined_vector.h"
 
 namespace base {
 namespace internal {
-template <typename, typename>
+template <typename, typename, typename>
 struct Invoker;
 
 template <typename T, typename UnretainedTrait, RawPtrTraits PtrTraits>
@@ -47,7 +47,7 @@ class UnretainedRefWrapper;
 class BASE_EXPORT RawPtrAsanBoundArgTracker {
  public:
   static constexpr size_t kInlineArgsCount = 3;
-  using ProtectedArgsVector = base::StackVector<uintptr_t, kInlineArgsCount>;
+  using ProtectedArgsVector = absl::InlinedVector<uintptr_t, kInlineArgsCount>;
 
   // Check whether ptr is an address inside an allocation pointed to by one of
   // the currently protected callback arguments. If it is, then this function
@@ -55,7 +55,7 @@ class BASE_EXPORT RawPtrAsanBoundArgTracker {
   static uintptr_t GetProtectedArgPtr(uintptr_t ptr);
 
  private:
-  template <typename, typename>
+  template <typename, typename, typename>
   friend struct internal::Invoker;
 
   void Add(uintptr_t pointer);
@@ -79,7 +79,7 @@ class BASE_EXPORT RawPtrAsanBoundArgTracker {
       auto inner = arg.get();
       // The argument may unwrap into a raw_ptr or a T* depending if it is
       // allowed to dangle.
-      if constexpr (IsRawPtrV<decltype(inner)>) {
+      if constexpr (IsRawPtr<decltype(inner)>) {
         Add(reinterpret_cast<uintptr_t>(inner.get()));
       } else {
         Add(reinterpret_cast<uintptr_t>(inner));
@@ -119,5 +119,5 @@ class BASE_EXPORT RawPtrAsanBoundArgTracker {
 
 }  // namespace base
 
-#endif  // BUILDFLAG(USE_ASAN_BACKUP_REF_PTR)
+#endif  // PA_BUILDFLAG(USE_ASAN_BACKUP_REF_PTR)
 #endif  // BASE_MEMORY_RAW_PTR_ASAN_BOUND_ARG_TRACKER_H_

@@ -66,13 +66,13 @@ QuirksClient::QuirksClient(int64_t product_id,
           IdToFileName(product_id))),
       backoff_entry_(&kDefaultBackoffPolicy) {}
 
-QuirksClient::~QuirksClient() {}
+QuirksClient::~QuirksClient() = default;
 
 void QuirksClient::StartDownload() {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   // URL of icc file on Quirks Server.
-  int major_version = atoi(version_info::GetVersionNumber().c_str());
+  int major_version = version_info::GetMajorVersionNumberAsInt();
   std::string url = base::StringPrintf(
       kQuirksUrlFormat, IdToHexString(product_id_).c_str(), major_version);
 
@@ -187,13 +187,14 @@ void QuirksClient::Retry() {
 }
 
 bool QuirksClient::ParseResult(const std::string& result, std::string* data) {
-  absl::optional<base::Value> maybe_json = base::JSONReader::Read(result);
-  if (!maybe_json || !maybe_json->is_dict()) {
+  std::optional<base::Value::Dict> maybe_json =
+      base::JSONReader::ReadDict(result);
+  if (!maybe_json) {
     VLOG(1) << "Failed to parse JSON icc data";
     return false;
   }
 
-  std::string* data64 = maybe_json->GetDict().FindString("icc");
+  std::string* data64 = maybe_json->FindString("icc");
   if (!data64) {
     VLOG(1) << "Missing icc data";
     return false;

@@ -4,10 +4,12 @@
 
 #include "chrome/browser/win/jumplist_updater.h"
 
-#include <windows.h>
 #include <objbase.h>
-#include <propkey.h>
+
 #include <shobjidl.h>
+#include <windows.h>
+
+#include <propkey.h>
 
 #include "base/command_line.h"
 #include "base/files/file_path.h"
@@ -88,7 +90,7 @@ ShellLinkItem::ShellLinkItem()
     : command_line_(base::CommandLine::NO_PROGRAM), icon_index_(0) {
 }
 
-ShellLinkItem::~ShellLinkItem() {}
+ShellLinkItem::~ShellLinkItem() = default;
 
 std::wstring ShellLinkItem::GetArguments() const {
   return command_line_.GetArgumentsString();
@@ -104,8 +106,7 @@ base::CommandLine* ShellLinkItem::GetCommandLine() {
 JumpListUpdater::JumpListUpdater(const std::wstring& app_user_model_id)
     : app_user_model_id_(app_user_model_id), user_max_items_(0) {}
 
-JumpListUpdater::~JumpListUpdater() {
-}
+JumpListUpdater::~JumpListUpdater() = default;
 
 // static
 bool JumpListUpdater::IsEnabled() {

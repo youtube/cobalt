@@ -28,6 +28,13 @@ buildflag_header("mojo_buildflags") {
   ]
 }
 
+# Logically part of the "bindings_base" target, but split out separately so code
+# can use this without depending on all of Mojo bindings (and all of its
+# underlying implementation dependencies).
+source_set("default_construct_tag") {
+  sources = [ "default_construct_tag.h" ]
+}
+
 # Headers and sources which generated bindings can depend upon. No need for
 # other targets to depend on this directly: just use the "bindings" target.
 component("bindings_base") {
@@ -41,7 +48,6 @@ component("bindings_base") {
     "clone_traits.h",
     "connection_group.cc",
     "connection_group.h",
-    "default_construct_tag.h",
     "deprecated_interface_types_forward.h",
     "disconnect_reason.h",
     "enum_traits.h",
@@ -54,6 +60,7 @@ component("bindings_base") {
     "lib/array_internal.cc",
     "lib/array_internal.h",
     "lib/array_serialization.h",
+    "lib/array_serialization_send_validation.h",
     "lib/associated_group.cc",
     "lib/associated_group_controller.cc",
     "lib/bindings_internal.h",
@@ -62,15 +69,20 @@ component("bindings_base") {
     "lib/default_construct_tag_internal.h",
     "lib/handle_serialization.cc",
     "lib/handle_serialization.h",
+    "lib/handle_serialization_send_validation.h",
+    "lib/has_send_validation_helper.h",
     "lib/hash_util.h",
     "lib/map_data_internal.h",
     "lib/map_serialization.h",
+    "lib/map_serialization_send_validation.h",
     "lib/may_auto_lock.h",
     "lib/message.cc",
     "lib/message_fragment.h",
     "lib/message_header_validator.cc",
     "lib/message_internal.cc",
     "lib/message_internal.h",
+    "lib/message_size_estimator.cc",
+    "lib/message_size_estimator.h",
     "lib/pending_receiver_state.cc",
     "lib/pending_receiver_state.h",
     "lib/pending_remote_state.cc",
@@ -80,10 +92,14 @@ component("bindings_base") {
     "lib/scoped_interface_endpoint_handle.cc",
     "lib/send_message_helper.cc",
     "lib/send_message_helper.h",
+    "lib/send_validation.h",
+    "lib/send_validation_serialization.h",
+    "lib/send_validation_type.h",
     "lib/serialization.h",
     "lib/serialization_forward.h",
     "lib/serialization_util.h",
     "lib/string_serialization.h",
+    "lib/string_serialization_send_validation.h",
     "lib/template_util.h",
     "lib/unserialized_message_context.cc",
     "lib/unserialized_message_context.h",
@@ -115,15 +131,20 @@ component("bindings_base") {
     "tracing_helpers.h",
     "type_converter.h",
     "union_traits.h",
+    "urgent_message_scope.cc",
+    "urgent_message_scope.h",
   ]
 
   defines = [ "IS_MOJO_CPP_BINDINGS_BASE_IMPL" ]
 
   public_deps = [
+    ":default_construct_tag",
     ":mojo_buildflags",
     "//base",
     "//mojo/public/cpp/system",
   ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
   if (enable_ipc_fuzzer) {
     all_dependent_configs = [ "//tools/ipc_fuzzer:ipc_fuzzer_config" ]
@@ -147,6 +168,8 @@ component("bindings") {
     "callback_helpers.h",
     "connection_error_callback.h",
     "connector.h",
+    "direct_receiver.cc",
+    "direct_receiver.h",
     "generic_pending_associated_receiver.cc",
     "generic_pending_associated_receiver.h",
     "generic_pending_receiver.cc",
@@ -170,6 +193,7 @@ component("bindings") {
     "lib/interface_ptr_state.cc",
     "lib/interface_ptr_state.h",
     "lib/interface_serialization.h",
+    "lib/interface_serialization_send_validation.h",
     "lib/message_dispatcher.cc",
     "lib/multiplex_router.cc",
     "lib/multiplex_router.h",
@@ -206,6 +230,7 @@ component("bindings") {
     "receiver_set.h",
     "remote.h",
     "remote_set.h",
+    "runtime_features.h",
     "self_owned_associated_receiver.h",
     "self_owned_receiver.h",
     "sequence_local_sync_event_watcher.h",
@@ -247,7 +272,12 @@ component("bindings") {
     "//mojo/public/interfaces/bindings",
   ]
 
-  deps = [ "//ipc:native_handle_type_converters" ]
+  deps = [
+    "//ipc:native_handle_type_converters",
+    "//mojo/core/embedder",
+  ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
   defines = [ "IS_MOJO_CPP_BINDINGS_IMPL" ]
 }
@@ -261,6 +291,11 @@ source_set("struct_traits") {
     "string_traits.h",
     "struct_traits.h",
     "union_traits.h",
+  ]
+
+  deps = [
+    ":bindings_base",
+    "//base",
   ]
 }
 
@@ -280,8 +315,6 @@ source_set("protobuf_support") {
 if (use_blink) {
   component("wtf_support") {
     sources = [
-      "array_traits_web_vector.h",
-      "array_traits_wtf_vector.h",
       "lib/string_traits_wtf.cc",
       "lib/wtf_clone_equals_util.h",
       "lib/wtf_hash_util.h",
@@ -289,6 +322,8 @@ if (use_blink) {
       "map_traits_wtf_hash_map.h",
       "string_traits_wtf.h",
     ]
+
+    configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
     defines = [ "IS_MOJO_CPP_BINDINGS_BASE_IMPL" ]
 

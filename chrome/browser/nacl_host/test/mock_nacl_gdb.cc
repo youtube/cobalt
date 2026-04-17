@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <cstdio>
 #include <cstring>
 #include <memory>
@@ -21,8 +26,8 @@ static const char kAttach[] = "target remote :4014";
 
 int main(int argc, char** argv) {
   std::unique_ptr<base::Environment> env(base::Environment::Create());
-  std::string mock_nacl_gdb_file;
-  env->GetVar("MOCK_NACL_GDB", &mock_nacl_gdb_file);
+  std::string mock_nacl_gdb_file =
+      env->GetVar("MOCK_NACL_GDB").value_or(std::string());
   CHECK_GE(argc, 5);
   // First argument should be --eval-command.
   CHECK_EQ(strcmp(argv[1], kEvalCommand), 0);

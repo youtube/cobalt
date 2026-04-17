@@ -22,7 +22,6 @@ EnumTraits<password_manager::mojom::CSVPassword_Status,
       return password_manager::mojom::CSVPassword_Status::kSemanticError;
   }
   NOTREACHED();
-  return password_manager::mojom::CSVPassword_Status::kSyntaxError;
 }
 
 bool EnumTraits<password_manager::mojom::CSVPassword_Status,
@@ -68,7 +67,7 @@ bool StructTraits<password_manager::mojom::CSVPasswordDataView,
     *out = password_manager::CSVPassword(url, username, password, note, status);
     return true;
   }
-  absl::optional<std::string> invalid_url;
+  std::optional<std::string> invalid_url;
   if (!data.ReadInvalidUrl(&invalid_url))
     return false;
   DCHECK(invalid_url.has_value());

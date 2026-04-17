@@ -11,14 +11,14 @@ namespace payments {
 
 class PaymentRequestBlobUrlTest : public PaymentRequestBrowserTestBase {
  protected:
-  PaymentRequestBlobUrlTest() {}
+  PaymentRequestBlobUrlTest() = default;
 };
 
 IN_PROC_BROWSER_TEST_F(PaymentRequestBlobUrlTest, Rejected) {
   NavigateTo("/payment_request_blob_url_test.html");
 
   // Trigger the Blob URL load, and wait for it to finish.
-  ASSERT_TRUE(content::ExecuteScript(
+  ASSERT_TRUE(content::ExecJs(
       GetActiveWebContents(),
       "(function() { document.getElementById('buy').click(); })();"));
   WaitForLoadStop(GetActiveWebContents());

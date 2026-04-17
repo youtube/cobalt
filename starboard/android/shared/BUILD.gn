@@ -13,26 +13,14 @@
 # limitations under the License.
 
 import("//build/config/android/rules.gni")
-import("//starboard/android/shared/toolchain/toolchain.gni")
 import("//starboard/shared/starboard/media/media_tests.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
 import("//starboard/shared/starboard/player/player_tests.gni")
+import("//testing/test.gni")
 
 ##########################################################
 # Configuration for overall Android Starboard Platform.
 ##########################################################
-
-# This shared library contains only shared state variables needed
-# for shared JNI to work across library boundaries.
-shared_library("starboard_jni_state") {
-  sources = [
-    "jni_state.cc",
-    "jni_state.h",
-  ]
-
-  # Do not just hide symbols from us
-  configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
-}
 
 config("starboard_platform_libs") {
   libs = [
@@ -49,13 +37,11 @@ static_library("starboard_platform") {
     "//starboard/shared/gles/gl_call.h",
     "//starboard/shared/gles/system_gles2.cc",
     "//starboard/shared/internal_only.h",
-    "//starboard/shared/linux/cpu_features_get.cc",
     "//starboard/shared/linux/system_get_random_data.cc",
     "//starboard/shared/linux/system_get_total_cpu_memory.cc",
     "//starboard/shared/linux/system_get_used_cpu_memory.cc",
     "//starboard/shared/linux/system_is_debugger_attached.cc",
     "//starboard/shared/linux/system_symbolize.cc",
-    "//starboard/shared/linux/thread_get_id.cc",
     "//starboard/shared/opus/opus_audio_decoder.cc",
     "//starboard/shared/opus/opus_audio_decoder.h",
     "//starboard/shared/posix/environment.cc",
@@ -102,8 +88,8 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/drm/drm_system_internal.h",
     "//starboard/shared/starboard/drm/drm_update_server_certificate.cc",
     "//starboard/shared/starboard/drm/drm_update_session.cc",
-    "//starboard/shared/starboard/event_cancel.cc",
-    "//starboard/shared/starboard/event_schedule.cc",
+    "//starboard/shared/starboard/experimental_features.cc",
+    "//starboard/shared/starboard/experimental_features.h",
     "//starboard/shared/starboard/feature_list.cc",
     "//starboard/shared/starboard/feature_list.h",
     "//starboard/shared/starboard/features.cc",
@@ -135,9 +121,6 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/microphone/microphone_is_sample_rate_supported.cc",
     "//starboard/shared/starboard/microphone/microphone_open.cc",
     "//starboard/shared/starboard/microphone/microphone_read.cc",
-    "//starboard/shared/starboard/new.cc",
-    "//starboard/shared/starboard/queue_application.cc",
-    "//starboard/shared/starboard/queue_application.h",
     "//starboard/shared/starboard/system_get_random_uint64.cc",
     "//starboard/shared/starboard/system_supports_resume.cc",
     "//starboard/shared/starboard/thread_checker.h",
@@ -185,13 +168,15 @@ static_library("starboard_platform") {
     "configuration.h",
     "configuration_constants.cc",
     "configuration_public.h",
-    "continuous_audio_track_sink.cc",
-    "continuous_audio_track_sink.h",
     "crash_handler.cc",
     "crash_handler.h",
     "decode_target.cc",
     "decode_target.h",
+    "display_util.cc",
+    "display_util.h",
     "drm_create_system.cc",
+    "drm_session_id_mapper.cc",
+    "drm_session_id_mapper.h",
     "drm_system.cc",
     "drm_system.h",
     "egl_swap_buffers.cc",
@@ -202,12 +187,6 @@ static_library("starboard_platform") {
     "get_home_directory.cc",
     "graphics.cc",
     "graphics.h",
-
-    #"input_events_generator.cc",
-    #"input_events_generator.h",
-    "jni_env_ext.cc",
-    "jni_env_ext.h",
-    "jni_utils.h",
     "log.cc",
     "log_flush.cc",
     "log_format.cc",
@@ -216,6 +195,8 @@ static_library("starboard_platform") {
     "log_raw.cc",
     "max_media_codec_output_buffers_lookup_table.cc",
     "max_media_codec_output_buffers_lookup_table.h",
+    "media_buffer_pool_extension.cc",
+    "media_buffer_pool_extension.h",
     "media_capabilities_cache.cc",
     "media_capabilities_cache.h",
     "media_codec_bridge.cc",
@@ -228,12 +209,13 @@ static_library("starboard_platform") {
     "media_get_audio_configuration.cc",
     "media_get_audio_output_count.cc",
     "media_get_initial_buffer_capacity.cc",
-    "media_get_max_buffer_capacity.cc",
     "media_get_video_buffer_budget.cc",
     "media_is_audio_supported.cc",
     "media_is_buffer_pool_allocate_on_demand.cc",
-    "media_is_supported.cc",
+    "media_is_key_system_supported.cc",
     "media_is_video_supported.cc",
+    "memfd_media_buffer_pool.cc",
+    "memfd_media_buffer_pool.h",
     "microphone_impl.cc",
     "platform_info.cc",
     "platform_info.h",
@@ -247,6 +229,8 @@ static_library("starboard_platform") {
     "player_set_max_video_input_size.cc",
     "player_set_max_video_input_size.h",
     "player_set_playback_rate.cc",
+    "player_set_video_surface_view.cc",
+    "player_set_video_surface_view.h",
 
     # TODO: b/374300500 - posix_emu things should not be used on Android anymore
     # "posix_emu/dirent.cc",
@@ -266,6 +250,7 @@ static_library("starboard_platform") {
     #"speech_synthesis_speak.cc",
     "starboard_bridge.cc",
     "starboard_bridge.h",
+    "starboard_feature_list.cc",
     "system_get_extensions.cc",
     "system_get_locale_id.cc",
     "system_get_path.cc",
@@ -274,17 +259,16 @@ static_library("starboard_platform") {
     "system_has_capability.cc",
     "system_info_api.cc",
     "system_info_api.h",
-    "system_network_is_disconnected.cc",
     "system_platform_error.cc",
     "system_request_conceal.cc",
     "system_request_freeze_no_freezedone_callback.cc",
     "system_request_stop.cc",
     "text_to_speech_helper.cc",
     "text_to_speech_helper.h",
-    "text_to_speech_observer.h",
     "thread_create_priority.cc",
+    "thread_get_id.cc",
+    "thread_platform_android.cc",
     "time_zone_get_name.cc",
-    "trace_util.h",
     "video_decoder.cc",
     "video_decoder.h",
     "video_frame_tracker.cc",
@@ -293,6 +277,10 @@ static_library("starboard_platform") {
     "video_max_video_input_size.h",
     "video_render_algorithm.cc",
     "video_render_algorithm.h",
+    "video_surface_texture_bridge.cc",
+    "video_surface_texture_bridge.h",
+    "video_surface_view.cc",
+    "video_surface_view.h",
     "video_window.cc",
     "video_window.h",
 
@@ -322,18 +310,19 @@ static_library("starboard_platform") {
 
   public_deps = [
     ":starboard_base_symbolize",
-    ":starboard_jni_state",
     "//cobalt/android:jni_headers",
+    "//cobalt/browser:cobalt_crash_annotations",
     "//cobalt/browser/client_hint_headers",
+    "//cobalt/browser/h5vcc_accessibility:manager",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//starboard/common",
+    "//starboard/extension:feature_config_header",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
 
   deps = [
     "//base",
-    "//third_party/libevent",
     "//third_party/opus",
   ]
 
@@ -390,23 +379,31 @@ static_library("starboard_base_symbolize") {
   check_includes = false
 }
 
-source_set("starboard_platform_tests") {
+test("starboard_platform_tests") {
   testonly = true
 
   sources = media_tests_sources + player_tests_sources + [
-              "//starboard/shared/starboard/drm/drm_test_helpers.cc",
-              "//starboard/shared/starboard/drm/drm_test_helpers.h",
-              "//starboard/shared/starboard/starboard_feature_test.cc",
-              "jni_env_ext_test.cc",
+              "//starboard/common/test_main.cc",
+              "drm_session_id_mapper_test.cc",
+              "media_capabilities_cache_test.cc",
+              "memfd_media_buffer_pool_test.cc",
+              "mock_media_capabilities_cache.cc",
+              "mock_media_capabilities_cache.h",
               "model_year_test.cc",
               "player_get_preferred_output_mode_test.cc",
+              "video_frame_tracker_test.cc",
             ]
+
+  # Add starboard_feature_test to Android's starboard_platform_tests,
+  # since Android is the only platform that includes starboard_feature.
+  sources += [ "//starboard/shared/starboard/starboard_feature_test.cc" ]
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
   deps = [
     ":starboard_platform",
     "//starboard:starboard_group",
+    "//starboard/shared/starboard/drm:drm_test_helpers",
     "//starboard/shared/starboard/player/filter/testing:test_util",
     "//testing/gmock",
     "//testing/gtest",

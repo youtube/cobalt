@@ -15,6 +15,7 @@
 #include "extensions/browser/browser_context_keyed_api_factory.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_registry_observer.h"
+#include "extensions/common/extension_id.h"
 
 class Profile;
 
@@ -38,10 +39,10 @@ class SettingsOverridesAPI : public BrowserContextKeyedAPI,
   friend class BrowserContextKeyedAPIFactory<SettingsOverridesAPI>;
 
   // Wrappers around PreferenceAPI.
-  void SetPref(const std::string& extension_id,
+  void SetPref(const ExtensionId& extension_id,
                const std::string& pref_key,
                base::Value value) const;
-  void UnsetPref(const std::string& extension_id,
+  void UnsetPref(const ExtensionId& extension_id,
                  const std::string& pref_key) const;
 
   // ExtensionRegistryObserver implementation.

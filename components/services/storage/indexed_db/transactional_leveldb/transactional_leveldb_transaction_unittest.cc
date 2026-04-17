@@ -10,12 +10,12 @@
 #include <cstring>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/files/file.h"
 #include "base/files/file_path.h"
-#include "base/strings/string_piece.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/bind.h"
 #include "components/services/storage/indexed_db/locks/partitioned_lock_manager.h"
@@ -29,11 +29,10 @@
 #include "third_party/leveldatabase/env_chromium.h"
 #include "third_party/leveldatabase/src/include/leveldb/comparator.h"
 
-namespace content {
+namespace content::indexed_db {
 
 namespace {
 const size_t kTestingMaxOpenCursors = 3;
-}  // namespace
 
 class TransactionalLevelDBTransactionTest : public LevelDBScopesTestBase {
  public:
@@ -60,9 +59,7 @@ class TransactionalLevelDBTransactionTest : public LevelDBScopesTestBase {
                 [this](leveldb::Status s) { this->failure_status_ = s; }));
     leveldb::Status s = scopes_system->Initialize();
     ASSERT_TRUE(s.ok()) << s.ToString();
-    s = scopes_system->StartRecoveryAndCleanupTasks(
-        LevelDBScopes::TaskRunnerMode::kNewCleanupAndRevertSequences);
-    ASSERT_TRUE(s.ok()) << s.ToString();
+    scopes_system->StartRecoveryAndCleanupTasks();
     leveldb_database_ = transactional_leveldb_factory_.CreateLevelDBDatabase(
         leveldb_, std::move(scopes_system),
         base::SequencedTaskRunner::GetCurrentDefault(), kTestingMaxOpenCursors);
@@ -75,7 +72,7 @@ class TransactionalLevelDBTransactionTest : public LevelDBScopesTestBase {
     base::RunLoop loop;
     PartitionedLockHolder locks_receiver;
     lock_manager->AcquireLocks(
-        lock_requests, locks_receiver.AsWeakPtr(),
+        lock_requests, locks_receiver,
         base::BindLambdaForTesting([&loop]() { loop.Quit(); }));
     loop.Run();
     return std::move(locks_receiver.locks);
@@ -83,18 +80,18 @@ class TransactionalLevelDBTransactionTest : public LevelDBScopesTestBase {
 
   // Convenience methods to access the database outside any
   // transaction to cut down on boilerplate around calls.
-  void Put(const base::StringPiece& key, const std::string& value) {
+  void Put(std::string_view key, std::string value) {
     std::string put_value = value;
     leveldb::Status s = leveldb_database_->Put(key, &put_value);
     ASSERT_TRUE(s.ok());
   }
 
-  void Get(const base::StringPiece& key, std::string* value, bool* found) {
+  void Get(std::string_view key, std::string* value, bool* found) {
     leveldb::Status s = leveldb_database_->Get(key, value, found);
     ASSERT_TRUE(s.ok());
   }
 
-  bool Has(const base::StringPiece& key) {
+  bool Has(std::string_view key) {
     bool found;
     std::string value;
     leveldb::Status s = leveldb_database_->Get(key, &value, &found);
@@ -105,7 +102,7 @@ class TransactionalLevelDBTransactionTest : public LevelDBScopesTestBase {
   // Convenience wrappers for LevelDBTransaction operations to
   // avoid boilerplate in tests.
   bool TransactionHas(TransactionalLevelDBTransaction* transaction,
-                      const base::StringPiece& key) {
+                      std::string_view key) {
     std::string value;
     bool found;
     leveldb::Status s = transaction->Get(key, &value, &found);
@@ -114,7 +111,7 @@ class TransactionalLevelDBTransactionTest : public LevelDBScopesTestBase {
   }
 
   void TransactionPut(TransactionalLevelDBTransaction* transaction,
-                      const base::StringPiece& key,
+                      std::string_view key,
                       const std::string& value) {
     std::string put_value = value;
     leveldb::Status s = transaction->Put(key, &put_value);
@@ -122,17 +119,17 @@ class TransactionalLevelDBTransactionTest : public LevelDBScopesTestBase {
   }
 
   void TransactionRemove(TransactionalLevelDBTransaction* transaction,
-                         const base::StringPiece& key) {
+                         std::string_view key) {
     leveldb::Status s = transaction->Remove(key);
     ASSERT_TRUE(s.ok());
   }
 
-  int Compare(const base::StringPiece& a, const base::StringPiece& b) const {
+  int Compare(std::string_view a, std::string_view b) const {
     return leveldb_database_->leveldb_state()->comparator()->Compare(
         leveldb_env::MakeSlice(a), leveldb_env::MakeSlice(b));
   }
 
-  bool KeysEqual(const base::StringPiece& a, const base::StringPiece& b) const {
+  bool KeysEqual(std::string_view a, std::string_view b) const {
     return Compare(a, b) == 0;
   }
 
@@ -140,9 +137,8 @@ class TransactionalLevelDBTransactionTest : public LevelDBScopesTestBase {
 
   scoped_refptr<TransactionalLevelDBTransaction> CreateTransaction() {
     return transactional_leveldb_factory_.CreateLevelDBTransaction(
-        db(),
-        db()->scopes()->CreateScope(
-            AcquireLocksSync(&lock_manager_, {CreateSimpleSharedLock()}), {}));
+        db(), db()->scopes()->CreateScope(AcquireLocksSync(
+                  &lock_manager_, {CreateSimpleSharedLock()})));
   }
 
   leveldb::Status failure_status_;
@@ -189,9 +185,7 @@ TEST_F(TransactionalLevelDBTransactionTest, GetPutDelete) {
 
   const std::string another_key("b-another key");
   const std::string another_value("b-another value");
-  EXPECT_EQ(12ull, transaction->GetTransactionSize());
   TransactionPut(transaction.get(), another_key, another_value);
-  EXPECT_EQ(43ull, transaction->GetTransactionSize());
 
   status = transaction->Get(another_key, &got_value, &found);
   EXPECT_TRUE(status.ok());
@@ -199,7 +193,6 @@ TEST_F(TransactionalLevelDBTransactionTest, GetPutDelete) {
   EXPECT_EQ(Compare(got_value, another_value), 0);
 
   TransactionRemove(transaction.get(), another_key);
-  EXPECT_EQ(124ull, transaction->GetTransactionSize());
 
   status = transaction->Get(another_key, &got_value, &found);
   EXPECT_FALSE(found);
@@ -1029,4 +1022,5 @@ TEST_F(TransactionalLevelDBTransactionTest,
   ASSERT_FALSE(it->IsValid());
 }
 
-}  // namespace content
+}  // namespace
+}  // namespace content::indexed_db

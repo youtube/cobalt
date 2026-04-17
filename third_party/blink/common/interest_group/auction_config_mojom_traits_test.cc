@@ -4,17 +4,22 @@
 
 #include "third_party/blink/public/common/interest_group/auction_config_mojom_traits.h"
 
+#include <limits>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <vector>
 
 #include "base/containers/flat_map.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
+#include "base/uuid.h"
 #include "mojo/public/cpp/test_support/test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/abseil-cpp/absl/numeric/int128.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/common/interest_group/auction_config_test_util.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/interest_group/auction_config.h"
 #include "third_party/blink/public/common/interest_group/seller_capabilities.h"
 #include "third_party/blink/public/mojom/interest_group/interest_group_types.mojom.h"
@@ -23,78 +28,7 @@
 
 namespace blink {
 
-bool operator==(
-    const AuctionConfig::NonSharedParams::AuctionReportBuyersConfig& a,
-    const AuctionConfig::NonSharedParams::AuctionReportBuyersConfig& b) {
-  return std::tie(a.bucket, a.scale) == std::tie(b.bucket, b.scale);
-}
-
-bool operator==(const DirectFromSellerSignals& a,
-                const DirectFromSellerSignals& b) {
-  return std::tie(a.prefix, a.per_buyer_signals, a.seller_signals,
-                  a.auction_signals) == std::tie(b.prefix, b.per_buyer_signals,
-                                                 b.seller_signals,
-                                                 b.auction_signals);
-}
-
-bool operator==(const AuctionConfig::BuyerTimeouts& a,
-                const AuctionConfig::BuyerTimeouts& b) {
-  return std::tie(a.all_buyers_timeout, a.per_buyer_timeouts) ==
-         std::tie(b.all_buyers_timeout, b.per_buyer_timeouts);
-}
-
-bool operator==(const AdCurrency& a, const AdCurrency& b) {
-  return a.currency_code() == b.currency_code();
-}
-
-bool operator==(const AuctionConfig::BuyerCurrencies& a,
-                const AuctionConfig::BuyerCurrencies& b) {
-  return std::tie(a.all_buyers_currency, a.per_buyer_currencies) ==
-         std::tie(b.all_buyers_currency, b.per_buyer_currencies);
-}
-
-template <class T>
-bool operator==(const AuctionConfig::MaybePromise<T>& a,
-                const AuctionConfig::MaybePromise<T>& b) {
-  return a.tag() == b.tag() && a.value() == b.value();
-}
-
-bool operator==(const AuctionConfig& a, const AuctionConfig& b);
-
-bool operator==(const AuctionConfig::NonSharedParams& a,
-                const AuctionConfig::NonSharedParams& b) {
-  return std::tie(a.interest_group_buyers, a.auction_signals, a.seller_signals,
-                  a.seller_timeout, a.per_buyer_signals, a.buyer_timeouts,
-                  a.buyer_cumulative_timeouts, a.seller_currency,
-                  a.buyer_currencies, a.per_buyer_group_limits,
-                  a.all_buyers_group_limit, a.per_buyer_priority_signals,
-                  a.all_buyers_priority_signals, a.auction_report_buyer_keys,
-                  a.auction_report_buyers, a.required_seller_capabilities,
-                  a.component_auctions) ==
-         std::tie(b.interest_group_buyers, b.auction_signals, b.seller_signals,
-                  b.seller_timeout, b.per_buyer_signals, b.buyer_timeouts,
-                  b.buyer_cumulative_timeouts, b.seller_currency,
-                  b.buyer_currencies, b.per_buyer_group_limits,
-                  b.all_buyers_group_limit, b.per_buyer_priority_signals,
-                  b.all_buyers_priority_signals, b.auction_report_buyer_keys,
-                  b.auction_report_buyers, b.required_seller_capabilities,
-                  b.component_auctions);
-}
-
-bool operator==(const AuctionConfig& a, const AuctionConfig& b) {
-  return std::tie(a.seller, a.decision_logic_url, a.trusted_scoring_signals_url,
-                  a.non_shared_params, a.direct_from_seller_signals,
-                  a.seller_experiment_group_id, a.all_buyer_experiment_group_id,
-                  a.per_buyer_experiment_group_ids) ==
-         std::tie(b.seller, b.decision_logic_url, b.trusted_scoring_signals_url,
-                  b.non_shared_params, b.direct_from_seller_signals,
-                  b.seller_experiment_group_id, b.all_buyer_experiment_group_id,
-                  b.per_buyer_experiment_group_ids);
-}
-
 namespace {
-
-constexpr char kSellerOriginStr[] = "https://seller.test";
 
 // Cases for direct_from_seller_signals test parameterization.
 
@@ -104,123 +38,6 @@ constexpr char kAuctionSignals[] = "auction-signals";
 
 constexpr char kBundleUrl[] = "bundle-url";
 constexpr char kPrefix[] = "prefix";
-
-// Creates a minimal valid AuctionConfig, with a seller and the passed in
-// decision logic URL. Seller is derived from `decision_logic_url`.
-AuctionConfig CreateBasicConfig(
-    const GURL& decision_logic_url = GURL("https://seller.test/foo")) {
-  AuctionConfig auction_config;
-  auction_config.seller = url::Origin::Create(decision_logic_url);
-  auction_config.decision_logic_url = decision_logic_url;
-  return auction_config;
-}
-
-// Creates an AuctionConfig with all fields except `component_auctions`
-// populated.
-AuctionConfig CreateFullConfig() {
-  const url::Origin seller = url::Origin::Create(GURL(kSellerOriginStr));
-  AuctionConfig auction_config = CreateBasicConfig();
-
-  auction_config.trusted_scoring_signals_url = GURL("https://seller.test/bar");
-  auction_config.seller_experiment_group_id = 1;
-  auction_config.all_buyer_experiment_group_id = 2;
-
-  const url::Origin buyer = url::Origin::Create(GURL("https://buyer.test"));
-  auction_config.per_buyer_experiment_group_ids[buyer] = 3;
-
-  AuctionConfig::NonSharedParams& non_shared_params =
-      auction_config.non_shared_params;
-  non_shared_params.interest_group_buyers.emplace();
-  non_shared_params.interest_group_buyers->push_back(buyer);
-  non_shared_params.auction_signals =
-      AuctionConfig::MaybePromiseJson::FromValue("[4]");
-  non_shared_params.seller_signals =
-      AuctionConfig::MaybePromiseJson::FromValue("[5]");
-  non_shared_params.seller_timeout = base::Seconds(6);
-
-  absl::optional<base::flat_map<url::Origin, std::string>> per_buyer_signals;
-  per_buyer_signals.emplace();
-  (*per_buyer_signals)[buyer] = "[7]";
-  non_shared_params.per_buyer_signals =
-      blink::AuctionConfig::MaybePromisePerBuyerSignals::FromValue(
-          std::move(per_buyer_signals));
-
-  AuctionConfig::BuyerTimeouts buyer_timeouts;
-  buyer_timeouts.per_buyer_timeouts.emplace();
-  (*buyer_timeouts.per_buyer_timeouts)[buyer] = base::Seconds(8);
-  buyer_timeouts.all_buyers_timeout = base::Seconds(9);
-  non_shared_params.buyer_timeouts =
-      AuctionConfig::MaybePromiseBuyerTimeouts::FromValue(
-          std::move(buyer_timeouts));
-
-  AuctionConfig::BuyerCurrencies buyer_currencies;
-  buyer_currencies.per_buyer_currencies.emplace();
-  (*buyer_currencies.per_buyer_currencies)[buyer] = AdCurrency::From("CAD");
-  buyer_currencies.all_buyers_currency = AdCurrency::From("USD");
-  non_shared_params.buyer_currencies =
-      AuctionConfig::MaybePromiseBuyerCurrencies::FromValue(
-          std::move(buyer_currencies));
-
-  non_shared_params.seller_currency = AdCurrency::From("EUR");
-
-  AuctionConfig::BuyerTimeouts buyer_cumulative_timeouts;
-  buyer_cumulative_timeouts.per_buyer_timeouts.emplace();
-  (*buyer_cumulative_timeouts.per_buyer_timeouts)[buyer] = base::Seconds(432);
-  buyer_cumulative_timeouts.all_buyers_timeout = base::Seconds(234);
-  non_shared_params.buyer_cumulative_timeouts =
-      AuctionConfig::MaybePromiseBuyerTimeouts::FromValue(
-          std::move(buyer_cumulative_timeouts));
-
-  non_shared_params.per_buyer_group_limits[buyer] = 10;
-  non_shared_params.all_buyers_group_limit = 11;
-  non_shared_params.per_buyer_priority_signals.emplace();
-  (*non_shared_params.per_buyer_priority_signals)[buyer] = {
-      {"hats", 1.5}, {"for", 0}, {"sale", -2}};
-  non_shared_params.all_buyers_priority_signals = {
-      {"goats", -1.5}, {"for", 5}, {"sale", 0}};
-  non_shared_params.auction_report_buyer_keys = {absl::MakeUint128(1, 1),
-                                                 absl::MakeUint128(1, 2)};
-  non_shared_params.auction_report_buyers = {
-      {AuctionConfig::NonSharedParams::BuyerReportType::kInterestGroupCount,
-       {absl::MakeUint128(0, 0), 1.0}},
-      {AuctionConfig::NonSharedParams::BuyerReportType::
-           kTotalSignalsFetchLatency,
-       {absl::MakeUint128(0, 1), 2.0}}};
-  non_shared_params.required_seller_capabilities = {
-      SellerCapabilities::kLatencyStats};
-
-  DirectFromSellerSignalsSubresource
-      direct_from_seller_signals_per_buyer_signals_buyer;
-  direct_from_seller_signals_per_buyer_signals_buyer.bundle_url =
-      GURL("https://seller.test/bundle");
-  direct_from_seller_signals_per_buyer_signals_buyer.token =
-      base::UnguessableToken::Create();
-
-  DirectFromSellerSignalsSubresource direct_from_seller_seller_signals;
-  direct_from_seller_seller_signals.bundle_url =
-      GURL("https://seller.test/bundle");
-  direct_from_seller_seller_signals.token = base::UnguessableToken::Create();
-
-  DirectFromSellerSignalsSubresource direct_from_seller_auction_signals;
-  direct_from_seller_auction_signals.bundle_url =
-      GURL("https://seller.test/bundle");
-  direct_from_seller_auction_signals.token = base::UnguessableToken::Create();
-
-  DirectFromSellerSignals direct_from_seller_signals;
-  direct_from_seller_signals.prefix = GURL("https://seller.test/json");
-  direct_from_seller_signals.per_buyer_signals.insert(
-      {buyer, std::move(direct_from_seller_signals_per_buyer_signals_buyer)});
-  direct_from_seller_signals.seller_signals =
-      std::move(direct_from_seller_seller_signals);
-  direct_from_seller_signals.auction_signals =
-      std::move(direct_from_seller_auction_signals);
-
-  auction_config.direct_from_seller_signals =
-      AuctionConfig::MaybePromiseDirectFromSellerSignals::FromValue(
-          std::move(direct_from_seller_signals));
-
-  return auction_config;
-}
 
 // Attempts to serialize and then deserialize `auction_config`, returning true
 // if deserialization succeeded. On success, also checks that the resulting
@@ -245,6 +62,17 @@ bool SerializeAndDeserialize(
     const AuctionConfig::MaybePromise<PromiseValue>& in) {
   AuctionConfig::MaybePromise<PromiseValue> out;
   bool success = mojo::test::SerializeAndDeserialize<MojoType>(in, out);
+  if (success) {
+    EXPECT_EQ(in, out);
+  }
+  return success;
+}
+
+bool SerializeAndDeserialize(const AuctionConfig::AdKeywordReplacement& in) {
+  AuctionConfig::AdKeywordReplacement out;
+  bool success =
+      mojo::test::SerializeAndDeserialize<blink::mojom::AdKeywordReplacement>(
+          in, out);
   if (success) {
     EXPECT_EQ(in, out);
   }
@@ -281,63 +109,123 @@ bool SerializeAndDeserialize(const AdCurrency& in) {
   return success;
 }
 
-TEST(AuctionConfigMojomTraitsTest, Empty) {
+bool SerializeAndDeserialize(const AuctionConfig::ServerResponseConfig& in) {
+  AuctionConfig::ServerResponseConfig out;
+  bool success = mojo::test::SerializeAndDeserialize<
+      blink::mojom::AuctionAdServerResponseConfig>(in, out);
+  if (success) {
+    EXPECT_EQ(in.request_id, out.request_id);
+  }
+  return success;
+}
+
+class AuctionConfigMojomTraitsTest : public ::testing::Test {
+ public:
+  AuctionConfigMojomTraitsTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        blink::features::kFledgeTrustedSignalsKVv1CreativeScanning);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+TEST_F(AuctionConfigMojomTraitsTest, Empty) {
   AuctionConfig auction_config;
   EXPECT_FALSE(SerializeAndDeserialize(auction_config));
 }
 
-TEST(AuctionConfigMojomTraitsTest, Basic) {
-  AuctionConfig auction_config = CreateBasicConfig();
+TEST_F(AuctionConfigMojomTraitsTest, Basic) {
+  AuctionConfig auction_config = CreateBasicAuctionConfig();
   EXPECT_TRUE(SerializeAndDeserialize(auction_config));
 }
 
-TEST(AuctionConfigMojomTraitsTest, SellerNotHttps) {
-  AuctionConfig auction_config = CreateBasicConfig(GURL("http://seller.test"));
+TEST_F(AuctionConfigMojomTraitsTest, SellerNotHttps) {
+  AuctionConfig auction_config =
+      CreateBasicAuctionConfig(GURL("http://seller.test"));
   EXPECT_FALSE(SerializeAndDeserialize(auction_config));
 }
 
-TEST(AuctionConfigMojomTraitsTest, SellerDecisionUrlMismatch) {
-  AuctionConfig auction_config = CreateBasicConfig(GURL("http://seller.test"));
+TEST_F(AuctionConfigMojomTraitsTest, SellerDecisionUrlMismatch) {
+  AuctionConfig auction_config =
+      CreateBasicAuctionConfig(GURL("http://seller.test"));
   // Different origin than seller, but same scheme.
   auction_config.decision_logic_url = GURL("https://not.seller.test/foo");
   EXPECT_FALSE(SerializeAndDeserialize(auction_config));
 
-  auction_config = CreateBasicConfig(GURL("https://seller.test"));
+  auction_config = CreateBasicAuctionConfig(GURL("https://seller.test"));
   // This blob URL should be considered same-origin to the seller, but the
   // scheme is wrong.
   auction_config.decision_logic_url = GURL("blob:https://seller.test/foo");
   ASSERT_EQ(auction_config.seller,
-            url::Origin::Create(auction_config.decision_logic_url));
+            url::Origin::Create(*auction_config.decision_logic_url));
   EXPECT_FALSE(SerializeAndDeserialize(auction_config));
 }
 
-TEST(AuctionConfigMojomTraitsTest, SellerScoringSignalsUrlMismatch) {
-  AuctionConfig auction_config = CreateBasicConfig(GURL("http://seller.test"));
-  // Different origin than seller, but same scheme.
-  auction_config.trusted_scoring_signals_url =
-      GURL("https://not.seller.test/foo");
-  EXPECT_FALSE(SerializeAndDeserialize(auction_config));
+// Tests that decision logic and trusted scoring signals GURLs exceeding max
+// length can be passed through Mojo and will be converted into invalid, empty
+// GURLs, and passing in invalid URLs works as well.
+TEST_F(AuctionConfigMojomTraitsTest,
+       SellerDecisionAndTrustedSignalsUrlsTooLong) {
+  GURL too_long_url =
+      GURL("https://seller.test/" + std::string(url::kMaxURLChars, '1'));
+  AuctionConfig auction_config = CreateBasicAuctionConfig(too_long_url);
+  auction_config.trusted_scoring_signals_url = too_long_url;
 
-  auction_config = CreateBasicConfig(GURL("https://seller.test"));
-  // This blob URL should be considered same-origin to the seller, but the
-  // scheme is wrong.
-  auction_config.trusted_scoring_signals_url =
-      GURL("blob:https://seller.test/foo");
-  ASSERT_EQ(auction_config.seller,
-            url::Origin::Create(*auction_config.trusted_scoring_signals_url));
-  EXPECT_FALSE(SerializeAndDeserialize(auction_config));
+  AuctionConfig auction_config_clone;
+  bool success =
+      mojo::test::SerializeAndDeserialize<blink::mojom::AuctionAdConfig>(
+          auction_config, auction_config_clone);
+  ASSERT_TRUE(success);
+  EXPECT_EQ(auction_config.seller, auction_config_clone.seller);
+  EXPECT_EQ(GURL(), auction_config_clone.decision_logic_url);
+  EXPECT_EQ(GURL(), auction_config_clone.trusted_scoring_signals_url);
+
+  EXPECT_TRUE(SerializeAndDeserialize(auction_config_clone));
 }
 
-TEST(AuctionConfigMojomTraitsTest, FullConfig) {
-  AuctionConfig auction_config = CreateFullConfig();
+TEST_F(AuctionConfigMojomTraitsTest, TrustedScoringSignalsUrl) {
+  AuctionConfig auction_config =
+      CreateBasicAuctionConfig(GURL("https://seller.test"));
+
+  const struct {
+    const char* url_str;
+    bool expected_ok = false;
+  } kTests[] = {
+      {"https://seller.test/foo.json", /*expected_ok=*/true},
+      {"https://seller.test/foo.json?query"},
+      {"https://seller.test/foo.json?"},
+      {"https://seller.test/foo.json#foo"},
+      {"https://seller.test/foo.json#"},
+      {"https://user:pass@seller.test/foo.json"},
+      // Cross-site and cross-origin URLs are allowed.
+      {"https://not.seller.test/foo.json", /*expected_ok=*/true},
+      {"https://not-seller.test/foo.json", /*expected_ok=*/true},
+      // This is actually the same as https://seller.test/foo.json
+      {"https://:@seller.test/foo.json", /*expected_ok=*/true},
+      // This blob URL should be considered same-origin to the seller, but the
+      // scheme is wrong.
+      {"blob:https://seller.test/foo"},
+  };
+
+  for (const auto& test : kTests) {
+    SCOPED_TRACE(test.url_str);
+
+    auction_config.trusted_scoring_signals_url = GURL(test.url_str);
+    EXPECT_EQ(test.expected_ok, SerializeAndDeserialize(auction_config));
+  }
+}
+
+TEST_F(AuctionConfigMojomTraitsTest, FullConfig) {
+  AuctionConfig auction_config = CreateFullAuctionConfig();
   EXPECT_TRUE(SerializeAndDeserialize(auction_config));
 }
 
-TEST(AuctionConfigMojomTraitsTest,
-     perBuyerPrioritySignalsCannotOverrideBrowserSignals) {
+TEST_F(AuctionConfigMojomTraitsTest,
+       perBuyerPrioritySignalsCannotOverrideBrowserSignals) {
   const url::Origin kBuyer = url::Origin::Create(GURL("https://buyer.test"));
 
-  AuctionConfig auction_config = CreateBasicConfig();
+  AuctionConfig auction_config = CreateBasicAuctionConfig();
   auction_config.non_shared_params.interest_group_buyers.emplace();
   auction_config.non_shared_params.interest_group_buyers->push_back(kBuyer);
   auction_config.non_shared_params.per_buyer_priority_signals.emplace();
@@ -347,24 +235,68 @@ TEST(AuctionConfigMojomTraitsTest,
   EXPECT_FALSE(SerializeAndDeserialize(auction_config));
 }
 
-TEST(AuctionConfigMojomTraitsTest,
-     allBuyersPrioritySignalsCannotOverrideBrowserSignals) {
-  AuctionConfig auction_config = CreateBasicConfig();
+TEST_F(AuctionConfigMojomTraitsTest,
+       allBuyersPrioritySignalsCannotOverrideBrowserSignals) {
+  AuctionConfig auction_config = CreateBasicAuctionConfig();
   auction_config.non_shared_params.all_buyers_priority_signals = {
       {"browserSignals.goats", 2}};
   EXPECT_FALSE(SerializeAndDeserialize(auction_config));
 }
 
-TEST(AuctionConfigMojomTraitsTest, BuyerNotHttps) {
-  AuctionConfig auction_config = CreateBasicConfig();
+TEST_F(AuctionConfigMojomTraitsTest, SerializeAndDeserializeNonFinite) {
+  double test_cases[] = {
+      std::numeric_limits<double>::quiet_NaN(),
+      std::numeric_limits<double>::signaling_NaN(),
+      std::numeric_limits<double>::infinity(),
+      -std::numeric_limits<double>::infinity(),
+  };
+  size_t i = 0u;
+  for (double test_case : test_cases) {
+    SCOPED_TRACE(i++);
+    const url::Origin kBuyer = url::Origin::Create(GURL("https://buyer.test"));
+
+    AuctionConfig auction_config_bad_per_buyer_priority_signals =
+        CreateBasicAuctionConfig();
+    auction_config_bad_per_buyer_priority_signals.non_shared_params
+        .interest_group_buyers.emplace();
+    auction_config_bad_per_buyer_priority_signals.non_shared_params
+        .interest_group_buyers = {{kBuyer}};
+    auction_config_bad_per_buyer_priority_signals.non_shared_params
+        .per_buyer_priority_signals.emplace();
+    (*auction_config_bad_per_buyer_priority_signals.non_shared_params
+          .per_buyer_priority_signals)[kBuyer] = {{"foo", test_case}};
+    EXPECT_FALSE(
+        SerializeAndDeserialize(auction_config_bad_per_buyer_priority_signals));
+
+    AuctionConfig auction_config_bad_all_buyers_priority_signals =
+        CreateBasicAuctionConfig();
+    auction_config_bad_all_buyers_priority_signals.non_shared_params
+        .all_buyers_priority_signals = {{"foo", test_case}};
+    EXPECT_FALSE(SerializeAndDeserialize(
+        auction_config_bad_all_buyers_priority_signals));
+
+    AuctionConfig auction_config_bad_auction_report_buyers_scale =
+        CreateBasicAuctionConfig();
+    auction_config_bad_auction_report_buyers_scale.non_shared_params
+        .auction_report_buyers = {
+        {blink::AuctionConfig::NonSharedParams::BuyerReportType::
+             kTotalSignalsFetchLatency,
+         {absl::uint128(1), test_case}}};
+    EXPECT_FALSE(SerializeAndDeserialize(
+        auction_config_bad_auction_report_buyers_scale));
+  }
+}
+
+TEST_F(AuctionConfigMojomTraitsTest, BuyerNotHttps) {
+  AuctionConfig auction_config = CreateBasicAuctionConfig();
   auction_config.non_shared_params.interest_group_buyers.emplace();
   auction_config.non_shared_params.interest_group_buyers->push_back(
       url::Origin::Create(GURL("http://buyer.test")));
   EXPECT_FALSE(SerializeAndDeserialize(auction_config));
 }
 
-TEST(AuctionConfigMojomTraitsTest, BuyerNotHttpsMultipleBuyers) {
-  AuctionConfig auction_config = CreateBasicConfig();
+TEST_F(AuctionConfigMojomTraitsTest, BuyerNotHttpsMultipleBuyers) {
+  AuctionConfig auction_config = CreateBasicAuctionConfig();
   auction_config.non_shared_params.interest_group_buyers.emplace();
   auction_config.non_shared_params.interest_group_buyers->push_back(
       url::Origin::Create(GURL("https://buyer1.test")));
@@ -373,66 +305,157 @@ TEST(AuctionConfigMojomTraitsTest, BuyerNotHttpsMultipleBuyers) {
   EXPECT_FALSE(SerializeAndDeserialize(auction_config));
 }
 
-TEST(AuctionConfigMojomTraitsTest, ComponentAuctionUrlHttps) {
-  AuctionConfig auction_config = CreateBasicConfig();
+TEST_F(AuctionConfigMojomTraitsTest, ComponentAuctionUrlHttps) {
+  AuctionConfig auction_config = CreateBasicAuctionConfig();
   auction_config.non_shared_params.component_auctions.emplace_back(
-      CreateBasicConfig(GURL("http://seller.test")));
+      CreateBasicAuctionConfig(GURL("http://seller.test")));
   EXPECT_FALSE(SerializeAndDeserialize(auction_config));
 }
 
-TEST(AuctionConfigMojomTraitsTest, ComponentAuctionTooDeep) {
-  AuctionConfig auction_config = CreateBasicConfig();
+TEST_F(AuctionConfigMojomTraitsTest, ComponentAuctionTooDeep) {
+  AuctionConfig auction_config = CreateBasicAuctionConfig();
   auction_config.non_shared_params.component_auctions.emplace_back(
-      CreateBasicConfig());
+      CreateBasicAuctionConfig());
   auction_config.non_shared_params.component_auctions[0]
-      .non_shared_params.component_auctions.emplace_back(CreateBasicConfig());
+      .non_shared_params.component_auctions.emplace_back(
+          CreateBasicAuctionConfig());
   EXPECT_FALSE(SerializeAndDeserialize(auction_config));
 }
 
-TEST(AuctionConfigMojomTraitsTest,
-     TopLevelAuctionHasBuyersAndComponentAuction) {
-  AuctionConfig auction_config = CreateBasicConfig();
+TEST_F(AuctionConfigMojomTraitsTest, ComponentAuctionWithNonce) {
+  AuctionConfig auction_config = CreateBasicAuctionConfig();
   auction_config.non_shared_params.component_auctions.emplace_back(
-      CreateBasicConfig());
+      CreateBasicAuctionConfig());
+  auction_config.non_shared_params.component_auctions[0]
+      .non_shared_params.auction_nonce = base::Uuid::GenerateRandomV4();
+  EXPECT_TRUE(SerializeAndDeserialize(auction_config));
+}
+
+TEST_F(AuctionConfigMojomTraitsTest,
+       TopLevelAuctionHasBuyersAndComponentAuction) {
+  AuctionConfig auction_config = CreateBasicAuctionConfig();
+  auction_config.non_shared_params.component_auctions.emplace_back(
+      CreateBasicAuctionConfig());
   auction_config.non_shared_params.interest_group_buyers.emplace();
   auction_config.non_shared_params.interest_group_buyers->emplace_back(
       url::Origin::Create(GURL("https://buyer.test")));
   EXPECT_FALSE(SerializeAndDeserialize(auction_config));
 }
 
-TEST(AuctionConfigMojomTraitsTest, ComponentAuctionSuccessSingleBasic) {
-  AuctionConfig auction_config = CreateBasicConfig();
+TEST_F(AuctionConfigMojomTraitsTest, ComponentAuctionSuccessSingleBasic) {
+  AuctionConfig auction_config = CreateBasicAuctionConfig();
   auction_config.non_shared_params.component_auctions.emplace_back(
-      CreateBasicConfig());
+      CreateBasicAuctionConfig());
   EXPECT_TRUE(SerializeAndDeserialize(auction_config));
 }
 
-TEST(AuctionConfigMojomTraitsTest, ComponentAuctionSuccessMultipleFull) {
-  AuctionConfig auction_config = CreateFullConfig();
+TEST_F(AuctionConfigMojomTraitsTest, ComponentAuctionSuccessMultipleFull) {
+  AuctionConfig auction_config = CreateFullAuctionConfig();
   // The top-level auction cannot have buyers in a component auction.
   auction_config.non_shared_params.interest_group_buyers = {};
   auction_config.direct_from_seller_signals.mutable_value_for_testing()
       .value()
       .per_buyer_signals.clear();
+  // Or additional bids.
+  auction_config.expects_additional_bids = false;
 
   auction_config.non_shared_params.component_auctions.emplace_back(
-      CreateFullConfig());
+      CreateFullAuctionConfig());
   auction_config.non_shared_params.component_auctions.emplace_back(
-      CreateFullConfig());
+      CreateFullAuctionConfig());
 
   EXPECT_TRUE(SerializeAndDeserialize(auction_config));
+
+  // Turning `expects_additional_bids` on at top-level makes it fail.
+  auction_config.expects_additional_bids = true;
+  EXPECT_FALSE(SerializeAndDeserialize(auction_config));
 }
 
-TEST(AuctionConfigMojomTraitsTest,
-     DirectFromSellerSignalsPrefixWithQueryString) {
-  AuctionConfig auction_config = CreateFullConfig();
+TEST_F(AuctionConfigMojomTraitsTest, DuplicateAllSlotsRequestedSizes) {
+  const AdSize kSize1 = AdSize(70.5, AdSize::LengthUnit::kScreenWidth, 70.6,
+                               AdSize::LengthUnit::kScreenHeight);
+  const AdSize kSize2 = AdSize(100, AdSize::LengthUnit::kPixels, 110,
+                               AdSize::LengthUnit::kPixels);
+
+  AuctionConfig auction_config = CreateBasicAuctionConfig();
+  // An empty list is not allowed.
+  auction_config.non_shared_params.all_slots_requested_sizes.emplace();
+  EXPECT_FALSE(SerializeAndDeserialize(auction_config));
+
+  // Add one AdSize. List should be allowed.
+  auction_config.non_shared_params.all_slots_requested_sizes->emplace_back(
+      kSize1);
+  EXPECT_TRUE(SerializeAndDeserialize(auction_config));
+
+  // Set `requested_size` to a different AdSize. List should not be allowed,
+  // since it doesn't include `requested_size`.
+  auction_config.non_shared_params.requested_size = kSize2;
+  EXPECT_FALSE(SerializeAndDeserialize(auction_config));
+
+  // Set `requested_size` to the same AdSize. List should be allowed.
+  auction_config.non_shared_params.requested_size = kSize1;
+  EXPECT_TRUE(SerializeAndDeserialize(auction_config));
+
+  // Add the same AdSize again, list should no longer be allowed.
+  auction_config.non_shared_params.all_slots_requested_sizes->emplace_back(
+      kSize1);
+  EXPECT_FALSE(SerializeAndDeserialize(auction_config));
+
+  // Replace the second AdSize with a different value, the list should still be
+  // allowed again.
+  auction_config.non_shared_params.all_slots_requested_sizes->back() = kSize2;
+  EXPECT_TRUE(SerializeAndDeserialize(auction_config));
+
+  // Set the `requested_size` to the size of the second AdList. The list should
+  // still be allowed.
+  auction_config.non_shared_params.requested_size = kSize2;
+  EXPECT_TRUE(SerializeAndDeserialize(auction_config));
+
+  // Add the second AdSize a second time, and the list should not be allowed
+  // again.
+  auction_config.non_shared_params.all_slots_requested_sizes->emplace_back(
+      kSize2);
+  EXPECT_FALSE(SerializeAndDeserialize(auction_config));
+}
+
+TEST_F(AuctionConfigMojomTraitsTest, MaxTrustedScoringSignalsUrlLength) {
+  AuctionConfig auction_config = CreateBasicAuctionConfig();
+  auction_config.non_shared_params.max_trusted_scoring_signals_url_length =
+      8000;
+  EXPECT_TRUE(SerializeAndDeserialize(auction_config));
+
+  auction_config.non_shared_params.max_trusted_scoring_signals_url_length = 0;
+  EXPECT_TRUE(SerializeAndDeserialize(auction_config));
+
+  auction_config.non_shared_params.max_trusted_scoring_signals_url_length = -1;
+  EXPECT_FALSE(SerializeAndDeserialize(auction_config));
+}
+
+TEST_F(AuctionConfigMojomTraitsTest, TrustedScoringSignalsCoordinator) {
+  AuctionConfig auction_config = CreateBasicAuctionConfig();
+  auction_config.non_shared_params.trusted_scoring_signals_coordinator =
+      url::Origin::Create(GURL("https://example.test"));
+  EXPECT_TRUE(SerializeAndDeserialize(auction_config));
+
+  auction_config.non_shared_params.trusted_scoring_signals_coordinator =
+      url::Origin::Create(GURL("http://example.test"));
+  EXPECT_FALSE(SerializeAndDeserialize(auction_config));
+
+  auction_config.non_shared_params.trusted_scoring_signals_coordinator =
+      url::Origin::Create(GURL("data:,foo"));
+  EXPECT_FALSE(SerializeAndDeserialize(auction_config));
+}
+
+TEST_F(AuctionConfigMojomTraitsTest,
+       DirectFromSellerSignalsPrefixWithQueryString) {
+  AuctionConfig auction_config = CreateFullAuctionConfig();
   auction_config.direct_from_seller_signals.mutable_value_for_testing()
       ->prefix = GURL("https://seller.test/json?queryPart");
   EXPECT_FALSE(SerializeAndDeserialize(auction_config));
 }
 
-TEST(AuctionConfigMojomTraitsTest, DirectFromSellerSignalsBuyerNotPresent) {
-  AuctionConfig auction_config = CreateFullConfig();
+TEST_F(AuctionConfigMojomTraitsTest, DirectFromSellerSignalsBuyerNotPresent) {
+  AuctionConfig auction_config = CreateFullAuctionConfig();
   DirectFromSellerSignalsSubresource& buyer2_subresource =
       auction_config.direct_from_seller_signals.mutable_value_for_testing()
           ->per_buyer_signals[url::Origin::Create(GURL("https://buyer2.test"))];
@@ -441,37 +464,62 @@ TEST(AuctionConfigMojomTraitsTest, DirectFromSellerSignalsBuyerNotPresent) {
   EXPECT_FALSE(SerializeAndDeserialize(auction_config));
 }
 
-TEST(AuctionConfigMojomTraitsTest,
-     DirectFromSellerSignalsNoDirectFromSellerSignals) {
-  AuctionConfig auction_config = CreateFullConfig();
+TEST_F(AuctionConfigMojomTraitsTest,
+       DirectFromSellerSignalsNoDirectFromSellerSignals) {
+  AuctionConfig auction_config = CreateFullAuctionConfig();
   auction_config.direct_from_seller_signals =
       AuctionConfig::MaybePromiseDirectFromSellerSignals::FromValue(
-          absl::nullopt);
+          std::nullopt);
   EXPECT_TRUE(SerializeAndDeserialize(auction_config));
 }
 
-TEST(AuctionConfigMojomTraitsTest, DirectFromSellerSignalsNoPerBuyerSignals) {
-  AuctionConfig auction_config = CreateFullConfig();
+TEST_F(AuctionConfigMojomTraitsTest, DirectFromSellerSignalsNoPerBuyerSignals) {
+  AuctionConfig auction_config = CreateFullAuctionConfig();
   auction_config.direct_from_seller_signals.mutable_value_for_testing()
       ->per_buyer_signals.clear();
   EXPECT_TRUE(SerializeAndDeserialize(auction_config));
 }
 
-TEST(AuctionConfigMojomTraitsTest, DirectFromSellerSignalsNoSellerSignals) {
-  AuctionConfig auction_config = CreateFullConfig();
+TEST_F(AuctionConfigMojomTraitsTest, DirectFromSellerSignalsNoSellerSignals) {
+  AuctionConfig auction_config = CreateFullAuctionConfig();
   auction_config.direct_from_seller_signals.mutable_value_for_testing()
-      ->seller_signals = absl::nullopt;
+      ->seller_signals = std::nullopt;
   EXPECT_TRUE(SerializeAndDeserialize(auction_config));
 }
 
-TEST(AuctionConfigMojomTraitsTest, DirectFromSellerSignalsNoAuctionSignals) {
-  AuctionConfig auction_config = CreateFullConfig();
+TEST_F(AuctionConfigMojomTraitsTest, DirectFromSellerSignalsNoAuctionSignals) {
+  AuctionConfig auction_config = CreateFullAuctionConfig();
   auction_config.direct_from_seller_signals.mutable_value_for_testing()
-      ->auction_signals = absl::nullopt;
+      ->auction_signals = std::nullopt;
   EXPECT_TRUE(SerializeAndDeserialize(auction_config));
 }
 
-TEST(AuctionConfigMojomTraitsTest, MaybePromiseJson) {
+TEST_F(AuctionConfigMojomTraitsTest, DirectFromSellerSignalsHeaderAdSlot) {
+  AuctionConfig auction_config = CreateFullAuctionConfig();
+  auction_config.direct_from_seller_signals =
+      AuctionConfig::MaybePromiseDirectFromSellerSignals::FromValue(
+          std::nullopt);
+  auction_config.expects_direct_from_seller_signals_header_ad_slot = true;
+  EXPECT_TRUE(SerializeAndDeserialize(auction_config));
+}
+
+TEST_F(AuctionConfigMojomTraitsTest,
+       DirectFromSellerSignalsCantHaveBothBundlesAndHeaderAdSlot) {
+  AuctionConfig auction_config = CreateFullAuctionConfig();
+  auction_config.expects_direct_from_seller_signals_header_ad_slot = true;
+  EXPECT_FALSE(SerializeAndDeserialize(auction_config));
+}
+
+TEST_F(AuctionConfigMojomTraitsTest,
+       DirectFromSellerSignalsCantHaveBothBundlesAndHeaderAdSlotPromise) {
+  AuctionConfig auction_config = CreateFullAuctionConfig();
+  auction_config.direct_from_seller_signals =
+      AuctionConfig::MaybePromiseDirectFromSellerSignals::FromPromise();
+  auction_config.expects_direct_from_seller_signals_header_ad_slot = true;
+  EXPECT_FALSE(SerializeAndDeserialize(auction_config));
+}
+
+TEST_F(AuctionConfigMojomTraitsTest, MaybePromiseJson) {
   {
     AuctionConfig::MaybePromiseJson json =
         AuctionConfig::MaybePromiseJson::FromValue("{A: 42}");
@@ -482,7 +530,7 @@ TEST(AuctionConfigMojomTraitsTest, MaybePromiseJson) {
 
   {
     AuctionConfig::MaybePromiseJson nothing =
-        AuctionConfig::MaybePromiseJson::FromValue(absl::nullopt);
+        AuctionConfig::MaybePromiseJson::FromValue(std::nullopt);
     EXPECT_TRUE(
         SerializeAndDeserialize<blink::mojom::AuctionAdConfigMaybePromiseJson>(
             nothing));
@@ -497,9 +545,9 @@ TEST(AuctionConfigMojomTraitsTest, MaybePromiseJson) {
   }
 }
 
-TEST(AuctionConfigMojomTraitsTest, MaybePromisePerBuyerSignals) {
+TEST_F(AuctionConfigMojomTraitsTest, MaybePromisePerBuyerSignals) {
   {
-    absl::optional<base::flat_map<url::Origin, std::string>> value;
+    std::optional<base::flat_map<url::Origin, std::string>> value;
     value.emplace();
     value->emplace(url::Origin::Create(GURL("https://example.com")), "42");
     AuctionConfig::MaybePromisePerBuyerSignals signals =
@@ -518,7 +566,97 @@ TEST(AuctionConfigMojomTraitsTest, MaybePromisePerBuyerSignals) {
   }
 }
 
-TEST(AuctionConfigMojomTraitsTest, BuyerTimeouts) {
+TEST_F(AuctionConfigMojomTraitsTest,
+       MaybePromiseDeprecatedRenderURLReplacements) {
+  {
+    std::vector<blink::AuctionConfig::AdKeywordReplacement> value;
+    value.push_back(blink::AuctionConfig::AdKeywordReplacement(
+        "${INTEREST_GROUP_NAME}", "cars"));
+    AuctionConfig::MaybePromiseDeprecatedRenderURLReplacements replacements =
+        AuctionConfig::MaybePromiseDeprecatedRenderURLReplacements::FromValue(
+            std::move(value));
+    EXPECT_TRUE(SerializeAndDeserialize<
+                blink::mojom::
+                    AuctionAdConfigMaybePromiseDeprecatedRenderURLReplacements>(
+        replacements));
+  }
+
+  {
+    AuctionConfig::MaybePromiseDeprecatedRenderURLReplacements replacements =
+        AuctionConfig::MaybePromiseDeprecatedRenderURLReplacements::
+            FromPromise();
+    EXPECT_TRUE(SerializeAndDeserialize<
+                blink::mojom::
+                    AuctionAdConfigMaybePromiseDeprecatedRenderURLReplacements>(
+        replacements));
+  }
+}
+
+TEST_F(AuctionConfigMojomTraitsTest, DeprecatedRenderURLReplacements) {
+  {
+    AuctionConfig::AdKeywordReplacement value;
+    value.match = "${INTEREST_GROUP_NAME}";
+    value.replacement = "cars";
+    EXPECT_TRUE(SerializeAndDeserialize(value));
+  }
+
+  {
+    AuctionConfig::AdKeywordReplacement value;
+    value.match = "%%INTEREST_GROUP_NAME%%";
+    value.replacement = "BOATS";
+    EXPECT_TRUE(SerializeAndDeserialize(value));
+  }
+}
+
+TEST_F(AuctionConfigMojomTraitsTest,
+       DeprecatedRenderURLReplacementsBadFormatting) {
+  {
+    AuctionConfig::AdKeywordReplacement value;
+    value.match = "${NO_END_BRACKET";
+    value.replacement = "cars";
+    EXPECT_FALSE(SerializeAndDeserialize(value));
+  }
+
+  {
+    AuctionConfig::AdKeywordReplacement value;
+    value.match = "%%NO_END_PERCENT";
+    value.replacement = "cars";
+    EXPECT_FALSE(SerializeAndDeserialize(value));
+  }
+
+  {
+    AuctionConfig::AdKeywordReplacement value;
+    value.match = "%SINGLE_START_PERCENT%%";
+    value.replacement = "cars";
+    EXPECT_FALSE(SerializeAndDeserialize(value));
+  }
+  {
+    AuctionConfig::AdKeywordReplacement value;
+    value.match = "{NO_DOLLAR_SIGN}";
+    value.replacement = "cars";
+    EXPECT_FALSE(SerializeAndDeserialize(value));
+  }
+}
+
+TEST_F(AuctionConfigMojomTraitsTest, SellerTimeout) {
+  {
+    AuctionConfig auction_config = CreateBasicAuctionConfig();
+    auction_config.non_shared_params.seller_timeout = base::Milliseconds(50);
+    EXPECT_TRUE(SerializeAndDeserialize(auction_config));
+  }
+  {
+    AuctionConfig auction_config = CreateBasicAuctionConfig();
+    auction_config.non_shared_params.seller_timeout = base::Milliseconds(0);
+    EXPECT_TRUE(SerializeAndDeserialize(auction_config));
+  }
+  {
+    AuctionConfig auction_config = CreateBasicAuctionConfig();
+    auction_config.non_shared_params.seller_timeout = base::Milliseconds(-50);
+    EXPECT_FALSE(SerializeAndDeserialize(auction_config));
+  }
+}
+
+TEST_F(AuctionConfigMojomTraitsTest, BuyerTimeouts) {
   {
     AuctionConfig::BuyerTimeouts value;
     value.all_buyers_timeout.emplace(base::Milliseconds(10));
@@ -528,16 +666,29 @@ TEST(AuctionConfigMojomTraitsTest, BuyerTimeouts) {
         base::Milliseconds(50));
     value.per_buyer_timeouts->emplace(
         url::Origin::Create(GURL("https://example.org")),
-        base::Milliseconds(20));
+        base::Milliseconds(0));
     EXPECT_TRUE(SerializeAndDeserialize(value));
   }
   {
     AuctionConfig::BuyerTimeouts value;
     EXPECT_TRUE(SerializeAndDeserialize(value));
   }
+  {
+    AuctionConfig::BuyerTimeouts value;
+    value.all_buyers_timeout.emplace(base::Milliseconds(-10));
+    EXPECT_FALSE(SerializeAndDeserialize(value));
+  }
+  {
+    AuctionConfig::BuyerTimeouts value;
+    value.per_buyer_timeouts.emplace();
+    value.per_buyer_timeouts->emplace(
+        url::Origin::Create(GURL("https://example.com")),
+        base::Milliseconds(-50));
+    EXPECT_FALSE(SerializeAndDeserialize(value));
+  }
 }
 
-TEST(AuctionConfigMojomTraitsTest, MaybePromiseBuyerTimeouts) {
+TEST_F(AuctionConfigMojomTraitsTest, MaybePromiseBuyerTimeouts) {
   {
     AuctionConfig::BuyerTimeouts value;
     value.all_buyers_timeout.emplace(base::Milliseconds(10));
@@ -559,9 +710,51 @@ TEST(AuctionConfigMojomTraitsTest, MaybePromiseBuyerTimeouts) {
         SerializeAndDeserialize<
             blink::mojom::AuctionAdConfigMaybePromiseBuyerTimeouts>(timeouts));
   }
+
+  {
+    AuctionConfig::BuyerTimeouts value;
+    value.all_buyers_timeout.emplace(base::Milliseconds(-10));
+    AuctionConfig::MaybePromiseBuyerTimeouts timeouts =
+        AuctionConfig::MaybePromiseBuyerTimeouts::FromValue(std::move(value));
+    EXPECT_FALSE(
+        SerializeAndDeserialize<
+            blink::mojom::AuctionAdConfigMaybePromiseBuyerTimeouts>(timeouts));
+  }
+
+  {
+    AuctionConfig::BuyerTimeouts value;
+    value.per_buyer_timeouts.emplace();
+    value.per_buyer_timeouts->emplace(
+        url::Origin::Create(GURL("https://example.com")),
+        base::Milliseconds(-50));
+    AuctionConfig::MaybePromiseBuyerTimeouts timeouts =
+        AuctionConfig::MaybePromiseBuyerTimeouts::FromValue(std::move(value));
+    EXPECT_FALSE(
+        SerializeAndDeserialize<
+            blink::mojom::AuctionAdConfigMaybePromiseBuyerTimeouts>(timeouts));
+  }
 }
 
-TEST(AuctionConfigMojomTraitsTest, BuyerCurrencies) {
+TEST_F(AuctionConfigMojomTraitsTest, ReportingTimeout) {
+  {
+    AuctionConfig auction_config = CreateBasicAuctionConfig();
+    auction_config.non_shared_params.reporting_timeout = base::Milliseconds(50);
+    EXPECT_TRUE(SerializeAndDeserialize(auction_config));
+  }
+  {
+    AuctionConfig auction_config = CreateBasicAuctionConfig();
+    auction_config.non_shared_params.reporting_timeout = base::Milliseconds(0);
+    EXPECT_TRUE(SerializeAndDeserialize(auction_config));
+  }
+  {
+    AuctionConfig auction_config = CreateBasicAuctionConfig();
+    auction_config.non_shared_params.reporting_timeout =
+        base::Milliseconds(-50);
+    EXPECT_FALSE(SerializeAndDeserialize(auction_config));
+  }
+}
+
+TEST_F(AuctionConfigMojomTraitsTest, BuyerCurrencies) {
   {
     AuctionConfig::BuyerCurrencies value;
     value.all_buyers_currency = blink::AdCurrency::From("EUR");
@@ -580,7 +773,7 @@ TEST(AuctionConfigMojomTraitsTest, BuyerCurrencies) {
   }
 }
 
-TEST(AuctionConfigMojomTraitsTest, AdCurrency) {
+TEST_F(AuctionConfigMojomTraitsTest, AdCurrency) {
   {
     AdCurrency value = AdCurrency::From("EUR");
     EXPECT_TRUE(SerializeAndDeserialize(value));
@@ -597,10 +790,10 @@ TEST(AuctionConfigMojomTraitsTest, AdCurrency) {
   }
 }
 
-TEST(AuctionConfigMojomTraitsTest, MaybePromiseDirectFromSellerSignals) {
+TEST_F(AuctionConfigMojomTraitsTest, MaybePromiseDirectFromSellerSignals) {
   {
     AuctionConfig::MaybePromiseDirectFromSellerSignals signals =
-        CreateFullConfig().direct_from_seller_signals;
+        CreateFullAuctionConfig().direct_from_seller_signals;
     EXPECT_TRUE(
         SerializeAndDeserialize<
             blink::mojom::AuctionAdConfigMaybePromiseDirectFromSellerSignals>(
@@ -617,8 +810,95 @@ TEST(AuctionConfigMojomTraitsTest, MaybePromiseDirectFromSellerSignals) {
   }
 }
 
+TEST_F(AuctionConfigMojomTraitsTest, AggregationCoordinatorNotHttps) {
+  AuctionConfig auction_config = CreateFullAuctionConfig();
+  auction_config.aggregation_coordinator_origin =
+      url::Origin::Create(GURL("http://example.com"));
+  EXPECT_FALSE(SerializeAndDeserialize(auction_config));
+}
+
+TEST_F(AuctionConfigMojomTraitsTest, ServerResponseConfig) {
+  {
+    AuctionConfig::ServerResponseConfig config;
+    config.request_id = base::Uuid::GenerateRandomV4();
+    EXPECT_TRUE(SerializeAndDeserialize(config));
+  }
+}
+
+// Can't have `expects_additional_bids` without a nonce.
+TEST_F(AuctionConfigMojomTraitsTest, AdditionalBidsNoNonce) {
+  AuctionConfig auction_config = CreateFullAuctionConfig();
+  ASSERT_TRUE(auction_config.expects_additional_bids);
+  auction_config.non_shared_params.auction_nonce.reset();
+  EXPECT_FALSE(SerializeAndDeserialize(auction_config));
+
+  auction_config.expects_additional_bids = false;
+  EXPECT_TRUE(SerializeAndDeserialize(auction_config));
+}
+
+// Can't have `expects_additional_bids` with no interestGroupBuyers.
+TEST_F(AuctionConfigMojomTraitsTest, AdditionalBidsNoInterestGroupBuyers) {
+  AuctionConfig auction_config = CreateFullAuctionConfig();
+  // These rely on interestGroupBuyers, so we have to clear these for this test.
+  auction_config.direct_from_seller_signals.mutable_value_for_testing().reset();
+
+  ASSERT_TRUE(auction_config.expects_additional_bids);
+  auction_config.non_shared_params.interest_group_buyers.reset();
+  EXPECT_FALSE(SerializeAndDeserialize(auction_config));
+
+  auction_config.expects_additional_bids = false;
+  EXPECT_TRUE(SerializeAndDeserialize(auction_config));
+}
+
+TEST_F(AuctionConfigMojomTraitsTest, CreativeScanningDisabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      blink::features::kFledgeTrustedSignalsKVv1CreativeScanning);
+
+  AuctionConfig auction_config = CreateFullAuctionConfig();
+  EXPECT_FALSE(SerializeAndDeserialize(auction_config));
+
+  auction_config.send_creative_scanning_metadata = std::nullopt;
+  EXPECT_TRUE(SerializeAndDeserialize(auction_config));
+}
+
+TEST_F(AuctionConfigMojomTraitsTest, PerBuyerTKVSignals) {
+  AuctionConfig auction_config = CreateBasicAuctionConfig();
+  auction_config.non_shared_params.per_buyer_tkv_signals = {
+      {url::Origin::Create(GURL("https://example.test")),
+       AuctionConfig::MaybePromiseJson::FromPromise()},
+      {url::Origin::Create(GURL("https://example2.test")),
+       AuctionConfig::MaybePromiseJson::FromValue(std::nullopt)},
+      {url::Origin::Create(GURL("https://example3.test")),
+       AuctionConfig::MaybePromiseJson::FromValue("[1, 2, 3]")},
+  };
+  EXPECT_TRUE(SerializeAndDeserialize(auction_config));
+
+  auction_config.non_shared_params.per_buyer_tkv_signals = {
+      {url::Origin::Create(GURL("data:,foo")),
+       AuctionConfig::MaybePromiseJson::FromValue("[1, 2, 3]")},
+  };
+  EXPECT_FALSE(SerializeAndDeserialize(auction_config));
+}
+
+// Can't have `expects_additional_bids` with empty interestGroupBuyers.
+TEST_F(AuctionConfigMojomTraitsTest, AdditionalBidsEmptyInterestGroupBuyers) {
+  AuctionConfig auction_config = CreateFullAuctionConfig();
+  // These rely on interestGroupBuyers, so we have to clear these for this test.
+  auction_config.direct_from_seller_signals.mutable_value_for_testing().reset();
+
+  ASSERT_TRUE(auction_config.expects_additional_bids);
+  auction_config.non_shared_params.interest_group_buyers->clear();
+  EXPECT_FALSE(SerializeAndDeserialize(auction_config));
+
+  auction_config.expects_additional_bids = false;
+  EXPECT_TRUE(SerializeAndDeserialize(auction_config));
+}
+
 class AuctionConfigMojomTraitsDirectFromSellerSignalsTest
-    : public ::testing::TestWithParam<std::tuple<const char*, const char*>> {
+    : public AuctionConfigMojomTraitsTest,
+      public ::testing::WithParamInterface<
+          std::tuple<const char*, const char*>> {
  public:
   GURL& GetMutableURL(AuctionConfig& auction_config) const {
     const std::string which_path = WhichPath();
@@ -665,13 +945,13 @@ class AuctionConfigMojomTraitsDirectFromSellerSignalsTest
 };
 
 TEST_P(AuctionConfigMojomTraitsDirectFromSellerSignalsTest, NotHttps) {
-  AuctionConfig auction_config = CreateFullConfig();
+  AuctionConfig auction_config = CreateFullAuctionConfig();
   GetMutableURL(auction_config) = GURL("http://seller.test" + GetURLPath());
   EXPECT_FALSE(SerializeAndDeserialize(auction_config));
 }
 
 TEST_P(AuctionConfigMojomTraitsDirectFromSellerSignalsTest, WrongOrigin) {
-  AuctionConfig auction_config = CreateFullConfig();
+  AuctionConfig auction_config = CreateFullAuctionConfig();
   GetMutableURL(auction_config) = GURL("https://seller2.test" + GetURLPath());
   EXPECT_FALSE(SerializeAndDeserialize(auction_config));
 }

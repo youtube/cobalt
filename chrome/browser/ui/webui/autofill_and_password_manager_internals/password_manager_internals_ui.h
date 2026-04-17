@@ -6,10 +6,20 @@
 #define CHROME_BROWSER_UI_WEBUI_AUTOFILL_AND_PASSWORD_MANAGER_INTERNALS_PASSWORD_MANAGER_INTERNALS_UI_H_
 
 #include "content/public/browser/web_ui_controller.h"
+#include "content/public/browser/webui_config.h"
 
 namespace content {
 class WebUI;
 }
+
+class PasswordManagerInternalsUI;
+
+class PasswordManagerInternalsUIConfig
+    : public content::DefaultWebUIConfig<PasswordManagerInternalsUI> {
+ public:
+  PasswordManagerInternalsUIConfig();
+  ~PasswordManagerInternalsUIConfig() override;
+};
 
 class PasswordManagerInternalsUI : public content::WebUIController {
  public:

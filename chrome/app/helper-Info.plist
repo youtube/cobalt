@@ -29,7 +29,11 @@
 	<string>${CHROMIUM_MIN_SYSTEM_VERSION}</string>
 	<key>LSUIElement</key>
 	<string>1</string>
+	<key>NSCameraReactionEffectGesturesEnabledDefault</key>
+	<false/>
 	<key>NSSupportsAutomaticGraphicsSwitching</key>
+	<true/>
+	<key>NSCameraUseContinuityCameraDeviceType</key>
 	<true/>
 </dict>
 </plist>

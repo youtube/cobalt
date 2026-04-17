@@ -5,7 +5,7 @@
 #include "chrome/browser/ash/sync/sync_appsync_service_factory.h"
 
 #include "base/check_is_test.h"
-#include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 #include "chrome/browser/ash/sync/sync_appsync_service.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_keyed_service_factory.h"
@@ -22,7 +22,8 @@ SyncAppsyncService* SyncAppsyncServiceFactory::GetForProfile(Profile* profile) {
 
 // static
 SyncAppsyncServiceFactory* SyncAppsyncServiceFactory::GetInstance() {
-  return base::Singleton<SyncAppsyncServiceFactory>::get();
+  static base::NoDestructor<SyncAppsyncServiceFactory> instance;
+  return instance.get();
 }
 
 SyncAppsyncServiceFactory::SyncAppsyncServiceFactory()
@@ -30,9 +31,12 @@ SyncAppsyncServiceFactory::SyncAppsyncServiceFactory()
           "SyncAppsyncService",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
+              // TODO(crbug.com/40257657): Check if this service is needed in
               // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOriginalOnly)
               .Build()) {
   DependsOn(SyncServiceFactory::GetInstance());
 }

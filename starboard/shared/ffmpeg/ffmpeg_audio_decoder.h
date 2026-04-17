@@ -19,13 +19,15 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
+#include "starboard/shared/starboard/player/job_queue.h"
 
 namespace starboard {
 
 class FfmpegAudioDecoder : public AudioDecoder {
  public:
   // Create an audio decoder for the currently loaded ffmpeg library.
-  static FfmpegAudioDecoder* Create(const AudioStreamInfo& audio_stream_info);
+  static FfmpegAudioDecoder* Create(JobQueue* job_queue,
+                                    const AudioStreamInfo& audio_stream_info);
   // Returns true if the audio decoder is initialized successfully.
   virtual bool is_valid() const = 0;
 };

@@ -4,12 +4,6 @@
 
 'use strict';
 
-/** @type {Object} */
-window.supersize = window.supersize || {};
-
-/** @type {?Worker} */
-window.supersize.worker = null;
-
 /**
  * We use a worker to keep large tree creation logic off the UI thread.
  * This class is used to interact with the worker.
@@ -85,6 +79,7 @@ class TreeWorker {
    * @returns {Promise<BuildTreeResults>}
    */
   buildTree() {
+    state.stFocus.set('');
     const buildOptions = state.exportToBuildOptions();
     return this._waitForResponse('buildTree', {
       buildOptions,
@@ -100,6 +95,14 @@ class TreeWorker {
    */
   openNode(idPath) {
     return this._waitForResponse('open', idPath);
+  }
+
+  /**
+   * @param {number} id
+   * @return {Promise<QueryAncestryResults>}
+   */
+  queryAncestryById(id) {
+    return this._waitForResponse('queryAncestryById', id);
   }
 }
 /**

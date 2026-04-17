@@ -15,17 +15,43 @@ those files, or convert content back into a canonicalized version of the file.
 import abc
 import re
 import xml.etree.ElementTree as ET
+from typing import Callable, Iterable, Tuple, List, Dict, Optional, Set, Union
 from xml.dom import minidom
 import pretty_print_xml
 
+# The object representation of the XML node.
+XMLObjectType = Dict
+KeyFunc = Callable[[ET.Element], pretty_print_xml.Comparable]
 
 # Non-basic type keys for storing comments and text attributes, so they don't
 # conflict with regular keys, and can be skipped in JSON serialization.
-COMMENT_KEY = ('comment')
+PRECEDING_COMMENT_KEY = ('preceding_comment')
+TRAILING_COMMENT_KEY = ('trailing_comment')
 TEXT_KEY = ('text')
 
 
-def GetCommentsForNode(node):
+def IsTrailingComment(node: minidom.Comment) -> bool:
+  """Returns whether this node is a trailing comment.
+
+  In this context a trailing comment is one which should be anchored to the
+  preceding node, rather than the following node. All comments that are not
+  trailing comments are assumed to be anchored to the following node.
+  """
+
+  # If all of the next siblings of this node are text nodes or comment nodes,
+  # then we treat it as a trailing comment.
+  only_text_next_sibling = True
+  curr_node = node
+  while curr_node := curr_node.nextSibling:
+    if curr_node.nodeType not in (minidom.Element.TEXT_NODE,
+                                  minidom.Element.COMMENT_NODE):
+      only_text_next_sibling = False
+
+  return only_text_next_sibling or node.data.strip().startswith(
+      'LINT.ThenChange')
+
+
+def GetPrecedingCommentsForNode(node: minidom.Element) -> List[str]:
   """Extracts comments in the current node.
 
   Args:
@@ -37,15 +63,38 @@ def GetCommentsForNode(node):
   comments = []
   node = node.previousSibling
   while node:
-    if node.nodeType == minidom.Node.COMMENT_NODE:
-      comments.append(node.data)
-    elif node.nodeType != minidom.Node.TEXT_NODE:
+    if node.nodeType == minidom.Element.COMMENT_NODE:
+      if not IsTrailingComment(node):
+        comments.append(node.data)
+    elif node.nodeType != minidom.Element.TEXT_NODE:
       break
     node = node.previousSibling
   return comments[::-1]
 
 
-def PutCommentsInNode(doc, node, comments):
+def GetTrailingCommentsForNode(node: minidom.Element) -> List[str]:
+  """Extracts comments in the current node.
+
+  Args:
+    node: The DOM node to extract comments from.
+
+  Returns:
+    A list of comment DOM nodes.
+  """
+  comments = []
+  node = node.nextSibling
+  while node:
+    if node.nodeType == minidom.Element.COMMENT_NODE:
+      if IsTrailingComment(node):
+        comments.append(node.data)
+    elif node.nodeType != minidom.Element.TEXT_NODE:
+      break
+    node = node.nextSibling
+  return comments
+
+
+def PutCommentsInNode(doc: minidom.Document, node: minidom.Node,
+                      comments: List[str]) -> None:
   """Appends comments to the DOM node.
 
   Args:
@@ -57,7 +106,7 @@ def PutCommentsInNode(doc, node, comments):
     node.appendChild(doc.createComment(comment))
 
 
-def GetChildrenByTag(node, tag):
+def GetChildrenByTag(node: minidom.Element, tag: str) -> List[minidom.Element]:
   """Gets all children of a particular tag type.
 
   Args:
@@ -69,14 +118,15 @@ def GetChildrenByTag(node, tag):
   return [child for child in node.childNodes if child.nodeName == tag]
 
 
-def GetUnexpectedChildren(node, tags):
+def GetUnexpectedChildren(node: minidom.Element,
+                          expected_tags: Iterable[str]) -> Set[str]:
   """Gets a set of unexpected children from |node|."""
-  # Ingore text and comment nodes.
-  return (set(child.nodeName for child in node.childNodes) - set(tags) - set(
-      ('#comment', '#text')))
+  existing_tags = set(child.nodeName for child in node.childNodes)
+  # Ignore text and comment nodes.
+  return existing_tags - set(expected_tags) - {'#comment', '#text'}
 
 
-class NodeType(object):
+class NodeType:
   """Base type for a type of XML node.
 
   Args:
@@ -91,11 +141,12 @@ class NodeType(object):
   """
   __metaclass__ = abc.ABCMeta
 
-  def __init__(self, tag,
-               indent=True,
-               extra_newlines=None,
-               single_line=False,
-               alphabetization=None):
+  def __init__(self,
+               tag: str,
+               indent: bool = True,
+               extra_newlines: bool = None,
+               single_line: bool = False,
+               alphabetization: Optional[List[Tuple[str, KeyFunc]]] = None):
     self.tag = tag
     self.indent = indent
     self.extra_newlines = extra_newlines
@@ -103,7 +154,7 @@ class NodeType(object):
     self.alphabetization = alphabetization
 
   @abc.abstractmethod
-  def Unmarshall(self, node):
+  def Unmarshall(self, node: minidom.Element) -> XMLObjectType:
     """Extracts the content of the node to an object.
 
     Args:
@@ -114,7 +165,8 @@ class NodeType(object):
     """
 
   @abc.abstractmethod
-  def Marshall(self, doc, obj):
+  def Marshall(self, doc: minidom.Document,
+               obj: XMLObjectType) -> minidom.Element:
     """Converts an object into an XML node of this type.
 
     Args:
@@ -125,7 +177,7 @@ class NodeType(object):
       An XML node encoding the object.
     """
 
-  def GetComments(self, obj):
+  def GetPrecedingComments(self, obj: XMLObjectType) -> List[str]:
     """Gets comments for the object being encoded.
 
     Args:
@@ -138,7 +190,21 @@ class NodeType(object):
     # The base NodeType does not store comments
     return []
 
-  def MarshallIntoNode(self, doc, node, obj):
+  def GetTrailingComments(self, obj: XMLObjectType) -> List[str]:
+    """Gets comments for the object being encoded.
+
+    Args:
+      obj: The object to be encoded into the XML.
+
+    Returns:
+      A list of comment nodes for the object.
+    """
+    del obj  # Used in ObjectNodeType implementation
+    # The base NodeType does not store comments
+    return []
+
+  def MarshallIntoNode(self, doc: minidom.Document, node: minidom.Node,
+                       obj: XMLObjectType) -> None:
     """Marshalls the object and appends it to a node, with comments.
 
     Args:
@@ -146,10 +212,11 @@ class NodeType(object):
       node: An XML node to marshall the object into.
       obj: The object to be encoded into the XML.
     """
-    PutCommentsInNode(doc, node, self.GetComments(obj))
+    PutCommentsInNode(doc, node, self.GetPrecedingComments(obj))
     node.appendChild(self.Marshall(doc, obj))
+    PutCommentsInNode(doc, node, self.GetTrailingComments(obj))
 
-  def GetAttributes(self):
+  def GetAttributes(self) -> List[str]:
     """Gets a sorted list of attributes that this node can have.
 
     Returns:
@@ -157,7 +224,7 @@ class NodeType(object):
     """
     return []
 
-  def GetRequiredAttributes(self):
+  def GetRequiredAttributes(self) -> List[str]:
     """Gets a list of required attributes that this node has.
 
     Returns:
@@ -165,7 +232,7 @@ class NodeType(object):
     """
     return []
 
-  def GetNodeTypes(self):
+  def GetNodeTypes(self) -> Dict[str, 'NodeType']:
     """Gets a map of tags to node types for all dependent types.
 
     Returns:
@@ -184,10 +251,10 @@ class TextNodeType(NodeType):
     tag: The name of XML tag for this type of node.
   """
 
-  def __str__(self):
+  def __str__(self) -> str:
     return 'TextNodeType("%s")' % self.tag
 
-  def Unmarshall(self, node):
+  def Unmarshall(self, node: minidom.Element) -> XMLObjectType:
     """Extracts the content of the node to an object.
 
     Args:
@@ -198,7 +265,8 @@ class TextNodeType(NodeType):
     """
 
     obj = {}
-    obj[COMMENT_KEY] = GetCommentsForNode(node)
+    obj[PRECEDING_COMMENT_KEY] = GetPrecedingCommentsForNode(node)
+    obj[TRAILING_COMMENT_KEY] = GetTrailingCommentsForNode(node)
 
     if not node.firstChild:
       return obj
@@ -213,7 +281,8 @@ class TextNodeType(NodeType):
 
     return obj
 
-  def Marshall(self, doc, obj):
+  def Marshall(self, doc: minidom.Document,
+               obj: XMLObjectType) -> minidom.Element:
     """Converts an object into an XML node of this type.
 
     Args:
@@ -229,7 +298,7 @@ class TextNodeType(NodeType):
       node.appendChild(doc.createTextNode(text))
     return node
 
-  def GetComments(self, obj):
+  def GetPrecedingComments(self, obj: XMLObjectType) -> List[str]:
     """Gets comments for the object being encoded.
 
     Args:
@@ -238,10 +307,21 @@ class TextNodeType(NodeType):
     Returns:
       A list of comment nodes for the object.
     """
-    return obj[COMMENT_KEY]
+    return obj[PRECEDING_COMMENT_KEY]
+
+  def GetTrailingComments(self, obj: XMLObjectType) -> List[str]:
+    """Gets comments for the object being encoded.
+
+    Args:
+      obj: The object to be encoded into the XML.
+
+    Returns:
+      A list of comment nodes for the object.
+    """
+    return obj[TRAILING_COMMENT_KEY]
 
 
-class ChildType(object):
+class ChildType:
   """Metadata about a node type's children.
 
   Args:
@@ -250,14 +330,14 @@ class ChildType(object):
     multiple: True if the child can be repeated.
   """
 
-  def __init__(self, attr, node_type, multiple):
+  def __init__(self, attr: str, node_type: NodeType, multiple: bool):
     self.attr = attr
     self.node_type = node_type
     self.multiple = multiple
 
 
 class ObjectNodeType(NodeType):
-  """A complex node type that has attributes or other nodes as children.
+  r"""A complex node type that has attributes or other nodes as children.
 
   Unmarshalls nodes to objects.
 
@@ -268,18 +348,18 @@ class ObjectNodeType(NodeType):
         attributes, when serializing objects to XML. The "regex" can be None
         to do no validation, otherwise the attribute must match that pattern.
     text_attribute: An attribute stored in the text content of the node.
-    children: A list of ChildTypes describing the objects children.
+    children: A list of ChildTypes describing the objects' children.
 
   Raises:
     ValueError: Attributes contains duplicate definitions.
   """
 
   def __init__(self,
-               tag,
-               attributes=None,
-               required_attributes=None,
-               children=None,
-               text_attribute=None,
+               tag: str,
+               attributes: Optional[List[str]] = None,
+               required_attributes: Optional[List[str]] = None,
+               children: Optional[List[ChildType]] = None,
+               text_attribute: Optional[bool] = None,
                **kwargs):
     NodeType.__init__(self, tag, **kwargs)
     self.attributes = attributes or []
@@ -292,7 +372,7 @@ class ObjectNodeType(NodeType):
   def __str__(self):
     return 'ObjectNodeType("%s")' % self.tag
 
-  def Unmarshall(self, node):
+  def Unmarshall(self, node: minidom.Element) -> XMLObjectType:
     """Extracts the content of the node to an object.
 
     Args:
@@ -305,7 +385,8 @@ class ObjectNodeType(NodeType):
       ValueError: The node is missing required children.
     """
     obj = {}
-    obj[COMMENT_KEY] = GetCommentsForNode(node)
+    obj[PRECEDING_COMMENT_KEY] = GetPrecedingCommentsForNode(node)
+    obj[TRAILING_COMMENT_KEY] = GetTrailingCommentsForNode(node)
 
     for attr, attr_type, attr_re in self.attributes:
       if node.hasAttribute(attr):
@@ -346,7 +427,8 @@ class ObjectNodeType(NodeType):
 
     return obj
 
-  def Marshall(self, doc, obj):
+  def Marshall(self, doc: minidom.Document,
+               obj: XMLObjectType) -> minidom.Element:
     """Converts an object into an XML node of this type.
 
     Args:
@@ -372,7 +454,7 @@ class ObjectNodeType(NodeType):
         child.node_type.MarshallIntoNode(doc, node, obj[child.attr])
     return node
 
-  def GetComments(self, obj):
+  def GetPrecedingComments(self, obj: XMLObjectType) -> List[str]:
     """Gets comments for the object being encoded.
 
     Args:
@@ -381,9 +463,20 @@ class ObjectNodeType(NodeType):
     Returns:
       A list of comment nodes for the object.
     """
-    return obj[COMMENT_KEY]
+    return obj[PRECEDING_COMMENT_KEY]
 
-  def GetAttributes(self):
+  def GetTrailingComments(self, obj: XMLObjectType) -> List[str]:
+    """Gets comments for the object being encoded.
+
+    Args:
+      obj: The object to be encoded into the XML.
+
+    Returns:
+      A list of comment nodes for the object.
+    """
+    return obj[TRAILING_COMMENT_KEY]
+
+  def GetAttributes(self) -> List[str]:
     """Gets a sorted list of attributes that this node can have.
 
     Returns:
@@ -391,7 +484,7 @@ class ObjectNodeType(NodeType):
     """
     return [attr for attr, _, _ in self.attributes]
 
-  def GetRequiredAttributes(self):
+  def GetRequiredAttributes(self) -> List[str]:
     """Gets a list of required attributes that this node has.
 
     Returns:
@@ -400,7 +493,7 @@ class ObjectNodeType(NodeType):
     """
     return self.required_attributes or []
 
-  def GetNodeTypes(self):
+  def GetNodeTypes(self) -> Dict[str, 'NodeType']:
     """Get a map of tags to node types for all dependent types.
 
     Returns:
@@ -413,17 +506,17 @@ class ObjectNodeType(NodeType):
     return types
 
 
-class DocumentType(object):
+class DocumentType:
   """Model for the root of an XML description file.
 
   Args:
     root_type: A NodeType describing the root tag of the document.
   """
 
-  def __init__(self, root_type):
+  def __init__(self, root_type: NodeType):
     self.root_type = root_type
 
-  def _ParseMinidom(self, minidom_doc):
+  def _ParseMinidom(self, minidom_doc: minidom.Document) -> XMLObjectType:
     """Parses the input minidom document
 
     Args:
@@ -436,7 +529,9 @@ class DocumentType(object):
     root = minidom_doc.getElementsByTagName(self.root_type.tag)[0]
     return self.root_type.Unmarshall(root)
 
-  def Parse(self, input_file):
+  def Parse(
+      self, input_file: Union[minidom.Document, ET.Element,
+                              str]) -> XMLObjectType:
     """Parses the input file, which can be minidom, ET or xml string.
 
     The flexibility of input is to accommodate the currently different
@@ -457,7 +552,7 @@ class DocumentType(object):
       input_file = minidom.parseString(input_file)
     return self._ParseMinidom(input_file)
 
-  def GetPrintStyle(self):
+  def GetPrintStyle(self) -> pretty_print_xml.XmlStyle:
     """Gets an XmlStyle object for pretty printing a document of this type.
 
     Returns:
@@ -482,7 +577,7 @@ class DocumentType(object):
             for t in types if types[t].alphabetization
         })
 
-  def _ToXML(self, obj):
+  def _ToXML(self, obj: XMLObjectType) -> minidom.Document:
     """Converts an object into an XML document.
 
     Args:
@@ -495,7 +590,7 @@ class DocumentType(object):
     self.root_type.MarshallIntoNode(doc, doc, obj)
     return doc
 
-  def PrettyPrint(self, obj):
+  def PrettyPrint(self, obj: XMLObjectType) -> Union[minidom.Document, str]:
     """Converts an object into pretty-printed XML as a string.
 
     Args:

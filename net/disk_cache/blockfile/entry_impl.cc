@@ -2,11 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/disk_cache/blockfile/entry_impl.h"
 
 #include <limits>
 #include <memory>
 
+#include "base/containers/heap_array.h"
 #include "base/files/file_util.h"
 #include "base/hash/hash.h"
 #include "base/numerics/safe_math.h"
@@ -17,16 +23,12 @@
 #include "net/disk_cache/blockfile/backend_impl.h"
 #include "net/disk_cache/blockfile/bitmap.h"
 #include "net/disk_cache/blockfile/disk_format.h"
-#include "net/disk_cache/blockfile/histogram_macros.h"
 #include "net/disk_cache/blockfile/sparse_control.h"
 #include "net/disk_cache/cache_util.h"
 #include "net/disk_cache/net_log_parameters.h"
 #include "net/log/net_log.h"
 #include "net/log/net_log_event_type.h"
 #include "net/log/net_log_source_type.h"
-
-// Provide a BackendImpl object to macros from histogram_macros.h.
-#define CACHE_UMA_BACKEND_IMPL_OBJ backend_
 
 using base::Time;
 using base::TimeTicks;
@@ -49,7 +51,6 @@ class SyncCallback: public disk_cache::FileIOCallback {
       : entry_(std::move(entry)),
         callback_(std::move(callback)),
         buf_(buffer),
-        start_(TimeTicks::Now()),
         end_event_type_(end_event_type) {
     entry_->IncrementIoCount();
   }
@@ -66,7 +67,6 @@ class SyncCallback: public disk_cache::FileIOCallback {
   scoped_refptr<disk_cache::EntryImpl> entry_;
   net::CompletionOnceCallback callback_;
   scoped_refptr<net::IOBuffer> buf_;
-  TimeTicks start_;
   const net::NetLogEventType end_event_type_;
 };
 
@@ -78,7 +78,6 @@ void SyncCallback::OnFileIOComplete(int bytes_copied) {
                                           net::NetLogEventPhase::END,
                                           bytes_copied);
     }
-    entry_->ReportIOTime(disk_cache::EntryImpl::kAsyncIO, start_);
     buf_ = nullptr;  // Release the buffer before invoking the callback.
     std::move(callback_).Run(bytes_copied);
   }
@@ -381,10 +380,8 @@ int EntryImpl::ReadSparseDataImpl(int64_t offset,
   if (net::OK != result)
     return result;
 
-  TimeTicks start = TimeTicks::Now();
   result = sparse_->StartIO(SparseControl::kReadOperation, offset, buf, buf_len,
                             std::move(callback));
-  ReportIOTime(kSparseRead, start);
   return result;
 }
 
@@ -397,10 +394,8 @@ int EntryImpl::WriteSparseDataImpl(int64_t offset,
   if (net::OK != result)
     return result;
 
-  TimeTicks start = TimeTicks::Now();
   result = sparse_->StartIO(SparseControl::kWriteOperation, offset, buf,
                             buf_len, std::move(callback));
-  ReportIOTime(kSparseWrite, start);
   return result;
 }
 
@@ -469,7 +464,6 @@ bool EntryImpl::CreateEntry(Addr node_address,
     entry_store->key[key.size()] = '\0';
   }
   backend_->ModifyStorageSize(0, static_cast<int32_t>(key.size()));
-  CACHE_UMA(COUNTS, "KeySize", 0, static_cast<int32_t>(key.size()));
   node->dirty = backend_->GetCurrentEntryId();
   return true;
 }
@@ -500,10 +494,6 @@ void EntryImpl::DeleteEntryData(bool everything) {
     SparseControl::DeleteChildren(this);
   }
 
-  if (GetDataSize(0))
-    CACHE_UMA(COUNTS, "DeleteHeader", 0, GetDataSize(0));
-  if (GetDataSize(1))
-    CACHE_UMA(COUNTS, "DeleteData", 0, GetDataSize(1));
   for (int index = 0; index < kNumStreams; index++) {
     Addr address(entry_.Data()->data_addr[index]);
     if (address.is_initialized()) {
@@ -709,41 +699,12 @@ void EntryImpl::OnEntryCreated(BackendImpl* backend) {
   background_queue_ = backend->GetBackgroundQueue();
 }
 
-void EntryImpl::SetTimes(base::Time last_used, base::Time last_modified) {
-  node_.Data()->last_used = last_used.ToInternalValue();
-  node_.Data()->last_modified = last_modified.ToInternalValue();
+void EntryImpl::SetTimes(base::Time last_used) {
+  auto timestamp = last_used.ToInternalValue();
+  auto* node_data = node_.Data();
+  node_data->last_used = timestamp;
+  node_data->no_longer_used_last_modified = timestamp;
   node_.set_modified();
-}
-
-void EntryImpl::ReportIOTime(Operation op, const base::TimeTicks& start) {
-  if (!backend_.get())
-    return;
-
-  switch (op) {
-    case kRead:
-      CACHE_UMA(AGE_MS, "ReadTime", 0, start);
-      break;
-    case kWrite:
-      CACHE_UMA(AGE_MS, "WriteTime", 0, start);
-      break;
-    case kSparseRead:
-      CACHE_UMA(AGE_MS, "SparseReadTime", 0, start);
-      break;
-    case kSparseWrite:
-      CACHE_UMA(AGE_MS, "SparseWriteTime", 0, start);
-      break;
-    case kAsyncIO:
-      CACHE_UMA(AGE_MS, "AsyncIOTime", 0, start);
-      break;
-    case kReadAsync1:
-      CACHE_UMA(AGE_MS, "AsyncReadDispatchTime", 0, start);
-      break;
-    case kWriteAsync1:
-      CACHE_UMA(AGE_MS, "AsyncWriteDispatchTime", 0, start);
-      break;
-    default:
-      NOTREACHED();
-  }
 }
 
 void EntryImpl::BeginLogging(net::NetLog* net_log, bool created) {
@@ -806,17 +767,18 @@ std::string EntryImpl::GetKey() const {
   if (!key_file)
     return std::string();
 
-  ++key_len;  // We store a trailing \0 on disk.
-  if (!offset && key_file->GetLength() != static_cast<size_t>(key_len))
+  // We store a trailing \0 on disk.
+  if (!offset && key_file->GetLength() != static_cast<size_t>(key_len + 1)) {
     return std::string();
+  }
 
-  // WriteInto will ensure that key_.length() == key_len - 1, and so
-  // key_.c_str()[key_len] will be '\0'. Taking advantage of this, do not
-  // attempt read up to the expected on-disk '\0' --- which would be |key_len|
-  // bytes total --- as if due to a corrupt file it isn't |key_| would get its
-  // internal nul messed up.
-  if (!key_file->Read(base::WriteInto(&key_, key_len), key_len - 1, offset))
+  // Do not attempt read up to the expected on-disk '\0' --- which would be
+  // |key_len + 1| bytes total --- as if due to a corrupt file it isn't |key_|
+  // would get its internal nul messed up.
+  key_.resize(key_len);
+  if (!key_file->Read(key_.data(), key_.size(), offset)) {
     key_.clear();
+  }
   DCHECK_LE(strlen(key_.data()), static_cast<size_t>(key_len));
   return key_;
 }
@@ -824,11 +786,6 @@ std::string EntryImpl::GetKey() const {
 Time EntryImpl::GetLastUsed() const {
   CacheRankingsBlock* node = const_cast<CacheRankingsBlock*>(&node_);
   return Time::FromInternalValue(node->Data()->last_used);
-}
-
-Time EntryImpl::GetLastModified() const {
-  CacheRankingsBlock* node = const_cast<CacheRankingsBlock*>(&node_);
-  return Time::FromInternalValue(node->Data()->last_modified);
 }
 
 int32_t EntryImpl::GetDataSize(int index) const {
@@ -957,7 +914,7 @@ net::Error EntryImpl::ReadyForSparseIO(CompletionOnceCallback callback) {
 }
 
 void EntryImpl::SetLastUsedTimeForTest(base::Time time) {
-  SetTimes(time, time);
+  SetTimes(time);
 }
 
 // When an entry is deleted from the cache, we clean up all the data associated
@@ -1039,8 +996,6 @@ int EntryImpl::InternalReadData(int index,
   if (!backend_.get())
     return net::ERR_UNEXPECTED;
 
-  TimeTicks start = TimeTicks::Now();
-
   int end_offset;
   if (!base::CheckAdd(offset, buf_len).AssignIfValid(&end_offset) ||
       end_offset > entry_size)
@@ -1057,7 +1012,6 @@ int EntryImpl::InternalReadData(int index,
       user_buffers_[index]->PreRead(eof, offset, &buf_len)) {
     // Complete the operation locally.
     buf_len = user_buffers_[index]->Read(offset, buf, buf_len);
-    ReportIOTime(kRead, start);
     return buf_len;
   }
 
@@ -1089,8 +1043,6 @@ int EntryImpl::InternalReadData(int index,
                          net::NetLogEventType::ENTRY_READ_DATA);
   }
 
-  TimeTicks start_async = TimeTicks::Now();
-
   bool completed;
   if (!file->Read(buf->data(), buf_len, file_offset, io_callback, &completed)) {
     if (io_callback)
@@ -1102,10 +1054,6 @@ int EntryImpl::InternalReadData(int index,
   if (io_callback && completed)
     io_callback->Discard();
 
-  if (io_callback)
-    ReportIOTime(kReadAsync1, start_async);
-
-  ReportIOTime(kRead, start);
   return (completed || null_callback) ? buf_len : net::ERR_IO_PENDING;
 }
 
@@ -1138,8 +1086,6 @@ int EntryImpl::InternalWriteData(int index,
     return net::ERR_FAILED;
   }
 
-  TimeTicks start = TimeTicks::Now();
-
   // Read the size at this point (it may change inside prepare).
   int entry_size = entry_.Data()->data_size[index];
   bool extending = entry_size < offset + buf_len;
@@ -1158,7 +1104,6 @@ int EntryImpl::InternalWriteData(int index,
   if (user_buffers_[index].get()) {
     // Complete the operation locally.
     user_buffers_[index]->Write(offset, buf, buf_len);
-    ReportIOTime(kWrite, start);
     return buf_len;
   }
 
@@ -1194,8 +1139,6 @@ int EntryImpl::InternalWriteData(int index,
                                    net::NetLogEventType::ENTRY_WRITE_DATA);
   }
 
-  TimeTicks start_async = TimeTicks::Now();
-
   bool completed;
   if (!file->Write(buf->data(), buf_len, file_offset, io_callback,
                    &completed)) {
@@ -1207,10 +1150,6 @@ int EntryImpl::InternalWriteData(int index,
   if (io_callback && completed)
     io_callback->Discard();
 
-  if (io_callback)
-    ReportIOTime(kWriteAsync1, start_async);
-
-  ReportIOTime(kWrite, start);
   return (completed || null_callback) ? buf_len : net::ERR_IO_PENDING;
 }
 
@@ -1260,7 +1199,6 @@ void EntryImpl::DeleteData(Addr address, int index) {
     return;
   if (address.is_separate_file()) {
     int failure = !base::DeleteFile(backend_->GetFileName(address));
-    CACHE_UMA(COUNTS, "DeleteFailed", 0, failure);
     if (failure) {
       LOG(ERROR) << "Failed to delete " <<
           backend_->GetFileName(address).value() << " from the cache.";
@@ -1283,10 +1221,10 @@ void EntryImpl::UpdateRank(bool modified) {
   }
 
   Time current = Time::Now();
-  node_.Data()->last_used = current.ToInternalValue();
-
-  if (modified)
-    node_.Data()->last_modified = current.ToInternalValue();
+  auto timestamp = current.ToInternalValue();
+  auto* node_data = node_.Data();
+  node_data->last_used = timestamp;
+  node_data->no_longer_used_last_modified = timestamp;
 }
 
 File* EntryImpl::GetBackingFile(Addr address, int index) {
@@ -1579,7 +1517,7 @@ uint32_t EntryImpl::GetEntryFlags() {
 }
 
 void EntryImpl::GetData(int index,
-                        std::unique_ptr<char[]>* buffer,
+                        base::HeapArray<char>* buffer,
                         Addr* address) {
   DCHECK(backend_.get());
   if (user_buffers_[index].get() && user_buffers_[index]->Size() &&
@@ -1588,15 +1526,15 @@ void EntryImpl::GetData(int index,
     int data_len = entry_.Data()->data_size[index];
     if (data_len <= user_buffers_[index]->Size()) {
       DCHECK(!user_buffers_[index]->Start());
-      *buffer = std::make_unique<char[]>(data_len);
-      memcpy(buffer->get(), user_buffers_[index]->Data(), data_len);
+      *buffer = base::HeapArray<char>::Uninit(data_len);
+      memcpy(buffer->data(), user_buffers_[index]->Data(), data_len);
       return;
     }
   }
 
   // Bad news: we'd have to read the info from disk so instead we'll just tell
   // the caller where to read from.
-  *buffer = nullptr;
+  *buffer = {};
   address->set_value(entry_.Data()->data_addr[index]);
   if (address->is_initialized()) {
     // Prevent us from deleting the block from the backing store.
@@ -1608,5 +1546,3 @@ void EntryImpl::GetData(int index,
 }
 
 }  // namespace disk_cache
-
-#undef CACHE_UMA_BACKEND_IMPL_OBJ  // undef for jumbo builds

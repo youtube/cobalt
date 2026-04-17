@@ -17,13 +17,14 @@ class PageActionIconView;
 
 // The view that contains a throbber animation. It is shown when the action
 // related to the page action icon is in progress.
-// TODO(crbug.com/1061635): Investigate the possibility of making this a layer
+// TODO(crbug.com/40679716): Investigate the possibility of making this a layer
 // instead of a view.
 class PageActionIconLoadingIndicatorView : public views::View,
                                            public views::ViewObserver,
                                            public gfx::AnimationDelegate {
+  METADATA_HEADER(PageActionIconLoadingIndicatorView, views::View)
+
  public:
-  METADATA_HEADER(PageActionIconLoadingIndicatorView);
   explicit PageActionIconLoadingIndicatorView(PageActionIconView* parent);
   PageActionIconLoadingIndicatorView(
       const PageActionIconLoadingIndicatorView&) = delete;
@@ -44,7 +45,7 @@ class PageActionIconLoadingIndicatorView : public views::View,
   void AnimationProgressed(const gfx::Animation* animation) override;
 
  private:
-  absl::optional<base::TimeTicks> throbber_start_time_;
+  std::optional<base::TimeTicks> throbber_start_time_;
 
   gfx::ThrobAnimation animation_{this};
 

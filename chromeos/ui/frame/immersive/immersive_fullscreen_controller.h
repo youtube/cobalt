@@ -10,6 +10,7 @@
 
 #include "base/component_export.h"
 #include "base/memory/raw_ptr.h"
+#include "base/scoped_observation.h"
 #include "base/timer/timer.h"
 #include "chromeos/ui/frame/immersive/immersive_revealed_lock.h"
 #include "ui/aura/window_observer.h"
@@ -58,6 +59,7 @@ class COMPONENT_EXPORT(CHROMEOS_UI_FRAME) ImmersiveFullscreenController
       public ui::EventObserver,
       public ui::EventHandler,
       public views::ViewObserver,
+      public views::WidgetObserver,
       public ImmersiveRevealedLock::Delegate {
  public:
   // How many pixels are reserved for touch-events towards the top of an
@@ -126,6 +128,9 @@ class COMPONENT_EXPORT(CHROMEOS_UI_FRAME) ImmersiveFullscreenController
   // views::ViewObserver:
   void OnViewBoundsChanged(views::View* observed_view) override;
   void OnViewIsDeleting(views::View* observed_view) override;
+
+  // views::WidgetObserver:
+  void OnWidgetDestroyed(views::Widget* widget) override;
 
   // gfx::AnimationDelegate overrides:
   void AnimationEnded(const gfx::Animation* animation) override;
@@ -253,10 +258,20 @@ class COMPONENT_EXPORT(CHROMEOS_UI_FRAME) ImmersiveFullscreenController
   // active.
   void EnableTouchInsets(bool enable);
 
+  // Do the cleanup when the widget or aura::Window is about to destroy.
+  // The destruction order of widget and aura::Window depends on the widget
+  // ownership mode, so we need to watch for the destruction of both and do the
+  // cleanup.
+  void CleanupOnWindowDestroy();
+
   // Not owned.
-  raw_ptr<ImmersiveFullscreenControllerDelegate> delegate_ = nullptr;
-  raw_ptr<views::View> top_container_ = nullptr;
-  raw_ptr<views::Widget> widget_ = nullptr;
+  raw_ptr<ImmersiveFullscreenControllerDelegate, DanglingUntriaged> delegate_ =
+      nullptr;
+  raw_ptr<views::View, DanglingUntriaged> top_container_ = nullptr;
+  raw_ptr<views::Widget, DanglingUntriaged> widget_ = nullptr;
+
+  base::ScopedObservation<views::Widget, views::WidgetObserver>
+      widget_observation_{this};
 
   // True if the observers have been enabled.
   bool event_observers_enabled_ = false;
@@ -276,8 +291,8 @@ class COMPONENT_EXPORT(CHROMEOS_UI_FRAME) ImmersiveFullscreenController
   // top edge of the screen.
   int mouse_x_when_hit_top_in_screen_ = -1;
 
-  // Tracks if the controller has seen a ET_GESTURE_SCROLL_BEGIN, without the
-  // following events.
+  // Tracks if the controller has seen a EventType::kGestureScrollBegin, without
+  // the following events.
   bool gesture_begun_ = false;
 
   // Lock which keeps the top-of-window views revealed based on the current

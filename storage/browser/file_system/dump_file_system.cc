@@ -26,11 +26,17 @@
 // children, and file_content_path is empty if the file is a directory.
 //
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -116,7 +122,7 @@ static void DumpDirectoryTree(const std::string& origin_name,
       if (info.is_directory()) {
         size = static_cast<int64_t>(children.size());
       } else {
-        base::GetFileSize(origin_dir.Append(info.data_path), &size);
+        size = base::GetFileSize(origin_dir.Append(info.data_path)).value_or(0);
       }
       // TODO(hamaji): Modification time?
       printf("%s%s %" PRId64 " %" PRId64 " %s\n",

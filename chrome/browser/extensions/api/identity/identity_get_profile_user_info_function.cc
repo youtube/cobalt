@@ -15,25 +15,26 @@
 #include "content/public/browser/browser_context.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/permissions/permissions_data.h"
+#include "google_apis/gaia/gaia_id.h"
 
 namespace extensions {
 
 namespace {
 signin::ConsentLevel GetConsentLevelFromProfileDetails(
-    const absl::optional<api::identity::ProfileDetails>& details) {
+    const std::optional<api::identity::ProfileDetails>& details) {
   api::identity::AccountStatus account_status =
-      details ? details->account_status : api::identity::ACCOUNT_STATUS_NONE;
+      details ? details->account_status : api::identity::AccountStatus::kNone;
 
   switch (account_status) {
-    case api::identity::ACCOUNT_STATUS_ANY:
+    case api::identity::AccountStatus::kAny:
       return signin::ConsentLevel::kSignin;
-    case api::identity::ACCOUNT_STATUS_NONE:
-    case api::identity::ACCOUNT_STATUS_SYNC:
+    case api::identity::AccountStatus::kNone:
+    case api::identity::AccountStatus::kSync:
       return signin::ConsentLevel::kSync;
   }
 
-  NOTREACHED() << "Unexpected value for account_status: " << account_status;
-  return signin::ConsentLevel::kSync;
+  NOTREACHED() << "Unexpected value for account_status: "
+               << api::identity::ToString(account_status);
 }
 }  // namespace
 
@@ -48,7 +49,7 @@ ExtensionFunction::ResponseAction IdentityGetProfileUserInfoFunction::Run() {
     return RespondNow(Error(identity_constants::kOffTheRecord));
   }
 
-  absl::optional<api::identity::GetProfileUserInfo::Params> params =
+  std::optional<api::identity::GetProfileUserInfo::Params> params =
       api::identity::GetProfileUserInfo::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
@@ -62,7 +63,7 @@ ExtensionFunction::ResponseAction IdentityGetProfileUserInfoFunction::Run() {
                             Profile::FromBrowserContext(browser_context()))
                             ->GetPrimaryAccountInfo(consent_level);
     profile_user_info.email = account_info.email;
-    profile_user_info.id = account_info.gaia;
+    profile_user_info.id = account_info.gaia.ToString();
   }
 
   return RespondNow(WithArguments(profile_user_info.ToValue()));

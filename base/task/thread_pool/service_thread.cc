@@ -6,17 +6,13 @@
 
 #include "base/debug/alias.h"
 
-namespace base {
-namespace internal {
+namespace base::internal {
 
 ServiceThread::ServiceThread() : Thread("ThreadPoolServiceThread") {}
 
 NOINLINE void ServiceThread::Run(RunLoop* run_loop) {
   Thread::Run(run_loop);
-  // Inhibit tail calls of Run and inhibit code folding.
-  const int line_number = __LINE__;
-  base::debug::Alias(&line_number);
+  NO_CODE_FOLDING();
 }
 
-}  // namespace internal
-}  // namespace base
+}  // namespace base::internal

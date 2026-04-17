@@ -29,29 +29,22 @@ enum InterceptorId {
   QUERY_ATTRIB_FILE_ID,
   QUERY_FULL_ATTRIB_FILE_ID,
   SET_INFO_FILE_ID,
-  // Named pipe dispatcher:
-  CREATE_NAMED_PIPE_ID,
   // Process-thread dispatcher:
-  CREATE_PROCESSW_ID,
-  CREATE_PROCESSA_ID,
   CREATE_THREAD_ID,
-  // Registry dispatcher:
-  CREATE_KEY_ID,
-  OPEN_KEY_ID,
-  OPEN_KEY_EX_ID,
-  // Sync dispatcher:
-  CREATE_EVENT_ID,
-  OPEN_EVENT_ID,
   // Process mitigations Win32k dispatcher:
   GDIINITIALIZE_ID,
   GETSTOCKOBJECT_ID,
   REGISTERCLASSW_ID,
   // Signed dispatcher:
   CREATE_SECTION_ID,
+  // Unittests (fake Registry dispatcher):
+  OPEN_KEY_ID,
   INTERCEPTOR_MAX_ID
 };
 
-typedef void* OriginalFunctions[INTERCEPTOR_MAX_ID];
+struct OriginalFunctions {
+  void* functions[INTERCEPTOR_MAX_ID];
+};
 
 }  // namespace sandbox
 

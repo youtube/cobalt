@@ -4,7 +4,9 @@
 
 #include "ash/session/session_controller_impl.h"
 
+#include <algorithm>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -26,17 +28,52 @@
 #include "ash/wm/mru_window_tracker.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
-#include "base/ranges/algorithm.h"
+#include "base/metrics/histogram_functions.h"
 #include "components/account_id/account_id.h"
+#include "components/pref_registry/pref_registry_syncable.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/user_manager/user_type.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/message_center/message_center.h"
 
 using session_manager::SessionState;
 
 namespace ash {
+namespace {
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+//
+// LINT.IfChange(SessionLockEvent)
+enum class SessionLockEvent {
+  kLock = 0,
+  kUnlock = 1,
+  kMaxValue = kUnlock,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/ash/enums.xml:SessionLockEvent)
+
+void SetTimeOfLastSessionActivation(PrefService* user_pref_service) {
+  if (!user_pref_service) {
+    return;
+  }
+
+  // NOTE: Round down to the nearest day since Windows epoch to reduce syncs.
+  const base::Time time_of_last_session_activation =
+      base::Time::FromDeltaSinceWindowsEpoch(
+          base::Days(base::Time::Now().ToDeltaSinceWindowsEpoch().InDays()));
+
+  if (user_pref_service->GetTime(prefs::kTimeOfLastSessionActivation) !=
+      time_of_last_session_activation) {
+    user_pref_service->SetTime(prefs::kTimeOfLastSessionActivation,
+                               time_of_last_session_activation);
+  }
+}
+
+void RecordLockEvent(SessionLockEvent event) {
+  base::UmaHistogramEnumeration("Ash.Login.Lock.SessionStateChange", event);
+}
+
+}  // namespace
 
 class SessionControllerImpl::ScopedScreenLockBlockerImpl
     : public ScopedScreenLockBlocker {
@@ -69,7 +106,13 @@ SessionControllerImpl::~SessionControllerImpl() {
 // static
 void SessionControllerImpl::RegisterUserProfilePrefs(
     PrefRegistrySimple* registry) {
-  registry->RegisterTimePref(prefs::kTimeOfLastSessionActivation, base::Time());
+  registry->RegisterTimePref(
+      prefs::kTimeOfLastSessionActivation, base::Time(),
+      user_prefs::PrefRegistrySyncable::SYNCABLE_OS_PREF);
+  registry->RegisterTimePref(ash::prefs::kAshLoginSessionStartedTime,
+                             base::Time());
+  registry->RegisterBooleanPref(
+      ash::prefs::kAshLoginSessionStartedIsFirstSession, false);
 }
 
 int SessionControllerImpl::NumberOfLoggedInUsers() const {
@@ -83,6 +126,11 @@ AccountId SessionControllerImpl::GetActiveAccountId() const {
 
 AddUserSessionPolicy SessionControllerImpl::GetAddUserPolicy() const {
   return add_user_session_policy_;
+}
+
+bool SessionControllerImpl::IsActiveAccountManaged() const {
+  CHECK(!user_sessions_.empty());
+  return user_sessions_[0]->user_info.is_managed;
 }
 
 bool SessionControllerImpl::IsActiveUserSessionStarted() const {
@@ -155,10 +203,10 @@ const UserSession* SessionControllerImpl::GetUserSession(
 
 const UserSession* SessionControllerImpl::GetUserSessionByAccountId(
     const AccountId& account_id) const {
-  auto it = base::ranges::find(user_sessions_, account_id,
-                               [](const std::unique_ptr<UserSession>& session) {
-                                 return session->user_info.account_id;
-                               });
+  auto it = std::ranges::find(user_sessions_, account_id,
+                              [](const std::unique_ptr<UserSession>& session) {
+                                return session->user_info.account_id;
+                              });
   if (it == user_sessions_.end())
     return nullptr;
 
@@ -166,8 +214,8 @@ const UserSession* SessionControllerImpl::GetUserSessionByAccountId(
 }
 
 const UserSession* SessionControllerImpl::GetPrimaryUserSession() const {
-  auto it = base::ranges::find(user_sessions_, primary_session_id_,
-                               &UserSession::session_id);
+  auto it = std::ranges::find(user_sessions_, primary_session_id_,
+                              &UserSession::session_id);
   if (it == user_sessions_.end())
     return nullptr;
 
@@ -179,7 +227,7 @@ bool SessionControllerImpl::IsUserChild() const {
     return false;
 
   user_manager::UserType active_user_type = GetUserSession(0)->user_info.type;
-  return active_user_type == user_manager::USER_TYPE_CHILD;
+  return active_user_type == user_manager::UserType::kChild;
 }
 
 bool SessionControllerImpl::IsUserGuest() const {
@@ -188,7 +236,7 @@ bool SessionControllerImpl::IsUserGuest() const {
   }
 
   user_manager::UserType active_user_type = GetUserSession(0)->user_info.type;
-  return active_user_type == user_manager::USER_TYPE_GUEST;
+  return active_user_type == user_manager::UserType::kGuest;
 }
 
 bool SessionControllerImpl::IsUserPublicAccount() const {
@@ -196,15 +244,15 @@ bool SessionControllerImpl::IsUserPublicAccount() const {
     return false;
 
   user_manager::UserType active_user_type = GetUserSession(0)->user_info.type;
-  return active_user_type == user_manager::USER_TYPE_PUBLIC_ACCOUNT;
+  return active_user_type == user_manager::UserType::kPublicAccount;
 }
 
-absl::optional<user_manager::UserType> SessionControllerImpl::GetUserType()
+std::optional<user_manager::UserType> SessionControllerImpl::GetUserType()
     const {
   if (!IsActiveUserSessionStarted())
-    return absl::nullopt;
+    return std::nullopt;
 
-  return absl::make_optional(GetUserSession(0)->user_info.type);
+  return std::make_optional(GetUserSession(0)->user_info.type);
 }
 
 bool SessionControllerImpl::IsUserPrimary() const {
@@ -221,13 +269,21 @@ bool SessionControllerImpl::IsUserFirstLogin() const {
   return GetUserSession(0)->user_info.is_new_profile;
 }
 
-bool SessionControllerImpl::IsEnterpriseManaged() const {
-  return client_ && client_->IsEnterpriseManaged();
+std::optional<int> SessionControllerImpl::GetExistingUsersCount() const {
+  return client_ ? std::optional<int>(client_->GetExistingUsersCount())
+                 : std::nullopt;
 }
 
-absl::optional<int> SessionControllerImpl::GetExistingUsersCount() const {
-  return client_ ? absl::optional<int>(client_->GetExistingUsersCount())
-                 : absl::nullopt;
+void SessionControllerImpl::NotifyFirstSessionReady() {
+  CHECK(IsActiveUserSessionStarted());
+
+  for (auto& observer : observers_) {
+    observer.OnFirstSessionReady();
+  }
+}
+
+void SessionControllerImpl::NotifyUserToBeRemoved(const AccountId& account_id) {
+  observers_.Notify(&SessionObserver::OnUserToBeRemoved, account_id);
 }
 
 bool SessionControllerImpl::ShouldDisplayManagedUI() const {
@@ -288,6 +344,17 @@ PrefService* SessionControllerImpl::GetUserPrefServiceForUser(
   return client_ ? client_->GetUserPrefService(account_id) : nullptr;
 }
 
+base::FilePath SessionControllerImpl::GetProfilePath(
+    const AccountId& account_id) const {
+  return client_ ? client_->GetProfilePath(account_id) : base::FilePath();
+}
+
+std::tuple<bool, bool> SessionControllerImpl::IsEligibleForSeaPen(
+    const AccountId& account_id) const {
+  return client_ ? client_->IsEligibleForSeaPen(account_id)
+                 : std::make_tuple(false, false);
+}
+
 PrefService* SessionControllerImpl::GetPrimaryUserPrefService() const {
   const UserSession* session = GetPrimaryUserSession();
   return session ? GetUserPrefServiceForUser(session->user_info.account_id)
@@ -341,16 +408,14 @@ void SessionControllerImpl::SetSessionInfo(const SessionInfo& info) {
 }
 
 void SessionControllerImpl::UpdateUserSession(const UserSession& user_session) {
-  auto it = base::ranges::find(user_sessions_, user_session.session_id,
-                               &UserSession::session_id);
+  auto it = std::ranges::find(user_sessions_, user_session.session_id,
+                              &UserSession::session_id);
   if (it == user_sessions_.end()) {
     AddUserSession(user_session);
     return;
   }
 
   *it = std::make_unique<UserSession>(user_session);
-  for (auto& observer : observers_)
-    observer.OnUserSessionUpdated((*it)->user_info.account_id);
 
   UpdateLoginStatus();
 }
@@ -358,15 +423,15 @@ void SessionControllerImpl::UpdateUserSession(const UserSession& user_session) {
 void SessionControllerImpl::SetUserSessionOrder(
     const std::vector<uint32_t>& user_session_order) {
   DCHECK_EQ(user_sessions_.size(), user_session_order.size());
+  // The user_sessions must not be empty.
+  CHECK(!user_sessions_.empty());
 
-  AccountId last_active_account_id;
-  if (user_sessions_.size())
-    last_active_account_id = user_sessions_[0]->user_info.account_id;
+  AccountId last_active_account_id = user_sessions_[0]->user_info.account_id;
 
   // Adjusts |user_sessions_| to match the given order.
   std::vector<std::unique_ptr<UserSession>> sessions;
   for (const auto& session_id : user_session_order) {
-    auto it = base::ranges::find_if(
+    auto it = std::ranges::find_if(
         user_sessions_,
         [session_id](const std::unique_ptr<UserSession>& session) {
           return session && session->session_id == session_id;
@@ -412,9 +477,8 @@ void SessionControllerImpl::SetUserSessionOrder(
     // NOTE: This pref is intentionally set *after* notifying observers of
     // active user session changes so observers can use time of last activation
     // during event handling.
-    if (state_ == SessionState::ACTIVE && user_pref_service) {
-      user_pref_service->SetTime(prefs::kTimeOfLastSessionActivation,
-                                 base::Time::Now());
+    if (state_ == SessionState::ACTIVE) {
+      SetTimeOfLastSessionActivation(user_pref_service);
     }
 
     UpdateLoginStatus();
@@ -452,6 +516,7 @@ void SessionControllerImpl::RunUnlockAnimation(
 }
 
 void SessionControllerImpl::NotifyChromeTerminating() {
+  is_chrome_terminating_ = true;
   for (auto& observer : observers_)
     observer.OnChromeTerminating();
 }
@@ -525,6 +590,12 @@ void SessionControllerImpl::SetSessionState(SessionState state) {
 
   const bool was_user_session_blocked = IsUserSessionBlocked();
   const bool was_locked = state_ == SessionState::LOCKED;
+  const bool is_locked = state == SessionState::LOCKED;
+  if (was_locked || is_locked) {
+    RecordLockEvent(is_locked ? SessionLockEvent::kLock
+                              : SessionLockEvent::kUnlock);
+  }
+
   state_ = state;
   for (auto& observer : observers_)
     observer.OnSessionStateChanged(state_);
@@ -532,10 +603,8 @@ void SessionControllerImpl::SetSessionState(SessionState state) {
   // NOTE: This pref is intentionally set *after* notifying observers of state
   // changes so observers can use time of last activation during event handling.
   if (state_ == SessionState::ACTIVE) {
-    if (auto* pref_service = GetUserPrefServiceForUser(GetActiveAccountId())) {
-      pref_service->SetTime(prefs::kTimeOfLastSessionActivation,
-                            base::Time::Now());
-    }
+    SetTimeOfLastSessionActivation(
+        GetUserPrefServiceForUser(GetActiveAccountId()));
   }
 
   UpdateLoginStatus();
@@ -553,8 +622,9 @@ void SessionControllerImpl::SetSessionState(SessionState state) {
 
   EnsureSigninScreenPrefService();
 
-  if (was_user_session_blocked && !IsUserSessionBlocked())
+  if (was_user_session_blocked && !IsUserSessionBlocked()) {
     EnsureActiveWindowAfterUnblockingUserSession();
+  }
 }
 
 void SessionControllerImpl::AddUserSession(const UserSession& user_session) {
@@ -565,9 +635,8 @@ void SessionControllerImpl::AddUserSession(const UserSession& user_session) {
 
   const AccountId account_id(user_session.user_info.account_id);
   PrefService* user_prefs = GetUserPrefServiceForUser(account_id);
-  // |user_prefs| could be null in tests.
-  if (user_prefs)
-    OnProfilePrefServiceInitialized(account_id, user_prefs);
+  CHECK(user_prefs);
+  OnProfilePrefServiceInitialized(account_id, user_prefs);
 
   UpdateLoginStatus();
   for (auto& observer : observers_)
@@ -596,7 +665,6 @@ LoginStatus SessionControllerImpl::CalculateLoginStatus() const {
       return LoginStatus::USER;
   }
   NOTREACHED();
-  return LoginStatus::NOT_LOGGED_IN;
 }
 
 LoginStatus SessionControllerImpl::CalculateLoginStatusForActiveSession()
@@ -607,30 +675,20 @@ LoginStatus SessionControllerImpl::CalculateLoginStatusForActiveSession()
     return LoginStatus::USER;
 
   switch (user_sessions_[0]->user_info.type) {
-    case user_manager::USER_TYPE_REGULAR:
+    case user_manager::UserType::kRegular:
       return LoginStatus::USER;
-    case user_manager::USER_TYPE_GUEST:
+    case user_manager::UserType::kGuest:
       return LoginStatus::GUEST;
-    case user_manager::USER_TYPE_PUBLIC_ACCOUNT:
+    case user_manager::UserType::kPublicAccount:
       return LoginStatus::PUBLIC;
-    case user_manager::USER_TYPE_KIOSK_APP:
-      return LoginStatus::KIOSK_APP;
-    case user_manager::USER_TYPE_CHILD:
+    case user_manager::UserType::kChild:
       return LoginStatus::CHILD;
-    case user_manager::USER_TYPE_ARC_KIOSK_APP:
+    case user_manager::UserType::kKioskApp:
+    case user_manager::UserType::kWebKioskApp:
+    case user_manager::UserType::kKioskIWA:
       return LoginStatus::KIOSK_APP;
-    case user_manager::USER_TYPE_ACTIVE_DIRECTORY:
-      // TODO(jamescook): There is no LoginStatus for this.
-      return LoginStatus::USER;
-    case user_manager::USER_TYPE_WEB_KIOSK_APP:
-      return LoginStatus::KIOSK_APP;
-    case user_manager::NUM_USER_TYPES:
-      // Avoid having a "default" case so the compiler catches new enum values.
-      NOTREACHED();
-      return LoginStatus::USER;
   }
   NOTREACHED();
-  return LoginStatus::USER;
 }
 
 void SessionControllerImpl::UpdateLoginStatus() {

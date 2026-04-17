@@ -7,8 +7,6 @@
 
 #include <memory>
 
-#include "ash/components/arc/arc_browser_context_keyed_service_factory_base.h"
-#include "ash/components/arc/mojom/boot_phase_monitor.mojom.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/singleton.h"
 #include "base/memory/weak_ptr.h"
@@ -18,8 +16,13 @@
 #include "base/time/time.h"
 #include "chrome/browser/ash/arc/session/arc_session_manager_observer.h"
 #include "chrome/browser/sessions/session_restore_observer.h"
+#include "chromeos/ash/experiences/arc/arc_browser_context_keyed_service_factory_base.h"
+#include "chromeos/ash/experiences/arc/mojom/boot_phase_monitor.mojom.h"
 #include "components/account_id/account_id.h"
 #include "components/keyed_service/core/keyed_service.h"
+
+class PrefRegistrySimple;
+class PrefService;
 
 namespace content {
 class BrowserContext;
@@ -40,6 +43,7 @@ class ArcBootPhaseMonitorBridge : public KeyedService,
    public:
     virtual ~Delegate() = default;
     virtual void RecordFirstAppLaunchDelayUMA(base::TimeDelta delta) = 0;
+    virtual void RecordAppRequestedInSessionUMA(int num_requested) = 0;
   };
 
   class Observer : public base::CheckedObserver {
@@ -55,6 +59,9 @@ class ArcBootPhaseMonitorBridge : public KeyedService,
   static ArcBootPhaseMonitorBridge* GetForBrowserContextForTesting(
       content::BrowserContext* context);
 
+  // Registers profile preferences that this class uses.
+  static void RegisterProfilePrefs(PrefRegistrySimple* registry);
+
   // Records Arc.FirstAppLaunchDelay.TimeDelta UMA in the following way:
   //
   // * If ARC has already fully started, record the UMA with 0.
@@ -68,6 +75,9 @@ class ArcBootPhaseMonitorBridge : public KeyedService,
 
   ArcBootPhaseMonitorBridge(content::BrowserContext* context,
                             ArcBridgeService* bridge_service);
+  ArcBootPhaseMonitorBridge(content::BrowserContext* context,
+                            ArcBridgeService* bridge_service,
+                            std::unique_ptr<Delegate> delegate);
   ArcBootPhaseMonitorBridge(const ArcBootPhaseMonitorBridge&) = delete;
   ArcBootPhaseMonitorBridge& operator=(const ArcBootPhaseMonitorBridge&) =
       delete;
@@ -85,7 +95,6 @@ class ArcBootPhaseMonitorBridge : public KeyedService,
   void OnArcSessionStopped(ArcStopReason stop_reason) override;
   void OnArcSessionRestarting() override;
 
-  void SetDelegateForTesting(std::unique_ptr<Delegate> delegate);
   void RecordFirstAppLaunchDelayUMAForTesting() {
     RecordFirstAppLaunchDelayUMAInternal();
   }
@@ -96,10 +105,11 @@ class ArcBootPhaseMonitorBridge : public KeyedService,
 
   THREAD_CHECKER(thread_checker_);
 
-  const raw_ptr<ArcBridgeService, ExperimentalAsh>
+  const raw_ptr<ArcBridgeService>
       arc_bridge_service_;  // Owned by ArcServiceManager.
   const AccountId account_id_;
-  std::unique_ptr<Delegate> delegate_;
+  const std::unique_ptr<Delegate> delegate_;
+  const raw_ptr<PrefService> pref_service_;
   base::ObserverList<Observer> observers_;
 
   // The following variables must be reset every time when the instance stops or

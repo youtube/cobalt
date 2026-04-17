@@ -10,10 +10,10 @@
 
 #include <memory>
 #include <ostream>
+#include <string_view>
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "base/strings/string_piece_forward.h"
 #include "mojo/core/handle_signals_state.h"
 #include "mojo/core/system_impl_export.h"
 #include "mojo/core/watch.h"
@@ -80,7 +80,7 @@ class MOJO_SYSTEM_IMPL_EXPORT Dispatcher
   Dispatcher(const Dispatcher&) = delete;
   Dispatcher& operator=(const Dispatcher&) = delete;
 
-  // TODO(crbug.com/1229671): Remove these and all callers.
+  // TODO(crbug.com/40778522): Remove these and all callers.
   //
   // The assert is invoked at various points of handle deserialization failure.
   // Such failures are expected and innocuous when destroying unread or unsent,
@@ -207,13 +207,13 @@ class MOJO_SYSTEM_IMPL_EXPORT Dispatcher
   // Supports the |MojoAttachMessagePipeToInvitation()| API if implemented by
   // this Dispatcher. Arguments correspond to the ones given to the original API
   // call. See |MojoAttachMessagePipeToInvitation()| documentation.
-  virtual MojoResult AttachMessagePipe(base::StringPiece name,
+  virtual MojoResult AttachMessagePipe(std::string_view name,
                                        ports::PortRef remote_peer_port);
 
   // Supports the |MojoExtractMessagePipeFromInvitation()| API if implemented by
   // this Dispatcher. Arguments correspond to the ones given to the original API
   // call. See |MojoExtractMessagePipeFromInvitation()| documentation.
-  virtual MojoResult ExtractMessagePipe(base::StringPiece name,
+  virtual MojoResult ExtractMessagePipe(std::string_view name,
                                         MojoHandle* message_pipe_handle);
 
   // Supports the |MojoSetQuota()| API if implemented by this Dispatcher.

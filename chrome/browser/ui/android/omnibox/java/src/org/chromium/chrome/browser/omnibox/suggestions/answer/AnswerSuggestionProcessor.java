@@ -5,77 +5,51 @@
 package org.chromium.chrome.browser.omnibox.suggestions.answer;
 
 import android.content.Context;
-import android.graphics.Bitmap;
 
-import androidx.annotation.DrawableRes;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.LocaleUtils;
-import org.chromium.base.ThreadUtils;
-import org.chromium.base.supplier.Supplier;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.UrlBarEditingTextStateProvider;
-import org.chromium.chrome.browser.omnibox.suggestions.ActionChipsDelegate;
-import org.chromium.chrome.browser.omnibox.suggestions.OmniboxSuggestionUiType;
+import org.chromium.chrome.browser.omnibox.styles.OmniboxDrawableState;
+import org.chromium.chrome.browser.omnibox.styles.OmniboxImageSupplier;
 import org.chromium.chrome.browser.omnibox.suggestions.SuggestionHost;
 import org.chromium.chrome.browser.omnibox.suggestions.base.BaseSuggestionViewProcessor;
-import org.chromium.chrome.browser.omnibox.suggestions.base.SuggestionDrawableState;
-import org.chromium.components.image_fetcher.ImageFetcher;
-import org.chromium.components.omnibox.AnswerType;
+import org.chromium.chrome.browser.omnibox.suggestions.base.BaseSuggestionViewProperties;
+import org.chromium.components.omnibox.AnswerTypeProto.AnswerType;
+import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.AutocompleteMatch;
+import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.omnibox.OmniboxSuggestionType;
-import org.chromium.components.omnibox.SuggestionAnswer;
+import org.chromium.components.omnibox.suggestions.OmniboxSuggestionUiType;
 import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.url.GURL;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.Optional;
 
-/**
- * A class that handles model and view creation for the most commonly used omnibox suggestion.
- */
+/** A class that handles model and view creation for the most commonly used omnibox suggestion. */
+@NullMarked
 public class AnswerSuggestionProcessor extends BaseSuggestionViewProcessor {
     private static final String COLOR_REVERSAL_COUNTRY_LIST = "ja-JP,ko-KR,zh-CN,zh-TW";
 
-    private final Map<String, List<PropertyModel>> mPendingAnswerRequestUrls;
-    private final SuggestionHost mSuggestionHost;
     private final UrlBarEditingTextStateProvider mUrlBarEditingTextProvider;
-    private final Supplier<ImageFetcher> mImageFetcherSupplier;
-    private boolean mOmniBoxAnswerColorReversal;
 
-    /**
-     * @param context An Android context.
-     * @param suggestionHost A handle to the object using the suggestions.
-     */
-    public AnswerSuggestionProcessor(Context context, SuggestionHost suggestionHost,
-            ActionChipsDelegate actionChipsDelegate,
+    public AnswerSuggestionProcessor(
+            Context context,
+            SuggestionHost suggestionHost,
             UrlBarEditingTextStateProvider editingTextProvider,
-            Supplier<ImageFetcher> imageFetcherSupplier) {
-        super(context, suggestionHost, actionChipsDelegate, null);
-        mSuggestionHost = suggestionHost;
-        mPendingAnswerRequestUrls = new HashMap<>();
+            Optional<OmniboxImageSupplier> imageSupplier) {
+        super(context, suggestionHost, imageSupplier);
         mUrlBarEditingTextProvider = editingTextProvider;
-        mImageFetcherSupplier = imageFetcherSupplier;
-    }
-
-    /**
-     * Evaluates whether the current locale uses "green" or "red" color to indicate
-     * growth, allowing locale-adjusted representation of stock market changes.
-     */
-    @Override
-    public void onNativeInitialized() {
-        super.onNativeInitialized();
-        mOmniBoxAnswerColorReversal =
-                ChromeFeatureList.isEnabled(ChromeFeatureList.SUGGESTION_ANSWERS_COLOR_REVERSE);
     }
 
     @Override
     public boolean doesProcessSuggestion(AutocompleteMatch suggestion, int position) {
         // Calculation answers are specific in a way that these are basic suggestions, but processed
         // as answers, when new answer layout is enabled.
-        return suggestion.hasAnswer() || suggestion.getType() == OmniboxSuggestionType.CALCULATOR;
+        return suggestion.getAnswerTemplate() != null
+                || suggestion.getType() == OmniboxSuggestionType.CALCULATOR;
     }
 
     @Override
@@ -89,96 +63,108 @@ public class AnswerSuggestionProcessor extends BaseSuggestionViewProcessor {
     }
 
     @Override
-    public void populateModel(AutocompleteMatch suggestion, PropertyModel model, int position) {
-        super.populateModel(suggestion, model, position);
-        setStateForSuggestion(model, suggestion, position);
+    public void populateModel(
+            AutocompleteInput input,
+            AutocompleteMatch suggestion,
+            PropertyModel model,
+            int position) {
+        super.populateModel(input, suggestion, model, position);
+        setStateForSuggestion(model, input, suggestion, position);
     }
 
-    private void maybeFetchAnswerIcon(PropertyModel model, AutocompleteMatch suggestion) {
-        ThreadUtils.assertOnUiThread();
+    private void setStateForSuggestion(
+            PropertyModel model,
+            AutocompleteInput input,
+            AutocompleteMatch suggestion,
+            int position) {
+        AnswerType answerType = suggestion.getAnswerType();
+        boolean suggestionTextColorReversal = checkColorReversalRequired(answerType);
+        AnswerText[] details;
+        boolean shouldShowCardUi = false;
+        model.set(BaseSuggestionViewProperties.TOP_PADDING, 0);
+        model.set(AnswerSuggestionViewProperties.RIGHT_PADDING, 0);
+        if (suggestion.getAnswerTemplate() != null) {
+            shouldShowCardUi =
+                    OmniboxFeatures.shouldShowRichAnswerCard()
+                            && suggestion.getActions().size() > 0;
+            details =
+                    RichAnswerText.from(
+                            mContext,
+                            suggestion.getAnswerTemplate(),
+                            answerType,
+                            suggestionTextColorReversal,
+                            shouldShowCardUi);
 
-        // Ensure an image fetcher is available prior to requesting images.
-        ImageFetcher imageFetcher = mImageFetcherSupplier.get();
-        if (imageFetcher == null) return;
-
-        // Note: we also handle calculations here, which do not have answer defined.
-        if (!suggestion.hasAnswer()) return;
-        final String url = suggestion.getAnswer().getSecondLine().getImage();
-        if (url == null) return;
-
-        // Do not make duplicate answer image requests for the same URL (to avoid generating
-        // duplicate bitmaps for the same image).
-        if (mPendingAnswerRequestUrls.containsKey(url)) {
-            mPendingAnswerRequestUrls.get(url).add(model);
-            return;
+            model.set(BaseSuggestionViewProperties.USE_LARGE_DECORATION, shouldShowCardUi);
+            if (shouldShowCardUi) {
+                int leadInSpacing =
+                        mContext.getResources()
+                                .getDimensionPixelSize(R.dimen.omnibox_simple_card_leadin);
+                model.set(BaseSuggestionViewProperties.ACTION_CHIP_LEAD_IN_SPACING, leadInSpacing);
+                model.set(
+                        BaseSuggestionViewProperties.TOP_PADDING,
+                        mContext.getResources()
+                                .getDimensionPixelSize(R.dimen.omnibox_simple_card_top_padding));
+                model.set(AnswerSuggestionViewProperties.RIGHT_PADDING, leadInSpacing);
+            }
+        } else {
+            details =
+                    CalculatorAnswerTextLayout.from(
+                            mContext,
+                            suggestion,
+                            mUrlBarEditingTextProvider.getTextWithoutAutocomplete());
         }
 
-        List<PropertyModel> models = new ArrayList<>();
-        models.add(model);
-        mPendingAnswerRequestUrls.put(url, models);
-        ImageFetcher.Params params =
-                ImageFetcher.Params.create(url, ImageFetcher.ANSWER_SUGGESTIONS_UMA_CLIENT_NAME);
-        imageFetcher.fetchImage(
-                params, (Bitmap bitmap) -> {
-                    ThreadUtils.assertOnUiThread();
-                    // Remove models for the URL ahead of all the checks to ensure we
-                    // do not keep them around waiting in case image fetch failed.
-                    List<PropertyModel> currentModels = mPendingAnswerRequestUrls.remove(url);
-                    if (currentModels == null || bitmap == null) return;
+        model.set(AnswerSuggestionViewProperties.TEXT_LINE_1_TEXT, details[0].getText());
+        model.set(AnswerSuggestionViewProperties.TEXT_LINE_2_TEXT, details[1].getText());
 
-                    for (int i = 0; i < currentModels.size(); i++) {
-                        PropertyModel currentModel = currentModels.get(i);
-                        setSuggestionDrawableState(currentModel,
-                                SuggestionDrawableState.Builder.forBitmap(getContext(), bitmap)
-                                        .setLarge(true)
-                                        .build());
-                    }
-                });
-    }
+        model.set(
+                AnswerSuggestionViewProperties.TEXT_LINE_1_ACCESSIBILITY_DESCRIPTION,
+                details[0].getAccessibilityDescription());
+        model.set(
+                AnswerSuggestionViewProperties.TEXT_LINE_2_ACCESSIBILITY_DESCRIPTION,
+                details[1].getAccessibilityDescription());
 
-    /**
-     * Sets both lines of the Omnibox suggestion based on an Answers in Suggest result.
-     */
-    private void setStateForSuggestion(
-            PropertyModel model, AutocompleteMatch suggestion, int position) {
-        @AnswerType
-        int answerType = suggestion.getAnswer() == null ? AnswerType.INVALID
-                                                        : suggestion.getAnswer().getType();
-        boolean suggestionTextColorReversal = checkColorReversalRequired(answerType);
-        AnswerText[] details = AnswerTextNewLayout.from(getContext(), suggestion,
-                mUrlBarEditingTextProvider.getTextWithoutAutocomplete(),
-                suggestionTextColorReversal);
+        model.set(AnswerSuggestionViewProperties.TEXT_LINE_1_MAX_LINES, details[0].getMaxLines());
+        model.set(AnswerSuggestionViewProperties.TEXT_LINE_2_MAX_LINES, details[1].getMaxLines());
 
-        model.set(AnswerSuggestionViewProperties.TEXT_LINE_1_TEXT, details[0].mText);
-        model.set(AnswerSuggestionViewProperties.TEXT_LINE_2_TEXT, details[1].mText);
-
-        model.set(AnswerSuggestionViewProperties.TEXT_LINE_1_ACCESSIBILITY_DESCRIPTION,
-                details[0].mAccessibilityDescription);
-        model.set(AnswerSuggestionViewProperties.TEXT_LINE_2_ACCESSIBILITY_DESCRIPTION,
-                details[1].mAccessibilityDescription);
-
-        model.set(AnswerSuggestionViewProperties.TEXT_LINE_1_MAX_LINES, details[0].mMaxLines);
-        model.set(AnswerSuggestionViewProperties.TEXT_LINE_2_MAX_LINES, details[1].mMaxLines);
-
-        setSuggestionDrawableState(model,
-                SuggestionDrawableState.Builder
-                        .forDrawableRes(getContext(), getSuggestionIcon(suggestion))
-                        .setLarge(true)
-                        .build());
-
-        setTabSwitchOrRefineAction(model, suggestion, position);
-        maybeFetchAnswerIcon(model, suggestion);
+        if (shouldShowCardUi) {
+            setActionButtons(model, null);
+        } else {
+            setTabSwitchOrRefineAction(model, input, suggestion, position);
+        }
+        if (suggestion.getAnswerTemplate() != null) {
+            GURL imageUrl =
+                    suggestion.getAnswerTemplate().getAnswers(0).hasImage()
+                            ? new GURL(
+                                    suggestion
+                                            .getAnswerTemplate()
+                                            .getAnswers(0)
+                                            .getImage()
+                                            .getUrl())
+                            : new GURL("");
+            if (imageUrl.isValid()) {
+                fetchImage(
+                        model,
+                        new GURL(suggestion.getAnswerTemplate().getAnswers(0).getImage().getUrl()));
+            } else if (shouldShowCardUi) {
+                // The card ui should not show fallback images; if there is not an answer-specific
+                // image, there should be no decoration at all.
+                model.set(BaseSuggestionViewProperties.SHOW_DECORATION, false);
+                setOmniboxDrawableState(model, null);
+            }
+        }
     }
 
     /**
      * Checks if we need to apply color reversion on the answer suggestion.
+     *
      * @param answerType The type of a suggested answer.
+     * @return true, if red/green colors should be swapped.
      */
     @VisibleForTesting
-    public boolean checkColorReversalRequired(@AnswerType int answerType) {
-        boolean isFinanceAnswer = answerType == AnswerType.FINANCE;
-        // Flag disabled.
-        if (!mOmniBoxAnswerColorReversal) return false;
+    public boolean checkColorReversalRequired(AnswerType answerType) {
+        boolean isFinanceAnswer = answerType == AnswerType.ANSWER_TYPE_FINANCE;
         // Country not eligible.
         if (!isCountryEligibleForColorReversal()) return false;
         // Not a finance answer.
@@ -187,46 +173,56 @@ public class AnswerSuggestionProcessor extends BaseSuggestionViewProcessor {
         return true;
     }
 
-    /**
-     * Returns whether a given country is eligible for Answer color reversal.
-     * Note: this call does not verify the flag state.
-     */
+    /** Returns whether current Locale country is eligible for Answer color reversal. */
     @VisibleForTesting
     /* package */ boolean isCountryEligibleForColorReversal() {
         return COLOR_REVERSAL_COUNTRY_LIST.contains(LocaleUtils.getDefaultLocaleString());
     }
-    /**
-     * Get default suggestion icon for supplied suggestion.
-     */
-    @DrawableRes
-    int getSuggestionIcon(AutocompleteMatch suggestion) {
-        SuggestionAnswer answer = suggestion.getAnswer();
-        if (answer != null) {
-            switch (answer.getType()) {
-                case AnswerType.DICTIONARY:
-                    return R.drawable.ic_book_round;
-                case AnswerType.FINANCE:
-                    return R.drawable.ic_swap_vert_round;
-                case AnswerType.KNOWLEDGE_GRAPH:
-                    return R.drawable.ic_google_round;
-                case AnswerType.SUNRISE:
-                    return R.drawable.ic_wb_sunny_round;
-                case AnswerType.TRANSLATION:
-                    return R.drawable.logo_translate_round;
-                case AnswerType.WEATHER:
-                    return R.drawable.logo_partly_cloudy;
-                case AnswerType.WHEN_IS:
-                    return R.drawable.ic_event_round;
-                case AnswerType.CURRENCY:
-                    return R.drawable.ic_loop_round;
-                case AnswerType.SPORTS:
-                    return R.drawable.ic_google_round;
+
+    @Override
+    public OmniboxDrawableState getFallbackIcon(AutocompleteMatch suggestion) {
+        int icon = 0;
+
+        AnswerType type = suggestion.getAnswerType();
+        if (type == null) {
+            type = AnswerType.ANSWER_TYPE_UNSPECIFIED;
+        }
+        if (type != AnswerType.ANSWER_TYPE_UNSPECIFIED) {
+            switch (type) {
+                case ANSWER_TYPE_DICTIONARY:
+                    icon = R.drawable.ic_book_round;
+                    break;
+                case ANSWER_TYPE_FINANCE:
+                    icon = R.drawable.ic_swap_vert_round;
+                    break;
+                case ANSWER_TYPE_GENERIC_ANSWER:
+                case ANSWER_TYPE_SPORTS:
+                    icon = R.drawable.ic_google_round;
+                    break;
+                case ANSWER_TYPE_SUNRISE_SUNSET:
+                    icon = R.drawable.ic_wb_sunny_round;
+                    break;
+                case ANSWER_TYPE_TRANSLATION:
+                    icon = R.drawable.logo_translate_round;
+                    break;
+                case ANSWER_TYPE_WEATHER:
+                    icon = R.drawable.logo_partly_cloudy;
+                    break;
+                case ANSWER_TYPE_WHEN_IS:
+                    icon = R.drawable.ic_event_round;
+                    break;
+                case ANSWER_TYPE_CURRENCY:
+                    icon = R.drawable.ic_loop_round;
+                    break;
                 default:
                     break;
             }
         } else if (suggestion.getType() == OmniboxSuggestionType.CALCULATOR) {
-            return R.drawable.ic_equals_sign_round;
+            icon = R.drawable.ic_equals_sign_round;
         }
-        return R.drawable.ic_google_round;
+
+        return icon == 0
+                ? super.getFallbackIcon(suggestion)
+                : OmniboxDrawableState.forLargeIcon(mContext, icon, /* allowTint= */ false);
     }
 }

@@ -4,10 +4,17 @@
 
 #include "android_webview/browser/page_load_metrics/page_load_metrics_initialize.h"
 
+#include "android_webview/browser/page_load_metrics/aw_gws_page_load_metrics_observer.h"
 #include "android_webview/browser/page_load_metrics/aw_page_load_metrics_memory_tracker_factory.h"
+#include "android_webview/browser/page_load_metrics/service_level_page_load_metrics_observer.h"
+#include "components/page_load_metrics/browser/features.h"
 #include "components/page_load_metrics/browser/metrics_web_contents_observer.h"
+#include "components/page_load_metrics/browser/observers/abandoned_page_load_metrics_observer.h"
+#include "components/page_load_metrics/browser/observers/third_party_metrics_observer.h"
 #include "components/page_load_metrics/browser/page_load_metrics_embedder_base.h"
 #include "components/page_load_metrics/browser/page_load_metrics_memory_tracker.h"
+#include "components/page_load_metrics/browser/page_load_tracker.h"
+#include "components/page_load_metrics/google/browser/gws_abandoned_page_load_metrics_observer.h"
 
 namespace content {
 class BrowserContext;
@@ -35,15 +42,16 @@ class PageLoadMetricsEmbedder
   bool IsNewTabPageUrl(const GURL& url) override;
   bool IsNoStatePrefetch(content::WebContents* web_contents) override;
   bool IsExtensionUrl(const GURL& url) override;
-  bool IsSidePanel(content::WebContents* web_contents) override;
+  bool IsNonTabWebUI(const GURL& url) override;
   page_load_metrics::PageLoadMetricsMemoryTracker*
   GetMemoryTrackerForBrowserContext(
       content::BrowserContext* browser_context) override;
+  bool IsIncognito(content::WebContents* web_contents) override;
 
  protected:
   // page_load_metrics::PageLoadMetricsEmbedderBase:
-  void RegisterEmbedderObservers(
-      page_load_metrics::PageLoadTracker* tracker) override;
+  void RegisterObservers(page_load_metrics::PageLoadTracker* tracker,
+                         content::NavigationHandle* navigation_handle) override;
 };
 
 PageLoadMetricsEmbedder::PageLoadMetricsEmbedder(
@@ -52,8 +60,16 @@ PageLoadMetricsEmbedder::PageLoadMetricsEmbedder(
 
 PageLoadMetricsEmbedder::~PageLoadMetricsEmbedder() = default;
 
-void PageLoadMetricsEmbedder::RegisterEmbedderObservers(
-    page_load_metrics::PageLoadTracker* tracker) {}
+void PageLoadMetricsEmbedder::RegisterObservers(
+    page_load_metrics::PageLoadTracker* tracker,
+    content::NavigationHandle* navigation_handle) {
+  RegisterCommonObservers(tracker);
+  tracker->AddObserver(std::make_unique<ThirdPartyMetricsObserver>());
+  tracker->AddObserver(std::make_unique<AbandonedPageLoadMetricsObserver>());
+  tracker->AddObserver(std::make_unique<GWSAbandonedPageLoadMetricsObserver>());
+  tracker->AddObserver(std::make_unique<AwGWSPageLoadMetricsObserver>());
+  tracker->AddObserver(std::make_unique<ServiceLevelPageLoadMetricsObserver>());
+}
 
 bool PageLoadMetricsEmbedder::IsNewTabPageUrl(const GURL& url) {
   return false;
@@ -68,19 +84,27 @@ bool PageLoadMetricsEmbedder::IsExtensionUrl(const GURL& url) {
   return false;
 }
 
-bool PageLoadMetricsEmbedder::IsSidePanel(content::WebContents* web_contents) {
-  // The side panel is not supported on Android so this always returns false.
+bool PageLoadMetricsEmbedder::IsNonTabWebUI(const GURL& url) {
+  // Android web view doesn't have non-tab webUI surfaces (such as desktop tab
+  // search, side panel, etc).
   return false;
 }
 
 page_load_metrics::PageLoadMetricsMemoryTracker*
 PageLoadMetricsEmbedder::GetMemoryTrackerForBrowserContext(
     content::BrowserContext* browser_context) {
-  if (!base::FeatureList::IsEnabled(features::kV8PerFrameMemoryMonitoring))
+  if (!base::FeatureList::IsEnabled(
+          page_load_metrics::features::kV8PerFrameMemoryMonitoring)) {
     return nullptr;
+  }
 
   return AwPageLoadMetricsMemoryTrackerFactory::GetForBrowserContext(
       browser_context);
+}
+
+bool PageLoadMetricsEmbedder::IsIncognito(content::WebContents* web_contents) {
+  // Android web view doesn't have Incognito mode.
+  return false;
 }
 
 }  // namespace

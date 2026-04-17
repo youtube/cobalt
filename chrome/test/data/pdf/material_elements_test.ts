@@ -4,7 +4,7 @@
 
 import 'chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/pdf_viewer_wrapper.js';
 
-import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {createBookmarksForTest} from './test_util.js';
 
@@ -19,7 +19,7 @@ const tests = [
    */
   function testPageSelectorChange() {
     document.body.innerHTML = '';
-    const selector = document.createElement('viewer-page-selector')!;
+    const selector = document.createElement('viewer-page-selector');
     selector.docLength = 1234;
     document.body.appendChild(selector);
 
@@ -65,7 +65,7 @@ const tests = [
     selector.docLength = 1234;
     document.body.appendChild(selector);
     chrome.test.assertEq(
-        '1234', selector.shadowRoot!.querySelector('#pagelength')!.textContent);
+        '1234', selector.shadowRoot.querySelector('#pagelength')!.textContent);
     chrome.test.assertEq(
         '4', selector.style.getPropertyValue('--page-length-digits'));
     chrome.test.succeed();
@@ -75,7 +75,7 @@ const tests = [
    * Test that viewer-bookmarks-content creates a bookmark tree with the correct
    * structure and behaviour.
    */
-  function testBookmarkStructure() {
+  async function testBookmarkStructure() {
     document.body.innerHTML = '';
     const bookmarkContent = createBookmarksForTest();
     bookmarkContent.bookmarks = [{
@@ -88,19 +88,19 @@ const tests = [
     }];
     document.body.appendChild(bookmarkContent);
 
-    // Force templates to render.
-    flush();
+    // Wait for templates to render.
+    await microtasksFinished();
 
     const rootBookmarks =
-        bookmarkContent.shadowRoot!.querySelectorAll('viewer-bookmark');
+        bookmarkContent.shadowRoot.querySelectorAll('viewer-bookmark');
     chrome.test.assertEq(1, rootBookmarks.length, 'one root bookmark');
     const rootBookmark = rootBookmarks[0]!;
     rootBookmark.$.expand.click();
 
-    flush();
+    await microtasksFinished();
 
     const subBookmarks =
-        rootBookmark.shadowRoot!.querySelectorAll('viewer-bookmark');
+        rootBookmark.shadowRoot.querySelectorAll('viewer-bookmark');
     chrome.test.assertEq(2, subBookmarks.length, 'two sub bookmarks');
     chrome.test.assertEq(
         1, subBookmarks[1]!.depth, 'sub bookmark depth correct');
@@ -111,9 +111,11 @@ const tests = [
     });
 
     rootBookmark.$.item.click();
+    await microtasksFinished();
     chrome.test.assertEq(1, lastPageChange);
 
     subBookmarks[1]!.$.item.click();
+    await microtasksFinished();
     chrome.test.assertEq(3, lastPageChange);
 
     chrome.test.succeed();

@@ -2,10 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chromeos/components/onc/onc_signature.h"
 
+#include "base/memory/raw_ptr_exclusion.h"
 #include "components/onc/onc_constants.h"
-
 using base::Value;
 
 namespace chromeos {
@@ -181,6 +186,8 @@ const OncFieldSignature third_party_vpn_fields[] = {
 
 const OncFieldSignature arc_vpn_fields[] = {
     {::onc::kRecommended, &kRecommendedSignature},
+    // Deprecated. Keeping the signature for ONC backward compatibility. See
+    // b/185202698 for details.
     {::onc::arc_vpn::kTunnelChrome, &kStringSignature},
     {nullptr}};
 
@@ -229,6 +236,7 @@ const OncFieldSignature ipconfig_fields[] = {
     {::onc::ipconfig::kType, &kStringSignature,
      []() { return base::Value(::onc::ipconfig::kIPv4); }},
     {::onc::ipconfig::kWebProxyAutoDiscoveryUrl, &kStringSignature},
+    {::onc::ipconfig::kMTU, &kIntegerSignature},
     {nullptr}};
 
 const OncFieldSignature proxy_location_fields[] = {
@@ -256,6 +264,7 @@ const OncFieldSignature wifi_fields[] = {
     {::onc::wifi::kAllowGatewayARPPolling, &kBoolSignature},
     {::onc::wifi::kAutoConnect, &kBoolSignature},
     {::onc::wifi::kBSSIDAllowlist, &kStringListSignature},
+    {::onc::wifi::kBSSIDRequested, &kStringSignature},
     {::onc::wifi::kEAP, &kEAPSignature},
     {::onc::wifi::kHexSSID, &kStringSignature},
     {::onc::wifi::kHiddenSSID, &kBoolSignature},
@@ -287,6 +296,7 @@ const OncFieldSignature cellular_provider_fields[] = {
     {nullptr}};
 
 const OncFieldSignature cellular_apn_fields[] = {
+    {::onc::kRecommended, &kRecommendedSignature},
     {::onc::cellular_apn::kAccessPointName, &kStringSignature},
     {::onc::cellular_apn::kName, &kStringSignature},
     {::onc::cellular_apn::kUsername, &kStringSignature},
@@ -320,10 +330,12 @@ const OncFieldSignature cellular_fields[] = {
     {::onc::cellular::kAllowRoaming, &kBoolSignature},
     {::onc::cellular::kAPN, &kCellularApnSignature},
     {::onc::cellular::kAPNList, &kCellularApnListSignature},
+    {::onc::cellular::kAdminAssignedAPNIds, &kStringListSignature},
     {::onc::cellular::kAutoConnect, &kBoolSignature},
     {::onc::cellular::kCustomAPNList, &kCellularApnListSignature},
     {::onc::cellular::kICCID, &kStringSignature},
     {::onc::cellular::kSMDPAddress, &kStringSignature},
+    {::onc::cellular::kSMDSAddress, &kStringSignature},
     {nullptr}};
 
 const OncFieldSignature cellular_with_state_fields[] = {
@@ -359,6 +371,7 @@ const OncFieldSignature cellular_with_state_fields[] = {
 
 const OncFieldSignature network_configuration_fields[] = {
     {::onc::network_config::kCellular, &kCellularSignature},
+    {::onc::network_config::kCheckCaptivePortal, &kStringSignature},
     {::onc::network_config::kEthernet, &kEthernetSignature},
     {::onc::network_config::kGUID, &kStringSignature},
     {::onc::network_config::kIPAddressConfigType, &kStringSignature,
@@ -396,6 +409,8 @@ const OncFieldSignature network_with_state_fields[] = {
 const OncFieldSignature global_network_configuration_fields[] = {
     {::onc::global_network_config::kAllowCellularSimLock, &kBoolSignature,
      []() { return base::Value(true); }},
+    {::onc::global_network_config::kAllowCellularHotspot, &kBoolSignature,
+     []() { return base::Value(true); }},
     {::onc::global_network_config::kAllowOnlyPolicyCellularNetworks,
      &kBoolSignature},
     {::onc::global_network_config::kAllowOnlyPolicyNetworksToAutoconnect,
@@ -404,10 +419,24 @@ const OncFieldSignature global_network_configuration_fields[] = {
      &kBoolSignature},
     {::onc::global_network_config::kAllowOnlyPolicyWiFiToConnectIfAvailable,
      &kBoolSignature},
+    {::onc::global_network_config::kAllowTextMessages, &kStringSignature},
     {/* Deprecated */ ::onc::global_network_config::kBlacklistedHexSSIDs,
      &kStringListSignature},
     {::onc::global_network_config::kBlockedHexSSIDs, &kStringListSignature},
     {::onc::global_network_config::kDisableNetworkTypes, &kStringListSignature},
+    {::onc::global_network_config::kRecommendedValuesAreEphemeral,
+     &kBoolSignature},
+    {::onc::global_network_config::
+         kUserCreatedNetworkConfigurationsAreEphemeral,
+     &kBoolSignature},
+    {::onc::global_network_config::kAllowAPNModification, &kBoolSignature,
+     []() { return base::Value(true); }},
+    {::onc::global_network_config::kPSIMAdminAssignedAPNIds,
+     &kStringListSignature},
+    {::onc::global_network_config::kPSIMAdminAssignedAPNs,
+     &kCellularApnListSignature},
+    {::onc::global_network_config::kDisconnectWiFiOnEthernet,
+     &kStringSignature},
     {nullptr}};
 
 const OncFieldSignature certificate_fields[] = {
@@ -431,6 +460,7 @@ const OncFieldSignature toplevel_configuration_fields[] = {
      &kNetworkConfigurationListSignature},
     {::onc::toplevel_config::kGlobalNetworkConfiguration,
      &kGlobalNetworkConfigurationSignature},
+    {::onc::toplevel_config::kAdminAPNList, &kCellularApnListSignature},
     {::onc::toplevel_config::kType, &kStringSignature},
     {::onc::encrypted::kCipher, &kStringSignature},
     {::onc::encrypted::kCiphertext, &kStringSignature},
@@ -505,6 +535,8 @@ const OncValueSignature kGlobalNetworkConfigurationSignature = {
     base::Value::Type::DICT, global_network_configuration_fields, nullptr};
 const OncValueSignature kCertificateListSignature = {
     base::Value::Type::LIST, nullptr, &kCertificateSignature};
+const OncValueSignature kAdminApnListSignature = {
+    base::Value::Type::LIST, nullptr, &kCellularApnSignature};
 const OncValueSignature kNetworkConfigurationListSignature = {
     base::Value::Type::LIST, nullptr, &kNetworkConfigurationSignature};
 const OncValueSignature kToplevelConfigurationSignature = {
@@ -557,7 +589,9 @@ const OncFieldSignature* GetFieldSignature(const OncValueSignature& signature,
 namespace {
 
 struct CredentialEntry {
-  const OncValueSignature* value_signature;
+  // This field is not a raw_ptr<> because it only ever points to statically-
+  // allocated data which is never freed, and thus can never dangle.
+  RAW_PTR_EXCLUSION const OncValueSignature* value_signature;
   const char* field_name;
 };
 

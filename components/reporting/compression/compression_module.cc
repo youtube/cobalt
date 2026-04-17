@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 #include "components/reporting/compression/compression_module.h"
 
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -10,18 +11,12 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/strings/string_piece.h"
 #include "base/task/thread_pool.h"
 #include "components/reporting/proto/synced/record.pb.h"
 #include "components/reporting/resources/resource_manager.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/snappy/src/snappy.h"
 
 namespace reporting {
-
-BASE_FEATURE(kCompressReportingPipeline,
-             "CompressReportingPipeline",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // static
 scoped_refptr<CompressionModule> CompressionModule::Create(
@@ -34,14 +29,8 @@ scoped_refptr<CompressionModule> CompressionModule::Create(
 void CompressionModule::CompressRecord(
     std::string record,
     scoped_refptr<ResourceManager> memory_resource,
-    base::OnceCallback<void(std::string,
-                            absl::optional<CompressionInformation>)> cb) const {
-  if (!is_enabled()) {
-    // Compression disabled, don't compress and don't return compression
-    // information.
-    std::move(cb).Run(std::move(record), absl::nullopt);
-    return;
-  }
+    base::OnceCallback<void(std::string, std::optional<CompressionInformation>)>
+        cb) const {
   // Compress if record is larger than the compression threshold and compression
   // enabled
   switch (compression_type_) {
@@ -81,11 +70,6 @@ void CompressionModule::CompressRecord(
   }
 }
 
-// static
-bool CompressionModule::is_enabled() {
-  return base::FeatureList::IsEnabled(kCompressReportingPipeline);
-}
-
 CompressionModule::CompressionModule(
     uint64_t compression_threshold,
     CompressionInformation::CompressionAlgorithm compression_type)
@@ -95,8 +79,8 @@ CompressionModule::~CompressionModule() = default;
 
 void CompressionModule::CompressRecordSnappy(
     std::string record,
-    base::OnceCallback<void(std::string,
-                            absl::optional<CompressionInformation>)> cb) const {
+    base::OnceCallback<void(std::string, std::optional<CompressionInformation>)>
+        cb) const {
   // Compression is enabled and crosses the threshold.
   std::string output;
   snappy::Compress(record.data(), record.size(), &output);

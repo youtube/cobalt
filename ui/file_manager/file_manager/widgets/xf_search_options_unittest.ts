@@ -2,17 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {getTrustedHTML} from 'chrome://resources/js/static_types.js';
 import {assertDeepEquals} from 'chrome://webui-test/chai_assert.js';
 
-import {SearchLocation, SearchRecency} from '../externs/ts/state.js';
+import {SearchLocation, SearchRecency} from '../state/state.js';
 
-import {OptionKind, SEARCH_OPTIONS_CHANGED, XfSearchOptionsElement} from './xf_search_options.js';
+import type {XfSearchOptionsElement} from './xf_search_options.js';
+import {OptionKind, SEARCH_OPTIONS_CHANGED} from './xf_search_options.js';
 
 /**
  * Creates new <xf-search-options> element for each test.
  */
 export function setUp() {
-  document.body.innerHTML = '<xf-search-options></xf-search-options>';
+  document.body.innerHTML = getTrustedHTML`
+    <xf-search-options></xf-search-options>
+  `;
 }
 
 /**

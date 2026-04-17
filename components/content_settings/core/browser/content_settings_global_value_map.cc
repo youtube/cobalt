@@ -17,18 +17,19 @@ namespace {
 
 class RuleIteratorSimple : public RuleIterator {
  public:
-  RuleIteratorSimple(ContentSetting setting) : setting_(setting) {}
+  explicit RuleIteratorSimple(ContentSetting setting) : setting_(setting) {}
 
   RuleIteratorSimple(const RuleIteratorSimple&) = delete;
   RuleIteratorSimple& operator=(const RuleIteratorSimple&) = delete;
 
   bool HasNext() const override { return !is_done_; }
 
-  Rule Next() override {
+  std::unique_ptr<Rule> Next() override {
     DCHECK(HasNext());
     is_done_ = true;
-    return Rule(ContentSettingsPattern::Wildcard(),
-                ContentSettingsPattern::Wildcard(), base::Value(setting_), {});
+    return std::make_unique<Rule>(ContentSettingsPattern::Wildcard(),
+                                  ContentSettingsPattern::Wildcard(),
+                                  base::Value(setting_), RuleMetaData{});
   }
 
  private:
@@ -38,9 +39,9 @@ class RuleIteratorSimple : public RuleIterator {
 
 }  // namespace
 
-GlobalValueMap::GlobalValueMap() {}
+GlobalValueMap::GlobalValueMap() = default;
 
-GlobalValueMap::~GlobalValueMap() {}
+GlobalValueMap::~GlobalValueMap() = default;
 
 std::unique_ptr<RuleIterator> GlobalValueMap::GetRuleIterator(
     ContentSettingsType content_type) const {

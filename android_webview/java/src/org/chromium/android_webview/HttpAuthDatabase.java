@@ -11,34 +11,39 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteException;
 import android.util.Log;
 
+import org.chromium.android_webview.common.Lifetime;
+import org.chromium.build.annotations.EnsuresNonNullIf;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.build.annotations.RequiresNonNull;
+
 /**
  * This database is used to support WebView's setHttpAuthUsernamePassword and
  * getHttpAuthUsernamePassword methods, and WebViewDatabase's clearHttpAuthUsernamePassword and
  * hasHttpAuthUsernamePassword methods.
  *
- * While this class is intended to be used as a singleton, this property is not enforced in this
+ * <p>While this class is intended to be used as a singleton, this property is not enforced in this
  * layer, primarily for ease of testing. To line up with the classic implementation and behavior,
  * there is no specific handling and reporting when SQL errors occur.
  *
- * Note on thread-safety: As per the classic implementation, most API functions have thread safety
- * provided by the underlying SQLiteDatabase instance. The exception is database opening: this
- * is handled in the dedicated background thread, which also provides a performance gain
- * if triggered early on (e.g. as a side effect of CookieSyncManager.createInstance() call),
+ * <p>Note on thread-safety: As per the classic implementation, most API functions have thread
+ * safety provided by the underlying SQLiteDatabase instance. The exception is database opening:
+ * this is handled in the dedicated background thread, which also provides a performance gain if
+ * triggered early on (e.g. as a side effect of CookieSyncManager.createInstance() call),
  * sufficiently in advance of the first blocking usage of the API.
  */
+@Lifetime.Profile
+@NullMarked
 public class HttpAuthDatabase {
-
     private static final String LOGTAG = "HttpAuthDatabase";
 
     private static final int DATABASE_VERSION = 1;
 
-    private SQLiteDatabase mDatabase;
+    private @Nullable SQLiteDatabase mDatabase;
 
     private static final String ID_COL = "_id";
 
-    private static final String[] ID_PROJECTION = new String[] {
-        ID_COL
-    };
+    private static final String[] ID_PROJECTION = new String[] {ID_COL};
 
     // column id strings for "httpauth" table
     private static final String HTTPAUTH_TABLE_NAME = "httpauth";
@@ -47,9 +52,7 @@ public class HttpAuthDatabase {
     private static final String HTTPAUTH_USERNAME_COL = "username";
     private static final String HTTPAUTH_PASSWORD_COL = "password";
 
-    /**
-     * Initially false until the background thread completes.
-     */
+    /** Initially false until the background thread completes. */
     private boolean mInitialized;
 
     private final Object mInitializedLock = new Object();
@@ -107,7 +110,11 @@ public class HttpAuthDatabase {
         } catch (SQLiteException e) {
             // try again by deleting the old db and create a new one
             if (context.deleteDatabase(databaseFile)) {
-                mDatabase = context.openOrCreateDatabase(databaseFile, 0, null);
+                try {
+                    mDatabase = context.openOrCreateDatabase(databaseFile, 0, null);
+                } catch (SQLiteException ex) {
+                    Log.e(LOGTAG, "Caught exception while trying init again", ex);
+                }
             }
         }
 
@@ -128,14 +135,27 @@ public class HttpAuthDatabase {
         }
     }
 
+    @RequiresNonNull("mDatabase")
     private void createTable() {
-        mDatabase.execSQL("CREATE TABLE " + HTTPAUTH_TABLE_NAME
-                + " (" + ID_COL + " INTEGER PRIMARY KEY, "
-                + HTTPAUTH_HOST_COL + " TEXT, " + HTTPAUTH_REALM_COL
-                + " TEXT, " + HTTPAUTH_USERNAME_COL + " TEXT, "
-                + HTTPAUTH_PASSWORD_COL + " TEXT," + " UNIQUE ("
-                + HTTPAUTH_HOST_COL + ", " + HTTPAUTH_REALM_COL
-                + ") ON CONFLICT REPLACE);");
+        mDatabase.execSQL(
+                "CREATE TABLE "
+                        + HTTPAUTH_TABLE_NAME
+                        + " ("
+                        + ID_COL
+                        + " INTEGER PRIMARY KEY, "
+                        + HTTPAUTH_HOST_COL
+                        + " TEXT, "
+                        + HTTPAUTH_REALM_COL
+                        + " TEXT, "
+                        + HTTPAUTH_USERNAME_COL
+                        + " TEXT, "
+                        + HTTPAUTH_PASSWORD_COL
+                        + " TEXT,"
+                        + " UNIQUE ("
+                        + HTTPAUTH_HOST_COL
+                        + ", "
+                        + HTTPAUTH_REALM_COL
+                        + ") ON CONFLICT REPLACE);");
 
         mDatabase.setVersion(DATABASE_VERSION);
     }
@@ -146,6 +166,7 @@ public class HttpAuthDatabase {
      *
      * @return true if the database was initialized, false otherwise
      */
+    @EnsuresNonNullIf("mDatabase")
     private boolean waitForInit() {
         synchronized (mInitializedLock) {
             while (!mInitialized) {
@@ -168,8 +189,8 @@ public class HttpAuthDatabase {
      * @param username the username for the password.
      * @param password the password
      */
-    public void setHttpAuthUsernamePassword(String host, String realm, String username,
-            String password) {
+    public void setHttpAuthUsernamePassword(
+            @Nullable String host, @Nullable String realm, String username, String password) {
         if (host == null || realm == null || !waitForInit()) {
             return;
         }
@@ -189,30 +210,37 @@ public class HttpAuthDatabase {
      *
      * @param host the host the password applies to
      * @param realm the realm the password applies to
-     * @return a String[] if found where String[0] is username (which can be null) and
-     *         String[1] is password.  Null is returned if it can't find anything.
+     * @return a String[] if found where String[0] is username (which can be null) and String[1] is
+     *     password. Null is returned if it can't find anything.
      */
-    public String[] getHttpAuthUsernamePassword(String host, String realm) {
+    public String @Nullable [] getHttpAuthUsernamePassword(
+            @Nullable String host, @Nullable String realm) {
         if (host == null || realm == null || !waitForInit()) {
             return null;
         }
 
-        final String[] columns = new String[] {
-            HTTPAUTH_USERNAME_COL, HTTPAUTH_PASSWORD_COL
-        };
-        final String selection = "(" + HTTPAUTH_HOST_COL + " == ?) AND "
-                + "(" + HTTPAUTH_REALM_COL + " == ?)";
+        final String[] columns = new String[] {HTTPAUTH_USERNAME_COL, HTTPAUTH_PASSWORD_COL};
+        final String selection =
+                "(" + HTTPAUTH_HOST_COL + " == ?) AND " + "(" + HTTPAUTH_REALM_COL + " == ?)";
 
         String[] ret = null;
         Cursor cursor = null;
         try {
-            cursor = mDatabase.query(HTTPAUTH_TABLE_NAME, columns, selection,
-                    new String[] { host, realm }, null, null, null);
+            cursor =
+                    mDatabase.query(
+                            HTTPAUTH_TABLE_NAME,
+                            columns,
+                            selection,
+                            new String[] {host, realm},
+                            null,
+                            null,
+                            null);
             if (cursor.moveToFirst()) {
-                ret = new String[] {
-                        cursor.getString(cursor.getColumnIndexOrThrow(HTTPAUTH_USERNAME_COL)),
-                        cursor.getString(cursor.getColumnIndexOrThrow(HTTPAUTH_PASSWORD_COL)),
-                };
+                ret =
+                        new String[] {
+                            cursor.getString(cursor.getColumnIndexOrThrow(HTTPAUTH_USERNAME_COL)),
+                            cursor.getString(cursor.getColumnIndexOrThrow(HTTPAUTH_PASSWORD_COL)),
+                        };
             }
         } catch (IllegalStateException e) {
             Log.e(LOGTAG, "getHttpAuthUsernamePassword", e);
@@ -235,8 +263,9 @@ public class HttpAuthDatabase {
         Cursor cursor = null;
         boolean ret = false;
         try {
-            cursor = mDatabase.query(HTTPAUTH_TABLE_NAME, ID_PROJECTION, null, null, null, null,
-                    null);
+            cursor =
+                    mDatabase.query(
+                            HTTPAUTH_TABLE_NAME, ID_PROJECTION, null, null, null, null, null);
             ret = cursor.moveToFirst();
         } catch (IllegalStateException e) {
             Log.e(LOGTAG, "hasEntries", e);
@@ -246,9 +275,7 @@ public class HttpAuthDatabase {
         return ret;
     }
 
-    /**
-     * Clears the HTTP authentication password database.
-     */
+    /** Clears the HTTP authentication password database. */
     public void clearHttpAuthUsernamePassword() {
         if (!waitForInit()) {
             return;

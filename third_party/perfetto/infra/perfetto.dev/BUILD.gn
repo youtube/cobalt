@@ -83,13 +83,15 @@ action("node_modules") {
     "--stamp",
     rebase_path(stamp_file, root_build_dir),
     "--chdir=$cur_dir",
-    rebase_path("../../tools/npm", root_build_dir),
-    "ci",
+    rebase_path("../../tools/pnpm", root_build_dir),
+    "install",
+    "--shamefully-hoist",
+    "--frozen-lockfile",
   ]
   inputs = [
     "../../tools/npm",
     "package.json",
-    "package-lock.json",
+    "pnpm-lock.yaml",
   ]
   outputs = [ stamp_file ]
 }
@@ -152,7 +154,7 @@ md_to_html("gen_index") {
 }
 
 nodejs_script("style_scss") {
-  script = "node_modules/.bin/node-sass"
+  script = "node_modules/sass/sass.js"
   input = "src/assets/style.scss"
   inputs = [ input ]
   output = "${perfetto_website_out_dir}/assets/style.css"
@@ -258,12 +260,12 @@ stdlib_docs_md = "${target_gen_dir}/stdlib_docs.md"
 action("gen_stdlib_docs_md") {
   script = "src/gen_stdlib_docs_md.py"
   label_info = get_label_info(
-          "../../src/trace_processor/stdlib:gen_amalgamated_stdlib_json_docs",
+          "../../src/trace_processor/perfetto_sql/stdlib:stdlib_json_docs",
           "target_gen_dir")
   absolute_input_path = label_info + "/stdlib_docs.json"
   deps = [
     "../../python:trace_processor_stdlib_docs",
-    "../../src/trace_processor/stdlib:gen_amalgamated_stdlib_json_docs",
+    "../../src/trace_processor/perfetto_sql/stdlib:stdlib_json_docs",
   ]
   outputs = [ stdlib_docs_md ]
   args = [
@@ -349,6 +351,22 @@ foreach(source, mdfiles) {
 
   md_to_html("mdfile_${source}") {
     markdown = rebase_path(source, ".", root_build_dir)
+    html_template = "src/template_markdown.html"
+    out_html = "docs/${filename}"
+    deps = [ ":gen_toc" ]
+  }
+  mdtargets += [ ":mdfile_${source}" ]
+}
+
+# Files which have been removed/renamed/moved and now have HTTP redirections in
+# src/assets/script.js
+removed_renamed_moved_files = [ "analysis/common-queries.md" ]
+
+foreach(source, removed_renamed_moved_files) {
+  filename = rebase_path(string_replace(source, ".md", ""),
+                         rebase_path("../../docs", root_build_dir))
+  md_to_html("mdfile_${source}") {
+    markdown = "src/empty.md"
     html_template = "src/template_markdown.html"
     out_html = "docs/${filename}"
     deps = [ ":gen_toc" ]

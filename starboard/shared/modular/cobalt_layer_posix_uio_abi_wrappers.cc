@@ -16,6 +16,12 @@
 
 extern "C" {
 
+ssize_t __abi_wrap_readv(int fildes, const struct iovec* iov, int iovcnt);
+
+ssize_t readv(int fildes, const struct iovec* iov, int iovcnt) {
+  return __abi_wrap_readv(fildes, iov, iovcnt);
+}
+
 ssize_t __abi_wrap_writev(int fildes, const struct iovec* iov, int iovcnt);
 
 ssize_t writev(int fildes, const struct iovec* iov, int iovcnt) {

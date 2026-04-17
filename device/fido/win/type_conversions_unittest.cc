@@ -12,6 +12,7 @@
 #include "device/fido/attestation_statement.h"
 #include "device/fido/fido_parsing_utils.h"
 #include "device/fido/fido_test_data.h"
+#include "device/fido/fido_transport_protocol.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -25,7 +26,7 @@ TEST(TypeConversionsTest, ToAuthenticatorMakeCredentialResponse) {
     std::vector<uint8_t> cbor_attestation_statement;
     uint8_t used_transport;  // WEBAUTHN_CTAP_TRANSPORT_* from <webauthn.h>
     bool success;
-    absl::optional<FidoTransportProtocol> expected_transport;
+    std::optional<FidoTransportProtocol> expected_transport;
   } test_cases[] = {
       {L"packed",
        fido_parsing_utils::Materialize(test_data::kTestSignAuthenticatorData),
@@ -49,7 +50,7 @@ TEST(TypeConversionsTest, ToAuthenticatorMakeCredentialResponse) {
        fido_parsing_utils::Materialize(test_data::kTestSignAuthenticatorData),
        fido_parsing_utils::Materialize(
            test_data::kPackedAttestationStatementCBOR),
-       WEBAUTHN_CTAP_TRANSPORT_TEST, true, absl::nullopt},
+       WEBAUTHN_CTAP_TRANSPORT_TEST, true, std::nullopt},
       // Unknown attestation formats
       {L"weird-unknown-format",
        fido_parsing_utils::Materialize(test_data::kTestSignAuthenticatorData),
@@ -124,6 +125,24 @@ TEST(TypeConversionsTest, ToAuthenticatorMakeCredentialResponse) {
                   AsCBOR(response->attestation_object.attestation_statement())),
               test.cbor_attestation_statement);
     EXPECT_EQ(response->transport_used, test.expected_transport);
+    if (test.expected_transport == FidoTransportProtocol::kInternal) {
+      EXPECT_THAT(*response->transports,
+                  testing::ElementsAre(FidoTransportProtocol::kInternal));
+    } else {
+      EXPECT_FALSE(response->transports);
+    }
+  }
+}
+
+TEST(TypeConversionsTest, Transports) {
+  for (int i = 0; i < 16; i++) {
+    const uint32_t mask = 1u << i;
+    const std::optional<FidoTransportProtocol> transport =
+        FromWinTransportsMask(mask);
+    if (transport) {
+      const uint32_t result = ToWinTransportsMask({*transport});
+      EXPECT_EQ(result, mask);
+    }
   }
 }
 

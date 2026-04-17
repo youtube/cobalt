@@ -14,15 +14,14 @@ items:
 - caption: Disable device power status reporting
   value: false
 owners:
-- cros-reporting-team@google.com
+- cros-reporting-eng@google.com
 - lbaraz@chromium.org
 - antrim@chromium.org
 schema:
   type: boolean
-supported_chrome_os_management:
-- google_cloud
 supported_on:
 - chrome_os:73-
 tags:
 - admin-sharing
 type: main
+generate_device_proto: False

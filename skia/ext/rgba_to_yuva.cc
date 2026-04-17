@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "skia/ext/rgba_to_yuva.h"
 
 #include <array>
@@ -56,7 +61,7 @@ void BlitRGBAToYUVA(SkImage* src_image,
                                0, 0, 0, 1, 0);
 
   // Only Y_UV has been tested.
-  SkColorMatrix permutation_matrices[SkYUVAInfo::kMaxPlanes];
+  std::array<SkColorMatrix, SkYUVAInfo::kMaxPlanes> permutation_matrices;
   switch (dst_yuva_info.planeConfig()) {
     case SkYUVAInfo::PlaneConfig::kY_UV:
       permutation_matrices[0] = xxxY;

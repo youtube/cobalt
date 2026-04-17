@@ -9,11 +9,12 @@
 #include <memory>
 
 #include "base/component_export.h"
+#include "base/containers/flat_map.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
+#include "components/viz/common/frame_timing_details.h"
 #include "components/viz/common/surfaces/local_surface_id.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/gfx/geometry/rect.h"
@@ -22,11 +23,12 @@
 
 namespace cc {
 class UIResourceManager;
-class TaskGraphRunner;
 }  // namespace cc
 
 namespace viz {
 class CopyOutputRequest;
+class SurfaceId;
+class SurfaceRange;
 }
 
 namespace cc::slim {
@@ -39,21 +41,20 @@ class LayerTreeClient;
 // submitting frames and managing the lifetime of `FrameSink`s.
 class COMPONENT_EXPORT(CC_SLIM) LayerTree {
  public:
-  struct COMPONENT_EXPORT(CC_SLIM) InitParams {
-    InitParams();
-    ~InitParams();
-    InitParams(InitParams&&);
-    InitParams& operator=(InitParams&&);
+  using SurfaceRangesAndCounts = base::flat_map<viz::SurfaceRange, int>;
 
-    // Non-owning. `client` needs to outlive `LayerTree`.
-    raw_ptr<LayerTreeClient> client = nullptr;
-
-    // Only used when wrapping cc.
-    scoped_refptr<base::SingleThreadTaskRunner> task_runner;
-    raw_ptr<cc::TaskGraphRunner> cc_task_graph_runner = nullptr;
+  // A scoped object to keep a `viz::Surface` referenced, such that a
+  // `CopyOutputRequest` can be made against it, even after the original
+  // `SurfaceLayer` is destroyed.
+  class ScopedKeepSurfaceAlive {
+   public:
+    ScopedKeepSurfaceAlive() = default;
+    ScopedKeepSurfaceAlive(const ScopedKeepSurfaceAlive&) = delete;
+    ScopedKeepSurfaceAlive& operator=(const ScopedKeepSurfaceAlive&) = delete;
+    virtual ~ScopedKeepSurfaceAlive() = default;
   };
 
-  static std::unique_ptr<LayerTree> Create(InitParams params);
+  static std::unique_ptr<LayerTree> Create(LayerTreeClient* client);
 
   virtual ~LayerTree() = default;
 
@@ -110,7 +111,8 @@ class COMPONENT_EXPORT(CC_SLIM) LayerTree {
   // Registers a callback that is run when the next frame successfully makes it
   // to the screen (it's entirely possible some frames may be dropped between
   // the time this is called and the callback is run).
-  using SuccessfulCallback = base::OnceCallback<void(base::TimeTicks)>;
+  using SuccessfulCallback =
+      base::OnceCallback<void(const viz::FrameTimingDetails&)>;
   virtual void RequestSuccessfulPresentationTimeForNextFrame(
       SuccessfulCallback callback) = 0;
 
@@ -131,9 +133,9 @@ class COMPONENT_EXPORT(CC_SLIM) LayerTree {
   virtual base::OnceClosure DeferBeginFrame() = 0;
 
   // Requests to produce a new frame even if no content has changed.
-  // See `cc::LayerTreeHost` for distinction between these methods.
+  // See `cc::LayerTreeHost` for distinction between this and
+  // `SetNeedsRedrawForTesting()`.
   virtual void SetNeedsAnimate() = 0;
-  virtual void SetNeedsRedraw() = 0;
 
   // Works in combination with DelayedScheduler to indicate all the updates in
   // for a frame has arrived and a frame should be produced now. If compositor
@@ -144,8 +146,14 @@ class COMPONENT_EXPORT(CC_SLIM) LayerTree {
   // moved out of slim.
   virtual void MaybeCompositeNow() = 0;
 
-  // Set the top controls visual height for the next frame submitted.
-  virtual void UpdateTopControlsVisibleHeight(float height) = 0;
+  virtual std::unique_ptr<ScopedKeepSurfaceAlive> CreateScopedKeepSurfaceAlive(
+      const viz::SurfaceId& surface_id) = 0;
+
+  // Exposes the ranges of referenced surfaces for testing.
+  virtual const SurfaceRangesAndCounts& GetSurfaceRangesForTesting() const = 0;
+
+  // Force to produce a compositor frame even if nothing has changed.
+  virtual void SetNeedsRedrawForTesting() = 0;
 };
 
 }  // namespace cc::slim

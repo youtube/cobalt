@@ -18,6 +18,7 @@
 #include <mutex>
 
 #include "starboard/common/log.h"
+#include "starboard/egl_and_gles/buildflags.h"
 
 #if defined(ADDRESS_SANITIZER)
 // By default, Leak Sanitizer and Address Sanitizer is expected to exist
@@ -60,39 +61,18 @@
 #define EGL_WIDTH SB_EGL_WIDTH
 #define EGL_WINDOW_BIT SB_EGL_WINDOW_BIT
 
-#ifndef EGL_ANGLE_platform_angle
-#define EGL_ANGLE_platform_angle 1
+#if BUILDFLAG(STARBOARD_GL_TYPE_ANGLE)
 #define EGL_PLATFORM_ANGLE_ANGLE 0x3202
 #define EGL_PLATFORM_ANGLE_TYPE_ANGLE 0x3203
+
 #define EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE 0x3209
 #define EGL_PLATFORM_ANGLE_DEVICE_TYPE_EGL_ANGLE 0x348E
-#endif /* EGL_ANGLE_platform_angle */
 
-#ifndef EGL_ANGLE_platform_angle_opengl
-#define EGL_ANGLE_platform_angle_opengl 1
 #define EGL_PLATFORM_ANGLE_TYPE_OPENGL_ANGLE 0x320D
 #define EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE 0x320E
-#endif /* EGL_ANGLE_platform_angle_opengl */
 
-#if !defined(EGL_VERSION_1_5)
-// Lifted verbatim from egl.h.
-#if defined(_WIN32) && !defined(_WIN32_WCE) && !defined(__SCITECH_SNAP__)
-/* Win32 but not WinCE */
-#define KHRONOS_APIENTRY __stdcall
-#else
-#define KHRONOS_APIENTRY
-#endif
-
-#ifndef EGLAPIENTRY
-#define EGLAPIENTRY KHRONOS_APIENTRY
-#endif
-#define EGLAPIENTRYP EGLAPIENTRY*
-
-typedef SbEglDisplay(EGLAPIENTRYP PFNEGLGETPLATFORMDISPLAYEXTPROC)(
-    SbEglEnum platform,
-    void* native_display,
-    const EGLint* attrib_list);
-#endif  // !defined(EGL_VERSION_1_5)
+#define EGL_PLATFORM_ANGLE_TYPE_METAL_ANGLE 0x3489
+#endif  // BUILDFLAG(STARBOARD_GL_TYPE_ANGLE)
 
 #define EGL_CALL(x)                                           \
   do {                                                        \
@@ -122,14 +102,16 @@ FakeGraphicsContextProvider::~FakeGraphicsContextProvider() {
   RunOnGlesContextThread(
       std::bind(&FakeGraphicsContextProvider::DestroyContext, this));
   functor_queue_.Wake();
-  pthread_join(decode_target_context_thread_, NULL);
+  if (gles_context_thread_) {
+    gles_context_thread_->Join();
+  }
   EGL_CALL(eglDestroySurface(display_, surface_));
   EGL_CALL(eglTerminate(display_));
 }
 
 void FakeGraphicsContextProvider::RunOnGlesContextThread(
     const std::function<void()>& functor) {
-  if (pthread_equal(pthread_self(), decode_target_context_thread_)) {
+  if (SbThreadGetId() == gles_context_thread_id_.load()) {
     functor();
     return;
   }
@@ -148,7 +130,7 @@ void FakeGraphicsContextProvider::RunOnGlesContextThread(
 
 void FakeGraphicsContextProvider::ReleaseDecodeTarget(
     SbDecodeTarget decode_target) {
-  if (pthread_equal(pthread_self(), decode_target_context_thread_)) {
+  if (SbThreadGetId() == gles_context_thread_id_.load()) {
     SbDecodeTargetRelease(decode_target);
     return;
   }
@@ -167,20 +149,8 @@ void FakeGraphicsContextProvider::ReleaseDecodeTarget(
   condition_variable.wait(lock, [&functor_done] { return functor_done; });
 }
 
-// static
-void* FakeGraphicsContextProvider::ThreadEntryPoint(void* context) {
-#if defined(__APPLE__)
-  pthread_setname_np("dt_context");
-#else
-  pthread_setname_np(pthread_self(), "dt_context");
-#endif
-  auto provider = static_cast<FakeGraphicsContextProvider*>(context);
-  provider->RunLoop();
-
-  return NULL;
-}
-
 void FakeGraphicsContextProvider::RunLoop() {
+  gles_context_thread_id_.store(SbThreadGetId());
   while (std::function<void()> functor = functor_queue_.Get()) {
     if (!functor) {
       break;
@@ -190,40 +160,39 @@ void FakeGraphicsContextProvider::RunLoop() {
 }
 
 void FakeGraphicsContextProvider::InitializeEGL() {
-#if !defined(EGL_VERSION_1_5)
-  std::vector<EGLint> display_attribs = {
+  // ANGLE is known to implement EGL 1.5 (and therefore
+  // eglGetPlatformDisplay()), and when it is used eglGetPlatformDisplay()
+  // needs to be called instead of eglGetDisplay() anyway because the right
+  // attributes must be specified.
+  //
+  // When ANGLE is not used, eglGetDisplay() is always used:
+  // - Android only has eglGetDisplay()
+  // - Raspberry Pi 2 has EGL 1.4 without platform extensions so only
+  // eglGetDisplay() is available.
+  // - RDK has a custom SbEglInterface::eglGetDisplay implementation that tries
+  // to use eglGetPlatformDisplayEXT() and falls back to eglGetDisplay() when
+  // necessary.
+  //
+  // Note that other platforms that do not use ANGLE but have EGL 1.5 could
+  // also call eglGetPlatformDisplay(), but they need to pass the right
+  // attributes and a valid platform value to the function.
+#if BUILDFLAG(STARBOARD_GL_TYPE_ANGLE)
+  static constexpr SbEglAttrib kAngleAttributes[] = {
+#if BUILDFLAG(IS_APPLE)
+      EGL_PLATFORM_ANGLE_TYPE_ANGLE, EGL_PLATFORM_ANGLE_TYPE_METAL_ANGLE,
 #else
-  std::vector<SbEglAttrib> display_attribs = {
-#endif  // !defined(EGL_VERSION_1_5)
-    EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE,
-    EGL_PLATFORM_ANGLE_DEVICE_TYPE_EGL_ANGLE,
-    EGL_PLATFORM_ANGLE_TYPE_ANGLE,
-    EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE,
-    EGL_NONE  // Terminate the attribute list
+      EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE,
+      EGL_PLATFORM_ANGLE_DEVICE_TYPE_EGL_ANGLE, EGL_PLATFORM_ANGLE_TYPE_ANGLE,
+      EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE,
+#endif          // BUILDFLAG(IS_APPLE)
+      EGL_NONE  // Terminate the attribute list.
   };
-#if BUILDFLAG(IS_ANDROID)
-  display_ = EGL_CALL_SIMPLE(eglGetDisplay(EGL_DEFAULT_DISPLAY));
-#else
-#if !defined(EGL_VERSION_1_5)
-  // Manually retrieve the eglGetPlatformDisplayEXT function pointer.
-  // This allows us to use the display platform extension without enforcing
-  // full EGL 1.5 compliance.
-  PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT_func =
-      reinterpret_cast<PFNEGLGETPLATFORMDISPLAYEXTPROC>(
-          EGL_CALL_SIMPLE(eglGetProcAddress("eglGetPlatformDisplayEXT")));
-  if (eglGetPlatformDisplayEXT_func) {
-    display_ = eglGetPlatformDisplayEXT_func(
-        EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(EGL_DEFAULT_DISPLAY),
-        display_attribs.data());
-  } else {
-    display_ = EGL_CALL_SIMPLE(eglGetDisplay(EGL_DEFAULT_DISPLAY));
-  }
-#else
   display_ = EGL_CALL_SIMPLE(eglGetPlatformDisplay(
       EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(EGL_DEFAULT_DISPLAY),
-      display_attribs.data()));
-#endif  // !defined(EGL_VERSION_1_5)
-#endif  // BUILDFLAG(IS_ANDROID)
+      kAngleAttributes));
+#else
+  display_ = EGL_CALL_SIMPLE(eglGetDisplay(EGL_DEFAULT_DISPLAY));
+#endif  // BUILDFLAG(STARBOARD_GL_TYPE_ANGLE)
 
   SB_DCHECK_EQ(EGL_SUCCESS, EGL_CALL_SIMPLE(eglGetError()));
   SB_CHECK_NE(EGL_NO_DISPLAY, display_);
@@ -268,7 +237,7 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   // "If configs is not NULL, up to config_size configs will be returned in the
   // array pointed to by configs. The number of configs actually returned will
   // be returned in *num_config." Assert that and resize if needed.
-  SB_CHECK(static_cast<size_t>(num_configs) <= configs.size());
+  SB_CHECK_LE(static_cast<size_t>(num_configs), configs.size());
   configs.resize(num_configs);
 
   // Find the first config that successfully allows a pBuffer surface (i.e. an
@@ -308,8 +277,8 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   decoder_target_provider_.gles_context_runner = DecodeTargetGlesContextRunner;
   decoder_target_provider_.gles_context_runner_context = this;
 
-  pthread_create(&decode_target_context_thread_, nullptr,
-                 &FakeGraphicsContextProvider::ThreadEntryPoint, this);
+  gles_context_thread_ = std::make_unique<GlesContextThread>(this);
+  gles_context_thread_->Start();
   MakeNoContextCurrent();
 
   functor_queue_.Put(
@@ -319,7 +288,7 @@ void FakeGraphicsContextProvider::InitializeEGL() {
 void FakeGraphicsContextProvider::OnDecodeTargetGlesContextRunner(
     SbDecodeTargetGlesContextRunnerTarget target_function,
     void* target_function_context) {
-  if (pthread_equal(pthread_self(), decode_target_context_thread_)) {
+  if (SbThreadGetId() == gles_context_thread_id_.load()) {
     target_function(target_function_context);
     return;
   }
@@ -342,7 +311,7 @@ void FakeGraphicsContextProvider::MakeContextCurrent() {
   SB_CHECK_NE(EGL_NO_DISPLAY, display_);
   EGL_CALL_SIMPLE(eglMakeCurrent(display_, surface_, surface_, context_));
   EGLint error = EGL_CALL_SIMPLE(eglGetError());
-  SB_CHECK(EGL_SUCCESS == error) << " eglGetError " << error;
+  SB_CHECK_EQ(error, EGL_SUCCESS);
 }
 
 void FakeGraphicsContextProvider::MakeNoContextCurrent() {
@@ -359,7 +328,7 @@ void FakeGraphicsContextProvider::DestroyContext() {
   MakeNoContextCurrent();
   EGL_CALL_SIMPLE(eglDestroyContext(display_, context_));
   EGLint error = EGL_CALL_SIMPLE(eglGetError());
-  SB_CHECK(EGL_SUCCESS == error) << " eglGetError " << error;
+  SB_CHECK_EQ(error, EGL_SUCCESS);
 }
 
 // static

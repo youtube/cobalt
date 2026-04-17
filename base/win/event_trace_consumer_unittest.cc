@@ -8,22 +8,23 @@
 
 #include <objbase.h>
 
+#include <initguid.h>
+
 #include <iterator>
 #include <list>
 
+#include "base/compiler_specific.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/logging.h"
 #include "base/process/process_handle.h"
+#include "base/strings/string_number_conversions_win.h"
 #include "base/strings/string_util.h"
-#include "base/strings/stringprintf.h"
 #include "base/win/event_trace_controller.h"
 #include "base/win/event_trace_provider.h"
 #include "base/win/scoped_handle.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-#include <initguid.h>  // NOLINT - has to be last
 
 namespace base {
 namespace win {
@@ -62,7 +63,7 @@ class TestConsumer : public EtwTraceConsumerBase<TestConsumer> {
 
     if (event->MofData != nullptr && event->MofLength != 0) {
       back.MofData = new char[event->MofLength];
-      memcpy(back.MofData, event->MofData, event->MofLength);
+      UNSAFE_TODO(memcpy(back.MofData, event->MofData, event->MofLength));
     }
   }
 
@@ -81,7 +82,7 @@ EventQueue TestConsumer::events_;
 class EtwTraceConsumerBaseTest : public testing::Test {
  public:
   EtwTraceConsumerBaseTest()
-      : session_name_(StringPrintf(L"TestSession-%d", GetCurrentProcId())) {}
+      : session_name_(L"TestSession-" + NumberToWString(GetCurrentProcId())) {}
 
   void SetUp() override {
     // Cleanup any potentially dangling sessions.
@@ -152,8 +153,9 @@ class EtwTraceConsumerRealtimeTest : public EtwTraceConsumerBaseTest {
     EXPECT_TRUE(consumer_ready_.is_valid());
     consumer_thread_.Set(
         ::CreateThread(nullptr, 0, ConsumerThreadMainProc, this, 0, nullptr));
-    if (consumer_thread_.get() == nullptr)
+    if (consumer_thread_.get() == nullptr) {
       return HRESULT_FROM_WIN32(::GetLastError());
+    }
 
     HANDLE events[] = {consumer_ready_.get(), consumer_thread_.get()};
     DWORD result =
@@ -165,11 +167,13 @@ class EtwTraceConsumerRealtimeTest : public EtwTraceConsumerBaseTest {
       case WAIT_OBJECT_0 + 1: {
         // The thread finished. This may race with the event, so check
         // explicitly for the event here, before concluding there's trouble.
-        if (::WaitForSingleObject(consumer_ready_.get(), 0) == WAIT_OBJECT_0)
+        if (::WaitForSingleObject(consumer_ready_.get(), 0) == WAIT_OBJECT_0) {
           return S_OK;
+        }
         DWORD exit_code = 0;
-        if (::GetExitCodeThread(consumer_thread_.get(), &exit_code))
+        if (::GetExitCodeThread(consumer_thread_.get(), &exit_code)) {
           return exit_code;
+        }
         return HRESULT_FROM_WIN32(::GetLastError());
       }
       default:
@@ -185,8 +189,9 @@ class EtwTraceConsumerRealtimeTest : public EtwTraceConsumerBaseTest {
     }
 
     DWORD exit_code = 0;
-    if (::GetExitCodeThread(consumer_thread_.get(), &exit_code))
+    if (::GetExitCodeThread(consumer_thread_.get(), &exit_code)) {
       return exit_code;
+    }
 
     return HRESULT_FROM_WIN32(::GetLastError());
   }
@@ -293,8 +298,9 @@ class EtwTraceConsumerDataTest : public EtwTraceConsumerBaseTest {
     // Set up a file session.
     HRESULT hr = controller.StartFileSession(session_name_.c_str(),
                                              temp_file_.value().c_str());
-    if (FAILED(hr))
+    if (FAILED(hr)) {
       return hr;
+    }
 
     // Enable our provider.
     EXPECT_HRESULT_SUCCEEDED(controller.EnableProvider(
@@ -317,8 +323,9 @@ class EtwTraceConsumerDataTest : public EtwTraceConsumerBaseTest {
     // Now consume the event(s).
     TestConsumer consumer_;
     HRESULT hr = consumer_.OpenFileSession(temp_file_.value().c_str());
-    if (SUCCEEDED(hr))
+    if (SUCCEEDED(hr)) {
       hr = consumer_.Consume();
+    }
     consumer_.Close();
     // And nab the result.
     events_.swap(TestConsumer::events_);
@@ -329,15 +336,18 @@ class EtwTraceConsumerDataTest : public EtwTraceConsumerBaseTest {
     DeleteFile(temp_file_);
 
     HRESULT hr = LogEventToTempSession(header);
-    if (SUCCEEDED(hr))
+    if (SUCCEEDED(hr)) {
       hr = ConsumeEventFromTempSession();
+    }
 
-    if (FAILED(hr))
+    if (FAILED(hr)) {
       return hr;
+    }
 
     // We should now have the event in the queue.
-    if (events_.empty())
+    if (events_.empty()) {
       return E_FAIL;
+    }
 
     *trace = &events_.back();
     return S_OK;

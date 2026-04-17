@@ -13,9 +13,14 @@
 #include <inttypes.h>
 #include <stdio.h>
 
+#include <algorithm>
+#include <cstdint>
+#include <memory>
 #include <utility>
 
 #include "absl/strings/string_view.h"
+#include "modules/audio_coding/neteq/tools/neteq_delay_analyzer.h"
+#include "modules/audio_coding/neteq/tools/neteq_stats_getter.h"
 
 namespace webrtc {
 namespace test {
@@ -90,6 +95,8 @@ void NetEqStatsPlotter::SimulationEnded(int64_t simulation_time_ms) {
            lifetime_stats.concealment_events);
     printf("  delayed_packet_outage_samples: %" PRIu64 "\n",
            lifetime_stats.delayed_packet_outage_samples);
+    printf("  delayed_packet_outage_events: %" PRIu64 "\n",
+           lifetime_stats.delayed_packet_outage_events);
     printf("  num_interruptions: %d\n", lifetime_stats.interruption_count);
     printf("  sum_interruption_length_ms: %d ms\n",
            lifetime_stats.total_interruption_duration_ms);

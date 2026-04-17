@@ -53,9 +53,9 @@ class UserScriptSet {
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
 
-  // Append any ScriptInjections that should run on the given |render_frame| and
-  // |tab_id|, at the given |run_location|, to |injections|.
-  // |extensions| is passed in to verify the corresponding extension is still
+  // Append any ScriptInjections that should run on the given `render_frame` and
+  // `tab_id`, at the given `run_location`, to `injections`.
+  // `extensions` is passed in to verify the corresponding extension is still
   // valid.
   void GetInjections(std::vector<std::unique_ptr<ScriptInjection>>* injections,
                      content::RenderFrame* render_frame,
@@ -82,13 +82,13 @@ class UserScriptSet {
 
   // Returns the contents of a script file.
   // Note that copying is cheap as this uses WebString.
-  blink::WebString GetJsSource(const UserScript::File& file,
+  blink::WebString GetJsSource(const UserScript::Content& file,
                                bool emulate_greasemonkey);
-  blink::WebString GetCssSource(const UserScript::File& file);
+  blink::WebString GetCssSource(const UserScript::Content& file);
 
  private:
-  // Returns a new ScriptInjection for the given |script| to execute in the
-  // |render_frame|, or NULL if the script should not execute.
+  // Returns a new ScriptInjection for the given `script` to execute in the
+  // `render_frame`, or NULL if the script should not execute.
   std::unique_ptr<ScriptInjection> GetInjectionForScript(
       const UserScript* script,
       content::RenderFrame* render_frame,
@@ -107,7 +107,7 @@ class UserScriptSet {
   // Map of user script file url -> source.
   std::map<GURL, blink::WebString> script_sources_;
 
-  // The HostID which |scripts_| is associated with.
+  // The HostID which `scripts_` is associated with.
   mojom::HostID host_id_;
 
   // The associated observers.

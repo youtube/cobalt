@@ -11,6 +11,7 @@
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
 #include "services/device/public/cpp/geolocation/location_provider.h"
+#include "services/device/public/mojom/geolocation_internals.mojom.h"
 #include "services/device/public/mojom/geoposition.mojom.h"
 
 namespace device {
@@ -26,6 +27,7 @@ class LocationProviderWinrt : public LocationProvider {
   ~LocationProviderWinrt() override;
 
   // LocationProvider implementation.
+  void FillDiagnostics(mojom::GeolocationDiagnostics& diagnostics) override;
   void SetUpdateCallback(
       const LocationProviderUpdateCallback& callback) override;
   void StartProvider(bool high_accuracy) override;
@@ -39,8 +41,8 @@ class LocationProviderWinrt : public LocationProvider {
 
   bool permission_granted_ = false;
   bool enable_high_accuracy_ = false;
-  absl::optional<EventRegistrationToken> position_changed_token_;
-  absl::optional<EventRegistrationToken> status_changed_token_;
+  std::optional<EventRegistrationToken> position_changed_token_;
+  std::optional<EventRegistrationToken> status_changed_token_;
 
  private:
   // Returns true if `last_result_` contains a valid geoposition.
@@ -60,7 +62,9 @@ class LocationProviderWinrt : public LocationProvider {
           status_update);
   mojom::GeopositionPtr CreateGeoposition(
       ABI::Windows::Devices::Geolocation::IGeoposition* geoposition);
+  void SetSessionErrorIfNotSet(HRESULT error);
 
+  bool is_started_ = false;
   mojom::GeopositionResultPtr last_result_;
   LocationProviderUpdateCallback location_update_callback_;
   Microsoft::WRL::ComPtr<ABI::Windows::Devices::Geolocation::IGeolocator>
@@ -68,6 +72,11 @@ class LocationProviderWinrt : public LocationProvider {
   bool position_received_ = false;
   ABI::Windows::Devices::Geolocation::PositionStatus position_status_;
   base::TimeTicks position_callback_initialized_time_;
+
+  // Records any error code encountered that stops the location provider from
+  // getting its a valid Geoposition.
+  std::optional<HRESULT> session_error_;
+
   THREAD_CHECKER(thread_checker_);
   base::WeakPtrFactory<LocationProviderWinrt> weak_ptr_factory_{this};
 };

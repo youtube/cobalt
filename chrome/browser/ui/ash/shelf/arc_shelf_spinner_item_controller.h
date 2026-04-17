@@ -9,7 +9,6 @@
 
 #include <string>
 
-#include "ash/components/arc/mojom/app.mojom.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
@@ -20,6 +19,7 @@
 #include "chrome/browser/ash/app_list/arc/intent.h"
 #include "chrome/browser/ash/arc/session/arc_session_manager_observer.h"
 #include "chrome/browser/ui/ash/shelf/shelf_spinner_item_controller.h"
+#include "chromeos/ash/experiences/arc/mojom/app.mojom.h"
 
 // ArcShelfSpinnerItemController displays the icon of the ARC app that
 // cannot be launched immediately (due to ARC not being ready) on Chrome OS'
@@ -79,7 +79,7 @@ class ArcShelfSpinnerItemController : public ShelfSpinnerItemController,
   arc::mojom::WindowInfoPtr window_info_;
 
   // Unowned
-  raw_ptr<Profile, ExperimentalAsh> observed_profile_ = nullptr;
+  raw_ptr<Profile> observed_profile_ = nullptr;
 
   // A one shot timer to close this item.
   std::unique_ptr<base::OneShotTimer> close_timer_;

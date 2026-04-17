@@ -23,7 +23,6 @@ std::ostream& operator<<(std::ostream& os, const ActivationScope& state) {
       break;
     default:
       NOTREACHED();
-      break;
   }
   return os;
 }

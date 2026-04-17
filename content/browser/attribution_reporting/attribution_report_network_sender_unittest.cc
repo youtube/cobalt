@@ -5,14 +5,21 @@
 #include "content/browser/attribution_reporting/attribution_report_network_sender.h"
 
 #include <memory>
+#include <optional>
+#include <string>
 #include <utility>
 
 #include "base/functional/callback_helpers.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/metrics/histogram_base.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/time/time.h"
+#include "base/values.h"
+#include "build/buildflag.h"
+#include "components/attribution_reporting/source_registration_time_config.mojom.h"
 #include "components/attribution_reporting/suitable_origin.h"
+#include "content/browser/attribution_reporting/aggregatable_debug_report.h"
 #include "content/browser/attribution_reporting/attribution_debug_report.h"
 #include "content/browser/attribution_reporting/attribution_report.h"
 #include "content/browser/attribution_reporting/attribution_test_utils.h"
@@ -25,6 +32,7 @@
 #include "net/base/isolation_info.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
+#include "net/base/schemeful_site.h"
 #include "net/http/http_status_code.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -34,14 +42,21 @@
 #include "services/network/test/test_utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/mojom/aggregation_service/aggregatable_report.mojom.h"
 #include "url/gurl.h"
 #include "url/origin.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/application_status_listener.h"
+#endif
 
 namespace content {
 
 namespace {
 
 using ::attribution_reporting::SuitableOrigin;
+
+using SentResult = ::content::SendResult::Sent::Result;
 
 using ::testing::_;
 using ::testing::Field;
@@ -64,6 +79,13 @@ const char kDebugAggregatableReportUrl[] =
     "https://report.test/.well-known/attribution-reporting/debug/"
     "report-aggregate-attribution";
 
+const char kAggregatableDebugReportUrl[] =
+    "https://report.test/.well-known/attribution-reporting/debug/"
+    "report-aggregate-debug";
+
+const char kAggregatableDebugReportMetricName[] =
+    "Conversions.AggregatableDebugReport.HttpResponseOrNetErrorCode";
+
 const char kVerboseDebugReportMetricName[] =
     "Conversions.VerboseDebugReport.HttpResponseOrNetErrorCode";
 
@@ -73,10 +95,20 @@ AttributionReport DefaultEventLevelReport() {
       .Build();
 }
 
-AttributionReport DefaultAggregatableReport() {
-  return ReportBuilder(AttributionInfoBuilder().Build(),
-                       SourceBuilder(SourceBuilder(base::Time())).BuildStored())
-      .BuildAggregatableAttribution();
+AttributionReport DefaultAggregatableReport(
+    std::optional<std::string> trigger_context_id = std::nullopt,
+    bool is_null_report = false) {
+  ReportBuilder builder(AttributionInfoBuilder().Build(),
+                        SourceBuilder().BuildStored());
+
+  if (trigger_context_id.has_value()) {
+    builder.SetTriggerContextId(*std::move(trigger_context_id))
+        .SetSourceRegistrationTimeConfig(
+            attribution_reporting::mojom::SourceRegistrationTimeConfig::
+                kExclude);
+  }
+  return is_null_report ? builder.BuildNullAggregatable()
+                        : builder.BuildAggregatableAttribution();
 }
 
 }  // namespace
@@ -86,8 +118,7 @@ class AttributionReportNetworkSenderTest : public testing::Test {
   AttributionReportNetworkSenderTest()
       : task_environment_(base::test::TaskEnvironment::TimeSource::MOCK_TIME),
         network_sender_(std::make_unique<AttributionReportNetworkSender>(
-            base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
-                &test_url_loader_factory_))) {}
+            test_url_loader_factory_.GetSafeWeakWrapper())) {}
 
  protected:
   // |task_environment_| must be initialized first.
@@ -96,7 +127,7 @@ class AttributionReportNetworkSenderTest : public testing::Test {
   network::TestURLLoaderFactory test_url_loader_factory_;
 
   base::MockCallback<
-      base::OnceCallback<void(const AttributionReport&, SendResult)>>
+      base::OnceCallback<void(const AttributionReport&, SendResult::Sent)>>
       callback_;
 
   // Unique ptr so it can be reset during testing.
@@ -121,6 +152,17 @@ TEST_F(AttributionReportNetworkSenderTest, LoadFlags) {
       test_url_loader_factory_.GetPendingRequest(0)->request.load_flags;
   EXPECT_TRUE(load_flags & net::LOAD_BYPASS_CACHE);
   EXPECT_TRUE(load_flags & net::LOAD_DISABLE_CACHE);
+}
+
+TEST_F(AttributionReportNetworkSenderTest, SameSite) {
+  auto report = DefaultEventLevelReport();
+  network_sender_->SendReport(report, /*is_debug_report=*/false,
+                              base::DoNothing());
+  EXPECT_EQ(test_url_loader_factory_.GetPendingRequest(0)->request.mode,
+            network::mojom::RequestMode::kSameOrigin);
+  EXPECT_EQ(
+      test_url_loader_factory_.GetPendingRequest(0)->request.request_initiator,
+      report.reporting_origin());
 }
 
 TEST_F(AttributionReportNetworkSenderTest, Isolation) {
@@ -174,9 +216,9 @@ TEST_F(AttributionReportNetworkSenderTest,
                         .Build(),
                     SourceBuilder(base::Time::UnixEpoch())
                         .SetSourceEventId(100)
+                        .SetRandomizedResponseRate(0.2)
                         .BuildStored())
           .SetTriggerData(5)
-          .SetRandomizedTriggerRate(0.2)
           .SetReportTime(base::Time::UnixEpoch() + base::Hours(1))
           .Build();
 
@@ -223,8 +265,8 @@ TEST_F(AttributionReportNetworkSenderTest, ReportSent_CallbackFired) {
   };
 
   for (net::HttpStatusCode code : kTestCases) {
-    EXPECT_CALL(callback_, Run(report, SendResult(SendResult::Status::kSent,
-                                                  net::OK, code)));
+    EXPECT_CALL(callback_,
+                Run(report, SendResult::Sent(SentResult::kSent, code)));
 
     network_sender_->SendReport(report, /*is_debug_report=*/false,
                                 callback_.Get());
@@ -253,8 +295,8 @@ TEST_F(AttributionReportNetworkSenderTest, ReportRequestHangs_TimesOut) {
 
   // Verify that the sent callback runs if the request times out.
   EXPECT_CALL(callback_,
-              Run(report, SendResult(SendResult::Status::kTransientFailure,
-                                     net::ERR_TIMED_OUT)));
+              Run(report, SendResult::Sent(SentResult::kTransientFailure,
+                                           net::ERR_TIMED_OUT)));
   network_sender_->SendReport(report, /*is_debug_report=*/false,
                               callback_.Get());
   EXPECT_EQ(1, test_url_loader_factory_.NumPending());
@@ -269,22 +311,26 @@ TEST_F(AttributionReportNetworkSenderTest,
        ReportRequestFailsWithTargetedError_ShouldRetrySet) {
   struct {
     int net_error;
-    SendResult::Status expected_status;
+    SentResult expected_send_result;
+    std::optional<int> expected_status;
   } kTestCases[] = {
-      {net::ERR_INTERNET_DISCONNECTED, SendResult::Status::kTransientFailure},
-      {net::ERR_TIMED_OUT, SendResult::Status::kTransientFailure},
-      {net::ERR_CONNECTION_ABORTED, SendResult::Status::kTransientFailure},
-      {net::ERR_CONNECTION_TIMED_OUT, SendResult::Status::kTransientFailure},
-      {net::ERR_CONNECTION_REFUSED, SendResult::Status::kFailure},
-      {net::ERR_CERT_DATE_INVALID, SendResult::Status::kFailure},
-      {net::OK, SendResult::Status::kFailure},
+      {net::ERR_INTERNET_DISCONNECTED, SentResult::kTransientFailure},
+      {net::ERR_TIMED_OUT, SentResult::kTransientFailure},
+      {net::ERR_CONNECTION_ABORTED, SentResult::kTransientFailure},
+      {net::ERR_CONNECTION_TIMED_OUT, SentResult::kTransientFailure},
+      {net::ERR_CONNECTION_REFUSED, SentResult::kFailure},
+      {net::ERR_CERT_DATE_INVALID, SentResult::kFailure},
+      // Simulate missing headers.
+      {net::OK, SentResult::kFailure, net::ERR_INVALID_HTTP_RESPONSE},
   };
 
   for (const auto& test_case : kTestCases) {
     auto report = DefaultEventLevelReport();
 
-    EXPECT_CALL(callback_, Run(report, Field(&SendResult::status,
-                                             test_case.expected_status)));
+    EXPECT_CALL(callback_,
+                Run(report, SendResult::Sent(test_case.expected_send_result,
+                                             test_case.expected_status.value_or(
+                                                 test_case.net_error))));
 
     network_sender_->SendReport(report, /*is_debug_report=*/false,
                                 callback_.Get());
@@ -315,9 +361,9 @@ TEST_F(AttributionReportNetworkSenderTest,
           kSendHeadersOnNetworkError);
 
   auto report = DefaultEventLevelReport();
-  EXPECT_CALL(callback_, Run(report, SendResult(SendResult::Status::kFailure,
-                                                net::ERR_INTERNET_DISCONNECTED,
-                                                net::HttpStatusCode::HTTP_OK)));
+  EXPECT_CALL(callback_,
+              Run(report, SendResult::Sent(SentResult::kFailure,
+                                           net::ERR_INTERNET_DISCONNECTED)));
   network_sender_->SendReport(report, /*is_debug_report=*/false,
                               callback_.Get());
 
@@ -328,10 +374,10 @@ TEST_F(AttributionReportNetworkSenderTest,
 TEST_F(AttributionReportNetworkSenderTest,
        ReportRequestFailsWithHttpError_ShouldRetryNotSet) {
   auto report = DefaultEventLevelReport();
-  EXPECT_CALL(callback_,
-              Run(report, SendResult(SendResult::Status::kFailure,
-                                     net::ERR_HTTP_RESPONSE_CODE_FAILURE,
-                                     net::HttpStatusCode::HTTP_BAD_REQUEST)));
+  EXPECT_CALL(
+      callback_,
+      Run(report, SendResult::Sent(SentResult::kFailure,
+                                   net::HttpStatusCode::HTTP_BAD_REQUEST)));
 
   network_sender_->SendReport(report, /*is_debug_report=*/false,
                               callback_.Get());
@@ -415,10 +461,10 @@ TEST_F(AttributionReportNetworkSenderTest,
 
     EXPECT_CALL(callback_, Run).Times(0);
     EXPECT_CALL(checkpoint, Call(1));
-    EXPECT_CALL(callback_,
-                Run(report, SendResult(SendResult::Status::kFailure,
-                                       net::ERR_HTTP_RESPONSE_CODE_FAILURE,
-                                       net::HttpStatusCode::HTTP_BAD_REQUEST)));
+    EXPECT_CALL(
+        callback_,
+        Run(report, SendResult::Sent(SentResult::kFailure,
+                                     net::HttpStatusCode::HTTP_BAD_REQUEST)));
   }
 
   network_sender_->SendReport(report, /*is_debug_report=*/false,
@@ -449,31 +495,10 @@ TEST_F(AttributionReportNetworkSenderTest, ManyReports_AllSentSuccessfully) {
   EXPECT_EQ(0, test_url_loader_factory_.NumPending());
 }
 
-TEST_F(AttributionReportNetworkSenderTest, HeadersPopulated) {
-  AttributionReport report =
-      ReportBuilder(
-          AttributionInfoBuilder().Build(),
-          SourceBuilder(base::Time::FromJavaTime(1234483200000)).BuildStored())
-          .SetAggregatableHistogramContributions(
-              {AggregatableHistogramContribution(/*key=*/1, /*value=*/2)})
-          .BuildAggregatableAttribution();
-
-  network_sender_->SendReport(report, /*is_debug_report=*/false,
-                              base::DoNothing());
-
-  const network::ResourceRequest* pending_request;
-  EXPECT_TRUE(test_url_loader_factory_.IsPending(kAggregatableReportUrl,
-                                                 &pending_request));
-  EXPECT_FALSE(pending_request->headers.HasHeader(
-      "Sec-Attribution-Reporting-Private-State-Token"));
-  EXPECT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(
-      kAggregatableReportUrl, ""));
-}
-
 TEST_F(AttributionReportNetworkSenderTest, ReportRedirects) {
   auto report = DefaultEventLevelReport();
-  EXPECT_CALL(callback_, Run(report, SendResult(SendResult::Status::kSent,
-                                                net::OK, net::HTTP_OK)));
+  EXPECT_CALL(callback_,
+              Run(report, SendResult::Sent(SentResult::kSent, net::HTTP_OK)));
 
   const GURL kNewUrl(
       "https://report2.test/.well-known/attribution-reporting/"
@@ -502,6 +527,11 @@ TEST_F(AttributionReportNetworkSenderTest, ReportRedirects) {
 
 TEST_F(AttributionReportNetworkSenderTest,
        EventLevelReportSent_MetricsRecorded) {
+  static constexpr char kErrorCodeMetric[] =
+      "Conversions.HttpResponseOrNetErrorCodeEventLevel";
+  static constexpr char kReportSizeMetric[] =
+      "Conversions.EventLevelReport.ReportBodySize";
+
   // All OK
   {
     base::HistogramTester histograms;
@@ -510,10 +540,10 @@ TEST_F(AttributionReportNetworkSenderTest,
                                 base::DoNothing());
     EXPECT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(
         kEventLevelReportUrl, ""));
-    // kOk = 0.
-    histograms.ExpectUniqueSample("Conversions.ReportStatusEventLevel", 0, 1);
     histograms.ExpectUniqueSample(
-        "Conversions.HttpResponseOrNetErrorCodeEventLevel", net::HTTP_OK, 1);
+        "Conversions.FirstBatch.HttpResponseOrNetErrorCode", net::HTTP_OK, 1);
+    histograms.ExpectUniqueSample(kErrorCodeMetric, net::HTTP_OK, 1);
+    histograms.ExpectTotalCount(kReportSizeMetric, 1);
   }
 
   // Internal error
@@ -526,10 +556,11 @@ TEST_F(AttributionReportNetworkSenderTest,
     EXPECT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(
         GURL(kEventLevelReportUrl), completion_status,
         network::mojom::URLResponseHead::New(), ""));
-    // kInternalError = 1.
-    histograms.ExpectUniqueSample("Conversions.ReportStatusEventLevel", 1, 1);
     histograms.ExpectUniqueSample(
-        "Conversions.HttpResponseOrNetErrorCodeEventLevel", net::ERR_FAILED, 1);
+        "Conversions.FirstBatch.HttpResponseOrNetErrorCode", net::ERR_FAILED,
+        1);
+    histograms.ExpectUniqueSample(kErrorCodeMetric, net::ERR_FAILED, 1);
+    histograms.ExpectTotalCount(kReportSizeMetric, 1);
   }
   // External error
   {
@@ -539,11 +570,11 @@ TEST_F(AttributionReportNetworkSenderTest,
                                 base::DoNothing());
     EXPECT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(
         kEventLevelReportUrl, "", net::HTTP_UNAUTHORIZED));
-    // kExternalError = 2.
-    histograms.ExpectUniqueSample("Conversions.ReportStatusEventLevel", 2, 1);
     histograms.ExpectUniqueSample(
-        "Conversions.HttpResponseOrNetErrorCodeEventLevel",
+        "Conversions.FirstBatch.HttpResponseOrNetErrorCode",
         net::HTTP_UNAUTHORIZED, 1);
+    histograms.ExpectUniqueSample(kErrorCodeMetric, net::HTTP_UNAUTHORIZED, 1);
+    histograms.ExpectTotalCount(kReportSizeMetric, 1);
   }
   // Retried network change error
   {
@@ -562,6 +593,7 @@ TEST_F(AttributionReportNetworkSenderTest,
 
     histograms.ExpectUniqueSample("Conversions.ReportRetrySucceedEventLevel",
                                   true, 1);
+    histograms.ExpectTotalCount(kReportSizeMetric, 1);
   }
 }
 
@@ -575,9 +607,6 @@ TEST_F(AttributionReportNetworkSenderTest,
                                 base::DoNothing());
     EXPECT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(
         kDebugEventLevelReportUrl, ""));
-    // kOk = 0.
-    histograms.ExpectUniqueSample(
-        "Conversions.DebugReport.ReportStatusEventLevel", 0, 1);
     histograms.ExpectUniqueSample(
         "Conversions.DebugReport.HttpResponseOrNetErrorCodeEventLevel",
         net::HTTP_OK, 1);
@@ -593,9 +622,6 @@ TEST_F(AttributionReportNetworkSenderTest,
     EXPECT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(
         GURL(kDebugEventLevelReportUrl), completion_status,
         network::mojom::URLResponseHead::New(), ""));
-    // kInternalError = 1.
-    histograms.ExpectUniqueSample(
-        "Conversions.DebugReport.ReportStatusEventLevel", 1, 1);
     histograms.ExpectUniqueSample(
         "Conversions.DebugReport.HttpResponseOrNetErrorCodeEventLevel",
         net::ERR_FAILED, 1);
@@ -608,9 +634,6 @@ TEST_F(AttributionReportNetworkSenderTest,
                                 base::DoNothing());
     EXPECT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(
         kDebugEventLevelReportUrl, "", net::HTTP_UNAUTHORIZED));
-    // kExternalError = 2.
-    histograms.ExpectUniqueSample(
-        "Conversions.DebugReport.ReportStatusEventLevel", 2, 1);
     histograms.ExpectUniqueSample(
         "Conversions.DebugReport.HttpResponseOrNetErrorCodeEventLevel",
         net::HTTP_UNAUTHORIZED, 1);
@@ -637,67 +660,101 @@ TEST_F(AttributionReportNetworkSenderTest,
 
 TEST_F(AttributionReportNetworkSenderTest,
        AggregatableReportSent_MetricsRecorded) {
-  // All OK
-  {
-    base::HistogramTester histograms;
-    auto report = DefaultAggregatableReport();
-    network_sender_->SendReport(report, /*is_debug_report=*/false,
-                                base::DoNothing());
-    EXPECT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(
-        kAggregatableReportUrl, ""));
-    // kOk = 0.
-    histograms.ExpectUniqueSample("Conversions.ReportStatusAggregatable", 0, 1);
-    histograms.ExpectUniqueSample(
-        "Conversions.HttpResponseOrNetErrorCodeAggregatable", net::HTTP_OK, 1);
-  }
+  const auto verify_histogram = [](base::HistogramTester& histograms,
+                                   std::string_view suffix,
+                                   bool has_trigger_context_id,
+                                   base::HistogramBase::Sample32 sample,
+                                   base::HistogramBase::Count32 count) {
+    histograms.ExpectUniqueSample(base::StrCat({"Conversions.", suffix}),
+                                  sample, count);
+    if (has_trigger_context_id) {
+      histograms.ExpectUniqueSample(
+          base::StrCat({"Conversions.ContextID.", suffix}), sample, count);
+    } else {
+      histograms.ExpectUniqueSample(
+          base::StrCat({"Conversions.NoContextID.", suffix}), sample, count);
+    }
+  };
 
-  // Internal error
-  {
-    base::HistogramTester histograms;
-    auto report = DefaultAggregatableReport();
-    network_sender_->SendReport(report, /*is_debug_report=*/false,
-                                base::DoNothing());
-    network::URLLoaderCompletionStatus completion_status(net::ERR_FAILED);
-    EXPECT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(
-        GURL(kAggregatableReportUrl), completion_status,
-        network::mojom::URLResponseHead::New(), ""));
-    // kInternalError = 1.
-    histograms.ExpectUniqueSample("Conversions.ReportStatusAggregatable", 1, 1);
-    histograms.ExpectUniqueSample(
-        "Conversions.HttpResponseOrNetErrorCodeAggregatable", net::ERR_FAILED,
-        1);
-  }
-  // External error
-  {
-    base::HistogramTester histograms;
-    auto report = DefaultAggregatableReport();
-    network_sender_->SendReport(report, /*is_debug_report=*/false,
-                                base::DoNothing());
-    EXPECT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(
-        kAggregatableReportUrl, "", net::HTTP_UNAUTHORIZED));
-    // kExternalError = 2.
-    histograms.ExpectUniqueSample("Conversions.ReportStatusAggregatable", 2, 1);
-    histograms.ExpectUniqueSample(
-        "Conversions.HttpResponseOrNetErrorCodeAggregatable",
-        net::HTTP_UNAUTHORIZED, 1);
-  }
-  // Retried network change error
-  {
-    base::HistogramTester histograms;
-    auto report = DefaultAggregatableReport();
-    network_sender_->SendReport(report, /*is_debug_report=*/false,
-                                base::DoNothing());
+  static constexpr char kErrorCodeMetric[] =
+      "HttpResponseOrNetErrorCodeAggregatable2";
+  static constexpr char kReportSizeMetric[] =
+      "Conversions.AggregatableReport.ReportBodySize";
 
-    ASSERT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(
-        GURL(kAggregatableReportUrl),
-        network::URLLoaderCompletionStatus(net::ERR_NETWORK_CHANGED),
-        network::mojom::URLResponseHead::New(), ""));
+  for (const bool has_trigger_context_id : {false, true}) {
+    SCOPED_TRACE(has_trigger_context_id);
 
-    ASSERT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(
-        kAggregatableReportUrl, ""));
+    std::optional<std::string> trigger_context_id;
+    if (has_trigger_context_id) {
+      trigger_context_id.emplace();
+    }
 
-    histograms.ExpectUniqueSample("Conversions.ReportRetrySucceedAggregatable",
-                                  true, 1);
+    // All OK
+    {
+      base::HistogramTester histograms;
+      auto report = DefaultAggregatableReport(trigger_context_id);
+      network_sender_->SendReport(report, /*is_debug_report=*/false,
+                                  base::DoNothing());
+      EXPECT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(
+          kAggregatableReportUrl, ""));
+      histograms.ExpectUniqueSample(
+          "Conversions.FirstBatch.HttpResponseOrNetErrorCode", net::HTTP_OK, 1);
+      verify_histogram(histograms, kErrorCodeMetric, has_trigger_context_id,
+                       net::HTTP_OK, 1);
+      histograms.ExpectTotalCount(kReportSizeMetric, 1);
+    }
+
+    // Internal error
+    {
+      base::HistogramTester histograms;
+      auto report = DefaultAggregatableReport(trigger_context_id);
+      network_sender_->SendReport(report, /*is_debug_report=*/false,
+                                  base::DoNothing());
+      network::URLLoaderCompletionStatus completion_status(net::ERR_FAILED);
+      EXPECT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(
+          GURL(kAggregatableReportUrl), completion_status,
+          network::mojom::URLResponseHead::New(), ""));
+      histograms.ExpectUniqueSample(
+          "Conversions.FirstBatch.HttpResponseOrNetErrorCode", net::ERR_FAILED,
+          1);
+      verify_histogram(histograms, kErrorCodeMetric, has_trigger_context_id,
+                       net::ERR_FAILED, 1);
+      histograms.ExpectTotalCount(kReportSizeMetric, 1);
+    }
+    // External error
+    {
+      base::HistogramTester histograms;
+      auto report = DefaultAggregatableReport(trigger_context_id);
+      network_sender_->SendReport(report, /*is_debug_report=*/false,
+                                  base::DoNothing());
+      EXPECT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(
+          kAggregatableReportUrl, "", net::HTTP_UNAUTHORIZED));
+      histograms.ExpectUniqueSample(
+          "Conversions.FirstBatch.HttpResponseOrNetErrorCode",
+          net::HTTP_UNAUTHORIZED, 1);
+      verify_histogram(histograms, kErrorCodeMetric, has_trigger_context_id,
+                       net::HTTP_UNAUTHORIZED, 1);
+      histograms.ExpectTotalCount(kReportSizeMetric, 1);
+    }
+    // Retried network change error
+    {
+      base::HistogramTester histograms;
+      auto report = DefaultAggregatableReport(trigger_context_id);
+      network_sender_->SendReport(report, /*is_debug_report=*/false,
+                                  base::DoNothing());
+
+      ASSERT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(
+          GURL(kAggregatableReportUrl),
+          network::URLLoaderCompletionStatus(net::ERR_NETWORK_CHANGED),
+          network::mojom::URLResponseHead::New(), ""));
+
+      ASSERT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(
+          kAggregatableReportUrl, ""));
+
+      verify_histogram(histograms, "ReportRetrySucceedAggregatable2",
+                       has_trigger_context_id, 1, 1);
+      histograms.ExpectTotalCount(kReportSizeMetric, 1);
+    }
   }
 }
 
@@ -711,11 +768,8 @@ TEST_F(AttributionReportNetworkSenderTest,
                                 base::DoNothing());
     EXPECT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(
         kDebugAggregatableReportUrl, ""));
-    // kOk = 0.
     histograms.ExpectUniqueSample(
-        "Conversions.DebugReport.ReportStatusAggregatable", 0, 1);
-    histograms.ExpectUniqueSample(
-        "Conversions.DebugReport.HttpResponseOrNetErrorCodeAggregatable",
+        "Conversions.DebugReport.HttpResponseOrNetErrorCodeAggregatable2",
         net::HTTP_OK, 1);
   }
 
@@ -729,11 +783,8 @@ TEST_F(AttributionReportNetworkSenderTest,
     EXPECT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(
         GURL(kDebugAggregatableReportUrl), completion_status,
         network::mojom::URLResponseHead::New(), ""));
-    // kInternalError = 1.
     histograms.ExpectUniqueSample(
-        "Conversions.DebugReport.ReportStatusAggregatable", 1, 1);
-    histograms.ExpectUniqueSample(
-        "Conversions.DebugReport.HttpResponseOrNetErrorCodeAggregatable",
+        "Conversions.DebugReport.HttpResponseOrNetErrorCodeAggregatable2",
         net::ERR_FAILED, 1);
   }
   // External error
@@ -744,11 +795,8 @@ TEST_F(AttributionReportNetworkSenderTest,
                                 base::DoNothing());
     EXPECT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(
         kDebugAggregatableReportUrl, "", net::HTTP_UNAUTHORIZED));
-    // kExternalError = 2.
     histograms.ExpectUniqueSample(
-        "Conversions.DebugReport.ReportStatusAggregatable", 2, 1);
-    histograms.ExpectUniqueSample(
-        "Conversions.DebugReport.HttpResponseOrNetErrorCodeAggregatable",
+        "Conversions.DebugReport.HttpResponseOrNetErrorCodeAggregatable2",
         net::HTTP_UNAUTHORIZED, 1);
   }
   // Retried network change error
@@ -767,9 +815,82 @@ TEST_F(AttributionReportNetworkSenderTest,
         kDebugAggregatableReportUrl, ""));
 
     histograms.ExpectUniqueSample(
-        "Conversions.DebugReport.ReportRetrySucceedAggregatable", true, 1);
+        "Conversions.DebugReport.ReportRetrySucceedAggregatable2", true, 1);
   }
 }
+
+#if BUILDFLAG(IS_ANDROID)
+TEST_F(AttributionReportNetworkSenderTest,
+       AndroidApplicationStatus_ReportResponseCodes) {
+  const struct {
+    base::android::ApplicationState app_state;
+    const char* metric;
+  } kTestCases[] = {
+      {
+          base::android::APPLICATION_STATE_HAS_RUNNING_ACTIVITIES,
+          "Conversions.HttpResponseOrNetErrorCode.AppRunning",
+      },
+      {
+          base::android::APPLICATION_STATE_HAS_PAUSED_ACTIVITIES,
+          "Conversions.HttpResponseOrNetErrorCode.AppPaused",
+      },
+      {
+          base::android::APPLICATION_STATE_HAS_STOPPED_ACTIVITIES,
+          "Conversions.HttpResponseOrNetErrorCode.AppBackgrounded",
+      },
+      {
+          base::android::APPLICATION_STATE_HAS_DESTROYED_ACTIVITIES,
+          "Conversions.HttpResponseOrNetErrorCode.AppDestroyed",
+      },
+      {
+          base::android::APPLICATION_STATE_UNKNOWN,
+          "Conversions.HttpResponseOrNetErrorCode.AppStateUnknown",
+      },
+  };
+
+  for (const auto& test_case : kTestCases) {
+    // Trigger a state change signal for the desired state.
+    base::android::ApplicationStatusListener::NotifyApplicationStateChange(
+        test_case.app_state);
+    base::RunLoop().Quit();
+
+    // All OK
+    {
+      base::HistogramTester histograms;
+      auto report = DefaultEventLevelReport();
+      network_sender_->SendReport(report, /*is_debug_report=*/false,
+                                  base::DoNothing());
+      EXPECT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(
+          kEventLevelReportUrl, ""));
+      histograms.ExpectUniqueSample(test_case.metric, net::HTTP_OK, 1);
+    }
+
+    // Internal error
+    {
+      base::HistogramTester histograms;
+      auto report = DefaultEventLevelReport();
+      network_sender_->SendReport(report, /*is_debug_report=*/false,
+                                  base::DoNothing());
+      network::URLLoaderCompletionStatus completion_status(net::ERR_FAILED);
+      EXPECT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(
+          GURL(kEventLevelReportUrl), completion_status,
+          network::mojom::URLResponseHead::New(), ""));
+      histograms.ExpectUniqueSample(test_case.metric, net::ERR_FAILED, 1);
+    }
+    // External error
+    {
+      base::HistogramTester histograms;
+      auto report = DefaultEventLevelReport();
+      network_sender_->SendReport(report, /*is_debug_report=*/false,
+                                  base::DoNothing());
+      EXPECT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(
+          kEventLevelReportUrl, "", net::HTTP_UNAUTHORIZED));
+      histograms.ExpectUniqueSample(test_case.metric, net::HTTP_UNAUTHORIZED,
+                                    1);
+    }
+  }
+}
+#endif
 
 TEST_F(AttributionReportNetworkSenderTest,
        ErrorReportSent_ReportBodySetCorrectly) {
@@ -788,20 +909,22 @@ TEST_F(AttributionReportNetworkSenderTest,
   static constexpr char kErrorReportUrl[] =
       "https://report.test/.well-known/attribution-reporting/debug/verbose";
 
-  absl::optional<AttributionDebugReport> report =
-      AttributionDebugReport::Create(
-          SourceBuilder().SetDebugReporting(true).Build(),
-          /*is_debug_cookie_set=*/false,
-          StoreSourceResult(
-              StorableSource::Result::kInsufficientUniqueDestinationCapacity,
-              /*min_fake_report_time=*/absl::nullopt,
-              /*max_destinations_per_source_site_reporting_origin=*/3));
+  std::optional<AttributionDebugReport> report = AttributionDebugReport::Create(
+      /*is_operation_allowed=*/[]() { return true; },
+      StoreSourceResult(
+          SourceBuilder()
+              .SetDebugReporting(true)
+              .SetCookieBasedDebugAllowed(true)
+              .Build(),
+          /*is_noised=*/false, /*source_time=*/base::Time::Now(),
+          /*destination_limit=*/std::nullopt,
+          StoreSourceResult::InsufficientUniqueDestinationCapacity(3)));
   ASSERT_TRUE(report);
 
   base::MockCallback<AttributionReportSender::DebugReportSentCallback> callback;
   EXPECT_CALL(callback, Run(_, 200));
 
-  network_sender_->SendReport(std::move(*report), callback.Get());
+  network_sender_->SendReport(*std::move(report), callback.Get());
 
   const network::ResourceRequest* pending_request;
   EXPECT_TRUE(
@@ -821,20 +944,22 @@ TEST_F(AttributionReportNetworkSenderTest,
   static constexpr char kErrorReportUrl[] =
       "https://report.test/.well-known/attribution-reporting/debug/verbose";
 
-  absl::optional<AttributionDebugReport> report =
-      AttributionDebugReport::Create(
-          SourceBuilder().SetDebugReporting(true).Build(),
-          /*is_debug_cookie_set=*/false,
-          StoreSourceResult(
-              StorableSource::Result::kInsufficientUniqueDestinationCapacity,
-              /*min_fake_report_time=*/absl::nullopt,
-              /*max_destinations_per_source_site_reporting_origin=*/3));
+  std::optional<AttributionDebugReport> report = AttributionDebugReport::Create(
+      /*is_operation_allowed=*/[]() { return true; },
+      StoreSourceResult(
+          SourceBuilder()
+              .SetDebugReporting(true)
+              .SetCookieBasedDebugAllowed(true)
+              .Build(),
+          /*is_noised=*/false, /*source_time=*/base::Time::Now(),
+          /*destination_limit=*/std::nullopt,
+          StoreSourceResult::InsufficientUniqueDestinationCapacity(3)));
   ASSERT_TRUE(report);
 
   base::MockCallback<AttributionReportSender::DebugReportSentCallback> callback;
   EXPECT_CALL(callback, Run(_, net::ERR_CONNECTION_ABORTED));
 
-  network_sender_->SendReport(std::move(*report), callback.Get());
+  network_sender_->SendReport(*std::move(report), callback.Get());
 
   const network::ResourceRequest* pending_request;
   EXPECT_TRUE(
@@ -847,6 +972,111 @@ TEST_F(AttributionReportNetworkSenderTest,
 
   histograms.ExpectUniqueSample(kVerboseDebugReportMetricName,
                                 net::ERR_CONNECTION_ABORTED, 1);
+}
+
+TEST_F(AttributionReportNetworkSenderTest, AggregatableDebugReportSent) {
+  base::HistogramTester histograms;
+
+  base::MockCallback<
+      AttributionReportSender::AggregatableDebugReportSentCallback>
+      callback;
+  EXPECT_CALL(callback, Run(_, _, 200));
+
+  network_sender_->SendReport(
+      AggregatableDebugReport::CreateForTesting(
+          /*contributions=*/{},
+          /*context_site=*/net::SchemefulSite::Deserialize("https://c.test"),
+          /*reporting_origin=*/
+          *SuitableOrigin::Deserialize("https://report.test"),
+          /*effective_destination=*/
+          net::SchemefulSite::Deserialize("https://d.test"),
+          /*aggregation_coordinator_origin=*/std::nullopt,
+          /*scheduled_report_time=*/base::Time::Now()),
+      /*report_body=*/base::Value::Dict(), callback.Get());
+
+  const network::ResourceRequest* pending_request;
+  EXPECT_TRUE(test_url_loader_factory_.IsPending(kAggregatableDebugReportUrl,
+                                                 &pending_request));
+  EXPECT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(
+      kAggregatableDebugReportUrl, ""));
+
+  histograms.ExpectUniqueSample(kAggregatableDebugReportMetricName,
+                                net::HttpStatusCode::HTTP_OK, 1);
+}
+
+TEST_F(AttributionReportNetworkSenderTest,
+       AggregatableDebugReportSent_CallbackInvokedWithNetworkError) {
+  base::HistogramTester histograms;
+
+  base::MockCallback<
+      AttributionReportSender::AggregatableDebugReportSentCallback>
+      callback;
+  EXPECT_CALL(callback, Run(_, _, net::ERR_CONNECTION_ABORTED));
+
+  network_sender_->SendReport(
+      AggregatableDebugReport::CreateForTesting(
+          /*contributions=*/{},
+          /*context_site=*/net::SchemefulSite::Deserialize("https://c.test"),
+          /*reporting_origin=*/
+          *SuitableOrigin::Deserialize("https://report.test"),
+          /*effective_destination=*/
+          net::SchemefulSite::Deserialize("https://d.test"),
+          /*aggregation_coordinator_origin=*/std::nullopt,
+          /*scheduled_report_time=*/base::Time::Now()),
+      /*report_body=*/base::Value::Dict(), callback.Get());
+
+  const network::ResourceRequest* pending_request;
+  EXPECT_TRUE(test_url_loader_factory_.IsPending(kAggregatableDebugReportUrl,
+                                                 &pending_request));
+
+  test_url_loader_factory_.SimulateResponseForPendingRequest(
+      GURL(kAggregatableDebugReportUrl),
+      network::URLLoaderCompletionStatus(net::ERR_CONNECTION_ABORTED),
+      network::mojom::URLResponseHead::New(), "");
+
+  histograms.ExpectUniqueSample(kAggregatableDebugReportMetricName,
+                                net::ERR_CONNECTION_ABORTED, 1);
+}
+
+TEST_F(AttributionReportNetworkSenderTest,
+       NullAggregatableReportSent_MetricsRecorded) {
+  const auto verify_histogram = [](base::HistogramTester& histograms,
+                                   std::string_view suffix,
+                                   bool has_trigger_context_id,
+                                   base::HistogramBase::Sample32 sample,
+                                   base::HistogramBase::Count32 count) {
+    histograms.ExpectUniqueSample(base::StrCat({"Conversions.", suffix}),
+                                  sample, count);
+    if (has_trigger_context_id) {
+      histograms.ExpectUniqueSample(
+          base::StrCat({"Conversions.ContextID.", suffix}), sample, count);
+    } else {
+      histograms.ExpectUniqueSample(
+          base::StrCat({"Conversions.NoContextID.", suffix}), sample, count);
+    }
+  };
+
+  for (const bool has_trigger_context_id : {false, true}) {
+    SCOPED_TRACE(has_trigger_context_id);
+
+    std::optional<std::string> trigger_context_id;
+    if (has_trigger_context_id) {
+      trigger_context_id.emplace();
+    }
+
+    base::HistogramTester histograms;
+    network_sender_->SendReport(
+        DefaultAggregatableReport(trigger_context_id,
+                                  /*is_null_report=*/true),
+        /*is_debug_report=*/false, base::DoNothing());
+
+    EXPECT_TRUE(test_url_loader_factory_.SimulateResponseForPendingRequest(
+        kAggregatableReportUrl, ""));
+    verify_histogram(histograms, "HttpResponseOrNetErrorCodeAggregatable2",
+                     has_trigger_context_id, net::HTTP_OK, 1);
+    histograms.ExpectTotalCount("Conversions.AggregatableReport.ReportBodySize",
+                                1);
+  }
 }
 
 }  // namespace content

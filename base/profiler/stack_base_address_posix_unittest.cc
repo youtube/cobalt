@@ -7,7 +7,6 @@
 #include "base/numerics/clamped_math.h"
 #include "base/process/process_handle.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -28,7 +27,7 @@ using ::testing::Optional;
 #define MAYBE_CurrentThread CurrentThread
 #endif
 TEST(GetThreadStackBaseAddressTest, MAYBE_CurrentThread) {
-  absl::optional<uintptr_t> base =
+  std::optional<uintptr_t> base =
       GetThreadStackBaseAddress(PlatformThread::CurrentId(), pthread_self());
   EXPECT_THAT(base, Optional(Gt(0u)));
   uintptr_t stack_addr = reinterpret_cast<uintptr_t>(&base);
@@ -41,8 +40,8 @@ TEST(GetThreadStackBaseAddressTest, MAYBE_CurrentThread) {
 TEST(GetThreadStackBaseAddressTest, MainThread) {
   // GetThreadStackBaseAddress does not use pthread_id for main thread on these
   // platforms.
-  absl::optional<uintptr_t> base =
-      GetThreadStackBaseAddress(GetCurrentProcId(), pthread_t());
+  std::optional<uintptr_t> base = GetThreadStackBaseAddress(
+      PlatformThreadId(GetCurrentProcId()), pthread_t());
   EXPECT_THAT(base, Optional(Gt(0u)));
 }
 

@@ -11,13 +11,15 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/common/url_constants.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/constrained_window/constrained_window_views.h"
 #include "components/google/core/common/google_util.h"
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/views/controls/button/image_button.h"
@@ -37,8 +39,9 @@ void OneClickSigninDialogView::ShowDialog(
     std::unique_ptr<OneClickSigninLinksDelegate> delegate,
     gfx::NativeWindow window,
     base::OnceCallback<void(bool)> confirmed_callback) {
-  if (IsShowing())
+  if (IsShowing()) {
     return;
+  }
 
   dialog_view_ = new OneClickSigninDialogView(email, std::move(delegate),
                                               std::move(confirmed_callback));
@@ -53,8 +56,9 @@ bool OneClickSigninDialogView::IsShowing() {
 
 // static
 void OneClickSigninDialogView::Hide() {
-  if (IsShowing())
+  if (IsShowing()) {
     dialog_view_->GetWidget()->Close();
+  }
 }
 
 void OneClickSigninDialogView::WindowClosing() {
@@ -81,12 +85,12 @@ OneClickSigninDialogView::OneClickSigninDialogView(
   constexpr int kMinimumDialogLabelWidth = 400;
   views::Builder<OneClickSigninDialogView>(this)
       .SetButtonLabel(
-          ui::DIALOG_BUTTON_OK,
+          ui::mojom::DialogButton::kOk,
           l10n_util::GetStringUTF16(IDS_ONE_CLICK_SIGNIN_DIALOG_OK_BUTTON))
       .SetButtonLabel(
-          ui::DIALOG_BUTTON_CANCEL,
+          ui::mojom::DialogButton::kCancel,
           l10n_util::GetStringUTF16(IDS_ONE_CLICK_SIGNIN_DIALOG_UNDO_BUTTON))
-      .SetModalType(ui::MODAL_TYPE_WINDOW)
+      .SetModalType(ui::mojom::ModalType::kWindow)
       .SetTitle(IDS_ONE_CLICK_SIGNIN_DIALOG_TITLE_NEW)
       .set_margins(ChromeLayoutProvider::Get()->GetDialogInsetsForContentType(
           views::DialogContentType::kText, views::DialogContentType::kText))
@@ -111,8 +115,9 @@ OneClickSigninDialogView::OneClickSigninDialogView(
                             IDS_ONE_CLICK_SIGNIN_DIALOG_ADVANCED))
                         .SetCallback(base::BindRepeating(
                             [](OneClickSigninDialogView* view) {
-                              if (view->Accept())
+                              if (view->Accept()) {
                                 Hide();
+                              }
                             },
                             base::Unretained(this)))
                         .SetHorizontalAlignment(gfx::ALIGN_LEFT))
@@ -120,9 +125,10 @@ OneClickSigninDialogView::OneClickSigninDialogView(
 }
 
 OneClickSigninDialogView::~OneClickSigninDialogView() {
-  if (!confirmed_callback_.is_null())
+  if (!confirmed_callback_.is_null()) {
     std::move(confirmed_callback_).Run(false);
+  }
 }
 
-BEGIN_METADATA(OneClickSigninDialogView, views::DialogDelegateView)
+BEGIN_METADATA(OneClickSigninDialogView)
 END_METADATA

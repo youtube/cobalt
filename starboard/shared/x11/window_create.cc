@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/window.h"
+// clang-format on
 
 #include "starboard/shared/x11/application_x11.h"
 

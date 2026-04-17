@@ -4,6 +4,8 @@
 
 #include "quiche/quic/test_tools/simple_data_producer.h"
 
+#include <memory>
+#include <string>
 #include <utility>
 
 #include "absl/strings/string_view.h"
@@ -56,6 +58,15 @@ bool SimpleDataProducer::WriteCryptoData(EncryptionLevel level,
                                          QuicDataWriter* writer) {
   auto it = crypto_buffer_map_.find(std::make_pair(level, offset));
   if (it == crypto_buffer_map_.end() || it->second.length() < data_length) {
+    // If we fail to find an exact match for the offset, try to find a
+    // superset entry that covers the requested range.
+    for (auto& entry : crypto_buffer_map_) {
+      if (entry.first.first == level && entry.first.second <= offset &&
+          offset + data_length <= entry.first.second + entry.second.length()) {
+        return writer->WriteStringPiece(absl::string_view(
+            entry.second.data() + (offset - entry.first.second), data_length));
+      }
+    }
     return false;
   }
   return writer->WriteStringPiece(

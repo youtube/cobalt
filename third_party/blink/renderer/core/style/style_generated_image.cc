@@ -26,7 +26,6 @@
 #include "third_party/blink/renderer/core/css/css_gradient_value.h"
 #include "third_party/blink/renderer/core/css/css_image_generator_value.h"
 #include "third_party/blink/renderer/core/css/css_paint_value.h"
-#include "third_party/blink/renderer/platform/geometry/layout_size.h"
 #include "third_party/blink/renderer/platform/graphics/image.h"
 #include "ui/gfx/geometry/size_f.h"
 
@@ -50,7 +49,8 @@ bool StyleGeneratedImage::IsEqual(const StyleImage& other) const {
   if (!container_sizes_.SizesEqual(other_generated.container_sizes_)) {
     return false;
   }
-  return image_generator_value_ == other_generated.image_generator_value_;
+  return base::ValuesEquivalent(image_generator_value_,
+                                other_generated.image_generator_value_);
 }
 
 CSSValue* StyleGeneratedImage::CssValue() const {
@@ -59,13 +59,21 @@ CSSValue* StyleGeneratedImage::CssValue() const {
 
 CSSValue* StyleGeneratedImage::ComputedCSSValue(
     const ComputedStyle& style,
-    bool allow_visited_style) const {
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
   if (auto* image_gradient_value =
           DynamicTo<cssvalue::CSSGradientValue>(image_generator_value_.Get())) {
-    return image_gradient_value->ComputedCSSValue(style, allow_visited_style);
+    return image_gradient_value->ComputedCSSValue(style, allow_visited_style,
+                                                  value_phase);
   }
   DCHECK(IsA<CSSPaintValue>(image_generator_value_.Get()));
-  return image_generator_value_;
+  return image_generator_value_.Get();
+}
+
+NaturalSizingInfo StyleGeneratedImage::GetNaturalSizingInfo(
+    float multiplier,
+    RespectImageOrientationEnum respect_orientation) const {
+  return NaturalSizingInfo::None();
 }
 
 gfx::SizeF StyleGeneratedImage::ImageSize(float multiplier,
@@ -95,10 +103,10 @@ bool StyleGeneratedImage::IsUsingCurrentColor() const {
 
 scoped_refptr<Image> StyleGeneratedImage::GetImage(
     const ImageResourceObserver& observer,
-    const Document& document,
+    const Node& node,
     const ComputedStyle& style,
     const gfx::SizeF& target_size) const {
-  return image_generator_value_->GetImage(observer, document, style,
+  return image_generator_value_->GetImage(observer, node, style,
                                           container_sizes_, target_size);
 }
 

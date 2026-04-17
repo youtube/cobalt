@@ -14,10 +14,6 @@
 
 #include "cobalt/common/libc/time/time_zone_state.h"
 
-#include <memory>
-#include "unicode/timezone.h"
-#include "unicode/unistr.h"
-
 #include <limits.h>
 #include <string.h>
 #include <time.h>

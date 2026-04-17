@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 
 // clang-format off
-import {assert, assertInstanceof} from './assert_ts.js';
+import {assert, assertInstanceof} from './assert.js';
 import {EventTracker} from './event_tracker.js';
-import {hasKeyModifiers, isRTL} from './util_ts.js';
+import {hasKeyModifiers, isRTL} from './util.js';
 // clang-format on
 
 const ACTIVE_CLASS: string = 'focus-row-active';
@@ -322,3 +322,14 @@ export interface FocusRowDelegate {
   getCustomEquivalent(sampleElement: HTMLElement): HTMLElement|null;
 }
 
+export class VirtualFocusRow extends FocusRow {
+  constructor(root: HTMLElement, delegate: FocusRowDelegate) {
+    super(root, /* boundary */ null, delegate);
+  }
+
+  override getCustomEquivalent(sampleElement: HTMLElement) {
+    const equivalent =
+        this.delegate ? this.delegate.getCustomEquivalent(sampleElement) : null;
+    return equivalent || super.getCustomEquivalent(sampleElement);
+  }
+}

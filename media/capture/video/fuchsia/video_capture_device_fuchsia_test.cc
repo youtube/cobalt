@@ -5,6 +5,7 @@
 #include "media/capture/video/fuchsia/video_capture_device_fuchsia.h"
 
 #include "base/fuchsia/test_component_context_for_process.h"
+#include "base/memory/raw_ptr.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
@@ -55,7 +56,7 @@ class HeapBufferHandle : public VideoCaptureBufferHandle {
 
  private:
   const size_t size_;
-  uint8_t* const data_;
+  const raw_ptr<uint8_t> data_;
 };
 
 // VideoCaptureDevice::Client::Buffer::HandleProvider implementation that
@@ -68,7 +69,6 @@ class HeapBufferHandleProvider final
 
   base::UnsafeSharedMemoryRegion DuplicateAsUnsafeRegion() override {
     NOTREACHED();
-    return {};
   }
 
   std::unique_ptr<VideoCaptureBufferHandle> GetHandleForInProcessAccess()
@@ -112,7 +112,9 @@ class TestVideoCaptureClient final : public VideoCaptureDevice::Client {
   ReserveResult ReserveOutputBuffer(const gfx::Size& dimensions,
                                     VideoPixelFormat format,
                                     int frame_feedback_id,
-                                    Buffer* buffer) override {
+                                    Buffer* buffer,
+                                    int* require_new_buffer_id,
+                                    int* retire_old_buffer_id) override {
     EXPECT_TRUE(started_);
     EXPECT_EQ(format, PIXEL_FORMAT_I420);
     EXPECT_EQ(dimensions.width() % 2, 0);
@@ -129,8 +131,9 @@ class TestVideoCaptureClient final : public VideoCaptureDevice::Client {
       const gfx::ColorSpace& color_space,
       base::TimeTicks reference_time,
       base::TimeDelta timestamp,
+      std::optional<base::TimeTicks> capture_begin_time,
       gfx::Rect visible_rect,
-      const VideoFrameMetadata& additional_metadata) override {
+      const std::optional<VideoFrameMetadata>& additional_metadata) override {
     EXPECT_TRUE(started_);
 
     received_frames_.push_back(ReceivedFrame{std::move(buffer), format,
@@ -149,29 +152,38 @@ class TestVideoCaptureClient final : public VideoCaptureDevice::Client {
                               bool flip_y,
                               base::TimeTicks reference_time,
                               base::TimeDelta timestamp,
+                              std::optional<base::TimeTicks> capture_begin_time,
+                              const std::optional<VideoFrameMetadata>& metadata,
                               int frame_feedback_id) override {
     NOTREACHED();
   }
-  void OnIncomingCapturedGfxBuffer(gfx::GpuMemoryBuffer* buffer,
-                                   const VideoCaptureFormat& frame_format,
-                                   int clockwise_rotation,
-                                   base::TimeTicks reference_time,
-                                   base::TimeDelta timestamp,
-                                   int frame_feedback_id) override {
+  void OnIncomingCapturedImage(
+      scoped_refptr<gpu::ClientSharedImage> shared_image,
+      const VideoCaptureFormat& frame_format,
+      int clockwise_rotation,
+      base::TimeTicks reference_time,
+      base::TimeDelta timestamp,
+      std::optional<base::TimeTicks> capture_begin_time,
+      const std::optional<VideoFrameMetadata>& metadata,
+      int frame_feedback_id) override {
     NOTREACHED();
   }
   void OnIncomingCapturedExternalBuffer(
       CapturedExternalVideoBuffer buffer,
-      std::vector<CapturedExternalVideoBuffer> scaled_buffers,
       base::TimeTicks reference_time,
       base::TimeDelta timestamp,
-      gfx::Rect visible_rect) override {
+      std::optional<base::TimeTicks> capture_begin_time,
+      const gfx::Rect& visible_rect,
+      const std::optional<VideoFrameMetadata>& metadata) override {
     NOTREACHED();
   }
-  void OnIncomingCapturedBuffer(Buffer buffer,
-                                const VideoCaptureFormat& format,
-                                base::TimeTicks reference_time,
-                                base::TimeDelta timestamp) override {
+  void OnIncomingCapturedBuffer(
+      Buffer buffer,
+      const VideoCaptureFormat& format,
+      base::TimeTicks reference_time,
+      base::TimeDelta timestamp,
+      std::optional<base::TimeTicks> capture_begin_time,
+      const std::optional<VideoFrameMetadata>& metadata) override {
     NOTREACHED();
   }
   void OnError(VideoCaptureError error,
@@ -183,14 +195,11 @@ class TestVideoCaptureClient final : public VideoCaptureDevice::Client {
     NOTREACHED();
   }
   void OnLog(const std::string& message) override { NOTREACHED(); }
-  double GetBufferPoolUtilization() const override {
-    NOTREACHED();
-    return 0;
-  }
+  double GetBufferPoolUtilization() const override { NOTREACHED(); }
 
   bool started_ = false;
   std::vector<ReceivedFrame> received_frames_;
-  absl::optional<base::RunLoop> wait_frame_run_loop_;
+  std::optional<base::RunLoop> wait_frame_run_loop_;
 };
 
 }  // namespace
@@ -199,6 +208,7 @@ class VideoCaptureDeviceFuchsiaTest : public testing::Test {
  public:
   VideoCaptureDeviceFuchsiaTest() {
     test_context_.AddService("fuchsia.sysmem.Allocator");
+    test_context_.AddService("fuchsia.sysmem2.Allocator");
   }
 
   ~VideoCaptureDeviceFuchsiaTest() override {
@@ -269,7 +279,7 @@ class VideoCaptureDeviceFuchsiaTest : public testing::Test {
 
   VideoCaptureDeviceFactoryFuchsia device_factory_;
   std::unique_ptr<VideoCaptureDevice> device_;
-  TestVideoCaptureClient* client_ = nullptr;
+  raw_ptr<TestVideoCaptureClient> client_ = nullptr;
 };
 
 TEST_F(VideoCaptureDeviceFuchsiaTest, Initialize) {

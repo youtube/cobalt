@@ -7,11 +7,14 @@
 
 #include <memory>
 
-#include "base/functional/callback_forward.h"
+#include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/types/expected.h"
+#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_trust_checker.h"
 #include "chrome/browser/web_applications/isolated_web_apps/signed_web_bundle_reader.h"
 #include "components/web_package/mojom/web_bundle_parser.mojom-forward.h"
+#include "components/web_package/signed_web_bundles/signed_web_bundle_id.h"
+#include "components/web_package/signed_web_bundles/signed_web_bundle_integrity_block.h"
 
 namespace network {
 struct ResourceRequest;
@@ -19,17 +22,12 @@ struct ResourceRequest;
 
 namespace web_app {
 
-// This class is used to read responses for requests from Isolated Web Apps. It
-// is constructed from a `SignedWebBundleReader` instance, which must have
-// already read and validated integrity block and metadata. Usually, this class
+// The definition of the interface that is used to read responses for requests
+// from Isolated Web Apps. Usually, the implementations of this interface
 // should be constructed via the `IsolatedWebAppResponseReaderFactory`, which
 // will take care of the necessary validation and verification steps.
 class IsolatedWebAppResponseReader {
  public:
-  explicit IsolatedWebAppResponseReader(
-      std::unique_ptr<SignedWebBundleReader> reader);
-  ~IsolatedWebAppResponseReader();
-
   // A `Response` object contains the response head, as well as a `ReadBody`
   // function to read the response's body. It holds weakly onto a
   // `SignedWebBundleReader` for reading the response body. This reference will
@@ -64,20 +62,71 @@ class IsolatedWebAppResponseReader {
     base::WeakPtr<SignedWebBundleReader> reader_;
   };
 
-  using Error = SignedWebBundleReader::ReadResponseError;
+  struct Error {
+    enum class Type {
+      kParserInternalError,
+      kFormatError,
+      kResponseNotFound,
+      kNotTrusted,
+    };
+
+    static Error FromSignedWebBundleReaderError(
+        const SignedWebBundleReader::ReadResponseError& error);
+    // Returns `base::ok` if the trust checker result indicates success. Returns
+    // an error otherwise.
+    static base::expected<void, Error> FromTrustCheckerResult(
+        const IsolatedWebAppTrustChecker::Result& result);
+
+    Type type;
+    std::string message;
+
+   private:
+    Error(Type type, std::string message)
+        : type(type), message(std::move(message)) {}
+  };
 
   using ReadResponseCallback =
       base::OnceCallback<void(base::expected<Response, Error>)>;
 
+  virtual ~IsolatedWebAppResponseReader() = default;
+
+  virtual web_package::SignedWebBundleIntegrityBlock GetIntegrityBlock() = 0;
+  virtual void ReadResponse(const network::ResourceRequest& resource_request,
+                            ReadResponseCallback callback) = 0;
+  virtual void Close(base::OnceClosure callback) = 0;
+};
+
+// The implementation of the IWA response reader. It is constructed from
+// a `SignedWebBundleReader` instance, which must have already
+// read and validated integrity block and metadata.
+class IsolatedWebAppResponseReaderImpl : public IsolatedWebAppResponseReader {
+ public:
+  using TrustChecker =
+      base::RepeatingCallback<IsolatedWebAppTrustChecker::Result()>;
+
+  explicit IsolatedWebAppResponseReaderImpl(
+      std::unique_ptr<SignedWebBundleReader> reader,
+      Profile& profile,
+      const web_package::SignedWebBundleId& web_bundle_id,
+      bool dev_mode);
+  ~IsolatedWebAppResponseReaderImpl() override;
+
+  web_package::SignedWebBundleIntegrityBlock GetIntegrityBlock() override;
   void ReadResponse(const network::ResourceRequest& resource_request,
-                    ReadResponseCallback callback);
+                    ReadResponseCallback callback) override;
+  void Close(base::OnceClosure callback) override;
 
  private:
-  void OnResponseRead(ReadResponseCallback callback,
-                      base::expected<web_package::mojom::BundleResponsePtr,
-                                     Error> response_head);
+  void OnResponseRead(
+      ReadResponseCallback callback,
+      base::expected<web_package::mojom::BundleResponsePtr,
+                     SignedWebBundleReader::ReadResponseError> response_head);
+  void OnClosed(base::OnceClosure callback);
 
   std::unique_ptr<SignedWebBundleReader> reader_;
+  const raw_ref<Profile> profile_;
+  const web_package::SignedWebBundleId web_bundle_id_;
+  const bool dev_mode_ = false;
 };
 
 }  // namespace web_app

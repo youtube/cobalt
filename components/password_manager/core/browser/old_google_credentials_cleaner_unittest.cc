@@ -4,9 +4,11 @@
 
 #include "components/password_manager/core/browser/old_google_credentials_cleaner.h"
 
+#include <string_view>
+
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
-#include "components/password_manager/core/browser/mock_password_store_interface.h"
+#include "components/password_manager/core/browser/password_store/mock_password_store_interface.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/testing_pref_service.h"
@@ -17,7 +19,7 @@ namespace password_manager {
 
 namespace {
 
-PasswordForm CreateForm(base::StringPiece signon_realm) {
+PasswordForm CreateForm(std::string_view signon_realm) {
   PasswordForm form;
   form.scheme = PasswordForm::Scheme::kHtml;
   form.signon_realm = std::string(signon_realm);
@@ -52,12 +54,8 @@ class OldGoogleCredentialCleanerTest : public testing::Test {
         .WillOnce(testing::WithArg<0>(
             [password_forms, store = store_.get()](
                 base::WeakPtr<PasswordStoreConsumer> consumer) {
-              std::vector<std::unique_ptr<PasswordForm>> results;
-              for (auto& form : password_forms)
-                results.push_back(
-                    std::make_unique<PasswordForm>(std::move(form)));
               consumer->OnGetPasswordStoreResultsOrErrorFrom(
-                  store, std::move(results));
+                  store, std::move(password_forms));
             }));
   }
 
@@ -82,15 +80,15 @@ TEST_F(OldGoogleCredentialCleanerTest, TestOldGooglePasswordsAreDeleted) {
       CreateForm("https://www.google.com/"),
   };
 
+  MockCredentialsCleanerObserver observer;
   OldGoogleCredentialCleaner cleaner{store(), &prefs()};
   ASSERT_TRUE(cleaner.NeedsCleaning());
 
   ExpectPasswords(forms);
   for (const auto& form : forms) {
-    EXPECT_CALL(*store(), RemoveLogin(form));
+    EXPECT_CALL(*store(), RemoveLogin(testing::_, form));
   }
 
-  MockCredentialsCleanerObserver observer;
   EXPECT_CALL(observer, CleaningCompleted);
   cleaner.StartCleaning(&observer);
 
@@ -104,16 +102,16 @@ TEST_F(OldGoogleCredentialCleanerTest, TestNewerGooglePasswordsAreNotDeleted) {
   PasswordForm old_form = CreateForm("http://www.google.com");
   // Form created after cutoff.
   PasswordForm new_form = CreateForm("https://www.google.com");
-  const base::Time::Exploded time = {2012, 1, 0, 1,
-                                     0,    0, 0, 1};  // 00:01 Jan 1 2012
-  ASSERT_TRUE(base::Time::FromUTCExploded(time, &new_form.date_created));
+  static constexpr base::Time::Exploded kTime = {
+      .year = 2012, .month = 1, .day_of_month = 1, .second = 1};
+  ASSERT_TRUE(base::Time::FromUTCExploded(kTime, &new_form.date_created));
 
+  MockCredentialsCleanerObserver observer;
   OldGoogleCredentialCleaner cleaner{store(), &prefs()};
   ASSERT_TRUE(cleaner.NeedsCleaning());
 
-  MockCredentialsCleanerObserver observer;
   ExpectPasswords({old_form, new_form, CreateForm("http://test.com/")});
-  EXPECT_CALL(*store(), RemoveLogin(old_form));
+  EXPECT_CALL(*store(), RemoveLogin(testing::_, old_form));
   EXPECT_CALL(observer, CleaningCompleted);
   cleaner.StartCleaning(&observer);
 

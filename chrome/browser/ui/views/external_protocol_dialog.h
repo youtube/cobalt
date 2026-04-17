@@ -26,25 +26,22 @@ class MessageBoxView;
 }
 
 class ExternalProtocolDialog : public views::DialogDelegateView {
+  METADATA_HEADER(ExternalProtocolDialog, views::DialogDelegateView)
+
  public:
-  METADATA_HEADER(ExternalProtocolDialog);
   // Show by calling ExternalProtocolHandler::RunExternalProtocolDialog().
   ExternalProtocolDialog(content::WebContents* web_contents,
                          const GURL& url,
                          const std::u16string& program_name,
-                         const absl::optional<url::Origin>& initiating_origin,
+                         const std::optional<url::Origin>& initiating_origin,
                          content::WeakDocumentPtr initiator_document);
   ExternalProtocolDialog(const ExternalProtocolDialog&) = delete;
   ExternalProtocolDialog& operator=(const ExternalProtocolDialog&) = delete;
   ~ExternalProtocolDialog() override;
 
   // views::DialogDelegateView:
-  gfx::Size CalculatePreferredSize() const override;
   bool ShouldShowCloseButton() const override;
   std::u16string GetWindowTitle() const override;
-  views::View* GetContentsView() override;
-  views::Widget* GetWidget() override;
-  const views::Widget* GetWidget() const override;
 
  private:
   friend class test::ExternalProtocolDialogTestApi;
@@ -56,7 +53,7 @@ class ExternalProtocolDialog : public views::DialogDelegateView {
 
   const GURL url_;
   const std::u16string program_name_;
-  const absl::optional<url::Origin> initiating_origin_;
+  const std::optional<url::Origin> initiating_origin_;
   const content::WeakDocumentPtr initiator_document_;
 
   // The message box whose commands we handle.

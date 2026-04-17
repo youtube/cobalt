@@ -35,11 +35,12 @@ class DebugTest : public ANGLETest<>
         setConfigAlphaBits(8);
         setConfigDepthBits(24);
         setDebugEnabled(true);
+        setExtensionsEnabled(false);
     }
 
     void testSetUp() override
     {
-        mDebugExtensionAvailable = IsGLExtensionEnabled("GL_KHR_debug");
+        mDebugExtensionAvailable = EnsureGLExtensionEnabled("GL_KHR_debug");
         if (mDebugExtensionAvailable)
         {
             glEnable(GL_DEBUG_OUTPUT);
@@ -49,7 +50,11 @@ class DebugTest : public ANGLETest<>
     bool mDebugExtensionAvailable;
 };
 
-void createGLObjectAndLabel(GLenum identifier, GLuint &object, const char **label)
+void createGLObjectAndLabel(GLenum identifier,
+                            GLuint &object,
+                            const char **label,
+                            int major,
+                            int minor)
 {
     switch (identifier)
     {
@@ -67,18 +72,42 @@ void createGLObjectAndLabel(GLenum identifier, GLuint &object, const char **labe
             *label = kProgramObjLabel;
             break;
         case GL_VERTEX_ARRAY_OBJECT_EXT:
-            glGenVertexArrays(1, &object);
-            glBindVertexArray(object);
+            if (major < 3)
+            {
+                glGenVertexArraysOES(1, &object);
+                glBindVertexArrayOES(object);
+            }
+            else
+            {
+                glGenVertexArrays(1, &object);
+                glBindVertexArray(object);
+            }
             *label = kVertexArrayObjLabel;
             break;
         case GL_QUERY_OBJECT_EXT:
-            glGenQueries(1, &object);
-            glBeginQuery(GL_ANY_SAMPLES_PASSED, object);
+            if (major < 3)
+            {
+                glGenQueriesEXT(1, &object);
+                glBeginQueryEXT(GL_ANY_SAMPLES_PASSED, object);
+            }
+            else
+            {
+                glGenQueries(1, &object);
+                glBeginQuery(GL_ANY_SAMPLES_PASSED, object);
+            }
             *label = kQueryObjLabel;
             break;
         case GL_PROGRAM_PIPELINE_OBJECT_EXT:
-            glGenProgramPipelines(1, &object);
-            glBindProgramPipeline(object);
+            if (major < 3 || minor < 1)
+            {
+                glGenProgramPipelinesEXT(1, &object);
+                glBindProgramPipelineEXT(object);
+            }
+            else
+            {
+                glGenProgramPipelines(1, &object);
+                glBindProgramPipeline(object);
+            }
             *label = kProgramPipelineObjLabel;
             break;
         default:
@@ -87,7 +116,7 @@ void createGLObjectAndLabel(GLenum identifier, GLuint &object, const char **labe
     }
 }
 
-void deleteGLObject(GLenum identifier, GLuint &object)
+void deleteGLObject(GLenum identifier, GLuint &object, int major, int minor)
 {
     switch (identifier)
     {
@@ -101,14 +130,36 @@ void deleteGLObject(GLenum identifier, GLuint &object)
             glDeleteProgram(object);
             break;
         case GL_VERTEX_ARRAY_OBJECT_EXT:
-            glDeleteVertexArrays(1, &object);
+            if (major < 3)
+            {
+                glDeleteVertexArraysOES(1, &object);
+            }
+            else
+            {
+                glDeleteVertexArrays(1, &object);
+            }
             break;
         case GL_QUERY_OBJECT_EXT:
-            glEndQuery(GL_ANY_SAMPLES_PASSED);
-            glDeleteQueries(1, &object);
+            if (major < 3)
+            {
+                glEndQueryEXT(GL_ANY_SAMPLES_PASSED);
+                glDeleteQueriesEXT(1, &object);
+            }
+            else
+            {
+                glEndQuery(GL_ANY_SAMPLES_PASSED);
+                glDeleteQueries(1, &object);
+            }
             break;
         case GL_PROGRAM_PIPELINE_OBJECT_EXT:
-            glDeleteProgramPipelines(1, &object);
+            if (major < 3 || minor < 1)
+            {
+                glDeleteProgramPipelinesEXT(1, &object);
+            }
+            else
+            {
+                glDeleteProgramPipelines(1, &object);
+            }
             break;
         default:
             UNREACHABLE();
@@ -126,23 +177,30 @@ TEST_P(DebugTest, ObjectLabelsEXT)
         bool skip = false;
         switch (identifier)
         {
+            case GL_PROGRAM_OBJECT_EXT:
+            case GL_SHADER_OBJECT_EXT:
+                if (getClientMajorVersion() < 2)
+                {
+                    skip = true;
+                }
+                break;
             case GL_PROGRAM_PIPELINE_OBJECT_EXT:
-                if (!(getClientMajorVersion() >= 3 && getClientMinorVersion() >= 1) ||
-                    !IsGLExtensionEnabled("GL_EXT_separate_shader_objects"))
+                if ((getClientMajorVersion() < 3 || getClientMinorVersion() < 1) &&
+                    !EnsureGLExtensionEnabled("GL_EXT_separate_shader_objects"))
                 {
                     skip = true;
                 }
                 break;
             case GL_QUERY_OBJECT_EXT:
-                // GLES3 context is required for glGenQueries()
-                if (getClientMajorVersion() < 3 ||
-                    !IsGLExtensionEnabled("GL_EXT_occlusion_query_boolean"))
+                if (getClientMajorVersion() < 3 &&
+                    !EnsureGLExtensionEnabled("GL_EXT_occlusion_query_boolean"))
                 {
                     skip = true;
                 }
                 break;
             case GL_VERTEX_ARRAY_OBJECT_EXT:
-                if (getClientMajorVersion() < 3)
+                if (getClientMajorVersion() < 3 &&
+                    !EnsureGLExtensionEnabled("GL_OES_vertex_array_object"))
                 {
                     skip = true;
                 }
@@ -159,7 +217,9 @@ TEST_P(DebugTest, ObjectLabelsEXT)
 
         GLuint object;
         const char *label;
-        createGLObjectAndLabel(identifier, object, &label);
+        createGLObjectAndLabel(identifier, object, &label, getClientMajorVersion(),
+                               getClientMinorVersion());
+        ASSERT_GL_NO_ERROR();
 
         glLabelObjectEXT(identifier, object, 0, label);
         ASSERT_GL_NO_ERROR();
@@ -173,9 +233,8 @@ TEST_P(DebugTest, ObjectLabelsEXT)
         EXPECT_EQ(static_cast<GLsizei>(strlen(label)), labelLengthBuf);
         EXPECT_STREQ(label, labelBuf.data());
 
+        deleteGLObject(identifier, object, getClientMajorVersion(), getClientMinorVersion());
         ASSERT_GL_NO_ERROR();
-
-        deleteGLObject(identifier, object);
 
         glLabelObjectEXT(identifier, object, 0, label);
         EXPECT_GL_ERROR(GL_INVALID_OPERATION);
@@ -184,6 +243,61 @@ TEST_P(DebugTest, ObjectLabelsEXT)
                             &labelLengthBuf, labelBuf.data());
         EXPECT_GL_ERROR(GL_INVALID_OPERATION);
     }
+}
+
+// Test basic usage of setting and getting labels using GL_EXT_debug_label on timer query objects
+TEST_P(DebugTest, TimerQueryObjectLabelsEXT)
+{
+    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_debug_label"));
+
+    ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_EXT_disjoint_timer_query"));
+
+    GLuint object;
+    glGenQueriesEXT(1, &object);
+    glBeginQueryEXT(GL_TIME_ELAPSED_EXT, object);
+    ASSERT_GL_NO_ERROR();
+
+    glLabelObjectEXT(GL_QUERY_OBJECT_EXT, object, 0, kQueryObjLabel);
+    EXPECT_GL_NO_ERROR();
+
+    std::vector<char> labelBuf(strlen(kQueryObjLabel) + 1);
+    GLsizei labelLengthBuf = 0;
+    glGetObjectLabelEXT(GL_QUERY_OBJECT_EXT, object, static_cast<GLsizei>(labelBuf.size()),
+                        &labelLengthBuf, labelBuf.data());
+    ASSERT_GL_NO_ERROR();
+
+    EXPECT_EQ(static_cast<GLsizei>(strlen(kQueryObjLabel)), labelLengthBuf);
+    EXPECT_STREQ(kQueryObjLabel, labelBuf.data());
+
+    glEndQueryEXT(GL_TIME_ELAPSED_EXT);
+    glDeleteQueriesEXT(1, &object);
+    ASSERT_GL_NO_ERROR();
+
+    glLabelObjectEXT(GL_QUERY_OBJECT_EXT, object, 0, kQueryObjLabel);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+
+    glGetObjectLabelEXT(GL_QUERY_OBJECT_EXT, object, static_cast<GLsizei>(labelBuf.size()),
+                        &labelLengthBuf, labelBuf.data());
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+}
+
+// Simple test for GetDebugMessageLogKHR validation
+TEST_P(DebugTest, GetDebugMessageLog)
+{
+    ANGLE_SKIP_TEST_IF(!mDebugExtensionAvailable);
+
+    glGetDebugMessageLogKHR(1, -1, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+    EXPECT_GL_NO_ERROR();
+
+    glGetDebugMessageLogKHR(1, 0, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+    EXPECT_GL_NO_ERROR();
+
+    std::vector<char> messageBuf(1);
+    glGetDebugMessageLogKHR(1, -1, nullptr, nullptr, nullptr, nullptr, nullptr, messageBuf.data());
+    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+
+    glGetDebugMessageLogKHR(1, 0, nullptr, nullptr, nullptr, nullptr, nullptr, messageBuf.data());
+    EXPECT_GL_NO_ERROR();
 }
 
 class DebugTestES3 : public DebugTest
@@ -347,6 +461,185 @@ TEST_P(DebugTestES3, InsertMessageMultiple)
     ASSERT_GL_NO_ERROR();
 }
 
+// Test that a too long label fails
+TEST_P(DebugTest, ObjectLabelTooLong)
+{
+    ANGLE_SKIP_TEST_IF(!mDebugExtensionAvailable);
+
+    // Limit includes the null terminator
+    GLint maxLength = 0;
+    glGetIntegerv(GL_MAX_LABEL_LENGTH_KHR, &maxLength);
+    ASSERT_GE(maxLength, 1);
+
+    GLBuffer object;
+    glBindBuffer(GL_ARRAY_BUFFER, object);
+    ASSERT_GL_NO_ERROR();
+
+    // Implicit length
+    glObjectLabelKHR(GL_BUFFER_KHR, object, -1, std::string(maxLength - 1, 'A').c_str());
+    EXPECT_GL_NO_ERROR();
+
+    glObjectLabelKHR(GL_BUFFER_KHR, object, -1, std::string(maxLength, 'A').c_str());
+    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+
+    glObjectLabelKHR(GL_BUFFER_KHR, object, -1, std::string(maxLength + 1, 'A').c_str());
+    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+
+    // Explicit length
+    const std::string label = std::string(maxLength + 1, 'B');
+
+    glObjectLabelKHR(GL_BUFFER_KHR, object, maxLength - 1, label.c_str());
+    EXPECT_GL_NO_ERROR();
+
+    glObjectLabelKHR(GL_BUFFER_KHR, object, maxLength, label.c_str());
+    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+
+    glObjectLabelKHR(GL_BUFFER_KHR, object, maxLength + 1, label.c_str());
+    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+}
+
+// Test that a too long sync object label fails
+TEST_P(DebugTestES3, ObjectPtrLabelTooLong)
+{
+    ANGLE_SKIP_TEST_IF(!mDebugExtensionAvailable);
+
+    // Limit includes the null terminator
+    GLint maxLength = 0;
+    glGetIntegerv(GL_MAX_LABEL_LENGTH_KHR, &maxLength);
+    ASSERT_GE(maxLength, 1);
+
+    GLsync object = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+    ASSERT_GL_NO_ERROR();
+
+    // Implicit length
+    glObjectPtrLabelKHR(object, -1, std::string(maxLength - 1, 'A').c_str());
+    EXPECT_GL_NO_ERROR();
+
+    glObjectPtrLabelKHR(object, -1, std::string(maxLength, 'A').c_str());
+    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+
+    glObjectPtrLabelKHR(object, -1, std::string(maxLength + 1, 'A').c_str());
+    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+
+    // Explicit length
+    const std::string label = std::string(maxLength + 1, 'B');
+
+    glObjectPtrLabelKHR(object, maxLength - 1, label.c_str());
+    EXPECT_GL_NO_ERROR();
+
+    glObjectPtrLabelKHR(object, maxLength, label.c_str());
+    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+
+    glObjectPtrLabelKHR(object, maxLength + 1, label.c_str());
+    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+
+    glDeleteSync(object);
+}
+
+// Test that a too long debug group fails
+TEST_P(DebugTest, PushDebugGroupTooLong)
+{
+    ANGLE_SKIP_TEST_IF(!mDebugExtensionAvailable);
+
+    // Limit includes the null terminator
+    GLint maxLength = 0;
+    glGetIntegerv(GL_MAX_DEBUG_MESSAGE_LENGTH_KHR, &maxLength);
+    ASSERT_GE(maxLength, 1);
+
+    const GLenum source = GL_DEBUG_SOURCE_APPLICATION_KHR;
+
+    // Implicit length
+    glPushDebugGroupKHR(source, 1, -1, std::string(maxLength - 1, 'A').c_str());
+    EXPECT_GL_NO_ERROR();
+
+    glPushDebugGroupKHR(source, 1, -1, std::string(maxLength, 'A').c_str());
+    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+
+    glPushDebugGroupKHR(source, 1, -1, std::string(maxLength + 1, 'A').c_str());
+    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+
+    // Explicit length
+    const std::string message = std::string(maxLength + 1, 'B');
+
+    glPushDebugGroupKHR(source, 1, maxLength - 1, message.c_str());
+    EXPECT_GL_NO_ERROR();
+
+    glPushDebugGroupKHR(source, 1, maxLength, message.c_str());
+    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+
+    glPushDebugGroupKHR(source, 1, maxLength + 1, message.c_str());
+    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+}
+
+// Test that a too long message fails
+TEST_P(DebugTest, InsertMessageTooLong)
+{
+    ANGLE_SKIP_TEST_IF(!mDebugExtensionAvailable);
+
+    // Limit includes the null terminator
+    GLint maxLength = 0;
+    glGetIntegerv(GL_MAX_DEBUG_MESSAGE_LENGTH_KHR, &maxLength);
+    ASSERT_GE(maxLength, 1);
+
+    const GLenum source   = GL_DEBUG_SOURCE_APPLICATION_KHR;
+    const GLenum type     = GL_DEBUG_TYPE_OTHER_KHR;
+    const GLenum severity = GL_DEBUG_SEVERITY_NOTIFICATION_KHR;
+
+    // Implicit length
+    glDebugMessageInsertKHR(source, type, 1, severity, -1, std::string(maxLength - 1, 'A').c_str());
+    EXPECT_GL_NO_ERROR();
+
+    glDebugMessageInsertKHR(source, type, 1, severity, -1, std::string(maxLength, 'A').c_str());
+    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+
+    glDebugMessageInsertKHR(source, type, 1, severity, -1, std::string(maxLength + 1, 'A').c_str());
+    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+
+    // Explicit length
+    const std::string message = std::string(maxLength + 1, 'B');
+
+    glDebugMessageInsertKHR(source, type, 1, severity, maxLength - 1, message.c_str());
+    EXPECT_GL_NO_ERROR();
+
+    glDebugMessageInsertKHR(source, type, 1, severity, maxLength, message.c_str());
+    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+
+    glDebugMessageInsertKHR(source, type, 1, severity, maxLength + 1, message.c_str());
+    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+}
+
+// Test that passing a zero length inserts an empty message
+TEST_P(DebugTest, InsertMessageZeroLength)
+{
+    ANGLE_SKIP_TEST_IF(!mDebugExtensionAvailable);
+
+    GLint numMessages = 0;
+    glGetIntegerv(GL_DEBUG_LOGGED_MESSAGES_KHR, &numMessages);
+    ASSERT_EQ(0, numMessages);
+
+    const GLenum source   = GL_DEBUG_SOURCE_APPLICATION_KHR;
+    const GLenum type     = GL_DEBUG_TYPE_OTHER_KHR;
+    const GLenum severity = GL_DEBUG_SEVERITY_NOTIFICATION_KHR;
+
+    glDebugMessageInsertKHR(source, type, 1, severity, 0, "abc");
+    EXPECT_GL_NO_ERROR();
+
+    GLsizei lengthBuf = 0;
+    std::vector<char> messageBuf(4, 0xFF);
+    GLuint ret = glGetDebugMessageLogKHR(1, static_cast<GLsizei>(messageBuf.size()), nullptr,
+                                         nullptr, nullptr, nullptr, &lengthBuf, messageBuf.data());
+    EXPECT_GL_NO_ERROR();
+    EXPECT_EQ(1u, ret);
+    EXPECT_EQ(lengthBuf, 1);
+    EXPECT_EQ('\x00', messageBuf[0]);
+    EXPECT_EQ('\xFF', messageBuf[1]);
+    EXPECT_EQ('\xFF', messageBuf[2]);
+    EXPECT_EQ('\xFF', messageBuf[3]);
+
+    glGetIntegerv(GL_DEBUG_LOGGED_MESSAGES_KHR, &numMessages);
+    EXPECT_EQ(0, numMessages);
+}
+
 // Test using a debug callback
 TEST_P(DebugTestES3, DebugCallback)
 {
@@ -496,7 +789,7 @@ TEST_P(DebugTestES3, MessageControl2)
 }
 
 // Test basic usage of setting and getting labels
-TEST_P(DebugTestES3, ObjectLabels)
+TEST_P(DebugTestES3, ObjectLabelsKHR)
 {
     ANGLE_SKIP_TEST_IF(!mDebugExtensionAvailable);
 
@@ -528,7 +821,7 @@ TEST_P(DebugTestES3, ObjectLabels)
 }
 
 // Test basic usage of setting and getting labels
-TEST_P(DebugTestES3, ObjectPtrLabels)
+TEST_P(DebugTestES3, ObjectPtrLabelsKHR)
 {
     ANGLE_SKIP_TEST_IF(!mDebugExtensionAvailable);
 
@@ -663,6 +956,81 @@ TEST_P(DebugTestES32, DebugGroup)
     // Pop the test debug group and expect no error
     glPopDebugGroup();
     ASSERT_GL_NO_ERROR();
+}
+
+// Simple test for setting and getting labels using ES32 core APIs
+TEST_P(DebugTestES32, ObjectLabels)
+{
+    GLuint renderbuffer = 0;
+    glGenRenderbuffers(1, &renderbuffer);
+    glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer);
+
+    const std::string &label = "renderbuffer";
+    glObjectLabel(GL_RENDERBUFFER, renderbuffer, -1, label.c_str());
+
+    std::vector<char> labelBuf(label.length() + 1);
+    GLsizei labelLengthBuf = 0;
+    glGetObjectLabel(GL_RENDERBUFFER, renderbuffer, static_cast<GLsizei>(labelBuf.size()),
+                     &labelLengthBuf, labelBuf.data());
+
+    EXPECT_EQ(static_cast<GLsizei>(label.length()), labelLengthBuf);
+    EXPECT_STREQ(label.c_str(), labelBuf.data());
+
+    ASSERT_GL_NO_ERROR();
+
+    glDeleteRenderbuffers(1, &renderbuffer);
+
+    glObjectLabel(GL_RENDERBUFFER, renderbuffer, -1, label.c_str());
+    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+
+    glGetObjectLabel(GL_RENDERBUFFER, renderbuffer, static_cast<GLsizei>(labelBuf.size()),
+                     &labelLengthBuf, labelBuf.data());
+    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+}
+
+// Simple test for setting and getting labels using ES32 core APIs
+TEST_P(DebugTestES32, ObjectPtrLabels)
+{
+    GLsync sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+
+    const std::string &label = "sync";
+    glObjectPtrLabel(sync, -1, label.c_str());
+
+    std::vector<char> labelBuf(label.length() + 1);
+    GLsizei labelLengthBuf = 0;
+    glGetObjectPtrLabel(sync, static_cast<GLsizei>(labelBuf.size()), &labelLengthBuf,
+                        labelBuf.data());
+
+    EXPECT_EQ(static_cast<GLsizei>(label.length()), labelLengthBuf);
+    EXPECT_STREQ(label.c_str(), labelBuf.data());
+
+    ASSERT_GL_NO_ERROR();
+
+    glDeleteSync(sync);
+
+    glObjectPtrLabel(sync, -1, label.c_str());
+    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+
+    glGetObjectPtrLabel(sync, static_cast<GLsizei>(labelBuf.size()), &labelLengthBuf,
+                        labelBuf.data());
+    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+}
+
+// Simple test for GetDebugMessageLog validation using ES32 core API
+TEST_P(DebugTestES32, GetDebugMessageLog)
+{
+    glGetDebugMessageLog(1, -1, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+    EXPECT_GL_NO_ERROR();
+
+    glGetDebugMessageLog(1, 0, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+    EXPECT_GL_NO_ERROR();
+
+    std::vector<char> messageBuf(1);
+    glGetDebugMessageLog(1, -1, nullptr, nullptr, nullptr, nullptr, nullptr, messageBuf.data());
+    EXPECT_GL_ERROR(GL_INVALID_VALUE);
+
+    glGetDebugMessageLog(1, 0, nullptr, nullptr, nullptr, nullptr, nullptr, messageBuf.data());
+    EXPECT_GL_NO_ERROR();
 }
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(DebugTestES3);

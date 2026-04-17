@@ -5,6 +5,7 @@
 #include "android_webview/browser/gfx/render_thread_manager.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "android_webview/browser/gfx/compositor_frame_producer.h"
@@ -23,7 +24,6 @@
 #include "base/trace_event/traced_value.h"
 #include "components/viz/common/features.h"
 #include "components/viz/common/quads/compositor_frame.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace android_webview {
 
@@ -39,7 +39,7 @@ RenderThreadManager::~RenderThreadManager() {
   DCHECK(child_frames_.empty());
 }
 
-void RenderThreadManager::UpdateParentDrawConstraintsOnUI() {
+void RenderThreadManager::UpdateParentDrawDataOnUI() {
   DCHECK(ui_loop_->BelongsToCurrentThread());
   CheckUiCallsAllowed();
   if (producer_weak_ptr_) {
@@ -113,27 +113,29 @@ void RenderThreadManager::PostParentDrawDataToChildCompositorOnRT(
     const ParentCompositorDrawConstraints& parent_draw_constraints,
     const viz::FrameSinkId& frame_sink_id,
     viz::FrameTimingDetailsMap timing_details,
-    uint32_t frame_token) {
+    uint32_t frame_token,
+    base::TimeDelta preferred_frame_interval) {
   {
     base::AutoLock lock(lock_);
     parent_draw_constraints_ = parent_draw_constraints;
     timing_details_.insert(timing_details.begin(), timing_details.end());
     presented_frame_token_ = frame_token;
     frame_sink_id_for_presentation_feedbacks_ = frame_sink_id;
+    preferred_frame_interval_ = preferred_frame_interval;
   }
 
   // No need to hold the lock_ during the post task.
   ui_loop_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&RenderThreadManager::UpdateParentDrawConstraintsOnUI,
-                     ui_thread_weak_ptr_));
+      FROM_HERE, base::BindOnce(&RenderThreadManager::UpdateParentDrawDataOnUI,
+                                ui_thread_weak_ptr_));
 }
 
 void RenderThreadManager::TakeParentDrawDataOnUI(
     ParentCompositorDrawConstraints* constraints,
     viz::FrameSinkId* frame_sink_id,
     viz::FrameTimingDetailsMap* timing_details,
-    uint32_t* frame_token) {
+    uint32_t* frame_token,
+    base::TimeDelta* preferred_frame_interval) {
   DCHECK(ui_loop_->BelongsToCurrentThread());
   DCHECK(timing_details->empty());
   CheckUiCallsAllowed();
@@ -142,6 +144,7 @@ void RenderThreadManager::TakeParentDrawDataOnUI(
   *frame_sink_id = frame_sink_id_for_presentation_feedbacks_;
   timing_details_.swap(*timing_details);
   *frame_token = presented_frame_token_;
+  *preferred_frame_interval = preferred_frame_interval_;
 }
 
 void RenderThreadManager::SetInsideHardwareRelease(bool inside) {
@@ -188,13 +191,15 @@ void RenderThreadManager::UpdateViewTreeForceDarkStateOnRT(
                      ui_thread_weak_ptr_, view_tree_force_dark_state_));
 }
 
-void RenderThreadManager::DrawOnRT(bool save_restore,
-                                   const HardwareRendererDrawParams& params,
-                                   const OverlaysParams& overlays_params) {
+void RenderThreadManager::DrawOnRT(
+    bool save_restore,
+    const HardwareRendererDrawParams& params,
+    const OverlaysParams& overlays_params,
+    ReportRenderingThreadsCallback report_rendering_threads) {
   // Force GL binding init if it's not yet initialized.
   GpuServiceWebView::GetInstance();
 
-  absl::optional<ScopedAppGLStateRestore> state_restore;
+  std::optional<ScopedAppGLStateRestore> state_restore;
   if (!vulkan_context_provider_) {
     state_restore.emplace(ScopedAppGLStateRestore::MODE_DRAW, save_restore);
     if (state_restore->skip_draw()) {
@@ -216,7 +221,8 @@ void RenderThreadManager::DrawOnRT(bool save_restore,
   }
 
   if (hardware_renderer_)
-    hardware_renderer_->Draw(params, overlays_params);
+    hardware_renderer_->Draw(params, overlays_params,
+                             std::move(report_rendering_threads));
 }
 
 void RenderThreadManager::RemoveOverlaysOnRT(
@@ -229,7 +235,7 @@ void RenderThreadManager::DestroyHardwareRendererOnRT(bool save_restore,
                                                       bool abandon_context) {
   GpuServiceWebView::GetInstance();
 
-  absl::optional<ScopedAppGLStateRestore> state_restore;
+  std::optional<ScopedAppGLStateRestore> state_restore;
   if (!vulkan_context_provider_ && !abandon_context) {
     state_restore.emplace(ScopedAppGLStateRestore::MODE_RESOURCE_MANAGEMENT,
                           save_restore);

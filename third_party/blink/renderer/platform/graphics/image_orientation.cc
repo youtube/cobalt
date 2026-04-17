@@ -57,7 +57,6 @@ AffineTransform ImageOrientation::TransformFromDefault(
   }
 
   NOTREACHED();
-  return AffineTransform();
 }
 
 AffineTransform ImageOrientation::TransformToDefault(
@@ -85,7 +84,6 @@ AffineTransform ImageOrientation::TransformToDefault(
   }
 
   NOTREACHED();
-  return AffineTransform();
 }
 
 }  // namespace blink

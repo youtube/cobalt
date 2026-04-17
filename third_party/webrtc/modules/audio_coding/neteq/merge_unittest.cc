@@ -12,9 +12,12 @@
 
 #include "modules/audio_coding/neteq/merge.h"
 
-#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
 #include <vector>
 
+#include "api/neteq/tick_timer.h"
 #include "modules/audio_coding/neteq/background_noise.h"
 #include "modules/audio_coding/neteq/expand.h"
 #include "modules/audio_coding/neteq/random_vector.h"
@@ -32,7 +35,8 @@ TEST(Merge, CreateAndDestroy) {
   BackgroundNoise bgn(channels);
   SyncBuffer sync_buffer(1, 1000);
   RandomVector random_vector;
-  StatisticsCalculator statistics;
+  TickTimer timer;
+  StatisticsCalculator statistics(&timer);
   Expand expand(&bgn, &sync_buffer, &random_vector, &statistics, fs, channels);
   Merge merge(fs, channels, &expand, &sync_buffer);
 }
@@ -52,6 +56,7 @@ class MergeTest : public testing::TestWithParam<size_t> {
         background_noise_(num_channels_),
         sync_buffer_(num_channels_,
                      kNetEqSyncBufferLengthMs * test_sample_rate_hz_ / 1000),
+        statistics_(&timer_),
         expand_(&background_noise_,
                 &sync_buffer_,
                 &random_vector_,
@@ -86,6 +91,7 @@ class MergeTest : public testing::TestWithParam<size_t> {
   BackgroundNoise background_noise_;
   SyncBuffer sync_buffer_;
   RandomVector random_vector_;
+  TickTimer timer_;
   StatisticsCalculator statistics_;
   Expand expand_;
   Merge merge_;

@@ -17,60 +17,60 @@
 #ifndef SRC_TRACE_PROCESSOR_SQLITE_STATS_TABLE_H_
 #define SRC_TRACE_PROCESSOR_SQLITE_STATS_TABLE_H_
 
-#include <limits>
-#include <memory>
+#include <cstddef>
 
-#include "src/trace_processor/sqlite/sqlite_table.h"
-#include "src/trace_processor/storage/stats.h"
+#include "src/trace_processor/sqlite/bindings/sqlite_module.h"
 #include "src/trace_processor/storage/trace_storage.h"
 
-namespace perfetto {
-namespace trace_processor {
+namespace perfetto::trace_processor {
 
 // The stats table contains diagnostic info and errors that are either:
 // - Collected at trace time (e.g., ftrace buffer overruns).
 // - Generated at parsing time (e.g., clock events out-of-order).
-class StatsTable : public SqliteTable {
- public:
-  enum Column { kName = 0, kIndex, kSeverity, kSource, kValue, kDescription };
-  class Cursor : public SqliteTable::Cursor {
-   public:
-    Cursor(StatsTable*);
-
-    // Implementation of SqliteTable::Cursor.
-    int Filter(const QueryConstraints&,
-               sqlite3_value**,
-               FilterHistory) override;
-    int Next() override;
-    int Eof() override;
-    int Column(sqlite3_context*, int N) override;
-
-   private:
-    Cursor(Cursor&) = delete;
-    Cursor& operator=(const Cursor&) = delete;
-
-    Cursor(Cursor&&) noexcept = default;
-    Cursor& operator=(Cursor&&) = default;
-
-    StatsTable* table_ = nullptr;
-    const TraceStorage* storage_ = nullptr;
-    size_t key_ = 0;
-    TraceStorage::Stats::IndexMap::const_iterator index_{};
+struct StatsModule : sqlite::Module<StatsModule> {
+  using Context = TraceStorage;
+  struct Vtab : sqlite::Module<StatsModule>::Vtab {
+    TraceStorage* storage = nullptr;
   };
+  struct Cursor : sqlite::Module<StatsModule>::Cursor {
+    const TraceStorage* storage = nullptr;
+    size_t key = 0;
+    TraceStorage::Stats::IndexMap::const_iterator it{};
+  };
+  enum Column { kName = 0, kIndex, kSeverity, kSource, kValue, kDescription };
 
-  static void RegisterTable(sqlite3* db, const TraceStorage* storage);
+  static constexpr auto kType = kEponymousOnly;
+  static constexpr bool kSupportsWrites = false;
+  static constexpr bool kDoesOverloadFunctions = false;
 
-  StatsTable(sqlite3*, const TraceStorage*);
+  static int Connect(sqlite3*,
+                     void*,
+                     int,
+                     const char* const*,
+                     sqlite3_vtab**,
+                     char**);
+  static int Disconnect(sqlite3_vtab*);
 
-  // Table implementation.
-  util::Status Init(int, const char* const*, SqliteTable::Schema*) override;
-  std::unique_ptr<SqliteTable::Cursor> CreateCursor() override;
-  int BestIndex(const QueryConstraints&, BestIndexInfo*) override;
+  static int BestIndex(sqlite3_vtab*, sqlite3_index_info*);
 
- private:
-  const TraceStorage* const storage_;
+  static int Open(sqlite3_vtab*, sqlite3_vtab_cursor**);
+  static int Close(sqlite3_vtab_cursor*);
+
+  static int Filter(sqlite3_vtab_cursor*,
+                    int,
+                    const char*,
+                    int,
+                    sqlite3_value**);
+  static int Next(sqlite3_vtab_cursor*);
+  static int Eof(sqlite3_vtab_cursor*);
+  static int Column(sqlite3_vtab_cursor*, sqlite3_context*, int);
+  static int Rowid(sqlite3_vtab_cursor*, sqlite_int64*);
+
+  // This needs to happen at the end as it depends on the functions
+  // defined above.
+  static constexpr sqlite3_module kModule = CreateModule();
 };
-}  // namespace trace_processor
-}  // namespace perfetto
+
+}  // namespace perfetto::trace_processor
 
 #endif  // SRC_TRACE_PROCESSOR_SQLITE_STATS_TABLE_H_

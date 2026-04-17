@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(crbug.com/1231621): Implement some/all of these once Fuchsia supports
+// TODO(crbug.com/40190769): Implement some/all of these once Fuchsia supports
 // them.
 
 #include <utility>
@@ -28,7 +28,7 @@ bool FileHandlingIconsSupportedByOs() {
   return false;
 }
 
-void RegisterFileHandlersWithOs(const AppId& app_id,
+void RegisterFileHandlersWithOs(const webapps::AppId& app_id,
                                 const std::string& app_name,
                                 const base::FilePath& profile_path,
                                 const apps::FileHandlers& file_handlers,
@@ -37,7 +37,7 @@ void RegisterFileHandlersWithOs(const AppId& app_id,
   std::move(callback).Run(Result::kError);
 }
 
-void UnregisterFileHandlersWithOs(const AppId& app_id,
+void UnregisterFileHandlersWithOs(const webapps::AppId& app_id,
                                   const base::FilePath& profile_path,
                                   ResultCallback callback) {
   NOTIMPLEMENTED();
@@ -46,7 +46,8 @@ void UnregisterFileHandlersWithOs(const AppId& app_id,
 
 namespace internals {
 
-bool RegisterRunOnOsLogin(const ShortcutInfo& shortcut_info) {
+void RegisterRunOnOsLogin(const ShortcutInfo& shortcut_info,
+                          CreateShortcutsCallback callback) {
   NOTIMPLEMENTED();
   return false;
 }
@@ -58,19 +59,21 @@ bool UnregisterRunOnOsLogin(const std::string& app_id,
   return false;
 }
 
-bool CreatePlatformShortcuts(const base::FilePath& web_app_path,
+void CreatePlatformShortcuts(const base::FilePath& web_app_path,
                              const ShortcutLocations& creation_locations,
                              ShortcutCreationReason creation_reason,
-                             const ShortcutInfo& shortcut_info) {
+                             const ShortcutInfo& shortcut_info,
+                             CreateShortcutsCallback callback) {
   NOTIMPLEMENTED();
-  return false;
 }
 
-Result UpdatePlatformShortcuts(const base::FilePath& web_app_path,
-                               const std::u16string& old_app_title,
-                               const ShortcutInfo& shortcut_info) {
+void UpdatePlatformShortcuts(
+    const base::FilePath& shortcut_data_path,
+    const std::u16string& old_app_title,
+    std::optional<ShortcutLocations> user_specified_locations,
+    ResultCallback callback,
+    const ShortcutInfo& shortcut_info) {
   NOTIMPLEMENTED();
-  return Result::kOk;
 }
 
 void DeletePlatformShortcuts(const base::FilePath& web_app_path,

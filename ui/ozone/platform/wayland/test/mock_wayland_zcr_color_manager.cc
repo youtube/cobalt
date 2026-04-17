@@ -5,10 +5,11 @@
 #include "ui/ozone/platform/wayland/test/mock_wayland_zcr_color_manager.h"
 
 #include <chrome-color-management-server-protocol.h>
+
+#include <algorithm>
 #include <cstdint>
 #include <iterator>
 
-#include "base/ranges/algorithm.h"
 #include "ui/base/wayland/color_manager_util.h"
 #include "ui/gfx/color_space.h"
 #include "ui/ozone/platform/wayland/test/global_object.h"
@@ -48,14 +49,14 @@ void CreateColorSpaceFromNames(wl_client* client,
       GetUserDataAs<TestZcrColorSpaceV1>(color_space_resource);
 
   auto chromaticity_id = gfx::ColorSpace::PrimaryID::INVALID;
-  const auto* maybe_primary = ui::wayland::kChromaticityMap.find(chromaticity);
+  const auto maybe_primary = ui::wayland::kChromaticityMap.find(chromaticity);
   if (maybe_primary != ui::wayland::kChromaticityMap.end()) {
-    chromaticity_id = maybe_primary->second;
+    chromaticity_id = maybe_primary->second.primary;
   }
   auto eotf_id = gfx::ColorSpace::TransferID::INVALID;
-  const auto* maybe_eotf = ui::wayland::kEotfMap.find(eotf);
+  const auto maybe_eotf = ui::wayland::kEotfMap.find(eotf);
   if (maybe_eotf != ui::wayland::kEotfMap.end()) {
-    eotf_id = maybe_eotf->second;
+    eotf_id = maybe_eotf->second.transfer;
   }
 
   zcr_color_space->SetGfxColorSpace(gfx::ColorSpace(chromaticity_id, eotf_id));
@@ -181,22 +182,22 @@ void MockZcrColorManagerV1::StoreZcrColorSpace(TestZcrColorSpaceV1* params) {
 
 void MockZcrColorManagerV1::OnZcrColorManagementOutputDestroyed(
     TestZcrColorManagementOutputV1* params) {
-  auto it = base::ranges::find(color_manager_outputs_, params);
-  DCHECK(it != color_manager_outputs_.end());
+  auto it = std::ranges::find(color_manager_outputs_, params);
+  CHECK(it != color_manager_outputs_.end());
   color_manager_outputs_.erase(it);
 }
 
 void MockZcrColorManagerV1::OnZcrColorManagementSurfaceDestroyed(
     TestZcrColorManagementSurfaceV1* params) {
-  auto it = base::ranges::find(color_manager_surfaces_, params);
-  DCHECK(it != color_manager_surfaces_.end());
+  auto it = std::ranges::find(color_manager_surfaces_, params);
+  CHECK(it != color_manager_surfaces_.end());
   color_manager_surfaces_.erase(it);
 }
 
 void MockZcrColorManagerV1::OnZcrColorSpaceDestroyed(
     TestZcrColorSpaceV1* params) {
-  auto it = base::ranges::find(color_manager_color_spaces_, params);
-  DCHECK(it != color_manager_color_spaces_.end());
+  auto it = std::ranges::find(color_manager_color_spaces_, params);
+  CHECK(it != color_manager_color_spaces_.end());
   color_manager_color_spaces_.erase(it);
 }
 

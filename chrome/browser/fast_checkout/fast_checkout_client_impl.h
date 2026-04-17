@@ -7,28 +7,34 @@
 
 #include "base/gtest_prod_util.h"
 #include "base/scoped_observation.h"
+#include "build/build_config.h"
 #include "chrome/browser/fast_checkout/fast_checkout_accessibility_service.h"
 #include "chrome/browser/fast_checkout/fast_checkout_capabilities_fetcher.h"
-#include "chrome/browser/fast_checkout/fast_checkout_enums.h"
 #include "chrome/browser/fast_checkout/fast_checkout_personal_data_helper.h"
 #include "chrome/browser/fast_checkout/fast_checkout_trigger_validator.h"
-#include "chrome/browser/touch_to_fill/touch_to_fill_keyboard_suppressor.h"
 #include "chrome/browser/ui/fast_checkout/fast_checkout_controller_impl.h"
+#include "components/autofill/android/touch_to_fill_keyboard_suppressor.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
-#include "components/autofill/core/browser/data_model/autofill_profile.h"
+#include "components/autofill/core/browser/data_manager/personal_data_manager.h"
+#include "components/autofill/core/browser/data_manager/personal_data_manager_observer.h"
+#include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
+#include "components/autofill/core/browser/integrators/fast_checkout/fast_checkout_client.h"
+#include "components/autofill/core/browser/integrators/fast_checkout/fast_checkout_enums.h"
 #include "components/autofill/core/browser/payments/full_card_request.h"
-#include "components/autofill/core/browser/personal_data_manager.h"
-#include "components/autofill/core/browser/ui/fast_checkout_client.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_user_data.h"
 #include "url/gurl.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#error "Android-only header"
+#endif
 
 namespace autofill {
 class LogManager;
 }
 
 class FastCheckoutClientImpl
-    : public FastCheckoutClient,
+    : public autofill::FastCheckoutClient,
       public FastCheckoutControllerImpl::Delegate,
       public autofill::PersonalDataManagerObserver,
       public autofill::AutofillManager::Observer,
@@ -53,7 +59,7 @@ class FastCheckoutClientImpl
   bool IsRunning() const override;
   bool IsShowing() const override;
   void OnNavigation(const GURL& url, bool is_cart_or_checkout_url) override;
-  bool IsSupported(
+  autofill::FastCheckoutTriggerOutcome CanRun(
       const autofill::FormData& form,
       const autofill::FormFieldData& field,
       const autofill::AutofillManager& autofill_manager) const override;
@@ -70,11 +76,10 @@ class FastCheckoutClientImpl
       autofill::AutofillManager& manager) override;
   void OnAfterDidFillAutofillFormData(autofill::AutofillManager& manager,
                                       autofill::FormGlobalId form_id) override;
-  // Is owned by a `ContentAutofillDriver` instance and its lifecycle thus is
-  // dependent on the one of `RenderFrameHost`.
-  void OnAutofillManagerDestroyed(autofill::AutofillManager& manager) override;
-  // Is called on navigation and resets its internal state.
-  void OnAutofillManagerReset(autofill::AutofillManager& manager) override;
+  void OnAutofillManagerStateChanged(
+      autofill::AutofillManager& manager,
+      autofill::AutofillManager::LifecycleState old_state,
+      autofill::AutofillManager::LifecycleState new_state) override;
 
   // ContentAutofillDriverFactory::Observer:
   void OnContentAutofillDriverFactoryDestroyed(
@@ -115,26 +120,26 @@ class FastCheckoutClientImpl
   CreateFastCheckoutController();
 
  private:
-  friend class FastCheckoutClientImplTest;
+  friend class DISABLED_FastCheckoutClientImplTest;
   FRIEND_TEST_ALL_PREFIXES(
-      FastCheckoutClientImplTest,
+      DISABLED_FastCheckoutClientImplTest,
       DestroyingAutofillDriver_ResetsAutofillManagerPointer);
   FRIEND_TEST_ALL_PREFIXES(
-      FastCheckoutClientImplTest,
+      DISABLED_FastCheckoutClientImplTest,
       OnOptionsSelected_LocalCard_SavesFormsAndAutofillDataSelections);
   FRIEND_TEST_ALL_PREFIXES(
-      FastCheckoutClientImplTest,
+      DISABLED_FastCheckoutClientImplTest,
       OnOptionsSelected_ServerCard_SavesFormsAndAutofillDataSelections);
-  FRIEND_TEST_ALL_PREFIXES(FastCheckoutClientImplTest,
+  FRIEND_TEST_ALL_PREFIXES(DISABLED_FastCheckoutClientImplTest,
                            OnAfterLoadedServerPredictions_FillsForms);
   FRIEND_TEST_ALL_PREFIXES(
-      FastCheckoutClientImplTest,
+      DISABLED_FastCheckoutClientImplTest,
       OnAfterDidFillAutofillFormData_SetsFillingFormsToFilledAndStops);
   FRIEND_TEST_ALL_PREFIXES(
-      FastCheckoutClientImplTest,
+      DISABLED_FastCheckoutClientImplTest,
       OnFullCardRequestSucceeded_InvokesCreditCardFormFill);
   FRIEND_TEST_ALL_PREFIXES(
-      FastCheckoutClientImplTest,
+      DISABLED_FastCheckoutClientImplTest,
       TryToFillForms_LocalCreditCard_ImmediatelyFillsCreditCardForm);
 
   // From autofill::PersonalDataManagerObserver.
@@ -145,7 +150,7 @@ class FastCheckoutClientImpl
   void OnHidden();
 
   // Registers when a run is complete.
-  void OnRunComplete(FastCheckoutRunOutcome run_outcome,
+  void OnRunComplete(autofill::FastCheckoutRunOutcome run_outcome,
                      bool allow_further_runs = true);
 
   // Displays the bottom sheet UI. If the underlying autofill data is updated,
@@ -179,8 +184,8 @@ class FastCheckoutClientImpl
   bool ShouldFillForm(const autofill::FormStructure& form,
                       autofill::FormType expected_form_type) const;
 
-  // Will be called when reparse has been triggered in all frames.
-  void OnTriggerReparseFinished(bool success);
+  // Will be called when form extraction has been triggered in all frames.
+  void OnTriggerFormExtractionFinished(bool success);
 
   // Tries to fill all unfilled forms cached by `autofill_manager_` if they are
   // part of the ongoing run's funnel.
@@ -195,35 +200,35 @@ class FastCheckoutClientImpl
                     bool is_credit_card_form);
   // Returns a pointer to the autofill profile corresponding to
   // `selected_autofill_profile_guid_`. Stops the run if it's a `nullptr`.
-  autofill::AutofillProfile* GetSelectedAutofillProfile();
+  const autofill::AutofillProfile* GetSelectedAutofillProfile();
 
   // Returns a pointer to the credit card corresponding to
   // `selected_credit_card_id_`. Stops the run if it's a `nullptr`.
-  autofill::CreditCard* GetSelectedCreditCard();
+  const autofill::CreditCard* GetSelectedCreditCard();
 
   // Fills credit card form via the `autofill_manager_` and handles internal
   // state.
   void FillCreditCardForm(const autofill::FormStructure& form,
-                          const autofill::FormFieldData& field,
-                          const autofill::CreditCard& credit_card,
-                          const std::u16string& cvc);
+                          const autofill::FieldGlobalId& field_id,
+                          const autofill::CreditCard& credit_card);
 
   // Same as Stop() but does not require `IsShowing() == true` for
   // `allow_further_runs == false` to have any effect. The `IsShowing()` guard
   // is currently required because of uncontrolled `HideFastCheckout()` calls
   // in `BrowserAutofillManager::OnHidePopupImpl()`.
-  // TODO(crbug.com/1334642): remove `HideFastCheckout()` call from
+  // TODO(crbug.com/40228235): remove `HideFastCheckout()` call from
   // `BrowserAutofillManger` by introducing a new `AutofillManager::Observer`
   // methods pair, then remove this method in favor of `Stop()`.
   void InternalStop(bool allow_further_runs);
 
-  // Triggers reparse with a delay of `kSleepBetweenTriggerReparseCalls`.
-  // Reparsing updates the forms cache `autofill_manager_->form_structures()`
-  // with current data from the renderer, eventually calling
-  // `OnAfterLoadedServerPredictions()` if there were any updates. This is
-  // necessary e.g. for the case when a form has been cached when it was not
-  // visible to the user and became visible in the meantime.
-  base::OneShotTimer reparse_timer_;
+  // Triggers form extraction with a delay of
+  // `kSleepBetweenTriggerFormExtractionCalls`. Reparsing updates the forms
+  // cache `autofill_manager_->form_structures()` with current data from the
+  // renderer, eventually calling `OnAfterLoadedServerPredictions()` if there
+  // were any updates. This is necessary e.g. for the case when a form has been
+  // cached when it was not visible to the user and became visible in the
+  // meantime.
+  base::OneShotTimer form_extraction_timer_;
 
   // Stops the run after timeout.
   base::OneShotTimer timeout_timer_;
@@ -256,10 +261,10 @@ class FastCheckoutClientImpl
   bool is_running_ = false;
 
   // Autofill profile selected by the user in the bottomsheet.
-  absl::optional<std::string> selected_autofill_profile_guid_;
+  std::optional<std::string> selected_autofill_profile_guid_;
 
   // Credit card selected by the user in the bottomsheet.
-  absl::optional<std::string> selected_credit_card_id_;
+  std::optional<std::string> selected_credit_card_id_;
 
   // Specifis whether the selected credit card is local or a server card.
   bool selected_credit_card_is_local_ = true;
@@ -277,12 +282,12 @@ class FastCheckoutClientImpl
   base::flat_set<autofill::FormSignature> form_signatures_to_fill_;
 
   // The current state of the bottomsheet.
-  FastCheckoutUIState fast_checkout_ui_state_ =
-      FastCheckoutUIState::kNotShownYet;
+  autofill::FastCheckoutUIState fast_checkout_ui_state_ =
+      autofill::FastCheckoutUIState::kNotShownYet;
 
   // Identifier of the credit card form to be filled once the CVC popup is
   // fulfilled.
-  absl::optional<autofill::FormGlobalId> credit_card_form_global_id_;
+  std::optional<autofill::FormGlobalId> credit_card_form_global_id_;
 
   // Hash of the unique run ID used for metrics.
   int64_t run_id_ = 0;

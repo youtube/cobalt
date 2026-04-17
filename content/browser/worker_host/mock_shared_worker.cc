@@ -107,11 +107,10 @@ void MockSharedWorkerFactory::Disconnect() {
 void MockSharedWorkerFactory::CreateSharedWorker(
     blink::mojom::SharedWorkerInfoPtr info,
     const blink::SharedWorkerToken& token,
-    const url::Origin& constructor_origin,
+    const blink::StorageKey& constructor_key,
+    const url::Origin& renderer_origin,
     bool is_constructor_secure_context,
     const std::string& user_agent,
-    const std::string& full_user_agent,
-    const std::string& reduced_user_agent,
     const blink::UserAgentMetadata& ua_metadata,
     bool pause_on_start,
     const base::UnguessableToken& devtools_worker_token,
@@ -131,7 +130,12 @@ void MockSharedWorkerFactory::CreateSharedWorker(
     mojo::PendingReceiver<blink::mojom::SharedWorker> receiver,
     mojo::PendingRemote<blink::mojom::BrowserInterfaceBroker>
         browser_interface_broker,
-    ukm::SourceId ukm_source_id) {
+    ukm::SourceId ukm_source_id,
+    bool require_cross_site_request_for_cookies,
+    mojo::PendingReceiver<blink::mojom::ReportingObserver>
+        coep_reporting_observer,
+    mojo::PendingReceiver<blink::mojom::ReportingObserver>
+        dip_reporting_observer) {
   DCHECK(!create_params_);
   create_params_ = std::make_unique<CreateParams>();
   create_params_->info = std::move(info);
@@ -140,6 +144,8 @@ void MockSharedWorkerFactory::CreateSharedWorker(
   create_params_->host = std::move(host);
   create_params_->receiver = std::move(receiver);
   create_params_->ukm_source_id = ukm_source_id;
+  create_params_->require_cross_site_request_for_cookies =
+      require_cross_site_request_for_cookies;
 }
 
 MockSharedWorkerFactory::CreateParams::CreateParams() = default;

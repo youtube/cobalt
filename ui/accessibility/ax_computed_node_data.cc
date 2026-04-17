@@ -10,6 +10,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "ui/accessibility/accessibility_features.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/accessibility/ax_node.h"
 #include "ui/accessibility/ax_node_position.h"
@@ -99,128 +100,67 @@ bool AXComputedNodeData::GetOrComputeIsDescendantOfPlatformLeaf() const {
   return *is_descendant_of_leaf_;
 }
 
-bool AXComputedNodeData::HasOrCanComputeAttribute(
+const std::string& AXComputedNodeData::ComputeAttributeUTF8(
     const ax::mojom::StringAttribute attribute) const {
-  if (owner_->data().HasStringAttribute(attribute))
-    return true;
-
+  DCHECK(owner_->CanComputeStringAttribute(attribute));
   switch (attribute) {
     case ax::mojom::StringAttribute::kValue:
-      // The value attribute could be computed on the browser for content
-      // editables and ARIA text/search boxes.
-      return owner_->data().IsNonAtomicTextField();
+      return GetOrComputeTextContentWithParagraphBreaksUTF8();
+
+    case ax::mojom::StringAttribute::kName:
+      return GetOrComputeTextContentUTF8();
+
     default:
-      return false;
+      NOTREACHED();
   }
 }
 
-bool AXComputedNodeData::HasOrCanComputeAttribute(
+std::u16string AXComputedNodeData::ComputeAttributeUTF16(
+    const ax::mojom::StringAttribute attribute) const {
+  DCHECK(owner_->CanComputeStringAttribute(attribute));
+  switch (attribute) {
+    case ax::mojom::StringAttribute::kValue:
+      return GetOrComputeTextContentWithParagraphBreaksUTF16();
+
+    case ax::mojom::StringAttribute::kName:
+      return GetOrComputeTextContentUTF16();
+
+    default:
+      NOTREACHED();
+  }
+}
+
+const std::vector<int32_t>& AXComputedNodeData::ComputeAttribute(
     const ax::mojom::IntListAttribute attribute) const {
-  if (owner_->data().HasIntListAttribute(attribute))
-    return true;
-
-  switch (attribute) {
-    case ax::mojom::IntListAttribute::kLineStarts:
-    case ax::mojom::IntListAttribute::kLineEnds:
-    case ax::mojom::IntListAttribute::kSentenceStarts:
-    case ax::mojom::IntListAttribute::kSentenceEnds:
-    case ax::mojom::IntListAttribute::kWordStarts:
-    case ax::mojom::IntListAttribute::kWordEnds:
-      return true;
-    default:
-      return false;
-  }
-}
-
-const std::string& AXComputedNodeData::GetOrComputeAttributeUTF8(
-    const ax::mojom::StringAttribute attribute) const {
-  if (owner_->data().HasStringAttribute(attribute))
-    return owner_->data().GetStringAttribute(attribute);
-
-  switch (attribute) {
-    case ax::mojom::StringAttribute::kValue:
-      if (owner_->data().IsNonAtomicTextField()) {
-        DCHECK(HasOrCanComputeAttribute(attribute))
-            << "Code in `HasOrCanComputeAttribute` should be in sync with "
-               "'GetOrComputeAttributeUTF8`";
-        return GetOrComputeTextContentWithParagraphBreaksUTF8();
-      }
-      // If an atomic text field has no value attribute sent from the renderer,
-      // then it means that it is empty, since we do not compute the values of
-      // such controls on the browser. The same for all other controls, other
-      // than non-atomic text fields.
-      return base::EmptyString();
-    default:
-      // This is a special case: for performance reasons do not use
-      // `base::EmptyString()` in other places throughout the codebase.
-      return base::EmptyString();
-  }
-}
-
-std::u16string AXComputedNodeData::GetOrComputeAttributeUTF16(
-    const ax::mojom::StringAttribute attribute) const {
-  if (owner_->data().HasStringAttribute(attribute))
-    return owner_->data().GetString16Attribute(attribute);
-
-  switch (attribute) {
-    case ax::mojom::StringAttribute::kValue:
-      if (owner_->data().IsNonAtomicTextField()) {
-        DCHECK(HasOrCanComputeAttribute(attribute))
-            << "Code in `HasOrCanComputeAttribute` should be in sync with "
-               "'GetOrComputeAttributeUTF16`";
-        return GetOrComputeTextContentWithParagraphBreaksUTF16();
-      }
-      // If an atomic text field has no value attribute sent from the renderer,
-      // then it means that it is empty, since we do not compute the values of
-      // such controls on the browser. The same for all other controls, other
-      // than non-atomic text fields.
-      return std::u16string();
-    default:
-      return std::u16string();
-  }
-}
-
-const std::vector<int32_t>& AXComputedNodeData::GetOrComputeAttribute(
-    const ax::mojom::IntListAttribute attribute) const {
-  if (owner_->data().HasIntListAttribute(attribute))
-    return owner_->data().GetIntListAttribute(attribute);
-
-  const std::vector<int32_t>* result = nullptr;
+  DCHECK(owner_->CanComputeIntListAttribute(attribute));
   switch (attribute) {
     case ax::mojom::IntListAttribute::kLineStarts:
       ComputeLineOffsetsIfNeeded();
-      result = &(*line_starts_);
-      break;
+      return *line_starts_;
+
     case ax::mojom::IntListAttribute::kLineEnds:
       ComputeLineOffsetsIfNeeded();
-      result = &(*line_ends_);
-      break;
+      return *line_ends_;
+
     case ax::mojom::IntListAttribute::kSentenceStarts:
       ComputeSentenceOffsetsIfNeeded();
-      result = &(*sentence_starts_);
-      break;
+      return *sentence_starts_;
+
     case ax::mojom::IntListAttribute::kSentenceEnds:
       ComputeSentenceOffsetsIfNeeded();
-      result = &(*sentence_ends_);
-      break;
+      return *sentence_ends_;
+
     case ax::mojom::IntListAttribute::kWordStarts:
       ComputeWordOffsetsIfNeeded();
-      result = &(*word_starts_);
-      break;
+      return *word_starts_;
+
     case ax::mojom::IntListAttribute::kWordEnds:
       ComputeWordOffsetsIfNeeded();
-      result = &(*word_ends_);
-      break;
-    default:
-      return owner_->data().GetIntListAttribute(
-          ax::mojom::IntListAttribute::kNone);
-  }
+      return *word_ends_;
 
-  DCHECK(HasOrCanComputeAttribute(attribute))
-      << "Code in `HasOrCanComputeAttribute` should be in sync with "
-         "'GetOrComputeAttribute`";
-  DCHECK(result);
-  return *result;
+    default:
+      NOTREACHED();
+  }
 }
 
 const std::string&
@@ -276,7 +216,28 @@ int AXComputedNodeData::GetOrComputeTextContentLengthUTF8() const {
 }
 
 int AXComputedNodeData::GetOrComputeTextContentLengthUTF16() const {
-  return static_cast<int>(GetOrComputeTextContentUTF16().length());
+  if (utf16_length_) {
+    return utf16_length_.value();
+  }
+  if (text_content_utf16_) {
+    // Used the cached UTF16 representation if we have it already.
+    utf16_length_ = text_content_utf16_->length();
+  } else {
+    // Do not cache the text since used just to extract the length.
+    utf16_length_ = ComputeTextContentUTF16().length();
+  }
+  return utf16_length_.value();
+}
+
+bool AXComputedNodeData::CanInferNameAttribute() const {
+  // The name may be suppressed when serializing an AXInlineTextBox if it
+  // can be inferred from the parent.
+  return owner_->data().role == ax::mojom::Role::kInlineTextBox &&
+         owner_->data().GetNameFrom() == ax::mojom::NameFrom::kContents &&
+         owner_->GetParent()->data().GetNameFrom() ==
+             ax::mojom::NameFrom::kContents &&
+         owner_->GetParent()->data().HasStringAttribute(
+             ax::mojom::StringAttribute::kName);
 }
 
 void AXComputedNodeData::ComputeUnignoredValues(
@@ -284,10 +245,10 @@ void AXComputedNodeData::ComputeUnignoredValues(
     int starting_index_in_parent) const {
   DCHECK_GE(starting_index_in_parent, 0);
   // Reset any previously computed values.
-  unignored_index_in_parent_ = absl::nullopt;
-  unignored_parent_id_ = absl::nullopt;
-  unignored_child_count_ = absl::nullopt;
-  unignored_child_ids_ = absl::nullopt;
+  unignored_index_in_parent_ = std::nullopt;
+  unignored_parent_id_ = std::nullopt;
+  unignored_child_count_ = std::nullopt;
+  unignored_child_ids_ = std::nullopt;
 
   AXNodeID unignored_parent_id_for_child = unignored_parent_id;
   if (!owner_->IsIgnored())
@@ -355,7 +316,8 @@ void AXComputedNodeData::ComputeIsDescendantOfPlatformLeaf() const {
 }
 
 void AXComputedNodeData::ComputeLineOffsetsIfNeeded() const {
-  if (line_starts_ || line_ends_) {
+  DCHECK_EQ(line_starts_.has_value(), line_ends_.has_value());
+  if (line_starts_) {
     DCHECK_EQ(line_starts_->size(), line_ends_->size());
     return;  // Already cached.
   }
@@ -381,15 +343,18 @@ void AXComputedNodeData::ComputeLineOffsetsIfNeeded() const {
 }
 
 void AXComputedNodeData::ComputeSentenceOffsetsIfNeeded() const {
-  if (sentence_starts_ || sentence_ends_) {
+  DCHECK_EQ(sentence_starts_.has_value(), sentence_ends_.has_value());
+  if (sentence_starts_) {
     DCHECK_EQ(sentence_starts_->size(), sentence_ends_->size());
     return;  // Already cached.
   }
 
   sentence_starts_ = std::vector<int32_t>();
   sentence_ends_ = std::vector<int32_t>();
-  if (owner_->IsLineBreak())
+  if (owner_->IsLineBreak()) {
     return;
+  }
+
   const std::u16string& text_content = GetOrComputeTextContentUTF16();
   if (text_content.empty() ||
       base::ContainsOnlyChars(text_content, base::kWhitespaceUTF16)) {
@@ -415,7 +380,8 @@ void AXComputedNodeData::ComputeSentenceOffsetsIfNeeded() const {
 }
 
 void AXComputedNodeData::ComputeWordOffsetsIfNeeded() const {
-  if (word_starts_ || word_ends_) {
+  DCHECK_EQ(word_starts_.has_value(), word_ends_.has_value());
+  if (word_starts_) {
     DCHECK_EQ(word_starts_->size(), word_ends_->size());
     return;  // Already cached.
   }
@@ -448,6 +414,16 @@ void AXComputedNodeData::ComputeWordOffsetsIfNeeded() const {
 }
 
 std::string AXComputedNodeData::ComputeTextContentUTF8() const {
+  // Name is omitted from an inline text if an only child since its value is
+  // the same as the parent. We can differentiate this case from a specified
+  // but empty name based on the name from attribute, which is kFromContent if
+  // set and kNone if the text content is to be inferred from the parent.
+  if (owner_->data().role == ax::mojom::Role::kInlineTextBox &&
+      !owner_->data().HasStringAttribute(ax::mojom::StringAttribute::kName)) {
+    return owner_->GetParent()->data().GetStringAttribute(
+        ax::mojom::StringAttribute::kName);
+  }
+
   // If a text field has no descendants, then we compute its text content from
   // its value or its placeholder. Otherwise we prefer to look at its descendant
   // text nodes because Blink doesn't always add all trailing white space to the
@@ -485,11 +461,19 @@ std::string AXComputedNodeData::ComputeTextContentUTF8() const {
       // The accessible name does not represent the entirety of the node's text
       // content, e.g. a table's caption or a figure's figcaption.
       case ax::mojom::NameFrom::kCaption:
+      // The name comes from CSS alt text.
+      case ax::mojom::NameFrom::kCssAltText:
+      // The object should not have an accessible name according to ARIA 1.2.
+      // If kProhibited is set, that means we calculated a name in Blink and
+      // are deliberately not exposing it.
+      case ax::mojom::NameFrom::kProhibited:
+      case ax::mojom::NameFrom::kProhibitedAndRedundant:
       case ax::mojom::NameFrom::kRelatedElement:
       // The accessible name is not displayed directly inside the node but is
       // visible via e.g. a tooltip.
       case ax::mojom::NameFrom::kTitle:
-      case ax::mojom::NameFrom::kPopoverAttribute:
+      case ax::mojom::NameFrom::kPopoverTarget:
+      case ax::mojom::NameFrom::kInterestTarget:
         return std::string();
 
       case ax::mojom::NameFrom::kContents:

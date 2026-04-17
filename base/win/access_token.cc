@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/win/access_token.h"
 
 #include <windows.h>
@@ -9,8 +14,11 @@
 #include <memory>
 #include <utility>
 
+#include "base/containers/span.h"
 #include "base/numerics/checked_math.h"
 #include "base/strings/stringprintf.h"
+#include "base/strings/utf_string_conversions.h"
+#include "base/win/access_control_list.h"
 
 namespace base::win {
 
@@ -33,41 +41,43 @@ typedef BOOL(WINAPI* CreateAppContainerTokenFunction)(
     PSECURITY_CAPABILITIES SecurityCapabilities,
     PHANDLE OutToken);
 
-Sid UnwrapSid(absl::optional<Sid>&& sid) {
+Sid UnwrapSid(std::optional<Sid>&& sid) {
   DCHECK(sid);
   return std::move(*sid);
 }
 
-absl::optional<std::vector<char>> GetTokenInfo(
+std::optional<std::vector<char>> GetTokenInfo(
     HANDLE token,
     TOKEN_INFORMATION_CLASS info_class) {
   // Get the buffer size. The call to GetTokenInformation should never succeed.
   DWORD size = 0;
-  if (::GetTokenInformation(token, info_class, nullptr, 0, &size) || !size)
-    return absl::nullopt;
+  if (::GetTokenInformation(token, info_class, nullptr, 0, &size) || !size) {
+    return std::nullopt;
+  }
 
   std::vector<char> temp_buffer(size);
   if (!::GetTokenInformation(token, info_class, temp_buffer.data(), size,
                              &size)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return std::move(temp_buffer);
 }
 
 template <typename T>
-absl::optional<T> GetTokenInfoFixed(HANDLE token,
-                                    TOKEN_INFORMATION_CLASS info_class) {
+std::optional<T> GetTokenInfoFixed(HANDLE token,
+                                   TOKEN_INFORMATION_CLASS info_class) {
   T result;
   DWORD size = sizeof(T);
-  if (!::GetTokenInformation(token, info_class, &result, size, &size))
-    return absl::nullopt;
+  if (!::GetTokenInformation(token, info_class, &result, size, &size)) {
+    return std::nullopt;
+  }
 
   return result;
 }
 
 template <typename T>
-T* GetType(absl::optional<std::vector<char>>& info) {
+T* GetType(std::optional<std::vector<char>>& info) {
   DCHECK(info);
   DCHECK(info->size() >= sizeof(T));
   return reinterpret_cast<T*>(info->data());
@@ -76,12 +86,13 @@ T* GetType(absl::optional<std::vector<char>>& info) {
 std::vector<AccessToken::Group> GetGroupsFromToken(
     HANDLE token,
     TOKEN_INFORMATION_CLASS info_class) {
-  absl::optional<std::vector<char>> groups = GetTokenInfo(token, info_class);
+  std::optional<std::vector<char>> groups = GetTokenInfo(token, info_class);
   // Sometimes only the GroupCount field is returned which indicates an empty
   // group set. If the buffer is smaller than the TOKEN_GROUPS structure then
   // just return an empty vector.
-  if (!groups || (groups->size() < sizeof(TOKEN_GROUPS)))
+  if (!groups || (groups->size() < sizeof(TOKEN_GROUPS))) {
     return {};
+  }
 
   TOKEN_GROUPS* groups_ptr = GetType<TOKEN_GROUPS>(groups);
   std::vector<AccessToken::Group> ret;
@@ -94,10 +105,11 @@ std::vector<AccessToken::Group> GetGroupsFromToken(
 }
 
 TOKEN_STATISTICS GetTokenStatistics(HANDLE token) {
-  absl::optional<TOKEN_STATISTICS> value =
+  std::optional<TOKEN_STATISTICS> value =
       GetTokenInfoFixed<TOKEN_STATISTICS>(token, TokenStatistics);
-  if (!value)
+  if (!value) {
     return {};
+  }
   return *value;
 }
 
@@ -133,10 +145,10 @@ std::vector<SID_AND_ATTRIBUTES> ConvertSids(const std::vector<Sid>& sids,
   return ret;
 }
 
-absl::optional<LUID> LookupPrivilege(const std::wstring& name) {
+std::optional<LUID> LookupPrivilege(const std::wstring& name) {
   LUID luid;
   if (!::LookupPrivilegeValue(nullptr, name.c_str(), &luid)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return luid;
 }
@@ -147,7 +159,7 @@ std::vector<LUID_AND_ATTRIBUTES> ConvertPrivileges(
   std::vector<LUID_AND_ATTRIBUTES> ret;
   ret.reserve(privs.size());
   for (const std::wstring& priv : privs) {
-    absl::optional<LUID> luid = LookupPrivilege(priv);
+    std::optional<LUID> luid = LookupPrivilege(priv);
     if (!luid) {
       return {};
     }
@@ -175,14 +187,14 @@ bool Set(const ScopedHandle& token,
                                  sizeof(value));
 }
 
-absl::optional<DWORD> AdjustPrivilege(const ScopedHandle& token,
-                                      const std::wstring& priv,
-                                      DWORD attributes) {
+std::optional<DWORD> AdjustPrivilege(const ScopedHandle& token,
+                                     const std::wstring& priv,
+                                     DWORD attributes) {
   TOKEN_PRIVILEGES token_privs = {};
   token_privs.PrivilegeCount = 1;
-  absl::optional<LUID> luid = LookupPrivilege(priv);
+  std::optional<LUID> luid = LookupPrivilege(priv);
   if (!luid) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   token_privs.Privileges[0].Luid = *luid;
   token_privs.Privileges[0].Attributes = attributes;
@@ -191,10 +203,10 @@ absl::optional<DWORD> AdjustPrivilege(const ScopedHandle& token,
   DWORD out_length = 0;
   if (!::AdjustTokenPrivileges(token.get(), FALSE, &token_privs,
                                sizeof(out_privs), &out_privs, &out_length)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   if (::GetLastError() == ERROR_NOT_ALL_ASSIGNED) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   if (out_privs.PrivilegeCount == 1) {
     return out_privs.Privileges[0].Attributes;
@@ -230,9 +242,10 @@ std::wstring AccessToken::Privilege::GetName() const {
   luid.LowPart = luid_.LowPart;
   luid.HighPart = luid_.HighPart;
   DWORD size = std::size(name);
-  if (!::LookupPrivilegeName(nullptr, &luid, name, &size))
-    return base::StringPrintf(L"%08X-%08X", luid.HighPart, luid.LowPart);
-  return name;
+  return ::LookupPrivilegeName(nullptr, &luid, name, &size)
+             ? name
+             : ASCIIToWide(
+                   StringPrintf("%08lX-%08lX", luid.HighPart, luid.LowPart));
 }
 
 bool AccessToken::Privilege::IsEnabled() const {
@@ -242,78 +255,82 @@ bool AccessToken::Privilege::IsEnabled() const {
 AccessToken::Privilege::Privilege(CHROME_LUID luid, DWORD attributes)
     : luid_(luid), attributes_(attributes) {}
 
-absl::optional<AccessToken> AccessToken::FromToken(HANDLE token,
-                                                   ACCESS_MASK desired_access) {
+std::optional<AccessToken> AccessToken::FromToken(HANDLE token,
+                                                  ACCESS_MASK desired_access) {
   HANDLE new_token;
   if (!::DuplicateHandle(::GetCurrentProcess(), token, ::GetCurrentProcess(),
                          &new_token, TOKEN_QUERY | desired_access, FALSE, 0)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return AccessToken(new_token);
 }
 
-absl::optional<AccessToken> AccessToken::FromToken(ScopedHandle&& token) {
+std::optional<AccessToken> AccessToken::FromToken(ScopedHandle&& token) {
   if (!token.is_valid()) {
     ::SetLastError(ERROR_INVALID_HANDLE);
-    return absl::nullopt;
+    return std::nullopt;
   }
   if (!GetTokenInfoFixed<TOKEN_STATISTICS>(token.get(), TokenStatistics)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return AccessToken(token.release());
 }
 
-absl::optional<AccessToken> AccessToken::FromProcess(
+std::optional<AccessToken> AccessToken::FromProcess(
     HANDLE process,
     bool impersonation,
     ACCESS_MASK desired_access) {
   HANDLE token = nullptr;
   if (impersonation) {
-    if (!::OpenProcessToken(process, TOKEN_DUPLICATE, &token))
-      return absl::nullopt;
+    if (!::OpenProcessToken(process, TOKEN_DUPLICATE, &token)) {
+      return std::nullopt;
+    }
     ScopedHandle primary_token(token);
     token = DuplicateToken(primary_token.get(), desired_access,
                            SecurityIdentification, TokenImpersonation);
     if (!token) {
-      return absl::nullopt;
+      return std::nullopt;
     }
   } else {
-    if (!::OpenProcessToken(process, TOKEN_QUERY | desired_access, &token))
-      return absl::nullopt;
+    if (!::OpenProcessToken(process, TOKEN_QUERY | desired_access, &token)) {
+      return std::nullopt;
+    }
   }
   return AccessToken(token);
 }
 
-absl::optional<AccessToken> AccessToken::FromCurrentProcess(
+std::optional<AccessToken> AccessToken::FromCurrentProcess(
     bool impersonation,
     ACCESS_MASK desired_access) {
   return FromProcess(::GetCurrentProcess(), impersonation, desired_access);
 }
 
-absl::optional<AccessToken> AccessToken::FromThread(
-    HANDLE thread,
-    bool open_as_self,
-    ACCESS_MASK desired_access) {
+std::optional<AccessToken> AccessToken::FromThread(HANDLE thread,
+                                                   bool open_as_self,
+                                                   ACCESS_MASK desired_access) {
   HANDLE token;
   if (!::OpenThreadToken(thread, TOKEN_QUERY | desired_access, open_as_self,
-                         &token))
-    return absl::nullopt;
+                         &token)) {
+    return std::nullopt;
+  }
   return AccessToken(token);
 }
 
-absl::optional<AccessToken> AccessToken::FromCurrentThread(
+std::optional<AccessToken> AccessToken::FromCurrentThread(
     bool open_as_self,
     ACCESS_MASK desired_access) {
   return FromThread(::GetCurrentThread(), open_as_self, desired_access);
 }
 
-absl::optional<AccessToken> AccessToken::FromEffective(
+std::optional<AccessToken> AccessToken::FromEffective(
     ACCESS_MASK desired_access) {
-  absl::optional<AccessToken> token = FromCurrentThread(true, desired_access);
-  if (token)
+  std::optional<AccessToken> token = FromCurrentThread(true, desired_access);
+  if (token) {
     return token;
-  if (::GetLastError() != ERROR_NO_TOKEN)
-    return absl::nullopt;
+  }
+  if (::GetLastError() != ERROR_NO_TOKEN) {
+    return std::nullopt;
+  }
   return FromCurrentProcess(false, desired_access);
 }
 
@@ -326,40 +343,42 @@ Sid AccessToken::User() const {
 }
 
 AccessToken::Group AccessToken::UserGroup() const {
-  absl::optional<std::vector<char>> buffer =
+  std::optional<std::vector<char>> buffer =
       GetTokenInfo(token_.get(), TokenUser);
   SID_AND_ATTRIBUTES& user = GetType<TOKEN_USER>(buffer)->User;
   return {UnwrapSid(Sid::FromPSID(user.Sid)), user.Attributes};
 }
 
 Sid AccessToken::Owner() const {
-  absl::optional<std::vector<char>> buffer =
+  std::optional<std::vector<char>> buffer =
       GetTokenInfo(token_.get(), TokenOwner);
   return UnwrapSid(Sid::FromPSID(GetType<TOKEN_OWNER>(buffer)->Owner));
 }
 
 Sid AccessToken::PrimaryGroup() const {
-  absl::optional<std::vector<char>> buffer =
+  std::optional<std::vector<char>> buffer =
       GetTokenInfo(token_.get(), TokenPrimaryGroup);
   return UnwrapSid(
       Sid::FromPSID(GetType<TOKEN_PRIMARY_GROUP>(buffer)->PrimaryGroup));
 }
 
-absl::optional<Sid> AccessToken::LogonId() const {
+std::optional<Sid> AccessToken::LogonId() const {
   std::vector<AccessToken::Group> groups =
       GetGroupsFromToken(token_.get(), TokenLogonSid);
   for (const AccessToken::Group& group : groups) {
-    if (group.IsLogonId())
+    if (group.IsLogonId()) {
       return group.GetSid().Clone();
+    }
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 DWORD AccessToken::IntegrityLevel() const {
-  absl::optional<std::vector<char>> buffer =
+  std::optional<std::vector<char>> buffer =
       GetTokenInfo(token_.get(), TokenIntegrityLevel);
-  if (!buffer)
+  if (!buffer) {
     return MAXDWORD;
+  }
 
   PSID il_sid = GetType<TOKEN_MANDATORY_LABEL>(buffer)->Label.Sid;
   return *::GetSidSubAuthority(
@@ -367,7 +386,7 @@ DWORD AccessToken::IntegrityLevel() const {
 }
 
 bool AccessToken::SetIntegrityLevel(DWORD integrity_level) {
-  absl::optional<base::win::Sid> sid = Sid::FromIntegrityLevel(integrity_level);
+  std::optional<base::win::Sid> sid = Sid::FromIntegrityLevel(integrity_level);
   if (!sid) {
     ::SetLastError(ERROR_INVALID_SID);
     return false;
@@ -380,10 +399,11 @@ bool AccessToken::SetIntegrityLevel(DWORD integrity_level) {
 }
 
 DWORD AccessToken::SessionId() const {
-  absl::optional<DWORD> value =
+  std::optional<DWORD> value =
       GetTokenInfoFixed<DWORD>(token_.get(), TokenSessionId);
-  if (!value)
+  if (!value) {
     return MAXDWORD;
+  }
   return *value;
 }
 
@@ -400,23 +420,26 @@ std::vector<AccessToken::Group> AccessToken::RestrictedSids() const {
 }
 
 bool AccessToken::IsAppContainer() const {
-  absl::optional<DWORD> value =
+  std::optional<DWORD> value =
       GetTokenInfoFixed<DWORD>(token_.get(), TokenIsAppContainer);
-  if (!value)
+  if (!value) {
     return false;
+  }
   return !!*value;
 }
 
-absl::optional<Sid> AccessToken::AppContainerSid() const {
-  absl::optional<std::vector<char>> buffer =
+std::optional<Sid> AccessToken::AppContainerSid() const {
+  std::optional<std::vector<char>> buffer =
       GetTokenInfo(token_.get(), TokenAppContainerSid);
-  if (!buffer)
-    return absl::nullopt;
+  if (!buffer) {
+    return std::nullopt;
+  }
 
   TOKEN_APPCONTAINER_INFORMATION* info =
       GetType<TOKEN_APPCONTAINER_INFORMATION>(buffer);
-  if (!info->TokenAppContainer)
-    return absl::nullopt;
+  if (!info->TokenAppContainer) {
+    return std::nullopt;
+  }
   return Sid::FromPSID(info->TokenAppContainer);
 }
 
@@ -424,26 +447,32 @@ std::vector<AccessToken::Group> AccessToken::Capabilities() const {
   return GetGroupsFromToken(token_.get(), TokenCapabilities);
 }
 
-absl::optional<AccessToken> AccessToken::LinkedToken() const {
-  absl::optional<TOKEN_LINKED_TOKEN> value =
+std::optional<AccessToken> AccessToken::LinkedToken() const {
+  std::optional<TOKEN_LINKED_TOKEN> value =
       GetTokenInfoFixed<TOKEN_LINKED_TOKEN>(token_.get(), TokenLinkedToken);
-  if (!value)
-    return absl::nullopt;
+  if (!value) {
+    return std::nullopt;
+  }
   return AccessToken(value->LinkedToken);
 }
 
-absl::optional<AccessControlList> AccessToken::DefaultDacl() const {
-  absl::optional<std::vector<char>> dacl_buffer =
+std::optional<AccessControlList> AccessToken::DefaultDacl() const {
+  std::optional<std::vector<char>> dacl_buffer =
       GetTokenInfo(token_.get(), TokenDefaultDacl);
-  if (!dacl_buffer)
-    return absl::nullopt;
+  if (!dacl_buffer) {
+    return std::nullopt;
+  }
   TOKEN_DEFAULT_DACL* dacl_ptr = GetType<TOKEN_DEFAULT_DACL>(dacl_buffer);
   return AccessControlList::FromPACL(dacl_ptr->DefaultDacl);
 }
 
 bool AccessToken::SetDefaultDacl(const AccessControlList& default_dacl) {
+  // TOKEN_DEFAULT_DACL contains a non-const-qualified pointer to DACL, which we
+  // cannot obtain from const-qualified `default_dacl`. Let's make a copy and
+  // use it instead.
+  AccessControlList dacl = default_dacl.Clone();
   TOKEN_DEFAULT_DACL set_default_dacl = {};
-  set_default_dacl.DefaultDacl = default_dacl.get();
+  set_default_dacl.DefaultDacl = dacl.get();
   return Set(token_, TokenDefaultDacl, set_default_dacl);
 }
 
@@ -456,10 +485,11 @@ CHROME_LUID AccessToken::AuthenticationId() const {
 }
 
 std::vector<AccessToken::Privilege> AccessToken::Privileges() const {
-  absl::optional<std::vector<char>> privileges =
+  std::optional<std::vector<char>> privileges =
       GetTokenInfo(token_.get(), TokenPrivileges);
-  if (!privileges)
+  if (!privileges) {
     return {};
+  }
   TOKEN_PRIVILEGES* privileges_ptr = GetType<TOKEN_PRIVILEGES>(privileges);
   std::vector<AccessToken::Privilege> ret;
   ret.reserve(privileges_ptr->PrivilegeCount);
@@ -471,10 +501,11 @@ std::vector<AccessToken::Privilege> AccessToken::Privileges() const {
 }
 
 bool AccessToken::IsElevated() const {
-  absl::optional<TOKEN_ELEVATION> value =
+  std::optional<TOKEN_ELEVATION> value =
       GetTokenInfoFixed<TOKEN_ELEVATION>(token_.get(), TokenElevation);
-  if (!value)
+  if (!value) {
     return false;
+  }
   return !!value->TokenIsElevated;
 }
 
@@ -506,17 +537,17 @@ SecurityImpersonationLevel AccessToken::ImpersonationLevel() const {
       GetTokenStatistics(token_.get()).ImpersonationLevel);
 }
 
-absl::optional<AccessToken> AccessToken::DuplicatePrimary(
+std::optional<AccessToken> AccessToken::DuplicatePrimary(
     ACCESS_MASK desired_access) const {
   HANDLE token = DuplicateToken(token_.get(), desired_access, SecurityAnonymous,
                                 TokenPrimary);
   if (!token) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return AccessToken{token};
 }
 
-absl::optional<AccessToken> AccessToken::DuplicateImpersonation(
+std::optional<AccessToken> AccessToken::DuplicateImpersonation(
     SecurityImpersonationLevel impersonation_level,
     ACCESS_MASK desired_access) const {
   HANDLE token = DuplicateToken(
@@ -524,12 +555,12 @@ absl::optional<AccessToken> AccessToken::DuplicateImpersonation(
       static_cast<SECURITY_IMPERSONATION_LEVEL>(impersonation_level),
       TokenImpersonation);
   if (!token) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return AccessToken(token);
 }
 
-absl::optional<AccessToken> AccessToken::CreateRestricted(
+std::optional<AccessToken> AccessToken::CreateRestricted(
     DWORD flags,
     const std::vector<Sid>& sids_to_disable,
     const std::vector<std::wstring>& privileges_to_delete,
@@ -542,7 +573,7 @@ absl::optional<AccessToken> AccessToken::CreateRestricted(
   std::vector<LUID_AND_ATTRIBUTES> privileges_to_delete_buf =
       ConvertPrivileges(privileges_to_delete, 0);
   if (privileges_to_delete_buf.size() != privileges_to_delete.size()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   HANDLE token;
@@ -553,14 +584,14 @@ absl::optional<AccessToken> AccessToken::CreateRestricted(
           GetPointer(privileges_to_delete_buf),
           checked_cast<DWORD>(sids_to_restrict_buf.size()),
           GetPointer(sids_to_restrict_buf), &token)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   ScopedHandle token_handle(token);
   return FromToken(token_handle.get(), desired_access);
 }
 
-absl::optional<AccessToken> AccessToken::CreateAppContainer(
+std::optional<AccessToken> AccessToken::CreateAppContainer(
     const Sid& appcontainer_sid,
     const std::vector<Sid>& capabilities,
     ACCESS_MASK desired_access) const {
@@ -569,7 +600,7 @@ absl::optional<AccessToken> AccessToken::CreateAppContainer(
           ::GetModuleHandle(L"kernelbase.dll"), "CreateAppContainerToken"));
   if (!CreateAppContainerToken) {
     ::SetLastError(ERROR_PROC_NOT_FOUND);
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   std::vector<SID_AND_ATTRIBUTES> capabilities_buf =
@@ -582,19 +613,19 @@ absl::optional<AccessToken> AccessToken::CreateAppContainer(
 
   HANDLE token = nullptr;
   if (!CreateAppContainerToken(token_.get(), &security_capabilities, &token)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   ScopedHandle token_handle(token);
   return FromToken(token_handle.get(), desired_access);
 }
 
-absl::optional<bool> AccessToken::SetPrivilege(const std::wstring& name,
-                                               bool enable) {
-  absl::optional<DWORD> attrs =
+std::optional<bool> AccessToken::SetPrivilege(const std::wstring& name,
+                                              bool enable) {
+  std::optional<DWORD> attrs =
       AdjustPrivilege(token_, name.c_str(), enable ? SE_PRIVILEGE_ENABLED : 0);
   if (!attrs) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return !!(*attrs & SE_PRIVILEGE_ENABLED);
 }
@@ -602,6 +633,30 @@ absl::optional<bool> AccessToken::SetPrivilege(const std::wstring& name,
 bool AccessToken::RemovePrivilege(const std::wstring& name) {
   return AdjustPrivilege(token_, name.c_str(), SE_PRIVILEGE_REMOVED)
       .has_value();
+}
+
+bool AccessToken::RemoveAllPrivileges() {
+  std::optional<std::vector<char>> privileges_buffer =
+      GetTokenInfo(token_.get(), TokenPrivileges);
+  if (!privileges_buffer ||
+      (privileges_buffer->size() < sizeof(TOKEN_PRIVILEGES))) {
+    return false;
+  }
+  auto* const token_privileges = GetType<TOKEN_PRIVILEGES>(privileges_buffer);
+  if (privileges_buffer->size() <
+      (offsetof(TOKEN_PRIVILEGES, Privileges) +
+       sizeof(LUID_AND_ATTRIBUTES) * token_privileges->PrivilegeCount)) {
+    return false;
+  }
+
+  for (auto& privilege : span(&token_privileges->Privileges[0],
+                              token_privileges->PrivilegeCount)) {
+    privilege.Attributes = SE_PRIVILEGE_REMOVED;
+  }
+  return ::AdjustTokenPrivileges(
+      token_.get(), /*DisableAllPrivileges=*/FALSE, token_privileges,
+      static_cast<DWORD>(privileges_buffer->size()),
+      /*PreviousState=*/nullptr, /*ReturnLength=*/nullptr);
 }
 
 bool AccessToken::is_valid() const {

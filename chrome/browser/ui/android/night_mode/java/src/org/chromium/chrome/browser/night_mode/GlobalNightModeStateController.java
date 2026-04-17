@@ -6,25 +6,24 @@ package org.chromium.chrome.browser.night_mode;
 
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.UI_THEME_SETTING;
 
+import android.content.SharedPreferences;
 import android.text.TextUtils;
 
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatDelegate;
 
 import org.chromium.base.ApplicationState;
 import org.chromium.base.ApplicationStatus;
+import org.chromium.base.ContextUtils;
 import org.chromium.base.ObserverList;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
+import org.chromium.build.annotations.NullMarked;
 
-/**
- * Maintains and provides the night mode state for the entire application.
- */
-class GlobalNightModeStateController implements NightModeStateProvider,
-                                                SystemNightModeMonitor.Observer,
-                                                ApplicationStatus.ApplicationStateListener {
+/** Maintains and provides the night mode state for the entire application. */
+@NullMarked
+class GlobalNightModeStateController
+        implements NightModeStateProvider,
+                SystemNightModeMonitor.Observer,
+                ApplicationStatus.ApplicationStateListener {
     private final ObserverList<Observer> mObservers = new ObserverList<>();
-    private final SystemNightModeMonitor mSystemNightModeMonitor;
-    private final SharedPreferencesManager mSharedPreferencesManager;
     private final PowerSavingModeMonitor mPowerSaveModeMonitor;
 
     private final Runnable mPowerSaveModeObserver = this::updateNightMode;
@@ -34,31 +33,26 @@ class GlobalNightModeStateController implements NightModeStateProvider,
      * initialized yet.
      */
     private Boolean mNightModeOn;
-    private SharedPreferencesManager.Observer mPreferenceObserver;
+
+    private final SharedPreferences.OnSharedPreferenceChangeListener mPreferenceListener;
 
     /** Whether this class has started listening to relevant states for night mode. */
     private boolean mIsStarted;
 
     /**
-     * Should not directly instantiate unless for testing purpose. Use
-     * {@link GlobalNightModeStateProviderHolder#getInstance()} instead.
-     * @param systemNightModeMonitor The {@link SystemNightModeMonitor} that maintains the system
-     *                               night mode state.
+     * Should not directly instantiate unless for testing purpose. Use {@link
+     * GlobalNightModeStateProviderHolder#getInstance()} instead.
+     *
      * @param powerSaveModeMonitor The {@link PowerSavingModeMonitor} that maintains the system
-     *                              power saving setting.
-     * @param sharedPreferencesManager The {@link SharedPreferencesManager} that maintains shared
-     *                                preferences.
+     *     power saving setting.
      */
-    GlobalNightModeStateController(@NonNull SystemNightModeMonitor systemNightModeMonitor,
-            @NonNull PowerSavingModeMonitor powerSaveModeMonitor,
-            @NonNull SharedPreferencesManager sharedPreferencesManager) {
-        mSystemNightModeMonitor = systemNightModeMonitor;
-        mSharedPreferencesManager = sharedPreferencesManager;
+    GlobalNightModeStateController(PowerSavingModeMonitor powerSaveModeMonitor) {
         mPowerSaveModeMonitor = powerSaveModeMonitor;
 
-        mPreferenceObserver = key -> {
-            if (TextUtils.equals(key, UI_THEME_SETTING)) updateNightMode();
-        };
+        mPreferenceListener =
+                (prefs, key) -> {
+                    if (TextUtils.equals(key, UI_THEME_SETTING)) updateNightMode();
+                };
 
         updateNightMode();
 
@@ -79,12 +73,12 @@ class GlobalNightModeStateController implements NightModeStateProvider,
     }
 
     @Override
-    public void addObserver(@NonNull Observer observer) {
+    public void addObserver(Observer observer) {
         mObservers.addObserver(observer);
     }
 
     @Override
-    public void removeObserver(@NonNull Observer observer) {
+    public void removeObserver(Observer observer) {
         mObservers.removeObserver(observer);
     }
 
@@ -105,32 +99,43 @@ class GlobalNightModeStateController implements NightModeStateProvider,
     }
 
     /** Starts listening to states relevant to night mode. */
+    // Suppress to observe SharedPreferences, which is discouraged; use another messaging channel
+    // instead.
+    @SuppressWarnings("UseSharedPreferencesManagerFromChromeCheck")
     private void start() {
         if (mIsStarted) return;
         mIsStarted = true;
 
-        mSystemNightModeMonitor.addObserver(this);
+        SystemNightModeMonitor.getInstance().addObserver(this);
         mPowerSaveModeMonitor.addObserver(mPowerSaveModeObserver);
-        mSharedPreferencesManager.addObserver(mPreferenceObserver);
+        ContextUtils.getAppSharedPreferences()
+                .registerOnSharedPreferenceChangeListener(mPreferenceListener);
         updateNightMode();
     }
 
     /** Stops listening to states relevant to night mode. */
+    // Suppress to observe SharedPreferences, which is discouraged; use another messaging channel
+    // instead.
+    @SuppressWarnings("UseSharedPreferencesManagerFromChromeCheck")
     private void stop() {
         if (!mIsStarted) return;
         mIsStarted = false;
 
-        mSystemNightModeMonitor.removeObserver(this);
+        SystemNightModeMonitor.getInstance().removeObserver(this);
         mPowerSaveModeMonitor.removeObserver(mPowerSaveModeObserver);
-        mSharedPreferencesManager.removeObserver(mPreferenceObserver);
+        ContextUtils.getAppSharedPreferences()
+                .unregisterOnSharedPreferenceChangeListener(mPreferenceListener);
     }
 
     private void updateNightMode() {
         boolean powerSaveModeOn = mPowerSaveModeMonitor.powerSavingIsOn();
         final int theme = NightModeUtils.getThemeSetting();
-        final boolean newNightModeOn = theme == ThemeType.SYSTEM_DEFAULT
-                        && (powerSaveModeOn || mSystemNightModeMonitor.isSystemNightModeOn())
-                || theme == ThemeType.DARK;
+        final boolean newNightModeOn =
+                (theme == ThemeType.SYSTEM_DEFAULT
+                                && (powerSaveModeOn
+                                        || SystemNightModeMonitor.getInstance()
+                                                .isSystemNightModeOn()))
+                        || theme == ThemeType.DARK;
         if (mNightModeOn != null && newNightModeOn == mNightModeOn) return;
 
         mNightModeOn = newNightModeOn;
@@ -139,9 +144,5 @@ class GlobalNightModeStateController implements NightModeStateProvider,
         for (Observer observer : mObservers) observer.onNightModeStateChanged();
 
         NightModeMetrics.recordNightModeState(mNightModeOn);
-        NightModeMetrics.recordThemePreferencesState(theme);
-        if (mNightModeOn) {
-            NightModeMetrics.recordNightModeEnabledReason(theme, powerSaveModeOn);
-        }
     }
 }

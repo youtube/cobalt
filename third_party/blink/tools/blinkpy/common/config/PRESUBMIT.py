@@ -8,7 +8,6 @@ See http://dev.chromium.org/developers/how-tos/depottools/presubmit-scripts
 for more details about the presubmit API built into gcl.
 """
 
-USE_PYTHON3 = True
 PRESUBMIT_VERSION = '2.0.0'
 
 def CheckEnsureSpecifier(input_api, output_api):
@@ -26,7 +25,7 @@ def CheckEnsureSpecifier(input_api, output_api):
             builders = input_api.json.load(f)
             for key, value in builders.items():
                 tag = value["specifiers"][0]
-                if tag == "Android" or tag == "Trusty":
+                if tag == "Android":
                     continue
                 if tag not in tags:
                     error_message = (

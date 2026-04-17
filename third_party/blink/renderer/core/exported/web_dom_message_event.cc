@@ -37,6 +37,7 @@
 #include "third_party/blink/public/web/web_serialized_script_value.h"
 #include "third_party/blink/renderer/bindings/core/v8/serialization/serialized_script_value.h"
 #include "third_party/blink/renderer/core/dom/document.h"
+#include "third_party/blink/renderer/core/event_type_names.h"
 #include "third_party/blink/renderer/core/events/message_event.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/user_activation.h"
@@ -50,12 +51,12 @@ WebDOMMessageEvent::WebDOMMessageEvent(
     const WebString& origin,
     const WebFrame* source_frame,
     const WebDocument& target_document,
-    WebVector<MessagePortChannel> channels)
+    std::vector<MessagePortChannel> channels)
     : WebDOMMessageEvent(MessageEvent::Create()) {
   DOMWindow* window = nullptr;
   if (source_frame)
     window = WebFrame::ToCoreFrame(*source_frame)->DomWindow();
-  MessagePortArray* ports = nullptr;
+  GCedMessagePortArray* ports = nullptr;
   if (!target_document.IsNull()) {
     Document* core_document = target_document;
     ports = MessagePort::EntanglePorts(*core_document->GetExecutionContext(),
@@ -64,8 +65,8 @@ WebDOMMessageEvent::WebDOMMessageEvent(
   // TODO(esprehn): Chromium always passes empty string for lastEventId, is that
   // right?
   Unwrap<MessageEvent>()->initMessageEvent(
-      "message", false, false, message_data, origin, "" /*lastEventId*/, window,
-      ports, nullptr /*user_activation*/,
+      event_type_names::kMessage, false, false, message_data, origin,
+      "" /*lastEventId*/, window, ports, nullptr /*user_activation*/,
       mojom::blink::DelegatedCapability::kNone);
 }
 

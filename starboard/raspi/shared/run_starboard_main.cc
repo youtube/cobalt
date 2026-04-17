@@ -16,17 +16,11 @@
 #include <time.h>
 
 #include "starboard/configuration.h"
-#include "starboard/crashpad_wrapper/wrapper.h"
 #include "starboard/event.h"
 #include "starboard/raspi/shared/application_dispmanx.h"
 #include "starboard/shared/signal/crash_signals.h"
 #include "starboard/shared/signal/debug_signals.h"
 #include "starboard/shared/signal/suspend_signals.h"
-#if SB_IS(EVERGREEN_COMPATIBLE)
-#include "starboard/common/command_line.h"
-#include "starboard/common/paths.h"
-#include "starboard/elf_loader/elf_loader_constants.h"
-#endif
 
 int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
   // Set M_ARENA_MAX to a low value to slow memory growth due to fragmentation.
@@ -36,21 +30,6 @@ int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
   starboard::InstallCrashSignalHandlers();
   starboard::InstallDebugSignalHandlers();
   starboard::InstallSuspendSignalHandlers();
-
-#if SB_IS(EVERGREEN_COMPATIBLE)
-  auto command_line = starboard::CommandLine(argc, argv);
-  auto evergreen_content_path =
-      command_line.GetSwitchValue(elf_loader::kEvergreenContent);
-  std::string ca_certificates_path =
-      evergreen_content_path.empty()
-          ? starboard::GetCACertificatesPath()
-          : starboard::GetCACertificatesPath(evergreen_content_path);
-  if (ca_certificates_path.empty()) {
-    SB_LOG(ERROR) << "Failed to get CA certificates path";
-  }
-
-  crashpad::InstallCrashpadHandler(ca_certificates_path);
-#endif  // SB_IS(EVERGREEN_COMPATIBLE)
 
   starboard::ApplicationDispmanx application(callback);
   int result = application.Run(argc, argv);

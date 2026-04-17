@@ -15,9 +15,16 @@
 package dev.cobalt.coat.javabridge;
 
 import android.content.Context;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 /** Implementation of HTMLMediaElement extensions. */
 public class HTMLMediaElementExtension implements CobaltJavaScriptAndroidObject {
+  @JNINamespace("starboard")
+  @NativeMethods
+  interface Natives {
+    String canPlayType(String mimeType, String keySystem);
+  }
 
   private final Context mContext;
 
@@ -32,8 +39,6 @@ public class HTMLMediaElementExtension implements CobaltJavaScriptAndroidObject 
 
   @CobaltJavaScriptInterface
   public String canPlayType(String mimeType, String keySystem) {
-    return nativeCanPlayType(mimeType, keySystem);
+    return HTMLMediaElementExtensionJni.get().canPlayType(mimeType, keySystem);
   }
-
-  private static native String nativeCanPlayType(String mimeType, String keySystem);
 }

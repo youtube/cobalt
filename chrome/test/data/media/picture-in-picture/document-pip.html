@@ -1,7 +1,23 @@
+<!DOCTYPE html>
+<head>
+<meta charset="utf-8">
+<title>Document Picture-in-Picture</title>
+</head>
+<body>
+  <video id="video" controls loop></video>
+</body>
 <script>
+const video = document.getElementById("video");
+
+async function loadAndPlayVideo() {
+    video.src = "../bigbuck.webm";
+    await video.play();
+    return true;
+}
+
 var pipWindow;
-async function createDocumentPipWindow({ width = 300, height = 300 } = {}) {
-    pipWindow = await documentPictureInPicture.requestWindow({ width: width, height: height, });
+async function createDocumentPipWindow({ width = undefined, height = undefined, disallowReturnToOpener, preferInitialWindowPlacement } = {}) {
+    pipWindow = await documentPictureInPicture.requestWindow({ width, height, disallowReturnToOpener, preferInitialWindowPlacement });
     pipWindow.document.open();
     pipWindow.document.write("Hello, world.<a name='top'>top</a>");
     pipWindow.document.close();
@@ -21,6 +37,19 @@ function addScriptToPictureInPictureWindow() {
 function refreshInDocumentPipWindow() {
     pipWindow.location.reload();
     return true;
+}
+
+function getPipWindowPageTitle() {
+  return pipWindow.document.title;
+}
+
+function setPipWindowPageTitle(title) {
+  pipWindow.document.title = title;
+  return true;
+}
+
+function getWindowPageTitle() {
+  return document.title;
 }
 
 </script>

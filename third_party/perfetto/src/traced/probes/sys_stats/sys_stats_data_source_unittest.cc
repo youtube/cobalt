@@ -16,6 +16,7 @@
 
 #include <unistd.h>
 
+#include "perfetto/base/compiler.h"
 #include "perfetto/ext/base/file_utils.h"
 #include "perfetto/ext/base/string_utils.h"
 #include "perfetto/ext/base/temp_file.h"
@@ -169,18 +170,19 @@ unevictable_pgs_rescued 14640
 unevictable_pgs_mlocked 52520
 unevictable_pgs_munlocked 14640
 unevictable_pgs_cleared 2342
-unevictable_pgs_stranded 2342)";
+unevictable_pgs_stranded 2342
+vma_lock_abort 1173728)";
 
 const char kMockStat[] = R"(
 cpu  2655987 822682 2352153 8801203 41917 322733 175055 0 0 0
-cpu0 762178 198125 902284 8678856 41716 152974 68262 0 0 0
+cpu0 762178 198125 902284 8678856 41716 152974 68262 72386 0 0
 cpu1 613833 243394 504323 15194 96 60625 28785 0 0 0
 cpu2 207349 95060 248856 17351 42 32148 26108 0 0 0
 cpu3 138474 92158 174852 17537 48 25076 25035 0 0 0
 cpu4 278720 34689 141048 18117 1 20782 5873 0 0 0
 cpu5 235376 33907 85098 18278 2 10049 3774 0 0 0
 cpu6 239568 67149 155814 17890 5 11518 3807 0 0 0
-cpu7 180484 58196 139874 17975 3 9556 13407 0 0 0
+cpu7 180484 58196 139874 17975 3 9556 13407 28643 0 0
 intr 238128517 0 0 0 63500984 0 6253792 6 4 5 0 0 0 0 0 0 0 160331 0 0 14 0 0 0 0 0 0 0 0 0 0 0 20430 2279 11 11 83272 0 0 0 0 0 0 0 5754 220829 0 154753 908545 1824602 7314228 0 0 0 6898259 0 0 10 0 0 2 0 0 0 0 0 0 0 42 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 6 575816 1447531 134022 0 0 0 0 0 435008 319921 2755476 0 0 0 0 91 310212 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 6 4 0 0 545 901 554 9 3377 4184 12 10 588851 0 2 1109045 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 6 8 0 0 0 0 0 0 0 0 0 0 0 0 497 0 0 0 0 0 26172 0 0 0 0 0 0 0 1362 0 0 0 0 0 0 0 424 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 23427 0 0 0 0 1 1298 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 108 0 0 0 0 86 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1784935 407979 2140 10562241 52374 74699 6976 84926 222 169088 0 0 0 0 174 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2789 51543 0 83 0 0 0 0 0 0 0 0 0 0 0 0 0 0 8 8 0 13 11 17 1393 0 0 0 0 0 0 0 0 0 0 26 0 0 2 106 0 0 0 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 11150 0 13 0 1 390 6 0 6 4 0 0 0 0 352 284743 2 0 0 24 3 0 3 0 0 0 12 0 668788 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 680 0 0
 ctxt 373122860
 btime 1536912218
@@ -203,6 +205,21 @@ const char kMockDiskStat[] = R"(
    8       0 sda 54133 5368 8221736 75929 30333 1157434 9599744 143190 0 63672 249858 9595 0 2160072 19411 6649 11327
    8       1 sda1 18 6 632 7 39 49 704 92 0 156 100 0 0 0 0 0 0)";
 
+const char kMockPsi[] = R"(
+some avg10=23.10 avg60=5.06 avg300=15.10 total=417963
+full avg10=9.00 avg60=19.20 avg300=3.23 total=205933)";
+
+const uint64_t kMockThermalTemp = 25000;
+const char kMockThermalType[] = "TSR0";
+const uint64_t kMockCpuIdleStateTime = 10000;
+const char kMockCpuIdleStateName[] = "MOCK_STATE_NAME";
+const uint64_t kMockIntelGpuFreq = 300;
+// kMockAMDGpuFreq whitespace is intentional.
+const char kMockAMDGpuFreq[] = R"(
+0: 200Mhz 
+1: 400Mhz *
+2: 2000Mhz 
+)";
 class TestSysStatsDataSource : public SysStatsDataSource {
  public:
   TestSysStatsDataSource(base::TaskRunner* task_runner,
@@ -218,11 +235,25 @@ class TestSysStatsDataSource : public SysStatsDataSource {
                            std::move(cpu_freq_info),
                            open_fn) {}
 
-  MOCK_METHOD(base::ScopedDir, OpenDevfreqDir, (), (override));
+  MOCK_METHOD(base::ScopedDir,
+              OpenDirAndLogOnErrorOnce,
+              (const std::string& dir_path, bool* already_logged),
+              (override));
   MOCK_METHOD(const char*,
               ReadDevfreqCurFreq,
               (const std::string& deviceName),
               (override));
+  MOCK_METHOD(std::optional<uint64_t>,
+              ReadFileToUInt64,
+              (const std::string& name),
+              (override));
+  MOCK_METHOD(std::optional<std::string>,
+              ReadFileToString,
+              (const std::string& name),
+              (override));
+  bool* GetDevfreqErrorLoggedAddress() { return &devfreq_error_logged_; }
+  bool* GetThermalErrorLoggedAddress() { return &thermal_error_logged_; }
+  bool* GetCpuIdleErrorLoggedAddress() { return &cpuidle_error_logged_; }
 };
 
 base::ScopedFile MockOpenReadOnly(const char* path) {
@@ -237,6 +268,8 @@ base::ScopedFile MockOpenReadOnly(const char* path) {
     EXPECT_GT(pwrite(tmp_.fd(), kMockBuddy, strlen(kMockBuddy), 0), 0);
   } else if (!strcmp(path, "/proc/diskstats")) {
     EXPECT_GT(pwrite(tmp_.fd(), kMockDiskStat, strlen(kMockDiskStat), 0), 0);
+  } else if (base::StartsWith(path, "/proc/pressure/")) {
+    EXPECT_GT(pwrite(tmp_.fd(), kMockPsi, strlen(kMockPsi), 0), 0);
   } else {
     PERFETTO_FATAL("Unexpected file opened %s", path);
   }
@@ -342,6 +375,7 @@ TEST_F(SysStatsDataSourceTest, Vmstat) {
   sys_cfg.add_vmstat_counters(C::VMSTAT_PGACTIVATE);
   sys_cfg.add_vmstat_counters(C::VMSTAT_PGMIGRATE_FAIL);
   sys_cfg.add_vmstat_counters(C::VMSTAT_PGSTEAL_DIRECT);
+  sys_cfg.add_vmstat_counters(C::VMSTAT_VMA_LOCK_ABORT);
   config.set_sys_stats_config_raw(sys_cfg.SerializeAsString());
   auto data_source = GetSysStatsDataSource(config);
 
@@ -359,11 +393,13 @@ TEST_F(SysStatsDataSourceTest, Vmstat) {
   for (const auto& kv : sys_stats.vmstat())
     kvs.push_back({kv.key(), kv.value()});
 
-  EXPECT_THAT(kvs, UnorderedElementsAre(KV{C::VMSTAT_NR_FREE_PAGES, 16449},  //
-                                        KV{C::VMSTAT_PGACTIVATE, 11897892},  //
-                                        KV{C::VMSTAT_PGMIGRATE_FAIL, 3439},  //
-                                        KV{C::VMSTAT_PGSTEAL_DIRECT, 91537}  //
-                                        ));
+  EXPECT_THAT(kvs,
+              UnorderedElementsAre(KV{C::VMSTAT_NR_FREE_PAGES, 16449},    //
+                                   KV{C::VMSTAT_PGACTIVATE, 11897892},    //
+                                   KV{C::VMSTAT_PGMIGRATE_FAIL, 3439},    //
+                                   KV{C::VMSTAT_PGSTEAL_DIRECT, 91537},   //
+                                   KV{C::VMSTAT_VMA_LOCK_ABORT, 1173728}  //
+                                   ));
 }
 
 TEST_F(SysStatsDataSourceTest, VmstatAll) {
@@ -428,6 +464,175 @@ TEST_F(SysStatsDataSourceTest, BuddyinfoAll) {
   EXPECT_EQ(sys_stats.buddy_info()[3].order_pages()[10], 3u);
 }
 
+TEST_F(SysStatsDataSourceTest, ThermalZones) {
+  DataSourceConfig config;
+  protos::gen::SysStatsConfig sys_cfg;
+  sys_cfg.set_thermal_period_ms(10);
+  config.set_sys_stats_config_raw(sys_cfg.SerializeAsString());
+  auto data_source = GetSysStatsDataSource(config);
+
+  // Create dirs and symlinks, but only read the symlinks.
+  std::vector<std::string> dirs_to_delete;
+  std::vector<std::string> symlinks_to_delete;
+  auto make_thermal_paths = [&symlinks_to_delete, &dirs_to_delete](
+                                base::TempDir& temp_dir, base::TempDir& sym_dir,
+                                const char* name) {
+    base::StackString<256> path("%s/%s", temp_dir.path().c_str(), name);
+    dirs_to_delete.push_back(path.ToStdString());
+    mkdir(path.c_str(), 0755);
+    base::StackString<256> sym_path("%s/%s", sym_dir.path().c_str(), name);
+    symlinks_to_delete.push_back(sym_path.ToStdString());
+    base::ignore_result(symlink(path.c_str(), sym_path.c_str()));
+  };
+  auto fake_thermal = base::TempDir::Create();
+  auto fake_thermal_symdir = base::TempDir::Create();
+  static const char* const thermalzone_names[] = {"thermal_zone0"};
+  for (auto dev : thermalzone_names) {
+    make_thermal_paths(fake_thermal, fake_thermal_symdir, dev);
+  }
+
+  EXPECT_CALL(*data_source, OpenDirAndLogOnErrorOnce(
+                                "/sys/class/thermal/",
+                                data_source->GetThermalErrorLoggedAddress()))
+      .WillRepeatedly(Invoke([&fake_thermal_symdir] {
+        return base::ScopedDir(opendir(fake_thermal_symdir.path().c_str()));
+      }));
+
+  EXPECT_CALL(*data_source,
+              ReadFileToUInt64("/sys/class/thermal/thermal_zone0/temp"))
+      .WillRepeatedly(Return(std::optional<uint64_t>(kMockThermalTemp)));
+  EXPECT_CALL(*data_source,
+              ReadFileToString("/sys/class/thermal/thermal_zone0/type"))
+      .WillRepeatedly(Return(std::optional<std::string>(kMockThermalType)));
+
+  WaitTick(data_source.get());
+
+  protos::gen::TracePacket packet = writer_raw_->GetOnlyTracePacket();
+  ASSERT_TRUE(packet.has_sys_stats());
+  const auto& sys_stats = packet.sys_stats();
+
+  ASSERT_EQ(sys_stats.thermal_zone_size(), 1);
+  EXPECT_EQ(sys_stats.thermal_zone()[0].name(), "thermal_zone0");
+  EXPECT_EQ(sys_stats.thermal_zone()[0].temp(), kMockThermalTemp / 1000);
+  EXPECT_EQ(sys_stats.thermal_zone()[0].type(), kMockThermalType);
+
+  for (const std::string& path : dirs_to_delete)
+    base::Rmdir(path);
+  for (const std::string& path : symlinks_to_delete)
+    remove(path.c_str());
+}
+
+TEST_F(SysStatsDataSourceTest, CpuIdleStates) {
+  DataSourceConfig config;
+  protos::gen::SysStatsConfig sys_cfg;
+  sys_cfg.set_cpuidle_period_ms(10);
+  config.set_sys_stats_config_raw(sys_cfg.SerializeAsString());
+  auto data_source = GetSysStatsDataSource(config);
+
+  // Create dirs.
+  std::vector<std::string> dirs_to_delete;
+  auto make_cpuidle_paths = [&dirs_to_delete](base::TempDir& temp_dir,
+                                              std::string name) {
+    std::string path = temp_dir.path() + "/" + name;
+    dirs_to_delete.push_back(path);
+    mkdir(path.c_str(), 0755);
+  };
+  auto fake_cpuidle = base::TempDir::Create();
+
+  std::string cpu_name[3] = {"/cpu0", "/cpu0/cpuidle", "/cpu0/cpuidle/state0"};
+  for (const std::string& path : cpu_name) {
+    make_cpuidle_paths(fake_cpuidle, path);
+  }
+
+  EXPECT_CALL(*data_source, OpenDirAndLogOnErrorOnce(
+                                "/sys/devices/system/cpu/",
+                                data_source->GetCpuIdleErrorLoggedAddress()))
+      .WillOnce(Invoke([&fake_cpuidle] {
+        return base::ScopedDir(opendir(fake_cpuidle.path().c_str()));
+      }));
+
+  EXPECT_CALL(*data_source, OpenDirAndLogOnErrorOnce(
+                                "/sys/devices/system/cpu/cpu0/cpuidle/",
+                                data_source->GetCpuIdleErrorLoggedAddress()))
+      .WillRepeatedly(Invoke([&fake_cpuidle] {
+        std::string path = fake_cpuidle.path() + "/cpu0/cpuidle";
+        return base::ScopedDir(opendir(path.c_str()));
+      }));
+
+  EXPECT_CALL(
+      *data_source,
+      ReadFileToUInt64("/sys/devices/system/cpu/cpu0/cpuidle/state0/time"))
+      .WillRepeatedly(Return(std::optional<uint64_t>(kMockCpuIdleStateTime)));
+  EXPECT_CALL(
+      *data_source,
+      ReadFileToString("/sys/devices/system/cpu/cpu0/cpuidle/state0/name"))
+      .WillRepeatedly(
+          Return(std::optional<std::string>(kMockCpuIdleStateName)));
+
+  WaitTick(data_source.get());
+
+  protos::gen::TracePacket packet = writer_raw_->GetOnlyTracePacket();
+  ASSERT_TRUE(packet.has_sys_stats());
+  const auto& sys_stats = packet.sys_stats();
+  EXPECT_EQ(sys_stats.cpuidle_state_size(), 1);
+  uint32_t cpu_id = 0;
+  EXPECT_EQ(sys_stats.cpuidle_state()[0].cpu_id(), cpu_id);
+  EXPECT_EQ(sys_stats.cpuidle_state()[0].cpuidle_state_entry_size(), 1);
+  EXPECT_EQ(sys_stats.cpuidle_state()[0].cpuidle_state_entry()[0].state(),
+            kMockCpuIdleStateName);
+  EXPECT_EQ(sys_stats.cpuidle_state()[0].cpuidle_state_entry()[0].duration_us(),
+            kMockCpuIdleStateTime);
+
+  for (auto i = dirs_to_delete.size(); i > 0; i--) {
+    base::Rmdir(dirs_to_delete[i - 1]);
+  }
+}
+
+TEST_F(SysStatsDataSourceTest, IntelGpuFrequency) {
+  DataSourceConfig config;
+  protos::gen::SysStatsConfig sys_cfg;
+  sys_cfg.set_gpufreq_period_ms(10);
+  config.set_sys_stats_config_raw(sys_cfg.SerializeAsString());
+  auto data_source = GetSysStatsDataSource(config);
+
+  EXPECT_CALL(*data_source,
+              ReadFileToUInt64("/sys/class/drm/card0/gt_act_freq_mhz"))
+      .WillRepeatedly(Return(std::optional<uint64_t>(kMockIntelGpuFreq)));
+
+  WaitTick(data_source.get());
+
+  protos::gen::TracePacket packet = writer_raw_->GetOnlyTracePacket();
+  ASSERT_TRUE(packet.has_sys_stats());
+  const auto& sys_stats = packet.sys_stats();
+  EXPECT_EQ(sys_stats.gpufreq_mhz_size(), 1);
+  uint32_t intel_gpufreq = 300;
+  EXPECT_EQ(sys_stats.gpufreq_mhz()[0], intel_gpufreq);
+}
+
+TEST_F(SysStatsDataSourceTest, AMDGpuFrequency) {
+  DataSourceConfig config;
+  protos::gen::SysStatsConfig sys_cfg;
+  sys_cfg.set_gpufreq_period_ms(10);
+  config.set_sys_stats_config_raw(sys_cfg.SerializeAsString());
+  auto data_source = GetSysStatsDataSource(config);
+
+  // Ignore other GPU freq calls.
+  EXPECT_CALL(*data_source,
+              ReadFileToUInt64("/sys/class/drm/card0/gt_act_freq_mhz"));
+  EXPECT_CALL(*data_source,
+              ReadFileToString("/sys/class/drm/card0/device/pp_dpm_sclk"))
+      .WillRepeatedly(Return(std::optional<std::string>(kMockAMDGpuFreq)));
+
+  WaitTick(data_source.get());
+
+  protos::gen::TracePacket packet = writer_raw_->GetOnlyTracePacket();
+  ASSERT_TRUE(packet.has_sys_stats());
+  const auto& sys_stats = packet.sys_stats();
+  EXPECT_EQ(sys_stats.gpufreq_mhz_size(), 1);
+  uint32_t amd_gpufreq = 400;
+  EXPECT_EQ(sys_stats.gpufreq_mhz()[0], amd_gpufreq);
+}
+
 TEST_F(SysStatsDataSourceTest, DevfreqAll) {
   DataSourceConfig config;
   protos::gen::SysStatsConfig sys_cfg;
@@ -446,7 +651,7 @@ TEST_F(SysStatsDataSourceTest, DevfreqAll) {
     mkdir(path.c_str(), 0755);
     base::StackString<256> sym_path("%s/%s", sym_dir.path().c_str(), name);
     symlinks_to_delete.push_back(sym_path.ToStdString());
-    symlink(path.c_str(), sym_path.c_str());
+    base::ignore_result(symlink(path.c_str(), sym_path.c_str()));
   };
   auto fake_devfreq = base::TempDir::Create();
   auto fake_devfreq_symdir = base::TempDir::Create();
@@ -456,7 +661,9 @@ TEST_F(SysStatsDataSourceTest, DevfreqAll) {
     make_devfreq_paths(fake_devfreq, fake_devfreq_symdir, dev);
   }
 
-  EXPECT_CALL(*data_source, OpenDevfreqDir())
+  EXPECT_CALL(*data_source, OpenDirAndLogOnErrorOnce(
+                                "/sys/class/devfreq/",
+                                data_source->GetDevfreqErrorLoggedAddress()))
       .WillRepeatedly(Invoke([&fake_devfreq_symdir] {
         return base::ScopedDir(opendir(fake_devfreq_symdir.path().c_str()));
       }));
@@ -506,9 +713,11 @@ TEST_F(SysStatsDataSourceTest, StatAll) {
   EXPECT_EQ(sys_stats.cpu_stat()[0].user_ns(), 762178 * 10000000ull);
   EXPECT_EQ(sys_stats.cpu_stat()[0].system_mode_ns(), 902284 * 10000000ull);
   EXPECT_EQ(sys_stats.cpu_stat()[0].softirq_ns(), 68262 * 10000000ull);
+  EXPECT_EQ(sys_stats.cpu_stat()[0].steal_ns(), 72386 * 10000000ull);
   EXPECT_EQ(sys_stats.cpu_stat()[7].user_ns(), 180484 * 10000000ull);
   EXPECT_EQ(sys_stats.cpu_stat()[7].system_mode_ns(), 139874 * 10000000ull);
   EXPECT_EQ(sys_stats.cpu_stat()[7].softirq_ns(), 13407 * 10000000ull);
+  EXPECT_EQ(sys_stats.cpu_stat()[7].steal_ns(), 28643 * 10000000ull);
 
   EXPECT_EQ(sys_stats.num_forks(), 243320u);
 
@@ -619,6 +828,35 @@ TEST_F(SysStatsDataSourceTest, DiskStat) {
   EXPECT_EQ(sys_stats.disk_stat()[2].write_time_ms(), 92u);
   EXPECT_EQ(sys_stats.disk_stat()[2].discard_time_ms(), 0u);
   EXPECT_EQ(sys_stats.disk_stat()[2].flush_time_ms(), 0u);
+}
+
+TEST_F(SysStatsDataSourceTest, Psi) {
+  protos::gen::SysStatsConfig cfg;
+  cfg.set_psi_period_ms(10);
+  DataSourceConfig config_obj;
+  config_obj.set_sys_stats_config_raw(cfg.SerializeAsString());
+  auto data_source = GetSysStatsDataSource(config_obj);
+
+  WaitTick(data_source.get());
+
+  protos::gen::TracePacket packet = writer_raw_->GetOnlyTracePacket();
+  ASSERT_TRUE(packet.has_sys_stats());
+  const auto& sys_stats = packet.sys_stats();
+  ASSERT_EQ(sys_stats.psi_size(), 6);
+
+  using PsiSample = protos::gen::SysStats::PsiSample;
+  EXPECT_EQ(sys_stats.psi()[0].resource(), PsiSample::PSI_RESOURCE_CPU_SOME);
+  EXPECT_EQ(sys_stats.psi()[0].total_ns(), 417963000u);
+  EXPECT_EQ(sys_stats.psi()[1].resource(), PsiSample::PSI_RESOURCE_CPU_FULL);
+  EXPECT_EQ(sys_stats.psi()[1].total_ns(), 205933000U);
+  EXPECT_EQ(sys_stats.psi()[2].resource(), PsiSample::PSI_RESOURCE_IO_SOME);
+  EXPECT_EQ(sys_stats.psi()[2].total_ns(), 417963000u);
+  EXPECT_EQ(sys_stats.psi()[3].resource(), PsiSample::PSI_RESOURCE_IO_FULL);
+  EXPECT_EQ(sys_stats.psi()[3].total_ns(), 205933000U);
+  EXPECT_EQ(sys_stats.psi()[4].resource(), PsiSample::PSI_RESOURCE_MEMORY_SOME);
+  EXPECT_EQ(sys_stats.psi()[4].total_ns(), 417963000u);
+  EXPECT_EQ(sys_stats.psi()[5].resource(), PsiSample::PSI_RESOURCE_MEMORY_FULL);
+  EXPECT_EQ(sys_stats.psi()[5].total_ns(), 205933000U);
 }
 
 }  // namespace

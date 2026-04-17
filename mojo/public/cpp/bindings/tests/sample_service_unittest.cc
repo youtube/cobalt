@@ -2,9 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <stddef.h>
 #include <stdint.h>
+
 #include <algorithm>
+#include <iomanip>
 #include <ostream>
 #include <string>
 #include <utility>
@@ -14,7 +21,7 @@
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/tests/bindings_test_base.h"
-#include "mojo/public/interfaces/bindings/tests/sample_service.mojom.h"
+#include "mojo/public/interfaces/bindings/tests/sample_service.test-mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace mojo {
@@ -84,7 +91,7 @@ FooPtr MakeFoo() {
                   std::move(extra_bars), std::move(data),
                   std::move(pipe.handle1), std::move(input_streams),
                   std::move(output_streams), std::move(array_of_array_of_bools),
-                  absl::nullopt, absl::nullopt);
+                  std::nullopt, std::nullopt);
 }
 
 // Check that the given |Foo| is identical to the one made by |MakeFoo()|.
@@ -201,7 +208,7 @@ void Print(int depth, const char* name, const std::vector<T>& array) {
 template <typename T>
 void Print(int depth,
            const char* name,
-           const absl::optional<std::vector<T>>& array) {
+           const std::optional<std::vector<T>>& array) {
   if (array)
     Print(depth, name, *array);
   else

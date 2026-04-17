@@ -143,15 +143,17 @@ void PresentationReceiverWindowController::OnProfileWillBeDestroyed(
 
 void PresentationReceiverWindowController::DidStartNavigation(
     content::NavigationHandle* handle) {
-  if (!navigation_policy_.AllowNavigation(handle))
+  if (!navigation_policy_.AllowNavigation(handle)) {
     Terminate();
+  }
 }
 
 void PresentationReceiverWindowController::TitleWasSet(
     content::NavigationEntry* entry) {
   window_->UpdateWindowTitle();
-  if (entry)
+  if (entry) {
     title_change_callback_.Run(base::UTF16ToUTF8(entry->GetTitle()));
+  }
 }
 
 void PresentationReceiverWindowController::NavigationStateChanged(
@@ -171,7 +173,7 @@ bool PresentationReceiverWindowController::ShouldSuppressDialogs(
   DCHECK_EQ(web_contents_.get(), source);
   // Suppress all because there is no possible direct user interaction with
   // dialogs.
-  // TODO(https://crbug.com/734191): This does not suppress window.print().
+  // TODO(crbug.com/40526231): This does not suppress window.print().
   return true;
 }
 
@@ -185,7 +187,8 @@ bool PresentationReceiverWindowController::ShouldFocusLocationBarByDefault(
   return true;
 }
 
-bool PresentationReceiverWindowController::ShouldFocusPageAfterCrash() {
+bool PresentationReceiverWindowController::ShouldFocusPageAfterCrash(
+    content::WebContents* source) {
   // Never focus the page after a crash.
   return false;
 }
@@ -199,6 +202,7 @@ void PresentationReceiverWindowController::CanDownload(
 }
 
 bool PresentationReceiverWindowController::IsWebContentsCreationOverridden(
+    content::RenderFrameHost* opener,
     content::SiteInstance* source_site_instance,
     content::mojom::WindowContainerType window_container_type,
     const GURL& opener_url,

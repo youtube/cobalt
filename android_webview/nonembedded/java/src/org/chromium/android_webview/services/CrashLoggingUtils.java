@@ -4,7 +4,7 @@
 
 package org.chromium.android_webview.services;
 
-import org.chromium.android_webview.common.crash.CrashInfo;
+import org.chromium.android_webview.nonembedded.crash.CrashInfo;
 import org.chromium.base.Log;
 import org.chromium.components.minidump_uploader.CrashFileManager;
 
@@ -13,9 +13,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Map;
 
-/**
- * A util class for crash logs.
- */
+/** A util class for crash logs. */
 public class CrashLoggingUtils {
     private static final String TAG = "CrashLogging";
 

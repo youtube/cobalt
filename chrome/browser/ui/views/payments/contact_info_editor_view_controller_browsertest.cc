@@ -10,19 +10,22 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/ui/views/payments/payment_request_browsertest_base.h"
 #include "chrome/browser/ui/views/payments/payment_request_dialog_view_ids.h"
-#include "components/autofill/core/browser/autofill_test_utils.h"
-#include "components/autofill/core/browser/personal_data_manager.h"
+#include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
+#include "components/autofill/core/browser/data_manager/addresses/address_data_manager_test_utils.h"
+#include "components/autofill/core/browser/data_manager/personal_data_manager.h"
+#include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 
 namespace payments {
 
 namespace {
 
-const char16_t kNameFull[] = u"Kirby Puckett";
-const char16_t kPhoneNumber[] = u"6515558946";
-const char16_t kPhoneNumberInvalid[] = u"123";
-const char16_t kEmailAddress[] = u"kirby@example.test";
-const char16_t kEmailAddressInvalid[] = u"kirby";
+constexpr char16_t kNameFull[] = u"Kirby Puckett";
+constexpr char16_t kPhoneNumber[] = u"6515558946";
+constexpr char16_t kPhoneNumberInvalid[] = u"123";
+constexpr char16_t kEmailAddress[] = u"kirby@example.test";
+constexpr char16_t kEmailAddressInvalid[] = u"kirby";
 
 std::string GetLocale() {
   return g_browser_process->GetApplicationLocale();
@@ -39,13 +42,7 @@ std::string GetLocale() {
   PaymentRequestContactInfoEditorTest
 #endif
 
-class MAYBE_PaymentRequestContactInfoEditorTest
-    : public PaymentRequestBrowserTestBase {
- protected:
-  MAYBE_PaymentRequestContactInfoEditorTest() = default;
-
-  PersonalDataLoadedObserverMock personal_data_observer_;
-};
+using MAYBE_PaymentRequestContactInfoEditorTest = PaymentRequestBrowserTestBase;
 
 IN_PROC_BROWSER_TEST_F(MAYBE_PaymentRequestContactInfoEditorTest, HappyPath) {
   // Installs two apps so that the Payment Request UI will be shown.
@@ -70,31 +67,21 @@ IN_PROC_BROWSER_TEST_F(MAYBE_PaymentRequestContactInfoEditorTest, HappyPath) {
   SetEditorTextfieldValue(kPhoneNumber, autofill::PHONE_HOME_WHOLE_NUMBER);
   SetEditorTextfieldValue(kEmailAddress, autofill::EMAIL_ADDRESS);
 
-  autofill::PersonalDataManager* personal_data_manager = GetDataManager();
-  personal_data_manager->AddObserver(&personal_data_observer_);
-
   // Wait until the web database has been updated and the notification sent.
-  base::RunLoop data_loop;
-  EXPECT_CALL(personal_data_observer_, OnPersonalDataChanged())
-      .WillOnce(QuitMessageLoop(&data_loop));
+  autofill::AddressDataChangedWaiter waiter(address_data_manager());
   ClickOnDialogViewAndWait(DialogViewID::EDITOR_SAVE_BUTTON);
-  data_loop.Run();
+  std::move(waiter).Wait();
 
-  personal_data_manager->RemoveObserver(&personal_data_observer_);
-  ASSERT_EQ(1UL, personal_data_manager->GetProfiles().size());
-  autofill::AutofillProfile* profile = personal_data_manager->GetProfiles()[0];
+  ASSERT_EQ(1UL, address_data_manager()->GetProfiles().size());
+  const autofill::AutofillProfile* profile =
+      address_data_manager()->GetProfiles()[0];
   DCHECK(profile);
 
-  EXPECT_EQ(kNameFull,
-            profile->GetInfo(autofill::AutofillType(autofill::NAME_FULL),
-                             GetLocale()));
+  EXPECT_EQ(kNameFull, profile->GetInfo(autofill::NAME_FULL, GetLocale()));
   EXPECT_EQ(u"16515558946",
-            profile->GetInfo(
-                autofill::AutofillType(autofill::PHONE_HOME_WHOLE_NUMBER),
-                GetLocale()));
+            profile->GetInfo(autofill::PHONE_HOME_WHOLE_NUMBER, GetLocale()));
   EXPECT_EQ(kEmailAddress,
-            profile->GetInfo(autofill::AutofillType(autofill::EMAIL_ADDRESS),
-                             GetLocale()));
+            profile->GetInfo(autofill::EMAIL_ADDRESS, GetLocale()));
 
   PaymentRequest* request = GetPaymentRequests().front();
   EXPECT_EQ(1U, request->state()->contact_profiles().size());
@@ -126,34 +113,23 @@ IN_PROC_BROWSER_TEST_F(MAYBE_PaymentRequestContactInfoEditorTest,
   SetEditorTextfieldValue(kPhoneNumber, autofill::PHONE_HOME_WHOLE_NUMBER);
   SetEditorTextfieldValue(kEmailAddress, autofill::EMAIL_ADDRESS);
 
-  autofill::PersonalDataManager* personal_data_manager = GetDataManager();
-  personal_data_manager->AddObserver(&personal_data_observer_);
-
   // Wait until the web database has been updated and the notification sent.
-  base::RunLoop data_loop;
-  EXPECT_CALL(personal_data_observer_, OnPersonalDataChanged())
-      .WillOnce(QuitMessageLoop(&data_loop));
   views::View* editor_sheet = dialog_view()->GetViewByID(
       static_cast<int>(DialogViewID::CONTACT_INFO_EDITOR_SHEET));
   EXPECT_TRUE(editor_sheet->AcceleratorPressed(
       ui::Accelerator(ui::VKEY_RETURN, ui::EF_NONE)));
-  data_loop.Run();
+  autofill::AddressDataChangedWaiter(address_data_manager()).Wait();
 
-  personal_data_manager->RemoveObserver(&personal_data_observer_);
-  ASSERT_EQ(1UL, personal_data_manager->GetProfiles().size());
-  autofill::AutofillProfile* profile = personal_data_manager->GetProfiles()[0];
+  ASSERT_EQ(1UL, address_data_manager()->GetProfiles().size());
+  const autofill::AutofillProfile* profile =
+      address_data_manager()->GetProfiles()[0];
   DCHECK(profile);
 
-  EXPECT_EQ(kNameFull,
-            profile->GetInfo(autofill::AutofillType(autofill::NAME_FULL),
-                             GetLocale()));
+  EXPECT_EQ(kNameFull, profile->GetInfo(autofill::NAME_FULL, GetLocale()));
   EXPECT_EQ(u"16515558946",
-            profile->GetInfo(
-                autofill::AutofillType(autofill::PHONE_HOME_WHOLE_NUMBER),
-                GetLocale()));
+            profile->GetInfo(autofill::PHONE_HOME_WHOLE_NUMBER, GetLocale()));
   EXPECT_EQ(kEmailAddress,
-            profile->GetInfo(autofill::AutofillType(autofill::EMAIL_ADDRESS),
-                             GetLocale()));
+            profile->GetInfo(autofill::EMAIL_ADDRESS, GetLocale()));
 }
 
 IN_PROC_BROWSER_TEST_F(MAYBE_PaymentRequestContactInfoEditorTest, Validation) {
@@ -195,31 +171,21 @@ IN_PROC_BROWSER_TEST_F(MAYBE_PaymentRequestContactInfoEditorTest, Validation) {
   EXPECT_FALSE(IsEditorTextfieldInvalid(autofill::PHONE_HOME_WHOLE_NUMBER));
   EXPECT_FALSE(IsEditorTextfieldInvalid(autofill::EMAIL_ADDRESS));
 
-  autofill::PersonalDataManager* personal_data_manager = GetDataManager();
-  personal_data_manager->AddObserver(&personal_data_observer_);
-
   // Wait until the web database has been updated and the notification sent.
-  base::RunLoop data_loop;
-  EXPECT_CALL(personal_data_observer_, OnPersonalDataChanged())
-      .WillOnce(QuitMessageLoop(&data_loop));
+  autofill::AddressDataChangedWaiter waiter(address_data_manager());
   ClickOnDialogViewAndWait(DialogViewID::EDITOR_SAVE_BUTTON);
-  data_loop.Run();
+  std::move(waiter).Wait();
 
-  personal_data_manager->RemoveObserver(&personal_data_observer_);
-  ASSERT_EQ(1UL, personal_data_manager->GetProfiles().size());
-  autofill::AutofillProfile* profile = personal_data_manager->GetProfiles()[0];
+  ASSERT_EQ(1UL, address_data_manager()->GetProfiles().size());
+  const autofill::AutofillProfile* profile =
+      address_data_manager()->GetProfiles()[0];
   DCHECK(profile);
 
-  EXPECT_EQ(kNameFull,
-            profile->GetInfo(autofill::AutofillType(autofill::NAME_FULL),
-                             GetLocale()));
+  EXPECT_EQ(kNameFull, profile->GetInfo(autofill::NAME_FULL, GetLocale()));
   EXPECT_EQ(u"16515558946",
-            profile->GetInfo(
-                autofill::AutofillType(autofill::PHONE_HOME_WHOLE_NUMBER),
-                GetLocale()));
+            profile->GetInfo(autofill::PHONE_HOME_WHOLE_NUMBER, GetLocale()));
   EXPECT_EQ(kEmailAddress,
-            profile->GetInfo(autofill::AutofillType(autofill::EMAIL_ADDRESS),
-                             GetLocale()));
+            profile->GetInfo(autofill::EMAIL_ADDRESS, GetLocale()));
 }
 
 IN_PROC_BROWSER_TEST_F(MAYBE_PaymentRequestContactInfoEditorTest,
@@ -233,10 +199,9 @@ IN_PROC_BROWSER_TEST_F(MAYBE_PaymentRequestContactInfoEditorTest,
                     &b_method_name);
 
   NavigateTo("/payment_request_contact_details_test.html");
-  autofill::PersonalDataManager* personal_data_manager = GetDataManager();
-  personal_data_manager->AddObserver(&personal_data_observer_);
 
-  autofill::AutofillProfile incomplete_profile;
+  autofill::AutofillProfile incomplete_profile(
+      autofill::i18n_model_definition::kLegacyHierarchyCountryCode);
   incomplete_profile.SetInfo(autofill::NAME_FULL, kNameFull, GetLocale());
   AddAutofillProfile(incomplete_profile);
 
@@ -259,27 +224,20 @@ IN_PROC_BROWSER_TEST_F(MAYBE_PaymentRequestContactInfoEditorTest,
   SetEditorTextfieldValue(kEmailAddress, autofill::EMAIL_ADDRESS);
 
   // Wait until the web database has been updated and the notification sent.
-  base::RunLoop save_data_loop;
-  EXPECT_CALL(personal_data_observer_, OnPersonalDataChanged())
-      .WillOnce(QuitMessageLoop(&save_data_loop));
+  autofill::AddressDataChangedWaiter waiter(address_data_manager());
   ClickOnDialogViewAndWait(DialogViewID::EDITOR_SAVE_BUTTON);
-  save_data_loop.Run();
+  std::move(waiter).Wait();
 
-  personal_data_manager->RemoveObserver(&personal_data_observer_);
-  ASSERT_EQ(1UL, personal_data_manager->GetProfiles().size());
-  autofill::AutofillProfile* profile = personal_data_manager->GetProfiles()[0];
+  ASSERT_EQ(1UL, address_data_manager()->GetProfiles().size());
+  const autofill::AutofillProfile* profile =
+      address_data_manager()->GetProfiles()[0];
   DCHECK(profile);
 
-  EXPECT_EQ(kNameFull,
-            profile->GetInfo(autofill::AutofillType(autofill::NAME_FULL),
-                             GetLocale()));
+  EXPECT_EQ(kNameFull, profile->GetInfo(autofill::NAME_FULL, GetLocale()));
   EXPECT_EQ(u"16515558946",
-            profile->GetInfo(
-                autofill::AutofillType(autofill::PHONE_HOME_WHOLE_NUMBER),
-                GetLocale()));
+            profile->GetInfo(autofill::PHONE_HOME_WHOLE_NUMBER, GetLocale()));
   EXPECT_EQ(kEmailAddress,
-            profile->GetInfo(autofill::AutofillType(autofill::EMAIL_ADDRESS),
-                             GetLocale()));
+            profile->GetInfo(autofill::EMAIL_ADDRESS, GetLocale()));
 }
 
 IN_PROC_BROWSER_TEST_F(MAYBE_PaymentRequestContactInfoEditorTest,
@@ -293,14 +251,14 @@ IN_PROC_BROWSER_TEST_F(MAYBE_PaymentRequestContactInfoEditorTest,
                     &b_method_name);
 
   NavigateTo("/payment_request_contact_details_test.html");
-  autofill::PersonalDataManager* personal_data_manager = GetDataManager();
-  personal_data_manager->AddObserver(&personal_data_observer_);
 
-  autofill::AutofillProfile incomplete_profile;
+  autofill::AutofillProfile incomplete_profile(
+      autofill::i18n_model_definition::kLegacyHierarchyCountryCode);
   incomplete_profile.SetInfo(autofill::NAME_FULL, kNameFull, GetLocale());
   AddAutofillProfile(incomplete_profile);
 
-  autofill::AutofillProfile other_incomplete_profile;
+  autofill::AutofillProfile other_incomplete_profile(
+      autofill::i18n_model_definition::kLegacyHierarchyCountryCode);
   other_incomplete_profile.SetInfo(autofill::NAME_FULL, u"other", GetLocale());
   AddAutofillProfile(other_incomplete_profile);
 
@@ -326,24 +284,17 @@ IN_PROC_BROWSER_TEST_F(MAYBE_PaymentRequestContactInfoEditorTest,
   SetEditorTextfieldValue(kEmailAddress, autofill::EMAIL_ADDRESS);
 
   // Wait until the web database has been updated and the notification sent.
-  base::RunLoop save_data_loop;
-  EXPECT_CALL(personal_data_observer_, OnPersonalDataChanged())
-      .WillOnce(QuitMessageLoop(&save_data_loop));
+  autofill::AddressDataChangedWaiter waiter(address_data_manager());
   ClickOnDialogViewAndWait(DialogViewID::EDITOR_SAVE_BUTTON);
-  save_data_loop.Run();
+  std::move(waiter).Wait();
 
-  personal_data_manager->RemoveObserver(&personal_data_observer_);
   autofill::AutofillProfile* profile =
       request->state()->selected_contact_profile();
   DCHECK(profile);
-
   EXPECT_EQ(u"16515558946",
-            profile->GetInfo(
-                autofill::AutofillType(autofill::PHONE_HOME_WHOLE_NUMBER),
-                GetLocale()));
+            profile->GetInfo(autofill::PHONE_HOME_WHOLE_NUMBER, GetLocale()));
   EXPECT_EQ(kEmailAddress,
-            profile->GetInfo(autofill::AutofillType(autofill::EMAIL_ADDRESS),
-                             GetLocale()));
+            profile->GetInfo(autofill::EMAIL_ADDRESS, GetLocale()));
 
   // Expect the newly-completed profile to be selected.
   EXPECT_EQ(2U, request->state()->contact_profiles().size());
@@ -375,16 +326,11 @@ IN_PROC_BROWSER_TEST_F(MAYBE_PaymentRequestContactInfoEditorTest,
   SetEditorTextfieldValue(kPhoneNumber, autofill::PHONE_HOME_WHOLE_NUMBER);
   SetEditorTextfieldValue(kEmailAddress, autofill::EMAIL_ADDRESS);
 
-  autofill::PersonalDataManager* personal_data_manager = GetDataManager();
-  personal_data_manager->AddObserver(&personal_data_observer_);
-
-  EXPECT_CALL(personal_data_observer_, OnPersonalDataChanged()).Times(0);
   ClickOnDialogViewAndWait(DialogViewID::EDITOR_SAVE_BUTTON);
 
-  personal_data_manager->RemoveObserver(&personal_data_observer_);
   // In incognito, the profile should be available in contact_profiles but it
   // shouldn't be saved to the PersonalDataManager.
-  ASSERT_EQ(0UL, personal_data_manager->GetProfiles().size());
+  ASSERT_EQ(0UL, address_data_manager()->GetProfiles().size());
   PaymentRequest* request = GetPaymentRequests().front();
   EXPECT_EQ(1U, request->state()->contact_profiles().size());
   EXPECT_EQ(request->state()->contact_profiles().back(),
@@ -394,16 +340,11 @@ IN_PROC_BROWSER_TEST_F(MAYBE_PaymentRequestContactInfoEditorTest,
       request->state()->contact_profiles().back();
   DCHECK(profile);
 
-  EXPECT_EQ(kNameFull,
-            profile->GetInfo(autofill::AutofillType(autofill::NAME_FULL),
-                             GetLocale()));
+  EXPECT_EQ(kNameFull, profile->GetInfo(autofill::NAME_FULL, GetLocale()));
   EXPECT_EQ(u"16515558946",
-            profile->GetInfo(
-                autofill::AutofillType(autofill::PHONE_HOME_WHOLE_NUMBER),
-                GetLocale()));
+            profile->GetInfo(autofill::PHONE_HOME_WHOLE_NUMBER, GetLocale()));
   EXPECT_EQ(kEmailAddress,
-            profile->GetInfo(autofill::AutofillType(autofill::EMAIL_ADDRESS),
-                             GetLocale()));
+            profile->GetInfo(autofill::EMAIL_ADDRESS, GetLocale()));
 }
 
 IN_PROC_BROWSER_TEST_F(MAYBE_PaymentRequestContactInfoEditorTest,
@@ -441,14 +382,14 @@ IN_PROC_BROWSER_TEST_F(MAYBE_PaymentRequestContactInfoEditorTest,
                                DialogEvent::PROCESSING_SPINNER_HIDDEN,
                                DialogEvent::BACK_TO_PAYMENT_SHEET_NAVIGATION,
                                DialogEvent::CONTACT_INFO_EDITOR_OPENED});
-  ASSERT_TRUE(content::ExecuteScript(GetActiveWebContents(),
-                                     "retry({"
-                                     "  payer: {"
-                                     "    email: 'EMAIL ERROR',"
-                                     "    name: 'NAME ERROR',"
-                                     "    phone: 'PHONE ERROR'"
-                                     "  }"
-                                     "});"));
+  ASSERT_TRUE(content::ExecJs(GetActiveWebContents(),
+                              "retry({"
+                              "  payer: {"
+                              "    email: 'EMAIL ERROR',"
+                              "    name: 'NAME ERROR',"
+                              "    phone: 'PHONE ERROR'"
+                              "  }"
+                              "});"));
   ASSERT_TRUE(WaitForObservedEvent());
 
   EXPECT_EQ(u"EMAIL ERROR", GetErrorLabelForType(autofill::EMAIL_ADDRESS));
@@ -496,14 +437,14 @@ IN_PROC_BROWSER_TEST_F(
                                DialogEvent::PROCESSING_SPINNER_HIDDEN,
                                DialogEvent::BACK_TO_PAYMENT_SHEET_NAVIGATION,
                                DialogEvent::CONTACT_INFO_EDITOR_OPENED});
-  ASSERT_TRUE(content::ExecuteScript(GetActiveWebContents(),
-                                     "retry({"
-                                     "  payer: {"
-                                     "    email: 'EMAIL ERROR',"
-                                     "    name: 'NAME ERROR',"
-                                     "    phone: 'PHONE ERROR'"
-                                     "  }"
-                                     "});"));
+  ASSERT_TRUE(content::ExecJs(GetActiveWebContents(),
+                              "retry({"
+                              "  payer: {"
+                              "    email: 'EMAIL ERROR',"
+                              "    name: 'NAME ERROR',"
+                              "    phone: 'PHONE ERROR'"
+                              "  }"
+                              "});"));
   ASSERT_TRUE(WaitForObservedEvent());
 
   EXPECT_EQ(u"EMAIL ERROR", GetErrorLabelForType(autofill::EMAIL_ADDRESS));
@@ -546,14 +487,14 @@ IN_PROC_BROWSER_TEST_F(MAYBE_PaymentRequestContactInfoEditorTest,
                                DialogEvent::SPEC_DONE_UPDATING,
                                DialogEvent::PROCESSING_SPINNER_HIDDEN,
                                DialogEvent::BACK_TO_PAYMENT_SHEET_NAVIGATION});
-  ASSERT_TRUE(content::ExecuteScript(GetActiveWebContents(),
-                                     "retry({"
-                                     "  payer: {"
-                                     "    email: 'EMAIL ERROR',"
-                                     "    name: 'NAME ERROR',"
-                                     "    phone: 'PHONE ERROR'"
-                                     "  }"
-                                     "});"));
+  ASSERT_TRUE(content::ExecJs(GetActiveWebContents(),
+                              "retry({"
+                              "  payer: {"
+                              "    email: 'EMAIL ERROR',"
+                              "    name: 'NAME ERROR',"
+                              "    phone: 'PHONE ERROR'"
+                              "  }"
+                              "});"));
   ASSERT_TRUE(WaitForObservedEvent());
 
   const int kErrorLabelOffset =

@@ -34,6 +34,7 @@
 
 namespace recording {
 
+class AudioStreamMixer;
 class RecordingServiceTestApi;
 
 // Implements the mojo interface of the recording service which handles
@@ -41,8 +42,7 @@ class RecordingServiceTestApi;
 // encoded video chunks directly to a file at a path provided to the Record*()
 // functions.
 class RecordingService : public mojom::RecordingService,
-                         public viz::mojom::FrameSinkVideoConsumer,
-                         public media::AudioCapturerSource::CaptureCallback {
+                         public viz::mojom::FrameSinkVideoConsumer {
  public:
   explicit RecordingService(
       mojo::PendingReceiver<mojom::RecordingService> receiver);
@@ -55,7 +55,9 @@ class RecordingService : public mojom::RecordingService,
       mojo::PendingRemote<mojom::RecordingServiceClient> client,
       mojo::PendingRemote<viz::mojom::FrameSinkVideoCapturer> video_capturer,
       mojo::PendingRemote<media::mojom::AudioStreamFactory>
-          audio_stream_factory,
+          microphone_stream_factory,
+      mojo::PendingRemote<media::mojom::AudioStreamFactory>
+          system_audio_stream_factory,
       mojo::PendingRemote<mojom::DriveFsQuotaDelegate> drive_fs_quota_delegate,
       const base::FilePath& output_file_path,
       const viz::FrameSinkId& frame_sink_id,
@@ -65,7 +67,9 @@ class RecordingService : public mojom::RecordingService,
       mojo::PendingRemote<mojom::RecordingServiceClient> client,
       mojo::PendingRemote<viz::mojom::FrameSinkVideoCapturer> video_capturer,
       mojo::PendingRemote<media::mojom::AudioStreamFactory>
-          audio_stream_factory,
+          microphone_stream_factory,
+      mojo::PendingRemote<media::mojom::AudioStreamFactory>
+          system_audio_stream_factory,
       mojo::PendingRemote<mojom::DriveFsQuotaDelegate> drive_fs_quota_delegate,
       const base::FilePath& output_file_path,
       const viz::FrameSinkId& frame_sink_id,
@@ -77,7 +81,9 @@ class RecordingService : public mojom::RecordingService,
       mojo::PendingRemote<mojom::RecordingServiceClient> client,
       mojo::PendingRemote<viz::mojom::FrameSinkVideoCapturer> video_capturer,
       mojo::PendingRemote<media::mojom::AudioStreamFactory>
-          audio_stream_factory,
+          microphone_stream_factory,
+      mojo::PendingRemote<media::mojom::AudioStreamFactory>
+          system_audio_stream_factory,
       mojo::PendingRemote<mojom::DriveFsQuotaDelegate> drive_fs_quota_delegate,
       const base::FilePath& output_file_path,
       const viz::FrameSinkId& frame_sink_id,
@@ -100,20 +106,11 @@ class RecordingService : public mojom::RecordingService,
       const gfx::Rect& content_rect,
       mojo::PendingRemote<viz::mojom::FrameSinkVideoConsumerFrameCallbacks>
           callbacks) override;
-  void OnNewCropVersion(uint32_t crop_version) override;
+  void OnNewSubCaptureTargetVersion(
+      uint32_t sub_capture_target_version) override;
   void OnFrameWithEmptyRegionCapture() override;
   void OnStopped() override;
   void OnLog(const std::string& message) override;
-
-  // media::AudioCapturerSource::CaptureCallback:
-  void OnCaptureStarted() override;
-  void Capture(const media::AudioBus* audio_source,
-               base::TimeTicks audio_capture_time,
-               double volume,
-               bool key_pressed) override;
-  void OnCaptureError(media::AudioCapturerSource::ErrorCode code,
-                      const std::string& message) override;
-  void OnCaptureMuted(bool is_muted) override;
 
  private:
   friend class RecordingServiceTestApi;
@@ -122,10 +119,18 @@ class RecordingService : public mojom::RecordingService,
       mojo::PendingRemote<mojom::RecordingServiceClient> client,
       mojo::PendingRemote<viz::mojom::FrameSinkVideoCapturer> video_capturer,
       mojo::PendingRemote<media::mojom::AudioStreamFactory>
-          audio_stream_factory,
+          microphone_stream_factory,
+      mojo::PendingRemote<media::mojom::AudioStreamFactory>
+          system_audio_stream_factory,
       mojo::PendingRemote<mojom::DriveFsQuotaDelegate> drive_fs_quota_delegate,
       const base::FilePath& output_file_path,
       std::unique_ptr<VideoCaptureParams> capture_params);
+
+  // Called asynchronously by the encoder to provide the `callback` that will be
+  // called repeatedly by the `audio_stream_mixer_` to provide the mixed audio
+  // buses along with their timestamps to the encoder. This happens only if we
+  // are recording audio.
+  void OnEncodeAudioCallbackReady(EncodeAudioCallback callback);
 
   // Called on the main thread during an on-going recording to reconfigure an
   // existing video encoder.
@@ -143,14 +148,6 @@ class RecordingService : public mojom::RecordingService,
   // ongoing recording, this attempts to reconnect to a new capturer and resumes
   // capturing with the same |current_video_capture_params_|.
   void OnVideoCapturerDisconnected();
-
-  // The captured audio data is delivered to Capture() on a dedicated thread
-  // created by the audio capturer. However, we can only schedule tasks on the
-  // |encoder_muxer_| using its |base::SequenceBound| wrapper on the main
-  // thread. This function is called on the main thread, and is scheduled using
-  // |main_task_runner_| from Capture().
-  void OnAudioCaptured(std::unique_ptr<media::AudioBus> audio_bus,
-                       base::TimeTicks audio_capture_time);
 
   // This is called by |encoder_muxer_| on the main thread (since we bound it as
   // a callback to be invoked on the main thread. See BindOnceToMainThread()),
@@ -176,9 +173,12 @@ class RecordingService : public mojom::RecordingService,
   // which point we request a new refresh video frame.
   void OnRefreshTimerFired();
 
-  // By default, the |encoder_muxer_| will invoke any callback we provide it
+  // Stops audio recording if any is being done.
+  void MaybeStopAudioRecording();
+
+  // By default, the `encoder_muxer_` will invoke any callback we provide it
   // with to notify us of certain events (such as failure errors, or flush done)
-  // on the |encoding_task_runner_|'s sequence. But since these callbacks are
+  // on the `encoding_task_runner_`'s sequence. But since these callbacks are
   // invoked asynchronously from other threads, they may get invoked after this
   // RecordingService instance had been destroyed. Therefore, we need to bind
   // these callbacks to weak ptrs, to prevent them from invoking after this
@@ -254,9 +254,16 @@ class RecordingService : public mojom::RecordingService,
   mojo::Remote<viz::mojom::FrameSinkVideoCapturer> video_capturer_remote_
       GUARDED_BY_CONTEXT(main_thread_checker_);
 
-  // The audio capturer instance. It is created only if the service is requested
-  // to record audio along side the video.
-  scoped_refptr<media::AudioCapturerSource> audio_capturer_
+  // The audio stream mixer that will be created only if we are capturing any
+  // audio stream. The mixer creates and owns the audio capturers that we
+  // require. If the mixer exists, it must contain at least a single capturer;
+  // if either microphone or system audio recording was requested, or contains
+  // two capturers if both are desired to be recorded an mixed together in one
+  // stream.
+  // All the operations performed by the mixer (including its construction and
+  // destruction) are done on `encoding_task_runner_` to avoid stalling the main
+  // thread (on which the video frames are received).
+  base::SequenceBound<AudioStreamMixer> audio_stream_mixer_
       GUARDED_BY_CONTEXT(main_thread_checker_);
 
   // Abstracts querying the supported capabilities of the currently used encoder

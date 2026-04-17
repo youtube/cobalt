@@ -8,7 +8,9 @@
 #include <iostream>
 
 #include "base/functional/callback.h"
+#include "base/notreached.h"
 #include "gin/public/v8_platform.h"
+#include "third_party/blink/renderer/platform/bindings/dom_data_store.h"
 #include "third_party/blink/renderer/platform/bindings/dom_wrapper_world.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/bindings/wrapper_type_info.h"
@@ -32,30 +34,32 @@ namespace {
 // lazily.
 class BlinkRootsHandler final : public v8::EmbedderRootsHandler {
  public:
-  bool IsRoot(const v8::TracedReference<v8::Value>& handle) final {
-    const uint16_t class_id = handle.WrapperClassId();
-    // Stand-alone reference or kCustomWrappableId. Keep as root as
-    // we don't know better.
-    if (class_id != WrapperTypeInfo::kNodeClassId &&
-        class_id != WrapperTypeInfo::kObjectClassId)
-      return true;
-
-    return false;
-  }
+  explicit BlinkRootsHandler(v8::Isolate* isolate) : isolate_(isolate) {}
 
   // ResetRoot() clears references to V8 wrapper objects in all worlds. It is
   // invoked for references where IsRoot() returned false during young
   // generation garbage collections.
   void ResetRoot(const v8::TracedReference<v8::Value>& handle) final {
-    DCHECK(handle.WrapperClassId() == WrapperTypeInfo::kNodeClassId ||
-           handle.WrapperClassId() == WrapperTypeInfo::kObjectClassId);
     const v8::TracedReference<v8::Object>& traced = handle.As<v8::Object>();
-    bool success = DOMWrapperWorld::UnsetSpecificWrapperIfSet(
-        ToScriptWrappable(traced), traced);
+    const bool success = DOMDataStore::ClearWrapperInAnyWorldIfEqualTo(
+        ToAnyScriptWrappable(isolate_, traced), traced);
     // Since V8 found a handle, Blink needs to find it as well when trying to
-    // remove it.
+    // remove it. Note that this is even true for the case where a
+    // DOMWrapperWorld and DOMDataStore are already unreachable as the internal
+    // worldmap contains a weak ref that remains valid until the next full GC
+    // call. The weak ref is guaranteed to still be valid because it is only
+    // cleared on full GCs and the `BlinkRootsHandler` is used on minor V8 GCs.
     CHECK(success);
   }
+
+  bool TryResetRoot(const v8::TracedReference<v8::Value>& handle) final {
+    const v8::TracedReference<v8::Object>& traced = handle.As<v8::Object>();
+    return DOMDataStore::ClearInlineStorageWrapperIfEqualTo(
+        ToAnyScriptWrappable(isolate_, traced), traced);
+  }
+
+ private:
+  v8::Isolate* isolate_;
 };
 
 }  // namespace
@@ -99,6 +103,16 @@ ThreadState* ThreadState::AttachCurrentThreadForTesting(
   return thread_state;
 }
 
+namespace {
+void RecoverCppHeap(std::unique_ptr<v8::CppHeap> cpp_heap) {
+  ThreadState::Current()->SetCppHeap(std::move(cpp_heap));
+}
+}  // namespace
+
+void ThreadState::RecoverCppHeapAfterIsolateTearDown() {
+  isolate_->SetReleaseCppHeapCallbackForTesting(RecoverCppHeap);
+}
+
 // static
 void ThreadState::DetachCurrentThread() {
   auto* state = ThreadState::Current();
@@ -108,61 +122,37 @@ void ThreadState::DetachCurrentThread() {
 
 void ThreadState::AttachToIsolate(v8::Isolate* isolate,
                                   V8BuildEmbedderGraphCallback) {
-  isolate->AttachCppHeap(cpp_heap_.get());
-  CHECK_EQ(cpp_heap_.get(), isolate->GetCppHeap());
+  CHECK(!owning_cpp_heap_);
+  CHECK_EQ(cpp_heap_, isolate->GetCppHeap());
   isolate_ = isolate;
-  embedder_roots_handler_ = std::make_unique<BlinkRootsHandler>();
+  embedder_roots_handler_ = std::make_unique<BlinkRootsHandler>(isolate);
   isolate_->SetEmbedderRootsHandler(embedder_roots_handler_.get());
 }
 
 void ThreadState::DetachFromIsolate() {
-  CHECK_EQ(cpp_heap_.get(), isolate_->GetCppHeap());
-  isolate_->DetachCppHeap();
+  CHECK(!owning_cpp_heap_);
+  CHECK_EQ(cpp_heap_, isolate_->GetCppHeap());
   isolate_->SetEmbedderRootsHandler(nullptr);
   isolate_ = nullptr;
+  cpp_heap_ = nullptr;
+}
+
+std::unique_ptr<v8::CppHeap> ThreadState::ReleaseCppHeap() {
+  return std::move(owning_cpp_heap_);
 }
 
 ThreadState::ThreadState(v8::Platform* platform)
-    : cpp_heap_(v8::CppHeap::Create(
+    : owning_cpp_heap_(v8::CppHeap::Create(
           platform,
-          {CustomSpaces::CreateCustomSpaces(),
-           v8::WrapperDescriptor(kV8DOMWrapperTypeIndex,
-                                 kV8DOMWrapperObjectIndex,
-                                 gin::GinEmbedder::kEmbedderBlink)})),
+          v8::CppHeapCreateParams(CustomSpaces::CreateCustomSpaces()))),
+      cpp_heap_(owning_cpp_heap_.get()),
       heap_handle_(cpp_heap_->GetHeapHandle()),
       thread_id_(CurrentThread()) {}
 
 ThreadState::~ThreadState() {
   DCHECK(IsCreationThread());
-  cpp_heap_->Terminate();
+  owning_cpp_heap_.reset();
   ThreadStateStorage::DetachNonMainThread(*ThreadStateStorage::Current());
-}
-
-void ThreadState::SafePoint(StackState stack_state) {
-  DCHECK(IsCreationThread());
-  if (stack_state != ThreadState::StackState::kNoHeapPointers)
-    return;
-
-  if (forced_scheduled_gc_for_testing_) {
-    CollectAllGarbageForTesting(stack_state);
-    forced_scheduled_gc_for_testing_ = false;
-  }
-}
-
-void ThreadState::NotifyGarbageCollection(v8::GCType type,
-                                          v8::GCCallbackFlags flags) {
-  if (flags & v8::kGCCallbackFlagForced) {
-    // Forces a precise GC at the end of the current event loop. This is
-    // required for testing code that cannot use GC internals but rather has
-    // to rely on window.gc(). Only schedule additional GCs if the last GC was
-    // using conservative stack scanning.
-    if (type == v8::kGCTypeScavenge || type == v8::kGCTypeMinorMarkCompact) {
-      forced_scheduled_gc_for_testing_ = true;
-    } else if (type == v8::kGCTypeMarkSweepCompact) {
-      forced_scheduled_gc_for_testing_ =
-          cppgc::subtle::HeapState::PreviousGCWasConservative(heap_handle());
-    }
-  }
 }
 
 void ThreadState::CollectAllGarbageForTesting(StackState stack_state) {
@@ -215,8 +205,8 @@ class CustomSpaceStatisticsReceiverImpl final
   base::OnceCallback<void(size_t allocated_node_bytes,
                           size_t allocated_css_bytes)>
       callback_;
-  absl::optional<size_t> node_bytes_;
-  absl::optional<size_t> css_bytes_;
+  std::optional<size_t> node_bytes_;
+  std::optional<size_t> css_bytes_;
 };
 
 }  // anonymous namespace
@@ -233,6 +223,17 @@ void ThreadState::CollectNodeAndCssStatistics(
 
 void ThreadState::EnableDetachedGarbageCollectionsForTesting() {
   cpp_heap().EnableDetachedGarbageCollectionsForTesting();
+}
+
+void ThreadState::SetCppHeap(std::unique_ptr<v8::CppHeap> cpp_heap) {
+  CHECK(!owning_cpp_heap_);
+  CHECK(!cpp_heap_);
+  // We want to keep the invariant that the ThreadState does not own a CppHeap
+  // while it is attached to an isolate. When it's attached to an isolate, the
+  // isolate owns the CppHeap.
+  CHECK(!isolate_);
+  owning_cpp_heap_ = std::move(cpp_heap);
+  cpp_heap_ = owning_cpp_heap_.get();
 }
 
 bool ThreadState::IsIncrementalMarking() {
@@ -263,7 +264,7 @@ class BufferedStream final : public v8::OutputStream {
 }  // namespace
 
 void ThreadState::TakeHeapSnapshotForTesting(const char* filename) const {
-  CHECK(IsAttachedToIsolate());
+  CHECK(isolate_);
   v8::HeapProfiler* profiler = isolate_->GetHeapProfiler();
   CHECK(profiler);
 
@@ -281,6 +282,21 @@ void ThreadState::TakeHeapSnapshotForTesting(const char* filename) const {
   }
 
   const_cast<v8::HeapSnapshot*>(snapshot)->Delete();
+}
+
+bool ThreadState::IsTakingHeapSnapshot() const {
+  if (!isolate_) {
+    return false;
+  }
+  v8::HeapProfiler* profiler = isolate_->GetHeapProfiler();
+  return profiler && profiler->IsTakingSnapshot();
+}
+
+const char* ThreadState::CopyNameForHeapSnapshot(const char* name) const {
+  CHECK(isolate_);
+  v8::HeapProfiler* profiler = isolate_->GetHeapProfiler();
+  CHECK(profiler);
+  return profiler->CopyNameForHeapSnapshot(name);
 }
 
 }  // namespace blink

@@ -11,23 +11,24 @@
 #include <stdio.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
-#include "absl/types/optional.h"
 #include "api/test/simulated_network.h"
 #include "api/test/video_quality_test_fixture.h"
 #include "api/transport/bitrate_settings.h"
+#include "api/units/data_rate.h"
 #include "api/video_codecs/video_codec.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/string_encode.h"
 #include "system_wrappers/include/field_trial.h"
-#include "test/field_trial.h"
 #include "test/gtest.h"
 #include "test/run_test.h"
+#include "test/test_flags.h"
 #include "video/video_quality_test.h"
 
 // Flags for video.
@@ -311,15 +312,6 @@ ABSL_FLAG(bool,
 
 ABSL_FLAG(bool, video, true, "Add video stream");
 
-ABSL_FLAG(
-    std::string,
-    force_fieldtrials,
-    "",
-    "Field trials control experimental feature code which can be forced. "
-    "E.g. running with --force_fieldtrials=WebRTC-FooFeature/Enable/"
-    " will assign the group Enable to field trial WebRTC-FooFeature. Multiple "
-    "trials are separated by \"/\"");
-
 // Video-specific flags.
 ABSL_FLAG(std::string,
           vclip,
@@ -500,7 +492,7 @@ int ScrollDuration() {
 std::vector<std::string> Slides() {
   std::vector<std::string> slides;
   std::string slides_list = absl::GetFlag(FLAGS_slides);
-  rtc::tokenize(slides_list, ',', &slides);
+  tokenize(slides_list, ',', &slides);
   return slides;
 }
 
@@ -508,7 +500,7 @@ int StartBitrateKbps() {
   return absl::GetFlag(FLAGS_start_bitrate);
 }
 
-std::string Codec() {
+std::string CodecName() {
   return absl::GetFlag(FLAGS_codec);
 }
 
@@ -540,8 +532,10 @@ int AvgBurstLossLength() {
   return absl::GetFlag(FLAGS_avg_burst_loss_length);
 }
 
-int LinkCapacityKbps() {
-  return absl::GetFlag(FLAGS_link_capacity);
+DataRate LinkCapacity() {
+  int link_capacity_kbps = absl::GetFlag(FLAGS_link_capacity);
+  return link_capacity_kbps == 0 ? DataRate::Infinity()
+                                 : DataRate::KilobitsPerSec(link_capacity_kbps);
 }
 
 int QueueSize() {
@@ -592,7 +586,7 @@ void Loopback() {
   BuiltInNetworkBehaviorConfig pipe_config;
   pipe_config.loss_percent = LossPercent();
   pipe_config.avg_burst_loss_length = AvgBurstLossLength();
-  pipe_config.link_capacity_kbps = LinkCapacityKbps();
+  pipe_config.link_capacity = LinkCapacity();
   pipe_config.queue_length_packets = QueueSize();
   pipe_config.queue_delay_ms = AvgPropagationDelayMs();
   pipe_config.delay_standard_deviation_ms = StdPropagationDelayMs();
@@ -620,7 +614,7 @@ void Loopback() {
       ScreenshareTargetBitrateKbps() * 1000;
   params.video[screenshare_idx].max_bitrate_bps =
       ScreenshareMaxBitrateKbps() * 1000;
-  params.video[screenshare_idx].codec = Codec();
+  params.video[screenshare_idx].codec = CodecName();
   params.video[screenshare_idx].num_temporal_layers =
       ScreenshareNumTemporalLayers();
   params.video[screenshare_idx].selected_tl = ScreenshareSelectedTL();
@@ -635,7 +629,7 @@ void Loopback() {
   params.video[camera_idx].max_bitrate_bps = VideoMaxBitrateKbps() * 1000;
   params.video[camera_idx].suspend_below_min_bitrate =
       absl::GetFlag(FLAGS_suspend_below_min_bitrate);
-  params.video[camera_idx].codec = Codec();
+  params.video[camera_idx].codec = CodecName();
   params.video[camera_idx].num_temporal_layers = VideoNumTemporalLayers();
   params.video[camera_idx].selected_tl = VideoSelectedTL();
   params.video[camera_idx].ulpfec = absl::GetFlag(FLAGS_use_ulpfec);
@@ -672,13 +666,15 @@ void Loopback() {
     params.ss[screenshare_idx].infer_streams = true;
   }
 
+  VideoQualityTest fixture(nullptr);
+
   std::vector<std::string> stream_descriptors;
   stream_descriptors.push_back(ScreenshareStream0());
   stream_descriptors.push_back(ScreenshareStream1());
   std::vector<std::string> SL_descriptors;
   SL_descriptors.push_back(ScreenshareSL0());
   SL_descriptors.push_back(ScreenshareSL1());
-  VideoQualityTest::FillScalabilitySettings(
+  fixture.FillScalabilitySettings(
       &params, screenshare_idx, stream_descriptors, ScreenshareNumStreams(),
       ScreenshareSelectedStream(), ScreenshareNumSpatialLayers(),
       ScreenshareSelectedSL(), ScreenshareInterLayerPred(), SL_descriptors);
@@ -689,16 +685,15 @@ void Loopback() {
   SL_descriptors.clear();
   SL_descriptors.push_back(VideoSL0());
   SL_descriptors.push_back(VideoSL1());
-  VideoQualityTest::FillScalabilitySettings(
-      &params, camera_idx, stream_descriptors, VideoNumStreams(),
-      VideoSelectedStream(), VideoNumSpatialLayers(), VideoSelectedSL(),
-      VideoInterLayerPred(), SL_descriptors);
+  fixture.FillScalabilitySettings(&params, camera_idx, stream_descriptors,
+                                  VideoNumStreams(), VideoSelectedStream(),
+                                  VideoNumSpatialLayers(), VideoSelectedSL(),
+                                  VideoInterLayerPred(), SL_descriptors);
 
-  auto fixture = std::make_unique<VideoQualityTest>(nullptr);
   if (DurationSecs()) {
-    fixture->RunWithAnalyzer(params);
+    fixture.RunWithAnalyzer(params);
   } else {
-    fixture->RunWithRenderers(params);
+    fixture.RunWithRenderers(params);
   }
 }
 }  // namespace webrtc
@@ -707,7 +702,7 @@ int main(int argc, char* argv[]) {
   ::testing::InitGoogleTest(&argc, argv);
   absl::ParseCommandLine(argc, argv);
 
-  rtc::LogMessage::SetLogToStderr(absl::GetFlag(FLAGS_logs));
+  webrtc::LogMessage::SetLogToStderr(absl::GetFlag(FLAGS_logs));
 
   // InitFieldTrialsFromString stores the char*, so the char array must outlive
   // the application.

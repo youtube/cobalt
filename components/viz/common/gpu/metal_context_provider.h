@@ -6,18 +6,22 @@
 #define COMPONENTS_VIZ_COMMON_GPU_METAL_CONTEXT_PROVIDER_H_
 
 #include <memory>
-#include "components/metal_util/types.h"
+
 #include "components/viz/common/viz_metal_context_provider_export.h"
 #include "third_party/skia/include/gpu/graphite/ContextOptions.h"
 #include "third_party/skia/include/gpu/graphite/mtl/MtlGraphiteTypes.h"
+
+#if __OBJC__
+@protocol MTLDevice;
+#endif  // __OBJC__
 
 namespace gl {
 class ProgressReporter;
 }  // namespace gl
 
-namespace skgpu::graphite {
-class Context;
-}  // namespace skgpu::graphite
+namespace gpu {
+class GraphiteSharedContext;
+}  // namespace gpu
 
 namespace viz {
 
@@ -28,13 +32,28 @@ class VIZ_METAL_CONTEXT_PROVIDER_EXPORT MetalContextProvider {
   // if no Metal devices exist.
   static std::unique_ptr<MetalContextProvider> Create();
 
-  virtual ~MetalContextProvider() = default;
+  MetalContextProvider(const MetalContextProvider&) = delete;
+  MetalContextProvider& operator=(const MetalContextProvider&) = delete;
+  ~MetalContextProvider();
 
-  virtual bool InitializeGraphiteContext(
-      const skgpu::graphite::ContextOptions& options) = 0;
+  bool InitializeGraphiteContext(
+      const skgpu::graphite::ContextOptions& options);
 
-  virtual skgpu::graphite::Context* GetGraphiteContext() = 0;
-  virtual metal::MTLDevicePtr GetMTLDevice() = 0;
+  int32_t GetMaxTextureSize() const;
+
+  gpu::GraphiteSharedContext* GetGraphiteSharedContext() const;
+
+#if __OBJC__
+  id<MTLDevice> GetMTLDevice() const;
+#endif  // __OBJC__
+
+ private:
+#if __OBJC__
+  explicit MetalContextProvider(id<MTLDevice> device);
+#endif  // __OBJC__
+
+  struct ObjCStorage;
+  std::unique_ptr<ObjCStorage> objc_storage_;
 };
 
 }  // namespace viz

@@ -8,12 +8,8 @@ blink_modules_sources("gamepad") {
   sources = [
     "gamepad.cc",
     "gamepad.h",
-    "gamepad_axis_event.cc",
-    "gamepad_axis_event.h",
     "gamepad_button.cc",
     "gamepad_button.h",
-    "gamepad_button_event.cc",
-    "gamepad_button_event.h",
     "gamepad_comparisons.cc",
     "gamepad_comparisons.h",
     "gamepad_dispatcher.cc",
@@ -55,6 +51,7 @@ source_set("unit_tests") {
     "//testing/gtest",
     "//third_party/blink/renderer/modules",
     "//third_party/blink/renderer/platform",
+    "//third_party/blink/renderer/platform:test_support",
     "//third_party/blink/renderer/platform/wtf",
   ]
 }

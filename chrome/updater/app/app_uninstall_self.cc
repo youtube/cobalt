@@ -11,6 +11,7 @@
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
 #include "chrome/updater/app/app.h"
+#include "chrome/updater/branded_constants.h"
 #include "chrome/updater/constants.h"
 #include "chrome/updater/lock.h"
 #include "chrome/updater/util/util.h"
@@ -25,13 +26,9 @@ namespace updater {
 
 // AppUninstallSelf uninstalls this instance of the updater.
 class AppUninstallSelf : public App {
- public:
-  AppUninstallSelf() = default;
-
  private:
   ~AppUninstallSelf() override = default;
-  void Initialize() override;
-  void Uninitialize() override;
+  [[nodiscard]] int Initialize() override;
   void FirstTaskRun() override;
 
   void UninstallAll();
@@ -40,12 +37,11 @@ class AppUninstallSelf : public App {
   std::unique_ptr<ScopedLock> setup_lock_;
 };
 
-void AppUninstallSelf::Initialize() {
+int AppUninstallSelf::Initialize() {
   setup_lock_ =
-      ScopedLock::Create(kSetupMutex, updater_scope(), kWaitForSetupLock);
+      CreateScopedLock(kSetupMutex, updater_scope(), kWaitForSetupLock);
+  return kErrorOk;
 }
-
-void AppUninstallSelf::Uninitialize() {}
 
 void AppUninstallSelf::FirstTaskRun() {
   if (WrongUser(updater_scope())) {

@@ -14,12 +14,11 @@
 #include "media/base/media_tracks.h"
 #include "media/base/stream_parser.h"
 #include "media/base/stream_parser_buffer.h"
-#include "media/base/text_track_config.h"
 #include "media/base/timestamp_constants.h"
 
 namespace {
 
-// TODO(crbug.com/1144908): Since these must be identical to those generated
+// TODO(crbug.com/40155657): Since these must be identical to those generated
 // in the SourceBuffer, consider moving these to possibly stream_parser.h.
 // Meanwhile, must be kept in sync with similar constexpr in SourceBuffer
 // manually.
@@ -49,7 +48,6 @@ void WebCodecsEncodedChunkStreamParser::Init(
     InitCB init_cb,
     NewConfigCB config_cb,
     NewBuffersCB new_buffers_cb,
-    bool /* ignore_text_tracks */,
     EncryptedMediaInitDataCB /* ignored */,
     NewMediaSegmentCB new_segment_cb,
     EndMediaSegmentCB end_of_segment_cb,
@@ -82,28 +80,25 @@ bool WebCodecsEncodedChunkStreamParser::GetGenerateTimestampsFlag() const {
 }
 
 bool WebCodecsEncodedChunkStreamParser::AppendToParseBuffer(
-    const uint8_t* /* buf */,
-    size_t /* size */) {
-  // TODO(crbug.com/1144908): Protect against app reaching this (and similer
+    base::span<const uint8_t> /* buf */) {
+  // TODO(crbug.com/40155657): Protect against app reaching this (and similer
   // inverse case in other parsers) simply by using the wrong append method on
   // the SourceBuffer. Maybe a better MEDIA_LOG here would be sufficient?  Or
   // instead have the top-level SourceBuffer throw synchronous exception when
   // attempting the wrong append method, without causing parse/decode error?
   NOTREACHED();  // ProcessChunks() is the method to use instead for this
                  // parser.
-  return true;   // Subsequent async Parse failure will occur below.
 }
 
 StreamParser::ParseStatus WebCodecsEncodedChunkStreamParser::Parse(
     int /* max_pending_bytes_to_inspect */) {
-  // TODO(crbug.com/1144908): Protect against app reaching this (and similer
+  // TODO(crbug.com/40155657): Protect against app reaching this (and similer
   // inverse case in other parsers) simply by using the wrong append method on
   // the SourceBuffer. Maybe a better MEDIA_LOG here would be sufficient?  Or
   // instead have the top-level SourceBuffer throw synchronous exception when
   // attempting the wrong append method, without causing parse/decode error?
   NOTREACHED();  // ProcessChunks() is the method to use instead for this
                  // parser.
-  return ParseStatus::kFailed;
 }
 
 bool WebCodecsEncodedChunkStreamParser::ProcessChunks(
@@ -120,16 +115,18 @@ bool WebCodecsEncodedChunkStreamParser::ProcessChunks(
            (video_config_ && !audio_config_));
     auto media_tracks = std::make_unique<MediaTracks>();
     if (audio_config_) {
-      media_tracks->AddAudioTrack(
-          *audio_config_, kWebCodecsAudioTrackId, MediaTrack::Kind("main"),
-          MediaTrack::Label(""), MediaTrack::Language(""));
+      media_tracks->AddAudioTrack(*audio_config_, true, kWebCodecsAudioTrackId,
+                                  MediaTrack::Kind("main"),
+                                  MediaTrack::Label(""),
+                                  MediaTrack::Language(""));
     } else if (video_config_) {
-      media_tracks->AddVideoTrack(
-          *video_config_, kWebCodecsVideoTrackId, MediaTrack::Kind("main"),
-          MediaTrack::Label(""), MediaTrack::Language(""));
+      media_tracks->AddVideoTrack(*video_config_, true, kWebCodecsVideoTrackId,
+                                  MediaTrack::Kind("main"),
+                                  MediaTrack::Label(""),
+                                  MediaTrack::Language(""));
     }
 
-    if (!config_cb_.Run(std::move(media_tracks), TextTrackConfigMap())) {
+    if (!config_cb_.Run(std::move(media_tracks))) {
       ChangeState(kError);
       return false;
     }
@@ -141,7 +138,6 @@ bool WebCodecsEncodedChunkStreamParser::ProcessChunks(
         params.detected_audio_track_count = 1;
       if (video_config_)
         params.detected_video_track_count = 1;
-      params.detected_text_track_count = 0;
       std::move(init_cb_).Run(params);
     }
 
@@ -164,7 +160,7 @@ bool WebCodecsEncodedChunkStreamParser::ProcessChunks(
     }
   }
 
-  // TODO(crbug.com/1144908): Add a different new_buffers_cb type for us to use
+  // TODO(crbug.com/40155657): Add a different new_buffers_cb type for us to use
   // so that we can just std::move the buffer_queue, and avoid potential issues
   // with out-of-order timestamps in the caller-provided queue that would
   // otherwise cause parse failure in MergeBufferQueues with the current, legacy

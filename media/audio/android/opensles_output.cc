@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/audio/android/opensles_output.h"
 
 #include "base/android/build_info.h"
@@ -48,11 +53,10 @@ OpenSLESOutputStream::OpenSLESOutputStream(AudioManagerAndroid* manager,
   DVLOG(2) << "OpenSLESOutputStream::OpenSLESOutputStream("
            << "stream_type=" << stream_type << ")";
 
-  if (AudioManagerAndroid::SupportsPerformanceModeForOutput()) {
-    if (params.latency_tag() == AudioLatency::LATENCY_PLAYBACK)
-      performance_mode_ = SL_ANDROID_PERFORMANCE_POWER_SAVING;
-    else if (params.latency_tag() == AudioLatency::LATENCY_RTC)
-      performance_mode_ = SL_ANDROID_PERFORMANCE_LATENCY_EFFECTS;
+  if (params.latency_tag() == AudioLatency::Type::kPlayback) {
+    performance_mode_ = SL_ANDROID_PERFORMANCE_POWER_SAVING;
+  } else if (params.latency_tag() == AudioLatency::Type::kRtc) {
+    performance_mode_ = SL_ANDROID_PERFORMANCE_LATENCY_EFFECTS;
   }
 
   audio_bus_ = AudioBus::Create(params);

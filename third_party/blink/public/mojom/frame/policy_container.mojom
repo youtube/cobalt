@@ -6,6 +6,7 @@ module blink.mojom;
 
 import "services/network/public/mojom/content_security_policy.mojom";
 import "services/network/public/mojom/cross_origin_embedder_policy.mojom";
+import "services/network/public/mojom/integrity_policy.mojom";
 import "services/network/public/mojom/ip_address_space.mojom";
 import "services/network/public/mojom/referrer_policy.mojom";
 import "services/network/public/mojom/web_sandbox_flags.mojom";
@@ -16,6 +17,8 @@ import "services/network/public/mojom/web_sandbox_flags.mojom";
 // updated through meta tags (see PolicyContainerHost).
 struct PolicyContainerPolicies {
   network.mojom.CrossOriginEmbedderPolicy cross_origin_embedder_policy;
+  network.mojom.IntegrityPolicy integrity_policy;
+  network.mojom.IntegrityPolicy integrity_policy_report_only;
   network.mojom.ReferrerPolicy referrer_policy =
     network.mojom.ReferrerPolicy.kDefault;
   array<network.mojom.ContentSecurityPolicy> content_security_policies;
@@ -27,6 +30,9 @@ struct PolicyContainerPolicies {
   network.mojom.IPAddressSpace ip_address_space =
       network.mojom.IPAddressSpace.kUnknown;
   bool can_navigate_top_without_user_gesture = true;
+  // Allows to bypass the crossOriginIsolation permission policy when COI is
+  // enabled by DocumentIsolationPolicy.
+  bool cross_origin_isolation_enabled_by_dip = false;
 };
 
 // This interface is implemented in the browser process. It defines methods to
@@ -39,15 +45,6 @@ interface PolicyContainerHost {
 
   // Append these content security policies.
   AddContentSecurityPolicies(array<network.mojom.ContentSecurityPolicy> content_security_policies);
-
-  // Register the remote corresponding to |receiver| as a keep alive handle for
-  // this PolicyContainerHost.
-  IssueKeepAliveHandle(pending_receiver<PolicyContainerHostKeepAliveHandle> receiver);
-};
-
-// This is a dummy interface used only to keep alive a PolicyContainerHost via
-// the mojo disconnect handler mechanism.
-interface PolicyContainerHostKeepAliveHandle {
 };
 
 // Struct containing Blink's copy of the policy container together with a remote

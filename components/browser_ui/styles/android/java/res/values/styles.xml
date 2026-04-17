@@ -19,19 +19,36 @@ found in the LICENSE file.
         <item name="android:minHeight">0dp</item>
         <item name="android:textAppearance">@style/TextAppearance.TextMedium.Primary</item>
     </style>
-    <style name="Widget.BrowserUI.Switch" parent="Widget.MaterialComponents.CompoundButton.Switch">
-        <item name="thumbTint">@color/switch_thumb_tint_list</item>
-        <item name="trackTint">@color/switch_track_tint</item>
-        <item name="trackTintMode">src_in</item>
+    <style name="Widget.BrowserUI.Switch" parent="Widget.Material3.CompoundButton.MaterialSwitch">
+        <item name="android:scaleX">@fraction/material_switch_scale_fraction</item>
+        <item name="android:scaleY">@fraction/material_switch_scale_fraction</item>
+        <item name="android:minHeight">@dimen/switch_pre_scale_min_height</item>
     </style>
-    <style name="Widget.BrowserUI.Switch.Incognito" parent="Widget.MaterialComponents.CompoundButton.Switch">
-        <item name="thumbTint">@color/switch_thumb_tint_incognito_baseline_list</item>
-        <item name="trackTint">@color/switch_track_tint_incognito_baseline_list</item>
-
+    <style name="Widget.BrowserUI.Switch.Incognito">
+        <item name="materialThemeOverlay">@style/ThemeOverlay.BrowserUI.Switch.Incognito</item>
     </style>
     <!-- TextInputLayout style -->
     <style name="Widget.BrowserUI.TextInputLayout" parent="Widget.Design.TextInputLayout">
         <item name="errorTextAppearance">@style/TextAppearance.ErrorCaption</item>
+        <item name="hintTextAppearance">@style/TextAppearance.TextSmall.Accent1</item>
+        <item name="materialThemeOverlay">@style/ThemeOverlay.BrowserUI.TextInputLayout</item>
+    </style>
+    <style name="ThemeOverlay.BrowserUI.TextInputLayout" parent="">
+        <item name="editTextStyle">@style/Widget.BrowserUI.TextInputEditText</item>
+        <item name="autoCompleteTextViewStyle">@style/Widget.BrowserUI.AutoCompleteTextView</item>
+    </style>
+    <style name="Widget.BrowserUI.TextInputEditText" parent="Widget.Design.TextInputEditText">
+        <item name="android:textAppearance">@style/TextAppearance.TextLarge.Primary</item>
+    </style>
+    <style name="Widget.BrowserUI.AutoCompleteTextView" parent="Widget.AppCompat.AutoCompleteTextView">
+        <item name="android:textAppearance">@style/TextAppearance.TextLarge.Primary</item>
+    </style>
+
+    <style name="Widget.BrowserUI.SpinnerItem" parent="Widget.AppCompat.TextView.SpinnerItem">
+        <item name="android:textAppearance">@style/TextAppearance.TextLarge.Primary</item>
+    </style>
+    <style name="Widget.BrowserUI.SpinnerDropDownItemStyle" parent="Widget.AppCompat.DropDownItem.Spinner">
+        <item name="android:textAppearance">@style/TextAppearance.TextLarge.Primary</item>
     </style>
 
     <!-- Basic theme for an overflow menu displayed in Chrome. -->
@@ -45,7 +62,7 @@ found in the LICENSE file.
     </style>
     <style name="OverflowMenuThemeOverlay" parent="Base.OverflowMenuThemeOverlay" />
 
-    <style name="AlertDialogButtonStyle" parent="Widget.MaterialComponents.Button.TextButton.Dialog">
+    <style name="AlertDialogButtonStyle" parent="Widget.Material3.Button.TextButton.Dialog">
         <item name="android:textAppearance">@style/TextAppearance.Button.Text.Blue</item>
     </style>
 
@@ -68,27 +85,16 @@ found in the LICENSE file.
         <item name="android:paddingEnd">@dimen/dialog_padding_sides</item>
         <item name="android:paddingTop">@dimen/dialog_padding_top</item>
     </style>
-    <style name="AlertDialogSummaryViewItem" parent="@android:style/TextAppearance.Small">
+    <style name="AlertDialogSummaryViewItem">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:textAlignment">viewStart</item>
         <item name="android:paddingTop">10dp</item>
+        <item name="android:textAppearance">@style/TextAppearance.TextMedium.Secondary</item>
     </style>
 
     <style name="ProgressBarStyle" parent="Widget.AppCompat.ProgressBar">
         <item name="android:indeterminateTint">@macro/default_icon_color_accent1</item>
-    </style>
-
-    <!-- Switch styling for dark theme -->
-    <!-- TODO(sinansahin): See if we can pass the baseline dark theme to the incognito NTP instead.
-         -->
-    <style name="SwitchMaterialDark">
-        <!-- TODO(sinansahin): When we migrate the switch style to Material3, we should override
-             colorOnSurface and colorPrimary instead of these attributes because they are what
-             m3_selection_control_ripple_color_selector uses. -->
-        <item name="colorControlActivated">@color/default_control_color_active_dark</item>
-        <item name="colorControlHighlight">@color/default_control_color_highlight_dark</item>
-        <item name="switchStyle">@style/Widget.BrowserUI.Switch.Incognito</item>
     </style>
 
     <!-- Styling for an app menu item row. -->
@@ -108,7 +114,7 @@ found in the LICENSE file.
     <item name="android:background">@macro/default_bg_color</item>
     </style>
 
-    <style name="Base.ModernToolbar" parent="Widget.MaterialComponents.Toolbar">
+    <style name="Base.ModernToolbar" parent="Widget.Material3.Toolbar">
         <item name="titleTextAppearance">@style/TextAppearance.Headline.Primary</item>
         <item name="titleTextColor">@macro/default_text_color</item>
         <item name="windowActionBarOverlay">true</item>
@@ -123,6 +129,14 @@ found in the LICENSE file.
     <!-- Text styles -->
     <!-- Primary text styles -->
     <style name="TextAppearance.Headline.Primary">
+        <item name="android:textColor">@color/default_text_color_list</item>
+    </style>
+
+    <style name="TextAppearance.Headline2Thick.Primary">
+        <item name="android:textColor">@color/default_text_color_list</item>
+    </style>
+
+    <style name="TextAppearance.TextAccentMediumThick.Primary">
         <item name="android:textColor">@color/default_text_color_list</item>
     </style>
 
@@ -143,6 +157,10 @@ found in the LICENSE file.
     </style>
 
     <!-- Secondary text styles -->
+    <style name="TextAppearance.Headline2Thick.Secondary" >
+        <item name="android:textColor">@color/default_text_color_secondary_list</item>
+    </style>
+
     <style name="TextAppearance.TextLarge.Secondary">
         <item name="android:textColor">@color/default_text_color_secondary_list</item>
     </style>
@@ -179,7 +197,7 @@ found in the LICENSE file.
     <style name="TextAppearance.TextMedium.Link" parent="TextAppearance.TextMedium">
         <item name="android:textColor">@color/default_text_color_link_tint_list</item>
     </style>
-    <style name="TextAppearance.TextSmall.Link" parent="TextAppearance.TextSmall">
+    <style name="TextAppearance.TextAccentMediumThick.Link" parent="TextAppearance.TextAccentMediumThick">
         <item name="android:textColor">@color/default_text_color_link_tint_list</item>
     </style>
 
@@ -187,6 +205,9 @@ found in the LICENSE file.
     <!-- Text styles used on dark background on light theme, and light background on dark theme. -->
     <style name="TextAppearance.Headline.Primary.OnAccent1" tools:ignore="UnusedResources">
         <item name="android:textColor">@color/default_text_color_on_accent1_list</item>
+    </style>
+    <style name="TextAppearance.TextLarge.Primary.OnAccent1Container" tools:ignore="UnusedResources">
+        <item name="android:textColor">@color/default_text_color_on_accent1_container_list</item>
     </style>
     <style name="TextAppearance.TextMediumThick.Primary.OnAccent1" tools:ignore="UnusedResources">
         <item name="android:textColor">@color/default_text_color_on_accent1_list</item>
@@ -218,12 +239,18 @@ found in the LICENSE file.
         <item name="android:textSize">@dimen/text_size_large</item>
         <item name="android:textStyle">bold</item>
     </style>
+    <!-- TextMedium.Link styling w/ sans-serif-medium or google-sans-text-medium font family -->
     <style name="TextAppearance.EditorDialogSectionAddButton"
-        parent="TextAppearance.TextMedium.Link">
+        parent="TextAppearance.TextMediumThick">
         <item name="android:textAllCaps">true</item>
+        <item name="android:textColor">@color/default_text_color_link_tint_list</item>
     </style>
 
     <!-- Disabled text styles -->
+    <style name="TextAppearance.Headline.Disabled" tools:ignore="UnusedResources">
+        <item name="android:textColor">@color/default_text_color_disabled_list</item>
+    </style>
+
     <style name="TextAppearance.TextLarge.Disabled" tools:ignore="UnusedResources">
         <item name="android:textColor">@color/default_text_color_disabled_list</item>
     </style>

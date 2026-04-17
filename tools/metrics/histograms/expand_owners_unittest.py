@@ -82,7 +82,10 @@ class ExpandOwnersTest(unittest.TestCase):
   def testExpandOwnersUsesMetadataOverOwners(self):
     """Checks that DIR_METADATA is used if available"""
     with open(os.path.join(self.temp_dir, 'DIR_METADATA'), "w+") as md:
-      md.write("\n".join(['monorail {', 'component: "Bees"', '}']))
+      md.write("\n".join([
+          'monorail {', 'component: "Bees"', '}', 'buganizer_public {',
+          'component_id:123456', '}'
+      ]))
     absolute_path = _MakeOwnersFile('simple_OWNERS', self.temp_dir)
     with open(absolute_path, 'w') as owners_file:
       owners_file.write('\n'.join(['amy@chromium.org', 'rae@chromium.org']))
@@ -115,7 +118,7 @@ class ExpandOwnersTest(unittest.TestCase):
   <owner>amy@chromium.org</owner>
   <owner>rae@chromium.org</owner>
   <summary>I like coffee.</summary>
-  <component>Bees</component>
+  <component>123456</component>
 </histogram>
 
 <histogram name="Maple.Syrup" units="units">
@@ -124,7 +127,7 @@ class ExpandOwnersTest(unittest.TestCase):
   <owner>rae@chromium.org</owner>
   <owner>kim@chromium.org</owner>
   <summary>I like maple syrup, too.</summary>
-  <component>Bees</component>
+  <component>123456</component>
 </histogram>
 
 </histograms>
@@ -133,7 +136,7 @@ class ExpandOwnersTest(unittest.TestCase):
     expand_owners.ExpandHistogramsOWNERS(histograms)
     self.assertMultiLineEqual(histograms.toxml(), expected_histograms.toxml())
 
-  @mock.patch('expand_owners._ExtractComponentViaDirmd')
+  @mock.patch('expand_owners.ExtractComponentViaDirmd')
   def testExpandOwnersWithSimpleOWNERSFilePath(self, mock_dirmd_extract):
     """Checks that OWNERS files are expanded."""
     mock_dirmd_extract.return_value = None
@@ -187,7 +190,7 @@ class ExpandOwnersTest(unittest.TestCase):
     expand_owners.ExpandHistogramsOWNERS(histograms)
     self.assertMultiLineEqual(histograms.toxml(), expected_histograms.toxml())
 
-  @mock.patch('expand_owners._ExtractComponentViaDirmd')
+  @mock.patch('expand_owners.ExtractComponentViaDirmd')
   def testExpandOwnersWithLongFilePath(self, mock_dirmd_extract):
     """Checks that long OWNERS file paths are supported.
 
@@ -231,7 +234,7 @@ class ExpandOwnersTest(unittest.TestCase):
     expand_owners.ExpandHistogramsOWNERS(histograms)
     self.assertMultiLineEqual(histograms.toxml(), expected_histograms.toxml())
 
-  @mock.patch('expand_owners._ExtractComponentViaDirmd')
+  @mock.patch('expand_owners.ExtractComponentViaDirmd')
   def testExpandOwnersWithDuplicateOwners(self, mock_dirmd_extract):
     """Checks that owners are unique."""
     mock_dirmd_extract.return_value = None
@@ -269,7 +272,7 @@ class ExpandOwnersTest(unittest.TestCase):
     expand_owners.ExpandHistogramsOWNERS(histograms)
     self.assertMultiLineEqual(histograms.toxml(), expected_histograms.toxml())
 
-  @mock.patch('expand_owners._ExtractComponentViaDirmd')
+  @mock.patch('expand_owners.ExtractComponentViaDirmd')
   def testExpandOwnersWithFileDirectiveOWNERSFilePath(self, mock_dirmd_extract):
     """Checks that OWNERS files with file directives are expanded."""
     mock_dirmd_extract.return_value = None
@@ -318,7 +321,7 @@ class ExpandOwnersTest(unittest.TestCase):
     expand_owners.ExpandHistogramsOWNERS(histograms)
     self.assertEqual(histograms.toxml(), expected_histograms.toxml())
 
-  @mock.patch('expand_owners._ExtractComponentViaDirmd')
+  @mock.patch('expand_owners.ExtractComponentViaDirmd')
   def testExpandOwnersForOWNERSFileWithDuplicateComponents(
       self, mock_dirmd_extract):
     """Checks that only one component tag is added if there are duplicates."""
@@ -401,7 +404,7 @@ class ExpandOwnersTest(unittest.TestCase):
 </histograms>
 """)
 
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         expand_owners.Error,
         'The histogram Caffeination must have a valid primary owner, i.e. a '
         'Googler with an @google.com or @chromium.org email address.'):
@@ -424,7 +427,7 @@ class ExpandOwnersTest(unittest.TestCase):
 </histograms>
 """)
 
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         expand_owners.Error,
         'The histogram Caffeination must have a valid primary owner, i.e. a '
         'Googler with an @google.com or @chromium.org email address.'):
@@ -447,7 +450,7 @@ class ExpandOwnersTest(unittest.TestCase):
 </histograms>
 """)
 
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         expand_owners.Error,
         'The histogram Caffeination must have a valid primary owner, i.e. a '
         'Googler with an @google.com or @chromium.org email address.'):
@@ -467,7 +470,7 @@ class ExpandOwnersTest(unittest.TestCase):
 </histograms>
 """)
 
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         expand_owners.Error, r'The file at .*medium.*OWNERS does not exist\.'):
       expand_owners.ExpandHistogramsOWNERS(histograms_with_fake_file_path)
 
@@ -491,7 +494,7 @@ class ExpandOwnersTest(unittest.TestCase):
 </histograms>
 """.format(src_relative_path))
 
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         expand_owners.Error,
         r'No emails could be derived from .*empty_OWNERS\.'):
       expand_owners.ExpandHistogramsOWNERS(histograms_without_owners_from_file)
@@ -536,7 +539,7 @@ class ExpandOwnersTest(unittest.TestCase):
 </histograms>
 """)
 
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         expand_owners.Error,
         r'The given path latte/OWNERS is not well-formatted.*\.'):
       expand_owners.ExpandHistogramsOWNERS(histograms_without_src_prefix)
@@ -555,7 +558,7 @@ class ExpandOwnersTest(unittest.TestCase):
 </histograms>
 """)
 
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         expand_owners.Error,
         r'The given path src/latte/file is not well-formatted.*\.'):
       expand_owners.ExpandHistogramsOWNERS(histograms_without_owners_suffix)
@@ -592,7 +595,7 @@ class ExpandOwnersTest(unittest.TestCase):
     with open(file_directive_absolute_path, 'w') as owners_file:
       owners_file.write(directive)
 
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         expand_owners.Error,
         r'.*The path.*loop_OWNERS may be part of an OWNERS loop\.'):
       expand_owners._ExtractEmailAddressesFromOWNERS(
@@ -610,7 +613,7 @@ class ExpandOwnersTest(unittest.TestCase):
     # which is generally the case locally. However, the parent directory is not
     # always src, e.g. on various testing bots.
     if os.path.basename(_GetToolsParentDir()) == 'src':
-      self.assertRegexpMatches(result, r'.*OWNERS')
+      self.assertRegex(result, r'.*OWNERS')
     else:
       self.assertEqual(result, '')
 

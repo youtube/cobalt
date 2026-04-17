@@ -13,13 +13,13 @@
 #ifndef STARBOARD_COMMON_COMMAND_LINE_H_
 #define STARBOARD_COMMON_COMMAND_LINE_H_
 
+#include <cstddef>
 #include <map>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "starboard/export.h"
-#include "starboard/types.h"
 
 namespace starboard {
 

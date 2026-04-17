@@ -76,20 +76,12 @@ enum class RequestResult {
 // Consistent with the buffer size used in url request data reading.
 const size_t kMaxBufferSizeForValidation = 4096;
 
-void GetFileSize(const base::FilePath& file_path, int64_t* file_size) {
-  bool succeeded = base::GetFileSize(file_path, file_size);
-  if (!succeeded) {
-    // Use -1 to indicate that file is not found.
-    *file_size = -1;
-  }
-}
-
 void UpdateDigest(
     const scoped_refptr<OfflinePageRequestHandler::ThreadSafeArchiveValidator>&
         validator,
     scoped_refptr<net::IOBuffer> buffer,
     size_t len) {
-  validator->Update(buffer->data(), len);
+  validator->Update(buffer->first(len));
 }
 
 OfflinePageModel* GetOfflinePageModel(
@@ -302,14 +294,15 @@ OfflinePageRequestHandler::OfflinePageRequestHandler(
       network_state_(NetworkState::CONNECTED_NETWORK),
       candidate_index_(0) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  std::string offline_header_value;
-  extra_request_headers.GetHeader(kOfflinePageHeader, &offline_header_value);
+  std::string offline_header_value =
+      extra_request_headers.GetHeader(kOfflinePageHeader)
+          .value_or(std::string());
   // Note that |offline_header| will be empty if parsing from the header value
   // fails.
   offline_header_ = OfflinePageHeader(offline_header_value);
 }
 
-OfflinePageRequestHandler::~OfflinePageRequestHandler() {}
+OfflinePageRequestHandler::~OfflinePageRequestHandler() = default;
 
 OfflinePageRequestHandler::NetworkState
 OfflinePageRequestHandler::GetNetworkState() const {
@@ -471,7 +464,7 @@ void OfflinePageRequestHandler::Redirect(const GURL& redirected_url) {
       "Non-Authoritative-Reason: offline redirects",
       // 302 is used to remove response bodies in order to
       // avoid leak when going online.
-      net::RedirectUtil::ResponseCode::REDIRECT_302_FOUND,
+      static_cast<int>(net::RedirectUtil::ResponseCode::REDIRECT_302_FOUND),
       redirected_url.spec().c_str());
 
   fake_headers_for_redirect_ = base::MakeRefCounted<net::HttpResponseHeaders>(
@@ -505,8 +498,11 @@ void OfflinePageRequestHandler::OpenFile(
   if (!stream_)
     stream_ = std::make_unique<net::FileStream>(file_task_runner_);
 
-  int flags = base::File::FLAG_OPEN | base::File::FLAG_READ |
-              base::File::FLAG_ASYNC | base::File::FLAG_WIN_EXCLUSIVE_READ;
+  int flags =
+      base::File::FLAG_OPEN | base::File::FLAG_READ | base::File::FLAG_ASYNC;
+#if BUILDFLAG(IS_WIN)
+  flags |= base::File::FLAG_WIN_EXCLUSIVE_READ;
+#endif  // BUILDFLAG(IS_WIN)
   int result = stream_->Open(file_path, flags, callback);
   if (result != net::ERR_IO_PENDING)
     callback.Run(result);
@@ -574,23 +570,21 @@ void OfflinePageRequestHandler::ValidateFile() {
 }
 
 void OfflinePageRequestHandler::GetFileSizeForValidation() {
-  int64_t* file_size = new int64_t(0);
-  file_task_runner_->PostTaskAndReply(
-      FROM_HERE,
-      base::BindOnce(&GetFileSize, GetCurrentOfflinePage().file_path,
-                     base::Unretained(file_size)),
+  file_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE, base::GetFileSizeCallback(GetCurrentOfflinePage().file_path),
       base::BindOnce(&OfflinePageRequestHandler::DidGetFileSizeForValidation,
-                     weak_ptr_factory_.GetWeakPtr(), base::Owned(file_size)));
+                     weak_ptr_factory_.GetWeakPtr()));
 }
 
 void OfflinePageRequestHandler::DidGetFileSizeForValidation(
-    const int64_t* actual_file_size) {
-  if (*actual_file_size == -1) {
+    std::optional<int64_t> file_size) {
+  int64_t actual_file_size = file_size.value_or(-1);
+  if (actual_file_size == -1) {
     OnFileValidationDone(FileValidationResult::FILE_NOT_FOUND);
     return;
   }
 
-  if (*actual_file_size != GetCurrentOfflinePage().file_size) {
+  if (actual_file_size != GetCurrentOfflinePage().file_size) {
     OnFileValidationDone(FileValidationResult::FILE_VALIDATION_FAILED);
     return;
   }
@@ -608,7 +602,8 @@ void OfflinePageRequestHandler::DidOpenForValidation(int result) {
   }
 
   if (!buffer_)
-    buffer_ = base::MakeRefCounted<net::IOBuffer>(kMaxBufferSizeForValidation);
+    buffer_ = base::MakeRefCounted<net::IOBufferWithSize>(
+        kMaxBufferSizeForValidation);
 
   ReadForValidation();
 }

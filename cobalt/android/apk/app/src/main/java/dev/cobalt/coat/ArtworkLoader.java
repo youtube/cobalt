@@ -20,7 +20,9 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Pair;
 import android.util.Size;
+import androidx.annotation.CheckResult;
 import androidx.annotation.NonNull;
+import androidx.annotation.VisibleForTesting;
 import dev.cobalt.util.DisplayUtil;
 import java.util.List;
 import org.chromium.services.media_session.MediaImage;
@@ -33,14 +35,20 @@ public class ArtworkLoader {
     void onArtworkLoaded(Bitmap bitmap);
   }
 
-  @NonNull private volatile String mRequestedArtworkUrl = "";
-  @NonNull private volatile String mCurrentArtworkUrl = "";
-  private volatile Bitmap mCurrentArtwork = null;
+  @VisibleForTesting @NonNull volatile String mRequestedArtworkUrl = "";
+  @VisibleForTesting @NonNull volatile String mCurrentArtworkUrl = "";
+  @VisibleForTesting volatile Bitmap mCurrentArtwork = null;
 
   private final Handler mHandler = new Handler(Looper.getMainLooper());
   private final ArtworkDownloader mArtworkDownloader;
   private final Callback mCallback;
 
+  /**
+   * Constructs a new ArtworkLoader.
+   *
+   * @param callback The callback to receive the loaded image.
+   * @param artworkDownloader The downloader to use for fetching the image.
+   */
   public ArtworkLoader(Callback callback, ArtworkDownloader artworkDownloader) {
     this.mCallback = callback;
     this.mArtworkDownloader = artworkDownloader;
@@ -95,36 +103,74 @@ public class ArtworkLoader {
     return bestImage;
   }
 
+  /**
+   * Crops the bitmap to 16:9 aspect ratio if necessary.
+   *
+   * If the bitmap is taller than 16:9, it is cropped from the center. If it is already 16:9 or
+   * wider, it is returned as is.
+   *
+   * The input bitmap is recycled if a new cropped bitmap is created.
+   * NOTE: This method is accessed from google3(http://shortn/_SoIqBrEPhR).
+   *
+   * @param bitmap The source bitmap.
+   * @return The 16:9 cropped bitmap, or the original bitmap.
+   */
+  @CheckResult
   public Bitmap cropTo16x9(Bitmap bitmap) {
     // Crop to 16:9 as needed
-    if (bitmap != null) {
-      int height = bitmap.getWidth() * 9 / 16;
-      if (bitmap.getHeight() > height) {
-        int top = (bitmap.getHeight() - height) / 2;
-        return Bitmap.createBitmap(bitmap, 0, top, bitmap.getWidth(), height);
-      }
+    if (bitmap == null) {
+      return null;
     }
-    return bitmap;
+    int height = bitmap.getWidth() * 9 / 16;
+    if (bitmap.getHeight() <= height) {
+      return bitmap;
+    }
+
+    int top = (bitmap.getHeight() - height) / 2;
+    Bitmap cropped = Bitmap.createBitmap(bitmap, 0, top, bitmap.getWidth(), height);
+    bitmap.recycle();
+    return cropped;
   }
 
+  /**
+   * Called when an artwork download has finished.
+   *
+   * @param urlBitmapPair A pair containing the URL and the downloaded Bitmap.
+   */
   public synchronized void onDownloadFinished(Pair<String, Bitmap> urlBitmapPair) {
     String url = urlBitmapPair.first;
     Bitmap bitmap = urlBitmapPair.second;
-    if (url.equals(mRequestedArtworkUrl)) {
-      mRequestedArtworkUrl = "";
-      if (bitmap != null) {
-        mCurrentArtworkUrl = url;
-        mCurrentArtwork = bitmap;
 
-        mHandler.post(
-            new Runnable() {
-              @Override
-              public void run() {
-                mCallback.onArtworkLoaded(bitmap);
-              }
-            });
+    if (!mRequestedArtworkUrl.equals(url)) {
+      if (bitmap != null) {
+        bitmap.recycle();
       }
+      return;
     }
+
+    mRequestedArtworkUrl = "";
+
+    if (bitmap == null) {
+      return;
+    }
+
+    final Bitmap oldArtwork = mCurrentArtwork;
+    mCurrentArtworkUrl = url;
+    mCurrentArtwork = bitmap;
+
+    mHandler.post(
+        new Runnable() {
+          @Override
+          public void run() {
+            try {
+              mCallback.onArtworkLoaded(bitmap);
+            } finally {
+              if (oldArtwork != null) {
+                oldArtwork.recycle();
+              }
+            }
+          }
+        });
   }
 
   private class DownloadArtworkThread extends Thread {

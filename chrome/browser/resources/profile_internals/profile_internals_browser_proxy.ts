@@ -8,6 +8,8 @@ export interface KeepAlive {
 }
 
 export interface ProfileState {
+  foregroundColor: string;
+  backgroundColor: string;
   profilePath: string;
   localProfileName: string;
   signinState: string;
@@ -24,9 +26,15 @@ export interface ProfileState {
   signedAccounts: string[];
   isLoaded: boolean;
   hasOffTheRecord: boolean;
+  profileCountry: string;
+  localeCountry: string;
+  variationsCountry: string;
+  initialKeywordsDbCountry: string;
+  updatedKeywordsDbCountry: string;
 }
 
 export interface ProfileStateElement {
+  className: string;
   profileState: ProfileState;
   expanded: boolean;
 }

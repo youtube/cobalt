@@ -12,6 +12,7 @@
 #include "chrome/browser/ash/file_system_provider/fileapi/file_stream_writer.h"
 #include "chrome/browser/ash/file_system_provider/fileapi/provider_async_file_util.h"
 #include "chrome/browser/ash/file_system_provider/fileapi/watcher_manager.h"
+#include "chrome/browser/ash/fileapi/diversion_backend_delegate.h"
 #include "content/public/browser/browser_thread.h"
 #include "storage/browser/file_system/file_stream_reader.h"
 #include "storage/browser/file_system/file_stream_writer.h"
@@ -19,8 +20,7 @@
 
 using content::BrowserThread;
 
-namespace ash {
-namespace file_system_provider {
+namespace ash::file_system_provider {
 namespace {
 
 // Size of the stream reader internal buffer. At most this number of bytes will
@@ -38,7 +38,13 @@ BackendDelegate::BackendDelegate()
       watcher_manager_(new WatcherManager) {
 }
 
-BackendDelegate::~BackendDelegate() {}
+BackendDelegate::~BackendDelegate() = default;
+
+// static
+std::unique_ptr<FileSystemBackendDelegate> BackendDelegate::MakeUnique() {
+  std::unique_ptr<FileSystemBackendDelegate> wrappee(new BackendDelegate());
+  return std::make_unique<ash::DiversionBackendDelegate>(std::move(wrappee));
+}
 
 storage::AsyncFileUtil* BackendDelegate::GetAsyncFileUtil(
     storage::FileSystemType type) {
@@ -84,13 +90,4 @@ storage::WatcherManager* BackendDelegate::GetWatcherManager(
   return watcher_manager_.get();
 }
 
-void BackendDelegate::GetRedirectURLForContents(
-    const storage::FileSystemURL& url,
-    storage::URLCallback callback) {
-  DCHECK_CURRENTLY_ON(BrowserThread::IO);
-  DCHECK_EQ(storage::kFileSystemTypeProvided, url.type());
-  std::move(callback).Run(GURL());
-}
-
-}  // namespace file_system_provider
-}  // namespace ash
+}  // namespace ash::file_system_provider

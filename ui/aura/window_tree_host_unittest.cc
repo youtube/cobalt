@@ -8,7 +8,6 @@
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "ui/aura/native_window_occlusion_tracker.h"
 #include "ui/aura/test/aura_test_base.h"
 #include "ui/aura/test/aura_test_utils.h"
@@ -25,10 +24,6 @@
 #include "ui/events/keycodes/dom/dom_code.h"
 #include "ui/events/test/test_event_rewriter.h"
 #include "ui/platform_window/stub/stub_window.h"
-
-#if BUILDFLAG(IS_WIN)
-#include "ui/aura/native_window_occlusion_tracker_win.h"
-#endif
 
 namespace aura {
 
@@ -137,7 +132,7 @@ TEST_F(WindowTreeHostTest,
   EXPECT_EQ(gfx::Rect(300, 400), host()->window()->bounds());
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 TEST_F(WindowTreeHostTest, HoldPointerMovesOnChildResizing) {
   aura::WindowEventDispatcher* dispatcher = host()->dispatcher();
 
@@ -161,7 +156,7 @@ TEST_F(WindowTreeHostTest, HoldPointerMovesOnChildResizing) {
 }
 #endif
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
 // Tests if scale factor changes take effect. Previously a scale factor change
 // wouldn't take effect without a bounds change. For context see
 // https://crbug.com/1087626
@@ -189,7 +184,8 @@ TEST_F(WindowTreeHostTest, NoRewritesPostIME) {
   ui::test::TestEventRewriter event_rewriter;
   host()->AddEventRewriter(&event_rewriter);
 
-  ui::KeyEvent key_event('A', ui::VKEY_A, ui::DomCode::NONE, 0);
+  ui::KeyEvent key_event =
+      ui::KeyEvent::FromCharacter('A', ui::VKEY_A, ui::DomCode::NONE, 0);
   ui::EventDispatchDetails details =
       host()->GetInputMethod()->DispatchKeyEvent(&key_event);
   ASSERT_TRUE(!details.dispatcher_destroyed && !details.target_destroyed);
@@ -339,97 +335,58 @@ class WindowTreeHostWithReleaseTest : public test::AuraTestBase {
  public:
   // AuraTestBase:
   void SetUp() override {
-    // Disable the headless check as the bots run with CHROME_HEADLESS set.
-    NativeWindowOcclusionTracker::SetHeadlessCheckEnabled(false);
     scoped_feature_list_.InitWithFeaturesAndParameters(
-        {
-            {features::kCalculateNativeWinOcclusion, {}},
-            {features::kApplyNativeOcclusionToCompositor,
-             {{features::kApplyNativeOcclusionToCompositorType,
-               features::kApplyNativeOcclusionToCompositorTypeRelease}}},
-        },
+        {{features::kCalculateNativeWinOcclusion, {}},
+         {features::kApplyNativeOcclusionToCompositor,
+          {{features::kApplyNativeOcclusionToCompositorType.name,
+            features::kApplyNativeOcclusionToCompositorTypeRelease}}},
+         // Disable the headless check as the bots run with CHROME_HEADLESS
+         // set.
+         {features::kAlwaysTrackNativeWindowOcclusionForTest, {}}},
         {});
     AuraTestBase::SetUp();
   }
 
-  void TearDown() override {
-    test::AuraTestBase::TearDown();
-    NativeWindowOcclusionTracker::SetHeadlessCheckEnabled(true);
-  }
+  void TearDown() override { test::AuraTestBase::TearDown(); }
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-cc::Layer* ccLayerFromUiLayer(ui::Layer* layer) {
-  return static_cast<ui::LayerAnimationDelegate*>(layer)->GetCcLayer();
-}
-
-bool WaitForFrame(WindowTreeHost* host) {
-  base::RunLoop run_loop;
-  bool got_frame = false;
-  host->compositor()->RequestSuccessfulPresentationTimeForNextFrame(
-      base::BindLambdaForTesting([&](base::TimeTicks presentation_timestamp) {
-        got_frame = true;
-        run_loop.Quit();
-      }));
-  run_loop.Run();
-  return got_frame;
-}
-
 TEST_F(WindowTreeHostWithReleaseTest, ToggleOccluded) {
   host()->Show();
-  // This tests needs to drive native occlusion. If native occlusion is
+  // This test needs to drive native occlusion. If native occlusion is
   // used, it'll conflict with this test.
   NativeWindowOcclusionTracker::DisableNativeWindowOcclusionTracking(host());
   ASSERT_TRUE(NativeWindowOcclusionTracker::
                   IsNativeWindowOcclusionTrackingAlwaysEnabled(host()));
-  cc::Layer* host_window_cc_layer =
-      ccLayerFromUiLayer(host()->window()->layer());
-  const cc::Layer* compositor_root_layer = host_window_cc_layer->parent();
-  EXPECT_NE(nullptr, compositor_root_layer);
   host()->SetNativeWindowOcclusionState(Window::OcclusionState::OCCLUDED, {});
-  // The compositor shouldn't actually hide immediately, it needs a frame to
-  // be generated.
-  EXPECT_TRUE(host()->compositor()->IsVisible());
-  EXPECT_EQ(nullptr, host_window_cc_layer->parent());
-  ASSERT_TRUE(WaitForFrame(host()));
   EXPECT_FALSE(host()->compositor()->IsVisible());
   host()->SetNativeWindowOcclusionState(Window::OcclusionState::VISIBLE, {});
   EXPECT_TRUE(host()->compositor()->IsVisible());
-  EXPECT_EQ(compositor_root_layer, host_window_cc_layer->parent());
 }
 
-TEST_F(WindowTreeHostWithReleaseTest, ShowWhileTransitioningToHidden) {
+TEST_F(WindowTreeHostWithReleaseTest, ToggleHidden) {
   host()->Show();
-  // This tests needs to drive native occlusion. If native occlusion is
+  // This test needs to drive native occlusion. If native occlusion is
   // used, it'll conflict with this test.
   NativeWindowOcclusionTracker::DisableNativeWindowOcclusionTracking(host());
   ASSERT_TRUE(NativeWindowOcclusionTracker::
                   IsNativeWindowOcclusionTrackingAlwaysEnabled(host()));
-  cc::Layer* host_window_cc_layer =
-      ccLayerFromUiLayer(host()->window()->layer());
-  const cc::Layer* compositor_root_layer = host_window_cc_layer->parent();
-  EXPECT_NE(nullptr, compositor_root_layer);
-  host()->SetNativeWindowOcclusionState(Window::OcclusionState::OCCLUDED, {});
-  // The compositor shouldn't actually hide immediately, it needs a frame to
-  // be generated.
-  EXPECT_TRUE(host()->compositor()->IsVisible());
-  EXPECT_EQ(nullptr, host_window_cc_layer->parent());
+  host()->SetNativeWindowOcclusionState(Window::OcclusionState::HIDDEN, {});
+  EXPECT_FALSE(host()->compositor()->IsVisible());
   host()->SetNativeWindowOcclusionState(Window::OcclusionState::VISIBLE, {});
   EXPECT_TRUE(host()->compositor()->IsVisible());
-  EXPECT_EQ(compositor_root_layer, host_window_cc_layer->parent());
 }
 
 TEST_F(WindowTreeHostWithReleaseTest, VideoCaptureLockForcesVisible) {
   ASSERT_TRUE(NativeWindowOcclusionTracker::
                   IsNativeWindowOcclusionTrackingAlwaysEnabled(host()));
-  // This tests needs to drive native occlusion. If native occlusion is
+  // This test needs to drive native occlusion. If native occlusion is
   // used, it'll conflict with this test.
   NativeWindowOcclusionTracker::DisableNativeWindowOcclusionTracking(host());
   host()->Show();
   host()->SetNativeWindowOcclusionState(Window::OcclusionState::OCCLUDED, {});
-  ASSERT_TRUE(WaitForFrame(host()));
   EXPECT_FALSE(host()->compositor()->IsVisible());
   std::unique_ptr<WindowTreeHost::VideoCaptureLock> lock =
       host()->CreateVideoCaptureLock();
@@ -438,14 +395,79 @@ TEST_F(WindowTreeHostWithReleaseTest, VideoCaptureLockForcesVisible) {
   EXPECT_TRUE(host()->compositor()->IsVisible());
   host()->SetNativeWindowOcclusionState(Window::OcclusionState::OCCLUDED, {});
   EXPECT_TRUE(host()->compositor()->IsVisible());
-  ASSERT_TRUE(WaitForFrame(host()));
-  EXPECT_TRUE(host()->compositor()->IsVisible());
   lock.reset();
-  ASSERT_TRUE(WaitForFrame(host()));
   EXPECT_FALSE(host()->compositor()->IsVisible());
   host()->SetNativeWindowOcclusionState(Window::OcclusionState::VISIBLE, {});
   EXPECT_TRUE(host()->compositor()->IsVisible());
-  ASSERT_TRUE(WaitForFrame(host()));
+}
+
+TEST_F(WindowTreeHostWithReleaseTest, VideoCaptureLockAffectsOcclusionState) {
+  ASSERT_TRUE(NativeWindowOcclusionTracker::
+                  IsNativeWindowOcclusionTrackingAlwaysEnabled(host()));
+  // This test needs to drive native occlusion. If native occlusion is
+  // used, it'll conflict with this test.
+  NativeWindowOcclusionTracker::DisableNativeWindowOcclusionTracking(host());
+  host()->Show();
+  host()->SetNativeWindowOcclusionState(Window::OcclusionState::OCCLUDED, {});
+  EXPECT_EQ(Window::OcclusionState::OCCLUDED,
+            host()->GetNativeWindowOcclusionState());
+  EXPECT_FALSE(host()->compositor()->IsVisible());
+
+  std::unique_ptr<WindowTreeHost::VideoCaptureLock> lock =
+      host()->CreateVideoCaptureLock();
+  // VideoCaptureLock should force this to visible.
+  EXPECT_EQ(Window::OcclusionState::VISIBLE,
+            host()->GetNativeWindowOcclusionState());
+  EXPECT_TRUE(host()->compositor()->IsVisible());
+  lock.reset();
+
+  // It should return to occluded after.
+  EXPECT_EQ(Window::OcclusionState::OCCLUDED,
+            host()->GetNativeWindowOcclusionState());
+  EXPECT_FALSE(host()->compositor()->IsVisible());
+
+  lock = host()->CreateVideoCaptureLock();
+  host()->SetNativeWindowOcclusionState(Window::OcclusionState::VISIBLE, {});
+  EXPECT_EQ(Window::OcclusionState::VISIBLE,
+            host()->GetNativeWindowOcclusionState());
+  EXPECT_TRUE(host()->compositor()->IsVisible());
+  lock.reset();
+
+  // We set the native occlusion state to visible, this should persist after
+  // destroying the capture lock.
+  EXPECT_EQ(Window::OcclusionState::VISIBLE,
+            host()->GetNativeWindowOcclusionState());
+  EXPECT_TRUE(host()->compositor()->IsVisible());
+
+  // Now try the same thing for the hidden occlusion state:
+  host()->SetNativeWindowOcclusionState(Window::OcclusionState::HIDDEN, {});
+  EXPECT_EQ(Window::OcclusionState::HIDDEN,
+            host()->GetNativeWindowOcclusionState());
+  EXPECT_FALSE(host()->compositor()->IsVisible());
+
+  lock = host()->CreateVideoCaptureLock();
+  // VideoCaptureLock should force this to visible.
+  EXPECT_EQ(Window::OcclusionState::VISIBLE,
+            host()->GetNativeWindowOcclusionState());
+  EXPECT_TRUE(host()->compositor()->IsVisible());
+  lock.reset();
+
+  // It should return to hidden after.
+  EXPECT_EQ(Window::OcclusionState::HIDDEN,
+            host()->GetNativeWindowOcclusionState());
+  EXPECT_FALSE(host()->compositor()->IsVisible());
+
+  lock = host()->CreateVideoCaptureLock();
+  host()->SetNativeWindowOcclusionState(Window::OcclusionState::VISIBLE, {});
+  EXPECT_EQ(Window::OcclusionState::VISIBLE,
+            host()->GetNativeWindowOcclusionState());
+  EXPECT_TRUE(host()->compositor()->IsVisible());
+  lock.reset();
+
+  // We set the native occlusion state to visible, this should persist after
+  // destroying the capture lock.
+  EXPECT_EQ(Window::OcclusionState::VISIBLE,
+            host()->GetNativeWindowOcclusionState());
   EXPECT_TRUE(host()->compositor()->IsVisible());
 }
 
@@ -454,28 +476,32 @@ class WindowTreeHostWithThrottleTest : public test::AuraTestBase {
   // AuraTestBase:
   void SetUp() override {
     // Disable the headless check as the bots run with CHROME_HEADLESS set.
-    NativeWindowOcclusionTracker::SetHeadlessCheckEnabled(false);
     scoped_feature_list_.InitWithFeaturesAndParameters(
         {
             {features::kCalculateNativeWinOcclusion, {}},
             {features::kApplyNativeOcclusionToCompositor,
-             {{features::kApplyNativeOcclusionToCompositorType,
+             {{features::kApplyNativeOcclusionToCompositorType.name,
                features::kApplyNativeOcclusionToCompositorTypeThrottle}}},
+            // Disable the headless check as the bots run with CHROME_HEADLESS
+            // set.
+            {features::kAlwaysTrackNativeWindowOcclusionForTest, {}},
         },
         {});
     AuraTestBase::SetUp();
   }
 
-  void TearDown() override {
-    test::AuraTestBase::TearDown();
-    NativeWindowOcclusionTracker::SetHeadlessCheckEnabled(true);
-  }
+  void TearDown() override { test::AuraTestBase::TearDown(); }
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-TEST_F(WindowTreeHostWithThrottleTest, DISABLED_Basic) {
+TEST_F(WindowTreeHostWithThrottleTest, Basic) {
+  ASSERT_TRUE(NativeWindowOcclusionTracker::
+                  IsNativeWindowOcclusionTrackingAlwaysEnabled(host()));
+  // This test needs to drive native occlusion. If native occlusion is
+  // used, it'll conflict with this test.
+  NativeWindowOcclusionTracker::DisableNativeWindowOcclusionTracking(host());
   host()->Show();
   EXPECT_TRUE(host()->compositor()->IsVisible());
   EXPECT_TRUE(test::GetThrottledHosts().empty());
@@ -487,7 +513,12 @@ TEST_F(WindowTreeHostWithThrottleTest, DISABLED_Basic) {
   EXPECT_TRUE(host()->compositor()->IsVisible());
 }
 
-TEST_F(WindowTreeHostWithThrottleTest, DISABLED_CallHideDirectly) {
+TEST_F(WindowTreeHostWithThrottleTest, CallHideDirectly) {
+  ASSERT_TRUE(NativeWindowOcclusionTracker::
+                  IsNativeWindowOcclusionTrackingAlwaysEnabled(host()));
+  // This test needs to drive native occlusion. If native occlusion is
+  // used, it'll conflict with this test.
+  NativeWindowOcclusionTracker::DisableNativeWindowOcclusionTracking(host());
   host()->Show();
   EXPECT_TRUE(host()->compositor()->IsVisible());
   EXPECT_TRUE(test::GetThrottledHosts().empty());
@@ -497,6 +528,238 @@ TEST_F(WindowTreeHostWithThrottleTest, DISABLED_CallHideDirectly) {
   host()->Hide();
   EXPECT_TRUE(test::GetThrottledHosts().empty());
   EXPECT_FALSE(host()->compositor()->IsVisible());
+}
+
+TEST_F(WindowTreeHostWithThrottleTest, VideoCaptureLockAffectsOcclusionState) {
+  ASSERT_TRUE(NativeWindowOcclusionTracker::
+                  IsNativeWindowOcclusionTrackingAlwaysEnabled(host()));
+  // This test needs to drive native occlusion. If native occlusion is
+  // used, it'll conflict with this test.
+  NativeWindowOcclusionTracker::DisableNativeWindowOcclusionTracking(host());
+  host()->Show();
+  host()->SetNativeWindowOcclusionState(Window::OcclusionState::OCCLUDED, {});
+  EXPECT_EQ(Window::OcclusionState::OCCLUDED,
+            host()->GetNativeWindowOcclusionState());
+
+  std::unique_ptr<WindowTreeHost::VideoCaptureLock> lock =
+      host()->CreateVideoCaptureLock();
+  // VideoCaptureLock should force this to visible.
+  EXPECT_EQ(Window::OcclusionState::VISIBLE,
+            host()->GetNativeWindowOcclusionState());
+  lock.reset();
+
+  // It should return to occluded after.
+  EXPECT_EQ(Window::OcclusionState::OCCLUDED,
+            host()->GetNativeWindowOcclusionState());
+
+  lock = host()->CreateVideoCaptureLock();
+  host()->SetNativeWindowOcclusionState(Window::OcclusionState::VISIBLE, {});
+  EXPECT_EQ(Window::OcclusionState::VISIBLE,
+            host()->GetNativeWindowOcclusionState());
+  lock.reset();
+
+  // We set the native occlusion state to visible, this should persist after
+  // destroying the capture lock.
+  EXPECT_EQ(Window::OcclusionState::VISIBLE,
+            host()->GetNativeWindowOcclusionState());
+
+  // Now try the same thing for the hidden occlusion state:
+  host()->SetNativeWindowOcclusionState(Window::OcclusionState::HIDDEN, {});
+  EXPECT_EQ(Window::OcclusionState::HIDDEN,
+            host()->GetNativeWindowOcclusionState());
+
+  lock = host()->CreateVideoCaptureLock();
+  // VideoCaptureLock should force this to visible.
+  EXPECT_EQ(Window::OcclusionState::VISIBLE,
+            host()->GetNativeWindowOcclusionState());
+  lock.reset();
+
+  // It should return to hidden after.
+  EXPECT_EQ(Window::OcclusionState::HIDDEN,
+            host()->GetNativeWindowOcclusionState());
+
+  lock = host()->CreateVideoCaptureLock();
+  host()->SetNativeWindowOcclusionState(Window::OcclusionState::VISIBLE, {});
+  EXPECT_EQ(Window::OcclusionState::VISIBLE,
+            host()->GetNativeWindowOcclusionState());
+  lock.reset();
+
+  // We set the native occlusion state to visible, this should persist after
+  // destroying the capture lock.
+  EXPECT_EQ(Window::OcclusionState::VISIBLE,
+            host()->GetNativeWindowOcclusionState());
+}
+
+class WindowTreeHostWithThrottleAndReleaseTest : public test::AuraTestBase {
+ public:
+  // AuraTestBase:
+  void SetUp() override {
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        {
+            {features::kCalculateNativeWinOcclusion, {}},
+            {features::kApplyNativeOcclusionToCompositor,
+             {{features::kApplyNativeOcclusionToCompositorType.name,
+               features::
+                   kApplyNativeOcclusionToCompositorTypeThrottleAndRelease}}},
+            // Disable the headless check as the bots run with CHROME_HEADLESS
+            // set.
+            {features::kAlwaysTrackNativeWindowOcclusionForTest, {}},
+        },
+        {});
+    AuraTestBase::SetUp();
+  }
+
+  void TearDown() override { test::AuraTestBase::TearDown(); }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+TEST_F(WindowTreeHostWithThrottleAndReleaseTest, ToggleOccluded) {
+  host()->Show();
+  // This test needs to drive native occlusion. If native occlusion is
+  // used, it'll conflict with this test.
+  NativeWindowOcclusionTracker::DisableNativeWindowOcclusionTracking(host());
+  ASSERT_TRUE(NativeWindowOcclusionTracker::
+                  IsNativeWindowOcclusionTrackingAlwaysEnabled(host()));
+  EXPECT_TRUE(test::GetThrottledHosts().empty());
+  host()->SetNativeWindowOcclusionState(Window::OcclusionState::OCCLUDED, {});
+  EXPECT_FALSE(host()->compositor()->IsVisible());
+  EXPECT_TRUE(base::Contains(test::GetThrottledHosts(), host()));
+  host()->SetNativeWindowOcclusionState(Window::OcclusionState::VISIBLE, {});
+  EXPECT_TRUE(host()->compositor()->IsVisible());
+  EXPECT_TRUE(test::GetThrottledHosts().empty());
+}
+
+TEST_F(WindowTreeHostWithThrottleAndReleaseTest, ToggleHidden) {
+  host()->Show();
+  // This test needs to drive native occlusion. If native occlusion is
+  // used, it'll conflict with this test.
+  NativeWindowOcclusionTracker::DisableNativeWindowOcclusionTracking(host());
+  ASSERT_TRUE(NativeWindowOcclusionTracker::
+                  IsNativeWindowOcclusionTrackingAlwaysEnabled(host()));
+  EXPECT_TRUE(test::GetThrottledHosts().empty());
+  host()->SetNativeWindowOcclusionState(Window::OcclusionState::HIDDEN, {});
+  EXPECT_FALSE(host()->compositor()->IsVisible());
+  EXPECT_TRUE(test::GetThrottledHosts().empty());
+  host()->SetNativeWindowOcclusionState(Window::OcclusionState::VISIBLE, {});
+  EXPECT_TRUE(host()->compositor()->IsVisible());
+  EXPECT_TRUE(test::GetThrottledHosts().empty());
+}
+
+TEST_F(WindowTreeHostWithThrottleAndReleaseTest, DestroyWhileThrottled) {
+  host()->Show();
+  // This test needs to drive native occlusion. If native occlusion is
+  // used, it'll conflict with this test.
+  NativeWindowOcclusionTracker::DisableNativeWindowOcclusionTracking(host());
+  ASSERT_TRUE(NativeWindowOcclusionTracker::
+                  IsNativeWindowOcclusionTrackingAlwaysEnabled(host()));
+  EXPECT_TRUE(test::GetThrottledHosts().empty());
+  host()->SetNativeWindowOcclusionState(Window::OcclusionState::OCCLUDED, {});
+  EXPECT_FALSE(host()->compositor()->IsVisible());
+  EXPECT_TRUE(base::Contains(test::GetThrottledHosts(), host()));
+  // Expect not to crash after destroying WindowTreeHost after this.
+}
+
+TEST_F(WindowTreeHostWithThrottleAndReleaseTest,
+       VideoCaptureLockForcesVisible) {
+  ASSERT_TRUE(NativeWindowOcclusionTracker::
+                  IsNativeWindowOcclusionTrackingAlwaysEnabled(host()));
+  // This test needs to drive native occlusion. If native occlusion is
+  // used, it'll conflict with this test.
+  NativeWindowOcclusionTracker::DisableNativeWindowOcclusionTracking(host());
+  host()->Show();
+  EXPECT_TRUE(test::GetThrottledHosts().empty());
+  host()->SetNativeWindowOcclusionState(Window::OcclusionState::OCCLUDED, {});
+  EXPECT_FALSE(host()->compositor()->IsVisible());
+  EXPECT_TRUE(base::Contains(test::GetThrottledHosts(), host()));
+  std::unique_ptr<WindowTreeHost::VideoCaptureLock> lock =
+      host()->CreateVideoCaptureLock();
+  EXPECT_TRUE(host()->compositor()->IsVisible());
+  EXPECT_TRUE(test::GetThrottledHosts().empty());
+  host()->SetNativeWindowOcclusionState(Window::OcclusionState::VISIBLE, {});
+  EXPECT_TRUE(host()->compositor()->IsVisible());
+  EXPECT_TRUE(test::GetThrottledHosts().empty());
+  host()->SetNativeWindowOcclusionState(Window::OcclusionState::OCCLUDED, {});
+  EXPECT_TRUE(host()->compositor()->IsVisible());
+  EXPECT_TRUE(test::GetThrottledHosts().empty());
+  lock.reset();
+  EXPECT_FALSE(host()->compositor()->IsVisible());
+  EXPECT_TRUE(base::Contains(test::GetThrottledHosts(), host()));
+  host()->SetNativeWindowOcclusionState(Window::OcclusionState::VISIBLE, {});
+  EXPECT_TRUE(host()->compositor()->IsVisible());
+  EXPECT_TRUE(test::GetThrottledHosts().empty());
+}
+
+TEST_F(WindowTreeHostWithThrottleAndReleaseTest,
+       VideoCaptureLockAffectsOcclusionState) {
+  ASSERT_TRUE(NativeWindowOcclusionTracker::
+                  IsNativeWindowOcclusionTrackingAlwaysEnabled(host()));
+  // This test needs to drive native occlusion. If native occlusion is
+  // used, it'll conflict with this test.
+  NativeWindowOcclusionTracker::DisableNativeWindowOcclusionTracking(host());
+  host()->Show();
+  host()->SetNativeWindowOcclusionState(Window::OcclusionState::OCCLUDED, {});
+  EXPECT_EQ(Window::OcclusionState::OCCLUDED,
+            host()->GetNativeWindowOcclusionState());
+  EXPECT_FALSE(host()->compositor()->IsVisible());
+
+  std::unique_ptr<WindowTreeHost::VideoCaptureLock> lock =
+      host()->CreateVideoCaptureLock();
+  // VideoCaptureLock should force this to visible.
+  EXPECT_EQ(Window::OcclusionState::VISIBLE,
+            host()->GetNativeWindowOcclusionState());
+  EXPECT_TRUE(host()->compositor()->IsVisible());
+  lock.reset();
+
+  // It should return to occluded after.
+  EXPECT_EQ(Window::OcclusionState::OCCLUDED,
+            host()->GetNativeWindowOcclusionState());
+  EXPECT_FALSE(host()->compositor()->IsVisible());
+
+  lock = host()->CreateVideoCaptureLock();
+  host()->SetNativeWindowOcclusionState(Window::OcclusionState::VISIBLE, {});
+  EXPECT_EQ(Window::OcclusionState::VISIBLE,
+            host()->GetNativeWindowOcclusionState());
+  EXPECT_TRUE(host()->compositor()->IsVisible());
+  lock.reset();
+
+  // We set the native occlusion state to visible, this should persist after
+  // destroying the capture lock.
+  EXPECT_EQ(Window::OcclusionState::VISIBLE,
+            host()->GetNativeWindowOcclusionState());
+  EXPECT_TRUE(host()->compositor()->IsVisible());
+
+  // Now try the same thing for the hidden occlusion state:
+  host()->SetNativeWindowOcclusionState(Window::OcclusionState::HIDDEN, {});
+  EXPECT_EQ(Window::OcclusionState::HIDDEN,
+            host()->GetNativeWindowOcclusionState());
+  EXPECT_FALSE(host()->compositor()->IsVisible());
+
+  lock = host()->CreateVideoCaptureLock();
+  // VideoCaptureLock should force this to visible.
+  EXPECT_EQ(Window::OcclusionState::VISIBLE,
+            host()->GetNativeWindowOcclusionState());
+  EXPECT_TRUE(host()->compositor()->IsVisible());
+  lock.reset();
+
+  // It should return to hidden after.
+  EXPECT_EQ(Window::OcclusionState::HIDDEN,
+            host()->GetNativeWindowOcclusionState());
+  EXPECT_FALSE(host()->compositor()->IsVisible());
+
+  lock = host()->CreateVideoCaptureLock();
+  host()->SetNativeWindowOcclusionState(Window::OcclusionState::VISIBLE, {});
+  EXPECT_EQ(Window::OcclusionState::VISIBLE,
+            host()->GetNativeWindowOcclusionState());
+  EXPECT_TRUE(host()->compositor()->IsVisible());
+  lock.reset();
+
+  // We set the native occlusion state to visible, this should persist after
+  // destroying the capture lock.
+  EXPECT_EQ(Window::OcclusionState::VISIBLE,
+            host()->GetNativeWindowOcclusionState());
+  EXPECT_TRUE(host()->compositor()->IsVisible());
 }
 
 #endif  // BUILDFLAG(IS_WIN)

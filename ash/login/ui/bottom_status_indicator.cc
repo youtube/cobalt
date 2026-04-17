@@ -5,7 +5,9 @@
 
 #include "ash/resources/vector_icons/vector_icons.h"
 #include "ui/accessibility/ax_node_data.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
 
@@ -21,19 +23,21 @@ BottomStatusIndicator::BottomStatusIndicator(TappedCallback on_tapped_callback)
   SetFocusBehavior(FocusBehavior::ALWAYS);
 
   SetVisible(false);
+
+  GetViewAccessibility().SetRole(ax::mojom::Role::kStaticText);
 }
 
 BottomStatusIndicator::~BottomStatusIndicator() = default;
 
 void BottomStatusIndicator::SetIcon(const gfx::VectorIcon& vector_icon,
-                                    ui::ColorId color_id) {
-  SetImageModel(views::Button::STATE_NORMAL,
-                ui::ImageModel::FromVectorIcon(vector_icon, color_id));
+                                    ui::ColorId color_id,
+                                    int icon_size /* = 0 */) {
+  SetImageModel(
+      views::Button::STATE_NORMAL,
+      ui::ImageModel::FromVectorIcon(vector_icon, color_id, icon_size));
 }
 
-void BottomStatusIndicator::GetAccessibleNodeData(ui::AXNodeData* node_data) {
-  node_data->role = role_;
-  node_data->SetName(label()->GetText());
-}
+BEGIN_METADATA(BottomStatusIndicator)
+END_METADATA
 
 }  // namespace ash

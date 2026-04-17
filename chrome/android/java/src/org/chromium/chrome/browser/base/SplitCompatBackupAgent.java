@@ -10,7 +10,8 @@ import android.app.backup.BackupDataOutput;
 import android.content.Context;
 import android.os.ParcelFileDescriptor;
 
-import org.chromium.base.BundleUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.io.IOException;
 
@@ -18,8 +19,9 @@ import java.io.IOException;
  * BackupAgent base class which will call through to the given {@link Impl}. This class must be
  * present in the base module, while the Impl can be in the chrome module.
  */
+@NullMarked
 public class SplitCompatBackupAgent extends BackupAgent {
-    private String mBackupAgentClassName;
+    private final String mBackupAgentClassName;
     private Impl mImpl;
 
     public SplitCompatBackupAgent(String backupAgentClassName) {
@@ -27,16 +29,19 @@ public class SplitCompatBackupAgent extends BackupAgent {
     }
 
     @Override
-    protected void attachBaseContext(Context context) {
-        context = SplitCompatApplication.createChromeContext(context);
-        mImpl = (Impl) BundleUtils.newInstance(context, mBackupAgentClassName);
+    protected void attachBaseContext(Context baseContext) {
+        mImpl =
+                (Impl)
+                        SplitCompatUtils.loadClassAndAdjustContextChrome(
+                                baseContext, mBackupAgentClassName);
         mImpl.setBackupAgent(this);
-        super.attachBaseContext(context);
+        super.attachBaseContext(baseContext);
     }
 
     @Override
-    public void onBackup(ParcelFileDescriptor oldState, BackupDataOutput data,
-            ParcelFileDescriptor newState) throws IOException {
+    public void onBackup(
+            ParcelFileDescriptor oldState, BackupDataOutput data, ParcelFileDescriptor newState)
+            throws IOException {
         mImpl.onBackup(oldState, data, newState);
     }
 
@@ -51,19 +56,22 @@ public class SplitCompatBackupAgent extends BackupAgent {
      * SplitCompatBackupAgent}.
      */
     public abstract static class Impl {
-        private SplitCompatBackupAgent mBackupAgent;
+        private @Nullable SplitCompatBackupAgent mBackupAgent;
 
         protected final void setBackupAgent(SplitCompatBackupAgent backupAgent) {
             mBackupAgent = backupAgent;
         }
 
-        protected final BackupAgent getBackupAgent() {
+        protected final @Nullable BackupAgent getBackupAgent() {
             return mBackupAgent;
         }
 
-        public abstract void onBackup(ParcelFileDescriptor oldState, BackupDataOutput data,
-                ParcelFileDescriptor newState) throws IOException;
-        public abstract void onRestore(BackupDataInput data, int appVersionCode,
-                ParcelFileDescriptor newState) throws IOException;
+        public abstract void onBackup(
+                ParcelFileDescriptor oldState, BackupDataOutput data, ParcelFileDescriptor newState)
+                throws IOException;
+
+        public abstract void onRestore(
+                BackupDataInput data, int appVersionCode, ParcelFileDescriptor newState)
+                throws IOException;
     }
 }

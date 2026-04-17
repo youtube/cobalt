@@ -4,9 +4,10 @@
 
 package org.chromium.components.embedder_support.delegate;
 
-/**
- * The callback used to indicate the user changed the color.
- */
+import org.chromium.build.annotations.NullMarked;
+
+/** The callback used to indicate the user changed the color. */
+@NullMarked
 public interface OnColorChangedListener {
     /**
      * Called upon a color change.

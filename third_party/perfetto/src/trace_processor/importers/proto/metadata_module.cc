@@ -16,32 +16,59 @@
 
 #include "src/trace_processor/importers/proto/metadata_module.h"
 
+#include <cstdint>
+#include <string>
+
 #include "perfetto/ext/base/base64.h"
+#include "perfetto/ext/base/string_view.h"
 #include "perfetto/ext/base/uuid.h"
+#include "perfetto/trace_processor/ref_counted.h"
+#include "src/trace_processor/importers/common/flow_tracker.h"
 #include "src/trace_processor/importers/common/metadata_tracker.h"
+#include "src/trace_processor/importers/common/parser_types.h"
 #include "src/trace_processor/importers/common/slice_tracker.h"
 #include "src/trace_processor/importers/common/track_tracker.h"
-#include "src/trace_processor/importers/proto/config.descriptor.h"
+#include "src/trace_processor/importers/common/tracks.h"
+#include "src/trace_processor/importers/proto/packet_sequence_state_generation.h"
+#include "src/trace_processor/importers/proto/proto_importer_module.h"
+#include "src/trace_processor/storage/metadata.h"
+#include "src/trace_processor/storage/trace_storage.h"
+#include "src/trace_processor/types/variadic.h"
 #include "src/trace_processor/util/descriptors.h"
 #include "src/trace_processor/util/protozero_to_text.h"
 
 #include "protos/perfetto/config/trace_config.pbzero.h"
+#include "protos/perfetto/trace/chrome/chrome_trigger.pbzero.h"
 #include "protos/perfetto/trace/trace_packet.pbzero.h"
 #include "protos/perfetto/trace/trace_uuid.pbzero.h"
 #include "protos/perfetto/trace/trigger.pbzero.h"
 
-namespace perfetto {
-namespace trace_processor {
+namespace perfetto::trace_processor {
+
+namespace {
 
 using perfetto::protos::pbzero::TracePacket;
+
+constexpr auto kTriggerTrackBlueprint =
+    tracks::SliceBlueprint("triggers",
+                           tracks::DimensionBlueprints(),
+                           tracks::StaticNameBlueprint("Trace Triggers"));
+
+}  // namespace
 
 MetadataModule::MetadataModule(TraceProcessorContext* context)
     : context_(context),
       producer_name_key_id_(context_->storage->InternString("producer_name")),
       trusted_producer_uid_key_id_(
-          context_->storage->InternString("trusted_producer_uid")) {
+          context_->storage->InternString("trusted_producer_uid")),
+      chrome_trigger_name_id_(
+          context_->storage->InternString("chrome_trigger.name")),
+      chrome_trigger_hash_id_(
+          context_->storage->InternString("chrome_trigger.name_hash")) {
   RegisterForField(TracePacket::kUiStateFieldNumber, context);
   RegisterForField(TracePacket::kTriggerFieldNumber, context);
+  RegisterForField(TracePacket::kChromeTriggerFieldNumber, context);
+  RegisterForField(TracePacket::kCloneSnapshotTriggerFieldNumber, context);
   RegisterForField(TracePacket::kTraceUuidFieldNumber, context);
 }
 
@@ -49,7 +76,7 @@ ModuleResult MetadataModule::TokenizePacket(
     const protos::pbzero::TracePacket::Decoder& decoder,
     TraceBlobView*,
     int64_t,
-    PacketSequenceState*,
+    RefPtr<PacketSequenceStateGeneration>,
     uint32_t field_id) {
   switch (field_id) {
     case TracePacket::kUiStateFieldNumber: {
@@ -87,17 +114,27 @@ void MetadataModule::ParseTracePacketData(
     int64_t ts,
     const TracePacketData&,
     uint32_t field_id) {
+  // We handle triggers at parse time rather at tokenization because
+  // we add slices to tables which need to happen post-sorting.
   if (field_id == TracePacket::kTriggerFieldNumber) {
-    // We handle triggers at parse time rather at tokenization because
-    // we add slices to tables which need to happen post-sorting.
-    ParseTrigger(ts, decoder.trigger());
+    ParseTrigger(ts, decoder.trigger(), TraceTriggerPacketType::kTraceTrigger);
+  }
+  if (field_id == TracePacket::kChromeTriggerFieldNumber) {
+    ParseChromeTrigger(ts, decoder.chrome_trigger());
+  }
+  if (field_id == TracePacket::kCloneSnapshotTriggerFieldNumber) {
+    ParseTrigger(ts, decoder.clone_snapshot_trigger(),
+                 TraceTriggerPacketType::kCloneSnapshot);
   }
 }
 
-void MetadataModule::ParseTrigger(int64_t ts, ConstBytes blob) {
+void MetadataModule::ParseTrigger(int64_t ts,
+                                  ConstBytes blob,
+                                  TraceTriggerPacketType packetType) {
   protos::pbzero::Trigger::Decoder trigger(blob.data, blob.size);
   StringId cat_id = kNullStringId;
-  TrackId track_id = context_->track_tracker->GetOrCreateTriggerTrack();
+  TrackId track_id =
+      context_->track_tracker->InternTrack(kTriggerTrackBlueprint);
   StringId name_id = context_->storage->InternString(trigger.trigger_name());
   context_->slice_tracker->Scoped(
       ts, track_id, cat_id, name_id,
@@ -114,6 +151,53 @@ void MetadataModule::ParseTrigger(int64_t ts, ConstBytes blob) {
                              Variadic::Integer(trigger.trusted_producer_uid()));
         }
       });
+
+  if (packetType == TraceTriggerPacketType::kCloneSnapshot &&
+      trace_trigger_packet_type_ != TraceTriggerPacketType::kCloneSnapshot) {
+    trace_trigger_packet_type_ = TraceTriggerPacketType::kCloneSnapshot;
+    context_->metadata_tracker->SetMetadata(metadata::trace_trigger,
+                                            Variadic::String(name_id));
+    context_->storage->SetStats(stats::traced_clone_trigger_timestamp_ns, ts);
+  } else if (packetType == TraceTriggerPacketType::kTraceTrigger &&
+             trace_trigger_packet_type_ == TraceTriggerPacketType::kNone) {
+    trace_trigger_packet_type_ = TraceTriggerPacketType::kTraceTrigger;
+    context_->metadata_tracker->SetMetadata(metadata::trace_trigger,
+                                            Variadic::String(name_id));
+  }
+}
+
+void MetadataModule::ParseChromeTrigger(int64_t ts, ConstBytes blob) {
+  protos::pbzero::ChromeTrigger::Decoder trigger(blob);
+  StringId cat_id = kNullStringId;
+  TrackId track_id =
+      context_->track_tracker->InternTrack(kTriggerTrackBlueprint);
+  StringId name_id;
+  if (trigger.has_trigger_name()) {
+    name_id = context_->storage->InternString(trigger.trigger_name());
+  } else {
+    name_id =
+        context_->storage->InternString(base::StringView("chrome_trigger"));
+  }
+  auto slice_id = context_->slice_tracker->Scoped(
+      ts, track_id, cat_id, name_id,
+      /* duration = */ 0, [&](ArgsTracker::BoundInserter* inserter) {
+        inserter->AddArg(
+            chrome_trigger_hash_id_,
+            Variadic::UnsignedInteger(trigger.trigger_name_hash()));
+        if (trigger.has_trigger_name()) {
+          inserter->AddArg(chrome_trigger_name_id_, Variadic::String(name_id));
+        }
+      });
+  if (slice_id && trigger.has_flow_id() &&
+      context_->flow_tracker->IsActive(trigger.flow_id())) {
+    context_->flow_tracker->End(*slice_id, trigger.flow_id(),
+                                /* close_flow = */ true);
+  }
+
+  MetadataTracker* metadata = context_->metadata_tracker.get();
+  metadata->SetDynamicMetadata(
+      context_->storage->InternString("cr-triggered_rule_name_hash"),
+      Variadic::Integer(trigger.trigger_name_hash()));
 }
 
 void MetadataModule::ParseTraceUuid(ConstBytes blob) {
@@ -153,12 +237,8 @@ void MetadataModule::ParseTraceConfig(
                                             Variadic::String(id));
   }
 
-  DescriptorPool pool;
-  pool.AddFromFileDescriptorSet(kConfigDescriptor.data(),
-                                kConfigDescriptor.size());
-
   std::string text = protozero_to_text::ProtozeroToText(
-      pool, ".perfetto.protos.TraceConfig",
+      *context_->descriptor_pool_, ".perfetto.protos.TraceConfig",
       protozero::ConstBytes{
           trace_config.begin(),
           static_cast<uint32_t>(trace_config.end() - trace_config.begin())},
@@ -168,5 +248,4 @@ void MetadataModule::ParseTraceConfig(
                                           Variadic::String(id));
 }
 
-}  // namespace trace_processor
-}  // namespace perfetto
+}  // namespace perfetto::trace_processor

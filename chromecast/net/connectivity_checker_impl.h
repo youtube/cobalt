@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "base/cancelable_callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chromecast/base/metrics/cast_metrics_helper.h"
@@ -46,8 +47,6 @@ constexpr net::HttpStatusCode kConnectivitySuccessStatusCode =
     net::HTTP_NO_CONTENT;
 
 // Delay notification of network change events to smooth out rapid flipping.
-// Histogram "Cast.Network.Down.Duration.In.Seconds" shows 40% of network
-// downtime is less than 3 seconds.
 constexpr base::TimeDelta kNetworkChangedDelay = base::Seconds(3);
 
 // Simple class to check network connectivity by sending a HEAD http request
@@ -142,9 +141,9 @@ class ConnectivityCheckerImpl
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
   std::unique_ptr<network::SimpleURLLoader> url_loader_;
   const scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
-  network::NetworkConnectionTracker* const network_connection_tracker_;
-  TimeSyncTracker* const time_sync_tracker_;
-  metrics::CastMetricsHelper* cast_metrics_helper_;
+  const raw_ptr<network::NetworkConnectionTracker> network_connection_tracker_;
+  const raw_ptr<TimeSyncTracker> time_sync_tracker_;
+  raw_ptr<metrics::CastMetricsHelper> cast_metrics_helper_;
 
   // connected_lock_ protects access to connected_ which is shared across
   // threads.

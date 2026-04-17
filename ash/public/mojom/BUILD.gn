@@ -2,20 +2,20 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 
-assert(is_chromeos_ash)
+assert(is_chromeos)
 
 mojom("mojom") {
   disable_variants = true
 
   sources = [
     "assistant_volume_control.mojom",
-    "tray_action.mojom",
+    "wallpaper.mojom",
   ]
 
   public_deps = [
+    ":accelerator_actions",
     ":accelerator_configuration",
     ":accelerator_info",
     ":accelerator_keys",
@@ -38,13 +38,20 @@ mojom("mojom") {
   export_header = "ash/public/cpp/ash_public_export.h"
 }
 
+mojom("hid_preserving_bluetooth_state_controller") {
+  sources = [ "hid_preserving_bluetooth_state_controller.mojom" ]
+  public_deps = [ "//mojo/public/mojom/base" ]
+  webui_module_path = "chrome://resources/ash/common/"
+}
+
 # This is a separate target so that downstream WebUI targets can take
 # advantage of JS module Mojom files, without having to generate WebUI Mojom
 # files for all dependencies (and their dependencies) in //ash/public/mojom.
 mojom("accelerator_info") {
   disable_variants = true
+  generate_legacy_js_bindings = true
 
-  webui_module_path = "/ash/public/mojom"
+  webui_module_path = "/"
 
   sources = [ "accelerator_info.mojom" ]
 
@@ -60,7 +67,6 @@ mojom("accelerator_info") {
 mojom("input_device_settings") {
   disable_variants = true
   webui_module_path = "/"
-  use_typescript_sources = true
   generate_legacy_js_bindings = true
 
   sources = [ "input_device_settings.mojom" ]
@@ -69,6 +75,11 @@ mojom("input_device_settings") {
     "//mojo/public/mojom/base",
     "//ui/events/ash/mojom",
   ]
+
+  deps = [
+    ":accelerator_actions",
+    ":accelerator_keys",
+  ]
 }
 
 # This is a separate target so that downstream WebUI targets can take
@@ -76,8 +87,9 @@ mojom("input_device_settings") {
 # files for all dependencies (and their dependencies) in //ash/public/mojom.
 mojom("accelerator_configuration") {
   disable_variants = true
+  generate_legacy_js_bindings = true
 
-  webui_module_path = "/ash/public/mojom"
+  webui_module_path = "/"
 
   sources = [ "accelerator_configuration.mojom" ]
 
@@ -89,8 +101,9 @@ mojom("accelerator_configuration") {
 # files for all dependencies (and their dependencies) in //ash/public/mojom.
 mojom("accelerator_keys") {
   disable_variants = true
+  generate_legacy_js_bindings = true
 
-  webui_module_path = "/ash/public/mojom"
+  webui_module_path = "/"
 
   sources = [ "accelerator_keys.mojom" ]
 
@@ -110,6 +123,35 @@ mojom("accelerator_keys") {
         "accelerator_keys_mojom_traits.h",
       ]
       traits_sources = [ "accelerator_keys_mojom_traits.cc" ]
+    },
+  ]
+}
+
+# This is a separate target so that downstream WebUI targets can take
+# advantage of JS module Mojom files, without having to generate WebUI Mojom
+# files for all dependencies (and their dependencies) in //ash/public/mojom.
+mojom("accelerator_actions") {
+  disable_variants = true
+  generate_legacy_js_bindings = true
+
+  webui_module_path = "/"
+
+  sources = [ "accelerator_actions.mojom" ]
+
+  public_deps = []
+
+  cpp_typemaps = [
+    {
+      types = [
+        {
+          mojom = "ash.mojom.AcceleratorAction"
+          cpp = "::ash::AcceleratorAction"
+        },
+      ]
+
+      traits_headers = [ "accelerator_actions_mojom_traits.h" ]
+      traits_sources = [ "accelerator_actions_mojom_traits.cc" ]
+      traits_public_deps = [ "//ash/public/cpp:accelerator_actions" ]
     },
   ]
 }

@@ -14,7 +14,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "chrome/common/chrome_constants.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/common/process_type.h"
@@ -103,8 +103,7 @@ void GetAllChildren(const std::vector<ProcessEntry>& processes,
 
 }  // namespace
 
-MemoryDetails::MemoryDetails() {
-}
+MemoryDetails::MemoryDetails() = default;
 
 ProcessData* MemoryDetails::ChromeBrowser() {
   return &process_data_[0];

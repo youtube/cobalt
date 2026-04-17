@@ -42,7 +42,8 @@ void ScanFile(
 
   if (quarantine_remote) {
     quarantine_remote->QuarantineFile(
-        dest_platform_path, GURL(), GURL(), std::string(),
+        dest_platform_path, GURL(), GURL(), /*request_initiator=*/std::nullopt,
+        std::string(),
         base::BindOnce(&OnFileQuarantined, std::move(result_callback)));
   } else {
     std::move(result_callback).Run(base::File::FILE_OK);
@@ -52,7 +53,7 @@ void ScanFile(
 
 }  // namespace
 
-AVScanningFileValidator::~AVScanningFileValidator() {}
+AVScanningFileValidator::~AVScanningFileValidator() = default;
 
 void AVScanningFileValidator::StartPostWriteValidation(
     const base::FilePath& dest_platform_path,

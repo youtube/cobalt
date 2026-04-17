@@ -516,6 +516,7 @@ class TraceInterpreter : angle::NonCopyable
     void replayFrame(uint32_t frameIndex);
     void setupReplay();
     void resetReplay();
+    void setupFirstFrame();
     const char *getSerializedContextState(uint32_t frameIndex);
 
   private:
@@ -537,7 +538,7 @@ void TraceInterpreter::replayFrame(uint32_t frameIndex)
 
 void TraceInterpreter::parseTraceUncompressed()
 {
-    for (const std::string &file : gTraceFiles)
+    for (const std::string &file : gTraceInfo.traceFiles)
     {
         if (!ShouldParseFile(file))
         {
@@ -633,9 +634,14 @@ void TraceInterpreter::resetReplay()
     runTraceFunction("ResetReplay");
 }
 
+void TraceInterpreter::setupFirstFrame()
+{
+    runTraceFunction("SetupFirstFrame");
+}
+
 const char *TraceInterpreter::getSerializedContextState(uint32_t frameIndex)
 {
-    // TODO: Necessary for complete self-testing. http://anglebug.com/7779
+    // TODO: Necessary for complete self-testing. http://anglebug.com/42266250
     UNREACHABLE();
     return nullptr;
 }
@@ -939,6 +945,22 @@ template <>
 void PackParameter<const uint64_t *>(ParamBuffer &params,
                                      const Token &token,
                                      const TraceStringMap &strings)
+{
+    UNREACHABLE();
+}
+
+template <>
+void PackParameter<GLGETBLOBPROCANGLE>(ParamBuffer &params,
+                                       const Token &token,
+                                       const TraceStringMap &strings)
+{
+    UNREACHABLE();
+}
+
+template <>
+void PackParameter<GLSETBLOBPROCANGLE>(ParamBuffer &params,
+                                       const Token &token,
+                                       const TraceStringMap &strings)
 {
     UNREACHABLE();
 }

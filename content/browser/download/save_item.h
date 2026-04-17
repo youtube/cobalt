@@ -10,7 +10,10 @@
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
 #include "content/browser/download/save_types.h"
+#include "content/public/browser/frame_tree_node_id.h"
 #include "content/public/common/referrer.h"
+#include "net/base/isolation_info.h"
+#include "services/network/public/cpp/request_mode.h"
 #include "url/gurl.h"
 
 namespace content {
@@ -29,10 +32,13 @@ class SaveItem {
 
   SaveItem(const GURL& url,
            const Referrer& referrer,
+           const net::IsolationInfo& isolation_info,
+           network::mojom::RequestMode request_mode,
+           bool is_outermost_main_frame,
            SavePackage* package,
            SaveFileCreateInfo::SaveFileSource save_source,
-           int frame_tree_node_id,
-           int container_frame_tree_node_id);
+           FrameTreeNodeId frame_tree_node_id,
+           FrameTreeNodeId container_frame_tree_node_id);
 
   SaveItem(const SaveItem&) = delete;
   SaveItem& operator=(const SaveItem&) = delete;
@@ -59,8 +65,11 @@ class SaveItem {
   const base::FilePath& full_path() const { return full_path_; }
   const GURL& url() const { return url_; }
   const Referrer& referrer() const { return referrer_; }
-  int frame_tree_node_id() const { return frame_tree_node_id_; }
-  int container_frame_tree_node_id() const {
+  const net::IsolationInfo& isolation_info() const { return isolation_info_; }
+  network::mojom::RequestMode request_mode() const { return request_mode_; }
+  bool is_outermost_main_frame() const { return is_outermost_main_frame_; }
+  FrameTreeNodeId frame_tree_node_id() const { return frame_tree_node_id_; }
+  FrameTreeNodeId container_frame_tree_node_id() const {
     return container_frame_tree_node_id_;
   }
   int64_t received_bytes() const { return received_bytes_; }
@@ -84,14 +93,19 @@ class SaveItem {
   GURL url_;
   Referrer referrer_;
 
-  // Frame tree node id, if this save item represents a frame
-  // (otherwise FrameTreeNode::kFrameTreeNodeInvalidId).
-  int frame_tree_node_id_;
+  // Request config details for isolation.
+  net::IsolationInfo isolation_info_;
+  network::mojom::RequestMode request_mode_;
+  bool is_outermost_main_frame_;
 
-  // Frame tree node id of the frame containing this save item.
-  // (FrameTreeNode::kFrameTreeNodeInvalidId if this save item represents the
-  // main frame, which obviously doesn't have a containing/parent frame).
-  int container_frame_tree_node_id_;
+  // Frame tree node id, if this save item represents a frame (otherwise
+  // invalid).
+  FrameTreeNodeId frame_tree_node_id_;
+
+  // Frame tree node id of the frame containing this save item. (invalid if this
+  // save item represents the main frame, which obviously doesn't have a
+  // containing/parent frame).
+  FrameTreeNodeId container_frame_tree_node_id_;
 
   // Current received bytes.
   int64_t received_bytes_;

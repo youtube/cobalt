@@ -2,13 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/qr_code_generator/qr_code_generator.h"
 
-#include "base/logging.h"
-#include "base/rand_util.h"
+#include <limits>
+#include <optional>
+
+#include "base/containers/span.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-TEST(QRCodeGenerator, Generate) {
+namespace qr_code_generator {
+
+TEST(QRCodeGeneratorTest, Generate) {
   // Without a QR decoder implementation, there's a limit to how much we can
   // test the QR encoder. Therefore this test just runs a generation to ensure
   // that no DCHECKs are hit and that the output has the correct structure. When
@@ -17,9 +26,8 @@ TEST(QRCodeGenerator, Generate) {
 
   constexpr size_t kMaxInputLen = 210;
   uint8_t input[kMaxInputLen];
-  QRCodeGenerator qr;
-  absl::optional<int> smallest_size;
-  absl::optional<int> largest_size;
+  std::optional<int> smallest_size;
+  std::optional<int> largest_size;
 
   for (const bool use_alphanum : {false, true}) {
     SCOPED_TRACE(use_alphanum);
@@ -29,9 +37,9 @@ TEST(QRCodeGenerator, Generate) {
     for (size_t input_len = 30; input_len < kMaxInputLen; input_len += 10) {
       SCOPED_TRACE(input_len);
 
-      absl::optional<QRCodeGenerator::GeneratedCode> qr_code =
-          qr.Generate(base::span<const uint8_t>(input, input_len));
-      ASSERT_NE(qr_code, absl::nullopt);
+      base::expected<GeneratedCode, Error> qr_code =
+          GenerateCode(base::span<const uint8_t>(input, input_len));
+      ASSERT_TRUE(qr_code.has_value());
       auto& qr_data = qr_code->data;
 
       if (!smallest_size || qr_code->qr_size < *smallest_size) {
@@ -56,172 +64,125 @@ TEST(QRCodeGenerator, Generate) {
   ASSERT_LT(*smallest_size, *largest_size);
 }
 
-TEST(QRCodeGenerator, ManySizes) {
-  // Generate larger and larger QR codes until there's a clean failure. Ensures
-  // that there are no edge cases like crbug.com/1177437.
-  QRCodeGenerator qr;
-  std::string input = "!";
+TEST(QRCodeGeneratorTest, ManySizes) {
+  // Test multiple input sizes.  This test was originally designed to test for
+  // memory safety problems caused by off-by-one bugs in the old C++
+  // implementation. We are now shipping a memory-safe Rust implementation so we
+  // are now testing only sizes up to 90 - this helps to avoid flaky test
+  // timeouts.
+  std::string input = "";
   std::map<int, size_t> max_input_length_for_qr_size;
 
   for (;;) {
-    absl::optional<QRCodeGenerator::GeneratedCode> code =
-        qr.Generate(base::span<const uint8_t>(
-            reinterpret_cast<const uint8_t*>(input.data()), input.size()));
-    if (!code) {
+    input.push_back('!');
+    if (input.size() > 90) {
       break;
     }
+
+    base::expected<GeneratedCode, Error> code =
+        GenerateCode(base::as_byte_span(input));
+    ASSERT_TRUE(code.has_value());
     max_input_length_for_qr_size[code->qr_size] = input.size();
-
-    input.push_back('!');
   }
-
-  ASSERT_GT(input.size(), 200u);
 
   // Capacities taken from https://www.qrcode.com/en/about/version.html
-  ASSERT_EQ(max_input_length_for_qr_size[25], 32u);   // 2-L
-  ASSERT_EQ(max_input_length_for_qr_size[37], 84u);   // 5-M
-  ASSERT_EQ(max_input_length_for_qr_size[45], 122u);  // 7-M
-  ASSERT_EQ(max_input_length_for_qr_size[53], 180u);  // 9-M
-  ASSERT_EQ(max_input_length_for_qr_size[65], 287u);  // 12-M
+  //
+  // Rust supports all QR versions from 1 to 40 and defaults to M error
+  // correction.
+  //
+  // Other versions skipped, because otherwise the test may timeout.
+  EXPECT_EQ(max_input_length_for_qr_size[21], 14u);  // 1-M
+  EXPECT_EQ(max_input_length_for_qr_size[25], 26u);  // 2-M
+  EXPECT_EQ(max_input_length_for_qr_size[29], 42u);  // 3-M
+  EXPECT_EQ(max_input_length_for_qr_size[33], 62u);  // 4-M
+  EXPECT_EQ(max_input_length_for_qr_size[37], 84u);  // 5-M
 }
 
-TEST(QRCodeGenerator, Segmentation) {
-  struct Test {
-    QRCodeGenerator::VersionClass vclass;
-    const char* input;
-    std::vector<std::pair<QRCodeGenerator::SegmentType, const char*>> segments;
-  };
+// Test helper that returns `GeneratedCode::qr_size` or -1 if there was a
+// failure.
+int GenerateAndGetQrCodeSize(size_t input_size) {
+  std::string input(input_size, '!');
 
-  const auto SMALL = QRCodeGenerator::VersionClass::SMALL;
-  const auto LARGE = QRCodeGenerator::VersionClass::LARGE;
-  const auto D = QRCodeGenerator::SegmentType::DIGIT;
-  const auto A = QRCodeGenerator::SegmentType::ALPHANUM;
-  const auto B = QRCodeGenerator::SegmentType::BINARY;
+  base::expected<GeneratedCode, Error> code =
+      GenerateCode(base::as_byte_span(input));
+  return code.has_value() ? code->qr_size : -1;
+}
 
-  static const std::vector<Test> kTests = {
-      {SMALL, "", {}},
-      {LARGE, "", {}},
-      // Runs of the same class should be a single segment.
-      {SMALL, "01234", {{D, "01234"}}},
-      {LARGE, "01234", {{D, "01234"}}},
-      {SMALL, "abcdef", {{B, "abcdef"}}},
-      {LARGE, "abcdef", {{B, "abcdef"}}},
-      {SMALL, "ABC", {{A, "ABC"}}},
-      {LARGE, "ABC", {{A, "ABC"}}},
-      // Where cheaper, different classes should be merged into the wider
-      // class.
-      {SMALL, "01w", {{B, "01w"}}},
-      {SMALL, "w01", {{B, "w01"}}},
-      // But merging should only happen when cheaper. The merged version here is
-      // 60 bits so the following should be split because that costs only 51
-      // bits.
-      {SMALL, "01234w", {{D, "01234"}, {B, "w"}}},
-      {SMALL, "w01234", {{B, "w"}, {D, "01234"}}},
-      // The '0' should be merged into either of the binary blocks and then
-      // the binary blocks should be unified together.
-      {SMALL, "abcdef0abcdef", {{B, "abcdef0abcdef"}}},
-      // Segments should always be merged into the lesser class.
-      //    1. First establish that six A/a are enough to justify their own
-      //       segment.
-      {SMALL, "AAAAAAaaaaaa", {{A, "AAAAAA"}, {B, "aaaaaa"}}},
-      //    2. The digit should merge into the ALPHANUM block because it's
-      //       cheaper there.
-      {SMALL, "AAAAAA0aaaaaa", {{A, "AAAAAA0"}, {B, "aaaaaa"}}},
-      //    3. That should happen even with things flipped.
-      {SMALL, "aaaaaa0AAAAAA", {{B, "aaaaaa"}, {A, "0AAAAAA"}}},
-      // Check that a QR input that we might use is segmented as expected.
-      {SMALL, "FIDO:/123412341234", {{A, "FIDO:/"}, {D, "123412341234"}}},
-  };
+TEST(QRCodeGeneratorTest, InputSize106) {
+  EXPECT_EQ(41, GenerateAndGetQrCodeSize(106u));  // 6-M
+}
 
-  for (const auto& test : kTests) {
-    const std::string input = test.input;
-    const std::vector<QRCodeGenerator::Segment> segments =
-        QRCodeGenerator::SegmentInput(
-            test.vclass, base::span<const uint8_t>(
-                             reinterpret_cast<const uint8_t*>(test.input),
-                             strlen(test.input)));
+TEST(QRCodeGeneratorTest, InputSize122) {
+  EXPECT_EQ(45, GenerateAndGetQrCodeSize(122u));  // 7-M
+}
 
-    bool match = segments.size() == test.segments.size();
-    if (match) {
-      size_t offset = 0;
+TEST(QRCodeGeneratorTest, InputSize180) {
+  EXPECT_EQ(53, GenerateAndGetQrCodeSize(180u));  // 9-M
+}
 
-      for (size_t i = 0; i < segments.size(); i++) {
-        if (segments[i].type != test.segments[i].first ||
-            input.substr(offset, segments[i].length) !=
-                test.segments[i].second) {
-          match = false;
-          break;
-        }
+TEST(QRCodeGeneratorTest, InputSize287) {
+  EXPECT_EQ(65, GenerateAndGetQrCodeSize(287u));  // 12-M
+}
 
-        offset += segments[i].length;
-      }
-    }
+TEST(QRCodeGeneratorTest, InputSize666) {
+  EXPECT_EQ(97, GenerateAndGetQrCodeSize(666u));  // 20-M
+}
 
-    if (!match) {
-      auto type_to_char =
-          [](QRCodeGenerator::SegmentType segment_type) -> char {
-        switch (segment_type) {
-          case QRCodeGenerator::SegmentType::DIGIT:
-            return 'D';
-          case QRCodeGenerator::SegmentType::ALPHANUM:
-            return 'A';
-          case QRCodeGenerator::SegmentType::BINARY:
-            return 'B';
-        }
-      };
+TEST(QRCodeGeneratorTest, HugeInput) {
+  // The numbers below have been taken from
+  // https://www.qrcode.com/en/about/version.html, for version = 40,
+  // ECC level = M.
+  const size_t kMaxInputSizeForNumericInputVersion40 = 5596;
+  const size_t kMaxInputSizeForBinaryInputVersion40 = 2331;
 
-      std::string got = "";
-      size_t offset = 0;
-      for (const auto& segment : segments) {
-        if (!got.empty()) {
-          got += " ";
-        }
+  std::vector<uint8_t> huge_numeric_input(kMaxInputSizeForNumericInputVersion40,
+                                          '0');
+  std::vector<uint8_t> huge_binary_input(kMaxInputSizeForBinaryInputVersion40,
+                                         '\0');
 
-        got += type_to_char(segment.type);
-        got += input.substr(offset, segment.length);
-        offset += segment.length;
-      }
 
-      std::string want = "";
-      for (const auto& segment : test.segments) {
-        if (!want.empty()) {
-          want += " ";
-        }
+  // The Rust implementation can generate QR codes up to version 40.
+  ASSERT_TRUE(GenerateCode(huge_numeric_input).has_value());
+  ASSERT_TRUE(GenerateCode(huge_binary_input).has_value());
 
-        want += type_to_char(segment.first);
-        want += segment.second;
-      }
-
-      ADD_FAILURE() << "got:  " << got << "\nwant: " << want;
-      return;
-    }
+  // Adding another character means that the inputs will no longer fit into QR
+  // code version 40 (as of year 2023 there are no further versions defined by
+  // the spec).
+  {
+    huge_numeric_input.push_back('0');
+    auto failure = GenerateCode(huge_numeric_input);
+    ASSERT_FALSE(failure.has_value());
+    EXPECT_EQ(failure.error(), Error::kInputTooLong);
+  }
+  {
+    huge_binary_input.push_back('\0');
+    auto failure = GenerateCode(huge_binary_input);
+    ASSERT_FALSE(failure.has_value());
+    EXPECT_EQ(failure.error(), Error::kInputTooLong);
   }
 }
 
-TEST(QRCodeGenerator, SegmentationValid) {
-  // The segmentation must always be valid: i.e. must assign each input byte
-  // to a segment that can express it, and the segments must span the whole
-  // input.
-  for (int i = 0; i < 10000; i++) {
-    const size_t len = base::RandInt(1, 64);
-    std::vector<uint8_t> input(len);
-    for (size_t j = 0; j < len; j++) {
-      input[j] = base::RandInt(32, 126);
-    }
+TEST(QRCodeGeneratorTest, InvalidMinVersion) {
+  std::vector<uint8_t> input(123);  // Arbitrary valid input.
 
-    const std::vector<QRCodeGenerator::Segment> segments =
-        QRCodeGenerator::SegmentInput(
-            i & 1 ? QRCodeGenerator::VersionClass::SMALL
-                  : QRCodeGenerator::VersionClass::LARGE,
-            input);
+  {
+    auto failure = GenerateCode(input, std::make_optional(41));
+    ASSERT_FALSE(failure.has_value());
+    EXPECT_EQ(failure.error(), Error::kUnknownError);
+  }
 
-    ASSERT_TRUE(QRCodeGenerator::IsValidSegmentation(segments, input));
-    ASSERT_TRUE(QRCodeGenerator::NoSuperfluousSegments(segments));
+  {
+    auto failure = GenerateCode(
+        input, std::make_optional(std::numeric_limits<int>::max()));
+    ASSERT_FALSE(failure.has_value());
+    EXPECT_EQ(failure.error(), Error::kUnknownError);
+  }
+
+  {
+    auto failure = GenerateCode(input, std::make_optional(-1));
+    ASSERT_FALSE(failure.has_value());
+    EXPECT_EQ(failure.error(), Error::kUnknownError);
   }
 }
 
-TEST(QRCodeGenerator, HugeInput) {
-  std::vector<uint8_t> huge_input(QRCodeGenerator::kMaxInputSize + 1);
-  QRCodeGenerator qr;
-  ASSERT_FALSE(qr.Generate(huge_input));
-}
+}  // namespace qr_code_generator

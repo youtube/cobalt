@@ -4,34 +4,31 @@
 
 #include "chrome/browser/device_api/managed_configuration_api.h"
 
+#include <optional>
+
 #include "base/check.h"
 #include "base/containers/contains.h"
 #include "base/test/gtest_tags.h"
 #include "base/test/test_future.h"
 #include "base/values.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/device_api/managed_configuration_api_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/browser/web_applications/policy/web_app_policy_constants.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/mixin_based_in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/web_contents.h"
-#include "content/public/test/browser_task_environment.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
-#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ash/login/test/guest_session_mixin.h"
 #endif
 
@@ -39,33 +36,33 @@ using testing::Eq;
 
 namespace {
 
-const char kOrigin[] = "https://example.com";
-const char kConfigurationUrl1[] = "/conf1.json";
-const char kConfigurationUrl2[] = "/conf2.json";
-const char kConfigurationHash1[] = "asdas9jasidjd";
-const char kConfigurationHash2[] = "ghi289sdfsdfk";
-const char kConfigurationData1[] = R"(
+constexpr char kOrigin[] = "https://example.com";
+constexpr char kConfigurationUrl1[] = "/conf1.json";
+constexpr char kConfigurationUrl2[] = "/conf2.json";
+constexpr char kConfigurationHash1[] = "asdas9jasidjd";
+constexpr char kConfigurationHash2[] = "ghi289sdfsdfk";
+constexpr char kConfigurationData1[] = R"(
 {
   "key1": "value1",
   "key2" : 2
 }
 )";
-const char kConfigurationData2[] = R"(
+constexpr char kConfigurationData2[] = R"(
 {
   "key1": "value_1",
   "key2" : "value_2"
 }
 )";
-const char kConfigurationData3[] = R"(
+constexpr char kConfigurationData3[] = R"(
 [1]
 )";
-const char kKey1[] = "key1";
-const char kKey2[] = "key2";
-const char kKey3[] = "key3";
-const char kValue1[] = "\"value1\"";
-const char kValue2[] = "2";
-const char kValue12[] = "\"value_1\"";
-const char kValue22[] = "\"value_2\"";
+constexpr char kKey1[] = "key1";
+constexpr char kKey2[] = "key2";
+constexpr char kKey3[] = "key3";
+constexpr char kValue1[] = "\"value1\"";
+constexpr char kValue2[] = "2";
+constexpr char kValue12[] = "\"value_1\"";
+constexpr char kValue22[] = "\"value_2\"";
 
 struct ResponseTemplate {
   std::string response_body;
@@ -75,10 +72,11 @@ struct ResponseTemplate {
 std::unique_ptr<net::test_server::HttpResponse> HandleRequest(
     std::map<std::string, ResponseTemplate> templates,
     const net::test_server::HttpRequest& request) {
-  if (!base::Contains(templates, request.relative_url))
+  if (!base::Contains(templates, request.relative_url)) {
     return std::make_unique<net::test_server::HungResponse>();
-  auto response_template = templates[request.relative_url];
+  }
 
+  auto response_template = templates[request.relative_url];
   std::unique_ptr<net::test_server::BasicHttpResponse> http_response;
   if (response_template.should_post_task) {
     http_response = std::make_unique<net::test_server::DelayedHttpResponse>(
@@ -93,13 +91,14 @@ std::unique_ptr<net::test_server::HttpResponse> HandleRequest(
   return http_response;
 }
 
-bool DictValueEquals(absl::optional<base::Value::Dict> value,
-                     std::map<std::string, std::string> expected) {
+bool DictValueEquals(std::optional<base::Value::Dict> value,
+                     const std::map<std::string, std::string>& expected) {
   DCHECK(value);
   std::map<std::string, std::string> actual;
   for (auto entry : *value) {
-    if (!entry.second.is_string())
+    if (!entry.second.is_string()) {
       return false;
+    }
     actual.insert({entry.first, entry.second.GetString()});
   }
 
@@ -133,9 +132,9 @@ class ManagedConfigurationAPITestBase : public MixinBasedInProcessBrowserTest {
                                    base::Value::List());
   }
 
-  absl::optional<base::Value::Dict> GetValues(
+  std::optional<base::Value::Dict> GetValues(
       const std::vector<std::string>& keys) {
-    base::test::TestFuture<absl::optional<base::Value::Dict>> value_future;
+    base::test::TestFuture<std::optional<base::Value::Dict>> value_future;
     api()->GetOriginPolicyConfiguration(origin_, keys,
                                         value_future.GetCallback());
     return value_future.Take();
@@ -157,7 +156,9 @@ class ManagedConfigurationAPITest : public ManagedConfigurationAPITestBase,
                                     public ManagedConfigurationAPI::Observer {
  public:
   ManagedConfigurationAPITest() = default;
-
+  ManagedConfigurationAPITest(const ManagedConfigurationAPITest&) = delete;
+  ManagedConfigurationAPITest& operator=(const ManagedConfigurationAPITest&) =
+      delete;
   ~ManagedConfigurationAPITest() override = default;
 
   void SetUpOnMainThread() override {
@@ -186,7 +187,7 @@ class ManagedConfigurationAPITest : public ManagedConfigurationAPITestBase,
     }
   }
 
-  const url::Origin& GetOrigin() override { return origin(); }
+  const url::Origin& GetOrigin() const override { return origin(); }
 
  private:
   bool updated_ = false;
@@ -224,7 +225,7 @@ IN_PROC_BROWSER_TEST_F(ManagedConfigurationAPITest, AppRemovedFromPolicyList) {
 
   ClearConfiguration();
   WaitForUpdate();
-  ASSERT_EQ(GetValues({kKey1, kKey2}), absl::nullopt);
+  ASSERT_EQ(GetValues({kKey1, kKey2}), std::nullopt);
 }
 
 IN_PROC_BROWSER_TEST_F(ManagedConfigurationAPITest, UnknownKeys) {
@@ -288,12 +289,12 @@ IN_PROC_BROWSER_TEST_F(ManagedConfigurationAPITest,
   ASSERT_TRUE(DictValueEquals(GetValues({kKey1, kKey2}), {}));
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 
 // Test the API behavior in the Guest Session.
 class ManagedConfigurationAPIGuestTest
     : public ManagedConfigurationAPITestBase {
- protected:
+ public:
   ManagedConfigurationAPIGuestTest() {
     // Suppress the InProcessBrowserTest's default behavior of opening
     // about://blank pages and let the standard startup code open the
@@ -303,7 +304,12 @@ class ManagedConfigurationAPIGuestTest
   }
 
   ~ManagedConfigurationAPIGuestTest() override = default;
+  ManagedConfigurationAPIGuestTest(const ManagedConfigurationAPIGuestTest&) =
+      delete;
+  ManagedConfigurationAPIGuestTest& operator=(
+      const ManagedConfigurationAPIGuestTest&) = delete;
 
+ protected:
   // Returns the result of navigator.managed.getManagedConfiguration().
   content::EvalJsResult GetValuesFromJsApi(
       const std::vector<std::string>& keys) {
@@ -311,11 +317,12 @@ class ManagedConfigurationAPIGuestTest
         browser()->tab_strip_model()->GetActiveWebContents();
     if (!tab) {
       ADD_FAILURE() << "No tab active";
-      return content::EvalJsResult(base::Value(), std::string());
+      return {base::Value(), std::string()};
     }
     base::Value::List keys_value;
-    for (const auto& key : keys)
+    for (const auto& key : keys) {
       keys_value.Append(key);
+    }
     return content::EvalJs(
         tab, content::JsReplace("navigator.managed.getManagedConfiguration($1)",
                                 base::Value(std::move(keys_value))));
@@ -332,8 +339,9 @@ IN_PROC_BROWSER_TEST_F(ManagedConfigurationAPIGuestTest, Disabled) {
   EXPECT_THAT(
       GetValuesFromJsApi({kKey1}),
       testing::Field("error", &content::EvalJsResult::error,
-                     Eq("a JavaScript error: \"NotAllowedError: This API is "
-                        "available only for managed apps.\"\n")));
+                     Eq("a JavaScript error: \"NotAllowedError: Service "
+                        "connection error. This API is available only for "
+                        "managed apps.\"\n")));
 }
 
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)

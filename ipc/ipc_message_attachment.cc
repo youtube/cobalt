@@ -104,7 +104,6 @@ mojo::ScopedHandle MessageAttachment::TakeMojoHandle() {
       break;
   }
   NOTREACHED();
-  return mojo::ScopedHandle();
 }
 
 // static
@@ -156,7 +155,6 @@ scoped_refptr<MessageAttachment> MessageAttachment::CreateFromMojoHandle(
   }
 #endif
   NOTREACHED();
-  return nullptr;
 }
 
 }  // namespace IPC

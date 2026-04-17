@@ -15,6 +15,9 @@
 
 namespace android_webview {
 
+// Native handle for the renderer process. The native object owns the Java peer.
+//
+// Lifetime: Renderer
 class AwRenderProcess : public content::RenderProcessHostObserver,
                         public base::SupportsUserData::Data {
  public:
@@ -40,6 +43,14 @@ class AwRenderProcess : public content::RenderProcessHostObserver,
   void ClearCache();
   void SetJsOnlineProperty(bool network_up);
 
+  // Notifies that a render view has been created for this process. After this,
+  // the process will no longer be considered "unused".
+  static void SetRenderViewReady(content::RenderProcessHost* host);
+
+  // Returns whether the RPH is considered "unused", which means a render view
+  // has never been created and RPH::Unused() returns true.
+  static bool IsUnused(content::RenderProcessHost* host);
+
  private:
   void Ready();
   void Cleanup();
@@ -50,6 +61,8 @@ class AwRenderProcess : public content::RenderProcessHostObserver,
   void RenderProcessExited(
       content::RenderProcessHost* host,
       const content::ChildProcessTerminationInfo& info) override;
+
+  mojom::Renderer* GetRendererRemote();
 
   base::android::ScopedJavaGlobalRef<jobject> java_obj_;
 

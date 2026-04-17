@@ -4,6 +4,7 @@
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "components/services/storage/public/cpp/constants.h"
 #include "content/public/browser/browser_context.h"
@@ -13,6 +14,7 @@
 #include "content/public/test/content_browser_test.h"
 #include "content/public/test/content_browser_test_utils.h"
 #include "content/shell/browser/shell.h"
+#include "storage/browser/quota/quota_features.h"
 #include "storage/browser/quota/quota_manager_impl.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -21,7 +23,10 @@ namespace content {
 
 class QuotaBrowserTest : public ContentBrowserTest {
  public:
-  QuotaBrowserTest() = default;
+  QuotaBrowserTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        storage::features::kStaticStorageQuota);
+  }
 
   base::FilePath profile_path() {
     return shell()
@@ -30,9 +35,12 @@ class QuotaBrowserTest : public ContentBrowserTest {
         ->GetDefaultStoragePartition()
         ->GetPath();
   }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-// TODO(crbug.com/654704): Android does not support PRE_ tests.
+// TODO(crbug.com/40488499): Android does not support PRE_ tests.
 #if !BUILDFLAG(IS_ANDROID)
 IN_PROC_BROWSER_TEST_F(QuotaBrowserTest, PRE_QuotaDatabaseBootstrapTest) {
   base::ScopedAllowBlockingForTesting allow_blocking;
@@ -92,15 +100,6 @@ IN_PROC_BROWSER_TEST_F(QuotaBrowserTest, PRE_QuotaDatabaseBootstrapTest) {
                                 "/service_worker/create_service_worker.html")));
   EXPECT_EQ("DONE", EvalJs(shell(), "register('empty.js');"));
 
-// WebSQL (WebSQL is disabled on Fuchsia crbug.com/1317431)
-#if !BUILDFLAG(IS_FUCHSIA)
-  EXPECT_EQ(true, EvalJs(shell(), R"(
-    new Promise((resolve) => {
-      let db = window.openDatabase('notes_db', "1.0", "", 1);
-      resolve(db ? true : false);
-    });)"));
-#endif
-
   // Verify that the WebStorage directory and QuotaDatabase exists as a result
   // of accessing Storage APIs.
   base::FilePath web_storage_dir_path =
@@ -144,14 +143,6 @@ IN_PROC_BROWSER_TEST_F(QuotaBrowserTest, QuotaDatabaseBootstrapTest) {
       service_worker_dir.Append(storage::kScriptCacheDirectory);
   EXPECT_TRUE(base::PathExists(script_dir));
   EXPECT_FALSE(base::IsDirectoryEmpty(script_dir));
-
-// WebSQL
-#if !BUILDFLAG(IS_FUCHSIA)
-  base::FilePath websql_dir =
-      profile_path().Append(FILE_PATH_LITERAL("databases"));
-  EXPECT_TRUE(base::PathExists(websql_dir));
-  EXPECT_FALSE(base::IsDirectoryEmpty(websql_dir));
-#endif
 
   // Delete WebStorage directory to force a new database creation if one exists
   // so it triggers the bootstrap task. This is done after shutdown to ensure
@@ -235,6 +226,31 @@ IN_PROC_BROWSER_TEST_F(QuotaBrowserTest,
   // of the Javascript execution.
   EXPECT_TRUE(base::PathExists(web_storage_dir_path.AppendASCII(
       storage::QuotaManagerImpl::kDatabaseName)));
+}
+
+IN_PROC_BROWSER_TEST_F(QuotaBrowserTest, StorageEstimateWithStaticQuota) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL empty_url(embedded_test_server()->GetURL("/empty.html"));
+  ASSERT_TRUE(NavigateToURL(shell(), empty_url));
+
+  // The `navigator.storage.estimate()` API returns an estimate of the amount of
+  // storage available to the website. This value is calculated by the quota
+  // system. This test verifies that the returned value is the expected one when
+  // using the static quota system. The expected value is usage + min(10GiB,
+  // disk rounded up to the nearest 1 GiB). The test verifies that the returned
+  // quota value is <= 10GiB and is rounded.
+  int64_t quota = EvalJs(shell(), R"(
+        navigator.storage.estimate().then(
+          (result)=> {
+            return result.quota;
+          },
+          ()=>{ return -1; });)")
+                      .ExtractDouble();
+  const int64_t kGBytes = 1024 * 1024 * 1024;
+  EXPECT_LE(quota, 10 * kGBytes);
+  EXPECT_EQ(0, quota % kGBytes);
 }
 
 }  // namespace content

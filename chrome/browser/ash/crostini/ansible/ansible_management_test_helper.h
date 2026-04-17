@@ -27,7 +27,6 @@ class AnsibleManagementTestHelper {
       Profile* profile);
 
   void SetUpAnsiblePlaybookPreference();
-  void SetUpAnsibleInfra();
 
   void SetUpAnsibleInstallation(
       vm_tools::cicerone::InstallLinuxPackageResponse::Status status);
@@ -39,11 +38,10 @@ class AnsibleManagementTestHelper {
   void SendFailedApplySignal();
 
  private:
-  raw_ptr<Profile, ExperimentalAsh> profile_;
-  base::test::ScopedFeatureList scoped_feature_list_;
+  raw_ptr<Profile, DanglingUntriaged> profile_;
 
   // Owned by ash::DBusThreadManager
-  raw_ptr<ash::FakeCiceroneClient, ExperimentalAsh> fake_cicerone_client_;
+  raw_ptr<ash::FakeCiceroneClient, DanglingUntriaged> fake_cicerone_client_;
 };
 
 }  // namespace crostini

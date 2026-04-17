@@ -35,7 +35,7 @@ config("compiler_rt_config") {
 
 static_library("compiler_rt") {
   sources = [
-    "lib/builtins/emutls.c",    
+    "lib/builtins/emutls.c",
     "lib/builtins/udivmodti4.c",
     "lib/builtins/udivti3.c",
     "lib/builtins/umodti3.c",
@@ -50,6 +50,8 @@ static_library("compiler_rt") {
       "lib/builtins/arm/aeabi_memset.S",
       "lib/builtins/arm/aeabi_uidivmod.S",
       "lib/builtins/arm/aeabi_uldivmod.S",
+      "lib/builtins/ashldi3.c",
+      "lib/builtins/ashrdi3.c",
       "lib/builtins/divdi3.c",
       "lib/builtins/divmoddi4.c",
       "lib/builtins/divmodsi4.c",
@@ -62,6 +64,7 @@ static_library("compiler_rt") {
       "lib/builtins/floatdisf.c",
       "lib/builtins/floatundidf.c",
       "lib/builtins/floatundisf.c",
+      "lib/builtins/lshrdi3.c",
       "lib/builtins/udivmoddi4.c",
       "lib/builtins/udivmodsi4.c",
       "lib/builtins/udivsi3.c",
@@ -69,14 +72,18 @@ static_library("compiler_rt") {
   } else if (target_cpu == "arm64") {
     sources += [
       "lib/builtins/addtf3.c",
+      "lib/builtins/ashlti3.c",
       "lib/builtins/comparetf2.c",
       "lib/builtins/divtf3.c",
       "lib/builtins/extenddftf2.c",
       "lib/builtins/extendsftf2.c",
       "lib/builtins/fixtfsi.c",
+      "lib/builtins/fixunstfsi.c",
+      "lib/builtins/floatditf.c",
       "lib/builtins/floatsitf.c",
       "lib/builtins/floatunditf.c",
       "lib/builtins/floatunsitf.c",
+      "lib/builtins/lshrti3.c",
       "lib/builtins/multf3.c",
       "lib/builtins/riscv/fp_mode.c",
       "lib/builtins/subtf3.c",
@@ -89,6 +96,11 @@ static_library("compiler_rt") {
       "lib/builtins/i386/moddi3.S",
       "lib/builtins/i386/udivdi3.S",
       "lib/builtins/i386/umoddi3.S",
+    ]
+  } else if (target_cpu == "x64") {
+    sources += [
+      "lib/builtins/ashlti3.c",
+      "lib/builtins/lshrti3.c",
     ]
   }
 

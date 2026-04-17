@@ -1,10 +1,12 @@
 Name: Volk Meta loader for Vulkan API
 Short Name: volk
 URL: https://github.com/zeux/volk
-Version: 0
+Revision: 1ee0b6642ecb947a10f4f988930c02f54cb4b577
+Version: N/A
 License: MIT
 License File: LICENSE.md
 Security Critical: yes
+Shipped: yes
 
 Description:
 volk is a meta-loader for Vulkan. It allows you to dynamically load

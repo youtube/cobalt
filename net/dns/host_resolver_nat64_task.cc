@@ -1,10 +1,11 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/dns/host_resolver_nat64_task.h"
 
 #include <algorithm>
+#include <string_view>
 #include <utility>
 
 #include "base/check_op.h"
@@ -25,17 +26,15 @@
 namespace net {
 
 HostResolverNat64Task::HostResolverNat64Task(
-    base::StringPiece hostname,
+    std::string_view hostname,
     NetworkAnonymizationKey network_anonymization_key,
     NetLogWithSource net_log,
     ResolveContext* resolve_context,
-    HostCache* host_cache,
     base::WeakPtr<HostResolverManager> resolver)
     : hostname_(hostname),
       network_anonymization_key_(std::move(network_anonymization_key)),
       net_log_(std::move(net_log)),
       resolve_context_(resolve_context),
-      host_cache_(host_cache),
       resolver_(std::move(resolver)) {}
 
 HostResolverNat64Task::~HostResolverNat64Task() {
@@ -82,8 +81,6 @@ int HostResolverNat64Task::DoLoop(int result) {
         break;
       default:
         NOTREACHED();
-        rv = ERR_FAILED;
-        break;
     }
   } while (rv != ERR_IO_PENDING && next_state_ != State::kStateNone);
   return rv;
@@ -100,7 +97,7 @@ int HostResolverNat64Task::DoResolve() {
 
   request_ipv4onlyarpa_ = resolver_->CreateRequest(
       HostPortPair("ipv4only.arpa", 80), network_anonymization_key_, net_log_,
-      parameters, resolve_context_, host_cache_);
+      parameters, resolve_context_);
 
   return request_ipv4onlyarpa_->Start(base::BindOnce(
       &HostResolverNat64Task::OnIOComplete, weak_ptr_factory_.GetWeakPtr()));
@@ -144,8 +141,7 @@ int HostResolverNat64Task::DoSynthesizeToIpv6() {
           ipv4_address, ipv4onlyarpa_AAAA_address, pref64_length);
 
       IPEndPoint converted_ip_endpoint(converted_address, 0);
-      if (std::find(converted_addresses.begin(), converted_addresses.end(),
-                    converted_ip_endpoint) == converted_addresses.end()) {
+      if (!base::Contains(converted_addresses, converted_ip_endpoint)) {
         converted_addresses.push_back(std::move(converted_ip_endpoint));
       }
     }
@@ -157,8 +153,9 @@ int HostResolverNat64Task::DoSynthesizeToIpv6() {
     converted_addresses = {IPEndPoint(ipv4_address, 0)};
   }
 
-  results_ = HostCache::Entry(OK, converted_addresses, std::move(aliases),
-                              HostCache::Entry::SOURCE_UNKNOWN);
+  results_ =
+      HostCache::Entry(OK, std::move(converted_addresses), std::move(aliases),
+                       HostCache::Entry::SOURCE_UNKNOWN);
   return OK;
 }
 

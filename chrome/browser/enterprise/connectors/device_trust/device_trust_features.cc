@@ -6,21 +6,37 @@
 
 namespace enterprise_connectors {
 
-BASE_FEATURE(kDeviceTrustConnectorEnabled,
-             "DeviceTrustConnectorEnabled",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kUserDTCInlineFlowEnabled,
-             "UserDTCInlineFlowEnabled",
+BASE_FEATURE(kDTCKeyRotationEnabled,
+             "DTCKeyRotationEnabled",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-bool IsDeviceTrustConnectorFeatureEnabled() {
-  return base::FeatureList::IsEnabled(kDeviceTrustConnectorEnabled);
+bool IsKeyRotationEnabled() {
+  return base::FeatureList::IsEnabled(kDTCKeyRotationEnabled);
 }
 
-bool IsUserInlineFlowFeatureEnabled() {
-  return IsDeviceTrustConnectorFeatureEnabled() &&
-         base::FeatureList::IsEnabled(kUserDTCInlineFlowEnabled);
+BASE_FEATURE(kDTCKeyUploadedBySharedAPIEnabled,
+             "DTCKeyUploadedBySharedAPIEnabled",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+bool IsDTCKeyUploadedBySharedAPI() {
+  return base::FeatureList::IsEnabled(kDTCKeyUploadedBySharedAPIEnabled);
+}
+
+BASE_FEATURE(kDTCKeyRotationUploadedBySharedAPIEnabled,
+             "DTCKeyRotationUploadedBySharedAPIEnabled",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+bool IsDTCKeyRotationUploadedBySharedAPI() {
+  return base::FeatureList::IsEnabled(
+      kDTCKeyRotationUploadedBySharedAPIEnabled);
+}
+
+BASE_FEATURE(kDTCAntivirusSignalEnabled,
+             "DTCAntivirusSignalEnabled",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+bool IsDTCAntivirusSignalEnabled() {
+  return base::FeatureList::IsEnabled(kDTCAntivirusSignalEnabled);
 }
 
 }  // namespace enterprise_connectors

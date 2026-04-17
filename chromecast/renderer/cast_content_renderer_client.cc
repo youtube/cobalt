@@ -4,6 +4,7 @@
 
 #include "chromecast/renderer/cast_content_renderer_client.h"
 
+#include <optional>
 #include <utility>
 
 #include "base/command_line.h"
@@ -32,15 +33,15 @@
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_thread.h"
 #include "media/base/audio_parameters.h"
+#include "media/base/key_system_info.h"
 #include "media/base/media.h"
+#include "media/base/remoting_constants.h"
 #include "media/remoting/receiver_controller.h"
-#include "media/remoting/remoting_constants.h"
 #include "media/remoting/stream_provider.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/network/public/cpp/is_potentially_trustworthy.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/web_runtime_features.h"
 #include "third_party/blink/public/web/web_frame_widget.h"
 #include "third_party/blink/public/web/web_security_policy.h"
@@ -50,6 +51,7 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/bundle_utils.h"
 #include "chromecast/media/audio/cast_audio_device_factory.h"
+#include "components/cdm/renderer/key_system_support_update.h"
 #include "media/base/android/media_codec_util.h"
 #else
 #include "chromecast/renderer/memory_pressure_observer_impl.h"
@@ -153,7 +155,7 @@ void CastContentRendererClient::RenderFrameCreated(
 
   if (!app_media_capabilities_observer_receiver_.is_bound()) {
     mojo::Remote<mojom::ApplicationMediaCapabilities> app_media_capabilities;
-    render_frame->GetBrowserInterfaceBroker()->GetInterface(
+    render_frame->GetBrowserInterfaceBroker().GetInterface(
         app_media_capabilities.BindNewPipeAndPassReceiver());
     app_media_capabilities->AddObserver(
         app_media_capabilities_observer_receiver_.BindNewPipeAndPassRemote());
@@ -168,16 +170,24 @@ void CastContentRendererClient::RunScriptsAtDocumentStart(
 void CastContentRendererClient::RunScriptsAtDocumentEnd(
     content::RenderFrame* render_frame) {}
 
-void CastContentRendererClient::GetSupportedKeySystems(
+std::unique_ptr<::media::KeySystemSupportRegistration>
+CastContentRendererClient::GetSupportedKeySystems(
+    content::RenderFrame* render_frame,
     ::media::GetSupportedKeySystemsCB cb) {
+#if BUILDFLAG(IS_ANDROID)
+  return cdm::GetSupportedKeySystemsUpdates(render_frame,
+                                            /*can_persist_data=*/true,
+                                            std::move(cb));
+#else
   ::media::KeySystemInfos key_systems;
   media::AddChromecastKeySystems(&key_systems,
-                                 false /* enable_persistent_license_support */,
-                                 false /* enable_playready */);
+                                 false /* enable_persistent_license_support */);
   std::move(cb).Run(std::move(key_systems));
+  return nullptr;
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
-bool CastContentRendererClient::IsSupportedAudioType(
+bool CastContentRendererClient::IsDecoderSupportedAudioType(
     const ::media::AudioType& type) {
 #if BUILDFLAG(IS_ANDROID)
   if (type.spatial_rendering)
@@ -206,7 +216,7 @@ bool CastContentRendererClient::IsSupportedAudioType(
            supported_bitstream_audio_codecs_info_.codecs;
   }
 
-  return ::media::IsDefaultSupportedAudioType(type);
+  return ::media::IsDefaultDecoderSupportedAudioType(type);
 #else
   if (type.profile == ::media::AudioCodecProfile::kXHE_AAC)
     return false;
@@ -229,11 +239,12 @@ bool CastContentRendererClient::IsSupportedAudioType(
 #endif
 }
 
-bool CastContentRendererClient::IsSupportedVideoType(
+bool CastContentRendererClient::IsDecoderSupportedVideoType(
     const ::media::VideoType& type) {
   // TODO(servolk): make use of eotf.
 
-  // TODO(1066567): Check attached screen for support of type.hdr_metadata_type.
+  // TODO(crbug.com/40124585): Check attached screen for support of
+  // type.hdr_metadata_type.
   if (type.hdr_metadata_type != ::gfx::HdrMetadataType::kNone) {
     NOTIMPLEMENTED() << "HdrMetadataType support signaling not implemented.";
     return false;
@@ -331,22 +342,18 @@ CastContentRendererClient::CreateURLLoaderThrottleProvider(
       std::move(throttle_provider));
 }
 
-absl::optional<::media::AudioRendererAlgorithmParameters>
+std::optional<::media::AudioRendererAlgorithmParameters>
 CastContentRendererClient::GetAudioRendererAlgorithmParameters(
     ::media::AudioParameters audio_parameters) {
 #if BUILDFLAG(IS_ANDROID)
-  if (base::android::BundleUtils::IsBundle() ||
-      base::FeatureList::IsEnabled(kEnableCastAudioOutputDevice)) {
-    return absl::nullopt;
-  }
   ::media::AudioRendererAlgorithmParameters parameters;
   parameters.max_capacity = kAudioRendererMaxCapacity;
   parameters.starting_capacity = kAudioRendererStartingCapacity;
   parameters.starting_capacity_for_encrypted =
       kAudioRendererStartingCapacityEncrypted;
-  return absl::optional<::media::AudioRendererAlgorithmParameters>(parameters);
+  return std::optional<::media::AudioRendererAlgorithmParameters>(parameters);
 #else
-  return absl::nullopt;
+  return std::nullopt;
 #endif
 }
 

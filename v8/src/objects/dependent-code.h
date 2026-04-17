@@ -9,9 +9,12 @@
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
+#include "src/roots/roots.h"
 
 namespace v8 {
 namespace internal {
+
+enum class LazyDeoptimizeReason : uint8_t;
 
 // Dependent code is conceptually the list of {Code, DependencyGroup} tuples
 // associated with an object, where the dependency group is a reason that could
@@ -26,8 +29,6 @@ namespace internal {
 // TODO(jgruber): Consider adding physical shrinking.
 class DependentCode : public WeakArrayList {
  public:
-  DECL_CAST(DependentCode)
-
   enum DependencyGroup {
     // Group of code objects that embed a transition to this map, and depend on
     // being deoptimized when the transition is replaced by a new version.
@@ -53,17 +54,25 @@ class DependentCode : public WeakArrayList {
     // Group of code objects that omit run-time type checks for initial maps of
     // constructors.
     kInitialMapChangedGroup = 1 << 6,
-    // Group of code objects that depends on tenuring information in
+    // Group of code objects that depend on tenuring information in
     // AllocationSites not being changed.
     kAllocationSiteTenuringChangedGroup = 1 << 7,
-    // Group of code objects that depends on element transition information in
+    // Group of code objects that depend on element transition information in
     // AllocationSites not being changed.
     kAllocationSiteTransitionChangedGroup = 1 << 8,
+    // Group of code objects that depend on a slot side table property of
+    // a ScriptContext not being changed.
+    kContextCellChangedGroup = 1 << 9,
+    // Group of code objects that depend on particular context's extension
+    // slot to be empty.
+    kEmptyContextExtensionGroup = 1 << 10,
     // IMPORTANT: The last bit must fit into a Smi, i.e. into 31 bits.
   };
   using DependencyGroups = base::Flags<DependencyGroup, uint32_t>;
 
   static const char* DependencyGroupName(DependencyGroup group);
+  static LazyDeoptimizeReason DependencyGroupToLazyDeoptReason(
+      DependencyGroup group);
 
   // Register a dependency of {code} on {object}, of the kinds given by
   // {groups}.
@@ -77,10 +86,16 @@ class DependentCode : public WeakArrayList {
                                          DependencyGroups groups);
 
   template <typename ObjectT>
-  static bool MarkCodeForDeoptimization(Isolate* isolate, ObjectT object,
+  static void DeoptimizeDependencyGroups(Isolate* isolate,
+                                         Tagged<ObjectT> object,
+                                         DependencyGroups groups);
+
+  template <typename ObjectT>
+  static bool MarkCodeForDeoptimization(Isolate* isolate,
+                                        Tagged<ObjectT> object,
                                         DependencyGroups groups);
 
-  V8_EXPORT_PRIVATE static DependentCode empty_dependent_code(
+  V8_EXPORT_PRIVATE static Tagged<DependentCode> empty_dependent_code(
       const ReadOnlyRoots& roots);
   static constexpr RootIndex kEmptyDependentCode =
       RootIndex::kEmptyWeakArrayList;
@@ -93,14 +108,13 @@ class DependentCode : public WeakArrayList {
 
  private:
   // Get/Set {object}'s {DependentCode}.
-  static DependentCode GetDependentCode(HeapObject object);
-  static void SetDependentCode(Handle<HeapObject> object,
-                               Handle<DependentCode> dep);
+  static Tagged<DependentCode> GetDependentCode(Tagged<HeapObject> object);
+  static void SetDependentCode(DirectHandle<HeapObject> object,
+                               DirectHandle<DependentCode> dep);
 
-  static Handle<DependentCode> InsertWeakCode(Isolate* isolate,
-                                              Handle<DependentCode> entries,
-                                              DependencyGroups groups,
-                                              Handle<Code> code);
+  static DirectHandle<DependentCode> InsertWeakCode(
+      Isolate* isolate, Handle<DependentCode> entries, DependencyGroups groups,
+      DirectHandle<Code> code);
 
   bool MarkCodeForDeoptimization(Isolate* isolate,
                                  DependencyGroups deopt_groups);
@@ -108,9 +122,10 @@ class DependentCode : public WeakArrayList {
   void DeoptimizeDependencyGroups(Isolate* isolate, DependencyGroups groups);
 
   // The callback is called for all non-cleared entries, and should return true
-  // iff the current entry should be cleared.
-  using IterateAndCompactFn = std::function<bool(Code, DependencyGroups)>;
-  void IterateAndCompact(const IterateAndCompactFn& fn);
+  // iff the current entry should be cleared. The Function template argument
+  // must be of type: bool (Tagged<Code>, DependencyGroups).
+  template <typename Function>
+  void IterateAndCompact(IsolateForSandbox isolate, const Function& fn);
 
   // Fills the given entry with the last non-cleared entry in this list, and
   // returns the new length after the last non-cleared entry has been moved.

@@ -22,12 +22,14 @@ namespace ash {
 
 // static
 std::string DemoSetupScreen::GetResultString(Result result) {
+  // LINT.IfChange(UsageMetrics)
   switch (result) {
-    case Result::COMPLETED:
+    case Result::kCompleted:
       return "Completed";
-    case Result::CANCELED:
+    case Result::kCanceled:
       return "Canceled";
   }
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/oobe/histograms.xml)
 }
 
 DemoSetupScreen::DemoSetupScreen(base::WeakPtr<DemoSetupScreenView> view,
@@ -50,9 +52,9 @@ void DemoSetupScreen::OnUserAction(const base::Value::List& args) {
   if (action_id == kUserActionStartSetup) {
     StartEnrollment();
   } else if (action_id == kUserActionClose) {
-    exit_callback_.Run(Result::CANCELED);
+    exit_callback_.Run(Result::kCanceled);
   } else if (action_id == kUserActionPowerwash) {
-    SessionManagerClient::Get()->StartDeviceWipe();
+    SessionManagerClient::Get()->StartDeviceWipe(base::DoNothing());
   } else {
     BaseScreen::OnUserAction(args);
   }
@@ -92,7 +94,7 @@ void DemoSetupScreen::OnSetupError(
 }
 
 void DemoSetupScreen::OnSetupSuccess() {
-  exit_callback_.Run(Result::COMPLETED);
+  exit_callback_.Run(Result::kCompleted);
 }
 
 }  // namespace ash

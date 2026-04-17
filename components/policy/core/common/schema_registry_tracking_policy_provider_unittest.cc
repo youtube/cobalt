@@ -8,6 +8,7 @@
 #include <string>
 #include <utility>
 
+#include "base/types/expected_macros.h"
 #include "base/values.h"
 #include "components/policy/core/common/mock_configuration_policy_provider.h"
 #include "components/policy/core/common/policy_bundle.h"
@@ -25,6 +26,8 @@ using testing::_;
 namespace policy {
 
 namespace {
+
+constexpr auto test_reason = PolicyFetchReason::kTest;
 
 const char kTestSchema[] =
     "{"
@@ -52,10 +55,11 @@ class SchemaRegistryTrackingPolicyProviderTest : public testing::Test {
   }
 
   Schema CreateTestSchema() {
-    std::string error;
-    Schema schema = Schema::Parse(kTestSchema, &error);
-    if (!schema.valid())
-      ADD_FAILURE() << error;
+    ASSIGN_OR_RETURN(const auto schema, Schema::Parse(kTestSchema),
+                     [](const auto& e) {
+                       ADD_FAILURE() << e;
+                       return Schema();
+                     });
     return schema;
   }
 
@@ -102,8 +106,8 @@ TEST_F(SchemaRegistryTrackingPolicyProviderTest, PassOnChromePolicy) {
 }
 
 TEST_F(SchemaRegistryTrackingPolicyProviderTest, RefreshPolicies) {
-  EXPECT_CALL(mock_provider_, RefreshPolicies());
-  schema_registry_tracking_provider_.RefreshPolicies();
+  EXPECT_CALL(mock_provider_, RefreshPolicies(test_reason));
+  schema_registry_tracking_provider_.RefreshPolicies(test_reason);
   Mock::VerifyAndClearExpectations(&mock_provider_);
 }
 
@@ -128,13 +132,16 @@ TEST_F(SchemaRegistryTrackingPolicyProviderTest, SchemaReadyWithComponents) {
   mock_provider_.UpdatePolicy(std::move(bundle));
   Mock::VerifyAndClearExpectations(&observer_);
 
-  EXPECT_CALL(mock_provider_, RefreshPolicies()).Times(0);
+  EXPECT_CALL(mock_provider_,
+              RefreshPolicies(PolicyFetchReason::kSchemaUpdated))
+      .Times(0);
   schema_registry_.RegisterComponent(
       PolicyNamespace(POLICY_DOMAIN_EXTENSIONS, "xyz"), CreateTestSchema());
   schema_registry_.SetExtensionsDomainsReady();
   Mock::VerifyAndClearExpectations(&mock_provider_);
 
-  EXPECT_CALL(mock_provider_, RefreshPolicies());
+  EXPECT_CALL(mock_provider_,
+              RefreshPolicies(PolicyFetchReason::kSchemaUpdated));
   schema_registry_.SetDomainReady(POLICY_DOMAIN_CHROME);
   Mock::VerifyAndClearExpectations(&mock_provider_);
 
@@ -173,7 +180,8 @@ TEST_F(SchemaRegistryTrackingPolicyProviderTest, DelegateUpdates) {
   mock_provider_.UpdateChromePolicy(policy_map);
   Mock::VerifyAndClearExpectations(&observer_);
 
-  EXPECT_CALL(mock_provider_, RefreshPolicies());
+  EXPECT_CALL(mock_provider_,
+              RefreshPolicies(PolicyFetchReason::kSchemaUpdated));
   schema_registry_.SetAllDomainsReady();
   EXPECT_TRUE(schema_registry_.IsReady());
   Mock::VerifyAndClearExpectations(&mock_provider_);
@@ -196,7 +204,8 @@ TEST_F(SchemaRegistryTrackingPolicyProviderTest, DelegateUpdates) {
 }
 
 TEST_F(SchemaRegistryTrackingPolicyProviderTest, RemoveAndAddComponent) {
-  EXPECT_CALL(mock_provider_, RefreshPolicies());
+  EXPECT_CALL(mock_provider_,
+              RefreshPolicies(PolicyFetchReason::kSchemaUpdated));
   const PolicyNamespace ns(POLICY_DOMAIN_EXTENSIONS, "xyz");
   schema_registry_.RegisterComponent(ns, CreateTestSchema());
   schema_registry_.SetAllDomainsReady();
@@ -222,7 +231,8 @@ TEST_F(SchemaRegistryTrackingPolicyProviderTest, RemoveAndAddComponent) {
 
   // Adding it back should serve the current policies again, even though they
   // haven't changed on the platform provider.
-  EXPECT_CALL(mock_provider_, RefreshPolicies());
+  EXPECT_CALL(mock_provider_,
+              RefreshPolicies(PolicyFetchReason::kSchemaUpdated));
   schema_registry_.RegisterComponent(ns, CreateTestSchema());
   Mock::VerifyAndClearExpectations(&mock_provider_);
 

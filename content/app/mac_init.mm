@@ -6,10 +6,12 @@
 
 #import <Cocoa/Cocoa.h>
 
+#include "content/common/mac/system_policy.h"
+
 namespace content {
 
 void InitializeMac() {
-  [[NSUserDefaults standardUserDefaults] registerDefaults:@{
+  [NSUserDefaults.standardUserDefaults registerDefaults:@{
     // Exceptions routed to -[NSApplication reportException:] should crash
     // immediately, as opposed being swallowed or presenting UI that gives the
     // user a choice in the matter.
@@ -26,6 +28,8 @@ void InitializeMac() {
     // https://crbug.com/871235.
     @"NSAppSleepDisabled" : @YES,
   }];
+
+  SetSystemPolicyCrashKeys();
 }
 
 }  // namespace content

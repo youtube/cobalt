@@ -10,12 +10,12 @@ import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.Space;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.ui.base.ViewUtils;
 
-/**
- * StatusIconView is a custom view displaying the status icon in the location bar.
- */
+/** StatusIconView is a custom view displaying the status icon in the location bar. */
+@NullMarked
 public class StatusIconView extends LinearLayout {
     private View mIconViewFrame;
     private Space mStatusIconHoldingSpace;
@@ -43,9 +43,11 @@ public class StatusIconView extends LinearLayout {
             // state due to a stale measurement cache. Post a task to request layout to force this
             // visibility change (https://crbug.com/1345552, https://crbug.com/1399457).
             if (wasLayoutPreviouslyRequested && getHandler() != null) {
-                getHandler().post(()
-                                          -> ViewUtils.requestLayout(
-                                                  this, "StatusIconView.setVisibility Runnable"));
+                getHandler()
+                        .post(
+                                () ->
+                                        ViewUtils.requestLayout(
+                                                this, "StatusIconView.setVisibility Runnable"));
             }
         }
         // The holding space should be only be VISIBLE if the icon is GONE. The size should be (the
@@ -53,9 +55,7 @@ public class StatusIconView extends LinearLayout {
         mStatusIconHoldingSpace.setVisibility(visibility == View.GONE ? View.VISIBLE : View.GONE);
     }
 
-    /**
-     * return the status icon's visibility.
-     */
+    /** return the status icon's visibility. */
     int getIconVisibility() {
         return mIconViewFrame.getVisibility();
     }

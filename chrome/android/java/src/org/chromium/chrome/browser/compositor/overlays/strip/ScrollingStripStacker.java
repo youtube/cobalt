@@ -4,37 +4,70 @@
 
 package org.chromium.chrome.browser.compositor.overlays.strip;
 
+import org.chromium.ui.base.LocalizationUtils;
+
 /**
- * A stacker that tells the {@link StripLayoutHelper} how to layer the tabs for the
- * {@link StaticLayout} when the available window width is < 600dp. Tabs will be stacked side by
- * side and the entire strip will scroll. Tabs will never completely overlap each other.
+ * A stacker that tells the {@link StripLayoutHelper} how to layer the views for tab strip. Tabs
+ * will be stacked side by side and the entire strip will scroll. Tabs will never completely overlap
+ * each other.
  */
 public class ScrollingStripStacker extends StripStacker {
+
     @Override
-    public void setTabOffsets(int selectedIndex, StripLayoutTab[] indexOrderedTabs,
-            float tabStackWidth, int maxTabsToStack, float tabOverlapWidth, float stripLeftMargin,
-            float stripRightMargin, float stripWidth, boolean inReorderMode, boolean tabClosing,
-            boolean tabCreating, float cachedTabWidth) {
-        for (int i = 0; i < indexOrderedTabs.length; i++) {
-            StripLayoutTab tab = indexOrderedTabs[i];
-            // When a tab is closed, drawX and width update will be animated so skip this.
-            if (!tabClosing) {
-                tab.setDrawX(tab.getIdealX() + tab.getOffsetX());
-                // When a tab is being created, all tabs are animating to their desired width.
-                if (!tabCreating) tab.setWidth(cachedTabWidth);
-            }
-            tab.setDrawY(tab.getOffsetY());
-            tab.setVisiblePercentage(1.f);
-            tab.setContentOffsetX(0.f);
+    public void pushDrawPropertiesToViews(
+            StripLayoutView[] indexOrderedViews,
+            float xOffset,
+            float visibleWidth,
+            boolean tabClosing,
+            float cachedTabWidth) {
+        for (int i = 0; i < indexOrderedViews.length; i++) {
+            StripLayoutView view = indexOrderedViews[i];
+
+            setDrawXAndY(view, tabClosing, cachedTabWidth);
+            // visibility is based drawX - call this after setting drawX / Y.
+            setVisible(view, xOffset, visibleWidth);
         }
     }
 
-    @Override
-    public void performOcclusionPass(
-            int selectedIndex, StripLayoutTab[] indexOrderedTabs, float stripWidth) {
-        for (int i = 0; i < indexOrderedTabs.length; i++) {
-            StripLayoutTab tab = indexOrderedTabs[i];
-            tab.setVisible((tab.getDrawX() + tab.getWidth()) >= 0 && tab.getDrawX() <= stripWidth);
+    private static void setVisible(StripLayoutView view, float xOffset, float visibleWidth) {
+        float drawXAccountingPadding = 0f;
+        float width = 0f;
+        if (view instanceof StripLayoutGroupTitle groupTitle) {
+            float paddedX = groupTitle.getPaddedX();
+            float paddedWidth = groupTitle.getPaddedWidth();
+            float bottomIndicatorWidth = groupTitle.getBottomIndicatorWidth();
+
+            drawXAccountingPadding = paddedX;
+            if (LocalizationUtils.isLayoutRtl() && bottomIndicatorWidth > 0) {
+                drawXAccountingPadding += paddedWidth - bottomIndicatorWidth;
+            }
+            width = Math.max(bottomIndicatorWidth, paddedWidth);
+        } else if (view instanceof StripLayoutTab) {
+            // Tabs do not have padding.
+            drawXAccountingPadding = view.getDrawX();
+            width = view.getWidth();
+            if (width < StripLayoutTab.MIN_WIDTH) {
+                // Hide the tab if its width is too small to properly display its favicon.
+                view.setVisible(false);
+                return;
+            }
+        } else {
+            assert false : "Method should be invoked only for tabs and groups";
         }
+        view.setVisible(
+                (drawXAccountingPadding + width) >= xOffset
+                        && drawXAccountingPadding <= xOffset + visibleWidth);
+    }
+
+    private static void setDrawXAndY(
+            StripLayoutView view, boolean tabClosing, float cachedTabWidth) {
+        float newDrawX = view.getIdealX() + view.getOffsetX();
+        // Adjust the newDrawX to correctly animate container slide-out in RTL.
+        // TODO(crbug.com/375029950): Investigate if this is still needed.
+        if (view instanceof StripLayoutTab tab && LocalizationUtils.isLayoutRtl() && !tabClosing) {
+            newDrawX += (cachedTabWidth - tab.getWidth());
+        }
+        view.setDrawX(newDrawX);
+        view.setDrawY(view.getOffsetY());
     }
 }

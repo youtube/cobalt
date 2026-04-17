@@ -24,6 +24,8 @@
 
 #include "third_party/blink/renderer/core/html/html_view_source_document.h"
 
+#include "third_party/blink/public/common/view_source/rendering_preferences.h"
+#include "third_party/blink/public/mojom/persistent_renderer_prefs.mojom-blink.h"
 #include "third_party/blink/public/strings/grit/blink_strings.h"
 #include "third_party/blink/renderer/core/css/css_value_id_mappings.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
@@ -47,21 +49,39 @@
 #include "third_party/blink/renderer/core/html/html_table_row_element.h"
 #include "third_party/blink/renderer/core/html/html_table_section_element.h"
 #include "third_party/blink/renderer/core/html/parser/html_view_source_parser.h"
+#include "third_party/blink/renderer/core/input_type_names.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/text/platform_locale.h"
 
 namespace blink {
 
+static const char* const kLineWrapClass = "line-wrap";
+
 class ViewSourceEventListener : public NativeEventListener {
  public:
   ViewSourceEventListener(HTMLTableElement* table, HTMLInputElement* checkbox)
       : table_(table), checkbox_(checkbox) {}
 
-  void Invoke(ExecutionContext*, Event* event) override {
+  void Invoke(ExecutionContext* execution_context, Event* event) override {
     DCHECK_EQ(event->type(), event_type_names::kChange);
-    table_->setAttribute(html_names::kClassAttr,
-                         checkbox_->Checked() ? "line-wrap" : "");
+    table_->setAttribute(
+        html_names::kClassAttr,
+        checkbox_->Checked() ? AtomicString(kLineWrapClass) : g_empty_atom);
+
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_FUCHSIA)
+    // TODO(crbug.com/40255878): The service is implemented in Chrome, so it may
+    // not be provided in other embedders. Ensure that case is handled properly.
+    // TODO(crbug.com/415945840): Implement the PersistentRendererPrefsService
+    // for Android WebViews, and remove the Android part of the above guard.
+    mojo::Remote<mojom::blink::PersistentRendererPrefsService>
+        persistent_renderer_prefs_service;
+    execution_context->GetBrowserInterfaceBroker().GetInterface(
+        persistent_renderer_prefs_service.BindNewPipeAndPassReceiver());
+    DCHECK(persistent_renderer_prefs_service);
+    persistent_renderer_prefs_service->SetViewSourceLineWrapping(
+        checkbox_->Checked());
+#endif
   }
 
   void Trace(Visitor* visitor) const override {
@@ -92,8 +112,8 @@ void HTMLViewSourceDocument::CreateContainingTable() {
   auto* head = MakeGarbageCollected<HTMLHeadElement>(*this);
   auto* meta =
       MakeGarbageCollected<HTMLMetaElement>(*this, CreateElementFlags());
-  meta->setAttribute(html_names::kNameAttr, "color-scheme");
-  meta->setAttribute(html_names::kContentAttr, "light dark");
+  meta->setAttribute(html_names::kNameAttr, keywords::kColorScheme);
+  meta->setAttribute(html_names::kContentAttr, AtomicString("light dark"));
   head->ParserAppendChild(meta);
   html->ParserAppendChild(head);
   auto* body = MakeGarbageCollected<HTMLBodyElement>(*this);
@@ -102,7 +122,8 @@ void HTMLViewSourceDocument::CreateContainingTable() {
   // Create a line gutter div that can be used to make sure the gutter extends
   // down the height of the whole document.
   auto* div = MakeGarbageCollected<HTMLDivElement>(*this);
-  div->setAttribute(html_names::kClassAttr, "line-gutter-backdrop");
+  div->setAttribute(html_names::kClassAttr,
+                    AtomicString("line-gutter-backdrop"));
   body->ParserAppendChild(div);
 
   auto* table = MakeGarbageCollected<HTMLTableElement>(*this);
@@ -113,25 +134,31 @@ void HTMLViewSourceDocument::CreateContainingTable() {
   line_number_ = 0;
 
   // Create a checkbox to control line wrapping.
-  auto* checkbox =
-      MakeGarbageCollected<HTMLInputElement>(*this, CreateElementFlags());
-  checkbox->setAttribute(html_names::kTypeAttr, "checkbox");
+  auto* checkbox = MakeGarbageCollected<HTMLInputElement>(*this);
+  checkbox->setAttribute(html_names::kTypeAttr, input_type_names::kCheckbox);
   checkbox->addEventListener(
       event_type_names::kChange,
       MakeGarbageCollected<ViewSourceEventListener>(table, checkbox),
       /*use_capture=*/false);
   checkbox->setAttribute(html_names::kAriaLabelAttr, WTF::AtomicString(Locale::DefaultLocale().QueryString(
                               IDS_VIEW_SOURCE_LINE_WRAP)));
+
+  if (ViewSourceLineWrappingPreference::Get()) {
+    table->setAttribute(html_names::kClassAttr, AtomicString(kLineWrapClass));
+    checkbox->SetChecked(true);
+  }
+
   auto* label = MakeGarbageCollected<HTMLLabelElement>(*this);
   label->ParserAppendChild(
       Text::Create(*this, WTF::AtomicString(Locale::DefaultLocale().QueryString(
                               IDS_VIEW_SOURCE_LINE_WRAP))));
-  label->setAttribute(html_names::kClassAttr, "line-wrap-control");
+  label->setAttribute(html_names::kClassAttr,
+                      AtomicString("line-wrap-control"));
   label->ParserAppendChild(checkbox);
   // Add the checkbox to a form with autocomplete=off, to avoid form
   // restoration from changing the value of the checkbox.
   auto* form = MakeGarbageCollected<HTMLFormElement>(*this);
-  form->setAttribute(html_names::kAutocompleteAttr, "off");
+  form->setAttribute(html_names::kAutocompleteAttr, AtomicString("off"));
   form->ParserAppendChild(label);
   body->ParserAppendChild(form);
   body->ParserAppendChild(table);
@@ -148,7 +175,6 @@ void HTMLViewSourceDocument::AddSource(
   switch (token.GetType()) {
     case HTMLToken::kUninitialized:
       NOTREACHED();
-      break;
     case HTMLToken::DOCTYPE:
       ProcessDoctypeToken(source, token);
       break;
@@ -163,6 +189,8 @@ void HTMLViewSourceDocument::AddSource(
       ProcessCommentToken(source, token);
       break;
     case HTMLToken::kCharacter:
+    case HTMLToken::kDOMPart:
+      // Process DOM Parts as character tokens.
       ProcessCharacterToken(source, token);
       break;
   }
@@ -170,15 +198,15 @@ void HTMLViewSourceDocument::AddSource(
 
 void HTMLViewSourceDocument::ProcessDoctypeToken(const String& source,
                                                  HTMLToken&) {
-  current_ = AddSpanWithClassName("html-doctype");
-  AddText(source, "html-doctype");
+  current_ = AddSpanWithClassName(class_doctype_);
+  AddText(source, class_doctype_);
   current_ = td_;
 }
 
 void HTMLViewSourceDocument::ProcessEndOfFileToken(const String& source,
                                                    HTMLToken&) {
-  current_ = AddSpanWithClassName("html-end-of-file");
-  AddText(source, "html-end-of-file");
+  current_ = AddSpanWithClassName(class_end_of_file_);
+  AddText(source, class_end_of_file_);
   current_ = td_;
 }
 
@@ -187,7 +215,7 @@ void HTMLViewSourceDocument::ProcessTagToken(
     const HTMLToken& token,
     const HTMLAttributesRanges& attributes_ranges,
     int token_start) {
-  current_ = AddSpanWithClassName("html-tag");
+  current_ = AddSpanWithClassName(class_tag_);
 
   AtomicString tag_name = token.GetName().AsAtomicString();
 
@@ -214,7 +242,7 @@ void HTMLViewSourceDocument::ProcessTagToken(
                  g_empty_atom);
     index =
         AddRange(source, index, attribute_range.name_range.end - token_start,
-                 "html-attribute-name");
+                 class_attribute_name_);
 
     if (tag_name == html_names::kBaseTag && name == html_names::kHrefAttr)
       AddBase(value);
@@ -231,7 +259,7 @@ void HTMLViewSourceDocument::ProcessTagToken(
           name == html_names::kSrcAttr || name == html_names::kHrefAttr;
       index =
           AddRange(source, index, attribute_range.value_range.end - token_start,
-                   "html-attribute-value", is_link,
+                   class_attribute_value_, is_link,
                    tag_name == html_names::kATag, value);
     }
 
@@ -242,21 +270,21 @@ void HTMLViewSourceDocument::ProcessTagToken(
 
 void HTMLViewSourceDocument::ProcessCommentToken(const String& source,
                                                  HTMLToken&) {
-  current_ = AddSpanWithClassName("html-comment");
-  AddText(source, "html-comment");
+  current_ = AddSpanWithClassName(class_comment_);
+  AddText(source, class_comment_);
   current_ = td_;
 }
 
 void HTMLViewSourceDocument::ProcessCharacterToken(const String& source,
                                                    HTMLToken&) {
-  AddText(source, "");
+  AddText(source, g_empty_atom);
 }
 
 Element* HTMLViewSourceDocument::AddSpanWithClassName(
     const AtomicString& class_name) {
   if (current_ == tbody_) {
     AddLine(class_name);
-    return current_;
+    return current_.Get();
   }
 
   auto* span = MakeGarbageCollected<HTMLSpanElement>(*this);
@@ -274,13 +302,13 @@ void HTMLViewSourceDocument::AddLine(const AtomicString& class_name) {
   // stylesheet using counters).
   auto* td =
       MakeGarbageCollected<HTMLTableCellElement>(html_names::kTdTag, *this);
-  td->setAttribute(html_names::kClassAttr, "line-number");
+  td->setAttribute(html_names::kClassAttr, AtomicString("line-number"));
   td->SetIntegralAttribute(html_names::kValueAttr, ++line_number_);
   trow->ParserAppendChild(td);
 
   // Create a second cell for the line contents
   td = MakeGarbageCollected<HTMLTableCellElement>(html_names::kTdTag, *this);
-  td->setAttribute(html_names::kClassAttr, "line-content");
+  td->setAttribute(html_names::kClassAttr, AtomicString("line-content"));
   trow->ParserAppendChild(td);
   current_ = td_ = td;
 
@@ -288,7 +316,7 @@ void HTMLViewSourceDocument::AddLine(const AtomicString& class_name) {
   if (!class_name.empty()) {
     if (class_name == "html-attribute-name" ||
         class_name == "html-attribute-value")
-      current_ = AddSpanWithClassName("html-tag");
+      current_ = AddSpanWithClassName(class_tag_);
     current_ = AddSpanWithClassName(class_name);
   }
 }
@@ -306,9 +334,31 @@ void HTMLViewSourceDocument::AddText(const String& text,
   if (text.empty())
     return;
 
-  // Add in the content, splitting on newlines.
+  // Add in the content, splitting on linebreaks.
+  // \r and \n both count as linebreaks, but \r\n only counts as one linebreak.
   Vector<String> lines;
-  text.Split('\n', true, lines);
+  {
+    unsigned start_pos = 0;
+    unsigned pos = 0;
+    while (pos < text.length()) {
+      if (text[pos] == '\r') {
+        lines.push_back(text.Substring(start_pos, pos - start_pos));
+        pos++;
+        if (pos < text.length() && text[pos] == '\n') {
+          pos++;  // \r\n counts as a single line break.
+        }
+        start_pos = pos;
+      } else if (text[pos] == '\n') {
+        lines.push_back(text.Substring(start_pos, pos - start_pos));
+        pos++;
+        start_pos = pos;
+      } else {
+        pos++;
+      }
+    }
+    lines.push_back(text.Substring(start_pos, text.length() - start_pos));
+  }
+
   unsigned size = lines.size();
   for (unsigned i = 0; i < size; i++) {
     String substring = lines[i];
@@ -362,7 +412,7 @@ Element* HTMLViewSourceDocument::AddBase(const AtomicString& href) {
 Element* HTMLViewSourceDocument::AddLink(const AtomicString& url,
                                          bool is_anchor) {
   if (current_ == tbody_)
-    AddLine("html-tag");
+    AddLine(class_tag_);
 
   // Now create a link for the attribute value instead of a span.
   auto* anchor = MakeGarbageCollected<HTMLAnchorElement>(*this);
@@ -371,13 +421,14 @@ Element* HTMLViewSourceDocument::AddLink(const AtomicString& url,
     class_value = "html-attribute-value html-external-link";
   else
     class_value = "html-attribute-value html-resource-link";
-  anchor->setAttribute(html_names::kClassAttr, class_value);
-  anchor->setAttribute(html_names::kTargetAttr, "_blank");
+  anchor->setAttribute(html_names::kClassAttr, AtomicString(class_value));
+  anchor->setAttribute(html_names::kTargetAttr, AtomicString("_blank"));
   anchor->setAttribute(html_names::kHrefAttr, url);
-  anchor->setAttribute(html_names::kRelAttr, "noreferrer noopener");
+  anchor->setAttribute(html_names::kRelAttr,
+                       AtomicString("noreferrer noopener"));
   // Disallow JavaScript hrefs. https://crbug.com/808407
   if (anchor->Url().ProtocolIsJavaScript())
-    anchor->setAttribute(html_names::kHrefAttr, "about:blank");
+    anchor->setAttribute(html_names::kHrefAttr, AtomicString("about:blank"));
   current_->ParserAppendChild(anchor);
   return anchor;
 }
@@ -395,13 +446,13 @@ int HTMLViewSourceDocument::AddSrcset(const String& source,
     if (tmp.size() > 0) {
       AtomicString link(tmp[0]);
       current_ = AddLink(link, false);
-      AddText(srclist[i], "html-attribute-value");
+      AddText(srclist[i], class_attribute_value_);
       current_ = To<Element>(current_->parentNode());
     } else {
-      AddText(srclist[i], "html-attribute-value");
+      AddText(srclist[i], class_attribute_value_);
     }
     if (i + 1 < size)
-      AddText(",", "html-attribute-value");
+      AddText(",", class_attribute_value_);
   }
   return end;
 }

@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,7 +16,7 @@ export class MultiDeviceSetupDelegate {
    * @param {string=} opt_authToken An auth token to authenticate the request;
    *     only necessary if isPasswordRequiredToSetHost() returns true.
    * @return {!Promise<{success: boolean}>}
-   * TODO(https://crbug.com/1019206): When v1 DeviceSync is turned off, only
+   * TODO(crbug.com/40105247): When v1 DeviceSync is turned off, only
    * use Instance ID since all devices are guaranteed to have one.
    */
   setHostDevice(hostInstanceIdOrLegacyDeviceId, opt_authToken) {}

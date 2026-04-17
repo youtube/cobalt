@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {LifetimeBrowserProxy} from 'chrome://settings/settings.js';
+import type {LifetimeBrowserProxy} from 'chrome://settings/settings.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 
 /**
@@ -10,7 +10,7 @@ import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
  */
 export class TestLifetimeBrowserProxy extends TestBrowserProxy implements
     LifetimeBrowserProxy {
-  // <if expr="not chromeos_ash">
+  // <if expr="not is_chromeos">
   private shouldShowRelaunchDialog_: boolean = false;
   private relaunchConfirmationDialogDescription_: string|null = null;
   // </if>
@@ -19,11 +19,11 @@ export class TestLifetimeBrowserProxy extends TestBrowserProxy implements
     super([
       'restart', 'relaunch',
 
-      // <if expr="not chromeos_ash">
+      // <if expr="not is_chromeos">
       'shouldShowRelaunchDialog', 'getRelaunchConfirmationDialogDescription',
       // </if>
 
-      // <if expr="chromeos_ash">
+      // <if expr="is_chromeos">
       'signOutAndRestart', 'factoryReset',
       // </if>
     ]);
@@ -37,9 +37,9 @@ export class TestLifetimeBrowserProxy extends TestBrowserProxy implements
     this.methodCalled('relaunch');
   }
 
-  // <if expr="not chromeos_ash">
-  shouldShowRelaunchConfirmationDialog() {
-    this.methodCalled('shouldShowRelaunchDialog');
+  // <if expr="not is_chromeos">
+  shouldShowRelaunchConfirmationDialog(alwaysShowDialog: boolean) {
+    this.methodCalled('shouldShowRelaunchDialog', alwaysShowDialog);
     return Promise.resolve(this.shouldShowRelaunchDialog_);
   }
 
@@ -51,13 +51,14 @@ export class TestLifetimeBrowserProxy extends TestBrowserProxy implements
     this.relaunchConfirmationDialogDescription_ = value;
   }
 
-  getRelaunchConfirmationDialogDescription() {
-    this.methodCalled('getRelaunchConfirmationDialogDescription');
+  getRelaunchConfirmationDialogDescription(isVersionUpdate: boolean) {
+    this.methodCalled(
+        'getRelaunchConfirmationDialogDescription', isVersionUpdate);
     return Promise.resolve(this.relaunchConfirmationDialogDescription_);
   }
   // </if>
 
-  // <if expr="chromeos_ash">
+  // <if expr="is_chromeos">
   signOutAndRestart() {
     this.methodCalled('signOutAndRestart');
   }

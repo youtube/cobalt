@@ -22,7 +22,7 @@
 
 #include <mutex>
 
-#include "starboard/android/shared/jni_env_ext.h"
+#include "cobalt/android/jni_headers/VideoSurfaceView_jni.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
@@ -33,6 +33,7 @@ namespace starboard {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
+using base::android::JavaParamRef;
 
 namespace {
 
@@ -50,11 +51,9 @@ bool g_reset_surface_on_clear_window = false;
 
 }  // namespace
 
-extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_media_VideoSurfaceView_nativeOnVideoSurfaceChanged(
+void JNI_VideoSurfaceView_OnVideoSurfaceChanged(
     JNIEnv* env,
-    jobject unused_this,
-    jobject surface) {
+    const JavaParamRef<jobject>& surface) {
   std::lock_guard lock(*GetViewSurfaceMutex());
   if (g_video_surface_holder) {
     g_video_surface_holder->OnSurfaceDestroyed();
@@ -69,15 +68,12 @@ Java_dev_cobalt_media_VideoSurfaceView_nativeOnVideoSurfaceChanged(
     g_native_video_window = NULL;
   }
   if (surface) {
-    g_j_video_surface = env->NewGlobalRef(surface);
-    g_native_video_window = ANativeWindow_fromSurface(env, surface);
+    g_j_video_surface = env->NewGlobalRef(surface.obj());
+    g_native_video_window = ANativeWindow_fromSurface(env, surface.obj());
   }
 }
 
-extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_media_VideoSurfaceView_nativeSetNeedResetSurface(
-    JNIEnv* env,
-    jobject unused_this) {
+void JNI_VideoSurfaceView_SetNeedResetSurface(JNIEnv* env) {
   g_reset_surface_on_clear_window = true;
 }
 

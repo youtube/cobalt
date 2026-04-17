@@ -20,6 +20,7 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/web_contents.h"
+#include "net/http/http_request_headers.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 
 namespace android_webview {
@@ -66,30 +67,6 @@ void AwRenderViewHostExt::DocumentHasImages(DocumentHasImagesResult result) {
     // Otherwise the listener of the response may be starved.
     std::move(result).Run(false);
   }
-}
-
-void AwRenderViewHostExt::RequestNewHitTestDataAt(
-    const gfx::PointF& touch_center,
-    const gfx::SizeF& touch_area) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-
-  // If the new hit testing approach for touch start is enabled we just early
-  // return.
-  if (base::FeatureList::IsEnabled(
-          features::kWebViewHitTestInBlinkOnTouchStart)) {
-    return;
-  }
-
-  // The following code is broken for OOPIF and fenced frames. The hit testing
-  // feature for touch start replaces this code and works correctly in those
-  // scenarios. For mitigating risk we've put the old code behind a feature
-  // flag.
-  //
-  // We only need to get blink::WebView on the renderer side to invoke the
-  // blink hit test Mojo method, so sending this message via LocalMainFrame
-  // interface is enough.
-  if (auto* local_main_frame_remote = GetLocalMainFrameRemote())
-    local_main_frame_remote->HitTest(touch_center, touch_area);
 }
 
 mojom::HitTestDataPtr AwRenderViewHostExt::TakeLastHitTestData() {
@@ -190,8 +167,9 @@ void AwRenderViewHostExt::ShouldOverrideUrlLoading(
   AwContentsClientBridge* client =
       AwContentsClientBridge::FromWebContents(web_contents());
   if (client) {
-    if (!client->ShouldOverrideUrlLoading(url, has_user_gesture, is_redirect,
-                                          is_main_frame, &ignore_navigation)) {
+    if (!client->ShouldOverrideUrlLoading(
+            url, has_user_gesture, is_redirect, is_main_frame,
+            net::HttpRequestHeaders(), &ignore_navigation)) {
       // If the shouldOverrideUrlLoading call caused a java exception we should
       // always return immediately here!
       return;

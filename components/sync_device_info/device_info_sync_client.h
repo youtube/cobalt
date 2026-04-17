@@ -5,10 +5,11 @@
 #ifndef COMPONENTS_SYNC_DEVICE_INFO_DEVICE_INFO_SYNC_CLIENT_H_
 #define COMPONENTS_SYNC_DEVICE_INFO_DEVICE_INFO_SYNC_CLIENT_H_
 
+#include <optional>
 #include <string>
-#include "components/sync/base/model_type.h"
+
+#include "components/sync/base/data_type.h"
 #include "components/sync_device_info/device_info.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace syncer {
 
@@ -24,20 +25,24 @@ class DeviceInfoSyncClient {
 
   virtual std::string GetSigninScopedDeviceId() const = 0;
   virtual bool GetSendTabToSelfReceivingEnabled() const = 0;
-  virtual absl::optional<DeviceInfo::SharingInfo> GetLocalSharingInfo()
+  virtual sync_pb::SyncEnums_SendTabReceivingType
+  GetSendTabToSelfReceivingType() const = 0;
+  virtual std::optional<DeviceInfo::SharingInfo> GetLocalSharingInfo()
       const = 0;
 
   // Returns current FCM registration token if known, empty if the invalidation
-  // service is not enabled. absl::nullopt will be returned if the token has
+  // service is not enabled. std::nullopt will be returned if the token has
   // been requested but hasn't been retrieved yet.
-  virtual absl::optional<std::string> GetFCMRegistrationToken() const = 0;
+  virtual std::optional<std::string> GetFCMRegistrationToken() const = 0;
 
-  // A list of enabled data types, absl::nullopt if the invalidation service is
+  // A list of enabled data types, std::nullopt if the invalidation service is
   // not initialized yet.
-  virtual absl::optional<ModelTypeSet> GetInterestedDataTypes() const = 0;
+  virtual std::optional<DataTypeSet> GetInterestedDataTypes() const = 0;
 
-  // Returns registration information for using a phone-as-a-security-key.
-  virtual absl::optional<DeviceInfo::PhoneAsASecurityKeyInfo>
+  // Returns registration information for using a phone-as-a-security-key, or
+  // else one of the special `Status` values to indicate that the information
+  // isn't ready yet.
+  virtual DeviceInfo::PhoneAsASecurityKeyInfo::StatusOrInfo
   GetPhoneAsASecurityKeyInfo() const = 0;
 
   // Returns whether a CrOS device has User Metric Analysis (UMA) enabled.

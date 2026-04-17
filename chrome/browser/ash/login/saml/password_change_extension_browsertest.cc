@@ -2,7 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <memory>
+#include <string>
+
 #include "ash/constants/ash_switches.h"
+#include "base/command_line.h"
+#include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ash/login/login_pref_names.h"
 #include "chrome/browser/ash/login/saml/in_session_password_change_manager.h"
@@ -14,9 +19,11 @@
 #include "components/prefs/pref_service.h"
 #include "content/public/test/browser_test.h"
 #include "net/base/url_util.h"
+#include "net/http/http_status_code.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace ash {
 
@@ -126,7 +133,8 @@ class PasswordChangeWaiter : public InSessionPasswordChangeManager::Observer {
 
 // Simulates the redirects that Adfs, Azure, and Ping do in the case of
 // password change success, and ensures that we detect each one.
-class PasswordChangeExtensionTest : public extensions::ExtensionBrowserTest {
+class PasswordChangeExtensionTest : public InProcessBrowserTestMixinHostSupport<
+                                        extensions::ExtensionBrowserTest> {
  protected:
   PasswordChangeExtensionTest() = default;
   PasswordChangeExtensionTest& operator=(const PasswordChangeExtensionTest&) =
@@ -139,20 +147,20 @@ class PasswordChangeExtensionTest : public extensions::ExtensionBrowserTest {
     embedded_test_server_.RegisterRequestHandler(
         base::BindRepeating(&FakeChangePasswordIdp::HandleHttpRequest,
                             base::Unretained(&fake_idp_)));
-    mixin_host_.SetUp();
-    extensions::ExtensionBrowserTest::SetUp();
+    InProcessBrowserTestMixinHostSupport<
+        extensions::ExtensionBrowserTest>::SetUp();
   }
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
-    mixin_host_.SetUpCommandLine(command_line);
-    extensions::ExtensionBrowserTest::SetUpCommandLine(command_line);
+    InProcessBrowserTestMixinHostSupport<
+        extensions::ExtensionBrowserTest>::SetUpCommandLine(command_line);
     command_line->AppendSwitchASCII(switches::kSamlPasswordChangeUrl,
                                     embedded_test_server_.base_url().spec());
   }
 
   void SetUpOnMainThread() override {
-    mixin_host_.SetUpOnMainThread();
-    extensions::ExtensionBrowserTest::SetUpOnMainThread();
+    InProcessBrowserTestMixinHostSupport<
+        extensions::ExtensionBrowserTest>::SetUpOnMainThread();
 
     content::WebContents* web_contents =
         browser()->tab_strip_model()->GetActiveWebContents();
@@ -171,16 +179,16 @@ class PasswordChangeExtensionTest : public extensions::ExtensionBrowserTest {
     extension = extensions::ExtensionBrowserTest::InstallExtension(path, 1);
   }
 
+  void TearDownOnMainThread() override {
+    InSessionPasswordChangeManager::ResetForTesting();
+    InProcessBrowserTestMixinHostSupport<
+        extensions::ExtensionBrowserTest>::TearDownOnMainThread();
+    extensions::ExtensionBrowserTest::UninstallExtension(extension->id());
+  }
+
   void WaitForPasswordChangeDetected() {
     PasswordChangeWaiter password_change_waiter;
     password_change_waiter.WaitForPasswordChange();
-  }
-
-  void TearDownOnMainThread() override {
-    InSessionPasswordChangeManager::ResetForTesting();
-    mixin_host_.TearDownOnMainThread();
-    extensions::ExtensionBrowserTest::TearDownOnMainThread();
-    extensions::ExtensionBrowserTest::UninstallExtension(extension->id());
   }
 
   FakeChangePasswordIdp fake_idp_;
@@ -188,11 +196,10 @@ class PasswordChangeExtensionTest : public extensions::ExtensionBrowserTest {
  private:
   net::EmbeddedTestServer embedded_test_server_{
       net::EmbeddedTestServer::Type::TYPE_HTTPS};
-  InProcessBrowserTestMixinHost mixin_host_;
   EmbeddedTestServerSetupMixin embedded_test_server_mixin_{
       &mixin_host_, &embedded_test_server_};
 
-  raw_ptr<const extensions::Extension, ExperimentalAsh> extension;
+  raw_ptr<const extensions::Extension, DanglingUntriaged> extension;
 
   std::unique_ptr<InSessionPasswordChangeManager> password_change_manager_;
 };

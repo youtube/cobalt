@@ -33,8 +33,9 @@ namespace compiler {
 
 template <typename T>
 inline constexpr MachineType MachineTypeForC() {
-  static_assert(std::is_convertible<T, Object>::value,
-                "all non-specialized types must be convertible to Object");
+  static_assert(
+      std::is_convertible_v<T, Tagged<Object>>,
+      "all non-specialized types must be convertible to Tagged<Object>");
   return MachineType::AnyTagged();
 }
 
@@ -82,7 +83,7 @@ class CSignature : public MachineSignature {
     std::array<MachineType, param_count> param_arr{{params...}};
     const size_t buffer_size =
         param_count + (ret == MachineType::None() ? 0 : 1);
-    MachineType* buffer = zone->NewArray<MachineType>(buffer_size);
+    MachineType* buffer = zone->AllocateArray<MachineType>(buffer_size);
     size_t pos = 0;
     size_t return_count = 0;
     if (ret != MachineType::None()) {
@@ -108,7 +109,7 @@ class CSignatureOf : public CSignature {
         MachineTypeForC<Params>()...};
     if (kReturnCount == 1) storage_[0] = MachineTypeForC<Ret>();
     static_assert(
-        std::is_same<decltype(*reps_), decltype(*param_types.data())>::value,
+        std::is_same_v<decltype(*reps_), decltype(*param_types.data())>,
         "type mismatch, cannot memcpy");
     if (kParamCount > 0) {
 #if V8_CC_GNU

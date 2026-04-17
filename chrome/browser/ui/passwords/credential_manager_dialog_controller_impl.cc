@@ -10,36 +10,39 @@
 #include "chrome/browser/ui/passwords/password_dialog_prompts.h"
 #include "chrome/browser/ui/passwords/passwords_model_delegate.h"
 #include "chrome/browser/ui/passwords/ui_utils.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
-#include "components/device_reauth/device_authenticator.h"
 #include "components/password_manager/core/browser/password_bubble_experiment.h"
 #include "components/password_manager/core/browser/password_feature_manager.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_manager_metrics_util.h"
+#include "components/password_manager/core/browser/password_sync_util.h"
 #include "components/password_manager/core/browser/password_ui_utils.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "components/strings/grit/components_strings.h"
-#include "components/sync/driver/sync_service.h"
+#include "components/sync/service/sync_service.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/l10n/l10n_util.h"
 
 namespace {
 
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
 std::u16string GetAuthenticationMessage(PasswordsModelDelegate* delegate) {
-  if (!delegate || !delegate->GetWebContents())
+  std::u16string message;
+  if (!delegate || !delegate->GetWebContents()) {
     return u"";
+  }
   const std::u16string origin = base::UTF8ToUTF16(
       password_manager::GetShownOrigin(delegate->GetWebContents()
                                            ->GetPrimaryMainFrame()
                                            ->GetLastCommittedOrigin()));
-  return l10n_util::GetStringFUTF16(IDS_PASSWORD_MANAGER_FILLING_REAUTH,
-                                    origin);
+  message =
+      l10n_util::GetStringFUTF16(IDS_PASSWORD_MANAGER_FILLING_REAUTH, origin);
+  return message;
 }
-#endif
+#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace
 
@@ -85,7 +88,7 @@ CredentialManagerDialogControllerImpl::GetLocalForms() const {
   return local_credentials_;
 }
 
-std::u16string CredentialManagerDialogControllerImpl::GetAccoutChooserTitle()
+std::u16string CredentialManagerDialogControllerImpl::GetAccountChooserTitle()
     const {
   return l10n_util::GetStringUTF16(IDS_PASSWORD_MANAGER_ACCOUNT_CHOOSER_TITLE);
 }
@@ -112,20 +115,19 @@ std::u16string CredentialManagerDialogControllerImpl::GetAutoSigninText()
 bool CredentialManagerDialogControllerImpl::ShouldShowFooter() const {
   const syncer::SyncService* sync_service =
       SyncServiceFactory::GetForProfile(profile_);
-  return password_bubble_experiment::HasChosenToSyncPasswords(sync_service);
+  // TODO(crbug.com/40067296): Migrate away from `ConsentLevel::kSync` on
+  // desktop platforms and remove #ifdef below.
+#if BUILDFLAG(IS_ANDROID)
+#error If this code is built on Android, please update TODO above.
+#endif  // BUILDFLAG(IS_ANDROID)
+  return password_manager::sync_util::IsSyncFeatureEnabledIncludingPasswords(
+      sync_service);
 }
 
 void CredentialManagerDialogControllerImpl::OnChooseCredentials(
     const password_manager::PasswordForm& password_form,
     password_manager::CredentialType credential_type) {
-  if (local_credentials_.size() == 1) {
-    password_manager::metrics_util::LogAccountChooserUserActionOneAccount(
-        password_manager::metrics_util::ACCOUNT_CHOOSER_CREDENTIAL_CHOSEN);
-  } else {
-    password_manager::metrics_util::LogAccountChooserUserActionManyAccounts(
-        password_manager::metrics_util::ACCOUNT_CHOOSER_CREDENTIAL_CHOSEN);
-  }
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
   if (delegate_->GetPasswordFeatureManager()
           ->IsBiometricAuthenticationBeforeFillingEnabled()) {
     delegate_->AuthenticateUserWithMessage(
@@ -141,10 +143,8 @@ void CredentialManagerDialogControllerImpl::OnChooseCredentials(
 }
 
 void CredentialManagerDialogControllerImpl::OnSignInClicked() {
-  DCHECK_EQ(1u, local_credentials_.size());
-  password_manager::metrics_util::LogAccountChooserUserActionOneAccount(
-      password_manager::metrics_util::ACCOUNT_CHOOSER_SIGN_IN);
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+  CHECK_EQ(1u, local_credentials_.size());
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
   if (delegate_->GetPasswordFeatureManager()
           ->IsBiometricAuthenticationBeforeFillingEnabled()) {
     delegate_->AuthenticateUserWithMessage(
@@ -184,13 +184,6 @@ void CredentialManagerDialogControllerImpl::OnAutoSigninTurnOff() {
 
 void CredentialManagerDialogControllerImpl::OnCloseDialog() {
   if (account_chooser_dialog_) {
-    if (local_credentials_.size() == 1) {
-      password_manager::metrics_util::LogAccountChooserUserActionOneAccount(
-          password_manager::metrics_util::ACCOUNT_CHOOSER_DISMISSED);
-    } else {
-      password_manager::metrics_util::LogAccountChooserUserActionManyAccounts(
-          password_manager::metrics_util::ACCOUNT_CHOOSER_DISMISSED);
-    }
     account_chooser_dialog_ = nullptr;
   }
   if (autosignin_dialog_) {
@@ -216,8 +209,9 @@ void CredentialManagerDialogControllerImpl::OnBiometricReauthCompleted(
     password_manager::PasswordForm password_form,
     password_manager::CredentialType credential_type,
     bool result) {
-  if (!result)
+  if (!result) {
     return;
+  }
   ResetDialog();
   delegate_->ChooseCredential(password_form, credential_type);
 }

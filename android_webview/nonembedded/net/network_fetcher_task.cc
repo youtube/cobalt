@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "android_webview/nonembedded/net/network_impl.h"
-#include "android_webview/nonembedded/nonembedded_jni_headers/NetworkFetcherTask_jni.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/check.h"
@@ -25,6 +24,9 @@
 #include "url/android/gurl_android.h"
 #include "url/gurl.h"
 
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "android_webview/nonembedded/nonembedded_jni_headers/NetworkFetcherTask_jni.h"
+
 namespace android_webview {
 
 namespace {
@@ -37,7 +39,7 @@ void InvokePostRequest(
     const std::string& post_data,
     const std::string& content_type,
     const base::flat_map<std::string, std::string>& post_additional_headers) {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
 
   std::vector<std::string> keys, values;
   for (auto const& header : post_additional_headers) {
@@ -49,8 +51,7 @@ void InvokePostRequest(
       env, reinterpret_cast<intptr_t>(&weak_ptr),
       reinterpret_cast<intptr_t>(task_runner.get()),
       url::GURLAndroid::FromNativeGURL(env, url),
-      base::android::ToJavaByteArray(env, post_data),
-      base::android::ConvertUTF8ToJavaString(env, content_type),
+      base::android::ToJavaByteArray(env, post_data), content_type,
       base::android::ToJavaArrayOfStrings(env, keys),
       base::android::ToJavaArrayOfStrings(env, values));
 }
@@ -59,12 +60,11 @@ void InvokeDownload(TaskWeakPtr weak_ptr,
                     scoped_refptr<base::SequencedTaskRunner> task_runner,
                     const GURL& url,
                     const base::FilePath& file_path) {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   Java_NetworkFetcherTask_download(
       env, reinterpret_cast<intptr_t>(&weak_ptr),
       reinterpret_cast<intptr_t>(task_runner.get()),
-      url::GURLAndroid::FromNativeGURL(env, url),
-      base::android::ConvertUTF8ToJavaString(env, file_path.value()));
+      url::GURLAndroid::FromNativeGURL(env, url), file_path.value());
 }
 
 }  // namespace
@@ -126,8 +126,8 @@ void JNI_NetworkFetcherTask_CallPostRequestCompleteCallback(
     jlong task_runner,
     const base::android::JavaParamRef<jbyteArray>& response_body,
     jint network_error,
-    const base::android::JavaParamRef<jstring>& header_e_tag,
-    const base::android::JavaParamRef<jstring>& header_x_cup_server_proof,
+    std::string& header_e_tag,
+    std::string& header_x_cup_server_proof,
     jlong x_header_retry_after_sec) {
   auto* native_task_runner =
       reinterpret_cast<base::SequencedTaskRunner*>(task_runner);
@@ -139,11 +139,8 @@ void JNI_NetworkFetcherTask_CallPostRequestCompleteCallback(
   native_task_runner->PostTask(
       FROM_HERE,
       base::BindOnce(&NetworkFetcherTask::InvokePostRequestCompleteCallback,
-                     *task, std::make_unique<std::string>(response_body_str),
-                     network_error,
-                     base::android::ConvertJavaStringToUTF8(env, header_e_tag),
-                     base::android::ConvertJavaStringToUTF8(
-                         env, header_x_cup_server_proof),
+                     *task, std::move(response_body_str), network_error,
+                     header_e_tag, header_x_cup_server_proof,
                      x_header_retry_after_sec));
 }
 
@@ -240,7 +237,7 @@ void NetworkFetcherTask::InvokeDownloadToFileCompleteCallback(
 }
 
 void NetworkFetcherTask::InvokePostRequestCompleteCallback(
-    std::unique_ptr<std::string> response_body,
+    std::optional<std::string> response_body,
     int network_error,
     const std::string& header_etag,
     const std::string& header_x_cup_server_proof,
@@ -248,7 +245,8 @@ void NetworkFetcherTask::InvokePostRequestCompleteCallback(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   std::move(post_request_complete_callback_)
       .Run(std::move(response_body), network_error, header_etag,
-           header_x_cup_server_proof, x_header_retry_after_sec);
+           header_x_cup_server_proof, /*header_cookie=*/"",
+           x_header_retry_after_sec);
 }
 
 }  // namespace android_webview

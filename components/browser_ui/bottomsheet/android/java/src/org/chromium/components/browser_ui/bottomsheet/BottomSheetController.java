@@ -6,8 +6,10 @@ package org.chromium.components.browser_ui.bottomsheet;
 
 import androidx.annotation.IntDef;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
-import org.chromium.components.browser_ui.widget.scrim.ScrimCoordinator;
+import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
 import org.chromium.ui.modelutil.PropertyModel;
 
 import java.lang.annotation.Retention;
@@ -19,10 +21,17 @@ import java.lang.annotation.RetentionPolicy;
  * {@link #requestShowContent(BottomSheetContent, boolean)} which will return true if the content
  * was actually shown (see full doc on method).
  */
+@NullMarked
 public interface BottomSheetController {
     /** The different states that the bottom sheet can have. */
-    @IntDef({SheetState.NONE, SheetState.HIDDEN, SheetState.PEEK, SheetState.HALF, SheetState.FULL,
-            SheetState.SCROLLING})
+    @IntDef({
+        SheetState.NONE,
+        SheetState.HIDDEN,
+        SheetState.PEEK,
+        SheetState.HALF,
+        SheetState.FULL,
+        SheetState.SCROLLING
+    })
     @Retention(RetentionPolicy.SOURCE)
     @interface SheetState {
         /**
@@ -30,6 +39,7 @@ public interface BottomSheetController {
          * transitioning between states.
          */
         int NONE = -1;
+
         // Values are used for indexing mStateRatios, should start from 0
         // and can't have gaps. Additionally order is important for these,
         // they go from smallest to largest.
@@ -48,11 +58,19 @@ public interface BottomSheetController {
      * persisted to logs. Entries should not be renumbered and numeric values should never be
      * reused.
      */
-    @IntDef({StateChangeReason.NONE, StateChangeReason.SWIPE, StateChangeReason.BACK_PRESS,
-            StateChangeReason.TAP_SCRIM, StateChangeReason.NAVIGATION,
-            StateChangeReason.COMPOSITED_UI, StateChangeReason.VR, StateChangeReason.PROMOTE_TAB,
-            StateChangeReason.OMNIBOX_FOCUS, StateChangeReason.INTERACTION_COMPLETE,
-            StateChangeReason.MAX_VALUE})
+    @IntDef({
+        StateChangeReason.NONE,
+        StateChangeReason.SWIPE,
+        StateChangeReason.BACK_PRESS,
+        StateChangeReason.TAP_SCRIM,
+        StateChangeReason.NAVIGATION,
+        StateChangeReason.COMPOSITED_UI,
+        StateChangeReason.VR,
+        StateChangeReason.PROMOTE_TAB,
+        StateChangeReason.OMNIBOX_FOCUS,
+        StateChangeReason.INTERACTION_COMPLETE,
+        StateChangeReason.MAX_VALUE
+    })
     @Retention(RetentionPolicy.SOURCE)
     @interface StateChangeReason {
         int NONE = 0;
@@ -88,9 +106,11 @@ public interface BottomSheetController {
      * @param hideReason The reason that the content is being hidden.
      */
     void hideContent(
-            BottomSheetContent content, boolean animate, @StateChangeReason int hideReason);
+            @Nullable BottomSheetContent content,
+            boolean animate,
+            @StateChangeReason int hideReason);
 
-    void hideContent(BottomSheetContent content, boolean animate);
+    void hideContent(@Nullable BottomSheetContent content, boolean animate);
 
     /** @param observer The observer to add. */
     void addObserver(BottomSheetObserver observer);
@@ -98,9 +118,7 @@ public interface BottomSheetController {
     /** @param observer The observer to remove. */
     void removeObserver(BottomSheetObserver observer);
 
-    /**
-     * Expand the sheet. If there is no content in the sheet, this is a noop.
-     */
+    /** Expand the sheet. If there is no content in the sheet, this is a noop. */
     void expandSheet();
 
     /**
@@ -112,7 +130,7 @@ public interface BottomSheetController {
     boolean collapseSheet(boolean animate);
 
     /** @return The content currently showing in the bottom sheet. */
-    BottomSheetContent getCurrentSheetContent();
+    @Nullable BottomSheetContent getCurrentSheetContent();
 
     /** @return The current state of the bottom sheet. */
     @SheetState
@@ -132,27 +150,42 @@ public interface BottomSheetController {
     int getCurrentOffset();
 
     /**
-     * @return The height of the bottom sheet's container in px. This will return 0 if the sheet has
-     *         not been initialized (content has not been requested).
+     * @return The height of the bottom sheet's parent container in px. This is not the bottom sheet
+     *     height. This will return 0 if the sheet has not been initialized (content has not been
+     *     requested).
      */
     int getContainerHeight();
 
     /**
-     * @return The srcim's coordinator. This can be used to customize the bottom sheet's interaction
-     *         with the scrim if the default behavior is not desired -- fading in behind the sheet
-     *         as the sheet is expanded.
+     * @return The width of the bottom sheet's parent container in px. his is not the bottom sheet
+     *     width. This will return 0 if the sheet has not been initialized (content has not been
+     *     requested).
      */
-    ScrimCoordinator getScrimCoordinator();
+    int getContainerWidth();
+
+    /**
+     * @return The maximum width of the bottom sheet. This will return 0 if the sheet has not been
+     *     initialized (content has not been requested). Can be used to measure content if needed in
+     *     {@link BottomSheetContent#getHalfHeightRatio()} and {@link
+     *     BottomSheetContent#getFullHeightRatio()}.
+     */
+    int getMaxSheetWidth();
+
+    /**
+     * Returns the entry point for showing and interacting with scrims. Can be used to customize the
+     * bottom sheet's interaction with the scrim if the default behavior is not desired -- fading in
+     * behind the sheet as the sheet is expanded.
+     */
+    ScrimManager getScrimManager();
 
     /**
      * This method provides a property model that can be used to show the scrim behind the bottom
-     * sheet. This can be used in conjunction with {@link #getScrimCoordinator()} to customize the
-     * scrim's behavior. While this method is not required to show the scrim, this method returns
-     * a model set up to appear behnind the sheet. Common usage is the following:
+     * sheet. This can be used in conjunction with {@link #getScrimManager()} to customize the
+     * scrim's behavior. While this method is not required to show the scrim, this method returns a
+     * model set up to appear behnind the sheet. Common usage is the following:
      *
-     * PropertyModel params = controller.createScrimParams();
-     * // further modify params
-     * controller.getScrimCoordinator().showScrim(params);
+     * <p>PropertyModel params = controller.createScrimParams(); // further modify params
+     * controller.getScrimManager().showScrim(params);
      *
      * @return A property model used to show the scrim behind the bottom sheet.
      */
@@ -160,7 +193,26 @@ public interface BottomSheetController {
 
     /**
      * @return The {@link BackPressHandler} that will handle a back press event when the bottom
-     *         sheet is open or holds sheet content.
+     *     sheet is open or holds sheet content.
      */
     BackPressHandler getBottomSheetBackPressHandler();
+
+    /**
+     * @return Whether the sheet covers the full width of the container, or is limited to only
+     *     partial width.
+     */
+    boolean isFullWidth();
+
+    /**
+     * @return Whether the bottom sheet is being shown on a small screen. This disables the half
+     *     sheet state.
+     */
+    boolean isSmallScreen();
+
+    /**
+     * Whether the bottom sheet is anchored on top of the browser controls. When false, the bottom
+     * sheet will be anchored at the bottom of the window and potentially covering the bottom
+     * controls UI.
+     */
+    boolean isAnchoredToBottomControls();
 }

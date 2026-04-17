@@ -13,7 +13,6 @@
         },
         "name": "args_test args",
         "swarming": {
-          "can_use_on_swarming_builders": true,
           "dimensions": {
             "os": "Linux"
           }

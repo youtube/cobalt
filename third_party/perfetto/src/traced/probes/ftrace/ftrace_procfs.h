@@ -26,6 +26,8 @@
 
 namespace perfetto {
 
+constexpr std::string_view kKretprobeDefaultMaxactives = "1024";
+
 class FtraceProcfs {
  public:
   static const char* const kTracingPaths[];
@@ -48,6 +50,19 @@ class FtraceProcfs {
 
   // Enable the event under with the given |group| and |name|.
   bool EnableEvent(const std::string& group, const std::string& name);
+
+  // Create the kprobe event for the function |name|. The event will be in
+  // |group|/|name|. Depending on the value of |is_retprobe|, installs a kprobe
+  // or a kretprobe.
+  bool CreateKprobeEvent(const std::string& group,
+                         const std::string& name,
+                         bool is_retprobe);
+
+  // Remove kprobe event from the system
+  bool RemoveKprobeEvent(const std::string& group, const std::string& name);
+
+  // Read the "kprobe_profile" file.
+  std::string ReadKprobeStats() const;
 
   // Disable the event under with the given |group| and |name|.
   bool DisableEvent(const std::string& group, const std::string& name);
@@ -76,6 +91,8 @@ class FtraceProcfs {
   bool ClearFunctionFilters();
   bool AppendFunctionGraphFilters(const std::vector<std::string>& filters);
   bool ClearFunctionGraphFilters();
+  bool SetMaxGraphDepth(uint32_t depth);
+  bool ClearMaxGraphDepth();
 
   // Get all triggers for event with the given |group| and |name|.
   std::vector<std::string> ReadEventTriggers(const std::string& group,
@@ -120,6 +137,9 @@ class FtraceProcfs {
   // by the number of CPUs.
   bool SetCpuBufferSizeInPages(size_t pages);
 
+  // Returns the current per-cpu buffer size in pages.
+  size_t GetCpuBufferSizeInPages();
+
   // Returns the number of CPUs.
   // This will match the number of tracing/per_cpu/cpuXX directories.
   size_t virtual NumberOfCpus() const;
@@ -154,6 +174,9 @@ class FtraceProcfs {
 
   // Get all the available clocks.
   std::set<std::string> AvailableClocks();
+
+  uint32_t ReadBufferPercent();
+  bool SetBufferPercent(uint32_t percent);
 
   // Get all the enabled events.
   virtual std::vector<std::string> ReadEnabledEvents();

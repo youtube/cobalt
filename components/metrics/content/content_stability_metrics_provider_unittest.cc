@@ -15,9 +15,6 @@
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/child_process_data.h"
 #include "content/public/browser/child_process_termination_info.h"
-#include "content/public/browser/notification_details.h"
-#include "content/public/browser/notification_source.h"
-#include "content/public/browser/notification_types.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/site_instance.h"
 #include "content/public/common/process_type.h"
@@ -33,6 +30,11 @@ namespace metrics {
 namespace {
 
 const char kTestUtilityProcessName[] = "test_utility_process";
+const char kTestCdmServiceUtilityProcessName[] = "media.mojom.CdmServiceBroker";
+#if BUILDFLAG(IS_WIN)
+const char kTestMediaFoundationServiceUtilityProcessName[] =
+    "media.mojom.MediaFoundationServiceBroker";
+#endif
 
 class MockExtensionsHelper : public ExtensionsHelper {
  public:
@@ -78,7 +80,8 @@ TEST_F(ContentStabilityMetricsProviderTest,
   base::HistogramTester histogram_tester;
   metrics::ContentStabilityMetricsProvider provider(prefs(), nullptr);
 
-  content::ChildProcessData child_process_data(content::PROCESS_TYPE_UTILITY);
+  content::ChildProcessData child_process_data(content::PROCESS_TYPE_UTILITY,
+                                               content::ChildProcessId());
   child_process_data.metrics_name = kTestUtilityProcessName;
 
   provider.BrowserChildProcessLaunchedAndConnected(child_process_data);
@@ -107,8 +110,96 @@ TEST_F(ContentStabilityMetricsProviderTest,
                                      StabilityEventType::kUtilityCrash, 2);
 }
 
+TEST_F(ContentStabilityMetricsProviderTest, CdmServiceProcessObserverUtility) {
+  base::HistogramTester histogram_tester;
+  metrics::ContentStabilityMetricsProvider provider(prefs(), nullptr);
+
+  content::ChildProcessData child_process_data(content::PROCESS_TYPE_UTILITY,
+                                               content::ChildProcessId());
+  child_process_data.metrics_name = kTestCdmServiceUtilityProcessName;
+  child_process_data.sandbox_type = sandbox::mojom::Sandbox::kCdm;
+
+  provider.BrowserChildProcessLaunchedAndConnected(child_process_data);
+  const int kExitCode = 333;
+  content::ChildProcessTerminationInfo abnormal_termination_info;
+  abnormal_termination_info.status =
+      base::TERMINATION_STATUS_ABNORMAL_TERMINATION;
+  abnormal_termination_info.exit_code = kExitCode;
+  provider.BrowserChildProcessCrashed(child_process_data,
+                                      abnormal_termination_info);
+  provider.BrowserChildProcessCrashed(child_process_data,
+                                      abnormal_termination_info);
+
+  // Verify metrics.
+  histogram_tester.ExpectUniqueSample(
+      "Stability.Media.CdmServiceBroker.Crash.ExitCode", kExitCode, 2);
+}
+
+TEST_F(ContentStabilityMetricsProviderTest,
+       CdmServiceProcessObserverUtilityLaunchFailed) {
+  base::HistogramTester histogram_tester;
+  metrics::ContentStabilityMetricsProvider provider(prefs(), nullptr);
+
+  content::ChildProcessData child_process_data(content::PROCESS_TYPE_UTILITY,
+                                               content::ChildProcessId());
+  child_process_data.metrics_name = kTestCdmServiceUtilityProcessName;
+  child_process_data.sandbox_type = sandbox::mojom::Sandbox::kCdm;
+
+  const int kExitCode = 777;
+  content::ChildProcessTerminationInfo abnormal_termination_info;
+  abnormal_termination_info.status = base::TERMINATION_STATUS_LAUNCH_FAILED;
+  abnormal_termination_info.exit_code = kExitCode;
+#if BUILDFLAG(IS_WIN)
+  const int kLastError = 9;
+  abnormal_termination_info.last_error = kLastError;
+#endif
+  provider.BrowserChildProcessLaunchFailed(child_process_data,
+                                           abnormal_termination_info);
+
+  // Verify metrics.
+  histogram_tester.ExpectUniqueSample("Stability.Media.CdmServiceBroker.Launch",
+                                      false, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Stability.Media.CdmServiceBroker.Launch.LaunchErrorCode", kExitCode, 1);
+#if BUILDFLAG(IS_WIN)
+  histogram_tester.ExpectUniqueSample(
+      "Stability.Media.CdmServiceBroker.Launch.WinLastError", kLastError, 1);
+#endif
+}
+
+#if BUILDFLAG(IS_WIN)
+TEST_F(ContentStabilityMetricsProviderTest,
+       MediaFoundationServiceProcessObserverUtility) {
+  base::HistogramTester histogram_tester;
+  metrics::ContentStabilityMetricsProvider provider(prefs(), nullptr);
+
+  content::ChildProcessData child_process_data(content::PROCESS_TYPE_UTILITY,
+                                               content::ChildProcessId());
+  child_process_data.metrics_name =
+      kTestMediaFoundationServiceUtilityProcessName;
+  child_process_data.sandbox_type =
+      sandbox::mojom::Sandbox::kMediaFoundationCdm;
+
+  provider.BrowserChildProcessLaunchedAndConnected(child_process_data);
+  const int kExitCode = 555;
+  content::ChildProcessTerminationInfo abnormal_termination_info;
+  abnormal_termination_info.status =
+      base::TERMINATION_STATUS_ABNORMAL_TERMINATION;
+  abnormal_termination_info.exit_code = kExitCode;
+  provider.BrowserChildProcessCrashed(child_process_data,
+                                      abnormal_termination_info);
+  provider.BrowserChildProcessCrashed(child_process_data,
+                                      abnormal_termination_info);
+
+  // Verify metrics.
+  histogram_tester.ExpectUniqueSample(
+      "Stability.Media.MediaFoundationServiceBroker.Crash.ExitCode", kExitCode,
+      2);
+}
+#endif  // BUILDFLAG(IS_WIN)
+
 #if !BUILDFLAG(IS_ANDROID)
-TEST_F(ContentStabilityMetricsProviderTest, NotificationObserver) {
+TEST_F(ContentStabilityMetricsProviderTest, RenderProcessObserver) {
   metrics::ContentStabilityMetricsProvider provider(prefs(), nullptr);
   content::TestBrowserContext browser_context;
   content::MockRenderProcessHostFactory rph_factory;
@@ -125,36 +216,27 @@ TEST_F(ContentStabilityMetricsProviderTest, NotificationObserver) {
   content::ChildProcessTerminationInfo crash_details;
   crash_details.status = base::TERMINATION_STATUS_PROCESS_CRASHED;
   crash_details.exit_code = 1;
-  provider.Observe(
-      content::NOTIFICATION_RENDERER_PROCESS_CLOSED,
-      content::Source<content::RenderProcessHost>(host),
-      content::Details<content::ChildProcessTerminationInfo>(&crash_details));
+  provider.OnRenderProcessHostCreated(host);
+  provider.RenderProcessExited(host, crash_details);
 
   content::ChildProcessTerminationInfo term_details;
   term_details.status = base::TERMINATION_STATUS_ABNORMAL_TERMINATION;
   term_details.exit_code = 1;
-  provider.Observe(
-      content::NOTIFICATION_RENDERER_PROCESS_CLOSED,
-      content::Source<content::RenderProcessHost>(host),
-      content::Details<content::ChildProcessTerminationInfo>(&term_details));
+  provider.OnRenderProcessHostCreated(host);
+  provider.RenderProcessExited(host, term_details);
 
   // Kill does not increment renderer crash count.
   content::ChildProcessTerminationInfo kill_details;
   kill_details.status = base::TERMINATION_STATUS_PROCESS_WAS_KILLED;
   kill_details.exit_code = 1;
-  provider.Observe(
-      content::NOTIFICATION_RENDERER_PROCESS_CLOSED,
-      content::Source<content::RenderProcessHost>(host),
-      content::Details<content::ChildProcessTerminationInfo>(&kill_details));
+  provider.OnRenderProcessHostCreated(host);
+  provider.RenderProcessExited(host, kill_details);
 
   // Failed launch increments failed launch count.
   content::ChildProcessTerminationInfo failed_launch_details;
   failed_launch_details.status = base::TERMINATION_STATUS_LAUNCH_FAILED;
   failed_launch_details.exit_code = 1;
-  provider.Observe(content::NOTIFICATION_RENDERER_PROCESS_CLOSED,
-                   content::Source<content::RenderProcessHost>(host),
-                   content::Details<content::ChildProcessTerminationInfo>(
-                       &failed_launch_details));
+  provider.OnRenderProcessHostCreationFailed(host, failed_launch_details);
 
   // Verify metrics.
   histogram_tester.ExpectBucketCount("Stability.Counts2",
@@ -164,6 +246,26 @@ TEST_F(ContentStabilityMetricsProviderTest, NotificationObserver) {
   histogram_tester.ExpectBucketCount("Stability.Counts2",
                                      StabilityEventType::kExtensionCrash, 0);
 }
+
+TEST_F(ContentStabilityMetricsProviderTest,
+       MetricsServicesWebContentsObserver) {
+  metrics::ContentStabilityMetricsProvider provider(prefs(), nullptr);
+  base::HistogramTester histogram_tester;
+  histogram_tester.ExpectBucketCount("Stability.Counts2",
+                                     StabilityEventType::kPageLoad, 0);
+
+  // Simulate page loads.
+  const auto expected_page_load_count = 4;
+  for (int i = 0; i < expected_page_load_count; i++) {
+    provider.OnPageLoadStarted();
+  }
+
+  // Verify metrics.
+  histogram_tester.ExpectBucketCount("Stability.Counts2",
+                                     StabilityEventType::kPageLoad,
+                                     expected_page_load_count);
+}
+
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 // Assertions for an extension related crash.
@@ -192,19 +294,15 @@ TEST_F(ContentStabilityMetricsProviderTest, ExtensionsNotificationObserver) {
   content::ChildProcessTerminationInfo crash_details;
   crash_details.status = base::TERMINATION_STATUS_PROCESS_CRASHED;
   crash_details.exit_code = 1;
-  provider.Observe(
-      content::NOTIFICATION_RENDERER_PROCESS_CLOSED,
-      content::Source<content::RenderProcessHost>(extension_host),
-      content::Details<content::ChildProcessTerminationInfo>(&crash_details));
+  provider.OnRenderProcessHostCreated(extension_host);
+  provider.RenderProcessExited(extension_host, crash_details);
 
   // Failed launch increments failed launch count.
   content::ChildProcessTerminationInfo failed_launch_details;
   failed_launch_details.status = base::TERMINATION_STATUS_LAUNCH_FAILED;
   failed_launch_details.exit_code = 1;
-  provider.Observe(content::NOTIFICATION_RENDERER_PROCESS_CLOSED,
-                   content::Source<content::RenderProcessHost>(extension_host),
-                   content::Details<content::ChildProcessTerminationInfo>(
-                       &failed_launch_details));
+  provider.OnRenderProcessHostCreationFailed(extension_host,
+                                             failed_launch_details);
 
   // Verify metrics.
   histogram_tester.ExpectBucketCount("Stability.Counts2",

@@ -3,12 +3,11 @@
 # found in the LICENSE file.
 
 source_set("ios") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   sources = [
-    "distiller_page_factory_ios.h",
-    "distiller_page_factory_ios.mm",
     "distiller_page_ios.h",
     "distiller_page_ios.mm",
+    "distiller_page_utils.h",
+    "distiller_page_utils.mm",
   ]
 
   deps = [
@@ -20,4 +19,8 @@ source_set("ios") {
     "//ios/web/public/js_messaging",
     "//url",
   ]
+
+  public_deps = [ "//base" ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 }

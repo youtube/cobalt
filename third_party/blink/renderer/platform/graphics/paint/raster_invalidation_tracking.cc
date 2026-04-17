@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "third_party/blink/renderer/platform/graphics/paint/raster_invalidation_tracking.h"
 
 #include <algorithm>
@@ -9,7 +14,6 @@
 #include "base/logging.h"
 #include "cc/layers/layer.h"
 #include "third_party/blink/renderer/platform/geometry/geometry_as_json.h"
-#include "third_party/blink/renderer/platform/geometry/layout_rect.h"
 #include "third_party/blink/renderer/platform/graphics/color.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_canvas.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_recorder.h"
@@ -89,7 +93,7 @@ void RasterInvalidationTracking::AsJSON(JSONObject* json, bool detailed) const {
     std::sort(sorted.begin(), sorted.end(), &CompareRasterInvalidationInfo);
     auto invalidations_json = std::make_unique<JSONArray>();
     gfx::Rect last_rect;
-    for (auto* it = sorted.begin(); it != sorted.end(); it++) {
+    for (auto it = sorted.begin(); it != sorted.end(); ++it) {
       const auto& info = *it;
       if (detailed) {
         auto info_json = std::make_unique<JSONObject>();
@@ -163,7 +167,7 @@ void RasterInvalidationTracking::CheckUnderInvalidations(
   cc::Region invalidation_region;
   if (!g_simulate_raster_under_invalidations)
     invalidation_region = invalidation_region_since_last_paint_;
-  absl::optional<PaintRecord> old_record = std::move(last_painted_record_);
+  std::optional<PaintRecord> old_record = std::move(last_painted_record_);
 
   last_painted_record_ = new_record;
   last_interest_rect_ = new_interest_rect;

@@ -2,9 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
-
-assert(is_chromeos_ash)
+assert(is_chromeos)
 
 static_library("secure_channel") {
   sources = [
@@ -32,7 +30,6 @@ static_library("secure_channel") {
     "ble_connection_manager.h",
     "ble_connection_manager_impl.cc",
     "ble_connection_manager_impl.h",
-    "ble_constants.h",
     "ble_initiator_connection_attempt.cc",
     "ble_initiator_connection_attempt.h",
     "ble_initiator_failure_type.cc",
@@ -164,9 +161,6 @@ static_library("secure_channel") {
     "single_client_proxy.h",
     "single_client_proxy_impl.cc",
     "single_client_proxy_impl.h",
-    "timer_factory.h",
-    "timer_factory_impl.cc",
-    "timer_factory_impl.h",
     "wire_message.cc",
     "wire_message.h",
   ]
@@ -174,9 +168,9 @@ static_library("secure_channel") {
   deps = [
     "//ash/constants",
     "//base",
-    "//chromeos",
     "//chromeos/ash/components/multidevice",
     "//chromeos/ash/components/multidevice/logging",
+    "//chromeos/ash/components/timer_factory",
     "//chromeos/ash/services/device_sync/proto",
     "//chromeos/ash/services/secure_channel/public/cpp/shared",
     "//chromeos/ash/services/secure_channel/public/mojom",
@@ -192,8 +186,8 @@ static_library("secure_channel") {
 
   visibility = [
     ":*",
-    "//chrome/browser/ash",
-    "//chrome/browser/chromeos",
+    "//chrome/browser/ash/eche_app",
+    "//chrome/browser/ash/secure_channel",
     "//chromeos/ash/services/secure_channel/public/cpp/client:unit_tests",
   ]
 }
@@ -246,8 +240,8 @@ static_library("test_support") {
     "fake_multiplexed_channel.h",
     "fake_nearby_connection_manager.cc",
     "fake_nearby_connection_manager.h",
-    "fake_one_shot_timer.cc",
-    "fake_one_shot_timer.h",
+    "fake_nearby_connection_state_listener.cc",
+    "fake_nearby_connection_state_listener.h",
     "fake_pending_connection_manager.cc",
     "fake_pending_connection_manager.h",
     "fake_pending_connection_request.h",
@@ -263,8 +257,6 @@ static_library("test_support") {
     "fake_secure_context.h",
     "fake_single_client_proxy.cc",
     "fake_single_client_proxy.h",
-    "fake_timer_factory.cc",
-    "fake_timer_factory.h",
     "fake_wire_message.cc",
     "fake_wire_message.h",
     "mock_foreground_eid_generator.cc",
@@ -280,6 +272,7 @@ static_library("test_support") {
     "//base/test:test_support",
     "//chromeos/ash/components/multidevice",
     "//chromeos/ash/components/multidevice/logging",
+    "//chromeos/ash/components/timer_factory",
     "//chromeos/ash/services/secure_channel/public/cpp/shared",
     "//chromeos/ash/services/secure_channel/public/mojom",
     "//device/bluetooth",
@@ -344,6 +337,8 @@ source_set("unit_tests") {
     "//chromeos/ash/components/multidevice",
     "//chromeos/ash/components/multidevice:test_support",
     "//chromeos/ash/components/multidevice/logging",
+    "//chromeos/ash/components/timer_factory:test_support",
+    "//chromeos/ash/components/timer_factory:timer_factory",
     "//chromeos/ash/services/secure_channel/public/cpp/client:test_support",
     "//chromeos/ash/services/secure_channel/public/cpp/client:unit_tests",
     "//chromeos/ash/services/secure_channel/public/cpp/shared",

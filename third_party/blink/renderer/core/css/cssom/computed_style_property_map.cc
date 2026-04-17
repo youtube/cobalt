@@ -5,10 +5,10 @@
 #include "third_party/blink/renderer/core/css/cssom/computed_style_property_map.h"
 
 #include "third_party/blink/renderer/core/css/computed_style_css_value_mapping.h"
-#include "third_party/blink/renderer/core/css/css_custom_property_declaration.h"
 #include "third_party/blink/renderer/core/css/css_function_value.h"
 #include "third_party/blink/renderer/core/css/css_identifier_value.h"
 #include "third_party/blink/renderer/core/css/css_numeric_literal_value.h"
+#include "third_party/blink/renderer/core/css/css_unparsed_declaration_value.h"
 #include "third_party/blink/renderer/core/css/css_variable_data.h"
 #include "third_party/blink/renderer/core/css/properties/computed_style_utils.h"
 #include "third_party/blink/renderer/core/css/properties/css_property_ref.h"
@@ -30,7 +30,8 @@ unsigned int ComputedStylePropertyMap::size() const {
              StyledElement()->GetExecutionContext())
              .size() +
          ComputedStyleCSSValueMapping::GetVariables(
-             *style, document.GetPropertyRegistry())
+             *style, document.GetPropertyRegistry(),
+             CSSValuePhase::kComputedValue)
              .size();
 }
 
@@ -52,7 +53,7 @@ bool ComputedStylePropertyMap::ComparePropertyNames(
 Element* ComputedStylePropertyMap::StyledElement() const {
   DCHECK(element_);
   if (!pseudo_id_) {
-    return element_;
+    return element_.Get();
   }
   if (PseudoElement* pseudo_element = element_->GetPseudoElement(pseudo_id_)) {
     return pseudo_element;
@@ -69,7 +70,8 @@ const ComputedStyle* ComputedStylePropertyMap::UpdateStyle() const {
   // Update style before getting the value for the property
   // This could cause the element to be blown away. This code is copied from
   // CSSComputedStyleDeclaration::GetPropertyCSSValue.
-  element->GetDocument().UpdateStyleAndLayoutTreeForNode(element);
+  element->GetDocument().UpdateStyleAndLayoutTreeForElement(
+      element, DocumentUpdateReason::kComputedStyle);
   element = StyledElement();
   if (!element) {
     return nullptr;
@@ -104,7 +106,8 @@ const CSSValue* ComputedStylePropertyMap::GetCustomProperty(
   }
   CSSPropertyRef ref(property_name, element_->GetDocument());
   return ref.GetProperty().CSSValueFromComputedStyle(
-      *style, nullptr /* layout_object */, false /* allow_visited_style */);
+      *style, nullptr /* layout_object */, false /* allow_visited_style */,
+      CSSValuePhase::kComputedValue);
 }
 
 void ComputedStylePropertyMap::ForEachProperty(IterationFunction visitor) {
@@ -124,7 +127,8 @@ void ComputedStylePropertyMap::ForEachProperty(IterationFunction visitor) {
     DCHECK(property);
     DCHECK(!property->IDEquals(CSSPropertyID::kVariable));
     const CSSValue* value = property->CSSValueFromComputedStyle(
-        *style, nullptr /* layout_object */, false);
+        *style, nullptr /* layout_object */, false,
+        CSSValuePhase::kComputedValue);
     if (value) {
       values.emplace_back(CSSPropertyName(property->PropertyID()), value);
     }
@@ -132,8 +136,8 @@ void ComputedStylePropertyMap::ForEachProperty(IterationFunction visitor) {
 
   const PropertyRegistry* registry = document.GetPropertyRegistry();
 
-  for (const auto& name_value :
-       ComputedStyleCSSValueMapping::GetVariables(*style, registry)) {
+  for (const auto& name_value : ComputedStyleCSSValueMapping::GetVariables(
+           *style, registry, CSSValuePhase::kComputedValue)) {
     values.emplace_back(CSSPropertyName(name_value.key), name_value.value);
   }
 
@@ -155,11 +159,11 @@ String ComputedStylePropertyMap::SerializationForShorthand(
   }
 
   if (const CSSValue* value = property.CSSValueFromComputedStyle(
-          *style, nullptr /* layout_object */, false)) {
+          *style, nullptr /* layout_object */, false,
+          CSSValuePhase::kComputedValue)) {
     return value->CssText();
   }
 
-  NOTREACHED();
   return "";
 }
 

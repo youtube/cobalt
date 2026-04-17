@@ -3,9 +3,11 @@
 // found in the LICENSE file.
 
 package org.chromium.shape_detection;
+import org.chromium.build.annotations.NullMarked;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+
 import org.chromium.mojo.system.MessagePipeHandle;
 import org.chromium.mojo.system.impl.CoreImpl;
 import org.chromium.shape_detection.mojom.BarcodeDetectionProvider;
@@ -13,6 +15,7 @@ import org.chromium.shape_detection.mojom.FaceDetectionProvider;
 import org.chromium.shape_detection.mojom.TextDetection;
 
 @JNINamespace("shape_detection")
+@NullMarked
 class InterfaceRegistrar {
     static MessagePipeHandle messagePipeHandleFromNative(long nativeHandle) {
         return CoreImpl.getInstance().acquireNativeHandle(nativeHandle).toMessagePipeHandle();

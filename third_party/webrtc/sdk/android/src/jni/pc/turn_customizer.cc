@@ -22,7 +22,7 @@ TurnCustomizer* GetNativeTurnCustomizer(
     const JavaRef<jobject>& j_turn_customizer) {
   if (IsNull(env, j_turn_customizer))
     return nullptr;
-  return reinterpret_cast<webrtc::TurnCustomizer*>(
+  return reinterpret_cast<TurnCustomizer*>(
       Java_TurnCustomizer_getNativeTurnCustomizer(env, j_turn_customizer));
 }
 

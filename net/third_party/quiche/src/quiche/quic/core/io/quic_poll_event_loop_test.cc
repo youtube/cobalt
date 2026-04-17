@@ -9,6 +9,8 @@
 
 #include <cerrno>
 #include <memory>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/memory/memory.h"
@@ -46,7 +48,7 @@ constexpr QuicTime::Delta kDefaultTimeout = QuicTime::Delta::FromSeconds(100);
 class MockQuicSocketEventListener : public QuicSocketEventListener {
  public:
   MOCK_METHOD(void, OnSocketEvent,
-              (QuicEventLoop* /*event_loop*/, QuicUdpSocketFd /*fd*/,
+              (QuicEventLoop* /*event_loop*/, SocketFd /*fd*/,
                QuicSocketEventMask /*events*/),
               (override));
 };
@@ -62,7 +64,7 @@ class QuicPollEventLoopForTest : public QuicPollEventLoop {
   QuicPollEventLoopForTest(MockClock* clock)
       : QuicPollEventLoop(clock), clock_(clock) {}
 
-  int PollSyscall(pollfd* fds, nfds_t nfds, int timeout) override {
+  int PollSyscall(pollfd* fds, size_t nfds, int timeout) override {
     timeouts_.push_back(timeout);
     if (eintr_after_ != QuicTime::Delta::Infinite()) {
       errno = EINTR;
@@ -70,17 +72,25 @@ class QuicPollEventLoopForTest : public QuicPollEventLoop {
       eintr_after_ = QuicTime::Delta::Infinite();
       return -1;
     }
-    clock_->AdvanceTime(QuicTime::Delta::FromMilliseconds(timeout));
+    if (poll_return_after_ != QuicTime::Delta::Infinite()) {
+      clock_->AdvanceTime(poll_return_after_);
+      poll_return_after_ = QuicTime::Delta::Infinite();
+    } else {
+      clock_->AdvanceTime(QuicTime::Delta::FromMilliseconds(timeout));
+    }
+
     return QuicPollEventLoop::PollSyscall(fds, nfds, timeout);
   }
 
   void TriggerEintrAfter(QuicTime::Delta time) { eintr_after_ = time; }
+  void ReturnFromPollAfter(QuicTime::Delta time) { poll_return_after_ = time; }
 
   const std::vector<int>& timeouts() const { return timeouts_; }
 
  private:
   MockClock* clock_;
   QuicTime::Delta eintr_after_ = QuicTime::Delta::Infinite();
+  QuicTime::Delta poll_return_after_ = QuicTime::Delta::Infinite();
   std::vector<int> timeouts_;
 };
 
@@ -255,6 +265,15 @@ TEST_F(QuicPollEventLoopTest, EintrHandler) {
   ASSERT_TRUE(loop_.RegisterSocket(read_fd_, kAllEvents, &listener));
 
   loop_.TriggerEintrAfter(QuicTime::Delta::FromMilliseconds(25));
+  loop_.RunEventLoopOnce(QuicTime::Delta::FromMilliseconds(100));
+  EXPECT_THAT(loop_.timeouts(), ElementsAre(100, 75));
+}
+
+TEST_F(QuicPollEventLoopTest, PollReturnsEarly) {
+  testing::StrictMock<MockQuicSocketEventListener> listener;
+  ASSERT_TRUE(loop_.RegisterSocket(read_fd_, kAllEvents, &listener));
+
+  loop_.ReturnFromPollAfter(QuicTime::Delta::FromMilliseconds(25));
   loop_.RunEventLoopOnce(QuicTime::Delta::FromMilliseconds(100));
   EXPECT_THAT(loop_.timeouts(), ElementsAre(100, 75));
 }

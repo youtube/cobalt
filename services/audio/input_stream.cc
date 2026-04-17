@@ -10,20 +10,17 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/strings/strcat.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
+#include "base/strings/to_string.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "media/audio/audio_manager.h"
 #include "media/base/audio_parameters.h"
-#include "media/base/user_input_monitor.h"
 #include "media/mojo/mojom/audio_processing.mojom.h"
 #include "mojo/public/cpp/system/buffer.h"
 #include "mojo/public/cpp/system/handle.h"
 #include "mojo/public/cpp/system/platform_handle.h"
 #include "services/audio/input_sync_writer.h"
-#include "services/audio/user_input_monitor.h"
-#include "third_party/abseil-cpp/absl/utility/utility.h"
 
 namespace audio {
 
@@ -49,7 +46,6 @@ const char* ErrorCodeToString(InputController::ErrorCode error) {
     default:
       NOTREACHED();
   }
-  return "UNKNOWN_ERROR";
 }
 
 std::string GetCtorLogString(const std::string& device_id,
@@ -74,7 +70,6 @@ InputStream::InputStream(
     mojo::PendingRemote<media::mojom::AudioLog> log,
     media::AudioManager* audio_manager,
     media::AecdumpRecordingManager* aecdump_recording_manager,
-    std::unique_ptr<UserInputMonitor> user_input_monitor,
     DeviceOutputListener* device_output_listener,
     media::mojom::AudioProcessingConfigPtr processing_config,
     const std::string& device_id,
@@ -95,8 +90,7 @@ InputStream::InputStream(
                : base::DoNothing(),
           shared_memory_count,
           params,
-          &foreign_socket_)),
-      user_input_monitor_(std::move(user_input_monitor)) {
+          &foreign_socket_)) {
   DCHECK(audio_manager);
   DCHECK(receiver_.is_bound());
   DCHECK(client_);
@@ -112,7 +106,7 @@ InputStream::InputStream(
   // |this| owns these objects, so unretained is safe.
   base::RepeatingClosure error_handler =
       base::BindRepeating(&InputStream::OnStreamError, base::Unretained(this),
-                          absl::optional<DisconnectReason>());
+                          std::optional<DisconnectReason>());
   receiver_.set_disconnect_handler(error_handler);
   client_.set_disconnect_handler(error_handler);
 
@@ -135,9 +129,9 @@ InputStream::InputStream(
   }
 
   controller_ = InputController::Create(
-      audio_manager, this, writer_.get(), user_input_monitor_.get(),
-      device_output_listener, aecdump_recording_manager,
-      std::move(processing_config), params, device_id, enable_agc);
+      audio_manager, this, writer_.get(), device_output_listener,
+      aecdump_recording_manager, std::move(processing_config), params,
+      device_id, enable_agc);
 }
 
 InputStream::~InputStream() {
@@ -156,7 +150,7 @@ InputStream::~InputStream() {
   if (created_callback_) {
     // Didn't manage to create the stream. Call the callback anyways as mandated
     // by mojo.
-    std::move(created_callback_).Run(nullptr, false, absl::nullopt);
+    std::move(created_callback_).Run(nullptr, false, std::nullopt);
   }
 
   if (!controller_) {
@@ -164,7 +158,7 @@ InputStream::~InputStream() {
     return;
   }
 
-  // TODO(https://crbug.com/803102): remove InputController::Close() after
+  // TODO(crbug.com/40558532): remove InputController::Close() after
   // content/ streams are removed, destructor should suffice.
   controller_->Close();
 
@@ -214,9 +208,9 @@ void InputStream::OnCreated(bool initially_muted) {
                                       "initially muted", initially_muted);
   DCHECK_CALLED_ON_VALID_SEQUENCE(owning_sequence_);
   SendLogMessage("%s({muted=%s})", __func__,
-                 initially_muted ? "true" : "false");
+                 base::ToString(initially_muted).c_str());
 
-  base::ReadOnlySharedMemoryRegion shared_memory_region =
+  base::UnsafeSharedMemoryRegion shared_memory_region =
       writer_->TakeSharedMemoryRegion();
   if (!shared_memory_region.IsValid()) {
     OnStreamPlatformError();
@@ -227,7 +221,7 @@ void InputStream::OnCreated(bool initially_muted) {
   DCHECK(socket_handle.is_valid());
 
   std::move(created_callback_)
-      .Run({absl::in_place, std::move(shared_memory_region),
+      .Run({std::in_place, std::move(shared_memory_region),
             std::move(socket_handle)},
            initially_muted, id_);
 }
@@ -269,7 +263,7 @@ void InputStream::OnError(InputController::ErrorCode error_code) {
   OnStreamError(InputErrorToDisconnectReason(error_code));
 }
 
-void InputStream::OnLog(base::StringPiece message) {
+void InputStream::OnLog(std::string_view message) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(owning_sequence_);
   if (log_)
     log_->OnLogMessage(std::string(message) + " [id=" + id_.ToString() + "]");
@@ -285,7 +279,7 @@ void InputStream::OnStreamPlatformError() {
 }
 
 void InputStream::OnStreamError(
-    absl::optional<DisconnectReason> reason_to_report) {
+    std::optional<DisconnectReason> reason_to_report) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(owning_sequence_);
   TRACE_EVENT_NESTABLE_ASYNC_INSTANT0("audio", "OnStreamError", this);
 

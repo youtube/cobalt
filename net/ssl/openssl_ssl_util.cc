@@ -37,8 +37,6 @@ namespace {
 class OpenSSLNetErrorLibSingleton {
  public:
   OpenSSLNetErrorLibSingleton() {
-    crypto::EnsureOpenSSLInit();
-
     // Allocate a new error library value for inserting net errors into
     // OpenSSL. This does not register any ERR_STRING_DATA for the errors, so
     // stringifying error codes through OpenSSL will return NULL.
@@ -151,7 +149,6 @@ void OpenSSLPutNetError(const base::Location& location, int err) {
   if (err < 0 || err > 0xfff) {
     // OpenSSL reserves 12 bits for the reason code.
     NOTREACHED();
-    err = ERR_INVALID_ARGUMENT;
   }
   ERR_put_error(OpenSSLNetErrorLib(), 0 /* unused */, err, location.file_name(),
                 location.line_number());
@@ -229,7 +226,6 @@ int GetNetSSLVersion(SSL* ssl) {
       return SSL_CONNECTION_VERSION_TLS1_3;
     default:
       NOTREACHED();
-      return SSL_CONNECTION_VERSION_UNKNOWN;
   }
 }
 
@@ -242,6 +238,26 @@ bool SetSSLChainAndKey(SSL* ssl,
   chain_raw.push_back(cert->cert_buffer());
   for (const auto& handle : cert->intermediate_buffers())
     chain_raw.push_back(handle.get());
+
+  if (!SSL_set_chain_and_key(ssl, chain_raw.data(), chain_raw.size(), pkey,
+                             custom_key)) {
+    LOG(WARNING) << "Failed to set client certificate";
+    return false;
+  }
+
+  return true;
+}
+
+bool SetSSLChainAndKey(
+    SSL* ssl,
+    base::span<const bssl::UniquePtr<CRYPTO_BUFFER>> cert_chain,
+    EVP_PKEY* pkey,
+    const SSL_PRIVATE_KEY_METHOD* custom_key) {
+  std::vector<CRYPTO_BUFFER*> chain_raw;
+  chain_raw.reserve(cert_chain.size());
+  for (const auto& handle : cert_chain) {
+    chain_raw.push_back(handle.get());
+  }
 
   if (!SSL_set_chain_and_key(ssl, chain_raw.data(), chain_raw.size(), pkey,
                              custom_key)) {

@@ -7,13 +7,17 @@
 #include <memory>
 
 #include "base/memory/scoped_refptr.h"
+#include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "build/chromecast_buildflags.h"
+#include "services/network/public/cpp/features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/mojom/loader/mixed_content.mojom-blink.h"
 #include "third_party/blink/public/mojom/loader/request_context_frame_type.mojom-blink.h"
+#include "third_party/blink/renderer/core/execution_context/security_context.h"
+#include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/loader/empty_clients.h"
@@ -22,18 +26,21 @@
 #include "third_party/blink/renderer/platform/loader/fetch/fetch_client_settings_object.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_response.h"
 #include "third_party/blink/renderer/platform/loader/mixed_content.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 
 namespace blink {
 
-// Tests that MixedContentChecker::isMixedContent correctly detects or ignores
-// many cases where there is or there is not mixed content, respectively.
+// Tests that `blink::MixedContentChecker::IsMixedContent` correctly detects or
+// ignores many cases where there is or there is not mixed content respectively.
 // Note: Renderer side version of
-// MixedContentNavigationThrottleTest.IsMixedContent. Must be kept in sync
-// manually!
+// `content::MixedContentCheckerTest::IsMixedContent`.
+// Must be kept in sync manually!
+// LINT.IfChange
 TEST(MixedContentCheckerTest, IsMixedContent) {
+  test::TaskEnvironment task_environment;
   struct TestCase {
     const char* origin;
     const char* target;
@@ -77,12 +84,14 @@ TEST(MixedContentCheckerTest, IsMixedContent) {
                                     security_origin.get(), target_url));
   }
 }
+// LINT.ThenChange(content/browser/renderer_host/mixed_content_checker_unittest.cc)
 
 TEST(MixedContentCheckerTest, ContextTypeForInspector) {
+  test::TaskEnvironment task_environment;
   auto dummy_page_holder = std::make_unique<DummyPageHolder>(gfx::Size(1, 1));
   dummy_page_holder->GetFrame().Loader().CommitNavigation(
-      WebNavigationParams::CreateWithHTMLBufferForTesting(
-          SharedBuffer::Create(), KURL("http://example.test")),
+      WebNavigationParams::CreateWithEmptyHTMLForTesting(
+          KURL("http://example.test")),
       nullptr /* extra_data */);
   blink::test::RunPendingTasks();
 
@@ -93,8 +102,8 @@ TEST(MixedContentCheckerTest, ContextTypeForInspector) {
                 &dummy_page_holder->GetFrame(), not_mixed_content));
 
   dummy_page_holder->GetFrame().Loader().CommitNavigation(
-      WebNavigationParams::CreateWithHTMLBufferForTesting(
-          SharedBuffer::Create(), KURL("https://example.test")),
+      WebNavigationParams::CreateWithEmptyHTMLForTesting(
+          KURL("https://example.test")),
       nullptr /* extra_data */);
   blink::test::RunPendingTasks();
 
@@ -119,6 +128,7 @@ TEST(MixedContentCheckerTest, ContextTypeForInspector) {
 }
 
 TEST(MixedContentCheckerTest, HandleCertificateError) {
+  test::TaskEnvironment task_environment;
   auto dummy_page_holder = std::make_unique<DummyPageHolder>(
       gfx::Size(1, 1), nullptr, MakeGarbageCollected<EmptyLocalFrameClient>());
 
@@ -156,12 +166,12 @@ TEST(MixedContentCheckerTest, HandleCertificateError) {
 }
 
 TEST(MixedContentCheckerTest, DetectMixedForm) {
+  test::TaskEnvironment task_environment;
   KURL main_resource_url(NullURL(), "https://example.test/");
   auto dummy_page_holder = std::make_unique<DummyPageHolder>(
       gfx::Size(1, 1), nullptr, MakeGarbageCollected<EmptyLocalFrameClient>());
   dummy_page_holder->GetFrame().Loader().CommitNavigation(
-      WebNavigationParams::CreateWithHTMLBufferForTesting(
-          SharedBuffer::Create(), main_resource_url),
+      WebNavigationParams::CreateWithEmptyHTMLForTesting(main_resource_url),
       nullptr /* extra_data */);
   blink::test::RunPendingTasks();
 
@@ -186,12 +196,12 @@ TEST(MixedContentCheckerTest, DetectMixedForm) {
 }
 
 TEST(MixedContentCheckerTest, DetectMixedFavicon) {
+  test::TaskEnvironment task_environment;
   KURL main_resource_url("https://example.test/");
   auto dummy_page_holder = std::make_unique<DummyPageHolder>(
       gfx::Size(1, 1), nullptr, MakeGarbageCollected<EmptyLocalFrameClient>());
   dummy_page_holder->GetFrame().Loader().CommitNavigation(
-      WebNavigationParams::CreateWithHTMLBufferForTesting(
-          SharedBuffer::Create(), main_resource_url),
+      WebNavigationParams::CreateWithEmptyHTMLForTesting(main_resource_url),
       nullptr /* extra_data */);
   blink::test::RunPendingTasks();
   dummy_page_holder->GetFrame().GetSettings()->SetAllowRunningOfInsecureContent(
@@ -212,23 +222,21 @@ TEST(MixedContentCheckerTest, DetectMixedFavicon) {
   EXPECT_TRUE(MixedContentChecker::ShouldBlockFetch(
       &dummy_page_holder->GetFrame(), mojom::blink::RequestContextType::FAVICON,
       network::mojom::blink::IPAddressSpace::kPublic, http_favicon_url,
-      ResourceRequest::RedirectStatus::kNoRedirect, http_favicon_url,
-      absl::optional<String>(), ReportingDisposition::kSuppressReporting,
-      *notifier_remote));
+      ResourceRequest::RedirectStatus::kNoRedirect, http_favicon_url, String(),
+      ReportingDisposition::kSuppressReporting, *notifier_remote));
 
   // Test that a secure favicon is not blocked.
   EXPECT_FALSE(MixedContentChecker::ShouldBlockFetch(
       &dummy_page_holder->GetFrame(), mojom::blink::RequestContextType::FAVICON,
       network::mojom::blink::IPAddressSpace::kPublic, https_favicon_url,
-      ResourceRequest::RedirectStatus::kNoRedirect, https_favicon_url,
-      absl::optional<String>(), ReportingDisposition::kSuppressReporting,
-      *notifier_remote));
+      ResourceRequest::RedirectStatus::kNoRedirect, https_favicon_url, String(),
+      ReportingDisposition::kSuppressReporting, *notifier_remote));
 
   EXPECT_TRUE(MixedContentChecker::ShouldBlockFetch(
       &dummy_page_holder->GetFrame(), mojom::blink::RequestContextType::FAVICON,
       network::mojom::blink::IPAddressSpace::kPublic,
       http_ip_address_favicon_url, ResourceRequest::RedirectStatus::kNoRedirect,
-      http_ip_address_favicon_url, absl::optional<String>(),
+      http_ip_address_favicon_url, String(),
       ReportingDisposition::kSuppressReporting, *notifier_remote));
 
   EXPECT_FALSE(MixedContentChecker::ShouldBlockFetch(
@@ -236,17 +244,17 @@ TEST(MixedContentCheckerTest, DetectMixedFavicon) {
       network::mojom::blink::IPAddressSpace::kPublic,
       http_local_ip_address_favicon_url,
       ResourceRequest::RedirectStatus::kNoRedirect,
-      http_local_ip_address_favicon_url, absl::optional<String>(),
+      http_local_ip_address_favicon_url, String(),
       ReportingDisposition::kSuppressReporting, *notifier_remote));
 }
 
 TEST(MixedContentCheckerTest, DetectUpgradeableMixedContent) {
+  test::TaskEnvironment task_environment;
   KURL main_resource_url("https://example.test/");
   auto dummy_page_holder = std::make_unique<DummyPageHolder>(
       gfx::Size(1, 1), nullptr, MakeGarbageCollected<EmptyLocalFrameClient>());
   dummy_page_holder->GetFrame().Loader().CommitNavigation(
-      WebNavigationParams::CreateWithHTMLBufferForTesting(
-          SharedBuffer::Create(), main_resource_url),
+      WebNavigationParams::CreateWithEmptyHTMLForTesting(main_resource_url),
       nullptr /* extra_data */);
   blink::test::RunPendingTasks();
   dummy_page_holder->GetFrame().GetSettings()->SetAllowRunningOfInsecureContent(
@@ -263,16 +271,72 @@ TEST(MixedContentCheckerTest, DetectUpgradeableMixedContent) {
       &dummy_page_holder->GetFrame(), mojom::blink::RequestContextType::AUDIO,
       network::mojom::blink::IPAddressSpace::kPublic, http_ip_address_audio_url,
       ResourceRequest::RedirectStatus::kNoRedirect, http_ip_address_audio_url,
-      absl::optional<String>(), ReportingDisposition::kSuppressReporting,
-      *notifier_remote);
+      String(), ReportingDisposition::kSuppressReporting, *notifier_remote);
 
-#if BUILDFLAG(IS_FUCHSIA) && BUILDFLAG(ENABLE_CAST_RECEIVER)
+#if (BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_LINUX)) && \
+    BUILDFLAG(ENABLE_CAST_RECEIVER)
   // Mixed Content from an insecure IP address is not blocked for Fuchsia Cast
   // Receivers.
   EXPECT_FALSE(blocked);
 #else
   EXPECT_TRUE(blocked);
-#endif  // BUILDFLAG(IS_FUCHSIA) && BUILDFLAG(ENABLE_CAST_RECEIVER)
+#endif  // (BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_LINUX)) &&
+        // BUILDFLAG(ENABLE_CAST_RECEIVER)
+}
+
+TEST(MixedContentCheckerTest, LNABypassTest) {
+  base::test::ScopedFeatureList feature_list(
+      network::features::kLocalNetworkAccessChecks);
+  test::TaskEnvironment task_environment;
+  KURL main_resource_url("https://example.test/");
+  auto dummy_page_holder = std::make_unique<DummyPageHolder>(
+      gfx::Size(1, 1), nullptr, MakeGarbageCollected<EmptyLocalFrameClient>());
+  dummy_page_holder->GetFrame().Loader().CommitNavigation(
+      WebNavigationParams::CreateWithEmptyHTMLForTesting(main_resource_url),
+      nullptr /* extra_data */);
+  blink::test::RunPendingTasks();
+  dummy_page_holder->GetFrame().GetSettings()->SetAllowRunningOfInsecureContent(
+      false);
+
+  KURL local_favicon_url("http://mine.local/favicon.png");
+  KURL http_favicon_url("http://example.test/favicon.png");
+  KURL private_ip_favicon_url("http://192.168.1.1/favicon.png");
+
+  // Set up the mock content security notifier.
+  testing::StrictMock<MockContentSecurityNotifier> mock_notifier;
+  mojo::Remote<mojom::blink::ContentSecurityNotifier> notifier_remote;
+  notifier_remote.Bind(mock_notifier.BindNewPipeAndPassRemote());
+
+  // Test that a mixed content favicon that is a LNA request (because of .local
+  // domain) is not blocked
+  EXPECT_FALSE(MixedContentChecker::ShouldBlockFetch(
+      &dummy_page_holder->GetFrame(), mojom::blink::RequestContextType::FAVICON,
+      network::mojom::blink::IPAddressSpace::kUnknown, local_favicon_url,
+      ResourceRequest::RedirectStatus::kNoRedirect, local_favicon_url, String(),
+      ReportingDisposition::kSuppressReporting, *notifier_remote));
+
+  // Test that a mixed content favicon that is a LNA request (because of private
+  // IP host) is not blocked
+  EXPECT_FALSE(MixedContentChecker::ShouldBlockFetch(
+      &dummy_page_holder->GetFrame(), mojom::blink::RequestContextType::FAVICON,
+      network::mojom::blink::IPAddressSpace::kUnknown, private_ip_favicon_url,
+      ResourceRequest::RedirectStatus::kNoRedirect, private_ip_favicon_url,
+      String(), ReportingDisposition::kSuppressReporting, *notifier_remote));
+
+  // Test that a mixed content favicon that is not a LNA request is blocked
+  EXPECT_TRUE(MixedContentChecker::ShouldBlockFetch(
+      &dummy_page_holder->GetFrame(), mojom::blink::RequestContextType::FAVICON,
+      network::mojom::blink::IPAddressSpace::kUnknown, http_favicon_url,
+      ResourceRequest::RedirectStatus::kNoRedirect, http_favicon_url, String(),
+      ReportingDisposition::kSuppressReporting, *notifier_remote));
+
+  // Test that a mixed content favicon that has a target_address_space argument
+  // forcing it to be a LNA request is not blocked
+  EXPECT_FALSE(MixedContentChecker::ShouldBlockFetch(
+      &dummy_page_holder->GetFrame(), mojom::blink::RequestContextType::FAVICON,
+      network::mojom::blink::IPAddressSpace::kPrivate, http_favicon_url,
+      ResourceRequest::RedirectStatus::kNoRedirect, http_favicon_url, String(),
+      ReportingDisposition::kSuppressReporting, *notifier_remote));
 }
 
 class TestFetchClientSettingsObject : public FetchClientSettingsObject {
@@ -287,7 +351,9 @@ class TestFetchClientSettingsObject : public FetchClientSettingsObject {
   // These are not used in test, but need to be implemented since they are pure
   // virtual.
   const KURL& BaseUrl() const override { return url; }
-  const SecurityOrigin* GetSecurityOrigin() const override { return nullptr; }
+  const SecurityOrigin* GetSecurityOrigin() const override {
+    return origin_.get();
+  }
   network::mojom::ReferrerPolicy GetReferrerPolicy() const override {
     return network::mojom::ReferrerPolicy::kAlways;
   }
@@ -300,40 +366,64 @@ class TestFetchClientSettingsObject : public FetchClientSettingsObject {
       const override {
     return set;
   }
+  void SetSecurityOrigin(String origin_url, String reference_origin) {
+    KURL origin_kurl(origin_url);
+    scoped_refptr<SecurityOrigin> reference =
+        SecurityOrigin::CreateFromString(reference_origin);
+    origin_ = SecurityOrigin::CreateWithReferenceOrigin(KURL(origin_url),
+                                                        reference.get());
+  }
+  scoped_refptr<SecurityOrigin> GetSecurityOrigin() { return origin_; }
 
  private:
   const KURL url = KURL("https://example.test");
   const InsecureNavigationsSet set;
+  scoped_refptr<SecurityOrigin> origin_;
 };
 
 TEST(MixedContentCheckerTest,
      NotAutoupgradedMixedContentHasUpgradeIfInsecureSet) {
+  test::TaskEnvironment task_environment;
   ResourceRequest request;
   request.SetUrl(KURL("https://example.test"));
   request.SetRequestContext(mojom::blink::RequestContextType::AUDIO);
-  TestFetchClientSettingsObject settings;
+  TestFetchClientSettingsObject* settings =
+      MakeGarbageCollected<TestFetchClientSettingsObject>();
+  settings->SetSecurityOrigin("https://example.test", "");
   // Used to get a non-null document.
   DummyPageHolder holder;
+  holder.GetFrame()
+      .DomWindow()
+      ->GetSecurityContext()
+      .SetSecurityOriginForTesting(settings->GetSecurityOrigin());
 
   MixedContentChecker::UpgradeInsecureRequest(
-      request, &settings, holder.GetDocument().GetExecutionContext(),
-      mojom::RequestContextFrameType::kTopLevel, nullptr);
+      request, settings, holder.GetDocument().GetExecutionContext(),
+      mojom::RequestContextFrameType::kTopLevel, nullptr, &holder.GetFrame());
 
   EXPECT_FALSE(request.IsAutomaticUpgrade());
   EXPECT_TRUE(request.UpgradeIfInsecure());
 }
 
 TEST(MixedContentCheckerTest, AutoupgradedMixedContentHasUpgradeIfInsecureSet) {
+  test::TaskEnvironment task_environment;
   ResourceRequest request;
   request.SetUrl(KURL("http://example.test"));
   request.SetRequestContext(mojom::blink::RequestContextType::AUDIO);
-  TestFetchClientSettingsObject settings;
+  TestFetchClientSettingsObject* settings =
+      MakeGarbageCollected<TestFetchClientSettingsObject>();
+  settings->SetSecurityOrigin("https://example.test", "");
+
   // Used to get a non-null document.
   DummyPageHolder holder;
+  holder.GetFrame()
+      .DomWindow()
+      ->GetSecurityContext()
+      .SetSecurityOriginForTesting(settings->GetSecurityOrigin());
 
   MixedContentChecker::UpgradeInsecureRequest(
-      request, &settings, holder.GetDocument().GetExecutionContext(),
-      mojom::RequestContextFrameType::kTopLevel, nullptr);
+      request, settings, holder.GetDocument().GetExecutionContext(),
+      mojom::RequestContextFrameType::kTopLevel, nullptr, &holder.GetFrame());
 
   EXPECT_TRUE(request.IsAutomaticUpgrade());
   EXPECT_TRUE(request.UpgradeIfInsecure());
@@ -341,16 +431,120 @@ TEST(MixedContentCheckerTest, AutoupgradedMixedContentHasUpgradeIfInsecureSet) {
 
 TEST(MixedContentCheckerTest,
      AutoupgradeMixedContentWithLiteralLocalIpAddress) {
+  test::TaskEnvironment task_environment;
   ResourceRequest request;
   request.SetUrl(KURL("http://127.0.0.1/"));
   request.SetRequestContext(mojom::blink::RequestContextType::AUDIO);
-  TestFetchClientSettingsObject settings;
+  TestFetchClientSettingsObject* settings =
+      MakeGarbageCollected<TestFetchClientSettingsObject>();
+  settings->SetSecurityOrigin("https://example.test", "");
+
   // Used to get a non-null document.
   DummyPageHolder holder;
+  holder.GetFrame()
+      .DomWindow()
+      ->GetSecurityContext()
+      .SetSecurityOriginForTesting(settings->GetSecurityOrigin());
 
   MixedContentChecker::UpgradeInsecureRequest(
-      request, &settings, holder.GetDocument().GetExecutionContext(),
-      mojom::RequestContextFrameType::kTopLevel, nullptr);
+      request, settings, holder.GetDocument().GetExecutionContext(),
+      mojom::RequestContextFrameType::kTopLevel, nullptr, &holder.GetFrame());
+
+  EXPECT_FALSE(request.IsAutomaticUpgrade());
+  EXPECT_FALSE(request.UpgradeIfInsecure());
+}
+
+// Tests that requests are not autoupgraded if they are a priori known to be
+// local network request because they are to a .local domain are not
+// auto-upgraded.
+TEST(MixedContentCheckerTest,
+     LocalNetworkAccessNotAutoupgradeMixedContentIfLocalDomain) {
+  base::test::ScopedFeatureList feature_list(
+      network::features::kLocalNetworkAccessChecks);
+
+  test::TaskEnvironment task_environment;
+  ResourceRequest request;
+  request.SetUrl(KURL("http://example.local/"));
+  request.SetRequestContext(mojom::blink::RequestContextType::AUDIO);
+  TestFetchClientSettingsObject* settings =
+      MakeGarbageCollected<TestFetchClientSettingsObject>();
+  settings->SetSecurityOrigin("https://example.test", "");
+
+  // Used to get a non-null document.
+  DummyPageHolder holder;
+  holder.GetFrame()
+      .DomWindow()
+      ->GetSecurityContext()
+      .SetSecurityOriginForTesting(settings->GetSecurityOrigin());
+
+  MixedContentChecker::UpgradeInsecureRequest(
+      request, settings, holder.GetDocument().GetExecutionContext(),
+      mojom::RequestContextFrameType::kTopLevel, nullptr, &holder.GetFrame());
+
+  EXPECT_FALSE(request.IsAutomaticUpgrade());
+  EXPECT_FALSE(request.UpgradeIfInsecure());
+}
+
+// Tests that requests are not autoupgraded if they are a priori known to be
+// local network request because the request's targetAddressSpace was set to
+// kPrivate.
+TEST(MixedContentCheckerTest,
+     LocalNetworkAccessNotAutoupgradeMixedContentIfTargetAddressSpacePrivate) {
+  base::test::ScopedFeatureList feature_list(
+      network::features::kLocalNetworkAccessChecks);
+
+  test::TaskEnvironment task_environment;
+  ResourceRequest request;
+  request.SetUrl(KURL("http://example2.test/"));
+  request.SetRequestContext(mojom::blink::RequestContextType::FETCH);
+  request.SetTargetAddressSpace(
+      network::mojom::blink::IPAddressSpace::kPrivate);
+  TestFetchClientSettingsObject* settings =
+      MakeGarbageCollected<TestFetchClientSettingsObject>();
+  settings->SetSecurityOrigin("https://example.test", "");
+
+  // Used to get a non-null document.
+  DummyPageHolder holder;
+  holder.GetFrame()
+      .DomWindow()
+      ->GetSecurityContext()
+      .SetSecurityOriginForTesting(settings->GetSecurityOrigin());
+
+  MixedContentChecker::UpgradeInsecureRequest(
+      request, settings, holder.GetDocument().GetExecutionContext(),
+      mojom::RequestContextFrameType::kTopLevel, nullptr, &holder.GetFrame());
+
+  EXPECT_FALSE(request.IsAutomaticUpgrade());
+  EXPECT_FALSE(request.UpgradeIfInsecure());
+}
+
+// Tests that requests are not autoupgraded if they are a priori known to be
+// local network request because the request's targetAddressSpace was set to
+// kLocal.
+TEST(MixedContentCheckerTest,
+     LocalNetworkAccessNotAutoupgradeMixedContentIfTargetAddressSpaceLocal) {
+  base::test::ScopedFeatureList feature_list(
+      network::features::kLocalNetworkAccessChecks);
+
+  test::TaskEnvironment task_environment;
+  ResourceRequest request;
+  request.SetUrl(KURL("http://example2.test/"));
+  request.SetRequestContext(mojom::blink::RequestContextType::FETCH);
+  request.SetTargetAddressSpace(network::mojom::blink::IPAddressSpace::kLocal);
+  TestFetchClientSettingsObject* settings =
+      MakeGarbageCollected<TestFetchClientSettingsObject>();
+  settings->SetSecurityOrigin("https://example.test", "");
+
+  // Used to get a non-null document.
+  DummyPageHolder holder;
+  holder.GetFrame()
+      .DomWindow()
+      ->GetSecurityContext()
+      .SetSecurityOriginForTesting(settings->GetSecurityOrigin());
+
+  MixedContentChecker::UpgradeInsecureRequest(
+      request, settings, holder.GetDocument().GetExecutionContext(),
+      mojom::RequestContextFrameType::kTopLevel, nullptr, &holder.GetFrame());
 
   EXPECT_FALSE(request.IsAutomaticUpgrade());
   EXPECT_FALSE(request.UpgradeIfInsecure());
@@ -358,19 +552,82 @@ TEST(MixedContentCheckerTest,
 
 TEST(MixedContentCheckerTest,
      NotAutoupgradeMixedContentWithLiteralNonLocalIpAddress) {
+  test::TaskEnvironment task_environment;
   ResourceRequest request;
   request.SetUrl(KURL("http://8.8.8.8/"));
   request.SetRequestContext(mojom::blink::RequestContextType::AUDIO);
-  TestFetchClientSettingsObject settings;
+  TestFetchClientSettingsObject* settings =
+      MakeGarbageCollected<TestFetchClientSettingsObject>();
+  settings->SetSecurityOrigin("https://example.test", "");
+
   // Used to get a non-null document.
   DummyPageHolder holder;
+  holder.GetFrame()
+      .DomWindow()
+      ->GetSecurityContext()
+      .SetSecurityOriginForTesting(settings->GetSecurityOrigin());
 
   MixedContentChecker::UpgradeInsecureRequest(
-      request, &settings, holder.GetDocument().GetExecutionContext(),
-      mojom::RequestContextFrameType::kTopLevel, nullptr);
+      request, settings, holder.GetDocument().GetExecutionContext(),
+      mojom::RequestContextFrameType::kTopLevel, nullptr, &holder.GetFrame());
 
   EXPECT_FALSE(request.IsAutomaticUpgrade());
   EXPECT_FALSE(request.UpgradeIfInsecure());
+}
+
+TEST(MixedContentCheckerTest,
+     AutoupgradeMixedContentInOpaqueOriginIfPrecursorIsSecure) {
+  test::TaskEnvironment task_environment;
+  ResourceRequest request;
+  request.SetUrl(KURL("http://example.test"));
+  request.SetRequestContext(mojom::blink::RequestContextType::IMAGE);
+  TestFetchClientSettingsObject* settings =
+      MakeGarbageCollected<TestFetchClientSettingsObject>();
+  // Set the security origin to an opaque one, with a secure precursor.
+  settings->SetSecurityOrigin(
+      "data:text/html,<img src=http://example.test/insecureimage.jpg>",
+      "https://example.test");
+
+  // Used to get a non-null document.
+  DummyPageHolder holder;
+  holder.GetFrame()
+      .DomWindow()
+      ->GetSecurityContext()
+      .SetSecurityOriginForTesting(settings->GetSecurityOrigin());
+
+  MixedContentChecker::UpgradeInsecureRequest(
+      request, settings, holder.GetDocument().GetExecutionContext(),
+      mojom::RequestContextFrameType::kTopLevel, nullptr, &holder.GetFrame());
+
+  EXPECT_TRUE(request.IsAutomaticUpgrade());
+  EXPECT_TRUE(request.UpgradeIfInsecure());
+}
+
+TEST(MixedContentCheckerTest,
+     DontAutoupgradeMixedContentInOpaqueOriginIfPrecursorIsNotSecure) {
+  test::TaskEnvironment task_environment;
+  ResourceRequest request;
+  request.SetUrl(KURL("http://example.test"));
+  request.SetRequestContext(mojom::blink::RequestContextType::IMAGE);
+  TestFetchClientSettingsObject* settings =
+      MakeGarbageCollected<TestFetchClientSettingsObject>();
+  // Set the security origin to an opaque one, with a not secure precursor.
+  settings->SetSecurityOrigin(
+      "data:text/html,<img src=http://example.test/insecureimage.jpg>",
+      "http://example.test");
+
+  // Used to get a non-null document.
+  DummyPageHolder holder;
+  holder.GetFrame()
+      .DomWindow()
+      ->GetSecurityContext()
+      .SetSecurityOriginForTesting(settings->GetSecurityOrigin());
+
+  MixedContentChecker::UpgradeInsecureRequest(
+      request, settings, holder.GetDocument().GetExecutionContext(),
+      mojom::RequestContextFrameType::kTopLevel, nullptr, &holder.GetFrame());
+
+  EXPECT_FALSE(request.IsAutomaticUpgrade());
 }
 
 }  // namespace blink

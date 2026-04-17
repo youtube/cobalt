@@ -9,7 +9,7 @@
 #include "base/check_deref.h"
 #include "base/functional/bind.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_trust_checker.h"
+#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_response_reader_factory.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_validator.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
@@ -29,7 +29,8 @@ IsolatedWebAppReaderRegistryFactory::GetForProfile(Profile* profile) {
 // static
 IsolatedWebAppReaderRegistryFactory*
 IsolatedWebAppReaderRegistryFactory::GetInstance() {
-  return base::Singleton<IsolatedWebAppReaderRegistryFactory>::get();
+  static base::NoDestructor<IsolatedWebAppReaderRegistryFactory> instance;
+  return instance.get();
 }
 
 IsolatedWebAppReaderRegistryFactory::IsolatedWebAppReaderRegistryFactory()
@@ -40,28 +41,21 @@ IsolatedWebAppReaderRegistryFactory::IsolatedWebAppReaderRegistryFactory()
 IsolatedWebAppReaderRegistryFactory::~IsolatedWebAppReaderRegistryFactory() =
     default;
 
-KeyedService* IsolatedWebAppReaderRegistryFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+IsolatedWebAppReaderRegistryFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  Profile* profile = Profile::FromBrowserContext(context);
+  Profile& profile = CHECK_DEREF(Profile::FromBrowserContext(context));
 
-  auto isolated_web_app_trust_checker =
-      std::make_unique<IsolatedWebAppTrustChecker>(
-          CHECK_DEREF(profile->GetPrefs()));
-
-  auto validator = std::make_unique<IsolatedWebAppValidator>(
-      std::move(isolated_web_app_trust_checker));
-
-  return new IsolatedWebAppReaderRegistry(
-      std::move(validator), base::BindRepeating([]() {
-        return std::make_unique<
-            web_package::SignedWebBundleSignatureVerifier>();
-      }));
+  auto reader_factory =
+      std::make_unique<IsolatedWebAppResponseReaderFactory>(profile);
+  return std::make_unique<IsolatedWebAppReaderRegistry>(
+      profile, std::move(reader_factory));
 }
 
 content::BrowserContext*
 IsolatedWebAppReaderRegistryFactory::GetBrowserContextToUse(
     content::BrowserContext* context) const {
-  if (!content::IsolatedWebAppsPolicy::AreIsolatedWebAppsEnabled(context)) {
+  if (!content::AreIsolatedWebAppsEnabled(context)) {
     return nullptr;
   }
 

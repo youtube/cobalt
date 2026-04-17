@@ -16,7 +16,7 @@ import org.chromium.content_public.browser.MessagePort;
  * world.
  */
 public class WebMessagePortAdapter extends WebMessagePort {
-    private MessagePort mPort;
+    private final MessagePort mPort;
 
     public WebMessagePortAdapter(MessagePort port) {
         mPort = port;
@@ -40,13 +40,17 @@ public class WebMessagePortAdapter extends WebMessagePort {
 
     @Override
     public void setWebMessageCallback(final WebMessageCallback callback, final Handler handler) {
-        mPort.setMessageCallback(new MessagePort.MessageCallback() {
-            @Override
-            public void onMessage(MessagePayload messagePayload, MessagePort[] ports) {
-                callback.onMessage(WebMessagePortAdapter.this,
-                        new WebMessage(messagePayload.getAsString(), fromMessagePorts(ports)));
-            }
-        }, handler);
+        mPort.setMessageCallback(
+                new MessagePort.MessageCallback() {
+                    @Override
+                    public void onMessage(MessagePayload messagePayload, MessagePort[] ports) {
+                        callback.onMessage(
+                                WebMessagePortAdapter.this,
+                                new WebMessage(
+                                        messagePayload.getAsString(), fromMessagePorts(ports)));
+                    }
+                },
+                handler);
     }
 
     public MessagePort getPort() {

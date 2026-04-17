@@ -6,9 +6,13 @@
 #define CHROME_BROWSER_SAFE_BROWSING_TAILORED_SECURITY_CHROME_TAILORED_SECURITY_SERVICE_H_
 
 #include "base/memory/raw_ptr.h"
+#include "base/time/time.h"
+#include "base/timer/timer.h"
 #include "build/build_config.h"
+#include "chrome/browser/safe_browsing/tailored_security/message_retry_handler.h"
 #include "components/safe_browsing/core/browser/tailored_security_service/tailored_security_service.h"
 #include "components/safe_browsing/core/browser/tailored_security_service/tailored_security_service_observer.h"
+#include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/safe_browsing/tailored_security/consented_message_android.h"
@@ -34,6 +38,18 @@ class ChromeTailoredSecurityService : public TailoredSecurityService,
 #endif
 {
  public:
+  // The amount of time to wait after construction before checking if a retry is
+  // needed.
+  static constexpr const base::TimeDelta kRetryAttemptStartupDelay =
+      base::Minutes(2);
+  // The amount of time to wait between retry attempts.
+  static constexpr const base::TimeDelta kRetryNextAttemptDelay = base::Days(1);
+  // Length of time that the retry mechanism will wait before running. This
+  // delay is used for the case where the tailored security service can't tell
+  // if it succeeded in the past.
+  static constexpr const base::TimeDelta kWaitingPeriodInterval =
+      base::Days(90);
+
   explicit ChromeTailoredSecurityService(Profile* profile);
   ~ChromeTailoredSecurityService() override;
 
@@ -42,8 +58,8 @@ class ChromeTailoredSecurityService : public TailoredSecurityService,
   // TabModelObserver::
   void DidAddTab(TabAndroid* tab, TabModel::TabLaunchType type) override;
   // TabModelListObserver::
-  void OnTabModelAdded() override;
-  void OnTabModelRemoved() override;
+  void OnTabModelAdded(TabModel* tab_model) override;
+  void OnTabModelRemoved(TabModel* tab_model) override;
 #endif
 
  protected:
@@ -57,20 +73,66 @@ class ChromeTailoredSecurityService : public TailoredSecurityService,
   scoped_refptr<network::SharedURLLoaderFactory> GetURLLoaderFactory() override;
 
  private:
+  FRIEND_TEST_ALL_PREFIXES(ChromeTailoredSecurityServiceTest,
+                           WhenRetryNeededAndEnoughTimeHasPassedRetries);
+  FRIEND_TEST_ALL_PREFIXES(
+      ChromeTailoredSecurityServiceTest,
+      WhenRetryNeededButNotEnoughTimeHasPassedDoesNotRetry);
+  FRIEND_TEST_ALL_PREFIXES(
+      ChromeTailoredSecurityServiceTest,
+      WhenRetryNotSetAndEnhancedProtectionEnabledViaTailoredSecurityDoesNotSetNextSyncFlowTimestamp);
+  FRIEND_TEST_ALL_PREFIXES(
+      ChromeTailoredSecurityServiceTest,
+      WhenRetryNotSetAndNextSyncFlowHasNotPassedDoesNotRunRetryLogic);
+  FRIEND_TEST_ALL_PREFIXES(
+      ChromeTailoredSecurityServiceTest,
+      WhenRetryNotSetAndNextSyncFlowNotSetSetsNextSyncFlowToWaitingIntervalFromNow);
+  FRIEND_TEST_ALL_PREFIXES(ChromeTailoredSecurityServiceTest,
+                           WhenRetryNotSetAndNextSyncFlowHasPassedRunsRetry);
+
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  enum class TailoredSecurityShouldRetryOutcome {
+    kUnknownType = 0,
+    kRetryNeededDoRetry = 1,
+    kRetryNeededKeepWaiting = 2,
+    kUnsetInitializeWaitingPeriod = 3,
+    kUnsetRetryBecauseDoneWaiting = 4,
+    kUnsetStillWaiting = 5,
+    kMaxValue = kUnsetStillWaiting,
+  };
+
+  friend void LogShouldRetryOutcome(
+      ChromeTailoredSecurityService::TailoredSecurityShouldRetryOutcome
+          outcome);
+
 #if BUILDFLAG(IS_ANDROID)
   void MessageDismissed();
 
+  // Registers this as an observer on the TabModelList and, if possible, on a
+  // TabModel.
+  void RegisterObserver();
   void AddTabModelListObserver();
-  bool AddTabModelObserver();
+  void AddTabModelObserver();
+  void RemoveTabModelListObserver();
+  void RemoveTabModelObserver();
   // This tab model is used for the observer based retry mechanism.
   // We can't depend on this being set as a tab can be deleted at
   // any time.
   raw_ptr<TabModel> observed_tab_model_ = nullptr;
+  bool observing_tab_model_list_ = false;
   std::unique_ptr<TailoredSecurityConsentedModalAndroid> message_;
 #else
   TailoredSecurityDesktopDialogManager dialog_manager_;
 #endif
+
+  void MaybeRetryForSyncUsers();
+  bool ShouldRetryForSyncUsers();
+
   raw_ptr<Profile> profile_;
+  base::OneShotTimer retry_timer_;
+  // The retry handler used to manage retry logic.
+  std::unique_ptr<MessageRetryHandler> retry_handler_;
 };
 
 }  // namespace safe_browsing

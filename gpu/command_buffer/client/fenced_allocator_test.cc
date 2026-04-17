@@ -2,10 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 // This file contains the tests for the FencedAllocator class.
+
+#include "gpu/command_buffer/client/fenced_allocator.h"
 
 #include <stdint.h>
 
+#include <array>
 #include <memory>
 
 #include "base/functional/bind.h"
@@ -14,7 +22,6 @@
 #include "base/run_loop.h"
 #include "base/test/task_environment.h"
 #include "gpu/command_buffer/client/cmd_buffer_helper.h"
-#include "gpu/command_buffer/client/fenced_allocator.h"
 #include "gpu/command_buffer/service/command_buffer_direct.h"
 #include "gpu/command_buffer/service/mocks.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -120,7 +127,7 @@ TEST_F(FencedAllocatorTest, TestOutOfMemory) {
   CHECK_EQ(kAllocCount * kSize, kBufferSize);
 
   // Allocate several buffers to fill in the memory.
-  FencedAllocator::Offset offsets[kAllocCount];
+  std::array<FencedAllocator::Offset, kAllocCount> offsets;
   for (unsigned int i = 0; i < kAllocCount; ++i) {
     offsets[i] = allocator_->Alloc(kSize);
     EXPECT_NE(FencedAllocator::kInvalidOffset, offsets[i]);
@@ -162,7 +169,7 @@ TEST_F(FencedAllocatorTest, TestFreePendingToken) {
   CHECK_EQ(kAllocCount * kSize, kBufferSize);
 
   // Allocate several buffers to fill in the memory.
-  FencedAllocator::Offset offsets[kAllocCount];
+  std::array<FencedAllocator::Offset, kAllocCount> offsets;
   for (unsigned int i = 0; i < kAllocCount; ++i) {
     offsets[i] = allocator_->Alloc(kSize);
     EXPECT_NE(FencedAllocator::kInvalidOffset, offsets[i]);
@@ -210,7 +217,7 @@ TEST_F(FencedAllocatorTest, FreeUnused) {
   CHECK_EQ(kAllocCount * kSize, kBufferSize);
 
   // Allocate several buffers to fill in the memory.
-  FencedAllocator::Offset offsets[kAllocCount];
+  std::array<FencedAllocator::Offset, kAllocCount> offsets;
   for (unsigned int i = 0; i < kAllocCount; ++i) {
     offsets[i] = allocator_->Alloc(kSize);
     EXPECT_NE(FencedAllocator::kInvalidOffset, offsets[i]);
@@ -394,8 +401,8 @@ class FencedAllocatorWrapperTest : public BaseFencedAllocatorTest {
     BaseFencedAllocatorTest::TearDown();
   }
 
-  std::unique_ptr<FencedAllocatorWrapper> allocator_;
   std::unique_ptr<char, base::AlignedFreeDeleter> buffer_;
+  std::unique_ptr<FencedAllocatorWrapper> allocator_;
 };
 
 // Checks basic alloc and free.
@@ -473,7 +480,7 @@ TEST_F(FencedAllocatorWrapperTest, TestOutOfMemory) {
   CHECK_EQ(kAllocCount * kSize, kBufferSize);
 
   // Allocate several buffers to fill in the memory.
-  void* pointers[kAllocCount];
+  std::array<void*, kAllocCount> pointers;
   for (unsigned int i = 0; i < kAllocCount; ++i) {
     pointers[i] = allocator_->Alloc(kSize);
     EXPECT_TRUE(pointers[i]);
@@ -513,7 +520,7 @@ TEST_F(FencedAllocatorWrapperTest, TestFreePendingToken) {
   CHECK_EQ(kAllocCount * kSize, kBufferSize);
 
   // Allocate several buffers to fill in the memory.
-  void* pointers[kAllocCount];
+  std::array<void*, kAllocCount> pointers;
   for (unsigned int i = 0; i < kAllocCount; ++i) {
     pointers[i] = allocator_->Alloc(kSize);
     EXPECT_TRUE(pointers[i]);

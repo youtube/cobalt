@@ -502,7 +502,7 @@ BoostingVoteAggregator::FindOrCreateNodeData(const ExecutionContext* node) {
 BoostingVoteAggregator::NodeDataMap::iterator
 BoostingVoteAggregator::FindNodeData(const ExecutionContext* node) {
   auto it = nodes_.find(node);
-  DCHECK(it != nodes_.end());
+  CHECK(it != nodes_.end());
   return it;
 }
 
@@ -530,7 +530,7 @@ const char* BoostingVoteAggregator::GetVoteReason(
   // Otherwise, this node has inherited its priority. Find the active incoming
   // edge and use the active reason for that edge.
   auto edge_it = GetActiveInboundEdge(layer_bit, node);
-  DCHECK(edge_it != reverse_edges_.end());
+  CHECK(edge_it != reverse_edges_.end());
   DCHECK(edge_it->second->GetReasonCount());
   return edge_it->second->GetActiveReason();
 }

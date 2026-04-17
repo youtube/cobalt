@@ -91,7 +91,7 @@ class PermissionsData {
   static bool CanExecuteScriptEverywhere(const ExtensionId& extension_id,
                                          mojom::ManifestLocation location);
 
-  // Returns true if the given |url| is restricted for the given |extension|,
+  // Returns true if the given `url` is restricted for the given `extension`,
   // as is commonly the case for chrome:// urls.
   // NOTE: You probably want to use CanAccessPage().
   bool IsRestrictedUrl(const GURL& document_url, std::string* error) const;
@@ -99,7 +99,7 @@ class PermissionsData {
   // Returns true if the "all_urls" meta-pattern should include access to
   // URLs with the "chrome" scheme. Access to these URLs is limited as they
   // are sensitive.
-  static bool AllUrlsIncludesChromeUrls(const std::string& extension_id);
+  static bool AllUrlsIncludesChromeUrls(const ExtensionId& extension_id);
 
   // Is this extension using the default scope for policy_blocked_hosts and
   // policy_allowed_hosts of the ExtensionSettings policy.
@@ -113,8 +113,8 @@ class PermissionsData {
   // same thread this is bound to, if any.
   void SetContextId(int context_id) const;
 
-  // Sets the runtime permissions of the given |extension| to |active| and
-  // |withheld|.
+  // Sets the runtime permissions of the given `extension` to `active` and
+  // `withheld`.
   void SetPermissions(std::unique_ptr<const PermissionSet> active,
                       std::unique_ptr<const PermissionSet> withheld) const;
 
@@ -145,15 +145,19 @@ class PermissionsData {
                                       URLPatternSet user_blocked_hosts,
                                       URLPatternSet user_allowed_hosts);
 
-  // Updates the tab-specific permissions of |tab_id| to include those from
-  // |permissions|.
+  // Updates the tab-specific permissions of `tab_id` to include those from
+  // `permissions`.
   void UpdateTabSpecificPermissions(int tab_id,
                                     const PermissionSet& permissions) const;
 
-  // Clears the tab-specific permissions of |tab_id|.
+  // Clears the tab-specific permissions of `tab_id`.
   void ClearTabSpecificPermissions(int tab_id) const;
 
-  // Returns true if the |extension| has the given |permission|. Prefer
+  // Returns whether the extension has tab-specific permissions for the security
+  // origin of `url` on `tab_id`.
+  bool HasTabPermissionsForSecurityOrigin(int tab_id, const GURL& url) const;
+
+  // Returns true if the `extension` has the given `permission`. Prefer
   // IsExtensionWithPermissionOrSuggestInConsole when developers may be using an
   // api that requires a permission they didn't know about, e.g. open web apis.
   // Note this does not include APIs with no corresponding permission, like
@@ -172,28 +176,19 @@ class PermissionsData {
   // active tab permissions for.
   URLPatternSet GetEffectiveHostPermissions() const;
 
-  // TODO(rdevlin.cronin): HasHostPermission() and
-  // HasEffectiveAccessToAllHosts() are just forwards for the active
-  // permissions. We should either get rid of these, and have callers use
+  // TODO(rdevlin.cronin): HasHostPermission() is just a forward for the active
+  // permissions. We should either get rid of it, and have callers use
   // active_permissions(), or should get rid of active_permissions(), and make
   // callers use PermissionsData for everything. We should not do both.
-
-  // Whether the extension has access to the given |url|.
+  // Whether the extension has access to the given `url`.
   bool HasHostPermission(const GURL& url) const;
-
-  // Whether the extension has effective access to all hosts. This is true if
-  // there is a content script that matches all hosts, if there is a host
-  // permission grants access to all hosts (like <all_urls>) or an api
-  // permission that effectively grants access to all hosts (e.g. proxy,
-  // network, etc.)
-  bool HasEffectiveAccessToAllHosts() const;
 
   // Returns the full list of permission details for messages that should
   // display at install time, in a nested format ready for display.
   PermissionMessages GetPermissionMessages() const;
 
   // Returns the list of permission details for permissions that are included in
-  // active_permissions(), but not present in |granted_permissions|.  These are
+  // active_permissions(), but not present in `granted_permissions`.  These are
   // returned in a nested format, ready for display.
   PermissionMessages GetNewPermissionMessages(
       const PermissionSet& granted_permissions) const;
@@ -201,7 +196,7 @@ class PermissionsData {
   // Returns true if the associated extension has permission to access and
   // interact with the specified page, in order to do things like inject
   // scripts or modify the content.
-  // If this returns false and |error| is non-NULL, |error| will be popualted
+  // If this returns false and `error` is non-NULL, `error` will be popualted
   // with the reason the extension cannot access the page.
   bool CanAccessPage(const GURL& document_url,
                      int tab_id,
@@ -215,7 +210,7 @@ class PermissionsData {
 
   // Returns true if the associated extension has permission to inject a
   // content script on the page.
-  // If this returns false and |error| is non-NULL, |error| will be popualted
+  // If this returns false and `error` is non-NULL, `error` will be popualted
   // with the reason the extension cannot script the page.
   // NOTE: You almost certainly want to use CanAccessPage() instead of this
   // method.
@@ -236,7 +231,7 @@ class PermissionsData {
   // is insufficient.
   // Instead:
   // - If the page is a chrome:// page, require activeTab.
-  // - For all other pages, ensure |capture_requirement| is satisfied.
+  // - For all other pages, ensure `capture_requirement` is satisfied.
   bool CanCaptureVisiblePage(const GURL& document_url,
                              int tab_id,
                              std::string* error,
@@ -303,17 +298,16 @@ class PermissionsData {
 #endif
 
  private:
-  // Gets the tab-specific host permissions of |tab_id|, or NULL if there
+  // Gets the tab-specific host permissions of `tab_id`, or NULL if there
   // aren't any.
-  // Must be called with |runtime_lock_| acquired.
+  // Must be called with `runtime_lock_` acquired.
   const PermissionSet* GetTabSpecificPermissions(int tab_id) const;
 
   // Returns whether or not the extension is permitted to run on the given page,
-  // checking against |permitted_url_patterns| and |tab_url_patterns| in
+  // checking against `permitted_url_patterns` and `tab_url_patterns` in
   // addition to blocking special sites (like the webstore or chrome:// urls).
-  // Must be called with |runtime_lock_| acquired.
+  // Must be called with `runtime_lock_` acquired.
   PageAccess CanRunOnPage(const GURL& document_url,
-                          int tab_id,
                           const URLPatternSet& permitted_url_patterns,
                           const URLPatternSet& withheld_url_patterns,
                           const URLPatternSet* tab_url_patterns,
@@ -324,7 +318,7 @@ class PermissionsData {
   bool IsPolicyBlockedHostUnsafe(const GURL& url) const;
 
   // The associated extension's id.
-  std::string extension_id_;
+  ExtensionId extension_id_;
 
   // The associated extension's manifest type.
   Manifest::Type manifest_type_;
@@ -337,24 +331,24 @@ class PermissionsData {
   // The permission's which are currently active on the extension during
   // runtime.
   // Unsafe indicates that we must lock anytime this is directly accessed.
-  // Unless you need to change |active_permissions_unsafe_|, use the (safe)
+  // Unless you need to change `active_permissions_unsafe_`, use the (safe)
   // active_permissions() accessor.
   mutable std::unique_ptr<const PermissionSet> active_permissions_unsafe_;
 
   // The permissions the extension requested, but was not granted due because
   // they are too powerful. This includes things like all_hosts.
   // Unsafe indicates that we must lock anytime this is directly accessed.
-  // Unless you need to change |withheld_permissions_unsafe_|, use the (safe)
+  // Unless you need to change `withheld_permissions_unsafe_`, use the (safe)
   // withheld_permissions() accessor.
   mutable std::unique_ptr<const PermissionSet> withheld_permissions_unsafe_;
 
   // The list of hosts an extension may not interact with by policy.
-  // Unless you need to change |policy_blocked_hosts_unsafe_|, use the (safe)
+  // Unless you need to change `policy_blocked_hosts_unsafe_`, use the (safe)
   // policy_blocked_hosts() accessor.
   mutable URLPatternSet policy_blocked_hosts_unsafe_;
 
   // The exclusive list of hosts an extension may interact with by policy.
-  // Unless you need to change |policy_allowed_hosts_unsafe_|, use the (safe)
+  // Unless you need to change `policy_allowed_hosts_unsafe_`, use the (safe)
   // policy_allowed_hosts() accessor.
   mutable URLPatternSet policy_allowed_hosts_unsafe_;
 
@@ -363,7 +357,7 @@ class PermissionsData {
   // default policy-level and user-level settings.
   // If empty, these settings are ignored. This should mostly only be the case
   // in unittests.
-  mutable absl::optional<int> context_id_;
+  mutable std::optional<int> context_id_;
 
   // Whether the extension uses the default policy host restrictions.
   mutable bool uses_default_policy_host_restrictions_ = true;

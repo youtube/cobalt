@@ -29,8 +29,11 @@
 namespace {
 
 base::FilePath GetPythonPath() {
-  // Every environment should have python3.
-  return base::FilePath(FILE_PATH_LITERAL("python3"));
+#if BUILDFLAG(IS_WIN)
+  return base::FilePath(FILE_PATH_LITERAL("vpython3.bat"));
+#else
+  return base::FilePath(FILE_PATH_LITERAL("vpython3"));
+#endif
 }
 
 const base::FilePath kTestDataPath = base::FilePath(
@@ -105,10 +108,11 @@ class MediaEngagementAutoplayBrowserTest
   }
 
   void LoadSubFrame(const std::string& page) {
-    EXPECT_TRUE(content::ExecuteScriptWithoutUserGesture(
-        GetWebContents(), "document.getElementsByName('subframe')[0].src = \"" +
-                              http_server_origin2_.GetURL("/" + page).spec() +
-                              "\""));
+    EXPECT_TRUE(content::ExecJs(
+        GetWebContents(),
+        "document.getElementsByName('subframe')[0].src = \"" +
+            http_server_origin2_.GetURL("/" + page).spec() + "\"",
+        content::EXECUTE_SCRIPT_NO_USER_GESTURE));
   }
 
   void SetScores(const url::Origin& origin, int visits, int media_playbacks) {
@@ -162,7 +166,7 @@ class MediaEngagementAutoplayBrowserTest
     // Get the generated root. The protobuf-generated files are in here.
     base::FilePath gen_root;
     EXPECT_TRUE(
-        base::PathService::Get(base::DIR_GEN_TEST_DATA_ROOT, &gen_root));
+        base::PathService::Get(base::DIR_OUT_TEST_DATA_ROOT, &gen_root));
 
     // Launch the generator and wait for it to finish.
     base::CommandLine cmd(GetPythonPath());
@@ -182,7 +186,8 @@ class MediaEngagementAutoplayBrowserTest
   void ApplyEmptyPreloadedList() {
     // Get the path relative to the source root.
     base::FilePath source_root;
-    EXPECT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &source_root));
+    EXPECT_TRUE(
+        base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &source_root));
 
     base::ScopedAllowBlockingForTesting allow_blocking;
     EXPECT_TRUE(MediaEngagementPreloadedList::GetInstance()->LoadFromFile(

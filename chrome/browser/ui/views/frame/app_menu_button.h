@@ -9,7 +9,10 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
+#include "base/timer/elapsed_timer.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_button.h"
+#include "components/user_education/common/feature_promo/feature_promo_handle.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 
 class AppMenu;
 class AppMenuButtonObserver;
@@ -24,6 +27,8 @@ class MenuButtonController;
 // dots and adds a status badge when there's a need to alert the user. Clicking
 // displays the app menu.
 class AppMenuButton : public ToolbarButton {
+  METADATA_HEADER(AppMenuButton, ToolbarButton)
+
  public:
   explicit AppMenuButton(PressedCallback callback);
 
@@ -48,6 +53,8 @@ class AppMenuButton : public ToolbarButton {
   // Whether the app menu is currently showing.
   bool IsMenuShowing() const;
 
+  void SetMenuTimerForTesting(base::ElapsedTimer timer);
+
   AppMenu* app_menu() { return menu_.get(); }
   AppMenuModel* app_menu_model() { return menu_model_.get(); }
 
@@ -57,10 +64,6 @@ class AppMenuButton : public ToolbarButton {
   void RunMenu(std::unique_ptr<AppMenuModel> menu_model,
                Browser* browser,
                int run_flags);
-
-  // Provided for subclasses to handle menu close, before observers are
-  // notified. Default implementation does nothing.
-  virtual void HandleMenuClosed();
 
  private:
   // App model and menu.
@@ -74,6 +77,7 @@ class AppMenuButton : public ToolbarButton {
   base::ObserverList<AppMenuButtonObserver>::Unchecked observer_list_;
 
   raw_ptr<views::MenuButtonController> menu_button_controller_;
+  user_education::FeaturePromoHandle promo_handle_;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_FRAME_APP_MENU_BUTTON_H_

@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "content/browser/media/capture/mouse_cursor_overlay_controller.h"
+#include <optional>
 
 #include "base/memory/raw_ptr.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "content/browser/media/capture/mouse_cursor_overlay_controller.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/aura/client/cursor_shape_client.h"
 #include "ui/aura/window.h"
@@ -83,24 +83,47 @@ class MouseCursorOverlayController::Observer final
     return location;
   }
 
+  gfx::Point CoordinatesForMouseEvent(const ui::Event& event) const {
+    if (!IsWindowActive() || event.type() == ui::EventType::kMouseExited) {
+      return kOutsideSurface;
+    }
+    gfx::PointF location = AsLocationInWindow(event);
+    int x = std::round(location.x());
+    int y = std::round(location.y());
+
+    // When performing a drag on some platforms, it's possible to
+    // trigger mouse events with coordinates outside the surface, so
+    // make sure we don't transmit such coordinates.
+    const gfx::Size& window_size = window_->bounds().size();
+    if (x < 0 || y < 0 || x >= window_size.width() ||
+        y >= window_size.height()) {
+      return kOutsideSurface;
+    }
+
+    return gfx::Point(x, y);
+  }
+
   // ui::EventHandler overrides.
   void OnEvent(ui::Event* event) final {
     switch (event->type()) {
-      case ui::ET_MOUSE_DRAGGED:
-      case ui::ET_MOUSE_MOVED:
-      case ui::ET_MOUSE_ENTERED:
-      case ui::ET_MOUSE_EXITED:
-      case ui::ET_TOUCH_MOVED:
+      case ui::EventType::kMouseDragged:
+      case ui::EventType::kMouseMoved:
+      case ui::EventType::kMouseEntered:
+      case ui::EventType::kMouseExited:
+      case ui::EventType::kTouchMoved:
         if (IsWindowActive()) {
           controller_->OnMouseMoved(AsLocationInWindow(*event));
         }
+        if (controller_->ShouldSendMouseEvents()) {
+          controller_->OnMouseCoordinatesUpdated(
+              CoordinatesForMouseEvent(*event));
+        }
         break;
-
-      case ui::ET_MOUSE_PRESSED:
-      case ui::ET_MOUSE_RELEASED:
-      case ui::ET_MOUSEWHEEL:
-      case ui::ET_TOUCH_PRESSED:
-      case ui::ET_TOUCH_RELEASED: {
+      case ui::EventType::kMousePressed:
+      case ui::EventType::kMouseReleased:
+      case ui::EventType::kMousewheel:
+      case ui::EventType::kTouchPressed:
+      case ui::EventType::kTouchReleased: {
         controller_->OnMouseClicked(AsLocationInWindow(*event));
         break;
       }
@@ -123,6 +146,8 @@ class MouseCursorOverlayController::Observer final
 };
 
 MouseCursorOverlayController::MouseCursorOverlayController()
+    // base::Unretained(this) is safe because we own mouse_activity_ended_timer_
+    // and its destructor calls TimerBase::AbandonScheduledTask().
     : mouse_activity_ended_timer_(
           FROM_HERE,
           kIdleTimeout,
@@ -175,7 +200,7 @@ gfx::RectF MouseCursorOverlayController::ComputeRelativeBoundsForOverlay(
     return gfx::RectF();
 
   const gfx::Size& window_size = window->bounds().size();
-  absl::optional<ui::CursorData> cursor_data =
+  std::optional<ui::CursorData> cursor_data =
       aura::client::GetCursorShapeClient().GetCursorData(cursor);
   if (window_size.IsEmpty() || !window->GetRootWindow() || !cursor_data)
     return gfx::RectF();
@@ -211,7 +236,7 @@ void MouseCursorOverlayController::DisconnectFromToolkitForTesting() {
 // static
 SkBitmap MouseCursorOverlayController::GetCursorImage(
     const gfx::NativeCursor& cursor) {
-  absl::optional<ui::CursorData> cursor_data =
+  std::optional<ui::CursorData> cursor_data =
       aura::client::GetCursorShapeClient().GetCursorData(cursor);
   if (!cursor_data)
     return SkBitmap();

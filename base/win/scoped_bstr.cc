@@ -2,9 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/win/scoped_bstr.h"
 
 #include <stdint.h>
+
+#include <string_view>
 
 #include "base/check.h"
 #include "base/numerics/safe_conversions.h"
@@ -16,7 +23,7 @@ namespace win {
 
 namespace {
 
-BSTR AllocBstrOrDie(WStringPiece non_bstr) {
+BSTR AllocBstrOrDie(std::wstring_view non_bstr) {
   BSTR result = ::SysAllocStringLen(non_bstr.data(),
                                     checked_cast<UINT>(non_bstr.length()));
   if (!result) {
@@ -28,14 +35,15 @@ BSTR AllocBstrOrDie(WStringPiece non_bstr) {
 
 BSTR AllocBstrBytesOrDie(size_t bytes) {
   BSTR result = ::SysAllocStringByteLen(nullptr, checked_cast<UINT>(bytes));
-  if (!result)
+  if (!result) {
     base::TerminateBecauseOutOfMemory(bytes + sizeof(wchar_t));
+  }
   return result;
 }
 
 }  // namespace
 
-ScopedBstr::ScopedBstr(WStringPiece non_bstr)
+ScopedBstr::ScopedBstr(std::wstring_view non_bstr)
     : bstr_(AllocBstrOrDie(non_bstr)) {}
 
 ScopedBstr::~ScopedBstr() {
@@ -68,7 +76,7 @@ BSTR* ScopedBstr::Receive() {
   return &bstr_;
 }
 
-BSTR ScopedBstr::Allocate(WStringPiece str) {
+BSTR ScopedBstr::Allocate(std::wstring_view str) {
   Reset(AllocBstrOrDie(str));
   return bstr_;
 }

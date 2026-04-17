@@ -7,24 +7,20 @@
 #include <stdint.h>
 
 #include <memory>
-#include <string>
+#include <optional>
 #include <utility>
 #include <vector>
 
 #include "base/check.h"
 #include "base/observer_list.h"
 #include "base/time/time.h"
-#include "components/attribution_reporting/source_registration_error.mojom-forward.h"
-#include "components/attribution_reporting/source_type.mojom-forward.h"
+#include "base/values.h"
+#include "components/attribution_reporting/os_registration.h"
 #include "content/browser/attribution_reporting/attribution_data_host_manager.h"
 #include "content/browser/attribution_reporting/attribution_observer.h"
-#include "content/browser/attribution_reporting/storable_source.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-
-#if BUILDFLAG(IS_ANDROID)
 #include "content/browser/attribution_reporting/attribution_reporting.mojom-forward.h"
 #include "content/browser/attribution_reporting/os_registration.h"
-#endif
+#include "content/browser/attribution_reporting/storable_source.h"
 
 namespace content {
 
@@ -34,6 +30,10 @@ MockAttributionManager::~MockAttributionManager() = default;
 
 void MockAttributionManager::AddObserver(AttributionObserver* observer) {
   observers_.AddObserver(observer);
+  if (on_observer_registered_) {
+    std::move(on_observer_registered_).Run();
+  }
+  observer->OnDebugModeChanged(/*debug_mode=*/false);
 }
 
 void MockAttributionManager::RemoveObserver(AttributionObserver* observer) {
@@ -60,9 +60,10 @@ void MockAttributionManager::NotifyReportsChanged() {
 void MockAttributionManager::NotifySourceHandled(
     const StorableSource& source,
     StorableSource::Result result,
-    absl::optional<uint64_t> cleared_debug_key) {
+    std::optional<uint64_t> cleared_debug_key) {
+  base::Time now = base::Time::Now();
   for (auto& observer : observers_) {
-    observer.OnSourceHandled(source, cleared_debug_key, result);
+    observer.OnSourceHandled(source, now, cleared_debug_key, result);
   }
 }
 
@@ -74,26 +75,11 @@ void MockAttributionManager::NotifyReportSent(const AttributionReport& report,
   }
 }
 
-void MockAttributionManager::NotifySourceRegistrationFailure(
-    const std::string& header_value,
-    const attribution_reporting::SuitableOrigin& source_origin,
-    const attribution_reporting::SuitableOrigin& reporting_origin,
-    attribution_reporting::mojom::SourceType source_type,
-    attribution_reporting::mojom::SourceRegistrationError error) {
-  base::Time source_time = base::Time::Now();
-  for (auto& observer : observers_) {
-    observer.OnFailedSourceRegistration(header_value, source_time,
-                                        source_origin, reporting_origin,
-                                        source_type, error);
-  }
-}
-
 void MockAttributionManager::NotifyTriggerHandled(
-    const AttributionTrigger& trigger,
     const CreateReportResult& result,
-    absl::optional<uint64_t> cleared_debug_key) {
+    std::optional<uint64_t> cleared_debug_key) {
   for (auto& observer : observers_) {
-    observer.OnTriggerHandled(trigger, cleared_debug_key, result);
+    observer.OnTriggerHandled(cleared_debug_key, result);
   }
 }
 
@@ -106,22 +92,53 @@ void MockAttributionManager::NotifyDebugReportSent(
   }
 }
 
-#if BUILDFLAG(IS_ANDROID)
+void MockAttributionManager::NotifyAggregatableDebugReportSent(
+    const AggregatableDebugReport& report,
+    base::ValueView report_body,
+    attribution_reporting::mojom::ProcessAggregatableDebugReportResult
+        process_result,
+    const SendAggregatableDebugReportResult& send_result) {
+  for (auto& observer : observers_) {
+    observer.OnAggregatableDebugReportSent(report, report_body, process_result,
+                                           send_result);
+  }
+}
+
 void MockAttributionManager::NotifyOsRegistration(
     const OsRegistration& registration,
     bool is_debug_key_allowed,
     attribution_reporting::mojom::OsRegistrationResult result) {
   base::Time now = base::Time::Now();
-  for (auto& observer : observers_) {
-    observer.OnOsRegistration(now, registration, is_debug_key_allowed, result);
+  for (const attribution_reporting::OsRegistrationItem& item :
+       registration.registration_items) {
+    for (auto& observer : observers_) {
+      observer.OnOsRegistration(now, item, registration.top_level_origin,
+                                registration.GetType(), is_debug_key_allowed,
+                                result);
+    }
   }
 }
-#endif  // BUILDFLAG(IS_ANDROID)
+
+void MockAttributionManager::NotifyDebugModeChanged(bool debug_mode) {
+  for (auto& observer : observers_) {
+    observer.OnDebugModeChanged(debug_mode);
+  }
+}
 
 void MockAttributionManager::SetDataHostManager(
     std::unique_ptr<AttributionDataHostManager> manager) {
   DCHECK(manager);
   data_host_manager_ = std::move(manager);
+}
+
+void MockAttributionManager::SetOnObserverRegistered(base::OnceClosure done) {
+  CHECK(!on_observer_registered_);
+
+  if (!observers_.empty()) {
+    std::move(done).Run();
+    return;
+  }
+  on_observer_registered_ = std::move(done);
 }
 
 }  // namespace content

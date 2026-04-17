@@ -5,6 +5,7 @@
 #ifndef SERVICES_AUDIO_PUBLIC_CPP_FAKE_STREAM_FACTORY_H_
 #define SERVICES_AUDIO_PUBLIC_CPP_FAKE_STREAM_FACTORY_H_
 
+#include <optional>
 #include <string>
 
 #include "base/run_loop.h"
@@ -14,7 +15,6 @@
 #include "media/mojo/mojom/audio_stream_factory.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace audio {
 
@@ -54,7 +54,6 @@ class FakeStreamFactory : public media::mojom::AudioStreamFactory {
       const media::AudioParameters& params,
       uint32_t shared_memory_count,
       bool enable_agc,
-      base::ReadOnlySharedMemoryRegion key_press_count_buffer,
       media::mojom::AudioProcessingConfigPtr processing_config,
       CreateInputStreamCallback callback) override {}
 
@@ -63,7 +62,18 @@ class FakeStreamFactory : public media::mojom::AudioStreamFactory {
       const std::string& output_device_id) override {}
 
   void CreateOutputStream(
+      mojo::PendingReceiver<media::mojom::AudioOutputStream> stream,
+      mojo::PendingAssociatedRemote<media::mojom::AudioOutputStreamObserver>
+          observer,
+      mojo::PendingRemote<media::mojom::AudioLog> log,
+      const std::string& device_id,
+      const media::AudioParameters& params,
+      const base::UnguessableToken& group_id,
+      CreateOutputStreamCallback created_callback) override {}
+  void CreateSwitchableOutputStream(
       mojo::PendingReceiver<media::mojom::AudioOutputStream> stream_receiver,
+      mojo::PendingReceiver<media::mojom::DeviceSwitchInterface>
+          device_switch_receiver,
       mojo::PendingAssociatedRemote<media::mojom::AudioOutputStreamObserver>
           observer,
       mojo::PendingRemote<media::mojom::AudioLog> log,
@@ -86,7 +96,7 @@ class FakeStreamFactory : public media::mojom::AudioStreamFactory {
   mojo::Receiver<media::mojom::AudioStreamFactory> receiver_{this};
 
  private:
-  absl::optional<base::RunLoop> disconnect_loop_;
+  std::optional<base::RunLoop> disconnect_loop_;
 };
 
 static_assert(

@@ -4,9 +4,10 @@
 
 package org.chromium.chrome.browser.omnibox;
 
-/**
- * Provider of editing text state from the UrlBar/Omnibox.
- */
+import org.chromium.build.annotations.NullMarked;
+
+/** Provider of editing text state from the UrlBar/Omnibox. */
+@NullMarked
 public interface UrlBarEditingTextStateProvider {
     /** Return the starting selection index for the text. */
     public int getSelectionStart();

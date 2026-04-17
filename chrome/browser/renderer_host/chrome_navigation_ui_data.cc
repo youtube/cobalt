@@ -6,22 +6,18 @@
 
 #include "chrome/browser/preloading/prefetch/no_state_prefetch/chrome_no_state_prefetch_contents_delegate.h"
 #include "components/no_state_prefetch/browser/no_state_prefetch_contents.h"
-#include "components/no_state_prefetch/browser/prerender_histograms.h"
 #include "content/public/browser/navigation_handle.h"
 #include "extensions/buildflags/buildflags.h"
-#include "ui/base/window_open_disposition.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "extensions/browser/extensions_browser_client.h"
 #include "extensions/common/constants.h"
 #endif
 
-ChromeNavigationUIData::ChromeNavigationUIData()
-    : disposition_(WindowOpenDisposition::CURRENT_TAB) {}
+ChromeNavigationUIData::ChromeNavigationUIData() = default;
 
 ChromeNavigationUIData::ChromeNavigationUIData(
-    content::NavigationHandle* navigation_handle)
-    : disposition_(WindowOpenDisposition::CURRENT_TAB) {
+    content::NavigationHandle* navigation_handle) {
   auto* web_contents = navigation_handle->GetWebContents();
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   int tab_id = extension_misc::kUnknownTabId;
@@ -40,24 +36,21 @@ ChromeNavigationUIData::ChromeNavigationUIData(
           web_contents);
   if (no_state_prefetch_contents) {
     is_no_state_prefetching_ = true;
-    prerender_histogram_prefix_ =
-        prerender::PrerenderHistograms::GetHistogramPrefix(
-            no_state_prefetch_contents->origin());
   }
 }
 
-ChromeNavigationUIData::~ChromeNavigationUIData() {}
+ChromeNavigationUIData::~ChromeNavigationUIData() = default;
 
 // static
 std::unique_ptr<ChromeNavigationUIData>
 ChromeNavigationUIData::CreateForMainFrameNavigation(
     content::WebContents* web_contents,
-    WindowOpenDisposition disposition,
-    bool is_using_https_as_default_scheme) {
+    bool is_using_https_as_default_scheme,
+    bool force_no_https_upgrade) {
   auto navigation_ui_data = std::make_unique<ChromeNavigationUIData>();
-  navigation_ui_data->disposition_ = disposition;
   navigation_ui_data->is_using_https_as_default_scheme_ =
       is_using_https_as_default_scheme;
+  navigation_ui_data->force_no_https_upgrade_ = force_no_https_upgrade;
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   int tab_id = extension_misc::kUnknownTabId;
@@ -79,8 +72,8 @@ ChromeNavigationUIData::CreateForMainFrameNavigation(
 std::unique_ptr<content::NavigationUIData> ChromeNavigationUIData::Clone() {
   auto copy = std::make_unique<ChromeNavigationUIData>();
 
-  copy->disposition_ = disposition_;
   copy->is_using_https_as_default_scheme_ = is_using_https_as_default_scheme_;
+  copy->force_no_https_upgrade_ = force_no_https_upgrade_;
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   if (extension_data_)
@@ -93,8 +86,8 @@ std::unique_ptr<content::NavigationUIData> ChromeNavigationUIData::Clone() {
 #endif
 
   copy->is_no_state_prefetching_ = is_no_state_prefetching_;
-  copy->prerender_histogram_prefix_ = prerender_histogram_prefix_;
   copy->bookmark_id_ = bookmark_id_;
+  copy->navigation_initiated_from_sync_ = navigation_initiated_from_sync_;
 
   return std::move(copy);
 }

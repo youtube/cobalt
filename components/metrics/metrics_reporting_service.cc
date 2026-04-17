@@ -6,6 +6,8 @@
 
 #include "components/metrics/metrics_reporting_service.h"
 
+#include <string_view>
+
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/metrics/histogram_functions.h"
@@ -13,8 +15,8 @@
 #include "components/metrics/metrics_logs_event_manager.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_service_client.h"
+#include "components/metrics/server_urls.h"
 #include "components/metrics/unsent_log_store_metrics_impl.h"
-#include "components/metrics/url_constants.h"
 #include "components/prefs/pref_registry_simple.h"
 
 namespace metrics {
@@ -31,14 +33,15 @@ MetricsReportingService::MetricsReportingService(
     MetricsLogsEventManager* logs_event_manager_)
     : ReportingService(client,
                        local_state,
-                       client->GetStorageLimits().max_ongoing_log_size,
+                       client->GetStorageLimits()
+                           .ongoing_log_queue_limits.max_log_size_bytes,
                        logs_event_manager_),
       metrics_log_store_(local_state,
                          client->GetStorageLimits(),
                          client->GetUploadSigningKey(),
                          logs_event_manager_) {}
 
-MetricsReportingService::~MetricsReportingService() {}
+MetricsReportingService::~MetricsReportingService() = default;
 
 LogStore* MetricsReportingService::log_store() {
   return &metrics_log_store_;
@@ -52,8 +55,8 @@ GURL MetricsReportingService::GetInsecureUploadUrl() const {
   return client()->GetInsecureMetricsServerUrl();
 }
 
-base::StringPiece MetricsReportingService::upload_mime_type() const {
-  return kDefaultMetricsMimeType;
+std::string_view MetricsReportingService::upload_mime_type() const {
+  return kMetricsMimeType;
 }
 
 MetricsLogUploader::MetricServiceType MetricsReportingService::service_type()

@@ -14,7 +14,6 @@
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/bookmarks/common/bookmark_metrics.h"
 #include "components/bookmarks/common/bookmark_pref_names.h"
-#include "components/bookmarks/common/storage_type.h"
 #include "components/bookmarks/test/bookmark_test_helpers.h"
 #include "components/bookmarks/test/test_bookmark_client.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -57,8 +56,7 @@ void BookmarkExpandedStateTrackerTest::SetUp() {
       std::make_unique<bookmarks::TestBookmarkClient>());
   tracker_ = std::make_unique<BookmarkExpandedStateTracker>(&prefs_);
   tracker_->Init(model_.get());
-  model_->Load(scoped_temp_dir_.GetPath(),
-               bookmarks::StorageType::kLocalOrSyncable);
+  model_->Load(scoped_temp_dir_.GetPath());
   bookmarks::test::WaitForBookmarkModelToLoad(model_.get());
 }
 
@@ -86,7 +84,7 @@ TEST_F(BookmarkExpandedStateTrackerTest, SetExpandedNodes) {
 
   // Remove the folder, which should remove it from the list of expanded nodes.
   model_->Remove(model_->bookmark_bar_node()->children().front().get(),
-                 bookmarks::metrics::BookmarkEditSource::kOther);
+                 bookmarks::metrics::BookmarkEditSource::kOther, FROM_HERE);
   nodes.erase(n1);
   n1 = nullptr;
   EXPECT_EQ(nodes, tracker_->GetExpandedNodes());
@@ -102,7 +100,7 @@ TEST_F(BookmarkExpandedStateTrackerTest, RemoveAllUserBookmarks) {
   // Verify that the node is present.
   EXPECT_EQ(nodes, tracker_->GetExpandedNodes());
   // Call remove all.
-  model_->RemoveAllUserBookmarks();
+  model_->RemoveAllUserBookmarks(FROM_HERE);
   // Verify node is not present.
   EXPECT_TRUE(tracker_->GetExpandedNodes().empty());
 }

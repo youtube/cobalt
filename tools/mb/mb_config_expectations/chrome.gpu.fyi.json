@@ -1,31 +1,17 @@
 {
-  "Lacros FYI Release (jacuzzi)": {
+  "ChromeOS FYI Release Skylab (jacuzzi)": {
     "args_file": "//build/args/chromeos/jacuzzi.gni",
     "gn_args": {
-      "also_build_lacros_chrome_for_architecture": "arm",
       "dcheck_always_on": false,
-      "is_chrome_branded": true,
+      "ffmpeg_branding": "Chrome",
       "is_chromeos_device": true,
       "is_component_build": false,
       "is_debug": false,
-      "is_official_build": true,
+      "is_skylab": true,
+      "ozone_platform_headless": true,
+      "proprietary_codecs": true,
       "symbol_level": 0,
-      "target_os": "chromeos",
-      "use_remoteexec": true
-    }
-  },
-  "Lacros FYI Release (octopus)": {
-    "args_file": "//build/args/chromeos/octopus.gni",
-    "gn_args": {
-      "also_build_lacros_chrome_for_architecture": "amd64",
-      "dcheck_always_on": false,
-      "is_chrome_branded": true,
-      "is_chromeos_device": true,
-      "is_component_build": false,
-      "is_debug": false,
-      "is_official_build": true,
-      "symbol_level": 0,
-      "target_os": "chromeos",
+      "use_reclient": false,
       "use_remoteexec": true
     }
   }

@@ -23,17 +23,6 @@ E2ETestBase = class extends AccessibilityTestBase {
   }
 
   /** @override */
-  async setUpDeferred() {
-    await super.setUpDeferred();
-
-    // Alphabetical by file path.
-    await importModule('AsyncUtil', '/common/async_util.js');
-    await importModule('EventGenerator', '/common/event_generator.js');
-    await importModule('KeyCode', '/common/key_code.js');
-    await importModule('constants', '/common/constants.js');
-  }
-
-  /** @override */
   testGenCppIncludes() {
     GEN(`
   #include "ash/accessibility/accessibility_delegate.h"
@@ -42,14 +31,15 @@ E2ETestBase = class extends AccessibilityTestBase {
   #include "base/functional/callback.h"
   #include "base/containers/flat_set.h"
   #include "chrome/browser/ash/accessibility/accessibility_manager.h"
-  #include "chrome/browser/ash/crosapi/browser_manager.h"
+  #include "chrome/browser/ash/system_web_apps/system_web_app_manager.h"
   #include "chrome/browser/speech/extension_api/tts_engine_extension_api.h"
   #include "chrome/browser/ui/browser.h"
   #include "chrome/common/extensions/extension_constants.h"
   #include "content/public/test/browser_test.h"
   #include "content/public/test/browser_test_utils.h"
-  #include "extensions/browser/extension_host.h"
+  #include "extensions/browser/test_extension_console_observer.h"
   #include "extensions/browser/process_manager.h"
+  #include "ui/accessibility/accessibility_switches.h"
       `);
   }
 
@@ -57,10 +47,6 @@ E2ETestBase = class extends AccessibilityTestBase {
   testGenPreamble() {
     GEN(`
     TtsExtensionEngine::GetInstance()->DisableBuiltInTTSEngineForTesting();
-    if (ash_starter()->HasLacrosArgument()) {
-      crosapi::BrowserManager::Get()->NewTab();
-      ASSERT_TRUE(crosapi::BrowserManager::Get()->IsRunning());
-    }
       `);
   }
 
@@ -68,7 +54,7 @@ E2ETestBase = class extends AccessibilityTestBase {
   testGenPostamble() {
     GEN(`
     if (fail_on_console_error) {
-      EXPECT_EQ(0u, console_observer.messages().size())
+      EXPECT_EQ(0u, console_observer.GetErrorCount())
           << "Found console.warn or console.error with message: "
           << console_observer.GetMessageAt(0);
     }
@@ -82,31 +68,18 @@ E2ETestBase = class extends AccessibilityTestBase {
     GEN(`
     WaitForExtension(extension_misc::${extensionIdName}, std::move(load_cb));
 
-    extensions::ExtensionHost* host =
-        extensions::ProcessManager::Get(browser()->profile())
-            ->GetBackgroundHostForExtension(
-                extension_misc::${extensionIdName});
-
     bool fail_on_console_error = ${failOnConsoleError};
     // Convert |allowedMessages| into a C++ set.
     base::flat_set<std::u16string> allowed_messages({${messages}});
-    content::WebContentsConsoleObserver console_observer(host->host_contents());
+    extensions::TestExtensionConsoleObserver
+        console_observer(GetProfile(), extension_misc::${extensionIdName},
+        fail_on_console_error);
     // In most cases, A11y extensions should not log warnings or errors.
     // However, informational messages may be logged in some cases and should
     // be specified in |allowed_messages|. All other messages should cause test
     // failures.
-    auto filter =
-        [](const base::flat_set<std::u16string>& allowed,
-           const content::WebContentsConsoleObserver::Message& message) {
-          if (allowed.contains(message.message))
-            return false;
-
-          return message.log_level ==
-              blink::mojom::ConsoleMessageLevel::kWarning ||
-              message.log_level == blink::mojom::ConsoleMessageLevel::kError;
-        };
     if (fail_on_console_error) {
-      console_observer.SetFilter(base::BindRepeating(filter, allowed_messages));
+      console_observer.SetAllowedErrorMessages(allowed_messages);
     }
     `);
   }
@@ -168,47 +141,6 @@ E2ETestBase = class extends AccessibilityTestBase {
   }
 
   /**
-   * @param {!chrome.automation.AutomationNode} app
-   * @return {boolean}
-   */
-  isInLacrosWindow(app) {
-    // We validate we're actually within a Lacros window by scanning upward
-    // until we see the presence of an app id, which indicates an app subtree.
-    // See go/lacros-accessibility for details.
-    while (app && !app.appId) {
-      app = app.parent;
-    }
-    return Boolean(app);
-  }
-
-  /**
-   * @param {string} url
-   * @param {!chrome.automation.AutomationNode} addressBar
-   */
-  async navigateToUrlForLacros(url, addressBar) {
-    // This populates the address bar as if we typed the url.
-    addressBar.setValue(url);
-
-    // We have two choices to confirm navigation.
-    if (!this.navigateLacrosWithAutoComplete) {
-      // 1. (default), hit enter.
-      await this.waitForEvent(addressBar, 'valueChanged');
-      console.log('Sending key press');
-      EventGenerator.sendKeyPress(KeyCode.RETURN);
-    } else {
-      // 2. use the auto completion.
-      await this.waitForEvent(addressBar, 'controlsChanged');
-      // The text field relates to the auto complete list box via controlledBy.
-      // The |controls| node structure here nests several levels until the
-      // listBoxOption we want.
-      const autoCompleteListBoxOption =
-          addressBar.controls[0].firstChild.firstChild;
-      assertEquals('listBoxOption', autoCompleteListBoxOption.role);
-      autoCompleteListBoxOption.doDefault();
-    }
-  }
-
-  /**
    * Creates a callback that optionally calls {@code opt_callback} when
    * called.  If this method is called one or more times, then
    * {@code testDone()} will be called when all callbacks have been called.
@@ -253,37 +185,11 @@ E2ETestBase = class extends AccessibilityTestBase {
       this.desktop_ = await AsyncUtil.getDesktop();
       const url = opt_params.url || DocUtils.createUrlForDoc(doc);
 
-      const hasLacrosChromePath = await new Promise(
-          r => chrome.commandLinePrivate.hasSwitch('lacros-chrome-path', r));
-      // The below block handles opening a url either in a Lacros tab or Ash
-      // tab. For Lacros, we re-use an already open Lacros tab. For Ash, we use
-      // the chrome.tabs api.
-
-      // This flag controls whether we've requested navigation to |url| within
-      // the open Lacros tab.
-      let didNavigateForLacros = false;
+      // The below block handles opening a url via the chrome.tabs api.
 
       // Listener for both load complete and focus events that eventually
       // triggers the test.
       const listener = async event => {
-        if (hasLacrosChromePath && !didNavigateForLacros) {
-          // We have yet to request navigation in the Lacros tab. Do so now by
-          // getting the default focus (the address bar), setting the value to
-          // the url and then performing do default on the auto completion node.
-          const focus = await AsyncUtil.getFocus();
-          // It's possible focus is elsewhere; wait until it lands on the
-          // address bar text field.
-          if (focus.role !== chrome.automation.RoleType.TEXT_FIELD) {
-            return;
-          }
-
-          if (this.isInLacrosWindow(focus)) {
-            didNavigateForLacros = true;
-            await this.navigateToUrlForLacros(url, focus);
-          }
-          return;  // exit listener.
-        }
-
         // Navigation has occurred, but we need to ensure the url we want has
         // loaded.
         if (event.target.root.url !== url || !event.target.root.docLoaded) {
@@ -291,7 +197,7 @@ E2ETestBase = class extends AccessibilityTestBase {
         }
 
         // Finally, when we get here, we've successfully navigated to
-        // the |url| in either Lacros or Ash.
+        // the |url|.
         this.desktop_.removeEventListener('focus', listener, true);
         this.desktop_.removeEventListener('loadComplete', listener, true);
 
@@ -306,16 +212,22 @@ E2ETestBase = class extends AccessibilityTestBase {
       this.desktop_.addEventListener('focus', listener, true);
       this.desktop_.addEventListener('loadComplete', listener, true);
 
-      // The easy case -- just open the Ash tab.
-      if (!hasLacrosChromePath) {
-        const createParams = {active: true, url};
-        chrome.tabs.create(createParams);
-      } else {
-        chrome.automation.getFocus(f => {
-          listener({target: f});
-        });
-      }
+      const createParams = {active: true, url};
+      chrome.tabs.create(createParams);
     }));
+  }
+
+  /**
+   * Gets the desktop from the automation API and launches new tabs with
+   * the given url, returns when load complete has fired on each document.
+   * @param {Array<string>} urls HTML snippets to open in the URLs.
+   * @return {!Promise}
+   */
+  async runWithLoadedTabs(urls) {
+    console.assert(urls.length !== 0);
+    for (const url of urls) {
+      await this.runWithLoadedTree(url);
+    }
   }
 
   /**
@@ -368,7 +280,45 @@ E2ETestBase = class extends AccessibilityTestBase {
         treeWalker.next().node, 'Found more than one ' + nodeDescription + '.');
     return node;
   }
+
+  /**
+   * Async function to get a preference value from Settings.
+   * @param {string} name
+   * @return {!Promise<*>}
+   */
+  async getPref(name) {
+    return new Promise(resolve => {
+      chrome.settingsPrivate.getPref(name, ret => {
+        resolve(ret);
+      });
+    });
+  }
+
+  /**
+   * Async function to set a preference value in Settings.
+   * @param {string} name
+   * @return {!Promise}
+   */
+  async setPref(name, value) {
+    return new Promise(resolve => {
+      chrome.settingsPrivate.setPref(name, value, undefined, async () => {
+        // Wait for changes to fully propagate.
+        const result = await (this.getPref(name));
+        assertEquals(result.key, name);
+        if (typeof (value) === 'object') {
+          assertObjectEquals(value, result.value);
+        } else {
+          assertEquals(value, result.value);
+        }
+        resolve();
+      });
+    });
+  }
 };
 
 /** @override */
 E2ETestBase.prototype.isAsync = true;
+
+/** @override */
+E2ETestBase.prototype.paramCommandLineSwitch =
+    `::switches::kEnableExperimentalAccessibilityManifestV3`;

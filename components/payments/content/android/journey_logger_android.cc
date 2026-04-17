@@ -6,8 +6,10 @@
 
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
-#include "components/payments/content/android/jni_headers/JourneyLogger_jni.h"
 #include "content/public/browser/web_contents.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/payments/content/android/jni_headers/JourneyLogger_jni.h"
 
 namespace payments {
 namespace {
@@ -18,11 +20,10 @@ using base::android::JavaRef;
 
 }  // namespace
 
-JourneyLoggerAndroid::JourneyLoggerAndroid(bool is_incognito,
-                                           ukm::SourceId source_id)
-    : journey_logger_(is_incognito, source_id) {}
+JourneyLoggerAndroid::JourneyLoggerAndroid(ukm::SourceId source_id)
+    : journey_logger_(source_id) {}
 
-JourneyLoggerAndroid::~JourneyLoggerAndroid() {}
+JourneyLoggerAndroid::~JourneyLoggerAndroid() = default;
 
 void JourneyLoggerAndroid::Destroy(JNIEnv* env,
                                    const JavaParamRef<jobject>& jcaller) {
@@ -42,24 +43,16 @@ void JourneyLoggerAndroid::SetNumberOfSuggestionsShown(
       jhas_complete_suggestion);
 }
 
-void JourneyLoggerAndroid::SetCanMakePaymentValue(
-    JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& jcaller,
-    jboolean jvalue) {
-  journey_logger_.SetCanMakePaymentValue(jvalue);
-}
-
-void JourneyLoggerAndroid::SetHasEnrolledInstrumentValue(
-    JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& jcaller,
-    jboolean jvalue) {
-  journey_logger_.SetHasEnrolledInstrumentValue(jvalue);
-}
-
 void JourneyLoggerAndroid::SetOptOutOffered(
     JNIEnv* env,
     const base::android::JavaParamRef<jobject>& jcaller) {
   journey_logger_.SetOptOutOffered();
+}
+
+void JourneyLoggerAndroid::SetActivationlessShow(
+    JNIEnv* env,
+    const base::android::JavaParamRef<jobject>& jcaller) {
+  journey_logger_.SetActivationlessShow();
 }
 
 void JourneyLoggerAndroid::SetSkippedShow(
@@ -72,12 +65,6 @@ void JourneyLoggerAndroid::SetShown(
     JNIEnv* env,
     const base::android::JavaParamRef<jobject>& jcaller) {
   journey_logger_.SetShown();
-}
-
-void JourneyLoggerAndroid::SetReceivedInstrumentDetails(
-    JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& jcaller) {
-  journey_logger_.SetReceivedInstrumentDetails();
 }
 
 void JourneyLoggerAndroid::SetPayClicked(
@@ -95,19 +82,6 @@ void JourneyLoggerAndroid::SetSelectedMethod(
             static_cast<unsigned int>(
                 JourneyLogger::PaymentMethodCategory::kMaxValue));
   journey_logger_.SetSelectedMethod(
-      static_cast<JourneyLogger::PaymentMethodCategory>(
-          jPaymentMethodCategory));
-}
-
-void JourneyLoggerAndroid::SetAvailableMethod(
-    JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& jcaller,
-    jint jPaymentMethodCategory) {
-  DCHECK_GE(jPaymentMethodCategory, 0);
-  DCHECK_LE(static_cast<unsigned int>(jPaymentMethodCategory),
-            static_cast<unsigned int>(
-                JourneyLogger::PaymentMethodCategory::kMaxValue));
-  journey_logger_.SetAvailableMethod(
       static_cast<JourneyLogger::PaymentMethodCategory>(
           jPaymentMethodCategory));
 }
@@ -154,12 +128,8 @@ void JourneyLoggerAndroid::SetAborted(
 
 void JourneyLoggerAndroid::SetNotShown(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& jcaller,
-    jint jreason) {
-  DCHECK_GE(jreason, 0);
-  DCHECK_LT(jreason, JourneyLogger::NotShownReason::NOT_SHOWN_REASON_MAX);
-  journey_logger_.SetNotShown(
-      static_cast<JourneyLogger::NotShownReason>(jreason));
+    const base::android::JavaParamRef<jobject>& jcaller) {
+  journey_logger_.SetNotShown();
 }
 
 void JourneyLoggerAndroid::SetNoMatchingCredentialsShown(
@@ -186,13 +156,11 @@ void JourneyLoggerAndroid::SetPaymentAppUkmSourceId(
 static jlong JNI_JourneyLogger_InitJourneyLoggerAndroid(
     JNIEnv* env,
     const JavaParamRef<jobject>& jcaller,
-    jboolean jis_incognito,
     const JavaParamRef<jobject>& jweb_contents) {
   content::WebContents* web_contents =
       content::WebContents::FromJavaWebContents(jweb_contents);
   DCHECK(web_contents);  // Verified in Java before invoking this function.
   return reinterpret_cast<jlong>(new JourneyLoggerAndroid(
-      jis_incognito,
       web_contents->GetPrimaryMainFrame()->GetPageUkmSourceId()));
 }
 

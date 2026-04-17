@@ -18,37 +18,20 @@
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
-# JNI is an entry point that's hard to keep track of, so the @UsedByNative
-# annotation marks fields and methods used by native code.
-
 # Annotations are implemented as attributes, so we have to explicitly keep them.
 -keepattributes *Annotation*
 
-# Keep classes, methods, and fields that are accessed with JNI.
--keep @interface dev.cobalt.util.UsedByNative
--keep @dev.cobalt.util.UsedByNative class *
--keepclasseswithmembers class * {
-  @dev.cobalt.util.UsedByNative <methods>;
-}
--keepclasseswithmembers class * {
-  @dev.cobalt.util.UsedByNative <fields>;
-}
-
 # TODO(cobalt, b/393465183): Remove the cobalt prefix if we can avoid symbol relocation.
 -keepclasseswithmembers,allowaccessmodification class ** {
-  @**cobalt.org.chromium.base.annotations.AccessedByNative <fields>;
+  @cobalt.org.jni_zero.AccessedByNative <fields>;
 }
 
 -keepclasseswithmembers,includedescriptorclasses,allowaccessmodification,allowoptimization class ** {
-  @cobalt.org.chromium.base.annotations.CalledByNative <methods>;
+  @cobalt.org.jni_zero.CalledByNative <methods>;
 }
 
 -keepclasseswithmembernames,includedescriptorclasses,allowaccessmodification class ** {
   native <methods>;
-}
-
--keepclasseswithmembers,allowaccessmodification class ** {
-  @**cobalt.org.chromium.base.annotations.AccessedByNative <fields>;
 }
 
 -keepclasseswithmembers,includedescriptorclasses,allowaccessmodification,allowoptimization class ** {

@@ -22,7 +22,6 @@ std::string MediaLogMessageLevelToString(MediaLogMessageLevel level) {
       return "debug";
   }
   NOTREACHED();
-  return "";
 }
 
 }  // namespace media

@@ -5,8 +5,9 @@
 #include "ui/views/animation/ink_drop_host.h"
 
 #include <utility>
+#include <variant>
 
-#include "third_party/abseil-cpp/absl/types/variant.h"
+#include "base/check_is_test.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_provider.h"
 #include "ui/events/event.h"
@@ -19,6 +20,8 @@
 #include "ui/views/animation/ink_drop_impl.h"
 #include "ui/views/animation/ink_drop_mask.h"
 #include "ui/views/animation/ink_drop_stub.h"
+#include "ui/views/animation/pulsing_ink_drop_mask.h"
+#include "ui/views/animation/pulsing_path_ink_drop_mask.h"
 #include "ui/views/animation/square_ink_drop_ripple.h"
 #include "ui/views/controls/focus_ring.h"
 #include "ui/views/controls/highlight_path_generator.h"
@@ -73,7 +76,12 @@ InkDropHost::InkDropHost(View* view)
       ink_drop_event_handler_delegate_(this),
       ink_drop_event_handler_(view, &ink_drop_event_handler_delegate_) {}
 
-InkDropHost::~InkDropHost() = default;
+InkDropHost::~InkDropHost() {
+  // Destroy ink_drop_ early as it holds references to this
+  // and should not call methods on a partially-destructed
+  // InkDropHost as part of its destruction.
+  ink_drop_.reset();
+}
 
 std::unique_ptr<InkDrop> InkDropHost::CreateInkDrop() {
   if (create_ink_drop_callback_) {
@@ -92,7 +100,7 @@ std::unique_ptr<InkDropRipple> InkDropHost::CreateInkDropRipple() const {
     return create_ink_drop_ripple_callback_.Run();
   }
   return std::make_unique<views::FloodFillInkDropRipple>(
-      InkDrop::Get(host_view_), host_view_->size(), gfx::Insets(),
+      InkDrop::Get(host_view_), host_view_->size(),
       GetInkDropCenterBasedOnLastEvent(), GetBaseColor(), GetVisibleOpacity());
 }
 
@@ -134,6 +142,12 @@ void InkDropHost::SetCreateHighlightCallback(
 }
 
 std::unique_ptr<views::InkDropMask> InkDropHost::CreateInkDropMask() const {
+  // Attention mask takes precedence.
+  if (in_attention_state_) {
+    return std::make_unique<views::PulsingPathInkDropMask>(
+        host_view_, GetHighlightPath(host_view_));
+  }
+
   if (create_ink_drop_mask_callback_) {
     return create_ink_drop_mask_callback_.Run();
   }
@@ -146,20 +160,49 @@ void InkDropHost::SetCreateMaskCallback(
   create_ink_drop_mask_callback_ = std::move(callback);
 }
 
+void InkDropHost::ToggleAttentionState(bool attention_on) {
+  in_attention_state_ = attention_on;
+
+  // Calling HostSizeChanged() will force the new mask and color to be fetched.
+  // TODO(collinbaker): Consider adding explicit way to recreate mask instead
+  // of relying on HostSizeChanged() to do so.
+  GetInkDrop()->HostSizeChanged(host_view_->size());
+}
+
 SkColor InkDropHost::GetBaseColor() const {
-  if (absl::holds_alternative<ui::ColorId>(ink_drop_base_color_)) {
+  // TODO(crbug.com/359904341): provide a fallback color provider for tests
+  // that don't care about colors.
+  if (!host_view_->GetWidget()) {
+    CHECK_IS_TEST();
+    return gfx::kPlaceholderColor;
+  }
+
+  // Attention color takes precedence.
+  if (in_attention_state_) {
+    ui::ColorProvider* const color_provider = host_view_->GetColorProvider();
+    CHECK(color_provider);
+    return color_provider->GetColor(ui::kColorButtonFeatureAttentionHighlight);
+  }
+
+  if (std::holds_alternative<ui::ColorId>(ink_drop_base_color_)) {
     ui::ColorProvider* color_provider = host_view_->GetColorProvider();
     CHECK(color_provider);
     return color_provider->GetColor(
-        absl::get<ui::ColorId>(ink_drop_base_color_));
+        std::get<ui::ColorId>(ink_drop_base_color_));
   }
 
-  if (absl::holds_alternative<SkColor>(ink_drop_base_color_)) {
-    return absl::get<SkColor>(ink_drop_base_color_);
+  if (std::holds_alternative<SkColor>(ink_drop_base_color_)) {
+    return std::get<SkColor>(ink_drop_base_color_);
   }
 
-  return absl::get<base::RepeatingCallback<SkColor()>>(ink_drop_base_color_)
-      .Run();
+  // The callback may need access to the color provider, which is only available
+  // after the view is added to a widget.
+  if (host_view_->GetWidget()) {
+    return std::get<base::RepeatingCallback<SkColor()>>(ink_drop_base_color_)
+        .Run();
+  }
+
+  return gfx::kPlaceholderColor;
 }
 
 void InkDropHost::SetBaseColor(SkColor color) {
@@ -205,7 +248,7 @@ float InkDropHost::GetVisibleOpacity() const {
   return ink_drop_visible_opacity_;
 }
 
-void InkDropHost::SetHighlightOpacity(absl::optional<float> opacity) {
+void InkDropHost::SetHighlightOpacity(std::optional<float> opacity) {
   if (opacity == ink_drop_highlight_opacity_) {
     return;
   }
@@ -269,7 +312,9 @@ void InkDropHost::OnInkDropHighlightedChanged() {
 
 void InkDropHost::AddInkDropLayer(ui::Layer* ink_drop_layer) {
   // If a clip is provided, use that as it is more performant than a mask.
-  if (!AddInkDropClip(ink_drop_layer)) {
+  // If `host_view_` is in attention state e.g. has an IPH bubble attached
+  // also install the attention mask.
+  if (!AddInkDropClip(ink_drop_layer) || in_attention_state_) {
     InstallInkDropMask(ink_drop_layer);
   }
   host_view_->AddLayerToRegion(ink_drop_layer, layer_region_);
@@ -312,7 +357,7 @@ InkDropEventHandler* InkDropHost::GetEventHandler() {
 }
 
 bool InkDropHost::AddInkDropClip(ui::Layer* ink_drop_layer) {
-  absl::optional<gfx::RRectF> clipping_data =
+  std::optional<gfx::RRectF> clipping_data =
       HighlightPathGenerator::GetRoundRectForView(host_view_);
   if (!clipping_data) {
     return false;

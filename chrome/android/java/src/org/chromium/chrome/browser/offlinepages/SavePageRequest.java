@@ -4,31 +4,30 @@
 
 package org.chromium.chrome.browser.offlinepages;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
 
-/**
- * Data class representing an underlying request to save a page later.
- */
+/** Data class representing an underlying request to save a page later. */
 @JNINamespace("offline_pages::android")
 public class SavePageRequest {
     // Int representation of the org.chromium.components.offlinepages.RequestState enum.
-    private int mRequestState;
-    private long mRequestId;
-    private String mUrl;
-    private ClientId mClientId;
-    private OfflinePageOrigin mOrigin;
+    private final int mRequestState;
+    private final long mRequestId;
+    private final String mUrl;
+    private final ClientId mClientId;
+    private final OfflinePageOrigin mOrigin;
     // Int representation of SavePageRequest::AutoFetchNotificationState
-    private int mAutoFetchNotificationState;
+    private final int mAutoFetchNotificationState;
 
     /**
      * Creates a SavePageRequest that's a copy of the C++ side version.
      *
-     * NOTE: This does not mirror all fields so it cannot be used to create a full SavePageRequest
-     * on its own.
+     * <p>NOTE: This does not mirror all fields so it cannot be used to create a full
+     * SavePageRequest on its own.
      *
-     * @param savePageResult Result of the saving. Uses
-     *     {@see org.chromium.components.offlinepages.RequestState} enum.
+     * @param state Result of the saving. Uses {@see
+     *     org.chromium.components.offlinepages.RequestState} enum.
      * @param requestId The unique ID of the request.
      * @param url The URL to download
      * @param clientIdNamespace a String that will be the namespace of the client ID of this
@@ -36,16 +35,30 @@ public class SavePageRequest {
      * @param clientIdId a String that will be the ID of the client ID of this request.
      */
     @CalledByNative
-    public static SavePageRequest create(int state, long requestId, String url,
-            String clientIdNamespace, String clientIdId, String originString,
+    public static SavePageRequest create(
+            int state,
+            long requestId,
+            @JniType("std::string") String url,
+            @JniType("std::string") String clientIdNamespace,
+            @JniType("std::string") String clientIdId,
+            @JniType("std::string") String originString,
             int autoFetchNotificationState) {
-        return new SavePageRequest(state, requestId, url,
-                new ClientId(clientIdNamespace, clientIdId), new OfflinePageOrigin(originString),
+        return new SavePageRequest(
+                state,
+                requestId,
+                url,
+                new ClientId(clientIdNamespace, clientIdId),
+                new OfflinePageOrigin(originString),
                 autoFetchNotificationState);
     }
 
-    private SavePageRequest(int state, long requestId, String url, ClientId clientId,
-            OfflinePageOrigin origin, int autoFetchNotificationState) {
+    private SavePageRequest(
+            int state,
+            long requestId,
+            String url,
+            ClientId clientId,
+            OfflinePageOrigin origin,
+            int autoFetchNotificationState) {
         mRequestState = state;
         mRequestId = requestId;
         mUrl = url;

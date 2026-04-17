@@ -11,7 +11,7 @@
 
 #include <android/native_window.h>
 
-#include "libANGLE/renderer/vulkan/RendererVk.h"
+#include "libANGLE/renderer/vulkan/vk_renderer.h"
 
 namespace rx
 {
@@ -21,7 +21,7 @@ WindowSurfaceVkAndroid::WindowSurfaceVkAndroid(const egl::SurfaceState &surfaceS
     : WindowSurfaceVk(surfaceState, window)
 {}
 
-angle::Result WindowSurfaceVkAndroid::createSurfaceVk(vk::Context *context, gl::Extents *extentsOut)
+angle::Result WindowSurfaceVkAndroid::createSurfaceVk(vk::ErrorContext *context)
 {
     VkAndroidSurfaceCreateInfoKHR createInfo = {};
 
@@ -31,13 +31,13 @@ angle::Result WindowSurfaceVkAndroid::createSurfaceVk(vk::Context *context, gl::
     ANGLE_VK_TRY(context, vkCreateAndroidSurfaceKHR(context->getRenderer()->getInstance(),
                                                     &createInfo, nullptr, &mSurface));
 
-    return getCurrentWindowSize(context, extentsOut);
+    return angle::Result::Continue;
 }
 
-angle::Result WindowSurfaceVkAndroid::getCurrentWindowSize(vk::Context *context,
-                                                           gl::Extents *extentsOut)
+angle::Result WindowSurfaceVkAndroid::getCurrentWindowSize(vk::ErrorContext *context,
+                                                           gl::Extents *extentsOut) const
 {
-    RendererVk *renderer                   = context->getRenderer();
+    vk::Renderer *renderer                 = context->getRenderer();
     const VkPhysicalDevice &physicalDevice = renderer->getPhysicalDevice();
     VkSurfaceCapabilitiesKHR surfaceCaps;
     ANGLE_VK_TRY(context,

@@ -1,16 +1,16 @@
-// Copyright (c) 2020, Google Inc.
+// Copyright 2020 The BoringSSL Authors
 //
-// Permission to use, copy, modify, and/or distribute this software for any
-// purpose with or without fee is hereby granted, provided that the above
-// copyright notice and this permission notice appear in all copies.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-// WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-// MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
-// SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-// WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
-// OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
-// CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package subprocess
 
@@ -55,7 +55,7 @@ type tlsKDFTestResponse struct {
 
 type tlsKDF struct{}
 
-func (k *tlsKDF) Process(vectorSet []byte, m Transactable) (interface{}, error) {
+func (k *tlsKDF) Process(vectorSet []byte, m Transactable) (any, error) {
 	var parsed tlsKDFVectorSet
 	if err := json.Unmarshal(vectorSet, &parsed); err != nil {
 		return nil, err
@@ -64,6 +64,7 @@ func (k *tlsKDF) Process(vectorSet []byte, m Transactable) (interface{}, error) 
 	// See https://pages.nist.gov/ACVP/draft-celi-acvp-kdf-tls.html
 	var ret []tlsKDFTestGroupResponse
 	for _, group := range parsed.Groups {
+		group := group
 		response := tlsKDFTestGroupResponse{
 			ID: group.ID,
 		}
@@ -82,6 +83,7 @@ func (k *tlsKDF) Process(vectorSet []byte, m Transactable) (interface{}, error) 
 		method := "TLSKDF/1.2/" + group.Hash
 
 		for _, test := range group.Tests {
+			test := test
 			pms, err := hex.DecodeString(test.PMSHex)
 			if err != nil {
 				return nil, err
@@ -118,19 +120,23 @@ func (k *tlsKDF) Process(vectorSet []byte, m Transactable) (interface{}, error) 
 			binary.LittleEndian.PutUint32(outLenBytes[:], uint32(group.KeyBlockBits/8))
 			// TLS 1.0, 1.1, and 1.2 use a different order for the client and server
 			// randoms when computing the key block.
-			result2, err := m.Transact(method, 1, outLenBytes[:], result[0], []byte(keyBlockLabel), serverRandom, clientRandom)
-			if err != nil {
-				return nil, err
-			}
-
-			response.Tests = append(response.Tests, tlsKDFTestResponse{
-				ID:              test.ID,
-				MasterSecretHex: hex.EncodeToString(result[0]),
-				KeyBlockHex:     hex.EncodeToString(result2[0]),
+			m.TransactAsync(method, 1, [][]byte{outLenBytes[:], result[0], []byte(keyBlockLabel), serverRandom, clientRandom}, func(result2 [][]byte) error {
+				response.Tests = append(response.Tests, tlsKDFTestResponse{
+					ID:              test.ID,
+					MasterSecretHex: hex.EncodeToString(result[0]),
+					KeyBlockHex:     hex.EncodeToString(result2[0]),
+				})
+				return nil
 			})
 		}
 
-		ret = append(ret, response)
+		m.Barrier(func() {
+			ret = append(ret, response)
+		})
+	}
+
+	if err := m.Flush(); err != nil {
+		return nil, err
 	}
 
 	return ret, nil

@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ash/attestation/enrollment_id_upload_manager.h"
 
+#include <optional>
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -14,22 +15,18 @@
 #include "base/time/time.h"
 #include "chrome/browser/ash/attestation/attestation_ca_client.h"
 #include "chrome/browser/ash/attestation/attestation_key_payload.pb.h"
-#include "chrome/browser/chrome_notification_types.h"
 #include "chromeos/ash/components/cryptohome/cryptohome_parameters.h"
 #include "chromeos/ash/components/dbus/attestation/attestation_client.h"
 #include "chromeos/ash/components/dbus/attestation/interface.pb.h"
 #include "chromeos/ash/components/dbus/dbus_thread_manager.h"
-#include "chromeos/dbus/common/dbus_method_call_status.h"
+#include "chromeos/dbus/common/dbus_callback.h"
 #include "components/account_id/account_id.h"
 #include "components/policy/core/common/cloud/cloud_policy_client.h"
 #include "components/policy/core/common/cloud/cloud_policy_manager.h"
 #include "components/user_manager/known_user.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
-#include "content/public/browser/notification_details.h"
-#include "net/cert/pem.h"
 #include "net/cert/x509_certificate.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace {
 
@@ -189,8 +186,8 @@ void EnrollmentIdUploadManager::RescheduleGetEnrollmentId() {
 void EnrollmentIdUploadManager::OnUploadComplete(
     const std::string& enrollment_id,
     policy::CloudPolicyClient::Result result) {
-  const std::string& printable_enrollment_id = base::ToLowerASCII(
-      base::HexEncode(enrollment_id.data(), enrollment_id.size()));
+  const std::string printable_enrollment_id =
+      base::ToLowerASCII(base::HexEncode(enrollment_id));
 
   if (!result.IsSuccess()) {
     LOG(ERROR) << "Failed to upload Enrollment Identifier \""

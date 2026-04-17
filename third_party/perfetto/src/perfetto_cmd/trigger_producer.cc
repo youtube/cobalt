@@ -20,8 +20,8 @@
 
 #include "perfetto/base/logging.h"
 #include "perfetto/ext/tracing/core/producer.h"
-#include "perfetto/ext/tracing/ipc/default_socket.h"
 #include "perfetto/ext/tracing/ipc/producer_ipc_client.h"
+#include "perfetto/tracing/default_socket.h"
 
 namespace perfetto {
 
@@ -81,7 +81,8 @@ void TriggerProducer::StopDataSource(DataSourceInstanceID) {
 }
 void TriggerProducer::Flush(FlushRequestID,
                             const DataSourceInstanceID*,
-                            size_t) {
+                            size_t,
+                            FlushFlags) {
   PERFETTO_DFATAL("Attempted to Flush() on commandline producer");
 }
 

@@ -5,7 +5,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_CSS_CSSOM_CSS_NUMERIC_VALUE_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_CSSOM_CSS_NUMERIC_VALUE_H_
 
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include <optional>
+
 #include "third_party/blink/renderer/bindings/core/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/css_primitive_value.h"
@@ -14,6 +15,10 @@
 #include "third_party/blink/renderer/core/css/cssom/css_style_value.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
+
+namespace WTF {
+class StringBuilder;
+}  // namespace WTF
 
 namespace blink {
 
@@ -74,7 +79,7 @@ class CORE_EXPORT CSSNumericValue : public CSSStyleValue {
   // Converts between compatible types.
   CSSUnitValue* to(CSSPrimitiveValue::UnitType) const;
   virtual bool IsUnitValue() const = 0;
-  virtual absl::optional<CSSNumericSumValue> SumValue() const = 0;
+  virtual std::optional<CSSNumericSumValue> SumValue() const = 0;
 
   virtual bool Equals(const CSSNumericValue&) const = 0;
   const CSSNumericValueType& Type() const { return type_; }
@@ -83,7 +88,7 @@ class CORE_EXPORT CSSNumericValue : public CSSStyleValue {
 
   enum class Nested : bool { kYes, kNo };
   enum class ParenLess : bool { kYes, kNo };
-  virtual void BuildCSSText(Nested, ParenLess, StringBuilder&) const = 0;
+  virtual void BuildCSSText(Nested, ParenLess, WTF::StringBuilder&) const = 0;
 
  protected:
   static bool IsValidUnit(CSSPrimitiveValue::UnitType);

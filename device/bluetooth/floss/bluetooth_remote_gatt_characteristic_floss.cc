@@ -1,8 +1,9 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 #include "device/bluetooth/floss/bluetooth_remote_gatt_characteristic_floss.h"
 
+#include "base/containers/to_vector.h"
 #include "base/memory/ptr_util.h"
 #include "base/notreached.h"
 #include "base/strings/stringprintf.h"
@@ -32,9 +33,11 @@ BluetoothRemoteGattCharacteristicFloss::BluetoothRemoteGattCharacteristicFloss(
     GattCharacteristic* characteristic)
     : characteristic_(characteristic), service_(service) {
   DCHECK(service);
+  DCHECK(service->GetDevice());
   DCHECK(characteristic);
 
   service_->AddObserverForHandle(characteristic_->instance_id, this);
+  device_address_ = service_->GetDevice()->GetAddress();
 
   for (GattDescriptor& d : characteristic_->descriptors) {
     AddDescriptor(
@@ -105,11 +108,11 @@ void BluetoothRemoteGattCharacteristicFloss::ReadRemoteCharacteristic(
       base::BindOnce(
           &BluetoothRemoteGattCharacteristicFloss::OnReadCharacteristic,
           weak_ptr_factory_.GetWeakPtr(), std::move(callback)),
-      service_->GetDevice()->GetAddress(), characteristic_->instance_id, auth);
+      device_address_, characteristic_->instance_id, auth);
 }
 
 void BluetoothRemoteGattCharacteristicFloss::WriteRemoteCharacteristic(
-    const std::vector<uint8_t>& value,
+    base::span<const uint8_t> value,
     device::BluetoothRemoteGattCharacteristic::WriteType write_type,
     base::OnceClosure callback,
     ErrorCallback error_callback) {
@@ -124,7 +127,7 @@ void BluetoothRemoteGattCharacteristicFloss::WriteRemoteCharacteristic(
 }
 
 void BluetoothRemoteGattCharacteristicFloss::
-    DeprecatedWriteRemoteCharacteristic(const std::vector<uint8_t>& value,
+    DeprecatedWriteRemoteCharacteristic(base::span<const uint8_t> value,
                                         base::OnceClosure callback,
                                         ErrorCallback error_callback) {
   Properties props = GetProperties();
@@ -139,7 +142,7 @@ void BluetoothRemoteGattCharacteristicFloss::
 
 #if BUILDFLAG(IS_CHROMEOS)
 void BluetoothRemoteGattCharacteristicFloss::PrepareWriteRemoteCharacteristic(
-    const std::vector<uint8_t>& value,
+    base::span<const uint8_t> value,
     base::OnceClosure callback,
     ErrorCallback error_callback) {
   // Make sure we're using reliable writes before starting a prepared write.
@@ -155,7 +158,7 @@ void BluetoothRemoteGattCharacteristicFloss::PrepareWriteRemoteCharacteristic(
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 void BluetoothRemoteGattCharacteristicFloss::WriteRemoteCharacteristicImpl(
-    const std::vector<uint8_t>& value,
+    base::span<const uint8_t> value,
     floss::WriteType write_type,
     base::OnceClosure callback,
     ErrorCallback error_callback) {
@@ -165,9 +168,8 @@ void BluetoothRemoteGattCharacteristicFloss::WriteRemoteCharacteristicImpl(
       base::BindOnce(
           &BluetoothRemoteGattCharacteristicFloss::OnWriteCharacteristic,
           weak_ptr_factory_.GetWeakPtr(), std::move(callback),
-          std::move(error_callback), value),
-      service_->GetDevice()->GetAddress(), characteristic_->instance_id,
-      write_type, auth, value);
+          std::move(error_callback), base::ToVector(value)),
+      device_address_, characteristic_->instance_id, write_type, auth, value);
 }
 
 void BluetoothRemoteGattCharacteristicFloss::GattCharacteristicRead(
@@ -175,8 +177,12 @@ void BluetoothRemoteGattCharacteristicFloss::GattCharacteristicRead(
     GattStatus status,
     int32_t handle,
     const std::vector<uint8_t>& data) {
-  if (handle != characteristic_->instance_id ||
-      address != service_->GetDevice()->GetAddress()) {
+  // Make sure this notification is for this characteristic.
+  if (handle != characteristic_->instance_id || address != device_address_) {
+    return;
+  }
+
+  if (num_of_reads_in_progress_ == 0 || !pending_read_callback_) {
     return;
   }
 
@@ -187,7 +193,7 @@ void BluetoothRemoteGattCharacteristicFloss::GattCharacteristicRead(
     cached_data_ = data;
 
     std::move(pending_read_callback_)
-        .Run(/*error_code=*/absl::nullopt, cached_data_);
+        .Run(/*error_code=*/std::nullopt, cached_data_);
   } else {
     std::move(pending_read_callback_)
         .Run(BluetoothGattServiceFloss::GattStatusToServiceError(status), {});
@@ -198,8 +204,8 @@ void BluetoothRemoteGattCharacteristicFloss::GattCharacteristicWrite(
     std::string address,
     GattStatus status,
     int32_t handle) {
-  if (handle != characteristic_->instance_id ||
-      address != service_->GetDevice()->GetAddress()) {
+  // Make sure this notification is for this characteristic.
+  if (handle != characteristic_->instance_id || address != device_address_) {
     return;
   }
 
@@ -223,8 +229,8 @@ void BluetoothRemoteGattCharacteristicFloss::GattNotify(
     std::string address,
     int32_t handle,
     const std::vector<uint8_t>& data) {
-  if (handle != characteristic_->instance_id ||
-      address != service_->GetDevice()->GetAddress()) {
+  // Make sure this notification is for this characteristic.
+  if (handle != characteristic_->instance_id || address != device_address_) {
     return;
   }
 
@@ -291,7 +297,7 @@ void BluetoothRemoteGattCharacteristicFloss::SubscribeToNotifications(
           &BluetoothRemoteGattCharacteristicFloss::OnRegisterForNotification,
           weak_ptr_factory_.GetWeakPtr(), ccc_descriptor, value,
           std::move(callback), std::move(error_callback)),
-      service_->GetDevice()->GetAddress(), characteristic_->instance_id);
+      device_address_, characteristic_->instance_id);
 }
 
 void BluetoothRemoteGattCharacteristicFloss::UnsubscribeFromNotifications(
@@ -307,7 +313,7 @@ void BluetoothRemoteGattCharacteristicFloss::UnsubscribeFromNotifications(
           &BluetoothRemoteGattCharacteristicFloss::OnRegisterForNotification,
           weak_ptr_factory_.GetWeakPtr(), ccc_descriptor, value,
           std::move(callback), std::move(error_callback)),
-      service_->GetDevice()->GetAddress(), characteristic_->instance_id);
+      device_address_, characteristic_->instance_id);
 }
 
 void BluetoothRemoteGattCharacteristicFloss::OnRegisterForNotification(

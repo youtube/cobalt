@@ -3,12 +3,17 @@
 // found in the LICENSE file.
 package org.chromium.chrome.browser.xsurface;
 
+import android.view.View;
+
+import org.jspecify.annotations.NullMarked;
+
 /**
  * Implemented internally.
  *
- * Interface providing helper methods to layout list items in an external surface-controlled
+ * <p>Interface providing helper methods to layout list items in an external surface-controlled
  * RecyclerView.
  */
+@NullMarked
 public interface ListLayoutHelper {
     /**
      * Helper method to retrieve first visible item position from
@@ -43,5 +48,15 @@ public interface ListLayoutHelper {
      */
     default boolean setColumnCount(int columnCount) {
         return false;
+    }
+
+    /**
+     * Returns the column index to which this view is assigned. Otherwise, -1 is returned which
+     * means that the view takes the full span.
+     *
+     * @param view The view to get the column index for.
+     */
+    default int getColumnIndex(View view) {
+        return -1;
     }
 }

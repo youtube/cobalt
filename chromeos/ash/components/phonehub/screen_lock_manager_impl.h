@@ -11,8 +11,7 @@
 class PrefRegistrySimple;
 class PrefService;
 
-namespace ash {
-namespace phonehub {
+namespace ash::phonehub {
 
 // Implements ScreenLockManager by persisting the last-known screen lock value
 // to user prefs.
@@ -28,10 +27,9 @@ class ScreenLockManagerImpl : public ScreenLockManager {
   LockStatus GetLockStatus() const override;
   void SetLockStatusInternal(LockStatus lock_status) override;
 
-  raw_ptr<PrefService, ExperimentalAsh> pref_service_;
+  raw_ptr<PrefService> pref_service_;
 };
 
-}  // namespace phonehub
-}  // namespace ash
+}  // namespace ash::phonehub
 
 #endif  // CHROMEOS_ASH_COMPONENTS_PHONEHUB_SCREEN_LOCK_MANAGER_IMPL_H_

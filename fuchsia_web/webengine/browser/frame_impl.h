@@ -10,12 +10,12 @@
 #include <fuchsia/web/cpp/fidl.h>
 #include <lib/fidl/cpp/binding_set.h>
 #include <lib/inspect/cpp/vmo/types.h>
-#include <lib/ui/scenic/cpp/view_ref_pair.h>
 #include <lib/zx/channel.h>
 
 #include <list>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -23,6 +23,7 @@
 #include "base/fuchsia/scoped_fx_logger.h"
 #include "base/gtest_prod_util.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/read_only_shared_memory_region.h"
 #include "base/timer/timer.h"
 #include "build/chromecast_buildflags.h"
@@ -36,15 +37,16 @@
 #include "fuchsia_web/webengine/browser/navigation_controller_impl.h"
 #include "fuchsia_web/webengine/browser/theme_manager.h"
 #include "fuchsia_web/webengine/web_engine_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 #include "ui/accessibility/platform/fuchsia/accessibility_bridge_fuchsia_impl.h"
 #include "ui/aura/window_tree_host.h"
+#include "ui/platform_window/fuchsia/view_ref_pair.h"
 #include "ui/wm/core/focus_controller.h"
 #include "url/gurl.h"
 
 namespace content {
 class FromRenderFrameHost;
+class ScopedAccessibilityMode;
 }  // namespace content
 
 class ContextImpl;
@@ -116,7 +118,7 @@ class WEB_ENGINE_EXPORT FrameImpl : public fuchsia::web::Frame,
   // empty, the default error page will be used.
   void EnableExplicitSitesFilter(std::string error_page);
 
-  const absl::optional<std::string>& explicit_sites_filter_error_page() const {
+  const std::optional<std::string>& explicit_sites_filter_error_page() const {
     return explicit_sites_filter_error_page_;
   }
 
@@ -187,14 +189,14 @@ class WEB_ENGINE_EXPORT FrameImpl : public fuchsia::web::Frame,
   // Creates and initializes WindowTreeHost for the view with the specified
   // |view_token|. |view_token| may be uninitialized in headless mode.
   void SetupWindowTreeHost(fuchsia::ui::views::ViewToken view_token,
-                           scenic::ViewRefPair view_ref_pair);
+                           ui::ViewRefPair view_ref_pair);
 
   // Creates and initializes WindowTreeHost for the view with the specified
   // |view_creation_token|. |view_creation_token| may be uninitialized in
   // headless mode.
   void SetupWindowTreeHost(
       fuchsia::ui::views::ViewCreationToken view_creation_token,
-      scenic::ViewRefPair view_ref_pair);
+      ui::ViewRefPair view_ref_pair);
 
   // Initializes WindowTreeHost.
   void InitWindowTreeHost();
@@ -302,6 +304,7 @@ class WEB_ENGINE_EXPORT FrameImpl : public fuchsia::web::Frame,
                               int32_t line_no,
                               const std::u16string& source_id) override;
   bool IsWebContentsCreationOverridden(
+      content::RenderFrameHost* opener,
       content::SiteInstance* source_site_instance,
       content::mojom::WindowContainerType window_container_type,
       const GURL& opener_url,
@@ -313,19 +316,20 @@ class WEB_ENGINE_EXPORT FrameImpl : public fuchsia::web::Frame,
                           const std::string& frame_name,
                           const GURL& target_url,
                           content::WebContents* new_contents) override;
-  void AddNewContents(content::WebContents* source,
-                      std::unique_ptr<content::WebContents> new_contents,
-                      const GURL& target_url,
-                      WindowOpenDisposition disposition,
-                      const blink::mojom::WindowFeatures& window_features,
-                      bool user_gesture,
-                      bool* was_blocked) override;
+  content::WebContents* AddNewContents(
+      content::WebContents* source,
+      std::unique_ptr<content::WebContents> new_contents,
+      const GURL& target_url,
+      WindowOpenDisposition disposition,
+      const blink::mojom::WindowFeatures& window_features,
+      bool user_gesture,
+      bool* was_blocked) override;
   void RequestMediaAccessPermission(
       content::WebContents* web_contents,
       const content::MediaStreamRequest& request,
       content::MediaResponseCallback callback) override;
   bool CheckMediaAccessPermission(content::RenderFrameHost* render_frame_host,
-                                  const GURL& security_origin,
+                                  const url::Origin& security_origin,
                                   blink::mojom::MediaStreamType type) override;
   std::unique_ptr<content::AudioStreamBrokerFactory>
   CreateAudioStreamBrokerFactory(content::WebContents* web_contents) override;
@@ -362,7 +366,7 @@ class WEB_ENGINE_EXPORT FrameImpl : public fuchsia::web::Frame,
   void OnThemeManagerError();
 
   const std::unique_ptr<content::WebContents> web_contents_;
-  ContextImpl* const context_;
+  const raw_ptr<ContextImpl> context_;
 
   // Optional tag to apply when emitting web console logs.
   const std::string console_log_tag_;
@@ -382,13 +386,13 @@ class WEB_ENGINE_EXPORT FrameImpl : public fuchsia::web::Frame,
   std::unique_ptr<wm::FocusController> focus_controller_;
 
   // Owned via |window_tree_host_|.
-  FrameLayoutManager* layout_manager_ = nullptr;
+  raw_ptr<FrameLayoutManager> layout_manager_ = nullptr;
 
   std::unique_ptr<ui::AccessibilityBridgeFuchsiaImpl> accessibility_bridge_;
 
   // Test settings.
-  absl::optional<gfx::Size> window_size_for_test_;
-  absl::optional<float> device_scale_factor_for_test_;
+  std::optional<gfx::Size> window_size_for_test_;
+  std::optional<float> device_scale_factor_for_test_;
 
   EventFilter event_filter_;
   NavigationControllerImpl navigation_controller_;
@@ -418,7 +422,7 @@ class WEB_ENGINE_EXPORT FrameImpl : public fuchsia::web::Frame,
   // The error page to be displayed when a navigation to an explicit site is
   // filtered. Explicit sites are filtered if it has a value. If set to the
   // empty string, the default error page will be displayed.
-  absl::optional<std::string> explicit_sites_filter_error_page_;
+  std::optional<std::string> explicit_sites_filter_error_page_;
 
   // Used to publish Frame details to Inspect.
   inspect::Node inspect_node_;
@@ -430,6 +434,8 @@ class WEB_ENGINE_EXPORT FrameImpl : public fuchsia::web::Frame,
 
   // Used to implement graceful `Close()` with `timeout` specified.
   base::OneShotTimer close_page_timeout_;
+
+  std::unique_ptr<content::ScopedAccessibilityMode> scoped_accessibility_mode_;
 
   base::WeakPtrFactory<FrameImpl> weak_factory_{this};
 };

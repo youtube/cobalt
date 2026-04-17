@@ -27,6 +27,7 @@ class COMPONENT_EXPORT(TYPECD) TypecdClient {
     virtual void OnThunderboltDeviceConnected(bool is_thunderbolt_only) = 0;
     virtual void OnCableWarning(
         typecd::CableWarningType cable_warning_type) = 0;
+    virtual void OnUsbLimit(typecd::UsbLimitType usb_limit_type) = 0;
   };
 
   void AddObserver(Observer* observer);
@@ -47,6 +48,10 @@ class COMPONENT_EXPORT(TYPECD) TypecdClient {
   // Calls `typecd` to set whether peripheral data access is perimitted.
   virtual void SetPeripheralDataAccessPermissionState(bool permitted) = 0;
 
+  // Calls `typecd` to set which ports are used for displays.
+  virtual void SetTypeCPortsUsingDisplays(
+      const std::vector<uint32_t>& port_nums) = 0;
+
  protected:
   // Initialize/Shutdown should be used instead.
   TypecdClient();
@@ -57,6 +62,7 @@ class COMPONENT_EXPORT(TYPECD) TypecdClient {
 
   void NotifyOnThunderboltDeviceConnected(bool is_thunderbolt_only);
   void NotifyOnCableWarning(typecd::CableWarningType cable_warning_type);
+  void NotifyOnUsbLimit(typecd::UsbLimitType usb_limit_type);
 
  private:
   base::ObserverList<Observer> observer_list_;

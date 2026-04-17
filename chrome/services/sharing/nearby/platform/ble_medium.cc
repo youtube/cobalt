@@ -2,14 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/services/sharing/nearby/platform/ble_medium.h"
 
 #include "base/containers/contains.h"
 #include "base/metrics/histogram_functions.h"
 #include "chrome/services/sharing/nearby/platform/bluetooth_device.h"
 
-namespace nearby {
-namespace chrome {
+namespace nearby::chrome {
 
 namespace {
 // Client name for logging in BLE scanning.
@@ -66,7 +70,7 @@ bool BleMedium::StartAdvertising(
       service_uuid,
       std::vector<uint8_t>(advertisement.data(),
                            advertisement.data() + advertisement.size()),
-      /*use_scan_data=*/true, &pending_advertisement);
+      /*use_scan_data=*/true, /*connectable=*/false, &pending_advertisement);
 
   if (!success || !pending_advertisement.is_valid()) {
     LogStartAdvertisingResult(false);
@@ -397,5 +401,4 @@ chrome::BlePeripheral* BleMedium::GetDiscoveredBlePeripheral(
   return it == discovered_ble_peripherals_map_.end() ? nullptr : &it->second;
 }
 
-}  // namespace chrome
-}  // namespace nearby
+}  // namespace nearby::chrome

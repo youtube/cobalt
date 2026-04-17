@@ -20,8 +20,6 @@ static_library("handler") {
     "handler_main.h",
     "prune_crash_reports_thread.cc",
     "prune_crash_reports_thread.h",
-    "user_stream_data_source.cc",
-    "user_stream_data_source.h",
   ]
 
   if (crashpad_is_mac) {
@@ -49,10 +47,9 @@ static_library("handler") {
       "linux/cros_crash_report_exception_handler.cc",
       "linux/cros_crash_report_exception_handler.h",
     ]
+
     # TODO(https://crbug.com/1420445): Remove this config when M115 branches.
-    configs += [
-      "../build:crashpad_is_in_chromium",
-    ]
+    configs += [ "../build:crashpad_is_in_chromium" ]
   }
 
   if (crashpad_is_win) {
@@ -75,7 +72,6 @@ static_library("handler") {
     ":common",
     "../minidump",
     "../snapshot",
-    "../third_party/mini_chromium:chromeos_buildflags",
     "../tools:tool_support",
   ]
 
@@ -100,8 +96,10 @@ static_library("common") {
     "crash_report_upload_thread.h",
     "minidump_to_upload_parameters.cc",
     "minidump_to_upload_parameters.h",
+    "user_stream_data_source.cc",
+    "user_stream_data_source.h",
   ]
-  if (crashpad_is_mac || crashpad_is_ios) {
+  if (crashpad_is_apple) {
     sources += [
       "mac/file_limit_annotation.cc",
       "mac/file_limit_annotation.h",
@@ -114,6 +112,7 @@ static_library("common") {
   ]
   deps = [
     "../client:common",
+    "../minidump",
     "../snapshot",
     "../util",
     "../util:net",
@@ -223,9 +222,14 @@ if (crashpad_is_android) {
     if (crashpad_is_in_chromium) {
       # Chromium's sanitizer runtime libraries do not include an unwinder,
       # so add Chromium's standard dependencies to link against the in-tree
-      # libunwind.
+      # libunwind. The coverage wrapper similarly requires an unwinder, as
+      # well as a few other bits from libc++abi. There are some issues with pgo
+      # as well.
+      import("//build/config/compiler/pgo/pgo.gni")
+      import("//build/config/coverage/coverage.gni")
       import("//build/config/sanitizers/sanitizers.gni")
-      no_default_deps = !using_sanitizer
+      no_default_deps =
+          !use_clang_coverage && !using_sanitizer && chrome_pgo_phase != 1
       remove_configs =
           [ "//build/config/android:default_orderfile_instrumentation" ]
     }
@@ -337,6 +341,19 @@ if (crashpad_is_win) {
     testonly = true
 
     sources = [ "win/self_destroying_test_program.cc" ]
+
+    deps = [
+      "../client",
+      "../compat",
+      "../snapshot",
+      "../third_party/mini_chromium:base",
+    ]
+  }
+
+  crashpad_executable("heap_corrupting_program") {
+    testonly = true
+
+    sources = [ "win/heap_corrupting_program.cc" ]
 
     deps = [
       "../client",

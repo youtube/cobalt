@@ -9,12 +9,11 @@
 #include <cstdlib>
 #include <memory>
 #include <sstream>
-#include <tuple>
+#include <string_view>
 #include <vector>
 
 #include "base/check.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "extensions/common/permissions/api_permission.h"
@@ -45,20 +44,6 @@ SocketPermissionEntry::SocketPermissionEntry()
       match_subdomains_(false) {}
 
 SocketPermissionEntry::~SocketPermissionEntry() = default;
-
-bool SocketPermissionEntry::operator<(const SocketPermissionEntry& rhs) const {
-  return std::tie(pattern_.type, pattern_.host, match_subdomains_,
-                  pattern_.port) <
-         std::tie(rhs.pattern_.type, rhs.pattern_.host, rhs.match_subdomains_,
-                  rhs.pattern_.port);
-}
-
-bool SocketPermissionEntry::operator==(const SocketPermissionEntry& rhs) const {
-  return (pattern_.type == rhs.pattern_.type) &&
-         (pattern_.host == rhs.pattern_.host) &&
-         (match_subdomains_ == rhs.match_subdomains_) &&
-         (pattern_.port == rhs.pattern_.port);
-}
 
 bool SocketPermissionEntry::Check(
     const content::SocketPermissionRequest& request) const {
@@ -159,7 +144,7 @@ bool SocketPermissionEntry::ParseHostPattern(
     result.pattern_.host = base::ToLowerASCII(result.pattern_.host);
 
     // The first component can optionally be '*' to match all subdomains.
-    std::vector<base::StringPiece> host_components =
+    std::vector<std::string_view> host_components =
         base::SplitStringPiece(result.pattern_.host, std::string{kDot},
                                base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
     DCHECK(!host_components.empty());

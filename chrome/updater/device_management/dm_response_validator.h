@@ -5,11 +5,11 @@
 #ifndef CHROME_UPDATER_DEVICE_MANAGEMENT_DM_RESPONSE_VALIDATOR_H_
 #define CHROME_UPDATER_DEVICE_MANAGEMENT_DM_RESPONSE_VALIDATOR_H_
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
-#include "base/ranges/algorithm.h"
-#include "chrome/updater/device_management/dm_cached_policy_info.h"
+#include "chrome/enterprise_companion/device_management_storage/dm_storage.h"
 
 namespace enterprise_management {
 
@@ -78,7 +78,7 @@ struct PolicyValidationResult {
   ~PolicyValidationResult();
 
   bool HasErrorIssue() const {
-    return base::ranges::any_of(issues, [](const auto& issue) {
+    return std::ranges::any_of(issues, [](const auto& issue) {
       return issue.severity == PolicyValueValidationIssue::Severity::kError;
     });
   }
@@ -98,9 +98,10 @@ struct PolicyValidationResult {
 
 class DMResponseValidator {
  public:
-  DMResponseValidator(const CachedPolicyInfo& policy_info,
-                      const std::string& expected_dm_token,
-                      const std::string& expected_device_id);
+  DMResponseValidator(
+      const device_management_storage::CachedPolicyInfo& policy_info,
+      const std::string& expected_dm_token,
+      const std::string& expected_device_id);
   ~DMResponseValidator();
 
   // Validates a single policy fetch response.
@@ -110,6 +111,10 @@ class DMResponseValidator {
   bool ValidatePolicyResponse(
       const enterprise_management::PolicyFetchResponse& policy_response,
       PolicyValidationResult& validation_result) const;
+
+  // Validates that the policy response data is properly signed.
+  bool ValidatePolicyData(
+      const enterprise_management::PolicyFetchResponse& policy_response) const;
 
  private:
   // Extracts and validates the public key for for subsequent policy
@@ -149,7 +154,7 @@ class DMResponseValidator {
       const enterprise_management::PolicyData& policy_data,
       PolicyValidationResult& validation_result) const;
 
-  const CachedPolicyInfo policy_info_;
+  const device_management_storage::CachedPolicyInfo policy_info_;
   const std::string expected_dm_token_;
   const std::string expected_device_id_;
 };

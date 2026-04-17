@@ -11,32 +11,32 @@ import android.content.Intent;
 import android.graphics.drawable.Drawable;
 import android.text.TextUtils;
 
-import androidx.annotation.VisibleForTesting;
 import androidx.browser.customtabs.CustomTabsIntent;
 
 import org.chromium.base.IntentUtils;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.metrics.RecordUserAction;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.app.metrics.LaunchCauseMetrics;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
 import org.chromium.chrome.browser.browserservices.intents.WebappIntentUtils;
 import org.chromium.chrome.browser.customtabs.BaseCustomTabActivity;
+import org.chromium.components.browser_ui.util.motion.MotionEventInfo;
 
-/**
- * Displays a webapp in a nearly UI-less Chrome (InfoBars still appear).
- */
+/** Displays a webapp in a nearly UI-less Chrome (InfoBars still appear). */
 public class WebappActivity extends BaseCustomTabActivity {
     public static final String WEBAPP_SCHEME = "webapp";
 
-    private static BrowserServicesIntentDataProvider sIntentDataProviderOverride;
+    private static BrowserServicesIntentDataProvider sIntentDataProviderForTesting;
 
     @Override
     protected BrowserServicesIntentDataProvider buildIntentDataProvider(
             Intent intent, @CustomTabsIntent.ColorScheme int colorScheme) {
         if (intent == null) return null;
 
-        if (sIntentDataProviderOverride != null) {
-            return sIntentDataProviderOverride;
+        if (sIntentDataProviderForTesting != null) {
+            return sIntentDataProviderForTesting;
         }
 
         return TextUtils.isEmpty(WebappIntentUtils.getWebApkPackageName(intent))
@@ -44,10 +44,10 @@ public class WebappActivity extends BaseCustomTabActivity {
                 : WebApkIntentDataProviderFactory.create(intent);
     }
 
-    @VisibleForTesting
     public static void setIntentDataProviderForTesting(
             BrowserServicesIntentDataProvider intentDataProvider) {
-        sIntentDataProviderOverride = intentDataProvider;
+        sIntentDataProviderForTesting = intentDataProvider;
+        ResettersForTesting.register(() -> sIntentDataProviderForTesting = null);
     }
 
     @Override
@@ -68,13 +68,14 @@ public class WebappActivity extends BaseCustomTabActivity {
     }
 
     @Override
-    public boolean onMenuOrKeyboardAction(int id, boolean fromMenu) {
+    public boolean onMenuOrKeyboardAction(
+            int id, boolean fromMenu, @Nullable MotionEventInfo triggeringMotion) {
         // Disable creating bookmark.
         if (id == R.id.bookmark_this_page_id) {
             return true;
         }
         if (id == R.id.open_in_browser_id) {
-            mNavigationController.openCurrentUrlInBrowser(false);
+            getCustomTabActivityNavigationController().openCurrentUrlInBrowser();
             if (fromMenu) {
                 RecordUserAction.record("WebappMenuOpenInChrome");
             } else {
@@ -82,7 +83,7 @@ public class WebappActivity extends BaseCustomTabActivity {
             }
             return true;
         }
-        return super.onMenuOrKeyboardAction(id, fromMenu);
+        return super.onMenuOrKeyboardAction(id, fromMenu, triggeringMotion);
     }
 
     @Override
@@ -92,8 +93,10 @@ public class WebappActivity extends BaseCustomTabActivity {
 
     @Override
     protected LaunchCauseMetrics createLaunchCauseMetrics() {
-        return new WebappLaunchCauseMetrics(this,
-                mWebappActivityCoordinator == null ? null
-                                                   : mWebappActivityCoordinator.getWebappInfo());
+        return new WebappLaunchCauseMetrics(
+                this,
+                getWebappActivityCoordinator() == null
+                        ? null
+                        : getWebappActivityCoordinator().getWebappInfo());
     }
 }

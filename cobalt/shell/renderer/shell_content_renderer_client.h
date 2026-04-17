@@ -43,12 +43,6 @@ class ShellContentRendererClient : public ContentRendererClient {
   void RenderThreadStarted() override;
   void ExposeInterfacesToBrowser(mojo::BinderMap* binders) override;
 
-#if defined(RUN_BROWSER_TESTS)
-  void RenderFrameCreated(RenderFrame* render_frame) override;
-  void DidInitializeWorkerContextOnWorkerThread(
-      v8::Local<v8::Context> context) override;
-#endif  // defined(RUN_BROWSER_TESTS)
-
   void PrepareErrorPage(RenderFrame* render_frame,
                         const blink::WebURLError& error,
                         const std::string& http_method,
@@ -69,7 +63,9 @@ class ShellContentRendererClient : public ContentRendererClient {
       blink::URLLoaderThrottleProviderType provider_type) override;
 
 #if BUILDFLAG(ENABLE_MOJO_CDM)
-  void GetSupportedKeySystems(media::GetSupportedKeySystemsCB cb) override;
+  std::unique_ptr<media::KeySystemSupportRegistration> GetSupportedKeySystems(
+      content::RenderFrame* render_frame,
+      media::GetSupportedKeySystemsCB cb) override;
 #endif
 
   std::unique_ptr<blink::WebPrescientNetworking> CreatePrescientNetworking(

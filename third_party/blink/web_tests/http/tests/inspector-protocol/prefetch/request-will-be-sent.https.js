@@ -1,4 +1,4 @@
-(async function(testRunner) {
+(async function(/** @type {import('test_runner').TestRunner} */ testRunner) {
   let {page, session, dp} = await testRunner.startBlank(
         `Tests that Network.requestWillBeSent is dispatched for speculation-rule base prefetch requests.`);
 
@@ -33,7 +33,7 @@
 
   let prefetchRequestId = await testPromise.then((result) => {
     let prefetchRequestId = undefined;
-    const stabilizeNames = [...TestRunner.stabilizeNames, 'wallTime', 'requestTime', 'responseTime', 'Date', 'receiveHeadersEnd', 'sendStart', 'sendEnd', 'ETag', 'Last-Modified', 'User-Agent', 'headersText'];
+    const stabilizeNames = [...TestRunner.stabilizeNames, 'wallTime', 'requestTime', 'responseTime', 'Date', 'receiveHeadersStart', 'receiveHeadersEnd', 'sendStart', 'sendEnd', 'ETag', 'Last-Modified', 'User-Agent', 'headersText'];
     let {requestIds, events} = result;
     for(let i=0; i<requestIds.length; ++i) {
       testRunner.log(`Message ${i}`);

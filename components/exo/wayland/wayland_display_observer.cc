@@ -4,13 +4,11 @@
 
 #include "components/exo/wayland/wayland_display_observer.h"
 
+#include <chrome-color-management-server-protocol.h>
 #include <wayland-server-core.h>
+#include <wayland-server-protocol-core.h>
 #include <xdg-output-unstable-v1-server-protocol.h>
 
-#include <string>
-
-#include "ash/shell.h"
-#include "chrome-color-management-server-protocol.h"
 #include "components/exo/wayland/output_metrics.h"
 #include "components/exo/wayland/server_util.h"
 #include "components/exo/wayland/wayland_display_output.h"
@@ -18,7 +16,8 @@
 #include "components/exo/wayland/zcr_color_manager.h"
 #include "ui/display/display_observer.h"
 #include "ui/display/screen.h"
-#include "wayland-server-protocol-core.h"
+
+using DisplayMetric = display::DisplayObserver::DisplayMetric;
 
 namespace exo {
 namespace wayland {
@@ -32,7 +31,6 @@ WaylandDisplayHandler::WaylandDisplayHandler(WaylandDisplayOutput* output,
     : output_(output), output_resource_(output_resource) {}
 
 WaylandDisplayHandler::~WaylandDisplayHandler() {
-  ash::Shell::Get()->RemoveShellObserver(this);
   for (auto& obs : observers_) {
     obs.OnOutputDestroyed();
   }
@@ -46,7 +44,6 @@ void WaylandDisplayHandler::Initialize() {
   // Adding itself as an observer will send the initial display metrics.
   AddObserver(this);
   output_->RegisterOutput(output_resource_);
-  ash::Shell::Get()->AddShellObserver(this);
 }
 
 void WaylandDisplayHandler::AddObserver(WaylandDisplayObserver* observer) {
@@ -63,8 +60,8 @@ void WaylandDisplayHandler::AddObserver(WaylandDisplayObserver* observer) {
   }
 
   // Send the first round of changes to the observer.
-  constexpr uint32_t all_changes = 0xFFFFFFFF;
-  OnDisplayMetricsChanged(display, all_changes);
+  constexpr uint32_t kAllChanges = 0xFFFFFFFF;
+  SendDisplayMetricsChanges(display, kAllChanges);
 }
 
 void WaylandDisplayHandler::RemoveObserver(WaylandDisplayObserver* observer) {
@@ -76,21 +73,17 @@ int64_t WaylandDisplayHandler::id() const {
   return output_->id();
 }
 
-void WaylandDisplayHandler::OnDisplayMetricsChanged(
+void WaylandDisplayHandler::SendDisplayMetricsChanges(
     const display::Display& display,
     uint32_t changed_metrics) {
-  DCHECK(output_resource_);
-
-  if (id() != display.id()) {
-    return;
-  }
+  CHECK(output_resource_);
+  CHECK_EQ(id(), display.id());
 
   bool needs_done = false;
 
   // If supported, the aura_output_manager must have been bound by clients
   // before the wl_output associated with this WaylandDisplayHandler is bound.
-  wl_client* client = wl_resource_get_client(output_resource_);
-  if (auto* output_manager = AuraOutputManager::Get(client)) {
+  if (auto* output_manager = GetAuraOutputManager()) {
     // This sends all relevant output metrics to clients. These events are sent
     // immediately after the client binds an output and again every time display
     // metrics have changed.
@@ -111,12 +104,7 @@ void WaylandDisplayHandler::OnDisplayMetricsChanged(
   }
 }
 
-void WaylandDisplayHandler::OnDisplayForNewWindowsChanged() {
-  DCHECK(output_resource_);
-  if (id() != display::Screen::GetScreen()->GetDisplayForNewWindows().id()) {
-    return;
-  }
-
+void WaylandDisplayHandler::SendDisplayActivated() {
   for (auto& observer : observers_) {
     observer.SendActiveDisplay();
   }
@@ -131,7 +119,14 @@ void WaylandDisplayHandler::OnXdgOutputCreated(
   if (!display::Screen::GetScreen()->GetDisplayWithDisplayId(id(), &display)) {
     return;
   }
-  OnDisplayMetricsChanged(display, 0xFFFFFFFF);
+
+  if (SendXdgOutputMetrics(display, 0xFFFFFFFF)) {
+    if (wl_resource_get_version(output_resource_) >=
+        WL_OUTPUT_DONE_SINCE_VERSION) {
+      wl_output_send_done(output_resource_);
+    }
+    wl_client_flush(wl_resource_get_client(output_resource_));
+  }
 }
 
 void WaylandDisplayHandler::UnsetXdgOutputResource() {
@@ -151,6 +146,10 @@ void WaylandDisplayHandler::XdgOutputSendLogicalSize(const gfx::Size& size) {
 }
 
 void WaylandDisplayHandler::XdgOutputSendDescription(const std::string& desc) {
+  if (wl_resource_get_version(xdg_output_resource_) <
+      ZXDG_OUTPUT_V1_DESCRIPTION_SINCE_VERSION) {
+    return;
+  }
   zxdg_output_v1_send_description(xdg_output_resource_, desc.c_str());
 }
 
@@ -164,46 +163,72 @@ bool WaylandDisplayHandler::SendDisplayMetrics(const display::Display& display,
   // changes, bounds always changes. (new primary should have had non
   // 0,0 origin).
   // Only exception is when switching to newly connected primary with
-  // the same bounds. This happens whenyou're in docked mode, suspend,
+  // the same bounds. This happens when you're in docked mode, suspend,
   // unplug the display, then resume to the internal display which has
   // the same resolution. Since metrics does not change, there is no need
   // to notify clients.
-  if (!(changed_metrics &
-        (DISPLAY_METRIC_BOUNDS | DISPLAY_METRIC_DEVICE_SCALE_FACTOR |
-         DISPLAY_METRIC_ROTATION))) {
+
+  const OutputMetrics output_metrics(display);
+  bool result = false;
+
+  if (changed_metrics & (DisplayMetric::DISPLAY_METRIC_BOUNDS |
+                         DisplayMetric::DISPLAY_METRIC_ROTATION |
+                         DisplayMetric::DISPLAY_METRIC_REFRESH_RATE)) {
+    wl_output_send_geometry(
+        output_resource_, output_metrics.origin.x(), output_metrics.origin.y(),
+        output_metrics.physical_size_mm.width(),
+        output_metrics.physical_size_mm.height(), output_metrics.subpixel,
+        output_metrics.make.c_str(), output_metrics.model.c_str(),
+        output_metrics.panel_transform);
+    wl_output_send_mode(output_resource_, output_metrics.mode_flags,
+                        output_metrics.physical_size_px.width(),
+                        output_metrics.physical_size_px.height(),
+                        output_metrics.refresh_mhz);
+    result = true;
+  }
+
+  if (changed_metrics & DisplayMetric::DISPLAY_METRIC_DEVICE_SCALE_FACTOR) {
+    if (wl_resource_get_version(output_resource_) >=
+        WL_OUTPUT_SCALE_SINCE_VERSION) {
+      wl_output_send_scale(output_resource_, output_metrics.scale);
+      result = true;
+    }
+  }
+
+  if (SendXdgOutputMetrics(display, changed_metrics)) {
+    result = true;
+  }
+
+  return result;
+}
+
+bool WaylandDisplayHandler::SendXdgOutputMetrics(
+    const display::Display& display,
+    uint32_t changed_metrics) {
+  if (!xdg_output_resource_) {
     return false;
   }
 
   const OutputMetrics output_metrics(display);
+  bool result = false;
 
-  wl_output_send_geometry(
-      output_resource_, output_metrics.origin.x(), output_metrics.origin.y(),
-      output_metrics.physical_size_mm.width(),
-      output_metrics.physical_size_mm.height(), output_metrics.subpixel,
-      output_metrics.make.c_str(), output_metrics.model.c_str(),
-      output_metrics.panel_transform);
-  wl_output_send_mode(output_resource_, output_metrics.mode_flags,
-                      output_metrics.physical_size_px.width(),
-                      output_metrics.physical_size_px.height(),
-                      output_metrics.refresh_mhz);
-
-  if (xdg_output_resource_) {
+  if (changed_metrics & (DisplayMetric::DISPLAY_METRIC_BOUNDS |
+                         DisplayMetric::DISPLAY_METRIC_ROTATION |
+                         DisplayMetric::DISPLAY_METRIC_DEVICE_SCALE_FACTOR)) {
     XdgOutputSendLogicalPosition(output_metrics.logical_origin);
     XdgOutputSendLogicalSize(output_metrics.logical_size);
     XdgOutputSendDescription(output_metrics.description);
-  } else {
-    if (wl_resource_get_version(output_resource_) >=
-        WL_OUTPUT_SCALE_SINCE_VERSION) {
-      wl_output_send_scale(output_resource_, output_metrics.scale);
+    if (wl_resource_get_version(xdg_output_resource_) < 3) {
+      zxdg_output_v1_send_done(xdg_output_resource_);
     }
+    result = true;
   }
 
-  return true;
+  return result;
 }
 
 void WaylandDisplayHandler::SendActiveDisplay() {
-  wl_client* client = wl_resource_get_client(output_resource_);
-  if (auto* output_manager = AuraOutputManager::Get(client)) {
+  if (auto* output_manager = GetAuraOutputManager()) {
     output_manager->SendOutputActivated(output_resource_);
   }
 }
@@ -211,6 +236,12 @@ void WaylandDisplayHandler::SendActiveDisplay() {
 void WaylandDisplayHandler::OnOutputDestroyed() {
   // destroying itself.
   RemoveObserver(this);
+}
+
+AuraOutputManager* WaylandDisplayHandler::GetAuraOutputManager() {
+  wl_client* client = wl_resource_get_client(output_resource_);
+  CHECK(client);
+  return AuraOutputManager::Get(client);
 }
 
 size_t WaylandDisplayHandler::CountObserversForTesting() const {

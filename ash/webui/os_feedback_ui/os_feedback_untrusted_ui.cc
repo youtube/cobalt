@@ -2,11 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ash/webui/os_feedback_ui/os_feedback_untrusted_ui.h"
 
 #include <memory>
 
-#include "ash/constants/ash_features.h"
+#include "ash/webui/common/trusted_types_util.h"
 #include "ash/webui/grit/ash_os_feedback_resources.h"
 #include "ash/webui/grit/ash_os_feedback_untrusted_resources.h"
 #include "ash/webui/grit/ash_os_feedback_untrusted_resources_map.h"
@@ -48,16 +53,10 @@ void AddLocalizedStrings(content::WebUIDataSource* source) {
 }  // namespace
 
 OsFeedbackUntrustedUIConfig::OsFeedbackUntrustedUIConfig()
-    : WebUIConfig(content::kChromeUIUntrustedScheme,
-                  kChromeUIOSFeedbackUntrustedHost) {}
+    : DefaultWebUIConfig(content::kChromeUIUntrustedScheme,
+                         kChromeUIOSFeedbackUntrustedHost) {}
 
 OsFeedbackUntrustedUIConfig::~OsFeedbackUntrustedUIConfig() = default;
-
-std::unique_ptr<content::WebUIController>
-OsFeedbackUntrustedUIConfig::CreateWebUIController(content::WebUI* web_ui,
-                                                   const GURL& url) {
-  return std::make_unique<OsFeedbackUntrustedUI>(web_ui);
-}
 
 OsFeedbackUntrustedUI::OsFeedbackUntrustedUI(content::WebUI* web_ui)
     : ui::UntrustedWebUIController(web_ui) {
@@ -66,30 +65,22 @@ OsFeedbackUntrustedUI::OsFeedbackUntrustedUI(content::WebUI* web_ui)
           web_ui->GetWebContents()->GetBrowserContext(),
           kChromeUIOSFeedbackUntrustedUrl);
 
-  untrusted_source->AddResourcePaths(base::make_span(
-      kAshOsFeedbackUntrustedResources, kAshOsFeedbackUntrustedResourcesSize));
+  untrusted_source->AddResourcePaths(kAshOsFeedbackUntrustedResources);
   untrusted_source->AddResourcePath("help_content.js",
                                     IDR_ASH_OS_FEEDBACK_HELP_CONTENT_JS);
+  untrusted_source->AddResourcePath("help_content.html.js",
+                                    IDR_ASH_OS_FEEDBACK_HELP_CONTENT_HTML_JS);
   untrusted_source->AddResourcePath("feedback_types.js",
                                     IDR_ASH_OS_FEEDBACK_FEEDBACK_TYPES_JS);
   untrusted_source->AddResourcePath(
-      "file_path.mojom-lite.js",
-      IDR_ASH_OS_FEEDBACK_MOJO_PUBLIC_MOJOM_BASE_FILE_PATH_MOJOM_LITE_JS);
+      "help_resources_icons.html.js",
+      IDR_ASH_OS_FEEDBACK_HELP_RESOURCES_ICONS_HTML_JS);
   untrusted_source->AddResourcePath(
-      "safe_base_name.mojom-lite.js",
-      IDR_ASH_OS_FEEDBACK_MOJO_PUBLIC_MOJOM_BASE_SAFE_BASE_NAME_MOJOM_LITE_JS);
-  untrusted_source->AddResourcePath(
-      "help_resources_icons.js", IDR_ASH_OS_FEEDBACK_HELP_RESOURCES_ICONS_JS);
-  untrusted_source->AddResourcePath(
-      "mojom/os_feedback_ui.mojom-lite.js",
-      IDR_ASH_OS_FEEDBACK_MOJOM_OS_FEEDBACK_UI_MOJOM_LITE_JS);
+      "os_feedback_ui.mojom-webui.js",
+      IDR_ASH_OS_FEEDBACK_OS_FEEDBACK_UI_MOJOM_WEBUI_JS);
 
   untrusted_source->SetDefaultResource(
       IDR_ASH_OS_FEEDBACK_UNTRUSTED_UNTRUSTED_INDEX_HTML);
-
-  // Resources for dynamic colors.
-  untrusted_source->AddBoolean("isJellyEnabledForOsFeedback",
-                               ash::features::IsJellyEnabledForOsFeedback());
 
   AddLocalizedStrings(untrusted_source);
 
@@ -97,10 +88,7 @@ OsFeedbackUntrustedUI::OsFeedbackUntrustedUI(content::WebUI* web_ui)
   // chrome-untrusted://os-feedback WebUI.
   untrusted_source->AddFrameAncestor(GURL(kChromeUIOSFeedbackUrl));
 
-  // DisableTrustedTypesCSP to support TrustedTypePolicy named 'goog#html'.
-  // It is the Closure templating system that renders our UI, as it does many
-  // other web apps using it.
-  untrusted_source->DisableTrustedTypesCSP();
+  ash::EnableTrustedTypesCSP(untrusted_source);
   // TODO(b/194964287): Audit and tighten CSP.
   untrusted_source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::DefaultSrc, "");
@@ -114,7 +102,6 @@ OsFeedbackUntrustedUI::~OsFeedbackUntrustedUI() = default;
 
 void OsFeedbackUntrustedUI::BindInterface(
     mojo::PendingReceiver<color_change_listener::mojom::PageHandler> receiver) {
-  CHECK(ash::features::IsJellyEnabledForOsFeedback());
   color_provider_handler_ = std::make_unique<ui::ColorChangeHandler>(
       web_ui()->GetWebContents(), std::move(receiver));
 }

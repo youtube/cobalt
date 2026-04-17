@@ -32,11 +32,7 @@ class ContentHashReader {
     // Extension has hashes files, but they are unreadable or corrupted.
     HASHES_DAMAGED,
 
-    // Resource doesn't have entry in hashes, and this is as expected since
-    // extension doesn't have such resource.
-    NO_HASHES_FOR_NON_EXISTING_RESOURCE,
-
-    // Resource doesn't have entry in hashes, but it should be there.
+    // Resource doesn't have entry in hashes.
     NO_HASHES_FOR_RESOURCE,
 
     // Ready to verify resource's content.
@@ -49,7 +45,7 @@ class ContentHashReader {
   ~ContentHashReader();
 
   // Factory to create ContentHashReader to get expected hashes for the file at
-  // |relative_path| within an extension.
+  // `relative_path` within an extension.
   // Must be called on a thread that is allowed to do file I/O. Returns an
   // instance whose success or failure type can be determined by calling
   // status() method. On failure, this object should likely be discarded.

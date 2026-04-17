@@ -4,6 +4,7 @@
 
 #include "extensions/browser/api/declarative/rules_registry_service.h"
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 
@@ -12,7 +13,6 @@
 #include "base/functional/bind.h"
 #include "base/lazy_instance.h"
 #include "base/observer_list.h"
-#include "base/ranges/algorithm.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
@@ -20,7 +20,7 @@
 #include "extensions/browser/api/declarative_webrequest/webrequest_constants.h"
 #include "extensions/browser/api/declarative_webrequest/webrequest_rules_registry.h"
 #include "extensions/browser/api/extensions_api_client.h"
-#include "extensions/browser/api/web_request/web_request_api.h"
+#include "extensions/browser/api/web_request/extension_web_request_event_router.h"
 #include "extensions/browser/extension_util.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/features/feature.h"
@@ -28,24 +28,8 @@
 
 namespace extensions {
 
-namespace {
-
-void NotifyWithExtensionSafe(
-    scoped_refptr<const Extension> extension,
-    void (RulesRegistry::*notification_callback)(const Extension*),
-    scoped_refptr<RulesRegistry> registry) {
-  (registry.get()->*notification_callback)(extension.get());
-}
-
-}  // namespace
-
-const int RulesRegistryService::kDefaultRulesRegistryID = 0;
-const int RulesRegistryService::kInvalidRulesRegistryID = -1;
-
 RulesRegistryService::RulesRegistryService(content::BrowserContext* context)
-    : current_rules_registry_id_(kDefaultRulesRegistryID),
-      content_rules_registry_(nullptr),
-      browser_context_(context) {
+    : browser_context_(context) {
   if (browser_context_) {
     extension_registry_observation_.Observe(
         ExtensionRegistry::Get(browser_context_));
@@ -60,11 +44,13 @@ int RulesRegistryService::GetNextRulesRegistryID() {
 }
 
 void RulesRegistryService::Shutdown() {
-  // Release the references to all registries, and remove the default registry
-  // from ExtensionWebRequestEventRouter.
+  // Notify the registries.
+  for (const auto& [_, registry] : rule_registries_) {
+    registry->OnShutdown();
+  }
+
+  // Release the references to all registries.
   rule_registries_.clear();
-  ExtensionWebRequestEventRouter::GetInstance()->RegisterRulesRegistry(
-      browser_context_, RulesRegistryService::kDefaultRulesRegistryID, nullptr);
 }
 
 static base::LazyInstance<BrowserContextKeyedAPIFactory<RulesRegistryService>>::
@@ -93,7 +79,7 @@ void RulesRegistryService::RegisterRulesRegistry(
     scoped_refptr<RulesRegistry> rule_registry) {
   const std::string event_name(rule_registry->event_name());
   RulesRegistryKey key(event_name, rule_registry->id());
-  DCHECK(rule_registries_.find(key) == rule_registries_.end());
+  DCHECK(!base::Contains(rule_registries_, key));
   rule_registries_[key] = rule_registry;
 }
 
@@ -102,13 +88,16 @@ scoped_refptr<RulesRegistry> RulesRegistryService::GetRulesRegistry(
     const std::string& event_name) {
   RulesRegistryKey key(event_name, rules_registry_id);
   RulesRegistryMap::const_iterator i = rule_registries_.find(key);
-  if (i != rule_registries_.end())
+  if (i != rule_registries_.end()) {
     return i->second;
+  }
 
   // We should have attempted creation of the default rule registries at
   // construction.
-  if (!browser_context_ || rules_registry_id == kDefaultRulesRegistryID)
+  if (!browser_context_ ||
+      rules_registry_id == rules_registry_ids::kDefaultRulesRegistryID) {
     return nullptr;
+  }
 
   // Only web request rules registries are created for webviews.
   DCHECK_EQ(declarative_webrequest_constants::kOnRequest, event_name);
@@ -121,23 +110,22 @@ scoped_refptr<RulesRegistry> RulesRegistryService::GetRulesRegistry(
 
 void RulesRegistryService::RemoveRulesRegistriesByID(int rules_registry_id) {
   std::set<RulesRegistryKey> registries_to_delete;
-  for (auto it = rule_registries_.begin(); it != rule_registries_.end(); ++it) {
-    const RulesRegistryKey& key = it->first;
-    if (key.rules_registry_id != rules_registry_id)
+  for (auto& [key, rule_registry] : rule_registries_) {
+    if (key.rules_registry_id != rules_registry_id) {
       continue;
+    }
     // Modifying a container while iterating over it can lead to badness. So we
     // save the keys in another container and delete them in another loop.
     registries_to_delete.insert(key);
   }
 
-  for (auto it = registries_to_delete.begin(); it != registries_to_delete.end();
-       ++it) {
-    rule_registries_.erase(*it);
+  for (const auto& registry : registries_to_delete) {
+    rule_registries_.erase(registry);
   }
 }
 
 bool RulesRegistryService::HasAnyRegisteredRules() const {
-  return base::ranges::any_of(
+  return std::ranges::any_of(
       cache_delegates_,
       [](const std::unique_ptr<RulesCacheDelegate>& delegate) {
         return delegate->HasRules();
@@ -182,8 +170,8 @@ RulesRegistryService::RegisterWebRequestRulesRegistry(
       RulesRegistryKey(declarative_webrequest_constants::kOnRequest,
                        rules_registry_id)));
 
-  auto web_request_cache_delegate = std::make_unique<RulesCacheDelegate>(
-      cache_delegate_type, true /* log_storage_init_delay */);
+  auto web_request_cache_delegate =
+      std::make_unique<RulesCacheDelegate>(cache_delegate_type);
   auto web_request_rules_registry =
       base::MakeRefCounted<WebRequestRulesRegistry>(
           browser_context_, web_request_cache_delegate.get(),
@@ -191,8 +179,9 @@ RulesRegistryService::RegisterWebRequestRulesRegistry(
   web_request_cache_delegate->AddObserver(this);
   cache_delegates_.push_back(std::move(web_request_cache_delegate));
   RegisterRulesRegistry(web_request_rules_registry);
-  ExtensionWebRequestEventRouter::GetInstance()->RegisterRulesRegistry(
-      browser_context_, rules_registry_id, web_request_rules_registry);
+  WebRequestEventRouter::Get(browser_context_)
+      ->RegisterRulesRegistry(browser_context_, rules_registry_id,
+                              web_request_rules_registry);
   return web_request_rules_registry;
 }
 
@@ -201,7 +190,7 @@ void RulesRegistryService::EnsureDefaultRulesRegistriesRegistered() {
   DCHECK(!base::Contains(
       rule_registries_,
       RulesRegistryKey(declarative_webrequest_constants::kOnRequest,
-                       kDefaultRulesRegistryID)));
+                       rules_registry_ids::kDefaultRulesRegistryID)));
 
   // Only register the default web request rules registry if the
   // declarativeWebRequest API is enabled. See crbug.com/693243.
@@ -212,15 +201,14 @@ void RulesRegistryService::EnsureDefaultRulesRegistriesRegistered() {
           .is_available();
   if (is_api_enabled) {
     // Persist the cache since it pertains to regular pages (i.e. not webviews).
-    RegisterWebRequestRulesRegistry(kDefaultRulesRegistryID,
+    RegisterWebRequestRulesRegistry(rules_registry_ids::kDefaultRulesRegistryID,
                                     RulesCacheDelegate::Type::kPersistent);
   }
 
   // Create the ContentRulesRegistry.
   DCHECK(!content_rules_registry_);
   auto content_rules_cache_delegate = std::make_unique<RulesCacheDelegate>(
-      RulesCacheDelegate::Type::kPersistent,
-      false /* log_storage_init_delay */);
+      RulesCacheDelegate::Type::kPersistent);
   scoped_refptr<ContentRulesRegistry> content_rules_registry =
       ExtensionsAPIClient::Get()->CreateContentRulesRegistry(
           browser_context_, content_rules_cache_delegate.get());
@@ -238,15 +226,7 @@ void RulesRegistryService::NotifyRegistriesHelper(
   RulesRegistryMap::iterator i;
   for (i = rule_registries_.begin(); i != rule_registries_.end(); ++i) {
     scoped_refptr<RulesRegistry> registry = i->second;
-    if (content::BrowserThread::CurrentlyOn(registry->owner_thread())) {
-      (registry.get()->*notification_callback)(extension);
-    } else {
-      content::BrowserThread::GetTaskRunnerForThread(registry->owner_thread())
-          ->PostTask(FROM_HERE,
-                     base::BindOnce(&NotifyWithExtensionSafe,
-                                    base::WrapRefCounted(extension),
-                                    notification_callback, registry));
-    }
+    (registry.get()->*notification_callback)(extension);
   }
 }
 

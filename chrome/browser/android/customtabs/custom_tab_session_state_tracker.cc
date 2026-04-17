@@ -5,6 +5,8 @@
 #include "chrome/browser/android/customtabs/custom_tab_session_state_tracker.h"
 
 #include "base/android/jni_string.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
 #include "chrome/android/chrome_jni_headers/CustomTabsOpenTimeRecorder_jni.h"
 
 namespace chrome {
@@ -57,11 +59,10 @@ CustomTabSessionStateTracker::~CustomTabSessionStateTracker() = default;
 static void JNI_CustomTabsOpenTimeRecorder_RecordCustomTabSession(
     JNIEnv* env,
     jlong j_time,
-    const base::android::JavaParamRef<jstring>& j_package_name,
+    std::string& package_name,
     jlong j_session_duration,
     jboolean j_was_user_closed,
     jboolean j_is_partial_cct) {
-  std::string package_name = ConvertJavaStringToUTF8(env, j_package_name);
   chrome::android::CustomTabSessionStateTracker::GetInstance()
       .RecordCustomTabSession(j_time, package_name, j_session_duration,
                               j_was_user_closed, j_is_partial_cct);

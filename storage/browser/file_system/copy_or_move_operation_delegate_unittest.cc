@@ -2,9 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "storage/browser/file_system/copy_or_move_operation_delegate.h"
+
 #include <stddef.h>
 #include <stdint.h>
 
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <string>
@@ -23,7 +26,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/ranges/algorithm.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/task_environment.h"
@@ -33,14 +35,12 @@
 #include "components/services/filesystem/public/mojom/types.mojom.h"
 #include "storage/browser/file_system/copy_or_move_file_validator.h"
 #include "storage/browser/file_system/copy_or_move_hook_delegate.h"
-#include "storage/browser/file_system/copy_or_move_operation_delegate.h"
 #include "storage/browser/file_system/file_stream_reader.h"
 #include "storage/browser/file_system/file_stream_writer.h"
 #include "storage/browser/file_system/file_system_backend.h"
 #include "storage/browser/file_system/file_system_context.h"
 #include "storage/browser/file_system/file_system_operation.h"
 #include "storage/browser/file_system/file_system_url.h"
-#include "storage/browser/file_system/file_system_util.h"
 #include "storage/browser/quota/quota_manager.h"
 #include "storage/browser/test/async_file_test_helper.h"
 #include "storage/browser/test/file_system_test_file_set.h"
@@ -58,6 +58,10 @@
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "url/gurl.h"
 #include "url/origin.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/test/android/content_uri_test_utils.h"
+#endif
 
 namespace storage {
 
@@ -113,7 +117,7 @@ class TestValidatorFactory : public CopyOrMoveFileValidatorFactory {
                                   ResultCallback result_callback) override {
       base::File::Error result = write_result_;
       std::string unsafe = dest_platform_path.BaseName().AsUTF8Unsafe();
-      if (unsafe.find(reject_string_) != std::string::npos) {
+      if (base::Contains(unsafe, reject_string_)) {
         result = base::File::FILE_ERROR_SECURITY;
       }
       // Post the result since a real validator must do work asynchronously.
@@ -194,7 +198,9 @@ class CopyOrMoveRecordAndSecurityDelegate : public CopyOrMoveHookDelegate {
 
   void OnError(const FileSystemURL& source_url,
                const FileSystemURL& destination_url,
-               base::File::Error error) override {
+               base::File::Error error,
+               ErrorCallback callback) override {
+    std::move(callback).Run(ErrorAction::kDefault);
     AddRecord(ProgressRecord::Type::kError, source_url, destination_url, 0,
               error);
   }
@@ -343,10 +349,8 @@ class CopyOrMoveOperationTestHelper {
 
     // Grant relatively big quota initially.
     quota_manager_->SetQuota(blink::StorageKey::CreateFirstParty(origin_),
-                             FileSystemTypeToQuotaStorageType(src_type_),
                              1024 * 1024);
     quota_manager_->SetQuota(blink::StorageKey::CreateFirstParty(origin_),
-                             FileSystemTypeToQuotaStorageType(dest_type_),
                              1024 * 1024);
   }
 
@@ -419,9 +423,8 @@ class CopyOrMoveOperationTestHelper {
     root_src.virtual_path().AppendRelativePath(src.virtual_path(),
                                                &src_relative_path);
     src_relative_path = src_relative_path.NormalizePathSeparators();
-    const auto records = base::make_span(kRegularFileSystemTestCases,
-                                         kRegularFileSystemTestCaseSize);
-    auto record_it = base::ranges::find(
+    const auto records = base::span(kRegularFileSystemTestCases);
+    auto record_it = std::ranges::find(
         records, src_relative_path, [](const FileSystemTestCaseRecord& record) {
           return base::FilePath(record.path).NormalizePathSeparators();
         });
@@ -490,11 +493,9 @@ class CopyOrMoveOperationTestHelper {
 
   base::File::Error SetUpTestCaseFiles(
       const FileSystemURL& root,
-      const FileSystemTestCaseRecord* const test_cases,
-      size_t test_case_size) {
+      const base::span<const FileSystemTestCaseRecord> test_cases) {
     base::File::Error result = base::File::FILE_ERROR_FAILED;
-    for (size_t i = 0; i < test_case_size; ++i) {
-      const FileSystemTestCaseRecord& test_case = test_cases[i];
+    for (const auto& test_case : test_cases) {
       FileSystemURL url = file_system_context_->CreateCrackedFileSystemURL(
           root.storage_key(), root.mount_type(),
           root.virtual_path().Append(test_case.path));
@@ -522,14 +523,14 @@ class CopyOrMoveOperationTestHelper {
     ONLY_ALLOWED_FILES,
   };
 
-  void VerifyTestCaseFiles(const FileSystemURL& root,
-                           const FileSystemTestCaseRecord* const test_cases,
-                           size_t test_case_size,
-                           VerifyDirectoryState check_state) {
+  void VerifyTestCaseFiles(
+      const FileSystemURL& root,
+      base::span<const FileSystemTestCaseRecord> test_cases,
+      VerifyDirectoryState check_state) {
     std::map<base::FilePath, const FileSystemTestCaseRecord*> test_case_map;
-    for (size_t i = 0; i < test_case_size; ++i) {
-      test_case_map[base::FilePath(test_cases[i].path)
-                        .NormalizePathSeparators()] = &test_cases[i];
+    for (const auto& test_case : test_cases) {
+      test_case_map[base::FilePath(test_case.path).NormalizePathSeparators()] =
+          &test_case;
     }
 
     base::queue<FileSystemURL> directories;
@@ -585,7 +586,7 @@ class CopyOrMoveOperationTestHelper {
       }
     } else {
       for (const auto& path_record_pair : test_case_map) {
-        auto* record = path_record_pair.second;
+        const auto* record = path_record_pair.second;
         if (check_state ==
             VerifyDirectoryState::ONLY_BLOCKED_FILES_AND_PARENTS) {
           EXPECT_THAT(record->block_action,
@@ -792,8 +793,7 @@ TEST_P(LocalFileSystemCopyOrMoveOperationTest, FilesAndDirectories) {
   // Set up a source directory.
   ASSERT_EQ(base::File::FILE_OK, helper.CreateDirectory(src));
   ASSERT_EQ(base::File::FILE_OK,
-            helper.SetUpTestCaseFiles(src, kRegularFileSystemTestCases,
-                                      kRegularFileSystemTestCaseSize));
+            helper.SetUpTestCaseFiles(src, kRegularFileSystemTestCases));
   int64_t src_increase = helper.GetSourceUsage() - src_initial_usage;
 
   if (IsMove()) {
@@ -835,13 +835,13 @@ TEST_P(LocalFileSystemCopyOrMoveOperationTest, FilesAndDirectories) {
   if (!IsMove()) {
     // For copies, all files should be there!
     helper.VerifyTestCaseFiles(
-        src, kRegularFileSystemTestCases, kRegularFileSystemTestCaseSize,
+        src, kRegularFileSystemTestCases,
         CopyOrMoveOperationTestHelper::VerifyDirectoryState::ALL_FILES_EXIST);
   } else {
     if (BlockingEnabled()) {
       // For moves, only blocked files should remain.
       helper.VerifyTestCaseFiles(
-          src, kRegularFileSystemTestCases, kRegularFileSystemTestCaseSize,
+          src, kRegularFileSystemTestCases,
           CopyOrMoveOperationTestHelper::VerifyDirectoryState::
               ONLY_BLOCKED_FILES_AND_PARENTS);
     }
@@ -851,12 +851,11 @@ TEST_P(LocalFileSystemCopyOrMoveOperationTest, FilesAndDirectories) {
   // move.
   if (BlockingEnabled()) {
     helper.VerifyTestCaseFiles(dest, kRegularFileSystemTestCases,
-                               kRegularFileSystemTestCaseSize,
                                CopyOrMoveOperationTestHelper::
                                    VerifyDirectoryState::ONLY_ALLOWED_FILES);
   } else {
     helper.VerifyTestCaseFiles(
-        dest, kRegularFileSystemTestCases, kRegularFileSystemTestCaseSize,
+        dest, kRegularFileSystemTestCases,
         CopyOrMoveOperationTestHelper::VerifyDirectoryState::ALL_FILES_EXIST);
   }
 
@@ -885,8 +884,7 @@ TEST(LocalFileSystemCopyOrMoveOperationTest,
   // Set up a source directory.
   ASSERT_EQ(base::File::FILE_OK, helper.CreateDirectory(src));
   ASSERT_EQ(base::File::FILE_OK,
-            helper.SetUpTestCaseFiles(src, kRegularFileSystemTestCases,
-                                      kRegularFileSystemTestCaseSize));
+            helper.SetUpTestCaseFiles(src, kRegularFileSystemTestCases));
 
   // Move it.
   helper.Move(src, dest);
@@ -903,7 +901,7 @@ TEST(LocalFileSystemCopyOrMoveOperationTest,
   };
 
   helper.VerifyTestCaseFiles(
-      dest, kMoveDirResultCases, std::size(kMoveDirResultCases),
+      dest, kMoveDirResultCases,
       CopyOrMoveOperationTestHelper::VerifyDirectoryState::ALL_FILES_EXIST);
 }
 
@@ -924,6 +922,43 @@ TEST(LocalFileSystemCopyOrMoveOperationTest, CopySingleFileNoValidator) {
   ASSERT_EQ(base::File::FILE_ERROR_SECURITY, helper.Copy(src, dest));
 }
 
+#if BUILDFLAG(IS_ANDROID)
+TEST(LocalFileSystemCopyOrMoveOperationTest, CopyToExistingContentUri) {
+  base::test::TaskEnvironment task_environment(
+      base::test::TaskEnvironment::MainThreadType::IO);
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  // Create source file and dest file.
+  base::FilePath source_path = temp_dir.GetPath().Append("source");
+  base::FilePath dest_path = temp_dir.GetPath().Append("dest");
+  base::WriteFile(source_path, "foobar");
+  base::WriteFile(dest_path, "will-be-truncated");
+  base::FilePath source_content_uri =
+      *base::test::android::GetContentUriFromCacheDirFilePath(source_path);
+  base::FilePath dest_content_uri =
+      *base::test::android::GetContentUriFromCacheDirFilePath(dest_path);
+
+  // Copy using content-URIs.
+  auto storage_key =
+      blink::StorageKey::CreateFromStringForTesting("http://foo");
+  auto file_system_context =
+      storage::CreateFileSystemContextForTesting(nullptr, temp_dir.GetPath());
+  FileSystemURL src = file_system_context->CreateCrackedFileSystemURL(
+      storage_key, kFileSystemTypeLocal, source_content_uri);
+  FileSystemURL dest = file_system_context->CreateCrackedFileSystemURL(
+      storage_key, kFileSystemTypeLocal, dest_content_uri);
+  EXPECT_EQ(base::File::FILE_OK,
+            AsyncFileTestHelper::Copy(file_system_context.get(), src, dest));
+
+  // Verify.
+  EXPECT_TRUE(
+      AsyncFileTestHelper::FileExists(file_system_context.get(), src, 6));
+  EXPECT_TRUE(
+      AsyncFileTestHelper::FileExists(file_system_context.get(), dest, 6));
+}
+#endif
+
 TEST_P(LocalFileSystemCopyOrMoveOperationTest, FilesAndDirectoriesProgress) {
   CopyOrMoveOperationTestHelper helper(
       "http://foo", kFileSystemTypeTemporary,
@@ -936,8 +971,7 @@ TEST_P(LocalFileSystemCopyOrMoveOperationTest, FilesAndDirectoriesProgress) {
   // Set up a source directory.
   ASSERT_EQ(base::File::FILE_OK, helper.CreateDirectory(src));
   ASSERT_EQ(base::File::FILE_OK,
-            helper.SetUpTestCaseFiles(src, kRegularFileSystemTestCases,
-                                      kRegularFileSystemTestCaseSize));
+            helper.SetUpTestCaseFiles(src, kRegularFileSystemTestCases));
 
   CopyOrMoveRecordAndSecurityDelegate::ShouldBlockCallback allow_all_callback =
       base::BindRepeating(
@@ -986,9 +1020,7 @@ TEST_P(LocalFileSystemCopyOrMoveOperationTest, FilesAndDirectoriesProgress) {
   EXPECT_EQ(dest, records[0].dest_url);
 
   // Verify progress records.
-  for (size_t i = 0; i < kRegularFileSystemTestCaseSize; ++i) {
-    const FileSystemTestCaseRecord& test_case = kRegularFileSystemTestCases[i];
-
+  for (const auto& test_case : kRegularFileSystemTestCases) {
     FileSystemURL src_url = helper.SourceURL(
         std::string("a/") + base::FilePath(test_case.path).AsUTF8Unsafe());
     FileSystemURL dest_url = helper.DestURL(
@@ -1380,39 +1412,47 @@ class CopyOrMoveOperationDelegateTestHelper {
   // Force Copy or Move error when a given URL is encountered.
   void SetErrorUrl(const FileSystemURL& url) { error_url_ = url; }
 
-  base::File::Error Copy(const FileSystemURL& src, const FileSystemURL& dest) {
+  base::File::Error Copy(
+      const FileSystemURL& src,
+      const FileSystemURL& dest,
+      std::unique_ptr<storage::CopyOrMoveHookDelegate> hook_delegate =
+          std::make_unique<storage::CopyOrMoveHookDelegate>()) {
     base::RunLoop run_loop;
     base::File::Error result = base::File::FILE_ERROR_FAILED;
 
     CopyOrMoveOperationDelegate copy_or_move_operation_delegate(
         file_system_context_.get(), src, dest,
         CopyOrMoveOperationDelegate::OPERATION_COPY, options_,
-        FileSystemOperation::ERROR_BEHAVIOR_ABORT,
-        std::make_unique<storage::CopyOrMoveHookDelegate>(),
+        FileSystemOperation::ERROR_BEHAVIOR_ABORT, std::move(hook_delegate),
         base::BindOnce(&AssignAndQuit, &run_loop, base::Unretained(&result)));
     if (error_url_.is_valid()) {
-      copy_or_move_operation_delegate.SetErrorUrlForTest(error_url_);
+      copy_or_move_operation_delegate.SetErrorUrlForTest(&error_url_);
     }
     copy_or_move_operation_delegate.RunRecursively();
     run_loop.Run();
+    copy_or_move_operation_delegate.SetErrorUrlForTest(nullptr);
     return result;
   }
 
-  base::File::Error Move(const FileSystemURL& src, const FileSystemURL& dest) {
+  base::File::Error Move(
+      const FileSystemURL& src,
+      const FileSystemURL& dest,
+      std::unique_ptr<storage::CopyOrMoveHookDelegate> hook_delegate =
+          std::make_unique<storage::CopyOrMoveHookDelegate>()) {
     base::RunLoop run_loop;
     base::File::Error result = base::File::FILE_ERROR_FAILED;
 
     CopyOrMoveOperationDelegate copy_or_move_operation_delegate(
         file_system_context_.get(), src, dest,
         CopyOrMoveOperationDelegate::OPERATION_MOVE, options_,
-        FileSystemOperation::ERROR_BEHAVIOR_ABORT,
-        std::make_unique<storage::CopyOrMoveHookDelegate>(),
+        FileSystemOperation::ERROR_BEHAVIOR_ABORT, std::move(hook_delegate),
         base::BindOnce(&AssignAndQuit, &run_loop, base::Unretained(&result)));
     if (error_url_.is_valid()) {
-      copy_or_move_operation_delegate.SetErrorUrlForTest(error_url_);
+      copy_or_move_operation_delegate.SetErrorUrlForTest(&error_url_);
     }
     copy_or_move_operation_delegate.RunRecursively();
     run_loop.Run();
+    copy_or_move_operation_delegate.SetErrorUrlForTest(nullptr);
     return result;
   }
 
@@ -1471,10 +1511,113 @@ TEST(CopyOrMoveOperationDelegateTest, StopRecursionOnCopyError) {
       helper.FileExists(dest_file_1, AsyncFileTestHelper::kDontCheckSize));
 }
 
+TEST(CopyOrMoveOperationDelegateTest, ContinueRecursionOnCopyIgnored) {
+  FileSystemOperation::CopyOrMoveOptionSet options;
+  CopyOrMoveOperationDelegateTestHelper helper(
+      "http://foo", kFileSystemTypePersistent, kFileSystemTypePersistent,
+      options);
+  helper.SetUp();
+
+  FileSystemURL src = helper.GenerateSourceUrlFromPath("a");
+  FileSystemURL src_file_1 = helper.GenerateSourceUrlFromPath("a/file 1");
+  FileSystemURL src_file_2 = helper.GenerateSourceUrlFromPath("a/file 2");
+  FileSystemURL dest = helper.GenerateDestinationUrlFromPath("b");
+  FileSystemURL dest_file_1 = helper.GenerateDestinationUrlFromPath("b/file 1");
+  FileSystemURL dest_file_2 = helper.GenerateDestinationUrlFromPath("b/file 2");
+
+  // Set up source files.
+  ASSERT_EQ(base::File::FILE_OK, helper.CreateDirectory(src));
+  ASSERT_EQ(base::File::FILE_OK,
+            helper.CreateFile(src_file_1, kDefaultFileSize));
+  ASSERT_EQ(base::File::FILE_OK,
+            helper.CreateFile(src_file_2, kDefaultFileSize));
+
+  // Create a hook delegate which will skip errors.
+  auto delegate = std::make_unique<MockCopyOrMoveHookDelegate>();
+  ON_CALL(*delegate.get(), OnBeginProcessFile)
+      .WillByDefault([](const FileSystemURL&, const FileSystemURL&,
+                        base::OnceCallback<void(base::File::Error)> cb) {
+        std::move(cb).Run(base::File::FILE_OK);
+      });
+  ON_CALL(*delegate.get(), OnError)
+      .WillByDefault([](const FileSystemURL&, const FileSystemURL&,
+                        base::File::Error,
+                        CopyOrMoveHookDelegate::ErrorCallback cb) {
+        std::move(cb).Run(CopyOrMoveHookDelegate::ErrorAction::kSkip);
+      });
+  // One file out of two is expected to be copied successfully, add one more
+  // call for the directory itself.
+  EXPECT_CALL(*delegate.get(), OnEndCopy).Times(2);
+
+  // [file 1, file 2] are processed as a LIFO. An error is returned after
+  // copying file 1 and ignored by the hook delegate.
+  helper.SetErrorUrl(src_file_1);
+  ASSERT_EQ(base::File::FILE_OK, helper.Copy(src, dest, std::move(delegate)));
+
+  // Check that the second file was actually copied, but the sources remained
+  // untouched.
+  EXPECT_TRUE(helper.FileExists(src_file_1, kDefaultFileSize));
+  EXPECT_TRUE(helper.FileExists(src_file_2, kDefaultFileSize));
+  EXPECT_TRUE(helper.FileExists(dest_file_2, kDefaultFileSize));
+}
+
+TEST(CopyOrMoveOperationDelegateTest, ContinueRecursionOnMoveIgnored) {
+  FileSystemOperation::CopyOrMoveOptionSet options;
+  CopyOrMoveOperationDelegateTestHelper helper(
+      "http://foo", kFileSystemTypeTemporary, kFileSystemTypePersistent,
+      options);
+  helper.SetUp();
+
+  FileSystemURL src = helper.GenerateSourceUrlFromPath("a");
+  FileSystemURL src_file_1 = helper.GenerateSourceUrlFromPath("a/file 1");
+  FileSystemURL src_file_2 = helper.GenerateSourceUrlFromPath("a/file 2");
+  FileSystemURL dest = helper.GenerateDestinationUrlFromPath("b");
+  FileSystemURL dest_file_1 = helper.GenerateDestinationUrlFromPath("b/file 1");
+  FileSystemURL dest_file_2 = helper.GenerateDestinationUrlFromPath("b/file 2");
+
+  // Set up source files.
+  ASSERT_EQ(base::File::FILE_OK, helper.CreateDirectory(src));
+  ASSERT_EQ(base::File::FILE_OK,
+            helper.CreateFile(src_file_1, kDefaultFileSize));
+  ASSERT_EQ(base::File::FILE_OK,
+            helper.CreateFile(src_file_2, kDefaultFileSize));
+
+  // Create a hook delegate which will skip errors.
+  auto delegate = std::make_unique<MockCopyOrMoveHookDelegate>();
+  ON_CALL(*delegate.get(), OnBeginProcessFile)
+      .WillByDefault([](const FileSystemURL&, const FileSystemURL&,
+                        base::OnceCallback<void(base::File::Error)> cb) {
+        std::move(cb).Run(base::File::FILE_OK);
+      });
+  ON_CALL(*delegate.get(), OnError)
+      .WillByDefault([](const FileSystemURL&, const FileSystemURL&,
+                        base::File::Error,
+                        CopyOrMoveHookDelegate::ErrorCallback cb) {
+        std::move(cb).Run(CopyOrMoveHookDelegate::ErrorAction::kSkip);
+      });
+  // One file out of two is expected to be moved successfully, add one more
+  // call for the directory itself. The event is `OnEndCopy`, not `OnEndMove`
+  // because we do a cross-filesystem move.
+  EXPECT_CALL(*delegate.get(), OnEndCopy).Times(2);
+  EXPECT_CALL(*delegate.get(), OnEndMove).Times(0);
+
+  // [file 1, file 2] are processed as a LIFO. An error is returned after
+  // copying file 1 and ignored by the hook delegate.
+  helper.SetErrorUrl(src_file_1);
+  ASSERT_EQ(base::File::FILE_OK, helper.Move(src, dest, std::move(delegate)));
+
+  // Check that the second file was actually copied, but the sources remained
+  // untouched.
+  EXPECT_TRUE(helper.FileExists(src_file_1, kDefaultFileSize));
+  EXPECT_FALSE(
+      helper.FileExists(src_file_2, AsyncFileTestHelper::kDontCheckSize));
+  EXPECT_TRUE(helper.FileExists(dest_file_2, kDefaultFileSize));
+}
+
 TEST(CopyOrMoveOperationDelegateTest, RemoveDestFileOnCopyError) {
-  FileSystemOperation::CopyOrMoveOptionSet options(
+  FileSystemOperation::CopyOrMoveOptionSet options = {
       storage::FileSystemOperation::CopyOrMoveOption::
-          kRemovePartiallyCopiedFilesOnError);
+          kRemovePartiallyCopiedFilesOnError};
   CopyOrMoveOperationDelegateTestHelper helper(
       "http://foo", kFileSystemTypePersistent, kFileSystemTypePersistent,
       options);
@@ -1512,9 +1655,9 @@ TEST(CopyOrMoveOperationDelegateTest, RemoveDestFileOnCopyError) {
 
 TEST(CopyOrMoveOperationDelegateTest,
      RemoveDestFileOnCrossFilesystemMoveError) {
-  FileSystemOperation::CopyOrMoveOptionSet options(
+  FileSystemOperation::CopyOrMoveOptionSet options = {
       storage::FileSystemOperation::CopyOrMoveOption::
-          kRemovePartiallyCopiedFilesOnError);
+          kRemovePartiallyCopiedFilesOnError};
   // Removing destination files on Move errors applies only to cross-filesystem
   // moves.
   CopyOrMoveOperationDelegateTestHelper helper(

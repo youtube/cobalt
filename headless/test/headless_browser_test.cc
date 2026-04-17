@@ -15,6 +15,7 @@
 #include "build/build_config.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/common/content_switches.h"
 #include "content/public/common/url_constants.h"
 #include "gin/v8_initializer.h"
 #include "headless/lib/browser/headless_browser_impl.h"
@@ -29,7 +30,7 @@
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_MAC)
-#include "services/device/public/cpp/test/fake_geolocation_manager.h"
+#include "services/device/public/cpp/test/fake_geolocation_system_permission_manager.h"
 #endif
 
 namespace headless {
@@ -41,7 +42,8 @@ HeadlessBrowserTest::HeadlessBrowserTest() {
   base::FilePath dir_exe_path;
   CHECK(base::PathService::Get(base::DIR_EXE, &dir_exe_path));
   dir_exe_path = dir_exe_path.Append("../../");
-  CHECK(base::PathService::Override(base::DIR_SOURCE_ROOT, dir_exe_path));
+  CHECK(
+      base::PathService::Override(base::DIR_SRC_TEST_DATA_ROOT, dir_exe_path));
 #endif  // BUILDFLAG(IS_MAC)
   base::FilePath headless_test_data(FILE_PATH_LITERAL("headless/test/data"));
   CreateTestServer(headless_test_data);
@@ -54,6 +56,14 @@ void HeadlessBrowserTest::SetUp() {
   command_line->AppendSwitch(switches::kUseGpuInTests);
   SetUpCommandLine(command_line);
   BrowserTestBase::SetUp();
+}
+
+void HeadlessBrowserTest::SetUpCommandLine(base::CommandLine* command_line) {
+  BrowserTestBase::SetUpCommandLine(command_line);
+
+  if (ShouldEnableSitePerProcess()) {
+    command_line->AppendSwitch(::switches::kSitePerProcess);
+  }
 }
 
 void HeadlessBrowserTest::SetUpWithoutGPU() {
@@ -95,12 +105,13 @@ void HeadlessBrowserTest::PostRunTestOnMainThread() {
 #if BUILDFLAG(IS_MAC)
 void HeadlessBrowserTest::CreatedBrowserMainParts(
     content::BrowserMainParts* parts) {
-  auto fake_geolocation_manager =
-      std::make_unique<device::FakeGeolocationManager>();
-  fake_geolocation_manager->SetSystemPermission(
+  auto fake_geolocation_system_permission_manager =
+      std::make_unique<device::FakeGeolocationSystemPermissionManager>();
+  fake_geolocation_system_permission_manager->SetSystemPermission(
       device::LocationSystemPermissionStatus::kAllowed);
-  static_cast<HeadlessBrowserMainParts*>(parts)
-      ->SetGeolocationManagerForTesting(std::move(fake_geolocation_manager));
+  static_cast<HeadlessBrowserImpl*>(browser())
+      ->SetGeolocationSystemPermissionManagerForTesting(
+          std::move(fake_geolocation_system_permission_manager));
 }
 #endif
 
@@ -110,6 +121,11 @@ HeadlessBrowser* HeadlessBrowserTest::browser() const {
 
 HeadlessBrowser::Options* HeadlessBrowserTest::options() const {
   return HeadlessContentMainDelegate::GetInstance()->browser()->options();
+}
+
+bool HeadlessBrowserTest::ShouldEnableSitePerProcess() {
+  // Make sure the navigations spawn new processes by default.
+  return true;
 }
 
 void HeadlessBrowserTest::RunAsynchronousTest() {

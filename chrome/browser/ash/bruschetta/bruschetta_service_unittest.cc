@@ -7,18 +7,17 @@
 #include "ash/constants/ash_features.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
-#include "base/test/scoped_feature_list.h"
 #include "chrome/browser/ash/bruschetta/bruschetta_pref_names.h"
 #include "chrome/browser/ash/bruschetta/bruschetta_util.h"
 #include "chrome/browser/ash/guest_os/dbus_test_helper.h"
 #include "chrome/browser/ash/guest_os/guest_os_pref_names.h"
 #include "chrome/browser/ash/guest_os/public/guest_os_service.h"
-#include "chrome/browser/ash/guest_os/virtual_machines/virtual_machines_util.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/ash/components/dbus/concierge/fake_concierge_client.h"
 #include "chromeos/ash/components/dbus/dlcservice/fake_dlcservice_client.h"
 #include "chromeos/ash/components/dbus/vm_concierge/concierge_service.pb.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
+#include "chromeos/ash/experiences/guest_os/virtual_machines/virtual_machines_util.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "content/public/test/browser_task_environment.h"
@@ -42,10 +41,6 @@ class BruschettaServiceTest : public testing::Test,
 
  protected:
   void SetUp() override {
-    feature_list_.InitWithFeatures(
-        {ash::features::kBruschetta, ash::features::kBruschettaAlphaMigrate},
-        {});
-
     SetupPrefs();
 
     service_ = std::make_unique<BruschettaService>(&profile_);
@@ -66,6 +61,7 @@ class BruschettaServiceTest : public testing::Test,
                  prefs::PolicyUpdateAction::FORCE_SHUTDOWN_IF_MORE_RESTRICTED));
 
     config.Set(prefs::kPolicyVTPMKey, std::move(vtpm));
+    config.Set(prefs::kPolicyNameKey, "Display Name");
 
     pref.Set(kTestVmConfig, std::move(config));
     profile_.GetPrefs()->SetDict(prefs::kBruschettaVMConfiguration,
@@ -102,53 +98,10 @@ class BruschettaServiceTest : public testing::Test,
     vtpm->Set(prefs::kPolicyVTPMUpdateActionKey, static_cast<int>(action));
   }
 
-  base::test::ScopedFeatureList feature_list_;
   content::BrowserTaskEnvironment task_environment_;
   TestingProfile profile_;
   std::unique_ptr<BruschettaService> service_;
 };
-
-TEST_F(BruschettaServiceTest, StartUpMigration) {
-  service_.reset();
-
-  guest_os::AddContainerToPrefs(&profile_, MakeBruschettaId("first-vm"), {});
-  guest_os::AddContainerToPrefs(&profile_, MakeBruschettaId("second-vm"), {});
-  guest_os::UpdateContainerPref(&profile_, MakeBruschettaId("second-vm"),
-                                guest_os::prefs::kBruschettaConfigId,
-                                base::Value(kTestVmConfig));
-
-  service_ = std::make_unique<BruschettaService>(&profile_);
-
-  ASSERT_TRUE(IsInstalled(&profile_, GetBruschettaAlphaId()));
-  ASSERT_TRUE(IsInstalled(&profile_, MakeBruschettaId("first-vm")));
-  ASSERT_TRUE(IsInstalled(&profile_, MakeBruschettaId("second-vm")));
-
-  ASSERT_EQ(
-      guest_os::GetContainerPrefValue(&profile_, GetBruschettaAlphaId(),
-                                      guest_os::prefs::kBruschettaConfigId)
-          ->GetString(),
-      "glinux-latest");
-  ASSERT_EQ(
-      guest_os::GetContainerPrefValue(&profile_, MakeBruschettaId("first-vm"),
-                                      guest_os::prefs::kBruschettaConfigId)
-          ->GetString(),
-      "glinux-latest");
-  ASSERT_EQ(
-      guest_os::GetContainerPrefValue(&profile_, MakeBruschettaId("second-vm"),
-                                      guest_os::prefs::kBruschettaConfigId)
-          ->GetString(),
-      kTestVmConfig);
-
-  ASSERT_TRUE(guest_os::GuestOsService::GetForProfile(&profile_)
-                  ->TerminalProviderRegistry()
-                  ->Get(GetBruschettaAlphaId()));
-  ASSERT_TRUE(guest_os::GuestOsService::GetForProfile(&profile_)
-                  ->TerminalProviderRegistry()
-                  ->Get(MakeBruschettaId("first-vm")));
-  ASSERT_TRUE(guest_os::GuestOsService::GetForProfile(&profile_)
-                  ->TerminalProviderRegistry()
-                  ->Get(MakeBruschettaId("second-vm")));
-}
 
 TEST_F(BruschettaServiceTest, GetLauncherPolicyEnabled) {
   EnableByPolicy();

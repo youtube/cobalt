@@ -19,7 +19,6 @@ features:
   dynamic_refresh: true
 owners:
 - lmasopust@google.com
-- rodmartin@google.com
 - cbe-device-trust-eng@google.com
 schema:
   items:
@@ -29,3 +28,4 @@ supported_on:
 - chrome_os:108-
 tags: []
 type: list
+generate_device_proto: False

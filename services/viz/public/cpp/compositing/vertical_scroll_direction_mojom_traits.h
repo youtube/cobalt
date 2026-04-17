@@ -25,7 +25,6 @@ struct EnumTraits<viz::mojom::VerticalScrollDirection,
         return viz::mojom::VerticalScrollDirection::kUp;
     }
     NOTREACHED();
-    return viz::mojom::VerticalScrollDirection::kNull;
   }
 
   static bool FromMojom(viz::mojom::VerticalScrollDirection in,
@@ -42,7 +41,6 @@ struct EnumTraits<viz::mojom::VerticalScrollDirection,
         return true;
     }
     NOTREACHED();
-    return false;
   }
 };
 

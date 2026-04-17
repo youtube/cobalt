@@ -5,8 +5,8 @@
 #include "third_party/blink/renderer/core/html/media/video_wake_lock.h"
 
 #include "base/task/single_thread_task_runner.h"
-#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/mojom/wake_lock/wake_lock.mojom-blink.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
@@ -31,21 +31,8 @@ constexpr float kStrictVisibilityThreshold = 0.75f;
 constexpr float kSizeThreshold = 0.2f;
 
 Page* GetContainingPage(HTMLVideoElement& video) {
-  LocalDOMWindow* window = video.DomWindow();
-  if (!window)
-    return nullptr;
-
-  LocalFrame* frame = window->GetFrame();
-  if (!frame)
-    return nullptr;
-
-  return frame->GetPage();
+  return video.GetDocument().GetPage();
 }
-
-// TODO(crbug.com/1340424): Remove after feature goes to stable w/o issue.
-BASE_FEATURE(kStrictVideoWakeLock,
-             "StrictVideoWakeLock",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace
 
@@ -54,9 +41,7 @@ VideoWakeLock::VideoWakeLock(HTMLVideoElement& video)
       ExecutionContextLifecycleStateObserver(video.GetExecutionContext()),
       video_element_(video),
       wake_lock_service_(video.GetExecutionContext()),
-      visibility_threshold_(base::FeatureList::IsEnabled(kStrictVideoWakeLock)
-                                ? kStrictVisibilityThreshold
-                                : IntersectionObserver::kMinimumThreshold) {
+      visibility_threshold_(kStrictVisibilityThreshold) {
   VideoElement().addEventListener(event_type_names::kPlaying, this, true);
   VideoElement().addEventListener(event_type_names::kPause, this, true);
   VideoElement().addEventListener(event_type_names::kEmptied, this, true);
@@ -66,10 +51,6 @@ VideoWakeLock::VideoWakeLock(HTMLVideoElement& video)
                                   this, true);
   VideoElement().addEventListener(event_type_names::kVolumechange, this, true);
   StartIntersectionObserver();
-
-  if (!base::FeatureList::IsEnabled(kStrictVideoWakeLock)) {
-    is_big_enough_ = true;
-  }
 
   RemotePlaybackController* remote_playback_controller =
       RemotePlaybackController::From(VideoElement());
@@ -83,9 +64,7 @@ void VideoWakeLock::ElementDidMoveToNewDocument() {
   SetExecutionContext(VideoElement().GetExecutionContext());
   SetPage(GetContainingPage(VideoElement()));
   visibility_observer_->disconnect();
-  if (base::FeatureList::IsEnabled(kStrictVideoWakeLock)) {
-    size_observer_->disconnect();
-  }
+  size_observer_->disconnect();
   StartIntersectionObserver();
 }
 
@@ -151,10 +130,6 @@ float VideoWakeLock::GetSizeThresholdForTests() const {
   return kSizeThreshold;
 }
 
-bool VideoWakeLock::HasStrictWakeLockForTests() const {
-  return base::FeatureList::IsEnabled(kStrictVideoWakeLock);
-}
-
 void VideoWakeLock::Update() {
   bool should_be_active = ShouldBeActive();
   if (should_be_active == active_)
@@ -173,9 +148,13 @@ bool VideoWakeLock::ShouldBeActive() const {
       !VideoElement().GetExecutionContext()->IsContextPaused();
 
   bool has_volume = VideoElement().EffectiveMediaVolume() > 0;
-  bool has_audio = base::FeatureList::IsEnabled(kStrictVideoWakeLock)
-                       ? VideoElement().HasAudio() && has_volume
-                       : has_volume;
+  bool has_audio = VideoElement().HasAudio() && has_volume;
+
+  // Self-view MediaStreams may often be very small.
+  bool is_size_exempt =
+      VideoElement().GetLoadType() == WebMediaPlayer::kLoadTypeMediaStream;
+
+  bool is_big_enough = is_big_enough_ || is_size_exempt;
 
   // The visibility requirements are met if one of the following is true:
   //  - it's in Picture-in-Picture;
@@ -184,7 +163,7 @@ bool VideoWakeLock::ShouldBeActive() const {
   bool visibility_requirements_met =
       VideoElement().HasVideo() &&
       (in_picture_in_picture ||
-       (page_visible && ((is_visible_ && is_big_enough_) || has_audio)));
+       (page_visible && ((is_visible_ && is_big_enough) || has_audio)));
 
   // The video wake lock should be active iff:
   //  - it's playing;
@@ -238,40 +217,34 @@ void VideoWakeLock::UpdateWakeLockService() {
 }
 
 void VideoWakeLock::StartIntersectionObserver() {
-  // Most screen timeouts are at least 5s, so we don't need high frequency
-  // intersection updates. Choose a value such that we're never more than 5s
-  // apart w/ a 100ms of delivery leeway.
-  //
-  // TODO(crbug.com/1376286): Delay values appear to be broken. If a change
-  // occurs during the delay window, the update is dropped entirely...
-  const auto kDelayMs = 0;
-
   visibility_observer_ = IntersectionObserver::Create(
-      {}, /*thresholds=*/{visibility_threshold_}, &VideoElement().GetDocument(),
+      VideoElement().GetDocument(),
       WTF::BindRepeating(&VideoWakeLock::OnVisibilityChanged,
                          WrapWeakPersistent(this)),
       LocalFrameUkmAggregator::kMediaIntersectionObserver,
-      IntersectionObserver::kDeliverDuringPostLifecycleSteps,
-      IntersectionObserver::kFractionOfTarget, kDelayMs);
+      IntersectionObserver::Params{
+          .thresholds = {visibility_threshold_},
+          .delay = kIntersectionObserverDelay,
+      });
   visibility_observer_->observe(&VideoElement());
 
-  if (base::FeatureList::IsEnabled(kStrictVideoWakeLock)) {
-    // Creating an IntersectionObserver with a null root provides us with the
-    // total fraction of the viewport a video consumes.
-    //
-    // TODO(crbug.com/1416396): This doesn't work properly with cross origin
-    // iframes. The observer doesn't know the outermost viewport size when
-    // running from within an iframe.
-    size_observer_ = IntersectionObserver::Create(
-        {}, /*thresholds=*/{kSizeThreshold},
-        &VideoElement().GetDocument().TopDocument(),
-        WTF::BindRepeating(&VideoWakeLock::OnSizeChanged,
-                           WrapWeakPersistent(this)),
-        LocalFrameUkmAggregator::kMediaIntersectionObserver,
-        IntersectionObserver::kDeliverDuringPostLifecycleSteps,
-        IntersectionObserver::kFractionOfRoot, kDelayMs);
-    size_observer_->observe(&VideoElement());
-  }
+  // Creating an IntersectionObserver with a null root provides us with the
+  // total fraction of the viewport a video consumes.
+  //
+  // TODO(crbug.com/1416396): This doesn't work properly with cross origin
+  // iframes. The observer doesn't know the outermost viewport size when
+  // running from within an iframe.
+  size_observer_ = IntersectionObserver::Create(
+      VideoElement().GetDocument().TopDocument(),
+      WTF::BindRepeating(&VideoWakeLock::OnSizeChanged,
+                         WrapWeakPersistent(this)),
+      LocalFrameUkmAggregator::kMediaIntersectionObserver,
+      IntersectionObserver::Params{
+          .thresholds = {kSizeThreshold},
+          .semantics = IntersectionObserver::kFractionOfRoot,
+          .delay = kIntersectionObserverDelay,
+      });
+  size_observer_->observe(&VideoElement());
 }
 
 }  // namespace blink

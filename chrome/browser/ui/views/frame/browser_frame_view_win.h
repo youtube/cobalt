@@ -5,25 +5,25 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_FRAME_BROWSER_FRAME_VIEW_WIN_H_
 #define CHROME_BROWSER_UI_VIEWS_FRAME_BROWSER_FRAME_VIEW_WIN_H_
 
+#include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/raw_ptr_exclusion.h"
 #include "base/win/scoped_gdi_object.h"
 #include "chrome/browser/ui/views/frame/browser_non_client_frame_view.h"
 #include "chrome/browser/ui/views/frame/windows_caption_button.h"
 #include "chrome/browser/ui/views/tab_icon_view.h"
 #include "chrome/browser/ui/views/tab_icon_view_model.h"
 #include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/base/pointer/touch_ui_controller.h"
 #include "ui/views/window/non_client_view.h"
 
 class BrowserView;
-class TabSearchBubbleHost;
 class BrowserCaptionButtonContainer;
 
 class BrowserFrameViewWin : public BrowserNonClientFrameView,
                             public TabIconViewModel {
- public:
-  METADATA_HEADER(BrowserFrameViewWin);
+  METADATA_HEADER(BrowserFrameViewWin, BrowserNonClientFrameView)
 
+ public:
   // Constructs a non-client view for an BrowserFrame.
   BrowserFrameViewWin(BrowserFrame* frame, BrowserView* browser_view);
   BrowserFrameViewWin(const BrowserFrameViewWin&) = delete;
@@ -39,14 +39,12 @@ class BrowserFrameViewWin : public BrowserNonClientFrameView,
   void LayoutWebAppWindowTitle(const gfx::Rect& available_space,
                                views::Label& window_title_label) const override;
   int GetTopInset(bool restored) const override;
-  int GetThemeBackgroundXInset() const override;
   bool HasVisibleBackgroundTabShapes(
       BrowserFrameActiveState active_state) const override;
   SkColor GetCaptionColor(BrowserFrameActiveState active_state) const override;
   void UpdateThrobber(bool running) override;
   gfx::Size GetMinimumSize() const override;
   void WindowControlsOverlayEnabledChanged() override;
-  TabSearchBubbleHost* GetTabSearchBubbleHost() override;
 
   // views::NonClientFrameView:
   gfx::Rect GetBoundsForClientView() const override;
@@ -55,9 +53,8 @@ class BrowserFrameViewWin : public BrowserNonClientFrameView,
   int NonClientHitTest(const gfx::Point& point) override;
   void UpdateWindowIcon() override;
   void UpdateWindowTitle() override;
-  void GetWindowMask(const gfx::Size& size, SkPath* window_mask) override {}
   void ResetWindowControls() override;
-  void SizeConstraintsChanged() override {}
+  void OnThemeChanged() override;
 
   // TabIconViewModel:
   bool ShouldTabIconViewAnimate() const override;
@@ -65,6 +62,11 @@ class BrowserFrameViewWin : public BrowserNonClientFrameView,
 
   bool IsMaximized() const;
   bool IsWebUITabStrip() const;
+
+  // Returns the y coordinate for the top of the frame, which in maximized mode
+  // is the top of the screen and in restored mode is 1 pixel below the top of
+  // the window to leave room for the visual border that Windows draws.
+  int WindowTopY() const;
 
   // Visual height of the titlebar when the window is maximized (i.e. excluding
   // the area above the top of the screen).
@@ -77,13 +79,15 @@ class BrowserFrameViewWin : public BrowserNonClientFrameView,
     return caption_button_container_;
   }
 
+  const TabIconView* window_icon_for_testing() const { return window_icon_; }
+
  protected:
   // BrowserNonClientFrameView:
   void PaintAsActiveChanged() override;
 
   // views::View:
   void OnPaint(gfx::Canvas* canvas) override;
-  void Layout() override;
+  void Layout(PassKey) override;
 
  private:
   friend class BrowserCaptionButtonContainer;
@@ -122,14 +126,12 @@ class BrowserFrameViewWin : public BrowserNonClientFrameView,
   // don't have tabs.
   int TitlebarHeight(bool restored) const;
 
-  // Returns the y coordinate for the top of the frame, which in maximized mode
-  // is the top of the screen and in restored mode is 1 pixel below the top of
-  // the window to leave room for the visual border that Windows draws.
-  int WindowTopY() const;
+  // Returns the height of the frame, whether that is a tabstrip or a titlebar.
+  int GetFrameHeight() const;
 
-  // Returns the distance from the leading edge of the window to the leading
-  // edge of the caption buttons.
-  int MinimizeButtonX() const;
+  // Returns the width of the caption buttons region, including visible
+  // system-drawn and custom-drawn caption buttons.
+  int CaptionButtonsRegionWidth() const;
 
   // Returns whether or not the window should display an icon of the specified
   // |type|.
@@ -138,6 +140,12 @@ class BrowserFrameViewWin : public BrowserNonClientFrameView,
   // Returns whether or not the window should display a title of the specified
   // |type|.
   bool ShouldShowWindowTitle(TitlebarType type) const;
+
+  // Called when the device enters or exits tablet mode.
+  void TabletModeChanged();
+
+  // Sets DWM attributes for rendering the system-drawn Mica titlebar.
+  void SetSystemMicaTitlebarAttributes();
 
   // Paint various sub-components of this view.
   void PaintTitlebar(gfx::Canvas* canvas) const;
@@ -162,21 +170,22 @@ class BrowserFrameViewWin : public BrowserNonClientFrameView,
   gfx::Rect client_view_bounds_;
 
   // The small icon created from the bitmap image of the window icon.
-  base::win::ScopedHICON small_window_icon_;
+  base::win::ScopedGDIObject<HICON> small_window_icon_;
 
   // The big icon created from the bitmap image of the window icon.
-  base::win::ScopedHICON big_window_icon_;
+  base::win::ScopedGDIObject<HICON> big_window_icon_;
 
   // Icon and title. Only used when custom-drawing the titlebar for popups.
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #addr-of
-  RAW_PTR_EXCLUSION TabIconView* window_icon_ = nullptr;
+  raw_ptr<TabIconView> window_icon_ = nullptr;
   raw_ptr<views::Label> window_title_ = nullptr;
 
   // The container holding the caption buttons (minimize, maximize, close, etc.)
-  // May be null if the caption button container is destroyed before the frame
-  // view. Always check for validity before using!
   raw_ptr<BrowserCaptionButtonContainer> caption_button_container_;
+
+  base::CallbackListSubscription tablet_mode_subscription_ =
+      ui::TouchUiController::Get()->RegisterCallback(
+          base::BindRepeating(&BrowserFrameViewWin::TabletModeChanged,
+                              base::Unretained(this)));
 
   // Whether or not the window throbber is currently animating.
   bool throbber_running_ = false;

@@ -15,10 +15,10 @@
 --
 
 DROP VIEW IF EXISTS ion_timeline;
-CREATE VIEW ion_timeline AS
+CREATE PERFETTO VIEW ion_timeline AS
 SELECT
   ts,
-  LEAD(ts, 1, (SELECT end_ts FROM trace_bounds))
+  LEAD(ts, 1, trace_end())
   OVER(PARTITION BY track_id ORDER BY ts) - ts AS dur,
   CASE name
     WHEN 'mem.ion' THEN 'all'
@@ -31,7 +31,7 @@ FROM counter JOIN counter_track
 WHERE (name GLOB 'mem.ion.*' OR name = 'mem.ion');
 
 DROP VIEW IF EXISTS ion_heap_stats;
-CREATE VIEW ion_heap_stats AS
+CREATE PERFETTO VIEW ion_heap_stats AS
 SELECT
   heap_name,
   SUM(value * dur) / SUM(dur) AS avg_size,
@@ -41,7 +41,7 @@ FROM ion_timeline
 GROUP BY 1;
 
 DROP VIEW IF EXISTS ion_raw_allocs;
-CREATE VIEW ion_raw_allocs AS
+CREATE PERFETTO VIEW ion_raw_allocs AS
 SELECT
   CASE name
     WHEN 'mem.ion_change' THEN 'all'
@@ -58,29 +58,15 @@ WINDOW win AS (
 );
 
 DROP VIEW IF EXISTS ion_alloc_stats;
-CREATE VIEW ion_alloc_stats AS
+CREATE PERFETTO VIEW ion_alloc_stats AS
 SELECT
   heap_name,
   SUM(instant_value) AS total_alloc_size_bytes
 FROM ion_raw_allocs
 GROUP BY 1;
 
--- We need to group by ts here as we can have two ion events from
--- different processes occurring at the same timestamp. We take the
--- max as this will take both allocations into account at that
--- timestamp.
-DROP VIEW IF EXISTS android_ion_event;
-CREATE VIEW android_ion_event AS
-SELECT
-  'counter' AS track_type,
-  printf('ION allocations (heap: %s)', heap_name) AS track_name,
-  ts,
-  MAX(value) AS value
-FROM ion_raw_allocs
-GROUP BY 1, 2, 3;
-
 DROP VIEW IF EXISTS android_ion_output;
-CREATE VIEW android_ion_output AS
+CREATE PERFETTO VIEW android_ion_output AS
 SELECT AndroidIonMetric(
   'buffer', RepeatedField(
     AndroidIonMetric_Buffer(

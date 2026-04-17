@@ -9,6 +9,7 @@ import android.content.Context;
 import org.chromium.base.CommandLine;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.TraceEvent;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.components.background_task_scheduler.BackgroundTaskScheduler;
 import org.chromium.components.background_task_scheduler.TaskInfo;
 
@@ -18,8 +19,8 @@ import org.chromium.components.background_task_scheduler.TaskInfo;
  *
  * To get an instance of this class, use {@link BackgroundTaskSchedulerFactory#getScheduler()}.
  */
+@NullMarked
 class BackgroundTaskSchedulerImpl implements BackgroundTaskScheduler {
-    private static final String TAG = "BkgrdTaskScheduler";
     private static final String SWITCH_IGNORE_BACKGROUND_TASKS = "ignore-background-tasks";
 
     private final BackgroundTaskSchedulerDelegate mSchedulerDelegate;
@@ -37,15 +38,17 @@ class BackgroundTaskSchedulerImpl implements BackgroundTaskScheduler {
             // creation.
             return true;
         }
-        try (TraceEvent te = TraceEvent.scoped(
-                     "BackgroundTaskScheduler.schedule", Integer.toString(taskInfo.getTaskId()))) {
+        try (TraceEvent te =
+                TraceEvent.scoped(
+                        "BackgroundTaskScheduler.schedule",
+                        Integer.toString(taskInfo.getTaskId()))) {
             ThreadUtils.assertOnUiThread();
 
             SchedulingVisitor schedulingVisitor = new SchedulingVisitor(context, taskInfo);
             taskInfo.getTimingInfo().accept(schedulingVisitor);
             boolean success = schedulingVisitor.getSuccess();
-            BackgroundTaskSchedulerUma.getInstance().reportTaskScheduled(
-                    taskInfo.getTaskId(), success);
+            BackgroundTaskSchedulerUma.getInstance()
+                    .reportTaskScheduled(taskInfo.getTaskId(), success);
 
             // Retain expiration metrics
             MetricsVisitor metricsVisitor = new MetricsVisitor(taskInfo.getTaskId());
@@ -56,8 +59,8 @@ class BackgroundTaskSchedulerImpl implements BackgroundTaskScheduler {
     }
 
     private class SchedulingVisitor implements TaskInfo.TimingInfoVisitor {
-        private Context mContext;
-        private TaskInfo mTaskInfo;
+        private final Context mContext;
+        private final TaskInfo mTaskInfo;
         private boolean mSuccess;
 
         SchedulingVisitor(Context context, TaskInfo taskInfo) {
@@ -81,8 +84,8 @@ class BackgroundTaskSchedulerImpl implements BackgroundTaskScheduler {
         }
     }
 
-    // TODO(crbug.com/996178): Update the documentation for the expiration feature.
-    private class MetricsVisitor implements TaskInfo.TimingInfoVisitor {
+    // TODO(crbug.com/41477414): Update the documentation for the expiration feature.
+    private static class MetricsVisitor implements TaskInfo.TimingInfoVisitor {
         private final int mTaskId;
 
         MetricsVisitor(int taskId) {
@@ -91,21 +94,23 @@ class BackgroundTaskSchedulerImpl implements BackgroundTaskScheduler {
 
         @Override
         public void visit(TaskInfo.OneOffInfo oneOffInfo) {
-            BackgroundTaskSchedulerUma.getInstance().reportTaskCreatedAndExpirationState(
-                    mTaskId, oneOffInfo.expiresAfterWindowEndTime());
+            BackgroundTaskSchedulerUma.getInstance()
+                    .reportTaskCreatedAndExpirationState(
+                            mTaskId, oneOffInfo.expiresAfterWindowEndTime());
         }
 
         @Override
         public void visit(TaskInfo.PeriodicInfo periodicInfo) {
-            BackgroundTaskSchedulerUma.getInstance().reportTaskCreatedAndExpirationState(
-                    mTaskId, periodicInfo.expiresAfterWindowEndTime());
+            BackgroundTaskSchedulerUma.getInstance()
+                    .reportTaskCreatedAndExpirationState(
+                            mTaskId, periodicInfo.expiresAfterWindowEndTime());
         }
     }
 
     @Override
     public void cancel(Context context, int taskId) {
-        try (TraceEvent te = TraceEvent.scoped(
-                     "BackgroundTaskScheduler.cancel", Integer.toString(taskId))) {
+        try (TraceEvent te =
+                TraceEvent.scoped("BackgroundTaskScheduler.cancel", Integer.toString(taskId))) {
             ThreadUtils.assertOnUiThread();
             BackgroundTaskSchedulerUma.getInstance().reportTaskCanceled(taskId);
 

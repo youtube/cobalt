@@ -23,13 +23,21 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <algorithm>
+#include <string_view>
 #include <type_traits>
 
+#include "base/containers/span.h"
 #include "base/rand_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/sys_byteorder.h"
 #include "build/build_config.h"
+
+#if !BUILDFLAG(IS_COBALT) || defined(SB_IS_DEFAULT_TC)
+#include "base/numerics/byte_conversions.h"
+#else
+#include "base/sys_byteorder.h"
+#endif
 
 #if BUILDFLAG(IS_APPLE)
 #include <uuid/uuid.h>
@@ -38,7 +46,9 @@
 namespace crashpad {
 
 static_assert(sizeof(UUID) == 16, "UUID must be 16 bytes");
-static_assert(std::is_pod<UUID>::value, "UUID must be POD");
+static_assert(std::is_standard_layout<UUID>::value,
+              "UUID must be a standard-layout type");
+static_assert(std::is_trivial<UUID>::value, "UUID must be a trivial type");
 
 bool UUID::operator==(const UUID& that) const {
   return memcmp(this, &that, sizeof(*this)) == 0;
@@ -52,14 +62,27 @@ void UUID::InitializeToZero() {
   memset(this, 0, sizeof(*this));
 }
 
+#if !BUILDFLAG(IS_COBALT) || defined(SB_IS_DEFAULT_TC)
+void UUID::InitializeFromBytes(const uint8_t* bytes_ptr) {
+  // TODO(crbug.com/40284755): This span construction is unsound. The caller
+  // should provide a span instead of an unbounded pointer.
+  base::span bytes(bytes_ptr, base::fixed_extent<sizeof(UUID)>());
+  data_1 = base::U32FromBigEndian(bytes.subspan<0u, 4u>());
+  data_2 = base::U16FromBigEndian(bytes.subspan<4u, 2u>());
+  data_3 = base::U16FromBigEndian(bytes.subspan<6u, 2u>());
+  std::ranges::copy(bytes.subspan<8, 2>(), data_4);
+  std::ranges::copy(bytes.subspan<10, 6>(), data_5);
+}
+#else
 void UUID::InitializeFromBytes(const uint8_t* bytes) {
   memcpy(this, bytes, sizeof(*this));
   data_1 = base::NetToHost32(data_1);
   data_2 = base::NetToHost16(data_2);
   data_3 = base::NetToHost16(data_3);
 }
+#endif
 
-bool UUID::InitializeFromString(const base::StringPiece& string) {
+bool UUID::InitializeFromString(std::string_view string) {
   if (string.length() != 36)
     return false;
 
@@ -89,7 +112,7 @@ bool UUID::InitializeFromString(const base::StringPiece& string) {
 }
 
 #if BUILDFLAG(IS_WIN)
-bool UUID::InitializeFromString(const base::WStringPiece& string) {
+bool UUID::InitializeFromString(std::wstring_view string) {
   return InitializeFromString(base::WideToUTF8(string));
 }
 #endif
@@ -107,7 +130,11 @@ bool UUID::InitializeWithNew() {
   // from libuuid is not available everywhere.
   // On Windows, do not use UuidCreate() to avoid a dependency on rpcrt4, so
   // that this function is usable early in DllMain().
+#if !BUILDFLAG(IS_COBALT) || defined(SB_IS_DEFAULT_TC)
+  base::RandBytes(base::byte_span_from_ref(*this));
+#else
   base::RandBytes(this, sizeof(*this));
+#endif
 
   // Set six bits per RFC 4122 §4.4 to identify this as a pseudo-random UUID.
   data_3 = (4 << 12) | (data_3 & 0x0fff);  // §4.1.3

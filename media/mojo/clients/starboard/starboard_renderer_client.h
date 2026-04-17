@@ -15,12 +15,12 @@
 #ifndef MEDIA_MOJO_CLIENTS_STARBOARD_STARBOARD_RENDERER_CLIENT_H_
 #define MEDIA_MOJO_CLIENTS_STARBOARD_STARBOARD_RENDERER_CLIENT_H_
 
+#include <optional>
+
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
-#include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
-#include "cobalt/media/service/video_geometry_setter_service.h"
 #include "media/base/pipeline_status.h"
 #include "media/base/renderer_client.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
@@ -49,8 +49,7 @@ class MEDIA_EXPORT StarboardRendererClient
     : public MojoRendererWrapper,
       public RendererClient,
       public mojom::StarboardRendererClientExtension,
-      public VideoRendererSink::RenderCallback,
-      public cobalt::media::mojom::VideoGeometryChangeClient {
+      public VideoRendererSink::RenderCallback {
  public:
   using RendererExtension = mojom::StarboardRendererExtension;
   using ClientExtension = media::mojom::StarboardRendererClientExtension;
@@ -63,7 +62,7 @@ class MEDIA_EXPORT StarboardRendererClient
       VideoRendererSink* video_renderer_sink,
       mojo::PendingRemote<RendererExtension> pending_renderer_extension,
       mojo::PendingReceiver<ClientExtension> client_extension_receiver,
-      BindHostReceiverCallback bind_host_receiver_callback,
+      GetSbWindowHandleCallback get_sb_window_handle_callback,
       GpuVideoAcceleratorFactories* gpu_factories
 #if BUILDFLAG(IS_ANDROID)
       ,
@@ -95,7 +94,7 @@ class MEDIA_EXPORT StarboardRendererClient
   void OnVideoConfigChange(const VideoDecoderConfig& config) override;
   void OnVideoNaturalSizeChange(const gfx::Size& size) override;
   void OnVideoOpacityChange(bool opaque) override;
-  void OnVideoFrameRateChange(absl::optional<int> fps) override;
+  void OnVideoFrameRateChange(std::optional<int> fps) override;
 
   // VideoRendererSink::RenderCallback implementation.
   scoped_refptr<VideoFrame> Render(
@@ -108,18 +107,13 @@ class MEDIA_EXPORT StarboardRendererClient
   // mojom::StarboardRendererClientExtension implementation
   void PaintVideoHoleFrame(const gfx::Size& size) override;
   void UpdateStarboardRenderingMode(const StarboardRenderingMode mode) override;
+  void GetSbWindowHandle() override;
 #if BUILDFLAG(IS_ANDROID)
   void RequestOverlayInfo(bool restart_for_transitions) override;
 #endif  // BUILDFLAG(IS_ANDROID)
 
-  // cobalt::media::mojom::VideoGeometryChangeClient implementation.
-  void OnVideoGeometryChange(const gfx::RectF& rect_f,
-                             gfx::OverlayTransform transform) override;
-
  private:
   void OnConnectionError();
-  void OnSubscribeToVideoGeometryChange(MediaResource* media_resource,
-                                        RendererClient* client);
   void InitAndBindMojoRenderer(base::OnceClosure complete_cb);
   void OnGpuChannelTokenReady(mojom::CommandBufferIdPtr command_buffer_id,
                               base::OnceClosure complete_cb,
@@ -153,7 +147,7 @@ class MEDIA_EXPORT StarboardRendererClient
   mojo::PendingRemote<RendererExtension> pending_renderer_extension_;
   mojo::PendingReceiver<ClientExtension> pending_client_extension_receiver_;
   mojo::Receiver<ClientExtension> client_extension_receiver_;
-  const BindHostReceiverCallback bind_host_receiver_callback_;
+  const GetSbWindowHandleCallback get_sb_window_handle_callback_;
   raw_ptr<GpuVideoAcceleratorFactories> gpu_factories_ = nullptr;
 #if BUILDFLAG(IS_ANDROID)
   RequestOverlayInfoCB request_overlay_info_cb_;
@@ -179,11 +173,9 @@ class MEDIA_EXPORT StarboardRendererClient
   PipelineStatus pipeline_status_ GUARDED_BY(lock_) =
       PipelineStatus(PIPELINE_ERROR_INVALID_STATE);
 
-  mojo::Remote<cobalt::media::mojom::VideoGeometryChangeSubscriber>
-      video_geometry_change_subcriber_remote_;
-  mojo::Receiver<cobalt::media::mojom::VideoGeometryChangeClient>
-      video_geometry_change_client_receiver_{this};
-
+  // NOTE: Do not add member variables after weak_factory_
+  // It should be the first one destroyed among all members.
+  // See base/memory/weak_ptr.h.
   base::WeakPtrFactory<StarboardRendererClient> weak_factory_{this};
 };
 

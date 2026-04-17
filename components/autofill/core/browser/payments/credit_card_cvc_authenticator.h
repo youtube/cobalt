@@ -8,15 +8,17 @@
 #include <memory>
 #include <string>
 
-#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "build/build_config.h"
-#include "components/autofill/core/browser/autofill_client.h"
-#include "components/autofill/core/browser/data_model/credit_card.h"
+#include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "components/autofill/core/browser/payments/card_unmask_delegate.h"
 #include "components/autofill/core/browser/payments/full_card_request.h"
+#include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/ui/payments/card_unmask_prompt_options.h"
 
 namespace autofill {
+
+class AutofillClient;
 
 namespace autofill_metrics {
 class AutofillMetricsBaseTest;
@@ -44,8 +46,7 @@ class CreditCardCvcAuthenticator
       cvc = std::u16string(s);
       return *this;
     }
-    CvcAuthenticationResponse& with_request_options(
-        absl::optional<base::Value::Dict> v) {
+    CvcAuthenticationResponse& with_request_options(base::Value::Dict v) {
       request_options = std::move(v);
       return *this;
     }
@@ -55,9 +56,10 @@ class CreditCardCvcAuthenticator
     }
     bool did_succeed = false;
     raw_ptr<const CreditCard> card = nullptr;
-    std::u16string cvc = std::u16string();
-    absl::optional<base::Value::Dict> request_options;
-    std::string card_authorization_token = std::string();
+    // TODO(crbug.com/40927733): Remove CVC.
+    std::u16string cvc;
+    base::Value::Dict request_options;
+    std::string card_authorization_token;
   };
   class Requester {
    public:
@@ -90,13 +92,11 @@ class CreditCardCvcAuthenticator
   ~CreditCardCvcAuthenticator() override;
 
   // Authentication
-  void Authenticate(
-      const CreditCard* card,
-      base::WeakPtr<Requester> requester,
-      PersonalDataManager* personal_data_manager,
-      absl::optional<std::string> vcn_context_token = absl::nullopt,
-      absl::optional<CardUnmaskChallengeOption> selected_challenge_option =
-          absl::nullopt);
+  void Authenticate(const CreditCard& card,
+                    base::WeakPtr<Requester> requester,
+                    std::optional<std::string> vcn_context_token = std::nullopt,
+                    std::optional<CardUnmaskChallengeOption>
+                        selected_challenge_option = std::nullopt);
 
   // payments::FullCardRequest::ResultDelegate
   void OnFullCardRequestSucceeded(
@@ -113,7 +113,7 @@ class CreditCardCvcAuthenticator
       const CardUnmaskPromptOptions& card_unmask_prompt_options,
       base::WeakPtr<CardUnmaskDelegate> delegate) override;
   void OnUnmaskVerificationResult(
-      AutofillClient::PaymentsRpcResult result) override;
+      payments::PaymentsAutofillClient::PaymentsRpcResult result) override;
 #if BUILDFLAG(IS_ANDROID)
   bool ShouldOfferFidoAuth() const override;
   bool UserOptedInToFidoFromSettingsPageOnMobile() const override;
@@ -124,15 +124,22 @@ class CreditCardCvcAuthenticator
   base::WeakPtr<payments::FullCardRequest::UIDelegate>
   GetAsFullCardRequestUIDelegate();
 
+  // TODO(crbug.com/40100455): Introduce TestApi instead?
+  payments::FullCardRequest& full_card_request_for_testing() {
+    return *full_card_request_;
+  }
+
  private:
-  friend class BrowserAutofillManagerTest;
+  // TODO(crbug.com/40100455): Eliminate friendships. Introduce TestApi if
+  // necessary.
   friend class AutofillMetricsTest;
   friend class autofill_metrics::AutofillMetricsBaseTest;
-  friend class CreditCardAccessManagerTest;
+  friend class CreditCardAccessManagerTestBase;
   friend class CreditCardCvcAuthenticatorTest;
+  friend class FormFillerTest;
 
-  // The associated autofill client. Weak reference.
-  const raw_ptr<AutofillClient> client_;
+  // The associated autofill client.
+  const raw_ref<AutofillClient> client_;
 
   // Responsible for getting the full card details, including the PAN and the
   // CVC.

@@ -5,7 +5,8 @@
 #ifndef CHROME_BROWSER_UI_WEBUI_ASH_KERBEROS_KERBEROS_IN_BROWSER_DIALOG_H_
 #define CHROME_BROWSER_UI_WEBUI_ASH_KERBEROS_KERBEROS_IN_BROWSER_DIALOG_H_
 
-#include "chrome/browser/ui/webui/ash/system_web_dialog_delegate.h"
+#include "chrome/browser/ui/webui/ash/system_web_dialog/system_web_dialog_delegate.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 
 namespace ash {
 
@@ -17,14 +18,16 @@ class KerberosInBrowserDialog : public SystemWebDialogDelegate {
   KerberosInBrowserDialog(const KerberosInBrowserDialog&) = delete;
   KerberosInBrowserDialog& operator=(const KerberosInBrowserDialog&) = delete;
 
-  static bool IsShown();
+  // ui::SystemWebDialogDelegate overrides.
+  void AdjustWidgetInitParams(views::Widget::InitParams* params) override;
 
   // Displays the dialog.
   // |close_dialog_closure| will be called when the dialog is closed.
   static void Show(base::OnceClosure close_dialog_closure = base::DoNothing());
 
-  // ui::SystemWebDialogDelegate overrides.
-  void AdjustWidgetInitParams(views::Widget::InitParams* params) override;
+  static bool IsShown();
+
+  static KerberosInBrowserDialog* GetDialogForTesting();
 
  protected:
   explicit KerberosInBrowserDialog(
@@ -32,8 +35,9 @@ class KerberosInBrowserDialog : public SystemWebDialogDelegate {
   ~KerberosInBrowserDialog() override;
 
   // ui::WebDialogDelegate overrides
-  ui::ModalType GetDialogModalType() const override;
+  ui::mojom::ModalType GetDialogModalType() const override;
   void GetDialogSize(gfx::Size* size) const override;
+  void OnDialogClosed(const std::string& json_retval) override;
   bool ShouldShowCloseButton() const override;
   bool ShouldShowDialogTitle() const override;
 

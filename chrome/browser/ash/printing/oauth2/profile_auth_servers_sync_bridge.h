@@ -6,21 +6,21 @@
 #define CHROME_BROWSER_ASH_PRINTING_OAUTH2_PROFILE_AUTH_SERVERS_SYNC_BRIDGE_H_
 
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "components/sync/model/data_type_store.h"
+#include "components/sync/model/data_type_sync_bridge.h"
 #include "components/sync/model/entity_change.h"
 #include "components/sync/model/model_error.h"
-#include "components/sync/model/model_type_store.h"
-#include "components/sync/model/model_type_sync_bridge.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace syncer {
+class DataTypeLocalChangeProcessor;
 struct EntityData;
-class ModelTypeChangeProcessor;
 class MetadataChangeList;
 }  // namespace syncer
 
@@ -28,7 +28,7 @@ namespace ash::printing::oauth2 {
 
 // This class is the bridge responsible for the synchronization of the list of
 // trusted Authorization Servers between the user's profile and this client.
-class ProfileAuthServersSyncBridge : public syncer::ModelTypeSyncBridge {
+class ProfileAuthServersSyncBridge : public syncer::DataTypeSyncBridge {
  public:
   class Observer {
    public:
@@ -54,14 +54,14 @@ class ProfileAuthServersSyncBridge : public syncer::ModelTypeSyncBridge {
   // Factory function. |observer| must not be nullptr.
   static std::unique_ptr<ProfileAuthServersSyncBridge> Create(
       Observer* observer,
-      syncer::OnceModelTypeStoreFactory store_factory);
+      syncer::OnceDataTypeStoreFactory store_factory);
 
   // Factory function for testing. |observer| and |change_processor| must not be
   // nullptr.
   static std::unique_ptr<ProfileAuthServersSyncBridge> CreateForTesting(
       Observer* observer,
-      std::unique_ptr<syncer::ModelTypeChangeProcessor> change_processor,
-      syncer::OnceModelTypeStoreFactory store_factory);
+      std::unique_ptr<syncer::DataTypeLocalChangeProcessor> change_processor,
+      syncer::OnceDataTypeStoreFactory store_factory);
 
   ProfileAuthServersSyncBridge(const ProfileAuthServersSyncBridge&) = delete;
   ProfileAuthServersSyncBridge& operator=(const ProfileAuthServersSyncBridge&) =
@@ -84,41 +84,44 @@ class ProfileAuthServersSyncBridge : public syncer::ModelTypeSyncBridge {
   // OnProfileAuthorizationServersInitialized().
   void AddAuthorizationServer(const GURL& server);
 
-  // Implementation of ModelTypeSyncBridge interface. For internal use only.
+  // Implementation of DataTypeSyncBridge interface. For internal use only.
   std::unique_ptr<syncer::MetadataChangeList> CreateMetadataChangeList()
       override;
-  absl::optional<syncer::ModelError> MergeFullSyncData(
+  std::optional<syncer::ModelError> MergeFullSyncData(
       std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
       syncer::EntityChangeList entity_data) override;
-  absl::optional<syncer::ModelError> ApplyIncrementalSyncChanges(
+  std::optional<syncer::ModelError> ApplyIncrementalSyncChanges(
       std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
       syncer::EntityChangeList entity_changes) override;
-  void GetData(StorageKeyList storage_keys, DataCallback callback) override;
-  void GetAllDataForDebugging(DataCallback callback) override;
-  std::string GetClientTag(const syncer::EntityData& entity_data) override;
-  std::string GetStorageKey(const syncer::EntityData& entity_data) override;
+  std::unique_ptr<syncer::DataBatch> GetDataForCommit(
+      StorageKeyList storage_keys) override;
+  std::unique_ptr<syncer::DataBatch> GetAllDataForDebugging() override;
+  std::string GetClientTag(
+      const syncer::EntityData& entity_data) const override;
+  std::string GetStorageKey(
+      const syncer::EntityData& entity_data) const override;
 
  private:
   ProfileAuthServersSyncBridge(
-      std::unique_ptr<syncer::ModelTypeChangeProcessor> change_processor,
-      syncer::OnceModelTypeStoreFactory store_factory,
+      std::unique_ptr<syncer::DataTypeLocalChangeProcessor> change_processor,
+      syncer::OnceDataTypeStoreFactory store_factory,
       Observer* observer);
 
-  // Callback for ModelTypeStore initialization.
-  void OnStoreCreated(const absl::optional<syncer::ModelError>& error,
-                      std::unique_ptr<syncer::ModelTypeStore> store);
+  // Callback for DataTypeStore initialization.
+  void OnStoreCreated(const std::optional<syncer::ModelError>& error,
+                      std::unique_ptr<syncer::DataTypeStore> store);
 
   // Callback from the store when all data are loaded.
   void OnReadAllData(
-      const absl::optional<syncer::ModelError>& error,
-      std::unique_ptr<syncer::ModelTypeStore::RecordList> record_list);
+      const std::optional<syncer::ModelError>& error,
+      std::unique_ptr<syncer::DataTypeStore::RecordList> record_list);
 
   // Callback from the store when all metadata are loaded.
-  void OnReadAllMetadata(const absl::optional<syncer::ModelError>& error,
+  void OnReadAllMetadata(const std::optional<syncer::ModelError>& error,
                          std::unique_ptr<syncer::MetadataBatch> metadata_batch);
 
   // Callback to handle commit errors.
-  void OnCommit(const absl::optional<syncer::ModelError>& error);
+  void OnCommit(const std::optional<syncer::ModelError>& error);
 
   // Notifies the observer about changes.
   void NotifyObserver(const std::set<std::string>& added,
@@ -132,7 +135,7 @@ class ProfileAuthServersSyncBridge : public syncer::ModelTypeSyncBridge {
   std::set<std::string> servers_uris_;
 
   // The local store.
-  std::unique_ptr<syncer::ModelTypeStore> store_;
+  std::unique_ptr<syncer::DataTypeStore> store_;
 
   raw_ptr<Observer> const observer_;
   base::WeakPtrFactory<ProfileAuthServersSyncBridge> weak_ptr_factory_{this};

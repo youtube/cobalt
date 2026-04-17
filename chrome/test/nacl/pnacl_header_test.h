@@ -18,7 +18,7 @@ class HttpResponse;
 }
 
 /*
-TODO(https://crbug.com/711289): port to work with network service if this
+TODO(crbug.com/41312886): port to work with network service if this
 check matters.
 
 using content::ResourceDispatcherHostDelegate;
@@ -33,7 +33,7 @@ TestDispatcherHostDelegate& operator=(const TestDispatcherHostDelegate&) =
 delete;
 
 
-  ~TestDispatcherHostDelegate() override {}
+  ~TestDispatcherHostDelegate() override = default;
 
   void RequestBeginning(net::URLRequest* request,
                         content::ResourceContext* resource_context,

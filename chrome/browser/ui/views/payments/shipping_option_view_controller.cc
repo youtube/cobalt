@@ -21,9 +21,9 @@ namespace payments {
 
 namespace {
 
-class ShippingOptionItem : public PaymentRequestItemList::Item {
+class ShippingOptionItem final : public PaymentRequestItemList::Item {
  public:
-  ShippingOptionItem(mojom::PaymentShippingOption* shipping_option,
+  ShippingOptionItem(mojom::PaymentShippingOptionPtr shipping_option,
                      base::WeakPtr<PaymentRequestSpec> spec,
                      base::WeakPtr<PaymentRequestState> state,
                      PaymentRequestItemList* parent_list,
@@ -35,21 +35,25 @@ class ShippingOptionItem : public PaymentRequestItemList::Item {
                                      selected,
                                      /*clickable=*/true,
                                      /*show_edit_button=*/false),
-        shipping_option_(shipping_option) {
+        shipping_option_(std::move(shipping_option)) {
     Init();
   }
 
   ShippingOptionItem(const ShippingOptionItem&) = delete;
   ShippingOptionItem& operator=(const ShippingOptionItem&) = delete;
 
-  ~ShippingOptionItem() override {}
+  ~ShippingOptionItem() override = default;
+
+  base::WeakPtr<PaymentRequestRowView> AsWeakPtr() override {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
 
  private:
   // payments::PaymentRequestItemList::Item:
   std::unique_ptr<views::View> CreateContentView(
       std::u16string* accessible_content) override {
     return CreateShippingOptionLabel(
-        shipping_option_,
+        shipping_option_.get(),
         /*formatted_amount=*/
         spec() ? spec()->GetFormattedCurrencyAmount(shipping_option_->amount)
                : std::u16string(),
@@ -73,15 +77,16 @@ class ShippingOptionItem : public PaymentRequestItemList::Item {
 
   void PerformSelectionFallback() override {
     // Since CanBeSelected() is always true, this should never be called.
-    NOTREACHED_NORETURN();
+    NOTREACHED();
   }
 
   void EditButtonPressed() override {
     // This subclass doesn't display the edit button.
-    NOTREACHED_NORETURN();
+    NOTREACHED();
   }
 
-  raw_ptr<mojom::PaymentShippingOption> shipping_option_;
+  mojom::PaymentShippingOptionPtr shipping_option_;
+  base::WeakPtrFactory<ShippingOptionItem> weak_ptr_factory_{this};
 };
 
 }  // namespace
@@ -95,19 +100,21 @@ ShippingOptionViewController::ShippingOptionViewController(
   spec->AddObserver(this);
   for (const auto& option : spec->GetShippingOptions()) {
     shipping_option_list_.AddItem(std::make_unique<ShippingOptionItem>(
-        option.get(), spec, state, &shipping_option_list_, dialog,
+        option->Clone(), spec, state, &shipping_option_list_, dialog,
         option.get() == spec->selected_shipping_option()));
   }
 }
 
 ShippingOptionViewController::~ShippingOptionViewController() {
-  if (spec())
+  if (spec()) {
     spec()->RemoveObserver(this);
+  }
 }
 
 void ShippingOptionViewController::OnSpecUpdated() {
-  if (!spec())
+  if (!spec()) {
     return;
+  }
 
   if (spec()->current_update_reason() ==
       PaymentRequestSpec::UpdateReason::SHIPPING_OPTION) {
@@ -124,7 +131,8 @@ std::u16string ShippingOptionViewController::GetSheetTitle() {
 
 void ShippingOptionViewController::FillContentView(views::View* content_view) {
   content_view->SetLayoutManager(std::make_unique<views::FillLayout>());
-  content_view->AddChildView(shipping_option_list_.CreateListView().release());
+  content_view->AddChildViewRaw(
+      shipping_option_list_.CreateListView().release());
 }
 
 std::unique_ptr<views::View>

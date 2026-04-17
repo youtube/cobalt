@@ -9,13 +9,13 @@
 
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
-#include "chrome/browser/ui/web_applications/web_app_controller_browsertest.h"
+#include "chrome/browser/ui/web_applications/web_app_browsertest_base.h"
 #include "chrome/browser/web_applications/web_app.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/services/app_service/public/cpp/intent_util.h"
+#include "components/webapps/common/web_app_id.h"
 #include "content/public/test/browser_test.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "url/gurl.h"
@@ -123,7 +123,7 @@ void CheckShareFileFilter(const IntentFilterPtr& intent_filter,
 
 }  // namespace
 
-using WebAppPublisherHelperBrowserTest = WebAppControllerBrowserTest;
+using WebAppPublisherHelperBrowserTest = WebAppBrowserTestBase;
 
 IN_PROC_BROWSER_TEST_F(WebAppPublisherHelperBrowserTest, CreateIntentFilters) {
   ASSERT_TRUE(embedded_test_server()->Start());
@@ -133,12 +133,10 @@ IN_PROC_BROWSER_TEST_F(WebAppPublisherHelperBrowserTest, CreateIntentFilters) {
   apps::IntentFilters filters;
   {
     auto& provider = *web_app::WebAppProvider::GetForTest(browser()->profile());
-    const web_app::AppId app_id =
+    const webapps::AppId app_id =
         web_app::InstallWebAppFromManifest(browser(), app_url);
     filters = WebAppPublisherHelper::CreateIntentFiltersForWebApp(
-        app_id, provider.registrar_unsafe().GetAppScope(app_id),
-        provider.registrar_unsafe().GetAppShareTarget(app_id),
-        provider.os_integration_manager().GetEnabledFileHandlers(app_id));
+        provider, *provider.registrar_unsafe().GetAppById(app_id));
   }
 
   ASSERT_EQ(filters.size(), 3U);
@@ -166,12 +164,10 @@ IN_PROC_BROWSER_TEST_F(WebAppPublisherHelperBrowserTest, PartialWild) {
   apps::IntentFilters filters;
   {
     auto& provider = *web_app::WebAppProvider::GetForTest(browser()->profile());
-    const web_app::AppId app_id =
+    const webapps::AppId app_id =
         web_app::InstallWebAppFromManifest(browser(), app_url);
     filters = WebAppPublisherHelper::CreateIntentFiltersForWebApp(
-        app_id, provider.registrar_unsafe().GetAppScope(app_id),
-        provider.registrar_unsafe().GetAppShareTarget(app_id),
-        provider.os_integration_manager().GetEnabledFileHandlers(app_id));
+        provider, *provider.registrar_unsafe().GetAppById(app_id));
   }
 
   ASSERT_EQ(filters.size(), 2U);
@@ -197,12 +193,10 @@ IN_PROC_BROWSER_TEST_F(WebAppPublisherHelperBrowserTest,
   apps::IntentFilters filters;
   {
     auto& provider = *web_app::WebAppProvider::GetForTest(browser()->profile());
-    const web_app::AppId app_id =
+    const webapps::AppId app_id =
         web_app::InstallWebAppFromManifest(browser(), app_url);
     filters = WebAppPublisherHelper::CreateIntentFiltersForWebApp(
-        app_id, provider.registrar_unsafe().GetAppScope(app_id),
-        provider.registrar_unsafe().GetAppShareTarget(app_id),
-        provider.os_integration_manager().GetEnabledFileHandlers(app_id));
+        provider, *provider.registrar_unsafe().GetAppById(app_id));
   }
 
   ASSERT_EQ(filters.size(), 2U);

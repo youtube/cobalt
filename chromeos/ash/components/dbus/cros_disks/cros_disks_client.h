@@ -6,18 +6,17 @@
 #define CHROMEOS_ASH_COMPONENTS_DBUS_CROS_DISKS_CROS_DISKS_CLIENT_H_
 
 #include <cstdint>
-#include <ostream>
-
 #include <memory>
+#include <ostream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/component_export.h"
 #include "base/functional/callback_forward.h"
 #include "base/observer_list_types.h"
-#include "base/strings/string_piece.h"
+#include "chromeos/dbus/common/dbus_callback.h"
 #include "chromeos/dbus/common/dbus_client.h"
-#include "chromeos/dbus/common/dbus_method_call_status.h"
 #include "third_party/cros_system_api/dbus/cros-disks/dbus-constants.h"
 
 namespace base {
@@ -214,8 +213,8 @@ struct COMPONENT_EXPORT(ASH_DBUS_CROS_DISKS) MountPoint {
   MountPoint& operator=(MountPoint&&);
 
   MountPoint();
-  MountPoint(base::StringPiece source_path,
-             base::StringPiece mount_path,
+  MountPoint(std::string_view source_path,
+             std::string_view mount_path,
              MountType mount_type = MountType::kInvalid,
              MountError mount_error = MountError::kSuccess,
              int progress_percent = 0,
@@ -361,8 +360,8 @@ class COMPONENT_EXPORT(ASH_DBUS_CROS_DISKS) CrosDisksClient
 
   // Composes a list of mount options.
   static std::vector<std::string> ComposeMountOptions(
-      const std::vector<std::string>& options,
-      const std::string& mount_label,
+      std::vector<std::string> options,
+      std::string_view mount_label,
       MountAccessMode access_mode,
       RemountOption remount);
 

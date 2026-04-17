@@ -14,6 +14,8 @@
 #include "base/i18n/file_util_icu.h"
 #include "base/i18n/time_formatting.h"
 #include "base/lazy_instance.h"
+#include "base/memory/raw_ptr.h"
+#include "base/notreached.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
@@ -24,9 +26,9 @@
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/bookmarks/url_and_id.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/extensions/api/bookmarks/bookmark_api_constants.h"
-#include "chrome/browser/extensions/api/bookmarks/bookmark_api_helpers.h"
 #include "chrome/browser/extensions/api/tabs/windows_util.h"
+#include "chrome/browser/extensions/bookmarks/bookmarks_error_constants.h"
+#include "chrome/browser/extensions/bookmarks/bookmarks_helpers.h"
 #include "chrome/browser/extensions/chrome_extension_function_details.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/importer/external_process_importer_host.h"
@@ -35,6 +37,8 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/renderer_host/chrome_navigation_ui_data.h"
 #include "chrome/browser/ui/bookmarks/bookmark_drag_drop.h"
+#include "chrome/browser/ui/bookmarks/bookmark_ui_operations_helper.h"
+#include "chrome/browser/ui/bookmarks/bookmark_utils_desktop.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_navigator.h"
@@ -68,6 +72,7 @@
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom-shared.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/webui/web_ui_util.h"
+#include "ui/shell_dialogs/selected_file_info.h"
 
 using bookmarks::BookmarkModel;
 using bookmarks::BookmarkNode;
@@ -76,9 +81,10 @@ using content::WebContents;
 
 namespace extensions {
 
-namespace bookmark_keys = bookmark_api_constants;
 namespace bookmark_manager_private = api::bookmark_manager_private;
 namespace CanPaste = api::bookmark_manager_private::CanPaste;
+namespace IsActiveTabInSplit =
+    api::bookmark_manager_private::IsActiveTabInSplit;
 namespace Copy = api::bookmark_manager_private::Copy;
 namespace Cut = api::bookmark_manager_private::Cut;
 namespace Drop = api::bookmark_manager_private::Drop;
@@ -89,8 +95,14 @@ namespace SortChildren = api::bookmark_manager_private::SortChildren;
 namespace StartDrag = api::bookmark_manager_private::StartDrag;
 namespace OpenInNewTab = api::bookmark_manager_private::OpenInNewTab;
 namespace OpenInNewWindow = api::bookmark_manager_private::OpenInNewWindow;
+namespace OpenInNewTabGroup = api::bookmark_manager_private::OpenInNewTabGroup;
 
 namespace {
+
+constexpr char kBookmarkNodesNotFoundFromIdListError[] =
+    "Could not find bookmark nodes with given ids: [*]";
+
+constexpr char kInvalidBrowserError[] = "Can't find a valid browser";
 
 // Returns a single bookmark node from the argument ID.
 // This returns nullptr in case of failure.
@@ -104,9 +116,10 @@ const BookmarkNode* GetNodeFromString(BookmarkModel* model,
 
 // Gets a vector of bookmark nodes from the argument list of IDs.
 // This returns false in the case of failure.
-bool GetNodesFromVector(BookmarkModel* model,
-                        const std::vector<std::string>& id_strings,
-                        std::vector<const BookmarkNode*>* nodes) {
+bool GetNodesFromVector(
+    BookmarkModel* model,
+    const std::vector<std::string>& id_strings,
+    std::vector<raw_ptr<const BookmarkNode, VectorExperimental>>* nodes) {
   if (id_strings.empty())
     return false;
 
@@ -171,9 +184,10 @@ bookmark_manager_private::BookmarkNodeData CreateApiBookmarkNodeData(
   node_data.same_profile = data.IsFromProfilePath(profile_path);
 
   if (node_data.same_profile) {
-    std::vector<const BookmarkNode*> nodes = data.GetNodes(
-        BookmarkModelFactory::GetForBrowserContext(profile), profile_path);
-    for (const auto* node : nodes) {
+    std::vector<raw_ptr<const BookmarkNode, VectorExperimental>> nodes =
+        data.GetNodes(BookmarkModelFactory::GetForBrowserContext(profile),
+                      profile_path);
+    for (const bookmarks::BookmarkNode* node : nodes) {
       node_data.elements.push_back(
           CreateNodeDataElementFromBookmarkNode(*node));
     }
@@ -185,7 +199,8 @@ bookmark_manager_private::BookmarkNodeData CreateApiBookmarkNodeData(
   return node_data;
 }
 
-bool HasPermanentNodes(const std::vector<const BookmarkNode*>& list) {
+bool HasPermanentNodes(
+    const std::vector<raw_ptr<const BookmarkNode, VectorExperimental>>& list) {
   for (const BookmarkNode* node : list) {
     if (node->is_permanent_node())
       return true;
@@ -237,8 +252,12 @@ void BookmarkManagerPrivateEventRouter::DispatchEvent(
 
 void BookmarkManagerPrivateEventRouter::BookmarkModelChanged() {}
 
-void BookmarkManagerPrivateEventRouter::BookmarkModelBeingDeleted(
-    BookmarkModel* model) {
+void BookmarkManagerPrivateEventRouter::BookmarkModelBeingDeleted() {
+  // This codepath is unexpected because `this` is owned by a KeyedService that
+  // depends on BookmarkModelFactory, which means BookmarkModel must outlive
+  // `this`.
+  NOTREACHED(base::NotFatalUntil::M138);
+  bookmark_model_->RemoveObserver(this);
   bookmark_model_ = nullptr;
 }
 
@@ -357,25 +376,33 @@ ExtensionFunction::ResponseValue ClipboardBookmarkManagerFunction::CopyOrCut(
     bool cut,
     const std::vector<std::string>& id_list) {
   BookmarkModel* model = GetBookmarkModel();
-  std::vector<const BookmarkNode*> nodes;
+  std::vector<raw_ptr<const BookmarkNode, VectorExperimental>> nodes;
   if (!GetNodesFromVector(model, id_list, &nodes)) {
-    return Error(bookmark_keys::kBookmarkNodesNotFoundFromIdListError,
+    return Error(kBookmarkNodesNotFoundFromIdListError,
                  base::JoinString(id_list, ", "));
   }
 
   bookmarks::ManagedBookmarkService* managed = GetManagedBookmarkService();
   if (cut && bookmarks::HasDescendantsOf(nodes, managed->managed_node()))
-    return Error(bookmark_keys::kModifyManagedError);
+    return Error(bookmarks_errors::kModifyManagedError);
   if (cut && HasPermanentNodes(nodes))
-    return Error(bookmark_keys::kModifySpecialError);
-  bookmarks::CopyToClipboard(
-      model, nodes, cut, bookmarks::metrics::BookmarkEditSource::kExtension);
+    return Error(bookmarks_errors::kModifySpecialError);
+
+  if (cut) {
+    BookmarkUIOperationsHelperNonMergedSurfaces::CutToClipboard(
+        model, nodes, bookmarks::metrics::BookmarkEditSource::kExtension,
+        GetProfile()->IsOffTheRecord());
+  } else {
+    BookmarkUIOperationsHelperNonMergedSurfaces::CopyToClipboard(
+        model, nodes, bookmarks::metrics::BookmarkEditSource::kExtension,
+        GetProfile()->IsOffTheRecord());
+  }
   return NoArguments();
 }
 
 ExtensionFunction::ResponseValue
 BookmarkManagerPrivateCopyFunction::RunOnReady() {
-  absl::optional<Copy::Params> params = Copy::Params::Create(args());
+  std::optional<Copy::Params> params = Copy::Params::Create(args());
   if (!params)
     return BadMessage();
   return CopyOrCut(false, params->id_list);
@@ -384,9 +411,9 @@ BookmarkManagerPrivateCopyFunction::RunOnReady() {
 ExtensionFunction::ResponseValue
 BookmarkManagerPrivateCutFunction::RunOnReady() {
   if (!EditBookmarksEnabled())
-    return Error(bookmark_keys::kEditBookmarksDisabled);
+    return Error(bookmarks_errors::kEditBookmarksDisabled);
 
-  absl::optional<Cut::Params> params = Cut::Params::Create(args());
+  std::optional<Cut::Params> params = Cut::Params::Create(args());
   if (!params)
     return BadMessage();
   return CopyOrCut(true, params->id_list);
@@ -395,9 +422,9 @@ BookmarkManagerPrivateCutFunction::RunOnReady() {
 ExtensionFunction::ResponseValue
 BookmarkManagerPrivatePasteFunction::RunOnReady() {
   if (!EditBookmarksEnabled())
-    return Error(bookmark_keys::kEditBookmarksDisabled);
+    return Error(bookmarks_errors::kEditBookmarksDisabled);
 
-  absl::optional<Paste::Params> params = Paste::Params::Create(args());
+  std::optional<Paste::Params> params = Paste::Params::Create(args());
   if (!params)
     return BadMessage();
   BookmarkModel* model =
@@ -406,12 +433,13 @@ BookmarkManagerPrivatePasteFunction::RunOnReady() {
   std::string error;
   if (!CanBeModified(parent_node, &error))
     return Error(error);
-  bool can_paste = bookmarks::CanPasteFromClipboard(model, parent_node);
+  BookmarkUIOperationsHelperNonMergedSurfaces helper(model, parent_node);
+  bool can_paste = helper.CanPasteFromClipboard();
   if (!can_paste)
     return Error("Could not paste from clipboard");
 
   // We want to use the highest index of the selected nodes as a destination.
-  std::vector<const BookmarkNode*> nodes;
+  std::vector<raw_ptr<const BookmarkNode, VectorExperimental>> nodes;
   // No need to test return value, if we got an empty list, we insert at end.
   if (params->selected_id_list)
     GetNodesFromVector(model, *params->selected_id_list, &nodes);
@@ -424,13 +452,13 @@ BookmarkManagerPrivatePasteFunction::RunOnReady() {
   if (!highest_index)
     highest_index = parent_node->children().size();
 
-  bookmarks::PasteFromClipboard(model, parent_node, highest_index);
+  helper.PasteFromClipboard(highest_index);
   return NoArguments();
 }
 
 ExtensionFunction::ResponseValue
 BookmarkManagerPrivateCanPasteFunction::RunOnReady() {
-  absl::optional<CanPaste::Params> params = CanPaste::Params::Create(args());
+  std::optional<CanPaste::Params> params = CanPaste::Params::Create(args());
   if (!params)
     return BadMessage();
 
@@ -442,17 +470,34 @@ BookmarkManagerPrivateCanPasteFunction::RunOnReady() {
       BookmarkModelFactory::GetForBrowserContext(GetProfile());
   const BookmarkNode* parent_node = GetNodeFromString(model, params->parent_id);
   if (!parent_node)
-    return Error(bookmark_keys::kNoParentError);
-  bool can_paste = bookmarks::CanPasteFromClipboard(model, parent_node);
+    return Error(bookmarks_errors::kNoParentError);
+  bool can_paste =
+      BookmarkUIOperationsHelperNonMergedSurfaces(model, parent_node)
+          .CanPasteFromClipboard();
   return WithArguments(can_paste);
+}
+
+ExtensionFunction::ResponseValue
+BookmarkManagerPrivateIsActiveTabInSplitFunction::RunOnReady() {
+  Browser* browser = ChromeExtensionFunctionDetails(this)
+                         .GetCurrentWindowController()
+                         ->GetBrowser();
+
+  if (!browser) {
+    return Error(kInvalidBrowserError);
+  }
+
+  const bool is_active_tab_in_split_view =
+      browser->GetActiveTabInterface()->IsSplit();
+  return WithArguments(is_active_tab_in_split_view);
 }
 
 ExtensionFunction::ResponseValue
 BookmarkManagerPrivateSortChildrenFunction::RunOnReady() {
   if (!EditBookmarksEnabled())
-    return Error(bookmark_keys::kEditBookmarksDisabled);
+    return Error(bookmarks_errors::kEditBookmarksDisabled);
 
-  absl::optional<SortChildren::Params> params =
+  std::optional<SortChildren::Params> params =
       SortChildren::Params::Create(args());
   if (!params)
     return BadMessage();
@@ -470,18 +515,18 @@ BookmarkManagerPrivateSortChildrenFunction::RunOnReady() {
 ExtensionFunction::ResponseValue
 BookmarkManagerPrivateStartDragFunction::RunOnReady() {
   if (!EditBookmarksEnabled())
-    return Error(bookmark_keys::kEditBookmarksDisabled);
+    return Error(bookmarks_errors::kEditBookmarksDisabled);
 
   content::WebContents* web_contents = GetSenderWebContents();
-  absl::optional<StartDrag::Params> params = StartDrag::Params::Create(args());
+  std::optional<StartDrag::Params> params = StartDrag::Params::Create(args());
   if (!params)
     return BadMessage();
 
   BookmarkModel* model =
       BookmarkModelFactory::GetForBrowserContext(GetProfile());
-  std::vector<const BookmarkNode*> nodes;
+  std::vector<raw_ptr<const BookmarkNode, VectorExperimental>> nodes;
   if (!GetNodesFromVector(model, params->id_list, &nodes)) {
-    return Error(bookmark_keys::kBookmarkNodesNotFoundFromIdListError,
+    return Error(kBookmarkNodesNotFoundFromIdListError,
                  base::JoinString(params->id_list, ", "));
   }
 
@@ -499,9 +544,9 @@ BookmarkManagerPrivateStartDragFunction::RunOnReady() {
 ExtensionFunction::ResponseValue
 BookmarkManagerPrivateDropFunction::RunOnReady() {
   if (!EditBookmarksEnabled())
-    return Error(bookmark_keys::kEditBookmarksDisabled);
+    return Error(bookmarks_errors::kEditBookmarksDisabled);
 
-  absl::optional<Drop::Params> params = Drop::Params::Create(args());
+  std::optional<Drop::Params> params = Drop::Params::Create(args());
   if (!params)
     return BadMessage();
 
@@ -528,8 +573,9 @@ BookmarkManagerPrivateDropFunction::RunOnReady() {
   const BookmarkNodeData* drag_data = router->GetBookmarkNodeData();
   CHECK_NE(nullptr, drag_data) << "Somehow we're dropping null bookmark data";
   const bool copy = false;
-  chrome::DropBookmarks(
-      GetProfile(), *drag_data, drop_parent, drop_index, copy);
+  BookmarkUIOperationsHelperNonMergedSurfaces(model, drop_parent)
+      .DropBookmarks(GetProfile(), *drag_data, drop_index, copy,
+                     chrome::BookmarkReorderDropTarget::kBookmarkManagerAPI);
 
   router->ClearBookmarkNodeData();
   return NoArguments();
@@ -537,8 +583,7 @@ BookmarkManagerPrivateDropFunction::RunOnReady() {
 
 ExtensionFunction::ResponseValue
 BookmarkManagerPrivateGetSubtreeFunction::RunOnReady() {
-  absl::optional<GetSubtree::Params> params =
-      GetSubtree::Params::Create(args());
+  std::optional<GetSubtree::Params> params = GetSubtree::Params::Create(args());
   if (!params)
     return BadMessage();
 
@@ -556,20 +601,23 @@ BookmarkManagerPrivateGetSubtreeFunction::RunOnReady() {
   }
 
   std::vector<api::bookmarks::BookmarkTreeNode> nodes;
+  BookmarkModel* model =
+      BookmarkModelFactory::GetForBrowserContext(GetProfile());
   bookmarks::ManagedBookmarkService* managed = GetManagedBookmarkService();
-  if (params->folders_only)
-    bookmark_api_helpers::AddNodeFoldersOnly(managed, node, &nodes, true);
-  else
-    bookmark_api_helpers::AddNode(managed, node, &nodes, true);
+  if (params->folders_only) {
+    bookmarks_helpers::AddNodeFoldersOnly(model, managed, node, &nodes, true);
+  } else {
+    bookmarks_helpers::AddNode(model, managed, node, &nodes, true);
+  }
   return ArgumentList(GetSubtree::Results::Create(nodes));
 }
 
 ExtensionFunction::ResponseValue
 BookmarkManagerPrivateRemoveTreesFunction::RunOnReady() {
   if (!EditBookmarksEnabled())
-    return Error(bookmark_keys::kEditBookmarksDisabled);
+    return Error(bookmarks_errors::kEditBookmarksDisabled);
 
-  absl::optional<RemoveTrees::Params> params =
+  std::optional<RemoveTrees::Params> params =
       RemoveTrees::Params::Create(args());
   if (!params)
     return BadMessage();
@@ -581,9 +629,10 @@ BookmarkManagerPrivateRemoveTreesFunction::RunOnReady() {
   std::string error;
   for (const std::string& id_string : params->id_list) {
     if (!base::StringToInt64(id_string, &id))
-      return Error(bookmark_keys::kInvalidIdError);
-    if (!bookmark_api_helpers::RemoveNode(model, managed, id, true, &error))
+      return Error(bookmarks_errors::kInvalidIdError);
+    if (!bookmarks_helpers::RemoveNode(model, managed, id, true, &error)) {
       return Error(error);
+    }
   }
 
   return NoArguments();
@@ -592,7 +641,7 @@ BookmarkManagerPrivateRemoveTreesFunction::RunOnReady() {
 ExtensionFunction::ResponseValue
 BookmarkManagerPrivateUndoFunction::RunOnReady() {
   if (!EditBookmarksEnabled())
-    return Error(bookmark_keys::kEditBookmarksDisabled);
+    return Error(bookmarks_errors::kEditBookmarksDisabled);
 
   BookmarkUndoServiceFactory::GetForProfile(GetProfile())->undo_manager()->
       Undo();
@@ -602,7 +651,7 @@ BookmarkManagerPrivateUndoFunction::RunOnReady() {
 ExtensionFunction::ResponseValue
 BookmarkManagerPrivateRedoFunction::RunOnReady() {
   if (!EditBookmarksEnabled())
-    return Error(bookmark_keys::kEditBookmarksDisabled);
+    return Error(bookmarks_errors::kEditBookmarksDisabled);
 
   BookmarkUndoServiceFactory::GetForProfile(GetProfile())->undo_manager()->
       Redo();
@@ -611,7 +660,7 @@ BookmarkManagerPrivateRedoFunction::RunOnReady() {
 
 ExtensionFunction::ResponseValue
 BookmarkManagerPrivateOpenInNewTabFunction::RunOnReady() {
-  absl::optional<OpenInNewTab::Params> params =
+  std::optional<OpenInNewTab::Params> params =
       OpenInNewTab::Params::Create(args());
   if (!params)
     return BadMessage();
@@ -625,8 +674,11 @@ BookmarkManagerPrivateOpenInNewTabFunction::RunOnReady() {
 
   ExtensionTabUtil::OpenTabParams options;
   options.url = node->url().spec();
-  options.active = params->active;
-  options.bookmark_id = node->uuid();
+  if (params->params.has_value()) {
+    options.active = params->params.value().active;
+    options.split = params->params.value().split;
+  }
+  options.bookmark_id = node->id();
 
   auto result =
       extensions::ExtensionTabUtil::OpenTab(this, options, user_gesture());
@@ -638,7 +690,7 @@ BookmarkManagerPrivateOpenInNewTabFunction::RunOnReady() {
 
 ExtensionFunction::ResponseValue
 BookmarkManagerPrivateOpenInNewWindowFunction::RunOnReady() {
-  absl::optional<OpenInNewWindow::Params> params =
+  std::optional<OpenInNewWindow::Params> params =
       OpenInNewWindow::Params::Create(args());
   if (!params)
     return BadMessage();
@@ -647,15 +699,15 @@ BookmarkManagerPrivateOpenInNewWindowFunction::RunOnReady() {
 
   BookmarkModel* model =
       BookmarkModelFactory::GetForBrowserContext(calling_profile);
-  std::vector<const BookmarkNode*> nodes;
+  std::vector<raw_ptr<const BookmarkNode, VectorExperimental>> nodes;
   if (!GetNodesFromVector(model, params->id_list, &nodes)) {
-    return Error(bookmark_keys::kBookmarkNodesNotFoundFromIdListError,
+    return Error(kBookmarkNodesNotFoundFromIdListError,
                  base::JoinString(params->id_list, ", "));
   }
 
   std::vector<GURL> urls;
   urls.reserve(nodes.size());
-  for (const auto* node : nodes) {
+  for (const bookmarks::BookmarkNode* node : nodes) {
     if (!node->is_url())
       return Error("Cannot open a folder in a new window.");
     urls.push_back(node->url());
@@ -670,12 +722,12 @@ BookmarkManagerPrivateOpenInNewWindowFunction::RunOnReady() {
 
   std::vector<UrlAndId> url_and_ids;
   urls.reserve(nodes.size());
-  for (const auto* node : nodes) {
+  for (const bookmarks::BookmarkNode* node : nodes) {
     if (!base::Contains(urls, node->url()))
       continue;  // The URL was filtered out; ignore this node.
     UrlAndId url_and_id;
     url_and_id.url = node->url();
-    url_and_id.id = node->uuid();
+    url_and_id.id = node->id();
     url_and_ids.push_back(url_and_id);
   }
   DCHECK_EQ(urls.size(), url_and_ids.size());
@@ -710,7 +762,37 @@ BookmarkManagerPrivateOpenInNewWindowFunction::RunOnReady() {
   return NoArguments();
 }
 
-BookmarkManagerPrivateIOFunction::BookmarkManagerPrivateIOFunction() {}
+ExtensionFunction::ResponseValue
+BookmarkManagerPrivateOpenInNewTabGroupFunction::RunOnReady() {
+  std::optional<OpenInNewTabGroup::Params> params =
+      OpenInNewTabGroup::Params::Create(args());
+  if (!params) {
+    return BadMessage();
+  }
+
+  Browser* browser = ChromeExtensionFunctionDetails(this)
+                         .GetCurrentWindowController()
+                         ->GetBrowser();
+  if (!browser) {
+    return Error(kInvalidBrowserError);
+  }
+
+  BookmarkModel* model =
+      BookmarkModelFactory::GetForBrowserContext(browser->profile());
+  std::vector<raw_ptr<const BookmarkNode, VectorExperimental>> nodes;
+  if (!GetNodesFromVector(model, params->id_list, &nodes)) {
+    return Error(kBookmarkNodesNotFoundFromIdListError,
+                 base::JoinString(params->id_list, ", "));
+  }
+
+  chrome::OpenAllIfAllowed(browser, nodes,
+                           WindowOpenDisposition::NEW_BACKGROUND_TAB,
+                           bookmarks::OpenAllBookmarksContext::kInGroup);
+
+  return NoArguments();
+}
+
+BookmarkManagerPrivateIOFunction::BookmarkManagerPrivateIOFunction() = default;
 
 BookmarkManagerPrivateIOFunction::~BookmarkManagerPrivateIOFunction() {
   // There may be pending file dialogs, we need to tell them that we've gone
@@ -731,8 +813,8 @@ void BookmarkManagerPrivateIOFunction::ShowSelectFileDialog(
 
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
-  // Balanced in one of the three callbacks of SelectFileDialog:
-  // either FileSelectionCanceled, MultiFilesSelected, or FileSelected
+  // Balanced in one of the callbacks of SelectFileDialog:
+  // either FileSelectionCanceled, or FileSelected
   AddRef();
 
   WebContents* web_contents = GetSenderWebContents();
@@ -744,56 +826,47 @@ void BookmarkManagerPrivateIOFunction::ShowSelectFileDialog(
   file_type_info.extensions[0].push_back(FILE_PATH_LITERAL("html"));
   gfx::NativeWindow owning_window =
       web_contents ? platform_util::GetTopLevel(web_contents->GetNativeView())
-                   : gfx::kNullNativeWindow;
+                   : gfx::NativeWindow();
   // |web_contents| can be nullptr (for background pages), which is fine. In
   // such a case if file-selection dialogs are forbidden by policy, we will not
   // show an InfoBar, which is better than letting one appear out of the blue.
-  select_file_dialog_->SelectFile(
-      type, std::u16string(), default_path, &file_type_info, 0,
-      base::FilePath::StringType(), owning_window, nullptr);
+  select_file_dialog_->SelectFile(type, std::u16string(), default_path,
+                                  &file_type_info, 0,
+                                  base::FilePath::StringType(), owning_window);
 }
 
-void BookmarkManagerPrivateIOFunction::FileSelectionCanceled(void* params) {
+void BookmarkManagerPrivateIOFunction::FileSelectionCanceled() {
   select_file_dialog_.reset();
   Release();  // Balanced in BookmarkManagerPrivateIOFunction::SelectFile()
-}
-
-void BookmarkManagerPrivateIOFunction::MultiFilesSelected(
-    const std::vector<base::FilePath>& files, void* params) {
-  select_file_dialog_.reset();
-  Release();  // Balanced in BookmarsIOFunction::SelectFile()
-  NOTREACHED() << "Should not be able to select multiple files";
 }
 
 ExtensionFunction::ResponseValue
 BookmarkManagerPrivateImportFunction::RunOnReady() {
   if (!EditBookmarksEnabled())
-    return Error(bookmark_api_constants::kEditBookmarksDisabled);
+    return Error(bookmarks_errors::kEditBookmarksDisabled);
   ShowSelectFileDialog(ui::SelectFileDialog::SELECT_OPEN_FILE,
                        base::FilePath());
-  // TODO(crbug.com/1073255): This will respond before a file is selected, which
-  // seems incorrect. Waiting and responding until after
+  // TODO(crbug.com/40127463): This will respond before a file is selected,
+  // which seems incorrect. Waiting and responding until after
   // ui::SelectFileDialog::Listener is fired should be right thing to do, but
   // that requires auditing bookmark page callsites.
   return NoArguments();
 }
 
 void BookmarkManagerPrivateImportFunction::FileSelected(
-    const base::FilePath& path,
-    int index,
-    void* params) {
+    const ui::SelectedFileInfo& file,
+    int index) {
   // Deletes itself.
   ExternalProcessImporterHost* importer_host = new ExternalProcessImporterHost;
-  importer::SourceProfile source_profile;
-  source_profile.importer_type = importer::TYPE_BOOKMARKS_FILE;
-  source_profile.source_path = path;
-  importer_host->StartImportSettings(source_profile,
-                                     GetProfile(),
-                                     importer::FAVORITES,
+  user_data_importer::SourceProfile source_profile;
+  source_profile.importer_type = user_data_importer::TYPE_BOOKMARKS_FILE;
+  source_profile.source_path = file.path();
+  importer_host->StartImportSettings(source_profile, GetProfile(),
+                                     user_data_importer::FAVORITES,
                                      new ProfileWriter(GetProfile()));
 
   importer::LogImporterUseToMetrics("BookmarksAPI",
-                                    importer::TYPE_BOOKMARKS_FILE);
+                                    user_data_importer::TYPE_BOOKMARKS_FILE);
   select_file_dialog_.reset();
   Release();  // Balanced in BookmarkManagerPrivateIOFunction::SelectFile()
 }
@@ -811,18 +884,18 @@ BookmarkManagerPrivateExportFunction::RunOnReady() {
       base::BindOnce(&GetDefaultFilepathForBookmarkExport),
       base::BindOnce(&BookmarkManagerPrivateIOFunction::ShowSelectFileDialog,
                      this, ui::SelectFileDialog::SELECT_SAVEAS_FILE));
-  // TODO(crbug.com/1073255): This will respond before a file is selected, which
-  // seems incorrect. Waiting and responding until after
+  // TODO(crbug.com/40127463): This will respond before a file is selected,
+  // which seems incorrect. Waiting and responding until after
   // ui::SelectFileDialog::Listener is fired should be right thing to do, but
   // that requires auditing bookmark page callsites.
   return NoArguments();
 }
 
 void BookmarkManagerPrivateExportFunction::FileSelected(
-    const base::FilePath& path,
-    int index,
-    void* params) {
-  bookmark_html_writer::WriteBookmarks(GetProfile(), path, nullptr);
+    const ui::SelectedFileInfo& file,
+    int index) {
+  bookmark_html_writer::WriteBookmarks(GetProfile(), file.path(),
+                                       base::DoNothing());
   select_file_dialog_.reset();
   Release();  // Balanced in BookmarkManagerPrivateIOFunction::SelectFile()
 }

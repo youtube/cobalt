@@ -3,13 +3,19 @@
 // found in the LICENSE file or at https://opensource.org/licenses/MIT.
 
 #include "third_party/liburlpattern/parse.h"
+
+#include <string_view>
+
+#include "base/types/expected.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/status/status.h"
+#include "third_party/abseil-cpp/absl/status/statusor.h"
 #include "third_party/abseil-cpp/absl/strings/str_format.h"
 #include "third_party/liburlpattern/pattern.h"
 
 namespace {
 
-absl::StatusOr<std::string> PassThrough(absl::string_view input) {
+base::expected<std::string, absl::Status> PassThrough(std::string_view input) {
   return std::string(input);
 }
 
@@ -17,25 +23,25 @@ absl::StatusOr<std::string> PassThrough(absl::string_view input) {
 
 namespace liburlpattern {
 
-absl::StatusOr<std::string> ToUpper(absl::string_view input) {
+base::expected<std::string, absl::Status> ToUpper(std::string_view input) {
   std::string output;
   std::transform(input.begin(), input.end(), std::back_inserter(output),
                  [](unsigned char c) { return std::toupper(c); });
   return output;
 }
 
-void RunParseTest(absl::string_view pattern,
+void RunParseTest(std::string_view pattern,
                   absl::StatusOr<std::vector<Part>> expected,
                   EncodeCallback callback = PassThrough) {
   auto result = Parse(pattern, std::move(callback));
-  ASSERT_EQ(result.ok(), expected.ok())
-      << "parse status '" << result.status() << "' for: " << pattern;
+  ASSERT_EQ(result.has_value(), expected.ok())
+      << "parse status '" << result.error() << "' for: " << pattern;
   if (!expected.ok()) {
-    ASSERT_EQ(result.status().code(), expected.status().code())
+    ASSERT_EQ(result.error().code(), expected.status().code())
         << "parse status code for: " << pattern;
-    EXPECT_NE(result.status().message().find(expected.status().message()),
+    EXPECT_NE(result.error().message().find(expected.status().message()),
               std::string::npos)
-        << "parse message '" << result.status().message()
+        << "parse message '" << result.error().message()
         << "' does not contain '" << expected.status().message()
         << "' for: " << pattern;
     return;

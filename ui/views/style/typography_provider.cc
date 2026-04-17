@@ -4,21 +4,35 @@
 
 #include "ui/views/style/typography_provider.h"
 
+#include <map>
 #include <string>
 
+#include "base/check_op.h"
+#include "base/containers/fixed_flat_map.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "ui/base/default_style.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/color/color_id.h"
+#include "ui/views/layout/layout_provider.h"
 #include "ui/views/style/typography.h"
 
 #if BUILDFLAG(IS_MAC)
 #include "base/mac/mac_util.h"
 #endif
 
+#if BUILDFLAG(IS_WIN)
+#include "ui/gfx/system_fonts_win.h"
+#endif
+
 namespace views {
 namespace {
+
+const gfx::FontList& GetFontForDetails(
+    const ui::ResourceBundle::FontDetails& details) {
+  return ui::ResourceBundle::GetSharedInstance().GetFontListForDetails(details);
+}
 
 gfx::Font::Weight GetValueBolderThan(gfx::Font::Weight weight) {
   switch (weight) {
@@ -67,12 +81,72 @@ ui::ColorId GetHintColorId(int context) {
 
 }  // namespace
 
+// static
+const TypographyProvider& TypographyProvider::Get() {
+  // The actual instance is owned by the layout provider.
+  return LayoutProvider::Get()->GetTypographyProvider();
+}
+
+const gfx::FontList& TypographyProvider::GetFont(int context, int style) const {
+  TRACE_EVENT0("ui", "TypographyProvider::GetFont");
+  return GetFontForDetails(GetFontDetails(context, style));
+}
+
 ui::ResourceBundle::FontDetails TypographyProvider::GetFontDetails(
     int context,
     int style) const {
-  DCHECK(StyleAllowedForContext(context, style))
-      << "context: " << context << " style: " << style;
+  AssertContextAndStyleAreValid(context, style);
+  return GetFontDetailsImpl(context, style);
+}
 
+ui::ColorId TypographyProvider::GetColorId(int context, int style) const {
+  AssertContextAndStyleAreValid(context, style);
+  return GetColorIdImpl(context, style);
+}
+
+int TypographyProvider::GetLineHeight(int context, int style) const {
+  AssertContextAndStyleAreValid(context, style);
+  return GetLineHeightImpl(context, style);
+}
+
+gfx::FontList TypographyProvider::GetWindowTitleFontList() const {
+#if BUILDFLAG(IS_WIN)
+  return gfx::FontList(gfx::win::GetSystemFont(gfx::win::SystemFont::kCaption));
+#else
+  return gfx::FontList();
+#endif
+}
+
+// static
+gfx::Font::Weight TypographyProvider::MediumWeightForUI() {
+#if BUILDFLAG(IS_MAC)
+  // System fonts are not user-configurable on Mac, so it's simpler.
+  return gfx::Font::Weight::MEDIUM;
+#else
+  // NORMAL may already have at least MEDIUM weight. Return NORMAL in that case
+  // since trying to return MEDIUM would actually make the font lighter-weight
+  // than the surrounding text. For example, Windows can be configured to use a
+  // BOLD font for dialog text; deriving MEDIUM from that would replace the BOLD
+  // attribute with something lighter.
+  if (ui::ResourceBundle::GetSharedInstance()
+          .GetFontListForDetails(ui::ResourceBundle::FontDetails())
+          .GetFontWeight() < gfx::Font::Weight::MEDIUM) {
+    return gfx::Font::Weight::MEDIUM;
+  }
+  return gfx::Font::Weight::NORMAL;
+#endif
+}
+
+bool TypographyProvider::StyleAllowedForContext(int context, int style) const {
+  // TODO(crbug.com/40234831): Limit emphasizing text to contexts where
+  // it's obviously correct. chrome_typography_provider.cc implements this
+  // correctly, but that does not cover uses outside of //chrome or //ash.
+  return true;
+}
+
+ui::ResourceBundle::FontDetails TypographyProvider::GetFontDetailsImpl(
+    int context,
+    int style) const {
   ui::ResourceBundle::FontDetails details;
 
   switch (context) {
@@ -81,10 +155,8 @@ ui::ResourceBundle::FontDetails TypographyProvider::GetFontDetails(
       details.weight = gfx::Font::Weight::BOLD;
       break;
     case style::CONTEXT_BUTTON_MD:
-      details.size_delta = features::IsChromeRefresh2023()
-                               ? ui::kLabelFontSizeDeltaChromeRefresh2023
-                               : ui::kLabelFontSizeDelta;
-      details.weight = TypographyProvider::MediumWeightForUI();
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(13);
+      details.weight = MediumWeightForUI();
       break;
     case style::CONTEXT_DIALOG_TITLE:
       details.size_delta = ui::kTitleFontSizeDelta;
@@ -114,17 +186,121 @@ ui::ResourceBundle::FontDetails TypographyProvider::GetFontDetails(
     case style::STYLE_EMPHASIZED_SECONDARY:
       details.weight = gfx::Font::Weight::SEMIBOLD;
       break;
+    case style::STYLE_HEADLINE_1:
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(24);
+      details.weight = gfx::Font::Weight::MEDIUM;
+      break;
+    case style::STYLE_HEADLINE_2:
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(20);
+      details.weight = gfx::Font::Weight::MEDIUM;
+      break;
+    case style::STYLE_HEADLINE_3:
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(18);
+      details.weight = gfx::Font::Weight::MEDIUM;
+      break;
+    case style::STYLE_HEADLINE_4:
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(16);
+      details.weight = gfx::Font::Weight::MEDIUM;
+      break;
+    case style::STYLE_HEADLINE_4_BOLD:
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(16);
+      details.weight = gfx::Font::Weight::BOLD;
+      break;
+    case style::STYLE_HEADLINE_5:
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(14);
+      details.weight = gfx::Font::Weight::MEDIUM;
+      break;
+    case style::STYLE_BODY_1:
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(16);
+      details.weight = gfx::Font::Weight::NORMAL;
+      break;
+    case style::STYLE_BODY_1_MEDIUM:
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(16);
+      details.weight = gfx::Font::Weight::MEDIUM;
+      break;
+    case style::STYLE_BODY_1_BOLD:
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(16);
+      details.weight = gfx::Font::Weight::BOLD;
+      break;
+    case style::STYLE_BODY_2:
+    case style::STYLE_LINK_2:
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(14);
+      details.weight = gfx::Font::Weight::NORMAL;
+      break;
+    case style::STYLE_BODY_2_MEDIUM:
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(14);
+      details.weight = gfx::Font::Weight::MEDIUM;
+      break;
+    case style::STYLE_BODY_2_BOLD:
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(14);
+      details.weight = gfx::Font::Weight::BOLD;
+      break;
+    case style::STYLE_BODY_3:
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(13);
+      details.weight = gfx::Font::Weight::NORMAL;
+      break;
+    case style::STYLE_BODY_3_MEDIUM:
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(13);
+      details.weight = gfx::Font::Weight::MEDIUM;
+      break;
+    case style::STYLE_BODY_3_BOLD:
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(13);
+      details.weight = gfx::Font::Weight::BOLD;
+      break;
+    case style::STYLE_LINK_3:
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(13);
+      details.weight = gfx::Font::Weight::NORMAL;
+      break;
+    case style::STYLE_BODY_4:
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(12);
+      details.weight = gfx::Font::Weight::NORMAL;
+      break;
+    case style::STYLE_BODY_4_MEDIUM:
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(12);
+      details.weight = gfx::Font::Weight::MEDIUM;
+      break;
+    case style::STYLE_BODY_4_BOLD:
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(12);
+      details.weight = gfx::Font::Weight::BOLD;
+      break;
+    case style::STYLE_LINK_4:
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(12);
+      details.weight = gfx::Font::Weight::NORMAL;
+      break;
+    case style::STYLE_BODY_5:
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(11);
+      details.weight = gfx::Font::Weight::NORMAL;
+      break;
+    case style::STYLE_BODY_5_MEDIUM:
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(11);
+      details.weight = gfx::Font::Weight::MEDIUM;
+      break;
+    case style::STYLE_BODY_5_BOLD:
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(11);
+      details.weight = gfx::Font::Weight::BOLD;
+      break;
+    case style::STYLE_LINK_5:
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(11);
+      details.weight = gfx::Font::Weight::NORMAL;
+      break;
+    case style::STYLE_CAPTION:
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(9);
+      details.weight = gfx::Font::Weight::NORMAL;
+      break;
+    case style::STYLE_CAPTION_MEDIUM:
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(9);
+      details.weight = gfx::Font::Weight::MEDIUM;
+      break;
+    case style::STYLE_CAPTION_BOLD:
+      details.size_delta = gfx::PlatformFont::GetFontSizeDelta(9);
+      details.weight = gfx::Font::Weight::BOLD;
+      break;
   }
 
   return details;
 }
 
-const gfx::FontList& TypographyProvider::GetFont(int context, int style) const {
-  return ui::ResourceBundle::GetSharedInstance().GetFontListForDetails(
-      GetFontDetails(context, style));
-}
-
-ui::ColorId TypographyProvider::GetColorId(int context, int style) const {
+ui::ColorId TypographyProvider::GetColorIdImpl(int context, int style) const {
   switch (style) {
     case style::STYLE_DIALOG_BUTTON_DEFAULT:
       return ui::kColorButtonForegroundProminent;
@@ -133,7 +309,13 @@ ui::ColorId TypographyProvider::GetColorId(int context, int style) const {
     case style::STYLE_DISABLED:
       return GetDisabledColorId(context);
     case style::STYLE_LINK:
-      return ui::kColorLinkForeground;
+    case style::STYLE_LINK_2:
+    case style::STYLE_LINK_3:
+    case style::STYLE_LINK_4:
+    case style::STYLE_LINK_5:
+      return (context == style::CONTEXT_BUBBLE_FOOTER)
+                 ? ui::kColorLinkForegroundOnBubbleFooter
+                 : ui::kColorLinkForeground;
     case style::STYLE_HINT:
       return GetHintColorId(context);
   }
@@ -141,6 +323,7 @@ ui::ColorId TypographyProvider::GetColorId(int context, int style) const {
   switch (context) {
     case style::CONTEXT_BUTTON_MD:
       return ui::kColorButtonForeground;
+    case style::CONTEXT_BUBBLE_FOOTER:
     case style::CONTEXT_LABEL:
       if (style == style::STYLE_SECONDARY) {
         return ui::kColorLabelForegroundSecondary;
@@ -154,6 +337,7 @@ ui::ColorId TypographyProvider::GetColorId(int context, int style) const {
     case style::CONTEXT_TEXTFIELD:
       return ui::kColorTextfieldForeground;
     case style::CONTEXT_TEXTFIELD_PLACEHOLDER:
+    case style::CONTEXT_TEXTFIELD_SUPPORTING_TEXT:
       return (style == style::STYLE_INVALID)
                  ? ui::kColorTextfieldForegroundPlaceholderInvalid
                  : ui::kColorTextfieldForegroundPlaceholder;
@@ -165,34 +349,35 @@ ui::ColorId TypographyProvider::GetColorId(int context, int style) const {
   return ui::kColorLabelForeground;
 }
 
-int TypographyProvider::GetLineHeight(int context, int style) const {
-  return GetFont(context, style).GetHeight();
+int TypographyProvider::GetLineHeightImpl(int context, int style) const {
+  static constexpr auto kLineHeights = base::MakeFixedFlatMap<int, int>({
+      {style::STYLE_HEADLINE_1, 32},      {style::STYLE_HEADLINE_2, 24},
+      {style::STYLE_HEADLINE_3, 24},      {style::STYLE_HEADLINE_4, 24},
+      {style::STYLE_HEADLINE_4_BOLD, 24}, {style::STYLE_HEADLINE_5, 20},
+      {style::STYLE_BODY_1, 24},          {style::STYLE_BODY_1_MEDIUM, 24},
+      {style::STYLE_BODY_1_BOLD, 24},     {style::STYLE_BODY_2, 20},
+      {style::STYLE_BODY_2_MEDIUM, 20},   {style::STYLE_BODY_2_BOLD, 20},
+      {style::STYLE_BODY_3, 20},          {style::STYLE_BODY_3_MEDIUM, 20},
+      {style::STYLE_BODY_3_BOLD, 20},     {style::STYLE_BODY_4, 18},
+      {style::STYLE_BODY_4_MEDIUM, 18},   {style::STYLE_BODY_4_BOLD, 18},
+      {style::STYLE_BODY_5, 16},          {style::STYLE_BODY_5_MEDIUM, 16},
+      {style::STYLE_BODY_5_BOLD, 16},     {style::STYLE_LINK_2, 20},
+      {style::STYLE_LINK_3, 20},          {style::STYLE_LINK_4, 18},
+      {style::STYLE_LINK_5, 16},          {style::STYLE_CAPTION, 12},
+  });
+  const auto it = kLineHeights.find(style);
+  return (it == kLineHeights.end())
+             ? GetFontForDetails(GetFontDetailsImpl(context, style)).GetHeight()
+             : it->second;
 }
 
-bool TypographyProvider::StyleAllowedForContext(int context, int style) const {
-  // TODO(https://crbug.com/1352340): Limit emphasizing text to contexts where
-  // it's obviously correct. chrome_typography_provider.cc implements this
-  // correctly, but that does not cover uses outside of //chrome or //ash.
-  return true;
-}
-
-// static
-gfx::Font::Weight TypographyProvider::MediumWeightForUI() {
-#if BUILDFLAG(IS_MAC)
-  // System fonts are not user-configurable on Mac, so it's simpler.
-  return gfx::Font::Weight::MEDIUM;
-#else
-  // NORMAL may already have at least MEDIUM weight. Return NORMAL in that case
-  // since trying to return MEDIUM would actually make the font lighter-weight
-  // than the surrounding text. For example, Windows can be configured to use a
-  // BOLD font for dialog text; deriving MEDIUM from that would replace the BOLD
-  // attribute with something lighter.
-  if (ui::ResourceBundle::GetSharedInstance()
-          .GetFontListForDetails(ui::ResourceBundle::FontDetails())
-          .GetFontWeight() < gfx::Font::Weight::MEDIUM)
-    return gfx::Font::Weight::MEDIUM;
-  return gfx::Font::Weight::NORMAL;
-#endif
+void TypographyProvider::AssertContextAndStyleAreValid(int context,
+                                                       int style) const {
+  CHECK_GE(context, style::VIEWS_TEXT_CONTEXT_START);
+  CHECK_LT(context, style::TEXT_CONTEXT_MAX);
+  CHECK_GE(style, style::VIEWS_TEXT_STYLE_START);
+  CHECK(StyleAllowedForContext(context, style))
+      << "context: " << context << " style: " << style;
 }
 
 }  // namespace views

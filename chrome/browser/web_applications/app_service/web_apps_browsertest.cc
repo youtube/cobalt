@@ -15,10 +15,9 @@
 #include "chrome/browser/apps/app_service/launch_utils.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
-#include "chrome/browser/ui/web_applications/web_app_controller_browsertest.h"
+#include "chrome/browser/ui/web_applications/web_app_browsertest_base.h"
 #include "chrome/browser/ui/web_applications/web_app_launch_process.h"
 #include "chrome/browser/web_applications/web_app.h"
-#include "chrome/browser/web_applications/web_app_id.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -26,6 +25,7 @@
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/services/app_service/public/cpp/intent.h"
 #include "components/services/app_service/public/cpp/intent_util.h"
+#include "components/webapps/common/web_app_id.h"
 #include "content/public/test/browser_test.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "ui/base/window_open_disposition.h"
@@ -34,25 +34,23 @@
 
 namespace web_app {
 
-using WebAppsBrowserTest = WebAppControllerBrowserTest;
+using WebAppsBrowserTest = WebAppBrowserTestBase;
 
 IN_PROC_BROWSER_TEST_F(WebAppsBrowserTest, LaunchWithIntent) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL app_url(
       embedded_test_server()->GetURL("/web_share_target/charts.html"));
   Profile* const profile = browser()->profile();
-  const AppId app_id = InstallWebAppFromManifest(browser(), app_url);
+  const webapps::AppId app_id = InstallWebAppFromManifest(browser(), app_url);
 
   base::RunLoop run_loop;
   WebAppLaunchProcess::SetOpenApplicationCallbackForTesting(
-      base::BindLambdaForTesting(
-          [&run_loop](apps::AppLaunchParams&& params) -> content::WebContents* {
-            EXPECT_EQ(params.intent->action, apps_util::kIntentActionSend);
-            EXPECT_EQ(*params.intent->mime_type, "text/csv");
-            EXPECT_EQ(params.intent->files.size(), 1U);
-            run_loop.Quit();
-            return nullptr;
-          }));
+      base::BindLambdaForTesting([&run_loop](apps::AppLaunchParams params) {
+        EXPECT_EQ(params.intent->action, apps_util::kIntentActionSend);
+        EXPECT_EQ(*params.intent->mime_type, "text/csv");
+        EXPECT_EQ(params.intent->files.size(), 1U);
+        run_loop.Quit();
+      }));
 
   std::vector<base::FilePath> file_paths(
       {ash::CrosDisksClient::GetArchiveMountPoint().Append("numbers.csv")});
@@ -75,19 +73,16 @@ IN_PROC_BROWSER_TEST_F(WebAppsBrowserTest, IntentWithoutFiles) {
   const GURL app_url(
       embedded_test_server()->GetURL("/web_share_target/poster.html"));
   Profile* const profile = browser()->profile();
-  const AppId app_id = InstallWebAppFromManifest(browser(), app_url);
+  const webapps::AppId app_id = InstallWebAppFromManifest(browser(), app_url);
 
   base::RunLoop run_loop;
   WebAppLaunchProcess::SetOpenApplicationCallbackForTesting(
-      base::BindLambdaForTesting(
-          [&run_loop](apps::AppLaunchParams&& params) -> content::WebContents* {
-            EXPECT_EQ(params.intent->action,
-                      apps_util::kIntentActionSendMultiple);
-            EXPECT_EQ(*params.intent->mime_type, "*/*");
-            EXPECT_EQ(params.intent->files.size(), 0U);
-            run_loop.Quit();
-            return nullptr;
-          }));
+      base::BindLambdaForTesting([&run_loop](apps::AppLaunchParams params) {
+        EXPECT_EQ(params.intent->action, apps_util::kIntentActionSendMultiple);
+        EXPECT_EQ(*params.intent->mime_type, "*/*");
+        EXPECT_EQ(params.intent->files.size(), 0U);
+        run_loop.Quit();
+      }));
 
   apps::IntentPtr intent = apps_util::CreateShareIntentFromFiles(
       profile, /*file_paths=*/std::vector<base::FilePath>(),
@@ -111,7 +106,7 @@ IN_PROC_BROWSER_TEST_F(WebAppsBrowserTest, ExposeAppServicePublisherId) {
   const GURL app_url(embedded_test_server()->GetURL("/web_apps/basic.html"));
 
   // Install file handling web app.
-  const AppId app_id = InstallWebAppFromManifest(browser(), app_url);
+  const webapps::AppId app_id = InstallWebAppFromManifest(browser(), app_url);
   const WebAppRegistrar& registrar =
       WebAppProvider::GetForTest(browser()->profile())->registrar_unsafe();
   const WebApp* web_app = registrar.GetAppById(app_id);
@@ -128,11 +123,11 @@ IN_PROC_BROWSER_TEST_F(WebAppsBrowserTest, ExposeAppServicePublisherId) {
 IN_PROC_BROWSER_TEST_F(WebAppsBrowserTest, LaunchAppIconKeyUnchanged) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL app_url(embedded_test_server()->GetURL("/web_apps/basic.html"));
-  const AppId app_id = InstallWebAppFromManifest(browser(), app_url);
+  const webapps::AppId app_id = InstallWebAppFromManifest(browser(), app_url);
   auto* proxy =
       apps::AppServiceProxyFactory::GetForProfile(browser()->profile());
 
-  absl::optional<apps::IconKey> original_key;
+  std::optional<apps::IconKey> original_key;
   proxy->AppRegistryCache().ForOneApp(
       app_id, [&original_key](const apps::AppUpdate& update) {
         original_key = update.IconKey();

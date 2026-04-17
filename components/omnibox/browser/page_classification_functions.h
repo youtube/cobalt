@@ -8,6 +8,7 @@
 #include "third_party/metrics_proto/omnibox_event.pb.h"
 
 namespace omnibox {
+
 // Return true, if supplied page classification is a new tab page.
 bool IsNTPPage(::metrics::OmniboxEventProto::PageClassification classification);
 
@@ -19,6 +20,40 @@ bool IsSearchResultsPage(
 // search results page.
 bool IsOtherWebPage(
     ::metrics::OmniboxEventProto::PageClassification classification);
+
+// Return true, if supplied page classification is a Lens contextual searchbox.
+bool IsLensContextualSearchbox(
+    ::metrics::OmniboxEventProto::PageClassification classification);
+
+// Return true, if supplied page classification is a Lens unimodal, multimodal,
+// or contextual searchbox.
+bool IsLensSearchbox(
+    ::metrics::OmniboxEventProto::PageClassification classification);
+
+// Return true, if supplied page classification is a Chrome Custom Tab.
+bool IsCustomTab(
+    ::metrics::OmniboxEventProto::PageClassification classification);
+
+// Return true, if supplied page classification is the Android Hub searchbox.
+bool IsAndroidHub(
+    ::metrics::OmniboxEventProto::PageClassification classification);
+
+// Return true, if page classification is a WebUI searchbox. This is specific
+// to WebUI searchboxes that don't use the omnibox popup view (the WebUI
+// Omnibox is not included in this).
+bool IsWebUISearchbox(
+    ::metrics::OmniboxEventProto::PageClassification classification);
+
+// Checks (and asserts in development builds) if Page Classification is
+// obsolete and should not be used.
+void CheckObsoletePageClass(
+    ::metrics::OmniboxEventProto::PageClassification classification);
+
+// Return true, if supplied page classification supports most visited sites
+// provider.
+bool SupportsMostVisitedSites(
+    ::metrics::OmniboxEventProto::PageClassification classification);
+
 }  // namespace omnibox
 
 #endif  // COMPONENTS_OMNIBOX_BROWSER_PAGE_CLASSIFICATION_FUNCTIONS_H_

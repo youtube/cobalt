@@ -8,6 +8,7 @@
 
 #include <map>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -19,7 +20,7 @@
 #include "base/logging.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
-#include "base/strings/string_piece.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
@@ -29,14 +30,14 @@ namespace coverage {
 
 namespace {
 
-base::StringPiece SpanToStringPiece(const base::span<const uint8_t>& s) {
+std::string_view SpanToStringPiece(const base::span<const uint8_t>& s) {
   return {reinterpret_cast<const char*>(s.data()), s.size()};
 }
 
 std::string EncodeURIComponent(const std::string& component) {
   url::RawCanonOutputT<char> encoded;
-  url::EncodeURIComponent(component.c_str(), component.size(), &encoded);
-  return {encoded.data(), static_cast<size_t>(encoded.length())};
+  url::EncodeURIComponent(component, &encoded);
+  return std::string(encoded.view());
 }
 
 }  // namespace
@@ -135,7 +136,10 @@ void DevToolsListener::StopAndStoreJSCoverage(content::DevToolsAgentHost* host,
   std::string get_precise_coverage =
       "{\"id\":40,\"method\":\"Profiler.takePreciseCoverage\"}";
   SendCommandMessage(host, get_precise_coverage);
-  AwaitCommandResponse(40);
+  if (!AwaitCommandResponse(40)) {
+    LOG(ERROR) << "Host has been destroyed whilst getting precise coverage";
+    return;
+  }
 
   script_coverage_ = std::move(value_);
   base::Value::Dict* result = script_coverage_.FindDict("result");
@@ -181,7 +185,12 @@ void DevToolsListener::StopAndStoreJSCoverage(content::DevToolsAgentHost* host,
   result->Set("hostURL", url);
 
   std::string md5 = base::MD5String(HostString(host, test));
-  std::string coverage = base::StrCat({test, ".", md5, uuid_, ".cov.json"});
+  // Parameterized tests contain a "/" character which is not a valid file path.
+  // Replace these with "_" to enable a valid file path.
+  std::string file_name;
+  base::ReplaceChars(test, "/", "_", &file_name);
+  std::string coverage =
+      base::StrCat({file_name, ".", md5, uuid_, ".cov.json"});
   base::FilePath path = store.AppendASCII("tests").AppendASCII(coverage);
 
   result->Set("result", std::move(entries));
@@ -193,7 +202,9 @@ void DevToolsListener::StopAndStoreJSCoverage(content::DevToolsAgentHost* host,
   script_id_map_.clear();
   scripts_.clear();
 
-  AwaitCommandResponse(42);
+  LOG_IF(ERROR, !AwaitCommandResponse(42))
+      << "Host has been destroyed whilst waiting, coverage coverage already "
+         "extracted though";
   value_.clear();
   all_scripts_parsed_ = false;
 }
@@ -221,7 +232,7 @@ void DevToolsListener::VerifyAllScriptsAreParsedRepeatedly(
   // pause in between verification attempts.
   bool missing_script = false;
   for (const auto& entry : *coverage_entries) {
-    const std::string* id = entry.FindStringPath("scriptId");
+    const std::string* id = entry.GetDict().FindString("scriptId");
     CHECK(id) << "Can't extract scriptId: " << entry;
     if (!script_ids.contains(*id)) {
       missing_script = true;
@@ -271,16 +282,20 @@ void DevToolsListener::StoreScripts(content::DevToolsAgentHost* host,
         ",\"params\":{\"scriptId\":\"%s\"}}",
         id.c_str());
     SendCommandMessage(host, get_script_source);
-    AwaitCommandResponse(50);
+    if (!AwaitCommandResponse(50)) {
+      LOG(ERROR) << "Host has been destroyed whilst getting script source, "
+                    "skipping remaining script sources";
+      return;
+    }
 
     std::string text;
     {
       base::Value::Dict* result = value_.FindDict("result");
-      // TODO(crbug/1206082): In some cases the v8 isolate may clear out the
-      // script source during execution. This can lead to the Debugger seeing a
-      // scriptId during execution but when it comes time to retrieving the
-      // source can no longer find the ID. For now we simply ignore these, but
-      // we need to find a better way to handle this.
+      // TODO(crbug.com/40180762): In some cases the v8 isolate may clear out
+      // the script source during execution. This can lead to the Debugger
+      // seeing a scriptId during execution but when it comes time to retrieving
+      // the source can no longer find the ID. For now we simply ignore these,
+      // but we need to find a better way to handle this.
       if (!result) {
         LOG(ERROR) << "Can't find result from Debugger.getScriptSource: "
                    << value_;
@@ -330,17 +345,20 @@ void DevToolsListener::StoreScripts(content::DevToolsAgentHost* host,
 
 void DevToolsListener::SendCommandMessage(content::DevToolsAgentHost* host,
                                           const std::string& command) {
-  auto message = base::as_bytes(base::make_span(command));
-  host->DispatchProtocolMessage(this, message);
+  host->DispatchProtocolMessage(this, base::as_byte_span(command));
 }
 
-void DevToolsListener::AwaitCommandResponse(int id) {
+bool DevToolsListener::AwaitCommandResponse(int id) {
+  if (!attached_ && !navigated_) {
+    return false;
+  }
   value_.clear();
   value_id_ = id;
 
   base::RunLoop run_loop;
   value_closure_ = run_loop.QuitClosure();
   run_loop.Run();
+  return attached_ && navigated_;
 }
 
 void DevToolsListener::DispatchProtocolMessage(
@@ -352,7 +370,7 @@ void DevToolsListener::DispatchProtocolMessage(
   if (VLOG_IS_ON(2))
     VLOG(2) << SpanToStringPiece(message);
 
-  absl::optional<base::Value> value =
+  std::optional<base::Value> value =
       base::JSONReader::Read(SpanToStringPiece(message));
   CHECK(value.has_value()) << "Cannot parse as JSON: "
                            << SpanToStringPiece(message);
@@ -368,7 +386,7 @@ void DevToolsListener::DispatchProtocolMessage(
     return;
   }
 
-  absl::optional<int> id = dict_value.FindInt("id");
+  std::optional<int> id = dict_value.FindInt("id");
   if (id.has_value() && id.value() == value_id_) {
     value_ = std::move(dict_value);
     CHECK(value_closure_);
@@ -381,9 +399,11 @@ bool DevToolsListener::MayAttachToURL(const GURL& url, bool is_webui) {
 }
 
 void DevToolsListener::AgentHostClosed(content::DevToolsAgentHost* host) {
-  CHECK(!value_closure_);
   navigated_ = false;
   attached_ = false;
+  if (value_closure_) {
+    std::move(value_closure_).Run();
+  }
 }
 
 }  // namespace coverage

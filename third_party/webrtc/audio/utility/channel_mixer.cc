@@ -18,16 +18,25 @@
 namespace webrtc {
 
 ChannelMixer::ChannelMixer(ChannelLayout input_layout,
-                           ChannelLayout output_layout)
+                           size_t input_channels,
+                           ChannelLayout output_layout,
+                           size_t output_channels)
     : input_layout_(input_layout),
       output_layout_(output_layout),
-      input_channels_(ChannelLayoutToChannelCount(input_layout)),
-      output_channels_(ChannelLayoutToChannelCount(output_layout)) {
+      input_channels_(input_channels),
+      output_channels_(output_channels) {
   // Create the transformation matrix.
   ChannelMixingMatrix matrix_builder(input_layout_, input_channels_,
                                      output_layout_, output_channels_);
   remapping_ = matrix_builder.CreateTransformationMatrix(&matrix_);
 }
+
+ChannelMixer::ChannelMixer(ChannelLayout input_layout,
+                           ChannelLayout output_layout)
+    : ChannelMixer(input_layout,
+                   ChannelLayoutToChannelCount(input_layout),
+                   output_layout,
+                   ChannelLayoutToChannelCount(output_layout)) {}
 
 ChannelMixer::~ChannelMixer() = default;
 
@@ -49,8 +58,7 @@ void ChannelMixer::Transform(AudioFrame* frame) {
 
   // Only change the number of output channels if the audio frame is muted.
   if (frame->muted()) {
-    frame->num_channels_ = output_channels_;
-    frame->channel_layout_ = output_layout_;
+    frame->SetLayoutAndNumChannels(output_layout_, output_channels_);
     return;
   }
 
@@ -82,13 +90,12 @@ void ChannelMixer::Transform(AudioFrame* frame) {
       }
       const size_t index = output_channels_ * i + output_ch;
       RTC_CHECK_LE(index, audio_vector_size_);
-      out_audio[index] = rtc::saturated_cast<int16_t>(acc_value);
+      out_audio[index] = saturated_cast<int16_t>(acc_value);
     }
   }
 
   // Update channel information.
-  frame->num_channels_ = output_channels_;
-  frame->channel_layout_ = output_layout_;
+  frame->SetLayoutAndNumChannels(output_layout_, output_channels_);
 
   // Copy the output result to the audio frame in `frame`.
   memcpy(

@@ -5,7 +5,7 @@
 #include "services/network/test/trust_token_test_util.h"
 
 #include "base/json/json_reader.h"
-#include "base/json/json_string_value_serializer.h"
+#include "base/json/json_writer.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
@@ -25,7 +25,7 @@ TestURLRequestMaker::TestURLRequestMaker() {
 TestURLRequestMaker::~TestURLRequestMaker() = default;
 
 std::unique_ptr<net::URLRequest> TestURLRequestMaker::MakeURLRequest(
-    base::StringPiece spec) {
+    std::string_view spec) {
   return context_->CreateRequest(GURL(spec),
                                  net::RequestPriority::DEFAULT_PRIORITY,
                                  &delegate_, TRAFFIC_ANNOTATION_FOR_TESTS);
@@ -45,7 +45,7 @@ mojom::TrustTokenOperationStatus
 TrustTokenRequestHelperTest::ExecuteBeginOperationAndWaitForResult(
     TrustTokenRequestHelper* helper,
     net::URLRequest* request) {
-  base::test::TestFuture<absl::optional<net::HttpRequestHeaders>,
+  base::test::TestFuture<std::optional<net::HttpRequestHeaders>,
                          mojom::TrustTokenOperationStatus>
       future;
   helper->Begin(request->url(), future.GetCallback());
@@ -63,13 +63,6 @@ TrustTokenRequestHelperTest::ExecuteFinalizeAndWaitForResult(
   base::test::TestFuture<mojom::TrustTokenOperationStatus> future;
   helper->Finalize(*response->headers.get(), future.GetCallback());
   return future.Get();
-}
-
-int TrustTokenEnumToInt(mojom::TrustTokenMajorVersion version) {
-  if (version == mojom::TrustTokenMajorVersion::kPrivateStateTokenV1) {
-    return 1;
-  }
-  return 0;
 }
 
 std::string TrustTokenEnumToString(mojom::TrustTokenOperationType operation) {
@@ -125,10 +118,10 @@ TrustTokenTestParameters& TrustTokenTestParameters::operator=(
     const TrustTokenTestParameters&) = default;
 
 TrustTokenTestParameters::TrustTokenTestParameters(
-    network::mojom::TrustTokenMajorVersion version,
+    int version,
     network::mojom::TrustTokenOperationType operation,
-    absl::optional<network::mojom::TrustTokenRefreshPolicy> refresh_policy,
-    absl::optional<std::vector<std::string>> issuer_specs)
+    std::optional<network::mojom::TrustTokenRefreshPolicy> refresh_policy,
+    std::optional<std::vector<std::string>> issuer_specs)
     : version(version),
       operation(operation),
       refresh_policy(refresh_policy),
@@ -139,10 +132,10 @@ SerializeTrustTokenParametersAndConstructExpectation(
     const TrustTokenTestParameters& input) {
   auto trust_token_params = mojom::TrustTokenParams::New();
 
-  base::Value::Dict parameters;
-  parameters.Set("version", TrustTokenEnumToInt(input.version));
-  parameters.Set("operation", TrustTokenEnumToString(input.operation));
-  trust_token_params->version = input.version;
+  auto parameters =
+      base::Value::Dict()
+          .Set("version", input.version)
+          .Set("operation", TrustTokenEnumToString(input.operation));
   trust_token_params->operation = input.operation;
 
   if (input.refresh_policy.has_value()) {
@@ -161,33 +154,20 @@ SerializeTrustTokenParametersAndConstructExpectation(
     parameters.Set("issuers", std::move(issuers));
   }
 
-  std::string serialized_parameters;
-  JSONStringValueSerializer serializer(&serialized_parameters);
-  CHECK(serializer.Serialize(parameters));
-
-  return {std::move(trust_token_params), std::move(serialized_parameters)};
+  return {std::move(trust_token_params), *base::WriteJson(parameters)};
 }
 
 std::string WrapKeyCommitmentsForIssuers(
-    base::flat_map<url::Origin, base::StringPiece> issuers_and_commitments) {
-  std::string ret;
-  JSONStringValueSerializer serializer(&ret);
-
-  base::Value to_serialize(base::Value::Type::DICT);
-
-  for (const auto& kv : issuers_and_commitments) {
-    const url::Origin& issuer = kv.first;
-    base::StringPiece commitment = kv.second;
-
+    base::flat_map<url::Origin, std::string_view> issuers_and_commitments) {
+  base::Value::Dict to_serialize;
+  for (const auto& [issuer, commitment] : issuers_and_commitments) {
     // guard against accidentally passing an origin without a unique
     // serialization
     CHECK_NE(issuer.Serialize(), "null");
 
-    to_serialize.SetKey(issuer.Serialize(),
-                        *base::JSONReader::Read(commitment));
+    to_serialize.Set(issuer.Serialize(), *base::JSONReader::Read(commitment));
   }
-  CHECK(serializer.Serialize(to_serialize));
-  return ret;
+  return *base::WriteJson(to_serialize);
 }
 
 }  // namespace network

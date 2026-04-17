@@ -81,7 +81,7 @@ gfx::Rect TabGroupUnderline::CalculateTabGroupUnderlineBounds(
   group_bounds.UnionEvenIfEmpty(ToEnclosingRect(trailing_bounds));
 
   const int y =
-      group_bounds.height() - GetLayoutConstant(TABSTRIP_TOOLBAR_OVERLAP);
+      group_bounds.bottom() - GetLayoutConstant(TABSTRIP_TOOLBAR_OVERLAP);
 
   return gfx::Rect(group_bounds.x(), y - kStrokeThickness, group_bounds.width(),
                    kStrokeThickness);
@@ -119,8 +119,9 @@ void TabGroupUnderline::MaybeSetVisible(const bool visible) {
 
 // static
 int TabGroupUnderline::GetStrokeInset() {
-  return TabStyle::Get()->GetTabOverlap() + kStrokeThickness;
+  return TabStyle::Get()->GetTabOverlap() -
+         TabGroupStyle::GetTabGroupOverlapAdjustment() + kStrokeThickness;
 }
 
-BEGIN_METADATA(TabGroupUnderline, views::View)
+BEGIN_METADATA(TabGroupUnderline)
 END_METADATA

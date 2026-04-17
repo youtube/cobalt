@@ -20,25 +20,23 @@
 #include "components/media_message_center/media_notification_view_impl.h"
 #include "components/media_router/browser/media_router.h"
 #include "components/media_router/browser/media_router_factory.h"
+#include "components/strings/grit/components_strings.h"
 #include "components/vector_icons/vector_icons.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/storage_partition.h"
+#include "media/base/media_switches.h"
 #include "net/base/load_flags.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "net/url_request/referrer_policy.h"
 #include "services/media_session/public/cpp/util.h"
 #include "services/media_session/public/mojom/media_session.mojom.h"
+#include "ui/base/l10n/l10n_util.h"
 
 using Metadata = media_message_center::MediaNotificationViewImpl::Metadata;
 
 namespace {
-
-constexpr char kArtworkHistogramName[] =
-    "Media.Notification.Cast.ArtworkPresent";
-constexpr char kMetadataHistogramName[] =
-    "Media.Notification.Cast.MetadataPresent";
 
 net::NetworkTrafficAnnotationTag GetTrafficAnnotationTag() {
   return net::DefineNetworkTrafficAnnotation(
@@ -133,11 +131,24 @@ media_session::mojom::MediaSessionInfo::SessionState ToSessionState(
 }
 
 std::u16string GetSourceTitle(const media_router::MediaRoute& route) {
-  if (route.media_sink_name().empty())
+#if !BUILDFLAG(IS_CHROMEOS)
+  // Never include the media sink name for updated media UI on non-CrOS.
+  if (base::FeatureList::IsEnabled(media::kGlobalMediaControlsUpdatedUI)) {
+    if (route.description().empty()) {
+      return l10n_util::GetStringUTF16(
+          IDS_GLOBAL_MEDIA_CONTROLS_UNKNOWN_SOURCE_TEXT);
+    }
     return base::UTF8ToUTF16(route.description());
+  }
+#endif
 
-  if (route.description().empty())
+  if (route.media_sink_name().empty()) {
+    return base::UTF8ToUTF16(route.description());
+  }
+
+  if (route.description().empty()) {
     return base::UTF8ToUTF16(route.media_sink_name());
+  }
 
   const char kSeparator[] = " \xC2\xB7 ";  // "Middle dot" character.
   const std::string source_title =
@@ -165,9 +176,7 @@ CastMediaNotificationItem::CastMediaNotificationItem(
                               base::Unretained(this))),
       session_info_(CreateSessionInfo()) {
   metadata_.source_title = GetSourceTitle(route);
-  base::UmaHistogramEnumeration(
-      kSourceHistogramName, route.is_local() ? Source::kLocalCastSession
-                                             : Source::kNonLocalCastSession);
+  device_name_ = route.media_sink_name();
 }
 
 CastMediaNotificationItem::~CastMediaNotificationItem() {
@@ -177,24 +186,11 @@ CastMediaNotificationItem::~CastMediaNotificationItem() {
 void CastMediaNotificationItem::SetView(
     media_message_center::MediaNotificationView* view) {
   view_ = view;
-  if (view_)
+  if (view_) {
     view_->UpdateWithVectorIcon(&vector_icons::kMediaRouterIdleIcon);
+  }
 
   UpdateView();
-  if (view_ && !recorded_metadata_metrics_) {
-    recorded_metadata_metrics_ = true;
-    // We record the metadata shown after a delay because if the view is shown
-    // as soon as the Cast session is launched, it'd take some time for Chrome
-    // to receive status info and fetch the artwork. We need to use a fixed
-    // delay rather than waiting for OnMediaStatusUpdated(), because it could
-    // get called multiple times with increasing amounts of info, or not get
-    // called at all.
-    content::GetUIThreadTaskRunner({})->PostDelayedTask(
-        FROM_HERE,
-        base::BindOnce(&CastMediaNotificationItem::RecordMetadataMetrics,
-                       weak_ptr_factory_.GetWeakPtr()),
-        base::Seconds(3));
-  }
 }
 
 void CastMediaNotificationItem::OnMediaSessionActionButtonPressed(
@@ -224,13 +220,19 @@ bool CastMediaNotificationItem::RequestMediaRemoting() {
   return false;
 }
 
-absl::optional<base::UnguessableToken> CastMediaNotificationItem::GetSourceId()
-    const {
-  return absl::nullopt;
+media_message_center::Source CastMediaNotificationItem::GetSource() const {
+  return route_is_local_ ? media_message_center::Source::kLocalCastSession
+                         : media_message_center::Source::kNonLocalCastSession;
 }
 
-media_message_center::SourceType CastMediaNotificationItem::SourceType() {
+media_message_center::SourceType CastMediaNotificationItem::GetSourceType()
+    const {
   return media_message_center::SourceType::kCast;
+}
+
+std::optional<base::UnguessableToken> CastMediaNotificationItem::GetSourceId()
+    const {
+  return std::nullopt;
 }
 
 void CastMediaNotificationItem::OnMediaStatusUpdated(
@@ -267,7 +269,9 @@ void CastMediaNotificationItem::OnMediaStatusUpdated(
 
 void CastMediaNotificationItem::OnRouteUpdated(
     const media_router::MediaRoute& route) {
-  DCHECK_EQ(route.media_route_id(), media_route_id_);
+  CHECK_EQ(route.media_route_id(), media_route_id_);
+  device_name_ = route.media_sink_name();
+
   bool updated = false;
   const std::u16string new_source_title = GetSourceTitle(route);
   if (metadata_.source_title != new_source_title) {
@@ -279,12 +283,12 @@ void CastMediaNotificationItem::OnRouteUpdated(
     metadata_.artist = new_artist;
     updated = true;
   }
-  if (updated && view_)
+  if (updated && view_) {
     view_->UpdateWithMediaMetadata(metadata_);
+  }
 }
 
-void CastMediaNotificationItem::StopCasting(
-    global_media_controls::GlobalMediaControlsEntryPoint entry_point) {
+void CastMediaNotificationItem::StopCasting() {
   media_router::MediaRouterFactory::GetApiForBrowserContext(profile_)
       ->TerminateRoute(media_route_id_);
 
@@ -294,7 +298,7 @@ void CastMediaNotificationItem::StopCasting(
       ->NotifyEvent("media_route_stopped_from_gmc");
 
   MediaItemUIMetrics::RecordStopCastingMetrics(
-      media_router::MediaCastMode::PRESENTATION, entry_point);
+      media_router::MediaCastMode::PRESENTATION);
 }
 
 mojo::PendingRemote<media_router::mojom::MediaStatusObserver>
@@ -321,8 +325,9 @@ void CastMediaNotificationItem::ImageDownloader::OnFetchComplete(
 }
 
 void CastMediaNotificationItem::ImageDownloader::Download(const GURL& url) {
-  if (url == url_)
+  if (url == url_) {
     return;
+  }
   url_ = url;
   bitmap_fetcher_ = bitmap_fetcher_factory_for_testing_
                         ? bitmap_fetcher_factory_for_testing_.Run(
@@ -341,36 +346,24 @@ void CastMediaNotificationItem::ImageDownloader::Reset() {
 }
 
 void CastMediaNotificationItem::UpdateView() {
-  if (!view_)
+  if (!view_) {
     return;
+  }
 
   view_->UpdateWithMediaMetadata(metadata_);
   view_->UpdateWithMediaActions(actions_);
   view_->UpdateWithMediaSessionInfo(session_info_.Clone());
   view_->UpdateWithMediaArtwork(
       gfx::ImageSkia::CreateFrom1xBitmap(image_downloader_.bitmap()));
-  if (!media_position_.duration().is_zero())
+  if (!media_position_.duration().is_zero()) {
     view_->UpdateWithMediaPosition(media_position_);
+  }
   view_->UpdateWithMuteStatus(is_muted_);
   view_->UpdateWithVolume(volume_);
 }
 
 void CastMediaNotificationItem::ImageChanged(const SkBitmap& bitmap) {
-  if (view_)
+  if (view_) {
     view_->UpdateWithMediaArtwork(gfx::ImageSkia::CreateFrom1xBitmap(bitmap));
-}
-
-void CastMediaNotificationItem::RecordMetadataMetrics() const {
-  base::UmaHistogramBoolean(kArtworkHistogramName,
-                            !image_downloader_.bitmap().empty());
-
-  base::UmaHistogramEnumeration(kMetadataHistogramName, Metadata::kCount);
-  if (!metadata_.title.empty())
-    base::UmaHistogramEnumeration(kMetadataHistogramName, Metadata::kTitle);
-  if (!metadata_.artist.empty())
-    base::UmaHistogramEnumeration(kMetadataHistogramName, Metadata::kArtist);
-  if (!metadata_.album.empty())
-    base::UmaHistogramEnumeration(kMetadataHistogramName, Metadata::kAlbum);
-  if (!metadata_.source_title.empty())
-    base::UmaHistogramEnumeration(kMetadataHistogramName, Metadata::kSource);
+  }
 }

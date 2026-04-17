@@ -22,9 +22,9 @@ class EGLBufferAgeTest : public ANGLETest<>
 
     void testSetUp() override
     {
-        EGLint dispattrs[] = {EGL_PLATFORM_ANGLE_TYPE_ANGLE, GetParam().getRenderer(), EGL_NONE};
-        mDisplay           = eglGetPlatformDisplayEXT(
-                      EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void *>(EGL_DEFAULT_DISPLAY), dispattrs);
+        EGLAttrib dispattrs[] = {EGL_PLATFORM_ANGLE_TYPE_ANGLE, GetParam().getRenderer(), EGL_NONE};
+        mDisplay              = eglGetPlatformDisplay(EGL_PLATFORM_ANGLE_ANGLE,
+                                                      reinterpret_cast<void *>(EGL_DEFAULT_DISPLAY), dispattrs);
         EXPECT_TRUE(mDisplay != EGL_NO_DISPLAY);
         EXPECT_EGL_TRUE(eglInitialize(mDisplay, nullptr, nullptr));
         mMajorVersion       = GetParam().majorVersion;
@@ -92,6 +92,14 @@ class EGLBufferAgeTest : public ANGLETest<>
     {
         EGLint age  = 0;
         bool result = eglQuerySurface(mDisplay, surface, EGL_BUFFER_AGE_EXT, &age);
+        EXPECT_TRUE(result);
+        return age;
+    }
+
+    EGLint queryAgeAttribKHR(EGLSurface surface) const
+    {
+        EGLAttribKHR age = 0;
+        bool result      = eglQuerySurface64KHR(mDisplay, surface, EGL_BUFFER_AGE_EXT, &age);
         EXPECT_TRUE(result);
         return age;
     }
@@ -180,6 +188,9 @@ TEST_P(EGLBufferAgeTest, QueryBufferAge)
 {
     ANGLE_SKIP_TEST_IF(!mExtensionSupported);
 
+    const bool lockSurface3ExtSupported =
+        IsEGLDisplayExtensionEnabled(mDisplay, "EGL_KHR_lock_surface3");
+
     EGLConfig config = EGL_NO_CONFIG_KHR;
     EXPECT_TRUE(chooseConfig(&config));
 
@@ -203,7 +214,17 @@ TEST_P(EGLBufferAgeTest, QueryBufferAge)
     EGLint expectedAge       = 0;
     for (uint32_t i = 0; i < loopcount; i++)
     {
-        EGLint age = queryAge(surface);
+        // Alternate between eglQuerySurface and eglQuerySurface64KHR
+        EGLint age = -1;
+        if (i % 2 == 0 || !lockSurface3ExtSupported)
+        {
+            age = queryAge(surface);
+        }
+        else
+        {
+            age = static_cast<EGLint>(queryAgeAttribKHR(surface));
+        }
+
         // Should start with zero age and then flip to buffer count - which we don't know.
         if ((expectedAge == 0) && (age > 0))
         {
@@ -218,6 +239,54 @@ TEST_P(EGLBufferAgeTest, QueryBufferAge)
     }
 
     EXPECT_GT(expectedAge, 0);
+
+    EXPECT_TRUE(eglMakeCurrent(mDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, context));
+    ASSERT_EGL_SUCCESS() << "eglMakeCurrent - uncurrent failed.";
+
+    eglDestroySurface(mDisplay, surface);
+    surface = EGL_NO_SURFACE;
+    osWindow->destroy();
+    OSWindow::Delete(&osWindow);
+
+    eglDestroyContext(mDisplay, context);
+    context = EGL_NO_CONTEXT;
+}
+
+// Query for buffer age after several loops of swapping buffers
+TEST_P(EGLBufferAgeTest, QueryBufferAgeAfterLoop)
+{
+    ANGLE_SKIP_TEST_IF(!mExtensionSupported);
+
+    EGLConfig config = EGL_NO_CONFIG_KHR;
+    EXPECT_TRUE(chooseConfig(&config));
+
+    EGLContext context = EGL_NO_CONTEXT;
+    EXPECT_TRUE(createContext(config, &context));
+    ASSERT_EGL_SUCCESS() << "eglCreateContext failed.";
+
+    EGLSurface surface = EGL_NO_SURFACE;
+
+    OSWindow *osWindow = OSWindow::New();
+    osWindow->initialize("EGLBufferAgeTest", kWidth, kHeight);
+    EXPECT_TRUE(createWindowSurface(config, osWindow->getNativeWindow(), &surface));
+    ASSERT_EGL_SUCCESS() << "eglCreateWindowSurface failed.";
+
+    EXPECT_TRUE(eglMakeCurrent(mDisplay, surface, surface, context));
+    ASSERT_EGL_SUCCESS() << "eglMakeCurrent failed.";
+
+    glClearColor(1.0, 0.0, 0.0, 1.0);
+
+    const uint32_t loopcount = 5;
+    for (uint32_t i = 0; i < loopcount; i++)
+    {
+        glClear(GL_COLOR_BUFFER_BIT);
+        ASSERT_GL_NO_ERROR() << "glClear failed";
+        eglSwapBuffers(mDisplay, surface);
+        ASSERT_EGL_SUCCESS() << "eglSwapBuffers failed.";
+    }
+
+    // This query age should not reset age
+    EXPECT_GT(queryAge(surface), 0);
 
     EXPECT_TRUE(eglMakeCurrent(mDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, context));
     ASSERT_EGL_SUCCESS() << "eglMakeCurrent - uncurrent failed.";
@@ -555,7 +624,86 @@ TEST_P(EGLBufferAgeTest, BufferPreserved)
     context = EGL_NO_CONTEXT;
 }
 
+// Expect age always == 0 when EGL_SINGLE_BUFFER is chosen
+TEST_P(EGLBufferAgeTest, SingleBuffer)
+{
+    ANGLE_SKIP_TEST_IF(!mExtensionSupported);
+    ANGLE_SKIP_TEST_IF(!IsEGLDisplayExtensionEnabled(mDisplay, "EGL_KHR_mutable_render_buffer"));
+
+    EGLConfig config     = EGL_NO_CONFIG_KHR;
+    EGLint count         = 0;
+    EGLint clientVersion = mMajorVersion == 3 ? EGL_OPENGL_ES3_BIT : EGL_OPENGL_ES2_BIT;
+    EGLint attribs[]     = {EGL_RED_SIZE,
+                            8,
+                            EGL_GREEN_SIZE,
+                            8,
+                            EGL_BLUE_SIZE,
+                            8,
+                            EGL_ALPHA_SIZE,
+                            0,
+                            EGL_RENDERABLE_TYPE,
+                            clientVersion,
+                            EGL_SURFACE_TYPE,
+                            EGL_WINDOW_BIT | EGL_MUTABLE_RENDER_BUFFER_BIT_KHR,
+                            EGL_NONE};
+
+    EXPECT_EGL_TRUE(eglChooseConfig(mDisplay, attribs, &config, 1, &count));
+    // Skip if no configs, this indicates EGL_SINGLE_BUFFER is not supported.
+    ANGLE_SKIP_TEST_IF(count == 0);
+
+    EGLContext context = EGL_NO_CONTEXT;
+    EXPECT_TRUE(createContext(config, &context));
+    ASSERT_EGL_SUCCESS() << "eglCreateContext failed.";
+
+    EGLSurface surface = EGL_NO_SURFACE;
+
+    OSWindow *osWindow = OSWindow::New();
+    osWindow->initialize("EGLBufferAgeTest", kWidth, kHeight);
+    EXPECT_TRUE(createWindowSurface(config, osWindow->getNativeWindow(), &surface));
+    ASSERT_EGL_SUCCESS() << "eglCreateWindowSurface failed.";
+
+    EXPECT_TRUE(eglMakeCurrent(mDisplay, surface, surface, context));
+    ASSERT_EGL_SUCCESS() << "eglMakeCurrent failed.";
+
+    // Set render buffer to EGL_SINGLE_BUFFER
+    EXPECT_EGL_TRUE(eglSurfaceAttrib(mDisplay, surface, EGL_RENDER_BUFFER, EGL_SINGLE_BUFFER));
+
+    glClearColor(1.0, 0.0, 0.0, 1.0);
+
+    // Expect age = 0 before first eglSwapBuffers() call
+    EGLint age = queryAge(surface);
+    EXPECT_EQ(age, 0);
+    eglSwapBuffers(mDisplay, surface);
+    ASSERT_EGL_SUCCESS() << "eglSwapBuffers failed.";
+
+    const uint32_t loopcount = 10;
+    EGLint expectedAge       = 0;
+    for (uint32_t i = 0; i < loopcount; i++)
+    {
+        age = queryAge(surface);
+        EXPECT_EQ(age, expectedAge);
+
+        glClear(GL_COLOR_BUFFER_BIT);
+        ASSERT_GL_NO_ERROR() << "glClear failed";
+        eglSwapBuffers(mDisplay, surface);
+        ASSERT_EGL_SUCCESS() << "eglSwapBuffers failed.";
+    }
+
+    EXPECT_TRUE(eglMakeCurrent(mDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, context));
+    ASSERT_EGL_SUCCESS() << "eglMakeCurrent - uncurrent failed.";
+
+    eglDestroySurface(mDisplay, surface);
+    surface = EGL_NO_SURFACE;
+    osWindow->destroy();
+    OSWindow::Delete(&osWindow);
+
+    eglDestroyContext(mDisplay, context);
+    context = EGL_NO_CONTEXT;
+}
+
 ANGLE_INSTANTIATE_TEST(EGLBufferAgeTest,
+                       WithNoFixture(ES2_METAL()),
+                       WithNoFixture(ES3_METAL()),
                        WithNoFixture(ES2_OPENGLES()),
                        WithNoFixture(ES3_OPENGLES()),
                        WithNoFixture(ES2_OPENGL()),
@@ -563,6 +711,8 @@ ANGLE_INSTANTIATE_TEST(EGLBufferAgeTest,
                        WithNoFixture(ES2_VULKAN()),
                        WithNoFixture(ES3_VULKAN()));
 ANGLE_INSTANTIATE_TEST(EGLBufferAgeTest_MSAA,
+                       WithNoFixture(ES2_METAL()),
+                       WithNoFixture(ES3_METAL()),
                        WithNoFixture(ES2_OPENGLES()),
                        WithNoFixture(ES3_OPENGLES()),
                        WithNoFixture(ES2_OPENGL()),
@@ -570,6 +720,8 @@ ANGLE_INSTANTIATE_TEST(EGLBufferAgeTest_MSAA,
                        WithNoFixture(ES2_VULKAN()),
                        WithNoFixture(ES3_VULKAN()));
 ANGLE_INSTANTIATE_TEST(EGLBufferAgeTest_MSAA_DS,
+                       WithNoFixture(ES2_METAL()),
+                       WithNoFixture(ES3_METAL()),
                        WithNoFixture(ES2_OPENGLES()),
                        WithNoFixture(ES3_OPENGLES()),
                        WithNoFixture(ES2_OPENGL()),

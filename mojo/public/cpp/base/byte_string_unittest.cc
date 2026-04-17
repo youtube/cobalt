@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <array>
+
 #include "base/format_macros.h"
 #include "base/strings/stringprintf.h"
 #include "mojo/public/cpp/base/byte_string_mojom_traits.h"
@@ -12,11 +14,11 @@
 namespace mojo_base {
 
 TEST(ByteStringTest, Test) {
-  const std::string kCases[] = {
+  const auto kCases = std::to_array<std::string>({
       "hello",                     // C-string
       {'\xEF', '\xB7', '\xAF'},    // invalid UTF-8
       {'h', '\0', 'w', 'd', 'y'},  // embedded null
-  };
+  });
   for (size_t i = 0; i < std::size(kCases); ++i) {
     SCOPED_TRACE(base::StringPrintf("case %" PRIuS, i));
     std::string out;

@@ -20,11 +20,11 @@
 #ifndef STARBOARD_COMMON_STORAGE_H_
 #define STARBOARD_COMMON_STORAGE_H_
 
+#include <cstdint>
 #include <string>
 
 #include "starboard/configuration.h"
 #include "starboard/storage.h"
-#include "starboard/types.h"
 
 namespace starboard {
 

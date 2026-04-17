@@ -6,10 +6,10 @@
 
 #import <Foundation/Foundation.h>
 
+#import "base/apple/foundation_util.h"
 #include "base/base64.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#import "base/mac/foundation_util.h"
 #include "components/device_signals/test/test_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -108,8 +108,7 @@ TEST_F(MacPlatformDelegateTest, GetSigningCertificatesPublicKeys_Success) {
   EXPECT_FALSE(public_keys->is_os_verified);
   EXPECT_FALSE(public_keys->subject_name);
 
-  std::string base64_hash;
-  base::Base64Encode(public_keys.value().hashes[0], &base64_hash);
+  std::string base64_hash = base::Base64Encode(public_keys.value().hashes[0]);
   EXPECT_EQ(base64_hash, "E7ahL43DGT2VrGvGpnlI9ONkEqdni9ddf4fCTN26uFc=");
 
   // Should work for the binary path too.

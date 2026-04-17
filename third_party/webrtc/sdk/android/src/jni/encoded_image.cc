@@ -68,7 +68,7 @@ ScopedJavaLocalRef<jobject> NativeToJavaEncodedImage(
       /*releaseCallback=*/ScopedJavaGlobalRef<jobject>(nullptr),
       static_cast<int>(image._encodedWidth),
       static_cast<int>(image._encodedHeight),
-      image.capture_time_ms_ * rtc::kNumNanosecsPerMillisec, frame_type,
+      image.capture_time_ms_ * kNumNanosecsPerMillisec, frame_type,
       static_cast<jint>(image.rotation_), qp);
 }
 
@@ -89,7 +89,7 @@ EncodedImage JavaToNativeEncodedImage(JNIEnv* env,
   const size_t buffer_size = env->GetDirectBufferCapacity(j_buffer.obj());
 
   EncodedImage frame;
-  frame.SetEncodedData(rtc::make_ref_counted<JavaEncodedImageBuffer>(
+  frame.SetEncodedData(make_ref_counted<JavaEncodedImageBuffer>(
       env, j_encoded_image, buffer, buffer_size));
 
   frame._encodedWidth = Java_EncodedImage_getEncodedWidth(env, j_encoded_image);

@@ -9,15 +9,11 @@
 #include <utility>
 #include <vector>
 
-#include "ash/components/arc/session/arc_service_manager.h"
-#include "ash/components/arc/test/test_browser_context.h"
-#include "ash/constants/app_types.h"
 #include "ash/constants/ash_pref_names.h"
 #include "ash/public/cpp/keyboard/arc/arc_input_method_bounds_tracker.h"
 #include "ash/public/cpp/keyboard/keyboard_switches.h"
-#include "ash/public/cpp/tablet_mode.h"
+#include "ash/wm/tablet_mode/tablet_mode_controller_test_api.h"
 #include "base/containers/contains.h"
-#include "base/containers/cxx20_erase.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
@@ -29,7 +25,11 @@
 #include "chrome/browser/ui/ash/keyboard/chrome_keyboard_controller_client_test_helper.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/testing_profile.h"
+#include "chromeos/ash/experiences/arc/session/arc_service_manager.h"
+#include "chromeos/ui/base/app_types.h"
+#include "chromeos/ui/base/window_properties.h"
 #include "components/crx_file/id_util.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -41,6 +41,7 @@
 #include "ui/base/ime/ash/mock_input_method_manager.h"
 #include "ui/base/ime/dummy_text_input_client.h"
 #include "ui/base/ime/mock_input_method.h"
+#include "ui/display/test/test_screen.h"
 #include "ui/views/widget/widget.h"
 
 namespace arc {
@@ -62,43 +63,6 @@ mojom::ImeInfoPtr GenerateImeInfo(const std::string& id,
   info->is_allowed_in_clamshell_mode = always_allowed;
   return info;
 }
-
-class FakeTabletMode : public ash::TabletMode {
- public:
-  FakeTabletMode() = default;
-  ~FakeTabletMode() override = default;
-
-  // ash::TabletMode overrides:
-  void AddObserver(ash::TabletModeObserver* observer) override {
-    observer_ = observer;
-  }
-
-  void RemoveObserver(ash::TabletModeObserver* observer) override {
-    observer_ = nullptr;
-  }
-
-  bool InTabletMode() const override { return in_tablet_mode; }
-
-  bool ForceUiTabletModeState(absl::optional<bool> enabled) override {
-    return false;
-  }
-
-  void SetEnabledForTest(bool enabled) override {
-    bool changed = (in_tablet_mode != enabled);
-    in_tablet_mode = enabled;
-
-    if (changed && observer_) {
-      if (in_tablet_mode)
-        observer_->OnTabletModeStarted();
-      else
-        observer_->OnTabletModeEnded();
-    }
-  }
-
- private:
-  raw_ptr<ash::TabletModeObserver, ExperimentalAsh> observer_ = nullptr;
-  bool in_tablet_mode = false;
-};
 
 class FakeInputMethodBoundsObserver
     : public ArcInputMethodManagerService::Observer {
@@ -145,7 +109,8 @@ class TestInputMethodManager : public im::MockInputMethodManager {
     im::InputMethodDescriptor GetCurrentInputMethod() const override {
       im::InputMethodDescriptor descriptor(
           current_ime_id_, "", "", "", std::vector<std::string>(),
-          false /* is_login_keyboard */, GURL(), GURL());
+          false /* is_login_keyboard */, GURL(), GURL(),
+          /*handwriting_language=*/std::nullopt);
       return descriptor;
     }
 
@@ -173,7 +138,7 @@ class TestInputMethodManager : public im::MockInputMethodManager {
     }
 
     void RemoveEnabledInputMethodId(const std::string& ime_id) {
-      base::EraseIf(enabled_input_method_ids_,
+      std::erase_if(enabled_input_method_ids_,
                     [&ime_id](const std::string& id) { return id == ime_id; });
     }
 
@@ -184,8 +149,9 @@ class TestInputMethodManager : public im::MockInputMethodManager {
     void GetInputMethodExtensions(
         im::InputMethodDescriptors* descriptors) override {
       for (const auto& id : enabled_input_method_ids_) {
-        descriptors->push_back(im::InputMethodDescriptor(
-            id, "", "", {}, {}, false, GURL(), GURL()));
+        descriptors->push_back(
+            im::InputMethodDescriptor(id, "", "", {}, {}, false, GURL(), GURL(),
+                                      /*handwriting_language=*/std::nullopt));
       }
     }
 
@@ -242,7 +208,7 @@ class TestIMEInputContextHandler : public ash::MockIMEInputContextHandler {
   ui::InputMethod* GetInputMethod() override { return input_method_; }
 
  private:
-  const raw_ptr<ui::InputMethod, ExperimentalAsh> input_method_;
+  const raw_ptr<ui::InputMethod> input_method_;
 };
 
 class TestWindowDelegate : public ArcInputMethodManagerService::WindowDelegate {
@@ -262,8 +228,8 @@ class TestWindowDelegate : public ArcInputMethodManagerService::WindowDelegate {
   void SetActiveWindow(aura::Window* window) { active_ = window; }
 
  private:
-  aura::Window* focused_ = nullptr;
-  aura::Window* active_ = nullptr;
+  raw_ptr<aura::Window, DanglingUntriaged> focused_ = nullptr;
+  raw_ptr<aura::Window, DanglingUntriaged> active_ = nullptr;
 };
 
 class ArcInputMethodManagerServiceTest : public testing::Test {
@@ -289,7 +255,9 @@ class ArcInputMethodManagerServiceTest : public testing::Test {
   TestWindowDelegate* window_delegate() { return window_delegate_; }
 
   void ToggleTabletMode(bool enabled) {
-    tablet_mode_controller_->SetEnabledForTest(enabled);
+    auto state = enabled ? display::TabletState::kInTabletMode
+                         : display::TabletState::kInClamshellMode;
+    test_screen_.OverrideTabletStateForTesting(state);
   }
 
   void NotifyNewBounds(const gfx::Rect& bounds) {
@@ -305,8 +273,7 @@ class ArcInputMethodManagerServiceTest : public testing::Test {
   aura::Window* CreateTestArcWindow() {
     auto* window = aura::test::CreateTestWindowWithId(1, nullptr);
     window->SetProperty(aura::client::kSkipImeProcessing, true);
-    window->SetProperty(aura::client::kAppType,
-                        static_cast<int>(ash::AppType::ARC_APP));
+    window->SetProperty(chromeos::kAppTypeKey, chromeos::AppType::ARC_APP);
     return window;
   }
 
@@ -315,7 +282,6 @@ class ArcInputMethodManagerServiceTest : public testing::Test {
     im::InputMethodManager::Initialize(input_method_manager_);
     profile_ = std::make_unique<TestingProfile>();
 
-    tablet_mode_controller_ = std::make_unique<FakeTabletMode>();
     input_method_bounds_tracker_ =
         std::make_unique<ash::ArcInputMethodBoundsTracker>();
 
@@ -338,7 +304,6 @@ class ArcInputMethodManagerServiceTest : public testing::Test {
     service_->Shutdown();
     chrome_keyboard_controller_client_test_helper_.reset();
     input_method_bounds_tracker_.reset();
-    tablet_mode_controller_.reset();
     profile_.reset();
     im::InputMethodManager::Shutdown();
   }
@@ -346,19 +311,20 @@ class ArcInputMethodManagerServiceTest : public testing::Test {
  private:
   content::BrowserTaskEnvironment task_environment_;
 
+  display::test::TestScreen test_screen_{/*create_dispay=*/true,
+                                         /*register_screen=*/true};
   std::unique_ptr<ArcServiceManager> arc_service_manager_;
   std::unique_ptr<TestingProfile> profile_;
   std::unique_ptr<ChromeKeyboardControllerClientTestHelper>
       chrome_keyboard_controller_client_test_helper_;
-  std::unique_ptr<FakeTabletMode> tablet_mode_controller_;
   std::unique_ptr<ash::ArcInputMethodBoundsTracker>
       input_method_bounds_tracker_;
-  raw_ptr<TestInputMethodManager, ExperimentalAsh> input_method_manager_ =
+  raw_ptr<TestInputMethodManager, DanglingUntriaged> input_method_manager_ =
       nullptr;
-  raw_ptr<TestInputMethodManagerBridge, ExperimentalAsh> test_bridge_ =
+  raw_ptr<TestInputMethodManagerBridge> test_bridge_ =
       nullptr;  // Owned by |service_|
-  raw_ptr<ArcInputMethodManagerService, ExperimentalAsh> service_ = nullptr;
-  raw_ptr<TestWindowDelegate, ExperimentalAsh> window_delegate_ = nullptr;
+  raw_ptr<ArcInputMethodManagerService, DanglingUntriaged> service_ = nullptr;
+  raw_ptr<TestWindowDelegate, DanglingUntriaged> window_delegate_ = nullptr;
 };
 
 }  // anonymous namespace

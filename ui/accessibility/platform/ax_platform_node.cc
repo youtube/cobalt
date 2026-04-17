@@ -5,77 +5,80 @@
 #include "ui/accessibility/platform/ax_platform_node.h"
 
 #include "base/debug/crash_logging.h"
-#include "base/lazy_instance.h"
-#include "base/observer_list.h"
+#include "base/no_destructor.h"
 #include "build/build_config.h"
 #include "ui/accessibility/ax_node_data.h"
+#include "ui/accessibility/platform/ax_platform.h"
 #include "ui/accessibility/platform/ax_platform_node_delegate.h"
 #include "ui/base/buildflags.h"
 
 namespace ui {
 
-// static
-base::LazyInstance<base::ObserverList<AXModeObserver>::Unchecked>::Leaky
-    AXPlatformNode::ax_mode_observers_ = LAZY_INSTANCE_INITIALIZER;
+AXPlatformNode::NativeWindowHandlerCallback&
+GetNativeWindowHandlerCallbackValue() {
+  static base::NoDestructor<AXPlatformNode::NativeWindowHandlerCallback>
+      callback;
+  return *callback;
+}
+
+// This allows UI menu popups like to act as if they are focused in the
+// exposed platform accessibility API, even though actual focus remains in
+// underlying content.
+gfx::NativeViewAccessible& GetPopupFocusOverrideValue() {
+#if BUILDFLAG(IS_APPLE)
+  static base::NoDestructor<gfx::NativeViewAccessible> popup_focus_override;
+  return *popup_focus_override;
+#else
+  static constinit gfx::NativeViewAccessible popup_focus_override =
+      gfx::NativeViewAccessible();
+  return popup_focus_override;
+#endif
+}
 
 // static
-base::LazyInstance<AXPlatformNode::NativeWindowHandlerCallback>::Leaky
-    AXPlatformNode::native_window_handler_ = LAZY_INSTANCE_INITIALIZER;
-
-// static
-AXMode AXPlatformNode::ax_mode_;
-
-// static
-gfx::NativeViewAccessible AXPlatformNode::popup_focus_override_ = nullptr;
+bool AXPlatformNode::allow_ax_mode_changes_ = true;
 
 // static
 AXPlatformNode* AXPlatformNode::FromNativeWindow(
     gfx::NativeWindow native_window) {
-  if (native_window_handler_.Get())
-    return native_window_handler_.Get().Run(native_window);
+  if (GetNativeWindowHandlerCallbackValue()) {
+    return GetNativeWindowHandlerCallbackValue().Run(native_window);
+  }
   return nullptr;
 }
 
-#if !BUILDFLAG_INTERNAL_HAS_NATIVE_ACCESSIBILITY()
+#if !BUILDFLAG(HAS_NATIVE_ACCESSIBILITY)
 // static
 AXPlatformNode* AXPlatformNode::FromNativeViewAccessible(
     gfx::NativeViewAccessible accessible) {
   return nullptr;
 }
-#endif  // !BUILDFLAG_INTERNAL_HAS_NATIVE_ACCESSIBILITY()
+#endif  // !BUILDFLAG(HAS_NATIVE_ACCESSIBILITY)
 
 // static
 void AXPlatformNode::RegisterNativeWindowHandler(
     AXPlatformNode::NativeWindowHandlerCallback handler) {
-  native_window_handler_.Get() = handler;
+  GetNativeWindowHandlerCallbackValue() = handler;
 }
 
-AXPlatformNode::AXPlatformNode() = default;
-
-AXPlatformNode::~AXPlatformNode() = default;
-
-void AXPlatformNode::Destroy() {
+// static
+void AXPlatformNode::SetAXModeChangeAllowed(bool allow) {
+  allow_ax_mode_changes_ = allow;
 }
 
-int32_t AXPlatformNode::GetUniqueId() const {
-  DCHECK(GetDelegate()) << "|GetUniqueId| must be called after |Init|.";
-  return GetDelegate() ? GetDelegate()->GetUniqueId().Get() : -1;
+AXPlatformNodeId AXPlatformNode::GetUniqueId() const {
+  // Must not be called before `Init()` or after `Destroy()`.
+  return GetDelegate()->GetUniqueId();
 }
 
-void AXPlatformNode::SetIsPrimaryWebContentsForWindow(bool is_primary) {
-  is_primary_web_contents_for_window_ = is_primary;
+std::string AXPlatformNode::ToString() const {
+  // Must not be called before `Init()` or after `Destroy()`.
+  return GetDelegate()->ToString();
 }
 
-bool AXPlatformNode::IsPrimaryWebContentsForWindow() const {
-  return is_primary_web_contents_for_window_;
-}
-
-std::string AXPlatformNode::ToString() {
-  return GetDelegate() ? GetDelegate()->ToString() : "No delegate";
-}
-
-std::string AXPlatformNode::SubtreeToString() {
-  return GetDelegate() ? GetDelegate()->SubtreeToString() : "No delegate";
+std::string AXPlatformNode::SubtreeToString() const {
+  // Must not be called before `Init()` or after `Destroy()`.
+  return GetDelegate()->SubtreeToString();
 }
 
 std::ostream& operator<<(std::ostream& stream, AXPlatformNode& node) {
@@ -83,42 +86,14 @@ std::ostream& operator<<(std::ostream& stream, AXPlatformNode& node) {
 }
 
 // static
-void AXPlatformNode::AddAXModeObserver(AXModeObserver* observer) {
-  ax_mode_observers_.Get().AddObserver(observer);
-}
-
-// static
-void AXPlatformNode::RemoveAXModeObserver(AXModeObserver* observer) {
-  ax_mode_observers_.Get().RemoveObserver(observer);
-}
-
-// static
-void AXPlatformNode::NotifyAddAXModeFlags(AXMode mode_flags) {
-  AXMode new_ax_mode(ax_mode_);
-  new_ax_mode |= mode_flags;
-
-  if (new_ax_mode == ax_mode_)
-    return;  // No change.
-
-  ax_mode_ = new_ax_mode;
-  for (auto& observer : ax_mode_observers_.Get())
-    observer.OnAXModeAdded(mode_flags);
-}
-
-// static
-void AXPlatformNode::SetAXMode(AXMode new_mode) {
-  ax_mode_ = new_mode;
-}
-
-// static
 void AXPlatformNode::SetPopupFocusOverride(
     gfx::NativeViewAccessible popup_focus_override) {
-  popup_focus_override_ = popup_focus_override;
+  GetPopupFocusOverrideValue() = popup_focus_override;
 }
 
 // static
 gfx::NativeViewAccessible AXPlatformNode::GetPopupFocusOverride() {
-  return popup_focus_override_;
+  return GetPopupFocusOverrideValue();
 }
 
 }  // namespace ui

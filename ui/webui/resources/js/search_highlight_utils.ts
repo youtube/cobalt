@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assert} from './assert_ts.js';
+import {assert} from './assert.js';
 
 const WRAPPER_CSS_CLASS: string = 'search-highlight-wrapper';
 
@@ -162,7 +162,7 @@ export function createEmptySearchBubble(
     innards.classList.toggle('above');
     updatePosition();
   });
-  // TODO(crbug.com/355446): create a way to programmatically update these
+  // TODO(crbug.com/41096577): create a way to programmatically update these
   // bubbles (i.e. call updatePosition()) when outer scope knows they need to
   // be repositioned.
   return searchBubble;

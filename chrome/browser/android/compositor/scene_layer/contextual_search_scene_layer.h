@@ -15,10 +15,16 @@
 #include "chrome/browser/bitmap_fetcher/bitmap_fetcher.h"
 #include "chrome/browser/ui/android/layouts/scene_layer.h"
 
+class Profile;
+
 namespace cc::slim {
 class Layer;
 class SolidColorLayer;
 }  // namespace cc::slim
+
+namespace content {
+class WebContents;
+}  // namespace content
 
 namespace android {
 
@@ -42,12 +48,10 @@ class ContextualSearchSceneLayer : public SceneLayer,
 
   void CreateContextualSearchLayer(
       JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& object,
       const base::android::JavaParamRef<jobject>& jresource_manager);
 
   void UpdateContextualSearchLayer(
       JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& object,
       jint search_bar_background_resource_id,
       jint search_bar_background_color,
       jint search_context_resource_id,
@@ -69,7 +73,7 @@ class ContextualSearchSceneLayer : public SceneLayer,
       jfloat layout_height,
       jfloat base_page_brightness,
       jfloat base_page_offset,
-      const base::android::JavaParamRef<jobject>& jweb_contents,
+      content::WebContents* web_contents,
       jboolean search_promo_visible,
       jfloat search_promo_height,
       jfloat search_promo_opacity,
@@ -86,6 +90,7 @@ class ContextualSearchSceneLayer : public SceneLayer,
       jfloat search_panel_height,
       jfloat search_bar_margin_side,
       jfloat search_bar_margin_top,
+      jfloat search_bar_margin_bottom,
       jfloat search_bar_height,
       jfloat search_context_opacity,
       jfloat search_text_layer_min_height,
@@ -97,7 +102,7 @@ class ContextualSearchSceneLayer : public SceneLayer,
       jfloat search_bar_border_height,
       jboolean quick_action_icon_visible,
       jboolean thumbnail_visible,
-      jstring j_thumbnail_url,
+      std::string& thumbnail_url,
       jfloat custom_image_visibility_percentage,
       jint bar_image_size,
       jint icon_color,
@@ -110,7 +115,7 @@ class ContextualSearchSceneLayer : public SceneLayer,
       jboolean touch_highlight_visible,
       jfloat touch_highlight_x_offset,
       jfloat touch_highlight_width,
-      const base::android::JavaRef<jobject>& j_profile,
+      Profile* profile,
       jint bar_background_resource_id,
       jint separator_line_color);
 
@@ -121,15 +126,12 @@ class ContextualSearchSceneLayer : public SceneLayer,
 
   void SetContentTree(
       JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& jobj,
       const base::android::JavaParamRef<jobject>& jcontent_tree);
 
-  void HideTree(
-      JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& jobj);
+  void HideTree(JNIEnv* env);
 
  private:
-  void FetchThumbnail(const base::android::JavaRef<jobject>& j_profile);
+  void FetchThumbnail(Profile* profile);
 
   raw_ptr<JNIEnv> env_;
   base::android::ScopedJavaGlobalRef<jobject> object_;

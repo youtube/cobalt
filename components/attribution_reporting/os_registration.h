@@ -5,32 +5,43 @@
 #ifndef COMPONENTS_ATTRIBUTION_REPORTING_OS_REGISTRATION_H_
 #define COMPONENTS_ATTRIBUTION_REPORTING_OS_REGISTRATION_H_
 
-#include "base/component_export.h"
-#include "base/strings/string_piece_forward.h"
-#include "net/http/structured_headers.h"
+#include <string_view>
+#include <vector>
 
-class GURL;
+#include "base/component_export.h"
+#include "base/types/expected.h"
+#include "components/attribution_reporting/os_registration_error.mojom-forward.h"
+#include "net/http/structured_headers.h"
+#include "url/gurl.h"
 
 namespace attribution_reporting {
+
+struct COMPONENT_EXPORT(ATTRIBUTION_REPORTING) OsRegistrationItem {
+  GURL url;
+  bool debug_reporting = false;
+
+  friend bool operator==(const OsRegistrationItem&,
+                         const OsRegistrationItem&) = default;
+};
 
 // Parses an Attribution-Reporting-OS-Source or
 // Attribution-Reporting-Register-OS-Trigger header.
 //
-// The structured-header item may have parameters, but they are ignored.
-//
-// Returns an invalid `GURL` if `header` is not parsable as a structured-header
-// item, if the item is not a string, or if the string is not a valid URL.
+// Returns `OsRegistrationError` if the string is not parsable as a
+// structured-header list. List members that are not strings or do not contain a
+// valid URL are ignored.
 //
 // Example:
 //
-// "https://x.test/abc"
+// "https://x.test/abc", "https://y.test/123"
 COMPONENT_EXPORT(ATTRIBUTION_REPORTING)
-GURL ParseOsSourceOrTriggerHeader(base::StringPiece);
+base::expected<std::vector<OsRegistrationItem>, mojom::OsRegistrationError>
+    ParseOsSourceOrTriggerHeader(std::string_view);
 
-// Same as the above, but using an already-parsed structured-header item.
+// Same as the above, but using an already-parsed structured-header list.
 COMPONENT_EXPORT(ATTRIBUTION_REPORTING)
-GURL ParseOsSourceOrTriggerHeader(
-    const net::structured_headers::ParameterizedItem&);
+base::expected<std::vector<OsRegistrationItem>, mojom::OsRegistrationError>
+ParseOsSourceOrTriggerHeader(const net::structured_headers::List&);
 
 }  // namespace attribution_reporting
 

@@ -9,7 +9,6 @@
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/raw_ptr_exclusion.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/gmock_callback_support.h"
@@ -176,7 +175,7 @@ class MojoRendererTest : public ::testing::Test {
   }
 
   void OnCdmServiceInitialized(mojom::CdmContextPtr cdm_context,
-                               const std::string& error_message) {
+                               CreateCdmStatus status) {
     cdm_context_.set_cdm_id(cdm_context->cdm_id);
   }
 
@@ -222,10 +221,9 @@ class MojoRendererTest : public ::testing::Test {
   std::unique_ptr<MojoCdmService> mojo_cdm_service_;
 
   // Service side mocks and helpers.
-  raw_ptr<StrictMock<MockRenderer>> mock_renderer_;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #addr-of
-  RAW_PTR_EXCLUSION RendererClient* remote_renderer_client_;
+  raw_ptr<StrictMock<MockRenderer>, AcrossTasksDanglingUntriaged>
+      mock_renderer_;
+  raw_ptr<RendererClient, DanglingUntriaged> remote_renderer_client_;
 
   mojo::SelfOwnedReceiverRef<mojom::Renderer> renderer_receiver_;
 };
@@ -449,7 +447,8 @@ TEST_F(MojoRendererTest, OnEnded) {
 TEST_F(MojoRendererTest, Destroy_PendingInitialize) {
   CreateAudioStream();
   EXPECT_CALL(*mock_renderer_, OnInitialize(_, _, _))
-      .WillRepeatedly(RunOnceCallback<2>(PIPELINE_ERROR_ABORT));
+      .WillRepeatedly(
+          base::test::RunOnceCallbackRepeatedly<2>(PIPELINE_ERROR_ABORT));
   EXPECT_CALL(*this, OnInitialized(
                          HasStatusCode(PIPELINE_ERROR_INITIALIZATION_FAILED)));
   mojo_renderer_->Initialize(
@@ -460,7 +459,7 @@ TEST_F(MojoRendererTest, Destroy_PendingInitialize) {
 
 TEST_F(MojoRendererTest, Destroy_PendingFlush) {
   EXPECT_CALL(*mock_renderer_, OnSetCdm(_, _))
-      .WillRepeatedly(RunOnceCallback<1>(true));
+      .WillRepeatedly(base::test::RunOnceCallbackRepeatedly<1>(true));
   EXPECT_CALL(*this, OnCdmAttached(false));
   mojo_renderer_->SetCdm(
       &cdm_context_,

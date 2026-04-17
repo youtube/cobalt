@@ -8,6 +8,8 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
+#include <utility>
 
 #include "ash/app_list/app_list_util.h"
 #include "ash/app_list/views/search_result_actions_view_delegate.h"
@@ -19,7 +21,8 @@
 #include "ash/style/style_util.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/insets.h"
@@ -32,6 +35,7 @@
 #include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/controls/highlight_path_generator.h"
 #include "ui/views/layout/box_layout.h"
+#include "ui/views/view_utils.h"
 
 namespace ash {
 
@@ -43,6 +47,8 @@ constexpr int kActionButtonBetweenSpacing = 8;
 
 // SearchResultActionButton renders the button defined by SearchResult::Action.
 class SearchResultActionButton : public IconButton {
+  METADATA_HEADER(SearchResultActionButton, IconButton)
+
  public:
   SearchResultActionButton(SearchResultActionsView* parent,
                            const SearchResult::Action& action,
@@ -65,9 +71,8 @@ class SearchResultActionButton : public IconButton {
 
  private:
   int GetButtonRadius() const;
-  const char* GetClassName() const override;
 
-  raw_ptr<SearchResultActionsView, ExperimentalAsh> parent_;
+  raw_ptr<SearchResultActionsView> parent_;
   bool to_be_activate_by_long_press_ = false;
 };
 
@@ -78,7 +83,7 @@ SearchResultActionButton::SearchResultActionButton(
     Type type,
     const gfx::VectorIcon* icon,
     const std::u16string& accessible_name)
-    : IconButton(callback,
+    : IconButton(std::move(callback),
                  type,
                  icon,
                  action.tooltip_text,
@@ -89,18 +94,21 @@ SearchResultActionButton::SearchResultActionButton(
   SetVisible(false);
 
   StyleUtil::SetUpFocusRingForView(this);
-  views::FocusRing::Get(this)->SetHasFocusPredicate([&](View* view) -> bool {
-    return view->HasFocus() || parent_->GetSelectedAction() == tag();
-  });
+  views::FocusRing::Get(this)->SetHasFocusPredicate(
+      base::BindRepeating([](const View* view) {
+        const auto* v = views::AsViewClass<SearchResultActionButton>(view);
+        CHECK(v);
+        return v->HasFocus() || v->parent_->GetSelectedAction() == v->tag();
+      }));
 }
 
 void SearchResultActionButton::OnGestureEvent(ui::GestureEvent* event) {
   switch (event->type()) {
-    case ui::ET_GESTURE_LONG_PRESS:
+    case ui::EventType::kGestureLongPress:
       to_be_activate_by_long_press_ = true;
       event->SetHandled();
       break;
-    case ui::ET_GESTURE_END:
+    case ui::EventType::kGestureEnd:
       if (to_be_activate_by_long_press_) {
         NotifyClick(*event);
         SetState(STATE_NORMAL);
@@ -126,9 +134,8 @@ int SearchResultActionButton::GetButtonRadius() const {
   return width() / 2;
 }
 
-const char* SearchResultActionButton::GetClassName() const {
-  return "SearchResultActionButton";
-}
+BEGIN_METADATA(SearchResultActionButton)
+END_METADATA
 
 SearchResultActionsView::SearchResultActionsView(
     SearchResultActionsViewDelegate* delegate)
@@ -168,10 +175,6 @@ void SearchResultActionsView::HideActions() {
 void SearchResultActionsView::UpdateButtonsOnStateChanged() {
   for (views::View* child : children())
     static_cast<SearchResultActionButton*>(child)->UpdateOnStateChanged();
-}
-
-const char* SearchResultActionsView::GetClassName() const {
-  return "SearchResultActionsView";
 }
 
 bool SearchResultActionsView::SelectInitialAction(bool reverse_tab_order) {
@@ -268,5 +271,8 @@ size_t SearchResultActionsView::GetActionCount() const {
 void SearchResultActionsView::ChildVisibilityChanged(views::View* child) {
   PreferredSizeChanged();
 }
+
+BEGIN_METADATA(SearchResultActionsView)
+END_METADATA
 
 }  // namespace ash

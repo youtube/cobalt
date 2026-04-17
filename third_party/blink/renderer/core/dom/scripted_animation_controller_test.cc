@@ -18,6 +18,7 @@
 #include "third_party/blink/renderer/core/page/page_animator.h"
 #include "third_party/blink/renderer/core/testing/dummy_page_holder.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 
@@ -31,6 +32,7 @@ class ScriptedAnimationControllerTest : public testing::Test {
   ScriptedAnimationController& Controller() { return *controller_; }
 
  private:
+  test::TaskEnvironment task_environment_;
   std::unique_ptr<DummyPageHolder> dummy_page_holder_;
   Persistent<ScriptedAnimationController> controller_;
 };
@@ -146,9 +148,9 @@ TEST_F(ScriptedAnimationControllerTest, EnqueueTaskAndEvent) {
 
   Controller().EnqueueTask(observer.CreateTask(1));
   GetDocument().addEventListener(
-      "test",
+      AtomicString("test"),
       MakeGarbageCollected<RunTaskEventListener>(observer.CreateTask(2)));
-  Event* event = Event::Create("test");
+  Event* event = Event::Create(AtomicString("test"));
   event->SetTarget(&GetDocument());
   Controller().EnqueueEvent(event);
   EXPECT_EQ(0u, observer.Order().size());
@@ -178,7 +180,7 @@ class RunTaskCallback final : public FrameCallback {
 TEST_F(ScriptedAnimationControllerTest, RegisterCallbackAndEnqueueTask) {
   TaskOrderObserver observer;
 
-  Event* event = Event::Create("test");
+  Event* event = Event::Create(AtomicString("test"));
   event->SetTarget(&GetDocument());
 
   Controller().RegisterFrameCallback(

@@ -62,7 +62,7 @@ class AuctionV8DevToolsAgent : public blink::mojom::DevToolsAgent,
   // and handle a Mojo connection.
   AuctionV8DevToolsAgent(
       AuctionV8Helper* v8_helper,
-      DebugCommandQueue* debug_command_queue,
+      scoped_refptr<DebugCommandQueue> debug_command_queue,
       scoped_refptr<base::SequencedTaskRunner> io_session_receiver_sequence);
   AuctionV8DevToolsAgent(const AuctionV8DevToolsAgent&) = delete;
   AuctionV8DevToolsAgent& operator=(const AuctionV8DevToolsAgent&) = delete;
@@ -92,7 +92,7 @@ class AuctionV8DevToolsAgent : public blink::mojom::DevToolsAgent,
 
     // Owned by `sessions_` in the AuctionV8DevToolsAgent object; stale entries
     // removed by its SessionDestroyed().
-    std::set<AuctionV8DevToolsSession*> sessions;
+    std::set<raw_ptr<AuctionV8DevToolsSession, SetExperimental>> sessions;
   };
 
   AuctionV8Helper* v8_helper() { return v8_helper_; }
@@ -104,6 +104,7 @@ class AuctionV8DevToolsAgent : public blink::mojom::DevToolsAgent,
           session_receiver,
       mojo::PendingReceiver<blink::mojom::DevToolsSession> io_session_receiver,
       blink::mojom::DevToolsSessionStatePtr reattach_session_state,
+      const std::string& script_to_evaluate_on_load,
       bool client_expects_binary_responses,
       bool client_is_trusted,
       const std::string& session_id,

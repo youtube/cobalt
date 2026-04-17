@@ -25,8 +25,18 @@
 #include "perfetto/base/export.h"
 
 #if defined(__GNUC__) || defined(__clang__)
+#if defined(__clang__)
+#pragma clang diagnostic push
+// Fix 'error: #pragma system_header ignored in main file' for clang in Google3.
+#pragma clang diagnostic ignored "-Wpragma-system-header-outside-header"
+#endif
+
 // Ignore GCC warning about a missing argument for a variadic macro parameter.
 #pragma GCC system_header
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 #endif
 
 #if PERFETTO_BUILDFLAG(PERFETTO_FORCE_DCHECK_ON)
@@ -148,8 +158,8 @@ inline void MaybeSerializeLastLogsForCrashReporting() {}
                           __LINE__, ##__VA_ARGS__);                           \
   } while (0)
 #elif defined(PERFETTO_DISABLE_LOG)
-#define PERFETTO_XLOG(level, fmt, ...) ::perfetto::base::ignore_result(level, \
-                                fmt, ##__VA_ARGS__)
+#define PERFETTO_XLOG(level, fmt, ...) \
+  ::perfetto::base::ignore_result(level, fmt, ##__VA_ARGS__)
 #else
 #define PERFETTO_XLOG(level, fmt, ...)                                      \
   ::perfetto::base::LogMessage(level, ::perfetto::base::Basename(__FILE__), \

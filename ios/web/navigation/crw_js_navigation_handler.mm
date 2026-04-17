@@ -13,11 +13,7 @@
 #import "ios/web/navigation/navigation_manager_impl.h"
 #import "ios/web/web_state/user_interaction_state.h"
 #import "ios/web/web_state/web_state_impl.h"
-#import "net/base/mac/url_conversions.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "net/base/apple/url_conversions.h"
 
 namespace {
 
@@ -27,8 +23,8 @@ namespace {
 // will round-trip a URL through the escaping process so that it can be adjusted
 // pre-storing, to allow later comparisons to work as expected.
 GURL URLEscapedForHistory(const GURL& url) {
-  // TODO(crbug.com/973871): This is a very large hammer; see if limited unicode
-  // escaping would be sufficient.
+  // TODO(crbug.com/41464782): This is a very large hammer; see if limited
+  // unicode escaping would be sufficient.
   return net::GURLWithNSURL(net::NSURLWithGURL(url));
 }
 
@@ -42,7 +38,7 @@ GURL URLEscapedForHistory(const GURL& url) {
   self.changingHistoryState = YES;
 }
 
-- (void)handleNavigationDidPushStateMessage:(base::Value*)message
+- (void)handleNavigationDidPushStateMessage:(base::Value::Dict*)dict
                                    webState:(web::WebStateImpl*)webStateImpl
                              hasUserGesture:(BOOL)hasUserGesture
                        userInteractionState:
@@ -68,8 +64,8 @@ GURL URLEscapedForHistory(const GURL& url) {
     return;
   }
 
-  const std::string* pageURL = message->FindStringKey("pageUrl");
-  const std::string* baseURL = message->FindStringKey("baseUrl");
+  const std::string* pageURL = dict->FindString("pageUrl");
+  const std::string* baseURL = dict->FindString("baseUrl");
   if (!pageURL || !baseURL) {
     DLOG(WARNING) << "JS message parameter not found: pageUrl or baseUrl";
     return;
@@ -79,14 +75,16 @@ GURL URLEscapedForHistory(const GURL& url) {
   // UIWebView seems to choke on unicode characters that haven't been
   // escaped; escape the URL now so the expected load URL is correct.
   pushURL = URLEscapedForHistory(pushURL);
-  if (!pushURL.is_valid())
+  if (!pushURL.is_valid()) {
     return;
+  }
 
   web::NavigationItemImpl* navItem = navigationManagerImpl.GetCurrentItemImpl();
   // PushState happened before first navigation entry or called when the
   // navigation entry does not contain a valid URL.
-  if (!navItem || !navItem->GetURL().is_valid())
+  if (!navItem || !navItem->GetURL().is_valid()) {
     return;
+  }
   if (!web::history_state_util::IsHistoryStateChangeValid(navItem->GetURL(),
                                                           pushURL)) {
     // If the current session entry URL origin still doesn't match pushURL's
@@ -94,7 +92,7 @@ GURL URLEscapedForHistory(const GURL& url) {
     // just before the pushState.
     return;
   }
-  const std::string* stateObjectJSON = message->FindStringKey("stateObject");
+  const std::string* stateObjectJSON = dict->FindString("stateObject");
   if (!stateObjectJSON) {
     DLOG(WARNING) << "JS message parameter not found: stateObject";
     return;
@@ -113,7 +111,7 @@ GURL URLEscapedForHistory(const GURL& url) {
   // If the user interacted with the page, categorize it as a link navigation.
   // If not, categorize it is a client redirect as it occurred without user
   // input and should not be added to the history stack.
-  // TODO(crbug.com/549301): Improve transition detection.
+  // TODO(crbug.com/41213462): Improve transition detection.
   ui::PageTransition transition =
       userInteractionState->UserInteractionRegisteredSincePageLoaded()
           ? ui::PAGE_TRANSITION_LINK
@@ -126,7 +124,7 @@ GURL URLEscapedForHistory(const GURL& url) {
                     webState:webStateImpl];
 }
 
-- (void)handleNavigationDidReplaceStateMessage:(base::Value*)message
+- (void)handleNavigationDidReplaceStateMessage:(base::Value::Dict*)dict
                                       webState:(web::WebStateImpl*)webStateImpl
                                 hasUserGesture:(BOOL)hasUserGesture
                           userInteractionState:
@@ -140,8 +138,8 @@ GURL URLEscapedForHistory(const GURL& url) {
   DCHECK(self.changingHistoryState);
   self.changingHistoryState = NO;
 
-  const std::string* pageURL = message->FindStringKey("pageUrl");
-  const std::string* baseURL = message->FindStringKey("baseUrl");
+  const std::string* pageURL = dict->FindString("pageUrl");
+  const std::string* baseURL = dict->FindString("baseUrl");
   if (!pageURL || !baseURL) {
     DLOG(WARNING) << "JS message parameter not found: pageUrl or baseUrl";
     return;
@@ -151,8 +149,9 @@ GURL URLEscapedForHistory(const GURL& url) {
   // UIWebView seems to choke on unicode characters that haven't been
   // escaped; escape the URL now so the expected load URL is correct.
   replaceURL = URLEscapedForHistory(replaceURL);
-  if (!replaceURL.is_valid())
+  if (!replaceURL.is_valid()) {
     return;
+  }
 
   const web::NavigationManagerImpl& navigationManagerImpl =
       webStateImpl->GetNavigationManagerImpl();
@@ -160,8 +159,9 @@ GURL URLEscapedForHistory(const GURL& url) {
   // ReplaceState happened before first navigation entry or called right
   // after window.open when the url is empty/not valid.
   if (!navItem || (navigationManagerImpl.GetItemCount() <= 1 &&
-                   navItem->GetURL().is_empty()))
+                   navItem->GetURL().is_empty())) {
     return;
+  }
   if (!web::history_state_util::IsHistoryStateChangeValid(navItem->GetURL(),
                                                           replaceURL)) {
     // If the current session entry URL origin still doesn't match
@@ -169,7 +169,7 @@ GURL URLEscapedForHistory(const GURL& url) {
     // new URL is loaded just before the replaceState.
     return;
   }
-  const std::string* stateObjectJSON = message->FindStringKey("stateObject");
+  const std::string* stateObjectJSON = dict->FindString("stateObject");
   if (!stateObjectJSON) {
     DLOG(WARNING) << "JS message parameter not found: stateObject";
     return;
@@ -186,7 +186,7 @@ GURL URLEscapedForHistory(const GURL& url) {
 // Adds a new NavigationItem with the given URL and state object to the
 // history stack. A state object is a serialized generic JavaScript object
 // that contains details of the UI's state for a given NavigationItem/URL.
-// TODO(crbug.com/956511): Move the pushState/replaceState logic into
+// TODO(crbug.com/40624624): Move the pushState/replaceState logic into
 // NavigationManager.
 - (void)pushStateWithPageURL:(const GURL&)pageURL
                  stateObject:(NSString*)stateObject

@@ -8,39 +8,36 @@
 #include <array>
 #include <string>
 
-#include "base/values.h"
 #include "components/cbor/values.h"
+#include "crypto/hash.h"
 #include "quick_start_message.h"
-#include "url/origin.h"
 
 namespace ash::quick_start::requests {
 
 std::unique_ptr<QuickStartMessage> BuildBootstrapOptionsRequest();
 
 std::unique_ptr<QuickStartMessage> BuildAssertionRequestMessage(
-    const std::string& challenge_b64url);
+    base::span<const uint8_t, crypto::hash::kSha256Size> client_data_hash);
 
 std::unique_ptr<QuickStartMessage> BuildGetInfoRequestMessage();
 
 std::unique_ptr<QuickStartMessage> BuildRequestWifiCredentialsMessage(
-    int32_t session_id,
+    uint64_t session_id,
     std::string& shared_secret);
 
 std::vector<uint8_t> CBOREncodeGetAssertionRequest(const cbor::Value& request);
 
-std::string CreateFidoClientDataJson(const url::Origin& origin,
-                                     const std::string& challenge_b64url);
-
-cbor::Value GenerateGetAssertionRequest(const std::string& challenge_b64url);
-
-std::vector<uint8_t> BuildTargetDeviceHandshakeMessage(
-    const std::string& authentication_token,
-    std::array<uint8_t, 32> secret,
-    std::array<uint8_t, 12> nonce);
+cbor::Value GenerateGetAssertionRequest(
+    base::span<const uint8_t, crypto::hash::kSha256Size> client_data_hash);
 
 std::unique_ptr<QuickStartMessage> BuildNotifySourceOfUpdateMessage(
-    int32_t session_id,
-    std::string& shared_secret);
+    uint64_t session_id,
+    base::span<const uint8_t, 32> shared_secret);
+
+std::unique_ptr<QuickStartMessage> BuildBootstrapStateCancelMessage();
+
+std::unique_ptr<QuickStartMessage> BuildBootstrapStateCompleteMessage();
+
 }  // namespace ash::quick_start::requests
 
-#endif  // CHROMEOS_ASH_COMPONENTS_QUICK_START_QUICK_START_REQUESTS_H
+#endif  // CHROMEOS_ASH_COMPONENTS_QUICK_START_QUICK_START_REQUESTS_H_

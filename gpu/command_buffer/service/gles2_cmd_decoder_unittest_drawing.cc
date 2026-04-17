@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "gpu/command_buffer/service/gles2_cmd_decoder.h"
 
 #include <stdint.h>
@@ -16,7 +21,6 @@
 #include "gpu/command_buffer/service/gl_surface_mock.h"
 #include "gpu/command_buffer/service/gles2_cmd_decoder_unittest.h"
 
-#include "gpu/command_buffer/service/mailbox_manager.h"
 #include "gpu/command_buffer/service/mocks.h"
 #include "gpu/command_buffer/service/program_manager.h"
 #include "gpu/command_buffer/service/test_helper.h"
@@ -55,10 +59,6 @@ class GLES2DecoderGeometryInstancingTest : public GLES2DecoderWithShaderTest {
   void SetUp() override {
     InitState init;
     init.extensions = "GL_ANGLE_instanced_arrays";
-    // Most of the tests in this file assume they're running on
-    // desktop OpenGL, and large portions of the tests will become
-    // no-ops if they aren't.
-    init.gl_version = "2.1";
     init.has_alpha = true;
     init.has_depth = true;
     init.request_alpha = true;
@@ -129,7 +129,6 @@ TEST_P(GLES2DecoderRGBBackbufferTest, RGBBackbufferColorMask) {
   EXPECT_EQ(GL_NO_ERROR, GetGLError());
 
   SetupTexture();
-  AddExpectationsForSimulatedAttrib0(kNumVertices, 0);
   SetupExpectationsForApplyingDirtyState(true,    // Framebuffer is RGB
                                          false,   // Framebuffer has depth
                                          false,   // Framebuffer has stencil
@@ -180,7 +179,6 @@ TEST_P(GLES2DecoderRGBBackbufferTest, RGBBackbufferDepthMask) {
   EXPECT_EQ(GL_NO_ERROR, GetGLError());
 
   SetupTexture();
-  AddExpectationsForSimulatedAttrib0(kNumVertices, 0);
   SetupExpectationsForApplyingDirtyState(true,    // Framebuffer is RGB
                                          false,   // Framebuffer has depth
                                          false,   // Framebuffer has stencil
@@ -229,7 +227,6 @@ TEST_P(GLES2DecoderRGBBackbufferTest, RGBBackbufferStencilMask) {
   EXPECT_EQ(GL_NO_ERROR, GetGLError());
 
   SetupTexture();
-  AddExpectationsForSimulatedAttrib0(kNumVertices, 0);
   SetupExpectationsForApplyingDirtyState(true,    // Framebuffer is RGB
                                          false,   // Framebuffer has depth
                                          false,   // Framebuffer has stencil
@@ -393,64 +390,12 @@ TEST_P(GLES2DecoderManualInitTest, DepthEnableWithDepth) {
 
   SetupDefaultProgram();
   SetupTexture();
-  AddExpectationsForSimulatedAttrib0(kNumVertices, 0);
   SetupExpectationsForApplyingDirtyState(true,    // Framebuffer is RGB
                                          true,    // Framebuffer has depth
                                          false,   // Framebuffer has stencil
                                          0x1110,  // color bits
                                          true,    // depth mask
                                          true,    // depth enabled
-                                         0,       // front stencil mask
-                                         0,       // back stencil mask
-                                         false);  // stencil enabled
-
-  EXPECT_CALL(*gl_, DrawArrays(GL_TRIANGLES, 0, kNumVertices))
-      .Times(1)
-      .RetiresOnSaturation();
-  cmds::DrawArrays draw_cmd;
-  draw_cmd.Init(GL_TRIANGLES, 0, kNumVertices);
-  EXPECT_EQ(error::kNoError, ExecuteCmd(draw_cmd));
-  EXPECT_EQ(GL_NO_ERROR, GetGLError());
-
-  EXPECT_CALL(*gl_, GetError())
-      .WillOnce(Return(GL_NO_ERROR))
-      .WillOnce(Return(GL_NO_ERROR))
-      .RetiresOnSaturation();
-  auto* result =
-      static_cast<cmds::GetIntegerv::Result*>(shared_memory_address_);
-  EXPECT_CALL(*gl_, GetIntegerv(GL_DEPTH_TEST, _))
-      .Times(0)
-      .RetiresOnSaturation();
-  result->size = 0;
-  cmds::GetIntegerv cmd2;
-  cmd2.Init(GL_DEPTH_TEST, shared_memory_id_, shared_memory_offset_);
-  EXPECT_EQ(error::kNoError, ExecuteCmd(cmd2));
-  EXPECT_EQ(decoder_->GetGLES2Util()->GLGetNumValuesReturned(GL_DEPTH_TEST),
-            result->GetNumResults());
-  EXPECT_EQ(GL_NO_ERROR, GetGLError());
-  EXPECT_EQ(1, result->GetData()[0]);
-}
-
-TEST_P(GLES2DecoderManualInitTest, DepthEnableWithoutRequestedDepth) {
-  InitState init;
-  init.has_depth = true;
-  init.bind_generates_resource = true;
-  InitDecoder(init);
-
-  cmds::Enable cmd;
-  cmd.Init(GL_DEPTH_TEST);
-  EXPECT_EQ(error::kNoError, ExecuteCmd(cmd));
-  EXPECT_EQ(GL_NO_ERROR, GetGLError());
-
-  SetupDefaultProgram();
-  SetupTexture();
-  AddExpectationsForSimulatedAttrib0(kNumVertices, 0);
-  SetupExpectationsForApplyingDirtyState(true,    // Framebuffer is RGB
-                                         false,   // Framebuffer has depth
-                                         false,   // Framebuffer has stencil
-                                         0x1110,  // color bits
-                                         false,   // depth mask
-                                         false,   // depth enabled
                                          0,       // front stencil mask
                                          0,       // back stencil mask
                                          false);  // stencil enabled
@@ -496,7 +441,6 @@ TEST_P(GLES2DecoderManualInitTest, StencilEnableWithStencil) {
 
   SetupDefaultProgram();
   SetupTexture();
-  AddExpectationsForSimulatedAttrib0(kNumVertices, 0);
   SetupExpectationsForApplyingDirtyState(
       true,                               // Framebuffer is RGB
       false,                              // Framebuffer has depth
@@ -507,57 +451,6 @@ TEST_P(GLES2DecoderManualInitTest, StencilEnableWithStencil) {
       GLES2Decoder::kDefaultStencilMask,  // front stencil mask
       GLES2Decoder::kDefaultStencilMask,  // back stencil mask
       true);                              // stencil enabled
-
-  EXPECT_CALL(*gl_, DrawArrays(GL_TRIANGLES, 0, kNumVertices))
-      .Times(1)
-      .RetiresOnSaturation();
-  cmds::DrawArrays draw_cmd;
-  draw_cmd.Init(GL_TRIANGLES, 0, kNumVertices);
-  EXPECT_EQ(error::kNoError, ExecuteCmd(draw_cmd));
-  EXPECT_EQ(GL_NO_ERROR, GetGLError());
-
-  EXPECT_CALL(*gl_, GetError())
-      .WillOnce(Return(GL_NO_ERROR))
-      .WillOnce(Return(GL_NO_ERROR))
-      .RetiresOnSaturation();
-  auto* result =
-      static_cast<cmds::GetIntegerv::Result*>(shared_memory_address_);
-  EXPECT_CALL(*gl_, GetIntegerv(GL_STENCIL_TEST, _))
-      .Times(0)
-      .RetiresOnSaturation();
-  result->size = 0;
-  cmds::GetIntegerv cmd2;
-  cmd2.Init(GL_STENCIL_TEST, shared_memory_id_, shared_memory_offset_);
-  EXPECT_EQ(error::kNoError, ExecuteCmd(cmd2));
-  EXPECT_EQ(decoder_->GetGLES2Util()->GLGetNumValuesReturned(GL_STENCIL_TEST),
-            result->GetNumResults());
-  EXPECT_EQ(GL_NO_ERROR, GetGLError());
-  EXPECT_EQ(1, result->GetData()[0]);
-}
-
-TEST_P(GLES2DecoderManualInitTest, StencilEnableWithoutRequestedStencil) {
-  InitState init;
-  init.has_stencil = true;
-  init.bind_generates_resource = true;
-  InitDecoder(init);
-
-  cmds::Enable cmd;
-  cmd.Init(GL_STENCIL_TEST);
-  EXPECT_EQ(error::kNoError, ExecuteCmd(cmd));
-  EXPECT_EQ(GL_NO_ERROR, GetGLError());
-
-  SetupDefaultProgram();
-  SetupTexture();
-  AddExpectationsForSimulatedAttrib0(kNumVertices, 0);
-  SetupExpectationsForApplyingDirtyState(true,    // Framebuffer is RGB
-                                         false,   // Framebuffer has depth
-                                         false,   // Framebuffer has stencil
-                                         0x1110,  // color bits
-                                         false,   // depth mask
-                                         false,   // depth enabled
-                                         0,       // front stencil mask
-                                         0,       // back stencil mask
-                                         false);  // stencil enabled
 
   EXPECT_CALL(*gl_, DrawArrays(GL_TRIANGLES, 0, kNumVertices))
       .Times(1)
@@ -676,7 +569,6 @@ TEST_P(GLES2DecoderManualInitTest, CachedStencilMask) {
 
 TEST_P(GLES2DecoderWithShaderTest, DrawArraysNoAttributesSucceeds) {
   SetupTexture();
-  AddExpectationsForSimulatedAttrib0(kNumVertices, 0);
   SetupExpectationsForApplyingDefaultDirtyState();
 
   EXPECT_CALL(*gl_, DrawArrays(GL_TRIANGLES, 0, kNumVertices))
@@ -688,51 +580,12 @@ TEST_P(GLES2DecoderWithShaderTest, DrawArraysNoAttributesSucceeds) {
   EXPECT_EQ(GL_NO_ERROR, GetGLError());
 }
 
-// Tests when the math overflows (0x40000000 * sizeof GLfloat)
-TEST_P(GLES2DecoderWithShaderTest, DrawArraysSimulatedAttrib0OverflowFails) {
-  const GLsizei kLargeCount = 0x40000000;
-  SetupTexture();
-  EXPECT_CALL(*gl_, DrawArrays(_, _, _)).Times(0).RetiresOnSaturation();
-  cmds::DrawArrays cmd;
-  cmd.Init(GL_TRIANGLES, 0, kLargeCount);
-  EXPECT_EQ(error::kNoError, ExecuteCmd(cmd));
-  EXPECT_EQ(GL_OUT_OF_MEMORY, GetGLError());
-  EXPECT_FALSE(GetDecoder()->WasContextLost());
-}
-
-// Tests when the math overflows (0x7FFFFFFF + 1 = 0x8000000 verts)
-TEST_P(GLES2DecoderWithShaderTest, DrawArraysSimulatedAttrib0PosToNegFails) {
-  const GLsizei kLargeCount = 0x7FFFFFFF;
-  SetupTexture();
-  EXPECT_CALL(*gl_, DrawArrays(_, _, _)).Times(0).RetiresOnSaturation();
-  cmds::DrawArrays cmd;
-  cmd.Init(GL_TRIANGLES, 0, kLargeCount);
-  EXPECT_EQ(error::kNoError, ExecuteCmd(cmd));
-  EXPECT_EQ(GL_OUT_OF_MEMORY, GetGLError());
-  EXPECT_FALSE(GetDecoder()->WasContextLost());
-}
-
-// Tests when the driver returns an error
-TEST_P(GLES2DecoderWithShaderTest, DrawArraysSimulatedAttrib0OOMFails) {
-  const GLsizei kFakeLargeCount = 0x1234;
-  SetupTexture();
-  AddExpectationsForSimulatedAttrib0WithError(
-      kFakeLargeCount, 0, GL_OUT_OF_MEMORY);
-  EXPECT_CALL(*gl_, DrawArrays(_, _, _)).Times(0).RetiresOnSaturation();
-  cmds::DrawArrays cmd;
-  cmd.Init(GL_TRIANGLES, 0, kFakeLargeCount);
-  EXPECT_EQ(error::kNoError, ExecuteCmd(cmd));
-  EXPECT_EQ(GL_OUT_OF_MEMORY, GetGLError());
-  EXPECT_FALSE(GetDecoder()->WasContextLost());
-}
-
 TEST_P(GLES2DecoderWithShaderTest, DrawArraysBadTextureUsesBlack) {
   DoBindTexture(GL_TEXTURE_2D, client_texture_id_, kServiceTextureId);
   // This is an NPOT texture. As the default filtering requires mips
   // this should trigger replacing with black textures before rendering.
   DoTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 3, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE,
                shared_memory_id_, kSharedMemoryOffset);
-  AddExpectationsForSimulatedAttrib0(kNumVertices, 0);
   {
     InSequence sequence;
     EXPECT_CALL(*gl_, ActiveTexture(GL_TEXTURE0))
@@ -800,36 +653,6 @@ TEST_P(GLES2DecoderWithShaderTest, DrawArraysValidAttributesSucceeds) {
   SetupVertexBuffer();
   DoEnableVertexAttribArray(1);
   DoVertexAttribPointer(1, 2, GL_FLOAT, 0, 0);
-  AddExpectationsForSimulatedAttrib0(kNumVertices, kServiceBufferId);
-  SetupExpectationsForApplyingDefaultDirtyState();
-
-  EXPECT_CALL(*gl_, DrawArrays(GL_TRIANGLES, 0, kNumVertices))
-      .Times(1)
-      .RetiresOnSaturation();
-  cmds::DrawArrays cmd;
-  cmd.Init(GL_TRIANGLES, 0, kNumVertices);
-  EXPECT_EQ(error::kNoError, ExecuteCmd(cmd));
-  EXPECT_EQ(GL_NO_ERROR, GetGLError());
-}
-
-// Same as DrawArraysValidAttributesSucceeds, but with workaround
-// |init_vertex_attributes|.
-TEST_P(GLES2DecoderManualInitTest, InitVertexAttributes) {
-  gpu::GpuDriverBugWorkarounds workarounds;
-  workarounds.init_vertex_attributes = true;
-  InitState init;
-  init.has_alpha = true;
-  init.has_depth = true;
-  init.request_alpha = true;
-  init.request_depth = true;
-  init.bind_generates_resource = true;
-  InitDecoderWithWorkarounds(init, workarounds);
-  SetupDefaultProgram();
-  SetupTexture();
-  SetupVertexBuffer();
-  DoEnableVertexAttribArray(1);
-  DoVertexAttribPointer(1, 2, GL_FLOAT, 0, 0);
-  AddExpectationsForSimulatedAttrib0(kNumVertices, kServiceBufferId);
   SetupExpectationsForApplyingDefaultDirtyState();
 
   EXPECT_CALL(*gl_, DrawArrays(GL_TRIANGLES, 0, kNumVertices))
@@ -873,7 +696,6 @@ TEST_P(GLES2DecoderWithShaderTest, DrawArraysDeletedBufferFails) {
 
 TEST_P(GLES2DecoderWithShaderTest, DrawArraysDeletedProgramSucceeds) {
   SetupTexture();
-  AddExpectationsForSimulatedAttrib0(kNumVertices, 0);
   SetupExpectationsForApplyingDefaultDirtyState();
   DoDeleteProgram(client_program_id_, kServiceProgramId);
 
@@ -894,7 +716,7 @@ TEST_P(GLES2DecoderWithShaderTest, DrawArraysWithInvalidModeFails) {
   cmd.Init(GL_QUADS, 0, 1);
   EXPECT_EQ(error::kNoError, ExecuteCmd(cmd));
   EXPECT_EQ(GL_INVALID_ENUM, GetGLError());
-  cmd.Init(GL_POLYGON, 0, 1);
+  cmd.Init(0x0009 /* GL_POLYGON */, 0, 1);
   EXPECT_EQ(error::kNoError, ExecuteCmd(cmd));
   EXPECT_EQ(GL_INVALID_ENUM, GetGLError());
 }
@@ -980,31 +802,6 @@ TEST_P(GLES2DecoderGeometryInstancingTest,
 }
 
 TEST_P(GLES2DecoderGeometryInstancingTest,
-       DrawArraysInstancedANGLESimulatedAttrib0) {
-  SetupTexture();
-  SetupVertexBuffer();
-  DoVertexAttribPointer(1, 2, GL_FLOAT, 0, 0);
-
-  AddExpectationsForSimulatedAttrib0(kNumVertices, kServiceBufferId);
-  SetupExpectationsForApplyingDefaultDirtyState();
-
-  DoVertexAttribDivisorANGLE(0, 1);
-  EXPECT_CALL(*gl_, DrawArraysInstancedANGLE(GL_TRIANGLES, 0, kNumVertices, 3))
-      .Times(1)
-      .RetiresOnSaturation();
-  EXPECT_CALL(*gl_, VertexAttribDivisorANGLE(0, 0))
-      .Times(1)
-      .RetiresOnSaturation();
-  EXPECT_CALL(*gl_, VertexAttribDivisorANGLE(0, 1))
-      .Times(1)
-      .RetiresOnSaturation();
-  cmds::DrawArraysInstancedANGLE cmd;
-  cmd.Init(GL_TRIANGLES, 0, kNumVertices, 3);
-  EXPECT_EQ(error::kNoError, ExecuteCmd(cmd));
-  EXPECT_EQ(GL_NO_ERROR, GetGLError());
-}
-
-TEST_P(GLES2DecoderGeometryInstancingTest,
        DrawArraysInstancedANGLEMissingAttributesFails) {
   DoEnableVertexAttribArray(1);
 
@@ -1032,12 +829,7 @@ TEST_P(GLES2DecoderGeometryInstancingTest,
   SetupVertexBuffer();
   DoEnableVertexAttribArray(1);
   DoVertexAttribPointer(1, 2, GL_FLOAT, 0, 0);
-  AddExpectationsForSimulatedAttrib0(kNumVertices, kServiceBufferId);
   SetupExpectationsForApplyingDefaultDirtyState();
-
-  EXPECT_CALL(*gl_, VertexAttribDivisorANGLE(0, 0))
-        .Times(1)
-        .RetiresOnSaturation();
 
   EXPECT_CALL(*gl_, DrawArraysInstancedANGLE(GL_TRIANGLES, 0, kNumVertices, 1))
       .Times(1)
@@ -1058,7 +850,7 @@ TEST_P(GLES2DecoderGeometryInstancingTest,
   cmd.Init(GL_QUADS, 0, 1, 1);
   EXPECT_EQ(error::kNoError, ExecuteCmd(cmd));
   EXPECT_EQ(GL_INVALID_ENUM, GetGLError());
-  cmd.Init(GL_POLYGON, 0, 1, 1);
+  cmd.Init(0x0009 /* GL_POLYGON */, 0, 1, 1);
   EXPECT_EQ(error::kNoError, ExecuteCmd(cmd));
   EXPECT_EQ(GL_INVALID_ENUM, GetGLError());
 }
@@ -1234,7 +1026,6 @@ TEST_P(GLES2DecoderGeometryInstancingTest,
 TEST_P(GLES2DecoderWithShaderTest, DrawElementsNoAttributesSucceeds) {
   SetupTexture();
   SetupIndexBuffer();
-  AddExpectationsForSimulatedAttrib0(kMaxValidIndex + 1, 0);
   SetupExpectationsForApplyingDefaultDirtyState();
   EXPECT_CALL(*gl_,
               DrawElements(GL_TRIANGLES,
@@ -1297,7 +1088,6 @@ TEST_P(GLES2DecoderWithShaderTest, DrawElementsValidAttributesSucceeds) {
   SetupVertexBuffer();
   SetupIndexBuffer();
   DoVertexAttribPointer(1, 2, GL_FLOAT, 0, 0);
-  AddExpectationsForSimulatedAttrib0(kMaxValidIndex + 1, kServiceBufferId);
   SetupExpectationsForApplyingDefaultDirtyState();
 
   EXPECT_CALL(*gl_,
@@ -1339,7 +1129,6 @@ TEST_P(GLES2DecoderWithShaderTest, DrawElementsDeletedBufferFails) {
 TEST_P(GLES2DecoderWithShaderTest, DrawElementsDeletedProgramSucceeds) {
   SetupTexture();
   SetupIndexBuffer();
-  AddExpectationsForSimulatedAttrib0(kMaxValidIndex + 1, 0);
   SetupExpectationsForApplyingDefaultDirtyState();
   DoDeleteProgram(client_program_id_, kServiceProgramId);
 
@@ -1367,9 +1156,7 @@ TEST_P(GLES2DecoderWithShaderTest, DrawElementsWithInvalidModeFails) {
            kValidIndexRangeStart * 2);
   EXPECT_EQ(error::kNoError, ExecuteCmd(cmd));
   EXPECT_EQ(GL_INVALID_ENUM, GetGLError());
-  cmd.Init(GL_POLYGON,
-           kValidIndexRangeCount,
-           GL_UNSIGNED_SHORT,
+  cmd.Init(0x0009 /* GL_POLYGON */, kValidIndexRangeCount, GL_UNSIGNED_SHORT,
            kValidIndexRangeStart);
   EXPECT_EQ(error::kNoError, ExecuteCmd(cmd));
   EXPECT_EQ(GL_INVALID_ENUM, GetGLError());
@@ -1462,42 +1249,6 @@ TEST_P(GLES2DecoderGeometryInstancingTest,
 }
 
 TEST_P(GLES2DecoderGeometryInstancingTest,
-       DrawElementsInstancedANGLESimulatedAttrib0) {
-  SetupTexture();
-  SetupVertexBuffer();
-  SetupIndexBuffer();
-  DoVertexAttribPointer(1, 2, GL_FLOAT, 0, 0);
-
-  AddExpectationsForSimulatedAttrib0(kMaxValidIndex + 1, kServiceBufferId);
-  SetupExpectationsForApplyingDefaultDirtyState();
-
-  DoVertexAttribDivisorANGLE(0, 1);
-  EXPECT_CALL(
-      *gl_,
-      DrawElementsInstancedANGLE(GL_TRIANGLES,
-                                 kValidIndexRangeCount,
-                                 GL_UNSIGNED_SHORT,
-                                 BufferOffset(kValidIndexRangeStart * 2),
-                                 3))
-      .Times(1)
-      .RetiresOnSaturation();
-  EXPECT_CALL(*gl_, VertexAttribDivisorANGLE(0, 0))
-      .Times(1)
-      .RetiresOnSaturation();
-  EXPECT_CALL(*gl_, VertexAttribDivisorANGLE(0, 1))
-      .Times(1)
-      .RetiresOnSaturation();
-  cmds::DrawElementsInstancedANGLE cmd;
-  cmd.Init(GL_TRIANGLES,
-           kValidIndexRangeCount,
-           GL_UNSIGNED_SHORT,
-           kValidIndexRangeStart * 2,
-           3);
-  EXPECT_EQ(error::kNoError, ExecuteCmd(cmd));
-  EXPECT_EQ(GL_NO_ERROR, GetGLError());
-}
-
-TEST_P(GLES2DecoderGeometryInstancingTest,
        DrawElementsInstancedANGLEMissingAttributesFails) {
   SetupIndexBuffer();
   DoEnableVertexAttribArray(1);
@@ -1532,12 +1283,7 @@ TEST_P(GLES2DecoderGeometryInstancingTest,
   SetupVertexBuffer();
   DoEnableVertexAttribArray(1);
   DoVertexAttribPointer(1, 2, GL_FLOAT, 0, 0);
-  AddExpectationsForSimulatedAttrib0(kMaxValidIndex + 1, kServiceBufferId);
   SetupExpectationsForApplyingDefaultDirtyState();
-
-  EXPECT_CALL(*gl_, VertexAttribDivisorANGLE(0, 0))
-        .Times(1)
-        .RetiresOnSaturation();
 
   EXPECT_CALL(
       *gl_,
@@ -2013,8 +1759,7 @@ TEST_P(GLES2DecoderWithShaderTest, DrawClearsAfterRenderbufferStorageInFBO) {
       GL_RENDERBUFFER, client_renderbuffer_id_, kServiceRenderbufferId);
   DoBindFramebuffer(
       GL_FRAMEBUFFER, client_framebuffer_id_, kServiceFramebufferId);
-  DoRenderbufferStorage(
-      GL_RENDERBUFFER, GL_RGBA4, GL_RGBA, 100, 50, GL_NO_ERROR);
+  DoRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA4, 100, 50, GL_NO_ERROR);
   DoFramebufferRenderbuffer(GL_FRAMEBUFFER,
                             GL_COLOR_ATTACHMENT0,
                             GL_RENDERBUFFER,
@@ -2033,7 +1778,6 @@ TEST_P(GLES2DecoderWithShaderTest, DrawClearsAfterRenderbufferStorageInFBO) {
                                           false,  // scissor test
                                           0, 0, 1, 1);
 
-  AddExpectationsForSimulatedAttrib0(kNumVertices, 0);
   SetupExpectationsForApplyingDirtyState(false,   // Framebuffer is RGB
                                          false,   // Framebuffer has depth
                                          false,   // Framebuffer has stencil
@@ -2106,7 +1850,6 @@ TEST_P(GLES2DecoderManualInitTest, DrawArraysClearsAfterTexImage2DNULLCubemap) {
                                 GL_TEXTURE_CUBE_MAP,
                                 GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 1, GL_RGBA,
                                 GL_UNSIGNED_BYTE, 0, 0, 1, 1, 0);
-  AddExpectationsForSimulatedAttrib0(kNumVertices, 0);
   SetupExpectationsForApplyingDefaultDirtyState();
   EXPECT_CALL(*gl_, DrawArrays(GL_TRIANGLES, 0, kNumVertices))
       .Times(1)
@@ -2147,7 +1890,6 @@ TEST_P(GLES2DecoderWithShaderTest,
       GL_FRAMEBUFFER, client_framebuffer_id_, kServiceFramebufferId);
   DoRenderbufferStorage(GL_RENDERBUFFER,
                         GL_DEPTH_COMPONENT16,
-                        GL_DEPTH_COMPONENT,
                         1,
                         1,
                         GL_NO_ERROR);
@@ -2170,7 +1912,6 @@ TEST_P(GLES2DecoderWithShaderTest,
       false,  // scissor test
       0, 0, 1, 1);
 
-  AddExpectationsForSimulatedAttrib0(kNumVertices, 0);
   SetupExpectationsForApplyingDirtyState(false,   // Framebuffer is RGB
                                          true,    // Framebuffer has depth
                                          false,   // Framebuffer has stencil
@@ -2267,8 +2008,8 @@ TEST_P(GLES2DecoderManualInitTest, DrawClearsDepthTexture) {
   constexpr GLenum attachment = GL_DEPTH_ATTACHMENT;
   constexpr GLenum target = GL_TEXTURE_2D;
   constexpr GLint level = 0;
-  // Note that the target framebuffer will be GL_FRAMEBUFFER_EXT for ES2.
-  constexpr GLenum fb_target = GL_FRAMEBUFFER_EXT;
+  // Note that the target framebuffer will be GL_FRAMEBUFFER for ES2.
+  constexpr GLenum fb_target = GL_FRAMEBUFFER;
   DoBindTexture(target, client_texture_id_, kServiceTextureId);
 
   // Create a depth texture.
@@ -2349,8 +2090,8 @@ TEST_P(GLES2DecoderManualInitTest, DrawClearsLargeTexture) {
   constexpr GLenum attachment = GL_COLOR_ATTACHMENT0;
   constexpr GLenum target = GL_TEXTURE_2D;
   constexpr GLint level = 0;
-  // Note that the target framebuffer will be GL_DRAW_FRAMEBUFFER_EXT for ES3.
-  constexpr GLenum fb_target = GL_DRAW_FRAMEBUFFER_EXT;
+  // Note that the target framebuffer will be GL_DRAW_FRAMEBUFFER for ES3.
+  constexpr GLenum fb_target = GL_DRAW_FRAMEBUFFER;
   DoBindTexture(target, client_texture_id_, kServiceTextureId);
 
   // Create an RGBA texture.

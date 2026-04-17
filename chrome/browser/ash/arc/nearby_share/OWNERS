@@ -1,10 +1,6 @@
-alanding@chromium.org
 
 # For Sharesheet integration:
-melzhang@chromium.org
+file://chrome/browser/sharesheet/OWNERS
 
 # For Nearby Share integration:
 hansenmichael@google.com
-
-# For backup:
-tsergeant@chromium.org

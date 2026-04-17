@@ -5,6 +5,7 @@
 #include "quiche/quic/tools/connect_tunnel.h"
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -14,7 +15,6 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "absl/types/span.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_server_id.h"
@@ -23,9 +23,9 @@
 #include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/quic/tools/quic_name_lookup.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/common/platform/api/quiche_mem_slice.h"
-#include "quiche/spdy/core/http2_header_block.h"
+#include "quiche/common/quiche_mem_slice.h"
 
 namespace quic {
 
@@ -34,8 +34,8 @@ namespace {
 // Arbitrarily chosen. No effort has been made to figure out an optimal size.
 constexpr size_t kReadSize = 4 * 1024;
 
-absl::optional<QuicServerId> ValidateHeadersAndGetAuthority(
-    const spdy::Http2HeaderBlock& request_headers) {
+std::optional<QuicServerId> ValidateHeadersAndGetAuthority(
+    const quiche::HttpHeaderBlock& request_headers) {
   QUICHE_DCHECK(request_headers.contains(":method"));
   QUICHE_DCHECK(request_headers.find(":method")->second == "CONNECT");
   QUICHE_DCHECK(!request_headers.contains(":protocol"));
@@ -44,31 +44,31 @@ absl::optional<QuicServerId> ValidateHeadersAndGetAuthority(
   if (scheme_it != request_headers.end()) {
     QUICHE_DVLOG(1) << "CONNECT request contains unexpected scheme: "
                     << scheme_it->second;
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   auto path_it = request_headers.find(":path");
   if (path_it != request_headers.end()) {
     QUICHE_DVLOG(1) << "CONNECT request contains unexpected path: "
                     << path_it->second;
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   auto authority_it = request_headers.find(":authority");
   if (authority_it == request_headers.end() || authority_it->second.empty()) {
     QUICHE_DVLOG(1) << "CONNECT request missing authority";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // A valid CONNECT authority must contain host and port and nothing else, per
   // https://www.rfc-editor.org/rfc/rfc9110.html#name-connect. This matches the
   // host and port parsing rules for QuicServerId.
-  absl::optional<QuicServerId> server_id =
+  std::optional<QuicServerId> server_id =
       QuicServerId::ParseFromHostPortString(authority_it->second);
   if (!server_id.has_value()) {
     QUICHE_DVLOG(1) << "CONNECT request authority is malformed: "
                     << authority_it->second;
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return server_id;
@@ -108,10 +108,10 @@ ConnectTunnel::~ConnectTunnel() {
   QUICHE_DCHECK(!receive_started_);
 }
 
-void ConnectTunnel::OpenTunnel(const spdy::Http2HeaderBlock& request_headers) {
+void ConnectTunnel::OpenTunnel(const quiche::HttpHeaderBlock& request_headers) {
   QUICHE_DCHECK(!IsConnectedToDestination());
 
-  absl::optional<QuicServerId> authority =
+  std::optional<QuicServerId> authority =
       ValidateHeadersAndGetAuthority(request_headers);
   if (!authority.has_value()) {
     TerminateClientStream(
@@ -266,7 +266,7 @@ void ConnectTunnel::SendConnectResponse() {
   QUICHE_DCHECK(IsConnectedToDestination());
   QUICHE_DCHECK(client_stream_request_handler_);
 
-  spdy::Http2HeaderBlock response_headers;
+  quiche::HttpHeaderBlock response_headers;
   response_headers[":status"] = "200";
 
   QuicBackendResponse response;

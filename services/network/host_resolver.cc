@@ -4,6 +4,7 @@
 
 #include "services/network/host_resolver.h"
 
+#include <optional>
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -24,7 +25,6 @@
 #include "services/network/public/mojom/host_resolver.mojom-shared.h"
 #include "services/network/public/mojom/host_resolver.mojom.h"
 #include "services/network/resolve_host_request.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace network {
 namespace {
@@ -34,11 +34,11 @@ HostResolver::ResolveHostCallback& GetResolveHostCallback() {
   return *callback;
 }
 
-absl::optional<net::HostResolver::ResolveHostParameters>
+std::optional<net::HostResolver::ResolveHostParameters>
 ConvertOptionalParameters(
     const mojom::ResolveHostParametersPtr& mojo_parameters) {
   if (!mojo_parameters)
-    return absl::nullopt;
+    return std::nullopt;
 
   net::HostResolver::ResolveHostParameters parameters;
   parameters.dns_query_type = mojo_parameters->dns_query_type;
@@ -71,12 +71,16 @@ HostResolver::HostResolver(
     mojo::PendingReceiver<mojom::HostResolver> resolver_receiver,
     ConnectionShutdownCallback connection_shutdown_callback,
     net::HostResolver* internal_resolver,
+    std::unique_ptr<net::HostResolver> owned_internal_resolver,
     net::NetLog* net_log)
     : receiver_(this),
       pending_receiver_(std::move(resolver_receiver)),
       connection_shutdown_callback_(std::move(connection_shutdown_callback)),
+      owned_internal_resolver_(std::move(owned_internal_resolver)),
       internal_resolver_(internal_resolver),
       net_log_(net_log) {
+  DCHECK(!owned_internal_resolver_ ||
+         internal_resolver_ == owned_internal_resolver_.get());
   // Bind the pending receiver asynchronously to give the resolver a chance
   // to set up (some resolvers need to obtain the system config asynchronously).
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
@@ -100,7 +104,7 @@ void HostResolver::ResolveHost(
     mojom::ResolveHostParametersPtr optional_parameters,
     mojo::PendingRemote<mojom::ResolveHostClient> response_client) {
 #if !BUILDFLAG(ENABLE_MDNS)
-  // TODO(crbug.com/821021): Handle without crashing if we create restricted
+  // TODO(crbug.com/41375980): Handle without crashing if we create restricted
   // HostResolvers for passing to untrusted processes.
   DCHECK(!optional_parameters ||
          optional_parameters->source != net::HostResolverSource::MULTICAST_DNS);
@@ -138,10 +142,7 @@ void HostResolver::MdnsListen(
     net::DnsQueryType query_type,
     mojo::PendingRemote<mojom::MdnsListenClient> response_client,
     MdnsListenCallback callback) {
-#if !BUILDFLAG(ENABLE_MDNS)
-  NOTREACHED();
-#endif  // !BUILDFLAG(ENABLE_MDNS)
-
+#if BUILDFLAG(ENABLE_MDNS)
   auto listener = std::make_unique<HostResolverMdnsListener>(internal_resolver_,
                                                              host, query_type);
   int rv =
@@ -154,6 +155,9 @@ void HostResolver::MdnsListen(
   }
 
   std::move(callback).Run(rv);
+#else
+  NOTREACHED();
+#endif  // BUILDFLAG(ENABLE_MDNS)
 }
 
 size_t HostResolver::GetNumOutstandingRequestsForTesting() const {
@@ -176,13 +180,13 @@ void HostResolver::OnResolveHostComplete(ResolveHostRequest* request,
   DCHECK_NE(net::ERR_IO_PENDING, error);
 
   auto found_request = requests_.find(request);
-  DCHECK(found_request != requests_.end());
+  CHECK(found_request != requests_.end());
   requests_.erase(found_request);
 }
 
 void HostResolver::OnMdnsListenerCancelled(HostResolverMdnsListener* listener) {
   auto found_listener = listeners_.find(listener);
-  DCHECK(found_listener != listeners_.end());
+  CHECK(found_listener != listeners_.end());
   listeners_.erase(found_listener);
 }
 

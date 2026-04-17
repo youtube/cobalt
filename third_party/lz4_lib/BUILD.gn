@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+config("disable_warnings") {
+  cflags = [ "-Wno-implicit-fallthrough" ]
+}
+
 static_library("lz4") {
   include_dirs = [ "." ]
   defines = [ "XXH_NAMESPACE=LZ4_" ]
@@ -20,6 +24,8 @@ static_library("lz4") {
     "lz4_all.c",
     "xxhash.c",
   ]
+
+  configs += [ ":disable_warnings" ]
 
   # We want to build non-Starboardized code for the host toolchain.
   if (current_toolchain != host_toolchain) {

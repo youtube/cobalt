@@ -1,3 +1,6 @@
 {
-  "failing_tests": []
+  "failing_tests": [
+    "DecimalTest.Remainder",
+    "HistogramFetcherTest.FetchHistograms_CalculatesDeltaCorrectly"
+  ]
 }

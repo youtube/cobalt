@@ -12,6 +12,7 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -37,9 +38,8 @@
 #include "components/sync/model/in_memory_metadata_change_list.h"
 #include "components/sync/model/metadata_batch.h"
 #include "components/sync/protocol/entity_data.h"
-#include "components/sync/protocol/model_type_state.pb.h"
-#include "components/sync/test/mock_model_type_change_processor.h"
-#include "components/sync/test/model_type_store_test_util.h"
+#include "components/sync/test/data_type_store_test_util.h"
+#include "components/sync/test/mock_data_type_local_change_processor.h"
 #include "components/sync/test/test_matchers.h"
 #include "desk_model_wrapper.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -79,11 +79,12 @@ std::string GetPolicyStringWithOneTemplate() {
 // found, false if not.
 bool FindUuidInUuidList(
     const std::string& uuid_query,
-    const std::vector<const ash::DeskTemplate*>& entry_list) {
+    const std::vector<raw_ptr<const ash::DeskTemplate, VectorExperimental>>&
+        entry_list) {
   base::Uuid guid = base::Uuid::ParseCaseInsensitive(uuid_query);
   DCHECK(guid.is_valid());
 
-  for (auto* entry : entry_list) {
+  for (const ash::DeskTemplate* entry : entry_list) {
     if (entry->uuid() == guid)
       return true;
   }
@@ -155,7 +156,8 @@ class MockDeskModelObserver : public DeskModelObserver {
  public:
   MOCK_METHOD0(DeskModelLoaded, void());
   MOCK_METHOD1(EntriesAddedOrUpdatedRemotely,
-               void(const std::vector<const ash::DeskTemplate*>&));
+               void(const std::vector<
+                    raw_ptr<const ash::DeskTemplate, VectorExperimental>>&));
   MOCK_METHOD1(EntriesRemovedRemotely, void(const std::vector<base::Uuid>&));
 };
 
@@ -187,7 +189,7 @@ class DeskModelWrapperTest : public testing::Test {
         cache_(std::make_unique<apps::AppRegistryCache>()),
         account_id_(AccountId::FromUserEmail("test@gmail.com")),
         data_manager_(std::unique_ptr<LocalDeskDataManager>()),
-        store_(syncer::ModelTypeStoreTestUtil::CreateInMemoryStoreForTest()) {}
+        store_(syncer::DataTypeStoreTestUtil::CreateInMemoryStoreForTest()) {}
 
   DeskModelWrapperTest(const DeskModelWrapperTest&) = delete;
   DeskModelWrapperTest& operator=(const DeskModelWrapperTest&) = delete;
@@ -209,7 +211,7 @@ class DeskModelWrapperTest : public testing::Test {
         .WillByDefault(testing::Return(true));
     bridge_ = std::make_unique<DeskSyncBridge>(
         mock_processor_.CreateForwardingProcessor(),
-        syncer::ModelTypeStoreTestUtil::FactoryForForwardingStore(store_.get()),
+        syncer::DataTypeStoreTestUtil::FactoryForForwardingStore(store_.get()),
         account_id_);
     bridge_->AddObserver(&mock_observer_);
   }
@@ -312,10 +314,10 @@ class DeskModelWrapperTest : public testing::Test {
   std::unique_ptr<apps::AppRegistryCache> cache_;
   AccountId account_id_;
   std::unique_ptr<LocalDeskDataManager> data_manager_;
-  std::unique_ptr<syncer::ModelTypeStore> store_;
-  testing::NiceMock<syncer::MockModelTypeChangeProcessor> mock_processor_;
-  std::unique_ptr<DeskSyncBridge> bridge_;
+  std::unique_ptr<syncer::DataTypeStore> store_;
+  testing::NiceMock<syncer::MockDataTypeLocalChangeProcessor> mock_processor_;
   testing::NiceMock<MockDeskModelObserver> mock_observer_;
+  std::unique_ptr<DeskSyncBridge> bridge_;
   std::unique_ptr<DeskModelWrapper> model_wrapper_;
 };
 
@@ -415,11 +417,11 @@ TEST_F(DeskModelWrapperTest, GetAllEntriesIncludesPolicyValues) {
   EXPECT_TRUE(
       FindUuidInUuidList(MakeTestUuidString(TestUuidId(5)), result.entries));
   // One of these templates should be from policy.
-  EXPECT_EQ(base::ranges::count_if(result.entries,
-                                   [](const ash::DeskTemplate* entry) {
-                                     return entry->source() ==
-                                            ash::DeskTemplateSource::kPolicy;
-                                   }),
+  EXPECT_EQ(std::ranges::count_if(result.entries,
+                                  [](const ash::DeskTemplate* entry) {
+                                    return entry->source() ==
+                                           ash::DeskTemplateSource::kPolicy;
+                                  }),
             1l);
 
   model_wrapper_->SetPolicyDeskTemplates("");

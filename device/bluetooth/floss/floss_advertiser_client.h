@@ -17,7 +17,7 @@
 namespace floss {
 
 constexpr char kAdvertisingSetCallbackPath[] =
-    "/org/chromium/bluetooth/advertising_set_callback";
+    "/org/chromium/bluetooth/advertising_set/callback";
 
 // Represents type of address to advertise.
 enum class OwnAddressType {
@@ -26,8 +26,25 @@ enum class OwnAddressType {
   kRandom = 2,
 };
 
-// Represents parameters of an advertising set.
+// Represents the parameters of an advertising set. Supports Floss API version
+// 0.4.0 or earlier.
+struct AdvertisingSetParametersOld {
+  bool connectable;
+  bool scannable;
+  bool is_legacy;
+  bool is_anonymous;
+  bool include_tx_power;
+  LePhy primary_phy;
+  LePhy secondary_phy;
+  int32_t interval;        // Advertising interval in 0.625 ms unit.
+  int32_t tx_power_level;  // Transmission power of advertising in dBm.
+  OwnAddressType own_address_type;
+};
+
+// Represents the parameters of an advertising set. Supports Floss API versions
+// greater than 0.4.0.
 struct AdvertisingSetParameters {
+  LeDiscoverableMode discoverable;
   bool connectable;
   bool scannable;
   bool is_legacy;
@@ -161,6 +178,7 @@ class DEVICE_BLUETOOTH_EXPORT FlossAdvertiserClient
   void Init(dbus::Bus* bus,
             const std::string& service_name,
             const int adapter_index,
+            base::Version version,
             base::OnceClosure on_ready) override;
 
   // Manages observers.
@@ -176,9 +194,9 @@ class DEVICE_BLUETOOTH_EXPORT FlossAdvertiserClient
   virtual void StartAdvertisingSet(
       const AdvertisingSetParameters& params,
       const AdvertiseData& adv_data,
-      const absl::optional<AdvertiseData> scan_rsp,
-      const absl::optional<PeriodicAdvertisingParameters> periodic_params,
-      const absl::optional<AdvertiseData> periodic_data,
+      const std::optional<AdvertiseData> scan_rsp,
+      const std::optional<PeriodicAdvertisingParameters> periodic_params,
+      const std::optional<AdvertiseData> periodic_data,
       const int32_t duration,
       const int32_t max_ext_adv_events,
       StartSuccessCallback success_callback,
@@ -203,6 +221,9 @@ class DEVICE_BLUETOOTH_EXPORT FlossAdvertiserClient
   // Completes the method call for RegisterAdvertiserCallback.
   void CompleteRegisterCallback(dbus::Response* response,
                                 dbus::ErrorResponse* error_response);
+
+  // Completes the method call for UnregisterAdvertiserCallback.
+  void CompleteUnregisterCallback(DBusResult<bool> ret);
 
   // Completes the method call for |StartAdvertisingSet|.
   void CompleteStartAdvertisingSetCallback(
@@ -256,7 +277,7 @@ class DEVICE_BLUETOOTH_EXPORT FlossAdvertiserClient
       AdvertisingStatus status);
 
   // Managed by FlossDBusManager - we keep local pointer to access object proxy.
-  base::raw_ptr<dbus::Bus> bus_ = nullptr;
+  raw_ptr<dbus::Bus> bus_ = nullptr;
 
   // Path used for gatt api calls by this class.
   dbus::ObjectPath gatt_adapter_path_;

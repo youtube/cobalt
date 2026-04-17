@@ -5,10 +5,12 @@
 #include "third_party/blink/renderer/modules/presentation/presentation_connection.h"
 
 #include <memory>
+
 #include "base/task/single_thread_task_runner.h"
 #include "third_party/blink/public/mojom/frame/lifecycle.mojom-blink.h"
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_presentation_connection_state.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/events/message_event.h"
 #include "third_party/blink/renderer/core/fileapi/file_error.h"
@@ -36,11 +38,10 @@ mojom::blink::PresentationConnectionMessagePtr MakeBinaryMessage(
   // Mutating the data field on the message instead of passing in an already
   // populated Vector into message constructor is more efficient since the
   // latter does not support moves.
-  auto message = mojom::blink::PresentationConnectionMessage::NewData(
-      WTF::Vector<uint8_t>());
-  WTF::Vector<uint8_t>& data = message->get_data();
-  data.Append(static_cast<const uint8_t*>(buffer->Data()),
-              base::checked_cast<wtf_size_t>(buffer->ByteLength()));
+  auto message =
+      mojom::blink::PresentationConnectionMessage::NewData(Vector<uint8_t>());
+  Vector<uint8_t>& data = message->get_data();
+  data.AppendSpan(buffer->ByteSpan());
   return message;
 }
 
@@ -49,45 +50,32 @@ mojom::blink::PresentationConnectionMessagePtr MakeTextMessage(
   return mojom::blink::PresentationConnectionMessage::NewMessage(text);
 }
 
-const AtomicString& ConnectionStateToString(
+V8PresentationConnectionState::Enum ConnectionStateToEnum(
     mojom::blink::PresentationConnectionState state) {
-  DEFINE_STATIC_LOCAL(const AtomicString, connecting_value, ("connecting"));
-  DEFINE_STATIC_LOCAL(const AtomicString, connected_value, ("connected"));
-  DEFINE_STATIC_LOCAL(const AtomicString, closed_value, ("closed"));
-  DEFINE_STATIC_LOCAL(const AtomicString, terminated_value, ("terminated"));
-
   switch (state) {
     case mojom::blink::PresentationConnectionState::CONNECTING:
-      return connecting_value;
+      return V8PresentationConnectionState::Enum::kConnecting;
     case mojom::blink::PresentationConnectionState::CONNECTED:
-      return connected_value;
+      return V8PresentationConnectionState::Enum::kConnected;
     case mojom::blink::PresentationConnectionState::CLOSED:
-      return closed_value;
+      return V8PresentationConnectionState::Enum::kClosed;
     case mojom::blink::PresentationConnectionState::TERMINATED:
-      return terminated_value;
+      return V8PresentationConnectionState::Enum::kTerminated;
   }
-
   NOTREACHED();
-  return terminated_value;
 }
 
-const AtomicString& ConnectionCloseReasonToString(
+V8PresentationConnectionCloseReason::Enum ConnectionCloseReasonToEnum(
     mojom::blink::PresentationConnectionCloseReason reason) {
-  DEFINE_STATIC_LOCAL(const AtomicString, error_value, ("error"));
-  DEFINE_STATIC_LOCAL(const AtomicString, closed_value, ("closed"));
-  DEFINE_STATIC_LOCAL(const AtomicString, went_away_value, ("wentaway"));
-
   switch (reason) {
     case mojom::blink::PresentationConnectionCloseReason::CONNECTION_ERROR:
-      return error_value;
+      return V8PresentationConnectionCloseReason::Enum::kError;
     case mojom::blink::PresentationConnectionCloseReason::CLOSED:
-      return closed_value;
+      return V8PresentationConnectionCloseReason::Enum::kClosed;
     case mojom::blink::PresentationConnectionCloseReason::WENT_AWAY:
-      return went_away_value;
+      return V8PresentationConnectionCloseReason::Enum::kWentaway;
   }
-
   NOTREACHED();
-  return error_value;
 }
 
 void ThrowPresentationDisconnectedError(ExceptionState& exception_state) {
@@ -163,7 +151,6 @@ PresentationConnection::PresentationConnection(LocalDOMWindow& window,
       state_(mojom::blink::PresentationConnectionState::CONNECTING),
       connection_receiver_(this, &window),
       target_connection_(&window),
-      binary_type_(kBinaryTypeArrayBuffer),
       file_reading_task_runner_(window.GetTaskRunner(TaskType::kFileReading)) {
   UpdateStateIfNeeded();
 }
@@ -175,8 +162,7 @@ PresentationConnection::~PresentationConnection() {
 void PresentationConnection::OnMessage(
     mojom::blink::PresentationConnectionMessagePtr message) {
   if (message->is_data()) {
-    const auto& data = message->get_data();
-    DidReceiveBinaryMessage(&data.front(), data.size());
+    DidReceiveBinaryMessage(message->get_data());
   } else {
     DidReceiveTextMessage(message->get_message());
   }
@@ -215,23 +201,20 @@ void PresentationConnection::DidClose(
 }
 
 // static
-ControllerPresentationConnection* ControllerPresentationConnection::Take(
-    ScriptPromiseResolver* resolver,
+ControllerPresentationConnection* ControllerPresentationConnection::Create(
+    ExecutionContext* execution_context,
     const mojom::blink::PresentationInfo& presentation_info,
     PresentationRequest* request) {
-  DCHECK(resolver);
   DCHECK(request);
 
   PresentationController* controller =
-      PresentationController::FromContext(resolver->GetExecutionContext());
-  if (!controller)
-    return nullptr;
+      PresentationController::FromContext(execution_context);
 
-  return Take(controller, presentation_info, request);
+  return controller ? Create(controller, presentation_info, request) : nullptr;
 }
 
 // static
-ControllerPresentationConnection* ControllerPresentationConnection::Take(
+ControllerPresentationConnection* ControllerPresentationConnection::Create(
     PresentationController* controller,
     const mojom::blink::PresentationInfo& presentation_info,
     PresentationRequest* request) {
@@ -299,7 +282,7 @@ void ControllerPresentationConnection::TerminateInternal() {
 }
 
 // static
-ReceiverPresentationConnection* ReceiverPresentationConnection::Take(
+ReceiverPresentationConnection* ReceiverPresentationConnection::Create(
     PresentationReceiver* receiver,
     const mojom::blink::PresentationInfo& presentation_info,
     mojo::PendingRemote<mojom::blink::PresentationConnection>
@@ -389,8 +372,7 @@ ExecutionContext* PresentationConnection::GetExecutionContext() const {
 void PresentationConnection::AddedEventListener(
     const AtomicString& event_type,
     RegisteredEventListener& registered_listener) {
-  EventTargetWithInlineData::AddedEventListener(event_type,
-                                                registered_listener);
+  EventTarget::AddedEventListener(event_type, registered_listener);
   if (event_type == event_type_names::kConnect) {
     UseCounter::Count(GetExecutionContext(),
                       WebFeature::kPresentationConnectionConnectEventListener);
@@ -430,12 +412,12 @@ void PresentationConnection::Trace(Visitor* visitor) const {
   visitor->Trace(target_connection_);
   visitor->Trace(blob_loader_);
   visitor->Trace(messages_);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
   ExecutionContextLifecycleStateObserver::Trace(visitor);
 }
 
-const AtomicString& PresentationConnection::state() const {
-  return ConnectionStateToString(state_);
+V8PresentationConnectionState PresentationConnection::state() const {
+  return V8PresentationConnectionState(ConnectionStateToEnum(state_));
 }
 
 void PresentationConnection::send(const String& message,
@@ -543,27 +525,12 @@ void PresentationConnection::HandleMessageQueue() {
   }
 }
 
-String PresentationConnection::binaryType() const {
-  switch (binary_type_) {
-    case kBinaryTypeBlob:
-      return "blob";
-    case kBinaryTypeArrayBuffer:
-      return "arraybuffer";
-  }
-  NOTREACHED();
-  return String();
+V8BinaryType PresentationConnection::binaryType() const {
+  return V8BinaryType(binary_type_);
 }
 
-void PresentationConnection::setBinaryType(const String& binary_type) {
-  if (binary_type == "blob") {
-    binary_type_ = kBinaryTypeBlob;
-    return;
-  }
-  if (binary_type == "arraybuffer") {
-    binary_type_ = kBinaryTypeArrayBuffer;
-    return;
-  }
-  NOTREACHED();
+void PresentationConnection::setBinaryType(const V8BinaryType& binary_type) {
+  binary_type_ = binary_type.AsEnum();
 }
 
 void PresentationConnection::SendMessageToTargetConnection(
@@ -579,22 +546,22 @@ void PresentationConnection::DidReceiveTextMessage(const WebString& message) {
   DispatchEvent(*MessageEvent::Create(message));
 }
 
-void PresentationConnection::DidReceiveBinaryMessage(const uint8_t* data,
-                                                     uint32_t length) {
+void PresentationConnection::DidReceiveBinaryMessage(
+    base::span<const uint8_t> data) {
   if (state_ != mojom::blink::PresentationConnectionState::CONNECTED)
     return;
 
   switch (binary_type_) {
-    case kBinaryTypeBlob: {
+    case V8BinaryType::Enum::kBlob: {
       auto blob_data = std::make_unique<BlobData>();
-      blob_data->AppendBytes(data, length);
+      blob_data->AppendBytes(data);
       auto* blob = MakeGarbageCollected<Blob>(
-          BlobDataHandle::Create(std::move(blob_data), length));
+          BlobDataHandle::Create(std::move(blob_data), data.size()));
       DispatchEvent(*MessageEvent::Create(blob));
       return;
     }
-    case kBinaryTypeArrayBuffer:
-      DOMArrayBuffer* buffer = DOMArrayBuffer::Create(data, length);
+    case V8BinaryType::Enum::kArraybuffer:
+      DOMArrayBuffer* buffer = DOMArrayBuffer::Create(data);
       DispatchEvent(*MessageEvent::Create(buffer));
       return;
   }
@@ -633,7 +600,7 @@ void PresentationConnection::DidClose(
   state_ = mojom::blink::PresentationConnectionState::CLOSED;
   EnqueueEvent(*PresentationConnectionCloseEvent::Create(
                    event_type_names::kClose,
-                   ConnectionCloseReasonToString(reason), message),
+                   ConnectionCloseReasonToEnum(reason), message),
                TaskType::kPresentation);
 }
 

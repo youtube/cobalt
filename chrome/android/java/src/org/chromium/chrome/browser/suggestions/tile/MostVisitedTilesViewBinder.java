@@ -11,21 +11,18 @@ import static org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesPrope
 import static org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesProperties.PLACEHOLDER_VIEW;
 
 import android.view.View;
-import android.view.ViewGroup;
 
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 
 /** Model-to-View binder for most visited list. Handles view manipulations. */
 final class MostVisitedTilesViewBinder {
-    /**
-     * The view holder holds the most visited container layout and most visited tiles layout.
-     */
+    /** The view holder holds the most visited container layout and most visited tiles layout. */
     public static class ViewHolder {
         public final View mvContainerLayout;
-        public final ViewGroup mvTilesLayout;
+        public final MostVisitedTilesLayout mvTilesLayout;
 
-        ViewHolder(View mvContainerLayout, ViewGroup mvTilesLayout) {
+        ViewHolder(View mvContainerLayout, MostVisitedTilesLayout mvTilesLayout) {
             this.mvContainerLayout = mvContainerLayout;
             this.mvTilesLayout = mvTilesLayout;
         }
@@ -42,13 +39,9 @@ final class MostVisitedTilesViewBinder {
             model.get(PLACEHOLDER_VIEW)
                     .setVisibility(model.get(IS_MVT_LAYOUT_VISIBLE) ? View.GONE : View.VISIBLE);
         } else if (HORIZONTAL_INTERVAL_PADDINGS == propertyKey) {
-            assert viewHolder.mvTilesLayout instanceof MostVisitedTilesCarouselLayout;
-            ((MostVisitedTilesCarouselLayout) viewHolder.mvTilesLayout)
-                    .setIntervalPaddings(model.get(HORIZONTAL_INTERVAL_PADDINGS));
+            viewHolder.mvTilesLayout.setIntervalMargins(model.get(HORIZONTAL_INTERVAL_PADDINGS));
         } else if (HORIZONTAL_EDGE_PADDINGS == propertyKey) {
-            assert viewHolder.mvTilesLayout instanceof MostVisitedTilesCarouselLayout;
-            ((MostVisitedTilesCarouselLayout) viewHolder.mvTilesLayout)
-                    .setEdgePaddings(model.get(HORIZONTAL_EDGE_PADDINGS));
+            viewHolder.mvTilesLayout.setEdgeMargins(model.get(HORIZONTAL_EDGE_PADDINGS));
         }
     }
 }

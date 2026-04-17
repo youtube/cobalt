@@ -16,30 +16,29 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/browser_process_impl.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/version/version_handler.h"
-#include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/channel_info.h"
 #include "chrome/common/url_constants.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/embedder_support/user_agent_utils.h"
-#include "components/grit/components_resources.h"
 #include "components/grit/components_scaled_resources.h"
-#include "components/strings/grit/components_chromium_strings.h"
+#include "components/grit/version_ui_resources.h"
+#include "components/grit/version_ui_resources_map.h"
+#include "components/strings/grit/components_branded_strings.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/variations/service/variations_service.h"
 #include "components/version_info/version_info.h"
-#include "components/version_ui/version_handler_helper.h"
-#include "components/version_ui/version_ui_constants.h"
+#include "components/webui/version/version_handler_helper.h"
+#include "components/webui/version/version_ui_constants.h"
 #include "content/public/browser/url_data_source.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
-#include "content/public/common/user_agent.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/webui/web_ui_util.h"
+#include "ui/webui/webui_util.h"
 #include "v8/include/v8-version-string.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -50,6 +49,7 @@
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
+#include "build/util/LASTCHANGE_commit_position.h"
 #include "chrome/browser/ui/webui/version/version_handler_chromeos.h"
 #endif
 
@@ -63,10 +63,6 @@
 #include "chrome/browser/ui/webui/version/version_util_win.h"
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chromeos/startup/browser_params_proxy.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
-
 using content::WebUIDataSource;
 
 namespace {
@@ -76,53 +72,48 @@ void CreateAndAddVersionUIDataSource(Profile* profile) {
       WebUIDataSource::CreateAndAdd(profile, chrome::kChromeUIVersionHost);
   // These localized strings are used to label version details.
   static constexpr webui::LocalizedString kStrings[] = {
-    {version_ui::kTitle, IDS_VERSION_UI_TITLE},
-    {version_ui::kLogoAltText, IDS_SHORT_PRODUCT_LOGO_ALT_TEXT},
-    {version_ui::kApplicationLabel, IDS_PRODUCT_NAME},
-    {version_ui::kCompany, IDS_ABOUT_VERSION_COMPANY_NAME},
-    {version_ui::kCopyLabel, IDS_VERSION_UI_COPY_LABEL},
-    {version_ui::kRevision, IDS_VERSION_UI_REVISION},
-    {version_ui::kUserAgentName, IDS_VERSION_UI_USER_AGENT},
-    {version_ui::kCommandLineName, IDS_VERSION_UI_COMMAND_LINE},
-    {version_ui::kExecutablePathName, IDS_VERSION_UI_EXECUTABLE_PATH},
-    {version_ui::kProfilePathName, IDS_VERSION_UI_PROFILE_PATH},
-    {version_ui::kVariationsName, IDS_VERSION_UI_VARIATIONS},
-    {version_ui::kVariationsCmdName, IDS_VERSION_UI_VARIATIONS_CMD},
-    {version_ui::kVariationsSeedName, IDS_VERSION_UI_VARIATIONS_SEED_NAME},
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-    {version_ui::kARC, IDS_ARC_LABEL},
-    {version_ui::kPlatform, IDS_PLATFORM_LABEL},
-    {version_ui::kCustomizationId, IDS_VERSION_UI_CUSTOMIZATION_ID},
-    {version_ui::kFirmwareVersion, IDS_VERSION_UI_FIRMWARE_VERSION},
-#else
-    {version_ui::kOSName, IDS_VERSION_UI_OS},
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+      {version_ui::kTitle, IDS_VERSION_UI_TITLE},
+      {version_ui::kLogoAltText, IDS_SHORT_PRODUCT_LOGO_ALT_TEXT},
+      {version_ui::kApplicationLabel, IDS_PRODUCT_NAME},
+      {version_ui::kCompany, IDS_ABOUT_VERSION_COMPANY_NAME},
+      {version_ui::kCopyLabel, IDS_VERSION_UI_COPY_LABEL},
+      {version_ui::kCopyNotice, IDS_VERSION_UI_COPY_NOTICE},
+      {version_ui::kRevision, IDS_VERSION_UI_REVISION},
+      {version_ui::kUserAgentName, IDS_VERSION_UI_USER_AGENT},
+      {version_ui::kCommandLineName, IDS_VERSION_UI_COMMAND_LINE},
+      {version_ui::kExecutablePathName, IDS_VERSION_UI_EXECUTABLE_PATH},
+      {version_ui::kProfilePathName, IDS_VERSION_UI_PROFILE_PATH},
+      {version_ui::kVariationsName, IDS_VERSION_UI_VARIATIONS},
+      {version_ui::kVariationsCmdName, IDS_VERSION_UI_VARIATIONS_CMD},
+      {version_ui::kCopyVariationsLabel, IDS_VERSION_UI_COPY_VARIATIONS_LABEL},
+      {version_ui::kCopyVariationsNotice,
+       IDS_VERSION_UI_COPY_VARIATIONS_NOTICE},
+      {version_ui::kVariationsSeedName, IDS_VERSION_UI_VARIATIONS_SEED_NAME},
 #if BUILDFLAG(IS_CHROMEOS)
-    {version_ui::kOsVersionHeaderText1, IDS_VERSION_UI_OS_TEXT1_LABEL},
-    {version_ui::kOsVersionHeaderText2, IDS_VERSION_UI_OS_TEXT2_LABEL},
-    {version_ui::kOsVersionHeaderLink, IDS_VERSION_UI_OS_LINK},
+      {version_ui::kARC, IDS_ARC_LABEL},
+      {version_ui::kPlatform, IDS_PLATFORM_LABEL},
+      {version_ui::kCustomizationId, IDS_VERSION_UI_CUSTOMIZATION_ID},
+      {version_ui::kFirmwareVersion, IDS_VERSION_UI_FIRMWARE_VERSION},
+#else
+      {version_ui::kOSName, IDS_VERSION_UI_OS},
 #endif  // BUILDFLAG(IS_CHROMEOS)
 #if BUILDFLAG(IS_ANDROID)
-    {version_ui::kGmsName, IDS_VERSION_UI_GMS},
+      {version_ui::kGmsName, IDS_VERSION_UI_GMS},
 #endif  // BUILDFLAG(IS_ANDROID)
   };
   html_source->AddLocalizedStrings(kStrings);
 
   VersionUI::AddVersionDetailStrings(html_source);
 
+  html_source->AddResourcePaths(kVersionUiResources);
+  html_source->AddResourcePath("", IDR_VERSION_UI_ABOUT_VERSION_HTML);
   html_source->UseStringsJs();
-  html_source->AddResourcePath(version_ui::kVersionJS, IDR_VERSION_UI_JS);
-  html_source->AddResourcePath(version_ui::kAboutVersionCSS,
-                               IDR_VERSION_UI_CSS);
 
 #if BUILDFLAG(IS_ANDROID)
-  html_source->AddResourcePath(version_ui::kAboutVersionMobileCSS,
-                               IDR_VERSION_UI_MOBILE_CSS);
   html_source->AddResourcePath("images/product_logo.png", IDR_PRODUCT_LOGO);
   html_source->AddResourcePath("images/product_logo_white.png",
                                IDR_PRODUCT_LOGO_WHITE);
 #endif  // BUILDFLAG(IS_ANDROID)
-  html_source->SetDefaultResource(IDR_VERSION_UI_HTML);
 }
 
 std::string GetProductModifier() {
@@ -132,13 +123,20 @@ std::string GetProductModifier() {
       !channel_name.empty()) {
     modifier_parts.push_back(std::move(channel_name));
   }
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  modifier_parts.emplace_back("lacros");
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 #if BUILDFLAG(DCHECK_IS_CONFIGURABLE)
   modifier_parts.emplace_back("dcheck");
 #endif  // BUILDFLAG(DCHECK_IS_CONFIGURABLE)
   return base::JoinString(modifier_parts, "-");
+}
+
+std::string GetVersionInformationalSuffix() {
+#if BUILDFLAG(IS_CHROMEOS) && CHROMIUM_COMMIT_POSITION_IS_MAIN
+  // Adds the revision number as a suffix to the version number if the chrome
+  // is built from the main branch.
+  return "-r" CHROMIUM_COMMIT_POSITION_NUMBER;
+#else
+  return "";
+#endif
 }
 
 }  // namespace
@@ -163,7 +161,7 @@ VersionUI::VersionUI(content::WebUI* web_ui)
   CreateAndAddVersionUIDataSource(profile);
 }
 
-VersionUI::~VersionUI() {}
+VersionUI::~VersionUI() = default;
 
 // static
 int VersionUI::VersionProcessorVariation() {
@@ -224,14 +222,11 @@ void VersionUI::AddVersionDetailStrings(content::WebUIDataSource* html_source) {
   // Data strings.
   html_source->AddString(version_ui::kVersion,
                          version_info::GetVersionNumber());
+  html_source->AddString(version_ui::kVersionSuffix,
+                         GetVersionInformationalSuffix());
 
   html_source->AddString(version_ui::kVersionModifier, GetProductModifier());
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  auto* init_params = chromeos::BrowserParamsProxy::Get();
-  html_source->AddString(version_ui::kAshChromeVersion,
-                         init_params->AshChromeVersion().value_or("0.0.0.0"));
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
   html_source->AddString(version_ui::kJSEngine, "V8");
   html_source->AddString(version_ui::kJSVersion, V8_VERSION_STRING);
   html_source->AddString(
@@ -245,12 +240,12 @@ void VersionUI::AddVersionDetailStrings(content::WebUIDataSource* html_source) {
   // Note that the executable path and profile path are retrieved asynchronously
   // and returned in VersionHandler::OnGotFilePaths. The area is initially
   // blank.
-  html_source->AddString(version_ui::kExecutablePath, std::string());
-  html_source->AddString(version_ui::kProfilePath, std::string());
+  html_source->AddString(version_ui::kExecutablePath, std::string_view());
+  html_source->AddString(version_ui::kProfilePath, std::string_view());
 
 #if BUILDFLAG(IS_MAC)
   html_source->AddString(version_ui::kOSType, base::mac::GetOSDisplayName());
-#elif !BUILDFLAG(IS_CHROMEOS_ASH)
+#elif !BUILDFLAG(IS_CHROMEOS)
   html_source->AddString(version_ui::kOSType, version_info::GetOSType());
 #endif  // BUILDFLAG(IS_MAC)
 
@@ -265,8 +260,6 @@ void VersionUI::AddVersionDetailStrings(content::WebUIDataSource* html_source) {
       version_ui::kTargetSdkVersion,
       base::NumberToString(
           base::android::BuildInfo::GetInstance()->target_sdk_version()));
-  html_source->AddString(version_ui::kTargetsU,
-                         AndroidAboutAppInfo::GetTargetsUInfo());
   html_source->AddString(version_ui::kGmsVersion,
                          AndroidAboutAppInfo::GetGmsInfo());
   html_source->AddString(
@@ -281,10 +274,11 @@ void VersionUI::AddVersionDetailStrings(content::WebUIDataSource* html_source) {
           base::CommandLine::ForCurrentProcess()->GetCommandLineString()));
 #else
   std::string command_line;
-  typedef std::vector<std::string> ArgvList;
+  using ArgvList = std::vector<std::string>;
   const ArgvList& argv = base::CommandLine::ForCurrentProcess()->argv();
-  for (auto iter = argv.begin(); iter != argv.end(); iter++)
-    command_line += " " + *iter;
+  for (const auto& iter : argv) {
+    command_line += " " + iter;
+  }
   // TODO(viettrungluu): |command_line| could really have any encoding, whereas
   // below we assumes it's UTF-8.
   html_source->AddString(version_ui::kCommandLine, command_line);
@@ -316,6 +310,7 @@ std::u16string VersionUI::GetAnnotatedVersionStringForUi() {
   return l10n_util::GetStringFUTF16(
       IDS_SETTINGS_ABOUT_PAGE_BROWSER_VERSION,
       base::UTF8ToUTF16(version_info::GetVersionNumber()),
+      base::UTF8ToUTF16(GetVersionInformationalSuffix()),
       l10n_util::GetStringUTF16(version_info::IsOfficialBuild()
                                     ? IDS_VERSION_UI_OFFICIAL
                                     : IDS_VERSION_UI_UNOFFICIAL),

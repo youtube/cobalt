@@ -16,6 +16,7 @@
 #define STARBOARD_ELF_LOADER_ELF_HASH_TABLE_H_
 
 #include <stddef.h>
+
 #include "starboard/elf_loader/elf.h"
 
 namespace elf_loader {

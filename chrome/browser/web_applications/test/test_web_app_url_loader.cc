@@ -6,7 +6,7 @@
 
 #include "base/containers/contains.h"
 #include "base/functional/callback.h"
-#include "base/task/single_thread_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
 
 namespace web_app {
 
@@ -49,10 +49,12 @@ void TestWebAppUrlLoader::AddNextLoadUrlResults(
     responses.results.push(result);
 }
 
-void TestWebAppUrlLoader::LoadUrl(const GURL& url,
-                                  content::WebContents* web_contents,
-                                  UrlComparison url_comparison,
-                                  ResultCallback callback) {
+void TestWebAppUrlLoader::LoadUrl(
+    content::NavigationController::LoadURLParams load_url_params,
+    content::WebContents* web_contents,
+    UrlComparison url_comparison,
+    ResultCallback callback) {
+  const GURL& url = load_url_params.url;
   load_url_tracker_.Run(url, web_contents, url_comparison);
 
   if (should_save_requests_) {
@@ -70,17 +72,8 @@ void TestWebAppUrlLoader::LoadUrl(const GURL& url,
   if (responses.results.empty())
     next_result_map_.erase(url);
 
-  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(callback), result));
-}
-
-void TestWebAppUrlLoader::SetPrepareForLoadResultLoaded() {
-  AddPrepareForLoadResults({WebAppUrlLoader::Result::kUrlLoaded});
-}
-
-void TestWebAppUrlLoader::AddPrepareForLoadResults(
-    const std::vector<Result>& results) {
-  AddNextLoadUrlResults(GURL(url::kAboutBlankURL), results);
 }
 
 TestWebAppUrlLoader::UrlResponses::UrlResponses() = default;

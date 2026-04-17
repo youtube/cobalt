@@ -5,16 +5,22 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_WEBAUTHN_AUTHENTICATOR_BIO_ENROLLMENT_SHEET_VIEW_H_
 #define CHROME_BROWSER_UI_VIEWS_WEBAUTHN_AUTHENTICATOR_BIO_ENROLLMENT_SHEET_VIEW_H_
 
-#include "base/memory/raw_ptr.h"
+#include <memory>
+#include <utility>
+
 #include "chrome/browser/ui/views/webauthn/authenticator_request_sheet_view.h"
 #include "chrome/browser/ui/webauthn/sheet_models.h"
-
-class RingProgressBar;
+#include "ui/base/accelerators/accelerator.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/views/view.h"
 
 // Represents a sheet in the Web Authentication request dialog that allows the
 // user to input pin code used to connect to BLE security key.
 class AuthenticatorBioEnrollmentSheetView
     : public AuthenticatorRequestSheetView {
+  METADATA_HEADER(AuthenticatorBioEnrollmentSheetView,
+                  AuthenticatorRequestSheetView)
+
  public:
   explicit AuthenticatorBioEnrollmentSheetView(
       std::unique_ptr<AuthenticatorBioEnrollmentSheetModel> sheet_model);
@@ -33,8 +39,6 @@ class AuthenticatorBioEnrollmentSheetView
 
   // views::View:
   bool AcceleratorPressed(const ui::Accelerator& accelerator) override;
-
-  raw_ptr<RingProgressBar> ring_progress_bar_;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_WEBAUTHN_AUTHENTICATOR_BIO_ENROLLMENT_SHEET_VIEW_H_

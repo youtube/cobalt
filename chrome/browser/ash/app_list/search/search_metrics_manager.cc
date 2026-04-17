@@ -16,6 +16,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "components/drive/drive_pref_names.h"
 #include "components/metrics/structured/structured_events.h"
+#include "components/metrics/structured/structured_metrics_client.h"
 #include "components/prefs/pref_service.h"
 
 namespace app_list {
@@ -37,6 +38,8 @@ std::string GetViewString(Location location, const std::u16string& raw_query) {
       return "RecentApps";
     case Location::kContinue:
       return "Continue";
+    case Location::kImage:
+      return "Image";
     default:
       LogError(Error::kUntrackedLocation);
       return "Untracked";
@@ -47,6 +50,17 @@ std::set<ash::SearchResultType> TypeSet(const std::vector<Result>& results) {
   std::set<ash::SearchResultType> types;
   for (const auto& result : results) {
     types.insert(result.type);
+  }
+  return types;
+}
+
+std::set<ash::ContinueFileSuggestionType> ContinueFileTypeSet(
+    const std::vector<Result>& results) {
+  std::set<ash::ContinueFileSuggestionType> types;
+  for (const auto& result : results) {
+    if (result.continue_file_type) {
+      types.insert(*result.continue_file_type);
+    }
   }
   return types;
 }
@@ -66,6 +80,21 @@ void LogTypeActions(const std::string& action_name,
       base::UmaHistogramEnumeration(histogram_name, type,
                                     ash::SEARCH_RESULT_TYPE_BOUNDARY);
     }
+  }
+}
+
+void LogContinueFileTypeActions(
+    const std::string& action_name,
+    Location location,
+    const std::set<ash::ContinueFileSuggestionType>& continue_file_types) {
+  if (location != Location::kContinue) {
+    return;
+  }
+
+  const std::string histogram_name = base::StrCat(
+      {kHistogramPrefix, "Continue.FileSuggestionType.", action_name});
+  for (auto type : continue_file_types) {
+    base::UmaHistogramEnumeration(histogram_name, type);
   }
 }
 
@@ -140,6 +169,8 @@ void SearchMetricsManager::OnImpression(Location location,
                                         const std::vector<Result>& results,
                                         const std::u16string& query) {
   LogTypeActions("Impression", location, query, TypeSet(results));
+  LogContinueFileTypeActions("Impression", location,
+                             ContinueFileTypeSet(results));
   if (!results.empty())
     LogViewAction(location, query, Action::kImpression);
   if (location == Location::kContinue)
@@ -150,6 +181,7 @@ void SearchMetricsManager::OnAbandon(Location location,
                                      const std::vector<Result>& results,
                                      const std::u16string& query) {
   LogTypeActions("Abandon", location, query, TypeSet(results));
+  LogContinueFileTypeActions("Abandon", location, ContinueFileTypeSet(results));
   if (!results.empty())
     LogViewAction(location, query, Action::kAbandon);
 }
@@ -168,8 +200,22 @@ void SearchMetricsManager::OnLaunch(Location location,
       types.insert(result.type);
     }
   }
+
+  std::set<ash::ContinueFileSuggestionType> continue_file_types;
+  for (const auto& result : shown) {
+    if (result.continue_file_type &&
+        result.continue_file_type != launched.continue_file_type) {
+      continue_file_types.insert(*result.continue_file_type);
+    }
+  }
+
   LogTypeActions("Ignore", location, query, types);
+  LogContinueFileTypeActions("Ignore", location, continue_file_types);
   LogTypeActions("Launch", location, query, {launched.type});
+  if (launched.continue_file_type) {
+    LogContinueFileTypeActions("Launch", location,
+                               {*launched.continue_file_type});
+  }
 
   // Record the launch index.
   int launched_index = -1;
@@ -212,15 +258,15 @@ void SearchMetricsManager::OnTrain(LaunchData& launch_data,
   base::Time::Exploded now_exploded;
   now.LocalExplode(&now_exploded);
 
-  metrics::structured::events::v2::launcher_usage::LauncherUsage()
-      .SetTarget(NormalizeId(launch_data.id))
-      .SetApp(last_launched_app_id_)
-      .SetSearchQuery(query)
-      .SetSearchQueryLength(query.size())
-      .SetProviderType(static_cast<int>(launch_data.result_type))
-      .SetHour(now_exploded.hour)
-      .SetScore(launch_data.score)
-      .Record();
+  metrics::structured::StructuredMetricsClient::Record(
+      std::move(metrics::structured::events::v2::launcher_usage::LauncherUsage()
+                    .SetTarget(NormalizeId(launch_data.id))
+                    .SetApp(last_launched_app_id_)
+                    .SetSearchQuery(query)
+                    .SetSearchQueryLength(query.size())
+                    .SetProviderType(static_cast<int>(launch_data.result_type))
+                    .SetHour(now_exploded.hour)
+                    .SetScore(launch_data.score)));
 
   // Only record the last launched app if the hashed logging feature flag is
   // enabled, because it is only used by hashed logging.

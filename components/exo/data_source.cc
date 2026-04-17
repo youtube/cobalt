@@ -2,9 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/exo/data_source.h"
 
 #include <limits>
+#include <optional>
+#include <string_view>
 
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -18,8 +25,8 @@
 #include "components/exo/data_source_delegate.h"
 #include "components/exo/data_source_observer.h"
 #include "components/exo/mime_utils.h"
+#include "components/exo/security_delegate.h"
 #include "net/base/mime_util.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/mime_util/mime_util.h"
 #include "third_party/icu/source/common/unicode/ucnv.h"
 #include "ui/base/clipboard/clipboard_constants.h"
@@ -34,7 +41,6 @@ constexpr char kTextHTML[] = "text/html";
 constexpr char kTextUriList[] = "text/uri-list";
 constexpr char kApplicationOctetStream[] = "application/octet-stream";
 constexpr char kWebCustomData[] = "chromium/x-web-custom-data";
-constexpr char kDataTransferEndpoint[] = "chromium/x-data-transfer-endpoint";
 
 constexpr char kUtfPrefix[] = "UTF";
 constexpr char kEncoding16[] = "16";
@@ -50,7 +56,7 @@ constexpr char kImageBitmap[] = "image/bmp";
 constexpr char kImagePNG[] = "image/png";
 constexpr char kImageAPNG[] = "image/apng";
 
-absl::optional<std::vector<uint8_t>> ReadDataOnWorkerThread(base::ScopedFD fd) {
+std::optional<std::vector<uint8_t>> ReadDataOnWorkerThread(base::ScopedFD fd) {
   constexpr size_t kChunkSize = 1024;
   std::vector<uint8_t> bytes;
   while (true) {
@@ -64,7 +70,7 @@ absl::optional<std::vector<uint8_t>> ReadDataOnWorkerThread(base::ScopedFD fd) {
       return bytes;
     if (bytes_read < 0) {
       PLOG(ERROR) << "Failed to read selection data from clipboard";
-      return absl::nullopt;
+      return std::nullopt;
     }
   }
 }
@@ -109,8 +115,8 @@ int GetImageTypeRank(const std::string& mime_type) {
 std::u16string CodepageToUTF16(const std::vector<uint8_t>& data,
                                const std::string& charset_input) {
   std::u16string output;
-  base::StringPiece piece(reinterpret_cast<const char*>(data.data()),
-                          data.size());
+  std::string_view piece(reinterpret_cast<const char*>(data.data()),
+                         data.size());
   const char* charset = charset_input.c_str();
 
   // Despite claims in the documentation to the contrary, the ICU UTF-16
@@ -190,7 +196,7 @@ void DataSource::SetActions(const base::flat_set<DndAction>& dnd_actions) {
   dnd_actions_ = dnd_actions;
 }
 
-void DataSource::Target(const absl::optional<std::string>& mime_type) {
+void DataSource::Target(const std::optional<std::string>& mime_type) {
   delegate_->OnTarget(mime_type);
 }
 
@@ -214,9 +220,16 @@ void DataSource::DndFinished() {
   delegate_->OnDndFinished();
 }
 
+std::vector<ui::FileInfo> DataSource::GetFilenames(
+    ui::EndpointType source,
+    const std::vector<uint8_t>& data) const {
+  return delegate_->GetSecurityDelegate()->GetFilenames(source, data);
+}
+
 void DataSource::ReadDataForTesting(const std::string& mime_type,
-                                    ReadDataCallback callback) {
-  ReadData(mime_type, std::move(callback), base::DoNothing());
+                                    ReadDataCallback callback,
+                                    base::RepeatingClosure failure_callback) {
+  ReadData(mime_type, std::move(callback), failure_callback);
 }
 
 void DataSource::ReadData(const std::string& mime_type,
@@ -236,32 +249,24 @@ void DataSource::ReadData(const std::string& mime_type,
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE,
       {base::MayBlock(), base::TaskPriority::USER_BLOCKING,
-       base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
+       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
       base::BindOnce(&ReadDataOnWorkerThread, std::move(read_fd)),
       base::BindOnce(
           &DataSource::OnDataRead, read_data_weak_ptr_factory_.GetWeakPtr(),
           std::move(callback), mime_type, std::move(failure_callback)));
 }
 
-void DataSource::OnDataRead(ReadDataCallback callback,
+// static
+void DataSource::OnDataRead(base::WeakPtr<DataSource> data_source_ptr,
+                            ReadDataCallback callback,
                             const std::string& mime_type,
                             base::OnceClosure failure_callback,
-                            const absl::optional<std::vector<uint8_t>>& data) {
-  if (!data) {
+                            const std::optional<std::vector<uint8_t>>& data) {
+  if (!data_source_ptr || !data) {
     std::move(failure_callback).Run();
     return;
   }
   std::move(callback).Run(mime_type, *data);
-}
-
-void DataSource::ReadDataTransferEndpoint(
-    ReadTextDataCallback dte_reader,
-    base::RepeatingClosure failure_callback) {
-  ReadData(kDataTransferEndpoint,
-           base::BindOnce(&DataSource::OnTextRead,
-                          read_data_weak_ptr_factory_.GetWeakPtr(),
-                          std::move(dte_reader)),
-           failure_callback);
 }
 
 void DataSource::GetDataForPreferredMimeTypes(

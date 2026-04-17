@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ash/login/quick_unlock/quick_unlock_factory.h"
 
+#include "base/logging.h"
 #include "base/no_destructor.h"
 #include "chrome/browser/ash/login/quick_unlock/auth_token.h"
 #include "chrome/browser/ash/login/quick_unlock/quick_unlock_storage.h"
@@ -45,7 +46,8 @@ QuickUnlockStorage* QuickUnlockFactory::GetForAccountId(
 
 // static
 QuickUnlockFactory* QuickUnlockFactory::GetInstance() {
-  return base::Singleton<QuickUnlockFactory>::get();
+  static base::NoDestructor<QuickUnlockFactory> instance;
+  return instance.get();
 }
 
 ash::auth::QuickUnlockStorageDelegate& QuickUnlockFactory::GetDelegate() {
@@ -102,16 +104,21 @@ QuickUnlockFactory::QuickUnlockFactory()
           "QuickUnlockFactory",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOriginalOnly)
-              // TODO(crbug.com/1418376): Check if this service is needed in
+              // TODO(crbug.com/40257657): Check if this service is needed in
               // Guest mode.
               .WithGuest(ProfileSelection::kOriginalOnly)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOriginalOnly)
               .Build()) {}
 
-QuickUnlockFactory::~QuickUnlockFactory() {}
+QuickUnlockFactory::~QuickUnlockFactory() = default;
 
-KeyedService* QuickUnlockFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+QuickUnlockFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new QuickUnlockStorage(Profile::FromBrowserContext(context));
+  return std::make_unique<QuickUnlockStorage>(
+      Profile::FromBrowserContext(context));
 }
 
 }  // namespace quick_unlock

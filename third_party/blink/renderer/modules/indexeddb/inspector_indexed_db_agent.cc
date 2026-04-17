@@ -33,7 +33,8 @@
 #include <memory>
 #include <utility>
 
-#include "third_party/blink/public/common/indexeddb/web_idb_types.h"
+#include "base/memory/raw_ptr.h"
+#include "base/types/expected.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_controller.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_string_stringsequence.h"
@@ -44,8 +45,11 @@
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/core/frame/navigator.h"
 #include "third_party/blink/renderer/core/inspector/inspected_frames.h"
 #include "third_party/blink/renderer/core/inspector/v8_inspector_string.h"
+#include "third_party/blink/renderer/modules/buckets/storage_bucket.h"
+#include "third_party/blink/renderer/modules/buckets/storage_bucket_manager.h"
 #include "third_party/blink/renderer/modules/indexed_db_names.h"
 #include "third_party/blink/renderer/modules/indexeddb/global_indexed_db.h"
 #include "third_party/blink/renderer/modules/indexeddb/idb_cursor.h"
@@ -61,7 +65,6 @@
 #include "third_party/blink/renderer/modules/indexeddb/idb_open_db_request.h"
 #include "third_party/blink/renderer/modules/indexeddb/idb_request.h"
 #include "third_party/blink/renderer/modules/indexeddb/idb_transaction.h"
-#include "third_party/blink/renderer/modules/indexeddb/web_idb_cursor.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/bindings/v8_per_isolate_data.h"
@@ -70,7 +73,6 @@
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 using blink::protocol::Array;
-using blink::protocol::Maybe;
 using blink::protocol::IndexedDB::DatabaseWithObjectStores;
 using blink::protocol::IndexedDB::DataEntry;
 using blink::protocol::IndexedDB::Key;
@@ -100,27 +102,112 @@ namespace {
 const char kIndexedDBObjectGroup[] = "indexeddb";
 const char kNoDocumentError[] = "No document for given frame found";
 
-protocol::Response AssertIDBFactory(LocalDOMWindow* dom_window,
-                                    IDBFactory*& result) {
-  if (!dom_window) {
-    return protocol::Response::ServerError(
-        "No IndexedDB factory for given frame found");
+base::expected<LocalFrame*, protocol::Response> ResolveFrame(
+    InspectedFrames* inspected_frames,
+    const std::optional<String>& security_origin,
+    const std::optional<String>& storage_key,
+    std::unique_ptr<protocol::Storage::StorageBucket>& storage_bucket) {
+  if (!!security_origin + !!storage_key + !!storage_bucket != 1) {
+    return base::unexpected(protocol::Response::InvalidParams(
+        "At least and at most one of security_origin, "
+        "storage_key, and storage_bucket must be specified."));
   }
-  IDBFactory* idb_factory = GlobalIndexedDB::indexedDB(*dom_window);
-
-  if (!idb_factory) {
-    return protocol::Response::ServerError(
-        "No IndexedDB factory for given frame found");
+  LocalFrame* frame;
+  if (storage_bucket) {
+    frame =
+        inspected_frames->FrameWithStorageKey(storage_bucket->getStorageKey());
+  } else if (storage_key) {
+    frame = inspected_frames->FrameWithStorageKey(storage_key.value());
+  } else {
+    frame = inspected_frames->FrameWithSecurityOrigin(security_origin.value());
   }
-  result = idb_factory;
-  return protocol::Response::Success();
+  if (!frame) {
+    return base::unexpected(protocol::Response::ServerError(kNoDocumentError));
+  }
+  return frame;
 }
+
+// Gets the IDBFactory for the given frame and optional storage bucket, and
+// passes it to the callback given to Start.
+class ExecutableWithIdbFactory
+    : public GarbageCollected<ExecutableWithIdbFactory> {
+ public:
+  using IdbFactoryGetterCallback =
+      base::OnceCallback<void(protocol::Response, IDBFactory*)>;
+
+  explicit ExecutableWithIdbFactory(IdbFactoryGetterCallback callback)
+      : callback_(std::move(callback)) {}
+  virtual ~ExecutableWithIdbFactory() = default;
+
+  static void Start(
+      LocalFrame* frame,
+      std::unique_ptr<protocol::Storage::StorageBucket> storage_bucket,
+      IdbFactoryGetterCallback request_callback) {
+    ExecutableWithIdbFactory* idb_factory_getter =
+        MakeGarbageCollected<ExecutableWithIdbFactory>(
+            std::move(request_callback));
+    idb_factory_getter->SetUp(frame, std::move(storage_bucket));
+  }
+
+  void Trace(Visitor* visitor) const {}
+
+ private:
+  void SetUp(LocalFrame* frame,
+             std::unique_ptr<protocol::Storage::StorageBucket> storage_bucket) {
+    if (storage_bucket && storage_bucket->hasName()) {
+      GetBucketIDBFactory(frame, storage_bucket->getName(""));
+    } else {
+      GetDefaultIDBFactory(frame);
+    }
+  }
+  void OnFailure(protocol::Response response) {
+    std::move(callback_).Run(std::move(response), nullptr);
+  }
+  void OnSuccess(IDBFactory* idb_factory) {
+    std::move(callback_).Run(protocol::Response::Success(), idb_factory);
+  }
+
+  void GetDefaultIDBFactory(LocalFrame* frame) {
+    LocalDOMWindow* dom_window = frame->DomWindow();
+    CHECK(dom_window);
+    IDBFactory* idb_factory = GlobalIndexedDB::indexedDB(*dom_window);
+
+    if (!idb_factory) {
+      OnFailure(protocol::Response::ServerError(
+          "No IndexedDB factory for given frame found"));
+      return;
+    }
+    OnSuccess(idb_factory);
+  }
+
+  void GetBucketIDBFactory(LocalFrame* frame,
+                           const WTF::String& storage_bucket_name) {
+    LocalDOMWindow* dom_window = frame->DomWindow();
+    CHECK(dom_window);
+
+    ScriptState* script_state = ToScriptStateForMainWorld(frame);
+    CHECK(script_state);
+
+    Navigator* navigator = dom_window->navigator();
+    StorageBucketManager* storage_bucket_manager =
+        StorageBucketManager::storageBuckets(*navigator);
+    StorageBucket* storage_bucket =
+        storage_bucket_manager->GetBucketForDevtools(script_state,
+                                                     storage_bucket_name);
+    if (storage_bucket) {
+      OnSuccess(storage_bucket->indexedDB());
+    } else {
+      OnFailure(protocol::Response::ServerError("Couldn't retrieve bucket"));
+    }
+  }
+  IdbFactoryGetterCallback callback_;
+};
 
 void OnGotDatabaseNames(
     std::unique_ptr<RequestDatabaseNamesCallback> request_callback,
     Vector<mojom::blink::IDBNameAndVersionPtr> names_and_versions,
     mojom::blink::IDBErrorPtr error) {
-  if (error) {
+  if (error->error_code != mojom::blink::IDBException::kNoError) {
     request_callback->sendFailure(
         protocol::Response::ServerError("Could not obtain database names."));
     return;
@@ -167,31 +254,39 @@ class ExecutableWithDatabase
   virtual ~ExecutableWithDatabase() = default;
   virtual void Execute(IDBDatabase*, ScriptState*) = 0;
   virtual RequestCallback* GetRequestCallback() = 0;
-  void Start(LocalFrame* frame, const String& database_name) {
+  void Start(LocalFrame* frame,
+             std::unique_ptr<protocol::Storage::StorageBucket> storage_bucket,
+             const String& database_name) {
     if (!frame) {
       SendFailure(protocol::Response::ServerError(kNoDocumentError));
       return;
     }
-    IDBFactory* idb_factory = nullptr;
-    protocol::Response response =
-        AssertIDBFactory(frame->DomWindow(), idb_factory);
+    database_name_ = database_name;
+    frame_ = frame;
+    ExecutableWithIdbFactory::Start(
+        frame_, std::move(storage_bucket),
+        WTF::BindOnce(&ExecutableWithDatabase::OnGetIDBFactory,
+                      WrapRefCounted(this)));
+  }
+
+ private:
+  void OnGetIDBFactory(protocol::Response response, IDBFactory* idb_factory) {
     if (!response.IsSuccess()) {
       SendFailure(response);
       return;
     }
 
-    ScriptState* script_state = ToScriptStateForMainWorld(frame);
+    ScriptState* script_state = ToScriptStateForMainWorld(frame_);
     if (!script_state) {
       SendFailure(protocol::Response::InternalError());
       return;
     }
 
     ScriptState::Scope scope(script_state);
-    DoStart(idb_factory, script_state, frame->DomWindow()->GetSecurityOrigin(),
-            database_name);
+    DoStart(idb_factory, script_state, frame_->DomWindow()->GetSecurityOrigin(),
+            database_name_);
   }
 
- private:
   void DoStart(IDBFactory* idb_factory,
                ScriptState* script_state,
                const SecurityOrigin*,
@@ -216,6 +311,9 @@ class ExecutableWithDatabase
   void SendFailure(protocol::Response response) {
     GetRequestCallback()->sendFailure(response);
   }
+
+  Persistent<LocalFrame> frame_;
+  String database_name_;
 };
 
 template <typename RequestCallback>
@@ -252,7 +350,7 @@ class OpenDatabaseCallback final : public NativeEventListener {
     }
 
     IDBDatabase* idb_database = request_result->IdbDatabase();
-    executable_with_database_->Execute(idb_database, script_state_);
+    executable_with_database_->Execute(idb_database, script_state_.Get());
     context->GetAgent()->event_loop()->RunEndOfMicrotaskCheckpointTasks();
     idb_database->close();
   }
@@ -313,12 +411,18 @@ IDBTransaction* TransactionForDatabase(
   DummyExceptionStateForTesting exception_state;
   V8UnionStringOrStringSequence* scope =
       MakeGarbageCollected<V8UnionStringOrStringSequence>(object_store_name);
-  IDBTransactionOptions options;
-  options.setDurability("relaxed");
-  IDBTransaction* idb_transaction = idb_database->transaction(
-      script_state, scope, mode, &options, exception_state);
-  if (exception_state.HadException())
+  IDBTransactionOptions* options =
+      MakeGarbageCollected<IDBTransactionOptions>();
+  options->setDurability("relaxed");
+  auto v8_mode = V8IDBTransactionMode::Create(mode);
+  if (!v8_mode) {
     return nullptr;
+  }
+  IDBTransaction* idb_transaction = idb_database->transaction(
+      script_state, scope, v8_mode.value(), options, exception_state);
+  if (exception_state.HadException()) {
+    return nullptr;
+  }
   return idb_transaction;
 }
 
@@ -327,8 +431,9 @@ IDBObjectStore* ObjectStoreForTransaction(IDBTransaction* idb_transaction,
   DummyExceptionStateForTesting exception_state;
   IDBObjectStore* idb_object_store =
       idb_transaction->objectStore(object_store_name, exception_state);
-  if (exception_state.HadException())
+  if (exception_state.HadException()) {
     return nullptr;
+  }
   return idb_object_store;
 }
 
@@ -336,8 +441,9 @@ IDBIndex* IndexForObjectStore(IDBObjectStore* idb_object_store,
                               const String& index_name) {
   DummyExceptionStateForTesting exception_state;
   IDBIndex* idb_index = idb_object_store->index(index_name, exception_state);
-  if (exception_state.HadException())
+  if (exception_state.HadException()) {
     return nullptr;
+  }
   return idb_index;
 }
 
@@ -437,8 +543,9 @@ static std::unique_ptr<IDBKey> IdbKeyFromInspectorObject(
     protocol::IndexedDB::Key* key) {
   std::unique_ptr<IDBKey> idb_key;
 
-  if (!key)
+  if (!key) {
     return nullptr;
+  }
   String type = key->getType();
 
   DEFINE_STATIC_LOCAL(String, number_type, ("number"));
@@ -447,23 +554,27 @@ static std::unique_ptr<IDBKey> IdbKeyFromInspectorObject(
   DEFINE_STATIC_LOCAL(String, array_type, ("array"));
 
   if (type == number_type) {
-    if (!key->hasNumber())
+    if (!key->hasNumber()) {
       return nullptr;
+    }
     idb_key = IDBKey::CreateNumber(key->getNumber(0));
   } else if (type == string_type) {
-    if (!key->hasString())
+    if (!key->hasString()) {
       return nullptr;
+    }
     idb_key = IDBKey::CreateString(key->getString(String()));
   } else if (type == date_type) {
-    if (!key->hasDate())
+    if (!key->hasDate()) {
       return nullptr;
+    }
     idb_key = IDBKey::CreateDate(key->getDate(0));
   } else if (type == array_type) {
     IDBKey::KeyArray key_array;
     auto* array = key->getArray(nullptr);
     if (array) {
-      for (const std::unique_ptr<protocol::IndexedDB::Key>& elem : *array)
+      for (const std::unique_ptr<protocol::IndexedDB::Key>& elem : *array) {
         key_array.emplace_back(IdbKeyFromInspectorObject(elem.get()));
+      }
     }
     idb_key = IDBKey::CreateArray(std::move(key_array));
   } else {
@@ -477,13 +588,15 @@ static IDBKeyRange* IdbKeyRangeFromKeyRange(
     protocol::IndexedDB::KeyRange* key_range) {
   std::unique_ptr<IDBKey> idb_lower =
       IdbKeyFromInspectorObject(key_range->getLower(nullptr));
-  if (key_range->hasLower() && !idb_lower)
+  if (key_range->hasLower() && !idb_lower) {
     return nullptr;
+  }
 
   std::unique_ptr<IDBKey> idb_upper =
       IdbKeyFromInspectorObject(key_range->getUpper(nullptr));
-  if (key_range->hasUpper() && !idb_upper)
+  if (key_range->hasUpper() && !idb_upper) {
     return nullptr;
+  }
 
   IDBKeyRange::LowerBoundType lower_bound_type =
       key_range->getLowerOpen() ? IDBKeyRange::kLowerBoundOpen
@@ -500,22 +613,22 @@ class DataLoader;
 class OpenCursorCallback final : public NativeEventListener {
  public:
   static OpenCursorCallback* Create(
-      v8_inspector::V8InspectorSession* v8_session,
+      InspectorIndexedDBAgent* agent,
       ScriptState* script_state,
       std::unique_ptr<RequestDataCallback> request_callback,
       int skip_count,
       unsigned page_size) {
-    return MakeGarbageCollected<OpenCursorCallback>(v8_session, script_state,
+    return MakeGarbageCollected<OpenCursorCallback>(agent, script_state,
                                                     std::move(request_callback),
                                                     skip_count, page_size);
   }
 
-  OpenCursorCallback(v8_inspector::V8InspectorSession* v8_session,
+  OpenCursorCallback(InspectorIndexedDBAgent* agent,
                      ScriptState* script_state,
                      std::unique_ptr<RequestDataCallback> request_callback,
                      int skip_count,
                      unsigned page_size)
-      : v8_session_(v8_session),
+      : agent_(agent),
         script_state_(script_state),
         request_callback_(std::move(request_callback)),
         skip_count_(skip_count),
@@ -525,6 +638,12 @@ class OpenCursorCallback final : public NativeEventListener {
   ~OpenCursorCallback() override = default;
 
   void Invoke(ExecutionContext*, Event* event) override {
+    if (!agent_) {
+      request_callback_->sendFailure(protocol::Response::ServerError(
+          "DevTools session detached during operation."));
+      return;
+    }
+
     if (event->type() != event_type_names::kSuccess) {
       request_callback_->sendFailure(
           protocol::Response::ServerError("Unexpected event type."));
@@ -572,21 +691,24 @@ class OpenCursorCallback final : public NativeEventListener {
       return;
     }
 
-    if (!script_state_->ContextIsValid())
+    if (!script_state_->ContextIsValid()) {
       return;
+    }
+
+    v8_inspector::V8InspectorSession* v8_session = agent_->v8_session();
     ScriptState::Scope scope(script_state_);
     v8::Local<v8::Context> context = script_state_->GetContext();
     v8_inspector::StringView object_group =
         ToV8InspectorStringView(kIndexedDBObjectGroup);
     std::unique_ptr<DataEntry> data_entry =
         DataEntry::create()
-            .setKey(v8_session_->wrapObject(
+            .setKey(v8_session->wrapObject(
                 context, idb_cursor->key(script_state_).V8Value(), object_group,
                 true /* generatePreview */))
-            .setPrimaryKey(v8_session_->wrapObject(
+            .setPrimaryKey(v8_session->wrapObject(
                 context, idb_cursor->primaryKey(script_state_).V8Value(),
                 object_group, true /* generatePreview */))
-            .setValue(v8_session_->wrapObject(
+            .setValue(v8_session->wrapObject(
                 context, idb_cursor->value(script_state_).V8Value(),
                 object_group, true /* generatePreview */))
             .build();
@@ -598,12 +720,13 @@ class OpenCursorCallback final : public NativeEventListener {
   }
 
   void Trace(Visitor* visitor) const override {
+    visitor->Trace(agent_);
     visitor->Trace(script_state_);
     NativeEventListener::Trace(visitor);
   }
 
  private:
-  v8_inspector::V8InspectorSession* v8_session_;
+  WeakMember<InspectorIndexedDBAgent> agent_;
   Member<ScriptState> script_state_;
   std::unique_ptr<RequestDataCallback> request_callback_;
   int skip_count_;
@@ -614,21 +737,28 @@ class OpenCursorCallback final : public NativeEventListener {
 class DataLoader final : public ExecutableWithDatabase<RequestDataCallback> {
  public:
   static scoped_refptr<DataLoader> Create(
-      v8_inspector::V8InspectorSession* v8_session,
+      InspectorIndexedDBAgent* agent,
       std::unique_ptr<RequestDataCallback> request_callback,
       const String& object_store_name,
       const String& index_name,
       IDBKeyRange* idb_key_range,
       int skip_count,
       unsigned page_size) {
-    return base::AdoptRef(new DataLoader(
-        v8_session, std::move(request_callback), object_store_name, index_name,
-        idb_key_range, skip_count, page_size));
+    return base::AdoptRef(new DataLoader(agent, std::move(request_callback),
+                                         object_store_name, index_name,
+                                         idb_key_range, skip_count, page_size));
   }
 
   ~DataLoader() override = default;
 
   void Execute(IDBDatabase* idb_database, ScriptState* script_state) override {
+    if (!agent_) {
+      request_callback_->sendFailure(protocol::Response::ServerError(
+          "The DevTools session was detached before the operation could "
+          "complete."));
+      return;
+    }
+
     IDBTransaction* idb_transaction =
         TransactionForDatabase(script_state, idb_database, object_store_name_);
     if (!idb_transaction) {
@@ -660,7 +790,7 @@ class DataLoader final : public ExecutableWithDatabase<RequestDataCallback> {
           script_state, idb_key_range_.Get(), mojom::IDBCursorDirection::Next);
     }
     OpenCursorCallback* open_cursor_callback = OpenCursorCallback::Create(
-        v8_session_, script_state, std::move(request_callback_), skip_count_,
+        agent_.Get(), script_state, std::move(request_callback_), skip_count_,
         page_size_);
     idb_request->addEventListener(event_type_names::kSuccess,
                                   open_cursor_callback, false);
@@ -669,14 +799,14 @@ class DataLoader final : public ExecutableWithDatabase<RequestDataCallback> {
   RequestDataCallback* GetRequestCallback() override {
     return request_callback_.get();
   }
-  DataLoader(v8_inspector::V8InspectorSession* v8_session,
+  DataLoader(InspectorIndexedDBAgent* agent,
              std::unique_ptr<RequestDataCallback> request_callback,
              const String& object_store_name,
              const String& index_name,
              IDBKeyRange* idb_key_range,
              int skip_count,
              unsigned page_size)
-      : v8_session_(v8_session),
+      : agent_(agent),
         request_callback_(std::move(request_callback)),
         object_store_name_(object_store_name),
         index_name_(index_name),
@@ -684,7 +814,7 @@ class DataLoader final : public ExecutableWithDatabase<RequestDataCallback> {
         skip_count_(skip_count),
         page_size_(page_size) {}
 
-  v8_inspector::V8InspectorSession* v8_session_;
+  WeakPersistent<InspectorIndexedDBAgent> agent_;
   std::unique_ptr<RequestDataCallback> request_callback_;
   String object_store_name_;
   String index_name_;
@@ -706,8 +836,9 @@ InspectorIndexedDBAgent::InspectorIndexedDBAgent(
 InspectorIndexedDBAgent::~InspectorIndexedDBAgent() = default;
 
 void InspectorIndexedDBAgent::Restore() {
-  if (enabled_.Get())
+  if (enabled_.Get()) {
     enable();
+  }
 }
 
 void InspectorIndexedDBAgent::DidCommitLoadForLocalFrame(LocalFrame* frame) {
@@ -729,108 +860,91 @@ protocol::Response InspectorIndexedDBAgent::disable() {
   return protocol::Response::Success();
 }
 
-namespace {
-
-absl::variant<LocalFrame*, protocol::Response> ResolveFrame(
-    protocol::Maybe<String> security_origin,
-    protocol::Maybe<String> storage_key,
-    InspectedFrames* inspected_frames) {
-  if (security_origin.isJust() == storage_key.isJust()) {
-    return protocol::Response::InvalidParams(
-        "At least and at most one of security_origin, "
-        "storage_key must be specified.");
-  }
-  if (storage_key.isJust()) {
-    return inspected_frames->FrameWithStorageKey(storage_key.fromJust());
-  }
-  return inspected_frames->FrameWithSecurityOrigin(security_origin.fromJust());
-}
-
-}  // namespace
-
 void InspectorIndexedDBAgent::requestDatabaseNames(
-    protocol::Maybe<String> security_origin,
-    protocol::Maybe<String> storage_key,
+    std::optional<String> security_origin,
+    std::optional<String> storage_key,
+    std::unique_ptr<protocol::Storage::StorageBucket> storage_bucket,
     std::unique_ptr<RequestDatabaseNamesCallback> request_callback) {
-  absl::variant<LocalFrame*, protocol::Response> frame_or_response =
-      ResolveFrame(std::move(security_origin), std::move(storage_key),
-                   inspected_frames_);
-  if (absl::holds_alternative<protocol::Response>(frame_or_response)) {
-    request_callback->sendFailure(
-        absl::get<protocol::Response>(frame_or_response));
-  }
-  LocalFrame* frame = absl::get<LocalFrame*>(frame_or_response);
-  if (!frame) {
-    request_callback->sendFailure(
-        protocol::Response::ServerError(kNoDocumentError));
+  base::expected<LocalFrame*, protocol::Response> frame_or_response =
+      ResolveFrame(inspected_frames_.Get(), security_origin, storage_key,
+                   storage_bucket);
+  if (!frame_or_response.has_value()) {
+    request_callback->sendFailure(frame_or_response.error());
     return;
   }
-  IDBFactory* idb_factory = nullptr;
-  protocol::Response response =
-      AssertIDBFactory(frame->DomWindow(), idb_factory);
-  if (!response.IsSuccess()) {
-    request_callback->sendFailure(response);
-    return;
-  }
-
-  ScriptState* script_state = ToScriptStateForMainWorld(frame);
-  if (!script_state) {
-    request_callback->sendFailure(protocol::Response::InternalError());
-    return;
-  }
-  idb_factory->GetDatabaseInfoForDevTools(
-      script_state,
-      WTF::BindOnce(&OnGotDatabaseNames, std::move(request_callback)));
+  LocalFrame* frame = frame_or_response.value();
+  ExecutableWithIdbFactory::Start(
+      frame, std::move(storage_bucket),
+      WTF::BindOnce(
+          [](std::unique_ptr<RequestDatabaseNamesCallback> request_callback,
+             LocalFrame* frame, protocol::Response response,
+             IDBFactory* idb_factory) {
+            if (!response.IsSuccess()) {
+              request_callback->sendFailure(response);
+              return;
+            }
+            ScriptState* script_state = ToScriptStateForMainWorld(frame);
+            if (!script_state) {
+              request_callback->sendFailure(
+                  protocol::Response::InternalError());
+              return;
+            }
+            idb_factory->GetDatabaseInfoForDevTools(WTF::BindOnce(
+                &OnGotDatabaseNames, std::move(request_callback)));
+          },
+          std::move(request_callback), WrapPersistent(frame)));
 }
 
 void InspectorIndexedDBAgent::requestDatabase(
-    protocol::Maybe<String> security_origin,
-    protocol::Maybe<String> storage_key,
+    std::optional<String> security_origin,
+    std::optional<String> storage_key,
+    std::unique_ptr<protocol::Storage::StorageBucket> storage_bucket,
     const String& database_name,
     std::unique_ptr<RequestDatabaseCallback> request_callback) {
-  absl::variant<LocalFrame*, protocol::Response> frame_or_response =
-      ResolveFrame(std::move(security_origin), std::move(storage_key),
-                   inspected_frames_);
-  if (absl::holds_alternative<protocol::Response>(frame_or_response)) {
-    request_callback->sendFailure(
-        absl::get<protocol::Response>(frame_or_response));
+  base::expected<LocalFrame*, protocol::Response> frame_or_response =
+      ResolveFrame(inspected_frames_.Get(), security_origin, storage_key,
+                   storage_bucket);
+  if (!frame_or_response.has_value()) {
+    request_callback->sendFailure(frame_or_response.error());
+    return;
   }
   scoped_refptr<DatabaseLoader> database_loader =
       DatabaseLoader::Create(std::move(request_callback));
-  database_loader->Start(absl::get<LocalFrame*>(frame_or_response),
+  database_loader->Start(frame_or_response.value(), std::move(storage_bucket),
                          database_name);
 }
 
 void InspectorIndexedDBAgent::requestData(
-    protocol::Maybe<String> security_origin,
-    protocol::Maybe<String> storage_key,
+    std::optional<String> security_origin,
+    std::optional<String> storage_key,
+    std::unique_ptr<protocol::Storage::StorageBucket> storage_bucket,
     const String& database_name,
     const String& object_store_name,
     const String& index_name,
     int skip_count,
     int page_size,
-    Maybe<protocol::IndexedDB::KeyRange> key_range,
+    std::unique_ptr<protocol::IndexedDB::KeyRange> key_range,
     std::unique_ptr<RequestDataCallback> request_callback) {
   IDBKeyRange* idb_key_range =
-      key_range.isJust() ? IdbKeyRangeFromKeyRange(key_range.fromJust())
-                         : nullptr;
-  if (key_range.isJust() && !idb_key_range) {
+      key_range ? IdbKeyRangeFromKeyRange(&*key_range) : nullptr;
+  if (key_range && !idb_key_range) {
     request_callback->sendFailure(
         protocol::Response::ServerError("Can not parse key range."));
     return;
   }
-  absl::variant<LocalFrame*, protocol::Response> frame_or_response =
-      ResolveFrame(std::move(security_origin), std::move(storage_key),
-                   inspected_frames_);
-  if (absl::holds_alternative<protocol::Response>(frame_or_response)) {
-    request_callback->sendFailure(
-        absl::get<protocol::Response>(frame_or_response));
+  base::expected<LocalFrame*, protocol::Response> frame_or_response =
+      ResolveFrame(inspected_frames_.Get(), security_origin, storage_key,
+                   storage_bucket);
+  if (!frame_or_response.has_value()) {
+    request_callback->sendFailure(frame_or_response.error());
+    return;
   }
-  scoped_refptr<DataLoader> data_loader = DataLoader::Create(
-      v8_session_, std::move(request_callback), object_store_name, index_name,
-      idb_key_range, skip_count, page_size);
+  scoped_refptr<DataLoader> data_loader =
+      DataLoader::Create(this, std::move(request_callback), object_store_name,
+                         index_name, idb_key_range, skip_count, page_size);
 
-  data_loader->Start(absl::get<LocalFrame*>(frame_or_response), database_name);
+  data_loader->Start(frame_or_response.value(), std::move(storage_bucket),
+                     database_name);
 }
 
 class GetMetadata;
@@ -861,7 +975,7 @@ class GetMetadataListener final : public NativeEventListener {
   void NotifySubtaskDone(scoped_refptr<GetMetadata> owner,
                          const String& error) const;
   scoped_refptr<GetMetadata> owner_;
-  int64_t* result_;
+  raw_ptr<int64_t> result_;
 };
 
 class GetMetadata final : public ExecutableWithDatabase<GetMetadataCallback> {
@@ -963,27 +1077,28 @@ void GetMetadataListener::NotifySubtaskDone(scoped_refptr<GetMetadata> owner,
 }
 
 void InspectorIndexedDBAgent::getMetadata(
-    protocol::Maybe<String> security_origin,
-    protocol::Maybe<String> storage_key,
+    std::optional<String> security_origin,
+    std::optional<String> storage_key,
+    std::unique_ptr<protocol::Storage::StorageBucket> storage_bucket,
     const String& database_name,
     const String& object_store_name,
     std::unique_ptr<GetMetadataCallback> request_callback) {
-  absl::variant<LocalFrame*, protocol::Response> frame_or_response =
-      ResolveFrame(std::move(security_origin), std::move(storage_key),
-                   inspected_frames_);
-  if (absl::holds_alternative<protocol::Response>(frame_or_response)) {
-    request_callback->sendFailure(
-        absl::get<protocol::Response>(frame_or_response));
+  base::expected<LocalFrame*, protocol::Response> frame_or_response =
+      ResolveFrame(inspected_frames_.Get(), security_origin, storage_key,
+                   storage_bucket);
+  if (!frame_or_response.has_value()) {
+    request_callback->sendFailure(frame_or_response.error());
     return;
   }
   scoped_refptr<GetMetadata> get_metadata =
       GetMetadata::Create(object_store_name, std::move(request_callback));
-  get_metadata->Start(absl::get<LocalFrame*>(frame_or_response), database_name);
+  get_metadata->Start(frame_or_response.value(), std::move(storage_bucket),
+                      database_name);
 }
 
 class DeleteObjectStoreEntriesListener final : public NativeEventListener {
  public:
-  DeleteObjectStoreEntriesListener(
+  explicit DeleteObjectStoreEntriesListener(
       std::unique_ptr<DeleteObjectStoreEntriesCallback> request_callback)
       : request_callback_(std::move(request_callback)) {}
   ~DeleteObjectStoreEntriesListener() override = default;
@@ -1058,8 +1173,9 @@ class DeleteObjectStoreEntries final
 };
 
 void InspectorIndexedDBAgent::deleteObjectStoreEntries(
-    protocol::Maybe<String> security_origin,
-    protocol::Maybe<String> storage_key,
+    std::optional<String> security_origin,
+    std::optional<String> storage_key,
+    std::unique_ptr<protocol::Storage::StorageBucket> storage_bucket,
     const String& database_name,
     const String& object_store_name,
     std::unique_ptr<protocol::IndexedDB::KeyRange> key_range,
@@ -1070,24 +1186,23 @@ void InspectorIndexedDBAgent::deleteObjectStoreEntries(
         protocol::Response::ServerError("Can not parse key range"));
     return;
   }
-  absl::variant<LocalFrame*, protocol::Response> frame_or_response =
-      ResolveFrame(std::move(security_origin), std::move(storage_key),
-                   inspected_frames_);
-  if (absl::holds_alternative<protocol::Response>(frame_or_response)) {
-    request_callback->sendFailure(
-        absl::get<protocol::Response>(frame_or_response));
+  base::expected<LocalFrame*, protocol::Response> frame_or_response =
+      ResolveFrame(inspected_frames_.Get(), security_origin, storage_key,
+                   storage_bucket);
+  if (!frame_or_response.has_value()) {
+    request_callback->sendFailure(frame_or_response.error());
     return;
   }
   scoped_refptr<DeleteObjectStoreEntries> delete_object_store_entries =
       DeleteObjectStoreEntries::Create(object_store_name, idb_key_range,
                                        std::move(request_callback));
-  delete_object_store_entries->Start(absl::get<LocalFrame*>(frame_or_response),
-                                     database_name);
+  delete_object_store_entries->Start(frame_or_response.value(),
+                                     std::move(storage_bucket), database_name);
 }
 
 class ClearObjectStoreListener final : public NativeEventListener {
  public:
-  ClearObjectStoreListener(
+  explicit ClearObjectStoreListener(
       std::unique_ptr<ClearObjectStoreCallback> request_callback)
       : request_callback_(std::move(request_callback)) {}
   ~ClearObjectStoreListener() override = default;
@@ -1166,72 +1281,74 @@ class ClearObjectStore final
 };
 
 void InspectorIndexedDBAgent::clearObjectStore(
-    protocol::Maybe<String> security_origin,
-    protocol::Maybe<String> storage_key,
+    std::optional<String> security_origin,
+    std::optional<String> storage_key,
+    std::unique_ptr<protocol::Storage::StorageBucket> storage_bucket,
     const String& database_name,
     const String& object_store_name,
     std::unique_ptr<ClearObjectStoreCallback> request_callback) {
-  absl::variant<LocalFrame*, protocol::Response> frame_or_response =
-      ResolveFrame(std::move(security_origin), std::move(storage_key),
-                   inspected_frames_);
-  if (absl::holds_alternative<protocol::Response>(frame_or_response)) {
-    request_callback->sendFailure(
-        absl::get<protocol::Response>(frame_or_response));
+  base::expected<LocalFrame*, protocol::Response> frame_or_response =
+      ResolveFrame(inspected_frames_.Get(), security_origin, storage_key,
+                   storage_bucket);
+  if (!frame_or_response.has_value()) {
+    request_callback->sendFailure(frame_or_response.error());
     return;
   }
   scoped_refptr<ClearObjectStore> clear_object_store =
       ClearObjectStore::Create(object_store_name, std::move(request_callback));
-  clear_object_store->Start(absl::get<LocalFrame*>(frame_or_response),
-                            database_name);
+  clear_object_store->Start(frame_or_response.value(),
+                            std::move(storage_bucket), database_name);
 }
 
 void InspectorIndexedDBAgent::deleteDatabase(
-    protocol::Maybe<String> security_origin,
-    protocol::Maybe<String> storage_key,
+    std::optional<String> security_origin,
+    std::optional<String> storage_key,
+    std::unique_ptr<protocol::Storage::StorageBucket> storage_bucket,
     const String& database_name,
     std::unique_ptr<DeleteDatabaseCallback> request_callback) {
-  absl::variant<LocalFrame*, protocol::Response> frame_or_response =
-      ResolveFrame(std::move(security_origin), std::move(storage_key),
-                   inspected_frames_);
-  if (absl::holds_alternative<protocol::Response>(frame_or_response)) {
-    request_callback->sendFailure(
-        absl::get<protocol::Response>(frame_or_response));
+  base::expected<LocalFrame*, protocol::Response> frame_or_response =
+      ResolveFrame(inspected_frames_.Get(), security_origin, storage_key,
+                   storage_bucket);
+  if (!frame_or_response.has_value()) {
+    request_callback->sendFailure(frame_or_response.error());
     return;
   }
-  LocalFrame* frame = absl::get<LocalFrame*>(frame_or_response);
-  if (!frame) {
-    request_callback->sendFailure(
-        protocol::Response::ServerError(kNoDocumentError));
-    return;
-  }
-  IDBFactory* idb_factory = nullptr;
-  protocol::Response response =
-      AssertIDBFactory(frame->DomWindow(), idb_factory);
-  if (!response.IsSuccess()) {
-    request_callback->sendFailure(response);
-    return;
-  }
+  LocalFrame* frame = frame_or_response.value();
+  ExecutableWithIdbFactory::Start(
+      frame, std::move(storage_bucket),
+      WTF::BindOnce(
+          [](std::unique_ptr<DeleteDatabaseCallback> request_callback,
+             LocalFrame* frame, String database_name,
+             protocol::Response response, IDBFactory* idb_factory) {
+            if (!response.IsSuccess()) {
+              request_callback->sendFailure(response);
+              return;
+            }
 
-  ScriptState* script_state = ToScriptStateForMainWorld(frame);
-  if (!script_state) {
-    request_callback->sendFailure(protocol::Response::InternalError());
-    return;
-  }
-  ScriptState::Scope scope(script_state);
-  DummyExceptionStateForTesting exception_state;
-  IDBRequest* idb_request = idb_factory->CloseConnectionsAndDeleteDatabase(
-      script_state, database_name, exception_state);
-  if (exception_state.HadException()) {
-    request_callback->sendFailure(
-        protocol::Response::ServerError("Could not delete database."));
-    return;
-  }
-  idb_request->addEventListener(
-      event_type_names::kSuccess,
-      MakeGarbageCollected<DeleteCallback>(
-          std::move(request_callback),
-          frame->DomWindow()->GetSecurityOrigin()->ToRawString()),
-      false);
+            ScriptState* script_state = ToScriptStateForMainWorld(frame);
+            if (!script_state) {
+              request_callback->sendFailure(
+                  protocol::Response::InternalError());
+              return;
+            }
+            ScriptState::Scope scope(script_state);
+            DummyExceptionStateForTesting exception_state;
+            IDBRequest* idb_request =
+                idb_factory->CloseConnectionsAndDeleteDatabase(
+                    script_state, database_name, exception_state);
+            if (exception_state.HadException()) {
+              request_callback->sendFailure(protocol::Response::ServerError(
+                  "Could not delete database."));
+              return;
+            }
+            idb_request->addEventListener(
+                event_type_names::kSuccess,
+                MakeGarbageCollected<DeleteCallback>(
+                    std::move(request_callback),
+                    frame->DomWindow()->GetSecurityOrigin()->ToRawString()),
+                false);
+          },
+          std::move(request_callback), WrapPersistent(frame), database_name));
 }
 
 void InspectorIndexedDBAgent::Trace(Visitor* visitor) const {

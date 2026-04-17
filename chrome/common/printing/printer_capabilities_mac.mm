@@ -6,11 +6,10 @@
 
 #import <AppKit/AppKit.h>
 
+#include "base/apple/foundation_util.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/check_op.h"
 #include "base/files/file_path.h"
-#include "base/mac/foundation_util.h"
-#include "base/mac/scoped_cftyperef.h"
-#include "base/mac/scoped_nsobject.h"
 #include "base/no_destructor.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/threading/scoped_blocking_call.h"
@@ -43,7 +42,7 @@ PrinterSemanticCapsAndDefaults::Papers GetMacCustomPaperSizes() {
 
   base::FilePath local_library;
   bool success =
-      base::mac::GetUserDirectory(NSLibraryDirectory, &local_library);
+      base::apple::GetUserDirectory(NSLibraryDirectory, &local_library);
   DCHECK(success);
 
   base::FilePath plist = local_library.Append("Preferences")
@@ -54,7 +53,7 @@ PrinterSemanticCapsAndDefaults::Papers GetMacCustomPaperSizes() {
 void SetMacCustomPaperSizesForTesting(
     const PrinterSemanticCapsAndDefaults::Papers& papers) {
   for (const PrinterSemanticCapsAndDefaults::Paper& paper : papers)
-    DCHECK_EQ("", paper.vendor_id);
+    DCHECK_EQ("", paper.vendor_id());
 
   GetTestPapers() = papers;
 }
@@ -65,18 +64,24 @@ PrinterSemanticCapsAndDefaults::Papers GetMacCustomPaperSizesFromFile(
     const base::FilePath& path) {
   PrinterSemanticCapsAndDefaults::Papers custom_paper_sizes;
 
-  base::scoped_nsobject<NSDictionary> custom_papers_dict;
+  NSDictionary* custom_papers_dict;
   {
     base::ScopedBlockingCall scoped_block(FROM_HERE,
                                           base::BlockingType::MAY_BLOCK);
-    custom_papers_dict.reset([[NSDictionary alloc]
-        initWithContentsOfFile:base::mac::FilePathToNSString(path)]);
+    custom_papers_dict = [[NSDictionary alloc]
+        initWithContentsOfURL:base::apple::FilePathToNSURL(path)
+                        error:nil];
+    if (!custom_papers_dict) {
+      return custom_paper_sizes;
+    }
   }
 
-  for (id key in custom_papers_dict.get()) {
-    NSDictionary* paper = [custom_papers_dict objectForKey:key];
-    if (![paper isKindOfClass:[NSDictionary class]])
+  for (id key in custom_papers_dict) {
+    NSDictionary* paper = base::apple::ObjCCast<NSDictionary>(
+        [custom_papers_dict objectForKey:key]);
+    if (!paper) {
       continue;
+    }
 
     int size_width = [paper[@"width"] intValue];
     int size_height = [paper[@"height"] intValue];
@@ -87,8 +92,9 @@ PrinterSemanticCapsAndDefaults::Papers GetMacCustomPaperSizesFromFile(
     }
 
     NSString* name = paper[@"name"];
-    if (![name isKindOfClass:[NSString class]] || [name length] == 0)
+    if (![name isKindOfClass:[NSString class]] || name.length == 0) {
       continue;
+    }
 
     gfx::Size size_microns(
         ConvertUnit(size_width, kPointsPerInch, kMicronsPerInch),
@@ -121,13 +127,14 @@ PrinterSemanticCapsAndDefaults::Papers GetMacCustomPaperSizesFromFile(
         ConvertUnit(printable_area_width, kPointsPerInch, kMicronsPerInch),
         ConvertUnit(printable_area_height, kPointsPerInch, kMicronsPerInch));
 
-    custom_paper_sizes.push_back({base::SysNSStringToUTF8(name), "",
-                                  size_microns, printable_area_microns});
+    custom_paper_sizes.emplace_back(base::SysNSStringToUTF8(name),
+                                    /*vendor_id=*/"", size_microns,
+                                    printable_area_microns);
   }
   std::sort(custom_paper_sizes.begin(), custom_paper_sizes.end(),
             [](const PrinterSemanticCapsAndDefaults::Paper& a,
                const PrinterSemanticCapsAndDefaults::Paper& b) {
-              return a.display_name < b.display_name;
+              return a.display_name() < b.display_name();
             });
 
   return custom_paper_sizes;

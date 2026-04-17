@@ -5,20 +5,21 @@
 #ifndef CHROME_BROWSER_WEB_APPLICATIONS_CHROMEOS_WEB_APP_EXPERIMENTS_H_
 #define CHROME_BROWSER_WEB_APPLICATIONS_CHROMEOS_WEB_APP_EXPERIMENTS_H_
 
+#include <optional>
+#include <string_view>
 #include <vector>
 
 #include "base/containers/span.h"
-#include "base/strings/string_piece.h"
-#include "chrome/browser/web_applications/web_app_id.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "chrome/browser/web_applications/scope_extension_info.h"
+#include "components/webapps/common/web_app_id.h"
+#include "content/public/browser/render_frame_host.h"
+#include "third_party/blink/public/common/manifest/manifest.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "url/gurl.h"
 
 static_assert(BUILDFLAG(IS_CHROMEOS), "For Chrome OS only");
 
-namespace content {
-class WebContents;
-}
+class Profile;
 
 namespace web_app {
 
@@ -37,23 +38,46 @@ class ChromeOsWebAppExperiments {
   // https://github.com/WICG/manifest-incubations/blob/gh-pages/scope_extensions-explainer.md.
   // At the moment, we are enabling testing of the proposed feature for
   // certain hard-coded web apps.
-  static base::span<const char* const> GetScopeExtensions(const AppId& app_id);
+  static ScopeExtensions GetScopeExtensions(const webapps::AppId& app_id);
+
+  // Certain hard-coded apps should be configured to open supported links inside
+  // the app instead of inside a browser tab by default.
+  static bool ShouldAddLinkPreference(const webapps::AppId& app_id,
+                                      Profile* profile);
 
   // Returns the max scope score (similar to
   // WebAppRegistrar::GetUrlInAppScopeScore()) for the experimental extended
   // scopes.
-  static size_t GetExtendedScopeScore(const AppId& app_id,
-                                      base::StringPiece url_spec);
+  static int GetExtendedScopeScore(const webapps::AppId& app_id,
+                                   std::string_view url_spec);
 
-  // A theme color to use for the given page.
-  // This should be used if <meta name="theme_color"> is unset on the page.
-  static absl::optional<SkColor> GetFallbackPageThemeColor(
-      const AppId& app_id,
-      content::WebContents* web_contents);
+  // Whether the manifest theme_color and background_color should be ignored for
+  // `app_id`.
+  static bool IgnoreManifestColor(const webapps::AppId& app_id);
+
+  // Whether the Navigation Capturing Reimplementation behavior should be
+  // enabled when navigating to a URL controlled by the given app.
+  static bool IsNavigationCapturingReimplEnabledForTargetApp(
+      const webapps::AppId& target_app_id);
+  // Whether the Navigation Capturing Reimplementation behavior should be
+  // enabled when navigating from the given app's window to the given URL.
+  static bool IsNavigationCapturingReimplEnabledForSourceApp(
+      const webapps::AppId& source_app_id,
+      const GURL& url);
+
+  // Whether the app should be launched if a navigation goes to a URL controlled
+  // by the given app after one or multiple redirections.
+  static bool ShouldLaunchForRedirectedNavigation(
+      const webapps::AppId& target_app_id);
+
+  // Override the manifest id with predefined query params if the start URL in
+  // the manifest matches certain URLs controlled via a finch parameter.
+  static void MaybeOverrideManifest(content::RenderFrameHost* frame_host,
+                                    blink::mojom::ManifestPtr& manifest);
 
   static void SetAlwaysEnabledForTesting();
   static void SetScopeExtensionsForTesting(
-      std::vector<const char* const> scope_extensions_override);
+      std::vector<const char*> scope_extensions_override);
   static void ClearOverridesForTesting();
 
   ChromeOsWebAppExperiments() = delete;
@@ -62,4 +86,4 @@ class ChromeOsWebAppExperiments {
 
 }  // namespace web_app
 
-#endif  // CHROME_BROWSER_WEB_APPLICATIONS_CHROMEOS_WEB_APP_ExperimentS_H_
+#endif  // CHROME_BROWSER_WEB_APPLICATIONS_CHROMEOS_WEB_APP_EXPERIMENTS_H_

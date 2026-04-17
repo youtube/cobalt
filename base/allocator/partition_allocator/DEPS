@@ -2,168 +2,59 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# PartitionAlloc is planned to be extracted into a standalone library, and
-# therefore dependencies need to be strictly controlled and minimized.
-
-gclient_gn_args_file = 'partition_allocator/build/config/gclient_args.gni'
-
-# Only these hosts are allowed for dependencies in this DEPS file.
-# This is a subset of chromium/src/DEPS's allowed_hosts.
-allowed_hosts = [
-  'chromium.googlesource.com',
-]
-
-vars = {
-  'chromium_git': 'https://chromium.googlesource.com',
-}
-
-deps = {
-  'partition_allocator/build':
-      Var('chromium_git') + '/chromium/src/build.git',
-  'partition_allocator/buildtools':
-      Var('chromium_git') + '/chromium/src/buildtools.git',
-  'partition_allocator/buildtools/clang_format/script':
-      Var('chromium_git') +
-      '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git',
-  'partition_allocator/buildtools/linux64': {
-    'packages': [
-      {
-        'package': 'gn/gn/linux-${{arch}}',
-        'version': 'latest',
-      }
-    ],
-    'dep_type': 'cipd',
-    'condition': 'host_os == "linux"',
-  },
-  'partition_allocator/buildtools/mac': {
-    'packages': [
-      {
-        'package': 'gn/gn/mac-${{arch}}',
-        'version': 'latest',
-      }
-    ],
-    'dep_type': 'cipd',
-    'condition': 'host_os == "mac"',
-  },
-  'partition_allocator/buildtools/win': {
-    'packages': [
-      {
-        'package': 'gn/gn/windows-amd64',
-        'version': 'latest',
-      }
-    ],
-    'dep_type': 'cipd',
-    'condition': 'host_os == "win"',
-  },
-  'partition_allocator/buildtools/third_party/libc++/trunk':
-      Var('chromium_git') + '/external/github.com/llvm/llvm-project/libcxx.git',
-  'partition_allocator/buildtools/third_party/libc++abi/trunk':
-      Var('chromium_git') +
-      '/external/github.com/llvm/llvm-project/libcxxabi.git',
-  'partition_allocator/tools/clang':
-      Var('chromium_git') + '/chromium/src/tools/clang.git',
-}
-
-hooks = [
-  {
-    'name': 'sysroot_arm',
-    'pattern': '.',
-    'condition': 'checkout_linux and checkout_arm',
-    'action': [
-        'python3',
-        'partition_allocator/build/linux/sysroot_scripts/install-sysroot.py',
-        '--arch=arm'],
-  },
-  {
-    'name': 'sysroot_arm64',
-    'pattern': '.',
-    'condition': 'checkout_linux and checkout_arm64',
-    'action': [
-        'python3',
-        'partition_allocator/build/linux/sysroot_scripts/install-sysroot.py',
-        '--arch=arm64'],
-  },
-  {
-    'name': 'sysroot_x86',
-    'pattern': '.',
-    'condition': 'checkout_linux and (checkout_x86 or checkout_x64)',
-    'action': [
-        'python3',
-        'partition_allocator/build/linux/sysroot_scripts/install-sysroot.py',
-        '--arch=x86'],
-  },
-  {
-    'name': 'sysroot_mips',
-    'pattern': '.',
-    'condition': 'checkout_linux and checkout_mips',
-    'action': [
-        'python3',
-        'partition_allocator/build/linux/sysroot_scripts/install-sysroot.py',
-        '--arch=mips'],
-  },
-  {
-    'name': 'sysroot_mips64',
-    'pattern': '.',
-    'condition': 'checkout_linux and checkout_mips64',
-    'action': [
-        'python3',
-        'partition_allocator/build/linux/sysroot_scripts/install-sysroot.py',
-        '--arch=mips64el'],
-  },
-  {
-    'name': 'sysroot_x64',
-    'pattern': '.',
-    'condition': 'checkout_linux and checkout_x64',
-    'action': [
-        'python3',
-        'partition_allocator/build/linux/sysroot_scripts/install-sysroot.py',
-        '--arch=x64'],
-  },
-  {
-    # Update the prebuilt clang toolchain.
-    # Note: On Win, this should run after win_toolchain, as it may use it.
-    'name': 'clang',
-    'pattern': '.',
-    'action': ['python3', 'partition_allocator/tools/clang/scripts/update.py'],
-  },
-]
-
+# PartitionAlloc library must not depend on Chromium
+# project in order to be a standalone library.
 noparent = True
 
-include_rules = [
-    "+build/build_config.h",
-    "+build/buildflag.h",
-    "+third_party/lss/linux_syscall_support.h",
-]
+# `partition_alloc` can depend only on itself, via its `include_dirs`.
+include_rules = [ "+partition_alloc" ]
 
+# TODO(crbug.com/40158212): Depending on what is tested, split the tests in
+# between chromium and partition_alloc. Remove those exceptions:
 specific_include_rules = {
-  ".*_(perf|unit)test\.cc$": [
-    "+base/allocator/allocator_shim_default_dispatch_to_partition_alloc.h",
-    "+base/allocator/dispatcher/dispatcher.h",
-    "+base/debug/allocation_trace.h",
-    "+base/debug/debugging_buildflags.h",
-    "+base/debug/proc_maps_linux.h",
-    "+base/system/sys_info.h",
-    "+base/test/gtest_util.h",
-    "+base/timer/lap_timer.h",
-    "+base/win/windows_version.h",
+  # Dependencies on //testing:
+  ".*_(perf|unit)?test.*\.(h|cc)": [
     "+testing/gmock/include/gmock/gmock.h",
     "+testing/gtest/include/gtest/gtest.h",
     "+testing/perf/perf_result_reporter.h",
   ],
-  "extended_api\.cc$": [
+  "gtest_util.h": [
+    "+testing/gtest/include/gtest/gtest.h",
+  ],
+
+  # Dependencies on //base:
+  "extended_api\.cc": [
     "+base/allocator/allocator_shim_default_dispatch_to_partition_alloc.h",
   ],
-  "gtest_prod_util\.h$": [
-    "+testing/gtest/include/gtest/gtest_prod.h",
+  "partition_alloc_perftest\.cc": [
+    "+base/allocator/dispatcher/dispatcher.h",
+    "+base/debug/allocation_trace.h",
+    "+base/debug/debugging_buildflags.h",
+    "+base/timer/lap_timer.h",
   ],
-  "raw_(ptr|ref)_unittest\.cc$": [
-    "+base",
-    "+third_party/abseil-cpp/absl/types/optional.h",
-    "+third_party/abseil-cpp/absl/types/variant.h",
+  "partition_lock_perftest\.cc": [
+    "+base/timer/lap_timer.h",
   ],
-  "raw_ptr_test_support\.h$": [
-    "+testing/gmock/include/gmock/gmock.h",
-    "+third_party/abseil-cpp/absl/types/optional.h",
-  ]
+  "raw_ptr_unittest\.cc": [
+    "+base/allocator/partition_alloc_features.h",
+    "+base/allocator/partition_alloc_support.h",
+    "+base/cpu.h",
+    "+base/debug/asan_service.h",
+    "+base/metrics/histogram_base.h",
+    "+base/test/bind.h",
+    "+base/test/gtest_util.h",
+    "+base/test/memory/dangling_ptr_instrumentation.h",
+    "+base/test/scoped_feature_list.h",
+    "+base/types/to_address.h",
+  ],
+  "raw_ref_unittest\.cc": [
+    "+base/debug/asan_service.h",
+    "+base/memory/raw_ptr_asan_service.h",
+    "+base/test/gtest_util.h",
+  ],
 }
+
+# In the context of a module-level DEPS, the `deps` variable must be defined.
+# Some tools relies on it. For instance dawn/tools/fetch_dawn_dependencies.py
+# This has no use in other contexts.
+deps = {}

@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/memory/raw_ptr.h"
+#include "base/timer/timer.h"
 #include "components/exo/data_device.h"
 #include "components/exo/data_offer_observer.h"
 #include "components/exo/data_source_observer.h"
@@ -60,6 +61,9 @@ class DragDropOperation : public DataSourceObserver,
   // Abort the operation if it hasn't been started yet, otherwise do nothing.
   void AbortIfPending();
 
+  // The drag drop has started.
+  bool started() const { return started_; }
+
   // DataSourceObserver:
   void OnDataSourceDestroying(DataSource* source) override;
 
@@ -87,14 +91,6 @@ class DragDropOperation : public DataSourceObserver,
   ~DragDropOperation() override;
 
   void OnDragIconCaptured(const SkBitmap& icon_bitmap);
-
-  // Called when the focused window is a Lacros window and a source
-  // DataTransferEndpoint is found in the available MIME types. This
-  // is currently used to synchronize drag source metadata from
-  // Lacros to Ash.
-  void OnDataTransferEndpointRead(const std::string& mime_type,
-                                  std::u16string data);
-
   void OnTextRead(const std::string& mime_type, std::u16string data);
   void OnHTMLRead(const std::string& mime_type, std::u16string data);
   void OnFilenamesRead(DataExchangeDelegate* data_exchange_delegate,
@@ -120,13 +116,14 @@ class DragDropOperation : public DataSourceObserver,
   std::unique_ptr<ScopedSurface> origin_;
   gfx::PointF drag_start_point_;
   std::unique_ptr<ui::OSExchangeData> os_exchange_data_;
-  raw_ptr<ash::DragDropController, ExperimentalAsh> drag_drop_controller_;
+  raw_ptr<ash::DragDropController> drag_drop_controller_;
 
   base::RepeatingClosure counter_;
 
   // Stores whether this object has just started a drag operation. If so, we
-  // want to ignore the OnDragStarted event.
-  bool started_by_this_object_ = false;
+  // want to ignore the OnDragStarted event, and self destruct the object when
+  // completed.
+  bool started_ = false;
 
   bool captured_icon_ = false;
 
@@ -138,7 +135,11 @@ class DragDropOperation : public DataSourceObserver,
 
   ui::mojom::DragEventSource event_source_;
 
-  raw_ptr<ExtendedDragSource, ExperimentalAsh> extended_drag_source_;
+  raw_ptr<ExtendedDragSource> extended_drag_source_;
+
+  // TODO(crbug.com/40061238): Remove this once the issue is fixed.
+  base::OneShotTimer start_drag_drop_timer_;
+  void DragDataReadTimeout();
 
   base::WeakPtrFactory<DragDropOperation> weak_ptr_factory_{this};
 };

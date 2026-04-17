@@ -10,15 +10,12 @@
 #import "base/ios/crb_protocol_observers.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/scoped_feature_list.h"
+#import "ios/testing/earl_grey/app_launch_argument_generator.h"
 #import "ios/testing/earl_grey/app_launch_manager_app_interface.h"
 #import "ios/testing/earl_grey/base_earl_grey_test_case_app_interface.h"
 #import "ios/testing/earl_grey/coverage_utils.h"
 #import "ios/testing/earl_grey/earl_grey_test.h"
 #import "ios/third_party/edo/src/Service/Sources/EDOServiceException.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 // Returns the list of extra app launch args from test command line args.
@@ -130,7 +127,7 @@ bool LaunchArgumentsAreEqual(NSArray<NSString*>* args1,
       // An EDOServiceGenericException here comes from the communication between
       // test and app process, which means there should be issues in host app,
       // but it wasn't reflected in XCUIApplicationState.
-      // TODO(crbug.com/1075716): Investigate why the exception is thrown.
+      // TODO(crbug.com/40687845): Investigate why the exception is thrown.
       appIsRunning = NO;
     }
   }
@@ -149,8 +146,6 @@ bool LaunchArgumentsAreEqual(NSArray<NSString*>* args1,
   }
 
   if (appIsRunning) {
-    [CoverageUtils writeClangCoverageProfile];
-
     if (gracefullyKill) {
       GREYAssertTrue([self backgroundApplication],
                      @"Failed to background application.");
@@ -181,6 +176,13 @@ bool LaunchArgumentsAreEqual(NSArray<NSString*>* args1,
 
   XCUIApplication* application = [[XCUIApplication alloc] init];
   application.launchArguments = arguments;
+
+  // Instruct EG to not DYLD_INSERT_LIBRARIES, which can interfere with
+  // Chromium's framework setup.
+  NSMutableDictionary<NSString*, NSString*>* mutableEnv =
+      [application.launchEnvironment mutableCopy];
+  mutableEnv[@"EG_SKIP_INSERT_LIBRARIES"] = @"YES";
+  application.launchEnvironment = [mutableEnv copy];
 
   @try {
     [application launch];
@@ -213,61 +215,19 @@ bool LaunchArgumentsAreEqual(NSArray<NSString*>* args1,
 
 - (void)ensureAppLaunchedWithConfiguration:
     (AppLaunchConfiguration)configuration {
-  NSMutableArray<NSString*>* namesToEnable = [NSMutableArray array];
-  NSMutableArray<NSString*>* namesToDisable = [NSMutableArray array];
-  NSMutableArray<NSString*>* variations = [NSMutableArray array];
-
-  for (const auto& feature : configuration.features_enabled) {
-    [namesToEnable addObject:base::SysUTF8ToNSString(feature->name)];
-  }
-
-  for (const auto& feature : configuration.features_disabled) {
-    [namesToDisable addObject:base::SysUTF8ToNSString(feature->name)];
-  }
-
-  for (const variations::VariationID& variation :
-       configuration.variations_enabled) {
-    [variations addObject:[NSString stringWithFormat:@"%d", variation]];
-  }
-
-  for (const variations::VariationID& variation :
-       configuration.trigger_variations_enabled) {
-    [variations addObject:[NSString stringWithFormat:@"t%d", variation]];
-  }
-
-  NSString* enabledString = @"";
-  NSString* disabledString = @"";
-  NSString* variationString = @"";
-  if ([namesToEnable count] > 0) {
-    enabledString = [NSString
-        stringWithFormat:@"--enable-features=%@",
-                         [namesToEnable componentsJoinedByString:@","]];
-  }
-  if ([namesToDisable count] > 0) {
-    disabledString = [NSString
-        stringWithFormat:@"--disable-features=%@",
-                         [namesToDisable componentsJoinedByString:@","]];
-  }
-  if (variations.count > 0) {
-    variationString =
-        [NSString stringWithFormat:@"--force-variation-ids=%@",
-                                   [variations componentsJoinedByString:@","]];
-  }
-
-  NSMutableArray<NSString*>* arguments = [NSMutableArray
-      arrayWithObjects:enabledString, disabledString, variationString, nil];
-
-  for (const std::string& arg : configuration.additional_args) {
-    [arguments addObject:base::SysUTF8ToNSString(arg)];
-  }
+  NSArray<NSString*>* arguments = ArgumentsFromConfiguration(configuration);
 
   [self ensureAppLaunchedWithArgs:arguments
                    relaunchPolicy:configuration.relaunch_policy];
 
   if ([self appIsLaunched]) {
-    if (@available(iOS 14, *)) {
-      [BaseEarlGreyTestCaseAppInterface enableFastAnimation];
+    [BaseEarlGreyTestCaseAppInterface enableFastAnimation];
+
+#if !TARGET_IPHONE_SIMULATOR
+    if (@available(iOS 17, *)) {
+      [BaseEarlGreyTestCaseAppInterface swizzleKeyboardOOP];
     }
+#endif
 
     // Wait for application to settle before continuing on with test.
     GREYWaitForAppToIdle(@"App failed to idle BEFORE test body started.\n\n"

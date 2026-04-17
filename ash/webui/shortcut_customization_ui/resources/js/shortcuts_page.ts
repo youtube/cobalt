@@ -4,26 +4,31 @@
 
 import './accelerator_subsection.js';
 import '../css/shortcut_customization_shared.css.js';
-import './shortcut_input.js';
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
-import {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/polymer/interfaces.js';
+import {strictQuery} from 'chrome://resources/ash/common/typescript_utils/strict_query.js';
+import {assert} from 'chrome://resources/js/assert.js';
+import type {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/polymer/interfaces.js';
 import {afterNextRender, microTask, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {AcceleratorLookupManager} from './accelerator_lookup_manager.js';
-import {AcceleratorRowElement} from './accelerator_row.js';
-import {AcceleratorSubsectionElement} from './accelerator_subsection.js';
-import {RouteObserver, Router} from './router.js';
-import {AcceleratorCategory, AcceleratorSubcategory} from './shortcut_types';
+import type {AcceleratorRowElement} from './accelerator_row.js';
+import type {AcceleratorSubsectionElement} from './accelerator_subsection.js';
+import {getShortcutProvider} from './mojo_interface_provider.js';
+import type {RouteObserver} from './router.js';
+import {Router} from './router.js';
+import type {AcceleratorCategory, AcceleratorSubcategory} from './shortcut_types.js';
 import {getTemplate} from './shortcuts_page.html.js';
 
 /**
  * @fileoverview
  * 'shortcuts-page' is a generic page that is capable of rendering the
  * shortcuts for a specific category.
- *
- * TODO(jimmyxgong): Implement this skeleton element.
  */
+
+// 150ms is enough of delay to wait for the virtual keyboard to disappear and
+// resume with a smooth scroll.
+const kDefaultScrollTimeout = 150;
+
 export class ShortcutsPageElement extends PolymerElement implements
     RouteObserver {
   static get is(): string {
@@ -49,6 +54,7 @@ export class ShortcutsPageElement extends PolymerElement implements
 
   initialData: {category: AcceleratorCategory}|null;
   subcategories: AcceleratorSubcategory[];
+  private scrollTimeout: number = kDefaultScrollTimeout;
   private lookupManager: AcceleratorLookupManager =
       AcceleratorLookupManager.getInstance();
 
@@ -102,8 +108,16 @@ export class ShortcutsPageElement extends PolymerElement implements
   onNavigationPageChanged({isActive}: {isActive: boolean}): void {
     if (isActive) {
       afterNextRender(this, () => {
-        // Scroll to the top of the page after the active page changes.
-        window.scrollTo({top: 0});
+        if (this.initialData) {
+          getShortcutProvider().recordMainCategoryNavigation(
+              this.initialData.category);
+        }
+        // Dispatch a custom event to inform the parent to scroll to the top
+        // after active page changes.
+        this.dispatchEvent(new CustomEvent('scroll-to-top', {
+          bubbles: true,
+          composed: true,
+        }));
 
         // Scroll to the specific accelerator if this page change was caused by
         // clicking on a search result. If the page change was manual, the
@@ -130,7 +144,12 @@ export class ShortcutsPageElement extends PolymerElement implements
    * a search result.
    */
   onRouteChanged(url: URL): void {
-    this.maybeScrollToAcceleratorRowBasedOnUrl(url);
+    const didScroll = this.maybeScrollToAcceleratorRowBasedOnUrl(url);
+    if (didScroll) {
+      // Reset the route after scrolling so the app doesn't re-scroll when
+      // the user manually changes pages.
+      Router.getInstance().resetRoute();
+    }
   }
 
   /**
@@ -168,8 +187,28 @@ export class ShortcutsPageElement extends PolymerElement implements
       if (matchingAcceleratorRow) {
         // Use microtask timing to ensure that the scrolling action happens.
         microTask.run(() => {
-          matchingAcceleratorRow.scrollIntoView({behavior: 'smooth'});
+          // Note: There is a bug in which the onscreen virtual keyboard's close
+          // animation conflicts with smooth scrolling. Adding a 150ms handles
+          // the issue by waiting for the virtual keyboard close animation
+          // to finish.
+          if (this.scrollTimeout === 0) {
+            // Don't queue a timeout if there is no delay to be added. A zero
+            // timeout will still make the function an asynchronous call.
+            // This removes the need to use a flaky timeout for tests.
+            matchingAcceleratorRow.scrollIntoView({behavior: 'smooth'});
+          } else {
+            setTimeout(() => {
+              matchingAcceleratorRow.scrollIntoView({behavior: 'smooth'});
+            }, this.scrollTimeout);
+          }
         });
+
+        // Focus on the matching accelerator row.
+        strictQuery(
+            '#container', matchingAcceleratorRow.shadowRoot,
+            HTMLTableRowElement)
+            .focus();
+        this.lookupManager.setSearchResultRowFocused(true);
 
         // The scroll event did happen, so return true.
         return true;
@@ -177,6 +216,10 @@ export class ShortcutsPageElement extends PolymerElement implements
     }
 
     return false;
+  }
+
+  setScrollTimeoutForTesting(timeout: number): void {
+    this.scrollTimeout = timeout;
   }
 
   static get template(): HTMLTemplateElement {

@@ -13,46 +13,19 @@ namespace vr {
 
 // These identifiers serve as stable, semantic identifiers for UI elements.
 // These are not unique, analogous to CSS classes.
+// LINT.IfChange(UiElementType)
 enum UiElementType {
   kTypeNone = 0,
-  kTypeButtonBackground,
-  kTypeButtonForeground,
-  kTypeButtonHitTarget,
-  kTypeButtonText,
-  kTypeHostedUiBackplane,
   kTypeScaledDepthAdjuster,
-  kTypeOmniboxSuggestionBackground,
-  kTypeOmniboxSuggestionLayout,
-  kTypeOmniboxSuggestionTextLayout,
-  kTypeOmniboxSuggestionIconField,
-  kTypeOmniboxSuggestionIcon,
-  kTypeOmniboxSuggestionContentText,
-  kTypeOmniboxSuggestionDescriptionText,
-  kTypePromptBackplane,
-  kTypePromptShadow,
   kTypePromptBackground,
   kTypePromptIcon,
   kTypePromptText,
-  kTypePromptPrimaryButton,
-  kTypePromptSecondaryButton,
   kTypeSpacer,
-  kTypeTextInputHint,
-  kTypeTextInputText,
-  kTypeTextInputCursor,
-  kTypeToastBackground,
-  kTypeToastText,
-  kTypeCursorBackground,
-  kTypeCursorForeground,
-  kTypeOverflowMenuButton,
-  kTypeOverflowMenuItem,
-  kTypeTooltip,
-  kTypeLabel,
-  kTypeTabItem,
-  kTypeTabItemRemoveButton,
 
   // This must be last.
   kNumUiElementTypes,
 };
+// LINT.ThenChange(//chrome/browser/vr/elements/ui_element_type.vv:UiElementType)
 
 VR_UI_EXPORT std::string UiElementTypeToString(UiElementType type);
 

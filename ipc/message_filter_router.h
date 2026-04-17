@@ -5,8 +5,10 @@
 #ifndef IPC_MESSAGE_FILTER_ROUTER_H_
 #define IPC_MESSAGE_FILTER_ROUTER_H_
 
+#include <array>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "ipc/ipc_message_start.h"
 
 namespace IPC {
@@ -16,7 +18,8 @@ class MessageFilter;
 
 class MessageFilterRouter {
  public:
-  typedef std::vector<MessageFilter*> MessageFilters;
+  typedef std::vector<raw_ptr<MessageFilter, VectorExperimental>>
+      MessageFilters;
 
   MessageFilterRouter();
   ~MessageFilterRouter();
@@ -34,7 +37,7 @@ class MessageFilterRouter {
   // responsibility to ensure that a filter is either global or selective to
   // ensure proper message filtering order.
   MessageFilters global_filters_;
-  MessageFilters message_class_filters_[LastIPCMsgStart];
+  std::array<MessageFilters, LastIPCMsgStart> message_class_filters_;
 };
 
 }  // namespace IPC

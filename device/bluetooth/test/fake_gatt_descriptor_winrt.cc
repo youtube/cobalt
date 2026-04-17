@@ -2,11 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "device/bluetooth/test/fake_gatt_descriptor_winrt.h"
 
 #include <utility>
 
-#include "base/strings/string_piece.h"
 #include "base/win/async_operation.h"
 #include "base/win/winrt_storage_util.h"
 #include "device/bluetooth/public/cpp/bluetooth_uuid.h"
@@ -35,7 +39,7 @@ using Microsoft::WRL::Make;
 
 FakeGattDescriptorWinrt::FakeGattDescriptorWinrt(
     BluetoothTestWinrt* bluetooth_test_winrt,
-    base::StringPiece uuid,
+    std::string_view uuid,
     uint16_t attribute_handle)
     : bluetooth_test_winrt_(bluetooth_test_winrt),
       uuid_(BluetoothUUID::GetCanonicalValueAsGUID(uuid)),

@@ -21,21 +21,19 @@ import java.util.List;
 
 /**
  * Entry manager responsible for managing all the of the {@LongScreenshotEntry}. This should be used
- * to generate and retrieve the needed bitmaps. Currently we generate the screenshot in one pass;
- * to obtain it call {@link generateFullpageEntry}.
+ * to generate and retrieve the needed bitmaps. Currently we generate the screenshot in one pass; to
+ * obtain it call {@link generateFullpageEntry}.
  */
 public class EntryManager {
-    private static final int KB_IN_BYTES = 1024;
     // List of all entries in correspondence of the webpage.
-    private List<LongScreenshotsEntry> mEntries;
+    private final List<LongScreenshotsEntry> mEntries;
     // List of entries that are queued to generate the bitmap. Entries should only be queued
     // while the capture is in progress.
-    private List<LongScreenshotsEntry> mQueuedEntries;
+    private final List<LongScreenshotsEntry> mQueuedEntries;
     private BitmapGenerator mGenerator;
-    private ObserverList<BitmapGeneratorObserver> mGeneratorObservers;
+    private final ObserverList<BitmapGeneratorObserver> mGeneratorObservers;
     private @EntryStatus int mGeneratorStatus;
-    private ScreenshotBoundsManager mBoundsManager;
-    private int mMemoryUsedInKb;
+    private final ScreenshotBoundsManager mBoundsManager;
 
     /**
      * Users of the {@link EntryManager} can implement this interface to be notified of changes to
@@ -81,7 +79,6 @@ public class EntryManager {
         updateGeneratorStatus(EntryStatus.CAPTURE_IN_PROGRESS);
     }
 
-    @VisibleForTesting
     public BitmapGenerator getBitmapGeneratorForTesting() {
         return mGenerator;
     }
@@ -91,16 +88,16 @@ public class EntryManager {
      * listener to the returned entry to get that status of the generation and retrieve the bitmap.
      */
     public LongScreenshotsEntry generateFullpageEntry() {
-        LongScreenshotsEntry entry = new LongScreenshotsEntry(
-                mGenerator, mBoundsManager.getFullEntryBounds(), this::updateMemoryUsage);
+        LongScreenshotsEntry entry =
+                new LongScreenshotsEntry(mGenerator, mBoundsManager.getFullEntryBounds(), null);
         processEntry(entry, false, false);
         return entry;
     }
 
     /**
      * Generates the bitmap of content within the bounds passed.
+     *
      * @param bounds bounds to generate the bitmap from.
-     * @param updateMemoryUsage The callback to be notified of the bitmap memory usage.
      * @return The new entry that generates the bitmap.
      */
     public LongScreenshotsEntry generateEntry(Rect bounds) {
@@ -109,7 +106,9 @@ public class EntryManager {
         return entry;
     }
 
-    private void processEntry(LongScreenshotsEntry entry, boolean skipAddingEntryToList,
+    private void processEntry(
+            LongScreenshotsEntry entry,
+            boolean skipAddingEntryToList,
             boolean addToBeginningOfList) {
         if (mGeneratorStatus == EntryStatus.CAPTURE_COMPLETE) {
             entry.generateBitmap();
@@ -152,10 +151,6 @@ public class EntryManager {
         for (BitmapGeneratorObserver observer : mGeneratorObservers) {
             observer.onStatusChange(mGeneratorStatus);
         }
-    }
-
-    private void updateMemoryUsage(int bytedUsed) {
-        mMemoryUsedInKb += (bytedUsed / KB_IN_BYTES);
     }
 
     public void addBitmapGeneratorObserver(BitmapGeneratorObserver observer) {

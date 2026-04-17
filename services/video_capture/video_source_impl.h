@@ -22,6 +22,11 @@
 #include "services/video_capture/public/mojom/video_frame_handler.mojom.h"
 #include "services/video_capture/public/mojom/video_source.mojom.h"
 #include "services/video_capture/public/mojom/video_source_provider.mojom.h"
+#include "services/video_effects/public/cpp/buildflags.h"
+
+#if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
+#include "services/video_effects/public/mojom/video_effects_processor.mojom-forward.h"
+#endif
 
 namespace video_capture {
 
@@ -48,6 +53,16 @@ class VideoSourceImpl : public mojom::VideoSource {
       mojo::PendingReceiver<mojom::PushVideoStreamSubscription> subscription,
       CreatePushSubscriptionCallback callback) override;
 
+#if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
+  void RegisterVideoEffectsProcessor(
+      mojo::PendingRemote<video_effects::mojom::VideoEffectsProcessor> remote)
+      override;
+
+  void RegisterReadonlyVideoEffectsManager(
+      mojo::PendingRemote<media::mojom::ReadonlyVideoEffectsManager> remote)
+      override;
+#endif
+
  private:
   enum class DeviceStatus {
     kNotStarted,
@@ -71,7 +86,7 @@ class VideoSourceImpl : public mojom::VideoSource {
   void StopDeviceAsynchronously();
   void OnStopDeviceComplete();
 
-  const raw_ptr<DeviceFactory> device_factory_;
+  const raw_ptr<DeviceFactory, DanglingUntriaged> device_factory_;
   const std::string device_id_;
   mojo::ReceiverSet<mojom::VideoSource> receivers_;
   base::RepeatingClosure on_last_binding_closed_cb_;
@@ -82,8 +97,23 @@ class VideoSourceImpl : public mojom::VideoSource {
       push_subscriptions_;
   BroadcastingReceiver broadcaster_;
   DeviceStatus device_status_;
+  raw_ptr<Device, AcrossTasksDanglingUntriaged> device_{nullptr};
   media::VideoCaptureParams device_start_settings_;
-  bool restart_device_once_when_stop_complete_;
+  bool restart_device_once_when_stop_complete_ = false;
+
+#if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
+  // Video effects processor that will be used to start the capture on the
+  // `device_`.
+  mojo::PendingRemote<video_effects::mojom::VideoEffectsProcessor>
+      pending_video_effects_processor_;
+
+  // Video effects manager that will be used to check / observe configuration
+  // state as we as report errors.
+  mojo::PendingRemote<media::mojom::ReadonlyVideoEffectsManager>
+      pending_readonly_video_effects_manager_;
+#endif
+
+  base::TimeTicks device_startup_start_time_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 

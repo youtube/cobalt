@@ -24,10 +24,12 @@
 #include "net/base/features.h"
 #include "net/base/network_anonymization_key.h"
 #include "net/network_error_logging/network_error_logging_service.h"
+#include "net/reporting/reporting_target_type.h"
 #include "net/reporting/reporting_test_util.h"
 #include "net/test/test_with_task_environment.h"
 #include "sql/database.h"
 #include "sql/meta_table.h"
+#include "sql/test/test_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -90,7 +92,7 @@ class SQLitePersistentReportingAndNelStoreTest
  public:
   SQLitePersistentReportingAndNelStoreTest() {
     feature_list_.InitAndEnableFeature(
-        features::kPartitionNelAndReportingByNetworkIsolationKey);
+        features::kPartitionConnectionsByNetworkIsolationKey);
   }
 
   void CreateStore() {
@@ -212,8 +214,8 @@ class SQLitePersistentReportingAndNelStoreTest
     info.priority = priority;
     info.weight = weight;
     ReportingEndpoint endpoint(
-        ReportingEndpointGroupKey(network_anonymization_key, origin,
-                                  group_name),
+        ReportingEndpointGroupKey(network_anonymization_key, origin, group_name,
+                                  ReportingTargetType::kDeveloper),
         std::move(info));
     return endpoint;
   }
@@ -226,8 +228,8 @@ class SQLitePersistentReportingAndNelStoreTest
       OriginSubdomains include_subdomains = OriginSubdomains::DEFAULT,
       base::Time expires = kExpires) {
     return CachedReportingEndpointGroup(
-        ReportingEndpointGroupKey(network_anonymization_key, origin,
-                                  group_name),
+        ReportingEndpointGroupKey(network_anonymization_key, origin, group_name,
+                                  ReportingTargetType::kDeveloper),
         include_subdomains, expires, last_used);
   }
 
@@ -239,10 +241,10 @@ class SQLitePersistentReportingAndNelStoreTest
   // from different sources.
   const NetworkAnonymizationKey kNak1_ =
       NetworkAnonymizationKey::CreateCrossSite(
-          SchemefulSite(GURL("https://top-frame-origin-nik1.test")));
+          SchemefulSite(GURL("https://top-frame-origin-nak1.test")));
   const NetworkAnonymizationKey kNak2_ =
       NetworkAnonymizationKey::CreateCrossSite(
-          SchemefulSite(GURL("https://top-frame-origin-nik2.test")));
+          SchemefulSite(GURL("https://top-frame-origin-nak2.test")));
 
   base::ScopedTempDir temp_dir_;
   std::unique_ptr<SQLitePersistentReportingAndNelStore> store_;
@@ -292,7 +294,7 @@ TEST_F(SQLitePersistentReportingAndNelStoreTest, TestInvalidMetaTableRecovery) {
 
   // Now corrupt the meta table.
   {
-    sql::Database db;
+    sql::Database db(sql::test::kTestTag);
     ASSERT_TRUE(
         db.Open(temp_dir_.GetPath().Append(kReportingAndNELStoreFilename)));
     sql::MetaTable meta_table;
@@ -308,8 +310,8 @@ TEST_F(SQLitePersistentReportingAndNelStoreTest, TestInvalidMetaTableRecovery) {
   LoadNelPolicies(&policies);
   ASSERT_EQ(0U, policies.size());
 
-  hist_tester.ExpectUniqueSample("Net.SQLite.CorruptMetaTableRecovered", true,
-                                 1);
+  hist_tester.ExpectUniqueSample("ReportingAndNEL.CorruptMetaTableRecovered",
+                                 true, 1);
 
   // Verify that, after, recovery, the database persists properly.
   NetworkErrorLoggingService::NelPolicy policy2 = MakeNelPolicy(
@@ -527,7 +529,6 @@ TEST_F(SQLitePersistentReportingAndNelStoreTest, CoalesceNelPolicyOperations) {
 
         default:
           NOTREACHED();
-          break;
       }
     }
 
@@ -640,12 +641,12 @@ TEST_F(SQLitePersistentReportingAndNelStoreTest,
   event.Signal();
   RunUntilIdle();
 
-  // Close the database, disable kPartitionNelAndReportingByNetworkIsolationKey,
+  // Close the database, disable kPartitionConnectionsByNetworkIsolationKey,
   // and re-open it.
   DestroyStore();
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndDisableFeature(
-      features::kPartitionNelAndReportingByNetworkIsolationKey);
+      features::kPartitionConnectionsByNetworkIsolationKey);
   CreateStore();
   std::vector<NetworkErrorLoggingService::NelPolicy> policies;
   LoadNelPolicies(&policies);
@@ -653,7 +654,7 @@ TEST_F(SQLitePersistentReportingAndNelStoreTest,
   // No entries should be restored.
   ASSERT_EQ(0u, policies.size());
 
-  // Now reload the store with kPartitionNelAndReportingByNetworkIsolationKey
+  // Now reload the store with kPartitionConnectionsByNetworkIsolationKey
   // enabled again.
   DestroyStore();
   feature_list.Reset();
@@ -771,9 +772,9 @@ TEST_F(SQLitePersistNelTest, AddAndDeleteNelPolicy) {
 TEST_F(SQLitePersistNelTest, ExpirationTimeIsPersisted) {
   const GURL kUrl("https://www.foo.test");
   const url::Origin kOrigin = url::Origin::Create(kUrl);
-  const NetworkAnonymizationKey kNik;
+  const NetworkAnonymizationKey kNak;
 
-  service_->OnHeader(kNik, kOrigin, kServerIP, kHeader);
+  service_->OnHeader(kNak, kOrigin, kServerIP, kHeader);
   RunUntilIdle();
 
   // Makes the policy we just added expired.
@@ -781,17 +782,17 @@ TEST_F(SQLitePersistNelTest, ExpirationTimeIsPersisted) {
 
   SimulateRestart();
 
-  service_->OnRequest(MakeRequestDetails(kNik, kUrl, ERR_INVALID_RESPONSE));
+  service_->OnRequest(MakeRequestDetails(kNak, kUrl, ERR_INVALID_RESPONSE));
   RunUntilIdle();
 
   EXPECT_EQ(0u, reporting_service_->reports().size());
 
   // Add the policy again so that it is not expired.
-  service_->OnHeader(kNik, kOrigin, kServerIP, kHeader);
+  service_->OnHeader(kNak, kOrigin, kServerIP, kHeader);
 
   SimulateRestart();
 
-  service_->OnRequest(MakeRequestDetails(kNik, kUrl, ERR_INVALID_RESPONSE));
+  service_->OnRequest(MakeRequestDetails(kNak, kUrl, ERR_INVALID_RESPONSE));
   RunUntilIdle();
 
   EXPECT_THAT(reporting_service_->reports(),
@@ -1290,7 +1291,6 @@ TEST_F(SQLitePersistentReportingAndNelStoreTest,
 
         default:
           NOTREACHED();
-          break;
       }
     }
 
@@ -1382,7 +1382,6 @@ TEST_F(SQLitePersistentReportingAndNelStoreTest,
 
         default:
           NOTREACHED();
-          break;
       }
     }
 
@@ -1586,12 +1585,12 @@ TEST_F(SQLitePersistentReportingAndNelStoreTest,
   event.Signal();
   RunUntilIdle();
 
-  // Close the database, disable kPartitionNelAndReportingByNetworkIsolationKey,
+  // Close the database, disable kPartitionConnectionsByNetworkIsolationKey,
   // and re-open it.
   DestroyStore();
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndDisableFeature(
-      features::kPartitionNelAndReportingByNetworkIsolationKey);
+      features::kPartitionConnectionsByNetworkIsolationKey);
   CreateStore();
 
   std::vector<ReportingEndpoint> endpoints;
@@ -1600,7 +1599,7 @@ TEST_F(SQLitePersistentReportingAndNelStoreTest,
   // No entries should be restored.
   ASSERT_EQ(0u, endpoints.size());
 
-  // Now reload the store with kPartitionNelAndReportingByNetworkIsolationKey
+  // Now reload the store with kPartitionConnectionsByNetworkIsolationKey
   // enabled again.
   DestroyStore();
   feature_list.Reset();
@@ -1645,12 +1644,12 @@ TEST_F(SQLitePersistentReportingAndNelStoreTest,
   event.Signal();
   RunUntilIdle();
 
-  // Close the database, disable kPartitionNelAndReportingByNetworkIsolationKey,
+  // Close the database, disable kPartitionConnectionsByNetworkIsolationKey,
   // and re-open it.
   DestroyStore();
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndDisableFeature(
-      features::kPartitionNelAndReportingByNetworkIsolationKey);
+      features::kPartitionConnectionsByNetworkIsolationKey);
   CreateStore();
 
   std::vector<ReportingEndpoint> endpoints;
@@ -1659,7 +1658,7 @@ TEST_F(SQLitePersistentReportingAndNelStoreTest,
   LoadReportingClients(&endpoints, &groups);
   EXPECT_TRUE(groups.empty());
 
-  // Now reload the store with kPartitionNelAndReportingByNetworkIsolationKey
+  // Now reload the store with kPartitionConnectionsByNetworkIsolationKey
   // enabled again.
   DestroyStore();
   feature_list.Reset();

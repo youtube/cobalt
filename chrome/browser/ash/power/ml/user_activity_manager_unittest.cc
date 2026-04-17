@@ -12,12 +12,13 @@
 #include "ash/constants/ash_features.h"
 #include "base/cancelable_callback.h"
 #include "base/functional/bind.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/timer/timer.h"
-#include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
+#include "chrome/browser/ash/browser_delegate/browser_controller_impl.h"
 #include "chrome/browser/ash/power/ml/idle_event_notifier.h"
 #include "chrome/browser/ash/power/ml/smart_dim/ml_agent.h"
 #include "chrome/browser/ash/power/ml/user_activity_event.pb.h"
@@ -29,6 +30,7 @@
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "chrome/test/base/test_browser_window_aura.h"
 #include "chrome/test/base/testing_profile.h"
+#include "chromeos/ash/components/install_attributes/stub_install_attributes.h"
 #include "chromeos/dbus/power/fake_power_manager_client.h"
 #include "chromeos/dbus/power_manager/idle.pb.h"
 #include "chromeos/dbus/power_manager/power_supply_properties.pb.h"
@@ -125,9 +127,11 @@ class UserActivityManagerTest : public ChromeRenderViewHostTestHarness {
     chromeos::PowerManagerClient::InitializeFake();
     mojo::PendingRemote<viz::mojom::VideoDetectorObserver> observer;
     activity_logger_ = std::make_unique<UserActivityManager>(
-        &delegate_, &user_activity_detector_,
+        &delegate_, ui::UserActivityDetector::Get(),
         chromeos::PowerManagerClient::Get(), &session_manager_,
-        observer.InitWithNewPipeAndPassReceiver(), &fake_user_manager_);
+        observer.InitWithNewPipeAndPassReceiver());
+
+    browser_controller_ = std::make_unique<ash::BrowserControllerImpl>();
 
     chromeos::machine_learning::ServiceConnection::
         UseFakeServiceConnectionForTesting(&fake_service_connection_);
@@ -135,6 +139,7 @@ class UserActivityManagerTest : public ChromeRenderViewHostTestHarness {
   }
 
   void TearDown() override {
+    browser_controller_.reset();
     activity_logger_.reset();
     chromeos::PowerManagerClient::Shutdown();
     ChromeRenderViewHostTestHarness::TearDown();
@@ -266,7 +271,6 @@ class UserActivityManagerTest : public ChromeRenderViewHostTestHarness {
   }
 
   TestingUserActivityUkmLogger delegate_;
-  FakeChromeUserManager fake_user_manager_;
   // Only used to get SourceIds for URLs.
   ukm::TestAutoSetUkmRecorder ukm_recorder_;
   TabActivitySimulator tab_activity_simulator_;
@@ -279,10 +283,10 @@ class UserActivityManagerTest : public ChromeRenderViewHostTestHarness {
   const GURL url4_ = GURL("https://example4.com/");
 
  private:
-  ui::UserActivityDetector user_activity_detector_;
   std::unique_ptr<IdleEventNotifier> idle_event_notifier_;
   session_manager::SessionManager session_manager_;
   std::unique_ptr<UserActivityManager> activity_logger_;
+  std::unique_ptr<BrowserControllerImpl> browser_controller_;
 };
 
 // After an idle event, we have a ui::Event, we should expect one
@@ -743,7 +747,10 @@ TEST_F(UserActivityManagerTest, ManagedDevice) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndDisableFeature(features::kUserActivityPrediction);
 
-  fake_user_manager_.set_is_enterprise_managed(true);
+  profile()
+      ->ScopedCrosSettingsTestHelper()
+      ->InstallAttributes()
+      ->SetCloudManaged("fake-managed.com", "device-id");
 
   const IdleEventNotifier::ActivityData data;
   ReportIdleEvent(data);

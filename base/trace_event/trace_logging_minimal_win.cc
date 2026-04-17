@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/trace_event/trace_logging_minimal_win.h"
 
 #include <evntrace.h>
@@ -10,40 +15,46 @@
 #include "base/logging.h"
 #include "base/numerics/checked_math.h"
 
+TlmProvider::TlmProvider() noexcept = default;
+
 TlmProvider::~TlmProvider() {
   Unregister();
 }
 
 TlmProvider::TlmProvider(const char* provider_name,
                          const GUID& provider_guid,
-                         PENABLECALLBACK enable_callback,
-                         void* enable_callback_context) noexcept {
-  ULONG status = Register(provider_name, provider_guid, enable_callback,
-                          enable_callback_context);
+                         base::RepeatingCallback<void(EventControlCode)>
+                             on_updated_callback) noexcept {
+  ULONG status =
+      Register(provider_name, provider_guid, std::move(on_updated_callback));
   LOG_IF(ERROR, status != ERROR_SUCCESS) << "Provider resistration failure";
 }
 
 // Appends a nul-terminated string to a metadata block.
 // Returns new meta_data_index value, or -1 for overflow.
-uint16_t TlmProvider::AppendNameToMetadata(char* metadata,
-                                           uint16_t metadata_size,
-                                           uint16_t metadata_index,
-                                           const char* name) const noexcept {
+uint16_t TlmProvider::AppendNameToMetadata(
+    char* metadata,
+    uint16_t metadata_size,
+    uint16_t metadata_index,
+    std::string_view name) const noexcept {
   uint16_t index = metadata_index;
   DCHECK_LE(index, metadata_size);
 
-  const size_t cch = strlen(name) + 1;
-  if (cch > static_cast<unsigned>(metadata_size - index))
+  const size_t cch = name.size();
+  if (cch + 1 > static_cast<unsigned>(metadata_size - index)) {
     return static_cast<uint16_t>(-1);
+  }
 
-  memcpy(metadata + index, name, cch);
-  index += static_cast<uint16_t>(cch);
+  memcpy(metadata + index, name.data(), cch);
+  metadata[index + cch] = 0;
+  index += static_cast<uint16_t>(cch) + 1;
   return index;
 }
 
 void TlmProvider::Unregister() noexcept {
-  if (reg_handle_ == 0)
+  if (reg_handle_ == 0) {
     return;
+  }
 
   ULONG status = EventUnregister(reg_handle_);
   LOG_IF(ERROR, status != ERROR_SUCCESS) << "Provider unregistration failure";
@@ -53,8 +64,8 @@ void TlmProvider::Unregister() noexcept {
 
 ULONG TlmProvider::Register(const char* provider_name,
                             const GUID& provider_guid,
-                            PENABLECALLBACK enable_callback,
-                            void* enable_callback_context) noexcept {
+                            base::RepeatingCallback<void(EventControlCode)>
+                                on_updated_callback) noexcept {
   // Calling Register when already registered is a fatal error.
   CHECK_EQ(reg_handle_, 0ULL);
 
@@ -66,18 +77,19 @@ ULONG TlmProvider::Register(const char* provider_name,
   // Append the provider name starting at offset 2 (skip MetadataSize).
   provider_metadata_size_ = AppendNameToMetadata(
       provider_metadata_, kMaxProviderMetadataSize, 2, provider_name);
-  if (provider_metadata_size_ > kMaxProviderMetadataSize)
+  if (provider_metadata_size_ > kMaxProviderMetadataSize) {
     return ERROR_BUFFER_OVERFLOW;
+  }
 
   // Fill in MetadataSize field at offset 0.
   *reinterpret_cast<uint16_t*>(provider_metadata_) = provider_metadata_size_;
 
-  enable_callback_ = enable_callback;
-  enable_callback_context_ = enable_callback_context;
+  on_updated_callback_ = std::move(on_updated_callback);
   ULONG status =
       EventRegister(&provider_guid, StaticEnableCallback, this, &reg_handle_);
-  if (status != ERROR_SUCCESS)
+  if (status != ERROR_SUCCESS) {
     return status;
+  }
 
   // Best-effort, ignore failure.
   return ::EventSetInformation(reg_handle_, EventProviderSetTraits,
@@ -109,31 +121,32 @@ void TlmProvider::StaticEnableCallback(const GUID* source_id,
                                        ULONGLONG match_all_keyword,
                                        PEVENT_FILTER_DESCRIPTOR filter_data,
                                        PVOID callback_context) {
-  if (!callback_context)
+  if (!callback_context) {
     return;
-
-  TlmProvider* pProvider = static_cast<TlmProvider*>(callback_context);
-  switch (is_enabled) {
-    case EVENT_CONTROL_CODE_DISABLE_PROVIDER:
-      pProvider->level_plus1_ = 0;
-      break;
-    case EVENT_CONTROL_CODE_ENABLE_PROVIDER:
-      pProvider->level_plus1_ =
-          level != 0 ? static_cast<unsigned>(level) + 1u : 256u;
-      pProvider->keyword_any_ = match_any_keyword;
-      pProvider->keyword_all_ = match_all_keyword;
-      break;
   }
 
-  if (pProvider->enable_callback_) {
-    pProvider->enable_callback_(source_id, is_enabled, level, match_any_keyword,
-                                match_all_keyword, filter_data,
-                                pProvider->enable_callback_context_);
+  TlmProvider* provider = static_cast<TlmProvider*>(callback_context);
+  switch (is_enabled) {
+    case EVENT_CONTROL_CODE_DISABLE_PROVIDER:
+      provider->level_plus1_ = 0;
+      break;
+    case EVENT_CONTROL_CODE_ENABLE_PROVIDER:
+      provider->level_plus1_ =
+          level != 0 ? static_cast<unsigned>(level) + 1u : 256u;
+      break;
+  }
+  provider->keyword_any_ = match_any_keyword;
+  provider->keyword_all_ = match_all_keyword;
+
+  if (provider->on_updated_callback_ &&
+      is_enabled <= static_cast<size_t>(EventControlCode::kHighest)) {
+    provider->on_updated_callback_.Run(
+        static_cast<EventControlCode>(is_enabled));
   }
 }
 
 uint16_t TlmProvider::EventBegin(char* metadata,
-                                 const char* event_name) const noexcept {
+                                 std::string_view event_name) const noexcept {
   // EventMetadata for tracelogging has the following format
   //     UINT16 MetadataSize;
   //     BYTE SpecialFlags[]; // Not used, so always size 1.
@@ -154,7 +167,7 @@ char TlmProvider::EventAddField(char* metadata,
                                 uint16_t* metadata_index,
                                 uint8_t in_type,
                                 uint8_t out_type,
-                                const char* field_name) const noexcept {
+                                std::string_view field_name) const noexcept {
   DCHECK_LT(in_type, 0x80);
   DCHECK_LT(out_type, 0x80);
 
@@ -164,13 +177,15 @@ char TlmProvider::EventAddField(char* metadata,
   //     BYTE OutType; // Only present if high bit set in InType.
   //     ( + optional extension data not used here)
 
-  if (*metadata_index >= kMaxEventMetadataSize)
+  if (*metadata_index >= kMaxEventMetadataSize) {
     return 0;
+  }
 
   *metadata_index = AppendNameToMetadata(metadata, kMaxEventMetadataSize,
                                          *metadata_index, field_name);
-  if (*metadata_index >= kMaxEventMetadataSize)
+  if (*metadata_index >= kMaxEventMetadataSize) {
     return 0;
+  }
 
   if (out_type == 0) {
     // 1-byte encoding: inType + TlgOutNULL.
@@ -227,10 +242,34 @@ bool TlmProvider::KeywordEnabled(uint64_t keyword) const noexcept {
          ((keyword & keyword_any_) && (keyword & keyword_all_) == keyword_all_);
 }
 
+TlmInt64Field::TlmInt64Field(const char* name, const int64_t value) noexcept
+    : TlmFieldWithConstants(name), value_(value) {
+  DCHECK_NE(Name().data(), nullptr);
+}
+int64_t TlmInt64Field::Value() const noexcept {
+  return value_;
+}
+void TlmInt64Field::FillEventDescriptor(
+    EVENT_DATA_DESCRIPTOR* descriptors) const noexcept {
+  EventDataDescCreate(&descriptors[0], (void*)&value_, sizeof(value_));
+}
+
+TlmUInt64Field::TlmUInt64Field(const char* name, const uint64_t value) noexcept
+    : TlmFieldWithConstants(name), value_(value) {
+  DCHECK_NE(Name().data(), nullptr);
+}
+uint64_t TlmUInt64Field::Value() const noexcept {
+  return value_;
+}
+void TlmUInt64Field::FillEventDescriptor(
+    EVENT_DATA_DESCRIPTOR* descriptors) const noexcept {
+  EventDataDescCreate(&descriptors[0], (void*)&value_, sizeof(value_));
+}
+
 TlmMbcsStringField::TlmMbcsStringField(const char* name,
                                        const char* value) noexcept
-    : TlmFieldBase(name), value_(value) {
-  DCHECK_NE(Name(), nullptr);
+    : TlmFieldWithConstants(name), value_(value) {
+  DCHECK_NE(Name().data(), nullptr);
   DCHECK_NE(value_, nullptr);
 }
 
@@ -246,8 +285,8 @@ void TlmMbcsStringField::FillEventDescriptor(
 
 TlmUtf8StringField::TlmUtf8StringField(const char* name,
                                        const char* value) noexcept
-    : TlmFieldBase(name), value_(value) {
-  DCHECK_NE(Name(), nullptr);
+    : TlmFieldWithConstants(name), value_(value) {
+  DCHECK_NE(Name().data(), nullptr);
   DCHECK_NE(value_, nullptr);
 }
 
@@ -260,3 +299,11 @@ void TlmUtf8StringField::FillEventDescriptor(
   EventDataDescCreate(&descriptors[0], value_,
                       base::checked_cast<ULONG>(strlen(value_) + 1));
 }
+
+TlmFieldBase::TlmFieldBase(const char* name) noexcept : name_(name) {}
+TlmFieldBase::TlmFieldBase(std::string_view name) noexcept : name_(name) {}
+
+TlmFieldBase::~TlmFieldBase() = default;
+
+TlmFieldBase::TlmFieldBase(TlmFieldBase&&) noexcept = default;
+TlmFieldBase& TlmFieldBase::operator=(TlmFieldBase&&) noexcept = default;

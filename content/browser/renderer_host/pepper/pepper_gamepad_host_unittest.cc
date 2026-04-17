@@ -9,6 +9,7 @@
 
 #include <memory>
 
+#include "base/compiler_specific.h"
 #include "base/memory/weak_ptr.h"
 #include "base/run_loop.h"
 #include "build/build_config.h"
@@ -54,7 +55,7 @@ class PepperGamepadHostTest : public testing::Test,
 
 TEST_F(PepperGamepadHostTest, WaitForReply) {
   device::Gamepads default_data;
-  memset(&default_data, 0, sizeof(device::Gamepads));
+  UNSAFE_TODO(memset(&default_data, 0, sizeof(device::Gamepads)));
   default_data.items[0].connected = true;
   default_data.items[0].buttons_length = 1;
   ConstructService(default_data);
@@ -107,10 +108,15 @@ TEST_F(PepperGamepadHostTest, WaitForReply) {
   EXPECT_EQ(button_down_data.items[0].buttons_length,
             buffer->data.items[0].buttons_length);
   for (size_t i = 0; i < device::Gamepad::kButtonsLengthCap; i++) {
-    EXPECT_EQ(button_down_data.items[0].buttons[i].value,
-              buffer->data.items[0].buttons[i].value);
-    EXPECT_EQ(button_down_data.items[0].buttons[i].pressed,
-              buffer->data.items[0].buttons[i].pressed);
+    // Gamepad data is packed, so `value` is misaligned. `EXPECT_EQ` internally
+    // takes a reference to the value, so we must copy into a correctly-aligned
+    // temporary first.
+    // TODO(crbug.com/342213636): Rewrite to remove the need for UNSAFE_BUFFERS
+    // annotation.
+    UNSAFE_TODO(EXPECT_EQ(double{button_down_data.items[0].buttons[i].value},
+                          double{buffer->data.items[0].buttons[i].value});
+                EXPECT_EQ(button_down_data.items[0].buttons[i].pressed,
+                          buffer->data.items[0].buttons[i].pressed););
   }
 
   // Duplicate requests should be denied.

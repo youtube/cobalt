@@ -72,8 +72,9 @@ class VIEWS_EXAMPLES_EXPORT DesignerExample : public ExampleBase,
   class GrabHandles;
 
   class GrabHandle : public View {
+    METADATA_HEADER(GrabHandle, View)
+
    public:
-    METADATA_HEADER(GrabHandle);
     GrabHandle(GrabHandles* grab_handles, GrabHandlePosition position);
     GrabHandle(const GrabHandle&) = delete;
     GrabHandle& operator=(const GrabHandle&) = delete;
@@ -88,7 +89,8 @@ class VIEWS_EXAMPLES_EXPORT DesignerExample : public ExampleBase,
    protected:
     // View overrides.
     ui::Cursor GetCursor(const ui::MouseEvent& event) override;
-    gfx::Size CalculatePreferredSize() const override;
+    gfx::Size CalculatePreferredSize(
+        const SizeBounds& /*available_size*/) const override;
     void OnPaint(gfx::Canvas* canvas) override;
     bool OnMousePressed(const ui::MouseEvent& event) override;
     bool OnMouseDragged(const ui::MouseEvent& event) override;
@@ -103,7 +105,7 @@ class VIEWS_EXAMPLES_EXPORT DesignerExample : public ExampleBase,
     static bool IsRight(GrabHandlePosition position);
 
     GrabHandlePosition position_;
-    raw_ptr<GrabHandles> grab_handles_;
+    raw_ptr<GrabHandles, DanglingUntriaged> grab_handles_;
     raw_ptr<View> attached_view_ = nullptr;
     gfx::Point mouse_drag_pos_;
   };
@@ -118,7 +120,7 @@ class VIEWS_EXAMPLES_EXPORT DesignerExample : public ExampleBase,
     bool IsGrabHandle(View* view);
 
    private:
-    std::vector<GrabHandle*> grab_handles_;
+    std::vector<raw_ptr<GrabHandle, VectorExperimental>> grab_handles_;
   };
 
   DesignerExample();
@@ -148,30 +150,21 @@ class VIEWS_EXAMPLES_EXPORT DesignerExample : public ExampleBase,
   // ui::ComboboxModel overrides
   size_t GetItemCount() const override;
   std::u16string GetItemAt(size_t index) const override;
-  absl::optional<size_t> GetDefaultIndex() const override;
+  std::optional<size_t> GetDefaultIndex() const override;
 
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #addr-of
-  RAW_PTR_EXCLUSION BoxLayoutView* designer_container_ = nullptr;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #addr-of
-  RAW_PTR_EXCLUSION DesignerSurface* designer_panel_ = nullptr;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #addr-of
-  RAW_PTR_EXCLUSION View* palette_panel_ = nullptr;
+  raw_ptr<BoxLayoutView> designer_container_ = nullptr;
+  raw_ptr<DesignerSurface> designer_panel_ = nullptr;
+  raw_ptr<View> palette_panel_ = nullptr;
 
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #addr-of
-  RAW_PTR_EXCLUSION Combobox* view_type_ = nullptr;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #addr-of
-  RAW_PTR_EXCLUSION TableView* inspector_ = nullptr;
+  raw_ptr<Combobox> view_type_ = nullptr;
+  raw_ptr<TableView> inspector_ = nullptr;
   raw_ptr<ui::TableModelObserver> model_observer_ = nullptr;
 
   raw_ptr<View> selected_ = nullptr;
   raw_ptr<View> dragging_ = nullptr;
   gfx::Point last_mouse_pos_;
-  std::vector<ui::metadata::MemberMetaDataBase*> selected_members_;
+  std::vector<raw_ptr<ui::metadata::MemberMetaDataBase, VectorExperimental>>
+      selected_members_;
 
   GrabHandles grab_handles_;
 

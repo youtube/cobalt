@@ -5,12 +5,12 @@
 #ifndef CHROME_BROWSER_UI_AUTOFILL_EDIT_ADDRESS_PROFILE_DIALOG_CONTROLLER_H_
 #define CHROME_BROWSER_UI_AUTOFILL_EDIT_ADDRESS_PROFILE_DIALOG_CONTROLLER_H_
 
-#include "components/autofill/core/browser/autofill_client.h"
+#include "components/autofill/core/browser/foundations/autofill_client.h"
 
 namespace autofill {
 
 // Interface that exposes controller functionality to EditAddressProfileView
-// bubble.
+// dialog.
 class EditAddressProfileDialogController {
  public:
   virtual ~EditAddressProfileDialogController() = default;
@@ -20,14 +20,12 @@ class EditAddressProfileDialogController {
   virtual std::u16string GetOkButtonLabel() const = 0;
   virtual const AutofillProfile& GetProfileToEdit() const = 0;
   virtual bool GetIsValidatable() const = 0;
-  // Gets invoked when the user click either OK or Cancel buttons in the address
-  // profile dialog. `decision` reflects which button has been clicked.
-  // `profile_with_edits` contains the address profile including the edits
-  // performed by the user.
-  virtual void OnUserDecision(
-      AutofillClient::SaveAddressProfileOfferUserDecision decision,
-      const AutofillProfile& profile_with_edits) = 0;
-  virtual void OnDialogClosed() = 0;
+  // Gets invoked when the dialog is being closed. `decision` reflects which
+  // button has been clicked. `profile_with_edits` contains the address profile
+  // including the edits performed by the user.
+  virtual void OnDialogClosed(
+      AutofillClient::AddressPromptUserDecision decision,
+      base::optional_ref<const AutofillProfile> profile_with_edits) = 0;
 };
 
 }  // namespace autofill

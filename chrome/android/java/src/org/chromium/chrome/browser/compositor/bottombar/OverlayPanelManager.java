@@ -21,20 +21,14 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 
-/**
- * Used to decide which panel should be showing on screen at any moment.
- */
+/** Used to decide which panel should be showing on screen at any moment. */
 public class OverlayPanelManager {
     /** An observer of panel visibility. */
     public interface OverlayPanelManagerObserver {
-        /**
-         * A notification that an {@link OverlayPanel} has been shown.
-         */
+        /** A notification that an {@link OverlayPanel} has been shown. */
         void onOverlayPanelShown();
 
-        /**
-         * A notification that an {@link OverlayPanel} has been hidden.
-         */
+        /** A notification that an {@link OverlayPanel} has been hidden. */
         void onOverlayPanelHidden();
     }
 
@@ -66,7 +60,7 @@ public class OverlayPanelManager {
      * If a panel was being shown and another panel with higher priority was requested to show,
      * the lower priority one is stored here.
      */
-    private Queue<OverlayPanel> mSuppressedPanels;
+    private final Queue<OverlayPanel> mSuppressedPanels;
 
     /** When a panel is suppressed, this is the panel waiting for the close animation to finish. */
     private OverlayPanel mPendingPanel;
@@ -80,19 +74,19 @@ public class OverlayPanelManager {
     /** This is the view group that all views related to the panel will be put into. */
     private ViewGroup mContainerViewGroup;
 
-    /**
-     * Default constructor.
-     */
+    /** Default constructor. */
     public OverlayPanelManager() {
-        mSuppressedPanels = new PriorityQueue<>(INITIAL_QUEUE_CAPACITY,
-                new Comparator<OverlayPanel>() {
-                    @Override
-                    public int compare(OverlayPanel p1, OverlayPanel p2) {
-                        // The head of the queue is the smallest element, so subtract p1's priority
-                        // from p2's priority.
-                        return p2.getPriority() - p1.getPriority();
-                    }
-                });
+        mSuppressedPanels =
+                new PriorityQueue<>(
+                        INITIAL_QUEUE_CAPACITY,
+                        new Comparator<OverlayPanel>() {
+                            @Override
+                            public int compare(OverlayPanel p1, OverlayPanel p2) {
+                                // The head of the queue is the smallest element, so subtract p1's
+                                // priority from p2's priority.
+                                return p2.getPriority() - p1.getPriority();
+                            }
+                        });
         mPanelSet = new HashSet<>();
         mObservers = new ObserverList<>();
     }
@@ -192,9 +186,7 @@ public class OverlayPanelManager {
         return mSuppressedPanels.size();
     }
 
-    /**
-     * Destroy all panels owned by this manager.
-     */
+    /** Destroy all panels owned by this manager. */
     public void destroy() {
         for (OverlayPanel p : mPanelSet) {
             p.destroy();
@@ -208,10 +200,7 @@ public class OverlayPanelManager {
         mContainerViewGroup = null;
     }
 
-    /**
-     * Set the resource loader for all OverlayPanels.
-     * @param host The OverlayPanel host.
-     */
+    /** Set the resource loader for all OverlayPanels. */
     public void setDynamicResourceLoader(DynamicResourceLoader loader) {
         mDynamicResourceLoader = loader;
         for (OverlayPanel p : mPanelSet) {

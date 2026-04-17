@@ -4,15 +4,15 @@
 
 #include "device/bluetooth/bluetooth_remote_gatt_descriptor_mac.h"
 
+#import "base/apple/foundation_util.h"
 #include "base/functional/bind.h"
-#import "base/mac/foundation_util.h"
 #include "base/strings/sys_string_conversions.h"
 #import "base/task/single_thread_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "device/bluetooth/bluetooth_low_energy_adapter_apple.h"
 #import "device/bluetooth/bluetooth_remote_gatt_characteristic_mac.h"
 
-using base::mac::ObjCCast;
+using base::apple::ObjCCast;
 
 namespace device {
 
@@ -46,13 +46,12 @@ std::vector<uint8_t> VectorValueFromObjC(id objc_value) {
 BluetoothRemoteGattDescriptorMac::BluetoothRemoteGattDescriptorMac(
     BluetoothRemoteGattCharacteristicMac* characteristic,
     CBDescriptor* descriptor)
-    : gatt_characteristic_(characteristic),
-      cb_descriptor_(descriptor, base::scoped_policy::RETAIN) {
+    : gatt_characteristic_(characteristic), cb_descriptor_(descriptor) {
   uuid_ = BluetoothLowEnergyAdapterApple::BluetoothUUIDWithCBUUID(
       [cb_descriptor_ UUID]);
   identifier_ = base::SysNSStringToUTF8(
       [NSString stringWithFormat:@"%s-%p", uuid_.canonical_value().c_str(),
-                                 cb_descriptor_.get()]);
+                                 cb_descriptor_]);
 }
 
 std::string BluetoothRemoteGattDescriptorMac::GetIdentifier() const {
@@ -111,7 +110,7 @@ void BluetoothRemoteGattDescriptorMac::ReadRemoteDescriptor(
 }
 
 void BluetoothRemoteGattDescriptorMac::WriteRemoteDescriptor(
-    const std::vector<uint8_t>& value,
+    base::span<const uint8_t> value,
     base::OnceClosure callback,
     ErrorCallback error_callback) {
   if (destructor_called_ || HasPendingRead() || HasPendingWrite()) {
@@ -125,8 +124,8 @@ void BluetoothRemoteGattDescriptorMac::WriteRemoteDescriptor(
   DVLOG(1) << *this << ": Write value.";
   write_value_callbacks_ =
       std::make_pair(std::move(callback), std::move(error_callback));
-  base::scoped_nsobject<NSData> nsdata_value(
-      [[NSData alloc] initWithBytes:value.data() length:value.size()]);
+  NSData* nsdata_value = [[NSData alloc] initWithBytes:value.data()
+                                                length:value.size()];
   [GetCBPeripheral() writeValue:nsdata_value forDescriptor:GetCBDescriptor()];
 }
 
@@ -149,7 +148,7 @@ void BluetoothRemoteGattDescriptorMac::DidUpdateValueForDescriptor(
   }
   DVLOG(1) << *this << ": Value read.";
   value_ = VectorValueFromObjC([cb_descriptor_ value]);
-  std::move(read_value_callback_).Run(/*error_code=*/absl::nullopt, value_);
+  std::move(read_value_callback_).Run(/*error_code=*/std::nullopt, value_);
 }
 
 void BluetoothRemoteGattDescriptorMac::DidWriteValueForDescriptor(

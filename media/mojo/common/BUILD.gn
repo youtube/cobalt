@@ -2,10 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-if (is_cobalt) {
-  import("//starboard/build/buildflags.gni")
-}
-
 source_set("common") {
   sources = [
     "audio_data_s16_converter.cc",
@@ -20,6 +16,8 @@ source_set("common") {
     "mojo_decoder_buffer_converter.h",
     "mojo_pipe_read_write_util.cc",
     "mojo_pipe_read_write_util.h",
+    "validation_utils.cc",
+    "validation_utils.h",
   ]
 
   deps = [
@@ -38,6 +36,7 @@ source_set("unit_tests") {
   testonly = true
 
   sources = [
+    "audio_data_s16_converter_unittest.cc",
     "media_type_converters_unittest.cc",
     "mojo_data_pipe_read_write_unittest.cc",
     "mojo_decoder_buffer_converter_unittest.cc",

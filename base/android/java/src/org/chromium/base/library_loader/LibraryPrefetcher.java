@@ -4,16 +4,16 @@
 
 package org.chromium.base.library_loader;
 
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.CommandLine;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.SysUtils;
 import org.chromium.base.TraceEvent;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
-import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
-import org.chromium.build.annotations.MainDex;
+import org.chromium.build.annotations.NullMarked;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -23,13 +23,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * See also base/android/library_loader/library_prefetcher_hooks.cc, which contains
  * the native counterpart to this class.
  */
-@MainDex
+@NullMarked
 @JNINamespace("base::android")
 public class LibraryPrefetcher {
 
     private static final String TAG = "LibraryPrefetcher";
-    // One-way switch that becomes true once
-    // {@link asyncPrefetchLibrariesToMemory} has been called.
+    // One-way switch that becomes true once {@link asyncPrefetchLibrariesToMemory} has been called.
     private static final AtomicBoolean sPrefetchLibraryHasBeenCalled = new AtomicBoolean();
 
     /**
@@ -56,24 +55,31 @@ public class LibraryPrefetcher {
             return;
         }
 
-        PostTask.postTask(TaskTraits.USER_BLOCKING, () -> {
-            int percentage = LibraryPrefetcherJni.get().percentageOfResidentNativeLibraryCode();
-            try (TraceEvent e =
-                            TraceEvent.scoped("LibraryPrefetcher.asyncPrefetchLibrariesToMemory",
+        PostTask.postTask(
+                TaskTraits.USER_BLOCKING,
+                () -> {
+                    int percentage =
+                            LibraryPrefetcherJni.get().percentageOfResidentNativeLibraryCode();
+                    try (TraceEvent e =
+                            TraceEvent.scoped(
+                                    "LibraryPrefetcher.asyncPrefetchLibrariesToMemory",
                                     Integer.toString(percentage))) {
-                // Arbitrary percentage threshold. If most of the native library is already
-                // resident (likely with monochrome), don't bother creating a prefetch process.
-                boolean prefetch = coldStart && percentage < 90;
-                if (prefetch) LibraryPrefetcherJni.get().forkAndPrefetchNativeLibrary();
-                if (percentage != -1) {
-                    String histogram = "LibraryLoader.PercentageOfResidentCodeBeforePrefetch"
-                            + (coldStart ? ".ColdStartup" : ".WarmStartup");
-                    RecordHistogram.recordPercentageHistogram(histogram, percentage);
-                }
-            }
-            // Removes a dead flag, don't remove the removal code before M77 at least.
-            ContextUtils.getAppSharedPreferences().edit().remove("dont_prefetch_libraries").apply();
-        });
+                        // Arbitrary percentage threshold. If most of the native library is already
+                        // resident (likely with monochrome), don't bother creating a prefetch
+                        // process.
+                        boolean prefetch = coldStart && percentage < 90;
+                        if (prefetch) LibraryPrefetcherJni.get().forkAndPrefetchNativeLibrary();
+                    }
+                    // Removes a dead flag, don't remove the removal code before M77 at least.
+                    ContextUtils.getAppSharedPreferences()
+                            .edit()
+                            .remove("dont_prefetch_libraries")
+                            .apply();
+                });
+    }
+
+    public static void prefetchNativeLibraryForWebView() {
+        LibraryPrefetcherJni.get().prefetchNativeLibraryForWebView();
     }
 
     @NativeMethods
@@ -81,7 +87,11 @@ public class LibraryPrefetcher {
         // Finds the ranges corresponding to the native library pages, forks a new
         // process to prefetch these pages and waits for it. The new process then
         // terminates. This is blocking.
+        // On some devices, this prefetches only the ordered part of the library.
         void forkAndPrefetchNativeLibrary();
+
+        // Similar to the above function, but always prefetches the whole library.
+        void prefetchNativeLibraryForWebView();
 
         // Returns the percentage of the native library code page that are currently reseident in
         // memory.

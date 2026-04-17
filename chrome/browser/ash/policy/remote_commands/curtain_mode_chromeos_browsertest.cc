@@ -9,14 +9,14 @@
 #include "ash/root_window_controller.h"
 #include "ash/shell.h"
 #include "base/check_deref.h"
-#include "base/functional/callback_forward.h"
 #include "base/scoped_observation.h"
 #include "base/strings/stringprintf.h"
-#include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
+#include "base/test/run_until.h"
 #include "base/test/test_future.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
 #include "remoting/host/curtain_mode_chromeos.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -35,7 +35,7 @@ enum class ColorScheme {
 
 bool ArePixelTestsEnabled() {
   return base::CommandLine::ForCurrentProcess()->HasSwitch(
-      "browser-ui-tests-verify-pixels");
+      switches::kVerifyPixels);
 }
 
 std::string GetScreenshotName(ColorScheme color_scheme) {
@@ -63,38 +63,6 @@ class LoadWaiter : public ash::AshWebView::Observer {
       observation_;
 };
 
-// Use as `polling_interval` for `WaitUntil` when you know the
-// predicate should evaluate to true almost immediately, for example after a few
-// `PostTask` bounces.
-constexpr static base::TimeDelta kCheckOften = base::Milliseconds(1);
-
-using WaitUntilPredicate = base::RepeatingCallback<bool(void)>;
-
-// Waits until `predicate` evaluates to `true`.
-// If `predicate` is already true this will return immediately, otherwise
-// it will periodically evaluate `predicate` every `polling_interval` time.
-//
-// Returns true if `predicate` became true, or false if a timeout happens.
-//
-[[nodiscard]] bool WaitUntil(WaitUntilPredicate predicate,
-                             base::TimeDelta polling_interval) {
-  // No need to wait if the predicate is already true.
-  if (predicate.Run()) {
-    return true;
-  }
-
-  base::test::TestFuture<void> ready_signal_;
-  base::RepeatingTimer timer;
-  timer.Start(FROM_HERE, polling_interval,  //
-              base::BindLambdaForTesting([&]() {
-                if (predicate.Run()) {
-                  ready_signal_.SetValue();
-                }
-              }));
-
-  return ready_signal_.Wait();
-}
-
 }  // namespace
 
 class CurtainModeChromeOsPixelTest
@@ -116,12 +84,10 @@ class CurtainModeChromeOsPixelTest
     auto& root_window_controller =
         CHECK_DEREF(ash::Shell::GetPrimaryRootWindowController());
 
-    EXPECT_TRUE(WaitUntil(
-        base::BindLambdaForTesting([&]() {
-          return root_window_controller.security_curtain_widget_controller() !=
-                 nullptr;
-        }),
-        kCheckOften));
+    EXPECT_TRUE(base::test::RunUntil([&]() {
+      return root_window_controller.security_curtain_widget_controller() !=
+             nullptr;
+    }));
 
     return root_window_controller.security_curtain_widget_controller()
         ->GetWidget();
@@ -138,15 +104,20 @@ class CurtainModeChromeOsPixelTest
 
   [[nodiscard]] bool CompareWithScreenshot(const views::Widget& widget,
                                            const std::string& screenshot) {
-    views::ViewSkiaGoldPixelDiff pixel_diff;
-    pixel_diff.Init(
+    views::ViewSkiaGoldPixelDiff pixel_diff(
         /*screenshot_prefix=*/
         ::testing::UnitTest::GetInstance()->current_test_suite()->name());
     return pixel_diff.CompareViewScreenshot(screenshot, widget.GetRootView());
   }
 };
 
-IN_PROC_BROWSER_TEST_P(CurtainModeChromeOsPixelTest, CheckSecurityCurtain) {
+// This test is flaky because we often take the screenshot before the image
+// is displayed. So far we haven't managed to find a reliable signal that is
+// triggered after the image is displayed - even the JS on-ready signals trigger
+// before the image is shown :(
+// TODO(b/284233962): Find a reliable signal.
+IN_PROC_BROWSER_TEST_P(CurtainModeChromeOsPixelTest,
+                       DISABLED_CheckSecurityCurtain) {
   if (!ArePixelTestsEnabled()) {
     return;
   }

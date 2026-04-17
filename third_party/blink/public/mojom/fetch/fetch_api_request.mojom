@@ -44,6 +44,7 @@ enum RequestContextType {
   IMAGE,
   IMAGE_SET,
   INTERNAL,
+  JSON,
   LOCATION,
   MANIFEST,
   OBJECT,
@@ -53,6 +54,7 @@ enum RequestContextType {
   SCRIPT,
   SERVICE_WORKER,
   SHARED_WORKER,
+  SPECULATION_RULES,
   SUBRESOURCE,
   SUBRESOURCE_WEBBUNDLE,
   STYLE,
@@ -211,4 +213,13 @@ struct FetchAPIRequest {
 
   network.mojom.AttributionReportingEligibility attribution_reporting_eligibility =
     network.mojom.AttributionReportingEligibility.kUnset;
+
+  network.mojom.AttributionSupport attribution_reporting_support =
+    network.mojom.AttributionSupport.kUnset;
+
+  // Used for BestEffortServiceWorker(crbug.com/1420517). Specifies the ID of
+  // the RaceNetworkRequest if the RaceNetworkRequest is triggered. This value
+  // is referred by the fetch process in blink, in order to detect and dedupe
+  // the corresponding fetch event in ServiceWorker.
+  mojo_base.mojom.UnguessableToken? service_worker_race_network_request_token;
 };

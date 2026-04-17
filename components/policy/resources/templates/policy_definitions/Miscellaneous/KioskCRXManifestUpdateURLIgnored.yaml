@@ -24,9 +24,8 @@ owners:
 - burunduk@chromium.org
 schema:
   type: boolean
-supported_chrome_os_management:
-- google_cloud
 supported_on:
 - chrome_os:98-
 tags: []
 type: main
+generate_device_proto: False

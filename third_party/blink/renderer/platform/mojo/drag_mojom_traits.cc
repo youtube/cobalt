@@ -5,7 +5,10 @@
 #include "third_party/blink/renderer/platform/mojo/drag_mojom_traits.h"
 
 #include <algorithm>
+#include <optional>
 #include <string>
+#include <variant>
+#include <vector>
 
 #include "base/check.h"
 #include "base/containers/span.h"
@@ -16,14 +19,12 @@
 #include "mojo/public/cpp/base/big_buffer.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "services/network/public/mojom/referrer_policy.mojom-shared.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 #include "third_party/blink/public/mojom/blob/serialized_blob.mojom.h"
 #include "third_party/blink/public/mojom/file_system_access/file_system_access_data_transfer_token.mojom-blink.h"
 #include "third_party/blink/public/platform/file_path_conversion.h"
 #include "third_party/blink/public/platform/web_drag_data.h"
 #include "third_party/blink/public/platform/web_string.h"
-#include "third_party/blink/public/platform/web_vector.h"
+#include "third_party/blink/renderer/platform/wtf/shared_buffer.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace mojo {
@@ -50,11 +51,11 @@ WTF::String StructTraits<blink::mojom::DragItemStringDataView,
 }
 
 // static
-absl::optional<blink::KURL> StructTraits<blink::mojom::DragItemStringDataView,
-                                         blink::WebDragData::StringItem>::
+std::optional<blink::KURL> StructTraits<blink::mojom::DragItemStringDataView,
+                                        blink::WebDragData::StringItem>::
     base_url(const blink::WebDragData::StringItem& item) {
   if (item.base_url.IsNull())
-    return absl::nullopt;
+    return std::nullopt;
   return item.base_url;
 }
 
@@ -64,7 +65,7 @@ bool StructTraits<blink::mojom::DragItemStringDataView,
     Read(blink::mojom::DragItemStringDataView data,
          blink::WebDragData::StringItem* out) {
   WTF::String string_type, string_data, title;
-  absl::optional<blink::KURL> url;
+  std::optional<blink::KURL> url;
   if (!data.ReadStringType(&string_type) ||
       !data.ReadStringData(&string_data) || !data.ReadTitle(&title) ||
       !data.ReadBaseUrl(&url))
@@ -130,11 +131,8 @@ mojo_base::BigBuffer StructTraits<blink::mojom::DragItemBinaryDataView,
                                   blink::WebDragData::BinaryDataItem>::
     data(const blink::WebDragData::BinaryDataItem& item) {
   mojo_base::BigBuffer buffer(item.data.size());
-  item.data.ForEachSegment([&buffer](const char* segment, size_t segment_size,
-                                     size_t segment_offset) {
-    std::copy(segment, segment + segment_size, buffer.data() + segment_offset);
-    return true;
-  });
+  const SharedBuffer& item_buffer = item.data;
+  CHECK(item_buffer.GetBytes(base::span(buffer)));
   return buffer;
 }
 
@@ -180,9 +178,7 @@ bool StructTraits<blink::mojom::DragItemBinaryDataView,
       !data.ReadContentDisposition(&content_disposition)) {
     return false;
   }
-  out->data =
-      blink::WebData(reinterpret_cast<const char*>(file_contents.data().data()),
-                     file_contents.data().size());
+  out->data = blink::WebData(file_contents.data());
   out->image_accessible = data.is_image_accessible();
   out->source_url = source_url;
   out->filename_extension = blink::FilePathToWebString(filename_extension);
@@ -263,14 +259,13 @@ bool UnionTraits<blink::mojom::DragItemDataView, blink::WebDragData::Item>::
           &out->emplace<blink::WebDragData::FileSystemFileItem>());
   }
   NOTREACHED();
-  return false;
 }
 
 // static
 blink::mojom::DragItemDataView::Tag
 UnionTraits<blink::mojom::DragItemDataView, blink::WebDragData::Item>::GetTag(
     const blink::WebDragData::Item& item) {
-  return absl::visit(
+  return std::visit(
       base::Overloaded{
           [](const blink::WebDragData::StringItem&) {
             return blink::mojom::DragItemDataView::Tag::kString;
@@ -288,7 +283,7 @@ UnionTraits<blink::mojom::DragItemDataView, blink::WebDragData::Item>::GetTag(
 }
 
 // static
-const blink::WebVector<blink::WebDragData::Item>&
+const std::vector<blink::WebDragData::Item>&
 StructTraits<blink::mojom::DragDataDataView, blink::WebDragData>::items(
     const blink::WebDragData& drag_data) {
   return drag_data.Items();
@@ -303,6 +298,12 @@ WTF::String StructTraits<blink::mojom::DragDataDataView, blink::WebDragData>::
 }
 
 // static
+bool StructTraits<blink::mojom::DragDataDataView, blink::WebDragData>::
+    force_default_action(const blink::WebDragData& drag_data) {
+  return drag_data.ForceDefaultAction();
+}
+
+// static
 network::mojom::ReferrerPolicy StructTraits<
     blink::mojom::DragDataDataView,
     blink::WebDragData>::referrer_policy(const blink::WebDragData& drag_data) {
@@ -313,7 +314,7 @@ network::mojom::ReferrerPolicy StructTraits<
 bool StructTraits<blink::mojom::DragDataDataView, blink::WebDragData>::Read(
     blink::mojom::DragDataDataView data,
     blink::WebDragData* out) {
-  blink::WebVector<blink::WebDragData::Item> items;
+  std::vector<blink::WebDragData::Item> items;
   WTF::String file_system_id;
   network::mojom::ReferrerPolicy referrer_policy;
   if (!data.ReadItems(&items) || !data.ReadFileSystemId(&file_system_id) ||
@@ -323,6 +324,7 @@ bool StructTraits<blink::mojom::DragDataDataView, blink::WebDragData>::Read(
   blink::WebDragData drag_data;
   drag_data.SetItems(std::move(items));
   drag_data.SetFilesystemId(file_system_id);
+  drag_data.SetForceDefaultAction(data.force_default_action());
   drag_data.SetReferrerPolicy(referrer_policy);
   *out = std::move(drag_data);
   return true;

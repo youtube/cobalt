@@ -4,7 +4,6 @@
 
 package org.chromium.tools.errorprone.plugin;
 
-import com.google.auto.service.AutoService;
 import com.google.errorprone.BugPattern;
 import com.google.errorprone.VisitorState;
 import com.google.errorprone.bugpatterns.BugChecker;
@@ -21,18 +20,20 @@ import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 import com.sun.tools.javac.code.Symbol;
 
+import org.chromium.build.annotations.ServiceImpl;
+
 import javax.lang.model.element.Modifier;
 
-/**
- * Detects when non-final fields are explicitly initialized to default values
- */
-@AutoService(BugChecker.class)
-@BugPattern(name = "NoRedundantFieldInit",
+/** Detects when non-final fields are explicitly initialized to default values */
+@ServiceImpl(BugChecker.class)
+@BugPattern(
+        name = "NoRedundantFieldInit",
         summary = "Do not explicitly initialize a non-final field with a default value",
-        severity = BugPattern.SeverityLevel.ERROR, linkType = BugPattern.LinkType.CUSTOM,
+        severity = BugPattern.SeverityLevel.ERROR,
+        linkType = BugPattern.LinkType.CUSTOM,
         link = "https://issuetracker.google.com/issues/37124982")
-public class NoRedundantFieldInitCheck
-        extends BugChecker implements BugChecker.VariableTreeMatcher {
+public class NoRedundantFieldInitCheck extends BugChecker
+        implements BugChecker.VariableTreeMatcher {
     private static final Matcher<ClassTree> SUBTYPE_OF_IINTERFACE =
             Matchers.isSubtypeOf("android.os.IInterface");
 
@@ -48,7 +49,7 @@ public class NoRedundantFieldInitCheck
 
         // Temporarily turn off checks if the enclosing class is a subclass of IInterface.
         if (SUBTYPE_OF_IINTERFACE.matches(
-                    ASTHelpers.findClass(enclosingClass, visitorState), visitorState)) {
+                ASTHelpers.findClass(enclosingClass, visitorState), visitorState)) {
             return Description.NO_MATCH;
         }
 

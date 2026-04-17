@@ -5,14 +5,26 @@
 #ifndef CHROME_BROWSER_UI_WEBUI_SIGNIN_DICE_WEB_SIGNIN_INTERCEPT_UI_H_
 #define CHROME_BROWSER_UI_WEBUI_SIGNIN_DICE_WEB_SIGNIN_INTERCEPT_UI_H_
 
-#include "content/public/browser/web_ui_controller.h"
-
 #include "base/functional/callback.h"
-#include "chrome/browser/signin/dice_web_signin_interceptor.h"
+#include "chrome/browser/signin/web_signin_interceptor.h"
+#include "chrome/common/webui_url_constants.h"
+#include "content/public/browser/web_ui_controller.h"
+#include "content/public/browser/webui_config.h"
+#include "content/public/common/url_constants.h"
 
 namespace content {
 class WebUI;
 }
+
+class DiceWebSigninInterceptUI;
+
+class DiceWebSigninInterceptUIConfig
+    : public content::DefaultWebUIConfig<DiceWebSigninInterceptUI> {
+ public:
+  DiceWebSigninInterceptUIConfig()
+      : DefaultWebUIConfig(content::kChromeUIScheme,
+                           chrome::kChromeUIDiceWebSigninInterceptHost) {}
+};
 
 class DiceWebSigninInterceptUI : public content::WebUIController {
  public:
@@ -24,8 +36,7 @@ class DiceWebSigninInterceptUI : public content::WebUIController {
 
   // Initializes the DiceWebSigninInterceptUI.
   void Initialize(
-      const DiceWebSigninInterceptor::Delegate::BubbleParameters&
-          bubble_parameters,
+      const WebSigninInterceptor::Delegate::BubbleParameters& bubble_parameters,
       base::OnceCallback<void(int)> show_widget_with_height_callback,
       base::OnceCallback<void(SigninInterceptionUserChoice)>
           completion_callback);
